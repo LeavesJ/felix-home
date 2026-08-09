@@ -83,9 +83,19 @@ printf '\nsession hook\n'
 out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
 has "hook binds the invented project" "$out" "Project: widget"
 case "$out" in
-  *'"hookSpecificOutput"'*) ok "hook emits Claude Code shape" ;;
-  *) bad "hook emits Claude Code shape" "$out" ;;
+  *'"hookSpecificOutput"'*) ok "hook emits Claude Code shape as a plugin" ;;
+  *) bad "hook emits Claude Code shape as a plugin" "$out" ;;
 esac
+
+# Felix also installs as a plain settings.json hook, where CLAUDE_PLUGIN_ROOT is
+# unset. Emitting the wrong shape there injects nothing and fails silently.
+out="$(cd "$REPO" && env -u CLAUDE_PLUGIN_ROOT "$FROOT/harness/hooks/session-start" 2>&1)"
+case "$out" in
+  *'"hookSpecificOutput"'*) ok "hook emits Claude Code shape without plugin env" ;;
+  *) bad "hook emits Claude Code shape without plugin env" "$out" ;;
+esac
+out_json="$(printf '%s' "$out" | python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"][:20])' 2>&1)"
+has "and that output is valid JSON" "$out_json" "Felix governs"
 
 out="$(cd "$PLAIN" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"; rc=$?
 is "hook silent in ungoverned repo" "${#out}" "0"

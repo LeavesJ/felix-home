@@ -53,10 +53,16 @@ escape_for_json() {
 
 escaped="$(escape_for_json "$context")"
 
-if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ]; then
-  printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped"
-else
+# Claude Code is the default shape. Felix runs both as a plugin and as a plain
+# user-level hook in settings.json, and only the plugin path sets
+# CLAUDE_PLUGIN_ROOT; keying off it would emit the wrong shape for half the
+# installs, which fails silently by injecting nothing.
+if [ -n "${COPILOT_CLI:-}" ]; then
   printf '{\n  "additionalContext": "%s"\n}\n' "$escaped"
+elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+  printf '{\n  "additional_context": "%s"\n}\n' "$escaped"
+else
+  printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped"
 fi
 
 exit 0

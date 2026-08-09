@@ -4,6 +4,8 @@
 #
 #   felix which          which project governs here, and where its doctrine is
 #   felix gate [args]    run this project's gate; exits with the gate's status
+#   felix doctor         capabilities present in the checkout but never declared
+#   felix adopt <cap>    declare a capability this project now has
 #   felix new <name>     scaffold a new project
 #
 # Adding a project is creating a directory and a JSON file. It is never an edit
@@ -16,6 +18,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # shellcheck source=lib/resolve.sh
 . "${SCRIPT_DIR}/lib/resolve.sh"
+# shellcheck source=lib/detect.sh
+. "${SCRIPT_DIR}/lib/detect.sh"
 
 die() { printf 'felix: %s\n' "$1" >&2; exit "${2:-1}"; }
 
@@ -86,10 +90,66 @@ EOF
   printf '      containing "%s" to the project checkout.\n' "$name"
 }
 
+cmd_doctor() {
+  resolve_or_die; local proj="$PROJ" root new
+  root="$(felix_repo_root "$PWD")"
+  new="$(felix_undeclared "$root" "$proj")"
+
+  printf 'project:      %s\n' "$(basename "$proj")"
+  printf 'declared:     %s\n' "$(felix_declared "$proj" | tr '\n' ' ')"
+  if [ -z "$new" ]; then
+    printf 'undeclared:   none\n'
+    return 0
+  fi
+  printf 'undeclared:   %s\n\n' "$(printf '%s' "$new" | tr '\n' ' ')"
+  printf 'These surfaces exist in the checkout but this project has never\n'
+  printf 'declared them. Each one is a gate the guidebook expects and that\n'
+  printf 'nothing is currently enforcing:\n\n'
+  printf '%s\n' "$new" | while read -r c; do
+    [ -n "$c" ] || continue
+    printf '  %-14s %s\n' "$c" "$(_felix_why "$c")"
+  done
+  printf '\nadopt with: felix adopt <capability>\n'
+  # Reporting drift is not a failure. Exit 0 so a session hook or a CI step can
+  # surface this without turning a green tree red for work nobody asked for yet.
+  return 0
+}
+
+_felix_why() {
+  case "$1" in
+    ci)            echo "workflows exist; confirm the gate is a required check" ;;
+    deploy)        echo "a deploy target exists; preview and smoke tests apply" ;;
+    iac)           echo "infrastructure as code; plan-before-apply applies" ;;
+    observability) echo "error reporting present; the incident loop applies" ;;
+    billing)       echo "payments present; live writes need a broker and approval gate" ;;
+    e2e)           echo "browser tooling present; critical flows should be covered" ;;
+    database)      echo "schema or migrations present; migration and access tests apply" ;;
+    api)           echo "a served surface exists; contract tests apply" ;;
+    frontend)      echo "a JS package exists; build and design checks apply" ;;
+    tests)         echo "a test suite exists; it belongs in the gate" ;;
+    secrets)       echo "env templates present; secret scanning applies" ;;
+    *)             echo "detected in the checkout" ;;
+  esac
+}
+
+cmd_adopt() {
+  resolve_or_die; local proj="$PROJ" cap="${1:-}"
+  [ -n "$cap" ] || die "usage: felix adopt <capability>"
+  touch "$proj/capabilities"
+  if grep -qxF "$cap" "$proj/capabilities" 2>/dev/null; then
+    printf '%s already declared\n' "$cap"; return 0
+  fi
+  printf '%s\n' "$cap" >> "$proj/capabilities"
+  printf 'declared %s for %s\n' "$cap" "$(basename "$proj")"
+  printf 'commit %s in the Felix repo to make it durable.\n' "$proj/capabilities"
+}
+
 case "${1:-help}" in
-  which) shift; cmd_which "$@" ;;
-  gate)  shift; cmd_gate "$@" ;;
-  new)   shift; cmd_new "$@" ;;
+  which)  shift; cmd_which "$@" ;;
+  gate)   shift; cmd_gate "$@" ;;
+  doctor) shift; cmd_doctor "$@" ;;
+  adopt)  shift; cmd_adopt "$@" ;;
+  new)    shift; cmd_new "$@" ;;
   help|-h|--help) usage ;;
   *) die "unknown command: $1. Try 'felix help'." ;;
 esac

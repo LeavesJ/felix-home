@@ -110,6 +110,35 @@ out="$("$FELIX" new widget 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "refuses to clobber an existing project" \
                 || bad "refuses to clobber an existing project"
 
+printf '\ncapability detection\n'
+# The scenario the founder asked for: a surface that does not exist today, and
+# the day it appears Felix notices without anyone remembering to look.
+out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"
+case "$out" in
+  *"undeclared:   none"*) ok "clean project reports no drift" ;;
+  *) bad "clean project reports no drift" "$out" ;;
+esac
+
+printf 'sentry-sdk>=2.0\n' > "$REPO/requirements.txt"
+out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"
+has "adding sentry surfaces observability" "$out" "observability"
+has "and explains why it now matters"      "$out" "incident loop"
+
+printf 'FROM python:3.12\n' > "$REPO/Dockerfile"
+out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"
+has "adding a Dockerfile surfaces deploy" "$out" "deploy"
+
+out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"; rc=$?
+is "doctor exits 0 despite drift" "$rc" "0"
+
+( cd "$REPO" && "$FELIX" adopt observability >/dev/null )
+out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"
+case "$out" in
+  *"undeclared:   deploy"*) ok "adopting removes it from drift" ;;
+  *) bad "adopting removes it from drift" "$out" ;;
+esac
+rm -f "$REPO/requirements.txt" "$REPO/Dockerfile"
+
 printf '\nindependence\n'
 # Scoped to code that runs in production. This suite names Elenchus in its own
 # comments on purpose, since explaining what it refuses to depend on is the point.

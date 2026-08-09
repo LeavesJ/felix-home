@@ -16,6 +16,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck source=../lib/resolve.sh
 . "${FELIX_ROOT}/harness/lib/resolve.sh"
+# shellcheck source=../lib/detect.sh
+. "${FELIX_ROOT}/harness/lib/detect.sh"
 
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_ROOT")" || PROJ=""
 [ -n "$PROJ" ] || exit 0
@@ -29,12 +31,26 @@ else
   gate_line="Gate: none declared (set \"gate\" in ${PROJ}/project.json)"
 fi
 
+# Surface capability drift at session start rather than waiting to be asked. The
+# day a project grows a deploy target or error reporting, the gates the guidebook
+# expects become real, and nobody is watching for that moment.
+drift="$(felix_undeclared "$(felix_repo_root "$PWD")" "$PROJ" 2>/dev/null | tr '\n' ' ')"
+drift="${drift% }"
+if [ -n "$drift" ]; then
+  drift_line="
+New surfaces detected that this project has not declared: ${drift}
+Run 'felix doctor' for what each one implies, 'felix adopt <name>' to declare it."
+else
+  drift_line=""
+fi
+
 context="Felix governs this session.
 
 Project: ${project}
 Constitution: ${PROJ}/CLAUDE.md
 ${gate_line}
 Memory: ${PROJ}/memory/
+${drift_line}
 
 Run the gate through the command above rather than a repo-relative path, which
 may not exist in the tree you are standing in. Declare your tier before you

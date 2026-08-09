@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# Felix harness self-test.
+#
+# The claim under test is that Felix governs a project it knows nothing about.
+# So this suite never touches Elenchus. It builds a throwaway Felix root holding
+# a single invented project whose gate is a shell one-liner, in a checkout with
+# no git remote, and drives the real CLI and the real hook against it.
+#
+# If Felix ever grows a hidden assumption about Python, about a remote naming
+# scheme, or about Elenchus specifically, these tests are where it surfaces.
+#
+#   harness/tests/run
+
+set -uo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+REAL_HARNESS="$(cd "$HERE/.." && pwd)"
+
+PASS=0; FAIL=0
+ok()   { PASS=$((PASS+1)); printf '  ok    %s\n' "$1"; }
+bad()  { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; }
+is()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "expected [$3] got [$2]"; }
+has()  { case "$2" in *"$3"*) ok "$1" ;; *) bad "$1" "[$2] lacks [$3]" ;; esac; }
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+# ---------------------------------------------------------------- fixture ----
+# A Felix root with the real harness and one invented project.
+FROOT="$TMP/felix"
+mkdir -p "$FROOT/projects/widget/memory"
+cp -R "$REAL_HARNESS" "$FROOT/harness"
+
+cat > "$FROOT/projects/widget/project.json" <<'EOF'
+{
+  "name": "widget",
+  "remote_match": "example.com/widget",
+  "gate": "sh -c 'test -f WIDGET.txt && echo widget-gate-ran'"
+}
+EOF
+printf '# widget\n' > "$FROOT/projects/widget/CLAUDE.md"
+
+FELIX="$FROOT/harness/felix"
+
+# A checkout with NO git remote, bound by marker file alone.
+REPO="$TMP/some-customer-repo"
+mkdir -p "$REPO/deep/nested"
+( cd "$REPO" && git init -q -b main )
+# macOS resolves /var to /private/var, and git reports the resolved path. Compare
+# against what the filesystem actually calls this directory, not what mktemp said.
+REPO="$(cd "$REPO" && pwd -P)"
+printf 'widget\n' > "$REPO/.felix"
+printf 'contents\n'  > "$REPO/WIDGET.txt"
+
+printf '\nresolution\n'
+out="$(cd "$REPO" && "$FELIX" which 2>&1)"
+has "resolves via .felix marker with no remote" "$out" "project:      widget"
+has "reports the governed tree"                 "$out" "governs:      $REPO"
+
+out="$(cd "$REPO/deep/nested" && "$FELIX" which 2>&1)"
+has "resolves from a nested subdirectory" "$out" "project:      widget"
+
+printf '\ngate execution\n'
+out="$(cd "$REPO/deep/nested" && "$FELIX" gate 2>&1)"; rc=$?
+is  "passing gate exits 0" "$rc" "0"
+has "gate command actually ran" "$out" "widget-gate-ran"
+
+# The gate must run against the checkout it was pointed at, not against Felix.
+# A gate that inspects its own directory returns a verdict about the wrong code.
+rm "$REPO/WIDGET.txt"
+out="$(cd "$REPO" && "$FELIX" gate 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "failing gate propagates non-zero exit" \
+                || bad "failing gate propagates non-zero exit" "got 0, a gate that cannot fail is not a gate"
+printf 'contents\n' > "$REPO/WIDGET.txt"
+
+printf '\nungoverned directories\n'
+PLAIN="$TMP/unrelated"; mkdir -p "$PLAIN"; ( cd "$PLAIN" && git init -q -b main )
+out="$(cd "$PLAIN" && "$FELIX" gate 2>&1)"; rc=$?
+is  "ungoverned repo refuses to run a gate" "$rc" "2"
+has "and says which projects it knows"      "$out" "Known projects:"
+
+printf '\nsession hook\n'
+out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+has "hook binds the invented project" "$out" "Project: widget"
+case "$out" in
+  *'"hookSpecificOutput"'*) ok "hook emits Claude Code shape" ;;
+  *) bad "hook emits Claude Code shape" "$out" ;;
+esac
+
+out="$(cd "$PLAIN" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"; rc=$?
+is "hook silent in ungoverned repo" "${#out}" "0"
+is "hook still exits 0 there"       "$rc" "0"
+
+printf '\nscaffolding\n'
+out="$("$FELIX" new fresh 2>&1)"; rc=$?
+is "felix new exits 0" "$rc" "0"
+[ -f "$FROOT/projects/fresh/project.json" ] && ok "scaffold wrote project.json" \
+                                            || bad "scaffold wrote project.json"
+out="$("$FELIX" new widget 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "refuses to clobber an existing project" \
+                || bad "refuses to clobber an existing project"
+
+printf '\nindependence\n'
+# Scoped to code that runs in production. This suite names Elenchus in its own
+# comments on purpose, since explaining what it refuses to depend on is the point.
+runtime=("$FROOT/harness/felix" "$FROOT/harness/lib" "$FROOT/harness/hooks")
+if grep -rniq "elenchus" "${runtime[@]}" 2>/dev/null; then
+  bad "runtime harness names no specific project" \
+      "$(grep -rni 'elenchus' "${runtime[@]}" | head -3)"
+else
+  ok "runtime harness names no specific project"
+fi
+
+printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
+[ "$FAIL" -eq 0 ] || exit 1

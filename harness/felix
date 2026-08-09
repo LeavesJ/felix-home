@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# Felix CLI. Resolves which project governs the current directory and runs its
+# gate. Knows nothing about any specific project, language, or toolchain.
+#
+#   felix which          which project governs here, and where its doctrine is
+#   felix gate [args]    run this project's gate; exits with the gate's status
+#   felix new <name>     scaffold a new project
+#
+# Adding a project is creating a directory and a JSON file. It is never an edit
+# to this script. If governing a new project ever requires changing harness code,
+# the harness has a project-specific assumption baked into it and that is a bug.
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# shellcheck source=lib/resolve.sh
+. "${SCRIPT_DIR}/lib/resolve.sh"
+
+die() { printf 'felix: %s\n' "$1" >&2; exit "${2:-1}"; }
+
+usage() {
+  sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+# Sets PROJ in the caller's shell rather than printing it. Printing would force
+# callers into $(...), and an exit inside a command substitution only kills the
+# subshell: the script would sail past a failed resolution and die later with a
+# misleading message and the wrong status.
+resolve_or_die() {
+  PROJ="$(felix_resolve_project "$PWD" "$FELIX_ROOT")" || PROJ=""
+  [ -n "$PROJ" ] && return 0
+  die "no project governs $PWD.
+  Either add a .felix file naming one, or declare remote_match in a project.json.
+  Known projects: $(ls "$FELIX_ROOT/projects" 2>/dev/null | tr '\n' ' ')" 2
+}
+
+cmd_which() {
+  resolve_or_die; local proj="$PROJ"
+  printf 'project:      %s\n' "$(basename "$proj")"
+  printf 'doctrine:     %s\n' "$proj/CLAUDE.md"
+  printf 'memory:       %s\n' "$proj/memory/"
+  printf 'gate:         %s\n' "$(felix_json_str "$proj/project.json" gate)"
+  printf 'governs:      %s\n' "$(felix_repo_root "$PWD")"
+}
+
+cmd_gate() {
+  resolve_or_die; local proj="$PROJ" gate
+  gate="$(felix_json_str "$proj/project.json" gate)"
+  [ -n "$gate" ] || die "project $(basename "$proj") declares no gate in project.json"
+
+  # Run from the checkout being gated, never from Felix. A gate that inspects
+  # "the tree it lives in" instead of "the tree it was pointed at" reports a
+  # verdict about the wrong code, and a false pass is worse than no gate.
+  cd "$(felix_repo_root "$PWD")" || die "cannot enter repo root"
+  export FELIX_PROJECT="$proj"
+
+  # A script Felix stores for the project, or any shell command the project
+  # already has. The second form is what lets Felix gate a stack it has never
+  # heard of: "npm run verify", "dotnet test", "cargo test", "make check".
+  if [ -x "$proj/$gate" ]; then
+    exec "$proj/$gate" "$@"
+  else
+    exec bash -c "$gate \"\$@\"" felix-gate "$@"
+  fi
+}
+
+cmd_new() {
+  local name="${1:-}"
+  [ -n "$name" ] || die "usage: felix new <name>"
+  local dir="$FELIX_ROOT/projects/$name"
+  [ -e "$dir" ] && die "project $name already exists at $dir"
+  mkdir -p "$dir/memory"
+  cat > "$dir/project.json" <<EOF
+{
+  "name": "$name",
+  "remote_match": "",
+  "gate": ""
+}
+EOF
+  printf '# %s\n\nConstitution for %s. Replace this.\n' "$name" "$name" > "$dir/CLAUDE.md"
+  : > "$dir/memory/DEVLOG.md"
+  : > "$dir/memory/lessons.md"
+  printf 'created %s\n' "$dir"
+  printf 'next: set "gate" and either "remote_match", or add a .felix file\n'
+  printf '      containing "%s" to the project checkout.\n' "$name"
+}
+
+case "${1:-help}" in
+  which) shift; cmd_which "$@" ;;
+  gate)  shift; cmd_gate "$@" ;;
+  new)   shift; cmd_new "$@" ;;
+  help|-h|--help) usage ;;
+  *) die "unknown command: $1. Try 'felix help'." ;;
+esac

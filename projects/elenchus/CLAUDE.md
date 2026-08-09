@@ -149,9 +149,9 @@ re-verify before relying on this map.
 Adding a domain later means new content plus a map under `content/`, never an
 engine edit.
 
-Twelve strategy documents sit untracked at the repo root. When one disagrees
-with the code, the code wins. Confirm with J which of them still bind before
-citing any as authority.
+Twelve strategy documents sit untracked at the repo root. Only `POSITIONING.md`
+binds; the rest are drafts kept for history. When it disagrees with the code,
+the code wins.
 
 ---
 

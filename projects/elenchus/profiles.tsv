@@ -1,0 +1,11 @@
+# Task profiles: which capabilities a kind of work mounts.
+# The guidebook (p3) puts it plainly: installed is not active.
+#
+# name<TAB>capabilities
+
+core	always
+backend	api,database
+frontend	frontend,e2e
+incident	observability,e2e
+release	ci,deploy,e2e
+billing	billing,database

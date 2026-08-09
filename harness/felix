@@ -5,6 +5,9 @@
 #   felix which          which project governs here, and where its doctrine is
 #   felix gate [args]    run this project's gate; exits with the gate's status
 #   felix doctor         capabilities present in the checkout but never declared
+#   felix profile [name] which tools a task profile mounts
+#   felix stack plan     diff declared tooling against what is installed
+#   felix stack apply --yes   install the low and medium risk gap
 #   felix adopt <cap>    declare a capability this project now has
 #   felix new <name>     scaffold a new project
 #
@@ -20,6 +23,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 . "${SCRIPT_DIR}/lib/resolve.sh"
 # shellcheck source=lib/detect.sh
 . "${SCRIPT_DIR}/lib/detect.sh"
+# shellcheck source=lib/stack.sh
+. "${SCRIPT_DIR}/lib/stack.sh"
 
 die() { printf 'felix: %s\n' "$1" >&2; exit "${2:-1}"; }
 
@@ -90,6 +95,83 @@ EOF
   printf '      containing "%s" to the project checkout.\n' "$name"
 }
 
+cmd_profile() {
+  resolve_or_die; local proj="$PROJ" want="${1:-}"
+  [ -f "$proj/profiles.tsv" ] || die "project $(basename "$proj") declares no profiles"
+  if [ -z "$want" ]; then
+    printf 'profiles for %s:\n\n' "$(basename "$proj")"
+    grep -vE '^\s*(#|$)' "$proj/profiles.tsv" | while IFS=$'\t' read -r n caps _; do
+      printf '  %-12s %s\n' "$n" "$caps"
+    done
+    printf '\nfelix profile <name> shows the tools a profile activates.\n'
+    return 0
+  fi
+  local caps
+  caps="$(grep -vE '^\s*(#|$)' "$proj/profiles.tsv" | awk -F'\t' -v p="$want" '$1==p{print $2}')"
+  [ -n "$caps" ] || die "no profile named $want"
+  printf 'profile:      %s\ncapabilities: %s\n\nactivates:\n' "$want" "$caps"
+  _felix_load_state
+  _felix_stack_rows "$proj" | while IFS=$'\t' read -r kind name _ risk cap; do
+    # A row belongs to this profile if the profile claims its capability, or if
+    # the row is unconditional.
+    case ",$caps,always," in *",$cap,"*) ;; *) continue ;; esac
+    _felix_have "$kind" "$name" && st="mounted" || st="MISSING"
+    printf '  %-10s %-46s %-8s %s\n' "$kind" "$name" "$risk" "$st"
+  done
+  printf '\nEverything else stays unmounted. Installed is not active.\n'
+}
+
+cmd_stack() {
+  resolve_or_die; local proj="$PROJ" sub="${1:-plan}" yes=0
+  shift || true
+  for a in "$@"; do [ "$a" = "--yes" ] && yes=1; done
+  [ -f "$proj/stack.tsv" ] || die "project $(basename "$proj") declares no stack.tsv"
+
+  local plan; plan="$(felix_stack_plan "$proj")"
+  printf '%-9s %-11s %s\n' ACTION KIND NAME
+  printf '%s\n' "$plan" | while IFS=$'\t' read -r act kind name detail; do
+    [ -n "${act:-}" ] || continue
+    printf '%-9s %-11s %-46s %s\n' "$act" "$kind" "$name" "$detail"
+  done
+
+  local n_install n_blocked
+  n_install="$(printf '%s\n' "$plan" | grep -c '^install' || true)"
+  n_blocked="$(printf '%s\n' "$plan" | grep -c '^blocked' || true)"
+
+  if [ "$sub" = "plan" ]; then
+    printf '\n%s to install, %s blocked as high risk.\n' "$n_install" "$n_blocked"
+    [ "$n_install" -gt 0 ] && printf 'apply with: felix stack apply --yes\n'
+    return 0
+  fi
+
+  [ "$sub" = "apply" ] || die "usage: felix stack [plan|apply] [--yes]"
+  if [ "$yes" -ne 1 ]; then
+    printf '\nThis was a plan. Nothing changed.\n'
+    printf 'Re-run with --yes to install the %s item(s) above.\n' "$n_install"
+    return 0
+  fi
+
+  printf '\napplying %s item(s)\n' "$n_install"
+  local failed=0
+  while IFS=$'\t' read -r act kind name detail; do
+    [ "$act" = "install" ] || continue
+    local source
+    source="$(_felix_stack_rows "$proj" | awk -F'\t' -v n="$name" '$2==n{print $3}')"
+    if felix_stack_install "$kind" "$name" "$source"; then
+      printf '  installed  %s %s\n' "$kind" "$name"
+    else
+      printf '  FAILED     %s %s\n' "$kind" "$name"
+      failed=$((failed+1))
+    fi
+  done <<EOF
+$plan
+EOF
+  if [ "$n_blocked" -gt 0 ]; then
+    printf '\n%s high-risk item(s) were not touched. No flag installs those.\n' "$n_blocked"
+  fi
+  [ "$failed" -eq 0 ] || { printf '\n%s failed.\n' "$failed"; return 1; }
+}
+
 cmd_doctor() {
   resolve_or_die; local proj="$PROJ" root new
   root="$(felix_repo_root "$PWD")"
@@ -147,7 +229,9 @@ cmd_adopt() {
 case "${1:-help}" in
   which)  shift; cmd_which "$@" ;;
   gate)   shift; cmd_gate "$@" ;;
-  doctor) shift; cmd_doctor "$@" ;;
+  doctor)  shift; cmd_doctor "$@" ;;
+  profile) shift; cmd_profile "$@" ;;
+  stack)   shift; cmd_stack "$@" ;;
   adopt)  shift; cmd_adopt "$@" ;;
   new)    shift; cmd_new "$@" ;;
   help|-h|--help) usage ;;

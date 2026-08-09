@@ -1,0 +1,23 @@
+# Declared tooling for Elenchus, from the guidebook baseline stack (p1).
+#
+# kind<TAB>name<TAB>source<TAB>risk<TAB>capability
+#
+# risk=high is never installed by any automation flag. It means the tool can
+# reach production, move money, or hold a credential. A person mounts those.
+# capability gates scope: a row is dormant until felix doctor sees the surface.
+
+marketplace	claude-plugins-official	anthropics/claude-plugins-official	low	always
+plugin	superpowers@claude-plugins-official	-	low	always
+plugin	claude-md-management@claude-plugins-official	-	low	always
+plugin	claude-code-setup@claude-plugins-official	-	low	always
+plugin	context7@claude-plugins-official	-	low	always
+plugin	code-review@claude-plugins-official	-	low	always
+plugin	security-guidance@claude-plugins-official	-	low	always
+plugin	code-simplifier@claude-plugins-official	-	low	always
+plugin	pyright-lsp@claude-plugins-official	-	low	api
+plugin	frontend-design@claude-plugins-official	-	low	frontend
+plugin	playwright@claude-plugins-official	-	low	e2e
+plugin	supabase@supabase-community-supabase-plugin	-	medium	database
+plugin	github@claude-plugins-official	-	high	ci
+plugin	stripe@claude-plugins-official	-	high	billing
+mcp	sentry	https://mcp.sentry.dev/mcp	high	observability

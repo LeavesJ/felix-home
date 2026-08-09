@@ -139,6 +139,47 @@ case "$out" in
 esac
 rm -f "$REPO/requirements.txt" "$REPO/Dockerfile"
 
+printf '\nstack provisioning\n'
+# Classification is where the safety policy lives, so that is what is asserted.
+# These rows never install anything: the two that would are deliberately fake.
+{
+  printf 'plugin\tsuperpowers@claude-plugins-official\t-\tlow\talways\n'
+  printf 'plugin\tfelix-test-absent@nowhere\t-\tlow\tbilling\n'
+  printf 'plugin\tfelix-test-dangerous@nowhere\t-\thigh\talways\n'
+} > "$FROOT/projects/widget/stack.tsv"
+
+out="$(cd "$REPO" && "$FELIX" stack plan 2>&1)"
+case "$out" in
+  *"blocked"*"felix-test-dangerous"*) ok "high risk classifies as blocked" ;;
+  *) bad "high risk classifies as blocked" "$out" ;;
+esac
+case "$out" in
+  *"dormant"*"felix-test-absent"*) ok "undeclared capability classifies as dormant" ;;
+  *) bad "undeclared capability classifies as dormant" "$out" ;;
+esac
+has "already-installed rows report present" "$out" "present"
+
+out="$(cd "$REPO" && "$FELIX" stack apply 2>&1)"
+has "apply without --yes changes nothing" "$out" "Nothing changed"
+
+# The safety property: no flag promotes a high-risk row into the apply set.
+out="$(cd "$REPO" && "$FELIX" stack apply --yes 2>&1)"
+case "$out" in
+  *"installed  plugin felix-test-dangerous"*)
+    bad "--yes never installs high risk" "high-risk row was applied" ;;
+  *) ok "--yes never installs high risk" ;;
+esac
+has "and says why it was left alone" "$out" "No flag installs those"
+
+printf '\nprofiles\n'
+printf 'core\talways\nbilling\tbilling\n' > "$FROOT/projects/widget/profiles.tsv"
+out="$(cd "$REPO" && "$FELIX" profile core 2>&1)"
+has "core profile mounts unconditional rows" "$out" "superpowers"
+case "$out" in
+  *"felix-test-absent"*) bad "core profile excludes other capabilities" "$out" ;;
+  *) ok "core profile excludes other capabilities" ;;
+esac
+
 printf '\nindependence\n'
 # Scoped to code that runs in production. This suite names Elenchus in its own
 # comments on purpose, since explaining what it refuses to depend on is the point.

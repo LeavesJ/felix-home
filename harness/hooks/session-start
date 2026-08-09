@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# SessionStart hook for Felix.
+#
+# Binds the session to whichever project it woke up in, then tells it where the
+# gate actually is. That second part is the whole point: a project's gate script
+# can be untracked or absent from the worktree doctrine tells you to work in, so
+# a relative path like ./scripts/gate.sh is a command that may not exist. The
+# path emitted here is absolute and lives in Felix, so it resolves from any
+# checkout, any worktree, and CI.
+#
+# Emits nothing and exits 0 when the session is not in a project Felix governs.
+# A hook that fails loudly in unrelated repos would be worse than no hook.
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+remote="$(git remote get-url origin 2>/dev/null || true)"
+[ -n "$remote" ] || exit 0
+
+# Resolve the project by matching the session's git remote against each
+# project.json. One entry today; the loop is a lookup, not an abstraction.
+project=""
+for meta in "${FELIX_ROOT}"/projects/*/project.json; do
+  [ -e "$meta" ] || continue
+  match="$(sed -n 's/.*"remote_match"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$meta")"
+  [ -n "$match" ] || continue
+  case "$remote" in
+    *"$match"*) project="$(basename "$(dirname "$meta")")"; break ;;
+  esac
+done
+[ -n "$project" ] || exit 0
+
+PROJ="${FELIX_ROOT}/projects/${project}"
+gate_name="$(sed -n 's/.*"gate"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${PROJ}/project.json")"
+gate_path="${PROJ}/${gate_name:-gate.sh}"
+
+[ -x "$gate_path" ] && gate_line="Gate: ${gate_path}" \
+  || gate_line="Gate: ${gate_path} (NOT EXECUTABLE, fix before relying on it)"
+
+context="Felix governs this session.
+
+Project: ${project}
+Constitution: ${PROJ}/CLAUDE.md
+${gate_line}
+Memory: ${PROJ}/memory/
+
+The gate path above is absolute and resolves from any worktree. Use it instead
+of a repo-relative gate command, which may not exist in the tree you are in.
+Declare your tier before you start, and run that tier's gate."
+
+# JSON-escape via parameter substitution, one C-level pass each.
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+escaped="$(escape_for_json "$context")"
+
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ]; then
+  printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped"
+else
+  printf '{\n  "additionalContext": "%s"\n}\n' "$escaped"
+fi
+
+exit 0

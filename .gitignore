@@ -1,0 +1,13 @@
+# Felix tracks doctrine, gate, and memory. Nothing else.
+.DS_Store
+*.log
+
+# Never let a project's runtime state or secrets land here.
+data/
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+!.env.example
+*.key

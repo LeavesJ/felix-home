@@ -1,0 +1,7 @@
+{
+  "name": "elenchus",
+  "remote_match": "LeavesJ/Elenchus",
+  "gate": "gate.sh",
+  "language": "python",
+  "run_prefix": "PYTHONPATH=src"
+}

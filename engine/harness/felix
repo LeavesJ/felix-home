@@ -142,13 +142,12 @@ cmd_install() {
       && printf '  marketplace refreshed\n' \
       || printf '  marketplace already registered\n'
   fi
-  if claude plugin install felix@felix --scope user >/dev/null 2>&1; then
-    printf '  plugin installed\n'
-  else
-    claude plugin update felix@felix >/dev/null 2>&1 \
-      && printf '  plugin updated\n' \
-      || printf '  plugin already installed, or install failed; check: claude plugin list\n'
-  fi
+  # Both, unconditionally, and neither is believed. `install` on a plugin that
+  # is already present succeeds without upgrading anything, so a bumped version
+  # would sit in the marketplace unused while the command reported success.
+  # `update` covers that; the verification below is what actually reports.
+  claude plugin install felix@felix --scope user >/dev/null 2>&1 || true
+  claude plugin update  felix@felix               >/dev/null 2>&1 || true
 
   # Claude Code caches a plugin by version. With the manifest pinned, install and
   # update are both no-ops on a changed engine and both report success, so the

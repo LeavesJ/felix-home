@@ -92,6 +92,27 @@ else
   pass independence
 fi
 
+# ------------------------------------------------------------- memory --------
+# Felix exists so that doctrine and memory survive the machine. A gitignore rule
+# that swallows them is precisely the failure this repository was created to
+# prevent, and it is invisible: every command works, every test passes, and
+# nothing is kept. When this check was written, `git ls-files` reported zero
+# tracked .log files, so mistakes.log and maintenance.log had never survived.
+#
+# Checked against the paths rather than against files that happen to exist. The
+# first version of this loop skipped anything absent, which made it vacuous in a
+# worktree — where these files are untracked and therefore not present — so it
+# passed by finding nothing. git check-ignore evaluates a path whether or not
+# anything is there, which is the property that makes this a real check.
+MISSED=""
+for d in projects/*/; do
+  [ -d "$d" ] || continue
+  for f in "${d}memory/mistakes.log" "${d}memory/verification.log" "${d}maintenance.log"; do
+    git check-ignore -q "$f" 2>/dev/null && MISSED="$MISSED $f"
+  done
+done
+[ -z "$MISSED" ] && pass memory || { fail memory; printf '    ignored:%s\n' "$MISSED"; }
+
 echo
 if [ -z "$FAILED" ]; then echo "gate: pass"; exit 0; fi
 echo "gate: FAIL ($(echo "$FAILED" | tr -s ' ' | sed 's/^ //'))"

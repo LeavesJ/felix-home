@@ -1,6 +1,12 @@
 # Felix tracks doctrine, gate, and memory. Nothing else.
 .DS_Store
 *.log
+# ...except Felix's own memory, which is the whole reason this repository
+# exists. `*.log` silently untracked mistakes.log, which felix promote calls the
+# strongest promotion signal there is, and maintenance.log, which felix itself
+# tells you to commit "so the cadence survives this machine". Neither did.
+!projects/*/memory/*.log
+!projects/*/maintenance.log
 
 # Never let a project's runtime state or secrets land here.
 data/

@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# Stop hook: refuse to let a session end on work nothing has verified.
+#
+# This is the guidebook's central rule, and until now Felix stated it without
+# enforcing it. Two events were wired, SessionStart and UserPromptSubmit, and
+# both only inject text. Between an agent writing code and an agent saying it is
+# done, there was nothing.
+#
+# The decision is made on the state of the tree, never on what the agent said.
+# The payload carries last_assistant_message, and matching "done" or "tests pass"
+# against it was considered and rejected: it fails in the worst direction. "that
+# should do it" would slip through while an honest "complete, though I have not
+# run anything" would be blocked. Tree state has no such failure mode.
+#
+# Honest about its reach. The platform documents that a Stop hook must return
+# success while stop_hook_active is set, and caps consecutive blocks itself, so
+# this interrupts once per chain. It is a speed bump with a permanent record,
+# not an inescapable barrier. The inescapable barrier is CI at the merge
+# boundary, which Felix already sets up and which is not affected by this.
+#
+# Everything unexpected allows and records. A completion gate that can strand a
+# session gets removed, and a removed gate enforces nothing.
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+. "${SCRIPT_DIR}/../lib/resolve.sh"
+. "${SCRIPT_DIR}/../lib/verify.sh"
+
+FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
+PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
+[ -n "$PROJ" ] || exit 0
+
+# A project that declares no gate has nothing to enforce. Inventing an
+# obligation for it would make Felix unusable on a repo part-way through
+# onboarding, which is exactly when it is most wanted.
+GATE="$(felix_json_str "$PROJ/project.json" gate 2>/dev/null)"
+[ -n "$GATE" ] || exit 0
+
+ROOT="$(felix_repo_root "$PWD")"
+git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || exit 0
+
+# Tokenised whole rather than parsed, for the same reason the prompt hook does
+# it: a hand-rolled JSON reader breaks on the first payload containing a quote,
+# and the failure mode is a hook that silently stops enforcing anything.
+raw="$(cat 2>/dev/null || true)"
+case "$raw" in
+  *'"stop_hook_active"'*'true'*) exit 0 ;;
+esac
+
+felix_tree_dirty "$ROOT" || exit 0
+
+TID="$(felix_tree_id "$ROOT")" || TID=""
+if [ -z "$TID" ]; then
+  felix_verify_log "$PROJ" "allowed" "" "tree identity unavailable"
+  exit 0
+fi
+
+# The override is the founder's, not the model's. It is read from the
+# environment the session was launched with, and an export inside a Bash tool
+# call reaches that subprocess, not the already-running parent this hook
+# inherits from. An override the model can reach for is not an override.
+if [ "${FELIX_ALLOW_RED:-}" = "1" ]; then
+  felix_verify_log "$PROJ" "override" "$TID" "FELIX_ALLOW_RED"
+  exit 0
+fi
+
+receipt="$(felix_verify_receipt "$ROOT" "$FELIX_HOME_DIR")"
+r_tid="$(printf '%s' "$receipt" | cut -f1)"
+r_res="$(printf '%s' "$receipt" | cut -f2)"
+r_when="$(printf '%s' "$receipt" | cut -f3)"
+
+if [ -n "$receipt" ] && [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
+  felix_verify_log "$PROJ" "allowed" "$TID" "green"
+  exit 0
+fi
+
+if [ -z "$receipt" ]; then
+  why="The gate has never run in this checkout."
+  detail="never verified"
+elif [ "$r_tid" = "$TID" ]; then
+  why="The gate failed on this exact tree, at $r_when."
+  detail="failed"
+else
+  why="The gate last ran at $r_when, on a different tree. It has not seen this work."
+  detail="stale receipt"
+fi
+
+felix_verify_log "$PROJ" "blocked" "$TID" "$detail"
+
+reason="$why
+
+Do not describe this work as complete until it has passed.
+
+  felix gate
+
+If you have already decided to stop with a red gate, that is the founder's call
+to make, not yours: they can set FELIX_ALLOW_RED=1 in the environment they
+launch a session from."
+
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"; s="${s//$'\r'/\\r}"; s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$reason")"
+exit 0

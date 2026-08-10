@@ -852,6 +852,145 @@ else
   ok "felix_has_line rejects partial lines"
 fi
 
+printf '\nthe completion gate\n'
+# The principle under test: an agent must not be able to say it is finished
+# while the tree it changed has never been verified. Everything here drives the
+# real Stop hook with real JSON on stdin, against a real git repository.
+STOP="$FROOT/harness/hooks/stop"
+# Earlier sections rewrite the widget gate to prove other things, so this one
+# declares the gate it depends on instead of inheriting whatever ran last.
+# Without this the red-gate case silently tests a gate of `true`, which cannot
+# fail, and the failure reads like a product bug rather than a suite bug.
+cat > "$FROOT/projects/widget/project.json" <<'EOF'
+{
+  "name": "widget",
+  "remote_match": "example.com/widget",
+  "gate": "sh -c 'test -f WIDGET.txt && echo widget-gate-ran'"
+}
+EOF
+GREPO="$TMP/gaterepo"
+mkdir -p "$GREPO"
+( cd "$GREPO" && git init -q -b main
+  printf 'contents\n' > WIDGET.txt
+  printf 'widget\n'   > .felix
+  git add -A >/dev/null 2>&1
+  git -c user.name=t -c user.email=t@t commit -qm init >/dev/null 2>&1 )
+GREPO="$(cd "$GREPO" && pwd -P)"
+
+EMPTY_JSON='{"hook_event_name":"Stop","stop_hook_active":false}'
+ACTIVE_JSON='{"hook_event_name":"Stop","stop_hook_active":true}'
+_stop() { ( cd "$1" && printf '%s' "${2:-$EMPTY_JSON}" | "$STOP" 2>&1 ); }
+_blocks() {
+  case "$2" in *'"decision"'*'"block"'*) ok "$1" ;; *) bad "$1" "expected a block, got [$2]" ;; esac
+}
+_allows() { [ -z "$2" ] && ok "$1" || bad "$1" "expected silence, got [$2]"; }
+
+out="$(_stop "$GREPO")"; rc=$?
+_allows "clean tree stops silently" "$out"
+is      "and exits 0"               "$rc" "0"
+
+printf 'edited\n' >> "$GREPO/WIDGET.txt"
+out="$(_stop "$GREPO")"
+_blocks "an unverified change blocks completion" "$out"
+has     "and says the gate never ran"            "$out" "never"
+
+out="$(cd "$GREPO" && "$FELIX" gate 2>&1)"
+out="$(_stop "$GREPO")"
+_allows "a green gate on this exact tree allows it" "$out"
+
+# The git-status trap. Two different edits to the same file produce identical
+# porcelain output, so a receipt keyed on status alone stays valid across a
+# change it never saw. The hash has to include diff content.
+printf 'different\n' >> "$GREPO/WIDGET.txt"
+out="$(_stop "$GREPO")"
+_blocks "editing the same file again invalidates the receipt" "$out"
+
+( cd "$GREPO" && git checkout -q -- WIDGET.txt )
+out="$(cd "$GREPO" && "$FELIX" gate 2>&1)"
+printf 'new\n' > "$GREPO/untracked.txt"
+out="$(_stop "$GREPO")"
+_blocks "a new untracked file invalidates the receipt" "$out"
+rm -f "$GREPO/untracked.txt"
+
+# The platform caps consecutive blocks and documents the contract: return
+# success while stop_hook_active is set. Ignoring it is how a hook loops.
+printf 'unverified\n' >> "$GREPO/WIDGET.txt"
+out="$(_stop "$GREPO" "$ACTIVE_JSON")"
+_allows "stop_hook_active is honoured, so it never loops" "$out"
+
+# The override is the founder's, not the model's: it is read from the
+# environment the session was launched with.
+out="$(cd "$GREPO" && FELIX_ALLOW_RED=1 printf '%s' "$EMPTY_JSON" | FELIX_ALLOW_RED=1 "$STOP" 2>&1)"
+_allows "FELIX_ALLOW_RED lets a founder stop anyway" "$out"
+
+# A failing gate must leave a red receipt, not no receipt. No receipt and a red
+# one both block, but only one of them tells the truth about what happened.
+rm -f "$GREPO/WIDGET.txt"
+out="$(cd "$GREPO" && "$FELIX" gate 2>&1)"
+out="$(_stop "$GREPO")"
+_blocks "a failing gate still blocks"  "$out"
+has     "and says the gate failed"     "$out" "failed"
+printf 'contents\n' > "$GREPO/WIDGET.txt"
+
+VLOG="$FROOT/projects/widget/memory/verification.log"
+[ -s "$VLOG" ] && ok "every decision is recorded" \
+               || bad "every decision is recorded" "no verification.log at $VLOG"
+if [ -s "$VLOG" ]; then
+  grep -q 'blocked'  "$VLOG" && ok "blocks are recorded"    || bad "blocks are recorded"
+  grep -q 'override' "$VLOG" && ok "overrides are recorded" || bad "overrides are recorded"
+fi
+
+out="$(_stop "$PLAIN")"; rc=$?
+_allows "silent in an ungoverned repo" "$out"
+is      "and exits 0 there"            "$rc" "0"
+
+NOGIT="$TMP/notgit"; mkdir -p "$NOGIT"; printf 'widget\n' > "$NOGIT/.felix"
+out="$(_stop "$NOGIT")"; rc=$?
+_allows "silent outside a git repository" "$out"
+is      "and exits 0 there too"           "$rc" "0"
+
+# A project that declares no gate has nothing to enforce, and inventing an
+# obligation for it would make Felix unusable on a repo mid-onboarding.
+mkdir -p "$FROOT/projects/nogate/memory"
+printf '{\n  "name": "nogate"\n}\n' > "$FROOT/projects/nogate/project.json"
+NGREPO="$TMP/nogaterepo"; mkdir -p "$NGREPO"
+( cd "$NGREPO" && git init -q -b main && printf 'x\n' > a.txt
+  git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm i >/dev/null 2>&1 )
+printf 'nogate\n' > "$NGREPO/.felix"; printf 'dirty\n' >> "$NGREPO/a.txt"
+out="$(_stop "$NGREPO")"
+_allows "a project with no declared gate is left alone" "$out"
+
+# Felix governs projects in languages it does not know, and one of their
+# untracked directories may be a virtualenv or a model artifact. Metadata only.
+mkdir -p "$GREPO/bigdir"
+i=0; while [ "$i" -lt 60 ]; do printf 'x\n' > "$GREPO/bigdir/f$i"; i=$((i+1)); done
+t0=$(date +%s); out="$(_stop "$GREPO")"; t1=$(date +%s)
+[ $((t1-t0)) -le 3 ] && ok "stays fast with many untracked files ($((t1-t0))s)" \
+                     || bad "stays fast with many untracked files" "$((t1-t0))s"
+rm -rf "$GREPO/bigdir"
+
+# The gate and the hook compute tree identity independently. If they ever
+# disagree the gate silently stops counting, so they must share one function.
+tid_lib="$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$GREPO" )"
+[ -n "$tid_lib" ] && ok "tree identity is computable" \
+                  || bad "tree identity is computable" "empty"
+printf 'moved\n' >> "$GREPO/WIDGET.txt"
+tid2="$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$GREPO" )"
+[ "$tid_lib" != "$tid2" ] && ok "and changes when the tree changes" \
+                          || bad "and changes when the tree changes" "$tid_lib == $tid2"
+( cd "$GREPO" && git checkout -q -- WIDGET.txt )
+
+# A repository with no commits at all. HEAD is unborn, and every naive
+# implementation of this dies there. The suite's own fixture is in that state.
+UNBORN="$TMP/unborn"; mkdir -p "$UNBORN"
+( cd "$UNBORN" && git init -q -b main )
+printf 'widget\n' > "$UNBORN/.felix"; printf 'x\n' > "$UNBORN/new.txt"
+tid3="$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$UNBORN" )"
+[ -n "$tid3" ] && ok "tree identity survives an unborn HEAD" \
+               || bad "tree identity survives an unborn HEAD" "empty"
+out="$(_stop "$UNBORN")"; rc=$?
+is "and the hook still exits 0 there" "$rc" "0"
+
 printf '\nindependence\n'
 # Scoped to code that runs in production. This suite names Elenchus in its own
 # comments on purpose, since explaining what it refuses to depend on is the point.

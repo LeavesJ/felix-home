@@ -71,6 +71,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/unattended.sh"
 # shellcheck source=lib/lessons.sh
 . "${SCRIPT_DIR}/lib/lessons.sh"
+# shellcheck source=lib/verify.sh
+. "${SCRIPT_DIR}/lib/verify.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -166,7 +168,13 @@ cmd_gate() {
   # Run from the checkout being gated, never from Felix. A gate that inspects
   # "the tree it lives in" instead of "the tree it was pointed at" reports a
   # verdict about the wrong code, and a false pass is worse than no gate.
-  cd "$(felix_repo_root "$PWD")" || die "cannot enter repo root"
+  local root; root="$(felix_repo_root "$PWD")"
+  cd "$root" || die "cannot enter repo root"
+
+  # Identity of the tree as the gate finds it, captured before it runs. A gate
+  # that rewrites files — a formatter is the ordinary case — would otherwise
+  # stamp a receipt describing a tree it never actually verified.
+  local tid; tid="$(felix_tree_id "$root")" || tid=""
   export FELIX_PROJECT="$proj"
   # Tools Felix ships for a gate to call. A project gate cannot know where
   # Felix lives, and hardcoding a path would break the moment it moves.
@@ -190,9 +198,13 @@ cmd_gate() {
     local what
     what="$(grep -oiE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null \
             | awk '{print $1}' | tr '\n' ' ')"
-    felix_mem_mistake "$proj" "$(felix_repo_root "$PWD")" "${what:-exit-$rc}"
+    felix_mem_mistake "$proj" "$root" "${what:-exit-$rc}"
   fi
   rm -f "$log"
+
+  # The receipt. Recorded on failure as well as success: no receipt and a red
+  # one both stop a session, but only one of them says what happened.
+  felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid"
   exit "$rc"
 }
 

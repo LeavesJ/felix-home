@@ -24,6 +24,19 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/harness/hooks/stop\"",
+            "shell": "bash",
+            "async": false,
+            "statusMessage": "Checking the gate"
+          }
+        ]
+      }
     ]
   }
 }

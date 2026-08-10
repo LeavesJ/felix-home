@@ -1606,6 +1606,50 @@ if [ -s "$MON" ]; then
   is "the page still closes exactly one script" "$n" "1"
 fi
 
+printf '\ndenial\n'
+# The first thing Felix can actually stop. Every other hook injects text a
+# session may ignore; PreToolUse decides. Verified against two working
+# implementations on this machine rather than assumed: exit 2 blocks and the
+# reason goes to stderr, exit 0 allows.
+#
+# Scoped to Bash by the matcher in hooks.json, so a mistake here cannot deny an
+# edit. A deny hook that gets this wrong is indistinguishable from a broken
+# editor, which is the failure guard.sh exists to describe.
+cat > "$FROOT/projects/widget/deny.tsv" <<'EOF'
+# tool	pattern	reason
+Bash	git add (-A|--all|\.)$	stage explicit paths; -A stages what you did not read
+Bash	(^|[;&| ])\./scripts/gate\.sh	that is not the gate Felix runs
+EOF
+
+_pre() { printf '%s' "$1" | "$FROOT/harness/hooks/pre-tool" 2>"$FROOT/.deny-err"; }
+
+( cd "$REPO" && _pre '{"tool_name":"Bash","tool_input":{"command":"git add -A"}}' ); rc=$?
+is "a denied command exits 2" "$rc" "2"
+has "and says why" "$(cat "$FROOT/.deny-err")" "stage explicit paths"
+
+( cd "$REPO" && _pre '{"tool_name":"Bash","tool_input":{"command":"git add src/widget.py"}}' ); rc=$?
+is "an explicit path is allowed" "$rc" "0"
+
+( cd "$REPO" && _pre '{"tool_name":"Bash","tool_input":{"command":"./scripts/gate.sh --quick"}}' ); rc=$?
+is "running a rival gate is denied" "$rc" "2"
+
+# The reason a project would ever turn this off is a false deny, so the failure
+# mode has to be allow. Anything unparseable, any missing table, any error.
+( cd "$REPO" && _pre 'not json at all' ); rc=$?
+is "an unparseable payload is allowed" "$rc" "0"
+( cd "$PLAIN" && _pre '{"tool_name":"Bash","tool_input":{"command":"git add -A"}}' ); rc=$?
+is "an ungoverned repo is allowed" "$rc" "0"
+
+# A malformed row must not take the whole table down with it, the same way a
+# malformed routes.tsv row is skipped rather than fatal.
+printf 'Bash\n' >> "$FROOT/projects/widget/deny.tsv"
+( cd "$REPO" && _pre '{"tool_name":"Bash","tool_input":{"command":"git add -A"}}' ); rc=$?
+is "a malformed row is skipped, others still deny" "$rc" "2"
+rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
+
+( cd "$REPO" && _pre '{"tool_name":"Bash","tool_input":{"command":"git add -A"}}' ); rc=$?
+is "no deny.tsv means nothing is denied" "$rc" "0"
+
 printf '\nindependence\n'
 # Scoped to code that runs in production. This suite names Elenchus in its own
 # comments on purpose, since explaining what it refuses to depend on is the point.

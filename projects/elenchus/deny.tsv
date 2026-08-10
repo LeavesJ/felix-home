@@ -1,0 +1,18 @@
+# What Elenchus refuses, enforced rather than written down.
+#
+# Every row here was already doctrine in CLAUDE.md and enforced by nothing. The
+# gate row is the one that has actually cost something: an untracked, day-stale
+# copy of the gate at scripts/gate.sh runs seven checks against the eight Felix
+# runs, missing `secret`, and a session ran it all day and reported green.
+#
+# Flags are matched as whole tokens — `([^;&|]* )?-f` rather than `.*-f` — so a
+# path like src/x-foo.py cannot trip a rule about a flag. A rule that fires on
+# something legitimate gets routed around, and then it enforces nothing.
+#
+# Scoped to Bash. If a row is wrong, change it here rather than working around it.
+#
+# tool	extended-regex	reason
+Bash	(^|[;&| ])\./scripts/gate\.sh	scripts/gate.sh is a stale copy missing the secret check. Run: felix gate
+Bash	git add ([^;&|]* )?(-A|--all|\.)( |$)	stage explicit paths. -A stages what you have not read, and data/ and confidential docs never enter git
+Bash	git add ([^;&|]* )?-f( |$)	never force-add an ignored file. The ignore rule is the last thing between a secret and a public repo
+Bash	git push ([^;&|]* )?(--force|-f)( |$)	force push is T3. It drops commits, and the founder decides that

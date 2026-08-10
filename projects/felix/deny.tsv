@@ -1,0 +1,9 @@
+# What Felix refuses on itself.
+#
+# Deliberately short. Felix governs projects in languages it must not require
+# and should be equally slow to invent rules for them; these are two its own
+# constitution already states and nothing enforced.
+#
+# tool	extended-regex	reason
+Bash	git push ([^;&|]* )?(--force|-f)( |$)	force push drops commits, and Felix's history is the audit trail
+Bash	git commit ([^;&|]* )?--no-verify	--no-verify is how a gate stops being a gate. Fix the tree instead

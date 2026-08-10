@@ -55,6 +55,30 @@ with a record, not a substitute for running it.
   outside the governed repo — true of every project except the one Felix is.
   Test the layout you actually run in, not the convenient one.
 
+- **A command substitution is a subshell, so it cannot cache anything.** A
+  helper memoised which `stat` flavour the platform had, and was called as
+  `$(helper "$f")` inside a loop. Every file re-probed, three processes instead
+  of one, 510 spawns on a checkout with two untracked backup directories: 1.9s
+  on every attempt to finish, down to 0.22s once both stat implementations were
+  handed every path at once. Memoisation and `$( )` do not compose.
+
+- **Instrumentation can be the thing you are measuring.** A `bash -x` trace with
+  a timestamped `PS4` blamed loop bookkeeping and reported 9.6s of work. The
+  `PS4` was spawning a `date` process per traced line. Time the whole thing
+  first, confirm the number is real, and only then narrow.
+
+- **A hook payload's envelope is not what the user said.** The prompt hook is
+  handed whole JSON and tokenises it deliberately. A comment claimed the extra
+  field names cost nothing in a keyword match; they cost everything, because the
+  envelope contains `prompt` and `system` and any route keyed on those matched
+  every turn regardless of input. A comment asserting something is free is a
+  claim, and this one was never checked.
+
+- **Signal from where you are standing must never outvote signal from what you
+  said.** Uncapped, a few hundred untracked path tokens drown four typed words,
+  and prompts route to whatever stale directories happen to be about. The tree
+  corroborates; it does not vote.
+
 - **Run the deployed thing against the real repository.** Both defects above
   survived a green 233-assertion suite and were found within minutes of
   executing the installed hooks by hand. The suite tests the code; only running

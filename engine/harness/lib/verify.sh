@@ -38,12 +38,20 @@ _felix_stat_mode() {
   elif stat -f '%z' /dev/null >/dev/null 2>&1; then _FELIX_STAT=bsd
   else _FELIX_STAT=none; fi
 }
-_felix_meta() {
+# Every path in one call, not one call per path.
+#
+# The first version asked for metadata per file from inside a command
+# substitution, which is a subshell, so the capability probe above never cached:
+# each file cost three `stat` processes rather than one. On a repository with a
+# couple of untracked backup directories that was 510 spawns and close to two
+# seconds on every attempt to finish. Both stat implementations accept many
+# paths at once, so this is one process regardless of count.
+_felix_meta_all() {
   _felix_stat_mode
   case "$_FELIX_STAT" in
-    gnu) stat -c '%s %Y' "$1" 2>/dev/null ;;
-    bsd) stat -f '%z %m' "$1" 2>/dev/null ;;
-    *)   printf 'nostat' ;;
+    gnu) stat -c '%n %s %Y' "$@" 2>/dev/null ;;
+    bsd) stat -f '%N %z %m' "$@" 2>/dev/null ;;
+    *)   printf '%s\n' "$@" ;;
   esac
 }
 
@@ -124,14 +132,14 @@ EOF
     # the hook has to stay fast whatever it is handed.
     prefix="coarse:"
     meta="$n untracked"
-  else
+  elif [ "${n:-0}" -gt 0 ]; then
+    local files=()
     while IFS= read -r f; do
-      [ -n "$f" ] || continue
-      meta="$meta
-$f $(_felix_meta "$root/$f")"
+      [ -n "$f" ] && files+=("$root/$f")
     done <<EOF
 $untracked
 EOF
+    meta="$(_felix_meta_all "${files[@]}")"
   fi
 
   printf '%s%s' "$prefix" \

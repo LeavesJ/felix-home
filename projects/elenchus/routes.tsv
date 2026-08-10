@@ -1,24 +1,24 @@
-# Task routes. What kind of work a prompt is, and what to reach for.
+# Routes for Elenchus.
 #
-# Read top-down. Highest score wins and file order breaks ties, so specific
-# routes belong above general ones and the catch-all belongs last.
+# Written against this project's actual vocabulary rather than the generic
+# template, which knew nothing about probes, grading or admission and sent
+# "the endpoint returns a 500 on the results page" to the frontend.
 #
-# Scoring: a keyword matches when it appears inside a context token, so `page`
-# matches `pages`. Words you typed count double; words taken from the branch
-# name and the working tree count single. The prompt is what you just said, the
-# tree is only where you happen to be standing.
+# Read top-down. Highest score wins and file order breaks ties, so the failure
+# routes sit above the subsystem routes: something being broken says more about
+# what to do next than which subsystem it is broken in.
 #
-# `profile` must name a row in profiles.tsv. `play` is the ordered sequence to
-# reach for, or `-` for none. The order is the point: build with one tool, then
-# critique with the next.
-#
-# Nothing language-specific belongs here. A route that only makes sense for one
-# ecosystem belongs in that project's own routes.tsv, not in everyone's default.
+# Words you typed count double, words from the branch and working tree count
+# single. Note that tokens shorter than four characters are dropped, so an HTTP
+# status like 500 can never be a keyword.
 #
 # name	keywords	profile	play
 incident	production outage pager sev1 alerting rollback hotfix	incident	superpowers:systematic-debugging
-debug	broken failing crash regression traceback stacktrace exception reproduce	core	superpowers:systematic-debugging
-frontend	page component layout styling render view button modal form screen	frontend	frontend-design impeccable playwright
-backend	endpoint handler schema query migration worker queue index	backend	-
+debug	broken failing crash traceback stacktrace exception regression reproduce flaky hangs	core	superpowers:systematic-debugging
+grading	grading scoring rubric verdict auditor evidence anchor span refusal forgeable	core	superpowers:test-driven-development superpowers:systematic-debugging
+probe	probe payload corpus admission landing permutation arm cell exclusion denominator	core	superpowers:brainstorming superpowers:test-driven-development
+model	prompt model wiring template system pinned	core	superpowers:brainstorming
+web	endpoint handler request response route session	backend	superpowers:test-driven-development playwright
+frontend	page component layout styling button modal form screen	frontend	frontend-design impeccable playwright
 release	release shipping deploy version changelog publish	release	superpowers:verification-before-completion
 build	build implement feature create	core	superpowers:brainstorming superpowers:writing-plans

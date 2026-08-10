@@ -47,6 +47,18 @@ with a record, not a substitute for running it.
   diffs the tree against the version the CLI reports as live and is the only
   thing that speaks. Announcing a deployment is what let this recur.
 
+- **A redeployed engine never reaches the session that deployed it.** Hooks are
+  bound at session start. `felix install` updates the cache and the CLI on
+  PATH, and every later `felix` command runs the new code, so verifying a hook
+  fix through the CLI passes convincingly — while the hook still firing on
+  every prompt is the one loaded hours ago. An envelope fix was built, tested,
+  deployed, verified three times, and reported as live for every session on the
+  machine; the session that shipped it kept misrouting through the old hook for
+  the rest of its life, and the routing log kept recording the raw payload the
+  fix existed to remove. Read the version in the SessionStart banner before
+  claiming a hook change is in effect here. It is in effect for the *next*
+  session, which is a different and much weaker claim.
+
 - **A record written inside the tree it describes invalidates itself.** Felix's
   home is the Felix repository when Felix governs itself, so the gate receipt
   landed in the tree whose identity it recorded. Writing it changed the tree,

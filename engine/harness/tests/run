@@ -97,6 +97,21 @@ case "$out" in
   *) bad "hook emits Claude Code shape as a plugin" "$out" ;;
 esac
 
+# A governed project's constitution lives in Felix's home, not the repository,
+# so nothing auto-loads it and naming it is the entire delivery mechanism. This
+# was masked inside Felix itself, where the file happens to sit in the tree
+# being edited, and not masked at all anywhere else.
+has "the hook says what must be read first" "$out" "Read before planning"
+printf '# handoff\n' > "$REPO/HANDOFF.md"
+out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+has "and names a handoff when the repo has one" "$out" "HANDOFF.md"
+rm -f "$REPO/HANDOFF.md"
+out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+case "$out" in
+  *"$REPO/HANDOFF.md"*) bad "and names none when there is none" "$out" ;;
+  *)                    ok  "and names none when there is none" ;;
+esac
+
 # Felix also installs as a plain settings.json hook, where CLAUDE_PLUGIN_ROOT is
 # unset. Emitting the wrong shape there injects nothing and fails silently.
 out="$(cd "$REPO" && env -u CLAUDE_PLUGIN_ROOT "$FROOT/harness/hooks/session-start" 2>&1)"

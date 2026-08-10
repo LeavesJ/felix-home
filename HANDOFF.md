@@ -1,201 +1,254 @@
 # Handoff
 
-Rewritten 2026-08-10. The previous version was a Phase 1 verification dated
-2026-08-09 and several of its rows have since stopped being true. Every row
-below was checked by running something today, not by reading code.
+Rewritten 2026-08-10, late. Read the first section before doing anything. It is
+standing direction that has already been decided and should not be re-derived,
+re-litigated, or asked about again.
 
-For the mechanical state of the tree — branch, head, uncommitted, recent
-commits — see `projects/felix/memory/SESSION_HANDOFF.md`, which `felix handoff`
-regenerates. This file is for the things a command cannot tell you.
+For the mechanical state of the tree — branch, head, uncommitted, recent commits
+— see `projects/felix/memory/SESSION_HANDOFF.md`, which `felix handoff`
+regenerates and therefore overwrites. Durable prose goes here, not there.
 
-## Direction, corrected 2026-08-10
+---
 
-Read this before the tables below. They measure progress against a charter that
-was wrong, so a row can be green and still be pointed the wrong way.
+## 1. Standing direction — decided, do not ask again
 
-**The split.** The founder owns *what* gets built: thesis, vision,
+**Felix is the engineering OS and the pilot of implementation.** Not a
+governance layer, not a recommender, not a sandbox. A product that adopts Felix
+should get a system that does whatever implementation takes.
+
+**The split.** The founder owns *what* gets built: product thesis, vision,
 prioritisation, pitching, and approval at the risk boundaries. Felix owns *how*
-it gets built, optimally — which MCP, which plugin, which skill, which agent,
-in which order, in one context or several — and the whole loop around that
-choice. If the founder is thinking about tooling, Felix has failed.
+it gets built, optimally — which MCP, which plugin, which skill, which agent, in
+which order, in one context or several — plus installing them, tracking what
+happened, and correcting course. **If the founder is thinking about tooling,
+Felix has failed.** The end state is a founder who only ever considers "what
+should we build next" and "should we add this".
 
-**The drift.** Felix's constitution opened with "the governance layer" and Felix
-built exactly that. It has a complete vocabulary for saying no — gate, classify,
-evidence, quarantine, guard, scope — and had none for saying "do this next".
-Against the guidebook's loop (p2), six of fourteen boxes are strong and the one
-at the centre, *plan / route / dispatch subagents*, is a third built with that
-third only printing advice. The p2 ownership table gives the OS "implementation
-planning and execution"; Felix owned none of it. The charter has been rewritten;
-see `projects/felix/CLAUDE.md`.
+**Interfere as much as possible.** Felix is meant to intervene, not advise. A
+command that prints a suggestion for something it could safely have done is a
+defect, not caution. Irreversible work still stops and asks; everything else
+acts.
 
-**Scope.** Phase 1 engineering only. Revenue, customer and company are later
-phases owned by other systems. Stripe rows in the templates are dormant
-capabilities, not a direction.
+**Scope is Phase 1 engineering only.** Revenue, customer, support and company
+administration are later phases owned by other systems. Stripe rows in the
+templates are dormant capabilities, not a direction Felix grows in. Later, when
+those systems exist, Felix becomes one sub-OS reporting to a chief agent — so
+design its surfaces to be drivable by something that is not a human.
+
+**How to work, decided across this session:**
+
+- **Decide, do not ask.** Subagents versus inline execution is Felix's call and
+  the session's call, made on the shape of the work and justified in one line.
+  Coupling is the usual tiebreaker: several agents editing one file invent
+  conflicting assumptions. Genuinely separate files, separate repos, or
+  independent adversarial review of finished work are real fan-out candidates.
+- **Ask about outcomes, never mechanics.** If a question is about how something
+  is built rather than what will happen, answer it yourself.
+- **Override self-imposed ceilings.** Before saying something cannot be done,
+  establish who set the limit. A rule in Felix's own doctrine, invariants or CLI
+  is a decision, not a constraint. If this repository owns the refusal, say so
+  and default to overriding it. Reserve "impossible" for cases where a specific
+  mechanism can be named.
+- **A model may propose, never widen.** The enforcing path stays bash and git so
+  it works with no network, key or model. Advisory commands may call a model,
+  but its output is a proposal and may only narrow what mechanics already
+  allowed.
 
 **What the monitor is for.** Witnessing Felix guide Claude Code, so the founder
-can stop caring about the things it handles. It currently shows records —
-routes defined, verdicts, what Felix said — and never shows whether Claude did
-what Felix named. The compliance signal already exists in `felix_route_due`,
-which reads the transcript to see whether a play step was used. Nothing
-surfaces it. That panel is the one that proves the delegation works.
+can stop caring about what it handles. It currently shows records — routes
+defined, verdicts, what Felix said — and never shows whether Claude *did* what
+Felix named. The compliance signal already exists in `felix_route_due`, which
+reads the transcript to see whether a play step was used. Nothing surfaces it.
+That panel is the one that proves the delegation works.
 
-**Why Felix guides instead of acting.** Not a limit of Claude Code. Felix wires
-3 of the 9 available hooks — `SessionStart`, `UserPromptSubmit`, `Stop` — and
-all three only inject text. `PreToolUse`, the one hook that can deny an action
-before it happens, has never been wired. Neither has `PostToolUse`, which is
-where live tracking and the capability ledger were both specced to record.
-Guidance was a consequence of the old charter, not of the platform.
+### Where the durable copies live
 
-**Next, in leverage order.**
+| What | File |
+|---|---|
+| Charter and invariants | `projects/felix/CLAUDE.md` |
+| Hard-won lessons, matched into prompts | `projects/felix/memory/lessons.md` |
+| This direction | this file |
+| Per-project rules | `projects/<p>/{routes,risk,evidence,stack,deny,maintenance}.tsv` |
 
-0. Wire `PreToolUse`. It is the difference between a harness that advises and
-   one that enforces: deny an edit to a red path without approval, deny a push
-   to main, deny running a rival gate. Adversarial tier — it runs before every
-   tool call in every governed session, and a mistake denies everything.
-0b. Wire `PostToolUse` and `SessionEnd`. Live tracking, and the capability
-   ledger that has been specced since 2026-08-09 and blocked on nothing else.
-0c. Amend invariant 4 so Felix installs low-risk tooling itself. Today
-   `felix discover` refuses outright: "there is no --yes". The end state has
-   Felix recommending *and installing* what a project needs. Keep the refusal
-   for anything touching credentials or irreversible writes; that is the
-   autonomy ladder (p20) applied to tooling.
-1. `felix route` upgraded from naming to deciding: tools, execution shape, tier
-   and evidence up front, order, and the configuration the next session boots
-   with. Mounting cannot happen mid-session; writing config between sessions can.
-2. Execution shape. Coupling computed mechanically from shared files, which is a
-   refusal and binds. A model may narrow it and may never widen it.
-3. Convert the pure recommenders: `doctor`, `handoff`, `promote`, `recommend`
-   and `which` print and bind nothing.
-4. `felix next` for the engineering backlog Felix already tracks — maintenance,
-   drift, setup gaps, evidence gaps. Not for product work: that is the founder's.
-5. The issue-to-PR verbs, specced and planned in `docs/2026-08-10-issue-pr-loop-plan.md`.
-   No longer a standalone feature; it is the loop's *branch + PR* box.
+Nothing in Felix's home is auto-loaded into a session. `SessionStart` names
+these files and says they are required reading; whether they get read is the
+delivery risk. Inside the Felix repo this is masked because Claude Code
+auto-loads `CLAUDE.md` files it finds in the tree. In a governed product repo it
+is not masked at all.
 
-## Exit criteria (guidebook p41)
+---
+
+## 2. State as of 2026-08-10
+
+- Engine **0.14.1**, deployed and verified (`felix install` → "verified the
+  installed engine matches this tree").
+- `felix gate` → **pass**. **334 assertions**, 0 failed.
+- `main` is **well ahead of `origin/main` and unpushed**. Pushing triggers CI.
+- Felix wires **4 of 9 hooks**: `SessionStart`, `UserPromptSubmit`, `Stop`, and
+  as of today `PreToolUse`.
+
+### What Felix can do today
+
+Resolve which project governs a checkout; run and record a gate; classify a diff
+into green/yellow/red; say what evidence a change owes; route a prompt to a play
+and name the tool that is due; detect undeclared capabilities; detect a rival
+gate; refuse a Bash command; report maintenance, setup gaps, budget, auto-merge
+readiness and unattended readiness; write handoffs, lessons and devlog entries;
+render the monitor.
+
+### What Felix cannot do
+
+Mount an MCP server or enable a plugin mid-session — that needs a restart, so
+tooling decisions must be written as configuration between sessions. Read a
+GitHub issue. Open a pull request. Deploy anything. Plan work. Dispatch
+subagents. Decide execution shape. Install tooling (a self-imposed refusal, due
+to be lifted — see §5).
+
+---
+
+## 3. Operational traps that have each cost real time
+
+- **Hooks are bound at session start.** `felix install` updates the cache and
+  the CLI on PATH, so verifying a hook fix through the CLI passes convincingly
+  while the hook still firing on every prompt is the one loaded hours ago. A
+  routing fix was built, deployed and verified three times today and the session
+  that shipped it kept misrouting for its whole life. **Check the version in the
+  SessionStart banner before claiming a hook change is live here.** It is live
+  for the *next* session, which is a much weaker claim.
+- **A changed engine at an unchanged version never deploys.** Claude Code caches
+  by version. `felix install` refuses and tells you to bump
+  `engine/.claude-plugin/plugin.json`. The bump *is* the deployment.
+- **`FELIX_HOME` is the main tree, not your worktree.** Editing
+  `projects/*/…tsv` inside a worktree changes nothing until merged. Override
+  with `FELIX_HOME=<path>` to test.
+- **`felix gate` is red on any undeployed engine branch.** The `installed` check
+  compares the tree against the deployed cache, so a branch that changes the
+  engine cannot be green locally until it is deployed. CI skips the check when
+  no plugin is installed, so a pull request can still go green.
+- **Felix's red tier is honoured by behaviour, not enforced.**
+  `gh api repos/LeavesJ/felix/rulesets` → 403, "Upgrade to GitHub Pro or make
+  this repository public". Branch protection is unavailable on a private free
+  repo. Elenchus gets real enforcement only because it is public. The decision
+  was to behave as if the rule applied and state the gap rather than hide it.
+  **Nothing mechanically stops a bypass.**
+- **Debug `tests/run` in place.** It computes the harness path from `$0`; run it
+  from elsewhere and it starts copying the root filesystem.
+- **Run the suite and commit as one chain.** A piped test run masks the exit
+  status and commits a red tree.
+
+---
+
+## 4. Guidebook exit criteria (p41)
 
 | Promised | Status | Evidence |
 |---|---|---|
-| take an issue | **no** | nothing reads an issue; only `gh issue create`, for incidents |
+| take an issue | **no** | nothing reads an issue; planned in `docs/2026-08-10-issue-pr-loop-plan.md` |
 | create code | yes | |
-| run tests | yes | `felix gate` → `gate: pass`; 293 in Felix, 1229 in Elenchus |
-| deploy preview | **no** | no deploy target in the repo, and no catalogue row keyed on `deploy` |
-| test it | partial | 0 files matching `e2e\|playwright` in Elenchus |
-| open PR | **Felix does not** | it labels and merges existing ones; there is no `gh pr create` |
+| run tests | yes | `felix gate` → pass; 334 in Felix |
+| deploy preview | **no** | no deploy target, no catalogue row keyed on `deploy` |
+| test it | **partial** | still 0 files matching `e2e\|playwright` in Elenchus |
+| open PR | **no** | Felix labels and merges; there is no `gh pr create` |
 | report confidence | yes | `felix classify`, `felix evidence` |
 
-Four met, one partial, two not. Unchanged from yesterday except that "open PR"
-is now stated accurately: Felix never opened one.
+Build list: `CLAUDE.md` yes; GitHub integration yes; PR workflow yes; tests yes;
+Sentry dormant (capability undeclared for Elenchus, so it is deferred rather
+than missing); Playwright installed with 0 tests; **Strix does not exist** — 0
+of 273 marketplace entries, no binary, no skill, so semgrep plus
+`engine/harness/bin/secret-scan` fills that slot; basic audit yes and real.
 
-## Build list (guidebook p41)
+---
 
-| Promised | Status |
-|---|---|
-| CLAUDE.md | yes |
-| GitHub integration | yes, `main` protected, `gate` required |
-| PR workflow | yes |
-| tests | yes |
-| Sentry | **no**, declared in `stack.tsv`, absent from `claude mcp list` |
-| Playwright | plugin installed, still 0 e2e tests |
-| Strix | **does not exist as a plugin**: 0 of 273 marketplace entries, no binary, no skill |
-| basic audit | **yes, and real now** — see below |
+## 5. Next, in leverage order
 
-## What changed since the last handoff
+1. **`PostToolUse` and `SessionEnd`.** Unblocks live tracking and the capability
+   ledger, specced in `docs/2026-08-09-capability-ledger-design.md` since
+   2026-08-09 and blocked on nothing else. The deny hook established the
+   contract and the fail-open discipline, so this is smaller than it looks.
+   Note the ledger spec contradicts itself: the body argues transcript parsing
+   breaks the bash-and-git invariant and inverts to `PostToolUse` recording, and
+   its `## Records` section still says a `SessionEnd` hook parses the
+   transcript. Resolve that first.
+2. **Let Felix install low-risk tooling.** `felix discover` already fetches a
+   candidate at its pinned sha and *reads what it ships*; only the act is
+   refused, by one `die` in `engine/harness/felix`. Invariant 4 has been amended
+   to allow it; the code has not caught up. Keep refusing `risk=high` and
+   anything touching credentials or irreversible writes.
+3. **`felix route` from naming to deciding**: tools, execution shape, tier and
+   evidence up front, order, and the configuration the next session boots with.
+   Better once the ledger exists, since choosing tools is far better informed by
+   knowing which ones actually got used.
+4. **Execution shape.** Coupling computed mechanically from shared files — a
+   refusal, and it binds. A model may narrow it and may never widen it. The
+   `Files:` blocks that `writing-plans` mandates are a computable overlap graph;
+   a first pass over `docs/2026-08-10-issue-pr-loop-plan.md` correctly found
+   tasks 1–4 fully connected and task 5 disjoint.
+5. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
+   `recommend` and `which` print and bind nothing.
+6. **`felix next`** for the engineering backlog Felix already tracks —
+   maintenance, drift, setup gaps, evidence gaps. Not for product work; that is
+   the founder's.
+7. **The issue-to-PR verbs.** Spec `docs/2026-08-10-phase1-gaps-design.md`, plan
+   `docs/2026-08-10-issue-pr-loop-plan.md`, both written and self-reviewed. It
+   is the loop's *branch + PR* box, not a standalone feature.
+8. **Monitor: the compliance panel**, plus making archive sessions clickable.
+   `monitor.html` already groups by session (`liveSession`, `sessionSays`,
+   `pastSays`), so it is a rendering change. It cannot show the transcript:
+   parsing JSONL breaks the invariant and a `file://` page cannot fetch a
+   sibling. Show Felix's own record plus `claude --resume <id>`.
 
-**The p3 router promise is largely met.** The previous handoff said it could not
-be, because "Claude Code has no runtime API for it." That was too strong. A
-skill from an enabled plugin *is* invokable mid-turn, which is exactly how the
-router works: it names the one tool that is due, and names the next only once
-the transcript shows the first was used. What genuinely cannot change
-mid-session is connecting an MCP server and switching on a plugin that is off.
+---
 
-**The completion gate exists.** p7's rule — never declare a task complete while
-a deterministic verification step is failing — was doctrine and is now a `Stop`
-hook. It decides on tree state, compares a receipt rather than re-running, and
-blocks once per chain, which is a speed bump with a permanent record rather
-than a barrier. The barrier is still CI.
+## 6. Open decisions
 
-**There is a per-action audit trail.** 21 gate verdicts and 29 routing decisions
-recorded so far, plus mistakes and maintenance, all tracked in git. Verification
-has no native record anywhere in Claude Code; this is the only place it exists.
+- **Unattended repair.** Wired and off. `gh variable set FELIX_UNATTENDED --body
+  true --repo LeavesJ/Elenchus`. Felix will not flip it: the evidence that would
+  justify it cannot be gathered without spending it, so the first real run wants
+  someone watching.
+- **Auto-merge.** 0 of 5 on both repos. Elenchus has exactly two merged pull
+  requests ever, #1 unlabelled and #3 `risk-red`. It unlocks itself after five
+  consecutive green merges.
+- **GitHub MCP is broken, not missing.** `plugin:github:github` returns
+  `HTTP 400: Authorization header is badly formatted`. It was authenticated once
+  and the credential is now malformed. Needs an interactive session.
+- **`scripts/prepush.sh` in Elenchus** is an untracked copy of a file Felix
+  holds, identical today and free to drift. `felix doctor` reports it. The stale
+  `scripts/gate.sh` beside it was deleted 2026-08-10 after it caused a session
+  to report green from a gate missing the `secret` check.
+- **`routes.log` is polluted.** Rows written before the envelope fix contain
+  `session_id`, `transcript_path` and every path component, so
+  `felix route --promote` ranks `users`, `claude` and `a14808` above real words.
+  New rows are clean. Either wait for clean misses to outnumber them or truncate.
 
-**Felix governs Felix.** It had no `risk.tsv`, no `evidence.tsv` and no
-`maintenance.tsv` — the three things it demanded of every project it governed.
-It has them now, and the first thing they said was that its own recent work
-classifies `red`.
+---
 
-**Felix can see the whole toolbox.** It could see 14 plugins; there are 30. The
-ones bundled into the Claude Code binary appear in no plugin list and no
-on-disk registry, and their skills are live in every session.
+## 7. Approaches already tried and rejected
 
-**Discovery exists.** `felix discover --inspect` fetches a candidate at its
-pinned sha and reads what it ships before recommending it, because
-`claude plugin validate` checks schema only and the plugin format has no
-permission model at all.
+Do not re-propose these without new information.
 
-## Open decisions
+- **Retiring capabilities by usage count.** Circular: loading a capability is
+  what causes it to be used. Only *absence* of use given presence is
+  unconfounded. See the ledger design.
+- **Blacklisting words to silence hook-payload field names.** Banning `hook` to
+  silence `hook_event_name` made "the stop hook is blocking" match nothing.
+  Remove the structure, not the vocabulary.
+- **Parsing session transcripts in the engine.** 1.7MB of JSONL, and general
+  JSON parsing in bash is not practical at that size. Record at the moment it
+  happens instead.
+- **Making Felix public to get branch protection.** The doctrine is the moat.
+- **`felix shape` deciding execution by itself.** Felix cannot reason inside a
+  hook. It computes coupling, refuses the unsafe half, and records the choice.
 
-- **Unattended switch.** Still off. `gh variable set FELIX_UNATTENDED --body true
-  --repo LeavesJ/Elenchus`. Everything else is ready; `felix unattended` reports
-  readiness and will not flip it.
-- **Auto-merge.** `felix automerge` reads 0 of 5. Unlocks itself once five
-  consecutive green pull requests merge without CI disagreeing.
-- **Felix's own red tier — decided 2026-08-10: honoured by behaviour, not
-  enforced.** Changes to `engine/harness/lib` and the hooks classify red here.
-  Felix cannot enforce that on itself: `gh api repos/LeavesJ/felix/rulesets`
-  returns 403, "Upgrade to GitHub Pro or make this repository public", so both
-  branch protection and rulesets are unavailable on a private free repository.
-  Elenchus gets real enforcement only because it is public.
+---
 
-  The decision was to behave as if the rule applied — branch, classify, founder
-  approval before merge — and to state the gap here rather than leave it looking
-  like an oversight. **Nothing mechanically stops a bypass.** The rival-gate
-  change went through that flow: classified red, approval asked and given,
-  merged, deployed, gate green afterwards.
+## 8. The failure mode this project keeps having
 
-  A second obstacle is worth naming because it is not a plan limit. `felix gate`
-  runs an `installed` check comparing the tree against the deployed plugin cache,
-  so on any engine-changing branch the local gate is red until the branch is
-  deployed — and deploying is the red-tier act that needs approval first. CI
-  skips the check when no plugin is installed, so a pull request can still go
-  green; only the local gate is affected. It is a plausible reason engine work
-  has always gone straight to `main`.
+Four times now, correct and tested code did nothing because of *where* it was or
+was not installed: a hook absent from the plugin cache; an engine that never
+deployed because its version had not changed; a receipt written inside the tree
+it described; and a hook fix that never reached the session that shipped it.
+Every one was found by running the deployed thing against a real repository,
+never by the suite.
 
-## Buildable now
-
-1. **Playwright e2e tests** — the plugin is installed, the web surface exists,
-   and the count is still zero.
-2. **Issue intake** — `gh` is authenticated and can read issues. An issue could
-   become a branch, a brief and a PR through the same gate and classifier.
-3. **The capability ledger** — specced, deliberately unbuilt. It measures which
-   capabilities earn their place, and there was nothing to measure. There is
-   now: 29 routing decisions and 21 verdicts.
-
-## Still unproven
-
-~~The router has never run against a real session.~~ **Stale as of 2026-08-10.**
-It has: `routes.log` carries decisions from real Elenchus and Felix worktree
-sessions, and they scored 2 — weak matches — with one prompt scoring 0 and
-matching nothing at all. The table was thin: nine routes naming eight tools
-against fifty-five installed plugins, so `dispatching-parallel-agents` was
-unreachable and an attached PDF never reached the `pdf` skill. Four rows were
-added to each project and verified by routing real sentences through them.
-
-`felix route --promote` still cannot help, for a different reason than assumed:
-it reads the raw JSON envelope. `felix_route_log` stores the prompt verbatim, so
-every miss carries `session_id`, `transcript_path` and every component of the
-transcript path, and `--promote` ranks `users`, `claude` and `a14808` above
-anything a person typed. The scoring path was fixed for this; the write path was
-not. The pollution is already on disk. The same caveat the last handoff made about `risk.tsv` applies to
-`routes.tsv`: it was written in one sitting and is exactly as good as that.
-
-## The failure mode this project keeps having
-
-Three times now, correct and tested code did nothing because of where it was or
-was not installed: a hook absent from the plugin cache, an engine that never
-deployed because its version had not changed, and a receipt written inside the
-tree it described. Each was found by running the deployed thing against a real
-repository, never by the suite.
-
-A fourth variant appeared today: a fix explained in a commit message rather than
-in `lessons.md`, and therefore repeated within the day. The lesson mounts; the
-commit message does not.
+A fifth variant is about where an explanation lives: a fix described in a commit
+message rather than in `lessons.md` was repeated within the day. `lessons.md` is
+matched into prompts; a commit message is read once and never again.

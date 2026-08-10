@@ -87,6 +87,18 @@ Maintenance due: ${_due}
 Do them on one branch. See 'felix maintenance'."
 fi
 
+# Named, not merely stored. A governed project's constitution lives in Felix's
+# home rather than the repository, so nothing auto-loads it: inside Felix itself
+# that is masked, because the file happens to sit in the tree being edited, and
+# for every other project it is not masked at all. The same is true of the
+# handoff. Pointing at them is the whole delivery mechanism, so say plainly that
+# they are required rather than leaving a path and hoping.
+read_lines="Read before planning: ${PROJ}/CLAUDE.md"
+[ -f "${_repo_root}/HANDOFF.md" ] && read_lines="${read_lines}
+                   ${_repo_root}/HANDOFF.md"
+[ -f "$PROJ/memory/SESSION_HANDOFF.md" ] && read_lines="${read_lines}
+                   ${PROJ}/memory/SESSION_HANDOFF.md"
+
 context="Felix governs this session.
 
 Project: ${project}
@@ -94,6 +106,11 @@ Constitution: ${PROJ}/CLAUDE.md
 ${gate_line}
 Memory: ${PROJ}/memory/
 ${drift_line}${maint_line}
+
+${read_lines}
+
+None of those are loaded for you. They carry standing direction that has
+already been decided, so reading them is how you avoid being told twice.
 
 Run the gate through the command above rather than a repo-relative path, which
 may not exist in the tree you are standing in. Declare your tier before you

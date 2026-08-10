@@ -10,6 +10,7 @@
 #   felix monitor        render everything Felix did that nobody could see
 #   felix ready          is every tool this project names actually usable?
 #   felix discover       what is worth having that this project does not have
+#   felix discover --adopt  declare and install the low-risk ones it has read
 #   felix quarantine <p> switch off a plugin that is breaking sessions
 #   felix recommend      what this stack implies; --want "<text>" matches intent
 #   felix stack plan     diff declared tooling against what is installed
@@ -554,15 +555,64 @@ cmd_quarantine() {
 }
 
 cmd_discover() {
-  resolve_or_die; local proj="$PROJ" inspect=0 quiet=0 a tpl="$SCRIPT_DIR/templates"
+  resolve_or_die; local proj="$PROJ" inspect=0 quiet=0 adopt=0 a tpl="$SCRIPT_DIR/templates"
   for a in "$@"; do
     case "$a" in
       --inspect) inspect=1 ;;
       --quiet)   quiet=1 ;;
-      --yes)     die "felix discover never installs. There is no --yes." ;;
+      --adopt)   adopt=1 ;;
+      --yes)     die "there is no --yes. felix discover --adopt declares and installs what it read and judged low risk, and nothing else." ;;
     esac
   done
   command -v claude >/dev/null 2>&1 || die "felix discover needs the claude CLI to see the marketplaces"
+
+  # Acting on what has already been read. The candidate was fetched at its
+  # pinned sha, its contents were read, and a tier was scored from what it
+  # actually ships; printing a shopping list after all that was the governance
+  # charter talking. Low only, and no flag from any caller touches high.
+  if [ "$adopt" -eq 1 ]; then
+    local plan; plan="$(felix_discover_adopt "$proj" "$FELIX_HOME_DIR")"
+    if [ -z "$plan" ]; then
+      printf 'Nothing discovered yet for %s.\n\n' "$(basename "$proj")"
+      printf 'Discovery runs on a cadence rather than in front of a prompt, so the\n'
+      printf 'cache may simply be empty. felix discover --inspect fills it now.\n'
+      return 0
+    fi
+    local n_dec=0 n_ref=0 kind
+    printf 'adopting for %s\n\n' "$(basename "$proj")"
+    while IFS=$'\t' read -r act name cap risk; do
+      [ -n "${act:-}" ] || continue
+      case "$act" in
+        declare)
+          # skill, plugin or mcp is not knowable from the catalogue listing, and
+          # plugin is what a marketplace entry is. A wrong kind here would make
+          # felix stack apply call the wrong installer, so it is stated rather
+          # than guessed at install time.
+          kind=plugin
+          printf '%s\t%s\t-\t%s\t%s\n' "$kind" "$name" "$risk" "$cap" >> "$proj/stack.tsv"
+          if felix_stack_install "$kind" "$name" "-"; then
+            printf '  installed  %-24s %-10s %s\n' "$name" "$risk" "$cap"
+          else
+            printf '  declared   %-24s %-10s %s (install failed; felix stack apply --yes retries)\n' \
+              "$name" "$risk" "$cap"
+          fi
+          n_dec=$((n_dec+1)) ;;
+        refuse)
+          printf '  refused    %-24s %-10s a person decides this one\n' "$name" "$risk"
+          n_ref=$((n_ref+1)) ;;
+      esac
+    done <<EOF
+$plan
+EOF
+    printf '\n%s adopted, %s refused.\n' "$n_dec" "$n_ref"
+    if [ "$n_ref" -gt 0 ]; then
+      printf '\nMedium means it ships an MCP server, which usually needs a credential\n'
+      printf 'only you can supply. High means hooks, a floating version, or an\n'
+      printf 'interpolated secret. No flag installs those.\n'
+    fi
+    [ "$n_dec" -gt 0 ] && printf '\nDeclared rows were appended to %s/stack.tsv. Revert by deleting them.\n' "$proj"
+    return 0
+  fi
 
   local cands; cands="$(felix_discover_candidates "$proj" "$tpl")"
   if [ -z "$cands" ]; then
@@ -648,8 +698,8 @@ cmd_discover() {
     rm -rf "$scratch/$name"
   done
 
-  printf '\nNothing was installed and nothing was written. To adopt one, add its row\n'
-  printf 'to %s/stack.tsv and install it yourself.\n\n' "$proj"
+  printf '\nNothing was installed and nothing was written. To act on this:\n\n'
+  printf '  felix discover --adopt    declares and installs the low-risk ones\n\n'
   printf 'A high tier is not an accusation. It means the thing runs code on your\n'
   printf 'machine, and that this check reads files rather than behaviour: a plugin\n'
   printf 'that passes every line above can still do as it likes once it runs.\n'

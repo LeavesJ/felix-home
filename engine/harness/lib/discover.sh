@@ -212,6 +212,56 @@ FELIX_DISCOVER_STALE_DAYS="${FELIX_DISCOVER_STALE_DAYS:-7}"
 
 _felix_discover_cache() { printf '%s/state/discover/%s' "$2" "$(basename "$1")"; }
 
+# What discovery has already read, judged, and would declare.
+#
+# Everything expensive is done by the time this runs: the candidate was fetched
+# at its pinned sha, its contents were read, and a risk tier was scored from
+# what it actually ships. Stopping there and printing a shopping list was the
+# governance charter talking. Declaring is a manifest edit, which detection was
+# always permitted to do unattended, and the founder is not supposed to be
+# thinking about tooling at all.
+#
+# Low only. Medium means it ships an MCP server, which usually needs credentials
+# a person has to supply anyway; high means hooks, a floating version, or an
+# interpolated secret, and no flag from any caller installs those.
+#
+# Emits: action <TAB> name <TAB> capability <TAB> risk
+#   declare  low risk, not yet in stack.tsv
+#   refuse   medium or high
+#   already  named in stack.tsv, whatever the tier
+felix_discover_adopt() {
+  local proj="$1" home="$2" cache name cap risk declared
+  cache="$(_felix_discover_cache "$proj" "$home").tsv"
+  [ -f "$cache" ] || return 0
+
+  # Compared without the marketplace suffix, the same way candidates are
+  # filtered, so langfuse@x already declared matches a langfuse candidate.
+  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null \
+              | cut -f2 | sed 's/@.*//')"
+
+  while IFS=$'\t' read -r name cap risk; do
+    # The cache is not always rows. When nothing matches, discovery writes prose
+    # into it explaining why, and a parser that adopted a sentence would be
+    # worse than one that adopted nothing. Three fields and a known tier, or it
+    # is not a candidate.
+    [ -n "${name:-}" ] && [ -n "${cap:-}" ] || continue
+    case "${risk:-}" in low|medium|high) ;; *) continue ;; esac
+    case "$name" in *' '*) continue ;; esac
+
+    # Self-contained on purpose: this file is sourced alone by the suite, and a
+    # helper from a sibling lib turns that into a runtime error rather than a
+    # failing assertion. grep without -q for the usual reason — a consumer that
+    # exits on its first match kills the producer under `set -o pipefail`.
+    if printf '%s\n' "$declared" | grep -xF "$name" >/dev/null 2>&1; then
+      printf 'already\t%s\t%s\t%s\n' "$name" "$cap" "$risk"; continue
+    fi
+    case "$risk" in
+      low) printf 'declare\t%s\t%s\t%s\n' "$name" "$cap" "$risk" ;;
+      *)   printf 'refuse\t%s\t%s\t%s\n'  "$name" "$cap" "$risk" ;;
+    esac
+  done < "$cache"
+}
+
 # Has the cache aged out, or never existed?
 felix_discover_stale() {
   local f; f="$(_felix_discover_cache "$1" "$2").tsv"

@@ -1448,6 +1448,37 @@ is "anything shipping hooks is high"     "$(_tier "$DF/hooky")"      "high"
 is "an unpinned version is high"         "$(_tier "$DF/floaty")"     "high"
 is "interpolating a credential is high"  "$(_tier "$DF/creds")"      "high"
 
+printf '\ndiscovery declares what it has read and judged safe\n'
+# Felix already read the candidate at its pinned sha and already scored the
+# risk. Stopping there and handing the founder a shopping list was the
+# governance charter talking: if the founder is thinking about tooling, Felix
+# has failed. Declaring is a manifest edit, which detection was always allowed
+# to do unattended.
+AH="$TMP/adopthome"; mkdir -p "$AH/state/discover"
+AP="$AH/projects/widget"; mkdir -p "$AP"
+printf 'plugin\tlangfuse@x\t-\tlow\tllm\n' > "$AP/stack.tsv"
+# A real cache: three tiers, one already declared, and — from the actual felix
+# cache — prose where rows were expected. A parser that adopts a sentence is
+# worse than one that adopts nothing.
+cat > "$AH/state/discover/widget.tsv" <<'EOF'
+deepeval	llm	low
+langfuse	llm	low
+figma	frontend	medium
+outputai	llm	high
+Nothing in the marketplaces matches what widget declares.
+EOF
+out="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_adopt "$AP" "$AH" )"
+has "a low-risk candidate is declared"        "$out" "declare	deepeval"
+has "a medium one is refused"                 "$out" "refuse	figma"
+has "and a high one is refused"               "$out" "refuse	outputai"
+has "one already declared is left alone"      "$out" "already	langfuse"
+case "$out" in
+  *Nothing*|*marketplaces*) bad "prose in the cache is not adopted" "$out" ;;
+  *)                        ok  "prose in the cache is not adopted" ;;
+esac
+n="$(printf '%s\n' "$out" | grep -c '^declare' || true)"
+is "exactly one declaration from that cache" "$n" "1"
+
 why="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_why "$(felix_discover_inspect "$DF/creds")" )"
 has "and says which variable it sends" "$why" "environment variable"
 

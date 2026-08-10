@@ -6,27 +6,32 @@ not a summary of intent.
 ## Where
 
 - branch: `main`
-- head: `2c341a6 Merge branch 'claude/mcp-plugin-auto-tuning-a2060c'`
+- head: `054fb54 docs(handoff): everything a fresh session needs, and the hook that delivers it`
 - tree: `/Users/a14808/Documents/Felix`
 
 ## Uncommitted
 
 ```
+ M projects/elenchus/memory/routes.log
+ M projects/elenchus/memory/says.log
  M projects/felix/memory/SESSION_HANDOFF.md
+ M projects/felix/memory/mistakes.log
  M projects/felix/memory/routes.log
+ M projects/felix/memory/says.log
+ M projects/felix/memory/verification.log
 ```
 
 ## Recent
 
 ```
-2c341a6 2026-08-10 Merge branch 'claude/mcp-plugin-auto-tuning-a2060c'
-c8d2b53 2026-08-10 feat(guard,discover): notice a broken plugin, and a debt nobody recorded
-9cef856 2026-08-10 feat(felix): govern Felix by the rules Felix imposes on everything else
-7e3ea71 2026-08-10 docs(lessons): the pipefail trap recurred despite being written down
-02cb487 2026-08-10 Merge branch 'claude/mcp-plugin-auto-tuning-a2060c'
-25c90a0 2026-08-10 feat(discover): read a plugin before recommending it
-3fd5d4e 2026-08-10 memory: commit what Felix has actually caught and routed
-4e13072 2026-08-10 feat(detect,ready): see the whole toolbox, and read what a project depends on
+054fb54 2026-08-10 docs(handoff): everything a fresh session needs, and the hook that delivers it
+5e72dc4 2026-08-10 fix(doctor): the name was never the point, Felix holding the copy is
+5e3749f 2026-08-10 chore(engine): 0.14.0 - Felix can refuse a command, and hooks.json is red
+1171bcc 2026-08-10 feat(deny): the first thing Felix can stop rather than mention
+2518598 2026-08-10 docs(lessons): establish who set a limit before reporting it as one
+3f85023 2026-08-10 doctrine(felix): the pilot of implementation, and a ceiling it built itself
+6d34c40 2026-08-10 docs(handoff): Felix guides because it wired the advisory hooks and skipped the enforcing one
+0ea4809 2026-08-10 doctrine: what the founder owns, what Felix owns, and the drift between them
 ```
 
 ## Next

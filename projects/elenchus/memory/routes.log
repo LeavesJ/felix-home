@@ -25,3 +25,5 @@
 2026-08-10T10:20:23Z	incident	2	{"session_id":"demo2","transcript_path":"/tmp/none","prompt":"production is paging, the assessment API is down"}
 2026-08-10T18:56:14Z	model	2	{"session_id":"b34da8dd-d9bf-488e-b1b8-b62a2b42029a","transcript_path":"/Users/a14808/.claude/projects/-Users-a14808-Documents-Elenchus--claude-worktrees-elench
 2026-08-10T19:09:09Z	model	2	{"session_id":"b34da8dd-d9bf-488e-b1b8-b62a2b42029a","transcript_path":"/Users/a14808/.claude/projects/-Users-a14808-Documents-Elenchus--claude-worktrees-elench
+2026-08-10T19:48:53Z	research	2	check these random things out
+2026-08-10T19:48:53Z	document	2	read through this document

@@ -1218,6 +1218,43 @@ case "$out" in
 esac
 ( cd "$REPO" && git checkout -q -- WIDGET.txt 2>/dev/null || printf 'contents\n' > "$REPO/WIDGET.txt" )
 
+printf '\nseeing the whole toolbox\n'
+# No single source knows every plugin. The CLI misses everything bundled into
+# the binary; the on-disk registry misses it too; only the config records it.
+# Felix has to work on somebody else's laptop, laid out however they left it,
+# so the inventory unions every source and each one is optional.
+INV="$( . "$FROOT/harness/lib/ready.sh"; felix_ready_inventory 2>/dev/null )"
+if has_claude; then
+  n_plug="$(printf '%s\n' "$INV" | grep -c '^plugin' || true)"
+  [ "${n_plug:-0}" -gt 0 ] && ok "finds plugins ($n_plug)" || bad "finds plugins" "none"
+else
+  skip "finds plugins" "no claude CLI"
+fi
+# Nothing may appear twice however many sources reported it.
+dupes="$(printf '%s\n' "$INV" | sort | uniq -d | grep -c . || true)"
+is "no entry is listed twice" "${dupes:-0}" "0"
+# A version string is not a plugin. The @inline scan picks them up otherwise.
+case "$INV" in
+  *"	1.0.0"*|*"	2.0.0"*) bad "version strings are not mistaken for plugins" "$INV" ;;
+  *) ok "version strings are not mistaken for plugins" ;;
+esac
+# With no config and no CLI it must still answer from disk rather than die.
+out="$( . "$FROOT/harness/lib/ready.sh"; HOME="$TMP/empty-home" felix_ready_inventory 2>&1 )"; rc=$?
+is "survives a machine laid out differently" "$rc" "0"
+
+printf '\ndetection reads what a project depends on\n'
+DREPO="$TMP/detectrepo"; mkdir -p "$DREPO/src/web/static"
+printf '[project]\ndependencies = ["anthropic>=0.40", "fastapi"]\n' > "$DREPO/pyproject.toml"
+for i in 1 2 3; do printf 'x\n' > "$DREPO/src/web/static/a$i.js"; done
+caps="$( . "$FROOT/harness/lib/detect.sh"; felix_detect "$DREPO" | sort -u | tr '\n' ' ' )"
+has "an SDK dependency makes it an llm project" "$caps" "llm"
+# package.json was the entire frontend test, which misses every web surface
+# served by a backend.
+has "a web surface counts without package.json" "$caps" "frontend"
+printf '[package]\nname = "x"\n' > "$DREPO/Cargo.toml"
+caps="$( . "$FROOT/harness/lib/detect.sh"; felix_detect "$DREPO" | sort -u | tr '\n' ' ' )"
+has "a cargo crate is a rust project" "$caps" "rust"
+
 printf '\nthe pre-flight\n'
 # A skill can be invoked mid-turn; a plugin that is switched off cannot be
 # switched on without a restart. So whether the router's picks will actually

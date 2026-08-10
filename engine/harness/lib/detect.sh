@@ -29,6 +29,15 @@ _felix_dep_grep() {
   return 1
 }
 
+# A web surface exists whether or not npm was ever run there. Counted from
+# tracked files so a vendored dependency tree cannot manufacture a frontend.
+_felix_frontend_assets() {
+  local root="$1" n
+  n="$( { git -C "$root" ls-files 2>/dev/null || find "$root" -type f 2>/dev/null; } \
+        | grep -icE '\.(jsx?|tsx?|vue|svelte|s[ac]ss|css)$' )"
+  [ "${n:-0}" -ge "${FELIX_FRONTEND_MIN:-3}" ]
+}
+
 _felix_any() {
   local root="$1"; shift
   local p
@@ -63,7 +72,23 @@ felix_detect() {
   _felix_any "$root" "migrations" "supabase/migrations" "alembic.ini" \
                      "prisma/schema.prisma" && echo database
 
+  # An application built on a model SDK is a different kind of thing from an
+  # application that happens to call an API, and none of the probes above can
+  # tell. Prompts get pinned, outputs get graded, cost and refusal are failure
+  # modes — none of which the ordinary api/tests capabilities imply.
+  _felix_dep_grep "$root" \
+    "anthropic|openai|langchain|llama-?index|mistralai|cohere|ollama|google-generativeai|litellm|instructor|dspy|transformers" \
+    && echo llm
+
+  _felix_any "$root" "Cargo.toml" && echo rust
+
+  # `package.json` alone was the entire frontend test, which misses every web
+  # surface served by a backend: a Python app with templates and a static
+  # directory has a frontend by any definition a designer would recognise, and
+  # Felix called it a backend because npm had never been run there.
   _felix_any "$root" "package.json" && echo frontend
+  _felix_frontend_assets "$root" && echo frontend
+
   _felix_any "$root" "tests" "test" "spec" "__tests__" && echo tests
 
   _felix_any "$root" ".env.example" ".env.sample" && echo secrets

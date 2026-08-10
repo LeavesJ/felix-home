@@ -1351,7 +1351,9 @@ _felix_why() {
     e2e)           echo "browser tooling present; critical flows should be covered" ;;
     database)      echo "schema or migrations present; migration and access tests apply" ;;
     api)           echo "a served surface exists; contract tests apply" ;;
-    frontend)      echo "a JS package exists; build and design checks apply" ;;
+    frontend)      echo "a web surface exists; build and design checks apply" ;;
+    llm)           echo "built on a model SDK; prompts get pinned, outputs graded, refusal and cost are failure modes" ;;
+    rust)          echo "a cargo crate; clippy, types and a release profile apply" ;;
     tests)         echo "a test suite exists; it belongs in the gate" ;;
     secrets)       echo "env templates present; secret scanning applies" ;;
     *)             echo "detected in the checkout" ;;

@@ -14,25 +14,61 @@
 # This is the pre-flight. It reads every play in routes.tsv and every row in
 # stack.tsv, and reports each named tool as usable, disabled, or absent.
 
-# Everything usable on this machine: enabled plugins, and standalone skills,
-# which are directories rather than packages and appear in no plugin list.
+# Everything usable on this machine, from every source, because no single source
+# knows them all.
+#
+# `claude plugin list` reports 15 here and misses 14 more. Plugins bundled into
+# the Claude Code binary — legal, data, design, marketing, operations and the
+# rest — appear in no plugin list, in no marketplace directory, and in
+# installed_plugins.json not at all. Their skills are nonetheless live in every
+# session. A capability router that cannot see half the toolbox is not routing.
+#
+# So this unions four sources and deduplicates, and each is optional. On a
+# machine with no claude CLI, the on-disk registry still answers. On a machine
+# where the config has moved, the CLI still answers. This has to work on
+# somebody else's laptop, laid out however they left it, not only on the one it
+# was written on.
 #
 # MCP servers are deliberately absent. They are fixed at session start and
-# cannot be reached for on demand, so listing them here would invite routes to
-# name something the router can never make happen.
+# cannot be reached for on demand, so listing them would invite routes to name
+# something the router can never make happen.
 felix_ready_inventory() {
-  local d
-  if command -v claude >/dev/null 2>&1; then
-    claude plugin list --json 2>/dev/null \
-      | sed -n -e 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/ID \1/p' \
-               -e 's/.*"enabled"[[:space:]]*:[[:space:]]*\([a-z]*\).*/EN \1/p' \
-      | awk '/^ID /{id=$2} /^EN /{ if ($2=="true") { sub(/@.*/,"",id); print "plugin\t" id } }'
-  fi
-  for d in "$HOME"/.claude/skills/*/; do
-    [ -d "$d" ] || continue
-    d="${d%/}"
-    printf 'skill\t%s\n' "${d##*/}"
-  done
+  local d cfg="$HOME/.claude.json"
+  {
+    # 1. the CLI, which alone knows what is switched on
+    if command -v claude >/dev/null 2>&1; then
+      claude plugin list --json 2>/dev/null \
+        | sed -n -e 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/ID \1/p' \
+                 -e 's/.*"enabled"[[:space:]]*:[[:space:]]*\([a-z]*\).*/EN \1/p' \
+        | awk '/^ID /{id=$2} /^EN /{ if ($2=="true") { sub(/@.*/,"",id); print "plugin\t" id } }'
+    fi
+
+    # 2. the on-disk registry, for when the CLI is absent
+    sed -n 's/.*"\([A-Za-z0-9._-]*\)@[A-Za-z0-9._-]*"[[:space:]]*:[[:space:]]*\[.*/plugin\t\1/p' \
+      "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null
+
+    # 3. plugins bundled into the binary, recorded nowhere else. Read with a
+    #    record separator rather than a line pattern so it survives the config
+    #    being pretty-printed, minified, or reordered.
+    if [ -f "$cfg" ]; then
+      awk 'BEGIN{RS="[,{}]"}
+           {gsub(/^[[:space:]]+|[[:space:]]+$/,"")}
+           /^"[A-Za-z0-9._-]+@inline":?$/{gsub(/[":]/,""); sub(/@inline/,""); print "plugin\t" $0}' \
+        "$cfg" 2>/dev/null
+    fi
+
+    # 4. standalone skills, which are directories and belong to no package
+    for d in "$HOME"/.claude/skills/*/; do
+      [ -d "$d" ] || continue
+      d="${d%/}"
+      printf 'skill\t%s\n' "${d##*/}"
+    done
+  } | grep -vE '	[0-9.]+$' | LC_ALL=C sort -u
+  # An empty toolbox is a fact, not a failure. `grep -v` returns 1 when it is
+  # handed nothing, and under `set -o pipefail` that becomes the function's
+  # status — so on a machine with no plugins at all, asking what exists would
+  # have looked like the asking itself had broken.
+  return 0
 }
 
 # What exists here that no route in this project ever reaches for.

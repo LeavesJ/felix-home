@@ -23,6 +23,7 @@ plugin	security-guidance@claude-plugins-official	-	low	always	security audit vul
 plugin	code-simplifier@claude-plugins-official	-	low	always	refactor simplify cleanup dead code
 plugin	frontend-design@claude-plugins-official	-	low	frontend	ui design frontend css components visual
 plugin	playwright@claude-plugins-official	-	low	e2e	browser e2e end-to-end testing ui automation
+plugin	rust-analyzer-lsp@claude-plugins-official	-	low	rust	rust cargo lsp types
 plugin	supabase@supabase-community-supabase-plugin	-	medium	database	database postgres sql schema migrations
 plugin	github@claude-plugins-official	-	high	ci	github issues pr repository actions
 plugin	stripe@claude-plugins-official	-	high	billing	billing payments subscriptions invoices money

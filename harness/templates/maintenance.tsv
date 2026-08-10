@@ -1,0 +1,17 @@
+# Scheduled maintenance, from the guidebook's table on p10.
+#
+# Cadence is in days. 0 means event-driven: it fires on a trigger, never on a
+# clock, so it is never reported as overdue.
+#
+# Aggregate. One bounded maintenance branch beats a flood of autonomous pull
+# requests nobody reviews. Security-critical fixes stay separate, because
+# isolation is what makes them reviewable and shippable on their own.
+#
+# name	cadence	capability	description
+dead-code	7	always	one aggregated cleanup PR
+dependencies	7	always	grouped safe updates; majors isolated
+workflow-audit	7	ci	CI can read every secret; audit what changed
+docs-drift	14	always	docs correction PR
+constitution	30	always	CLAUDE.md health; targeted, not accumulation
+architecture	30	always	drift report; update the architecture doc if warranted
+test-flake	0	ci	on repeated CI failure, with evidence

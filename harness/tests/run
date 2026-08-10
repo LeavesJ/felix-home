@@ -463,6 +463,44 @@ out="$(cd "$REPO" && printf '%s\n' "$TRACE_RED" | "$FELIX" incident 2>&1)"
 has "lists what the fix must prove" "$out" "the fix will have to prove"
 _reset
 
+printf '\nscheduled maintenance\n'
+{
+  printf 'weekly-thing\t7\talways\tan aggregated cleanup\n'
+  printf 'monthly-thing\t30\talways\ta drift report\n'
+  printf 'on-trigger\t0\talways\tfires on an event, never a clock\n'
+  printf 'later-thing\t7\tbilling\tonly once payments exist\n'
+} > "$FROOT/projects/widget/maintenance.tsv"
+rm -f "$FROOT/projects/widget/maintenance.log"
+
+out="$(cd "$REPO" && "$FELIX" maintenance 2>&1)"
+has "a never-run routine is due"           "$out" "DUE     weekly-thing"
+has "an event-driven routine is not due"   "$out" "event   on-trigger"
+has "a dormant capability stays quiet"     "$out" "-       later-thing"
+has "it insists on aggregating"            "$out" "one branch"
+
+out="$(cd "$REPO" && "$FELIX" maintenance --ran weekly-thing 2>&1)"
+has "recording a run works" "$out" "recorded a run of weekly-thing"
+out="$(cd "$REPO" && "$FELIX" maintenance 2>&1)"
+has "and it stops being due" "$out" "ok      weekly-thing"
+has "while others stay due"  "$out" "DUE     monthly-thing"
+
+# A cadence tracked outside the project resets on another machine and reports
+# everything as never-run, which is worse than not tracking it.
+[ -f "$FROOT/projects/widget/maintenance.log" ] \
+  && ok "the log is durable state in the project" \
+  || bad "the log is durable state in the project"
+
+out="$(cd "$REPO" && "$FELIX" maintenance --ran nope 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "an unknown routine is refused" || bad "an unknown routine is refused"
+
+# Overdue by construction: backdate the log past the cadence.
+printf 'monthly-thing\t1\t1970-01-01\n' >> "$FROOT/projects/widget/maintenance.log"
+out="$(cd "$REPO" && "$FELIX" maintenance 2>&1)"
+has "an ancient run counts as due again" "$out" "DUE     monthly-thing"
+
+out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+has "the hook surfaces due maintenance" "$out" "Maintenance due"
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes

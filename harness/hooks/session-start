@@ -21,6 +21,12 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/detect.sh"
 # shellcheck source=../lib/adopt.sh
 . "${SCRIPT_DIR}/../lib/adopt.sh"
+# stack.sh defines the capability test maintenance needs. Sourcing only
+# defines functions; no tool is invoked unless something calls it.
+# shellcheck source=../lib/stack.sh
+. "${SCRIPT_DIR}/../lib/stack.sh"
+# shellcheck source=../lib/maintenance.sh
+. "${SCRIPT_DIR}/../lib/maintenance.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
@@ -68,13 +74,24 @@ else
   drift_line=""
 fi
 
+# Upkeep has no deadline, so it never happens, and then happens as a crisis.
+# One line, only when something is actually due.
+maint_line=""
+if [ -f "$PROJ/maintenance.tsv" ]; then
+  _due="$(felix_maint_status "$PROJ" 2>/dev/null | grep '^due' | cut -f2 | tr '\n' ' ')"
+  _due="${_due% }"
+  [ -n "$_due" ] && maint_line="
+Maintenance due: ${_due}
+Do them on one branch. See 'felix maintenance'."
+fi
+
 context="Felix governs this session.
 
 Project: ${project}
 Constitution: ${PROJ}/CLAUDE.md
 ${gate_line}
 Memory: ${PROJ}/memory/
-${drift_line}
+${drift_line}${maint_line}
 
 Run the gate through the command above rather than a repo-relative path, which
 may not exist in the tree you are standing in. Declare your tier before you

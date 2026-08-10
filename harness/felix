@@ -13,6 +13,7 @@
 #   felix classify       risk tier of this branch's diff; --apply labels the PR
 #   felix evidence       what this change must prove; --strict exits non-zero on gaps
 #   felix incident       turn an error into a brief; --create opens an issue
+#   felix maintenance    what upkeep is due; --ran <name> records a run
 #   felix repair         why CI failed, how many tries are left
 #   felix adopt <cap>    declare a capability this project now has
 #   felix new <name>     scaffold a new project
@@ -46,6 +47,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/adopt.sh"
 # shellcheck source=lib/incident.sh
 . "${SCRIPT_DIR}/lib/incident.sh"
+# shellcheck source=lib/maintenance.sh
+. "${SCRIPT_DIR}/lib/maintenance.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -197,6 +200,7 @@ EOF
   cp "$tpl/profiles.tsv" "$dir/profiles.tsv"
   cp "$tpl/risk.tsv" "$dir/risk.tsv"
   cp "$tpl/evidence.tsv" "$dir/evidence.tsv"
+  cp "$tpl/maintenance.tsv" "$dir/maintenance.tsv"
 
   # Same filter for human steps, and only copy the runbooks that survive it.
   {
@@ -525,6 +529,50 @@ cmd_classify() {
 }
 
 
+
+cmd_maintenance() {
+  resolve_or_die; local proj="$PROJ" ran=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --ran) ran="${2:-}"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  [ -f "$proj/maintenance.tsv" ] || die "project $(basename "$proj") declares no maintenance routines"
+
+  if [ -n "$ran" ]; then
+    _felix_maint_rows "$proj" | cut -f1 | grep -qxF "$ran" \
+      || die "no routine named $ran"
+    felix_maint_record "$proj" "$ran"
+    printf 'recorded a run of %s\n' "$ran"
+    printf 'commit %s/maintenance.log so the cadence survives this machine.\n' "$proj"
+    return 0
+  fi
+
+  local st due
+  st="$(felix_maint_status "$proj")"
+  due="$(printf '%s\n' "$st" | grep -c '^due' || true)"
+
+  printf 'maintenance for %s\n\n' "$(basename "$proj")"
+  printf '%s\n' "$st" | while IFS=$'\t' read -r s name age cadence desc; do
+    [ -n "${s:-}" ] || continue
+    case "$s" in
+      due)     printf '  DUE     %-18s %-14s %s\n' "$name" "last: $age" "$desc" ;;
+      ok)      printf '  ok      %-18s %-14s every %sd\n' "$name" "${age}d ago" "$cadence" ;;
+      event)   printf '  event   %-18s %-14s %s\n' "$name" "on trigger" "$desc" ;;
+      dormant) printf '  -       %-18s %-14s %s\n' "$name" "not yet" "$desc" ;;
+    esac
+  done
+
+  if [ "$due" -eq 0 ]; then printf '\nNothing due.\n'; return 0; fi
+  printf '\n%s routine(s) due.\n\n' "$due"
+  printf 'Do them on one branch, not %s. A flood of autonomous maintenance pull\n' "$due"
+  printf 'requests is not review, it is noise that trains people to rubber-stamp.\n'
+  printf 'Keep security findings separate, because isolation is what makes those\n'
+  printf 'shippable on their own.\n\n'
+  printf 'record each with: felix maintenance --ran <name>\n'
+}
+
 cmd_incident() {
   resolve_or_die; local proj="$PROJ" src="-" create=0
   while [ $# -gt 0 ]; do
@@ -718,6 +766,7 @@ case "${1:-help}" in
   bootstrap) shift; cmd_bootstrap "$@" ;;
   repair)   shift; cmd_repair "$@" ;;
   incident) shift; cmd_incident "$@" ;;
+  maintenance) shift; cmd_maintenance "$@" ;;
   classify) shift; cmd_classify "$@" ;;
   evidence) shift; cmd_evidence "$@" ;;
   new)     shift; cmd_new "$@" ;;

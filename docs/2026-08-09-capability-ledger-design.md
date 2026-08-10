@@ -127,6 +127,63 @@ but never treated as a cost signal for the same reason.
   (`tengu_plugin_enabled_for_session`) but only writes it to disk when telemetry
   upload *fails*. Do not depend on it. Derive the loaded set from configuration.
 
+## Revision: record it as it happens, and let the map be the context
+
+The section above describes reading session transcripts after the fact. That
+was wrong twice, and both corrections came from outside this document.
+
+**It breaks the constitution.** Felix's second invariant is bash and git only —
+no jq, no python, no node in the engine. A transcript is 1.7MB of JSONL, and
+general JSON parsing in pure bash is not practical at that size. The spec
+assumed a reader it is not allowed to have.
+
+**It reconstructs what could simply have been recorded.** Every fact the ledger
+wants exists at a moment when a hook is already running. A `PostToolUse` hook
+receives `tool_name` in its payload and can append one line. That yields
+capabilities-used, per-tool counts, and MCP server usage directly, with no
+transcript involved and no parser. The completion gate already proves the shape:
+verification has no native record anywhere in Claude Code, so Felix writes it
+down at the moment it happens.
+
+So the pipeline inverts:
+
+| | Old: reconstruct | New: record |
+|---|---|---|
+| what was used | parse `attributionSkill` out of 1.7MB JSONL | `PostToolUse` appends `tool_name` |
+| what was loaded | infer | read config at `SessionStart` |
+| verification | not available at all | already written by the completion gate |
+| cost | parse `usage` blocks | `claude plugin details`, unchanged |
+
+Transcript parsing remains available as a *reconciliation* path — something run
+occasionally and out of band, never in a hook — but nothing depends on it.
+
+**And the map, not the files, is what the next session reads.** Graphify is
+already installed here, `graphify update` runs without an LLM, and `graphify
+query` answers against the graph under a token budget. Felix's memory is
+currently a pile of files that a session is handed whole: lessons, devlog,
+handoff, and now routes and verification too. That pile only grows, and mounting
+more of it every session is the exact failure the lessons matcher was built to
+avoid, arriving by a different road.
+
+Treating the graph as the context surface changes what Felix's records are *for*.
+They stop being documents to be read and become material to be graphed:
+`felix lessons --for X` and a budgeted graph query are the same operation, and
+the second scales. Felix keeps writing plain TSV and markdown, because those are
+what it can promise with bash and git; graphify turns them into the thing a
+session actually consults.
+
+This stays inside the constitution because graphify is a **declared capability**,
+not an engine dependency — the same treatment `database` or `observability` gets.
+Felix's engine requires nothing new, the graph-backed reading path is dormant
+where graphify is absent, and `felix doctor` surfaces it the day a
+`graphify-out/` appears. A project without it falls back to the files.
+
+What this does not solve: graphify does entity and relationship extraction, not
+arithmetic. "How many times was this invoked, and what did it cost" is a sum over
+a structured log, and that log is Felix's own TSV. The map is for reading; the
+ledger is for counting. Conflating them would give a beautiful graph that cannot
+answer the one question the slice exists for.
+
 ## Records
 
 `projects/<p>/memory/ledger.tsv`, one row per session per capability, committed:

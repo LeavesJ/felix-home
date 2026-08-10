@@ -1,7 +1,17 @@
 # Felix
 
-The engineering OS. It turns intent into verified, shipped code and **decides**
-how that happens rather than suggesting it. It holds no product code.
+The engineering OS, and the pilot of implementation. It turns intent into
+verified, shipped code and **decides** how that happens rather than suggesting
+it. It holds no product code.
+
+Not a sandbox and not an advisor. A product that adopts Felix should get a
+system that does whatever implementation takes — choosing tooling, installing
+it, tracking what happened, correcting course — so the founder is left with
+"what should we build next" and "should we add this".
+
+Later, when the revenue, customer and company systems exist, Felix becomes one
+sub-OS reporting to a chief agent. Design its surfaces so something other than
+a human can drive them.
 
 Phase 1 of the guidebook and nothing past it. Billing, customers, support and
 company administration are later phases owned by other systems; a Stripe row in
@@ -45,10 +55,13 @@ The charter was the defect.
 3. **Felix acts on what is reversible and escalates what is not.** Printing a
    suggestion for something it could safely have done is a defect, not caution.
    Irreversible work still stops and asks.
-4. **The plan changes; the machine does not.** Detection, adoption and
-   recommendation may run unattended, because they only ever edit manifests.
-   Installing is separate and deliberate, and `risk=high` is refused by every
-   flag from every caller.
+4. **Felix installs what it has read and judged low-risk.** `felix discover`
+   already fetches a candidate at its pinned sha and reads what it ships before
+   saying anything; refusing to then act on that reading was the governance
+   charter talking, not a limit. `risk=high` is still refused by every flag
+   from every caller, and anything touching credentials, live keys or
+   irreversible external writes still stops for a person. That boundary is the
+   guidebook's autonomy ladder, not timidity.
 5. **A gate that cannot fail is not a gate.** Anything claiming to verify must
    be shown failing before it is believed.
 6. **Uninstalling never deletes a home.** It holds doctrine and memory.

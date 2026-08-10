@@ -202,6 +202,43 @@ rm -f "$REPO/requirements.txt" "$REPO/Dockerfile"
 # either side. Resolution, detection, classification and pipefail safety are all
 # offline and deterministic. Only presence checks against real installs are not,
 # so a lone failure here is worth re-running before believing.
+printf '\nthe hook adopts rather than nags\n'
+# A surface detected and left undeclared stays unhandled for as long as nobody
+# reads the message. The hook closes that itself.
+HOOKREPO="$TMP/hookrepo"; mkdir -p "$HOOKREPO"
+( cd "$HOOKREPO" && git init -q -b main )
+printf 'hookproj\n' > "$HOOKREPO/.felix"
+mkdir -p "$FROOT/projects/hookproj/memory"
+printf '{"name":"hookproj","gate":"true"}\n' > "$FROOT/projects/hookproj/project.json"
+printf '# h\n' > "$FROOT/projects/hookproj/CLAUDE.md"
+
+out="$(cd "$HOOKREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+case "$out" in
+  *Adopted*) bad "a bare repo has nothing to adopt" "$out" ;;
+  *) ok "a bare repo has nothing to adopt" ;;
+esac
+
+printf 'sentry-sdk\n' > "$HOOKREPO/requirements.txt"
+out="$(cd "$HOOKREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+has "the hook announces what it adopted" "$out" "Adopted automatically"
+has "and names the capability"           "$out" "observability"
+has "and says nothing was installed"     "$out" "Nothing was installed"
+
+# Talking is not the same as doing. The manifests must actually have changed.
+grep -qxF observability "$FROOT/projects/hookproj/capabilities" 2>/dev/null \
+  && ok "it recorded the capability" || bad "it recorded the capability"
+[ -f "$FROOT/projects/hookproj/setup/sentry.md" ] \
+  && ok "it copied the runbook the capability implies" \
+  || bad "it copied the runbook the capability implies"
+grep -q sentry "$FROOT/projects/hookproj/stack.tsv" 2>/dev/null \
+  && ok "it appended the tooling row" || bad "it appended the tooling row"
+
+out="$(cd "$HOOKREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+case "$out" in
+  *Adopted*) bad "it goes quiet once nothing is new" "$out" ;;
+  *) ok "it goes quiet once nothing is new" ;;
+esac
+
 printf '\nstack provisioning\n'
 # Classification is where the safety policy lives, so that is what is asserted.
 # These rows never install anything: the two that would are deliberately fake.

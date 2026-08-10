@@ -19,6 +19,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/resolve.sh"
 # shellcheck source=../lib/detect.sh
 . "${SCRIPT_DIR}/../lib/detect.sh"
+# shellcheck source=../lib/adopt.sh
+. "${SCRIPT_DIR}/../lib/adopt.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
@@ -36,12 +38,32 @@ fi
 # Surface capability drift at session start rather than waiting to be asked. The
 # day a project grows a deploy target or error reporting, the gates the guidebook
 # expects become real, and nobody is watching for that moment.
-drift="$(felix_undeclared "$(felix_repo_root "$PWD")" "$PROJ" 2>/dev/null | tr '\n' ' ')"
-drift="${drift% }"
-if [ -n "$drift" ]; then
+# Adopt what the checkout has grown, rather than reporting it and waiting.
+# A surface that is detected and left undeclared stays unhandled for exactly as
+# long as nobody reads the message, which on a busy week is indefinitely.
+#
+# Nothing is installed here. The capability is recorded and the rows it implies
+# are appended, so `stack plan` and `setup` begin telling the truth. Installing
+# remains a separate, deliberate act, and high-risk rows are refused by every
+# flag regardless. The plan changes; the machine does not.
+adopted=""
+_repo_root="$(felix_repo_root "$PWD")"
+_slug="$(felix_repo_slug "$_repo_root" 2>/dev/null || true)"
+while IFS= read -r _cap; do
+  [ -n "$_cap" ] || continue
+  if _counts="$(felix_adopt_capability "$PROJ" "$_cap" "${ENGINE_DIR}/templates" "$_slug" 2>/dev/null)"; then
+    adopted="$adopted $_cap(${_counts// /+})"
+  fi
+done <<EOF
+$(felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null)
+EOF
+
+if [ -n "$adopted" ]; then
   drift_line="
-New surfaces detected that this project has not declared: ${drift}
-Run 'felix doctor' for what each one implies, 'felix adopt <name>' to declare it."
+Adopted automatically, because the checkout grew them:${adopted}
+Each is capability(tooling-rows+human-steps) added to this project's manifests.
+Nothing was installed. Review with 'felix stack plan' and 'felix setup', and
+commit the project directory in Felix to make it durable."
 else
   drift_line=""
 fi

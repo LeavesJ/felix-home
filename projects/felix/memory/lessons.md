@@ -126,6 +126,20 @@ with a record, not a substitute for running it.
   the only one worth acting on. The same shape will recur anywhere Felix
   measures something it also controls.
 
+- **Establish who set a limit before reporting it as one.** A rule in Felix's
+  own doctrine, invariants or CLI is a decision, not a constraint, and it reads
+  exactly like a real limit to every later session. Twice in one turn a ceiling
+  Felix had built for itself was described as though it were the platform:
+  "Felix guides rather than acts" was called principled when Felix had wired 3
+  of Claude Code's 9 hooks and skipped `PreToolUse`, the only one that can deny
+  an action; and "Felix does not install" was called a well-founded refusal
+  when `claude plugin install` exists, `felix discover` already reads a
+  candidate at its pinned sha, and the refusal was a single `die` in Felix's
+  own CLI. Before writing that something cannot be done, check whether the
+  platform exposes it and whether the refusal lives in a file this repository
+  owns. If it does, say so plainly and default to overriding it. Reserve
+  "impossible" for cases where a specific mechanism can be named.
+
 - **A charter narrower than the intent regenerates the drift every session.**
   Felix's constitution opened with "the governance layer", and Felix built
   exactly that: a complete vocabulary for saying no — gate, classify, evidence,

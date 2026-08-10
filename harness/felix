@@ -10,6 +10,7 @@
 #   felix stack apply --yes   install the low and medium risk gap
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
+#   felix classify       risk tier of this branch's diff; --apply labels the PR
 #   felix repair         why CI failed, how many tries are left
 #   felix adopt <cap>    declare a capability this project now has
 #   felix new <name>     scaffold a new project
@@ -34,6 +35,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 . "${SCRIPT_DIR}/lib/repair.sh"
 # shellcheck source=lib/bootstrap.sh
 . "${SCRIPT_DIR}/lib/bootstrap.sh"
+# shellcheck source=lib/classify.sh
+. "${SCRIPT_DIR}/lib/classify.sh"
 
 die() { printf 'felix: %s\n' "$1" >&2; exit "${2:-1}"; }
 
@@ -124,6 +127,7 @@ EOF
   } > "$dir/stack.tsv"
 
   cp "$tpl/profiles.tsv" "$dir/profiles.tsv"
+  cp "$tpl/risk.tsv" "$dir/risk.tsv"
 
   # Same filter for human steps, and only copy the runbooks that survive it.
   {
@@ -348,6 +352,57 @@ cmd_setup() {
   printf 'felix setup <id>   full instructions for one step\n'
 }
 
+
+cmd_classify() {
+  resolve_or_die; local proj="$PROJ" base="main" apply=0 a
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --base) base="${2:-main}"; shift 2 ;;
+      --apply) apply=1; shift ;;
+      *) shift ;;
+    esac
+  done
+  [ -f "$proj/risk.tsv" ] || die "project $(basename "$proj") declares no risk.tsv"
+  local root findings tier
+  root="$(felix_repo_root "$PWD")"
+  findings="$(felix_classify_diff "$proj" "$base" "$root")"
+
+  if [ -z "$findings" ]; then
+    printf 'No changes against %s. Nothing to classify.\n' "$base"
+    return 0
+  fi
+  tier="$(felix_classify_tier "$findings")"
+
+  printf 'base:  %s\ntier:  %s\n\n' "$base" "$tier"
+  printf '%s\n' "$findings" | sort -r | while IFS=$'\t' read -r t f r; do
+    [ -n "${t:-}" ] || continue
+    printf '  %-7s %-46s %s\n' "$t" "$f" "$r"
+  done
+
+  printf '\n'
+  case "$tier" in
+    green)  printf 'Reversible. Eligible for auto-merge once every required check passes.\n' ;;
+    yellow) printf 'Implement autonomously; a human merges. Nothing here is irreversible,\nbut something in it is not obviously safe.\n' ;;
+    red)    printf 'Approval required before merge. Show a preview of the exact change and\nits reversal path; do not merge on a green gate alone.\n' ;;
+  esac
+
+  [ "$apply" -eq 1 ] || { printf '\nlabel the PR with: felix classify --apply\n'; return 0; }
+
+  local slug; slug="$(felix_repo_slug "$root")"
+  [ -n "$slug" ] || die "no github remote; cannot label"
+  # Replace rather than accumulate: a stale green beside a new red reads as a
+  # disagreement between two labels instead of a decision.
+  gh pr edit --repo "$slug" \
+     --remove-label risk-green --remove-label risk-yellow --remove-label risk-red \
+     >/dev/null 2>&1 || true
+  if gh pr edit --repo "$slug" --add-label "risk-$tier" >/dev/null 2>&1; then
+    printf '\nlabelled risk-%s\n' "$tier"
+  else
+    printf '\ncould not label; is there an open PR for this branch?\n' >&2
+    return 1
+  fi
+}
+
 cmd_repair() {
   resolve_or_die; local proj="$PROJ"
   _felix_repair_require_gh || return 1
@@ -455,7 +510,8 @@ case "${1:-help}" in
   adopt)  shift; cmd_adopt "$@" ;;
   setup)  shift; cmd_setup "$@" ;;
   bootstrap) shift; cmd_bootstrap "$@" ;;
-  repair) shift; cmd_repair "$@" ;;
+  repair)   shift; cmd_repair "$@" ;;
+  classify) shift; cmd_classify "$@" ;;
   new)    shift; cmd_new "$@" ;;
   help|-h|--help) usage ;;
   *) die "unknown command: $1. Try 'felix help'." ;;

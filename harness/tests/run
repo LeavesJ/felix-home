@@ -257,6 +257,51 @@ out="$(cd "$PLAIN" && "$FELIX" repair 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "repair refuses outside a governed GitHub repo" \
                 || bad "repair refuses outside a governed GitHub repo" "$out"
 
+printf '\nrisk classification\n'
+cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
+( cd "$REPO" && git add -A >/dev/null 2>&1
+  git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
+
+_classify() { ( cd "$REPO" && "$FELIX" classify --base HEAD~0 2>/dev/null ); }
+_stage() { ( cd "$REPO" && git add -A >/dev/null 2>&1 && \
+             git -c user.name=t -c user.email=t@t commit -qm c >/dev/null 2>&1 ); }
+_reset() { ( cd "$REPO" && git reset -q --hard HEAD~1 >/dev/null 2>&1 ); }
+
+printf 'notes\n' > "$REPO/README.md"; _stage
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+has "docs classify green" "$out" "tier:  green"
+_reset
+
+mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/001.sql"; _stage
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+has "a migration classifies red" "$out" "tier:  red"
+_reset
+
+printf 'notes\n' > "$REPO/README.md"
+mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/002.sql"; _stage
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+has "one red file makes the whole diff red" "$out" "tier:  red"
+_reset
+
+printf 'x\n' > "$REPO/unknown_thing.xyz"; _stage
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+has "an unrecognised file is yellow, never green" "$out" "tier:  yellow"
+has "and says why"                                "$out" "no rule matched"
+_reset
+
+printf 'api_key = "sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAA"\n' > "$REPO/cfg.py"; _stage
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+has "a credential in added lines classifies red" "$out" "tier:  red"
+_reset
+
+printf 'api_key = os.environ["ANTHROPIC_API_KEY"]\n' > "$REPO/cfg2.py"; _stage
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+case "$out" in
+  *"credential appears"*) bad "reading a key from env is not a credential" "$out" ;;
+  *) ok "reading a key from env is not a credential" ;;
+esac
+_reset
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes

@@ -35,8 +35,13 @@ _felix_load_state() {
 _felix_have() {
   case "$1" in
     plugin)      printf '%s' "$_FELIX_PLUGINS" | grep -qF "$2" ;;
-    mcp)         printf '%s' "$_FELIX_MCPS" | grep -qE "(^|:)$2:" ;;
+    # A connected MCP and a merely-configured one are different states. The
+    # GitHub server sits in the list reporting "Failed to connect" until someone
+    # completes OAuth, and calling that mounted would hide the one fact that
+    # matters.
+    mcp)         printf '%s' "$_FELIX_MCPS" | grep -E "(^|:)$2:" | grep -qv "Failed to connect\|Needs authentication" ;;
     marketplace) printf '%s' "$_FELIX_MKTS" | grep -qF "$2" ;;
+    skill)       [ -d "$HOME/.claude/skills/$2" ] ;;
     *) return 1 ;;
   esac
 }
@@ -63,6 +68,10 @@ felix_stack_plan() {
       printf 'dormant\t%s\t%s\tneeds capability: %s\n' "$kind" "$name" "$cap"
     elif [ "$risk" = "high" ]; then
       printf 'blocked\t%s\t%s\thigh risk, install by hand\n' "$kind" "$name"
+    elif [ "$kind" = "skill" ]; then
+      # Standalone skills are files, not packages. There is no install command
+      # to run, so they route to a setup runbook instead of pretending.
+      printf 'manual\t%s\t%s\tsee: felix setup\n' "$kind" "$name"
     else
       printf 'install\t%s\t%s\trisk: %s\n' "$kind" "$name" "$risk"
     fi

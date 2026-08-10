@@ -21,3 +21,5 @@ plugin	supabase@supabase-community-supabase-plugin	-	medium	database
 plugin	github@claude-plugins-official	-	high	ci
 plugin	stripe@claude-plugins-official	-	high	billing
 mcp	sentry	https://mcp.sentry.dev/mcp	high	observability
+skill	graphify	-	low	always
+skill	impeccable	-	low	frontend

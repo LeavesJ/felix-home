@@ -180,6 +180,47 @@ case "$out" in
   *) ok "core profile excludes other capabilities" ;;
 esac
 
+printf '\nhuman setup steps\n'
+{
+  printf 'always-done\tA step that is already satisfied\talways\ttrue\n'
+  printf 'always-todo\tA step nobody has done\talways\tfalse\n'
+  printf 'later\tA step for a capability not present yet\tbilling\tfalse\n'
+} > "$FROOT/projects/widget/setup.tsv"
+mkdir -p "$FROOT/projects/widget/setup"
+printf '# Do the thing\n\nStep one.\n' > "$FROOT/projects/widget/setup/always-todo.md"
+
+out="$(cd "$REPO" && "$FELIX" setup 2>&1)"
+has "a satisfied step reports done"    "$out" "[x] always-done"
+has "an unmet step reports todo"       "$out" "[ ] always-todo"
+has "a dormant capability is deferred" "$out" "not needed yet"
+case "$out" in
+  *"[ ] later"*) bad "dormant steps never nag" "$out" ;;
+  *) ok "dormant steps never nag" ;;
+esac
+
+out="$(cd "$REPO" && "$FELIX" setup always-todo 2>&1)"
+has "a runbook prints in full" "$out" "Step one."
+
+out="$(cd "$REPO" && "$FELIX" setup later 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "a missing runbook fails loudly" \
+                || bad "a missing runbook fails loudly" "silently returned 0"
+
+printf '\nrepair loop\n'
+# The ceiling is the safety property: past it the answer stops being "retry".
+out="$(FELIX_REPAIR_MAX=3 bash -c '
+  . '"$FROOT"'/harness/lib/repair.sh
+  echo "$FELIX_REPAIR_MAX"')"
+is "ceiling defaults to 3" "$out" "3"
+out="$(FELIX_REPAIR_MAX=1 bash -c '
+  . '"$FROOT"'/harness/lib/repair.sh
+  echo "$FELIX_REPAIR_MAX"')"
+is "ceiling is overridable" "$out" "1"
+
+# A repo with no GitHub remote must say so rather than guess.
+out="$(cd "$PLAIN" && "$FELIX" repair 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "repair refuses outside a governed GitHub repo" \
+                || bad "repair refuses outside a governed GitHub repo" "$out"
+
 printf '\nindependence\n'
 # Scoped to code that runs in production. This suite names Elenchus in its own
 # comments on purpose, since explaining what it refuses to depend on is the point.

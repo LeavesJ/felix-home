@@ -1,0 +1,13 @@
+# Steps only a human can complete: accounts, OAuth consent, live credentials.
+#
+# id<TAB>title<TAB>capability<TAB>check-command
+#
+# The check proves whether the step is done. Finish it and the row disappears
+# on the next run, so this list is derived and never hand-maintained.
+
+github-mcp	Authenticate the GitHub MCP server	ci	claude mcp list 2>/dev/null | grep -E "^plugin:github:github:" | grep -q Connected
+risk-labels	Create the escalation labels the repair loop uses	ci	gh label list --repo LeavesJ/Elenchus 2>/dev/null | grep -q needs-founder
+ci-anthropic-key	Add ANTHROPIC_API_KEY so CI can run Claude unattended	ci	gh secret list --repo LeavesJ/Elenchus 2>/dev/null | grep -q ANTHROPIC_API_KEY
+supabase-auth	Authenticate the Supabase MCP	database	claude mcp list 2>/dev/null | grep -i supabase | grep -q Connected
+sentry	Create a Sentry project and mount its MCP	observability	claude mcp list 2>/dev/null | grep -E "^sentry:" | grep -q Connected
+stripe	Restricted Stripe keys behind a billing broker	billing	false

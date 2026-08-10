@@ -655,6 +655,40 @@ is "a red run breaks the streak" \
 is "and a red run at the head means zero" \
    "$(_streak "$(printf '9\tdirty\ta\n8\tclean\tb')")" "0"
 
+printf '\nunattended budget\n'
+# The ceiling worth having fails between runs, not during one, and counts
+# repetition rather than money: ten deliberate attempts in a day is a working
+# system, two hundred is a loop whatever each one cost.
+rm -f "$FROOT/projects/widget/budget.log"
+python3 - "$FROOT/projects/widget/project.json" <<'PYJ'
+import json,sys,pathlib
+p=pathlib.Path(sys.argv[1]); d=json.loads(p.read_text())
+d["unattended_daily_limit"]="2"; p.write_text(json.dumps(d,indent=2))
+PYJ
+out="$(cd "$REPO" && "$FELIX" budget 2>&1)"
+has "reads the per-project limit" "$out" "limit:  2"
+has "and reports what is left"    "$out" "left:   2"
+
+( cd "$REPO" && "$FELIX" budget --record >/dev/null 2>&1 )
+( cd "$REPO" && "$FELIX" budget --record >/dev/null 2>&1 )
+out="$(cd "$REPO" && "$FELIX" budget 2>&1)"; rc=$?
+has "spending is counted" "$out" "used:   2"
+is  "exhausted exits 3"   "$rc" "3"
+
+out="$(cd "$REPO" && "$FELIX" budget --record 2>&1)"; rc=$?
+is  "and refuses to spend past the ceiling" "$rc" "3"
+has "saying why"                            "$out" "budget exhausted"
+
+# A ceiling in a runner's ephemeral filesystem resets every job, invisibly.
+[ -f "$FROOT/projects/widget/budget.log" ] \
+  && ok "the ledger is durable state in the project" \
+  || bad "the ledger is durable state in the project"
+
+# Old entries age out rather than accumulating forever.
+printf '1\t1970-01-01T00:00\tancient\n' >> "$FROOT/projects/widget/budget.log"
+out="$(cd "$REPO" && "$FELIX" budget 2>&1)"
+has "entries older than a day do not count" "$out" "used:   2"
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes

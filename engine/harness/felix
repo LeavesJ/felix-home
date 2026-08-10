@@ -13,6 +13,7 @@
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix scope [paths]  may an unattended agent touch these? exit 3 if not
 #   felix automerge      has green earned auto-merge yet? --enable when it has
+#   felix budget         unattended runs left today; --record spends one
 #   felix classify       risk tier of this branch's diff; --apply labels the PR
 #   felix evidence       what this change must prove; --strict exits non-zero on gaps
 #   felix incident       turn an error into a brief; --create opens an issue
@@ -62,6 +63,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/memory.sh"
 # shellcheck source=lib/automerge.sh
 . "${SCRIPT_DIR}/lib/automerge.sh"
+# shellcheck source=lib/budget.sh
+. "${SCRIPT_DIR}/lib/budget.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -546,6 +549,39 @@ cmd_evidence() {
 
 
 
+
+cmd_budget() {
+  resolve_or_die; local proj="$PROJ" record=0 why="unattended run"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --record) record=1; shift ;;
+      --why) why="${2:-$why}"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  local limit used left
+  limit="$(felix_budget_limit "$proj")"
+  used="$(felix_budget_used "$proj")"
+  left=$((limit - used))
+  [ "$left" -lt 0 ] && left=0
+
+  if [ "$record" -eq 1 ]; then
+    if [ "$used" -ge "$limit" ]; then
+      printf 'budget exhausted: %s of %s used in the last 24h\n' "$used" "$limit" >&2
+      printf 'Refusing to start. A loop nobody is watching can repeat a mistake all\n' >&2
+      printf 'night, and the ceiling worth having fails between runs, not during one.\n' >&2
+      return 3
+    fi
+    felix_budget_record "$proj" "$why"
+    printf 'recorded. %s of %s used in the last 24h\n' "$((used + 1))" "$limit"
+    return 0
+  fi
+
+  printf 'limit:  %s unattended run(s) per 24h\nused:   %s\nleft:   %s\n' \
+    "$limit" "$used" "$left"
+  [ "$left" -gt 0 ] || { printf '\nExhausted. Nothing unattended starts until this ages out.\n'; return 3; }
+}
+
 cmd_automerge() {
   resolve_or_die; local proj="$PROJ" enable=0
   for a in "$@"; do [ "$a" = "--enable" ] && enable=1; done
@@ -1021,6 +1057,7 @@ case "${1:-help}" in
   classify) shift; cmd_classify "$@" ;;
   scope)     shift; cmd_scope "$@" ;;
   automerge) shift; cmd_automerge "$@" ;;
+  budget)    shift; cmd_budget "$@" ;;
   evidence) shift; cmd_evidence "$@" ;;
   new)     shift; cmd_new "$@" ;;
   install) shift; cmd_install "$@" ;;

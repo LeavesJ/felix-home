@@ -127,6 +127,59 @@ felix_guess_gate() {
   echo ""
 }
 
+# Scripts in the checkout that look like a gate and are not the gate this
+# project declares.
+#
+# From a real failure. An untracked, day-stale, strictly weaker copy of a gate
+# sat inside a governed repo, and it was the file physically in front of any
+# session that looked around. A session ran it all day and reported green from a
+# gate missing a check. It found out only because the completion gate nagged it
+# into running the real one.
+#
+# A gate with a lookalike is not a gate. It is a coin flip on which file
+# somebody reaches for, and the wrong side of the flip reports success — the
+# same silent shape as a check that passes by finding nothing.
+#
+# Deliberately narrow. Executable only, because a broad match flags every note
+# with the word in its name. Reports and never deletes: a rival can be
+# legitimate, a fast subset a person runs by hand, and Felix does not get to
+# decide that.
+_felix_rival_gates() {
+  local root="$1" proj="$2" gate="$3" state f base note
+  { git -C "$root" ls-files            2>/dev/null | sed 's/^/tracked\t/'
+    git -C "$root" ls-files --others --exclude-standard 2>/dev/null \
+      | sed 's/^/untracked\t/'
+  } | while IFS=$'\t' read -r state f; do
+      [ -n "${f:-}" ] || continue
+      base="${f##*/}"
+      case "$base" in *gate*|*verify*|*check*) ;; *) continue ;; esac
+      [ -x "$root/$f" ] || continue
+
+      # The declared gate itself, when the project stores it in Felix's home and
+      # the home happens to be this checkout. Same file, not a rival.
+      [ "$root/$f" -ef "$proj/$gate" ] 2>/dev/null && continue
+
+      # Felix's own per-project storage holds every governed project's gate. In
+      # the one checkout that is Felix, those are its records, not rivals.
+      case "$root/$f" in "${FELIX_HOME_DIR:-/nonexistent}"/projects/*) continue ;; esac
+
+      # A project may declare a repo-relative command as its gate. That path is
+      # the gate, so naming it here would report the gate as its own rival.
+      case " $gate " in *"$f"*) continue ;; esac
+
+      if [ -x "$proj/$gate" ]; then
+        if cmp -s "$root/$f" "$proj/$gate"; then
+          note="identical today, and nothing keeps it that way"
+        else
+          note="differs from the gate Felix runs"
+        fi
+      else
+        note="this project gates with a command, not a file"
+      fi
+      printf '%s\t%s\t%s\n' "$state" "$f" "$note"
+    done
+}
+
 # owner/name for a GitHub checkout, empty otherwise.
 felix_repo_slug() {
   (cd "${1:-$PWD}" 2>/dev/null && git remote get-url origin 2>/dev/null) \

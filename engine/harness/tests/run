@@ -639,6 +639,22 @@ out="$(cd "$REPO" && "$FELIX" scope src/thing.js 2>&1)"; rc=$?
 is "an unremarkable file is in scope" "$rc" "0"
 has "and says the gates still apply" "$out" "evidence policy"
 
+printf '\nearned auto-merge\n'
+# The streak logic is the part that decides; the GitHub calls that feed it need a
+# network and are exercised by using the thing. Fed synthetic history here.
+_streak() { ( . "$FROOT/engine/harness/lib/automerge.sh" 2>/dev/null \
+              || . "$FROOT/harness/lib/automerge.sh"; felix_automerge_streak "$1" ); }
+
+is "no history is no streak" "$(_streak "")" "0"
+is "all clean counts them all" \
+   "$(_streak "$(printf '9\tclean\ta\n8\tclean\tb\n7\tclean\tc')")" "3"
+# Consecutive, from the head. A red run in the middle is not something to count
+# past: the question is whether the rules have been right lately, not often.
+is "a red run breaks the streak" \
+   "$(_streak "$(printf '9\tclean\ta\n8\tdirty\tb\n7\tclean\tc')")" "1"
+is "and a red run at the head means zero" \
+   "$(_streak "$(printf '9\tdirty\ta\n8\tclean\tb')")" "0"
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes

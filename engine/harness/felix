@@ -12,6 +12,7 @@
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix scope [paths]  may an unattended agent touch these? exit 3 if not
+#   felix automerge      has green earned auto-merge yet? --enable when it has
 #   felix classify       risk tier of this branch's diff; --apply labels the PR
 #   felix evidence       what this change must prove; --strict exits non-zero on gaps
 #   felix incident       turn an error into a brief; --create opens an issue
@@ -59,6 +60,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/recommend.sh"
 # shellcheck source=lib/memory.sh
 . "${SCRIPT_DIR}/lib/memory.sh"
+# shellcheck source=lib/automerge.sh
+. "${SCRIPT_DIR}/lib/automerge.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -542,6 +545,61 @@ cmd_evidence() {
 }
 
 
+
+cmd_automerge() {
+  resolve_or_die; local proj="$PROJ" enable=0
+  for a in "$@"; do [ "$a" = "--enable" ] && enable=1; done
+  command -v gh >/dev/null 2>&1 || die "felix automerge needs the gh CLI"
+  local repo; repo="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
+  [ -n "$repo" ] || die "no github remote"
+
+  local history streak need
+  history="$(felix_automerge_history "$repo")"
+  streak="$(felix_automerge_streak "$history")"
+  need="$FELIX_AUTOMERGE_REQUIRED"
+
+  printf 'repo:    %s\nstreak:  %s of %s consecutive clean green merges\n\n' \
+    "$repo" "$streak" "$need"
+
+  if [ -z "$history" ]; then
+    printf 'No green pull requests have merged yet.\n\n'
+  else
+    printf '%s\n' "$history" | head -8 | while IFS=$'\t' read -r num state title; do
+      [ -n "${num:-}" ] || continue
+      case "$state" in
+        clean) printf '  clean  #%-5s %s\n' "$num" "$title" ;;
+        dirty) printf '  CI RED #%-5s %s\n' "$num" "$title" ;;
+      esac
+    done
+    printf '\n'
+  fi
+
+  if [ "$streak" -lt "$need" ]; then
+    printf 'Not yet earned.\n\n'
+    printf 'A green classification claims no risky path was touched. CI failing on a\n'
+    printf 'green pull request means that claim was wrong, and the rules deciding it\n'
+    printf 'have never been tested against a real change. Merge %s more green one(s)\n' \
+      "$((need - streak))"
+    printf 'by hand and watch whether the tier ever surprises you. If one does, you\n'
+    printf 'learned something about the rules for the price of one manual merge.\n'
+    return 1
+  fi
+
+  printf 'Earned. %s consecutive green merges, none of which CI disagreed with.\n\n' "$streak"
+  [ "$enable" -eq 1 ] || { printf 'enable with: felix automerge --enable\n'; return 0; }
+
+  if gh repo edit "$repo" --enable-auto-merge >/dev/null 2>&1; then
+    printf 'auto-merge enabled on %s.\n\n' "$repo"
+    printf 'It still requires every check to pass. Green plus no evidence gap plus a\n'
+    printf 'green gate is the bar; yellow and red are untouched and always will be.\n'
+    printf 'A change editing risk.tsv or evidence.tsv must never auto-merge: rules\n'
+    printf 'cannot be judged by the version of themselves being changed.\n'
+  else
+    printf 'could not enable auto-merge; admin rights needed on %s\n' "$repo" >&2
+    return 1
+  fi
+}
+
 cmd_scope() {
   resolve_or_die; local proj="$PROJ" base="" paths=""
   while [ $# -gt 0 ]; do
@@ -961,7 +1019,8 @@ case "${1:-help}" in
   incident) shift; cmd_incident "$@" ;;
   maintenance) shift; cmd_maintenance "$@" ;;
   classify) shift; cmd_classify "$@" ;;
-  scope)    shift; cmd_scope "$@" ;;
+  scope)     shift; cmd_scope "$@" ;;
+  automerge) shift; cmd_automerge "$@" ;;
   evidence) shift; cmd_evidence "$@" ;;
   new)     shift; cmd_new "$@" ;;
   install) shift; cmd_install "$@" ;;

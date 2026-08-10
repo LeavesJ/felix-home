@@ -14,6 +14,7 @@
 #   felix scope [paths]  may an unattended agent touch these? exit 3 if not
 #   felix automerge      has green earned auto-merge yet? --enable when it has
 #   felix budget         unattended runs left today; --record spends one
+#   felix unattended     whether the loop is ready to be switched on, and by whom
 #   felix classify       risk tier of this branch's diff; --apply labels the PR
 #   felix evidence       what this change must prove; --strict exits non-zero on gaps
 #   felix incident       turn an error into a brief; --create opens an issue
@@ -65,6 +66,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/automerge.sh"
 # shellcheck source=lib/budget.sh
 . "${SCRIPT_DIR}/lib/budget.sh"
+# shellcheck source=lib/unattended.sh
+. "${SCRIPT_DIR}/lib/unattended.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -549,6 +552,53 @@ cmd_evidence() {
 
 
 
+
+
+cmd_unattended() {
+  resolve_or_die; local proj="$PROJ"
+  command -v gh >/dev/null 2>&1 || die "felix unattended needs the gh CLI"
+  local repo; repo="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
+  [ -n "$repo" ] || die "no github remote"
+
+  local st switch key dry dryfail streak need
+  st="$(felix_unattended_state "$repo")"
+  switch="$(printf '%s\n' "$st" | awk -F'\t' '$1=="switch"{print $2}')"
+  key="$(printf '%s\n' "$st" | awk -F'\t' '$1=="key"{print $2}')"
+  dry="$(printf '%s\n' "$st" | awk -F'\t' '$1=="dryruns"{print $2}')"
+  dryfail="$(printf '%s\n' "$st" | awk -F'\t' '$1=="dryfails"{print $2}')"
+  streak="$(felix_automerge_streak "$(felix_automerge_history "$repo")")"
+  need="$FELIX_AUTOMERGE_REQUIRED"
+
+  printf 'repo:  %s\n\n' "$repo"
+  [ "${switch:-0}" -gt 0 ] && printf '  ON      the loop invokes a model on CI failure\n' \
+                           || printf '  off     the guards run; nothing is invoked\n'
+  [ "${key:-0}" -gt 0 ] && printf '  [x] %-26s %s\n' "api key" "present" \
+                        || printf '  [ ] %-26s %s\n' "api key" "absent; nothing could run anyway"
+  printf '  %s %-26s %s of %s\n' \
+    "$([ "${streak:-0}" -ge "$need" ] && printf '[x]' || printf '[ ]')" \
+    "green merges judged well" "$streak" "$need"
+  printf '  %s %-26s %s run(s), %s errored\n' \
+    "$([ "${dry:-0}" -gt 0 ] && [ "${dryfail:-0}" -eq 0 ] && printf '[x]' || printf '[ ]')" \
+    "guards exercised" "${dry:-0}" "${dryfail:-0}"
+  printf '  [x] %-26s %s per 24h\n' "budget ceiling" "$(felix_budget_limit "$proj")"
+  printf '  [x] %-26s %s\n' "scope bound" "red paths refused before the log is read"
+
+  printf '\n'
+  if [ "${switch:-0}" -gt 0 ]; then
+    printf 'Already on. Turn it off with:\n  gh variable delete FELIX_UNATTENDED --repo %s\n' "$repo"
+    return 0
+  fi
+
+  printf 'Felix will not turn this on for you, and the reason is not caution.\n\n'
+  printf 'Auto-merge can unlock itself because what it unlocks is bounded and its\n'
+  printf 'worst case is a revert. This is not that. And the evidence that would\n'
+  printf 'justify it cannot be gathered without spending it: every dry run stops\n'
+  printf 'before the model is invoked, so they show the guards run and say nothing\n'
+  printf 'about whether the guards hold. Nothing has tried to get past them yet.\n\n'
+  printf 'The first real unattended repair wants someone watching, which means the\n'
+  printf 'first one is not unattended. There is no way around that, only through.\n\n'
+  printf '  gh variable set FELIX_UNATTENDED --body true --repo %s\n' "$repo"
+}
 
 cmd_budget() {
   resolve_or_die; local proj="$PROJ" record=0 why="unattended run"
@@ -1057,7 +1107,8 @@ case "${1:-help}" in
   classify) shift; cmd_classify "$@" ;;
   scope)     shift; cmd_scope "$@" ;;
   automerge) shift; cmd_automerge "$@" ;;
-  budget)    shift; cmd_budget "$@" ;;
+  budget)     shift; cmd_budget "$@" ;;
+  unattended) shift; cmd_unattended "$@" ;;
   evidence) shift; cmd_evidence "$@" ;;
   new)     shift; cmd_new "$@" ;;
   install) shift; cmd_install "$@" ;;

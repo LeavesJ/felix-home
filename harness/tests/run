@@ -175,6 +175,12 @@ case "$out" in
 esac
 rm -f "$REPO/requirements.txt" "$REPO/Dockerfile"
 
+# The assertions below shell out to `claude plugin list` and `claude mcp list`.
+# The latter performs live health checks, so they are network-dependent and can
+# flake: one spurious failure was observed in a run that passed three times
+# either side. Resolution, detection, classification and pipefail safety are all
+# offline and deterministic. Only presence checks against real installs are not,
+# so a lone failure here is worth re-running before believing.
 printf '\nstack provisioning\n'
 # Classification is where the safety policy lives, so that is what is asserted.
 # These rows never install anything: the two that would are deliberately fake.

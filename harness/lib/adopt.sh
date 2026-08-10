@@ -31,7 +31,7 @@ felix_adopt_capability() {
   [ -f "$proj/setup.tsv" ] || printf '# id\ttitle\tcapability\tcheck\n' > "$proj/setup.tsv"
 
   if [ -f "$tpl/catalog.tsv" ]; then
-    while IFS=$'\t' read -r k n src r c; do
+    while IFS=$'\t' read -r k n src r c _kw; do
       [ "${c:-}" = "$cap" ] || continue
       grep -qF "	$n	" "$proj/stack.tsv" 2>/dev/null && continue
       printf '%s\t%s\t%s\t%s\t%s\n' "$k" "$n" "$src" "$r" "$c" >> "$proj/stack.tsv"

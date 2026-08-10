@@ -501,17 +501,40 @@ has "an ancient run counts as due again" "$out" "DUE     monthly-thing"
 out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
 has "the hook surfaces due maintenance" "$out" "Maintenance due"
 
+printf '\nadvisory recommendations\n'
+out="$(cd "$REPO" && "$FELIX" recommend 2>&1)"
+has "reports what is not yet declared" "$out" "not yet declared"
+has "hands off for anything broader"   "$out" "claude-automation-recommender"
+has "and passes the facts it already has" "$out" "Felix already detected"
+case "$out" in
+  *"# kind"*|*"risk=high is never"*)
+    bad "the handoff carries no file comments" "comment lines leaked into the prompt" ;;
+  *) ok "the handoff carries no file comments" ;;
+esac
+
+out="$(cd "$REPO" && "$FELIX" recommend --want "browser testing" 2>&1)"
+has "free text matches the catalogue" "$out" "playwright"
+out="$(cd "$REPO" && "$FELIX" recommend --want "catch security problems" 2>&1)"
+has "and matches on keywords, not just names" "$out" "security-guidance"
+out="$(cd "$REPO" && "$FELIX" recommend --want "quantum teleportation" 2>&1)"
+has "says so plainly when nothing matches" "$out" "Nothing in the catalogue matches"
+has "and still offers the handoff"         "$out" "claude-automation-recommender"
+
+# Advice that installs things is not advice.
+before="$(claude plugin list 2>/dev/null | wc -l)"
+( cd "$REPO" && "$FELIX" recommend --want "browser testing" >/dev/null 2>&1 )
+after="$(claude plugin list 2>/dev/null | wc -l)"
+is "recommending installs nothing" "$after" "$before"
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes
 # SIGPIPE. The check then says absent about something present, and it is
 # timing-dependent, so small producers pass and a real repository fails.
 big="$(seq 1 200000)"
-if ( set -uo pipefail; printf '%s' "$big" | grep -q '^199999$' ) 2>/dev/null; then
-  bad "the old pipeline pattern is still hazardous" "it passed, so this test proves nothing"
-else
-  ok "the old pipeline pattern does fail under pipefail (why the helper exists)"
-fi
+# Deliberately not asserting that `producer | grep -q x` fails here. It fails
+# only when the producer is still writing when grep exits, so the assertion is a
+# race and flakes. The reason the helpers exist is recorded above instead.
 if ( set -uo pipefail
      . "$FROOT/harness/lib/resolve.sh"
      felix_contains "$big" "199999" ); then

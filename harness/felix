@@ -6,6 +6,7 @@
 #   felix gate [args]    run this project's gate; exits with the gate's status
 #   felix doctor         capabilities present in the checkout but never declared
 #   felix profile [name] which tools a task profile mounts
+#   felix recommend      what this stack implies; --want "<text>" matches intent
 #   felix stack plan     diff declared tooling against what is installed
 #   felix stack apply --yes   install the low and medium risk gap
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
@@ -49,6 +50,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/incident.sh"
 # shellcheck source=lib/maintenance.sh
 . "${SCRIPT_DIR}/lib/maintenance.sh"
+# shellcheck source=lib/recommend.sh
+. "${SCRIPT_DIR}/lib/recommend.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -190,7 +193,7 @@ EOF
     printf '# Declared tooling for %s. Seeded from the catalogue by felix new,\n' "$name"
     printf '# filtered to what this checkout actually shows. Edit freely.\n#\n'
     printf '# kind\tname\tsource\trisk\tcapability\n'
-    grep -vE '^\s*(#|$)' "$tpl/catalog.tsv" | while IFS=$'\t' read -r k n src r c; do
+    grep -vE '^\s*(#|$)' "$tpl/catalog.tsv" | while IFS=$'\t' read -r k n src r c _kw; do
       if [ "$c" = "always" ] || printf '%s\n' "$caps" | grep -qxF "$c"; then
         printf '%s\t%s\t%s\t%s\t%s\n' "$k" "$n" "$src" "$r" "$c"
       fi
@@ -235,6 +238,69 @@ EOF
   printf '  2. write %s/CLAUDE.md\n' "$dir"
   printf '  3. felix stack plan     then apply --yes\n'
   printf '  4. felix setup          for the steps only you can do\n'
+}
+
+
+cmd_recommend() {
+  resolve_or_die; local proj="$PROJ" want="" tpl="$SCRIPT_DIR/templates"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --want) want="${2:-}"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  local root eco caps
+  root="$(felix_repo_root "$PWD")"
+  eco="$(felix_guess_ecosystem "$root")"
+  caps="$(felix_declared "$proj" | tr '\n' ' ')"
+
+  if [ -n "$want" ]; then
+    printf 'you asked for: %s\n\n' "$want"
+    local hits; hits="$(felix_recommend_intent "$tpl" "$want" | sort -rn)"
+    if [ -z "$hits" ]; then
+      printf 'Nothing in the catalogue matches that.\n\n'
+      printf 'The catalogue is small on purpose. Hand it to the recommender below,\n'
+      printf 'which knows far more than fifteen rows.\n\n'
+    else
+      printf '%s\n' "$hits" | while IFS=$'\t' read -r score kind name risk cap; do
+        [ -n "${score:-}" ] || continue
+        local have="not mounted"
+        grep -qF "	$name	" "$proj/stack.tsv" 2>/dev/null && have="already declared"
+        printf '  %-10s %-46s %-7s %s\n' "$kind" "$name" "$risk" "$have"
+      done
+      printf '\nDeclare one with: felix adopt <capability>, or add the row to\n'
+      printf '%s/stack.tsv directly. Nothing was installed.\n\n' "$proj"
+    fi
+  else
+    printf 'project:    %s\necosystem:  %s\ndeclared:   %s\n\n' \
+      "$(basename "$proj")" "$eco" "${caps:-none}"
+    local missing; missing="$(felix_recommend_missing "$proj" "$tpl")"
+    if [ -z "$missing" ]; then
+      printf 'Every catalogue row this project could use is already declared.\n\n'
+    else
+      printf 'in the catalogue, not yet declared here\n'
+      printf '%s\n' "$missing" | while IFS=$'\t' read -r kind name risk cap; do
+        [ -n "${kind:-}" ] || continue
+        local why="applies once %s exists"
+        if [ "$cap" = "always" ]; then why="applies to any project"
+        elif felix_has_line "$(felix_declared "$proj")" "$cap"; then why="$cap is active here"
+        else why="waits for $cap"; fi
+        printf '  %-10s %-46s %-7s %s\n' "$kind" "$name" "$risk" "$why"
+      done
+      printf '\n'
+    fi
+  fi
+
+  # The handoff. Felix knows this project; the recommender knows the ecosystem.
+  # Passing the established facts keeps its answer from repeating them back.
+  printf 'For anything beyond this catalogue, paste into a session:\n\n'
+  printf '  /claude-code-setup:claude-automation-recommender\n'
+  printf '  Project %s, a %s codebase. Felix already detected: %s\n' \
+    "$(basename "$proj")" "$eco" "${caps:-nothing yet}"
+  printf '  Already declared, do not repeat these: %s\n' \
+    "$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
+  printf '  Recommend hooks, subagents and skills this stack implies that are\n'
+  printf '  not in that list. Read-only: I will decide what to adopt.\n'
 }
 
 cmd_profile() {
@@ -759,7 +825,8 @@ case "${1:-help}" in
   which)  shift; cmd_which "$@" ;;
   gate)   shift; cmd_gate "$@" ;;
   doctor)  shift; cmd_doctor "$@" ;;
-  profile) shift; cmd_profile "$@" ;;
+  profile)   shift; cmd_profile "$@" ;;
+  recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;
   adopt)  shift; cmd_adopt "$@" ;;
   setup)  shift; cmd_setup "$@" ;;

@@ -4,18 +4,19 @@
 # Nothing language-specific lives here. A row that only makes sense for one
 # ecosystem belongs in that project's stack.tsv, not in everyone's default.
 #
+# The sixth column is free-text keywords, used only by felix recommend --want.
 # kind	name	source	risk	capability
 marketplace	claude-plugins-official	anthropics/claude-plugins-official	low	always
-plugin	superpowers@claude-plugins-official	-	low	always
-plugin	claude-md-management@claude-plugins-official	-	low	always
-plugin	claude-code-setup@claude-plugins-official	-	low	always
-plugin	context7@claude-plugins-official	-	low	always
-plugin	code-review@claude-plugins-official	-	low	always
-plugin	security-guidance@claude-plugins-official	-	low	always
-plugin	code-simplifier@claude-plugins-official	-	low	always
-plugin	frontend-design@claude-plugins-official	-	low	frontend
-plugin	playwright@claude-plugins-official	-	low	e2e
-plugin	supabase@supabase-community-supabase-plugin	-	medium	database
-plugin	github@claude-plugins-official	-	high	ci
-plugin	stripe@claude-plugins-official	-	high	billing
-mcp	sentry	https://mcp.sentry.dev/mcp	high	observability
+plugin	superpowers@claude-plugins-official	-	low	always	process tdd debugging planning methodology
+plugin	claude-md-management@claude-plugins-official	-	low	always	constitution docs claude.md audit
+plugin	claude-code-setup@claude-plugins-official	-	low	always	setup recommend automation configure
+plugin	context7@claude-plugins-official	-	low	always	docs documentation library api reference
+plugin	code-review@claude-plugins-official	-	low	always	review pr pull request critique
+plugin	security-guidance@claude-plugins-official	-	low	always	security audit vulnerability secrets
+plugin	code-simplifier@claude-plugins-official	-	low	always	refactor simplify cleanup dead code
+plugin	frontend-design@claude-plugins-official	-	low	frontend	ui design frontend css components visual
+plugin	playwright@claude-plugins-official	-	low	e2e	browser e2e end-to-end testing ui automation
+plugin	supabase@supabase-community-supabase-plugin	-	medium	database	database postgres sql schema migrations
+plugin	github@claude-plugins-official	-	high	ci	github issues pr repository actions
+plugin	stripe@claude-plugins-official	-	high	billing	billing payments subscriptions invoices money
+mcp	sentry	https://mcp.sentry.dev/mcp	high	observability	errors observability monitoring incidents telemetry

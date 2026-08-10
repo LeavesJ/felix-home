@@ -614,6 +614,31 @@ case "$out" in
   *) ok "already-learned terms drop out" ;;
 esac
 
+printf '\nscope bound for unattended work\n'
+# The bound that matters is not how many attempts an agent gets, it is what it
+# may touch. Three careful attempts at an authorization model is three times the
+# exposure, not a third of the risk.
+out="$(cd "$REPO" && "$FELIX" scope docs/guide.md 2>&1)"; rc=$?
+has "documentation is in scope" "$out" "In scope"
+is  "and exits 0"               "$rc" "0"
+
+out="$(cd "$REPO" && "$FELIX" scope migrations/003.sql 2>&1)"; rc=$?
+has "a migration is out of scope" "$out" "OUT OF SCOPE"
+is  "and exits 3, distinctly"     "$rc" "3"
+
+# Mixed input must take the worst path, not the average or the first.
+out="$(cd "$REPO" && "$FELIX" scope docs/guide.md migrations/003.sql 2>&1)"; rc=$?
+is "one red path poisons the whole set" "$rc" "3"
+out="$(cd "$REPO" && "$FELIX" scope migrations/003.sql docs/guide.md 2>&1)"; rc=$?
+is "regardless of the order given" "$rc" "3"
+
+out="$(cd "$REPO" && printf 'docs/guide.md\n' | "$FELIX" scope - 2>&1)"; rc=$?
+is "reads paths from stdin too" "$rc" "0"
+
+out="$(cd "$REPO" && "$FELIX" scope src/thing.js 2>&1)"; rc=$?
+is "an unremarkable file is in scope" "$rc" "0"
+has "and says the gates still apply" "$out" "evidence policy"
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes

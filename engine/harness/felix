@@ -11,6 +11,7 @@
 #   felix stack apply --yes   install the low and medium risk gap
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
+#   felix scope [paths]  may an unattended agent touch these? exit 3 if not
 #   felix classify       risk tier of this branch's diff; --apply labels the PR
 #   felix evidence       what this change must prove; --strict exits non-zero on gaps
 #   felix incident       turn an error into a brief; --create opens an issue
@@ -540,6 +541,43 @@ cmd_evidence() {
   return 1
 }
 
+
+cmd_scope() {
+  resolve_or_die; local proj="$PROJ" base="" paths=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --base) base="${2:-main}"; shift 2 ;;
+      -) paths="$(cat)"; shift ;;
+      *) paths="$paths
+$1"; shift ;;
+    esac
+  done
+  [ -f "$proj/risk.tsv" ] || die "project $(basename "$proj") declares no risk.tsv"
+  local root; root="$(felix_repo_root "$PWD")"
+  if [ -z "$(printf '%s' "$paths" | tr -d '[:space:]')" ]; then
+    base="${base:-main}"
+    paths="$(git -C "$root" diff --name-only "$base...HEAD" 2>/dev/null)
+$(git -C "$root" diff --name-only 2>/dev/null)"
+  fi
+  paths="$(printf '%s\n' "$paths" | grep -v '^$' | sort -u)"
+  [ -n "$paths" ] || { printf 'No paths given and no changes found. Nothing to scope.\n'; return 0; }
+
+  local sev; sev="$(felix_incident_severity "$proj" "$paths")"
+  printf 'paths:\n'; printf '%s\n' "$paths" | sed 's|^|  |'
+  printf '\nhighest tier: %s\n\n' "$sev"
+
+  if [ "$sev" = "red" ]; then
+    printf 'OUT OF SCOPE for unattended work.\n\n'
+    printf 'A red path is implicated. The bound that matters is not how many times\n'
+    printf 'an agent may try, it is what it may touch: three careful attempts at\n'
+    printf 'the authorization model is not safer than one, it is three times the\n'
+    printf 'exposure. A person decides here.\n'
+    return 3
+  fi
+  printf 'In scope. Reversible enough for an unattended attempt, still subject to\n'
+  printf 'the gate, the classifier and the evidence policy like any other change.\n'
+}
+
 cmd_classify() {
   resolve_or_die; local proj="$PROJ" base="main" apply=0 a
   while [ $# -gt 0 ]; do
@@ -765,8 +803,25 @@ cmd_repair() {
     return 2
   fi
 
+  # Scope before excerpt. Handing an agent the failing log of an authorization
+  # change and telling it afterwards not to touch anything is the wrong order:
+  # by then it has a plan.
+  local log_text implicated sev
+  log_text="$(felix_repair_excerpt "$run_id" "$repo")"
+  implicated="$(felix_incident_paths "$(felix_repo_root "$PWD")" "$log_text")"
+  if [ -n "$implicated" ] && [ -f "$proj/risk.tsv" ]; then
+    sev="$(felix_incident_severity "$proj" "$implicated")"
+    if [ "$sev" = "red" ]; then
+      printf '\nOUT OF SCOPE. The failure implicates a red path:\n\n'
+      printf '%s\n' "$implicated" | sed 's|^|  |'
+      printf '\nAttempts remaining is the wrong bound here. Escalate:\n\n'
+      printf '  gh pr edit --repo %s --add-label needs-founder\n' "$repo"
+      return 3
+    fi
+  fi
+
   printf '\nfailing output:\n\n'
-  felix_repair_excerpt "$run_id" "$repo" | sed 's/^/  /'
+  printf '%s\n' "$log_text" | sed 's/^/  /'
   printf '\nPatch the same branch, run the gate locally, then push.\n'
   printf '%s attempt(s) left before this escalates.\n' "$((FELIX_REPAIR_MAX - attempts))"
 }
@@ -906,6 +961,7 @@ case "${1:-help}" in
   incident) shift; cmd_incident "$@" ;;
   maintenance) shift; cmd_maintenance "$@" ;;
   classify) shift; cmd_classify "$@" ;;
+  scope)    shift; cmd_scope "$@" ;;
   evidence) shift; cmd_evidence "$@" ;;
   new)     shift; cmd_new "$@" ;;
   install) shift; cmd_install "$@" ;;

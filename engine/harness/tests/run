@@ -1458,22 +1458,23 @@ SP="$FROOT/projects/widget"
 rm -f "$SP/memory/says.log"
 ( . "$FROOT/harness/lib/say.sh"
   felix_say "$SP" "brief" "line one
-line two" "why I asked" )
+line two" "why I asked" "sess-42" )
 [ -s "$SP/memory/says.log" ] && ok "records what it said" || bad "records what it said"
 n="$(wc -l < "$SP/memory/says.log" | tr -d ' ')"
 is "a multi-line utterance stays one greppable line" "$n" "1"
-has "and keeps the prompt that caused it" "$(cut -f3 "$SP/memory/says.log")" "why I asked"
-has "with the newlines escaped, not lost"  "$(cut -f4 "$SP/memory/says.log")" 'line one\nline two'
+has "and keeps the session it was said in" "$(cut -f3 "$SP/memory/says.log")" "sess-42"
+has "and keeps the prompt that caused it"   "$(cut -f4 "$SP/memory/says.log")" "why I asked"
+has "with the newlines escaped, not lost"   "$(cut -f5 "$SP/memory/says.log")" 'line one\nline two'
 
 # The hook must record the same words it sends, or the page is fiction.
 rm -f "$SP/memory/says.log"
 out="$(cd "$REPO" && printf '{"session_id":"sayer","prompt":"the migration schema needs an index"}' | "$RHK" 2>&1)"
 sent="$(_ctx "$out" | head -1)"
-kept="$(cut -f4 "$SP/memory/says.log" 2>/dev/null | head -1 | sed 's/\\n.*//')"
+kept="$(cut -f5 "$SP/memory/says.log" 2>/dev/null | head -1 | sed 's/\\n.*//')"
 is "what it kept is what it sent" "$kept" "$sent"
 has "and the cause is the prompt, not the envelope" \
-    "$(cut -f3 "$SP/memory/says.log" 2>/dev/null)" "migration schema"
-case "$(cut -f3 "$SP/memory/says.log" 2>/dev/null)" in
+    "$(cut -f4 "$SP/memory/says.log" 2>/dev/null)" "migration schema"
+case "$(cut -f4 "$SP/memory/says.log" 2>/dev/null)" in
   *session_id*) bad "the cause is not the raw payload" "carried the envelope" ;;
   *) ok "the cause is not the raw payload" ;;
 esac
@@ -1484,6 +1485,18 @@ MON2="$FROOT/state/monitor.html"
 grep -q '"says"' "$MON2" && ok "the page carries the speech" || bad "the page carries the speech"
 grep -q 'migration schema needs an index' "$MON2" \
   && ok "including what prompted each utterance" || bad "including what prompted each utterance"
+
+  # A column was inserted into the middle of this record once. Read as the new
+  # shape, an old line puts its text where the cause belongs, and the page
+  # attributes a gate verdict to a prompt nobody typed. Both shapes must read.
+  printf '%s\told-shape\tno session here\tthe words\n' "2020-01-01T00:00:00Z" >> "$SP/memory/says.log"
+  ( cd "$REPO" && "$FELIX" monitor >/dev/null 2>&1 )
+  if grep -q '"kind":"old-shape","session":"","cause":"no session here","text":"the words"' "$MON2"; then
+    ok "a record from before the session column still reads"
+  else
+    bad "a record from before the session column still reads" \
+        "$(grep -o '"kind":"old-shape"[^}]*' "$MON2" | head -1)"
+  fi
 
 printf '\nthe monitor\n'
 # A hook's additionalContext reaches the model and never the terminal, so every

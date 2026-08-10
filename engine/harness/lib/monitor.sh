@@ -71,12 +71,31 @@ _felix_mon_verify_row() {
 
 # What Felix said, verbatim. The newline escaping is undone here so the page
 # can show it as it was actually delivered.
+# Reads both shapes of this record.
+#
+# A session column was inserted in the middle of an existing format, and every
+# line written before that change has one fewer field: parsed as the new shape,
+# the text lands in the cause and the page attributes a gate verdict to a prompt
+# nobody typed. Counting the fields costs nothing and means old history stays
+# readable instead of being quietly rearranged.
 _felix_mon_say_row() {
-  printf '{"t":"%s","kind":"%s","cause":"%s","text":"%s"}' \
+  local n sess cause text
+  n="$(printf '%s' "$1" | awk -F'\t' '{print NF}')"
+  if [ "${n:-0}" -ge 5 ]; then
+    sess="$(printf '%s' "$1" | cut -f3)"
+    cause="$(printf '%s' "$1" | cut -f4)"
+    text="$(printf '%s' "$1" | cut -f5-)"
+  else
+    sess=""
+    cause="$(printf '%s' "$1" | cut -f3)"
+    text="$(printf '%s' "$1" | cut -f4-)"
+  fi
+  printf '{"t":"%s","kind":"%s","session":"%s","cause":"%s","text":"%s"}' \
     "$(_felix_json_esc "$(printf '%s' "$1" | cut -f1)")" \
     "$(_felix_json_esc "$(printf '%s' "$1" | cut -f2)")" \
-    "$(_felix_json_esc "$(printf '%s' "$1" | cut -f3)")" \
-    "$(_felix_json_esc "$(printf '%s' "$1" | cut -f4-)")"
+    "$(_felix_json_esc "$sess")" \
+    "$(_felix_json_esc "$cause")" \
+    "$(_felix_json_esc "$text")"
 }
 
 _felix_mon_mistake_row() {

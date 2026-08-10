@@ -103,6 +103,7 @@ body{background:var(--void);color:var(--bone);font-family:var(--mono);font-size:
 .logl .m{color:var(--ash);letter-spacing:.04em;text-transform:uppercase;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .logl .m.ok{color:var(--jade)} .logl .m.bad{color:var(--red)} .logl .m.warn{color:var(--amber)}
+.logl .m.day{color:var(--cy-2);letter-spacing:.24em;margin-top:7px;border-top:1px solid var(--rule);padding-top:6px}
 
 /* ---------------- centre: radar core + the chat ---------------- */
 .mid{display:flex;flex-direction:column;min-height:0;min-width:0;gap:12px}
@@ -180,6 +181,7 @@ body{background:var(--void);color:var(--bone);font-family:var(--mono);font-size:
     <div class="brand"><span class="n">Felix</span><span class="t">governance layer</span></div>
     <div class="sp"></div>
     <div class="stat"><span class="k">state</span><span class="led" id="led"></span><span class="v" id="state">nominal</span></div>
+    <div class="stat"><span class="k">time</span><span class="v" id="clock">--:--:--</span></div>
     <div class="stat"><span class="k">project</span><span class="v" id="projName">—</span></div>
     <div class="sp"></div>
     <div id="projs" style="display:flex;gap:6px"></div>
@@ -225,7 +227,7 @@ body{background:var(--void);color:var(--bone);font-family:var(--mono);font-size:
       <div class="body"><div id="ver"></div></div>
     </section>
     <section class="panel grow">
-      <div class="ph"><span class="l">Felix <i>//</i> activity</span><span class="r">rt-log</span></div>
+      <div class="ph"><span class="l">Felix <i>//</i> archive</span><span class="r" id="logTag">—</span></div>
       <div class="redact"></div>
       <div class="body"><div class="logl" id="log"></div></div>
     </section>
@@ -251,8 +253,16 @@ const at=id=>document.getElementById(id);
 const D=(DATA&&DATA.projects)?DATA:{generated:'',projects:[]};
 const S={proj:0};
 const cur=()=>D.projects[S.proj]||{name:'—',says:[],routes:[],routeLog:[],verifyLog:[],mistakes:[],stack:[],lessons:0};
-const hhmm=t=>String(t||'').replace(/^.*T/,'').replace('Z','').slice(0,5);
-const hms =t=>String(t||'').replace(/^.*T/,'').replace('Z','');
+/* The logs are written in UTC, deliberately, so records from different machines
+   sort. The page previously sliced the string straight out of the timestamp,
+   which showed UTC wearing a local clock's label: a 12:56 session read 19:56.
+   Parsed and reformatted, so what you see is the time you were sitting there. */
+const _d=t=>{const d=new Date(String(t||''));return isNaN(d.getTime())?null:d;};
+const hhmm=t=>{const d=_d(t);return d?d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false}):'';};
+const hms =t=>{const d=_d(t);return d?d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}):'';};
+const dayof=t=>{const d=_d(t);return d?d.toLocaleDateString([],{month:'short',day:'numeric'}):'';};
+const isToday=t=>{const d=_d(t);if(!d)return false;const n=new Date();
+  return d.toDateString()===n.toDateString();};
 const unesc=s=>String(s||'').replace(/\\n/g,'\n').replace(/\\\\/g,'\\');
 
 const LABEL={brief:'routed',held:'held',skipped:'flagged','plugin-blocked':'alarm',unrecorded:'note'};
@@ -344,11 +354,23 @@ function draw(t){
 }
 
 /* --------------------------------------------------------------- render -- */
+/* The session Felix is in right now, which is whichever one spoke most
+   recently. Anything from an earlier session is history and belongs in the log,
+   not in front of you: the centre stays the size of what is happening. */
+/* A record with no session was written before Felix tracked them. It is
+   history by definition, so it files itself rather than joining whatever
+   session happens to be newest. */
+function liveSession(){const s=(cur().says||[]).find(x=>x.session);return s?s.session:null;}
+function liveSays(){const id=liveSession();
+  return id?(cur().says||[]).filter(s=>s.session===id):[];}
+function pastSays(){const id=liveSession();
+  return (cur().says||[]).filter(s=>!s.session||s.session!==id);}
+
 function renderChat(){
-  const p=cur(),box=clear(at('chat')),says=p.says||[];
+  const p=cur(),box=clear(at('chat')),says=liveSays();
   if(!says.length){
     const e=el('div','empty');
-    e.appendChild(el('div',null,'Felix has said nothing in this project yet.'));
+    e.appendChild(el('div',null,'Nothing said in this session yet.'));
     const c=el('div');c.appendChild(el('span',null,'Work in it and every word it sends to Claude lands here. Turn on '));
     c.appendChild(el('code',null,'live'));c.appendChild(el('span',null,' with felix monitor --watch running.'));
     e.appendChild(c);box.appendChild(e);return;
@@ -404,15 +426,24 @@ function renderVer(){
   const held=(p.says||[]).filter(s=>s.kind==='held'||s.kind==='plugin-blocked').length;
   box.appendChild(meter('times held',String(held),Math.min(100,held*20),held?'bad':'good'));
 }
+/* Sessions that have ended. The live one is in the middle of the screen; this
+   is where it goes once it is over, so the centre never accumulates. */
 function renderLog(){
   const p=cur(),box=clear(at('log')),ev=[];
-  (p.says||[]).forEach(s=>ev.push({t:s.t,m:(LABEL[s.kind]||s.kind)+' · '+gist(s),
+  pastSays().forEach(s=>ev.push({t:s.t,m:(LABEL[s.kind]||s.kind)+' · '+gist(s),
     c:(s.kind==='held'||s.kind==='plugin-blocked')?'bad':(s.kind==='skipped'||s.kind==='unrecorded')?'warn':''}));
   (p.verifyLog||[]).forEach(v=>ev.push({t:v.t,m:'gate '+v.verdict+' · '+v.reason,
     c:v.verdict==='blocked'?'bad':v.verdict==='override'?'warn':'ok'}));
   ev.sort((a,b)=>String(b.t).localeCompare(String(a.t)));
-  if(!ev.length){box.appendChild(el('span','t',''));box.appendChild(el('span','m','no activity'));return;}
-  ev.slice(0,40).forEach(e=>{box.appendChild(el('span','t','['+hms(e.t)+']'));
+  const n=new Set(pastSays().map(s=>s.session||'unknown')).size;
+  at('logTag').textContent=n?n+' past session'+(n===1?'':'s'):'archive';
+  if(!ev.length){box.appendChild(el('span','t',''));box.appendChild(el('span','m','nothing archived yet'));return;}
+  let lastDay='';
+  ev.slice(0,60).forEach(e=>{
+    const d=dayof(e.t);
+    if(d!==lastDay&&!isToday(e.t)){lastDay=d;
+      box.appendChild(el('span','t',''));box.appendChild(el('span','m day',d));}
+    box.appendChild(el('span','t','['+hms(e.t)+']'));
     box.appendChild(el('span','m '+e.c,e.m));});
 }
 function renderTop(){
@@ -459,7 +490,19 @@ function setLive(on){live=!!on;try{localStorage.setItem('felix.monitor.live',liv
 at('liveBtn').addEventListener('click',()=>setLive(!live));
 window.addEventListener('beforeunload',saveView);
 
-at('stamp').textContent=String(D.generated||'').replace('T',' ').replace('Z','');
+/* Ticks every second regardless of activity. A live panel whose only moving
+   part is the data looks frozen on a quiet afternoon, and the question it has
+   to answer at a glance is "is this thing still running". */
+function tick(){
+  const now=new Date();
+  at('clock').textContent=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  const g=_d(D.generated);
+  if(g){const secs=Math.max(0,Math.round((now-g)/1000));
+    at('stamp').textContent='snapshot '+hms(D.generated)+' · '+
+      (secs<60?secs+'s ago':Math.round(secs/60)+'m ago');}
+  else at('stamp').textContent='snapshot —';
+}
+tick(); setInterval(tick,1000);
 restoreView();seed(260);fit();paint();requestAnimationFrame(draw);
 window.addEventListener('resize',fit);
 try{setLive(localStorage.getItem('felix.monitor.live')==='1');}catch(e){setLive(false);}

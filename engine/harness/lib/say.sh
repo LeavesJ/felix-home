@@ -19,13 +19,17 @@
 # briefing to a question about permutation tests. The hook already holds the
 # prompt; guessing at what it already knows is how a record becomes fiction.
 #
-# proj, kind, text, [what caused it]
+# The session is recorded so the page can show the one you are in and file the
+# rest. Without it every utterance Felix has ever made shares one undifferentiated
+# feed, and "what is happening right now" is unanswerable.
+#
+# proj, kind, text, [what caused it], [session]
 felix_say() {
-  local proj="$1" kind="$2" text="$3" cause="${4:-}"
+  local proj="$1" kind="$2" text="$3" cause="${4:-}" sess="${5:-}"
   [ -n "$text" ] || return 0
   [ -d "$proj/memory" ] || return 0
-  printf '%s\t%s\t%s\t%s\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$kind" \
+  printf '%s\t%s\t%s\t%s\t%s\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$kind" "${sess:-unknown}" \
     "$(printf '%s' "$cause" | tr '\t\n' '  ' | cut -c1-200)" \
     "$(printf '%s' "$text" | sed 's/\\/\\\\/g' | awk '{printf "%s\\n", $0}')" \
     >> "$proj/memory/says.log" 2>/dev/null || true

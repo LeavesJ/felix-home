@@ -17,6 +17,8 @@ ENGINE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck source=../lib/resolve.sh
 . "${SCRIPT_DIR}/../lib/resolve.sh"
+. "${SCRIPT_DIR}/../lib/detect.sh"
+. "${SCRIPT_DIR}/../lib/discover.sh"
 # shellcheck source=../lib/detect.sh
 . "${SCRIPT_DIR}/../lib/detect.sh"
 # shellcheck source=../lib/adopt.sh
@@ -123,3 +125,21 @@ else
 fi
 
 exit 0
+
+# ------------------------------------------------------------- discovery ----
+# Looking for new tooling costs seconds of network per candidate, so it happens
+# between sessions rather than in front of one: refresh in the background when
+# the answer has aged out, and say something only when the answer changed.
+# Silence is the normal case and the point.
+if [ -f "$PROJ/routes.tsv" ] && command -v claude >/dev/null 2>&1; then
+  if felix_discover_stale "$PROJ" "$FELIX_HOME_DIR"; then
+    felix_discover_refresh_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix"
+  fi
+  _new="$(felix_discover_unseen "$PROJ" "$FELIX_HOME_DIR" | head -4)"
+  if [ -n "$_new" ]; then
+    printf '\nWorth a look, found since last time and not installed:\n'
+    printf '%s\n' "$_new" | sed 's/^/  /'
+    printf 'felix discover --inspect shows what each one actually ships.\n'
+    felix_discover_mark_seen "$PROJ" "$FELIX_HOME_DIR"
+  fi
+fi

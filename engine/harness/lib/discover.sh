@@ -197,3 +197,68 @@ felix_discover_why() {
     out="$out; runs a local subprocess" ;; esac
   printf '%s' "${out#; }"
 }
+
+# ---------------------------------------------------------------- cadence ---
+#
+# Inspection fetches over the network and takes seconds per candidate, so it
+# cannot sit in front of a prompt. "Automatic" honestly means: run between
+# sessions, cache the answer, and speak only when the answer changed.
+#
+# Nothing here installs, and nothing here blocks. A refresh that fails leaves
+# the previous answer in place, which is the right trade for a background job
+# nobody is watching.
+
+FELIX_DISCOVER_STALE_DAYS="${FELIX_DISCOVER_STALE_DAYS:-7}"
+
+_felix_discover_cache() { printf '%s/state/discover/%s' "$2" "$(basename "$1")"; }
+
+# Has the cache aged out, or never existed?
+felix_discover_stale() {
+  local f; f="$(_felix_discover_cache "$1" "$2").tsv"
+  [ -f "$f" ] || return 0
+  local age
+  age="$(find "$f" -mtime +"$FELIX_DISCOVER_STALE_DAYS" 2>/dev/null)"
+  [ -n "$age" ]
+}
+
+# Refresh in the background, at most one at a time. The lock is a directory
+# because mkdir is atomic everywhere and a stale lock file is not.
+felix_discover_refresh_bg() {
+  local proj="$1" home="$2" felix_bin="$3"
+  local dir lock
+  dir="$home/state/discover"
+  lock="$dir/.lock"
+  mkdir -p "$dir" 2>/dev/null || return 0
+  mkdir "$lock" 2>/dev/null || return 0   # already running; leave it alone
+  (
+    trap 'rmdir "$lock" 2>/dev/null' EXIT
+    cd "$(felix_repo_root "$PWD")" 2>/dev/null || exit 0
+    "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new" 2>/dev/null
+    mv -f "$(_felix_discover_cache "$proj" "$home").new" \
+          "$(_felix_discover_cache "$proj" "$home").tsv" 2>/dev/null
+  ) </dev/null >/dev/null 2>&1 &
+  return 0
+}
+
+# Findings not yet mentioned. Reporting the same three plugins every session is
+# how a useful signal becomes wallpaper.
+felix_discover_unseen() {
+  local proj="$1" home="$2" base cache seen
+  base="$(_felix_discover_cache "$proj" "$home")"
+  cache="$base.tsv"; seen="$base.seen"
+  [ -s "$cache" ] || return 0
+  if [ -f "$seen" ]; then
+    LC_ALL=C comm -23 <(cut -f1 "$cache" | LC_ALL=C sort -u) \
+                      <(LC_ALL=C sort -u "$seen") 2>/dev/null
+  else
+    cut -f1 "$cache" | LC_ALL=C sort -u
+  fi
+}
+
+felix_discover_mark_seen() {
+  local base; base="$(_felix_discover_cache "$1" "$2")"
+  [ -s "$base.tsv" ] || return 0
+  cut -f1 "$base.tsv" | LC_ALL=C sort -u >> "$base.seen" 2>/dev/null
+  LC_ALL=C sort -u -o "$base.seen" "$base.seen" 2>/dev/null
+  return 0
+}

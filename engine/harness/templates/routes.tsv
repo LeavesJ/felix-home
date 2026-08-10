@@ -3,6 +3,11 @@
 # Read top-down. Highest score wins and file order breaks ties, so specific
 # routes belong above general ones and the catch-all belongs last.
 #
+# Write keywords in their SHORTEST form. A keyword matches when it appears
+# inside a word you typed, so `hook` matches both "hook" and "hooks" while
+# `hooks` matches neither "hook" nor "hooking". Felix's own table had `hooks`
+# and stayed silent the first time somebody asked about a hook.
+#
 # Scoring: a keyword matches when it appears inside a context token, so `page`
 # matches `pages`. Words you typed count double; words taken from the branch
 # name and the working tree count single. The prompt is what you just said, the

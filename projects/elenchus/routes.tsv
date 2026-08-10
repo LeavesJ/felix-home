@@ -14,7 +14,7 @@
 #
 # name	keywords	profile	play
 incident	production outage pager sev1 alerting rollback hotfix	incident	superpowers:systematic-debugging
-debug	broken failing crash traceback stacktrace exception regression reproduce flaky hangs	core	superpowers:systematic-debugging
+debug	broken failing crash traceback stacktrace exception regression reproduce flaky hang	core	superpowers:systematic-debugging
 grading	grading scoring rubric verdict auditor evidence anchor span refusal forgeable	core	superpowers:test-driven-development superpowers:systematic-debugging
 probe	probe payload corpus admission landing permutation arm cell exclusion denominator	core	superpowers:brainstorming superpowers:test-driven-development
 model	prompt model wiring template system pinned	core	superpowers:brainstorming

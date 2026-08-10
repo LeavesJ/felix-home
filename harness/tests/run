@@ -257,6 +257,40 @@ out="$(cd "$PLAIN" && "$FELIX" repair 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "repair refuses outside a governed GitHub repo" \
                 || bad "repair refuses outside a governed GitHub repo" "$out"
 
+printf '\npipefail safety\n'
+# Regression. Every presence check used to be `producer | grep -q x`, which under
+# `set -o pipefail` reports 141 because grep exits on match and the producer takes
+# SIGPIPE. The check then says absent about something present, and it is
+# timing-dependent, so small producers pass and a real repository fails.
+big="$(seq 1 200000)"
+if ( set -uo pipefail; printf '%s' "$big" | grep -q '^199999$' ) 2>/dev/null; then
+  bad "the old pipeline pattern is still hazardous" "it passed, so this test proves nothing"
+else
+  ok "the old pipeline pattern does fail under pipefail (why the helper exists)"
+fi
+if ( set -uo pipefail
+     . "$FROOT/harness/lib/resolve.sh"
+     felix_contains "$big" "199999" ); then
+  ok "felix_contains survives a large haystack under pipefail"
+else
+  bad "felix_contains survives a large haystack under pipefail"
+fi
+if ( set -uo pipefail
+     . "$FROOT/harness/lib/resolve.sh"
+     felix_has_line "$big" "199999" ) ; then
+  ok "felix_has_line matches whole lines under pipefail"
+else
+  bad "felix_has_line matches whole lines under pipefail"
+fi
+if ( set -uo pipefail
+     . "$FROOT/harness/lib/resolve.sh"
+     felix_has_line "alpha
+beta" "alph" ); then
+  bad "felix_has_line rejects partial lines" "matched a prefix"
+else
+  ok "felix_has_line rejects partial lines"
+fi
+
 printf '\nindependence\n'
 # Scoped to code that runs in production. This suite names Elenchus in its own
 # comments on purpose, since explaining what it refuses to depend on is the point.

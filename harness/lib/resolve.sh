@@ -5,6 +5,26 @@
 # governs projects in languages it must not require, so it cannot drag a runtime
 # along. The JSON reader below is the price of that, and its limits are stated.
 
+# Substring test that never builds a pipeline.
+#
+# `producer | grep -q x` is a trap under `set -o pipefail`: grep exits the moment
+# it matches, the producer takes SIGPIPE, and the pipeline reports 141. The check
+# then says "absent" about something that is present. It is worse than a plain
+# bug because it is timing-dependent for small producers, so it passes in testing
+# and fails against a real repository.
+felix_contains() {
+  case "$1" in *"$2"*) return 0 ;; *) return 1 ;; esac
+}
+
+# Whole-line variant, for lists where a substring match would be too loose.
+felix_has_line() {
+  local line
+  while IFS= read -r line; do [ "$line" = "$2" ] && return 0; done <<EOF
+$1
+EOF
+  return 1
+}
+
 # Read one top-level string field out of a flat JSON file.
 # Handles exactly what project.json needs: one nesting level, no escaped quotes.
 # Anything richer belongs in a real parser, and would mean project.json has

@@ -32,15 +32,33 @@ _felix_load_state() {
   _FELIX_MKTS="$(claude plugin marketplace list 2>/dev/null || true)"
 }
 
+# A server is mounted only when its line says connected. Configured-but-failing
+# is the state the GitHub server sits in until someone exports a token, and
+# calling that mounted hides the only fact that matters.
+_felix_mcp_connected() {
+  local line
+  while IFS= read -r line; do
+    case "$line" in
+      "$1:"*|*":$1:"*)
+        felix_contains "$line" "Failed to connect" && return 1
+        felix_contains "$line" "Needs authentication" && return 1
+        return 0 ;;
+    esac
+  done <<EOF
+$_FELIX_MCPS
+EOF
+  return 1
+}
+
 _felix_have() {
   case "$1" in
-    plugin)      printf '%s' "$_FELIX_PLUGINS" | grep -qF "$2" ;;
+    plugin)      felix_contains "$_FELIX_PLUGINS" "$2" ;;
     # A connected MCP and a merely-configured one are different states. The
     # GitHub server sits in the list reporting "Failed to connect" until someone
     # completes OAuth, and calling that mounted would hide the one fact that
     # matters.
-    mcp)         printf '%s' "$_FELIX_MCPS" | grep -E "(^|:)$2:" | grep -qv "Failed to connect\|Needs authentication" ;;
-    marketplace) printf '%s' "$_FELIX_MKTS" | grep -qF "$2" ;;
+    mcp)         _felix_mcp_connected "$2" ;;
+    marketplace) felix_contains "$_FELIX_MKTS" "$2" ;;
     skill)       [ -d "$HOME/.claude/skills/$2" ] ;;
     *) return 1 ;;
   esac
@@ -49,7 +67,7 @@ _felix_have() {
 _felix_cap_active() {
   local cap="$1" proj="$2"
   [ "$cap" = "always" ] && return 0
-  felix_declared "$proj" | grep -qxF "$cap"
+  felix_has_line "$(felix_declared "$proj")" "$cap"
 }
 
 _felix_risk_is_auto() {

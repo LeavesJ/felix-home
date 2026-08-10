@@ -8,6 +8,7 @@
 #   felix profile [name] which tools a task profile mounts
 #   felix stack plan     diff declared tooling against what is installed
 #   felix stack apply --yes   install the low and medium risk gap
+#   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix repair         why CI failed, how many tries are left
 #   felix adopt <cap>    declare a capability this project now has
@@ -31,6 +32,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 . "${SCRIPT_DIR}/lib/setup.sh"
 # shellcheck source=lib/repair.sh
 . "${SCRIPT_DIR}/lib/repair.sh"
+# shellcheck source=lib/bootstrap.sh
+. "${SCRIPT_DIR}/lib/bootstrap.sh"
 
 die() { printf 'felix: %s\n' "$1" >&2; exit "${2:-1}"; }
 
@@ -235,6 +238,86 @@ EOF
 }
 
 
+
+cmd_bootstrap() {
+  resolve_or_die; local proj="$PROJ" yes=0 a
+  for a in "$@"; do [ "$a" = "--yes" ] && yes=1; done
+  local root slug eco felix_repo branch
+  root="$(felix_repo_root "$PWD")"
+  slug="$(felix_repo_slug "$root")"
+  eco="$(felix_guess_ecosystem "$root")"
+  branch="$(git -C "$root" symbolic-ref --short HEAD 2>/dev/null || echo main)"
+  felix_repo="$(felix_repo_slug "$FELIX_ROOT")"
+
+  printf 'repo:        %s\n' "${slug:-no github remote}"
+  printf 'ecosystem:   %s\n' "$eco"
+  printf 'felix repo:  %s\n\n' "${felix_repo:-none, CI cannot fetch the harness}"
+
+  local todo=0
+  _bs() {  # name, already-satisfied, description
+    if [ "$2" = "yes" ]; then printf '  [x] %-12s %s\n' "$1" "$3"
+    else printf '  [ ] %-12s %s\n' "$1" "$3"; todo=$((todo+1)); fi
+  }
+  _felix_bs_have_workflow "$root" && w=yes || w=no
+  _bs ci-workflow "$w" ".github/workflows/gate.yml calling felix gate"
+  if [ -n "$slug" ]; then
+    _felix_bs_have_labels "$slug" && l=yes || l=no
+    _bs labels "$l" "escalation and risk labels the repair loop applies"
+    _felix_bs_have_protection "$slug" "$branch" && p=yes || p=no
+    _bs protection "$p" "require the gate on $branch, block force pushes"
+  else
+    printf '  [-] %-12s no github remote; labels and protection skipped\n' "github"
+  fi
+  _felix_bs_have_perms "$root" && m=yes || m=no
+  _bs permissions "$m" ".claude/settings.json deny and ask policy"
+
+  if [ "$todo" -eq 0 ]; then printf '\nBaseline already in place.\n'; return 0; fi
+  if [ "$yes" -ne 1 ]; then
+    printf '\n%s step(s) outstanding. Nothing changed.\n' "$todo"
+    printf 'apply with: felix bootstrap --yes\n'
+    return 0
+  fi
+
+  printf '\napplying\n'
+  if ! _felix_bs_have_workflow "$root"; then
+    if [ -z "$felix_repo" ]; then
+      printf '  skipped    ci-workflow (Felix has no remote for CI to fetch)\n'
+    else
+      mkdir -p "$root/.github/workflows"
+      felix_bs_render_workflow "$eco" "$felix_repo" > "$root/.github/workflows/gate.yml"
+      printf '  wrote      .github/workflows/gate.yml (review, then commit it)\n'
+    fi
+  fi
+  if [ -n "$slug" ] && ! _felix_bs_have_labels "$slug"; then
+    gh label create needs-founder --repo "$slug" --color D93F0B --description "Repair loop hit its ceiling; a human must diagnose" >/dev/null 2>&1
+    gh label create needs-architecture --repo "$slug" --color 5319E7 --description "Failure is a design problem, not a patch" >/dev/null 2>&1
+    gh label create risk-green --repo "$slug" --color 0E8A16 --description "Reversible" >/dev/null 2>&1
+    gh label create risk-yellow --repo "$slug" --color FBCA04 --description "Human reviews" >/dev/null 2>&1
+    gh label create risk-red --repo "$slug" --color B60205 --description "Approval required" >/dev/null 2>&1
+    printf '  created    5 labels\n'
+  fi
+  if [ -n "$slug" ] && ! _felix_bs_have_protection "$slug" "$branch"; then
+    # enforce_admins stays false on purpose: locking the founder out of their own
+    # repository during an incident is not a safety property.
+    if printf '{"required_status_checks":{"strict":false,"contexts":["gate"]},"enforce_admins":false,"required_pull_request_reviews":null,"restrictions":null,"allow_force_pushes":false,"allow_deletions":false}' \
+       | gh api -X PUT "repos/$slug/branches/$branch/protection" --input - >/dev/null 2>&1; then
+      printf '  protected  %s requires the gate\n' "$branch"
+    else
+      printf '  FAILED     branch protection (admin rights needed on %s)\n' "$slug"
+    fi
+  fi
+  if ! _felix_bs_have_perms "$root"; then
+    mkdir -p "$root/.claude"
+    if [ -f "$root/.claude/settings.json" ]; then
+      printf '  skipped    permissions (settings.json exists; merge by hand rather than clobber it)\n'
+    else
+      felix_bs_render_perms > "$root/.claude/settings.json"
+      printf '  wrote      .claude/settings.json\n'
+    fi
+  fi
+  printf '\nRe-run felix bootstrap to confirm.\n'
+}
+
 cmd_setup() {
   resolve_or_die; local proj="$PROJ" want="${1:-}"
   [ -f "$proj/setup.tsv" ] || die "project $(basename "$proj") declares no setup steps"
@@ -371,6 +454,7 @@ case "${1:-help}" in
   stack)   shift; cmd_stack "$@" ;;
   adopt)  shift; cmd_adopt "$@" ;;
   setup)  shift; cmd_setup "$@" ;;
+  bootstrap) shift; cmd_bootstrap "$@" ;;
   repair) shift; cmd_repair "$@" ;;
   new)    shift; cmd_new "$@" ;;
   help|-h|--help) usage ;;

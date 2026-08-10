@@ -55,6 +55,19 @@ with a record, not a substitute for running it.
   outside the governed repo — true of every project except the one Felix is.
   Test the layout you actually run in, not the convenient one.
 
+- **Banning a word to silence a field name breaks the word.** The prompt hook
+  is handed whole JSON, so the envelope\'s keys are in the token stream and a
+  route keyed on `prompt` or `hook` scored every turn. The first fix blacklisted
+  those words — and then asking "the stop hook is blocking" matched nothing at
+  all, because `hook` had been banned to silence `hook_event_name`. Remove the
+  structure, not the vocabulary: a JSON key is a quoted word followed by a
+  colon, which no sentence contains.
+
+- **Write route keywords in their shortest form.** A keyword matches when it
+  appears inside a word you typed, so `hook` matches "hook" and "hooks" while
+  `hooks` matches neither "hook" nor "hooking". Felix\'s own table said `hooks`
+  and stayed silent the first time anybody asked it about a hook.
+
 - **A trap body is evaluated when it fires, so it cannot reference a `local`.**
   By then the function has returned and the variable is gone, so under `set -u`
   the cleanup dies on an unbound variable and leaves behind exactly what it

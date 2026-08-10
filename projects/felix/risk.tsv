@@ -14,6 +14,7 @@ yellow	path	^engine/harness/felix$	the CLI surface; wrong here is loud rather th
 yellow	path	^engine/harness/templates/	seeds every new project, but only at creation
 yellow	path	^projects/[^/]+/gate\.sh$	a gate that cannot fail is not a gate
 yellow	path	^engine/harness/tests/run$	weakening the suite is how a gate stops being one
+yellow	path	^projects/[^/]+/(routes|profiles|stack|risk|evidence)\.tsv$	changes what gets suggested, not what runs
 green	path	^projects/[^/]+/maintenance\.log$	a record of when upkeep ran
 green	path	^docs/	
 green	path	^projects/[^/]+/memory/	records, not behaviour

@@ -7,7 +7,7 @@
 # that shows up before the work starts rather than during review.
 #
 # name	keywords	profile	play
-harness	harness engine hooks resolve lessons route verify library	core	superpowers:brainstorming superpowers:writing-plans superpowers:test-driven-development superpowers:requesting-code-review
+harness	harness engine hook resolve lesson route verify library	core	superpowers:brainstorming superpowers:writing-plans superpowers:test-driven-development superpowers:requesting-code-review
 gate	gate verification receipt failing regression assertion	core	superpowers:systematic-debugging superpowers:test-driven-development
 doctrine	constitution doctrine lesson invariant promote memory	core	superpowers:brainstorming
 tooling	stack catalog plugin server marketplace capability adopt discover	core	superpowers:brainstorming

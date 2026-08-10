@@ -1,0 +1,15 @@
+# Routes for Felix itself.
+#
+# Not the generic template. Work on a governance harness divides differently
+# from work on a product: there is no frontend and no deploy, and the dangerous
+# change is an edit to something that runs in every session of every governed
+# project. The constitution already calls that adversarial; this table is where
+# that shows up before the work starts rather than during review.
+#
+# name	keywords	profile	play
+harness	harness engine hooks resolve lessons route verify library	core	superpowers:brainstorming superpowers:writing-plans superpowers:test-driven-development superpowers:requesting-code-review
+gate	gate verification receipt failing regression assertion	core	superpowers:systematic-debugging superpowers:test-driven-development
+doctrine	constitution doctrine lesson invariant promote memory	core	superpowers:brainstorming
+tooling	stack catalog plugin server marketplace capability adopt discover	core	superpowers:brainstorming
+debug	broken failing crash traceback reproduce	core	superpowers:systematic-debugging
+build	build implement feature create	core	superpowers:brainstorming superpowers:writing-plans

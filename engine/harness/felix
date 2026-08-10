@@ -6,6 +6,7 @@
 #   felix gate [args]    run this project's gate; exits with the gate's status
 #   felix doctor         capabilities present in the checkout but never declared
 #   felix profile [name] which tools a task profile mounts
+#   felix route          what kind of work this is, and what to reach for
 #   felix recommend      what this stack implies; --want "<text>" matches intent
 #   felix stack plan     diff declared tooling against what is installed
 #   felix stack apply --yes   install the low and medium risk gap
@@ -73,6 +74,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/lessons.sh"
 # shellcheck source=lib/verify.sh
 . "${SCRIPT_DIR}/lib/verify.sh"
+# shellcheck source=lib/route.sh
+. "${SCRIPT_DIR}/lib/route.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -249,6 +252,7 @@ EOF
   } > "$dir/stack.tsv"
 
   cp "$tpl/profiles.tsv" "$dir/profiles.tsv"
+  cp "$tpl/routes.tsv" "$dir/routes.tsv"
   cp "$tpl/risk.tsv" "$dir/risk.tsv"
   cp "$tpl/evidence.tsv" "$dir/evidence.tsv"
   cp "$tpl/maintenance.tsv" "$dir/maintenance.tsv"
@@ -388,6 +392,73 @@ cmd_recommend() {
     "$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
   printf '  Recommend hooks, subagents and skills this stack implies that are\n'
   printf '  not in that list. Read-only: I will decide what to adopt.\n'
+}
+
+cmd_route() {
+  resolve_or_die; local proj="$PROJ" want="" explain=0 list=0 promote=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --for)     want="${2:-}"; shift 2 ;;
+      --explain) explain=1; shift ;;
+      --list)    list=1; shift ;;
+      --promote) promote=1; shift ;;
+      *) shift ;;
+    esac
+  done
+  [ -f "$proj/routes.tsv" ] || die "project $(basename "$proj") declares no routes.tsv"
+  local root; root="$(felix_repo_root "$PWD")"
+
+  if [ "$list" -eq 1 ]; then
+    printf 'routes for %s, in precedence order\n\n' "$(basename "$proj")"
+    _felix_route_rows "$proj" | while IFS=$'\t' read -r n _k pr pl; do
+      printf '  %-10s %-10s %s\n' "$n" "$pr" "$pl"
+    done
+    return 0
+  fi
+
+  if [ "$promote" -eq 1 ]; then
+    local hits; hits="$(felix_route_promote "$proj")"
+    if [ -z "$hits" ]; then
+      printf 'Nothing has missed often enough to be worth a row yet.\n'
+      return 0
+    fi
+    printf 'words that keep appearing in prompts no route understood\n\n'
+    printf '%s\n' "$hits" | while IFS=$'\t' read -r n w; do
+      printf '  %-4s %s\n' "$n" "$w"
+    done
+    printf '\nWord frequency, not understanding. A term appearing often may want a\n'
+    printf 'route, or may simply be what this project is about. Add the keyword to\n'
+    printf 'an existing row in %s/routes.tsv if it would change what you reach for.\n' "$proj"
+    return 0
+  fi
+
+  local ctx; ctx="$(felix_route_context "$root")"
+
+  if [ "$explain" -eq 1 ]; then
+    printf 'prompt:    %s\nthreshold: %s\n\n' "${want:-<none, using the tree>}" "$FELIX_ROUTE_MIN_SCORE"
+    printf '  %-5s %-5s %-10s %s\n' total typed route play
+    felix_route_score "$proj" "$want" "$ctx" | sort -k1,1nr -k3,3n \
+      | while IFS=$'\t' read -r s ps _i n _pr pl; do
+          printf '  %-5s %-5s %-10s %s\n' "$s" "$ps" "$n" "$pl"
+        done
+    printf '\nHighest total wins, file order breaks ties. "typed" is the part that came\n'
+    printf 'from your words rather than the working tree. Below %s nothing is said.\n' \
+      "$FELIX_ROUTE_MIN_SCORE"
+    return 0
+  fi
+
+  local best
+  if ! best="$(felix_route_best "$proj" "$want" "$ctx")"; then
+    felix_route_log "$proj" "" 0 "$want"
+    return 0
+  fi
+  local score pscore name play
+  score="$(printf '%s' "$best" | cut -f1)"
+  pscore="$(printf '%s' "$best" | cut -f2)"
+  name="$(printf '%s' "$best" | cut -f4)"
+  play="$(printf '%s' "$best" | cut -f6)"
+  felix_route_log "$proj" "$name" "$score" "$want"
+  felix_route_render "$proj" "$name" "$play" "$root" "$pscore"
 }
 
 cmd_profile() {
@@ -1201,6 +1272,7 @@ case "${1:-help}" in
   gate)   shift; cmd_gate "$@" ;;
   doctor)  shift; cmd_doctor "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
+  route)     shift; cmd_route "$@" ;;
   recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;
   adopt)   shift; cmd_adopt "$@" ;;

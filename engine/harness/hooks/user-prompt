@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-# UserPromptSubmit hook: mount the lessons that apply to what was just asked.
+# UserPromptSubmit hook: work out what kind of work this is, and mount what
+# applies to it.
 #
 # This event is the last moment before the agent plans, which makes it the real
 # "before implementation" boundary. PostToolUse is too late to prevent anything
 # and PreToolUse is not a confirmed carrier of additionalContext in this version,
 # so this is both the earliest and the most reliable mount available.
+#
+# Two things are gathered and emitted as ONE block. Two injections competing for
+# the same attention is how both get skimmed, and the route is the frame the
+# lessons should be read inside.
 #
 # The prompt arrives as JSON on stdin. It is tokenised whole rather than parsed:
 # a few extra field names cost nothing in a keyword match, and a hand-rolled JSON
@@ -12,7 +17,9 @@
 # failure that silently stops mounting anything.
 #
 # Silent and exit 0 whenever there is nothing to say. A hook that speaks every
-# turn is a hook people learn to skim.
+# turn is a hook people learn to skim. The route in particular is announced only
+# when it changes: twenty turns of frontend work should cost one block, not
+# twenty.
 
 set -uo pipefail
 
@@ -21,26 +28,74 @@ ENGINE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/resolve.sh"
 . "${SCRIPT_DIR}/../lib/lessons.sh"
+. "${SCRIPT_DIR}/../lib/classify.sh"
+. "${SCRIPT_DIR}/../lib/incident.sh"
+. "${SCRIPT_DIR}/../lib/route.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
 [ -n "$PROJ" ] || exit 0
 
-LESSONS="$PROJ/memory/lessons.md"
-[ -s "$LESSONS" ] || exit 0
-
 raw="$(cat 2>/dev/null || true)"
 root="$(felix_repo_root "$PWD")"
-ctx="$(felix_lessons_context "$root" "$raw")"
-matched="$(felix_lessons_for "$LESSONS" "$ctx")"
-[ -n "$matched" ] || exit 0
 
-body="Lessons this project already paid for, matched to what you are about to do.
+# ------------------------------------------------------------------ route ----
+route_block=""
+if [ -f "$PROJ/routes.tsv" ]; then
+  ctx="$(felix_route_context "$root")"
+  if best="$(felix_route_best "$PROJ" "$raw" "$ctx")"; then
+    r_score="$(printf '%s' "$best" | cut -f1)"
+    r_pscore="$(printf '%s' "$best" | cut -f2)"
+    r_name="$(printf '%s' "$best" | cut -f4)"
+    r_play="$(printf '%s' "$best" | cut -f6)"
+    felix_route_log "$PROJ" "$r_name" "$r_score" "$raw"
+
+    # Announce only on change. The session key comes from the payload; when it
+    # cannot be read the repository stands in for it, which degrades the right
+    # way — two concurrent sessions in one checkout would share a key and one
+    # would occasionally stay quiet, a missed suggestion rather than a wrong one.
+    sid="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+    [ -n "$sid" ] || sid="repo-$(printf '%s' "$root" | tr -c 'a-zA-Z0-9' '-')"
+    state_dir="$FELIX_HOME_DIR/state/route"
+    state="$state_dir/$sid"
+    last=""
+    [ -f "$state" ] && last="$(cat "$state" 2>/dev/null)"
+    if [ "$last" != "$r_name" ]; then
+      route_block="$(felix_route_render "$PROJ" "$r_name" "$r_play" "$root" "$r_pscore")"
+      # Failing to remember costs a repeated block. Failing to exit 0 costs the
+      # session, so the write is best-effort and never checked.
+      mkdir -p "$state_dir" 2>/dev/null && printf '%s' "$r_name" > "$state" 2>/dev/null
+    fi
+  else
+    felix_route_log "$PROJ" "" 0 "$raw"
+  fi
+fi
+
+# ---------------------------------------------------------------- lessons ----
+lesson_block=""
+LESSONS="$PROJ/memory/lessons.md"
+if [ -s "$LESSONS" ]; then
+  matched="$(felix_lessons_for "$LESSONS" "$(felix_lessons_context "$root" "$raw")")"
+  if [ -n "$matched" ]; then
+    lesson_block="Lessons this project already paid for, matched to what you are about to do.
 Not advice: these were written down because they were learned the hard way.
 
 $(printf '%s\n' "$matched" | sed 's/^/  /')
 
 The rest are in ${LESSONS}."
+  fi
+fi
+
+[ -n "$route_block" ] || [ -n "$lesson_block" ] || exit 0
+
+body="$route_block"
+if [ -n "$route_block" ] && [ -n "$lesson_block" ]; then
+  body="$route_block
+
+$lesson_block"
+elif [ -z "$route_block" ]; then
+  body="$lesson_block"
+fi
 
 escape_for_json() {
   local s="$1"

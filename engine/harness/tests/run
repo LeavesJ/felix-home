@@ -991,6 +991,123 @@ tid3="$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$UNBORN" )"
 out="$(_stop "$UNBORN")"; rc=$?
 is "and the hook still exits 0 there" "$rc" "0"
 
+printf '\nthe intent router\n'
+# Say what you are doing and get the right kit, without naming it. The chain is
+# routes.tsv -> profiles.tsv -> stack.tsv, and only the first link is new.
+cp "$REAL_HARNESS/templates/routes.tsv"   "$FROOT/projects/widget/routes.tsv"
+cp "$REAL_HARNESS/templates/profiles.tsv" "$FROOT/projects/widget/profiles.tsv"
+cat > "$FROOT/projects/widget/stack.tsv" <<'EOF'
+plugin	frontend-design@claude-plugins-official	-	low	frontend
+plugin	playwright@claude-plugins-official	-	low	e2e
+skill	impeccable	-	low	frontend
+EOF
+printf 'frontend\ne2e\n' > "$FROOT/projects/widget/capabilities"
+
+_route() { ( cd "${2:-$REPO}" && "$FELIX" route --for "$1" 2>&1 ); }
+
+out="$(_route "let us build the results page")"
+has "a frontend prompt routes to frontend" "$out" "frontend"
+has "and names the play in order"          "$out" "frontend-design"
+has "with the critique step after it"      "$out" "impeccable"
+
+# The prompt is what you just said; the tree is only where you are standing.
+# Without weighting, a dirty frontend tree drags every question toward frontend.
+mkdir -p "$REPO/ui"; printf 'x\n' > "$REPO/ui/page.css"
+out="$(_route "add a migration for the endpoint schema")"
+has "the prompt outweighs the working tree" "$out" "backend"
+rm -rf "$REPO/ui"
+
+# Below the threshold nothing is said at all. One stray path token must not be
+# enough to decide what you meant.
+out="$(_route "ok")"
+is "a prompt with no signal says nothing" "${#out}" "0"
+
+# Two corroborating tree tokens do meet the threshold, on purpose. But a route
+# the tree chose is a different claim from one you asked for, and presenting the
+# second as the first is quietly lying about why.
+mkdir -p "$REPO/ui"; printf 'x\n' > "$REPO/ui/page.css"; printf 'x\n' > "$REPO/ui/component.js"
+out="$(_route "ok")"
+has "the working tree alone can route"       "$out" "frontend"
+has "and says so rather than implying I did" "$out" "working tree"
+out="$(_route "render the modal component")"
+case "$out" in
+  *"working tree"*) bad "a typed intent is not labelled a guess" "$out" ;;
+  *) ok "a typed intent is not labelled a guess" ;;
+esac
+rm -rf "$REPO/ui"
+
+out="$(cd "$REPO" && "$FELIX" route --for "let us build the results page" --explain 2>&1)"
+has "explain shows the losing routes too" "$out" "build"
+
+# A play entry the project never declared is named, not hidden. It is the seam
+# to the discovery slice, and silently dropping it would hide the gap.
+cat >> "$FROOT/projects/widget/routes.tsv" <<'EOF'
+ghost	nonesuch	frontend	not-declared-anywhere
+EOF
+out="$(_route "nonesuch")"
+has "an undeclared tool is reported, not hidden" "$out" "not declared"
+
+# A malformed row must not take the file down with it.
+printf 'broken-row-with-no-tabs\n' >> "$FROOT/projects/widget/routes.tsv"
+out="$(_route "let us build the results page")"
+has "a malformed row is skipped, others still match" "$out" "frontend"
+
+RHK="$FROOT/harness/hooks/user-prompt"
+S1='{"session_id":"sess-aaa","prompt":"let us build the results page"}'
+S2='{"session_id":"sess-aaa","prompt":"let us build the results page again"}'
+S3='{"session_id":"sess-aaa","prompt":"add a migration for the endpoint schema"}'
+_hook() { ( cd "$REPO" && printf '%s' "$1" | "$RHK" 2>&1 ); }
+_ctx() { printf '%s' "$1" | python3 -c 'import json,sys;print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' 2>/dev/null; }
+
+rm -rf "$FROOT/state/route"
+out="$(_hook "$S1")"; ctx="$(_ctx "$out")"
+has "the hook routes on the first prompt" "$ctx" "frontend"
+# One block, not two. Two injections fight for the same attention.
+n="$(printf '%s' "$out" | grep -c 'hookSpecificOutput')"
+is "route and lessons arrive as one block" "$n" "1"
+
+# A prompt where both genuinely apply. Two injections competing for the same
+# attention is how both get skimmed, so they must arrive as one.
+rm -rf "$FROOT/state/route"
+out="$(_hook '{"session_id":"sess-bbb","prompt":"add a migration for the endpoint schema rollback"}')"
+ctx="$(_ctx "$out")"
+has "the route is there when both apply" "$ctx" "backend"
+has "and the lesson is in the same block" "$ctx" "L-1"
+n="$(printf '%s' "$out" | grep -c 'hookSpecificOutput')"
+is "still exactly one block"              "$n" "1"
+rm -rf "$FROOT/state/route"
+out="$(_hook "$S1")" >/dev/null 2>&1
+
+out="$(_hook "$S2")"; ctx="$(_ctx "$out")"
+case "$ctx" in
+  *"routed this to"*) bad "the same route does not repeat itself" "$ctx" ;;
+  *) ok "the same route does not repeat itself" ;;
+esac
+
+out="$(_hook "$S3")"; ctx="$(_ctx "$out")"
+has "a change of route speaks again" "$ctx" "backend"
+
+# State is a convenience. Losing it must cost a repeated block, never a session.
+chmod 000 "$FROOT/state/route" 2>/dev/null
+out="$(cd "$REPO" && printf '%s' "$S1" | "$RHK" 2>&1)"; rc=$?
+is "an unwritable state directory still exits 0" "$rc" "0"
+chmod 755 "$FROOT/state/route" 2>/dev/null
+
+RLOG="$FROOT/projects/widget/memory/routes.log"
+[ -s "$RLOG" ] && ok "every decision is logged" || bad "every decision is logged" "no $RLOG"
+grep -q 'frontend' "$RLOG" 2>/dev/null && ok "hits are logged" || bad "hits are logged"
+out="$(_route "zzzquux flibbertigibbet")" >/dev/null 2>&1
+out="$(_route "zzzquux flibbertigibbet")" >/dev/null 2>&1
+out="$(_route "zzzquux wobblethorpe")"    >/dev/null 2>&1
+grep -q '	-	' "$RLOG" 2>/dev/null && ok "misses are logged too" || bad "misses are logged too"
+
+out="$(cd "$REPO" && "$FELIX" route --promote 2>&1)"
+has "promote surfaces a word that keeps missing" "$out" "zzzquux"
+
+out="$(cd "$PLAIN" && "$FELIX" route --for "build the results page" 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "route refuses outside a governed repo" \
+                || bad "route refuses outside a governed repo" "$out"
+
 printf '\nindependence\n'
 # Scoped to code that runs in production. This suite names Elenchus in its own
 # comments on purpose, since explaining what it refuses to depend on is the point.

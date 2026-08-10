@@ -12,6 +12,7 @@
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix classify       risk tier of this branch's diff; --apply labels the PR
 #   felix evidence       what this change must prove; --strict exits non-zero on gaps
+#   felix incident       turn an error into a brief; --create opens an issue
 #   felix repair         why CI failed, how many tries are left
 #   felix adopt <cap>    declare a capability this project now has
 #   felix new <name>     scaffold a new project
@@ -43,6 +44,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/evidence.sh"
 # shellcheck source=lib/adopt.sh
 . "${SCRIPT_DIR}/lib/adopt.sh"
+# shellcheck source=lib/incident.sh
+. "${SCRIPT_DIR}/lib/incident.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -521,6 +524,86 @@ cmd_classify() {
   fi
 }
 
+
+cmd_incident() {
+  resolve_or_die; local proj="$PROJ" src="-" create=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --from) src="${2:-{-}}"; shift 2 ;;
+      --create) create=1; shift ;;
+      *) shift ;;
+    esac
+  done
+  local root text
+  root="$(felix_repo_root "$PWD")"
+  if [ "$src" = "-" ]; then text="$(cat)"; else
+    [ -f "$src" ] || die "no such file: $src"
+    text="$(cat "$src")"
+  fi
+  [ -n "$text" ] || die "no error text given. pipe it in, or use --from <file>"
+
+  local paths sev suspects
+  paths="$(felix_incident_paths "$root" "$text")"
+  if [ -z "$paths" ]; then
+    printf 'No file in this checkout appears in that text.\n\n'
+    printf 'Either the failure is outside this repository, or the trace names\n'
+    printf 'paths from another machine. Triage it by hand rather than trusting a\n'
+    printf 'brief built from nothing.\n'
+    return 0
+  fi
+  sev="$(felix_incident_severity "$proj" "$paths")"
+  suspects="$(felix_incident_suspects "$root" "$paths")"
+
+  local label headline
+  case "$sev" in
+    red)    label="risk-red";    headline="SEV1. Escalate now, do not start an unattended fix." ;;
+    yellow) label="risk-yellow"; headline="SEV2. Fix under normal review." ;;
+    *)      label="risk-green";  headline="SEV3. Routine." ;;
+  esac
+
+  printf 'project:   %s\nseverity:  %s (%s)\n\n%s\n\n' \
+    "$(basename "$proj")" "$sev" "$label" "$headline"
+
+  printf 'implicated files\n'
+  printf '%s\n' "$paths" | sed 's|^|  |'
+
+  printf '\nlast touched by\n'
+  printf '%s\n' "$suspects" | while IFS=$'\t' read -r f c; do
+    [ -n "${f:-}" ] || continue
+    printf '  %-44s %s\n' "$f" "$c"
+  done
+
+  if [ -f "$proj/evidence.tsv" ]; then
+    printf '\nthe fix will have to prove\n'
+    while IFS=$'\t' read -r name when requires reason; do
+      [ -n "${name:-}" ] || continue
+      _felix_any_match "$paths" "$when" && printf '  %-14s %s\n' "$name" "$reason"
+    done <<EOF
+$(_felix_evidence_rows "$proj")
+EOF
+  fi
+
+  # Policy, stated every time because urgency is exactly when it gets skipped.
+  printf '\nUrgency does not bypass the gates. The fix goes through the same gate,\n'
+  printf 'the same classification, and the same evidence policy as any other change.\n'
+  [ "$sev" = "red" ] && printf 'A red path is implicated: a human decides before anything is changed.\n'
+
+  [ "$create" -eq 1 ] || { printf '\nopen an issue with: felix incident --create\n'; return 0; }
+
+  local slug; slug="$(felix_repo_slug "$root")"
+  [ -n "$slug" ] || die "no github remote; cannot open an issue"
+  local body
+  body="$(printf 'Severity: %s\n\n%s\n\n## Implicated files\n\n%s\n\n## Last touched by\n\n%s\n\n## Signal\n\n```\n%s\n```\n' \
+    "$sev" "$headline" "$paths" "$suspects" "$(printf '%s' "$text" | head -40)")"
+  if gh issue create --repo "$slug" --title "incident: $(printf '%s' "$paths" | head -1)" \
+       --body "$body" --label "$label" 2>/dev/null; then
+    printf '\nissue opened\n'
+  else
+    printf '\ncould not open an issue; is the %s label present? try felix bootstrap\n' "$label" >&2
+    return 1
+  fi
+}
+
 cmd_repair() {
   resolve_or_die; local proj="$PROJ"
   _felix_repair_require_gh || return 1
@@ -634,6 +717,7 @@ case "${1:-help}" in
   setup)  shift; cmd_setup "$@" ;;
   bootstrap) shift; cmd_bootstrap "$@" ;;
   repair)   shift; cmd_repair "$@" ;;
+  incident) shift; cmd_incident "$@" ;;
   classify) shift; cmd_classify "$@" ;;
   evidence) shift; cmd_evidence "$@" ;;
   new)     shift; cmd_new "$@" ;;

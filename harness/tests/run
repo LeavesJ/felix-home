@@ -427,6 +427,42 @@ out="$( unset FELIX_HOME; HOME="$TMP/withpointer"; mkdir -p "$HOME"
         . "$FROOT/harness/lib/resolve.sh"; felix_home "$TMP/plainrepo" )"
 is "the pointer file beats a sibling projects/" "$out" "$TMP/pointed"
 
+printf '\nincident loop\n'
+mkdir -p "$REPO/src" "$REPO/migrations" "$REPO/docs"
+printf 'x\n' > "$REPO/src/thing.js"
+printf 'x\n' > "$REPO/migrations/003.sql"
+printf 'x\n' > "$REPO/docs/guide.md"
+( cd "$REPO" && git add -A >/dev/null 2>&1
+  git -c user.name=t -c user.email=t@t commit -qm "incident fixture" >/dev/null 2>&1 )
+
+# A trace never carries repo-relative paths. It carries wherever the process ran.
+TRACE_RED='Error: boom
+    at handler (/app/migrations/003.sql:12:3)
+    at run (/home/runner/work/x/x/src/thing.js:44:9)'
+out="$(cd "$REPO" && printf '%s\n' "$TRACE_RED" | "$FELIX" incident 2>&1)"
+has "extracts files from container-absolute paths" "$out" "src/thing.js"
+has "and from CI-absolute paths"                   "$out" "migrations/003.sql"
+has "severity derives from the risk rules"         "$out" "severity:  red"
+has "and says not to fix it unattended"            "$out" "SEV1"
+has "names the suspect commit"                     "$out" "incident fixture"
+has "states that urgency does not bypass gates"    "$out" "Urgency does not bypass"
+
+TRACE_GREEN='Warning raised in /srv/app/docs/guide.md line 3'
+out="$(cd "$REPO" && printf '%s\n' "$TRACE_GREEN" | "$FELIX" incident 2>&1)"
+has "a docs-only signal is routine" "$out" "severity:  green"
+
+# A brief built from nothing would be believed. Refusing is the correct output.
+out="$(cd "$REPO" && printf 'Segfault in /usr/lib/libc.so.6\n' | "$FELIX" incident 2>&1)"
+has "refuses to invent a brief from unknown paths" "$out" "No file in this checkout"
+case "$out" in
+  *"severity:"*) bad "and reports no severity for it" "$out" ;;
+  *) ok "and reports no severity for it" ;;
+esac
+
+out="$(cd "$REPO" && printf '%s\n' "$TRACE_RED" | "$FELIX" incident 2>&1)"
+has "lists what the fix must prove" "$out" "the fix will have to prove"
+_reset
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes

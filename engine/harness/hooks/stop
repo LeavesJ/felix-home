@@ -28,6 +28,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/resolve.sh"
 . "${SCRIPT_DIR}/../lib/verify.sh"
 . "${SCRIPT_DIR}/../lib/route.sh"
+. "${SCRIPT_DIR}/../lib/ready.sh"
+. "${SCRIPT_DIR}/../lib/guard.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
@@ -93,6 +95,26 @@ _felix_stop_skipped() {
   felix_route_skipped "$tp" "$play"
 }
 
+# A hook belonging to another plugin that refused tool calls this session.
+_felix_stop_blocks() {
+  local tp rows n hook msg who
+  tp="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  [ -n "$tp" ] && [ -f "$tp" ] || return 0
+  rows="$(felix_guard_blocks "$tp")"
+  [ -n "$rows" ] || return 0
+  n="$(printf '%s' "$rows" | head -1 | cut -f1)"
+  hook="$(printf '%s' "$rows" | head -1 | cut -f2)"
+  msg="$(printf '%s' "$rows" | head -1 | cut -f3)"
+  who="$(felix_guard_culprit "$msg")"
+  printf 'Something blocked %s tool call(s) this session, and it was not Felix.\n\n' "$n"
+  printf '  hook     %s\n  says     %s\n' "$hook" "$msg"
+  [ -n "$who" ] && printf '  from     the %s plugin\n' "$who"
+  printf '\nA plugin that ships hooks is a dependency on that plugin working, and\n'
+  printf 'when one fails the error lands on the tool rather than on the plugin, so\n'
+  printf 'it reads as the editor being broken. Tell the founder plainly.\n'
+  [ -n "$who" ] && printf '\nThe way out, which takes effect in the NEXT session and not this one:\n\n  felix quarantine %s\n' "$who"
+}
+
 receipt="$(felix_verify_receipt "$ROOT" "$FELIX_HOME_DIR")"
 r_tid="$(printf '%s' "$receipt" | cut -f1)"
 r_res="$(printf '%s' "$receipt" | cut -f2)"
@@ -104,7 +126,26 @@ if [ -n "$receipt" ] && [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
   # "you changed the results page and never opened a browser" is a fact about
   # the work rather than a rule quoted at turn one, so it is worth saying.
   # additionalContext is non-error feedback: the conversation continues.
+  # Somebody else's plugin refusing your edits looks like the editor being
+  # broken, because the error lands on the tool rather than on the plugin that
+  # caused it. This is the moment the count is already known.
+  blocks="$(_felix_stop_blocks)"
+  if [ -n "$blocks" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
+      "$(escape_for_json "$blocks")"
+    exit 0
+  fi
+
+  # One message per stop, most urgent first. Something actively blocking the
+  # session outranks a step that was skipped, which outranks a debt.
+  unrecorded="$(felix_guard_unrecorded "$PROJ")"
+
   skipped="$(_felix_stop_skipped)"
+  if [ -z "$skipped" ] && [ -n "$unrecorded" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
+      "$(escape_for_json "$unrecorded")"
+    exit 0
+  fi
   if [ -n "$skipped" ]; then
     body="Before you call this finished: this session routed to work that asks for
 ${skipped}, and the transcript shows ${skipped} was never used.

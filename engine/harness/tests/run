@@ -1218,6 +1218,79 @@ case "$out" in
 esac
 ( cd "$REPO" && git checkout -q -- WIDGET.txt 2>/dev/null || printf 'contents\n' > "$REPO/WIDGET.txt" )
 
+printf '\na failure nobody wrote down\n'
+# Felix has had `felix lesson` from the beginning, and a mechanism nobody uses
+# is half a mechanism. This fires only when the gate actually caught something
+# and nothing was written since — most sessions teach nothing, and a prompt
+# that fires every time is one people learn to dismiss.
+GP="$FROOT/projects/guarded"; mkdir -p "$GP/memory"
+: > "$GP/memory/lessons.md"; : > "$GP/memory/DEVLOG.md"
+out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
+is "silent when the gate has caught nothing" "${#out}" "0"
+
+printf '2026-01-01\tmain\tabc123\tlint\n' > "$GP/memory/mistakes.log"
+out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
+has "speaks when a catch went unexplained" "$out" "nothing has been written down"
+has "and names what was caught"            "$out" "lint"
+
+# Writing a lesson settles the debt; it must then go quiet.
+sleep 1; printf -- '- **something learned**\n' > "$GP/memory/lessons.md"
+out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
+is "and stops once something is written" "${#out}" "0"
+
+# An old debt is history, not something this session can explain.
+printf '2020-01-01\tmain\tabc\told\n' > "$GP/memory/mistakes.log"
+touch -t 202001010000 "$GP/memory/mistakes.log" 2>/dev/null
+out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
+is "and does not nag about ancient history" "${#out}" "0"
+rm -rf "$GP"
+
+printf '\nnoticing when another plugin breaks the session\n'
+# A plugin that ships hooks is a dependency on that plugin working. When one
+# refuses, the error lands on the tool rather than on the plugin that caused
+# it, so it reads as the editor being broken. Claude Code records these
+# properly, which is what makes noticing them cheap.
+GT="$TMP/guard.jsonl"
+cat > "$GT" <<'JSONL'
+{"type":"attachment","attachment":{"type":"hook_blocking_error","hookName":"PostToolUse:Write","hookEvent":"PostToolUse","blockingError":{"blockingError":"Not logged into Semgrep Guardian. Ask the guardian mcp to login.","command":"bash x"}}}
+{"type":"attachment","attachment":{"type":"hook_blocking_error","hookName":"PostToolUse:Write","hookEvent":"PostToolUse","blockingError":{"blockingError":"Not logged into Semgrep Guardian. Ask the guardian mcp to login.","command":"bash x"}}}
+{"type":"assistant","message":{"content":[]}}
+JSONL
+rows="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_blocks "$GT" )"
+has "counts what was blocked"     "$rows" "2"
+has "and names the hook"          "$rows" "PostToolUse:Write"
+has "and quotes what it said"     "$rows" "Not logged into Semgrep"
+# A transcript with no blocks must say nothing at all.
+printf '{"type":"assistant"}\n' > "$TMP/clean.jsonl"
+q="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_blocks "$TMP/clean.jsonl" )"
+is "silent when nothing was blocked" "${#q}" "0"
+# A missing transcript is a fact, not a crash.
+q="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_blocks "$TMP/nope.jsonl" )"; rc=$?
+is "survives a transcript that is not there" "$rc" "0"
+
+out="$(cd "$REPO" && "$FELIX" quarantine definitely-not-installed 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "quarantine refuses a plugin that is not here" \
+                || bad "quarantine refuses a plugin that is not here" "$out"
+
+printf '\ndiscovery runs on a cadence, not in front of a prompt\n'
+DH="$TMP/dhome"; mkdir -p "$DH/state/discover"
+DP="$FROOT/projects/widget"
+# Never refreshed is stale; that is what makes the first run happen at all.
+( . "$FROOT/harness/lib/discover.sh"; felix_discover_stale "$DP" "$DH" ) \
+  && ok "a cache that never existed is stale" || bad "a cache that never existed is stale"
+printf 'deepeval\tllm\tlow\nlangfuse\tllm\tlow\n' > "$DH/state/discover/widget.tsv"
+( . "$FROOT/harness/lib/discover.sh"; felix_discover_stale "$DP" "$DH" ) \
+  && bad "a fresh cache is not stale" || ok "a fresh cache is not stale"
+new="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_unseen "$DP" "$DH" | tr '\n' ' ' )"
+has "reports findings the first time" "$new" "deepeval"
+( . "$FROOT/harness/lib/discover.sh"; felix_discover_mark_seen "$DP" "$DH" )
+new="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_unseen "$DP" "$DH" )"
+is "and never mentions the same one twice" "${#new}" "0"
+# Something genuinely new must still get through.
+printf 'sonarqube\tsecrets\thigh\n' >> "$DH/state/discover/widget.tsv"
+new="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_unseen "$DP" "$DH" | tr '\n' ' ' )"
+has "but a new one does get through" "$new" "sonarqube"
+
 printf '\ndiscovery reads before it recommends\n'
 # The plugin format has no permission declaration and `claude plugin validate`
 # checks schema only, so the only way to know what something does is to read it.

@@ -10,6 +10,7 @@
 #   felix monitor        render everything Felix did that nobody could see
 #   felix ready          is every tool this project names actually usable?
 #   felix discover       what is worth having that this project does not have
+#   felix quarantine <p> switch off a plugin that is breaking sessions
 #   felix recommend      what this stack implies; --want "<text>" matches intent
 #   felix stack plan     diff declared tooling against what is installed
 #   felix stack apply --yes   install the low and medium risk gap
@@ -99,6 +100,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/ready.sh"
 # shellcheck source=lib/discover.sh
 . "${SCRIPT_DIR}/lib/discover.sh"
+# shellcheck source=lib/guard.sh
+. "${SCRIPT_DIR}/lib/guard.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -519,10 +522,45 @@ cmd_route() {
   felix_route_render "$proj" "$name" "$play" "$root" "$pscore"
 }
 
+cmd_quarantine() {
+  resolve_or_die; local proj="$PROJ" name="${1:-}" why=""
+  shift 2>/dev/null || true
+  while [ $# -gt 0 ]; do
+    case "$1" in --why) why="${2:-}"; shift 2 ;; *) shift ;; esac
+  done
+  [ -n "$name" ] || die 'usage: felix quarantine <plugin> [--why "..."]'
+  command -v claude >/dev/null 2>&1 || die "felix quarantine needs the claude CLI"
+
+  local id
+  id="$(felix_ready_inventory | awk -F'\t' -v n="$name" '$2==n{print $2; exit}')"
+  [ -n "$id" ] || die "no installed plugin called $name. felix ready lists what is here."
+
+  if claude plugin disable "$name" >/dev/null 2>&1 \
+     || claude plugin disable "$name@claude-plugins-official" >/dev/null 2>&1; then
+    printf 'quarantined %s\n\n' "$name"
+  else
+    die "could not disable $name; try: claude plugin disable $name"
+  fi
+
+  # Recorded, because a plugin switched off and forgotten is a capability that
+  # silently stopped existing, and six months later nobody remembers why.
+  [ -d "$proj/memory" ] && printf '%s\tquarantine\t%s\t%s\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$name" "${why:-no reason given}" \
+    >> "$proj/memory/verification.log" 2>/dev/null
+
+  printf 'This takes effect in your NEXT session. A plugin already loaded stays\n'
+  printf 'loaded, hooks and all, so the current one behaves exactly as before.\n\n'
+  printf 'Undo whenever it is fixed:\n\n  claude plugin enable %s\n' "$name"
+}
+
 cmd_discover() {
-  resolve_or_die; local proj="$PROJ" inspect=0 a tpl="$SCRIPT_DIR/templates"
+  resolve_or_die; local proj="$PROJ" inspect=0 quiet=0 a tpl="$SCRIPT_DIR/templates"
   for a in "$@"; do
-    case "$a" in --inspect) inspect=1 ;; --yes) die "felix discover never installs. There is no --yes." ;; esac
+    case "$a" in
+      --inspect) inspect=1 ;;
+      --quiet)   quiet=1 ;;
+      --yes)     die "felix discover never installs. There is no --yes." ;;
+    esac
   done
   command -v claude >/dev/null 2>&1 || die "felix discover needs the claude CLI to see the marketplaces"
 
@@ -530,6 +568,34 @@ cmd_discover() {
   if [ -z "$cands" ]; then
     printf 'Nothing in the marketplaces matches what %s declares.\n' "$(basename "$proj")"
     printf '\nThat is a statement about the catalogue and this project, not about\nwhat exists. Declaring another capability widens the search.\n'
+    return 0
+  fi
+
+  if [ "$quiet" -eq 1 ]; then
+    # name <TAB> capability <TAB> tier, for the cache. No prose, no headings:
+    # this is read by a machine and diffed against what was already reported.
+    # Global, and the trap guards against unset. A trap body is evaluated when
+    # it fires, by which time a `local` is gone: this exact mistake was made
+    # and fixed in this file already, then made again here. Second occurrence.
+    _FELIX_DISCOVER_SCRATCH=""
+    trap 'rm -rf "${_FELIX_DISCOVER_SCRATCH:-}" 2>/dev/null' EXIT INT TERM
+    _FELIX_DISCOVER_SCRATCH="$(mktemp -d)" || return 0
+    local scratchq="$_FELIX_DISCOVER_SCRATCH"
+    printf '%s\n' "$cands" | while IFS=$'\t' read -r score cap name desc; do
+      [ -n "${name:-}" ] || continue
+      local src url sha sub facts tier
+      src="$(felix_discover_source "$name")" || src=""
+      url="$(printf '%s' "$src" | cut -f1)"
+      sha="$(printf '%s' "$src" | cut -f2)"
+      sub="$(printf '%s' "$src" | cut -f3)"
+      tier="unknown"
+      if [ -n "$url" ] && felix_discover_fetch "$url" "$sha" "$scratchq/$name"; then
+        facts="$(felix_discover_inspect "$scratchq/$name" "$sub")"
+        tier="$(felix_discover_risk "$facts")"
+        rm -rf "$scratchq/$name"
+      fi
+      printf '%s\t%s\t%s\n' "$name" "$cap" "$tier"
+    done
     return 0
   fi
 
@@ -1558,6 +1624,7 @@ case "${1:-help}" in
   monitor)   shift; cmd_monitor "$@" ;;
   ready)     shift; cmd_ready "$@" ;;
   discover)  shift; cmd_discover "$@" ;;
+  quarantine) shift; cmd_quarantine "$@" ;;
   recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;
   adopt)   shift; cmd_adopt "$@" ;;

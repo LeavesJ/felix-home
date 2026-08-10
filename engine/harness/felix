@@ -37,7 +37,21 @@
 
 set -uo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve through symlinks before locating the libraries.
+#
+# `felix install` ends by telling you to put this on PATH with a symlink, and
+# following that instruction used to break it: dirname of a symlink is the
+# directory the *link* sits in, so every `. lib/...` looked in ~/.local/bin and
+# found nothing. The command that was supposed to make Felix convenient was the
+# one command guaranteed to stop it working.
+_felix_src="${BASH_SOURCE[0]}"
+while [ -L "$_felix_src" ]; do
+  _felix_dir="$(cd "$(dirname "$_felix_src")" && pwd)"
+  _felix_src="$(readlink "$_felix_src")"
+  case "$_felix_src" in /*) ;; *) _felix_src="$_felix_dir/$_felix_src" ;; esac
+done
+SCRIPT_DIR="$(cd "$(dirname "$_felix_src")" && pwd)"
+unset _felix_src _felix_dir
 FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installed as a plugin
 # shellcheck source=lib/resolve.sh
 . "${SCRIPT_DIR}/lib/resolve.sh"

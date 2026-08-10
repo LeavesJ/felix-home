@@ -1161,6 +1161,18 @@ out="$(cd "$PLAIN" && "$FELIX" route --for "build the results page" 2>&1)"; rc=$
 [ "$rc" -ne 0 ] && ok "route refuses outside a governed repo" \
                 || bad "route refuses outside a governed repo" "$out"
 
+# `felix install` tells you to put the CLI on PATH with a symlink. Following
+# that instruction resolved SCRIPT_DIR to the directory the link sits in, so
+# every library source missed and the command died on its first line. The
+# documented way to make Felix convenient was the one way to break it.
+printf '\non PATH via a symlink\n'
+mkdir -p "$TMP/bin"
+ln -sf "$FELIX" "$TMP/bin/felix"
+out="$(cd "$REPO" && "$TMP/bin/felix" which 2>&1)"
+has "resolves its libraries through a symlink" "$out" "project:      widget"
+out="$(cd "$REPO" && "$TMP/bin/felix" gate 2>&1)"; rc=$?
+is "and the gate still runs through it" "$rc" "0"
+
 printf '\nthe monitor\n'
 # A hook's additionalContext reaches the model and never the terminal, so every
 # routing decision and every gate verdict happens behind glass. The monitor is

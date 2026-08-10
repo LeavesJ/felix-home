@@ -9,6 +9,7 @@
 #   felix route          what kind of work this is, and what to reach for
 #   felix monitor        render everything Felix did that nobody could see
 #   felix ready          is every tool this project names actually usable?
+#   felix discover       what is worth having that this project does not have
 #   felix recommend      what this stack implies; --want "<text>" matches intent
 #   felix stack plan     diff declared tooling against what is installed
 #   felix stack apply --yes   install the low and medium risk gap
@@ -96,6 +97,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/monitor.sh"
 # shellcheck source=lib/ready.sh
 . "${SCRIPT_DIR}/lib/ready.sh"
+# shellcheck source=lib/discover.sh
+. "${SCRIPT_DIR}/lib/discover.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -514,6 +517,76 @@ cmd_route() {
   play="$(printf '%s' "$best" | cut -f7)"
   felix_route_log "$proj" "$name" "$score" "$want"
   felix_route_render "$proj" "$name" "$play" "$root" "$pscore"
+}
+
+cmd_discover() {
+  resolve_or_die; local proj="$PROJ" inspect=0 a tpl="$SCRIPT_DIR/templates"
+  for a in "$@"; do
+    case "$a" in --inspect) inspect=1 ;; --yes) die "felix discover never installs. There is no --yes." ;; esac
+  done
+  command -v claude >/dev/null 2>&1 || die "felix discover needs the claude CLI to see the marketplaces"
+
+  local cands; cands="$(felix_discover_candidates "$proj" "$tpl")"
+  if [ -z "$cands" ]; then
+    printf 'Nothing in the marketplaces matches what %s declares.\n' "$(basename "$proj")"
+    printf '\nThat is a statement about the catalogue and this project, not about\nwhat exists. Declaring another capability widens the search.\n'
+    return 0
+  fi
+
+  printf 'candidates for %s\n\n' "$(basename "$proj")"
+  printf '%s\n' "$cands" | while IFS=$'\t' read -r score cap name desc; do
+    [ -n "${name:-}" ] || continue
+    printf '  %-26s %-14s %s\n' "$name" "$cap" "$(printf '%s' "$desc" | cut -c1-64)"
+  done
+
+  if [ "$inspect" -ne 1 ]; then
+    printf '\nThat is the catalogue talking. It says nothing about what any of them\n'
+    printf 'actually ship, and the listing carries no hooks or servers to check.\n\n'
+    printf 'read the source before trusting any of it:  felix discover --inspect\n'
+    return 0
+  fi
+
+  printf '\nfetching each at its pinned commit and reading it. nothing is executed.\n\n'
+  # Deleted whatever happens, including on interrupt: a half-fetched plugin
+  # left on disk is exactly the kind of thing someone later runs by accident.
+  #
+  # The path is global and the trap is written defensively. A trap body is
+  # evaluated when it fires, not when it is set, and a `local` is long gone by
+  # then — so referring to one made the cleanup itself die on an unbound
+  # variable, leaving behind precisely what it existed to remove.
+  _FELIX_DISCOVER_SCRATCH=""
+  trap 'rm -rf "${_FELIX_DISCOVER_SCRATCH:-}" 2>/dev/null' EXIT INT TERM
+  _FELIX_DISCOVER_SCRATCH="$(mktemp -d)" || die "cannot create a scratch directory"
+  local scratch="$_FELIX_DISCOVER_SCRATCH"
+
+  printf '%s\n' "$cands" | while IFS=$'\t' read -r score cap name desc; do
+    [ -n "${name:-}" ] || continue
+    local src url sha sub facts risk why
+    src="$(felix_discover_source "$name")" || src=""
+    url="$(printf '%s' "$src" | cut -f1)"
+    sha="$(printf '%s' "$src" | cut -f2)"
+    sub="$(printf '%s' "$src" | cut -f3)"
+    if [ -z "$url" ]; then
+      printf '  %-26s %-8s could not resolve a source to read\n' "$name" "unknown"
+      continue
+    fi
+    if ! felix_discover_fetch "$url" "$sha" "$scratch/$name"; then
+      printf '  %-26s %-8s fetch failed, skipped\n' "$name" "unknown"
+      continue
+    fi
+    facts="$(felix_discover_inspect "$scratch/$name" "$sub")"
+    risk="$(felix_discover_risk "$facts")"
+    why="$(felix_discover_why "$facts")"
+    printf '  %-26s %-8s %s\n' "$name" "$risk" "${why:-skills only, nothing that runs on its own}"
+    [ -z "$sha" ] && printf '  %-26s %-8s (no pinned sha: what you install may differ from this)\n' "" ""
+    rm -rf "$scratch/$name"
+  done
+
+  printf '\nNothing was installed and nothing was written. To adopt one, add its row\n'
+  printf 'to %s/stack.tsv and install it yourself.\n\n' "$proj"
+  printf 'A high tier is not an accusation. It means the thing runs code on your\n'
+  printf 'machine, and that this check reads files rather than behaviour: a plugin\n'
+  printf 'that passes every line above can still do as it likes once it runs.\n'
 }
 
 cmd_ready() {
@@ -1484,6 +1557,7 @@ case "${1:-help}" in
   route)     shift; cmd_route "$@" ;;
   monitor)   shift; cmd_monitor "$@" ;;
   ready)     shift; cmd_ready "$@" ;;
+  discover)  shift; cmd_discover "$@" ;;
   recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;
   adopt)   shift; cmd_adopt "$@" ;;

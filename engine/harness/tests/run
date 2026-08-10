@@ -991,6 +991,38 @@ tid3="$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$UNBORN" )"
 out="$(_stop "$UNBORN")"; rc=$?
 is "and the hook still exits 0 there" "$rc" "0"
 
+# Felix governing itself: the home lives INSIDE the tree being gated, so every
+# receipt, verification line and route line lands in the repo it describes.
+# Writing a receipt then changes the tree, which invalidates the receipt just
+# written, and no gate run can ever produce a valid one. The fixture above hides
+# this entirely because there the home sits outside the governed repo — which is
+# why this reproduces the real layout instead.
+SELF="$TMP/selfgoverned"
+mkdir -p "$SELF/projects/self/memory" "$SELF/harness"
+cp -R "$REAL_HARNESS/." "$SELF/harness/"
+cat > "$SELF/projects/self/project.json" <<'EOF'
+{ "name": "self", "gate": "true" }
+EOF
+printf '# self\n' > "$SELF/projects/self/CLAUDE.md"
+( cd "$SELF" && git init -q -b main && printf 'x\n' > code.txt && printf 'self\n' > .felix
+  git add -A >/dev/null 2>&1
+  git -c user.name=t -c user.email=t@t commit -qm i >/dev/null 2>&1 )
+SELF="$(cd "$SELF" && pwd -P)"
+printf 'real work\n' >> "$SELF/code.txt"
+( cd "$SELF" && FELIX_HOME="$SELF" "$SELF/harness/felix" gate >/dev/null 2>&1 )
+out="$(cd "$SELF" && FELIX_HOME="$SELF" printf '%s' "$EMPTY_JSON" \
+        | FELIX_HOME="$SELF" "$SELF/harness/hooks/stop" 2>&1)"
+_allows "a receipt survives being written inside the tree it describes" "$out"
+# And a second stop, which appends another verification line, must also pass.
+out="$(cd "$SELF" && FELIX_HOME="$SELF" printf '%s' "$EMPTY_JSON" \
+        | FELIX_HOME="$SELF" "$SELF/harness/hooks/stop" 2>&1)"
+_allows "and keeps surviving as its own log grows" "$out"
+# Real work still has to be verified, bookkeeping exemption or not.
+printf 'more real work\n' >> "$SELF/code.txt"
+out="$(cd "$SELF" && FELIX_HOME="$SELF" printf '%s' "$EMPTY_JSON" \
+        | FELIX_HOME="$SELF" "$SELF/harness/hooks/stop" 2>&1)"
+_blocks "but a real edit still blocks" "$out"
+
 printf '\nthe intent router\n'
 # Say what you are doing and get the right kit, without naming it. The chain is
 # routes.tsv -> profiles.tsv -> stack.tsv, and only the first link is new.

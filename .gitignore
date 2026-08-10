@@ -9,6 +9,12 @@
 !projects/*/maintenance.log
 
 # Never let a project's runtime state or secrets land here.
+# `state/` is Felix's own ephemeral scratch: gate receipts and per-session route
+# memory. It is rebuilt on demand and must never be committed — and because
+# Felix's home is this repository when Felix governs itself, anything written
+# there would otherwise change the very tree a receipt is describing.
+state/
+.claude-flow/
 data/
 *.db
 *.sqlite

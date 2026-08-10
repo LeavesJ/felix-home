@@ -211,7 +211,7 @@ cmd_gate() {
   # Identity of the tree as the gate finds it, captured before it runs. A gate
   # that rewrites files — a formatter is the ordinary case — would otherwise
   # stamp a receipt describing a tree it never actually verified.
-  local tid; tid="$(felix_tree_id "$root")" || tid=""
+  local tid; tid="$(felix_tree_id "$root" "$FELIX_HOME_DIR")" || tid=""
   export FELIX_PROJECT="$proj"
   # Tools Felix ships for a gate to call. A project gate cannot know where
   # Felix lives, and hardcoding a path would break the moment it moves.

@@ -48,10 +48,18 @@ _felix_meta() {
 }
 
 # Does this tree hold anything the gate has not seen committed?
+#
+# Excludes Felix's own bookkeeping for the same reason tree identity does: a
+# session that appended one line to a log has not changed the work, and treating
+# it as dirty would demand a gate run for having recorded that a gate ran.
 felix_tree_dirty() {
-  local root="$1"
+  local root="$1" home="${2:-}" f
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
-  [ -n "$(git -C "$root" status --porcelain 2>/dev/null)" ]
+  local exargs=()
+  while IFS= read -r f; do [ -n "$f" ] && exargs+=("$f"); done <<EOF
+$(_felix_tree_excludes "$root" "$home")
+EOF
+  [ -n "$(git -C "$root" status --porcelain -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)" ]
 }
 
 # Identity of a working tree: the commit it sits on, the content of every
@@ -66,9 +74,35 @@ felix_tree_dirty() {
 # a virtualenv, a build output, or a multi-gigabyte model artifact. Hashing bytes
 # would make this hook's cost a function of somebody else's project layout. Size
 # and mtime both change on any write, which is sufficient, and cost one stat.
+#
+# Felix's own bookkeeping is excluded when Felix's home lives inside the tree
+# being identified, which is the case whenever Felix governs itself. Writing a
+# receipt is a change to the tree; without this, recording a verdict invalidates
+# the verdict it just recorded and no receipt can ever be valid. The same goes
+# for the verification log and the route log, which are records *about* the work
+# rather than the work. When home is elsewhere — every governed project that is
+# not Felix — nothing is excluded, so a project with its own `state/` keeps it.
+_felix_tree_excludes() {
+  local root="$1" home="${2:-}" rel
+  [ -n "$home" ] || return 0
+  case "$home" in
+    "$root")   rel="" ;;
+    "$root"/*) rel="${home#"$root"/}/" ;;
+    *)         return 0 ;;
+  esac
+  printf ':(exclude)%sstate/**\n'                 "$rel"
+  printf ':(exclude)%sprojects/*/memory/*.log\n'  "$rel"
+  printf ':(exclude)%sprojects/*/maintenance.log\n' "$rel"
+}
+
 felix_tree_id() {
-  local root="$1" head diff untracked n meta="" prefix="" f
+  local root="$1" home="${2:-}" head diff untracked n meta="" prefix="" f
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
+  local ex; ex="$(_felix_tree_excludes "$root" "$home")"
+  local exargs=()
+  while IFS= read -r f; do [ -n "$f" ] && exargs+=("$f"); done <<EOF
+$ex
+EOF
 
   head="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || head=""
   if [ -z "$head" ]; then
@@ -76,12 +110,13 @@ felix_tree_id() {
     # a real state — it is what `git init` leaves, and what this suite's own
     # fixture is — and every naive implementation of this dies there.
     head="unborn"
-    diff="$(git -C "$root" diff 2>/dev/null)"
+    diff="$(git -C "$root" diff -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
   else
-    diff="$(git -C "$root" diff HEAD 2>/dev/null)"
+    diff="$(git -C "$root" diff HEAD -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
   fi
 
-  untracked="$(git -C "$root" ls-files --others --exclude-standard 2>/dev/null | LC_ALL=C sort)"
+  untracked="$(git -C "$root" ls-files --others --exclude-standard \
+                 -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null | LC_ALL=C sort)"
   n="$(printf '%s' "$untracked" | grep -c . 2>/dev/null)" || n=0
 
   if [ "${n:-0}" -gt "$FELIX_UNTRACKED_CAP" ]; then

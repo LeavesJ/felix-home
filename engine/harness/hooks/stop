@@ -49,9 +49,9 @@ case "$raw" in
   *'"stop_hook_active"'*'true'*) exit 0 ;;
 esac
 
-felix_tree_dirty "$ROOT" || exit 0
+felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR" || exit 0
 
-TID="$(felix_tree_id "$ROOT")" || TID=""
+TID="$(felix_tree_id "$ROOT" "$FELIX_HOME_DIR")" || TID=""
 if [ -z "$TID" ]; then
   felix_verify_log "$PROJ" "allowed" "" "tree identity unavailable"
   exit 0

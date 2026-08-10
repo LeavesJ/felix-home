@@ -43,6 +43,11 @@ PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
 raw="$(cat 2>/dev/null || true)"
 root="$(felix_repo_root "$PWD")"
 
+# What this session has already done. Present on every event that shares the
+# base payload; absent means the whole play gets named, which is the old
+# behaviour and a safe place to fall back to.
+transcript="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+
 # ------------------------------------------------------------------ route ----
 route_block=""
 if [ -f "$PROJ/routes.tsv" ]; then
@@ -62,13 +67,18 @@ if [ -f "$PROJ/routes.tsv" ]; then
     [ -n "$sid" ] || sid="repo-$(printf '%s' "$root" | tr -c 'a-zA-Z0-9' '-')"
     state_dir="$FELIX_HOME_DIR/state/route"
     state="$state_dir/$sid"
+    # Keyed on the route AND the step that is due, so finishing one step is
+    # itself a reason to speak: the next one is now the thing to do. Keyed on
+    # the route alone, Felix named a tool once and went quiet for the rest of
+    # the session, which is how a sequence becomes a single suggestion.
+    r_due="$(felix_route_due "$transcript" "$r_play" 2>/dev/null | cut -f1)"
     last=""
     [ -f "$state" ] && last="$(cat "$state" 2>/dev/null)"
-    if [ "$last" != "$r_name" ]; then
-      route_block="$(felix_route_render "$PROJ" "$r_name" "$r_play" "$root" "$r_pscore")"
+    if [ "$last" != "$r_name:${r_due:-done}" ]; then
+      route_block="$(felix_route_render "$PROJ" "$r_name" "$r_play" "$root" "$r_pscore" "$transcript")"
       # Failing to remember costs a repeated block. Failing to exit 0 costs the
       # session, so the write is best-effort and never checked.
-      mkdir -p "$state_dir" 2>/dev/null && printf '%s' "$r_name" > "$state" 2>/dev/null
+      mkdir -p "$state_dir" 2>/dev/null && printf '%s' "$r_name:${r_due:-done}" > "$state" 2>/dev/null
     fi
   else
     felix_route_log "$PROJ" "" 0 "$raw"

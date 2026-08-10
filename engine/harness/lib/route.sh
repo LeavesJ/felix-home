@@ -169,26 +169,33 @@ _felix_route_kind() {
 # not frontend" surfaces a keyword worth fixing. Obedience is not the goal —
 # the goal is that skipping costs a sentence.
 felix_route_render() {
-  local proj="$1" name="$2" play="$3" root="$4" pscore="${5:-1}" p kind missing="" i=0
+  local proj="$1" name="$2" play="$3" root="$4" pscore="${5:-1}" transcript="${6:-}"
+  local p kind due rest
   printf 'Felix routed this to: %s\n' "$name"
   [ "${pscore:-1}" -eq 0 ] && \
     printf 'Read off the working tree, not the prompt: nothing you typed named a\nkind of work, so this is a guess from what is currently changed.\n'
+
   if [ "$play" != "-" ] && [ -n "$play" ]; then
-    printf '\nUse these, in this order, before you write any code:\n'
-    for p in $play; do
-      kind="$(_felix_route_kind "$proj" "$p")"
-      i=$((i+1))
-      printf '  %s. %-22s %s\n' "$i" "$p" "$kind"
-      [ "$kind" = "not declared" ] && missing="$missing $p"
-    done
-    printf '\nThis is a requirement, not a suggestion. This project already decided that\n'
-    printf 'work of this kind goes through them, and the decision is not yours to skip\n'
-    printf 'quietly. If the routing is wrong, say so and choose differently — but say\n'
-    printf 'it out loud, because a route that keeps guessing wrong is a bug in a table\n'
-    printf 'someone can fix, and silence is how it stays broken.\n'
+    if due="$(felix_route_due "$transcript" "$play")"; then
+      rest="$(printf '%s' "$due" | cut -f2)"
+      due="$(printf '%s' "$due" | cut -f1)"
+      kind="$(_felix_route_kind "$proj" "$due")"
+
+      if [ "$kind" = "not declared" ]; then
+        printf '\nThis kind of work wants %s, which this project has not declared and\n' "$due"
+        printf 'is not installed here. Carry on without it and say that you did.\n'
+      else
+        printf '\nUse this now: %s (%s)\n' "$due" "$kind"
+        printf '\nThis is a requirement, not a suggestion. This project already decided\n'
+        printf 'that work of this kind goes through it, and the decision is not yours\n'
+        printf 'to skip quietly. If the routing is wrong, say so and choose otherwise —\n'
+        printf 'but say it out loud, because a route that keeps guessing wrong is a bug\n'
+        printf 'in a table someone can fix, and silence is how it stays broken.\n'
+      fi
+      [ -n "$rest" ] && \
+        printf '\nLater, only if the work actually reaches them: %s\n' "$rest"
+    fi
   fi
-  [ -n "$missing" ] && \
-    printf '\nNamed but not installed here, so unavailable:%s\n' "$missing"
   _felix_route_red "$proj" "$root"
 }
 
@@ -205,6 +212,57 @@ _felix_route_red() {
   [ "$sev" = "red" ] || return 0
   printf '\nThis working tree touches a path the project calls red. A person\n'
   printf 'decides here: show the change and its reversal before touching it.\n'
+}
+
+# Has a play step actually been used in this session?
+#
+# The session transcript records it three ways depending on what the step is: a
+# skill carries an attribution, a plugin's skill carries its owner, and a plugin
+# that ships an MCP server shows up as a tool name. Checked with grep rather
+# than parsed — 21ms against a 5MB transcript, and no JSON reader in an engine
+# that promises only bash and git.
+felix_route_step_used() {
+  local transcript="$1" step="$2" owner
+  [ -n "$transcript" ] && [ -f "$transcript" ] || return 1
+  case "$step" in *:*) owner="${step%%:*}" ;; *) owner="$step" ;; esac
+  grep -q "\"attributionSkill\":\"$step\""    "$transcript" 2>/dev/null && return 0
+  grep -q "\"attributionSkill\":\"$owner"     "$transcript" 2>/dev/null && return 0
+  grep -q "\"attributionPlugin\":\"$owner\""  "$transcript" 2>/dev/null && return 0
+  grep -qE "\"name\":\"mcp__[^\"]*$owner"     "$transcript" 2>/dev/null && return 0
+  return 1
+}
+
+# The first step of a play that has not been used yet, and everything after it.
+#
+# Naming the whole play at the first prompt tells an agent to critique and
+# browser-test something that does not exist, and spends context saying it. A
+# play is a sequence, so only the step that is actually due gets named; the rest
+# arrive as the work reaches them, or not at all if it never does.
+felix_route_due() {
+  local transcript="$1" play="$2" p due="" rest=""
+  [ -n "$play" ] && [ "$play" != "-" ] || return 1
+  for p in $play; do
+    if [ -z "$due" ]; then
+      felix_route_step_used "$transcript" "$p" && continue
+      due="$p"
+    else
+      rest="$rest $p"
+    fi
+  done
+  [ -n "$due" ] || return 1
+  printf '%s\t%s' "$due" "${rest# }"
+}
+
+# Steps a route asked for that the session never used. Read at the finish line,
+# where "you are about to call this done and never opened a browser" is a fact
+# about the work rather than a rule quoted at turn one.
+felix_route_skipped() {
+  local transcript="$1" play="$2" p out=""
+  [ -n "$play" ] && [ "$play" != "-" ] || return 0
+  for p in $play; do
+    felix_route_step_used "$transcript" "$p" || out="$out $p"
+  done
+  printf '%s' "${out# }"
 }
 
 # Hits and misses both. The misses are the raw material for --promote, and they

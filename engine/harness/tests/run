@@ -1173,6 +1173,51 @@ has "resolves its libraries through a symlink" "$out" "project:      widget"
 out="$(cd "$REPO" && "$TMP/bin/felix" gate 2>&1)"; rc=$?
 is "and the gate still runs through it" "$rc" "0"
 
+printf '\njust in time, not all at once\n'
+# Naming a whole play at the first prompt tells an agent to critique and
+# browser-test something that does not exist yet, and spends context saying so.
+# A play is a sequence: only the step that is actually due gets named.
+TR="$TMP/transcript.jsonl"
+: > "$TR"
+J1="{\"session_id\":\"jit-1\",\"transcript_path\":\"$TR\",\"prompt\":\"the results page layout needs work\"}"
+rm -rf "$FROOT/state/route"
+out="$(cd "$REPO" && printf '%s' "$J1" | "$RHK" 2>&1)"; ctx="$(_ctx "$out")"
+has "names the first step"        "$ctx" "frontend-design"
+case "$ctx" in
+  *"Use this now: impeccable"*) bad "does not demand the later steps yet" "$ctx" ;;
+  *) ok "does not demand the later steps yet" ;;
+esac
+has "but says what may come later" "$ctx" "Later, only if"
+
+# Once the transcript shows step one was used, step two becomes the due one.
+printf '{"type":"assistant","attributionSkill":"frontend-design:frontend-design"}\n' >> "$TR"
+J2="{\"session_id\":\"jit-1\",\"transcript_path\":\"$TR\",\"prompt\":\"the results page layout still needs work\"}"
+out="$(cd "$REPO" && printf '%s' "$J2" | "$RHK" 2>&1)"; ctx="$(_ctx "$out")"
+has "advances to the next step once the first is used" "$ctx" "Use this now: impeccable"
+
+# A plugin that ships an MCP server is used by calling its tools, not a skill.
+printf '{"type":"assistant","attributionSkill":"impeccable"}\n' >> "$TR"
+printf '{"name":"mcp__plugin_playwright_playwright__browser_navigate"}\n' >> "$TR"
+out="$(cd "$REPO" && printf '%s' "$J2" | "$RHK" 2>&1)"; ctx="$(_ctx "$out")"
+case "$ctx" in
+  *"Use this now:"*) bad "stops naming tools once the play is done" "$ctx" ;;
+  *) ok "stops naming tools once the play is done" ;;
+esac
+
+# And at the finish line, a step the session never used is worth one sentence.
+: > "$TR"
+printf 'edit\n' >> "$REPO/WIDGET.txt"
+( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 )
+mkdir -p "$FROOT/state/route"; printf 'frontend:frontend-design' > "$FROOT/state/route/jit-2"
+SJ="{\"hook_event_name\":\"Stop\",\"stop_hook_active\":false,\"session_id\":\"jit-2\",\"transcript_path\":\"$TR\"}"
+out="$(cd "$REPO" && printf '%s' "$SJ" | "$STOP" 2>&1)"
+has "says what was skipped at the finish"  "$out" "never used"
+case "$out" in
+  *'"decision"'*'"block"'*) bad "but does not hold the session for it" "$out" ;;
+  *) ok "but does not hold the session for it" ;;
+esac
+( cd "$REPO" && git checkout -q -- WIDGET.txt 2>/dev/null || printf 'contents\n' > "$REPO/WIDGET.txt" )
+
 printf '\nthe pre-flight\n'
 # A skill can be invoked mid-turn; a plugin that is switched off cannot be
 # switched on without a restart. So whether the router's picks will actually

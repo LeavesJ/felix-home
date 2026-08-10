@@ -27,6 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/resolve.sh"
 . "${SCRIPT_DIR}/../lib/verify.sh"
+. "${SCRIPT_DIR}/../lib/route.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
@@ -66,6 +67,32 @@ if [ "${FELIX_ALLOW_RED:-}" = "1" ]; then
   exit 0
 fi
 
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"; s="${s//$'\r'/\\r}"; s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+# What the active route asked for and this session never used. Needs the route
+# recorded by the prompt hook and the transcript this payload names; without
+# either it says nothing rather than guessing.
+_felix_stop_skipped() {
+  local sid state routename play tp
+  [ -f "$PROJ/routes.tsv" ] || return 0
+  sid="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  [ -n "$sid" ] || return 0
+  state="$FELIX_HOME_DIR/state/route/$sid"
+  [ -f "$state" ] || return 0
+  routename="$(cut -d: -f1 < "$state" 2>/dev/null)"
+  [ -n "$routename" ] || return 0
+  play="$(_felix_route_rows "$PROJ" | awk -F'\t' -v r="$routename" '$1==r{print $4}')"
+  [ -n "$play" ] && [ "$play" != "-" ] || return 0
+  tp="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  [ -n "$tp" ] && [ -f "$tp" ] || return 0
+  felix_route_skipped "$tp" "$play"
+}
+
 receipt="$(felix_verify_receipt "$ROOT" "$FELIX_HOME_DIR")"
 r_tid="$(printf '%s' "$receipt" | cut -f1)"
 r_res="$(printf '%s' "$receipt" | cut -f2)"
@@ -73,6 +100,21 @@ r_when="$(printf '%s' "$receipt" | cut -f3)"
 
 if [ -n "$receipt" ] && [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
   felix_verify_log "$PROJ" "allowed" "$TID" "green"
+  # The gate is satisfied, so nothing is held. But this is the one moment where
+  # "you changed the results page and never opened a browser" is a fact about
+  # the work rather than a rule quoted at turn one, so it is worth saying.
+  # additionalContext is non-error feedback: the conversation continues.
+  skipped="$(_felix_stop_skipped)"
+  if [ -n "$skipped" ]; then
+    body="Before you call this finished: this session routed to work that asks for
+${skipped}, and the transcript shows ${skipped} was never used.
+
+That may be right — say why. It is wrong often enough to be worth a sentence
+either way, and a route that keeps asking for the wrong thing is a bug in a
+table someone can fix."
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
+      "$(escape_for_json "$body")"
+  fi
   exit 0
 fi
 
@@ -99,11 +141,5 @@ If you have already decided to stop with a red gate, that is the founder's call
 to make, not yours: they can set FELIX_ALLOW_RED=1 in the environment they
 launch a session from."
 
-escape_for_json() {
-  local s="$1"
-  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"
-  s="${s//$'\n'/\\n}"; s="${s//$'\r'/\\r}"; s="${s//$'\t'/\\t}"
-  printf '%s' "$s"
-}
 printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$reason")"
 exit 0

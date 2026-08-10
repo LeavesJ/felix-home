@@ -1,0 +1,21 @@
+# Generic tooling catalogue. felix new filters this by what it detects in a
+# checkout, so a project starts with rows that already apply to it.
+#
+# Nothing language-specific lives here. A row that only makes sense for one
+# ecosystem belongs in that project's stack.tsv, not in everyone's default.
+#
+# kind	name	source	risk	capability
+marketplace	claude-plugins-official	anthropics/claude-plugins-official	low	always
+plugin	superpowers@claude-plugins-official	-	low	always
+plugin	claude-md-management@claude-plugins-official	-	low	always
+plugin	claude-code-setup@claude-plugins-official	-	low	always
+plugin	context7@claude-plugins-official	-	low	always
+plugin	code-review@claude-plugins-official	-	low	always
+plugin	security-guidance@claude-plugins-official	-	low	always
+plugin	code-simplifier@claude-plugins-official	-	low	always
+plugin	frontend-design@claude-plugins-official	-	low	frontend
+plugin	playwright@claude-plugins-official	-	low	e2e
+plugin	supabase@supabase-community-supabase-plugin	-	medium	database
+plugin	github@claude-plugins-official	-	high	ci
+plugin	stripe@claude-plugins-official	-	high	billing
+mcp	sentry	https://mcp.sentry.dev/mcp	high	observability

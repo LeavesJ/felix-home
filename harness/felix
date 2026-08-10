@@ -81,24 +81,80 @@ cmd_gate() {
 }
 
 cmd_new() {
-  local name="${1:-}"
-  [ -n "$name" ] || die "usage: felix new <name>"
+  local name="${1:-}" target="${2:-$PWD}"
+  [ -n "$name" ] || die "usage: felix new <name> [path-to-checkout]"
   local dir="$FELIX_ROOT/projects/$name"
   [ -e "$dir" ] && die "project $name already exists at $dir"
-  mkdir -p "$dir/memory"
+  local tpl="$FELIX_ROOT/harness/templates"
+  [ -d "$tpl" ] || die "missing $tpl"
+
+  local root caps gate slug
+  root="$(felix_repo_root "$target")"
+  caps="$(felix_detect "$root" | sort -u)"
+  gate="$(felix_guess_gate "$root")"
+  slug="$(felix_repo_slug "$root")"
+
+  mkdir -p "$dir/memory" "$dir/setup"
+
+  # project.json. remote_match is only useful when there is a remote; the .felix
+  # marker below covers every other case, including no remote at all.
   cat > "$dir/project.json" <<EOF
 {
   "name": "$name",
-  "remote_match": "",
-  "gate": ""
+  "remote_match": "$slug",
+  "gate": "$gate"
 }
 EOF
-  printf '# %s\n\nConstitution for %s. Replace this.\n' "$name" "$name" > "$dir/CLAUDE.md"
+
+  printf '%s\n' "$caps" | grep -v '^$' > "$dir/capabilities" || true
+
+  # Keep catalogue rows that are unconditional or whose capability was detected.
+  {
+    printf '# Declared tooling for %s. Seeded from the catalogue by felix new,\n' "$name"
+    printf '# filtered to what this checkout actually shows. Edit freely.\n#\n'
+    printf '# kind\tname\tsource\trisk\tcapability\n'
+    grep -vE '^\s*(#|$)' "$tpl/catalog.tsv" | while IFS=$'\t' read -r k n src r c; do
+      if [ "$c" = "always" ] || printf '%s\n' "$caps" | grep -qxF "$c"; then
+        printf '%s\t%s\t%s\t%s\t%s\n' "$k" "$n" "$src" "$r" "$c"
+      fi
+    done
+  } > "$dir/stack.tsv"
+
+  cp "$tpl/profiles.tsv" "$dir/profiles.tsv"
+
+  # Same filter for human steps, and only copy the runbooks that survive it.
+  {
+    printf '# Human steps for %s. Seeded by felix new.\n#\n' "$name"
+    printf '# id\ttitle\tcapability\tcheck\n'
+    grep -vE '^\s*(#|$)' "$tpl/setup.tsv" | while IFS=$'\t' read -r id title c chk; do
+      if [ "$c" = "always" ] || printf '%s\n' "$caps" | grep -qxF "$c"; then
+        printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}"
+        [ -f "$tpl/setup/$id.md" ] && \
+          sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md" > "$dir/setup/$id.md"
+      fi
+    done
+  } > "$dir/setup.tsv"
+
+  printf '# %s\n\nConstitution for %s.\n\nThis is the one file Felix cannot write for you. It holds what is true about\nthis project and nothing else: the invariants, the risk tiers, what a change may\nnot do. Doctrine is the part that has to be earned.\n' "$name" "$name" > "$dir/CLAUDE.md"
   : > "$dir/memory/DEVLOG.md"
   : > "$dir/memory/lessons.md"
-  printf 'created %s\n' "$dir"
-  printf 'next: set "gate" and either "remote_match", or add a .felix file\n'
-  printf '      containing "%s" to the project checkout.\n' "$name"
+  : > "$dir/memory/SESSION_HANDOFF.md"
+
+  # The marker binds the checkout without needing a remote.
+  printf '%s\n' "$name" > "$root/.felix"
+
+  printf 'created %s\n\n' "$dir"
+  printf '  detected     %s\n' "$(printf '%s' "$caps" | tr '\n' ' ')"
+  printf '  gate guess   %s\n' "${gate:-none, set it yourself}"
+  printf '  repo         %s\n' "${slug:-no github remote}"
+  printf '  bound via    %s/.felix\n\n' "$root"
+  printf 'seeded stack.tsv, profiles.tsv, setup.tsv and %s runbook(s).\n' \
+    "$(ls "$dir/setup" 2>/dev/null | wc -l | tr -d ' ')"
+  printf '\nnext:\n'
+  printf '  1. confirm the gate in project.json actually fails on broken code\n'
+  printf '  2. write %s/CLAUDE.md\n' "$dir"
+  printf '  3. felix stack plan     then apply --yes\n'
+  printf '  4. felix setup          for the steps only you can do\n'
 }
 
 cmd_profile() {

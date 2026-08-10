@@ -101,12 +101,48 @@ out="$(cd "$PLAIN" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-
 is "hook silent in ungoverned repo" "${#out}" "0"
 is "hook still exits 0 there"       "$rc" "0"
 
-printf '\nscaffolding\n'
-out="$("$FELIX" new fresh 2>&1)"; rc=$?
-is "felix new exits 0" "$rc" "0"
-[ -f "$FROOT/projects/fresh/project.json" ] && ok "scaffold wrote project.json" \
-                                            || bad "scaffold wrote project.json"
-out="$("$FELIX" new widget 2>&1)"; rc=$?
+printf '\nonboarding a stranger project\n'
+# The claim under test: someone who downloads Felix gets what Elenchus got,
+# without hand-writing any of it. A Node app with no git remote, nothing to do
+# with anything already here.
+STRANGE="$TMP/stranger"
+mkdir -p "$STRANGE"
+( cd "$STRANGE" && git init -q -b main )
+cat > "$STRANGE/package.json" <<'JSON'
+{ "name": "stranger", "scripts": { "verify": "echo ok" },
+  "dependencies": { "express": "^4", "stripe": "^17" },
+  "devDependencies": { "playwright": "^1" } }
+JSON
+
+out="$(cd "$STRANGE" && "$FELIX" new stranger 2>&1)"; rc=$?
+is  "felix new exits 0"            "$rc" "0"
+has "detects from their manifest"  "$out" "billing"
+has "guesses their gate"           "$out" "npm run verify"
+
+SP="$FROOT/projects/stranger"
+for f in project.json capabilities stack.tsv profiles.tsv setup.tsv CLAUDE.md; do
+  [ -f "$SP/$f" ] && ok "seeded $f" || bad "seeded $f"
+done
+[ -s "$SP/setup/stripe.md" ] && ok "copied the runbook their stack implies" \
+                             || bad "copied the runbook their stack implies"
+[ -f "$SP/setup/sentry.md" ] && bad "skips runbooks for absent capabilities" \
+                             || ok "skips runbooks for absent capabilities"
+[ -f "$STRANGE/.felix" ] && ok "binds the checkout with no remote" \
+                         || bad "binds the checkout with no remote"
+
+out="$(cd "$STRANGE" && "$FELIX" which 2>&1)"
+has "governs them immediately" "$out" "project:      stranger"
+out="$(cd "$STRANGE" && "$FELIX" gate 2>&1)"; rc=$?
+is "their gate runs and passes" "$rc" "0"
+
+# High risk must stay blocked for a stranger exactly as it does for us.
+out="$(cd "$STRANGE" && "$FELIX" stack plan 2>&1)"
+case "$out" in
+  *"blocked"*"stripe"*) ok "their high-risk rows are blocked too" ;;
+  *) bad "their high-risk rows are blocked too" "$out" ;;
+esac
+
+out="$("$FELIX" new stranger 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "refuses to clobber an existing project" \
                 || bad "refuses to clobber an existing project"
 

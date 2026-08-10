@@ -83,3 +83,27 @@ felix_undeclared() {
     <(felix_detect "$root" | sort -u) \
     <(felix_declared "$proj" | sort -u)
 }
+
+# Best guess at the command that proves this project correct. A guess, printed
+# for a human to confirm, never silently trusted: a wrong gate that exits 0 is
+# the one failure mode worse than having no gate.
+felix_guess_gate() {
+  local root="${1:-$PWD}"
+  if [ -f "$root/package.json" ]; then
+    grep -q '"verify"' "$root/package.json" && { echo "npm run verify"; return; }
+    grep -q '"test"'   "$root/package.json" && { echo "npm test"; return; }
+  fi
+  [ -f "$root/Makefile" ] && grep -qE '^(check|verify):' "$root/Makefile" \
+    && { echo "make check"; return; }
+  [ -f "$root/Cargo.toml" ] && { echo "cargo test"; return; }
+  [ -f "$root/go.mod" ]     && { echo "go test ./..."; return; }
+  [ -f "$root/pyproject.toml" ] || [ -f "$root/setup.cfg" ] \
+    && { echo "python -m pytest -q"; return; }
+  echo ""
+}
+
+# owner/name for a GitHub checkout, empty otherwise.
+felix_repo_slug() {
+  (cd "${1:-$PWD}" 2>/dev/null && git remote get-url origin 2>/dev/null) \
+    | sed -E 's#.*github\.com[:/]##; s#\.git$##'
+}

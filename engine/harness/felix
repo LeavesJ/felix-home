@@ -1456,25 +1456,39 @@ cmd_repair() {
 }
 
 cmd_doctor() {
-  resolve_or_die; local proj="$PROJ" root new
+  resolve_or_die; local proj="$PROJ" root new gate rivals
   root="$(felix_repo_root "$PWD")"
   new="$(felix_undeclared "$root" "$proj")"
+  gate="$(felix_json_str "$proj/project.json" gate)"
+  rivals="$(_felix_rival_gates "$root" "$proj" "$gate")"
 
   printf 'project:      %s\n' "$(basename "$proj")"
   printf 'declared:     %s\n' "$(felix_declared "$proj" | tr '\n' ' ')"
   if [ -z "$new" ]; then
     printf 'undeclared:   none\n'
-    return 0
+  else
+    printf 'undeclared:   %s\n\n' "$(printf '%s' "$new" | tr '\n' ' ')"
+    printf 'These surfaces exist in the checkout but this project has never\n'
+    printf 'declared them. Each one is a gate the guidebook expects and that\n'
+    printf 'nothing is currently enforcing:\n\n'
+    printf '%s\n' "$new" | while read -r c; do
+      [ -n "$c" ] || continue
+      printf '  %-14s %s\n' "$c" "$(_felix_why "$c")"
+    done
+    printf '\nadopt with: felix adopt <capability>\n'
   fi
-  printf 'undeclared:   %s\n\n' "$(printf '%s' "$new" | tr '\n' ' ')"
-  printf 'These surfaces exist in the checkout but this project has never\n'
-  printf 'declared them. Each one is a gate the guidebook expects and that\n'
-  printf 'nothing is currently enforcing:\n\n'
-  printf '%s\n' "$new" | while read -r c; do
-    [ -n "$c" ] || continue
-    printf '  %-14s %s\n' "$c" "$(_felix_why "$c")"
-  done
-  printf '\nadopt with: felix adopt <capability>\n'
+
+  if [ -n "$rivals" ]; then
+    printf '\nrival gates\n\n'
+    printf '%s\n' "$rivals" | while IFS=$'\t' read -r state f note; do
+      [ -n "${f:-}" ] || continue
+      printf '  %-32s %-10s %s\n' "$f" "$state" "$note"
+    done
+    printf '\nThese are executable and look like a gate, and none of them is the\n'
+    printf 'gate Felix runs. Whichever one a session reaches for decides what\n'
+    printf 'green means, and the weaker file is the one in plain sight.\n'
+    printf '\nfelix gate   is the only one whose verdict is recorded\n'
+  fi
   # Reporting drift is not a failure. Exit 0 so a session hook or a CI step can
   # surface this without turning a green tree red for work nobody asked for yet.
   return 0

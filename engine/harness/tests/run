@@ -211,6 +211,38 @@ case "$out" in
 esac
 rm -f "$REPO/requirements.txt" "$REPO/Dockerfile"
 
+printf '\nrival gates\n'
+# From a real failure. An untracked, day-stale, strictly weaker copy of the gate
+# sat inside the governed repo, and it was the file physically in front of any
+# session that looked around. A session ran it all day and reported green from a
+# gate missing a check. A gate with a lookalike is not a gate; it is a coin flip
+# on which file somebody reaches for, and the wrong side reports success.
+out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"
+case "$out" in
+  *rival*) bad "a clean checkout claims no rival gate" "$out" ;;
+  *)       ok  "a clean checkout claims no rival gate" ;;
+esac
+
+mkdir -p "$REPO/scripts"
+printf '#!/bin/sh\npass format\npass lint\n' > "$REPO/scripts/gate.sh"
+chmod +x "$REPO/scripts/gate.sh"
+out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"
+has "a lookalike gate is reported"   "$out" "scripts/gate.sh"
+has "and whether git tracks it"      "$out" "untracked"
+
+# Not executable is not a gate. Without this the check flags every README that
+# happens to have the word in its name.
+printf '#!/bin/sh\n' > "$REPO/scripts/verify-notes.sh"
+out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"
+case "$out" in
+  *verify-notes*) bad "a non-executable lookalike is ignored" "$out" ;;
+  *)              ok  "a non-executable lookalike is ignored" ;;
+esac
+
+out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"; rc=$?
+is "reporting a rival gate still exits 0" "$rc" "0"
+rm -rf "$REPO/scripts"
+
 # The assertions below shell out to `claude plugin list` and `claude mcp list`.
 # The latter performs live health checks, so they are network-dependent and can
 # flake: one spurious failure was observed in a run that passed three times

@@ -9,7 +9,12 @@
 # name	keywords	profile	play
 harness	harness engine hook resolve lesson route verify library	core	superpowers:brainstorming superpowers:writing-plans superpowers:test-driven-development superpowers:requesting-code-review
 gate	gate verification receipt failing regression assertion	core	superpowers:systematic-debugging superpowers:test-driven-development
-doctrine	constitution doctrine lesson invariant promote memory	core	superpowers:brainstorming
+doctrine	constitution doctrine lesson invariant promote memory	core	superpowers:brainstorming claude-md-management
 tooling	stack catalog plugin server marketplace capability adopt discover	core	superpowers:brainstorming
 debug	broken failing crash traceback reproduce	core	superpowers:systematic-debugging
+# Task-shape routes, below the subsystem routes so file order lets a subsystem
+# win a tie. These say what kind of work it is, not what it is about.
+document	document xlsx pptx docx slide spreadsheet guidebook	core	anthropic-skills:pdf anthropic-skills:xlsx anthropic-skills:docx
+research	research investigat survey unrelated random parallel compar	core	superpowers:dispatching-parallel-agents superpowers:brainstorming
+review	review audit vulnerabilit injection	core	code-review semgrep superpowers:requesting-code-review
 build	build implement feature create	core	superpowers:brainstorming superpowers:writing-plans

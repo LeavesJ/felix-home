@@ -125,3 +125,25 @@ with a record, not a substitute for running it.
   used. Absence of use given presence is the unconfounded direction, and it is
   the only one worth acting on. The same shape will recur anywhere Felix
   measures something it also controls.
+
+- **A three-letter term can never be a route keyword.** `felix_route_tokens`
+  drops every typed token shorter than four characters, so `pdf`, `api`, `sql`,
+  `css` and `ci` are gone before scoring begins. A `document` route keyed on
+  `pdf` was written, declared, and would have matched nothing — an attached
+  `report.pdf` tokenises to `pdf` and is discarded. It was caught by routing a
+  real sentence through it rather than by reading the row, which is the only
+  way it could have been caught. The floor also runs the other way: a short
+  *keyword* still matches inside any long word containing it, so `arm` in the
+  probe route quietly matches `harm`, `alarm` and `farmer`. Route a real
+  sentence through every new row before believing the row.
+
+- **`felix route --promote` reads the envelope, not the prompt.** The scoring
+  path strips JSON keys; the log does not. `felix_route_log` stores `$want`
+  verbatim, so every miss written to `routes.log` carries `session_id`,
+  `transcript_path`, the session UUID and every component of the transcript
+  path. `--promote` tokenises that and ranks `users`, `claude`, `projects` and
+  `a14808` above anything a person typed. Those appear in *every* miss, so they
+  cross the threshold first and permanently, and the pollution is already on
+  disk. Same lesson as the envelope bug next door, in the one place the first
+  fix did not look: fixing a read path leaves the write path storing the thing
+  you stopped reading.

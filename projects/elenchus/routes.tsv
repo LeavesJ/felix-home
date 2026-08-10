@@ -21,4 +21,10 @@ model	prompt model wiring template system pinned	core	superpowers:brainstorming
 web	endpoint handler request response route session	backend	superpowers:test-driven-development playwright
 frontend	page component layout styling button modal form screen	frontend	frontend-design impeccable playwright
 release	release shipping deploy version changelog publish	release	superpowers:verification-before-completion
+# Task-shape routes, below the subsystem routes so file order lets a subsystem
+# win a tie. These say what kind of work it is, not what it is about.
+document	document xlsx pptx docx slide spreadsheet	core	anthropic-skills:pdf anthropic-skills:xlsx anthropic-skills:docx
+context	architectur depend relationship graph callers	core	graphify
+research	research investigat survey unrelated random parallel compar	core	superpowers:dispatching-parallel-agents superpowers:brainstorming
+review	review audit vulnerabilit injection	core	code-review semgrep superpowers:requesting-code-review
 build	build implement feature create	core	superpowers:brainstorming superpowers:writing-plans

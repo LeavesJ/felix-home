@@ -7,6 +7,7 @@
 #
 # tier	kind	pattern	reason
 red	path	^engine/harness/hooks/	runs in every session of every governed project
+red	path	^engine/hooks/	decides which hooks run at all; a bad edit here silently disables every enforcement Felix has
 red	path	^engine/harness/lib/	sourced by the CLI and by every hook
 red	path	^engine/\.claude-plugin/	the version here decides whether anything deploys at all
 red	path	^\.github/workflows/	CI is the only judge that is not the model

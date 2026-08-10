@@ -118,7 +118,12 @@ escape_for_json() {
   s="${s//$'\n'/\\n}"; s="${s//$'\r'/\\r}"; s="${s//$'\t'/\\t}"
   printf '%s' "$s"
 }
-_felix_asked="$(printf '%s' "$raw" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' | head -1)"
+# `\(.*\)"` is greedy and matches to the LAST quote on the line, so the value
+# came back with every field that followed it still attached — a three-word
+# prompt arrived carrying the session title and everything after it. Stopping
+# at the first quote truncates a prompt that contains one, which is a smaller
+# and far more visible wrong than silently gluing on the rest of the payload.
+_felix_asked="$(printf '%s' "$raw" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
 [ -n "$_felix_asked" ] || _felix_asked="$raw"
 felix_say "$PROJ" "brief" "$body" "$_felix_asked"
 printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "UserPromptSubmit",\n    "additionalContext": "%s"\n  }\n}\n' \

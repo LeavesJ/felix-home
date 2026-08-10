@@ -39,8 +39,26 @@ what Felix named. The compliance signal already exists in `felix_route_due`,
 which reads the transcript to see whether a play step was used. Nothing
 surfaces it. That panel is the one that proves the delegation works.
 
+**Why Felix guides instead of acting.** Not a limit of Claude Code. Felix wires
+3 of the 9 available hooks — `SessionStart`, `UserPromptSubmit`, `Stop` — and
+all three only inject text. `PreToolUse`, the one hook that can deny an action
+before it happens, has never been wired. Neither has `PostToolUse`, which is
+where live tracking and the capability ledger were both specced to record.
+Guidance was a consequence of the old charter, not of the platform.
+
 **Next, in leverage order.**
 
+0. Wire `PreToolUse`. It is the difference between a harness that advises and
+   one that enforces: deny an edit to a red path without approval, deny a push
+   to main, deny running a rival gate. Adversarial tier — it runs before every
+   tool call in every governed session, and a mistake denies everything.
+0b. Wire `PostToolUse` and `SessionEnd`. Live tracking, and the capability
+   ledger that has been specced since 2026-08-09 and blocked on nothing else.
+0c. Amend invariant 4 so Felix installs low-risk tooling itself. Today
+   `felix discover` refuses outright: "there is no --yes". The end state has
+   Felix recommending *and installing* what a project needs. Keep the refusal
+   for anything touching credentials or irreversible writes; that is the
+   autonomy ladder (p20) applied to tooling.
 1. `felix route` upgraded from naming to deciding: tools, execution shape, tier
    and evidence up front, order, and the configuration the next session boots
    with. Mounting cannot happen mid-session; writing config between sessions can.

@@ -689,6 +689,29 @@ printf '1\t1970-01-01T00:00\tancient\n' >> "$FROOT/projects/widget/budget.log"
 out="$(cd "$REPO" && "$FELIX" budget 2>&1)"
 has "entries older than a day do not count" "$out" "used:   2"
 
+printf '\ngenerated CI points at a path that exists\n'
+# Moving the engine broke every generated workflow at once, in other
+# repositories, where this suite never looks. Felix's own gate stayed green
+# because it tests Felix. The caller lived elsewhere.
+#
+# So the generator's output is checked against the filesystem: whatever path it
+# tells CI to run must actually resolve inside the engine.
+gen="$( . "$FROOT/engine/harness/lib/detect.sh" 2>/dev/null || . "$FROOT/harness/lib/detect.sh"
+        . "$FROOT/engine/harness/lib/bootstrap.sh" 2>/dev/null || . "$FROOT/harness/lib/bootstrap.sh"
+        felix_bs_render_workflow node someone/repo )"
+has "the workflow invokes felix" "$gen" "harness/felix"
+felix_path="$(printf '%s' "$gen" | grep -oE '\.\./felix/[a-z/]*harness/felix' | head -1)"
+resolved="${felix_path#../felix/}"
+# Checked against the real checkout, not the fixture. A generated workflow runs
+# against a clone of the actual repository, so that is the layout that has to be
+# right, and the fixture flattens the engine in a way no clone does.
+REAL_ROOT="$(cd "$REAL_HARNESS/../.." && pwd)"
+if [ -x "$REAL_ROOT/$resolved" ]; then
+  ok "and that path resolves in a real checkout ($resolved)"
+else
+  bad "and that path resolves in a real checkout" "generated $resolved, absent from $REAL_ROOT"
+fi
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes

@@ -29,7 +29,7 @@ BAD=""
 while IFS= read -r f; do
   bash -n "$f" 2>/dev/null || BAD="$BAD $f"
 done <<EOF
-$(git ls-files 'engine/harness/*' 'projects/*/*.sh' | grep -vE '\.(json|tsv|md)$')
+$(git ls-files 'engine/harness/*' 'projects/*/*.sh' | grep -vE '\.(json|tsv|md|ya?ml)$')
 EOF
 [ -z "$BAD" ] && pass syntax || { fail syntax; printf '    %s\n' $BAD; }
 

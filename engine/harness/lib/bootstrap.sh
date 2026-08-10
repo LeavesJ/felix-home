@@ -92,11 +92,11 @@ jobs:
 $(_felix_bs_setup_block "$eco")
       - name: Confirm the governing project
         working-directory: repo
-        run: ../felix/harness/felix which
+        run: ../felix/engine/harness/felix which
 
       - name: Run the gate
         working-directory: repo
-        run: ../felix/harness/felix gate
+        run: ../felix/engine/harness/felix gate
 YAML
 }
 

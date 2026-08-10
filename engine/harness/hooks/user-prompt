@@ -125,7 +125,7 @@ escape_for_json() {
 # and far more visible wrong than silently gluing on the rest of the payload.
 _felix_asked="$(printf '%s' "$raw" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
 [ -n "$_felix_asked" ] || _felix_asked="$raw"
-felix_say "$PROJ" "brief" "$body" "$_felix_asked"
+felix_say "$PROJ" "brief" "$body" "$_felix_asked" "${sid:-}"
 printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "UserPromptSubmit",\n    "additionalContext": "%s"\n  }\n}\n' \
   "$(escape_for_json "$body")"
 exit 0

@@ -38,6 +38,7 @@ EOF
 # somebody else's session, with no output.
 NOX=""
 for f in engine/harness/felix engine/harness/hooks/session-start \
+         engine/harness/hooks/user-prompt engine/harness/hooks/stop \
          engine/harness/tests/run engine/harness/bin/secret-scan; do
   [ -x "$f" ] || NOX="$NOX $f"
 done
@@ -61,8 +62,22 @@ fi
 # change that is not deployed governs nothing, and nothing else would have said
 # so.
 #
+# Compared against the version actually active, not merely the first one found.
+# The cache keeps every version it has ever installed, so after a bump from
+# 0.1.0 to 0.2.0 the old copy is still sitting there and `head -1` picks it:
+# the check then fails permanently against a directory nothing loads, while a
+# genuinely stale deployment would look identical. Ask the CLI, which knows
+# which one is live; fall back to the highest version when it is absent.
+#
 # Skipped when no plugin is installed, which is the normal state in CI.
-PLUG="$(find "$HOME/.claude/plugins/cache/felix" -maxdepth 3 -type d -name harness 2>/dev/null | head -1)"
+PLUG="$(claude plugin list --json 2>/dev/null \
+        | sed -n '/"felix@felix"/,/}/p' \
+        | sed -n 's/.*"installPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+if [ -n "$PLUG" ]; then
+  PLUG="$PLUG/harness"
+else
+  PLUG="$(ls -d "$HOME"/.claude/plugins/cache/felix/felix/*/harness 2>/dev/null | sort -V | tail -1)"
+fi
 if [ -n "$PLUG" ] && [ -d "$PLUG" ]; then
   if diff -rq engine/harness "$PLUG" >/tmp/felix-install-drift.log 2>&1; then
     pass installed

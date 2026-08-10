@@ -136,7 +136,33 @@ cmd_install() {
   if claude plugin install felix@felix --scope user >/dev/null 2>&1; then
     printf '  plugin installed\n'
   else
-    printf '  plugin already installed, or install failed; check: claude plugin list\n'
+    claude plugin update felix@felix >/dev/null 2>&1 \
+      && printf '  plugin updated\n' \
+      || printf '  plugin already installed, or install failed; check: claude plugin list\n'
+  fi
+
+  # Claude Code caches a plugin by version. With the manifest pinned, install and
+  # update are both no-ops on a changed engine and both report success, so the
+  # work sits in the repository running nowhere. That has now happened three
+  # times in this project's short life, and twice it was found by accident.
+  #
+  # So the install verifies itself. Printing "installed" without checking is the
+  # failure, not the cache.
+  local live
+  live="$(claude plugin list --json 2>/dev/null \
+          | sed -n '/"felix@felix"/,/}/p' \
+          | sed -n 's/.*"installPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  if [ -n "$live" ] && [ -d "$live/harness" ]; then
+    if diff -rq "$FELIX_ROOT/harness" "$live/harness" >/dev/null 2>&1; then
+      printf '  verified   the installed engine matches this tree\n'
+    else
+      printf '\n  WARNING  the installed engine does NOT match this tree.\n'
+      printf '           %s\n' "$live"
+      printf '           Claude Code caches by version, so a changed engine at an\n'
+      printf '           unchanged version never deploys and still reports success.\n'
+      printf '           Bump "version" in engine/.claude-plugin/plugin.json, then\n'
+      printf '           re-run this. felix gate will keep failing until they match.\n'
+    fi
   fi
 
   # A hand-registered hook plus the plugin means the binding fires twice and the

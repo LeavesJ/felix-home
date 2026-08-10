@@ -63,6 +63,20 @@ claude mcp list | grep github
 
 Expect `✓ Connected`, after which `felix setup` drops this row on its own.
 
+**This check reads the environment it is run from.** The variable is exported by
+a shell profile, so a session started before the profile changed does not have
+it, and `claude mcp list` there reports:
+
+```
+✘ Failed to connect — HTTP 400: Authorization header is badly formatted
+```
+
+That message means the header interpolated to a bare `Bearer` with nothing after
+it, which is the unset-variable case, not a bad token. Confirmed 2026-08-09:
+connected in a freshly started session while an older shell on the same machine
+reported exactly that error at the same moment. If `felix setup` still lists this
+row, check which shell you are in before concluding it failed.
+
 ## If it still fails
 
 The `gh` OAuth token carries `gist`, `read:org`, `repo`, and `workflow`. If the

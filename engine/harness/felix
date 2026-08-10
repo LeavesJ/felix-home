@@ -95,6 +95,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/verify.sh"
 # shellcheck source=lib/route.sh
 . "${SCRIPT_DIR}/lib/route.sh"
+. "${SCRIPT_DIR}/lib/toolbox.sh"
 # shellcheck source=lib/monitor.sh
 . "${SCRIPT_DIR}/lib/monitor.sh"
 # shellcheck source=lib/ready.sh
@@ -552,6 +553,64 @@ cmd_quarantine() {
   printf 'This takes effect in your NEXT session. A plugin already loaded stays\n'
   printf 'loaded, hooks and all, so the current one behaves exactly as before.\n\n'
   printf 'Undo whenever it is fixed:\n\n  claude plugin enable %s\n' "$name"
+}
+
+cmd_toolbox() {
+  resolve_or_die; local proj="$PROJ" wire=0 a tpl="$SCRIPT_DIR/templates"
+  for a in "$@"; do case "$a" in --route) wire=1 ;; esac; done
+
+  local rules; rules="$(_felix_discover_rules "$tpl" "$proj")"
+  local n_routed=0 n_wired=0 n_orphan=0 n_nocap=0
+
+  printf 'toolbox for %s\n\n' "$(basename "$proj")"
+  printf '  %-26s %-8s %-12s %s\n' NAME RISK CAPABILITY REACHABLE
+
+  while IFS=$'\t' read -r kind name; do
+    [ "${kind:-}" = "plugin" ] || continue
+    [ -n "${name:-}" ] || continue
+
+    local dir risk cap routes reach
+    dir="$(felix_toolbox_path "$name")" || dir=""
+    risk="-"
+    # Bundled plugins are real, reachable, and have no directory to read. That
+    # is a normal answer: unknown risk, not a missing plugin.
+    if [ -n "$dir" ]; then
+      risk="$(felix_discover_risk "$(felix_discover_inspect "$dir")")"
+    fi
+    cap="$(felix_toolbox_capability "$name" "$rules")"
+
+    if felix_toolbox_routed "$proj" "$name"; then
+      reach="a route names it"; n_routed=$((n_routed+1))
+    elif [ -z "$cap" ]; then
+      reach="no declared capability looks like it"; n_nocap=$((n_nocap+1))
+    else
+      routes="$(felix_toolbox_route_for "$proj" "$cap" | head -1)"
+      if [ -z "$routes" ]; then
+        reach="capability '$cap' is in no profile"; n_orphan=$((n_orphan+1))
+      elif [ "$wire" -eq 1 ] && [ "$risk" != "high" ]; then
+        # Appended to the play, never rewritten: the play is ordered, earlier
+        # entries are named first, and reordering somebody's table to add to it
+        # would change what gets reached for before this ever ran.
+        felix_route_append_play "$proj" "$routes" "$name" \
+          && { reach="wired into '$routes'"; n_wired=$((n_wired+1)); } \
+          || reach="could not write routes.tsv"
+      else
+        reach="could go in '$routes'"; n_orphan=$((n_orphan+1))
+      fi
+    fi
+    printf '  %-26s %-8s %-12s %s\n' "$name" "$risk" "${cap:--}" "$reach"
+  done <<EOF
+$(felix_ready_inventory | sort -u)
+EOF
+
+  printf '\n%s reachable, %s wired now, %s could be, %s match no declared capability.\n' \
+    "$n_routed" "$n_wired" "$n_orphan" "$n_nocap"
+  if [ "$wire" -eq 0 ] && [ "$n_orphan" -gt 0 ]; then
+    printf '\nfelix toolbox --route   wires the ones that have somewhere to go\n'
+  fi
+  printf '\nA plugin no route names is never reached for and costs context in every\n'
+  printf 'session regardless. High risk is never wired: it ships hooks, a floating\n'
+  printf 'version, or an interpolated secret, and a person decides those.\n'
 }
 
 cmd_discover() {
@@ -1689,6 +1748,7 @@ case "${1:-help}" in
   monitor)   shift; cmd_monitor "$@" ;;
   ready)     shift; cmd_ready "$@" ;;
   discover)  shift; cmd_discover "$@" ;;
+  toolbox)   shift; cmd_toolbox "$@" ;;
   quarantine) shift; cmd_quarantine "$@" ;;
   recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;

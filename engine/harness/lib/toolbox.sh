@@ -1,0 +1,105 @@
+# The toolbox: everything installed, what it actually is, and whether anything
+# can reach it.
+#
+# Felix could already see the whole toolbox and could already read a candidate
+# it had fetched from a marketplace. It could not read a plugin already sitting
+# on this machine, which is the one it will actually be asked about. The reading
+# machinery needed no change at all — an installed plugin is a directory of the
+# same shape a fetched one is — so this is a path resolver and a report, not a
+# second analyser.
+#
+# The point is the last column. `felix ready` has always been able to say that
+# forty-six installed plugins are named by no route, and saying it is where it
+# stopped. A tool no route names is never reached for and costs context in every
+# session anyway, which is exactly the condition the ledger design calls the
+# reason to retire something. Naming the gap per plugin, with the capability it
+# looks like, is what makes it fixable.
+
+# Where the plugin cache lives. Overridable so the suite can point at a fixture
+# rather than at whatever this machine happens to have installed.
+FELIX_PLUGIN_CACHE="${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}"
+
+# Newest installed directory for a plugin name, empty when it has none.
+#
+# Plugins bundled into the Claude Code binary are real and reachable and have no
+# directory anywhere, so "no path" is a normal answer and never an error.
+# Version directories sort with -V so 0.10.0 beats 0.9.0, which plain sort does
+# not: the gate's own installed check was once wrong for exactly this reason.
+felix_toolbox_path() {
+  local name="$1" d
+  for d in "$FELIX_PLUGIN_CACHE"/*/"$name"; do
+    [ -d "$d" ] || continue
+    local newest
+    newest="$(ls -d "$d"/*/ 2>/dev/null | sort -V | tail -1)"
+    [ -n "$newest" ] && { printf '%s' "${newest%/}"; return 0; }
+    printf '%s' "$d"; return 0
+  done
+  return 1
+}
+
+# Skills a plugin ships, one per line. These are what a route can actually name:
+# a play entry is `plugin` or `plugin:skill`, and without the list the second
+# form has to be guessed.
+felix_toolbox_skills() {
+  local dir="$1" d
+  [ -d "$dir/skills" ] || return 0
+  for d in "$dir"/skills/*/; do
+    [ -d "$d" ] || continue
+    d="${d%/}"
+    printf '%s\n' "${d##*/}"
+  done
+}
+
+# Which declared capability this plugin looks like, scored the same way
+# discovery scores a marketplace listing, so an installed plugin and a candidate
+# are judged by one rule rather than two that drift.
+felix_toolbox_capability() {
+  local name="$1" rules="$2" nhay cap kws kw score best=0 best_cap=""
+  nhay=" $(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
+  while IFS=$'\t' read -r cap kws; do
+    [ -n "${cap:-}" ] || continue
+    score=0
+    for kw in $kws; do
+      case "$nhay" in *"$kw"*) score=$((score+3)) ;; esac
+    done
+    if [ "$score" -gt "$best" ]; then best="$score"; best_cap="$cap"; fi
+  done <<EOF
+$rules
+EOF
+  printf '%s' "$best_cap"
+}
+
+# Does any route already name this plugin, under either play form?
+felix_toolbox_routed() {
+  local proj="$1" name="$2" plays
+  [ -f "$proj/routes.tsv" ] || return 1
+  plays="$(grep -vE '^[[:space:]]*(#|$)' "$proj/routes.tsv" | cut -f4 | tr ' ' '\n')"
+  printf '%s\n' "$plays" | sed 's/:.*//' | grep -xF "$name" >/dev/null 2>&1
+}
+
+# The route a capability belongs to: profiles.tsv maps a profile to capabilities,
+# routes.tsv gives each route a profile. Emits route names, one per line.
+#
+# Empty is a real answer and the useful one. A project can declare a capability
+# that no profile covers, and then every tool adopted for that capability is
+# unreachable no matter how good it is: the gap is in the tables, not in the
+# plugin. Saying which table is missing the row is the whole point.
+felix_toolbox_route_for() {
+  local proj="$1" want="$2" prof caps name kw pr play
+  [ -n "$want" ] || return 0
+  [ -f "$proj/profiles.tsv" ] && [ -f "$proj/routes.tsv" ] || return 0
+  while IFS=$'\t' read -r prof caps; do
+    case "$prof" in ''|'#'*) continue ;; esac
+    # Exact capability only. Matching `always` here as a wildcard would send
+    # every capability to the core profile and make the report useless by
+    # making it always succeed.
+    case ",${caps}," in
+      *",${want},"*) ;;
+      *) continue ;;
+    esac
+    while IFS=$'\t' read -r name kw pr play; do
+      case "$name" in ''|'#'*) continue ;; esac
+      [ "${pr:-}" = "$prof" ] && printf '%s\n' "$name"
+    done < "$proj/routes.tsv"
+  done < "$proj/profiles.tsv"
+}

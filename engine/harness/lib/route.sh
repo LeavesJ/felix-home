@@ -290,6 +290,55 @@ felix_route_skipped() {
   printf '%s' "${out# }"
 }
 
+# Add a tool to a route's play, in place.
+#
+# Appended, never reordered. A play is ordered — the router names the first
+# entry that has not been used yet — so rewriting one to insert something would
+# change what a session is told to reach for first, which is not what "also make
+# this reachable" means.
+#
+# Comments and row order are preserved because this table is written by hand and
+# its comments explain why rows sit where they do. Returns 1 when the route does
+# not exist or already names the tool, so a caller can tell "wired" from
+# "nothing to do".
+felix_route_append_play() {
+  local proj="$1" route="$2" tool="$3" tmp line n kw pr play found=0
+  # Declared separately. A `local` statement does not reliably see a variable
+  # being declared by the same statement, and under `set -u` that is an unbound
+  # variable rather than an empty one.
+  local f="$proj/routes.tsv"
+  [ -f "$f" ] || return 1
+  [ -n "$route" ] && [ -n "$tool" ] || return 1
+  tmp="$(mktemp)" || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ''|'#'*) printf '%s\n' "$line" >> "$tmp"; continue ;;
+    esac
+    IFS=$'\t' read -r n kw pr play <<EOF
+$line
+EOF
+    if [ "${n:-}" = "$route" ]; then
+      case " ${play:-} " in
+        *" $tool "*) : ;;                       # already there
+        *)
+          # `-` is the template's way of writing "no play", so it is replaced
+          # rather than appended to. Leaving it would emit "- playwright", and
+          # the router would try to name a tool called "-".
+          case "${play:-}" in
+            ''|'-') play="$tool" ;;
+            *)      play="$play $tool" ;;
+          esac
+          found=1 ;;
+      esac
+      printf '%s\t%s\t%s\t%s\n' "$n" "$kw" "$pr" "$play" >> "$tmp"
+    else
+      printf '%s\n' "$line" >> "$tmp"
+    fi
+  done < "$f"
+  [ "$found" -eq 1 ] || { rm -f "$tmp"; return 1; }
+  mv -f "$tmp" "$f"
+}
+
 # Hits and misses both. The misses are the raw material for --promote, and they
 # are the only record of what the table failed to understand.
 felix_route_log() {

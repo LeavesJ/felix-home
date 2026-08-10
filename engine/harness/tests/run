@@ -1448,6 +1448,67 @@ is "anything shipping hooks is high"     "$(_tier "$DF/hooky")"      "high"
 is "an unpinned version is high"         "$(_tier "$DF/floaty")"     "high"
 is "interpolating a credential is high"  "$(_tier "$DF/creds")"      "high"
 
+printf '\nthe toolbox: reach, analyse, and whether anything can route it\n'
+# Felix could read a plugin it had fetched from a marketplace and could not read
+# one already installed, which is the one it will actually be asked about. The
+# shape is identical, so this is a path resolver rather than a second analyser.
+TB="$TMP/plugincache"
+mkdir -p "$TB/mkt/alpha/1.9.0/skills/one" "$TB/mkt/alpha/1.10.0/skills/one" \
+         "$TB/mkt/alpha/1.10.0/skills/two" "$TB/mkt/hooky/0.1.0/hooks"
+printf '{"hooks":{}}\n' > "$TB/mkt/hooky/0.1.0/hooks/hooks.json"
+
+p="$( . "$FROOT/harness/lib/toolbox.sh"; FELIX_PLUGIN_CACHE="$TB" felix_toolbox_path alpha )"
+is "resolves an installed plugin to its newest version" "$(basename "$p")" "1.10.0"
+# 1.10.0 beats 1.9.0 only under -V. The gate's installed check was once wrong
+# for exactly this reason, picking a directory nothing loads.
+p="$( . "$FROOT/harness/lib/toolbox.sh"; FELIX_PLUGIN_CACHE="$TB" felix_toolbox_path nosuch )" || true
+is "and reports nothing for one it does not have" "$p" ""
+
+sk="$( . "$FROOT/harness/lib/toolbox.sh"
+       FELIX_PLUGIN_CACHE="$TB" felix_toolbox_skills "$(FELIX_PLUGIN_CACHE="$TB" felix_toolbox_path alpha)" | tr '\n' ' ' )"
+has "lists the skills a plugin ships" "$sk" "one"
+has "all of them"                    "$sk" "two"
+
+# The last column is the point. A tool no route names is never reached for and
+# costs context in every session anyway.
+TP="$TMP/tbproj"; mkdir -p "$TP"
+printf 'core\talways\nbackend\tapi,database\n'                        > "$TP/profiles.tsv"
+printf 'web\tendpoint handler\tbackend\tplaywright\n'                 > "$TP/routes.tsv"
+r="$( . "$FROOT/harness/lib/toolbox.sh"; felix_toolbox_routed "$TP" playwright && echo yes || echo no )"
+is "sees a plugin a route already names" "$r" "yes"
+r="$( . "$FROOT/harness/lib/toolbox.sh"; felix_toolbox_routed "$TP" deepeval && echo yes || echo no )"
+is "and one no route names"              "$r" "no"
+
+r="$( . "$FROOT/harness/lib/toolbox.sh"; felix_toolbox_route_for "$TP" database | tr '\n' ' ' )"
+has "finds the route a capability belongs to" "$r" "web"
+# The empty answer is the useful one: Elenchus declares llm, no profile covers
+# it, and that is exactly why three tools adopted for llm can never be reached.
+r="$( . "$FROOT/harness/lib/toolbox.sh"; felix_toolbox_route_for "$TP" llm | tr -d '\n ' )"
+is "and says so plainly when none does" "$r" ""
+# `always` must not act as a wildcard, or every capability routes to core and
+# the report succeeds at everything and reports nothing.
+r="$( . "$FROOT/harness/lib/toolbox.sh"; felix_toolbox_route_for "$TP" frontend | tr -d '\n ' )"
+is "always is a profile, not a wildcard" "$r" ""
+
+# Wiring a tool in. Appended, never reordered: a play is ordered and the router
+# names the first unused entry, so inserting would change what gets reached for
+# first, which is not what "also make this reachable" means.
+printf '# a comment that explains why the row is here\n' >  "$TP/routes.tsv"
+printf 'web\tendpoint handler\tbackend\tplaywright\n'     >> "$TP/routes.tsv"
+printf 'bare\tthing\tbackend\t-\n'                        >> "$TP/routes.tsv"
+( . "$FROOT/harness/lib/route.sh"; felix_route_append_play "$TP" web deepeval ) \
+  && ok "wires a tool into a route" || bad "wires a tool into a route"
+has "appended after what was there" "$(grep '^web' "$TP/routes.tsv")" "playwright deepeval"
+has "and the comment survives"      "$(head -1 "$TP/routes.tsv")"     "explains why"
+( . "$FROOT/harness/lib/route.sh"; felix_route_append_play "$TP" web deepeval ) \
+  && bad "wiring the same tool twice is refused" || ok "wiring the same tool twice is refused"
+( . "$FROOT/harness/lib/route.sh"; felix_route_append_play "$TP" nosuch deepeval ) \
+  && bad "wiring into a route that does not exist is refused" \
+  || ok "wiring into a route that does not exist is refused"
+# `-` means no play. Appending to it would name a tool called "-".
+( . "$FROOT/harness/lib/route.sh"; felix_route_append_play "$TP" bare semgrep ) >/dev/null
+is "an empty play is replaced, not appended to" "$(grep '^bare' "$TP/routes.tsv" | cut -f4)" "semgrep"
+
 printf '\ndiscovery declares what it has read and judged safe\n'
 # Felix already read the candidate at its pinned sha and already scored the
 # risk. Stopping there and handing the founder a shopping list was the

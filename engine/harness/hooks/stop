@@ -30,6 +30,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/route.sh"
 . "${SCRIPT_DIR}/../lib/ready.sh"
 . "${SCRIPT_DIR}/../lib/guard.sh"
+. "${SCRIPT_DIR}/../lib/say.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
@@ -131,6 +132,7 @@ if [ -n "$receipt" ] && [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
   # caused it. This is the moment the count is already known.
   blocks="$(_felix_stop_blocks)"
   if [ -n "$blocks" ]; then
+    felix_say "$PROJ" "plugin-blocked" "$blocks"
     printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
       "$(escape_for_json "$blocks")"
     exit 0
@@ -142,6 +144,7 @@ if [ -n "$receipt" ] && [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
 
   skipped="$(_felix_stop_skipped)"
   if [ -z "$skipped" ] && [ -n "$unrecorded" ]; then
+    felix_say "$PROJ" "unrecorded" "$unrecorded"
     printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
       "$(escape_for_json "$unrecorded")"
     exit 0
@@ -153,6 +156,7 @@ ${skipped}, and the transcript shows ${skipped} was never used.
 That may be right — say why. It is wrong often enough to be worth a sentence
 either way, and a route that keeps asking for the wrong thing is a bug in a
 table someone can fix."
+    felix_say "$PROJ" "skipped" "$body"
     printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
       "$(escape_for_json "$body")"
   fi
@@ -182,5 +186,6 @@ If you have already decided to stop with a red gate, that is the founder's call
 to make, not yours: they can set FELIX_ALLOW_RED=1 in the environment they
 launch a session from."
 
+felix_say "$PROJ" "held" "$reason"
 printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$reason")"
 exit 0

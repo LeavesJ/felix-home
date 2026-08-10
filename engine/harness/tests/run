@@ -1449,6 +1449,42 @@ case "$out" in
   *) ok "the pre-flight runs clean under bash" ;;
 esac
 
+printf '\nkeeping what Felix said\n'
+# Everything Felix tells a session goes out as additionalContext, which reaches
+# the model and never the terminal. The logs recorded which route fired and
+# what it scored; they did not record the words, so "why did Claude suddenly
+# start using that skill" was unanswerable from anything Felix kept.
+SP="$FROOT/projects/widget"
+rm -f "$SP/memory/says.log"
+( . "$FROOT/harness/lib/say.sh"
+  felix_say "$SP" "brief" "line one
+line two" "why I asked" )
+[ -s "$SP/memory/says.log" ] && ok "records what it said" || bad "records what it said"
+n="$(wc -l < "$SP/memory/says.log" | tr -d ' ')"
+is "a multi-line utterance stays one greppable line" "$n" "1"
+has "and keeps the prompt that caused it" "$(cut -f3 "$SP/memory/says.log")" "why I asked"
+has "with the newlines escaped, not lost"  "$(cut -f4 "$SP/memory/says.log")" 'line one\nline two'
+
+# The hook must record the same words it sends, or the page is fiction.
+rm -f "$SP/memory/says.log"
+out="$(cd "$REPO" && printf '{"session_id":"sayer","prompt":"the migration schema needs an index"}' | "$RHK" 2>&1)"
+sent="$(_ctx "$out" | head -1)"
+kept="$(cut -f4 "$SP/memory/says.log" 2>/dev/null | head -1 | sed 's/\\n.*//')"
+is "what it kept is what it sent" "$kept" "$sent"
+has "and the cause is the prompt, not the envelope" \
+    "$(cut -f3 "$SP/memory/says.log" 2>/dev/null)" "migration schema"
+case "$(cut -f3 "$SP/memory/says.log" 2>/dev/null)" in
+  *session_id*) bad "the cause is not the raw payload" "carried the envelope" ;;
+  *) ok "the cause is not the raw payload" ;;
+esac
+
+# ...and the page shows it verbatim.
+out="$(cd "$REPO" && "$FELIX" monitor 2>&1)"
+MON2="$FROOT/state/monitor.html"
+grep -q '"says"' "$MON2" && ok "the page carries the speech" || bad "the page carries the speech"
+grep -q 'migration schema needs an index' "$MON2" \
+  && ok "including what prompted each utterance" || bad "including what prompted each utterance"
+
 printf '\nthe monitor\n'
 # A hook's additionalContext reaches the model and never the terminal, so every
 # routing decision and every gate verdict happens behind glass. The monitor is

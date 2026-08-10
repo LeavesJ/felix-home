@@ -51,17 +51,26 @@ _felix_route_rows() {
 # filler match everything and would decide what you meant on the word "the".
 # The hook is handed the whole payload rather than a parsed prompt, on purpose,
 # so the envelope's own field names are in the token stream: session_id, prompt,
-# transcript_path, permission_mode and the rest. That was harmless for lessons,
-# which rarely contain those words, and quietly disastrous here — any route with
-# `prompt` or `system` among its keywords scored on every single turn whatever
-# was typed, and a project whose subject matter *is* prompts routes everything
-# to one place. The envelope is not part of what you said.
+# transcript_path, permission_mode and the rest. Any route keyed on one of those
+# scored on every turn whatever was typed, and a project whose subject matter IS
+# prompts sent everything to one route.
+#
+# The first fix was a blacklist of those words, and it was worse than the bug:
+# `hook` and `prompt` are words people type. Asking about a hook matched nothing
+# at all, because the word had been banned to silence a field name.
+#
+# So the keys are removed and the values are kept. A JSON key is a quoted word
+# followed by a colon, which no sentence contains, and stripping those leaves
+# every real word usable — including the ones that happen to share a name with
+# a field.
 felix_route_tokens() {
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
+  printf '%s' "$1" \
+    | sed 's/"[A-Za-z_][A-Za-z0-9_]*"[[:space:]]*:/ /g' \
+    | tr '[:upper:]' '[:lower:]' \
     | tr -cs 'a-z0-9_-' '\n' \
     | grep -E '^.{4,}$' \
     | grep -vE '^(this|that|with|from|have|been|will|when|what|there|their|would|could|should|about|into|then|than|they|them|your|make|does|just|also|only|some|more|most|need|want|please|help|file|code|lets)$' \
-    | grep -vE '^(prompt|session|session_id|hook|hook_event_name|event|transcript|transcript_path|permission|permission_mode|cwd|agent|agent_id|agent_type|effort|stop_hook_active|last_assistant_message|assistant|message|background_tasks|tasks|crons|true|false|null)$' \
+    | grep -vE '^(true|false|null)$' \
     | sort -u
 }
 

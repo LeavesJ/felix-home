@@ -28,3 +28,6 @@ plugin	semgrep@claude-plugins-official	-	high	always
 # in no plugin list. Its skills are live in every session regardless; declaring
 # it is what lets a route name one honestly.
 plugin	anthropic-skills	-	low	always
+plugin	deepeval	-	low	llm
+plugin	langfuse	-	low	llm
+plugin	togetherai-skills	-	low	llm

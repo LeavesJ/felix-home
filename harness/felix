@@ -15,6 +15,7 @@
 #   felix repair         why CI failed, how many tries are left
 #   felix adopt <cap>    declare a capability this project now has
 #   felix new <name>     scaffold a new project
+#   felix install        register the session hook; --uninstall to remove
 #
 # Adding a project is creating a directory and a JSON file. It is never an edit
 # to this script. If governing a new project ever requires changing harness code,
@@ -23,7 +24,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installed as a plugin
 # shellcheck source=lib/resolve.sh
 . "${SCRIPT_DIR}/lib/resolve.sh"
 # shellcheck source=lib/detect.sh
@@ -41,6 +42,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # shellcheck source=lib/evidence.sh
 . "${SCRIPT_DIR}/lib/evidence.sh"
 
+FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
+
 die() { printf 'felix: %s\n' "$1" >&2; exit "${2:-1}"; }
 
 usage() {
@@ -52,11 +55,68 @@ usage() {
 # subshell: the script would sail past a failed resolution and die later with a
 # misleading message and the wrong status.
 resolve_or_die() {
-  PROJ="$(felix_resolve_project "$PWD" "$FELIX_ROOT")" || PROJ=""
+  PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
   [ -n "$PROJ" ] && return 0
   die "no project governs $PWD.
   Either add a .felix file naming one, or declare remote_match in a project.json.
-  Known projects: $(ls "$FELIX_ROOT/projects" 2>/dev/null | tr '\n' ' ')" 2
+  Known projects: $(ls "$FELIX_HOME_DIR/projects" 2>/dev/null | tr '\n' ' ')" 2
+}
+
+
+cmd_install() {
+  local uninstall=0 home="" a
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --uninstall) uninstall=1; shift ;;
+      --home) home="${2:-}"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+
+  if [ "$uninstall" -eq 1 ]; then
+    claude plugin uninstall felix@felix >/dev/null 2>&1 \
+      && printf 'removed the felix plugin\n' \
+      || printf 'felix plugin was not installed\n'
+    # The home is never touched. It holds doctrine and memory, and an uninstall
+    # that deletes those turns a reversible action into an unrecoverable one.
+    printf 'left %s alone: it holds your doctrine and memory\n' "$FELIX_HOME_DIR"
+    return 0
+  fi
+
+  [ -n "$home" ] && FELIX_HOME_DIR="$(cd "$home" 2>/dev/null && pwd || printf '%s' "$home")"
+  mkdir -p "$FELIX_HOME_DIR/projects"
+  printf '%s\n' "$FELIX_HOME_DIR" > "$HOME/.felix-home"
+  printf 'home:    %s\n' "$FELIX_HOME_DIR"
+  printf 'engine:  %s\n\n' "$FELIX_ROOT"
+
+  command -v claude >/dev/null 2>&1 || {
+    printf 'The claude CLI is not on PATH, so the session hook cannot be registered.\n'
+    printf 'The felix command still works; only the automatic binding is missing.\n'
+    return 1
+  }
+
+  claude plugin marketplace add "$FELIX_ROOT" >/dev/null 2>&1 \
+    && printf '  marketplace registered\n' \
+    || printf '  marketplace already registered\n'
+  if claude plugin install felix@felix --scope user >/dev/null 2>&1; then
+    printf '  plugin installed\n'
+  else
+    printf '  plugin already installed, or install failed; check: claude plugin list\n'
+  fi
+
+  # A hand-registered hook plus the plugin means the binding fires twice and the
+  # session is told everything about itself two times. Detected rather than
+  # edited: someone else's settings file is not Felix's to rewrite.
+  if [ -f "$HOME/.claude/settings.json" ] && \
+     felix_contains "$(cat "$HOME/.claude/settings.json" 2>/dev/null)" "harness/hooks/session-start"; then
+    printf '\n  WARNING  ~/.claude/settings.json also registers the session hook by hand.\n'
+    printf '           The plugin now registers it too, so it will fire twice.\n'
+    printf '           Remove the SessionStart entry naming harness/hooks/session-start.\n'
+  fi
+
+  printf '\nput felix on PATH:\n'
+  printf '  ln -s %s/felix /usr/local/bin/felix\n' "$SCRIPT_DIR"
+  printf '\nthen, in a project checkout:  felix new <name>\n'
 }
 
 cmd_which() {
@@ -92,9 +152,9 @@ cmd_gate() {
 cmd_new() {
   local name="${1:-}" target="${2:-$PWD}"
   [ -n "$name" ] || die "usage: felix new <name> [path-to-checkout]"
-  local dir="$FELIX_ROOT/projects/$name"
+  local dir="$FELIX_HOME_DIR/projects/$name"
   [ -e "$dir" ] && die "project $name already exists at $dir"
-  local tpl="$FELIX_ROOT/harness/templates"
+  local tpl="$SCRIPT_DIR/templates"
   [ -d "$tpl" ] || die "missing $tpl"
 
   local root caps gate slug
@@ -569,7 +629,8 @@ case "${1:-help}" in
   repair)   shift; cmd_repair "$@" ;;
   classify) shift; cmd_classify "$@" ;;
   evidence) shift; cmd_evidence "$@" ;;
-  new)    shift; cmd_new "$@" ;;
+  new)     shift; cmd_new "$@" ;;
+  install) shift; cmd_install "$@" ;;
   help|-h|--help) usage ;;
   *) die "unknown command: $1. Try 'felix help'." ;;
 esac

@@ -41,6 +41,10 @@ EOF
 printf '# widget\n' > "$FROOT/projects/widget/CLAUDE.md"
 
 FELIX="$FROOT/harness/felix"
+# Pin the home. Resolution consults ~/.felix-home, so without this the suite
+# runs against whatever the machine has installed, writes test projects into it,
+# and reports failures about the wrong tree. Observed exactly that.
+export FELIX_HOME="$FROOT"
 
 # A checkout with NO git remote, bound by marker file alone.
 REPO="$TMP/some-customer-repo"
@@ -347,6 +351,27 @@ out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
 has "green tier is still reported"        "$out" "tier:  green"
 has "but auto-merge is withheld on a gap" "$out" "Not auto-merge eligible"
 _reset
+
+printf '\nengine and home are separate\n'
+# A plugin install is a frozen copy of the whole repository. Treating its
+# projects/ as a home would govern from a constitution frozen at install time and
+# write memory into a directory the next plugin update deletes, both silently.
+FAKE_CACHE="$TMP/.claude/plugins/cache/felix/felix/0.1.0"
+mkdir -p "$FAKE_CACHE/projects/stale" "$TMP/plainrepo/projects/live"
+out="$( unset FELIX_HOME; HOME="$TMP/nohome"; . "$FROOT/harness/lib/resolve.sh"; felix_home "$FAKE_CACHE" )"
+case "$out" in
+  *"plugins/cache"*) bad "a plugin cache is never treated as home" "$out" ;;
+  *) ok "a plugin cache is never treated as home" ;;
+esac
+out="$( unset FELIX_HOME; HOME="$TMP/nohome"; . "$FROOT/harness/lib/resolve.sh"; felix_home "$TMP/plainrepo" )"
+is "a plain checkout with projects/ is a home" "$out" "$TMP/plainrepo"
+out="$( FELIX_HOME="$TMP/explicit"; . "$FROOT/harness/lib/resolve.sh"; felix_home "$TMP/plainrepo" )"
+is "an explicit FELIX_HOME wins" "$out" "$TMP/explicit"
+mkdir -p "$TMP/pointed"
+out="$( unset FELIX_HOME; HOME="$TMP/withpointer"; mkdir -p "$HOME"
+        printf '%s\n' "$TMP/pointed" > "$HOME/.felix-home"
+        . "$FROOT/harness/lib/resolve.sh"; felix_home "$TMP/plainrepo" )"
+is "the pointer file beats a sibling projects/" "$out" "$TMP/pointed"
 
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under

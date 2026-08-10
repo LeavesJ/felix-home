@@ -13,20 +13,22 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENGINE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck source=../lib/resolve.sh
-. "${FELIX_ROOT}/harness/lib/resolve.sh"
+. "${SCRIPT_DIR}/../lib/resolve.sh"
 # shellcheck source=../lib/detect.sh
-. "${FELIX_ROOT}/harness/lib/detect.sh"
+. "${SCRIPT_DIR}/../lib/detect.sh"
 
-PROJ="$(felix_resolve_project "$PWD" "$FELIX_ROOT")" || PROJ=""
+FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
+PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
 [ -n "$PROJ" ] || exit 0
 
 project="$(basename "$PROJ")"
 gate="$(felix_json_str "${PROJ}/project.json" gate)"
 
 if [ -n "$gate" ]; then
-  gate_line="Gate: ${FELIX_ROOT}/harness/felix gate"
+  gate_line="Gate: ${ENGINE_DIR}/felix gate"
 else
   gate_line="Gate: none declared (set \"gate\" in ${PROJ}/project.json)"
 fi

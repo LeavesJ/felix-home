@@ -25,6 +25,34 @@ EOF
   return 1
 }
 
+# Where Felix keeps writable state: projects, their doctrine, their memory.
+#
+# Separate from the engine because an installed plugin lives in a versioned cache
+# that is replaced wholesale on update. Writing project memory in there would
+# lose it on the next `claude plugin update`, silently, which is the worst way to
+# lose a lesson someone paid for.
+#
+# Order: an explicit environment variable, then the pointer file `felix install`
+# writes, then a repo checkout that already carries projects/ beside the engine,
+# then the default.
+felix_home() {
+  local engine="$1"
+  if [ -n "${FELIX_HOME:-}" ]; then printf '%s' "$FELIX_HOME"; return; fi
+  if [ -f "$HOME/.felix-home" ]; then
+    local p; p="$(tr -d '[:space:]' < "$HOME/.felix-home")"
+    [ -n "$p" ] && [ -d "$p" ] && { printf '%s' "$p"; return; }
+  fi
+  # A plugin install is a frozen copy of the whole repository, projects/
+  # included. Trusting that copy would govern from a constitution frozen at
+  # install time and write memory into a directory the next plugin update
+  # deletes, both silently. The copy is never a home.
+  case "$engine" in
+    */.claude/plugins/cache/*|*/.claude/plugins/marketplaces/*) ;;
+    *) [ -d "$engine/projects" ] && { printf '%s' "$engine"; return; } ;;
+  esac
+  printf '%s' "$HOME/.felix"
+}
+
 # Read one top-level string field out of a flat JSON file.
 # Handles exactly what project.json needs: one nesting level, no escaped quotes.
 # Anything richer belongs in a real parser, and would mean project.json has

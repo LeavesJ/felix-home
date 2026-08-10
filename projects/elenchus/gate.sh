@@ -146,6 +146,25 @@ else
   note "git rm -r --cached <path> to untrack"
 fi
 
+# -------------------------------------------------------------- secret -------
+# The secret scanner existed in prepush.sh and ran only on a local push, so CI
+# had no credential detection at all: the one place an accidental key becomes
+# permanently public was the one place nothing was looking.
+#
+# Added lines only, and it degrades to a loud skip rather than a silent pass when
+# the tool is missing, because a check that quietly does nothing is worse than an
+# absent one.
+if [ -n "${FELIX_BIN:-}" ] && [ -x "$FELIX_BIN/secret-scan" ]; then
+  if SCAN_OUT="$("$FELIX_BIN/secret-scan" 2>&1)"; then
+    pass secret
+  else
+    fail secret
+    printf '%s\n' "$SCAN_OUT" | head -10 | sed 's/^/    /'
+  fi
+else
+  printf '  %-18s skipped (run through felix gate to enable)\n' secret
+fi
+
 # ------------------------------------------------------------ lift-bank ------
 # The real lift banks stay local. Only the *.example.yaml stubs are tracked.
 TRACKED_BANKS="$(git ls-files | grep -E 'content/lift/(scenarios|candidates)\.yaml$')"

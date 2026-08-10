@@ -16,6 +16,10 @@
 #   felix incident       turn an error into a brief; --create opens an issue
 #   felix maintenance    what upkeep is due; --ran <name> records a run
 #   felix repair         why CI failed, how many tries are left
+#   felix log "<text>"    record a devlog entry, stamped with branch and commit
+#   felix lesson "<text>" record something durable enough to repeat
+#   felix handoff        regenerate the handoff from the state of the tree
+#   felix promote        recurring devlog themes not yet in lessons
 #   felix adopt <cap>    declare a capability this project now has
 #   felix new <name>     scaffold a new project
 #   felix install        register the session hook; --uninstall to remove
@@ -52,6 +56,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/maintenance.sh"
 # shellcheck source=lib/recommend.sh
 . "${SCRIPT_DIR}/lib/recommend.sh"
+# shellcheck source=lib/memory.sh
+. "${SCRIPT_DIR}/lib/memory.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -149,6 +155,9 @@ cmd_gate() {
   # verdict about the wrong code, and a false pass is worse than no gate.
   cd "$(felix_repo_root "$PWD")" || die "cannot enter repo root"
   export FELIX_PROJECT="$proj"
+  # Tools Felix ships for a gate to call. A project gate cannot know where
+  # Felix lives, and hardcoding a path would break the moment it moves.
+  export FELIX_BIN="$SCRIPT_DIR/bin"
 
   # A script Felix stores for the project, or any shell command the project
   # already has. The second form is what lets Felix gate a stack it has never
@@ -804,6 +813,64 @@ _felix_why() {
   esac
 }
 
+
+cmd_log() {
+  resolve_or_die; local proj="$PROJ" text="$*"
+  [ -n "$text" ] || die 'usage: felix log "what happened and why"'
+  felix_mem_log "$proj" "$(felix_repo_root "$PWD")" "$text"
+  printf 'logged to %s/memory/DEVLOG.md\n' "$proj"
+}
+
+cmd_lesson() {
+  resolve_or_die; local proj="$PROJ" text="$*"
+  [ -n "$text" ] || die 'usage: felix lesson "the thing worth repeating"'
+  felix_mem_lesson "$proj" "$(felix_repo_root "$PWD")" "$text"
+  printf 'recorded in %s/memory/lessons.md\n' "$proj"
+  printf 'Only durable things belong here. A lessons file people stop reading\n'
+  printf 'is worse than none, and it stops being read when it fills with one-offs.\n'
+}
+
+cmd_handoff() {
+  resolve_or_die; local proj="$PROJ" root gate
+  root="$(felix_repo_root "$PWD")"
+  gate="$(felix_json_str "$proj/project.json" gate)"
+  felix_mem_handoff "$proj" "$root" "$gate"
+  printf 'wrote %s/memory/SESSION_HANDOFF.md\n\n' "$proj"
+
+  # The session-end list from the guidebook, as a check rather than a memory
+  # exercise. Each line is something a person is about to not do.
+  printf 'before you stop:\n'
+  local dirty; dirty="$(git -C "$root" status --short 2>/dev/null | grep -v '^??' || true)"
+  [ -n "$dirty" ] && printf '  [ ] the tree is dirty; commit it or say in the devlog why not\n' \
+                  || printf '  [x] tree is clean\n'
+  if git -C "$root" log -1 --format=%H >/dev/null 2>&1; then
+    printf '  [ ] devlog entry for this work?   felix log "..."\n'
+    printf '  [ ] anything durable to keep?     felix lesson "..."\n'
+  fi
+  printf '  [ ] gate green?                   felix gate\n'
+  printf '  [ ] commit the project directory in Felix so this survives the machine\n'
+}
+
+cmd_promote() {
+  resolve_or_die; local proj="$PROJ"
+  [ -f "$proj/memory/DEVLOG.md" ] || die "no devlog yet. start with: felix log \"...\""
+  local hits; hits="$(felix_mem_promotable "$proj")"
+  printf 'recurring in the devlog, absent from the lessons\n\n'
+  if [ -z "$hits" ]; then
+    printf '  nothing recurring yet\n\n'
+    printf 'Either the devlog is young, or nothing has repeated. Both are fine.\n'
+    return 0
+  fi
+  printf '%s\n' "$hits" | while IFS=$'\t' read -r n term; do
+    [ -n "${n:-}" ] || continue
+    printf '  %-4s %s\n' "$n" "$term"
+  done
+  printf '\nThis is word frequency, not understanding. A term appearing often may\n'
+  printf 'be a lesson worth writing, or it may be what this project is simply about.\n'
+  printf 'Promote the ones that would change what someone does next time:\n\n'
+  printf '  felix lesson "..."\n'
+}
+
 cmd_adopt() {
   resolve_or_die; local proj="$PROJ" cap="${1:-}"
   [ -n "$cap" ] || die "usage: felix adopt <capability>"
@@ -828,7 +895,11 @@ case "${1:-help}" in
   profile)   shift; cmd_profile "$@" ;;
   recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;
-  adopt)  shift; cmd_adopt "$@" ;;
+  adopt)   shift; cmd_adopt "$@" ;;
+  log)     shift; cmd_log "$@" ;;
+  lesson)  shift; cmd_lesson "$@" ;;
+  handoff) shift; cmd_handoff "$@" ;;
+  promote) shift; cmd_promote "$@" ;;
   setup)  shift; cmd_setup "$@" ;;
   bootstrap) shift; cmd_bootstrap "$@" ;;
   repair)   shift; cmd_repair "$@" ;;

@@ -526,6 +526,75 @@ before="$(claude plugin list 2>/dev/null | wc -l)"
 after="$(claude plugin list 2>/dev/null | wc -l)"
 is "recommending installs nothing" "$after" "$before"
 
+printf '\nsecret scanning\n'
+SS="$FROOT/harness/bin/secret-scan"
+for s in 'api_key = "sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAA"' \
+         'password = "hunter2-correct-horse"' \
+         '-----BEGIN RSA PRIVATE KEY-----'; do
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && bad "catches: $s" "scanner passed a credential" || ok "catches: ${s:0:34}"
+done
+# The exclusions are the load-bearing half. A scanner that cries wolf is off in a
+# week, and then the real finding lands in a channel nobody reads.
+for s in '    token: str = ""' \
+         'api_key = os.environ["ANTHROPIC_API_KEY"]' \
+         'token = secrets.token_urlsafe(9)' \
+         'password = "<redacted>"' \
+         'const k = process.env.STRIPE_KEY'; do
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && ok "quiet on: ${s:0:34}" || bad "quiet on: $s" "false positive"
+done
+
+# A new file has no previous version, so git diff cannot see it, and a fresh
+# file is where a key most often lands.
+SECREPO="$TMP/secrepo"; mkdir -p "$SECREPO"
+( cd "$SECREPO" && git init -q -b main
+  printf 'x\n' > a.txt && git add -A >/dev/null && git -c user.name=t -c user.email=t@t commit -qm i )
+printf 'key = "sk-ant-api03-BBBBBBBBBBBBBBBBBBBBBBBB"\n' > "$SECREPO/leak.py"
+( cd "$SECREPO" && "$SS" >/dev/null 2>&1 ) \
+  && bad "sees a credential in an untracked new file" "passed clean" \
+  || ok "sees a credential in an untracked new file"
+rm "$SECREPO/leak.py"
+( cd "$SECREPO" && "$SS" >/dev/null 2>&1 ) \
+  && ok "clean once it is gone" || bad "clean once it is gone"
+
+printf '\nproject memory\n'
+MEMREPO="$REPO"
+out="$(cd "$MEMREPO" && "$FELIX" log "did a thing for a reason" 2>&1)"
+has "log writes to the devlog" "$out" "DEVLOG.md"
+grep -q "did a thing for a reason" "$FROOT/projects/widget/memory/DEVLOG.md" \
+  && ok "and the text is actually there" || bad "and the text is actually there"
+grep -qE '^## [0-9]{4}-[0-9]{2}-[0-9]{2} ' "$FROOT/projects/widget/memory/DEVLOG.md" \
+  && ok "stamped with date, branch and commit" || bad "stamped with date, branch and commit"
+
+out="$(cd "$MEMREPO" && "$FELIX" lesson "always check the thing" 2>&1)"
+has "lesson warns against writing too much" "$out" "worse than none"
+grep -q "always check the thing" "$FROOT/projects/widget/memory/lessons.md" \
+  && ok "lesson is recorded" || bad "lesson is recorded"
+
+out="$(cd "$MEMREPO" && "$FELIX" handoff 2>&1)"
+has "handoff lists the session-end checks" "$out" "before you stop"
+grep -q "## Where" "$FROOT/projects/widget/memory/SESSION_HANDOFF.md" \
+  && ok "handoff is regenerated from the tree" || bad "handoff is regenerated from the tree"
+
+# The promotion signal is recurrence across days, not volume on one day.
+D="$FROOT/projects/widget/memory/DEVLOG.md"
+: > "$D"
+for i in 1 2 3; do printf '\n## 2026-01-0%s b abc\n\nzephyrine handling again\n' "$i" >> "$D"; done
+printf '\n## 2026-02-01 b abc\n\nmonolith monolith monolith monolith monolith\n' >> "$D"
+out="$(cd "$MEMREPO" && "$FELIX" promote 2>&1)"
+has "a term recurring across entries surfaces" "$out" "zephyrine"
+case "$out" in
+  *monolith*) bad "volume inside one entry does not" "counted repeats, not entries" ;;
+  *) ok "volume inside one entry does not" ;;
+esac
+printf -- '- **2026-01-01** zephyrine is known\n' > "$FROOT/projects/widget/memory/lessons.md"
+out="$(cd "$MEMREPO" && "$FELIX" promote 2>&1)"
+case "$out" in
+  *zephyrine*) bad "already-learned terms drop out" "$out" ;;
+  *) ok "already-learned terms drop out" ;;
+esac
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes

@@ -49,6 +49,7 @@ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 # it: a hand-rolled JSON reader breaks on the first payload containing a quote,
 # and the failure mode is a hook that silently stops enforcing anything.
 raw="$(cat 2>/dev/null || true)"
+SID="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
 case "$raw" in
   *'"stop_hook_active"'*'true'*) exit 0 ;;
 esac
@@ -132,7 +133,7 @@ if [ -n "$receipt" ] && [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
   # caused it. This is the moment the count is already known.
   blocks="$(_felix_stop_blocks)"
   if [ -n "$blocks" ]; then
-    felix_say "$PROJ" "plugin-blocked" "$blocks"
+    felix_say "$PROJ" "plugin-blocked" "$blocks" "" "${SID:-}"
     printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
       "$(escape_for_json "$blocks")"
     exit 0
@@ -144,7 +145,7 @@ if [ -n "$receipt" ] && [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
 
   skipped="$(_felix_stop_skipped)"
   if [ -z "$skipped" ] && [ -n "$unrecorded" ]; then
-    felix_say "$PROJ" "unrecorded" "$unrecorded"
+    felix_say "$PROJ" "unrecorded" "$unrecorded" "" "${SID:-}"
     printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
       "$(escape_for_json "$unrecorded")"
     exit 0
@@ -156,7 +157,7 @@ ${skipped}, and the transcript shows ${skipped} was never used.
 That may be right — say why. It is wrong often enough to be worth a sentence
 either way, and a route that keeps asking for the wrong thing is a bug in a
 table someone can fix."
-    felix_say "$PROJ" "skipped" "$body"
+    felix_say "$PROJ" "skipped" "$body" "" "${SID:-}"
     printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
       "$(escape_for_json "$body")"
   fi
@@ -186,6 +187,6 @@ If you have already decided to stop with a red gate, that is the founder's call
 to make, not yours: they can set FELIX_ALLOW_RED=1 in the environment they
 launch a session from."
 
-felix_say "$PROJ" "held" "$reason"
+felix_say "$PROJ" "held" "$reason" "" "${SID:-}"
 printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$reason")"
 exit 0

@@ -8,6 +8,7 @@
 #   felix profile [name] which tools a task profile mounts
 #   felix route          what kind of work this is, and what to reach for
 #   felix monitor        render everything Felix did that nobody could see
+#   felix ready          is every tool this project names actually usable?
 #   felix recommend      what this stack implies; --want "<text>" matches intent
 #   felix stack plan     diff declared tooling against what is installed
 #   felix stack apply --yes   install the low and medium risk gap
@@ -93,6 +94,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/route.sh"
 # shellcheck source=lib/monitor.sh
 . "${SCRIPT_DIR}/lib/monitor.sh"
+# shellcheck source=lib/ready.sh
+. "${SCRIPT_DIR}/lib/ready.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -513,9 +516,118 @@ cmd_route() {
   felix_route_render "$proj" "$name" "$play" "$root" "$pscore"
 }
 
+cmd_ready() {
+  resolve_or_die; local proj="$PROJ" fix=0 a
+  for a in "$@"; do [ "$a" = "--fix" ] && fix=1; done
+  [ -f "$proj/routes.tsv" ] || die "project $(basename "$proj") declares no routes.tsv"
+
+  local rows; rows="$(felix_ready_report "$proj")"
+  if [ -z "$rows" ]; then
+    printf 'No route in %s names a tool. Nothing to check.\n' "$(basename "$proj")"
+    return 0
+  fi
+
+  printf 'tools %s could reach for\n\n' "$(basename "$proj")"
+  printf '%s\n' "$rows" | while IFS=$'\t' read -r st name detail; do
+    [ -n "${st:-}" ] || continue
+    case "$st" in
+      usable)     printf '  [x] %-34s %s\n' "$name" "$detail" ;;
+      disabled)   printf '  [!] %-34s %s\n' "$name" "$detail" ;;
+      absent)     printf '  [ ] %-34s %s\n' "$name" "$detail" ;;
+      undeclared) printf '  [?] %-34s %s\n' "$name" "$detail" ;;
+      unknown)    printf '  [-] %-34s %s\n' "$name" "$detail" ;;
+    esac
+  done
+
+  # What exists here that no route reaches for. A table naming one plugin five
+  # times while thirty others sit idle is a habit, not a router.
+  local unused n_unused
+  unused="$(felix_ready_unused "$proj")"
+  n_unused="$(printf '%s\n' "$unused" | grep -c . || true)"
+  if [ "${n_unused:-0}" -gt 0 ]; then
+    printf '\ninstalled here, never reached for by any route (%s)\n\n' "$n_unused"
+    printf '%s\n' "$unused" | head -24 | while IFS=$'\t' read -r k nm; do
+      [ -n "${k:-}" ] || continue
+      printf '  %-8s %s\n' "$k" "$nm"
+    done
+    [ "$n_unused" -gt 24 ] && printf '  ... and %s more\n' "$((n_unused - 24))"
+    printf '\nNot a problem, a menu. Add a keyword to %s/routes.tsv for any of\n' "$proj"
+    printf 'these you would want reached for automatically.\n'
+  fi
+
+  local bad unknown
+  bad="$(printf '%s\n' "$rows" | grep -cE '^(disabled|absent)' || true)"
+  unknown="$(printf '%s\n' "$rows" | grep -cE '^(unknown|undeclared)' || true)"
+  printf '\n'
+  # Reporting "everything is fine" when nothing could be checked is the failure
+  # this whole project keeps finding: a check that proves nothing must not read
+  # like a check that passed.
+  if [ "${unknown:-0}" -gt 0 ]; then
+    printf '%s of these could not be checked, so this is not a clean bill.\n' "$unknown"
+  fi
+  if [ "${bad:-0}" -eq 0 ] && [ "${unknown:-0}" -eq 0 ]; then
+    printf 'Everything a route can name is installed and switched on.\n'
+    return 0
+  fi
+  if [ "${bad:-0}" -eq 0 ]; then return 1; fi
+
+  printf '%s of these cannot be used in a session.\n\n' "$bad"
+  printf 'This matters before a session starts, not during one. A skill can be\n'
+  printf 'invoked mid-turn, but a plugin that is switched off cannot be switched\n'
+  printf 'on without a restart, so the router would name it and nothing would\n'
+  printf 'happen. A disabled plugin is the worst case: it is installed, so every\n'
+  printf 'check by eye passes, and it contributes nothing.\n\n'
+
+  if [ "$fix" -ne 1 ]; then
+    printf 'fix what is safe to fix with: felix ready --fix\n'
+    return 1
+  fi
+
+  command -v claude >/dev/null 2>&1 || die "felix ready --fix needs the claude CLI"
+  printf 'fixing\n'
+  local st name detail owner risk
+  while IFS=$'\t' read -r st name detail; do
+    [ -n "${st:-}" ] || continue
+    case "$name" in *:*) owner="${name%%:*}" ;; *) owner="$name" ;; esac
+    risk="$(grep -E "	($name|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1 | cut -f4)"
+    case "$st" in
+      disabled)
+        if claude plugin enable "$detail" >/dev/null 2>&1 || claude plugin enable "$owner" >/dev/null 2>&1; then
+          printf '  enabled    %s\n' "$name"
+        else
+          printf '  FAILED     %s (enable by hand)\n' "$name"
+        fi ;;
+      absent)
+        # Same bound as felix stack apply, for the same reason: high risk means
+        # the tool can reach production, move money, or hold a credential, and
+        # no flag anywhere should mount one of those unattended.
+        if _felix_risk_is_auto "${risk:-high}"; then
+          if claude plugin install "$owner" --scope user >/dev/null 2>&1; then
+            printf '  installed  %s\n' "$name"
+          else
+            printf '  FAILED     %s (install by hand)\n' "$name"
+          fi
+        else
+          printf '  refused    %-24s risk: %s, a person installs this\n' "$name" "${risk:-high}"
+        fi ;;
+    esac
+  done <<EOF
+$(printf '%s\n' "$rows" | grep -E '^(disabled|absent)')
+EOF
+  printf '\nRe-run felix ready to confirm. Anything newly enabled applies to the\n'
+  printf 'NEXT session, not this one.\n'
+}
+
 cmd_monitor() {
-  local open=0 a out tpl
-  for a in "$@"; do [ "$a" = "--open" ] && open=1; done
+  local open=0 watch=0 every=5 a out tpl
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --open)  open=1; shift ;;
+      --watch) watch=1; shift ;;
+      --every) every="${2:-5}"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
   tpl="$SCRIPT_DIR/templates/monitor.html"
   out="$FELIX_HOME_DIR/state/monitor.html"
 
@@ -532,7 +644,21 @@ cmd_monitor() {
   printf '  %s gate verdict(s)\n' \
     "$(cat "$FELIX_HOME_DIR"/projects/*/memory/verification.log 2>/dev/null | grep -c . || printf 0)"
 
-  printf '\nA snapshot, not a feed. Re-run this to refresh it.\n'
+  if [ "$watch" -eq 1 ]; then
+    if [ "$open" -eq 1 ]; then
+      command -v open >/dev/null 2>&1 && open "$out" >/dev/null 2>&1 || true
+    fi
+    printf '\nwatching. re-rendering every %ss. press the live button on the page,\n' "$every"
+    printf 'then leave this running. ctrl-c to stop.\n\n'
+    while :; do
+      sleep "$every"
+      felix_monitor_render "$tpl" "$FELIX_HOME_DIR" "$out" >/dev/null 2>&1 || true
+      printf '.'
+    done
+  fi
+
+  printf '\nA snapshot, not a feed. Re-run this to refresh it, or:\n'
+  printf '  felix monitor --watch --open\n'
   if [ "$open" -eq 1 ]; then
     command -v open >/dev/null 2>&1 && open "$out" && return 0
     command -v xdg-open >/dev/null 2>&1 && xdg-open "$out" && return 0
@@ -1355,6 +1481,7 @@ case "${1:-help}" in
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;
   monitor)   shift; cmd_monitor "$@" ;;
+  ready)     shift; cmd_ready "$@" ;;
   recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;
   adopt)   shift; cmd_adopt "$@" ;;

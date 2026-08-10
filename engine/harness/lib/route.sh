@@ -159,20 +159,36 @@ _felix_route_kind() {
 # The block. Written as an instruction to the model, because that is what it is:
 # additionalContext is never rendered to the user, and every context-injecting
 # hook on this machine writes second person for the same reason.
+# Worded as a requirement, because politeness does not survive contact with a
+# model that has its own plan. The nearby superpowers hook is the proof: it says
+# YOU DO NOT HAVE A CHOICE and it fires reliably, while "use these, in this
+# order" was read as a suggestion and skipped.
+#
+# The escape is named rather than removed. An agent that silently ignores a bad
+# route teaches nobody anything; one that says "this looks like backend work,
+# not frontend" surfaces a keyword worth fixing. Obedience is not the goal —
+# the goal is that skipping costs a sentence.
 felix_route_render() {
-  local proj="$1" name="$2" play="$3" root="$4" pscore="${5:-1}" p kind missing=""
+  local proj="$1" name="$2" play="$3" root="$4" pscore="${5:-1}" p kind missing="" i=0
   printf 'Felix routed this to: %s\n' "$name"
   [ "${pscore:-1}" -eq 0 ] && \
     printf 'Read off the working tree, not the prompt: nothing you typed named a\nkind of work, so this is a guess from what is currently changed.\n'
   if [ "$play" != "-" ] && [ -n "$play" ]; then
-    printf '\nUse these, in this order:\n'
+    printf '\nUse these, in this order, before you write any code:\n'
     for p in $play; do
       kind="$(_felix_route_kind "$proj" "$p")"
-      printf '  %-22s %s\n' "$p" "$kind"
+      i=$((i+1))
+      printf '  %s. %-22s %s\n' "$i" "$p" "$kind"
       [ "$kind" = "not declared" ] && missing="$missing $p"
     done
+    printf '\nThis is a requirement, not a suggestion. This project already decided that\n'
+    printf 'work of this kind goes through them, and the decision is not yours to skip\n'
+    printf 'quietly. If the routing is wrong, say so and choose differently — but say\n'
+    printf 'it out loud, because a route that keeps guessing wrong is a bug in a table\n'
+    printf 'someone can fix, and silence is how it stays broken.\n'
   fi
-  [ -n "$missing" ] && printf '\nNot declared for this project:%s\n' "$missing"
+  [ -n "$missing" ] && \
+    printf '\nNamed but not installed here, so unavailable:%s\n' "$missing"
   _felix_route_red "$proj" "$root"
 }
 

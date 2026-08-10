@@ -1173,6 +1173,52 @@ has "resolves its libraries through a symlink" "$out" "project:      widget"
 out="$(cd "$REPO" && "$TMP/bin/felix" gate 2>&1)"; rc=$?
 is "and the gate still runs through it" "$rc" "0"
 
+printf '\nthe pre-flight\n'
+# A skill can be invoked mid-turn; a plugin that is switched off cannot be
+# switched on without a restart. So whether the router's picks will actually
+# work is decided before a session starts, and it differs per project.
+mkdir -p "$HOME/.claude/skills" 2>/dev/null || true
+cat >> "$FROOT/projects/widget/stack.tsv" <<'EOF'
+skill	widget-only-skill	-	low	always
+EOF
+cat >> "$FROOT/projects/widget/routes.tsv" <<'EOF'
+preflight	preflightword	frontend	widget-only-skill never-declared-tool
+EOF
+out="$(cd "$REPO" && "$FELIX" ready 2>&1)"
+has "reports a tool no manifest declares" "$out" "never-declared-tool"
+has "and says why"                        "$out" "absent from stack.tsv"
+# A standalone skill is a directory, not a package. Looking for it in the
+# plugin list reported a working skill as missing, which is how a pre-flight
+# check earns being ignored.
+has "knows a standalone skill is not a plugin" "$out" "widget-only-skill"
+case "$out" in
+  *"widget-only-skill"*"not installed"*) bad "a skill is not looked up as a plugin" "$out" ;;
+  *) ok "a skill is not looked up as a plugin" ;;
+esac
+# Reporting a clean bill when nothing could be checked is the failure this
+# project keeps re-finding.
+case "$out" in
+  *"could not be checked"*|*"cannot be used"*|*"switched on."*) ok "the summary matches what was actually checked" ;;
+  *) bad "the summary matches what was actually checked" "$out" ;;
+esac
+# Felix has to know the whole inventory, not just its own list. A table naming
+# one plugin five times while thirty others sit idle is a habit, not a router.
+# This section also guards a bash-3.2 trap: a `case` pattern's closing paren
+# inside $( ) ends the substitution, which parses fine under zsh and dies the
+# moment the real CLI runs it. Only running the CLI catches that.
+if has_claude; then
+  case "$out" in
+    *"never reached for"*) ok "reports what is installed but unused" ;;
+    *) bad "reports what is installed but unused" "$out" ;;
+  esac
+else
+  skip "reports what is installed but unused" "no claude CLI"
+fi
+case "$out" in
+  *"syntax error"*|*"unbound variable"*) bad "the pre-flight runs clean under bash" "$out" ;;
+  *) ok "the pre-flight runs clean under bash" ;;
+esac
+
 printf '\nthe monitor\n'
 # A hook's additionalContext reaches the model and never the terminal, so every
 # routing decision and every gate verdict happens behind glass. The monitor is

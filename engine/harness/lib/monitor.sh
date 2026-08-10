@@ -154,25 +154,10 @@ felix_monitor_json() {
   done
   printf ']'
 
-  # Installed plugins and what each costs to keep loaded. Skipped without the
-  # CLI rather than guessed: a page reporting invented token costs would be
-  # worse than one reporting none.
-  printf ',"plugins":['
-  if command -v claude >/dev/null 2>&1; then
-    first=1
-    local id ver
-    while IFS=$'\t' read -r id ver; do
-      [ -n "$id" ] || continue
-      [ "$first" -eq 1 ] || printf ','
-      first=0
-      printf '{"id":"%s","version":"%s"}' "$(_felix_json_esc "$id")" "$(_felix_json_esc "$ver")"
-    done <<EOF
-$(claude plugin list --json 2>/dev/null \
-  | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
-  | while IFS= read -r i; do printf '%s\t-\n' "$i"; done)
-EOF
-  fi
-  printf ']'
+  # There was a `plugins` array here, filled by `claude plugin list --json`. It
+  # cost 933ms of a 2.3s render and the page referenced it exactly zero times.
+  # That is affordable once a day and not affordable several times a minute,
+  # which is what the live mode needs, so it is gone until something reads it.
   printf '}'
 }
 

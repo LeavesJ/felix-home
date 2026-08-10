@@ -222,7 +222,8 @@ footer .hot{color:var(--ice)}
   <footer>
     <span><span class="dot"></span><span id="stamp"></span></span>
     <span class="sp"></span>
-    <span>snapshot — re-run <span class="hot">felix monitor</span> to refresh</span>
+    <button class="pbtn" id="liveBtn" aria-pressed="false">live</button>
+    <span id="liveNote">re-run <span class="hot">felix monitor</span> to refresh</span>
   </footer>
 </div>
 
@@ -525,9 +526,59 @@ document.addEventListener('click', e => {
   if (p){ S.proj = Number(p.dataset.p); S.pick = 0; paint(); }
 });
 
+/* ----------------------------------------------------------------- live -- */
+/* The page has no server and cannot fetch a file:// sibling, so "live" is the
+   page reloading itself while `felix monitor --watch` rewrites the file
+   underneath it. That means a full reload, which would otherwise throw away
+   which ask you were reading and where you had scrolled — so those are carried
+   across in sessionStorage. It polls rather than pushes, and lags by the watch
+   interval; at a few seconds that is not worth pretending otherwise about. */
+const REFRESH_MS = 5000;
+const KEY = 'felix.monitor.view';
+
+function saveView(){
+  try {
+    sessionStorage.setItem(KEY, JSON.stringify({
+      proj:S.proj, pick:S.pick,
+      feed: at('feed') ? at('feed').scrollTop : 0,
+      asks: at('asks') ? at('asks').scrollTop : 0,
+      y: window.scrollY || 0
+    }));
+  } catch (e) {}
+}
+function restoreView(){
+  let v = null;
+  try { v = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) {}
+  if (!v) return;
+  if (typeof v.proj === 'number' && D.projects[v.proj]) S.proj = v.proj;
+  if (typeof v.pick === 'number') S.pick = v.pick;
+  requestAnimationFrame(() => {
+    if (at('feed')) at('feed').scrollTop = v.feed || 0;
+    if (at('asks')) at('asks').scrollTop = v.asks || 0;
+    if (v.y) window.scrollTo(0, v.y);
+  });
+}
+
+let live = false, liveTimer = null;
+function setLive(on){
+  live = !!on;
+  try { localStorage.setItem('felix.monitor.live', live ? '1' : '0'); } catch (e) {}
+  const b = at('liveBtn');
+  b.setAttribute('aria-pressed', String(live));
+  at('liveNote').textContent = live
+    ? 'refreshing every ' + (REFRESH_MS/1000) + 's — needs felix monitor --watch running'
+    : 'snapshot — re-run felix monitor to refresh';
+  if (liveTimer){ clearTimeout(liveTimer); liveTimer = null; }
+  if (live) liveTimer = setTimeout(() => { saveView(); location.reload(); }, REFRESH_MS);
+}
+at('liveBtn').addEventListener('click', () => setLive(!live));
+window.addEventListener('beforeunload', saveView);
+
 txt('stamp', 'snapshot taken ' + String(D.generated||'').replace('T',' ').replace('Z',' UTC'));
+restoreView();
 seed(340); fit(); paint(); requestAnimationFrame(draw);
 window.addEventListener('resize', fit);
+try { setLive(localStorage.getItem('felix.monitor.live') === '1'); } catch (e) { setLive(false); }
 </script>
 </body>
 </html>

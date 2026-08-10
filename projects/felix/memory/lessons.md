@@ -55,6 +55,19 @@ with a record, not a substitute for running it.
   outside the governed repo — true of every project except the one Felix is.
   Test the layout you actually run in, not the convenient one.
 
+- **A trap body is evaluated when it fires, so it cannot reference a `local`.**
+  By then the function has returned and the variable is gone, so under `set -u`
+  the cleanup dies on an unbound variable and leaves behind exactly what it
+  existed to remove. Use a global and guard it: `trap 'rm -rf "${VAR:-}"' EXIT`.
+  Made twice in one day, in two functions of the same file, because the first
+  fix was explained in a commit message.
+
+- **Explain a fix where the fix will be read again.** A commit message is
+  written once and never mounted; `lessons.md` is injected into every turn that
+  matches it. The trap bug above was diagnosed correctly, fixed correctly, and
+  described beautifully in a commit nobody would ever read at the moment of
+  repeating it. If it is worth explaining, it goes here.
+
 - **A lesson written down is not a lesson applied.** This file already carried
   the pipefail trap — `producer | grep -q x` reports 141 because the consumer
   exits first and the producer takes SIGPIPE — and it was written in this very

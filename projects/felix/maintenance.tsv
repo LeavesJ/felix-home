@@ -1,0 +1,7 @@
+# Upkeep for Felix.
+#
+# name	cadence	trigger	description
+deployed	7	-	confirm the installed engine still matches the repository
+discover	14	-	look for tooling worth having that is not declared yet
+promote	14	-	check whether the gate has caught the same thing twice
+lessons	30	-	reread lessons.md and cut anything that stopped being true

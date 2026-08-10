@@ -1,0 +1,19 @@
+# Risk tiers for Felix itself.
+#
+# The constitution already says editing engine/harness/lib or a hook is
+# adversarial: those run in every session of every governed project, and a
+# mistake there is silent. This is that sentence made mechanical, so felix
+# classify and felix scope work on Felix the way they work on everything else.
+#
+# tier	kind	pattern	reason
+red	path	^engine/harness/hooks/	runs in every session of every governed project
+red	path	^engine/harness/lib/	sourced by the CLI and by every hook
+red	path	^engine/\.claude-plugin/	the version here decides whether anything deploys at all
+red	path	^\.github/workflows/	CI is the only judge that is not the model
+yellow	path	^engine/harness/felix$	the CLI surface; wrong here is loud rather than silent
+yellow	path	^engine/harness/templates/	seeds every new project, but only at creation
+yellow	path	^projects/[^/]+/gate\.sh$	a gate that cannot fail is not a gate
+yellow	path	^engine/harness/tests/run$	weakening the suite is how a gate stops being one
+green	path	^projects/[^/]+/maintenance\.log$	a record of when upkeep ran
+green	path	^docs/	
+green	path	^projects/[^/]+/memory/	records, not behaviour

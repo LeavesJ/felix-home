@@ -7,6 +7,7 @@
 #   felix doctor         capabilities present in the checkout but never declared
 #   felix profile [name] which tools a task profile mounts
 #   felix route          what kind of work this is, and what to reach for
+#   felix monitor        render everything Felix did that nobody could see
 #   felix recommend      what this stack implies; --want "<text>" matches intent
 #   felix stack plan     diff declared tooling against what is installed
 #   felix stack apply --yes   install the low and medium risk gap
@@ -76,6 +77,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/verify.sh"
 # shellcheck source=lib/route.sh
 . "${SCRIPT_DIR}/lib/route.sh"
+# shellcheck source=lib/monitor.sh
+. "${SCRIPT_DIR}/lib/monitor.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -494,6 +497,35 @@ cmd_route() {
   play="$(printf '%s' "$best" | cut -f7)"
   felix_route_log "$proj" "$name" "$score" "$want"
   felix_route_render "$proj" "$name" "$play" "$root" "$pscore"
+}
+
+cmd_monitor() {
+  local open=0 a out tpl
+  for a in "$@"; do [ "$a" = "--open" ] && open=1; done
+  tpl="$SCRIPT_DIR/templates/monitor.html"
+  out="$FELIX_HOME_DIR/state/monitor.html"
+
+  if ! felix_monitor_render "$tpl" "$FELIX_HOME_DIR" "$out"; then
+    die "could not render the monitor (template: $tpl)"
+  fi
+
+  printf 'wrote %s\n\n' "$out"
+  local n
+  n="$(ls -d "$FELIX_HOME_DIR"/projects/*/ 2>/dev/null | wc -l | tr -d ' ')"
+  printf '  %s project(s)\n' "$n"
+  printf '  %s routing decision(s)\n' \
+    "$(cat "$FELIX_HOME_DIR"/projects/*/memory/routes.log 2>/dev/null | grep -c . || printf 0)"
+  printf '  %s gate verdict(s)\n' \
+    "$(cat "$FELIX_HOME_DIR"/projects/*/memory/verification.log 2>/dev/null | grep -c . || printf 0)"
+
+  printf '\nA snapshot, not a feed. Re-run this to refresh it.\n'
+  if [ "$open" -eq 1 ]; then
+    command -v open >/dev/null 2>&1 && open "$out" && return 0
+    command -v xdg-open >/dev/null 2>&1 && xdg-open "$out" && return 0
+    printf 'no opener found; open the file by hand\n'
+  else
+    printf 'open it with: felix monitor --open\n'
+  fi
 }
 
 cmd_profile() {
@@ -1308,6 +1340,7 @@ case "${1:-help}" in
   doctor)  shift; cmd_doctor "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;
+  monitor)   shift; cmd_monitor "$@" ;;
   recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;
   adopt)   shift; cmd_adopt "$@" ;;

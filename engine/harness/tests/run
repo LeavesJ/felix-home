@@ -1161,6 +1161,48 @@ out="$(cd "$PLAIN" && "$FELIX" route --for "build the results page" 2>&1)"; rc=$
 [ "$rc" -ne 0 ] && ok "route refuses outside a governed repo" \
                 || bad "route refuses outside a governed repo" "$out"
 
+printf '\nthe monitor\n'
+# A hook's additionalContext reaches the model and never the terminal, so every
+# routing decision and every gate verdict happens behind glass. The monitor is
+# the only surface where a person can see what Felix actually did.
+out="$(cd "$REPO" && "$FELIX" monitor 2>&1)"
+MON="$FROOT/state/monitor.html"
+[ -s "$MON" ] && ok "renders a page" || bad "renders a page" "$out"
+if [ -s "$MON" ]; then
+  grep -q '"name":"widget"' "$MON" \
+    && ok "carries the governed project" || bad "carries the governed project"
+  # A page shipped with its placeholder intact looks fine and shows nothing.
+  grep -q 'FELIX_DATA' "$MON" \
+    && bad "the data marker is substituted" "marker still present" \
+    || ok "the data marker is substituted"
+  # No server and no network. A governance page that phones out is not one.
+  if grep -qiE 'src="https?:|href="https?:|@import[[:space:]]+url\(http' "$MON"; then
+    bad "self-contained, no external references"
+  else
+    ok "self-contained, no external references"
+  fi
+
+  # The route log records whatever was typed, and the data is embedded inside a
+  # <script> element. An HTML parser looks for the literal characters closing
+  # that tag without caring that they sit inside a string, so a prompt is a way
+  # to end the script early and put markup on the page.
+  printf '%s\thostile\t9\t{"prompt":"</script\076<img src=x onerror=alert(1)\076"}\n' \
+    "2026-01-01T00:00:00Z" >> "$FROOT/projects/widget/memory/routes.log"
+  ( cd "$REPO" && "$FELIX" monitor >/dev/null 2>&1 )
+  # The payload survives as inert text — that is fine and even desirable, since
+  # the page is for reading what happened. What must not survive is a bracket.
+  if grep -q 'u003c/script' "$MON"; then
+    ok "a hostile prompt is neutralised, not dropped"
+  else
+    bad "a hostile prompt is neutralised, not dropped" "escaped form absent"
+  fi
+  grep -q '<img' "$MON" && bad "no markup from a prompt reaches the page" \
+                        || ok "no markup from a prompt reaches the page"
+  # ...and the page must still be one script element, not two.
+  n="$(grep -c '</script>' "$MON")"
+  is "the page still closes exactly one script" "$n" "1"
+fi
+
 printf '\nindependence\n'
 # Scoped to code that runs in production. This suite names Elenchus in its own
 # comments on purpose, since explaining what it refuses to depend on is the point.

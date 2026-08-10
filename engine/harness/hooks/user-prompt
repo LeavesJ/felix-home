@@ -11,10 +11,14 @@
 # the same attention is how both get skimmed, and the route is the frame the
 # lessons should be read inside.
 #
-# The prompt arrives as JSON on stdin. It is tokenised whole rather than parsed:
-# a few extra field names cost nothing in a keyword match, and a hand-rolled JSON
-# parser would break on the first prompt containing a quote, which is the sort of
-# failure that silently stops mounting anything.
+# The prompt arrives as JSON on stdin. It is tokenised whole rather than parsed,
+# because a hand-rolled JSON reader would break on the first prompt containing a
+# quote, which is the sort of failure that silently stops mounting anything.
+#
+# The extra field names are not free, though, whatever an earlier version of this
+# comment claimed. The envelope carries words like `prompt` and `system`, and a
+# route keyed on either of those scored on every turn regardless of what was
+# typed. The tokeniser drops the envelope's own vocabulary for that reason.
 #
 # Silent and exit 0 whenever there is nothing to say. A hook that speaks every
 # turn is a hook people learn to skim. The route in particular is announced only
@@ -46,8 +50,8 @@ if [ -f "$PROJ/routes.tsv" ]; then
   if best="$(felix_route_best "$PROJ" "$raw" "$ctx")"; then
     r_score="$(printf '%s' "$best" | cut -f1)"
     r_pscore="$(printf '%s' "$best" | cut -f2)"
-    r_name="$(printf '%s' "$best" | cut -f4)"
-    r_play="$(printf '%s' "$best" | cut -f6)"
+    r_name="$(printf '%s' "$best" | cut -f5)"
+    r_play="$(printf '%s' "$best" | cut -f7)"
     felix_route_log "$PROJ" "$r_name" "$r_score" "$raw"
 
     # Announce only on change. The session key comes from the payload; when it

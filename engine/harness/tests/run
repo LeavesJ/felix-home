@@ -1084,6 +1084,27 @@ printf 'broken-row-with-no-tabs\n' >> "$FROOT/projects/widget/routes.tsv"
 out="$(_route "let us build the results page")"
 has "a malformed row is skipped, others still match" "$out" "frontend"
 
+# The hook is handed the whole payload, so the envelope's own field names are in
+# the token stream. A route keyed on one of them scored on every single turn
+# whatever was typed, which is invisible until a project's subject matter
+# happens to be prompts. Found by running the hook against a real repository.
+cat >> "$FROOT/projects/widget/routes.tsv" <<'EOF'
+envelope	prompt session transcript permission	frontend	-
+EOF
+out="$(cd "$REPO" && printf '{"session_id":"s","prompt":"the migration schema needs an index"}' | "$FROOT/harness/hooks/user-prompt" 2>&1)"
+case "$out" in
+  *envelope*) bad "the payload envelope does not decide the route" "$out" ;;
+  *) ok "the payload envelope does not decide the route" ;;
+esac
+
+# The tree may corroborate, never outvote. Without a cap, a checkout carrying a
+# few hundred untracked path tokens drowns out the four words you typed.
+mkdir -p "$REPO/noise"
+i=0; while [ "$i" -lt 40 ]; do printf 'x\n' > "$REPO/noise/component-layout-styling-$i.css"; i=$((i+1)); done
+out="$(_route "add a migration for the endpoint schema")"
+has "a wall of tree tokens cannot outvote the prompt" "$out" "backend"
+rm -rf "$REPO/noise"
+
 RHK="$FROOT/harness/hooks/user-prompt"
 S1='{"session_id":"sess-aaa","prompt":"let us build the results page"}'
 S2='{"session_id":"sess-aaa","prompt":"let us build the results page again"}'

@@ -25,6 +25,15 @@
 
 FELIX_ROUTE_MIN_SCORE="${FELIX_ROUTE_MIN_SCORE:-2}"
 FELIX_ROUTE_PROMOTE_MIN="${FELIX_ROUTE_PROMOTE_MIN:-3}"
+# How much the working tree may contribute, in total, however many of its
+# tokens match. Two is exactly the threshold, so a tree can still route when you
+# said nothing routable — and can never outvote a word you actually typed.
+#
+# Uncapped, this fails in the ordinary case rather than a contrived one. A
+# checkout carrying a couple of untracked backup directories offers a few
+# hundred path tokens; against that, a sentence contributing four is inaudible,
+# and prompts route to whatever the stale directories happen to be about.
+FELIX_ROUTE_CONTEXT_CAP="${FELIX_ROUTE_CONTEXT_CAP:-2}"
 
 # Only rows with all four fields. A malformed row is skipped rather than fatal:
 # one bad line must not silently stop the whole table from routing.
@@ -40,11 +49,19 @@ _felix_route_rows() {
 
 # Same filter the lessons matcher uses, for the same reason: short words and
 # filler match everything and would decide what you meant on the word "the".
+# The hook is handed the whole payload rather than a parsed prompt, on purpose,
+# so the envelope's own field names are in the token stream: session_id, prompt,
+# transcript_path, permission_mode and the rest. That was harmless for lessons,
+# which rarely contain those words, and quietly disastrous here — any route with
+# `prompt` or `system` among its keywords scored on every single turn whatever
+# was typed, and a project whose subject matter *is* prompts routes everything
+# to one place. The envelope is not part of what you said.
 felix_route_tokens() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
     | tr -cs 'a-z0-9_-' '\n' \
     | grep -E '^.{4,}$' \
     | grep -vE '^(this|that|with|from|have|been|will|when|what|there|their|would|could|should|about|into|then|than|they|them|your|make|does|just|also|only|some|more|most|need|want|please|help|file|code|lets)$' \
+    | grep -vE '^(prompt|session|session_id|hook|hook_event_name|event|transcript|transcript_path|permission|permission_mode|cwd|agent|agent_id|agent_type|effort|stop_hook_active|last_assistant_message|assistant|message|background_tasks|tasks|crons|true|false|null)$' \
     | sort -u
 }
 
@@ -74,41 +91,40 @@ felix_route_context() {
 # a block that presents the second as the first is quietly lying about why.
 felix_route_score() {
   local proj="$1" prompt="$2" ctx="$3"
-  local ptok ctok i=0
-  ptok="$(felix_route_tokens "$prompt")"
-  ctok="$(felix_route_tokens "$ctx")"
+  local phay chay i=0
+  # One space-delimited haystack per source, tested once per keyword, rather
+  # than a nested loop re-reading a heredoc for every keyword. Same answer,
+  # and the keyword can no longer span a token boundary because the tokens are
+  # separated by spaces and keywords never contain one.
+  phay=" $(felix_route_tokens "$prompt" | tr '\n' ' ')"
+  chay=" $(felix_route_tokens "$ctx"    | tr '\n' ' ')"
   while IFS=$'\t' read -r name kws profile play; do
     [ -n "${name:-}" ] || continue
     i=$((i+1))
-    local score=0 pscore=0 kw t hit
+    local pscore=0 cscore=0 kw
     for kw in $kws; do
-      hit=0
-      while IFS= read -r t; do
-        [ -n "$t" ] || continue
-        case "$t" in *"$kw"*) hit=2; break ;; esac
-      done <<EOF
-$ptok
-EOF
-      if [ "$hit" -eq 0 ]; then
-        while IFS= read -r t; do
-          [ -n "$t" ] || continue
-          case "$t" in *"$kw"*) hit=1; break ;; esac
-        done <<EOF
-$ctok
-EOF
-      fi
-      score=$((score + hit))
-      [ "$hit" -eq 2 ] && pscore=$((pscore + 2))
+      case "$phay" in
+        *"$kw"*) pscore=$((pscore + 2)); continue ;;
+      esac
+      case "$chay" in
+        *"$kw"*) cscore=$((cscore + 1)) ;;
+      esac
     done
-    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$score" "$pscore" "$i" "$name" "$profile" "$play"
+    [ "$cscore" -gt "$FELIX_ROUTE_CONTEXT_CAP" ] && cscore="$FELIX_ROUTE_CONTEXT_CAP"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$((pscore + cscore))" "$pscore" "$cscore" "$i" "$name" "$profile" "$play"
   done <<EOF
 $(_felix_route_rows "$proj")
 EOF
 }
 
+# Ordered by what you typed first, then by the tree, then by file order.
+#
+# Sorting on the total let a route win on tree tokens alone against a route you
+# had actually named. The prompt is the claim; the tree only corroborates.
 felix_route_best() {
   local line
-  line="$(felix_route_score "$1" "$2" "$3" | sort -k1,1nr -k3,3n | head -1)"
+  line="$(felix_route_score "$1" "$2" "$3" | sort -k2,2nr -k3,3nr -k4,4n | head -1)"
   [ -n "$line" ] || return 1
   [ "$(printf '%s' "$line" | cut -f1)" -ge "$FELIX_ROUTE_MIN_SCORE" ] || return 1
   printf '%s' "$line"

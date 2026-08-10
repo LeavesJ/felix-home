@@ -470,13 +470,14 @@ cmd_route() {
 
   if [ "$explain" -eq 1 ]; then
     printf 'prompt:    %s\nthreshold: %s\n\n' "${want:-<none, using the tree>}" "$FELIX_ROUTE_MIN_SCORE"
-    printf '  %-5s %-5s %-10s %s\n' total typed route play
-    felix_route_score "$proj" "$want" "$ctx" | sort -k1,1nr -k3,3n \
-      | while IFS=$'\t' read -r s ps _i n _pr pl; do
-          printf '  %-5s %-5s %-10s %s\n' "$s" "$ps" "$n" "$pl"
+    printf '  %-5s %-5s %-5s %-10s %s\n' total typed tree route play
+    felix_route_score "$proj" "$want" "$ctx" | sort -k2,2nr -k3,3nr -k4,4n \
+      | while IFS=$'\t' read -r s ps cs _i n _pr pl; do
+          printf '  %-5s %-5s %-5s %-10s %s\n' "$s" "$ps" "$cs" "$n" "$pl"
         done
-    printf '\nHighest total wins, file order breaks ties. "typed" is the part that came\n'
-    printf 'from your words rather than the working tree. Below %s nothing is said.\n' \
+    printf '\nTyped wins first, then tree, then file order. The tree contributes at\n'
+    printf 'most %s however many of its tokens match. Below %s nothing is said.\n' \
+      "$FELIX_ROUTE_CONTEXT_CAP" \
       "$FELIX_ROUTE_MIN_SCORE"
     return 0
   fi
@@ -489,8 +490,8 @@ cmd_route() {
   local score pscore name play
   score="$(printf '%s' "$best" | cut -f1)"
   pscore="$(printf '%s' "$best" | cut -f2)"
-  name="$(printf '%s' "$best" | cut -f4)"
-  play="$(printf '%s' "$best" | cut -f6)"
+  name="$(printf '%s' "$best" | cut -f5)"
+  play="$(printf '%s' "$best" | cut -f7)"
   felix_route_log "$proj" "$name" "$score" "$want"
   felix_route_render "$proj" "$name" "$play" "$root" "$pscore"
 }

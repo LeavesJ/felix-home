@@ -110,6 +110,38 @@ escape_for_json() {
   printf '%s' "$s"
 }
 
+# ------------------------------------------------------------- discovery ----
+# Runs before the emit below, because the emit is followed by `exit 0` and an
+# appended block after that never runs. This one did not, for a whole version.
+_felix_found=""
+if [ -f "$PROJ/routes.tsv" ] && command -v claude >/dev/null 2>&1; then
+  if felix_discover_stale "$PROJ" "$FELIX_HOME_DIR"; then
+    felix_discover_refresh_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix"
+  fi
+  _new="$(felix_discover_unseen "$PROJ" "$FELIX_HOME_DIR" | head -4 | tr '\n' ' ')"
+  if [ -n "$_new" ]; then
+    _felix_found="$_new"
+    context="$context
+
+Worth a look, found since last time and not installed: ${_new}
+felix discover --inspect shows what each one actually ships."
+    felix_discover_mark_seen "$PROJ" "$FELIX_HOME_DIR"
+  fi
+fi
+
+# One line on the founder's screen. additionalContext reaches the model and
+# never the terminal, which is right for an instruction and useless for knowing
+# the thing is on: Felix ships no skills and no commands, so a session showed
+# nothing anywhere and "I cannot find the plugin" was the correct conclusion.
+# grep -c prints its count and still exits 1 when it matched nothing, so an
+# `|| printf 0` fallback appends a second zero and the test below is handed
+# "0\n0" rather than a number.
+_felix_due="$(printf '%s' "${MAINT:-}" | grep -c . 2>/dev/null)"
+case "$_felix_due" in ''|*[!0-9]*) _felix_due=0 ;; esac
+_felix_line="Felix: $(basename "$PROJ")"
+[ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due"
+[ -n "$_felix_found" ] && _felix_line="$_felix_line · new tooling found"
+
 escaped="$(escape_for_json "$context")"
 
 # Claude Code is the default shape. Felix runs both as a plugin and as a plain
@@ -121,25 +153,9 @@ if [ -n "${COPILOT_CLI:-}" ]; then
 elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
   printf '{\n  "additional_context": "%s"\n}\n' "$escaped"
 else
-  printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped"
+  printf '{\n  "systemMessage": "%s",\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' \
+    "$(escape_for_json "$_felix_line")" "$escaped"
 fi
 
 exit 0
-
-# ------------------------------------------------------------- discovery ----
-# Looking for new tooling costs seconds of network per candidate, so it happens
-# between sessions rather than in front of one: refresh in the background when
-# the answer has aged out, and say something only when the answer changed.
-# Silence is the normal case and the point.
-if [ -f "$PROJ/routes.tsv" ] && command -v claude >/dev/null 2>&1; then
-  if felix_discover_stale "$PROJ" "$FELIX_HOME_DIR"; then
-    felix_discover_refresh_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix"
-  fi
-  _new="$(felix_discover_unseen "$PROJ" "$FELIX_HOME_DIR" | head -4)"
-  if [ -n "$_new" ]; then
-    printf '\nWorth a look, found since last time and not installed:\n'
-    printf '%s\n' "$_new" | sed 's/^/  /'
-    printf 'felix discover --inspect shows what each one actually ships.\n'
-    felix_discover_mark_seen "$PROJ" "$FELIX_HOME_DIR"
-  fi
-fi
+exit 0

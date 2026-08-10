@@ -1228,6 +1228,32 @@ case "$out" in
 esac
 ( cd "$REPO" && git checkout -q -- WIDGET.txt 2>/dev/null || printf 'contents\n' > "$REPO/WIDGET.txt" )
 
+printf '\nvisible at all\n'
+# Felix ships no skills and no commands and costs a session nothing, which is
+# the point and also why somebody looked for it, found nothing anywhere, and
+# reasonably concluded it was not installed. additionalContext reaches the
+# model; systemMessage reaches the person.
+out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+case "$out" in
+  *'"systemMessage"'*) ok "says something to the founder, not only the model" ;;
+  *) bad "says something to the founder, not only the model" "$out" ;;
+esac
+line="$(printf '%s' "$out" | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("systemMessage",""))
+except Exception: print("")' 2>/dev/null)"
+has "and names the project"  "$line" "widget"
+# One line. A briefing repeated every session is one people stop reading.
+n="$(printf '%s' "$line" | wc -l | tr -d ' ')"
+[ "${n:-0}" -le 1 ] && ok "and stays to one line" || bad "and stays to one line" "$line"
+# The model still gets the full briefing.
+case "$out" in *'"additionalContext"'*) ok "the model still gets the whole thing" ;;
+  *) bad "the model still gets the whole thing" "$out" ;; esac
+
+# The one entry point, for somebody who has never seen Felix.
+[ -f "$FROOT/../engine/commands/felix.md" ] || [ -f "$REAL_HARNESS/../commands/felix.md" ] \
+  && ok "ships a slash command to be found by" \
+  || bad "ships a slash command to be found by" "no commands/felix.md"
+
 printf '\na failure nobody wrote down\n'
 # Felix has had `felix lesson` from the beginning, and a mechanism nobody uses
 # is half a mechanism. This fires only when the gate actually caught something

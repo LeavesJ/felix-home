@@ -308,6 +308,46 @@ case "$out" in
 esac
 _reset
 
+printf '\nevidence policy\n'
+{
+  printf 'unit\t^src/\t^tests?/\tcode changes need a test\n'
+  printf 'db\t\\.sql$\t^tests?/.*db\tschema changes need a database test\n'
+} > "$FROOT/projects/widget/evidence.tsv"
+
+mkdir -p "$REPO/src"; printf 'x\n' > "$REPO/src/thing.js"; _stage
+out="$( cd "$REPO" && "$FELIX" evidence --base HEAD~1 2>&1 )"
+has "code with no test is a gap" "$out" "[!] unit"
+has "and reads as a requirement"  "$out" "code changes need a test"
+( cd "$REPO" && "$FELIX" evidence --base HEAD~1 --strict >/dev/null 2>&1 ); rc=$?
+is "--strict exits non-zero on a gap" "$rc" "1"
+( cd "$REPO" && "$FELIX" evidence --base HEAD~1 >/dev/null 2>&1 ); rc=$?
+is "without --strict it only reports"  "$rc" "0"
+_reset
+
+mkdir -p "$REPO/src" "$REPO/tests"
+printf 'x\n' > "$REPO/src/thing.js"; printf 'x\n' > "$REPO/tests/thing.test.js"; _stage
+out="$( cd "$REPO" && "$FELIX" evidence --base HEAD~1 2>&1 )"
+has "a matching test closes the gap" "$out" "[x] unit"
+has "untouched surfaces are n/a"     "$out" "[-] db"
+_reset
+
+printf 'notes\n' > "$REPO/README.md"; _stage
+out="$( cd "$REPO" && "$FELIX" evidence --base HEAD~1 2>&1 )"
+has "a docs-only change requires nothing" "$out" "No evidence gaps"
+_reset
+
+# Green tier plus an evidence gap. Unreachable with the default rules, since
+# green covers docs and tests while evidence fires on src. It becomes reachable
+# the moment a project declares any src path green, which is allowed, so the
+# branch is exercised here rather than shipped untested.
+printf 'green\tpath\t^src/safe/\tdeclared safe by this project\n' \
+  >> "$FROOT/projects/widget/risk.tsv"
+mkdir -p "$REPO/src/safe"; printf 'x\n' > "$REPO/src/safe/x.js"; _stage
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+has "green tier is still reported"        "$out" "tier:  green"
+has "but auto-merge is withheld on a gap" "$out" "Not auto-merge eligible"
+_reset
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes

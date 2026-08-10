@@ -1,0 +1,10 @@
+# What a change must prove for Elenchus, from the guidebook's table on p7 and
+# this project's own tier definitions.
+#
+# name	when	requires	reason
+unit	^src/elenchus/	^tests/	code changes need a test
+web	^src/elenchus/web/	^tests/.*(web|api)	learner-facing surfaces need a web test
+content	^content/(maps|rubrics)/	^tests/	versioned doctrine needs a test
+learner-text	^src/elenchus/(prompt_text|surface|terrain)\.py$	^tests/	learner-facing text needs a test
+assessment	^src/elenchus/(assessment/|state\.py|scheduler\.py)	^tests/.*(assess|state|schedul|judgment)	the judgment path needs a test naming it
+persistence	^src/elenchus/persistence\.py$	^tests/.*(persist|store|ledger)	durable state needs a persistence test

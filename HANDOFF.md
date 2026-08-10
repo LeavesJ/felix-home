@@ -76,10 +76,26 @@ permission model at all.
   readiness and will not flip it.
 - **Auto-merge.** `felix automerge` reads 0 of 5. Unlocks itself once five
   consecutive green pull requests merge without CI disagreeing.
-- **Felix's own red tier.** Now that `risk.tsv` exists here, changes to
-  `engine/harness/lib` and the hooks classify red. Recent work merged to `main`
-  without the approval gate Felix enforces elsewhere. Either honour it or say
-  plainly that Felix exempts itself.
+- **Felix's own red tier — decided 2026-08-10: honoured by behaviour, not
+  enforced.** Changes to `engine/harness/lib` and the hooks classify red here.
+  Felix cannot enforce that on itself: `gh api repos/LeavesJ/felix/rulesets`
+  returns 403, "Upgrade to GitHub Pro or make this repository public", so both
+  branch protection and rulesets are unavailable on a private free repository.
+  Elenchus gets real enforcement only because it is public.
+
+  The decision was to behave as if the rule applied — branch, classify, founder
+  approval before merge — and to state the gap here rather than leave it looking
+  like an oversight. **Nothing mechanically stops a bypass.** The rival-gate
+  change went through that flow: classified red, approval asked and given,
+  merged, deployed, gate green afterwards.
+
+  A second obstacle is worth naming because it is not a plan limit. `felix gate`
+  runs an `installed` check comparing the tree against the deployed plugin cache,
+  so on any engine-changing branch the local gate is red until the branch is
+  deployed — and deploying is the red-tier act that needs approval first. CI
+  skips the check when no plugin is installed, so a pull request can still go
+  green; only the local gate is affected. It is a plausible reason engine work
+  has always gone straight to `main`.
 
 ## Buildable now
 
@@ -93,10 +109,20 @@ permission model at all.
 
 ## Still unproven
 
-The router has never run against a real session that nobody was watching. Every
-routing decision in the log so far was produced by a verification run, not by
-work. `felix route --promote` cannot help until real prompts have missed the
-table. The same caveat the last handoff made about `risk.tsv` applies to
+~~The router has never run against a real session.~~ **Stale as of 2026-08-10.**
+It has: `routes.log` carries decisions from real Elenchus and Felix worktree
+sessions, and they scored 2 — weak matches — with one prompt scoring 0 and
+matching nothing at all. The table was thin: nine routes naming eight tools
+against fifty-five installed plugins, so `dispatching-parallel-agents` was
+unreachable and an attached PDF never reached the `pdf` skill. Four rows were
+added to each project and verified by routing real sentences through them.
+
+`felix route --promote` still cannot help, for a different reason than assumed:
+it reads the raw JSON envelope. `felix_route_log` stores the prompt verbatim, so
+every miss carries `session_id`, `transcript_path` and every component of the
+transcript path, and `--promote` ranks `users`, `claude` and `a14808` above
+anything a person typed. The scoring path was fixed for this; the write path was
+not. The pollution is already on disk. The same caveat the last handoff made about `risk.tsv` applies to
 `routes.tsv`: it was written in one sitting and is exactly as good as that.
 
 ## The failure mode this project keeps having

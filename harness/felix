@@ -608,13 +608,54 @@ _felix_why() {
 cmd_adopt() {
   resolve_or_die; local proj="$PROJ" cap="${1:-}"
   [ -n "$cap" ] || die "usage: felix adopt <capability>"
+  local tpl="$SCRIPT_DIR/templates"
   touch "$proj/capabilities"
   if grep -qxF "$cap" "$proj/capabilities" 2>/dev/null; then
     printf '%s already declared\n' "$cap"; return 0
   fi
   printf '%s\n' "$cap" >> "$proj/capabilities"
   printf 'declared %s for %s\n' "$cap" "$(basename "$proj")"
-  printf 'commit %s in the Felix repo to make it durable.\n' "$proj/capabilities"
+
+  # Backfill from the catalogue.
+  #
+  # Recording the capability and stopping was the whole bug: a project that grew
+  # CI was told it had CI and never told what CI implies. Detection would keep
+  # reporting the surface as handled while the tooling and the human steps it
+  # needs stayed invisible, which is worse than not detecting it, because the
+  # checklist looks complete.
+  # Create the manifests if this project never had them. Skipping backfill
+  # because a file is missing would leave the capability recorded and its
+  # consequences invisible, which is the exact failure being fixed.
+  local added_stack=0 added_setup=0
+  mkdir -p "$proj/setup"
+  [ -f "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\n' > "$proj/stack.tsv"
+  [ -f "$proj/setup.tsv" ] || printf '# id\ttitle\tcapability\tcheck\n' > "$proj/setup.tsv"
+  if [ -f "$tpl/catalog.tsv" ]; then
+    while IFS=$'\t' read -r k n src r c; do
+      [ "${c:-}" = "$cap" ] || continue
+      grep -qF "	$n	" "$proj/stack.tsv" 2>/dev/null && continue
+      printf '%s\t%s\t%s\t%s\t%s\n' "$k" "$n" "$src" "$r" "$c" >> "$proj/stack.tsv"
+      added_stack=$((added_stack+1))
+    done < <(grep -vE '^\s*(#|$)' "$tpl/catalog.tsv")
+  fi
+  if [ -f "$tpl/setup.tsv" ]; then
+    local slug; slug="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
+    while IFS=$'\t' read -r id title c chk; do
+      [ "${c:-}" = "$cap" ] || continue
+      grep -qE "^$id	" "$proj/setup.tsv" 2>/dev/null && continue
+      printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}" >> "$proj/setup.tsv"
+      [ -f "$tpl/setup/$id.md" ] && \
+        sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md" > "$proj/setup/$id.md"
+      added_setup=$((added_setup+1))
+    done < <(grep -vE '^\s*(#|$)' "$tpl/setup.tsv")
+  fi
+
+  if [ "$added_stack" -gt 0 ] || [ "$added_setup" -gt 0 ]; then
+    printf 'backfilled %s tooling row(s) and %s human step(s) that %s implies.\n' \
+      "$added_stack" "$added_setup" "$cap"
+    printf 'review with: felix stack plan   and   felix setup\n'
+  fi
+  printf 'commit %s in the Felix repo to make it durable.\n' "$proj"
 }
 
 case "${1:-help}" in

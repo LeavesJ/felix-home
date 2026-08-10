@@ -171,7 +171,24 @@ has "adding a Dockerfile surfaces deploy" "$out" "deploy"
 out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"; rc=$?
 is "doctor exits 0 despite drift" "$rc" "0"
 
-( cd "$REPO" && "$FELIX" adopt observability >/dev/null )
+# Adopting must also pull in what the capability implies. Recording it and
+# stopping was the original bug: the checklist looked complete while the tooling
+# and human steps stayed invisible.
+cp "$REAL_HARNESS/templates/setup.tsv" /dev/null 2>/dev/null || true
+before_stack="$(cat "$FROOT/projects/widget/stack.tsv" 2>/dev/null | wc -l)"
+before_setup="$(cat "$FROOT/projects/widget/setup.tsv" 2>/dev/null | wc -l)"
+out="$(cd "$REPO" && "$FELIX" adopt observability 2>&1)"
+has "adopting reports the backfill" "$out" "backfilled"
+after_stack="$(cat "$FROOT/projects/widget/stack.tsv" 2>/dev/null | wc -l)"
+after_setup="$(cat "$FROOT/projects/widget/setup.tsv" 2>/dev/null | wc -l)"
+[ "$after_stack" -gt "$before_stack" ] && ok "backfilled the tooling the capability implies" \
+                                       || bad "backfilled the tooling the capability implies" "stack.tsv unchanged"
+[ "$after_setup" -gt "$before_setup" ] && ok "backfilled the human steps it implies" \
+                                       || bad "backfilled the human steps it implies" "setup.tsv unchanged"
+[ -f "$FROOT/projects/widget/setup/sentry.md" ] && ok "copied the runbook it implies" \
+                                                || bad "copied the runbook it implies"
+out="$(cd "$REPO" && "$FELIX" adopt observability 2>&1)"
+has "adopting twice is a no-op" "$out" "already declared"
 out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"
 case "$out" in
   *"undeclared:   deploy"*) ok "adopting removes it from drift" ;;

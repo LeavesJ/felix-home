@@ -11,7 +11,7 @@ red	path	prisma/migrations/	schema migration
 red	path	^\.github/workflows/	CI can read every secret in the repository
 red	path	(^|/)\.claude/settings(\.local)?\.json$	agent permission policy
 red	path	\.(tf|tfvars)$	infrastructure as code
-red	path	(^|/)(billing|payments?|stripe|refund|payout|tax)(/|\.|_|$)	money movement
+red	path	(^|/)(billing|payments?|checkout|cart|invoice|subscription|pricing|stripe|refund|payout|tax)(/|\.|_|$)	money movement
 red	path	(^|/)(secrets?|vault)(/|\.|$)	secret material
 # Coarse backstop only. A real secret scanner belongs in the gate, where it
 # blocks outright: a leaked credential is not a change someone should be
@@ -22,6 +22,7 @@ yellow	path	^(package|package-lock)\.json$	dependency change
 yellow	path	^(pyproject\.toml|requirements.*\.txt|Cargo\.toml|go\.mod)$	dependency change
 yellow	path	\.(sql|graphql|proto)$	interface or schema
 yellow	path	^\.gitignore$	changes what the repository tracks
+green	path	(^|/)\.felix$	Felix's own project marker
 green	path	\.(md|markdown|rst|txt)$	documentation
 green	path	^(docs|documentation)/	documentation
 green	path	^tests?/	test-only change

@@ -16,3 +16,4 @@ plugin	code-review@claude-plugins-official	-	low	always
 plugin	code-simplifier@claude-plugins-official	-	low	always
 plugin	security-guidance@claude-plugins-official	-	low	always
 plugin	claude-md-management@claude-plugins-official	-	low	always
+plugin	semgrep@claude-plugins-official	-	high	always

@@ -4,6 +4,13 @@
 # Nothing language-specific lives here. A row that only makes sense for one
 # ecosystem belongs in that project's stack.tsv, not in everyone's default.
 #
+# semgrep is risk=high despite being a security tool, and the reason is the
+# rule rather than the vendor: it ships five hooks and an MCP server, all of
+# which run a precompiled binary on every Write, Edit and Bash. That is real
+# code executing on your machine every session, and "ships hooks" is high by
+# this catalogue's own standard whoever wrote them. Felix recommends it loudly
+# and refuses to mount it unattended. A person installs this one.
+#
 # The sixth column is free-text keywords, used only by felix recommend --want.
 # kind	name	source	risk	capability
 marketplace	claude-plugins-official	anthropics/claude-plugins-official	low	always
@@ -19,4 +26,5 @@ plugin	playwright@claude-plugins-official	-	low	e2e	browser e2e end-to-end testi
 plugin	supabase@supabase-community-supabase-plugin	-	medium	database	database postgres sql schema migrations
 plugin	github@claude-plugins-official	-	high	ci	github issues pr repository actions
 plugin	stripe@claude-plugins-official	-	high	billing	billing payments subscriptions invoices money
+plugin	semgrep@claude-plugins-official	-	high	always	security sast vulnerability scanning static analysis
 mcp	sentry	https://mcp.sentry.dev/mcp	high	observability	errors observability monitoring incidents telemetry

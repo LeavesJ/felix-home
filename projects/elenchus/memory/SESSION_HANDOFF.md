@@ -1,3 +1,99 @@
+# Elenchus — Session Handoff (2026-08-10, gate arc)
+
+Private, local-only (`docs/` is a symlink into the Felix governance repo — L-26).
+**Read this, then `docs/DEVLOG.md` (top entry).**
+
+## ▶ THE STATE IN ONE LINE
+
+Branch `claude/elenchus-development-e4d54e` @ `adf997d`, **18 commits ahead of `main` @ `aa950bf`,
+PUSHED to origin, NOT merged.** Suite **1282 passed / 31 skipped**, `felix gate` pass (exit 0),
+`prepush.sh` 10/10 unpiped. Live db migrated and idempotent; release check PASS on both arms.
+
+## 🛑 DO NOT MERGE. FOUR ADVERSARIAL PASSES, FOUR INSTANCES OF ONE ERROR.
+
+Not four bugs. **One conceptual error made four times, twice by the code written to fix it.** Round
+three's defect was introduced by round two's fix; round four's was the same error on both remaining
+sides of the line round three fixed.
+
+> **Never infer ownership from membership in an aggregate unless EVERY member of that aggregate is
+> capable of producing the value being migrated.**
+
+That is now the doctrine header in `tests/test_ledger_ref_identity.py` and is restated in
+`ledger_ref_migration.py`. It is the durable artifact of this arc — more than any test case.
+
+**The tests kept encoding the bug they existed to catch.** The round-3 guard exercised only the case
+where the wrong predicate gives the right answer. The round-4 property varied the frame-MEMBERSHIP
+axis while its fixture seeded EVERY frame as an author, so membership and authorship were identical
+in every case it could generate. The property now varies authorship explicitly and is
+**mutation-verified against all four historical variants**.
+
+## ⚠️ WHAT MERGE STILL NEEDS
+
+The founder's threshold, from the round-four brief:
+
+```
+zero blocker/severe · zero durable-state correctness findings
+zero identity/provenance ambiguity that was silently guessed
+green migration from pristine production backup · green fresh database
+idempotent rerun · green unpiped prepush
+```
+
+Everything on that list is green **except the adversarial item**: round four's fixes are the only
+ones never checked by an independent pass. **A fifth pass against `adf997d` is the remaining gate.**
+Prior four passes each found a blocker my own happy-path verification missed, so this is not ritual.
+
+A green `felix gate` says the suite and the guards are satisfied. It says nothing about whether a
+fifth pass finds a fifth instance.
+
+## 🩹 KNOWN AND NOT FIXED, all named rather than left silent
+
+* **`record_outcome` with duplicate `(sitting_id, ref, converged_at)` rows**: only the FIRST can ever
+  receive an outcome now that the write is bounded. Strictly better than stamping one fate onto two
+  memories, but it is data-loss-shaped. The real fix is a unique constraint on that tuple, which is
+  durable-schema work.
+* **`_pending_expectation` is unbounded** — one entry per convergence, evicted only on a write
+  attempt or TTL expiry, never on close/skip/reload.
+* **A browser reload loses an unanswered forecast** while the server keeps the token writable until
+  the 15-minute TTL.
+* **`next_pick_ref_left_closed: 2`** on the live db. Proven unreachable (closed is terminal, resume
+  reads the live sitting only), left and counted rather than guessed.
+* The full **read-at-boot / mutate-at-seed split** for `cli.build_store` is deliberately deferred:
+  30+ call sites, and every web test constructs a `SessionRegistry` over a fresh db.
+
+## ▶ FOUNDER DECISIONS STILL OPEN
+
+1. **Merge, after pass five.**
+2. **Track `scripts/gate.sh` and `prepush.sh`?** Both are UNTRACKED, so a fresh clone has neither the
+   mechanical gate nor the pre-push guard. T3 — it changes what the public repo contains. This came
+   up in every adversarial round.
+3. **`why_owned` / `unlabeled` on `veldra:midrollout_contract_boundary`** are migration-authored from
+   the rubric and flagged as not EXECLOG-sourced. Replace when convenient.
+4. **The next engine experiment**: does one stress re-probe after within-sitting closure predict
+   later unprompted transfer? Prerequisites now exist (stable problem identity, valid breadth
+   accounting, the unused `stress` path, cross-problem transfer state). Two caveats recorded: the
+   historical breadth entries were written under the collision and migrated by exact attribution, so
+   the baseline has a seam at this commit; and far transfer is an authoring problem — five
+   experiences, one posture, no level-3 content.
+5. Queue items 3, 4 and 6 from the older banner remain founder-gated (copy, copy, product decision).
+
+## ▶ HOW TO PICK THIS UP
+
+```
+cd ~/Documents/Elenchus/.claude/worktrees/elenchus-development-e4d54e
+felix gate                    # the real gate; scripts/gate.sh alone misses the `secret` check
+PYTHONPATH=src .venv/bin/python -m pytest -q
+```
+
+Two lessons this arc paid for, beyond the doctrine above:
+
+* **Use `Edit`, not `sed` or string-replace scripts, on anything whose correctness matters.** A
+  session ended with an unexplained gap between the migration's logic and its output; the cause was
+  the replace scripts, not the code, and re-applying the identical fix precisely worked first try.
+* **Never pipe a guard into `tail`.** It masks the exit status and `&&` then sees success. That is
+  L-23's exact shape and it put a push through a failing `prepush.sh`.
+
+*(prior banner below)*
+
 # Elenchus — Session Handoff (2026-08-05, gate)
 
 Private, local-only (`docs/` untracked by design — L-26).

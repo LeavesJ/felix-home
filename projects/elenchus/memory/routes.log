@@ -18,3 +18,10 @@
 2026-08-10T07:55:38Z	frontend	4	{"session_id":"demo","transcript_path":"/tmp/demo-transcript.jsonl","prompt":"the results page layout breaks on mobile"}
 2026-08-10T07:55:39Z	frontend	4	{"session_id":"demo","transcript_path":"/tmp/demo-transcript.jsonl","prompt":"keep going on the results page layout"}
 2026-08-10T07:55:39Z	frontend	4	{"session_id":"demo","transcript_path":"/tmp/demo-transcript.jsonl","prompt":"keep going on the results page layout"}
+2026-08-10T10:17:47Z	frontend	4	{"session_id":"say-demo","transcript_path":"/tmp/none","prompt":"the results page layout breaks on mobile"}
+2026-08-10T10:17:48Z	probe	10	{"session_id":"say-demo","transcript_path":"/tmp/none","prompt":"the permutation test is landing every payload in the wrong cell"}
+2026-08-10T10:20:21Z	frontend	4	{"session_id":"demo2","transcript_path":"/tmp/none","prompt":"the results page layout breaks on mobile"}
+2026-08-10T10:20:22Z	probe	10	{"session_id":"demo2","transcript_path":"/tmp/none","prompt":"the permutation test is landing every payload in the wrong cell"}
+2026-08-10T10:20:23Z	incident	2	{"session_id":"demo2","transcript_path":"/tmp/none","prompt":"production is paging, the assessment API is down"}
+2026-08-10T18:56:14Z	model	2	{"session_id":"b34da8dd-d9bf-488e-b1b8-b62a2b42029a","transcript_path":"/Users/a14808/.claude/projects/-Users-a14808-Documents-Elenchus--claude-worktrees-elench
+2026-08-10T19:09:09Z	model	2	{"session_id":"b34da8dd-d9bf-488e-b1b8-b62a2b42029a","transcript_path":"/Users/a14808/.claude/projects/-Users-a14808-Documents-Elenchus--claude-worktrees-elench

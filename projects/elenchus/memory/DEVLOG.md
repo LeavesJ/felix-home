@@ -1,5 +1,104 @@
 # Elenchus — DEVLOG
 
+## 2026-08-10 (gate arc) — FOUR ADVERSARIAL PASSES, FOUR INSTANCES OF ONE ERROR, AND THE THIRD WAS INTRODUCED BY THE SECOND
+
+Eight commits, `84d50dd` through `adf997d`. Suite **1245 -> 1282**, `felix gate` pass, prepush 10/10
+unpiped. Branch pushed, still unmerged.
+
+**The single fact worth carrying: rounds one through four each found the same class of defect, and
+each round's fix contained the next instance.** Not four different bugs. One conceptual error, made
+four times, twice by the code written to fix it.
+
+> **Never infer ownership from membership in an aggregate unless EVERY member of that aggregate is
+> capable of producing the value being migrated.**
+
+That sentence is now the header of `tests/test_ledger_ref_identity.py`'s doctrine section and is
+restated in `ledger_ref_migration.py`. It generalises past this migration to any durable-state
+migration, which is why it is written down rather than left as four test cases.
+
+### The four instances
+
+1. **Round 1** — the migration rewrote four of ELEVEN identity columns holding `ledger_ref`, keying
+   each on the old ref alone. It left `web_converged.ref`, so a real `license_continuity`
+   convergence kept the old ref and `_memory_situation` fell back to the OTHER problem's prompt. That
+   row had been correct before the split. It also left `selection_log.chosen_problem`, producing an
+   `outcome='accepted'` row whose two halves named different owned problems.
+2. **Round 2** — `record_json.house_refs` guarded at the RECORD grain when it is
+   `convergence_order(converged_log())`, a cumulative CROSS-EXPERIENCE array whose every element
+   belongs to a different convergence. `web_domain_slot` gated on who CONVERGED the ref when
+   `member_refs` comes from `breadth`, written on ENGAGEMENT.
+3. **Round 3** — `keeps_old = frames - MOVED_FRAMES`. Membership in a connected-component union read
+   as authorship, when most members cannot author the value at all.
+4. **Round 4** — the same error on BOTH remaining sides: `frames & KEPT_FRAMES` and the
+   `frames & MOVED_FRAMES` gate one line above it.
+
+**The fix, finally.** `member_frames_json` cannot answer the ownership question at all: the slot row
+never records which frame contributed which ref. The authorized evidence is `frames.breadth_json`
+per `frame_code`, hoisted before the frames UPDATE rewrites it. `state.update_state` only ever does
+`breadth.add(ledger_ref)` for the SERVED experience and no path removes from breadth, so a frame
+holds `OLD_REF` if and only if it was served under it. A slot no member of which authored the ref is
+now left alone rather than rewritten.
+
+### The tests kept encoding the bug they existed to catch
+
+This is the part worth remembering. Each round's guard was written by the same reasoning that
+produced the defect:
+
+* The round-3 test exercised only the slot whose extra frame IS `embed_credentials_as_a_list` -- the
+  single case where the wrong predicate gives the right answer.
+* The round-4 property test varied the frame-MEMBERSHIP axis while its fixture seeded EVERY frame as
+  an author, so membership and authorship were identical in every case it generated.
+
+`_production_db` now takes the authorship set explicitly, and it is a REQUIRED argument on the slot
+helper. The property is: adding a frame that never held `OLD_REF` must not change its treatment.
+**Verified by mutation to catch all four historical variants.**
+
+### Durable-state correctness fixed along the way
+
+* **A blank outcome was destroying learner history.** `record_outcome` overwrites in place by
+  design, so a whitespace write replaced a real recorded outcome and flipped its fate tag. Measured:
+  `'the buyer walked and we lost the quarter'` -> `'   '` / `'held'`. Rejected before any write.
+  I had filed this as a moderate papercut; the founder corrected the severity and was right --
+  sorting by where the user notices it rather than what it does to the record is the wrong axis for
+  anything that writes durable history.
+* **Both writes bounded to one row** via a rowid subquery, raising on >1. `(sitting_id, ref,
+  converged_at)` has no unique constraint, so a broad UPDATE could stamp one fate onto two memories
+  the learner committed to separately.
+* **Forecast tokens expire 15 minutes after convergence**, enforced in SQL against the persisted
+  `converged_at`. A lapsed window gets its own message; nothing rehydrates across a restart.
+* **`_pending_expectation` keyed by an opaque per-convergence token**, not by session -- `app.py`
+  pins every request to one `_SID`, so it was a single slot for the whole server and a second
+  convergence stole the first's ask.
+* **The outcome client had the race the forecast client was fixed for.** `memIndex` was assigned
+  synchronously in `openMemory` while the panel still showed the previous memory, so a fate click
+  mid-round-trip posted the old block's text under the new index; the drift guard passed because the
+  index was self-consistent. The global is gone and the index is bound into the block. Proven
+  against a DOM shim driving the exact race.
+
+### Ambiguity is counted, never guessed
+
+`house_refs_undiscriminated` and `next_pick_ref_left_closed` join the counts. A nonzero value is the
+migration correctly declining to guess and wants human review; it is not a failure. A silent skip
+reported as zero is how round one went wrong.
+
+### Process notes, both mine
+
+* I piped `prepush.sh` into `tail`, which masked its exit status, so `&&` saw success and I pushed
+  against a failing guard. Content was clean (the guard fired on the identifier `token`), but it is
+  the exact L-23 shape. The guard's secret pattern was then narrowed to distinguish credential
+  VALUES from identifier syntax, with a `--self-test` carrying six positives and eight negatives.
+* One session ended with an unexplained discrepancy between the migration's logic and its output,
+  and I reverted rather than ship a durable-state migration I could not explain. The cause was my
+  own string-replace scripts, not the code: re-applying the identical fix with precise edits worked
+  first try. Use `Edit`, not `sed`, on anything whose correctness matters.
+
+### Merge status
+
+**NOT MERGED, and not merge-ready.** Round four's fixes are the only ones never checked by an
+independent pass. Four rounds found four instances of one class; a green gate says the suite and the
+guards are satisfied, not that a fifth pass would find nothing. See the handoff for the founder's
+merge threshold and what remains.
+
 ## 2026-08-05 (repair) — THE MIGRATION MOVED FOUR COLUMNS AND THERE WERE ELEVEN
 
 Suite **1258 -> 1262**, gate green. An adversarial merge-verification pass (four executing agents,

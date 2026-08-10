@@ -130,9 +130,18 @@ cmd_install() {
     return 1
   }
 
-  claude plugin marketplace add "$FELIX_ROOT" >/dev/null 2>&1 \
-    && printf '  marketplace registered\n' \
-    || printf '  marketplace already registered\n'
+  if claude plugin marketplace add "$FELIX_ROOT" >/dev/null 2>&1; then
+    printf '  marketplace registered\n'
+  else
+    # Adding an already-registered marketplace is a no-op that does not re-read
+    # the manifest, so the CLI keeps offering the version it saw first and the
+    # update below finds nothing newer. For a marketplace backed by a local
+    # directory — which is every Felix install — this refresh is the step that
+    # makes a new version visible at all.
+    claude plugin marketplace update felix >/dev/null 2>&1 \
+      && printf '  marketplace refreshed\n' \
+      || printf '  marketplace already registered\n'
+  fi
   if claude plugin install felix@felix --scope user >/dev/null 2>&1; then
     printf '  plugin installed\n'
   else

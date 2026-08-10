@@ -12,6 +12,18 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/harness/hooks/user-prompt\"",
+            "shell": "bash",
+            "async": false
+          }
+        ]
+      }
     ]
   }
 }

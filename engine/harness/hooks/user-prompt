@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# UserPromptSubmit hook: mount the lessons that apply to what was just asked.
+#
+# This event is the last moment before the agent plans, which makes it the real
+# "before implementation" boundary. PostToolUse is too late to prevent anything
+# and PreToolUse is not a confirmed carrier of additionalContext in this version,
+# so this is both the earliest and the most reliable mount available.
+#
+# The prompt arrives as JSON on stdin. It is tokenised whole rather than parsed:
+# a few extra field names cost nothing in a keyword match, and a hand-rolled JSON
+# parser would break on the first prompt containing a quote, which is the sort of
+# failure that silently stops mounting anything.
+#
+# Silent and exit 0 whenever there is nothing to say. A hook that speaks every
+# turn is a hook people learn to skim.
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENGINE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+. "${SCRIPT_DIR}/../lib/resolve.sh"
+. "${SCRIPT_DIR}/../lib/lessons.sh"
+
+FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
+PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
+[ -n "$PROJ" ] || exit 0
+
+LESSONS="$PROJ/memory/lessons.md"
+[ -s "$LESSONS" ] || exit 0
+
+raw="$(cat 2>/dev/null || true)"
+root="$(felix_repo_root "$PWD")"
+ctx="$(felix_lessons_context "$root" "$raw")"
+matched="$(felix_lessons_for "$LESSONS" "$ctx")"
+[ -n "$matched" ] || exit 0
+
+body="Lessons this project already paid for, matched to what you are about to do.
+Not advice: these were written down because they were learned the hard way.
+
+$(printf '%s\n' "$matched" | sed 's/^/  /')
+
+The rest are in ${LESSONS}."
+
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"; s="${s//$'\r'/\\r}"; s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "UserPromptSubmit",\n    "additionalContext": "%s"\n  }\n}\n' \
+  "$(escape_for_json "$body")"
+exit 0

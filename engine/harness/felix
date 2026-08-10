@@ -23,6 +23,7 @@
 #   felix log "<text>"    record a devlog entry, stamped with branch and commit
 #   felix lesson "<text>" record something durable enough to repeat
 #   felix handoff        regenerate the handoff from the state of the tree
+#   felix lessons [--for] what this project already learned, matched to context
 #   felix promote        recurring devlog themes not yet in lessons
 #   felix adopt <cap>    declare a capability this project now has
 #   felix new <name>     scaffold a new project
@@ -68,6 +69,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/budget.sh"
 # shellcheck source=lib/unattended.sh
 . "${SCRIPT_DIR}/lib/unattended.sh"
+# shellcheck source=lib/lessons.sh
+. "${SCRIPT_DIR}/lib/lessons.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -1103,6 +1106,28 @@ cmd_handoff() {
   printf '  [ ] commit the project directory in Felix so this survives the machine\n'
 }
 
+
+cmd_lessons() {
+  resolve_or_die; local proj="$PROJ" want=""
+  while [ $# -gt 0 ]; do
+    case "$1" in --for) want="${2:-}"; shift 2 ;; *) want="$want $1"; shift ;; esac
+  done
+  local file="$proj/memory/lessons.md"
+  [ -s "$file" ] || die "no lessons recorded yet for $(basename "$proj")"
+  local root; root="$(felix_repo_root "$PWD")"
+
+  local always; always="$(felix_lessons_always "$file")"
+  if [ -n "$always" ]; then
+    printf 'always\n\n'; printf '%s\n' "$always" | sed 's/^/  /'; printf '\n'
+  fi
+  local matched; matched="$(felix_lessons_for "$file" "$(felix_lessons_context "$root" "$want")" 8)"
+  if [ -n "$matched" ]; then
+    printf 'matched to this change\n\n'; printf '%s\n' "$matched" | sed 's/^/  /'
+  else
+    printf 'nothing matched this context. All of them: %s\n' "$file"
+  fi
+}
+
 cmd_promote() {
   resolve_or_die; local proj="$PROJ"
   local mistakes; mistakes="$(felix_mem_recurring_mistakes "$proj")"
@@ -1171,6 +1196,7 @@ case "${1:-help}" in
   lesson)  shift; cmd_lesson "$@" ;;
   handoff) shift; cmd_handoff "$@" ;;
   promote) shift; cmd_promote "$@" ;;
+  lessons) shift; cmd_lessons "$@" ;;
   setup)  shift; cmd_setup "$@" ;;
   bootstrap) shift; cmd_bootstrap "$@" ;;
   repair)   shift; cmd_repair "$@" ;;

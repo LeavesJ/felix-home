@@ -767,6 +767,59 @@ case "$(cat "$CDIR/CLAUDE.md")" in
   *) ok "no placeholder telling someone to write it" ;;
 esac
 
+printf '\nlessons are mounted, not offered\n'
+cat > "$FROOT/projects/widget/memory/lessons.md" <<'LES'
+# widget lessons
+
+## Checklist
+1. run the gate
+2. update the devlog
+
+## Seeded principles
+- **L-1 Migrations need a rollback path.** Long evidence about a migration that
+  went wrong, with detail nobody needs mounted on every single turn.
+- **L-2 Browser tests belong on critical flows.** More evidence, equally long,
+  equally irrelevant until someone is actually touching the browser layer.
+LES
+
+out="$(cd "$REPO" && "$FELIX" lessons --for "changing a migration" 2>&1)"
+has "matches the relevant lesson"   "$out" "L-1"
+case "$out" in *"L-2"*) bad "and not the irrelevant one" "$out" ;; *) ok "and not the irrelevant one" ;; esac
+has "the always-applicable part is shown" "$out" "run the gate"
+
+# The evidence is why a lesson is believed; the claim is what needs mounting.
+# Injecting the evidence every turn is how a helpful injection becomes ignored.
+case "$out" in
+  *"Long evidence about"*) bad "only the claim is mounted, not the evidence" "$out" ;;
+  *) ok "only the claim is mounted, not the evidence" ;;
+esac
+
+out="$(cd "$REPO" && "$FELIX" lessons --for "unrelated quantum teleportation" 2>&1)"
+has "an unrelated context matches nothing" "$out" "nothing matched"
+
+printf '\nthe prompt hook\n'
+HK="$FROOT/harness/hooks/user-prompt"
+out="$(cd "$REPO" && printf '{"prompt":"fix the migration rollback"}' | "$HK" 2>&1)"
+case "$out" in
+  *'"hookSpecificOutput"'*) ok "emits the documented UserPromptSubmit shape" ;;
+  *) bad "emits the documented UserPromptSubmit shape" "$out" ;;
+esac
+ctx="$(printf '%s' "$out" | python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' 2>&1)"
+has "carries the matched lesson" "$ctx" "L-1"
+# Bounded. A hook that floods the turn is a hook people learn to skim past.
+lines="$(printf '%s\n' "$ctx" | wc -l | tr -d ' ')"
+[ "$lines" -le 20 ] && ok "and stays small ($lines lines)" \
+                    || bad "and stays small" "$lines lines is too much for every turn"
+
+out="$(cd "$PLAIN" && printf '{"prompt":"anything"}' | "$HK" 2>&1)"; rc=$?
+is "silent in an ungoverned repo" "${#out}" "0"
+is "and exits 0 there"            "$rc" "0"
+
+mv "$FROOT/projects/widget/memory/lessons.md" "$TMP/lessons.bak"
+out="$(cd "$REPO" && printf '{"prompt":"fix the migration"}' | "$HK" 2>&1)"
+is "silent when a project has no lessons yet" "${#out}" "0"
+mv "$TMP/lessons.bak" "$FROOT/projects/widget/memory/lessons.md"
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes

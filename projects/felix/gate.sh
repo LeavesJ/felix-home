@@ -55,6 +55,26 @@ else
   printf '                     full log: /tmp/felix-gate-tests.log\n'
 fi
 
+# ------------------------------------------------------------- installed -----
+# Written is not installed. The lessons hook existed in the repository, passed
+# its tests, and was absent from the plugin cache, so it ran nowhere. A harness
+# change that is not deployed governs nothing, and nothing else would have said
+# so.
+#
+# Skipped when no plugin is installed, which is the normal state in CI.
+PLUG="$(find "$HOME/.claude/plugins/cache/felix" -maxdepth 3 -type d -name harness 2>/dev/null | head -1)"
+if [ -n "$PLUG" ] && [ -d "$PLUG" ]; then
+  if diff -rq engine/harness "$PLUG" >/tmp/felix-install-drift.log 2>&1; then
+    pass installed
+  else
+    fail installed
+    head -5 /tmp/felix-install-drift.log | sed 's/^/    /'
+    printf '    reinstall with: felix install\n'
+  fi
+else
+  printf '  %-18s skipped (no plugin installed here)\n' installed
+fi
+
 # ------------------------------------------------------------- secret --------
 if [ -x engine/harness/bin/secret-scan ]; then
   if OUT="$(engine/harness/bin/secret-scan 2>&1)"; then pass secret

@@ -1139,6 +1139,40 @@ case "$toks" in
   *) ok "but the field names themselves are gone" ;;
 esac
 
+# The keys were the half that got fixed. The VALUES are still in the stream, and
+# they are worse: transcript_path and cwd carry the whole checkout path, so a
+# home directory called Documents or a worktree branch named ...-review-... puts
+# those words in as if they had been typed — at double weight, which is the
+# score reserved for what you actually said. Found by watching `continue` route
+# to a document skill.
+out="$(cd "$REPO" && printf '{"session_id":"s","transcript_path":"/home/u/migration-schema-endpoint/a.jsonl","cwd":"/home/u/queue-worker","prompt":"the button layout is wrong"}' \
+       | "$FROOT/harness/hooks/user-prompt" 2>&1)"
+case "$out" in
+  *backend*) bad "a path in the envelope does not decide the route" "$out" ;;
+  *) ok "a path in the envelope does not decide the route" ;;
+esac
+# Asserted on tokens, not on the hook's output: the hook announces only when the
+# route changes, so a presence check there passes or fails on prior state rather
+# than on the thing being tested.
+toks="$( . "$FROOT/harness/lib/route.sh"
+         felix_route_tokens '{"transcript_path":"/home/u/migration-schema-endpoint/a.jsonl","prompt":"the button layout is wrong"}' | tr '\n' ' ' )"
+has "and what was typed still counts" "$toks" "layout"
+case "$toks" in
+  *migration*|*endpoint*) bad "while the path around it does not" "$toks" ;;
+  *) ok "while the path around it does not" ;;
+esac
+
+toks="$( . "$FROOT/harness/lib/route.sh"
+         felix_route_tokens '{"transcript_path":"/home/u/documents-felix/a.jsonl","prompt":"continue"}' | tr '\n' ' ' )"
+case "$toks" in
+  *documents*|*jsonl*) bad "envelope path values are gone from the tokens" "$toks" ;;
+  *) ok "envelope path values are gone from the tokens" ;;
+esac
+# A path the person actually typed is theirs, and must still route.
+toks="$( . "$FROOT/harness/lib/route.sh"
+         felix_route_tokens '{"prompt":"fix src/queue/worker.py"}' | tr '\n' ' ' )"
+has "a path you typed yourself still counts" "$toks" "worker"
+
 # The tree may corroborate, never outvote. Without a cap, a checkout carrying a
 # few hundred untracked path tokens drowns out the four words you typed.
 mkdir -p "$REPO/noise"

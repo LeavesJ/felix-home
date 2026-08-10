@@ -63,8 +63,24 @@ _felix_route_rows() {
 # followed by a colon, which no sentence contains, and stripping those leaves
 # every real word usable — including the ones that happen to share a name with
 # a field.
+# Stripping the keys was half the job, and the half that showed. The VALUES the
+# runtime fills in are still machine-generated text nobody typed: transcript_path
+# and cwd carry the entire checkout path, so a home directory named Documents put
+# "documents" into every prompt, and a branch named ...-review-... put "review"
+# there too — both at the double weight reserved for what you actually said. The
+# word `continue` routed to a document skill, and the score was a clean 2 typed.
+#
+# So the pairs are removed whole, key and value together, for the fields the
+# runtime owns. `prompt` is deliberately not among them: its value is the one
+# thing in the envelope a person did type. A path typed inside the prompt still
+# counts, because that is a word you chose.
+_felix_envelope_strip() {
+  sed -E 's/"(session_id|transcript_path|cwd|permission_mode|hook_event_name|session_title|source|model|version)"[[:space:]]*:[[:space:]]*("[^"]*"|[^,}]*)/ /g'
+}
+
 felix_route_tokens() {
   printf '%s' "$1" \
+    | _felix_envelope_strip \
     | sed 's/"[A-Za-z_][A-Za-z0-9_]*"[[:space:]]*:/ /g' \
     | tr '[:upper:]' '[:lower:]' \
     | tr -cs 'a-z0-9_-' '\n' \
@@ -281,7 +297,7 @@ felix_route_log() {
   [ -d "$proj/memory" ] || return 0
   printf '%s\t%s\t%s\t%s\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${name:--}" "${score:-0}" \
-    "$(printf '%s' "$prompt" | tr '\t\n' '  ' | cut -c1-160)" \
+    "$(printf '%s' "$prompt" | _felix_envelope_strip | tr '\t\n' '  ' | cut -c1-160)" \
     >> "$proj/memory/routes.log" 2>/dev/null || true
 }
 

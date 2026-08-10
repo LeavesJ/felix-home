@@ -7,13 +7,23 @@ Phase 1 of the guidebook and nothing past it. Billing, customers, support and
 company administration are later phases owned by other systems; a Stripe row in
 a template is a dormant capability, not a direction Felix grows in.
 
-## What it owns
+## The split
 
-The whole loop, not one box of it: read the project, plan the work, decide what
-kind of work it is and how to execute it, put the right tools in reach, verify,
-classify, ship, repair, and remember. The founder owns product judgment,
-prioritisation, and approval at the risk boundaries. Everything between those
-is Felix's to run.
+**The founder owns what gets built.** Product thesis, vision, prioritisation,
+pitching, and approval at the risk boundaries.
+
+**Felix owns how it gets built, optimally.** Which MCP, which plugin, which
+skill, which agent, in which order, in one context or several. Then the whole
+loop around that choice: read the project, plan the work, arrange the tooling,
+verify, classify, ship, repair, and remember.
+
+If the founder is thinking about tooling, Felix has failed at its job.
+
+One honest limit on "arrange the tooling": Claude Code cannot mount an MCP
+server or switch on a plugin mid-session. Within a session Felix names what to
+reach for; between sessions it writes the configuration so the next one boots
+with the toolbox this work actually needs. Naming is the fallback, not the
+design.
 
 This is written down because the opposite was written down first. Felix called
 itself "the governance layer" and built a complete vocabulary for saying no —

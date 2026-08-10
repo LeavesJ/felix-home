@@ -126,6 +126,21 @@ with a record, not a substitute for running it.
   the only one worth acting on. The same shape will recur anywhere Felix
   measures something it also controls.
 
+- **A charter narrower than the intent regenerates the drift every session.**
+  Felix's constitution opened with "the governance layer", and Felix built
+  exactly that: a complete vocabulary for saying no — gate, classify, evidence,
+  quarantine, guard, scope — and not one word for saying "do this next". The
+  guidebook had asked for the whole loop, with governance as one box of
+  fourteen, and for the OS to own implementation planning and execution. Six
+  boxes came out strong; the one at the centre, plan and route and dispatch,
+  was a third built and that third only printed advice.
+  Nothing here was a mistake given the charter, which is why it compounded for
+  weeks instead of surfacing: every session read the sentence, followed it
+  correctly, and reinforced it. The founder noticed, not the gate. A doctrine
+  file is mounted into every session and is therefore the highest-leverage
+  place to be wrong, so when work keeps coming out subtly off-target, suspect
+  the first paragraph of the constitution before suspecting the work.
+
 - **A three-letter term can never be a route keyword.** `felix_route_tokens`
   drops every typed token shorter than four characters, so `pdf`, `api`, `sql`,
   `css` and `ci` are gone before scoring begins. A `document` route keyed on

@@ -8,6 +8,51 @@ For the mechanical state of the tree — branch, head, uncommitted, recent
 commits — see `projects/felix/memory/SESSION_HANDOFF.md`, which `felix handoff`
 regenerates. This file is for the things a command cannot tell you.
 
+## Direction, corrected 2026-08-10
+
+Read this before the tables below. They measure progress against a charter that
+was wrong, so a row can be green and still be pointed the wrong way.
+
+**The split.** The founder owns *what* gets built: thesis, vision,
+prioritisation, pitching, and approval at the risk boundaries. Felix owns *how*
+it gets built, optimally — which MCP, which plugin, which skill, which agent,
+in which order, in one context or several — and the whole loop around that
+choice. If the founder is thinking about tooling, Felix has failed.
+
+**The drift.** Felix's constitution opened with "the governance layer" and Felix
+built exactly that. It has a complete vocabulary for saying no — gate, classify,
+evidence, quarantine, guard, scope — and had none for saying "do this next".
+Against the guidebook's loop (p2), six of fourteen boxes are strong and the one
+at the centre, *plan / route / dispatch subagents*, is a third built with that
+third only printing advice. The p2 ownership table gives the OS "implementation
+planning and execution"; Felix owned none of it. The charter has been rewritten;
+see `projects/felix/CLAUDE.md`.
+
+**Scope.** Phase 1 engineering only. Revenue, customer and company are later
+phases owned by other systems. Stripe rows in the templates are dormant
+capabilities, not a direction.
+
+**What the monitor is for.** Witnessing Felix guide Claude Code, so the founder
+can stop caring about the things it handles. It currently shows records —
+routes defined, verdicts, what Felix said — and never shows whether Claude did
+what Felix named. The compliance signal already exists in `felix_route_due`,
+which reads the transcript to see whether a play step was used. Nothing
+surfaces it. That panel is the one that proves the delegation works.
+
+**Next, in leverage order.**
+
+1. `felix route` upgraded from naming to deciding: tools, execution shape, tier
+   and evidence up front, order, and the configuration the next session boots
+   with. Mounting cannot happen mid-session; writing config between sessions can.
+2. Execution shape. Coupling computed mechanically from shared files, which is a
+   refusal and binds. A model may narrow it and may never widen it.
+3. Convert the pure recommenders: `doctor`, `handoff`, `promote`, `recommend`
+   and `which` print and bind nothing.
+4. `felix next` for the engineering backlog Felix already tracks — maintenance,
+   drift, setup gaps, evidence gaps. Not for product work: that is the founder's.
+5. The issue-to-PR verbs, specced and planned in `docs/2026-08-10-issue-pr-loop-plan.md`.
+   No longer a standalone feature; it is the loop's *branch + PR* box.
+
 ## Exit criteria (guidebook p41)
 
 | Promised | Status | Evidence |

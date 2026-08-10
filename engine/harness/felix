@@ -172,11 +172,25 @@ cmd_gate() {
   # A script Felix stores for the project, or any shell command the project
   # already has. The second form is what lets Felix gate a stack it has never
   # heard of: "npm run verify", "dotnet test", "cargo test", "make check".
+  # Not exec. The process has to survive the gate so a failure can be recorded:
+  # a mistake nobody writes down is one the project gets to make again.
+  local log rc
+  log="$(mktemp)"
   if [ -x "$proj/$gate" ]; then
-    exec "$proj/$gate" "$@"
+    "$proj/$gate" "$@" 2>&1 | tee "$log"; rc=${PIPESTATUS[0]}
   else
-    exec bash -c "$gate \"\$@\"" felix-gate "$@"
+    bash -c "$gate \"\$@\"" felix-gate "$@" 2>&1 | tee "$log"; rc=${PIPESTATUS[0]}
   fi
+  if [ "$rc" -ne 0 ]; then
+    # Which checks failed, if the gate names them. Falls back to the exit status
+    # rather than guessing, because an invented cause is worse than a vague one.
+    local what
+    what="$(grep -oiE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null \
+            | awk '{print $1}' | tr '\n' ' ')"
+    felix_mem_mistake "$proj" "$(felix_repo_root "$PWD")" "${what:-exit-$rc}"
+  fi
+  rm -f "$log"
+  exit "$rc"
 }
 
 cmd_new() {
@@ -237,7 +251,39 @@ EOF
     done
   } > "$dir/setup.tsv"
 
-  printf '# %s\n\nConstitution for %s.\n\nThis is the one file Felix cannot write for you. It holds what is true about\nthis project and nothing else: the invariants, the risk tiers, what a change may\nnot do. Doctrine is the part that has to be earned.\n' "$name" "$name" > "$dir/CLAUDE.md"
+  # A real starting constitution rather than a stub telling someone to write one.
+  #
+  # The mechanical half is derivable and should be: the gate, the capabilities,
+  # the commands. The invariants are not, and asking a founder to invent them on
+  # day one produces either nothing or something copied. So the file says where
+  # they come from instead: the ladder from a caught mistake, to a lesson, to a
+  # rule, which is the guidebook's promotion logic pointed at its own doctrine.
+  {
+    printf '# %s\n\n' "$name"
+    printf 'Governed by Felix. This file is the project constitution: what is true\n'
+    printf 'about %s and nothing else.\n\n' "$name"
+    printf '## Verification\n\n'
+    printf 'Run the gate before claiming anything is done.\n\n'
+    printf '```bash\nfelix gate\n```\n\n'
+    [ -n "$gate" ] && printf 'It runs `%s` in this checkout.\n\n' "$gate"
+    printf '## What this project has\n\n'
+    printf 'Detected at onboarding. `felix doctor` keeps this honest as it changes.\n\n'
+    printf '%s\n' "$caps" | grep -v '^$' | sed 's/^/- /'
+    printf '\n## Invariants\n\n'
+    printf 'Empty on purpose, and not for long.\n\n'
+    printf 'These are the things no linter can catch, and they are earned rather\n'
+    printf 'than invented. The gate records what it catches in `memory/mistakes.log`.\n'
+    printf 'Anything it catches twice shows up in `felix promote`. A mistake that\n'
+    printf 'keeps happening becomes a lesson; a lesson that keeps being violated\n'
+    printf 'has outgrown the lessons file and belongs here, where the gate can see\n'
+    printf 'it.\n\n'
+    printf 'Write them down as they arrive. A constitution invented on day one is\n'
+    printf 'either empty or borrowed.\n\n'
+    printf '## Risk\n\n'
+    printf 'Tiers live in `risk.tsv`, evidence requirements in `evidence.tsv`, both\n'
+    printf 'beside this file. `felix classify` and `felix evidence` read them, and\n'
+    printf 'nothing red is ever touched unattended.\n'
+  } > "$dir/CLAUDE.md"
   : > "$dir/memory/DEVLOG.md"
   : > "$dir/memory/lessons.md"
   : > "$dir/memory/SESSION_HANDOFF.md"
@@ -257,6 +303,13 @@ EOF
   printf '  2. write %s/CLAUDE.md\n' "$dir"
   printf '  3. felix stack plan     then apply --yes\n'
   printf '  4. felix setup          for the steps only you can do\n'
+  printf '\nA starting constitution was written for you at\n%s/CLAUDE.md.\n' "$dir"
+  printf 'To deepen it against the actual codebase, paste into a session:\n\n'
+  printf '  /claude-md-management:claude-md-improver\n'
+  printf '  Audit %s/CLAUDE.md against %s.\n' "$dir" "$root"
+  printf '  Felix already covers verification, capabilities and risk tiers; add\n'
+  printf '  architecture and non-obvious patterns, and leave the invariants alone:\n'
+  printf '  those accrete from felix promote rather than being invented.\n'
 }
 
 
@@ -1052,22 +1105,41 @@ cmd_handoff() {
 
 cmd_promote() {
   resolve_or_die; local proj="$PROJ"
-  [ -f "$proj/memory/DEVLOG.md" ] || die "no devlog yet. start with: felix log \"...\""
-  local hits; hits="$(felix_mem_promotable "$proj")"
-  printf 'recurring in the devlog, absent from the lessons\n\n'
-  if [ -z "$hits" ]; then
-    printf '  nothing recurring yet\n\n'
-    printf 'Either the devlog is young, or nothing has repeated. Both are fine.\n'
-    return 0
+  local mistakes; mistakes="$(felix_mem_recurring_mistakes "$proj")"
+
+  # Mistakes first. A check that keeps failing is a habit, and a habit is what a
+  # lesson is for. Word frequency in a devlog is a weaker signal and belongs
+  # underneath the strong one, not instead of it.
+  printf 'the gate keeps catching\n\n'
+  if [ -z "$mistakes" ]; then
+    printf '  nothing twice yet\n'
+  else
+    printf '%s\n' "$mistakes" | while IFS=$'\t' read -r n term; do
+      [ -n "${n:-}" ] || continue
+      printf '  %-4s %s\n' "$n" "$term"
+    done
+    printf '\nEach of these is a mistake this project has now made more than once.\n'
+    printf 'That is the strongest promotion signal there is: not that something is\n'
+    printf 'interesting, but that it already cost time twice.\n'
   fi
-  printf '%s\n' "$hits" | while IFS=$'\t' read -r n term; do
-    [ -n "${n:-}" ] || continue
-    printf '  %-4s %s\n' "$n" "$term"
-  done
-  printf '\nThis is word frequency, not understanding. A term appearing often may\n'
-  printf 'be a lesson worth writing, or it may be what this project is simply about.\n'
-  printf 'Promote the ones that would change what someone does next time:\n\n'
-  printf '  felix lesson "..."\n'
+
+  if [ -f "$proj/memory/DEVLOG.md" ]; then
+    local hits; hits="$(felix_mem_promotable "$proj")"
+    if [ -n "$hits" ]; then
+      printf '\nrecurring in the devlog, absent from the lessons\n\n'
+      printf '%s\n' "$hits" | head -8 | while IFS=$'\t' read -r n term; do
+        [ -n "${n:-}" ] || continue
+        printf '  %-4s %s\n' "$n" "$term"
+      done
+      printf '\nWord frequency, not understanding. A term appearing often may be a\n'
+      printf 'lesson, or may simply be what this project is about.\n'
+    fi
+  fi
+
+  printf '\nPromote what would change what someone does next time:\n\n'
+  printf '  felix lesson "..."\n\n'
+  printf 'And when a lesson keeps being violated anyway, it has outgrown the\n'
+  printf 'lessons file and belongs in the constitution, where the gate can see it.\n'
 }
 
 cmd_adopt() {

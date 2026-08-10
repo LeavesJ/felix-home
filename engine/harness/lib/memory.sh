@@ -60,6 +60,38 @@ felix_mem_handoff() {
   } > "$proj/memory/SESSION_HANDOFF.md"
 }
 
+# A mistake the gate caught, recorded without anyone deciding it was worth
+# recording. Judgement at write time is the wrong shape: it asks for a decision
+# at the exact moment someone is trying to finish something else, so it does not
+# happen, and the lesson is lost while the file stays tidy.
+#
+# Write cheaply, consolidate on a cadence. The maintenance routine does the
+# curating with the whole file in view, which is when the judgement is actually
+# available.
+felix_mem_mistake() {
+  local proj="$1" root="$2" what="$3"
+  mkdir -p "$proj/memory"
+  printf '%s\t%s\t%s\t%s\n' \
+    "$(date +%Y-%m-%d)" \
+    "$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')" \
+    "$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo '?')" \
+    "$what" >> "$proj/memory/mistakes.log"
+}
+
+# What the gate keeps catching. A far better promotion signal than counting words:
+# a check that fails repeatedly is a habit, and a habit is what a lesson is for.
+felix_mem_recurring_mistakes() {
+  local proj="$1" min="${2:-2}"
+  [ -f "$proj/memory/mistakes.log" ] || return 0
+  cut -f4 "$proj/memory/mistakes.log" 2>/dev/null \
+    | tr ' ' '\n' | grep -v '^$' \
+    | sort | uniq -c | sort -rn \
+    | while read -r n term; do
+        [ "${n:-0}" -ge "$min" ] || break
+        printf '%s\t%s\n' "$n" "$term"
+      done
+}
+
 # Terms recurring across distinct devlog entries and absent from the lessons.
 # Crude frequency counting, stated as such wherever it is printed.
 felix_mem_promotable() {

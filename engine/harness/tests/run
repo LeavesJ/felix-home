@@ -712,6 +712,61 @@ else
   bad "and that path resolves in a real checkout" "generated $resolved, absent from $REAL_ROOT"
 fi
 
+printf '\nmistakes record themselves\n'
+# Judgement at write time is the wrong shape: it asks for a decision at the exact
+# moment someone is trying to finish something else. Write cheaply, curate later.
+MISLOG="$FROOT/projects/widget/memory/mistakes.log"
+rm -f "$MISLOG"
+# A script rather than an inline command: project.json holds no escaped quotes,
+# which its reader documents that it cannot parse, and a gate script is the more
+# common shape anyway.
+cat > "$FROOT/projects/widget/failing-gate.sh" <<'GS'
+#!/usr/bin/env bash
+echo "  lint               FAIL"
+exit 1
+GS
+chmod +x "$FROOT/projects/widget/failing-gate.sh"
+python3 - "$FROOT/projects/widget/project.json" <<'PYJ'
+import json,sys,pathlib
+p=pathlib.Path(sys.argv[1]); d=json.loads(p.read_text())
+d["gate"]="failing-gate.sh"
+p.write_text(json.dumps(d,indent=2))
+PYJ
+( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 ); rc=$?
+is "a failing gate still exits non-zero" "$rc" "1"
+[ -f "$MISLOG" ] && ok "and records the failure without being asked" \
+                 || bad "and records the failure without being asked"
+grep -q 'lint' "$MISLOG" 2>/dev/null \
+  && ok "naming which check failed" || bad "naming which check failed"
+
+( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 )
+out="$(cd "$REPO" && "$FELIX" promote 2>&1)"
+has "twice makes it a promotion candidate" "$out" "the gate keeps catching"
+has "and names the habit"                  "$out" "lint"
+
+# A passing gate must not record anything, or the signal is just a run counter.
+python3 - "$FROOT/projects/widget/project.json" <<'PYJ'
+import json,sys,pathlib
+p=pathlib.Path(sys.argv[1]); d=json.loads(p.read_text())
+d["gate"]="true"; p.write_text(json.dumps(d,indent=2))
+PYJ
+before="$(wc -l < "$MISLOG")"
+( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 )
+is "a passing gate records nothing" "$(wc -l < "$MISLOG")" "$before"
+
+printf '\ngenerated constitution\n'
+CDIR="$FROOT/projects/stranger"
+[ -s "$CDIR/CLAUDE.md" ] && ok "onboarding writes one" || bad "onboarding writes one"
+has "it names the verification command" "$(cat "$CDIR/CLAUDE.md")" "felix gate"
+has "and what was detected"             "$(cat "$CDIR/CLAUDE.md")" "billing"
+# The invariants are the part that cannot be generated, and the file says why
+# rather than pretending or leaving a bare TODO.
+has "invariants say where they come from" "$(cat "$CDIR/CLAUDE.md")" "earned rather"
+case "$(cat "$CDIR/CLAUDE.md")" in
+  *"Replace this"*) bad "no placeholder telling someone to write it" "still a stub" ;;
+  *) ok "no placeholder telling someone to write it" ;;
+esac
+
 printf '\npipefail safety\n'
 # Regression. Every presence check used to be `producer | grep -q x`, which under
 # `set -o pipefail` reports 141 because grep exits on match and the producer takes

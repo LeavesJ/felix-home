@@ -55,6 +55,16 @@ with a record, not a substitute for running it.
   outside the governed repo — true of every project except the one Felix is.
   Test the layout you actually run in, not the convenient one.
 
+- **A lesson written down is not a lesson applied.** This file already carried
+  the pipefail trap — `producer | grep -q x` reports 141 because the consumer
+  exits first and the producer takes SIGPIPE — and it was written in this very
+  repository, by this project, about this exact failure. It happened again
+  anyway, as an `awk` that exited on its first match inside `felix discover`:
+  every candidate resolved to "no source" while the identical call by hand
+  worked perfectly. The rule generalises past grep. **Any** consumer that stops
+  early kills a pipeline under `set -o pipefail`. Read to the end and decide
+  afterwards.
+
 - **A command substitution is a subshell, so it cannot cache anything.** A
   helper memoised which `stat` flavour the platform had, and was called as
   `$(helper "$f")` inside a loop. Every file re-probed, three processes instead

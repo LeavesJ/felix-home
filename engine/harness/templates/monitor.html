@@ -3,153 +3,116 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Felix — what your agent is doing</title>
+<title>Felix — what it is telling Claude</title>
 <style>
 :root{
-  --void:#05080b; --card:rgba(10,20,26,.58); --card-2:rgba(8,15,20,.42);
-  --ice:#7fe9e2; --ice-dim:#3d8a86; --ice-ghost:rgba(127,233,226,.10);
+  --void:#05080b; --panel:rgba(10,20,26,.55); --panel-2:rgba(7,14,19,.35);
+  --ice:#7fe9e2; --ice-dim:#3d8a86; --ice-ghost:rgba(127,233,226,.09);
   --amber:#f2b25c; --jade:#6ee7a5; --crimson:#ff6b7a;
   --bone:#e8f2f2; --ash:#8ba2a4; --ash-dim:#4b5f62;
-  --rule:rgba(127,233,226,.16);
+  --rule:rgba(127,233,226,.15);
   --mono:"SF Mono",SFMono-Regular,Menlo,Monaco,"Courier New",monospace;
   --face:Futura,"Avenir Next Condensed","Avenir Next",Optima,sans-serif;
-  --r:9px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{background:var(--void);color:var(--bone);font-family:var(--mono);font-size:12px;
-  line-height:1.6;overflow:hidden;-webkit-font-smoothing:antialiased}
+body{background:var(--void);color:var(--bone);font-family:var(--mono);font-size:13px;
+  line-height:1.65;overflow:hidden;-webkit-font-smoothing:antialiased}
 .atmo,.grain{position:fixed;inset:0;pointer-events:none;z-index:0}
 .atmo{background:
-  radial-gradient(58vw 58vw at 50% 52%, rgba(28,104,104,.17), transparent 62%),
-  radial-gradient(40vw 40vw at 88% 6%, rgba(120,86,30,.06), transparent 66%)}
-.grain{opacity:.05;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='.6'/></svg>")}
+  radial-gradient(46vw 46vw at 14% 46%, rgba(28,104,104,.20), transparent 62%),
+  radial-gradient(40vw 40vw at 92% 8%, rgba(120,86,30,.05), transparent 64%)}
+.grain{opacity:.045;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='.6'/></svg>")}
 
 .shell{position:relative;z-index:2;height:100vh;display:grid;
-  grid-template-columns:minmax(280px,330px) 1fr minmax(280px,330px);
-  grid-template-rows:auto 1fr auto; gap:16px; padding:18px 22px 0}
-header{grid-column:1/-1;display:flex;align-items:center;gap:16px}
-.mark{font-family:var(--face);font-size:21px;letter-spacing:.44em;color:var(--ice);
-  text-transform:uppercase;line-height:1;padding-left:12px;border-left:3px solid var(--ice);
-  text-shadow:0 0 18px rgba(127,233,226,.40)}
-.mark small{display:block;font-size:8px;letter-spacing:.32em;color:var(--ash-dim);
-  margin-top:5px;padding:0}
+  grid-template-rows:auto auto 1fr auto;padding:16px 24px 0}
+
+header{display:flex;align-items:center;gap:16px;
+  padding-bottom:12px;border-bottom:1px solid var(--rule)}
+.mark{font-family:var(--face);font-size:20px;letter-spacing:.42em;color:var(--ice);
+  text-transform:uppercase;line-height:1;padding-left:11px;border-left:2px solid var(--ice);
+  text-shadow:0 0 20px rgba(127,233,226,.4)}
+.lede{color:var(--ash);font-size:12px}
 header .sp{flex:1}
-.projs{display:flex;gap:6px}
 .pbtn{font-family:var(--face);font-size:10px;letter-spacing:.2em;text-transform:uppercase;
-  padding:6px 14px;background:transparent;border:1px solid var(--rule);color:var(--ash);
-  cursor:pointer;border-radius:var(--r);transition:.18s}
+  padding:6px 13px;background:transparent;border:1px solid var(--rule);color:var(--ash);
+  cursor:pointer;border-radius:7px;transition:.18s}
 .pbtn:hover{color:var(--bone);border-color:var(--ice-dim)}
 .pbtn[aria-pressed="true"]{background:var(--ice-ghost);color:var(--ice);border-color:var(--ice-dim)}
+.pbtn.live[aria-pressed="true"]{color:var(--jade);border-color:rgba(110,231,165,.5);
+  background:rgba(110,231,165,.08)}
 
-.col{display:flex;flex-direction:column;gap:14px;min-height:0;overflow:auto;padding-bottom:6px}
-.col::-webkit-scrollbar{width:6px}
-.col::-webkit-scrollbar-thumb{background:var(--ash-dim);border-radius:3px}
-
-.card{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--rule);
-  border-radius:var(--r);padding:13px 15px 15px;animation:rise .6s cubic-bezier(.16,.84,.44,1) backwards}
-@keyframes rise{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
-.ch{display:flex;align-items:center;gap:9px;margin-bottom:11px}
-.ch .ico{width:13px;height:13px;border:1.5px solid var(--ice);border-radius:3px;flex:none;
-  position:relative}
-.ch .ico::after{content:"";position:absolute;inset:3px;background:var(--ice);opacity:.55;border-radius:1px}
-.ch h2{font-family:var(--face);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
-  color:var(--bone);font-weight:400}
-.ch .meta{margin-left:auto;font-size:9px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--ice);border:1px solid var(--rule);border-radius:4px;padding:2px 7px}
-
-/* meters */
-.meter{margin-bottom:11px}
-.meter:last-child{margin-bottom:0}
-.meter .top{display:flex;align-items:baseline;gap:8px}
-.meter .lab{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ash)}
-.meter .val{margin-left:auto;font-size:11px;color:var(--bone)}
-.meter .bar{height:2px;background:rgba(255,255,255,.06);margin-top:6px;border-radius:2px;overflow:hidden}
-.meter .fill{height:100%;background:var(--ice);box-shadow:0 0 8px rgba(127,233,226,.55);
-  border-radius:2px;transition:width .6s cubic-bezier(.16,.84,.44,1)}
-.meter.good .fill{background:var(--jade);box-shadow:0 0 8px rgba(110,231,165,.5)}
-.meter.warn .fill{background:var(--amber);box-shadow:0 0 8px rgba(242,178,92,.5)}
-
-/* ask list */
-.asks{display:flex;flex-direction:column;gap:6px;max-height:31vh;overflow:auto}
-.asks::-webkit-scrollbar{width:5px}.asks::-webkit-scrollbar-thumb{background:var(--ash-dim)}
-.askItem{display:flex;gap:9px;align-items:flex-start;padding:8px 10px;border:1px solid var(--rule);
-  border-radius:6px;background:rgba(0,0,0,.22);cursor:pointer;text-align:left;transition:.15s;width:100%}
-.askItem:hover{background:var(--ice-ghost)}
-.askItem[aria-pressed="true"]{border-color:var(--ice-dim);background:var(--ice-ghost)}
-.askItem .pip{width:0;height:0;border-left:5px solid var(--ice);border-top:4px solid transparent;
-  border-bottom:4px solid transparent;margin-top:6px;flex:none}
-.askItem.miss .pip{border-left-color:var(--ash-dim)}
-.askItem .body{min-width:0;flex:1}
-.askItem .p{color:var(--bone);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.askItem.miss .p{color:var(--ash)}
-.askItem .m{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ice);margin-top:2px}
-.askItem.miss .m{color:var(--ash-dim)}
-
-/* activity feed */
-.feed{display:flex;flex-direction:column;gap:3px;max-height:34vh;overflow:auto}
-.feed::-webkit-scrollbar{width:5px}.feed::-webkit-scrollbar-thumb{background:var(--ash-dim)}
-.ev{display:grid;grid-template-columns:44px 76px 1fr;gap:8px;align-items:baseline;
-  padding:3px 0;font-size:11px}
-.ev .tm{color:var(--ash-dim);font-size:10px}
-.ev .tg{font-size:9px;letter-spacing:.1em;text-transform:uppercase}
-.ev .tx{color:var(--ash);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tg.route{color:var(--amber)} .tg.pass{color:var(--jade)}
-.tg.stop{color:var(--crimson)}    .tg.skip{color:var(--ash-dim)}
-.tg.over{color:var(--amber)}
-
-/* centre */
-.stage{position:relative;display:grid;grid-template-rows:auto 1fr auto;min-height:0;gap:12px}
-.ctxbar{display:flex;align-items:center;gap:12px;border:1px solid var(--rule);border-radius:var(--r);
-  padding:9px 14px;background:rgba(10,20,26,.45)}
-.ctxbar .k{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ash-dim)}
-.ctxbar .v{color:var(--bone)}
-.ctxbar .sp{flex:1}
-.orb{position:relative;min-height:0;display:grid;place-items:center}
+/* ---- the ball, centred, with the numbers under it ---- */
+.rail{display:grid;justify-items:center;gap:10px;padding:14px 0 4px}
+.orb{position:relative;width:min(34vh,290px);height:min(34vh,290px);display:grid;place-items:center}
 .orb canvas{position:absolute;inset:0;width:100%;height:100%}
 .orbText{position:relative;text-align:center;pointer-events:none}
-.orbText .n{font-family:var(--face);font-size:clamp(20px,3vh,30px);letter-spacing:.3em;
-  text-transform:uppercase;color:var(--amber);text-shadow:0 0 24px rgba(242,178,92,.42)}
-.orbText .s{font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:var(--ash-dim);margin-top:6px}
-.pill{justify-self:center;display:flex;align-items:stretch;border:1px solid var(--rule);
-  border-radius:6px;overflow:hidden;background:rgba(10,20,26,.55);max-width:100%}
-.pill .seg{padding:8px 15px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pill .seg + .seg{border-left:1px solid var(--rule)}
-.pill .lbl{color:var(--ash-dim)} .pill .hot{color:var(--amber)} .pill .dim{color:var(--ash)}
+.orbText .n{font-family:var(--face);font-size:clamp(17px,2.3vh,24px);letter-spacing:.26em;
+  text-transform:uppercase;color:var(--ice);text-shadow:0 0 22px rgba(127,233,226,.45)}
+.orbText .s{font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--ash-dim);margin-top:6px}
+.vitals{display:grid;grid-template-columns:repeat(3,minmax(74px,1fr));gap:1px;
+  background:var(--rule);border:1px solid var(--rule);border-radius:7px;overflow:hidden}
+.vital{background:rgba(7,14,19,.7);padding:9px 10px;text-align:center}
+.vital .k{font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--ash-dim)}
+.vital .v{font-family:var(--face);font-size:19px;color:var(--bone);line-height:1.25}
+.vital.bad .v{color:var(--crimson)} .vital.good .v{color:var(--jade)}
 
-/* chips */
-.chips{display:flex;flex-wrap:wrap;gap:5px}
-.chip{font-size:11px;padding:3px 9px;border:1px solid var(--ash-dim);color:var(--ash);
-  border-radius:5px;display:flex;gap:7px;align-items:center}
-.chip.on{border-color:var(--ice-dim);color:var(--bone)}
-.chip.off{border-color:rgba(255,107,122,.55);color:var(--crimson)}
-.chip small{font-size:9px;letter-spacing:.1em;text-transform:uppercase;opacity:.65}
-.note{color:var(--ash);font-size:11px;margin-top:8px}
-.quote{color:var(--ash);font-size:11px;font-style:italic;border-left:2px solid var(--rule);
-  padding-left:10px;margin-top:2px}
-.kv{display:grid;grid-template-columns:1fr auto;gap:6px;font-size:11px}
-.kv .k{color:var(--ash-dim);letter-spacing:.1em;text-transform:uppercase;font-size:9px}
-.kv .v{color:var(--bone)}
-.big{font-family:var(--face);font-size:20px;color:var(--bone);line-height:1.2}
-.big.bad{color:var(--crimson)} .big.good{color:var(--jade)}
-.empty{color:var(--ash-dim);font-size:11px}
+/* ---- the chat: one line each, opened only if you want the words ---- */
+.feed{min-height:0;overflow:auto;padding:10px 0 14px;scroll-behavior:smooth;
+  width:100%;max-width:760px;justify-self:center}
+.feed::-webkit-scrollbar{width:7px}
+.feed::-webkit-scrollbar-thumb{background:var(--ash-dim);border-radius:4px}
+.turn{margin-bottom:9px;animation:rise .45s cubic-bezier(.16,.84,.44,1) backwards}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-footer{grid-column:1/-1;border-top:1px solid var(--rule);padding:9px 0 11px;display:flex;
-  align-items:center;gap:18px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--ash-dim)}
+.said{margin:0 0 5px 2px}
+.you{color:var(--ash-dim);font-size:11px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-style:italic}
+.you b{font-weight:400;font-style:normal;letter-spacing:.12em;text-transform:uppercase;
+  font-size:9px;color:var(--ash-dim);opacity:.75}
+
+.msg{border:1px solid var(--rule);border-left:2px solid var(--ice-dim);border-radius:8px;
+  background:linear-gradient(180deg,var(--panel),var(--panel-2));overflow:hidden}
+.msg.held{border-left-color:var(--crimson)}
+.msg.note,.msg.skipped{border-left-color:var(--amber)}
+.msg.plugin-blocked{border-left-color:var(--crimson)}
+.msg .hd{display:flex;align-items:center;gap:11px;padding:9px 14px;cursor:pointer;
+  transition:background .15s}
+.msg .hd:hover{background:rgba(127,233,226,.05)}
+.msg .gist{color:var(--bone);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;flex:1}
+.msg .caret{color:var(--ash-dim);font-size:10px;transition:transform .2s}
+.msg[data-open="1"] .caret{transform:rotate(90deg)}
+.msg[data-open="1"] .hd{border-bottom:1px solid rgba(127,233,226,.10);background:rgba(0,0,0,.22)}
+.badge{font-family:var(--face);font-size:9px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ice);border:1px solid var(--ice-dim);border-radius:4px;padding:2px 8px}
+.badge.held,.badge.plugin-blocked{color:var(--crimson);border-color:rgba(255,107,122,.5)}
+.badge.note,.badge.skipped{color:var(--amber);border-color:rgba(242,178,92,.5)}
+.hd .tm{color:var(--ash-dim);font-size:10px}
+.msg pre{margin:0;padding:12px 16px;white-space:pre-wrap;word-break:break-word;
+  font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--bone)}
+.msg pre em{color:var(--ice);font-style:normal}
+.msg pre b{color:var(--amber);font-weight:400}
+
+.empty{color:var(--ash-dim);padding:40px 6px;font-size:12px}
+.empty code{color:var(--ice)}
+
+footer{border-top:1px solid var(--rule);padding:9px 0 11px;
+  display:flex;align-items:center;gap:16px;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ash-dim);margin-top:12px}
 footer .sp{flex:1}
 footer .hot{color:var(--ice)}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--jade);display:inline-block;
   margin-right:7px;box-shadow:0 0 9px var(--jade)}
+.dot.idle{background:var(--ash-dim);box-shadow:none}
 
-@media(max-width:1150px){
+@media(max-width:900px){
   body{overflow:auto}
-  .shell{height:auto;min-height:100vh;grid-template-columns:1fr;grid-template-rows:auto auto auto auto auto}
-  .col{overflow:visible}
-  .orb{min-height:46vw}
+  .shell{height:auto;min-height:100vh;grid-template-columns:1fr}
+  .orb{min-height:44vw}
+  .feed{overflow:visible}
 }
-@media(prefers-reduced-motion:reduce){ .card{animation:none} }
+@media(prefers-reduced-motion:reduce){.turn{animation:none}}
 </style>
 </head>
 <body>
@@ -157,428 +120,249 @@ footer .hot{color:var(--ice)}
 
 <div class="shell">
   <header>
-    <div class="mark">Felix<small>governance layer</small></div>
+    <div class="mark">Felix</div>
+    <div class="lede">what it is telling Claude · click a line for the words</div>
     <div class="sp"></div>
-    <div class="projs" id="projs"></div>
+    <div id="projs" style="display:flex;gap:6px"></div>
+    <button class="pbtn live" id="liveBtn" aria-pressed="false">live</button>
   </header>
 
-  <!-- left column -->
-  <div class="col">
-    <section class="card" style="animation-delay:.06s">
-      <div class="ch"><span class="ico"></span><h2>What you asked</h2><span class="meta" id="askCount">0</span></div>
-      <div class="asks" id="asks"></div>
-    </section>
-
-    <section class="card" style="animation-delay:.14s">
-      <div class="ch"><span class="ico"></span><h2>Activity</h2><span class="meta">live log</span></div>
-      <div class="feed" id="feed"></div>
-    </section>
-  </div>
-
-  <!-- centre -->
-  <div class="stage">
-    <div class="ctxbar">
-      <span class="k">project</span><span class="v" id="ctxProj">—</span>
-      <span class="sp"></span>
-      <span class="k">checked with</span><span class="v" id="ctxGate">—</span>
-    </div>
+  <div class="rail">
     <div class="orb">
       <canvas id="orb"></canvas>
       <div class="orbText">
-        <div class="n" id="orbName">—</div>
-        <div class="s" id="orbSub">nothing recorded</div>
+        <div class="n" id="orbName">quiet</div>
+        <div class="s" id="orbSub">nothing said yet</div>
       </div>
     </div>
-    <div class="pill">
-      <span class="seg lbl">reading this as</span>
-      <span class="seg hot" id="pillKind">—</span>
-      <span class="seg dim" id="pillWhy">—</span>
-    </div>
+    <div class="vitals" id="vitals"></div>
   </div>
 
-  <!-- right column -->
-  <div class="col">
-    <section class="card" style="animation-delay:.10s">
-      <div class="ch"><span class="ico"></span><h2>Health</h2><span class="meta" id="healthMeta">—</span></div>
-      <div id="health"></div>
-    </section>
-
-    <section class="card" style="animation-delay:.18s">
-      <div class="ch"><span class="ico"></span><h2>Tools it set up</h2><span class="meta" id="toolMeta">—</span></div>
-      <div id="tools"></div>
-    </section>
-
-    <section class="card" style="animation-delay:.26s">
-      <div class="ch"><span class="ico"></span><h2>Was it checked</h2><span class="meta" id="checkMeta">—</span></div>
-      <div id="check"></div>
-    </section>
-
-    <section class="card" style="animation-delay:.34s">
-      <div class="ch"><span class="ico"></span><h2>Memory</h2><span class="meta" id="memMeta">—</span></div>
-      <div id="mem"></div>
-    </section>
-  </div>
+  <div class="feed" id="feed"></div>
 
   <footer>
-    <span><span class="dot"></span><span id="stamp"></span></span>
+    <span><span class="dot idle" id="liveDot"></span><span id="stamp"></span></span>
     <span class="sp"></span>
-    <button class="pbtn" id="liveBtn" aria-pressed="false">live</button>
-    <span id="liveNote">re-run <span class="hot">felix monitor</span> to refresh</span>
+    <span id="hint">re-run <span class="hot">felix monitor</span> to refresh</span>
   </footer>
 </div>
 
 <script>
 /* The marker sits alone as the whole value. An earlier version left a literal
    after it, so substitution produced `const DATA = {...} null;` — a syntax
-   error on the first line that killed the script silently: the frame drew and
-   nothing filled in. */
+   error on the first line that killed the script silently. */
 const DATA =
 /*{{FELIX_DATA}}*/
 ;
 
-/* Everything reaches the page through textContent. The log stores whatever was
-   typed into a session, so treating it as markup would turn a prompt into
-   script on a page about governance. Nothing here uses innerHTML. */
-const el = (tag, cls, text) => {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (text !== undefined && text !== null) n.textContent = String(text);
-  return n;
-};
+/* Everything reaches the page through textContent. Felix quotes back whatever
+   was typed into a session, so treating any of it as markup would turn a prompt
+   into script on a page about governance. Nothing here uses innerHTML. */
+const el = (t, c, x) => { const n = document.createElement(t);
+  if (c) n.className = c; if (x !== undefined && x !== null) n.textContent = String(x); return n; };
 const clear = n => { while (n.firstChild) n.removeChild(n.firstChild); return n; };
 const at = id => document.getElementById(id);
-const put = (id, node) => { const h = clear(at(id)); h.appendChild(node); return h; };
-const txt = (id, s) => { at(id).textContent = String(s); };
 
 const D = (DATA && DATA.projects) ? DATA : { generated:'', projects:[] };
-const S = { proj:0, pick:0 };
-const cur = () => D.projects[S.proj] ||
-  { name:'—', gate:'—', routes:[], routeLog:[], verifyLog:[], mistakes:[], stack:[], capabilities:[], lessons:0 };
-const asks = () => (cur().routeLog || []);
-const ask  = () => asks()[S.pick] || null;
+const S = { proj:0 };
+const cur = () => D.projects[S.proj] || { name:'—', says:[], routeLog:[], verifyLog:[], lessons:0 };
 const hhmm = t => String(t||'').replace(/^.*T/,'').replace('Z','').slice(0,5);
-function ago(t){
-  const then = Date.parse(String(t||''));
-  if (isNaN(then)) return '';
-  const s = Math.max(0,(Date.now()-then)/1000);
-  if (s < 90) return 'just now';
-  if (s < 5400) return Math.round(s/60) + ' min ago';
-  if (s < 86400) return Math.round(s/3600) + ' hr ago';
-  return Math.round(s/86400) + ' days ago';
-}
-const routeDef = n => (cur().routes || []).find(r => r.name === n) || null;
-function isReady(name){
-  const stack = cur().stack || [], owner = String(name).split(':')[0];
-  return stack.some(s => s.name === name || s.name.indexOf(name+'@') === 0 ||
-                         s.name === owner || s.name.indexOf(owner+'@') === 0);
-}
-/* Which of the route's words appear in what was typed. Not stored in the log,
-   recomputed here — it is the answer to the only question worth asking of a
-   router that guessed wrong. */
-function matchedWords(prompt, def){
-  if (!def) return [];
-  const t = ' ' + String(prompt||'').toLowerCase().replace(/[^a-z0-9_-]+/g,' ') + ' ';
-  return String(def.keywords||'').split(/\s+/).filter(Boolean).filter(k => t.indexOf(k) !== -1);
-}
+const stamp = t => Date.parse(String(t||'')) || 0;
+
+/* The log escapes newlines so a record stays greppable on one line. Undo that
+   here, because the whole point is showing it as Claude received it. */
+const unesc = s => String(s||'').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
+
+/* What caused an utterance is recorded alongside it, not inferred. Pairing by
+   nearest timestamp was the first attempt and it lied: two prompts in the same
+   second are indistinguishable, and the page cheerfully attributed a frontend
+   briefing to a question about permutation tests. */
 
 /* ------------------------------------------------------------------ orb -- */
 const cv = at('orb'), cx = cv.getContext('2d');
-const HUES = { calm:[127,233,226], bad:[255,107,122], warn:[242,178,92] };
-let P = [], W = 0, H = 0, spin = 0, mood = 'calm', agitation = 0;
+const HUES = { calm:[127,233,226], warn:[242,178,92], bad:[255,107,122] };
+let P = [], W = 0, H = 0, spin = 0, mood = 'calm', agitation = 0, speaking = 0;
 
-function seed(n){
-  P = [];
+function seed(n){ P = [];
   for (let i = 0; i < n; i++){
-    const y = 1 - (i/(n-1))*2, r = Math.sqrt(Math.max(0,1-y*y));
+    const y = 1 - (i/(n-1))*2, r = Math.sqrt(Math.max(0, 1-y*y));
     const th = Math.PI*(3-Math.sqrt(5))*i;
     P.push({x:Math.cos(th)*r, y:y, z:Math.sin(th)*r, j:Math.random()*Math.PI*2});
-  }
-}
-function fit(){
-  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
-  W = r.width; H = r.height;
-  cv.width = Math.max(1,W*d); cv.height = Math.max(1,H*d);
-  cx.setTransform(d,0,0,d,0,0);
-}
+  } }
+function fit(){ const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  W = r.width; H = r.height; cv.width = Math.max(1,W*d); cv.height = Math.max(1,H*d);
+  cx.setTransform(d,0,0,d,0,0); }
 function draw(t){
   cx.clearRect(0,0,W,H);
-  const px = W/2, py = H/2, R = Math.min(W,H)*0.30;
+  const px = W/2, py = H/2, R = Math.min(W,H)*0.29;
   const c = HUES[mood], rgb = a => 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')';
   spin += 0.0014 + agitation*0.004;
-
-  /* broken arcs, the shape of a targeting reticle rather than a clock face */
   const arcs = [
-    {r:R*1.15, from:-0.9, len:2.1, w:1.6, a:.55, s: 0.9},
-    {r:R*1.15, from: 2.0, len:0.7, w:1.6, a:.30, s: 0.9},
-    {r:R*1.40, from: 1.1, len:2.6, w:1.0, a:.28, s:-0.5},
-    {r:R*1.40, from:-1.6, len:0.5, w:1.0, a:.18, s:-0.5},
-    {r:R*1.62, from: 0.4, len:1.2, w:0.8, a:.14, s: 0.3}
+    {r:R*1.16, from:-0.9, len:2.1, w:1.5, a:.50, s: 0.9},
+    {r:R*1.16, from: 2.0, len:0.7, w:1.5, a:.26, s: 0.9},
+    {r:R*1.42, from: 1.1, len:2.6, w:1.0, a:.24, s:-0.5},
+    {r:R*1.66, from: 0.4, len:1.2, w:0.8, a:.12, s: 0.3}
   ];
-  arcs.forEach(g => {
-    cx.save(); cx.translate(px,py); cx.rotate(t*0.00012*g.s);
-    cx.strokeStyle = rgb(g.a); cx.lineWidth = g.w; cx.lineCap = 'round';
-    cx.beginPath(); cx.arc(0,0,g.r,g.from,g.from+g.len); cx.stroke();
-    cx.restore();
-  });
-  /* the marker riding the inner arc */
-  const ma = t*0.00042;
-  const mx = px + Math.cos(ma)*R*1.15, my = py + Math.sin(ma)*R*1.15;
+  arcs.forEach(g => { cx.save(); cx.translate(px,py); cx.rotate(t*0.00012*g.s);
+    cx.strokeStyle = rgb(g.a); cx.lineWidth = g.w; cx.lineCap='round';
+    cx.beginPath(); cx.arc(0,0,g.r,g.from,g.from+g.len); cx.stroke(); cx.restore(); });
+  const ma = t*0.00042, mx = px+Math.cos(ma)*R*1.16, my = py+Math.sin(ma)*R*1.16;
   const mg = cx.createRadialGradient(mx,my,0,mx,my,9);
-  mg.addColorStop(0, rgb(.95)); mg.addColorStop(1,'rgba(0,0,0,0)');
+  mg.addColorStop(0,rgb(.9)); mg.addColorStop(1,'rgba(0,0,0,0)');
   cx.fillStyle = mg; cx.beginPath(); cx.arc(mx,my,9,0,Math.PI*2); cx.fill();
-  cx.fillStyle = rgb(1); cx.beginPath(); cx.arc(mx,my,1.8,0,Math.PI*2); cx.fill();
-
-  /* particle sphere, sparse so the arcs stay legible */
-  const sn = Math.sin(spin), cs = Math.cos(spin), tilt = 0.42;
-  for (let i = 0; i < P.length; i++){
-    const p = P[i];
-    const x1 = p.x*cs + p.z*sn, z1 = -p.x*sn + p.z*cs;
-    const y1 = p.y*Math.cos(tilt) - z1*Math.sin(tilt);
-    const z2 = p.y*Math.sin(tilt) + z1*Math.cos(tilt);
-    const br = 1 + Math.sin(t*0.001 + p.j)*(0.02 + agitation*0.05);
+  const sn = Math.sin(spin), cs = Math.cos(spin), tilt = .42;
+  for (const p of P){
+    const x1 = p.x*cs+p.z*sn, z1 = -p.x*sn+p.z*cs;
+    const y1 = p.y*Math.cos(tilt)-z1*Math.sin(tilt);
+    const z2 = p.y*Math.sin(tilt)+z1*Math.cos(tilt);
+    const br = 1 + Math.sin(t*0.001+p.j)*(0.02+agitation*0.05+speaking*0.06);
     const depth = (z2+1)/2;
-    cx.fillStyle = rgb(0.05 + depth*0.34);
-    cx.beginPath(); cx.arc(px + x1*R*br, py + y1*R*br, 0.4 + depth*1.1, 0, Math.PI*2); cx.fill();
+    cx.fillStyle = rgb(0.05+depth*(0.34+speaking*0.3));
+    cx.beginPath(); cx.arc(px+x1*R*br, py+y1*R*br, 0.4+depth*1.1, 0, Math.PI*2); cx.fill();
   }
+  if (speaking > 0) speaking = Math.max(0, speaking - 0.012);
   requestAnimationFrame(draw);
 }
 
-/* --------------------------------------------------------------- panels -- */
-function meter(label, valueText, pct, cls){
-  const m = el('div','meter' + (cls ? ' ' + cls : ''));
-  const top = el('div','top');
-  top.appendChild(el('span','lab', label));
-  top.appendChild(el('span','val', valueText));
-  m.appendChild(top);
-  const bar = el('div','bar'); const f = el('div','fill');
-  f.style.width = Math.max(0, Math.min(100, pct)) + '%';
-  bar.appendChild(f); m.appendChild(bar);
-  return m;
+/* ---------------------------------------------------------------- render -- */
+const LABEL = { brief:'routed', held:'held', skipped:'flagged',
+                'plugin-blocked':'alarm', unrecorded:'note' };
+
+/* One line saying what it did. Somebody using an agent to write code does not
+   want a transcript of everything their governance layer whispered; they want
+   to know it routed to frontend and asked for the design skill. The words are
+   kept in full and shown on a click, because the whole reason this page exists
+   is that they were previously unavailable at all. */
+function gist(s){
+  const t = unesc(s.text), line = n => (t.split('\n')[n] || '').trim();
+  if (s.kind === 'brief'){
+    const to = (t.match(/routed this to:\s*(\S+)/) || [])[1];
+    const use = (t.match(/Use this now:\s*([^\n(]+)/) || [])[1];
+    const lessons = (t.match(/Lessons this project/) ? ' + lessons' : '');
+    if (to && use) return to + ' · use ' + use.trim() + lessons;
+    if (to) return to + lessons;
+    return 'mounted lessons';
+  }
+  if (s.kind === 'held'){
+    if (/never run/.test(t)) return 'held it back — the tests have never run here';
+    if (/failed on this exact/.test(t)) return 'held it back — the tests failed on this version';
+    return 'held it back — the code changed since the tests ran';
+  }
+  if (s.kind === 'skipped'){
+    const w = (t.match(/asks for\n?([^,\n]+)/) || [])[1];
+    return 'flagged a step never taken' + (w ? ' — ' + w.trim() : '');
+  }
+  if (s.kind === 'plugin-blocked'){
+    const n = (t.match(/blocked (\d+) tool/) || [])[1];
+    const who = (t.match(/from\s+the\s+(\S+)\s+plugin/) || [])[1];
+    return (who ? who + ' ' : 'a plugin ') + 'blocked ' + (n || 'some') + ' of your tool calls';
+  }
+  if (s.kind === 'unrecorded') return 'asked for a note on what the gate caught';
+  return line(0);
 }
 
-function paintAsks(){
-  const list = asks(), box = clear(at('asks'));
-  txt('askCount', list.length + ' total');
-  if (!list.length){ box.appendChild(el('div','empty','Nothing yet. Work in this project and it appears here.')); return; }
-  list.slice(0,40).forEach((a,i) => {
-    const hit = a.route && a.route !== '-';
-    const b = el('button','askItem' + (hit ? '' : ' miss'));
-    b.setAttribute('aria-pressed', String(i === S.pick));
-    b.dataset.i = String(i);
-    b.appendChild(el('span','pip'));
-    const body = el('div','body');
-    body.appendChild(el('div','p', a.prompt));
-    body.appendChild(el('div','m', (hit ? a.route : 'no match') + '  ·  ' + hhmm(a.t)));
-    b.appendChild(body);
-    box.appendChild(b);
-  });
-}
-
-function paintFeed(){
+function renderFeed(){
   const p = cur(), box = clear(at('feed'));
-  const ev = [];
-  (p.routeLog||[]).forEach(r => ev.push({
-    t:r.t, tag:(r.route && r.route!=='-') ? 'route' : 'skip',
-    label:(r.route && r.route!=='-') ? r.route : 'no match', text:r.prompt }));
-  (p.verifyLog||[]).forEach(v => ev.push({
-    t:v.t,
-    tag: v.verdict==='blocked' ? 'stop' : v.verdict==='override' ? 'over' : 'pass',
-    label: v.verdict==='blocked' ? 'stopped' : v.verdict==='override' ? 'override' : 'passed',
-    text: v.reason }));
-  ev.sort((a,b) => String(b.t).localeCompare(String(a.t)));
-  if (!ev.length){ box.appendChild(el('div','empty','No activity recorded yet.')); return; }
-  ev.slice(0,60).forEach(e => {
-    const row = el('div','ev');
-    row.appendChild(el('span','tm', hhmm(e.t)));
-    row.appendChild(el('span','tg ' + e.tag, '[' + e.label + ']'));
-    row.appendChild(el('span','tx', e.text));
-    box.appendChild(row);
+  const says = p.says || [], asks = p.routeLog || [];
+  if (!says.length){
+    const e = el('div','empty');
+    e.appendChild(el('div', null, 'Felix has not said anything in this project yet.'));
+    const c = el('div'); c.appendChild(el('span', null, 'Work in it and this fills with every word it sends to Claude. Turn on '));
+    c.appendChild(el('code', null, 'live')); c.appendChild(el('span', null, ' with felix monitor --watch running.'));
+    e.appendChild(c); box.appendChild(e); return;
+  }
+  says.forEach((s, i) => {
+    const turn = el('div','turn');
+    turn.style.animationDelay = Math.min(i,10)*0.03 + 's';
+    if (s.cause){
+      const line = el('div','said');
+      const y = el('div','you'); y.appendChild(el('b', null, 'you said\u00a0'));
+      y.appendChild(el('span', null, s.cause));
+      line.appendChild(y); turn.appendChild(line);
+    }
+    const kind = s.kind || 'brief';
+    const msg = el('div','msg ' + kind);
+    msg.dataset.open = '0';
+    const hd = el('div','hd');
+    hd.appendChild(el('span','caret','\u25B8'));
+    hd.appendChild(el('span','badge ' + kind, LABEL[kind] || kind));
+    hd.appendChild(el('span','gist', gist(s)));
+    hd.appendChild(el('span','tm', hhmm(s.t)));
+    msg.appendChild(hd);
+    const pre = el('pre', null, unesc(s.text));
+    pre.style.display = 'none';
+    msg.appendChild(pre);
+    hd.addEventListener('click', () => {
+      const open = msg.dataset.open === '1';
+      msg.dataset.open = open ? '0' : '1';
+      pre.style.display = open ? 'none' : 'block';
+    });
+    turn.appendChild(msg);
+    box.appendChild(turn);
   });
 }
 
-function paintCentre(){
-  const p = cur(), a = ask();
-  txt('ctxProj', p.name);
-  txt('ctxGate', p.gate || 'nothing declared');
-
-  if (!a){
-    txt('orbName','idle'); txt('orbSub','nothing recorded');
-    txt('pillKind','—'); txt('pillWhy','no asks logged');
-    return;
-  }
-  const hit = a.route && a.route !== '-';
-  const def = hit ? routeDef(a.route) : null;
-  const words = matchedWords(a.prompt, def);
-
-  txt('orbName', hit ? a.route : 'no match');
-  at('orbName').style.color = hit ? 'var(--amber)' : 'var(--ash)';
-  txt('orbSub', hhmm(a.t) + ' · ' + ago(a.t));
-  txt('pillKind', hit ? a.route + ' work' : 'nothing suggested');
-  txt('pillWhy', !hit ? 'no words matched'
-    : words.length ? 'matched: ' + words.join(', ')
-    : 'from the files you had open');
-}
-
-function paintHealth(){
-  const p = cur(), rl = p.routeLog||[], vl = p.verifyLog||[];
-  const missed = rl.filter(r => !r.route || r.route === '-').length;
-  const recognised = rl.length ? Math.round((1-missed/rl.length)*100) : 0;
-  const passed = vl.filter(v => v.verdict === 'allowed').length;
-  const passRate = vl.length ? Math.round(passed/vl.length*100) : 0;
-  const play = new Set();
-  (p.routes||[]).forEach(r => String(r.play||'').split(/\s+/).filter(x=>x&&x!=='-').forEach(x=>play.add(x)));
-  const ready = Array.from(play).filter(isReady).length;
-  const readyPct = play.size ? Math.round(ready/play.size*100) : 100;
-
-  txt('healthMeta', p.name);
-  const box = clear(at('health'));
-  box.appendChild(meter('asks it recognised', recognised + '%', recognised,
-    recognised >= 80 ? 'good' : recognised >= 50 ? 'warn' : ''));
-  box.appendChild(meter('checks that passed', vl.length ? passRate + '%' : 'none yet', passRate,
-    passRate >= 80 ? 'good' : passRate >= 40 ? 'warn' : ''));
-  box.appendChild(meter('tools installed', ready + ' of ' + play.size, readyPct,
-    readyPct === 100 ? 'good' : 'warn'));
-  box.appendChild(meter('mistakes the gate caught', String((p.mistakes||[]).length),
-    Math.min(100, (p.mistakes||[]).length * 20), ''));
-}
-
-function paintTools(){
-  const a = ask(), box = clear(at('tools'));
-  const def = a && a.route && a.route !== '-' ? routeDef(a.route) : null;
-  if (!def || !def.play || def.play === '-'){
-    txt('toolMeta','none');
-    box.appendChild(el('div','empty', a ? 'Nothing attached to this kind of work.' : '—'));
-    return;
-  }
-  const list = def.play.split(/\s+/).filter(Boolean);
-  txt('toolMeta', list.length + ' named');
-  const chips = el('div','chips');
-  list.forEach(n => {
-    const ok = isReady(n);
-    const c = el('span','chip ' + (ok ? 'on' : 'off'), n);
-    c.appendChild(el('small', null, ok ? 'ready' : 'missing'));
-    chips.appendChild(c);
-  });
-  box.appendChild(chips);
-  const miss = list.filter(n => !isReady(n)).length;
-  box.appendChild(el('div','note', miss
-    ? miss + ' of these ' + (miss===1?'is':'are') + " not installed, so the agent couldn't use " + (miss===1?'it':'them') + '.'
-    : 'Felix told the agent to use these, in this order.'));
-}
-
-function paintCheck(){
-  const vl = cur().verifyLog || [], last = vl[0], box = clear(at('check'));
-  mood = !last ? 'calm' : last.verdict === 'blocked' ? 'bad'
-       : last.verdict === 'override' ? 'warn' : 'calm';
+function renderVitals(){
+  const p = cur(), says = p.says || [], vl = p.verifyLog || [];
+  const held = says.filter(s => s.kind === 'held' || s.kind === 'plugin-blocked').length;
+  const last = says[0];
+  mood = !last ? 'calm' : (last.kind === 'held' || last.kind === 'plugin-blocked') ? 'bad'
+       : (last.kind === 'skipped' || last.kind === 'unrecorded') ? 'warn' : 'calm';
   agitation = mood === 'bad' ? 1 : mood === 'warn' ? .4 : 0;
 
-  let head = 'No checks recorded yet', tail = '', cls = '';
-  if (last && last.verdict === 'allowed'){
-    head = 'Yes'; cls = 'good';
-    tail = 'Tests passed on this exact version, so the agent was allowed to finish.';
-  } else if (last && last.verdict === 'blocked'){
-    head = 'No'; cls = 'bad';
-    tail = last.reason === 'never verified' ? 'The tests have never been run in this checkout.'
-         : last.reason === 'failed'         ? 'The tests failed on this exact version.'
-         : 'The code changed since the tests last ran.';
-  } else if (last && last.verdict === 'override'){
-    head = 'You allowed it'; cls = '';
-    tail = 'The tests had not passed. Recorded so it is not invisible later.';
-  }
-  txt('checkMeta', last ? ago(last.t) : '—');
-  box.appendChild(el('div','big ' + cls, head));
-  if (tail) box.appendChild(el('div','note', tail));
+  at('orbName').textContent = last ? (LABEL[last.kind] || last.kind) : 'quiet';
+  at('orbName').style.color = mood === 'bad' ? 'var(--crimson)'
+                            : mood === 'warn' ? 'var(--amber)' : 'var(--ice)';
+  at('orbSub').textContent = last ? hhmm(last.t) : 'nothing said yet';
+
+  const items = [['said', says.length, ''], ['held', held, held ? 'bad' : 'good'],
+                 ['notes', p.lessons || 0, '']];
+  const box = clear(at('vitals'));
+  items.forEach(([k,v,c]) => { const d = el('div','vital' + (c ? ' '+c : ''));
+    d.appendChild(el('div','k',k)); d.appendChild(el('div','v',v)); box.appendChild(d); });
 }
 
-function paintMem(){
-  const p = cur(), box = clear(at('mem'));
-  txt('memMeta', (p.lessons || 0) + ' notes');
-  const kv = el('div','kv');
-  kv.appendChild(el('div','k','things it remembers'));
-  kv.appendChild(el('div','v', String(p.lessons || 0)));
-  kv.appendChild(el('div','k','gate failures on record'));
-  kv.appendChild(el('div','v', String((p.mistakes||[]).length)));
-  box.appendChild(kv);
-  const m = (p.mistakes || [])[0];
-  if (m) box.appendChild(el('div','quote',
-    'last caught: ' + (m.what || 'a failure') + ' on ' + (m.branch || 'a branch') + ', ' + (m.date || '')));
-}
-
-function paintProjects(){
+function renderProjects(){
   const box = clear(at('projs'));
-  D.projects.forEach((p,i) => {
-    const b = el('button','pbtn', p.name);
-    b.setAttribute('aria-pressed', String(i === S.proj));
-    b.dataset.p = String(i);
-    box.appendChild(b);
-  });
+  D.projects.forEach((p,i) => { const b = el('button','pbtn', p.name);
+    b.setAttribute('aria-pressed', String(i === S.proj)); b.dataset.p = String(i); box.appendChild(b); });
 }
-
-function paint(){
-  paintProjects(); paintAsks(); paintFeed(); paintCentre();
-  paintHealth(); paintTools(); paintCheck(); paintMem();
-}
+function paint(){ renderProjects(); renderVitals(); renderFeed(); speaking = 1; }
 
 document.addEventListener('click', e => {
-  const a = e.target.closest('.askItem');
-  if (a){ S.pick = Number(a.dataset.i); paint(); return; }
-  const p = e.target.closest('.pbtn');
-  if (p){ S.proj = Number(p.dataset.p); S.pick = 0; paint(); }
+  const p = e.target.closest('.pbtn[data-p]');
+  if (p){ S.proj = Number(p.dataset.p); paint(); }
 });
 
-/* ----------------------------------------------------------------- live -- */
-/* The page has no server and cannot fetch a file:// sibling, so "live" is the
-   page reloading itself while `felix monitor --watch` rewrites the file
-   underneath it. That means a full reload, which would otherwise throw away
-   which ask you were reading and where you had scrolled — so those are carried
-   across in sessionStorage. It polls rather than pushes, and lags by the watch
-   interval; at a few seconds that is not worth pretending otherwise about. */
-const REFRESH_MS = 5000;
-const KEY = 'felix.monitor.view';
-
-function saveView(){
-  try {
-    sessionStorage.setItem(KEY, JSON.stringify({
-      proj:S.proj, pick:S.pick,
-      feed: at('feed') ? at('feed').scrollTop : 0,
-      asks: at('asks') ? at('asks').scrollTop : 0,
-      y: window.scrollY || 0
-    }));
-  } catch (e) {}
-}
-function restoreView(){
-  let v = null;
-  try { v = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) {}
+/* ------------------------------------------------------------------ live -- */
+const REFRESH_MS = 4000, KEY = 'felix.monitor.view';
+function saveView(){ try { sessionStorage.setItem(KEY, JSON.stringify({
+    proj:S.proj, y: at('feed') ? at('feed').scrollTop : 0 })); } catch(e){} }
+function restoreView(){ let v = null;
+  try { v = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch(e){}
   if (!v) return;
   if (typeof v.proj === 'number' && D.projects[v.proj]) S.proj = v.proj;
-  if (typeof v.pick === 'number') S.pick = v.pick;
-  requestAnimationFrame(() => {
-    if (at('feed')) at('feed').scrollTop = v.feed || 0;
-    if (at('asks')) at('asks').scrollTop = v.asks || 0;
-    if (v.y) window.scrollTo(0, v.y);
-  });
+  requestAnimationFrame(() => { if (at('feed')) at('feed').scrollTop = v.y || 0; });
 }
-
-let live = false, liveTimer = null;
+let live = false, timer = null;
 function setLive(on){
   live = !!on;
-  try { localStorage.setItem('felix.monitor.live', live ? '1' : '0'); } catch (e) {}
-  const b = at('liveBtn');
-  b.setAttribute('aria-pressed', String(live));
-  at('liveNote').textContent = live
-    ? 'refreshing every ' + (REFRESH_MS/1000) + 's — needs felix monitor --watch running'
-    : 'snapshot — re-run felix monitor to refresh';
-  if (liveTimer){ clearTimeout(liveTimer); liveTimer = null; }
-  if (live) liveTimer = setTimeout(() => { saveView(); location.reload(); }, REFRESH_MS);
+  try { localStorage.setItem('felix.monitor.live', live ? '1':'0'); } catch(e){}
+  at('liveBtn').setAttribute('aria-pressed', String(live));
+  at('liveDot').className = 'dot' + (live ? '' : ' idle');
+  at('hint').textContent = live
+    ? 'listening · refreshes every ' + (REFRESH_MS/1000) + 's · needs felix monitor --watch'
+    : 're-run felix monitor to refresh';
+  if (timer){ clearTimeout(timer); timer = null; }
+  if (live) timer = setTimeout(() => { saveView(); location.reload(); }, REFRESH_MS);
 }
 at('liveBtn').addEventListener('click', () => setLive(!live));
 window.addEventListener('beforeunload', saveView);
 
-txt('stamp', 'snapshot taken ' + String(D.generated||'').replace('T',' ').replace('Z',' UTC'));
-restoreView();
-seed(340); fit(); paint(); requestAnimationFrame(draw);
+at('stamp').textContent = 'snapshot ' + String(D.generated||'').replace('T',' ').replace('Z',' UTC');
+restoreView(); seed(300); fit(); paint(); requestAnimationFrame(draw);
 window.addEventListener('resize', fit);
-try { setLive(localStorage.getItem('felix.monitor.live') === '1'); } catch (e) { setLive(false); }
+try { setLive(localStorage.getItem('felix.monitor.live') === '1'); } catch(e){ setLive(false); }
 </script>
 </body>
 </html>

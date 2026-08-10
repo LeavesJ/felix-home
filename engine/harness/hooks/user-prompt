@@ -35,6 +35,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/classify.sh"
 . "${SCRIPT_DIR}/../lib/incident.sh"
 . "${SCRIPT_DIR}/../lib/route.sh"
+. "${SCRIPT_DIR}/../lib/say.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
@@ -117,6 +118,9 @@ escape_for_json() {
   s="${s//$'\n'/\\n}"; s="${s//$'\r'/\\r}"; s="${s//$'\t'/\\t}"
   printf '%s' "$s"
 }
+_felix_asked="$(printf '%s' "$raw" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' | head -1)"
+[ -n "$_felix_asked" ] || _felix_asked="$raw"
+felix_say "$PROJ" "brief" "$body" "$_felix_asked"
 printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "UserPromptSubmit",\n    "additionalContext": "%s"\n  }\n}\n' \
   "$(escape_for_json "$body")"
 exit 0

@@ -69,6 +69,16 @@ _felix_mon_verify_row() {
     "$(_felix_json_esc "$(printf '%s' "$1" | cut -f4)")"
 }
 
+# What Felix said, verbatim. The newline escaping is undone here so the page
+# can show it as it was actually delivered.
+_felix_mon_say_row() {
+  printf '{"t":"%s","kind":"%s","cause":"%s","text":"%s"}' \
+    "$(_felix_json_esc "$(printf '%s' "$1" | cut -f1)")" \
+    "$(_felix_json_esc "$(printf '%s' "$1" | cut -f2)")" \
+    "$(_felix_json_esc "$(printf '%s' "$1" | cut -f3)")" \
+    "$(_felix_json_esc "$(printf '%s' "$1" | cut -f4-)")"
+}
+
 _felix_mon_mistake_row() {
   printf '{"date":"%s","branch":"%s","commit":"%s","what":"%s"}' \
     "$(_felix_json_esc "$(printf '%s' "$1" | cut -f1)")" \
@@ -133,6 +143,8 @@ _felix_mon_project() {
   _felix_mon_rows "$proj/memory/verification.log" 40 _felix_mon_verify_row
   printf ',"mistakes":'
   _felix_mon_rows "$proj/memory/mistakes.log" 20 _felix_mon_mistake_row
+  printf ',"says":'
+  _felix_mon_rows "$proj/memory/says.log" 60 _felix_mon_say_row
 
   printf ',"lessons":%s' "$(grep -c '^- \*\*' "$proj/memory/lessons.md" 2>/dev/null || printf 0)"
   printf '}'

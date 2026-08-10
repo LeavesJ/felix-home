@@ -168,11 +168,22 @@ of 273 marketplace entries, no binary, no skill, so semgrep plus
    breaks the bash-and-git invariant and inverts to `PostToolUse` recording, and
    its `## Records` section still says a `SessionEnd` hook parses the
    transcript. Resolve that first.
-2. **Let Felix install low-risk tooling.** `felix discover` already fetches a
-   candidate at its pinned sha and *reads what it ships*; only the act is
-   refused, by one `die` in `engine/harness/felix`. Invariant 4 has been amended
-   to allow it; the code has not caught up. Keep refusing `risk=high` and
-   anything touching credentials or irreversible writes.
+2. **Close the adoption loop into `routes.tsv`.** *Done 2026-08-10:* installing
+   works. `felix discover --adopt` declares low-risk candidates into `stack.tsv`
+   and installs them through the existing path; it ran live against Elenchus and
+   adopted `deepeval`, `langfuse` and `togetherai-skills` while refusing `figma`
+   (medium) and two high ones. `felix stack apply --yes` had always been able to
+   install *declared* tooling, so the real gap was discovered-to-declared, not
+   installation.
+
+   **What is left is the half that matters.** No route names any of the three.
+   They sit among the 46 installed-but-never-reached-for, so no session is ever
+   told to use them while their skills cost context in every session — which is
+   precisely the signal the ledger design calls the retire condition. Adoption
+   must also reach `routes.tsv`: a candidate carries the capability it matched,
+   `profiles.tsv` maps profiles to capabilities, so the route whose profile
+   covers that capability is the one whose play should gain the tool. Until
+   that exists, `--adopt` makes a project's toolbox bigger and no more useful.
 3. **`felix route` from naming to deciding**: tools, execution shape, tier and
    evidence up front, order, and the configuration the next session boots with.
    Better once the ledger exists, since choosing tools is far better informed by

@@ -2,12 +2,12 @@
   "$schema": "https://json.schemastore.org/claude-code-marketplace-manifest.json",
   "name": "felix",
   "owner": { "name": "Jarron Deng" },
-  "description": "Felix, the engineering governance layer. Binds a session to its project's constitution, gate, and memory.",
+  "description": "Felix, the engineering governance layer.",
   "plugins": [
     {
       "name": "felix",
-      "source": "./",
-      "description": "Resolves which project governs a checkout, makes its gate reachable, and surfaces capability drift at session start.",
+      "source": "./engine",
+      "description": "Resolves which project governs a checkout, makes its gate reachable, and adopts capabilities the checkout grows.",
       "keywords": ["governance", "gate", "verification", "doctrine"]
     }
   ]

@@ -48,7 +48,14 @@ felix_home() {
   # deletes, both silently. The copy is never a home.
   case "$engine" in
     */.claude/plugins/cache/*|*/.claude/plugins/marketplaces/*) ;;
-    *) [ -d "$engine/projects" ] && { printf '%s' "$engine"; return; } ;;
+    *)
+      # The engine may sit at the repo root, or one level down so that a plugin
+      # install carries the engine alone and leaves projects/ behind. Check both
+      # before falling through, or a fresh clone silently starts a new home and
+      # reports the project it is standing in as unknown.
+      [ -d "$engine/projects" ] && { printf '%s' "$engine"; return; }
+      [ -d "$engine/../projects" ] && { (cd "$engine/.." && pwd); return; }
+      ;;
   esac
   printf '%s' "$HOME/.felix"
 }

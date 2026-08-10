@@ -152,7 +152,18 @@ _felix_rival_gates() {
   } | while IFS=$'\t' read -r state f; do
       [ -n "${f:-}" ] || continue
       base="${f##*/}"
-      case "$base" in *gate*|*verify*|*check*) ;; *) continue ;; esac
+      # Two ways a file here is a lookalike. Its name says it gates something,
+      # or Felix already holds the authoritative copy under that exact name.
+      #
+      # The second is the real rule and was learned the day the first one was
+      # not enough: deleting the stale scripts/gate.sh left scripts/prepush.sh
+      # sitting beside it, an untracked copy of a file Felix holds, identical
+      # that morning and free to drift by the afternoon. Matching on the word
+      # "gate" could never have seen it. The name was never the point.
+      held=0; [ -f "$proj/$base" ] && held=1
+      if [ "$held" -eq 0 ]; then
+        case "$base" in *gate*|*verify*|*check*) ;; *) continue ;; esac
+      fi
       [ -x "$root/$f" ] || continue
 
       # The declared gate itself, when the project stores it in Felix's home and
@@ -167,11 +178,17 @@ _felix_rival_gates() {
       # the gate, so naming it here would report the gate as its own rival.
       case " $gate " in *"$f"*) continue ;; esac
 
-      if [ -x "$proj/$gate" ]; then
-        if cmp -s "$root/$f" "$proj/$gate"; then
+      # Compared against whichever copy Felix actually holds: the file of the
+      # same name when there is one, otherwise the declared gate.
+      local mine=""
+      [ "$held" -eq 1 ] && mine="$proj/$base"
+      [ -z "$mine" ] && [ -x "$proj/$gate" ] && mine="$proj/$gate"
+
+      if [ -n "$mine" ]; then
+        if cmp -s "$root/$f" "$mine"; then
           note="identical today, and nothing keeps it that way"
         else
-          note="differs from the gate Felix runs"
+          note="differs from the copy Felix holds"
         fi
       else
         note="this project gates with a command, not a file"

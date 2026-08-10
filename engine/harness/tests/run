@@ -241,6 +241,27 @@ esac
 
 out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"; rc=$?
 is "reporting a rival gate still exits 0" "$rc" "0"
+
+# Matching on the name gate|verify|check missed the second instance of the same
+# trap the day the first was deleted: prepush.sh, an untracked repo copy of a
+# file Felix holds, identical that morning and free to drift by the afternoon.
+# The name was never the point. Felix holding the authoritative copy is.
+printf '#!/bin/sh\necho felix copy\n' > "$FROOT/projects/widget/prepush.sh"
+chmod +x "$FROOT/projects/widget/prepush.sh"
+printf '#!/bin/sh\necho repo copy\n' > "$REPO/scripts/prepush.sh"
+chmod +x "$REPO/scripts/prepush.sh"
+out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"
+has "a repo copy of a file Felix holds is reported" "$out" "prepush.sh"
+
+# ...and a name Felix does not hold is still nobody's business.
+printf '#!/bin/sh\n' > "$REPO/scripts/deploy-thing.sh"
+chmod +x "$REPO/scripts/deploy-thing.sh"
+out="$(cd "$REPO" && "$FELIX" doctor 2>&1)"
+case "$out" in
+  *deploy-thing*) bad "an unrelated executable is left alone" "$out" ;;
+  *)              ok  "an unrelated executable is left alone" ;;
+esac
+rm -f "$FROOT/projects/widget/prepush.sh"
 rm -rf "$REPO/scripts"
 
 # The assertions below shell out to `claude plugin list` and `claude mcp list`.

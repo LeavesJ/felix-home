@@ -1484,10 +1484,11 @@ cmd_doctor() {
       [ -n "${f:-}" ] || continue
       printf '  %-32s %-10s %s\n' "$f" "$state" "$note"
     done
-    printf '\nThese are executable and look like a gate, and none of them is the\n'
-    printf 'gate Felix runs. Whichever one a session reaches for decides what\n'
-    printf 'green means, and the weaker file is the one in plain sight.\n'
-    printf '\nfelix gate   is the only one whose verdict is recorded\n'
+    printf '\nEach of these is executable, and is either a copy of something Felix\n'
+    printf 'holds for this project or named as though it gates. None of them is\n'
+    printf 'the copy Felix runs. Whichever one a session reaches for decides what\n'
+    printf 'green means, and the one in plain sight is the one it reaches for.\n'
+    printf '\nfelix gate   is the only verdict that gets recorded\n'
   fi
   # Reporting drift is not a failure. Exit 0 so a session hook or a CI step can
   # surface this without turning a green tree red for work nobody asked for yet.

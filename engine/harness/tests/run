@@ -1096,6 +1096,16 @@ case "$out" in
   *envelope*) bad "the payload envelope does not decide the route" "$out" ;;
   *) ok "the payload envelope does not decide the route" ;;
 esac
+# ...but the words themselves must survive. Banning them was the first fix and
+# was worse than the bug: asking about a hook matched nothing at all, because
+# the word had been blacklisted to silence a field name of the same name.
+toks="$( . "$FROOT/harness/lib/route.sh"
+         felix_route_tokens '{"session_id":"s","prompt":"the stop hook is blocking"}' | tr '\n' ' ' )"
+has  "a word shared with a field name still counts" "$toks" "hook"
+case "$toks" in
+  *session_id*|*" session "*) bad "but the field names themselves are gone" "$toks" ;;
+  *) ok "but the field names themselves are gone" ;;
+esac
 
 # The tree may corroborate, never outvote. Without a cap, a checkout carrying a
 # few hundred untracked path tokens drowns out the four words you typed.

@@ -160,6 +160,38 @@ table someone can fix."
     felix_say "$PROJ" "skipped" "$body" "" "${SID:-}"
     printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
       "$(escape_for_json "$body")"
+    exit 0
+  fi
+
+  # A green gate proves the suite passed. It proves nothing about the claims
+  # made on the way there, and those are what go wrong: work reported as fixed
+  # that reached no session, a tool reported as removed that was still
+  # installed, a document describing a capability the thing had already
+  # outgrown. Every one of those passed a gate.
+  #
+  # So the last word before a session ends is the verification skill, once, and
+  # only when the gate is green — a red gate is already the more urgent message
+  # and has said so above. This is the end of the session, which the doctrine
+  # says is one of the two moments Felix is allowed to speak.
+  # Declared, not routed. Requiring a route to name it would mean it never
+  # fires for a project whose table happens not to mention it — including
+  # Felix's own, which is exactly the session this was missing from.
+  if [ -n "${SID:-}" ] \
+     && grep -qE "	superpowers(@[^	]*)?	" "$PROJ/stack.tsv" 2>/dev/null; then
+    vstate="$FELIX_HOME_DIR/state/verified/$SID"
+    if [ ! -f "$vstate" ]; then
+      mkdir -p "$(dirname "$vstate")" 2>/dev/null && : > "$vstate" 2>/dev/null
+      body="The gate is green, which means the suite passed. It does not mean
+the things you said are true.
+
+Use superpowers:verification-before-completion before calling this done. Check
+the claims, not the tests: that what you reported as fixed is fixed where it
+runs, that what you reported as removed is gone, and that anything you wrote
+down describes what the code does now."
+      felix_say "$PROJ" "verify" "$body" "" "$SID"
+      printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
+        "$(escape_for_json "$body")"
+    fi
   fi
   exit 0
 fi

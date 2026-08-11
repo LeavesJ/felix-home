@@ -1092,6 +1092,34 @@ out="$(cd "$GREPO" && "$FELIX" gate 2>&1)"
 out="$(_stop "$GREPO")"
 _allows "a green gate on this exact tree allows it" "$out"
 
+# A green gate proves the suite passed and nothing about the claims made on the
+# way there. Those are what go wrong: work reported as fixed that reached no
+# session, a tool reported as removed that was still installed, a document
+# describing a capability the thing had outgrown. All three passed a gate.
+printf 'plugin\tsuperpowers@x\t-\tlow\talways\n' > "$FROOT/projects/widget/stack.tsv"
+rm -rf "$FROOT/state/verified"
+out="$(cd "$GREPO" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"vsess"}' \
+       | "$STOP" 2>&1)"
+has "a green gate still asks for verification" "$out" "verification-before-completion"
+has "and says why the gate is not enough"      "$out" "does not mean"
+# Once per session. Said at every stop it becomes noise, and noise is skimmed.
+out="$(cd "$GREPO" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"vsess"}' \
+       | "$STOP" 2>&1)"
+case "$out" in
+  *verification-before-completion*) bad "and only once per session" "$out" ;;
+  *)                                ok  "and only once per session" ;;
+esac
+# A project that does not use superpowers is not told to reach for it.
+printf 'plugin\tsomething-else@x\t-\tlow\talways\n' > "$FROOT/projects/widget/stack.tsv"
+rm -rf "$FROOT/state/verified"
+out="$(cd "$GREPO" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"vsess2"}' \
+       | "$STOP" 2>&1)"
+case "$out" in
+  *verification-before-completion*) bad "and never where it is not declared" "$out" ;;
+  *)                                ok  "and never where it is not declared" ;;
+esac
+rm -rf "$FROOT/state/verified"
+
 # The git-status trap. Two different edits to the same file produce identical
 # porcelain output, so a receipt keyed on status alone stays valid across a
 # change it never saw. The hash has to include diff content.

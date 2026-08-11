@@ -102,6 +102,22 @@ esac
 # was masked inside Felix itself, where the file happens to sit in the tree
 # being edited, and not masked at all anywhere else.
 has "the hook says what must be read first" "$out" "Read before planning"
+
+# The hook must actually be able to call what it reports on. A missing source
+# line makes tidy and retire silent rather than broken, which is the shape of
+# every "passes by finding nothing" bug this project has paid for.
+for _fn in felix_tidy_safe felix_ledger_retire felix_autonomy_allows; do
+  ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+    . "$FROOT/harness/lib/autonomy.sh"; . "$FROOT/harness/lib/ledger.sh"
+    command -v "$_fn" >/dev/null 2>&1 ) \
+    && ok "$_fn is defined for the hook" || bad "$_fn is defined for the hook"
+  grep -q "lib/${_fn#felix_}" /dev/null 2>&1 || true
+done
+for _lib in autonomy ledger; do
+  grep -q "lib/${_lib}.sh" "$FROOT/harness/hooks/session-start" \
+    && ok "session-start sources ${_lib}.sh" \
+    || bad "session-start sources ${_lib}.sh" "it would fail silently"
+done
 printf '# handoff\n' > "$REPO/HANDOFF.md"
 out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
 has "and names a handoff when the repo has one" "$out" "HANDOFF.md"
@@ -1538,6 +1554,55 @@ d="$( . "$FROOT/harness/lib/discover.sh"; felix_plugin_description "$TMP/desc" )
 has "reads a plugin's own description" "$d" "llm evaluation harness"
 d="$( . "$FROOT/harness/lib/discover.sh"; felix_plugin_description "$TMP/nosuchdir" )"
 is "and is silent when there is none" "$d" ""
+
+printf '\nautonomy is opted into, never assumed\n'
+AUP="$TMP/autoproj"; mkdir -p "$AUP"
+a() { ( . "$FROOT/harness/lib/autonomy.sh"; felix_autonomy_allows "$AUP" "$1" && echo yes || echo no ); }
+is "nothing is allowed by default"    "$(a tidy)" "no"
+printf '# what Felix may do here unattended\ntidy\n' > "$AUP/autonomy"
+is "an opted-in capability is allowed" "$(a tidy)" "yes"
+is "and one that was not is still not" "$(a route)" "no"
+printf 'tidy\n' > "$AUP/autonomy"; printf '\n\n# comment\n' >> "$AUP/autonomy"
+is "comments and blanks are not capabilities" "$(a comment)" "no"
+
+printf '\ntidying, with the checks that make it safe\n'
+# Felix removing a file from a product repository unattended is the sharpest
+# trust boundary in the system. Every check below must hold, and the file must
+# still exist somewhere afterwards.
+TR="$TMP/tidyrepo"; TH2="$TMP/tidyhome"; TP2="$TH2/projects/widget"
+mkdir -p "$TR/scripts" "$TP2"
+( cd "$TR" && git init -q . && git config user.email t@t && git config user.name t )
+printf 'tidy\n' > "$TP2/autonomy"
+printf '#!/bin/sh\necho felix\n' > "$TP2/prepush.sh"
+# 1. untracked, and Felix holds a copy of that name -> removable
+printf '#!/bin/sh\necho repo\n' > "$TR/scripts/prepush.sh"
+# 2. TRACKED, even though Felix holds it -> deleting changes the repo's tracked
+#    state, which is a different and much larger act than removing a stray file
+printf '#!/bin/sh\necho felix\n' > "$TP2/gate.sh"
+printf '#!/bin/sh\necho tracked\n' > "$TR/scripts/gate.sh"
+( cd "$TR" && git add scripts/gate.sh && git commit -qm base )
+# 3. Felix holds nothing of that name -> may be the only copy anywhere
+printf '#!/bin/sh\necho only\n' > "$TR/scripts/verify-mine.sh"
+chmod +x "$TR"/scripts/*.sh
+
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/autonomy.sh"
+        felix_tidy_safe "$TP2" "$TR" "$TH2" )"
+[ -f "$TR/scripts/prepush.sh" ] && bad "removes an untracked copy Felix holds" \
+                                || ok  "removes an untracked copy Felix holds"
+[ -f "$TR/scripts/gate.sh" ]    && ok  "keeps a tracked one, whatever else is true" \
+                                || bad "keeps a tracked one, whatever else is true"
+[ -f "$TR/scripts/verify-mine.sh" ] && ok  "keeps one Felix holds no copy of" \
+                                    || bad "keeps one Felix holds no copy of"
+has "and says what it removed" "$out" "scripts/prepush.sh"
+ls "$TH2/state/rivals"/*prepush* >/dev/null 2>&1 \
+  && ok "the removed file still exists somewhere" || bad "the removed file still exists somewhere"
+
+# Opt-out is absolute: no autonomy file, no removal, however safe it looks.
+rm -f "$TP2/autonomy"
+printf '#!/bin/sh\necho repo2\n' > "$TR/scripts/prepush.sh"; chmod +x "$TR/scripts/prepush.sh"
+( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/autonomy.sh"; felix_tidy_safe "$TP2" "$TR" "$TH2" ) >/dev/null
+[ -f "$TR/scripts/prepush.sh" ] && ok  "without opting in, nothing is touched" \
+                                || bad "without opting in, nothing is touched"
 
 printf '\nexecution shape, computed rather than felt\n'
 # Whether work fans out or stays in one context was decided by taste every time,

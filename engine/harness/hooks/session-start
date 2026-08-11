@@ -29,6 +29,10 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/stack.sh"
 # shellcheck source=../lib/maintenance.sh
 . "${SCRIPT_DIR}/../lib/maintenance.sh"
+# shellcheck source=../lib/autonomy.sh
+. "${SCRIPT_DIR}/../lib/autonomy.sh"
+# shellcheck source=../lib/ledger.sh
+. "${SCRIPT_DIR}/../lib/ledger.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
@@ -87,6 +91,28 @@ Maintenance due: ${_due}
 Do them on one branch. See 'felix maintenance'."
 fi
 
+# Done, not reported. A duplicate script is not a decision somebody should be
+# handed at the start of their day; it is tidying, and Felix holds the copy that
+# matters. Every check lives in felix_tidy_safe and the project must have opted
+# in, so silence here is the normal case rather than a failure.
+tidy_line=""
+_removed="$(felix_tidy_safe "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null | tr '\n' ' ')"
+_removed="${_removed% }"
+[ -n "$_removed" ] && tidy_line="
+Removed, as copies Felix already holds: ${_removed}
+Each was backed up to ${FELIX_HOME_DIR}/state/rivals first."
+
+# The one ledger signal worth acting on, surfaced when it crosses the threshold
+# rather than when somebody remembers to ask. Cheap: an awk pass over one file.
+retire_line=""
+if [ -f "$PROJ/memory/ledger.tsv" ]; then
+  _retire="$(felix_ledger_retire "$PROJ" 2>/dev/null | cut -f1 | tr '\n' ' ')"
+  _retire="${_retire% }"
+  [ -n "$_retire" ] && retire_line="
+Mounted every session and never once reached for: ${_retire}
+That is the only unconfounded signal here. See 'felix ledger'."
+fi
+
 # Named, not merely stored. A governed project's constitution lives in Felix's
 # home rather than the repository, so nothing auto-loads it: inside Felix itself
 # that is masked, because the file happens to sit in the tree being edited, and
@@ -105,7 +131,7 @@ Project: ${project}
 Constitution: ${PROJ}/CLAUDE.md
 ${gate_line}
 Memory: ${PROJ}/memory/
-${drift_line}${maint_line}
+${drift_line}${maint_line}${tidy_line}${retire_line}
 
 ${read_lines}
 

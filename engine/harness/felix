@@ -14,6 +14,7 @@
 #   felix toolbox        every installed plugin, what it is, and what can reach it
 #   felix ledger         what has been mounted, and what was never reached for
 #   felix shape <plan>   which tasks may run apart, and which must not
+#   felix autonomy       what Felix may do here unattended
 #   felix quarantine <p> switch off a plugin that is breaking sessions
 #   felix recommend      what this stack implies; --want "<text>" matches intent
 #   felix stack plan     diff declared tooling against what is installed
@@ -101,6 +102,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/toolbox.sh"
 . "${SCRIPT_DIR}/lib/ledger.sh"
 . "${SCRIPT_DIR}/lib/shape.sh"
+. "${SCRIPT_DIR}/lib/autonomy.sh"
 # shellcheck source=lib/monitor.sh
 . "${SCRIPT_DIR}/lib/monitor.sh"
 # shellcheck source=lib/ready.sh
@@ -558,6 +560,56 @@ cmd_quarantine() {
   printf 'This takes effect in your NEXT session. A plugin already loaded stays\n'
   printf 'loaded, hooks and all, so the current one behaves exactly as before.\n\n'
   printf 'Undo whenever it is fixed:\n\n  claude plugin enable %s\n' "$name"
+}
+
+cmd_autonomy() {
+  resolve_or_die; local proj="$PROJ" allow="" revoke="" a
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --allow)  allow="${2:-}"; shift 2 ;;
+      --revoke) revoke="${2:-}"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+
+  if [ -n "$revoke" ]; then
+    if [ -f "$proj/autonomy" ]; then
+      grep -vxF "$revoke" "$proj/autonomy" > "$proj/autonomy.new" 2>/dev/null \
+        && mv -f "$proj/autonomy.new" "$proj/autonomy"
+    fi
+    printf 'revoked: %s\n' "$revoke"
+  fi
+
+  if [ -n "$allow" ]; then
+    case "$allow" in
+      tidy) ;;
+      *) die "unknown capability: $allow. The only one is 'tidy'." ;;
+    esac
+    if felix_autonomy_allows "$proj" "$allow"; then
+      printf 'already allowed: %s\n' "$allow"
+    else
+      [ -f "$proj/autonomy" ] || printf '# What Felix may do here unattended.\n' > "$proj/autonomy"
+      printf '%s\n' "$allow" >> "$proj/autonomy"
+      printf 'allowed: %s\n' "$allow"
+    fi
+  fi
+
+  printf '\nautonomy for %s\n\n' "$(basename "$proj")"
+  if felix_autonomy_allows "$proj" tidy; then
+    printf '  [x] tidy    remove a lookalike script when Felix already holds that file\n'
+  else
+    printf '  [ ] tidy    remove a lookalike script when Felix already holds that file\n'
+  fi
+  printf '\nNothing is granted by default, and Felix never writes this file for a\n'
+  printf 'project: a permission a system grants itself is not a permission.\n'
+  printf '\nTidy removes a file only when every one of these holds: this project\n'
+  printf 'opted in, Felix holds a file of that exact name, git does not track it,\n'
+  printf 'it is not the declared gate, and a backup was written and confirmed\n'
+  printf 'readable first. A tracked file is part of what the repository says it\n'
+  printf 'contains, and removing one is a change to the project rather than the\n'
+  printf 'removal of a stray.\n'
+  printf '\n  felix autonomy --allow tidy      grant it\n'
+  printf '  felix autonomy --revoke tidy     take it back\n'
 }
 
 cmd_shape() {
@@ -1902,6 +1954,7 @@ case "${1:-help}" in
   toolbox)   shift; cmd_toolbox "$@" ;;
   ledger)    shift; cmd_ledger "$@" ;;
   shape)     shift; cmd_shape "$@" ;;
+  autonomy)  shift; cmd_autonomy "$@" ;;
   quarantine) shift; cmd_quarantine "$@" ;;
   recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;

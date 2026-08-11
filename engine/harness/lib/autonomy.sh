@@ -1,0 +1,84 @@
+# What Felix may do here without being asked.
+#
+# Felix removing a file from somebody's product repository, unattended, at
+# session start, is the sharpest trust boundary in the system. Everything else
+# it does unattended is additive: it injects text, appends a log, or refuses a
+# command. This deletes.
+#
+# So it is opted into per project and never inferred. An absent `autonomy` file
+# means nothing is permitted, which is the state every project starts in and
+# the state one stays in until somebody types the opt-in themselves. Felix does
+# not write this file on a project's behalf, because a permission a system
+# grants itself is not a permission.
+#
+# projects/<p>/autonomy: one capability per line.
+#   tidy    remove a lookalike script when Felix already holds that file
+#
+# Reporting is not listed and never needs opting into. Saying "this exists and
+# nothing can reach it" changes nothing on disk.
+
+felix_autonomy_allows() {
+  local proj="$1" want="$2" line
+  [ -n "$want" ] || return 1
+  [ -f "$proj/autonomy" ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|'#'*) continue ;; esac
+    # Trimmed, because a trailing space in a hand-edited file should not be the
+    # difference between a permission holding and silently not.
+    line="${line%"${line##*[![:space:]]}"}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    [ "$line" = "$want" ] && return 0
+  done < "$proj/autonomy"
+  return 1
+}
+
+# Remove lookalike scripts, and only where every check holds.
+#
+# The checks, in order, each one able to stop the removal on its own:
+#
+#   1. The project opted in. No file, no removal, however safe it looks.
+#   2. Felix holds a file of that exact name for this project, so the copy that
+#      matters survives regardless of what happens next.
+#   3. Git does not track it. A tracked file is part of the repository's stated
+#      contents, and deleting one is a change to the project rather than the
+#      removal of a stray — a different and much larger act, whoever is right
+#      about which copy is better.
+#   4. It is not the declared gate, and does not live inside Felix's own home.
+#   5. The backup was written and is readable. Nothing is removed on the
+#      strength of a copy nobody confirmed.
+#
+# Emits one line per removal. Silence means nothing was touched.
+felix_tidy_safe() {
+  local proj="$1" root="$2" home="$3"
+  felix_autonomy_allows "$proj" tidy || return 0
+
+  local gate; gate="$(felix_json_str "$proj/project.json" gate 2>/dev/null)"
+  local rivals; rivals="$(_felix_rival_gates "$root" "$proj" "$gate" 2>/dev/null)"
+  [ -n "$rivals" ] || return 0
+
+  local state f note base backup
+  while IFS=$'\t' read -r state f note; do
+    [ -n "${f:-}" ] || continue
+    # 3. Tracked stays. _felix_rival_gates reports both, and only one of them
+    #    is a stray file somebody left behind.
+    [ "${state:-}" = "untracked" ] || continue
+    base="${f##*/}"
+    # 2. Felix holds the copy that matters.
+    [ -f "$proj/$base" ] || continue
+    # 4. Never the gate, never Felix's own storage.
+    [ "$root/$f" -ef "$proj/$gate" ] 2>/dev/null && continue
+    case "$root/$f" in "${home:-/nonexistent}"/projects/*) continue ;; esac
+
+    # 5. Copy first, confirm the copy, then remove. A backup nobody checked is
+    #    the same as no backup at the moment it turns out to matter.
+    mkdir -p "$home/state/rivals" 2>/dev/null || continue
+    backup="$home/state/rivals/$(basename "$proj")-$(printf '%s' "$f" | tr '/' '-')"
+    cp "$root/$f" "$backup" 2>/dev/null || continue
+    [ -s "$backup" ] || [ ! -s "$root/$f" ] || continue
+
+    rm -f "$root/$f" 2>/dev/null || continue
+    printf '%s\n' "$f"
+  done <<EOF
+$rivals
+EOF
+}

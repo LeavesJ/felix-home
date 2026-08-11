@@ -238,3 +238,19 @@ with a record, not a substitute for running it.
   rather than the project's real rules. Reach for a temporary row with an
   invented pattern, and do not work around the refusal, which is what
   reconstructing the string from fragments would have been.
+
+- **A test can be green because it cannot reach the branch it names.** Three
+  assertions called "a bundled plugin reads as usable" passed on the laptop for
+  every commit of their life and failed on every CI run, and the reason was the
+  same fact in both places: the code path they describe only executes where no
+  `claude` CLI answers. A laptop always answers, so the assertion ran against a
+  different branch and reported ok; a runner never answers, so it ran against
+  the right one and found a real defect sitting there — the 0.26.0 bundled fix
+  had been written one branch *below* the short-circuit that returns first. The
+  lifecycle roster test had the identical shape: it discovers events from what
+  the machine binds, so on a bare runner it discovered nothing and asserted
+  nothing, which is precisely the failure the roster was built to prevent,
+  reproduced inside the test for it. **When a test depends on the machine, make
+  the machine part of the fixture** — a stripped `PATH`, a fixture `HOME` — or
+  the suite is only ever testing the developer's laptop. And when CI and local
+  disagree, CI is the one standing in the branch nobody can reach by hand.

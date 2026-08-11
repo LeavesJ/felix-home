@@ -91,10 +91,12 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.27.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.28.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **470 assertions**, 0 failed. `main` is pushed and
-  CI is green.
+- `felix gate` → **pass**. **471 assertions**, 0 failed. `main` is pushed and
+  **CI is green — checked, not assumed.** It had been red for at least two
+  commits while this line claimed otherwise. Read `gh run list --branch main`
+  before writing that sentence again.
 - **`PreToolUse` now binds `Bash|Edit|Write|Read|NotebookEdit|WebFetch`.** It
   bound `Bash` alone until 0.27.0. What replaced the matcher as the
   blast-radius control is `felix_deny_overbroad`: a pattern is tested against
@@ -345,3 +347,12 @@ never by the suite.
 A fifth variant is about where an explanation lives: a fix described in a commit
 message rather than in `lessons.md` was repeated within the day. `lessons.md` is
 matched into prompts; a commit message is read once and never again.
+
+A sixth, found 2026-08-11: *where the test runs*. Three assertions about bundled
+plugins passed on the laptop and failed on every CI run, because the branch they
+name only executes where no `claude` CLI answers — which is every runner and no
+laptop. Sitting in that branch was a real defect: the 0.26.0 bundled fix had gone
+in one line below the short-circuit that returns first. Same shape as the others.
+The code was correct; the place it ran was not the place it mattered. The tell is
+CI and local disagreeing, so treat that as a finding rather than as flakiness,
+and put the machine into the fixture — a stripped `PATH`, a fixture `HOME`.

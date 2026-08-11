@@ -223,3 +223,18 @@ with a record, not a substitute for running it.
   disk. Same lesson as the envelope bug next door, in the one place the first
   fix did not look: fixing a read path leaves the write path storing the thing
   you stopped reading.
+
+- **A deny pattern matches the command string, not the command.** Verifying the
+  widened `PreToolUse` meant driving the deployed hook with sample payloads, and
+  one of those payloads quoted a forbidden command as a literal. The live hook
+  refused the whole script. Nothing was being force-pushed; the text was inside
+  a single-quoted argument to `printf`, on its way to a *different* process. The
+  rule cannot tell those apart, because a `deny.tsv` pattern is tested against
+  the command string as one blob and matches anywhere inside it. So any script
+  that documents, tests, echoes or greps for a forbidden command is itself
+  forbidden. This is not a bug to fix — anchoring the patterns would break the
+  compound-command case they exist for, which is the more dangerous direction —
+  but it is the reason a verification script has to use neutral probe patterns
+  rather than the project's real rules. Reach for a temporary row with an
+  invented pattern, and do not work around the refusal, which is what
+  reconstructing the string from fragments would have been.

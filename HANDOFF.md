@@ -91,10 +91,20 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.25.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.27.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **446 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **470 assertions**, 0 failed. `main` is pushed and
   CI is green.
+- **`PreToolUse` now binds `Bash|Edit|Write|Read|NotebookEdit|WebFetch`.** It
+  bound `Bash` alone until 0.27.0. What replaced the matcher as the
+  blast-radius control is `felix_deny_overbroad`: a pattern is tested against
+  two ordinary subjects — `git status --short` and `/felix/probe/ordinary` —
+  before it is allowed to refuse anything, and one that matches them is skipped
+  as a rule that is wrong rather than honoured as a rule that is strict.
+  Skipping can only ever allow more, never less. `felix doctor` reports every
+  row skipped that way, because the hook runs on every call and saying it there
+  would be noise. Measured cost of the widening: **34 ms per call**, synchronous
+  — roughly 1.7s across a session at the rates the ledger records.
 - Felix wires **8 of the 11 lifecycle moments** anything on this machine binds,
   and has a written stance on the other three. `felix coverage` shows the table.
   At the start of 2026-08-10 it wired 3, and all three only injected text.
@@ -110,7 +120,8 @@ is not masked at all.
 Binds the session and names the constitution and handoff as required reading;
 reports capability drift and upkeep; tidies where a project has opted in;
 routes each prompt and names the tool that is due; states the shape of a plan
-when a prompt points at one; refuses forbidden Bash commands; records every
+when a prompt points at one; refuses forbidden shell commands, and forbidden
+reads, writes, edits and fetches; records every
 tool call and rolls it into a ledger with a zero row for everything mounted and
 never reached for; checks the gate when the session stops.
 
@@ -247,34 +258,27 @@ Everything above item 1 that used to be here is done. This list is what is left.
    that the 0.40-era SDK does not have. Merging is the founder's, and it is the
    first of the five green merges auto-merge needs.
 
-2. **`PreToolUse` covers one tool surface out of many.** It binds
-   `matcher: "Bash"`, chosen so a denial bug could not reach an edit. The
-   ledger now shows real sessions spending most of their calls on `Read`,
-   `Edit` and `Write`, none of which any deny rule can currently see. Widening
-   it is a real decision, not an oversight: the matcher is the blast-radius
-   control, so widening it means accepting that a bad regex can block editing.
-
-3. **Make `declined` falsifiable.** A stance of `declined` in `lifecycle.tsv`
+2. **Make `declined` falsifiable.** A stance of `declined` in `lifecycle.tsv`
    is permanent by construction — nothing re-checks whether the reason still
    holds. The self-diagnosis design proposes a `holds` column naming a literal
    that must stay present in `hooks.json`, so a decline dies when its premise
    does. Cheap, and it closes the one place the coverage table can rot quietly.
 
-4. **The monitor's compliance panel.** `felix_route_due` already computes
+3. **The monitor's compliance panel.** `felix_route_due` already computes
    whether a session used the tool Felix named; nothing surfaces it. This is
    the panel that proves the delegation works rather than merely recording it,
    and the founder now has real ledger data to look at. Also: archive sessions
    clickable, which is a rendering change because `monitor.html` already groups
    by session.
 
-5. **`felix next`.** Rank the engineering backlog Felix already tracks —
+4. **`felix next`.** Rank the engineering backlog Felix already tracks —
    maintenance, drift, setup gaps, evidence gaps — and say what to do. Not
    product work; that is the founder's.
 
-6. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
+5. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
    `recommend` and `which` print and bind nothing.
 
-7. **Auto-merge and the unattended switch.** Both unlock on five consecutive
+6. **Auto-merge and the unattended switch.** Both unlock on five consecutive
    green merges. Maintenance will not produce them: a well-kept repository
    yields about one real PR from a full sweep of due routines, which was
    measured rather than guessed. They come from real feature work.

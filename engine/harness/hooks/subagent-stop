@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# SubagentStop: the other completion moment.
+#
+# The parent session is gated — its Stop hook refuses to let it call work
+# finished on a tree nothing verified. A subagent is not. It finishes, reports
+# back, and the parent integrates the report; if the report says "done, tests
+# pass" and nothing ran, the parent has no way to know and every later claim
+# inherits it.
+#
+# Found the same way the Stop-hook gap was found: by sweeping the lifecycle
+# rather than by noticing. It is the identical defect one level down, and it
+# matters more now that Felix decides when work fans out, because deciding to
+# fan out is deciding to create these moments.
+#
+# Non-blocking on purpose. A subagent may legitimately have changed nothing — a
+# reader, a reviewer, a search — and blocking those would make fan-out
+# expensive enough that people stop doing it, which is a worse outcome than an
+# unverified report. What this does instead is make an unverified hand-off
+# declare itself at the moment it is handed over, while the parent can still
+# act on it. The parent's own Stop hook remains the thing that actually refuses.
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+. "${SCRIPT_DIR}/../lib/resolve.sh" 2>/dev/null || exit 0
+. "${SCRIPT_DIR}/../lib/verify.sh"  2>/dev/null || exit 0
+. "${SCRIPT_DIR}/../lib/say.sh"     2>/dev/null || true
+
+raw="$(cat 2>/dev/null || true)"
+
+FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT" 2>/dev/null)" || exit 0
+PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
+[ -n "$PROJ" ] || exit 0
+
+ROOT="$(felix_repo_root "$PWD" 2>/dev/null)"
+git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || exit 0
+
+# Nothing changed in this checkout: there is no claim to qualify, so say
+# nothing. This is the common case for a reader or a reviewer.
+[ -n "$(git -C "$ROOT" status --porcelain 2>/dev/null)" ] || exit 0
+
+TID="$(felix_tree_id "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)" || exit 0
+receipt="$(felix_verify_receipt "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)"
+[ "$(printf '%s' "$receipt" | cut -f1)" = "$TID" ] \
+  && [ "$(printf '%s' "$receipt" | cut -f2)" = "green" ] && exit 0
+
+SID="$(printf '%s' "$raw" \
+  | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+
+body="This subagent changed files in the checkout and the gate has not passed on
+the result. That may be entirely fine — the work may be partial, or for somebody
+else to verify.
+
+Say so in the report, in those words. Do not describe this work as done,
+working, or passing. Whoever reads the report cannot see the tree you left
+behind, and will otherwise inherit a claim nobody checked."
+
+felix_say "$PROJ" "subagent-unverified" "$body" "" "${SID:-}" 2>/dev/null || true
+printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SubagentStop",\n    "additionalContext": "%s"\n  }\n}\n' \
+  "$(printf '%s' "$body" \
+     | sed 's/\\/\\\\/g; s/"/\\"/g' | awk '{printf "%s\\n", $0}')"
+exit 0

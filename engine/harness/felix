@@ -102,6 +102,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/toolbox.sh"
 . "${SCRIPT_DIR}/lib/ledger.sh"
 . "${SCRIPT_DIR}/lib/shape.sh"
+. "${SCRIPT_DIR}/lib/coverage.sh"
 . "${SCRIPT_DIR}/lib/autonomy.sh"
 . "${SCRIPT_DIR}/lib/intake.sh"
 # shellcheck source=lib/monitor.sh
@@ -154,6 +155,7 @@ specific project, language, or toolchain.
     felix scope            what a change is allowed to touch
     felix ledger           what has been mounted, and what was never reached for
     felix autonomy         what Felix may do here unattended
+    felix coverage         every lifecycle moment, and Felix's stance on it
 
   the loop
     felix doctor [--fix]   drift, rival gates, and the tidying it can safely do
@@ -767,6 +769,41 @@ cmd_autonomy() {
   printf 'removal of a stray.\n'
   printf '\n  felix autonomy --allow tidy      grant it\n'
   printf '  felix autonomy --revoke tidy     take it back\n'
+}
+
+cmd_coverage() {
+  local tpl="$SCRIPT_DIR/templates" hooks="$SCRIPT_DIR/../hooks/hooks.json"
+  local state event detail bad=0
+
+  printf 'lifecycle coverage\n\n'
+  while IFS=$'\t' read -r state event detail; do
+    [ -n "${event:-}" ] || continue
+    case "$state" in
+      ok) printf '  [x] %-18s %s\n' "$event" "$detail" ;;
+      *)  printf '  [!] %-18s %s\n' "$event" "$detail"; bad=$((bad+1)) ;;
+    esac
+  done <<EOF
+$(felix_coverage_check "$tpl" "$hooks")
+EOF
+
+  local un; un="$(felix_coverage_unconsidered "$tpl" | tr '\n' ' ')"
+  if [ -n "${un% }" ]; then
+    printf '\n  [ ] %s\n' "${un% }"
+    printf '      offered by the platform, and this table has no opinion on it\n'
+    bad=$((bad+1))
+  fi
+
+  if [ "$bad" -eq 0 ]; then
+    printf '\nEvery moment has a stance, and the wiring matches it.\n'
+  else
+    printf '\n%s moment(s) need a decision.\n' "$bad"
+  fi
+
+  printf '\nThis checks that every moment was considered, never that what runs at\n'
+  printf 'one is any good. A hook doing the wrong thing passes here and should:\n'
+  printf 'judging that is not mechanical, and a report implying otherwise would\n'
+  printf 'be worse than no report. Two gaps were found by a person noticing, and\n'
+  printf 'the point of this table is that the third one fails instead.\n'
 }
 
 cmd_shape() {
@@ -2111,6 +2148,7 @@ case "${1:-help}" in
   toolbox)   shift; cmd_toolbox "$@" ;;
   ledger)    shift; cmd_ledger "$@" ;;
   shape)     shift; cmd_shape "$@" ;;
+  coverage)  shift; cmd_coverage "$@" ;;
   autonomy)  shift; cmd_autonomy "$@" ;;
   brief)     shift; cmd_brief "$@" ;;
   pr)        shift; cmd_pr "$@" ;;

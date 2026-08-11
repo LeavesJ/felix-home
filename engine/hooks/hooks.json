@@ -25,6 +25,18 @@
         ]
       }
     ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/harness/hooks/subagent-stop\"",
+            "shell": "bash",
+            "async": false
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "hooks": [

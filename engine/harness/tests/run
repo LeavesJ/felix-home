@@ -1693,6 +1693,46 @@ has "reads a plugin's own description" "$d" "llm evaluation harness"
 d="$( . "$FROOT/harness/lib/discover.sh"; felix_plugin_description "$TMP/nosuchdir" )"
 is "and is silent when there is none" "$d" ""
 
+printf '\nFelix noticing its own gaps\n'
+# Two coverage gaps were found today by a person noticing, not by any check.
+# Absence has no line number: nothing greps for a hook that was never written.
+# The stance table turns that into something that fails.
+CVT="$TMP/cov"; mkdir -p "$CVT"
+printf 'Stop\twired\trefuse completion\nNotification\tdeclined\tnothing to add\n' > "$CVT/lifecycle.tsv"
+printf '{"hooks":{"Stop":[{}]}}\n' > "$CVT/hooks.json"
+out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$CVT" "$CVT/hooks.json" )"
+has "a wired moment with a stance is ok"   "$out" "ok	Stop"
+has "and a declined one is ok too"         "$out" "ok	Notification"
+
+# Declared wired, nothing wiring it. A hook deleted in a refactor looks exactly
+# like this and looks like nothing at all without the table.
+printf 'Stop\twired\trefuse completion\n' > "$CVT/lifecycle.tsv"
+printf '{"hooks":{}}\n' > "$CVT/hooks.json"
+out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$CVT" "$CVT/hooks.json" )"
+has "a hook that stopped being wired is caught" "$out" "missing	Stop"
+
+# Wired with nothing saying why. Someone adds a hook and never argues for it.
+printf 'Stop\twired\trefuse completion\n' > "$CVT/lifecycle.tsv"
+printf '{"hooks":{"Stop":[{}],"PreToolUse":[{}]}}\n' > "$CVT/hooks.json"
+out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$CVT" "$CVT/hooks.json" )"
+has "a hook nobody explained is caught" "$out" "undeclared	PreToolUse"
+
+# The row that matters: a moment the platform offers that nobody has considered.
+# This is the check that would have named SubagentStop out loud.
+printf 'Stop\twired\trefuse completion\n' > "$CVT/lifecycle.tsv"
+out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_unconsidered "$CVT" | tr '\n' ' ' )"
+has "an unconsidered moment is named"  "$out" "SubagentStop"
+has "and so is every other one"        "$out" "SessionStart"
+
+# And the real table, which must have an opinion on every moment there is.
+out="$( . "$FROOT/harness/lib/coverage.sh"
+        felix_coverage_unconsidered "$REAL_HARNESS/templates" | tr -d '\n ' )"
+is "the shipped table considers every moment" "$out" ""
+out="$( . "$FROOT/harness/lib/coverage.sh"
+        felix_coverage_check "$REAL_HARNESS/templates" "$REAL_HARNESS/../hooks/hooks.json" \
+        | grep -vc '^ok' || true )"
+is "and the shipped wiring matches its stance" "$out" "0"
+
 printf '\na bundled plugin is present, not missing\n'
 # `claude plugin list` reports what came from a marketplace and nothing else, so
 # a plugin compiled into the binary is absent from it while being live in every

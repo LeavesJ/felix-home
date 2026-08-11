@@ -1,0 +1,26 @@
+# Every moment Claude Code offers a harness, and Felix's stance on each.
+#
+# This file exists because two coverage gaps were found by a person noticing.
+# The Stop hook checked the gate and never asked anyone to verify their claims;
+# SubagentStop was not wired at all, so a subagent could finish, report success,
+# and be believed. Both are the same defect — a completion moment with nothing
+# at it — and neither was findable by reading the code, because absence has no
+# line number.
+#
+# A stance is required for every event. `wired` must be backed by an entry in
+# hooks.json, and `declined` must carry a reason someone can argue with. An
+# event with neither is the gap, and `felix coverage` fails on it.
+#
+# The point is not the current answers. It is that a new event added by the
+# platform, or a hook quietly removed, cannot sit here unnoticed.
+#
+# event	stance	reason
+SessionStart	wired	bind the session, mount doctrine, tidy, report what is due
+UserPromptSubmit	wired	route the work, name the tool due next, mount matching lessons
+PreToolUse	wired	refuse commands this project has forbidden
+PostToolUse	wired	record what was reached for, so what is never used can be found
+Stop	wired	refuse completion on an unverified tree, then ask for verification of the claims
+SubagentStop	wired	a subagent finishing is a completion moment too, and the parent inherits its report
+SessionEnd	wired	roll the session's tool calls into the ledger, with zeroes for what went untouched
+PreCompact	declined	SessionStart matches on compact, so doctrine is re-mounted afterwards; nothing needs saving before
+Notification	declined	fires when Claude wants attention. Felix has nothing to add, and speaking here would break stealth in the middle

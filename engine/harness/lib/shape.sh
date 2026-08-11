@@ -22,6 +22,51 @@
 # required for the benefit of whoever implements the task; it happens to be a
 # dependency graph nobody was reading.
 
+# The plan a prompt is pointing at, if it is pointing at one.
+#
+# Computing shape and then waiting to be asked for it is the same half-built
+# thing as installing a tool no route can reach. The moment shape matters is the
+# moment somebody says "work through this plan", and that is a sentence the
+# prompt hook already sees.
+#
+# Deliberately narrow. The envelope carries a transcript path and a working
+# directory, and neither is something a person pointed at: reading those as
+# plans is the same mistake that had `continue` routing to a document skill. So
+# the envelope fields are stripped first, and a candidate has to exist in this
+# checkout AND contain the task blocks a plan has. A markdown file with no tasks
+# is not a plan, and treating one as a plan would put a confident empty answer
+# in front of every prompt that mentions a readme.
+felix_shape_named() {
+  local raw="$1" root="$2" cand
+  [ -n "$root" ] || return 0
+  printf '%s' "$raw" \
+    | sed -E 's/"(session_id|transcript_path|cwd|permission_mode|hook_event_name|session_title|source|model|version)"[[:space:]]*:[[:space:]]*("[^"]*"|[^,}]*)/ /g' \
+    | tr -cs 'A-Za-z0-9_./-' '\n' \
+    | grep -E '\.md$' \
+    | sed 's|^\./||' \
+    | while IFS= read -r cand; do
+        [ -n "$cand" ] || continue
+        [ -f "$root/$cand" ] || continue
+        grep -qE '^###[[:space:]]+Task[[:space:]]+' "$root/$cand" 2>/dev/null || continue
+        printf '%s' "$cand"
+        return 0
+      done
+}
+
+# One line per group, for injecting rather than reading.
+felix_shape_brief() {
+  local plan="$1" g n coupled="" alone=""
+  while IFS= read -r g; do
+    [ -n "$g" ] || continue
+    n="$(printf '%s' "$g" | tr ',' '\n' | grep -c .)"
+    if [ "$n" -gt 1 ]; then coupled="${coupled}${coupled:+; }$g"; else alone="${alone}${alone:+, }$g"; fi
+  done <<EOF
+$(felix_shape_groups "$plan")
+EOF
+  [ -n "$coupled" ] && printf 'one context, they share files: %s\n' "$coupled"
+  [ -n "$alone" ]   && printf 'separable, sharing nothing: %s\n' "$alone"
+}
+
 # task <TAB> path, one per line.
 #
 # A path may carry a line range (`file.py:120-140`) because the plan format

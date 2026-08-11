@@ -1574,6 +1574,46 @@ EOF
 [ -z "$_undocumented" ] && ok "help covers every command that dispatches" \
                         || bad "help covers every command that dispatches" "missing:$_undocumented"
 
+printf '\nshape reaches the session that needs it\n'
+# Computing shape and waiting to be asked is the same half-built shape as
+# installing a tool no route can reach. The moment it matters is the moment
+# somebody points at a plan, which is a thing the prompt hook can see.
+SR="$TMP/shaperepo"; mkdir -p "$SR/docs"
+cat > "$SR/docs/p.md" <<'EOF'
+### Task 1: One
+
+**Files:**
+- Create: `lib/a.sh`
+
+### Task 2: Two
+
+**Files:**
+- Modify: `lib/a.sh`
+
+### Task 3: Three
+
+**Files:**
+- Modify: `docs/z.md`
+EOF
+_named() { ( . "$FROOT/harness/lib/shape.sh"; felix_shape_named "$1" "$SR" ); }
+is "finds a plan the prompt points at" \
+   "$(_named '{"prompt":"execute docs/p.md now"}')" "docs/p.md"
+is "and one written as a path"          \
+   "$(_named '{"prompt":"work through ./docs/p.md"}')" "docs/p.md"
+is "ignores a file that does not exist" "$(_named '{"prompt":"read docs/nope.md"}')" ""
+# A markdown file with no tasks is not a plan, and treating one as a plan would
+# put a confident empty answer in front of every prompt naming a readme.
+printf '# just prose\n' > "$SR/docs/notes.md"
+is "and a document that is not a plan"  "$(_named '{"prompt":"see docs/notes.md"}')" ""
+# The envelope names the transcript path, which ends in .jsonl but has been a
+# source of phantom matches before. It must never be read as a plan.
+is "never the transcript in the envelope" \
+   "$(_named '{"transcript_path":"/x/docs/p.md","prompt":"hello"}')" ""
+
+out="$( . "$FROOT/harness/lib/shape.sh"; felix_shape_brief "$SR/docs/p.md" )"
+has "briefs which tasks are one unit" "$out" "1,2"
+has "and which stand alone"           "$out" "3"
+
 printf '\nautonomy is opted into, never assumed\n'
 AUP="$TMP/autoproj"; mkdir -p "$AUP"
 a() { ( . "$FROOT/harness/lib/autonomy.sh"; felix_autonomy_allows "$AUP" "$1" && echo yes || echo no ); }

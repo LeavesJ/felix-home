@@ -35,6 +35,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/classify.sh"
 . "${SCRIPT_DIR}/../lib/incident.sh"
 . "${SCRIPT_DIR}/../lib/route.sh"
+. "${SCRIPT_DIR}/../lib/shape.sh"
 . "${SCRIPT_DIR}/../lib/say.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
@@ -48,6 +49,12 @@ root="$(felix_repo_root "$PWD")"
 # base payload; absent means the whole play gets named, which is the old
 # behaviour and a safe place to fall back to.
 transcript="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+
+# Hoisted, because more than one block needs to remember what it already said.
+# It used to be computed inside the route branch, so anything else wanting a
+# session key got an unbound variable or silently shared one.
+sid="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+[ -n "$sid" ] || sid="repo-$(printf '%s' "$root" | tr -c 'a-zA-Z0-9' '-')"
 
 # ------------------------------------------------------------------ route ----
 route_block=""
@@ -64,8 +71,6 @@ if [ -f "$PROJ/routes.tsv" ]; then
     # cannot be read the repository stands in for it, which degrades the right
     # way — two concurrent sessions in one checkout would share a key and one
     # would occasionally stay quiet, a missed suggestion rather than a wrong one.
-    sid="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
-    [ -n "$sid" ] || sid="repo-$(printf '%s' "$root" | tr -c 'a-zA-Z0-9' '-')"
     state_dir="$FELIX_HOME_DIR/state/route"
     state="$state_dir/$sid"
     # Keyed on the route AND the step that is due, so finishing one step is
@@ -101,16 +106,45 @@ The rest are in ${LESSONS}."
   fi
 fi
 
-[ -n "$route_block" ] || [ -n "$lesson_block" ] || exit 0
+# ------------------------------------------------------------------ shape ----
+# Said before the work is split, not after. Whether tasks can run apart was
+# decided by taste every time, which meant it held for one person on one
+# machine; the half that is mechanical is a refusal, and a refusal is worth
+# stating at the moment somebody points at a plan rather than when they think to
+# ask. Silent unless the prompt names a real plan in this checkout.
+shape_block=""
+_plan="$(felix_shape_named "$raw" "$root" 2>/dev/null)"
+if [ -n "$_plan" ]; then
+  # Once per plan per session. This file's own header says a hook that speaks
+  # every turn is one people learn to skim, and shape does not change between
+  # two prompts about the same plan.
+  _sstate_dir="$FELIX_HOME_DIR/state/shape"
+  _sstate="$_sstate_dir/$sid"
+  _slast=""; [ -f "$_sstate" ] && _slast="$(cat "$_sstate" 2>/dev/null)"
+  _brief=""
+  [ "$_slast" != "$_plan" ] && _brief="$(felix_shape_brief "$root/$_plan" 2>/dev/null)"
+  if [ -n "$_brief" ]; then
+    mkdir -p "$_sstate_dir" 2>/dev/null && printf '%s' "$_plan" > "$_sstate" 2>/dev/null
+    shape_block="Shape of ${_plan}, computed from the files each task declares.
 
-body="$route_block"
-if [ -n "$route_block" ] && [ -n "$lesson_block" ]; then
-  body="$route_block
+$(printf '%s\n' "$_brief" | sed 's/^/  /')
 
-$lesson_block"
-elif [ -z "$route_block" ]; then
-  body="$lesson_block"
+Tasks sharing a file cannot be worked in parallel: one overwrites the other, or
+they invent conflicting assumptions about a file neither owns. That half binds.
+Sharing nothing is necessary to fan out and not sufficient, because a caller and
+the signature it consumes share no file at all. Read the interfaces first."
+  fi
 fi
+
+[ -n "$route_block" ] || [ -n "$lesson_block" ] || [ -n "$shape_block" ] || exit 0
+
+body=""
+for _part in "$route_block" "$shape_block" "$lesson_block"; do
+  [ -n "$_part" ] || continue
+  body="${body}${body:+
+
+}${_part}"
+done
 
 escape_for_json() {
   local s="$1"

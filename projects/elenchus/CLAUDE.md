@@ -27,7 +27,7 @@ about to do. Do it, then show what happened.
 There is no mandatory reading ritual. `docs/lessons.md` is a runbook, not a
 gate. Open it when you are working a surface it covers. It is long and mostly
 historical; the parts that still bind are restated as Invariants below, and the
-parts a linter can catch now live in `scripts/gate.sh`.
+parts a linter can catch now live in the gate, which `felix gate` runs.
 
 ### 2. Abstraction police
 
@@ -83,7 +83,7 @@ Never downgrade silently.
 
 **T0 direct.** Reversible, one module, no behavior or interface change. Docs,
 comments, tests, an internal refactor.
-Gate: `./scripts/gate.sh`. Then ship. No plan, no review, no announcement.
+Gate: `felix gate`. Then ship. No plan, no review, no announcement.
 
 **T1 checked.** Behavior changes, or the diff crosses a module boundary, or a
 dependency moves.
@@ -157,7 +157,7 @@ the code wins.
 
 ## Invariants
 
-Things no linter can catch. Everything mechanical is `scripts/gate.sh`'s job.
+Things no linter can catch. Everything mechanical is the gate's job.
 
 1. **Doctrine is data.** Maps in `content/maps/` and rubrics in
    `content/rubrics/` are first class versioned content kept out of `src/`. The

@@ -195,6 +195,31 @@ answer the one question the slice exists for.
 91c15299	2026-08-09	build	playwright	mcp	yes	0	0	0
 ```
 
+**Corrected 2026-08-11.** This section contradicted the revision above it and
+was the reason the slice stayed unbuilt: the body argues that transcript
+parsing breaks the bash-and-git invariant and that the pipeline must invert to
+recording as it happens, and then this section described a `SessionEnd` hook
+that parses a transcript. Both cannot be true. The revision wins, because the
+invariant is not negotiable and the recording path needs no parser at all.
+
+What is actually built:
+
+- **`PostToolUse` records.** One append per tool call: the session, and the
+  signal — the tool name, the skill when the call is a skill invocation, or the
+  server when the name is `mcp__<server>__…`. No parsing, no git, no
+  subshells. It runs after every tool call in every governed session, so its
+  cost is the design constraint.
+- **`SessionEnd` rolls up.** It folds that session's appends into
+  `memory/ledger.tsv` and writes a zero row for every declared capability that
+  was never invoked. The zero rows are the point: presence without use is the
+  only unconfounded signal in the whole design, and it does not exist unless
+  something writes it down.
+- **The transcript is never read.** Reconciliation against it stays available
+  out of band, and nothing depends on it.
+
+The original text follows, kept because the reasoning about cost is still
+right even though the mechanism named here was wrong.
+
 Written by a `SessionEnd` hook that parses the transcript it is handed. Nothing
 is computed live; the transcript is complete by then and parsing it costs
 nothing at that point.

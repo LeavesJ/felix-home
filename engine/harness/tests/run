@@ -1448,6 +1448,44 @@ is "anything shipping hooks is high"     "$(_tier "$DF/hooky")"      "high"
 is "an unpinned version is high"         "$(_tier "$DF/floaty")"     "high"
 is "interpolating a credential is high"  "$(_tier "$DF/creds")"      "high"
 
+printf '\nthe ledger: recorded as it happens, never parsed after\n'
+# The slice stayed unbuilt because its own spec contradicted itself: the body
+# said transcript parsing breaks the bash-and-git invariant, and the Records
+# section described a hook that parses a transcript. Recording needs no parser.
+_sig() { ( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_signal "$1" ); }
+is "a plain tool is recorded by name" \
+   "$(_sig '{"tool_name":"Bash"}')" "tool	Bash"
+is "an mcp call is recorded by server" \
+   "$(_sig '{"tool_name":"mcp__github__create_issue"}')" "mcp	github"
+is "a skill is recorded by which skill" \
+   "$(_sig '{"tool_name":"Skill","tool_input":{"skill":"superpowers:brainstorming"}}')" \
+   "skill	superpowers:brainstorming"
+is "an unparseable payload records nothing" "$(_sig 'not json')" ""
+
+LH="$TMP/ledgerhome"; LP="$LH/projects/widget"; mkdir -p "$LP/memory"
+printf 'plugin\tsuperpowers@x\t-\tlow\talways\nplugin\tplaywright@x\t-\tlow\te2e\n' > "$LP/stack.tsv"
+( . "$FROOT/harness/lib/ledger.sh"
+  felix_ledger_record "$LH" sess1 "tool	Bash"
+  felix_ledger_record "$LH" sess1 "tool	Bash"
+  felix_ledger_record "$LH" sess1 "skill	superpowers:brainstorming" )
+n="$( . "$FROOT/harness/lib/ledger.sh"; wc -l < "$LH/state/ledger/sess1.tsv" | tr -d ' ' )"
+is "every call is appended" "$n" "3"
+
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_rollup "$LP" "$LH" sess1 2026-08-11 )
+led="$(cat "$LP/memory/ledger.tsv" 2>/dev/null)"
+has "counts repeated calls once with a total" "$led" "tool	Bash	2"
+has "and a skill that was invoked"            "$led" "skill	superpowers:brainstorming	1"
+# The zero rows are the whole point. Presence without use is the only
+# unconfounded signal in the design and it does not exist unless it is written.
+has "writes a zero row for a declared tool nobody reached for" "$led" "playwright@x	0"
+case "$led" in
+  *"superpowers@x	0"*) bad "and no zero row for one that was used" "$led" ;;
+  *)                     ok  "and no zero row for one that was used" ;;
+esac
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_rollup "$LP" "$LH" sess1 2026-08-11 )
+n="$(grep -c '^sess1' "$LP/memory/ledger.tsv")"
+is "rolling the same session twice does not double it" "$n" "3"
+
 printf '\none rule for what a thing looks like\n'
 # There were two matchers and they drifted. One scored a marketplace blurb, the
 # other scored the name alone, nothing said they had to agree, and a plugin got

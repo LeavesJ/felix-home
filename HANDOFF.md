@@ -37,6 +37,17 @@ design its surfaces to be drivable by something that is not a human.
 
 **How to work, decided across this session:**
 
+- **Routine engine work on Felix does not need approving each time.** Decided
+  2026-08-11. Felix's own `risk.tsv` classifies most engine changes red, and
+  asking per change turned the founder into a queue for work that is tested,
+  reversible, and about Felix rather than about a product. Build it, gate it,
+  deploy it, say what shipped. Still stop and ask for: anything destructive in
+  a product repository, credentials, money, anything irreversible, and any
+  change to what Felix is *for* rather than what it does.
+- **Never hand over tidying as a decision.** If Felix could safely have done
+  it, doing it is the job. A founder should never be told where a duplicate
+  script lives, which plugins matched no capability, or that a log needs
+  truncating. Report what was done, not what they could do.
 - **Decide, do not ask.** Subagents versus inline execution is Felix's call and
   the session's call, made on the shape of the work and justified in one line.
   Coupling is the usual tiebreaker: several agents editing one file invent

@@ -1486,6 +1486,38 @@ esac
 n="$(grep -c '^sess1' "$LP/memory/ledger.tsv")"
 is "rolling the same session twice does not double it" "$n" "3"
 
+printf '\nreading the ledger, in the one direction that is honest\n'
+# Written rows nothing reads is the same half-built shape as installing a tool
+# no route can reach. Aggregation reduces to the owner, because a package is
+# declared as superpowers@marketplace and invoked as superpowers:brainstorming.
+LR="$TMP/ledgerread"; mkdir -p "$LR/memory"
+cat > "$LR/memory/ledger.tsv" <<'EOF'
+s1	2026-08-01	skill	superpowers:brainstorming	3
+s1	2026-08-01	plugin	playwright@x	0
+s1	2026-08-01	plugin	context7@x	0
+s2	2026-08-02	plugin	superpowers@x	0
+s2	2026-08-02	plugin	playwright@x	0
+s2	2026-08-02	mcp	context7	2
+EOF
+sum="$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_summary "$LR" )"
+has "counts a package and its skill as one thing" "$sum" "superpowers	2	3"
+has "sums invocations across sessions"            "$sum" "context7	2	2"
+has "and keeps a never-invoked one at zero"       "$sum" "playwright	2	0"
+
+# The asymmetry: only absence of use given presence is unconfounded, so only
+# retirement is ever proposed and never the reverse.
+p="$( . "$FROOT/harness/lib/ledger.sh"; FELIX_LEDGER_MIN=2 felix_ledger_retire "$LR" | tr '\n' ' ' )"
+has "proposes retiring what was mounted and never reached for" "$p" "playwright"
+case "$p" in
+  *superpowers*) bad "never proposes retiring something that was used" "$p" ;;
+  *context7*)    bad "never proposes retiring something that was used" "$p" ;;
+  *)             ok  "never proposes retiring something that was used" ;;
+esac
+# Two sessions is not evidence. The window is sessions, not time, and a capability
+# unused across two of them may simply not have come up yet.
+p="$( . "$FROOT/harness/lib/ledger.sh"; FELIX_LEDGER_MIN=5 felix_ledger_retire "$LR" | tr -d '\n ' )"
+is "and says nothing below the session threshold" "$p" ""
+
 printf '\none rule for what a thing looks like\n'
 # There were two matchers and they drifted. One scored a marketplace blurb, the
 # other scored the name alone, nothing said they had to agree, and a plugin got

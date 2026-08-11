@@ -11,6 +11,8 @@
 #   felix ready          is every tool this project names actually usable?
 #   felix discover       what is worth having that this project does not have
 #   felix discover --adopt  declare and install the low-risk ones it has read
+#   felix toolbox        every installed plugin, what it is, and what can reach it
+#   felix ledger         what has been mounted, and what was never reached for
 #   felix quarantine <p> switch off a plugin that is breaking sessions
 #   felix recommend      what this stack implies; --want "<text>" matches intent
 #   felix stack plan     diff declared tooling against what is installed
@@ -96,6 +98,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 # shellcheck source=lib/route.sh
 . "${SCRIPT_DIR}/lib/route.sh"
 . "${SCRIPT_DIR}/lib/toolbox.sh"
+. "${SCRIPT_DIR}/lib/ledger.sh"
 # shellcheck source=lib/monitor.sh
 . "${SCRIPT_DIR}/lib/monitor.sh"
 # shellcheck source=lib/ready.sh
@@ -553,6 +556,47 @@ cmd_quarantine() {
   printf 'This takes effect in your NEXT session. A plugin already loaded stays\n'
   printf 'loaded, hooks and all, so the current one behaves exactly as before.\n\n'
   printf 'Undo whenever it is fixed:\n\n  claude plugin enable %s\n' "$name"
+}
+
+cmd_ledger() {
+  resolve_or_die; local proj="$PROJ" name sessions calls n=0
+  local f="$proj/memory/ledger.tsv"
+
+  if [ ! -f "$f" ]; then
+    printf 'Nothing recorded yet for %s.\n\n' "$(basename "$proj")"
+    printf 'The ledger is written by hooks, and hooks bind when a session starts,\n'
+    printf 'so a session running when they were installed records nothing. It fills\n'
+    printf 'from the next session onwards.\n'
+    return 0
+  fi
+
+  printf 'ledger for %s, %s session(s)\n\n' "$(basename "$proj")" \
+    "$(cut -f1 "$f" | LC_ALL=C sort -u | grep -c . || echo 0)"
+  printf '  %-34s %-10s %s\n' CAPABILITY SESSIONS REACHED
+  while IFS=$'\t' read -r name sessions calls; do
+    [ -n "${name:-}" ] || continue
+    printf '  %-34s %-10s %s\n' "$name" "$sessions" "$calls"
+    n=$((n+1))
+  done <<EOF
+$(felix_ledger_summary "$proj")
+EOF
+  [ "$n" -eq 0 ] && printf '  nothing yet\n'
+
+  local retire; retire="$(felix_ledger_retire "$proj")"
+  if [ -n "$retire" ]; then
+    printf '\nmounted and never reached for, across %s or more sessions\n\n' "$FELIX_LEDGER_MIN"
+    printf '%s\n' "$retire" | while IFS=$'\t' read -r name sessions; do
+      [ -n "${name:-}" ] || continue
+      printf '  %-34s %s sessions, 0 invocations\n' "$name" "$sessions"
+    done
+    printf '\nThat is the one signal here worth acting on. Remove the row from\n'
+    printf '%s/stack.tsv and any play that names it.\n' "$proj"
+  fi
+
+  printf '\nOnly retiring is ever proposed. Loading a capability is what causes it\n'
+  printf 'to be used, so a high count cannot show anything earned its place; the\n'
+  printf 'absence of use while mounted is the only unconfounded direction. None of\n'
+  printf 'this measures whether the work was any good.\n'
 }
 
 cmd_toolbox() {
@@ -1764,6 +1808,7 @@ case "${1:-help}" in
   ready)     shift; cmd_ready "$@" ;;
   discover)  shift; cmd_discover "$@" ;;
   toolbox)   shift; cmd_toolbox "$@" ;;
+  ledger)    shift; cmd_ledger "$@" ;;
   quarantine) shift; cmd_quarantine "$@" ;;
   recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;

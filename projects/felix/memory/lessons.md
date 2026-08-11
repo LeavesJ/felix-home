@@ -138,6 +138,15 @@ with a record, not a substitute for running it.
   the only one worth acting on. The same shape will recur anywhere Felix
   measures something it also controls.
 
+- **A `local` statement cannot see a variable it is declaring.**
+  `local proj="$1" f="$proj/routes.tsv"` leaves `f` empty at best, and under
+  `set -u` it is an unbound variable that kills the function — so the caller
+  sees "no such route" or "no such file" rather than a syntax complaint, and
+  the bug reads as missing data. Written twice in one session, an hour apart,
+  in two different libraries, the second time by the person who had just fixed
+  the first. Declare the parameters, then declare anything derived from them on
+  the next line.
+
 - **An inline plugin cannot be uninstalled, and the CLI says it can.**
   `claude plugin uninstall togetherai-skills` printed "Successfully
   uninstalled". Afterwards `claude plugin list` showed nothing, the on-disk

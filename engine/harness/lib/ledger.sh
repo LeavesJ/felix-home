@@ -18,6 +18,54 @@
 # never reached for leaves no trace of its own; if nothing writes the zero down,
 # the only thing the ledger can ever say is that whatever got used got used.
 
+# How many sessions each capability was present for, and how often it was
+# actually reached for.
+#
+# Reduced to the owner on both sides. A package is declared as
+# `superpowers@marketplace` and invoked as `superpowers:brainstorming`, and an
+# MCP server is declared under its own name and invoked as `mcp__server__tool`.
+# Counting those as three different things would report every capability as
+# unused and every use as belonging to nothing.
+#
+# Emits: name <TAB> sessions <TAB> invocations
+felix_ledger_summary() {
+  local proj="$1"
+  local f="$proj/memory/ledger.tsv"
+  [ -f "$f" ] || return 0
+  awk -F'\t' '
+    $4 != "" {
+      owner = $4
+      sub(/@.*/, "", owner)
+      sub(/:.*/, "", owner)
+      key = owner SUBSEP $1
+      if (!(key in seen)) { seen[key] = 1; sessions[owner]++ }
+      calls[owner] += $5
+    }
+    END { for (o in sessions) printf "%s\t%s\t%s\n", o, sessions[o], calls[o] }
+  ' "$f" | LC_ALL=C sort
+}
+
+# What has been present and never reached for.
+#
+# The only direction this may ever run. "Loaded and used" is confounded, because
+# loading is what causes use, so no amount of counting can turn a high number
+# into a reason to mount something. "Loaded across many sessions and never once
+# invoked" has no alternative explanation: it was mounted, it was in scope, and
+# it was ignored every time.
+#
+# The window is sessions, not days. A capability unused across two sessions may
+# simply not have come up; the threshold is what separates that from evidence.
+FELIX_LEDGER_MIN="${FELIX_LEDGER_MIN:-5}"
+felix_ledger_retire() {
+  local proj="$1" name sessions calls
+  felix_ledger_summary "$proj" | while IFS=$'\t' read -r name sessions calls; do
+    [ -n "${name:-}" ] || continue
+    [ "${calls:-0}" -eq 0 ] 2>/dev/null || continue
+    [ "${sessions:-0}" -ge "$FELIX_LEDGER_MIN" ] 2>/dev/null || continue
+    printf '%s\t%s\n' "$name" "$sessions"
+  done
+}
+
 # One line per tool call, appended. This runs after every tool call in every
 # governed session, so its cost is the design constraint: no subshells, no git,
 # no reading anything back.

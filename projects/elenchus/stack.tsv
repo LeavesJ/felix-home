@@ -30,4 +30,3 @@ plugin	semgrep@claude-plugins-official	-	high	always
 plugin	anthropic-skills	-	low	always
 plugin	deepeval	-	low	llm
 plugin	langfuse	-	low	llm
-plugin	togetherai-skills	-	low	llm

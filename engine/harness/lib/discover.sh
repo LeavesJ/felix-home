@@ -64,22 +64,10 @@ felix_discover_candidates() {
     | while IFS=$'\t' read -r name desc; do
         [ -n "$name" ] || continue
         felix_has_line "$declared" "$name" && continue
-        local nhay dhay best_cap="" best=0
-        nhay=" $(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
-        dhay=" $(printf '%s' "$desc" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
-        local cap kws kw score
-        while IFS=$'\t' read -r cap kws; do
-          [ -n "$cap" ] || continue
-          score=0
-          for kw in $kws; do
-            # The name is what a thing IS; the prose is what it mentions.
-            case "$nhay" in *"$kw"*) score=$((score+3)); continue ;; esac
-            case "$dhay" in *"$kw"*) score=$((score+1)) ;; esac
-          done
-          if [ "$score" -gt "$best" ]; then best="$score"; best_cap="$cap"; fi
-        done <<EOF
-$rules
-EOF
+        local hit best best_cap
+        hit="$(felix_capability_match "$name" "$desc" "$rules")"
+        best="$(printf '%s' "$hit" | cut -f1)"
+        best_cap="$(printf '%s' "$hit" | cut -f2)"
         [ "$best" -ge "${FELIX_DISCOVER_MIN:-3}" ] && printf '%s\t%s\t%s\t%s\n' "$best" "$best_cap" "$name" "$desc"
       done \
     | sort -k1,1nr | head -"$FELIX_DISCOVER_MAX"
@@ -211,6 +199,47 @@ felix_discover_why() {
 FELIX_DISCOVER_STALE_DAYS="${FELIX_DISCOVER_STALE_DAYS:-7}"
 
 _felix_discover_cache() { printf '%s/state/discover/%s' "$2" "$(basename "$1")"; }
+
+# What a thing looks like, scored once.
+#
+# There were two of these and they drifted, which is how a plugin was installed
+# under a capability it does not have: one scored a marketplace blurb, the other
+# scored the name alone, and nothing said they were supposed to agree. A name
+# counts triple because it is what a thing IS; prose counts single because it is
+# what a thing mentions.
+#
+# Emits: score <TAB> capability. The caller applies its own threshold, because
+# what is worth reporting and what is worth installing are different bars.
+felix_capability_match() {
+  local name="$1" desc="$2" rules="$3" nhay dhay cap kws kw score best=0 best_cap=""
+  nhay=" $(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
+  dhay=" $(printf '%s' "$desc" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
+  while IFS=$'\t' read -r cap kws; do
+    [ -n "${cap:-}" ] || continue
+    score=0
+    for kw in $kws; do
+      case "$nhay" in *"$kw"*) score=$((score+3)); continue ;; esac
+      case "$dhay" in *"$kw"*) score=$((score+1)) ;; esac
+    done
+    if [ "$score" -gt "$best" ]; then best="$score"; best_cap="$cap"; fi
+  done <<EOF
+$rules
+EOF
+  printf '%s\t%s' "$best" "$best_cap"
+}
+
+# What a plugin says about itself, from the copy on disk.
+#
+# Preferred over the marketplace listing wherever both exist. The listing is
+# written to be chosen from; the manifest is written to describe. Scoring the
+# blurb is how a tracing plugin and an inference provider were both filed under
+# the capability of the project that happened to be looking.
+felix_plugin_description() {
+  local dir="$1"
+  [ -f "$dir/.claude-plugin/plugin.json" ] || return 0
+  sed -n 's/.*"description"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+    "$dir/.claude-plugin/plugin.json" 2>/dev/null | head -1
+}
 
 # What discovery has already read, judged, and would declare.
 #

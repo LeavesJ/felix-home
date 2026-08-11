@@ -50,23 +50,23 @@ felix_toolbox_skills() {
   done
 }
 
-# Which declared capability this plugin looks like, scored the same way
-# discovery scores a marketplace listing, so an installed plugin and a candidate
-# are judged by one rule rather than two that drift.
+# Which declared capability this plugin looks like.
+#
+# Delegates to felix_capability_match so an installed plugin and a candidate are
+# scored by one rule. They were not, and the comment here used to claim they
+# were: this file scored the name alone while discovery scored a marketplace
+# blurb, and that disagreement is how two plugins were installed under a
+# capability neither has.
+#
+# The description comes from the plugin's own manifest rather than a listing,
+# and the threshold is discovery's, so "worth reporting" and "worth installing"
+# stay the same bar until somebody deliberately makes them different.
 felix_toolbox_capability() {
-  local name="$1" rules="$2" nhay cap kws kw score best=0 best_cap=""
-  nhay=" $(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
-  while IFS=$'\t' read -r cap kws; do
-    [ -n "${cap:-}" ] || continue
-    score=0
-    for kw in $kws; do
-      case "$nhay" in *"$kw"*) score=$((score+3)) ;; esac
-    done
-    if [ "$score" -gt "$best" ]; then best="$score"; best_cap="$cap"; fi
-  done <<EOF
-$rules
-EOF
-  printf '%s' "$best_cap"
+  local name="$1" rules="$2" dir="${3:-}" desc="" hit
+  [ -n "$dir" ] && desc="$(felix_plugin_description "$dir")"
+  hit="$(felix_capability_match "$name" "$desc" "$rules")"
+  [ "$(printf '%s' "$hit" | cut -f1)" -ge "${FELIX_DISCOVER_MIN:-3}" ] 2>/dev/null || return 0
+  printf '%s' "$(printf '%s' "$hit" | cut -f2)"
 }
 
 # Does any route already name this plugin, under either play form?

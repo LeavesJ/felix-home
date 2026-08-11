@@ -577,7 +577,7 @@ cmd_toolbox() {
     if [ -n "$dir" ]; then
       risk="$(felix_discover_risk "$(felix_discover_inspect "$dir")")"
     fi
-    cap="$(felix_toolbox_capability "$name" "$rules")"
+    cap="$(felix_toolbox_capability "$name" "$rules" "$dir")"
 
     if felix_toolbox_routed "$proj" "$name"; then
       reach="a route names it"; n_routed=$((n_routed+1))
@@ -701,6 +701,21 @@ EOF
       if [ -n "$url" ] && felix_discover_fetch "$url" "$sha" "$scratchq/$name"; then
         facts="$(felix_discover_inspect "$scratchq/$name" "$sub")"
         tier="$(felix_discover_risk "$facts")"
+        # Re-scored against what the plugin says about itself, now that a copy
+        # is on disk. The catalogue blurb is written to be chosen from; the
+        # manifest is written to describe, and scoring the blurb is how a
+        # tracing plugin and an inference provider were both filed under the
+        # capability of whichever project happened to be looking.
+        local own; own="$(felix_plugin_description "$scratchq/$name/${sub:-.}")"
+        if [ -n "$own" ]; then
+          local rehit; rehit="$(felix_capability_match "$name" "$own" \
+            "$(_felix_discover_rules "$tpl" "$proj")")"
+          if [ "$(printf '%s' "$rehit" | cut -f1)" -ge "${FELIX_DISCOVER_MIN:-3}" ]; then
+            cap="$(printf '%s' "$rehit" | cut -f2)"
+          else
+            cap="-"
+          fi
+        fi
         rm -rf "$scratchq/$name"
       fi
       printf '%s\t%s\t%s\n' "$name" "$cap" "$tier"

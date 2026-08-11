@@ -1448,6 +1448,27 @@ is "anything shipping hooks is high"     "$(_tier "$DF/hooky")"      "high"
 is "an unpinned version is high"         "$(_tier "$DF/floaty")"     "high"
 is "interpolating a credential is high"  "$(_tier "$DF/creds")"      "high"
 
+printf '\none rule for what a thing looks like\n'
+# There were two matchers and they drifted. One scored a marketplace blurb, the
+# other scored the name alone, nothing said they had to agree, and a plugin got
+# installed under a capability the other matcher would not have given it.
+CR="$(printf 'llm\tllm prompt eval evaluation\nfrontend\tpage component styling')"
+_cm() { ( . "$FROOT/harness/lib/discover.sh"; felix_capability_match "$1" "$2" "$CR" ); }
+is "a name counts triple"            "$(_cm evaltool '' | cut -f1)" "3"
+is "and prose counts single"         "$(_cm zzz 'about prompt things' | cut -f1)" "1"
+is "prose alone can still add up"    "$(_cm zzz 'an llm platform for prompt management and evaluation' | cut -f1)" "4"
+is "the best capability wins"        "$(_cm zzz 'page component styling' | cut -f2)" "frontend"
+is "and nothing matching scores nil" "$(_cm zzz 'a database migration tool' | cut -f1)" "0"
+
+# The manifest, not the listing. A catalogue blurb is written to be chosen from;
+# a manifest is written to describe.
+DD="$TMP/desc/.claude-plugin"; mkdir -p "$DD"
+printf '{"name":"x","description":"an llm evaluation harness"}\n' > "$DD/plugin.json"
+d="$( . "$FROOT/harness/lib/discover.sh"; felix_plugin_description "$TMP/desc" )"
+has "reads a plugin's own description" "$d" "llm evaluation harness"
+d="$( . "$FROOT/harness/lib/discover.sh"; felix_plugin_description "$TMP/nosuchdir" )"
+is "and is silent when there is none" "$d" ""
+
 printf '\nthe toolbox: reach, analyse, and whether anything can route it\n'
 # Felix could read a plugin it had fetched from a marketplace and could not read
 # one already installed, which is the one it will actually be asked about. The

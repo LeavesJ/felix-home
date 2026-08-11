@@ -18,6 +18,12 @@ Felix is already working here. Report, briefly and in plain language:
   and switched on, because a plugin that is off is invisible until the turn it
   was needed
 - `felix maintenance` — anything due
+- `felix toolbox` — every installed plugin, what it actually ships, and whether
+  any route can reach it; the last column is the one that matters
+- `felix ledger` — what has been mounted and never once reached for, which is
+  the only signal here that is not confounded
+- `felix autonomy` — what this project has permitted Felix to do unattended,
+  which is nothing until somebody grants it
 - `felix monitor --open` — offer it, do not run it unasked; it is a page showing
   every routing decision and gate verdict, which is otherwise unobservable
 
@@ -54,13 +60,27 @@ anything yet — find out what is here first, then propose.
    - `felix ready` before the next session, since a plugin that is switched off
      cannot be switched on mid-session
 
+## What it does whether or not anybody asks
+
+Say this plainly, because most of Felix is not commands anybody types. It binds
+the session and names the constitution and handoff as required reading; it
+routes each prompt and mounts the lessons that match; it **refuses** Bash
+commands the project has forbidden, through `PreToolUse`; it records every tool
+call and folds that into a ledger at session end, including a zero for
+everything mounted and never reached for; and it checks the gate when you stop.
+
+Where a project has opted in through `felix autonomy`, it also tidies — and
+that is the only thing here that deletes, so it is the only one gated on an
+explicit grant.
+
 ## Always
 
 Be honest about what Felix does not do. It does not open pull requests, deploy
 anything, or read issues. It does not mount MCP servers mid-session, and it
-cannot enable a plugin that is switched off without a restart. Its completion
-gate interrupts once per chain and is a speed bump with a record, not a barrier;
-the barrier is CI.
+cannot enable a plugin that is switched off without a restart. Nothing yet
+consults `felix shape`, so execution shape is computed only when asked. Its
+completion gate interrupts once per chain and is a speed bump with a record,
+not a barrier; the barrier is CI.
 
 If a command fails, say what failed and what it printed. Do not paper over it —
 this is a tool whose entire value is that it refuses to report success it has

@@ -1555,6 +1555,25 @@ has "reads a plugin's own description" "$d" "llm evaluation harness"
 d="$( . "$FROOT/harness/lib/discover.sh"; felix_plugin_description "$TMP/nosuchdir" )"
 is "and is silent when there is none" "$d" ""
 
+printf '\nevery command says it exists\n'
+# Thirty-four commands dispatched and help printed eight. Twenty-six were
+# undiscoverable, including `install`, which is how the engine is deployed, and
+# `new`, which is how anything is governed at all. Four of them were added the
+# same day by somebody who edited the comment block at the top of the file and
+# believed that was the help text.
+_dispatched="$(sed -n '/^case "${1:-help}"/,/^esac/p' "$FROOT/harness/felix" \
+  | grep -oE '^  [a-z-]+\)' | tr -d ' )' | grep -vE '^(help)$' | LC_ALL=C sort -u)"
+_helped="$("$FELIX" help 2>&1)"
+_undocumented=""
+while IFS= read -r c; do
+  [ -n "$c" ] || continue
+  case "$_helped" in *"felix $c"*) ;; *) _undocumented="$_undocumented $c" ;; esac
+done <<EOF
+$_dispatched
+EOF
+[ -z "$_undocumented" ] && ok "help covers every command that dispatches" \
+                        || bad "help covers every command that dispatches" "missing:$_undocumented"
+
 printf '\nautonomy is opted into, never assumed\n'
 AUP="$TMP/autoproj"; mkdir -p "$AUP"
 a() { ( . "$FROOT/harness/lib/autonomy.sh"; felix_autonomy_allows "$AUP" "$1" && echo yes || echo no ); }

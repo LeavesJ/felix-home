@@ -116,8 +116,65 @@ FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, m
 
 die() { printf 'felix: %s\n' "$1" >&2; exit "${2:-1}"; }
 
+# Written out rather than sliced from the header comment. It used to print lines
+# 2 to 12 of this file, so documenting a command meant adding a line inside a
+# window nobody could see, and four commands added in one day fell off the end
+# silently. Thirty-four dispatched; eight were listed. The suite now asserts
+# that every dispatched command appears here.
 usage() {
-  sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+  cat <<'USAGE'
+Felix. The engineering OS: it decides how work gets built, and proves it.
+Resolves which project governs the current directory. Knows nothing about any
+specific project, language, or toolchain.
+
+  every day
+    felix which            which project governs here, and where its doctrine is
+    felix gate [args]      run this project's gate; exits with the gate's status
+    felix route            what kind of work this is, and what to reach for
+    felix classify         how risky this diff is, and what that means for merging
+    felix evidence         what this change still owes before it counts as done
+
+  the toolbox
+    felix ready            is every tool this project names actually usable?
+    felix toolbox          every installed plugin, what it is, what can reach it
+    felix toolbox --route  wire the ones that have somewhere to go
+    felix discover         what is worth having that this project does not have
+    felix discover --adopt declare and install the low-risk ones it has read
+    felix stack [plan|apply] install what this project declares
+    felix adopt <cap>      declare a capability and everything it implies
+    felix profile [name]   which tools a task profile mounts
+    felix quarantine <p>   switch off a plugin that is breaking sessions
+    felix recommend        what the catalogue would suggest for this project
+
+  deciding
+    felix shape <plan>     which tasks may run apart, and which must not
+    felix scope            what a change is allowed to touch
+    felix ledger           what has been mounted, and what was never reached for
+    felix autonomy         what Felix may do here unattended
+
+  the loop
+    felix doctor [--fix]   drift, rival gates, and the tidying it can safely do
+    felix repair           a bounded brief for a failing CI run
+    felix incident         turn an error into a scoped brief
+    felix maintenance      upkeep that is due, and when each last ran
+    felix automerge        whether green changes may merge themselves yet
+    felix unattended       whether the unattended loop is ready to be switched on
+    felix budget           how much unattended work has been spent today
+
+  memory
+    felix handoff          regenerate the mechanical session handoff
+    felix log <text>       add a devlog entry
+    felix lesson <text>    add a lesson, matched into later prompts
+    felix lessons          what this project has already paid for
+    felix promote          what has been caught often enough to become doctrine
+    felix monitor [--open] render everything Felix did that nobody could see
+
+  setup
+    felix new <name>       govern a project: a directory, a JSON file, a marker
+    felix install          deploy this engine; refuses at an unchanged version
+    felix bootstrap        write CI, permissions and the files a project needs
+    felix setup [id]       the steps only a person can do, and what is left
+USAGE
 }
 
 # Sets PROJ in the caller's shell rather than printing it. Printing would force

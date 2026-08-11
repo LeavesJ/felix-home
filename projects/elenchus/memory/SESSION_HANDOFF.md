@@ -1,3 +1,86 @@
+# Elenchus — Session Handoff (2026-08-11, pass five)
+
+Private, local-only (`docs/` is a symlink into the Felix governance repo — L-26).
+**Read this, then `docs/DEVLOG.md` (top entry).**
+
+## ▶ THE STATE IN ONE LINE
+
+**PASS FIVE RAN AGAINST `adf997d` AND FOUND NO FIFTH INSTANCE.** Branch
+`claude/elenchus-development-e4d54e` @ `adf997d`, still 18 ahead of `main`, still pushed, **still not
+merged — that is yours**. Suite 1282/31 and `felix gate` pass, both re-verified by execution in a
+worktree pinned `--detach` at `adf997d`. No code was changed by this pass.
+
+`main` has moved since the last banner said `aa950bf`: it is now **`fc15d3f`**, carrying two CI
+commits merged by PR on 2026-08-09 (`15a6741` gate on every PR, `fc15d3f` unattended repair loop,
+switched off). **Neither has a DEVLOG entry**, which by our own delivery rule means they did not
+happen. Worth one.
+
+## ✅ THE MERGE THRESHOLD IS MET. THE DECISION IS STILL YOURS.
+
+Your own list, item by item, each checked by running it rather than reading about it:
+
+```
+zero blocker/severe                          ✅  three findings, all LOW or record-only
+zero durable-state correctness findings      ✅  none
+zero identity/provenance silently guessed    ✅  every residual OLD_REF traced to continuity_lock_in
+green migration from pristine backup         ✅  executed on a copy of the 2026-08-08 backup
+green fresh database                         ✅  the suite's own migrate(empty) cases
+idempotent rerun                             ✅  all counters 0 but the counted next_pick 2
+green unpiped prepush                        ⬜  NOT re-run this pass; it was green on 2026-08-10
+```
+
+The adversarial item was the one that was open. It is closed by a pass that did not write the code it
+reviewed. **I did not merge, and did not push anything.**
+
+## ⚠️ THE ONE THING TO CORRECT: THE "DOM SHIM" WAS NEVER IN THE TREE
+
+`adf997d`'s message, the 2026-08-10 DEVLOG entry and the banner below all claim the client race fix
+was *"Proven against a DOM shim driving the exact race."* **There is no DOM shim.** What shipped is
+`test_the_outcome_box_is_keyed_by_its_own_memory_index`: four string assertions over `index.html`.
+No test file in this repo runs JavaScript at all — no `node`, `subprocess`, `quickjs`, `dukpy`.
+
+The fix itself is fine; I attacked it and found no hole, and the server never returns an index of its
+own for the client to disagree with. The defect is in the **record**: three durable documents assert
+a proof nobody can re-run, on a branch whose own headline lesson is *twelve assertions that could not
+fail*. The commit message cannot be fixed without rewriting history (T3), so the correction lives in
+the DEVLOG and here.
+
+## 🩹 TWO MORE, BOTH LOW, BOTH WITH NO REACHABLE CASE ON ANY REAL DB HERE
+
+* `ledger_ref_migration.py:493-496` leaves an unauthored slot alone (right) and **counts nothing**
+  (wrong by this file's own policy — one block up the same situation is counted as
+  `house_refs_undiscriminated`). Needs a `frames` row with NULL/empty breadth to fire; all four real
+  databases have it populated, checked.
+* `:461-463` counts `next_pick_ref_left_closed` over every remaining row, but the live clear is
+  gated on `_has_table("web_sitting")`. Without that table, live rows are counted as dead.
+
+Neither is worth another round on a branch waiting to merge. Both are two-line fixes if you want them.
+
+## 📉 AND THE UNCOMFORTABLE ONE: THE FOUR-ROUND HUNT CHANGED NOTHING ON REAL DATA
+
+There is **one** `web_domain_slot` row in every real database here. It holds all five frame codes, and
+the frames that actually authored `OLD_REF` are exactly `MOVED_FRAMES | KEPT_FRAMES`. So every
+historical predicate agrees on it. Executed, four variants against four copies of the pristine backup:
+**byte-identical output, one row written, every time.**
+
+The defect class was real and the doctrine is worth having. But its blast radius on this surface was
+zero, and that is *why* four rounds of testing kept passing: the only row that exists is the case
+where every wrong predicate gives the right answer. Keep that in view when deciding how much a sixth
+round would buy.
+
+## ▶ HOW TO PICK THIS UP
+
+```
+cd ~/Documents/Elenchus/.claude/worktrees/review-pass5     # pinned at adf997d, left in place
+felix gate                                                 # prints the tree and SHA it gated — read them
+```
+
+`git worktree remove .claude/worktrees/review-pass5` when done. **Run `felix gate` from the tree you
+mean to gate**: the Bash cwd in a fresh session is the main checkout, and from there it gates
+`main`, passes, and looks identical to a correct run. The banner naming the SHA is the only tell.
+
+*(prior banner below)*
+
 # Elenchus — Session Handoff (2026-08-10, gate arc)
 
 Private, local-only (`docs/` is a symlink into the Felix governance repo — L-26).

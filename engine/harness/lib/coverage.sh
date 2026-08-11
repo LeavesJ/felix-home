@@ -47,28 +47,47 @@ felix_coverage_check() {
   # table was written after the fact: something wired that no row explains. A
   # hook nobody wrote a reason for is a hook nobody can argue with.
   local h
-  for h in $(grep -oE '"(SessionStart|UserPromptSubmit|PreToolUse|PostToolUse|Stop|SubagentStop|SessionEnd|PreCompact|Notification)"' \
-               "$hooks" 2>/dev/null | tr -d '"' | sort -u); do
+  for h in $(grep -oE '"[A-Z][A-Za-z]+"[[:space:]]*:[[:space:]]*\[' "$hooks" 2>/dev/null \
+               | sed 's/"[[:space:]]*:.*//; s/"//g' | sort -u); do
     case " $seen " in *" $h "*) continue ;; esac
     printf 'undeclared\t%s\t%s\n' "$h" "wired, but lifecycle.tsv says nothing about it"
   done
 }
 
-# Every event the platform offers, whether or not Felix has an opinion yet.
+# Every event something on this machine actually binds.
 #
-# Hardcoded, because it is a property of Claude Code rather than of any project,
-# and because the whole point is to notice when this list grows past what the
-# stance table covers. A list derived from the stance table could never do that.
-FELIX_LIFECYCLE_EVENTS="SessionStart UserPromptSubmit PreToolUse PostToolUse Stop SubagentStop SessionEnd PreCompact Notification"
+# Discovered, not remembered. The first version of this was a list typed from
+# memory, and it was wrong within the hour: `SubagentStart` was bound in
+# settings.json the whole time and the table said "every moment has a stance".
+# A roster of what somebody recalls is the same defect as a list of files to
+# check — it stops matching reality quietly, and the report keeps saying ok.
+#
+# A binding is proof the event exists, so nothing here is guessed and there are
+# no false positives to teach anyone to skim. What it cannot see is an event the
+# platform offers that nothing on this machine binds yet; those become visible
+# the day anything binds one, which is also the first day they could matter.
+felix_coverage_events() {
+  {
+    grep -ohE '"[A-Z][A-Za-z]+"[[:space:]]*:[[:space:]]*\[' \
+      "$HOME/.claude/settings.json" \
+      "$HOME/.claude/settings.local.json" \
+      "$HOME"/.claude/plugins/cache/*/*/*/hooks/hooks.json 2>/dev/null \
+      | sed 's/"[[:space:]]*:.*//; s/"//g'
+  } 2>/dev/null | LC_ALL=C sort -u
+}
 
-# Moments the platform offers that the stance table has never heard of. This is
-# the row that would have said "SubagentStop" out loud, months before anybody
-# thought to sweep the lifecycle by hand.
+# Moments something binds that the stance table has never heard of. This is the
+# row that would have named SubagentStop months before anybody swept the
+# lifecycle by hand — and that named SubagentStart an hour after the table
+# meant to prevent exactly this was written.
 felix_coverage_unconsidered() {
   local tpl="$1" e known
   [ -f "$tpl/lifecycle.tsv" ] || return 0
   known="$(grep -vE '^[[:space:]]*(#|$)' "$tpl/lifecycle.tsv" | cut -f1)"
-  for e in $FELIX_LIFECYCLE_EVENTS; do
+  while IFS= read -r e; do
+    [ -n "$e" ] || continue
     printf '%s\n' "$known" | grep -qxF "$e" || printf '%s\n' "$e"
-  done
+  done <<EOF
+$(felix_coverage_events)
+EOF
 }

@@ -1,5 +1,112 @@
 # Elenchus — DEVLOG
 
+## 2026-08-11 (pass five) — THE FIFTH PASS RAN AGAINST `adf997d`. NO FIFTH INSTANCE. NO CODE CHANGED.
+
+Independent pass, in a worktree created `--detach` at `adf997d` so no in-flight edit could poison it,
+with `.venv` and `data` symlinked (without `data` the corpus tests take the empty fallback silently).
+Nothing on the branch was modified. Three findings, none blocking, all recorded below.
+
+### Verified by execution, not by reading
+
+| claim | command | result |
+|---|---|---|
+| suite | `PYTHONPATH=src .venv/bin/pytest -q` | **1282 passed / 31 skipped** |
+| gate | `felix gate` from the pinned tree | **pass**, banner prints `HEAD @ adf997d` |
+| pristine production backup | `migrate()` on a copy of `elenchus-pre-ledgerref-migration-20260808-152030.db` | green |
+| idempotent rerun | second `migrate()` on the same file | every counter 0 except `next_pick_ref_left_closed: 2` |
+| residual `OLD_REF` | column sweep of the whole post-migration file | 7 sites, **every one `continuity_lock_in`'s** |
+| "catches all four historical variants" | four source mutations, suite after each | **all four caught** |
+
+The residual sweep is the check the first version of this migration failed. `frames.breadth_json` (1,
+`embed_credentials_as_a_list`), `ledger.id`, `corpus.ledger_ref`, `corpus.provenance` (the new row's
+own provenance string names the ref it was split from), `selection_log.problem` (3),
+`chosen_problem` (3), `next_pick_ref` (2, the counted ones), `web_domain_slot` (1, kept beside the
+new ref). Every `selection_log` row left on the old ref names `continuity_lock_in` on the matching
+identity column. No row names two different owned problems.
+
+Mutation detail, since "verified by mutation" is exactly the kind of claim this branch has learned to
+distrust. `authors = frames` (membership as authorship, the essence of all four) fails 2 tests;
+`keeps_old = bool(frames & KEPT_FRAMES)` (round 3) fails 1; `adds_new = bool(frames & MOVED_FRAMES)`
+(round 4's gate side) fails 2; `keeps_old = bool(frames - MOVED_FRAMES)` (round 1) fails 2. The
+property is not a tautology and the tree was restored clean after each.
+
+### THE FOUR-ROUND HUNT HAS ZERO PRODUCTION EFFECT ON `web_domain_slot`, and that is worth knowing
+
+There is exactly **one** `web_domain_slot` row in every real database on this machine, it holds all
+five frame codes, and the frames that actually authored `OLD_REF` are exactly
+`MOVED_FRAMES | KEPT_FRAMES`. So all four historical predicates agree on it. Executed, each variant
+re-expressed against the current guard and run on its own copy of the pristine backup:
+
+```
+HEAD (round-4 fix)   -> [license_fork_risk, midrollout_contract_boundary]  (1 row written)
+round-1/2 variant    -> [license_fork_risk, midrollout_contract_boundary]  (1 row written)
+round-3 variant      -> [license_fork_risk, midrollout_contract_boundary]  (1 row written)
+round-4 gate-side    -> [license_fork_risk, midrollout_contract_boundary]  (1 row written)
+```
+
+Byte-identical. **The defect class was real; its blast radius on this surface was nil**, and that is
+also why four rounds of testing kept passing: the only row that exists is the case where every wrong
+predicate gives the right answer. The fix earns its keep on any other database and on this file being
+reused as a template, which is what the doctrine header is for. It does not earn it here.
+
+A first attempt at that table reported 0 rows written for two variants. That was my harness leaking
+open sqlite handles across iterations onto one reused path, not a difference in the code. Chased it
+to ground and re-ran with a distinct file per variant rather than reporting a number I could not
+explain.
+
+### F1 · The "DOM shim" proof does not exist in the tree. MODERATE, and it is a record defect, not a code defect.
+
+`adf997d`'s message, this log's 2026-08-10 entry, and the handoff all say the client fix was
+*"Proven against a DOM shim driving the exact race: the stale block posts its own index with its own
+text."* What shipped in that commit is `test_the_outcome_box_is_keyed_by_its_own_memory_index`, four
+string assertions over `index.html` (`"let memIndex" not in page`, and three substring checks).
+**There is no JS runtime anywhere in the suite** -- no `node`, `subprocess`, `quickjs`, `dukpy`,
+`execjs` in any test file. No shim exists, and nobody can re-run one.
+
+The fix itself reads correct and I found no hole in it: the index is bound into the rendered block,
+`recordOutcome(kind, index)` posts that block's own index, and the server never returns a resolved
+index of its own (`session_runner.memory` either accepts the client's index through the drift guard
+or answers `unavailable`), so there is no client/server index to disagree about.
+
+But this branch's own recorded lesson is *twelve assertions that could not fail*, and a source-grep
+test whose docstring describes a behaviour it never executes is that shape. Either commit the shim or
+correct the three records. The commit message cannot be edited without rewriting history (T3), so the
+correction belongs here and in the handoff, which is where it now is.
+
+### F2 · The slot branch's no-author skip is silent. LOW, unreachable on every real database here.
+
+`ledger_ref_migration.py:493-496`: when a slot holds `OLD_REF` but no member frame authored it, the
+row is left alone -- correct -- and **nothing is counted**. One block up, the same file counts exactly
+this situation as `house_refs_undiscriminated`, with the comment *"a silent skip reported as zero is
+how the first version of this file went wrong."* Round four's new code does not follow the policy the
+rest of the module states. If it ever fires, the operator reads `web_domain_slot: 0` as "no slot
+needed migrating" when the truth is "a slot holds the old ref and I left it".
+
+Reachability is the honest part: slots are unioned from frame breadth and breadth is never removed
+from, so on a consistent database the branch cannot fire. It needs a `frames` table whose
+`breadth_json` is NULL or empty, which `Store.__init__` allows (the column is `ALTER`-added with no
+backfill). **All four real databases on this machine have it populated**, checked. So this is a
+report-integrity gap with no known reachable case, not a defect. A counter is a two-line fix that no
+test asserts against; it is not worth another round on a branch waiting to merge.
+
+### F3 · `next_pick_ref_left_closed` counts rows it has not shown to be closed. LOW.
+
+`:461-463` counts every remaining row after the live clear, but the live clear is inside
+`if _has_table(conn, "web_sitting")`. Without that table nothing is cleared and live rows are counted
+under a name asserting they are dead. Same shape as F2 and the same verdict: no real database here
+lacks `web_sitting`.
+
+### Verdict against the founder's merge threshold
+
+Zero blocker, zero severe, **zero durable-state correctness findings**, zero identity or provenance
+ambiguity silently guessed. Green migration from the pristine production backup, green fresh database
+(the suite's own `migrate(empty)` cases), idempotent rerun, green gate on the pinned tree. The
+adversarial item is the one that was open and it is now closed by a pass that did not write the code
+it reviewed. **Merge remains the founder's call and was not taken.**
+
+The review worktree is left in place at `.claude/worktrees/review-pass5` so any of this can be
+re-run; `git worktree remove` when done with it.
+
 ## 2026-08-10 (gate arc) — FOUR ADVERSARIAL PASSES, FOUR INSTANCES OF ONE ERROR, AND THE THIRD WAS INTRODUCED BY THE SECOND
 
 Eight commits, `84d50dd` through `adf997d`. Suite **1245 -> 1282**, `felix gate` pass, prepush 10/10

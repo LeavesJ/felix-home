@@ -24,3 +24,5 @@ SubagentStop	wired	a subagent finishing is a completion moment too, and the pare
 SessionEnd	wired	roll the session's tool calls into the ledger, with zeroes for what went untouched
 PreCompact	declined	SessionStart matches on compact, so doctrine is re-mounted afterwards; nothing needs saving before
 Notification	declined	fires when Claude wants attention. Felix has nothing to add, and speaking here would break stealth in the middle
+SubagentStart	wired	a subagent starts blank; give it the project, the constitution and the gate that will judge it
+PostToolBatch	declined	PostToolUse already records every call the ledger needs, and recording the same work twice would double every count

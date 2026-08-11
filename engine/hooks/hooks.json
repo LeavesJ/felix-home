@@ -86,6 +86,18 @@
           }
         ]
       }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/harness/hooks/subagent-start\"",
+            "shell": "bash",
+            "async": false
+          }
+        ]
+      }
     ]
   }
 }

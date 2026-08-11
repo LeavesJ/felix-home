@@ -36,10 +36,16 @@ EOF
 # ------------------------------------------------------------- executable ----
 # A hook or a tool that lost its executable bit fails at the worst moment, in
 # somebody else's session, with no output.
+#
+# Enumerated, never listed. This named three hooks by hand and there were seven:
+# the four newest were never checked, and would have failed silently in somebody
+# else's session while this printed ok. A list of things to check is a list that
+# stops matching what exists, which is the same defect the coverage table exists
+# to catch — found in the check that was supposed to be catching it.
 NOX=""
-for f in engine/harness/felix engine/harness/hooks/session-start \
-         engine/harness/hooks/user-prompt engine/harness/hooks/stop \
-         engine/harness/tests/run engine/harness/bin/secret-scan; do
+for f in engine/harness/felix engine/harness/tests/run engine/harness/bin/secret-scan \
+         engine/harness/hooks/*; do
+  [ -e "$f" ] || continue
   [ -x "$f" ] || NOX="$NOX $f"
 done
 [ -z "$NOX" ] && pass executable || { fail executable; printf '    %s\n' $NOX; }

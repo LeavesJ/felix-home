@@ -169,6 +169,19 @@ felix_ready_report() {
 $plugins
 EOF
 
+    # Bundled plugins are the reason this second look exists. `claude plugin
+    # list` reports what was installed from a marketplace and nothing else, so a
+    # plugin compiled into the binary is absent from it while being present, and
+    # enabled, and live in every session. felix_ready_inventory already reads
+    # the four places a plugin can hide; consulting only the narrow one reported
+    # three real tools as missing on every single session, which is exactly the
+    # kind of false alarm that teaches somebody to skim a pre-flight check.
+    if [ -z "$found" ] && felix_ready_inventory 2>/dev/null \
+         | grep -qxF "plugin	$owner"; then
+      printf 'usable\t%s\t%s\n' "$want" "bundled, live in every session"
+      continue
+    fi
+
     if [ -z "$found" ]; then
       printf 'absent\t%s\t%s\n' "$want" "not installed"
     elif [ "$enabled" = "true" ]; then

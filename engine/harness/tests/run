@@ -1665,6 +1665,28 @@ has "reads a plugin's own description" "$d" "llm evaluation harness"
 d="$( . "$FROOT/harness/lib/discover.sh"; felix_plugin_description "$TMP/nosuchdir" )"
 is "and is silent when there is none" "$d" ""
 
+printf '\na bundled plugin is present, not missing\n'
+# `claude plugin list` reports what came from a marketplace and nothing else, so
+# a plugin compiled into the binary is absent from it while being live in every
+# session. Checking presence against only that source reported three real tools
+# as missing on every session — the kind of false alarm that teaches somebody to
+# skim a pre-flight check until it says nothing they believe.
+BP="$TMP/bundleproj"; mkdir -p "$BP"
+printf 'plugin\tanthropic-skills\t-\tlow\talways\n' > "$BP/stack.tsv"
+# The report walks what routes name, not stdin, so the row has to exist for the
+# tool to be asked about at all.
+printf 'doc\tpdf slide\tcore\tanthropic-skills:pdf\n' > "$BP/routes.tsv"
+out="$( . "$FROOT/harness/lib/ready.sh"
+        # The narrow source knows nothing; the inventory knows it is bundled.
+        felix_ready_inventory() { printf 'plugin\tanthropic-skills\n'; }
+        felix_ready_report "$BP" )"
+has "a bundled plugin reads as usable" "$out" "usable"
+has "and says why"                     "$out" "bundled"
+out="$( . "$FROOT/harness/lib/ready.sh"
+        felix_ready_inventory() { printf 'plugin\tsomething-else\n'; }
+        felix_ready_report "$BP" )"
+has "one genuinely absent still reads absent" "$out" "absent"
+
 printf '\nevery command says it exists\n'
 # Thirty-four commands dispatched and help printed eight. Twenty-six were
 # undiscoverable, including `install`, which is how the engine is deployed, and

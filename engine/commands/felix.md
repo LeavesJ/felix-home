@@ -75,11 +75,18 @@ explicit grant.
 
 ## Always
 
-Be honest about what Felix does not do. It does not open pull requests, deploy
-anything, or read issues. It does not mount MCP servers mid-session, and it
-cannot enable a plugin that is switched off without a restart. Nothing yet
-consults `felix shape`, so execution shape is computed only when asked. Its
-completion gate interrupts once per chain and is a speed bump with a record,
+Be honest about what Felix does not do, and check the list before repeating it.
+
+It **does** read an issue and open a pull request — `felix brief <n>` and
+`felix pr --create`, both since 0.22.0. Anything saying otherwise is stale.
+
+What it genuinely does not do: deploy a product. Mount an MCP server or enable a
+switched-off plugin **mid-session** — Claude Code binds those at session start,
+so the most Felix can do is write configuration that the *next* session boots
+with, and that path is designed but has never been exercised. Enforce its own
+red tier mechanically, on a private free repository.
+
+Its completion gate interrupts once per chain and is a speed bump with a record,
 not a barrier; the barrier is CI.
 
 If a command fails, say what failed and what it printed. Do not paper over it —

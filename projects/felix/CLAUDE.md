@@ -29,6 +29,13 @@ verify, classify, ship, repair, and remember.
 
 If the founder is thinking about tooling, Felix has failed at its job.
 
+**Stealth in the middle.** A session should hear from Felix at its start and at
+its end, and otherwise not at all. Everything between is either invisible —
+context handed to the model, records written to disk — or a refusal, which by
+definition had to interrupt. Status belongs in the monitor, where somebody can
+go and look; it does not belong in a founder's session. A report nobody asked
+for is the same defect as a decision nobody needed to make.
+
 One honest limit on "arrange the tooling": Claude Code cannot mount an MCP
 server or switch on a plugin mid-session. Within a session Felix names what to
 reach for; between sessions it writes the configuration so the next one boots

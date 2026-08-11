@@ -1739,8 +1739,17 @@ has "a hook nobody explained is caught" "$out" "undeclared	PreToolUse"
 
 # The row that matters: a moment the platform offers that nobody has considered.
 # This is the check that would have named SubagentStop out loud.
+#
+# The roster is discovered from what this machine binds, so on a bare runner it
+# is empty and this asserted nothing while reporting ok — the exact failure the
+# roster was rewritten to avoid, reproduced one level up in the test for it. A
+# fixture HOME binds two known events, so the discovery runs against something
+# on every machine instead of against whatever the laptop happens to have.
+CVH="$TMP/coverage-home"; mkdir -p "$CVH/.claude"
+printf '{"hooks":{"SessionStart":[],"SubagentStop":[]}}\n' > "$CVH/.claude/settings.json"
 printf 'Stop\twired\trefuse completion\n' > "$CVT/lifecycle.tsv"
-out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_unconsidered "$CVT" | tr '\n' ' ' )"
+out="$( HOME="$CVH" . "$FROOT/harness/lib/coverage.sh"
+        HOME="$CVH" felix_coverage_unconsidered "$CVT" | tr '\n' ' ' )"
 has "an unconsidered moment is named"  "$out" "SubagentStop"
 has "and so is every other one"        "$out" "SessionStart"
 
@@ -1764,16 +1773,36 @@ printf 'plugin\tanthropic-skills\t-\tlow\talways\n' > "$BP/stack.tsv"
 # The report walks what routes name, not stdin, so the row has to exist for the
 # tool to be asked about at all.
 printf 'doc\tpdf slide\tcore\tanthropic-skills:pdf\n' > "$BP/routes.tsv"
-out="$( . "$FROOT/harness/lib/ready.sh"
+# Run with the claude CLI off PATH, which is the case this exists for and was
+# also the case these assertions were quietly not testing. They passed here and
+# failed on CI for a year's worth of commits' worth of reasons: on a laptop the
+# CLI answers, so the bundled branch was never the branch being reached. A
+# machine with no CLI is the honest fixture, and every runner is one.
+NOCLI=/usr/bin:/bin
+out="$( PATH="$NOCLI" . "$FROOT/harness/lib/ready.sh"
         # The narrow source knows nothing; the inventory knows it is bundled.
         felix_ready_inventory() { printf 'plugin\tanthropic-skills\n'; }
-        felix_ready_report "$BP" )"
+        PATH="$NOCLI" felix_ready_report "$BP" )"
 has "a bundled plugin reads as usable" "$out" "usable"
 has "and says why"                     "$out" "bundled"
-out="$( . "$FROOT/harness/lib/ready.sh"
+# With no CLI and nothing bundled, `absent` would be a guess wearing a verdict's
+# clothes: Felix cannot tell "not installed" from "installed where I cannot
+# look". Saying so is the whole point of the unknown row, and claiming absent
+# here would be the same false alarm the bundled fix was written to stop.
+out="$( PATH="$NOCLI" . "$FROOT/harness/lib/ready.sh"
         felix_ready_inventory() { printf 'plugin\tsomething-else\n'; }
-        felix_ready_report "$BP" )"
-has "one genuinely absent still reads absent" "$out" "absent"
+        PATH="$NOCLI" felix_ready_report "$BP" )"
+has "with no CLI and nothing bundled, Felix says it cannot tell" "$out" "cannot check"
+
+# And where the CLI can answer, not installed still means absent.
+if has_claude; then
+  out="$( . "$FROOT/harness/lib/ready.sh"
+          felix_ready_inventory() { printf 'plugin\tsomething-else\n'; }
+          felix_ready_report "$BP" )"
+  has "one genuinely absent still reads absent" "$out" "absent"
+else
+  skip "one genuinely absent still reads absent" "no claude CLI on this machine"
+fi
 
 printf '\nevery command says it exists\n'
 # Thirty-four commands dispatched and help printed eight. Twenty-six were

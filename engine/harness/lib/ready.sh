@@ -157,11 +157,6 @@ felix_ready_report() {
       continue
     fi
 
-    if [ -z "$plugins" ]; then
-      printf 'unknown\t%s\t%s\n' "$want" "no claude CLI here, cannot check"
-      continue
-    fi
-
     found=""; enabled=""
     while IFS=$'\t' read -r id enabled; do
       case "$id" in "$owner@"*|"$owner") found="$id"; break ;; esac
@@ -176,9 +171,24 @@ EOF
     # the four places a plugin can hide; consulting only the narrow one reported
     # three real tools as missing on every single session, which is exactly the
     # kind of false alarm that teaches somebody to skim a pre-flight check.
+    #
+    # This sits above the no-CLI row on purpose, and used to sit below it. A
+    # bundled plugin needs no CLI to be found — the inventory reads it off disk
+    # — so short-circuiting to `unknown` first threw away an answer Felix
+    # already had. It only ever showed up where no CLI answers, which is every
+    # CI runner and no laptop, so the suite went green on the machine that
+    # could not reach the branch.
     if [ -z "$found" ] && felix_ready_inventory 2>/dev/null \
          | grep -qxF "plugin	$owner"; then
       printf 'usable\t%s\t%s\n' "$want" "bundled, live in every session"
+      continue
+    fi
+
+    # Nothing bundled and no list to consult. `absent` here would be a guess:
+    # Felix cannot tell "not installed" from "installed where I cannot look",
+    # and a pre-flight check that cries absent is one people learn to skim.
+    if [ -z "$plugins" ]; then
+      printf 'unknown\t%s\t%s\n' "$want" "no claude CLI here, cannot check"
       continue
     fi
 

@@ -91,12 +91,19 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.22.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.25.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **431 assertions**, 0 failed.
-- Felix wires **6 of 9 hooks**: `SessionStart`, `UserPromptSubmit`,
-  `PreToolUse`, `PostToolUse`, `SessionEnd`, `Stop`. It wired 3 at the start of
-  2026-08-10, and all three only injected text.
+- `felix gate` → **pass**. **446 assertions**, 0 failed. `main` is pushed and
+  CI is green.
+- Felix wires **8 of the 11 lifecycle moments** anything on this machine binds,
+  and has a written stance on the other three. `felix coverage` shows the table.
+  At the start of 2026-08-10 it wired 3, and all three only injected text.
+- **The ledger has real data for the first time.** One session: `Bash` 66,
+  `Read` 23, `Edit` 15, `Write` 5, `Agent` 1 — and zero rows for
+  `code-review`, `code-simplifier`, `security-guidance`, `claude-md-management`
+  and `anthropic-skills`, every one mounted and never reached for. That is the
+  unconfounded signal working. The retire threshold is 5 sessions, so nothing
+  is actionable yet; do not act on one session.
 
 ### What Felix does without being asked
 
@@ -198,61 +205,87 @@ already better covered than most. Revisit it when there is browser behaviour
 these cannot reach — real drag-to-orbit interaction, or a visual regression that
 matters — and not to tick a criterion.
 
+## 4c. Self-diagnosis, and the ceiling on it
+
+Two coverage gaps were found on 2026-08-11 by the founder noticing: the `Stop`
+hook checked the gate and never asked anyone to verify their claims, and
+`SubagentStop` was unwired. Both are one defect — a completion moment with
+nothing at it — and neither was findable by reading code, because **absence has
+no line number**. Nothing greps for a hook that was never written.
+
+`lifecycle.tsv` plus `felix coverage` fix the second kind. Every moment
+something binds gets a stance, the stance is compared against reality, and the
+suite fails on a mismatch. The roster is **discovered** from what anything on
+this machine actually binds — the first version was typed from memory and was
+wrong within the hour, printing "every moment has a stance" while
+`settings.json` bound `SubagentStart` and something bound `PostToolBatch`.
+
+**The ceiling, which matters more than the mechanism.** Of the two gaps that
+prompted all this, coverage finds *one*. `SubagentStop` was an unbound event, so
+a table could see it. The first gap was `Stop` — wired, with a row, with a
+reason, and still saying nothing useful after a green gate. It would be green
+under every check proposed. **No table comparison finds a missing sentence.**
+
+The full design, including five further states and a proposal to make
+`declined` reasons falsifiable, is in
+`docs/2026-08-11-self-diagnosis-design.md`. Its own conclusion is that the only
+mechanical hint for the missing-sentence class is an inventory of silent
+`exit 0` paths after project resolution — a triage queue for a model, never a
+check, because a model may only narrow what mechanics already allowed.
+
+Read that before building the next layer. A self-diagnosis that overclaims is
+worse than none: it converts "nobody checked" into "something checked and said
+it was fine".
+
 ## 5. Next, in leverage order
 
-1. **`PostToolUse` and `SessionEnd`.** Unblocks live tracking and the capability
-   ledger, specced in `docs/2026-08-09-capability-ledger-design.md` since
-   2026-08-09 and blocked on nothing else. The deny hook established the
-   contract and the fail-open discipline, so this is smaller than it looks.
-   Note the ledger spec contradicts itself: the body argues transcript parsing
-   breaks the bash-and-git invariant and inverts to `PostToolUse` recording, and
-   its `## Records` section still says a `SessionEnd` hook parses the
-   transcript. Resolve that first.
-2. **Close the adoption loop into `routes.tsv`.** *Done 2026-08-10:* installing
-   works. `felix discover --adopt` declares low-risk candidates into `stack.tsv`
-   and installs them through the existing path; it ran live against Elenchus and
-   adopted `deepeval`, `langfuse` and `togetherai-skills` while refusing `figma`
-   (medium) and two high ones. `felix stack apply --yes` had always been able to
-   install *declared* tooling, so the real gap was discovered-to-declared, not
-   installation.
+Everything above item 1 that used to be here is done. This list is what is left.
 
-   **What is left is the half that matters.** No route names any of the three.
-   They sit among the 46 installed-but-never-reached-for, so no session is ever
-   told to use them while their skills cost context in every session — which is
-   precisely the signal the ledger design calls the retire condition. Adoption
-   must also reach `routes.tsv`: a candidate carries the capability it matched,
-   `profiles.tsv` maps profiles to capabilities, so the route whose profile
-   covers that capability is the one whose play should gain the tool. Until
-   that exists, `--adopt` makes a project's toolbox bigger and no more useful.
-3. **`felix route` from naming to deciding**: tools, execution shape, tier and
-   evidence up front, order, and the configuration the next session boots with.
-   Better once the ledger exists, since choosing tools is far better informed by
-   knowing which ones actually got used.
-4. **Execution shape.** *Done 2026-08-11:* `felix shape <plan>` computes
-   connected components over the `Files:` blocks `writing-plans` mandates and
-   reproduces, mechanically, the split that had been made by taste — tasks 1–4
-   of the issue-to-PR plan share files, task 5 does not. The refusal half binds;
-   the permission half is stated as necessary-not-sufficient, because a caller
-   and the signature it consumes share no file at all.
+1. **Merge PR #4 on Elenchus.** Open, draft, CI green, `risk-yellow`. It raises
+   the `anthropic` floor from `>=0.40`, which was a false compatibility claim —
+   the code calls `client.messages.parse` and passes adaptive-thinking params
+   that the 0.40-era SDK does not have. Merging is the founder's, and it is the
+   first of the five green merges auto-merge needs.
 
-   What is left: nothing consults it. `felix route` still names tools without
-   reference to shape, and no hook mentions it. A model may narrow a "separable"
-   and may never widen a "one context".
-5. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
+2. **`PreToolUse` covers one tool surface out of many.** It binds
+   `matcher: "Bash"`, chosen so a denial bug could not reach an edit. The
+   ledger now shows real sessions spending most of their calls on `Read`,
+   `Edit` and `Write`, none of which any deny rule can currently see. Widening
+   it is a real decision, not an oversight: the matcher is the blast-radius
+   control, so widening it means accepting that a bad regex can block editing.
+
+3. **Make `declined` falsifiable.** A stance of `declined` in `lifecycle.tsv`
+   is permanent by construction — nothing re-checks whether the reason still
+   holds. The self-diagnosis design proposes a `holds` column naming a literal
+   that must stay present in `hooks.json`, so a decline dies when its premise
+   does. Cheap, and it closes the one place the coverage table can rot quietly.
+
+4. **The monitor's compliance panel.** `felix_route_due` already computes
+   whether a session used the tool Felix named; nothing surfaces it. This is
+   the panel that proves the delegation works rather than merely recording it,
+   and the founder now has real ledger data to look at. Also: archive sessions
+   clickable, which is a rendering change because `monitor.html` already groups
+   by session.
+
+5. **`felix next`.** Rank the engineering backlog Felix already tracks —
+   maintenance, drift, setup gaps, evidence gaps — and say what to do. Not
+   product work; that is the founder's.
+
+6. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
    `recommend` and `which` print and bind nothing.
-6. **`felix next`** for the engineering backlog Felix already tracks —
-   maintenance, drift, setup gaps, evidence gaps. Not for product work; that is
-   the founder's.
-7. **The issue-to-PR verbs.** Spec `docs/2026-08-10-phase1-gaps-design.md`, plan
-   `docs/2026-08-10-issue-pr-loop-plan.md`, both written and self-reviewed. It
-   is the loop's *branch + PR* box, not a standalone feature.
-8. **Monitor: the compliance panel**, plus making archive sessions clickable.
-   `monitor.html` already groups by session (`liveSession`, `sessionSays`,
-   `pastSays`), so it is a rendering change. It cannot show the transcript:
-   parsing JSONL breaks the invariant and a `file://` page cannot fetch a
-   sibling. Show Felix's own record plus `claude --resume <id>`.
 
----
+7. **Auto-merge and the unattended switch.** Both unlock on five consecutive
+   green merges. Maintenance will not produce them: a well-kept repository
+   yields about one real PR from a full sweep of due routines, which was
+   measured rather than guessed. They come from real feature work.
+
+### Explicitly not next, with reasons
+
+- **Playwright.** Assessed 2026-08-11 and declined; see section 4b. Revisit for
+  browser behaviour the HTTP tests cannot reach, not to tick a criterion.
+- **Deploy, smoke tests, telemetry.** Three empty boxes in the guidebook loop
+  that are product-stage facts rather than Felix gaps. Elenchus has no deploy
+  target, so there is nothing to wire.
 
 ## 6. Open decisions
 

@@ -1693,6 +1693,26 @@ has "reads a plugin's own description" "$d" "llm evaluation harness"
 d="$( . "$FROOT/harness/lib/discover.sh"; felix_plugin_description "$TMP/nosuchdir" )"
 is "and is silent when there is none" "$d" ""
 
+printf '\nthe one line git cannot reconstruct\n'
+# The handoff regenerates the whole file, so whoever filled in "what was in
+# progress" lost it the next time anything ran — while the mechanical half,
+# which git can rebuild at any moment, survived. The only irreplaceable line
+# was the only one being erased.
+HP="$TMP/handoffproj"; mkdir -p "$HP/memory"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HP" "$REPO" "gate.sh" "mid-refactor" )
+has "a note reaches the file" "$(cat "$HP/memory/SESSION_HANDOFF.md")" "mid-refactor"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HP" "$REPO" "gate.sh" )
+has "and survives a regeneration that was given none" \
+    "$(cat "$HP/memory/SESSION_HANDOFF.md")" "mid-refactor"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HP" "$REPO" "gate.sh" "something else" )
+has "a new note replaces it" "$(cat "$HP/memory/SESSION_HANDOFF.md")" "something else"
+# The placeholder must not be carried forward as though it were a real note.
+rm -f "$HP/memory/SESSION_HANDOFF.md"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HP" "$REPO" "gate.sh" )
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HP" "$REPO" "gate.sh" )
+has "and the placeholder stays a placeholder" \
+    "$(cat "$HP/memory/SESSION_HANDOFF.md")" "fill this in"
+
 printf '\nFelix noticing its own gaps\n'
 # Two coverage gaps were found today by a person noticing, not by any check.
 # Absence has no line number: nothing greps for a hook that was never written.

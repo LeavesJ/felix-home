@@ -39,9 +39,18 @@ felix_mem_lesson() {
 # is a handoff written optimistically: it records what someone meant to have
 # done. This records the branch, the head, what is uncommitted, and the command
 # to pick up with.
+# The one line git cannot tell you was also the one line this command erased.
+# It regenerates the whole file, so anybody who filled in "what was in progress"
+# lost it the next time anything ran — and the mechanical half, which git can
+# reconstruct at any moment, survived. Now the note is passed in, or carried
+# forward from the file being replaced.
 felix_mem_handoff() {
-  local proj="$1" root="$2" gate="$3"
+  local proj="$1" root="$2" gate="$3" note="${4:-}"
   mkdir -p "$proj/memory"
+  if [ -z "$note" ] && [ -f "$proj/memory/SESSION_HANDOFF.md" ]; then
+    note="$(sed -n 's/^- what was in progress: //p' "$proj/memory/SESSION_HANDOFF.md" | head -1)"
+    case "$note" in _fill*) note="" ;; esac
+  fi
   {
     printf '# Handoff\n\nRegenerated %s. Anything below is the state of the tree,\nnot a summary of intent.\n\n' "$(date +%Y-%m-%d)"
     printf '## Where\n\n'
@@ -56,7 +65,11 @@ felix_mem_handoff() {
       "$(git -C "$root" log -8 --format='%h %ad %s' --date=short 2>/dev/null)"
     printf '\n## Next\n\n'
     printf -- '- verify: `%s`\n' "${gate:-declare a gate in project.json}"
-    printf -- '- what was in progress: _fill this in; it is the one part git cannot tell you_\n'
+    if [ -n "$note" ]; then
+      printf -- '- what was in progress: %s\n' "$note"
+    else
+      printf -- '- what was in progress: _fill this in with `felix handoff --was "..."`; it is the one part git cannot tell you_\n'
+    fi
   } > "$proj/memory/SESSION_HANDOFF.md"
 }
 

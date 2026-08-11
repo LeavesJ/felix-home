@@ -167,7 +167,7 @@ specific project, language, or toolchain.
     felix budget           how much unattended work has been spent today
 
   memory
-    felix handoff          regenerate the mechanical session handoff
+    felix handoff [--was]  regenerate the handoff; --was records what was in progress
     felix log <text>       add a devlog entry
     felix lesson <text>    add a lesson, matched into later prompts
     felix lessons          what this project has already paid for
@@ -2038,10 +2038,13 @@ cmd_lesson() {
 }
 
 cmd_handoff() {
-  resolve_or_die; local proj="$PROJ" root gate
+  resolve_or_die; local proj="$PROJ" root gate note=""
+  while [ $# -gt 0 ]; do
+    case "$1" in --was) note="${2:-}"; shift 2 ;; *) shift ;; esac
+  done
   root="$(felix_repo_root "$PWD")"
   gate="$(felix_json_str "$proj/project.json" gate)"
-  felix_mem_handoff "$proj" "$root" "$gate"
+  felix_mem_handoff "$proj" "$root" "$gate" "$note"
   printf 'wrote %s/memory/SESSION_HANDOFF.md\n\n' "$proj"
 
   # The session-end list from the guidebook, as a check rather than a memory

@@ -13,15 +13,26 @@
 #
 # Narrow on purpose, in three ways:
 #
-#   - Scoped to Bash by the matcher in hooks.json. A denial bug that reached
-#     Edit and Write would look exactly like a broken editor, which is the
-#     failure guard.sh was written to explain to people it had happened to.
 #   - Table-driven, per project. The engine names no rule of its own, the same
 #     way it names no project. What a repo refuses is the repo's decision.
+#   - A rule matches the one field naming what the tool acts on, never the
+#     payload and never file content. See _felix_deny_field.
 #   - Fails open on everything. A missing table, an unparseable payload, a bad
 #     regex, an unresolvable project: all allow. The cost of a false deny is a
 #     person fighting their own tools and switching the harness off; the cost of
 #     a missed deny is the status quo.
+#
+# It used to be narrow in a fourth way, and that one was a mistake. The matcher
+# in hooks.json bound Bash alone, so no rule could see Read, Edit or Write —
+# and the ledger then showed real sessions spending most of their calls on
+# exactly those three. The matcher was doing duty as the blast-radius control,
+# because a bad regex reaching Edit is indistinguishable from a broken editor.
+#
+# That is now handled where it belongs, by felix_deny_overbroad, so the matcher
+# no longer has to be the answer. A pattern broad enough to refuse ordinary
+# work is treated as a rule that is wrong rather than a rule that is strict,
+# and skipped. Skipping can only ever allow more than the author intended,
+# which is the same direction every other failure here already takes.
 #
 # deny.tsv rows: tool <TAB> extended-regex <TAB> reason
 
@@ -37,18 +48,90 @@ _felix_deny_rows() {
   done < "$proj/deny.tsv"
 }
 
-# The command out of a PreToolUse payload, without parsing JSON.
+# Which field of a payload a rule for this tool is about.
 #
-# Escaped quotes are protected first, so a command containing one cannot run the
+# One field per tool, chosen rather than searched. Scanning the payload for the
+# first field that happens to be present looks more future-proof and is the
+# wrong trade: an Edit whose new_string contains the text `"command": "rm -rf"`
+# would hand that string to the matcher, and a rule would fire on content the
+# person was only writing down. A tool nobody has taught this function is read
+# as acting on a file, and a tool acting on nothing has no subject and is
+# always allowed.
+_felix_deny_field() {
+  case "$1" in
+    Bash)         printf 'command' ;;
+    NotebookEdit) printf 'notebook_path' ;;
+    WebFetch)     printf 'url' ;;
+    *)            printf 'file_path' ;;
+  esac
+}
+
+# That field's value, out of a PreToolUse payload, without parsing JSON.
+#
+# Escaped quotes are protected first, so a value containing one cannot run the
 # match past the end of its own string and swallow the rest of the envelope.
 # That over-capture is the dangerous direction here: it is how a rule matches
 # text the person never typed and denies something legitimate.
-felix_deny_command() {
-  printf '%s' "$1" \
+#
+# The first occurrence wins, not the last. A greedy leading `.*` in sed takes
+# the last one, which is reachable: file content mentioning the field name puts
+# a second copy after the real one, and the rule would then be tested against
+# whatever that content said.
+felix_deny_subject() {
+  local raw="$1" field
+  field="$(_felix_deny_field "${2:-}")"
+  printf '%s' "$raw" \
+    | tr '\n' ' ' \
     | sed 's/\\"/\x01/g' \
-    | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
-    | sed 's/\x01/"/g' \
-    | head -1
+    | awk -v f="\"$field\"" '
+        { i = index($0, f); if (i == 0) exit
+          s = substr($0, i + length(f))
+          j = index(s, "\""); if (j == 0) exit
+          s = substr(s, j + 1)
+          k = index(s, "\""); if (k == 0) exit
+          printf "%s", substr(s, 1, k - 1) }' \
+    | sed 's/\x01/"/g'
+}
+
+# Whether a pattern is too broad to be a rule.
+#
+# A rule says which work this project refuses. A pattern that also matches
+# ordinary work is not a strict rule, it is a broken one, and honouring it
+# produces a session where nothing can be edited and no error explains why.
+# These two probes are what ordinary looks like: a routine command, and a path
+# in no way special. Anything matching either is skipped.
+#
+# This can only ever allow more than the author asked for, never less, which is
+# why it is safe to run ahead of every rule rather than only new ones.
+FELIX_DENY_PROBES='git status --short
+/felix/probe/ordinary'
+
+felix_deny_overbroad() {
+  local pattern="$1" probe
+  [ -n "$pattern" ] || return 0
+  while IFS= read -r probe; do
+    [ -n "$probe" ] || continue
+    if printf '%s\n' "$probe" | grep -E "$pattern" >/dev/null 2>&1; then
+      return 0
+    fi
+  done <<EOF
+$FELIX_DENY_PROBES
+EOF
+  return 1
+}
+
+# The rows this project wrote that are too broad to enforce, for reporting.
+# Nothing in the hot path calls this: the hook runs on every tool call, and a
+# harness that repeats a static complaint on every call is noise. felix doctor
+# is where somebody goes to be told what is wrong with their tables.
+felix_deny_overbroad_rows() {
+  local proj="$1" tool pattern reason
+  while IFS=$'\t' read -r tool pattern reason; do
+    [ -n "${pattern:-}" ] || continue
+    felix_deny_overbroad "$pattern" && printf '%s\t%s\t%s\n' "$tool" "$pattern" "$reason"
+  done <<EOF
+$(_felix_deny_rows "$proj")
+EOF
 }
 
 # Prints the reason when a command matches a row for this tool, and returns 0.
@@ -58,6 +141,7 @@ felix_deny_match() {
   [ -n "$cmd" ] || return 1
   while IFS=$'\t' read -r tool pattern reason; do
     [ "${tool:-}" = "$want" ] || continue
+    felix_deny_overbroad "$pattern" && continue
     # grep without -q on purpose. Under `set -o pipefail` a consumer that exits
     # on its first match kills the producer with SIGPIPE and the pipeline
     # reports 141, which this file would read as "no match" every time. This

@@ -2286,6 +2286,105 @@ rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 ( cd "$REPO" && _pre '{"tool_name":"Bash","tool_input":{"command":"git add -A"}}' ); rc=$?
 is "no deny.tsv means nothing is denied" "$rc" "0"
 
+printf '\ndenial past Bash\n'
+# The matcher bound Bash alone, so no rule could see Read, Edit or Write — which
+# the ledger then showed is where real sessions spend most of their calls. The
+# hold-up was never the plumbing: the matcher was the blast-radius control, and
+# a bad regex reaching Edit looks exactly like a broken editor.
+#
+# What a rule matches is now the field naming the thing the tool acts on, and a
+# pattern broad enough to refuse ordinary work is refused as a rule instead of
+# honoured. That makes the bad-regex case unreachable rather than accepted.
+{ printf 'Bash\tgit add (-A|--all|\\.)$\tstage explicit paths\n'
+  printf 'Edit\t/\\.env$\t.env holds live credentials; change it by hand\n'
+  printf 'Write\t\\.lock$\ta lockfile is written by its tool, never by hand\n'
+  printf 'Read\t/secrets/\treading a secret is how it reaches a transcript\n'
+} > "$FROOT/projects/widget/deny.tsv"
+
+( cd "$REPO" && _pre '{"tool_name":"Edit","tool_input":{"file_path":"/w/.env","old_string":"a","new_string":"b"}}' ); rc=$?
+is  "a path rule denies an edit" "$rc" "2"
+has "and says why" "$(cat "$FROOT/.deny-err")" "live credentials"
+
+( cd "$REPO" && _pre '{"tool_name":"Edit","tool_input":{"file_path":"/w/src/widget.py","old_string":"a","new_string":"b"}}' ); rc=$?
+is "an unrelated path is allowed" "$rc" "0"
+
+( cd "$REPO" && _pre '{"tool_name":"Write","tool_input":{"file_path":"/w/uv.lock","content":"x"}}' ); rc=$?
+is "a write rule denies a write" "$rc" "2"
+
+# The tool column has to keep meaning something, or widening the matcher has
+# quietly turned every rule into a rule about every tool.
+( cd "$REPO" && _pre '{"tool_name":"Write","tool_input":{"file_path":"/w/.env","content":"x"}}' ); rc=$?
+is "a rule naming Edit does not deny a Write" "$rc" "0"
+
+( cd "$REPO" && _pre '{"tool_name":"Read","tool_input":{"file_path":"/w/secrets/key.pem"}}' ); rc=$?
+is "reading can be refused too" "$rc" "2"
+
+( cd "$REPO" && _pre '{"tool_name":"NotebookEdit","tool_input":{"notebook_path":"/w/.env"}}' ); rc=$?
+is "a notebook is matched on its own path field" "$rc" "0"
+
+# A rule matches what the tool acts on and never what it would write. Matching
+# content would turn every edit payload into a search target, so a rule written
+# about a filename would start firing on prose that merely mentions it.
+printf 'Edit\tuv\\.lock\tnot by hand\n' > "$FROOT/projects/widget/deny.tsv"
+( cd "$REPO" && _pre '{"tool_name":"Edit","tool_input":{"file_path":"/w/README.md","old_string":"see uv.lock","new_string":"see uv.lock now"}}' ); rc=$?
+is "a rule never matches file content" "$rc" "0"
+
+( cd "$REPO" && _pre '{"tool_name":"Edit","tool_input":{}}' ); rc=$?
+is "a payload naming nothing to act on is allowed" "$rc" "0"
+
+# The sharp version of the same thing, and the one that decides how the field
+# is read. Content quoting the field name is already defused, because JSON
+# escapes those quotes and they are neutralised before any match runs — checked
+# rather than assumed. What is not defused is a second unescaped copy further
+# along the envelope, which a greedy match reads in preference to the real one.
+# Claude Code is free to add envelope keys, so the subject has to be the first
+# occurrence rather than the last.
+printf 'Edit\t/\\.env$\tcredentials\n' > "$FROOT/projects/widget/deny.tsv"
+( cd "$REPO" && _pre '{"tool_name":"Edit","tool_input":{"file_path":"/w/README.md"},"related":{"file_path":"/w/.env"}}' ); rc=$?
+is "a later copy of the field in the envelope is not the subject" "$rc" "0"
+
+# The reason widening was held back, made unreachable. A pattern matching an
+# ordinary path or an ordinary command is not a narrow rule with a bug in it;
+# it is a rule that refuses everything, and honouring one is indistinguishable
+# from a broken editor. Skipping it can only ever allow more than was intended,
+# which is the direction every other failure in this file already takes.
+printf 'Edit\t.*\teverything\n' > "$FROOT/projects/widget/deny.tsv"
+( cd "$REPO" && _pre '{"tool_name":"Edit","tool_input":{"file_path":"/w/src/widget.py"}}' ); rc=$?
+is "a rule that refuses everything is refused as a rule" "$rc" "0"
+
+printf 'Bash\t.\tanything at all\n' > "$FROOT/projects/widget/deny.tsv"
+( cd "$REPO" && _pre '{"tool_name":"Bash","tool_input":{"command":"ls"}}' ); rc=$?
+is "and over-broad means over-broad for Bash too" "$rc" "0"
+
+# Generous is not the same as over-broad. A rule covering a whole tree of
+# generated files still has to fire, or the guard has eaten the feature.
+printf 'Edit\t/(node_modules|dist)/\tgenerated; change the source\n' > "$FROOT/projects/widget/deny.tsv"
+( cd "$REPO" && _pre '{"tool_name":"Edit","tool_input":{"file_path":"/w/dist/bundle.js"}}' ); rc=$?
+is "a broad but legitimate rule still denies" "$rc" "2"
+
+# A skipped rule has to be visible somewhere a person looks, or it is a rule
+# that silently does nothing — the same complaint Felix makes about other
+# people's plugins. The hook stays quiet because it runs on every call.
+printf 'Edit\t.*\teverything\n' > "$FROOT/projects/widget/deny.tsv"
+out="$( cd "$REPO" && "$FELIX" doctor 2>&1 )"
+has "doctor names the rule that refuses everything" "$out" "refuses everything it was asked about"
+printf 'Edit\t/\\.env$\tcredentials\n' > "$FROOT/projects/widget/deny.tsv"
+out="$( cd "$REPO" && "$FELIX" doctor 2>&1 )"
+case "$out" in
+  *"refuses everything it was asked about"*) bad "doctor is quiet when every rule is narrow" "reported anyway" ;;
+  *) ok "doctor is quiet when every rule is narrow" ;;
+esac
+rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
+
+# The wiring itself, read off the file that ships rather than the fixture copy.
+# Correct code behind a matcher that never fires is this project's oldest and
+# most expensive failure mode.
+HOOKS_JSON="$(cd "$REAL_HARNESS/.." && pwd)/hooks/hooks.json"
+mj="$(sed -n '/"PreToolUse"/,/]/p' "$HOOKS_JSON" | sed -n 's/.*"matcher"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+for t in Bash Edit Write Read NotebookEdit; do
+  case "$mj" in *"$t"*) ok "PreToolUse is bound for $t" ;; *) bad "PreToolUse is bound for $t" "matcher is [$mj]" ;; esac
+done
+
 printf '\nindependence\n'
 # Scoped to code that runs in production. This suite names Elenchus in its own
 # comments on purpose, since explaining what it refuses to depend on is the point.

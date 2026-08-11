@@ -105,6 +105,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/coverage.sh"
 . "${SCRIPT_DIR}/lib/autonomy.sh"
 . "${SCRIPT_DIR}/lib/intake.sh"
+# shellcheck source=lib/deny.sh
+. "${SCRIPT_DIR}/lib/deny.sh"
 # shellcheck source=lib/monitor.sh
 . "${SCRIPT_DIR}/lib/monitor.sh"
 # shellcheck source=lib/ready.sh
@@ -1996,6 +1998,25 @@ EOF
     printf 'green means, and the one in plain sight is the one it reaches for.\n'
     printf '\nfelix gate   is the only verdict that gets recorded\n'
   fi
+
+  # A rule too broad to enforce is skipped at the moment it would have fired,
+  # and the hook says nothing because it runs on every tool call. Silence there
+  # has to be paid for here, or the project owns a rule that quietly does
+  # nothing — which is the exact complaint Felix makes about other plugins.
+  local wide; wide="$(felix_deny_overbroad_rows "$proj" 2>/dev/null)"
+  if [ -n "$wide" ]; then
+    printf '\ndeny rules too broad to enforce\n\n'
+    printf '%s\n' "$wide" | while IFS=$'\t' read -r t p r; do
+      [ -n "${p:-}" ] || continue
+      printf '  %-14s %s\n' "$t" "$p"
+    done
+    printf '\nEach of these refuses everything it was asked about, so Felix skips it\n'
+    printf 'rather than honouring it. A rule that also matches ordinary work cannot\n'
+    printf 'be told apart from a broken editor by the person hitting it, and the\n'
+    printf 'harness gets switched off rather than the row corrected.\n'
+    printf '\nNarrow the pattern in %s/deny.tsv, or drop the row.\n' "$proj"
+  fi
+
   # Reporting drift is not a failure. Exit 0 so a session hook or a CI step can
   # surface this without turning a green tree red for work nobody asked for yet.
   return 0

@@ -17,7 +17,7 @@
 # event	stance	reason
 SessionStart	wired	bind the session, mount doctrine, tidy, report what is due
 UserPromptSubmit	wired	route the work, name the tool due next, mount matching lessons
-PreToolUse	wired	refuse commands this project has forbidden
+PreToolUse	wired	refuse what this project has forbidden, on the shell and on the files a session reaches for
 PostToolUse	wired	record what was reached for, so what is never used can be found
 Stop	wired	refuse completion on an unverified tree, then ask for verification of the claims
 SubagentStop	wired	a subagent finishing is a completion moment too, and the parent inherits its report

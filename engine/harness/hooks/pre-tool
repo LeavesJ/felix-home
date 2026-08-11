@@ -8,8 +8,12 @@
 #
 # Everything here fails open. There is no path through this file that blocks
 # because something went wrong; it blocks only when a row in the project's own
-# deny.tsv matched the command. A harness that denies by accident gets switched
-# off, and then it enforces nothing at all.
+# deny.tsv matched the thing the tool was about to act on. A harness that denies
+# by accident gets switched off, and then it enforces nothing at all.
+#
+# Bound for more than Bash since the ledger showed where sessions actually spend
+# their calls. What stops a bad rule reaching Edit is felix_deny_overbroad, not
+# the matcher; see lib/deny.sh for why that swap was the point.
 
 set -uo pipefail
 
@@ -35,7 +39,7 @@ tool="$(printf '%s' "$raw" \
   | head -1)"
 [ -n "$tool" ] || exit 0
 
-cmd="$(felix_deny_command "$raw")"
+cmd="$(felix_deny_subject "$raw" "$tool")"
 [ -n "$cmd" ] || exit 0
 
 reason="$(felix_deny_match "$PROJ" "$tool" "$cmd")" || exit 0

@@ -138,6 +138,20 @@ with a record, not a substitute for running it.
   the only one worth acting on. The same shape will recur anywhere Felix
   measures something it also controls.
 
+- **Restore the fixture state you changed, and assert that you did.** Declaring
+  what a section depends on is only half the rule. One new suite section seeded
+  a route table, seeded an evidence policy, created a branch called
+  `feature/thing` and committed on it — then broke four later assertions in a
+  way that read as a routing bug, because routing scores the branch name and
+  `feature` is a keyword of the `build` route. The cleanup itself then failed
+  three times, silently every time: `git checkout` refused because deleting a
+  tracked file had dirtied the tree; `rev-parse --abbrev-ref HEAD` returned the
+  literal string `HEAD` on a detached head; and the branch it tried to return
+  to was unborn, because that fixture has no commits until a later section
+  makes the first one. Point HEAD back with `git symbolic-ref` rather than
+  checking anything out, and end the section asserting the fixture is as it was
+  found. A cleanup nobody checks is the same as no cleanup.
+
 - **A `local` statement cannot see a variable it is declaring.**
   `local proj="$1" f="$proj/routes.tsv"` leaves `f` empty at best, and under
   `set -u` it is an unbound variable that kills the function — so the caller

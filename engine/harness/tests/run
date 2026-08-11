@@ -424,6 +424,116 @@ out="$(cd "$PLAIN" && "$FELIX" repair 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "repair refuses outside a governed GitHub repo" \
                 || bad "repair refuses outside a governed GitHub repo" "$out"
 
+printf '\nissue intake\n'
+# The first of the two p41 exit criteria nothing met: take an issue. Mirrors
+# felix repair exactly - brief on stdout, scope verdict in the exit code - so
+# unattended.yml, which already branches on `rc != 3`, consumes it unchanged.
+mkdir -p "$REPO/src"
+printf 'x\n' > "$REPO/src/widget.py"
+cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
+# Declared here rather than inherited. The evidence fixture is written further
+# down this file, and a section that depends on state another section happens to
+# set up reads like a product bug the day the order changes.
+printf 'code\t^src/\t^tests?/\tbehaviour changed and nothing proves it\n' \
+  > "$FROOT/projects/widget/evidence.tsv"
+# Same reason. This fixture has no routes.tsv until much further down the file,
+# so a brief asking which play applies would silently have nothing to answer
+# with — and the assertion would have been written to match that emptiness.
+cp "$REAL_HARNESS/templates/routes.tsv" "$FROOT/projects/widget/routes.tsv"
+_brief() { ( cd "$REPO" && bash -c '
+  . '"$FROOT"'/harness/lib/classify.sh
+  . '"$FROOT"'/harness/lib/incident.sh
+  . '"$FROOT"'/harness/lib/route.sh
+  . '"$FROOT"'/harness/lib/intake.sh
+  felix_brief_render "'"$FROOT"'/projects/widget" "'"$REPO"'" "$1" "$2"' _ "$1" "$2" ); }
+
+out="$(_brief "the widget renders twice" "src/widget.py double-renders on mount")"
+has "the brief names the file the issue names" "$out" "src/widget.py"
+has "and states the tier"                      "$out" "tier"
+has "and what a fix will have to prove"        "$out" "prove"
+has "and the play this project already chose"  "$out" "play"
+
+# Scope before detail. Telling a model what it may not touch after handing it
+# the details is the wrong order: by then it has a plan.
+mkdir -p "$REPO/.github/workflows"; printf 'on: push\n' > "$REPO/.github/workflows/ci.yml"
+out="$(_brief "ci is wrong" ".github/workflows/ci.yml needs a job")"; rc=$?
+is  "a red path exits 3"            "$rc" "3"
+has "and says so before the detail" "$out" "OUT OF SCOPE"
+
+out="$(_brief "nothing real" "this names no path that exists")"; rc=$?
+is  "an issue naming no real file still exits 0" "$rc" "0"
+has "and says it cannot be scoped"               "$out" "no file"
+
+# --from - is what makes this testable and what makes it usable before any
+# issue tracker is wired, the same reason felix incident reads stdin. The suite
+# stubs no gh and never has, so a design that could only fetch would be a design
+# whose interesting half was untestable.
+out="$(cd "$REPO" && printf 'src/widget.py double-renders on mount\n' \
+       | "$FELIX" brief --from - --title "the widget renders twice" 2>&1)"; rc=$?
+is  "brief reads an issue from stdin" "$rc" "0"
+has "and briefs the file it names"    "$out" "src/widget.py"
+out="$(cd "$PLAIN" && printf 'x\n' | "$FELIX" brief --from - --title t 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "brief refuses outside a governed repo" \
+                || bad "brief refuses outside a governed repo" "$out"
+out="$(cd "$REPO" && "$FELIX" brief 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "and refuses with no issue and no input" \
+                || bad "and refuses with no issue and no input"
+
+# Preview by default, act behind a flag: the pattern incident --create and
+# classify --apply already set, against discover which refuses --yes outright.
+# A symbolic ref when there is one, the commit otherwise. This fixture sits on a
+# detached HEAD, so `rev-parse --abbrev-ref` returns the literal string HEAD,
+# and checking that out fails — silently, leaving the branch where it was.
+_base_branch="$(cd "$REPO" && { git symbolic-ref --quiet --short HEAD 2>/dev/null \
+                                || git rev-parse HEAD 2>/dev/null; })"
+( cd "$REPO" && git checkout -qb feature/thing 2>/dev/null
+  printf 'y\n' >> src/widget.py
+  git add -A >/dev/null 2>&1
+  git -c user.name=t -c user.email=t@t commit -qm "fix: stop the double render" >/dev/null 2>&1 )
+out="$(cd "$REPO" && "$FELIX" pr 2>&1)"; rc=$?
+is  "pr previews and exits 0"    "$rc" "0"
+has "naming the branch's commit" "$out" "stop the double render"
+has "and the tier it carries"    "$out" "tier"
+case "$out" in
+  *created*) bad "and creates nothing without --create" "$out" ;;
+  *)         ok  "and creates nothing without --create" ;;
+esac
+# Asserted by naming the current branch as the base, rather than by checking out
+# a branch called main: `git init` does not promise that name, and a checkout
+# that silently fails would leave this passing against the wrong branch.
+out="$(cd "$REPO" && "$FELIX" pr --base feature/thing 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "pr refuses to open a branch against itself" \
+                || bad "pr refuses to open a branch against itself" "$out"
+
+# Put back what this section borrowed. Declaring the state you depend on is half
+# the rule; restoring the state you changed is the other half. Seeding a route
+# table here made a later assertion about the prompt hook being silent fail,
+# because that assertion had been passing on the absence of routes rather than
+# on the absence of lessons — which is what it says it tests.
+# The branch first, and forced. Routing scores the branch name, and a fixture
+# left on `feature/thing` sent four later prompts to the `build` route, whose
+# keywords include `feature`. Leaving state behind is not only about files.
+#
+# Forced, and before the files are removed: deleting a tracked path dirties the
+# tree, and a plain checkout then fails silently, which is how the first attempt
+# at this cleanup left the branch exactly where it found it.
+#
+# Restored by pointing HEAD back rather than by checking anything out. This
+# fixture has no commits yet — a later section makes the first one — so `main`
+# is an unborn branch and `git checkout main` has nothing to check out. The
+# branch created here was the first that ever had a commit on it, which is why
+# every attempt to return to `main` failed quietly.
+( cd "$REPO" && git symbolic-ref HEAD "refs/heads/${_base_branch:-main}" 2>/dev/null
+  git branch -qD feature/thing 2>/dev/null
+  git reset -q 2>/dev/null ) || true
+rm -f "$FROOT/projects/widget/routes.tsv" "$FROOT/projects/widget/evidence.tsv"
+rm -rf "$REPO/.github"
+# Asserted, not assumed. A cleanup nobody checks is the same as no cleanup.
+_after="$(cd "$REPO" && { git symbolic-ref --quiet --short HEAD 2>/dev/null \
+                          || git rev-parse HEAD 2>/dev/null; })"
+[ "$_after" = "$_base_branch" ] && ok "the fixture is left as it was found" \
+  || bad "the fixture is left as it was found" "on $_after, expected $_base_branch"
+
 printf '\nrisk classification\n'
 cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
 ( cd "$REPO" && git add -A >/dev/null 2>&1

@@ -89,31 +89,37 @@ is not masked at all.
 
 ---
 
-## 2. State as of 2026-08-10
+## 2. State as of 2026-08-11
 
-- Engine **0.14.1**, deployed and verified (`felix install` → "verified the
+- Engine **0.22.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **334 assertions**, 0 failed.
-- `main` is **well ahead of `origin/main` and unpushed**. Pushing triggers CI.
-- Felix wires **4 of 9 hooks**: `SessionStart`, `UserPromptSubmit`, `Stop`, and
-  as of today `PreToolUse`.
+- `felix gate` → **pass**. **431 assertions**, 0 failed.
+- Felix wires **6 of 9 hooks**: `SessionStart`, `UserPromptSubmit`,
+  `PreToolUse`, `PostToolUse`, `SessionEnd`, `Stop`. It wired 3 at the start of
+  2026-08-10, and all three only injected text.
 
-### What Felix can do today
+### What Felix does without being asked
 
-Resolve which project governs a checkout; run and record a gate; classify a diff
-into green/yellow/red; say what evidence a change owes; route a prompt to a play
-and name the tool that is due; detect undeclared capabilities; detect a rival
-gate; refuse a Bash command; report maintenance, setup gaps, budget, auto-merge
-readiness and unattended readiness; write handoffs, lessons and devlog entries;
-render the monitor.
+Binds the session and names the constitution and handoff as required reading;
+reports capability drift and upkeep; tidies where a project has opted in;
+routes each prompt and names the tool that is due; states the shape of a plan
+when a prompt points at one; refuses forbidden Bash commands; records every
+tool call and rolls it into a ledger with a zero row for everything mounted and
+never reached for; checks the gate when the session stops.
 
-### What Felix cannot do
+### What it can do when asked
+
+Run and record a gate; classify a diff; say what a change owes; brief an issue;
+open a pull request; reach, read and route any installed plugin; install what it
+has read and judged low risk; compute which tasks may run apart; report what has
+never been reached for; detect a rival gate and remove it where that is safe.
+
+### What Felix still cannot do
 
 Mount an MCP server or enable a plugin mid-session — that needs a restart, so
-tooling decisions must be written as configuration between sessions. Read a
-GitHub issue. Open a pull request. Deploy anything. Plan work. Dispatch
-subagents. Decide execution shape. Install tooling (a self-imposed refusal, due
-to be lifted — see §5).
+tooling decisions are written as configuration between sessions. Deploy a
+product. Plan work from scratch. Dispatch subagents itself. Enforce its own red
+tier mechanically (see §3).
 
 ---
 
@@ -153,12 +159,12 @@ to be lifted — see §5).
 
 | Promised | Status | Evidence |
 |---|---|---|
-| take an issue | **no** | nothing reads an issue; planned in `docs/2026-08-10-issue-pr-loop-plan.md` |
+| take an issue | yes | `felix brief <n>` or `--from -`; scope verdict in the exit code |
 | create code | yes | |
 | run tests | yes | `felix gate` → pass; 334 in Felix |
 | deploy preview | **no** | no deploy target, no catalogue row keyed on `deploy` |
 | test it | **partial** | still 0 files matching `e2e\|playwright` in Elenchus |
-| open PR | **no** | Felix labels and merges; there is no `gh pr create` |
+| open PR | yes | `felix pr --create`, draft when the gate has not passed |
 | report confidence | yes | `felix classify`, `felix evidence` |
 
 Build list: `CLAUDE.md` yes; GitHub integration yes; PR workflow yes; tests yes;

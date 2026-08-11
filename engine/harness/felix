@@ -103,6 +103,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/ledger.sh"
 . "${SCRIPT_DIR}/lib/shape.sh"
 . "${SCRIPT_DIR}/lib/autonomy.sh"
+. "${SCRIPT_DIR}/lib/intake.sh"
 # shellcheck source=lib/monitor.sh
 . "${SCRIPT_DIR}/lib/monitor.sh"
 # shellcheck source=lib/ready.sh
@@ -131,6 +132,8 @@ specific project, language, or toolchain.
     felix which            which project governs here, and where its doctrine is
     felix gate [args]      run this project's gate; exits with the gate's status
     felix route            what kind of work this is, and what to reach for
+    felix brief <issue>    what an issue names, its tier, and what a fix must prove
+    felix pr [--create]    open a pull request for this branch, tier and all
     felix classify         how risky this diff is, and what that means for merging
     felix evidence         what this change still owes before it counts as done
 
@@ -617,6 +620,103 @@ cmd_quarantine() {
   printf 'This takes effect in your NEXT session. A plugin already loaded stays\n'
   printf 'loaded, hooks and all, so the current one behaves exactly as before.\n\n'
   printf 'Undo whenever it is fixed:\n\n  claude plugin enable %s\n' "$name"
+}
+
+cmd_brief() {
+  resolve_or_die; local proj="$PROJ" src="" title="" num="" body=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --from)  src="${2:-}"; shift 2 ;;
+      --title) title="${2:-}"; shift 2 ;;
+      -*)      die "unknown flag: $1" ;;
+      *)       num="$1"; shift ;;
+    esac
+  done
+
+  local root; root="$(felix_repo_root "$PWD")"
+
+  if [ -n "$src" ]; then
+    if [ "$src" = "-" ]; then body="$(cat)"; else
+      [ -f "$src" ] || die "no such file: $src"
+      body="$(cat "$src")"
+    fi
+  elif [ -n "$num" ]; then
+    command -v gh >/dev/null 2>&1 || die "felix brief needs the gh CLI, which is not on PATH"
+    local slug; slug="$(felix_repo_slug "$root")"
+    [ -n "$slug" ] || die "no github remote; pass the text with --from - instead"
+    # Two calls rather than one templated one: the engine parses no JSON.
+    title="$(gh issue view "$num" --repo "$slug" --json title -q .title 2>/dev/null)" \
+      || die "could not read issue $num from $slug"
+    [ -n "$title" ] || die "issue $num has no title, or does not exist in $slug"
+    body="$(gh issue view "$num" --repo "$slug" --json body -q .body 2>/dev/null)"
+  else
+    die "felix brief <issue-number>, or felix brief --from - with the text on stdin"
+  fi
+
+  felix_brief_render "$proj" "$root" "${title:-untitled}" "$body"
+}
+
+cmd_pr() {
+  resolve_or_die; local proj="$PROJ" base="main" create=0 issue="" title=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --base)   base="${2:-main}"; shift 2 ;;
+      --issue)  issue="${2:-}"; shift 2 ;;
+      --title)  title="${2:-}"; shift 2 ;;
+      --create) create=1; shift ;;
+      *) shift ;;
+    esac
+  done
+
+  local root branch body tier findings
+  root="$(felix_repo_root "$PWD")"
+  branch="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+  [ "$branch" != "$base" ] || die "already on $base; make a branch before opening a pull request"
+
+  [ -n "$title" ] || title="$(git -C "$root" log -1 --format=%s 2>/dev/null)"
+  body="$(felix_pr_body "$root" "$base")"
+  [ -n "$issue" ] && body="$body
+
+closes #$issue"
+
+  # Two calls, exactly as cmd_classify does it: diff produces findings, tier
+  # reduces them. felix_classify_tier takes the findings, not the paths.
+  findings="$(felix_classify_diff "$proj" "$base" "$root" 2>/dev/null)"
+  tier="$(felix_classify_tier "$findings" 2>/dev/null)"
+  [ -n "$tier" ] || tier=green
+
+  printf 'branch:   %s -> %s\ntitle:    %s\ntier:     %s\n\n' "$branch" "$base" "$title" "$tier"
+  printf '%s\n' "$body"
+
+  if [ "$create" -eq 0 ]; then
+    printf '\nPreview only. Add --create to open it.\n'
+    return 0
+  fi
+
+  command -v gh >/dev/null 2>&1 || die "felix pr --create needs the gh CLI, which is not on PATH"
+  local slug; slug="$(felix_repo_slug "$root")"
+  [ -n "$slug" ] || die "no github remote"
+
+  # Draft when the gate has not passed on this exact tree. Read the receipt the
+  # way the Stop hook does: identity must match AND the result must be green,
+  # because a green receipt for a different tree is not a green gate.
+  #
+  # Opened anyway rather than refused. The repair loop attaches to an existing
+  # pull request, so refusing here would leave it nothing to attach to.
+  local draft="--draft" tid receipt
+  tid="$(felix_tree_id "$root" "$FELIX_HOME_DIR" 2>/dev/null)" || tid=""
+  receipt="$(felix_verify_receipt "$root" "$FELIX_HOME_DIR" 2>/dev/null)"
+  if [ -n "$tid" ] && [ "$(printf '%s' "$receipt" | cut -f1)" = "$tid" ] \
+     && [ "$(printf '%s' "$receipt" | cut -f2)" = "green" ]; then
+    draft=""
+  fi
+
+  # shellcheck disable=SC2086
+  gh pr create --repo "$slug" --base "$base" --head "$branch" \
+    --title "$title" --body "$body" $draft || die "gh pr create failed"
+  printf '\ncreated. labelling risk-%s\n' "$tier"
+  gh pr edit --repo "$slug" --add-label "risk-$tier" >/dev/null 2>&1 \
+    || printf 'could not apply risk-%s; the label may not exist yet\n' "$tier"
 }
 
 cmd_autonomy() {
@@ -2012,6 +2112,8 @@ case "${1:-help}" in
   ledger)    shift; cmd_ledger "$@" ;;
   shape)     shift; cmd_shape "$@" ;;
   autonomy)  shift; cmd_autonomy "$@" ;;
+  brief)     shift; cmd_brief "$@" ;;
+  pr)        shift; cmd_pr "$@" ;;
   quarantine) shift; cmd_quarantine "$@" ;;
   recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;

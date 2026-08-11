@@ -163,7 +163,7 @@ tier mechanically (see §3).
 | create code | yes | |
 | run tests | yes | `felix gate` → pass; 334 in Felix |
 | deploy preview | **no** | no deploy target, no catalogue row keyed on `deploy` |
-| test it | **partial** | still 0 files matching `e2e\|playwright` in Elenchus |
+| test it | **yes, without Playwright** | see the note below; 45+ HTTP-level web tests, shell verified in a real browser |
 | open PR | yes | `felix pr --create`, draft when the gate has not passed |
 | report confidence | yes | `felix classify`, `felix evidence` |
 
@@ -174,6 +174,29 @@ of 273 marketplace entries, no binary, no skill, so semgrep plus
 `engine/harness/bin/secret-scan` fills that slot; basic audit yes and real.
 
 ---
+
+## 4b. Playwright: assessed 2026-08-11, deliberately not adopted
+
+The p41 list asks for browser coverage and the honest answer is that this
+project already has the coverage and does not need the browser.
+
+Checked rather than assumed. The app was started, driven in a real browser, and
+came back clean: title renders, ten scripts load including three.js and its
+shaders, a canvas is present, the shell auto-creates a session and gets 200, and
+the console has **zero errors**. Nobody had ever confirmed that.
+
+Underneath it sit 45+ HTTP-level tests in `tests/test_web_api.py` — including
+`test_vendor_three_is_served`, `test_index_references_*`,
+`test_static_assets_are_not_cacheable` and
+`test_shell_renders_the_front_door_and_living_sitting_affordances` — plus
+`test_renderer_pipeline_static.py` and `test_visual_theme.py`. Every asset the
+shell references resolves.
+
+Adopting Playwright would add a ~300MB browser download to a gate that runs on
+every change, in exchange for regression protection on a surface that is
+already better covered than most. Revisit it when there is browser behaviour
+these cannot reach — real drag-to-orbit interaction, or a visual regression that
+matters — and not to tick a criterion.
 
 ## 5. Next, in leverage order
 

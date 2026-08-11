@@ -1539,6 +1539,34 @@ has "reads a plugin's own description" "$d" "llm evaluation harness"
 d="$( . "$FROOT/harness/lib/discover.sh"; felix_plugin_description "$TMP/nosuchdir" )"
 is "and is silent when there is none" "$d" ""
 
+printf '\ndoctor fixes what it can instead of reporting it\n'
+# A founder should never be told where a duplicate script lives. Felix holds the
+# authoritative copy, so removing the lookalike loses nothing and is exactly the
+# reversible work the charter says to do rather than escalate.
+mkdir -p "$REPO/scripts"
+printf '#!/bin/sh\necho felix copy\n' > "$FROOT/projects/widget/prepush.sh"
+printf '#!/bin/sh\necho stale repo copy\n' > "$REPO/scripts/prepush.sh"
+chmod +x "$FROOT/projects/widget/prepush.sh" "$REPO/scripts/prepush.sh"
+# A gate-named script Felix does NOT hold. Removing this would destroy the only
+# copy, so it stays and is reported.
+printf '#!/bin/sh\necho mine\n' > "$REPO/scripts/gate-extra.sh"; chmod +x "$REPO/scripts/gate-extra.sh"
+
+out="$(cd "$REPO" && "$FELIX" doctor --fix 2>&1)"
+[ -f "$REPO/scripts/prepush.sh" ] && bad "removes a copy of a file Felix holds" \
+                                  || ok  "removes a copy of a file Felix holds"
+[ -f "$REPO/scripts/gate-extra.sh" ] && ok  "and keeps one Felix does not hold" \
+                                     || bad "and keeps one Felix does not hold"
+has "saying why it kept it" "$out" "gate-extra.sh"
+# Nothing is destroyed. The copy is recoverable even though git never tracked it.
+ls "$FROOT/state/rivals"/*prepush* >/dev/null 2>&1 \
+  && ok "backs the removed copy up first" || bad "backs the removed copy up first"
+out="$(cd "$REPO" && "$FELIX" doctor --fix 2>&1)"
+case "$out" in
+  *"prepush.sh"*) bad "and says nothing about it afterwards" "$out" ;;
+  *)              ok  "and says nothing about it afterwards" ;;
+esac
+rm -rf "$REPO/scripts" "$FROOT/projects/widget/prepush.sh"
+
 printf '\nthe toolbox: reach, analyse, and whether anything can route it\n'
 # Felix could read a plugin it had fetched from a marketplace and could not read
 # one already installed, which is the one it will actually be asked about. The

@@ -600,8 +600,8 @@ EOF
 }
 
 cmd_toolbox() {
-  resolve_or_die; local proj="$PROJ" wire=0 a tpl="$SCRIPT_DIR/templates"
-  for a in "$@"; do case "$a" in --route) wire=1 ;; esac; done
+  resolve_or_die; local proj="$PROJ" wire=0 all=0 a tpl="$SCRIPT_DIR/templates"
+  for a in "$@"; do case "$a" in --route) wire=1 ;; --all) all=1 ;; esac; done
 
   local rules; rules="$(_felix_discover_rules "$tpl" "$proj")"
   local n_routed=0 n_wired=0 n_orphan=0 n_nocap=0
@@ -623,10 +623,13 @@ cmd_toolbox() {
     fi
     cap="$(felix_toolbox_capability "$name" "$rules" "$dir")"
 
+    local show=1
     if felix_toolbox_routed "$proj" "$name"; then
       reach="a route names it"; n_routed=$((n_routed+1))
     elif [ -z "$cap" ]; then
-      reach="no declared capability looks like it"; n_nocap=$((n_nocap+1))
+      # Not routed and matching nothing this project declares. Counted, never
+      # listed: it is a fact about the machine, not about this project.
+      reach="no declared capability looks like it"; n_nocap=$((n_nocap+1)); show=0
     else
       routes="$(felix_toolbox_route_for "$proj" "$cap" | head -1)"
       if [ -z "$routes" ]; then
@@ -642,13 +645,26 @@ cmd_toolbox() {
         reach="could go in '$routes'"; n_orphan=$((n_orphan+1))
       fi
     fi
-    printf '  %-26s %-8s %-12s %s\n' "$name" "$risk" "${cap:--}" "$reach"
+    # A plugin matching no capability this project declares is not a problem to
+    # solve, it is a machine that has other projects on it. Counted, not listed:
+    # twenty-six rows saying "nothing to do here" is how a report stops being
+    # read, and then the rows that did matter go unread with them. Anything a
+    # route names is always shown, capability match or not, or the listing and
+    # the count below it disagree.
+    if [ "$show" -eq 1 ] || [ "$all" -eq 1 ]; then
+      printf '  %-26s %-8s %-12s %s\n' "$name" "$risk" "${cap:--}" "$reach"
+    fi
   done <<EOF
 $(felix_ready_inventory | sort -u)
 EOF
 
-  printf '\n%s reachable, %s wired now, %s could be, %s match no declared capability.\n' \
-    "$n_routed" "$n_wired" "$n_orphan" "$n_nocap"
+  printf '\n%s reachable, %s wired now, %s could be.\n' \
+    "$n_routed" "$n_wired" "$n_orphan"
+  if [ "$n_nocap" -gt 0 ] && [ "$all" -eq 0 ]; then
+    printf '%s installed here match no capability %s declares, and are not listed.\n' \
+      "$n_nocap" "$(basename "$proj")"
+    printf 'felix toolbox --all     shows them\n'
+  fi
   if [ "$wire" -eq 0 ] && [ "$n_orphan" -gt 0 ]; then
     printf '\nfelix toolbox --route   wires the ones that have somewhere to go\n'
   fi
@@ -1624,11 +1640,45 @@ cmd_repair() {
 }
 
 cmd_doctor() {
-  resolve_or_die; local proj="$PROJ" root new gate rivals
+  resolve_or_die; local proj="$PROJ" root new gate rivals fix=0 a
+  for a in "$@"; do case "$a" in --fix) fix=1 ;; esac; done
   root="$(felix_repo_root "$PWD")"
   new="$(felix_undeclared "$root" "$proj")"
   gate="$(felix_json_str "$proj/project.json" gate)"
   rivals="$(_felix_rival_gates "$root" "$proj" "$gate")"
+
+  # Removing a lookalike Felix already holds loses nothing and is exactly the
+  # reversible work the charter says to do rather than escalate. Nobody should
+  # be told where a duplicate script lives; it is not a decision, it is tidying.
+  #
+  # Only when Felix holds a copy under that name. A gate-named script Felix does
+  # not hold is somebody's only copy, and deleting that would be destroying work
+  # to clean up a report.
+  if [ "$fix" -eq 1 ] && [ -n "$rivals" ]; then
+    local st ff nn kept=""
+    while IFS=$'\t' read -r st ff nn; do
+      [ -n "${ff:-}" ] || continue
+      local base="${ff##*/}"
+      if [ -f "$proj/$base" ]; then
+        mkdir -p "$FELIX_HOME_DIR/state/rivals" 2>/dev/null
+        cp "$root/$ff" \
+           "$FELIX_HOME_DIR/state/rivals/$(basename "$proj")-$(printf '%s' "$ff" | tr '/' '-')" \
+           2>/dev/null
+        rm -f "$root/$ff" 2>/dev/null
+      else
+        kept="${kept}${ff}
+"
+      fi
+    done <<EOF
+$rivals
+EOF
+    rivals="$(_felix_rival_gates "$root" "$proj" "$gate")"
+    if [ -n "$kept" ]; then
+      printf 'kept, because Felix holds no copy and this may be the only one:\n'
+      printf '%s' "$kept" | sed 's|^|  |'
+      printf '\n'
+    fi
+  fi
 
   printf 'project:      %s\n' "$(basename "$proj")"
   printf 'declared:     %s\n' "$(felix_declared "$proj" | tr '\n' ' ')"

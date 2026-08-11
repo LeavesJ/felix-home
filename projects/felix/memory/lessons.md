@@ -138,6 +138,18 @@ with a record, not a substitute for running it.
   the only one worth acting on. The same shape will recur anywhere Felix
   measures something it also controls.
 
+- **An inline plugin cannot be uninstalled, and the CLI says it can.**
+  `claude plugin uninstall togetherai-skills` printed "Successfully
+  uninstalled". Afterwards `claude plugin list` showed nothing, the on-disk
+  registry showed nothing, `settings.json` showed nothing — and the plugin was
+  still there, because `~/.claude.json` carries it as `name@inline` and its
+  skills stay live in every session. Felix reported it as present and was
+  right; three separate CLI views were wrong together. Backing out an adoption
+  is therefore not always possible by uninstalling: undeclaring it in
+  `stack.tsv` and removing it from every play stops Felix reaching for it,
+  which is all Felix can promise. Never report something as removed on the
+  strength of the command that removed it saying so.
+
 - **Establish who set a limit before reporting it as one.** A rule in Felix's
   own doctrine, invariants or CLI is a decision, not a constraint, and it reads
   exactly like a real limit to every later session. Twice in one turn a ceiling

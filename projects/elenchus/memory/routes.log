@@ -27,3 +27,6 @@
 2026-08-10T19:09:09Z	model	2	{"session_id":"b34da8dd-d9bf-488e-b1b8-b62a2b42029a","transcript_path":"/Users/a14808/.claude/projects/-Users-a14808-Documents-Elenchus--claude-worktrees-elench
 2026-08-10T19:48:53Z	research	2	check these random things out
 2026-08-10T19:48:53Z	document	2	read through this document
+2026-08-11T00:04:28Z	grading	4	the rubric keeps passing forgeable answers
+2026-08-11T00:04:29Z	model	7	tighten the system prompt we send to the model
+2026-08-11T00:04:29Z	frontend	4	the results page layout breaks on mobile

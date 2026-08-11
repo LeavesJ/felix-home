@@ -199,11 +199,16 @@ of 273 marketplace entries, no binary, no skill, so semgrep plus
    evidence up front, order, and the configuration the next session boots with.
    Better once the ledger exists, since choosing tools is far better informed by
    knowing which ones actually got used.
-4. **Execution shape.** Coupling computed mechanically from shared files — a
-   refusal, and it binds. A model may narrow it and may never widen it. The
-   `Files:` blocks that `writing-plans` mandates are a computable overlap graph;
-   a first pass over `docs/2026-08-10-issue-pr-loop-plan.md` correctly found
-   tasks 1–4 fully connected and task 5 disjoint.
+4. **Execution shape.** *Done 2026-08-11:* `felix shape <plan>` computes
+   connected components over the `Files:` blocks `writing-plans` mandates and
+   reproduces, mechanically, the split that had been made by taste — tasks 1–4
+   of the issue-to-PR plan share files, task 5 does not. The refusal half binds;
+   the permission half is stated as necessary-not-sufficient, because a caller
+   and the signature it consumes share no file at all.
+
+   What is left: nothing consults it. `felix route` still names tools without
+   reference to shape, and no hook mentions it. A model may narrow a "separable"
+   and may never widen a "one context".
 5. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
    `recommend` and `which` print and bind nothing.
 6. **`felix next`** for the engineering backlog Felix already tracks —

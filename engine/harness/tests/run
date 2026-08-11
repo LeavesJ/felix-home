@@ -1539,6 +1539,51 @@ has "reads a plugin's own description" "$d" "llm evaluation harness"
 d="$( . "$FROOT/harness/lib/discover.sh"; felix_plugin_description "$TMP/nosuchdir" )"
 is "and is silent when there is none" "$d" ""
 
+printf '\nexecution shape, computed rather than felt\n'
+# Whether work fans out or stays in one context was decided by taste every time,
+# which means it held on one machine for one person. Files that overlap cannot
+# be worked in parallel: that half is mechanical, it is a refusal, and it binds.
+SP="$TMP/plan.md"
+cat > "$SP" <<'EOF'
+### Task 1: One
+
+**Files:**
+- Create: `lib/a.sh`
+- Test: `tests/run`
+
+### Task 2: Two
+
+**Files:**
+- Modify: `lib/a.sh:12-20`
+- Test: `tests/run`
+
+### Task 3: Three
+
+**Files:**
+- Modify: `docs/x.md`
+
+### Task 4: Four
+
+**Files:**
+- Modify: `README.md`
+EOF
+u="$( . "$FROOT/harness/lib/shape.sh"; felix_shape_units "$SP" | tr '\n' ' ' )"
+has "reads the files a task declares"  "$u" "1	lib/a.sh"
+has "and strips a line range"          "$u" "2	lib/a.sh"
+
+g="$( . "$FROOT/harness/lib/shape.sh"; felix_shape_groups "$SP" )"
+has "tasks sharing a file are one unit"     "$g" "1,2"
+# 3 and 4 touch nothing anyone else touches, so they are genuinely separable.
+has "and one that shares nothing stands alone" "$g" "3"
+has "as does another"                          "$g" "4"
+n="$(printf '%s\n' "$g" | grep -c . )"
+is "three groups from four tasks" "$n" "3"
+
+# A plan with no Files blocks cannot be judged, and saying so is the answer.
+printf '# a plan with no files\n\n### Task 1: x\n\nnothing declared\n' > "$TMP/bare.md"
+g="$( . "$FROOT/harness/lib/shape.sh"; felix_shape_groups "$TMP/bare.md" | tr -d '\n ' )"
+is "a plan declaring no files yields nothing" "$g" ""
+
 printf '\ndoctor fixes what it can instead of reporting it\n'
 # A founder should never be told where a duplicate script lives. Felix holds the
 # authoritative copy, so removing the lookalike loses nothing and is exactly the

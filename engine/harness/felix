@@ -13,6 +13,7 @@
 #   felix discover --adopt  declare and install the low-risk ones it has read
 #   felix toolbox        every installed plugin, what it is, and what can reach it
 #   felix ledger         what has been mounted, and what was never reached for
+#   felix shape <plan>   which tasks may run apart, and which must not
 #   felix quarantine <p> switch off a plugin that is breaking sessions
 #   felix recommend      what this stack implies; --want "<text>" matches intent
 #   felix stack plan     diff declared tooling against what is installed
@@ -99,6 +100,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/route.sh"
 . "${SCRIPT_DIR}/lib/toolbox.sh"
 . "${SCRIPT_DIR}/lib/ledger.sh"
+. "${SCRIPT_DIR}/lib/shape.sh"
 # shellcheck source=lib/monitor.sh
 . "${SCRIPT_DIR}/lib/monitor.sh"
 # shellcheck source=lib/ready.sh
@@ -556,6 +558,46 @@ cmd_quarantine() {
   printf 'This takes effect in your NEXT session. A plugin already loaded stays\n'
   printf 'loaded, hooks and all, so the current one behaves exactly as before.\n\n'
   printf 'Undo whenever it is fixed:\n\n  claude plugin enable %s\n' "$name"
+}
+
+cmd_shape() {
+  resolve_or_die
+  local plan="${1:-}"
+  [ -n "$plan" ] || die "usage: felix shape <plan.md>"
+  [ -f "$plan" ] || die "no such plan: $plan"
+
+  local groups; groups="$(felix_shape_groups "$plan")"
+  if [ -z "$groups" ]; then
+    printf 'No task declares any file in %s.\n\n' "$plan"
+    printf 'Shape is computed from the files each task creates, modifies and\n'
+    printf 'tests. Without those, nothing here can be judged, and guessing at it\n'
+    printf 'would be the taste this command exists to replace.\n'
+    return 0
+  fi
+
+  local coupled=0 alone=0 g n
+  printf 'shape of %s\n\n' "$plan"
+  while IFS= read -r g; do
+    [ -n "$g" ] || continue
+    n="$(printf '%s' "$g" | tr ',' '\n' | grep -c .)"
+    if [ "$n" -gt 1 ]; then
+      printf '  one context   tasks %-18s share files\n' "$g"
+      coupled=$((coupled+1))
+    else
+      printf '  separable     task  %-18s shares nothing\n' "$g"
+      alone=$((alone+1))
+    fi
+  done <<EOF
+$groups
+EOF
+
+  printf '\n%s group(s) that must not be split, %s that may run apart.\n' "$coupled" "$alone"
+  printf '\nThe first half binds. Two tasks writing one file cannot be worked in\n'
+  printf 'parallel: one overwrites the other, or they invent conflicting\n'
+  printf 'assumptions about a file neither owns.\n'
+  printf '\nThe second half does not. Disjoint files are necessary for fanning out\n'
+  printf 'and never sufficient — a caller and the signature it consumes share no\n'
+  printf 'file at all. Read the interfaces before trusting a "separable".\n'
 }
 
 cmd_ledger() {
@@ -1859,6 +1901,7 @@ case "${1:-help}" in
   discover)  shift; cmd_discover "$@" ;;
   toolbox)   shift; cmd_toolbox "$@" ;;
   ledger)    shift; cmd_ledger "$@" ;;
+  shape)     shift; cmd_shape "$@" ;;
   quarantine) shift; cmd_quarantine "$@" ;;
   recommend) shift; cmd_recommend "$@" ;;
   stack)   shift; cmd_stack "$@" ;;

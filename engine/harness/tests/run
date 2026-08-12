@@ -579,6 +579,101 @@ case "$out" in
 esac
 _reset
 
+printf '\nwhat a revert cannot undo\n'
+# A tier used to be a function of which file you touched, and that is what sent
+# a one-line dependency-floor correction to the founder for a day. The question
+# a stop must answer is not "is this file important" but "does merging write
+# something outside this tree that a revert cannot reach".
+#
+# Escapes are engine constants. A project may add to them and may never declare
+# one away, so this is not a table anybody can weaken into agreement.
+_esc() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"
+           felix_escapes "$FROOT/projects/widget" HEAD~1 "$REPO" ); }
+# L-25 again: this section appends rows to the widget's table, and every later
+# assertion in the file reads that table. Snapshot it here, restore at the end,
+# and assert the restore rather than trusting it.
+cp "$FROOT/projects/widget/risk.tsv" "$TMP/risk.keep"
+
+printf 'notes and more notes\n' > "$REPO/README.md"; _stage
+is "a documentation change escapes nothing" "$(_esc)" ""
+_reset
+
+# Merging this runs the job, holding every secret the repository has. Reverting
+# restores the YAML; it does not un-run the job or un-read the key.
+mkdir -p "$REPO/.github/workflows"; printf 'on: push\n' > "$REPO/.github/workflows/ci.yml"; _stage
+has "a workflow change escapes as execute" "$(_esc)" "execute"
+_reset
+
+mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/003.sql"; _stage
+has "a migration escapes as durable" "$(_esc)" "durable"
+_reset
+
+# The trailing marker is a scanner exclusion, and it sits in a shell comment so
+# it never reaches leak.py — the fixture file still holds a clean credential for
+# the scanner under test to find. Without it Felix's own gate goes red on this
+# line, which is the scanner working on the suite that tests the scanner.
+printf 'api_key = "sk-ant-api03-BBBBBBBBBBBBBBBBBBBBBBBB"\n' > "$REPO/leak.py"; _stage  # must_flag
+has "a credential in added lines escapes as disclose" "$(_esc)" "disclose"
+_reset
+
+# The verifier channel. A green produced by a narrowed judge certifies itself,
+# so shrinking what judges is the one edit that cannot be checked by the thing
+# it shrank. Adding to a table is free; removing from it is not.
+#
+# The table has to be inside the repository being merged for a diff to contain
+# it. For a governed product that is never true — its tables live in the Felix
+# home — so this channel fires when Felix's *own* repository is the one being
+# merged, which is exactly where those tables are edited. Indirect, and complete.
+mkdir -p "$REPO/projects/thing"
+{ printf '# tier\tkind\tpattern\treason\n'
+  printf 'red\tpath\t^secrets/\tsecret material\n'
+  printf 'red\tpath\t^auth/\tauthorization model\n'
+} > "$REPO/projects/thing/risk.tsv"; _stage
+printf 'green\tpath\t^extra/\tan added row\n' >> "$REPO/projects/thing/risk.tsv"; _stage
+is "adding a row to an enforcing table escapes nothing" "$(_esc)" ""
+_reset
+sed '/^red.path.\^auth/d' "$REPO/projects/thing/risk.tsv" > "$TMP/rt" && mv "$TMP/rt" "$REPO/projects/thing/risk.tsv"
+_stage
+has "removing one escapes as verifier" "$(_esc)" "verifier"
+has "and names the table"              "$(_esc)" "projects/thing/risk.tsv"
+_reset
+# L-25: restore the fixture and assert the restore, or every later assertion in
+# this file runs against a repository this block quietly changed.
+_reset
+is "and the repository is back to where it started" "$(_esc)" ""
+
+# Confinement, which is the whole reason PR #4 should not have waited. The
+# manifest is dual-use: it declares dependencies AND configures the gate. So the
+# row stays, and stops firing only when every changed line is a version
+# constraint and the package names are the same on both sides.
+{ printf 'red\tpath\t^pyproject\\.toml$\tmanifest is also gate config\tverifier\t'
+  printf '^[-+][[:space:]]*"?[A-Za-z0-9._-]+[[:space:]]*[<>=!~^,"]\n'
+} >> "$FROOT/projects/widget/risk.tsv"
+printf '[project]\ndependencies = [\n  "anthropic>=0.40",\n]\n' > "$REPO/pyproject.toml"; _stage
+printf '[project]\ndependencies = [\n  "anthropic>=0.120",\n]\n' > "$REPO/pyproject.toml"; _stage
+is "a version bump alone escapes nothing" "$(_esc)" ""
+_reset
+
+# The evil twin: same file, same PR shape, one extra line that deletes tests
+# from the gate without touching a single test.
+printf '[project]\ndependencies = [\n  "anthropic>=0.120",\n]\n[tool.pytest.ini_options]\naddopts = "--ignore=tests/test_judgment.py"\n' > "$REPO/pyproject.toml"; _stage
+has "the same file with an unconfined line escapes" "$(_esc)" "pyproject.toml"
+_reset; _reset
+cp "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv"
+
+# A row with no channel is advisory. Every table written before this column
+# existed is exactly that, and must keep classifying without ever stopping a
+# merge on its own.
+printf 'red\tpath\t^legacy/\tno channel named\n' >> "$FROOT/projects/widget/risk.tsv"
+mkdir -p "$REPO/legacy"; printf 'x\n' > "$REPO/legacy/a.txt"; _stage
+is "a red row naming no channel stops nothing" "$(_esc)" ""
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+has "but it still classifies red" "$out" "tier:  red"
+_reset
+cp "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv"
+is "the widget's table is exactly as this section found it" \
+   "$(diff -q "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv" >/dev/null && echo same)" "same"
+
 printf '\nevidence policy\n'
 {
   printf 'unit\t^src/\t^tests?/\tcode changes need a test\n'

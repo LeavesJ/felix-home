@@ -91,9 +91,9 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.28.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.29.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **471 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **479 assertions**, 0 failed. `main` is pushed and
   **CI is green — checked, not assumed.** It had been red for at least two
   commits while this line claimed otherwise. Read `gh run list --branch main`
   before writing that sentence again.
@@ -110,6 +110,14 @@ is not masked at all.
 - Felix wires **8 of the 11 lifecycle moments** anything on this machine binds,
   and has a written stance on the other three. `felix coverage` shows the table.
   At the start of 2026-08-10 it wired 3, and all three only injected text.
+- **A `declined` stance is now falsifiable.** `lifecycle.tsv` carries a fourth
+  column, `holds`, naming the literal in `hooks.json` its reason rests on:
+  `PreCompact` holds `compact`, `PostToolBatch` holds `"PostToolUse"`. Delete
+  either and the row goes `stale-reason` and the suite fails — shown failing
+  against the shipped table, not only a fixture. `-` stays legal for a decline
+  resting on judgement, and **1 currently does** (`Notification`); the count is
+  printed every run so the unfalsifiable share is a number rather than a
+  property nobody can see. Three-column tables still parse.
 - **The ledger has real data for the first time.** One session: `Bash` 66,
   `Read` 23, `Edit` 15, `Write` 5, `Agent` 1 — and zero rows for
   `code-review`, `code-simplifier`, `security-guidance`, `claude-md-management`
@@ -254,33 +262,21 @@ it was fine".
 
 Everything above item 1 that used to be here is done. This list is what is left.
 
-1. **Merge PR #4 on Elenchus.** Open, draft, CI green, `risk-yellow`. It raises
-   the `anthropic` floor from `>=0.40`, which was a false compatibility claim —
-   the code calls `client.messages.parse` and passes adaptive-thinking params
-   that the 0.40-era SDK does not have. Merging is the founder's, and it is the
-   first of the five green merges auto-merge needs.
-
-2. **Make `declined` falsifiable.** A stance of `declined` in `lifecycle.tsv`
-   is permanent by construction — nothing re-checks whether the reason still
-   holds. The self-diagnosis design proposes a `holds` column naming a literal
-   that must stay present in `hooks.json`, so a decline dies when its premise
-   does. Cheap, and it closes the one place the coverage table can rot quietly.
-
-3. **The monitor's compliance panel.** `felix_route_due` already computes
+1. **The monitor's compliance panel.** `felix_route_due` already computes
    whether a session used the tool Felix named; nothing surfaces it. This is
    the panel that proves the delegation works rather than merely recording it,
    and the founder now has real ledger data to look at. Also: archive sessions
    clickable, which is a rendering change because `monitor.html` already groups
    by session.
 
-4. **`felix next`.** Rank the engineering backlog Felix already tracks —
+2. **`felix next`.** Rank the engineering backlog Felix already tracks —
    maintenance, drift, setup gaps, evidence gaps — and say what to do. Not
    product work; that is the founder's.
 
-5. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
+3. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
    `recommend` and `which` print and bind nothing.
 
-6. **Auto-merge and the unattended switch.** Both unlock on five consecutive
+4. **Auto-merge and the unattended switch.** Both unlock on five consecutive
    green merges. Maintenance will not produce them: a well-kept repository
    yields about one real PR from a full sweep of due routines, which was
    measured rather than guessed. They come from real feature work.
@@ -299,8 +295,9 @@ Everything above item 1 that used to be here is done. This list is what is left.
   true --repo LeavesJ/Elenchus`. Felix will not flip it: the evidence that would
   justify it cannot be gathered without spending it, so the first real run wants
   someone watching.
-- **Auto-merge.** 0 of 5 on both repos. Elenchus has exactly two merged pull
-  requests ever, #1 unlabelled and #3 `risk-red`. It unlocks itself after five
+- **Auto-merge.** Elenchus is **1 of 5**: #4 merged green 2026-08-12, the first
+  of the run. Before it, three merges ever — #1 unlabelled, #3 `risk-red`.
+  Felix is 0 of 5. It unlocks itself after five
   consecutive green merges.
 - **GitHub MCP is broken, not missing.** `plugin:github:github` returns
   `HTTP 400: Authorization header is badly formatted`. It was authenticated once

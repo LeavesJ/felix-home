@@ -1753,6 +1753,46 @@ out="$( HOME="$CVH" . "$FROOT/harness/lib/coverage.sh"
 has "an unconsidered moment is named"  "$out" "SubagentStop"
 has "and so is every other one"        "$out" "SessionStart"
 
+# A decline is permanent by construction: nothing ever re-reads whether the
+# reason still holds. PreCompact is declined *because* the SessionStart matcher
+# contains `compact`, so narrowing that matcher makes the decline false and
+# nothing says so. The fourth column names the literal the reason rests on.
+printf 'PreCompact\tdeclined\tSessionStart matches on compact\tcompact\n' > "$CVT/lifecycle.tsv"
+printf '{"hooks":{"SessionStart":[{"matcher":"startup|clear|compact"}]}}\n' > "$CVT/hooks.json"
+out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$CVT" "$CVT/hooks.json" )"
+has "a decline whose premise still holds is ok" "$out" "ok	PreCompact"
+
+printf '{"hooks":{"SessionStart":[{"matcher":"startup|clear"}]}}\n' > "$CVT/hooks.json"
+out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$CVT" "$CVT/hooks.json" )"
+has "a decline whose premise died is caught" "$out" "stale-reason	PreCompact"
+has "and it names the literal that went missing" "$out" "'compact' is no longer in hooks.json"
+
+# `-` is allowed. A decline resting on judgement rather than on a literal is
+# honest, and forcing everyone to invent a token would just produce fake ones.
+# It is counted rather than accepted silently, so "N declines rest on nothing
+# checkable" is visible instead of the excuses being invisible.
+printf 'Notification\tdeclined\tnothing to add\t-\n' > "$CVT/lifecycle.tsv"
+printf '{"hooks":{}}\n' > "$CVT/hooks.json"
+out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$CVT" "$CVT/hooks.json" )"
+has "a decline resting on nothing checkable is still ok" "$out" "ok	Notification"
+out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_unchecked "$CVT" )"
+is "but it is counted" "$out" "1"
+
+# A three-column table is the old format and must keep working, or every
+# governed project's table breaks the day the engine updates.
+printf 'Notification\tdeclined\tnothing to add\n' > "$CVT/lifecycle.tsv"
+out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$CVT" "$CVT/hooks.json" )"
+has "a table with no holds column still works" "$out" "ok	Notification"
+out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_unchecked "$CVT" )"
+is "and its declines count as unchecked" "$out" "1"
+
+# The shipped table must not regress into unfalsifiable declines. Every one it
+# carries either names a literal or is deliberately counted.
+out="$( . "$FROOT/harness/lib/coverage.sh"
+        felix_coverage_check "$REAL_HARNESS/templates" "$REAL_HARNESS/../hooks/hooks.json" \
+        | grep -c '^stale-reason' || true )"
+is "no shipped decline rests on a dead premise" "$out" "0"
+
 # And the real table, which must have an opinion on every moment there is.
 out="$( . "$FROOT/harness/lib/coverage.sh"
         felix_coverage_unconsidered "$REAL_HARNESS/templates" | tr -d '\n ' )"

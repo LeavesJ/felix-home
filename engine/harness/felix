@@ -801,6 +801,14 @@ EOF
     printf '\n%s moment(s) need a decision.\n' "$bad"
   fi
 
+  # Said whether or not anything is wrong. A decline resting on judgement is not
+  # a fault, but the share of them is the one number that says how much of this
+  # table is taking itself on trust.
+  local unchecked; unchecked="$(felix_coverage_unchecked "$tpl")"
+  if [ "${unchecked:-0}" -gt 0 ]; then
+    printf '\n%s decline(s) rest on judgement, with no literal a check can read.\n' "$unchecked"
+  fi
+
   printf '\nThis checks that every moment was considered, never that what runs at\n'
   printf 'one is any good. A hook doing the wrong thing passes here and should:\n'
   printf 'judging that is not mechanical, and a report implying otherwise would\n'

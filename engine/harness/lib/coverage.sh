@@ -16,17 +16,32 @@
 # would be worse than not checking: a green coverage report that means "somebody
 # thought about this" is honest, and one that implies "this is handled" is not.
 #
+# A decline is permanent by construction, which is the one way this table rots
+# quietly. `wired` is re-checked against reality on every run; `declined` never
+# is, because the reason lives in prose nothing can read. `PreCompact` is
+# declined *because* the `SessionStart` matcher contains `compact` — narrow that
+# matcher and the decline becomes false with nothing to say so.
+#
+# So a row may carry a fourth column, `holds`: a literal that must still be
+# present in hooks.json for its reason to remain true. When it goes, the row
+# goes red. `-` is allowed and is not a failure — a decline rooted in judgement
+# rather than in a token is honest, and demanding a literal from everyone would
+# only produce invented ones. Those are counted instead, by
+# felix_coverage_unchecked, so "N declines rest on nothing checkable" is visible
+# rather than the excuses being invisible.
+#
 # Emits: state <TAB> event <TAB> detail
 #   ok        stance and reality agree
 #   gap       no stance at all — the case that had to be found by hand twice
 #   missing   declared wired, nothing wires it
-#   undeclared  wired, but no row says why
+#   undeclared    wired, but no row says why
+#   stale-reason  declined, and the premise the reason rests on is gone
 felix_coverage_check() {
-  local tpl="$1" hooks="$2" event stance reason wired seen=""
+  local tpl="$1" hooks="$2" event stance reason holds wired seen=""
   [ -f "$tpl/lifecycle.tsv" ] || return 0
   [ -f "$hooks" ] || return 0
 
-  while IFS=$'\t' read -r event stance reason; do
+  while IFS=$'\t' read -r event stance reason holds; do
     case "$event" in ''|'#'*) continue ;; esac
     [ -n "${stance:-}" ] || continue
     seen="$seen $event"
@@ -38,7 +53,16 @@ felix_coverage_check() {
       wired:yes)    printf 'ok\t%s\t%s\n'      "$event" "${reason:-wired}" ;;
       wired:no)     printf 'missing\t%s\t%s\n' "$event" "declared wired, nothing wires it" ;;
       declined:yes) printf 'missing\t%s\t%s\n' "$event" "declined, yet something wires it" ;;
-      declined:no)  printf 'ok\t%s\t%s\n'      "$event" "declined: ${reason:-no reason given}" ;;
+      declined:no)
+        # A three-column table predates this column and must keep working, or
+        # every governed project's table breaks the day the engine updates.
+        if [ -n "${holds:-}" ] && [ "$holds" != "-" ] \
+             && ! grep -qF -- "$holds" "$hooks" 2>/dev/null; then
+          printf 'stale-reason\t%s\t%s\n' "$event" \
+            "declined because '$reason', but '$holds' is no longer in hooks.json"
+        else
+          printf 'ok\t%s\t%s\n' "$event" "declined: ${reason:-no reason given}"
+        fi ;;
       *)            printf 'gap\t%s\t%s\n'     "$event" "stance '$stance' is not wired or declined" ;;
     esac
   done < "$tpl/lifecycle.tsv"
@@ -52,6 +76,24 @@ felix_coverage_check() {
     case " $seen " in *" $h "*) continue ;; esac
     printf 'undeclared\t%s\t%s\n' "$h" "wired, but lifecycle.tsv says nothing about it"
   done
+}
+
+# How many declines rest on nothing a check can read.
+#
+# Not a failure and not a target to drive to zero. Some declines genuinely rest
+# on judgement — Notification is declined because speaking there would break
+# stealth, and no literal in hooks.json can stand for that. The number exists so
+# the unfalsifiable share is a figure somebody can look at rather than a
+# property nobody can see.
+felix_coverage_unchecked() {
+  local tpl="$1" event stance reason holds n=0
+  [ -f "$tpl/lifecycle.tsv" ] || { printf '0'; return 0; }
+  while IFS=$'\t' read -r event stance reason holds; do
+    case "$event" in ''|'#'*) continue ;; esac
+    [ "${stance:-}" = "declined" ] || continue
+    case "${holds:-}" in ''|'-') n=$((n+1)) ;; esac
+  done < "$tpl/lifecycle.tsv"
+  printf '%s' "$n"
 }
 
 # Every event something on this machine actually binds.

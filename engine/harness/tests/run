@@ -632,6 +632,18 @@ mkdir -p "$REPO/projects/thing"
 printf 'green\tpath\t^extra/\tan added row\n' >> "$REPO/projects/thing/risk.tsv"; _stage
 is "adding a row to an enforcing table escapes nothing" "$(_esc)" ""
 _reset
+
+# JSON punishes line-identity comparison. Adding a key rewrites the line above
+# it, because that line gains a comma — so a naive shrink test reads every
+# addition as a removal, and fires on the single most common edit anyone makes
+# to project.json. Observed on the commit that declared consumers.
+printf '{\n  "name": "thing",\n  "gate": "g.sh"\n}\n' > "$REPO/projects/thing/project.json"; _stage
+printf '{\n  "name": "thing",\n  "gate": "g.sh",\n  "consumers": "none"\n}\n' > "$REPO/projects/thing/project.json"; _stage
+is "adding a key to json escapes nothing" "$(_esc)" ""
+_reset
+printf '{\n  "name": "thing"\n}\n' > "$REPO/projects/thing/project.json"; _stage
+has "but removing one still escapes" "$(_esc)" "verifier"
+_reset; _reset
 sed '/^red.path.\^auth/d' "$REPO/projects/thing/risk.tsv" > "$TMP/rt" && mv "$TMP/rt" "$REPO/projects/thing/risk.tsv"
 _stage
 has "removing one escapes as verifier" "$(_esc)" "verifier"
@@ -658,6 +670,26 @@ _reset
 # from the gate without touching a single test.
 printf '[project]\ndependencies = [\n  "anthropic>=0.120",\n]\n[tool.pytest.ini_options]\naddopts = "--ignore=tests/test_judgment.py"\n' > "$REPO/pyproject.toml"; _stage
 has "the same file with an unconfined line escapes" "$(_esc)" "pyproject.toml"
+_reset; _reset
+cp "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv"
+
+# A verifier row counts rather than compares. The suite is the thing that
+# judges, so weakening it must stop — but comparing line identity would fire on
+# every refactor and on every ordinary edit, and a stop that fires constantly is
+# one people route around. What must not go down is the number of assertions.
+{ printf 'yellow\tpath\t^suite\\.sh$\tweakening the suite is how a gate stops being one\tverifier\t'
+  printf 'count:^[[:space:]]*(ok|is|has) \n'
+} >> "$FROOT/projects/widget/risk.tsv"
+printf 'ok one\nis two\nhas three\n' > "$REPO/suite.sh"; _stage
+printf 'ok one\nis two\nhas three\nok four\n' > "$REPO/suite.sh"; _stage
+is "adding an assertion escapes nothing" "$(_esc)" ""
+_reset
+printf 'ok one\nis two\n' > "$REPO/suite.sh"; _stage
+has "removing one escapes as verifier" "$(_esc)" "verifier"
+_reset
+# Rewriting every line while keeping the count is a refactor, not a weakening.
+printf 'ok ONE\nis TWO\nhas THREE\n' > "$REPO/suite.sh"; _stage
+is "rewriting assertions without losing any escapes nothing" "$(_esc)" ""
 _reset; _reset
 cp "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv"
 

@@ -72,18 +72,53 @@ _felix_escape_confined() {
   return 0
 }
 
+# Did the number of lines matching a pattern go down?
+#
+# Reached by a `confine` written as `count:<pattern>`. A confine always names
+# what must still be true for the row not to fire; the prefix says how to read
+# it. Bare means "every changed line looks like this". `count:` means "there are
+# at least as many of these as there were".
+#
+# Spelled in the value rather than inferred from the channel. Inferring it was
+# tried first and made one column mean two things depending on a different
+# column, which is unreadable in a table somebody edits by hand.
+#
+# Counting rather than comparing identity, because a verifier is judged by how
+# much it checks and not by which lines it is written on. Comparing identity
+# fires on every refactor and on most ordinary edits, and a stop that fires
+# constantly is one people learn to route around — which is worse than no stop,
+# since it also teaches them to route around the ones that matter.
+_felix_escape_fewer() {
+  local root="$1" base="$2" f="$3" pattern="$4" before after
+  before="$(git -C "$root" show "$base:$f" 2>/dev/null | grep -cE "$pattern")"
+  after="$( git -C "$root" show "HEAD:$f" 2>/dev/null | grep -cE "$pattern")"
+  [ "${after:-0}" -lt "${before:-0}" ]
+}
+
 # Non-comment, non-blank lines present at base and gone at HEAD.
 #
 # Static blobs on both sides, never two live runs. Running the gate twice to
 # compare is nondeterministic against the plugin cache and the two runs clobber
 # each other's log; a comparison whose inputs move is not a comparison.
+#
+# Trailing commas are stripped before comparing, and that is not cosmetic. JSON
+# has no trailing comma, so adding a key rewrites the line above it — meaning a
+# literal comparison reads every addition to project.json as a removal and fires
+# on the most ordinary edit there is. Caught on the commit that declared
+# `consumers`, which added two keys and removed nothing. A genuine removal takes
+# its whole line with it and is still caught.
+_felix_escape_lines() {
+  git -C "$1" show "$2:$3" 2>/dev/null \
+    | grep -vE '^[[:space:]]*(#|$)' \
+    | sed -E 's/[[:space:]]*,[[:space:]]*$//' \
+    | LC_ALL=C sort -u
+}
+
 _felix_escape_shrank() {
   local root="$1" base="$2" f="$3" before after
-  before="$(git -C "$root" show "$base:$f" 2>/dev/null \
-            | grep -vE '^[[:space:]]*(#|$)' | LC_ALL=C sort -u)"
+  before="$(_felix_escape_lines "$root" "$base" "$f")"
   [ -n "$before" ] || return 1
-  after="$(git -C "$root" show "HEAD:$f" 2>/dev/null \
-           | grep -vE '^[[:space:]]*(#|$)' | LC_ALL=C sort -u)"
+  after="$(_felix_escape_lines "$root" HEAD "$f")"
   [ -n "$(comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
 }
 
@@ -137,7 +172,10 @@ EOF
     while IFS= read -r f; do
       [ -n "$f" ] || continue
       printf '%s' "$f" | grep -qE "$pattern" || continue
-      _felix_escape_confined "$root" "$base" "$f" "${confine:-}" && continue
+      case "${confine:-}" in
+        count:*) _felix_escape_fewer "$root" "$base" "$f" "${confine#count:}" || continue ;;
+        *)       _felix_escape_confined "$root" "$base" "$f" "${confine:-}" && continue ;;
+      esac
       printf '%s\t%s\t%s\n' "$channel" "$f" "$reason"
     done <<EOF2
 $paths

@@ -3,5 +3,7 @@
   "remote_match": "LeavesJ/Elenchus",
   "gate": "gate.sh",
   "language": "python",
-  "run_prefix": "PYTHONPATH=src"
+  "run_prefix": "PYTHONPATH=src",
+  "consumers": "none",
+  "consumers_note": "Declared 2026-08-12 by the founder. The repository is PUBLIC and pip-installable from git, so nothing in CI can compute this: no publish step exists and none ever will. Zero known installs today. When that stops being true a manifest change becomes a contract with a stranger, so felix doctor names this line for review rather than letting an empty grep quietly mean the same thing."
 }

@@ -4,11 +4,18 @@
 # pattern, so an unfamiliar file can never auto-merge by being unrecognised.
 # The highest tier any file reaches wins: risk does not average.
 #
-# tier	kind	pattern	reason
+# tier	kind	pattern	reason	channel	confine
+#
+# tier is advice. `channel` is the stop: what merging writes outside this tree
+# that a revert cannot reach. A row with no channel classifies and stops nothing.
+# `confine` is what must stay true for a row NOT to fire — bare means every
+# changed line matches, `count:` means no fewer matches than before.
+#
+# .github/workflows carries no row now. It is an unconditional engine channel a
+# project cannot demote, which is stronger than the row it replaces.
 red	path	(^|/)(auth|authz|authorization|rbac|session|login|credential|permission)s?(/|\.|$)	authorization model
 red	path	(^|/)(migrations|alembic)(/|$)	schema migration
 red	path	prisma/migrations/	schema migration
-red	path	^\.github/workflows/	CI can read every secret in the repository
 red	path	(^|/)\.claude/settings(\.local)?\.json$	agent permission policy
 red	path	\.(tf|tfvars)$	infrastructure as code
 red	path	(^|/)(billing|payments?|checkout|cart|invoice|subscription|pricing|stripe|refund|payout|tax)(/|\.|_|$)	money movement
@@ -19,9 +26,8 @@ red	path	(^|/)(secrets?|vault)(/|\.|$)	secret material
 red	content	^\+.*(sk-[A-Za-z0-9_-]{16,}|sk_live_[A-Za-z0-9]|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY)	a credential appears in the added lines
 red	content	^\+.*(DROP TABLE|TRUNCATE |DELETE FROM [^W]*$)	destructive SQL
 yellow	path	^(package|package-lock)\.json$	dependency change
-yellow	path	^(pyproject\.toml|requirements.*\.txt|Cargo\.toml|go\.mod)$	dependency change
+red	path	^(pyproject\.toml|requirements.*\.txt|Cargo\.toml|go\.mod)$	a manifest also configures the gate; one addopts line deletes tests	verifier	^[-+][[:space:]]*"?[A-Za-z0-9._-]+(\[[a-z,-]+\])?[[:space:]]*[<>=!~^,"]
 yellow	path	\.(sql|graphql|proto)$	interface or schema
-yellow	path	^\.gitignore$	changes what the repository tracks
 green	path	(^|/)\.felix$	Felix's own project marker
 green	path	\.(md|markdown|rst|txt)$	documentation
 green	path	^(docs|documentation)/	documentation
@@ -30,7 +36,8 @@ green	path	(^|/)(LICENSE|CHANGELOG|CODEOWNERS)$	repository metadata
 
 # Elenchus T2 and T3 surfaces, from its own tier definitions. A canonical
 # interface, durable state, a doctrine surface, or anything a learner sees.
-red	path	^src/elenchus/(types|persistence|orchestration)\.py$	canonical interface or durable state
+red	path	^src/elenchus/persistence\.py$	durable state; rows already written do not come back	durable	-
+red	path	^src/elenchus/(types|orchestration)\.py$	canonical interface
 red	path	^src/elenchus/assessment/judgment_loop\.py$	doctrine surface
 red	path	^content/(maps|rubrics)/	versioned doctrine, not code
 yellow	path	^src/elenchus/(surface|terrain|prompt_text)\.py$	learner-facing text

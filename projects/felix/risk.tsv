@@ -5,16 +5,31 @@
 # mistake there is silent. This is that sentence made mechanical, so felix
 # classify and felix scope work on Felix the way they work on everything else.
 #
-# tier	kind	pattern	reason
+# tier	kind	pattern	reason	channel	confine
+#
+# tier is advice: it says how carefully to look. `channel` is the stop, and it
+# names what merging writes outside this tree that a revert cannot reach. A row
+# with no channel classifies and stops nothing, which is what most of these are
+# now: routine engine work on Felix was decided 2026-08-11 to need no approval,
+# and until this column existed the table said the opposite of the doctrine and
+# the table won.
+#
+# `confine` says what must stay true for a row NOT to fire. Bare means every
+# changed line matches it. `count:` means at least as many matching lines as
+# before — the right test for a verifier, which is judged by how much it checks
+# and not by which lines it is written on.
+#
+# .github/workflows carries no row on purpose. It is an unconditional engine
+# channel that no project can demote, because merging one runs the job holding
+# every secret the repository has.
 red	path	^engine/harness/hooks/	runs in every session of every governed project
 red	path	^engine/hooks/	decides which hooks run at all; a bad edit here silently disables every enforcement Felix has
 red	path	^engine/harness/lib/	sourced by the CLI and by every hook
 red	path	^engine/\.claude-plugin/	the version here decides whether anything deploys at all
-red	path	^\.github/workflows/	CI is the only judge that is not the model
 yellow	path	^engine/harness/felix$	the CLI surface; wrong here is loud rather than silent
 yellow	path	^engine/harness/templates/	seeds every new project, but only at creation
-yellow	path	^projects/[^/]+/gate\.sh$	a gate that cannot fail is not a gate
-yellow	path	^engine/harness/tests/run$	weakening the suite is how a gate stops being one
+yellow	path	^projects/[^/]+/gate\.sh$	a gate that cannot fail is not a gate	verifier	count:^[[:space:]]*(pass|fail|check) 
+yellow	path	^engine/harness/tests/run$	weakening the suite is how a gate stops being one	verifier	count:^[[:space:]]*(ok|is|has|bad) 
 yellow	path	^projects/[^/]+/(routes|profiles|stack|risk|evidence)\.tsv$	changes what gets suggested, not what runs
 green	path	^projects/[^/]+/maintenance\.log$	a record of when upkeep ran
 green	path	^docs/	

@@ -91,9 +91,9 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.29.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.32.1**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **479 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **509 assertions**, 0 failed. `main` is pushed and
   **CI is green — checked, not assumed.** It had been red for at least two
   commits while this line claimed otherwise. Read `gh run list --branch main`
   before writing that sentence again.
@@ -110,6 +110,17 @@ is not masked at all.
 - Felix wires **8 of the 11 lifecycle moments** anything on this machine binds,
   and has a written stance on the other three. `felix coverage` shows the table.
   At the start of 2026-08-10 it wired 3, and all three only injected text.
+- **A stop now names what a revert cannot reach, and Felix can merge.** Decided
+  2026-08-12 after PR #4 waited a day on a one-line dependency floor correction.
+  A tier used to be a function of which file you touched; `risk.tsv` now carries
+  `channel` (what merging writes outside the tree) and `confine` (what must stay
+  true for the row not to fire). Most rows carry neither and are advisory. Four
+  channels are engine constants no project may declare away — `disclose`,
+  `execute`, `durable`, `verifier` — and `felix merge` refuses on any of them,
+  computing every blocker offline and touching the network only to merge.
+  **What always stops:** a secret in added lines; `.github/workflows`; an
+  enforcing table or a verifier losing checks; migrations or destructive SQL;
+  money; a declared consumer. Nothing else.
 - **A `declined` stance is now falsifiable.** `lifecycle.tsv` carries a fourth
   column, `holds`, naming the literal in `hooks.json` its reason rests on:
   `PreCompact` holds `compact`, `PostToolBatch` holds `"PostToolUse"`. Delete
@@ -290,6 +301,18 @@ Everything above item 1 that used to be here is done. This list is what is left.
   target, so there is nothing to wire.
 
 ## 6. Open decisions
+
+- **Two of the four 2026-08-12 autonomy decisions are only half built.**
+  *Doctrine content* was decided to go to an independent reviewer in an isolated
+  worktree — the thing Elenchus's own constitution already asks for and nothing
+  implements. That needs a `reviewed` channel satisfied by a recorded verdict,
+  which is mechanical and does not exist yet; `content/(maps|rubrics)/` is
+  advisory-red in the meantime, so it classifies and stops nothing. *The plugin
+  bump* was freed to merge, and the compensating stop at `felix install` turned
+  out to be unbuildable — see `lessons.md`: the gate's `installed` check means
+  install must precede green, so any refusal keyed on "already pushed"
+  deadlocks the loop. There is currently **no** stop on deploying an engine
+  that never reached CI, only the fact that `felix install` is typed by hand.
 
 - **Unattended repair.** Wired and off. `gh variable set FELIX_UNATTENDED --body
   true --repo LeavesJ/Elenchus`. Felix will not flip it: the evidence that would

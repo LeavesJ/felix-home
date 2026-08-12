@@ -6,7 +6,7 @@ not a summary of intent.
 ## Where
 
 - branch: `main`
-- head: `2552533 feat(coverage): a decline nobody rechecks is an excuse, not a stance`
+- head: `2a7b76a feat(risk): a channel says what merging writes outside the tree`
 - tree: `/Users/a14808/Documents/Felix`
 
 ## Uncommitted
@@ -14,22 +14,20 @@ not a summary of intent.
 ```
  M HANDOFF.md
  M projects/felix/memory/SESSION_HANDOFF.md
- M projects/felix/memory/ledger.tsv
- M projects/felix/memory/routes.log
- M projects/felix/memory/says.log
+ M projects/felix/memory/lessons.md
 ```
 
 ## Recent
 
 ```
+2a7b76a 2026-08-12 feat(risk): a channel says what merging writes outside the tree
+33f2c15 2026-08-12 feat(merge): the rule saves nothing until Felix can press the button
+2b38d42 2026-08-12 feat(escape): a stop should name what a revert cannot reach
+a691980 2026-08-12 docs(handoff): PR #4 merged, declines are falsifiable, backlog renumbered
 2552533 2026-08-12 feat(coverage): a decline nobody rechecks is an excuse, not a stance
 69374b1 2026-08-11 docs(handoff): CI was red while this file said it was green
 13f5131 2026-08-11 fix(ready): the bundled fix landed one branch too late
 5abcaf8 2026-08-11 docs(handoff): the widening shipped, and what it cost to verify
-1a8b3b6 2026-08-11 feat(deny): the matcher was doing the blast radius's job
-59024b4 2026-08-11 feat(handoff): keep the one line git cannot reconstruct
-fb765e1 2026-08-11 fix(coverage): a roster typed from memory was wrong within the hour
-d8e2a17 2026-08-11 feat(coverage): the third gap fails instead of being noticed
 ```
 
 ## Next

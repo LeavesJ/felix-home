@@ -254,3 +254,28 @@ with a record, not a substitute for running it.
   the machine part of the fixture** — a stripped `PATH`, a fixture `HOME` — or
   the suite is only ever testing the developer's laptop. And when CI and local
   disagree, CI is the one standing in the branch nobody can reach by hand.
+
+- **Comparing lines compares formatting, not meaning.** The verifier channel
+  decides whether a change *removed* something from a table that decides what
+  stops, and the first implementation compared non-comment lines before against
+  after. It fired on the commit that added two keys to `project.json` and
+  removed nothing — because JSON has no trailing comma, so adding a key rewrites
+  the line above it, and a literal comparison reads that rewrite as a deletion.
+  The most ordinary edit anybody makes to that file was the one it flagged.
+  Found by running the check against its own commit rather than by reading it.
+  Two things generalise. Normalise before comparing, or the check is about the
+  serialiser rather than the content. And a stop that fires on ordinary work is
+  worse than no stop at all, because it also teaches people to skim past the
+  ones that mean something — which is the same complaint Felix makes about
+  other people's plugins, arrived at from the inside.
+
+- **Some stops cannot be placed where they belong, because the gate needs the
+  thing they would block.** Freeing the plugin-version bump to merge was meant
+  to come with a compensating refusal in `felix install` — do not deploy an
+  engine whose HEAD is not on `origin/main`. It cannot work. `felix gate` has an
+  `installed` check comparing the tree to the deployed cache, so an engine
+  change must be installed *before* the gate can go green, and the gate must be
+  green before anything is pushed. Install-then-gate-then-push is a cycle, and
+  any refusal keyed on "already pushed" deadlocks it. Establish that a proposed
+  guard is reachable in the real loop before writing it down as the mitigation
+  that makes something else safe.

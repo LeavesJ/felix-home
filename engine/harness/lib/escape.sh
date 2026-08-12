@@ -146,3 +146,44 @@ EOF2
 $(grep -vE '^[[:space:]]*(#|$)' "$proj/risk.tsv")
 EOF
 }
+
+# Everything standing between this branch and a merge Felix performs itself.
+#
+# Emits: kind <TAB> subject <TAB> reason. Empty means merge.
+#
+# Computed entirely from the working tree, the diff and the receipt, so it
+# refuses with no network and no credentials. A merge command that learns its
+# own preconditions from the network cannot refuse offline, and offline is
+# exactly when somebody is most likely to reach for it.
+#
+# Three kinds, and they are not the same kind of thing:
+#
+#   escape      merging writes outside the tree. A founder decision.
+#   unverified  no green receipt for this exact tree. Run the gate.
+#   evidence    the change owes a test. That is Felix's work, not a queue item
+#               for anybody — the charter calls handing it back a defect — but
+#               it is still a blocker, because merging first would ship the
+#               unproven thing and the debt would never be collected.
+felix_merge_blockers() {
+  local proj="$1" base="$2" root="$3" home="$4"
+  local tid receipt line
+
+  felix_escapes "$proj" "$base" "$root" | while IFS=$'\t' read -r ch path reason; do
+    [ -n "${ch:-}" ] || continue
+    printf 'escape\t%s\t%s: %s\n' "$ch" "$path" "$reason"
+  done
+
+  tid="$(felix_tree_id "$root" "$home" 2>/dev/null)" || tid=""
+  receipt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
+  if [ -z "$tid" ] \
+       || [ "$(printf '%s' "$receipt" | cut -f1)" != "$tid" ] \
+       || [ "$(printf '%s' "$receipt" | cut -f2)" != "green" ]; then
+    printf 'unverified\ttree\tno green receipt for this exact tree; run felix gate\n'
+  fi
+
+  felix_evidence_check "$proj" "$base" "$root" 2>/dev/null \
+    | while IFS=$'\t' read -r status name reason; do
+        [ "${status:-}" = "gap" ] || continue
+        printf 'evidence\t%s\t%s\n' "$name" "$reason"
+      done
+}

@@ -674,6 +674,78 @@ cp "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv"
 is "the widget's table is exactly as this section found it" \
    "$(diff -q "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv" >/dev/null && echo same)" "same"
 
+printf '\nmerging\n'
+# The escape set decides nothing until something consults it. Felix had no way
+# to merge at all — the only merge-adjacent code in the engine turned on
+# GitHub's auto-merge and then waited for a person — so a rule saying "Felix
+# merges what a revert undoes" would have recoloured a label and saved nobody
+# anything.
+#
+# Every blocker is computed before gh is reached. A merge command that discovers
+# its own preconditions from the network cannot be tested and cannot refuse
+# offline, and refusing offline is the case that matters.
+_blk() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"
+           . "$FROOT/harness/lib/evidence.sh"
+           . "$FROOT/harness/lib/verify.sh"
+           felix_merge_blockers "$FROOT/projects/widget" HEAD~1 "$REPO" "$FROOT" ); }
+
+printf 'plain notes\n' > "$REPO/README.md"; _stage
+has "an unverified tree blocks the merge" "$(_blk)" "unverified"
+
+# A receipt for a different tree is not a green gate, which is the trap cmd_pr
+# already learned. Stamp one for the wrong tree and it must still block.
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "not-this-tree" >/dev/null 2>&1 )
+has "a receipt for another tree still blocks" "$(_blk)" "unverified"
+
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+is "a green receipt for this exact tree clears every blocker" "$(_blk)" ""
+
+# And a red receipt for the right tree is not a pass either.
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 1 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+has "a red receipt for this tree blocks" "$(_blk)" "unverified"
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+
+# An escape outranks a green gate. This is the whole point: the gate says the
+# code works, and says nothing about whether merging writes outside the tree.
+mkdir -p "$REPO/.github/workflows"; printf 'on: push\n' > "$REPO/.github/workflows/x.yml"; _stage
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+has "a green gate does not clear an escape" "$(_blk)" "execute"
+_reset
+
+# An evidence gap is not a stop. It is work Felix owes, and handing it back as
+# a decision is the defect the charter names.
+cp "$FROOT/projects/widget/evidence.tsv" "$TMP/ev.keep" 2>/dev/null || : > "$TMP/ev.keep"
+printf 'unit\t^src/\t^tests?/\tcode changes need a test\n' > "$FROOT/projects/widget/evidence.tsv"
+mkdir -p "$REPO/src"; printf 'x = 1\n' > "$REPO/src/thing.py"; _stage
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+has "an untested change blocks, naming the evidence owed" "$(_blk)" "evidence"
+has "and says which rule"                                 "$(_blk)" "unit"
+_reset
+cp "$TMP/ev.keep" "$FROOT/projects/widget/evidence.tsv"
+
+# The command itself must refuse without reaching the network. gh is not called,
+# so this assertion holds on a runner with no credentials and no remote.
+mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/900.sql"; _stage
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 2>&1 )"; rc=$?
+is  "felix merge refuses on an escape"  "$rc" "3"
+has "and names the channel"             "$out" "durable"
+has "and says what would have to change" "$out" "founder"
+_reset
+
+printf 'ordinary\n' > "$REPO/README.md"; _stage
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"; rc=$?
+is  "and reports a clear merge without performing one" "$rc" "0"
+has "saying so plainly"                                "$out" "nothing escapes"
+_reset
+
 printf '\nevidence policy\n'
 {
   printf 'unit\t^src/\t^tests?/\tcode changes need a test\n'

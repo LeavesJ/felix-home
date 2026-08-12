@@ -107,6 +107,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/intake.sh"
 # shellcheck source=lib/deny.sh
 . "${SCRIPT_DIR}/lib/deny.sh"
+# shellcheck source=lib/escape.sh
+. "${SCRIPT_DIR}/lib/escape.sh"
 # shellcheck source=lib/monitor.sh
 . "${SCRIPT_DIR}/lib/monitor.sh"
 # shellcheck source=lib/ready.sh
@@ -139,6 +141,7 @@ specific project, language, or toolchain.
     felix pr [--create]    open a pull request for this branch, tier and all
     felix classify         how risky this diff is, and what that means for merging
     felix evidence         what this change still owes before it counts as done
+    felix merge            merge it, unless something in it escapes the tree
 
   the toolbox
     felix ready            is every tool this project names actually usable?
@@ -721,6 +724,59 @@ closes #$issue"
   printf '\ncreated. labelling risk-%s\n' "$tier"
   gh pr edit --repo "$slug" --add-label "risk-$tier" >/dev/null 2>&1 \
     || printf 'could not apply risk-%s; the label may not exist yet\n' "$tier"
+}
+
+cmd_merge() {
+  resolve_or_die
+  local proj="$PROJ" root base="main" dry=0
+  root="$(felix_repo_root "$PWD")"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --base)    base="${2:-main}"; shift 2 ;;
+      --dry-run) dry=1; shift ;;
+      *) shift ;;
+    esac
+  done
+
+  local blockers; blockers="$(felix_merge_blockers "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
+
+  if [ -n "$blockers" ]; then
+    local kind subject reason esc=0
+    printf 'not merging\n\n'
+    while IFS=$'\t' read -r kind subject reason; do
+      [ -n "${kind:-}" ] || continue
+      printf '  %-11s %-22s %s\n' "$kind" "$subject" "$reason"
+      [ "$kind" = "escape" ] && esc=1
+    done <<EOF
+$blockers
+EOF
+    if [ "$esc" -eq 1 ]; then
+      printf '\nMerging this writes something outside the tree that a revert does not\n'
+      printf 'reach, so it is the founder who decides. Show them the diff and the\n'
+      printf 'reversal path; a green gate is not the question here.\n'
+    else
+      printf '\nNothing here escapes the tree, so none of it is a founder decision.\n'
+      printf 'It is work Felix owes: run the gate, or write the test that is missing,\n'
+      printf 'then run this again.\n'
+    fi
+    return 3
+  fi
+
+  if [ "$dry" -eq 1 ]; then
+    printf 'nothing escapes this tree, and the gate is green on it.\n'
+    printf 'felix merge would squash this now.\n'
+    return 0
+  fi
+
+  command -v gh >/dev/null 2>&1 || die "felix merge needs the gh CLI, which is not on PATH"
+  local slug; slug="$(felix_repo_slug "$root")"
+  [ -n "$slug" ] || die "no github remote"
+
+  # The remote is consulted last and only to perform the merge. Every reason to
+  # refuse was computed above, offline, so this command says no the same way
+  # with or without a network.
+  gh pr merge --repo "$slug" --squash || die "gh pr merge failed"
+  printf 'merged. nothing in it escaped the tree.\n'
 }
 
 cmd_autonomy() {
@@ -2181,6 +2237,7 @@ case "${1:-help}" in
   ledger)    shift; cmd_ledger "$@" ;;
   shape)     shift; cmd_shape "$@" ;;
   coverage)  shift; cmd_coverage "$@" ;;
+  merge)     shift; cmd_merge "$@" ;;
   autonomy)  shift; cmd_autonomy "$@" ;;
   brief)     shift; cmd_brief "$@" ;;
   pr)        shift; cmd_pr "$@" ;;

@@ -71,7 +71,20 @@ felix_json_str() {
 # Print the repo root for a directory, or the directory itself when not in git.
 # Felix must work in a checkout that is not a git repo at all.
 felix_repo_root() {
-  local start="${1:-$PWD}" root
+  local start="${1:-$PWD}" root d
+  # Walk up for .git before asking git. `git rev-parse --show-toplevel` costs
+  # about 12ms, and this is called from PreToolUse, which is synchronous on
+  # every tool call — so it was roughly a third of that hook's whole budget for
+  # an answer the filesystem already has. `.git` is a directory in a normal
+  # clone and a file in a worktree or submodule, so -e covers both.
+  d="$(cd "$start" 2>/dev/null && pwd -P)" || d=""
+  while [ -n "$d" ] && [ "$d" != "/" ]; do
+    [ -e "$d/.git" ] && { printf '%s' "$d"; return; }
+    d="${d%/*}"
+  done
+  # Nothing found by walking. Ask git anyway rather than give up: GIT_DIR set in
+  # the environment, or any layout where the marker is not on the path above,
+  # is exactly the case the walk cannot see and git can.
   root="$(cd "$start" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)"
   [ -n "$root" ] && printf '%s' "$root" || printf '%s' "$start"
 }
@@ -166,4 +179,40 @@ felix_file_at() {
   else
     git -C "$root" show "$ref:$path" 2>/dev/null
   fi
+}
+
+# Raise the patch digit in a plugin manifest, and print the new version.
+#
+# Claude Code caches a plugin by version, so a changed engine at an unchanged
+# version never deploys and still reports success. `felix install` detected that
+# exact condition and printed "bump the version, then re-run this" — a command
+# suggesting something it could safely have done, which the charter names as a
+# defect. The gate caught `installed` nine times before anybody counted, every
+# one of them a person typing the digit the command was withholding.
+#
+# Bumping is not the risky half. install is already the thing that replaces the
+# deployed engine; refusing to change a number while doing that is caution in
+# the wrong place.
+#
+# Refuses rather than guesses when the version is not three numbers. A manifest
+# it cannot parse is one it must not rewrite.
+felix_version_bump() {
+  local manifest="$1" cur major minor patch next tmp
+  [ -f "$manifest" ] || return 1
+  cur="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$manifest" | head -1)"
+  case "$cur" in
+    [0-9]*.[0-9]*.[0-9]*) ;;
+    *) return 1 ;;
+  esac
+  major="${cur%%.*}"; minor="${cur#*.}"; minor="${minor%%.*}"; patch="${cur##*.}"
+  case "$major$minor$patch" in *[!0-9]*) return 1 ;; esac
+  next="${major}.${minor}.$((patch + 1))"
+  # Through a temp file, so a failed write cannot leave empty the one manifest
+  # whose corruption stops everything deploying.
+  tmp="$(mktemp)" || return 1
+  sed 's/\("version"[[:space:]]*:[[:space:]]*"\)[^"]*\("\)/\1'"${next}"'\2/' \
+      "$manifest" > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 1; }
+  [ -s "$tmp" ] || { rm -f "$tmp"; return 1; }
+  mv -f "$tmp" "$manifest" 2>/dev/null || { rm -f "$tmp"; return 1; }
+  printf '%s' "$next"
 }

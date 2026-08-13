@@ -189,7 +189,7 @@ specific project, language, or toolchain.
 
   setup
     felix new <name>       govern a project: a directory, a JSON file, a marker
-    felix install          deploy this engine; refuses at an unchanged version
+    felix install          deploy this engine, bumping the version if it must
     felix bootstrap        write CI, permissions and the files a project needs
     felix setup [id]       the steps only a person can do, and what is left
 USAGE
@@ -209,10 +209,14 @@ resolve_or_die() {
 
 
 cmd_install() {
-  local uninstall=0 home="" a
+  local uninstall=0 home="" a bump=1
   while [ $# -gt 0 ]; do
     case "$1" in
       --uninstall) uninstall=1; shift ;;
+      # Bumping is the default because withholding it is what cost nine gate
+      # failures. The flag exists for the one case where somebody genuinely
+      # wants to see the mismatch without changing the manifest.
+      --no-bump)   bump=0; shift ;;
       --home) home="${2:-}"; shift 2 ;;
       *) shift ;;
     esac
@@ -273,13 +277,47 @@ cmd_install() {
   if [ -n "$live" ] && [ -d "$live/harness" ]; then
     if diff -rq "$FELIX_ROOT/harness" "$live/harness" >/dev/null 2>&1; then
       printf '  verified   the installed engine matches this tree\n'
-    else
+    elif [ "$bump" -eq 0 ]; then
       printf '\n  WARNING  the installed engine does NOT match this tree.\n'
       printf '           %s\n' "$live"
-      printf '           Claude Code caches by version, so a changed engine at an\n'
-      printf '           unchanged version never deploys and still reports success.\n'
-      printf '           Bump "version" in engine/.claude-plugin/plugin.json, then\n'
-      printf '           re-run this. felix gate will keep failing until they match.\n'
+      printf '           Bumping was declined, so nothing deployed. felix gate will\n'
+      printf '           keep failing until the version and the tree agree.\n'
+    else
+      # The version is the only thing between this tree and a real deployment,
+      # and this command already knows it. Printing "bump it and re-run" is a
+      # suggestion for something it could safely have done — the charter names
+      # that a defect, and the gate had caught `installed` nine times, every one
+      # a person typing the digit the command was withholding.
+      #
+      # Bumping is not the risky half. install is already the thing that
+      # replaces the deployed engine.
+      local newv
+      if newv="$(felix_version_bump "$FELIX_ROOT/.claude-plugin/plugin.json")"; then
+        printf '\n  bumped     %s, because the tree differs and the version did not\n' "$newv"
+        # Redeploy at the new version, then verify again rather than assume.
+        # The same three steps the deploy above uses. An earlier version did
+        # `install` alone and the redeploy silently did nothing, because
+        # installing an already-installed plugin is a no-op — `update` is what
+        # moves it to the new version.
+        claude plugin marketplace update felix        >/dev/null 2>&1 || true
+        claude plugin install felix@felix --scope user >/dev/null 2>&1 || true
+        claude plugin update  felix@felix              >/dev/null 2>&1 || true
+        live="$(claude plugin list --json 2>/dev/null \
+                | sed -n '/"felix@felix"/,/}/p' \
+                | sed -n 's/.*"installPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+        if [ -n "$live" ] && [ -d "$live/harness" ] \
+             && diff -rq "$FELIX_ROOT/harness" "$live/harness" >/dev/null 2>&1; then
+          printf '  verified   the installed engine matches this tree\n'
+        else
+          printf '\n  WARNING  bumped to %s and it still does not match.\n' "$newv"
+          printf '           %s\n' "$live"
+          printf '           This is no longer the version cache; something else is wrong.\n'
+        fi
+      else
+        printf '\n  WARNING  the installed engine does NOT match this tree, and the\n'
+        printf '           version in engine/.claude-plugin/plugin.json could not be\n'
+        printf '           read as three numbers, so it was left alone. Fix it by hand.\n'
+      fi
     fi
   fi
 

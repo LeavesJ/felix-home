@@ -2307,6 +2307,38 @@ printf 'def test_a(): pass\n' > "$STG/tests/test_a.py"
 has "and staging the test closes the gap — the case that started this" "$(_sev)" "met"
 rm -f "$FROOT/projects/widget/evidence.tsv"
 
+printf '\nthe bump is the deployment\n'
+# `felix install` detected the exact condition, knew exactly what to do, and
+# printed instructions: "Bump version in plugin.json, then re-run this." The
+# charter calls that a defect in as many words — a command that prints a
+# suggestion for something it could safely have done. The gate has now caught
+# `installed` NINE times, every one of them a person typing the number the
+# command already knew.
+#
+# Bumping is not a risky act. install already mutates: it is the thing that
+# deploys. Refusing to change a patch digit while happily replacing the engine
+# is caution in the wrong place.
+VB="$TMP/verbump"; mkdir -p "$VB"
+printf '{\n  "name": "felix",\n  "version": "0.9.3",\n  "author": {"name": "x"}\n}\n' > "$VB/plugin.json"
+( . "$FROOT/harness/lib/resolve.sh"; felix_version_bump "$VB/plugin.json" ) >/dev/null
+is "the patch digit goes up by one" \
+   "$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$VB/plugin.json")" "0.9.4"
+has "and the rest of the file is untouched" "$(cat "$VB/plugin.json")" '"name": "felix"'
+has "including fields after it"             "$(cat "$VB/plugin.json")" '"author"'
+
+( . "$FROOT/harness/lib/resolve.sh"; felix_version_bump "$VB/plugin.json" ) >/dev/null
+is "and again, so a session can bump twice" \
+   "$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$VB/plugin.json")" "0.9.5"
+
+printf '{\n  "version": "1.0"\n}\n' > "$VB/short.json"
+( . "$FROOT/harness/lib/resolve.sh"; felix_version_bump "$VB/short.json" ) >/dev/null; rc=$?
+is "a version it cannot parse is refused, not guessed" "$rc" "1"
+is "and is left exactly as it was" \
+   "$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$VB/short.json")" "1.0"
+
+( . "$FROOT/harness/lib/resolve.sh"; felix_version_bump "$VB/nope.json" ) >/dev/null; rc=$?
+is "a missing manifest is refused" "$rc" "1"
+
 printf '\nstaged content, not just staged names\n'
 # The path list was fixed; the CONTENT readers were not. felix_escapes still
 # read added lines from `base...HEAD` and read a file's current state with

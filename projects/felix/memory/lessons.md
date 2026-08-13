@@ -382,3 +382,17 @@ with a record, not a substitute for running it.
   own dependency rather than assuming a caller did: the first fix broke 15
   assertions into silence, because a lib whose helper is missing returns an
   empty path list, which reads as "nothing changed" and stops enforcing.
+
+- **A synchronous hook's cost is the session's cost, and it was never measured
+  after the first time.** `PreToolUse` was recorded at 34ms when it bound Bash
+  alone. Widening it to Read, Edit, Write, NotebookEdit and WebFetch tripled the
+  per-call cost to 105ms and multiplied the number of calls paying it — roughly
+  40 seconds of pure blocking latency across a working session, and nobody
+  re-measured because the number in the handoff still said 34. Almost all of it
+  was **process spawning for work bash can do natively**: a `printf | sed | sed
+  | head` to pull one substring, a `grep -E` per probe per rule, and a
+  `git rev-parse` to find a repo root the filesystem already knows. Replacing
+  those with parameter expansion, `[[ =~ ]]`, and an upward walk for `.git` took
+  it to 42ms with identical behaviour. **In a hook, reach for a builtin before a
+  binary** — and re-measure whenever the matcher widens, because widening
+  changes both terms of the product.

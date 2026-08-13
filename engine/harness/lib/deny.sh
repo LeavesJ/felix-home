@@ -78,19 +78,18 @@ _felix_deny_field() {
 # a second copy after the real one, and the rule would then be tested against
 # whatever that content said.
 felix_deny_subject() {
-  local raw="$1" field
+  local raw="$1" field rest val
   field="$(_felix_deny_field "${2:-}")"
-  printf '%s' "$raw" \
-    | tr '\n' ' ' \
-    | sed 's/\\"/\x01/g' \
-    | awk -v f="\"$field\"" '
-        { i = index($0, f); if (i == 0) exit
-          s = substr($0, i + length(f))
-          j = index(s, "\""); if (j == 0) exit
-          s = substr(s, j + 1)
-          k = index(s, "\""); if (k == 0) exit
-          printf "%s", substr(s, 1, k - 1) }' \
-    | sed 's/\x01/"/g'
+  case "$raw" in *"\"$field\""*) ;; *) return 0 ;; esac
+
+  # All parameter expansion, no pipeline. This runs inside a synchronous hook on
+  # every tool call, and the old tr/sed/awk/sed chain cost four process spawns
+  # for a substring bash can find itself.
+  rest="${raw#*\"$field\"}"          # after the key
+  rest="${rest#*\"}"                 # past the colon, to the value's quote
+  rest="${rest//\\\"/$'\001'}"        # neutralise escaped quotes first
+  val="${rest%%\"*}"                 # to the first real closing quote
+  printf '%s' "${val//$'\001'/\"}"
 }
 
 # Whether a pattern is too broad to be a rule.
@@ -111,9 +110,10 @@ felix_deny_overbroad() {
   [ -n "$pattern" ] || return 0
   while IFS= read -r probe; do
     [ -n "$probe" ] || continue
-    if printf '%s\n' "$probe" | grep -E "$pattern" >/dev/null 2>&1; then
-      return 0
-    fi
+    # Bash's own ERE. The pipeline this replaces spawned a grep per probe per
+    # rule, on every matched tool call; it also carried a documented SIGPIPE
+    # hazard under pipefail that simply cannot arise without a pipe.
+    [[ "$probe" =~ $pattern ]] && return 0
   done <<EOF
 $FELIX_DENY_PROBES
 EOF
@@ -142,11 +142,11 @@ felix_deny_match() {
   while IFS=$'\t' read -r tool pattern reason; do
     [ "${tool:-}" = "$want" ] || continue
     felix_deny_overbroad "$pattern" && continue
-    # grep without -q on purpose. Under `set -o pipefail` a consumer that exits
-    # on its first match kills the producer with SIGPIPE and the pipeline
-    # reports 141, which this file would read as "no match" every time. This
-    # project has paid for that lesson twice; read to the end and decide after.
-    if printf '%s\n' "$cmd" | grep -E "$pattern" >/dev/null 2>&1; then
+    # Bash's own ERE rather than `printf | grep`. The old form needed a comment
+    # explaining why it could not use `grep -q` — a consumer exiting on first
+    # match kills the producer with SIGPIPE and pipefail reports 141, read as
+    # "no match" every time. No pipe, no hazard, and no process per rule.
+    if [[ "$cmd" =~ $pattern ]]; then
       printf '%s' "$reason"
       return 0
     fi

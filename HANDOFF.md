@@ -106,9 +106,9 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.39.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.43.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **561 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **577 assertions**, 0 failed. `main` is pushed and
   **CI is green — checked, not assumed.** It had been red for at least two
   commits while this line claimed otherwise. Read `gh run list --branch main`
   before writing that sentence again.
@@ -133,6 +133,10 @@ is not masked at all.
   channels are engine constants no project may declare away — `disclose`,
   `execute`, `durable`, `verifier` — and `felix merge` refuses on any of them,
   computing every blocker offline and touching the network only to merge.
+  **Corrected 2026-08-13:** `felix merge` could not merge at all until 0.42.0 —
+  it built `gh pr merge --repo <slug> --squash` with no pull request named, and
+  gh refuses that client-side. The refusal paths were all tested; the one line
+  that reaches gh was not. It has still never merged anything.
   **What always stops:** a secret in added lines; `.github/workflows`; an
   enforcing table or a verifier losing checks; migrations or destructive SQL;
   money; a declared consumer. Nothing else.
@@ -239,23 +243,34 @@ tier mechanically (see §3).
 
 ## 4. Guidebook exit criteria (p41)
 
-| Promised | Status | Evidence |
+**Re-audited 2026-08-13 against the guide itself, every row re-run.** The guide
+was decoded from the PDF rather than recalled; Phase 1 asks for Build: CLAUDE.md,
+GitHub integration, PR workflow, tests, Sentry, Playwright, Strix, basic audit —
+Exit: take an issue, create code, run tests, deploy preview, test it, open PR,
+report confidence. The previous version of this table was hand-maintained and
+wrong in nine places; do not edit a cell here without re-running its command.
+
+| Promised | Status | Evidence, as of the audit |
 |---|---|---|
-| take an issue | yes | `felix brief <n>` or `--from -`; scope verdict in the exit code |
-| create code | yes | |
-| run tests | yes | `felix gate` → pass; 334 in Felix |
-| deploy preview | **no** | no deploy target, no catalogue row keyed on `deploy` |
-| test it | **yes, without Playwright** | see the note below; 45+ HTTP-level web tests, shell verified in a real browser |
-| open PR | yes | `felix pr --create`, draft when the gate has not passed |
-| report confidence | yes | `felix classify`, `felix evidence` |
+| take an issue | **partial** | `felix brief` works on prose naming existing files, and tier now agrees with `classify` 19/19. Three defects fixed 2026-08-13: a path ending a sentence did not resolve; an unmatched path reported green; no risk.tsv reported green. Two remain: an issue asking for a file to be **created** silently drops it (`incident.sh` only emits paths that exist), and the `gh` body fetch has no `\|\| die`, so a rate limit renders as a confident "no file it names exists". **Zero issues have ever existed in either repo**, so the `<n>` path has never had real input. |
+| create code | **supervised only** | All 547 Elenchus commits carry the founder's identity. `unattended.yml` has run 3 times, every one skipped in under a second because `FELIX_UNATTENDED` is unset. No model has written code here unattended. |
+| run tests | **yes** | Elenchus `felix gate` → `1229 passed`, 32.8s. Felix → `577 passed`. |
+| deploy preview | **no** | `felix_detect` returns no `deploy`; no catalogue row; neither workflow builds or deploys. Unchanged. |
+| test it | **partial** | 8 deterministic gate checks. `scripts/smoke_server.py` raises the real app but is referenced by no gate and no workflow — while two static tests name that manual smoke as the source of their behavioural coverage. |
+| open PR | **yes, opening only** | PR bodies, base, branch, tier label and `--draft`-unless-green all verified. **Merging: no.** See the correction in §2. |
+| report confidence | **partial** | Fixed 2026-08-13: `scope` used a path-only reader and was blind to content rules, so a diff adding a credential to a `.md` printed "In scope … unattended attempt" while `classify` called it red. `scope` now classifies the diff, and says so when given bare paths. `classify` still exits 0 on red while `scope` exits 3. |
+| DEFINITION OF DONE | **bypassed in the default case** | The guide states it absolutely. `hooks/stop:57` is a bare `felix_tree_dirty … \|\| exit 0` with no comment, before the receipt is read — so a session that **commits its work is never asked to verify anything** and nothing is logged. Neither project's `verification.log` has recorded a decision since 2026-08-10. The naive fix is wrong: it would demand a gate from sessions that changed nothing. The right condition is "this session changed something", which needs SessionStart to record the starting HEAD. **Open, and the largest single gap.** |
 
-Build list: `CLAUDE.md` yes; GitHub integration yes; PR workflow yes; tests yes;
-Sentry dormant (capability undeclared for Elenchus, so it is deferred rather
-than missing); Playwright installed with 0 tests; **Strix does not exist** — 0
-of 273 marketplace entries, no binary, no skill, so semgrep plus
-`engine/harness/bin/secret-scan` fills that slot; basic audit yes and real.
-
----
+Build list, re-checked: `CLAUDE.md` **on this Mac only** — gitignored, untracked,
+absent from every clone including the CI runner that `unattended.yml` hands to
+`claude -p`. GitHub integration **partial** — `gh` and Actions real, the MCP
+returns HTTP 400 and `felix setup` already says so. PR workflow yes on Elenchus,
+0 PRs ever on Felix. tests yes. Sentry **absent**, capability undeclared.
+Playwright installed and routed, **0 browser tests**. **Strix does not exist** —
+0 of 286 marketplace entries. basic audit **partial**: three gate checks are
+real, semgrep is wired into nothing, and `secret-scan`'s exclusions apply to the
+whole line, so a real key on a line containing "example" exits 0 — its own tests
+never place a credential beside an exclusion token.
 
 ## 4b. Playwright: assessed 2026-08-11, deliberately not adopted
 

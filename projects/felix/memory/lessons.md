@@ -338,3 +338,14 @@ with a record, not a substitute for running it.
   nobody checked it against the commands. **Read the thing before implementing
   the note about the thing** — the same discipline as reading a file before
   editing it, applied to a plan.
+
+- **A status table is the least trustworthy thing in the repository.** HANDOFF's
+  exit-criteria table was hand-maintained, read as a specification for weeks, and
+  wrong in nine places at once: it claimed 334 tests when there were 570, claimed
+  a browser verification whose only record was the sentence claiming it, and said
+  "Felix can merge" in bold about a command that could not merge. Everything
+  around it — the gate, the ledger, the coverage table — regenerates or is
+  checked. The table did neither, so it aged into fiction while every session
+  read it as ground truth. **Re-run a cell before editing it, and prefer a table
+  that a command regenerates to one a person maintains.** The tell is that no
+  entry ever gets worse without somebody deciding to write that down.

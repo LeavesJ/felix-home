@@ -114,9 +114,19 @@ _felix_stop_blocks() {
   [ -n "$tp" ] && [ -f "$tp" ] || return 0
   rows="$(felix_guard_blocks "$tp")"
   [ -n "$rows" ] || return 0
-  n="$(printf '%s' "$rows" | head -1 | cut -f1)"
-  hook="$(printf '%s' "$rows" | head -1 | cut -f2)"
-  msg="$(printf '%s' "$rows" | head -1 | cut -f3)"
+  # Felix's own refusals are skipped rather than taken as the top row, because a
+  # session that hit both would otherwise report Felix and hide the plugin that
+  # is actually broken. The rows arrive sorted by count, so the first survivor
+  # is still the loudest one that is somebody else's.
+  n=""; hook=""; msg=""
+  while IFS=$'\t' read -r c h m; do
+    [ -n "${m:-}" ] || continue
+    felix_guard_is_own "$m" && continue
+    n="$c"; hook="$h"; msg="$m"; break
+  done <<EOF
+$rows
+EOF
+  [ -n "$msg" ] || return 0
   who="$(felix_guard_culprit "$msg")"
   printf 'Something blocked %s tool call(s) this session, and it was not Felix.\n\n' "$n"
   printf '  hook     %s\n  says     %s\n' "$hook" "$msg"
@@ -124,7 +134,10 @@ _felix_stop_blocks() {
   printf '\nA plugin that ships hooks is a dependency on that plugin working, and\n'
   printf 'when one fails the error lands on the tool rather than on the plugin, so\n'
   printf 'it reads as the editor being broken. Tell the founder plainly.\n'
-  [ -n "$who" ] && printf '\nThe way out, which takes effect in the NEXT session and not this one:\n\n  felix quarantine %s\n' "$who"
+  # Never Felix, whatever the resolver said. The remedy for a report is not
+  # switching off the thing that reports.
+  [ -n "$who" ] && [ "$who" != "felix" ] && \
+    printf '\nThe way out, which takes effect in the NEXT session and not this one:\n\n  felix quarantine %s\n' "$who"
 }
 
 receipt="$(felix_verify_receipt "$ROOT" "$FELIX_HOME_DIR")"

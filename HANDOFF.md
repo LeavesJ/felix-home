@@ -359,6 +359,29 @@ working and the fix belongs where the gate can see it.
 
 ## 6. Open decisions
 
+- **Strix: wired, skipping, and deliberately unfunded. Decided 2026-08-13.**
+  No Strix account is needed — verified against `docs.strix.ai` and the source,
+  not a blog: the prerequisites are Docker and an LLM API key, Apache 2.0, no
+  registration. So there is no signup to do, ever. The `pentest` job exists in
+  Elenchus's gate.yml, is `continue-on-error`, and **skips entirely until
+  `LLM_API_KEY` is set**, which is the state it should stay in for now.
+  *Why not yet:* Elenchus has no deploy manifest, binds `127.0.0.1` everywhere,
+  has no auth module and declares `consumers: none`. There is nothing reachable
+  to attack, so findings would describe a threat model that does not exist.
+  *Trigger to revisit:* a real deploy target.
+  *Which provider is genuinely undecided, and the evidence does not settle it.*
+  There is no published head-to-head; the one benchmark (XBEN, 96%) used
+  `gemini-3-pro-preview`, and the README recommends OpenAI, Anthropic and
+  Google equally. So choose on billing separation rather than capability, and
+  prefer a pool that is NOT the Anthropic key the product and `unattended.yml`
+  already share — commingled spend cannot be attributed, which is the same
+  confounding this project spent a session removing from the ledger.
+  *Cheapest first step, when curious:* one manual laptop run against the smoke
+  server with `--max-budget 5`. `--max-budget` is a hard cumulative cap across
+  every agent, so "activate or save the credit" was never binary. Note the
+  upstream default scan mode is **deep, 1-4 hours** — always pass `--scan-mode
+  quick` explicitly. `STRIX_TELEMETRY` is opt-out and already set to 0.
+
 - **Two of the four 2026-08-12 autonomy decisions are only half built.**
   *Doctrine content* is **done** as of 0.35.0: a `reviewed` channel, cleared
   only by a passing verdict recorded against that exact tree, wired to

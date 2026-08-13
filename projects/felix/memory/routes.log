@@ -70,3 +70,6 @@
 2026-08-13T04:37:31Z	gate	2	{ , , ,"prompt_id":"52bf3e71-81ee-4341-a4dd-422d2703d03c", , ,"prompt":"/superpowers:verification-before-completion yk what time it is. Go back to founder's gui
 2026-08-13T05:14:29Z	harness	10	{ , , ,"prompt_id":"9a69e1c5-4718-4a74-af8c-20e4738109bb", , ,"prompt":"<task-notification>\n<task-id>wlvsp17pp</task-id>\n<tool-use-id>toolu_01Vzvx5wVzLnhkUw1i
 2026-08-13T06:01:08Z	-	0	{ , , ,"prompt_id":"acb6a448-b492-40b6-b3ac-6b3ede297efa", , ,"prompt":"sentry should be mounted, strix should be found on the web. And regarding largest gap? F
+2026-08-13T07:23:31Z	-	0	{ , , ,"prompt_id":"ffeb3cf5-8089-493d-807e-4041894ab630", , ,"prompt":"two questions. For the LLM API u think still use Anthropic's? Or openai's? Bc remember w
+2026-08-13T07:28:06Z	research	6	{ , , ,"prompt_id":"a9022386-6d6c-4fb6-ab07-45d5a6d2f634", , ,"prompt":"<task-notification>\n<task-id>a3cb59c2954f2d987</task-id>\n<tool-use-id>toolu_01Gvw6LhYA
+2026-08-13T07:32:37Z	-	0	{ , , ,"prompt_id":"374a6e15-d924-49bb-879c-9d173061791a", , ,"prompt":"ok save that, we'll wire the secret when necessary. So what ow", }

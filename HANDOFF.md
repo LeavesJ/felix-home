@@ -298,6 +298,25 @@ tooling decisions are written as configuration between sessions. Deploy a
 product. Plan work from scratch. Dispatch subagents itself. Enforce its own red
 tier mechanically (see §3).
 
+**The mid-session limit is still real and its cause moved, checked 2026-08-13.**
+It is no longer a protocol gap. MCP revision `2026-07-28` deletes the handshake
+and the session, so every request is self-contained and *attaching* a server
+mid-session now costs almost nothing; what the protocol still lacks is any way
+to learn a server exists — `server/discover` describes only the server already
+addressed, the Registry is a preview REST service not meant for host
+consumption, and Server Cards (SEP-2127) is in review, not landed.
+Meanwhile **Claude Code 2.1.226 already ships a complete 2026-07-28 client and
+has it switched off.** Verified on this machine against the binary, not taken on
+report: `server/discover`, `subscriptions/listen`, `inputRequests` and
+`Mcp-Method` are all present, and the gates read
+`nt("tengu_mcp_protocol_negotiation_http", !1)` — server-side flags defaulting
+to false, falling back to `{mode:"legacy"}`. Observed traffic is `2025-11-25`
+with the old handshake.
+So this is a feature flag in the host, not a fact about what is possible, and it
+is likely to move without Felix doing anything. Report it that way — the lesson
+about establishing who set a limit applies to this one. Full analysis in
+`docs/2026-08-13-ultron-federation-gap.md` §8.
+
 ---
 
 ## 3. Operational traps that have each cost real time

@@ -163,20 +163,184 @@ something to talk to.
 That splits step 1 into a part with a payoff now and a part with a payoff later,
 and only commits to the first.
 
-## 8. Open, pending research
+## 8. Transport: researched 2026-08-13, and the answer is "neither, yet"
 
-The transport is undecided and deliberately not guessed at here. Two candidates
-are under investigation as of writing:
+The question was narrow: **can MCP or A2A carry a verified receipt, a bounded
+authority claim, and a human approval that resumes a waiting workflow — without
+Felix running a network service?**
 
-- the MCP revision dated 2026-07-28, and Cloudflare's implementer account of it
-- the A2A (Agent2Agent) protocol, as a possible carrier for the inter-domain
-  envelope, its six message types, and the saga lifecycle
+Answered against MCP revision `2026-07-28` (shipped, final), Cloudflare's
+implementer account of it, and A2A `v1.0.1` (2026-05-28, Linux Foundation,
+eight-company TSC). Scored per requirement:
 
-The question that decides it is narrow: **can either carry a verified receipt,
-a bounded authority claim, and a human approval that resumes a waiting
-workflow — without requiring Felix to run a network service?** The last clause
-is the constraint that matters, because Felix's enforcing path must work with no
-network, no key and no model, and a harness that only functions while a daemon
-is up is a different product.
+| Ultron needs | MCP 2026-07-28 | A2A 1.0.1 |
+|---|---|---|
+| Human approval that **resumes** the same workflow | Tasks extension: `input_required`, `tasks/update`, task ids survive client restart | **Yes, first-class.** `TASK_STATE_INPUT_REQUIRED` is non-terminal; client resumes with the same `taskId` |
+| Verified receipt | structured output + `outputSchema`; no signature over results | `Artifact` is the right shape; **no signature over task output** — only AgentCards get JWS |
+| Bounded authority claim | **none.** No actor claim, no on-behalf-of, no delegation depth | **none.** Payloads carry no identity; authority is transport-layer OAuth only |
+| Verification distinct from completion | not modelled | **not modelled** — no state between `WORKING` and `COMPLETED` |
+| Compensation | not modelled | **not modelled**, and terminal state is immutable, which actively fights it |
+| Runtime discovery of a peer | **no** — see §8.1 | **yes**, signed `AgentCard` at a well-known URI. A2A's clearest advantage |
+| Works without Felix running a daemon | yes (Felix as client) | **no** (Felix as server) — see §8.3 |
 
-Fill this section in when that research lands. Do not decide it from the names.
+### 8.1 MCP does not unblock mid-session mounting, and the reason moved
+
+Felix's standing limitation — *cannot mount an MCP server mid-session* — is
+**not** lifted by this revision. There is no way for a client to discover, add
+or mount a server it did not already know about. `server/discover` describes
+only the server already being addressed. The MCP Registry is a REST preview
+service its own docs say is not for direct host consumption. Server Cards
+(SEP-2127) would give pre-connection discovery and is **in review, not landed**.
+
+But the shape of the obstacle changed, and this project has a written lesson
+about establishing who set a limit before reporting it as one:
+
+- The revision **deletes the handshake and the session**. Every request is
+  self-contained. So the *cost* of attaching a server mid-session has collapsed
+  to nearly nothing; what is missing is only the mechanism to learn one exists.
+- **Claude Code 2.1.226 already contains a complete 2026-07-28 client** —
+  verified on this machine, not taken on report: the binary carries
+  `server/discover`, `subscriptions/listen`, `inputRequests`, `Mcp-Method` and
+  the version string. It is **switched off**. The gates read
+  `nt("tengu_mcp_protocol_negotiation_http", !1)` — server-side flags defaulting
+  to false, falling back to `{mode:"legacy"}`. Observed wire traffic is
+  `2025-11-25` with the old `initialize` handshake.
+
+So the limitation is now **a feature flag in the host, not a gap in the
+protocol**. That is still a ceiling Felix cannot reach past, but it is somebody
+else's ceiling with a known name, and it is likely to move on its own. Restate
+it that way rather than as a protocol fact.
+
+### 8.2 The gap neither protocol fills, which is the real finding
+
+Both protocols model **one caller, one callee, one unit of work**. Ultron models
+**a workflow owned by nobody that must survive both parties restarting**. That
+is a workflow engine, not a message protocol — which v3.0 says itself when it
+calls for *"durable orchestration with explicit state, retries, waits,
+compensation, and verification"*.
+
+Concretely, against §9 and §10 of the v3 document:
+
+- **`commitment` and `decision` have no home in either.** A2A's `SUBMITTED`
+  means "acknowledged", not "promised": no deadline, no `expected_delay`, no
+  scope agreement. A standing decision that binds *future* work has nowhere to
+  live in a protocol where nothing exists outside a task.
+- **`exception` half-fits.** A2A models "I refuse" (`REJECTED`) and "I broke"
+  (`FAILED`). Neither models *a human other than you must decide*. There is no
+  escalation-to-third-party, no approval token, no way to address a founder.
+  Felix's escape channel is exactly this type, and it is the one the objective
+  counts.
+- **The race-condition rule is unenforceable in both.** v3 requires that a
+  downstream domain must not treat intention as completion. A2A puts dependency
+  ordering entirely on the client, and `WORKING` with a status message *is*
+  another domain's intention on the wire. `SendMessage` idempotency is only
+  `MAY`, and nothing advertises whether a callee deduplicates — so *"retries
+  bounded and side-effect-safe"* is not a property either protocol can supply.
+- **Neither carries authority.** This is the sharpest convergence. A2A's spec
+  says payloads carry no client identity; MCP has no actor or on-behalf-of
+  claim. The identity work is A2A's most contested area — several proposals
+  with hundreds of comments between them, **zero merged**.
+
+There is an accidental win worth naming: because neither protocol carries
+authority, **Ultron structurally cannot widen Felix's authority over the wire.**
+Felix's second invariant is satisfied for free. But it is satisfied by *silence*,
+and silence is unauditable — nothing in either protocol records what authority a
+request was made under, so a receipt cannot prove a request was in scope. v3's
+own evaluation asks *"Did any higher layer widen lower-layer authority without a
+sanctioned mechanism?"* Neither wire format can answer that question.
+
+### 8.3 Being an A2A server costs a daemon, and that is the deciding fact
+
+Felix as an A2A **client** is `curl`: build a `SendMessage` body, POST it, poll
+`GetTask`. No server, no daemon, compatible with the bash-and-git enforcing path.
+It also does not make Felix drivable by Ultron, which was the point.
+
+Felix as an A2A **server** requires: an HTTPS endpoint, `SendMessage`, `GetTask`,
+`CancelTask` and `ListTasks` (which has no capability flag, so it is not
+optional), server-generated task ids, a task store whose state outlives the
+request *and the session*, and a credential on the box. Streaming and webhooks
+are genuinely optional; the daemon is not. `AgentInterface.url` is required and
+must be an absolute HTTPS URL in production.
+
+**That is a different product.** Felix today is a harness that exists while a
+human is in a session. An agent with a listening port, a TLS certificate, a
+credential and an uptime property is not the same thing, and adopting it would
+be the largest change to what Felix *is* that anyone has proposed.
+
+One escape hatch is worth watching and not planning on: **A2A issue #1074**, an
+LSP-style stdio transport, labelled `TSC Review`, open since 2025-09-16 and last
+touched 2026-08-11. If it lands, Felix could be an A2A agent spawned as a
+subprocess — no socket, no certificate — which is exactly Felix's existing shape.
+That single issue is the difference between "compatible with what Felix is" and
+"incompatible". Check it before building anything.
+
+### 8.4 What this changes about §7's recommendation
+
+Nothing, and that is the useful result. The recommendation was to emit receipts
+now and defer inbound requests. Both protocols independently confirm the split
+is the right one: the receipt half needs no transport and no daemon, and the
+request half needs a transport that does not yet carry what v3's authority model
+requires.
+
+Two refinements the research does add:
+
+1. **Shape the receipt so it can become an A2A `Artifact` later** — an id, a
+   name, typed parts, and a `metadata` map keyed by one Felix extension URI.
+   Costs nothing now and preserves the option.
+2. **Write the mapping table while designing the envelope, with no code behind
+   it.** `domain` → `AgentCard.name`; `workflow_id` → `contextId`; a step →
+   `taskId`; payload → `Artifact.parts[].data`; everything unmappable →
+   `metadata` under one extension URI.
+
+The reason for (2) is the strongest argument *against* deferring, and it should
+be recorded rather than waved away: deferring risks designing an envelope A2A
+cannot carry, discovered at integration time when it is most expensive to
+change. The concrete example is terminal immutability — if Felix's envelope
+assumes one identifier moves COMPLETE → COMPENSATING → RECOVERED, and A2A
+forces every compensation into a *new* task linked only by a hint-grade
+`referenceTaskIds`, then the envelope's identity model is wrong and every
+consumer is rewritten. Writing the mapping now is how that gets found while it
+is still free.
+
+This project also has a written lesson against building a compensating mechanism
+before establishing it is reachable, and "adopt the envelope, defer the
+transport" is close enough to that shape to deserve the challenge. The
+distinction: the envelope **has** a consumer today — a person, and
+`felix monitor` — and the transport does not.
+
+### 8.5 For the Research OS specifically
+
+Recorded here because it was asked and because it will be someone's step 1:
+
+- **MCP has no content addressing.** No etag, no hash, no revision or version
+  field on a resource, and cache freshness is TTL-only with the spec stating
+  plainly that a server MAY change data before expiry. A `resources/read` at T2
+  may differ silently from T1 **with no protocol-level way to detect it.** For a
+  system whose core value is re-verification of a cited claim, that is the
+  load-bearing gap, and it must be closed in the harness — hash the bytes, store
+  them, define your own `_meta` keys under your own reverse-DNS prefix.
+- **Pagination has no cross-page consistency guarantee.** A literature sweep can
+  observe duplicates or gaps if the underlying data changes mid-sweep; a
+  consistent snapshot requires restarting from the beginning. That is a
+  correctness constraint on any evidence-gathering routine.
+- **Long research work is forced into the Tasks extension.** Transport-level
+  resumability was *deleted* this revision — no `Last-Event-ID`, no redelivery —
+  so a broken stream loses the in-flight request. Tasks survive client restart;
+  ordinary long requests no longer do.
+- **Two things genuinely help.** `_meta` is now a first-class namespaced
+  metadata channel on requests *and* results, so provenance keys travel with the
+  payload; and OpenTelemetry `traceparent` / `tracestate` are documented reserved
+  `_meta` keys (SEP-414), which is a standardised audit spine — the same
+  correlation-id requirement v3 puts on cross-domain workflows, already specified.
+
+### 8.6 Confidence, and what was not established
+
+Both protocol revisions were read from primary sources with per-claim citation,
+and the Claude Code finding was re-verified on this machine rather than taken on
+report. Not established: no source states an A2A 1.1 or 2.0 exists or is
+scheduled; `a2a-protocol.org` advertises 1.0.0 while GitHub tags 1.0.1, a patch
+level disagreement only. One paper on governance gaps in interoperability
+protocols could not be read in full and was excluded from every load-bearing
+claim here — a summary of it asserted that A2A "enables agents to delegate
+authority", which contradicts the primary specification, so treat second-hand
+accounts of this area with suspicion.

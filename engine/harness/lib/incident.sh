@@ -63,23 +63,40 @@ EOF
 
 # Highest declared tier across the implicated files. Severity is derived from the
 # project's own risk rules rather than invented here.
+# The tier for a set of paths.
+#
+# Starts at green and escalates, with one rule that is easy to leave out and was:
+# a path no row matches contributes FELIX_RISK_DEFAULT, not nothing. risk.tsv's
+# own header states it — "Anything matching no rule is yellow. Green must be
+# earned by an explicit pattern, so an unfamiliar file can never auto-merge by
+# being unrecognised" — and felix_classify_diff obeyed it while this function
+# did not. Two readers of one table, disagreeing, and the permissive one was
+# what `felix brief` reported to a founder as confidence.
 felix_incident_severity() {
-  local proj="$1" paths="$2" best="green" tier kind pattern reason p
-  while IFS=$'\t' read -r tier kind pattern reason; do
-    [ "${kind:-}" = "path" ] || continue
-    while IFS= read -r p; do
-      [ -n "$p" ] || continue
-      if printf '%s' "$p" | grep -qE "$pattern"; then
-        case "$tier:$best" in
-          red:*)          best="red" ;;
-          yellow:green)   best="yellow" ;;
-        esac
-      fi
-    done <<EOF
-$paths
-EOF
+  local proj="$1" paths="$2" best="green" tier kind pattern reason p hit
+  local rows; rows="$(_felix_risk_rows "$proj")"
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    hit=0
+    while IFS=$'\t' read -r tier kind pattern reason; do
+      [ "${kind:-}" = "path" ] || continue
+      printf '%s' "$p" | grep -qE "$pattern" || continue
+      hit=1
+      case "$tier:$best" in
+        red:*)        best="red" ;;
+        yellow:green) best="yellow" ;;
+      esac
+    done <<EOF2
+$rows
+EOF2
+    if [ "$hit" -eq 0 ]; then
+      case "${FELIX_RISK_DEFAULT:-yellow}:$best" in
+        red:*)        best="red" ;;
+        yellow:green) best="yellow" ;;
+      esac
+    fi
   done <<EOF
-$(_felix_risk_rows "$proj")
+$paths
 EOF
   printf '%s' "$best"
 }

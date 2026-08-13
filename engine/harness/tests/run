@@ -2069,6 +2069,29 @@ has "a named capability carries its count"      "$led" "code-review	0	2"
 has "and one named once carries one"            "$led" "superpowers:brainstorming	0	1"
 has "while a tool that ran keeps its calls"     "$led" "tool	Bash	1"
 
+printf '\none tier for one table\n'
+# Two functions read risk.tsv and disagreed about the same path, and the table's
+# own header states the answer: "Anything matching no rule is yellow. Green must
+# be earned by an explicit pattern, so an unfamiliar file can never auto-merge
+# by being unrecognised."
+#
+# felix_classify_diff obeyed that. felix_incident_severity started at green and
+# only ever escalated on a match, so an unrecognised path came back green — and
+# that is the function `felix brief` uses, which is the surface the guidebook
+# calls "report confidence". Found by running brief on a real issue naming a
+# real file and not believing the answer.
+RS="$TMP/riskdrift"; mkdir -p "$RS"
+{ printf 'red\tpath\t^migrations/\tschema\n'
+  printf 'green\tpath\t\\.md$\tdocumentation\n'
+} > "$RS/risk.tsv"
+_sev() { ( . "$FROOT/harness/lib/classify.sh"; . "$FROOT/harness/lib/incident.sh"
+           felix_incident_severity "$RS" "$1" ); }
+is "an unrecognised path is yellow, never green" "$(_sev 'src/whatever.py')" "yellow"
+is "a path a green rule names is green"          "$(_sev 'README.md')"      "green"
+is "a red rule still wins"                       "$(_sev 'migrations/1.sql')" "red"
+is "and one unknown path taints a green set"     "$(_sev "$(printf 'README.md\nsrc/x.py')")" "yellow"
+is "red beats an unknown too"                    "$(_sev "$(printf 'migrations/1.sql\nsrc/x.py')")" "red"
+
 printf '\none rule for what a thing looks like\n'
 # There were two matchers and they drifted. One scored a marketplace blurb, the
 # other scored the name alone, nothing said they had to agree, and a plugin got

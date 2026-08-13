@@ -297,3 +297,18 @@ with a record, not a substitute for running it.
   measured, write down the decision as well as the outcome, and do it before the
   data exists rather than after.** The correction cost an hour today; a year of
   that data would have been unusable and would not have looked it.
+
+- **A fallback carries the semantics of the feature it was written for.**
+  `user-prompt` derives `sid` from the payload and falls back to a repo-derived
+  key when the session id cannot be read. That fallback exists for
+  announce-on-change dedup, where two concurrent sessions sharing a key costs
+  one missed suggestion — a deliberate, documented, benign degradation. Ledger
+  recording was then hung on the same variable because it was in scope, and it
+  inherited a degradation that is not benign there: `post-tool` and
+  `session-end` both *exit* rather than invent a key, so the named half would
+  land under a repo-shaped name nothing ever rolls up while the calls half went
+  to a real session. With several terminals open on one checkout those orphans
+  accumulate into a single pseudo-session with names and no calls beside them —
+  reading as "pointed at and ignored", which is the one shape that proposes
+  retirement. **Before reusing an in-scope variable, read why its fallback
+  exists.** The value was right; the failure mode attached to it was not.

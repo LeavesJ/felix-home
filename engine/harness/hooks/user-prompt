@@ -54,7 +54,8 @@ transcript="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:
 # Hoisted, because more than one block needs to remember what it already said.
 # It used to be computed inside the route branch, so anything else wanting a
 # session key got an unbound variable or silently shared one.
-sid="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+sid_raw="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+sid="$sid_raw"
 [ -n "$sid" ] || sid="repo-$(printf '%s' "$root" | tr -c 'a-zA-Z0-9' '-')"
 
 # ------------------------------------------------------------------ route ----
@@ -74,7 +75,18 @@ if [ -f "$PROJ/routes.tsv" ]; then
     # only the first is evidence about the capability. Recorded on every prompt
     # that routes, whether or not the block is rendered: naming is what the
     # policy did, and going quiet to avoid repeating itself is a display choice.
-    felix_ledger_note_named "$FELIX_HOME_DIR" "$sid" "$r_play" 2>/dev/null || true
+    #
+    # Keyed on the payload's session id and never on $sid. $sid falls back to a
+    # repo-derived key so announce-on-change still dedups when the id cannot be
+    # read, and for that a shared key costs one missed suggestion. Ledger data
+    # is the opposite: post-tool and session-end both exit rather than invent a
+    # key, so a fallback here would send the named half somewhere nothing ever
+    # rolls up while the calls half went to a real session — and with several
+    # terminals open on one checkout those orphans accumulate under a single
+    # repo-shaped name, reading as "pointed at and ignored" on the way to being
+    # retired. No id, no row.
+    [ -n "$sid_raw" ] && \
+      felix_ledger_note_named "$FELIX_HOME_DIR" "$sid_raw" "$r_play" 2>/dev/null || true
 
     # Announce only on change. The session key comes from the payload; when it
     # cannot be read the repository stands in for it, which degrades the right

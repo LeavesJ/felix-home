@@ -1879,6 +1879,44 @@ is "anything shipping hooks is high"     "$(_tier "$DF/hooky")"      "high"
 is "an unpinned version is high"         "$(_tier "$DF/floaty")"     "high"
 is "interpolating a credential is high"  "$(_tier "$DF/creds")"      "high"
 
+printf '\nmore than one session at a time\n'
+# People keep several terminals open on one checkout, so every key Felix writes
+# under has to survive that. Two of these are safe by construction and one was
+# not.
+#
+# The one that was not: user-prompt falls back to a repo-derived session key
+# when the payload carries no session_id, and `named` was hung on that variable
+# because it was in scope. The fallback belongs to announce-on-change dedup,
+# where a shared key costs one missed suggestion. For ledger data it is wrong
+# twice over — post-tool and session-end both exit rather than invent a key, so
+# the calls half would go to a real session while the named half went to a
+# repo-shaped one that nothing ever rolls up. Concurrent sessions would then
+# pile named rows into one file with no calls beside them, and a capability
+# would read as "pointed at and ignored" on its way to being retired.
+PROMPT='the build is broken and the stacktrace shows a crash on reproduce'
+rm -rf "$FROOT/state/ledger"
+( cd "$REPO" && printf '{"prompt":"%s"}' "$PROMPT" \
+    | "$FROOT/harness/hooks/user-prompt" >/dev/null 2>&1 )
+n="$(ls -1 "$FROOT/state/ledger" 2>/dev/null | wc -l | tr -d ' ')"
+is "a prompt with no session id records no ledger state" "$n" "0"
+
+( cd "$REPO" && printf '{"session_id":"real-sess","prompt":"%s"}' "$PROMPT" \
+    | "$FROOT/harness/hooks/user-prompt" >/dev/null 2>&1 )
+has "and one with a session id records under exactly that id" \
+    "$(cat "$FROOT/state/ledger/real-sess.tsv" 2>/dev/null)" "named	superpowers:"
+rm -rf "$FROOT/state/ledger"
+
+# Safe by construction, asserted so it stays that way. A verdict is keyed on the
+# tree, and the tree id covers every uncommitted byte — so a second session
+# editing the same checkout cannot inherit the first one's review.
+T1="$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$REPO" "$FROOT" )"
+printf 'a concurrent edit\n' > "$REPO/other-session.txt"
+T2="$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$REPO" "$FROOT" )"
+[ "$T1" != "$T2" ] \
+  && ok "another session's edit changes the tree identity" \
+  || bad "another session's edit changes the tree identity" "both were $T1"
+rm -f "$REPO/other-session.txt"
+
 printf '\nthe ledger: recorded as it happens, never parsed after\n'
 # The slice stayed unbuilt because its own spec contradicted itself: the body
 # said transcript parsing breaks the bash-and-git invariant, and the Records

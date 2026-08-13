@@ -629,7 +629,20 @@ cmd_route() {
   fi
 
   if [ "$promote" -eq 1 ]; then
-    local hits; hits="$(felix_route_promote "$proj")"
+    # Exit status, not emptiness. These are different facts and this report
+    # could not tell them apart: when the pipeline died on a malformed byte it
+    # returned nothing, and nothing was printed as "no misses worth a row" —
+    # a crash wearing an all-clear, in the report that exists to say what the
+    # routing table is missing.
+    local hits hrc
+    hits="$(felix_route_promote "$proj")" && hrc=0 || hrc=$?
+    if [ "$hrc" -ne 0 ]; then
+      printf 'Could not read the miss log; this is not an all-clear.\n\n'
+      printf '  %s\n\n' "$proj/memory/routes.log"
+      printf 'felix route --promote exited %s. Until that is fixed it cannot\n' "$hrc"
+      printf 'tell you what the table is missing, so do not read silence as none.\n'
+      return 1
+    fi
     if [ -z "$hits" ]; then
       printf 'Nothing has missed often enough to be worth a row yet.\n'
       return 0

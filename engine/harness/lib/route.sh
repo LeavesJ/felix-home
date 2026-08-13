@@ -74,21 +74,40 @@ _felix_route_rows() {
 # runtime owns. `prompt` is deliberately not among them: its value is the one
 # thing in the envelope a person did type. A path typed inside the prompt still
 # counts, because that is a word you chose.
+# LC_ALL=C on every text stage, and it is load-bearing rather than tidy.
+#
+# `cut -c` is byte-oriented in the environment the hook actually runs in — LANG
+# unset, LC_CTYPE=C — so a prompt truncated at 160 can keep half of a multibyte
+# character. Reading that back through `sed -E` under the UTF-8 locale a
+# Terminal has raises "illegal byte sequence" and, with `set -o pipefail`, takes
+# the whole pipeline down. In the C locale every byte is a valid character and
+# no stage can refuse a line. Nothing here is doing character-aware work: the
+# patterns are ASCII and the tokeniser splits on an ASCII class.
+#
+# It also makes the two userlands agree on what a truncated prompt contains.
+# Before this the same prompt logged 160 characters on a laptop and 160 bytes on
+# CI, so the recorded evidence differed by machine.
 _felix_envelope_strip() {
-  sed -E 's/"(session_id|transcript_path|cwd|permission_mode|hook_event_name|session_title|source|model|version)"[[:space:]]*:[[:space:]]*("[^"]*"|[^,}]*)/ /g'
+  LC_ALL=C sed -E 's/"(session_id|transcript_path|cwd|permission_mode|hook_event_name|session_title|source|model|version)"[[:space:]]*:[[:space:]]*("[^"]*"|[^,}]*)/ /g'
 }
 
 # What a person actually typed, with the JSON around it gone: the runtime's own
 # pairs removed whole, and then every remaining key removed but not its value.
 #
-# Its own function because the log needs it too and did not have it. Recording
+# Its own function because the reader needed it and did not have it. Recording
 # the payload with only half this applied put the literal words `prompt` and
 # `prompt_id` into every miss, and they were the top two rows of
 # `felix route --promote` — above every word anybody had typed, in the one
-# report that exists to improve the routing table. Applied on the way in and
-# again on the way out, so rows written before the fix read clean as well.
+# report that exists to improve the routing table.
+#
+# Applied on the way OUT only, which also cleans rows written before any of this.
+# The first fix applied it on the way in as well and broke `felix monitor`: its
+# route panel finds the sentence by looking for the literal `"prompt":` key, so
+# stripping keys at write time made every new row render as the JSON around the
+# sentence instead of the sentence. The log is a record for a person to read.
+# Nothing promote needs is lost by leaving the keys in it.
 _felix_envelope_text() {
-  _felix_envelope_strip | sed 's/"[A-Za-z_][A-Za-z0-9_]*"[[:space:]]*:/ /g'
+  _felix_envelope_strip | LC_ALL=C sed 's/"[A-Za-z_][A-Za-z0-9_]*"[[:space:]]*:/ /g'
 }
 
 # The words a route may be scored on. Frequency order is the caller's business,
@@ -99,6 +118,7 @@ _felix_envelope_text() {
 # absent from promote as well, or the report proposes keywords that could never
 # have matched.
 _felix_route_words() {
+  export LC_ALL=C
   _felix_envelope_text \
     | tr '[:upper:]' '[:lower:]' \
     | tr -cs 'a-z0-9_-' '\n' \
@@ -367,7 +387,7 @@ felix_route_log() {
   [ -d "$proj/memory" ] || return 0
   printf '%s\t%s\t%s\t%s\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${name:--}" "${score:-0}" \
-    "$(printf '%s' "$prompt" | _felix_envelope_text | tr '\t\n' '  ' | cut -c1-160)" \
+    "$(printf '%s' "$prompt" | _felix_envelope_strip | tr '\t\n' '  ' | LC_ALL=C cut -c1-160)" \
     >> "$proj/memory/routes.log" 2>/dev/null || true
 }
 

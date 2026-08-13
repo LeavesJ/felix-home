@@ -6,7 +6,7 @@ not a summary of intent.
 ## Where
 
 - branch: `main`
-- head: `b1a4e1f feat(next): promote had the finding and handed back the work`
+- head: `b1f8767 feat(elenchus): declare observability and security, so two build items stop being invisible`
 - tree: `/Users/a14808/Documents/Felix`
 
 ## Uncommitted
@@ -14,22 +14,19 @@ not a summary of intent.
 ```
  M HANDOFF.md
  M projects/felix/memory/SESSION_HANDOFF.md
- M projects/felix/memory/lessons.md
- M projects/felix/memory/routes.log
- M projects/felix/memory/says.log
 ```
 
 ## Recent
 
 ```
-b1a4e1f 2026-08-12 feat(next): promote had the finding and handed back the work
-c6438ae 2026-08-12 docs(handoff): felix next shipped, and the upkeep it found inert
-6d36244 2026-08-12 fix(next): a ranking test was asserting the machine again
-1ff7ce5 2026-08-12 feat(next): rank the backlog Felix already tracks, and find upkeep that could never fire
-f415706 2026-08-12 docs(handoff): the compliance panel is built, and answered from rows not a parser
-ec4e62b 2026-08-12 feat(monitor): the panel that says whether the delegation works
-e8be473 2026-08-12 docs(handoff): concurrent sessions checked, reviewer isolation enforced
-5675518 2026-08-12 feat(review): independence cannot be checked; isolation can, and it is the half that breaks
+b1f8767 2026-08-12 feat(elenchus): declare observability and security, so two build items stop being invisible
+9cc7092 2026-08-12 fix(stop): committing your work skipped the completion check entirely
+17b896f 2026-08-12 fix(secret-scan): one word anywhere on a line defused every key on it
+7eca684 2026-08-12 fix(gate): a summary that stops at the first comma hides every skip
+acda120 2026-08-12 docs(handoff): the exit-criteria table was wrong in nine places, re-audited from evidence
+63ef4ba 2026-08-12 fix(scope): the unattended gate could not see what a diff added
+fbec0b3 2026-08-12 fix(merge): the command shipped as "Felix can merge" and could never merge
+539eb61 2026-08-12 fix(intake): a path at the end of a sentence is how people write paths
 ```
 
 ## Next

@@ -106,9 +106,9 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.43.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.45.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **577 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **589 assertions**, 0 failed. `main` is pushed and
   **CI is green — checked, not assumed.** It had been red for at least two
   commits while this line claimed otherwise. Read `gh run list --branch main`
   before writing that sentence again.
@@ -255,11 +255,11 @@ wrong in nine places; do not edit a cell here without re-running its command.
 | take an issue | **partial** | `felix brief` works on prose naming existing files, and tier now agrees with `classify` 19/19. Three defects fixed 2026-08-13: a path ending a sentence did not resolve; an unmatched path reported green; no risk.tsv reported green. Two remain: an issue asking for a file to be **created** silently drops it (`incident.sh` only emits paths that exist), and the `gh` body fetch has no `\|\| die`, so a rate limit renders as a confident "no file it names exists". **Zero issues have ever existed in either repo**, so the `<n>` path has never had real input. |
 | create code | **supervised only** | All 547 Elenchus commits carry the founder's identity. `unattended.yml` has run 3 times, every one skipped in under a second because `FELIX_UNATTENDED` is unset. No model has written code here unattended. |
 | run tests | **yes** | Elenchus `felix gate` → `1229 passed`, 32.8s. Felix → `577 passed`. |
-| deploy preview | **no** | `felix_detect` returns no `deploy`; no catalogue row; neither workflow builds or deploys. Unchanged. |
-| test it | **partial** | 8 deterministic gate checks. `scripts/smoke_server.py` raises the real app but is referenced by no gate and no workflow — while two static tests name that manual smoke as the source of their behavioural coverage. |
+| deploy preview | **yes, smallest honest version** | A `preview` job stands the real app up on :8123 against the scripted fake model. Verified in CI 2026-08-13: "preview answered after 3s". Not a deploy a stranger can reach; it is a real app on a real port over real HTTP. |
+| test it | **yes** | `tests/test_preview.py`, marked `preview`, runs against that server in CI — **4 passed**, not skipped. Verified in all three states: skipped with no URL, FAILED against a dead port, passed against the real one. The two static suites no longer delegate their teeth to a manual habit. |
 | open PR | **yes, opening only** | PR bodies, base, branch, tier label and `--draft`-unless-green all verified. **Merging: no.** See the correction in §2. |
 | report confidence | **partial** | Fixed 2026-08-13: `scope` used a path-only reader and was blind to content rules, so a diff adding a credential to a `.md` printed "In scope … unattended attempt" while `classify` called it red. `scope` now classifies the diff, and says so when given bare paths. `classify` still exits 0 on red while `scope` exits 3. |
-| DEFINITION OF DONE | **bypassed in the default case** | The guide states it absolutely. `hooks/stop:57` is a bare `felix_tree_dirty … \|\| exit 0` with no comment, before the receipt is read — so a session that **commits its work is never asked to verify anything** and nothing is logged. Neither project's `verification.log` has recorded a decision since 2026-08-10. The naive fix is wrong: it would demand a gate from sessions that changed nothing. The right condition is "this session changed something", which needs SessionStart to record the starting HEAD. **Open, and the largest single gap.** |
+| DEFINITION OF DONE | **fixed 0.45.0** | A clean tree used to end the hook before the receipt was read, so committing your work — what you do at the end — skipped the check entirely. `UserPromptSubmit` now records the HEAD it first saw (SessionStart cannot: it never reads its payload), and Stop is silent on a clean tree only when the session also committed nothing. Unknown counts as unchanged, so a session with no mark behaves as before. |
 
 Build list, re-checked: `CLAUDE.md` **on this Mac only** — gitignored, untracked,
 absent from every clone including the CI runner that `unattended.yml` hands to

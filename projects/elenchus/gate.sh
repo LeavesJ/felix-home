@@ -125,7 +125,12 @@ if [ "$QUICK" -eq 1 ]; then
 else
   if "$PY" -m pytest -q >/tmp/ret-gate-test.log 2>&1; then
     pass test
-    note "$(grep -Eo '[0-9]+ passed[^,]*' /tmp/ret-gate-test.log | tail -1)"
+    # The whole summary line, not a fragment of it. `[^,]*` halted at the first
+    # comma, so "1229 passed, 35 skipped" printed as "1229 passed" and every
+    # skip in this suite was invisible — including the 31 live-API tests that
+    # skip on every CI run, and the preview checks that skip without a server.
+    # A count that silently drops the skipped ones reads as full coverage.
+    note "$(grep -Eo '[0-9]+ (passed|failed|skipped|deselected)[^=]*' /tmp/ret-gate-test.log | tail -1 | sed 's/[[:space:]]*$//')"
   else
     fail test
     grep -E '^(FAILED|ERROR)' /tmp/ret-gate-test.log | head -20 | sed 's/^/    /'

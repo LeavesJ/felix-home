@@ -78,16 +78,37 @@ _felix_envelope_strip() {
   sed -E 's/"(session_id|transcript_path|cwd|permission_mode|hook_event_name|session_title|source|model|version)"[[:space:]]*:[[:space:]]*("[^"]*"|[^,}]*)/ /g'
 }
 
-felix_route_tokens() {
-  printf '%s' "$1" \
-    | _felix_envelope_strip \
-    | sed 's/"[A-Za-z_][A-Za-z0-9_]*"[[:space:]]*:/ /g' \
+# What a person actually typed, with the JSON around it gone: the runtime's own
+# pairs removed whole, and then every remaining key removed but not its value.
+#
+# Its own function because the log needs it too and did not have it. Recording
+# the payload with only half this applied put the literal words `prompt` and
+# `prompt_id` into every miss, and they were the top two rows of
+# `felix route --promote` — above every word anybody had typed, in the one
+# report that exists to improve the routing table. Applied on the way in and
+# again on the way out, so rows written before the fix read clean as well.
+_felix_envelope_text() {
+  _felix_envelope_strip | sed 's/"[A-Za-z_][A-Za-z0-9_]*"[[:space:]]*:/ /g'
+}
+
+# The words a route may be scored on. Frequency order is the caller's business,
+# which is the only reason this is not felix_route_tokens itself: promote counts
+# repeats and the router does not.
+#
+# There were two of these and they drifted. Anything the router discards must be
+# absent from promote as well, or the report proposes keywords that could never
+# have matched.
+_felix_route_words() {
+  _felix_envelope_text \
     | tr '[:upper:]' '[:lower:]' \
     | tr -cs 'a-z0-9_-' '\n' \
     | grep -E '^.{4,}$' \
     | grep -vE '^(this|that|with|from|have|been|will|when|what|there|their|would|could|should|about|into|then|than|they|them|your|make|does|just|also|only|some|more|most|need|want|please|help|file|code|lets)$' \
-    | grep -vE '^(true|false|null)$' \
-    | sort -u
+    | grep -vE '^(true|false|null)$'
+}
+
+felix_route_tokens() {
+  printf '%s' "$1" | _felix_route_words | sort -u
 }
 
 # Where you are standing: the branch name, and every path git considers changed
@@ -346,7 +367,7 @@ felix_route_log() {
   [ -d "$proj/memory" ] || return 0
   printf '%s\t%s\t%s\t%s\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${name:--}" "${score:-0}" \
-    "$(printf '%s' "$prompt" | _felix_envelope_strip | tr '\t\n' '  ' | cut -c1-160)" \
+    "$(printf '%s' "$prompt" | _felix_envelope_text | tr '\t\n' '  ' | cut -c1-160)" \
     >> "$proj/memory/routes.log" 2>/dev/null || true
 }
 
@@ -356,11 +377,18 @@ felix_route_log() {
 # about the devlog. Felix does not edit routes.tsv itself, for the reason
 # felix lesson is a command rather than an inference.
 felix_route_promote() {
-  local proj="$1" log="$proj/memory/routes.log"
+  # Two `local` statements, not one. `local proj="$1" log="$proj/…"` expands
+  # every word before it assigns any of them, so `$proj` was read before it
+  # existed and this looked for `/memory/routes.log` — absent, so the function
+  # returned nothing and reported no misses at all. It appeared to work from the
+  # CLI and only from there: `cmd_route` happens to hold a variable called
+  # `proj`, and bash's scoping handed that one over. Correct output from the one
+  # caller anybody ran, and silence from every other.
+  local proj="$1"
+  local log="$proj/memory/routes.log"
   [ -f "$log" ] || return 0
   awk -F'\t' '$2 == "-" { print $4 }' "$log" \
-    | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9_-' '\n' \
-    | grep -E '^.{4,}$' \
+    | _felix_route_words \
     | sort | uniq -c | sort -rn \
     | awk -v m="$FELIX_ROUTE_PROMOTE_MIN" '$1 >= m { print $1 "\t" $2 }'
 }

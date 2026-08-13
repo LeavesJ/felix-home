@@ -181,6 +181,42 @@ felix_file_at() {
   fi
 }
 
+# Where the felix marketplace serves its engine from, or empty when it is not
+# registered. Reads the registry rather than assuming, because the answer is the
+# difference between a deploy and a no-op that reports success.
+felix_marketplace_root() {
+  local reg="${1:-$HOME/.claude/plugins/known_marketplaces.json}"
+  [ -f "$reg" ] || return 0
+  sed -n '/"felix"[[:space:]]*:[[:space:]]*{/,/^  }/p' "$reg" 2>/dev/null \
+    | sed -n 's/.*"installLocation"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
+}
+
+# Whether this engine is one Claude Code could ever install from.
+#
+# `felix install` in a worktree bumps the manifest, runs the three plugin
+# commands, finds the cache unchanged and reports "this is no longer the version
+# cache; something else is wrong" — which sends you looking for corruption. The
+# registry is a directory marketplace pinned to one path, so a worktree's engine
+# is not the engine being served and never was. Nothing is broken; the deploy
+# went to the tree the marketplace names, which is main.
+#
+# It is not a refusal. The bump still belongs on the branch, because merging is
+# what makes it deployable, and a branch that never bumped deploys nothing when
+# it lands. Only the diagnosis changes.
+# Tested on the engine's own parent, not on a path prefix. A worktree lives
+# under `.claude/worktrees/` *inside* the main checkout, so "starts with the
+# marketplace root" is true of every worktree there is and the check would have
+# passed exactly where it needed to fail.
+felix_deployable_from() {
+  local engine_root="$1" mroot parent
+  mroot="$(felix_marketplace_root "${2:-}")"
+  [ -n "$mroot" ] || return 0
+  parent="${engine_root%/*}"
+  [ "$parent" = "$mroot" ] && return 0
+  printf '%s' "$mroot"
+  return 1
+}
+
 # Raise the patch digit in a plugin manifest, and print the new version.
 #
 # Claude Code caches a plugin by version, so a changed engine at an unchanged

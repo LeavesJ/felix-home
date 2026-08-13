@@ -1738,6 +1738,41 @@ toks="$( . "$FROOT/harness/lib/route.sh"
          felix_route_tokens '{"prompt":"fix src/queue/worker.py"}' | tr '\n' ' ' )"
 has "a path you typed yourself still counts" "$toks" "worker"
 
+# The log and the router had drifted apart, and only the log was ever read back.
+# `felix_route_log` stripped the pairs the runtime owns and not the JSON keys, so
+# every miss recorded the literal words `prompt` and `prompt_id`. They were the
+# top two rows of `felix route --promote` — the one mechanism for improving the
+# table — above every word anybody typed. The router had been right the whole
+# time; the record of what it saw was not. Two tokenisers with one job is the
+# defect, so promote reads the router's.
+RLP="$TMP/routelog"; mkdir -p "$RLP/memory"
+( . "$FROOT/harness/lib/route.sh"
+  felix_route_log "$RLP" "-" 0 '{"session_id":"s","prompt_id":"9f2","prompt":"repair the queue worker"}' )
+logged="$(cut -f4 "$RLP/memory/routes.log")"
+has "what a miss records is what was typed" "$logged" "queue"
+case "$logged" in
+  *prompt_id*|*'"prompt"'*) bad "and not the envelope's own field names" "$logged" ;;
+  *)                        ok  "and not the envelope's own field names" ;;
+esac
+
+# Promote then counts those, through the same filter that scored them. A word the
+# router discards can never be a word the table is missing.
+i=0; while [ "$i" -lt 3 ]; do
+  ( . "$FROOT/harness/lib/route.sh"
+    felix_route_log "$RLP" "-" 0 '{"prompt_id":"9f2","prompt":"repair the queue worker that would help"}' )
+  i=$((i+1))
+done
+p="$( . "$FROOT/harness/lib/route.sh"; FELIX_ROUTE_PROMOTE_MIN=2 felix_route_promote "$RLP" )"
+has "a real word rises" "$p" "queue"
+case "$p" in
+  *prompt*) bad "an envelope field name never does" "$p" ;;
+  *)        ok  "an envelope field name never does" ;;
+esac
+case "$p" in
+  *would*|*help*) bad "nor filler the router already discards" "$p" ;;
+  *)              ok  "nor filler the router already discards" ;;
+esac
+
 # The tree may corroborate, never outvote. Without a cap, a checkout carrying a
 # few hundred untracked path tokens drowns out the four words you typed.
 mkdir -p "$REPO/noise"
@@ -3036,6 +3071,91 @@ u="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
       done )"
 is "no shipped upkeep row is unreachable" "$(printf '%s' "$u" | tr -d '\n ')" ""
 
+printf '\nan engine a marketplace does not serve\n'
+# `felix install` from a worktree bumps the manifest, runs the three plugin
+# commands, finds the cache unchanged and says "this is no longer the version
+# cache; something else is wrong" — which sends you hunting for corruption. A
+# directory marketplace is pinned to one path. The worktree's engine is not the
+# engine being served, the cache still matches the tree that is, and nothing is
+# broken. Same shape as every other failure in section 8 of the handoff: correct
+# code, wrong place, and a message that described the code.
+MKT="$TMP/known_marketplaces.json"
+cat > "$MKT" <<'MJ'
+{
+  "other": { "installLocation": "/somewhere/else" },
+  "felix": {
+    "source": { "source": "directory", "path": "/Users/x/Felix" },
+    "installLocation": "/Users/x/Felix"
+  }
+}
+MJ
+mroot="$( . "$FROOT/harness/lib/resolve.sh"; felix_marketplace_root "$MKT" )"
+is "the registry says where the engine is served from" "$mroot" "/Users/x/Felix"
+
+( . "$FROOT/harness/lib/resolve.sh"; felix_deployable_from "/Users/x/Felix/engine" "$MKT" >/dev/null ) \
+  && ok  "an engine under that path can deploy" \
+  || bad "an engine under that path can deploy"
+
+wt="$( . "$FROOT/harness/lib/resolve.sh"
+       felix_deployable_from "/Users/x/Felix/.claude/worktrees/w1/engine" "$MKT" )" && rc=0 || rc=1
+is "a worktree engine cannot"                    "$rc"  "1"
+is "and it names the tree that can, not a fault" "$wt"  "/Users/x/Felix"
+
+# No registry at all is not an accusation: an engine nobody has registered yet
+# is the ordinary first-install case, and must not be told it is in a worktree.
+( . "$FROOT/harness/lib/resolve.sh"; felix_deployable_from "/anywhere/engine" "$TMP/absent.json" >/dev/null ) \
+  && ok  "an unregistered marketplace makes no claim either way" \
+  || bad "an unregistered marketplace makes no claim either way"
+
+printf '\na local that reads a local\n'
+# `local proj="$1" log="$proj/memory/routes.log"` — bash expands every word of
+# the statement before it assigns any of them, so `$proj` was read before it
+# existed and the path came out as `/memory/routes.log`. The function then found
+# no file and returned nothing, silently.
+#
+# It survived because of where it ran. `cmd_route` declares its own `proj`, and
+# bash's dynamic scoping handed that one to the callee — so the single caller
+# anybody exercised got the right answer and every other caller got silence. A
+# lesson would not have caught this: the line reads correctly, and it was correct
+# in the only place it was ever looked at. That is this project's oldest failure
+# shape, so it goes where a check can see it instead.
+selfref="$( cd "$REAL_HARNESS/.." && python3 - <<'PY'
+import re, glob, os
+out = []
+for pat in ("harness/lib/*.sh", "harness/felix", "harness/hooks/*", "harness/tests/run"):
+    for f in glob.glob(pat):
+        if not os.path.isfile(f):
+            continue
+        for i, line in enumerate(open(f, encoding="utf-8", errors="replace"), 1):
+            s = line.strip()
+            if not s.startswith("local "):
+                continue
+            seen = set()
+            for m in re.finditer(r'(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)=(\S*)', s[6:]):
+                for ref in re.findall(r'\$\{?([A-Za-z_][A-Za-z0-9_]*)', m.group(2)):
+                    if ref in seen:
+                        out.append("%s:%d" % (f, i))
+                seen.add(m.group(1))
+print(" ".join(sorted(set(out))))
+PY
+)"
+is "no local assignment reads one declared beside it" "$selfref" ""
+# And the check is shown catching the shape it exists for, because one that
+# cannot fail is not a check.
+caught="$( python3 - <<'PY'
+import re
+s = 'local proj="$1" log="$proj/memory/routes.log"'.strip()[6:]
+seen, hit = set(), 0
+for m in re.finditer(r'(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)=(\S*)', s):
+    for ref in re.findall(r'\$\{?([A-Za-z_][A-Za-z0-9_]*)', m.group(2)):
+        if ref in seen:
+            hit = 1
+    seen.add(m.group(1))
+print(hit)
+PY
+)"
+is "and it catches the line that started this" "$caught" "1"
+
 printf '\na lesson that is not working\n'
 # `felix promote` knew the gate had caught the same check eight times and then
 # asked a person to type `felix lesson "..."`. That is the defect the charter
@@ -3049,12 +3169,25 @@ printf '\na lesson that is not working\n'
 # somewhere the gate can see.
 PM="$TMP/promoteproj"; mkdir -p "$PM/memory"
 printf '{"name":"promoteproj","gate":"true"}\n' > "$PM/project.json"
-{ printf '2026-08-01\tmain\taaa\tflaky \n'
-  printf '2026-08-02\tmain\tbbb\tflaky \n'
-  printf '2026-08-03\tmain\tccc\tuncovered \n'
-  printf '2026-08-04\tmain\tddd\tuncovered \n'
+# Relative dates, because liveness is now part of what is asserted and a fixture
+# of literal dates is a test that passes until a fortnight after it was written.
+_ago() { date -v-"$1"d +%Y-%m-%d 2>/dev/null || date -d "$1 days ago" +%Y-%m-%d 2>/dev/null; }
+{ printf '%s\tmain\taaa\tflaky \n'      "$(_ago 3)"
+  printf '%s\tmain\tbbb\tflaky \n'      "$(_ago 2)"
+  printf '%s\tmain\tccc\tuncovered \n'  "$(_ago 3)"
+  printf '%s\tmain\tddd\tuncovered \n'  "$(_ago 1)"
+  printf '%s\tmain\teee\tsettled \n'    "$(_ago 90)"
+  printf '%s\tmain\tfff\tsettled \n'    "$(_ago 89)"
+  printf '%s\tmain\tggg\tsettled \n'    "$(_ago 88)"
+  printf '%s\tmain\thhh\tdrifting \n'   "$(_ago 2)"
+  printf '%s\tmain\tiii\tdrifting \n'   "$(_ago 1)"
 } > "$PM/memory/mistakes.log"
-printf -- '- **Something about flaky things.** It was written down.\n' > "$PM/memory/lessons.md"
+{ printf -- '- **Something about `flaky` things.** It was written down.\n'
+  # Names the word and is not about the check. The real lessons file says
+  # "executing the installed hooks by hand" and "cannot be uninstalled", and a
+  # substring test read both as a lesson about the `installed` gate check.
+  printf -- '- **A note that mentions drifting in passing.** Not about that check.\n'
+} > "$PM/memory/lessons.md"
 
 _pnext() { ( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
              . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
@@ -3074,6 +3207,26 @@ case "$(printf '%s\n' "$n" | grep flaky)" in
   *)                ok  "and does not ask for a lesson that already exists" ;;
 esac
 has "it says the lesson is not working" "$(printf '%s\n' "$n" | grep flaky)" "not working"
+
+# A recurrence that stopped recurring is history. It kept its lifetime count and
+# so kept its place at the rank the code itself calls the strongest signal there
+# is — nine `installed` failures, every one before the fix landed, ranked above
+# whatever is costing time today. A permanent row at that rank is how a ranked
+# list stops being read. `felix_guard_unrecorded` already draws this line at the
+# whole file; this draws it per term, where the recurrence is counted.
+case "$n" in
+  *settled*) bad "a recurrence that stopped recurring is not still ranked" "$n" ;;
+  *)         ok  "a recurrence that stopped recurring is not still ranked" ;;
+esac
+has "and a live one says when it was last caught" "$n" "$(_ago 1)"
+
+# The lesson test read a substring of the whole file, so an ordinary English
+# word anywhere in it counted as a lesson about a check of that name — and then
+# sent you to build a mechanism for a lesson that was never written.
+case "$(printf '%s\n' "$n" | grep drifting)" in
+  *"felix lesson"*) ok  "a passing mention is not a lesson about the check" ;;
+  *)                bad "a passing mention is not a lesson about the check" "$n" ;;
+esac
 
 # Nothing recurring is silence, not a reassurance.
 : > "$PM/memory/mistakes.log"

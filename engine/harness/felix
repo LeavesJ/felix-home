@@ -291,8 +291,27 @@ cmd_install() {
       #
       # Bumping is not the risky half. install is already the thing that
       # replaces the deployed engine.
-      local newv
-      if newv="$(felix_version_bump "$FELIX_ROOT/.claude-plugin/plugin.json")"; then
+      # Only when the version is the thing standing in the way. The cache
+      # directory is named for the deployed version, so comparing it with the
+      # manifest answers the question the comment above claims to be asking —
+      # and it had never been asked. A tree that cannot deploy at all differs
+      # forever, so every run bumped again: two spurious digits in one session,
+      # from re-running install to read its own output.
+      local newv curv livev
+      curv="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+              "$FELIX_ROOT/.claude-plugin/plugin.json" 2>/dev/null | head -1)"
+      livev="${live##*/}"
+      if [ -n "$curv" ] && [ -n "$livev" ] && [ "$curv" != "$livev" ]; then
+        printf '\n  %s is already ahead of the deployed %s, so nothing was bumped.\n' \
+               "$curv" "$livev"
+        if mroot="$(felix_deployable_from "$FELIX_ROOT")"; then
+          printf '           The tree still differs from the cache. Something other than\n'
+          printf '           the version is stopping this deploying.\n'
+        else
+          printf '           The marketplace serves %s, so this worktree was never\n' "$mroot"
+          printf '           going to deploy. Merge it and run felix install there.\n'
+        fi
+      elif newv="$(felix_version_bump "$FELIX_ROOT/.claude-plugin/plugin.json")"; then
         printf '\n  bumped     %s, because the tree differs and the version did not\n' "$newv"
         # Redeploy at the new version, then verify again rather than assume.
         # The same three steps the deploy above uses. An earlier version did
@@ -309,9 +328,20 @@ cmd_install() {
              && diff -rq "$FELIX_ROOT/harness" "$live/harness" >/dev/null 2>&1; then
           printf '  verified   the installed engine matches this tree\n'
         else
-          printf '\n  WARNING  bumped to %s and it still does not match.\n' "$newv"
-          printf '           %s\n' "$live"
-          printf '           This is no longer the version cache; something else is wrong.\n'
+          local mroot
+          if mroot="$(felix_deployable_from "$FELIX_ROOT")"; then
+            printf '\n  WARNING  bumped to %s and it still does not match.\n' "$newv"
+            printf '           %s\n' "$live"
+            printf '           This is no longer the version cache; something else is wrong.\n'
+          else
+            printf '\n  not deployed, and nothing is wrong.\n'
+            printf '           The marketplace serves %s\n' "$mroot"
+            printf '           and this engine is at %s\n' "$FELIX_ROOT"
+            printf '           A directory marketplace is pinned to one path, so a worktree\n'
+            printf '           cannot deploy and the cache still matches the tree it names.\n'
+            printf '           %s is on the branch and is what makes this deployable when\n' "$newv"
+            printf '           it merges. Run felix install there afterwards.\n'
+          fi
         fi
       else
         printf '\n  WARNING  the installed engine does NOT match this tree, and the\n'
@@ -2380,13 +2410,15 @@ cmd_promote() {
   if [ -z "$mistakes" ]; then
     printf '  nothing twice yet\n'
   else
-    printf '%s\n' "$mistakes" | while IFS=$'\t' read -r n term; do
+    printf '%s\n' "$mistakes" | while IFS=$'\t' read -r n term last; do
       [ -n "${n:-}" ] || continue
-      printf '  %-4s %s\n' "$n" "$term"
+      printf '  %-4s %-20s last %s\n' "$n" "$term" "${last:-?}"
     done
     printf '\nEach of these is a mistake this project has now made more than once.\n'
     printf 'That is the strongest promotion signal there is: not that something is\n'
     printf 'interesting, but that it already cost time twice.\n'
+    printf '\nStill recurring, which is a different claim from having recurred: a\n'
+    printf 'check nothing has caught in a fortnight is history and is not listed.\n'
   fi
 
   if [ -f "$proj/memory/DEVLOG.md" ]; then

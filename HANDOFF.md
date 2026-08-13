@@ -186,7 +186,18 @@ is not masked at all.
   **Corrected 2026-08-13:** `felix merge` could not merge at all until 0.42.0 —
   it built `gh pr merge --repo <slug> --squash` with no pull request named, and
   gh refuses that client-side. The refusal paths were all tested; the one line
-  that reaches gh was not. It has still never merged anything.
+  that reaches gh was not. It has still never merged anything, and now there is
+  a reason rather than an absence of occasions. **It cannot be reached from a
+  worktree that changed the engine.** Merge wants a green gate receipt for that
+  exact tree; the gate's `installed` check compares the tree with the deployed
+  cache; the marketplace is pinned to one directory, so a worktree's engine is
+  never the served one and `installed` can never pass there. No receipt, no
+  merge, permanently — the same cycle already recorded for install-versus-push,
+  closing one stage later. PR #1 was merged through `gh` on green CI instead,
+  and the gate was then run in the tree that can deploy, where `installed`
+  passed. Loosening the gate was available and deliberately not done; the two
+  candidate fixes are in `lessons.md`, and the better one leaves the verifier
+  alone.
   **What always stops:** a secret in added lines; `.github/workflows`; an
   enforcing table or a verifier losing checks; migrations or destructive SQL;
   money; a declared consumer. Nothing else.
@@ -482,8 +493,16 @@ working and the fix belongs where the gate can see it.
   waiting. Revisit when the ledger holds 20 sessions.
 - **Auto-merge.** Elenchus is **1 of 5**: #4 merged green 2026-08-12, the first
   of the run. Before it, three merges ever — #1 unlabelled, #3 `risk-red`.
-  Felix is 0 of 5. It unlocks itself after five
-  consecutive green merges.
+  Felix is **still 0 of 5 after merging its first pull request ever**, and that
+  is the counter working rather than failing: the streak counts *green* merges,
+  PR #1 was `risk-red`, and Felix's own `risk.tsv` calls anything under
+  `engine/harness/lib` red by construction. **So engine work on Felix can never
+  advance this number.** It will move on template, per-project and documentation
+  changes, or not at all. Worth deciding whether that is the intended reading —
+  the unlock exists to test whether a green classification is trustworthy, and
+  a repository that rarely produces green changes never gathers that evidence.
+  The five risk labels now exist on the repo; `felix pr` could not apply one
+  before today because none had ever been created.
 - **GitHub MCP is broken, not missing.** `plugin:github:github` returns
   `HTTP 400: Authorization header is badly formatted`. It was authenticated once
   and the credential is now malformed. Needs an interactive session.

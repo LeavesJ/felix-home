@@ -59,6 +59,18 @@ The charter was the defect.
    and never a verdict, and it may only ever narrow what the mechanical path
    already allowed. A model that could widen permission is the gate, and then
    there is no gate.
+
+   **One exception, added 2026-08-12 and deliberately narrow.** A `reviewed`
+   escape clears on a recorded reviewer verdict, and that widens. It exists
+   because some surfaces have no mechanical verdict to override — a rubric that
+   teaches the wrong thing passes every check there is — so the alternative to a
+   reviewer is not a stricter check, it is nobody reading it. The exception is
+   bounded three ways: a verdict clears `reviewed` and no other channel, so no
+   review can release a secret, run CI or move a store; it is keyed to the exact
+   tree and dies when the tree changes; and only `pass` clears, so a reviewer
+   that never ran reads the same as one that refused. Argued in full in
+   `engine/harness/lib/review.sh`. Do not widen it to a second channel without
+   deciding that again.
 3. **Felix acts on what is reversible and escalates what is not.** Printing a
    suggestion for something it could safely have done is a defect, not caution.
    Irreversible work still stops and asks.

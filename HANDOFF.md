@@ -103,9 +103,9 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.34.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.35.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **521 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **527 assertions**, 0 failed. `main` is pushed and
   **CI is green — checked, not assumed.** It had been red for at least two
   commits while this line claimed otherwise. Read `gh run list --branch main`
   before writing that sentence again.
@@ -315,12 +315,12 @@ Everything above item 1 that used to be here is done. This list is what is left.
 ## 6. Open decisions
 
 - **Two of the four 2026-08-12 autonomy decisions are only half built.**
-  *Doctrine content* was decided to go to an independent reviewer in an isolated
-  worktree — the thing Elenchus's own constitution already asks for and nothing
-  implements. That needs a `reviewed` channel satisfied by a recorded verdict,
-  which is mechanical and does not exist yet; `content/(maps|rubrics)/` is
-  advisory-red in the meantime, so it classifies and stops nothing. *The plugin
-  bump* was freed to merge, and the compensating stop at `felix install` turned
+  *Doctrine content* is **done** as of 0.35.0: a `reviewed` channel, cleared
+  only by a passing verdict recorded against that exact tree, wired to
+  `content/(maps|rubrics)/` and `judgment_loop.py`. It is the one place a
+  model's output widens rather than narrows, which is why invariant 2 in
+  `projects/felix/CLAUDE.md` now carries a written exception — read that before
+  extending it to a second channel. *The plugin bump* was freed to merge, and the compensating stop at `felix install` turned
   out to be unbuildable — see `lessons.md`: the gate's `installed` check means
   install must precede green, so any refusal keyed on "already pushed"
   deadlocks the loop. There is currently **no** stop on deploying an engine

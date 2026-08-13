@@ -198,6 +198,15 @@ is not masked at all.
   passed. Loosening the gate was available and deliberately not done; the two
   candidate fixes are in `lessons.md`, and the better one leaves the verifier
   alone.
+  **A side effect worth fixing with it.** Every gate run in such a worktree
+  records `installed` in `mistakes.log`, because the gate writes a row for each
+  check that failed and cannot know this one was never able to pass. This
+  session's own runs took the count from 9 to 11. So the check that is
+  structurally unpassable there is also the loudest entry in the recurrence
+  report — it manufactures its own evidence. The liveness window added today
+  bounds how long that lasts but does not stop it accruing; whichever of the two
+  candidate fixes lands should also stop a skipped-by-construction check being
+  written down as a mistake.
   **What always stops:** a secret in added lines; `.github/workflows`; an
   enforcing table or a verifier losing checks; migrations or destructive SQL;
   money; a declared consumer. Nothing else.

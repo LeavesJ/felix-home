@@ -312,3 +312,18 @@ with a record, not a substitute for running it.
   reading as "pointed at and ignored", which is the one shape that proposes
   retirement. **Before reusing an in-scope variable, read why its fallback
   exists.** The value was right; the failure mode attached to it was not.
+
+- **"Nothing due" and "nothing is being checked" render identically.**
+  `maintenance.tsv`'s third column takes `always` or a capability name; anything
+  else resolves to dormant. Felix's own table used `-` for all four routines, so
+  every one was inert from the day it was written and `felix maintenance` said
+  "Nothing due" every single time — which is exactly what a well-kept repository
+  looks like. Elenchus's table used `always` and worked fine, so there was no
+  contrast to notice. Found by building the command that *ranks* upkeep, not by
+  reading the table: the ranker asked for due rows and got none from a project
+  with four overdue routines. Third instance of this shape after the ledger
+  overclaim and the coverage roster. **A report whose empty state is
+  indistinguishable from its healthy state needs a check that the inputs can
+  even produce a finding** — `felix_maint_unreachable` is that check here, and
+  it deliberately does not flag a real capability left undeclared, because that
+  is a dormant row working as designed.

@@ -111,6 +111,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/escape.sh"
 # shellcheck source=lib/review.sh
 . "${SCRIPT_DIR}/lib/review.sh"
+# shellcheck source=lib/next.sh
+. "${SCRIPT_DIR}/lib/next.sh"
 # shellcheck source=lib/say.sh
 . "${SCRIPT_DIR}/lib/say.sh"
 # shellcheck source=lib/monitor.sh
@@ -145,6 +147,7 @@ specific project, language, or toolchain.
     felix pr [--create]    open a pull request for this branch, tier and all
     felix classify         how risky this diff is, and what that means for merging
     felix evidence         what this change still owes before it counts as done
+    felix next             what to do next here, ranked
     felix merge            merge it, unless something in it escapes the tree
     felix review           record a reviewer verdict on a surface no test judges
 
@@ -799,6 +802,48 @@ EOF
   printf 'merged. nothing in it escaped the tree.\n'
 }
 
+cmd_next() {
+  resolve_or_die
+  local proj="$PROJ" root base="main" a
+  root="$(felix_repo_root "$PWD")"
+  for a in "$@"; do case "$a" in --base) shift; base="${1:-main}" ;; esac; done
+
+  local rows; rows="$(felix_next "$proj" "$FELIX_HOME_DIR" "$root" "$base")"
+  if [ -z "$rows" ]; then
+    printf 'nothing due for %s\n\n' "$(basename "$proj")"
+    printf 'The gate is green on this tree, nothing escapes it, every tool a\n'
+    printf 'route names is reachable, and no upkeep is past its cadence.\n'
+    return 0
+  fi
+
+  local rank owner what do_ last="" n=0
+  printf 'next for %s\n' "$(basename "$proj")"
+  while IFS=$'\t' read -r rank owner what do_; do
+    [ -n "${rank:-}" ] || continue
+    if [ "$rank" != "$last" ]; then
+      printf '\n'
+      case "$rank" in
+        1) printf '  the change in hand\n' ;;
+        2) printf '  yours to decide\n' ;;
+        3) printf '  before the next session starts\n' ;;
+        4) printf '  upkeep\n' ;;
+        5) printf '  a check that is not checking\n' ;;
+        6) printf '  routing\n' ;;
+      esac
+      last="$rank"
+    fi
+    printf '    %-8s %s\n' "$owner" "$what"
+    printf '    %-8s   %s\n' "" "$do_"
+    n=$((n+1))
+  done <<EOF
+$rows
+EOF
+
+  printf '\n%s item(s). Ranked by what interrupts you, then by what is blocking.\n' "$n"
+  printf 'Anything marked felix is Felix'"'"'s own work and not a decision for you;\n'
+  printf 'it is listed because it costs time, not because it needs approving.\n'
+}
+
 cmd_review() {
   resolve_or_die
   local proj="$PROJ" root verdict="" by="" note="" where="" tid
@@ -1017,16 +1062,18 @@ EOF
 
   local unrouted; unrouted="$(felix_ledger_unrouted "$proj")"
   if [ -n "$unrouted" ]; then
-    printf '\nmounted, and no route has ever named it\n\n'
+    printf '\nmounted, and no route pointed at it in any recorded session\n\n'
     printf '%s\n' "$unrouted" | while IFS=$'\t' read -r name sessions; do
       [ -n "${name:-}" ] || continue
-      printf '  %-34s %s sessions, never named\n' "$name" "$sessions"
+      printf '  %-34s %s sessions, never pointed at\n' "$name" "$sessions"
     done
-    printf '\nThis is a finding about %s/routes.tsv, not about these capabilities.\n' "$proj"
-    printf 'They cost context in every session and Felix has never once pointed at\n'
-    printf 'them, so their zero measures what Felix suggests rather than what they\n'
-    printf 'are worth. Retiring on it would be concluding they deserved to be\n'
-    printf 'ignored because they were ignored.\n'
+    printf '\nA finding about %s/routes.tsv, not about these capabilities. A route\n' "$proj"
+    printf 'may well name them — felix toolbox reads the table and will say so —\n'
+    printf 'but its keywords have not matched real work yet. Their zero measures\n'
+    printf 'what Felix suggests, not what they are worth, so retiring on it would\n'
+    printf 'conclude they deserved to be ignored because they were ignored.\n'
+    printf 'Weak while few sessions are recorded: a route that has not fired yet\n'
+    printf 'looks exactly like one that never will.\n'
   fi
 
   printf '\nOnly retiring is ever proposed, and only for what Felix pointed at.\n'
@@ -2326,6 +2373,7 @@ case "${1:-help}" in
   coverage)  shift; cmd_coverage "$@" ;;
   merge)     shift; cmd_merge "$@" ;;
   review)    shift; cmd_review "$@" ;;
+  next)      shift; cmd_next "$@" ;;
   autonomy)  shift; cmd_autonomy "$@" ;;
   brief)     shift; cmd_brief "$@" ;;
   pr)        shift; cmd_pr "$@" ;;

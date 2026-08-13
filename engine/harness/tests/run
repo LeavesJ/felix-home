@@ -2666,6 +2666,114 @@ grep -q 'migration schema needs an index' "$MON2" \
         "$(grep -o '"kind":"old-shape"[^}]*' "$MON2" | head -1)"
   fi
 
+printf '\nupkeep that can never come due\n'
+# `felix maintenance` printed "Nothing due" for four routines that had never run
+# and never could. The capability column takes `always` or a capability the
+# project declares; Felix's own table used `-`, which is neither, so every row
+# resolved to dormant and the report read exactly like a well-kept repository.
+#
+# Same shape as the ledger overclaim and the coverage table before it: a surface
+# saying "nothing to do" when the truth is "nothing is being checked". Found by
+# building the thing that ranks upkeep, not by reading the table.
+MT="$TMP/maintcheck"; mkdir -p "$MT/memory"
+printf '{"name":"maintcheck","gate":"true"}\n' > "$MT/project.json"
+{ printf 'good\t7\talways\tthis one can come due\n'
+  printf 'typo\t7\t-\tthis one never can\n'
+  printf 'gated\t7\tci\tonly when ci is declared\n'
+} > "$MT/maintenance.tsv"
+u="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+      . "$FROOT/harness/lib/stack.sh"; . "$FROOT/harness/lib/maintenance.sh"
+      felix_maint_unreachable "$MT" )"
+has "a row naming no real capability is caught" "$u" "typo"
+case "$u" in
+  *good*)  bad "an always row is not flagged" "$u" ;;
+  *)       ok  "an always row is not flagged" ;;
+esac
+# `ci` is a real capability that this project has simply not declared. That is a
+# dormant row working as intended, not a broken one, and flagging it would make
+# the check noise.
+case "$u" in
+  *gated*) bad "a real capability left undeclared is not an error" "$u" ;;
+  *)       ok  "a real capability left undeclared is not an error" ;;
+esac
+
+# And the shipped tables, which is where the bug actually was.
+for _p in "$FELIX_HOME"/projects/*/; do :; done
+u="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+      . "$FROOT/harness/lib/stack.sh"; . "$FROOT/harness/lib/maintenance.sh"
+      for p in "$(cd "$REAL_HARNESS/../.." && pwd)"/projects/*/; do
+        [ -f "$p/maintenance.tsv" ] && felix_maint_unreachable "${p%/}"
+      done )"
+is "no shipped upkeep row is unreachable" "$(printf '%s' "$u" | tr -d '\n ')" ""
+
+printf '\nwhat to do next\n'
+# Felix tracked maintenance, drift, setup gaps, evidence gaps and coverage in
+# five separate commands and never once said which of them mattered. A founder
+# reading five reports to work out the order is doing exactly the job Felix
+# exists to take.
+#
+# The ranking is anchored on the declared objective — founder interruptions per
+# session — and then on what is blocking now. So the order is: work Felix owes
+# on the change in hand, then the things that will interrupt a future session,
+# then rot that will quietly mislead one.
+NX="$TMP/nextproj"; mkdir -p "$NX/memory"
+printf '{"name":"nextproj","gate":"true"}\n' > "$NX/project.json"
+: > "$NX/routes.tsv"; : > "$NX/stack.tsv"
+
+# Sourced the way the CLI sources them. A short list here passed a `dormant`
+# maintenance row for a fixture that was plainly due, because the capability
+# check silently degrades when its helpers are absent — the test would have
+# been asserting the absence of a library.
+_next() { ( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+            . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+            . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/evidence.sh"
+            . "$FROOT/harness/lib/maintenance.sh"; . "$FROOT/harness/lib/stack.sh"
+            . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/ledger.sh"
+            . "$FROOT/harness/lib/coverage.sh"; . "$FROOT/harness/lib/deny.sh"
+            . "$FROOT/harness/lib/next.sh"
+            felix_next "$NX" "$FROOT" "$REPO" HEAD~1 ); }
+
+printf 'ordinary\n' > "$REPO/README.md"; _stage
+n="$(_next)"
+has "an unverified tree is the first thing to do" "$(printf '%s\n' "$n" | head -1)" "gate"
+has "and it is Felix's own work"                  "$(printf '%s\n' "$n" | head -1)" "felix"
+has "every row carries the command that clears it" "$(printf '%s\n' "$n" | head -1)" "felix gate"
+
+# An escape outranks upkeep and is the founder's. It is also the thing the
+# declared objective counts, so burying it under a maintenance row would hide
+# the one number Felix is trying to move.
+{ printf 'deployed\t7\talways\tconfirm the installed engine still matches\n'; } > "$NX/maintenance.tsv"
+mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/990.sql"; _stage
+n="$(_next)"
+has "an escape is named as the founder's"  "$n" "founder"
+has "and says which channel"               "$n" "durable"
+first_owner="$(printf '%s\n' "$n" | grep '	founder	' | head -1 | cut -f2)"
+is "the founder's item is not buried"      "$first_owner" "founder"
+_reset
+
+# A tool a route names but cannot reach breaks the session it is needed in, and
+# plugins bind at session start — so it can only be fixed between sessions.
+# That is the highest-leverage preventive row there is.
+printf 'doc\tpdf\tcore\tnot-installed-anywhere:tool\n' > "$NX/routes.tsv"
+printf 'plugin\tnot-installed-anywhere\t-\tlow\talways\n' > "$NX/stack.tsv"
+n="$(_next)"
+has "a route naming an unreachable tool is ranked" "$n" "not-installed-anywhere"
+: > "$NX/routes.tsv"; : > "$NX/stack.tsv"
+
+# Due upkeep appears, and below the blocking rows.
+printf 'ordinary again\n' > "$REPO/README.md"; _stage
+( . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "true" "$(felix_tree_id "$REPO" "$FROOT")" )
+n="$(_next)"
+has "maintenance that is due is named" "$n" "deployed"
+rm -f "$NX/maintenance.tsv"
+
+# Nothing wrong is a real answer and has to be said, or the command becomes one
+# people run and squint at.
+n="$(_next)"
+is "with nothing due it reports nothing" "$(printf '%s' "$n" | tr -d '\n ')" ""
+_reset
+
 printf '\nwhether the delegation actually works\n'
 # The monitor showed every record Felix wrote and never once showed whether
 # Claude did the thing Felix named. Those are different claims, and only the

@@ -1,0 +1,122 @@
+# What to do next, ranked.
+#
+# Felix tracked maintenance, drift, setup gaps, evidence gaps, coverage and
+# retirement in six separate commands and never once said which of them
+# mattered. A founder reading six reports to work out the order is doing the job
+# Felix exists to take.
+#
+# The ranking is not a taste ordering. It is anchored on the declared objective
+# — founder interruptions per session — and then on what is blocking now:
+#
+#   1  work Felix owes on the change in hand. Nobody else can be waiting on it.
+#   2  an escape. This is literally the number the objective counts, so it is
+#      never buried under upkeep.
+#   3  a tool a route names and cannot reach. Plugins bind at session start, so
+#      this can only be fixed BETWEEN sessions — it is the highest-leverage
+#      preventive row there is, and invisible until the turn it was needed.
+#   4  upkeep past its cadence.
+#   5  rot that will quietly mislead: a lifecycle moment with no stance, a deny
+#      rule too broad to enforce, a rival gate.
+#   6  routing gaps. Costs context in every session and points at routes.tsv.
+#
+# Emits: rank <TAB> owner <TAB> what <TAB> do
+# owner is `felix` or `founder`. Empty output means nothing is due.
+#
+# This ranks and does not act, which is worth defending because the charter
+# calls printing a suggestion for something Felix could have done a defect.
+# Almost nothing here is safely auto-doable: running the gate costs minutes and
+# should not fire implicitly, writing a missing test is not mechanical, and
+# fixing a route is a judgement about words. The one genuinely reversible item —
+# tidying — already happens at SessionStart where a project has granted it. So
+# this is a ranking of work that needs time or judgement, not a list of things
+# Felix is being shy about.
+
+_felix_next_row() { printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4"; }
+
+felix_next() {
+  local proj="$1" home="$2" root="$3" base="${4:-main}"
+  local tid receipt line kind subject reason
+
+  # 1 — the change in hand.
+  tid="$(felix_tree_id "$root" "$home" 2>/dev/null)" || tid=""
+  receipt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
+  if [ -z "$tid" ] \
+       || [ "$(printf '%s' "$receipt" | cut -f1)" != "$tid" ] \
+       || [ "$(printf '%s' "$receipt" | cut -f2)" != "green" ]; then
+    _felix_next_row 1 felix "this tree has no green gate receipt" "felix gate"
+  fi
+
+  if command -v felix_evidence_check >/dev/null 2>&1; then
+    while IFS=$'\t' read -r kind subject reason; do
+      [ "${kind:-}" = "gap" ] || continue
+      _felix_next_row 1 felix "the change owes evidence: $subject — $reason" \
+        "write the test, then felix evidence"
+    done <<EOF
+$(felix_evidence_check "$proj" "$base" "$root" 2>/dev/null)
+EOF
+  fi
+
+  # 2 — the founder's, and never buried.
+  if command -v felix_escapes >/dev/null 2>&1; then
+    while IFS=$'\t' read -r kind subject reason; do
+      [ -n "${kind:-}" ] || continue
+      _felix_next_row 2 founder "$kind: $subject — $reason" \
+        "show the diff and its reversal path; a green gate is not the question"
+    done <<EOF
+$(felix_escapes "$proj" "$base" "$root" "$home" 2>/dev/null)
+EOF
+  fi
+
+  # 3 — a named tool that is not reachable. Between sessions or never.
+  if command -v felix_ready_report >/dev/null 2>&1; then
+    while IFS=$'\t' read -r kind subject reason; do
+      case "${kind:-}" in
+        absent|disabled) ;;
+        *) continue ;;
+      esac
+      _felix_next_row 3 felix "$subject is $kind — $reason" \
+        "install or enable it before the next session; plugins bind at start"
+    done <<EOF
+$(felix_ready_report "$proj" 2>/dev/null)
+EOF
+  fi
+
+  # 4 — upkeep.
+  if command -v felix_maint_status >/dev/null 2>&1; then
+    local st nm age cad desc
+    while IFS=$'\t' read -r st nm age cad desc; do
+      [ "${st:-}" = "due" ] || continue
+      _felix_next_row 4 felix "upkeep due: $nm — $desc" "felix maintenance"
+    done <<EOF
+$(felix_maint_status "$proj" 2>/dev/null)
+EOF
+  fi
+
+  # 5 — rot that misleads. A stance nobody wrote and a rule that silently does
+  # nothing both read as "checked" from the outside, which is the failure this
+  # project keeps having in different costumes.
+  if command -v felix_deny_overbroad_rows >/dev/null 2>&1; then
+    local t p r
+    while IFS=$'\t' read -r t p r; do
+      [ -n "${p:-}" ] || continue
+      _felix_next_row 5 felix "a deny rule for $t refuses everything and is skipped" \
+        "narrow the pattern in $proj/deny.tsv, or drop the row"
+    done <<EOF
+$(felix_deny_overbroad_rows "$proj" 2>/dev/null)
+EOF
+  fi
+
+  # 6 — routing. Mounted, never pointed at. Not the same as "no route names it":
+  # the table may name it while its keywords never match the work anybody does,
+  # which is the row worth finding. Weak while few sessions are recorded.
+  if command -v felix_ledger_unrouted >/dev/null 2>&1; then
+    local nm sessions
+    while IFS=$'\t' read -r nm sessions; do
+      [ -n "${nm:-}" ] || continue
+      _felix_next_row 6 felix "$nm is mounted and no route pointed at it in $sessions recorded session(s)" \
+        "check the keywords in $proj/routes.tsv match real work, or stop mounting it"
+    done <<EOF
+$(felix_ledger_unrouted "$proj" 2>/dev/null)
+EOF
+  fi
+}

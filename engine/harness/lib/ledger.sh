@@ -98,12 +98,17 @@ felix_ledger_retire() {
   done
 }
 
-# Mounted, and no route ever pointed at it.
+# Mounted, and no route pointed at it in any recorded session.
 #
-# A finding about routes.tsv, never about the capability. It costs context in
-# every session and Felix has never once suggested it, so the thing to fix is
-# either the table or the mounting — and retiring it on this evidence would be
-# concluding that Felix was right to ignore it because Felix ignored it.
+# Precisely that, and not "no route names it" — `felix toolbox` reads the table
+# and will happily say a route names the same capability. The two are different
+# claims: the table can name a capability whose keywords never match the work
+# anybody actually does, and that row is the one this finds.
+#
+# So it is a finding about routes.tsv, never about the capability. Retiring on
+# it would be concluding Felix was right to ignore something because Felix
+# ignored it. It is also weak while few sessions are recorded, since a route
+# that has not fired yet looks identical to one that never will.
 felix_ledger_unrouted() {
   local proj="$1" name sessions calls named
   felix_ledger_summary "$proj" | while IFS=$'\t' read -r name sessions calls named; do

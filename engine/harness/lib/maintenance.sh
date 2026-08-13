@@ -45,6 +45,35 @@ felix_maint_record() {
 
 # Emits: status <TAB> name <TAB> days-since <TAB> cadence <TAB> description
 # status is due | ok | event | dormant
+# Upkeep rows that can never come due.
+#
+# The capability column takes `always` or a capability name. Anything else
+# resolves to dormant, and dormant renders as a dash next to "Nothing due" —
+# which is indistinguishable from a well-kept repository. Felix's own table used
+# `-` in that column for four routines that had therefore never run and never
+# could, and the report said nothing was outstanding every single time.
+#
+# A row naming a REAL capability the project has not declared is not an error:
+# that is a dormant row working as designed, and flagging it would turn this
+# into noise. Only a name that is not a capability at all is caught, because
+# that is a typo wearing a dash.
+#
+# Emits: name <TAB> capability, one line per unreachable row.
+FELIX_MAINT_CAPABILITIES='ci deploy iac observability billing e2e database api frontend llm rust tests secrets'
+
+felix_maint_unreachable() {
+  local proj="$1" name cadence cap desc
+  [ -f "$proj/maintenance.tsv" ] || return 0
+  while IFS=$'\t' read -r name cadence cap desc; do
+    case "$name" in ''|'#'*) continue ;; esac
+    [ -n "${cap:-}" ] || continue
+    [ "$cap" = "always" ] && continue
+    case " $FELIX_MAINT_CAPABILITIES " in *" $cap "*) continue ;; esac
+    felix_has_line "$(felix_declared "$proj")" "$cap" 2>/dev/null && continue
+    printf '%s\t%s\n' "$name" "$cap"
+  done < "$proj/maintenance.tsv"
+}
+
 felix_maint_status() {
   local proj="$1" now; now="$(date +%s)"
   _felix_maint_rows "$proj" | while IFS=$'\t' read -r name cadence cap desc; do

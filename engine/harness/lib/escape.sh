@@ -123,8 +123,8 @@ _felix_escape_shrank() {
 }
 
 felix_escapes() {
-  local proj="$1" base="$2" root="$3"
-  local paths added f tier kind pattern reason channel confine
+  local proj="$1" base="$2" root="$3" home="${4:-}"
+  local paths added f tier kind pattern reason channel confine reviewed=""
 
   paths="$(git -C "$root" diff --name-only "$base...HEAD" 2>/dev/null)"
   [ -n "$paths" ] || paths="$(git -C "$root" diff --name-only "$base" 2>/dev/null)"
@@ -161,6 +161,15 @@ EOF
   [ -n "$added" ] && printf '%s' "$added" | grep -qE "$FELIX_ESCAPE_DURABLE_ADDED" \
     && printf 'durable\tADDED-LINES\tdestructive SQL in the added lines\n'
 
+  # One lookup for the whole diff. `reviewed` is the only channel a verdict can
+  # clear, and only a passing one for this exact tree — see lib/review.sh for
+  # why this is the single place a model's output permits rather than restricts.
+  if [ -n "$home" ] && command -v felix_review_passed >/dev/null 2>&1 \
+       && command -v felix_tree_id >/dev/null 2>&1; then
+    felix_review_passed "$home" "$proj" "$(felix_tree_id "$root" "$home" 2>/dev/null)" \
+      && reviewed=pass
+  fi
+
   # Project-declared escapes: a risk.tsv row carrying a channel. A row with no
   # channel is advisory — it sets a tier and stops nothing — which is what every
   # table written before this column existed is, and they must keep working.
@@ -172,6 +181,7 @@ EOF
     while IFS= read -r f; do
       [ -n "$f" ] || continue
       printf '%s' "$f" | grep -qE "$pattern" || continue
+      [ "$channel" = "reviewed" ] && [ "$reviewed" = "pass" ] && continue
       case "${confine:-}" in
         count:*) _felix_escape_fewer "$root" "$base" "$f" "${confine#count:}" || continue ;;
         *)       _felix_escape_confined "$root" "$base" "$f" "${confine:-}" && continue ;;
@@ -206,7 +216,7 @@ felix_merge_blockers() {
   local proj="$1" base="$2" root="$3" home="$4"
   local tid receipt line
 
-  felix_escapes "$proj" "$base" "$root" | while IFS=$'\t' read -r ch path reason; do
+  felix_escapes "$proj" "$base" "$root" "$home" | while IFS=$'\t' read -r ch path reason; do
     [ -n "${ch:-}" ] || continue
     printf 'escape\t%s\t%s: %s\n' "$ch" "$path" "$reason"
   done

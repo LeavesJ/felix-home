@@ -778,6 +778,54 @@ is  "and reports a clear merge without performing one" "$rc" "0"
 has "saying so plainly"                                "$out" "nothing escapes"
 _reset
 
+printf '\na surface no test can judge\n'
+# Some changes are revert-complete, touch no store and reach no stranger, and
+# still must not merge unread: a rubric that teaches the wrong thing breaks
+# nothing a gate can see. Elenchus's constitution already answers this — T2
+# wants "an independent reviewer running in an isolated worktree at the reviewed
+# commit" — and nothing implemented it, so the row sat red and stopped nothing.
+#
+# The verdict is a receipt keyed on the tree, exactly like the gate's, because
+# the trap is the same one: a verdict for a different tree is not a verdict.
+RVH="$TMP/reviewhome"; RVP="$RVH/projects/widget"; mkdir -p "$RVP/memory"
+cp "$TMP/risk.keep" "$RVP/risk.tsv" 2>/dev/null || : > "$RVP/risk.tsv"
+printf 'red\tpath\t^content/\ta doctrine surface; no test can judge it\treviewed\t-\n' >> "$RVP/risk.tsv"
+_resc() { ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+            . "$FROOT/harness/lib/escape.sh"
+            felix_escapes "$RVP" HEAD~1 "$REPO" "$RVH" ); }
+
+mkdir -p "$REPO/content"; printf 'teach this\n' > "$REPO/content/rubric.md"; _stage
+has "a doctrine surface with no verdict escapes" "$(_resc)" "reviewed"
+
+# A verdict for some other tree must not clear it.
+( . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+  felix_review_record "$RVH" "$RVP" "some-other-tree" pass reviewer-1 "looked fine" )
+has "a verdict for another tree does not clear it" "$(_resc)" "reviewed"
+
+TID="$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$REPO" "$RVH" )"
+( . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+  felix_review_record "$RVH" "$RVP" "$TID" block reviewer-1 "the rubric contradicts the map" )
+has "a blocking verdict does not clear it either" "$(_resc)" "reviewed"
+
+( . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+  felix_review_record "$RVH" "$RVP" "$TID" pass reviewer-1 "ran it against real content" )
+is "a passing verdict for this exact tree clears it" "$(_resc)" ""
+
+# The boundary that makes this safe to have at all. A reviewer verdict clears
+# the one channel with no mechanical test behind it and nothing else, so no
+# review can release a secret, run CI, or move a store.
+mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/970.sql"; _stage
+( . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+  felix_review_record "$RVH" "$RVP" \
+    "$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$REPO" "$RVH" )" pass reviewer-1 "fine" )
+out="$(_resc)"
+has "a verdict never clears a durable escape" "$out" "durable"
+case "$out" in
+  *reviewed*) bad "and the reviewed one is cleared by it" "$out" ;;
+  *)          ok  "and the reviewed one is cleared by it" ;;
+esac
+_reset; _reset
+
 printf '\nthe one number Felix is trying to move\n'
 # Declared 2026-08-12: founder interruptions per session. You cannot optimise an
 # unnamed objective, and Felix had none — so every improvement was argued rather

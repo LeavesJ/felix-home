@@ -109,6 +109,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/deny.sh"
 # shellcheck source=lib/escape.sh
 . "${SCRIPT_DIR}/lib/escape.sh"
+# shellcheck source=lib/review.sh
+. "${SCRIPT_DIR}/lib/review.sh"
 # shellcheck source=lib/say.sh
 . "${SCRIPT_DIR}/lib/say.sh"
 # shellcheck source=lib/monitor.sh
@@ -144,6 +146,7 @@ specific project, language, or toolchain.
     felix classify         how risky this diff is, and what that means for merging
     felix evidence         what this change still owes before it counts as done
     felix merge            merge it, unless something in it escapes the tree
+    felix review           record a reviewer verdict on a surface no test judges
 
   the toolbox
     felix ready            is every tool this project names actually usable?
@@ -794,6 +797,49 @@ EOF
   # with or without a network.
   gh pr merge --repo "$slug" --squash || die "gh pr merge failed"
   printf 'merged. nothing in it escaped the tree.\n'
+}
+
+cmd_review() {
+  resolve_or_die
+  local proj="$PROJ" root verdict="" by="" note="" tid
+  root="$(felix_repo_root "$PWD")"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --pass)  verdict=pass;  shift ;;
+      --block) verdict=block; shift ;;
+      --by)    by="${2:-}";   shift 2 ;;
+      --note)  note="${2:-}"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  tid="$(felix_tree_id "$root" "$FELIX_HOME_DIR" 2>/dev/null)"
+  [ -n "$tid" ] || die "cannot identify this tree"
+
+  if [ -n "$verdict" ]; then
+    [ -n "$by" ] || die "felix review --pass|--block needs --by <who reviewed it>"
+    felix_review_record "$FELIX_HOME_DIR" "$proj" "$tid" "$verdict" "$by" "$note" \
+      || die "could not write the verdict"
+    printf 'recorded: %s by %s, for this tree only\n' "$verdict" "$by"
+    [ "$verdict" = "pass" ] \
+      && printf '\nThis clears the reviewed channel and nothing else. Any other escape\nstands, and the verdict dies the moment the tree changes.\n'
+    return 0
+  fi
+
+  local rec; rec="$(felix_review_verdict "$FELIX_HOME_DIR" "$proj" "$tid")"
+  if [ -z "$rec" ]; then
+    printf 'no verdict for this tree\n\n'
+    printf 'A reviewed surface is one no test can judge, so nothing here can tell\n'
+    printf 'you whether it is fine. Dispatch a reviewer that runs the claim in a\n'
+    printf 'separate worktree at this commit, then record what it found:\n\n'
+    printf '  felix review --pass  --by <reviewer> --note <what it ran>\n'
+    printf '  felix review --block --by <reviewer> --note <what it found>\n'
+    return 0
+  fi
+  printf 'verdict:  %s\n' "$(printf '%s' "$rec" | cut -f2)"
+  printf 'by:       %s\n' "$(printf '%s' "$rec" | cut -f4)"
+  printf 'when:     %s\n' "$(printf '%s' "$rec" | cut -f3)"
+  printf 'note:     %s\n' "$(printf '%s' "$rec" | cut -f5)"
+  printf '\nFelix records the claim and who made it. It cannot check that the\nreviewer was independent, ran in an isolated worktree, or executed\nanything — that is a property of how it was dispatched, and no receipt\ncan establish it.\n'
 }
 
 cmd_autonomy() {
@@ -2275,6 +2321,7 @@ case "${1:-help}" in
   shape)     shift; cmd_shape "$@" ;;
   coverage)  shift; cmd_coverage "$@" ;;
   merge)     shift; cmd_merge "$@" ;;
+  review)    shift; cmd_review "$@" ;;
   autonomy)  shift; cmd_autonomy "$@" ;;
   brief)     shift; cmd_brief "$@" ;;
   pr)        shift; cmd_pr "$@" ;;

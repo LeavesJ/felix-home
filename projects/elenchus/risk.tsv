@@ -38,7 +38,7 @@ green	path	(^|/)(LICENSE|CHANGELOG|CODEOWNERS)$	repository metadata
 # interface, durable state, a doctrine surface, or anything a learner sees.
 red	path	^src/elenchus/persistence\.py$	durable state; rows already written do not come back	durable	-
 red	path	^src/elenchus/(types|orchestration)\.py$	canonical interface
-red	path	^src/elenchus/assessment/judgment_loop\.py$	doctrine surface
-red	path	^content/(maps|rubrics)/	versioned doctrine, not code
+red	path	^src/elenchus/assessment/judgment_loop\.py$	doctrine surface; T2 wants a reviewer that runs the claim	reviewed	-
+red	path	^content/(maps|rubrics)/	versioned doctrine; no test can judge whether it teaches the right thing	reviewed	-
 yellow	path	^src/elenchus/(surface|terrain|prompt_text)\.py$	learner-facing text
 yellow	path	^src/elenchus/web/	learner-facing surface

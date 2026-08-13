@@ -93,16 +93,82 @@ felix_mem_mistake() {
 
 # What the gate keeps catching. A far better promotion signal than counting words:
 # a check that fails repeatedly is a habit, and a habit is what a lesson is for.
+#
+# Emits `count<TAB>term<TAB>last-seen`, newest-heavy first, and only for terms
+# that are still recurring.
+#
+# The count is for all time and the liveness test is not, because they answer
+# different questions. "It has cost time twice" is a fact about history and does
+# not expire. "It is costing time" is a fact about now, and only the second one
+# earns a place in a ranked list. Felix's own log had `installed` nine times,
+# every one of them before the two mechanisms that address it landed, and it sat
+# at the rank `next.sh` calls the strongest promotion signal there is — above
+# whatever was actually costing time that day. Nothing would ever have removed
+# it: an append-only log has no way to say a thing was dealt with. A permanent
+# row at the top rank is not a strong signal, it is a list people stop reading.
+#
+# Fourteen days rather than the seven `felix_guard_unrecorded` uses, because
+# that one fires unprompted in a session and this one is read on request. The
+# window errs long on purpose: a fix a few days old has not yet had the chance
+# to fail, and dropping it early would be this project's own overclaiming
+# failure — converting "nobody has caught it again yet" into "it is fixed".
+#
+# No usable `date` means no window and everything is reported, which shows more
+# rather than less. That is the safe direction for a signal about mistakes.
 felix_mem_recurring_mistakes() {
-  local proj="$1" min="${2:-2}"
+  local proj="$1" min="${2:-2}" days="${3:-14}" cutoff
   [ -f "$proj/memory/mistakes.log" ] || return 0
-  cut -f4 "$proj/memory/mistakes.log" 2>/dev/null \
-    | tr ' ' '\n' | grep -v '^$' \
-    | sort | uniq -c | sort -rn \
-    | while read -r n term; do
-        [ "${n:-0}" -ge "$min" ] || break
-        printf '%s\t%s\n' "$n" "$term"
-      done
+  cutoff="$(date -v-"${days}"d +%Y-%m-%d 2>/dev/null \
+            || date -d "${days} days ago" +%Y-%m-%d 2>/dev/null)"
+  awk -F'\t' -v MIN="$min" -v CUT="$cutoff" '
+    {
+      # Column 4 holds every check that failed in one run, space separated.
+      n = split($4, terms, " ")
+      for (i = 1; i <= n; i++) {
+        t = terms[i]
+        if (t == "") continue
+        count[t]++
+        # Forced to strings: a date is compared as one, never as arithmetic.
+        if (($1 "") > (last[t] "")) last[t] = $1
+      }
+    }
+    END {
+      for (t in count) {
+        if (count[t] < MIN) continue
+        if (CUT != "" && (last[t] "") < (CUT "")) continue
+        printf "%d\t%s\t%s\n", count[t], t, last[t]
+      }
+    }
+  ' "$proj/memory/mistakes.log" 2>/dev/null | sort -rn
+}
+
+# Whether the lessons file holds a lesson about a check of this name.
+#
+# This was a substring search over the whole file, and the terms it is asked
+# about are gate check names that are also ordinary English words. `installed`
+# matched "executing the installed hooks by hand" and "cannot be uninstalled",
+# neither of which is a lesson about the `installed` check — so a check nobody
+# had written anything about read as one whose lesson was being ignored. The two
+# cases lead opposite ways: write the prose, versus stop writing prose because
+# it is not working and build the mechanism instead. Sending someone to build a
+# mechanism on the strength of a coincidence is the more expensive direction.
+#
+# A check named in prose is written as code, because that is what it is, and the
+# house style for that is backticks. That is what separates "`installed` check"
+# from "the installed hooks". Matching a following `-`, `_` or `.` means
+# `secret` finds `secret-scan`: a lesson about the scanner is a lesson about the
+# check that runs it.
+#
+# It can still be wrong, and the direction it is wrong in matters. An unquoted
+# mention of a real lesson reads as no lesson and asks for one to be written —
+# a duplicate paragraph. The old failure sent you to build machinery you did not
+# need. Prefer the cheap mistake.
+felix_mem_lesson_names() {
+  local proj="$1" term="$2" esc
+  [ -f "$proj/memory/lessons.md" ] || return 1
+  [ -n "$term" ] || return 1
+  esc="$(printf '%s' "$term" | sed 's/[][\.*^$(){}?+|\\/-]/\\&/g')"
+  grep -qE '`'"$esc"'([`._-]|$)' "$proj/memory/lessons.md" 2>/dev/null
 }
 
 # Terms recurring across distinct devlog entries and absent from the lessons.

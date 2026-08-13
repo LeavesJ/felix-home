@@ -104,15 +104,19 @@ EOF
   # is not working, and the answer is a mechanism or the constitution rather
   # than more prose nobody is reading.
   if command -v felix_mem_recurring_mistakes >/dev/null 2>&1; then
-    local cnt term
-    while IFS=$'\t' read -r cnt term; do
+    local cnt term last
+    while IFS=$'\t' read -r cnt term last; do
       [ -n "${term:-}" ] || continue
-      if grep -qi -- "$term" "$proj/memory/lessons.md" 2>/dev/null; then
+      # The date is not decoration. It is the only thing on the row that says
+      # whether this is a habit or a story, and it is what makes the claim
+      # falsifiable by anyone reading it.
+      if felix_mem_lesson_names "$proj" "$term"; then
         _felix_next_row 5 felix \
-          "the gate caught '$term' $cnt times and a lesson already says so — the lesson is not working" \
+          "the gate caught '$term' $cnt times, last $last, and a lesson already says so — the lesson is not working" \
           "it has outgrown lessons.md: put it where the gate can see it, or build the mechanism"
       else
-        _felix_next_row 5 felix "the gate caught '$term' $cnt times and no lesson mentions it" \
+        _felix_next_row 5 felix \
+          "the gate caught '$term' $cnt times, last $last, and no lesson mentions it" \
           "felix lesson \"...\" — what would change what someone does next time"
       fi
     done <<EOF

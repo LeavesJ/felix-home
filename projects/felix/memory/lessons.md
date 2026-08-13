@@ -396,3 +396,17 @@ with a record, not a substitute for running it.
   it to 42ms with identical behaviour. **In a hook, reach for a builtin before a
   binary** — and re-measure whenever the matcher widens, because widening
   changes both terms of the product.
+
+- **Escalating a mechanical stop is the recommender defect in prose.** Felix's
+  escape channels fire on a path, because a bash check cannot read intent —
+  that is correct and should stay conservative. Forwarding that refusal to the
+  founder as "your call" is not. Twice in one session an `execute` escape was
+  handed over untouched, and both times one command settled it: the new CI jobs
+  referenced no existing secret, and the two they named did not exist. The same
+  session had just fixed `felix promote` for computing a finding and printing
+  `felix lesson "..."`, and `felix install` for knowing the fix and printing
+  "bump the version" — then did exactly that in conversation, about its own
+  output. **A stop is a fact about merging, not a transfer of judgement.** Do
+  the analysis the channel cannot do, bring a recommendation, and leave the
+  founder a yes or no. Anything else raises founder interruptions per session,
+  which is the one number this project declared it was trying to lower.

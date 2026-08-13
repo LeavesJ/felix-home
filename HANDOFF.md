@@ -53,6 +53,25 @@ design its surfaces to be drivable by something that is not a human.
   Coupling is the usual tiebreaker: several agents editing one file invent
   conflicting assumptions. Genuinely separate files, separate repos, or
   independent adversarial review of finished work are real fan-out candidates.
+- **An escape stops the merge. It does not stop the session.** Noticed
+  2026-08-13, by the founder, about this session. `felix merge` refusing on an
+  `execute` or `verifier` channel is correct — the mechanical path fires on a
+  path because it cannot read intent. What followed was not: the escape was
+  forwarded verbatim as "the founder's call", twice, and both times a single
+  command settled it (the new jobs referenced zero existing secrets; the two
+  they did name do not exist). Same for the Stop-hook gap, deferred as needing a
+  decision and then answered in twenty minutes once asked.
+  **When a channel escalates, do the analysis and arrive with a recommendation.**
+  The founder's input should be a yes or no on a resolved question, never a
+  research task handed back. Reserve the open question for things that turn on
+  their preference or authority — which credit pool to spend, what gets built —
+  not for facts a command can establish.
+  This is the charter's own defect worn as prose. `felix promote` had the
+  finding and printed `felix lesson "..."`; `felix install` knew the fix and
+  printed "bump the version"; both were called defects and fixed this session by
+  the same session that was doing it in conversation. And it moves the declared
+  objective the wrong way: forwarding a mechanical stop *is* a founder
+  interruption, which is the number Felix exists to reduce.
 - **Ask about outcomes, never mechanics.** If a question is about how something
   is built rather than what will happen, answer it yourself.
 - **Override self-imposed ceilings.** Before saying something cannot be done,

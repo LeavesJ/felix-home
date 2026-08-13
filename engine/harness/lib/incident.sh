@@ -24,8 +24,18 @@
 # a brief blaming vendor code is worse than one that says it found nothing.
 felix_incident_paths() {
   local root="$1" text="$2"
+  # Backtick and asterisk join the split set. Issues are markdown, and a path in
+  # markdown is written `like this` — the one convention this repo uses in every
+  # file it holds. The candidate carried a backtick at each end, no stripping of
+  # leading components could ever find a file by that name, and the path was
+  # dropped in silence. Found by filing the first issues this repository has ever
+  # had: `felix brief` read one that named two files, reported one, and called
+  # the tier yellow when the file it dropped is red.
+  #
+  # Both are delimiters nobody puts in a repo path, which is the same argument
+  # the quotes, parens and angle brackets already here rest on.
   printf '%s' "$text" \
-    | tr ' \t"'"'"'(),[]<>' '\n\n\n\n\n\n\n\n\n\n\n' \
+    | tr ' \t"'"'"'(),[]<>`*' '\n\n\n\n\n\n\n\n\n\n\n\n\n' \
     | sed -E 's/:[0-9]+(:[0-9]+)?$//; s/,$//; s/^\.\///; s/^[+-]+//' \
     | grep -E '[/.][A-Za-z0-9_]' \
     | sort -u \
@@ -41,12 +51,20 @@ felix_incident_paths() {
         local probe="${cand#/}"
         while [ -n "$probe" ]; do
           if [ -f "$root/$probe" ]; then printf '%s\n' "$probe"; break; fi
-          # A path at the end of a sentence carries the full stop with it, and
+          # A path at the end of a clause carries the punctuation with it, and
           # that is how most people write one in an issue. Tried only after the
           # literal form fails, so this can resolve more and never fewer: a file
           # genuinely ending in a dot still wins on the line above.
-          if [ "${probe%.}" != "$probe" ] && [ -f "$root/${probe%.}" ]; then
-            printf '%s\n' "${probe%.}"; break
+          #
+          # A full stop was the only mark handled, because it was the only one
+          # anybody had hit. A colon introducing the offending file — "the
+          # failing file is src/thing.py:" — reads the same way to a person and
+          # resolved to nothing, and sed only removes a colon with a line number
+          # after it.
+          local trimmed="$probe"
+          while [ "${trimmed%[.,;:]}" != "$trimmed" ]; do trimmed="${trimmed%[.,;:]}"; done
+          if [ "$trimmed" != "$probe" ] && [ -f "$root/$trimmed" ]; then
+            printf '%s\n' "$trimmed"; break
           fi
           case "$probe" in
             */*) probe="${probe#*/}" ;;

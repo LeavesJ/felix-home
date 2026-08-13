@@ -2321,6 +2321,32 @@ has "including the second one"  \
     "$(_ip 'src/thing.py raises. Cover it in tests/test_thing.py.')" "tests/test_thing.py"
 is  "a path naming nothing real is still not invented" "$(_ip 'see docs/nope.py.')" ""
 
+# The same defect one convention along, and this one is how every issue is
+# actually written. A path in inline backticks resolved to nothing at all: the
+# splitter breaks on quotes, parens, brackets and angle brackets, and never on a
+# backtick, so the candidate carried one at each end and no amount of stripping
+# leading components could find a file by that name.
+#
+# Found by filing the first four issues this repository has ever had and running
+# `felix brief` on one. It reported a single file and tier yellow. The body also
+# named engine/harness/lib/resolve.sh, in backticks, which risk.tsv calls red
+# because it is sourced by the CLI and by every hook. So the miss did not read as
+# an omission — it read as a confident risk verdict, one tier low.
+#
+# Markdown emphasis is the same shape and gets the same treatment. Both are
+# delimiters nobody puts in a repo path, exactly like the quotes and brackets
+# already in the set, and adding them can only ever resolve more.
+has "a path in inline backticks resolves"   "$(_ip 'look at `src/thing.py` please')"     "src/thing.py"
+has "and one in a double-backtick span"     "$(_ip 'look at ``src/thing.py`` please')"   "src/thing.py"
+has "and one wrapped in bold"               "$(_ip 'look at **src/thing.py** please')"   "src/thing.py"
+has "backticks plus the punctuation after them" \
+    "$(_ip 'added in 52e7723, `tests/test_thing.py`).')"                                 "tests/test_thing.py"
+has "a trailing colon does not eat it"      "$(_ip 'the failing file is src/thing.py:')" "src/thing.py"
+has "nor a semicolon"                       "$(_ip 'src/thing.py; and then more')"       "src/thing.py"
+# The conservative half must survive all of that: still no inventing.
+is  "and a backticked path naming nothing is still not invented" \
+    "$(_ip 'see `docs/nope.py` there')" ""
+
 printf '\nwhat you are about to commit\n'
 # `felix evidence` told a session it owed a web test that the session had
 # literally just staged. Every reader of "what changed" tries

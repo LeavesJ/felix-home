@@ -2754,11 +2754,22 @@ _reset
 # A tool a route names but cannot reach breaks the session it is needed in, and
 # plugins bind at session start — so it can only be fixed between sessions.
 # That is the highest-leverage preventive row there is.
-printf 'doc\tpdf\tcore\tnot-installed-anywhere:tool\n' > "$NX/routes.tsv"
-printf 'plugin\tnot-installed-anywhere\t-\tlow\talways\n' > "$NX/stack.tsv"
-n="$(_next)"
+# felix_ready_report is stubbed rather than driven. Whether a tool is really
+# absent is ready.sh's own concern and it is tested there; here the question is
+# only whether felix_next ranks an absent one. Driving it for real asserted the
+# machine instead: with no claude CLI the honest answer is `unknown`, never
+# `absent`, so this passed on a laptop and failed on every runner.
+n="$( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+      . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+      . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/evidence.sh"
+      . "$FROOT/harness/lib/maintenance.sh"; . "$FROOT/harness/lib/stack.sh"
+      . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/ledger.sh"
+      . "$FROOT/harness/lib/coverage.sh"; . "$FROOT/harness/lib/deny.sh"
+      . "$FROOT/harness/lib/next.sh"
+      felix_ready_report() { printf 'absent\tnot-installed-anywhere:tool\tnot installed\n'; }
+      felix_next "$NX" "$FROOT" "$REPO" HEAD~1 )"
 has "a route naming an unreachable tool is ranked" "$n" "not-installed-anywhere"
-: > "$NX/routes.tsv"; : > "$NX/stack.tsv"
+has "and says it must be fixed before the next session" "$n" "bind at start"
 
 # Due upkeep appears, and below the blocking rows.
 printf 'ordinary again\n' > "$REPO/README.md"; _stage

@@ -106,9 +106,9 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.37.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.38.2**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **541 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **555 assertions**, 0 failed. `main` is pushed and
   **CI is green — checked, not assumed.** It had been red for at least two
   commits while this line claimed otherwise. Read `gh run list --branch main`
   before writing that sentence again.
@@ -150,6 +150,20 @@ is not masked at all.
   under review, because a clean result from a tree being edited means nothing.
   A *block* is always recorded wherever it ran, or the check becomes a way to
   lose bad news. Independence remains unverifiable and the output says so.
+- **`felix next` ranks the backlog, anchored on the objective.** Six commands
+  reported upkeep, drift, setup gaps, evidence, coverage and retirement and
+  none said which mattered. The order is: work Felix owes on the change in
+  hand; an escape (the number the objective counts, never buried); a tool a
+  route names and cannot reach (fixable only between sessions, since plugins
+  bind at start); upkeep; checks that are not checking; routing. It ranks and
+  does not act, and `next.sh` argues why rather than apologising.
+- **Felix's own upkeep had never been able to fire.** `maintenance.tsv`'s third
+  column takes `always` or a capability; Felix's used `-`, so all four routines
+  were dormant from birth and `felix maintenance` printed "Nothing due" —
+  identical to a well-kept repository. Found by `felix next` asking for due rows
+  and getting none from a project with four overdue. Now **4 due**;
+  `felix_maint_unreachable` guards it and the suite asserts no shipped row is
+  unreachable.
 - **A `declined` stance is now falsifiable.** `lifecycle.tsv` carries a fourth
   column, `holds`, naming the literal in `hooks.json` its reason rests on:
   `PreCompact` holds `compact`, `PostToolBatch` holds `"PostToolUse"`. Delete
@@ -302,14 +316,10 @@ it was fine".
 
 Everything above item 1 that used to be here is done. This list is what is left.
 
-1. **`felix next`.** Rank the engineering backlog Felix already tracks —
-   maintenance, drift, setup gaps, evidence gaps — and say what to do. Not
-   product work; that is the founder's.
-
-2. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
+1. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
    `recommend` and `which` print and bind nothing.
 
-3. **Auto-merge and the unattended switch.** Both unlock on five consecutive
+2. **Auto-merge and the unattended switch.** Both unlock on five consecutive
    green merges. Maintenance will not produce them: a well-kept repository
    yields about one real PR from a full sweep of due routines, which was
    measured rather than guessed. They come from real feature work.

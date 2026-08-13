@@ -103,9 +103,9 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.35.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.36.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **527 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **534 assertions**, 0 failed. `main` is pushed and
   **CI is green — checked, not assumed.** It had been red for at least two
   commits while this line claimed otherwise. Read `gh run list --branch main`
   before writing that sentence again.
@@ -133,6 +133,20 @@ is not masked at all.
   **What always stops:** a secret in added lines; `.github/workflows`; an
   enforcing table or a verifier losing checks; migrations or destructive SQL;
   money; a declared consumer. Nothing else.
+- **Several sessions at once is a supported case, and was checked rather than
+  assumed.** People keep multiple terminals on one checkout. Receipts are safe
+  by construction: `felix_tree_id` hashes every uncommitted byte, so a second
+  session's edit changes the identity and no verdict or gate receipt can be
+  inherited across it; the gate receipt is keyed on the root path and a review
+  verdict on project plus tree, so two worktrees of one project never collide.
+  The ledger was **not** safe and is now — `user-prompt`'s repo-derived fallback
+  key exists for announce dedup, where a shared key costs one missed
+  suggestion, and ledger data had been hung on it. No session id, no row.
+- **A reviewer's isolation is checked; its independence is not.** `felix review
+  --in <worktree>` refuses to record a *pass* that claims it ran in the tree
+  under review, because a clean result from a tree being edited means nothing.
+  A *block* is always recorded wherever it ran, or the check becomes a way to
+  lose bad news. Independence remains unverifiable and the output says so.
 - **A `declined` stance is now falsifiable.** `lifecycle.tsv` carries a fourth
   column, `holds`, naming the literal in `hooks.json` its reason rests on:
   `PreCompact` holds `compact`, `PostToolBatch` holds `"PostToolUse"`. Delete

@@ -65,6 +65,18 @@ design its surfaces to be drivable by something that is not a human.
   but its output is a proposal and may only narrow what mechanics already
   allowed.
 
+**The objective, declared 2026-08-12: founder interruptions per session.** Felix
+had no named objective, so every improvement was argued rather than measured. An
+interruption is a moment Felix needed a decision it could not make — an escape
+from `felix merge`, recorded as `escalated` in `says.log` at the moment it
+happens. Deliberately *not* an unrun gate or a missing test: those are Felix's
+own work, and counting them would let the number improve by gating less.
+Deliberately not gate pass rate either, for the same reason in sharper form — a
+gate you keep loosening passes more, so that metric moves the right way for the
+worst possible reason. (The `verifier` channel now detects loosening
+mechanically, which makes pass rate defensible as a *paired* number, but it
+still measures the gate rather than the work.)
+
 **What the monitor is for.** Witnessing Felix guide Claude Code, so the founder
 can stop caring about what it handles. It currently shows records — routes
 defined, verdicts, what Felix said — and never shows whether Claude *did* what
@@ -91,9 +103,9 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.32.1**, deployed and verified (`felix install` → "verified the
+- Engine **0.34.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **509 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **521 assertions**, 0 failed. `main` is pushed and
   **CI is green — checked, not assumed.** It had been red for at least two
   commits while this line claimed otherwise. Read `gh run list --branch main`
   before writing that sentence again.
@@ -318,6 +330,13 @@ Everything above item 1 that used to be here is done. This list is what is left.
   true --repo LeavesJ/Elenchus`. Felix will not flip it: the evidence that would
   justify it cannot be gathered without spending it, so the first real run wants
   someone watching.
+- **Exploration arm on capability mounting: not yet, revisit at 20 sessions.**
+  Decided 2026-08-12. Recording what the policy *named* shipped today and is
+  what makes future ledger data usable, so the retrofit problem is solved.
+  Exploration is the other half and it is not cheap the same way: it spends
+  degraded real work sessions to buy bits, and at roughly one session a day
+  against 2 recorded it buys almost nothing for a long time. Nothing is lost by
+  waiting. Revisit when the ledger holds 20 sessions.
 - **Auto-merge.** Elenchus is **1 of 5**: #4 merged green 2026-08-12, the first
   of the run. Before it, three merges ever — #1 unlabelled, #3 `risk-red`.
   Felix is 0 of 5. It unlocks itself after five

@@ -109,6 +109,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/deny.sh"
 # shellcheck source=lib/escape.sh
 . "${SCRIPT_DIR}/lib/escape.sh"
+# shellcheck source=lib/say.sh
+. "${SCRIPT_DIR}/lib/say.sh"
 # shellcheck source=lib/monitor.sh
 . "${SCRIPT_DIR}/lib/monitor.sh"
 # shellcheck source=lib/ready.sh
@@ -750,6 +752,21 @@ cmd_merge() {
     done <<EOF
 $blockers
 EOF
+    # The declared objective is founder interruptions per session, so the
+    # moments Felix could not decide have to be recorded where they happen.
+    # Counting them later out of a transcript is the parsing approach this
+    # project rejected twice; and a number nobody records is a number nobody
+    # moves. Only escapes count. An unrun gate or a missing test is Felix's own
+    # work, and counting those would let the figure improve by gating less.
+    if [ "$esc" -eq 1 ]; then
+      while IFS=$'\t' read -r kind subject reason; do
+        [ "${kind:-}" = "escape" ] || continue
+        felix_say "$proj" "escalated" "$subject: $reason" "felix merge" "" 2>/dev/null || true
+      done <<EOF
+$blockers
+EOF
+    fi
+
     if [ "$esc" -eq 1 ]; then
       printf '\nMerging this writes something outside the tree that a revert does not\n'
       printf 'reach, so it is the founder who decides. Show them the diff and the\n'

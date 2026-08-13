@@ -778,6 +778,36 @@ is  "and reports a clear merge without performing one" "$rc" "0"
 has "saying so plainly"                                "$out" "nothing escapes"
 _reset
 
+printf '\nthe one number Felix is trying to move\n'
+# Declared 2026-08-12: founder interruptions per session. You cannot optimise an
+# unnamed objective, and Felix had none — so every improvement was argued rather
+# than measured. Gate pass rate was rejected as the target because a gate you
+# keep loosening passes more, which makes the metric move the wrong way for the
+# worst possible reason.
+#
+# An interruption is a moment Felix needed a decision it could not make. It has
+# to be recorded where it happens; counting it later from a transcript is the
+# parsing approach this project already rejected twice.
+mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/950.sql"; _stage
+before="$(grep -c '	escalated	' "$FROOT/projects/widget/memory/says.log" 2>/dev/null || echo 0)"
+( cd "$REPO" && "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+after="$(grep -c '	escalated	' "$FROOT/projects/widget/memory/says.log" 2>/dev/null || echo 0)"
+[ "$after" -gt "$before" ] \
+  && ok "a merge stopped for the founder is recorded as one" \
+  || bad "a merge stopped for the founder is recorded as one" "says.log did not grow"
+has "and the record names the channel" \
+    "$(grep '	escalated	' "$FROOT/projects/widget/memory/says.log" | tail -1)" "durable"
+_reset
+
+# A blocker Felix can clear itself is not an interruption. Counting an unrun
+# gate as founder time would make the number improve by running the gate less.
+printf 'notes\n' > "$REPO/README.md"; _stage
+before="$(grep -c '	escalated	' "$FROOT/projects/widget/memory/says.log" 2>/dev/null || echo 0)"
+( cd "$REPO" && "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+after="$(grep -c '	escalated	' "$FROOT/projects/widget/memory/says.log" 2>/dev/null || echo 0)"
+is "an unverified tree is Felix's work, not an interruption" "$after" "$before"
+_reset
+
 printf '\nevidence policy\n'
 {
   printf 'unit\t^src/\t^tests?/\tcode changes need a test\n'

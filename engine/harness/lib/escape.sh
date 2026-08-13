@@ -27,6 +27,15 @@
 
 # Resolved from this file rather than from PWD, because escapes are computed
 # while standing in the governed checkout, never in the harness.
+# felix_changed_paths lives in resolve.sh, which every hook and the CLI source
+# first. Sourced here too rather than assumed: a lib whose helper is missing
+# returns an empty path list, which reads as "nothing changed" and silently
+# stops enforcing. That is the same shape as a test that is green because it
+# cannot reach the branch it names, and it cost 15 assertions to notice.
+if ! command -v felix_changed_paths >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null && pwd)/secret-scan"
 
 # Enforcing tables: the files that decide what stops. Shrinking one is the edit
@@ -126,8 +135,7 @@ felix_escapes() {
   local proj="$1" base="$2" root="$3" home="${4:-}"
   local paths added f tier kind pattern reason channel confine reviewed=""
 
-  paths="$(git -C "$root" diff --name-only "$base...HEAD" 2>/dev/null)"
-  [ -n "$paths" ] || paths="$(git -C "$root" diff --name-only "$base" 2>/dev/null)"
+  paths="$(felix_changed_paths "$root" "$base")"
   [ -n "$paths" ] || return 0
 
   added="$(git -C "$root" diff "$base...HEAD" 2>/dev/null | grep '^+' | grep -v '^+++' || true)"

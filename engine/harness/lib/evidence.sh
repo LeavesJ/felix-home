@@ -18,6 +18,15 @@
 #
 # evidence.tsv rows: name <TAB> when-regex <TAB> requires-regex <TAB> reason
 
+# felix_changed_paths lives in resolve.sh, which every hook and the CLI source
+# first. Sourced here too rather than assumed: a lib whose helper is missing
+# returns an empty path list, which reads as "nothing changed" and silently
+# stops enforcing. That is the same shape as a test that is green because it
+# cannot reach the branch it names, and it cost 15 assertions to notice.
+if ! command -v felix_changed_paths >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 _felix_evidence_rows() {
   local proj="$1"
   [ -f "$proj/evidence.tsv" ] || return 0
@@ -39,8 +48,7 @@ EOF
 felix_evidence_check() {
   local proj="$1" base="$2" root="$3"
   local paths
-  paths="$(git -C "$root" diff --name-only "$base...HEAD" 2>/dev/null)"
-  [ -n "$paths" ] || paths="$(git -C "$root" diff --name-only "$base" 2>/dev/null)"
+  paths="$(felix_changed_paths "$root" "$base")"
 
   while IFS=$'\t' read -r name when requires reason; do
     [ -n "${name:-}" ] || continue

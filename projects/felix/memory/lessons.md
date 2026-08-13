@@ -365,3 +365,20 @@ with a record, not a substitute for running it.
   correctly both times, because `SECRET_PATTERNS='<long string>'` and
   `SCAN_CREDENTIAL='...'` are each the `<keyword> = "..."` shape it exists to
   catch — a variable name in this file must avoid its own keyword list.
+
+- **"What changed" was four readers, and all four were blind to the index.**
+  `classify`, `evidence`, `escape` and `scope` each tried
+  `git diff --name-only base...HEAD` and fell back to `git diff base` *only when
+  that came back empty*. On a branch with commits — every pull request — the
+  first form is non-empty, so the fallback never ran and everything staged or
+  unstaged was dropped. `felix evidence` told a session it owed a web test the
+  session had just staged, and `felix_escapes` could not see a staged workflow
+  change or a staged credential at all: the merge gate, blind to exactly what
+  was about to be committed. It hid because **the shape that masks the bug is
+  the shape a fixture reaches for** — with no commits ahead, `base...HEAD` is
+  empty and the fallback covers everything, so every test passed. `lessons.sh`
+  had it right the whole time and nothing required the others to agree. One
+  `felix_changed_paths` now unions all three sources. And the libs source their
+  own dependency rather than assuming a caller did: the first fix broke 15
+  assertions into silence, because a lib whose helper is missing returns an
+  empty path list, which reads as "nothing changed" and stops enforcing.

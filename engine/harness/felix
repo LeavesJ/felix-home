@@ -1867,8 +1867,7 @@ $1"; shift ;;
   if [ -z "$(printf '%s' "$paths" | tr -d '[:space:]')" ]; then
     from_diff=1
     base="${base:-main}"
-    paths="$(git -C "$root" diff --name-only "$base...HEAD" 2>/dev/null)
-$(git -C "$root" diff --name-only 2>/dev/null)"
+    paths="$(felix_changed_paths "$root" "$base")"
   fi
   paths="$(printf '%s\n' "$paths" | grep -v '^$' | sort -u)"
   [ -n "$paths" ] || { printf 'No paths given and no changes found. Nothing to scope.\n'; return 0; }

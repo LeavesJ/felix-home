@@ -110,3 +110,30 @@ felix_resolve_project() {
   done
   return 1
 }
+
+# Every path this branch touches, including what is staged but not committed.
+#
+# One function because there were four, and they drifted in the same direction.
+# Each tried `git diff --name-only base...HEAD` and fell back to `git diff base`
+# only when that came back EMPTY — so on a branch with commits, which is every
+# pull request, the fallback never ran and everything staged or unstaged was
+# dropped. `felix evidence` told a session it owed a test the session had just
+# staged, and felix_escapes could not see a staged workflow change or a staged
+# credential at all.
+#
+# It hid because the shape that masks it is the shape a fixture reaches for: on
+# a branch with no commits yet, `base...HEAD` is empty and the fallback covers
+# everything. lessons.sh had this right and nothing required the others to agree.
+#
+# Three sources, unioned rather than fallen back through:
+#   base...HEAD   committed on this branch
+#   --cached      staged, about to be committed
+#   (bare)        edited, not yet staged
+felix_changed_paths() {
+  local root="$1" base="${2:-}"
+  {
+    [ -n "$base" ] && git -C "$root" diff --name-only "$base...HEAD" 2>/dev/null
+    git -C "$root" diff --name-only --cached 2>/dev/null
+    git -C "$root" diff --name-only 2>/dev/null
+  } | grep -v '^$' | LC_ALL=C sort -u
+}

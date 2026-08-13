@@ -22,6 +22,15 @@
 #   kind=path     extended regex matched against each changed path
 #   kind=content  extended regex matched against added lines only
 
+# felix_changed_paths lives in resolve.sh, which every hook and the CLI source
+# first. Sourced here too rather than assumed: a lib whose helper is missing
+# returns an empty path list, which reads as "nothing changed" and silently
+# stops enforcing. That is the same shape as a test that is green because it
+# cannot reach the branch it names, and it cost 15 assertions to notice.
+if ! command -v felix_changed_paths >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 FELIX_RISK_DEFAULT="yellow"
 
 _felix_risk_rows() {
@@ -38,8 +47,7 @@ _felix_tier_rank() {
 felix_classify_diff() {
   local proj="$1" base="$2" root="$3"
   local paths added
-  paths="$(git -C "$root" diff --name-only "$base...HEAD" 2>/dev/null)"
-  [ -n "$paths" ] || paths="$(git -C "$root" diff --name-only "$base" 2>/dev/null)"
+  paths="$(felix_changed_paths "$root" "$base")"
   # Added lines only. A removed secret is not a new exposure, and counting it as
   # one trains people to ignore the finding.
   added="$(git -C "$root" diff "$base...HEAD" 2>/dev/null | grep '^+' | grep -v '^+++' || true)"

@@ -55,6 +55,41 @@ _felix_meta_all() {
   esac
 }
 
+# The HEAD a session began at.
+#
+# Stop needs to tell "this session changed something" from "this tree happens to
+# be clean", and those come apart the instant anybody commits — which is what
+# you do at the end, so the sessions that finished properly were the ones never
+# asked to verify anything. Dirtiness cannot answer it; only a mark from the
+# start of the session can.
+#
+# Best effort throughout. No session id, no git, no writable home: no record,
+# and Stop falls back to its old behaviour rather than starting to block trees
+# it has nothing to say about.
+_felix_session_path() { printf '%s/state/session/%s' "$1" "$2"; }
+
+felix_session_mark() {
+  local home="$1" sid="$2" root="$3" head path
+  [ -n "$sid" ] && [ -n "$home" ] || return 0
+  head="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || return 0
+  [ -n "$head" ] || return 0
+  path="$(_felix_session_path "$home" "$sid")"
+  mkdir -p "$(dirname "$path")" 2>/dev/null || return 0
+  [ -f "$path" ] && return 0   # first mark wins; a compact must not reset it
+  printf '%s\n' "$head" > "$path" 2>/dev/null || true
+}
+
+# Did this session commit anything? Returns 1 when unknown, so the caller keeps
+# whatever it did before rather than treating ignorance as a change.
+felix_session_committed() {
+  local home="$1" sid="$2" root="$3" start now
+  [ -n "$sid" ] || return 1
+  start="$(cat "$(_felix_session_path "$home" "$sid")" 2>/dev/null)" || return 1
+  [ -n "$start" ] || return 1
+  now="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || return 1
+  [ -n "$now" ] && [ "$now" != "$start" ]
+}
+
 # Does this tree hold anything the gate has not seen committed?
 #
 # Excludes Felix's own bookkeeping for the same reason tree identity does: a

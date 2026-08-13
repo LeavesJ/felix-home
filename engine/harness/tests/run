@@ -1416,8 +1416,47 @@ _blocks() {
 _allows() { [ -z "$2" ] && ok "$1" || bad "$1" "expected silence, got [$2]"; }
 
 out="$(_stop "$GREPO")"; rc=$?
-_allows "clean tree stops silently" "$out"
-is      "and exits 0"               "$rc" "0"
+_allows "a session that changed nothing stops silently" "$out"
+is      "and exits 0"                                   "$rc" "0"
+
+# The guidebook states DEFINITION OF DONE absolutely: never declare a task
+# complete while a required deterministic verification step is failing. The hook
+# opened with a bare `felix_tree_dirty || exit 0`, so committing your work
+# skipped the check entirely — and committing is what you do at the end. Every
+# session that finished properly was the one never asked.
+#
+# "Dirty" was standing in for "this session changed something", and those come
+# apart the moment anybody commits. SessionStart now records the HEAD it saw, so
+# the two can be told apart.
+SESS='{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"dod-sess"}'
+# Laid by the real hook rather than hand-written, so the test exercises the
+# path that actually runs. UserPromptSubmit carries the session id;
+# SessionStart never reads its payload at all.
+_start_at() {
+  rm -f "$FROOT/state/session/dod-sess"
+  ( cd "$1" && printf '{"session_id":"dod-sess","prompt":"begin"}' \
+      | "$FROOT/harness/hooks/user-prompt" >/dev/null 2>&1 )
+}
+
+_start_at "$GREPO"
+out="$(_stop "$GREPO" "$SESS")"
+_allows "a recorded session that committed nothing is still silent" "$out"
+
+printf 'committed work\n' >> "$GREPO/WIDGET.txt"
+( cd "$GREPO" && git add -A >/dev/null 2>&1 \
+  && git -c user.name=t -c user.email=t@t commit -qm work >/dev/null 2>&1 )
+out="$(_stop "$GREPO" "$SESS")"
+_blocks "committing unverified work no longer skips the check" "$out"
+has     "and says the gate has not seen it"                    "$out" "gate"
+
+# Fail open when there is no record: a session that began before this shipped,
+# or one whose id could not be read, must not start blocking on a clean tree.
+out="$(_stop "$GREPO" "$EMPTY_JSON")"
+_allows "with no session record it behaves as before" "$out"
+rm -f "$FROOT/state/session/dod-sess"
+
+# Restore the fixture for the assertions below, which expect an unverified edit.
+( cd "$GREPO" && git reset -q --hard HEAD~1 )
 
 printf 'edited\n' >> "$GREPO/WIDGET.txt"
 out="$(_stop "$GREPO")"

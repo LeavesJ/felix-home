@@ -54,7 +54,17 @@ case "$raw" in
   *'"stop_hook_active"'*'true'*) exit 0 ;;
 esac
 
-felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR" || exit 0
+# A clean tree used to end the hook here, which meant committing your work
+# skipped the completion check entirely — and committing is what you do at the
+# end. "Dirty" was standing in for "this session changed something", and the two
+# come apart the moment anybody commits.
+#
+# So a clean tree is only silence when this session also committed nothing.
+# Unknown counts as unchanged: no session id, no mark, no git — the hook keeps
+# its old behaviour rather than starting to block trees it knows nothing about.
+if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR"; then
+  felix_session_committed "$FELIX_HOME_DIR" "${SID:-}" "$ROOT" || exit 0
+fi
 
 TID="$(felix_tree_id "$ROOT" "$FELIX_HOME_DIR")" || TID=""
 if [ -z "$TID" ]; then

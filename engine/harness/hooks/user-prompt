@@ -38,6 +38,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/shape.sh"
 . "${SCRIPT_DIR}/../lib/say.sh"
 . "${SCRIPT_DIR}/../lib/ledger.sh"
+. "${SCRIPT_DIR}/../lib/verify.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
@@ -57,6 +58,17 @@ transcript="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:
 sid_raw="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
 sid="$sid_raw"
 [ -n "$sid" ] || sid="repo-$(printf '%s' "$root" | tr -c 'a-zA-Z0-9' '-')"
+
+# The HEAD this session began at, recorded on the first prompt because
+# SessionStart never reads its payload and so has no session id to key on. The
+# first mark wins, so later prompts do not move it and a compact cannot reset
+# it. Stop needs this to tell work that was committed from a tree that merely
+# happens to be clean — before it existed, committing your work skipped the
+# completion check entirely, and committing is what you do at the end.
+#
+# Never checked. A session that cannot record this loses one completion check;
+# a session that cannot start loses everything.
+[ -n "$sid_raw" ] && felix_session_mark "$FELIX_HOME_DIR" "$sid_raw" "$root" 2>/dev/null || true
 
 # ------------------------------------------------------------------ route ----
 route_block=""

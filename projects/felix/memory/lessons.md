@@ -410,3 +410,27 @@ with a record, not a substitute for running it.
   the analysis the channel cannot do, bring a recommendation, and leave the
   founder a yes or no. Anything else raises founder interruptions per session,
   which is the one number this project declared it was trying to lower.
+
+- **An append-only log of failures has no way to say something was dealt with,
+  so its top row is permanent.** `mistakes.log` counted `installed` nine times
+  and `felix next` ranked it under "already cost time more than once" — the rank
+  its own comment calls the strongest promotion signal there is. All nine
+  predated the two mechanisms that address it. Nothing would ever have removed
+  the row, because a count over all history only goes up. A permanent entry at
+  the top rank is not a strong signal; it is the reason people stop reading the
+  list, and the list existing is what this project offers instead of five
+  reports nobody orders. **Separate the count from the claim.** "It has cost
+  time twice" is history and does not expire; "it is costing time" is about now
+  and needs a last-seen date, which also makes the row falsifiable by whoever
+  reads it. `felix_guard_unrecorded` already drew that line at the whole file
+  and nothing carried it down to the term.
+  The same finding had a second half. Whether a lesson existed was tested by
+  grepping the term against the whole lessons file, and these terms are gate
+  check names that are also ordinary English: `installed` matched "executing the
+  installed hooks by hand" and "cannot be uninstalled". The two branches advise
+  opposite things — write the prose, versus stop writing prose and build the
+  mechanism — so a coincidence sent you to build machinery for a lesson nobody
+  had written. **When a test can be wrong in both directions, pick the cheap
+  direction deliberately**: matching only a backticked name now reads an
+  unquoted real lesson as absent, which costs a duplicate paragraph, rather than
+  reading a stray word as present, which costs a mechanism.

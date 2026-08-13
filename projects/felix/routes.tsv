@@ -16,5 +16,11 @@ debug	broken failing crash traceback reproduce	core	superpowers:systematic-debug
 # win a tie. These say what kind of work it is, not what it is about.
 document	document xlsx pptx docx slide spreadsheet guidebook	core	anthropic-skills:pdf anthropic-skills:xlsx anthropic-skills:docx
 research	research investigat survey unrelated random parallel compar	core	superpowers:dispatching-parallel-agents superpowers:brainstorming
-review	review audit vulnerabilit injection	core	code-review semgrep superpowers:requesting-code-review
+review	review audit vulnerabilit injection secret credential	core	code-review semgrep superpowers:requesting-code-review
 build	build implement feature create	core	superpowers:brainstorming superpowers:writing-plans
+# Added 2026-08-13 from the misses, not from a guess about what work happens
+# here. `merge` was the fourth most common word in prompts no row understood,
+# and the top three above it were the project's own name and two pieces of
+# conversation. Shipping is most of what a session ends on and had no row at
+# all, so `code-review` was named by one route whose keywords nothing here says.
+ship	merge pull-request escape channel classify release	core	code-review superpowers:requesting-code-review superpowers:finishing-a-development-branch

@@ -453,3 +453,27 @@ with a record, not a substitute for running it.
   does not serve is `installed skipped`, the same verdict CI already gives when
   no plugin is installed; or let a merge accept a CI receipt for the same commit.
   The second is better, because it does not touch a verifier at all.
+  **Narrowed the same day by testing it: the constraint is the path, not the
+  branch.** `felix install` deploys from whatever branch is checked out in the
+  served directory, so a branch inside the main checkout gates green on
+  `installed` and merges. Do engine work there, not in a worktree.
+
+- **A reader that has never been given real input is not known to work, however
+  many tests it has.** `felix brief <n>` had a suite behind it and had never once
+  been handed an issue, because neither repository had ever had one. Four were
+  filed, and the first run found a defect no fixture had: **a path in inline
+  backticks resolved to nothing.** The splitter breaks on spaces, quotes, parens,
+  brackets and angle brackets and never on a backtick, so the candidate carried
+  one at each end and no stripping of leading components could match a file. The
+  fixtures all wrote paths in plain prose, which is not how anybody writes an
+  issue — issues are markdown, and in markdown a path is written `like this`, the
+  convention this repository uses in every file it holds.
+  **What makes it worth writing down is the shape of the failure, not the
+  character.** The dropped path was `engine/harness/lib/resolve.sh`, which
+  `risk.tsv` calls red. So `brief` did not report a missing file. It reported
+  **tier: yellow**, confidently, from the command whose entire job is to say how
+  dangerous a piece of work is. A reader that silently drops an input does not
+  degrade to "less information"; it degrades to a wrong answer with the same
+  presentation as a right one. When a component's fixtures are all written by the
+  people who wrote the component, the first real input is a test worth running
+  deliberately rather than waiting for.

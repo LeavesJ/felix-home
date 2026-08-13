@@ -279,3 +279,21 @@ with a record, not a substitute for running it.
   any refusal keyed on "already pushed" deadlocks it. Establish that a proposed
   guard is reachable in the real loop before writing it down as the mitigation
   that makes something else safe.
+
+- **Utilisation is not utility, and the ledger was punishing prevention.** The
+  capability ledger claimed a zero "has no alternative explanation: it was
+  mounted, it was in scope, and it was ignored every time." Three explanations
+  it could not distinguish: the session never recognised the need, which is a
+  routing defect charged to the capability; the capability works by presence and
+  is never invoked when it succeeds, which is every deterrent — a deny rule
+  nobody trips reads exactly like a deny rule nobody needs; and Felix itself
+  chose both what to mount and what to point at, so the log records the logging
+  policy. That last one is the recommender-bias shape and it is self-confirming:
+  it accumulates into something that looks like a dataset and is a mirror. The
+  half-fix is recording what the policy *named* beside what was reached for,
+  which is cheap because the naming was already computed and thrown away. The
+  unfixed half needs an exploration arm, and exploration costs real sessions.
+  **The general form: when a measurement is produced by the thing being
+  measured, write down the decision as well as the outcome, and do it before the
+  data exists rather than after.** The correction cost an hour today; a year of
+  that data would have been unusable and would not have looked it.

@@ -6,7 +6,7 @@ not a summary of intent.
 ## Where
 
 - branch: `main`
-- head: `2a7b76a feat(risk): a channel says what merging writes outside the tree`
+- head: `4f78ec0 fix(ledger): a zero measured Felix's own priors and called it evidence`
 - tree: `/Users/a14808/Documents/Felix`
 
 ## Uncommitted
@@ -14,20 +14,23 @@ not a summary of intent.
 ```
  M HANDOFF.md
  M projects/felix/memory/SESSION_HANDOFF.md
+ M projects/felix/memory/ledger.tsv
  M projects/felix/memory/lessons.md
+ M projects/felix/memory/routes.log
+ M projects/felix/memory/says.log
 ```
 
 ## Recent
 
 ```
+4f78ec0 2026-08-12 fix(ledger): a zero measured Felix's own priors and called it evidence
+2b07bf6 2026-08-12 docs(handoff): the boundary decisions, and the two that are half built
 2a7b76a 2026-08-12 feat(risk): a channel says what merging writes outside the tree
 33f2c15 2026-08-12 feat(merge): the rule saves nothing until Felix can press the button
 2b38d42 2026-08-12 feat(escape): a stop should name what a revert cannot reach
 a691980 2026-08-12 docs(handoff): PR #4 merged, declines are falsifiable, backlog renumbered
 2552533 2026-08-12 feat(coverage): a decline nobody rechecks is an excuse, not a stance
 69374b1 2026-08-11 docs(handoff): CI was red while this file said it was green
-13f5131 2026-08-11 fix(ready): the bundled fix landed one branch too late
-5abcaf8 2026-08-11 docs(handoff): the widening shipped, and what it cost to verify
 ```
 
 ## Next

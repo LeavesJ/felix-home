@@ -341,8 +341,14 @@ Everything above item 1 that used to be here is done. This list is what is left.
 Do not re-propose these without new information.
 
 - **Retiring capabilities by usage count.** Circular: loading a capability is
-  what causes it to be used. Only *absence* of use given presence is
-  unconfounded. See the ledger design.
+  what causes it to be used, so a high count can never justify mounting.
+  **Corrected 2026-08-12:** the second half of this entry used to say absence of
+  use given presence is *unconfounded*, and it is not. Felix decides what the
+  routes name, so a capability no route named was never in scope in a way any
+  session could act on — its zero measures Felix's priors. The ledger now
+  records `named` beside `calls`, and only `named>0, calls=0` proposes
+  retirement. Do not restore the stronger claim; it survived a month because it
+  was written in the file that decides what counts as evidence.
 - **Blacklisting words to silence hook-payload field names.** Banning `hook` to
   silence `hook_event_name` made "the stop hook is blocking" match nothing.
   Remove the structure, not the vocabulary.

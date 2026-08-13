@@ -27,28 +27,47 @@ fa389b5e-5d55-4839-948f-9bb096d0b1fa	2026-08-11	plugin	anthropic-skills	0
 0
 0
 0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	mcp	Claude_Browser	2	0
 0
 4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	mcp	ccd_session	1	0
 0
-4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	skill	superpowers:test-driven-development	1	1
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	skill	superpowers:test-driven-development	1	3
 4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	AskUserQuestion	2	0
 0
-4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	Bash	432	0
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	Bash	1044	0
 0
-4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	Edit	61	0
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	Edit	68	0
 0
-4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	Read	85	0
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	Read	112	0
 0
-4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	StructuredOutput	12	0
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	StructuredOutput	24	0
 0
-4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	Workflow	1	0
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	ToolSearch	1	0
 0
-4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	Write	2	0
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	Workflow	2	0
 0
-4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	named	superpowers:brainstorming	0	1
-4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	named	superpowers:requesting-code-review	0	1
-4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	named	superpowers:writing-plans	0	1
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	tool	Write	4	0
+0
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	named	superpowers:brainstorming	0	3
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	named	superpowers:requesting-code-review	0	2
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	named	superpowers:systematic-debugging	0	1
+4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	named	superpowers:writing-plans	0	3
 4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	marketplace	claude-plugins-official	0	0
 0
 4c96b238-7b5b-4ed4-9045-7e1936baac2c	2026-08-13	plugin	code-review@claude-plugins-official	0	0

@@ -1062,6 +1062,38 @@ for s in '    token: str = ""' \
     && ok "quiet on: ${s:0:34}" || bad "quiet on: $s" "false positive"
 done
 
+# An exclusion applied to the whole line defuses every credential on it. That
+# turned the scanner off with one word: a live AWS key on a line that also said
+# "example" exited 0, and a private key header wrapped in <pre> did too, because
+# the angle-bracket placeholder rule matched the markup. Reproduced against the
+# shipped scanner before it was changed.
+#
+# The split is by what the token actually claims. A context token says the LINE
+# is a lookup or a generator, so it is read whole-line. A value token says the
+# VALUE is fake, so it only counts inside the matched credential itself.
+# These fixtures are credential-shaped on purpose, and the fix means the excuses
+# in them no longer defuse the scanner — including when it reads this file. The
+# must_flag marker on each line is a CONTEXT exclusion, which is exactly what it
+# is for: the line is a fixture, not a literal.
+for s in 'aws_key = "AKIA2QQ7RJ4KLMNOPQRS"  # example' `: must_flag` \
+         '<pre>-----BEGIN RSA PRIVATE KEY-----</pre>' `: must_flag` \
+         'k = "sk-ant-api03-BBBBBBBBBBBBBBBBBBBB"  # ...' `: must_flag` \
+         'see the placeholder above: ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAA' `: must_flag`; do
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && bad "an excuse elsewhere on the line does not defuse: ${s:0:40}" "scanner passed it" \
+    || ok "an excuse elsewhere on the line does not defuse: ${s:0:40}"
+done
+# And the value-scoped exclusions must still work where they belong: inside the
+# matched value. Otherwise this fix just turns the scanner into the wolf-crier.
+for s in 'password = "<redacted>"' \
+         'key = "sk-ant-api03-xxxxxxxxxxxxxxxxxxxx"' \
+         'aws = "AKIAIOSFODNN7EXAMPLE"' \
+         'api_key = "placeholder-not-a-real-key"'; do
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && ok "still quiet when the value itself says so: ${s:0:38}" \
+    || bad "still quiet when the value itself says so: $s" "false positive"
+done
+
 # A new file has no previous version, so git diff cannot see it, and a fresh
 # file is where a key most often lands.
 SECREPO="$TMP/secrepo"; mkdir -p "$SECREPO"

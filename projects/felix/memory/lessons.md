@@ -349,3 +349,19 @@ with a record, not a substitute for running it.
   read it as ground truth. **Re-run a cell before editing it, and prefer a table
   that a command regenerates to one a person maintains.** The tell is that no
   entry ever gets worse without somebody deciding to write that down.
+
+- **An exclusion is a claim, and it has a scope.** `secret-scan` applied every
+  exclusion to the whole line, so one word anywhere on it defused every
+  credential on it: a live AWS key beside the word "example" exited 0, and a
+  private key header wrapped in `<pre>` did too, because the angle-bracket
+  placeholder rule matched the markup rather than the value. The split is by
+  what the token actually claims. **Context** — `os.environ`, `getenv`,
+  `secrets.token_urlsafe`, a fixture marker — says *this line is not a literal*,
+  and is honestly read whole-line. **Value** — `example`, `placeholder`,
+  `redacted`, `xxx`, `...`, `<…>` — says *this value is fake*, and can only be
+  read against the matched credential itself. "There is a placeholder somewhere
+  on this line" is not evidence about the twenty characters that look exactly
+  like a key. Two drafts of the fix then made the scanner flag its own source,
+  correctly both times, because `SECRET_PATTERNS='<long string>'` and
+  `SCAN_CREDENTIAL='...'` are each the `<keyword> = "..."` shape it exists to
+  catch — a variable name in this file must avoid its own keyword list.

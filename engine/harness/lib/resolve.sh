@@ -137,3 +137,33 @@ felix_changed_paths() {
     git -C "$root" diff --name-only 2>/dev/null
   } | grep -v '^$' | LC_ALL=C sort -u
 }
+
+# Every line this branch ADDS, including staged and unstaged ones.
+#
+# The companion to felix_changed_paths, and the half that was missed when that
+# landed: knowing a path changed is not knowing what the change says. A content
+# rule reading only `base...HEAD` names a staged file and then inspects the
+# version without the staged content in it.
+felix_added_lines() {
+  local root="$1" base="${2:-}"
+  {
+    [ -n "$base" ] && git -C "$root" diff "$base...HEAD" 2>/dev/null
+    git -C "$root" diff --cached 2>/dev/null
+    git -C "$root" diff 2>/dev/null
+  } | grep '^+' | grep -v '^+++'
+}
+
+# A file as it will be committed, not as it was last committed.
+#
+# The worktree copy when there is one, because that is what `git add -A` is
+# about to record; `git show <ref>:` only afterwards. Erring toward the worktree
+# errs toward seeing more, which is the safe direction for a check that decides
+# whether something stops.
+felix_file_at() {
+  local root="$1" ref="$2" path="$3"
+  if [ "$ref" = "HEAD" ] && [ -f "$root/$path" ]; then
+    cat "$root/$path" 2>/dev/null
+  else
+    git -C "$root" show "$ref:$path" 2>/dev/null
+  fi
+}

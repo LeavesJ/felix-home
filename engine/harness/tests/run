@@ -2307,6 +2307,43 @@ printf 'def test_a(): pass\n' > "$STG/tests/test_a.py"
 has "and staging the test closes the gap — the case that started this" "$(_sev)" "met"
 rm -f "$FROOT/projects/widget/evidence.tsv"
 
+printf '\nstaged content, not just staged names\n'
+# The path list was fixed; the CONTENT readers were not. felix_escapes still
+# read added lines from `base...HEAD` and read a file's current state with
+# `git show HEAD:`, so on a branch with commits a staged change was named but
+# never inspected. Half a fix reads exactly like a whole one from the outside.
+SC2="$TMP/stagedcontent"; mkdir -p "$SC2"
+( cd "$SC2" && git init -q -b main )
+SC2="$(cd "$SC2" && pwd -P)"
+printf 'widget\n' > "$SC2/.felix"
+mkdir -p "$SC2/projects/thing"
+{ printf '# tier\tkind\tpattern\treason\n'
+  printf 'red\tpath\t^secrets/\tsecret material\n'
+  printf 'red\tpath\t^auth/\tauthorization model\n'
+} > "$SC2/projects/thing/risk.tsv"
+printf 'notes\n' > "$SC2/a.md"
+( cd "$SC2" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
+SC2_BASE="$(git -C "$SC2" rev-parse HEAD)"
+printf 'more\n' >> "$SC2/a.md"
+( cd "$SC2" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm ahead >/dev/null 2>&1 )
+
+_sc() { ( cd "$SC2" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/verify.sh"
+          . "$FROOT/harness/lib/review.sh"; . "$FROOT/harness/lib/escape.sh"
+          felix_escapes "$FROOT/projects/widget" "$SC2_BASE" "$SC2" "$FROOT" ); }
+
+# Destructive SQL, staged. The path is seen now; the added LINES were not.
+printf 'DROP TABLE users;\n' >> "$SC2/a.md"
+( cd "$SC2" && git add a.md >/dev/null 2>&1 )
+has "staged destructive SQL still escapes as durable" "$(_sc)" "durable"
+( cd "$SC2" && git checkout -q -- a.md 2>/dev/null; git reset -q HEAD a.md 2>/dev/null; git checkout -q -- a.md 2>/dev/null )
+
+# A row removed from an enforcing table, staged. The verifier channel compares
+# against `git show HEAD:`, which cannot see the index.
+sed '/^red.path.\^auth/d' "$SC2/projects/thing/risk.tsv" > "$TMP/rt2" && mv "$TMP/rt2" "$SC2/projects/thing/risk.tsv"
+( cd "$SC2" && git add projects >/dev/null 2>&1 )
+has "a staged row removal still escapes as verifier" "$(_sc)" "verifier"
+( cd "$SC2" && git reset -q HEAD projects 2>/dev/null; git checkout -q -- projects 2>/dev/null )
+
 printf '\none tier for one table\n'
 # Two functions read risk.tsv and disagreed about the same path, and the table's
 # own header states the answer: "Anything matching no rule is yellow. Green must

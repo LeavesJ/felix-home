@@ -66,8 +66,10 @@ _felix_escape_confined() {
   local root="$1" base="$2" f="$3" confine="$4" hunk plus minus
   [ -n "$confine" ] && [ "$confine" != "-" ] || return 1
 
-  hunk="$(git -C "$root" diff -U0 "$base...HEAD" -- "$f" 2>/dev/null \
-          | grep -E '^[-+]' | grep -vE '^(\+\+\+|---)')"
+  hunk="$( { git -C "$root" diff -U0 "$base...HEAD" -- "$f" 2>/dev/null
+             git -C "$root" diff -U0 --cached -- "$f" 2>/dev/null
+             git -C "$root" diff -U0 -- "$f" 2>/dev/null
+           } | grep -E '^[-+]' | grep -vE '^(\+\+\+|---)')"
   [ -n "$hunk" ] || return 1
 
   # Any line outside the confine means the row fires.
@@ -100,7 +102,7 @@ _felix_escape_confined() {
 _felix_escape_fewer() {
   local root="$1" base="$2" f="$3" pattern="$4" before after
   before="$(git -C "$root" show "$base:$f" 2>/dev/null | grep -cE "$pattern")"
-  after="$( git -C "$root" show "HEAD:$f" 2>/dev/null | grep -cE "$pattern")"
+  after="$( felix_file_at "$root" HEAD "$f" | grep -cE "$pattern")"
   [ "${after:-0}" -lt "${before:-0}" ]
 }
 
@@ -117,7 +119,7 @@ _felix_escape_fewer() {
 # `consumers`, which added two keys and removed nothing. A genuine removal takes
 # its whole line with it and is still caught.
 _felix_escape_lines() {
-  git -C "$1" show "$2:$3" 2>/dev/null \
+  felix_file_at "$1" "$2" "$3" \
     | grep -vE '^[[:space:]]*(#|$)' \
     | sed -E 's/[[:space:]]*,[[:space:]]*$//' \
     | LC_ALL=C sort -u
@@ -138,7 +140,7 @@ felix_escapes() {
   paths="$(felix_changed_paths "$root" "$base")"
   [ -n "$paths" ] || return 0
 
-  added="$(git -C "$root" diff "$base...HEAD" 2>/dev/null | grep '^+' | grep -v '^+++' || true)"
+  added="$(felix_added_lines "$root" "$base")"
 
   # disclose. Already tuned against real false positives and already in the
   # gate, so this is the same verdict the gate reaches, not a second opinion.

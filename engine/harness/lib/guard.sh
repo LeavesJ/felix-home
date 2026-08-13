@@ -48,6 +48,34 @@ felix_guard_culprit() {
   done | head -1
 }
 
+# Whether a blocking message is Felix's own.
+#
+# The report that consumes this exists to name a hook belonging to ANOTHER
+# plugin, and it never checked. Felix's own Stop hook holds a chain until the
+# gate has seen the tree — working exactly as designed — and that block was
+# handed to the founder under the headline "and it was not Felix", attributed to
+# the felix plugin two lines below, with the remedy `felix quarantine felix`.
+# A report contradicting itself within four lines, whose advice is to switch off
+# the system that produced it. It fired twice in the session that fixed it.
+#
+# Two independent tests, because either alone misses. Felix's refusals name one
+# of its own commands or the variable that releases them, which no other
+# plugin's message would; and the culprit resolver already matches installed
+# plugin names against the text, so it answers `felix` when the prose does not.
+#
+# Failing toward "own" is the safe direction. A false positive costs one missed
+# report about another plugin; a false negative sends somebody to disable Felix.
+felix_guard_is_own() {
+  local msg="$1" hay
+  [ -n "$msg" ] || return 1
+  hay="$(printf '%s' "$msg" | tr '[:upper:]' '[:lower:]')"
+  case "$hay" in
+    *felix_allow_red*|*"felix gate"*|*"felix quarantine"*|*"felix which"*|\
+    *"felix merge"*|*"felix:"*) return 0 ;;
+  esac
+  [ "$(felix_guard_culprit "$msg" 2>/dev/null)" = "felix" ]
+}
+
 # ------------------------------------------------- a debt nobody recorded ---
 #
 # Felix has had `felix lesson` and `felix log` from the beginning, and having a

@@ -2047,6 +2047,23 @@ out="$(cd "$REPO" && "$FELIX" quarantine definitely-not-installed 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "quarantine refuses a plugin that is not here" \
                 || bad "quarantine refuses a plugin that is not here" "$out"
 
+# The report exists for ANOTHER plugin's hook, and it never checked. Felix's own
+# Stop hook holds a chain until the gate has seen the tree — working exactly as
+# designed — and that block came back to the founder under the headline "and it
+# was not Felix", attributed to the felix plugin two lines below, with the
+# remedy `felix quarantine felix`. A report that contradicts itself inside four
+# lines and then recommends switching off the system that produced it. Observed
+# live, not constructed: it fired twice in the session that fixed it.
+_isown() { ( . "$FROOT/harness/lib/guard.sh"; . "$FROOT/harness/lib/ready.sh"
+             felix_guard_is_own "$1" ) && printf yes || printf no; }
+is "Felix's own gate refusal is recognised as its own" \
+   "$(_isown 'The gate last ran at 2026-08-13T09:30:36Z, on a different tree. Run felix gate. Or set FELIX_ALLOW_RED=1.')" "yes"
+is "and so is a deny from its own PreToolUse" \
+   "$(_isown 'felix: this project forbids that command. See felix which.')" "yes"
+is "another plugin's refusal is not"  \
+   "$(_isown 'Not logged into Semgrep Guardian. Ask the guardian mcp to login.')" "no"
+is "and neither is an empty message"  "$(_isown '')" "no"
+
 printf '\ndiscovery runs on a cadence, not in front of a prompt\n'
 DH="$TMP/dhome"; mkdir -p "$DH/state/discover"
 DP="$FROOT/projects/widget"

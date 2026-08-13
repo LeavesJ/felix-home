@@ -32,10 +32,20 @@
 #   - Only `pass` clears. A missing verdict and a blocking verdict behave
 #     identically, so a reviewer that never ran cannot read as approval.
 #
-# What Felix cannot check, and must not imply it does: that the reviewer was
-# independent, that it ran in an isolated worktree, or that it executed anything
-# at all. It records the claim and who made it. Independence is a property of
-# how the review was dispatched, and nothing in a receipt can establish it.
+# Independence cannot be checked, and Felix must not imply it does: whether a
+# reviewer was genuinely at arm's length is a property of how it was dispatched,
+# and no receipt establishes it. Nor can Felix know that anything was executed.
+#
+# Isolation is different, and it is the half that has actually gone wrong. A
+# reviewer running the suite against the live tree while somebody keeps editing
+# reports false failures — recorded as a real incident in a governed project's
+# own lessons. So `where` is checked rather than merely stored: a **pass** that
+# claims it ran in the tree under review is refused as a recording, because a
+# clean result from the tree being edited is the one result that means nothing.
+#
+# A **block** is never refused for where it ran. A reviewer reporting a problem
+# from the wrong place is still reporting a problem, and discarding it would
+# turn the isolation check into a way of losing bad news.
 
 _felix_review_path() {
   # Keyed on project and tree so two projects, or two trees, never share one.
@@ -45,14 +55,30 @@ _felix_review_path() {
 # Write a verdict. Overwrites: the latest word on a tree is the one that counts,
 # and keeping a history here would invite reading the wrong row.
 felix_review_record() {
-  local home="$1" proj="$2" tid="$3" verdict="$4" by="${5:-unknown}" note="${6:-}" path
+  local home="$1" proj="$2" tid="$3" verdict="$4" by="${5:-unknown}" note="${6:-}"
+  local where="${7:-}" root="${8:-}" path here there
   [ -n "$tid" ] || return 1
   case "$verdict" in pass|block) ;; *) return 1 ;; esac
+
+  # The reviewed root is passed in rather than taken from PWD. A verdict can be
+  # recorded from anywhere — a wrapper, another worktree, a script — and reading
+  # the caller's cwd as "the tree under review" would make the check depend on
+  # where somebody happened to be standing.
+  #
+  # Both sides resolved before comparing, because two paths to one directory are
+  # one directory and a string compare passes a symlink straight through.
+  if [ "$verdict" = "pass" ] && [ -n "$where" ] && [ -n "$root" ]; then
+    here="$(cd "$where" 2>/dev/null && pwd -P)" || here="$where"
+    there="$(cd "$root" 2>/dev/null && pwd -P)" || there="$root"
+    [ "$here" = "$there" ] && return 1
+  fi
+
   path="$(_felix_review_path "$home" "$proj" "$tid")"
   mkdir -p "$(dirname "$path")" 2>/dev/null || return 1
-  printf '%s\t%s\t%s\t%s\t%s\n' "$tid" "$verdict" \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$tid" "$verdict" \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$by" \
     "$(printf '%s' "$note" | tr '\t\n' '  ' | cut -c1-300)" \
+    "${where:-unstated}" \
     > "$path" 2>/dev/null || return 1
 }
 

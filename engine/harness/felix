@@ -801,7 +801,7 @@ EOF
 
 cmd_review() {
   resolve_or_die
-  local proj="$PROJ" root verdict="" by="" note="" tid
+  local proj="$PROJ" root verdict="" by="" note="" where="" tid
   root="$(felix_repo_root "$PWD")"
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -809,6 +809,7 @@ cmd_review() {
       --block) verdict=block; shift ;;
       --by)    by="${2:-}";   shift 2 ;;
       --note)  note="${2:-}"; shift 2 ;;
+      --in)    where="${2:-}"; shift 2 ;;
       *) shift ;;
     esac
   done
@@ -817,8 +818,11 @@ cmd_review() {
 
   if [ -n "$verdict" ]; then
     [ -n "$by" ] || die "felix review --pass|--block needs --by <who reviewed it>"
-    felix_review_record "$FELIX_HOME_DIR" "$proj" "$tid" "$verdict" "$by" "$note" \
-      || die "could not write the verdict"
+    if ! felix_review_record "$FELIX_HOME_DIR" "$proj" "$tid" "$verdict" "$by" "$note" "$where" "$root"; then
+      [ "$verdict" = "pass" ] && [ -n "$where" ] \
+        && die "that pass says it ran in the tree under review. A reviewer running against the live tree while it is being edited reports results about neither, so this is refused rather than recorded. Run it in a separate worktree at this commit."
+      die "could not write the verdict"
+    fi
     printf 'recorded: %s by %s, for this tree only\n' "$verdict" "$by"
     [ "$verdict" = "pass" ] \
       && printf '\nThis clears the reviewed channel and nothing else. Any other escape\nstands, and the verdict dies the moment the tree changes.\n'

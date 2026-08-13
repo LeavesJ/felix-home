@@ -811,6 +811,33 @@ has "a blocking verdict does not clear it either" "$(_resc)" "reviewed"
   felix_review_record "$RVH" "$RVP" "$TID" pass reviewer-1 "ran it against real content" )
 is "a passing verdict for this exact tree clears it" "$(_resc)" ""
 
+# Independence cannot be checked. Isolation half can, and it is the half that
+# has actually gone wrong: a reviewer running pytest against the live tree while
+# somebody keeps editing reports false failures, which the governed project's
+# own lessons record as a real incident. So a pass claiming it ran in the tree
+# under review is refused as a recording, not merely doubted.
+( . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+  felix_review_record "$RVH" "$RVP" "$TID" pass reviewer-1 "ran here" "$REPO" "$REPO" ) 2>/dev/null
+rc=$?
+is "a pass claiming it ran in the reviewed tree is refused" "$rc" "1"
+has "and the earlier verdict is not replaced by it" \
+    "$( . "$FROOT/harness/lib/review.sh"; felix_review_verdict "$RVH" "$RVP" "$TID" )" "ran it against real content"
+
+( . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+  felix_review_record "$RVH" "$RVP" "$TID" pass reviewer-2 "ran elsewhere" "$TMP/some-other-worktree" "$REPO" )
+has "a pass from a separate worktree records the place it ran" \
+    "$( . "$FROOT/harness/lib/review.sh"; felix_review_verdict "$RVH" "$RVP" "$TID" )" "some-other-worktree"
+
+# A block is never refused for where it ran. A reviewer reporting a problem from
+# the wrong place is still reporting a problem, and discarding it would make the
+# isolation check a way to lose bad news.
+( . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+  felix_review_record "$RVH" "$RVP" "$TID" block reviewer-3 "found a contradiction" "$REPO" "$REPO" )
+rc=$?
+is "a block from the live tree is still recorded" "$rc" "0"
+( . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+  felix_review_record "$RVH" "$RVP" "$TID" pass reviewer-2 "ran elsewhere" "$TMP/some-other-worktree" "$REPO" )
+
 # The boundary that makes this safe to have at all. A reviewer verdict clears
 # the one channel with no mechanical test behind it and nothing else, so no
 # review can release a secret, run CI, or move a store.

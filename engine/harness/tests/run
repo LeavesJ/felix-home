@@ -2069,6 +2069,34 @@ has "a named capability carries its count"      "$led" "code-review	0	2"
 has "and one named once carries one"            "$led" "superpowers:brainstorming	0	1"
 has "while a tool that ran keeps its calls"     "$led" "tool	Bash	1"
 
+printf '\nscope could not see what the diff added\n'
+# `felix scope` is the unattended gate — red means a person decides. It asked
+# felix_incident_severity, which takes PATHS, so it could only ever apply path
+# rules. Both risk tables carry content rules (a credential in the added lines,
+# destructive SQL), and scope was blind to every one of them.
+#
+# So a diff adding a live key to a documentation file printed "In scope.
+# Reversible enough for an unattended attempt" and exited 0, while felix
+# classify called the same diff red. Reproduced before it was believed.
+SC="$TMP/scoperepo"; mkdir -p "$SC"
+( cd "$SC" && git init -q -b main )
+SC="$(cd "$SC" && pwd -P)"
+printf 'widget\n' > "$SC/.felix"; printf 'notes\n' > "$SC/a.md"
+( cd "$SC" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
+cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
+printf 'api_key = "sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQ"\n' >> "$SC/a.md"   # must_flag
+( cd "$SC" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm leak >/dev/null 2>&1 )
+
+out="$( cd "$SC" && "$FELIX" scope --base HEAD~1 2>&1 )"; rc=$?
+is  "a credential added to a green path is out of scope" "$rc" "3"
+has "and scope says which tier it reached"               "$out" "red"
+
+# Bare paths carry no diff, so content rules cannot be applied at all. It must
+# say so rather than report a tier that looks complete.
+out="$( cd "$SC" && "$FELIX" scope a.md 2>&1 )"; rc=$?
+is  "scoping a bare path still answers"      "$rc" "0"
+has "but admits it never read the changes"   "$out" "content"
+
 printf '\nthe line that does the work\n'
 # `felix merge` was shipped, deployed, written into the handoff as "Felix can
 # merge", and could never merge anything. `gh pr merge --repo <slug> --squash`

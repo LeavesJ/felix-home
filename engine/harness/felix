@@ -1863,8 +1863,9 @@ $1"; shift ;;
     esac
   done
   [ -f "$proj/risk.tsv" ] || die "project $(basename "$proj") declares no risk.tsv"
-  local root; root="$(felix_repo_root "$PWD")"
+  local root from_diff=0; root="$(felix_repo_root "$PWD")"
   if [ -z "$(printf '%s' "$paths" | tr -d '[:space:]')" ]; then
+    from_diff=1
     base="${base:-main}"
     paths="$(git -C "$root" diff --name-only "$base...HEAD" 2>/dev/null)
 $(git -C "$root" diff --name-only 2>/dev/null)"
@@ -1872,9 +1873,29 @@ $(git -C "$root" diff --name-only 2>/dev/null)"
   paths="$(printf '%s\n' "$paths" | grep -v '^$' | sort -u)"
   [ -n "$paths" ] || { printf 'No paths given and no changes found. Nothing to scope.\n'; return 0; }
 
-  local sev; sev="$(felix_incident_severity "$proj" "$paths")"
+  # From a diff, the full classifier — it reads content rules, and both shipped
+  # tables carry them. felix_incident_severity takes paths, so it could only
+  # ever apply path rules, and this gate said "in scope for unattended work"
+  # about a diff that added a live credential to a documentation file.
+  #
+  # From bare paths there is no diff to read, so content rules cannot be applied
+  # at all. That is stated rather than papered over: a tier computed from names
+  # alone is not the same answer, and printing it as though it were is how a
+  # gate gets trusted for something it never checked.
+  local sev partial=0
+  if [ "$from_diff" -eq 1 ]; then
+    sev="$(felix_classify_tier "$(felix_classify_diff "$proj" "$base" "$root")")"
+  else
+    sev="$(felix_incident_severity "$proj" "$paths")"
+    partial=1
+  fi
   printf 'paths:\n'; printf '%s\n' "$paths" | sed 's|^|  |'
   printf '\nhighest tier: %s\n\n' "$sev"
+  if [ "$partial" -eq 1 ]; then
+    printf 'Path rules only. No diff was given, so no content rule could run and a\n'
+    printf 'credential or destructive SQL in the changes would not be seen here.\n'
+    printf 'Scope a branch instead to get the whole answer.\n\n'
+  fi
 
   if [ "$sev" = "red" ]; then
     printf 'OUT OF SCOPE for unattended work.\n\n'

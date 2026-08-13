@@ -2666,6 +2666,40 @@ grep -q 'migration schema needs an index' "$MON2" \
         "$(grep -o '"kind":"old-shape"[^}]*' "$MON2" | head -1)"
   fi
 
+printf '\nwhether the delegation actually works\n'
+# The monitor showed every record Felix wrote and never once showed whether
+# Claude did the thing Felix named. Those are different claims, and only the
+# second one is evidence that any of this is worth running.
+#
+# The signal is recorded rather than parsed. `named` is what a route pointed at
+# and `calls` is what got reached for, both already in the ledger, so this is
+# arithmetic on committed rows and not a transcript reader.
+CM="$TMP/compliance"; mkdir -p "$CM/memory"
+cat > "$CM/memory/ledger.tsv" <<'EOF'
+s1	2026-08-01	plugin	followed@x	4	2
+s1	2026-08-01	plugin	ignored@x	0	3
+s1	2026-08-01	plugin	unnamed@x	7	0
+s2	2026-08-02	plugin	followed@x	1	1
+s2	2026-08-02	plugin	ignored@x	0	1
+EOF
+c="$( . "$FROOT/harness/lib/monitor.sh"; . "$FROOT/harness/lib/ledger.sh"
+      felix_monitor_compliance "$CM" )"
+has "a session reports what was named and what was followed" "$c" "s1	2026-08-01	2	1	1"
+has "and so does the next one"                               "$c" "s2	2026-08-02	2	1	1"
+case "$c" in
+  *unnamed*) bad "what no route named is not a compliance figure" "$c" ;;
+  *)         ok  "what no route named is not a compliance figure" ;;
+esac
+
+# A ledger written before the named column cannot answer this, and must say so
+# rather than reporting perfect compliance by counting nothing.
+cat > "$CM/memory/ledger.tsv" <<'EOF'
+s9	2026-07-01	plugin	old@x	0
+EOF
+c="$( . "$FROOT/harness/lib/monitor.sh"; . "$FROOT/harness/lib/ledger.sh"
+      felix_monitor_compliance "$CM" | tr -d '\n ' )"
+is "a ledger from before the column reports nothing at all" "$c" ""
+
 printf '\nthe monitor\n'
 # A hook's additionalContext reaches the model and never the terminal, so every
 # routing decision and every gate verdict happens behind glass. The monitor is
@@ -2680,6 +2714,16 @@ if [ -s "$MON" ]; then
   grep -q 'FELIX_DATA' "$MON" \
     && bad "the data marker is substituted" "marker still present" \
     || ok "the data marker is substituted"
+
+  # The panel that answers whether the delegation works has to be on the page
+  # and fed by the payload. A render function nothing calls is the same defect
+  # as a capability no route names.
+  grep -q '"compliance":' "$MON" \
+    && ok "the payload carries compliance" || bad "the payload carries compliance"
+  grep -q 'renderCompliance()' "$MON" \
+    && ok "and the page has a panel for it" || bad "and the page has a panel for it"
+  grep -q 'renderMem();renderCompliance()' "$MON" \
+    && ok "and paint actually calls it" || bad "and paint actually calls it"
   # No server and no network. A governance page that phones out is not one.
   if grep -qiE 'src="https?:|href="https?:|@import[[:space:]]+url\(http' "$MON"; then
     bad "self-contained, no external references"

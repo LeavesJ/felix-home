@@ -222,6 +222,11 @@ body{background:var(--void);color:var(--bone);font-family:var(--mono);font-size:
   <!-- right -->
   <div class="col">
     <section class="panel fixed">
+      <div class="ph"><span class="l">Felix <i>//</i> compliance</span><span class="r" id="cmpTag">—</span></div>
+      <div class="redact"></div>
+      <div class="body"><div id="cmp"></div></div>
+    </section>
+    <section class="panel fixed">
       <div class="ph"><span class="l">Felix <i>//</i> verification</span><span class="r" id="verTag">—</span></div>
       <div class="redact"></div>
       <div class="body"><div id="ver"></div></div>
@@ -414,6 +419,33 @@ function meter(label,val,pct,cls){
   const b=el('div','b'),f=el('div','f');f.style.width=Math.max(0,Math.min(100,pct))+'%';
   b.appendChild(f);m.appendChild(b);return m;
 }
+/* The only panel that speaks to whether any of this works.
+   Everything else here is a record of what Felix SAID. This is what the session
+   then DID: `named` is what a route pointed at, `followed` is what got reached
+   for. A route table nobody follows is an expensive way of talking to yourself,
+   and until this panel existed nothing could tell the difference. */
+function renderCompliance(){
+  const p=cur(),cl=p.compliance||[],box=clear(at('cmp'));
+  if(!cl.length){
+    at('cmpTag').textContent='no data';
+    box.appendChild(el('div','muted','Nothing recorded yet. A session has to route and then run before this can say anything, and a ledger written before Felix recorded what it named cannot answer it at all.'));
+    return;
+  }
+  const named=cl.reduce((n,c)=>n+c.named,0);
+  const followed=cl.reduce((n,c)=>n+c.followed,0);
+  const rate=named?Math.round(followed/named*100):0;
+  at('cmpTag').textContent=cl.length+(cl.length===1?' session':' sessions');
+  box.appendChild(meter('named and then used',named?rate+'%':'—',rate,
+                        rate>=70?'good':rate>=35?'warn':'bad'));
+  box.appendChild(meter('named, never reached for',String(named-followed),
+                        Math.min(100,(named-followed)*15),(named-followed)?'warn':'good'));
+  cl.slice(-6).reverse().forEach(c=>{
+    const r=el('div','kv');
+    r.appendChild(el('span',null,c.date));
+    r.appendChild(el('span',null,c.followed+'/'+c.named));
+    box.appendChild(r);
+  });
+}
 function renderVer(){
   const p=cur(),vl=p.verifyLog||[],rl=p.routeLog||[],box=clear(at('ver'));
   const passed=vl.filter(v=>v.verdict==='allowed').length;
@@ -467,7 +499,7 @@ function renderProjects(){
   D.projects.forEach((p,i)=>{const b=el('button','btn',p.name);
     b.setAttribute('aria-pressed',String(i===S.proj));b.dataset.p=String(i);box.appendChild(b);});
 }
-function paint(){renderProjects();renderTop();renderRoutes();renderMem();renderVer();renderLog();renderChat();pulse=1;}
+function paint(){renderProjects();renderTop();renderRoutes();renderMem();renderCompliance();renderVer();renderLog();renderChat();pulse=1;}
 document.addEventListener('click',e=>{const p=e.target.closest('.btn[data-p]');
   if(p){S.proj=Number(p.dataset.p);paint();}});
 

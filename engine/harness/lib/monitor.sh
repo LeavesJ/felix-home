@@ -165,11 +165,66 @@ _felix_mon_project() {
   printf ',"says":'
   _felix_mon_rows "$proj/memory/says.log" 60 _felix_mon_say_row
 
+  printf ',"compliance":['
+  first=1
+  local cs cd cn cf ci
+  while IFS=$'\t' read -r cs cd cn cf ci; do
+    [ -n "${cs:-}" ] || continue
+    [ "$first" -eq 1 ] || printf ','
+    first=0
+    printf '{"session":"%s","date":"%s","named":%s,"followed":%s,"ignored":%s}' \
+      "$(_felix_json_esc "$cs")" "$(_felix_json_esc "$cd")" "$cn" "$cf" "$ci"
+  done <<EOF
+$(felix_monitor_compliance "$proj")
+EOF
+  printf ']'
+
   printf ',"lessons":%s' "$(grep -c '^- \*\*' "$proj/memory/lessons.md" 2>/dev/null || printf 0)"
   printf '}'
 }
 
 # The whole state of the governance layer, as one JSON object.
+# Whether the session did what Felix named.
+#
+# Everything else this file renders is a record of what Felix *said*. This is
+# the only figure that speaks to whether any of it lands, which makes it the
+# one panel worth having: a route table nobody follows is an expensive way of
+# talking to yourself.
+#
+# Arithmetic on committed rows, never a transcript reader. `named` is what a
+# route pointed at, written by UserPromptSubmit at the moment it pointed;
+# `calls` is what got reached for, written by PostToolUse. Both were already in
+# the ledger and nothing had ever put them side by side.
+#
+# Emits: session <TAB> date <TAB> named <TAB> followed <TAB> ignored
+#
+# Rows with no `named` column are skipped entirely rather than counted as zero.
+# A ledger written before that column cannot answer this question, and counting
+# nothing would render as perfect compliance — the most flattering possible
+# reading of an absence, which is the one to refuse.
+felix_monitor_compliance() {
+  local proj="$1"
+  # Split, because `local a=$1 b=$a` expands every word before it assigns any of
+  # them, so the second reads an unbound name under set -u.
+  local f="$proj/memory/ledger.tsv"
+  [ -f "$f" ] || return 0
+  awk -F'\t' '
+    NF >= 6 && $6 != "" && $6 + 0 > 0 {
+      key = $1 SUBSEP $2
+      if (!(key in seen)) { seen[key] = 1; order[++n] = key; sess[key] = $1; day[key] = $2 }
+      named[key]++
+      if ($5 + 0 > 0) followed[key]++
+    }
+    END {
+      for (i = 1; i <= n; i++) {
+        k = order[i]
+        printf "%s\t%s\t%s\t%s\t%s\n", sess[k], day[k], named[k],
+               followed[k] + 0, named[k] - (followed[k] + 0)
+      }
+    }
+  ' "$f"
+}
+
 felix_monitor_json() {
   local home="$1" first=1 p
   printf '{"generated":"%s","home":"%s"' \

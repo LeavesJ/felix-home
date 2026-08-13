@@ -81,8 +81,11 @@ still measures the gate rather than the work.)
 can stop caring about what it handles. It currently shows records — routes
 defined, verdicts, what Felix said — and never shows whether Claude *did* what
 Felix named. The compliance signal already exists in `felix_route_due`, which
-reads the transcript to see whether a play step was used. Nothing surfaces it.
-That panel is the one that proves the delegation works.
+reads the transcript to see whether a play step was used. **Built 2026-08-12**,
+though not from that: the ledger's `named` beside `calls` is the same question
+answered from committed rows instead of a transcript, so the panel is arithmetic
+rather than a parser. It reports "no data" until sessions accumulate under the
+new column, and refuses to read an absence as compliance.
 
 ### Where the durable copies live
 
@@ -103,9 +106,9 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.36.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.37.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **534 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **541 assertions**, 0 failed. `main` is pushed and
   **CI is green — checked, not assumed.** It had been red for at least two
   commits while this line claimed otherwise. Read `gh run list --branch main`
   before writing that sentence again.
@@ -299,21 +302,14 @@ it was fine".
 
 Everything above item 1 that used to be here is done. This list is what is left.
 
-1. **The monitor's compliance panel.** `felix_route_due` already computes
-   whether a session used the tool Felix named; nothing surfaces it. This is
-   the panel that proves the delegation works rather than merely recording it,
-   and the founder now has real ledger data to look at. Also: archive sessions
-   clickable, which is a rendering change because `monitor.html` already groups
-   by session.
-
-2. **`felix next`.** Rank the engineering backlog Felix already tracks —
+1. **`felix next`.** Rank the engineering backlog Felix already tracks —
    maintenance, drift, setup gaps, evidence gaps — and say what to do. Not
    product work; that is the founder's.
 
-3. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
+2. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
    `recommend` and `which` print and bind nothing.
 
-4. **Auto-merge and the unattended switch.** Both unlock on five consecutive
+3. **Auto-merge and the unattended switch.** Both unlock on five consecutive
    green merges. Maintenance will not produce them: a well-kept repository
    yields about one real PR from a full sweep of due routines, which was
    measured rather than guessed. They come from real feature work.

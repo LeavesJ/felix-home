@@ -6,7 +6,7 @@ not a summary of intent.
 ## Where
 
 - branch: `main`
-- head: `5675518 feat(review): independence cannot be checked; isolation can, and it is the half that breaks`
+- head: `ec4e62b feat(monitor): the panel that says whether the delegation works`
 - tree: `/Users/a14808/Documents/Felix`
 
 ## Uncommitted
@@ -14,19 +14,21 @@ not a summary of intent.
 ```
  M HANDOFF.md
  M projects/felix/memory/SESSION_HANDOFF.md
+ M projects/felix/memory/routes.log
+ M projects/felix/memory/says.log
 ```
 
 ## Recent
 
 ```
+ec4e62b 2026-08-12 feat(monitor): the panel that says whether the delegation works
+e8be473 2026-08-12 docs(handoff): concurrent sessions checked, reviewer isolation enforced
 5675518 2026-08-12 feat(review): independence cannot be checked; isolation can, and it is the half that breaks
 af06e98 2026-08-12 fix(ledger): a fallback key meant for dedup was carrying ledger data
 827b8c4 2026-08-12 doctrine(invariant-2): the reviewed exception, named where the invariant lives
 e03bf96 2026-08-12 feat(review): the one surface no test can judge, and the one exception
 418d2fd 2026-08-12 feat(objective): founder interruptions per session, recorded where they happen
 1cf9c38 2026-08-12 docs(ledger): the rejected-approaches entry was half wrong, and it was the load-bearing half
-4f78ec0 2026-08-12 fix(ledger): a zero measured Felix's own priors and called it evidence
-2b07bf6 2026-08-12 docs(handoff): the boundary decisions, and the two that are half built
 ```
 
 ## Next

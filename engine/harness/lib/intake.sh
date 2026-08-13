@@ -86,7 +86,10 @@ $body")"
   printf 'files:\n'
   printf '%s\n' "$implicated" | sed 's|^|  |'
 
-  sev="green"
+  # No table means no rule matched anything, which is the unrecognised case and
+  # therefore the default tier — not green. Green is earned by an explicit
+  # pattern, and a project with no risk.tsv has written none.
+  sev="${FELIX_RISK_DEFAULT:-yellow}"
   [ -f "$proj/risk.tsv" ] && sev="$(felix_incident_severity "$proj" "$implicated")"
   printf 'tier:     %s\n' "$sev"
 

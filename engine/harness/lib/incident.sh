@@ -41,6 +41,13 @@ felix_incident_paths() {
         local probe="${cand#/}"
         while [ -n "$probe" ]; do
           if [ -f "$root/$probe" ]; then printf '%s\n' "$probe"; break; fi
+          # A path at the end of a sentence carries the full stop with it, and
+          # that is how most people write one in an issue. Tried only after the
+          # literal form fails, so this can resolve more and never fewer: a file
+          # genuinely ending in a dot still wins on the line above.
+          if [ "${probe%.}" != "$probe" ] && [ -f "$root/${probe%.}" ]; then
+            printf '%s\n' "${probe%.}"; break
+          fi
           case "$probe" in
             */*) probe="${probe#*/}" ;;
             *)   break ;;

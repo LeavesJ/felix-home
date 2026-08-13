@@ -2069,6 +2069,22 @@ has "a named capability carries its count"      "$led" "code-review	0	2"
 has "and one named once carries one"            "$led" "superpowers:brainstorming	0	1"
 has "while a tool that ran keeps its calls"     "$led" "tool	Bash	1"
 
+printf '\na path at the end of a sentence\n'
+# An issue says "cover it in tests/test_thing.py." and the trailing full stop
+# travels with the path. The extractor strips :line, a trailing comma, ./ and
+# leading +-, and never that — so the most ordinary way a person writes a path
+# in prose was the one way it did not resolve. `felix brief` silently listed one
+# of the two files an issue named, which reads as a complete answer.
+IP="$TMP/inc"; mkdir -p "$IP/src" "$IP/tests"
+: > "$IP/src/thing.py"; : > "$IP/tests/test_thing.py"
+_ip() { ( . "$FROOT/harness/lib/incident.sh"; felix_incident_paths "$IP" "$1" | tr '\n' ' ' ); }
+has "a path ending a sentence still resolves" "$(_ip 'fix it in tests/test_thing.py.')" "tests/test_thing.py"
+has "and both paths in one sentence are found" \
+    "$(_ip 'src/thing.py raises. Cover it in tests/test_thing.py.')" "src/thing.py"
+has "including the second one"  \
+    "$(_ip 'src/thing.py raises. Cover it in tests/test_thing.py.')" "tests/test_thing.py"
+is  "a path naming nothing real is still not invented" "$(_ip 'see docs/nope.py.')" ""
+
 printf '\none tier for one table\n'
 # Two functions read risk.tsv and disagreed about the same path, and the table's
 # own header states the answer: "Anything matching no rule is yellow. Green must

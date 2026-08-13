@@ -1930,15 +1930,37 @@ GP="$FROOT/projects/guarded"; mkdir -p "$GP/memory"
 out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
 is "silent when the gate has caught nothing" "${#out}" "0"
 
+# `felix_guard_unrecorded` asks whether the catch is newer than the lesson, so
+# these two files must have an order and not merely a sequence of writes. They
+# were written milliseconds apart and the assertion relied on the filesystem
+# resolving that — true on a laptop, and on the CI runner a coin toss that both
+# assertions lost the moment anything upstream shifted the timing. Adding tests
+# elsewhere in this file turned it red. The `sleep 1` below was the same problem
+# noticed once and paid for in wall-clock rather than fixed.
+#
+# So the order is stated. Every case sets the mtimes it depends on, which also
+# means the run is a second faster and neither case can be won by luck.
+GYDAY="$(date -v-1d +%Y%m%d%H%M 2>/dev/null || date -d '1 day ago' +%Y%m%d%H%M)"
 printf '2026-01-01\tmain\tabc123\tlint\n' > "$GP/memory/mistakes.log"
+touch -t "$GYDAY" "$GP/memory/lessons.md" "$GP/memory/DEVLOG.md" 2>/dev/null
 out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
 has "speaks when a catch went unexplained" "$out" "nothing has been written down"
 has "and names what was caught"            "$out" "lint"
 
-# Writing a lesson settles the debt; it must then go quiet.
-sleep 1; printf -- '- **something learned**\n' > "$GP/memory/lessons.md"
+# Writing a lesson settles the debt; it must then go quiet. The catch is aged a
+# day rather than the lesson being written a second later: still well inside the
+# seven days that keep it from being ancient history, and no longer a race.
+printf -- '- **something learned**\n' > "$GP/memory/lessons.md"
+touch -t "$GYDAY" "$GP/memory/mistakes.log" 2>/dev/null
 out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
 is "and stops once something is written" "${#out}" "0"
+
+# And the ordering itself is asserted, because a fixture that quietly stopped
+# setting mtimes would put the coin toss back with every case still passing on
+# the machine that wrote it.
+[ -n "$(find "$GP/memory/mistakes.log" -newer "$GP/memory/lessons.md" 2>/dev/null)" ] \
+  && bad "the fixture states which file is newer" "lesson is not newer than the catch" \
+  || ok  "the fixture states which file is newer"
 
 # An old debt is history, not something this session can explain.
 printf '2020-01-01\tmain\tabc\told\n' > "$GP/memory/mistakes.log"

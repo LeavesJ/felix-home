@@ -186,9 +186,14 @@ is not masked at all.
   **Corrected 2026-08-13:** `felix merge` could not merge at all until 0.42.0 —
   it built `gh pr merge --repo <slug> --squash` with no pull request named, and
   gh refuses that client-side. The refusal paths were all tested; the one line
-  that reaches gh was not. It has still never merged anything, and now there is
-  a reason rather than an absence of occasions. **It cannot be reached from a
-  worktree that changed the engine.** Merge wants a green gate receipt for that
+  that reaches gh was not.
+  **`felix merge` has now merged something — PR #6, 2026-08-13 — which is the
+  first time in its existence.** Output: `merged. nothing in it escaped the
+  tree.` Every previous session's claim that it had never merged anything was
+  true when written; it is not any more.
+  What made the difference is the second finding, and it is worth knowing before
+  the next engine change: **merge cannot be reached from a worktree, and the
+  constraint is the path rather than the branch.** Merge wants a green gate receipt for that
   exact tree; the gate's `installed` check compares the tree with the deployed
   cache; the marketplace is pinned to one directory, so a worktree's engine is
   never the served one and `installed` can never pass there. No receipt, no
@@ -198,6 +203,11 @@ is not masked at all.
   passed. Loosening the gate was available and deliberately not done; the two
   candidate fixes are in `lessons.md`, and the better one leaves the verifier
   alone.
+  **The workaround costs nothing and should be the default: do engine work on a
+  branch inside `/Users/a14808/Documents/Felix`, not in a worktree.** `felix
+  install` deploys from whatever branch is checked out in the served directory,
+  so `installed` passes, the receipt is real, and `felix merge` works — that is
+  exactly how PR #6 went in. Tracked as issue #2 with the evidence.
   **A side effect worth fixing with it.** Every gate run in such a worktree
   records `installed` in `mistakes.log`, because the gate writes a row for each
   check that failed and cannot know this one was never able to pass. This
@@ -333,12 +343,12 @@ wrong in nine places; do not edit a cell here without re-running its command.
 
 | Promised | Status | Evidence, as of the audit |
 |---|---|---|
-| take an issue | **partial** | `felix brief` works on prose naming existing files, and tier now agrees with `classify` 19/19. Three defects fixed 2026-08-13: a path ending a sentence did not resolve; an unmatched path reported green; no risk.tsv reported green. Two remain: an issue asking for a file to be **created** silently drops it (`incident.sh` only emits paths that exist), and the `gh` body fetch has no `\|\| die`, so a rate limit renders as a confident "no file it names exists". **Zero issues have ever existed in either repo**, so the `<n>` path has never had real input. |
+| take an issue | **yes, on real input at last** | **The `<n>` path had never had real input, and now has.** Four issues were filed 2026-08-13 — #2 to #5, the first this repository has ever held — and running `felix brief` on one immediately found a fifth defect: **a path in inline backticks resolved to nothing**, because the splitter breaks on quotes, parens and brackets and never on a backtick. Issues are markdown, so that is how every path in one is written. `brief 2` listed one of two files and said tier **yellow**; the file it dropped was `engine/harness/lib/resolve.sh`, which `risk.tsv` calls red. Not an omission — a confident risk verdict one tier low, from the command whose job is to say how dangerous work is. Fixed in 48d3f9f, with asterisk and the trailing `,;:` marks. `brief 2` now reports both files, tier red, and refuses to start; `brief 3` says it can scope nothing and declines to guess. Earlier fixes that hold: a path ending a sentence, an unmatched path reporting green, no risk.tsv reporting green. Still open: an issue asking for a file to be **created** is silently dropped (`incident.sh` only emits paths that exist), and the `gh` body fetch has no `\|\| die`, so a rate limit renders as a confident "no file it names exists". |
 | create code | **supervised only** | All 547 Elenchus commits carry the founder's identity. `unattended.yml` has run 3 times, every one skipped in under a second because `FELIX_UNATTENDED` is unset. No model has written code here unattended. |
 | run tests | **yes** | Elenchus `felix gate` → `1229 passed`, 32.8s. Felix → `577 passed`. |
 | deploy preview | **yes, smallest honest version** | A `preview` job stands the real app up on :8123 against the scripted fake model. Verified in CI 2026-08-13: "preview answered after 3s". Not a deploy a stranger can reach; it is a real app on a real port over real HTTP. |
 | test it | **yes** | `tests/test_preview.py`, marked `preview`, runs against that server in CI — **4 passed**, not skipped. Verified in all three states: skipped with no URL, FAILED against a dead port, passed against the real one. The two static suites no longer delegate their teeth to a manual habit. |
-| open PR | **yes, opening only** | PR bodies, base, branch, tier label and `--draft`-unless-green all verified. **Merging: no.** See the correction in §2. |
+| open PR | **yes, and merging too** | PR bodies, base, branch, tier label and `--draft`-unless-green all verified. **Merging: yes as of 2026-08-13** — `felix merge` merged PR #6, the first merge it has ever performed. Two things had to be true that never had been: the five risk labels had to exist (`felix pr` could not apply one on PR #1 because none had ever been created), and the work had to be on a branch in the served checkout rather than a worktree. Both in §2. |
 | report confidence | **partial** | Fixed 2026-08-13: `scope` used a path-only reader and was blind to content rules, so a diff adding a credential to a `.md` printed "In scope … unattended attempt" while `classify` called it red. `scope` now classifies the diff, and says so when given bare paths. `classify` still exits 0 on red while `scope` exits 3. |
 | DEFINITION OF DONE | **fixed 0.45.0** | A clean tree used to end the hook before the receipt was read, so committing your work — what you do at the end — skipped the check entirely. `UserPromptSubmit` now records the HEAD it first saw (SessionStart cannot: it never reads its payload), and Stop is silent on a clean tree only when the session also committed nothing. Unknown counts as unchanged, so a session with no mark behaves as before. |
 
@@ -451,6 +461,22 @@ working and the fix belongs where the gate can see it.
 - **Deploy, smoke tests, telemetry.** Three empty boxes in the guidebook loop
   that are product-stage facts rather than Felix gaps. Elenchus has no deploy
   target, so there is nothing to wire.
+
+## 5b. What is now tracked as an issue
+
+The repository held **zero issues for its whole life** until 2026-08-13. Four
+were filed so the open findings stop living only in this file, and so the
+`felix brief <n>` path finally had real input — which is how the backtick
+defect in §4 was found within a minute of the first one existing.
+
+| # | Label | What |
+|---|---|---|
+| [#2](https://github.com/LeavesJ/felix/issues/2) | `risk-red` `needs-architecture` | `felix merge` unreachable from a worktree. Workaround found and commented: work on a branch in the served checkout. Preferred fix accepts a CI receipt and touches no verifier. |
+| [#3](https://github.com/LeavesJ/felix/issues/3) | `risk-red` | A check that cannot pass still writes a `mistakes.log` row, so it manufactures the recurrence evidence that ranks it. `installed` went 9 → 11 during the session that fixed the recurrence report. |
+| [#4](https://github.com/LeavesJ/felix/issues/4) | `risk-yellow` | Three mounted plugins no keyword can reach, and `felix next` rank 6 advises fixing keywords. It should distinguish "no route matched" from "no route may name this at all". |
+| [#5](https://github.com/LeavesJ/felix/issues/5) | `needs-founder` | The auto-merge unlock cannot be earned by engine work, because `risk.tsv` calls it red by construction. Three defensible readings, none of them a patch. |
+
+Do not re-derive these here. If one is closed, say so in this table.
 
 ## 6. Open decisions
 

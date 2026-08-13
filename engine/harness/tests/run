@@ -2069,6 +2069,86 @@ has "a named capability carries its count"      "$led" "code-review	0	2"
 has "and one named once carries one"            "$led" "superpowers:brainstorming	0	1"
 has "while a tool that ran keeps its calls"     "$led" "tool	Bash	1"
 
+printf '\nthe line that does the work\n'
+# `felix merge` was shipped, deployed, written into the handoff as "Felix can
+# merge", and could never merge anything. `gh pr merge --repo <slug> --squash`
+# carries no PR selector, and gh rejects it client-side with "argument required
+# when using the --repo flag" before any network call.
+#
+# Every existing merge test asserted a refusal or a dry run, so the single line
+# that reaches gh was never executed by anything. Green suite, deployed engine,
+# dead command. Fourth time this project has paid for "a test can be green
+# because it cannot reach the branch it names".
+#
+# gh is stubbed here rather than called. The point is not that gh works; it is
+# that Felix hands it something it will accept, which is exactly the half no
+# test covered.
+GHB="$TMP/ghstub"; mkdir -p "$GHB"
+cat > "$GHB/gh" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$GHSTUB_LOG"
+case "$1 $2" in
+  "pr view") printf '{"number":7,"state":"OPEN"}\n' ;;
+  "pr merge")
+    # Reproduce gh's own precondition rather than trusting it: --repo demands a
+    # PR selector, and a selector is any bare argument after `merge`.
+    sel=0; skip=0
+    for a in "${@:3}"; do
+      [ "$skip" -eq 1 ] && { skip=0; continue; }
+      case "$a" in --repo|--body|--subject) skip=1 ;; --*) ;; *) sel=1 ;; esac
+    done
+    case " $* " in *" --repo "*) [ "$sel" -eq 1 ] || {
+        echo "argument required when using the --repo flag" >&2; exit 1; } ;;
+    esac
+    printf 'merged\n' ;;
+esac
+exit 0
+STUB
+chmod +x "$GHB/gh"
+
+# Its own checkout, because the main fixture is deliberately remote-less and
+# felix merge dies on "no github remote" long before it reaches gh.
+MR="$TMP/mergerepo"; mkdir -p "$MR"
+( cd "$MR" && git init -q -b main \
+  && git remote add origin https://github.com/example/widget.git )
+MR="$(cd "$MR" && pwd -P)"
+printf 'widget\n' > "$MR/.felix"; printf 'contents\n' > "$MR/WIDGET.txt"
+( cd "$MR" && git add -A >/dev/null 2>&1 \
+  && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
+printf 'a change to merge\n' > "$MR/README.md"
+( cd "$MR" && git add -A >/dev/null 2>&1 \
+  && git -c user.name=t -c user.email=t@t commit -qm c >/dev/null 2>&1 )
+
+export GHSTUB_LOG="$TMP/gh.log"; : > "$GHSTUB_LOG"
+( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+( cd "$MR" && PATH="$GHB:$PATH" "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+mg="$(grep '^pr merge' "$GHSTUB_LOG" | head -1)"
+[ -n "$mg" ] && ok "felix merge reaches gh at all" \
+             || bad "felix merge reaches gh at all" "gh was never invoked"
+# The assertion that would have caught it: a bare argument after `merge` that is
+# not the value of a flag. The naive version counted the value of --repo and
+# passed against the broken command, which is the same defect one level up.
+sel=0; skip=0
+for a in $mg; do
+  [ "$skip" -eq 1 ] && { skip=0; continue; }
+  case "$a" in
+    pr|merge) ;;
+    --repo|--body|--subject) skip=1 ;;
+    --*) ;;
+    *) sel=1 ;;
+  esac
+done
+[ "$sel" -eq 1 ] && ok "and hands it a pull request to merge" \
+                 || bad "and hands it a pull request to merge" "no selector in [$mg]"
+# And the stub reproduces gh's own refusal, so a regression fails loudly here
+# rather than only in somebody's terminal.
+printf 'pr merge --repo x/y --squash\n' > "$TMP/shape.probe"
+( PATH="$GHB:$PATH" GHSTUB_LOG=/dev/null gh pr merge --repo x/y --squash ) 2>/dev/null \
+  && bad "the stub refuses a selectorless merge the way gh does" "stub accepted it" \
+  || ok "the stub refuses a selectorless merge the way gh does"
+unset GHSTUB_LOG
+
 printf '\na path at the end of a sentence\n'
 # An issue says "cover it in tests/test_thing.py." and the trailing full stop
 # travels with the path. The extractor strips :line, a trailing comma, ./ and

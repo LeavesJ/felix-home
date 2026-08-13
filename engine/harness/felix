@@ -798,7 +798,15 @@ EOF
   # The remote is consulted last and only to perform the merge. Every reason to
   # refuse was computed above, offline, so this command says no the same way
   # with or without a network.
-  gh pr merge --repo "$slug" --squash || die "gh pr merge failed"
+  #
+  # The branch is the selector, and leaving it out is why this command could
+  # never merge anything: `gh pr merge --repo <slug>` with no pull request named
+  # is refused by gh itself, client-side, before any network call. It shipped
+  # that way because every test covered a refusal or a dry run, so the one line
+  # that reaches gh was never executed.
+  local branch; branch="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+  [ -n "$branch" ] && [ "$branch" != "HEAD" ] || die "cannot name the branch to merge"
+  gh pr merge "$branch" --repo "$slug" --squash || die "gh pr merge failed"
   printf 'merged. nothing in it escaped the tree.\n'
 }
 

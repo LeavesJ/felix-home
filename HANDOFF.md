@@ -87,6 +87,37 @@ answered from committed rows instead of a transcript, so the panel is arithmetic
 rather than a parser. It reports "no data" until sessions accumulate under the
 new column, and refuses to read an absence as compliance.
 
+### The shape Felix is growing into
+
+Named by the founder 2026-08-13. The middle is becoming strong; **both ends are
+missing**, and they are the ends that make it autonomous rather than assistive.
+
+| Stage a mature Felix needs | What exists today |
+|---|---|
+| INTENT | **absent.** Nothing initiates. Every session begins with a human prompt. |
+| PLAN | partial. `felix brief` scopes an issue and says what a fix must prove; routes name `superpowers:writing-plans`. Felix does not plan. |
+| CHOOSE EXECUTION SHAPE | `felix shape` — computes coupling, refuses the unsafe half, records the choice. |
+| ASSEMBLE CAPABILITIES | `stack.tsv`, `felix ready`, `felix toolbox`. Bounded: **cannot mount mid-session**, so it writes config the next session boots with. |
+| DISPATCH | **absent.** Felix names the tool; the session dispatches it. |
+| IMPLEMENT | the session. |
+| TEST | `felix gate`. |
+| DIAGNOSE | partial. `felix next` rank 5 reads `mistakes.log` and distinguishes "no lesson yet" from "the lesson is not working". |
+| REPAIR ↺ | `unattended.yml` — wired, and off. Never run for real. |
+| VERIFY | gate receipts keyed on tree identity, plus the `Stop` hook. |
+| REVIEW | `felix review` and the `reviewed` channel. Built 2026-08-13. |
+| SHIP | `felix pr`, `felix merge`. Merge only started working 2026-08-13. |
+| OBSERVE PRODUCTION | **absent.** Sentry is declared and unconfigured; nothing is deployed. |
+| REPAIR / LEARN | `lessons.md` matched into prompts, the ledger, `felix promote`, `felix next`. |
+
+Where Felix actually sits, in its own vocabulary: UNDERSTAND → ROUTE → CONFIGURE
+→ GUIDE EXECUTION → OBSERVE → VERIFY → CLASSIFY → PR/MERGE → REMEMBER.
+
+**The two gaps are not the same size.** *Autonomous initiation* is blocked on a
+design question nobody has answered — what may wake Felix, and on whose
+authority. *Production feedback* is blocked on a fact: nothing is deployed, so
+there is nothing to observe. The second unblocks itself the day there is a
+deploy target; the first will not unblock on its own.
+
 ### Where the durable copies live
 
 | What | File |

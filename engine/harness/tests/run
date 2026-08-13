@@ -1745,15 +1745,28 @@ has "a path you typed yourself still counts" "$toks" "worker"
 # table — above every word anybody typed. The router had been right the whole
 # time; the record of what it saw was not. Two tokenisers with one job is the
 # defect, so promote reads the router's.
+#
+# The fix is on the READ side, and the first version of it was not. Stripping the
+# keys on the way into the log as well broke `felix monitor`, whose route panel
+# extracts the sentence by looking for the literal `"prompt":` key — with it
+# gone the parser falls through and every new row renders as
+# `{ , "repair the queue worker"}` instead of the sentence. The log is a record
+# for a person to read; promote's requirement is satisfied entirely by
+# `_felix_route_words` on the way out, which also cleans rows written before any
+# of this. Asserted on both sides now, because asserting on one is what broke
+# the other.
 RLP="$TMP/routelog"; mkdir -p "$RLP/memory"
 ( . "$FROOT/harness/lib/route.sh"
-  felix_route_log "$RLP" "-" 0 '{"session_id":"s","prompt_id":"9f2","prompt":"repair the queue worker"}' )
+  felix_route_log "$RLP" "-" 0 '{"session_id":"s","transcript_path":"/home/u/migration-endpoint/a.jsonl","prompt_id":"9f2","prompt":"repair the queue worker"}' )
 logged="$(cut -f4 "$RLP/memory/routes.log")"
 has "what a miss records is what was typed" "$logged" "queue"
 case "$logged" in
-  *prompt_id*|*'"prompt"'*) bad "and not the envelope's own field names" "$logged" ;;
-  *)                        ok  "and not the envelope's own field names" ;;
+  *session_id*|*migration*) bad "and not the pairs the runtime owns" "$logged" ;;
+  *)                        ok  "and not the pairs the runtime owns" ;;
 esac
+rendered="$( . "$FROOT/harness/lib/monitor.sh"; _felix_mon_prompt "$logged" )"
+is "and the monitor still renders the sentence, not the JSON around it" \
+   "$rendered" "repair the queue worker"
 
 # Promote then counts those, through the same filter that scored them. A word the
 # router discards can never be a word the table is missing.
@@ -1772,6 +1785,30 @@ case "$p" in
   *would*|*help*) bad "nor filler the router already discards" "$p" ;;
   *)              ok  "nor filler the router already discards" ;;
 esac
+
+# A row can end mid-character. `cut -c1-160` is byte-oriented wherever the hook
+# actually runs — LANG is unset in that environment and LC_CTYPE is C — so when
+# byte 160 lands inside a multibyte character the log keeps half of it. Reading
+# that back through `sed -E` in the UTF-8 locale a Terminal has raises
+# "illegal byte sequence"; under `set -o pipefail` the whole pipeline returns 1,
+# promote returns nothing, and the caller printed "Nothing has missed often
+# enough to be worth a row yet." A crash reported as an all-clear, in the report
+# that exists to find what the routing table is missing — and worse in the
+# middle of a log, where the rows after the bad one vanish with no cue at all.
+#
+# Two independent defects, so two assertions: the pipeline must not care, and
+# the caller must not read emptiness as success.
+BADL="$TMP/badlocale"; mkdir -p "$BADL/memory"
+{ printf '2026-08-13T00:00:00Z\t-\t0\t{ ,"prompt":"repair the queue worker"}\n'
+  printf '2026-08-13T00:00:01Z\t-\t0\t{ ,"prompt":"repair the queue worker"}\n'
+  printf '2026-08-13T00:00:02Z\t-\t0\t{ ,"prompt":"stalled deploy \xe2\x80"}\n'
+  printf '2026-08-13T00:00:03Z\t-\t0\t{ ,"prompt":"repair the queue worker"}\n'
+} > "$BADL/memory/routes.log"
+bp="$( . "$FROOT/harness/lib/route.sh"
+       export LC_ALL=en_US.UTF-8
+       FELIX_ROUTE_PROMOTE_MIN=3 felix_route_promote "$BADL" 2>/dev/null )" && brc=0 || brc=$?
+is  "a half-written character does not fail the whole report" "$brc" "0"
+has "and the rows on both sides of it are still counted"      "$bp"  "queue"
 
 # The tree may corroborate, never outvote. Without a cap, a checkout carrying a
 # few hundred untracked path tokens drowns out the four words you typed.
@@ -1943,6 +1980,14 @@ is "silent when the gate has caught nothing" "${#out}" "0"
 GYDAY="$(date -v-1d +%Y%m%d%H%M 2>/dev/null || date -d '1 day ago' +%Y%m%d%H%M)"
 printf '2026-01-01\tmain\tabc123\tlint\n' > "$GP/memory/mistakes.log"
 touch -t "$GYDAY" "$GP/memory/lessons.md" "$GP/memory/DEVLOG.md" 2>/dev/null
+# Asserted here, where the ordering is load-bearing. This is the case that went
+# red on CI, and the guard reads exactly this comparison. The first version of
+# this assertion sat after the *second* case, where the ordering is reversed and
+# the fixture sets it explicitly anyway — so it guarded the mtime that never
+# mattered, and deleting the touch that did would have left the suite green.
+[ -n "$(find "$GP/memory/mistakes.log" -newer "$GP/memory/lessons.md" 2>/dev/null)" ] \
+  && ok  "the fixture puts the catch after the lesson" \
+  || bad "the fixture puts the catch after the lesson" "lesson is not older than the catch"
 out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
 has "speaks when a catch went unexplained" "$out" "nothing has been written down"
 has "and names what was caught"            "$out" "lint"
@@ -1955,12 +2000,18 @@ touch -t "$GYDAY" "$GP/memory/mistakes.log" 2>/dev/null
 out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
 is "and stops once something is written" "${#out}" "0"
 
-# And the ordering itself is asserted, because a fixture that quietly stopped
-# setting mtimes would put the coin toss back with every case still passing on
-# the machine that wrote it.
-[ -n "$(find "$GP/memory/mistakes.log" -newer "$GP/memory/lessons.md" 2>/dev/null)" ] \
-  && bad "the fixture states which file is newer" "lesson is not newer than the catch" \
-  || ok  "the fixture states which file is newer"
+# A devlog entry settles the debt too, and that half had no coverage at all: the
+# fixture left DEVLOG.md empty, the guard skips the clause unless the file is
+# non-empty, so the entire branch could be deleted with the suite still green.
+# Both directions asserted, or the quiet one proves nothing.
+printf '2026-01-01\tmain\tabc123\tlint\n' > "$GP/memory/mistakes.log"
+touch -t "$GYDAY" "$GP/memory/lessons.md" 2>/dev/null
+printf '## 2026-01-01 what happened and why\n' > "$GP/memory/DEVLOG.md"
+out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
+is "a devlog entry newer than the catch settles it too" "${#out}" "0"
+touch -t "$GYDAY" "$GP/memory/DEVLOG.md" 2>/dev/null
+out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
+has "and an older one does not" "$out" "nothing has been written down"
 
 # An old debt is history, not something this session can explain.
 printf '2020-01-01\tmain\tabc\told\n' > "$GP/memory/mistakes.log"
@@ -3167,11 +3218,19 @@ printf '\na local that reads a local\n'
 # lesson would not have caught this: the line reads correctly, and it was correct
 # in the only place it was ever looked at. That is this project's oldest failure
 # shape, so it goes where a check can see it instead.
-selfref="$( cd "$REAL_HARNESS/.." && python3 - <<'PY'
-import re, glob, os
-out = []
-for pat in ("harness/lib/*.sh", "harness/felix", "harness/hooks/*", "harness/tests/run"):
-    for f in glob.glob(pat):
+# The scanner lives in a file and takes its root as an argument, so the proof
+# that it can fail runs THE SCANNER. The first version of this asserted against a
+# retyped copy of the same regex — which meant breaking the real scanner left the
+# suite green while the proof went on passing, in the check whose entire purpose
+# is catching things that cannot fail. Found by an adversarial audit of this
+# file, which is the correct way to find it and an uncomfortable place for it to
+# have been.
+SR="$TMP/selfref.py"
+cat > "$SR" <<'PY'
+import re, glob, os, sys
+root, out = sys.argv[1], []
+for pat in sys.argv[2:]:
+    for f in glob.glob(os.path.join(root, pat)):
         if not os.path.isfile(f):
             continue
         for i, line in enumerate(open(f, encoding="utf-8", errors="replace"), 1):
@@ -3182,27 +3241,30 @@ for pat in ("harness/lib/*.sh", "harness/felix", "harness/hooks/*", "harness/tes
             for m in re.finditer(r'(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)=(\S*)', s[6:]):
                 for ref in re.findall(r'\$\{?([A-Za-z_][A-Za-z0-9_]*)', m.group(2)):
                     if ref in seen:
-                        out.append("%s:%d" % (f, i))
+                        out.append("%s:%d" % (os.path.basename(f), i))
                 seen.add(m.group(1))
 print(" ".join(sorted(set(out))))
 PY
-)"
+selfref="$(python3 "$SR" "$(cd "$REAL_HARNESS/.." && pwd)" \
+           "harness/lib/*.sh" "harness/felix" "harness/hooks/*" "harness/tests/run")"
 is "no local assignment reads one declared beside it" "$selfref" ""
-# And the check is shown catching the shape it exists for, because one that
-# cannot fail is not a check.
-caught="$( python3 - <<'PY'
-import re
-s = 'local proj="$1" log="$proj/memory/routes.log"'.strip()[6:]
-seen, hit = set(), 0
-for m in re.finditer(r'(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)=(\S*)', s):
-    for ref in re.findall(r'\$\{?([A-Za-z_][A-Za-z0-9_]*)', m.group(2)):
-        if ref in seen:
-            hit = 1
-    seen.add(m.group(1))
-print(hit)
-PY
-)"
-is "and it catches the line that started this" "$caught" "1"
+
+# The same scanner, against a planted instance of the exact shape. If somebody
+# breaks the scanner, this goes red too — which is the property the retyped copy
+# did not have.
+#
+# Assembled rather than written out, because this file is one of the roots the
+# scanner sweeps: a heredoc containing the literal bad line makes tests/run
+# itself a hit, and the check reports a defect it planted. The fixture holds the
+# shape; this file never contains it.
+SRF="$TMP/selfreffix/harness/lib"; mkdir -p "$SRF"
+{ printf 'demo() {\n'
+  printf '  local proj="%s1" log="%sproj/memory/routes.log"\n' '$' '$'
+  printf '  printf "%%s" "%slog"\n' '$'
+  printf '}\n'
+} > "$SRF/planted.sh"
+planted="$(python3 "$SR" "$TMP/selfreffix" "harness/lib/*.sh")"
+has "and the same scanner catches a planted one" "$planted" "planted.sh"
 
 printf '\na lesson that is not working\n'
 # `felix promote` knew the gate had caught the same check eight times and then
@@ -3275,6 +3337,37 @@ case "$(printf '%s\n' "$n" | grep drifting)" in
   *"felix lesson"*) ok  "a passing mention is not a lesson about the check" ;;
   *)                bad "a passing mention is not a lesson about the check" "$n" ;;
 esac
+
+# A check name is usually written as the head of a path, because that is what it
+# is — `tests/run`, `memory/verification.log`. The follow-class allowed a
+# backtick, dot, underscore or hyphen after the term and not a slash, so `tests`
+# and `memory`, two of Felix's own seven gate checks, read as "no lesson mentions
+# it" against a lessons file that discusses both at length. The advice that
+# follows is the opposite of the right one: write the prose, when the prose is
+# already there and something else is wrong.
+#
+# Asserted against the shipped lessons file as well as a fixture, because the
+# fixture is what missed it — every fixture path in this suite was written as a
+# bare filename, which is not how anyone writes one.
+LN="$TMP/lessonnames"; mkdir -p "$LN/memory"
+{ printf -- '- **On the suite.** `tests/run` computes its path from `$0`.\n'
+  printf -- '- **On records.** `memory/verification.log` is where a gate receipt lands.\n'
+} > "$LN/memory/lessons.md"
+_lname() { ( . "$FROOT/harness/lib/memory.sh"; felix_mem_lesson_names "$LN" "$1" ) && printf yes || printf no; }
+is "a check named as the head of a path is found"  "$(_lname tests)"  "yes"
+is "and so is the other one"                       "$(_lname memory)" "yes"
+is "a name nothing mentions is still not found"    "$(_lname secret)" "no"
+
+REALDIR="$(cd "$REAL_HARNESS/../.." && pwd)"
+if [ -f "$REALDIR/projects/felix/memory/lessons.md" ]; then
+  RL="$TMP/reallessons"; mkdir -p "$RL/memory"
+  cp "$REALDIR/projects/felix/memory/lessons.md" "$RL/memory/lessons.md"
+  _rname() { ( . "$FROOT/harness/lib/memory.sh"; felix_mem_lesson_names "$RL" "$1" ) && printf yes || printf no; }
+  # Only the names the shipped file demonstrably discusses, so this asserts the
+  # matcher rather than the prose. Both appear there inside backticks as paths.
+  is "and it holds against the shipped lessons file" "$(_rname tests)"  "yes"
+  is "for every gate check that file actually covers" "$(_rname memory)" "yes"
+fi
 
 # Nothing recurring is silence, not a reassurance.
 : > "$PM/memory/mistakes.log"

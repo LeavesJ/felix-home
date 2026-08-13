@@ -155,9 +155,16 @@ felix_mem_recurring_mistakes() {
 #
 # A check named in prose is written as code, because that is what it is, and the
 # house style for that is backticks. That is what separates "`installed` check"
-# from "the installed hooks". Matching a following `-`, `_` or `.` means
-# `secret` finds `secret-scan`: a lesson about the scanner is a lesson about the
-# check that runs it.
+# from "the installed hooks". Matching a following `-`, `_`, `.` or `/` means
+# `secret` finds `secret-scan` and `tests` finds `tests/run`: a lesson about the
+# file a check runs is a lesson about the check.
+#
+# The slash was missing at first, and it mattered more than the others, because
+# a check name is most often written as the head of a path. Two of Felix's own
+# seven gate checks — `tests` and `memory` — read as "no lesson mentions it"
+# against a lessons file that discusses `tests/run` and
+# `memory/verification.log` at length, and the advice that follows a false
+# negative here is to write prose that is already written.
 #
 # It can still be wrong, and the direction it is wrong in matters. An unquoted
 # mention of a real lesson reads as no lesson and asks for one to be written —
@@ -168,7 +175,7 @@ felix_mem_lesson_names() {
   [ -f "$proj/memory/lessons.md" ] || return 1
   [ -n "$term" ] || return 1
   esc="$(printf '%s' "$term" | sed 's/[][\.*^$(){}?+|\\/-]/\\&/g')"
-  grep -qE '`'"$esc"'([`._-]|$)' "$proj/memory/lessons.md" 2>/dev/null
+  grep -qE '`'"$esc"'([`._/-]|$)' "$proj/memory/lessons.md" 2>/dev/null
 }
 
 # Terms recurring across distinct devlog entries and absent from the lessons.

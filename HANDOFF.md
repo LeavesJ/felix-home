@@ -329,9 +329,23 @@ returns HTTP 400 and `felix setup` already says so. PR workflow yes on Elenchus,
 0 PRs ever on Felix. tests yes. Sentry **absent**, capability undeclared.
 Playwright installed and routed, **0 browser tests**. **Strix does not exist** —
 0 of 286 marketplace entries. basic audit **partial**: three gate checks are
-real, semgrep is wired into nothing, and `secret-scan`'s exclusions apply to the
-whole line, so a real key on a line containing "example" exits 0 — its own tests
-never place a credential beside an exclusion token.
+real and semgrep is wired into nothing.
+
+**Corrected 2026-08-13.** This row also said `secret-scan`'s exclusions apply to
+the whole line, so a real key beside the word "example" exits 0. That was fixed
+before the line was written and the line was never re-run. Re-checked by feeding
+the scanner four cases: an AWS-shaped access key assigned to a variable on a
+line whose trailing comment says "example config" exits 1; a private key header
+wrapped in `<pre>` exits 1; a password assigned an angle-bracket placeholder
+exits 0; and AWS's own documentation key exits 0, because there the exclusion
+token sits inside the credential rather than beside it. Context exclusions read
+whole-line and value exclusions read the matched credential, which is what the
+lesson in `lessons.md` already described.
+
+Written out longhand rather than quoted, because quoting the first case is what
+a scanner reading added lines is for: the first draft of this paragraph pasted
+the literal and the gate stopped the commit. Correct behaviour, and the cheapest
+possible demonstration that this row is now true.
 
 ## 4b. Playwright: assessed 2026-08-11, deliberately not adopted
 
@@ -477,10 +491,25 @@ working and the fix belongs where the gate can see it.
   holds, identical today and free to drift. `felix doctor` reports it. The stale
   `scripts/gate.sh` beside it was deleted 2026-08-10 after it caused a session
   to report green from a gate missing the `secret` check.
-- **`routes.log` is polluted.** Rows written before the envelope fix contain
-  `session_id`, `transcript_path` and every path component, so
-  `felix route --promote` ranks `users`, `claude` and `a14808` above real words.
-  New rows are clean. Either wait for clean misses to outnumber them or truncate.
+- **`routes.log` pollution: closed 2026-08-13, and "new rows are clean" was
+  false when it was written.** The envelope fix went into `felix_route_tokens`
+  and never into `felix_route_log`, which stripped the runtime's pairs but not
+  the JSON keys — so every miss recorded the literal words `prompt` and
+  `prompt_id`, and they were rows one and two of `felix route --promote`, above
+  every word anybody had typed. The row from the session that found this still
+  had them. Both now go through one `_felix_envelope_text`, applied on write and
+  again on read, so rows already on disk clean up without truncating anything.
+  Top misses after: `felix` 9, `continue` 7, `session` 5, `merge` 4.
+  `merge` was the only one naming a kind of work and now has a `ship` route.
+
+- **Three mounted plugins cannot be reached by any keyword, and `felix next`
+  gives the wrong advice about them.** `code-simplifier`, `security-guidance`
+  and `claude-plugins-official` show in the ledger as mounted-and-never-named,
+  and rank 6 says to fix the keywords in `routes.tsv`. No keyword can reach
+  them: they are among the 29 installed plugins matching no capability Felix
+  declares, so `felix toolbox` does not list them and no route may name them.
+  The fix is `felix adopt`, not a keyword — and whether those capabilities are
+  worth declaring is a real question, not a typo. Not done here.
 
 ---
 

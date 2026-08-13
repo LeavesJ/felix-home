@@ -50,18 +50,13 @@ for f in engine/harness/felix engine/harness/tests/run engine/harness/bin/secret
 done
 [ -z "$NOX" ] && pass executable || { fail executable; printf '    %s\n' $NOX; }
 
-# ------------------------------------------------------------- tests ---------
-if [ "${1:-}" = "--quick" ]; then
-  printf '  %-18s skipped (--quick)\n' tests
-elif ./engine/harness/tests/run >/tmp/felix-gate-tests.log 2>&1; then
-  pass tests
-  printf '                     %s\n' "$(tail -1 /tmp/felix-gate-tests.log)"
-else
-  fail tests
-  grep '^  FAIL' /tmp/felix-gate-tests.log | head -10 | sed 's/^/  /'
-  printf '                     full log: /tmp/felix-gate-tests.log\n'
-fi
-
+# Moved above `tests` on 2026-08-13. This check had failed 8 times, every one of
+# them discovered after a full suite run, because the loop is edit -> gate ->
+# find it never deployed -> bump -> install -> gate again. `felix next` surfaced
+# it as a lesson that was written down and kept being violated anyway, which is
+# the signal that prose was never the fix. Nothing is removed and nothing is
+# weakened: the same checks run, and the one that answers in a second now
+# answers before the one that takes minutes.
 # ------------------------------------------------------------- installed -----
 # Written is not installed. The lessons hook existed in the repository, passed
 # its tests, and was absent from the plugin cache, so it ran nowhere. A harness
@@ -94,6 +89,18 @@ if [ -n "$PLUG" ] && [ -d "$PLUG" ]; then
   fi
 else
   printf '  %-18s skipped (no plugin installed here)\n' installed
+fi
+
+# ------------------------------------------------------------- tests ---------
+if [ "${1:-}" = "--quick" ]; then
+  printf '  %-18s skipped (--quick)\n' tests
+elif ./engine/harness/tests/run >/tmp/felix-gate-tests.log 2>&1; then
+  pass tests
+  printf '                     %s\n' "$(tail -1 /tmp/felix-gate-tests.log)"
+else
+  fail tests
+  grep '^  FAIL' /tmp/felix-gate-tests.log | head -10 | sed 's/^/  /'
+  printf '                     full log: /tmp/felix-gate-tests.log\n'
 fi
 
 # ------------------------------------------------------------- secret --------

@@ -827,8 +827,9 @@ cmd_next() {
         2) printf '  yours to decide\n' ;;
         3) printf '  before the next session starts\n' ;;
         4) printf '  upkeep\n' ;;
-        5) printf '  a check that is not checking\n' ;;
-        6) printf '  routing\n' ;;
+        5) printf '  already cost time more than once\n' ;;
+        6) printf '  a check that is not checking\n' ;;
+        7) printf '  routing\n' ;;
       esac
       last="$rank"
     fi

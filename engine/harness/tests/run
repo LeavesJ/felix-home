@@ -2706,6 +2706,53 @@ u="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
       done )"
 is "no shipped upkeep row is unreachable" "$(printf '%s' "$u" | tr -d '\n ')" ""
 
+printf '\na lesson that is not working\n'
+# `felix promote` knew the gate had caught the same check eight times and then
+# asked a person to type `felix lesson "..."`. That is the defect the charter
+# names: it had the finding and handed back the work.
+#
+# Converting it does not mean writing the prose — a lesson is judgement and a
+# fabricated one pollutes the file that gets matched into every prompt. What is
+# mechanical is the distinction promote's own closing line draws and never acts
+# on: a recurrence with no lesson behind it needs one written, and a recurrence
+# that already HAS a lesson means the lesson is not working and the fix belongs
+# somewhere the gate can see.
+PM="$TMP/promoteproj"; mkdir -p "$PM/memory"
+printf '{"name":"promoteproj","gate":"true"}\n' > "$PM/project.json"
+{ printf '2026-08-01\tmain\taaa\tflaky \n'
+  printf '2026-08-02\tmain\tbbb\tflaky \n'
+  printf '2026-08-03\tmain\tccc\tuncovered \n'
+  printf '2026-08-04\tmain\tddd\tuncovered \n'
+} > "$PM/memory/mistakes.log"
+printf -- '- **Something about flaky things.** It was written down.\n' > "$PM/memory/lessons.md"
+
+_pnext() { ( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+             . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+             . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/evidence.sh"
+             . "$FROOT/harness/lib/maintenance.sh"; . "$FROOT/harness/lib/stack.sh"
+             . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/ledger.sh"
+             . "$FROOT/harness/lib/coverage.sh"; . "$FROOT/harness/lib/deny.sh"
+             . "$FROOT/harness/lib/memory.sh"; . "$FROOT/harness/lib/next.sh"
+             felix_next "$PM" "$FROOT" "$REPO" HEAD~1 ); }
+
+n="$(_pnext)"
+has "a recurrence with no lesson says to write one" "$n" "uncovered"
+has "and names the command that writes it"          "$n" "felix lesson"
+has "a recurrence that already has a lesson is different" "$n" "flaky"
+case "$(printf '%s\n' "$n" | grep flaky)" in
+  *"felix lesson"*) bad "and does not ask for a lesson that already exists" "$n" ;;
+  *)                ok  "and does not ask for a lesson that already exists" ;;
+esac
+has "it says the lesson is not working" "$(printf '%s\n' "$n" | grep flaky)" "not working"
+
+# Nothing recurring is silence, not a reassurance.
+: > "$PM/memory/mistakes.log"
+n="$(_pnext)"
+case "$n" in
+  *flaky*|*uncovered*) bad "no recurrence says nothing at all" "$n" ;;
+  *)                   ok  "no recurrence says nothing at all" ;;
+esac
+
 printf '\nwhat to do next\n'
 # Felix tracked maintenance, drift, setup gaps, evidence gaps and coverage in
 # five separate commands and never once said which of them mattered. A founder

@@ -15,9 +15,9 @@
 #      this can only be fixed BETWEEN sessions — it is the highest-leverage
 #      preventive row there is, and invisible until the turn it was needed.
 #   4  upkeep past its cadence.
-#   5  rot that will quietly mislead: a lifecycle moment with no stance, a deny
-#      rule too broad to enforce, a rival gate.
-#   6  routing gaps. Costs context in every session and points at routes.tsv.
+#   5  something that has already cost time more than once.
+#   6  rot that will quietly mislead: a deny rule too broad to enforce.
+#   7  routing gaps. Costs context in every session and points at routes.tsv.
 #
 # Emits: rank <TAB> owner <TAB> what <TAB> do
 # owner is `felix` or `founder`. Empty output means nothing is due.
@@ -92,28 +92,56 @@ $(felix_maint_status "$proj" 2>/dev/null)
 EOF
   fi
 
-  # 5 — rot that misleads. A stance nobody wrote and a rule that silently does
+  # 5 — what has already cost time twice.
+  #
+  # `felix promote` computed this and then asked a person to type
+  # `felix lesson "..."`, which is the charter's defect exactly: it had the
+  # finding and handed back the work. Writing the prose is not the conversion —
+  # a lesson is judgement and a fabricated one pollutes the file that gets
+  # matched into every prompt. What is mechanical is the distinction promote's
+  # own closing line draws and never acts on: a recurrence with no lesson behind
+  # it needs one written, and a recurrence that already HAS one means the lesson
+  # is not working, and the answer is a mechanism or the constitution rather
+  # than more prose nobody is reading.
+  if command -v felix_mem_recurring_mistakes >/dev/null 2>&1; then
+    local cnt term
+    while IFS=$'\t' read -r cnt term; do
+      [ -n "${term:-}" ] || continue
+      if grep -qi -- "$term" "$proj/memory/lessons.md" 2>/dev/null; then
+        _felix_next_row 5 felix \
+          "the gate caught '$term' $cnt times and a lesson already says so — the lesson is not working" \
+          "it has outgrown lessons.md: put it where the gate can see it, or build the mechanism"
+      else
+        _felix_next_row 5 felix "the gate caught '$term' $cnt times and no lesson mentions it" \
+          "felix lesson \"...\" — what would change what someone does next time"
+      fi
+    done <<EOF
+$(felix_mem_recurring_mistakes "$proj" 2>/dev/null)
+EOF
+  fi
+
+  # 6 — rot that misleads. A stance nobody wrote and a rule that silently does
   # nothing both read as "checked" from the outside, which is the failure this
   # project keeps having in different costumes.
   if command -v felix_deny_overbroad_rows >/dev/null 2>&1; then
     local t p r
     while IFS=$'\t' read -r t p r; do
       [ -n "${p:-}" ] || continue
-      _felix_next_row 5 felix "a deny rule for $t refuses everything and is skipped" \
+      _felix_next_row 6 felix "a deny rule for $t refuses everything and is skipped" \
         "narrow the pattern in $proj/deny.tsv, or drop the row"
     done <<EOF
 $(felix_deny_overbroad_rows "$proj" 2>/dev/null)
 EOF
   fi
 
-  # 6 — routing. Mounted, never pointed at. Not the same as "no route names it":
+  # 7 — routing. Mounted, never pointed at. Not the same as "no route names it":
   # the table may name it while its keywords never match the work anybody does,
   # which is the row worth finding. Weak while few sessions are recorded.
   if command -v felix_ledger_unrouted >/dev/null 2>&1; then
     local nm sessions
     while IFS=$'\t' read -r nm sessions; do
       [ -n "${nm:-}" ] || continue
-      _felix_next_row 6 felix "$nm is mounted and no route pointed at it in $sessions recorded session(s)" \
+      _felix_next_row 7 felix "$nm is mounted and no route pointed at it in $sessions recorded session(s)" \
         "check the keywords in $proj/routes.tsv match real work, or stop mounting it"
     done <<EOF
 $(felix_ledger_unrouted "$proj" 2>/dev/null)

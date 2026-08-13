@@ -3,3 +3,5 @@ api
 ci
 frontend
 llm
+observability
+security

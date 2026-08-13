@@ -11,3 +11,4 @@ ci-anthropic-key	Add ANTHROPIC_API_KEY so CI can run Claude unattended	ci	gh sec
 supabase-auth	Authenticate the Supabase MCP	database	claude mcp list 2>/dev/null | grep -i supabase | grep -q Connected
 sentry	Create a Sentry project and mount its MCP	observability	claude mcp list 2>/dev/null | grep -E "^sentry:" | grep -q Connected
 stripe	Restricted Stripe keys behind a billing broker	billing	false
+strix	Put STRIX_LLM and LLM_API_KEY in the repo secrets so the pentest job can run	security	gh secret list --repo LeavesJ/Elenchus 2>/dev/null | grep -q LLM_API_KEY

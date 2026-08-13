@@ -106,9 +106,9 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.45.0**, deployed and verified (`felix install` → "verified the
+- Engine **0.47.5**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **589 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **601 assertions**, 0 failed. `main` is pushed and
   **CI is green — checked, not assumed.** It had been red for at least two
   commits while this line claimed otherwise. Read `gh run list --branch main`
   before writing that sentence again.
@@ -168,6 +168,17 @@ is not masked at all.
   and getting none from a project with four overdue. Now **4 due**;
   `felix_maint_unreachable` guards it and the suite asserts no shipped row is
   unreachable.
+- **Felix's own latency, measured 2026-08-13 and then halved.** `PreToolUse` is
+  synchronous on every Bash/Edit/Write/Read/NotebookEdit/WebFetch call, so its
+  cost is the session's cost. It was recorded at 34ms when it bound Bash alone;
+  widening the matcher tripled the per-call cost to **105ms** and multiplied the
+  calls paying it, and nobody re-measured because the handoff still said 34.
+  Now **42ms** (Bash) / **37ms** (Read), by replacing process spawns with bash
+  builtins — parameter expansion instead of a four-process sed pipeline,
+  `[[ =~ ]]` instead of a grep per probe per rule, an upward walk for `.git`
+  instead of `git rev-parse`, and an early exit when no row names the tool.
+  **Re-measure whenever the matcher widens.** For scale: the full gate is
+  **89s**, so a single verification run costs more than Felix does all session.
 - **A `declined` stance is now falsifiable.** `lifecycle.tsv` carries a fourth
   column, `holds`, naming the literal in `hooks.json` its reason rests on:
   `PreCompact` holds `compact`, `PostToolBatch` holds `"PostToolUse"`. Delete

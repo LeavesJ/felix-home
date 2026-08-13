@@ -37,6 +37,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/route.sh"
 . "${SCRIPT_DIR}/../lib/shape.sh"
 . "${SCRIPT_DIR}/../lib/say.sh"
+. "${SCRIPT_DIR}/../lib/ledger.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
@@ -66,6 +67,14 @@ if [ -f "$PROJ/routes.tsv" ]; then
     r_name="$(printf '%s' "$best" | cut -f5)"
     r_play="$(printf '%s' "$best" | cut -f7)"
     felix_route_log "$PROJ" "$r_name" "$r_score" "$raw"
+
+    # The policy's decision, recorded beside the outcome the ledger already
+    # keeps. Without this a zero in the ledger cannot distinguish "Felix pointed
+    # at it and the session ignored it" from "Felix never pointed at it", and
+    # only the first is evidence about the capability. Recorded on every prompt
+    # that routes, whether or not the block is rendered: naming is what the
+    # policy did, and going quiet to avoid repeating itself is a display choice.
+    felix_ledger_note_named "$FELIX_HOME_DIR" "$sid" "$r_play" 2>/dev/null || true
 
     # Announce only on change. The session key comes from the payload; when it
     # cannot be read the repository stands in for it, which degrades the right

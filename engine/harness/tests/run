@@ -1845,12 +1845,12 @@ printf '\nreading the ledger, in the one direction that is honest\n'
 # declared as superpowers@marketplace and invoked as superpowers:brainstorming.
 LR="$TMP/ledgerread"; mkdir -p "$LR/memory"
 cat > "$LR/memory/ledger.tsv" <<'EOF'
-s1	2026-08-01	skill	superpowers:brainstorming	3
-s1	2026-08-01	plugin	playwright@x	0
-s1	2026-08-01	plugin	context7@x	0
-s2	2026-08-02	plugin	superpowers@x	0
-s2	2026-08-02	plugin	playwright@x	0
-s2	2026-08-02	mcp	context7	2
+s1	2026-08-01	skill	superpowers:brainstorming	3	1
+s1	2026-08-01	plugin	playwright@x	0	1
+s1	2026-08-01	plugin	context7@x	0	0
+s2	2026-08-02	plugin	superpowers@x	0	1
+s2	2026-08-02	plugin	playwright@x	0	1
+s2	2026-08-02	mcp	context7	2	0
 EOF
 sum="$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_summary "$LR" )"
 has "counts a package and its skill as one thing" "$sum" "superpowers	2	3"
@@ -1870,6 +1870,61 @@ esac
 # unused across two of them may simply not have come up yet.
 p="$( . "$FROOT/harness/lib/ledger.sh"; FELIX_LEDGER_MIN=5 felix_ledger_retire "$LR" | tr -d '\n ' )"
 is "and says nothing below the session threshold" "$p" ""
+
+printf '\nzero is not one number\n'
+# The design said a zero "has no alternative explanation: it was mounted, it was
+# in scope, and it was ignored every time." That is false, and the false half is
+# the half Felix controls. Felix decides what routes name. A capability no route
+# ever named was never in scope in any sense the session could act on, so its
+# zero measures Felix's own priors and retiring on it is a loop closing on
+# itself — the recommender-bias shape, where logged data confounded by the
+# logging policy looks like evidence for a year and is not.
+#
+# So the policy's decision is recorded next to the outcome. `named` is how many
+# times a route pointed at a capability; `calls` is how often it was reached
+# for. Two different zeros, and only one of them is about the capability.
+LN="$TMP/ledgernamed"; mkdir -p "$LN/memory"
+cat > "$LN/memory/ledger.tsv" <<'EOF'
+s1	2026-08-01	plugin	pointed-at@x	0	4
+s1	2026-08-01	plugin	never-named@x	0	0
+s2	2026-08-02	plugin	pointed-at@x	0	3
+s2	2026-08-02	plugin	never-named@x	0	0
+EOF
+p="$( . "$FROOT/harness/lib/ledger.sh"; FELIX_LEDGER_MIN=2 felix_ledger_retire "$LN" | tr '\n' ' ' )"
+has "retires what Felix pointed at and nobody reached for" "$p" "pointed-at"
+case "$p" in
+  *never-named*) bad "never retires what no route ever named" "$p" ;;
+  *)             ok  "never retires what no route ever named" ;;
+esac
+u="$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_unrouted "$LN" | tr '\n' ' ' )"
+has "reports it as a routing gap instead" "$u" "never-named"
+case "$u" in
+  *pointed-at*) bad "and not the one that was pointed at" "$u" ;;
+  *)            ok  "and not the one that was pointed at" ;;
+esac
+
+# Rows written before the column existed say nothing either way. Reading a
+# missing field as "named" would resurrect the overclaim in the one place
+# nobody would look for it: the data already on disk.
+LG="$TMP/ledgerlegacy"; mkdir -p "$LG/memory"
+printf 's1\t2026-08-01\tplugin\told-shape@x\t0\ns2\t2026-08-02\tplugin\told-shape@x\t0\n' \
+  > "$LG/memory/ledger.tsv"
+p="$( . "$FROOT/harness/lib/ledger.sh"; FELIX_LEDGER_MIN=2 felix_ledger_retire "$LG" | tr -d '\n ' )"
+is "a row from before the column proposes nothing" "$p" ""
+u="$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_unrouted "$LG" | tr -d '\n ' )"
+is "and is not a routing gap either; it is unknown" "$u" ""
+
+# And the recording end: what a route names is written down as it is named.
+LH2="$TMP/ledgernote"; mkdir -p "$LH2/projects/widget/memory"
+( . "$FROOT/harness/lib/ledger.sh"
+  felix_ledger_record "$LH2" sn "tool	Bash"
+  felix_ledger_note_named "$LH2" sn "superpowers:brainstorming code-review"
+  felix_ledger_note_named "$LH2" sn "code-review" )
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_rollup "$LH2/projects/widget" "$LH2" sn 2026-08-12 )
+led="$(cat "$LH2/projects/widget/memory/ledger.tsv")"
+has "a named capability carries its count"      "$led" "code-review	0	2"
+has "and one named once carries one"            "$led" "superpowers:brainstorming	0	1"
+has "while a tool that ran keeps its calls"     "$led" "tool	Bash	1"
 
 printf '\none rule for what a thing looks like\n'
 # There were two matchers and they drifted. One scored a marketplace blurb, the

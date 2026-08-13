@@ -913,7 +913,7 @@ EOF
 }
 
 cmd_ledger() {
-  resolve_or_die; local proj="$PROJ" name sessions calls n=0
+  resolve_or_die; local proj="$PROJ" name sessions calls named n=0
   local f="$proj/memory/ledger.tsv"
 
   if [ ! -f "$f" ]; then
@@ -926,10 +926,11 @@ cmd_ledger() {
 
   printf 'ledger for %s, %s session(s)\n\n' "$(basename "$proj")" \
     "$(cut -f1 "$f" | LC_ALL=C sort -u | grep -c . || echo 0)"
-  printf '  %-34s %-10s %s\n' CAPABILITY SESSIONS REACHED
-  while IFS=$'\t' read -r name sessions calls; do
+  printf '  %-34s %-10s %-9s %s\n' CAPABILITY SESSIONS NAMED REACHED
+  while IFS=$'\t' read -r name sessions calls named; do
     [ -n "${name:-}" ] || continue
-    printf '  %-34s %-10s %s\n' "$name" "$sessions" "$calls"
+    case "${named:--1}" in -1) named="?" ;; esac
+    printf '  %-34s %-10s %-9s %s\n' "$name" "$sessions" "$named" "$calls"
     n=$((n+1))
   done <<EOF
 $(felix_ledger_summary "$proj")
@@ -938,19 +939,38 @@ EOF
 
   local retire; retire="$(felix_ledger_retire "$proj")"
   if [ -n "$retire" ]; then
-    printf '\nmounted and never reached for, across %s or more sessions\n\n' "$FELIX_LEDGER_MIN"
-    printf '%s\n' "$retire" | while IFS=$'\t' read -r name sessions; do
+    printf '\npointed at and never reached for, across %s or more sessions\n\n' "$FELIX_LEDGER_MIN"
+    printf '%s\n' "$retire" | while IFS=$'\t' read -r name sessions named; do
       [ -n "${name:-}" ] || continue
-      printf '  %-34s %s sessions, 0 invocations\n' "$name" "$sessions"
+      printf '  %-34s %s sessions, named %s times, 0 invocations\n' "$name" "$sessions" "$named"
     done
     printf '\nThat is the one signal here worth acting on. Remove the row from\n'
     printf '%s/stack.tsv and any play that names it.\n' "$proj"
   fi
 
-  printf '\nOnly retiring is ever proposed. Loading a capability is what causes it\n'
-  printf 'to be used, so a high count cannot show anything earned its place; the\n'
-  printf 'absence of use while mounted is the only unconfounded direction. None of\n'
-  printf 'this measures whether the work was any good.\n'
+  local unrouted; unrouted="$(felix_ledger_unrouted "$proj")"
+  if [ -n "$unrouted" ]; then
+    printf '\nmounted, and no route has ever named it\n\n'
+    printf '%s\n' "$unrouted" | while IFS=$'\t' read -r name sessions; do
+      [ -n "${name:-}" ] || continue
+      printf '  %-34s %s sessions, never named\n' "$name" "$sessions"
+    done
+    printf '\nThis is a finding about %s/routes.tsv, not about these capabilities.\n' "$proj"
+    printf 'They cost context in every session and Felix has never once pointed at\n'
+    printf 'them, so their zero measures what Felix suggests rather than what they\n'
+    printf 'are worth. Retiring on it would be concluding they deserved to be\n'
+    printf 'ignored because they were ignored.\n'
+  fi
+
+  printf '\nOnly retiring is ever proposed, and only for what Felix pointed at.\n'
+  printf 'Loading a capability is what causes it to be used, so a high count\n'
+  printf 'cannot show anything earned its place.\n'
+  printf '\nTwo things this still cannot see, stated because a report that implies\n'
+  printf 'otherwise is worse than none. A capability whose value is keeping a\n'
+  printf 'session off a wrong path is never invoked when it works, so counting\n'
+  printf 'calls punishes prevention and nothing here observes that. And a gate\n'
+  printf 'verdict is one bit for a session holding dozens of decisions, so none of\n'
+  printf 'this says which capability earned it, or whether the work was any good.\n'
 }
 
 cmd_toolbox() {

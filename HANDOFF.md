@@ -106,9 +106,9 @@ is not masked at all.
 
 ## 2. State as of 2026-08-11
 
-- Engine **0.38.2**, deployed and verified (`felix install` → "verified the
+- Engine **0.39.0**, deployed and verified (`felix install` → "verified the
   installed engine matches this tree").
-- `felix gate` → **pass**. **555 assertions**, 0 failed. `main` is pushed and
+- `felix gate` → **pass**. **561 assertions**, 0 failed. `main` is pushed and
   **CI is green — checked, not assumed.** It had been red for at least two
   commits while this line claimed otherwise. Read `gh run list --branch main`
   before writing that sentence again.
@@ -314,15 +314,25 @@ it was fine".
 
 ## 5. Next, in leverage order
 
-Everything above item 1 that used to be here is done. This list is what is left.
+Everything that used to be above this is done. One item is left, and it is not
+one anybody can sit down and build.
 
-1. **Convert the pure recommenders.** `doctor`, `handoff`, `promote`,
-   `recommend` and `which` print and bind nothing.
+1. **Auto-merge and the unattended switch.** Elenchus is 1 of 5, Felix 0 of 5.
+   Both unlock on five consecutive green merges, and maintenance will not
+   produce them: a well-kept repository yields about one real PR from a full
+   sweep of due routines, measured rather than guessed. They come from real
+   feature work, so this advances as a side effect of building things.
 
-2. **Auto-merge and the unattended switch.** Both unlock on five consecutive
-   green merges. Maintenance will not produce them: a well-kept repository
-   yields about one real PR from a full sweep of due routines, which was
-   measured rather than guessed. They come from real feature work.
+**Closed 2026-08-13 — and the entry was wrong.** "Convert the pure recommenders:
+`doctor`, `handoff`, `promote`, `recommend`, `which`" misfiled three of five.
+`handoff` already writes `SESSION_HANDOFF.md`. `which` is a query with nothing
+to do. `recommend` deliberately installs nothing and the suite asserts it, which
+was a decision. `doctor` already acts through `--fix`. Only `promote` was pure:
+it computed that the gate had caught the same check eight times and then asked a
+person to type `felix lesson`. It is now rank 5 of `felix next`, carrying the
+distinction it always printed and never acted on — a recurrence with no lesson
+needs one written, and a recurrence that already has one means the lesson is not
+working and the fix belongs where the gate can see it.
 
 ### Explicitly not next, with reasons
 

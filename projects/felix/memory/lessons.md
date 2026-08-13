@@ -327,3 +327,14 @@ with a record, not a substitute for running it.
   even produce a finding** — `felix_maint_unreachable` is that check here, and
   it deliberately does not flag a real capability left undeclared, because that
   is a dormant row working as designed.
+
+- **A backlog entry is a claim, and it can be stale in the same way code is.**
+  "Convert the pure recommenders: `doctor`, `handoff`, `promote`, `recommend`,
+  `which`" misfiled three of five. `handoff` already wrote a file, `which` is a
+  query with nothing to do, and `recommend` deliberately installs nothing with a
+  suite assertion behind that decision. Building all five as written would have
+  broken a tested decision and added noise to two commands that were correct.
+  The entry was written once, months of sessions read it as a specification, and
+  nobody checked it against the commands. **Read the thing before implementing
+  the note about the thing** — the same discipline as reading a file before
+  editing it, applied to a plan.

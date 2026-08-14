@@ -133,7 +133,7 @@ fi
 
 # ---------------------------------------------------------------- lessons ----
 lesson_block=""
-LESSONS="$PROJ/memory/lessons.md"
+LESSONS="$(felix_mem_dir "$PROJ")/lessons.md"
 if [ -s "$LESSONS" ]; then
   matched="$(felix_lessons_for "$LESSONS" "$(felix_lessons_context "$root" "$raw")")"
   if [ -n "$matched" ]; then

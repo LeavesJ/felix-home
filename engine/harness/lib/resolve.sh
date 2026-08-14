@@ -25,10 +25,12 @@ EOF
   return 1
 }
 
-# Where Felix keeps writable state: projects, their doctrine, their memory.
+# Where Felix keeps writable state: projects and their doctrine. Not their
+# memory, which since 2026-08-14 lives outside any repository — see
+# felix_mem_root below for why that had to stop being the same directory.
 #
 # Separate from the engine because an installed plugin lives in a versioned cache
-# that is replaced wholesale on update. Writing project memory in there would
+# that is replaced wholesale on update. Writing project doctrine in there would
 # lose it on the next `claude plugin update`, silently, which is the worst way to
 # lose a lesson someone paid for.
 #
@@ -58,6 +60,44 @@ felix_home() {
       ;;
   esac
   printf '%s' "$HOME/.felix"
+}
+
+# Where project memory lives — and deliberately not under felix_home.
+#
+# Doctrine and memory were one directory tree until 2026-08-14, and that is what
+# made this repository unpublishable. Doctrine is the part worth showing and the
+# part the founder owns outright. Memory is not: it holds verbatim founder
+# prompts, and whatever a governed project's work happens to be about, which
+# includes material belonging to somebody who never agreed to be published. A
+# repository that stores every governed project's memory can never be public,
+# and left alone that cost is paid again by every project Felix adopts rather
+# than once.
+#
+# The root is computed from $HOME and never from felix_home, even though every
+# other writable thing Felix owns hangs off home. Derived from home it would sit
+# inside the repository in the one case that actually went wrong — Felix
+# governing itself, where home *is* the checkout. The invariant is worth more
+# than the symmetry: memory is outside a repository by construction, not by
+# whichever directory home resolved to today.
+#
+# A gitignore rule was the cheaper option and is not enough. It is one `git add
+# -f` from failing, it does nothing about a tree somebody clones or cleans, and
+# it leaves the material on disk inside the repository either way. Ignoring a
+# file is a statement about git. Moving it is a statement about the disk.
+felix_mem_root() {
+  printf '%s' "${FELIX_MEMORY:-$HOME/.felix/memory}"
+}
+
+# The memory directory for one project, named by its doctrine directory.
+#
+# Keyed on the project's name rather than its path, so a worktree and the tree it
+# came from share one memory. That is the behaviour every caller already assumed
+# when memory sat beside doctrine under a single home, and the alternative — one
+# memory per checkout — would silently split a project's lessons the first time
+# somebody opened a worktree.
+felix_mem_dir() {
+  local p="${1%/}"
+  printf '%s/%s' "${FELIX_MEMORY:-$HOME/.felix/memory}" "${p##*/}"
 }
 
 # Read one top-level string field out of a flat JSON file.

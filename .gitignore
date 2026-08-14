@@ -1,12 +1,23 @@
-# Felix tracks doctrine, gate, and memory. Nothing else.
+# Felix tracks doctrine and gate. Not memory — see below.
 .DS_Store
 *.log
-# ...except Felix's own memory, which is the whole reason this repository
-# exists. `*.log` silently untracked mistakes.log, which felix promote calls the
-# strongest promotion signal there is, and maintenance.log, which felix itself
-# tells you to commit "so the cadence survives this machine". Neither did.
-!projects/*/memory/*.log
+# ...except maintenance.log, which felix itself tells you to commit "so the
+# cadence survives this machine", and which `*.log` silently untracked. It is
+# doctrine: when a routine is due is a rule about the project, not a record of
+# a session.
 !projects/*/maintenance.log
+
+# Memory left this repository on 2026-08-14 and must never come back. It lives
+# under felix_mem_root — outside any checkout — because it holds verbatim
+# founder prompts and whatever a governed project's work is about, including
+# material belonging to somebody who never agreed to be published.
+#
+# This rule is the backstop, not the mechanism. The mechanism is that nothing
+# writes here any more; the gate's `memory` check fails if anything does. Both
+# exist because a gitignore rule alone is one `git add -f` from failing, and
+# because a directory that reappears empty is how the old layout would creep
+# back one project at a time.
+projects/*/memory/
 
 # Never let a project's runtime state or secrets land here.
 # `state/` is Felix's own ephemeral scratch: gate receipts and per-session route

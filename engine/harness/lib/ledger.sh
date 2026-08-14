@@ -55,7 +55,7 @@
 # data written before 2026-08-12 says "unknown" rather than "zero".
 felix_ledger_summary() {
   local proj="$1"
-  local f="$proj/memory/ledger.tsv"
+  local f="$(felix_mem_dir "$proj")/ledger.tsv"
   [ -f "$f" ] || return 0
   awk -F'\t' '
     $4 != "" {
@@ -185,11 +185,12 @@ felix_ledger_record() {
 # double it: a SessionEnd hook can fire more than once, and a ledger that grows
 # on every clear would report a capability as used far more than it was.
 felix_ledger_rollup() {
-  local proj="$1" home="$2" session="$3" date="$4" state out seen kind name
+  local proj="$1" home="$2" session="$3" date="$4" state out seen kind name mem
   state="$(_felix_ledger_state "$home" "$session")"
   [ -f "$state" ] || return 0
-  [ -d "$proj/memory" ] || return 0
-  out="$proj/memory/ledger.tsv"
+  mem="$(felix_mem_dir "$proj")"
+  [ -d "$mem" ] || mkdir -p "$mem" 2>/dev/null || return 0
+  out="$mem/ledger.tsv"
 
   local tmp; tmp="$(mktemp)" || return 0
   # Everything this session did not write stays exactly as it was.

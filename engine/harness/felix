@@ -374,7 +374,7 @@ cmd_which() {
   resolve_or_die; local proj="$PROJ"
   printf 'project:      %s\n' "$(basename "$proj")"
   printf 'doctrine:     %s\n' "$proj/CLAUDE.md"
-  printf 'memory:       %s\n' "$proj/memory/"
+  printf 'memory:       %s\n' "$(felix_mem_dir "$proj")/"
   printf 'gate:         %s\n' "$(felix_json_str "$proj/project.json" gate)"
   printf 'governs:      %s\n' "$(felix_repo_root "$PWD")"
 }
@@ -473,7 +473,7 @@ cmd_new() {
   gate="$(felix_guess_gate "$root")"
   slug="$(felix_repo_slug "$root")"
 
-  mkdir -p "$dir/memory" "$dir/setup"
+  mkdir -p "$(felix_mem_dir "$dir")" "$dir/setup"
 
   # project.json. remote_match is only useful when there is a remote; the .felix
   # marker below covers every other case, including no remote at all.
@@ -551,9 +551,9 @@ EOF
     printf 'beside this file. `felix classify` and `felix evidence` read them, and\n'
     printf 'nothing red is ever touched unattended.\n'
   } > "$dir/CLAUDE.md"
-  : > "$dir/memory/DEVLOG.md"
-  : > "$dir/memory/lessons.md"
-  : > "$dir/memory/SESSION_HANDOFF.md"
+  : > "$(felix_mem_dir "$dir")/DEVLOG.md"
+  : > "$(felix_mem_dir "$dir")/lessons.md"
+  : > "$(felix_mem_dir "$dir")/SESSION_HANDOFF.md"
 
   # The marker binds the checkout without needing a remote.
   printf '%s\n' "$name" > "$root/.felix"
@@ -674,7 +674,7 @@ cmd_route() {
     hits="$(felix_route_promote "$proj")" && hrc=0 || hrc=$?
     if [ "$hrc" -ne 0 ]; then
       printf 'Could not read the miss log; this is not an all-clear.\n\n'
-      printf '  %s\n\n' "$proj/memory/routes.log"
+      printf '  %s\n\n' "$(felix_mem_dir "$proj")/routes.log"
       printf 'felix route --promote exited %s. Until that is fixed it cannot\n' "$hrc"
       printf 'tell you what the table is missing, so do not read silence as none.\n'
       return 1
@@ -745,9 +745,9 @@ cmd_quarantine() {
 
   # Recorded, because a plugin switched off and forgotten is a capability that
   # silently stopped existing, and six months later nobody remembers why.
-  [ -d "$proj/memory" ] && printf '%s\tquarantine\t%s\t%s\n' \
+  [ -d "$(felix_mem_dir "$proj")" ] && printf '%s\tquarantine\t%s\t%s\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$name" "${why:-no reason given}" \
-    >> "$proj/memory/verification.log" 2>/dev/null
+    >> "$(felix_mem_dir "$proj")/verification.log" 2>/dev/null
 
   printf 'This takes effect in your NEXT session. A plugin already loaded stays\n'
   printf 'loaded, hooks and all, so the current one behaves exactly as before.\n\n'
@@ -1152,7 +1152,7 @@ EOF
 
 cmd_ledger() {
   resolve_or_die; local proj="$PROJ" name sessions calls named n=0
-  local f="$proj/memory/ledger.tsv"
+  local f="$(felix_mem_dir "$proj")/ledger.tsv"
 
   if [ ! -f "$f" ]; then
     printf 'Nothing recorded yet for %s.\n\n' "$(basename "$proj")"
@@ -1577,9 +1577,9 @@ cmd_monitor() {
   n="$(ls -d "$FELIX_HOME_DIR"/projects/*/ 2>/dev/null | wc -l | tr -d ' ')"
   printf '  %s project(s)\n' "$n"
   printf '  %s routing decision(s)\n' \
-    "$(cat "$FELIX_HOME_DIR"/projects/*/memory/routes.log 2>/dev/null | grep -c . || printf 0)"
+    "$(cat "$(felix_mem_root)"/*/routes.log 2>/dev/null | grep -c . || printf 0)"
   printf '  %s gate verdict(s)\n' \
-    "$(cat "$FELIX_HOME_DIR"/projects/*/memory/verification.log 2>/dev/null | grep -c . || printf 0)"
+    "$(cat "$(felix_mem_root)"/*/verification.log 2>/dev/null | grep -c . || printf 0)"
 
   if [ "$watch" -eq 1 ]; then
     if [ "$open" -eq 1 ]; then
@@ -2258,7 +2258,7 @@ cmd_repair() {
     printf 'Escalate instead of trying again:\n\n'
     printf '  gh pr edit --repo %s --add-label needs-founder\n\n' "$repo"
     printf 'Then write what was tried and why each attempt failed into\n'
-    printf '%s/memory/DEVLOG.md before handing it over.\n' "$proj"
+    printf '%s/DEVLOG.md before handing it over.\n' "$(felix_mem_dir "$proj")"
     return 2
   fi
 
@@ -2402,14 +2402,14 @@ cmd_log() {
   resolve_or_die; local proj="$PROJ" text="$*"
   [ -n "$text" ] || die 'usage: felix log "what happened and why"'
   felix_mem_log "$proj" "$(felix_repo_root "$PWD")" "$text"
-  printf 'logged to %s/memory/DEVLOG.md\n' "$proj"
+  printf 'logged to %s/DEVLOG.md\n' "$(felix_mem_dir "$proj")"
 }
 
 cmd_lesson() {
   resolve_or_die; local proj="$PROJ" text="$*"
   [ -n "$text" ] || die 'usage: felix lesson "the thing worth repeating"'
   felix_mem_lesson "$proj" "$(felix_repo_root "$PWD")" "$text"
-  printf 'recorded in %s/memory/lessons.md\n' "$proj"
+  printf 'recorded in %s/lessons.md\n' "$(felix_mem_dir "$proj")"
   printf 'Only durable things belong here. A lessons file people stop reading\n'
   printf 'is worse than none, and it stops being read when it fills with one-offs.\n'
 }
@@ -2422,7 +2422,7 @@ cmd_handoff() {
   root="$(felix_repo_root "$PWD")"
   gate="$(felix_json_str "$proj/project.json" gate)"
   felix_mem_handoff "$proj" "$root" "$gate" "$note"
-  printf 'wrote %s/memory/SESSION_HANDOFF.md\n\n' "$proj"
+  printf 'wrote %s/SESSION_HANDOFF.md\n\n' "$(felix_mem_dir "$proj")"
 
   # The session-end list from the guidebook, as a check rather than a memory
   # exercise. Each line is something a person is about to not do.
@@ -2444,7 +2444,7 @@ cmd_lessons() {
   while [ $# -gt 0 ]; do
     case "$1" in --for) want="${2:-}"; shift 2 ;; *) want="$want $1"; shift ;; esac
   done
-  local file="$proj/memory/lessons.md"
+  local file="$(felix_mem_dir "$proj")/lessons.md"
   [ -s "$file" ] || die "no lessons recorded yet for $(basename "$proj")"
   local root; root="$(felix_repo_root "$PWD")"
 
@@ -2482,7 +2482,7 @@ cmd_promote() {
     printf 'check nothing has caught in a fortnight is history and is not listed.\n'
   fi
 
-  if [ -f "$proj/memory/DEVLOG.md" ]; then
+  if [ -f "$(felix_mem_dir "$proj")/DEVLOG.md" ]; then
     local hits; hits="$(felix_mem_promotable "$proj")"
     if [ -n "$hits" ]; then
       printf '\nrecurring in the devlog, absent from the lessons\n\n'

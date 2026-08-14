@@ -157,13 +157,13 @@ _felix_mon_project() {
   printf ']'
 
   printf ',"routeLog":'
-  _felix_mon_rows "$proj/memory/routes.log" 40 _felix_mon_route_row
+  _felix_mon_rows "$(felix_mem_dir "$proj")/routes.log" 40 _felix_mon_route_row
   printf ',"verifyLog":'
-  _felix_mon_rows "$proj/memory/verification.log" 40 _felix_mon_verify_row
+  _felix_mon_rows "$(felix_mem_dir "$proj")/verification.log" 40 _felix_mon_verify_row
   printf ',"mistakes":'
-  _felix_mon_rows "$proj/memory/mistakes.log" 20 _felix_mon_mistake_row
+  _felix_mon_rows "$(felix_mem_dir "$proj")/mistakes.log" 20 _felix_mon_mistake_row
   printf ',"says":'
-  _felix_mon_rows "$proj/memory/says.log" 60 _felix_mon_say_row
+  _felix_mon_rows "$(felix_mem_dir "$proj")/says.log" 60 _felix_mon_say_row
 
   printf ',"compliance":['
   first=1
@@ -179,7 +179,7 @@ $(felix_monitor_compliance "$proj")
 EOF
   printf ']'
 
-  printf ',"lessons":%s' "$(grep -c '^- \*\*' "$proj/memory/lessons.md" 2>/dev/null || printf 0)"
+  printf ',"lessons":%s' "$(grep -c '^- \*\*' "$(felix_mem_dir "$proj")/lessons.md" 2>/dev/null || printf 0)"
   printf '}'
 }
 
@@ -206,7 +206,7 @@ felix_monitor_compliance() {
   local proj="$1"
   # Split, because `local a=$1 b=$a` expands every word before it assigns any of
   # them, so the second reads an unbound name under set -u.
-  local f="$proj/memory/ledger.tsv"
+  local f="$(felix_mem_dir "$proj")/ledger.tsv"
   [ -f "$f" ] || return 0
   awk -F'\t' '
     NF >= 6 && $6 != "" && $6 + 0 > 0 {

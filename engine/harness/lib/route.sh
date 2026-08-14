@@ -432,11 +432,12 @@ EOF
 # are the only record of what the table failed to understand.
 felix_route_log() {
   local proj="$1" name="$2" score="$3" prompt="$4"
-  [ -d "$proj/memory" ] || return 0
+  local mem; mem="$(felix_mem_dir "$proj")"
+  [ -d "$mem" ] || mkdir -p "$mem" 2>/dev/null || return 0
   printf '%s\t%s\t%s\t%s\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${name:--}" "${score:-0}" \
     "$(printf '%s' "$prompt" | _felix_envelope_strip | tr '\t\n' '  ' | LC_ALL=C cut -c1-160)" \
-    >> "$proj/memory/routes.log" 2>/dev/null || true
+    >> "$mem/routes.log" 2>/dev/null || true
 }
 
 # Words that keep turning up in prompts the table did not understand.
@@ -453,7 +454,7 @@ felix_route_promote() {
   # `proj`, and bash's scoping handed that one over. Correct output from the one
   # caller anybody ran, and silence from every other.
   local proj="$1"
-  local log="$proj/memory/routes.log"
+  local log="$(felix_mem_dir "$proj")/routes.log"
   [ -f "$log" ] || return 0
   awk -F'\t' '$2 == "-" { print $4 }' "$log" \
     | _felix_route_words \

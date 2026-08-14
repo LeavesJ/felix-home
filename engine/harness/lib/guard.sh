@@ -94,9 +94,9 @@ felix_guard_is_own() {
 # something failed and nobody said what it meant.
 felix_guard_unrecorded() {
   local proj="$1"
-  local m="$proj/memory/mistakes.log"
-  local l="$proj/memory/lessons.md"
-  local d="$proj/memory/DEVLOG.md"
+  local m="$(felix_mem_dir "$proj")/mistakes.log"
+  local l="$(felix_mem_dir "$proj")/lessons.md"
+  local d="$(felix_mem_dir "$proj")/DEVLOG.md"
   [ -s "$m" ] || return 0
 
   # An old debt should surface once, not forever. Past a week it is history

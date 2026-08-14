@@ -105,7 +105,8 @@ Each was backed up to ${FELIX_HOME_DIR}/state/rivals first."
 # The one ledger signal worth acting on, surfaced when it crosses the threshold
 # rather than when somebody remembers to ask. Cheap: an awk pass over one file.
 retire_line=""
-if [ -f "$PROJ/memory/ledger.tsv" ]; then
+_mem="$(felix_mem_dir "$PROJ")"
+if [ -f "$_mem/ledger.tsv" ]; then
   _retire="$(felix_ledger_retire "$PROJ" 2>/dev/null | cut -f1 | tr '\n' ' ')"
   _retire="${_retire% }"
   [ -n "$_retire" ] && retire_line="
@@ -122,15 +123,15 @@ fi
 read_lines="Read before planning: ${PROJ}/CLAUDE.md"
 [ -f "${_repo_root}/HANDOFF.md" ] && read_lines="${read_lines}
                    ${_repo_root}/HANDOFF.md"
-[ -f "$PROJ/memory/SESSION_HANDOFF.md" ] && read_lines="${read_lines}
-                   ${PROJ}/memory/SESSION_HANDOFF.md"
+[ -f "$_mem/SESSION_HANDOFF.md" ] && read_lines="${read_lines}
+                   ${_mem}/SESSION_HANDOFF.md"
 
 context="Felix governs this session.
 
 Project: ${project}
 Constitution: ${PROJ}/CLAUDE.md
 ${gate_line}
-Memory: ${PROJ}/memory/
+Memory: ${_mem}/
 ${drift_line}${maint_line}${tidy_line}${retire_line}
 
 ${read_lines}

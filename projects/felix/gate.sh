@@ -142,25 +142,46 @@ else
 fi
 
 # ------------------------------------------------------------- memory --------
-# Felix exists so that doctrine and memory survive the machine. A gitignore rule
-# that swallows them is precisely the failure this repository was created to
-# prevent, and it is invisible: every command works, every test passes, and
-# nothing is kept. When this check was written, `git ls-files` reported zero
-# tracked .log files, so mistakes.log and maintenance.log had never survived.
+# Two opposite properties, and until 2026-08-14 they were one.
 #
-# Checked against the paths rather than against files that happen to exist. The
-# first version of this loop skipped anything absent, which made it vacuous in a
-# worktree — where these files are untracked and therefore not present — so it
-# passed by finding nothing. git check-ignore evaluates a path whether or not
-# anything is there, which is the property that makes this a real check.
+# Doctrine must survive the machine, which is what this check was built for. A
+# gitignore rule that swallows maintenance.log is invisible: every command works,
+# every test passes, and nothing is kept. When it was first written `git
+# ls-files` reported zero tracked .log files, so it had never survived once.
+#
+# Memory must not survive *into this repository*. It holds verbatim founder
+# prompts and whatever a governed project's work happens to be about, which
+# includes material belonging to somebody who never agreed to be published — so
+# a repository storing every governed project's memory can never be public. The
+# check that once demanded memory be tracked now demands the reverse. That
+# reversal is the point and not a relaxation: this is the only thing that
+# notices the old layout creeping back one project at a time, which is exactly
+# how it would come back, since `felix adopt` is what creates the directory.
+#
+# Doctrine is checked against the path rather than against files that happen to
+# exist. The first version of that loop skipped anything absent, which made it
+# vacuous in a worktree — where these files are untracked and therefore not
+# present — so it passed by finding nothing. git check-ignore evaluates a path
+# whether or not anything is there, which is what makes it a real check.
 MISSED=""
 for d in projects/*/; do
   [ -d "$d" ] || continue
-  for f in "${d}memory/mistakes.log" "${d}memory/verification.log" "${d}maintenance.log"; do
-    git check-ignore -q "$f" 2>/dev/null && MISSED="$MISSED $f"
-  done
+  git check-ignore -q "${d}maintenance.log" 2>/dev/null && MISSED="$MISSED ${d}maintenance.log"
 done
-[ -z "$MISSED" ] && pass memory || { fail memory; printf '    ignored:%s\n' "$MISSED"; }
+# Tracked, not merely present. A checkout that has not migrated still has these
+# files sitting on disk, and a check that read the disk would fail there forever
+# while a check that reads the index says the only thing that matters: whether
+# this repository is carrying them.
+LEAKED="$(git ls-files -- 'projects/*/memory/*' | tr '\n' ' ')"
+if [ -n "$MISSED" ]; then
+  fail memory; printf '    doctrine ignored:%s\n' "$MISSED"
+elif [ -n "$LEAKED" ]; then
+  fail memory
+  printf '    memory tracked in this repository: %s\n' "$LEAKED"
+  printf '    it belongs under felix_mem_root, outside any checkout.\n'
+else
+  pass memory
+fi
 
 echo
 if [ -z "$FAILED" ]; then echo "gate: pass"; exit 0; fi

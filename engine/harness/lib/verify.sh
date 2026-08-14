@@ -207,7 +207,8 @@ felix_verify_receipt() { cat "$(_felix_receipt_path "$1" "$2")" 2>/dev/null; }
 # place the fact exists.
 felix_verify_log() {
   local proj="$1" verdict="$2" tid="$3" reason="$4"
-  [ -d "$proj/memory" ] || return 0
+  local mem; mem="$(felix_mem_dir "$proj")"
+  [ -d "$mem" ] || mkdir -p "$mem" 2>/dev/null || return 0
   printf '%s\t%s\t%s\t%s\n' "$(_felix_now)" "$verdict" "${tid:-none}" "$reason" \
-    >> "$proj/memory/verification.log" 2>/dev/null || true
+    >> "$mem/verification.log" 2>/dev/null || true
 }

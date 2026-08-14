@@ -25,14 +25,14 @@ _felix_mem_stamp() {
 
 felix_mem_log() {
   local proj="$1" root="$2" text="$3"
-  mkdir -p "$proj/memory"
-  printf '\n## %s\n\n%s\n' "$(_felix_mem_stamp "$root")" "$text" >> "$proj/memory/DEVLOG.md"
+  mkdir -p "$(felix_mem_dir "$proj")"
+  printf '\n## %s\n\n%s\n' "$(_felix_mem_stamp "$root")" "$text" >> "$(felix_mem_dir "$proj")/DEVLOG.md"
 }
 
 felix_mem_lesson() {
   local proj="$1" root="$2" text="$3"
-  mkdir -p "$proj/memory"
-  printf '\n- **%s** %s\n' "$(date +%Y-%m-%d)" "$text" >> "$proj/memory/lessons.md"
+  mkdir -p "$(felix_mem_dir "$proj")"
+  printf '\n- **%s** %s\n' "$(date +%Y-%m-%d)" "$text" >> "$(felix_mem_dir "$proj")/lessons.md"
 }
 
 # Regenerate the handoff from what git already knows. A handoff written by hand
@@ -46,9 +46,9 @@ felix_mem_lesson() {
 # forward from the file being replaced.
 felix_mem_handoff() {
   local proj="$1" root="$2" gate="$3" note="${4:-}"
-  mkdir -p "$proj/memory"
-  if [ -z "$note" ] && [ -f "$proj/memory/SESSION_HANDOFF.md" ]; then
-    note="$(sed -n 's/^- what was in progress: //p' "$proj/memory/SESSION_HANDOFF.md" | head -1)"
+  mkdir -p "$(felix_mem_dir "$proj")"
+  if [ -z "$note" ] && [ -f "$(felix_mem_dir "$proj")/SESSION_HANDOFF.md" ]; then
+    note="$(sed -n 's/^- what was in progress: //p' "$(felix_mem_dir "$proj")/SESSION_HANDOFF.md" | head -1)"
     case "$note" in _fill*) note="" ;; esac
   fi
   {
@@ -70,7 +70,7 @@ felix_mem_handoff() {
     else
       printf -- '- what was in progress: _fill this in with `felix handoff --was "..."`; it is the one part git cannot tell you_\n'
     fi
-  } > "$proj/memory/SESSION_HANDOFF.md"
+  } > "$(felix_mem_dir "$proj")/SESSION_HANDOFF.md"
 }
 
 # A mistake the gate caught, recorded without anyone deciding it was worth
@@ -83,12 +83,12 @@ felix_mem_handoff() {
 # available.
 felix_mem_mistake() {
   local proj="$1" root="$2" what="$3"
-  mkdir -p "$proj/memory"
+  mkdir -p "$(felix_mem_dir "$proj")"
   printf '%s\t%s\t%s\t%s\n' \
     "$(date +%Y-%m-%d)" \
     "$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')" \
     "$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo '?')" \
-    "$what" >> "$proj/memory/mistakes.log"
+    "$what" >> "$(felix_mem_dir "$proj")/mistakes.log"
 }
 
 # What the gate keeps catching. A far better promotion signal than counting words:
@@ -117,7 +117,7 @@ felix_mem_mistake() {
 # rather than less. That is the safe direction for a signal about mistakes.
 felix_mem_recurring_mistakes() {
   local proj="$1" min="${2:-2}" days="${3:-14}" cutoff
-  [ -f "$proj/memory/mistakes.log" ] || return 0
+  [ -f "$(felix_mem_dir "$proj")/mistakes.log" ] || return 0
   cutoff="$(date -v-"${days}"d +%Y-%m-%d 2>/dev/null \
             || date -d "${days} days ago" +%Y-%m-%d 2>/dev/null)"
   awk -F'\t' -v MIN="$min" -v CUT="$cutoff" '
@@ -139,7 +139,7 @@ felix_mem_recurring_mistakes() {
         printf "%d\t%s\t%s\n", count[t], t, last[t]
       }
     }
-  ' "$proj/memory/mistakes.log" 2>/dev/null | sort -rn
+  ' "$(felix_mem_dir "$proj")/mistakes.log" 2>/dev/null | sort -rn
 }
 
 # Whether the lessons file holds a lesson about a check of this name.
@@ -172,19 +172,19 @@ felix_mem_recurring_mistakes() {
 # need. Prefer the cheap mistake.
 felix_mem_lesson_names() {
   local proj="$1" term="$2" esc
-  [ -f "$proj/memory/lessons.md" ] || return 1
+  [ -f "$(felix_mem_dir "$proj")/lessons.md" ] || return 1
   [ -n "$term" ] || return 1
   esc="$(printf '%s' "$term" | sed 's/[][\.*^$(){}?+|\\/-]/\\&/g')"
-  grep -qE '`'"$esc"'([`._/-]|$)' "$proj/memory/lessons.md" 2>/dev/null
+  grep -qE '`'"$esc"'([`._/-]|$)' "$(felix_mem_dir "$proj")/lessons.md" 2>/dev/null
 }
 
 # Terms recurring across distinct devlog entries and absent from the lessons.
 # Crude frequency counting, stated as such wherever it is printed.
 felix_mem_promotable() {
   local proj="$1" min="${2:-3}"
-  [ -f "$proj/memory/DEVLOG.md" ] || return 0
+  [ -f "$(felix_mem_dir "$proj")/DEVLOG.md" ] || return 0
   local lessons=""
-  [ -f "$proj/memory/lessons.md" ] && lessons="$(tr '[:upper:]' '[:lower:]' < "$proj/memory/lessons.md")"
+  [ -f "$(felix_mem_dir "$proj")/lessons.md" ] && lessons="$(tr '[:upper:]' '[:lower:]' < "$(felix_mem_dir "$proj")/lessons.md")"
   # Count the number of distinct entries a term appears in, not how often it
   # appears. Fifty mentions inside one entry is one story being told at length;
   # the promotion signal is a thing that keeps coming back on different days.
@@ -203,7 +203,7 @@ felix_mem_promotable() {
       }
     }
     END { for (t in entries) if (entries[t] >= MIN) printf "%d\t%s\n", entries[t], t }
-  ' MIN="$min" "$proj/memory/DEVLOG.md" \
+  ' MIN="$min" "$(felix_mem_dir "$proj")/DEVLOG.md" \
     | grep -vE $'\t(about|after|again|against|because|before|being|between|could|during|every|first|found|from|going|instead|into|might|other|rather|really|should|since|still|than|that|their|them|then|there|these|they|thing|think|this|those|through|under|until|were|what|when|where|which|while|with|would|your|commit|change|changes|added|update|updated|files|file|version|branch|already|actually|something|because|makes|making|which|there|where|point|second)$' \
     | sort -rn \
     | while IFS=$'\t' read -r n term; do

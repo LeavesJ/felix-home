@@ -10,61 +10,70 @@ regenerates and therefore overwrites. Durable prose goes here, not there.
 
 ---
 
-## 0. DO THIS FIRST — 2026-08-14, unresolved at session end
+## 0. DECIDED 2026-08-14 — public stays, the memory moves out
 
-**The repository is PUBLIC and should not be.** One command, runnable from a
-phone with the GitHub CLI or from the web UI under Settings → General → Danger
-Zone → Change visibility:
+The previous session ended here recommending the opposite: flip the repository
+private, because it stores the memory of every project Felix governs and one
+governed project's memory contains third-party confidential material. **The
+founder was asked and decided the other way. Public stays. The memory moves.**
 
-```
-gh repo edit LeavesJ/felix --visibility private --accept-visibility-change-consequences
-```
+Read that as a real answer to the same problem rather than a refusal of it. The
+objection to publishing was never "this repository exists", it was "this
+repository is where governed-project memory happens to live". Take the memory
+out and the objection leaves with it — and public keeps a required status check
+free, which is exactly what the earned-autonomy design needs and what the paid
+plan at the bottom of the old §0 was going to be bought for. One change settles
+both. That is why this is not a compromise between two positions.
 
-Why it is not a preference. This repository stores the memory of every project
-Felix governs, and one governed project's memory contains third-party
-confidential material. Not Felix's own doctrine, which the founder is entitled
-to publish — somebody else's information, published by accident when the
-visibility changed for an unrelated reason.
+**What it does not do, and nobody should discover this later.** Moving memory
+out stops the accrual and makes the repository publishable *from here*. It does
+not un-publish anything. The material is in the commits already pushed, and
+`git rm` leaves every one of them intact. So the exposure that prompted the old
+§0 is unchanged by the work this session did; only its future is. The remaining
+options are the ones that were always there — `git filter-repo` plus a
+force-push, which rewrites every commit and invalidates existing clones, or a
+period of private while that runs. **Nobody has authorised either, and this
+session did not ask for authority it had not been given.** Specifics of the
+material stay out of this file for the reason they always did: naming it here
+turns a warning into an index, and this document is served to the same audience.
 
-Specifics are deliberately withheld from this file while the repository is
-public: naming the file and the lines would turn a warning into an index, and
-this document is served to the same audience. The session that found it holds
-the detail; re-derive it with a read of each governed project's `memory/`
-directory once private, which takes minutes.
+**Where that leaves the old three-item list.** Item 1, untracking the verbatim
+prompt logs, is no longer a separate task — the migration moved them along with
+everything else. Item 2, where governed memory lives, is the question the founder
+just answered. Item 3, history, is untouched and still open.
 
-**No cleanup has been done, on purpose.** Scrubbing while public is churn, and
-`git rm` would leave all 199 commits intact anyway. Three things wait on the
-flip, in this order:
+**What shipped, 0.48.0.** Memory now resolves through `felix_mem_dir`, defaulting
+to `$HOME/.felix/memory/<project>` and overridable with `FELIX_MEMORY`. The root
+is computed from `$HOME` and never from `felix_home`, because home *is* the
+checkout whenever Felix governs itself — deriving it from home is what put the
+material in a public repository, and the suite asserts the independence rather
+than trusting the comment. Both projects' memory was copied out and verified
+byte-identical before anything was deleted, 16 files and 9,615 lines left the
+index, and the gate's `memory` check was inverted: it used to demand memory be
+tracked, and now fails if any is. Shown failing against the real gate with a
+planted file, per invariant 5.
 
-1. Untrack `projects/*/memory/{routes,says}.log` — 269 lines of verbatim founder
-   prompts across both projects. Safe: the gate's `memory` check only requires
-   `mistakes.log`, `verification.log` and `maintenance.log` to stay tracked.
-2. Decide where governed-project memory lives. **This is the real question and
-   it is architectural**, not hygiene: a repository that stores every governed
-   project's memory cannot be public, and scrubbing today only defers it to the
-   next project Felix governs. Cheapest answer is that this repository stays
-   private permanently.
-3. Only then, decide about history. A real wipe is `git filter-repo` plus a
-   force-push; it rewrites every commit and invalidates existing clones. Nobody
-   has authorised that.
+**The one thing this cost, and it is not small.** Memory is now machine-local
+and backed up by nothing. `lessons.md` used to travel with the repository; it no
+longer does, so a new machine starts with an empty memory and the lessons that
+are matched into every prompt live in one directory on one laptop. Nothing in
+this change addresses that, on purpose — the cheap answer is a private git repo
+at `felix_mem_root` with a remote, which is now a one-command follow-up because
+the path is a single function. **Until somebody does it, `~/.felix/memory` is
+unreplicated and worth more than most of what is in the repository.**
 
-What was checked and is clean: **199 commits scanned end to end for
-credentials.** The only hits are the suite's own planted fixtures and one
+What was checked and is clean, and still stands: **199 commits scanned end to
+end for credentials.** The only hits are the suite's own planted fixtures and one
 `$(gh auth token)` substitution that stores nothing. No `.env`, no key material,
-no tracked secrets. Two soft exposures are known and were accepted before the
-confidential-material finding changed the picture — a personal email in the
-commit history beside the GitHub noreply address, and `/Users/a14808` in nine
-tracked files.
+no tracked secrets. Two soft exposures are known and accepted — a personal email
+in the commit history beside the GitHub noreply address, and `/Users/a14808` in
+nine tracked files.
 
-**Why it went public at all, since the record says not to.** §7 rejects
-publishing with "the doctrine is the moat". That was not overridden on the
-merits; the founder was asked and agreed while both of us were reasoning about
-something else — enforcement. The earned-autonomy design needs an *unavoidable*
-authority gate, local bash cannot be unavoidable, and a required status check
-can. That reasoning is still correct and is preserved in `stash@{0}` along with
-two handoff edits that assumed public was settled. **Those edits were never
-committed and never pushed.** The right way to get that enforcement is a paid
-plan on a private repository, not publication.
+**Why the record used to say the opposite.** §7 rejects publishing with "the
+doctrine is the moat", and that entry was written when doctrine and memory were
+the same directory tree. They are not any more. The moat is the doctrine, which
+is what stays tracked and public; the memory was never the moat, it was the
+liability sitting next to it. §7's reasoning survives its conclusion.
 
 ---
 

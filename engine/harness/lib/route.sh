@@ -445,6 +445,31 @@ felix_route_log() {
 # Frequency, not understanding — the same caveat felix promote already prints
 # about the devlog. Felix does not edit routes.tsv itself, for the reason
 # felix lesson is a command rather than an inference.
+# Whether a recorded route was Felix's guess rather than something asked for.
+#
+# Lives here rather than inside the Stop hook so it can be tested at all. The
+# first version of this decision was hook-internal, and the test written for it
+# was vacuous — it drove the whole hook through a fixture whose transcript path
+# was empty, so the complaint never fired in either direction and the assertion
+# that it stayed quiet passed by finding nothing.
+#
+# Tab-separated second field. Not a third colon field: a due step is a play
+# entry and play entries contain colons, so a colon scheme silently read part of
+# the step name instead — and did, in production, while every fixture using a
+# due step of `done` passed. Anything that is not `tree` means somebody
+# typed words that chose this route, including the empty third field of a state
+# file written before provenance existed — which complains, exactly as it did
+# before. Hooks bind at session start, so writer and reader are always the same
+# version and that case is only ever a stale file from a session that is gone.
+felix_route_state_guessed() {
+  local state="$1"
+  [ -f "$state" ] || return 1
+  case "$(cut -f2 < "$state" 2>/dev/null)" in
+    tree) return 0 ;;
+    *)    return 1 ;;
+  esac
+}
+
 felix_route_promote() {
   # Two `local` statements, not one. `local proj="$1" log="$proj/…"` expands
   # every word before it assigns any of them, so `$proj` was read before it

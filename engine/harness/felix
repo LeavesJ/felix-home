@@ -414,10 +414,42 @@ cmd_gate() {
   if [ "$rc" -ne 0 ]; then
     # Which checks failed, if the gate names them. Falls back to the exit status
     # rather than guessing, because an invented cause is worse than a vague one.
-    local what
-    what="$(grep -oiE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null \
+    #
+    # A gate may mark a failure `FAIL (structural: ...)`, meaning it failed for a
+    # property of where it ran rather than of the work. Those are subtracted
+    # here. This log is the input to `felix promote` and to rank 5 of
+    # `felix next`, both of which ask what keeps costing time and answer with
+    # "build a mechanism" — and a check that could not have passed did not catch
+    # anything, so it has no mechanism to build and no lesson to teach.
+    #
+    # Felix's own `installed` check is the case: it compares the tree against
+    # the deployed cache, which in a worktree can never match, so every run
+    # there recorded a mistake nobody made. The count reached 11 and sat at the
+    # top of the ranking. The engine still learns no check's name — the gate
+    # that owns the check declares it, which is the only place that knows.
+    #
+    # The verdict is untouched. The gate still failed and still exits non-zero.
+    #
+    # The fallback fires only when the gate named NOTHING. A gate whose every
+    # failure was structural has told us precisely what happened, so falling
+    # back to `exit-1` there would re-introduce the same permanent row under a
+    # less informative name — which is what happened the first time this was
+    # tried, caught by running it in a real worktree rather than the suite.
+    local what named
+    # No `|| printf 0` here. `grep -c` prints the count and *also* exits 1 when
+    # that count is zero, so the fallback appended a second zero and made this
+    # "0\n0" — not an integer, so the test below errored and took the wrong
+    # branch. A guard firing on a command that succeeded at reporting nothing is
+    # the same shape as everything else in this commit.
+    named="$(grep -icE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null | tr -dc '0-9')"
+    what="$(grep -iE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null \
+            | grep -viE 'FAIL[[:space:]]*\((structural)' \
             | awk '{print $1}' | tr '\n' ' ')"
-    felix_mem_mistake "$proj" "$root" "${what:-exit-$rc}"
+    if [ -n "$what" ]; then
+      felix_mem_mistake "$proj" "$root" "$what"
+    elif [ "${named:-0}" -eq 0 ]; then
+      felix_mem_mistake "$proj" "$root" "exit-$rc"
+    fi
   fi
   rm -f "$log"
 

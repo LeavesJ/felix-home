@@ -83,9 +83,30 @@ if [ -n "$PLUG" ] && [ -d "$PLUG" ]; then
   if diff -rq engine/harness "$PLUG" >/tmp/felix-install-drift.log 2>&1; then
     pass installed
   else
-    fail installed
-    head -5 /tmp/felix-install-drift.log | sed 's/^/    /'
-    printf '    reinstall with: felix install\n'
+    # A worktree can never satisfy this. The felix marketplace is a directory
+    # marketplace pinned to one path, so a worktree's engine is not the one being
+    # served and no amount of installing will make the cache match it. The gate
+    # still fails — the tree genuinely does not match, and quieting that would be
+    # loosening a gate to improve a number — but the failure is marked so it is
+    # not written down as a mistake somebody made. Every gate run in a worktree
+    # used to add an `installed` row, which is how that check reached 11 and
+    # became the top entry of `felix next` rank 5: it manufactured the evidence
+    # that ranked it. See issue #3.
+    MROOT=""
+    if [ -r "$HOME/.claude/plugins/known_marketplaces.json" ]; then
+      MROOT="$(sed -n '/"felix"[[:space:]]*:[[:space:]]*{/,/^  }/p' \
+                 "$HOME/.claude/plugins/known_marketplaces.json" 2>/dev/null \
+               | sed -n 's/.*"installLocation"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+    fi
+    if [ -n "$MROOT" ] && [ "$MROOT" != "$ROOT" ]; then
+      printf '  %-18s FAIL (structural: the marketplace serves %s)\n' installed "$MROOT"
+      FAILED="$FAILED installed"
+      printf '    this tree cannot deploy; merge it and run felix install there\n'
+    else
+      fail installed
+      head -5 /tmp/felix-install-drift.log | sed 's/^/    /'
+      printf '    reinstall with: felix install\n'
+    fi
   fi
 else
   printf '  %-18s skipped (no plugin installed here)\n' installed

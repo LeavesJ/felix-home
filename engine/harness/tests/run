@@ -1274,6 +1274,72 @@ out="$(cd "$REPO" && "$FELIX" promote 2>&1)"
 has "twice makes it a promotion candidate" "$out" "the gate keeps catching"
 has "and names the habit"                  "$out" "lint"
 
+# A check that could not have passed did not catch anything.
+#
+# Felix's `installed` check compares the tree against the deployed plugin cache.
+# In a worktree that can never match — the marketplace is pinned to one path, so
+# a worktree's engine is not the one being served — and every gate run there
+# recorded `installed` as a mistake. The count went 9 to 11 during the session
+# that fixed the recurrence report, and it sat at the top of `felix next` rank 5
+# under "already cost time more than once", where the advice is to go and build
+# a mechanism. The check manufactured the evidence that ranked it.
+#
+# The verdict is deliberately NOT changed: the gate still fails, because the
+# tree genuinely does not match, and loosening a gate to quiet a report is the
+# move this project warns about in the definition of its own objective. Only the
+# RECORD changes. A gate may mark a failure as a property of where it ran rather
+# than of the work, and the engine subtracts those from what it writes down
+# without learning any check's name — the project's own gate declares it.
+cat > "$FROOT/projects/widget/structural-gate.sh" <<'GS'
+#!/usr/bin/env bash
+echo "  lint               FAIL"
+echo "  deployed           FAIL (structural: this tree is not the one that deploys)"
+exit 1
+GS
+chmod +x "$FROOT/projects/widget/structural-gate.sh"
+python3 - "$FROOT/projects/widget/project.json" <<'PYJ'
+import json,sys,pathlib
+p=pathlib.Path(sys.argv[1]); d=json.loads(p.read_text())
+d["gate"]="structural-gate.sh"; p.write_text(json.dumps(d,indent=2))
+PYJ
+: > "$MISLOG"
+( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 ); rc=$?
+is "a structural failure still fails the gate" "$rc" "1"
+grep -q 'lint' "$MISLOG" 2>/dev/null \
+  && ok "an ordinary failure is still written down" \
+  || bad "an ordinary failure is still written down" "$(cat "$MISLOG")"
+grep -q 'deployed' "$MISLOG" 2>/dev/null \
+  && bad "but one that could not have passed is not" "$(cat "$MISLOG")" \
+  || ok  "but one that could not have passed is not"
+
+# And when EVERY failure was structural, nothing is written — not even the
+# exit-status fallback. The first version of this fixed the named check and then
+# recorded `exit-1` instead, which is the same permanent row wearing a less
+# informative name. Caught by running the real gate in a real worktree, which is
+# where the case lives; the suite had passed.
+cat > "$FROOT/projects/widget/structural-gate.sh" <<'GS'
+#!/usr/bin/env bash
+echo "  deployed           FAIL (structural: this tree is not the one that deploys)"
+exit 1
+GS
+: > "$MISLOG"
+( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 ); rc=$?
+is "an all-structural gate still fails"           "$rc" "1"
+is "and writes no row at all, not even exit-1"    "$(wc -l < "$MISLOG" | tr -d ' ')" "0"
+
+# A gate that names nothing still falls back, because then the status is all
+# anybody knows.
+cat > "$FROOT/projects/widget/structural-gate.sh" <<'GS'
+#!/usr/bin/env bash
+echo "something went wrong but no check is named"
+exit 3
+GS
+: > "$MISLOG"
+( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 )
+grep -q 'exit-3' "$MISLOG" 2>/dev/null \
+  && ok "a gate naming no check still records its status" \
+  || bad "a gate naming no check still records its status" "$(cat "$MISLOG")"
+
 # A passing gate must not record anything, or the signal is just a run counter.
 python3 - "$FROOT/projects/widget/project.json" <<'PYJ'
 import json,sys,pathlib

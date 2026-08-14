@@ -105,6 +105,95 @@ That is necessary and not sufficient. The decision needs one more clause:
 An invariant, not a policy. Without it the gate is decorative, because the first
 thing sufficient autonomy could buy is the ability to stop the gate noticing.
 
+## 4a. The root is transitive, and the evaluator must be the base version
+
+Refined by the founder the same day, and it supersedes §4 rather than adding to
+it. §4 named one file. One file is not enough, and the two escapes are obvious
+once stated:
+
+- Felix cannot modify `authority_change.sh`, but *can* modify the table that
+  tells it what to protect. The invariant is fake.
+- Felix cannot modify the detector, but *can* modify the merge path so its
+  verdict is ignored. The invariant is fake.
+
+So the protected thing is the **smallest transitive authority kernel**, closed
+under its own fourth clause:
+
+1. **detector** — decides whether a candidate changes authority
+2. **protected-set definition** — decides what constitutes 1 and 3
+3. **enforcement** — turns a detector verdict into an unavoidable founder gate
+4. **the mechanism for changing 1–3** — must itself be covered by 1–3
+
+### The recursion is solved by who evaluates, not by what is protected
+
+> A candidate Felix must not evaluate its own authority change. The currently
+> trusted Felix evaluates the candidate.
+
+`V_n` judges `V_n+1`. If `V_n+1` touches the authority root, the founder is
+required; only after approval does it become the evaluator of `V_n+2`. That is a
+trust chain. The alternative — a candidate whose new detector judges itself — is
+self-certification with extra steps.
+
+### This is violated today, structurally, and it links #5 to #2
+
+Not hypothetical. `engine/harness/felix` sources `${SCRIPT_DIR}/lib/*.sh`, so a
+branch's `felix` evaluates that branch using that branch's own `escape.sh`.
+Typing the installed binary instead does not help, because of a cycle already
+documented in `lessons.md`: the gate's `installed` check requires the tree to
+match the deployed cache before it can go green, and `felix merge` requires a
+green receipt for the exact tree. The only workflow available is therefore
+
+```
+edit escape.sh -> felix install (deploys the candidate) -> gate -> felix merge
+```
+
+and by the time merge runs, the installed engine **is** the candidate. All nine
+engine merges on 2026-08-13 took that path. Nothing was exploited, and nothing
+in the system would have said so if it had been.
+
+Closing this collides head-on with the install-before-green cycle, which is
+issue #2. Either merge stops requiring the candidate to be deployed, or the
+evaluation is performed by a pinned copy of the base version. **The two issues
+are one problem seen from two sides**, and the fix for #2 should be chosen with
+this in mind rather than separately.
+
+## 4b. Three classes, and `authority_change` is a channel rather than a tier
+
+The decision's own ontology, and it is the correction that makes the rest
+coherent:
+
+| Class | Meaning | Earnable? |
+|---|---|---|
+| Routine / reversible | ordinary governed engineering | **yes** |
+| High blast radius | harness and core changes needing stronger evidence | **yes, eventually** |
+| Authority root | changes what Felix may do, or how that permission is enforced | **no** |
+
+The third is not "very red". Representing it as a tier invites a reasonable
+person to eventually ask *we have earned red autonomy, why is this excluded* —
+and the honest answer is that it was never the same kind of thing.
+
+So it is a **channel**, exactly like `disclose` and `verifier`:
+
+- **risk** describes consequence and blast radius — green, yellow, red
+- **channel** describes non-delegable authority — engine-defined, non-demotable
+
+The invariant, stated mechanically:
+
+```
+execution competence   earnable
+blast-radius tolerance earnable
+self-maintenance       earnable
+root authority         NOT earnable
+```
+
+Or in one line: **autonomy may increase over observed execution competence;
+authority over the mechanism that grants autonomy may not.**
+
+This reframes the build. It is not a new mechanism for issue #5. It is
+generalising an engine-level escape pattern Felix already has into an explicit
+root-of-trust model — and `verifier` is the first member of that architecture,
+arrived at by accident before anyone had the vocabulary for it.
+
 ## 5. `verifier` is already this gate, for one case
 
 Worth knowing before designing the general mechanism, because it is proof the
@@ -159,7 +248,9 @@ than what it does:
 | Editing the channel constants in `escape.sh` | the list of things no project may declare away |
 | Editing `felix_merge_blockers` | what a merge refuses on |
 | Granting or widening an `autonomy` file | what may happen unattended |
-| Editing the authority-change detector itself | §4 — permanent escalation, never earnable |
+| Editing the authority-change detector itself | §4a — permanent escalation, never earnable |
+| Editing the protected-set definition | §4a — naming what the detector protects is the same authority |
+| Editing enforcement — how a verdict becomes a stop | §4a — a verdict nothing acts on is not a gate |
 
 Everything else in `engine/harness/lib/` is ordinary engineering risk under the
 existing tiers, and is exactly the work the decision wants Felix eventually able
@@ -173,6 +264,9 @@ to do on its own.
 - What "sufficient" means for each measurable dimension. Deliberately left open:
   choosing thresholds before there is any data is how a number gets picked to be
   reachable rather than to be meaningful.
+- **How base-version evaluation is achieved**, which §4a shows is currently
+  impossible without also settling issue #2. A pinned copy of the base engine is
+  the obvious candidate and has not been designed.
 - Whether GREEN streaks survive at all once the ledger exists, or become one
   dimension among several. The decision says they continue; §3.2 of the issue
   thread notes every green change Felix can produce is a document, so the

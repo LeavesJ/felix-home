@@ -163,6 +163,36 @@ something to talk to.
 That splits step 1 into a part with a payoff now and a part with a payoff later,
 and only commits to the first.
 
+### 7a. Accepted and built, 2026-08-13
+
+The founder took the split. `felix receipt` ships in **0.47.11**, emitting
+`felix.receipt/1`: subject, changed, risk, verification, evidence, authority,
+confidence. It discovers nothing — every field was already computed by
+`classify`, `evidence`, the gate, or `escape`, and was only ever rendered as
+prose for a person.
+
+Two fields are shaped by §8 rather than by the contract. `authority` is carried
+in the document because **no transport carries it**, so a receipt that did not
+state it would be leaving the claim nowhere. `verification` is its own object
+with three states — `none`, `stale`, `current` — because **neither protocol
+models verification as distinct from completion**, and that distinction is the
+thing Felix has that they lack. Run against the change that built it, it
+reported `stale`: a green gate receipt belonging to a different tree. Correct,
+and the distinction earning its place on the first day.
+
+**The rule it keeps, which matters more than the shape.** A receipt may not
+claim more than it knows. Any input that could not be read puts its own name in
+`unknown` and forces `status` to `indeterminate`. An absent gate receipt is
+`none`, never green; an unresolvable base is `changed.known: false`, never an
+empty changeset; an unreadable risk table is tier `unknown`, never `green` —
+which this project shipped once already. That is the self-report constraint from
+§7 made mechanical, and it is asserted rather than intended.
+
+**The request half is still not built, deliberately.** Nothing has changed about
+the argument: it needs a consumer, a transport, an authentication story and
+probably a long-running process, and §8.3 establishes that the A2A shape would
+make Felix a server. Revisit when something exists to talk to.
+
 ## 8. Transport: researched 2026-08-13, and the answer is "neither, yet"
 
 The question was narrow: **can MCP or A2A carry a verified receipt, a bounded

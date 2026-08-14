@@ -477,3 +477,15 @@ with a record, not a substitute for running it.
   presentation as a right one. When a component's fixtures are all written by the
   people who wrote the component, the first real input is a test worth running
   deliberately rather than waiting for.
+
+- **`git rev-parse --verify <40-hex>` exits 0 for a sha that does not exist.**
+  A full-length hex string is a syntactically valid object name, and `--verify`
+  alone checks the syntax; only a *name* it cannot resolve exits non-zero. So the
+  idiom everybody uses to ask "does this ref exist" answers yes for any 40
+  characters of hex. Peeling with `^{commit}` is what turns it into an existence
+  test. Found while writing the test for `felix receipt`'s unresolvable-base
+  case: without the peel, a base nobody has reported as a clean empty changeset,
+  which is the precise failure that receipt exists to refuse. **The test written
+  to enforce a rule is what caught the code breaking it** — worth repeating,
+  because the rule had already been written down twice in prose by then and
+  neither writing found it.

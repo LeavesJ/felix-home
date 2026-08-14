@@ -83,7 +83,12 @@ The charter was the defect.
    guidebook's autonomy ladder, not timidity.
 5. **A gate that cannot fail is not a gate.** Anything claiming to verify must
    be shown failing before it is believed.
-6. **Uninstalling never deletes a home.** It holds doctrine and memory.
+6. **Uninstalling never deletes a home, nor a memory root.** They were one
+   directory until 2026-08-14 and are now two: the home holds doctrine, and
+   `$FELIX_MEMORY` — `~/.felix/memory` by default — holds memory. They were
+   split because a home *is* the checkout whenever Felix governs itself, so
+   storing memory under it published every governed project's record along with
+   the doctrine. Neither is Felix's to delete.
 
 ## Tiers
 

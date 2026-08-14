@@ -230,9 +230,14 @@ cmd_install() {
     claude plugin uninstall felix@felix >/dev/null 2>&1 \
       && printf 'removed the felix plugin\n' \
       || printf 'felix plugin was not installed\n'
-    # The home is never touched. It holds doctrine and memory, and an uninstall
-    # that deletes those turns a reversible action into an unrecoverable one.
-    printf 'left %s alone: it holds your doctrine and memory\n' "$FELIX_HOME_DIR"
+    # Neither is touched, and both are named, because they stopped being one
+    # directory on 2026-08-14. This message still said the home held doctrine
+    # and memory long after memory had moved out of it — accurate about what was
+    # preserved and wrong about where, which on the one path where somebody is
+    # deciding whether they are about to lose something is the worst place for a
+    # message to be vague.
+    printf 'left %s alone: it holds your doctrine\n' "$FELIX_HOME_DIR"
+    printf 'left %s alone: it holds your memory\n' "$(felix_mem_root)"
     return 0
   fi
 

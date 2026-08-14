@@ -52,13 +52,50 @@ it should be paid deliberately, not rediscovered.
    prose.** 21 of the 105 commits touching `engine/` name the other project in
    their messages, and messages travel with commits.
 2. **Memory no longer survives the machine, and that has not been decided.**
-   `~/.felix/memory/` is untracked, inside a home directory that is a git
-   repository with no remote. A dead laptop takes every lesson, the ledger and
-   every mistakes log with it. Invariant 6 now describes the two locations
-   correctly, and describing a split is not deciding its consequence.
-   **This is the one item here worth a founder's time.** Cheapest answers: give
-   `~/.felix` its own private remote, or point `$FELIX_MEMORY` at a directory
-   that is already synced.
+   Measured at session close 2026-08-14, not estimated: **1.0 MB across two
+   projects**, holding `lessons.md`, `ledger.tsv`, `DEVLOG.md`,
+   `SESSION_HANDOFF.md`, `mistakes.log` and `verification.log` for each. It sits
+   in `~/.felix/memory/`, which is inside a home directory that *is* a git
+   repository — with **no remote, and `.felix` tracked in 0 files**. So it is
+   not versioned, not pushed, and not backed up by anything Felix can see.
+
+   Carry-over is therefore split: **the next session on this machine inherits
+   everything; a session anywhere else inherits nothing.** A disk failure takes
+   every lesson this project has paid for, which is the one asset here that
+   cannot be rebuilt from the repository.
+
+   Invariant 6 now describes the two locations correctly, and describing a split
+   is not deciding its consequence. **This is the one item worth a founder's
+   time before the next session.** Cheapest answers: give `~/.felix` its own
+   private remote, or point `$FELIX_MEMORY` at a directory that is already
+   synced. Not done here because where a founder's data lives is their call,
+   not a tidy-up.
+
+## 0a. Verified at session close, 2026-08-14
+
+Each line checked with a command rather than recalled, because a status table is
+the least trustworthy thing in this repository.
+
+| | |
+|---|---|
+| working tree | clean; 0 unpushed; local `main` == `origin/main` |
+| gate | **pass** — 701 assertions, `installed` ok |
+| engine | **0.48.4**, deployed and byte-identical to the tree |
+| repository | **private**; unauthenticated API returns 404 |
+| worktree | was **7 commits behind**, resynced to main |
+| memory | present, **1.0 MB, unbacked** — see §0 item 2 |
+| open issues | **#2 → #28** (ordered, both blocked), **#29** (independent) |
+
+Two things deliberately left alone. **22 local `claude/*` branches remain**:
+`felix merge` squashes, so `git branch --merged` cannot see them as merged even
+though their content is in `main` — verified separately, since a squash
+preserves the tree OID while changing the commit. Deleting branches whose merge
+git will not confirm is not a session-close job. And **no history rewrite**, for
+the reasons in §0 item 1.
+
+Nothing is mid-flight. The next session starts from a clean tree with no
+half-finished work, and both remaining engineering issues are blocked on
+decisions rather than on effort.
 
 ## 1. Standing direction — decided, do not ask again
 

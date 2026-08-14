@@ -10,6 +10,64 @@ regenerates and therefore overwrites. Durable prose goes here, not there.
 
 ---
 
+## 0. DO THIS FIRST — 2026-08-14, unresolved at session end
+
+**The repository is PUBLIC and should not be.** One command, runnable from a
+phone with the GitHub CLI or from the web UI under Settings → General → Danger
+Zone → Change visibility:
+
+```
+gh repo edit LeavesJ/felix --visibility private --accept-visibility-change-consequences
+```
+
+Why it is not a preference. This repository stores the memory of every project
+Felix governs, and one governed project's memory contains third-party
+confidential material. Not Felix's own doctrine, which the founder is entitled
+to publish — somebody else's information, published by accident when the
+visibility changed for an unrelated reason.
+
+Specifics are deliberately withheld from this file while the repository is
+public: naming the file and the lines would turn a warning into an index, and
+this document is served to the same audience. The session that found it holds
+the detail; re-derive it with a read of each governed project's `memory/`
+directory once private, which takes minutes.
+
+**No cleanup has been done, on purpose.** Scrubbing while public is churn, and
+`git rm` would leave all 199 commits intact anyway. Three things wait on the
+flip, in this order:
+
+1. Untrack `projects/*/memory/{routes,says}.log` — 269 lines of verbatim founder
+   prompts across both projects. Safe: the gate's `memory` check only requires
+   `mistakes.log`, `verification.log` and `maintenance.log` to stay tracked.
+2. Decide where governed-project memory lives. **This is the real question and
+   it is architectural**, not hygiene: a repository that stores every governed
+   project's memory cannot be public, and scrubbing today only defers it to the
+   next project Felix governs. Cheapest answer is that this repository stays
+   private permanently.
+3. Only then, decide about history. A real wipe is `git filter-repo` plus a
+   force-push; it rewrites every commit and invalidates existing clones. Nobody
+   has authorised that.
+
+What was checked and is clean: **199 commits scanned end to end for
+credentials.** The only hits are the suite's own planted fixtures and one
+`$(gh auth token)` substitution that stores nothing. No `.env`, no key material,
+no tracked secrets. Two soft exposures are known and were accepted before the
+confidential-material finding changed the picture — a personal email in the
+commit history beside the GitHub noreply address, and `/Users/a14808` in nine
+tracked files.
+
+**Why it went public at all, since the record says not to.** §7 rejects
+publishing with "the doctrine is the moat". That was not overridden on the
+merits; the founder was asked and agreed while both of us were reasoning about
+something else — enforcement. The earned-autonomy design needs an *unavoidable*
+authority gate, local bash cannot be unavoidable, and a required status check
+can. That reasoning is still correct and is preserved in `stash@{0}` along with
+two handoff edits that assumed public was settled. **Those edits were never
+committed and never pushed.** The right way to get that enforcement is a paid
+plan on a private repository, not publication.
+
+---
+
 ## 1. Standing direction — decided, do not ask again
 
 **Felix is the engineering OS and the pilot of implementation.** Not a
@@ -481,6 +539,59 @@ working and the fix belongs where the gate can see it.
   that are product-stage facts rather than Felix gaps. Elenchus has no deploy
   target, so there is nothing to wire.
 
+## 5a. Session of 2026-08-13/14 — what shipped, and what it cost
+
+Engine **0.47.5 → 0.47.15**, suite **601 → 678 assertions**, 14 pull requests
+merged, of which 8 went through `felix merge` — which had never merged anything
+before this session. The repository had never held an issue; it now has six,
+three still open.
+
+**The theme, stated because it recurred seven times.** Every substantial defect
+found was one species: **a signal that reports the wrong thing, usually an
+emptiness read as an all-clear.** `felix route --promote` printed "nothing has
+missed often enough" after its pipeline crashed. `felix next` ranked a
+recurrence that had stopped recurring, and ranked it on evidence a
+structurally-unpassable check was manufacturing for itself. The lesson matcher
+missed two of Felix's own seven gate check names. `felix doctor` invented drift
+in a worktree. The Stop hook told the founder to `felix quarantine felix` in
+response to Felix working correctly. A check written to catch checks that cannot
+fail, could not fail.
+
+Four of those were introduced *by this session*, in the commits that were fixing
+the others, and were found only because a 24-agent adversarial audit went
+looking. That number is the honest headline: **at this rate, a new public
+surface inherits the same defect rate with no audit standing by.** It is why the
+receipt refuses to claim more than it knows, and it is the strongest argument in
+`docs/2026-08-14-earned-autonomy-decision.md` §3.1.
+
+**Built:**
+
+- `felix receipt` — `felix.receipt/1`, the first thing Felix can hand to
+  something that is not a person. Serialises facts already computed. Its
+  `verification` object has three states and reported `stale` against the change
+  that built it, which is the distinction earning its place on day one.
+- A gate may mark a failure `FAIL (structural: …)` — it failed for a property of
+  where it ran, not of the work — and the engine subtracts those from
+  `mistakes.log`. The verdict is unchanged; only the record is.
+- `felix_same_repo`, replacing two path-prefix guards that lapsed in a worktree.
+  One of them was the last defence on the only path in Felix that deletes.
+- `felix_guard_is_own`, so Felix stops reporting its own correct refusals as
+  another plugin's malfunction.
+- Locale pinning on the route text pipelines, a `ship` route, backtick-aware
+  path extraction in `felix brief`, and the machine-text filter on routing.
+
+**Traps found that will cost somebody else time:**
+
+- `git rev-parse --verify <40-hex>` exits **0** for a sha that does not exist —
+  it checks syntax, not existence. Only a *name* it cannot resolve fails. Peel
+  with `^{commit}`.
+- `grep -c` prints the count **and** exits 1 when that count is zero, so
+  `$(grep -c … || printf 0)` yields `"0\n0"` and every integer test on it errors
+  into the wrong branch.
+- `felix merge` squashes, so the merged commit SHA never matches the branch —
+  but the **tree OID is identical**, verified across four merges. Content
+  identity survives the merge; commit identity does not.
+
 ## 5b. What is now tracked as an issue
 
 The repository held **zero issues for its whole life** until 2026-08-13. Four
@@ -493,7 +604,7 @@ defect in §4 was found within a minute of the first one existing.
 | [#2](https://github.com/LeavesJ/felix/issues/2) | `risk-red` `needs-architecture` | `felix merge` unreachable from a worktree. Workaround found and commented: work on a branch in the served checkout. Preferred fix accepts a CI receipt and touches no verifier. |
 | [#3](https://github.com/LeavesJ/felix/issues/3) | `risk-red` | A check that cannot pass still writes a `mistakes.log` row, so it manufactures the recurrence evidence that ranks it. `installed` went 9 → 11 during the session that fixed the recurrence report. |
 | [#4](https://github.com/LeavesJ/felix/issues/4) | `risk-yellow` | Three mounted plugins no keyword can reach, and `felix next` rank 6 advises fixing keywords. It should distinguish "no route matched" from "no route may name this at all". |
-| [#5](https://github.com/LeavesJ/felix/issues/5) | `needs-founder` | The auto-merge unlock cannot be earned by engine work, because `risk.tsv` calls it red by construction. Three defensible readings, none of them a patch. |
+| [#5](https://github.com/LeavesJ/felix/issues/5) | `needs-founder` | **Decided 2026-08-14, and it grew into the largest open design question.** Recorded in `docs/2026-08-14-earned-autonomy-decision.md`. Not "red counts as green": an earned harness-autonomy record, with authority-widening behind a separate gate. The founder then refined it twice — the protected thing is the smallest *transitive* authority kernel, and the evaluator must be the base version (`V_n` judges `V_n+1`), which is **violated today, structurally**: the gate's `installed` check forces the candidate to be deployed before green, so by merge time the candidate is the evaluator. That makes #5 and #2 one problem. Open sub-question, newly created: how base-version evaluation is achieved. A pinned copy of the trusted commit is the obvious candidate and is undesigned. |
 
 Do not re-derive these here. If one is closed, say so in this table.
 

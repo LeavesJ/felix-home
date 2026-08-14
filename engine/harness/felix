@@ -27,6 +27,7 @@
 #   felix unattended     whether the loop is ready to be switched on, and by whom
 #   felix classify       risk tier of this branch's diff; --apply labels the PR
 #   felix evidence       what this change must prove; --strict exits non-zero on gaps
+#   felix receipt        the same facts as one typed record a machine can read
 #   felix incident       turn an error into a brief; --create opens an issue
 #   felix maintenance    what upkeep is due; --ran <name> records a run
 #   felix repair         why CI failed, how many tries are left
@@ -77,6 +78,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/classify.sh"
 # shellcheck source=lib/evidence.sh
 . "${SCRIPT_DIR}/lib/evidence.sh"
+# shellcheck source=lib/receipt.sh
+. "${SCRIPT_DIR}/lib/receipt.sh"
 # shellcheck source=lib/adopt.sh
 . "${SCRIPT_DIR}/lib/adopt.sh"
 # shellcheck source=lib/incident.sh
@@ -147,6 +150,7 @@ specific project, language, or toolchain.
     felix pr [--create]    open a pull request for this branch, tier and all
     felix classify         how risky this diff is, and what that means for merging
     felix evidence         what this change still owes before it counts as done
+    felix receipt          what changed, its risk, and whether anything verified it
     felix next             what to do next here, ranked
     felix merge            merge it, unless something in it escapes the tree
     felix review           record a reviewer verdict on a surface no test judges
@@ -1759,6 +1763,18 @@ cmd_setup() {
 
 
 
+cmd_receipt() {
+  resolve_or_die; local proj="$PROJ" base="main"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --base) base="${2:-main}"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  local root; root="$(felix_repo_root "$PWD")"
+  felix_receipt "$proj" "$base" "$root" "$FELIX_HOME_DIR"
+}
+
 cmd_evidence() {
   resolve_or_die; local proj="$PROJ" base="main" strict=0
   while [ $# -gt 0 ]; do
@@ -2509,6 +2525,7 @@ case "${1:-help}" in
   budget)     shift; cmd_budget "$@" ;;
   unattended) shift; cmd_unattended "$@" ;;
   evidence) shift; cmd_evidence "$@" ;;
+  receipt)  shift; cmd_receipt "$@" ;;
   new)     shift; cmd_new "$@" ;;
   install) shift; cmd_install "$@" ;;
   help|-h|--help) usage ;;

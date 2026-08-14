@@ -73,29 +73,66 @@ it should be paid deliberately, not rediscovered.
 
 ## 0a. Verified at session close, 2026-08-14
 
-Each line checked with a command rather than recalled, because a status table is
-the least trustworthy thing in this repository.
+Each line produced by a command, because a status table is the least trustworthy
+thing in this repository.
 
 | | |
 |---|---|
-| working tree | clean; 0 unpushed; local `main` == `origin/main` |
-| gate | **pass** — 701 assertions, `installed` ok |
-| engine | **0.48.4**, deployed and byte-identical to the tree |
+| head | `04d583e`, clean, 0 unpushed |
+| gate | **pass** — 701 assertions, `installed` ok, on both trees |
+| engine | **0.48.4**, deployed and byte-identical |
 | repository | **private**; unauthenticated API returns 404 |
-| worktree | was **7 commits behind**, resynced to main |
-| memory | present, **1.0 MB, unbacked** — see §0 item 2 |
-| open issues | **#2 → #28** (ordered, both blocked), **#29** (independent) |
+| memory | **1.0 MB, unbacked** — see §0 item 2, still the top item |
+| open issues | **6** — see the table below |
 
-Two things deliberately left alone. **22 local `claude/*` branches remain**:
-`felix merge` squashes, so `git branch --merged` cannot see them as merged even
-though their content is in `main` — verified separately, since a squash
-preserves the tree OID while changing the commit. Deleting branches whose merge
-git will not confirm is not a session-close job. And **no history rewrite**, for
-the reasons in §0 item 1.
+### The queue, in the order it should be taken
 
-Nothing is mid-flight. The next session starts from a clean tree with no
-half-finished work, and both remaining engineering issues are blocked on
-decisions rather than on effort.
+| # | | |
+|---|---|---|
+| [#32](https://github.com/LeavesJ/felix/issues/32) | `risk-red` | concurrent SessionEnds **delete** each other's committed ledger history. Reproduced with the real hook: 1 of 12 worktrees survived, sequential control 12 of 12. Fix is specified and structural — stop sharing the file, the input is already per-session. **The most concrete thing in the queue.** |
+| [#33](https://github.com/LeavesJ/felix/issues/33) | `risk-red` | `felix merge` verifies the tree, *then* reads the branch, so a peer checkout inside ~35% of its runtime merges a branch it never verified and calls it verified. |
+| [#2](https://github.com/LeavesJ/felix/issues/2) → [#28](https://github.com/LeavesJ/felix/issues/28) | `risk-red` | the trust chain, in that order. Blocked on design and on the GitHub Pro question, not on effort. |
+| [#31](https://github.com/LeavesJ/felix/issues/31) | design | concurrency as a *feature*. A design question, not a defect queue — see below. |
+| [#29](https://github.com/LeavesJ/felix/issues/29) | `risk-yellow` | routing: two distinct causes recorded, one fixed, one open. |
+
+### What the concurrency audit established
+
+15 agents, 6 findings confirmed after independent refutation, 4 refuted. Two
+things from it are worth carrying forward more than the findings.
+
+**The refuters corrected the finders in both directions** — struck a claim that
+torn handoffs look well-formed (5/5 were visibly broken), corrected a rollup
+timing from ~1s to ~0.17s, found a scaling claim that *decays* with N where the
+finder said it climbed, and *raised* severity on a half one finder filed as
+secondary. Trust the numbers in #32 and #33 accordingly; they survived that.
+
+**The lens aimed at the actual design question was refuted, usefully.** The
+finder called cross-session blindness a defect. The verdict: *"an accurate
+description of an unbuilt feature, not a defect."* That is the third time this
+week the project nearly treated absence of a feature as evidence of failure, and
+it is why #31 stays a design question. The defects it turned up are worth fixing
+whether or not coordination is ever built, because they are wrong at N=2.
+
+**One finding is live on this machine.** Three worktrees share one
+`SESSION_HANDOFF.md`, and a handoff note is tree-scoped while the memory
+directory is project-scoped, so a note written in one tree can be read as
+another tree's standing direction. Deterministic, no race, silent. Recorded on
+#31 with the scope note: do **not** fix it by keying memory per tree.
+
+### Two things deliberately not done
+
+**Nothing from the audit was fixed.** All of it is wrong at N=2 and none of it
+bites at the current scale — the ledger loss needs roughly 15 session-ends per
+second. Filing was the requested action, and the session that found these had
+already made eight mistakes, one of which shipped a silently inert fix past a
+green suite. Same reasoning as the trust chain.
+
+**22 local `claude/*` branches remain.** `felix merge` squashes, so
+`git branch --merged` cannot confirm them even though their content is in main.
+Deleting branches git will not vouch for is not a session-close job.
+
+Nothing is mid-flight. The next session starts from a clean tree, and every open
+issue is blocked on a decision or is a specified fix nobody has started.
 
 ## 1. Standing direction — decided, do not ask again
 

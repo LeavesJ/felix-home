@@ -40,6 +40,46 @@
 # verdict is one bit for a session holding dozens of decisions, so nothing here
 # can say which mounted capability earned it.
 
+# Every row of the ledger, from the per-session files and from the single file
+# that predates them.
+#
+# There are two locations because there used to be one, and one was the defect.
+# `felix_ledger_rollup` was an unlocked read-modify-write of a shared file: it
+# read what every other session had committed, spent wall time on per-row work,
+# then renamed its own snapshot over the top. A session that committed inside
+# that window was not merely missed, it was deleted, and the file could shrink.
+# Reproduced at 1 of 12 with the real SessionEnd hook, against 12 of 12 run one
+# at a time. Its input was already per-session, so the fix is to stop sharing
+# the output rather than to make sharing safe.
+#
+# `ledger.tsv` is whatever was written before that and is read as data, not
+# migrated: rewriting a record to change its shape is the one operation with
+# nothing to gain and a whole history to lose. A session that has since been
+# re-rolled wins over its own old rows, because those are the same rows written
+# again and counting both would double it.
+_felix_ledger_rows() {
+  local mem="$1" f own=""
+  for f in "$mem"/ledger.d/*.tsv; do
+    [ -f "$f" ] || continue
+    cat "$f"
+    f="${f##*/}"
+    own="$own${f%.tsv}
+"
+  done
+  [ -f "$mem/ledger.tsv" ] || return 0
+  # Through the environment rather than -v: a session id per line is the one
+  # shape that cannot collide with a session id, and awk rejects a newline
+  # inside a -v assignment — on the platform this runs on it says so on stderr
+  # and drops the file, which reads downstream as a project with no history.
+  FELIX_LEDGER_OWN="$own" LC_ALL=C awk -F'\t' '
+    BEGIN {
+      n = split(ENVIRON["FELIX_LEDGER_OWN"], a, "\n")
+      for (i = 1; i <= n; i++) if (a[i] != "") have[a[i]] = 1
+    }
+    !($1 in have)
+  ' "$mem/ledger.tsv"
+}
+
 # How many sessions each capability was present for, and how often it was
 # actually reached for.
 #
@@ -55,9 +95,7 @@
 # data written before 2026-08-12 says "unknown" rather than "zero".
 felix_ledger_summary() {
   local proj="$1"
-  local f="$(felix_mem_dir "$proj")/ledger.tsv"
-  [ -f "$f" ] || return 0
-  awk -F'\t' '
+  _felix_ledger_rows "$(felix_mem_dir "$proj")" | awk -F'\t' '
     $4 != "" {
       owner = $4
       sub(/@.*/, "", owner)
@@ -70,7 +108,7 @@ felix_ledger_summary() {
     END { for (o in sessions)
             printf "%s\t%s\t%s\t%s\n", o, sessions[o], calls[o],
                    (o in known ? named[o] : -1) }
-  ' "$f" | LC_ALL=C sort
+  ' | LC_ALL=C sort
 }
 
 # What Felix pointed at and nobody reached for.
@@ -184,17 +222,27 @@ felix_ledger_record() {
 # Rewritten rather than appended to, so rolling the same session twice cannot
 # double it: a SessionEnd hook can fire more than once, and a ledger that grows
 # on every clear would report a capability as used far more than it was.
+#
+# The file it rewrites is its own, and that is the whole of the fix for #32.
+# This used to rewrite one file shared by every session, which made "rewritten
+# rather than appended to" — correct, and the reason this function exists —
+# into a delete of everything another session had committed since the read.
+# Nothing here now reads a row it did not write, so there is no window to lose
+# and no lock to take.
 felix_ledger_rollup() {
-  local proj="$1" home="$2" session="$3" date="$4" state out seen kind name mem
+  local proj="$1" home="$2" session="$3" date="$4" state out seen kind name mem dir
   state="$(_felix_ledger_state "$home" "$session")"
   [ -f "$state" ] || return 0
   mem="$(felix_mem_dir "$proj")"
-  [ -d "$mem" ] || mkdir -p "$mem" 2>/dev/null || return 0
-  out="$mem/ledger.tsv"
+  dir="$mem/ledger.d"
+  [ -d "$dir" ] || mkdir -p "$dir" 2>/dev/null || return 0
+  out="$dir/$session.tsv"
 
-  local tmp; tmp="$(mktemp)" || return 0
-  # Everything this session did not write stays exactly as it was.
-  [ -f "$out" ] && grep -v "^${session}	" "$out" >> "$tmp" 2>/dev/null
+  # Staged beside its destination so the rename below is a rename. mktemp
+  # defaults to $TMPDIR, which is routinely a different filesystem, and mv
+  # across one is a copy a reader can catch half written. The name is dotted
+  # and unsuffixed so the reader's *.tsv glob cannot see it in flight.
+  local tmp; tmp="$(mktemp "$dir/.${session}.XXXXXX")" || return 0
 
   # `named` rows are the policy's decision, not a call. They are folded into the
   # sixth column of whatever they name rather than being rows of their own.

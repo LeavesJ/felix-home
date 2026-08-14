@@ -106,7 +106,7 @@ Each was backed up to ${FELIX_HOME_DIR}/state/rivals first."
 # rather than when somebody remembers to ask. Cheap: an awk pass over one file.
 retire_line=""
 _mem="$(felix_mem_dir "$PROJ")"
-if [ -f "$_mem/ledger.tsv" ]; then
+if [ -f "$_mem/ledger.tsv" ] || [ -d "$_mem/ledger.d" ]; then
   _retire="$(felix_ledger_retire "$PROJ" 2>/dev/null | cut -f1 | tr '\n' ' ')"
   _retire="${_retire% }"
   [ -n "$_retire" ] && retire_line="

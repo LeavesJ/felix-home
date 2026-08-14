@@ -1157,9 +1157,9 @@ EOF
 
 cmd_ledger() {
   resolve_or_die; local proj="$PROJ" name sessions calls named n=0
-  local f="$(felix_mem_dir "$proj")/ledger.tsv"
+  local rows; rows="$(_felix_ledger_rows "$(felix_mem_dir "$proj")")"
 
-  if [ ! -f "$f" ]; then
+  if [ -z "$rows" ]; then
     printf 'Nothing recorded yet for %s.\n\n' "$(basename "$proj")"
     printf 'The ledger is written by hooks, and hooks bind when a session starts,\n'
     printf 'so a session running when they were installed records nothing. It fills\n'
@@ -1168,7 +1168,7 @@ cmd_ledger() {
   fi
 
   printf 'ledger for %s, %s session(s)\n\n' "$(basename "$proj")" \
-    "$(cut -f1 "$f" | LC_ALL=C sort -u | grep -c . || echo 0)"
+    "$(printf '%s\n' "$rows" | cut -f1 | LC_ALL=C sort -u | awk 'NF { n++ } END { print n + 0 }')"
   printf '  %-34s %-10s %-9s %s\n' CAPABILITY SESSIONS NAMED REACHED
   while IFS=$'\t' read -r name sessions calls named; do
     [ -n "${name:-}" ] || continue

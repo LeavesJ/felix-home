@@ -100,6 +100,18 @@ _felix_stop_skipped() {
   [ -f "$state" ] || return 0
   routename="$(cut -d: -f1 < "$state" 2>/dev/null)"
   [ -n "$routename" ] || return 0
+  # A route read off the working tree is Felix's guess, not anybody's
+  # instruction, so a play it named going unused is evidence of nothing. This
+  # complaint used to fire either way and cost a paragraph of explanation each
+  # time, which is how a signal teaches people to skim it — and the case worth
+  # reading is the other one, where a session was told to reach for something on
+  # the strength of what it actually typed and did not.
+  #
+  # An empty third field is a state file written before provenance existed, and
+  # it complains, which is what it did before. Hooks bind at session start, so
+  # the writer and the reader are always the same version and that case is only
+  # ever a stale file from a dead session.
+  felix_route_state_guessed "$state" && return 0
   play="$(_felix_route_rows "$PROJ" | awk -F'\t' -v r="$routename" '$1==r{print $4}')"
   [ -n "$play" ] && [ "$play" != "-" ] || return 0
   tp="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"

@@ -1924,6 +1924,29 @@ toks="$( . "$FROOT/harness/lib/route.sh"
          felix_route_tokens '{"prompt":"fix src/queue/worker.py"}' | tr '\n' ' ' )"
 has "a path you typed yourself still counts" "$toks" "worker"
 
+# Whether Stop should stay quiet, as a predicate rather than hook-internal logic.
+# The first version of this test drove the whole Stop hook through a fixture
+# whose transcript path was empty, so the complaint fired in neither direction
+# and "it stays quiet on a guess" passed by finding nothing — the vacuous-check
+# shape this session has now hit three times.
+SG="$TMP/routestate"; mkdir -p "$SG"
+_guessed() { printf '%s' "$2" > "$SG/s"; ( . "$FROOT/harness/lib/route.sh"
+            felix_route_state_guessed "$SG/s" ) && printf yes || printf no; }
+is "a route off the tree is a guess"        "$(_guessed x "$(printf 'harness:done\ttree')")"   "yes"
+is "one from what you typed is not"         "$(_guessed x "$(printf 'harness:done\tprompt')")" "no"
+is "nor is one from both"                   "$(_guessed x "$(printf 'harness:done\tmixed')")"  "no"
+is "a state file from before this existed complains, as it did" \
+   "$(_guessed x 'harness:done')" "no"
+# The shape production actually emits. A due step is a play entry, so it carries
+# a colon of its own — and the colon scheme this replaced read "brainstorming"
+# as the provenance and never matched anything. Every fixture above uses a due
+# step of `done`, which is why they all passed while the real value did not.
+is "a due step containing a colon does not shift it" \
+   "$(_guessed x "$(printf 'harness:superpowers:brainstorming\ttree')")" "yes"
+rm -f "$SG/s"
+( . "$FROOT/harness/lib/route.sh"; felix_route_state_guessed "$SG/s" ) \
+  && bad "a missing state file is not a guess" || ok "a missing state file is not a guess"
+
 # A route must match its own name, and three did not.
 #
 # `debug` named systematic-debugging and did not have the word "debug" among its
@@ -2056,6 +2079,54 @@ esac
 
 out="$(_hook "$S3")"; ctx="$(_ctx "$out")"
 has "a change of route speaks again" "$ctx" "backend"
+
+# A guessed route and an ignored instruction are different facts, and the state
+# file threw the difference away.
+#
+# `felix route` already says which it is — "read off the working tree, not the
+# prompt: nothing you typed named a kind of work" — from the prompt-contributed
+# half of the score. The state written for `Stop` recorded only route and due
+# step, so `Stop` ended sessions complaining that a play went unused whether the
+# route came from what somebody typed or from what happened to be checked out.
+# It fired five times in one session, at least three of them on open guesses.
+#
+# Provenance is stored as a word rather than the score it came from. The score
+# is an implementation detail of today's ranking function; what the contract
+# needs to survive a re-weighting is whether the obligation was grounded in
+# intent at all.
+rm -rf "$FROOT/state/route"
+_hook '{"session_id":"prov-p","prompt":"let us build the results page"}' >/dev/null 2>&1
+is "a route from what you typed is recorded as such" \
+   "$(cut -f2 < "$FROOT/state/route/prov-p" 2>/dev/null)" "prompt"
+
+# Nothing routable typed, so whatever it picked came off the tree.
+rm -rf "$FROOT/state/route"
+_hook '{"session_id":"prov-t","prompt":"ok"}' >/dev/null 2>&1
+if [ -f "$FROOT/state/route/prov-t" ]; then
+  case "$(cut -f2 < "$FROOT/state/route/prov-t")" in
+    tree|mixed) ok  "a route off the tree is not recorded as typed" ;;
+    *)          bad "a route off the tree is not recorded as typed" \
+                    "$(cat "$FROOT/state/route/prov-t")" ;;
+  esac
+else
+  ok "a route off the tree is not recorded as typed"
+fi
+
+# Dedup must ignore it. The state value is also the announce key, so a third
+# field that varies would make a route re-announce itself with nothing changed —
+# which is the noise this exists to remove, reintroduced one field along.
+rm -rf "$FROOT/state/route"
+_hook "$S1" >/dev/null 2>&1
+# The same prompt twice, with only the third field altered in between, so
+# provenance is the single variable. Planting a route name here instead would
+# have tested whatever that fixture happens to route to.
+k="$(cut -f1 < "$FROOT/state/route/sess-aaa" 2>/dev/null)"
+printf '%s\ttree' "$k" > "$FROOT/state/route/sess-aaa"
+out="$(_hook "$S1")"; ctx="$(_ctx "$out")"
+case "$ctx" in
+  *"routed this to"*) bad "provenance is not part of the announce key" "$ctx" ;;
+  *)                  ok  "provenance is not part of the announce key" ;;
+esac
 
 # State is a convenience. Losing it must cost a repeated block, never a session.
 chmod 000 "$FROOT/state/route" 2>/dev/null

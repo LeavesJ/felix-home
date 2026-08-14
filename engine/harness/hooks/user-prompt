@@ -118,14 +118,46 @@ elif [ -f "$PROJ/routes.tsv" ]; then
     # the route alone, Felix named a tool once and went quiet for the rest of
     # the session, which is how a sequence becomes a single suggestion.
     r_due="$(felix_route_due "$transcript" "$r_play" 2>/dev/null | cut -f1)"
+
+    # Where the route came from, kept as a word rather than the score it was
+    # derived from. `Stop` reads this to decide whether an unused play is worth
+    # mentioning, and a guess off the working tree is not an instruction anybody
+    # gave — reporting it as one fired five complaints in a single session, at
+    # least three of them about routes nothing typed had asked for.
+    #
+    # A word and not `r_pscore`, because the score is an implementation detail
+    # of today's ranking function. What the Stop contract needs to survive a
+    # re-weighting is whether the obligation was grounded in intent at all.
+    r_cscore="$(printf '%s' "$best" | cut -f3)"
+    if   [ "${r_pscore:-0}" -gt 0 ] && [ "${r_cscore:-0}" -gt 0 ]; then r_prov=mixed
+    elif [ "${r_pscore:-0}" -gt 0 ]; then                               r_prov=prompt
+    else                                                                r_prov=tree
+    fi
+
+    # Dedup on the route and the due step only. The state value is also the
+    # announce key, so folding provenance into the comparison would make a route
+    # re-announce itself when nothing about the advice had changed — the same
+    # noise this exists to remove, one field along.
+    # Tab, not another colon. A due step is a play entry and play entries
+    # contain colons — `superpowers:brainstorming` — so `harness:done:prompt`
+    # was the only shape that ever worked and it is the shape no real session
+    # produces. The real value is `harness:superpowers:brainstorming:mixed`,
+    # where the third colon field is "brainstorming". Every fixture written for
+    # this used a due step of `done`, so the unit tests passed against a shape
+    # production never emits.
     last=""
-    [ -f "$state" ] && last="$(cat "$state" 2>/dev/null)"
+    [ -f "$state" ] && last="$(cut -f1 < "$state" 2>/dev/null)"
     if [ "$last" != "$r_name:${r_due:-done}" ]; then
       route_block="$(felix_route_render "$PROJ" "$r_name" "$r_play" "$root" "$r_pscore" "$transcript")"
-      # Failing to remember costs a repeated block. Failing to exit 0 costs the
-      # session, so the write is best-effort and never checked.
-      mkdir -p "$state_dir" 2>/dev/null && printf '%s' "$r_name:${r_due:-done}" > "$state" 2>/dev/null
     fi
+    # Written every turn, not only when announcing, so provenance tracks the
+    # latest turn. A route that was a guess and then became something you asked
+    # for must stop being exempt the moment that happens.
+    #
+    # Failing to remember costs a repeated block. Failing to exit 0 costs the
+    # session, so the write is best-effort and never checked.
+    mkdir -p "$state_dir" 2>/dev/null && \
+      printf '%s\t%s' "$r_name:${r_due:-done}" "$r_prov" > "$state" 2>/dev/null
   else
     felix_route_log "$PROJ" "" 0 "$raw"
   fi

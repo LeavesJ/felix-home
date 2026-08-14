@@ -145,8 +145,20 @@ EOF
     local nm sessions
     while IFS=$'\t' read -r nm sessions; do
       [ -n "${nm:-}" ] || continue
-      _felix_next_row 7 felix "$nm is mounted and no route pointed at it in $sessions recorded session(s)" \
-        "check the keywords in $proj/routes.tsv match real work, or stop mounting it"
+      # Two causes, opposite fixes, and this said the same sentence for both.
+      # Half the rows on Felix's own project named plugins that appear in no
+      # play at all, so "check the keywords" was advice nobody could follow —
+      # no keyword reaches a capability no route mentions. The ledger already
+      # separates these one layer down; this never inherited it.
+      if command -v felix_route_names_capability >/dev/null 2>&1 \
+           && ! felix_route_names_capability "$proj" "$nm"; then
+        _felix_next_row 7 felix \
+          "$nm is mounted and no route names it, so no keyword can reach it" \
+          "felix toolbox --route to wire it, or stop mounting it — its zero says nothing about the capability"
+      else
+        _felix_next_row 7 felix "$nm is mounted and no route pointed at it in $sessions recorded session(s)" \
+          "check the keywords in $proj/routes.tsv match real work, or stop mounting it"
+      fi
     done <<EOF
 $(felix_ledger_unrouted "$proj" 2>/dev/null)
 EOF

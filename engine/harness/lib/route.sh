@@ -445,6 +445,34 @@ felix_route_log() {
 # Frequency, not understanding — the same caveat felix promote already prints
 # about the devlog. Felix does not edit routes.tsv itself, for the reason
 # felix lesson is a command rather than an inference.
+# Whether any route's play names this capability at all.
+#
+# The question a zero cannot answer on its own. A capability nobody reached for
+# means one of two things, and they lead opposite ways: the table names it and
+# its keywords never matched the work anybody does, which is a keyword problem;
+# or no play mentions it, in which case no keyword could ever have reached it
+# and asking somebody to fix the keywords is asking for the impossible.
+#
+# Matched against the play entries rather than the whole line, and a play entry
+# may be qualified — `superpowers:brainstorming` is owned by `superpowers`, so
+# the plugin counts as named when a skill of its is. That is the same ownership
+# rule `_felix_route_kind` resolves against the manifest.
+felix_route_names_capability() {
+  local proj="$1" want="$2" n p pr pl entry
+  [ -n "$want" ] || return 1
+  [ -f "$proj/routes.tsv" ] || return 1
+  while IFS=$'\t' read -r n p pr pl; do
+    case "$n" in ''|'#'*) continue ;; esac
+    [ -n "${pl:-}" ] && [ "$pl" != "-" ] || continue
+    for entry in $pl; do
+      case "$entry" in
+        "$want"|"$want":*) return 0 ;;
+      esac
+    done
+  done < "$proj/routes.tsv"
+  return 1
+}
+
 # Whether a recorded route was Felix's guess rather than something asked for.
 #
 # Lives here rather than inside the Stop hook so it can be tested at all. The

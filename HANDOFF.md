@@ -523,11 +523,12 @@ it was fine".
 Everything that used to be above this is done. One item is left, and it is not
 one anybody can sit down and build.
 
-1. **Auto-merge and the unattended switch.** Elenchus is 1 of 5, Felix 0 of 5.
-   Both unlock on five consecutive green merges, and maintenance will not
-   produce them: a well-kept repository yields about one real PR from a full
-   sweep of due routines, measured rather than guessed. They come from real
-   feature work, so this advances as a side effect of building things.
+1. **Auto-merge and the unattended switch.** Elenchus is 1 of 5, **Felix is 4 of
+   5 — one green merge from the unlock.** Both unlock on five consecutive green
+   merges, and maintenance will not produce them: a well-kept repository yields
+   about one real PR from a full sweep of due routines, measured rather than
+   guessed. They come from real feature work, so this advances as a side effect
+   of building things. Read the number from `felix automerge`, never from here.
 
 **Closed 2026-08-13 — and the entry was wrong.** "Convert the pure recommenders:
 `doctor`, `handoff`, `promote`, `recommend`, `which`" misfiled three of five.
@@ -666,17 +667,24 @@ Do not re-derive these here. If one is closed, say so in this table.
   against 2 recorded it buys almost nothing for a long time. Nothing is lost by
   waiting. Revisit when the ledger holds 20 sessions.
 - **Auto-merge.** Elenchus is **1 of 5**: #4 merged green 2026-08-12, the first
-  of the run. Before it, three merges ever — #1 unlabelled, #3 `risk-red`.
-  Felix is **still 0 of 5 after merging its first pull request ever**, and that
-  is the counter working rather than failing: the streak counts *green* merges,
-  PR #1 was `risk-red`, and Felix's own `risk.tsv` calls anything under
-  `engine/harness/lib` red by construction. **So engine work on Felix can never
-  advance this number.** It will move on template, per-project and documentation
-  changes, or not at all. Worth deciding whether that is the intended reading —
-  the unlock exists to test whether a green classification is trustworthy, and
-  a repository that rarely produces green changes never gathers that evidence.
-  The five risk labels now exist on the repo; `felix pr` could not apply one
-  before today because none had ever been created.
+  of the run. **Felix is 4 of 5, checked 2026-08-14 with `felix automerge`** —
+  #8, #14, #18 and #19, all documentation. One more green merge earns it.
+  The mechanism is the counter working rather than failing: the streak counts
+  *green* merges, and Felix's own `risk.tsv` calls anything under
+  `engine/harness/lib` red by construction, so **engine work on Felix can never
+  advance this number**. It moves on template, per-project and documentation
+  changes, or not at all — which is what the four above are. A red merge does
+  not reset the run, it simply does not count; PR #21 was `risk-red` and the
+  streak stayed at 4. Worth deciding whether that is the intended reading: the
+  unlock exists to test whether a green classification is trustworthy, and a
+  repository whose green changes are all prose gathers thin evidence for it.
+
+  **This entry said "still 0 of 5" until 2026-08-14 and had been wrong for
+  four merges.** It was then repeated out loud to the founder by the session
+  that read it. `lessons.md` already carries "a status table is the least
+  trustworthy thing in the repository", so the lesson did not fail to exist —
+  it failed to fire. Every number in this file has a command that produces it;
+  run the command.
 - **GitHub MCP is broken, not missing.** `plugin:github:github` returns
   `HTTP 400: Authorization header is badly formatted`. It was authenticated once
   and the credential is now malformed. Needs an interactive session.

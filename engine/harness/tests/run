@@ -2458,6 +2458,97 @@ printf 'def test_a(): pass\n' > "$STG/tests/test_a.py"
 has "and staging the test closes the gap — the case that started this" "$(_sev)" "met"
 rm -f "$FROOT/projects/widget/evidence.tsv"
 
+printf '\na receipt that cannot claim more than it knows\n'
+# v3.0's domain-OS contract asks each harness for a machine-readable record of
+# what changed, why, evidence, risk and result. Felix computes every one of
+# those and emits none of them: classify has the risk, evidence has what is
+# owed, the gate has the result, escape has the authority question. This is a
+# serialiser over facts that already exist.
+#
+# Two properties come from the transport research rather than from the contract.
+# Neither MCP 2026-07-28 nor A2A 1.0.1 carries a bounded authority claim, and
+# neither signs task output — so if a receipt is to say on whose authority the
+# work proceeded, the receipt itself must carry it, because no transport will.
+# And neither models verification as distinct from completion, which is exactly
+# what Felix has that they do not, so the gate verdict is its own field.
+#
+# The load-bearing property is none of that. It is that the receipt CANNOT CLAIM
+# VERIFIED ON AN ABSENCE. Six defects in one day were one species — emptiness
+# read as success — so the first consumer of this receipt is that rule.
+_rcpt() { ( cd "$STG" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+            . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+            . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/classify.sh"
+            . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/receipt.sh"
+            felix_receipt "$FROOT/projects/widget" "${1:-$BASE_SHA}" "$STG" "$FROOT" ); }
+_rf() { printf '%s' "$1" | python3 -c '
+import json,sys
+d=json.load(sys.stdin)
+for p in sys.argv[1].split("."): d=d[p]
+print(d if isinstance(d,str) else json.dumps(d))' "$2" 2>/dev/null; }
+
+r="$(_rcpt)"
+printf '%s' "$r" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
+  && ok "it emits parseable json" || bad "it emits parseable json" "$r"
+is  "it names a schema version, so a reader can refuse one it does not know" \
+    "$(_rf "$r" schema)" "felix.receipt/1"
+is  "and the domain it speaks for"  "$(_rf "$r" domain)" "engineering"
+has "it names what changed"         "$(_rf "$r" changed.paths)" "src/a.py"
+is  "and says that it knows"        "$(_rf "$r" changed.known)" "true"
+
+# The gate has not run against this tree, so nothing may say it is verified.
+# This is the whole point: an absent receipt is not a green one.
+vs="$(_rf "$r" verification.state)"
+is "an absent gate receipt reads as absent, not as green" "$vs" "none"
+st="$(_rf "$r" status)"
+case "$st" in verified) bad "and the receipt refuses to call that verified" "$st" ;;
+              *)        ok  "and the receipt refuses to call that verified" ;; esac
+
+# Authority is carried in the receipt because no transport carries it.
+is "a staged workflow makes this the founder's call" "$(_rf "$r" authority.founder_required)" "true"
+is "and it is not autonomous"                        "$(_rf "$r" authority.autonomous)"      "false"
+has "naming the channel that escaped"                "$(_rf "$r" authority.escapes)"         "execute"
+is "and who granted it, which is nobody yet"         "$(_rf "$r" authority.granted_by)"      "none"
+
+# A base nothing can resolve must not read as "nothing changed". An empty list
+# and an unanswerable question are different facts, and the whole family of
+# defects this exists to prevent is reporting the second as the first.
+r2="$(_rcpt deadbeefdeadbeefdeadbeefdeadbeefdeadbeef)"
+is "an unresolvable base is not an empty changeset" "$(_rf "$r2" changed.known)" "false"
+has "and it says so where a reader must look"       "$(_rf "$r2" unknown)"       "changed"
+case "$(_rf "$r2" status)" in
+  indeterminate) ok  "a receipt missing an input is indeterminate, never verified" ;;
+  *)             bad "a receipt missing an input is indeterminate, never verified" "$(_rf "$r2" status)" ;;
+esac
+
+# Same rule for the risk table. "No risk.tsv" once reported green here, which is
+# the same bug wearing the other hat.
+mv "$FROOT/projects/widget/risk.tsv" "$TMP/risk.tsv.bak"
+r3="$(_rcpt)"
+is  "an unreadable risk table yields an unknown tier" "$(_rf "$r3" risk.tier)" "unknown"
+has "listed where a reader must look"                "$(_rf "$r3" unknown)"   "risk"
+case "$(_rf "$r3" status)" in
+  verified) bad "and never a verified receipt" "$(_rf "$r3" status)" ;;
+  *)        ok  "and never a verified receipt" ;;
+esac
+mv "$TMP/risk.tsv.bak" "$FROOT/projects/widget/risk.tsv"
+
+# risk.tsv rows carry more than four columns — `channel` and `confine` follow the
+# reason — and the readers take the reason as "everything after the pattern", so
+# it arrives with the remaining columns glued on behind two tabs. A human report
+# gets away with that. A wire contract does not: a consumer reading `reason`
+# would get three fields in a trench coat, and the version number promises it
+# will not.
+rr="$( . "$FROOT/harness/lib/receipt.sh"
+       printf 'red\tsome/path\ta plain reason\tverifier\tcount:^x\n' \
+         | _felix_rcpt_rows tier path reason )"
+has "a finding names its reason"        "$rr" "a plain reason"
+case "$rr" in
+  *verifier*|*'count:'*) bad "and not the columns that follow it" "$rr" ;;
+  *)                     ok  "and not the columns that follow it" ;;
+esac
+printf '%s' "$rr" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
+  && ok "and the row is still json" || bad "and the row is still json" "$rr"
+
 printf '\nthe bump is the deployment\n'
 # `felix install` detected the exact condition, knew exactly what to do, and
 # printed instructions: "Bump version in plugin.json, then re-run this." The

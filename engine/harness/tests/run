@@ -3996,6 +3996,25 @@ is "a trailing slash resolves the same"    "$(_md /some/home/projects/widget/)" 
 is "FELIX_MEMORY overrides the default" \
    "$( . "$REAL_HARNESS/lib/resolve.sh"; FELIX_MEMORY=/tmp/elsewhere felix_mem_dir /h/projects/widget )" \
    "/tmp/elsewhere/widget"
+# The root, without a project on the end, for the one caller that has to talk
+# about memory in general rather than one project's.
+is "the root is available on its own" \
+   "$( . "$REAL_HARNESS/lib/resolve.sh"; FELIX_MEMORY=/tmp/elsewhere felix_mem_root )" \
+   "/tmp/elsewhere"
+
+# Uninstall says what it kept, and the split left it naming the wrong place.
+#
+# It printed "left <home> alone: it holds your doctrine and memory" — naming the
+# checkout, which after 2026-08-14 holds doctrine and no memory at all. Nothing
+# was ever destroyed; the message was simply wrong about where the thing it
+# preserved had gone. On the uninstall path that is the worst place to be vague,
+# because it is the one moment somebody is deciding whether they are about to
+# lose something.
+CLB="$TMP/claudestub"; mkdir -p "$CLB"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$CLB/claude"; chmod +x "$CLB/claude"
+uout="$(cd "$REPO" && PATH="$CLB:$PATH" FELIX_MEMORY=/tmp/mem-elsewhere "$FELIX" install --uninstall 2>&1)"
+has "uninstall names the doctrine it left alone" "$uout" "$FROOT"
+has "and the memory, which is somewhere else now" "$uout" "/tmp/mem-elsewhere"
 # Never inside the tree it is describing, whatever home resolves to. Stated as
 # its own assertion because it is the whole point and a future refactor that
 # derived the root from felix_home would still pass every check above.

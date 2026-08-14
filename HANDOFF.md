@@ -5,77 +5,60 @@ standing direction that has already been decided and should not be re-derived,
 re-litigated, or asked about again.
 
 For the mechanical state of the tree — branch, head, uncommitted, recent commits
-— see `projects/felix/memory/SESSION_HANDOFF.md`, which `felix handoff`
-regenerates and therefore overwrites. Durable prose goes here, not there.
+— run `felix handoff`, which regenerates `SESSION_HANDOFF.md` in the memory root
+and therefore overwrites it. Durable prose goes here, not there. That file left
+this repository on 2026-08-14 along with the rest of memory; `felix which` will
+tell you where it landed.
 
 ---
 
-## 0. DECIDED 2026-08-14 — public stays, the memory moves out
+## 0. DECIDED 2026-08-14 — private, and the memory lives outside it
 
-The previous session ended here recommending the opposite: flip the repository
-private, because it stores the memory of every project Felix governs and one
-governed project's memory contains third-party confidential material. **The
-founder was asked and decided the other way. Public stays. The memory moves.**
+Two decisions in one day, and the second supersedes the first. Earlier this file
+recorded "public stays, the memory moves out". **The repository is private
+again** — verified by an unauthenticated request to the GitHub API returning
+404, not by reading a settings page. It was public for roughly two hours with no
+stars, forks or watchers.
 
-Read that as a real answer to the same problem rather than a refusal of it. The
-objection to publishing was never "this repository exists", it was "this
-repository is where governed-project memory happens to live". Take the memory
-out and the objection leaves with it — and public keeps a required status check
-free, which is exactly what the earned-autonomy design needs and what the paid
-plan at the bottom of the old §0 was going to be bought for. One change settles
-both. That is why this is not a compromise between two positions.
+**The memory migration stands and was right either way.** It was never only a
+publishing fix. A home *is* the checkout whenever Felix governs itself, so
+rooting memory under the home meant every governed project's record accumulated
+inside a repository that also wants to be shown to people. Taking it out is
+correct with the repository private, and it is what makes an eventual release
+possible at all. `felix_mem_dir` roots at `$FELIX_MEMORY` or
+`~/.felix/memory/<project>`, computed from `$HOME` and never from `felix_home`,
+and the gate's `memory` check was inverted rather than deleted — it used to
+demand memory be tracked and now fails if any is, which is the only thing that
+would notice the old layout returning one project at a time.
 
-**What it does not do, and nobody should discover this later.** Moving memory
-out stops the accrual and makes the repository publishable *from here*. It does
-not un-publish anything. The material is in the commits already pushed, and
-`git rm` leaves every one of them intact. So the exposure that prompted the old
-§0 is unchanged by the work this session did; only its future is. The remaining
-options are the ones that were always there — `git filter-repo` plus a
-force-push, which rewrites every commit and invalidates existing clones, or a
-period of private while that runs. **Nobody has authorised either, and this
-session did not ask for authority it had not been given.** Specifics of the
-material stay out of this file for the reason they always did: naming it here
-turns a warning into an index, and this document is served to the same audience.
+**What going private takes back.** The argument for publishing was that clause 3
+of the earned-autonomy design needs an *unavoidable* enforcement point, local
+bash cannot be one, and a required status check needs a public repository or a
+paid plan. Private again means that route is closed and the paid plan is back on
+the table — or the enforcement waits. That is a real cost of this decision and
+it should be paid deliberately, not rediscovered.
 
-**Where that leaves the old three-item list.** Item 1, untracking the verbatim
-prompt logs, is no longer a separate task — the migration moved them along with
-everything else. Item 2, where governed memory lives, is the question the founder
-just answered. Item 3, history, is untouched and still open.
+### What is still open
 
-**What shipped, 0.48.0.** Memory now resolves through `felix_mem_dir`, defaulting
-to `$HOME/.felix/memory/<project>` and overridable with `FELIX_MEMORY`. The root
-is computed from `$HOME` and never from `felix_home`, because home *is* the
-checkout whenever Felix governs itself — deriving it from home is what put the
-material in a public repository, and the suite asserts the independence rather
-than trusting the comment. Both projects' memory was copied out and verified
-byte-identical before anything was deleted, 16 files and 9,615 lines left the
-index, and the gate's `memory` check was inverted: it used to demand memory be
-tracked, and now fails if any is. Shown failing against the real gate with a
-planted file, per invariant 5.
-
-**The one thing this cost, and it is not small.** Memory is now machine-local
-and backed up by nothing. `lessons.md` used to travel with the repository; it no
-longer does, so a new machine starts with an empty memory and the lessons that
-are matched into every prompt live in one directory on one laptop. Nothing in
-this change addresses that, on purpose — the cheap answer is a private git repo
-at `felix_mem_root` with a remote, which is now a one-command follow-up because
-the path is a single function. **Until somebody does it, `~/.felix/memory` is
-unreplicated and worth more than most of what is in the repository.**
-
-What was checked and is clean, and still stands: **199 commits scanned end to
-end for credentials.** The only hits are the suite's own planted fixtures and one
-`$(gh auth token)` substitution that stores nothing. No `.env`, no key material,
-no tracked secrets. Two soft exposures are known and accepted — a personal email
-in the commit history beside the GitHub noreply address, and `/Users/a14808` in
-nine tracked files.
-
-**Why the record used to say the opposite.** §7 rejects publishing with "the
-doctrine is the moat", and that entry was written when doctrine and memory were
-the same directory tree. They are not any more. The moat is the doctrine, which
-is what stays tracked and public; the memory was never the moat, it was the
-liability sitting next to it. §7's reasoning survives its conclusion.
-
----
+1. **The history holds it and always did.** `git rm` removes a file from HEAD,
+   not from the 207 commits behind it. **Recommendation: do not rewrite.** The
+   repository is private, and the eventual open-source path is a path filter on
+   `engine/` — which structurally cannot carry `projects/` content, because
+   those paths were never in the filtered set. Invariant 1 is what makes that
+   split clean, and it is mechanically enforced: `tests/run` greps runtime code
+   for a project name and fails. A rewrite invalidates every clone and worktree
+   to remove a risk the release path already removes.
+   One trap for whoever does that release: **a path filter does not filter
+   prose.** 21 of the 105 commits touching `engine/` name the other project in
+   their messages, and messages travel with commits.
+2. **Memory no longer survives the machine, and that has not been decided.**
+   `~/.felix/memory/` is untracked, inside a home directory that is a git
+   repository with no remote. A dead laptop takes every lesson, the ledger and
+   every mistakes log with it. Invariant 6 now describes the two locations
+   correctly, and describing a split is not deciding its consequence.
+   **This is the one item here worth a founder's time.** Cheapest answers: give
+   `~/.felix` its own private remote, or point `$FELIX_MEMORY` at a directory
+   that is already synced.
 
 ## 1. Standing direction — decided, do not ask again
 
@@ -209,7 +192,7 @@ deploy target; the first will not unblock on its own.
 | What | File |
 |---|---|
 | Charter and invariants | `projects/felix/CLAUDE.md` |
-| Hard-won lessons, matched into prompts | `projects/felix/memory/lessons.md` |
+| Hard-won lessons, matched into prompts | `$FELIX_MEMORY/felix/lessons.md`, default `~/.felix/memory/felix/` |
 | This direction | this file |
 | Per-project rules | `projects/<p>/{routes,risk,evidence,stack,deny,maintenance}.tsv` |
 

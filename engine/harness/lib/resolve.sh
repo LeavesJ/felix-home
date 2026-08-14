@@ -181,6 +181,27 @@ felix_file_at() {
   fi
 }
 
+# Whether two paths are checkouts of one repository, worktrees included.
+#
+# A worktree and its main checkout share one `--git-common-dir`, which is what
+# makes this survive being somewhere else. Resolved to an absolute path first,
+# because git answers `.git` from inside the main checkout and a full path from
+# inside a worktree — comparing those two strings says "different" about the
+# same repository, which is the bug this exists to stop rather than cause.
+#
+# Written because two guards asked "is this Felix's own storage" with a path
+# prefix — `case "$root/$f" in "$FELIX_HOME_DIR"/projects/*)` — which is true
+# only when you are standing in the home itself. From a worktree the root is
+# elsewhere, the prefix never matches, and the guard silently does nothing. One
+# of the two guards only reports; the other deletes.
+felix_same_repo() {
+  local a="$1" b="$2" ga gb
+  [ -n "$a" ] && [ -n "$b" ] || return 1
+  ga="$(git -C "$a" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
+  gb="$(git -C "$b" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
+  [ -n "$ga" ] && [ "$ga" = "$gb" ]
+}
+
 # Where the felix marketplace serves its engine from, or empty when it is not
 # registered. Reads the registry rather than assuming, because the answer is the
 # difference between a deploy and a no-op that reports success.

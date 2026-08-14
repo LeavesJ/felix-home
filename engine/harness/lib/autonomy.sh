@@ -67,7 +67,15 @@ felix_tidy_safe() {
     [ -f "$proj/$base" ] || continue
     # 4. Never the gate, never Felix's own storage.
     [ "$root/$f" -ef "$proj/$gate" ] 2>/dev/null && continue
-    case "$root/$f" in "${home:-/nonexistent}"/projects/*) continue ;; esac
+    # The same repository test as the reporter, and it matters more here. A
+    # prefix match against the home is true only when standing in the home, so
+    # from a worktree of Felix this guard lapsed entirely — on the one path in
+    # the system that deletes. Guard 3 above still held it back (Felix's stored
+    # files are tracked, and only untracked ones are removed), so nothing was
+    # ever lost; a defence that only works from one directory is not a defence.
+    case "$f" in
+      projects/*) felix_same_repo "$root" "${home:-/nonexistent}" && continue ;;
+    esac
 
     # 5. Copy first, confirm the copy, then remove. A backup nobody checked is
     #    the same as no backup at the moment it turns out to matter.

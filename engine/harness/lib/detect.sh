@@ -171,8 +171,17 @@ _felix_rival_gates() {
       [ "$root/$f" -ef "$proj/$gate" ] 2>/dev/null && continue
 
       # Felix's own per-project storage holds every governed project's gate. In
-      # the one checkout that is Felix, those are its records, not rivals.
-      case "$root/$f" in "${FELIX_HOME_DIR:-/nonexistent}"/projects/*) continue ;; esac
+      # any checkout that IS Felix, those are its records, not rivals.
+      #
+      # Tested on the repository, not on the path. This was a prefix match
+      # against $FELIX_HOME_DIR, which is true only when standing in the home
+      # itself: from a worktree of Felix the root is elsewhere, the prefix never
+      # matched, and doctor reported every governed project's stored gate as a
+      # rival — then called one of them "differs from the copy Felix holds",
+      # having compared it against another project's file on a shared basename.
+      case "$f" in
+        projects/*) felix_same_repo "$root" "${FELIX_HOME_DIR:-/nonexistent}" && continue ;;
+      esac
 
       # A project may declare a repo-relative command as its gate. That path is
       # the gate, so naming it here would report the gate as its own rival.

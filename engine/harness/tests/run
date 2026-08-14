@@ -295,6 +295,58 @@ esac
 rm -f "$FROOT/projects/widget/prepush.sh"
 rm -rf "$REPO/scripts"
 
+# Felix's own per-project storage, seen from a worktree of Felix.
+#
+# The guard for that storage was a path-prefix test — "does this file live under
+# $FELIX_HOME_DIR/projects/" — and in a worktree it never matches, because the
+# root is the worktree and the home is still the main checkout. So `felix doctor`
+# reported every governed project's stored gate as a rival gate, under a banner
+# saying whichever one a session reaches for decides what green means. It also
+# called `projects/elenchus/gate.sh` "differs from the copy Felix holds", having
+# compared it against `projects/felix/gate.sh` on the strength of a shared
+# basename, while it was byte-identical to the copy Felix actually holds for
+# Elenchus. A tool whose job is finding drift, inventing drift.
+#
+# The fix is an identity test on the repository rather than on the path string:
+# a worktree and its main checkout share one `--git-common-dir`, so "is this
+# checkout Felix" survives being somewhere else. Worktrees are how work happens
+# here — issue #2 records that `felix merge` is unreachable from one — so a
+# guard that silently lapses there is a guard for the case that does not arise.
+RH="$TMP/felixhome"; mkdir -p "$RH/projects/p1" "$RH/projects/p2"
+( cd "$RH" && git init -q -b main )
+RH="$(cd "$RH" && pwd -P)"
+printf '#!/bin/sh\necho p1\n' > "$RH/projects/p1/gate.sh"
+printf '#!/bin/sh\necho p2\n' > "$RH/projects/p2/gate.sh"
+chmod +x "$RH/projects/p1/gate.sh" "$RH/projects/p2/gate.sh"
+printf '{"name":"p1","gate":"gate.sh"}\n' > "$RH/projects/p1/project.json"
+( cd "$RH" && git add -A >/dev/null 2>&1 \
+  && git -c user.name=t -c user.email=t@t commit -qm home >/dev/null 2>&1 )
+RW="$TMP/felixwork"
+( cd "$RH" && git worktree add -q -b wt "$RW" >/dev/null 2>&1 )
+RW="$(cd "$RW" && pwd -P)"
+
+_riv() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+           FELIX_HOME_DIR="$RH" _felix_rival_gates "$1" "$RH/projects/p1" "gate.sh" ); }
+
+case "$(_riv "$RH")" in
+  *projects/p2/gate.sh*) bad "the main checkout knows its own storage is not a rival" "$(_riv "$RH")" ;;
+  *)                     ok  "the main checkout knows its own storage is not a rival" ;;
+esac
+case "$(_riv "$RW")" in
+  *projects/p2/gate.sh*) bad "and so does a worktree of it" "$(_riv "$RW")" ;;
+  *)                     ok  "and so does a worktree of it" ;;
+esac
+# The guard must stay narrow: a genuinely unrelated repo that happens to have a
+# projects/ directory is not Felix, and its lookalikes are still reported.
+OTHER="$TMP/notfelix"; mkdir -p "$OTHER/projects/p2"
+( cd "$OTHER" && git init -q -b main )
+OTHER="$(cd "$OTHER" && pwd -P)"
+printf '#!/bin/sh\necho other\n' > "$OTHER/projects/p2/gate.sh"
+chmod +x "$OTHER/projects/p2/gate.sh"
+( cd "$OTHER" && git add -A >/dev/null 2>&1 \
+  && git -c user.name=t -c user.email=t@t commit -qm other >/dev/null 2>&1 )
+has "a different repository is still checked" "$(_riv "$OTHER")" "projects/p2/gate.sh"
+
 # The assertions below shell out to `claude plugin list` and `claude mcp list`.
 # The latter performs live health checks, so they are network-dependent and can
 # flake: one spurious failure was observed in a run that passed three times

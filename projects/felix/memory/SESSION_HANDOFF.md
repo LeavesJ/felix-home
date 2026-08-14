@@ -6,7 +6,7 @@ not a summary of intent.
 ## Where
 
 - branch: `main`
-- head: `33420a4 fix(tests): two assertions that were decided by the filesystem clock`
+- head: `eca3b52 docs(autonomy): the authority root is transitive, and the evaluator is the base version (#19)`
 - tree: `/Users/a14808/Documents/Felix`
 
 ## Uncommitted
@@ -14,27 +14,25 @@ not a summary of intent.
 ```
  M HANDOFF.md
  M projects/felix/memory/SESSION_HANDOFF.md
- M projects/felix/memory/ledger.tsv
- M projects/felix/memory/lessons.md
- M projects/felix/memory/mistakes.log
  M projects/felix/memory/routes.log
  M projects/felix/memory/says.log
+ M projects/felix/memory/verification.log
 ```
 
 ## Recent
 
 ```
-33420a4 2026-08-13 fix(tests): two assertions that were decided by the filesystem clock
-84d04a7 2026-08-13 docs(memory): the four overdue routines, and what they turned up
-52e7723 2026-08-13 fix(signals): three reports that misread their own evidence
-edefc15 2026-08-13 docs(handoff): regenerate session state
-32caed4 2026-08-13 doctrine: forwarding a mechanical stop is the recommender defect in prose
-d267986 2026-08-13 docs(handoff): the shape Felix is growing into, and which end is blocked on what
-4871385 2026-08-13 docs(handoff): close the session — latency measured and halved, install bumps itself
-1b2592c 2026-08-13 perf(hooks): PreToolUse cost 105ms a call, and the session paid it
+eca3b52 2026-08-13 docs(autonomy): the authority root is transitive, and the evaluator is the base version (#19)
+e8cdf22 2026-08-13 docs(autonomy): the founder's decision on #5, and the clause it still needs (#18)
+99c02b1 2026-08-13 fix(doctor,tidy): "is this Felix" was a path prefix, so it lapsed in a worktree (#17)
+3b79b19 2026-08-13 fix(gate): a check that could not have passed did not catch anything (#16)
+a16bed8 2026-08-13 fix(route): nobody typed a task notification, and Felix was routing them (#15)
+b41058e 2026-08-13 docs(receipt): what shipped, and the git idiom that does not check what it says (#14)
+9becae4 2026-08-13 feat(receipt): the first thing Felix can hand to something that is not a person (#13)
+c55a5cc 2026-08-13 fix(guard): the report for another plugin's hook was reporting Felix's own (#12)
 ```
 
 ## Next
 
 - verify: `gate.sh`
-- what was in progress: maintenance sweep: four routines run, three misreporting signals fixed and deployed at 0.47.7
+- what was in progress: repo is PUBLIC and must be flipped private — elenchus memory holds third-party confidential material; no cleanup started, on purpose

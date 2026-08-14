@@ -3785,7 +3785,7 @@ _next() { ( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/l
             . "$FROOT/harness/lib/maintenance.sh"; . "$FROOT/harness/lib/stack.sh"
             . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/ledger.sh"
             . "$FROOT/harness/lib/coverage.sh"; . "$FROOT/harness/lib/deny.sh"
-            . "$FROOT/harness/lib/next.sh"
+            . "$FROOT/harness/lib/route.sh"; . "$FROOT/harness/lib/next.sh"
             felix_next "$NX" "$FROOT" "$REPO" HEAD~1 ); }
 
 printf 'ordinary\n' > "$REPO/README.md"; _stage
@@ -3793,6 +3793,36 @@ n="$(_next)"
 has "an unverified tree is the first thing to do" "$(printf '%s\n' "$n" | head -1)" "gate"
 has "and it is Felix's own work"                  "$(printf '%s\n' "$n" | head -1)" "felix"
 has "every row carries the command that clears it" "$(printf '%s\n' "$n" | head -1)" "felix gate"
+
+# Two capabilities that were never pointed at, for two different reasons, and
+# only one of them is about keywords.
+#
+# `felix next` told the founder to fix the keywords in routes.tsv for plugins no
+# route names at all — advice nobody can follow, because no keyword can reach a
+# capability that appears in no play. Six rows on the real project, three of
+# them impossible. The ledger already draws this distinction one layer down:
+# named>0 with calls=0 is evidence about the capability, named=0 is evidence
+# about routing and none at all about the capability. Rank 7 never inherited it.
+#
+# The general form is the one this project keeps paying for: absence of
+# opportunity is not evidence of failure.
+cat > "$MEM/nextproj/ledger.tsv" <<'LED'
+s1	2026-08-01	plugin	reachable	0	0
+s1	2026-08-01	plugin	unreachable	0	0
+LED
+printf 'work\tstuff\tcore\treachable\n' > "$NX/routes.tsv"
+n="$(_next)"
+rrow="$(printf '%s\n' "$n" | grep -A1 'reachable is mounted' | grep -v 'unreachable')"
+urow="$(printf '%s\n' "$n" | grep -A1 'unreachable is mounted')"
+has "a capability some route names is a keyword problem" "$rrow" "keywords"
+case "$urow" in
+  *keywords*) bad "one no route names is not" "$urow" ;;
+  *)          ok  "one no route names is not" ;;
+esac
+has "and it says what would actually reach it" "$urow" "no route names it"
+# Both are fixture state a later section asserts the absence of, so both are put
+# back. A test that leaves its own evidence lying around makes the next one lie.
+: > "$NX/routes.tsv"; : > "$MEM/nextproj/ledger.tsv"
 
 # An escape outranks upkeep and is the founder's. It is also the thing the
 # declared objective counts, so burying it under a maintenance row would hide

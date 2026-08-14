@@ -7,13 +7,17 @@
 # that shows up before the work starts rather than during review.
 #
 # name	keywords	profile	play
-harness	harness engine hook resolve lesson route verify library	core	superpowers:brainstorming superpowers:writing-plans superpowers:test-driven-development superpowers:requesting-code-review
-gate	gate verification receipt failing regression assertion	core	superpowers:systematic-debugging superpowers:test-driven-development
-doctrine	constitution doctrine lesson invariant promote memory	core	superpowers:brainstorming claude-md-management
-tooling	stack catalog plugin server marketplace capability adopt discover	core	superpowers:brainstorming
-debug	broken failing crash traceback reproduce	core	superpowers:systematic-debugging
-# Task-shape routes, below the subsystem routes so file order lets a subsystem
-# win a tie. These say what kind of work it is, not what it is about.
+# Task-shape routes come FIRST, so they win a tie.
+#
+# They were below the subsystem rows, with a comment saying file order let a
+# subsystem win — and that is backwards. A row says what the work is ABOUT; a
+# task-shape row says what KIND of work it is, and the play depends far more on
+# the kind. "debug why the harness hook is failing" scored harness and was told
+# to go and brainstorm, while the debug row naming systematic-debugging sat
+# below it and lost the tie. Four of ten rows lead with brainstorming and all
+# four are subsystem rows, so any prompt naming a subsystem got the play for
+# starting a new thing, whatever the turn was actually for.
+debug	debug broken failing crash traceback reproduce	core	superpowers:systematic-debugging
 document	document xlsx pptx docx slide spreadsheet guidebook	core	anthropic-skills:pdf anthropic-skills:xlsx anthropic-skills:docx
 research	research investigat survey unrelated random parallel compar	core	superpowers:dispatching-parallel-agents superpowers:brainstorming
 review	review audit vulnerabilit injection secret credential	core	code-review semgrep superpowers:requesting-code-review
@@ -23,4 +27,10 @@ build	build implement feature create	core	superpowers:brainstorming superpowers:
 # and the top three above it were the project's own name and two pieces of
 # conversation. Shipping is most of what a session ends on and had no row at
 # all, so `code-review` was named by one route whose keywords nothing here says.
-ship	merge pull-request escape channel classify release	core	code-review superpowers:requesting-code-review superpowers:finishing-a-development-branch
+ship	ship merge pull-request escape channel classify release	core	code-review superpowers:requesting-code-review superpowers:finishing-a-development-branch
+
+# Subsystem routes. What the work is about, when nothing said what kind.
+harness	harness engine hook resolve lesson route verify library	core	superpowers:brainstorming superpowers:writing-plans superpowers:test-driven-development superpowers:requesting-code-review
+gate	gate verification receipt failing regression assertion	core	superpowers:systematic-debugging superpowers:test-driven-development
+doctrine	constitution doctrine lesson invariant promote memory	core	superpowers:brainstorming claude-md-management
+tooling	tooling stack catalog plugin server marketplace capability adopt discover	core	superpowers:brainstorming

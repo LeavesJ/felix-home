@@ -1924,6 +1924,24 @@ toks="$( . "$FROOT/harness/lib/route.sh"
          felix_route_tokens '{"prompt":"fix src/queue/worker.py"}' | tr '\n' ' ' )"
 has "a path you typed yourself still counts" "$toks" "worker"
 
+# A route must match its own name, and three did not.
+#
+# `debug` named systematic-debugging and did not have the word "debug" among its
+# keywords, so "debug why the harness hook is failing" scored the harness row
+# instead and was told to go and brainstorm. `ship` and `tooling` were the same
+# shape. This is not a guess about vocabulary — it is the one keyword a row is
+# guaranteed to want, and it is checkable, so it is checked against the shipped
+# table rather than a fixture.
+REALT="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/routes.tsv"
+if [ -f "$REALT" ]; then
+  selfmiss="$(awk -F'\t' '!/^#/ && NF>=2 {
+      n=$1; split($2,a," "); found=0
+      for (i in a) if (index(n,a[i])==1) found=1
+      if (!found) printf "%s ", n
+    }' "$REALT")"
+  is "every route matches its own name" "$(printf '%s' "$selfmiss" | tr -d ' ')" ""
+fi
+
 # The log and the router had drifted apart, and only the log was ever read back.
 # `felix_route_log` stripped the pairs the runtime owns and not the JSON keys, so
 # every miss recorded the literal words `prompt` and `prompt_id`. They were the

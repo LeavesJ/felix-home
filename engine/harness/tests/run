@@ -2439,7 +2439,7 @@ n="$( . "$FROOT/harness/lib/ledger.sh"; wc -l < "$LH/state/ledger/sess1.tsv" | t
 is "every call is appended" "$n" "3"
 
 ( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_rollup "$LP" "$LH" sess1 2026-08-11 )
-led="$(cat "$MEM/widgetledger/ledger.tsv" 2>/dev/null)"
+led="$(cat "$MEM/widgetledger/ledger.d/sess1.tsv" 2>/dev/null)"
 has "counts repeated calls once with a total" "$led" "tool	Bash	2"
 has "and a skill that was invoked"            "$led" "skill	superpowers:brainstorming	1"
 # The zero rows are the whole point. Presence without use is the only
@@ -2450,8 +2450,80 @@ case "$led" in
   *)                     ok  "and no zero row for one that was used" ;;
 esac
 ( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_rollup "$LP" "$LH" sess1 2026-08-11 )
-n="$(grep -c '^sess1' "$MEM/widgetledger/ledger.tsv")"
+n="$(grep -c '^sess1' "$MEM/widgetledger/ledger.d/sess1.tsv")"
 is "rolling the same session twice does not double it" "$n" "3"
+
+printf '\none rollup, one file\n'
+# Issue #32, reproduced twice by a 15-agent concurrency audit and once more by
+# an independent refuter running the registered SessionEnd hook verbatim. The
+# rollup was an unlocked read-modify-write of one shared file: it read what
+# every other session had committed, spent ~0.17s on per-row work, then renamed
+# its own snapshot over the top. Anything committed in between was not merely
+# missed, it was deleted, and the file could shrink. Twelve worktrees ending at
+# once left 1 of 12; the same twelve run one at a time left 12 of 12.
+#
+# The input was already per-session, so the fix is to stop sharing the output
+# rather than to make sharing safe. A lock was the other candidate and is worse
+# for this data: it keeps one writer for rows that have exactly one owner, and a
+# lock that is dropped rather than retried loses the same measurement.
+LC="$TMP/ledgerconc"; LCP="$LC/projects/widgetconc"
+mkdir -p "$LCP" "$MEM/widgetconc"
+printf 'plugin\tsuperpowers@x\t-\tlow\talways\n' > "$LCP/stack.tsv"
+_ledsnap() { ( cd "$1" 2>/dev/null && find . -type f -exec cksum {} \; | LC_ALL=C sort ); }
+
+# Deterministic, and it is the exact property the race exploits: at the moment
+# a rollup runs, every byte already in the memory directory belongs to some
+# other session.
+( . "$FROOT/harness/lib/ledger.sh"
+  felix_ledger_record "$LC" first "tool	Bash"
+  felix_ledger_rollup "$LCP" "$LC" first 2026-08-14 )
+ledb="$(_ledsnap "$MEM/widgetconc")"
+( . "$FROOT/harness/lib/ledger.sh"
+  felix_ledger_record "$LC" second "tool	Read"
+  felix_ledger_rollup "$LCP" "$LC" second 2026-08-14 )
+leda="$(_ledsnap "$MEM/widgetconc")"
+ledgone=""
+while IFS= read -r _line; do
+  [ -n "$_line" ] || continue
+  printf '%s\n' "$leda" | grep -qxF "$_line" || ledgone="$ledgone $_line"
+done <<EOF
+$ledb
+EOF
+is "a rollup rewrites no file another session wrote" "$ledgone" ""
+
+# The audit's own reproduction, at the scale that lost 11 of 12. Under the fix
+# there is no shared file left to lose, so this is deterministic rather than
+# probabilistic — the count is the one the retire threshold reads.
+_i=1
+while [ "$_i" -le 12 ]; do
+  ( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_record "$LC" "race$_i" "tool	Bash" )
+  _i=$((_i+1))
+done
+_i=1
+while [ "$_i" -le 12 ]; do
+  ( . "$FROOT/harness/lib/ledger.sh"
+    felix_ledger_rollup "$LCP" "$LC" "race$_i" 2026-08-14 ) &
+  _i=$((_i+1))
+done
+wait
+ledsum="$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_summary "$LCP" )"
+is "twelve sessions ending at once are all still counted" \
+   "$(printf '%s\n' "$ledsum" | awk -F'\t' '$1 == "superpowers" { print $2 }')" "14"
+
+# Memory already on disk was written as one file, and it is data rather than a
+# format to be dropped. The reader takes both, and a session re-rolled into its
+# own file replaces its old rows instead of being counted twice.
+LL="$TMP/ledgerboth"; LLP="$LL/projects/widgetboth"
+mkdir -p "$LLP" "$MEM/widgetboth"
+: > "$LLP/stack.tsv"
+printf 'old\t2026-08-01\ttool\tBash\t3\t1\nkept\t2026-08-02\ttool\tRead\t2\t1\n' \
+  > "$MEM/widgetboth/ledger.tsv"
+( . "$FROOT/harness/lib/ledger.sh"
+  felix_ledger_record "$LL" old "tool	Bash"
+  felix_ledger_rollup "$LLP" "$LL" old 2026-08-14 )
+ledsum="$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_summary "$LLP" )"
+has "a ledger written as one file is still read"     "$ledsum" "Read	1	2"
+has "and re-rolling a session replaces its old rows" "$ledsum" "Bash	1	1"
 
 printf '\nreading the ledger, in the one direction that is honest\n'
 # Written rows nothing reads is the same half-built shape as installing a tool
@@ -2535,7 +2607,7 @@ LH2="$TMP/ledgernote"; mkdir -p "$LH2/projects/widgetnote" "$MEM/widgetnote"
   felix_ledger_note_named "$LH2" sn "superpowers:brainstorming code-review"
   felix_ledger_note_named "$LH2" sn "code-review" )
 ( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_rollup "$LH2/projects/widgetnote" "$LH2" sn 2026-08-12 )
-led="$(cat "$MEM/widgetnote/ledger.tsv")"
+led="$(cat "$MEM/widgetnote/ledger.d/sn.tsv")"
 has "a named capability carries its count"      "$led" "code-review	0	2"
 has "and one named once carries one"            "$led" "superpowers:brainstorming	0	1"
 has "while a tool that ran keeps its calls"     "$led" "tool	Bash	1"

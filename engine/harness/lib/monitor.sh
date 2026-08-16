@@ -179,7 +179,7 @@ $(felix_monitor_compliance "$proj")
 EOF
   printf ']'
 
-  printf ',"lessons":%s' "$(grep -c '^- \*\*' "$(felix_mem_dir "$proj")/lessons.md" 2>/dev/null || printf 0)"
+  printf ',"lessons":%s' "$(felix_count '^- \*\*' "$(felix_mem_dir "$proj")/lessons.md")"
   printf '}'
 }
 

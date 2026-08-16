@@ -251,8 +251,8 @@ felix_ledger_rollup() {
     [ -n "${name:-}" ] || continue
     [ "$kind" = "named" ] && continue
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$session" "$date" "$kind" "$name" \
-      "$(grep -cxF "$kind	$name" "$state" 2>/dev/null || echo 0)" \
-      "$(grep -cxF "named	$name" "$state" 2>/dev/null || echo 0)" >> "$tmp"
+      "$(felix_count -xF "$kind	$name" "$state")" \
+      "$(felix_count -xF "named	$name" "$state")" >> "$tmp"
     seen="$seen
 $name"
   done <<EOF
@@ -267,7 +267,7 @@ EOF
     [ -n "${name:-}" ] || continue
     printf '%s\n' "$seen" | grep -xF "$name" >/dev/null 2>&1 && continue
     printf '%s\t%s\tnamed\t%s\t0\t%s\n' "$session" "$date" "$name" \
-      "$(grep -cxF "named	$name" "$state" 2>/dev/null || echo 0)" >> "$tmp"
+      "$(felix_count -xF "named	$name" "$state")" >> "$tmp"
     seen="$seen
 $name"
   done <<EOF
@@ -289,7 +289,7 @@ EOF
       local bare="${name%%@*}"
       printf '%s\n' "$seen" | sed 's/:.*//' | grep -xF "$bare" >/dev/null 2>&1 && continue
       printf '%s\t%s\t%s\t%s\t0\t%s\n' "$session" "$date" "$kind" "$name" \
-        "$(grep -cF "named	$bare" "$state" 2>/dev/null || echo 0)" >> "$tmp"
+        "$(felix_count -F "named	$bare" "$state")" >> "$tmp"
     done < "$proj/stack.tsv"
   fi
 

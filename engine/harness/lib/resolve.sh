@@ -234,6 +234,24 @@ felix_file_at() {
 # only when you are standing in the home itself. From a worktree the root is
 # elsewhere, the prefix never matches, and the guard silently does nothing. One
 # of the two guards only reports; the other deletes.
+# How many lines match, as one number.
+#
+# `grep -c` prints the count and *also* exits 1 when that count is zero, so the
+# obvious `$(grep -c … || echo 0)` appends a fallback zero to the zero grep has
+# already printed and yields "0\n0". Every arithmetic test on that errors into
+# the wrong branch, and written to a file it becomes a stray line that later
+# readers count as data: this project's own ledger held 215 of them in 280
+# lines, and `felix ledger` reported seven sessions where there were three.
+#
+# Exit 2 — no such file — is the only case that prints nothing, and so it is the
+# only case that needs a fallback. Recorded in lessons.md before this existed,
+# which is why the fix is one function rather than eight repaired call sites.
+felix_count() {
+  local n
+  n="$(grep -c "$@" 2>/dev/null)" || true
+  case "$n" in ''|*[!0-9]*) printf '0' ;; *) printf '%s' "$n" ;; esac
+}
+
 felix_same_repo() {
   local a="$1" b="$2" ga gb
   [ -n "$a" ] && [ -n "$b" ] || return 1

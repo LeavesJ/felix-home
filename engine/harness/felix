@@ -1623,9 +1623,9 @@ cmd_monitor() {
   n="$(ls -d "$FELIX_HOME_DIR"/projects/*/ 2>/dev/null | wc -l | tr -d ' ')"
   printf '  %s project(s)\n' "$n"
   printf '  %s routing decision(s)\n' \
-    "$(cat "$(felix_mem_root)"/*/routes.log 2>/dev/null | grep -c . || printf 0)"
+    "$(cat "$(felix_mem_root)"/*/routes.log 2>/dev/null | felix_count .)"
   printf '  %s gate verdict(s)\n' \
-    "$(cat "$(felix_mem_root)"/*/verification.log 2>/dev/null | grep -c . || printf 0)"
+    "$(cat "$(felix_mem_root)"/*/verification.log 2>/dev/null | felix_count .)"
 
   if [ "$watch" -eq 1 ]; then
     if [ "$open" -eq 1 ]; then

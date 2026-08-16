@@ -16,9 +16,9 @@
 felix_unattended_state() {
   local repo="$1"
   printf 'switch\t%s\n' \
-    "$(gh variable list --repo "$repo" 2>/dev/null | grep -c FELIX_UNATTENDED || printf 0)"
+    "$(gh variable list --repo "$repo" 2>/dev/null | felix_count FELIX_UNATTENDED)"
   printf 'key\t%s\n' \
-    "$(gh secret list --repo "$repo" 2>/dev/null | grep -c ANTHROPIC_API_KEY || printf 0)"
+    "$(gh secret list --repo "$repo" 2>/dev/null | felix_count ANTHROPIC_API_KEY)"
   printf 'dryruns\t%s\n' \
     "$(gh run list --repo "$repo" --workflow 'unattended repair' --limit 50 \
         --json conclusion -q 'length' 2>/dev/null || printf 0)"

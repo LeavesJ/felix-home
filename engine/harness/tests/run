@@ -2453,6 +2453,28 @@ esac
 n="$(grep -c '^sess1' "$MEM/widgetledger/ledger.d/sess1.tsv")"
 is "rolling the same session twice does not double it" "$n" "3"
 
+printf '\na count that arrived as two lines\n'
+# `grep -c` prints the count AND exits 1 when that count is zero, so the idiom
+# `$(grep -c ... || echo 0)` yields "0\n0" on every miss — the count grep already
+# printed, plus the fallback. Recorded as a trap in lessons.md and still live in
+# eight places, four of them in the rollup: every ledger row for a capability no
+# route named was followed by a stray `0` line. Measured on the real memory
+# before the fix: 215 lone-zero lines out of 280, and `felix ledger` reporting 7
+# sessions where there were 3, because a bare `0` reads as a session id.
+LZ="$TMP/lz"; LZP="$LZ/projects/wlz"; mkdir -p "$LZP" "$MEM/wlz"
+printf 'plugin\tsuperpowers@x\t-\tlow\talways\n' > "$LZP/stack.tsv"
+( . "$FROOT/harness/lib/ledger.sh"
+  felix_ledger_record "$LZ" z1 "tool\tBash"
+  felix_ledger_rollup "$LZP" "$LZ" z1 2026-08-16 )
+is "a row nobody named carries no stray line" \
+   "$(awk -F'\t' 'NF < 5' "$MEM/wlz/ledger.d/z1.tsv" | wc -l | tr -d ' ')" "0"
+is "and every line is a whole row" \
+   "$(awk -F'\t' 'NF == 6' "$MEM/wlz/ledger.d/z1.tsv" | wc -l | tr -d ' ')" \
+   "$(wc -l < "$MEM/wlz/ledger.d/z1.tsv" | tr -d ' ')"
+is "so the session count is the number of sessions" \
+   "$( . "$FROOT/harness/lib/ledger.sh"
+       _felix_ledger_rows "$MEM/wlz" | cut -f1 | LC_ALL=C sort -u | grep -c . )" "1"
+
 printf '\none rollup, one file\n'
 # Issue #32, reproduced twice by a 15-agent concurrency audit and once more by
 # an independent refuter running the registered SessionEnd hook verbatim. The

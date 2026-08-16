@@ -32,5 +32,9 @@ yellow	path	^projects/[^/]+/gate\.sh$	a gate that cannot fail is not a gate	veri
 yellow	path	^engine/harness/tests/run$	weakening the suite is how a gate stops being one	verifier	count:^[[:space:]]*(ok|is|has|bad) 
 yellow	path	^projects/[^/]+/(routes|profiles|stack|risk|evidence)\.tsv$	changes what gets suggested, not what runs
 green	path	^projects/[^/]+/maintenance\.log$	a record of when upkeep ran
-green	path	^docs/	
+# Constrained to prose by extension, 2026-08-15. `^docs/` was an unqualified
+# prefix, so a committed docs/tool.sh classified green against the unmodified
+# table — reproduced, not theorised. A directory name says where a file sits
+# and never what it is, and green is the tier that can auto-merge.
+green	path	^docs/.*\.md$	prose; a document runs nothing
 green	path	^projects/[^/]+/memory/	records, not behaviour

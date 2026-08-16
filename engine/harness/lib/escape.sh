@@ -222,6 +222,28 @@ EOF
 #               for anybody — the charter calls handing it back a defect — but
 #               it is still a blocker, because merging first would ship the
 #               unproven thing and the debt would never be collected.
+# What a merge is standing on: the branch it would merge, the commit that branch
+# points at, and the identity of the tree every verdict below is computed from.
+#
+# It exists to be compared with itself. `felix merge` runs for about a third of
+# a second and shares a working copy with whoever else has a terminal open in
+# it, and all three of these can move inside that. Reading them once at the
+# start and once again immediately before the merge turns "somebody checked out
+# another branch while this ran" from an ungated merge reported as verified into
+# a refusal — which is how the rest of this file already behaves.
+#
+# The tree id is included rather than the branch alone: a peer can leave the
+# branch and the commit alone and still edit an uncommitted file, and the
+# receipt that was just accepted describes a tree that no longer exists.
+felix_merge_checkout() {
+  local root="$1" home="${2:-}" tid=""
+  command -v felix_tree_id >/dev/null 2>&1 && tid="$(felix_tree_id "$root" "$home" 2>/dev/null)"
+  printf '%s\t%s\t%s\n' \
+    "$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)" \
+    "$(git -C "$root" rev-parse HEAD 2>/dev/null)" \
+    "$tid"
+}
+
 felix_merge_blockers() {
   local proj="$1" base="$2" root="$3" home="$4"
   local tid receipt line

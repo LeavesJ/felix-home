@@ -26,6 +26,23 @@ FELIX_AUTOMERGE_REQUIRED="${FELIX_AUTOMERGE_REQUIRED:-5}"
 # defaulted to zero — so "we could not find out" read as "nothing failed", and
 # the one state that must never be guessed was guessed in the direction that
 # advances the streak. Only a number that arrived is evidence.
+# Which of three states a pair of run counts describes.
+#
+# Split out to be testable, and because the case that matters is not one the
+# three names make obvious. `gh run list --branch <b>` on a branch that no
+# longer exists — which is every merged pull request the moment its branch is
+# deleted — returns `[]`, and the length of `[]` is zero. So "no runs found" and
+# "no failures" arrive as the same number, and the first was being read as the
+# second: a streak that claims CI agreed, advanced by a branch CI may never have
+# run on at all. A total of zero is the absence of evidence, not evidence.
+felix_automerge_state() {
+  local total="$1" failures="$2"
+  case "${total:-x}"    in *[!0-9]*) printf 'unknown'; return 0 ;; esac
+  case "${failures:-x}" in *[!0-9]*) printf 'unknown'; return 0 ;; esac
+  if [ "$total" -eq 0 ] 2>/dev/null; then printf 'unknown'; return 0; fi
+  if [ "$failures" -eq 0 ] 2>/dev/null; then printf 'clean'; else printf 'dirty'; fi
+}
+
 felix_automerge_history() {
   local repo="$1" limit="${2:-20}"
   gh pr list --repo "$repo" --state merged --label risk-green \
@@ -33,14 +50,12 @@ felix_automerge_history() {
      -q '.[] | "\(.number)\t\(.headRefName)\t\(.title)"' 2>/dev/null \
   | while IFS=$'\t' read -r num branch title; do
       [ -n "${num:-}" ] || continue
-      local failures
-      failures="$(gh run list --repo "$repo" --branch "$branch" --limit 20 \
-                    --json conclusion -q '[.[] | select(.conclusion=="failure")] | length' 2>/dev/null)"
-      case "$failures" in
-        ''|*[!0-9]*) printf '%s\tunknown\t%s\n' "$num" "$title" ;;
-        0)           printf '%s\tclean\t%s\n'   "$num" "$title" ;;
-        *)           printf '%s\tdirty\t%s\n'   "$num" "$title" ;;
-      esac
+      local counts total failures
+      counts="$(gh run list --repo "$repo" --branch "$branch" --limit 20 \
+                  --json conclusion \
+                  -q '[length, ([.[] | select(.conclusion=="failure")] | length)] | @tsv' 2>/dev/null)"
+      total="${counts%%	*}"; failures="${counts##*	}"
+      printf '%s\t%s\t%s\n' "$num" "$(felix_automerge_state "$total" "$failures")" "$title"
     done
 }
 

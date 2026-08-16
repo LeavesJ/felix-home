@@ -63,9 +63,20 @@ FELIX_RISK_DEFAULT="yellow"
 # version that was never there would yield no rows and floor every product diff
 # at the yellow default.
 felix_table_rel() {
-  local root="$1" abs="$2" rel
-  case "$abs" in "$root"/*) rel="${abs#"$root"/}" ;; *) return 1 ;; esac
-  git -C "$root" ls-files --error-unmatch "$rel" >/dev/null 2>&1 || return 1
+  local root="$1" abs="$2" dir base rel
+  [ -f "$abs" ] || return 1
+  dir="$(dirname "$abs")"; base="$(basename "$abs")"
+  # Same repository, asked of git — not the same string prefix. The prefix test
+  # got two ordinary cases wrong and got them wrong by switching the guard off:
+  # a worktree, whose root is a different directory in the same repository, and
+  # a macOS /var versus /private/var pair, which is one directory spelled twice.
+  # felix_same_repo exists because two earlier path-prefix guards lapsed exactly
+  # this way, one of them the last defence on the only path in Felix that
+  # deletes. A guard that fails open is worth less than no guard, because it
+  # also reports that something checked.
+  felix_same_repo "$root" "$dir" || return 1
+  rel="$(git -C "$dir" ls-files --full-name --error-unmatch -- "$base" 2>/dev/null)" || return 1
+  [ -n "$rel" ] || return 1
   printf '%s' "$rel"
 }
 

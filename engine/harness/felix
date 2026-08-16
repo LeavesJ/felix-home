@@ -2022,8 +2022,9 @@ cmd_automerge() {
     printf 'green gate is the bar; yellow and red are untouched and always will be.\n'
     printf 'A change editing risk.tsv is classified against both the inherited table\n'
     printf 'and its own, and the stricter wins, so a green row cannot green the diff\n'
-    printf 'that adds it. That is enforced. What is not: the label this streak counts\n'
-    printf 'is applied by hand and never re-derived from the merged diff.\n'
+    printf 'that adds it. That is enforced. Two things are not: evidence.tsv gets no\n'
+    printf 'such treatment and is still read off the branch that changes it, and the\n'
+    printf 'label this streak counts is applied by hand, never re-derived.\n'
   else
     printf 'could not enable auto-merge; admin rights needed on %s\n' "$repo" >&2
     return 1

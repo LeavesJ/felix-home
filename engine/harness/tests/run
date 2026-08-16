@@ -720,6 +720,32 @@ is "a red row added applies to the diff that adds it" \
    "$(_selfpath engine/bin/secret-scan)" "red"
 ( cd "$SELF" && git reset -q --hard "$SELF_BASE" )
 
+# The guard's own failure mode, which nothing asserted. felix_table_rel decided
+# whether the base-version pass runs by comparing path strings, so any way the
+# two paths were spelled differently switched the protection off and said
+# nothing: a worktree, whose root is a different directory in the same
+# repository, and a macOS /var vs /private/var pair, which is one directory
+# spelled twice. Both reproduced before this was changed. Asking git is the only
+# thing that gets both right, and felix_same_repo already existed for exactly
+# this reason — it replaced two path-prefix guards that had lapsed the same way.
+_tr() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/classify.sh"
+          felix_table_rel "$1" "$2" ); }
+SELFP="$( cd "$SELF" && pwd -P )"
+is "the table resolves to its repo-relative path" \
+   "$(_tr "$SELF" "$SELF/projects/p/risk.tsv")" "projects/p/risk.tsv"
+is "and still resolves when the root is spelled the other way" \
+   "$(_tr "$SELFP" "$SELF/projects/p/risk.tsv")" "projects/p/risk.tsv"
+( cd "$SELF" && git worktree add -q "$TMP/selfwt" -b wt >/dev/null 2>&1 )
+if [ -d "$TMP/selfwt" ]; then
+  is "and from a worktree of the same repository" \
+     "$(_tr "$TMP/selfwt" "$SELF/projects/p/risk.tsv")" "projects/p/risk.tsv"
+else
+  skip "and from a worktree of the same repository" "worktree add failed"
+fi
+# The other direction has to keep failing, or every governed product regresses.
+is "a table in a different repository resolves to nothing" \
+   "$(_tr "$REPO" "$SELF/projects/p/risk.tsv")" ""
+
 # The trap this fix could set. A governed product's tables live in the Felix
 # home and are not in its diff at all, so there is nothing there to defend
 # against. Reading a base version that does not exist would yield no rows and
@@ -1336,6 +1362,16 @@ is "a red run breaks the streak" \
    "$(_streak "$(printf '9\tclean\ta\n8\tdirty\tb\n7\tclean\tc')")" "1"
 is "and a red run at the head means zero" \
    "$(_streak "$(printf '9\tdirty\ta\n8\tclean\tb')")" "0"
+# A number that arrived describing nothing is still not evidence. `gh run list`
+# on a branch that no longer exists — which is every merged PR once the branch
+# is deleted — returns [], and length of [] is 0, so "no runs found" read as
+# "no failures" and counted toward switching auto-merge on.
+_hist() { ( . "$FROOT/harness/lib/automerge.sh"; felix_automerge_state "$1" "$2" ); }
+is "no runs at all is unknown, not clean" "$(_hist 0 0)" "unknown"
+is "runs that all passed are clean"       "$(_hist 4 0)" "clean"
+is "runs with a failure are dirty"        "$(_hist 4 2)" "dirty"
+is "an unreadable count is unknown"       "$(_hist '' '')" "unknown"
+
 # The state that used to be missing. The failure count comes off the network,
 # and an errored `gh run list` prints nothing — which `${failures:-0}` read as
 # zero failures, so "could not find out" advanced the streak toward switching

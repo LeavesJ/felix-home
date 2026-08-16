@@ -2720,6 +2720,115 @@ printf 'pr merge --repo x/y --squash\n' > "$TMP/shape.probe"
   || ok "the stub refuses a selectorless merge the way gh does"
 unset GHSTUB_LOG
 
+printf '\nwhat it verified and what it merges are the same branch\n'
+# Issue #33, from the same concurrency audit. felix merge computed the tree
+# identity, checked the receipt against it, ran the evidence check — and only
+# then read the branch name. A peer's `git checkout` in the same working copy
+# inside that gap made it squash-merge a branch nothing had verified, and print
+# that nothing in it escaped the tree. Measured at ~35% of the command's
+# runtime, and the harm is the worst category the audit found: an ungated
+# escape merged into main, reported as verified, recorded nowhere.
+#
+# Injected at `git remote get-url`, which is the one landmark that sits inside
+# exactly that window: felix_repo_slug is its only caller on this path, and it
+# runs after the receipt is checked and before the branch is read. Verified by
+# probe rather than assumed — a counted trigger would rot silently the first
+# time the call sequence changed.
+GB="$TMP/gitstub"; mkdir -p "$GB"
+GITREAL="$(command -v git)"
+# Parameterised on both halves, because one hard-coded scenario tested one third
+# of the guard. RACE_ON picks where in the command the peer lands, RACE_CMD picks
+# what the peer does. Between them they reach all three fields of the tuple and
+# both sides of felix_merge_blockers.
+cat > "$GB/git" <<STUB
+#!/usr/bin/env bash
+case "\$*" in
+  *"\${RACE_ON:-remote get-url}"*)
+    if [ -n "\${RACE_CMD:-}" ] && [ ! -f "\${RACE_FIRED:-/nonexistent}" ]; then
+      printf 'fired\n' > "\$RACE_FIRED"
+      eval "\$RACE_CMD" >/dev/null 2>&1
+    fi ;;
+esac
+exec "$GITREAL" "\$@"
+STUB
+chmod +x "$GB/git"
+
+( cd "$MR" && git checkout -q -b feature && git branch other )
+
+# Re-records the receipt, runs felix merge with one peer action injected, and
+# reports the exit code and whether gh was asked to merge anything.
+_race() {
+  local on="$1" cmd="$2"
+  ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
+    felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+  : > "$TMP/gh.race.log"; rm -f "$TMP/race.fired"
+  ( cd "$MR" && PATH="$GB:$GHB:$PATH" GHSTUB_LOG="$TMP/gh.race.log" \
+      RACE_ON="$on" RACE_CMD="$cmd" RACE_FIRED="$TMP/race.fired" \
+      "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+  RACE_RC=$?
+  RACE_MERGES="$(grep -c '^pr merge' "$TMP/gh.race.log" | tr -d ' ')"
+}
+
+# 1. A peer checkout landing where the audit found it: after the receipt is
+#    accepted, before the branch is read.
+_race "remote get-url" "$GITREAL -C $MR checkout -q other"
+[ -f "$TMP/race.fired" ] && ok "the injected checkout actually moved the branch" \
+                         || bad "the injected checkout actually moved the branch" "it never fired"
+is "a checkout that moves after verification merges nothing" "$RACE_MERGES" "0"
+[ "$RACE_RC" -ne 0 ] && ok "and says so rather than reporting a merge" \
+                     || bad "and says so rather than reporting a merge" "exit $RACE_RC"
+( cd "$MR" && git checkout -q feature )
+
+# 2. Inside felix_merge_blockers, which is the assertion that pins the fix. The
+#    first version of this test injected only at `remote get-url` — the tail of
+#    the command — so it passed just as well against a version that reads the
+#    branch after the blockers and re-reads it at the end, which is the whole
+#    of the bug the issue is about. A test that cannot tell the fix from the
+#    defect is the failure this repository keeps paying for, and it was found
+#    by review rather than by the suite.
+_race "diff --name-only" "$GITREAL -C $MR checkout -q other"
+[ -f "$TMP/race.fired" ] && ok "a checkout inside the verification is caught too" \
+                         || bad "a checkout inside the verification is caught too" "it never fired"
+is "and nothing is merged when it lands there" "$RACE_MERGES" "0"
+( cd "$MR" && git checkout -q feature )
+
+# 3. The other two fields. A peer commit moves the sha with the branch name
+#    unchanged; a peer edit moves neither and changes only the tree the receipt
+#    was accepted for. Both were dead weight until something asserted them.
+_race "remote get-url" "$GITREAL -C $MR -c user.name=p -c user.email=p@p commit -q --allow-empty -m peer"
+is "a peer commit on the same branch merges nothing" "$RACE_MERGES" "0"
+_race "remote get-url" "printf 'peer\n' >> $MR/README.md"
+is "a peer edit to the working tree merges nothing" "$RACE_MERGES" "0"
+# And it must say which of the three moved. Printing a fixed prefix of the
+# record rendered this case as two identical lines under "the checkout moved".
+( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+rm -f "$TMP/race.fired"
+race_out="$( cd "$MR" && PATH="$GB:$GHB:$PATH" GHSTUB_LOG=/dev/null \
+    RACE_ON="remote get-url" RACE_CMD="printf 'peer2\n' >> $MR/README.md" \
+    RACE_FIRED="$TMP/race.fired" "$FELIX" merge --base HEAD~1 2>&1 )"
+has "and names the working tree rather than the checkout" "$race_out" "tree       edited under it"
+case "$race_out" in
+  *"The checkout moved"*) bad "and does not blame a checkout that did not move" "$race_out" ;;
+  *)                      ok  "and does not blame a checkout that did not move" ;;
+esac
+( cd "$MR" && git checkout -q -- README.md 2>/dev/null; git checkout -q feature )
+unset GHSTUB_LOG
+
+# The same defect with no concurrency in it at all. `felix merge 35` shifted the
+# 35 away unread and merged whatever HEAD happened to be on, so a command told
+# to merge one thing merged another and reported success. An argument it cannot
+# honour must stop it, not be discarded — the rest of this command is
+# fail-closed everywhere.
+export GHSTUB_LOG="$TMP/gh.arg.log"; : > "$GHSTUB_LOG"
+( cd "$MR" && PATH="$GHB:$PATH" "$FELIX" merge 35 >/dev/null 2>&1 )
+rc=$?
+is "an argument it cannot honour merges nothing" \
+   "$(grep -c '^pr merge' "$GHSTUB_LOG" | tr -d ' ')" "0"
+[ "$rc" -ne 0 ] && ok "and refuses instead of ignoring it" \
+                || bad "and refuses instead of ignoring it" "exit $rc"
+unset GHSTUB_LOG
+
 printf '\na path at the end of a sentence\n'
 # An issue says "cover it in tests/test_thing.py." and the trailing full stop
 # travels with the path. The extractor strips :line, a trailing comma, ./ and

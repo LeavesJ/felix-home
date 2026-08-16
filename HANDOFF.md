@@ -71,10 +71,76 @@ it should be paid deliberately, not rediscovered.
    synced. Not done here because where a founder's data lives is their call,
    not a tidy-up.
 
-## 0a. Verified at session close, 2026-08-14
+## 0a. Verified at session close, 2026-08-16
 
 Each line produced by a command, because a status table is the least trustworthy
-thing in this repository.
+thing in this repository. The 2026-08-14 version of this table is below it,
+unedited, because two of its numbers were wrong and the shape of the error is
+worth keeping.
+
+| | |
+|---|---|
+| head | `652fca8` on `main`, 0 unpushed |
+| gate | **pass** — 719 assertions, `installed` ok |
+| engine | **0.48.8**, deployed and byte-identical |
+| repository | **private** |
+| memory | **still unbacked** — §0 item 2, unchanged and still the top item |
+| open issues | **6**, two of them new |
+| open PRs | **#39** draft, **#40** awaiting review |
+
+### What closed, 2026-08-14 → 16
+
+**#32** and **#33**, both `risk-red`, both merged (`145cbdb`, `652fca8`).
+
+- **#32** — the rollup no longer shares a file. Per-session `ledger.d/<sid>.tsv`,
+  staged under a dotted name so the reader's glob cannot catch a rename in
+  flight. `ledger.tsv` is read as data, never migrated.
+- **#33** — `felix merge` reads branch, sha and tree id *before*
+  `felix_merge_blockers` and again immediately before `gh`, and refuses on any
+  difference, naming which of the three moved. Also: `felix merge 35` used to
+  shift the argument away unread and merge whatever HEAD was on.
+
+### The queue, in the order it should be taken
+
+| # | | |
+|---|---|---|
+| [#37](https://github.com/LeavesJ/felix/issues/37) | `risk-red` | a bare `^docs/` row classifies a committed `docs/tool.sh` **green** — the tier that can auto-merge — and the same row ships in the template to every governed project. Verified twice, independently. Fixed on **#39**, which is still a draft. |
+| [#39](https://github.com/LeavesJ/felix/pull/39) | review | base-version evaluation of `risk.tsv`, the data half of the authority kernel (#5 §4a). Reviewed 2026-08-16 at xhigh: **8 findings, 6 confirmed**. Do not merge before reading them — the top one is that its own guard fails open. |
+| [#40](https://github.com/LeavesJ/felix/pull/40) | review | `felix_count`. Nothing blocks it; it wants a second pair of eyes because it touches five files. |
+| [#2](https://github.com/LeavesJ/felix/issues/2) → [#28](https://github.com/LeavesJ/felix/issues/28) | `risk-red` | the trust chain, in that order. Blocked on design and on the GitHub Pro question, not on effort. #39 makes half of #28 concrete: the tables are covered, the engine is not, and cannot be from inside the tree. |
+| [#31](https://github.com/LeavesJ/felix/issues/31) | design | concurrency as a *feature*, and it now has a second live instance — see below. |
+| [#38](https://github.com/LeavesJ/felix/issues/38) | `risk-yellow` | `felix merge --base` with no value busy-loops forever. `shift 2` fails when `$#` is 1 and, having failed, shifts nothing. Pre-existing; confirmed on `main`. |
+| [#29](https://github.com/LeavesJ/felix/issues/29) | `risk-yellow` | routing: two distinct causes recorded, one fixed, one open. |
+
+### #31 has a second live instance, and it is worse than the first
+
+The first was three worktrees sharing one `SESSION_HANDOFF.md`. The second was
+observed rather than reasoned about, on 2026-08-15:
+
+**Subagents dispatched to review a diff wrote another session's uncommitted work
+into this checkout.** Four review agents were told to review and report. What
+appeared in the working tree was a complete implementation of base-version table
+evaluation in `lib/classify.sh`, two `risk.tsv` edits and an `automerge.sh`
+change — all uncommitted, all red-tier, all staged to be committed with the
+change under review. The timestamps settle it: the files were written at
+**18:33**, and the session that owns that work committed it at **18:45**, twelve
+minutes later, from a sibling worktree. They did not invent it. They picked it
+up from a neighbour's working files and copied it into a different branch.
+
+It was caught only because the gate failed on two assertions the same suite had
+passed minutes earlier — and by then it had already been deployed, at 0.48.6.
+`git status` did not show all of it until the first files were reverted.
+
+**What follows from it, and it is not "stop using subagents".** Before
+dispatching review agents, decide whether they may write. Afterwards, diff every
+changed file against the base and account for each hunk by author before
+committing; `git diff --stat` is the check and "I only edited three files" is
+not. That is in `lessons.md`. The salvage branch
+`salvage/review-agent-findings` holds what was carried in — kept, not deleted,
+because it is the only artefact of the incident, and it is byte-equivalent to
+#39 apart from comment wording.
+
+### The 2026-08-14 table, kept because two of its numbers were wrong
 
 | | |
 |---|---|
@@ -82,18 +148,21 @@ thing in this repository.
 | gate | **pass** — 701 assertions, `installed` ok, on both trees |
 | engine | **0.48.4**, deployed and byte-identical |
 | repository | **private**; unauthenticated API returns 404 |
-| memory | **1.0 MB, unbacked** — see §0 item 2, still the top item |
-| open issues | **6** — see the table below |
+| memory | **1.0 MB, unbacked** |
+| open issues | **6** |
 
-### The queue, in the order it should be taken
+It said the ledger held real data and was worth reading. It did, and it was not:
+**215 of its 280 lines were a stray `0`**, and `felix ledger` reported **7
+sessions where there were 6**, because a bare `0` has one field and `cut -f1`
+reads it as a session id. The summary was right the whole time — its awk skips
+short lines — so the defect lived exactly where nobody would check, in the
+headline above a correct table. `grep -c` prints the count *and* exits 1 when it
+is zero, so `$(grep -c … || echo 0)` yields `"0\n0"`. The trap was already
+written in `lessons.md` before any of this was built.
 
-| # | | |
-|---|---|---|
-| [#32](https://github.com/LeavesJ/felix/issues/32) | `risk-red` | concurrent SessionEnds **delete** each other's committed ledger history. Reproduced with the real hook: 1 of 12 worktrees survived, sequential control 12 of 12. Fix is specified and structural — stop sharing the file, the input is already per-session. **The most concrete thing in the queue.** |
-| [#33](https://github.com/LeavesJ/felix/issues/33) | `risk-red` | `felix merge` verifies the tree, *then* reads the branch, so a peer checkout inside ~35% of its runtime merges a branch it never verified and calls it verified. |
-| [#2](https://github.com/LeavesJ/felix/issues/2) → [#28](https://github.com/LeavesJ/felix/issues/28) | `risk-red` | the trust chain, in that order. Blocked on design and on the GitHub Pro question, not on effort. |
-| [#31](https://github.com/LeavesJ/felix/issues/31) | design | concurrency as a *feature*. A design question, not a defect queue — see below. |
-| [#29](https://github.com/LeavesJ/felix/issues/29) | `risk-yellow` | routing: two distinct causes recorded, one fixed, one open. |
+Fixed on #40 as one `felix_count` in `resolve.sh` rather than eight repaired
+call sites. The memory on disk is repaired in place, every real row
+byte-identical, originals kept beside it as `.bak`.
 
 ### What the concurrency audit established
 
@@ -131,8 +200,16 @@ green suite. Same reasoning as the trust chain.
 `git branch --merged` cannot confirm them even though their content is in main.
 Deleting branches git will not vouch for is not a session-close job.
 
-Nothing is mid-flight. The next session starts from a clean tree, and every open
-issue is blocked on a decision or is a specified fix nobody has started.
+Superseded 2026-08-16. Two of those three are done and the audit's own advice —
+that none of it bites at current scale — held for the ledger loss and did not
+hold for the rest: the stray-zero defect was corrupting the ledger on every
+rollup the whole time, at N=1, with no concurrency involved at all.
+
+What is mid-flight now: **#39 and #40 are both open**, #39 as a draft carrying
+six confirmed review findings, and the engine deployed on this machine (0.48.8)
+is ahead of `main` by whatever is on #40's branch. Deploying is how a change
+reaches the next session, so an unmerged PR whose engine is live is a state to
+close, not to leave.
 
 ## 1. Standing direction — decided, do not ask again
 

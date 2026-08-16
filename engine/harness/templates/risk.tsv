@@ -24,6 +24,10 @@ yellow	path	\.(sql|graphql|proto)$	interface or schema
 yellow	path	^\.gitignore$	changes what the repository tracks
 green	path	(^|/)\.felix$	Felix's own project marker
 green	path	\.(md|markdown|rst|txt)$	documentation
-green	path	^(docs|documentation)/	documentation
+# A directory name says where a file sits, never what it is. Unqualified, this
+# row made a committed docs/tool.sh green — and green is the tier that can
+# auto-merge. The extension set is the row above's, so what this adds is only
+# the location, which is what it was always meant to add.
+green	path	^(docs|documentation)/.*\.(md|markdown|rst|txt)$	documentation
 green	path	^tests?/	test-only change
 green	path	(^|/)(LICENSE|CHANGELOG|CODEOWNERS)$	repository metadata

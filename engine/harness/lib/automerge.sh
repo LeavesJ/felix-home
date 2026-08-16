@@ -19,7 +19,13 @@
 
 FELIX_AUTOMERGE_REQUIRED="${FELIX_AUTOMERGE_REQUIRED:-5}"
 
-# Emits: pr <TAB> clean|dirty <TAB> title, newest first.
+# Emits: pr <TAB> clean|dirty|unknown <TAB> title, newest first.
+#
+# `unknown` exists because the count that decides this comes off the network.
+# An errored or rate-limited `gh run list` prints nothing, and an empty answer
+# defaulted to zero — so "we could not find out" read as "nothing failed", and
+# the one state that must never be guessed was guessed in the direction that
+# advances the streak. Only a number that arrived is evidence.
 felix_automerge_history() {
   local repo="$1" limit="${2:-20}"
   gh pr list --repo "$repo" --state merged --label risk-green \
@@ -30,11 +36,11 @@ felix_automerge_history() {
       local failures
       failures="$(gh run list --repo "$repo" --branch "$branch" --limit 20 \
                     --json conclusion -q '[.[] | select(.conclusion=="failure")] | length' 2>/dev/null)"
-      if [ "${failures:-0}" -eq 0 ] 2>/dev/null; then
-        printf '%s\tclean\t%s\n' "$num" "$title"
-      else
-        printf '%s\tdirty\t%s\n' "$num" "$title"
-      fi
+      case "$failures" in
+        ''|*[!0-9]*) printf '%s\tunknown\t%s\n' "$num" "$title" ;;
+        0)           printf '%s\tclean\t%s\n'   "$num" "$title" ;;
+        *)           printf '%s\tdirty\t%s\n'   "$num" "$title" ;;
+      esac
     done
 }
 

@@ -1994,8 +1994,9 @@ cmd_automerge() {
     printf '%s\n' "$history" | head -8 | while IFS=$'\t' read -r num state title; do
       [ -n "${num:-}" ] || continue
       case "$state" in
-        clean) printf '  clean  #%-5s %s\n' "$num" "$title" ;;
-        dirty) printf '  CI RED #%-5s %s\n' "$num" "$title" ;;
+        clean)   printf '  clean  #%-5s %s\n' "$num" "$title" ;;
+        dirty)   printf '  CI RED #%-5s %s\n' "$num" "$title" ;;
+        unknown) printf '  ?      #%-5s %s (CI history unavailable)\n' "$num" "$title" ;;
       esac
     done
     printf '\n'
@@ -2019,8 +2020,10 @@ cmd_automerge() {
     printf 'auto-merge enabled on %s.\n\n' "$repo"
     printf 'It still requires every check to pass. Green plus no evidence gap plus a\n'
     printf 'green gate is the bar; yellow and red are untouched and always will be.\n'
-    printf 'A change editing risk.tsv or evidence.tsv must never auto-merge: rules\n'
-    printf 'cannot be judged by the version of themselves being changed.\n'
+    printf 'A change editing risk.tsv is classified against both the inherited table\n'
+    printf 'and its own, and the stricter wins, so a green row cannot green the diff\n'
+    printf 'that adds it. That is enforced. What is not: the label this streak counts\n'
+    printf 'is applied by hand and never re-derived from the merged diff.\n'
   else
     printf 'could not enable auto-merge; admin rights needed on %s\n' "$repo" >&2
     return 1

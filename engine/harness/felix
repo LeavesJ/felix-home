@@ -131,6 +131,24 @@ FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, m
 
 die() { printf 'felix: %s\n' "$1" >&2; exit "${2:-1}"; }
 
+# A flag's value, or a refusal.
+#
+# `shift 2` fails when the flag is the last argument, and having failed it
+# shifts *nothing* — so every `while [ $# -gt 0 ]` parser below spun forever on
+# a trailing flag instead of complaining. `felix merge --base` hung until it was
+# killed, with no output (#38). The `${2:-default}` beside each one reads as if
+# the missing case were handled, which is why nineteen copies of it survived: it
+# handles the value and not the shift.
+#
+# Refusing rather than defaulting, because the flags this guards choose what a
+# command acts on. `--base` with a silent fallback to main would compare against
+# a branch nobody named, which is the defect this project fixed in felix merge
+# one issue earlier.
+need_value() {
+  [ "$#" -ge 2 ] && [ -n "${2:-}" ] || die "felix: $1 needs a value"
+}
+
+
 # Written out rather than sliced from the header comment. It used to print lines
 # 2 to 12 of this file, so documenting a command meant adding a line inside a
 # window nobody could see, and four commands added in one day fell off the end
@@ -221,7 +239,7 @@ cmd_install() {
       # failures. The flag exists for the one case where somebody genuinely
       # wants to see the mismatch without changing the manifest.
       --no-bump)   bump=0; shift ;;
-      --home) home="${2:-}"; shift 2 ;;
+      --home) need_value "$@"; home="$2"; shift 2 ;;
       *) shift ;;
     esac
   done
@@ -589,7 +607,7 @@ cmd_recommend() {
   resolve_or_die; local proj="$PROJ" want="" tpl="$SCRIPT_DIR/templates"
   while [ $# -gt 0 ]; do
     case "$1" in
-      --want) want="${2:-}"; shift 2 ;;
+      --want) need_value "$@"; want="$2"; shift 2 ;;
       *) shift ;;
     esac
   done
@@ -651,7 +669,7 @@ cmd_route() {
   resolve_or_die; local proj="$PROJ" want="" explain=0 list=0 promote=0
   while [ $# -gt 0 ]; do
     case "$1" in
-      --for)     want="${2:-}"; shift 2 ;;
+      --for)     need_value "$@"; want="$2"; shift 2 ;;
       --explain) explain=1; shift ;;
       --list)    list=1; shift ;;
       --promote) promote=1; shift ;;
@@ -732,7 +750,7 @@ cmd_quarantine() {
   resolve_or_die; local proj="$PROJ" name="${1:-}" why=""
   shift 2>/dev/null || true
   while [ $# -gt 0 ]; do
-    case "$1" in --why) why="${2:-}"; shift 2 ;; *) shift ;; esac
+    case "$1" in --why) need_value "$@"; why="$2"; shift 2 ;; *) shift ;; esac
   done
   [ -n "$name" ] || die 'usage: felix quarantine <plugin> [--why "..."]'
   command -v claude >/dev/null 2>&1 || die "felix quarantine needs the claude CLI"
@@ -763,8 +781,8 @@ cmd_brief() {
   resolve_or_die; local proj="$PROJ" src="" title="" num="" body=""
   while [ $# -gt 0 ]; do
     case "$1" in
-      --from)  src="${2:-}"; shift 2 ;;
-      --title) title="${2:-}"; shift 2 ;;
+      --from)  need_value "$@"; src="$2"; shift 2 ;;
+      --title) need_value "$@"; title="$2"; shift 2 ;;
       -*)      die "unknown flag: $1" ;;
       *)       num="$1"; shift ;;
     esac
@@ -797,9 +815,9 @@ cmd_pr() {
   resolve_or_die; local proj="$PROJ" base="main" create=0 issue="" title=""
   while [ $# -gt 0 ]; do
     case "$1" in
-      --base)   base="${2:-main}"; shift 2 ;;
-      --issue)  issue="${2:-}"; shift 2 ;;
-      --title)  title="${2:-}"; shift 2 ;;
+      --base)   need_value "$@"; base="$2"; shift 2 ;;
+      --issue)  need_value "$@"; issue="$2"; shift 2 ;;
+      --title)  need_value "$@"; title="$2"; shift 2 ;;
       --create) create=1; shift ;;
       *) shift ;;
     esac
@@ -862,7 +880,7 @@ cmd_merge() {
   root="$(felix_repo_root "$PWD")"
   while [ $# -gt 0 ]; do
     case "$1" in
-      --base)    base="${2:-main}"; shift 2 ;;
+      --base)    need_value "$@"; base="$2"; shift 2 ;;
       --dry-run) dry=1; shift ;;
       # Discarding this is how `felix merge 35` merged whatever HEAD was on and
       # reported that it had verified it. A command told to merge one thing and
@@ -1024,9 +1042,9 @@ cmd_review() {
     case "$1" in
       --pass)  verdict=pass;  shift ;;
       --block) verdict=block; shift ;;
-      --by)    by="${2:-}";   shift 2 ;;
-      --note)  note="${2:-}"; shift 2 ;;
-      --in)    where="${2:-}"; shift 2 ;;
+      --by)    need_value "$@"; by="$2";   shift 2 ;;
+      --note)  need_value "$@"; note="$2"; shift 2 ;;
+      --in)    need_value "$@"; where="$2"; shift 2 ;;
       *) shift ;;
     esac
   done
@@ -1067,8 +1085,8 @@ cmd_autonomy() {
   resolve_or_die; local proj="$PROJ" allow="" revoke="" a
   while [ $# -gt 0 ]; do
     case "$1" in
-      --allow)  allow="${2:-}"; shift 2 ;;
-      --revoke) revoke="${2:-}"; shift 2 ;;
+      --allow)  need_value "$@"; allow="$2"; shift 2 ;;
+      --revoke) need_value "$@"; revoke="$2"; shift 2 ;;
       *) shift ;;
     esac
   done
@@ -1607,7 +1625,7 @@ cmd_monitor() {
     case "$1" in
       --open)  open=1; shift ;;
       --watch) watch=1; shift ;;
-      --every) every="${2:-5}"; shift 2 ;;
+      --every) need_value "$@"; every="$2"; shift 2 ;;
       *) shift ;;
     esac
   done
@@ -1845,7 +1863,7 @@ cmd_receipt() {
   resolve_or_die; local proj="$PROJ" base="main"
   while [ $# -gt 0 ]; do
     case "$1" in
-      --base) base="${2:-main}"; shift 2 ;;
+      --base) need_value "$@"; base="$2"; shift 2 ;;
       *) shift ;;
     esac
   done
@@ -1857,7 +1875,7 @@ cmd_evidence() {
   resolve_or_die; local proj="$PROJ" base="main" strict=0
   while [ $# -gt 0 ]; do
     case "$1" in
-      --base) base="${2:-main}"; shift 2 ;;
+      --base) need_value "$@"; base="$2"; shift 2 ;;
       --strict) strict=1; shift ;;
       *) shift ;;
     esac
@@ -1946,7 +1964,7 @@ cmd_budget() {
   while [ $# -gt 0 ]; do
     case "$1" in
       --record) record=1; shift ;;
-      --why) why="${2:-$why}"; shift 2 ;;
+      --why) need_value "$@"; why="$2"; shift 2 ;;
       *) shift ;;
     esac
   done
@@ -2035,7 +2053,7 @@ cmd_scope() {
   resolve_or_die; local proj="$PROJ" base="" paths=""
   while [ $# -gt 0 ]; do
     case "$1" in
-      --base) base="${2:-main}"; shift 2 ;;
+      --base) need_value "$@"; base="$2"; shift 2 ;;
       -) paths="$(cat)"; shift ;;
       *) paths="$paths
 $1"; shift ;;
@@ -2091,7 +2109,7 @@ cmd_classify() {
   resolve_or_die; local proj="$PROJ" base="main" apply=0 a
   while [ $# -gt 0 ]; do
     case "$1" in
-      --base) base="${2:-main}"; shift 2 ;;
+      --base) need_value "$@"; base="$2"; shift 2 ;;
       --apply) apply=1; shift ;;
       *) shift ;;
     esac
@@ -2156,7 +2174,7 @@ cmd_maintenance() {
   resolve_or_die; local proj="$PROJ" ran=""
   while [ $# -gt 0 ]; do
     case "$1" in
-      --ran) ran="${2:-}"; shift 2 ;;
+      --ran) need_value "$@"; ran="$2"; shift 2 ;;
       *) shift ;;
     esac
   done
@@ -2199,7 +2217,7 @@ cmd_incident() {
   resolve_or_die; local proj="$PROJ" src="-" create=0
   while [ $# -gt 0 ]; do
     case "$1" in
-      --from) src="${2:-{-}}"; shift 2 ;;
+      --from) need_value "$@"; src="$2"; shift 2 ;;
       --create) create=1; shift ;;
       *) shift ;;
     esac
@@ -2467,7 +2485,7 @@ cmd_lesson() {
 cmd_handoff() {
   resolve_or_die; local proj="$PROJ" root gate note=""
   while [ $# -gt 0 ]; do
-    case "$1" in --was) note="${2:-}"; shift 2 ;; *) shift ;; esac
+    case "$1" in --was) need_value "$@"; note="$2"; shift 2 ;; *) shift ;; esac
   done
   root="$(felix_repo_root "$PWD")"
   gate="$(felix_json_str "$proj/project.json" gate)"
@@ -2492,7 +2510,7 @@ cmd_handoff() {
 cmd_lessons() {
   resolve_or_die; local proj="$PROJ" want=""
   while [ $# -gt 0 ]; do
-    case "$1" in --for) want="${2:-}"; shift 2 ;; *) want="$want $1"; shift ;; esac
+    case "$1" in --for) need_value "$@"; want="$2"; shift 2 ;; *) want="$want $1"; shift ;; esac
   done
   local file="$(felix_mem_dir "$proj")/lessons.md"
   [ -s "$file" ] || die "no lessons recorded yet for $(basename "$proj")"

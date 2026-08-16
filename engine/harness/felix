@@ -864,9 +864,22 @@ cmd_merge() {
     case "$1" in
       --base)    base="${2:-main}"; shift 2 ;;
       --dry-run) dry=1; shift ;;
-      *) shift ;;
+      # Discarding this is how `felix merge 35` merged whatever HEAD was on and
+      # reported that it had verified it. A command told to merge one thing and
+      # given no way to do so has nothing safer to do than stop.
+      *) die "felix merge does not take '$1'. It merges the branch that is checked out, so check out the branch you mean." ;;
     esac
   done
+
+  # Read before anything is verified, and read again immediately before the
+  # merge. Every blocker below is a claim about one checkout, and the branch is
+  # what the merge acts on — reading it afterwards is what let a peer's
+  # `git checkout` inside the gap merge a branch nothing had looked at and
+  # print that nothing in it escaped the tree (#33). Taking it first bounds the
+  # window at the whole of felix_merge_blockers rather than at the tail of it.
+  local was; was="$(felix_merge_checkout "$root" "$FELIX_HOME_DIR")"
+  local branch; branch="$(printf '%s' "$was" | cut -f1)"
+  [ -n "$branch" ] && [ "$branch" != "HEAD" ] || die "cannot name the branch to merge"
 
   local blockers; blockers="$(felix_merge_blockers "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
 
@@ -926,8 +939,36 @@ EOF
   # is refused by gh itself, client-side, before any network call. It shipped
   # that way because every test covered a refusal or a dry run, so the one line
   # that reaches gh was never executed.
-  local branch; branch="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)"
-  [ -n "$branch" ] && [ "$branch" != "HEAD" ] || die "cannot name the branch to merge"
+  # Last thing before the only line that acts. If the checkout moved, every
+  # verdict above describes something that is no longer here, and merging on it
+  # would be the one outcome this command exists to prevent.
+  local now; now="$(felix_merge_checkout "$root" "$FELIX_HOME_DIR")"
+  if [ "$now" != "$was" ]; then
+    # Name the field that moved. Printing a fixed prefix of the record meant the
+    # tree-id case — the one the third field was added to catch, where a peer
+    # edits an uncommitted file and leaves branch and commit alone — rendered as
+    # two identical lines under a sentence saying the checkout had moved, which
+    # it had not. A refusal whose evidence contradicts its own reason is worse
+    # than a bare one: it sends somebody to look at the thing that is fine.
+    local wb nb ws ns wt nt moved=""
+    wb="$(printf '%s' "$was" | cut -f1)"; nb="$(printf '%s' "$now" | cut -f1)"
+    ws="$(printf '%s' "$was" | cut -f2)"; ns="$(printf '%s' "$now" | cut -f2)"
+    wt="$(printf '%s' "$was" | cut -f3)"; nt="$(printf '%s' "$now" | cut -f3)"
+    printf 'not merging\n\n'
+    [ "$wb" != "$nb" ] && { printf '  branch     %s -> %s\n' "$wb" "$nb"; moved="checkout"; }
+    [ "$ws" != "$ns" ] && { printf '  commit     %s -> %s\n' "$ws" "$ns"; moved="checkout"; }
+    [ "$wt" != "$nt" ] && { printf '  tree       edited under it, uncommitted or untracked\n'
+                            [ -n "$moved" ] || moved="tree"; }
+    if [ "$moved" = "tree" ]; then
+      printf '\nThe working tree was edited while this ran, so the receipt accepted\n'
+      printf 'above describes a tree that is already gone. Nothing was merged.\n'
+    else
+      printf '\nThe checkout moved while this ran, so what was verified is not what\n'
+      printf 'would be merged. Nothing was merged.\n'
+    fi
+    printf 'Run it again once nothing else is touching this working copy.\n'
+    return 4
+  fi
   gh pr merge "$branch" --repo "$slug" --squash || die "gh pr merge failed"
   printf 'merged. nothing in it escaped the tree.\n'
 }
@@ -1953,8 +1994,9 @@ cmd_automerge() {
     printf '%s\n' "$history" | head -8 | while IFS=$'\t' read -r num state title; do
       [ -n "${num:-}" ] || continue
       case "$state" in
-        clean) printf '  clean  #%-5s %s\n' "$num" "$title" ;;
-        dirty) printf '  CI RED #%-5s %s\n' "$num" "$title" ;;
+        clean)   printf '  clean  #%-5s %s\n' "$num" "$title" ;;
+        dirty)   printf '  CI RED #%-5s %s\n' "$num" "$title" ;;
+        unknown) printf '  ?      #%-5s %s (CI history unavailable)\n' "$num" "$title" ;;
       esac
     done
     printf '\n'

@@ -652,6 +652,85 @@ case "$out" in
 esac
 _reset
 
+printf '\na branch that rewrites the rules it is judged by\n'
+# When Felix governs itself, projects/felix/risk.tsv is a tracked file in the
+# repository being classified — and _felix_risk_rows read it off disk. So a
+# commit could add a green row and then be classified by the row it had just
+# added. The candidate wrote its own judge.
+#
+# Reproduced before it was believed: a commit deleting the red row for
+# engine/harness/lib and adding a green one classified its own engine edit
+# green. `verifier` catches that particular shape at merge because a row was
+# removed, but classification is a separate surface with its own consumers —
+# the tier label, the auto-merge streak, the receipt — and it was wrong at all
+# of them.
+#
+# The rule is now that a change to an enforcing table may only ever tighten the
+# diff carrying it. Both versions are evaluated and the stricter wins, so a
+# widening applies from the next diff on and a tightening applies immediately.
+# That is the base-version evaluation the earned-autonomy decision asks for
+# (docs/2026-08-14-earned-autonomy-decision.md §4a), achieved for the tables,
+# which is the half of the authority kernel that is data rather than code.
+SELF="$TMP/self"; mkdir -p "$SELF/projects/p" "$SELF/engine/lib" "$SELF/engine/bin"
+( cd "$SELF" && git init -q . && git config user.email t@t && git config user.name t )
+printf 'red\tpath\t^engine/lib/\tsourced by every hook\nyellow\tpath\t^projects/[^/]+/risk\\.tsv$\trules\n' \
+  > "$SELF/projects/p/risk.tsv"
+printf 'lib\n'  > "$SELF/engine/lib/classify.sh"
+printf 'scan\n' > "$SELF/engine/bin/secret-scan"
+( cd "$SELF" && git add -A >/dev/null && git commit -qm base >/dev/null )
+SELF_BASE="$( cd "$SELF" && git rev-parse HEAD )"
+
+# Asserted per path, not on the whole diff. risk.tsv rates itself yellow, so
+# every diff carrying one of these edits is floored at yellow no matter what
+# happens to the file under attack — which is why the original report read the
+# reproduction as green-vs-yellow rather than as the demotion it is. A
+# whole-diff assertion here would pass without the fix.
+_selfpath() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/classify.sh"
+                felix_classify_tier \
+                  "$(felix_classify_diff "$SELF/projects/p" "$SELF_BASE" "$SELF" \
+                     | awk -F'\t' -v p="$1" '$2==p')" ); }
+
+# Demotion: delete the red row, add a green one, edit the file it covered.
+( cd "$SELF" && grep -v '^red' projects/p/risk.tsv > t && mv t projects/p/risk.tsv
+  printf 'green\tpath\t^engine/lib/\tharmless\n' >> projects/p/risk.tsv
+  printf 'PWNED\n' >> engine/lib/classify.sh
+  git add -A >/dev/null && git commit -qm demote >/dev/null )
+is "a green row cannot demote the diff that adds it" \
+   "$(_selfpath engine/lib/classify.sh)" "red"
+( cd "$SELF" && git reset -q --hard "$SELF_BASE" )
+
+# The additive half, which `verifier` structurally cannot see: nothing is
+# removed, so the escape guarding these tables never fires. A green row for a
+# path that had no row at all takes a file from the yellow default to green in
+# one commit — and engine/bin is where the credential scanner lives, the one
+# the `disclose` channel shells out to.
+( cd "$SELF" && printf 'green\tpath\t^engine/bin/\ttooling\n' >> projects/p/risk.tsv
+  printf 'exit 0\n' > engine/bin/secret-scan
+  git add -A >/dev/null && git commit -qm additive >/dev/null )
+is "a green row for a previously unruled path does not green it either" \
+   "$(_selfpath engine/bin/secret-scan)" "yellow"
+( cd "$SELF" && git reset -q --hard "$SELF_BASE" )
+
+# Tightening applies immediately. The stricter of the two versions wins, not
+# the older one — otherwise the rule would be a reason to ignore the table.
+( cd "$SELF" && printf 'red\tpath\t^engine/bin/\tthe scanner\n' >> projects/p/risk.tsv
+  printf 'exit 0\n' > engine/bin/secret-scan
+  git add -A >/dev/null && git commit -qm tighten >/dev/null )
+is "a red row added applies to the diff that adds it" \
+   "$(_selfpath engine/bin/secret-scan)" "red"
+( cd "$SELF" && git reset -q --hard "$SELF_BASE" )
+
+# The trap this fix could set. A governed product's tables live in the Felix
+# home and are not in its diff at all, so there is nothing there to defend
+# against. Reading a base version that does not exist would yield no rows and
+# floor every product diff at the yellow default — turning a fix for Felix into
+# a regression for every project Felix governs. The second evaluation is
+# skipped unless the table is tracked in the repository under judgement.
+printf 'notes\n' > "$REPO/README.md"; _stage
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+has "a table outside the classified repo is still read once, at HEAD" "$out" "tier:  green"
+_reset
+
 printf '\nwhat a revert cannot undo\n'
 # A tier used to be a function of which file you touched, and that is what sent
 # a one-line dependency-floor correction to the founder for a day. The question
@@ -1257,6 +1336,14 @@ is "a red run breaks the streak" \
    "$(_streak "$(printf '9\tclean\ta\n8\tdirty\tb\n7\tclean\tc')")" "1"
 is "and a red run at the head means zero" \
    "$(_streak "$(printf '9\tdirty\ta\n8\tclean\tb')")" "0"
+# The state that used to be missing. The failure count comes off the network,
+# and an errored `gh run list` prints nothing — which `${failures:-0}` read as
+# zero failures, so "could not find out" advanced the streak toward switching
+# auto-merge on. A streak is a claim that CI agreed; silence is not agreement.
+is "a run nobody could read does not count as clean" \
+   "$(_streak "$(printf '9\tunknown\ta\n8\tclean\tb')")" "0"
+is "and it stops the streak rather than being skipped past" \
+   "$(_streak "$(printf '9\tclean\ta\n8\tunknown\tb\n7\tclean\tc')")" "1"
 
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts
@@ -2718,6 +2805,113 @@ printf 'pr merge --repo x/y --squash\n' > "$TMP/shape.probe"
 ( PATH="$GHB:$PATH" GHSTUB_LOG=/dev/null gh pr merge --repo x/y --squash ) 2>/dev/null \
   && bad "the stub refuses a selectorless merge the way gh does" "stub accepted it" \
   || ok "the stub refuses a selectorless merge the way gh does"
+printf '\nwhat it verified and what it merges are the same branch\n'
+# Issue #33, from the same concurrency audit. felix merge computed the tree
+# identity, checked the receipt against it, ran the evidence check — and only
+# then read the branch name. A peer's `git checkout` in the same working copy
+# inside that gap made it squash-merge a branch nothing had verified, and print
+# that nothing in it escaped the tree. Measured at ~35% of the command's
+# runtime, and the harm is the worst category the audit found: an ungated
+# escape merged into main, reported as verified, recorded nowhere.
+#
+# Injected at `git remote get-url`, which is the one landmark that sits inside
+# exactly that window: felix_repo_slug is its only caller on this path, and it
+# runs after the receipt is checked and before the branch is read. Verified by
+# probe rather than assumed — a counted trigger would rot silently the first
+# time the call sequence changed.
+GB="$TMP/gitstub"; mkdir -p "$GB"
+GITREAL="$(command -v git)"
+# Parameterised on both halves, because one hard-coded scenario tested one third
+# of the guard. RACE_ON picks where in the command the peer lands, RACE_CMD picks
+# what the peer does. Between them they reach all three fields of the tuple and
+# both sides of felix_merge_blockers.
+cat > "$GB/git" <<STUB
+#!/usr/bin/env bash
+case "\$*" in
+  *"\${RACE_ON:-remote get-url}"*)
+    if [ -n "\${RACE_CMD:-}" ] && [ ! -f "\${RACE_FIRED:-/nonexistent}" ]; then
+      printf 'fired\n' > "\$RACE_FIRED"
+      eval "\$RACE_CMD" >/dev/null 2>&1
+    fi ;;
+esac
+exec "$GITREAL" "\$@"
+STUB
+chmod +x "$GB/git"
+
+( cd "$MR" && git checkout -q -b feature && git branch other )
+
+# Re-records the receipt, runs felix merge with one peer action injected, and
+# reports the exit code and whether gh was asked to merge anything.
+_race() {
+  local on="$1" cmd="$2"
+  ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
+    felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+  : > "$TMP/gh.race.log"; rm -f "$TMP/race.fired"
+  ( cd "$MR" && PATH="$GB:$GHB:$PATH" GHSTUB_LOG="$TMP/gh.race.log" \
+      RACE_ON="$on" RACE_CMD="$cmd" RACE_FIRED="$TMP/race.fired" \
+      "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+  RACE_RC=$?
+  RACE_MERGES="$(grep -c '^pr merge' "$TMP/gh.race.log" | tr -d ' ')"
+}
+
+# 1. A peer checkout landing where the audit found it: after the receipt is
+#    accepted, before the branch is read.
+_race "remote get-url" "$GITREAL -C $MR checkout -q other"
+[ -f "$TMP/race.fired" ] && ok "the injected checkout actually moved the branch" \
+                         || bad "the injected checkout actually moved the branch" "it never fired"
+is "a checkout that moves after verification merges nothing" "$RACE_MERGES" "0"
+[ "$RACE_RC" -ne 0 ] && ok "and says so rather than reporting a merge" \
+                     || bad "and says so rather than reporting a merge" "exit $RACE_RC"
+( cd "$MR" && git checkout -q feature )
+
+# 2. Inside felix_merge_blockers, which is the assertion that pins the fix. The
+#    first version of this test injected only at `remote get-url` — the tail of
+#    the command — so it passed just as well against a version that reads the
+#    branch after the blockers and re-reads it at the end, which is the whole
+#    of the bug the issue is about. A test that cannot tell the fix from the
+#    defect is the failure this repository keeps paying for, and it was found
+#    by review rather than by the suite.
+_race "diff --name-only" "$GITREAL -C $MR checkout -q other"
+[ -f "$TMP/race.fired" ] && ok "a checkout inside the verification is caught too" \
+                         || bad "a checkout inside the verification is caught too" "it never fired"
+is "and nothing is merged when it lands there" "$RACE_MERGES" "0"
+( cd "$MR" && git checkout -q feature )
+
+# 3. The other two fields. A peer commit moves the sha with the branch name
+#    unchanged; a peer edit moves neither and changes only the tree the receipt
+#    was accepted for. Both were dead weight until something asserted them.
+_race "remote get-url" "$GITREAL -C $MR -c user.name=p -c user.email=p@p commit -q --allow-empty -m peer"
+is "a peer commit on the same branch merges nothing" "$RACE_MERGES" "0"
+_race "remote get-url" "printf 'peer\n' >> $MR/README.md"
+is "a peer edit to the working tree merges nothing" "$RACE_MERGES" "0"
+# And it must say which of the three moved. Printing a fixed prefix of the
+# record rendered this case as two identical lines under "the checkout moved".
+( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+rm -f "$TMP/race.fired"
+race_out="$( cd "$MR" && PATH="$GB:$GHB:$PATH" GHSTUB_LOG=/dev/null \
+    RACE_ON="remote get-url" RACE_CMD="printf 'peer2\n' >> $MR/README.md" \
+    RACE_FIRED="$TMP/race.fired" "$FELIX" merge --base HEAD~1 2>&1 )"
+has "and names the working tree rather than the checkout" "$race_out" "tree       edited under it"
+case "$race_out" in
+  *"The checkout moved"*) bad "and does not blame a checkout that did not move" "$race_out" ;;
+  *)                      ok  "and does not blame a checkout that did not move" ;;
+esac
+( cd "$MR" && git checkout -q -- README.md 2>/dev/null; git checkout -q feature )
+unset GHSTUB_LOG
+
+# The same defect with no concurrency in it at all. `felix merge 35` shifted the
+# 35 away unread and merged whatever HEAD happened to be on, so a command told
+# to merge one thing merged another and reported success. An argument it cannot
+# honour must stop it, not be discarded — the rest of this command is
+# fail-closed everywhere.
+export GHSTUB_LOG="$TMP/gh.arg.log"; : > "$GHSTUB_LOG"
+( cd "$MR" && PATH="$GHB:$PATH" "$FELIX" merge 35 >/dev/null 2>&1 )
+rc=$?
+is "an argument it cannot honour merges nothing" \
+   "$(grep -c '^pr merge' "$GHSTUB_LOG" | tr -d ' ')" "0"
+[ "$rc" -ne 0 ] && ok "and refuses instead of ignoring it" \
+                || bad "and refuses instead of ignoring it" "exit $rc"
 unset GHSTUB_LOG
 
 printf '\na path at the end of a sentence\n'

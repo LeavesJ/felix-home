@@ -80,13 +80,14 @@ worth keeping.
 
 | | |
 |---|---|
-| head | `652fca8` on `main`, 0 unpushed |
-| gate | **pass** — 719 assertions, `installed` ok |
-| engine | **0.48.8**, deployed and byte-identical |
+| head | `c3fd863` on `main`, 0 unpushed |
+| gate | **pass** — 734 assertions, `installed` ok |
+| engine | **0.48.11**, deployed and byte-identical |
 | repository | **private** |
 | memory | **still unbacked** — §0 item 2, unchanged and still the top item |
-| open issues | **6**, two of them new |
-| open PRs | **#39** draft, **#40** awaiting review |
+| open issues | **4**, and every one of them is a design question |
+| open PRs | **none** |
+| auto-merge | **4 of 5**, unmoved. Every merge below was red, and red does not count. |
 
 ### What closed, 2026-08-14 → 16
 
@@ -100,17 +101,39 @@ worth keeping.
   difference, naming which of the three moved. Also: `felix merge 35` used to
   shift the argument away unread and merge whatever HEAD was on.
 
-### The queue, in the order it should be taken
+### What closed, and what the defect queue has left
 
-| # | | |
+Seven pull requests merged 2026-08-14 → 16, and **the defect queue is empty**.
+Every issue still open is a design question, not a fix somebody could sit down
+and write.
+
+| closed | |
+|---|---|
+| [#32](https://github.com/LeavesJ/felix/issues/32) | the rollup shared one file and deleted what it had not read |
+| [#33](https://github.com/LeavesJ/felix/issues/33) | `felix merge` verified one branch and merged whichever one you were on |
+| [#37](https://github.com/LeavesJ/felix/issues/37) | a bare `^docs/` row classified a committed `rm -rf /` green. Closed after re-running its own reproduction against merged `main`: now **yellow** |
+| [#38](https://github.com/LeavesJ/felix/issues/38) | a flag with no value spun forever — in **25** parsers, not the one the issue named |
+| [#39](https://github.com/LeavesJ/felix/pull/39) | superseded by #42, which carries its commit; nothing lost |
+
+| still open | | |
 |---|---|---|
-| [#37](https://github.com/LeavesJ/felix/issues/37) | `risk-red` | a bare `^docs/` row classifies a committed `docs/tool.sh` **green** — the tier that can auto-merge — and the same row ships in the template to every governed project. Verified twice, independently. Fixed on **#39**, which is still a draft. |
-| [#39](https://github.com/LeavesJ/felix/pull/39) | review | base-version evaluation of `risk.tsv`, the data half of the authority kernel (#5 §4a). Reviewed 2026-08-16 at xhigh: **8 findings, 6 confirmed**. Do not merge before reading them — the top one is that its own guard fails open. |
-| [#40](https://github.com/LeavesJ/felix/pull/40) | review | `felix_count`. Nothing blocks it; it wants a second pair of eyes because it touches five files. |
-| [#2](https://github.com/LeavesJ/felix/issues/2) → [#28](https://github.com/LeavesJ/felix/issues/28) | `risk-red` | the trust chain, in that order. Blocked on design and on the GitHub Pro question, not on effort. #39 makes half of #28 concrete: the tables are covered, the engine is not, and cannot be from inside the tree. |
-| [#31](https://github.com/LeavesJ/felix/issues/31) | design | concurrency as a *feature*, and it now has a second live instance — see below. |
-| [#38](https://github.com/LeavesJ/felix/issues/38) | `risk-yellow` | `felix merge --base` with no value busy-loops forever. `shift 2` fails when `$#` is 1 and, having failed, shifts nothing. Pre-existing; confirmed on `main`. |
-| [#29](https://github.com/LeavesJ/felix/issues/29) | `risk-yellow` | routing: two distinct causes recorded, one fixed, one open. |
+| [#2](https://github.com/LeavesJ/felix/issues/2) → [#28](https://github.com/LeavesJ/felix/issues/28) | `risk-red` | the trust chain. #42 closed the data half of the kernel — `risk.tsv` is now judged against its inherited version — and the engine half **cannot** be closed from inside the tree, because the CLI sources `lib/*.sh` from the branch under judgement. That needs a pinned base engine or an off-tree enforcement point. This is the largest thing left and it is blocked on a decision, not on effort. |
+| [#31](https://github.com/LeavesJ/felix/issues/31) | design | concurrency as a feature, with a second live instance below. |
+| [#29](https://github.com/LeavesJ/felix/issues/29) | `risk-yellow` | routing: two causes recorded, one fixed, one open. |
+
+### What is still unprotected, said here so it is not rediscovered
+
+- **`evidence.tsv` gets no base-version treatment.** It is read off the branch
+  that changes it, exactly as `risk.tsv` was before #42. It cannot demote a
+  tier — the `^projects/[^/]+/(routes|profiles|stack|risk|evidence)\.tsv$` row
+  floors any diff touching it at yellow — but `felix_merge_blockers` consults it
+  for the evidence blocker, and there the candidate is still its own judge. The
+  CLI text now says so out loud rather than promising both tables and fixing one.
+- **The auto-merge streak counts a `risk-green` label applied by hand** and never
+  re-derived from the merged diff.
+- **Two of #39's four classify assertions pass unchanged against `main`.** They
+  are honest regression guards against the trap that fix could have set, but
+  they do not test the fix; the other two do, shown failing.
 
 ### #31 has a second live instance, and it is worse than the first
 
@@ -205,11 +228,18 @@ that none of it bites at current scale — held for the ledger loss and did not
 hold for the rest: the stray-zero defect was corrupting the ledger on every
 rollup the whole time, at N=1, with no concurrency involved at all.
 
-What is mid-flight now: **#39 and #40 are both open**, #39 as a draft carrying
-six confirmed review findings, and the engine deployed on this machine (0.48.8)
-is ahead of `main` by whatever is on #40's branch. Deploying is how a change
-reaches the next session, so an unmerged PR whose engine is live is a state to
-close, not to leave.
+Nothing is mid-flight. `main` is `c3fd863`, the working tree is clean, the
+deployed engine is 0.48.11 and `felix install` verifies it byte-identical, and
+there are no open pull requests.
+
+One trap from this session that cost real time and is not in the code. **A test
+for a hang leaks the hang unless its watchdog kills the children.** The red run
+of #38's test left a `felix merge --base` spinning for twenty-four minutes; the
+suite reported a clean pass both times, and it was noticed only because a later
+gate ran slowly enough to look. `pkill -9 -P` before `kill -9` reaps it, shown
+working against a deliberate spinner. It leaks only when the test *fails*, so
+the run that proves such a test works is the run that poisons every run after
+it — check for strays after any red run of a bounded test.
 
 ## 1. Standing direction — decided, do not ask again
 

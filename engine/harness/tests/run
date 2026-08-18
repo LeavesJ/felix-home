@@ -2946,6 +2946,14 @@ printf '\nand it is that version that forms the verdict\n'
 SG="$TMP/selfgov"; mkdir -p "$SG/engine/.claude-plugin" "$SG/engine/harness/lib"
 ( cd "$SG" && git init -q -b main && git config user.email t@t && git config user.name t \
   && git remote add origin https://github.com/example/widget.git )
+# Physical path, as $MR already does a few hundred lines up and for the same
+# reason. felix_repo_root resolves symlinks, so on macOS a fixture under /tmp
+# becomes /private/tmp — and the gate receipt is keyed on a hash of the root, so
+# recording under one spelling and reading under the other never matches. That
+# is why no assertion here could show a self-governed merge SUCCEEDING: every
+# one was refused for a stale receipt, and a refusal looks exactly like the
+# feature working.
+SG="$( cd "$SG" && pwd -P )"
 printf 'widget\n' > "$SG/.felix"; printf 'stub\n' > "$SG/engine/harness/lib/escape.sh"
 printf '{ "version": "1.0.0" }\n' > "$SG/engine/.claude-plugin/plugin.json"
 ( cd "$SG" && git add -A >/dev/null && git commit -qm base >/dev/null && git checkout -q -b feature )
@@ -3030,6 +3038,10 @@ case "$(cat "$TMP/sg.out")" in
   *identical*) bad "a change that does not touch the engine is not called self-judgement" "$(cat "$TMP/sg.out")" ;;
   *)           ok  "a change that does not touch the engine is not called self-judgement" ;;
 esac
+# And it actually merges. Every other assertion in this section is a refusal,
+# and a guard that refused everything would satisfy all of them — this is the
+# one that fails if the kernel path stops permitting anything at all.
+is "and a self-governed branch does merge under the kernel" "$SGMERGES" "1"
 ( cd "$SG" && git checkout -q feature && git branch -qD prose )
 rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
 

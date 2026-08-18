@@ -874,6 +874,32 @@ closes #$issue"
     || printf 'could not apply risk-%s; the label may not exist yet\n' "$tier"
 }
 
+# The blockers, computed by the engine `main` declares rather than by this one.
+#
+# A child shell that sources only the kernel's libraries, so nothing from the
+# tree under judgement is in scope when the verdict forms. review.sh is in the
+# list and must stay: escape.sh guards the reviewed channel with
+# `command -v felix_review_passed`, so leaving it out does not error — it
+# silently stops a reviewer's pass from ever clearing, which is the one
+# exception invariant 2 grants.
+#
+# The exit status separates three answers that must not be confused: it judged
+# (0), it is too old to judge (4), it could not be loaded (3). Only 0 permits.
+_felix_kernel_blockers() {
+  local kernel="$1" proj="$2" base="$3" root="$4" home="$5"
+  [ -d "$kernel/lib" ] || return 3
+  bash -c '
+    set -uo pipefail
+    k="$1"
+    for f in resolve verify review classify evidence escape; do
+      [ -r "$k/lib/$f.sh" ] || exit 3
+      . "$k/lib/$f.sh" 2>/dev/null || exit 3
+    done
+    command -v felix_merge_blockers >/dev/null 2>&1 || exit 4
+    felix_merge_blockers "$2" "$3" "$4" "$5"
+  ' _ "$kernel" "$proj" "$base" "$root" "$home"
+}
+
 cmd_merge() {
   resolve_or_die
   local proj="$PROJ" root base="main" dry=0
@@ -899,7 +925,31 @@ cmd_merge() {
   local branch; branch="$(printf '%s' "$was" | cut -f1)"
   [ -n "$branch" ] && [ "$branch" != "HEAD" ] || die "cannot name the branch to merge"
 
-  local blockers; blockers="$(felix_merge_blockers "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
+  # Judged by the engine main declares, never by this tree — but only where
+  # that circularity exists. A governed product's rules live in the Felix home
+  # and are not in its diff, so it is judged as it always was and needs no
+  # installed engine at all.
+  local blockers krc
+  if felix_self_governed "$root"; then
+    local kernel; kernel="$(felix_kernel_dir "$root" "$base")" || kernel=""
+    [ -n "$kernel" ] && [ -d "$kernel/lib" ] || die "no installed copy of the engine main declares, so there is nothing to judge this that is not this. Run felix install on main, then try again."
+    # The judge must not be the candidate. The first version of this resolved
+    # the newest cache entry, which the gate's own installed check guarantees is
+    # byte-identical to the tree — a no-op that reported success. If that ever
+    # comes back, it says so instead of passing silently.
+    if diff -rq "$root/engine/harness" "$kernel" >/dev/null 2>&1; then
+      die "the engine that would judge this is byte-identical to the tree it is judging, so it would be judging itself. Bump the version and install main's, or say plainly that this is unjudged."
+    fi
+    blockers="$(_felix_kernel_blockers "$kernel" "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
+    krc=$?
+    case "$krc" in
+      0) ;;
+      4) die "the installed engine at $kernel is too old to judge this: it has no felix_merge_blockers. Install a newer main." ;;
+      *) die "the installed engine at $kernel could not be loaded to judge this." ;;
+    esac
+  else
+    blockers="$(felix_merge_blockers "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
+  fi
 
   if [ -n "$blockers" ]; then
     local kind subject reason esc=0

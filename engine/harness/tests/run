@@ -3005,6 +3005,42 @@ is "a judge identical to the candidate merges nothing" "$SGMERGES" "0"
 has "and says why it refused" "$(cat "$TMP/sg.out")" "identical"
 rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
 
+# A change that does not touch the engine has no circularity to break, and the
+# judge being identical to the tree is not self-judgement — it IS the base
+# version, unchanged. The first version of this guard fired on every
+# documentation branch and made them unmergeable, which the first real use
+# found within a minute of the feature landing.
+# main carries a real engine here, not the stub the other scenarios use: the
+# judge has to be identical to the tree AND loadable, and a stub that cannot be
+# sourced would refuse for the wrong reason and the assertion would pass
+# without testing anything.
+( cd "$SG" && git checkout -q main \
+  && rm -rf engine/harness && cp -R "$FROOT/harness" engine/harness \
+  && git add -A >/dev/null && git -c user.name=t -c user.email=t@t commit -qm engine >/dev/null \
+  && git checkout -q -b prose \
+  && printf 'notes\n' > NOTES.md && git add -A >/dev/null \
+  && git -c user.name=t -c user.email=t@t commit -qm prose >/dev/null )
+rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
+_sgrecord; _sgmerge
+# Asserted on the refusal, not on a merge. What changed is whether the
+# identical-judge guard fires, and a merge additionally needs a valid receipt —
+# which this fixture does not reliably produce, so asserting on it would test
+# the fixture rather than the fix.
+case "$(cat "$TMP/sg.out")" in
+  *identical*) bad "a change that does not touch the engine is not called self-judgement" "$(cat "$TMP/sg.out")" ;;
+  *)           ok  "a change that does not touch the engine is not called self-judgement" ;;
+esac
+( cd "$SG" && git checkout -q feature && git branch -qD prose )
+rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
+
+# And the other half: the same identical judge, with the engine in the diff,
+# must still refuse. Without this the pair proves nothing — a guard that never
+# fires would satisfy the assertion above.
+rm -rf "$KC2/1.0.0/harness"; cp -R "$SG/engine/harness" "$KC2/1.0.0/harness"
+_sgrecord; _sgmerge
+has "but a change that does touch it still is" "$(cat "$TMP/sg.out")" "identical"
+rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
+
 # review.sh must be in the kernel's source list. escape.sh guards the reviewed
 # channel with `command -v felix_review_passed`, so leaving review.sh out does
 # not error — it silently stops a reviewer's pass from ever clearing, which is

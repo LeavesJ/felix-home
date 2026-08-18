@@ -2865,6 +2865,186 @@ printf 'pr merge --repo x/y --squash\n' > "$TMP/shape.probe"
   || ok "the stub refuses a selectorless merge the way gh does"
 unset GHSTUB_LOG
 
+printf '\nthe version that judges is the one main declares\n'
+# Issue #28, the engine half, second attempt. The first resolved the judge as
+# "the newest thing in the plugin cache" and was vacuous: the gate's `installed`
+# check demands the cache match the tree byte for byte before it will go green,
+# and merge demands a green receipt, so by merge time the newest cache entry IS
+# the candidate. docs/2026-08-14-earned-autonomy-decision.md said so at §4a
+# before any of it was written — "one problem seen from two sides".
+#
+# The judge is instead the version `main` declares. The cache keeps every
+# version ever installed, and a branch must bump its own version to deploy at
+# all, so main's entry is present and is not the candidate's. The deadlock is
+# side-stepped rather than fought: `installed` compares the tree to the newest
+# entry while the kernel is an older one, and both hold at once.
+KR="$TMP/kres"; mkdir -p "$KR/engine/.claude-plugin"
+# -b main explicitly: without it the branch name comes from init.defaultBranch,
+# which is the machine and not the fixture. This passed on a laptop that says
+# main and failed on a runner that says master.
+( cd "$KR" && git init -q -b main && git config user.email t@t && git config user.name t )
+printf '{ "name": "felix", "version": "1.0.0" }\n' > "$KR/engine/.claude-plugin/plugin.json"
+mkdir -p "$KR/engine/harness/lib"; printf 'x\n' > "$KR/engine/harness/lib/escape.sh"
+( cd "$KR" && git add -A >/dev/null && git commit -qm base >/dev/null )
+KC="$TMP/kcache"; mkdir -p "$KC/1.0.0/harness/lib" "$KC/2.0.0/harness/lib" "$KC/10.0.0/harness/lib"
+
+_kd() { ( . "$FROOT/harness/lib/resolve.sh"
+          FELIX_KERNEL_CACHE="$KC" felix_kernel_dir "$KR" ); }
+is "the judge is the version main declares" "$(_kd)" "$KC/1.0.0/harness"
+
+# The bump the deploy loop forces is what makes the two differ. After it, the
+# tree is 2.0.0 and the judge is still main's 1.0.0 — which is the whole point,
+# and is what the first attempt got wrong by taking the newest.
+printf '{ "name": "felix", "version": "2.0.0" }\n' > "$KR/engine/.claude-plugin/plugin.json"
+is "a bumped tree does not become its own judge" "$(_kd)" "$KC/1.0.0/harness"
+case "$(_kd)" in
+  *10.0.0*|*2.0.0*) bad "and never the newest thing in the cache" "$(_kd)" ;;
+  *)                ok  "and never the newest thing in the cache" ;;
+esac
+
+# Absent rather than guessed. Answering with some other version would be the
+# first attempt's defect with a different arithmetic.
+rm -rf "$KC/1.0.0"
+is "a version main declares but nobody installed resolves to nothing" "$(_kd)" ""
+mkdir -p "$KC/1.0.0/harness/lib"
+KR2="$TMP/kres2"; mkdir -p "$KR2"; ( cd "$KR2" && git init -q -b main )
+is "and a repository with no main resolves to nothing" \
+   "$( . "$FROOT/harness/lib/resolve.sh"; FELIX_KERNEL_CACHE="$KC" felix_kernel_dir "$KR2" )" ""
+
+# Only the repository that ships the engine has this problem at all. A governed
+# product's rules live in the Felix home and are not in its diff, so there is no
+# circularity to break and nothing to demand of it — which is what keeps this
+# from becoming a fix for Felix and a regression for everything Felix governs.
+_sg() { ( . "$FROOT/harness/lib/resolve.sh"; felix_self_governed "$1" && echo yes || echo no ); }
+# The branch name is an argument, not a constant. A project whose trunk is
+# called something else must still find its judge.
+( cd "$KR" && git branch -m main trunk )
+is "the judge is found on whatever branch is being merged into" \
+   "$( . "$FROOT/harness/lib/resolve.sh"; FELIX_KERNEL_CACHE="$KC" felix_kernel_dir "$KR" trunk )" \
+   "$KC/1.0.0/harness"
+is "and not found by assuming the branch is called main" \
+   "$( . "$FROOT/harness/lib/resolve.sh"; FELIX_KERNEL_CACHE="$KC" felix_kernel_dir "$KR" main )" ""
+( cd "$KR" && git branch -m trunk main )
+
+# The collision that shipped. toolbox.sh sets FELIX_PLUGIN_CACHE to the plugins
+# cache root and the CLI sources it, so a resolver reading that name looked one
+# level too high and found nothing — while every test here passed, because they
+# all set the variable themselves. This one deliberately does not set ours.
+mkdir -p "$TMP/plugroot/felix/felix/1.0.0/harness/lib"
+is "the plugins cache root is composed with, not read as ours" \
+   "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/toolbox.sh"
+       FELIX_PLUGIN_CACHE="$TMP/plugroot" felix_kernel_dir "$KR" main )" \
+   "$TMP/plugroot/felix/felix/1.0.0/harness"
+
+is "the repository that ships the engine is self-governed" "$(_sg "$KR")" "yes"
+is "and an ordinary product repository is not"             "$(_sg "$MR")" "no"
+
+printf '\nand it is that version that forms the verdict\n'
+# A self-governing fixture: a repository that ships an engine, with main
+# declaring one version and the branch declaring another, which is the shape the
+# deploy loop forces on every engine change.
+SG="$TMP/selfgov"; mkdir -p "$SG/engine/.claude-plugin" "$SG/engine/harness/lib"
+( cd "$SG" && git init -q -b main && git config user.email t@t && git config user.name t \
+  && git remote add origin https://github.com/example/widget.git )
+printf 'widget\n' > "$SG/.felix"; printf 'stub\n' > "$SG/engine/harness/lib/escape.sh"
+printf '{ "version": "1.0.0" }\n' > "$SG/engine/.claude-plugin/plugin.json"
+( cd "$SG" && git add -A >/dev/null && git commit -qm base >/dev/null && git checkout -q -b feature )
+printf '{ "version": "2.0.0" }\n' > "$SG/engine/.claude-plugin/plugin.json"
+printf 'runs something\n' > "$SG/KERNEL2.txt"
+( cd "$SG" && git add -A >/dev/null && git commit -qm candidate >/dev/null )
+printf 'red\tpath\t^KERNEL2\\.txt$\ta channel for the kernel test\texecute\n' \
+  >> "$FROOT/projects/widget/risk.tsv"
+
+KC2="$TMP/kcache2"; mkdir -p "$KC2/1.0.0" "$KC2/2.0.0"
+cp -R "$FROOT/harness" "$KC2/1.0.0/harness"          # main's version: honest
+cp -R "$FROOT/harness" "$KC2/2.0.0/harness"          # the candidate's own
+
+_sgmerge() {
+  : > "$TMP/gh.sg.log"
+  ( cd "$SG" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.sg.log" \
+      FELIX_KERNEL_CACHE="$KC2" "$FELIX" merge --base HEAD~1 >"$TMP/sg.out" 2>&1 )
+  SGRC=$?
+  SGMERGES="$(grep -c '^pr merge' "$TMP/gh.sg.log" | tr -d ' ')"
+}
+_sgrecord() { ( cd "$SG" && . "$FROOT/harness/lib/verify.sh"
+                felix_verify_record "$SG" "$FROOT" 0 "true" "$(felix_tree_id "$SG" "$FROOT")" ); }
+
+# The escape is real, so nothing below can pass by finding nothing.
+# Asserted on WHICH blocker fired, never on "nothing merged". A merge can fail
+# for a stale receipt, and an assertion that only counts merges passes just as
+# well when the thing under test did nothing at all — which is how the first
+# attempt at this looked green.
+_sgrecord; _sgmerge
+has "the execute channel stops this merge" "$(cat "$TMP/sg.out")" "execute"
+is  "and nothing is merged"                "$SGMERGES" "0"
+
+# The attack: the running engine's escape.sh is taught to find nothing. The
+# verdict comes from main's version, which was never taught anything.
+cp "$FROOT/harness/lib/escape.sh" "$TMP/esc.orig"
+cat > "$FROOT/harness/lib/escape.sh" <<'WEAK'
+felix_escapes() { return 0; }
+felix_merge_blockers() { return 0; }
+felix_merge_checkout() {
+  printf '%s\t%s\t%s\n' "$(git -C "$1" rev-parse --abbrev-ref HEAD 2>/dev/null)" \
+    "$(git -C "$1" rev-parse HEAD 2>/dev/null)" ""
+}
+WEAK
+_sgrecord; _sgmerge
+# The channel must appear in the refusal. The tree's felix_escapes returns
+# nothing, so this line can only come from main's copy — a count alone would
+# have been satisfied by any unrelated blocker.
+has "a disarmed engine is still judged by main's version" "$(cat "$TMP/sg.out")" "execute"
+is  "and it merges nothing"                               "$SGMERGES" "0"
+cp "$TMP/esc.orig" "$FROOT/harness/lib/escape.sh"
+
+# The vacuous case the first attempt shipped: a judge byte-identical to the tree
+# it judges. It must be loud, not silent.
+rm -rf "$KC2/1.0.0/harness"; cp -R "$SG/engine/harness" "$KC2/1.0.0/harness"
+_sgrecord; _sgmerge
+is "a judge identical to the candidate merges nothing" "$SGMERGES" "0"
+has "and says why it refused" "$(cat "$TMP/sg.out")" "identical"
+rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
+
+# review.sh must be in the kernel's source list. escape.sh guards the reviewed
+# channel with `command -v felix_review_passed`, so leaving review.sh out does
+# not error — it silently stops a reviewer's pass from ever clearing, which is
+# the one exception invariant 2 grants.
+printf 'felix_review_passed() { return 0; }\n' > "$KC2/1.0.0/harness/lib/review.sh"
+# The row is rewritten rather than sed'd onto. BSD sed does not interpret \t, so
+# substituting on a tab silently changes nothing, and this assertion would have
+# gone on testing the execute channel while claiming to test reviewed.
+sed '/KERNEL2/d' "$FROOT/projects/widget/risk.tsv" > "$TMP/rv" \
+  && mv "$TMP/rv" "$FROOT/projects/widget/risk.tsv"
+printf 'red\tpath\t^KERNEL2\\.txt$\ta channel a verdict may clear\treviewed\n' \
+  >> "$FROOT/projects/widget/risk.tsv"
+_sgrecord; _sgmerge
+case "$(cat "$TMP/sg.out")" in
+  *reviewed*) bad "a passing verdict clears a reviewed escape through the kernel" "$(cat "$TMP/sg.out")" ;;
+  *)          ok  "a passing verdict clears a reviewed escape through the kernel" ;;
+esac
+# The other half of the pair, and the only thing that proves review.sh is in the
+# child's source list rather than merely present on disk. escape.sh guards the
+# lookup with `command -v felix_review_passed`, so a kernel where that function
+# is undefined does not error — the escape simply never clears.
+printf '# a review.sh that defines nothing\n' > "$KC2/1.0.0/harness/lib/review.sh"
+_sgrecord; _sgmerge
+has "and without it the same escape stands" "$(cat "$TMP/sg.out")" "reviewed"
+printf 'felix_review_passed() { return 0; }\n' > "$KC2/1.0.0/harness/lib/review.sh"
+
+sed '/KERNEL2/d' "$FROOT/projects/widget/risk.tsv" > "$TMP/rv2" \
+  && mv "$TMP/rv2" "$FROOT/projects/widget/risk.tsv"
+
+# And the repository that does not ship an engine is left exactly alone: no
+# kernel demanded, no cache consulted, merge as before. This is the assertion
+# that keeps a fix for Felix from becoming a regression for every product.
+: > "$TMP/gh.prod.log"
+( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+( cd "$MR" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.prod.log" \
+    FELIX_KERNEL_CACHE="$TMP/no-cache-at-all" "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+is "a governed product merges with no installed engine at all" \
+   "$(grep -c '^pr merge' "$TMP/gh.prod.log" | tr -d ' ')" "1"
+
 printf '\nwhat it verified and what it merges are the same branch\n'
 # Issue #33, from the same concurrency audit. felix merge computed the tree
 # identity, checked the receipt against it, ran the evidence check — and only

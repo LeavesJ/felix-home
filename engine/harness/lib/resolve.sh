@@ -260,6 +260,77 @@ felix_same_repo() {
   [ -n "$ga" ] && [ "$ga" = "$gb" ]
 }
 
+# Whether the repository under judgement is the one that ships this engine.
+#
+# Only that repository has the circularity worth breaking. A governed product's
+# rules live in the Felix home and are not in its diff at all — #42 established
+# that — so its branch cannot rewrite what judges it, and demanding a pinned
+# engine there would be a fix for Felix and a regression for everything Felix
+# governs: no plugin on a CI runner, none on a fresh clone, and merge refusing
+# in both.
+felix_self_governed() {
+  local root="${1:-}"
+  [ -n "$root" ] && [ -f "$root/engine/.claude-plugin/plugin.json" ] || return 1
+  git -C "$root" ls-files --error-unmatch engine/.claude-plugin/plugin.json >/dev/null 2>&1
+}
+
+# The version a manifest declares, at a ref or in the working tree.
+_felix_plugin_version() {
+  local root="$1" ref="${2:-}"
+  { if [ -n "$ref" ]; then git -C "$root" show "$ref:engine/.claude-plugin/plugin.json" 2>/dev/null
+    else cat "$root/engine/.claude-plugin/plugin.json" 2>/dev/null; fi
+  } | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
+}
+
+# The engine that judges, which must not be the engine being judged.
+#
+# The first version of this took the newest entry in the plugin cache and was
+# vacuous, because the gate's `installed` check will not go green until that
+# entry matches the tree byte for byte, and merge will not run without a green
+# receipt. So the newest entry is always the candidate by the time it matters.
+# docs/2026-08-14-earned-autonomy-decision.md §4a had already said base-version
+# evaluation could not be reached without settling the install-before-green
+# cycle — "one problem seen from two sides".
+#
+# The judge is the version `main` declares instead. The cache keeps every
+# version ever installed, and `felix install` refuses a changed engine at an
+# unchanged version, so a branch that touches the engine has bumped past main
+# and main's entry is both present and not the candidate's. The deadlock is
+# side-stepped rather than fought: `installed` compares the tree against the
+# newest entry while this reads an older one, and both hold at once.
+#
+# Two limits, stated because a root of trust that overclaims is worse than none.
+# This is not a signature — the trust is that the cache entry for main's version
+# is what main contained when somebody installed it. And FELIX_KERNEL overrides
+# the whole resolution, so anything that can set the environment can choose its
+# own judge; it exists so the suite can point at a constructed kernel instead of
+# whatever happens to be on the machine running it.
+felix_kernel_dir() {
+  local root="${1:-}" base="${2:-main}" ver p ref
+  if [ -n "${FELIX_KERNEL:-}" ]; then printf '%s' "$FELIX_KERNEL"; return 0; fi
+  [ -n "$root" ] || return 1
+  # The branch being merged into, not the literal word "main". Hard-coding it
+  # made this depend on `init.defaultBranch`, which is a property of whoever ran
+  # it — green on a laptop that says main and red on a runner that says master.
+  for ref in "origin/$base" "$base"; do
+    git -C "$root" rev-parse --verify "$ref" >/dev/null 2>&1 && break
+    ref=""
+  done
+  [ -n "$ref" ] || return 1
+  ver="$(_felix_plugin_version "$root" "$ref")"
+  [ -n "$ver" ] || return 1
+  # FELIX_KERNEL_CACHE, not FELIX_PLUGIN_CACHE. toolbox.sh already owns that
+  # name and means something else by it — the plugins cache ROOT, one level up
+  # from felix's own versions — and the CLI sources toolbox.sh, so reading it
+  # here resolved .../plugins/cache/<version>/harness and found nothing. The
+  # suite never saw it because every test set the variable explicitly, which
+  # masks a collision instead of exposing one. Composed with it rather than
+  # around it, so a machine that moves the plugins cache moves this too.
+  p="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix}/$ver/harness"
+  [ -d "$p" ] || return 1
+  printf '%s' "$p"
+}
+
 # Where the felix marketplace serves its engine from, or empty when it is not
 # registered. Reads the registry rather than assuming, because the answer is the
 # difference between a deploy and a no-op that reports success.

@@ -80,24 +80,53 @@ than the numbers were.
 
 | | |
 |---|---|
-| head | `b47423d` on `main`; **#49 open and unmerged** |
-| gate | **pass** — 758 assertions, `installed` ok, on #49's branch |
-| engine | **0.49.6**, deployed from #49's branch and byte-identical to it |
+| head | `83061fd` on `main`, 0 unpushed |
+| gate | **pass** — 758 assertions, `installed` ok |
+| engine | **0.49.6**, deployed and byte-identical to `main` |
 | repository | **private** |
 | memory | backed up; §0 item 2 closed. Nothing schedules it — as current as the last time somebody typed the command |
-| open issues | **4**, all design questions |
-| open PRs | **#49** — two defects the stress test found, CI not yet read |
-| auto-merge | **4 of 5**, unmoved |
+| open issues | **5** — the four design questions, plus #51 |
+| open PRs | **none** |
+| auto-merge | **5 of 5. `felix automerge` prints "Earned."** Read §0d before acting on that word. |
 
-**Start here.** The deployed engine is 0.49.6, which is #49's branch and is
-*ahead of `main`*. Land #49 first or roll the deployment back; an unmerged PR
-whose engine is live on the machine is the state this file warned about a day
-ago and it is live again.
+**Start here.** Nothing is mid-flight and nothing is blocking. The work is §0b,
+and its spec now exists at `docs/2026-08-18-promotion-spec.md` — start at that
+file's §9, which is an ordered list, and note that its step 1 is already done.
+
+The 2026-08-18 05:43 version of this table is superseded and is *not* kept
+below, because unlike the 2026-08-14 one its numbers were right when written.
+What it said was: head `b47423d`, #49 open and unmerged, and an engine deployed
+from #49's branch that was ahead of `main`. All three were true and all three
+are now false. #49 merged as `bbb545d`, #50 as `53b1f61`, and the deployed
+engine is `main` again, checked with `diff -rq` rather than assumed.
 
 ## 0b. DECIDED 2026-08-18 — issue #2 is "make promotion real", and the spec is unwritten
 
 The direction is settled and the design survived two rounds of stress testing.
-**Nothing is implemented.** Next session writes the spec, then implements.
+**Nothing is implemented.** ~~Next session writes the spec, then implements.~~
+
+**The spec is written**, 2026-08-18, at `docs/2026-08-18-promotion-spec.md`
+(#52). Its §9 is the ordered list to work from. Two things in it supersede what
+the rest of this section says:
+
+- **The demotion experiment was run, not deferred, and the risk is retired.**
+  `claude plugin update` *does* move the live pointer backwards when the cache
+  already holds the base's version. `install` does not — it answers `already
+  installed` and changes nothing, so anything written to demote must not rely on
+  it. `marketplace update` has to come first. The reused cache entry was
+  byte-identical to the commit it claimed to be. `felix install` therefore needs
+  no demotion path, which was the largest unknown the design carried. Run in a
+  throwaway `HOME` against a scratch clone; the machine's own marketplace mtime,
+  102-entry cache and live pointer were unchanged either side.
+- **A green `installed` will no longer tell anyone which engine is live.** The
+  new check certifies the cache entry for the base's version. Installing a
+  candidate adds a *different* entry and never touches the one being checked, so
+  the gate stays green while a developer's sessions run an unreviewed engine.
+  The judge is still correct — `felix merge` reads through `felix_kernel_dir`,
+  which reads the cache and not the live pointer — but this is a real narrowing
+  and the spec's §8 criterion 2 is the assertion that keeps the original
+  "written is not installed" protection alive by relocating it rather than
+  dropping it. If that assertion cannot be made to fail, the change is a loss.
 
 **What #2 actually is, at the level worth deciding.** Felix can only be worked
 on in one place. The gate red-lights every checkout except the single directory
@@ -142,6 +171,50 @@ is read from the served checkout — so demotion is probably just
 worktree runs the served checkout's *working copy* of it, dirty or on any
 branch, and it is the file that decides whether Felix's own merges are
 permitted. That is an authority-kernel hole and it is larger than #2.
+
+## 0d. DECIDED 2026-08-18 — the streak reads "Earned." and the founder says not yet
+
+`felix automerge` now says this, and every word of it is arithmetically true:
+
+```
+streak:  5 of 5 consecutive clean green merges
+Earned. 5 consecutive green merges, none of which CI disagreed with.
+enable with: felix automerge --enable
+```
+
+Look at what it lists underneath. **#8, #14, #18, #19, #52 — every one of them
+begins `docs(`.** The unlock exists to test whether a green classification is
+trustworthy, and the test is CI disagreeing with one. No green change has ever
+touched anything that runs, so CI has never had the opportunity to disagree.
+The counter is not wrong; it is measuring a thing that cannot fail.
+
+That it *cannot* fail is structural, not bad luck. `risk.tsv` has three green
+rows — `^docs/.*\.md$`, `^projects/[^/]+/maintenance\.log$` and
+`^projects/[^/]+/memory/`. Engine work is red by construction. `HANDOFF.md` sits
+at the repository root and so matches no green row at all; it falls to the
+yellow default, which is why handoff commits have never advanced this number and
+why one session predicted they would and was wrong.
+
+**The founder's decision: 5 is reached, and auto-merge stays off until one green
+merge touches something that is not prose.** The unlock stops being reachable by
+writing documents.
+
+**This is recorded in prose and enforced by nothing, which is the trap.** The
+banner above will keep saying `Earned.` and offering the command. This
+repository already carries "a status table is the least trustworthy thing in the
+repository" as a written lesson, and that lesson failed to fire once already —
+§6's auto-merge entry said "still 0 of 5" for four merges and was then repeated
+out loud to the founder by the session that read it. A note is what failed last
+time.
+
+**So the immediate next work, before §0b:** `felix automerge` should report how
+many merges in the run touched anything outside the green documentation rows,
+and `--enable` should refuse while that count is zero. `felix_automerge_history`
+already spends one `gh` call per PR, so a `gh pr view <n> --json files` beside it
+is in keeping. It is `engine/harness/lib/automerge.sh`, therefore **`risk-red`**,
+therefore a founder approval and a version bump. Deliberately not built at the
+end of the session that decided it — §0a lists three green-but-wrong states
+shipped in one week by exactly that impulse.
 
 ## 0c. What this session established about how Felix should work
 
@@ -284,6 +357,7 @@ and write.
 | [#2](https://github.com/LeavesJ/felix/issues/2) → [#28](https://github.com/LeavesJ/felix/issues/28) | `risk-red` | the trust chain. #42 closed the data half of the kernel — `risk.tsv` is now judged against its inherited version — and the engine half **cannot** be closed from inside the tree, because the CLI sources `lib/*.sh` from the branch under judgement. That needs a pinned base engine or an off-tree enforcement point. This is the largest thing left and it is blocked on a decision, not on effort. |
 | [#31](https://github.com/LeavesJ/felix/issues/31) | design | concurrency as a feature, with a second live instance below. |
 | [#29](https://github.com/LeavesJ/felix/issues/29) | `risk-yellow` | routing: two causes recorded, one fixed, one open. |
+| [#51](https://github.com/LeavesJ/felix/issues/51) | `risk-yellow` | filed 2026-08-18, by hitting it. A stacked branch is classified against a merge-base that squashing freezes, so it inherits the tier of changes already merged into the base byte-identically. #50 classified **red** on #49's version bump when its real delta against `main` was one documentation file; rebasing reclassified it yellow, which is correct. It fails safe — three-dot returns a superset, so the tier only ever comes out stricter — but it demands founder approval for changes that do not warrant it, and it stamps stacked green work `risk-red` so it cannot advance the streak. The obvious patch is wrong in both directions: two-dot blames the branch for the base's independent progress. The object to classify is the tree a merge would produce, which is the same object #2's staleness clause wants. |
 
 ### What is still unprotected, said here so it is not rediscovered
 

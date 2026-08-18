@@ -939,7 +939,12 @@ cmd_merge() {
     # it is the base version, unchanged, which is exactly what should be
     # judging. The first version of this check omitted that condition and made
     # every documentation branch unmergeable; the first real use found it.
-    if felix_changed_paths "$root" "$base" | grep -q '^engine/' \
+    # engine/harness/, not engine/. The kernel is built from engine/harness, and
+    # every deploy forces a version bump in engine/.claude-plugin — which cannot
+    # touch engine/harness. Testing the wider path told a bump-only branch to
+    # bump the version and install main's: advice already followed, and unable
+    # to change the thing being compared.
+    if felix_changed_paths "$root" "$base" | grep -q '^engine/harness/' \
          && diff -rq "$root/engine/harness" "$kernel" >/dev/null 2>&1; then
       die "the engine that would judge this is byte-identical to the tree it is judging, so it would be judging itself. Bump the version and install main's, or say plainly that this is unjudged."
     fi

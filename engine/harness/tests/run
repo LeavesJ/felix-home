@@ -2959,6 +2959,10 @@ printf '{ "version": "1.0.0" }\n' > "$SG/engine/.claude-plugin/plugin.json"
 ( cd "$SG" && git add -A >/dev/null && git commit -qm base >/dev/null && git checkout -q -b feature )
 printf '{ "version": "2.0.0" }\n' > "$SG/engine/.claude-plugin/plugin.json"
 printf 'runs something\n' > "$SG/KERNEL2.txt"
+# The candidate edits the judge's own source. Without this the diff touches only
+# engine/.claude-plugin, which is not self-judgement and no longer trips the
+# guard — the correction this fixture exists to exercise.
+printf 'candidate edit\n' >> "$SG/engine/harness/lib/escape.sh"
 ( cd "$SG" && git add -A >/dev/null && git commit -qm candidate >/dev/null )
 printf 'red\tpath\t^KERNEL2\\.txt$\ta channel for the kernel test\texecute\n' \
   >> "$FROOT/projects/widget/risk.tsv"
@@ -3051,6 +3055,31 @@ rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
 rm -rf "$KC2/1.0.0/harness"; cp -R "$SG/engine/harness" "$KC2/1.0.0/harness"
 _sgrecord; _sgmerge
 has "but a change that does touch it still is" "$(cat "$TMP/sg.out")" "identical"
+rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
+
+# The kernel is built from engine/harness, but the guard tested `^engine/`. So a
+# branch whose only engine change is the version bump — which every deploy
+# forces, and which cannot touch engine/harness — was told to bump the version
+# and install main's. Advice that had already been followed and could not have
+# helped. Found by review the day the guard shipped.
+# The kernel is copied AFTER the checkout, or it is not identical to the tree
+# and the guard never gets the chance to fire — the assertion below is a
+# negative, so it would pass because nothing happened.
+( cd "$SG" && git checkout -q main && git checkout -q -b bumponly \
+  && printf '{ "version": "3.0.0" }\n' > engine/.claude-plugin/plugin.json \
+  && git add -A >/dev/null && git -c user.name=t -c user.email=t@t commit -qm bump >/dev/null )
+rm -rf "$KC2/1.0.0/harness"; cp -R "$SG/engine/harness" "$KC2/1.0.0/harness"
+# Proof the fixture is armed: the judge really is byte-identical to the tree, so
+# the guard's own precondition holds and only the path predicate decides.
+diff -rq "$SG/engine/harness" "$KC2/1.0.0/harness" >/dev/null 2>&1 \
+  && ok "the bump fixture has an identical judge, so the guard can fire" \
+  || bad "the bump fixture has an identical judge, so the guard can fire" "they differ"
+_sgrecord; _sgmerge
+case "$(cat "$TMP/sg.out")" in
+  *identical*) bad "a version bump alone is not self-judgement" "$(cat "$TMP/sg.out")" ;;
+  *)           ok  "a version bump alone is not self-judgement" ;;
+esac
+( cd "$SG" && git checkout -q feature && git branch -qD bumponly )
 rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
 
 # review.sh must be in the kernel's source list. escape.sh guards the reviewed

@@ -933,11 +933,14 @@ cmd_merge() {
   if felix_self_governed "$root"; then
     local kernel; kernel="$(felix_kernel_dir "$root" "$base")" || kernel=""
     [ -n "$kernel" ] && [ -d "$kernel/lib" ] || die "no installed copy of the engine main declares, so there is nothing to judge this that is not this. Run felix install on main, then try again."
-    # The judge must not be the candidate. The first version of this resolved
-    # the newest cache entry, which the gate's own installed check guarantees is
-    # byte-identical to the tree — a no-op that reported success. If that ever
-    # comes back, it says so instead of passing silently.
-    if diff -rq "$root/engine/harness" "$kernel" >/dev/null 2>&1; then
+    # The judge must not be the candidate — but only when the candidate is the
+    # judge's own source. A branch that does not touch engine/ has no
+    # circularity to break, and an identical judge there is not self-judgement:
+    # it is the base version, unchanged, which is exactly what should be
+    # judging. The first version of this check omitted that condition and made
+    # every documentation branch unmergeable; the first real use found it.
+    if felix_changed_paths "$root" "$base" | grep -q '^engine/' \
+         && diff -rq "$root/engine/harness" "$kernel" >/dev/null 2>&1; then
       die "the engine that would judge this is byte-identical to the tree it is judging, so it would be judging itself. Bump the version and install main's, or say plainly that this is unjudged."
     fi
     blockers="$(_felix_kernel_blockers "$kernel" "$proj" "$base" "$root" "$FELIX_HOME_DIR")"

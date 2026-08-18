@@ -80,14 +80,113 @@ than the numbers were.
 
 | | |
 |---|---|
-| head | `5ba788a` on `main`, 0 unpushed |
-| gate | **pass** — 753 assertions, `installed` ok |
-| engine | **0.49.3**, deployed and byte-identical |
+| head | `b47423d` on `main`; **#49 open and unmerged** |
+| gate | **pass** — 758 assertions, `installed` ok, on #49's branch |
+| engine | **0.49.6**, deployed from #49's branch and byte-identical to it |
 | repository | **private** |
-| memory | **backed up at last** — see below; §0 item 2 is closed |
-| open issues | **4**, and every one of them is a design question |
-| open PRs | **none** |
-| auto-merge | **4 of 5**, unmoved. Every merge since has been red, and red does not count. |
+| memory | backed up; §0 item 2 closed. Nothing schedules it — as current as the last time somebody typed the command |
+| open issues | **4**, all design questions |
+| open PRs | **#49** — two defects the stress test found, CI not yet read |
+| auto-merge | **4 of 5**, unmoved |
+
+**Start here.** The deployed engine is 0.49.6, which is #49's branch and is
+*ahead of `main`*. Land #49 first or roll the deployment back; an unmerged PR
+whose engine is live on the machine is the state this file warned about a day
+ago and it is live again.
+
+## 0b. DECIDED 2026-08-18 — issue #2 is "make promotion real", and the spec is unwritten
+
+The direction is settled and the design survived two rounds of stress testing.
+**Nothing is implemented.** Next session writes the spec, then implements.
+
+**What #2 actually is, at the level worth deciding.** Felix can only be worked
+on in one place. The gate red-lights every checkout except the single directory
+the marketplace serves, and merge needs a green gate — so the command that ships
+work exists in exactly one folder. That is why worktrees are a trap, why
+concurrent sessions are a hazard rather than a capability, and why a peer
+session can review but never *finish*.
+
+**The change.** `installed` stops asking "is the engine you are holding
+deployed?" — a question a secondary checkout can never answer yes to — and asks
+"is the deployed engine the one this project has accepted?". Every checkout can
+answer that, and #2 dissolves rather than being excused. It is a strengthening,
+not a loosening: `resolve.sh` currently disclaims "the trust is that the cache
+entry for the base's version is what the base contained when somebody installed
+it", and this turns that assumption into a checked fact.
+
+**The blocker round 2 found, which the spec must carry.** The first version of
+this design changed only the LEFT side of the comparison and inherited the right
+side from today's check — the *live* plugin, or the newest cache entry. Those
+disagree the moment anyone runs `felix install` on a branch, which is what the
+current workflow demands. The check would have been **green if you skip the
+install and red if you perform it**. Resolve BOTH sides from the base, which is
+verbatim what `felix_kernel_dir` already computes — so call it rather than
+re-deriving. That also closes the loop: the gate then certifies the exact engine
+that judges merges.
+
+**Verified, so the spec can cite rather than re-measure.** The check is 56–58ms.
+`git archive origin/main engine/harness` is byte-identical to the cache entry
+for main's declared version, modes included, and differs from the previous one.
+In the live worktree at `aaa60e3` today's check FAILs and the base-pointed one
+returns ok — #2 dissolving on real data, not a fixture. And a green receipt is
+*sufficient*: with one granted by hand, `felix_merge_blockers` in that worktree
+returned nothing at all.
+
+**Untested and required before it lands.** Whether the plugin machinery will
+move the live pointer BACKWARDS when the cache already holds the base's version.
+Nothing pins a version — the marketplace is a directory source and the version
+is read from the served checkout — so demotion is probably just
+`git checkout <base> && felix install`, but *probably* is not the standard here.
+
+**Named and not fixed.** `projects/felix/gate.sh` is promoted by nothing: every
+worktree runs the served checkout's *working copy* of it, dirty or on any
+branch, and it is the file that decides whether Felix's own merges are
+permitted. That is an authority-kernel hole and it is larger than #2.
+
+## 0c. What this session established about how Felix should work
+
+**Concurrent sessions are being built as a capability, not defended against.**
+Rungs: peers verify finished work (real today), peers verify designs (real
+today), peers hold independent state and hand off (needs #31 and #2), peers do
+concurrent work (needs conflict resolution, which nothing here has). Rungs 1–2
+are safe because verification only ever *narrows* — a peer can add an objection,
+never remove one — so invariant 2 is untouched. Order: **#2 → make hedging
+automatic → #31 shared state → rung 3.** Automatic hedging goes second
+deliberately: use the ladder to build the ladder, or you build the harder thing
+without the tool that would catch its defects.
+
+**Blind derivation beat adversarial review, measured.** One agent given the
+problem and *not* the design produced a better design plus five findings in
+160k tokens. Forty-one agents given the design filed 37 findings of which **one**
+survived — a blocker, so the round paid for itself, but at 27× the tokens. The
+refinement that matters: they do different jobs. Blind derivation produces
+*direction*; adversarial review produces *correctness within a direction*. And
+the surviving blocker came from the "is there a simpler design" lens, not the
+"try to defeat it" lens — asking what a thing really does surfaces correctness
+bugs that asking how to break it does not.
+
+**Reviews get a committed sha and their own worktree from now on.** Development
+stalled ~20 minutes during round 2 because reviewers were promised a clean
+working tree. That pause was self-inflicted and needs no new capability to fix.
+
+**Every misroute is a bug.** Three in one session, all reproduced through
+`felix_route_best`: "peer review" hit `review`, "back the memory" hit
+`doctrine`, and "the semgrep misroute" hit `harness` because `route` is a
+substring of `misroute`. Fixed on #49 by narrowing, and `review` renamed to
+`security`, which is what that row always was. The principle: **a missed route
+loses one suggestion; a false route arrives worded as a requirement and teaches
+the session to read routing as noise, after which the correct ones stop working
+too.** Prefer rows that fire rarely and rightly.
+
+**On semantic routing, asked 2026-08-18 and answered without building.** Worth
+having as a layer that can only *suppress* a candidate the table produced —
+never as the router. The observed failures were all false positives, so a veto
+is the right shape, and a veto is what invariant 2 permits. As the router it
+would break the offline guarantee and force a fallback table nobody tests. Try
+intent-by-shape first (none of the three misroutes was an imperative), and note
+`claude-flow` already ships `agentdb_semantic-route` and `embeddings_*` —
+evaluate before building. It does **not** fix #29, which is about where you are
+in the work rather than what the work is about.
 
 ### The memory is backed up, and the backup was restored before it was believed
 

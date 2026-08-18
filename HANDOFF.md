@@ -64,30 +64,95 @@ it should be paid deliberately, not rediscovered.
    every lesson this project has paid for, which is the one asset here that
    cannot be rebuilt from the repository.
 
-   Invariant 6 now describes the two locations correctly, and describing a split
-   is not deciding its consequence. **This is the one item worth a founder's
-   time before the next session.** Cheapest answers: give `~/.felix` its own
-   private remote, or point `$FELIX_MEMORY` at a directory that is already
-   synced. Not done here because where a founder's data lives is their call,
-   not a tidy-up.
+   **CLOSED 2026-08-18.** `~/.felix` is its own repository with a bare remote in
+   iCloud Drive, and the backup was restored and diffed before it was believed —
+   see §0a. It had been the top item for two sessions. What is still not decided
+   is *when* it runs: nothing schedules it, so it is as current as the last time
+   somebody typed the command. The paragraph above is left standing because it
+   describes what was true for four days and why it mattered.
 
-## 0a. Verified at session close, 2026-08-16
+## 0a. Verified at session close, 2026-08-18
 
 Each line produced by a command, because a status table is the least trustworthy
-thing in this repository. The 2026-08-14 version of this table is below it,
-unedited, because two of its numbers were wrong and the shape of the error is
-worth keeping.
+thing in this repository. The 2026-08-14 version is kept further down, unedited,
+because two of its numbers were wrong and the shape of that error is worth more
+than the numbers were.
 
 | | |
 |---|---|
-| head | `c3fd863` on `main`, 0 unpushed |
-| gate | **pass** — 734 assertions, `installed` ok |
-| engine | **0.48.11**, deployed and byte-identical |
+| head | `5ba788a` on `main`, 0 unpushed |
+| gate | **pass** — 753 assertions, `installed` ok |
+| engine | **0.49.3**, deployed and byte-identical |
 | repository | **private** |
-| memory | **still unbacked** — §0 item 2, unchanged and still the top item |
+| memory | **backed up at last** — see below; §0 item 2 is closed |
 | open issues | **4**, and every one of them is a design question |
 | open PRs | **none** |
-| auto-merge | **4 of 5**, unmoved. Every merge below was red, and red does not count. |
+| auto-merge | **4 of 5**, unmoved. Every merge since has been red, and red does not count. |
+
+### The memory is backed up, and the backup was restored before it was believed
+
+`~/.felix` is its own git repository now, pushed to a bare repo in iCloud Drive
+at `felix-memory.git`. 26 files, 580K. Verified by cloning it back and diffing:
+byte-identical, 49 lessons on both sides. Scanned before it was committed, and
+the scanner was shown failing first — a quoted credential and an AWS-shaped key
+both exit 1, ordinary prose exits 0, every byte of the memory exits 0.
+
+Repeat it with:
+
+```
+cd ~/.felix && git add -A && git commit -m "memory: $(date +%F)" && git push icloud HEAD:main
+```
+
+Not automated. A backup that runs itself and is never restored is the shape this
+project distrusts, and nothing yet decides when it should run.
+
+### #28's engine half landed, and #2 is now the thing standing in front of it
+
+**`felix merge` on Felix itself is judged by the engine `main` declares**, in a
+child shell sourcing only that version's libraries — `V_n` judging `V_n+1` for
+the enforcing path, as #42 did for the tables. A branch that weakens the rule
+which would have stopped it is still stopped. Reproduced before the fix and
+asserted after, with the refusal naming the channel rather than counting merges.
+
+Three things it deliberately is not, all written into `resolve.sh` rather than
+implied. It is **not a signature** — the trust is that the cache entry for the
+base's version is what the base contained when somebody installed it.
+`FELIX_KERNEL` still overrides everything, so whatever sets the environment
+picks the judge. And **only the repository that ships the engine** is affected;
+a governed product's rules live in the Felix home and are not in its diff, so it
+needs no installed engine and merges exactly as before.
+
+**#2 is untouched and is now the blocker on the rest.** The deadlock was
+side-stepped, not solved: `installed` compares the tree against the newest cache
+entry while the kernel reads the base's, and both hold at once. The next honest
+step is deciding whether a green gate should still require the candidate to be
+deployed, now that the verdict no longer depends on it.
+
+### Three green-but-wrong states on one feature, which is the real finding
+
+Worth more than the feature. The suite was green for all three.
+
+1. **The first design was vacuous.** It resolved the judge as "newest entry in
+   the plugin cache" — which the gate's own `installed` check guarantees is
+   byte-identical to the tree. The judge was the candidate.
+   `docs/2026-08-14-earned-autonomy-decision.md` §4a had said so in advance and
+   was not read first. Caught by an adversarial review, after it had already
+   been deployed.
+2. **The second was machine-dependent.** Fixtures built with `git init` inherit
+   `init.defaultBranch`, so a resolver looking for `main` worked on this laptop
+   and found nothing on a runner that says `master`. Caught by CI. Fixed twice
+   over: fixtures pin `-b main`, and the branch to judge against became an
+   argument — whatever is being merged into, never the literal word.
+3. **The third was an environment-variable collision.** `FELIX_KERNEL_CACHE` is
+   called that because `toolbox.sh` has always owned `FELIX_PLUGIN_CACHE` and
+   means the plugins cache *root* by it. Seven assertions covered the resolver
+   and all seven passed, because every one set the variable explicitly and so
+   never ran the default. Caught by the founder typing `felix merge`.
+
+The through-line: **the suite only varies what somebody thought to vary.** Each
+was caught by a different thing — review, CI, a real invocation — and none by
+the tests. Before trusting a green suite on anything load-bearing, ask which of
+those three it would have caught.
 
 ### What closed, 2026-08-14 → 16
 

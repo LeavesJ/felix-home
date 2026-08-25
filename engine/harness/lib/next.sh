@@ -60,6 +60,16 @@ EOF
   if command -v felix_escapes >/dev/null 2>&1; then
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
+      # `unknown` is the one row here that is not the founder's. It means the
+      # base named nothing this repository holds, so no channel was consulted
+      # and there is no diff to show them the reversal path for. Ranked 1 and
+      # Felix's, because until it is corrected every row above and below it was
+      # computed against a comparison that never happened.
+      if [ "$kind" = "unknown" ]; then
+        _felix_next_row 1 felix "nothing was scanned: $subject — $reason" \
+          "name a base that exists here, with --base, then run this again"
+        continue
+      fi
       _felix_next_row 2 founder "$kind: $subject — $reason" \
         "show the diff and its reversal path; a green gate is not the question"
     done <<EOF

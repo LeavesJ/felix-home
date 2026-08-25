@@ -78,15 +78,79 @@ in its numbers and kept for its reasoning.
 
 | | |
 |---|---|
-| head | `e25fe01` on `main`, 0 unpushed |
+| head | `00664ca` on `main`, 0 unpushed, 0 modified |
 | gate | **pass** — 765 assertions, `installed` ok, run from `./engine/harness/felix` |
 | engine | **0.49.7**, deployed and byte-identical to `main` |
 | open issues | **9** — the four design questions, plus #51 and #55–#58 filed today |
 | open PRs | **none** |
 
-**Start here.** The one thing that must happen before any conclusion drawn from
-routing data is trusted again: **re-derive the follow-through baseline.** It
-could not be measured correctly until today.
+Merged today: **#54** (the instrument), **#59** (this section), **#60** (two
+route plays). Filed: **#55–#58**.
+
+**Start here, and it is one thing.** Before any conclusion drawn from routing
+data is trusted again — including the conclusion this session was heading
+toward, that Felix has no routing role — **re-derive the follow-through
+baseline.** It could not be measured correctly until today. It needs sessions to
+accumulate against the fixed instrument first; days, not minutes. Do not produce
+a number before then, and do not let the absence of one licence the old
+conclusion.
+
+**Then: #56.** Agreed as the next piece of work, deliberately not started at the
+tail of the session that found it. `felix merge` clears every escape channel when
+the base ref does not resolve. Write the failing fixture first — a branch adding
+an `execute`-channel path, merged with `--base` naming a ref that does not
+exist, must be refused and today is not. It is `escape.sh`, so `risk-red`.
+
+**Do not reopen the capability-registry design without reading #58 and its
+comment.** Fourteen adversarial reviewers, 124 findings, 32 fatal, verdict
+implement-only-after-changes-and-not-the-registry. That is settled until new
+evidence, not until somebody feels differently.
+
+### Two routes gained a step, and the engine ships a better table than it uses
+
+`#60`. Both additions came from measurement and both were inert before `#54`,
+because a play is a sequence and no play had advanced past its first entry in
+months.
+
+- **`ship` gained `superpowers:verification-before-completion`, last.** The
+  engine's own `templates/routes.tsv` ships a `release` row naming it. Felix's
+  table replaced that row with `ship` and dropped it — so the one capability
+  whose entire purpose is *check before you say it is done* was missing from the
+  route that fires when somebody says it is done, and the Stop hook has been
+  retrofitting it after the fact. Twice in this session, on this very change.
+- **`build` gained `superpowers:executing-plans`, third.** Installed, and named
+  nowhere in the engine at all — no project table, not the template. The blind
+  study found it was the capability wanted on three of the eight applicable turns.
+
+Verified under `bash`, not assumed: with nothing used, `ship` names `code-review`
+and defers the rest; once the three review steps have run, it names
+`verification-before-completion`.
+
+**The general case is worth a check nobody has written.**
+`projects/felix/routes.tsv` and `engine/harness/templates/routes.tsv` have
+diverged and nothing compares them. Felix's table dropped `backend`, `frontend`,
+`incident` and `release`; the first three are correct — no frontend, nothing
+deployed — and the fourth was not. A check that a project dropped a template
+route *deliberately* would have caught this and is cheap. Recorded on #58.
+
+### Two mistakes this session made, both caught, both worth the space
+
+Recorded because §8 is a list of exactly this shape and both are recurrences of
+entries already in it.
+
+**A fixture that only carried `attributionSkill` would have gone green against a
+fix repairing one line of three.** Production writes `attributionSkill` and
+`attributionPlugin` on the same line — 1483 such lines for `using-superpowers`
+alone, 7137 occurrences of the plugin key. The fixture was rewritten to the real
+shape before the fix was written, and the MCP third of the defect was then caught
+by *review* rather than by tests, because no assertion reached that branch.
+
+**A test of the play loop was run under `zsh` and reported the whole play as one
+step.** zsh does not word-split unquoted parameter expansions; the engine is
+`#!/usr/bin/env bash`. Re-run under bash it was correct. This is §8's sixth
+variant — *where the test runs* — and it cost ten minutes of believing a real
+feature was broken. When a shell-level result looks structurally impossible,
+check the shell before the code.
 
 ### The instrument was broken, and it invalidates the case against routing
 
@@ -141,6 +205,43 @@ vocabulary match and near-zero recall without it, and cannot abstain — measure
 not argued.
 
 Do not reopen the registry design without reading #58 first.
+
+### DECIDED 2026-08-25 — the deliberation layer is held, and the gate on it is explicit
+
+The founder proposed a different architecture and then deliberately withheld it.
+It is recorded here in full because it is the most valuable unbuilt idea on the
+table and because the condition for building it is precise.
+
+**The idea.** Capability *awareness* may be fine — the host already supplies it.
+The failure may sit in the middle stages: opportunity recognition, action
+selection, execution commitment. So Felix's missing layer may not be routing at
+all but **deliberation forcing** — not *"use tool X"* but *"you may not silently
+skip the action-selection step here"* — plus **decision-action closure**: an
+actionable decision must terminate in an observable state (EXECUTED,
+BLOCKED_BY_POLICY, FAILED, SUPERSEDED, ABSTAINED_WITH_NEW_EVIDENCE) and never
+in DECIDED_BUT_DID_NOT_ACT. Felix would hardcode the *procedure* and leave the
+*semantics* to the model, which is the cleanest resolution yet proposed for the
+invariant-2 tension.
+
+**The founder's gate, verbatim in intent: do not think about this until it is
+confirmed, repeatedly, that Felix has no role in routing.** That is a change to
+the product thesis, not a refactor.
+
+**And that confirmation has not happened. The evidence currently points the
+other way.** The blind study says the routing role is real but roughly an order
+of magnitude smaller in volume than Felix attempts, and that half its misses were
+capabilities absent from the table — two of which #60 has now added. Meanwhile
+the follow-through evidence that motivated the deliberation idea turned out to be
+measured with a broken instrument, so *"Claude ignores Felix"* was substantially
+*"Felix never asked."*
+
+**One structural trap to carry.** The measurement that would justify the
+deliberation layer requires building part of it: the only way to observe *"the
+agent considered capability X and decided NONE"* is to require that decision be
+emitted. So "measure first, then decide" has a floor. The cheap way through is a
+**recording-only** version — Felix asks for an explicit consider/decline record,
+enforces nothing, changes no behaviour — which is instrumentation rather than
+architecture and needs none of the registry, retrieval or routing work.
 
 ## 0a. Verified at session close, 2026-08-18
 

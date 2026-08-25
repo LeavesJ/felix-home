@@ -71,6 +71,77 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
+## 0z. Verified at session close, 2026-08-25 — the instrument was broken, and every number below it
+
+Each line produced by a command. Read this before §0a, which is now superseded
+in its numbers and kept for its reasoning.
+
+| | |
+|---|---|
+| head | `e25fe01` on `main`, 0 unpushed |
+| gate | **pass** — 765 assertions, `installed` ok, run from `./engine/harness/felix` |
+| engine | **0.49.7**, deployed and byte-identical to `main` |
+| open issues | **9** — the four design questions, plus #51 and #55–#58 filed today |
+| open PRs | **none** |
+
+**Start here.** The one thing that must happen before any conclusion drawn from
+routing data is trusted again: **re-derive the follow-through baseline.** It
+could not be measured correctly until today.
+
+### The instrument was broken, and it invalidates the case against routing
+
+`felix_route_step_used` asked three questions and all three were the wrong one.
+The `attributionSkill` line was missing its closing quote, so it prefix-matched
+the plugin; the `attributionPlugin` line was correctly quoted and asked whether
+the *plugin* ran rather than the *step*; the MCP probe asked it a third time.
+superpowers ships `using-superpowers`, injected before anything else runs, and
+16 of 23 slots in `routes.tsv` are `superpowers:*` — so from turn one of nearly
+every session `felix_route_due` found every step used and **rendered nothing**,
+while `felix_ledger_note_named` recorded the play as named anyway.
+
+**152 namings on disk against 37 a session was ever shown.** Every follow-through
+figure this project has quoted — 5.4%, 7.2%, "sessions ignore Felix" — was
+computed against suggestions nobody was given. Fixed in #54, deployed at 0.49.7.
+The number is now measurable and has not been measured. It needs sessions to
+accumulate; days, not minutes.
+
+Expect Felix to get **noisier**: ~115 suppressed mandates return on a channel
+whose precision was measured at ~2%.
+
+### What was measured, and what it does and does not settle
+
+A blind study over 158 logged prompts — judges shown the prompt and the
+capability inventory, shown neither what Felix named nor what ran; two
+independent strict judges agreeing 33/33 on the binary question:
+
+- a capability was **applicable on ~5% of turns** (8 of 158; strict judges lower)
+- Felix **spoke on 94 of 158 turns** — precision ≈ 2%
+- Felix's **recall on applicable turns was 2 of 8**
+- **4 of the 8 needed a capability installed but absent from every row of
+  `routes.tsv`** — `superpowers:executing-plans` ×3, `verification-before-completion` ×1
+
+So the 43% miss rate is largely correct silence, not failure. And **the evidence
+does not support "Felix has no role in routing."** It supports a role roughly an
+order of magnitude smaller in volume, currently failing in both directions.
+n=8 — directional only.
+
+### The architecture that was proposed and rejected
+
+A capability registry with deterministic retrieval feeding a semantic router.
+14 adversarial reviewers, 124 findings, 32 fatal. Verdict: **implement only after
+architectural changes, and not the registry.**
+
+The load-bearing finding: **the host runtime already enumerates and retrieves.**
+Claude Code puts every installed skill and description in the session prompt
+(~6.5k tokens for 105 skills) and ships `ToolSearch` for MCP. A Felix registry
+duplicates it from a weaker vantage point. What survived: **the between-sessions
+configuration path, which is already built and whose inputs are empty.** That is
+#58. Also established: BM25 over real descriptions has high precision on
+vocabulary match and near-zero recall without it, and cannot abstain — measured,
+not argued.
+
+Do not reopen the registry design without reading #58 first.
+
 ## 0a. Verified at session close, 2026-08-18
 
 Each line produced by a command, because a status table is the least trustworthy

@@ -21,13 +21,32 @@ debug	debug broken failing crash traceback reproduce	core	superpowers:systematic
 document	document xlsx pptx docx slide spreadsheet guidebook	core	anthropic-skills:pdf anthropic-skills:xlsx anthropic-skills:docx
 research	research investigat survey unrelated random parallel compar	core	superpowers:dispatching-parallel-agents superpowers:brainstorming
 security	security audit vulnerabilit injection secret credential	core	code-review semgrep superpowers:requesting-code-review
-build	build implement feature create	core	superpowers:brainstorming superpowers:writing-plans
+# `executing-plans` appended 2026-08-25. It is installed, it appears nowhere in
+# this engine — not in any project table and not in the shipped template — and a
+# blind study of 158 logged prompts found it was the capability wanted on three
+# of the eight turns where anything was applicable at all. It was unnameable at
+# any threshold by any matcher.
+#
+# Third, after writing-plans, because that is the sequence: brainstorm, write the
+# plan, then work it. Appending costs no extra noise — felix_route_due names only
+# the first unused step — and the sequence only began functioning tonight, since
+# before the step-used fix every superpowers step read as already used and no
+# play ever advanced past its first entry.
+build	build implement feature create	core	superpowers:brainstorming superpowers:writing-plans superpowers:executing-plans
 # Added 2026-08-13 from the misses, not from a guess about what work happens
 # here. `merge` was the fourth most common word in prompts no row understood,
 # and the top three above it were the project's own name and two pieces of
 # conversation. Shipping is most of what a session ends on and had no row at
 # all, so `code-review` was named by one route whose keywords nothing here says.
-ship	ship merge pull-request escape channel classify release	core	code-review superpowers:requesting-code-review superpowers:finishing-a-development-branch
+# `verification-before-completion` appended 2026-08-25, last, and from evidence
+# rather than taste. The engine's own templates/routes.tsv ships a `release` row
+# naming it. Felix's table replaced that row with `ship` and dropped the one
+# capability that matters at the moment somebody says the work is done — so the
+# Stop hook has been retrofitting it after the fact, twice in the session that
+# noticed. Last in the play is the point: it comes due only once the review steps
+# have actually run, which is when "is this really finished" is a real question
+# rather than a rule quoted at turn one.
+ship	ship merge pull-request escape channel classify release	core	code-review superpowers:requesting-code-review superpowers:finishing-a-development-branch superpowers:verification-before-completion
 
 # Narrowed 2026-08-18, from three misroutes reproduced in one session rather
 # than from a guess. `review` matched "peer review" in a design conversation and

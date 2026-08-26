@@ -1327,6 +1327,87 @@ is "an empty path is not a copy"      "$(_pc "")"                     "checkout"
 is "the pattern is written down exactly once" \
    "$(grep -c 'plugins/cache/\*|' "$FROOT/harness/lib/resolve.sh")" "1"
 
+# #65. The tree being operated on is not the tree the script lives in — the same
+# rule #55 established for felix install, and cmd_bootstrap breaks it one
+# function along. It asks "what GitHub repo should CI check out to fetch the
+# harness" and answers by running `git remote get-url origin` in whatever
+# directory the running script sits in. From the deployed CLI that is the plugin
+# cache, which has no remote, so it printed "none, CI cannot fetch the harness"
+# about an engine whose remote exists — and on a machine whose home directory is
+# itself a git repo with an origin, it would print THAT slug instead, straight
+# into a generated workflow's `repository:` beside a deploy key.
+#
+# HOME is redirected for every call. felix_marketplace_root reads
+# $HOME/.claude/plugins/known_marketplaces.json, and on this machine that names
+# the real Felix checkout — so without this the assertions would pass by reading
+# the developer's own install rather than the fixture.
+_ESRC="$TMP/enginesrc"
+mkdir -p "$_ESRC/engine/harness"
+# Resolved, for the reason stated where $REPO is built: macOS spells /var as
+# /private/var and git reports the resolved form, so felix_repo_root returns a
+# different string for the same directory than mktemp handed out. Comparing
+# against the unresolved name failed here on exactly that.
+_ESRC="$(cd "$_ESRC" && pwd -P)"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$_ESRC/engine/harness/felix"
+chmod +x "$_ESRC/engine/harness/felix"
+( cd "$_ESRC" && git init -q -b main \
+  && git remote add origin https://github.com/someone/felixsrc.git )
+_ECACHE="$TMP/ehome/.claude/plugins/cache/felix/felix/0.1.0"
+mkdir -p "$_ECACHE/harness" "$TMP/ehome" "$TMP/nowhere"
+
+# $1 = cwd to stand in, $2 = the engine the script thinks it is
+_esrc() { ( cd "$1" && HOME="$TMP/ehome" . "$FROOT/harness/lib/resolve.sh"
+            HOME="$TMP/ehome" felix_engine_source "$2" "$3" 2>/dev/null || printf 'NONE' ); }
+_eslug() { ( cd "$1" && HOME="$TMP/ehome" . "$FROOT/harness/lib/resolve.sh"
+             . "$FROOT/harness/lib/detect.sh"
+             s="$(HOME="$TMP/ehome" felix_engine_source "$2" "$3" 2>/dev/null)" \
+               && felix_repo_slug "$s" || printf 'NONE' ); }
+
+is "an engine that is a checkout is its own source" \
+   "$(_esrc "$_ESRC" "$_ESRC/engine" "$_ESRC")" "$_ESRC/engine"
+# The defect: the script is the cache, the checkout is elsewhere and reachable.
+is "a deployed engine resolves the checkout, not itself" \
+   "$(_esrc "$_ESRC" "$_ECACHE" "$_ESRC")" "$_ESRC/engine"
+is "and the slug comes from the checkout's remote" \
+   "$(_eslug "$_ESRC" "$_ECACHE" "$_ESRC")" "someone/felixsrc"
+# The honest negative. No checkout anywhere is a real answer, and different from
+# guessing one — a home that happens to be a git repo must not qualify just by
+# having an origin, only by carrying an engine.
+is "no reachable checkout resolves to nothing" \
+   "$(_esrc "$TMP/nowhere" "$_ECACHE" "$TMP/nowhere")" "NONE"
+# One definition. cmd_install grew this resolution first; a second copy in
+# cmd_bootstrap is how the two drift, and a drifted copy points CI at the wrong
+# repository.
+is "the resolution is written down exactly once" \
+   "$(grep -c 'felix_marketplace_root)" "$(felix_repo_root' "$FROOT/harness/felix" "$FROOT/harness/lib/resolve.sh" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')" "1"
+
+# And the call site, which is where the defect actually is. The five assertions
+# above pin felix_engine_source and every one of them passed with cmd_bootstrap
+# still calling felix_repo_slug "$FELIX_ROOT" — a fix nothing would notice being
+# reverted. Caught by neutering the call site and watching the suite stay green,
+# which is the check this repository keeps learning to run.
+#
+# The CLI has to be a deployed copy for the bug to exist at all, so it is run
+# from a cache path rather than from $FELIX.
+_EDEPLOY="$TMP/ehome/.claude/plugins/cache/felix/felix/0.2.0"
+mkdir -p "$_EDEPLOY"
+cp -R "$FROOT/harness" "$_EDEPLOY/harness"
+printf 'widget\n' > "$_ESRC/.felix"
+bs_out="$( cd "$_ESRC" && HOME="$TMP/ehome" FELIX_HOME="$FROOT" \
+             "$_EDEPLOY/harness/felix" bootstrap 2>&1 )"
+# The `felix repo:` line specifically, not the output. The product's own `repo:`
+# line carries the same slug in this fixture, so matching the whole output
+# passed against the neutered call site — the label-not-the-value mistake, one
+# assertion after correcting the same mistake in the pr preview.
+is "bootstrap names the checkout's repo, not the cache's absence" \
+   "$(printf '%s\n' "$bs_out" | sed -n 's/^felix repo: *//p')" "someone/felixsrc"
+case "$bs_out" in
+  *"CI cannot fetch the harness"*)
+    bad "and never reports no remote for an engine that has one" "$bs_out" ;;
+  *) ok "and never reports no remote for an engine that has one" ;;
+esac
+rm -f "$_ESRC/.felix"
+
 printf '\nincident loop\n'
 mkdir -p "$REPO/src" "$REPO/migrations" "$REPO/docs"
 printf 'x\n' > "$REPO/src/thing.js"

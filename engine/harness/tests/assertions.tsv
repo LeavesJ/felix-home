@@ -210,10 +210,10 @@
 1	an envelope field name never does
 1	an escape is named as the founder's
 1	an event-driven routine is not due
-1	an excuse elsewhere on the line does not defuse: <pre>-----BEGIN RSA PRIVATE KEY-----</pr
-1	an excuse elsewhere on the line does not defuse: aws_key = "AKIA2QQ7RJ4KLMNOPQRS" # exam
-1	an excuse elsewhere on the line does not defuse: k = "sk-ant-api03-BBBBBBBBBBBBBBBBBBBB"
-1	an excuse elsewhere on the line does not defuse: see the placeholder above: ghp_AAAAAAAAA
+1	an excuse elsewhere does not defuse, sample 1
+1	an excuse elsewhere does not defuse, sample 2
+1	an excuse elsewhere does not defuse, sample 3
+1	an excuse elsewhere does not defuse, sample 4
 1	an execute path against an unresolvable base blocks the merge
 1	an explicit FELIX_HOME wins
 1	an explicit path is allowed
@@ -479,9 +479,9 @@
 1	but the field names themselves are gone
 1	carries the governed project
 1	carries the matched lesson
-1	catches: -----BEGIN RSA PRIVATE KEY-----
-1	catches: api_key = "sk-ant-api03-AAAAAAAAAA
-1	catches: password = "hunter2-correct-horse"
+1	catches credential sample 1
+1	catches credential sample 2
+1	catches credential sample 3
 1	ceiling defaults to 3
 1	ceiling is overridable
 1	clean once it is gone
@@ -629,11 +629,11 @@
 1	prose in the cache is not adopted
 1	provenance is not part of the announce key
 1	quarantine refuses a plugin that is not here
-1	quiet on: api_key = os.environ["ANTHROPIC_AP
-1	quiet on: const k = process.env.STRIPE_KEY
-1	quiet on: password = "<redacted>"
-1	quiet on: token = secrets.token_urlsafe(9)
-1	quiet on: token: str = ""
+1	quiet on exclusion sample 1
+1	quiet on exclusion sample 2
+1	quiet on exclusion sample 3
+1	quiet on exclusion sample 4
+1	quiet on exclusion sample 5
 1	reading a key from env is not a credential
 1	reading can be refused too
 1	reads a plugin's own description
@@ -705,12 +705,12 @@
 1	staged destructive SQL still escapes as durable
 1	stamped with date, branch and commit
 1	states that urgency does not bypass gates
-1	stays fast with many untracked files (0s)
+1	stays fast with many untracked files (1s)
 1	still exactly one block
-1	still quiet when the value itself says so: api_key = "placeholder-not-a-real-key"
-1	still quiet when the value itself says so: aws = "AKIAIOSFODNN7EXAMPLE"
-1	still quiet when the value itself says so: key = "sk-ant-api03-xxxxxxxxxxxxxxxxxx
-1	still quiet when the value itself says so: password = "<redacted>"
+1	still quiet when the value itself says so, sample 1
+1	still quiet when the value itself says so, sample 2
+1	still quiet when the value itself says so, sample 3
+1	still quiet when the value itself says so, sample 4
 1	stop_hook_active is honoured, so it never loops
 1	stops naming tools once the play is done
 1	sums invocations across sessions

@@ -282,20 +282,11 @@ cmd_install() {
   # the home is read from ~/.felix-home and is an unrelated absolute path that
   # happens to be right only on the primary checkout.
   #
-  # Order: what the marketplace actually serves, then where you are standing,
-  # then the home. The first is the real answer — Claude Code deploys from the
-  # registered marketplace root and nowhere else — and the other two are what
-  # to try before a first install has registered one.
-  local src="" cand
-  if ! felix_plugin_copy "$FELIX_ROOT"; then
-    src="$FELIX_ROOT"
-  else
-    for cand in "$(felix_marketplace_root)" "$(felix_repo_root "$PWD")" "$FELIX_HOME_DIR"; do
-      [ -n "$cand" ] || continue
-      [ -x "$cand/engine/harness/felix" ] || continue
-      src="$cand/engine"; break
-    done
-  fi
+  # Resolved by felix_engine_source, which is where this logic now lives so that
+  # cmd_bootstrap can share it rather than answer the same question its own way
+  # and get it wrong its own way (#65).
+  local src=""
+  src="$(felix_engine_source "$FELIX_ROOT" "$FELIX_HOME_DIR")" || src=""
   # Refused rather than guessed. Comparing the cache with itself is the thing
   # this command was doing wrong, so falling back to it would keep the defect
   # and merely move the comment. There is no safe default here: a wrong answer
@@ -1883,7 +1874,19 @@ cmd_bootstrap() {
   slug="$(felix_repo_slug "$root")"
   eco="$(felix_guess_ecosystem "$root")"
   branch="$(git -C "$root" symbolic-ref --short HEAD 2>/dev/null || echo main)"
-  felix_repo="$(felix_repo_slug "$FELIX_ROOT")"
+  # The Felix checkout, not the directory this script happens to sit in. #65:
+  # `felix_repo_slug "$FELIX_ROOT"` asked git for a remote inside the running
+  # engine, which from the deployed CLI is the plugin cache — no remote, so this
+  # printed "none, CI cannot fetch the harness" about an engine whose remote
+  # exists. Worse on a machine whose home directory is itself a git repository
+  # with an origin: that slug would be returned instead and interpolated into
+  # the generated workflow's `repository:`, beside a deploy key.
+  #
+  # The correct pattern was already two lines above, in this same function:
+  # resolve the tree first, then slug the tree.
+  local esrc; esrc="$(felix_engine_source "$FELIX_ROOT" "$FELIX_HOME_DIR")" || esrc=""
+  felix_repo=""
+  [ -n "$esrc" ] && felix_repo="$(felix_repo_slug "$esrc")"
 
   printf 'repo:        %s\n' "${slug:-no github remote}"
   printf 'ecosystem:   %s\n' "$eco"

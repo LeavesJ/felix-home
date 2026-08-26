@@ -63,6 +63,45 @@ felix_plugin_copy() {
   esac
 }
 
+# The Felix engine tree being operated ON, which is not the tree the running
+# script lives IN whenever somebody uses the deployed CLI — which is what every
+# session-start message tells them to do.
+#
+# Prints the engine directory and returns 0, or prints nothing and returns 1
+# when no checkout can be found. Callers decide what an absence means: felix
+# install refuses, because a deploy it cannot verify is the defect; felix
+# bootstrap reports "none", because a machine with no Felix checkout genuinely
+# has no repository for CI to fetch the harness from.
+#
+# Two commands needed this and each grew its own answer. cmd_install's was
+# written for #55; cmd_bootstrap resolved the same question with
+# `felix_repo_slug "$FELIX_ROOT"` and got it wrong the same way, one function
+# along (#65) — from the cache it returned empty and printed "Felix has no
+# remote for CI to fetch" about an engine whose remote exists, and on a machine
+# whose home is itself a git repository with an origin it would have returned
+# THAT slug, straight into a generated workflow's `repository:` beside a deploy
+# key. So the resolution lives here once.
+#
+# Order: what the marketplace actually serves, then where you are standing, then
+# the home. The first is the real answer — Claude Code deploys from the
+# registered marketplace root and nowhere else — and the other two are what to
+# try before a first install has registered one.
+#
+# A candidate qualifies only by carrying engine/harness/felix, never by being a
+# git repository with a remote. That is what keeps an unrelated home checkout
+# from being mistaken for the engine.
+felix_engine_source() {
+  local engine="${1:-}" home="${2:-}" cand
+  [ -n "$engine" ] || return 1
+  felix_plugin_copy "$engine" || { printf '%s' "$engine"; return 0; }
+  for cand in "$(felix_marketplace_root)" "$(felix_repo_root "$PWD")" "$home"; do
+    [ -n "$cand" ] || continue
+    [ -x "$cand/engine/harness/felix" ] || continue
+    printf '%s' "$cand/engine"; return 0
+  done
+  return 1
+}
+
 felix_home() {
   local engine="$1"
   if [ -n "${FELIX_HOME:-}" ]; then printf '%s' "$FELIX_HOME"; return; fi

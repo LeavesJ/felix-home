@@ -1758,7 +1758,7 @@ resolved="${felix_path#../felix/}"
 # right, and the fixture flattens the engine in a way no clone does.
 REAL_ROOT="$(cd "$REAL_HARNESS/../.." && pwd)"
 if [ -x "$REAL_ROOT/$resolved" ]; then
-  ok "and that path resolves in a real checkout ($resolved)"
+  ok "and that path resolves in a real checkout"
 else
   bad "and that path resolves in a real checkout" "generated $resolved, absent from $REAL_ROOT"
 fi
@@ -1925,7 +1925,7 @@ ctx="$(printf '%s' "$out" | python3 -c 'import json,sys; print(json.load(sys.std
 has "carries the matched lesson" "$ctx" "L-1"
 # Bounded. A hook that floods the turn is a hook people learn to skim past.
 lines="$(printf '%s\n' "$ctx" | wc -l | tr -d ' ')"
-[ "$lines" -le 20 ] && ok "and stays small ($lines lines)" \
+[ "$lines" -le 20 ] && ok "and stays small" \
                     || bad "and stays small" "$lines lines is too much for every turn"
 
 out="$(cd "$PLAIN" && printf '{"prompt":"anything"}' | "$HK" 2>&1)"; rc=$?
@@ -2149,7 +2149,7 @@ _allows "a project with no declared gate is left alone" "$out"
 mkdir -p "$GREPO/bigdir"
 i=0; while [ "$i" -lt 60 ]; do printf 'x\n' > "$GREPO/bigdir/f$i"; i=$((i+1)); done
 t0=$(date +%s); out="$(_stop "$GREPO")"; t1=$(date +%s)
-[ $((t1-t0)) -le 3 ] && ok "stays fast with many untracked files ($((t1-t0))s)" \
+[ $((t1-t0)) -le 3 ] && ok "stays fast with many untracked files" \
                      || bad "stays fast with many untracked files" "$((t1-t0))s"
 rm -rf "$GREPO/bigdir"
 

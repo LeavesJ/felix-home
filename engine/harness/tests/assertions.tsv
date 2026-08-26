@@ -404,7 +404,7 @@
 1	and so is the other one
 1	and staging the test closes the gap — the case that started this
 1	and states the tier
-1	and stays small (6 lines)
+1	and stays small
 1	and stays to one line
 1	and still offers the handoff
 1	and still resolves when the root is spelled the other way
@@ -413,7 +413,7 @@
 1	and strips a line range
 1	and survives a regeneration that was given none
 1	and that output is valid JSON
-1	and that path resolves in a real checkout (engine/harness/felix)
+1	and that path resolves in a real checkout
 1	and the cause is the prompt, not the envelope
 1	and the comment survives
 1	and the domain it speaks for
@@ -705,7 +705,7 @@
 1	staged destructive SQL still escapes as durable
 1	stamped with date, branch and commit
 1	states that urgency does not bypass gates
-1	stays fast with many untracked files (1s)
+1	stays fast with many untracked files
 1	still exactly one block
 1	still quiet when the value itself says so, sample 1
 1	still quiet when the value itself says so, sample 2

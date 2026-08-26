@@ -154,6 +154,21 @@ EOF
 felix_classify_diff() {
   local proj="$1" base="$2" root="$3"
   local paths added rel out
+
+  # An unresolvable base yields no findings, and no findings reduces to green —
+  # the tier that can auto-merge. That is not a cosmetic misreport: cmd_pr takes
+  # this same reduction and LABELS the pull request with it. So the emptiness
+  # has to be distinguishable from a clean diff before anything consumes it.
+  #
+  # Emitted as a finding rather than returned as a status, because every caller
+  # reads stdout and drops the exit code. felix_classify_tier promotes this to
+  # `unknown`, which outranks every tier — receipt.sh's stated precedence, since
+  # a verdict computed from inputs nobody read is the confident wrong answer.
+  if [ -n "$base" ] && ! felix_base_resolves "$root" "$base"; then
+    printf 'unknown\t%s\tthis base names nothing here, so nothing was compared\n' "$base"
+    return 0
+  fi
+
   paths="$(felix_changed_paths "$root" "$base")"
   # Added lines only. A removed secret is not a new exposure, and counting it as
   # one trains people to ignore the finding.
@@ -174,6 +189,12 @@ felix_classify_tier() {
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     tier="${line%%	*}"
+    # Not knowing outranks every tier, and returns immediately rather than
+    # ranking. _felix_tier_rank maps anything it does not recognise to 1, so
+    # without this an unknown finding reduced to `yellow` — a computed-looking
+    # answer to a question nobody asked, which is worse than the green it
+    # replaced because it looks deliberate.
+    [ "$tier" = "unknown" ] && { echo unknown; return 0; }
     rank="$(_felix_tier_rank "$tier")"
     [ "$rank" -gt "$best" ] && best="$rank"
   done <<EOF

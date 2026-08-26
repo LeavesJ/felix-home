@@ -44,10 +44,26 @@ EOF
   return 1
 }
 
-# Emits: status <TAB> name <TAB> reason.  status is met | gap | n/a
+# Emits: status <TAB> name <TAB> reason.  status is met | gap | n/a | unknown
 felix_evidence_check() {
   local proj="$1" base="$2" root="$3"
   local paths
+
+  # Before any row, because `n/a` is a claim about the diff — "this change does
+  # not touch that surface" — and a base git cannot name produces no diff to
+  # make it about. felix_changed_paths sends git's exit-128 to /dev/null, so
+  # every row fell to n/a and the command signed off with "No evidence gaps."
+  # #56 closed this on the merge path; this is the same emptiness read one
+  # layer up, where a person reads it.
+  #
+  # One row, not one per rule. The rules were never consulted, so reporting
+  # each of them as unknown would imply they were each considered and found
+  # unanswerable. Nothing was considered.
+  if [ -n "$base" ] && ! felix_base_resolves "$root" "$base"; then
+    printf 'unknown\t%s\tthis base names nothing here, so no rule was consulted\n' "$base"
+    return 0
+  fi
+
   paths="$(felix_changed_paths "$root" "$base")"
 
   while IFS=$'\t' read -r name when requires reason; do

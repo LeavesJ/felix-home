@@ -559,14 +559,40 @@ out="$(cd "$REPO" && "$FELIX" brief 2>&1)"; rc=$?
 # and checking that out fails — silently, leaving the branch where it was.
 _base_branch="$(cd "$REPO" && { git symbolic-ref --quiet --short HEAD 2>/dev/null \
                                 || git rev-parse HEAD 2>/dev/null; })"
+# Two commits, where there used to be one. #63 found why that mattered: this
+# fixture has no commits before the branch is cut, so `main` is unborn and the
+# default base named nothing. The preview was therefore reducing an EMPTY diff
+# to a tier and printing it — the exact defect under test three sections down —
+# and it passed because `has ... "tier"` matches the label and never the value.
+# The comment on the restore below already knew main was unborn; nothing
+# connected that to the base this assertion was using.
+#
+# A parent commit on the branch itself, rather than a base commit on main,
+# because a later section makes the first commit on main and the restore here
+# depends on it still being unborn.
 ( cd "$REPO" && git checkout -qb feature/thing 2>/dev/null
+  git add -A >/dev/null 2>&1
+  git -c user.name=t -c user.email=t@t commit -qm "fixture base" >/dev/null 2>&1
   printf 'y\n' >> src/widget.py
   git add -A >/dev/null 2>&1
   git -c user.name=t -c user.email=t@t commit -qm "fix: stop the double render" >/dev/null 2>&1 )
-out="$(cd "$REPO" && "$FELIX" pr 2>&1)"; rc=$?
+out="$(cd "$REPO" && "$FELIX" pr --base HEAD~1 2>&1)"; rc=$?
 is  "pr previews and exits 0"    "$rc" "0"
 has "naming the branch's commit" "$out" "stop the double render"
 has "and the tier it carries"    "$out" "tier"
+# The value, not the label, so a tier computed from nothing cannot satisfy it.
+case "$out" in
+  *"tier:     green"*|*"tier:     yellow"*|*"tier:     red"*)
+    ok  "and it is a tier, not the word" ;;
+  *) bad "and it is a tier, not the word" "$out" ;;
+esac
+# And the default base, `main`, which is unborn here. It must refuse rather than
+# preview a tier it could not compute. This is the assertion the restore
+# comment below implies and nothing ever made.
+out="$(cd "$REPO" && "$FELIX" pr 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "an unborn default base refuses rather than previews" \
+                || bad "an unborn default base refuses rather than previews" "$out"
+has "and says which base it could not resolve" "$out" "main"
 case "$out" in
   *created*) bad "and creates nothing without --create" "$out" ;;
   *)         ok  "and creates nothing without --create" ;;
@@ -1187,6 +1213,63 @@ _reset
 printf 'notes\n' > "$REPO/README.md"; _stage
 out="$( cd "$REPO" && "$FELIX" evidence --base HEAD~1 2>&1 )"
 has "a docs-only change requires nothing" "$out" "No evidence gaps"
+
+# #63. The advisory half of #56, and it is not purely advisory.
+#
+# felix_changed_paths sends git's exit-128 to /dev/null, so a base that names
+# nothing produced an empty path list and every evidence row fell to n/a —
+# "this change does not touch that surface", asserted about a diff nobody
+# computed — and the command signed off with "No evidence gaps." #56 closed the
+# merge path; these three read the same emptiness and still answer.
+#
+# Same fixture, same clean tree, only the base changed.
+ev_unk="$( cd "$REPO" && "$FELIX" evidence --base no-such-ref 2>&1 )"
+case "$ev_unk" in
+  *"No evidence gaps"*) bad "an unresolvable base is not an evidence all-clear" "$ev_unk" ;;
+  *)                    ok  "an unresolvable base is not an evidence all-clear" ;;
+esac
+case "$ev_unk" in
+  *"does not touch that surface"*)
+    bad "and claims nothing about surfaces it never compared" "$ev_unk" ;;
+  *) ok "and claims nothing about surfaces it never compared" ;;
+esac
+has "and names the base it could not resolve" "$ev_unk" "no-such-ref"
+
+# classify. `No changes against X` reads as a finding about the branch; it is a
+# report that the question was never asked.
+cl_unk="$( cd "$REPO" && "$FELIX" classify --base no-such-ref 2>&1 )"
+has "an unresolvable base classifies as unknown" "$cl_unk" "unknown"
+case "$cl_unk" in
+  *"tier:  green"*|*"tier:  yellow"*|*"tier:  red"*)
+    bad "and never reports a tier it could not compute" "$cl_unk" ;;
+  *) ok "and never reports a tier it could not compute" ;;
+esac
+
+# The one that writes, and the reason this is not filed as cosmetic. cmd_pr
+# reduces the same empty findings to a tier and then LABELS the pull request
+# risk-<tier>. felix_classify_tier returns green for no findings, and cmd_pr
+# defaults to green again if that came back empty. Green is the tier that can
+# auto-merge, so an unresolvable base labelled a branch as safe to merge itself.
+# Preview only here — no --create, so nothing is written.
+pr_unk="$( cd "$REPO" && "$FELIX" pr --base no-such-ref 2>&1 )"
+case "$pr_unk" in
+  *"tier:     green"*) bad "an unresolvable base never labels a pr green" "$pr_unk" ;;
+  *)                   ok  "an unresolvable base never labels a pr green" ;;
+esac
+
+# The library level, so the fix cannot be a message change in three commands.
+_ev_at() { ( cd "$REPO" && . "$FROOT/harness/lib/evidence.sh"
+             felix_evidence_check "$FROOT/projects/widget" "$1" "$REPO" ); }
+_cl_at() { ( cd "$REPO" && . "$FROOT/harness/lib/classify.sh"
+             felix_classify_diff "$FROOT/projects/widget" "$1" "$REPO" ); }
+has "felix_evidence_check reports unknown, not n/a" "$(_ev_at no-such-ref)" "unknown"
+has "felix_classify_diff reports unknown, not empty" "$(_cl_at no-such-ref)" "unknown"
+# Not knowing outranks everything — receipt.sh's stated precedence, because a
+# verdict computed from inputs nobody read is the confident wrong answer.
+is "and the tier reducer agrees" \
+   "$( . "$FROOT/harness/lib/classify.sh"; felix_classify_tier "$(_cl_at no-such-ref)" )" "unknown"
+# The good case is not collateral.
+has "a base that resolves still classifies normally" "$(_cl_at HEAD~1)" "green"
 _reset
 
 # Green tier plus an evidence gap. Unreachable with the default rules, since

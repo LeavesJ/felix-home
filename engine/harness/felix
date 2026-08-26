@@ -880,7 +880,23 @@ closes #$issue"
   # reduces them. felix_classify_tier takes the findings, not the paths.
   findings="$(felix_classify_diff "$proj" "$base" "$root" 2>/dev/null)"
   tier="$(felix_classify_tier "$findings" 2>/dev/null)"
-  [ -n "$tier" ] || tier=green
+
+  # `|| tier=green` was here, and it is the most expensive default in the file:
+  # this tier is applied to the pull request as a risk-<tier> label, and green
+  # is the tier that can auto-merge. An unresolvable base produced no findings,
+  # no findings reduced to green, and a branch nobody had compared was labelled
+  # safe to merge itself. Refused rather than defaulted — and refused here, not
+  # at the label, because a preview that says `tier: green` is read and believed
+  # long before anyone runs --create.
+  #
+  # gh would reject this base anyway, client-side. Saying so first means the
+  # reason given is the real one.
+  [ "$tier" = "unknown" ] && die "the base '$base' names nothing this repository holds, so
+  nothing was compared and there is no tier to put on this. No pull request
+  was opened. Check --base, or the default branch, which is not \`main\`
+  everywhere."
+  [ -n "$tier" ] || die "could not classify this change against '$base', so there is no
+  risk tier to label the pull request with. No pull request was opened."
 
   printf 'branch:   %s -> %s\ntitle:    %s\ntier:     %s\n\n' "$branch" "$base" "$title" "$tier"
   printf '%s\n' "$body"
@@ -1998,6 +2014,23 @@ cmd_evidence() {
   [ -n "$results" ] || { printf 'No evidence rules declared.\n'; return 0; }
 
   printf 'base:  %s\n\n' "$base"
+
+  # Checked before the rows are rendered, because the sentence at the bottom is
+  # the one that gets read. "No evidence gaps" after a scan that never ran is
+  # the same false all-clear #56 removed from felix merge, and leaving it here
+  # would move it rather than fix it. Exits non-zero regardless of --strict: an
+  # unanswerable question is not a passing report.
+  if printf '%s\n' "$results" | grep -q '^unknown	'; then
+    printf '%s\n' "$results" | while IFS=$'\t' read -r st name reason; do
+      [ "${st:-}" = "unknown" ] || continue
+      printf '  [?] %-14s %s\n' "$name" "$reason"
+    done
+    printf '\nNothing was compared, so nothing above is a finding about this change.\n'
+    printf 'Check --base, or the default branch, which is not `main` everywhere.\n'
+    printf 'This says nothing about what the change owes; that was never asked.\n'
+    return 1
+  fi
+
   printf '%s\n' "$results" | while IFS=$'\t' read -r st name reason; do
     [ -n "${st:-}" ] || continue
     case "$st" in
@@ -2235,6 +2268,20 @@ cmd_classify() {
     return 0
   fi
   tier="$(felix_classify_tier "$findings")"
+
+  # Before the tier line, because printing `tier:  unknown` beside a findings
+  # table would read as a computed verdict on a real diff. There is no diff.
+  if [ "$tier" = "unknown" ]; then
+    printf 'base:  %s\ntier:  unknown\n\n' "$base"
+    printf '%s\n' "$findings" | while IFS=$'\t' read -r t f r; do
+      [ "${t:-}" = "unknown" ] || continue
+      printf '  %-7s %-46s %s\n' "$t" "$f" "$r"
+    done
+    printf '\nNothing was compared. This is not a green change and not a risky one;\n'
+    printf 'it is a base this repository cannot resolve. Check --base, or the\n'
+    printf 'default branch, which is not `main` everywhere.\n'
+    return 1
+  fi
 
   printf 'base:  %s\ntier:  %s\n\n' "$base" "$tier"
   printf '%s\n' "$findings" | sort -r | while IFS=$'\t' read -r t f r; do

@@ -5152,10 +5152,29 @@ printf '{\n  "name": "felix",\n  "plugins": [ { "name": "felix", "source": "./en
 # real CLI reports. Only `plugin list --json` needs a body; the three mutating
 # subcommands are no-ops here because the fixture is the deployed state already.
 ICB="$TMP/installclaude"; mkdir -p "$ICB"
+# The stub mirrors what the real CLI was MEASURED to do, not what is convenient.
+# It used to exit 0 for everything, which is why #66 went unnoticed here: the
+# marketplace path could be wrong and the stub would report success anyway.
+#
+# Measured in a scratch HOME against the real `claude`, so this is a recording
+# and not a guess:
+#   add <repo>/engine  -> exit 1, "Marketplace file not found at
+#                         <repo>/engine/.claude-plugin/marketplace.json"
+#   add <repo>         -> exit 0, registers installLocation=<repo>
+# It does NOT resolve upward. Every argument is logged so the assertion can name
+# the path the command actually passed rather than infer it from the output.
+ICB_LOG="$TMP/installclaude.log"; : > "$ICB_LOG"
 cat > "$ICB/claude" <<STUB
 #!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$ICB_LOG"
 case "\$*" in
   "plugin list --json") printf '{ "felix@felix": { "installPath": "%s" } }\n' "$ICACHE" ;;
+  "plugin marketplace add "*)
+    # \$4, not \${*#plugin marketplace add }. Prefix removal on \$* applies the
+    # pattern to each positional parameter separately and then joins, so it
+    # strips nothing here and leaves the whole command line — which made the
+    # stub reject the correct path and the fix look wrong.
+    [ -f "\$4/.claude-plugin/marketplace.json" ] || exit 1 ;;
 esac
 exit 0
 STUB
@@ -5178,6 +5197,23 @@ esac
 # And it must say which tree it compared, or the reader cannot tell a real
 # verification from the vacuous one this replaces.
 has "and names the source tree it compared" "$icache_out" "$ISRC/engine"
+
+# #66. The marketplace is registered from the directory that HOLDS
+# marketplace.json, which is the repository root — not the engine one level in.
+# Measured against the real CLI: `add <repo>/engine` exits 1 with "Marketplace
+# file not found", and does not resolve upward.
+#
+# It stayed invisible because the else branch masks it. add fails, control falls
+# through to `marketplace update felix`, and that is the call that did the work —
+# which is why the reproduction in #55 printed "marketplace refreshed" and never
+# "marketplace registered". That only works because the marketplace was already
+# registered correctly at some point in the past. On a genuinely FIRST install
+# there is nothing to update, and the marketplace is never registered at all.
+is "the marketplace is added from the directory holding its manifest" \
+   "$(grep -m1 '^plugin marketplace add ' "$ICB_LOG" | sed 's#^plugin marketplace add ##')" \
+   "$ISRC"
+has "and it registers rather than falling through to a refresh" \
+    "$icache_out" "marketplace registered"
 
 # The control, and the half a careless fix breaks: from the cache with the
 # source MATCHING, it must still verify. A fix that simply always refuses would

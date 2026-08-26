@@ -304,7 +304,24 @@ cmd_install() {
     return 1
   }
 
-  if claude plugin marketplace add "$src" >/dev/null 2>&1; then
+  # The directory that HOLDS marketplace.json, which is the repository root —
+  # not the engine one level inside it. `$src` is <repo>/engine, because
+  # marketplace.json declares `"source": "./engine"` and the deployed tree is
+  # the contents of that. The manifest itself stays at the root.
+  #
+  # #66, and measured against the real CLI in a scratch HOME rather than
+  # reasoned about:
+  #   add <repo>/engine -> exit 1, "Marketplace file not found at
+  #                        <repo>/engine/.claude-plugin/marketplace.json"
+  #   add <repo>        -> exit 0, installLocation=<repo>
+  # It does not resolve upward.
+  #
+  # So this call had always failed, and the else branch below was doing the
+  # work — which is why every reproduction of an install shows "marketplace
+  # refreshed" and never "marketplace registered". A refresh only works on a
+  # marketplace that is already registered, so the one case this line exists
+  # for, a first install on a clean machine, was the one case it could not do.
+  if claude plugin marketplace add "${src%/*}" >/dev/null 2>&1; then
     printf '  marketplace registered\n'
   else
     # Adding an already-registered marketplace is a no-op that does not re-read

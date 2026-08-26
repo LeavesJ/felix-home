@@ -531,7 +531,7 @@
 1	felix_ledger_retire is defined for the hook
 1	felix_tidy_safe is defined for the hook
 1	finds a plan the prompt points at
-1	finds plugins (34)
+1	finds plugins
 1	finds the route a capability belongs to
 1	for every gate check that file actually covers
 1	free text matches the catalogue

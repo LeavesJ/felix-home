@@ -4368,7 +4368,13 @@ printf '\nseeing the whole toolbox\n'
 INV="$( . "$FROOT/harness/lib/ready.sh"; felix_ready_inventory 2>/dev/null )"
 if has_claude; then
   n_plug="$(printf '%s\n' "$INV" | grep -c '^plugin' || true)"
-  [ "${n_plug:-0}" -gt 0 ] && ok "finds plugins ($n_plug)" || bad "finds plugins" "none"
+  # A static name. It read `ok "finds plugins ($n_plug)"`, and the count is how
+  # many plugins THIS machine has — so the name differed between the machine
+  # that recorded the manifest and every other one, and the skip on line below
+  # uses a third spelling again. The manifest reported it as an assertion that
+  # never ran, which was its own false alarm. An assertion's name identifies it;
+  # anything varying by machine belongs in the detail, not the name.
+  [ "${n_plug:-0}" -gt 0 ] && ok "finds plugins" || bad "finds plugins" "none"
 else
   skip "finds plugins" "no claude CLI"
 fi
@@ -4730,6 +4736,19 @@ if [ -f "$REALMEM" ]; then
   # matcher rather than the prose. Both appear there inside backticks as paths.
   is "and it holds against the shipped lessons file" "$(_rname tests)"  "yes"
   is "for every gate check that file actually covers" "$(_rname memory)" "yes"
+else
+  # THESE TWO ARE #67. This block had no else, so on a machine with no Felix
+  # memory — every CI runner — both assertions simply did not run. No pass, no
+  # fail, no skip line: they were absent, and absence is indistinguishable from
+  # a passing suite. That is the whole of the constant 2-assertion gap between
+  # local and CI, measured across three commits before anything could name it.
+  #
+  # Skipped rather than made to work. The assertion's value is that it holds
+  # against a REAL lessons file rather than a fixture, so there is nothing to
+  # run against here and pretending otherwise would be the weaker test. What
+  # changes is that the absence is now declared.
+  skip "and it holds against the shipped lessons file"  "no lessons file on this machine"
+  skip "for every gate check that file actually covers" "no lessons file on this machine"
 fi
 
 # Nothing recurring is silence, not a reassurance.

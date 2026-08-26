@@ -263,7 +263,49 @@ cmd_install() {
   mkdir -p "$FELIX_HOME_DIR/projects"
   printf '%s\n' "$FELIX_HOME_DIR" > "$HOME/.felix-home"
   printf 'home:    %s\n' "$FELIX_HOME_DIR"
-  printf 'engine:  %s\n\n' "$FELIX_ROOT"
+
+  # The tree being deployed FROM, which is not the tree this script is running
+  # IN whenever somebody follows the instruction every session prints and
+  # invokes the deployed CLI. FELIX_ROOT comes from the running script's own
+  # location and cannot be overridden, so from the plugin cache it names the
+  # cache — and every check below it compared the deployed engine with itself,
+  # passed, and deployed nothing. #55.
+  #
+  # Resolved after --home on purpose, so an explicit --home is honoured.
+  #
+  # Not $FELIX_HOME_DIR, which is what the issue proposed. The home is the
+  # repository ROOT and the engine is nested one level inside it —
+  # marketplace.json declares `"source": "./engine"`, so the deployed tree is
+  # the CONTENTS of engine/. Substituting the home verbatim names
+  # "<repo>/harness", which does not exist, and turns a false pass into a false
+  # failure with a wrong diagnosis. Worse, on the very invocation #55 is about
+  # the home is read from ~/.felix-home and is an unrelated absolute path that
+  # happens to be right only on the primary checkout.
+  #
+  # Order: what the marketplace actually serves, then where you are standing,
+  # then the home. The first is the real answer — Claude Code deploys from the
+  # registered marketplace root and nowhere else — and the other two are what
+  # to try before a first install has registered one.
+  local src="" cand
+  if ! felix_plugin_copy "$FELIX_ROOT"; then
+    src="$FELIX_ROOT"
+  else
+    for cand in "$(felix_marketplace_root)" "$(felix_repo_root "$PWD")" "$FELIX_HOME_DIR"; do
+      [ -n "$cand" ] || continue
+      [ -x "$cand/engine/harness/felix" ] || continue
+      src="$cand/engine"; break
+    done
+  fi
+  # Refused rather than guessed. Comparing the cache with itself is the thing
+  # this command was doing wrong, so falling back to it would keep the defect
+  # and merely move the comment. There is no safe default here: a wrong answer
+  # reports a deploy that did not happen.
+  [ -n "$src" ] || die "this is the deployed copy of Felix, not a checkout of it, and no
+  Felix checkout could be found to install FROM. Nothing was deployed.
+  Run felix install from inside the Felix repository, or pass --home naming it.
+  Comparing $FELIX_ROOT with itself is what this command used to do (#55)."
+
+  printf 'engine:  %s\n\n' "$src"
 
   command -v claude >/dev/null 2>&1 || {
     printf 'The claude CLI is not on PATH, so the session hook cannot be registered.\n'
@@ -271,7 +313,7 @@ cmd_install() {
     return 1
   }
 
-  if claude plugin marketplace add "$FELIX_ROOT" >/dev/null 2>&1; then
+  if claude plugin marketplace add "$src" >/dev/null 2>&1; then
     printf '  marketplace registered\n'
   else
     # Adding an already-registered marketplace is a no-op that does not re-read
@@ -302,7 +344,7 @@ cmd_install() {
           | sed -n '/"felix@felix"/,/}/p' \
           | sed -n 's/.*"installPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
   if [ -n "$live" ] && [ -d "$live/harness" ]; then
-    if diff -rq "$FELIX_ROOT/harness" "$live/harness" >/dev/null 2>&1; then
+    if diff -rq "$src/harness" "$live/harness" >/dev/null 2>&1; then
       printf '  verified   the installed engine matches this tree\n'
     elif [ "$bump" -eq 0 ]; then
       printf '\n  WARNING  the installed engine does NOT match this tree.\n'
@@ -326,19 +368,19 @@ cmd_install() {
       # from re-running install to read its own output.
       local newv curv livev
       curv="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
-              "$FELIX_ROOT/.claude-plugin/plugin.json" 2>/dev/null | head -1)"
+              "$src/.claude-plugin/plugin.json" 2>/dev/null | head -1)"
       livev="${live##*/}"
       if [ -n "$curv" ] && [ -n "$livev" ] && [ "$curv" != "$livev" ]; then
         printf '\n  %s is already ahead of the deployed %s, so nothing was bumped.\n' \
                "$curv" "$livev"
-        if mroot="$(felix_deployable_from "$FELIX_ROOT")"; then
+        if mroot="$(felix_deployable_from "$src")"; then
           printf '           The tree still differs from the cache. Something other than\n'
           printf '           the version is stopping this deploying.\n'
         else
           printf '           The marketplace serves %s, so this worktree was never\n' "$mroot"
           printf '           going to deploy. Merge it and run felix install there.\n'
         fi
-      elif newv="$(felix_version_bump "$FELIX_ROOT/.claude-plugin/plugin.json")"; then
+      elif newv="$(felix_version_bump "$src/.claude-plugin/plugin.json")"; then
         printf '\n  bumped     %s, because the tree differs and the version did not\n' "$newv"
         # Redeploy at the new version, then verify again rather than assume.
         # The same three steps the deploy above uses. An earlier version did
@@ -352,18 +394,18 @@ cmd_install() {
                 | sed -n '/"felix@felix"/,/}/p' \
                 | sed -n 's/.*"installPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
         if [ -n "$live" ] && [ -d "$live/harness" ] \
-             && diff -rq "$FELIX_ROOT/harness" "$live/harness" >/dev/null 2>&1; then
+             && diff -rq "$src/harness" "$live/harness" >/dev/null 2>&1; then
           printf '  verified   the installed engine matches this tree\n'
         else
           local mroot
-          if mroot="$(felix_deployable_from "$FELIX_ROOT")"; then
+          if mroot="$(felix_deployable_from "$src")"; then
             printf '\n  WARNING  bumped to %s and it still does not match.\n' "$newv"
             printf '           %s\n' "$live"
             printf '           This is no longer the version cache; something else is wrong.\n'
           else
             printf '\n  not deployed, and nothing is wrong.\n'
             printf '           The marketplace serves %s\n' "$mroot"
-            printf '           and this engine is at %s\n' "$FELIX_ROOT"
+            printf '           and this engine is at %s\n' "$src"
             printf '           A directory marketplace is pinned to one path, so a worktree\n'
             printf '           cannot deploy and the cache still matches the tree it names.\n'
             printf '           %s is on the branch and is what makes this deployable when\n' "$newv"

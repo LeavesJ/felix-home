@@ -37,6 +37,32 @@ EOF
 # Order: an explicit environment variable, then the pointer file `felix install`
 # writes, then a repo checkout that already carries projects/ beside the engine,
 # then the default.
+# Is this engine path a deployed copy of Felix rather than a checkout of it?
+#
+# Two callers need this and they must agree. felix_home must never adopt such a
+# copy as a home — a constitution frozen at install time, and memory written
+# into a directory the next plugin update deletes. And cmd_install must never
+# treat one as the tree being deployed FROM: run the deployed CLI and its own
+# FELIX_ROOT *is* the cache, so `diff -rq "$FELIX_ROOT/harness" "$live/harness"`
+# compared the deployed engine with itself, could not fail, and certified a
+# repository whose engine had never been deployed at all. That is #55, and it
+# was the fifth defect in this project whose cause was "correct code, installed
+# nowhere" — sitting inside the guard written to stop the other four.
+#
+# One definition, because the alternative is two and the two would drift. This
+# is the same correction #56 made to the base-resolution check an hour earlier,
+# for the same reason.
+#
+# Matched on the path, not on anything inside the directory. A frozen copy is
+# byte-identical to the checkout it came from and carries no marker that would
+# tell them apart; where it sits is the only evidence there is.
+felix_plugin_copy() {
+  case "${1:-}" in
+    */.claude/plugins/cache/*|*/.claude/plugins/marketplaces/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 felix_home() {
   local engine="$1"
   if [ -n "${FELIX_HOME:-}" ]; then printf '%s' "$FELIX_HOME"; return; fi
@@ -48,17 +74,14 @@ felix_home() {
   # included. Trusting that copy would govern from a constitution frozen at
   # install time and write memory into a directory the next plugin update
   # deletes, both silently. The copy is never a home.
-  case "$engine" in
-    */.claude/plugins/cache/*|*/.claude/plugins/marketplaces/*) ;;
-    *)
-      # The engine may sit at the repo root, or one level down so that a plugin
-      # install carries the engine alone and leaves projects/ behind. Check both
-      # before falling through, or a fresh clone silently starts a new home and
-      # reports the project it is standing in as unknown.
-      [ -d "$engine/projects" ] && { printf '%s' "$engine"; return; }
-      [ -d "$engine/../projects" ] && { (cd "$engine/.." && pwd); return; }
-      ;;
-  esac
+  if ! felix_plugin_copy "$engine"; then
+    # The engine may sit at the repo root, or one level down so that a plugin
+    # install carries the engine alone and leaves projects/ behind. Check both
+    # before falling through, or a fresh clone silently starts a new home and
+    # reports the project it is standing in as unknown.
+    [ -d "$engine/projects" ] && { printf '%s' "$engine"; return; }
+    [ -d "$engine/../projects" ] && { (cd "$engine/.." && pwd); return; }
+  fi
   printf '%s' "$HOME/.felix"
 }
 

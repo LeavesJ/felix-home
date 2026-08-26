@@ -137,6 +137,28 @@ felix_escapes() {
   local proj="$1" base="$2" root="$3" home="${4:-}"
   local paths added f tier kind pattern reason channel confine reviewed=""
 
+  # Before any channel, because a base this repository cannot resolve makes the
+  # whole scan unanswerable rather than empty. felix_changed_paths swallows the
+  # git error, so the `[ -n "$paths" ]` line below used to return "no escapes"
+  # for a branch adding a workflow — `execute`, the one channel risk.tsv's own
+  # header calls unconditional — and felix merge printed "nothing in it escaped
+  # the tree". The same emptiness cleared every evidence row to n/a.
+  #
+  # Latent while both governed repositories sit on `main`; live on a --base
+  # typo, on a default branch named `master` or `trunk`, on a clone with no
+  # local `main`, and on the next governed project. Only a clean tree shows it,
+  # because a dirty one still yields a working-tree diff — and a clean tree is
+  # what felix merge requires, so that is not a mitigation.
+  #
+  # `unknown` is a reserved channel, not a risk.tsv one: no table can declare
+  # it, so nothing can demote it, and neither `reviewed` nor a confine clause
+  # reaches it. Callers must route it away from the founder — it is a typo, not
+  # a decision about writing outside the tree.
+  if [ -n "$base" ] && ! felix_base_resolves "$root" "$base"; then
+    printf 'unknown\t%s\tthis base names nothing here, so nothing was scanned; no channel was consulted\n' "$base"
+    return 0
+  fi
+
   paths="$(felix_changed_paths "$root" "$base")"
   [ -n "$paths" ] || return 0
 
@@ -188,6 +210,19 @@ EOF
     [ -n "${tier:-}" ] || continue
     [ -n "${channel:-}" ] && [ "${channel}" != "-" ] || continue
     [ "${kind:-}" = "path" ] || continue
+    # `unknown` is the engine's word for "nothing was scanned", and every caller
+    # keys its whole explanation off it — felix merge says nothing was compared
+    # and that no finding above describes the branch. A table declaring it would
+    # make a path rule that DID fire render as a scan that never ran, which is
+    # the same false all-clear one layer up.
+    #
+    # Renamed rather than skipped. Skipping would silence a row a project wrote
+    # deliberately, and clause 2 of the constitution runs the other way: a table
+    # may add to the escapes and may never declare one away. So it still blocks,
+    # still escalates, and merely cannot wear the reserved name. Enforced rather
+    # than documented, because a convention nothing checks is one the next table
+    # anybody writes will break.
+    [ "$channel" = "unknown" ] && channel="declared-unknown"
     while IFS= read -r f; do
       [ -n "$f" ] || continue
       printf '%s' "$f" | grep -qE "$pattern" || continue
@@ -250,7 +285,17 @@ felix_merge_blockers() {
 
   felix_escapes "$proj" "$base" "$root" "$home" | while IFS=$'\t' read -r ch path reason; do
     [ -n "${ch:-}" ] || continue
-    printf 'escape\t%s\t%s: %s\n' "$ch" "$path" "$reason"
+    # `unknown` blocks like everything else here, and is deliberately not an
+    # escape. cmd_merge counts escapes as founder escalations — interruptions
+    # per session is the declared objective — and tells the reader that merging
+    # writes outside the tree and only they can decide that. An unresolvable
+    # base is neither: nobody has to decide a typo, and Felix owes the fix.
+    # Reporting it as an escape would inflate the one number this project steers
+    # by, with the one kind of event that should never reach a person.
+    case "$ch" in
+      unknown) printf 'unknown\t%s\t%s\n' "$path" "$reason" ;;
+      *)       printf 'escape\t%s\t%s: %s\n' "$ch" "$path" "$reason" ;;
+    esac
   done
 
   tid="$(felix_tree_id "$root" "$home" 2>/dev/null)" || tid=""

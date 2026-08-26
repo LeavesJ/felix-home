@@ -164,6 +164,29 @@ felix_resolve_project() {
   return 1
 }
 
+# Does this base name something that exists here?
+#
+# The question felix_changed_paths cannot answer, because it sends every git
+# error to /dev/null and so reports a base nobody can resolve as a branch that
+# changed nothing. An empty answer and an unanswerable question are different
+# facts, and every caller that conflates them reads the second as the first —
+# which is always the permissive direction.
+#
+# `^{commit}` is load-bearing, and receipt.sh learned it first. `git rev-parse
+# --verify <40-hex>` exits 0 for a sha this repository has never held, because a
+# full-length hex string is a syntactically valid object name and --verify alone
+# checks the syntax. Only a name it cannot parse exits non-zero. Peeling to a
+# commit is what turns a syntax check into an existence test.
+#
+# An empty base is not a failure to resolve one. felix_changed_paths has always
+# taken it to mean "no branch comparison, working tree only", and callers rely
+# on that; deciding it is unknown would break every one of them.
+felix_base_resolves() {
+  local root="${1:-}" base="${2:-}"
+  [ -n "$root" ] && [ -n "$base" ] || return 1
+  git -C "$root" rev-parse --verify "$base^{commit}" >/dev/null 2>&1
+}
+
 # Every path this branch touches, including what is staged but not committed.
 #
 # One function because there were four, and they drifted in the same direction.

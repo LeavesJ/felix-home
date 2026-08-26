@@ -27,6 +27,13 @@
 # an all-clear. Everywhere else that costs a person one confusing report. Here it
 # would be a wire contract other systems build on, so the rule is asserted rather
 # than intended.
+#
+# The same guard escape.sh, classify.sh and evidence.sh each carry, and for the
+# reason escape.sh states: a lib whose helper is missing returns an empty path
+# list, which reads as "nothing changed" and silently stops enforcing.
+if ! command -v felix_changed_paths >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
 
 # Strict JSON string escaping.
 #
@@ -93,14 +100,15 @@ felix_receipt() {
   # ---- what changed. An unresolvable base is a question nobody can answer, and
   # an empty list is an answer. Reporting the first as the second is the defect
   # this whole file is shaped around, so the two are different fields.
-  # `^{commit}` is load-bearing. `git rev-parse --verify <40-hex>` exits 0 for a
-  # sha that does not exist in the repository, because a full-length hex string
-  # is a syntactically valid object name and --verify alone checks the syntax.
-  # Only a name it cannot resolve exits non-zero. Peeling to a commit is what
-  # makes it an existence test, and without it a base nobody has would have been
-  # reported as a clean empty changeset — the exact failure this file refuses.
+  #
+  # This file had the check first, inline, and the reasoning for `^{commit}` now
+  # lives with felix_base_resolves in resolve.sh — moved there rather than
+  # copied, because escape.sh needed the same test and one of the two would have
+  # drifted. That is #56: the identical lesson sat in felix_kernel_dir one
+  # function away from felix_changed_paths and was never propagated, so an
+  # unresolvable base cleared every escape channel there.
   local base_ok=0 paths=""
-  if [ -n "$base" ] && git -C "$root" rev-parse --verify "$base^{commit}" >/dev/null 2>&1; then
+  if felix_base_resolves "$root" "$base"; then
     base_ok=1
     paths="$(felix_changed_paths "$root" "$base" 2>/dev/null || true)"
   else

@@ -960,12 +960,13 @@ cmd_merge() {
   fi
 
   if [ -n "$blockers" ]; then
-    local kind subject reason esc=0
+    local kind subject reason esc=0 unk=0
     printf 'not merging\n\n'
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
       printf '  %-11s %-22s %s\n' "$kind" "$subject" "$reason"
-      [ "$kind" = "escape" ] && esc=1
+      [ "$kind" = "escape" ]  && esc=1
+      [ "$kind" = "unknown" ] && unk=1
     done <<EOF
 $blockers
 EOF
@@ -984,7 +985,17 @@ $blockers
 EOF
     fi
 
-    if [ "$esc" -eq 1 ]; then
+    # `unknown` is checked before `escape`, because the sentence in the else
+    # branch is the exact claim #56 is about. Saying "nothing here escapes the
+    # tree" after a scan that never ran would move the false all-clear from the
+    # verdict into the explanation and leave it just as wrong. Nothing was
+    # compared, so nothing can be said about what escapes.
+    if [ "$unk" -eq 1 ]; then
+      printf '\nNothing was compared, so nothing above is a finding about this branch.\n'
+      printf 'The base names nothing this repository holds — check --base, or the\n'
+      printf 'default branch, which is not `main` everywhere. This says nothing\n'
+      printf 'about whether the change escapes the tree; that was never asked.\n'
+    elif [ "$esc" -eq 1 ]; then
       printf '\nMerging this writes something outside the tree that a revert does not\n'
       printf 'reach, so it is the founder who decides. Show them the diff and the\n'
       printf 'reversal path; a green gate is not the question here.\n'

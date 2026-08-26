@@ -780,6 +780,37 @@ _reset
 # restores the YAML; it does not un-run the job or un-read the key.
 mkdir -p "$REPO/.github/workflows"; printf 'on: push\n' > "$REPO/.github/workflows/ci.yml"; _stage
 has "a workflow change escapes as execute" "$(_esc)" "execute"
+
+# #56. The same workflow, judged against a base git cannot name. Every git error
+# in felix_changed_paths goes to /dev/null, so an unresolvable base produced no
+# paths and no complaint, and felix_escapes returned "nothing escaped" from its
+# `[ -n "$paths" ] || return 0` line — before a single channel was consulted,
+# `execute` included, which risk.tsv's own header calls unconditional.
+#
+# It stayed latent because both governed repositories are on `main`. It fires on
+# a --base typo, on a repository whose default branch is `master`, on a clone
+# with no local `main`, and on the next governed project. The precondition is a
+# clean tree, because a dirty one still yields a working-tree diff — and a clean
+# tree is exactly what felix merge requires, so that softens nothing.
+_esc_at() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"
+              felix_escapes "$FROOT/projects/widget" "$1" "$REPO" ); }
+has "a base that does not resolve is unknown, not clean" "$(_esc_at no-such-ref)" "unknown"
+case "$(_esc_at no-such-ref)" in
+  *execute*) bad "and does not name a channel it never got to consult" "$(_esc_at no-such-ref)" ;;
+  *)         ok  "and does not name a channel it never got to consult" ;;
+esac
+# The lesson felix_kernel_dir already carried: `git rev-parse --verify <40-hex>`
+# exits 0 for a sha no repository holds, because a full-length hex string is a
+# syntactically valid object name and --verify alone checks syntax. Peeling to a
+# commit is what makes it an existence test. Without `^{commit}` this reads as a
+# resolvable base and clears the merge exactly as before.
+has "a full-length sha nothing holds is unknown too" \
+    "$(_esc_at 0000000000000000000000000000000000000000)" "unknown"
+# And the good case is not collateral: a base that resolves still answers.
+has "a base that resolves still names the channel" "$(_esc)" "execute"
+# An empty base is a deliberate no-base — working tree only — and not a failure
+# to resolve one. felix_changed_paths has always meant it that way.
+is "an empty base is not reported as unknown" "$(_esc_at '')" ""
 _reset
 
 mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/003.sql"; _stage
@@ -802,6 +833,7 @@ _reset
 # it. For a governed product that is never true — its tables live in the Felix
 # home — so this channel fires when Felix's *own* repository is the one being
 # merged, which is exactly where those tables are edited. Indirect, and complete.
+_block_head="$( cd "$REPO" && git rev-parse --short HEAD )"
 mkdir -p "$REPO/projects/thing"
 { printf '# tier\tkind\tpattern\treason\n'
   printf 'red\tpath\t^secrets/\tsecret material\n'
@@ -830,7 +862,24 @@ _reset
 # L-25: restore the fixture and assert the restore, or every later assertion in
 # this file runs against a repository this block quietly changed.
 _reset
-is "and the repository is back to where it started" "$(_esc)" ""
+# By head, not by _esc — and this is #56 caught in the suite's own fixture.
+#
+# This assertion used to read `is "..." "$(_esc)" ""`, and _esc scans against
+# HEAD~1. Measured, not inferred: at this point the fixture is at its ROOT
+# commit, depth 1, so HEAD~1 names nothing. git diff exits 128,
+# felix_changed_paths sent that to /dev/null, and the scan returned empty for
+# every possible state of the repository. The guard L-25 wrote to catch a
+# quietly changed fixture could not observe one, and it passed for four months
+# on an instrument that had gone blind at exactly the state it was checking.
+# Adding felix_base_resolves is what made it visible.
+#
+# A head comparison is the claim this line was always making, and unlike the
+# scan it can fail. The porcelain check is the half _esc could still see —
+# uncommitted drift — kept rather than dropped.
+is "and the repository is back to where it started" \
+   "$( cd "$REPO" && git rev-parse --short HEAD )" "$_block_head"
+is "and nothing is left uncommitted under it" \
+   "$( cd "$REPO" && git status --porcelain )" ""
 
 # Confinement, which is the whole reason PR #4 should not have waited. The
 # manifest is dual-use: it declares dependencies AND configures the gate. So the
@@ -881,6 +930,35 @@ out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
 has "but it still classifies red" "$out" "tier:  red"
 _reset
 cp "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv"
+
+# `unknown` is the engine's word for "nothing was scanned", and felix merge
+# prints a whole paragraph off it saying no finding describes the branch. A
+# table that could declare that word would make a row which DID fire render as
+# a scan that never ran — the same false all-clear #56 is about, one layer up.
+# Renamed rather than skipped, because a project may add to the escapes and may
+# never declare one away.
+printf 'red\tpath\t^reserved/\ttrying to wear the reserved name\tunknown\n' \
+  >> "$FROOT/projects/widget/risk.tsv"
+mkdir -p "$REPO/reserved"; printf 'x\n' > "$REPO/reserved/a.txt"; _stage
+has "a table declaring the reserved channel still stops the merge" \
+    "$(_esc)" "trying to wear the reserved name"
+case "$(_esc)" in
+  unknown[[:space:]]*) bad "but cannot impersonate an unscanned diff" "$(_esc)" ;;
+  *)                   ok  "but cannot impersonate an unscanned diff" ;;
+esac
+# Inline rather than via _blk, which this file does not define until the merging
+# section below. The claim is at the merge layer, so it is asserted there.
+_resv_blk="$( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"
+              . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/verify.sh"
+              felix_merge_blockers "$FROOT/projects/widget" HEAD~1 "$REPO" "$FROOT" )"
+has "and it reaches merge as an escape, not as unknown" "$_resv_blk" "escape"
+# On the kind field, not on a substring: `declared-unknown` ends in the reserved
+# word, so a glob for it matched the very rename that proves the fix works.
+is "and merge does not call it an unscanned diff" \
+   "$(printf '%s\n' "$_resv_blk" | awk -F'\t' '$1=="unknown"{print "found"}')" ""
+_reset
+cp "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv"
+
 is "the widget's table is exactly as this section found it" \
    "$(diff -q "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv" >/dev/null && echo same)" "same"
 
@@ -925,6 +1003,28 @@ mkdir -p "$REPO/.github/workflows"; printf 'on: push\n' > "$REPO/.github/workflo
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
 has "a green gate does not clear an escape" "$(_blk)" "execute"
+
+# #56, at the level that acts. The same branch, the same workflow, the same
+# green receipt — merged against a base git cannot name. This is the shown-
+# failing case the issue requires: today it prints "nothing in it escaped the
+# tree" and merges.
+_blk_at() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"
+              . "$FROOT/harness/lib/evidence.sh"
+              . "$FROOT/harness/lib/verify.sh"
+              felix_merge_blockers "$FROOT/projects/widget" "$1" "$REPO" "$FROOT" ); }
+has "an execute path against an unresolvable base blocks the merge" \
+    "$(_blk_at no-such-ref)" "unknown"
+# And it blocks as `unknown`, not as `escape`. The distinction is not cosmetic:
+# cmd_merge counts escapes as founder escalations — the declared objective is
+# interruptions per session — and tells the reader that merging writes outside
+# the tree and only they can decide. A base nobody can resolve is neither. It is
+# a typo, or a default branch that is not `main`, and correcting it is Felix's
+# own work.
+case "$(_blk_at no-such-ref)" in
+  escape*) bad "and not as an escape, which would escalate a typo to the founder" \
+               "$(_blk_at no-such-ref)" ;;
+  *)       ok  "and not as an escape, which would escalate a typo to the founder" ;;
+esac
 _reset
 
 # An evidence gap is not a stop. It is work Felix owes, and handing it back as

@@ -175,6 +175,7 @@
 1	a typed intent is not labelled a guess
 1	a verdict for another tree does not clear it
 1	a verdict never clears a durable escape
+1	a verdict that granted nothing names nothing
 1	a version bump alone escapes nothing
 1	a version bump alone is not self-judgement
 1	a version it cannot parse is refused, not guessed
@@ -422,6 +423,7 @@
 1	and strips a line range
 1	and survives a regeneration that was given none
 1	and that is more than one, so the count is doing work
+1	and that nothing granted it, on a channel review cannot clear
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
 1	and the cause is the prompt, not the envelope
@@ -456,7 +458,6 @@
 1	and what was typed still counts
 1	and whether git tracks it
 1	and which stand alone
-1	and who granted it, which is nobody yet
 1	and without it the same escape stands
 1	and writes no row at all, not even exit-1
 1	another plugin's refusal is not
@@ -768,6 +769,7 @@
 1	the pre-flight runs clean under bash
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
+1	the receipt names what granted the authority
 1	the registry says where the engine is served from
 1	the removed file still exists somewhere
 1	the repository that ships the engine is self-governed

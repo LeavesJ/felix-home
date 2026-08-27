@@ -1140,9 +1140,33 @@ TID="$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$REPO" "$RVH" )"
   felix_review_record "$RVH" "$RVP" "$TID" block reviewer-1 "the rubric contradicts the map" )
 has "a blocking verdict does not clear it either" "$(_resc)" "reviewed"
 
+# The control for #57 item 2, and the reason it is placed HERE rather than after
+# the fix: a verdict exists for this exact tree and it granted nothing, because
+# it blocks. `granted_by` must still be "none". Without this, replacing one
+# constant with a different constant would pass the assertion below it.
+_rgrant() { ( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+              . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+              . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/classify.sh"
+              . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/receipt.sh"
+              felix_receipt "$RVP" HEAD~1 "$REPO" "$RVH" ) \
+            | sed -n 's/.*"granted_by": "\([^"]*\)".*/\1/p'; }
+is "a verdict that granted nothing names nothing" "$(_rgrant)" "none"
+
 ( . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
   felix_review_record "$RVH" "$RVP" "$TID" pass reviewer-1 "ran it against real content" )
 is "a passing verdict for this exact tree clears it" "$(_resc)" ""
+
+# #57, confirmed item 2. The receipt's `granted_by` was the string literal
+# "none", printed unconditionally at lib/receipt.sh:192, and the only assertion
+# on it compared that literal to "none" — a constant checked against itself.
+#
+# Meanwhile the `reviewed` channel genuinely grants authority, and it is the one
+# place in Felix where a model's output widens permission rather than narrowing
+# it (constitution invariant 2, the exception added 2026-08-12). A receipt that
+# reached `autonomous: true` because a verdict cleared a red doctrine surface was
+# byte-identical to one where nothing was granted. The only field in the wire
+# contract that exists to name the provenance of authority could never name any.
+is "the receipt names what granted the authority" "$(_rgrant)" "reviewed"
 
 # Independence cannot be checked. Isolation half can, and it is the half that
 # has actually gone wrong: a reviewer running pytest against the live tree while
@@ -3957,7 +3981,12 @@ case "$st" in verified) bad "and the receipt refuses to call that verified" "$st
 is "a staged workflow makes this the founder's call" "$(_rf "$r" authority.founder_required)" "true"
 is "and it is not autonomous"                        "$(_rf "$r" authority.autonomous)"      "false"
 has "naming the channel that escaped"                "$(_rf "$r" authority.escapes)"         "execute"
-is "and who granted it, which is nobody yet"         "$(_rf "$r" authority.granted_by)"      "none"
+# Was "which is nobody yet", and #57 named it a constant checked against itself:
+# granted_by was the literal "none", so this compared "none" to "none". With the
+# field computed it is a real negative control — an execute escape is not
+# clearable by review, so nothing granted here and the field must say so.
+is "and that nothing granted it, on a channel review cannot clear" \
+   "$(_rf "$r" authority.granted_by)" "none"
 
 # A base nothing can resolve must not read as "nothing changed". An empty list
 # and an unanswerable question are different facts, and the whole family of

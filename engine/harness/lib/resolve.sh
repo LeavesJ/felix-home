@@ -249,6 +249,51 @@ felix_base_resolves() {
   git -C "$root" rev-parse --verify "$base^{commit}" >/dev/null 2>&1
 }
 
+# The two refs to diff to see what MERGING this branch would change, or nothing
+# when that cannot be computed.
+#
+# `felix merge` squashes. A squash commit is not a descendant of the branch it
+# came from, so merging a branch's base does not advance
+# merge-base(base, branch) — it stays frozen at the commit before the base
+# merged, for the life of the branch. Three-dot is anchored to that merge-base,
+# so a stacked branch keeps being blamed for every path its base touched, even
+# though the base now holds those exact bytes. #51, observed on #50 stacked on
+# #49: a documentation change classified red by inheriting plugin.json, and a
+# docs-only branch escalated to the founder because the branch below it had
+# added a workflow.
+#
+# Neither two-dot nor three-dot is the answer, which is why this computes a
+# third thing. Three-dot blames the branch for what is already in the base.
+# Two-dot blames it for the base's INDEPENDENT progress — a file main gained
+# and the branch never had reads as a deletion, which fails open. The object
+# actually being judged is the tree a merge would produce, and `merge-tree`
+# computes exactly that without touching the working tree.
+#
+# Silent about failure on purpose, and every failure falls back to three-dot:
+#   - git older than 2.38 has no `--write-tree`
+#   - a conflicting merge exits non-zero, and its tree is not what would land
+#   - anything that does not look like an object id
+# Three-dot over-reports, so falling back is the safe direction — it can only
+# make the verdict stricter, never weaker. A narrower answer computed from a
+# failed merge would be the opposite.
+_felix_merge_refs() {
+  local root="$1" base="$2" mb tip tree
+  [ -n "$base" ] || return 1
+  mb="$(git -C "$root" merge-base "$base" HEAD 2>/dev/null)" || return 1
+  tip="$(git -C "$root" rev-parse "$base^{commit}" 2>/dev/null)" || return 1
+  [ -n "$mb" ] && [ -n "$tip" ] || return 1
+  # The base has not moved since this branch was cut, so three-dot already asks
+  # exactly the right question. Left alone rather than rerouted, because this is
+  # every ordinary branch and the fix is only for the case that differs.
+  [ "$mb" = "$tip" ] && return 1
+  tree="$(git -C "$root" merge-tree --write-tree "$base" HEAD 2>/dev/null)" || return 1
+  tree="$(printf '%s\n' "$tree" | head -1)"
+  case "$tree" in
+    ""|*[!0-9a-f]*) return 1 ;;
+  esac
+  printf '%s^{tree} %s' "$base" "$tree"
+}
+
 # Every path this branch touches, including what is staged but not committed.
 #
 # One function because there were four, and they drifted in the same direction.
@@ -268,9 +313,18 @@ felix_base_resolves() {
 #   --cached      staged, about to be committed
 #   (bare)        edited, not yet staged
 felix_changed_paths() {
-  local root="$1" base="${2:-}"
+  local root="$1" base="${2:-}" refs
   {
-    [ -n "$base" ] && git -C "$root" diff --name-only "$base...HEAD" 2>/dev/null
+    if [ -n "$base" ]; then
+      # What merging would change, when that is computable and differs from what
+      # was typed. See _felix_merge_refs. Unquoted on purpose: it prints two refs.
+      if refs="$(_felix_merge_refs "$root" "$base")"; then
+        # shellcheck disable=SC2086
+        git -C "$root" diff --name-only $refs 2>/dev/null
+      else
+        git -C "$root" diff --name-only "$base...HEAD" 2>/dev/null
+      fi
+    fi
     git -C "$root" diff --name-only --cached 2>/dev/null
     git -C "$root" diff --name-only 2>/dev/null
   } | grep -v '^$' | LC_ALL=C sort -u
@@ -283,9 +337,20 @@ felix_changed_paths() {
 # rule reading only `base...HEAD` names a staged file and then inspects the
 # version without the staged content in it.
 felix_added_lines() {
-  local root="$1" base="${2:-}"
+  local root="$1" base="${2:-}" refs
   {
-    [ -n "$base" ] && git -C "$root" diff "$base...HEAD" 2>/dev/null
+    if [ -n "$base" ]; then
+      # The same correction as felix_changed_paths, and for the same reason: a
+      # content rule reading three-dot on a stacked branch scans lines the base
+      # already merged, so a credential the branch below it added is reported
+      # against this one.
+      if refs="$(_felix_merge_refs "$root" "$base")"; then
+        # shellcheck disable=SC2086
+        git -C "$root" diff $refs 2>/dev/null
+      else
+        git -C "$root" diff "$base...HEAD" 2>/dev/null
+      fi
+    fi
     git -C "$root" diff --cached 2>/dev/null
     git -C "$root" diff 2>/dev/null
   } | grep '^+' | grep -v '^+++'

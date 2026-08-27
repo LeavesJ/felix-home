@@ -1574,8 +1574,38 @@ printf 'monthly-thing\t1\t1970-01-01\n' >> "$FROOT/projects/widget/maintenance.l
 out="$(cd "$REPO" && "$FELIX" maintenance 2>&1)"
 has "an ancient run counts as due again" "$out" "DUE     monthly-thing"
 
+# A second overdue routine, so the badge below is asserting a COUNT and not a
+# flag. With one due, "1 due" and "some due" are the same string and the
+# assertion cannot tell a working counter from a constant.
+printf 'weekly-thing\t1\t1970-01-01\n' >> "$FROOT/projects/widget/maintenance.log"
+
 out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
 has "the hook surfaces due maintenance" "$out" "Maintenance due"
+
+# #57, confirmed item 4. The founder's one-line badge appends "· N due", and N
+# counted ${MAINT:-} — a variable assigned NOWHERE in the engine. `grep -rn
+# '\bMAINT\b'` returns exactly one hit and it is that read. The value actually
+# holding the due list is `_due`, set ~95 lines above under a different name.
+#
+# So the count was always 0, the badge never appeared, and a founder with
+# overdue maintenance saw the same status line as one with none — on the only
+# surface Felix has to tell them. additionalContext reaches the model; this line
+# is the half a person reads.
+#
+# Asserted against what `felix maintenance` itself reports, rather than a fixed
+# number, so the two cannot drift apart and still both look right.
+_bl="$(printf '%s' "$out" | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("systemMessage",""))
+except Exception: print("")' 2>/dev/null)"
+_badge_n="$(printf '%s' "$_bl" | sed -n 's/.*· \([0-9][0-9]*\) due.*/\1/p')"
+_real_n="$(cd "$REPO" && "$FELIX" maintenance 2>&1 | grep -c '^  DUE ')"
+is "and the founder's one line says how many are due" "${_badge_n:-none}" "$_real_n"
+# The count is the point, not the word: a badge reading "1 due" when three are
+# overdue is the same defect wearing a number.
+[ "${_real_n:-0}" -ge 2 ] \
+  && ok "and that is more than one, so the count is doing work" \
+  || bad "and that is more than one, so the count is doing work" \
+         "only $_real_n due; the assertion above cannot tell a count from a flag"
 
 printf '\nadvisory recommendations\n'
 out="$(cd "$REPO" && "$FELIX" recommend 2>&1)"
@@ -2532,6 +2562,24 @@ if [ -f "$REALT" ]; then
       if (!found) printf "%s ", n
     }' "$REALT")"
   is "every route matches its own name" "$(printf '%s' "$selfmiss" | tr -d ' ')" ""
+fi
+
+# #57, confirmed item 3, and the same argument as the route check above: it is
+# checkable against the shipped table, so it is checked there.
+#
+# An evidence rule whose `requires` matches everything can only ever report
+# `met`. felix_evidence_check evaluates `requires` only after `when` has
+# matched, and `when` matching means the path list is non-empty — so a `requires`
+# of `.` is satisfied by the very paths that triggered the rule. The deploy row
+# was exactly that, on the one act that puts an engine into every session on the
+# machine.
+REALE="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/evidence.tsv"
+if [ -f "$REALE" ]; then
+  wild="$(awk -F'\t' '!/^#/ && NF>=3 && ($3=="." || $3==".*" || $3=="^.*$") {printf "%s ", $1}' "$REALE")"
+  is "no evidence rule requires a pattern that matches everything" \
+     "$(printf '%s' "$wild" | tr -d ' ')" ""
+else
+  skip "no evidence rule requires a pattern that matches everything" "no shipped table"
 fi
 
 # The log and the router had drifted apart, and only the log was ever read back.

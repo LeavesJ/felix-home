@@ -84,7 +84,14 @@ fi
 # One line, only when something is actually due.
 maint_line=""
 if [ -f "$PROJ/maintenance.tsv" ]; then
-  _due="$(felix_maint_status "$PROJ" 2>/dev/null | grep '^due' | cut -f2 | tr '\n' ' ')"
+  # Counted before the newlines are flattened. The badge below wants HOW MANY
+  # are due, and by the time this is one space-separated line `grep -c .` can
+  # only ever answer 1 — which is the same defect as the one being fixed,
+  # wearing a number instead of a zero.
+  _due_list="$(felix_maint_status "$PROJ" 2>/dev/null | grep '^due' | cut -f2)"
+  _due_n="$(printf '%s' "$_due_list" | grep -c . 2>/dev/null)"
+  case "$_due_n" in ''|*[!0-9]*) _due_n=0 ;; esac
+  _due="$(printf '%s' "$_due_list" | tr '\n' ' ')"
   _due="${_due% }"
   [ -n "$_due" ] && maint_line="
 Maintenance due: ${_due}
@@ -180,7 +187,13 @@ fi
 # grep -c prints its count and still exits 1 when it matched nothing, so an
 # `|| printf 0` fallback appends a second zero and the test below is handed
 # "0\n0" rather than a number.
-_felix_due="$(printf '%s' "${MAINT:-}" | grep -c . 2>/dev/null)"
+# $_due_n, not ${MAINT:-}. MAINT is assigned nowhere in this engine — one read,
+# no write — so this counted an empty string and the badge never appeared. A
+# founder with overdue maintenance saw the status line of one with none, on the
+# only surface Felix has to tell them (#57, confirmed item 4). The value has
+# been sitting ~95 lines above under a different name since the badge was
+# written.
+_felix_due="${_due_n:-0}"
 case "$_felix_due" in ''|*[!0-9]*) _felix_due=0 ;; esac
 _felix_line="Felix: $(basename "$PROJ")"
 [ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due"

@@ -153,6 +153,7 @@
 1	a session that changed nothing stops silently
 1	a skill is not looked up as a plugin
 1	a skill is recorded by which skill
+1	a stacked branch is not blamed for what its base already merged
 1	a staged row removal still escapes as verifier
 1	a staged source change owes its test
 1	a staged workflow escapes even with commits ahead
@@ -246,6 +247,7 @@
 1	an unresolvable base is not an empty changeset
 1	an unresolvable base is not an evidence all-clear
 1	an unresolvable base never labels a pr green
+1	an unstacked branch reports exactly what it changed
 1	an untested change blocks, naming the evidence owed
 1	an unverified change blocks completion
 1	an unverified tree blocks the merge
@@ -291,6 +293,7 @@
 1	and it holds against the shipped lessons file
 1	and it is Felix's own work
 1	and it is a tier, not the word
+1	and it is named
 1	and it is not autonomous
 1	and it merges nothing
 1	and it names the literal that went missing
@@ -301,6 +304,7 @@
 1	and it says what would actually reach it
 1	and it stops being due
 1	and it stops the streak rather than being skipped past
+1	and its base's workflow is not escalated as this branch's escape
 1	and its declines count as unchecked
 1	and keeps a never-invoked one at zero
 1	and keeps one Felix does not hold
@@ -466,6 +470,7 @@
 1	but a change that does touch it still is
 1	but a new one does get through
 1	but a real edit still blocks
+1	but a workflow this branch adds itself still escapes
 1	but admits it never read the changes
 1	but asking about a notification is a prompt
 1	but auto-merge is withheld on a gap
@@ -762,6 +767,7 @@
 1	the same file with an unconfined line escapes
 1	the same route does not repeat itself
 1	the shipped table considers every moment
+1	the squash leaves the merge-base behind main
 1	the step itself still counts as used
 1	the stub refuses a selectorless merge the way gh does
 1	the summary matches what was actually checked

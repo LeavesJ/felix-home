@@ -1216,6 +1216,72 @@ after="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
 is "an unverified tree is Felix's work, not an interruption" "$after" "$before"
 _reset
 
+printf '\nstacked on a squashed base\n'
+# #51. felix merge squashes, so merging a branch's base does NOT advance
+# merge-base(main, branch) — the squash commit is not a descendant of the branch.
+# Three-dot therefore keeps blaming the stacked branch for every path its base
+# touched, permanently, even though main now holds those exact bytes.
+#
+# Observed on #50 stacked on #49: a documentation change classified red because
+# it inherited engine/.claude-plugin/plugin.json from the branch below it.
+#
+# The fixture is the smallest thing that reproduces it, and the file the base
+# adds is a workflow on purpose: .github/workflows is the `execute` channel, so
+# the over-report is not only a wrong tier — it escalates a docs-only branch to
+# the founder as writing outside the tree.
+STK="$TMP/stacked"; mkdir -p "$STK"
+( cd "$STK" && git init -q -b main
+  git config user.email t@t; git config user.name t
+  printf 'base\n' > base.txt; git add -A; git commit -qm init
+  git checkout -q -b feat-a
+  mkdir -p .github/workflows; printf 'on: push\n' > .github/workflows/ci.yml
+  git add -A; git commit -qm "A: adds a workflow"
+  git checkout -q -b feat-b
+  printf 'notes\n' > NOTES.md; git add -A; git commit -qm "B: docs only"
+  # Squashed, exactly as felix merge does it. A plain merge would advance the
+  # merge-base and the bug would not exist.
+  git checkout -q main; git merge -q --squash feat-a; git commit -qm "A squashed (#1)"
+  git checkout -q feat-b ) >/dev/null 2>&1
+STK="$(cd "$STK" && pwd -P)"
+printf 'widget\n' > "$STK/.felix"
+
+# The premise, asserted rather than assumed: the merge-base really is frozen
+# behind main. If this stops being true the rest of the section proves nothing.
+is "the squash leaves the merge-base behind main" \
+   "$( cd "$STK" && [ "$(git merge-base main HEAD)" = "$(git rev-parse main)" ] && echo same || echo behind )" \
+   "behind"
+
+_stk_paths() { ( cd "$STK" && . "$FROOT/harness/lib/resolve.sh"
+                 felix_changed_paths "$STK" main ); }
+is "a stacked branch is not blamed for what its base already merged" \
+   "$(_stk_paths)" "NOTES.md"
+
+_stk_esc() { ( cd "$STK" && . "$FROOT/harness/lib/escape.sh"
+               felix_escapes "$FROOT/projects/widget" main "$STK" ); }
+case "$(_stk_esc)" in
+  *execute*) bad "and its base's workflow is not escalated as this branch's escape" "$(_stk_esc)" ;;
+  *)         ok  "and its base's workflow is not escalated as this branch's escape" ;;
+esac
+
+# The control that keeps this honest: the branch's OWN escape must still fire.
+# A fix that simply narrowed everything would pass both assertions above and
+# quietly stop enforcing.
+( cd "$STK" && mkdir -p .github/workflows && printf 'on: pull_request\n' > .github/workflows/own.yml
+  git add -A && git commit -qm "B: adds its own workflow" ) >/dev/null 2>&1
+has "but a workflow this branch adds itself still escapes" "$(_stk_esc)" "execute"
+has "and it is named"                                      "$(_stk_esc)" "own.yml"
+( cd "$STK" && git reset -q --hard HEAD~1 )
+
+# And an ordinary unstacked branch is untouched by any of this.
+UNS="$TMP/unstacked"; mkdir -p "$UNS"
+( cd "$UNS" && git init -q -b main
+  git config user.email t@t; git config user.name t
+  printf 'base\n' > base.txt; git add -A; git commit -qm init
+  git checkout -q -b feat; printf 'x\n' > src.txt; git add -A; git commit -qm work ) >/dev/null 2>&1
+UNS="$(cd "$UNS" && pwd -P)"
+is "an unstacked branch reports exactly what it changed" \
+   "$( cd "$UNS" && . "$FROOT/harness/lib/resolve.sh"; felix_changed_paths "$UNS" main )" "src.txt"
+
 printf '\nevidence policy\n'
 {
   printf 'unit\t^src/\t^tests?/\tcode changes need a test\n'

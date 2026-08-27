@@ -1216,6 +1216,78 @@ after="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
 is "an unverified tree is Felix's work, not an interruption" "$after" "$before"
 _reset
 
+printf '\na base ref that is behind its remote\n'
+# #74, and the sibling of the section below. There the base ref was current and
+# the merge-base was frozen; here the base REF itself is behind.
+#
+# Every command defaults to base="main", and `main` is a local ref. In a
+# worktree it is a SHARED local ref naming whatever the primary checkout last
+# pulled — and a worktree cannot check main out, so nothing in that workflow
+# ever advances it. Observed on this repository: local main sat three merges
+# behind origin/main while work continued in a worktree.
+#
+# It fails in BOTH directions, which is what separates it from the rest of the
+# family. Over-reporting is the #51 symptom by a second route. Under-reporting
+# is new and worse: an evidence rule can be satisfied by a file that is in the
+# diff only BECAUSE the base is stale, which is an all-clear nothing earned.
+STALE="$TMP/stalebase"; mkdir -p "$STALE"
+( cd "$STALE" && git init -q -b main
+  git config user.email t@t; git config user.name t
+  printf 'a\n' > a.txt; git add -A; git commit -qm one
+  # main stays at one. origin/main advances to two, as a fetch would leave it.
+  git checkout -q -b ahead
+  printf 'b\n' > b.txt; git add -A; git commit -qm two
+  git update-ref refs/remotes/origin/main HEAD
+  git checkout -q -b feat
+  printf 'c\n' > c.txt; git add -A; git commit -qm work
+  git branch -q -D ahead ) >/dev/null 2>&1
+STALE="$(cd "$STALE" && pwd -P)"
+
+is "the fixture really has a base ref behind its remote" \
+   "$( cd "$STALE" && [ "$(git rev-parse main)" = "$(git rev-parse origin/main)" ] && echo same || echo behind )" \
+   "behind"
+
+# felix_base_ref is what every command should resolve its base through.
+_bref() { ( cd "$STALE" && . "$FROOT/harness/lib/resolve.sh"
+            felix_base_ref "$STALE" "$1" 2>/dev/null || printf 'NONE' ); }
+is "a bare branch name prefers the remote-tracking ref" "$(_bref main)" "origin/main"
+# And only when that ref exists. A sha, a HEAD~n, or a purely local branch must
+# be taken exactly as given — rewriting those would invent a base nobody named.
+is "a revision expression is taken as given"  "$(_bref 'HEAD~1')" "HEAD~1"
+is "a local-only branch is taken as given"    "$(_bref feat)"     "feat"
+is "a base that names nothing is refused"     "$(_bref no-such)"  "NONE"
+
+_stale_paths() { ( cd "$STALE" && . "$FROOT/harness/lib/resolve.sh"
+                   felix_changed_paths "$STALE" "$(felix_base_ref "$STALE" main)" ); }
+is "so the branch is not blamed for what the remote already had" \
+   "$(_stale_paths)" "c.txt"
+
+# And the call sites, because the six assertions above pin the LIBRARY and #65
+# was a fix that every library assertion passed while the caller stayed broken.
+# A command that resolves nothing would satisfy all of them.
+printf 'widget\n' > "$STALE/.felix"
+_stale_cmd() { ( cd "$STALE" && "$FELIX" "$@" 2>&1 ); }
+
+# The reported base is the ref actually compared, not the name typed. Printing
+# `main` while diffing origin/main would be the same answer wearing a lie.
+has "classify names the ref it compared"  "$(_stale_cmd classify --base main)" "origin/main"
+# A second call site, because one proves the line and not the pattern. The
+# widget has no evidence table this early in the file, so this seeds a rule and
+# takes it away again rather than relying on one the later sections own.
+[ -f "$FROOT/projects/widget/evidence.tsv" ] && cp "$FROOT/projects/widget/evidence.tsv" "$TMP/ev.stale.keep"
+printf 'anything\t.\t^tests?/\tevery change needs a test\n' > "$FROOT/projects/widget/evidence.tsv"
+has "and evidence does too"               "$(_stale_cmd evidence --base main)" "origin/main"
+rm -f "$FROOT/projects/widget/evidence.tsv"
+[ -f "$TMP/ev.stale.keep" ] && mv "$TMP/ev.stale.keep" "$FROOT/projects/widget/evidence.tsv"
+# The payoff: b.txt belongs to the remote, not to this branch.
+case "$(_stale_cmd classify --base main)" in
+  *b.txt*) bad "and the remote's own file is not listed against the branch" \
+               "$(_stale_cmd classify --base main)" ;;
+  *)       ok  "and the remote's own file is not listed against the branch" ;;
+esac
+has "while the branch's own file still is" "$(_stale_cmd classify --base main)" "c.txt"
+rm -f "$STALE/.felix"
+
 printf '\nstacked on a squashed base\n'
 # #51. felix merge squashes, so merging a branch's base does NOT advance
 # merge-base(main, branch) — the squash commit is not a descendant of the branch.

@@ -873,20 +873,28 @@ cmd_pr() {
     esac
   done
 
-  local root branch body tier findings
+  local root branch body tier findings cbase
   root="$(felix_repo_root "$PWD")"
   branch="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)"
   [ "$branch" != "$base" ] || die "already on $base; make a branch before opening a pull request"
 
+  # Two bases, and they are genuinely different things. `$base` is the branch
+  # name the pull request will target, and gh needs exactly that — `origin/main`
+  # is not a branch anyone can open a request against. `$cbase` is the ref to
+  # COMPARE against, which is the remote-tracking one where it exists: `main` is
+  # a local ref a worktree can never advance, and comparing against a stale one
+  # reports a tier for a diff nobody is proposing (#74).
+  cbase="$(felix_base_ref "$root" "$base" 2>/dev/null || printf '%s' "$base")"
+
   [ -n "$title" ] || title="$(git -C "$root" log -1 --format=%s 2>/dev/null)"
-  body="$(felix_pr_body "$root" "$base")"
+  body="$(felix_pr_body "$root" "$cbase")"
   [ -n "$issue" ] && body="$body
 
 closes #$issue"
 
   # Two calls, exactly as cmd_classify does it: diff produces findings, tier
   # reduces them. felix_classify_tier takes the findings, not the paths.
-  findings="$(felix_classify_diff "$proj" "$base" "$root" 2>/dev/null)"
+  findings="$(felix_classify_diff "$proj" "$cbase" "$root" 2>/dev/null)"
   tier="$(felix_classify_tier "$findings" 2>/dev/null)"
 
   # `|| tier=green` was here, and it is the most expensive default in the file:
@@ -980,6 +988,13 @@ cmd_merge() {
       *) die "felix merge does not take '$1'. It merges the branch that is checked out, so check out the branch you mean." ;;
     esac
   done
+
+  # origin/<base> when it exists, and the name as given otherwise. `main` is a
+  # local ref a worktree can never advance, so it goes stale silently and the
+  # comparison is then against whatever the primary checkout last pulled (#74).
+  # Resolved here rather than inside the diff functions so every line this
+  # command prints names the ref it actually used.
+  base="$(felix_base_ref "$root" "$base" 2>/dev/null || printf '%s' "$base")"
 
   # Read before anything is verified, and read again immediately before the
   # merge. Every blocker below is a claim about one checkout, and the branch is
@@ -1131,6 +1146,12 @@ cmd_next() {
   local proj="$PROJ" root base="main" a
   root="$(felix_repo_root "$PWD")"
   for a in "$@"; do case "$a" in --base) shift; base="${1:-main}" ;; esac; done
+  # origin/<base> when it exists, and the name as given otherwise. `main` is a
+  # local ref a worktree can never advance, so it goes stale silently and the
+  # comparison is then against whatever the primary checkout last pulled (#74).
+  # Resolved here rather than inside the diff functions so every line this
+  # command prints names the ref it actually used.
+  base="$(felix_base_ref "$root" "$base" 2>/dev/null || printf '%s' "$base")"
 
   local rows; rows="$(felix_next "$proj" "$FELIX_HOME_DIR" "$root" "$base")"
   if [ -z "$rows" ]; then
@@ -2015,6 +2036,12 @@ cmd_receipt() {
     esac
   done
   local root; root="$(felix_repo_root "$PWD")"
+  # origin/<base> when it exists, and the name as given otherwise. `main` is a
+  # local ref a worktree can never advance, so it goes stale silently and the
+  # comparison is then against whatever the primary checkout last pulled (#74).
+  # Resolved here rather than inside the diff functions so every line this
+  # command prints names the ref it actually used.
+  base="$(felix_base_ref "$root" "$base" 2>/dev/null || printf '%s' "$base")"
   felix_receipt "$proj" "$base" "$root" "$FELIX_HOME_DIR"
 }
 
@@ -2030,6 +2057,12 @@ cmd_evidence() {
   [ -f "$proj/evidence.tsv" ] || die "project $(basename "$proj") declares no evidence.tsv"
   local root results gaps
   root="$(felix_repo_root "$PWD")"
+  # origin/<base> when it exists, and the name as given otherwise. `main` is a
+  # local ref a worktree can never advance, so it goes stale silently and the
+  # comparison is then against whatever the primary checkout last pulled (#74).
+  # Resolved here rather than inside the diff functions so every line this
+  # command prints names the ref it actually used.
+  base="$(felix_base_ref "$root" "$base" 2>/dev/null || printf '%s' "$base")"
   results="$(felix_evidence_check "$proj" "$base" "$root")"
   [ -n "$results" ] || { printf 'No evidence rules declared.\n'; return 0; }
 
@@ -2281,6 +2314,12 @@ cmd_classify() {
   [ -f "$proj/risk.tsv" ] || die "project $(basename "$proj") declares no risk.tsv"
   local root findings tier
   root="$(felix_repo_root "$PWD")"
+  # origin/<base> when it exists, and the name as given otherwise. `main` is a
+  # local ref a worktree can never advance, so it goes stale silently and the
+  # comparison is then against whatever the primary checkout last pulled (#74).
+  # Resolved here rather than inside the diff functions so every line this
+  # command prints names the ref it actually used.
+  base="$(felix_base_ref "$root" "$base" 2>/dev/null || printf '%s' "$base")"
   findings="$(felix_classify_diff "$proj" "$base" "$root")"
 
   if [ -z "$findings" ]; then

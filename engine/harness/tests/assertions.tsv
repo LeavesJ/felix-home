@@ -8,9 +8,11 @@
 1	PreToolUse is bound for NotebookEdit
 1	PreToolUse is bound for Read
 1	PreToolUse is bound for Write
+1	a bare branch name prefers the remote-tracking ref
 1	a bare plugin step is used when one of its skills ran
 1	a bare repo has nothing to adopt
 1	a base that does not resolve is unknown, not clean
+1	a base that names nothing is refused
 1	a base that resolves still classifies normally
 1	a base that resolves still names the channel
 1	a block from the live tree is still recorded
@@ -69,6 +71,7 @@
 1	a later copy of the field in the envelope is not the subject
 1	a ledger from before the column reports nothing at all
 1	a ledger written as one file is still read
+1	a local-only branch is taken as given
 1	a lookalike gate is reported
 1	a low-risk candidate is declared
 1	a malformed row is skipped, others still deny
@@ -135,6 +138,7 @@
 1	a red rule still wins
 1	a red run breaks the streak
 1	a repo copy of a file Felix holds is reported
+1	a revision expression is taken as given
 1	a rollup rewrites no file another session wrote
 1	a route from what you typed is recorded as such
 1	a route naming an unreachable tool is ranked
@@ -277,6 +281,7 @@
 1	and does not nag about ancient history
 1	and does not name a channel it never got to consult
 1	and every line is a whole row
+1	and evidence does too
 2	and exits 0
 2	and exits 0 there
 1	and exits 0 there too
@@ -434,6 +439,7 @@
 1	and the play this project already chose
 1	and the receipt refuses to call that verified
 1	and the record names the channel
+1	and the remote's own file is not listed against the branch
 1	and the repository is back to where it started
 1	and the rest of the file is untouched
 1	and the reviewed one is cleared by it
@@ -491,6 +497,7 @@
 1	catches credential sample 3
 1	ceiling defaults to 3
 1	ceiling is overridable
+1	classify names the ref it compared
 1	clean once it is gone
 1	clean project reports no drift
 1	code with no test is a gap
@@ -707,6 +714,7 @@
 1	silent when the gate has caught nothing
 1	skills only is low
 1	skips runbooks for absent capabilities
+1	so the branch is not blamed for what the remote already had
 1	so the session count is the number of sessions
 1	speaks when a catch went unexplained
 1	spending is counted
@@ -734,6 +742,7 @@
 1	the execute channel stops this merge
 1	the fixture is left as it was found
 1	the fixture puts the catch after the lesson
+1	the fixture really has a base ref behind its remote
 1	the founder's item is not buried
 1	the handoff carries no file comments
 1	the hook announces what it adopted
@@ -797,6 +806,7 @@
 1	what no route named is not a compliance figure
 1	while a tool that ran keeps its calls
 1	while others stay due
+1	while the branch's own file still is
 1	while the path around it does not
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused

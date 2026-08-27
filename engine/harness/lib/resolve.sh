@@ -249,6 +249,41 @@ felix_base_resolves() {
   git -C "$root" rev-parse --verify "$base^{commit}" >/dev/null 2>&1
 }
 
+# The ref a base NAME should actually be compared against.
+#
+# Every command defaults to `main`, and `main` is a local ref. In a worktree it
+# is a SHARED local ref naming whatever the primary checkout last pulled — and a
+# worktree cannot check `main` out, so nothing in that workflow ever advances
+# it. Observed on this repository: local main three merges behind origin/main
+# while the work continued in a worktree (#74).
+#
+# It is also the ref that matters least. `felix merge` merges through
+# `gh pr merge`, so what a branch actually lands on is the REMOTE branch. The
+# local one is a cache of it that this workflow never refreshes.
+#
+# The same correction felix_kernel_dir already makes, in the same shape and for
+# the same reason — its comment records that hard-coding a branch name was
+# "green on a laptop that says main and red on a runner that says master".
+#
+# Only a name whose remote-tracking ref exists is redirected. A sha, a `HEAD~1`,
+# a tag, or a branch that lives only here is taken exactly as given: rewriting
+# those would invent a base nobody named. `origin/HEAD~1` does not resolve, so
+# the loop falls through on its own rather than needing a rule about syntax.
+#
+# No fetch, ever. The enforcing path has to work with no network, so this is as
+# current as the last fetch and never more. That is a real limit and it is still
+# strictly better than a ref the worktree workflow cannot advance at all.
+felix_base_ref() {
+  local root="${1:-}" base="${2:-}" ref
+  [ -n "$root" ] && [ -n "$base" ] || return 1
+  for ref in "origin/$base" "$base"; do
+    if git -C "$root" rev-parse --verify "$ref^{commit}" >/dev/null 2>&1; then
+      printf '%s' "$ref"; return 0
+    fi
+  done
+  return 1
+}
+
 # The two refs to diff to see what MERGING this branch would change, or nothing
 # when that cannot be computed.
 #

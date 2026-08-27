@@ -150,9 +150,32 @@ felix_receipt() {
 
   # ---- authority. Carried here because no transport carries it, and refused
   # rather than assumed: anything unread means this cannot be called autonomous.
-  local esc="" founder="false" autonomous="true"
+  local esc="" founder="false" autonomous="true" granted="none"
   if [ "$base_ok" -eq 1 ]; then
     esc="$(felix_escapes "$proj" "$base" "$root" "$home" 2>/dev/null || true)"
+    # What granted the authority, computed rather than asserted. `granted_by`
+    # was the string literal "none" and no code path ever produced anything
+    # else, while the `reviewed` channel genuinely grants — it is the one place
+    # in Felix where a model's output widens permission rather than narrowing it
+    # (constitution invariant 2, the exception added 2026-08-12). So a receipt
+    # that reached autonomous:true because a verdict cleared a red doctrine
+    # surface was byte-identical to one where nothing was granted, and the only
+    # field in the contract that exists to name that could never name it (#57).
+    #
+    # Computed by asking the same question twice rather than by re-implementing
+    # the table loop. felix_escapes uses `home` for exactly one thing — the
+    # review lookup — so passing an empty home yields the escape set as it would
+    # be if no verdict existed. If the two differ, a verdict removed something,
+    # and that difference IS the grant.
+    #
+    # So this says a review changed the outcome, not merely that one exists. A
+    # passing verdict that cleared nothing is still "none", which is the honest
+    # answer: nothing was granted.
+    if [ -n "$home" ]; then
+      local esc_ungranted
+      esc_ungranted="$(felix_escapes "$proj" "$base" "$root" "" 2>/dev/null || true)"
+      [ "$esc" = "$esc_ungranted" ] || granted="reviewed"
+    fi
   fi
   if [ -n "$esc" ] || [ "$tier" = "red" ] || [ -n "$unknown" ]; then
     founder="true"; autonomous="false"
@@ -189,8 +212,8 @@ felix_receipt() {
   printf '  "evidence": {"met": %s, "gap": %s},\n' \
          "$(printf '%s\n' "$ev" | awk -F'\t' '$1=="met"{print $2}' | _felix_rcpt_arr)" \
          "$(printf '%s\n' "$gaps" | _felix_rcpt_arr)"
-  printf '  "authority": {"autonomous": %s, "founder_required": %s, "granted_by": "none", "escapes": %s},\n' \
-         "$autonomous" "$founder" \
+  printf '  "authority": {"autonomous": %s, "founder_required": %s, "granted_by": "%s", "escapes": %s},\n' \
+         "$autonomous" "$founder" "$granted" \
          "$(printf '%s\n' "$esc" | _felix_rcpt_rows channel path reason)"
   printf '  "confidence": {"evidence_quality": "%s"}\n' "$quality"
   printf '}\n'

@@ -31,7 +31,16 @@ while IFS= read -r f; do
 done <<EOF
 $(git ls-files 'engine/harness/*' 'projects/*/*.sh' | grep -vE '\.(json|tsv|md|ya?ml|html|css|txt)$')
 EOF
-[ -z "$BAD" ] && pass syntax || { fail syntax; printf '    %s\n' $BAD; }
+# Reported on its own line, and that is load-bearing rather than stylistic. The
+# `verifier` confine on this file counts lines matching `^[[:space:]]*(pass|fail|check) `,
+# so a report written mid-line after `&&` is not counted and the whole check
+# could be deleted without the count dropping — no escape, on the file whose
+# reason column reads "a gate that cannot fail is not a gate" (#77).
+if [ -z "$BAD" ]; then
+  pass syntax
+else
+  fail syntax; printf '    %s\n' $BAD
+fi
 
 # ------------------------------------------------------------- executable ----
 # A hook or a tool that lost its executable bit fails at the worst moment, in
@@ -48,7 +57,11 @@ for f in engine/harness/felix engine/harness/tests/run engine/harness/bin/secret
   [ -e "$f" ] || continue
   [ -x "$f" ] || NOX="$NOX $f"
 done
-[ -z "$NOX" ] && pass executable || { fail executable; printf '    %s\n' $NOX; }
+if [ -z "$NOX" ]; then
+  pass executable
+else
+  fail executable; printf '    %s\n' $NOX
+fi
 
 # Moved above `tests` on 2026-08-13. This check had failed 8 times, every one of
 # them discovered after a full suite run, because the loop is edit -> gate ->
@@ -126,8 +139,18 @@ fi
 
 # ------------------------------------------------------------- secret --------
 if [ -x engine/harness/bin/secret-scan ]; then
-  if OUT="$(engine/harness/bin/secret-scan 2>&1)"; then pass secret
-  else fail secret; printf '%s\n' "$OUT" | head -8 | sed 's/^/    /'; fi
+  if OUT="$(engine/harness/bin/secret-scan 2>&1)"; then
+    pass secret
+  else
+    fail secret; printf '%s\n' "$OUT" | head -8 | sed 's/^/    /'
+  fi
+else
+  # Announced, not silent. This branch did not exist: a missing or non-executable
+  # scanner printed NOTHING — no pass, no FAIL, no skip — so the gate's only
+  # credential check could vanish and the report looked complete. The other two
+  # skippable checks both say so, and this now matches them (#77, found while
+  # fixing the confine that failed to cover this check).
+  printf '  %-18s skipped (no secret-scan here)\n' secret
 fi
 
 # ------------------------------------------------------------- independence --

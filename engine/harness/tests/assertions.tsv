@@ -33,6 +33,7 @@
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
 1	a credential in added lines escapes as disclose
+1	a declared skill with no directory cannot be used
 1	a decline resting on nothing checkable is still ok
 1	a decline whose premise died is caught
 1	a decline whose premise still holds is ok
@@ -55,6 +56,7 @@
 1	a fresh cache is not stale
 1	a frontend prompt routes to frontend
 1	a full-length sha nothing holds is unknown too
+1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
 1	a governed product merges with no installed engine at all
 1	a green gate does not clear an escape
@@ -118,6 +120,7 @@
 1	a plain tool is recorded by name
 1	a plan declaring no files yields nothing
 1	a plugin cache is never treated as home
+1	a plugin that cannot be checked is not a clean bill
 1	a project with no declared gate is left alone
 1	a prompt with no session id records no ledger state
 1	a prompt with no signal says nothing
@@ -170,6 +173,7 @@
 1	a table with no holds column still works
 1	a task notification is not a prompt
 1	a term recurring across entries surfaces
+1	a tool absent from the manifest is not a clean bill
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
 1	a typed intent is not labelled a guess
@@ -276,7 +280,9 @@
 1	and briefs the file it names
 1	and changes when the tree changes
 1	and claims nothing about surfaces it never compared
+1	and claims nothing was unchecked
 1	and creates nothing without --create
+1	and deleting the syntax check escapes as verifier
 1	and does not ask for a lesson that already exists
 1	and does not blame a checkout that did not move
 1	and does not nag about ancient history
@@ -301,6 +307,7 @@
 1	and it is a tier, not the word
 1	and it is named
 1	and it is not autonomous
+1	and it is reported as unusable, not unchecked
 1	and it merges nothing
 1	and it names the literal that went missing
 1	and it names the tree that can, not a fault
@@ -353,6 +360,7 @@
 1	and nothing is merged
 1	and nothing is merged when it lands there
 1	and nothing matching scores nil
+1	and nothing unusable
 1	and nothing was written to the real felix home pointer
 1	and one in a double-backtick span
 1	and one named once carries one
@@ -402,6 +410,7 @@
 1	and says which rule
 1	and says which variable it sends
 5	and says why
+1	and says why it could not be
 1	and says why it refused
 1	and says why it was left alone
 1	and says why the gate is not enough
@@ -423,10 +432,12 @@
 1	and strips a line range
 1	and survives a regeneration that was given none
 1	and that is more than one, so the count is doing work
+1	and that is not a clean bill either
 1	and that nothing granted it, on a channel review cannot clear
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
 1	and the cause is the prompt, not the envelope
+1	and the clean sentence is withheld
 1	and the comment survives
 1	and the domain it speaks for
 1	and the earlier verdict is not replaced by it
@@ -601,6 +612,7 @@
 1	names the suspect commit
 1	naming the branch's commit
 1	naming the channel that escaped
+1	naming the gate it was removed from
 1	naming which check failed
 1	never proposes retiring something that was used
 1	never retires what no route ever named
@@ -740,6 +752,7 @@
 1	the bump fixture has an identical judge, so the guard can fire
 1	the cause is not the raw payload
 1	the data marker is substituted
+1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
 1	the fixture is left as it was found
 1	the fixture puts the catch after the lesson
@@ -750,13 +763,16 @@
 1	the hook routes on the first prompt
 1	the hook says what must be read first
 1	the hook surfaces due maintenance
+1	the independence check is behind the verifier confine
 1	the injected checkout actually moved the branch
+1	the installed check is behind the verifier confine
 1	the judge is found on whatever branch is being merged into
 1	the judge is the version main declares
 1	the ledger is durable state in the project
 1	the log is durable state in the project
 1	the main checkout knows its own storage is not a rival
 1	the marketplace is added from the directory holding its manifest
+1	the memory check is behind the verifier confine
 1	the model still gets the whole thing
 1	the page carries the speech
 1	the page still closes exactly one script
@@ -780,13 +796,16 @@
 1	the route is there when both apply
 1	the same file with an unconfined line escapes
 1	the same route does not repeat itself
+1	the secret check is behind the verifier confine
 1	the shipped table considers every moment
 1	the squash leaves the merge-base behind main
 1	the step itself still counts as used
 1	the stub refuses a selectorless merge the way gh does
-1	the summary matches what was actually checked
+1	the syntax check is behind the verifier confine
 1	the table resolves to its repo-relative path
+1	the tests check is behind the verifier confine
 1	the widget's table is exactly as this section found it
+1	the widget's tables are as this block found them
 1	the workflow invokes felix
 1	the working tree alone can route
 1	their declared gate runs and passes

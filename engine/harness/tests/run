@@ -975,6 +975,54 @@ is "rewriting assertions without losing any escapes nothing" "$(_esc)" ""
 _reset; _reset
 cp "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv"
 
+# #77 item 2, against the SHIPPED gate and the SHIPPED confine rather than a
+# stand-in, because the defect is a property of that exact file's shape.
+#
+# The confine is anchored to line start. Three of the gate's seven checks report
+# mid-line — `[ -z "$BAD" ] && pass syntax || {...}`, the same for executable,
+# and `; then pass secret` / `else fail secret` — so they can be deleted whole
+# without the count dropping. Measured: the count is 9 before, and 9 after
+# `sed 34d` removes the entire syntax report. The reason column on that row
+# reads "a gate that cannot fail is not a gate".
+#
+# A `check <name>` marker line would NOT fix this, which is why it is not what
+# landed. It detects deleting a whole check block and leaves the marker standing
+# when only the reporting line goes — the smaller and more deniable weakening,
+# and the exact shape the issue describes.
+REAL_GATE="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
+if [ -f "$REAL_GATE" ]; then
+  cp "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv"
+  printf 'yellow\tpath\t^projects/[^/]+/gate\\.sh$\ta gate that cannot fail is not a gate\tverifier\tcount:^[[:space:]]*(pass|fail|check) \n' \
+    >> "$FROOT/projects/widget/risk.tsv"
+  mkdir -p "$REPO/projects/thing"
+  cp "$REAL_GATE" "$REPO/projects/thing/gate.sh"; _stage
+
+  # Every check the gate reports must be behind the confine. Named individually
+  # so a failure says WHICH one slipped out rather than that a number moved.
+  for _c in syntax executable installed tests secret independence memory; do
+    _n_before="$(grep -cE '^[[:space:]]*(pass|fail|check) ' "$REPO/projects/thing/gate.sh")"
+    grep -vE "^[[:space:]]*(pass|fail) $_c\$" "$REPO/projects/thing/gate.sh" \
+      | grep -vE "^[[:space:]]*(pass|fail) $_c;" > "$TMP/gt" && mv "$TMP/gt" "$REPO/projects/thing/gate.sh"
+    _n_after="$(grep -cE '^[[:space:]]*(pass|fail|check) ' "$REPO/projects/thing/gate.sh")"
+    [ "$_n_after" -lt "$_n_before" ] \
+      && ok "the $_c check is behind the verifier confine" \
+      || bad "the $_c check is behind the verifier confine" \
+             "removing its report left the count at $_n_after"
+    cp "$REAL_GATE" "$REPO/projects/thing/gate.sh"
+  done
+
+  # And end to end: deleting one must actually fire the channel, not merely move
+  # a number. This is the assertion #77 asks for by name.
+  grep -v 'pass syntax' "$REPO/projects/thing/gate.sh" | grep -v 'fail syntax' > "$TMP/gt" \
+    && mv "$TMP/gt" "$REPO/projects/thing/gate.sh"; _stage
+  has "and deleting the syntax check escapes as verifier" "$(_esc)" "verifier"
+  has "naming the gate it was removed from" "$(_esc)" "projects/thing/gate.sh"
+  _reset; _reset
+  cp "$TMP/risk.keep" "$FROOT/projects/widget/risk.tsv"
+else
+  skip "the syntax check is behind the verifier confine" "no shipped gate"
+fi
+
 # A row with no channel is advisory. Every table written before this column
 # existed is exactly that, and must keep classifying without ever stopping a
 # merge on its own.
@@ -4650,12 +4698,80 @@ case "$out" in
   *"widget-only-skill"*"not installed"*) bad "a skill is not looked up as a plugin" "$out" ;;
   *) ok "a skill is not looked up as a plugin" ;;
 esac
-# Reporting a clean bill when nothing could be checked is the failure this
-# project keeps re-finding.
-case "$out" in
-  *"could not be checked"*|*"cannot be used"*|*"switched on."*) ok "the summary matches what was actually checked" ;;
-  *) bad "the summary matches what was actually checked" "$out" ;;
+# #77 item 1. This was one `case` accepting `could not be checked` OR `cannot be
+# used` OR `switched on.` — and those three exhaust every summary cmd_ready can
+# print, so it was true by construction. Deleting the entire `unknown` block
+# from cmd_ready left it green.
+#
+# It survived for a specific reason worth recording: the widget fixture declares
+# `widget-only-skill` whose directory is never created, so `bad` is at least 1
+# on every machine, `cannot be used` is always in the output, and the assertion
+# matched through that branch no matter what the unknown block did.
+#
+# So the fix is not a better pattern over the same output. It is constructing
+# each state deliberately and pinning the summary that belongs to it — and
+# asserting the summaries that must NOT appear, which is the half that makes it
+# falsifiable. All three states are reachable with no claude CLI, which is what
+# lets this run on CI.
+_RDH="$TMP/readyhome"; _RDP="$FROOT/projects/widget"
+cp "$_RDP/routes.tsv" "$TMP/rd.routes.keep"; cp "$_RDP/stack.tsv" "$TMP/rd.stack.keep"
+_ready_state() {  # $1 = a PATH to run with
+  ( cd "$REPO" && HOME="$_RDH" PATH="$1" "$FELIX" ready 2>&1 )
+}
+_NOCLI="/usr/bin:/bin"
+
+# clean — every named tool declared, and its skill directory present.
+mkdir -p "$_RDH/.claude/skills/present-skill"
+printf 'skill\tpresent-skill\t-\tlow\talways\n' > "$_RDP/stack.tsv"
+printf 'preflight\tpreflightword\tfrontend\tpresent-skill\n' > "$_RDP/routes.tsv"
+_rd="$(_ready_state "$_NOCLI")"
+has "a fully declared, present inventory reads clean" "$_rd" "switched on."
+case "$_rd" in
+  *"could not be checked"*) bad "and claims nothing was unchecked" "$_rd" ;;
+  *)                        ok  "and claims nothing was unchecked" ;;
 esac
+case "$_rd" in
+  *"cannot be used"*) bad "and nothing unusable" "$_rd" ;;
+  *)                  ok  "and nothing unusable" ;;
+esac
+
+# unknown, via `undeclared` — a route names a tool no manifest declares.
+printf 'preflight\tpreflightword\tfrontend\tpresent-skill nowhere-declared\n' > "$_RDP/routes.tsv"
+_rd="$(_ready_state "$_NOCLI")"
+has "a tool absent from the manifest is not a clean bill" "$_rd" "could not be checked"
+case "$_rd" in
+  *"switched on."*) bad "and the clean sentence is withheld" "$_rd" ;;
+  *)                ok  "and the clean sentence is withheld" ;;
+esac
+
+# unknown, via `unknown` — a PLUGIN row with no claude CLI to check it against.
+# A separate fixture from the one above on purpose: narrowing cmd_ready's
+# counter from `^(unknown|undeclared)` to `^(unknown)` is invisible to the
+# undeclared case and only this one catches it.
+printf 'plugin\tsome-plugin\t-\tlow\talways\n' > "$_RDP/stack.tsv"
+printf 'preflight\tpreflightword\tfrontend\tsome-plugin\n' > "$_RDP/routes.tsv"
+_rd="$(_ready_state "$_NOCLI")"
+has "a plugin that cannot be checked is not a clean bill" "$_rd" "could not be checked"
+has "and says why it could not be"                       "$_rd" "no claude CLI"
+
+# bad — a declared skill whose directory is not there.
+printf 'skill\tmissing-skill\t-\tlow\talways\n' > "$_RDP/stack.tsv"
+printf 'preflight\tpreflightword\tfrontend\tmissing-skill\n' > "$_RDP/routes.tsv"
+_rd="$(_ready_state "$_NOCLI")"
+has "a declared skill with no directory cannot be used" "$_rd" "cannot be used"
+case "$_rd" in
+  *"switched on."*) bad "and that is not a clean bill either" "$_rd" ;;
+  *)                ok  "and that is not a clean bill either" ;;
+esac
+case "$_rd" in
+  *"could not be checked"*) bad "and it is reported as unusable, not unchecked" "$_rd" ;;
+  *)                        ok  "and it is reported as unusable, not unchecked" ;;
+esac
+
+cp "$TMP/rd.routes.keep" "$_RDP/routes.tsv"; cp "$TMP/rd.stack.keep" "$_RDP/stack.tsv"
+is "the widget's tables are as this block found them" \
+   "$(diff -q "$TMP/rd.routes.keep" "$_RDP/routes.tsv" >/dev/null \
+      && diff -q "$TMP/rd.stack.keep" "$_RDP/stack.tsv" >/dev/null && echo same)" "same"
 # Felix has to know the whole inventory, not just its own list. A table naming
 # one plugin five times while thirty others sit idle is a habit, not a router.
 # This section also guards a bash-3.2 trap: a `case` pattern's closing paren

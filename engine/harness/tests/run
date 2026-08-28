@@ -4768,6 +4768,39 @@ case "$_rd" in
   *)                        ok  "and it is reported as unusable, not unchecked" ;;
 esac
 
+# #80. `felix ready --fix` had no return after its repair loop, so its status was
+# the trailing printf's — 0, whatever happened. A run where every repair failed
+# exited exactly like one that fixed everything, and the per-row prose that
+# distinguishes them is aggregated by no summary line, so there was nothing for a
+# caller or a test to pin. Same species as the two defects #77 closed: a report
+# whose failing state is indistinguishable from its passing one.
+#
+# Safe to give it a real status: nothing in the tree consumes this exit code.
+# The only place that runs the command is this file, and it captures output
+# rather than rc.
+_RDB="$TMP/readyfixbin"; mkdir -p "$_RDB"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$_RDB/claude"; chmod +x "$_RDB/claude"
+printf 'skill\tmissing-skill\t-\tlow\talways\n' > "$_RDP/stack.tsv"
+printf 'preflight\tpreflightword\tfrontend\tmissing-skill\n' > "$_RDP/routes.tsv"
+
+_fixout="$( cd "$REPO" && HOME="$_RDH" PATH="$_RDB:$_NOCLI" "$FELIX" ready --fix 2>&1 )"; _fixrc=$?
+has "a repair that failed says so" "$_fixout" "FAILED"
+[ "$_fixrc" -ne 0 ] && ok "and --fix does not exit 0 when every repair failed" \
+                    || bad "and --fix does not exit 0 when every repair failed" \
+                           "exit $_fixrc after: $_fixout"
+# The count, not just the word, so a run that repaired some and failed others is
+# still distinguishable from one that repaired everything.
+has "and says how many are still unusable" "$_fixout" "still cannot be used"
+
+# Refused-on-risk is not repaired either. It is the case most likely to be read
+# as success, because nothing failed — Felix simply declined to act.
+printf 'skill\tmissing-skill\t-\thigh\talways\n' > "$_RDP/stack.tsv"
+_refout="$( cd "$REPO" && HOME="$_RDH" PATH="$_RDB:$_NOCLI" "$FELIX" ready --fix 2>&1 )"; _refrc=$?
+has "a refusal on risk is reported"  "$_refout" "refused"
+[ "$_refrc" -ne 0 ] && ok "and a refusal is not a successful repair" \
+                    || bad "and a refusal is not a successful repair" \
+                           "exit $_refrc after: $_refout"
+
 cp "$TMP/rd.routes.keep" "$_RDP/routes.tsv"; cp "$TMP/rd.stack.keep" "$_RDP/stack.tsv"
 is "the widget's tables are as this block found them" \
    "$(diff -q "$TMP/rd.routes.keep" "$_RDP/routes.tsv" >/dev/null \

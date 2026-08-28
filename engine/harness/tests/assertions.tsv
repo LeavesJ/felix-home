@@ -140,6 +140,8 @@
 1	a red row naming no channel stops nothing
 1	a red rule still wins
 1	a red run breaks the streak
+1	a refusal on risk is reported
+1	a repair that failed says so
 1	a repo copy of a file Felix holds is reported
 1	a revision expression is taken as given
 1	a rollup rewrites no file another session wrote
@@ -263,6 +265,7 @@
 1	an unverified tree is Felix's work, not an interruption
 1	an unverified tree is the first thing to do
 1	an unwritable state directory still exits 0
+1	and --fix does not exit 0 when every repair failed
 1	and a backticked path naming nothing is still not invented
 1	and a declined one is ok too
 1	and a document that is not a plan
@@ -270,6 +273,7 @@
 1	and a live one says when it was last caught
 1	and a real one still routes
 1	and a red run at the head means zero
+1	and a refusal is not a successful repair
 1	and a repository with no main resolves to nothing
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
@@ -387,6 +391,7 @@
 1	and reports no severity for it
 1	and reports nothing for one it does not have
 1	and reports what is left
+1	and says how many are still unusable
 1	and says it cannot be scoped
 1	and says it must be fixed before the next session
 1	and says not to fix it unattended

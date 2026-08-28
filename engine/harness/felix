@@ -1742,7 +1742,10 @@ cmd_ready() {
 
   command -v claude >/dev/null 2>&1 || die "felix ready --fix needs the claude CLI"
   printf 'fixing\n'
-  local st name detail owner risk
+  # Counted, because the loop's per-row prose is the only place the outcome
+  # appeared and no summary aggregated it. The heredoc below keeps this loop in
+  # the current shell, so these survive it; a pipe would not (#80).
+  local st name detail owner risk repaired=0 unrepaired=0
   while IFS=$'\t' read -r st name detail; do
     [ -n "${st:-}" ] || continue
     case "$name" in *:*) owner="${name%%:*}" ;; *) owner="$name" ;; esac
@@ -1750,9 +1753,9 @@ cmd_ready() {
     case "$st" in
       disabled)
         if claude plugin enable "$detail" >/dev/null 2>&1 || claude plugin enable "$owner" >/dev/null 2>&1; then
-          printf '  enabled    %s\n' "$name"
+          printf '  enabled    %s\n' "$name"; repaired=$((repaired + 1))
         else
-          printf '  FAILED     %s (enable by hand)\n' "$name"
+          printf '  FAILED     %s (enable by hand)\n' "$name"; unrepaired=$((unrepaired + 1))
         fi ;;
       absent)
         # Same bound as felix stack apply, for the same reason: high risk means
@@ -1760,12 +1763,15 @@ cmd_ready() {
         # no flag anywhere should mount one of those unattended.
         if _felix_risk_is_auto "${risk:-high}"; then
           if claude plugin install "$owner" --scope user >/dev/null 2>&1; then
-            printf '  installed  %s\n' "$name"
+            printf '  installed  %s\n' "$name"; repaired=$((repaired + 1))
           else
-            printf '  FAILED     %s (install by hand)\n' "$name"
+            printf '  FAILED     %s (install by hand)\n' "$name"; unrepaired=$((unrepaired + 1))
           fi
         else
+          # Refused counts as unrepaired. Nothing failed, Felix simply declined
+          # to act — which is the outcome most likely to be read as success.
           printf '  refused    %-24s risk: %s, a person installs this\n' "$name" "${risk:-high}"
+          unrepaired=$((unrepaired + 1))
         fi ;;
     esac
   done <<EOF
@@ -1773,6 +1779,16 @@ $(printf '%s\n' "$rows" | grep -E '^(disabled|absent)')
 EOF
   printf '\nRe-run felix ready to confirm. Anything newly enabled applies to the\n'
   printf 'NEXT session, not this one.\n'
+
+  # There was no return here at all, so the status was the printf above: 0,
+  # whatever happened. A run where every repair failed exited exactly like one
+  # that fixed everything. Said in words as well as in the status, because the
+  # per-row lines are the only other place this appeared and nobody totals them.
+  if [ "$unrepaired" -gt 0 ]; then
+    printf '\n%s still cannot be used; %s repaired.\n' "$unrepaired" "$repaired"
+    return 1
+  fi
+  return 0
 }
 
 cmd_monitor() {

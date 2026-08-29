@@ -125,6 +125,7 @@
 1	a prompt with no session id records no ledger state
 1	a prompt with no signal says nothing
 1	a real capability left undeclared is not an error
+1	a real uncommitted edit still speaks
 1	a real word rises
 1	a receipt for another tree still blocks
 1	a receipt missing an input is indeterminate, never verified
@@ -260,6 +261,7 @@
 1	an unresolvable base never labels a pr green
 1	an unstacked branch reports exactly what it changed
 1	an untested change blocks, naming the evidence owed
+1	an untouched clean tree stays silent
 1	an unverified change blocks completion
 1	an unverified tree blocks the merge
 1	an unverified tree is Felix's work, not an interruption
@@ -492,6 +494,7 @@
 1	brief reads an issue from stdin
 1	brief refuses outside a governed repo
 1	briefs which tasks are one unit
+1	but Felix's own bookkeeping is not the subagent's work
 1	but a change that does touch it still is
 1	but a new one does get through
 1	but a real edit still blocks
@@ -759,6 +762,7 @@
 1	the data marker is substituted
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
+1	the fixture is dirty only in Felix's own bookkeeping
 1	the fixture is left as it was found
 1	the fixture puts the catch after the lesson
 1	the fixture really has a base ref behind its remote
@@ -844,4 +848,5 @@
 1	with the newlines escaped, not lost
 1	without --strict it only reports
 1	without opting in, nothing is touched
+1	work the subagent committed is still checked
 1	writes a zero row for a declared tool nobody reached for

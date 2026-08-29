@@ -131,6 +131,7 @@
 1	a receipt missing an input is indeterminate, never verified
 1	a receipt survives being written inside the tree it describes
 1	a record from before the session column still reads
+1	a record that could not be written does not exit 0
 1	a recorded session that committed nothing is still silent
 1	a recurrence that already has a lesson is different
 1	a recurrence that stopped recurring is not still ranked
@@ -193,6 +194,7 @@
 1	a word shared with a field name still counts
 1	a workflow change escapes as execute
 1	a worktree engine cannot
+1	a writable project still records
 1	a write rule denies a write
 1	adding a Dockerfile surfaces deploy
 1	adding a key to json escapes nothing
@@ -293,6 +295,7 @@
 1	and does not blame a checkout that did not move
 1	and does not nag about ancient history
 1	and does not name a channel it never got to consult
+1	and does not say it recorded
 1	and every line is a whole row
 1	and evidence does too
 2	and exits 0
@@ -367,6 +370,7 @@
 1	and nothing is merged when it lands there
 1	and nothing matching scores nil
 1	and nothing unusable
+1	and nothing was written
 1	and nothing was written to the real felix home pointer
 1	and one in a double-backtick span
 1	and one named once carries one
@@ -400,6 +404,7 @@
 1	and says nothing about it afterwards
 1	and says nothing below the session threshold
 1	and says nothing was installed
+1	and says so
 1	and says so before the detail
 1	and says so plainly when none does
 1	and says so rather than implying I did
@@ -557,6 +562,7 @@
 1	felix merge refuses on an escape
 1	felix new exits 0
 1	felix_autonomy_allows is defined for the hook
+1	felix_budget_record itself reports the failure
 1	felix_classify_diff reports unknown, not empty
 1	felix_contains survives a large haystack under pipefail
 1	felix_evidence_check reports unknown, not n/a
@@ -641,6 +647,7 @@
 1	nor filler the router already discards
 1	nor is a system reminder
 1	nor is one from both
+1	nor report a spend that did not happen
 1	nor the all-caps sentinel
 1	nor the stop hook talking to itself
 1	nothing is allowed by default
@@ -778,6 +785,7 @@
 1	the judge is found on whatever branch is being merged into
 1	the judge is the version main declares
 1	the ledger is durable state in the project
+1	the log holds exactly one entry
 1	the log is durable state in the project
 1	the main checkout knows its own storage is not a rival
 1	the marketplace is added from the directory holding its manifest
@@ -834,6 +842,7 @@
 1	what a miss records is what was typed
 1	what it kept is what it sent
 1	what no route named is not a compliance figure
+1	which is the number it printed
 1	while a tool that ran keeps its calls
 1	while others stay due
 1	while the branch's own file still is

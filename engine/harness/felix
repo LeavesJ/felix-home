@@ -2194,8 +2194,20 @@ cmd_budget() {
       printf 'night, and the ceiling worth having fails between runs, not during one.\n' >&2
       return 3
     fi
-    felix_budget_record "$proj" "$why"
-    printf 'recorded. %s of %s used in the last 24h\n' "$((used + 1))" "$limit"
+    # Checked, and distinct from exhaustion. Exit 3 means the ceiling refused
+    # this run; exit 4 means the ceiling could not be KEPT, which is worse and
+    # was previously reported as success.
+    if ! felix_budget_record "$proj" "$why"; then
+      printf 'could not record the spend: %s/budget.log was not written.\n' "$proj" >&2
+      printf 'Refusing to start. An unrecorded run is an unbounded one - the next\n' >&2
+      printf 'read sees the same count, so the ceiling never binds and never says so.\n' >&2
+      return 4
+    fi
+    # Re-read rather than `$((used + 1))`. The old arithmetic was computed
+    # before the write and reported a spend whether or not one happened, which
+    # is how a failed append announced itself as `recorded.` This number now
+    # comes from the ledger, so it can only say what the ledger holds.
+    printf 'recorded. %s of %s used in the last 24h\n' "$(felix_budget_used "$proj")" "$limit"
     return 0
   fi
 

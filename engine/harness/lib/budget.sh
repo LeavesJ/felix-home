@@ -37,6 +37,19 @@ felix_budget_used() {
   printf '%s' "$n"
 }
 
+# The status of this function is load-bearing and must stay that way.
+#
+# A failed redirection already makes the command non-zero, in a function as much
+# as at top level, so this reports a failed write correctly and always has. The
+# defect #84 names was never here: cmd_budget DISCARDED the status and then
+# printed a count it had worked out in advance. Worth being exact about, because
+# "the append is unchecked" was the diagnosis and it was wrong about which line.
+#
+# What that means for anyone editing this: the status is carried by the last
+# command, so appending anything after the redirection - a log line, a chmod, a
+# `true` - silently makes this function always succeed, and the ceiling goes
+# back to not binding. There is no assertion that can see such an edit coming;
+# the one in the suite pins the behaviour, not the shape.
 felix_budget_record() {
   local proj="$1" why="${2:-unattended run}" now
   now="$(date +%s)"

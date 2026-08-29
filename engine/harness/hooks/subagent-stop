@@ -36,17 +36,37 @@ PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 ROOT="$(felix_repo_root "$PWD" 2>/dev/null)"
 git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
+SID="$(printf '%s' "$raw" \
+  | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+
 # Nothing changed in this checkout: there is no claim to qualify, so say
 # nothing. This is the common case for a reader or a reviewer.
-[ -n "$(git -C "$ROOT" status --porcelain 2>/dev/null)" ] || exit 0
+#
+# Asked with the same two helpers `stop` uses, because this was a raw
+# `git status --porcelain` and that is wrong in BOTH directions (#83).
+#
+# It under-fired: a subagent that COMMITS its work leaves a clean tree, and
+# committing is what you do at the end — so the whole check was skipped exactly
+# when it mattered. stop diagnosed and fixed that for itself and the fix was
+# never carried across; felix_session_committed is what makes "this session
+# changed something" answerable separately from "the tree is dirty now".
+#
+# And it over-fired: raw status counts Felix's own bookkeeping, which
+# felix_tree_dirty excludes deliberately — a session that appended one line to a
+# log has not changed the work, and demanding a gate run for having recorded
+# that a gate ran is the tail chasing itself.
+#
+# Unknown counts as unchanged, as it does in stop: no session id, no mark, no
+# git, and the hook keeps its old silence rather than starting to speak about
+# trees it knows nothing about.
+if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR"; then
+  felix_session_committed "$FELIX_HOME_DIR" "${SID:-}" "$ROOT" || exit 0
+fi
 
 TID="$(felix_tree_id "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)" || exit 0
 receipt="$(felix_verify_receipt "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)"
 [ "$(printf '%s' "$receipt" | cut -f1)" = "$TID" ] \
   && [ "$(printf '%s' "$receipt" | cut -f2)" = "green" ] && exit 0
-
-SID="$(printf '%s' "$raw" \
-  | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
 
 body="This subagent changed files in the checkout and the gate has not passed on
 the result. That may be entirely fine — the work may be partial, or for somebody

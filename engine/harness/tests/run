@@ -2447,6 +2447,89 @@ out="$(cd "$SELF" && FELIX_HOME="$SELF" printf '%s' "$EMPTY_JSON" \
         | FELIX_HOME="$SELF" "$SELF/harness/hooks/stop" 2>&1)"
 _blocks "but a real edit still blocks" "$out"
 
+printf '\nthe same gate, for a subagent\n'
+# #83. subagent-stop had NO assertions at all — a risk-red hook that runs in
+# every session of every governed project, with nothing holding it. That is why
+# both halves of this went unnoticed.
+#
+# It asks the same question `stop` asks and answers it with a raw
+# `git status --porcelain`, where stop uses two helpers written precisely
+# because that raw test is wrong in both directions. stop's own comment records
+# the diagnosis: "A clean tree used to end the hook here, which meant committing
+# your work skipped the completion check entirely — and committing is what you
+# do at the end." The fix was never carried across.
+SUBSTOP="$FROOT/harness/hooks/subagent-stop"
+SUB_SID="sub-session-1"
+SUB_JSON="{\"hook_event_name\":\"SubagentStop\",\"session_id\":\"$SUB_SID\"}"
+_sub() { ( cd "$1" && FELIX_HOME="$2" printf '%s' "$SUB_JSON" \
+           | FELIX_HOME="$2" "$SUBSTOP" 2>&1 ); }
+_sub_speaks() { case "$1" in *"changed files in the checkout"*) return 0 ;; *) return 1 ;; esac; }
+
+SUBR="$TMP/subrepo"; mkdir -p "$SUBR"
+( cd "$SUBR" && git init -q -b main
+  printf 'widget\n' > .felix
+  printf 'contents\n' > WIDGET.txt
+  printf 'x\n' > code.txt
+  git add -A; git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
+SUBR="$(cd "$SUBR" && pwd -P)"
+
+# Baseline: a clean tree this session did not touch. Silence is correct, and
+# this is the case the raw test got right — kept so a fix cannot buy the two
+# below by simply speaking always.
+out="$(_sub "$SUBR" "$FROOT")"
+_sub_speaks "$out" && bad "an untouched clean tree stays silent" "$out" \
+                   || ok  "an untouched clean tree stays silent"
+
+# UNDER-FIRES. The subagent commits its work, which is what you do at the end,
+# so the tree is clean and the hook said nothing about an unverified result.
+( cd "$SUBR" && printf 'the subagent work\n' >> code.txt
+  git add -A; git -c user.name=t -c user.email=t@t commit -qm "subagent work" ) >/dev/null 2>&1
+# The mark the user-prompt hook writes at the start of a session, which is what
+# makes "this session committed something" answerable at all.
+( . "$FROOT/harness/lib/verify.sh"
+  felix_session_mark "$FROOT" "$SUB_SID" "$SUBR" ) >/dev/null 2>&1
+( cd "$SUBR" && printf 'more\n' >> code.txt
+  git add -A; git -c user.name=t -c user.email=t@t commit -qm "more work" ) >/dev/null 2>&1
+out="$(_sub "$SUBR" "$FROOT")"
+_sub_speaks "$out" && ok  "work the subagent committed is still checked" \
+                   || bad "work the subagent committed is still checked" "$out"
+
+# OVER-FIRES, the other direction and the same root cause. Only Felix's own
+# bookkeeping changed. felix_tree_dirty excludes it deliberately — "a session
+# that appended one line to a log has not changed the work" — and the raw
+# status test does not.
+#
+# Run against the SELF fixture, not the one above, and that is the whole point
+# of the case rather than a detail: _felix_tree_excludes returns nothing unless
+# the home sits inside the tree being judged. A governed product has its home
+# elsewhere and nothing to exclude; Felix governing itself is the layout where
+# the exclusion exists and therefore the only layout where ignoring it shows.
+# My first attempt used a home with no projects/ at all, so the hook exited on
+# an unresolved project and the assertion passed for the wrong reason.
+# Committed but deliberately NOT gated. With a green receipt both hooks exit at
+# the receipt check and the difference is invisible: felix_tree_id excludes
+# bookkeeping too, so appending a log line leaves the receipt valid. The
+# over-fire is only reachable on an UNVERIFIED tree, which is exactly the state
+# the hook exists to speak about.
+( cd "$SELF" && git add -A && git -c user.name=t -c user.email=t@t commit -qm settle ) >/dev/null 2>&1
+mkdir -p "$SELF/state"; printf 'a log line\n' >> "$SELF/state/keep.log"
+is "the fixture is dirty only in Felix's own bookkeeping" \
+   "$( cd "$SELF" && . "$SELF/harness/lib/verify.sh"
+       felix_tree_dirty "$SELF" "$SELF" && echo dirty || echo clean )" "clean"
+out="$( cd "$SELF" && FELIX_HOME="$SELF" printf '%s' "$SUB_JSON" \
+        | FELIX_HOME="$SELF" "$SELF/harness/hooks/subagent-stop" 2>&1 )"
+_sub_speaks "$out" && bad "but Felix's own bookkeeping is not the subagent's work" "$out" \
+                   || ok  "but Felix's own bookkeeping is not the subagent's work"
+rm -rf "$SELF/state"
+
+# And a real uncommitted edit still speaks, which is the behaviour that already
+# worked and must survive the fix.
+( cd "$SUBR" && printf 'uncommitted real work\n' >> code.txt )
+out="$(_sub "$SUBR" "$FROOT")"
+_sub_speaks "$out" && ok  "a real uncommitted edit still speaks" \
+                   || bad "a real uncommitted edit still speaks" "$out"
+( cd "$SUBR" && git checkout -q -- code.txt )
+
 printf '\nthe intent router\n'
 # Say what you are doing and get the right kit, without naming it. The chain is
 # routes.tsv -> profiles.tsv -> stack.tsv, and only the first link is new.

@@ -2099,6 +2099,79 @@ done
 is "and none reports a spend past the ceiling as recorded" "$_overclaim" "0"
 rm -f "$FROOT/projects/widget/budget.log"
 
+printf '\nunattended readiness\n'
+# #87. Two of the five readiness rows were printf constants. This is the report
+# a person reads when deciding whether to switch on a loop that invokes a model
+# unattended, and `felix unattended` says outright that Felix will not flip that
+# switch for them - so the rows have to be true.
+#
+# `scope bound` was fully literal, mark and text both, so it stayed checked for a
+# project that declares no red path at all - i.e. exactly when nothing is out of
+# scope and the bound it names does not exist.
+#
+# `budget ceiling` is a subtler case and the fix is different. Its [x] was not
+# wrong about what it said - a ceiling IS configured, and felix_budget_limit can
+# never return "none" - but readiness means the bound HOLDS, and in CI it does
+# not: the ledger lives in a checkout made fresh every run (#84). Felix cannot
+# determine that mechanically, so the honest mark is neither [x] nor [ ].
+UNB="$TMP/unattgh"; mkdir -p "$UNB"
+cat > "$UNB/gh" <<'STUB'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "variable list") ;;
+  "secret list")   printf 'ANTHROPIC_API_KEY\n' ;;
+  "run list")      printf '0\n' ;;
+esac
+exit 0
+STUB
+chmod +x "$UNB/gh"
+# The fixture has no origin at this point and cmd_unattended dies without one -
+# which made two of these assertions pass on the error text rather than on the
+# behaviour. Added here and removed at the end of the block.
+( cd "$REPO" && git remote add origin https://github.com/example/widget.git ) 2>/dev/null
+_unatt() { ( cd "$REPO" && PATH="$UNB:$PATH" "$FELIX" unattended 2>&1 ); }
+# Asserted, not assumed: if the command still cannot run, everything below is
+# testing an error message.
+has "the readiness report runs at all" "$(_unatt)" "repo:"
+
+cp "$FROOT/projects/widget/risk.tsv" "$TMP/risk.unatt.keep" 2>/dev/null || : > "$TMP/risk.unatt.keep"
+
+# A table that declares red paths: the bound exists and the row may say so.
+{ printf '# tier\tkind\tpattern\treason\n'
+  printf 'red\tpath\t^secrets/\tsecret material\n'
+} > "$FROOT/projects/widget/risk.tsv"
+# The ROW, not the whole report. A glob like *"[x]"*"scope bound"* matches
+# because `[x] api key` appears earlier in the output, so it was true whatever
+# the scope row said.
+_row() { printf '%s\n' "$1" | grep -F "$2" | head -1; }
+out="$(_unatt)"
+has "a project with red paths reports the scope bound" "$(_row "$out" 'scope bound')" "[x]"
+
+# A table with no red path at all: nothing is refused, so nothing is bound.
+{ printf '# tier\tkind\tpattern\treason\n'
+  printf 'green\tpath\t^docs/\tprose\n'
+} > "$FROOT/projects/widget/risk.tsv"
+out="$(_unatt)"
+case "$(_row "$out" 'scope bound')" in
+  *"[x]"*) bad "and a project with none does not claim it" "$(_row "$out" 'scope bound')" ;;
+  *)       ok  "and a project with none does not claim it" ;;
+esac
+has "saying what is missing" "$out" "no red path"
+
+# The budget row must not read as a satisfied precondition, because whether the
+# ceiling survives where the loop runs is not something this can check.
+case "$(_row "$out" 'budget ceiling')" in
+  *"[x]"*) bad "the budget row is not reported as satisfied" "$(_row "$out" 'budget ceiling')" ;;
+  *)       ok  "the budget row is not reported as satisfied" ;;
+esac
+has "and is marked unknown rather than unmet" "$(_row "$out" 'budget ceiling')" "[?]"
+# And it reads the ledger rather than only the configured number, so the row
+# says what has been spent and not merely what was declared.
+has "and reports what has been spent" "$out" "spent"
+
+cp "$TMP/risk.unatt.keep" "$FROOT/projects/widget/risk.tsv"
+( cd "$REPO" && git remote remove origin ) 2>/dev/null
+
 printf '\ngenerated CI points at a path that exists\n'
 # Moving the engine broke every generated workflow at once, in other
 # repositories, where this suite never looks. Felix's own gate stayed green

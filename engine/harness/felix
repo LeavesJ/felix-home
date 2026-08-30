@@ -2152,8 +2152,36 @@ cmd_unattended() {
   printf '  %s %-26s %s run(s), %s errored\n' \
     "$([ "${dry:-0}" -gt 0 ] && [ "${dryfail:-0}" -eq 0 ] && printf '[x]' || printf '[ ]')" \
     "guards exercised" "${dry:-0}" "${dryfail:-0}"
-  printf '  [x] %-26s %s per 24h\n' "budget ceiling" "$(felix_budget_limit "$proj")"
-  printf '  [x] %-26s %s\n' "scope bound" "red paths refused before the log is read"
+  # Both of these were printf constants, and this is the report somebody reads
+  # while deciding whether to switch on a loop that invokes a model unattended
+  # (#87). A checklist that manufactures the evidence for its own switch-on is
+  # worse than one that says nothing.
+  #
+  # The ceiling gets `[?]`, not `[x]` or `[ ]`, and the third mark is the point.
+  # Its old `[x]` was not wrong about what it SAID - a ceiling is configured,
+  # and felix_budget_limit can never return "none" - but readiness means the
+  # bound HOLDS, and where the loop actually runs it does not: the ledger sits
+  # in a checkout made fresh every run, so the count restarts at zero (#84).
+  # Felix cannot determine that mechanically - the deciding fact is whether the
+  # filesystem is ephemeral, which neither git nor bash can answer - so marking
+  # it either way would be a claim it has not earned. It reads the ledger now
+  # rather than only the configured number, so at least the figure is a reading.
+  printf '  [?] %-26s %s per 24h, %s spent here; does it survive a fresh checkout\n' \
+    "budget ceiling" "$(felix_budget_limit "$proj")" "$(felix_budget_used "$proj")"
+
+  # And the scope bound is computed from the table that would do the refusing.
+  # Literal, it stayed checked for a project declaring no red path at all -
+  # which is exactly the case where nothing is out of scope and the bound it
+  # names does not exist.
+  local redrules=0
+  [ -f "$proj/risk.tsv" ] && redrules="$(grep -cE '^red[[:space:]]+path[[:space:]]' "$proj/risk.tsv" 2>/dev/null || printf 0)"
+  case "$redrules" in ''|*[!0-9]*) redrules=0 ;; esac
+  if [ "$redrules" -gt 0 ]; then
+    printf '  [x] %-26s %s red path rule(s), refused before the log is read\n' \
+      "scope bound" "$redrules"
+  else
+    printf '  [ ] %-26s no red path declared; nothing is out of scope\n' "scope bound"
+  fi
 
   printf '\n'
   if [ "${switch:-0}" -gt 0 ]; then
@@ -2162,6 +2190,9 @@ cmd_unattended() {
   fi
 
   printf 'Felix will not turn this on for you, and the reason is not caution.\n\n'
+  printf '[?] is not [x]. The ceiling is configured and it binds on this disk;\n'
+  printf 'whether it binds where the loop runs depends on the ledger surviving a\n'
+  printf 'fresh checkout, and that is not a fact Felix can read. See issue #84.\n\n'
   printf 'Auto-merge can unlock itself because what it unlocks is bounded and its\n'
   printf 'worst case is a revert. This is not that. And the evidence that would\n'
   printf 'justify it cannot be gathered without spending it: every dry run stops\n'

@@ -122,6 +122,7 @@
 1	a plugin cache is never treated as home
 1	a plugin that cannot be checked is not a clean bill
 1	a project with no declared gate is left alone
+1	a project with red paths reports the scope bound
 1	a prompt with no session id records no ledger state
 1	a prompt with no signal says nothing
 1	a real capability left undeclared is not an error
@@ -275,6 +276,7 @@
 1	and a document that is not a plan
 1	and a high one is refused
 1	and a live one says when it was last caught
+1	and a project with none does not claim it
 1	and a real one still routes
 1	and a red run at the head means zero
 1	and a refusal is not a successful repair
@@ -310,6 +312,7 @@
 1	and hands it a pull request to merge
 1	and ignores the path so it cannot come back
 1	and is left exactly as it was
+1	and is marked unknown rather than unmet
 1	and is not a routing gap either; it is unknown
 1	and is silent when there is none
 1	and it holds against the shipped lessons file
@@ -398,6 +401,7 @@
 1	and reports a clear merge without performing one
 1	and reports no severity for it
 1	and reports nothing for one it does not have
+1	and reports what has been spent
 1	and reports what is left
 1	and says how many are still unusable
 1	and says it cannot be scoped
@@ -721,6 +725,7 @@
 1	runs that all passed are clean
 1	runs with a failure are dirty
 1	saying so plainly
+1	saying what is missing
 1	saying why
 1	saying why it kept it
 1	says so plainly when nothing matches
@@ -769,6 +774,7 @@
 1	the always-applicable part is shown
 1	the best capability wins
 1	the brief names the file the issue names
+1	the budget row is not reported as satisfied
 1	the bump fixture has an identical judge, so the guard can fire
 1	the cause is not the raw payload
 1	the data marker is substituted
@@ -808,6 +814,7 @@
 1	the pre-flight runs clean under bash
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
+1	the readiness report runs at all
 1	the receipt names what granted the authority
 1	the registry says where the engine is served from
 1	the removed file still exists somewhere

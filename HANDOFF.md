@@ -79,12 +79,23 @@ what the morning inherits.
 
 | | |
 |---|---|
-| head | `main` at the docs merge carrying this section; before it, **`0eca5ec`** (#103), CI `gate` **success** |
-| deployed engine | **0.49.27**, byte-identical to `main` — verified end-to-end against the cache, not the tree |
-| suite | **904 assertions**, from 888 |
+| head | `main` at the docs merge carrying this section; the night then continued — **#105** and **#106** merged after it, CI `gate` **success** on every one |
+| deployed engine | **0.49.29**, byte-identical to `main` — verified end-to-end against the cache, not the tree |
+| suite | **922 assertions**, from 888 |
 | governed projects | three — felix, elenchus, veldra — all committed |
-| open issues | 12 — #97, #98, #100 closed by #103 |
+| open issues | **9** — #97, #98, #100 closed by #103; #102 by #105; #82 by #106 |
 | open PRs | none at close |
+
+**Postscript, same night.** After this section first merged, two more backlog
+fixes went through the full drill: **#105** (a flag is not a positional —
+`felix adopt --help` had declared a capability named `--help`, created a
+`setup.tsv` whose presence flips `felix setup` to "Nothing outstanding.", and
+minted a memory root; the reverse-test replayed the incident inside the suite,
+where the old code corrupted the fixture and seven unrelated assertions failed
+downstream) and **#106** (#82 — `installed` compared `harness/` alone, so a
+`hooks.json` that never deployed certified as ok; demonstrated live against a
+scratch cache, old gate ok / new gate FAIL, then fixed at both install sites
+and in the gate's own inline copy). Numbers above are post-postscript.
 
 **Start here: `docs/2026-08-30-advisory-redesign.md`.** The redesign memo, with
 three yes/no decisions at the end. Everything below is the evidence trail.

@@ -59,12 +59,17 @@ felix_toolbox_skills() {
 # capability neither has.
 #
 # The description comes from the plugin's own manifest rather than a listing,
+# the skills come from the directory it actually ships — what a thing ships is
+# a manifest fact, and the strongest one there is (Decision C, 2026-08-30) —
 # and the threshold is discovery's, so "worth reporting" and "worth installing"
 # stay the same bar until somebody deliberately makes them different.
 felix_toolbox_capability() {
-  local name="$1" rules="$2" dir="${3:-}" desc="" hit
-  [ -n "$dir" ] && desc="$(felix_plugin_description "$dir")"
-  hit="$(felix_capability_match "$name" "$desc" "$rules")"
+  local name="$1" rules="$2" dir="${3:-}" desc="" skills="" hit
+  if [ -n "$dir" ]; then
+    desc="$(felix_plugin_description "$dir")"
+    skills="$(felix_toolbox_skills "$dir")"
+  fi
+  hit="$(felix_capability_match "$name" "$desc" "$rules" "$skills")"
   [ "$(printf '%s' "$hit" | cut -f1)" -ge "${FELIX_DISCOVER_MIN:-3}" ] 2>/dev/null || return 0
   printf '%s' "$(printf '%s' "$hit" | cut -f2)"
 }

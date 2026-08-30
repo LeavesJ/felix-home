@@ -121,6 +121,29 @@ Mounted every session and never once reached for: ${_retire}
 That is the only unconfounded signal here. See 'felix ledger'."
 fi
 
+# What the record proposes changing about what is mounted (Decision C step 3,
+# 2026-08-30). A session boundary is the only place a mount decision can land —
+# mounting binds at session start — so it is the one place this may speak, and
+# one line is the whole rendering. The command holds the evidence. Reads only
+# the ledger files and stack.tsv; nothing here waits on a health check.
+#
+# Unseen only, then marked, the way discovery findings are. A proposal shown
+# and left unacted is an answer — a host-provided server nobody should declare
+# would otherwise be proposed at every session start forever, and a signal that
+# repeats becomes wallpaper. The full set stays in 'felix stack reconcile'.
+reconcile_line=""
+if [ -f "$_mem/ledger.tsv" ] || [ -d "$_mem/ledger.d" ]; then
+  _rec="$(felix_stack_reconcile_unseen "$PROJ" "$FELIX_HOME_DIR" 2>/dev/null \
+          | awk -F'\t' '{ print $1 ":" $2 }' | tr '\n' ' ')"
+  _rec="${_rec% }"
+  if [ -n "$_rec" ]; then
+    reconcile_line="
+The record proposes changing what is mounted: ${_rec}
+Evidence in 'felix stack reconcile'. Nothing moves without a person."
+    felix_stack_reconcile_mark_seen "$PROJ" "$FELIX_HOME_DIR" 2>/dev/null
+  fi
+fi
+
 # Named, not merely stored. A governed project's constitution lives in Felix's
 # home rather than the repository, so nothing auto-loads it: inside Felix itself
 # that is masked, because the file happens to sit in the tree being edited, and
@@ -139,7 +162,7 @@ Project: ${project}
 Constitution: ${PROJ}/CLAUDE.md
 ${gate_line}
 Memory: ${_mem}/
-${drift_line}${maint_line}${tidy_line}${retire_line}
+${drift_line}${maint_line}${tidy_line}${retire_line}${reconcile_line}
 
 ${read_lines}
 

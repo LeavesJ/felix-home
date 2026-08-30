@@ -20,6 +20,7 @@
 #   felix recommend      what this stack implies; --want "<text>" matches intent
 #   felix stack plan     diff declared tooling against what is installed
 #   felix stack apply --yes   install the low and medium risk gap
+#   felix stack reconcile     what the record proposes mounting or unmounting
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix scope [paths]  may an unattended agent touch these? exit 3 if not
@@ -181,7 +182,7 @@ specific project, language, or toolchain.
     felix toolbox --route  wire the ones that have somewhere to go
     felix discover         what is worth having that this project does not have
     felix discover --adopt declare and install the low-risk ones it has read
-    felix stack [plan|apply] install what this project declares
+    felix stack [plan|apply|reconcile] install what this project declares; reconcile reads the record
     felix adopt <cap>      declare a capability and everything it implies
     felix profile [name]   which tools a task profile mounts
     felix quarantine <p>   switch off a plugin that is breaking sessions
@@ -1615,15 +1616,19 @@ EOF
       if [ -n "$url" ] && felix_discover_fetch "$url" "$sha" "$scratchq/$name"; then
         facts="$(felix_discover_inspect "$scratchq/$name" "$sub")"
         tier="$(felix_discover_risk "$facts")"
-        # Re-scored against what the plugin says about itself, now that a copy
-        # is on disk. The catalogue blurb is written to be chosen from; the
-        # manifest is written to describe, and scoring the blurb is how a
-        # tracing plugin and an inference provider were both filed under the
-        # capability of whichever project happened to be looking.
-        local own; own="$(felix_plugin_description "$scratchq/$name/${sub:-.}")"
-        if [ -n "$own" ]; then
+        # Re-scored against what the plugin says about itself and what it
+        # actually ships, now that a copy is on disk. The catalogue blurb is
+        # written to be chosen from; the manifest is written to describe, and
+        # scoring the blurb is how a tracing plugin and an inference provider
+        # were both filed under the capability of whichever project happened
+        # to be looking. The skills come out of the same inspect read that
+        # scored the risk (Decision C, 2026-08-30).
+        local own skl
+        own="$(felix_plugin_description "$scratchq/$name/${sub:-.}")"
+        skl="$(printf '%s\n' "$facts" | awk -F'\t' '$1 == "skill" { print $2 }')"
+        if [ -n "$own" ] || [ -n "$skl" ]; then
           local rehit; rehit="$(felix_capability_match "$name" "$own" \
-            "$(_felix_discover_rules "$tpl" "$proj")")"
+            "$(_felix_discover_rules "$tpl" "$proj")" "$skl")"
           if [ "$(printf '%s' "$rehit" | cut -f1)" -ge "${FELIX_DISCOVER_MIN:-3}" ]; then
             cap="$(printf '%s' "$rehit" | cut -f2)"
           else
@@ -1891,6 +1896,53 @@ cmd_stack() {
   resolve_or_die; local proj="$PROJ" sub="${1:-plan}" yes=0
   shift || true
   for a in "$@"; do [ "$a" = "--yes" ] && yes=1; done
+
+  # The record, read in the one direction plan/apply cannot: what the sessions
+  # actually reached for and what the plays actually named, against what the
+  # manifest declares. Proposals only — mounting binds at session start, so
+  # anything acted on lands next session, and a person does the acting.
+  # Answers before the stack.tsv guard below on purpose: a project that never
+  # declared a stack still has a record worth reading, and every ledger row is
+  # evidence whether or not a manifest exists.
+  if [ "$sub" = "reconcile" ]; then
+    local props mem; props="$(felix_stack_reconcile "$proj")"
+    if [ -z "$props" ]; then
+      # An empty answer has two honest readings and only one of them is
+      # agreement. With no ledger at all there is no record to agree with,
+      # and saying "the record and the manifest agree" would be the
+      # passes-by-finding-nothing shape this project keeps paying for.
+      mem="$(felix_mem_dir "$proj")"
+      if [ ! -f "$mem/ledger.tsv" ] && [ ! -d "$mem/ledger.d" ]; then
+        printf 'No record yet for %s. The reconciler reads the ledger, and no\n' "$(basename "$proj")"
+        printf 'session has written one; nothing can be proposed or ruled out.\n'
+        return 0
+      fi
+      printf 'The record proposes no change to what is mounted for %s.\n' "$(basename "$proj")"
+      printf '\nA mount is proposed only from evidence a session left — an MCP server\n'
+      printf 'reached with no row declaring it — and an unmount only from a declared\n'
+      printf 'row pointed at and never reached across %s or more sessions.\n' "${FELIX_LEDGER_MIN:-5}"
+      printf 'Silence means the record and the manifest agree.\n'
+      return 0
+    fi
+    printf 'reconcile for %s\n\n' "$(basename "$proj")"
+    printf '  %-9s %-24s %s\n' ACTION NAME EVIDENCE
+    printf '%s\n' "$props" | while IFS=$'\t' read -r act nm ev; do
+      [ -n "${act:-}" ] || continue
+      printf '  %-9s %-24s %s\n' "$act" "$nm" "$ev"
+    done
+    printf '\nProposals only. Nothing was installed, removed, or written.\n\n'
+    printf 'A mount is a row to add to %s/stack.tsv — mcp, the name, a source,\n' "$proj"
+    printf 'a risk a person judges — then felix stack apply --yes installs it. An\n'
+    printf 'unmount is that row deleted, and claude mcp remove <name> unmounts the\n'
+    printf 'server itself. Mounting binds at session start, so either change lands\n'
+    printf 'next session, not this one.\n\n'
+    printf 'The record cannot tell a server you mounted from one the host or a\n'
+    printf 'plugin provides. A mount proposal for a host-provided server is the\n'
+    printf 'record saying it is used, not an instruction — leaving it unacted is\n'
+    printf 'an answer, and session start will not raise a proposal twice.\n'
+    return 0
+  fi
+
   [ -f "$proj/stack.tsv" ] || die "project $(basename "$proj") declares no stack.tsv"
 
   local plan; plan="$(felix_stack_plan "$proj")"
@@ -1910,7 +1962,7 @@ cmd_stack() {
     return 0
   fi
 
-  [ "$sub" = "apply" ] || die "usage: felix stack [plan|apply] [--yes]"
+  [ "$sub" = "apply" ] || die "usage: felix stack [plan|apply|reconcile] [--yes]"
   if [ "$yes" -ne 1 ]; then
     printf '\nThis was a plan. Nothing changed.\n'
     printf 'Re-run with --yes to install the %s item(s) above.\n' "$n_install"

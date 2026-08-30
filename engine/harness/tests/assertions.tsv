@@ -22,6 +22,7 @@
 1	a bundled plugin reads as usable
 1	a cache path is a plugin copy
 1	a cache that never existed is stale
+1	a capability match is still adopt material
 1	a capability some route names is a keyword problem
 1	a cargo crate is a rust project
 1	a change that does not touch the engine is not called self-judgement
@@ -29,9 +30,12 @@
 1	a checkout inside the verification is caught too
 1	a checkout that moves after verification merges nothing
 1	a clean checkout claims no rival gate
+1	a consistent record is called agreement
+1	a consistent record says nothing at session start
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
 1	a credential in added lines escapes as disclose
+1	a declared server no play ever named is left alone
 1	a declared skill with no directory cannot be used
 1	a decline resting on nothing checkable is still ok
 1	a decline whose premise died is caught
@@ -123,6 +127,7 @@
 1	a plain checkout with projects/ is a home
 1	a plain tool is recorded by name
 1	a plan declaring no files yields nothing
+1	a play naming a superstring does not name its prefix
 1	a plugin cache is never treated as home
 1	a plugin that cannot be checked is not a clean bill
 1	a project bounded only by content rules reports the bound
@@ -130,6 +135,8 @@
 1	a project with red paths reports the scope bound
 1	a prompt with no session id records no ledger state
 1	a prompt with no signal says nothing
+1	a proposal shown once is not volunteered again
+1	a reach is the only mount evidence there is
 1	a real capability left undeclared is not an error
 1	a real uncommitted edit still speaks, in a fresh session
 1	a real word rises
@@ -158,6 +165,7 @@
 1	a route off the tree is a guess
 1	a route off the tree is not recorded as typed
 1	a row from before the column proposes nothing
+1	a row inspection judged capability-less is not
 1	a row naming no real capability is caught
 1	a row nobody named carries no stray line
 1	a rule naming Edit does not deny a Write
@@ -171,6 +179,7 @@
 1	a session that changed nothing stops silently
 1	a skill is not looked up as a plugin
 1	a skill is recorded by which skill
+1	a skill name counts triple, like a name
 1	a stacked branch is not blamed for what its base already merged
 1	a staged row removal still escapes as verifier
 1	a staged source change owes its test
@@ -240,6 +249,7 @@
 1	an execute path against an unresolvable base blocks the merge
 1	an explicit FELIX_HOME wins
 1	an explicit path is allowed
+1	an installed plugin is matched by what it ships
 1	an issue naming no real file still exits 0
 1	an mcp call does mark the bare plugin step used
 1	an mcp call does not mark a qualified step of that plugin used
@@ -253,6 +263,7 @@
 1	an ungoverned repo is allowed
 1	an unknown routine is refused
 1	an unmet step reports todo
+1	an unmount below the session threshold is not evidence
 1	an unparseable payload is allowed
 1	an unparseable payload records nothing
 1	an unpinned version is high
@@ -326,6 +337,7 @@
 1	and is left exactly as it was
 1	and is marked unknown rather than unmet
 1	and is not a routing gap either; it is unknown
+1	and is not called agreement
 1	and is silent when there is none
 1	and it does not repeat within a session
 1	and it enumerates declared projects, not directory entries
@@ -396,6 +408,7 @@
 1	and nothing unusable
 1	and nothing was written
 1	and nothing was written to the real felix home pointer
+1	and now names each one it found
 1	and one in a double-backtick span
 1	and one named once carries one
 1	and one no route names
@@ -409,10 +422,12 @@
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
 1	and passes the facts it already has
+1	and picks the capability the skills serve
 1	and prose counts single
 1	and quotes what it said
 1	and re-rolling a session replaces its old rows
 1	and reads as a requirement
+1	and reads only mcp rows
 1	and records the failure without being asked
 1	and refuses instead of ignoring it
 1	and refuses to spend past the ceiling
@@ -431,6 +446,7 @@
 1	and says nothing about it afterwards
 1	and says nothing below the session threshold
 1	and says nothing was installed
+1	and says plainly that it acted on nothing
 1	and says so
 1	and says so before the detail
 1	and says so plainly when none does
@@ -454,6 +470,7 @@
 1	and says why it was left alone
 1	and says why the gate is not enough
 1	and scope says which tier it reached
+1	and shipping nothing declared still matches nothing
 1	and shows the decline itself
 1	and so does a worktree of it
 1	and so does the next one
@@ -466,6 +483,7 @@
 1	and stays small
 1	and stays to one line
 1	and still offers the handoff
+1	and still proposes from the record
 1	and still resolves when the root is spelled the other way
 1	and still says which step went unused
 1	and still verifies when the source really does match
@@ -479,6 +497,7 @@
 1	and that path resolves in a real checkout
 1	and the ack is consumed by the answer
 1	and the bare listing the gate used to do would have counted a plain file
+1	and the blurb no longer outranks the manifest
 1	and the cause is the prompt, not the envelope
 1	and the clean sentence is withheld
 1	and the comment survives
@@ -511,6 +530,7 @@
 1	and the text is actually there
 1	and the tier it carries
 1	and the tier reducer agrees
+1	and the unmount above is the only other proposal
 1	and what a fix will have to prove
 1	and what was detected
 1	and what was typed still counts
@@ -604,6 +624,7 @@
 1	felix merge refuses on an escape
 1	felix new exits 0
 1	felix route --ack records without error
+1	felix stack reconcile exits 0
 1	felix_autonomy_allows is defined for the hook
 1	felix_budget_record itself reports the failure
 1	felix_classify_diff reports unknown, not empty
@@ -638,6 +659,7 @@
 1	including fields after it
 1	including the second one
 1	including what prompted each utterance
+1	inspect still counts the skills
 1	inspecting a plugin never runs it
 1	install from the checkout still reports a real mismatch
 1	install from the plugin cache does not certify the cache against itself
@@ -652,6 +674,8 @@
 1	it names the verification command
 1	it names what changed
 1	it recorded the capability
+1	it renders the mount
+1	it renders the unmount with its evidence
 1	it says the fact it has instead
 1	it says the lesson is not working
 1	keeps a tracked one, whatever else is true
@@ -670,13 +694,16 @@
 1	matching hooks still verify
 1	memory is keyed on the project name
 1	misses are logged too
+1	name and skills accumulate as evidence
 1	names the first step
 1	names the suspect commit
+1	naming skills does not change the risk read
 1	naming the branch's commit
 1	naming the channel that escaped
 1	naming the gate it was removed from
 1	naming which check failed
 1	never proposes retiring something that was used
+1	never proposes unmounting what was reached
 1	never retires what no route ever named
 1	never the transcript in the envelope
 1	new refuses a flag as a project name
@@ -688,10 +715,12 @@
 1	no markup from a prompt reaches the page
 1	no placeholder telling someone to write it
 1	no reachable checkout resolves to nothing
+1	no record still answers cleanly
 1	no recurrence says nothing at all
 1	no runs at all is unknown, not clean
 1	no shipped decline rests on a dead premise
 1	no shipped upkeep row is unreachable
+1	no stack.tsv means nothing is declared, not nothing to say
 1	nor a semicolon
 1	nor filler the router already discards
 1	nor is a system reminder
@@ -716,9 +745,12 @@
 1	pr previews and exits 0
 1	pr refuses to open a branch against itself
 1	promote surfaces a word that keeps missing
+1	proposes mounting what was reached and never declared
 1	proposes retiring what was mounted and never reached for
+1	proposes unmounting what was named and never reached, whatever shape recorded it
 1	prose alone can still add up
 1	prose in the cache is not adopted
+1	prose still counts single beside skills
 1	provenance is not part of the announce key
 1	quarantine refuses a plugin that is not here
 1	quiet on exclusion sample 1
@@ -733,6 +765,7 @@
 1	reads the files a task declares
 1	reads the per-project limit
 1	recommending installs nothing
+1	reconcile answers even where no stack.tsv exists
 1	recording a run works
 1	records what it said
 1	red beats an unknown too
@@ -760,6 +793,7 @@
 1	rolling the same session twice does not double it
 1	route and lessons arrive as one block
 1	route refuses outside a governed repo
+1	rows outliving a deleted declaration do not propose a mount
 1	running a rival gate is denied
 1	runs that all passed are clean
 1	runs with a failure are dirty
@@ -780,6 +814,7 @@
 1	sees a credential in an untracked new file
 1	sees a plugin a route already names
 1	self-contained, no external references
+1	session start surfaces the reconcile proposals
 1	session-start sources autonomy.sh
 1	session-start sources ledger.sh
 1	severity derives from the risk rules
@@ -789,12 +824,15 @@
 1	silent when a project has no lessons yet
 1	silent when nothing was blocked
 1	silent when the gate has caught nothing
+1	skills matching nothing add nothing
 1	skills only is low
 1	skips runbooks for absent capabilities
+1	so no false unmount is proposed from it
 1	so the branch is not blamed for what the remote already had
 1	so the session count is the number of sessions
 1	speaks when a catch went unexplained
 1	spending is counted
+1	stack.tsv is byte-identical after a reconcile
 1	staged destructive SQL still escapes as durable
 1	stamped with date, branch and commit
 1	states that urgency does not bypass gates
@@ -815,6 +853,7 @@
 1	the brief names the file the issue names
 1	the budget row is not reported as satisfied
 1	the bump fixture has an identical judge, so the guard can fire
+1	the cache row carries the capability the skills serve
 1	the capabilities file is untouched
 1	the cause is not the raw payload
 1	the data marker is substituted
@@ -844,6 +883,7 @@
 1	the main checkout knows its own storage is not a rival
 1	the mandate does not claim more precision than measured
 1	the marketplace is added from the directory holding its manifest
+1	the mcp record aggregates a server across sessions
 1	the memory check is behind the verifier confine
 1	the message names the play, not only the miss
 1	the model still gets the whole thing
@@ -858,6 +898,7 @@
 1	the pre-flight runs clean under bash
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
+1	the quiet control did bind its project
 1	the readiness report runs at all
 1	the reason is durable in decisions.log
 1	the receipt names what granted the authority
@@ -871,6 +912,7 @@
 1	the route is there when both apply
 1	the same file with an unconfined line escapes
 1	the same route does not repeat itself
+1	the second session is still bound
 1	the secret check is behind the verifier confine
 1	the shipped table considers every moment
 1	the squash leaves the merge-base behind main
@@ -892,6 +934,7 @@
 1	tree identity survives an unborn HEAD
 1	twelve sessions ending at once are all still counted
 1	twice makes it a promotion candidate
+1	two rows in one session are one session, calls summed
 1	undeclared capability classifies as dormant
 1	ungoverned repo refuses to run a gate
 1	uninstall names the doctrine it left alone
@@ -902,9 +945,12 @@
 1	what it kept is what it sent
 1	what no route named is not a compliance figure
 1	which is the number it printed
+1	while a mount needs no threshold: the reach already happened
 1	while a tool that ran keeps its calls
+1	while an owner-reduced play entry still names its plugin
 1	while others stay due
 1	while the branch's own file still is
+1	while the genuinely reached server is proposed
 1	while the path around it does not
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused

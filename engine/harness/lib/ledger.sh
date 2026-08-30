@@ -157,6 +157,31 @@ felix_ledger_unrouted() {
   done
 }
 
+# The MCP record alone, per server: how many sessions it appears in, how often
+# it was reached, how often a play named it (Decision C, 2026-08-30).
+#
+# A server is the unit that gets mounted, so it is the unit the reconciler
+# reasons about — the summary above folds everything to one owner column and
+# loses the kind, which is right for retirement and useless for mount state.
+# Reduced to the owner the same way, because a declared row may carry a
+# marketplace suffix while the recorded signal never does.
+#
+# Emits: name <TAB> sessions <TAB> calls <TAB> named
+felix_ledger_mcp() {
+  local proj="$1"
+  _felix_ledger_rows "$(felix_mem_dir "$proj")" | LC_ALL=C awk -F'\t' '
+    $3 == "mcp" && $4 != "" {
+      owner = $4; sub(/@.*/, "", owner)
+      key = owner SUBSEP $1
+      if (!(key in seen)) { seen[key] = 1; sessions[owner]++ }
+      calls[owner] += $5
+      if (NF >= 6 && $6 != "") named[owner] += $6
+    }
+    END { for (o in sessions)
+            printf "%s\t%s\t%s\t%s\n", o, sessions[o], calls[o], named[o] + 0 }
+  ' | LC_ALL=C sort
+}
+
 # One line per tool call, appended. This runs after every tool call in every
 # governed session, so its cost is the design constraint: no subshells, no git,
 # no reading anything back.
@@ -288,8 +313,18 @@ EOF
       # unconfounded signal in the design permanently in the wrong column.
       local bare="${name%%@*}"
       printf '%s\n' "$seen" | sed 's/:.*//' | grep -xF "$bare" >/dev/null 2>&1 && continue
+      # Owner-equality, not substring. This used to be `felix_count -F`, and a
+      # bare -F match let a declared server accrue `named` it never earned from
+      # any play entry it merely prefixes — `context7` counted every naming of
+      # `context7-docs`, and five such sessions read as "pointed at and ignored
+      # five times", the exact evidence retire and the reconciler act on. The
+      # reduction is the summary's own: strip a marketplace suffix and a skill
+      # suffix, then compare whole owners.
       printf '%s\t%s\t%s\t%s\t0\t%s\n' "$session" "$date" "$kind" "$name" \
-        "$(felix_count -F "named	$bare" "$state")" >> "$tmp"
+        "$(LC_ALL=C awk -F'\t' -v b="$bare" \
+             '$1 == "named" { o = $2; sub(/@.*/, "", o); sub(/:.*/, "", o)
+                              if (o == b) n++ }
+              END { print n + 0 }' "$state")" >> "$tmp"
     done < "$proj/stack.tsv"
   fi
 

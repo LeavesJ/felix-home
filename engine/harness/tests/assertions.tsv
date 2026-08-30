@@ -358,6 +358,7 @@
 1	and never the newest thing in the cache
 1	and never where it is not declared
 1	and no zero row for one that was used
+1	and none reports a spend past the ceiling as recorded
 1	and not as an escape, which would escalate a typo to the founder
 1	and not found by assuming the branch is called main
 1	and not on which home it came from
@@ -489,6 +490,7 @@
 1	appended after what was there
 1	apply without --yes changes nothing
 1	as does another
+1	at most one caller records when one slot is left
 1	backfilled the human steps it implies
 1	backfilled the tooling the capability implies
 1	backs the removed copy up first

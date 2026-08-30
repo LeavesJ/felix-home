@@ -2044,6 +2044,61 @@ chmod 755 "$FROOT/projects/widget"
                    || bad "felix_budget_record itself reports the failure" "exit $librc"
 rm -f "$FROOT/projects/widget/budget.log"
 
+# #84, the race. cmd_budget is check-then-act with no lock: it reads the count,
+# compares it to the limit, then appends. Two callers that both read 9 against a
+# limit of 10 both pass the comparison and both append, and the ceiling - the
+# only mechanical bound on unattended model runs - is overrun.
+#
+# Reproduced against shipped code on ONE machine, no CI involved: seeded at 9 of
+# 10, three concurrent callers, all three recorded, ledger left at 12.
+#
+# Driven with real concurrent processes rather than a stub, because the defect
+# IS the interleaving; a sequential fixture cannot express it. It is made
+# deterministic by seeding the ledger so exactly one slot remains, which makes
+# the correct outcome exact rather than probabilistic: at most one caller may
+# record, however the three interleave.
+_seed_budget() {   # $1 = how many entries to seed
+  local n="$1" now i
+  now="$(date +%s)"
+  : > "$FROOT/projects/widget/budget.log"
+  i=0; while [ "$i" -lt "$n" ]; do
+    printf '%s\t%s\tseed\n' "$now" "1970-01-01T00:00" >> "$FROOT/projects/widget/budget.log"
+    i=$((i + 1))
+  done
+}
+_seed_budget 9
+RACE="$TMP/race"; rm -rf "$RACE"; mkdir -p "$RACE"
+for _r in 1 2 3; do
+  ( cd "$REPO" && "$FELIX" budget --record --why "racer$_r" >"$RACE/out$_r" 2>&1
+    printf '%s' "$?" > "$RACE/rc$_r" ) &
+done
+wait
+
+_recorded=0
+for _r in 1 2 3; do
+  [ "$(cat "$RACE/rc$_r" 2>/dev/null)" = "0" ] && _recorded=$((_recorded + 1))
+done
+# At most one, because exactly one slot was left. Zero is allowed and safe: if
+# every caller observes the ledger after every append, they all refuse, and the
+# window reopens on the next invocation. More than one is the overrun.
+[ "$_recorded" -le 1 ] \
+  && ok "at most one caller records when one slot is left" \
+  || bad "at most one caller records when one slot is left" \
+         "$_recorded of 3 recorded; ledger has $(grep -c . "$FROOT/projects/widget/budget.log") entries"
+
+# And no caller may claim success while reporting a count past the ceiling. That
+# sentence is what a workflow step reads as permission to invoke a model.
+_overclaim=0
+for _r in 1 2 3; do
+  if [ "$(cat "$RACE/rc$_r" 2>/dev/null)" = "0" ]; then
+    case "$(cat "$RACE/out$_r")" in
+      *"1"[1-9]" of 10"*|*"2"[0-9]" of 10"*) _overclaim=$((_overclaim + 1)) ;;
+    esac
+  fi
+done
+is "and none reports a spend past the ceiling as recorded" "$_overclaim" "0"
+rm -f "$FROOT/projects/widget/budget.log"
+
 printf '\ngenerated CI points at a path that exists\n'
 # Moving the engine broke every generated workflow at once, in other
 # repositories, where this suite never looks. Felix's own gate stayed green

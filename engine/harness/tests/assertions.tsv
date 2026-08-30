@@ -37,6 +37,7 @@
 1	a decline resting on nothing checkable is still ok
 1	a decline whose premise died is caught
 1	a decline whose premise still holds is ok
+1	a declined play is not raised at the finish
 1	a denied command exits 2
 1	a deployed engine resolves the checkout, not itself
 1	a devlog entry newer than the catch settles it too
@@ -122,12 +123,13 @@
 1	a plan declaring no files yields nothing
 1	a plugin cache is never treated as home
 1	a plugin that cannot be checked is not a clean bill
+1	a project bounded only by content rules reports the bound
 1	a project with no declared gate is left alone
 1	a project with red paths reports the scope bound
 1	a prompt with no session id records no ledger state
 1	a prompt with no signal says nothing
 1	a real capability left undeclared is not an error
-1	a real uncommitted edit still speaks
+1	a real uncommitted edit still speaks, in a fresh session
 1	a real word rises
 1	a receipt for another tree still blocks
 1	a receipt missing an input is indeterminate, never verified
@@ -162,6 +164,7 @@
 1	a run nobody could read does not count as clean
 1	a runbook prints in full
 1	a satisfied step reports done
+1	a second hand-off in the same session stays quiet
 1	a session reports what was named and what was followed
 1	a session that changed nothing stops silently
 1	a skill is not looked up as a plugin
@@ -290,6 +293,7 @@
 1	and bin/ is in the searched set, because the gate runs it
 1	and both paths in one sentence are found
 1	and briefs the file it names
+1	and carries the decline channel
 1	and changes when the tree changes
 1	and claims nothing about surfaces it never compared
 1	and claims nothing was unchecked
@@ -316,6 +320,7 @@
 1	and is marked unknown rather than unmet
 1	and is not a routing gap either; it is unknown
 1	and is silent when there is none
+1	and it does not repeat within a session
 1	and it enumerates declared projects, not directory entries
 1	and it holds against the shipped lessons file
 1	and it is Felix's own work
@@ -348,6 +353,7 @@
 1	and names the capability
 1	and names the channel
 1	and names the command that writes it
+1	and names the decline channel
 1	and names the habit
 1	and names the hook
 1	and names the play in order
@@ -408,6 +414,7 @@
 1	and reports what is left
 1	and says how many are still unusable
 1	and says it cannot be scoped
+1	and says it did
 1	and says it must be fixed before the next session
 1	and says not to fix it unattended
 1	and says nothing about it afterwards
@@ -448,6 +455,7 @@
 1	and stays to one line
 1	and still offers the handoff
 1	and still resolves when the root is spelled the other way
+1	and still says which step went unused
 1	and still verifies when the source really does match
 1	and stops once something is written
 1	and strips a line range
@@ -457,6 +465,7 @@
 1	and that nothing granted it, on a channel review cannot clear
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
+1	and the ack is consumed by the answer
 1	and the bare listing the gate used to do would have counted a plain file
 1	and the cause is the prompt, not the envelope
 1	and the clean sentence is withheld
@@ -470,6 +479,7 @@
 1	and the hook still exits 0 there
 1	and the lesson is in the same block
 1	and the memory, which is somewhere else now
+1	and the message does not accuse the subagent
 1	and the monitor still renders the sentence, not the JSON around it
 1	and the page has a panel for it
 1	and the placeholder stays a placeholder
@@ -500,6 +510,7 @@
 1	anything shipping hooks is high
 1	appended after what was there
 1	apply without --yes changes nothing
+1	as a declined verdict
 1	as does another
 1	at most one caller records when one slot is left
 1	backfilled the human steps it implies
@@ -575,6 +586,7 @@
 1	felix merge reaches gh at all
 1	felix merge refuses on an escape
 1	felix new exits 0
+1	felix route --ack records without error
 1	felix_autonomy_allows is defined for the hook
 1	felix_budget_record itself reports the failure
 1	felix_classify_diff reports unknown, not empty
@@ -622,6 +634,7 @@
 1	it names the verification command
 1	it names what changed
 1	it recorded the capability
+1	it says the fact it has instead
 1	it says the lesson is not working
 1	keeps a tracked one, whatever else is true
 1	keeps one Felix holds no copy of
@@ -805,8 +818,10 @@
 1	the log holds exactly one entry
 1	the log is durable state in the project
 1	the main checkout knows its own storage is not a rival
+1	the mandate does not claim more precision than measured
 1	the marketplace is added from the directory holding its manifest
 1	the memory check is behind the verifier confine
+1	the message names the play, not only the miss
 1	the model still gets the whole thing
 1	the page carries the speech
 1	the page still closes exactly one script
@@ -820,6 +835,7 @@
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
 1	the readiness report runs at all
+1	the reason is durable in decisions.log
 1	the receipt names what granted the authority
 1	the registry says where the engine is served from
 1	the removed file still exists somewhere

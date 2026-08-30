@@ -716,18 +716,32 @@ cmd_recommend() {
 }
 
 cmd_route() {
-  resolve_or_die; local proj="$PROJ" want="" explain=0 list=0 promote=0
+  resolve_or_die; local proj="$PROJ" want="" explain=0 list=0 promote=0 ack=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --for)     need_value "$@"; want="$2"; shift 2 ;;
       --explain) explain=1; shift ;;
       --list)    list=1; shift ;;
       --promote) promote=1; shift ;;
+      --ack)     need_value "$@"; ack="$2"; shift 2 ;;
       *) shift ;;
     esac
   done
   [ -f "$proj/routes.tsv" ] || die "project $(basename "$proj") declares no routes.tsv"
   local root; root="$(felix_repo_root "$PWD")"
+
+  # Decline the rendered mandate, on the record. The reason is the payload:
+  # it lands in decisions.log as a labeled example for whoever revises the
+  # table, and it quiets exactly one close-of-session complaint. Recording
+  # only — nothing here enforces, per the deliberation-layer gate in HANDOFF
+  # §0z, which this command deliberately stays on the near side of.
+  if [ -n "$ack" ]; then
+    felix_route_ack "$proj" "$root" "$FELIX_HOME_DIR" "$ack" \
+      || die "could not record the decline in $(felix_mem_dir "$proj")/decisions.log"
+    printf 'declined, on the record. The reason is in decisions.log and the\n'
+    printf 'close-of-session check will not raise this play again this session.\n'
+    return 0
+  fi
 
   if [ "$list" -eq 1 ]; then
     printf 'routes for %s, in precedence order\n\n' "$(basename "$proj")"
@@ -2173,14 +2187,23 @@ cmd_unattended() {
   # Literal, it stayed checked for a project declaring no red path at all -
   # which is exactly the case where nothing is out of scope and the bound it
   # names does not exist.
+  #
+  # Both kinds, not paths alone (#100). risk.tsv's second column takes `path`
+  # or `content`, and a content rule refuses just as a path rule does - felix
+  # scope classifies the whole diff. Counting paths alone told a project whose
+  # red tier is all content rules - secrets, destructive SQL, the material the
+  # red tier exists for - that nothing was out of scope, on the checklist read
+  # before switching on unattended model runs; a governed project carries two
+  # such rules today. And felix_count rather than `grep -c || printf 0`: that idiom
+  # yields "0\n0" on a zero count and is the trap #40 extracted felix_count to
+  # end. The case guard below it was carrying the fix by accident.
   local redrules=0
-  [ -f "$proj/risk.tsv" ] && redrules="$(grep -cE '^red[[:space:]]+path[[:space:]]' "$proj/risk.tsv" 2>/dev/null || printf 0)"
-  case "$redrules" in ''|*[!0-9]*) redrules=0 ;; esac
+  [ -f "$proj/risk.tsv" ] && redrules="$(felix_count -E '^red[[:space:]]+(path|content)[[:space:]]' "$proj/risk.tsv")"
   if [ "$redrules" -gt 0 ]; then
-    printf '  [x] %-26s %s red path rule(s), refused before the log is read\n' \
+    printf '  [x] %-26s %s red rule(s), refused before the log is read\n' \
       "scope bound" "$redrules"
   else
-    printf '  [ ] %-26s no red path declared; nothing is out of scope\n' "scope bound"
+    printf '  [ ] %-26s no red rule declared; nothing is out of scope\n' "scope bound"
   fi
 
   printf '\n'

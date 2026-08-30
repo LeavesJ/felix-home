@@ -299,12 +299,27 @@ felix_route_render() {
         printf '\nThis kind of work wants %s, which this project has not declared and\n' "$due"
         printf 'is not installed here. Carry on without it and say that you did.\n'
       else
+        # Calibrated to the channel's measured accuracy, and that is the point
+        # of the wording. The old paragraph opened "This is a requirement, not
+        # a suggestion" — language for a channel that is nearly always right.
+        # Measured 2026-08-30 against the fixed instrument: 11 mandates
+        # rendered in five days, 2 followed, and every mandate audited live in
+        # that window was wrong for its turn (#29 holds five distinct causes).
+        # A maximal claim from a low-precision source teaches sessions to skim
+        # the channel, and then the one right mandate is skimmed with the rest.
+        #
+        # So the mandate now says where it came from and asks for the decline
+        # to be recorded. The ack is what converts a wrong route from noise
+        # into a labeled example — the reason lands in decisions.log, where
+        # the table's next revision can read it.
         printf '\nUse this now: %s (%s)\n' "$due" "$kind"
-        printf '\nThis is a requirement, not a suggestion. This project already decided\n'
-        printf 'that work of this kind goes through it, and the decision is not yours\n'
-        printf 'to skip quietly. If the routing is wrong, say so and choose otherwise —\n'
-        printf 'but say it out loud, because a route that keeps guessing wrong is a bug\n'
-        printf 'in a table someone can fix, and silence is how it stays broken.\n'
+        printf '\nNamed by the %s route in this project'\''s table. The table is a\n' "$name"
+        printf 'keyword match with a measured error rate, so if this step is wrong for\n'
+        printf 'what this turn actually is, decline it on the record:\n'
+        printf '\n  felix route --ack "why the step does not fit this turn"\n'
+        printf '\nA recorded decline tunes the table and quiets the close-of-session\n'
+        printf 'check. A silent skip reads as a fit suggestion ignored, and keeps the\n'
+        printf 'table wrong. If it does fit, use it before calling the work done.\n'
       fi
       [ -n "$rest" ] && \
         printf '\nLater, only if the work actually reaches them: %s\n' "$rest"
@@ -541,4 +556,59 @@ felix_route_promote() {
     | _felix_route_words \
     | sort | uniq -c | sort -rn \
     | awk -v m="$FELIX_ROUTE_PROMOTE_MIN" '$1 >= m { print $1 "\t" $2 }'
+}
+
+# ---------------------------------------------------------------- decisions --
+# The recording-only half of the deliberation layer, and deliberately nothing
+# more. HANDOFF §0z records the founder's architecture — deliberation forcing
+# plus decision-action closure — and the gate on building it. It also records
+# the measurement floor: "the only way to observe 'the agent considered
+# capability X and decided NONE' is to require that decision be emitted", and
+# names the way through — a recording-only version that asks, enforces nothing,
+# and changes no behaviour. This is that, and it must stay that: anything here
+# that begins to *enforce* is the architecture the founder held, being built
+# without the decision.
+#
+# Three verdicts existed before this file and were already recorded: `named`
+# (the ledger, written when a mandate is rendered), `reached` (the ledger,
+# written when a capability is invoked), and silence. What was missing is the
+# one that carries information the others cannot: DECLINED, with the reason.
+# A decline is a session saying "I considered this and it does not fit" — the
+# labeled example a keyword table cannot generate about itself.
+#
+# The ack is keyed by repository, not session, because the CLI cannot know the
+# session id — that arrives only in hook payloads. Two concurrent sessions in
+# one checkout can therefore consume each other's ack, which degrades the safe
+# way: one missed close-of-session complaint, never a wrong one. Same argument,
+# same direction as the announce dedup in user-prompt.
+_felix_route_ack_path() {
+  # $1 = repo root, $2 = home
+  printf '%s/state/route/ack-%s' "$2" "$(printf '%s' "$1" | _felix_hash)"
+}
+
+# Record a decline: one line of state for the Stop hook to consume, one durable
+# row in decisions.log for whoever revises the table. The state line is
+# best-effort; the record is the point.
+felix_route_ack() {
+  local proj="$1" root="$2" home="$3" reason="$4" now dir
+  [ -n "$reason" ] || return 1
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  dir="$(felix_mem_dir "$proj")"
+  mkdir -p "$dir" 2>/dev/null
+  printf '%s\t%s\tdeclined\t%s\n' "$now" "$root" "$reason" >> "$dir/decisions.log" || return 1
+  mkdir -p "$home/state/route" 2>/dev/null && \
+    printf '%s\t%s\n' "$(date +%s)" "$reason" > "$(_felix_route_ack_path "$root" "$home")" 2>/dev/null
+  return 0
+}
+
+# Has this repo's rendered mandate been declined on the record? Consumes the
+# ack when it answers yes, so one decline quiets one complaint rather than all
+# future ones — a permanently-standing ack would be a mute button, and a mute
+# button on the only compliance signal is how the signal dies.
+felix_route_ack_consume() {
+  local root="$1" home="$2" path
+  path="$(_felix_route_ack_path "$root" "$home")"
+  [ -f "$path" ] || return 1
+  rm -f "$path" 2>/dev/null
+  return 0
 }

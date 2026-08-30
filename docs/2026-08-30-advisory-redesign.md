@@ -194,8 +194,32 @@ a per-turn model router (measured dead, twice); a semantic veto layer
 (suppress-only is invariant-legal but fixes false positives, not opportunity
 recognition — and the recognition gap is the one that matters).
 
-**Status: revised, awaiting the founder's yes on A′.** The per-turn mandate
-path keeps firing (honestly, post-#103) until then.
+**Status: APPROVED by the founder, 2026-08-30** ("a looks fine"). The
+mechanical translation — first-prompt naming plus transcript-proven advances,
+no mid-session keyword re-mandates — is the next engine change.
+
+**The selector's model, asked and answered the same day.** The capability
+decision at a forced moment is made by the session's own model — whatever the
+founder set the session to — by construction rather than preference. The
+alternatives are each already refuted: a router model in the prompt path is
+measured dead (4.9–8.6s, ~2s of it CLI startup; the intent-router design
+killed it twice), a direct API sidecar puts a standing credential in every
+governed session's environment against invariant 2's "no network, no key",
+and — fatal even with those solved — a side model does not hold the session:
+shipping it the transcript, tree and history per decision costs more than the
+decision, and not shipping it rebuilds the keyword table's blindness with
+better grammar. Same vantage finding that killed the registry. So the
+deliberation moment is text in a hook, answered in-band: zero latency added,
+zero cost, zero keys, offline, and selection quality scales with the session
+model automatically. Felix does not pin the session model; that is the host's
+surface and the founder's per-session call.
+
+A second model enters only later and off the enforcing path: the unattended
+repair loop's `claude -p` (no session model exists in CI until one is
+invoked — a real cost/capability choice when that loop turns on), an advisory
+judge over `decisions.log` at the 20-session review (proposal-only under
+invariant 2, batch, cheap tier fine), and per-worker model choice when Felix
+eventually owns dispatch.
 
 ### Decision B — the deliberation layer, entered through the recording door
 
@@ -302,7 +326,7 @@ version; the pair is what makes it honest.
 
 | decision | status |
 |---|---|
-| **A′** — Felix owns moments, the model selects, the record judges | revised after the founder's question; **awaiting yes** |
+| **A′** — Felix owns moments, the model selects, the record judges | **APPROVED 2026-08-30**; selector = the session's own model, by construction |
 | **B** — deliberation via recording, 20 sessions | **APPROVED 2026-08-30**; clock running; tracker is `felix decisions` |
 | **C** — populate the funnel from manifests | **AGREED 2026-08-30**; next engine work |
 

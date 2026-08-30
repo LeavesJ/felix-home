@@ -24,7 +24,6 @@
 1	a cache that never existed is stale
 1	a capability some route names is a keyword problem
 1	a cargo crate is a rust project
-1	a change of route speaks again
 1	a change that does not touch the engine is not called self-judgement
 1	a check named as the head of a path is found
 1	a checkout inside the verification is caught too
@@ -86,6 +85,7 @@
 1	a matching test closes the gap
 1	a medium one is refused
 1	a merge stopped for the founder is recorded as one
+1	a mid-session route change does not render
 1	a migration classifies red
 1	a migration escapes as durable
 1	a migration is out of scope
@@ -507,6 +507,7 @@
 1	and the same scanner catches a planted one
 1	and the shipped wiring matches its stance
 1	and the slug comes from the checkout's remote
+1	and the state now carries the new route, for the finish-line judge
 1	and the text is actually there
 1	and the tier it carries
 1	and the tier reducer agrees
@@ -546,6 +547,7 @@
 1	but cannot impersonate an unscanned diff
 1	but does not hold the session for it
 1	but it is counted
+1	but it is logged, so the pivot stays observable
 1	but it still classifies red
 1	but one that could not have passed is not
 1	but removing one still escapes

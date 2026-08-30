@@ -1,0 +1,16 @@
+# Declared tooling for veldra. Seeded from the catalogue by felix new,
+# filtered to what this checkout actually shows. Edit freely.
+#
+# kind	name	source	risk	capability
+marketplace	claude-plugins-official	anthropics/claude-plugins-official	low	always
+plugin	superpowers@claude-plugins-official	-	low	always
+plugin	claude-md-management@claude-plugins-official	-	low	always
+plugin	claude-code-setup@claude-plugins-official	-	low	always
+plugin	context7@claude-plugins-official	-	low	always
+plugin	code-review@claude-plugins-official	-	low	always
+plugin	security-guidance@claude-plugins-official	-	low	always
+plugin	code-simplifier@claude-plugins-official	-	low	always
+plugin	frontend-design@claude-plugins-official	-	low	frontend
+plugin	rust-analyzer-lsp@claude-plugins-official	-	low	rust
+plugin	github@claude-plugins-official	-	high	ci
+plugin	semgrep@claude-plugins-official	-	high	always

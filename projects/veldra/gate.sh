@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# ReserveGrid OS mechanical gate.
+#
+# Every check here used to be a prose rule in docs/lessons.md that the model was
+# asked to remember. It is a script now so it fails loudly instead.
+#
+#   ./scripts/gate.sh           full gate (fmt, clippy, test, guards)
+#   ./scripts/gate.sh --quick   skip the test suite
+#
+# Exit 0 means every check passed. Exit 1 lists what did not.
+# Mirrors .github/workflows/ci.yml; keep the two in step.
+
+set -uo pipefail
+
+# Root of the tree being gated. Defaults to this script's parent, which is
+# right when it is invoked as <repo>/scripts/gate.sh. FELIX_GATE_ROOT
+# overrides it, because Felix stores the canonical copy OUTSIDE any repo
+# and cd's to the checkout being gated first: without the override this
+# would resolve to the Felix projects directory and report a verdict about
+# the wrong tree, which is a false pass.
+REPO_ROOT="${FELIX_GATE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+cd "$REPO_ROOT" || exit 2
+
+QUICK=0
+for arg in "$@"; do
+  case "$arg" in
+    --quick) QUICK=1 ;;
+    -h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "unknown flag: $arg" >&2; exit 2 ;;
+  esac
+done
+
+FAILED=""
+pass() { printf '  %-18s ok\n' "$1"; }
+fail() { printf '  %-18s FAIL\n' "$1"; FAILED="$FAILED $1"; }
+note() { printf '  %-18s %s\n' "" "$1"; }
+
+# Cargo excludes rg-desktop from headless jobs: the Tauri crate needs a display
+# and system webkit. CI does the same. Do not drop this flag.
+# shellcheck disable=SC2086  # CARGO_SCOPE is two flags and must word split.
+CARGO_SCOPE="--workspace --exclude rg-desktop"
+
+echo "gate: $REPO_ROOT"
+
+# ---------------------------------------------------------------- fmt --------
+# R-166: run the formatter, do not --check and hand-chase its complaints.
+# Rustfmt rewrites in place, so the gate reports what it touched for staging.
+if cargo fmt --all >/tmp/rg-gate-fmt.log 2>&1; then
+  FMT_DIRTY="$(git diff --name-only -- '*.rs')"
+  if [ -n "$FMT_DIRTY" ]; then
+    fail fmt
+    note "rewrote $(printf '%s\n' "$FMT_DIRTY" | wc -l | tr -d ' ') file(s); review and stage them"
+    printf '%s\n' "$FMT_DIRTY" | sed 's/^/    /'
+  else
+    pass fmt
+  fi
+else
+  fail fmt
+  tail -20 /tmp/rg-gate-fmt.log | sed 's/^/    /'
+fi
+
+# ------------------------------------------------------------- clippy --------
+# --all-targets is load bearing: it covers integration tests in tests/, which
+# lib-only and bin-only invocations skip. --workspace is load bearing: per crate
+# invocations skip cross crate doc references.
+if cargo clippy $CARGO_SCOPE --all-targets -- -D warnings >/tmp/rg-gate-clippy.log 2>&1; then
+  pass clippy
+else
+  fail clippy
+  grep -E '^(error|warning)' /tmp/rg-gate-clippy.log | head -20 | sed 's/^/    /'
+  note "full log: /tmp/rg-gate-clippy.log"
+fi
+
+# --------------------------------------------------------------- test --------
+if [ "$QUICK" -eq 1 ]; then
+  printf '  %-18s skipped (--quick)\n' test
+else
+  if cargo test $CARGO_SCOPE >/tmp/rg-gate-test.log 2>&1; then
+    pass test
+  else
+    fail test
+    grep -E '^(test .* FAILED|failures:|error)' /tmp/rg-gate-test.log | head -20 | sed 's/^/    /'
+    note "full log: /tmp/rg-gate-test.log"
+  fi
+fi
+
+# ------------------------------------------------------------ secrets --------
+# gitleaks is already pinned in .pre-commit-config.yaml. If it is not installed
+# the gate says so rather than quietly passing a check it never ran.
+if command -v gitleaks >/dev/null 2>&1; then
+  if gitleaks protect --staged --no-banner >/tmp/rg-gate-leaks.log 2>&1; then
+    pass secrets
+  else
+    fail secrets
+    tail -20 /tmp/rg-gate-leaks.log | sed 's/^/    /'
+  fi
+else
+  fail secrets
+  note "gitleaks not installed; brew install gitleaks"
+fi
+
+# ------------------------------------------------------- private-docs --------
+# TP-3 / R-144. docs/ is a MIXED directory: the ADRs, runbooks, deployment
+# runbook, TYPE_BOUNDARIES, WAL_CONTRACT, and architecture write-ups are tracked
+# on purpose. The private set is the enumerated block in .gitignore. Gitignore
+# alone does not help a file that is already tracked, so git ls-files is the
+# authoritative check. This pattern covers all 20 entries of that block, and is
+# verified empty against the current tree. Extend it when you add a private doc.
+#
+# Deliberately NOT `git ls-files --cached --ignored`: rg-dashboard tracks two
+# source files under a frontend data/ path that a broad ignore rule also
+# matches, so that oracle is red on a clean tree and nobody would trust it.
+TRACKED_PRIVATE="$(git ls-files | grep -iE 'pitch|founder|linkedin|meeting|bizlog|execlog|testlog|devlog|lesson|blocker|deep_scan|session_handoff|smoke_test|one-pager|outreach|architecture-comparison|^docs/site/|^docs/superpowers/|\.pdf$')"
+if [ -z "$TRACKED_PRIVATE" ]; then
+  pass private-docs
+else
+  fail private-docs
+  printf '%s\n' "$TRACKED_PRIVATE" | sed 's/^/    /'
+  note "git rm -r --cached <path> to untrack"
+fi
+
+# ---------------------------------------------------------- inversion --------
+# R-162. A dirty tree after a completion claim is a bug, not a todo. Three
+# consecutive CI rescues came from entry point callers landing without their
+# supporting modules.
+DIRTY="$(git status --short | grep -v '^??')"
+if [ -z "$DIRTY" ]; then
+  pass inversion
+else
+  printf '  %-18s dirty\n' inversion
+  printf '%s\n' "$DIRTY" | sed 's/^/    /'
+  note "fine mid-task; before claiming done, commit these or write a named hold reason in docs/DEVLOG.md"
+fi
+
+# ----------------------------------------------------------- verdict --------
+echo
+if [ -z "$FAILED" ]; then
+  echo "gate: pass"
+  exit 0
+fi
+echo "gate: FAIL ($(echo "$FAILED" | tr -s ' ' | sed 's/^ //'))"
+exit 1

@@ -1,0 +1,6 @@
+# Human steps for veldra. Seeded by felix new.
+#
+# id	title	capability	check
+risk-labels	Create the escalation labels the repair loop uses	ci	gh label list --repo LeavesJ/ReserveGrid-OS 2>/dev/null | grep -q needs-founder
+github-mcp	Authenticate the GitHub MCP server	ci	claude mcp list 2>/dev/null | grep -E "^plugin:github:github:" | grep -q Connected
+ci-anthropic-key	Add ANTHROPIC_API_KEY so CI can run Claude unattended	ci	gh secret list --repo LeavesJ/ReserveGrid-OS 2>/dev/null | grep -q ANTHROPIC_API_KEY

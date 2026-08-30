@@ -1,0 +1,46 @@
+# Task routes. What kind of work a prompt is, and what to reach for.
+#
+# Read top-down. Highest score wins and file order breaks ties, so specific
+# routes belong above general ones and the catch-all belongs last.
+#
+# Write keywords in their SHORTEST form. A keyword matches when it appears
+# inside a word you typed, so `hook` matches both "hook" and "hooks" while
+# `hooks` matches neither "hook" nor "hooking". Felix's own table had `hooks`
+# and stayed silent the first time somebody asked about a hook.
+#
+# Scoring: a keyword matches when it appears inside a context token, so `page`
+# matches `pages`. Words you typed count double; words taken from the branch
+# name and the working tree count single. The prompt is what you just said, the
+# tree is only where you happen to be standing.
+#
+# `profile` must name a row in profiles.tsv. `play` is the ordered sequence to
+# reach for, or `-` for none. The order is the point: build with one tool, then
+# critique with the next.
+#
+# Nothing language-specific belongs here. A route that only makes sense for one
+# ecosystem belongs in that project's own routes.tsv, not in everyone's default.
+#
+# Rewritten against the vocabulary this project actually uses. The seeded
+# table routed a Rust mining-pool verifier to `impeccable` and `playwright`,
+# and `felix ready` flagged both as named-but-absent.
+#
+# A note on substring matching, learned from this table: `wal` would have
+# matched "walk", and this codebase says "block walk" constantly, so the
+# durability route used `durabilit` instead. Short keywords are not free.
+#
+# Specific above general; the catch-all is last.
+#
+# name	keywords	profile	play
+incident	outage pager sev1 alerting rollback hotfix degraded	incident	superpowers:systematic-debugging
+evidence	soak verdict adjudicat upheld withdrawn unadjudicat false-positive detection false positive	backend	superpowers:systematic-debugging superpowers:verification-before-completion
+shield	shield invariant class-m tolerance mempool template reject verifier	backend	superpowers:systematic-debugging superpowers:verification-before-completion
+consensus	consensus merkle sigop coinbase segwit witness prevout bip34 blockhash	backend	superpowers:systematic-debugging code-review
+protocol	reason_code reason-code wire schema envelope ndjson protobuf sv2 stratum share	backend	code-review superpowers:verification-before-completion
+durability	durabilit write-ahead verdict-log fsync persist rotation	backend	superpowers:systematic-debugging
+bitcoind	bitcoind getrawmempool getblock getmempool rpc txid chain node	backend	context7 superpowers:systematic-debugging
+deploy	deploy compose docker fly setup-b node release ship push	release	superpowers:verification-before-completion
+debug	broken failing crash regression traceback stacktrace exception reproduce flake	core	superpowers:systematic-debugging
+blocker	blocker launch-gate gate doctrine tier constitution	core	superpowers:verification-before-completion
+dashboard	dashboard chart panel css html asset frontend	frontend	frontend-design
+backend	endpoint handler query migration worker queue index config policy toml	backend	-
+build	build implement feature create add refactor	core	superpowers:brainstorming superpowers:writing-plans

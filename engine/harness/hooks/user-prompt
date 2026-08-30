@@ -147,7 +147,28 @@ elif [ -f "$PROJ/routes.tsv" ]; then
     # production never emits.
     last=""
     [ -f "$state" ] && last="$(cut -f1 < "$state" 2>/dev/null)"
-    if [ "$last" != "$r_name:${r_due:-done}" ]; then
+    # Decision A-prime, approved 2026-08-30: the voice renders at the two
+    # moments this hook can defend, and never on a mid-session keyword
+    # re-route. The first routed turn of a session is the declaration moment —
+    # the founder's own words naming the work, the one place the blind study
+    # found the table right. A later turn renders only when the ROUTE IS
+    # UNCHANGED and the due step advanced, which the transcript proves.
+    #
+    # A route-name change mid-session is logged, recorded in state, and not
+    # rendered. Every live misroute on #29 was exactly this case — "merge" as
+    # the object of a question, "broken" describing the system, "document"
+    # naming a file — five recorded causes, ~2% measured precision, 2-of-11
+    # follow-through. The route still changes in state, so the Stop hook
+    # judges the finish against the work the session actually pivoted to, and
+    # a proven step-use under the new route restores the voice on evidence.
+    # The cost — a silent genuine pivot — is named in the redesign memo and
+    # stays observable in routes.log for the day the data says otherwise.
+    #
+    # ${last%%:*} is the route name: the state value is name:due and only the
+    # due half may contain colons (play entries like superpowers:brainstorming).
+    if [ ! -f "$state" ]; then
+      route_block="$(felix_route_render "$PROJ" "$r_name" "$r_play" "$root" "$r_pscore" "$transcript")"
+    elif [ "${last%%:*}" = "$r_name" ] && [ "$last" != "$r_name:${r_due:-done}" ]; then
       route_block="$(felix_route_render "$PROJ" "$r_name" "$r_play" "$root" "$r_pscore" "$transcript")"
     fi
     # Written every turn, not only when announcing, so provenance tracks the

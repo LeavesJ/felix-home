@@ -3192,8 +3192,21 @@ case "$ctx" in
   *) ok "the same route does not repeat itself" ;;
 esac
 
+# Decision A-prime, approved 2026-08-30, reverses the assertion that stood
+# here ("a change of route speaks again"). A mid-session keyword re-route was
+# every live misroute on #29 — five causes, ~2% precision — so it is logged
+# and recorded in state, and NOT rendered. The declaration moment (first
+# routed turn) and transcript-proven step advances are the moments that speak;
+# both are asserted elsewhere in this file and unchanged.
 out="$(_hook "$S3")"; ctx="$(_ctx "$out")"
-has "a change of route speaks again" "$ctx" "backend"
+case "$ctx" in
+  *"routed this to"*) bad "a mid-session route change does not render" "$ctx" ;;
+  *) ok "a mid-session route change does not render" ;;
+esac
+has "but it is logged, so the pivot stays observable" \
+    "$(tail -1 "$MEM/widget/routes.log" 2>/dev/null)" "backend"
+is  "and the state now carries the new route, for the finish-line judge" \
+    "$(cut -f1 < "$FROOT/state/route/sess-aaa" 2>/dev/null | cut -d: -f1)" "backend"
 
 # A guessed route and an ignored instruction are different facts, and the state
 # file threw the difference away.

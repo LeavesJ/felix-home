@@ -96,6 +96,85 @@ felix_stack_plan() {
   done
 }
 
+# What the record proposes changing about what is mounted (Decision C step 3,
+# 2026-08-30). The ledger records which MCP servers were reached; stack.tsv
+# records which are declared. This reads both and proposes — it installs
+# nothing, removes nothing, and edits nothing, because mounting binds at
+# session start and a person decides what stays mounted.
+#
+# The asymmetry is the ledger's own. A mount is proposed only on a reach: the
+# server answered, so it exists and it earned its row. An unmount mirrors
+# felix_ledger_retire — declared, pointed at, and never reached across enough
+# sessions. Declared-and-never-named proposes nothing: that zero measures
+# routing, not the server, and unmounting on it would conclude Felix was right
+# to ignore something because Felix ignored it.
+#
+# The memo asked for "reached beside needed", and the two halves come from
+# different sources because the ledger does not know what is an MCP server.
+# A reach signal carries the kind (`mcp__server__tool`); a play name carries
+# none, and the rollup records a named-never-reached entry with the literal
+# kind `named`. So the unmount side reads the kind-agnostic summary and lets
+# stack.tsv supply the kind — a kind-filtered read would miss exactly the
+# rows the rule is about — while the mount side reads the mcp record alone,
+# because a reach is the one signal that both proves the server exists and
+# says what it is. There is deliberately no mount-on-play-named: for an
+# undeclared server the play cannot know it names a server at all, and
+# historical named rows outliving a deleted declaration would have proposed
+# re-mounting forever on the strength of Felix's own routing priors, which
+# is the confounded direction the ledger header forbids. Both decided on
+# construction, not argument.
+#
+# Needs ledger.sh sourced beside this file, as the CLI and both session hooks
+# already do. Emits: action <TAB> name <TAB> evidence
+felix_stack_reconcile() {
+  local proj="$1" name sessions calls named declared
+  declared="$(_felix_stack_rows "$proj" \
+    | awk -F'\t' '$1 == "mcp" { n = $2; sub(/@.*/, "", n); print n }')"
+  felix_ledger_summary "$proj" | while IFS=$'\t' read -r name sessions calls named; do
+    [ -n "${name:-}" ] || continue
+    felix_has_line "$declared" "$name" || continue
+    [ "${calls:-0}" -eq 0 ] 2>/dev/null || continue
+    [ "${named:-0}" -gt 0 ] 2>/dev/null || continue
+    [ "${sessions:-0}" -ge "${FELIX_LEDGER_MIN:-5}" ] 2>/dev/null || continue
+    printf 'unmount\t%s\tnamed %s time(s) across %s session(s), never reached\n' \
+      "$name" "$named" "$sessions"
+  done
+  felix_ledger_mcp "$proj" | while IFS=$'\t' read -r name sessions calls named; do
+    [ -n "${name:-}" ] || continue
+    felix_has_line "$declared" "$name" && continue
+    [ "${calls:-0}" -gt 0 ] 2>/dev/null || continue
+    printf 'mount\t%s\treached %s time(s) across %s session(s), and no row declares it\n' \
+      "$name" "$calls" "$sessions"
+  done
+}
+
+_felix_reconcile_state() { printf '%s/state/reconcile/%s' "$2" "$(basename "$1")"; }
+
+# Proposals not yet shown at a session boundary. The same shape as
+# felix_discover_unseen, for the same reason: a proposal a person has already
+# seen and left unacted is an answer, and re-rendering it every session is how
+# a signal becomes wallpaper — a host-provided server that should never be a
+# row would otherwise nag forever. `felix stack reconcile` stays ungated; this
+# gates only what session-start volunteers.
+felix_stack_reconcile_unseen() {
+  local proj="$1" home="$2" seen act name ev
+  seen="$(_felix_reconcile_state "$proj" "$home").seen"
+  felix_stack_reconcile "$proj" | while IFS=$'\t' read -r act name ev; do
+    [ -n "${act:-}" ] || continue
+    [ -f "$seen" ] && grep -qxF "$act:$name" "$seen" 2>/dev/null && continue
+    printf '%s\t%s\t%s\n' "$act" "$name" "$ev"
+  done
+}
+
+felix_stack_reconcile_mark_seen() {
+  local proj="$1" home="$2" base
+  base="$(_felix_reconcile_state "$proj" "$home")"
+  mkdir -p "$(dirname "$base")" 2>/dev/null || return 0
+  felix_stack_reconcile "$proj" | cut -f1-2 | tr '\t' ':' >> "$base.seen" 2>/dev/null
+  LC_ALL=C sort -u -o "$base.seen" "$base.seen" 2>/dev/null
+  return 0
+}
+
 # Install one row. Returns non-zero on failure so the caller can report honestly.
 felix_stack_install() {
   local kind="$1" name="$2" source="$3"

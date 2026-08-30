@@ -151,7 +151,17 @@ felix_discover_inspect() {
     grep -qE '@latest|:latest' "$f" && printf 'floating\tan unpinned version in the mcp command\n'
   done
 
-  [ -d "$base/skills" ] && printf 'skills\t%s\n' "$(ls "$base/skills" 2>/dev/null | wc -l | tr -d ' ')"
+  if [ -d "$base/skills" ]; then
+    printf 'skills\t%s\n' "$(ls "$base/skills" 2>/dev/null | wc -l | tr -d ' ')"
+    # Named, not only counted. The count feeds the risk read; the names are
+    # manifest facts — what the thing ships — and matching on them is what
+    # replaces guessing from a listing's prose (Decision C, 2026-08-30).
+    for f in "$base"/skills/*/; do
+      [ -d "$f" ] || continue
+      f="${f%/}"
+      printf 'skill\t%s\n' "${f##*/}"
+    done
+  fi
   return 0
 }
 
@@ -205,20 +215,31 @@ _felix_discover_cache() { printf '%s/state/discover/%s' "$2" "$(basename "$1")";
 # There were two of these and they drifted, which is how a plugin was installed
 # under a capability it does not have: one scored a marketplace blurb, the other
 # scored the name alone, and nothing said they were supposed to agree. A name
-# counts triple because it is what a thing IS; prose counts single because it is
-# what a thing mentions.
+# counts triple because it is what a thing IS; a skill name counts triple
+# because it is what a thing SHIPS — a manifest fact read off the copy on disk,
+# not a word chosen to be found by (Decision C, 2026-08-30); prose counts
+# single because it is what a thing mentions.
+#
+# The fourth argument is optional — skill names, one per line — and every
+# caller that has a copy on disk should pass it, because the same read that
+# scored the risk already yielded the list.
 #
 # Emits: score <TAB> capability. The caller applies its own threshold, because
 # what is worth reporting and what is worth installing are different bars.
 felix_capability_match() {
-  local name="$1" desc="$2" rules="$3" nhay dhay cap kws kw score best=0 best_cap=""
+  local name="$1" desc="$2" rules="$3" skills="${4:-}"
+  local nhay dhay shay cap kws kw score hit best=0 best_cap=""
   nhay=" $(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
   dhay=" $(printf '%s' "$desc" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
+  shay=" $(printf '%s' "$skills" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
   while IFS=$'\t' read -r cap kws; do
     [ -n "${cap:-}" ] || continue
     score=0
     for kw in $kws; do
-      case "$nhay" in *"$kw"*) score=$((score+3)); continue ;; esac
+      hit=0
+      case "$nhay" in *"$kw"*) score=$((score+3)); hit=1 ;; esac
+      case "$shay" in *"$kw"*) score=$((score+3)); hit=1 ;; esac
+      [ "$hit" -eq 1 ] && continue
       case "$dhay" in *"$kw"*) score=$((score+1)) ;; esac
     done
     if [ "$score" -gt "$best" ]; then best="$score"; best_cap="$cap"; fi
@@ -276,6 +297,11 @@ felix_discover_adopt() {
     [ -n "${name:-}" ] && [ -n "${cap:-}" ] || continue
     case "${risk:-}" in low|medium|high) ;; *) continue ;; esac
     case "$name" in *' '*) continue ;; esac
+    # `-` is inspection's own verdict: the copy on disk ships nothing serving
+    # any declared capability, whatever the catalogue blurb promised. Declaring
+    # and installing under `-` would act on the claim inspection just refuted,
+    # and the row would sit in stack.tsv permanently dormant.
+    [ "$cap" = "-" ] && continue
 
     # Self-contained on purpose: this file is sourced alone by the suite, and a
     # helper from a sibling lib turns that into a runtime error rather than a

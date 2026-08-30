@@ -4640,6 +4640,282 @@ has "reads a plugin's own description" "$d" "llm evaluation harness"
 d="$( . "$FROOT/harness/lib/discover.sh"; felix_plugin_description "$TMP/nosuchdir" )"
 is "and is silent when there is none" "$d" ""
 
+printf '\nmatching reads what a plugin ships, not what it is called\n'
+# Decision C step 2 (2026-08-30). The inspect read already opens the copy on
+# disk; its skills list is a manifest fact, and a skill name says what a thing
+# SHIPS the way a plugin name says what it IS. Both count triple; a listing's
+# prose stays worth one.
+DCF="$TMP/dcfunnel"; mkdir -p "$DCF/skills/prompt-eval" "$DCF/skills/db-notes"
+facts="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_inspect "$DCF" )"
+has "inspect still counts the skills"  "$facts" "skills	2"
+has "and now names each one it found"  "$facts" "skill	prompt-eval"
+is "naming skills does not change the risk read" \
+   "$( . "$FROOT/harness/lib/discover.sh"; felix_discover_risk "$facts" )" "low"
+
+_cm4() { ( . "$FROOT/harness/lib/discover.sh"; felix_capability_match "$1" "$2" "$CR" "$3" ); }
+is "a skill name counts triple, like a name"    "$(_cm4 zzz '' 'prompt-eval' | cut -f1)" "6"
+is "and picks the capability the skills serve"  "$(_cm4 zzz '' 'prompt-eval' | cut -f2)" "llm"
+is "skills matching nothing add nothing"        "$(_cm4 zzz '' 'db-notes' | cut -f1)" "0"
+is "name and skills accumulate as evidence"     "$(_cm4 evaltool '' 'prompt-eval' | cut -f1)" "9"
+is "prose still counts single beside skills"    "$(_cm4 zzz 'an llm platform' 'db-notes' | cut -f1)" "1"
+
+# The installed-plugin path, which is the one the toolbox report reads. A
+# plugin whose name and blurb say nothing is matched by what its directory
+# actually ships; one whose skills serve nothing declared stays unmatched.
+TBS="$TMP/tbskills"; mkdir -p "$TBS/skills/prompt-eval" "$TBS/.claude-plugin"
+printf '{"name":"zzz","description":"assorted utilities"}\n' > "$TBS/.claude-plugin/plugin.json"
+cap="$( . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/toolbox.sh"
+        felix_toolbox_capability zzz "$CR" "$TBS" )"
+is "an installed plugin is matched by what it ships" "$cap" "llm"
+TBN="$TMP/tbnothing"; mkdir -p "$TBN/skills/db-notes" "$TBN/.claude-plugin"
+printf '{"name":"zzz","description":"assorted utilities"}\n' > "$TBN/.claude-plugin/plugin.json"
+cap="$( . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/toolbox.sh"
+        felix_toolbox_capability zzz "$CR" "$TBN" )"
+is "and shipping nothing declared still matches nothing" "$cap" ""
+
+printf '\nthe reconciler reads the record: reached beside needed\n'
+# Decision C step 3 (2026-08-30). The ledger records which MCP servers were
+# reached beside which a play named; stack.tsv records which are declared.
+# The reconciler proposes from that record and only that record — it installs
+# nothing, removes nothing, and edits nothing.
+# The fixture holds every shape the pipeline actually writes. figma is the
+# declared-named-never-reached case in both its shapes: the rollup records a
+# play-named-unreached entry with kind `named`, and bleed-era data recorded it
+# as an mcp zero row — the unmount rule must see both, which is why it reads
+# the kind-agnostic summary. ghost is the residue after a person obeys an
+# unmount and deletes the row: its named counts are Felix's own routing
+# priors, and proposing a mount from them would flip the same rows back and
+# forth forever. idle is an undeclared server with no evidence at all — the
+# row an unconditional mount branch would trip over.
+RCL="$TMP/reconlib"; mkdir -p "$RCL" "$MEM/reconlib"
+cat > "$MEM/reconlib/ledger.tsv" <<'EOF'
+s1	2026-08-01	mcp	context7	4	0
+s2	2026-08-02	mcp	context7	2	0
+s1	2026-08-01	named	figma	0	1
+s2	2026-08-02	named	figma	0	1
+s3	2026-08-03	mcp	figma@x	0	1
+s1	2026-08-01	mcp	gh	5	1
+s1	2026-08-01	mcp	quiet	0	0
+s2	2026-08-02	mcp	quiet	0	0
+s3	2026-08-03	mcp	quiet	0	0
+s1	2026-08-01	mcp	ghost	0	2
+s2	2026-08-02	mcp	ghost	0	2
+s3	2026-08-03	mcp	ghost	0	2
+s1	2026-08-01	mcp	idle	0	0
+s1	2026-08-01	named	wanted	0	2
+s1	2026-08-01	mcp	dup	1	0
+s1	2026-08-01	mcp	dup@x	2	0
+s1	2026-08-01	tool	Bash	9	0
+s1	2026-08-01	plugin	superpowers@x	3	1
+EOF
+m="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+      felix_ledger_mcp "$RCL" )"
+has "the mcp record aggregates a server across sessions" "$m" "context7	2	6	0"
+has "two rows in one session are one session, calls summed" "$m" "dup	1	3	0"
+case "$m" in
+  *Bash*|*superpowers*|*wanted*) bad "and reads only mcp rows" "$m" ;;
+  *)                             ok  "and reads only mcp rows" ;;
+esac
+
+{ printf 'mcp\tfigma@x\t-\tmedium\talways\n'
+  printf 'mcp\tgh\t-\tmedium\talways\n'
+  printf 'mcp\tquiet\t-\tmedium\talways\n'
+  printf 'mcp\tdup\t-\tlow\talways\n'
+} > "$RCL/stack.tsv"
+r="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+      . "$FROOT/harness/lib/stack.sh"; FELIX_LEDGER_MIN=3 felix_stack_reconcile "$RCL" )"
+has "proposes mounting what was reached and never declared" "$r" "mount	context7"
+has "proposes unmounting what was named and never reached, whatever shape recorded it" \
+    "$r" "unmount	figma	named 3 time(s) across 3 session(s)"
+is  "a reach is the only mount evidence there is" \
+    "$(printf '%s\n' "$r" | grep -c '^mount')" "1"
+is  "and the unmount above is the only other proposal" \
+    "$(printf '%s\n' "$r" | grep -c '^unmount')" "1"
+case "$r" in
+  *"	gh	"*) bad "never proposes unmounting what was reached" "$r" ;;
+  *)          ok  "never proposes unmounting what was reached" ;;
+esac
+case "$r" in
+  *quiet*) bad "a declared server no play ever named is left alone" "$r" ;;
+  *)       ok  "a declared server no play ever named is left alone" ;;
+esac
+case "$r" in
+  *ghost*) bad "rows outliving a deleted declaration do not propose a mount" "$r" ;;
+  *)       ok  "rows outliving a deleted declaration do not propose a mount" ;;
+esac
+r="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+      . "$FROOT/harness/lib/stack.sh"; FELIX_LEDGER_MIN=5 felix_stack_reconcile "$RCL" )"
+is "an unmount below the session threshold is not evidence" \
+   "$(printf '%s\n' "$r" | grep -c '^unmount' | tr -d ' ')" "0"
+has "while a mount needs no threshold: the reach already happened" "$r" "mount	context7"
+
+# A project that never declared a stack still has a record worth reading.
+RNS="$TMP/reconnostack"; mkdir -p "$RNS" "$MEM/reconnostack"
+printf 's1\t2026-08-01\tmcp\tcontext7\t4\t0\n' > "$MEM/reconnostack/ledger.tsv"
+r="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+      . "$FROOT/harness/lib/stack.sh"; felix_stack_reconcile "$RNS" )"
+has "no stack.tsv means nothing is declared, not nothing to say" "$r" "mount	context7"
+
+# The CLI surface, driven end to end against a governed fixture. The command
+# must render the proposals, act on none of them, and exit 0 — drift reported
+# is not a failure.
+mkdir -p "$FROOT/projects/reconproj" "$MEM/reconproj"
+cat > "$FROOT/projects/reconproj/project.json" <<'EOF'
+{"name": "reconproj", "remote_match": "example.com/reconproj", "gate": "true"}
+EOF
+printf '# reconproj\n' > "$FROOT/projects/reconproj/CLAUDE.md"
+cp "$MEM/reconlib/ledger.tsv" "$MEM/reconproj/ledger.tsv"
+cp "$RCL/stack.tsv" "$FROOT/projects/reconproj/stack.tsv"
+RREPO="$TMP/recon-repo"; mkdir -p "$RREPO"
+( cd "$RREPO" && git init -q -b main )
+printf 'reconproj\n' > "$RREPO/.felix"
+_stack_before="$(cat "$FROOT/projects/reconproj/stack.tsv")"
+out="$(cd "$RREPO" && FELIX_LEDGER_MIN=3 "$FELIX" stack reconcile 2>&1)"; rc=$?
+is  "felix stack reconcile exits 0"                    "$rc" "0"
+has "it renders the mount"                             "$out" "context7"
+has "it renders the unmount with its evidence"         "$out" "never reached"
+has "and says plainly that it acted on nothing"        "$out" "Proposals only"
+is  "stack.tsv is byte-identical after a reconcile" \
+    "$(cat "$FROOT/projects/reconproj/stack.tsv")" "$_stack_before"
+mv "$FROOT/projects/reconproj/stack.tsv" "$TMP/reconproj-stack-aside"
+out="$(cd "$RREPO" && "$FELIX" stack reconcile 2>&1)"; rc=$?
+is  "reconcile answers even where no stack.tsv exists" "$rc" "0"
+has "and still proposes from the record"               "$out" "context7"
+mv "$TMP/reconproj-stack-aside" "$FROOT/projects/reconproj/stack.tsv"
+
+# The session boundary is the only place a mount decision can land, so the
+# proposal has to surface there — one line, and the command holds the evidence.
+# Once. A proposal shown and left unacted is an answer, and a host-provided
+# server nobody should declare would otherwise nag at every session start
+# forever, which is how a signal becomes wallpaper.
+out="$(cd "$RREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" FELIX_LEDGER_MIN=3 \
+       "$FROOT/harness/hooks/session-start" 2>&1)"
+has "session start surfaces the reconcile proposals" "$out" "felix stack reconcile"
+out="$(cd "$RREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" FELIX_LEDGER_MIN=3 \
+       "$FROOT/harness/hooks/session-start" 2>&1)"
+has "the second session is still bound" "$out" "Project: reconproj"
+case "$out" in
+  *"stack reconcile"*) bad "a proposal shown once is not volunteered again" "$out" ;;
+  *)                   ok  "a proposal shown once is not volunteered again" ;;
+esac
+mkdir -p "$FROOT/projects/quietproj" "$MEM/quietproj"
+cat > "$FROOT/projects/quietproj/project.json" <<'EOF'
+{"name": "quietproj", "remote_match": "example.com/quietproj", "gate": "true"}
+EOF
+printf '# quietproj\n' > "$FROOT/projects/quietproj/CLAUDE.md"
+printf 'mcp\tgh\t-\tmedium\talways\n' > "$FROOT/projects/quietproj/stack.tsv"
+printf 's1\t2026-08-01\tmcp\tgh\t5\t1\n' > "$MEM/quietproj/ledger.tsv"
+QREPO="$TMP/quiet-repo"; mkdir -p "$QREPO"
+( cd "$QREPO" && git init -q -b main )
+printf 'quietproj\n' > "$QREPO/.felix"
+out="$(cd "$QREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" \
+       "$FROOT/harness/hooks/session-start" 2>&1)"
+has "the quiet control did bind its project" "$out" "Project: quietproj"
+case "$out" in
+  *"stack reconcile"*) bad "a consistent record says nothing at session start" "$out" ;;
+  *)                   ok  "a consistent record says nothing at session start" ;;
+esac
+
+# An empty answer has two honest readings, and only one of them is agreement.
+# quietproj holds a record that agrees with its manifest; emptyrec holds no
+# record at all, and calling that agreement would be a verdict produced by
+# reading nothing.
+out="$(cd "$QREPO" && "$FELIX" stack reconcile 2>&1)"
+has "a consistent record is called agreement" "$out" "the record and the manifest agree"
+mkdir -p "$FROOT/projects/emptyrec"
+cat > "$FROOT/projects/emptyrec/project.json" <<'EOF'
+{"name": "emptyrec", "remote_match": "example.com/emptyrec", "gate": "true"}
+EOF
+printf '# emptyrec\n' > "$FROOT/projects/emptyrec/CLAUDE.md"
+EREPO="$TMP/empty-repo"; mkdir -p "$EREPO"
+( cd "$EREPO" && git init -q -b main )
+printf 'emptyrec\n' > "$EREPO/.felix"
+out="$(cd "$EREPO" && "$FELIX" stack reconcile 2>&1)"; rc=$?
+is  "no record still answers cleanly" "$rc" "0"
+has "and is not called agreement"     "$out" "No record yet"
+
+# The named column is owner-anchored, driven through the real writers rather
+# than hand-written rows. A play naming context7-docs used to count as naming
+# context7 — substring, not identity — and enough such sessions read as
+# "pointed at and ignored", the exact evidence retire and the reconciler act
+# on. The control: an owner-reduced play entry must still name its plugin.
+BLH="$TMP/bleedhome"; BLP="$TMP/bleedproj"; mkdir -p "$BLH" "$BLP" "$MEM/bleedproj"
+{ printf 'mcp\tcontext7\t-\tmedium\talways\n'
+  printf 'plugin\tsuperpowers@x\t-\tlow\talways\n'
+} > "$BLP/stack.tsv"
+( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+  felix_ledger_note_named "$BLH" s1 "context7-docs superpowers:brainstorming"
+  felix_ledger_record "$BLH" s1 "mcp	context7-docs"
+  felix_ledger_rollup "$BLP" "$BLH" s1 2026-08-30 )
+row="$(cat "$MEM/bleedproj/ledger.d/s1.tsv" 2>/dev/null)"
+case "$row" in
+  *"	context7	0	0"*) ok  "a play naming a superstring does not name its prefix" ;;
+  *)                     bad "a play naming a superstring does not name its prefix" "$row" ;;
+esac
+sum="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+        felix_ledger_summary "$BLP" )"
+has "while an owner-reduced play entry still names its plugin" "$sum" "superpowers	1	0	1"
+r="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+      . "$FROOT/harness/lib/stack.sh"; FELIX_LEDGER_MIN=1 felix_stack_reconcile "$BLP" )"
+case "$r" in
+  *"unmount	context7"*) bad "so no false unmount is proposed from it" "$r" ;;
+  *)                     ok  "so no false unmount is proposed from it" ;;
+esac
+has "while the genuinely reached server is proposed" "$r" "mount	context7-docs"
+
+# What discovery judged capability-less is not adopt material. `-` is
+# inspection's own verdict — the copy on disk ships nothing serving any
+# declared capability — and declaring under it would act on the claim
+# inspection just refuted.
+ADH2="$TMP/adopthome-dash"; ADP2="$TMP/adoptproj-dash"
+mkdir -p "$ADH2/state/discover" "$ADP2"
+printf '# kind\tname\tsource\trisk\tcapability\n' > "$ADP2/stack.tsv"
+printf 'noname\t-\tlow\ngood\tllm\tlow\n' > "$ADH2/state/discover/adoptproj-dash.tsv"
+out="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_adopt "$ADP2" "$ADH2" )"
+has "a capability match is still adopt material" "$out" "declare	good"
+case "$out" in
+  *noname*) bad "a row inspection judged capability-less is not" "$out" ;;
+  *)        ok  "a row inspection judged capability-less is not" ;;
+esac
+
+# The cache-filling path end to end, with the marketplace and the source both
+# stubbed. The candidate's blurb is written to be chosen from and says llm; the
+# copy on disk ships storybook/css skills and no description at all. The blurb
+# is how a tracing plugin and an inference provider were both misfiled; the
+# cache row must carry what the thing ships.
+printf 'llm\nfrontend\n' > "$FROOT/projects/reconproj/capabilities"
+DQSRC="$TMP/discover-quiet-src"
+mkdir -p "$DQSRC/skills/storybook-css" "$DQSRC/.claude-plugin"
+# git tracks files, not directories: an empty skill directory would vanish in
+# the fetch and the inspect would read a plugin that ships nothing.
+printf '# storybook-css\n' > "$DQSRC/skills/storybook-css/SKILL.md"
+printf '{"name": "shipster"}\n' > "$DQSRC/.claude-plugin/plugin.json"
+( cd "$DQSRC" && git init -q -b main && git add -A \
+  && git -c user.email=t@t.t -c user.name=t commit -qm fixture )
+DQB="$TMP/discover-quiet-bin"; mkdir -p "$DQB"
+cat > "$DQB/claude" <<EOF
+#!/usr/bin/env bash
+cat <<JSON
+[
+  {
+    "name": "shipster",
+    "description": "an llm prompt evaluation kit",
+    "source": {
+      "url": "file://$DQSRC",
+      "path": ""
+    }
+  }
+]
+JSON
+EOF
+chmod +x "$DQB/claude"
+out="$(cd "$RREPO" && PATH="$DQB:$PATH" "$FELIX" discover --quiet 2>&1)"
+has "the cache row carries the capability the skills serve" "$out" "shipster	frontend	low"
+case "$out" in
+  *"shipster	llm"*) bad "and the blurb no longer outranks the manifest" "$out" ;;
+  *)                 ok  "and the blurb no longer outranks the manifest" ;;
+esac
+
 printf '\nthe one line git cannot reconstruct\n'
 # The handoff regenerates the whole file, so whoever filled in "what was in
 # progress" lost it the next time anything ran — while the mechanical half,

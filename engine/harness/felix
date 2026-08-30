@@ -2207,7 +2207,45 @@ cmd_budget() {
     # before the write and reported a spend whether or not one happened, which
     # is how a failed append announced itself as `recorded.` This number now
     # comes from the ledger, so it can only say what the ledger holds.
-    printf 'recorded. %s of %s used in the last 24h\n' "$(felix_budget_used "$proj")" "$limit"
+    used="$(felix_budget_used "$proj")"
+
+    # Counted AFTER the append, and this is the whole of the race fix.
+    #
+    # The comparison above is check-then-act with no lock: two callers that both
+    # read 9 against a limit of 10 both pass it and both append. Reproduced on
+    # one machine, no CI involved - seeded at 9 of 10, three concurrent callers,
+    # all three recorded, ledger left at 12. The only mechanical bound on
+    # unattended model runs was overrun by three ordinary shells.
+    #
+    # No lock, deliberately. A lock file needs a staleness rule, and a lock that
+    # can be broken is one that can be raced; the ledger is append-only and a
+    # line this short is written atomically, so the file itself is the
+    # serialisation point. Appending first and deciding afterwards turns the
+    # ledger's own length into the compare-and-swap.
+    #
+    # The direction of error is what makes this correct rather than merely
+    # different. A caller that loses the race sees a ledger at least as large as
+    # the one it read, so it can only refuse SOONER, and its own entry stays -
+    # burning a slot it did not use. At most one caller can observe exactly the
+    # limit, so at most the right number proceed. Over-refusing is reachable and
+    # costs a repair that waits for the window to reopen; over-spending is not
+    # reachable, and that is the asymmetry invariant 3 asks for.
+    #
+    # Measured, five racers against one remaining slot, three trials: once one
+    # caller recorded with the ledger at exactly the ceiling, and twice nobody
+    # recorded, because every caller appended before any of them re-read. That
+    # second outcome leaves the refused entries standing, so a concurrent burst
+    # spends the window on attempts rather than on work. It is the honest cost
+    # and it is the right way round: a burst of simultaneous unattended runs is
+    # the loop this ceiling exists to stop, and it ages out in 24h by itself.
+    if [ "$used" -gt "$limit" ]; then
+      printf 'budget exhausted: %s of %s used in the last 24h\n' "$used" "$limit" >&2
+      printf 'This run lost a race for the last slot and its entry stands, so the\n' >&2
+      printf 'count is over the ceiling. Refusing to start; the window reopens as\n' >&2
+      printf 'the oldest entries age out.\n' >&2
+      return 3
+    fi
+    printf 'recorded. %s of %s used in the last 24h\n' "$used" "$limit"
     return 0
   fi
 

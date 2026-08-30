@@ -186,15 +186,47 @@ if [ -n "$receipt" ] && [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
     exit 0
   fi
   if [ -n "$skipped" ]; then
-    body="Before you call this finished: this session routed to work that asks for
-${skipped}, and the transcript shows ${skipped} was never used.
+    # Three defects lived in this block and each got its own fix (#98).
+    #
+    # The sentence misnamed the play: both interpolations were ${skipped}, so a
+    # partly-followed three-step play was reported as though the route had only
+    # ever asked for the one step that was missed — and the message asks the
+    # reader to judge whether the skip was right, which is the judgement it had
+    # just removed the context for. The first slot now names the play.
+    #
+    # There was no way to answer it: it asked for a sentence and nothing could
+    # receive one, so it fired identically at every close and got read as
+    # furniture. `felix route --ack` is the answer channel; a recorded decline
+    # consumes here, once, and lands the reason in decisions.log.
+    #
+    # And it repeated every stop. Once per session now, same state pattern as
+    # the verification nudge below — the second raise of an unanswered question
+    # adds pressure, not information.
+    playline=""
+    if [ -f "$FELIX_HOME_DIR/state/route/${SID:-}" ]; then
+      routename="$(cut -d: -f1 < "$FELIX_HOME_DIR/state/route/${SID:-}" 2>/dev/null)"
+      playline="$(_felix_route_rows "$PROJ" | awk -F'\t' -v r="$routename" '$1==r{print $4}')"
+    fi
+    if felix_route_ack_consume "$ROOT" "$FELIX_HOME_DIR"; then
+      felix_verify_log "$PROJ" "allowed" "$TID" "play declined on the record"
+      exit 0
+    fi
+    sstate="$FELIX_HOME_DIR/state/skipped/${SID:-none}"
+    if [ -n "${SID:-}" ] && [ ! -f "$sstate" ]; then
+      mkdir -p "$(dirname "$sstate")" 2>/dev/null && : > "$sstate" 2>/dev/null
+      body="Before you call this finished: this session routed to work whose play is
+${playline:-$skipped}, and the transcript shows ${skipped} was never used.
 
-That may be right — say why. It is wrong often enough to be worth a sentence
-either way, and a route that keeps asking for the wrong thing is a bug in a
-table someone can fix."
-    felix_say "$PROJ" "skipped" "$body" "" "${SID:-}"
-    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
-      "$(escape_for_json "$body")"
+That may be right. Decline it on the record —
+
+  felix route --ack \"why it does not fit\"
+
+— or use it. A recorded decline tunes the table; this message will not repeat
+this session either way."
+      felix_say "$PROJ" "skipped" "$body" "" "${SID:-}"
+      printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
+        "$(escape_for_json "$body")"
+    fi
     exit 0
   fi
 

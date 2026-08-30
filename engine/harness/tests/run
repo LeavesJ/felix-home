@@ -2156,7 +2156,20 @@ case "$(_row "$out" 'scope bound')" in
   *"[x]"*) bad "and a project with none does not claim it" "$(_row "$out" 'scope bound')" ;;
   *)       ok  "and a project with none does not claim it" ;;
 esac
-has "saying what is missing" "$out" "no red path"
+has "saying what is missing" "$out" "no red rule"
+
+# Content rules bound scope exactly as path rules do (#100) — felix scope
+# classifies the whole diff and refuses on either kind. Counting paths alone
+# told a project whose red tier is all content rules — secrets, destructive
+# SQL, the material the red tier exists for — that nothing was out of scope,
+# on the checklist read before switching on unattended model runs. Elenchus
+# declares 2 red content rules today.
+{ printf '# tier\tkind\tpattern\treason\n'
+  printf 'red\tcontent\tDROP[[:space:]]+TABLE\tdestructive sql\n'
+} > "$FROOT/projects/widget/risk.tsv"
+out="$(_unatt)"
+has "a project bounded only by content rules reports the bound" \
+    "$(_row "$out" 'scope bound')" "[x]"
 
 # The budget row must not read as a satisfied precondition, because whether the
 # ceiling survives where the loop runs is not something this can check.
@@ -2655,7 +2668,12 @@ SUB_SID="sub-session-1"
 SUB_JSON="{\"hook_event_name\":\"SubagentStop\",\"session_id\":\"$SUB_SID\"}"
 _sub() { ( cd "$1" && FELIX_HOME="$2" printf '%s' "$SUB_JSON" \
            | FELIX_HOME="$2" "$SUBSTOP" 2>&1 ); }
-_sub_speaks() { case "$1" in *"changed files in the checkout"*) return 0 ;; *) return 1 ;; esac; }
+# The matcher is the new sentence's claim — the checkout's state, not the
+# subagent's conduct. SubagentStop carries the parent's session id and nothing
+# about which subagent finished, so "This subagent changed files" asserted a
+# fact the hook cannot know, and was false for every read-only subagent after
+# the parent's first commit — 48 of Felix's 136 utterances in five days (#97).
+_sub_speaks() { case "$1" in *"no gate has passed on"*) return 0 ;; *) return 1 ;; esac; }
 
 SUBR="$TMP/subrepo"; mkdir -p "$SUBR"
 ( cd "$SUBR" && git init -q -b main
@@ -2686,6 +2704,21 @@ out="$(_sub "$SUBR" "$FROOT")"
 _sub_speaks "$out" && ok  "work the subagent committed is still checked" \
                    || bad "work the subagent committed is still checked" "$out"
 
+# The sentence claims what the hook can know — the checkout — and never the
+# subagent's own conduct, which the payload does not carry.
+case "$out" in
+  *"This subagent changed files"*) bad "and the message does not accuse the subagent" "$out" ;;
+  *) ok "and the message does not accuse the subagent" ;;
+esac
+has "it says the fact it has instead" "$out" "no gate has passed on"
+
+# Once per session, not per agent. Three reviewers after one parent commit got
+# three copies of a message that was false for all three; the second telling
+# of an unchanged fact is pressure, not information.
+out="$(_sub "$SUBR" "$FROOT")"
+_sub_speaks "$out" && bad "a second hand-off in the same session stays quiet" "$out" \
+                   || ok  "a second hand-off in the same session stays quiet"
+
 # OVER-FIRES, the other direction and the same root cause. Only Felix's own
 # bookkeeping changed. felix_tree_dirty excludes it deliberately — "a session
 # that appended one line to a log has not changed the work" — and the raw
@@ -2714,13 +2747,16 @@ _sub_speaks "$out" && bad "but Felix's own bookkeeping is not the subagent's wor
                    || ok  "but Felix's own bookkeeping is not the subagent's work"
 rm -rf "$SELF/state"
 
-# And a real uncommitted edit still speaks, which is the behaviour that already
-# worked and must survive the fix.
+# And a real uncommitted edit still speaks — in a fresh session, because the
+# session above has had its one telling. A new session id is a new parent
+# integrating reports, and it has not been told anything yet.
 ( cd "$SUBR" && printf 'uncommitted real work\n' >> code.txt )
+SUB_JSON="{\"hook_event_name\":\"SubagentStop\",\"session_id\":\"sub-session-2\"}"
 out="$(_sub "$SUBR" "$FROOT")"
-_sub_speaks "$out" && ok  "a real uncommitted edit still speaks" \
-                   || bad "a real uncommitted edit still speaks" "$out"
+_sub_speaks "$out" && ok  "a real uncommitted edit still speaks, in a fresh session" \
+                   || bad "a real uncommitted edit still speaks, in a fresh session" "$out"
 ( cd "$SUBR" && git checkout -q -- code.txt )
+SUB_JSON="{\"hook_event_name\":\"SubagentStop\",\"session_id\":\"$SUB_SID\"}"
 
 printf '\nthe intent router\n'
 # Say what you are doing and get the right kit, without naming it. The chain is
@@ -3213,6 +3249,19 @@ case "$ctx" in
 esac
 has "but says what may come later" "$ctx" "Later, only if"
 
+# The mandate speaks with the channel's measured accuracy, not past it. The
+# old paragraph opened "This is a requirement, not a suggestion" — language
+# for a channel that is nearly always right, on one measured at 2 of 11
+# mandates followed and five recorded failure causes (#29). A maximal claim
+# from a low-precision source teaches sessions to skim the channel.
+case "$ctx" in
+  *"requirement, not a suggestion"*) bad "the mandate does not claim more precision than measured" "$ctx" ;;
+  *) ok "the mandate does not claim more precision than measured" ;;
+esac
+# And it carries its own answer channel, so a wrong route becomes a labeled
+# example instead of a silent skip.
+has "and names the decline channel" "$ctx" "felix route --ack"
+
 # Once the transcript shows step one was used, step two becomes the due one.
 printf '{"type":"assistant","attributionSkill":"frontend-design:frontend-design"}\n' >> "$TR"
 J2="{\"session_id\":\"jit-1\",\"transcript_path\":\"$TR\",\"prompt\":\"the results page layout still needs work\"}"
@@ -3240,6 +3289,61 @@ case "$out" in
   *'"decision"'*'"block"'*) bad "but does not hold the session for it" "$out" ;;
   *) ok "but does not hold the session for it" ;;
 esac
+
+printf '\nthe finish-line message, and its answer channel\n'
+# #98. Both interpolations in the old sentence were ${skipped}, so a
+# three-step play with two steps followed was reported as though the route had
+# asked only for the one that was missed — a partly-followed play rendered
+# indistinguishable from a one-step play ignored outright, in the message that
+# asks the reader to judge whether the skip was right. And nothing could
+# answer it, so it fired identically at every close and got read as furniture.
+#
+# A play two-thirds followed, so the two facts come apart: the play is three
+# names, the skip is one.
+TR3="$TMP/transcript3.jsonl"; : > "$TR3"
+printf '{"type":"assistant","attributionSkill":"frontend-design:frontend-design"}\n' >> "$TR3"
+printf '{"type":"assistant","attributionSkill":"impeccable"}\n' >> "$TR3"
+mkdir -p "$FROOT/state/route"; printf 'frontend:playwright' > "$FROOT/state/route/jit-3"
+SJ3="{\"hook_event_name\":\"Stop\",\"stop_hook_active\":false,\"session_id\":\"jit-3\",\"transcript_path\":\"$TR3\"}"
+out="$(cd "$REPO" && printf '%s' "$SJ3" | "$STOP" 2>&1)"
+# The first slot names the PLAY — including a step that was followed — so the
+# reader judges the skip against the sequence it came from. Reverse-locked:
+# the old sentence put the skipped step in both slots, and `impeccable` was
+# followed, so it could not appear.
+has "the message names the play, not only the miss" "$out" "impeccable"
+has "and still says which step went unused"         "$out" "never used"
+has "and carries the decline channel"               "$out" "felix route --ack"
+
+# Once per session. The second telling of an unanswered question is pressure.
+out="$(cd "$REPO" && printf '%s' "$SJ3" | "$STOP" 2>&1)"
+case "$out" in
+  *"never used"*) bad "and it does not repeat within a session" "$out" ;;
+  *) ok "and it does not repeat within a session" ;;
+esac
+
+# The answer channel, end to end: a recorded decline quiets the complaint and
+# lands the reason where the table's next revision can read it. Recording
+# only — the deliberation layer's gate in HANDOFF 0z stays closed; this is the
+# instrumentation floor it names.
+printf 'frontend:playwright' > "$FROOT/state/route/jit-4"
+SJ4="{\"hook_event_name\":\"Stop\",\"stop_hook_active\":false,\"session_id\":\"jit-4\",\"transcript_path\":\"$TR3\"}"
+out="$(cd "$REPO" && "$FELIX" route --ack "no browser surface in this change" 2>&1)"; rc=$?
+is  "felix route --ack records without error" "$rc" "0"
+has "and says it did"                         "$out" "on the record"
+has "the reason is durable in decisions.log" \
+    "$(tail -1 "$MEM/widget/decisions.log" 2>/dev/null)" "no browser surface in this change"
+has "as a declined verdict"                   "$(tail -1 "$MEM/widget/decisions.log" 2>/dev/null)" "declined"
+out="$(cd "$REPO" && printf '%s' "$SJ4" | "$STOP" 2>&1)"
+case "$out" in
+  *"never used"*) bad "a declined play is not raised at the finish" "$out" ;;
+  *) ok "a declined play is not raised at the finish" ;;
+esac
+# Consumed, not standing: one decline answers one complaint. A permanent ack
+# would be a mute button on the only compliance signal there is.
+[ -f "$FROOT/state/route/ack-$(printf '%s' "$(cd "$REPO" && pwd -P)" | git hash-object --stdin)" ] \
+  && bad "and the ack is consumed by the answer" "ack file still present" \
+  || ok  "and the ack is consumed by the answer"
+
 ( cd "$REPO" && git checkout -q -- WIDGET.txt 2>/dev/null || printf 'contents\n' > "$REPO/WIDGET.txt" )
 
 printf '\nvisible at all\n'

@@ -5865,14 +5865,90 @@ is "and nothing was written to the real felix home pointer" \
    "$(cat "$IHOME/.felix-home" 2>/dev/null)" "$ISRC"
 
 printf '\nindependence\n'
-# Scoped to code that runs in production. This suite names Elenchus in its own
-# comments on purpose, since explaining what it refuses to depend on is the point.
-runtime=("$FROOT/harness/felix" "$FROOT/harness/lib" "$FROOT/harness/hooks")
-if grep -rniq "elenchus" "${runtime[@]}" 2>/dev/null; then
-  bad "runtime harness names no specific project" \
-      "$(grep -rni 'elenchus' "${runtime[@]}" | head -3)"
+# #85, and mounting a second real project is what made it matter. The check
+# grepped ONE hard-coded literal, `elenchus`, over three paths. Constitution
+# invariant 1 is "The engine names no project" - the first invariant in the
+# file - and what the check established was that seven particular letters were
+# absent from three of the directories under engine/harness.
+#
+# Demonstrated against the real gate before this was written: an engine that
+# hard-codes `veldra`, a project Felix actually governs, passes; the identical
+# edit naming `elenchus` fails.
+#
+# The names are enumerated from projects/ so governing something new cannot
+# quietly widen what the engine may say. The engine's OWN name is exempt and
+# has to be: `felix` appears 1452 times in runtime code because it is the
+# product, the function prefix and the binary, not a governed product being
+# named. `bin/` is in the searched set because the gate EXECUTES it - the
+# literal `elenchus` sitting in engine/harness/bin/secret-scan passed before.
+#
+# tests/ and templates/ stay out, deliberately. This suite names Elenchus in
+# its own comments on purpose, since explaining what it refuses to depend on is
+# the point, and the widget fixture names itself 256 times.
+_REALP="$(cd "$REAL_HARNESS/../.." && pwd)/projects"
+_gov_names() {   # every governed project except the engine's own name
+  [ -d "$_REALP" ] || return 0
+  for _d in "$_REALP"/*/; do
+    [ -d "$_d" ] || continue
+    _n="$(basename "$_d")"
+    [ "$_n" = "felix" ] && continue
+    printf '%s\n' "$_n"
+  done
+}
+runtime=("$FROOT/harness/felix" "$FROOT/harness/lib" "$FROOT/harness/hooks" "$FROOT/harness/bin")
+
+# Every governed name, not one literal. Asserted per name so a failure says
+# which project leaked into the engine.
+while IFS= read -r _gn; do
+  [ -n "$_gn" ] || continue
+  if grep -rniq -- "$_gn" "${runtime[@]}" 2>/dev/null; then
+    bad "the engine names no governed project ($_gn)" \
+        "$(grep -rni -- "$_gn" "${runtime[@]}" | head -3)"
+  else
+    ok "the engine names no governed project ($_gn)"
+  fi
+done <<EOF
+$(_gov_names)
+EOF
+
+# The engine's own name is exempt, and that exemption must not silently become
+# a hole for everything: it is one name, and it is the one Felix governs itself
+# under.
+is "exactly one name is exempt, and it is the engine's own" \
+   "$(_gov_names | grep -cx felix)" "0"
+
+# bin/ is searched. It is the path the earlier check omitted while the gate
+# executed what was in it.
+case " ${runtime[*]} " in
+  *"/harness/bin "*) ok "and bin/ is in the searched set, because the gate runs it" ;;
+  *) bad "and bin/ is in the searched set, because the gate runs it" "${runtime[*]}" ;;
+esac
+
+# The gate keeps its own copy of this check so it fails too, rather than being
+# left to a suite somebody can skip. Two copies drift; this asserts they search
+# the same places.
+# Read from the independence block ALONE, not the whole file. My first version
+# grepped every engine/harness path in gate.sh and passed before the gate was
+# touched, because the secret check names engine/harness/bin/secret-scan and
+# the pattern found it there. An assertion satisfied by an unrelated line is
+# the shape this whole section exists to remove.
+_REALG="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
+if [ -f "$_REALG" ]; then
+  _gate_paths="$(sed -n '/^# -.*independence/,/^# -.*memory/p' "$_REALG" \
+                 | grep -o 'engine/harness/[a-z]*' | sort -u | tr '\n' ' ')"
+  is "and the gate searches the same paths this does" "$_gate_paths" \
+     "engine/harness/bin engine/harness/felix engine/harness/hooks engine/harness/lib "
+  # And it must enumerate rather than carry a literal, or it drifts the moment
+  # a project is mounted - which is exactly what happened.
+  # Non-comment lines only. The block's prose explains which literal it used to
+  # grep and why that was wrong, and a comment naming a project is not the
+  # engine naming one - it is the record of why it stopped.
+  case "$(sed -n '/^# -.*independence/,/^# -.*memory/p' "$_REALG" | grep -vE '^[[:space:]]*#')" in
+    *elenchus*) bad "and the gate's code names no project literally" "still greps a hard-coded name" ;;
+    *)          ok  "and the gate's code names no project literally" ;;
+  esac
 else
-  ok "runtime harness names no specific project"
+  skip "and the gate searches the same paths this does" "no shipped gate"
 fi
 
 printf '\nreached\n'

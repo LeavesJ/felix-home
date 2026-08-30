@@ -119,42 +119,94 @@ training data; now every miss generates some.
 Framed as what changes about Felix, because that is the register decisions are
 made in.
 
-### Decision A — the router stops speaking per-turn and starts speaking per-phase
+### Decision A′ — Felix stops guessing content; the model selects; Felix forces the decision
 
-**What Felix stops being able to do:** interject a mandate into an arbitrary
-turn on a keyword match. The per-turn channel's measured precision does not
-survive contact with any of #29's five causes, four of which are structural
-properties of keyword tables (topic-vs-task, quoted material, phase blindness,
-recording-shape) that no table revision fixes.
+*Revised 2026-08-30 after the founder asked the question the first draft left
+open: "what serves the purpose of autonomously and smartly utilizing different
+skills dynamically mid-session if we use per-phase voice?" The answer changes
+the proposal's shape, not its evidence.*
 
-**What Felix does instead:** speaks at the three moments whose precision is
-structurally high, because they are defined by state rather than by parsing
-prose:
+**What the first draft got right:** the per-turn keyword mandate is dead.
+Five recorded causes, ~2% precision, 2-of-11 follow-through. Nothing revives a
+grep that must tell topic from task.
 
-1. **Session start** — the briefing it already gives: constitution, handoff,
-   lessons, and the play for the session's *declared* work. Already built.
-2. **The finish line** — the Stop hook, on tree state and the play's unused
-   steps, once, with the ack channel. Rebuilt tonight.
-3. **Phase transitions the transcript proves** — a play step comes due when
-   the previous one's use is *in the transcript* (`felix_route_due` already
-   reads this). The play advances on evidence, never on keywords.
+**What it left unowned:** opportunity recognition — noticing mid-session that
+*this* subgoal is capability-shaped. Per-phase voice follows the arranged play;
+it does not notice the unarranged opportunity. That gap is exactly the middle
+stage the founder's own §0z architecture names: opportunity recognition →
+action selection → execution commitment.
 
-The keyword table survives only as the *initial* play selection at session
-start, where the founder's own prompt names the work — the one place the blind
-study found it right. The per-turn `UserPromptSubmit` mandate path is retired.
+**The evidence triangulates to a division of labour, not a retreat:**
 
-Evidence this direction is right rather than merely smaller: #29's sharpest
-finding is asymmetric — *"the wrong first step costs the right last step"* — a
-session told to brainstorm a filed issue reads the whole play as noise and
-skips the review step it actually needed. Fewer, better-placed words recover
-the steps that matter.
+| component | can read meaning mid-turn | holds the inventory | measured verdict |
+|---|---|---|---|
+| the keyword table | no | no — 23 slots, hand-typed | 5 causes, ~2% precision |
+| a per-turn model call | yes | yes | dead: 4.9–8.6s latency, process startup, measured twice |
+| the host model, in-session | **yes** | **yes — every skill description is in its context** | skips the consider-step; acts on habit |
 
-**Cost:** Felix stops catching the mid-session pivot (a debugging session that
-becomes a shipping session). The recording (`routes.log`) keeps observing
-those; if the data later shows pivots are common and costly, that is a new
-design question answered with data the ack channel is already collecting.
+The only component qualified to select capabilities mid-session is the model
+doing the work. What it lacks is not information but a **forced consider-step**
+— which is deliberation forcing, the founder's proposal, verbatim: *"not 'use
+tool X' but 'you may not silently skip the action-selection step here'."*
+
+**So mid-session dynamism changes owner, not existence:**
+
+- **Felix owns the moments.** Session start (the brief), proven play
+  transitions (transcript evidence — already dynamic, already built), the
+  finish line (built), and — once B's data supports enforcement — the forced
+  decision points: before fan-out, before implementation begins, at review.
+  Moments are state, not prose; Felix can read state at ~100% precision.
+- **The model owns the selection.** At a forced moment it emits its capability
+  decision — which skill, or NONE — from the inventory it already holds,
+  scoped by the toolbox Felix arranged (C). Felix hardcodes the procedure; the
+  model supplies the semantics. That is the cleanest resolution of the
+  invariant-2 tension, stated in §0z, and it stays inside the invariant: a
+  forced decision step neither narrows nor widens what is allowed.
+- **The record owns the judgement.** Every decision lands in `decisions.log`
+  beside `named` and `reached`. Whether the model selects well when asked
+  explicitly is an empirical question, and B is its measurement phase.
+
+Why this cannot fail the way the mandate channel failed: a forced *decision*
+contains no tool name Felix guessed, so it cannot be wrong about content —
+only present or absent. The failure mode shifts from "wrong mandate teaches
+sessions to skim" (fatal, observed) to "one more prompt at a phase boundary"
+(annoying, measurable, and the ack rate will say so).
+
+**The ladder to the full vision, so the far end stays connected.** The Ultron
+document's Felix owns *"which MCP, which plugin, which skill, in which order"*
+— and the platform still refuses mid-session mounting (a host feature flag,
+verified in the binary, likely to move on its own; HANDOFF §2). The rungs:
+
+1. honest voice, once per moment — **shipped (#103)**
+2. recorded decisions, declines as labeled data — **shipped (#103), B approved**
+3. forced decisions at Felix-owned moments — **gated on B's 20-session review**
+4. per-session arrangement from reach-vs-need — **C, agreed**
+5. mid-session mounting — **blocked by the host flag; re-check, do not build around**
+
+"Dynamic skills" in the founder's sense sits at rung 5 and stays out of scope
+by their instruction. Rungs 1–4 are what "autonomously and smartly utilize
+skills mid-session" means on today's platform: the model selecting, at forced
+moments, from a toolbox Felix arranged, on the record.
+
+**Alternatives considered and rejected for this revision, so they are not
+re-proposed:** a bigger keyword table (five causes are structural, not rows);
+a per-turn model router (measured dead, twice); a semantic veto layer
+(suppress-only is invariant-legal but fixes false positives, not opportunity
+recognition — and the recognition gap is the one that matters).
+
+**Status: revised, awaiting the founder's yes on A′.** The per-turn mandate
+path keeps firing (honestly, post-#103) until then.
 
 ### Decision B — the deliberation layer, entered through the recording door
+
+**APPROVED by the founder, 2026-08-30**, with a condition: the tracker and
+ack-rate data must survive the build weeks that start today. Discharged three
+ways, none of them new machinery: `decisions.log` lives in the memory root
+outside every checkout (invariant 6), the gate's `memory` check fails if it is
+ever tracked into the repository, and the iCloud backup carries it —
+restore-verified. `felix decisions` (0.49.30) makes the record legible on
+demand: mandates rendered, declines recorded, answer rate, windowed to the day
+the answer channel shipped. **The 20-session clock started 2026-08-30.**
 
 §0z holds your architecture: deliberation forcing ("you may not silently skip
 the action-selection step here") plus decision-action closure (every actionable
@@ -178,6 +230,9 @@ Five of its states have no data (the same argument that held the autonomy
 ledger's empty dimensions absent rather than zero-filled).
 
 ### Decision C — the capability funnel gets populated by reading manifests, not by guessing names
+
+**AGREED by the founder, 2026-08-30.** Build order: with the founder building
+today, C's three steps are the next engine work after this memo lands.
 
 Per #58's own prescription, between sessions, no retrieval layer, no model in
 any enforcing path:
@@ -245,13 +300,13 @@ version; the pair is what makes it honest.
 
 ## 6. The morning's yes/no list
 
-| decision | yes means | no means |
-|---|---|---|
-| **A** — per-phase voice | the per-turn mandate path is removed; Felix speaks at session start, proven phase transitions, and the finish line | the channel keeps firing per-turn while its five causes await five designs |
-| **B** — deliberation via recording, 20 sessions | enforcement is decided later, from ack-rate data | the closure states are built now, unmeasured (your original architecture, sooner and blinder) |
-| **C** — populate the funnel from manifests | doctor-derived capabilities, manifest-fact matching, reconciler proposals from reach-vs-need | the funnel stays empty and tooling stays hand-arranged |
+| decision | status |
+|---|---|
+| **A′** — Felix owns moments, the model selects, the record judges | revised after the founder's question; **awaiting yes** |
+| **B** — deliberation via recording, 20 sessions | **APPROVED 2026-08-30**; clock running; tracker is `felix decisions` |
+| **C** — populate the funnel from manifests | **AGREED 2026-08-30**; next engine work |
 
-A yes to all three is one coherent system: Felix arranges the toolbox between
-sessions (C), names the play at moments it can defend (A), and records every
-decision about capability use until the record says whether recording is
-enough (B).
+The coherent system, restated under A′: Felix arranges the toolbox between
+sessions (C), forces the capability decision at moments it owns (A′), and the
+record says whether the model decides well enough that recording is all the
+enforcement needed (B).

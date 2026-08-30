@@ -82,10 +82,11 @@ Each line produced by a command. Newest first under §0.
 | suite | **888** locally, **882 + 6 skipped** on CI, 880 manifest lines |
 | governed projects | **three, and all three committed for the first time** |
 | open issues | **14** — six filed today |
-| open PRs | **two** — this handoff (#95) and #96 |
+| open PRs | **one** — this handoff. #96 merged as `e191ad6` |
 
-**Nothing merged this session.** #96 carries the code and is green on CI; #95 is
-this file. Both wait on the founder.
+**#96 merged as `e191ad6`**, after this section was first written — see the
+Standing block, where the founder item that carried it caused an outage. #95 is
+this file.
 
 ### The outstanding review was run, and its range was short by two commits
 
@@ -260,15 +261,54 @@ apply, rather than on having looked.
 `engine/harness/tests/assertions.tsv` must be re-recorded by any change to
 assertions — and as of #96 that is finally safe to do from any machine.
 
-**Two founder items, and neither is a research task.**
+**Both founder items are done, and the first one caused an outage on the way.**
+Left standing below rather than deleted, because what it originally said is the
+whole lesson.
 
-1. **Merge order does not matter, but the veldra collision does.** #96 commits
-   `projects/veldra/`, which still exists untracked in the served checkout, so a
-   pull after the merge will refuse to overwrite it. Delete the untracked copy
-   first — the content is on `origin` either way — then pull.
+1. ~~*"#96 commits `projects/veldra/`, which still exists untracked in the served
+   checkout, so a pull after the merge will refuse to overwrite it. Delete the
+   untracked copy first — the content is on `origin` either way — then pull."*~~
+   **Merged as `e191ad6`.** See below; that instruction was wrong in the order it
+   put things.
 2. **#96 is red on the version bump and cannot deploy from a worktree** (#2).
-   `installed` FAILs structurally there; every other check is green. Merge it and
-   run `felix install` in the served checkout.
+   Done: merged, `felix install` run in the served checkout, and the gate there
+   is **pass on `main @ e191ad6`, 888 assertions, `installed` ok** — the first
+   run in this whole sequence where `installed` was able to pass at all.
+
+### The instruction above deleted a governed project's doctrine
+
+Item 1 was handed over as a command beginning `rm -rf projects/veldra`, justified
+by *"the content is on `origin` either way"*. That justification is true only
+**after** #96 merges, and item 2 — one line below it — said the merge had not
+happened. The delete ran; the `git pull` beside it restored nothing, because
+`main` did not carry veldra; and `LeavesJ/ReserveGrid-OS` lost its doctrine, its
+`gate.sh`, its project resolution and its `scripts/gate.sh` symlink target while
+its `.felix` marker went on naming a project that no longer existed.
+
+Nothing was lost, and only because the directory had been committed and pushed
+first — recovered whole by merging #96 and pulling. `~/.felix/memory/veldra/`
+was never touched.
+
+**Two things generalise, both now in `lessons.md`.**
+
+Order the steps so the irreversible one comes last and is guarded by the state it
+depends on. A destructive command whose safety rests on a merge that has not
+happened is a trap regardless of how carefully the surrounding prose explains the
+merge, because the command is what gets run.
+
+And when the safety argument is *"it is recoverable from X"*, name X and verify X
+holds it — before writing the command. Here X was `origin/claude/…`, not `main`,
+and the command pulled `main`.
+
+**The recovery had a second trap, and the majority was wrong.** Twelve surviving
+`scripts/gate.sh` copies in ReserveGrid-OS worktrees agreed with each other at
+136 lines and disagreed with the committed 142-line canonical, which reads like
+twelve votes against one. The six extra lines are a `FELIX_GATE_ROOT` override
+whose own comment says that without it the gate resolves the Felix projects
+directory instead of the checkout being gated — **a false pass**. Restoring from
+the majority would have restored a gate that cannot fail. Only the newest
+worktree, `reservegrid-os-dev-c70b0d`, matched the canonical. Count of copies is
+not evidence; diff the candidates and read what the difference does.
 
 **The follow-through baseline is still not re-derived.** No number before it is.
 

@@ -587,3 +587,30 @@ felix_version_bump() {
   mv -f "$tmp" "$manifest" 2>/dev/null || { rm -f "$tmp"; return 1; }
   printf '%s' "$next"
 }
+
+# The deployed surface is three directories, and comparing one of them
+# certified deployments that never happened (#82). The cache serves harness/,
+# hooks/ and commands/; hooks.json is the file that decides which hooks BIND,
+# so a deploy that copied harness/ and dropped hooks/ reads as `installed ok`
+# while every session runs yesterday's bindings — a hook binary deployed
+# perfectly and running nowhere. engine/.claude-plugin is deliberately not
+# compared: plugin.json differs whenever a bump is pending, which is this
+# tree's normal state, and the cache does not carry that directory anyway.
+#
+# A directory absent from BOTH sides is skipped — nothing was deployed and
+# nothing was expected, which is a fixture, not a drift. Absent from one side
+# is a drift: diff itself fails on the missing operand, which is the honest
+# verdict rather than a special case.
+#
+# The merge-time self-judgement guard is deliberately NOT this function. It
+# compares harness/ alone, on purpose — it asks whether the judging LIBRARIES
+# are the accepted ones, not whether the deployment is complete — and widening
+# it would let a hooks-only difference block a merge that hooks cannot affect.
+felix_deploy_diff() {
+  local src="$1" live="$2" d rc=0
+  for d in harness hooks commands; do
+    [ -e "$src/$d" ] || [ -e "$live/$d" ] || continue
+    diff -rq "$src/$d" "$live/$d" || rc=1
+  done
+  return "$rc"
+}

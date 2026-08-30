@@ -87,13 +87,27 @@ fi
 PLUG="$(claude plugin list --json 2>/dev/null \
         | sed -n '/"felix@felix"/,/}/p' \
         | sed -n 's/.*"installPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
-if [ -n "$PLUG" ]; then
-  PLUG="$PLUG/harness"
-else
-  PLUG="$(ls -d "$HOME"/.claude/plugins/cache/felix/felix/*/harness 2>/dev/null | sort -V | tail -1)"
+if [ -z "$PLUG" ]; then
+  PLUG="$(ls -d "$HOME"/.claude/plugins/cache/felix/felix/* 2>/dev/null | sort -V | tail -1)"
 fi
+# All three deployed directories, not harness alone (#82). hooks/hooks.json is
+# the file that decides which hooks BIND, so a deploy that carried harness/ and
+# dropped hooks/ read as `installed ok` while every session ran yesterday's
+# bindings — a hook binary deployed perfectly and running nowhere. commands/ is
+# executed by the runtime the same way. A directory absent from both sides is a
+# fixture, not a drift; absent from one side, diff fails on the missing operand,
+# which is the verdict. engine/.claude-plugin stays out: plugin.json differs
+# whenever a bump is pending, which is this tree's normal state. Inline rather
+# than the engine's felix_deploy_diff, deliberately: a verifier that sources the
+# code it judges can be switched off by editing that code.
 if [ -n "$PLUG" ] && [ -d "$PLUG" ]; then
-  if diff -rq engine/harness "$PLUG" >/tmp/felix-install-drift.log 2>&1; then
+  INSTALL_DRIFT=0
+  : > /tmp/felix-install-drift.log
+  for d in harness hooks commands; do
+    [ -e "engine/$d" ] || [ -e "$PLUG/$d" ] || continue
+    diff -rq "engine/$d" "$PLUG/$d" >>/tmp/felix-install-drift.log 2>&1 || INSTALL_DRIFT=1
+  done
+  if [ "$INSTALL_DRIFT" -eq 0 ]; then
     pass installed
   else
     # A worktree can never satisfy this. The felix marketplace is a directory

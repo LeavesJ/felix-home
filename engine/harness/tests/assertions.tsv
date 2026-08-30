@@ -41,6 +41,7 @@
 1	a deployed engine resolves the checkout, not itself
 1	a devlog entry newer than the catch settles it too
 1	a different repository is still checked
+1	a directory declaring project.json is enumerated
 1	a disarmed engine is still judged by main's version
 1	a docs-only change requires nothing
 1	a docs-only signal is routine
@@ -315,12 +316,14 @@
 1	and is marked unknown rather than unmet
 1	and is not a routing gap either; it is unknown
 1	and is silent when there is none
+1	and it enumerates declared projects, not directory entries
 1	and it holds against the shipped lessons file
 1	and it is Felix's own work
 1	and it is a tier, not the word
 1	and it is named
 1	and it is not autonomous
 1	and it is reported as unusable, not unchecked
+1	and it matches a project name as a literal
 1	and it merges nothing
 1	and it names the literal that went missing
 1	and it names the tree that can, not a fault
@@ -454,6 +457,7 @@
 1	and that nothing granted it, on a channel review cannot clear
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
+1	and the bare listing the gate used to do would have counted a plain file
 1	and the cause is the prompt, not the envelope
 1	and the clean sentence is withheld
 1	and the comment survives
@@ -778,7 +782,7 @@
 1	the bump fixture has an identical judge, so the guard can fire
 1	the cause is not the raw payload
 1	the data marker is substituted
-1	the engine names no governed project (elenchus)
+1	the engine names no governed project
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
 1	the fixture is dirty only in Felix's own bookkeeping
@@ -786,6 +790,7 @@
 1	the fixture puts the catch after the lesson
 1	the fixture really has a base ref behind its remote
 1	the founder's item is not buried
+1	the gate refuses to answer on a path it cannot search
 1	the handoff carries no file comments
 1	the hook announces what it adopted
 1	the hook routes on the first prompt
@@ -840,6 +845,7 @@
 1	the working tree alone can route
 1	their declared gate runs and passes
 1	their high-risk rows are blocked too
+1	there is at least one governed project to check for
 1	there is no --yes
 1	three groups from four tasks
 1	tree identity is computable

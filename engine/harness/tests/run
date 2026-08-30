@@ -5958,37 +5958,116 @@ printf '\nindependence\n'
 # tests/ and templates/ stay out, deliberately. This suite names Elenchus in
 # its own comments on purpose, since explaining what it refuses to depend on is
 # the point, and the widget fixture names itself 256 times.
+#
+# A project is a directory that DECLARES itself with a project.json, not one
+# that happens to exist. The first version globbed bare directories, which gave
+# an empty stray the same authority as a governed project - projects/widget is
+# one - and disagreed with the gate, which used `ls -1 projects` and so counted
+# plain files too. Two hand-rolled enumerators, already divergent, under an
+# assertion that claimed they were in step.
 _REALP="$(cd "$REAL_HARNESS/../.." && pwd)/projects"
 _gov_names() {   # every governed project except the engine's own name
+  local meta n
   [ -d "$_REALP" ] || return 0
-  for _d in "$_REALP"/*/; do
-    [ -d "$_d" ] || continue
-    _n="$(basename "$_d")"
-    [ "$_n" = "felix" ] && continue
-    printf '%s\n' "$_n"
+  for meta in "$_REALP"/*/project.json; do
+    [ -f "$meta" ] || continue
+    n="${meta%/project.json}"; n="${n##*/}"
+    [ "$n" = "felix" ] && continue
+    printf '%s\n' "$n"
   done
 }
 runtime=("$FROOT/harness/felix" "$FROOT/harness/lib" "$FROOT/harness/hooks" "$FROOT/harness/bin")
 
-# Every governed name, not one literal. Asserted per name so a failure says
-# which project leaked into the engine.
+# Armed before it is trusted. This is a negative assertion over a generated set,
+# which is the shape that reports success whenever the set is empty - and the
+# set is read off a directory, so "no projects found" and "no project leaked"
+# arrived as the same pass.
+_govn="$(_gov_names | wc -l | tr -d ' ')"
+[ "${_govn:-0}" -gt 0 ] \
+  && ok "there is at least one governed project to check for" \
+  || bad "there is at least one governed project to check for" "_gov_names returned nothing"
+
+# ONE assertion, with the leaking names in the detail rather than in the name.
+# Per name read better and was wrong: the name is the assertion's identity, and
+# these names come from the developer's own projects/ directory, so the manifest
+# recorded `(veldra)` on a machine that has veldra mounted and CI - which does
+# not - then FAILED with "assertion did not run". The standing instruction after
+# any assertion change is to re-record, so the documented procedure broke the
+# build. Static name, varying value in the detail.
+_leaked=""
 while IFS= read -r _gn; do
   [ -n "$_gn" ] || continue
-  if grep -rniq -- "$_gn" "${runtime[@]}" 2>/dev/null; then
-    bad "the engine names no governed project ($_gn)" \
-        "$(grep -rni -- "$_gn" "${runtime[@]}" | head -3)"
-  else
-    ok "the engine names no governed project ($_gn)"
-  fi
+  grep -rniqF -- "$_gn" "${runtime[@]}" 2>/dev/null && _leaked="$_leaked $_gn"
 done <<EOF
 $(_gov_names)
 EOF
+[ -z "$_leaked" ] \
+  && ok "the engine names no governed project" \
+  || bad "the engine names no governed project" \
+         "names:$_leaked
+$(for _gn in $_leaked; do grep -rniF -- "$_gn" "${runtime[@]}" | head -2; done)"
 
 # The engine's own name is exempt, and that exemption must not silently become
 # a hole for everything: it is one name, and it is the one Felix governs itself
 # under.
 is "exactly one name is exempt, and it is the engine's own" \
    "$(_gov_names | grep -cx felix)" "0"
+
+# The enumeration rule itself, against a fixture holding all three cases. This
+# is what the two copies disagreed about, and nothing compared them: a real
+# project, an empty stray, and a plain file dropped in projects/.
+_ENUMP="$TMP/enumproj"; rm -rf "$_ENUMP"; mkdir -p "$_ENUMP/real" "$_ENUMP/stray"
+printf '{ "name": "real" }\n' > "$_ENUMP/real/project.json"
+printf 'not a project\n' > "$_ENUMP/README.md"
+_enum_at() { local p meta n; for meta in "$1"/*/project.json; do
+               [ -f "$meta" ] || continue; n="${meta%/project.json}"
+               printf '%s\n' "${n##*/}"; done; }
+is "a directory declaring project.json is enumerated" \
+   "$(_enum_at "$_ENUMP" | tr '\n' ' ')" "real "
+_enum_bare() { ls -1 "$1" 2>/dev/null | tr '\n' ' '; }
+case "$(_enum_bare "$_ENUMP")" in
+  *README.md*) ok "and the bare listing the gate used to do would have counted a plain file" ;;
+  *)           bad "and the bare listing the gate used to do would have counted a plain file" \
+                   "$(_enum_bare "$_ENUMP")" ;;
+esac
+rm -rf "$_ENUMP"
+
+# The gate must refuse to answer on a path it cannot search, rather than
+# reporting ok. git grep exits 128 on an unresolvable pathspec and abandons the
+# whole search, so one absent path silenced every name - reproduced against the
+# real gate: with `elenchus` planted in lib/, moving engine/harness/bin aside
+# turned FAIL into ok with the violation still there.
+#
+# Read from the gate's own independence block. Each token below IS the
+# mechanism, not a marker beside it: remove the guard and the assertion goes red
+# because the thing it names is gone.
+_REALG="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
+if [ -f "$_REALG" ]; then
+  _gate_indep="$(sed -n '/^# -.*independence/,/^# -.*memory/p' "$_REALG" | grep -vE '^[[:space:]]*#')"
+  case "$_gate_indep" in
+    *INDEP_BLIND*) ok "the gate refuses to answer on a path it cannot search" ;;
+    *)             bad "the gate refuses to answer on a path it cannot search" \
+                       "no blindness guard in the independence block" ;;
+  esac
+  case "$_gate_indep" in
+    *'ls -1 projects'*) bad "and it enumerates declared projects, not directory entries" \
+                            "still lists bare directory entries" ;;
+    *project.json*)     ok "and it enumerates declared projects, not directory entries" ;;
+    *)                  bad "and it enumerates declared projects, not directory entries" \
+                            "no project.json in the enumeration" ;;
+  esac
+  # -F, not -E. The name is interpolated straight into the search, so a project
+  # called `vel.ra` searched for a pattern rather than for itself.
+  case "$_gate_indep" in
+    *'git grep -qniF'*) ok "and it matches a project name as a literal" ;;
+    *)                  bad "and it matches a project name as a literal" \
+                            "still interpolating a name into a regex" ;;
+  esac
+else
+  skip "the gate refuses to answer on a path it cannot search" "no shipped gate"
+  skip "and it enumerates declared projects, not directory entries" "no shipped gate"
+  skip "and it matches a project name as a literal" "no shipped gate"
+fi
 
 # bin/ is searched. It is the path the earlier check omitted while the gate
 # executed what was in it.

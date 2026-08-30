@@ -179,20 +179,76 @@ fi
 # on purpose - explaining what it refuses to depend on is the point - and the
 # widget fixture names itself a few hundred times.
 INDEP_PATHS="engine/harness/felix engine/harness/lib engine/harness/hooks engine/harness/bin"
+
+# A path this cannot actually search is a FAILURE, not a clean result, and that
+# was the check's blind spot rather than a corner of it.
+#
+# `git grep` exits 128 on a pathspec it cannot resolve and abandons the entire
+# search, so a single absent path made every name come back non-zero and this
+# printed `ok` for violations it never looked at. Demonstrated rather than
+# reasoned: with `elenchus` planted in engine/harness/lib this reported
+# `FAIL -> elenchus`; moving engine/harness/bin aside, with the identical
+# violation still sitting there, it reported `ok`. bin/ holds exactly one
+# tracked file and git does not track directories, so relocating secret-scan
+# would have disarmed invariant 1 silently and on somebody else's schedule.
+# Invariant 5 says a gate that cannot fail is not a gate; this one could not.
+#
+# Both conditions, because there are two ways to search nothing and each needs a
+# different question. The first draft of this asked ls-files alone and still
+# reported `ok` for the exact case it was written for - ls-files reads the INDEX
+# and git grep reads the WORKING TREE, so a path deleted from disk but still
+# staged answers "tracked" and then aborts the search anyway. Caught by replaying
+# the reproduction against the fix rather than by reading it.
+#
+#   -e          the path exists to be searched at all      (git grep exits 128)
+#   ls-files    and something tracked is under it          (git grep reads none)
+#
+# The second is the quieter half: a directory holding only untracked files lets
+# git grep return 0 having read no bytes, which passes an existence test and
+# fails open just the same.
+INDEP_BLIND=""
+for p in $INDEP_PATHS; do
+  if [ ! -e "$p" ] || [ -z "$(git ls-files -- "$p" 2>/dev/null)" ]; then
+    INDEP_BLIND="$INDEP_BLIND $p"
+  fi
+done
+
+# A project is a directory that DECLARES itself, not one that happens to exist.
+# `ls -1 projects` enumerated bare directory entries, so an empty stray
+# contributed a grep term - projects/widget is one - and a plain file dropped in
+# projects/ would contribute its filename. project.json is what separates a
+# governed project from a leftover directory, and the memory check below already
+# globs projects/*/, so this also stops one file disagreeing with itself.
+#
+# Matched as a literal. The name is interpolated straight into the search, so -E
+# made a project called `vel.ra` search for a pattern rather than for itself. -F
+# still catches every real violation shape - a bare word, a string literal, and
+# a path inside a directory name - checked before this was changed. -w was tried
+# and rejected on measurement: it rescues none of the common-word names, because
+# `api`, `core`, `web`, `run` and `os` all appear as standalone words in engine
+# prose, and it MISSES `my_elenchus_helper`, which is a violation.
 INDEP_LEAK=""
-for name in $(ls -1 projects 2>/dev/null); do
+for meta in projects/*/project.json; do
+  [ -f "$meta" ] || continue
+  name="${meta%/project.json}"; name="${name##*/}"
   [ "$name" = "felix" ] && continue
   # shellcheck disable=SC2086
-  if git grep -qniE -- "$name" $INDEP_PATHS 2>/dev/null; then
+  if git grep -qniF -- "$name" $INDEP_PATHS 2>/dev/null; then
     INDEP_LEAK="$INDEP_LEAK $name"
   fi
 done
-if [ -n "$INDEP_LEAK" ]; then
+
+if [ -n "$INDEP_BLIND" ]; then
+  fail independence
+  printf '    cannot search:%s\n' "$INDEP_BLIND"
+  printf '    git grep abandons the whole search on a path it cannot resolve,\n'
+  printf '    so this would have reported ok without reading anything.\n'
+elif [ -n "$INDEP_LEAK" ]; then
   fail independence
   printf '    the engine names:%s\n' "$INDEP_LEAK"
   for name in $INDEP_LEAK; do
     # shellcheck disable=SC2086
-    git grep -niE -- "$name" $INDEP_PATHS | head -3 | sed 's/^/    /'
+    git grep -niF -- "$name" $INDEP_PATHS | head -3 | sed 's/^/    /'
   done
 else
   pass independence

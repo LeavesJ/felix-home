@@ -178,9 +178,15 @@ the set is non-empty.
 hard-coding **`veldra`** now fails the gate, verified, which is the thing §0ac
 believed it had already fixed.
 
-**The scanner refused it, and was right to.** `setup/github-mcp.md` carried
-`echo 'export GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)"' >> ~/.zshrc` and
-`secret-scan` matched the `token = "…"` shape. The doc was reworded rather than
+**The scanner refused it, and was right to.** `setup/github-mcp.md` carried a
+shell one-liner appending an export of `GITHUB_PERSONAL_ACCESS_TOKEN` to a
+dotfile, its value a command substitution calling `gh`, and `secret-scan` matched
+the `token = "…"` shape. Described longhand rather than quoted, for the reason
+§4 already gives two sections down and this section had to learn twice: the
+first draft of this paragraph pasted the literal, and the gate stopped it on CI.
+Correct behaviour, and the cheapest possible demonstration that #101 is real —
+the same text is fine in the committed elenchus copy and refused as an added
+line here. The doc was reworded rather than
 the exclusion lists widened — a credential scanner is not a thing to loosen at
 the tail of another change — and the rewrite is better advice than the line it
 replaced, because the elenchus original said *"do not ask an agent to fetch,
@@ -232,6 +238,22 @@ names, the two-dot range, and added-lines-only scanning. `~/.felix` committed an
 pushed to iCloud, then cloned back and diffed: **byte-identical, 79 lessons on
 both sides.** The previous backup was 2026-08-25, four days stale, because
 nothing schedules it. That is still true.
+
+### What this session got wrong
+
+**A docs branch was committed and pushed without running the gate**, and CI
+caught what the gate would have: the paragraph above quoted the credential-shaped
+line it was describing. The reasoning was that HANDOFF.md is prose and the suite
+cannot be affected by it — which is true of the *suite* and irrelevant to
+`secret`, the check that reads added lines whatever file they are in. The
+constitution's delivery rule is "run the suite and commit as one chain", with no
+exemption for prose, and the exemption was invented in the moment because the
+change looked harmless. Every check in the gate is there because something that
+looked harmless was not.
+
+Cheap here — one CI run and a reword. Worth recording because the *shape* is the
+one §8 is about: a check skipped on a belief about which checks could possibly
+apply, rather than on having looked.
 
 ### Standing
 

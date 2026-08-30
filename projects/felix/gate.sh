@@ -103,9 +103,36 @@ fi
 if [ -n "$PLUG" ] && [ -d "$PLUG" ]; then
   INSTALL_DRIFT=0
   : > /tmp/felix-install-drift.log
+  # A path the repository itself declares non-content is residue, not drift
+  # (#86): a claude-flow hook dropped state under tests/ mid-suite and this
+  # check called a byte-identical deploy a drift, then misdiagnosed it as
+  # structural. Each diff line maps to one path, and a path git ignores in
+  # this tree is skipped — on either side, since a stray in the cache is a
+  # deployed stray. Untracked-but-not-ignored still counts: undeployed work.
+  # Missing-operand errors match no path shape and always survive.
   for d in harness hooks commands; do
     [ -e "engine/$d" ] || [ -e "$PLUG/$d" ] || continue
-    diff -rq "engine/$d" "$PLUG/$d" >>/tmp/felix-install-drift.log 2>&1 || INSTALL_DRIFT=1
+    while IFS= read -r IDLINE; do
+      [ -n "$IDLINE" ] || continue
+      IDP=""
+      case "$IDLINE" in
+        "Files engine/"*)
+          IDP="${IDLINE#Files engine/}"; IDP="${IDP%% and *}" ;;
+        "Only in engine"*)
+          IDREST="${IDLINE#Only in }"; IDDIR="${IDREST%%: *}"; IDNAME="${IDREST#*: }"
+          if [ "$IDDIR" = "engine" ]; then IDP="$IDNAME"; else IDP="${IDDIR#engine/}/$IDNAME"; fi ;;
+        "Only in $PLUG"*)
+          IDREST="${IDLINE#Only in }"; IDDIR="${IDREST%%: *}"; IDNAME="${IDREST#*: }"
+          if [ "$IDDIR" = "$PLUG" ]; then IDP="$IDNAME"; else IDP="${IDDIR#"$PLUG"/}/$IDNAME"; fi ;;
+      esac
+      if [ -n "$IDP" ] && git -C engine check-ignore -q "$IDP" 2>/dev/null; then
+        continue
+      fi
+      printf '%s\n' "$IDLINE" >> /tmp/felix-install-drift.log
+      INSTALL_DRIFT=1
+    done <<EOF
+$(diff -rq "engine/$d" "$PLUG/$d" 2>&1)
+EOF
   done
   if [ "$INSTALL_DRIFT" -eq 0 ]; then
     pass installed
@@ -126,9 +153,14 @@ if [ -n "$PLUG" ] && [ -d "$PLUG" ]; then
                | sed -n 's/.*"installLocation"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
     fi
     if [ -n "$MROOT" ] && [ "$MROOT" != "$ROOT" ]; then
-      printf '  %-18s FAIL (structural: the marketplace serves %s)\n' installed "$MROOT"
+      printf '  %-18s FAIL (drift, in a tree that cannot deploy: the marketplace serves %s)\n' installed "$MROOT"
       FAILED="$FAILED installed"
-      printf '    this tree cannot deploy; merge it and run felix install there\n'
+      # The evidence, not only the verdict (#86). This branch used to print an
+      # instruction while hiding the one line naming the actual drift, and a
+      # session repeated the wrong diagnosis rather than reading the log.
+      head -5 /tmp/felix-install-drift.log | sed 's/^/    /'
+      printf '    a worktree passes when byte-identical to the deployed engine; if the\n'
+      printf '    drift above is real work, merge it and run felix install in %s\n' "$MROOT"
     else
       fail installed
       head -5 /tmp/felix-install-drift.log | sed 's/^/    /'

@@ -32,6 +32,7 @@
 1	a clean checkout claims no rival gate
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
+1	a content difference is still a drift
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
 1	a credential in added lines escapes as disclose
@@ -64,6 +65,7 @@
 1	a full-length sha nothing holds is unknown too
 1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
+1	a gitignored stray in the tree is residue, not drift
 1	a governed product merges with no installed engine at all
 1	a green gate does not clear an escape
 1	a green gate on this exact tree allows it
@@ -283,6 +285,7 @@
 1	an unstacked branch reports exactly what it changed
 1	an untested change blocks, naming the evidence owed
 1	an untouched clean tree stays silent
+1	an untracked file the repo does not ignore is still a drift
 1	an unverified change blocks completion
 1	an unverified tree blocks the merge
 1	an unverified tree is Felix's work, not an interruption
@@ -292,6 +295,7 @@
 1	and a backticked path naming nothing is still not invented
 1	and a declined one is ok too
 1	and a document that is not a plan
+1	and a gitignored stray in the cache is too
 1	and a high one is refused
 1	and a live one says when it was last caught
 1	and a project with none does not claim it
@@ -328,6 +332,7 @@
 1	and exits 0 there too
 1	and exits 3, distinctly
 1	and explains why it now matters
+1	and filters residue through the same ignore rule
 1	and from CI-absolute paths
 1	and from a worktree of the same repository
 1	and from the first copy of the key, not a later one
@@ -519,6 +524,7 @@
 1	and the record names the channel
 1	and the remote's own file is not listed against the branch
 1	and the repository is back to where it started
+1	and the residue is not
 1	and the rest of the file is untouched
 1	and the reviewed one is cleared by it
 1	and the row is still json
@@ -655,6 +661,7 @@
 1	hook emits Claude Code shape without plugin env
 1	hook silent in ungoverned repo
 1	hook still exits 0 there
+1	identical deploys are clean before any stray lands
 1	ignores a file that does not exist
 1	including fields after it
 1	including the second one
@@ -917,7 +924,9 @@
 1	the shipped table considers every moment
 1	the squash leaves the merge-base behind main
 1	the step itself still counts as used
+1	the structural verdict shows its evidence too
 1	the stub refuses a selectorless merge the way gh does
+1	the surviving drift is named
 1	the syntax check is behind the verifier confine
 1	the table resolves to its repo-relative path
 1	the tests check is behind the verifier confine

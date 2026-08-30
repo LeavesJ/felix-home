@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Veldra's gate, as the doctrine actually defines it.
+#
+# Two checkers, not one. `.claude/CLAUDE.md` GOTCHAS: "gate.sh is not the only
+# gate. Run ./scripts/superscan.sh --deep-only too. D12 asserts canonical counts
+# and checks assertions, not prose." Running only the first is how a green
+# checkmark got reported over a red D12 once already.
+#
+# Felix cd's to the checkout being gated before calling this, so $PWD is the
+# repo root. gate.sh lives here rather than in the repo because it is untracked
+# by standing decision 1, which meant every fresh worktree silently downgraded
+# its reviewer to a reader. One copy here serves every worktree.
+set -uo pipefail
+
+root="$PWD"
+proj="${FELIX_PROJECT:?felix must export FELIX_PROJECT}"
+
+FELIX_GATE_ROOT="$root" "$proj/gate.sh" "$@"
+rc=$?
+
+# superscan is TRACKED, so it is present in every checkout without help.
+if [ -x "$root/scripts/superscan.sh" ]; then
+  echo
+  "$root/scripts/superscan.sh" --deep-only || rc=1
+else
+  echo
+  echo "  superscan          MISSING at $root/scripts/superscan.sh"
+  echo "                     half the gate did not run; treating as failure"
+  rc=1
+fi
+exit $rc

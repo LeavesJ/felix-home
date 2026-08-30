@@ -43,6 +43,7 @@
 1	a devlog entry newer than the catch settles it too
 1	a different repository is still checked
 1	a directory declaring project.json is enumerated
+1	a directory missing from one side is a drift
 1	a disarmed engine is still judged by main's version
 1	a docs-only change requires nothing
 1	a docs-only signal is routine
@@ -70,6 +71,7 @@
 1	a half-written character does not fail the whole report
 1	a hook nobody explained is caught
 1	a hook that stopped being wired is caught
+1	a hooks.json that never deployed is not certified
 1	a hostile prompt is neutralised, not dropped
 1	a judge identical to the candidate merges nothing
 1	a later copy of the field in the envelope is not the subject
@@ -288,6 +290,7 @@
 1	and a repository with no main resolves to nothing
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
+1	and absent from both sides is a fixture, not a drift
 1	and again, so a session can bump twice
 1	and an older one does not
 1	and an ordinary product repository is not
@@ -318,6 +321,7 @@
 1	and from the first copy of the key, not a later one
 1	and hands it a pull request to merge
 1	and ignores the path so it cannot come back
+1	and is clean when the three directories agree
 1	and is left exactly as it was
 1	and is marked unknown rather than unmet
 1	and is not a routing gap either; it is unknown
@@ -598,6 +602,7 @@
 1	felix_budget_record itself reports the failure
 1	felix_classify_diff reports unknown, not empty
 1	felix_contains survives a large haystack under pipefail
+1	felix_deploy_diff sees the hooks drift
 1	felix_evidence_check reports unknown, not n/a
 1	felix_has_line matches whole lines under pipefail
 1	felix_has_line rejects partial lines
@@ -655,6 +660,7 @@
 1	log writes to the devlog
 1	maintenance that is due is named
 1	matches the relevant lesson
+1	matching hooks still verify
 1	memory is keyed on the project name
 1	misses are logged too
 1	names the first step
@@ -814,6 +820,7 @@
 1	the fixture really has a base ref behind its remote
 1	the founder's item is not buried
 1	the gate refuses to answer on a path it cannot search
+1	the gate's installed check covers the same three directories
 1	the handoff carries no file comments
 1	the hook announces what it adopted
 1	the hook routes on the first prompt

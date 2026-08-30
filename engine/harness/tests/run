@@ -6084,6 +6084,67 @@ esac
 is "and nothing was written to the real felix home pointer" \
    "$(cat "$IHOME/.felix-home" 2>/dev/null)" "$ISRC"
 
+printf '\nthe deployed surface is three directories\n'
+# #82. The verification compared harness/ alone, and the cache serves
+# harness/, hooks/ and commands/. hooks/hooks.json is the file that decides
+# which hooks BIND — so a deploy that carried harness/ and dropped hooks/
+# certified as `installed ok` while every session ran yesterday's bindings: a
+# hook binary deployed perfectly and running nowhere, which is HANDOFF §8's
+# family in the one place that claims to check deployment.
+#
+# Both sides get hooks/ first, matching, and the control runs before the
+# tamper — a guard that refuses everything passes every tamper test.
+cp -R "$ICACHE/harness/." "$ISRC/engine/harness/"
+mkdir -p "$ISRC/engine/hooks" "$ICACHE/hooks"
+printf '{ "hooks": { "SessionStart": [] } }\n' > "$ISRC/engine/hooks/hooks.json"
+printf '{ "hooks": { "SessionStart": [] } }\n' > "$ICACHE/hooks/hooks.json"
+imatch_out="$(_inst_from_cache)"
+has "matching hooks still verify" \
+    "$imatch_out" "verified   the installed engine matches this tree"
+
+# The tamper: harness byte-identical, hooks.json differing — the exact state
+# the old comparison certified.
+printf '{ "hooks": {} }\n' > "$ICACHE/hooks/hooks.json"
+itamper_out="$(_inst_from_cache)"
+case "$itamper_out" in
+  *"verified   the installed engine matches this tree"*)
+    bad "a hooks.json that never deployed is not certified" "$itamper_out" ;;
+  *) ok "a hooks.json that never deployed is not certified" ;;
+esac
+
+# And the library says so on its own, both directions, so the fix cannot be a
+# message change while the comparison stays narrow.
+_ddiff() { ( . "$FROOT/harness/lib/resolve.sh"; felix_deploy_diff "$1" "$2" >/dev/null 2>&1 ); }
+_ddiff "$ISRC/engine" "$ICACHE" && bad "felix_deploy_diff sees the hooks drift" "reported clean" \
+                                || ok  "felix_deploy_diff sees the hooks drift"
+printf '{ "hooks": { "SessionStart": [] } }\n' > "$ICACHE/hooks/hooks.json"
+_ddiff "$ISRC/engine" "$ICACHE" && ok  "and is clean when the three directories agree" \
+                                || bad "and is clean when the three directories agree" "reported drift"
+# A directory absent from ONE side is a drift, not a skip — the skip-if-absent
+# shape is how a check passes by finding nothing.
+rm -rf "$ICACHE/hooks"
+_ddiff "$ISRC/engine" "$ICACHE" && bad "a directory missing from one side is a drift" "reported clean" \
+                                || ok  "a directory missing from one side is a drift"
+rm -rf "$ISRC/engine/hooks"
+_ddiff "$ISRC/engine" "$ICACHE" && ok  "and absent from both sides is a fixture, not a drift" \
+                                || bad "and absent from both sides is a fixture, not a drift" "reported drift"
+
+# The gate keeps its own inline copy — a verifier that sources the code it
+# judges can be switched off by editing that code — so the copies are asserted
+# in step the same way the independence paths are: the counted tokens ARE the
+# mechanism. Non-comment lines only.
+_REALG2="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
+if [ -f "$_REALG2" ]; then
+  _gate_inst="$(sed -n '/^# -.*installed/,/^# -.*tests/p' "$_REALG2" | grep -vE '^[[:space:]]*#')"
+  case "$_gate_inst" in
+    *"harness hooks commands"*) ok "the gate's installed check covers the same three directories" ;;
+    *) bad "the gate's installed check covers the same three directories" \
+           "no three-directory loop in the installed block" ;;
+  esac
+else
+  skip "the gate's installed check covers the same three directories" "no shipped gate"
+fi
+
 printf '\nindependence\n'
 # #85, and mounting a second real project is what made it matter. The check
 # grepped ONE hard-coded literal, `elenchus`, over three paths. Constitution

@@ -352,7 +352,7 @@ cmd_install() {
           | sed -n '/"felix@felix"/,/}/p' \
           | sed -n 's/.*"installPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
   if [ -n "$live" ] && [ -d "$live/harness" ]; then
-    if diff -rq "$src/harness" "$live/harness" >/dev/null 2>&1; then
+    if felix_deploy_diff "$src" "$live" >/dev/null 2>&1; then
       printf '  verified   the installed engine matches this tree\n'
     elif [ "$bump" -eq 0 ]; then
       printf '\n  WARNING  the installed engine does NOT match this tree.\n'
@@ -402,7 +402,7 @@ cmd_install() {
                 | sed -n '/"felix@felix"/,/}/p' \
                 | sed -n 's/.*"installPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
         if [ -n "$live" ] && [ -d "$live/harness" ] \
-             && diff -rq "$src/harness" "$live/harness" >/dev/null 2>&1; then
+             && felix_deploy_diff "$src" "$live" >/dev/null 2>&1; then
           printf '  verified   the installed engine matches this tree\n'
         else
           local mroot

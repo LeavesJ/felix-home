@@ -71,6 +71,185 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
+## 0ae. Verified at session close, 2026-08-30 — the review that was outstanding, and the gate that could not fail
+
+Each line produced by a command. Newest first under §0.
+
+| | |
+|---|---|
+| head | `1810178` on `main`, CI `gate` **success** |
+| deployed engine | **0.49.24**, matching `plugin.json` on `main` |
+| suite | **888** locally, **882 + 6 skipped** on CI, 880 manifest lines |
+| governed projects | **three, and all three committed for the first time** |
+| open issues | **14** — six filed today |
+| open PRs | **two** — this handoff (#95) and #96 |
+
+**Nothing merged this session.** #96 carries the code and is green on CI; #95 is
+this file. Both wait on the founder.
+
+### The outstanding review was run, and its range was short by two commits
+
+§0ac and §0ad both ended with the same line: `/code-review b2af32c..6dfc9f6`, five
+PRs of red-tier engine code merged with no review but the author's own. That
+range holds **three** of the five. `..` excludes its left endpoint, and `b2af32c`
+is itself one of the five, so #89 and #90 sat outside the review they were listed
+for. Run over `72ed12f..6dfc9f6` instead.
+
+Worth more than the arithmetic: a range written down as a task reads like a
+complete instruction, and nothing about it announces that it is missing two of
+the things it names. Expand a range and count it against the sentence around it.
+
+**Eight findings, every one constructed and run rather than argued.** Two fixed
+on #96, six filed as #97–#102.
+
+### The independence check reported ok for violations it never looked at
+
+The most severe, and it is invariant 5 rather than a bug in a check. `git grep`
+exits **128** on a pathspec it cannot resolve and abandons the whole search, so
+the `if` read that as "this name does not appear" and one absent path silenced
+every governed name at once.
+
+| | |
+|---|---|
+| `elenchus` planted in `lib/`, all paths present | `FAIL -> elenchus` |
+| the same violation, `engine/harness/bin` moved aside | **`ok`** |
+
+`bin/` holds exactly one tracked file and git does not track directories, so
+relocating `secret-scan` would have disarmed invariant 1 silently. The check
+§0ac had just widened to enumerate every project could be turned off by moving
+one unrelated file.
+
+**The first fix passed the case it was written for, which is the part to keep.**
+It guarded with `git ls-files` alone, and the reproduction still reported `ok` —
+ls-files reads the **index** and git grep reads the **working tree**, so a path
+deleted from disk but still staged answers "tracked" and then aborts anyway. It
+was caught by replaying the reproduction against the fix rather than by reading
+it. Both questions are now asked, and the second one matters on its own: a
+directory holding only untracked files lets git grep return 0 having read no
+bytes, which passes an existence test.
+
+### Three enumerators of the same set, and none of them agreed
+
+`ls -1 projects` in the gate, a `*/` glob in the suite, and neither filtering on
+whether a directory is a project at all. Measured against a fixture holding a
+real project, an empty stray and a plain file:
+
+| | |
+|---|---|
+| declared-only (now) | `real` |
+| the suite's glob | `real stray` |
+| the gate's listing | `README.md real stray` |
+
+A project is now a directory that **declares itself** with a `project.json`.
+That retires the `projects/widget` stray §0ad flagged without a special case for
+it, and it is why the two copies can be asserted equal rather than hoped equal.
+
+`-F` rather than `-E`, so a project called `vel.ra` searches for itself rather
+than for a pattern. **`-w` was tried and rejected on measurement**, recorded so
+nobody re-derives it: it rescues none of the common-word names — `api`, `core`,
+`web`, `run` and `os` all appear as standalone words in engine prose — and it
+**misses** `my_elenchus_helper`, which is a violation. That leaves a real
+constraint on what a governed project may be called, filed as #99 rather than
+papered over.
+
+### The suite's assertion names were machine-dependent, and the documented procedure broke CI
+
+The independence assertions interpolated each project name into the assertion
+**name**, and those names come from the `projects/` directory of whoever runs the
+suite. The manifest recorded `the engine names no governed project (elenchus)`;
+recording it on this machine would have written `(veldra)` and `(widget)` too,
+and CI — which enumerates a different set — reports a manifest entry that never
+ran through `bad()`, which is a **FAIL**.
+
+So the standing instruction that closes both previous sections — re-record
+`assertions.tsv` after any assertion change — would have broken the build from
+the founder's own laptop. One assertion now, static name, leaking names in the
+detail. Confirmed after the fix: local records 888 and CI reaches the same 888
+with no missing entries and no unlisted ones.
+
+It is also **armed**. The set is read off a directory, so "no projects found" and
+"no project leaked" arrived as the same pass; there is now an explicit check that
+the set is non-empty.
+
+### veldra is committed, and the fleet is finally the enumerated set
+
+§0ad measured that the enforcement covered two of three governed projects because
+`projects/veldra/` had never been committed. It is committed on #96. An engine
+hard-coding **`veldra`** now fails the gate, verified, which is the thing §0ac
+believed it had already fixed.
+
+**The scanner refused it, and was right to.** `setup/github-mcp.md` carried
+`echo 'export GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)"' >> ~/.zshrc` and
+`secret-scan` matched the `token = "…"` shape. The doc was reworded rather than
+the exclusion lists widened — a credential scanner is not a thing to loosen at
+the tail of another change — and the rewrite is better advice than the line it
+replaced, because the elenchus original said *"do not ask an agent to fetch,
+echo, or paste the token"* and the veldra rewrite had compressed that away while
+turning the instruction into a command an agent could run.
+
+**The general fact, filed as #101:** `secret-scan` reads **added lines**, so the
+identical text passes in the committed elenchus copy and is refused in a new one.
+A file's compliance is a function of when it landed, and no green gate can show
+you that.
+
+### `felix adopt --help` declares a capability named `--help`
+
+Found by the maintenance sweep noticing residue, not by reading code. `felix
+--help` works; **no subcommand does**, and 24 of them take a first positional.
+`cmd_adopt` guards only `[ -n "$cap" ]`, which a flag satisfies.
+
+It had already happened, unprompted: `projects/felix/capabilities` read
+`ci / tests / --help` before anything was run today, and `~/.felix/memory/--help/`
+held three empty files stamped 15:59 on 2026-08-29 — the hour veldra was mounted,
+which is exactly when somebody reaches for `--help`.
+
+The second half is the one that belongs in §8. `adopt.sh:31` creates `setup.tsv`
+unconditionally, before validating anything, and its presence flips `felix setup`
+from `project felix declares no setup steps` to **`Nothing outstanding.`** A
+mistyped flag converts "nobody has declared any setup" into "setup is complete".
+All three strays cleaned up. #102.
+
+### The maintenance sweep produced no work, and that is the expected yield
+
+`discover` found nothing in the marketplaces matching what felix declares.
+`promote`'s recurrences are `installed` (18, last 2026-08-17 — the structurally
+unpassable worktree check whose mechanism already landed, and history rather than
+news) and `tests` (2). `repair` shows as recurring-and-unwritten, which the
+command itself qualifies as word frequency: unattended repair is what this
+project is *about*.
+
+Both recorded. `felix maintenance --ran` writes to the served checkout because
+`FELIX_HOME` is the main tree, so the log was carried onto #96 rather than left
+uncommitted there — deliberately inside the red PR, because a green merge
+touching only `maintenance.log` would advance the auto-merge streak, and §0d
+holds that streak open until a green merge touches something that is not prose.
+Engineering one to move the counter is the thing that section exists to prevent.
+
+### Memory is backed up, and it was restored before it was believed
+
+Four lessons added — the ls-files/git-grep split, machine-dependent assertion
+names, the two-dot range, and added-lines-only scanning. `~/.felix` committed and
+pushed to iCloud, then cloned back and diffed: **byte-identical, 79 lessons on
+both sides.** The previous backup was 2026-08-25, four days stale, because
+nothing schedules it. That is still true.
+
+### Standing
+
+`engine/harness/tests/assertions.tsv` must be re-recorded by any change to
+assertions — and as of #96 that is finally safe to do from any machine.
+
+**Two founder items, and neither is a research task.**
+
+1. **Merge order does not matter, but the veldra collision does.** #96 commits
+   `projects/veldra/`, which still exists untracked in the served checkout, so a
+   pull after the merge will refuse to overwrite it. Delete the untracked copy
+   first — the content is on `origin` either way — then pull.
+2. **#96 is red on the version bump and cannot deploy from a worktree** (#2).
+   `installed` FAILs structurally there; every other check is green. Merge it and
+   run `felix install` in the served checkout.
+
+**The follow-through baseline is still not re-derived.** No number before it is.
+
 ## 0ad. Verified at session close, 2026-08-29 (late) — a defect found, and the instrument that nearly hid it
 
 Each line produced by a command. Newest first under §0.

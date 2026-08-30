@@ -3387,6 +3387,22 @@ esac
   && bad "and the ack is consumed by the answer" "ack file still present" \
   || ok  "and the ack is consumed by the answer"
 
+# The tracker Decision B is judged from. Recording that cannot be read is
+# recording that gets lost in a build week, and the 20-session review needs
+# these numbers legible on demand, not reconstructed.
+out="$(cd "$REPO" && "$FELIX" decisions 2>&1)"; rc=$?
+is  "felix decisions reads the record"        "$rc" "0"
+has "and counts the recorded decline"         "$out" "declined, on the record    1"
+has "and shows the decline itself"            "$out" "no browser surface in this change"
+has "and says it is recording only"           "$out" "Recording only"
+# The answer-rate window opens when the channel shipped. Mandates rendered
+# before felix route --ack existed could not have been answered, and a rate
+# computed over them reports a failure nobody could avoid — the same shape as
+# follow-through computed against suggestions nobody was shown.
+out="$(cd "$REPO" && FELIX_DECISIONS_SINCE=9999-01-01 "$FELIX" decisions 2>&1)"
+has "mandates are counted only inside the answerable window" \
+    "$out" "mandates rendered          0"
+
 ( cd "$REPO" && git checkout -q -- WIDGET.txt 2>/dev/null || printf 'contents\n' > "$REPO/WIDGET.txt" )
 
 printf '\nvisible at all\n'

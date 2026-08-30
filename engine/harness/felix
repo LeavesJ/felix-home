@@ -7,6 +7,7 @@
 #   felix doctor         capabilities present in the checkout but never declared
 #   felix profile [name] which tools a task profile mounts
 #   felix route          what kind of work this is, and what to reach for
+#   felix decisions      the capability-decision record: mandates, declines, answer rate
 #   felix monitor        render everything Felix did that nobody could see
 #   felix ready          is every tool this project names actually usable?
 #   felix discover       what is worth having that this project does not have
@@ -164,6 +165,7 @@ specific project, language, or toolchain.
     felix which            which project governs here, and where its doctrine is
     felix gate [args]      run this project's gate; exits with the gate's status
     felix route            what kind of work this is, and what to reach for
+    felix decisions        the capability-decision record: mandates, declines, answer rate
     felix brief <issue>    what an issue names, its tier, and what a fix must prove
     felix pr [--create]    open a pull request for this branch, tier and all
     felix classify         how risky this diff is, and what that means for merging
@@ -2934,6 +2936,51 @@ cmd_adopt() {
   printf 'commit %s in the Felix repo to make it durable.\n' "$proj"
 }
 
+# The deliberation record, readable. Decision B (approved 2026-08-30) holds
+# enforcement until the recording has run for 20 sessions; this is the tracker
+# that decision is judged from, so losing or eyeballing the data is not an
+# option. Three numbers, each from its own file: mandates rendered (says.log,
+# the "Use this now" lines a session was actually shown), declines recorded
+# (decisions.log, written by felix route --ack), and reaches (the ledger).
+# The answer rate - declines per mandate - is the proxy for whether sessions
+# treat the channel as answerable at all; the 20-session review reads it
+# alongside follow-through, not instead of it.
+cmd_decisions() {
+  resolve_or_die; local proj="$PROJ"
+  local mem; mem="$(felix_mem_dir "$proj")"
+  local dlog="$mem/decisions.log" slog="$mem/says.log"
+  local declined=0 mandates=0
+  # The verdict field, not the word: a reason containing "declined" is one
+  # row, not two. Tab-delimited third column, matched with its delimiters.
+  declined="$(felix_count "$(printf '\tdeclined\t')" "$dlog")"
+  # Mandates counted only from the day the answer channel existed. 56 rendered
+  # before felix route --ack shipped could not have been answered, and an
+  # answer rate computed over them reports a compliance failure nobody could
+  # have avoided - the same shape as the follow-through figures computed
+  # against suggestions nobody was shown. The channel shipped 2026-08-30.
+  FELIX_DECISIONS_SINCE="${FELIX_DECISIONS_SINCE:-2026-08-30}"
+  mandates="$([ -f "$slog" ] && awk -F'\t' -v s="$FELIX_DECISIONS_SINCE" \
+    '$1 >= s && index($0,"Use this now") {n++} END {print n+0}' "$slog" || printf 0)"
+  printf 'capability decisions for %s, since %s\n\n' "$(basename "$proj")" "$FELIX_DECISIONS_SINCE"
+  printf '  mandates rendered          %s\n' "$mandates"
+  printf '  declined, on the record    %s\n' "$declined"
+  if [ "$mandates" -gt 0 ]; then
+    printf '  answered                   %s of %s\n' "$declined" "$mandates"
+  fi
+  printf '\n'
+  if [ -f "$dlog" ]; then
+    printf 'recent declines, newest last\n\n'
+    tail -5 "$dlog" | while IFS=$'\t' read -r ts _root verdict reason; do
+      printf '  %s  %s\n' "${ts%%T*}" "$reason"
+    done
+  else
+    printf 'No declines recorded yet. A session declines a rendered mandate with\n'
+    printf '  felix route --ack "why it does not fit"\n'
+  fi
+  printf '\nRecording only. Enforcement is decided at the 20-session review from\n'
+  printf 'this data - HANDOFF 0af and docs/2026-08-30-advisory-redesign.md B.\n'
+}
+
 # `<subcommand> --help` answers with usage instead of running (#102). No
 # subcommand handled the flag, 24 of them take a first positional, and the ones
 # that write took the flag AS the positional: `felix adopt --help` declared a
@@ -2954,6 +3001,7 @@ case "${1:-help}" in
   doctor)  shift; cmd_doctor "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;
+  decisions) shift; cmd_decisions "$@" ;;
   monitor)   shift; cmd_monitor "$@" ;;
   ready)     shift; cmd_ready "$@" ;;
   discover)  shift; cmd_discover "$@" ;;

@@ -535,6 +535,9 @@ cmd_gate() {
 cmd_new() {
   local name="${1:-}" target="${2:-$PWD}"
   [ -n "$name" ] || die "usage: felix new <name> [path-to-checkout]"
+  # A project directory named after a flag would be enumerated by the
+  # independence check and governed forever (#102).
+  case "$name" in -*) die "usage: felix new <name> [path-to-checkout] (got a flag: $name)" ;; esac
   local dir="$FELIX_HOME_DIR/projects/$name"
   [ -e "$dir" ] && die "project $name already exists at $dir"
   local tpl="$SCRIPT_DIR/templates"
@@ -817,6 +820,7 @@ cmd_quarantine() {
     case "$1" in --why) need_value "$@"; why="$2"; shift 2 ;; *) shift ;; esac
   done
   [ -n "$name" ] || die 'usage: felix quarantine <plugin> [--why "..."]'
+  case "$name" in -*) die 'usage: felix quarantine <plugin> [--why "..."] (the first argument must be a plugin, not a flag)' ;; esac
   command -v claude >/dev/null 2>&1 || die "felix quarantine needs the claude CLI"
 
   local id
@@ -2813,6 +2817,9 @@ cmd_log() {
 cmd_lesson() {
   resolve_or_die; local proj="$PROJ" text="$*"
   [ -n "$text" ] || die 'usage: felix lesson "the thing worth repeating"'
+  # A lesson that begins with a dash is a mistyped flag, and this file is
+  # matched into every prompt - a row reading "--help" is noise forever (#102).
+  case "$text" in -*) die 'usage: felix lesson "the thing worth repeating" (got a flag)' ;; esac
   felix_mem_lesson "$proj" "$(felix_repo_root "$PWD")" "$text"
   printf 'recorded in %s/lessons.md\n' "$(felix_mem_dir "$proj")"
   printf 'Only durable things belong here. A lessons file people stop reading\n'
@@ -2909,6 +2916,10 @@ cmd_promote() {
 cmd_adopt() {
   resolve_or_die; local proj="$PROJ" cap="${1:-}"
   [ -n "$cap" ] || die "usage: felix adopt <capability>"
+  # A flag is not a capability, and this command writes three durable files
+  # before anything else would notice (#102). Refused rather than stripped:
+  # guessing what a mistyped flag meant is how the wrong thing gets declared.
+  case "$cap" in -*) die "usage: felix adopt <capability> (got a flag: $cap)" ;; esac
   local slug counts
   slug="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
   if ! counts="$(felix_adopt_capability "$proj" "$cap" "$SCRIPT_DIR/templates" "$slug")"; then
@@ -2922,6 +2933,20 @@ cmd_adopt() {
   fi
   printf 'commit %s in the Felix repo to make it durable.\n' "$proj"
 }
+
+# `<subcommand> --help` answers with usage instead of running (#102). No
+# subcommand handled the flag, 24 of them take a first positional, and the ones
+# that write took the flag AS the positional: `felix adopt --help` declared a
+# capability named `--help`, created a setup.tsv whose presence flips `felix
+# setup` from "declares no setup steps" to "Nothing outstanding.", and minted
+# ~/.felix/memory/--help/. Found as residue — it had already happened
+# unprompted, at the hour a project was being mounted, which is exactly when
+# somebody reaches for --help. The check is on $2 so `felix --help` keeps its
+# own row below, and it answers usage rather than dying because asking for help
+# is not an error.
+case "${2:-}" in
+  -h|--help) case "${1:-}" in help|-h|--help|'') ;; *) usage; exit 0 ;; esac ;;
+esac
 
 case "${1:-help}" in
   which)  shift; cmd_which "$@" ;;

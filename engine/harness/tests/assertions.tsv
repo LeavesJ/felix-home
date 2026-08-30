@@ -206,6 +206,7 @@
 1	adding a row to an enforcing table escapes nothing
 1	adding an assertion escapes nothing
 1	adding sentry surfaces observability
+1	adopt refuses any flag as a capability
 1	adopting removes it from drift
 1	adopting reports the backfill
 1	adopting twice is a no-op
@@ -298,6 +299,7 @@
 1	and claims nothing about surfaces it never compared
 1	and claims nothing was unchecked
 1	and creates nothing without --create
+1	and declares nothing
 1	and deleting the syntax check escapes as verifier
 1	and does not ask for a lesson that already exists
 1	and does not blame a checkout that did not move
@@ -328,6 +330,7 @@
 1	and it is named
 1	and it is not autonomous
 1	and it is reported as unusable, not unchecked
+1	and it is the usage text
 1	and it matches a project name as a literal
 1	and it merges nothing
 1	and it names the literal that went missing
@@ -370,6 +373,8 @@
 1	and never reports no remote for an engine that has one
 1	and never the newest thing in the cache
 1	and never where it is not declared
+1	and no memory root named --help is minted
+1	and no setup.tsv appears from asking for help
 1	and no zero row for one that was used
 1	and none reports a spend past the ceiling as recorded
 1	and not as an escape, which would escalate a typo to the founder
@@ -583,6 +588,8 @@
 1	explain shows the losing routes too
 1	extracts files from container-absolute paths
 1	failing gate propagates non-zero exit
+1	felix --help still answers usage
+1	felix adopt --help answers with usage
 1	felix merge reaches gh at all
 1	felix merge refuses on an escape
 1	felix new exits 0
@@ -640,6 +647,7 @@
 1	keeps one Felix holds no copy of
 1	knows a standalone skill is not a plugin
 1	lesson is recorded
+1	lesson refuses a flag as the lesson
 1	lesson warns against writing too much
 1	listed where a reader must look
 1	lists the skills a plugin ships
@@ -658,6 +666,7 @@
 1	never proposes retiring something that was used
 1	never retires what no route ever named
 1	never the transcript in the envelope
+1	new refuses a flag as a project name
 1	no deny.tsv means nothing is denied
 1	no entry is listed twice
 1	no evidence rule requires a pattern that matches everything
@@ -793,6 +802,7 @@
 1	the brief names the file the issue names
 1	the budget row is not reported as satisfied
 1	the bump fixture has an identical judge, so the guard can fire
+1	the capabilities file is untouched
 1	the cause is not the raw payload
 1	the data marker is substituted
 1	the engine names no governed project
@@ -890,6 +900,7 @@
 1	with nothing due it reports nothing
 1	with the critique step after it
 1	with the newlines escaped, not lost
+1	with the usage text
 1	without --strict it only reports
 1	without opting in, nothing is touched
 1	work the subagent committed is still checked

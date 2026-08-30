@@ -2758,6 +2758,49 @@ _sub_speaks "$out" && ok  "a real uncommitted edit still speaks, in a fresh sess
 ( cd "$SUBR" && git checkout -q -- code.txt )
 SUB_JSON="{\"hook_event_name\":\"SubagentStop\",\"session_id\":\"$SUB_SID\"}"
 
+printf '\na flag is not a positional\n'
+# #102. felix --help worked; no SUBCOMMAND handled the flag, 24 take a first
+# positional, and the writers took the flag AS the positional: felix adopt
+# --help declared a capability named --help, created a setup.tsv whose mere
+# presence flips felix setup from "declares no setup steps" to "Nothing
+# outstanding.", and minted a memory root named --help. Found as residue - it
+# had already happened unprompted on the real machine, at the hour a project
+# was being mounted, which is exactly when somebody reaches for --help.
+_caps_before="$(cat "$FROOT/projects/widget/capabilities" 2>/dev/null)"
+rm -f "$FROOT/projects/widget/setup.tsv"
+out="$(cd "$REPO" && "$FELIX" adopt --help 2>&1)"; rc=$?
+is  "felix adopt --help answers with usage"        "$rc" "0"
+has "and it is the usage text"                     "$out" "The engineering OS"
+case "$out" in
+  *"declared"*) bad "and declares nothing" "$out" ;;
+  *)            ok  "and declares nothing" ;;
+esac
+is "the capabilities file is untouched" \
+   "$(cat "$FROOT/projects/widget/capabilities" 2>/dev/null)" "$_caps_before"
+[ -f "$FROOT/projects/widget/setup.tsv" ] \
+  && bad "and no setup.tsv appears from asking for help" "created" \
+  || ok  "and no setup.tsv appears from asking for help"
+[ -d "$MEM/--help" ] \
+  && bad "and no memory root named --help is minted" "$MEM/--help exists" \
+  || ok  "and no memory root named --help is minted"
+
+# The writers refuse a flag-shaped positional outright, not only -h/--help:
+# a mistyped flag must never become a declared capability, a governed project,
+# a quarantined plugin, or a lesson matched into every prompt.
+out="$(cd "$REPO" && "$FELIX" adopt --yes 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "adopt refuses any flag as a capability" \
+                || bad "adopt refuses any flag as a capability" "$out"
+out="$(cd "$REPO" && "$FELIX" new --force 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "new refuses a flag as a project name" \
+                || bad "new refuses a flag as a project name" "$out"
+out="$(cd "$REPO" && "$FELIX" lesson --oops 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "lesson refuses a flag as the lesson" \
+                || bad "lesson refuses a flag as the lesson" "$out"
+# And the bare CLI help path is untouched: no subcommand, flag in slot one.
+out="$("$FELIX" --help 2>&1)"; rc=$?
+is  "felix --help still answers usage" "$rc" "0"
+has "with the usage text"              "$out" "The engineering OS"
+
 printf '\nthe intent router\n'
 # Say what you are doing and get the right kit, without naming it. The chain is
 # routes.tsv -> profiles.tsv -> stack.tsv, and only the first link is new.

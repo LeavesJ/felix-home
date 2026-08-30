@@ -284,6 +284,7 @@
 1	and again, so a session can bump twice
 1	and an older one does not
 1	and an ordinary product repository is not
+1	and bin/ is in the searched set, because the gate runs it
 1	and both paths in one sentence are found
 1	and briefs the file it names
 1	and changes when the tree changes
@@ -455,7 +456,9 @@
 1	and the domain it speaks for
 1	and the earlier verdict is not replaced by it
 1	and the founder's one line says how many are due
+1	and the gate searches the same paths this does
 1	and the gate still runs through it
+1	and the gate's code names no project literally
 1	and the hook still exits 0 there
 1	and the lesson is in the same block
 1	and the memory, which is somewhere else now
@@ -556,6 +559,7 @@
 1	every route matches its own name
 1	every row carries the command that clears it
 1	exactly one declaration from that cache
+1	exactly one name is exempt, and it is the engine's own
 1	exhausted exits 3
 1	explain shows the losing routes too
 1	extracts files from container-absolute paths
@@ -716,7 +720,6 @@
 1	running a rival gate is denied
 1	runs that all passed are clean
 1	runs with a failure are dirty
-1	runtime harness names no specific project
 1	saying so plainly
 1	saying why
 1	saying why it kept it
@@ -769,6 +772,7 @@
 1	the bump fixture has an identical judge, so the guard can fire
 1	the cause is not the raw payload
 1	the data marker is substituted
+1	the engine names no governed project (elenchus)
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
 1	the fixture is dirty only in Felix's own bookkeeping

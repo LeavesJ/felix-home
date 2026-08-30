@@ -157,9 +157,43 @@ fi
 # The engine must name no specific project. Restated here rather than left to
 # the suite alone, because this is the property that makes Felix portable and it
 # is the one most easily lost to a well-meant comment.
-if git grep -qniE 'elenchus' -- engine/harness/felix engine/harness/lib engine/harness/hooks 2>/dev/null; then
+#
+# Every governed name, enumerated - not one literal. This grepped `elenchus`
+# alone, so what it established was that seven particular letters were absent,
+# while constitution invariant 1 says "The engine names no project". Mounting a
+# second project made the gap real rather than theoretical: an engine that
+# hard-codes `veldra` passed, and the identical edit naming `elenchus` failed
+# (#85). Enumerating means governing something new cannot quietly widen what the
+# engine is allowed to say.
+#
+# The engine's OWN name is exempt and has to be. `felix` appears about 1450
+# times in runtime code because it is the product, the function prefix and the
+# binary - not a governed product being named. That is the one exemption, and
+# it is the project Felix governs itself under.
+#
+# bin/ is searched now. It was not, and the gate EXECUTES what is in it, so the
+# literal this check was written for could sit in engine/harness/bin/secret-scan
+# and pass.
+#
+# tests/ and templates/ stay out. The suite names Elenchus in its own comments
+# on purpose - explaining what it refuses to depend on is the point - and the
+# widget fixture names itself a few hundred times.
+INDEP_PATHS="engine/harness/felix engine/harness/lib engine/harness/hooks engine/harness/bin"
+INDEP_LEAK=""
+for name in $(ls -1 projects 2>/dev/null); do
+  [ "$name" = "felix" ] && continue
+  # shellcheck disable=SC2086
+  if git grep -qniE -- "$name" $INDEP_PATHS 2>/dev/null; then
+    INDEP_LEAK="$INDEP_LEAK $name"
+  fi
+done
+if [ -n "$INDEP_LEAK" ]; then
   fail independence
-  git grep -niE 'elenchus' -- engine/harness/felix engine/harness/lib engine/harness/hooks | head -5 | sed 's/^/    /'
+  printf '    the engine names:%s\n' "$INDEP_LEAK"
+  for name in $INDEP_LEAK; do
+    # shellcheck disable=SC2086
+    git grep -niE -- "$name" $INDEP_PATHS | head -3 | sed 's/^/    /'
+  done
 else
   pass independence
 fi

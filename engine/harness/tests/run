@@ -4888,7 +4888,11 @@ mkdir -p "$PBR/memory/pulseproj"
 ( cd "$PBR" && git init -q -b main \
   && printf 'l\n' > memory/pulseproj/lessons.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
-git init -q --bare "$PBREM"
+# -b main, and every later read names refs/heads/main outright: a bare repo's
+# HEAD points at whatever the machine's default branch is, so rev-parse HEAD
+# answered on this laptop and broke on the runner — a machine-dependent test
+# is #67's family wearing a fixture.
+git init -q --bare -b main "$PBREM"
 ( cd "$PBR" && git remote add backup "$PBREM" && git push -q backup main )
 printf 'new lesson\n' >> "$PBR/memory/pulseproj/lessons.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
@@ -4896,7 +4900,7 @@ out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
 has "a dirty memory repo is committed"       "$out" "committed"
 has "and pushed, and the push is verified"   "$out" "pushed and verified"
 is  "the remote actually holds the commit" \
-    "$(git --git-dir="$PBREM" rev-parse HEAD)" "$(git -C "$PBR" rev-parse HEAD)"
+    "$(git --git-dir="$PBREM" rev-parse refs/heads/main)" "$(git -C "$PBR" rev-parse HEAD)"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PBR" )"
 has "a clean repo says so instead of minting a commit" "$out" "nothing new to commit"
@@ -4908,9 +4912,17 @@ PB2="$TMP/pulse-mem2"; git clone -q "$PBREM" "$PB2" 2>/dev/null
 printf 'this machine\n' >> "$PBR/memory/pulseproj/lessons.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PBR" )"
-has "a rejected push is reported, not forced" "$out" "REFUSED"
+# The message no longer guesses WHY. A rejected push and an unreachable
+# remote are indistinguishable from the exit status, and the first version
+# called both "likely diverged" — a diagnosis it had not earned. What it must
+# always say is the part it knows: nothing was forced.
+has "a rejected push is reported, not forced" "$out" "nothing was forced"
+case "$out" in
+  *"likely diverged"*) bad "and does not diagnose a cause it cannot see" "$out" ;;
+  *)                   ok  "and does not diagnose a cause it cannot see" ;;
+esac
 is  "and the remote keeps the other machine's head" \
-    "$(git --git-dir="$PBREM" rev-parse HEAD)" "$(git -C "$PB2" rev-parse HEAD)"
+    "$(git --git-dir="$PBREM" rev-parse refs/heads/main)" "$(git -C "$PB2" rev-parse HEAD)"
 
 PNR="$TMP/pulse-noremote"; mkdir -p "$PNR"
 ( cd "$PNR" && git init -q -b main && printf 'x\n' > f \
@@ -4922,6 +4934,117 @@ has "no remote is named as the risk it is" "$out" "only this disk"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "" )"
 has "memory outside any repository is said plainly" "$out" "not in a git repository"
+
+# The review of the first version confirmed ten ways an unattended committer
+# corrupts what it protects. Each guard below is one of them, constructed.
+#
+# A merge in progress is a person's work-site: add -A would stage their
+# conflict markers as resolved, commit would conclude their merge, and the
+# push would fast-forward past the divergence guard entirely.
+PMG="$TMP/pulse-merge"; PMGR="$TMP/pulse-merge-remote.git"
+mkdir -p "$PMG"
+( cd "$PMG" && git init -q -b main && printf 'a\n' > l.md \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
+git init -q --bare -b main "$PMGR"
+( cd "$PMG" && git remote add backup "$PMGR" && git push -q backup main )
+PMB="$TMP/pulse-merge-b"; git clone -q "$PMGR" "$PMB" 2>/dev/null
+( cd "$PMB" && printf 'B\n' > l.md && git add -A \
+  && git -c user.name=b -c user.email=b@b commit -qm B && git push -q origin main )
+( cd "$PMG" && printf 'A\n' > l.md && git add -A \
+  && git -c user.name=a -c user.email=a@a commit -qm A \
+  && git fetch -q backup && git merge backup/main >/dev/null 2>&1 || true )
+_premerge_remote="$(git --git-dir="$PMGR" rev-parse refs/heads/main)"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PMG" )"
+has "a merge in progress is a person's, and the pulse says so" "$out" "in progress"
+[ -f "$PMG/.git/MERGE_HEAD" ] \
+  && ok  "and the merge is left exactly where the person left it" \
+  || bad "and the merge is left exactly where the person left it" "MERGE_HEAD gone"
+is "and the remote holds no machine-made merge" \
+   "$(git --git-dir="$PMGR" rev-parse refs/heads/main)" "$_premerge_remote"
+
+# The nearest enclosing repo is not necessarily the memory's own. A dotfiles
+# repo tracking $HOME would have every private file committed and pushed
+# daily by the same four lines that back up lessons.
+POUT="$TMP/pulse-outer"; mkdir -p "$POUT/dotfiles/felixish/memory"
+( cd "$POUT/dotfiles" && git init -q -b main && printf 'rc\n' > .bashrc \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm dots )
+_outer_head="$(git -C "$POUT/dotfiles" rev-parse HEAD)"
+mr="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+       FELIX_MEMORY="$POUT/dotfiles/felixish/memory" felix_pulse_mem_repo )"
+has "a repository that is not the memory's own is named foreign" "$mr" "foreign"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$mr" )"
+has "and the pulse refuses it in words" "$out" "not its own"
+is  "and commits nothing to it" "$(git -C "$POUT/dotfiles" rev-parse HEAD)" "$_outer_head"
+mr="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+       FELIX_MEMORY="$PBR/memory" felix_pulse_mem_repo )"
+is "while the memory root's immediate parent is its own repo" "$mr" "$(cd "$PBR" && pwd -P)"
+
+# Detached HEAD is a person inspecting history; a commit would land on no
+# branch and the next checkout strands it.
+( cd "$PNR" && git checkout -q --detach HEAD )
+printf 'z\n' >> "$PNR/f"
+_det_head="$(git -C "$PNR" rev-parse HEAD)"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PNR" )"
+has "a detached HEAD is refused in words"    "$out" "detached"
+is  "and nothing was committed onto it"      "$(git -C "$PNR" rev-parse HEAD)" "$_det_head"
+
+# A nested git repository stages as a bare gitlink: the backup would verify
+# while a restore materializes an empty directory.
+PNEST="$TMP/pulse-nest"; mkdir -p "$PNEST"
+( cd "$PNEST" && git init -q -b main && printf 'l\n' > l.md \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
+mkdir -p "$PNEST/scraps"
+( cd "$PNEST/scraps" && git init -q -b main && printf 'n\n' > notes.md \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm inner )
+_nest_head="$(git -C "$PNEST" rev-parse HEAD)"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PNEST" )"
+has "a nested repository is refused, with the restore truth" "$out" "restore EMPTY"
+is  "and nothing was committed"  "$(git -C "$PNEST" rev-parse HEAD)" "$_nest_head"
+is  "and the index holds no gitlink afterwards" \
+    "$(git -C "$PNEST" ls-files -s | grep -c '^160000')" "0"
+
+# The push target is never an alphabetical accident. origin wins over a
+# name that sorts first; two strangers with no upstream is a person's call.
+PMR="$TMP/pulse-remotes"; PMRA="$TMP/pulse-ra.git"; PMRO="$TMP/pulse-ro.git"
+mkdir -p "$PMR"
+( cd "$PMR" && git init -q -b main && printf 'l\n' > l.md \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
+git init -q --bare -b main "$PMRA"; git init -q --bare -b main "$PMRO"
+( cd "$PMR" && git remote add archive "$PMRA" && git remote add origin "$PMRO" )
+printf 'm\n' >> "$PMR/l.md"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PMR" )"
+has "origin outranks the name that sorts first" "$out" "pushed and verified: origin"
+# --verify -q, and not for style: bare `git rev-parse` on a MISSING ref echoes
+# the literal back to stdout, so "did this remote receive anything" answered 1
+# whether it had or not — an instrument that reports the same thing either way,
+# which is this project's most-repeated defect wearing a fixture.
+is  "and the alphabetical-first remote was not touched" \
+    "$(git --git-dir="$PMRA" rev-parse --verify -q refs/heads/main 2>/dev/null | grep -c .)" "0"
+( cd "$PMR" && git remote rename origin mirror )
+printf 'm2\n' >> "$PMR/l.md"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PMR" )"
+has "two strangers and no upstream is a person's call" "$out" "a person picks"
+
+# The verification is load-bearing, pinned by an input only it can catch: a
+# push URL pointing somewhere other than the fetch URL means the push lands
+# where nothing reads back, and 'pushed and verified' would be a lie.
+PSPLIT="$TMP/pulse-split"; PSF="$TMP/pulse-sf.git"; PSP="$TMP/pulse-sp.git"
+mkdir -p "$PSPLIT"
+( cd "$PSPLIT" && git init -q -b main && printf 'l\n' > l.md \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
+git init -q --bare -b main "$PSF"; git init -q --bare -b main "$PSP"
+( cd "$PSPLIT" && git remote add origin "$PSF" \
+  && git remote set-url --push origin "$PSP" )
+printf 's\n' >> "$PSPLIT/l.md"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PSPLIT" )"
+has "a push nothing reads back is not called verified" "$out" "reads back"
 
 # The report half: the pulse log doubles as a note about what the next
 # session will find, read off Felix's own tables and state alone.
@@ -4939,22 +5062,53 @@ has "and the discovery cache gone stale" "$out" "stale	pulsey"
 
 # Scheduling is a grant a person makes, so the install path is explicit,
 # writes one launchd agent under $HOME, and says what it did. launchctl is
-# stubbed: the point is what Felix hands it, not that launchd works.
+# stubbed — the point is what Felix hands it, not that launchd works — and so
+# is uname, so BOTH platform branches run on every machine: the runner has no
+# launchd and this laptop is never Linux, and either branch untested anywhere
+# is a branch that only ever runs in production.
 PLB="$TMP/pulse-bin"; mkdir -p "$PLB"
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "${LAUNCHCTL_LOG:-/dev/null}"\nexit 0\n' > "$PLB/launchctl"
-chmod +x "$PLB/launchctl"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "${UNAME_STUB:-Darwin}"\n' > "$PLB/uname"
+chmod +x "$PLB/launchctl" "$PLB/uname"
 PHOME="$TMP/pulse-fakehome"; mkdir -p "$PHOME"
-out="$(cd "$REPO" && HOME="$PHOME" PATH="$PLB:$PATH" LAUNCHCTL_LOG="$TMP/launchctl.log" \
-       "$FELIX" pulse --install 2>&1)"; rc=$?
+out="$(cd "$REPO" && HOME="$PHOME" PATH="$PLB:$PATH" UNAME_STUB=Darwin \
+       LAUNCHCTL_LOG="$TMP/launchctl.log" "$FELIX" pulse --install 2>&1)"; rc=$?
 is  "install answers cleanly"        "$rc" "0"
 has "and names itself as the grant"  "$out" "the grant"
 has "the agent runs the pulse" \
     "$(cat "$PHOME/Library/LaunchAgents/felix.pulse.plist" 2>/dev/null)" "<string>pulse</string>"
 has "and launchd was handed the agent" "$(cat "$TMP/launchctl.log" 2>/dev/null)" "felix.pulse.plist"
+has "launchd's own capture goes to its own file, so no line logs twice" \
+    "$(cat "$PHOME/Library/LaunchAgents/felix.pulse.plist" 2>/dev/null)" "launchd.log"
+
+# The plist must outlive whichever copy ran the command: a worktree engine
+# dies with the worktree, so a registered marketplace root wins over the
+# running copy. The registry is under $HOME, which is the fixture's.
+PSERVED="$TMP/pulse-served"; mkdir -p "$PSERVED/engine/harness" "$PHOME/.claude/plugins"
+printf '#!/bin/sh\n' > "$PSERVED/engine/harness/felix"; chmod +x "$PSERVED/engine/harness/felix"
+cat > "$PHOME/.claude/plugins/known_marketplaces.json" <<EOF
+{
+  "felix": {
+    "installLocation": "$PSERVED"
+  }
+}
+EOF
+out="$(cd "$REPO" && HOME="$PHOME" PATH="$PLB:$PATH" UNAME_STUB=Darwin \
+       "$FELIX" pulse --install 2>&1)"
+has "the agent points at the served engine, not the running copy" \
+    "$(cat "$PHOME/Library/LaunchAgents/felix.pulse.plist" 2>/dev/null)" "$PSERVED/engine/harness/felix"
+rm -f "$PHOME/.claude/plugins/known_marketplaces.json"
 out="$(cd "$REPO" && HOME="$PHOME" PATH="$PLB:$PATH" "$FELIX" pulse --uninstall 2>&1)"
 [ -f "$PHOME/Library/LaunchAgents/felix.pulse.plist" ] \
   && bad "uninstall takes the grant back" "plist still present" \
   || ok  "uninstall takes the grant back"
+out="$(cd "$REPO" && HOME="$PHOME" PATH="$PLB:$PATH" UNAME_STUB=Linux \
+       "$FELIX" pulse --install 2>&1)"; rc=$?
+is  "a machine without launchd is refused, not half-served" "$rc" "1"
+has "and handed the cron line instead"                      "$out" "cron"
+[ -f "$PHOME/Library/LaunchAgents/felix.pulse.plist" ] \
+  && bad "and no agent is written there" "plist appeared" \
+  || ok  "and no agent is written there"
 
 # The heartbeat end to end from the CLI: no session, and here no memory repo
 # either — the suite's memory root is a bare fixture directory — so the honest

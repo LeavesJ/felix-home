@@ -46,6 +46,7 @@
 1	a declined play is not raised at the finish
 1	a denied command exits 2
 1	a deployed engine resolves the checkout, not itself
+1	a detached HEAD is refused in words
 1	a devlog entry newer than the catch settles it too
 1	a different repository is still checked
 1	a directory declaring project.json is enumerated
@@ -90,11 +91,13 @@
 1	a local-only branch is taken as given
 1	a lookalike gate is reported
 1	a low-risk candidate is declared
+1	a machine without launchd is refused, not half-served
 1	a malformed row is skipped, others still deny
 1	a malformed row is skipped, others still match
 1	a marketplaces path is one too
 1	a matching test closes the gap
 1	a medium one is refused
+1	a merge in progress is a person's, and the pulse says so
 1	a merge stopped for the founder is recorded as one
 1	a mid-session route change does not render
 1	a migration classifies red
@@ -107,6 +110,7 @@
 1	a name counts triple
 1	a name nothing mentions is still not found
 1	a named capability carries its count
+1	a nested repository is refused, with the restore truth
 1	a never-run routine is due
 1	a new note replaces it
 1	a new untracked file invalidates the receipt
@@ -145,6 +149,7 @@
 1	a prompt with no signal says nothing
 1	a proposal shown once is not volunteered again
 1	a pulse with nothing to do still answers
+1	a push nothing reads back is not called verified
 1	a reach is the only mount evidence there is
 1	a real capability left undeclared is not an error
 1	a real uncommitted edit still speaks, in a fresh session
@@ -168,6 +173,7 @@
 1	a rejected push is reported, not forced
 1	a repair that failed says so
 1	a repo copy of a file Felix holds is reported
+1	a repository that is not the memory's own is named foreign
 1	a revision expression is taken as given
 1	a rollup rewrites no file another session wrote
 1	a route from what you typed is recorded as such
@@ -324,12 +330,14 @@
 1	and changes when the tree changes
 1	and claims nothing about surfaces it never compared
 1	and claims nothing was unchecked
+1	and commits nothing to it
 1	and counts the recorded decline
 1	and creates nothing without --create
 1	and declares nothing
 1	and deleting the syntax check escapes as verifier
 1	and does not ask for a lesson that already exists
 1	and does not blame a checkout that did not move
+1	and does not diagnose a cause it cannot see
 1	and does not nag about ancient history
 1	and does not name a channel it never got to consult
 1	and does not say it recorded
@@ -344,6 +352,7 @@
 1	and from CI-absolute paths
 1	and from a worktree of the same repository
 1	and from the first copy of the key, not a later one
+1	and handed the cron line instead
 1	and hands it a pull request to merge
 1	and ignores the path so it cannot come back
 1	and is clean when the three directories agree
@@ -405,6 +414,7 @@
 1	and never reports no remote for an engine that has one
 1	and never the newest thing in the cache
 1	and never where it is not declared
+1	and no agent is written there
 1	and no memory root named --help is minted
 1	and no setup.tsv appears from asking for help
 1	and no zero row for one that was used
@@ -421,6 +431,8 @@
 1	and nothing is merged when it lands there
 1	and nothing matching scores nil
 1	and nothing unusable
+1	and nothing was committed
+1	and nothing was committed onto it
 1	and nothing was written
 1	and nothing was written to the real felix home pointer
 1	and now names each one it found
@@ -514,6 +526,7 @@
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
 1	and the ack is consumed by the answer
+1	and the alphabetical-first remote was not touched
 1	and the bare listing the gate used to do would have counted a plain file
 1	and the blurb no longer outranks the manifest
 1	and the cause is the prompt, not the envelope
@@ -528,15 +541,19 @@
 1	and the gate still runs through it
 1	and the gate's code names no project literally
 1	and the hook still exits 0 there
+1	and the index holds no gitlink afterwards
 1	and the lesson is in the same block
 1	and the memory, which is somewhere else now
+1	and the merge is left exactly where the person left it
 1	and the message does not accuse the subagent
 1	and the monitor still renders the sentence, not the JSON around it
 1	and the page has a panel for it
 1	and the placeholder stays a placeholder
 1	and the play this project already chose
+1	and the pulse refuses it in words
 1	and the receipt refuses to call that verified
 1	and the record names the channel
+1	and the remote holds no machine-made merge
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
 1	and the repository is back to where it started
@@ -706,6 +723,7 @@
 1	keeps a tracked one, whatever else is true
 1	keeps one Felix holds no copy of
 1	knows a standalone skill is not a plugin
+1	launchd's own capture goes to its own file, so no line logs twice
 1	lesson is recorded
 1	lesson refuses a flag as the lesson
 1	lesson warns against writing too much
@@ -768,6 +786,7 @@
 1	one superpowers skill does not mark superpowers:test-driven-development used
 1	one superpowers skill does not mark superpowers:writing-plans used
 1	only the claim is mounted, not the evidence
+1	origin outranks the name that sorts first
 1	overrides are recorded
 1	passing gate exits 0
 1	pr previews and exits 0
@@ -876,6 +895,7 @@
 1	survives a machine laid out differently
 1	survives a transcript that is not there
 1	tasks sharing a file are one unit
+1	the agent points at the served engine, not the running copy
 1	the agent runs the pulse
 1	the always-applicable part is shown
 1	the best capability wins
@@ -968,6 +988,7 @@
 1	twelve sessions ending at once are all still counted
 1	twice makes it a promotion candidate
 1	two rows in one session are one session, calls summed
+1	two strangers and no upstream is a person's call
 1	undeclared capability classifies as dormant
 1	ungoverned repo refuses to run a gate
 1	uninstall names the doctrine it left alone
@@ -985,6 +1006,7 @@
 1	while others stay due
 1	while the branch's own file still is
 1	while the genuinely reached server is proposed
+1	while the memory root's immediate parent is its own repo
 1	while the path around it does not
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused

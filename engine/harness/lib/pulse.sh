@@ -17,26 +17,93 @@
 #            so the pulse log doubles as a note about what the next session
 #            will find
 #
+# The review of the first version confirmed ten ways an unattended committer
+# can corrupt the thing it protects, each by construction, and the guards
+# below are those findings inverted: never conclude a person's merge, never
+# commit a repository that is not the memory's own, never commit onto a
+# detached HEAD, never record a nested repository as an empty gitlink, never
+# pick a push target by alphabetical accident. Every refusal is a printed
+# sentence and exit 0 — for a heartbeat, an honest "not safe to act" is a
+# successful run.
+#
 # Scheduling is a grant, not a default. `felix pulse --install` writes the
 # launchd agent and a person runs that command; nothing here schedules
 # itself, because a permission a system grants itself is not a permission.
 
-# The git repository holding the memory root, empty when nothing versions it.
+# The git repository holding the memory root. Emits nothing when no repo
+# encloses it; the toplevel when that repository is the memory's own — the
+# root itself, or its immediate parent, which is the documented ~/.felix
+# layout; and `foreign<TAB>toplevel` when the nearest repository is anything
+# deeper — a dotfiles repo tracking $HOME is the realistic case, and running
+# `git add -A` at that toplevel would commit and publish everything the
+# founder owns, daily.
 felix_pulse_mem_repo() {
-  git -C "$(felix_mem_root)" rev-parse --show-toplevel 2>/dev/null
+  local root top parent
+  root="$(cd "$(felix_mem_root)" 2>/dev/null && pwd -P)" || return 0
+  [ -n "$root" ] || return 0
+  top="$(git -C "$root" rev-parse --show-toplevel 2>/dev/null)" || return 0
+  [ -n "$top" ] || return 0
+  top="$(cd "$top" 2>/dev/null && pwd -P)"
+  parent="$(cd "$root/.." 2>/dev/null && pwd -P)"
+  case "$top" in
+    "$root"|"$parent") printf '%s' "$top" ;;
+    *)                 printf 'foreign\t%s' "$top" ;;
+  esac
 }
 
-# Commit if dirty, push if a remote exists, then verify by re-reading the
-# remote head. Emits status lines and always returns 0: an honest "nothing to
-# do" is not a failure, and neither is a refusal this deliberately makes.
+# Commit if dirty, push if a target is unambiguous, then verify by re-reading
+# the remote head. Emits status lines and always returns 0: an honest
+# "nothing to do" is not a failure, and neither is a refusal this
+# deliberately makes.
 felix_pulse_backup() {
-  local repo="$1" remote branch local_head remote_head
+  local repo="$1" gitdir remotes remote branch local_head remote_head n160 n_remotes
   if [ -z "$repo" ]; then
     printf 'backup\tmemory is not in a git repository; nothing versions it\n'
     return 0
   fi
+  case "$repo" in
+    "foreign	"*)
+      printf 'backup\tmemory sits inside a repository that is not its own (%s); not touching it\n' \
+        "${repo#foreign	}"
+      return 0 ;;
+  esac
+
+  # A merge or rebase in progress is a person's work-site. `git add -A` would
+  # stage their conflict markers as resolved and `commit` would conclude
+  # their merge under this machine's name — then push it as a fast-forward
+  # the divergence guard below can never catch, because the machine-made
+  # merge contains the remote head. Constructed in review; never again.
+  gitdir="$(git -C "$repo" rev-parse --git-dir 2>/dev/null)"
+  case "$gitdir" in /*) ;; *) gitdir="$repo/$gitdir" ;; esac
+  if [ -f "$gitdir/MERGE_HEAD" ] || [ -f "$gitdir/CHERRY_PICK_HEAD" ] \
+     || [ -f "$gitdir/REVERT_HEAD" ] \
+     || [ -d "$gitdir/rebase-merge" ] || [ -d "$gitdir/rebase-apply" ]; then
+    printf 'backup\ta merge or rebase is in progress; that is a person mid-reconciliation, and nothing here touches it\n'
+    return 0
+  fi
+
+  # Detached HEAD is a person inspecting history. A commit here lands on no
+  # branch, and the next ordinary checkout strands it.
+  branch="$(git -C "$repo" symbolic-ref --short HEAD 2>/dev/null)" || branch=""
+  if [ -z "$branch" ]; then
+    printf 'backup\tHEAD is detached; a commit would land on no branch, so nothing was committed\n'
+    return 0
+  fi
+
   if [ -n "$(git -C "$repo" status --porcelain 2>/dev/null)" ]; then
     git -C "$repo" add -A >/dev/null 2>&1
+    # A nested git repository stages as a bare gitlink: the push then reports
+    # verified while a restore materializes an empty directory — the exact
+    # disaster-recovery path this feature exists for. Counted with grep -c,
+    # which reads its whole input, because grep -q under pipefail kills the
+    # producer and this repository has paid for that before. A repository
+    # with .gitmodules declared its links on purpose and is left alone.
+    n160="$(git -C "$repo" ls-files -s 2>/dev/null | grep -c '^160000')"
+    if [ "${n160:-0}" -gt 0 ] && [ ! -f "$repo/.gitmodules" ]; then
+      git -C "$repo" reset -q >/dev/null 2>&1
+      printf 'backup\ta nested git repository sits inside memory; backed up it would restore EMPTY, so nothing was committed — move it out or make it a real submodule\n'
+      return 0
+    fi
     if git -C "$repo" -c user.name=felix-pulse -c user.email=pulse@felix.invalid \
          commit -q -m "pulse: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1; then
       printf 'backup\tcommitted\n'
@@ -46,19 +113,49 @@ felix_pulse_backup() {
   else
     printf 'backup\tnothing new to commit\n'
   fi
-  remote="$(git -C "$repo" remote 2>/dev/null | head -1)"
+
+  # The push target, never by alphabetical accident: the branch's own
+  # upstream first, then origin, then the only remote there is. Two remotes
+  # and no upstream is a person's ambiguity — `git remote | head -1` pushed
+  # to whichever name sorted first and then verified that same wrong remote.
+  remotes="$(git -C "$repo" remote 2>/dev/null)"
+  remote="$(git -C "$repo" rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>/dev/null)"
+  remote="${remote%%/*}"
   if [ -z "$remote" ]; then
-    printf 'backup\tno remote; the backup is this disk and only this disk\n'
-    return 0
+    if felix_has_line "$remotes" origin; then
+      remote=origin
+    else
+      n_remotes="$(printf '%s\n' "$remotes" | grep -c .)"
+      if [ "${n_remotes:-0}" -eq 1 ]; then
+        remote="$remotes"
+      elif [ "${n_remotes:-0}" -eq 0 ]; then
+        printf 'backup\tno remote; the backup is this disk and only this disk\n'
+        return 0
+      else
+        printf 'backup\t%s remotes and no upstream; a person picks where this pushes\n' "$n_remotes"
+        return 0
+      fi
+    fi
   fi
-  branch="$(git -C "$repo" symbolic-ref --short HEAD 2>/dev/null)" || branch=main
-  if git -C "$repo" push -q "$remote" "$branch" >/dev/null 2>&1; then
+
+  # Bounded the ways git can be bounded without a watchdog binary: http gets
+  # a low-speed floor, ssh gets connect and keepalive caps. The documented
+  # layout — a bare remote on this disk — cannot hang at all. What none of
+  # this can bound is a transport streaming one byte a minute; launchd runs
+  # the next pulse regardless.
+  if git -C "$repo" \
+       -c http.lowSpeedLimit=1 -c http.lowSpeedTime=30 \
+       -c core.sshCommand="ssh -o ConnectTimeout=15 -o ServerAliveInterval=20 -o ServerAliveCountMax=3" \
+       push -q "$remote" "$branch" >/dev/null 2>&1; then
     # Pushed is a claim; verified is a fact. Ask the remote what it holds
     # rather than trusting the exit status — a backup believed and absent is
     # worse than none, which is why the first one was restored before it was
     # believed.
     local_head="$(git -C "$repo" rev-parse HEAD 2>/dev/null)"
-    remote_head="$(git -C "$repo" ls-remote "$remote" "refs/heads/$branch" 2>/dev/null | cut -f1)"
+    remote_head="$(git -C "$repo" \
+       -c http.lowSpeedLimit=1 -c http.lowSpeedTime=30 \
+       -c core.sshCommand="ssh -o ConnectTimeout=15 -o ServerAliveInterval=20 -o ServerAliveCountMax=3" \
+       ls-remote "$remote" "refs/heads/$branch" 2>/dev/null | cut -f1)"
     if [ -n "$local_head" ] && [ "$local_head" = "$remote_head" ]; then
       printf 'backup\tpushed and verified: %s holds %.12s\n' "$remote" "$local_head"
     else
@@ -66,7 +163,7 @@ felix_pulse_backup() {
         "$remote" "${remote_head:-nothing}" "$local_head"
     fi
   else
-    printf 'backup\tpush REFUSED, likely diverged; a person reconciles, nothing was forced\n'
+    printf 'backup\tpush failed — unreachable, or diverged; nothing was forced, and a divergence is a person'\''s to reconcile\n'
   fi
   return 0
 }
@@ -90,10 +187,14 @@ felix_pulse_report() {
   return 0
 }
 
-# The launchd agent, emitted rather than written so a test can read it and the
-# writer stays four lines. 09:07 local, daily: early enough that the first
-# session of a day inherits a fresh backup, odd enough to say a machine chose
-# it.
+# The launchd agent, emitted rather than written so a test can read it and
+# the writer stays four lines. 09:07 local, daily: early enough that the
+# first session of a day inherits a fresh backup, odd enough to say a machine
+# chose it. launchd's own capture goes to a separate file — the pulse tees
+# its structured lines into the log itself, and one line written twice reads
+# as two heartbeats. Paths land inside <string> verbatim; the standard
+# layouts contain no XML metacharacters, and one that did would break the
+# schedule loudly at load, not silently.
 felix_pulse_plist() {
   local bin="$1" log="$2"
   cat <<PLIST
@@ -109,8 +210,8 @@ felix_pulse_plist() {
     <key>Hour</key><integer>9</integer>
     <key>Minute</key><integer>7</integer>
   </dict>
-  <key>StandardOutPath</key><string>$log</string>
-  <key>StandardErrorPath</key><string>$log</string>
+  <key>StandardOutPath</key><string>$log.launchd.log</string>
+  <key>StandardErrorPath</key><string>$log.launchd.log</string>
 </dict></plist>
 PLIST
 }

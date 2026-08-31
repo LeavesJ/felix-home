@@ -3064,10 +3064,18 @@ cmd_pulse() {
       printf '  7 9 * * * %s/felix pulse\n' "$SCRIPT_DIR"
       return 1
     fi
-    # The engine that survives this checkout: whatever source the deploy
-    # serves, not whichever copy this command happened to run from. A plist
-    # pointing into a worktree dies with the worktree.
-    local esrc; esrc="$(felix_engine_source "$FELIX_ROOT" "$FELIX_HOME_DIR")" || esrc=""
+    # The engine that survives this checkout: the marketplace root when one
+    # is registered. felix_engine_source returns any non-plugin copy
+    # verbatim — a worktree included — and a plist pointing into a worktree
+    # dies with the worktree, so that is only the fallback when no
+    # marketplace answers.
+    local esrc mroot
+    mroot="$(felix_marketplace_root 2>/dev/null)" || mroot=""
+    if [ -n "$mroot" ] && [ -x "$mroot/engine/harness/felix" ]; then
+      esrc="$mroot/engine"
+    else
+      esrc="$(felix_engine_source "$FELIX_ROOT" "$FELIX_HOME_DIR")" || esrc=""
+    fi
     [ -n "$esrc" ] || { printf 'cannot resolve a served engine to schedule\n'; return 1; }
     mkdir -p "$HOME/Library/LaunchAgents" "$FELIX_HOME_DIR/state" 2>/dev/null
     felix_pulse_plist "$esrc/harness/felix" "$log" > "$plist"

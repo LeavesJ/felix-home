@@ -405,6 +405,7 @@
 1	and it registers rather than falling through to a refresh
 1	and it says so where a reader must look
 1	and it says what would actually reach it
+1	and it still fails the gate
 1	and it stops being due
 1	and it stops the streak rather than being skipped past
 1	and its base's workflow is not escalated as this branch's escape
@@ -570,6 +571,7 @@
 1	and the domain it speaks for
 1	and the drift line carries the whole name
 1	and the earlier verdict is not replaced by it
+1	and the engine writes no mistake for it
 1	and the founder's one line says how many are due
 1	and the gate searches the same paths this does
 1	and the gate still runs through it
@@ -1004,6 +1006,7 @@
 1	the same route does not repeat itself
 1	the second session is still bound
 1	the secret check is behind the verifier confine
+1	the shipped gate marks its undeployable failure
 1	the shipped layout — memory under ~/.felix — is its own repo
 1	the shipped table considers every moment
 1	the squash leaves the merge-base behind main

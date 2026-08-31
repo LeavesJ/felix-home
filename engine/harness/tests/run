@@ -2321,6 +2321,42 @@ GS
 is "an all-structural gate still fails"           "$rc" "1"
 is "and writes no row at all, not even exit-1"    "$(wc -l < "$MISLOG" | tr -d ' ')" "0"
 
+# The contract, against the line the SHIPPED gate actually prints.
+#
+# Everything above proves the mechanism with a line the fixture writes itself,
+# so it stayed green while the real marker was renamed out from under it: #115
+# rewrote `FAIL (structural: ...)` into `FAIL (drift, in a tree that cannot
+# deploy: ...)` to stop the message misdiagnosing a stray, and the engine
+# greps for `structural`. Every worktree gate failure went back to recording a
+# mistake — the manufactured evidence issue #3 was filed for — and it put
+# `installed` at the top of `felix next` on a count that was 16 of 20
+# work-in-progress branches. Two files, one string between them, and nothing
+# joined them up. This renders the gate's own format and drives it through the
+# real recording path.
+_REALG3="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
+if [ -f "$_REALG3" ]; then
+  _sfmt="$(grep -F 'FAIL (' "$_REALG3" | grep -F 'marketplace serves' | head -1 \
+           | sed "s/^[[:space:]]*printf '//; s/'[[:space:]]*installed.*$//")"
+  if [ -n "$_sfmt" ]; then
+    _sline="$(printf "$_sfmt" installed /some/marketplace 2>/dev/null)"
+    has "the shipped gate marks its undeployable failure" "$_sline" "installed"
+    printf '#!/usr/bin/env bash\nprintf "%%s\\n" %s\nexit 1\n' "$(printf '%q' "$_sline")" \
+      > "$FROOT/projects/widget/structural-gate.sh"
+    : > "$MISLOG"
+    ( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 ); rc=$?
+    is "and it still fails the gate"             "$rc" "1"
+    is "and the engine writes no mistake for it" "$(wc -l < "$MISLOG" | tr -d ' ')" "0"
+  else
+    skip "the shipped gate marks its undeployable failure" "no such line in the gate"
+    skip "and it still fails the gate"                     "no such line in the gate"
+    skip "and the engine writes no mistake for it"         "no such line in the gate"
+  fi
+else
+  skip "the shipped gate marks its undeployable failure" "no shipped gate"
+  skip "and it still fails the gate"                     "no shipped gate"
+  skip "and the engine writes no mistake for it"         "no shipped gate"
+fi
+
 # A gate that names nothing still falls back, because then the status is all
 # anybody knows.
 cat > "$FROOT/projects/widget/structural-gate.sh" <<'GS'

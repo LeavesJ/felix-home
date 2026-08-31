@@ -8,6 +8,7 @@
 1	PreToolUse is bound for NotebookEdit
 1	PreToolUse is bound for Read
 1	PreToolUse is bound for Write
+1	a 600 secret is not reported
 1	a bare branch name prefers the remote-tracking ref
 1	a bare plugin step is used when one of its skills ran
 1	a bare repo has nothing to adopt
@@ -15,8 +16,11 @@
 1	a base that names nothing is refused
 1	a base that resolves still classifies normally
 1	a base that resolves still names the channel
+1	a bind to a LAN address counts too
 1	a block from the live tree is still recorded
 1	a blocking verdict does not clear it either
+1	a broad bind from outside your home is infrastructure, not a finding
+1	a broad bind serving your home is the finding
 1	a broad but legitimate rule still denies
 1	a bumped tree does not become its own judge
 1	a bundled plugin reads as usable
@@ -98,6 +102,7 @@
 1	a leftover message draft does not stop the backup forever
 1	a local-only branch is taken as given
 1	a lookalike gate is reported
+1	a loopback listener is nobody's business
 1	a low-risk candidate is declared
 1	a machine without launchd is refused, not half-served
 1	a malformed row is skipped, others still deny
@@ -221,6 +226,7 @@
 1	a table outside the classified repo is still read once, at HEAD
 1	a table with no holds column still works
 1	a task notification is not a prompt
+1	a template is not a secret
 1	a term recurring across entries surfaces
 1	a tie is broken the same way whichever order the file lists
 1	a tool absent from the manifest is not a clean bill
@@ -240,6 +246,7 @@
 1	a word shared with a field name still counts
 1	a workflow change escapes as execute
 1	a worktree engine cannot
+1	a world-readable .env is reported
 1	a writable project still records
 1	a write rule denies a write
 1	adding a Dockerfile surfaces deploy
@@ -288,6 +295,7 @@
 1	an opted-in capability is allowed
 1	an ordinary checkout is not
 1	an ordinary failure is still written down
+1	an ordinary readable file is not a secret
 1	an unborn default base refuses rather than previews
 1	an unconsidered moment is named
 1	an undeclared capability is still never scored
@@ -330,8 +338,10 @@
 1	and a declined one is ok too
 1	and a document that is not a plan
 1	and a gitignored stray in the cache is too
+1	and a group-readable key is reported
 1	and a high one is refused
 1	and a live one says when it was last caught
+1	and a nested worktree is left to its own preflight
 1	and a project with none does not claim it
 1	and a real one still routes
 1	and a red run at the head means zero
@@ -340,7 +350,9 @@
 1	and a ruled capability is not listed there
 1	and a ruled one is not
 1	and a self-governed branch does merge under the kernel
+1	and a sibling that shares a prefix is not inside it
 1	and a skill that was invoked
+1	and a vendored tree is not walked
 1	and a verified push does
 1	and a verified push reads as zero days
 1	and absent from both sides is a fixture, not a drift
@@ -351,6 +363,7 @@
 1	and both paths in one sentence are found
 1	and briefs the file it names
 1	and carries the decline channel
+1	and changes nothing by itself
 1	and changes when the tree changes
 1	and claims nothing about surfaces it never compared
 1	and claims nothing was unchecked
@@ -405,6 +418,7 @@
 1	and it registers rather than falling through to a refresh
 1	and it says so where a reader must look
 1	and it says what would actually reach it
+1	and it says which directory is exposed
 1	and it still fails the gate
 1	and it stops being due
 1	and it stops the streak rather than being skipped past
@@ -434,6 +448,7 @@
 1	and names the table
 1	and names the working tree rather than the checkout
 1	and names what was caught
+1	and neither is a 600 certificate
 1	and neither is a worktree
 1	and neither is an empty message
 1	and never a verified receipt
@@ -539,6 +554,7 @@
 1	and so does a worktree of it
 1	and so does the next one
 1	and so is a deny from its own PreToolUse
+1	and so is an IPv6 loopback one
 1	and so is every other one
 1	and so is ordinary work
 1	and so is the content-drift arm
@@ -830,6 +846,7 @@
 1	passing gate exits 0
 1	pr previews and exits 0
 1	pr refuses to open a branch against itself
+1	preflight exits 0 when it is only reporting
 1	promote surfaces a word that keeps missing
 1	proposes mounting what was reached and never declared
 1	proposes retiring what was mounted and never reached for
@@ -900,6 +917,7 @@
 1	sees a credential in an untracked new file
 1	sees a plugin a route already names
 1	self-contained, no external references
+1	serving the home directory itself is the same finding
 1	session start surfaces the reconcile proposals
 1	session-start sources autonomy.sh
 1	session-start sources ledger.sh
@@ -1060,6 +1078,7 @@
 1	with no session record it behaves as before
 1	with nothing due it reports nothing
 1	with the critique step after it
+1	with the mode it actually has
 1	with the newlines escaped, not lost
 1	with the usage text
 1	without --strict it only reports

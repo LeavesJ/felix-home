@@ -5036,6 +5036,111 @@ case "$out" in
   *)        ok  "a row inspection judged capability-less is not" ;;
 esac
 
+printf '\npreflight: the facts a repository cannot hold\n'
+# From a real incident on a governed project, four days before an MVP launch.
+# A security audit found: a python http.server bound to every interface for 55
+# hours serving a home directory, a .env at mode 644, a service launched
+# without its key, and no request ceiling. Exactly one of those — secrets in
+# git history — is visible to a scanner reading the repository, and the gate
+# already checked it and correctly found none.
+#
+# The founder's reading was "we were sloppy, we should have run semgrep and
+# Sentry first". That is not what happened. SAST matches patterns that are
+# present in code; none of these are in code. A process somebody started by
+# hand, a filesystem mode, and a runtime environment are facts about the
+# MACHINE, and no amount of scanning the repository can see them.
+#
+# felix ready asks whether the TOOLS a session may reach for are usable.
+# This asks whether the machine is safe to serve from. Different question,
+# different failure, and this one had nowhere to live until now.
+
+# The judgement is separated from the collection so it can be tested at all:
+# lsof output is not something a fixture can produce.
+_pfj() { ( . "$FROOT/harness/lib/preflight.sh"; felix_preflight_judge "$1" "$2" "$3" ); }
+is "a loopback listener is nobody's business" \
+   "$(_pfj '127.0.0.1:8080' "$TMP/home/proj" "$TMP/home")" ""
+is "and so is an IPv6 loopback one" \
+   "$(_pfj '[::1]:8080' "$TMP/home/proj" "$TMP/home")" ""
+# The whole machine binds broadly and legitimately — Spotify, AirPlay, the
+# Rapport daemon all sit on *:port. Reporting those is how a report becomes
+# wallpaper, and every one of them runs from outside the home.
+is "a broad bind from outside your home is infrastructure, not a finding" \
+   "$(_pfj '*:7000' / "$TMP/home")" ""
+# The incident itself: bound to everything, serving a directory inside home.
+has "a broad bind serving your home is the finding" \
+    "$(_pfj '*:8000' "$TMP/home/Desktop" "$TMP/home")" "serving"
+has "and it says which directory is exposed" \
+    "$(_pfj '*:8000' "$TMP/home/Desktop" "$TMP/home")" "Desktop"
+has "a bind to a LAN address counts too" \
+    "$(_pfj '192.168.1.20:8000' "$TMP/home/Desktop" "$TMP/home")" "serving"
+# Home itself, not only a subdirectory.
+has "serving the home directory itself is the same finding" \
+    "$(_pfj '*:8000' "$TMP/home" "$TMP/home")" "serving"
+# A path that merely begins with the same characters is a different directory.
+is "and a sibling that shares a prefix is not inside it" \
+   "$(_pfj '*:8000' "${TMP}/home-backup/x" "$TMP/home")" ""
+
+# The mode half. A secret file the group or the world can read is a fact about
+# the filesystem, which is why the repository cannot carry it: .env is
+# gitignored precisely so it never appears in the tree a scanner reads.
+PFR="$TMP/preflight-repo"; mkdir -p "$PFR/sub/.git" "$PFR/node_modules/pkg"
+printf 'KEY=x\n' > "$PFR/.env";            chmod 644 "$PFR/.env"
+printf 'KEY=x\n' > "$PFR/.env.production"; chmod 600 "$PFR/.env.production"
+printf 'k\n'     > "$PFR/sub/server.key";  chmod 640 "$PFR/sub/server.key"
+printf 'c\n'     > "$PFR/sub/cert.pem";    chmod 600 "$PFR/sub/cert.pem"
+printf 'x\n'     > "$PFR/README.md";       chmod 644 "$PFR/README.md"
+printf 'K=1\n'   > "$PFR/node_modules/pkg/.env"; chmod 644 "$PFR/node_modules/pkg/.env"
+# Both of these came from running this against a real governed project, where
+# the first version produced eighteen findings of which seventeen were the
+# same template copied across worktrees. A report that floods on its first run
+# is one nobody reads twice, and no fixture would have shown it.
+printf 'KEY=\n'  > "$PFR/.env.example";  chmod 644 "$PFR/.env.example"
+printf 'KEY=\n'  > "$PFR/.env.sample";   chmod 644 "$PFR/.env.sample"
+mkdir -p "$PFR/.claude/worktrees/other"
+printf 'K=1\n'   > "$PFR/.claude/worktrees/other/.env"; chmod 644 "$PFR/.claude/worktrees/other/.env"
+_pfm="$( . "$FROOT/harness/lib/preflight.sh"; felix_preflight_modes "$PFR" )"
+has "a world-readable .env is reported"         "$_pfm" ".env"
+has "with the mode it actually has"             "$_pfm" "644"
+has "and a group-readable key is reported"      "$_pfm" "server.key"
+case "$_pfm" in
+  *".env.production"*) bad "a 600 secret is not reported" "$_pfm" ;;
+  *)                   ok  "a 600 secret is not reported" ;;
+esac
+case "$_pfm" in
+  *cert.pem*) bad "and neither is a 600 certificate" "$_pfm" ;;
+  *)          ok  "and neither is a 600 certificate" ;;
+esac
+case "$_pfm" in
+  *README*) bad "an ordinary readable file is not a secret" "$_pfm" ;;
+  *)        ok  "an ordinary readable file is not a secret" ;;
+esac
+# Somebody else's dependency tree is not this project's exposure, and walking
+# it turns a one-second check into a minute-long one.
+case "$_pfm" in
+  *node_modules*) bad "and a vendored tree is not walked" "$_pfm" ;;
+  *)              ok  "and a vendored tree is not walked" ;;
+esac
+# A template is committed on purpose and holds placeholders; being readable is
+# the whole point of it.
+case "$_pfm" in
+  *.env.example*|*.env.sample*) bad "a template is not a secret" "$_pfm" ;;
+  *)                            ok  "a template is not a secret" ;;
+esac
+# A nested worktree is another checkout of the same project, with its own
+# preflight. Reporting it here says the same thing once per worktree.
+case "$_pfm" in
+  *worktrees*) bad "and a nested worktree is left to its own preflight" "$_pfm" ;;
+  *)           ok  "and a nested worktree is left to its own preflight" ;;
+esac
+
+# Reports; never kills, never chmods. A running process is somebody's work and
+# a mode that looks wrong may be load-bearing for a service running as another
+# user — tightening it is the founder's call, and --fix is where they make it.
+_pfbefore="$(ls -l "$PFR/.env" | cut -c1-10)"
+out="$(cd "$REPO" && "$FELIX" preflight 2>&1)"; rc=$?
+is "preflight exits 0 when it is only reporting" "$rc" "0"
+is "and changes nothing by itself" "$(ls -l "$PFR/.env" | cut -c1-10)" "$_pfbefore"
+
 printf '\nthe pulse: the heartbeat that does not wait for a session\n'
 # Memory backup was as current as the last time somebody typed the command —
 # measured four days stale once, on the one asset the repository cannot

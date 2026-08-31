@@ -22,6 +22,7 @@
 #   felix stack apply --yes   install the low and medium risk gap
 #   felix stack reconcile     what the record proposes mounting or unmounting
 #   felix pulse          back up memory and report what waits; --install schedules it daily
+#   felix preflight      what this machine exposes before something goes out
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix scope [paths]  may an unattended agent touch these? exit 3 if not
@@ -131,6 +132,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/guard.sh"
 # shellcheck source=lib/pulse.sh
 . "${SCRIPT_DIR}/lib/pulse.sh"
+# shellcheck source=lib/preflight.sh
+. "${SCRIPT_DIR}/lib/preflight.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -187,6 +190,7 @@ specific project, language, or toolchain.
     felix discover --adopt declare and install the low-risk ones it has read
     felix stack [plan|apply|reconcile] install what this project declares; reconcile reads the record
     felix pulse [--install|--uninstall] back up memory, report what waits; --install schedules it daily
+    felix preflight [--fix]  what this machine exposes: stray listeners, readable secrets
     felix adopt <cap>      declare a capability and everything it implies
     felix profile [name]   which tools a task profile mounts
     felix quarantine <p>   switch off a plugin that is breaking sessions
@@ -3059,6 +3063,82 @@ cmd_decisions() {
   printf 'this data - HANDOFF 0af and docs/2026-08-30-advisory-redesign.md B.\n'
 }
 
+# What this machine is exposing, before something goes out.
+#
+# Everything here is a fact no repository can hold, which is why it needed a
+# home of its own: a process somebody started by hand, and a mode on a file
+# that is gitignored precisely so it never enters the tree. A scanner reading
+# the code will report clean on both, forever, and be right to.
+#
+# Reports; never acts. --fix tightens modes and nothing else — a listening
+# process is somebody's work and Felix does not get to end it.
+cmd_preflight() {
+  resolve_or_die; local proj="$PROJ" root fix=0 a
+  for a in "$@"; do
+    case "$a" in
+      --fix) fix=1 ;;
+      *) die "usage: felix preflight [--fix] (got: $a)" ;;
+    esac
+  done
+  root="$(felix_repo_root "$PWD")"
+  printf 'preflight for %s\n' "$(basename "$proj")"
+
+  local exposed=0 cmdn pid addr cwd why
+  while IFS=$'\t' read -r cmdn pid addr cwd; do
+    [ -n "${pid:-}" ] || continue
+    why="$(felix_preflight_judge "$addr" "$cwd" "$HOME")"
+    [ -n "$why" ] || continue
+    if [ "$exposed" -eq 0 ]; then
+      printf '\nserving your own files to the network\n\n'
+    fi
+    exposed=$((exposed+1))
+    printf '  %-14s pid %-7s %s\n' "$cmdn" "$pid" "$why"
+  done <<EOF
+$(felix_preflight_listeners)
+EOF
+  if [ "$exposed" -gt 0 ]; then
+    printf '\nEach of these answers anyone who can reach this machine. Nothing here\n'
+    printf 'stops one — a running process is your work, not Felix'\''s to end.\n'
+    printf 'Confirm each is meant to be reachable, or stop it yourself.\n'
+  fi
+
+  local leaky mode f n_mode=0
+  leaky="$(felix_preflight_modes "$root")"
+  if [ -n "$leaky" ]; then
+    printf '\nsecrets others can read\n\n'
+    while IFS=$'\t' read -r mode f; do
+      [ -n "${f:-}" ] || continue
+      n_mode=$((n_mode+1))
+      if [ "$fix" -eq 1 ]; then
+        if chmod 600 "$f" 2>/dev/null; then
+          printf '  %-5s -> 600  %s\n' "$mode" "${f#"$root"/}"
+        else
+          printf '  %-5s FAILED   %s\n' "$mode" "${f#"$root"/}"
+        fi
+      else
+        printf '  %-5s %s\n' "$mode" "${f#"$root"/}"
+      fi
+    done <<EOF
+$leaky
+EOF
+    if [ "$fix" -eq 0 ]; then
+      printf '\nEach is readable by your group or by everyone. felix preflight --fix\n'
+      printf 'makes them owner-only, which is right unless a service running as\n'
+      printf 'another user reads one — and that is why it is not the default.\n'
+    fi
+  fi
+
+  if [ "$exposed" -eq 0 ] && [ "$n_mode" -eq 0 ]; then
+    printf '\nNothing exposed: no process is serving your files to the network, and\n'
+    printf 'every secret in this checkout is owner-only.\n\n'
+    printf 'This is a small list on purpose. It holds the machine facts that have\n'
+    printf 'actually cost something, and it is not a scanner: a missing rate limit\n'
+    printf 'or an unauthenticated route lives in the code, where the gate and a\n'
+    printf 'reviewer look.\n'
+  fi
+  return 0
+}
+
 # The heartbeat, and the one command that may run with no session and no
 # governed checkout anywhere near it: launchd starts it in $HOME. So it does
 # not resolve a project — it is home-scoped, iterating every governed project
@@ -3167,6 +3247,7 @@ case "${1:-help}" in
   gate)   shift; cmd_gate "$@" ;;
   doctor)  shift; cmd_doctor "$@" ;;
   pulse)   shift; cmd_pulse "$@" ;;
+  preflight) shift; cmd_preflight "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;
   decisions) shift; cmd_decisions "$@" ;;

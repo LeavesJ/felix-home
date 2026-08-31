@@ -21,6 +21,7 @@
 #   felix stack plan     diff declared tooling against what is installed
 #   felix stack apply --yes   install the low and medium risk gap
 #   felix stack reconcile     what the record proposes mounting or unmounting
+#   felix pulse          back up memory and report what waits; --install schedules it daily
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix scope [paths]  may an unattended agent touch these? exit 3 if not
@@ -128,6 +129,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/discover.sh"
 # shellcheck source=lib/guard.sh
 . "${SCRIPT_DIR}/lib/guard.sh"
+# shellcheck source=lib/pulse.sh
+. "${SCRIPT_DIR}/lib/pulse.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -183,6 +186,7 @@ specific project, language, or toolchain.
     felix discover         what is worth having that this project does not have
     felix discover --adopt declare and install the low-risk ones it has read
     felix stack [plan|apply|reconcile] install what this project declares; reconcile reads the record
+    felix pulse [--install|--uninstall] back up memory, report what waits; --install schedules it daily
     felix adopt <cap>      declare a capability and everything it implies
     felix profile [name]   which tools a task profile mounts
     felix quarantine <p>   switch off a plugin that is breaking sessions
@@ -3033,6 +3037,59 @@ cmd_decisions() {
   printf 'this data - HANDOFF 0af and docs/2026-08-30-advisory-redesign.md B.\n'
 }
 
+# The heartbeat, and the one command that may run with no session and no
+# governed checkout anywhere near it: launchd starts it in $HOME. So it does
+# not resolve a project — it is home-scoped, iterating every governed project
+# for the report — and it exits 0 on honest nothing-to-do. Installing the
+# schedule is a separate, explicit act: the grant is the founder running
+# --install, never a default.
+cmd_pulse() {
+  local a install=0 uninstall=0
+  for a in "$@"; do
+    case "$a" in --install) install=1 ;; --uninstall) uninstall=1 ;; esac
+  done
+  local plist="$HOME/Library/LaunchAgents/felix.pulse.plist"
+  local log="$FELIX_HOME_DIR/state/pulse.log"
+
+  if [ "$uninstall" -eq 1 ]; then
+    launchctl unload "$plist" >/dev/null 2>&1
+    rm -f "$plist"
+    printf 'pulse unscheduled; %s removed\n' "$plist"
+    return 0
+  fi
+
+  if [ "$install" -eq 1 ]; then
+    if [ "$(uname)" != "Darwin" ]; then
+      printf 'no launchd here. schedule it yourself, e.g. cron:\n'
+      printf '  7 9 * * * %s/felix pulse\n' "$SCRIPT_DIR"
+      return 1
+    fi
+    # The engine that survives this checkout: whatever source the deploy
+    # serves, not whichever copy this command happened to run from. A plist
+    # pointing into a worktree dies with the worktree.
+    local esrc; esrc="$(felix_engine_source "$FELIX_ROOT" "$FELIX_HOME_DIR")" || esrc=""
+    [ -n "$esrc" ] || { printf 'cannot resolve a served engine to schedule\n'; return 1; }
+    mkdir -p "$HOME/Library/LaunchAgents" "$FELIX_HOME_DIR/state" 2>/dev/null
+    felix_pulse_plist "$esrc/harness/felix" "$log" > "$plist"
+    launchctl unload "$plist" >/dev/null 2>&1
+    if launchctl load "$plist" >/dev/null 2>&1; then
+      printf 'scheduled: %s pulse, daily at 09:07, logging to %s\n' "$esrc/harness/felix" "$log"
+    else
+      printf 'wrote %s but launchctl load failed; load it by hand\n' "$plist"
+    fi
+    printf 'this was the grant: nothing scheduled itself. felix pulse --uninstall takes it back\n'
+    return 0
+  fi
+
+  mkdir -p "$FELIX_HOME_DIR/state" 2>/dev/null
+  {
+    printf 'pulse\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    felix_pulse_backup "$(felix_pulse_mem_repo)"
+    felix_pulse_report "$FELIX_HOME_DIR"
+  } | tee -a "$log" 2>/dev/null
+  return 0
+}
+
 # `<subcommand> --help` answers with usage instead of running (#102). No
 # subcommand handled the flag, 24 of them take a first positional, and the ones
 # that write took the flag AS the positional: `felix adopt --help` declared a
@@ -3051,6 +3108,7 @@ case "${1:-help}" in
   which)  shift; cmd_which "$@" ;;
   gate)   shift; cmd_gate "$@" ;;
   doctor)  shift; cmd_doctor "$@" ;;
+  pulse)   shift; cmd_pulse "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;
   decisions) shift; cmd_decisions "$@" ;;

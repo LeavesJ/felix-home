@@ -31,6 +31,7 @@
 1	a checkout inside the verification is caught too
 1	a checkout that moves after verification merges nothing
 1	a clean checkout claims no rival gate
+1	a clean repo says so instead of minting a commit
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
 1	a content difference is still a drift
@@ -49,6 +50,7 @@
 1	a different repository is still checked
 1	a directory declaring project.json is enumerated
 1	a directory missing from one side is a drift
+1	a dirty memory repo is committed
 1	a disarmed engine is still judged by main's version
 1	a docs-only change requires nothing
 1	a docs-only signal is routine
@@ -142,6 +144,7 @@
 1	a prompt with no session id records no ledger state
 1	a prompt with no signal says nothing
 1	a proposal shown once is not volunteered again
+1	a pulse with nothing to do still answers
 1	a reach is the only mount evidence there is
 1	a real capability left undeclared is not an error
 1	a real uncommitted edit still speaks, in a fresh session
@@ -162,6 +165,7 @@
 1	a red rule still wins
 1	a red run breaks the streak
 1	a refusal on risk is reported
+1	a rejected push is reported, not forced
 1	a repair that failed says so
 1	a repo copy of a file Felix holds is reported
 1	a revision expression is taken as given
@@ -374,9 +378,11 @@
 1	and keeps surviving as its own log grows
 1	and keeps the prompt that caused it
 1	and keeps the session it was said in
+1	and launchd was handed the agent
 1	and matches on keywords, not just names
 1	and merge does not call it an unscanned diff
 1	and names a handoff when the repo has one
+1	and names itself as the grant
 1	and names none when there is none
 1	and names the base it could not resolve
 1	and names the capability
@@ -433,6 +439,7 @@
 1	and passes the facts it already has
 1	and picks the capability the skills serve
 1	and prose counts single
+1	and pushed, and the push is verified
 1	and quotes what it said
 1	and re-rolling a session replaces its old rows
 1	and reads as a requirement
@@ -466,6 +473,7 @@
 1	and says the gate has not seen it
 1	and says the gate never ran
 1	and says the gates still apply
+1	and says what is not versioned
 1	and says what it removed
 1	and says what would have to change
 1	and says which base it could not resolve
@@ -511,6 +519,7 @@
 1	and the cause is the prompt, not the envelope
 1	and the clean sentence is withheld
 1	and the comment survives
+1	and the discovery cache gone stale
 1	and the domain it speaks for
 1	and the drift line carries the whole name
 1	and the earlier verdict is not replaced by it
@@ -528,6 +537,7 @@
 1	and the play this project already chose
 1	and the receipt refuses to call that verified
 1	and the record names the channel
+1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
 1	and the repository is back to where it started
 1	and the residue is not
@@ -535,6 +545,7 @@
 1	and the reviewed one is cleared by it
 1	and the row is still json
 1	and the rows on both sides of it are still counted
+1	and the run is on the record
 1	and the same scanner catches a planted one
 1	and the shipped wiring matches its stance
 1	and the slug comes from the checkout's remote
@@ -674,6 +685,7 @@
 1	including what prompted each utterance
 1	inspect still counts the skills
 1	inspecting a plugin never runs it
+1	install answers cleanly
 1	install from the checkout still reports a real mismatch
 1	install from the plugin cache does not certify the cache against itself
 1	interpolating a credential is high
@@ -706,9 +718,11 @@
 1	matches the relevant lesson
 1	matching hooks still verify
 1	memory is keyed on the project name
+1	memory outside any repository is said plainly
 1	misses are logged too
 1	name and skills accumulate as evidence
 1	names the first step
+1	names the maintenance that is due
 1	names the suspect commit
 1	naming skills does not change the risk read
 1	naming the branch's commit
@@ -730,6 +744,7 @@
 1	no reachable checkout resolves to nothing
 1	no record still answers cleanly
 1	no recurrence says nothing at all
+1	no remote is named as the risk it is
 1	no runs at all is unknown, not clean
 1	no shipped decline rests on a dead premise
 1	no shipped upkeep row is unreachable
@@ -861,6 +876,7 @@
 1	survives a machine laid out differently
 1	survives a transcript that is not there
 1	tasks sharing a file are one unit
+1	the agent runs the pulse
 1	the always-applicable part is shown
 1	the best capability wins
 1	the brief names the file the issue names
@@ -917,6 +933,7 @@
 1	the reason is durable in decisions.log
 1	the receipt names what granted the authority
 1	the registry says where the engine is served from
+1	the remote actually holds the commit
 1	the removed file still exists somewhere
 1	the repository that ships the engine is self-governed
 1	the repository tracks no project memory
@@ -954,6 +971,7 @@
 1	undeclared capability classifies as dormant
 1	ungoverned repo refuses to run a gate
 1	uninstall names the doctrine it left alone
+1	uninstall takes the grant back
 1	untouched surfaces are n/a
 1	version strings are not mistaken for plugins
 1	volume inside one entry does not

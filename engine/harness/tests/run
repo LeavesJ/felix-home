@@ -4878,6 +4878,93 @@ case "$out" in
   *)        ok  "a row inspection judged capability-less is not" ;;
 esac
 
+printf '\nthe pulse: the heartbeat that does not wait for a session\n'
+# Memory backup was as current as the last time somebody typed the command —
+# measured four days stale once, on the one asset the repository cannot
+# rebuild. The pulse commits, pushes, and then asks the remote what it holds,
+# because pushed is a claim and verified is a fact.
+PBR="$TMP/pulse-mem"; PBREM="$TMP/pulse-remote.git"
+mkdir -p "$PBR/memory/pulseproj"
+( cd "$PBR" && git init -q -b main \
+  && printf 'l\n' > memory/pulseproj/lessons.md \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
+git init -q --bare "$PBREM"
+( cd "$PBR" && git remote add backup "$PBREM" && git push -q backup main )
+printf 'new lesson\n' >> "$PBR/memory/pulseproj/lessons.md"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PBR" )"
+has "a dirty memory repo is committed"       "$out" "committed"
+has "and pushed, and the push is verified"   "$out" "pushed and verified"
+is  "the remote actually holds the commit" \
+    "$(git --git-dir="$PBREM" rev-parse HEAD)" "$(git -C "$PBR" rev-parse HEAD)"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PBR" )"
+has "a clean repo says so instead of minting a commit" "$out" "nothing new to commit"
+
+# Divergence is another machine's work, and reconciling it is a person's call.
+PB2="$TMP/pulse-mem2"; git clone -q "$PBREM" "$PB2" 2>/dev/null
+( cd "$PB2" && printf 'other machine\n' > other.md && git add -A \
+  && git -c user.name=o -c user.email=o@o commit -qm other && git push -q origin main )
+printf 'this machine\n' >> "$PBR/memory/pulseproj/lessons.md"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PBR" )"
+has "a rejected push is reported, not forced" "$out" "REFUSED"
+is  "and the remote keeps the other machine's head" \
+    "$(git --git-dir="$PBREM" rev-parse HEAD)" "$(git -C "$PB2" rev-parse HEAD)"
+
+PNR="$TMP/pulse-noremote"; mkdir -p "$PNR"
+( cd "$PNR" && git init -q -b main && printf 'x\n' > f \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
+printf 'y\n' >> "$PNR/f"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PNR" )"
+has "no remote is named as the risk it is" "$out" "only this disk"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "" )"
+has "memory outside any repository is said plainly" "$out" "not in a git repository"
+
+# The report half: the pulse log doubles as a note about what the next
+# session will find, read off Felix's own tables and state alone.
+PRH="$TMP/pulse-home"; mkdir -p "$PRH/projects/pulsey"
+printf '{"name": "pulsey", "remote_match": "example.com/pulsey", "gate": "true"}\n' \
+  > "$PRH/projects/pulsey/project.json"
+printf 'checkme\t7\talways\tsomething with a cadence\n' > "$PRH/projects/pulsey/maintenance.tsv"
+printf 'work\tfix\t-\tcode-review\n' > "$PRH/projects/pulsey/routes.tsv"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+        . "$FROOT/harness/lib/stack.sh"; . "$FROOT/harness/lib/maintenance.sh"
+        . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_report "$PRH" )"
+has "names the maintenance that is due"  "$out" "due	pulsey	checkme"
+has "and the discovery cache gone stale" "$out" "stale	pulsey"
+
+# Scheduling is a grant a person makes, so the install path is explicit,
+# writes one launchd agent under $HOME, and says what it did. launchctl is
+# stubbed: the point is what Felix hands it, not that launchd works.
+PLB="$TMP/pulse-bin"; mkdir -p "$PLB"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "${LAUNCHCTL_LOG:-/dev/null}"\nexit 0\n' > "$PLB/launchctl"
+chmod +x "$PLB/launchctl"
+PHOME="$TMP/pulse-fakehome"; mkdir -p "$PHOME"
+out="$(cd "$REPO" && HOME="$PHOME" PATH="$PLB:$PATH" LAUNCHCTL_LOG="$TMP/launchctl.log" \
+       "$FELIX" pulse --install 2>&1)"; rc=$?
+is  "install answers cleanly"        "$rc" "0"
+has "and names itself as the grant"  "$out" "the grant"
+has "the agent runs the pulse" \
+    "$(cat "$PHOME/Library/LaunchAgents/felix.pulse.plist" 2>/dev/null)" "<string>pulse</string>"
+has "and launchd was handed the agent" "$(cat "$TMP/launchctl.log" 2>/dev/null)" "felix.pulse.plist"
+out="$(cd "$REPO" && HOME="$PHOME" PATH="$PLB:$PATH" "$FELIX" pulse --uninstall 2>&1)"
+[ -f "$PHOME/Library/LaunchAgents/felix.pulse.plist" ] \
+  && bad "uninstall takes the grant back" "plist still present" \
+  || ok  "uninstall takes the grant back"
+
+# The heartbeat end to end from the CLI: no session, and here no memory repo
+# either — the suite's memory root is a bare fixture directory — so the honest
+# answer is that nothing versions it, and the run still logs and exits 0.
+out="$(cd "$REPO" && "$FELIX" pulse 2>&1)"; rc=$?
+is  "a pulse with nothing to do still answers" "$rc" "0"
+has "and says what is not versioned" "$out" "not in a git repository"
+has "and the run is on the record" \
+    "$(cat "$FROOT/state/pulse.log" 2>/dev/null)" "pulse	"
+
 # The cache-filling path end to end, with the marketplace and the source both
 # stubbed. The candidate's blurb is written to be chosen from and says llm; the
 # copy on disk ships storybook/css skills and no description at all. The blurb

@@ -196,6 +196,7 @@
 1	a row already naming itself is not scored twice
 1	a row from before the column proposes nothing
 1	a row inspection judged capability-less is not
+1	a row naming no moment does not close its gap
 1	a row naming no real capability is caught
 1	a row nobody named carries no stray line
 1	a rule naming Edit does not deny a Write
@@ -216,9 +217,12 @@
 1	a staged source change owes its test
 1	a staged workflow escapes even with commits ahead
 1	a staged workflow makes this the founder's call
+1	a stance at a moment nobody declared answers nothing
 1	a stance at a moment nobody declared is named
+1	a stance for something nothing enumerates is named
 1	a state file from before this existed complains, as it did
 1	a structural failure still fails the gate
+1	a surface detected in the tree is an item even if nobody declared it
 1	a table declaring the reserved channel still stops the merge
 1	a table in a different repository resolves to nothing
 1	a table outside the classified repo is still read once, at HEAD
@@ -332,6 +336,7 @@
 1	and --fix does not exit 0 when every repair failed
 1	and a backticked path naming nothing is still not invented
 1	and a declared moment is not
+1	and a declared one the tree no longer shows is still an item
 1	and a declined one is ok too
 1	and a document that is not a plan
 1	and a gitignored stray in the cache is too
@@ -346,6 +351,7 @@
 1	and a ruled one is not
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
+1	and a stance for a real item is not
 1	and a verified push does
 1	and a verified push reads as zero days
 1	and absent from both sides is a fixture, not a drift
@@ -607,6 +613,7 @@
 1	and the rest of the file is untouched
 1	and the reviewed one is cleared by it
 1	and the row is still json
+1	and the row itself is reported as recording nothing
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
 1	and the same scanner catches a planted one
@@ -1055,10 +1062,12 @@
 1	what it kept is what it sent
 1	what no route named is not a compliance figure
 1	which is the number it printed
+1	while a complete stance is not called malformed
 1	while a mount needs no threshold: the reach already happened
 1	while a short one scores on nothing
 1	while a tool that ran keeps its calls
 1	while an owner-reduced play entry still names its plugin
+1	while one at a declared moment still does
 1	while others stay due
 1	while the Felix home Felix itself resolved is its own repo
 1	while the branch's own file still is

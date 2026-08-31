@@ -606,11 +606,60 @@ felix_version_bump() {
 # compares harness/ alone, on purpose — it asks whether the judging LIBRARIES
 # are the accepted ones, not whether the deployment is complete — and widening
 # it would let a hooks-only difference block a merge that hooks cannot affect.
+# A path the repository itself declares non-content is residue, not drift
+# (#86). A claude-flow hook dropped 4KB of state under tests/ while the suite
+# ran there, and this comparison called a byte-identical deploy a drift — in a
+# worktree the gate then misdiagnosed that as "structural: cannot deploy".
+# The rule is the repository's own .gitignore, asked per surviving line via
+# git check-ignore, on both sides: a stray in the cache is a deployed stray,
+# same non-content. Untracked-but-not-ignored still counts — that is
+# undeployed work, and quieting it would be loosening the check. Lines diff
+# emits about a missing operand match no path shape and always survive, which
+# keeps "absent from one side is the verdict".
 felix_deploy_diff() {
-  local src="$1" live="$2" d rc=0
+  local src="$1" live="$2" d rc=0 line rest dir name p
   for d in harness hooks commands; do
     [ -e "$src/$d" ] || [ -e "$live/$d" ] || continue
-    diff -rq "$src/$d" "$live/$d" || rc=1
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      p=""
+      case "$line" in
+        "Files $src/"*)
+          # The filename itself may contain " and ", so the separator matched
+          # is the whole " and $live/…" tail, never the first " and ". A
+          # truncated path handed to check-ignore is answered about a
+          # DIFFERENT file, and an ignore rule matching the fragment
+          # certified a real content drift as clean — found in review, by
+          # construction, before it shipped.
+          p="${line#Files "$src/"}"; p="${p% differ}"; p="${p% and "$live"/*}" ;;
+        "Only in $src: "*|"Only in $src/"*)
+          # The slash and colon are the path boundary: without them, a live
+          # directory whose absolute path merely begins with the src string
+          # was parsed as src-relative, against the wrong root.
+          rest="${line#Only in }"; dir="${rest%%: *}"; name="${rest#*: }"
+          if [ "$dir" = "$src" ]; then p="$name"; else p="${dir#"$src/"}/$name"; fi ;;
+        "Only in $live: "*|"Only in $live/"*)
+          rest="${line#Only in }"; dir="${rest%%: *}"; name="${rest#*: }"
+          if [ "$dir" = "$live" ]; then p="$name"; else p="${dir#"$live/"}/$name"; fi ;;
+      esac
+      # Asked twice because a directory-only pattern — `.claude-flow/`, the
+      # incident's own rule — matches only what git can see is a directory,
+      # and a cache-side stray does not exist in the tree at all; the
+      # trailing slash supplies what the filesystem cannot. The global
+      # excludes file is shut off: a verifier whose verdict varies with one
+      # machine's personal ignore rules is not a verifier. What cannot be
+      # shut off is .git/info/exclude — inside the repository's own .git, a
+      # rule there is this machine's deliberate act, and it is named here so
+      # nobody discovers it as a surprise.
+      if [ -n "$p" ] && { git -C "$src" -c core.excludesFile=/dev/null check-ignore -q "$p" \
+             || git -C "$src" -c core.excludesFile=/dev/null check-ignore -q "$p/"; } 2>/dev/null; then
+        continue
+      fi
+      printf '%s\n' "$line"
+      rc=1
+    done <<EOF
+$(diff -rq "$src/$d" "$live/$d" 2>&1)
+EOF
   done
   return "$rc"
 }

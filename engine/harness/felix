@@ -21,6 +21,7 @@
 #   felix stack plan     diff declared tooling against what is installed
 #   felix stack apply --yes   install the low and medium risk gap
 #   felix stack reconcile     what the record proposes mounting or unmounting
+#   felix pulse          back up memory and report what waits; --install schedules it daily
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix scope [paths]  may an unattended agent touch these? exit 3 if not
@@ -128,6 +129,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/discover.sh"
 # shellcheck source=lib/guard.sh
 . "${SCRIPT_DIR}/lib/guard.sh"
+# shellcheck source=lib/pulse.sh
+. "${SCRIPT_DIR}/lib/pulse.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -183,6 +186,7 @@ specific project, language, or toolchain.
     felix discover         what is worth having that this project does not have
     felix discover --adopt declare and install the low-risk ones it has read
     felix stack [plan|apply|reconcile] install what this project declares; reconcile reads the record
+    felix pulse [--install|--uninstall] back up memory, report what waits; --install schedules it daily
     felix adopt <cap>      declare a capability and everything it implies
     felix profile [name]   which tools a task profile mounts
     felix quarantine <p>   switch off a plugin that is breaking sessions
@@ -3033,6 +3037,95 @@ cmd_decisions() {
   printf 'this data - HANDOFF 0af and docs/2026-08-30-advisory-redesign.md B.\n'
 }
 
+# The heartbeat, and the one command that may run with no session and no
+# governed checkout anywhere near it: launchd starts it in $HOME. So it does
+# not resolve a project — it is home-scoped, iterating every governed project
+# for the report — and it exits 0 on honest nothing-to-do. Installing the
+# schedule is a separate, explicit act: the grant is the founder running
+# --install, never a default.
+cmd_pulse() {
+  local a install=0 uninstall=0
+  for a in "$@"; do
+    case "$a" in
+      --install)   install=1 ;;
+      --uninstall) uninstall=1 ;;
+      # A discarded flag ran the default path — a real commit and push — and
+      # printed a normal successful heartbeat, which reads as confirmation.
+      # `felix pulse --uninstal` therefore said everything was fine while the
+      # schedule it was asked to remove kept running.
+      *) die "usage: felix pulse [--install|--uninstall] (got: $a)" ;;
+    esac
+  done
+  local plist="$HOME/Library/LaunchAgents/felix.pulse.plist"
+  local log="$FELIX_HOME_DIR/state/pulse.log"
+
+  if [ "$uninstall" -eq 1 ]; then
+    # The unload's status is the whole answer. `Unload failed: 5` is routine,
+    # and deleting the plist anyway left the job loaded — still committing
+    # and pushing daily — with the founder told the grant was taken back and
+    # the file that would let them retry gone.
+    if [ ! -f "$plist" ]; then
+      printf 'nothing scheduled; %s does not exist\n' "$plist"
+      return 0
+    fi
+    if launchctl unload "$plist" >/dev/null 2>&1; then
+      rm -f "$plist"
+      printf 'pulse unscheduled; %s removed\n' "$plist"
+      return 0
+    fi
+    printf 'launchctl refused to unload %s, so it was NOT removed — the schedule\n' "$plist"
+    printf 'may still be running. Unload it by hand, then delete that file.\n'
+    return 1
+  fi
+
+  if [ "$install" -eq 1 ]; then
+    if [ "$(uname)" != "Darwin" ]; then
+      printf 'no launchd here. schedule it yourself, e.g. cron:\n'
+      printf '  7 9 * * * %s/felix pulse\n' "$SCRIPT_DIR"
+      return 1
+    fi
+    # The engine that survives this checkout: the marketplace root when one
+    # is registered. felix_engine_source returns any non-plugin copy
+    # verbatim — a worktree included — and a plist pointing into a worktree
+    # dies with the worktree, so that is only the fallback when no
+    # marketplace answers.
+    local esrc mroot
+    mroot="$(felix_marketplace_root 2>/dev/null)" || mroot=""
+    if [ -n "$mroot" ] && [ -x "$mroot/engine/harness/felix" ]; then
+      esrc="$mroot/engine"
+    else
+      esrc="$(felix_engine_source "$FELIX_ROOT" "$FELIX_HOME_DIR")" || esrc=""
+    fi
+    [ -n "$esrc" ] || { printf 'cannot resolve a served engine to schedule\n'; return 1; }
+    mkdir -p "$HOME/Library/LaunchAgents" "$FELIX_HOME_DIR/state" 2>/dev/null
+    # Checked, because the redirection's failure is silent without set -e and
+    # both branches below assert the file exists: on a machine where
+    # LaunchAgents is not writable, this returned 0 claiming to have written
+    # a plist that was never there.
+    if ! felix_pulse_plist "$esrc/harness/felix" "$log" > "$plist" 2>/dev/null \
+       || [ ! -s "$plist" ]; then
+      printf 'could not write %s; nothing was scheduled\n' "$plist"
+      return 1
+    fi
+    launchctl unload "$plist" >/dev/null 2>&1
+    if launchctl load "$plist" >/dev/null 2>&1; then
+      printf 'scheduled: %s pulse, daily at 09:07, logging to %s\n' "$esrc/harness/felix" "$log"
+    else
+      printf 'wrote %s but launchctl load failed; load it by hand\n' "$plist"
+    fi
+    printf 'this was the grant: nothing scheduled itself. felix pulse --uninstall takes it back\n'
+    return 0
+  fi
+
+  mkdir -p "$FELIX_HOME_DIR/state" 2>/dev/null
+  {
+    printf 'pulse\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    felix_pulse_backup "$(felix_pulse_mem_repo "$FELIX_HOME_DIR")"
+    felix_pulse_report "$FELIX_HOME_DIR"
+  } | tee -a "$log" 2>/dev/null
+  return 0
+}
+
 # `<subcommand> --help` answers with usage instead of running (#102). No
 # subcommand handled the flag, 24 of them take a first positional, and the ones
 # that write took the flag AS the positional: `felix adopt --help` declared a
@@ -3051,6 +3144,7 @@ case "${1:-help}" in
   which)  shift; cmd_which "$@" ;;
   gate)   shift; cmd_gate "$@" ;;
   doctor)  shift; cmd_doctor "$@" ;;
+  pulse)   shift; cmd_pulse "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;
   decisions) shift; cmd_decisions "$@" ;;

@@ -163,7 +163,14 @@ EOF
                | sed -n 's/.*"installLocation"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
     fi
     if [ -n "$MROOT" ] && [ "$MROOT" != "$ROOT" ]; then
-      printf '  %-18s FAIL (drift, in a tree that cannot deploy: the marketplace serves %s)\n' installed "$MROOT"
+      # `structural` is load-bearing, not decoration: the engine subtracts
+      # failures marked that way from what it writes to mistakes.log, and it
+      # keys on that exact word. Rewriting this message to stop it
+      # misdiagnosing a stray (#86) dropped the word, so every worktree gate
+      # failure went back to recording a mistake nobody made — the
+      # manufactured evidence of #3, returned by a message improvement. The
+      # evidence below is that improvement; this word is the contract.
+      printf '  %-18s FAIL (structural: drift in a tree that cannot deploy — the marketplace serves %s)\n' installed "$MROOT"
       FAILED="$FAILED installed"
       # The evidence, not only the verdict (#86). This branch used to print an
       # instruction while hiding the one line naming the actual drift, and a

@@ -38,17 +38,51 @@
 # `git add -A` at that toplevel would commit and publish everything the
 # founder owns, daily.
 felix_pulse_mem_repo() {
-  local root top parent
+  local home="${1:-}" root top
   root="$(cd "$(felix_mem_root)" 2>/dev/null && pwd -P)" || return 0
   [ -n "$root" ] || return 0
   top="$(git -C "$root" rev-parse --show-toplevel 2>/dev/null)" || return 0
   [ -n "$top" ] || return 0
   top="$(cd "$top" 2>/dev/null && pwd -P)"
-  parent="$(cd "$root/.." 2>/dev/null && pwd -P)"
-  case "$top" in
-    "$root"|"$parent") printf '%s' "$top" ;;
-    *)                 printf 'foreign\t%s' "$top" ;;
-  esac
+
+  # The memory's own repository, or a repository Felix established. Nothing
+  # else — and "the immediate parent" was not that test. FELIX_MEMORY is the
+  # one documented knob, so pointing it at a subdirectory of somebody's notes
+  # vault made that vault the backup repository, `git add -A` and all. A
+  # parent qualifies only when it is the Felix home this run resolved, which
+  # is a directory Felix created for exactly this.
+  [ -n "$home" ] && home="$(cd "$home" 2>/dev/null && pwd -P)"
+  if [ "$top" = "$root" ] || { [ -n "$home" ] && [ "$top" = "$home" ]; }; then
+    printf '%s' "$top"
+  else
+    printf 'foreign\t%s' "$top"
+  fi
+}
+
+# Paths staged as gitlinks that HEAD does not already carry, and that
+# .gitmodules does not declare. Emits one path per line; empty is the good
+# answer.
+#
+# Both halves were wrong before. Testing `[ ! -f .gitmodules ]` asked whether
+# the file exists rather than whether THIS link is declared in it, so one
+# legitimate submodule — or the remedy the refusal message itself recommends
+# — switched the guard off for every other nested repository forever. And
+# counting every gitlink in the index counted the ones already in HEAD, so a
+# nested repo committed once, before this guard existed, refused every future
+# backup permanently. Only what this run would newly introduce is a decision.
+_felix_pulse_new_gitlinks() {
+  local repo="$1" declared idx head
+  idx="$(git -C "$repo" ls-files -s 2>/dev/null | awk '$1 == "160000" { $1=$2=$3=""; sub(/^[ \t]+/, ""); print }')"
+  [ -n "$idx" ] || return 0
+  head="$(git -C "$repo" ls-tree -r HEAD 2>/dev/null | awk '$1 == "160000" { $1=$2=$3=""; sub(/^[ \t]+/, ""); print }')"
+  declared="$(git -C "$repo" config -f "$repo/.gitmodules" --get-regexp '^submodule\..*\.path$' 2>/dev/null \
+              | sed 's/^[^ ]* //')"
+  printf '%s\n' "$idx" | while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    felix_has_line "$head" "$p" && continue
+    felix_has_line "$declared" "$p" && continue
+    printf '%s\n' "$p"
+  done
 }
 
 # Commit if dirty, push if a target is unambiguous, then verify by re-reading
@@ -73,10 +107,24 @@ felix_pulse_backup() {
   # their merge under this machine's name — then push it as a fast-forward
   # the divergence guard below can never catch, because the machine-made
   # merge contains the remote head. Constructed in review; never again.
+  # The index is the fact, and the state files are only a symptom of it.
+  # Checking the five files alone let `git merge --squash`, `git cherry-pick
+  # -n` and `git stash pop` conflicts through — all three leave unmerged
+  # entries and write no state file — and `git add -A` then resolves an
+  # unmerged path to whatever the worktree holds, which is the conflict
+  # markers. The push that followed reported "verified", and because local
+  # and remote then agreed, no later run could ever notice.
+  if [ "$(git -C "$repo" ls-files -u 2>/dev/null | grep -c .)" -gt 0 ]; then
+    printf 'backup\tunresolved conflicts are staged here; that is a person mid-reconciliation, and nothing here touches it\n'
+    return 0
+  fi
+  # Kept beside it: an in-progress operation that has not conflicted YET
+  # leaves a state file and an ordinary index, and concluding somebody's
+  # rebase under this machine's name is its own harm.
   gitdir="$(git -C "$repo" rev-parse --git-dir 2>/dev/null)"
   case "$gitdir" in /*) ;; *) gitdir="$repo/$gitdir" ;; esac
   if [ -f "$gitdir/MERGE_HEAD" ] || [ -f "$gitdir/CHERRY_PICK_HEAD" ] \
-     || [ -f "$gitdir/REVERT_HEAD" ] \
+     || [ -f "$gitdir/REVERT_HEAD" ] || [ -f "$gitdir/SQUASH_MSG" ] \
      || [ -d "$gitdir/rebase-merge" ] || [ -d "$gitdir/rebase-apply" ]; then
     printf 'backup\ta merge or rebase is in progress; that is a person mid-reconciliation, and nothing here touches it\n'
     return 0
@@ -98,17 +146,27 @@ felix_pulse_backup() {
     # which reads its whole input, because grep -q under pipefail kills the
     # producer and this repository has paid for that before. A repository
     # with .gitmodules declared its links on purpose and is left alone.
-    n160="$(git -C "$repo" ls-files -s 2>/dev/null | grep -c '^160000')"
-    if [ "${n160:-0}" -gt 0 ] && [ ! -f "$repo/.gitmodules" ]; then
+    # Named before the reset, not after: the reset is what removes the entry
+    # the name comes from, so asking afterwards printed an empty path and the
+    # message named nothing at all.
+    local links; links="$(_felix_pulse_new_gitlinks "$repo")"
+    if [ "$(printf '%s\n' "$links" | grep -c .)" -gt 0 ]; then
       git -C "$repo" reset -q >/dev/null 2>&1
-      printf 'backup\ta nested git repository sits inside memory; backed up it would restore EMPTY, so nothing was committed — move it out or make it a real submodule\n'
+      printf 'backup\ta nested git repository sits inside memory (%s); backed up it would restore EMPTY, so nothing was committed — move it out, or declare it in .gitmodules\n' \
+        "$(printf '%s\n' "$links" | tr '\n' ' ' | sed 's/ $//')"
       return 0
     fi
     if git -C "$repo" -c user.name=felix-pulse -c user.email=pulse@felix.invalid \
          commit -q -m "pulse: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1; then
       printf 'backup\tcommitted\n'
     else
-      printf 'backup\tcommit FAILED; the working copy is unchanged\n'
+      # Returns rather than falling through. It used to push anyway: the push
+      # succeeded because there was nothing new to send, the verification
+      # passed because both heads were the stale one, and the run's LAST
+      # line — the one a person skims — read "pushed and verified". A backup
+      # that has silently stopped must not end on a success sentence.
+      printf 'backup\tcommit FAILED; nothing was pushed, and this memory is NOT backed up\n'
+      return 0
     fi
   else
     printf 'backup\tnothing new to commit\n'
@@ -166,6 +224,22 @@ felix_pulse_backup() {
     printf 'backup\tpush failed — unreachable, or diverged; nothing was forced, and a divergence is a person'\''s to reconcile\n'
   fi
   return 0
+}
+
+# Days since the memory repository last committed, empty when there is no
+# repository to ask.
+#
+# Every refusal above is honest and invisible: it prints into a log file
+# nobody opens, and a heartbeat that has refused for ninety days looks
+# exactly like one that ran. This is the number that makes a silent stop
+# observable, and the session hook is where a person actually reads.
+felix_pulse_backup_age() {
+  local repo="$1" last now
+  case "${repo:-}" in ''|"foreign	"*) return 0 ;; esac
+  last="$(git -C "$repo" log -1 --format=%ct 2>/dev/null)"
+  [ -n "$last" ] || return 0
+  now="$(date +%s)"
+  printf '%s' $(( (now - last) / 86400 ))
 }
 
 # What is waiting, one line per fact. Reads only Felix's own tables and state.

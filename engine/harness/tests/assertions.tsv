@@ -40,6 +40,7 @@
 1	a credential in added lines escapes as disclose
 1	a declared server no play ever named is left alone
 1	a declared skill with no directory cannot be used
+1	a declared submodule does not excuse an undeclared one
 1	a decline resting on nothing checkable is still ok
 1	a decline whose premise died is caught
 1	a decline whose premise still holds is ok
@@ -60,6 +61,7 @@
 1	a dormant capability is deferred
 1	a dormant capability stays quiet
 1	a due step containing a colon does not shift it
+1	a failed commit says the memory is NOT backed up
 1	a failing gate still blocks
 1	a failing gate still exits non-zero
 1	a file facing a directory is a drift, whatever diff exits
@@ -67,11 +69,13 @@
 1	a finding names its reason
 1	a flag with no value refuses instead of spinning
 1	a fresh cache is not stale
+1	a fresh repository reads as zero days
 1	a frontend prompt routes to frontend
 1	a full-length sha nothing holds is unknown too
 1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
 1	a gitignored stray in the tree is residue, not drift
+1	a gitlink already in history does not block every future backup
 1	a governed product merges with no installed engine at all
 1	a green gate does not clear an escape
 1	a green gate on this exact tree allows it
@@ -118,6 +122,7 @@
 1	a note reaches the file
 1	a notebook is matched on its own path field
 1	a notification payload is machine text end to end
+1	a parent that is not the resolved home is still foreign
 1	a pass claiming it ran in the reviewed tree is refused
 1	a pass from a separate worktree records the place it ran
 1	a passing gate records nothing
@@ -278,6 +283,9 @@
 1	an undeclared tool is reported, not hidden
 1	an ungoverned repo is allowed
 1	an unknown routine is refused
+1	an unmerged index is refused whatever wrote it (cherry)
+1	an unmerged index is refused whatever wrote it (squash)
+1	an unmerged index is refused whatever wrote it (stash)
 1	an unmet step reports todo
 1	an unmount below the session threshold is not evidence
 1	an unparseable payload is allowed
@@ -309,6 +317,7 @@
 1	and a backticked path naming nothing is still not invented
 1	and a declined one is ok too
 1	and a document that is not a plan
+1	and a foreign repo has no age to report
 1	and a gitignored stray in the cache is too
 1	and a high one is refused
 1	and a live one says when it was last caught
@@ -374,6 +383,7 @@
 1	and it merges nothing
 1	and it names the literal that went missing
 1	and it names the tree that can, not a fault
+1	and it names which one
 1	and it reaches merge as an escape, not as unknown
 1	and it registers rather than falling through to a refresh
 1	and it says so where a reader must look
@@ -409,12 +419,16 @@
 1	and neither is a worktree
 1	and neither is an empty message
 1	and never a verified receipt
+1	and never ends on a success line
 1	and never mentions the same one twice
 1	and never reports a tier it could not compute
 1	and never reports no remote for an engine that has one
 1	and never the newest thing in the cache
 1	and never where it is not declared
 1	and no agent is written there
+1	and no conflict markers were committed (cherry)
+1	and no conflict markers were committed (squash)
+1	and no conflict markers were committed (stash)
 1	and no memory root named --help is minted
 1	and no setup.tsv appears from asking for help
 1	and no zero row for one that was used
@@ -1005,9 +1019,9 @@
 1	while a tool that ran keeps its calls
 1	while an owner-reduced play entry still names its plugin
 1	while others stay due
+1	while the Felix home Felix itself resolved is its own repo
 1	while the branch's own file still is
 1	while the genuinely reached server is proposed
-1	while the memory root's immediate parent is its own repo
 1	while the path around it does not
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused

@@ -33,6 +33,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/autonomy.sh"
 # shellcheck source=../lib/ledger.sh
 . "${SCRIPT_DIR}/../lib/ledger.sh"
+# shellcheck source=../lib/pulse.sh
+. "${SCRIPT_DIR}/../lib/pulse.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
@@ -131,6 +133,17 @@ fi
 # and left unacted is an answer — a host-provided server nobody should declare
 # would otherwise be proposed at every session start forever, and a signal that
 # repeats becomes wallpaper. The full set stays in 'felix stack reconcile'.
+# A backup that has silently stopped looks exactly like one that ran: every
+# pulse refusal is honest and prints into a log nobody opens. This is the one
+# number that makes the stop observable, on the surface a person reads.
+backup_line=""
+_bage="$(felix_pulse_backup_age "$(felix_pulse_mem_repo "$FELIX_HOME_DIR" 2>/dev/null)" 2>/dev/null)"
+if [ -n "$_bage" ] && [ "$_bage" -ge "${FELIX_BACKUP_STALE_DAYS:-3}" ] 2>/dev/null; then
+  backup_line="
+Memory last backed up ${_bage} days ago. Every lesson since then lives on this
+disk only. See 'felix pulse' — it says what it refused and why."
+fi
+
 reconcile_line=""
 if [ -f "$_mem/ledger.tsv" ] || [ -d "$_mem/ledger.d" ]; then
   _rec="$(felix_stack_reconcile_unseen "$PROJ" "$FELIX_HOME_DIR" 2>/dev/null \
@@ -162,7 +175,7 @@ Project: ${project}
 Constitution: ${PROJ}/CLAUDE.md
 ${gate_line}
 Memory: ${_mem}/
-${drift_line}${maint_line}${tidy_line}${retire_line}${reconcile_line}
+${drift_line}${maint_line}${tidy_line}${retire_line}${reconcile_line}${backup_line}
 
 ${read_lines}
 

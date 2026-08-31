@@ -4968,7 +4968,10 @@ git init -q --bare -b main "$PMGR"
          "no MERGE_HEAD; the assertions below would be about the fixture"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PMG" )"
-has "a merge in progress is a person's, and the pulse says so" "$out" "in progress"
+# Both refusals — the index one and the state-file one — say this, and a
+# conflicted merge trips whichever is checked first. What the assertion is
+# about is that the pulse stood down, not which guard noticed.
+has "a merge in progress is a person's, and the pulse says so" "$out" "mid-reconciliation"
 [ -f "$PMG/.git/MERGE_HEAD" ] \
   && ok  "and the merge is left exactly where the person left it" \
   || bad "and the merge is left exactly where the person left it" "MERGE_HEAD gone"
@@ -4983,15 +4986,22 @@ POUT="$TMP/pulse-outer"; mkdir -p "$POUT/dotfiles/felixish/memory"
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm dots )
 _outer_head="$(git -C "$POUT/dotfiles" rev-parse HEAD)"
 mr="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
-       FELIX_MEMORY="$POUT/dotfiles/felixish/memory" felix_pulse_mem_repo )"
+       FELIX_MEMORY="$POUT/dotfiles/felixish/memory" felix_pulse_mem_repo "$POUT/home" )"
 has "a repository that is not the memory's own is named foreign" "$mr" "foreign"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$mr" )"
 has "and the pulse refuses it in words" "$out" "not its own"
 is  "and commits nothing to it" "$(git -C "$POUT/dotfiles" rev-parse HEAD)" "$_outer_head"
 mr="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
-       FELIX_MEMORY="$PBR/memory" felix_pulse_mem_repo )"
-is "while the memory root's immediate parent is its own repo" "$mr" "$(cd "$PBR" && pwd -P)"
+       FELIX_MEMORY="$PBR/memory" felix_pulse_mem_repo "$PBR" )"
+is "while the Felix home Felix itself resolved is its own repo" "$mr" "$(cd "$PBR" && pwd -P)"
+# "The immediate parent" was the wrong test: FELIX_MEMORY is the one
+# documented knob, so pointing it one level inside somebody's notes vault
+# made that vault the backup repository, add -A and all. Only the home this
+# run actually resolved qualifies.
+mr="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+       FELIX_MEMORY="$POUT/dotfiles/felixish/memory" felix_pulse_mem_repo "$POUT/dotfiles/felixish" )"
+has "a parent that is not the resolved home is still foreign" "$mr" "foreign"
 
 # Detached HEAD is a person inspecting history; a commit would land on no
 # branch and the next checkout strands it.
@@ -5015,9 +5025,108 @@ _nest_head="$(git -C "$PNEST" rev-parse HEAD)"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PNEST" )"
 has "a nested repository is refused, with the restore truth" "$out" "restore EMPTY"
+has "and it names which one"     "$out" "scraps"
 is  "and nothing was committed"  "$(git -C "$PNEST" rev-parse HEAD)" "$_nest_head"
 is  "and the index holds no gitlink afterwards" \
     "$(git -C "$PNEST" ls-files -s | grep -c '^160000')" "0"
+
+# The second review's round. Each of these is a confirmed way the first set
+# of guards still failed open, and the repair moves the test onto the fact
+# rather than the symptom.
+#
+# An unmerged index with NO state file: merge --squash, cherry-pick -n and
+# stash pop all produce it, add -A resolves the conflict markers as content,
+# and the push then reported "verified" — after which local and remote agree
+# and no later run could ever notice.
+for _mode in squash cherry stash; do
+  D="$TMP/pulse-unmerged-$_mode"; mkdir -p "$D"
+  ( cd "$D" && git init -q -b main && printf 'base\n' > a.md && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm base \
+    && git checkout -q -b other && printf 'THEIRS\n' > a.md && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm theirs \
+    && git checkout -q main && printf 'OURS\n' > a.md && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm ours ) >/dev/null 2>&1
+  case "$_mode" in
+    squash) ( cd "$D" && git -c user.name=t -c user.email=t@t merge --squash other ) >/dev/null 2>&1 || true ;;
+    cherry) ( cd "$D" && git -c user.name=t -c user.email=t@t cherry-pick -n other ) >/dev/null 2>&1 || true ;;
+    stash)  ( cd "$D" && printf 'WIP\n' > a.md && git stash -q \
+              && printf 'MOVED\n' > a.md && git add -A \
+              && git -c user.name=t -c user.email=t@t commit -qm moved \
+              && git stash pop ) >/dev/null 2>&1 || true ;;
+  esac
+  _u="$(git -C "$D" ls-files -u 2>/dev/null | grep -c .)"
+  _h="$(git -C "$D" rev-parse HEAD)"
+  out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+          felix_pulse_backup "$D" )"
+  if [ "${_u:-0}" -gt 0 ]; then
+    has "an unmerged index is refused whatever wrote it ($_mode)" "$out" "unresolved conflicts"
+    is  "and no conflict markers were committed ($_mode)" "$(git -C "$D" rev-parse HEAD)" "$_h"
+  else
+    skip "an unmerged index is refused whatever wrote it ($_mode)" "this git staged no conflict"
+    skip "and no conflict markers were committed ($_mode)" "this git staged no conflict"
+  fi
+done
+
+# One declared submodule used to switch the gitlink guard off for every OTHER
+# nested repository — the guard asked whether .gitmodules exists, not whether
+# this link is in it. Worse, the refusal message's own remedy created the
+# hole.
+PSUB="$TMP/pulse-submod"; mkdir -p "$PSUB"
+( cd "$PSUB" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+mkdir -p "$PSUB/declared" "$PSUB/undeclared"
+( cd "$PSUB/declared" && git init -q -b main && printf 'd\n' > f && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm d ) >/dev/null 2>&1
+( cd "$PSUB/undeclared" && git init -q -b main && printf 'u\n' > f && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm u ) >/dev/null 2>&1
+printf '[submodule "declared"]\n\tpath = declared\n\turl = ./declared\n' > "$PSUB/.gitmodules"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PSUB" )"
+has "a declared submodule does not excuse an undeclared one" "$out" "undeclared"
+
+# A gitlink already in HEAD is history, not a decision this run makes —
+# counting it refused every future backup forever, which is the fail-closed
+# mirror of the same defect.
+PGL="$TMP/pulse-oldlink"; mkdir -p "$PGL"
+( cd "$PGL" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+mkdir -p "$PGL/legacy"
+( cd "$PGL/legacy" && git init -q -b main && printf 'x\n' > f && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm x ) >/dev/null 2>&1
+( cd "$PGL" && git add -A && git -c user.name=t -c user.email=t@t commit -qm "legacy link" ) >/dev/null 2>&1
+printf 'new lesson\n' >> "$PGL/l.md"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PGL" )"
+has "a gitlink already in history does not block every future backup" "$out" "committed"
+
+# A failed commit used to fall through to push: the push succeeded because
+# nothing new was sent, the verification passed because both heads were the
+# stale one, and the run's LAST line — the one a person skims — read
+# "pushed and verified" while the memory was not backed up at all.
+PCF="$TMP/pulse-commitfail"; PCFR="$TMP/pulse-commitfail.git"
+mkdir -p "$PCF"
+( cd "$PCF" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+git init -q --bare -b main "$PCFR"
+( cd "$PCF" && git remote add origin "$PCFR" && git push -q origin main ) >/dev/null 2>&1
+printf 'new\n' >> "$PCF/l.md"
+printf '#!/bin/sh\nexit 1\n' > "$PCF/.git/hooks/pre-commit"; chmod +x "$PCF/.git/hooks/pre-commit"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PCF" )"
+has "a failed commit says the memory is NOT backed up" "$out" "NOT backed up"
+case "$out" in
+  *"pushed and verified"*) bad "and never ends on a success line" "$out" ;;
+  *)                       ok  "and never ends on a success line" ;;
+esac
+rm -f "$PCF/.git/hooks/pre-commit"
+
+# A refusal that no surface mentions is a backup that has silently stopped.
+age="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup_age "$PCF" )"
+is "a fresh repository reads as zero days" "$age" "0"
+age="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup_age "foreign	/somewhere" )"
+is "and a foreign repo has no age to report" "$age" ""
 
 # The push target is never an alphabetical accident. origin wins over a
 # name that sorts first; two strangers with no upstream is a person's call.

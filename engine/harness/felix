@@ -3046,16 +3046,36 @@ cmd_decisions() {
 cmd_pulse() {
   local a install=0 uninstall=0
   for a in "$@"; do
-    case "$a" in --install) install=1 ;; --uninstall) uninstall=1 ;; esac
+    case "$a" in
+      --install)   install=1 ;;
+      --uninstall) uninstall=1 ;;
+      # A discarded flag ran the default path — a real commit and push — and
+      # printed a normal successful heartbeat, which reads as confirmation.
+      # `felix pulse --uninstal` therefore said everything was fine while the
+      # schedule it was asked to remove kept running.
+      *) die "usage: felix pulse [--install|--uninstall] (got: $a)" ;;
+    esac
   done
   local plist="$HOME/Library/LaunchAgents/felix.pulse.plist"
   local log="$FELIX_HOME_DIR/state/pulse.log"
 
   if [ "$uninstall" -eq 1 ]; then
-    launchctl unload "$plist" >/dev/null 2>&1
-    rm -f "$plist"
-    printf 'pulse unscheduled; %s removed\n' "$plist"
-    return 0
+    # The unload's status is the whole answer. `Unload failed: 5` is routine,
+    # and deleting the plist anyway left the job loaded — still committing
+    # and pushing daily — with the founder told the grant was taken back and
+    # the file that would let them retry gone.
+    if [ ! -f "$plist" ]; then
+      printf 'nothing scheduled; %s does not exist\n' "$plist"
+      return 0
+    fi
+    if launchctl unload "$plist" >/dev/null 2>&1; then
+      rm -f "$plist"
+      printf 'pulse unscheduled; %s removed\n' "$plist"
+      return 0
+    fi
+    printf 'launchctl refused to unload %s, so it was NOT removed — the schedule\n' "$plist"
+    printf 'may still be running. Unload it by hand, then delete that file.\n'
+    return 1
   fi
 
   if [ "$install" -eq 1 ]; then
@@ -3078,7 +3098,15 @@ cmd_pulse() {
     fi
     [ -n "$esrc" ] || { printf 'cannot resolve a served engine to schedule\n'; return 1; }
     mkdir -p "$HOME/Library/LaunchAgents" "$FELIX_HOME_DIR/state" 2>/dev/null
-    felix_pulse_plist "$esrc/harness/felix" "$log" > "$plist"
+    # Checked, because the redirection's failure is silent without set -e and
+    # both branches below assert the file exists: on a machine where
+    # LaunchAgents is not writable, this returned 0 claiming to have written
+    # a plist that was never there.
+    if ! felix_pulse_plist "$esrc/harness/felix" "$log" > "$plist" 2>/dev/null \
+       || [ ! -s "$plist" ]; then
+      printf 'could not write %s; nothing was scheduled\n' "$plist"
+      return 1
+    fi
     launchctl unload "$plist" >/dev/null 2>&1
     if launchctl load "$plist" >/dev/null 2>&1; then
       printf 'scheduled: %s pulse, daily at 09:07, logging to %s\n' "$esrc/harness/felix" "$log"
@@ -3092,7 +3120,7 @@ cmd_pulse() {
   mkdir -p "$FELIX_HOME_DIR/state" 2>/dev/null
   {
     printf 'pulse\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    felix_pulse_backup "$(felix_pulse_mem_repo)"
+    felix_pulse_backup "$(felix_pulse_mem_repo "$FELIX_HOME_DIR")"
     felix_pulse_report "$FELIX_HOME_DIR"
   } | tee -a "$log" 2>/dev/null
   return 0

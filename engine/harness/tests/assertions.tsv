@@ -988,6 +988,7 @@
 1	the same route does not repeat itself
 1	the second session is still bound
 1	the secret check is behind the verifier confine
+1	the shipped layout — memory under ~/.felix — is its own repo
 1	the shipped table considers every moment
 1	the squash leaves the merge-base behind main
 1	the step itself still counts as used

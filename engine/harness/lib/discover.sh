@@ -31,14 +31,69 @@
 FELIX_DISCOVER_MAX="${FELIX_DISCOVER_MAX:-8}"
 
 # capability <TAB> keywords, for capabilities this project actually declared.
+#
+# Driven by what the project declared, not by what the table happens to hold.
+# Row-first, a capability nobody wrote a row for contributed nothing — no
+# score, no candidate, no complaint — and that is not hypothetical: one
+# governed project here declares `security`, the table has no `security`
+# row, and every security plugin on the machine was invisible to it.
+# Measured across three governed projects, the funnel matched 4 of 35
+# installed plugins.
+#
+# A capability's own name is also the highest-precision keyword there is,
+# and it is free, so it is added to whatever the table says. It was written
+# out by hand for only 4 of 12 rows, which is how a project declaring
+# `frontend` failed to match a plugin named `frontend-design`.
+#
+# Only from five characters up. Short names are substrings of ordinary
+# words — `ci` sits inside `specification`, `api` inside `rapid`, `iac`
+# inside `hypothetical` — and this matcher is substring-based by design, so
+# a three-letter capability used as a keyword would match nearly everything.
+# The table's own header records what that costs: a keyword matching
+# everything identifies nothing. Every capability detection can adopt that
+# is at least five characters keeps working; the shorter ones stay dependent
+# on their curated row, and felix_capabilities_unruled says when one has
+# none.
 _felix_discover_rules() {
-  local tpl="$1" proj="$2" cap kws
+  local tpl="$1" proj="$2" cap kws rcap rkws table=""
+  [ -f "$tpl/discover-rules.tsv" ] \
+    && table="$(grep -vE '^[[:space:]]*(#|$)' "$tpl/discover-rules.tsv" 2>/dev/null)"
+  while IFS= read -r cap; do
+    [ -n "$cap" ] || continue
+    kws=""
+    while IFS=$'\t' read -r rcap rkws; do
+      [ "$rcap" = "$cap" ] && kws="$rkws"
+    done <<EOF
+$table
+EOF
+    [ "${#cap}" -ge 5 ] && kws="$kws $cap"
+    kws="${kws# }"
+    [ -n "$kws" ] && printf '%s\t%s\n' "$cap" "$kws"
+  done <<EOF
+$(felix_declared "$proj")
+EOF
+  return 0
+}
+
+# Declared capabilities the table has no curated row for, one per line.
+#
+# They are not unscored any more — the name carries them — but a single
+# keyword is far thinner than a curated row, and which capabilities are in
+# that state is a fact about this project's tables that nothing else says
+# out loud. Same shape as the overbroad-deny report: a rule quietly doing
+# almost nothing is the complaint Felix makes about other people's plugins.
+felix_capabilities_unruled() {
+  local proj="$1" tpl="$2" cap ruled
   [ -f "$tpl/discover-rules.tsv" ] || return 0
-  while IFS=$'\t' read -r cap kws; do
-    case "$cap" in ''|'#'*) continue ;; esac
-    felix_has_line "$(felix_declared "$proj")" "$cap" || continue
-    printf '%s\t%s\n' "$cap" "$kws"
-  done < "$tpl/discover-rules.tsv"
+  ruled="$(grep -vE '^[[:space:]]*(#|$)' "$tpl/discover-rules.tsv" 2>/dev/null | cut -f1)"
+  while IFS= read -r cap; do
+    [ -n "$cap" ] || continue
+    felix_has_line "$ruled" "$cap" && continue
+    printf '%s\n' "$cap"
+  done <<EOF
+$(felix_declared "$proj")
+EOF
+  return 0
 }
 
 # Everything the marketplaces offer that this project has not declared.

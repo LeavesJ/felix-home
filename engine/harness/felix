@@ -2840,6 +2840,28 @@ EOF
     printf '\nNarrow the pattern in %s/deny.tsv, or drop the row.\n' "$proj"
   fi
 
+  # A declared capability with no curated row scores on its own name alone,
+  # which is thin, and for the short names it scores on nothing at all. That
+  # is a fact about this project's tables rather than about any plugin, and
+  # nothing else says it out loud — the funnel was measured at 4 matches
+  # across 35 installed plugins before anybody looked.
+  local unruled; unruled="$(felix_capabilities_unruled "$proj" "$SCRIPT_DIR/templates" 2>/dev/null)"
+  if [ -n "$unruled" ]; then
+    printf '\ncapabilities with no discovery rule\n\n'
+    printf '%s\n' "$unruled" | while read -r c; do
+      [ -n "$c" ] || continue
+      if [ "${#c}" -ge 5 ]; then
+        printf '  %-14s scored on its own name only\n' "$c"
+      else
+        printf '  %-14s scored on nothing: too short to be its own keyword\n' "$c"
+      fi
+    done
+    printf '\nDiscovery scores a plugin against the keywords each declared capability\n'
+    printf 'carries. These carry none of their own, so tooling that serves them is\n'
+    printf 'unlikely to be found. Add a row to discover-rules.tsv naming the words\n'
+    printf 'such a plugin would actually use.\n'
+  fi
+
   # Reporting drift is not a failure. Exit 0 so a session hook or a CI step can
   # surface this without turning a green tree red for work nobody asked for yet.
   return 0

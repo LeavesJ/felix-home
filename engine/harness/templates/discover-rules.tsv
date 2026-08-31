@@ -25,5 +25,10 @@ api	openapi graphql rest-api endpoint swagger
 ci	github-actions pipeline continuous-integration workflow-automation
 secrets	secret credential vault leak-detection sast
 deploy	kubernetes terraform helm docker-compose infrastructure-as-code
+# Detection adopts `iac` the day a project grows a .tf file, and for a while
+# there was no row here for it — three characters, so it cannot fall back on
+# its own name either, which made it the one capability that could be
+# adopted automatically and then never match anything.
+iac	terraform pulumi opentofu cloudformation infrastructure-as-code
 tests	coverage mutation-testing pytest jest test-generation
 billing	billing invoice subscription stripe payments

@@ -117,15 +117,25 @@ if [ -n "$PLUG" ] && [ -d "$PLUG" ]; then
       IDP=""
       case "$IDLINE" in
         "Files engine/"*)
-          IDP="${IDLINE#Files engine/}"; IDP="${IDP%% and *}" ;;
-        "Only in engine"*)
+          # The filename itself may contain " and ": the separator matched is
+          # the whole " and $PLUG/…" tail, never the first " and ", or
+          # check-ignore is answered about a truncated fragment and an ignore
+          # rule matching it certifies real drift as clean.
+          IDP="${IDLINE#Files engine/}"; IDP="${IDP% differ}"; IDP="${IDP% and "$PLUG"/*}" ;;
+        "Only in engine: "*|"Only in engine/"*)
           IDREST="${IDLINE#Only in }"; IDDIR="${IDREST%%: *}"; IDNAME="${IDREST#*: }"
           if [ "$IDDIR" = "engine" ]; then IDP="$IDNAME"; else IDP="${IDDIR#engine/}/$IDNAME"; fi ;;
-        "Only in $PLUG"*)
+        "Only in $PLUG: "*|"Only in $PLUG/"*)
           IDREST="${IDLINE#Only in }"; IDDIR="${IDREST%%: *}"; IDNAME="${IDREST#*: }"
           if [ "$IDDIR" = "$PLUG" ]; then IDP="$IDNAME"; else IDP="${IDDIR#"$PLUG"/}/$IDNAME"; fi ;;
       esac
-      if [ -n "$IDP" ] && git -C engine check-ignore -q "$IDP" 2>/dev/null; then
+      # Twice, because a directory-only pattern like `.claude-flow/` matches
+      # only what git can see is a directory, and a cache-side stray does not
+      # exist in the tree; the trailing slash says what it is. The global
+      # excludes file is shut off — a verifier whose verdict varies with one
+      # machine's personal ignore rules is not a verifier.
+      if [ -n "$IDP" ] && { git -C engine -c core.excludesFile=/dev/null check-ignore -q "$IDP" \
+             || git -C engine -c core.excludesFile=/dev/null check-ignore -q "$IDP/"; } 2>/dev/null; then
         continue
       fi
       printf '%s\n' "$IDLINE" >> /tmp/felix-install-drift.log

@@ -22,6 +22,7 @@
 1	a bundled plugin reads as usable
 1	a cache path is a plugin copy
 1	a cache that never existed is stale
+1	a cache-side stray matching a directory-only rule is residue
 1	a capability match is still adopt material
 1	a capability some route names is a keyword problem
 1	a cargo crate is a rust project
@@ -58,6 +59,8 @@
 1	a due step containing a colon does not shift it
 1	a failing gate still blocks
 1	a failing gate still exits non-zero
+1	a file facing a directory is a drift, whatever diff exits
+1	a filename containing ' and ' cannot hide behind a fragment
 1	a finding names its reason
 1	a flag with no value refuses instead of spinning
 1	a fresh cache is not stale
@@ -125,6 +128,7 @@
 1	a payload naming nothing to act on is allowed
 1	a peer commit on the same branch merges nothing
 1	a peer edit to the working tree merges nothing
+1	a personal excludes file cannot hide real drift
 1	a pinned local server is medium
 1	a plain checkout with projects/ is a home
 1	a plain tool is recorded by name
@@ -482,6 +486,7 @@
 1	and so is a deny from its own PreToolUse
 1	and so is every other one
 1	and so is ordinary work
+1	and so is the content-drift arm
 1	and so is the other one
 1	and staging the test closes the gap — the case that started this
 1	and states the tier
@@ -507,6 +512,7 @@
 1	and the clean sentence is withheld
 1	and the comment survives
 1	and the domain it speaks for
+1	and the drift line carries the whole name
 1	and the earlier verdict is not replaced by it
 1	and the founder's one line says how many are due
 1	and the gate searches the same paths this does
@@ -861,6 +867,7 @@
 1	the budget row is not reported as satisfied
 1	the bump fixture has an identical judge, so the guard can fire
 1	the cache row carries the capability the skills serve
+1	the cache-side arm is present in the gate's copy
 1	the capabilities file is untouched
 1	the cause is not the raw payload
 1	the data marker is substituted

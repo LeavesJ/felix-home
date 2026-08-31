@@ -6472,6 +6472,52 @@ rm -f "$RSD/engine/harness/undeployed.sh"
 printf 'changed\n' > "$RSD/cache/harness/felix"
 _ddiff "$RSD/engine" "$RSD/cache" && bad "a content difference is still a drift" "reported clean" \
                                   || ok  "a content difference is still a drift"
+printf 'real\n' > "$RSD/cache/harness/felix"
+
+# The review of the first fix found four holes in it, each by construction,
+# and each is pinned here so a refactor cannot quietly reopen it.
+#
+# 1. A filename containing " and " used to truncate at the first " and ", so
+#    check-ignore was answered about a fragment — and an ignore rule matching
+#    the fragment certified REAL content drift as clean. `notes` is ignored;
+#    `notes and helpers.sh` is not, and its drift must be reported in full.
+printf 'notes\n.claude-flow/\n.DS_Store\n' > "$RSD/.gitignore"
+printf 'v2\n' > "$RSD/engine/harness/notes and helpers.sh"
+printf 'v1\n' > "$RSD/cache/harness/notes and helpers.sh"
+ddout="$( . "$FROOT/harness/lib/resolve.sh"
+          felix_deploy_diff "$RSD/engine" "$RSD/cache" 2>&1 )"; ddrc=$?
+is  "a filename containing ' and ' cannot hide behind a fragment" "$ddrc" "1"
+has "and the drift line carries the whole name" "$ddout" "notes and helpers.sh"
+rm -f "$RSD/engine/harness/notes and helpers.sh" "$RSD/cache/harness/notes and helpers.sh"
+
+# 2. A directory-only pattern — `.claude-flow/`, the incident's own rule —
+#    matches only what git can see is a directory, and a cache-side stray
+#    exists in no tree at all. Asked with the trailing slash, it filters.
+mkdir -p "$RSD/cache/harness/tests/.claude-flow"
+printf 'x\n' > "$RSD/cache/harness/tests/.claude-flow/state"
+_ddiff "$RSD/engine" "$RSD/cache" && ok  "a cache-side stray matching a directory-only rule is residue" \
+                                  || bad "a cache-side stray matching a directory-only rule is residue" "reported drift"
+rm -rf "$RSD/cache/harness/tests/.claude-flow"
+
+# 3. The rule is the repository's committed ignore file, not this machine's.
+#    A core.excludesFile pointing anywhere — repo config counts, it is not
+#    committed either — must not reclassify real undeployed work as residue.
+printf 'undeployed.sh\n' > "$RSD/private-ignore"
+git -C "$RSD" config core.excludesFile "$RSD/private-ignore"
+printf 'new\n' > "$RSD/engine/harness/undeployed.sh"
+_ddiff "$RSD/engine" "$RSD/cache" && bad "a personal excludes file cannot hide real drift" "reported clean" \
+                                  || ok  "a personal excludes file cannot hide real drift"
+git -C "$RSD" config --unset core.excludesFile
+rm -f "$RSD/engine/harness/undeployed.sh"
+
+# 4. Apple diff -rq EXITS 0 when a file faces a directory of the same name —
+#    the old exit-code rc certified that real deploy break as clean on macOS.
+#    The line-based rc reads the message instead, which no arm claims.
+mkdir -p "$RSD/cache/harness/mixed"
+printf 'file\n' > "$RSD/engine/harness/mixed"
+_ddiff "$RSD/engine" "$RSD/cache" && bad "a file facing a directory is a drift, whatever diff exits" "reported clean" \
+                                  || ok  "a file facing a directory is a drift, whatever diff exits"
+rm -rf "$RSD/cache/harness/mixed" "$RSD/engine/harness/mixed"
 
 # The gate keeps its own inline copy — a verifier that sources the code it
 # judges can be switched off by editing that code — so the copies are asserted
@@ -6495,11 +6541,23 @@ if [ -f "$_REALG2" ]; then
     *) bad "and filters residue through the same ignore rule" \
            "no check-ignore in the installed block" ;;
   esac
+  # Arm presence, so a half-revert cannot survive: the review constructed a
+  # gate filtering only its own side that passed the token check above.
+  case "$_gate_inst" in
+    *'Only in $PLUG'*) ok "the cache-side arm is present in the gate's copy" ;;
+    *) bad "the cache-side arm is present in the gate's copy" "no Only in \$PLUG arm" ;;
+  esac
+  case "$_gate_inst" in
+    *'Files engine/'*) ok "and so is the content-drift arm" ;;
+    *) bad "and so is the content-drift arm" "no Files engine/ arm" ;;
+  esac
   is "the structural verdict shows its evidence too" \
      "$(grep -c 'head -5 /tmp/felix-install-drift.log' "$_REALG2")" "2"
 else
   skip "the gate's installed check covers the same three directories" "no shipped gate"
   skip "and filters residue through the same ignore rule" "no shipped gate"
+  skip "the cache-side arm is present in the gate's copy" "no shipped gate"
+  skip "and so is the content-drift arm" "no shipped gate"
   skip "the structural verdict shows its evidence too" "no shipped gate"
 fi
 

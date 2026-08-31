@@ -625,15 +625,34 @@ felix_deploy_diff() {
       p=""
       case "$line" in
         "Files $src/"*)
-          p="${line#Files "$src/"}"; p="${p%% and *}" ;;
-        "Only in $src"*)
+          # The filename itself may contain " and ", so the separator matched
+          # is the whole " and $live/…" tail, never the first " and ". A
+          # truncated path handed to check-ignore is answered about a
+          # DIFFERENT file, and an ignore rule matching the fragment
+          # certified a real content drift as clean — found in review, by
+          # construction, before it shipped.
+          p="${line#Files "$src/"}"; p="${p% differ}"; p="${p% and "$live"/*}" ;;
+        "Only in $src: "*|"Only in $src/"*)
+          # The slash and colon are the path boundary: without them, a live
+          # directory whose absolute path merely begins with the src string
+          # was parsed as src-relative, against the wrong root.
           rest="${line#Only in }"; dir="${rest%%: *}"; name="${rest#*: }"
           if [ "$dir" = "$src" ]; then p="$name"; else p="${dir#"$src/"}/$name"; fi ;;
-        "Only in $live"*)
+        "Only in $live: "*|"Only in $live/"*)
           rest="${line#Only in }"; dir="${rest%%: *}"; name="${rest#*: }"
           if [ "$dir" = "$live" ]; then p="$name"; else p="${dir#"$live/"}/$name"; fi ;;
       esac
-      if [ -n "$p" ] && git -C "$src" check-ignore -q "$p" 2>/dev/null; then
+      # Asked twice because a directory-only pattern — `.claude-flow/`, the
+      # incident's own rule — matches only what git can see is a directory,
+      # and a cache-side stray does not exist in the tree at all; the
+      # trailing slash supplies what the filesystem cannot. The global
+      # excludes file is shut off: a verifier whose verdict varies with one
+      # machine's personal ignore rules is not a verifier. What cannot be
+      # shut off is .git/info/exclude — inside the repository's own .git, a
+      # rule there is this machine's deliberate act, and it is named here so
+      # nobody discovers it as a surprise.
+      if [ -n "$p" ] && { git -C "$src" -c core.excludesFile=/dev/null check-ignore -q "$p" \
+             || git -C "$src" -c core.excludesFile=/dev/null check-ignore -q "$p/"; } 2>/dev/null; then
         continue
       fi
       printf '%s\n' "$line"

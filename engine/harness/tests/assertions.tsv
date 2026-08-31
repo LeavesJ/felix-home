@@ -430,6 +430,7 @@
 1	and nothing is merged
 1	and nothing is merged when it lands there
 1	and nothing matching scores nil
+1	and nothing reached the remote
 1	and nothing unusable
 1	and nothing was committed
 1	and nothing was committed onto it
@@ -553,7 +554,6 @@
 1	and the pulse refuses it in words
 1	and the receipt refuses to call that verified
 1	and the record names the channel
-1	and the remote holds no machine-made merge
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
 1	and the repository is back to where it started
@@ -914,6 +914,7 @@
 1	the fixture is left as it was found
 1	the fixture puts the catch after the lesson
 1	the fixture really has a base ref behind its remote
+1	the fixture really staged a merge in progress
 1	the founder's item is not buried
 1	the gate refuses to answer on a path it cannot search
 1	the gate's installed check covers the same three directories

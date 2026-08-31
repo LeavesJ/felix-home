@@ -4941,27 +4941,39 @@ has "memory outside any repository is said plainly" "$out" "not in a git reposit
 # A merge in progress is a person's work-site: add -A would stage their
 # conflict markers as resolved, commit would conclude their merge, and the
 # push would fast-forward past the divergence guard entirely.
+# Built inside ONE repository from two branches: no clone, no push, nothing
+# whose failure could be swallowed. The first version staged the conflict via
+# a clone-and-push dance, and when any step of that failed quietly the repo
+# simply had no merge in progress — so the pulse committed normally and the
+# assertions blamed the guard for a fixture that never built. CI failed while
+# the laptop stayed green, which is the same machine-dependent shape twice in
+# one feature.
 PMG="$TMP/pulse-merge"; PMGR="$TMP/pulse-merge-remote.git"
 mkdir -p "$PMG"
 ( cd "$PMG" && git init -q -b main && printf 'a\n' > l.md \
-  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base \
+  && git checkout -q -b other \
+  && printf 'B\n' > l.md && git add -A && git -c user.name=b -c user.email=b@b commit -qm B \
+  && git checkout -q main \
+  && printf 'A\n' > l.md && git add -A && git -c user.name=a -c user.email=a@a commit -qm A \
+  && git merge other >/dev/null 2>&1 || true )
 git init -q --bare -b main "$PMGR"
-( cd "$PMG" && git remote add backup "$PMGR" && git push -q backup main )
-PMB="$TMP/pulse-merge-b"; git clone -q "$PMGR" "$PMB" 2>/dev/null
-( cd "$PMB" && printf 'B\n' > l.md && git add -A \
-  && git -c user.name=b -c user.email=b@b commit -qm B && git push -q origin main )
-( cd "$PMG" && printf 'A\n' > l.md && git add -A \
-  && git -c user.name=a -c user.email=a@a commit -qm A \
-  && git fetch -q backup && git merge backup/main >/dev/null 2>&1 || true )
-_premerge_remote="$(git --git-dir="$PMGR" rev-parse refs/heads/main)"
+( cd "$PMG" && git remote add backup "$PMGR" )
+# The precondition, asserted rather than assumed. Without this the two
+# assertions below cannot tell "the guard failed" from "the conflict was
+# never staged", and this project has paid for that confusion twice today.
+[ -f "$PMG/.git/MERGE_HEAD" ] \
+  && ok  "the fixture really staged a merge in progress" \
+  || bad "the fixture really staged a merge in progress" \
+         "no MERGE_HEAD; the assertions below would be about the fixture"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PMG" )"
 has "a merge in progress is a person's, and the pulse says so" "$out" "in progress"
 [ -f "$PMG/.git/MERGE_HEAD" ] \
   && ok  "and the merge is left exactly where the person left it" \
   || bad "and the merge is left exactly where the person left it" "MERGE_HEAD gone"
-is "and the remote holds no machine-made merge" \
-   "$(git --git-dir="$PMGR" rev-parse refs/heads/main)" "$_premerge_remote"
+is "and nothing reached the remote" \
+   "$(git --git-dir="$PMGR" rev-parse --verify -q refs/heads/main 2>/dev/null | grep -c .)" "0"
 
 # The nearest enclosing repo is not necessarily the memory's own. A dotfiles
 # repo tracking $HOME would have every private file committed and pushed

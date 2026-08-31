@@ -32,6 +32,7 @@
 1	a checkout that moves after verification merges nothing
 1	a clean checkout claims no rival gate
 1	a clean repo says so instead of minting a commit
+1	a commit with no remote does not stamp a push
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
 1	a content difference is still a drift
@@ -69,7 +70,6 @@
 1	a finding names its reason
 1	a flag with no value refuses instead of spinning
 1	a fresh cache is not stale
-1	a fresh repository reads as zero days
 1	a frontend prompt routes to frontend
 1	a full-length sha nothing holds is unknown too
 1	a fully declared, present inventory reads clean
@@ -92,6 +92,7 @@
 1	a later copy of the field in the envelope is not the subject
 1	a ledger from before the column reports nothing at all
 1	a ledger written as one file is still read
+1	a leftover message draft does not stop the backup forever
 1	a local-only branch is taken as given
 1	a lookalike gate is reported
 1	a low-risk candidate is declared
@@ -130,6 +131,7 @@
 1	a passing verdict clears a reviewed escape through the kernel
 1	a passing verdict for this exact tree clears it
 1	a path a green rule names is green
+1	a path differing only by spacing is still a new nested repo
 1	a path ending a sentence still resolves
 1	a path in inline backticks resolves
 1	a path in the envelope does not decide the route
@@ -153,6 +155,7 @@
 1	a prompt with no session id records no ledger state
 1	a prompt with no signal says nothing
 1	a proposal shown once is not volunteered again
+1	a pulse that has run and never succeeded says never
 1	a pulse with nothing to do still answers
 1	a push nothing reads back is not called verified
 1	a reach is the only mount evidence there is
@@ -275,6 +278,7 @@
 1	an mcp call does mark the bare plugin step used
 1	an mcp call does not mark a qualified step of that plugin used
 1	an mcp call is recorded by server
+1	an old stamp is counted in days
 1	an opted-in capability is allowed
 1	an ordinary checkout is not
 1	an ordinary failure is still written down
@@ -317,7 +321,6 @@
 1	and a backticked path naming nothing is still not invented
 1	and a declined one is ok too
 1	and a document that is not a plan
-1	and a foreign repo has no age to report
 1	and a gitignored stray in the cache is too
 1	and a high one is refused
 1	and a live one says when it was last caught
@@ -328,6 +331,8 @@
 1	and a repository with no main resolves to nothing
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
+1	and a verified push does
+1	and a verified push reads as zero days
 1	and absent from both sides is a fixture, not a drift
 1	and again, so a session can bump twice
 1	and an older one does not
@@ -563,6 +568,7 @@
 1	and the message does not accuse the subagent
 1	and the monitor still renders the sentence, not the JSON around it
 1	and the page has a panel for it
+1	and the person's staged selection is untouched
 1	and the placeholder stays a placeholder
 1	and the play this project already chose
 1	and the pulse refuses it in words
@@ -604,6 +610,7 @@
 1	backfilled the tooling the capability implies
 1	backs the removed copy up first
 1	backticks plus the punctuation after them
+1	before the pulse has ever run there is nothing to report
 1	binds the checkout with no remote
 1	blocks are recorded
 1	bootstrap names the checkout's repo, not the cache's absence
@@ -952,6 +959,7 @@
 1	the memory check is behind the verifier confine
 1	the message names the play, not only the miss
 1	the model still gets the whole thing
+1	the nested repo is still refused
 1	the page carries the speech
 1	the page still closes exactly one script
 1	the patch digit goes up by one

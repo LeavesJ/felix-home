@@ -59,31 +59,46 @@ felix_pulse_mem_repo() {
   fi
 }
 
-# Paths staged as gitlinks that HEAD does not already carry, and that
-# .gitmodules does not declare. Emits one path per line; empty is the good
-# answer.
+# Gitlinks a full staging would newly introduce, one path per line. Empty is
+# the good answer, and it is computed WITHOUT touching the real index.
 #
-# Both halves were wrong before. Testing `[ ! -f .gitmodules ]` asked whether
-# the file exists rather than whether THIS link is declared in it, so one
-# legitimate submodule — or the remedy the refusal message itself recommends
-# — switched the guard off for every other nested repository forever. And
-# counting every gitlink in the index counted the ones already in HEAD, so a
-# nested repo committed once, before this guard existed, refused every future
-# backup permanently. Only what this run would newly introduce is a decision.
+# Three rounds of review found three separate defects in the parsing this
+# used to do — an awk that rebuilt the record and collapsed runs of spaces so
+# two different directories reduced to one key, a .gitmodules cross-check
+# whose quoting never matched git's own, and a count that included links
+# already in HEAD. The lesson is not "parse more carefully": it is that the
+# decision does not need most of what was being parsed.
+#
+# So: both sides come from `cut -f2-` on the literal tab git puts before a
+# path — exact, and identical on both sides, so quoting cannot make them
+# disagree — and the .gitmodules cross-check is gone entirely. A submodule
+# somebody adds deliberately is refused once and then stops being new the
+# moment they commit it, which is a self-resolving nudge rather than a
+# permanent latch, and it costs no matching rules that can be wrong.
 _felix_pulse_new_gitlinks() {
-  local repo="$1" declared idx head
-  idx="$(git -C "$repo" ls-files -s 2>/dev/null | awk '$1 == "160000" { $1=$2=$3=""; sub(/^[ \t]+/, ""); print }')"
+  local repo="$1" tmp idx head
+  tmp="$(mktemp)" || return 0
+  # A scratch index, so a person's deliberately staged selection survives
+  # being asked about. The check used to stage into the real index and then
+  # `git reset` on refusal, which is not an undo: it emptied whatever they
+  # had staged.
+  if git -C "$repo" rev-parse --verify -q HEAD >/dev/null 2>&1; then
+    GIT_INDEX_FILE="$tmp" git -C "$repo" read-tree HEAD >/dev/null 2>&1
+  fi
+  GIT_INDEX_FILE="$tmp" git -C "$repo" add -A >/dev/null 2>&1
+  idx="$(GIT_INDEX_FILE="$tmp" git -C "$repo" ls-files -s 2>/dev/null | grep '^160000 ' | cut -f2-)"
+  rm -f "$tmp"
   [ -n "$idx" ] || return 0
-  head="$(git -C "$repo" ls-tree -r HEAD 2>/dev/null | awk '$1 == "160000" { $1=$2=$3=""; sub(/^[ \t]+/, ""); print }')"
-  declared="$(git -C "$repo" config -f "$repo/.gitmodules" --get-regexp '^submodule\..*\.path$' 2>/dev/null \
-              | sed 's/^[^ ]* //')"
+  head="$(git -C "$repo" ls-tree -r HEAD 2>/dev/null | grep '^160000 ' | cut -f2-)"
   printf '%s\n' "$idx" | while IFS= read -r p; do
     [ -n "$p" ] || continue
     felix_has_line "$head" "$p" && continue
-    felix_has_line "$declared" "$p" && continue
     printf '%s\n' "$p"
   done
 }
+
+# When the memory last reached the remote, as a stamp this writes itself.
+_felix_pulse_stamp() { printf '%s/state/pulse.last-push' "$1"; }
 
 # Commit if dirty, push if a target is unambiguous, then verify by re-reading
 # the remote head. Emits status lines and always returns 0: an honest
@@ -123,8 +138,14 @@ felix_pulse_backup() {
   # rebase under this machine's name is its own harm.
   gitdir="$(git -C "$repo" rev-parse --git-dir 2>/dev/null)"
   case "$gitdir" in /*) ;; *) gitdir="$repo/$gitdir" ;; esac
+  # SQUASH_MSG is deliberately NOT in this list, though it was for one
+  # round. It is a message draft rather than an in-progress marker: nothing
+  # removes it but a later commit or reset, `git merge --abort` refuses to
+  # touch it, and a guard keyed to it latched forever in a repository git
+  # itself called clean. Every name below is one git removes when the
+  # operation ends.
   if [ -f "$gitdir/MERGE_HEAD" ] || [ -f "$gitdir/CHERRY_PICK_HEAD" ] \
-     || [ -f "$gitdir/REVERT_HEAD" ] || [ -f "$gitdir/SQUASH_MSG" ] \
+     || [ -f "$gitdir/REVERT_HEAD" ] \
      || [ -d "$gitdir/rebase-merge" ] || [ -d "$gitdir/rebase-apply" ]; then
     printf 'backup\ta merge or rebase is in progress; that is a person mid-reconciliation, and nothing here touches it\n'
     return 0
@@ -139,23 +160,22 @@ felix_pulse_backup() {
   fi
 
   if [ -n "$(git -C "$repo" status --porcelain 2>/dev/null)" ]; then
-    git -C "$repo" add -A >/dev/null 2>&1
     # A nested git repository stages as a bare gitlink: the push then reports
     # verified while a restore materializes an empty directory — the exact
-    # disaster-recovery path this feature exists for. Counted with grep -c,
-    # which reads its whole input, because grep -q under pipefail kills the
-    # producer and this repository has paid for that before. A repository
-    # with .gitmodules declared its links on purpose and is left alone.
-    # Named before the reset, not after: the reset is what removes the entry
-    # the name comes from, so asking afterwards printed an empty path and the
-    # message named nothing at all.
+    # disaster-recovery path this feature exists for. Asked on a scratch
+    # index BEFORE anything real stages, so a refusal leaves the person's own
+    # index exactly as it was found; the previous shape staged first and
+    # `git reset` on refusal, which is not an undo — it emptied whatever they
+    # had deliberately staged. Counted with grep -c, which reads its whole
+    # input, because grep -q under pipefail kills the producer and this
+    # repository has paid for that before.
     local links; links="$(_felix_pulse_new_gitlinks "$repo")"
     if [ "$(printf '%s\n' "$links" | grep -c .)" -gt 0 ]; then
-      git -C "$repo" reset -q >/dev/null 2>&1
-      printf 'backup\ta nested git repository sits inside memory (%s); backed up it would restore EMPTY, so nothing was committed — move it out, or declare it in .gitmodules\n' \
+      printf 'backup\ta nested git repository sits inside memory (%s); backed up it would restore EMPTY, so nothing was committed — move it out, or commit it yourself\n' \
         "$(printf '%s\n' "$links" | tr '\n' ' ' | sed 's/ $//')"
       return 0
     fi
+    git -C "$repo" add -A >/dev/null 2>&1
     if git -C "$repo" -c user.name=felix-pulse -c user.email=pulse@felix.invalid \
          commit -q -m "pulse: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1; then
       printf 'backup\tcommitted\n'
@@ -216,6 +236,15 @@ felix_pulse_backup() {
        ls-remote "$remote" "refs/heads/$branch" 2>/dev/null | cut -f1)"
     if [ -n "$local_head" ] && [ "$local_head" = "$remote_head" ]; then
       printf 'backup\tpushed and verified: %s holds %.12s\n' "$remote" "$local_head"
+      # Stamped only here, on the one path where the memory demonstrably
+      # left this disk. The staleness alarm used to read the last local
+      # COMMIT, which the pulse writes every day whether or not the push
+      # works — so in the exact case the alarm exists for, a push failing
+      # for months, the age stayed at zero and nothing ever spoke.
+      if [ -n "${FELIX_HOME_DIR:-}" ]; then
+        mkdir -p "$FELIX_HOME_DIR/state" 2>/dev/null \
+          && date +%s > "$(_felix_pulse_stamp "$FELIX_HOME_DIR")" 2>/dev/null
+      fi
     else
       printf 'backup\tpushed, but %s reads back %.12s against local %.12s\n' \
         "$remote" "${remote_head:-nothing}" "$local_head"
@@ -226,19 +255,34 @@ felix_pulse_backup() {
   return 0
 }
 
-# Days since the memory repository last committed, empty when there is no
-# repository to ask.
+# Days since the memory demonstrably left this disk. Empty only when the
+# pulse has never run at all; `never` when it has run and never once
+# succeeded.
+#
+# Measured from the stamp the verified-push path writes, not from the last
+# local commit. The commit happens every day whether or not the push works —
+# and whether or not a remote exists at all — so a version reading it
+# reported zero days in precisely the states this alarm exists for: a push
+# failing for months, a repository with no remote, a permanent refusal.
 #
 # Every refusal above is honest and invisible: it prints into a log file
 # nobody opens, and a heartbeat that has refused for ninety days looks
 # exactly like one that ran. This is the number that makes a silent stop
 # observable, and the session hook is where a person actually reads.
 felix_pulse_backup_age() {
-  local repo="$1" last now
-  case "${repo:-}" in ''|"foreign	"*) return 0 ;; esac
-  last="$(git -C "$repo" log -1 --format=%ct 2>/dev/null)"
-  [ -n "$last" ] || return 0
+  local home="${1:-}" stamp last now
+  [ -n "$home" ] || return 0
+  stamp="$(_felix_pulse_stamp "$home")"
+  if [ ! -f "$stamp" ]; then
+    # Never succeeded, but only say so once the pulse has actually run;
+    # before that there is nothing to report rather than an alarm.
+    [ -f "$home/state/pulse.log" ] && printf 'never'
+    return 0
+  fi
+  last="$(cat "$stamp" 2>/dev/null)"
+  case "${last:-}" in ''|*[!0-9]*) printf 'never'; return 0 ;; esac
   now="$(date +%s)"
+  [ "$now" -ge "$last" ] 2>/dev/null || { printf '0'; return 0; }
   printf '%s' $(( (now - last) / 86400 ))
 }
 

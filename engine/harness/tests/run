@@ -5120,13 +5120,96 @@ case "$out" in
 esac
 rm -f "$PCF/.git/hooks/pre-commit"
 
-# A refusal that no surface mentions is a backup that has silently stopped.
+# A refusal that no surface mentions is a backup that has silently stopped,
+# and the age must measure the thing that actually matters: whether memory
+# left this disk. Reading the last local COMMIT reported zero days in every
+# state the alarm exists for — a push failing for months, no remote at all,
+# a permanent refusal — because the pulse commits daily regardless.
+PAH="$TMP/pulse-agehome"; mkdir -p "$PAH/state"
 age="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
-        felix_pulse_backup_age "$PCF" )"
-is "a fresh repository reads as zero days" "$age" "0"
+        felix_pulse_backup_age "$PAH" )"
+is "before the pulse has ever run there is nothing to report" "$age" ""
+printf 'pulse\tx\n' > "$PAH/state/pulse.log"
 age="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
-        felix_pulse_backup_age "foreign	/somewhere" )"
-is "and a foreign repo has no age to report" "$age" ""
+        felix_pulse_backup_age "$PAH" )"
+is "a pulse that has run and never succeeded says never" "$age" "never"
+date +%s > "$PAH/state/pulse.last-push"
+age="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup_age "$PAH" )"
+is "and a verified push reads as zero days" "$age" "0"
+printf '%s\n' "$(( $(date +%s) - 86400 * 9 ))" > "$PAH/state/pulse.last-push"
+age="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup_age "$PAH" )"
+is "an old stamp is counted in days" "$age" "9"
+
+# The stamp is written on the verified-push path and nowhere else, so a
+# repository with no remote — which commits happily every day — never reads
+# as freshly backed up.
+PST="$TMP/pulse-stamp"; PSTR="$TMP/pulse-stamp.git"; mkdir -p "$PST"
+( cd "$PST" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+PSTH="$TMP/pulse-stamphome"; mkdir -p "$PSTH/state"
+printf 'x\n' >> "$PST/l.md"
+( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+  FELIX_HOME_DIR="$PSTH" felix_pulse_backup "$PST" ) >/dev/null 2>&1
+[ -f "$PSTH/state/pulse.last-push" ] \
+  && bad "a commit with no remote does not stamp a push" "stamp written" \
+  || ok  "a commit with no remote does not stamp a push"
+git init -q --bare -b main "$PSTR"
+( cd "$PST" && git remote add origin "$PSTR" ) >/dev/null 2>&1
+printf 'y\n' >> "$PST/l.md"
+( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+  FELIX_HOME_DIR="$PSTH" felix_pulse_backup "$PST" ) >/dev/null 2>&1
+[ -f "$PSTH/state/pulse.last-push" ] \
+  && ok  "and a verified push does" \
+  || bad "and a verified push does" "no stamp"
+
+# The gitlink check runs on a scratch index, so asking the question cannot
+# destroy the answer: a person's deliberately staged selection survives.
+PIX="$TMP/pulse-index"; mkdir -p "$PIX"
+( cd "$PIX" && git init -q -b main && printf 'a\n' > a.md && printf 'b\n' > b.md \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+mkdir -p "$PIX/nested"
+( cd "$PIX/nested" && git init -q -b main && printf 'n\n' > f && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm n ) >/dev/null 2>&1
+printf 'staged\n' >> "$PIX/a.md"; printf 'unstaged\n' >> "$PIX/b.md"
+( cd "$PIX" && git add a.md ) >/dev/null 2>&1
+_staged_before="$(git -C "$PIX" diff --cached --name-only | tr '\n' ' ')"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PIX" )"
+has "the nested repo is still refused" "$out" "restore EMPTY"
+is  "and the person's staged selection is untouched" \
+    "$(git -C "$PIX" diff --cached --name-only | tr '\n' ' ')" "$_staged_before"
+
+# Two paths differing only in spacing are two paths. The awk that rebuilt
+# the record collapsed runs of whitespace, so a genuinely new nested repo
+# whose name collided with a known one after collapsing was committed as a
+# bare gitlink — the exact outcome the guard exists to prevent.
+PWS="$TMP/pulse-space"; mkdir -p "$PWS"
+( cd "$PWS" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+mkdir -p "$PWS/a b"
+( cd "$PWS/a b" && git init -q -b main && printf 'x\n' > f && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm x ) >/dev/null 2>&1
+( cd "$PWS" && git add -A && git -c user.name=t -c user.email=t@t commit -qm "link one" ) >/dev/null 2>&1
+mkdir -p "$PWS/a  b"
+( cd "$PWS/a  b" && git init -q -b main && printf 'y\n' > f && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm y ) >/dev/null 2>&1
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PWS" )"
+has "a path differing only by spacing is still a new nested repo" "$out" "restore EMPTY"
+
+# SQUASH_MSG is a message draft, not an in-progress marker: nothing removes
+# it but a later commit, so a guard keyed to it refused forever in a
+# repository git itself called clean.
+PSQ="$TMP/pulse-squashmsg"; mkdir -p "$PSQ"
+( cd "$PSQ" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+printf 'a leftover draft\n' > "$PSQ/.git/SQUASH_MSG"
+printf 'new lesson\n' >> "$PSQ/l.md"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_backup "$PSQ" )"
+has "a leftover message draft does not stop the backup forever" "$out" "committed"
 
 # The push target is never an alphabetical accident. origin wins over a
 # name that sorts first; two strangers with no upstream is a person's call.

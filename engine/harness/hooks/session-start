@@ -137,11 +137,16 @@ fi
 # pulse refusal is honest and prints into a log nobody opens. This is the one
 # number that makes the stop observable, on the surface a person reads.
 backup_line=""
-_bage="$(felix_pulse_backup_age "$(felix_pulse_mem_repo "$FELIX_HOME_DIR" 2>/dev/null)" 2>/dev/null)"
-if [ -n "$_bage" ] && [ "$_bage" -ge "${FELIX_BACKUP_STALE_DAYS:-3}" ] 2>/dev/null; then
+_bage="$(felix_pulse_backup_age "$FELIX_HOME_DIR" 2>/dev/null)"
+if [ "${_bage:-}" = "never" ]; then
   backup_line="
-Memory last backed up ${_bage} days ago. Every lesson since then lives on this
-disk only. See 'felix pulse' — it says what it refused and why."
+The pulse has run and never once got memory off this disk. Whatever it is
+refusing, it is in 'felix pulse' — and until it resolves, every lesson this
+project has paid for exists in one place."
+elif [ -n "${_bage:-}" ] && [ "$_bage" -ge "${FELIX_BACKUP_STALE_DAYS:-3}" ] 2>/dev/null; then
+  backup_line="
+Memory last reached the remote ${_bage} days ago. Every lesson since then lives
+on this disk only. See 'felix pulse' — it says what it refused and why."
 fi
 
 reconcile_line=""

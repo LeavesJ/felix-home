@@ -5003,6 +5003,20 @@ mr="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
        FELIX_MEMORY="$POUT/dotfiles/felixish/memory" felix_pulse_mem_repo "$POUT/dotfiles/felixish" )"
 has "a parent that is not the resolved home is still foreign" "$mr" "foreign"
 
+# The layout Felix actually ships: memory under ~/.felix, which is its own
+# repository with the backup remote. Caught by running the real command
+# rather than by the suite — every assertion here was green while the live
+# setup was being refused as foreign, because the fixtures only ever built
+# the shapes the rule already named.
+PFX="$TMP/pulse-felixdir"; mkdir -p "$PFX/.felix/memory/proj"
+( cd "$PFX/.felix" && git init -q -b main && printf 'l\n' > memory/proj/lessons.md \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+mr="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
+       HOME="$PFX" FELIX_MEMORY="$PFX/.felix/memory" \
+       felix_pulse_mem_repo "$TMP/some-unrelated-home" )"
+is "the shipped layout — memory under ~/.felix — is its own repo" \
+   "$mr" "$(cd "$PFX/.felix" && pwd -P)"
+
 # Detached HEAD is a person inspecting history; a commit would land on no
 # branch and the next checkout strands it.
 ( cd "$PNR" && git checkout -q --detach HEAD )

@@ -45,14 +45,24 @@ felix_pulse_mem_repo() {
   [ -n "$top" ] || return 0
   top="$(cd "$top" 2>/dev/null && pwd -P)"
 
-  # The memory's own repository, or a repository Felix established. Nothing
-  # else — and "the immediate parent" was not that test. FELIX_MEMORY is the
-  # one documented knob, so pointing it at a subdirectory of somebody's notes
-  # vault made that vault the backup repository, `git add -A` and all. A
-  # parent qualifies only when it is the Felix home this run resolved, which
-  # is a directory Felix created for exactly this.
+  # Three directories qualify, and they are named rather than derived from a
+  # shape: the memory root itself, `~/.felix` — Felix's own directory, which
+  # is where the default memory root lives and which is the repository the
+  # backup actually uses — and the Felix home this run resolved.
+  #
+  # "The immediate parent" was the first rule and it was too loose:
+  # FELIX_MEMORY is the one documented knob, so pointing it at a
+  # subdirectory of somebody's notes vault made that vault the backup
+  # repository, `git add -A` and all. Naming only the home was then too
+  # tight, and the live run is what caught it — the suite was green while
+  # the real layout, memory under ~/.felix, was refused as foreign. A rule
+  # narrow enough to be safe has to be checked against the setup it governs.
+  local felixdir=""
+  [ -n "${HOME:-}" ] && felixdir="$(cd "$HOME/.felix" 2>/dev/null && pwd -P)"
   [ -n "$home" ] && home="$(cd "$home" 2>/dev/null && pwd -P)"
-  if [ "$top" = "$root" ] || { [ -n "$home" ] && [ "$top" = "$home" ]; }; then
+  if [ "$top" = "$root" ] \
+     || { [ -n "$felixdir" ] && [ "$top" = "$felixdir" ]; } \
+     || { [ -n "$home" ] && [ "$top" = "$home" ]; }; then
     printf '%s' "$top"
   else
     printf 'foreign\t%s' "$top"

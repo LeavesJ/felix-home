@@ -5036,6 +5036,137 @@ case "$out" in
   *)        ok  "a row inspection judged capability-less is not" ;;
 esac
 
+printf '\nprocedures: enumerated from reality, never from a list Felix wrote\n'
+# The rule this whole surface exists to obey, and the reason it exists.
+#
+# Told about an audit that found five things on a governed project, Felix got
+# a command with checks for the two that were mechanizable and silently
+# dropped the third — a missing request ceiling — because there was no table
+# of what a deploy moment must answer. A list of checks cannot report the
+# check nobody wrote.
+#
+# The fix is not a better list. `lifecycle.tsv` already works for hook events
+# and it does not work by being well written: felix_coverage_events reads what
+# the PLATFORM binds, the table holds only stances, and the gap is what
+# reality has and the table does not. Felix never authors the enumeration.
+#
+# So here: items come from what the checkout HAS and what has actually BITTEN.
+# Stances are judgement and belong to a person. An item with no stance is the
+# product, not an error.
+PRT="$TMP/procedures-tpl"; mkdir -p "$PRT"
+printf '# moment\tdescription\npre-deploy\tbefore anything is served\nsession-start\twhat this session should reach for\n' \
+  > "$PRT/moments.tsv"
+PRP="$TMP/procedures-proj"; mkdir -p "$PRP" "$MEM/procedures-proj"
+printf 'deploy\napi\n' > "$PRP/capabilities"
+printf '2026-08-01\tmain\tabc\tsecret lint\n2026-08-02\tmain\tdef\tsecret\n' \
+  > "$MEM/procedures-proj/mistakes.log"
+
+_pitems() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+              . "$FROOT/harness/lib/procedures.sh"; felix_procedures_items "$PRP" ); }
+has "a declared surface is an item"            "$(_pitems)" "capability:deploy"
+has "and so is a second one"                   "$(_pitems)" "capability:api"
+# The claim this file makes about itself is that items come from reality. The
+# first version read the DECLARED file — a curated snapshot — so a surface the
+# checkout grew after adoption produced no item, no gap, and a clean bill.
+# felix_undeclared exists precisely to compare the tree against that file, and
+# not using it made "enumerate from reality" false for half the enumerator.
+mkdir -p "$PRP/repo/.github/workflows"
+printf 'on: push\n' > "$PRP/repo/.github/workflows/ci.yml"
+printf 'FROM python:3.12\n' > "$PRP/repo/Dockerfile"
+_pitemsr() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+               . "$FROOT/harness/lib/procedures.sh"; felix_procedures_items "$PRP" "$PRP/repo" ); }
+has "a surface detected in the tree is an item even if nobody declared it" \
+    "$(_pitemsr)" "capability:ci"
+has "and a declared one the tree no longer shows is still an item" \
+    "$(_pitemsr)" "capability:api"
+# What has bitten is the other half, and it is the half Felix cannot invent:
+# it is whatever the gate actually caught, however many times.
+has "a check that has actually failed is an item" "$(_pitems)" "failure:secret"
+has "including one that failed alongside another" "$(_pitems)" "failure:lint"
+is  "and each item appears once however often it bit" \
+    "$(_pitems | grep -c '^failure:secret$')" "1"
+
+# Day one: no stance file at all. Every item is a gap, and saying so is the
+# whole point — this is the output that would have named the request ceiling.
+_pgaps() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+             . "$FROOT/harness/lib/procedures.sh"; felix_procedures_gaps "$PRP" ); }
+is "with no stances taken, every item is a gap" \
+   "$(_pgaps | grep -c .)" "$(_pitems | grep -c .)"
+
+# A stance closes exactly one gap and nothing else. It is authored, arguable,
+# and recorded — which is what makes it different from an enumeration.
+printf '# item\tmoment\tanswered by\tnote\ncapability:deploy\tpre-deploy\tfelix preflight\tlisteners and modes\n' \
+  > "$PRP/procedures.tsv"
+case "$(_pgaps)" in
+  *capability:deploy*) bad "an item with a stance is no longer a gap" "$(_pgaps)" ;;
+  *)                   ok  "an item with a stance is no longer a gap" ;;
+esac
+has "while the others still are" "$(_pgaps)" "capability:api"
+has "and so does a failure nobody answered" "$(_pgaps)" "failure:secret"
+
+# A stance naming a moment nobody declared is itself a gap — otherwise a typo
+# silently answers nothing, which is the failure this file is named after.
+printf 'capability:api\tpre-lunch\tsomething\t-\n' >> "$PRP/procedures.tsv"
+_pbad() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+            . "$FROOT/harness/lib/procedures.sh"; felix_procedures_unknown_moments "$PRP" "$PRT" ); }
+# The review's red, and it is the design's own defect reproduced inside the
+# fix: a row whose first column names an item closed the gap whether or not
+# it named a moment or an answerer — and then every display path skipped it,
+# because they all key on the moment. The item vanished from the gap list, the
+# stance list, and the unknown-moment list at once, and the report printed
+# "every item has a stance". A row that records no judgement is not a stance.
+printf 'failure:secret\n' >> "$PRP/procedures.tsv"
+has "a row naming no moment does not close its gap" "$(_pgaps)" "failure:secret"
+_pmal() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+            . "$FROOT/harness/lib/procedures.sh"; felix_procedures_malformed "$PRP" ); }
+has "and the row itself is reported as recording nothing" "$(_pmal)" "failure:secret"
+# The well-formed one is untouched by any of this.
+case "$(_pmal)" in
+  *capability:deploy*) bad "while a complete stance is not called malformed" "$(_pmal)" ;;
+  *)                   ok  "while a complete stance is not called malformed" ;;
+esac
+
+# A stance for something nothing enumerates is a claim about a surface that is
+# gone. lifecycle.tsv checks both directions; this checked one.
+printf 'capability:ghost\tpre-deploy\tsomething\t-\n' >> "$PRP/procedures.tsv"
+_porph() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+             . "$FROOT/harness/lib/procedures.sh"; felix_procedures_orphans "$PRP" ); }
+has "a stance for something nothing enumerates is named" "$(_porph)" "capability:ghost"
+case "$(_porph)" in
+  *capability:deploy*) bad "and a stance for a real item is not" "$(_porph)" ;;
+  *)                   ok  "and a stance for a real item is not" ;;
+esac
+
+# And an unreachable stance does not close a gap either, which is the same
+# sentence applied consistently: it was reported as unknown AND still counted
+# as an answer, so the report named the typo while the item quietly left the
+# unanswered list.
+_pgapst() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+              . "$FROOT/harness/lib/procedures.sh"; felix_procedures_gaps "$PRP" "" "$PRT" ); }
+has "a stance at a moment nobody declared answers nothing" "$(_pgapst)" "capability:api"
+case "$(_pgapst)" in
+  *capability:deploy*) bad "while one at a declared moment still does" "$(_pgapst)" ;;
+  *)                   ok  "while one at a declared moment still does" ;;
+esac
+
+has "a stance at a moment nobody declared is named" "$(_pbad)" "pre-lunch"
+case "$(_pbad)" in
+  *pre-deploy*) bad "and a declared moment is not" "$(_pbad)" ;;
+  *)            ok  "and a declared moment is not" ;;
+esac
+
+# The command, not only the library. Every assertion above passed while the
+# CLI died on an unbound variable, because nothing here ran it — which is the
+# lesson this repository already carries about neutering the call site rather
+# than the library, arriving again in the file written to stop a method
+# failure.
+out="$(cd "$REPO" && "$FELIX" procedures 2>&1)"; rc=$?
+is  "felix procedures runs"            "$rc" "0"
+has "and names the project"            "$out" "procedures for widget"
+has "and reports what nothing answers" "$out" "nothing answers these"
+out="$(cd "$REPO" && "$FELIX" procedures --wat 2>&1)"; rc=$?
+is  "and an unknown flag is refused rather than ignored" "$rc" "1"
+
 printf '\nthe pulse: the heartbeat that does not wait for a session\n'
 # Memory backup was as current as the last time somebody typed the command —
 # measured four days stale once, on the one asset the repository cannot

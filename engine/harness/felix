@@ -131,6 +131,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/guard.sh"
 # shellcheck source=lib/pulse.sh
 . "${SCRIPT_DIR}/lib/pulse.sh"
+# shellcheck source=lib/procedures.sh
+. "${SCRIPT_DIR}/lib/procedures.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -187,6 +189,7 @@ specific project, language, or toolchain.
     felix discover --adopt declare and install the low-risk ones it has read
     felix stack [plan|apply|reconcile] install what this project declares; reconcile reads the record
     felix pulse [--install|--uninstall] back up memory, report what waits; --install schedules it daily
+    felix procedures      what each moment must answer for, and what nothing answers yet
     felix adopt <cap>      declare a capability and everything it implies
     felix profile [name]   which tools a task profile mounts
     felix quarantine <p>   switch off a plugin that is breaking sessions
@@ -3059,6 +3062,122 @@ cmd_decisions() {
   printf 'this data - HANDOFF 0af and docs/2026-08-30-advisory-redesign.md B.\n'
 }
 
+# What each moment has to answer for, and what nothing answers yet.
+#
+# The gap list is the product. A project that has taken no stances sees every
+# item, which is the correct first output rather than an empty success: the
+# defect this exists for was a question nobody asked, and a report that only
+# ever shows what somebody already thought of would repeat it.
+cmd_procedures() {
+  resolve_or_die; local proj="$PROJ" a
+  for a in "$@"; do die "usage: felix procedures (got: $a)"; done
+  local tpl="$SCRIPT_DIR/templates" root
+  root="$(felix_repo_root "$PWD")"
+
+  printf 'procedures for %s\n\n' "$(basename "$proj")"
+
+  local n_item n_gap n_stance
+  n_item="$(felix_procedures_items "$proj" "$root" | grep -c .)"
+  n_gap="$(felix_procedures_gaps "$proj" "$root" "$tpl" | grep -c .)"
+  n_stance="$(felix_procedures_wellformed "$proj" | grep -c .)"
+
+  # Stances first, by moment, so what IS handled reads as the smaller thing it
+  # currently is rather than as the summary.
+  local m item moment by line shown
+  if [ "${n_stance:-0}" -gt 0 ]; then
+    while IFS= read -r m; do
+      [ -n "$m" ] || continue
+      shown=0
+      # cut per field rather than `IFS=$'\t' read`: tab is an IFS whitespace
+      # character, so bash coalesces runs of it and an empty cell shifts every
+      # later column left.
+      while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        item="$(printf '%s\n' "$line" | cut -f1)"
+        moment="$(printf '%s\n' "$line" | cut -f2)"
+        by="$(printf '%s\n' "$line" | cut -f3)"
+        [ "${moment:-}" = "$m" ] || continue
+        [ "$shown" -eq 0 ] && { printf '  %s\n' "$m"; shown=1; }
+        printf '    %-26s %s\n' "$item" "${by:--}"
+      done <<EOF
+$(felix_procedures_wellformed "$proj")
+EOF
+      [ "$shown" -eq 1 ] && printf '\n'
+    done <<EOF
+$(felix_procedures_moments "$tpl")
+EOF
+  fi
+
+  if [ "${n_gap:-0}" -gt 0 ]; then
+    printf 'nothing answers these\n\n'
+    felix_procedures_gaps "$proj" "$root" "$tpl" | while IFS= read -r item; do
+      [ -n "$item" ] || continue
+      case "$item" in
+        capability:*) printf '  %-26s a surface this checkout has\n' "$item" ;;
+        failure:*)    printf '  %-26s something that has already gone wrong here\n' "$item" ;;
+        *)            printf '  %s\n' "$item" ;;
+      esac
+    done
+    printf '\n%s of %s items have no stance. Neither list is one Felix wrote:\n' "$n_gap" "$n_item"
+    printf 'surfaces come from what the checkout has, failures from what the gate\n'
+    printf 'has actually caught. A stance says at which moment an item is answered\n'
+    printf 'and by what, and belongs to a person — add rows to\n'
+    printf '%s/procedures.tsv.\n' "$proj"
+  fi
+
+  # A row that names an item and records nothing else. It used to close the
+  # item's gap and then appear in no section at all, because every display
+  # path keys on the moment — one item vanishing from three lists at once
+  # while the report said everything had a stance.
+  local malformed orphans
+  malformed="$(felix_procedures_malformed "$proj")"
+  if [ -n "$malformed" ]; then
+    printf '\nrows that record no judgement\n\n'
+    printf '%s\n' "$malformed" | while IFS= read -r item; do
+      [ -n "$item" ] || continue
+      printf '  %s\n' "$item"
+    done
+    printf '\nA stance needs an item, a moment, and something that answers it. These\n'
+    printf 'name an item and stop, so they close nothing — their items are still\n'
+    printf 'listed above as unanswered.\n'
+  fi
+
+  # And the other direction: a stance for something nothing enumerates any
+  # more. The precedent this copies checks both, because a table is wrong when
+  # it lacks a row reality has and equally wrong when it keeps one reality
+  # dropped.
+  orphans="$(felix_procedures_orphans "$proj" "$root")"
+  if [ -n "$orphans" ]; then
+    printf '\nstances for things nothing enumerates\n\n'
+    printf '%s\n' "$orphans" | while IFS= read -r item; do
+      [ -n "$item" ] || continue
+      printf '  %s\n' "$item"
+    done
+    printf '\nEach answers for a surface the checkout no longer shows, or a name that\n'
+    printf 'never existed. A stance nobody can reach is a claim nobody checks.\n'
+  fi
+
+  local unknown
+  unknown="$(felix_procedures_unknown_moments "$proj" "$tpl")"
+  if [ -n "$unknown" ]; then
+    printf '\nstances at a moment nobody declared\n\n'
+    printf '%s\n' "$unknown" | while IFS=$'\t' read -r moment item; do
+      [ -n "${moment:-}" ] || continue
+      printf '  %-16s claimed by %s\n' "$moment" "$item"
+    done
+    printf '\nEach of these answers nothing while looking like an answer. Declare the\n'
+    printf 'moment in templates/moments.tsv, or correct the row.\n'
+  fi
+
+  if [ "${n_gap:-0}" -eq 0 ] && [ -z "$unknown" ] && [ -z "$malformed" ] \
+     && [ -z "$orphans" ]; then
+    printf 'Every item has a stance. That is a claim about this table, not about\n'
+    printf 'the project: an item nothing enumerates cannot appear here, so this\n'
+    printf 'says the known questions are answered and nothing about the unknown.\n'
+  fi
+  return 0
+}
+
 # The heartbeat, and the one command that may run with no session and no
 # governed checkout anywhere near it: launchd starts it in $HOME. So it does
 # not resolve a project — it is home-scoped, iterating every governed project
@@ -3167,6 +3286,7 @@ case "${1:-help}" in
   gate)   shift; cmd_gate "$@" ;;
   doctor)  shift; cmd_doctor "$@" ;;
   pulse)   shift; cmd_pulse "$@" ;;
+  procedures) shift; cmd_procedures "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;
   decisions) shift; cmd_decisions "$@" ;;

@@ -29,6 +29,7 @@
 1	a cargo crate is a rust project
 1	a change that does not touch the engine is not called self-judgement
 1	a check named as the head of a path is found
+1	a check that has actually failed is an item
 1	a checkout inside the verification is caught too
 1	a checkout that moves after verification merges nothing
 1	a clean checkout claims no rival gate
@@ -45,6 +46,7 @@
 1	a declared server no play ever named is left alone
 1	a declared skill with no directory cannot be used
 1	a declared submodule does not excuse an undeclared one
+1	a declared surface is an item
 1	a decline resting on nothing checkable is still ok
 1	a decline whose premise died is caught
 1	a decline whose premise still holds is ok
@@ -194,6 +196,7 @@
 1	a row already naming itself is not scored twice
 1	a row from before the column proposes nothing
 1	a row inspection judged capability-less is not
+1	a row naming no moment does not close its gap
 1	a row naming no real capability is caught
 1	a row nobody named carries no stray line
 1	a rule naming Edit does not deny a Write
@@ -214,8 +217,12 @@
 1	a staged source change owes its test
 1	a staged workflow escapes even with commits ahead
 1	a staged workflow makes this the founder's call
+1	a stance at a moment nobody declared answers nothing
+1	a stance at a moment nobody declared is named
+1	a stance for something nothing enumerates is named
 1	a state file from before this existed complains, as it did
 1	a structural failure still fails the gate
+1	a surface detected in the tree is an item even if nobody declared it
 1	a table declaring the reserved channel still stops the merge
 1	a table in a different repository resolves to nothing
 1	a table outside the classified repo is still read once, at HEAD
@@ -281,6 +288,7 @@
 1	an explicit path is allowed
 1	an installed plugin is matched by what it ships
 1	an issue naming no real file still exits 0
+1	an item with a stance is no longer a gap
 1	an mcp call does mark the bare plugin step used
 1	an mcp call does not mark a qualified step of that plugin used
 1	an mcp call is recorded by server
@@ -327,6 +335,8 @@
 1	an unwritable state directory still exits 0
 1	and --fix does not exit 0 when every repair failed
 1	and a backticked path naming nothing is still not invented
+1	and a declared moment is not
+1	and a declared one the tree no longer shows is still an item
 1	and a declined one is ok too
 1	and a document that is not a plan
 1	and a gitignored stray in the cache is too
@@ -341,12 +351,14 @@
 1	and a ruled one is not
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
+1	and a stance for a real item is not
 1	and a verified push does
 1	and a verified push reads as zero days
 1	and absent from both sides is a fixture, not a drift
 1	and again, so a session can bump twice
 1	and an older one does not
 1	and an ordinary product repository is not
+1	and an unknown flag is refused rather than ignored
 1	and bin/ is in the searched set, because the gate runs it
 1	and both paths in one sentence are found
 1	and briefs the file it names
@@ -365,6 +377,7 @@
 1	and does not nag about ancient history
 1	and does not name a channel it never got to consult
 1	and does not say it recorded
+1	and each item appears once however often it bit
 1	and every line is a whole row
 1	and evidence does too
 2	and exits 0
@@ -429,7 +442,7 @@
 1	and names the habit
 1	and names the hook
 1	and names the play in order
-1	and names the project
+2	and names the project
 1	and names the source tree it compared
 1	and names the table
 1	and names the working tree rather than the checkout
@@ -498,6 +511,7 @@
 1	and reports nothing for one it does not have
 1	and reports what has been spent
 1	and reports what is left
+1	and reports what nothing answers
 1	and says a long name at least scores on itself
 1	and says how many are still unusable
 1	and says it cannot be scoped
@@ -536,9 +550,11 @@
 1	and scope says which tier it reached
 1	and shipping nothing declared still matches nothing
 1	and shows the decline itself
+1	and so does a failure nobody answered
 1	and so does a worktree of it
 1	and so does the next one
 1	and so is a deny from its own PreToolUse
+1	and so is a second one
 1	and so is every other one
 1	and so is ordinary work
 1	and so is the content-drift arm
@@ -597,6 +613,7 @@
 1	and the rest of the file is untouched
 1	and the reviewed one is cleared by it
 1	and the row is still json
+1	and the row itself is reported as recording nothing
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
 1	and the same scanner catches a planted one
@@ -702,6 +719,7 @@
 1	felix merge reaches gh at all
 1	felix merge refuses on an escape
 1	felix new exits 0
+1	felix procedures runs
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
 1	felix_autonomy_allows is defined for the hook
@@ -737,6 +755,7 @@
 1	identical deploys are clean before any stray lands
 1	ignores a file that does not exist
 1	including fields after it
+1	including one that failed alongside another
 1	including the second one
 1	including what prompted each utterance
 1	inspect still counts the skills
@@ -1043,14 +1062,17 @@
 1	what it kept is what it sent
 1	what no route named is not a compliance figure
 1	which is the number it printed
+1	while a complete stance is not called malformed
 1	while a mount needs no threshold: the reach already happened
 1	while a short one scores on nothing
 1	while a tool that ran keeps its calls
 1	while an owner-reduced play entry still names its plugin
+1	while one at a declared moment still does
 1	while others stay due
 1	while the Felix home Felix itself resolved is its own repo
 1	while the branch's own file still is
 1	while the genuinely reached server is proposed
+1	while the others still are
 1	while the path around it does not
 1	while the unruled ones are
 1	wires a tool into a route
@@ -1058,6 +1080,7 @@
 1	wiring the same tool twice is refused
 1	with no CLI and nothing bundled, Felix says it cannot tell
 1	with no session record it behaves as before
+1	with no stances taken, every item is a gap
 1	with nothing due it reports nothing
 1	with the critique step after it
 1	with the newlines escaped, not lost

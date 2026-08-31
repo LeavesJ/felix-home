@@ -23,6 +23,7 @@
 1	a cache path is a plugin copy
 1	a cache that never existed is stale
 1	a cache-side stray matching a directory-only rule is residue
+1	a capability carrying a trailing remark is not a rule
 1	a capability match is still adopt material
 1	a capability some route names is a keyword problem
 1	a cargo crate is a rust project
@@ -39,6 +40,8 @@
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
 1	a credential in added lines escapes as disclose
+1	a declared capability with NO row still scores on its name
+1	a declared capability with a row keeps its keywords
 1	a declared server no play ever named is left alone
 1	a declared skill with no directory cannot be used
 1	a declared submodule does not excuse an undeclared one
@@ -188,6 +191,7 @@
 1	a route naming an unreachable tool is ranked
 1	a route off the tree is a guess
 1	a route off the tree is not recorded as typed
+1	a row already naming itself is not scored twice
 1	a row from before the column proposes nothing
 1	a row inspection judged capability-less is not
 1	a row naming no real capability is caught
@@ -201,6 +205,7 @@
 1	a second hand-off in the same session stays quiet
 1	a session reports what was named and what was followed
 1	a session that changed nothing stops silently
+1	a short name is not turned into a keyword
 1	a skill is not looked up as a plugin
 1	a skill is recorded by which skill
 1	a skill name counts triple, like a name
@@ -217,6 +222,7 @@
 1	a table with no holds column still works
 1	a task notification is not a prompt
 1	a term recurring across entries surfaces
+1	a tie is broken the same way whichever order the file lists
 1	a tool absent from the manifest is not a clean bill
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
@@ -284,6 +290,7 @@
 1	an ordinary failure is still written down
 1	an unborn default base refuses rather than previews
 1	an unconsidered moment is named
+1	an undeclared capability is still never scored
 1	an undeclared tool is reported, not hidden
 1	an ungoverned repo is allowed
 1	an unknown routine is refused
@@ -308,6 +315,7 @@
 1	an unresolvable base is not an empty changeset
 1	an unresolvable base is not an evidence all-clear
 1	an unresolvable base never labels a pr green
+1	an unruled capability is named
 1	an unstacked branch reports exactly what it changed
 1	an untested change blocks, naming the evidence owed
 1	an untouched clean tree stays silent
@@ -329,6 +337,8 @@
 1	and a red run at the head means zero
 1	and a refusal is not a successful repair
 1	and a repository with no main resolves to nothing
+1	and a ruled capability is not listed there
+1	and a ruled one is not
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
 1	and a verified push does
@@ -366,6 +376,7 @@
 1	and from CI-absolute paths
 1	and from a worktree of the same repository
 1	and from the first copy of the key, not a later one
+1	and gains its own name as a keyword
 1	and handed the cron line instead
 1	and hands it a pull request to merge
 1	and ignores the path so it cannot come back
@@ -380,6 +391,7 @@
 1	and it holds against the shipped lessons file
 1	and it is Felix's own work
 1	and it is a tier, not the word
+1	and it is broken by the engine's table, not the file
 1	and it is named
 1	and it is not autonomous
 1	and it is reported as unusable, not unchecked
@@ -485,6 +497,7 @@
 1	and reports nothing for one it does not have
 1	and reports what has been spent
 1	and reports what is left
+1	and says a long name at least scores on itself
 1	and says how many are still unusable
 1	and says it cannot be scoped
 1	and says it did
@@ -494,6 +507,7 @@
 1	and says nothing about it afterwards
 1	and says nothing below the session threshold
 1	and says nothing was installed
+1	and says nothing when every capability has a rule
 1	and says plainly that it acted on nothing
 1	and says so
 1	and says so before the detail
@@ -659,6 +673,7 @@
 1	docs classify green
 1	doctor exits 0 despite drift
 1	doctor is quiet when every rule is narrow
+1	doctor names a capability with no discovery rule
 1	doctor names the rule that refuses everything
 1	documentation is in scope
 1	does not demand the later steps yet
@@ -668,6 +683,7 @@
 1	entries older than a day do not count
 1	envelope path values are gone from the tokens
 1	every call is appended
+1	every capability detection can adopt has a discovery rule
 1	every decision is logged
 1	every decision is recorded
 1	every route matches its own name
@@ -1025,6 +1041,7 @@
 1	what no route named is not a compliance figure
 1	which is the number it printed
 1	while a mount needs no threshold: the reach already happened
+1	while a short one scores on nothing
 1	while a tool that ran keeps its calls
 1	while an owner-reduced play entry still names its plugin
 1	while others stay due
@@ -1032,6 +1049,7 @@
 1	while the branch's own file still is
 1	while the genuinely reached server is proposed
 1	while the path around it does not
+1	while the unruled ones are
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused
 1	wiring the same tool twice is refused

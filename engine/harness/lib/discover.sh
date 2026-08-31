@@ -54,23 +54,52 @@ FELIX_DISCOVER_MAX="${FELIX_DISCOVER_MAX:-8}"
 # is at least five characters keeps working; the shorter ones stay dependent
 # on their curated row, and felix_capabilities_unruled says when one has
 # none.
+# Emitted in two passes, and the order is the point. felix_capability_match
+# keeps the FIRST rule at equal score, so emission order breaks ties — and
+# driving the whole thing from the capabilities file handed that authority to
+# whichever line somebody happened to put first. The `iac` row is the first
+# pair in this table that can actually tie (`terraform` belongs to both it
+# and `deploy`, and a plugin by that name exists), so reordering two lines in
+# a file people edit freely would have silently re-filed a real plugin.
+# Curated rows first, in the engine's own table order; then the capabilities
+# no row covers, sorted, so a curated row also beats a name-only fallback.
 _felix_discover_rules() {
-  local tpl="$1" proj="$2" cap kws rcap rkws table=""
+  local tpl="$1" proj="$2" cap kws rcap rkws table="" declared ruled=""
   [ -f "$tpl/discover-rules.tsv" ] \
     && table="$(grep -vE '^[[:space:]]*(#|$)' "$tpl/discover-rules.tsv" 2>/dev/null)"
-  while IFS= read -r cap; do
-    [ -n "$cap" ] || continue
-    kws=""
-    while IFS=$'\t' read -r rcap rkws; do
-      [ "$rcap" = "$cap" ] && kws="$rkws"
-    done <<EOF
+  declared="$(felix_declared "$proj")"
+
+  while IFS=$'\t' read -r rcap rkws; do
+    [ -n "${rcap:-}" ] || continue
+    felix_has_line "$declared" "$rcap" || continue
+    ruled="$ruled$rcap
+"
+    kws="$rkws"
+    # Appended only when the row does not already say it. Two rows list their
+    # own name as the first keyword, and the matcher adds three per
+    # occurrence with no dedup, so those scored a name hit twice.
+    case " $kws " in
+      *" $rcap "*) ;;
+      *) [ "${#rcap}" -ge 5 ] && kws="$kws $rcap" ;;
+    esac
+    printf '%s\t%s\n' "$rcap" "${kws# }"
+  done <<EOF
 $table
 EOF
-    [ "${#cap}" -ge 5 ] && kws="$kws $cap"
-    kws="${kws# }"
-    [ -n "$kws" ] && printf '%s\t%s\n' "$cap" "$kws"
+
+  while IFS= read -r cap; do
+    [ -n "$cap" ] || continue
+    felix_has_line "$ruled" "$cap" && continue
+    # A capability name is an identifier. felix_declared strips whole-line
+    # comments only, so a line carrying a trailing remark survives as one
+    # long "capability" — harmlessly dropped while the table drove the loop,
+    # and, once declarations drive it, a keyword and a name that
+    # `discover --adopt` would write into stack.tsv.
+    case "$cap" in *[!a-z0-9_-]*) continue ;; esac
+    [ "${#cap}" -ge 5 ] || continue
+    printf '%s\t%s\n' "$cap" "$cap"
   done <<EOF
-$(felix_declared "$proj")
+$(printf '%s\n' "$declared" | LC_ALL=C sort -u)
 EOF
   return 0
 }

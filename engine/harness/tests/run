@@ -4706,6 +4706,47 @@ esac
 # far thinner than a curated row, and nothing said which ones those were.
 _dunruled() { ( . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/discover.sh"
                 felix_capabilities_unruled "$DRP" "$DRT" | tr '\n' ' ' ); }
+# Emission order decides ties — felix_capability_match keeps the first rule
+# at equal score — so it must be the engine's, not a property of a file
+# people reorder freely. Driving the loop from the capabilities file handed
+# that authority to whichever line somebody happened to put first, and the
+# `iac` row added here is the first pair in the table's history that can
+# actually tie: it shares `terraform` with `deploy`, and a plugin named
+# terraform exists.
+DRO="$TMP/discover-order"; mkdir -p "$DRO"
+printf 'deploy\tterraform helm\niac\tterraform pulumi\n' > "$DRO/discover-rules.tsv"
+DRO1="$TMP/dro-a"; DRO2="$TMP/dro-b"; mkdir -p "$DRO1" "$DRO2"
+printf 'deploy\niac\n' > "$DRO1/capabilities"
+printf 'iac\ndeploy\n' > "$DRO2/capabilities"
+_dmatch() { ( . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/discover.sh"
+              felix_capability_match terraform '' "$(_felix_discover_rules "$DRO" "$1")" | cut -f2 ); }
+is "a tie is broken the same way whichever order the file lists" \
+   "$(_dmatch "$DRO1")" "$(_dmatch "$DRO2")"
+is "and it is broken by the engine's table, not the file"        "$(_dmatch "$DRO1")" "deploy"
+
+# The name is appended, not duplicated: two rows already list their own name
+# as the first keyword, and felix_capability_match adds 3 per occurrence with
+# no dedup, so those two scored a name hit twice.
+DRD="$TMP/discover-dup"; mkdir -p "$DRD"
+printf 'observability\tobservability tracing\n' > "$DRD/discover-rules.tsv"
+DRDP="$TMP/dro-dup"; mkdir -p "$DRDP"; printf 'observability\n' > "$DRDP/capabilities"
+is "a row already naming itself is not scored twice" \
+   "$( . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/discover.sh"
+       felix_capability_match observability-tool '' "$(_felix_discover_rules "$DRD" "$DRDP")" | cut -f1 )" "3"
+
+# felix_declared strips whole-line comments only, so a line carrying a
+# trailing remark survived as one capability. Row-first it matched no row and
+# vanished; capability-first it would have become its own keyword and a
+# capability name that discover --adopt writes into stack.tsv.
+DRC="$TMP/dro-comment"; mkdir -p "$DRC"
+printf 'deploy   # only staging, never prod\nfrontend\n' > "$DRC/capabilities"
+_drc="$( . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/discover.sh"
+         _felix_discover_rules "$DRT" "$DRC" )"
+case "$_drc" in
+  *"only staging"*) bad "a capability carrying a trailing remark is not a rule" "$_drc" ;;
+  *)                ok  "a capability carrying a trailing remark is not a rule" ;;
+esac
+
 has "an unruled capability is named"        "$(_dunruled)" "security"
 case "$(_dunruled)" in
   *llm*) bad "and a ruled one is not" "$(_dunruled)" ;;

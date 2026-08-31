@@ -23,6 +23,7 @@
 1	a cache path is a plugin copy
 1	a cache that never existed is stale
 1	a cache-side stray matching a directory-only rule is residue
+1	a capability carrying a trailing remark is not a rule
 1	a capability match is still adopt material
 1	a capability some route names is a keyword problem
 1	a cargo crate is a rust project
@@ -190,6 +191,7 @@
 1	a route naming an unreachable tool is ranked
 1	a route off the tree is a guess
 1	a route off the tree is not recorded as typed
+1	a row already naming itself is not scored twice
 1	a row from before the column proposes nothing
 1	a row inspection judged capability-less is not
 1	a row naming no real capability is caught
@@ -220,6 +222,7 @@
 1	a table with no holds column still works
 1	a task notification is not a prompt
 1	a term recurring across entries surfaces
+1	a tie is broken the same way whichever order the file lists
 1	a tool absent from the manifest is not a clean bill
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
@@ -388,6 +391,7 @@
 1	and it holds against the shipped lessons file
 1	and it is Felix's own work
 1	and it is a tier, not the word
+1	and it is broken by the engine's table, not the file
 1	and it is named
 1	and it is not autonomous
 1	and it is reported as unusable, not unchecked

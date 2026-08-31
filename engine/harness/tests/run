@@ -4956,7 +4956,7 @@ mkdir -p "$PMG"
   && printf 'B\n' > l.md && git add -A && git -c user.name=b -c user.email=b@b commit -qm B \
   && git checkout -q main \
   && printf 'A\n' > l.md && git add -A && git -c user.name=a -c user.email=a@a commit -qm A \
-  && git merge other >/dev/null 2>&1 || true )
+  && git -c user.name=m -c user.email=m@m merge other >/dev/null 2>&1 || true )
 git init -q --bare -b main "$PMGR"
 ( cd "$PMG" && git remote add backup "$PMGR" )
 # The precondition, asserted rather than assumed. Without this the two

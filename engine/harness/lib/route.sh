@@ -74,6 +74,27 @@ _felix_route_rows() {
 # runtime owns. `prompt` is deliberately not among them: its value is the one
 # thing in the envelope a person did type. A path typed inside the prompt still
 # counts, because that is a word you chose.
+#
+# Naming those fields was the third fix, and it was the same mistake one remove
+# further out: a list of the keys the runtime had used so far. The desktop
+# harness then added `scratchpad_dir` — an absolute path, and on this machine
+# one under a directory called Documents — and `document` was back. 18 of the
+# 20 rows that route logged between 2026-08-25 and 2026-09-02 carried it, and
+# four declines in decisions.log blamed the table for it. So the rule is now
+# the shape the runtime's values share rather than the names they have had: a
+# string value that opens with `/` is a path the runtime filled in, and the
+# pair goes whole whatever its key is called, including the keys the harness
+# has not added yet. Still structure and never vocabulary — nothing here knows
+# the word `document`. `prompt` keeps its exemption by having its colon swapped
+# out around that rule and back after it: a slash command and a pasted path
+# both open with `/`, and reading either as the runtime's would throw away the
+# whole prompt on exactly the turns that name a file.
+#
+# Both directions. felix_route_log runs this on the way in, _felix_envelope_text
+# on the way out, so rows written before the rule existed stop proposing
+# `documents` to --promote — the way the 2026-08-13 fix below cleaned
+# `prompt_id` out of them.
+#
 # LC_ALL=C on every text stage, and it is load-bearing rather than tidy.
 #
 # `cut -c` is byte-oriented in the environment the hook actually runs in — LANG
@@ -88,7 +109,11 @@ _felix_route_rows() {
 # Before this the same prompt logged 160 characters on a laptop and 160 bytes on
 # CI, so the recorded evidence differed by machine.
 _felix_envelope_strip() {
-  LC_ALL=C sed -E 's/"(session_id|transcript_path|cwd|permission_mode|hook_event_name|session_title|source|model|version)"[[:space:]]*:[[:space:]]*("[^"]*"|[^,}]*)/ /g'
+  LC_ALL=C sed -E \
+    -e 's/"(session_id|transcript_path|cwd|permission_mode|hook_event_name|session_title|source|model|version)"[[:space:]]*:[[:space:]]*("[^"]*"|[^,}]*)/ /g' \
+    -e 's/"prompt"([[:space:]]*):/"prompt"\1=/g' \
+    -e 's/"[A-Za-z_][A-Za-z0-9_]*"[[:space:]]*:[[:space:]]*"\/[^"]*"/ /g' \
+    -e 's/"prompt"([[:space:]]*)=/"prompt"\1:/g'
 }
 
 # What a person actually typed, with the JSON around it gone: the runtime's own

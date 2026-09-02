@@ -2978,6 +2978,42 @@ case "$toks" in
   *documents*|*jsonl*) bad "envelope path values are gone from the tokens" "$toks" ;;
   *) ok "envelope path values are gone from the tokens" ;;
 esac
+# The named list above was the third fix, and it was an instance. The desktop
+# harness then added `scratchpad_dir` — an absolute path, and on this machine
+# one under a directory called Documents — and 18 of the 20 rows routed to a
+# document skill between 2026-08-25 and 2026-09-02 carried it. Four declines
+# in decisions.log blamed topic-versus-task; the cause was a key the list had
+# never heard of. So the rule is now the shape the runtime's values share
+# rather than the names they have had so far: a field whose value is an
+# absolute path was filled in by the runtime, and goes whole. The key here is
+# invented, so the list can never be what saves it.
+toks="$( . "$FROOT/harness/lib/route.sh"
+         felix_route_tokens '{"session_id":"s","next_harness_field":"/home/u/documents-felix/migration-schema-endpoint/scratch","prompt":"the button layout is wrong"}' | tr '\n' ' ' )"
+has "a path-valued key the list never heard of still counts what was typed" "$toks" "layout"
+case "$toks" in
+  *documents*|*migration*|*scratch*) bad "and its path is gone from the tokens whatever the key is called" "$toks" ;;
+  *) ok "and its path is gone from the tokens whatever the key is called" ;;
+esac
+# A fresh session, because the hook renders a route only on a session's first
+# routed turn (Decision A-prime) — driven under session `s` this assertion
+# passed on silence before the fix existed, which is the vacuous shape the
+# comment above warns about. Both halves asserted: that it routed at all, and
+# on what was typed rather than on the path.
+out="$(cd "$REPO" && printf '{"session_id":"path-valued-key","next_harness_field":"/home/u/migration-schema-endpoint/scratch","prompt":"the button layout is wrong"}' \
+       | "$FROOT/harness/hooks/user-prompt" 2>&1)"
+has "so a path-valued key the list never heard of does not decide the route" "$out" "frontend"
+case "$out" in
+  *backend*) bad "and the route its path named is not taken" "$out" ;;
+  *) ok "and the route its path named is not taken" ;;
+esac
+# The one value in the envelope a person typed is exempt, whatever it opens
+# with. A slash command and a pasted path both begin with `/`, and a rule that
+# read those as the runtime's would throw away the whole prompt on exactly the
+# turns that name a file.
+toks="$( . "$FROOT/harness/lib/route.sh"
+         felix_route_tokens '{"session_id":"s","prompt":"/home/u/report.pdf needs the layout fixed"}' | tr '\n' ' ' )"
+has "but a prompt that opens with a slash is still what was typed" "$toks" "layout"
+has "path and all"                                                 "$toks" "report"
 # Nobody typed a task notification. The hook is handed every UserPromptSubmit
 # payload, and the runtime uses that channel for its own messages too — task
 # completions, system reminders, the Stop hook's own feedback. Five of the 89
@@ -3190,6 +3226,32 @@ esac
 case "$p" in
   *would*|*help*) bad "nor filler the router already discards" "$p" ;;
   *)              ok  "nor filler the router already discards" ;;
+esac
+
+# The path rule on both sides of the log, for the same reason as the keys. On
+# the way in, so a miss records what was typed and not the harness's scratch
+# directory; on the way out, so rows written before the rule existed stop
+# proposing `documents` to --promote. The read side is what cleans rows already
+# on disk, which is what the fix above did for `prompt_id`.
+( . "$FROOT/harness/lib/route.sh"
+  felix_route_log "$RLP" "-" 0 '{"session_id":"s","scratchpad_dir":"/Users/u/Documents/felix/scratch","prompt":"repair the queue worker"}' )
+logged="$(tail -1 "$MEM/routelog/routes.log" | cut -f4)"
+case "$logged" in
+  *Documents*|*scratch*) bad "a path-valued key is not written to the log" "$logged" ;;
+  *)                     ok  "a path-valued key is not written to the log" ;;
+esac
+has "and the sentence still is" "$logged" "queue"
+# Three rows the old code wrote, path and all.
+i=0; while [ "$i" -lt 3 ]; do
+  printf '2026-08-26T00:00:00Z\t-\t0\t%s\n' \
+    '{"session_id":"s","scratchpad_dir":"/Users/u/Documents/felix/scratch","prompt":"repair the queue worker"}' \
+    >> "$MEM/routelog/routes.log"
+  i=$((i+1))
+done
+p="$( . "$FROOT/harness/lib/route.sh"; FELIX_ROUTE_PROMOTE_MIN=2 felix_route_promote "$RLP" )"
+case "$p" in
+  *documents*|*scratch*) bad "and a row already on disk is cleaned on the way out" "$p" ;;
+  *)                     ok  "and a row already on disk is cleaned on the way out" ;;
 esac
 
 # A row can end mid-character. `cut -c1-160` is byte-oriented wherever the hook

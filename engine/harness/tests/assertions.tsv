@@ -143,6 +143,8 @@
 1	a path naming nothing real is still not invented
 1	a path rule denies an edit
 1	a path you typed yourself still counts
+1	a path-valued key is not written to the log
+1	a path-valued key the list never heard of still counts what was typed
 1	a payload naming nothing to act on is allowed
 1	a peer commit on the same branch merges nothing
 1	a peer edit to the working tree merges nothing
@@ -347,6 +349,7 @@
 1	and a red run at the head means zero
 1	and a refusal is not a successful repair
 1	and a repository with no main resolves to nothing
+1	and a row already on disk is cleaned on the way out
 1	and a ruled capability is not listed there
 1	and a ruled one is not
 1	and a self-governed branch does merge under the kernel
@@ -423,6 +426,7 @@
 1	and it stops the streak rather than being skipped past
 1	and its base's workflow is not escalated as this branch's escape
 1	and its declines count as unchecked
+1	and its path is gone from the tokens whatever the key is called
 1	and keeps a never-invoked one at zero
 1	and keeps one Felix does not hold
 1	and keeps surviving as its own log grows
@@ -612,11 +616,13 @@
 1	and the residue is not
 1	and the rest of the file is untouched
 1	and the reviewed one is cleared by it
+1	and the route its path named is not taken
 1	and the row is still json
 1	and the row itself is reported as recording nothing
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
 1	and the same scanner catches a planted one
+1	and the sentence still is
 1	and the shipped wiring matches its stance
 1	and the slug comes from the checkout's remote
 1	and the state now carries the new route, for the finish-line judge
@@ -653,6 +659,7 @@
 1	but Felix's own bookkeeping is not the subagent's work
 1	but a change that does touch it still is
 1	but a new one does get through
+1	but a prompt that opens with a slash is still what was typed
 1	but a real edit still blocks
 1	but a workflow this branch adds itself still escapes
 1	but admits it never read the changes
@@ -847,6 +854,7 @@
 1	origin outranks the name that sorts first
 1	overrides are recorded
 1	passing gate exits 0
+1	path and all
 1	pr previews and exits 0
 1	pr refuses to open a branch against itself
 1	promote surfaces a word that keeps missing
@@ -932,6 +940,7 @@
 1	skills matching nothing add nothing
 1	skills only is low
 1	skips runbooks for absent capabilities
+1	so a path-valued key the list never heard of does not decide the route
 1	so no false unmount is proposed from it
 1	so the branch is not blamed for what the remote already had
 1	so the session count is the number of sessions

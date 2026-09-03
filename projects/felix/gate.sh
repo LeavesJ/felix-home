@@ -196,7 +196,12 @@ elif ./engine/harness/tests/run >/tmp/felix-gate-tests.log 2>&1; then
   printf '                     %s\n' "$(tail -1 /tmp/felix-gate-tests.log)"
 else
   fail tests
-  grep '^  FAIL' /tmp/felix-gate-tests.log | head -10 | sed 's/^/  /'
+  # The evidence, not only the verdict (#86 again, one check over). bad() puts
+  # its detail on the line AFTER `FAIL`, and this printed the FAIL line alone —
+  # so a failure that only reproduces on the runner arrived as a name with
+  # nothing under it, and the one line saying WHICH word leaked was in a log
+  # file nobody can read from here.
+  grep -A2 '^  FAIL' /tmp/felix-gate-tests.log | head -30 | sed 's/^/  /'
   printf '                     full log: /tmp/felix-gate-tests.log\n'
 fi
 

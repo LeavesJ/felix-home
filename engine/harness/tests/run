@@ -6030,8 +6030,14 @@ has "the seeded graphify row is due on a checkout with no graph" "$(_mst "$MTR")
 sleep 1
 mkdir -p "$MTR/graphify-out" && printf '{}\n' > "$MTR/graphify-out/graph.json"
 has "and ok once a graph newer than the last commit exists"     "$(_mst "$MTR")" "ok	graphify"
-( cd "$MTR" && printf 'y\n' > b.txt && git add -A && git -c user.name=t -c user.email=t@t commit -qm later ) >/dev/null 2>&1
+# And one second the other way, for the other find. GNU find compares
+# -newermt at sub-second precision: a commit made in the same second the
+# graph was written has a whole-second stamp, and the graph's milliseconds
+# read as newer than it — so on the Linux runner this read `ok` while BSD,
+# comparing whole seconds, read `due`. Two finds, two precisions, one fixture
+# faster than either. The gap puts the commit in a later second than the graph.
 sleep 1
+( cd "$MTR" && printf 'y\n' > b.txt && git add -A && git -c user.name=t -c user.email=t@t commit -qm later ) >/dev/null 2>&1
 has "and due again after a commit the graph has not seen"       "$(_mst "$MTR")" "due	graphify"
 # And the command renders a checked row as a fact, not as a clock. The ok
 # branch printed `${age}d ago  every ${cadence}d`, which for a checked event

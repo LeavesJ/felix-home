@@ -15,6 +15,7 @@
 1	a base that names nothing is refused
 1	a base that resolves still classifies normally
 1	a base that resolves still names the channel
+1	a blind probe fails the gate from the engine
 1	a block from the live tree is still recorded
 1	a blocking verdict does not clear it either
 1	a broad but legitimate rule still denies
@@ -30,6 +31,7 @@
 1	a change that does not touch the engine is not called self-judgement
 1	a change to the project marker escapes
 1	a check named as the head of a path is found
+1	a check that cannot run reads as due rather than ok
 1	a check that has actually failed is an item
 1	a checkout inside the verification is caught too
 1	a checkout that moves after verification merges nothing
@@ -77,6 +79,7 @@
 1	a filename containing ' and ' cannot hide behind a fragment
 1	a finding names its reason
 1	a flag with no value refuses instead of spinning
+1	a four-column row still reads as event
 1	a fresh cache is not stale
 1	a frontend prompt routes to frontend
 1	a full-length sha nothing holds is unknown too
@@ -183,6 +186,7 @@
 1	a project bounded only by content rules reports the bound
 1	a project with no declared gate is left alone
 1	a project with no probes.tsv declares no probes
+1	a project with no table is skipped, and the skip names itself
 1	a project with red paths reports the scope bound
 1	a prompt with no session id records no ledger state
 1	a prompt with no signal says nothing
@@ -322,6 +326,7 @@
 1	an envelope field name never does
 1	an escape is named as the founder's
 1	an established fact is classed OBSERVED
+1	an event row with a failing check is DUE
 1	an event-driven routine is not due
 1	an excuse elsewhere does not defuse, sample 1
 1	an excuse elsewhere does not defuse, sample 2
@@ -381,11 +386,13 @@
 1	an unwritable state directory still exits 0
 1	and --fix does not exit 0 when every repair failed
 1	and a backticked path naming nothing is still not invented
+1	and a clean table leaves the gate green
 1	and a command that does not resolve identifies none either
 1	and a declared moment is not
 1	and a declared one the tree no longer shows is still an item
 1	and a declined one is ok too
 1	and a document that is not a plan
+1	and a failing one as due for that reason
 1	and a gitignored stray in the cache is too
 1	and a high one is refused
 1	and a live one says when it was last caught
@@ -429,6 +436,7 @@
 1	and does not nag about ancient history
 1	and does not name a channel it never got to consult
 1	and does not say it recorded
+1	and due again after a commit the graph has not seen
 1	and each item appears once however often it bit
 1	and every line is a whole row
 1	and evidence does too
@@ -512,6 +520,7 @@
 1	and neither is a worktree
 1	and neither is an empty message
 1	and never a verified receipt
+1	and never as a clock reading nobody wrote
 1	and never ends on a success line
 1	and never mentions the same one twice
 1	and never reports a tier it could not compute
@@ -545,6 +554,8 @@
 1	and nothing was written
 1	and nothing was written to the real felix home pointer
 1	and now names each one it found
+1	and ok once a graph newer than the last commit exists
+1	and once the check passes it is ok
 1	and one grounding a real surface is not
 1	and one in a double-backtick span
 1	and one named once carries one
@@ -577,9 +588,9 @@
 1	and refuses to spend past the ceiling
 1	and refuses with no issue and no input
 1	and reports a clear merge without performing one
-1	and reports it by name whichever way it goes
 1	and reports no severity for it
 1	and reports nothing for one it does not have
+1	and reports them in the gate's own line shape
 1	and reports what has been spent
 1	and reports what is left
 1	and reports what it found
@@ -627,7 +638,6 @@
 1	and scope says which tier it reached
 1	and shipping nothing declared still matches nothing
 1	and shows the decline itself
-1	and skips rather than fails when the engine has no probes command
 1	and so does a failure nobody answered
 1	and so does a worktree of it
 1	and so does the next one
@@ -651,6 +661,7 @@
 1	and stops once something is written
 1	and strips a line range
 1	and survives a regeneration that was given none
+1	and that alone does not fail the gate
 1	and that is more than one, so the count is doing work
 1	and that is not a clean bill either
 1	and that nothing granted it, on a channel review cannot clear
@@ -669,7 +680,9 @@
 1	and the earlier verdict is not replaced by it
 1	and the engine writes no mistake for it
 1	and the exact command that produced it
+1	and the failure is recorded under the check's own name
 1	and the founder's one line says how many are due
+1	and the gate exits red
 1	and the gate searches the same paths this does
 1	and the gate still runs through it
 1	and the gate's code names no project literally
@@ -728,7 +741,6 @@
 1	apply without --yes changes nothing
 1	as a declined verdict
 1	as does another
-1	asking the cli's own usage rather than matching its error text
 1	at most one caller records when one slot is left
 1	backfilled the human steps it implies
 1	backfilled the tooling the capability implies
@@ -812,6 +824,8 @@
 1	felix --help still answers usage
 1	felix adopt --help answers with usage
 1	felix decisions reads the record
+1	felix gate runs the probes for a project with a table
+1	felix maintenance renders a passing check as such
 1	felix merge reaches gh at all
 1	felix merge refuses on an escape
 1	felix new exits 0
@@ -821,6 +835,7 @@
 1	felix procedures runs
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
+1	felix's own gate no longer carries a private copy of the check
 1	felix_autonomy_allows is defined for the hook
 1	felix_budget_record itself reports the failure
 1	felix_classify_diff reports unknown, not empty
@@ -937,6 +952,7 @@
 1	nothing found where a witness proves a surface is blind
 1	nothing found with no witness is unknown, never empty
 1	nothing is allowed by default
+1	on a repository with no commit, nothing tracked reads as empty, not blind
 1	onboarding writes one
 1	one already declared is left alone
 1	one from what you typed is not
@@ -1044,6 +1060,7 @@
 1	skills only is low
 1	skips runbooks for absent capabilities
 1	so a path-valued key the list never heard of does not decide the route
+1	so a project created on git init alone is not born blocked
 1	so a project created today is not born blocked
 1	so a project created today reads something from reality
 1	so does a pointer naming a directory that is gone
@@ -1128,8 +1145,6 @@
 1	the pointer file beats a sibling projects/
 1	the pre-flight runs clean under bash
 1	the probe command stays in the eighth column
-1	the probes check is behind the verifier confine
-1	the project gate calls the probe check
 1	the project marker classifies red, never green
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
@@ -1151,6 +1166,7 @@
 1	the same route does not repeat itself
 1	the second session is still bound
 1	the secret check is behind the verifier confine
+1	the seeded graphify row is due on a checkout with no graph
 1	the shipped gate marks its undeployable failure
 1	the shipped layout — memory under ~/.felix — is its own repo
 1	the shipped table considers every moment
@@ -1210,6 +1226,7 @@
 1	wiring into a route that does not exist is refused
 1	wiring the same tool twice is refused
 1	with no CLI and nothing bundled, Felix says it cannot tell
+1	with no checkout in front of it the row stays event, claiming nothing
 1	with no session record it behaves as before
 1	with no stances taken, every item is a gap
 1	with nothing due it reports nothing

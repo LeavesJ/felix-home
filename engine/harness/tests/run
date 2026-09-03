@@ -5854,23 +5854,51 @@ has "an engine shipped without the probe library blocks rather than passing" \
 # reaches out of the harness into Felix's own project directory, which the
 # independence rule permits precisely here: `felix` is the one project the
 # engine may name, because it is the product governing itself.
+# Three: the gate — and the ENGINE's gate, not one project's script. For one
+# night projects/felix/gate.sh carried this check alone, which made it an
+# instance: every other project's gate would have had to copy it by hand, and
+# none did. cmd_gate now runs it for every project that has a table, after the
+# project's own gate and in its own line shape, so a probe failure lands in
+# mistakes.log under its own name. The tolerance for an engine that predates
+# the command is no longer needed inside the engine, and it is gone.
+cp "$TMP/probes.keep" "$FROOT/projects/widget/probes.tsv"
+out="$(cd "$REPO" && "$FELIX" gate 2>&1)"; rc=$?
+has "felix gate runs the probes for a project with a table" "$out" "probes"
+has "and reports them in the gate's own line shape"          "$out" "  probes             ok"
+is  "and a clean table leaves the gate green"                 "$rc" "0"
+# A blind row turns the gate red through the engine, with no project script
+# involved, and the failure is recorded under its own name like any other.
+{ printf 'present\t-\t-\tls -1 WIDGET.txt\ttest -f WIDGET.txt\n'
+  printf 'blindrow\t-\t-\tls -1 nothing-here.rs\ttest -f WIDGET.txt\n'
+} > "$FROOT/projects/widget/probes.tsv"
+: > "$MISLOG"
+out="$(cd "$REPO" && "$FELIX" gate 2>&1)"; rc=$?
+has "a blind probe fails the gate from the engine"  "$out" "  probes             FAIL"
+is  "and the gate exits red"                         "$rc" "1"
+has "and the failure is recorded under the check's own name" \
+    "$(cat "$MISLOG" 2>/dev/null)" "probes"
+cp "$TMP/probes.keep" "$FROOT/projects/widget/probes.tsv"
+# A project with NO table is skipped and says so. The instruction was every
+# project WITH a table, and a skip that names itself is the rule this gate
+# already holds for a missing scanner. felix probes and the merge boundary
+# still refuse the absent table; the gate declines to be the third place that
+# turns a new project red on day one.
+rm -f "$FROOT/projects/widget/probes.tsv"
+out="$(cd "$REPO" && "$FELIX" gate 2>&1)"; rc=$?
+has "a project with no table is skipped, and the skip names itself" \
+    "$out" "skipped (no probes.tsv"
+is  "and that alone does not fail the gate"          "$rc" "0"
+cp "$TMP/probes.keep" "$FROOT/projects/widget/probes.tsv"
+# The gate that carried the check alone no longer does: one mechanism.
 PBGATE="$REAL_HARNESS/../../projects/felix/gate.sh"
 if [ -f "$PBGATE" ]; then
-  has "the project gate calls the probe check" "$(cat "$PBGATE")" "probes --gate"
-  has "and reports it by name whichever way it goes" "$(cat "$PBGATE")" "fail probes"
-  # And tolerates an engine that predates the command. `felix probes` runs on
-  # the DEPLOYED cli, so between a merge and the `felix install` that follows
-  # it that cli is the previous version — which answers `unknown command` with
-  # exit 1, indistinguishable from a probe that came back blind. Every gate run
-  # on every project would have gone red in that window, for a reason that is
-  # not about the work and that `installed` already reports properly.
-  has "and skips rather than fails when the engine has no probes command" \
-      "$(cat "$PBGATE")" "no probes command"
-  has "asking the cli's own usage rather than matching its error text" \
-      "$(cat "$PBGATE")" "help 2>&1 | grep -q"
+  case "$(cat "$PBGATE")" in
+    *"probes --gate"*) bad "felix's own gate no longer carries a private copy of the check" \
+                           "the block is still in projects/felix/gate.sh" ;;
+    *)                 ok  "felix's own gate no longer carries a private copy of the check" ;;
+  esac
 else
-  skip "the project gate calls the probe check" "no projects/felix/gate.sh beside this harness"
-  skip "and reports it by name whichever way it goes" "no projects/felix/gate.sh beside this harness"
+  skip "felix's own gate no longer carries a private copy of the check" "no projects/felix/gate.sh beside this harness"
 fi
 
 # The table decides what stops, so shrinking it escapes to a person — the same
@@ -5944,7 +5972,86 @@ has "and reports what it found"                               "$out" "found"
 has "and calls an absent surface empty rather than blind" "$out" "empty"
 out="$(cd "$NEWP" && "$FELIX" probes --gate 2>&1)"; rc=$?
 is  "so a project created today is not born blocked" "$rc" "0"
+# And not born blocked on a repository with NO commit either. `felix new` runs
+# on `git init` alone all the time — the onboarding fixture above is exactly
+# that — and the seeded tracked_file witness was `test -e .git`, which proves
+# a repository exists and nothing about whether it tracks a file. So the index
+# was empty, the witness said "surface present", and the first gate on a brand
+# new project went red with `blind`. The honest state is `empty`, and the
+# witness that says so is the last commit's tree, not the .git directory.
+NEWQ="$TMP/probes-new-nocommit"; mkdir -p "$NEWQ"
+( cd "$NEWQ" && git init -q -b main && printf 'x\n' > a.txt ) >/dev/null 2>&1
+out="$(cd "$NEWQ" && "$FELIX" new probeseedq "$NEWQ" 2>&1)"
+out="$(cd "$NEWQ" && "$FELIX" probes 2>&1)"
+has "on a repository with no commit, nothing tracked reads as empty, not blind" \
+    "$(printf '%s\n' "$out" | grep -E '^  [a-z-]+ +tracked_file')" "empty"
+out="$(cd "$NEWQ" && "$FELIX" probes --gate 2>&1)"; rc=$?
+is  "so a project created on git init alone is not born blocked" "$rc" "0"
+rm -rf "$FROOT/projects/probeseedq" "$MEM/probeseedq" "$NEWQ"
 rm -rf "$FROOT/projects/probeseed" "$MEM/probeseed" "$NEWP"
+
+printf '\nmaintenance: an event row that can come due from reality\n'
+# A cadence of 0 means event-driven, and the format's own words were that such
+# a row "is never reported as overdue". One project carried
+# `graphify  0  always  refresh the map after a major merge` for fifteen days
+# and two merges with a graph built once, and the row read `event` every time.
+# "Nothing due" and "nothing is being checked" rendering identically — the
+# lesson this project already holds, one table over.
+MTP="$TMP/maint-proj"; mkdir -p "$MTP" "$MEM/maint-proj"
+MTR="$TMP/maint-repo"; mkdir -p "$MTR"
+( cd "$MTR" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
+MTR="$(cd "$MTR" && pwd -P)"
+printf 'graph\t0\talways\tkeep the map current\ttest -f map.json\n' > "$MTP/maintenance.tsv"
+_mst() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+           . "$FROOT/harness/lib/maintenance.sh"; felix_maint_status "$MTP" "$1" ); }
+has "an event row with a failing check is DUE"  "$(_mst "$MTR")" "due	graph"
+printf 'm\n' > "$MTR/map.json"
+has "and once the check passes it is ok"          "$(_mst "$MTR")" "ok	graph"
+# Where no checkout is known — felix pulse is home-scoped — a checked row is
+# `event`, as before, and is not claiming the check passed.
+has "with no checkout in front of it the row stays event, claiming nothing" \
+    "$(_mst "")" "event	graph"
+# A row written before the column existed has four fields and keeps working.
+printf 'old\t0\talways\tno check here\n' >> "$MTP/maintenance.tsv"
+has "a four-column row still reads as event"     "$(_mst "$MTR")" "event	old"
+# A check that cannot run is due, not ok — a broken check is loud.
+printf 'broken\t0\talways\tthe check is nonsense\tdefinitely-not-a-command-xyz\n' >> "$MTP/maintenance.tsv"
+has "a check that cannot run reads as due rather than ok" "$(_mst "$MTR")" "due	broken"
+# The seeded row fires on a checkout with no graph, and not on one whose graph
+# is newer than its last commit — the two states that motivated the column.
+printf 'graphify\t0\talways\tthe map\ttest -n "$(find graphify-out/graph.json -newermt "$(git log -1 --format=%%cd --date=format-local:%%Y-%%m-%%dT%%H:%%M:%%S%%z)" 2>/dev/null)"\n' > "$MTP/maintenance.tsv"
+has "the seeded graphify row is due on a checkout with no graph" "$(_mst "$MTR")" "due	graphify"
+# One second, because BSD find compares -newermt at whole seconds: a graph
+# written 799ms after the commit, inside the same second, is "not newer".
+# Measured, not assumed. No real graph is built in the second its repository
+# was last committed — graphify takes seconds to minutes — so this is the
+# fixture being faster than the world, not a defect in the check.
+sleep 1
+mkdir -p "$MTR/graphify-out" && printf '{}\n' > "$MTR/graphify-out/graph.json"
+has "and ok once a graph newer than the last commit exists"     "$(_mst "$MTR")" "ok	graphify"
+( cd "$MTR" && printf 'y\n' > b.txt && git add -A && git -c user.name=t -c user.email=t@t commit -qm later ) >/dev/null 2>&1
+sleep 1
+has "and due again after a commit the graph has not seen"       "$(_mst "$MTR")" "due	graphify"
+# And the command renders a checked row as a fact, not as a clock. The ok
+# branch printed `${age}d ago  every ${cadence}d`, which for a checked event
+# row came out as `-d ago  every 0d` — a number nobody wrote, in a row that
+# is about whether a check passed.
+# Saved and put back: the widget's table is built by an earlier section and
+# read by later ones, and a fixture left holding this section's rows would
+# change what those sections see without any of them saying so.
+cp "$FROOT/projects/widget/maintenance.tsv" "$TMP/maint.keep"
+printf 'graphify\t0\talways\tthe map\ttest -f WIDGET.txt\n' > "$FROOT/projects/widget/maintenance.tsv"
+out="$(cd "$REPO" && "$FELIX" maintenance 2>&1)"
+has "felix maintenance renders a passing check as such"   "$out" "check passed"
+printf 'graphify\t0\talways\tthe map\ttest -f nothing-here\n' > "$FROOT/projects/widget/maintenance.tsv"
+out="$(cd "$REPO" && "$FELIX" maintenance 2>&1)"
+has "and a failing one as due for that reason"             "$out" "check failed"
+case "$out" in
+  *"-d ago"*|*"every 0d"*) bad "and never as a clock reading nobody wrote" "$out" ;;
+  *)                       ok  "and never as a clock reading nobody wrote" ;;
+esac
+cp "$TMP/maint.keep" "$FROOT/projects/widget/maintenance.tsv"
 
 printf '\nthe pulse: the heartbeat that does not wait for a session\n'
 # Memory backup was as current as the last time somebody typed the command —

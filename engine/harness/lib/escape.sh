@@ -41,7 +41,7 @@ FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null 
 # Enforcing tables: the files that decide what stops. Shrinking one is the edit
 # that cannot be checked by the thing it shrank, because a green produced by a
 # narrowed judge certifies itself. Named by shape, not by project.
-FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json'
+FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json ecosystem.tsv'
 
 # Merging this causes a job to run holding whatever secrets the repository has.
 # The revert restores the YAML. It does not un-run the job or un-read the key.

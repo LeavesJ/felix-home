@@ -317,6 +317,151 @@ else
   pass independence
 fi
 
+# ------------------------------------------------------------- ecosystem -----
+# Invariant 1, the half the name check cannot see.
+#
+# The block above proves the engine names no governed PROJECT. A detector under
+# engine/harness hard-coded to FastAPI route decorators and an Anthropic client
+# construction site contains no project name, passes it, and encodes exactly one
+# project's shape into an engine whose whole claim is that it holds none. That
+# is a design that was drafted for Felix, and it would have shipped. Same
+# invariant, same sentence, one level up from the name.
+#
+# The words are enumerated off reality the way the names are, and reality here
+# is the engine's own capability probe: every alternation token inside a
+# _felix_dep_grep call in lib/detect.sh. Teaching the probe a new framework arms
+# this check for it in the same commit, which is the property #85 bought - a
+# hand-kept list is a list that stops matching what exists.
+#
+# A naive ban breaks the build and would deserve to: lib/detect.sh legitimately
+# greps manifests for fastapi, stripe, sentry and supabase, because a capability
+# probe naming many ecosystems symmetrically is how it stays neutral. So the
+# boundary is declared per file, with a written reason, in engine/harness/ecosystem.tsv,
+# in the same style as deny.tsv and the escape tables. A probe may name
+# ecosystems; a detector that has already decided which project it is for may
+# not, and a row has to say which it is.
+#
+# Word-boundaried, and that is measured. A substring search flags `cohere`
+# inside "coherent", `vite` inside "invite" and `express` inside "expressed" in
+# the engine's own prose right now, so the naive version fails open by being
+# switched off after the third false positive.
+ECO_TABLE=engine/harness/ecosystem.tsv
+ECO_PROBE=engine/harness/lib/detect.sh
+
+# Continuation lines joined first. The model-SDK probe sits on its own line, so
+# a line-by-line read drops anthropic, openai and the rest of that vocabulary -
+# which is half the case this check exists for, silently.
+_eco_probe_words() {
+  sed -e :a -e '/\\$/N; s/\\\n//; ta' "$ECO_PROBE" 2>/dev/null \
+    | grep -oE '_felix_dep_grep "\$root" +"[^"]*(\\"[^"]*)*"' \
+    | sed -E 's/.*_felix_dep_grep "\$root" +"//; s/"$//' \
+    | sed 's/\\"\?//g' | tr '|' '\n' \
+    | sed 's/^ *//; s/ *$//' | grep -v '^$' | LC_ALL=C sort -u
+}
+# A row with no reason grants nothing. That is deliberate and it fails in the
+# safe direction for two of the three kinds: an `allow` with no reason stops
+# permitting, so the file leaks and this goes red, and a `mute` with no reason
+# stops muting, so the word comes back into the vocabulary. Only a reasonless
+# `word` row narrows, and the suite fails on any row missing a reason.
+_eco_rows() {
+  local want="$1" kind file token reason
+  [ -f "$ECO_TABLE" ] || return 0
+  while IFS=$'\t' read -r kind file token reason; do
+    case "$kind" in ''|'#'*) continue ;; esac
+    [ "$kind" = "$want" ] || continue
+    [ -n "${token:-}" ] && [ -n "${reason:-}" ] || continue
+    printf '%s\t%s\n' "$file" "$token"
+  done < "$ECO_TABLE"
+}
+
+ECO_ALLOW="$(_eco_rows allow)"
+ECO_WORDS="$( { _eco_probe_words; _eco_rows word | cut -f2 | tr '|' '\n'; } \
+              | sed 's/^ *//; s/ *$//' | grep -v '^$' | LC_ALL=C sort -u \
+              | grep -vxF -f <(_eco_rows mute | cut -f2 | tr '|' '\n' | grep -v '^$') )"
+
+# Refusing to answer beats answering from nothing, which is the lesson the
+# independence block above paid for twice. Three ways this reads the world and
+# each can come back empty without erroring: the probe can be refactored past
+# the extractor, the table can go missing, and a table with no allow rows would
+# make the whole engine leak at once rather than narrow - but the first two
+# narrow silently, and a vocabulary of nothing passes everything.
+ECO_BLIND=""
+[ -f "$ECO_PROBE" ]         || ECO_BLIND="$ECO_BLIND no-probe($ECO_PROBE)"
+[ -f "$ECO_TABLE" ]         || ECO_BLIND="$ECO_BLIND no-table($ECO_TABLE)"
+[ -n "$(_eco_probe_words)" ] || ECO_BLIND="$ECO_BLIND probe-yielded-no-words"
+[ -n "$ECO_WORDS" ]          || ECO_BLIND="$ECO_BLIND empty-vocabulary"
+
+# Does a row permit this file to say this word? `*` is the probe's row.
+_eco_allowed() {
+  local f="$1" w="$2" rf rt
+  while IFS=$'\t' read -r rf rt; do
+    [ "$rf" = "$f" ] || continue
+    [ "$rt" = '*' ] && return 0
+    case "|$rt|" in *"|$w|"*) return 0 ;; esac
+  done <<EOF
+$ECO_ALLOW
+EOF
+  return 1
+}
+
+ECO_LEAK=""
+if [ -z "$ECO_BLIND" ] && [ -z "$INDEP_BLIND" ]; then
+  while IFS= read -r w; do
+    [ -n "$w" ] || continue
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      rel="${f#engine/harness/}"
+      _eco_allowed "$rel" "$w" || ECO_LEAK="$ECO_LEAK
+$rel names $w"
+    done <<EOF
+$(git grep -lwniE -- "$w" $INDEP_PATHS 2>/dev/null)
+EOF
+  done <<EOF
+$ECO_WORDS
+EOF
+fi
+
+# A row that no longer matches is a claim about a surface that is gone. Reported
+# beside the verdict rather than failing: pruning it is somebody's judgement,
+# and a check that fails on stale prose gets deleted. Reported at all because a
+# surface built to report gaps that cannot report its own is an instance
+# wearing a system's clothes (#125).
+ECO_STALE=""
+if [ -z "$ECO_BLIND" ]; then
+  while IFS=$'\t' read -r rf rt; do
+    [ -n "${rt:-}" ] || continue
+    [ "$rt" = '*' ] && continue
+    if [ ! -e "engine/harness/$rf" ]; then
+      ECO_STALE="$ECO_STALE $rf(gone)"
+    elif ! git grep -lwqiE -- "$rt" -- "engine/harness/$rf" >/dev/null 2>&1; then
+      ECO_STALE="$ECO_STALE $rf:$rt"
+    fi
+  done <<EOF
+$ECO_ALLOW
+EOF
+fi
+
+if [ -n "$ECO_BLIND" ]; then
+  fail ecosystem
+  printf '    cannot answer:%s\n' "$ECO_BLIND"
+  printf '    the words are read off %s and the reasons off %s;\n' "$ECO_PROBE" "$ECO_TABLE"
+  printf '    with either missing this would pass by having nothing to check.\n'
+elif [ -n "$INDEP_BLIND" ]; then
+  fail ecosystem
+  printf '    cannot search:%s\n' "$INDEP_BLIND"
+  printf '    same blindness as independence above, and the same verdict.\n'
+elif [ -n "$ECO_LEAK" ]; then
+  fail ecosystem
+  printf '    the engine hard-codes an ecosystem with no declared reason:\n'
+  printf '%s\n' "$ECO_LEAK" | grep -v '^$' | head -10 | sed 's/^/      /'
+  printf '    a capability probe may name one. A detector that encodes one\n'
+  printf '    stack has already chosen its project. Declare it in %s\n' "$ECO_TABLE"
+  printf '    with the reason, or stop naming it.\n'
+else
+  pass ecosystem
+  [ -n "$ECO_STALE" ] && printf '                     stale rows, no longer matching:%s\n' "$ECO_STALE"
+fi
+
 # ------------------------------------------------------------- probes -------
 # What this checkout actually contains, asked of the thing that knows.
 #

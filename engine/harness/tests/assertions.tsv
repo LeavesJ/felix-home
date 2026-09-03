@@ -56,6 +56,7 @@
 1	a denied command exits 2
 1	a deployed engine resolves the checkout, not itself
 1	a detached HEAD is refused in words
+1	a detector hard-coded to one stack is caught
 1	a devlog entry newer than the catch settles it too
 1	a different repository is still checked
 1	a directory declaring project.json is enumerated
@@ -340,6 +341,7 @@
 1	an unconsidered moment is named
 1	an undeclared capability is still never scored
 1	an undeclared tool is reported, not hidden
+1	an unenforceable probe word is muted on the record
 1	an ungoverned repo is allowed
 1	an unknown routine is refused
 1	an unmerged index is refused whatever wrote it (cherry)
@@ -483,6 +485,7 @@
 1	and keeps the prompt that caused it
 1	and keeps the session it was said in
 1	and launchd was handed the agent
+1	and matches an ecosystem word on a word boundary
 1	and matches on keywords, not just names
 1	and merge does not call it an unscanned diff
 1	and names a handoff when the repo has one
@@ -526,6 +529,7 @@
 1	and not the irrelevant one
 1	and not the one that was pointed at
 1	and not the pairs the runtime owns
+1	and nothing else is muted, because muting is how this narrows quietly
 1	and nothing is left uncommitted under it
 1	and nothing is merged
 1	and nothing is merged when it lands there
@@ -560,10 +564,12 @@
 1	and quotes what it said
 1	and re-rolling a session replaces its old rows
 1	and reads as a requirement
+1	and reads its words off the capability probe
 1	and reads only mcp rows
 1	and records the failure without being asked
 1	and refuses in gate mode as well
 1	and refuses instead of ignoring it
+1	and refuses to answer when the probe yields no words
 1	and refuses to spend past the ceiling
 1	and refuses with no issue and no input
 1	and reports a clear merge without performing one
@@ -662,6 +668,7 @@
 1	and the gate still runs through it
 1	and the gate's code names no project literally
 1	and the hook still exits 0 there
+1	and the independence check above it sees nothing wrong with that file
 1	and the index holds no gitlink afterwards
 1	and the instrument is appended as the ninth
 1	and the lesson is in the same block
@@ -669,6 +676,7 @@
 1	and the merge is left exactly where the person left it
 1	and the message does not accuse the subagent
 1	and the monitor still renders the sentence, not the JSON around it
+1	and the mute is a row, not a silent omission
 1	and the page has a panel for it
 1	and the person's staged selection is untouched
 1	and the placeholder stays a placeholder
@@ -784,6 +792,7 @@
 1	every capability detection can adopt has a discovery rule
 1	every decision is logged
 1	every decision is recorded
+1	every ecosystem row carries a written reason
 1	every route matches its own name
 1	every row carries the command that clears it
 1	exactly one declaration from that cache
@@ -839,6 +848,7 @@
 1	ignores a file that does not exist
 1	including fields after it
 1	including one that failed alongside another
+1	including the model-SDK probe, which sits on a continued line
 1	including the second one
 1	including what prompted each utterance
 1	inspect still counts the skills
@@ -893,6 +903,7 @@
 1	never retires what no route ever named
 1	never the transcript in the envelope
 1	new refuses a flag as a project name
+1	no allow row claims a surface that no longer names it
 1	no deny.tsv means nothing is denied
 1	no entry is listed twice
 1	no evidence rule requires a pattern that matches everything
@@ -1059,8 +1070,12 @@
 1	the cache row carries the capability the skills serve
 1	the cache-side arm is present in the gate's copy
 1	the capabilities file is untouched
+1	the capability probe yields ecosystem words to check for
 1	the cause is not the raw payload
 1	the data marker is substituted
+1	the ecosystem check is behind the verifier confine
+1	the ecosystem table is an enforcing table, and escape.sh says so
+1	the engine names no ecosystem without a declared reason
 1	the engine names no governed project
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
@@ -1070,6 +1085,7 @@
 1	the fixture really has a base ref behind its remote
 1	the fixture really staged a merge in progress
 1	the founder's item is not buried
+1	the gate carries the ecosystem check too
 1	the gate refuses to answer on a path it cannot search
 1	the gate's installed check covers the same three directories
 1	the handoff carries no file comments
@@ -1139,10 +1155,12 @@
 1	the tests check is behind the verifier confine
 1	the widget's table is exactly as this section found it
 1	the widget's tables are as this block found them
+1	the words are read off lib/detect.sh, not carried as a literal
 1	the workflow invokes felix
 1	the working tree alone can route
 1	their declared gate runs and passes
 1	their high-risk rows are blocked too
+1	there are declared ecosystem rows to judge
 1	there is at least one governed project to check for
 1	there is no --yes
 1	three groups from four tasks

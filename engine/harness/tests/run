@@ -722,6 +722,19 @@ has "an unrecognised file is yellow, never green" "$out" "tier:  yellow"
 has "and says why"                                "$out" "no rule matched"
 _reset
 
+# The marker decides which project governs a checkout, and the template rated
+# it GREEN until 2026-09-03 — the one tier that can auto-merge. So the single
+# file that can switch the floor off for a whole repository was the file least
+# likely to be looked at on the way in.
+#
+# Edited without changing which project it names, because classification is a
+# judgement about the path and the fixture still has to resolve while the CLI
+# runs.
+printf 'widget\n\n' > "$REPO/.felix"; _stage
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+has "the project marker classifies red, never green" "$out" "tier:  red"
+_reset
+
 printf 'api_key = "sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAA"\n' > "$REPO/cfg.py"; _stage
 out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
 has "a credential in added lines classifies red" "$out" "tier:  red"
@@ -863,6 +876,14 @@ _reset
 # restores the YAML; it does not un-run the job or un-read the key.
 mkdir -p "$REPO/.github/workflows"; printf 'on: push\n' > "$REPO/.github/workflows/ci.yml"; _stage
 has "a workflow change escapes as execute" "$(_esc)" "execute"
+
+# The marker is the binding: break it and every hook resolves nothing, which
+# is not something a revert of the word undoes for the sessions that ran while
+# it was wrong. A tier alone would have said "look carefully" to nobody in
+# particular, so the row carries a channel and stops the merge.
+printf 'widget\n\n' > "$REPO/.felix"; _stage
+has "a change to the project marker escapes" "$(_esc)" "verifier"
+_reset
 
 # #56. The same workflow, judged against a base git cannot name. Every git error
 # in felix_changed_paths goes to /dev/null, so an unresolvable base produced no
@@ -2641,6 +2662,100 @@ NOGIT="$TMP/notgit"; mkdir -p "$NOGIT"; printf 'widget\n' > "$NOGIT/.felix"
 out="$(_stop "$NOGIT")"; rc=$?
 _allows "silent outside a git repository" "$out"
 is      "and exits 0 there too"           "$rc" "0"
+
+printf '\nthe binding itself\n'
+# `echo nonexistent > .felix` used to disable the entire floor. The marker is
+# tracked, `felix_resolve_project` returned non-zero the moment the named
+# project directory was missing, and every hook reads a non-zero resolve as
+# "ungoverned" and exits 0. No gate, no hold, no record. `$HOME/.felix-home`
+# does the same from outside every repository, so breaking it leaves no diff to
+# review and no escape channel at all.
+#
+# The distinction this section holds, and it is the whole fix. An ABSENT
+# binding means the directory is not governed: correct, and it must keep
+# working, because Felix has to stay usable in a repository it does not govern.
+# A binding that is PRESENT and does not resolve means somebody broke it, and
+# this project's own rule is that "nothing due" and "nothing is being checked"
+# must not render identically.
+BROKEN="$TMP/brokenmarker"; mkdir -p "$BROKEN"
+( cd "$BROKEN" && git init -q -b main
+  printf 'contents\n' > WIDGET.txt
+  printf 'nonexistent\n' > .felix
+  git add -A; git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
+BROKEN="$(cd "$BROKEN" && pwd -P)"
+
+out="$(_stop "$BROKEN")"; rc=$?
+_blocks "an unresolvable marker refuses instead of exiting clean" "$out"
+has     "and quotes the name the marker asks for"  "$out" "nonexistent"
+is      "and still returns success, so it cannot loop" "$rc" "0"
+
+# Present and naming nothing is the same fact as present and naming something
+# absent: a file exists whose entire job is to say which project governs here,
+# and it does not say one.
+printf '\n' > "$BROKEN/.felix"
+out="$(_stop "$BROKEN")"
+_blocks "an empty marker refuses too" "$out"
+
+# A refusal nothing records is indistinguishable from a hook that never ran,
+# and the project this belongs to is precisely what could not be resolved — so
+# it lands at the memory root, which belongs to no project.
+grep -q 'nonexistent' "$MEM/unresolved.log" 2>/dev/null \
+  && ok  "the refusal is recorded where no project is known" \
+  || bad "the refusal is recorded where no project is known" "nothing in $MEM/unresolved.log"
+
+# The half that must not regress. No marker at all, no remote to match: this is
+# a repository Felix does not govern, and silence is the correct answer even
+# with unverified work sitting in the tree.
+NOMARK="$TMP/nomarker"; mkdir -p "$NOMARK"
+( cd "$NOMARK" && git init -q -b main && printf 'x\n' > a.txt
+  git add -A; git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
+printf 'unverified\n' >> "$NOMARK/a.txt"
+out="$(_stop "$NOMARK")"; rc=$?
+_allows "an absent marker still means ungoverned" "$out"
+is      "and exits 0 with the tree dirty"         "$rc" "0"
+
+# And a marker that resolves is never the broken one, whatever else the hook
+# decides about the tree.
+printf 'widget\n' > "$BROKEN/.felix"
+out="$(_stop "$BROKEN")"
+case "$out" in
+  *"does not resolve"*) bad "a marker that resolves is not called broken" "$out" ;;
+  *)                    ok  "a marker that resolves is not called broken" ;;
+esac
+
+# The home pointer, which is the same defect one level up and worse: it sits
+# outside every repository, so changing it produces no diff, no classification
+# and nothing for a reviewer to see.
+POINTHOME="$TMP/pointerhome"; mkdir -p "$POINTHOME" "$TMP/not-a-felix-home"
+_stop_as_home() {
+  ( cd "$1" && printf '%s' "$EMPTY_JSON" | env -u FELIX_HOME HOME="$2" "$STOP" 2>&1 )
+}
+printf '%s\n' "$TMP/not-a-felix-home" > "$POINTHOME/.felix-home"
+out="$(_stop_as_home "$GREPO" "$POINTHOME")"
+_blocks "a home pointer naming something that is not a home refuses" "$out"
+has     "and says which directory it was sent to" "$out" "not-a-felix-home"
+
+printf '%s\n' "$TMP/no-such-directory-at-all" > "$POINTHOME/.felix-home"
+out="$(_stop_as_home "$GREPO" "$POINTHOME")"
+_blocks "so does a pointer naming a directory that is gone" "$out"
+
+# Absent is absent here too. With no pointer the resolver falls back the way it
+# always has, and nothing about that is broken.
+rm -f "$POINTHOME/.felix-home"
+out="$(_stop_as_home "$GREPO" "$POINTHOME")"
+case "$out" in
+  *"is not a Felix home"*) bad "an absent pointer is not a broken pointer" "$out" ;;
+  *)                       ok  "an absent pointer is not a broken pointer" ;;
+esac
+
+# A pointer that names a real home is the ordinary case and must stay quiet.
+printf '%s\n' "$FROOT" > "$POINTHOME/.felix-home"
+out="$(_stop_as_home "$GREPO" "$POINTHOME")"
+case "$out" in
+  *"is not a Felix home"*) bad "a pointer to a real home is left alone" "$out" ;;
+  *)                       ok  "a pointer to a real home is left alone" ;;
+esac
+rm -f "$POINTHOME/.felix-home"
 
 # A project that declares no gate has nothing to enforce, and inventing an
 # obligation for it would make Felix unusable on a repo mid-onboarding.

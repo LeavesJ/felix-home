@@ -28,6 +28,7 @@
 1	a capability some route names is a keyword problem
 1	a cargo crate is a rust project
 1	a change that does not touch the engine is not called self-judgement
+1	a change to the project marker escapes
 1	a check named as the head of a path is found
 1	a check that has actually failed is an item
 1	a checkout inside the verification is caught too
@@ -89,6 +90,7 @@
 1	a green row cannot demote the diff that adds it
 1	a green row for a previously unruled path does not green it either
 1	a half-written character does not fail the whole report
+1	a home pointer naming something that is not a home refuses
 1	a hook nobody explained is caught
 1	a hook that stopped being wired is caught
 1	a hooks.json that never deployed is not certified
@@ -104,6 +106,7 @@
 1	a machine without launchd is refused, not half-served
 1	a malformed row is skipped, others still deny
 1	a malformed row is skipped, others still match
+1	a marker that resolves is not called broken
 1	a marketplaces path is one too
 1	a matching test closes the gap
 1	a medium one is refused
@@ -156,6 +159,7 @@
 1	a play naming a superstring does not name its prefix
 1	a plugin cache is never treated as home
 1	a plugin that cannot be checked is not a clean bill
+1	a pointer to a real home is left alone
 1	a project bounded only by content rules reports the bound
 1	a project with no declared gate is left alone
 1	a project with red paths reports the scope bound
@@ -268,11 +272,14 @@
 1	always is a profile, not a wildcard
 1	an SDK dependency makes it an llm project
 1	an absent gate receipt reads as absent, not as green
+1	an absent marker still means ungoverned
+1	an absent pointer is not a broken pointer
 1	an all-structural gate still fails
 1	an always row is not flagged
 1	an ancient run counts as due again
 1	an argument it cannot honour merges nothing
 1	an empty base is not reported as unknown
+1	an empty marker refuses too
 1	an empty path is not a copy
 1	an empty payload is not machine text
 1	an empty play is replaced, not appended to
@@ -325,6 +332,7 @@
 1	an unresolvable base is not an empty changeset
 1	an unresolvable base is not an evidence all-clear
 1	an unresolvable base never labels a pr green
+1	an unresolvable marker refuses instead of exiting clean
 1	an unruled capability is named
 1	an unstacked branch reports exactly what it changed
 1	an untested change blocks, naming the evidence owed
@@ -386,6 +394,7 @@
 2	and exits 0
 2	and exits 0 there
 1	and exits 0 there too
+1	and exits 0 with the tree dirty
 1	and exits 3, distinctly
 1	and explains why it now matters
 1	and filters residue through the same ignore rule
@@ -502,6 +511,7 @@
 1	and picks the capability the skills serve
 1	and prose counts single
 1	and pushed, and the push is verified
+1	and quotes the name the marker asks for
 1	and quotes what it said
 1	and re-rolling a session replaces its old rows
 1	and reads as a requirement
@@ -543,6 +553,7 @@
 1	and says what would have to change
 1	and says which base it could not resolve
 1	and says which channel
+1	and says which directory it was sent to
 1	and says which projects it knows
 1	and says which rule
 1	and says which variable it sends
@@ -570,6 +581,7 @@
 1	and still offers the handoff
 1	and still proposes from the record
 1	and still resolves when the root is spelled the other way
+1	and still returns success, so it cannot loop
 1	and still says which step went unused
 1	and still verifies when the source really does match
 1	and stops once something is written
@@ -941,6 +953,7 @@
 1	skills only is low
 1	skips runbooks for absent capabilities
 1	so a path-valued key the list never heard of does not decide the route
+1	so does a pointer naming a directory that is gone
 1	so no false unmount is proposed from it
 1	so the branch is not blamed for what the remote already had
 1	so the session count is the number of sessions
@@ -1015,12 +1028,14 @@
 1	the plugins cache root is composed with, not read as ours
 1	the pointer file beats a sibling projects/
 1	the pre-flight runs clean under bash
+1	the project marker classifies red, never green
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
 1	the quiet control did bind its project
 1	the readiness report runs at all
 1	the reason is durable in decisions.log
 1	the receipt names what granted the authority
+1	the refusal is recorded where no project is known
 1	the registry says where the engine is served from
 1	the remote actually holds the commit
 1	the removed file still exists somewhere

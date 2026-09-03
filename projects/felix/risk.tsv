@@ -23,6 +23,13 @@
 # channel that no project can demote, because merging one runs the job holding
 # every secret the repository has.
 red	path	^engine/harness/hooks/	runs in every session of every governed project
+# The marker is the binding itself: it names which project governs this
+# checkout, and every hook resolves through it before it can enforce
+# anything. One line naming a project that does not exist used to buy no
+# gate, no hold and no record, and the table said nothing about the file
+# that did it. It carries a channel because a revert restores the word and
+# does not un-run the sessions that went unchecked while it was wrong.
+red	path	^\.felix$	names which project governs this checkout, and every hook resolves through it	verifier
 red	path	^engine/hooks/	decides which hooks run at all; a bad edit here silently disables every enforcement Felix has
 red	path	^engine/harness/lib/	sourced by the CLI and by every hook
 red	path	^engine/\.claude-plugin/	the version here decides whether anything deploys at all

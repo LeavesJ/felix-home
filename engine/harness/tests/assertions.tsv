@@ -108,6 +108,7 @@
 1	a malformed row is skipped, others still deny
 1	a malformed row is skipped, others still match
 1	a malformed row stops the gate rather than only being listed
+1	a marker that resolves gets the normal context
 1	a marker that resolves is not called broken
 1	a marketplaces path is one too
 1	a matching test closes the gap
@@ -299,6 +300,7 @@
 1	always is a profile, not a wildcard
 1	an SDK dependency makes it an llm project
 1	an absent gate receipt reads as absent, not as green
+1	an absent marker is still silent at session start
 1	an absent marker still means ungoverned
 1	an absent pointer is not a broken pointer
 1	an all-structural gate still fails
@@ -308,6 +310,7 @@
 1	an append that succeeded and wrote nothing is reported as a failure too
 1	an argument it cannot honour merges nothing
 1	an empty base is not reported as unknown
+1	an empty marker is reported at session start too
 1	an empty marker refuses too
 1	an empty path is not a copy
 1	an empty payload is not machine text
@@ -428,6 +431,7 @@
 1	and every line is a whole row
 1	and evidence does too
 2	and exits 0
+1	and exits 0 in a repository Felix does not govern
 2	and exits 0 there
 1	and exits 0 there too
 1	and exits 0 with the tree dirty
@@ -556,7 +560,7 @@
 1	and prints the state rather than a verdict
 1	and prose counts single
 1	and pushed, and the push is verified
-1	and quotes the name the marker asks for
+2	and quotes the name the marker asks for
 1	and quotes what it said
 1	and re-rolling a session replaces its old rows
 1	and reads as a requirement
@@ -581,6 +585,7 @@
 1	and says it did
 1	and says it is recording only
 1	and says it must be fixed before the next session
+1	and says it where the founder can see it
 1	and says not to fix it unattended
 1	and says nothing about it afterwards
 1	and says nothing below the session threshold
@@ -630,6 +635,7 @@
 1	and states the tier
 1	and stays small
 1	and stays to one line
+1	and still exits 0, because start cannot refuse
 1	and still offers the handoff
 1	and still proposes from the record
 1	and still resolves when the root is spelled the other way
@@ -1010,6 +1016,8 @@
 1	sees a credential in an untracked new file
 1	sees a plugin a route already names
 1	self-contained, no external references
+1	session start reports a broken home pointer
+1	session start reports an unresolvable marker
 1	session start surfaces the reconcile proposals
 1	session-start sources autonomy.sh
 1	session-start sources ledger.sh

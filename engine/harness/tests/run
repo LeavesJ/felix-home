@@ -2780,6 +2780,69 @@ case "$out" in
 esac
 rm -f "$POINTHOME/.felix-home"
 
+# The other half of the same hole, and the half a session meets FIRST.
+#
+# hooks/stop refuses a broken binding, so a session that has one runs
+# completely unprotected and only finds out at the very end. Every other hook
+# still reads a non-zero resolve as "ungoverned" and exits 0, so the start of
+# the session — the one other moment this project's doctrine allows Felix to
+# speak — said nothing at all.
+#
+# It reports; it does not refuse. session-start is a pure text channel with no
+# decision to make and no way to strand anybody, which is what makes it safe to
+# speak from at the earliest point the fact can be known. PreToolUse is the
+# tempting third place and is deliberately not wired: the remedy for a broken
+# binding is editing the marker or running felix install, so a refusal there
+# would refuse its own repair, with no stop_hook_active cap and no
+# FELIX_ALLOW_RED to escape through.
+_start() { ( cd "$1" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1 ); }
+_start_as_home() {
+  ( cd "$1" && env -u FELIX_HOME HOME="$2" CLAUDE_PLUGIN_ROOT="$FROOT" \
+      "$FROOT/harness/hooks/session-start" 2>&1 )
+}
+
+printf 'nonexistent\n' > "$BROKEN/.felix"
+out="$(_start "$BROKEN")"; rc=$?
+has "session start reports an unresolvable marker"   "$out" "does not resolve"
+has "and quotes the name the marker asks for"        "$out" "nonexistent"
+is  "and still exits 0, because start cannot refuse" "$rc"  "0"
+# additionalContext reaches the model and never the terminal. A founder whose
+# floor is switched off learns nothing from a channel they cannot see, and this
+# is the one surface Felix has to tell them.
+has "and says it where the founder can see it"       "$out" "systemMessage"
+
+printf '\n' > "$BROKEN/.felix"
+out="$(_start "$BROKEN")"
+has "an empty marker is reported at session start too" "$out" "does not resolve"
+
+# The pointer is the worse surface: it sits outside every repository, so
+# breaking it leaves no diff, and it decides which home the marker below is
+# resolved against.
+printf '%s\n' "$TMP/not-a-felix-home" > "$POINTHOME/.felix-home"
+out="$(_start_as_home "$GREPO" "$POINTHOME")"
+has "session start reports a broken home pointer" "$out" "is not a Felix home"
+rm -f "$POINTHOME/.felix-home"
+
+# The half that must not regress, and it is the whole reason this reports
+# rather than refuses. An absent marker is a repository Felix does not govern,
+# and a hook that spoke there would make Felix unusable everywhere it has not
+# been adopted.
+out="$(_start "$NOMARK")"; rc=$?
+case "$out" in
+  *"does not resolve"*) bad "an absent marker is still silent at session start" "$out" ;;
+  *)                    ok  "an absent marker is still silent at session start" ;;
+esac
+is "and exits 0 in a repository Felix does not govern" "$rc" "0"
+
+# And a binding that resolves gets the ordinary governed context, not this.
+printf 'widget\n' > "$BROKEN/.felix"
+out="$(_start "$BROKEN")"
+case "$out" in
+  *"does not resolve"*)           bad "a marker that resolves gets the normal context" "$out" ;;
+  *"Felix governs this session"*) ok  "a marker that resolves gets the normal context" ;;
+  *)                              bad "a marker that resolves gets the normal context" "$out" ;;
+esac
+
 # A project that declares no gate has nothing to enforce, and inventing an
 # obligation for it would make Felix unusable on a repo mid-onboarding.
 mkdir -p "$FROOT/projects/nogate" "$MEM/nogate"

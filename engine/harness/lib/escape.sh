@@ -36,12 +36,21 @@ if ! command -v felix_changed_paths >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
 
+# Same idiom, and the same argument one notch stronger: what the probe library
+# contributes to felix_merge_blockers is a REFUSAL, and a caller that forgot the
+# import would lose it. The guard below still stands for the case this cannot
+# fix — an engine shipped without the file at all — which fails closed rather
+# than passing quietly.
+if ! command -v felix_probes_run >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/probes.sh" 2>/dev/null
+fi
+
 FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null && pwd)/secret-scan"
 
 # Enforcing tables: the files that decide what stops. Shrinking one is the edit
 # that cannot be checked by the thing it shrank, because a green produced by a
 # narrowed judge certifies itself. Named by shape, not by project.
-FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json'
+FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv'
 
 # Merging this causes a job to run holding whatever secrets the repository has.
 # The revert restores the YAML. It does not un-run the job or un-read the key.
@@ -311,4 +320,31 @@ felix_merge_blockers() {
         [ "${status:-}" = "gap" ] || continue
         printf 'evidence\t%s\t%s\n' "$name" "$reason"
       done
+
+  # probes: the merge boundary is the third place the empty case is refused,
+  # and the strongest one Felix reaches without a network. A branch may not
+  # land while the project reads nothing from reality, or while a probe cannot
+  # see a surface a witness proves is there.
+  #
+  # Fails closed on a missing library rather than skipping. The `reviewed`
+  # lookup above guards itself with command -v because what it does is WIDEN —
+  # skipping it withholds a clearance, which is safe. Skipping this would drop
+  # a blocker, and an engine that cannot evaluate probes has not established
+  # that there is nothing to block on; it has established nothing.
+  if ! command -v felix_probes_run >/dev/null 2>&1; then
+    printf 'probes\tengine\tthe probe library is not loaded, so nothing was asked of reality\n'
+  elif [ ! -f "$proj/probes.tsv" ]; then
+    printf 'probes\ttable\tthis project asks reality nothing; write %s/probes.tsv\n' "$proj"
+  elif [ -z "$(felix_probe_rows "$proj")" ]; then
+    printf 'probes\ttable\t%s/probes.tsv declares no probe, which is a shelf with nothing on it\n' "$proj"
+  else
+    felix_probes_run "$proj" "$root" | felix_probes_blocking \
+      | while IFS= read -r line; do
+          [ -n "$line" ] || continue
+          printf 'probes\t%s\t%s: %s\n' \
+            "$(printf '%s\n' "$line" | cut -f1)" \
+            "$(printf '%s\n' "$line" | cut -f3)" \
+            "$(printf '%s\n' "$line" | cut -f5)"
+        done
+  fi
 }

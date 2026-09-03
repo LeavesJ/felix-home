@@ -38,6 +38,7 @@
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
 1	a content difference is still a drift
+1	a count that is not a number is reported rather than passed over
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
 1	a credential in added lines escapes as disclose
@@ -104,10 +105,12 @@
 1	a machine without launchd is refused, not half-served
 1	a malformed row is skipped, others still deny
 1	a malformed row is skipped, others still match
+1	a malformed row stops the gate rather than only being listed
 1	a marketplaces path is one too
 1	a matching test closes the gap
 1	a medium one is refused
 1	a merge in progress is a person's, and the pulse says so
+1	a merge is blocked while the project reads nothing from reality
 1	a merge stopped for the founder is recorded as one
 1	a mid-session route change does not render
 1	a migration classifies red
@@ -156,8 +159,21 @@
 1	a play naming a superstring does not name its prefix
 1	a plugin cache is never treated as home
 1	a plugin that cannot be checked is not a clean bill
+1	a predicate that was being read and no longer is gets named
+1	a predicate whose state changed is reported as a state change
+1	a predicate with fewer members than the last tree is named
+1	a predicate with more members than the last tree is named too
+1	a predicate with no prior record is named as new
+1	a probe grounding a surface nothing enumerates is named
+1	a probe that enumerates members is found
+1	a probe that invents its members is indistinguishable from one that found them
+1	a probe that printed members and then failed is unknown, not found
+1	a probe that reads stdin returns instead of hanging the gate
+1	a probe whose command does not exist is unknown
+1	a probes.tsv holding no rows is refused too
 1	a project bounded only by content rules reports the bound
 1	a project with no declared gate is left alone
+1	a project with no probes.tsv declares no probes
 1	a project with red paths reports the scope bound
 1	a prompt with no session id records no ledger state
 1	a prompt with no signal says nothing
@@ -201,13 +217,19 @@
 1	a row naming no moment does not close its gap
 1	a row naming no real capability is caught
 1	a row nobody named carries no stray line
+1	a row switched off by its when column is reported as not applying
+1	a row that does not apply here claims nothing
+1	a row with more fields than the format has is malformed
+1	a row with no command is reported as recording nothing
 1	a rule naming Edit does not deny a Write
 1	a rule never matches file content
 1	a rule that refuses everything is refused as a rule
+1	a run compared against its own tree reports nothing
 1	a run nobody could read does not count as clean
 1	a runbook prints in full
 1	a satisfied step reports done
 1	a second hand-off in the same session stays quiet
+1	a second run appends rather than replacing
 1	a session reports what was named and what was followed
 1	a session that changed nothing stops silently
 1	a short name is not turned into a keyword
@@ -225,6 +247,7 @@
 1	a state file from before this existed complains, as it did
 1	a structural failure still fails the gate
 1	a surface detected in the tree is an item even if nobody declared it
+1	a surface the checkout has and no probe reads is a gap
 1	a table declaring the reserved channel still stops the merge
 1	a table in a different repository resolves to nothing
 1	a table outside the classified repo is still read once, at HEAD
@@ -271,15 +294,19 @@
 1	an all-structural gate still fails
 1	an always row is not flagged
 1	an ancient run counts as due again
+1	an append that did not happen is reported as a failure
+1	an append that succeeded and wrote nothing is reported as a failure too
 1	an argument it cannot honour merges nothing
 1	an empty base is not reported as unknown
 1	an empty path is not a copy
 1	an empty payload is not machine text
 1	an empty play is replaced, not appended to
+1	an engine shipped without the probe library blocks rather than passing
 1	an engine that is a checkout is its own source
 1	an engine under that path can deploy
 1	an envelope field name never does
 1	an escape is named as the founder's
+1	an established fact is classed OBSERVED
 1	an event-driven routine is not due
 1	an excuse elsewhere does not defuse, sample 1
 1	an excuse elsewhere does not defuse, sample 2
@@ -344,6 +371,7 @@
 1	and a gitignored stray in the cache is too
 1	and a high one is refused
 1	and a live one says when it was last caught
+1	and a probe that failed against a real surface is blind too
 1	and a project with none does not claim it
 1	and a real one still routes
 1	and a red run at the head means zero
@@ -361,10 +389,13 @@
 1	and again, so a session can bump twice
 1	and an older one does not
 1	and an ordinary product repository is not
-1	and an unknown flag is refused rather than ignored
+2	and an unknown flag is refused rather than ignored
 1	and bin/ is in the searched set, because the gate runs it
+1	and blocked by a probe that cannot see what a witness proves is there
+1	and blocked by a row nothing could establish at all
 1	and both paths in one sentence are found
 1	and briefs the file it names
+1	and calls an absent surface empty rather than blind
 1	and carries the decline channel
 1	and changes when the tree changes
 1	and claims nothing about surfaces it never compared
@@ -393,14 +424,19 @@
 1	and from a worktree of the same repository
 1	and from the first copy of the key, not a later one
 1	and gains its own name as a keyword
+1	and grounding it closes the gap
 1	and handed the cron line instead
 1	and hands it a pull request to merge
 1	and ignores the path so it cannot come back
 1	and is clean when the three directories agree
 1	and is left exactly as it was
 1	and is marked unknown rather than unmet
+1	and is named
+1	and is named as a shelf with nothing on it
 1	and is not a routing gap either; it is unknown
 1	and is not called agreement
+1	and is not run as though it were a probe
+1	and is not run half-read
 1	and is silent when there is none
 1	and it does not repeat within a session
 1	and it enumerates declared projects, not directory entries
@@ -446,7 +482,7 @@
 1	and names the habit
 1	and names the hook
 1	and names the play in order
-2	and names the project
+3	and names the project
 1	and names the source tree it compared
 1	and names the table
 1	and names the working tree rather than the checkout
@@ -486,9 +522,11 @@
 1	and nothing was written
 1	and nothing was written to the real felix home pointer
 1	and now names each one it found
+1	and one grounding a real surface is not
 1	and one in a double-backtick span
 1	and one named once carries one
 1	and one no route names
+1	and one nothing established is classed UNKNOWN
 1	and one that shares nothing stands alone
 1	and one that was not is still not
 1	and one unknown path taints a green set
@@ -500,6 +538,7 @@
 1	and paint actually calls it
 1	and passes the facts it already has
 1	and picks the capability the skills serve
+1	and prints the state rather than a verdict
 1	and prose counts single
 1	and pushed, and the push is verified
 1	and quotes what it said
@@ -507,15 +546,19 @@
 1	and reads as a requirement
 1	and reads only mcp rows
 1	and records the failure without being asked
+1	and refuses in gate mode as well
 1	and refuses instead of ignoring it
 1	and refuses to spend past the ceiling
 1	and refuses with no issue and no input
 1	and reports a clear merge without performing one
+1	and reports it by name whichever way it goes
 1	and reports no severity for it
 1	and reports nothing for one it does not have
 1	and reports what has been spent
 1	and reports what is left
+1	and reports what it found
 1	and reports what nothing answers
+1	and restoring it makes the row clean again
 1	and says a long name at least scores on itself
 1	and says how many are still unusable
 1	and says it cannot be scoped
@@ -530,6 +573,7 @@
 1	and says plainly that it acted on nothing
 1	and says so
 1	and says so before the detail
+1	and says so plainly
 1	and says so plainly when none does
 1	and says so rather than implying I did
 1	and says so rather than reporting a merge
@@ -538,6 +582,7 @@
 1	and says the gate has not seen it
 1	and says the gate never ran
 1	and says the gates still apply
+1	and says what is missing rather than printing a clean report
 1	and says what is not versioned
 1	and says what it removed
 1	and says what would have to change
@@ -592,6 +637,7 @@
 1	and the drift line carries the whole name
 1	and the earlier verdict is not replaced by it
 1	and the engine writes no mistake for it
+1	and the exact command that produced it
 1	and the founder's one line says how many are due
 1	and the gate searches the same paths this does
 1	and the gate still runs through it
@@ -612,6 +658,9 @@
 1	and the record names the channel
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
+1	and the report says how many fewer
+1	and the report says how much of the table asked nothing
+1	and the report says the enumeration was partial
 1	and the repository is back to where it started
 1	and the residue is not
 1	and the rest of the file is untouched
@@ -622,6 +671,7 @@
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
 1	and the same scanner catches a planted one
+1	and the seed holds rows rather than only comments
 1	and the sentence still is
 1	and the shipped wiring matches its stance
 1	and the slug comes from the checkout's remote
@@ -704,6 +754,7 @@
 1	documentation is in scope
 1	does not demand the later steps yet
 1	dormant steps never nag
+1	each fact carries the tree it was taken from
 1	editing the same file again invalidates the receipt
 1	emits the documented UserPromptSubmit shape
 1	entries older than a day do not count
@@ -716,6 +767,7 @@
 1	every row carries the command that clears it
 1	exactly one declaration from that cache
 1	exactly one name is exempt, and it is the engine's own
+1	exactly the states that could not be established block
 1	exhausted exits 3
 1	explain shows the losing routes too
 1	extracts files from container-absolute paths
@@ -726,6 +778,9 @@
 1	felix merge reaches gh at all
 1	felix merge refuses on an escape
 1	felix new exits 0
+1	felix new seeds a probe table
+1	felix probes refuses a project that asks reality nothing
+1	felix probes reports without refusing
 1	felix procedures runs
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
@@ -839,11 +894,15 @@
 1	nor report a spend that did not happen
 1	nor the all-caps sentinel
 1	nor the stop hook talking to itself
+1	nothing found and a witness agreeing is empty
+1	nothing found where a witness proves a surface is blind
+1	nothing found with no witness is unknown, never empty
 1	nothing is allowed by default
 1	onboarding writes one
 1	one already declared is left alone
 1	one from what you typed is not
 1	one genuinely absent still reads absent
+1	one line per row is written
 1	one no route names is not
 1	one red file makes the whole diff red
 1	one red path poisons the whole set
@@ -857,6 +916,7 @@
 1	path and all
 1	pr previews and exits 0
 1	pr refuses to open a branch against itself
+1	probes.tsv is one of the tables whose shrinkage escapes
 1	promote surfaces a word that keeps missing
 1	proposes mounting what was reached and never declared
 1	proposes retiring what was mounted and never reached for
@@ -879,6 +939,7 @@
 1	reads the per-project limit
 1	recommending installs nothing
 1	reconcile answers even where no stack.tsv exists
+1	recording a run succeeds
 1	recording a run works
 1	records what it said
 1	red beats an unknown too
@@ -887,6 +948,7 @@
 1	regardless of the order given
 1	removes a copy of a file Felix holds
 1	removes an untracked copy Felix holds
+1	removing a witness turns a clean empty into a blocking unknown
 2	removing one escapes as verifier
 1	renders a page
 1	repair refuses outside a governed GitHub repo
@@ -941,8 +1003,11 @@
 1	skills only is low
 1	skips runbooks for absent capabilities
 1	so a path-valued key the list never heard of does not decide the route
+1	so a project created today is not born blocked
+1	so a project created today reads something from reality
 1	so no false unmount is proposed from it
 1	so the branch is not blamed for what the remote already had
+1	so the earlier tree is still readable
 1	so the session count is the number of sessions
 1	speaks when a catch went unexplained
 1	spending is counted
@@ -1015,6 +1080,8 @@
 1	the plugins cache root is composed with, not read as ours
 1	the pointer file beats a sibling projects/
 1	the pre-flight runs clean under bash
+1	the probes check is behind the verifier confine
+1	the project gate calls the probe check
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
 1	the quiet control did bind its project
@@ -1070,12 +1137,15 @@
 1	what a miss records is what was typed
 1	what it kept is what it sent
 1	what no route named is not a compliance figure
+1	which does not by itself fail the gate, since not applying is not a claim
 1	which is the number it printed
 1	while a complete stance is not called malformed
 1	while a mount needs no threshold: the reach already happened
+1	while a predicate that did not move is silent
 1	while a short one scores on nothing
 1	while a tool that ran keeps its calls
 1	while an owner-reduced play entry still names its plugin
+1	while gate mode turns that same state into a refusal
 1	while one at a declared moment still does
 1	while others stay due
 1	while the Felix home Felix itself resolved is its own repo
@@ -1091,6 +1161,7 @@
 1	with no session record it behaves as before
 1	with no stances taken, every item is a gap
 1	with nothing due it reports nothing
+1	with nothing on record there is nothing to compare
 1	with the critique step after it
 1	with the newlines escaped, not lost
 1	with the usage text
@@ -1098,3 +1169,4 @@
 1	without opting in, nothing is touched
 1	work the subagent committed is still checked
 1	writes a zero row for a declared tool nobody reached for
+1	zero members is two different answers depending on the witness

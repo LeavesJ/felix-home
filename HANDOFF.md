@@ -82,17 +82,19 @@ Each line produced by a command. Newest first under §0.
 | governed projects with a probe table | **3 of 3** |
 | deployed engine | 0.49.39. **This work is not in it.** |
 
-### Read this first: §0ak is not on main
+### Read this first: §0ak is directly below, and the marker bypass is FIXED
 
-The previous session's handoff — the marker bypass, the paths to the two
-governing documents, the four-kernel history — is committed on
-`claude/felix-ecc-plugin-ba2871` and was never pushed. It exists on this
-machine and nowhere else. Two things from it that must not be lost:
+When this section was written, §0ak — the previous session's handoff — existed
+only on an unpushed local branch, and the marker-bypass fix on another. Both
+have since landed: §0ak follows this section, and the fix merged as #134. Two
+things from §0ak that still govern:
 
-1. **`echo nonexistent > .felix` disables the whole floor.** A marker that is
-   present and does not resolve reads as ungoverned and the Stop hook exits 0.
-   Highest severity, and a concurrent session was building the fix when this
-   one started, which is why this session did not touch it.
+1. **`echo nonexistent > .felix` used to disable the whole floor.** Fixed in
+   #134 by a concurrent session: a marker that is present and does not resolve
+   now refuses, and `deny.tsv` refuses writing the marker by hand. Verified
+   live the same night — the primary checkout's marker had been left reading
+   `nonexistent` by a finished test, so that checkout was ungoverned until the
+   file was restored.
 2. **The architecture question is closed.** `felix_v32_architecture_spec.md`
    and `felix_v32_conformance_amendments.md`, both under
    `~/Documents/UC Berkeley/Career/Founder OS/`, outside this repository and

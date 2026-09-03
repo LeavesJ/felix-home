@@ -7,7 +7,16 @@
 # requests nobody reviews. Security-critical fixes stay separate, because
 # isolation is what makes them reviewable and shippable on their own.
 #
-# name	cadence	capability	description
+# A fifth column, optional: a CHECK. For a cadence-0 row it is a command run in
+# the checkout, exit 0 meaning not due and anything else meaning due — so an
+# event-driven row can come due from reality instead of never. Rows with four
+# columns keep working unchanged.
+#
+# The seeded graphify check compares file time to commit time at whole seconds,
+# because that is how BSD find reads -newermt. A graph written in the same
+# second as the last commit reads stale; nothing real does that.
+#
+# name	cadence	capability	description	check
 dead-code	7	always	one aggregated cleanup PR
 dependencies	7	always	grouped safe updates; majors isolated
 workflow-audit	7	ci	CI can read every secret; audit what changed
@@ -15,3 +24,4 @@ docs-drift	14	always	docs correction PR
 constitution	30	always	CLAUDE.md health; targeted, not accumulation
 architecture	30	always	drift report; update the architecture doc if warranted
 test-flake	0	ci	on repeated CI failure, with evidence
+graphify	0	always	refresh the knowledge graph after a merge; it went fifteen days stale on one project while its row read event	test -n "$(find graphify-out/graph.json -newermt "$(git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%S%z)" 2>/dev/null)"

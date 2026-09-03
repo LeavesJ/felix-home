@@ -33,6 +33,13 @@
 # own template: a verdict taken from the last stage of a pipeline instead of
 # from the question. End a witness in `grep -q .`, not in `head`.
 #
+# And make sure it proves the SURFACE, not its container. The seeded
+# `tracked_file` witness was `test -e .git`, which proves a repository exists
+# and nothing about whether it tracks a file — so a project created on a fresh
+# `git init` with no commit read `blind` and its first gate went red. The last
+# commit's tree (`git ls-tree -r HEAD`) is what proves files are tracked, and
+# it is independent of the index the probe reads.
+#
 # START THE PROBE WITH A BARE COMMAND NAME WHERE YOU CAN. The instrument that
 # answered is derived from the first word — `git ls-files` records git and a
 # token that changes when git is replaced, so a count that moves because the
@@ -50,6 +57,6 @@
 #
 # Seeded rows below read what git and the filesystem already know, so no row
 # here is a new idea. Delete what does not apply and add what does.
-tracked_file	-	-	git ls-files	test -e .git
+tracked_file	-	-	git ls-files	git ls-tree -r HEAD --name-only 2>/dev/null | grep -q .
 test_file	tests	test -e .git	git ls-files 'test*' 'tests/*' 'spec/*' '*_test.*' '*test_*'	ls -d test tests spec __tests__ 2>/dev/null | grep -q .
 ci_workflow	ci	test -e .git	git ls-files '.github/workflows/*' '.gitlab-ci.yml' 'azure-pipelines.yml'	test -d .github/workflows

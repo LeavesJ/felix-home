@@ -74,14 +74,66 @@ felix_maint_unreachable() {
   done < "$proj/maintenance.tsv"
 }
 
+# Sourced rather than assumed, the way escape.sh, probes.sh and facts.sh do it.
+# _felix_cap_active lives in stack.sh and is shared with setup.sh; sourced from
+# a caller that did not load stack.sh, this file did not error — it printed
+# "command not found" to a redirected stderr and then read every row as
+# `dormant`, which renders as a dash beside "Nothing due". A missing helper
+# that reads as a well-kept repository is the direction every verifier here
+# must not fail in, and it was found by the first test that loaded this lib on
+# its own. stack.sh's one top-level statement is a constant.
+if ! command -v _felix_cap_active >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/stack.sh"
+fi
+
+# The fifth column, and why it exists.
+#
+# A cadence of 0 means event-driven, and the format's own words are that such
+# a row "is never reported as overdue". One governed project has carried
+# `graphify  0  always  refresh the relationship map after a major merge` since
+# 2026-08-19. Its graph was built that day and never again; fifteen days and
+# two merges later the row still read `event`, and the founder found out by
+# asking why the map was never updated. A row that can never come due is the
+# lesson this project already holds — "nothing due" and "nothing is being
+# checked" rendering identically — one table over.
+#
+# So an event row may carry a CHECK: a command run in the checkout, exit 0
+# meaning "not due" and anything else meaning "due". Reality decides, not a
+# clock. A check that cannot run is non-zero, so a broken check is loud rather
+# than a quiet `ok`, which is the direction every verifier here fails in.
+#
+# Evaluated only where a checkout is known. `felix pulse` is home-scoped and
+# iterates projects with no tree in front of it, so there a checked row stays
+# `event` exactly as before — and says nothing false, because it is not
+# claiming the check passed, only that it was not asked.
 felix_maint_status() {
-  local proj="$1" now; now="$(date +%s)"
-  _felix_maint_rows "$proj" | while IFS=$'\t' read -r name cadence cap desc; do
+  local proj="$1" root="${2:-}" now; now="$(date +%s)"
+  # awk rather than `IFS=$'\t' read`, for the reason procedures.sh records: tab
+  # is an IFS whitespace character and an empty cell shifts every later column
+  # left. Rows written before this column existed have four fields and must
+  # keep working, so the fifth is filled with `-` when absent.
+  _felix_maint_rows "$proj" \
+    | awk -F'\t' '{ printf "%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, (NF >= 5 ? $5 : "-") }' \
+    | while IFS= read -r line; do
+    local name cadence cap desc check
+    name="$(printf '%s\n' "$line" | cut -f1)"
+    cadence="$(printf '%s\n' "$line" | cut -f2)"
+    cap="$(printf '%s\n' "$line" | cut -f3)"
+    desc="$(printf '%s\n' "$line" | cut -f4)"
+    check="$(printf '%s\n' "$line" | cut -f5)"
     [ -n "${name:-}" ] || continue
     if ! _felix_cap_active "${cap:-always}" "$proj"; then
       printf 'dormant\t%s\t-\t%s\t%s\n' "$name" "${cadence:-0}" "$desc"; continue
     fi
     if [ "${cadence:-0}" -eq 0 ] 2>/dev/null; then
+      if [ -n "$check" ] && [ "$check" != "-" ] && [ -n "$root" ] && [ -d "$root" ]; then
+        if ( cd "$root" && bash -c "$check" felix-maint </dev/null >/dev/null 2>&1 ); then
+          printf 'ok\t%s\t-\t0\t%s\n' "$name" "$desc"
+        else
+          printf 'due\t%s\tcheck\t0\t%s\n' "$name" "$desc"
+        fi
+        continue
+      fi
       printf 'event\t%s\t-\t0\t%s\n' "$name" "$desc"; continue
     fi
     local last age days

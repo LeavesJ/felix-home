@@ -98,7 +98,7 @@ EOF
       [ "${st:-}" = "due" ] || continue
       _felix_next_row 4 felix "upkeep due: $nm — $desc" "felix maintenance"
     done <<EOF
-$(felix_maint_status "$proj" 2>/dev/null)
+$(felix_maint_status "$proj" "$(felix_repo_root "$PWD" 2>/dev/null)" 2>/dev/null)
 EOF
   fi
 

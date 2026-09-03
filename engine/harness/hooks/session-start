@@ -162,7 +162,7 @@ if [ -f "$PROJ/maintenance.tsv" ]; then
   # are due, and by the time this is one space-separated line `grep -c .` can
   # only ever answer 1 — which is the same defect as the one being fixed,
   # wearing a number instead of a zero.
-  _due_list="$(felix_maint_status "$PROJ" 2>/dev/null | grep '^due' | cut -f2)"
+  _due_list="$(felix_maint_status "$PROJ" "$_repo_root" 2>/dev/null | grep '^due' | cut -f2)"
   _due_n="$(printf '%s' "$_due_list" | grep -c . 2>/dev/null)"
   case "$_due_n" in ''|*[!0-9]*) _due_n=0 ;; esac
   _due="$(printf '%s' "$_due_list" | tr '\n' ' ')"

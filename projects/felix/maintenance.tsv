@@ -5,3 +5,4 @@ deployed	7	always	confirm the installed engine still matches the repository
 discover	14	always	look for tooling worth having that is not declared yet
 promote	14	always	check whether the gate has caught the same thing twice
 lessons	30	always	reread lessons.md and cut anything that stopped being true
+graphify	0	always	refresh the knowledge graph after a merge	test -n "$(find graphify-out/graph.json -newermt "$(git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%S%z)" 2>/dev/null)"

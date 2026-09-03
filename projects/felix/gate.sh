@@ -467,63 +467,6 @@ else
   [ -n "$ECO_STALE" ] && printf '                     stale rows, no longer matching:%s\n' "$ECO_STALE"
 fi
 
-# ------------------------------------------------------------- probes -------
-# What this checkout actually contains, asked of the thing that knows.
-#
-# The second of the three places the empty case is refused, and the one that
-# arms it. `procedures.tsv` shipped to three projects, no project ever wrote
-# one, and nothing in any gate called `felix procedures` — so a surface built
-# to report gaps reported nothing, forever, and read exactly like a project
-# with no gaps. A table nothing runs is a table nobody writes.
-#
-# So this fails when probes.tsv is missing, when it declares no probe, and when
-# any probe comes back `blind` or `unknown`. Blind means a witness proves a
-# surface the probe could not see. Unknown means nothing decided either way.
-# Neither is a pass, and the whole point is that they must not render as one.
-#
-# Run through the CLI rather than reimplemented here. The `installed` check
-# above is deliberately inline because it judges the deployment and must not be
-# switchable by editing the code it judges; this one judges the CHECKOUT, and
-# the tree's own engine is the right thing to ask about the tree. What keeps it
-# honest is the count confine on this file plus probes.tsv's own verifier row.
-FELIX_CLI=""
-for c in "${FELIX_BIN:-}/../felix" ./engine/harness/felix; do
-  [ -n "$c" ] && [ -x "$c" ] && { FELIX_CLI="$c"; break; }
-done
-#
-# An engine that predates this check is a SKIP, not a failure, and that
-# distinction is the difference between a check people read and one they learn
-# to ignore. `felix probes` is called on the DEPLOYED cli, and between a merge
-# and the `felix install` that follows it, that cli is the previous version —
-# which answers `unknown command: probes` with exit 1, indistinguishable from a
-# probe that came back blind. Every gate run on every project would have gone
-# red in that window, for a reason that is not about the work, and `installed`
-# already reports the same fact properly.
-#
-# Asked of the cli's own usage rather than by matching its error text: an
-# engine that has the command lists it, and a message is prose that can be
-# reworded while a command either dispatches or does not.
-if [ -z "$FELIX_CLI" ]; then
-  # Announced, never silent. A check that prints nothing when it cannot run is
-  # a check that can disappear while the report still looks complete (#77).
-  printf '  %-18s skipped (no felix CLI reachable from here)\n' probes
-elif ! "$FELIX_CLI" help 2>&1 | grep -q 'felix probes'; then
-  printf '  %-18s skipped (this engine has no probes command; see installed)\n' probes
-elif PROBES_OUT="$("$FELIX_CLI" probes --gate 2>&1)"; then
-  pass probes
-  # Each state named rather than totalled. "N of M established" would count a
-  # row that did not apply as an answer, and a row that came back empty as the
-  # same kind of thing as one that came back with members — which is the exact
-  # collapse this check exists to prevent, performed by its own summary line.
-  printf '                     %s found, %s empty, %s not applicable\n' \
-    "$(printf '%s\n' "$PROBES_OUT" | grep -cE '^  found +')" \
-    "$(printf '%s\n' "$PROBES_OUT" | grep -cE '^  empty +')" \
-    "$(printf '%s\n' "$PROBES_OUT" | grep -cE '^  not-applicable +')"
-else
-  fail probes
-  printf '%s\n' "$PROBES_OUT" | grep -vE '^  found ' | head -12 | sed 's/^/  /'
-fi
-
 # ------------------------------------------------------------- memory --------
 # Two opposite properties, and until 2026-08-14 they were one.
 #

@@ -28,7 +28,7 @@
 # Shrinking this file escapes to a person. It is in FELIX_ESCAPE_TABLES beside
 # risk.tsv and deny.tsv, and it has its own row in risk.tsv with a verifier
 # channel, because a probe removed is a fact nobody reads any more.
-tracked_file	-	-	git ls-files	test -e .git
+tracked_file	-	-	git ls-files	git ls-tree -r HEAD --name-only 2>/dev/null | grep -q .
 shell_entrypoint	-	-	git ls-files engine/harness/felix engine/harness/hooks engine/harness/bin	test -d engine/harness/hooks
 hook_binding	-	-	grep -ohE '"[A-Z][A-Za-z]+"[[:space:]]*:[[:space:]]*\[' engine/hooks/hooks.json | sed 's/"[[:space:]]*:.*//; s/"//g' | sort -u	test -s engine/hooks/hooks.json
 governed_project	-	-	ls -1 projects/*/project.json	test -d projects

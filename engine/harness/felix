@@ -505,6 +505,48 @@ cmd_gate() {
   else
     bash -c "$gate \"\$@\"" felix-gate "$@" 2>&1 | tee "$log"; rc=${PIPESTATUS[0]}
   fi
+  # Ground truth, for every project that has a table — asked by the engine
+  # rather than by each project's gate script, so no gate has to be edited to
+  # get it and none can quietly leave it out. This is the class-level form of
+  # what projects/felix/gate.sh carried alone for one night: a check that lives
+  # in one gate is an instance, and the instance had to be copied by hand.
+  #
+  # After the project's own gate and before the failure is recorded, so the
+  # project's report reads first and a probe failure lands in mistakes.log
+  # under its own name like any other check. Printed in the gate's own line
+  # shape for the same reason: the recorder below keys on `<name> FAIL`.
+  #
+  # A project with no table is SKIPPED and says so. The founder's instruction
+  # was every project WITH a table, and a skip that names itself is the rule
+  # this gate already holds for a missing scanner — announced, never silent.
+  # felix probes and the merge boundary still refuse the absent table; the
+  # gate declines to be the third place that turns a new project red on day one.
+  local pout prc
+  if [ -f "$proj/probes.tsv" ]; then
+    pout="$(cmd_probes --gate 2>&1)"; prc=$?
+    if [ "$prc" -eq 0 ]; then
+      printf '  %-18s ok\n' probes | tee -a "$log"
+      printf '                     %s found, %s empty, %s not applicable\n' \
+        "$(printf '%s\n' "$pout" | grep -cE '^  found +')" \
+        "$(printf '%s\n' "$pout" | grep -cE '^  empty +')" \
+        "$(printf '%s\n' "$pout" | grep -cE '^  not-applicable +')"
+    else
+      printf '  %-18s FAIL\n' probes | tee -a "$log"
+      printf '%s\n' "$pout" | grep -vE '^  found ' | head -12 | sed 's/^/  /'
+      # The project's gate has already printed its own verdict line, and if
+      # that line said pass, the last thing a person reads would now be a pass
+      # followed by a FAIL under it. One closing line restates the verdict so
+      # the bottom of the output is true. Not printed when the project's gate
+      # already failed — its own last line already says so, and two FAIL lines
+      # would read as two failures.
+      [ "$rc" -eq 0 ] && printf '\ngate: FAIL (probes)\n'
+      rc=1
+    fi
+  else
+    printf '  %-18s skipped (no probes.tsv for %s; felix probes says how to write one)\n' \
+      probes "$(basename "$proj")"
+  fi
+
   if [ "$rc" -ne 0 ]; then
     # Which checks failed, if the gate names them. Falls back to the exit status
     # rather than guessing, because an invented cause is worse than a vague one.
@@ -2610,15 +2652,21 @@ cmd_maintenance() {
   fi
 
   local st due
-  st="$(felix_maint_status "$proj")"
+  st="$(felix_maint_status "$proj" "$(felix_repo_root "$PWD")")"
   due="$(printf '%s\n' "$st" | grep -c '^due' || true)"
 
   printf 'maintenance for %s\n\n' "$(basename "$proj")"
   printf '%s\n' "$st" | while IFS=$'\t' read -r s name age cadence desc; do
     [ -n "${s:-}" ] || continue
     case "$s" in
-      due)     printf '  DUE     %-18s %-14s %s\n' "$name" "last: $age" "$desc" ;;
-      ok)      printf '  ok      %-18s %-14s every %sd\n' "$name" "${age}d ago" "$cadence" ;;
+      # A checked event row has no age and no cadence: it is due because its
+      # check failed and ok because its check passed, and the columns that
+      # mean "days since" and "every N days" would render as `-d ago every 0d`
+      # — a number nobody wrote, in a row about a fact rather than a clock.
+      due)     if [ "$age" = "check" ]; then printf '  DUE     %-18s %-14s %s\n' "$name" "check failed" "$desc"
+               else printf '  DUE     %-18s %-14s %s\n' "$name" "last: $age" "$desc"; fi ;;
+      ok)      if [ "${cadence:-0}" -eq 0 ] 2>/dev/null; then printf '  ok      %-18s %-14s %s\n' "$name" "check passed" "$desc"
+               else printf '  ok      %-18s %-14s every %sd\n' "$name" "${age}d ago" "$cadence"; fi ;;
       event)   printf '  event   %-18s %-14s %s\n' "$name" "on trigger" "$desc" ;;
       dormant) printf '  -       %-18s %-14s %s\n' "$name" "not yet" "$desc" ;;
     esac

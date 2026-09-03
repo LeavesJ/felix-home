@@ -795,6 +795,7 @@
 1	every ecosystem row carries a written reason
 1	every route matches its own name
 1	every row carries the command that clears it
+1	every vocabulary token is a word, not a regex fragment
 1	exactly one declaration from that cache
 1	exactly one name is exempt, and it is the engine's own
 1	exactly the states that could not be established block

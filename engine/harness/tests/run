@@ -8233,7 +8233,7 @@ _eco_probe_words() {
   sed -e :a -e '/\\$/N; s/\\\n//; ta' "$_ECOD" 2>/dev/null \
     | grep -oE '_felix_dep_grep "\$root" +"[^"]*(\\"[^"]*)*"' \
     | sed -E 's/.*_felix_dep_grep "\$root" +"//; s/"$//' \
-    | sed 's/\\"\?//g' | tr '|' '\n' \
+    | sed 's/\\"?//g; s/\\"//g' | tr '|' '\n' \
     | sed 's/^ *//; s/ *$//' | grep -v '^$' | LC_ALL=C sort -u
 }
 
@@ -8310,6 +8310,17 @@ case "$_ecop" in
   *anthropic*) ok "including the model-SDK probe, which sits on a continued line" ;;
   *) bad "including the model-SDK probe, which sits on a continued line" "got: $_ecop" ;;
 esac
+# And that every token is a word, not a regex fragment. The extractor's sed
+# used `\?`, which BSD sed reads as a literal `?` and GNU sed as a quantifier —
+# so on the Linux runner the probe pattern `\"?stripe\"?` came out as `?stripe?`,
+# which `grep -wE` reads as "strip, optionally followed by e", and two files
+# were reported for naming the English word "strip". Locally it never
+# reproduced, because this machine's sed is BSD. A vocabulary check whose
+# vocabulary is a regex fragment is wrong in both directions at once.
+_ecobad="$(_eco_probe_words | grep -E '^[^a-z0-9]|[^a-z0-9]$|["\\]' || true)"
+[ -z "$_ecobad" ] \
+  && ok "every vocabulary token is a word, not a regex fragment" \
+  || bad "every vocabulary token is a word, not a regex fragment" "tokens: $(printf '%s' "$_ecobad" | tr '\n' ' ')"
 
 # The property itself.
 _ecoleak="$(_eco_leaks)"

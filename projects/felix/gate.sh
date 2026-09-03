@@ -360,7 +360,7 @@ _eco_probe_words() {
   sed -e :a -e '/\\$/N; s/\\\n//; ta' "$ECO_PROBE" 2>/dev/null \
     | grep -oE '_felix_dep_grep "\$root" +"[^"]*(\\"[^"]*)*"' \
     | sed -E 's/.*_felix_dep_grep "\$root" +"//; s/"$//' \
-    | sed 's/\\"\?//g' | tr '|' '\n' \
+    | sed 's/\\"?//g; s/\\"//g' | tr '|' '\n' \
     | sed 's/^ *//; s/ *$//' | grep -v '^$' | LC_ALL=C sort -u
 }
 # A row with no reason grants nothing. That is deliberate and it fails in the

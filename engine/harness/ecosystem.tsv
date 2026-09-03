@@ -80,3 +80,4 @@ word	-	dotnet|gradle|maven|composer|bundler|rubygems	the remaining manifests _fe
 
 # ---- probe words that cannot be enforced ------------------------------------
 mute	-	next	a probe token for the Next.js framework and also an ordinary English word, and `felix next` is a command. Enforcing it flags twenty engine files on the first run, so it is dropped here on the record rather than left out of the vocabulary where nobody would see the hole.
+allow	lib/probes.sh	cargo|fastapi|python	prose. The comment on the exit-127 rule reaches for `cargo metadata` witnessed by `cargo --version` as the worked example of two failures with one cause, and the comment on the instrument heuristic uses `python -c "import fastapi"` to show that the outermost command is not always the authority consulted. The code resolves whatever first word a row carries and spells none of these.

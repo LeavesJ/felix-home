@@ -21,4 +21,10 @@ Bash	git commit ([^;&|]* )?--no-verify	--no-verify is how a gate stops being a g
 # because `felix new` and `felix install` write them and say what they did.
 Write	(^|/)\.felix(-home)?$	this file decides whether Felix is enforcing anything here; felix new and felix install write it and record that they did
 Edit	(^|/)\.felix(-home)?$	this file decides whether Felix is enforcing anything here; felix new and felix install write it and record that they did
-Bash	(>|tee|cp |mv |rm |ln |truncate|sed -i|install )[^;&|]*\.felix(-home)?([[:space:]]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
+#
+# The path may be quoted, and the command may go on after it with `;`, `&&`,
+# `|` or a closing paren. The first spelling required a space or the end of
+# the line after the name, so a quoted marker and a marker followed by `;`
+# both walked past it. A row that ordinary redirect spellings step around is
+# a row that refuses only the person who wrote it.
+Bash	(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*["']?\.felix(-home)?["']?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home

@@ -49,9 +49,17 @@ escape_for_json() {
 # and the failure mode is a hook that silently stops enforcing anything.
 raw="$(cat 2>/dev/null || true)"
 SID="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
-case "$raw" in
-  *'"stop_hook_active"'*'true'*) exit 0 ;;
-esac
+# The flag is read as a FIELD, not as two substrings in order. The payload
+# carries the model's last message, and a glob for `"stop_hook_active"` then
+# `true` anywhere after it was satisfied by a message containing the word —
+# a session whose final sentence was "that is true" was exempt from its own
+# gate. Anchored on the structural comma or brace before the key, which an
+# occurrence inside a JSON string cannot have: a quote inside a string is
+# spelt \" there, and the character before it is a backslash.
+_active="$(printf '%s' "$raw" \
+  | sed -n 's/.*[{,][[:space:]]*"stop_hook_active"[[:space:]]*:[[:space:]]*\([a-z]*\).*/\1/p' \
+  | head -1)"
+[ "${_active:-}" = "true" ] && exit 0
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 

@@ -38,8 +38,8 @@
 #   unknown          nothing could be established: the probe failed and no
 #                    witness proves the surface either way, the row carries no
 #                    witness at all so `empty` was never available to it, or a
-#                    command in the probe does not exist on this machine.
-#                    BLOCKS.
+#                    command in the probe, the witness or the `when` test does
+#                    not exist on this machine. BLOCKS.
 #
 # The last one is the load-bearing one and it is deliberately expensive. A row
 # with no witness can never report `empty`, because a probe with nothing to
@@ -94,6 +94,13 @@ fi
 # every later column left — silently, and in the direction that turns a
 # witness into a probe.
 #
+# And an empty predicate or probe cell is not a row either — malformed names
+# them, and this must not also run them. It did: a five-field row with an empty
+# fourth cell was handed to `bash -c ""`, which exits 0 having enumerated
+# nothing, and the verdict then came from the witness alone. A witness that
+# said "absent" made the row `empty`, which is green. Found by the review, not
+# by the suite, which had only ever built the four-field shape of that defect.
+#
 # Five fields, and SIX is malformed rather than generously truncated. A tab
 # inside a probe command splits it in two: awk would hand back a command cut
 # off at the tab and read the remainder as the witness, so the row would run
@@ -103,7 +110,7 @@ felix_probe_rows() {
   local proj="$1"
   [ -f "$proj/probes.tsv" ] || return 0
   grep -vE '^[[:space:]]*(#|$)' "$proj/probes.tsv" 2>/dev/null \
-    | awk -F'\t' 'NF >= 4 && NF <= 5 { printf "%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, (NF == 5 ? $5 : "-") }'
+    | awk -F'\t' 'NF >= 4 && NF <= 5 && $1 != "" && $4 != "" { printf "%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, (NF == 5 ? $5 : "-") }'
   return 0
 }
 
@@ -139,11 +146,22 @@ felix_probe_malformed() {
 # inside the one code path that has to be boring. A probe that genuinely loops
 # still hangs the gate. That is a known limit rather than a solved problem, and
 # closing stdin removes the overwhelmingly common cause of it.
+#
+# Three answers, not two. A `when` or witness command that does not exist on
+# this machine exits 127, and that was being read as a plain "no" — so a
+# witness spelt `tset -f Cargo.toml` said "the surface is absent" and a row
+# that should have blocked went green as `empty`, and a `when` with the same
+# typo switched its row off as not-applicable. 127 says nothing about the
+# surface; it says the question could not be asked. A root that cannot be
+# entered is a third thing again, and was being reported as a missing
+# command. Callers read the code: 0 yes, 1 no, 126 unenterable, 127 unaskable.
 _felix_probe_ask() {
-  local root="$1" cmd="$2"
+  local root="$1" cmd="$2" rc
   [ -n "$cmd" ] && [ "$cmd" != "-" ] || return 2
-  ( cd "$root" 2>/dev/null || exit 127
+  ( cd "$root" 2>/dev/null || exit 126
     bash -c "$cmd" felix-probe </dev/null >/dev/null 2>&1 )
+  rc=$?
+  case "$rc" in 0|126|127) return "$rc" ;; *) return 1 ;; esac
 }
 
 # Which instrument answered, and a token that changes when it is replaced.
@@ -217,16 +235,24 @@ felix_probe_state() {
   local root="$1" when="$2" probe="$3" witness="$4"
   local out rc n
 
+  local ask
   if [ -n "$when" ] && [ "$when" != "-" ]; then
-    if ! _felix_probe_ask "$root" "$when"; then
-      printf 'not-applicable\t0\tthe `when` command says this does not apply here\n'
-      return 0
-    fi
+    _felix_probe_ask "$root" "$when"; ask=$?
+    case "$ask" in
+      0) ;;
+      126) printf 'unknown\t0\tthe checkout could not be entered, so nothing was asked\n'; return 0 ;;
+      127) printf 'unknown\t0\ta command in the `when` test does not exist here, so whether this row applies is not known\n'; return 0 ;;
+      *) printf 'not-applicable\t0\tthe `when` command says this does not apply here\n'; return 0 ;;
+    esac
   fi
 
-  out="$( cd "$root" 2>/dev/null || exit 127
+  out="$( cd "$root" 2>/dev/null || exit 126
           bash -c "$probe" felix-probe </dev/null 2>/dev/null )"
   rc=$?
+  if [ "$rc" -eq 126 ]; then
+    printf 'unknown\t0\tthe checkout could not be entered, so nothing was asked\n'
+    return 0
+  fi
   # Blank lines are not members. A command that prints a trailing newline and
   # nothing else has enumerated nothing, and counting it as one member is how a
   # probe passes by finding nothing while looking like it found something.
@@ -251,8 +277,8 @@ felix_probe_state() {
   fi
 
   # Members AND a failure. `ls -1 a.txt missing` prints a.txt and exits 1, and
-  # that is a real shape rather than a corner — a witness in one governed
-  # project's own table has exactly that form. The enumeration is partial, so
+  # that is a real shape rather than a corner: any probe spelt as `ls` over
+  # several paths takes it the day one of them goes. The enumeration is partial, so
   # it cannot be `found`, and every sentence below this point would say the
   # probe returned nothing, which is false. A report
   # that states something untrue about what it saw is the failure this whole
@@ -279,14 +305,22 @@ felix_probe_state() {
     return 0
   fi
 
-  if _felix_probe_ask "$root" "$witness"; then
-    if [ "$rc" -ne 0 ]; then
-      printf 'blind\t0\tthe witness proves this surface exists and the probe exited %s\n' "$rc"
-    else
-      printf 'blind\t0\tthe witness proves this surface exists and the probe enumerated none of it\n'
-    fi
-    return 0
-  fi
+  _felix_probe_ask "$root" "$witness"; ask=$?
+  case "$ask" in
+    0)
+      if [ "$rc" -ne 0 ]; then
+        printf 'blind\t0\tthe witness proves this surface exists and the probe exited %s\n' "$rc"
+      else
+        printf 'blind\t0\tthe witness proves this surface exists and the probe enumerated none of it\n'
+      fi
+      return 0 ;;
+    126|127)
+      # The witness could not be asked. That is not "absent" — it is the one
+      # question that decides between absent and blind, unanswered — and a
+      # witness with a typo in it must not be a way of making a row green.
+      printf 'unknown\t0\ta command in the witness does not exist here, so absent and blind cannot be told apart\n'
+      return 0 ;;
+  esac
 
   # The witness itself may be unaskable — an empty string reaches _felix_probe_ask
   # as a refusal rather than a verdict. Guarded above, so a non-zero here is the

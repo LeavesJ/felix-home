@@ -37,6 +37,7 @@
 1	a checkout that moves after verification merges nothing
 1	a clean checkout claims no rival gate
 1	a clean repo says so instead of minting a commit
+1	a comment added to it is still free
 1	a commit with no remote does not stamp a push
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
@@ -112,6 +113,10 @@
 1	a malformed row is skipped, others still deny
 1	a malformed row is skipped, others still match
 1	a malformed row stops the gate rather than only being listed
+1	a marker naming '.' refuses rather than binding to the projects directory
+1	a marker naming '..' refuses rather than binding to the projects directory
+1	a marker naming '../widget' refuses rather than binding to the projects directory
+1	a marker naming 'widget/..' refuses rather than binding to the projects directory
 1	a marker that resolves gets the normal context
 1	a marker that resolves is not called broken
 1	a marketplaces path is one too
@@ -176,6 +181,7 @@
 1	a predicate with no prior record is named as new
 1	a probe grounding a surface nothing enumerates is named
 1	a probe naming a real command carries that instrument and a token
+1	a probe row naming a predicate and no command blocks the merge
 1	a probe that begins with an assignment identifies no instrument
 1	a probe that enumerates members is found
 1	a probe that invents its members is indistinguishable from one that found them
@@ -220,6 +226,7 @@
 1	a repository that is not the memory's own is named foreign
 1	a revision expression is taken as given
 1	a rollup rewrites no file another session wrote
+1	a root that cannot be entered makes every row unknown
 1	a route from what you typed is recorded as such
 1	a route naming an unreachable tool is ranked
 1	a route off the tree is a guess
@@ -232,6 +239,7 @@
 1	a row nobody named carries no stray line
 1	a row switched off by its when column is reported as not applying
 1	a row that does not apply here claims nothing
+1	a row with an empty probe cell is malformed
 1	a row with more fields than the format has is malformed
 1	a row with no command is reported as recording nothing
 1	a row written before instruments existed claims none
@@ -240,6 +248,7 @@
 1	a rule that refuses everything is refused as a rule
 1	a run compared against its own tree reports nothing
 1	a run nobody could read does not count as clean
+1	a run with no tree id says nothing was compared
 1	a runbook prints in full
 1	a satisfied step reports done
 1	a second hand-off in the same session stays quiet
@@ -282,7 +291,9 @@
 1	a version main declares but nobody installed resolves to nothing
 1	a wall of tree tokens cannot outvote the prompt
 1	a web surface counts without package.json
+1	a when test whose command does not exist makes the row unknown, not not-applicable
 1	a wired moment with a stance is ok
+1	a witness whose command does not exist makes the row unknown, not empty
 1	a word shared with a field name still counts
 1	a workflow change escapes as execute
 1	a worktree engine cannot
@@ -291,6 +302,7 @@
 1	adding a Dockerfile surfaces deploy
 1	adding a key to json escapes nothing
 1	adding a row to an enforcing table escapes nothing
+1	adding a row to the ecosystem table escapes as verifier
 1	adding an assertion escapes nothing
 1	adding sentry surfaces observability
 1	adopt refuses any flag as a capability
@@ -447,6 +459,7 @@
 1	and exits 0 with the tree dirty
 1	and exits 3, distinctly
 1	and explains why it now matters
+1	and felix which does not resolve it
 1	and filters residue through the same ignore rule
 1	and from CI-absolute paths
 1	and from a worktree of the same repository
@@ -463,6 +476,7 @@
 1	and is named as a shelf with nothing on it
 1	and is not a routing gap either; it is unknown
 1	and is not called agreement
+1	and is not run as a probe whose verdict is the witness alone
 1	and is not run as though it were a probe
 1	and is not run half-read
 1	and is silent when there is none
@@ -616,10 +630,13 @@
 1	and says so rather than implying I did
 1	and says so rather than reporting a merge
 1	and says that it knows
+1	and says the checkout could not be entered rather than naming a missing command
 1	and says the gate failed
 1	and says the gate has not seen it
 1	and says the gate never ran
 1	and says the gates still apply
+1	and says what a name is
+1	and says what a project name is
 1	and says what is missing rather than printing a clean report
 1	and says what is not versioned
 1	and says what it removed
@@ -631,6 +648,7 @@
 1	and says which rule
 1	and says which variable it sends
 5	and says why
+1	and says why growth is the narrowing direction there
 1	and says why it could not be
 1	and says why it refused
 1	and says why it was left alone
@@ -715,6 +733,7 @@
 1	and the route its path named is not taken
 1	and the row is still json
 1	and the row itself is reported as recording nothing
+1	and the row says the witness could not be asked
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
 1	and the same scanner catches a planted one
@@ -829,6 +848,7 @@
 1	felix merge reaches gh at all
 1	felix merge refuses on an escape
 1	felix new exits 0
+1	felix new refuses the same names the marker refuses
 1	felix new seeds a probe table
 1	felix probes refuses a project that asks reality nothing
 1	felix probes reports without refusing
@@ -942,6 +962,7 @@
 1	no shipped upkeep row is unreachable
 1	no stack.tsv means nothing is declared, not nothing to say
 1	nor a semicolon
+1	nor does the key spelt inside a string, which a quote cannot open
 1	nor filler the router already discards
 1	nor is a system reminder
 1	nor is one from both
@@ -1178,8 +1199,10 @@
 1	the syntax check is behind the verifier confine
 1	the table resolves to its repo-relative path
 1	the tests check is behind the verifier confine
+1	the widget's probe table is exactly as this section found it
 1	the widget's table is exactly as this section found it
 1	the widget's tables are as this block found them
+1	the word true in the last message does not read as the flag
 1	the words are read off lib/detect.sh, not carried as a literal
 1	the workflow invokes felix
 1	the working tree alone can route

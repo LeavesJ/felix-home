@@ -601,6 +601,8 @@ cmd_new() {
   # A project directory named after a flag would be enumerated by the
   # independence check and governed forever (#102).
   case "$name" in -*) die "usage: felix new <name> [path-to-checkout] (got a flag: $name)" ;; esac
+  _felix_name_ok "$name" \
+    || die "usage: felix new <name> [path-to-checkout] (a name is one directory name: letters, digits, . _ -; got: $name)"
   local dir="$FELIX_HOME_DIR/projects/$name"
   [ -e "$dir" ] && die "project $name already exists at $dir"
   local tpl="$SCRIPT_DIR/templates"

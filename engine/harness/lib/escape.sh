@@ -52,6 +52,16 @@ FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null 
 # narrowed judge certifies itself. Named by shape, not by project.
 FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv'
 
+# The subset whose rows are EXEMPTIONS, and for which "adding is free" is
+# backwards. A row in the ecosystem table says "this word is not a stack name"
+# or "this file may say it": every row added to it is a case the check stops
+# seeing, so the narrowing direction there is growth. The removal-only rule
+# above would have let a branch add an allow row for the very file it was
+# about to break invariant 1 in, and merge green. Any change to one of these
+# fires — the conformance amendments say so in as many words — because there
+# is no direction of edit to such a table that a reviewer need not look at.
+FELIX_ESCAPE_EXEMPTION_TABLES='ecosystem.tsv'
+
 # Merging this causes a job to run holding whatever secrets the repository has.
 # The revert restores the YAML. It does not un-run the job or un-read the key.
 FELIX_ESCAPE_EXECUTE='^\.github/(workflows|actions)/'
@@ -142,6 +152,15 @@ _felix_escape_shrank() {
   [ -n "$(comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
 }
 
+# Any row present on one side and not the other, in either direction. Same
+# static blobs, same comment stripping, so a reworded comment is still free.
+_felix_escape_changed() {
+  local root="$1" base="$2" f="$3" before after
+  before="$(_felix_escape_lines "$root" "$base" "$f")"
+  after="$(_felix_escape_lines "$root" HEAD "$f")"
+  [ -n "$(comm -3 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
+}
+
 felix_escapes() {
   local proj="$1" base="$2" root="$3" home="${4:-}"
   local paths added f tier kind pattern reason channel confine reviewed=""
@@ -189,11 +208,18 @@ felix_escapes() {
     printf '%s' "$f" | grep -qE "$FELIX_ESCAPE_DURABLE_PATH" \
       && printf 'durable\t%s\trows already written are not restored by a revert\n' "$f"
 
-    # verifier, for the tables that decide what stops. Adding is free.
+    # verifier, for the tables that decide what stops. Adding is free — except
+    # to a table of exemptions, where adding is the removal.
     case " $FELIX_ESCAPE_TABLES " in
       *" ${f##*/} "*)
-        _felix_escape_shrank "$root" "$base" "$f" \
-          && printf 'verifier\t%s\tthis decides what stops, and the change removes from it\n' "$f" ;;
+        case " $FELIX_ESCAPE_EXEMPTION_TABLES " in
+          *" ${f##*/} "*)
+            _felix_escape_changed "$root" "$base" "$f" \
+              && printf 'verifier\t%s\tits rows exempt things from a check, so any change to it changes what is checked\n' "$f" ;;
+          *)
+            _felix_escape_shrank "$root" "$base" "$f" \
+              && printf 'verifier\t%s\tthis decides what stops, and the change removes from it\n' "$f" ;;
+        esac ;;
     esac
   done <<EOF
 $paths
@@ -338,6 +364,16 @@ felix_merge_blockers() {
   elif [ -z "$(felix_probe_rows "$proj")" ]; then
     printf 'probes\ttable\t%s/probes.tsv declares no probe, which is a shelf with nothing on it\n' "$proj"
   else
+    # A malformed row is not skipped on the way to the rows that parse. It is
+    # a predicate somebody meant to read and nothing reads, and cmd_probes
+    # --gate already refuses it; a merge boundary that let it through would
+    # be the weaker of the two checks on the same table, which is the order
+    # they must never be in.
+    felix_probe_malformed "$proj" | while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      printf 'probes\ttable\t%s/probes.tsv: the row for %s names a predicate and no command, or a command and no predicate\n' \
+        "$proj" "$line"
+    done
     felix_probes_run "$proj" "$root" | felix_probes_blocking \
       | while IFS= read -r line; do
           [ -n "$line" ] || continue

@@ -160,11 +160,14 @@
 1	a plugin cache is never treated as home
 1	a plugin that cannot be checked is not a clean bill
 1	a predicate that was being read and no longer is gets named
+1	a predicate whose instrument changed says so
 1	a predicate whose state changed is reported as a state change
 1	a predicate with fewer members than the last tree is named
 1	a predicate with more members than the last tree is named too
 1	a predicate with no prior record is named as new
 1	a probe grounding a surface nothing enumerates is named
+1	a probe naming a real command carries that instrument and a token
+1	a probe that begins with an assignment identifies no instrument
 1	a probe that enumerates members is found
 1	a probe that invents its members is indistinguishable from one that found them
 1	a probe that printed members and then failed is unknown, not found
@@ -221,6 +224,7 @@
 1	a row that does not apply here claims nothing
 1	a row with more fields than the format has is malformed
 1	a row with no command is reported as recording nothing
+1	a row written before instruments existed claims none
 1	a rule naming Edit does not deny a Write
 1	a rule never matches file content
 1	a rule that refuses everything is refused as a rule
@@ -364,6 +368,7 @@
 1	an unwritable state directory still exits 0
 1	and --fix does not exit 0 when every repair failed
 1	and a backticked path naming nothing is still not invented
+1	and a command that does not resolve identifies none either
 1	and a declared moment is not
 1	and a declared one the tree no longer shows is still an item
 1	and a declined one is ok too
@@ -472,6 +477,7 @@
 1	and matches on keywords, not just names
 1	and merge does not call it an unscanned diff
 1	and names a handoff when the repo has one
+1	and names both tokens
 1	and names itself as the grant
 1	and names none when there is none
 1	and names the base it could not resolve
@@ -644,6 +650,7 @@
 1	and the gate's code names no project literally
 1	and the hook still exits 0 there
 1	and the index holds no gitlink afterwards
+1	and the instrument is appended as the ninth
 1	and the lesson is in the same block
 1	and the memory, which is somewhere else now
 1	and the merge is left exactly where the person left it
@@ -1080,6 +1087,7 @@
 1	the plugins cache root is composed with, not read as ours
 1	the pointer file beats a sibling projects/
 1	the pre-flight runs clean under bash
+1	the probe command stays in the eighth column
 1	the probes check is behind the verifier confine
 1	the project gate calls the probe check
 1	the prompt is read out of the envelope

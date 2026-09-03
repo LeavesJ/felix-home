@@ -5314,7 +5314,7 @@ _pbtable() {
 _pbtable
 
 _pbrun() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-             . "$FROOT/harness/lib/probes.sh"; felix_probes_run "$PBP" "$PBR" ); }
+             . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_run "$PBP" "$PBR" ); }
 _pbstate() { _pbrun | awk -F'\t' -v p="$1" '$1 == p { print $3 }'; }
 
 is "a probe that enumerates members is found"      "$(_pbstate tracked)"     "found"
@@ -5341,6 +5341,30 @@ has "and the report says the enumeration was partial" \
 is "a probe that reads stdin returns instead of hanging the gate" \
    "$(_pbstate readsstdin)" "blind"
 
+# ------------------------------------------------------ the instrument ------
+# v3.2 §2 asks a fact to say where it was observed FROM, and §5 makes a provider
+# upgrade an invalidation event. Without it the drift reader can say a count
+# moved and cannot say why — and "seven more members" reads as the code changing
+# when it may be the toolchain changing, which is an hour spent looking for a
+# route that was never added.
+_pbsrc() { _pbrun | awk -F'\t' -v p="$1" '$1 == p { print $7 }'; }
+case "$(_pbsrc tracked)" in
+  git@[0-9]*) ok  "a probe naming a real command carries that instrument and a token" ;;
+  *)          bad "a probe naming a real command carries that instrument and a token" \
+                  "got [$(_pbsrc tracked)]" ;;
+esac
+# Derived, never declared, so anything that is not a bare command name says so
+# rather than having an identity invented from a shell fragment. A real probe
+# in a governed project begins with an assignment for exactly this reason.
+_pbtable "" 'assigned	-	-	PY=/bin/echo; $PY hello	test -d src'
+is "a probe that begins with an assignment identifies no instrument" \
+   "$(_pbsrc assigned)" "-"
+_pbtable "" 'nosuchtool	-	-	definitely-not-a-real-command-xyz	test -d src'
+is "and a command that does not resolve identifies none either" \
+   "$(_pbsrc nosuchtool)" "-"
+_pbtable
+
+
 # The distinction stated as the one thing this surface exists for: two rows
 # that both enumerated zero members, and only one of them is a fact.
 case "$(_pbstate rustcrate):$(_pbstate pyfile)" in
@@ -5351,7 +5375,7 @@ esac
 
 # Blocking is a property of the state, and nothing else may decide it.
 _pbblock() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-               . "$FROOT/harness/lib/probes.sh"; felix_probes_run "$PBP" "$PBR" \
+               . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_run "$PBP" "$PBR" \
                | felix_probes_blocking | cut -f1 | LC_ALL=C sort | tr '\n' ' ' ); }
 is "exactly the states that could not be established block" \
    "$(_pbblock)" "brokenprobe notool nowitness partial pyfile readsstdin "
@@ -5380,7 +5404,7 @@ is "a probe that invents its members is indistinguishable from one that found th
 # inside its own fix: a row recording no judgement still closed a gap and then
 # rendered nowhere. Here it must stand for nothing at all.
 _pbtable "" 'halfrow	-'
-_pbmal() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
+_pbmal() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
              felix_probe_malformed "$PBP" ); }
 has "a row with no command is reported as recording nothing" "$(_pbmal)" "halfrow"
 case "$(_pbrun | cut -f1)" in
@@ -5403,7 +5427,7 @@ _pbtable
 # ---------------------------------------------------------------- the log ---
 # Append-only, with provenance, and it must say so when it did not write.
 _pbrec() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-             . "$FROOT/harness/lib/probes.sh"
+             . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
              felix_probes_record "$PBP" "$PBR" "$1" "$(felix_probes_run "$PBP" "$PBR")" \
              ) 2>/dev/null; }
 _pbrec treeone
@@ -5413,6 +5437,20 @@ is "one line per row is written" \
    "$(grep -c . "$PBLOG" 2>/dev/null)" "$(_pbrun | grep -c .)"
 has "each fact carries the tree it was taken from" "$(cat "$PBLOG")" "treeone"
 has "and the exact command that produced it"       "$(cat "$PBLOG")" "git ls-files"
+
+# The column order is a CONTRACT, and these two exist because breaking it cost a
+# real log. The instrument was first written into column eight, where the probe
+# command had always been — so every row already in the append-only log read its
+# own command as its instrument, and the first run afterwards reported that
+# every predicate on the project had changed instrument. An append-only log
+# cannot be re-shaped: the only safe evolution is to add a column at the end.
+is "the probe command stays in the eighth column" \
+   "$(awk -F'\t' '$3 == "tracked" { print $8 }' "$PBLOG" | tail -1)" "git ls-files"
+case "$(awk -F'\t' '$3 == "tracked" { print $9 }' "$PBLOG" | tail -1)" in
+  git@[0-9]*) ok  "and the instrument is appended as the ninth" ;;
+  *)          bad "and the instrument is appended as the ninth" \
+                  "got [$(awk -F'\t' '$3 == "tracked" { print $9 }' "$PBLOG" | tail -1)]" ;;
+esac
 is "an established fact is classed OBSERVED" \
    "$(awk -F'\t' '$3 == "tracked" { print $4 }' "$PBLOG" | head -1)" "OBSERVED"
 is "and one nothing established is classed UNKNOWN" \
@@ -5463,10 +5501,10 @@ _pbdtable() {
   } > "$PBD/probes.tsv"
 }
 _pbdrec() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-              . "$FROOT/harness/lib/probes.sh"
+              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
               felix_probes_record "$PBD" "$PBR" "$1" "$(felix_probes_run "$PBD" "$PBR")" ) 2>/dev/null; }
 _pbdrift() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-               . "$FROOT/harness/lib/probes.sh"
+               . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
                felix_probes_drift "$PBD" "$1" "$(felix_probes_run "$PBD" "$PBR")" ); }
 
 _pbdtable
@@ -5517,6 +5555,28 @@ has "a predicate that was being read and no longer is gets named" \
     "$(_pbdrift epsilon)" "one"
 has "and says so plainly" "$(_pbdrift epsilon)" "no row reads it now"
 
+# The instrument, reported before anything about the numbers: a count that moved
+# because the tool was replaced is a different fact from one that moved because
+# the project did.
+_pbdtable
+_pbdrec eta
+printf '%s\tolderTree\tone\tOBSERVED\tfound\t2\t-\tgit ls-files\tgit@999\n' \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$MEM/probes-drift/facts.log"
+has "a predicate whose instrument changed says so" "$(_pbdrift theta)" "the instrument changed"
+has "and names both tokens"                        "$(_pbdrift theta)" "git@999"
+
+# An append-only log holds rows written before instruments existed. Those have
+# eight fields, and a reader that treated the eighth as an instrument would
+# report that every predicate had changed instrument on the first run after the
+# change. That happened, on the real log, and it is why the column was appended.
+printf '%s\toldFormat\tone\tOBSERVED\tfound\t2\t-\tgit ls-files\n' \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$MEM/probes-drift/facts.log"
+case "$(_pbdrift theta)" in
+  *"instrument changed"*) bad "a row written before instruments existed claims none" \
+                              "$(_pbdrift theta)" ;;
+  *)                      ok  "a row written before instruments existed claims none" ;;
+esac
+
 # A count that cannot be read must not render as a count that did not move.
 # This file's own failure class, appearing inside its own reader: `[ a -gt b ]`
 # on a non-number errors, the error goes to /dev/null, and the false status
@@ -5531,7 +5591,7 @@ has "a count that is not a number is reported rather than passed over" \
 # Enumerated by felix_detect, not by this table. A gap list Felix wrote cannot
 # report the gap Felix did not think of.
 _pbgaps() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-              . "$FROOT/harness/lib/probes.sh"; felix_probes_gaps "$PBP" "$PBR" ); }
+              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_gaps "$PBP" "$PBR" ); }
 has "a surface the checkout has and no probe reads is a gap" "$(_pbgaps)" "ci"
 _pbtable "" 'workflow	ci	-	git ls-files ".github/workflows/*"	test -d .github/workflows'
 case "$(_pbgaps)" in
@@ -5542,7 +5602,7 @@ esac
 # equally wrong when it keeps one reality dropped.
 _pbtable "" 'ghostprobe	billing	-	echo x	test -d src'
 _pborph() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-              . "$FROOT/harness/lib/probes.sh"; felix_probes_orphans "$PBP" "$PBR" ); }
+              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_orphans "$PBP" "$PBR" ); }
 has "a probe grounding a surface nothing enumerates is named" "$(_pborph)" "billing"
 _pbtable "" 'workflow	ci	-	git ls-files ".github/workflows/*"	test -d .github/workflows'
 case "$(_pborph)" in
@@ -5559,7 +5619,7 @@ _pbtable
 # one place is a refusal somebody routes around.
 PBE="$TMP/probes-empty"; mkdir -p "$PBE"
 printf '{\n  "name": "widget",\n  "gate": "true"\n}\n' > "$PBE/project.json"
-_pbnorows() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
+_pbnorows() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
                 felix_probe_rows "$PBE" ); }
 is "a project with no probes.tsv declares no probes" "$(_pbnorows | grep -c .)" "0"
 
@@ -5588,7 +5648,7 @@ has "and is named as a shelf with nothing on it"  "$out" "declares no probe"
 # Two: the merge boundary, the strongest refusal Felix reaches offline.
 _pbblockers() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
                   . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/evidence.sh"
-                  . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/probes.sh"
+                  . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
                   felix_merge_blockers "$1" "" "$2" "$FROOT" ) 2>/dev/null; }
 has "a merge is blocked while the project reads nothing from reality" \
     "$(_pbblockers "$PBE" "$PBR")" "probes"
@@ -5679,7 +5739,7 @@ NEWP="$TMP/probes-new"; mkdir -p "$NEWP"
 out="$(cd "$NEWP" && "$FELIX" new probeseed "$NEWP" 2>&1)"
 is "felix new seeds a probe table" \
    "$( [ -s "$FROOT/projects/probeseed/probes.tsv" ] && echo yes || echo no )" "yes"
-_pbseed() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
+_pbseed() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
               felix_probe_rows "$FROOT/projects/probeseed" | grep -c . ); }
 case "$(_pbseed)" in
   0) bad "and the seed holds rows rather than only comments" "0 rows" ;;

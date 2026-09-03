@@ -35,3 +35,4 @@ PreCompact	declined	SessionStart matches on compact, so doctrine is re-mounted a
 Notification	declined	fires when Claude wants attention. Felix has nothing to add, and speaking here would break stealth in the middle	-
 SubagentStart	wired	a subagent starts blank; give it the project, the constitution and the gate that will judge it
 PostToolBatch	declined	PostToolUse already records every call the ledger needs, and recording the same work twice would double every count	"PostToolUse"
+PostToolUseFailure	declined	a tool that failed has already reported so to the session, and Felix would add nothing by repeating it. Bound here by another plugin the day it was installed; whether the ledger undercounts reaches that failed is the open question, and that decides whether this becomes wired	-

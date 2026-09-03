@@ -34,3 +34,9 @@ data/
 .env.*
 !.env.example
 *.key
+
+# graphify writes its knowledge graph here. It is derived from the tree and
+# rebuilt on demand, and an untracked copy in the home invalidates every gate
+# receipt: felix_tree_dirty counts untracked files, and the installed check
+# reads them as undeployed work.
+graphify-out/

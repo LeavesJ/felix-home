@@ -77,10 +77,10 @@ Each line produced by a command. Newest first under §0.
 
 | | |
 |---|---|
-| head | `11d6fe9` on `main` (#129, #130, #131), CI `gate` **success** on each |
+| head | `16437a2` on `main` (#129–#141, thirteen merges), CI `gate` **success** on each |
 | suite | **1191 assertions**, from 1100 — 81 of them in one new section |
 | governed projects with a probe table | **3 of 3** |
-| deployed engine | 0.49.39. **This work is not in it.** |
+| deployed engine | **0.49.41**, deployed from the home at `16437a2` after #144; every session from here boots with it |
 
 ### Read this first: §0ak is directly below, and the marker bypass is FIXED
 
@@ -253,13 +253,138 @@ gone, push them.
 
 against a fresh clone first.
 
+### Second stretch, same day: the founder's three instructions, and what each one turned up
+
+**Push whatever's necessary.** All three local-only branches pushed. The marker
+fix had already been rebased and merged by its own session as #134 while this
+one was rebasing it — byte-identical result; the duplicate closed. §0ak landed
+as #139, rebased under §0al. The ecosystem check (#137 → #141) needed three
+conflict resolutions, two stance rows, and then found a real defect in itself
+on its first-ever Linux run: its vocabulary extractor's `sed 's/\\"\?//'` is
+BSD-only, and on GNU sed the probe pattern `\"?stripe\"?` came out as
+`?stripe?` — which `grep -wE` reads as "strip or stripe" and matched two
+engine files on the English word *strip*. Fixed portably in both copies, with
+a guard that names any token that is not a word.
+
+**Run probes for every project with a table.** `cmd_gate` now does, after the
+project's own gate and in its own line shape, so a probe failure lands in
+`mistakes.log` like any other check. felix's private copy is gone: one
+mechanism. A project with no table gets an announced skip — your words were
+*with a table*, and the gate declines to be the third refusal that turns a
+new project red on day one.
+
+**felix install.** Deployed as 0.49.40 from the home at `5cd12c0`; the cache is
+byte-identical to the home and its cli knows `probes`. Then, through that
+deployed cli and not the tree: felix 8 found, Elenchus 5 found (16 routes, 2
+entrypoints, 4 ceiling sites), veldra 5 found (16 members, 7 HTTP services) —
+gate mode ok on all three. Every session from here boots with the engine that
+asks reality. This session does not: a redeployed engine never reaches the
+session that deployed it.
+
+**graphify, and the point behind it.** Elenchus already had a maintenance row
+for it — cadence 0, which the format defines as *never reported as overdue*.
+A row that structurally cannot come due; the lesson this project holds about
+"nothing due" and "nothing is being checked" rendering identically, one table
+over. A maintenance row may now carry a **check** — a command run in the
+checkout, non-zero meaning due — so an event row can come due from reality.
+Seeded on all three projects with the graph-older-than-last-commit test. The
+stamp carries an explicit zone (`%z`): BSD `find` reads a zone-less `T` form as
+UTC, so a commit made now in PDT sat seven hours in the past and every graph
+looked fresh — visible only in the STALE direction, which the first check did
+not exercise. Then the runner disagreed the other way: GNU find compares at sub-second
+precision and BSD at whole seconds, so a fixture that wrote a graph and
+committed inside one second got opposite answers on the two. This machine has
+no GNU find; the Linux runner is that verdict, and it took two round trips to
+hear it.
+
+The graphs themselves: Felix had none and has one (570 nodes, code-only, built
+in seconds). Elenchus's went from Aug 19 to current on the code side; its docs
+and 67 new community names wait on an LLM key that lives in some session's
+environment and nowhere Felix can reach — the honest reason it went stale, and
+a capability gap rather than a maintenance one. **Used, not only built:** the
+graph correctly placed the receipt writer in `verify.sh`, and then missed three
+of four callers of `felix_maint_status` because its heuristic call edges do
+not see `$(…)` substitutions in bash. Grep was right; the graph gets a note.
+
+**Three BSD/GNU splits in one night** — `head -1`, `find -newermt`, `sed \?` —
+each passed locally and failed elsewhere. This machine's grep is ugrep and its
+only find is BSD, so "works here" proves less than it looks and "parses here"
+proves nothing about meaning. In `lessons.md`, corrected once already.
+
+### Third stretch, same day: the review, and the seven ways a green could be had without looking
+
+**The review, and what it was.** You said ECC should run against what was
+built. It did, as lenses rather than as agents: a 68-agent workflow read the
+increment's files under the ECC review headings — silent failures, security,
+correctness, comment accuracy, test coverage — and every finding then faced
+three refuters, majority to survive. Eighteen survived. The workflow used the
+default subagent and not the `ecc:*` agent types, because a workflow agent
+inherits this session and the ECC agents are defined for a fresh one; that is
+a difference in prompt, not in what was read, and it is written here so the
+word "ECC" above is not taken for more than it was.
+
+**What the survivors had in common.** Not one was a crash. Every one was a way
+a verdict could be reached without the question being asked — the exact class
+the probe file's own header refuses, found in the file that refuses it:
+
+- a witness whose command does not exist exited 127, and 127 was read as
+  "no": a witness spelt `tset -f Cargo.toml` said *the surface is absent* and
+  the row went green as `empty`. The same typo in a `when` switched its row
+  off. Both are `unknown` now, which blocks;
+- a five-field row with an empty probe cell went to `bash -c ""`, which exits
+  0 having enumerated nothing, and the verdict came from the witness alone.
+  The suite had built the four-field shape of that defect and not the five;
+- `ecosystem.tsv` narrows invariant 1 by **adding** rows — an allow row is a
+  file the check stops reading — and the verifier channel fired on removal
+  only. A branch could have added the exemption for the very file it was
+  about to break the invariant in, and merged green. A table of exemptions
+  now escapes on any change, which is what the amendments said;
+- `--gate` refused a malformed probe row and the merge boundary let it
+  through — the weaker of two checks on one table, in the order they must
+  never be in;
+- the Stop hook read `stop_hook_active` as two substrings in order over the
+  whole payload, and the payload carries the model's last message. A session
+  whose final sentence used the word *true* was exempt from its own gate;
+- a marker reading `.` or `..` bound to the projects directory itself — a
+  project with no tables, no deny rows and no gate — because `-d` is true of
+  both. A name is one directory name now, and `felix new` refuses the same
+  names the marker does;
+- a run with no tree id fell silent in the drift reader, which rendered like
+  a tree that had not moved.
+
+**And one in felix's own table, which the hook then proved.** The marker deny
+row required a space or end-of-line after the name, so a quoted marker and one
+followed by `;` walked past it. Widening it, the verification command was
+refused by the row it was verifying — the command text carried the strings
+the row exists to refuse, so the samples had to live in a file — and the first
+widened row refused `git add .felix`, because `dd ` matches inside `add `.
+Twenty-seven spellings now pass through bash's own `=~`, both directions;
+the lesson is in `lessons.md`. The suite does not test a governed project's
+table, only the engine against fixtures, which is why that check lives in a
+sample file rather than an assertion.
+
+Fixed as one PR, #144, with a test for each: the suite is **1276**. The
+stale comment claiming a governed table holds a witness of the
+members-and-failure shape is gone; none does. Before the merge, the modified
+library was run against all three real checkouts without writing a fact, to
+see whether any real witness named a command this machine lacks — none did.
+Deployed as 0.49.41, byte-identical to the home, and the three projects were
+asked again through the deployed cli: felix 8 found, Elenchus 5, veldra 5,
+gate mode ok on each. The Felix graph was rebuilt on the merged tree.
+
+**What the review found that is yours, not Felix's.** Three things reached the
+merge boundary of this stretch as facts and not as work: Elenchus's docs and
+graph labels need an LLM key that no Felix path can reach; three plugins are
+mounted every session and never routed, which the ledger has said for weeks;
+and `unresolved.log` is written by the Stop hook and read by nothing — a
+refusal with a record nobody consults, which is the shape §0al keeps finding.
+
 ### Standing, and what is genuinely open
 
-- `tests/run --record-assertions` after any assertion change; **1191** on record.
-- **Not deployed.** The engine on this machine is 0.49.39 and this work is not
-  in it. `installed` fails structurally in every worktree and is not a defect
-  to fix; a `felix install` from the main checkout is what arms any of this
-  outside felix's own gate.
+- `tests/run --record-assertions` after any assertion change; **1276** on record.
+- **Deployed as 0.49.41.** `installed` still fails structurally in every
+  worktree and is not a defect to fix; a worktree is not the tree the
+  marketplace serves.
 - **`felix merge` was unreachable, again.** A worktree that changed the engine
   cannot produce a green receipt, so the local merge path refused and this
   landed through `gh pr merge` on green CI. That is issue #2, unchanged, and it

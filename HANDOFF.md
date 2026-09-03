@@ -71,14 +71,14 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
-## 0al. Verified at session close, 2026-09-03 (overnight) — the substrate asks reality, and one guard it shipped had never been run
+## 0al. Verified at session close, 2026-09-03 (overnight) — the substrate asks reality, and three of the checks written to prove it had never run
 
 Each line produced by a command. Newest first under §0.
 
 | | |
 |---|---|
-| head | `2fed4e8` on `main` (#129), CI `gate` **success** |
-| suite | **1183 assertions**, from 1100 — 73 of them in one new section |
+| head | `11d6fe9` on `main` (#129, #130, #131), CI `gate` **success** on each |
+| suite | **1191 assertions**, from 1100 — 81 of them in one new section |
 | governed projects with a probe table | **3 of 3** |
 | deployed engine | 0.49.39. **This work is not in it.** |
 
@@ -179,11 +179,81 @@ That is a decision, not an omission. Elenchus's gate is that product's single
 CI check and its beta opens on the 5th; putting its CI colour on a FastAPI
 import resolving in a runner, two days out, with nobody awake to look, is not a
 call a session should make unasked. Add it after the soak reads out, and run it
+### Increment two, same night: a fact says which instrument answered
+
+The rest of v3.2 build-order step 1, which named source identity and did not
+have it. A fact now records the instrument that answered — the first word of
+the probe, resolved with `command -v`, plus the size of the resolved file — so
+the drift reader can tell "the tree changed" from "the tool changed".
+
+Derived rather than declared, and that is the decision. A sixth column would
+have carried it and would also have cost what the fifth bought: a tab inside a
+probe splits it in two, and only a fixed field count catches that. The
+protection is worth more than the resolution.
+
+`probes.sh` had reached 477 lines against the 500 rule, so the log and its
+reader moved to `facts.sh` along the real seam: probes.sh asks reality a
+question, facts.sh is everything that happens to the answer afterwards.
+
+**This one broke the founder's real `facts.log` and had to restore it.** The
+instrument was first written into column EIGHT, where the probe command had
+always been. The log is append-only, so every row already in it read its own
+command as its instrument, and the next run reported that every predicate on
+the project had changed instrument — `git ls-files -> git@3662256`, for a tool
+nobody had touched. Restored from a copy taken minutes earlier. An append-only
+log cannot be re-shaped; the only safe evolution is to append. Both halves are
+now pinned by assertions and the mistake is replayed as a mutation control.
+
+**Invariant 1 fired twice in one session, both times on the same instinct**: an
+engine comment reaching for the concrete project that motivated the code. That
+is the sentence worth writing and the one the rule forbids. Write "one governed
+project's route probe" instead. `git grep` will not find it in a file not yet
+tracked — the suite's check greps the filesystem, which is why it caught both.
+
+The instrument heuristic is honestly weak and the report says so. It reads the
+OUTERMOST command, so `python -c "import fastapi; ..."` records python, not
+FastAPI. `felix probes` prints how many rows identify no instrument rather than
+hiding it — 1 of 5 on elenchus, and it is the route probe.
+
+### The mutation harness caught itself, which is the night's best finding
+
+The first run of the instrument controls reported **no failures for every
+round** — and it was mutating nothing. The patterns were passed through
+`python3 -c` with two layers of shell quoting, the `assert` raised, python
+exited non-zero, the runner ignored the status, and each round ran the
+UNMUTATED suite. Six clean-looking results that proved nothing.
+
+That is this session's entire subject arriving inside the tool built to catch
+it: a check that reports clean because it never ran. Caught only because N1
+going green was *impossible* — the assertion it should have broken was one
+written an hour earlier — so the green was read rather than filed.
+
+The runner now puts each mutation in a file with no nested quoting, checks the
+exit status, AND diffs the files afterwards. Knowing it ran is not enough; it
+has to know it changed something. In `lessons.md`.
+
+### Three branches hold unmerged work and NONE of them is pushed
+
+Found by looking, not by being told. Each exists on this machine only:
+
+| branch | head | what it is |
+|---|---|---|
+| `claude/relaxed-euler-cd49c2` | `d247ed0` | **the marker bypass fix** — §0ak's top item, committed, tree clean |
+| `claude/felix-ecc-plugin-ba2871` | `3958e9e` | §0ak itself, the previous session's handoff |
+| `claude/musing-ptolemy-753fe2` | `80a278d` | invariant 1 catching the ecosystem, not just the name |
+
+The first one matters most: the highest-severity defect in the project is fixed
+and the fix is one worktree cleanup away from not existing. This session did not
+push or merge any of them — they belong to sessions that were still running, and
+pushing another session's branch mid-work is how two people's `push -u` collide.
+Whoever reads this next: check whether they landed, and if those sessions are
+gone, push them.
+
 against a fresh clone first.
 
 ### Standing, and what is genuinely open
 
-- `tests/run --record-assertions` after any assertion change; **1183** on record.
+- `tests/run --record-assertions` after any assertion change; **1191** on record.
 - **Not deployed.** The engine on this machine is 0.49.39 and this work is not
   in it. `installed` fails structurally in every worktree and is not a defect
   to fix; a `felix install` from the main checkout is what arms any of this
@@ -192,8 +262,8 @@ against a fresh clone first.
   cannot produce a green receipt, so the local merge path refused and this
   landed through `gh pr merge` on green CI. That is issue #2, unchanged, and it
   is now the second session to route around it.
-- **`probes.sh` is 477 lines** against the 500-line rule. The next thing added
-  there should split the reader out rather than squeeze in.
+- **The split happened**: `probes.sh` is 362 lines and `facts.sh` 219, against
+  the 500-line rule probes.sh had reached at 477.
 - **The residual, and it belongs wherever this reports its own trustworthiness.**
   A probe that FABRICATES members reads as `found` and nothing catches it: the
   witness catches a probe that sees too little, and there is no witness for one

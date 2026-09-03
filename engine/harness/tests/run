@@ -2746,6 +2746,73 @@ case "$out" in
   *)                    ok  "a marker that resolves is not called broken" ;;
 esac
 
+# The other direction, and the worse one. Everything above is about a marker
+# that FAILS to resolve; this is a marker that succeeds at resolving somewhere
+# it must never reach. `tr -d '[:space:]'` strips whitespace, not separators,
+# so `../../rogue` went whole into `[ -d "$felix_root/projects/$name" ]`, which
+# is true of any directory that exists. Nothing refuses, because from the
+# resolver's side nothing went wrong — and from there project.json's gate
+# command, deny.tsv, risk.tsv and evidence.tsv are all read out of a directory
+# somebody else chose. The refusal added above is no help: it fires on names
+# that resolve to nothing, and this one resolves.
+#
+# A project name is one path segment. That is the entire rule, and it belongs
+# in the resolver rather than in each caller, because every caller that has to
+# remember a rule is a caller that will one day forget it.
+ROGUE="$TMP/rogue"; mkdir -p "$ROGUE"
+printf '{\n  "name": "rogue",\n  "gate": "echo rogue-gate-ran"\n}\n' > "$ROGUE/project.json"
+_resolve_marker() { ( . "$FROOT/harness/lib/resolve.sh"; felix_resolve_project "$1" "$FROOT" ); }
+_broken_marker()  { ( . "$FROOT/harness/lib/resolve.sh"; felix_binding_broken  "$1" "$FROOT" ); }
+
+printf '../../rogue\n' > "$BROKEN/.felix"
+out="$(_resolve_marker "$BROKEN")"; rc=$?
+is "a marker escaping projects/ does not resolve"  "$rc"  "1"
+is "and hands back no directory to be read"        "$out" ""
+
+# felix_binding_broken asked the same question the same wrong way, so it called
+# a traversing marker healthy. A refusal one function can see and the other
+# cannot is how a hole survives its own fix.
+out="$(_broken_marker "$BROKEN")"
+case "$out" in
+  '') bad "and the binding is reported broken, not healthy" "it said nothing" ;;
+  *)  ok  "and the binding is reported broken, not healthy" ;;
+esac
+has "and the refusal quotes the name that escaped" "$out" "rogue"
+
+# The sharpest form of it, and the reason this outranks a marker that merely
+# fails to resolve. `felix gate` reads project.json out of whatever the marker
+# resolved to and runs the command written there. Under this marker that is a
+# gate nobody in this repository wrote, and it exits 0 — so the tree is
+# certified by a file the tree's own author supplied. deny.tsv, risk.tsv and
+# evidence.tsv arrive from the same directory.
+out="$( cd "$BROKEN" && "$FELIX" gate 2>&1 )"; rc=$?
+case "$out" in
+  *rogue-gate-ran*) bad "felix gate runs no command from out there" "$out" ;;
+  *)                ok  "felix gate runs no command from out there" ;;
+esac
+is "and refuses rather than reporting a pass" "$rc" "2"
+
+# `..` and `.` name real directories under projects/, so a rule written only
+# about slashes would still let a marker walk one level up and read the home.
+printf '..\n' > "$BROKEN/.felix"
+is "a marker naming the parent of projects/ does not resolve" \
+   "$( _resolve_marker "$BROKEN" >/dev/null 2>&1; echo $? )" "1"
+printf '.\n' > "$BROKEN/.felix"
+is "a marker naming projects/ itself does not resolve" \
+   "$( _resolve_marker "$BROKEN" >/dev/null 2>&1; echo $? )" "1"
+printf '/etc\n' > "$BROKEN/.felix"
+is "an absolute marker does not resolve" \
+   "$( _resolve_marker "$BROKEN" >/dev/null 2>&1; echo $? )" "1"
+
+# The half that must not regress: an ordinary one-segment name is still the
+# whole point of the marker.
+printf 'widget\n' > "$BROKEN/.felix"
+out="$(_resolve_marker "$BROKEN")"; rc=$?
+is "an ordinary name still resolves"        "$rc"  "0"
+is "and still names its own project directory" "$out" "$FROOT/projects/widget"
+out="$(_broken_marker "$BROKEN")"
+_allows "and an ordinary name is still not broken" "$out"
+
 # The home pointer, which is the same defect one level up and worse: it sits
 # outside every repository, so changing it produces no diff, no classification
 # and nothing for a reviewer to see.
@@ -2995,6 +3062,24 @@ out="$(cd "$REPO" && "$FELIX" adopt --yes 2>&1)"; rc=$?
 out="$(cd "$REPO" && "$FELIX" new --force 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "new refuses a flag as a project name" \
                 || bad "new refuses a flag as a project name" "$out"
+# A name is one path segment here for the same reason it is one in the
+# resolver, and this is the end that mints it: `felix new ../../rogue` would
+# mkdir outside projects/ and then write a marker pointing at it — a binding
+# the resolver is now obliged to refuse, handed over by Felix itself.
+# Deliberately a name nothing else in this suite creates. The first draft of
+# this assertion used ../../rogue, which the binding section above plants as a
+# fixture — so it reported the fixture and would have failed identically
+# whether or not cmd_new was guarded at all. A test that cannot tell the code
+# from the scaffolding is not a test.
+out="$(cd "$REPO" && "$FELIX" new ../../minted 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "new refuses a project name that is a path" \
+                || bad "new refuses a project name that is a path" "$out"
+[ -e "$FROOT/projects/../../minted" ] \
+  && bad "and creates nothing outside projects/" "$FROOT/projects/../../minted exists" \
+  || ok  "and creates nothing outside projects/"
+out="$(cd "$REPO" && "$FELIX" new .hidden 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "new refuses a dotted project name" \
+                || bad "new refuses a dotted project name" "$out"
 out="$(cd "$REPO" && "$FELIX" lesson --oops 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "lesson refuses a flag as the lesson" \
                 || bad "lesson refuses a flag as the lesson" "$out"

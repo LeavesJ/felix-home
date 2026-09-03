@@ -559,6 +559,12 @@ cmd_new() {
   # A project directory named after a flag would be enumerated by the
   # independence check and governed forever (#102).
   case "$name" in -*) die "usage: felix new <name> [path-to-checkout] (got a flag: $name)" ;; esac
+  # And one path segment, by the same rule and for a sharper reason than the
+  # flag above. `felix new ../../rogue` would mkdir outside projects/, seed a
+  # project.json there, and write a .felix marker naming it — handing over a
+  # binding felix_resolve_project is now obliged to refuse. The predicate is
+  # the resolver's own, so the two ends cannot drift apart.
+  felix_project_name_ok "$name" || die "a project name is one directory under projects/, so \"$name\" cannot be one: it may not contain \"/\" or begin with \".\"." 2
   local dir="$FELIX_HOME_DIR/projects/$name"
   [ -e "$dir" ] && die "project $name already exists at $dir"
   local tpl="$SCRIPT_DIR/templates"

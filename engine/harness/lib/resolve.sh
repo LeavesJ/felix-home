@@ -191,6 +191,35 @@ felix_repo_root() {
   [ -n "$root" ] && printf '%s' "$root" || printf '%s' "$start"
 }
 
+# A project name is one path segment, and this is the only rule about it.
+#
+# The marker file is where somebody else's text becomes a directory Felix reads
+# its own rules out of, and `tr -d '[:space:]'` strips whitespace and nothing
+# else — so `../../elsewhere/rogue` survived it whole and
+# `[ -d "$felix_root/projects/$name" ]` said yes, because that directory really
+# is there. It is just not under projects/. From that point project.json's gate
+# command runs, deny.tsv, risk.tsv and evidence.tsv are read, and every one of
+# them comes out of a tree whoever wrote the marker chose. Reproduced with
+# `echo ../../rogue > .felix`: `felix gate` ran a command this repository never
+# contained and exited 0.
+#
+# That is a different failure from the one felix_binding_broken was written for
+# and strictly worse. A marker naming nothing does not resolve, so the refusal
+# fires. This one RESOLVES, so nothing anywhere refuses.
+#
+# Stated as what a name IS rather than as a list of what it must not be. A deny
+# list has to anticipate `..`, `.`, a leading slash and whatever the next
+# filesystem calls a separator; the allow direction needs none of that, and it
+# is the direction that fails closed on the case nobody thought of. Empty is
+# folded in so the predicate is total and no caller has to remember to test it
+# separately — a caller that has to remember a rule is one that will forget it.
+felix_project_name_ok() {
+  case "${1:-}" in
+    ''|.*|*/*) return 1 ;;
+    *)         return 0 ;;
+  esac
+}
+
 # Resolve which project governs a working directory.
 # Prints the project directory on success, prints nothing and returns 1 on miss.
 #
@@ -205,7 +234,7 @@ felix_resolve_project() {
   # 1. explicit marker file naming the project
   if [ -f "$root/.felix" ]; then
     name="$(tr -d '[:space:]' < "$root/.felix")"
-    if [ -n "$name" ] && [ -d "$felix_root/projects/$name" ]; then
+    if felix_project_name_ok "$name" && [ -d "$felix_root/projects/$name" ]; then
       printf '%s' "$felix_root/projects/$name"
       return 0
     fi
@@ -295,11 +324,21 @@ felix_binding_broken() {
   root="$(felix_repo_root "$start")"
   [ -f "$root/.felix" ] || return 0
   name="$(tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
-  [ -n "$name" ] && [ -d "$home/projects/$name" ] && return 0
+  # The same predicate the resolver uses, and it has to be the same one. A
+  # marker this function called healthy while the resolver refused it would
+  # leave the CLI dying with "no project governs $PWD" — the sentence for an
+  # absent binding — about a binding that is present and hostile.
+  felix_project_name_ok "$name" && [ -d "$home/projects/$name" ] && return 0
 
   known="$(ls "$home/projects" 2>/dev/null | tr '\n' ' ')"
   if [ -z "$name" ]; then
     printf 'The .felix marker in %s is empty, so it does not resolve to a project. ' "$root"
+  elif ! felix_project_name_ok "$name"; then
+    # Deliberately not "does not resolve". That sentence invites somebody to go
+    # and create the directory, which is the one response that would make this
+    # worse.
+    printf 'The .felix marker in %s names "%s", which is a path rather than a project name. A project is one directory directly under %s, so a name may not contain "/" or begin with "." — either of those reaches outside it, and Felix would then read its gate command and its rules from wherever it landed. ' \
+      "$root" "$(_felix_binding_sane "$name")" "$home/projects"
   else
     printf 'The .felix marker in %s names "%s", and that does not resolve to a project under %s. ' \
       "$root" "$(_felix_binding_sane "$name")" "$home/projects"

@@ -108,6 +108,9 @@
 1	a malformed row is skipped, others still deny
 1	a malformed row is skipped, others still match
 1	a malformed row stops the gate rather than only being listed
+1	a marker escaping projects/ does not resolve
+1	a marker naming projects/ itself does not resolve
+1	a marker naming the parent of projects/ does not resolve
 1	a marker that resolves is not called broken
 1	a marketplaces path is one too
 1	a matching test closes the gap
@@ -301,6 +304,7 @@
 1	an absent gate receipt reads as absent, not as green
 1	an absent marker still means ungoverned
 1	an absent pointer is not a broken pointer
+1	an absolute marker does not resolve
 1	an all-structural gate still fails
 1	an always row is not flagged
 1	an ancient run counts as due again
@@ -336,6 +340,7 @@
 1	an opted-in capability is allowed
 1	an ordinary checkout is not
 1	an ordinary failure is still written down
+1	an ordinary name still resolves
 1	an unborn default base refuses rather than previews
 1	an unconsidered moment is named
 1	an undeclared capability is still never scored
@@ -401,6 +406,7 @@
 1	and absent from both sides is a fixture, not a drift
 1	and again, so a session can bump twice
 1	and an older one does not
+1	and an ordinary name is still not broken
 1	and an ordinary product repository is not
 2	and an unknown flag is refused rather than ignored
 1	and bin/ is in the searched set, because the gate runs it
@@ -415,6 +421,7 @@
 1	and claims nothing was unchecked
 1	and commits nothing to it
 1	and counts the recorded decline
+1	and creates nothing outside projects/
 1	and creates nothing without --create
 1	and declares nothing
 1	and deleting the syntax check escapes as verifier
@@ -440,6 +447,7 @@
 1	and gains its own name as a keyword
 1	and grounding it closes the gap
 1	and handed the cron line instead
+1	and hands back no directory to be read
 1	and hands it a pull request to merge
 1	and ignores the path so it cannot come back
 1	and is clean when the three directories agree
@@ -564,6 +572,7 @@
 1	and records the failure without being asked
 1	and refuses in gate mode as well
 1	and refuses instead of ignoring it
+1	and refuses rather than reporting a pass
 1	and refuses to spend past the ceiling
 1	and refuses with no issue and no input
 1	and reports a clear merge without performing one
@@ -630,6 +639,7 @@
 1	and states the tier
 1	and stays small
 1	and stays to one line
+1	and still names its own project directory
 1	and still offers the handoff
 1	and still proposes from the record
 1	and still resolves when the root is spelled the other way
@@ -647,6 +657,7 @@
 1	and the ack is consumed by the answer
 1	and the alphabetical-first remote was not touched
 1	and the bare listing the gate used to do would have counted a plain file
+1	and the binding is reported broken, not healthy
 1	and the blurb no longer outranks the manifest
 1	and the cause is the prompt, not the envelope
 1	and the clean sentence is withheld
@@ -676,6 +687,7 @@
 1	and the pulse refuses it in words
 1	and the receipt refuses to call that verified
 1	and the record names the channel
+1	and the refusal quotes the name that escaped
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
 1	and the report says how many fewer
@@ -796,6 +808,7 @@
 1	felix --help still answers usage
 1	felix adopt --help answers with usage
 1	felix decisions reads the record
+1	felix gate runs no command from out there
 1	felix merge reaches gh at all
 1	felix merge refuses on an escape
 1	felix new exits 0
@@ -892,7 +905,9 @@
 1	never proposes unmounting what was reached
 1	never retires what no route ever named
 1	never the transcript in the envelope
+1	new refuses a dotted project name
 1	new refuses a flag as a project name
+1	new refuses a project name that is a path
 1	no deny.tsv means nothing is denied
 1	no entry is listed twice
 1	no evidence rule requires a pattern that matches everything

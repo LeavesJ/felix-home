@@ -79,9 +79,23 @@ page, three memory entries, two lessons, and one defect that outranks all of it.
 | | |
 |---|---|
 | head | `e48df85` on `claude/felix-ecc-plugin-ba2871`, tree clean |
-| governing docs | `felix_v32_architecture_spec.md` + `felix_v32_conformance_amendments.md`, both in the Founder OS folder |
+| governing docs | `~/Documents/UC Berkeley/Career/Founder OS/felix_v32_architecture_spec.md` and `felix_v32_conformance_amendments.md` in the same folder — **outside this repository, so nothing loads them for you; read both before proposing anything architectural** |
 | page | https://claude.ai/code/artifact/7119c7ee-133d-40e1-bc4a-343f7b7a586a |
 | workflows run | 7, about 13M subagent tokens |
+
+### Start here, if you are the next session
+
+1. Read the two governing documents named above. They are outside this
+   repository and nothing mounts them for you.
+2. `felix gate` fails on `installed` here and that is expected: the engine
+   deployed on this machine is **0.49.39** (another session), this worktree is
+   **0.49.38**, and the check is structurally unpassable in a worktree. Every
+   other check is green and the suite is 1100 passed, 0 failed. Do not
+   "fix" it; the drift is another session's merged work.
+3. The first task is the marker bypass below. It is engine work, and it is the
+   deliberate exception to the no-engine-work-before-2026-09-06 rule, because
+   every other protection assumes the floor runs at all.
+4. Do not design a fifth kernel. See the next heading.
 
 ### Read this first: the architecture question is closed
 

@@ -36,7 +36,79 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck source=../lib/pulse.sh
 . "${SCRIPT_DIR}/../lib/pulse.sh"
 
+# JSON-escape via parameter substitution, one C-level pass each.
+#
+# Defined here rather than beside the emit it used to sit next to, because the
+# broken-binding report below runs long before that point and a bash function
+# is only callable after its definition has executed.
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+# The one emit, used by both exits.
+#
+# Claude Code is the default shape. Felix runs both as a plugin and as a plain
+# user-level hook in settings.json, and only the plugin path sets
+# CLAUDE_PLUGIN_ROOT; keying off it would emit the wrong shape for half the
+# installs, which fails silently by injecting nothing.
+#
+# The other two harnesses have no terminal slot in this hook's contract, so
+# $1 is dropped there and the text survives in the context alone. Factored so
+# the broken-binding path cannot drift from the governed one: two copies of a
+# three-way shape test is how one of them quietly stops matching the platform.
+_felix_emit() {
+  local line="$1" body="$2" escaped
+  escaped="$(escape_for_json "$body")"
+  if [ -n "${COPILOT_CLI:-}" ]; then
+    printf '{\n  "additionalContext": "%s"\n}\n' "$escaped"
+  elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "additional_context": "%s"\n}\n' "$escaped"
+  else
+    printf '{\n  "systemMessage": "%s",\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' \
+      "$(escape_for_json "$line")" "$escaped"
+  fi
+}
+
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
+
+# A binding that is present and does not resolve, reported at the one moment
+# that is early enough to be worth knowing.
+#
+# hooks/stop already refuses this, and refusing there alone means a session
+# with a broken binding runs completely unprotected and is told at the very
+# end — after the work. Every hook but that one still reads a non-zero resolve
+# as "ungoverned" and exits 0, and the start of a session is the other moment
+# this project's doctrine allows Felix to speak at all.
+#
+# It reports and does not refuse, and the asymmetry with stop is the point.
+# This hook has no block decision in its contract and cannot strand anybody,
+# so speaking here is free. PreToolUse is the tempting third place and is
+# deliberately not wired: the remedy for a broken binding is editing the marker
+# or running felix install, so a refusal there would refuse its own repair,
+# with no stop_hook_active cap and no FELIX_ALLOW_RED to escape through. See
+# lib/deny.sh on why that hook fails open on everything.
+#
+# Ordered before the bail below, and that ordering is the whole fix: a broken
+# binding presents here as an empty $PROJ, which is exactly what the next line
+# reads as "not governed, say nothing".
+#
+# An ABSENT binding still means ungoverned and still exits silently. That is
+# the half that must not regress — Felix has to stay usable in a repository it
+# does not govern — and it is what "nothing due" and "nothing is being checked"
+# must not render identically means here.
+broken="$(felix_binding_broken "$PWD" "$FELIX_HOME_DIR")"
+if [ -n "$broken" ]; then
+  felix_unresolved_log "$broken" "$PWD"
+  _felix_emit "Felix: binding broken, nothing is being checked" "$broken"
+  exit 0
+fi
+
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
 [ -n "$PROJ" ] || exit 0
 
@@ -191,17 +263,6 @@ Run the gate through the command above rather than a repo-relative path, which
 may not exist in the tree you are standing in. Declare your tier before you
 start, and run that tier's gate."
 
-# JSON-escape via parameter substitution, one C-level pass each.
-escape_for_json() {
-  local s="$1"
-  s="${s//\\/\\\\}"
-  s="${s//\"/\\\"}"
-  s="${s//$'\n'/\\n}"
-  s="${s//$'\r'/\\r}"
-  s="${s//$'\t'/\\t}"
-  printf '%s' "$s"
-}
-
 # ------------------------------------------------------------- discovery ----
 # Runs before the emit below, because the emit is followed by `exit 0` and an
 # appended block after that never runs. This one did not, for a whole version.
@@ -240,19 +301,6 @@ _felix_line="Felix: $(basename "$PROJ")"
 [ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due"
 [ -n "$_felix_found" ] && _felix_line="$_felix_line · new tooling found"
 
-escaped="$(escape_for_json "$context")"
-
-# Claude Code is the default shape. Felix runs both as a plugin and as a plain
-# user-level hook in settings.json, and only the plugin path sets
-# CLAUDE_PLUGIN_ROOT; keying off it would emit the wrong shape for half the
-# installs, which fails silently by injecting nothing.
-if [ -n "${COPILOT_CLI:-}" ]; then
-  printf '{\n  "additionalContext": "%s"\n}\n' "$escaped"
-elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
-  printf '{\n  "additional_context": "%s"\n}\n' "$escaped"
-else
-  printf '{\n  "systemMessage": "%s",\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' \
-    "$(escape_for_json "$_felix_line")" "$escaped"
-fi
+_felix_emit "$_felix_line" "$context"
 
 exit 0

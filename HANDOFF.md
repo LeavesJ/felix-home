@@ -71,6 +71,145 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
+## 0al. Verified at session close, 2026-09-03 (overnight) — the substrate asks reality, and one guard it shipped had never been run
+
+Each line produced by a command. Newest first under §0.
+
+| | |
+|---|---|
+| head | `2fed4e8` on `main` (#129), CI `gate` **success** |
+| suite | **1183 assertions**, from 1100 — 73 of them in one new section |
+| governed projects with a probe table | **3 of 3** |
+| deployed engine | 0.49.39. **This work is not in it.** |
+
+### Read this first: §0ak is not on main
+
+The previous session's handoff — the marker bypass, the paths to the two
+governing documents, the four-kernel history — is committed on
+`claude/felix-ecc-plugin-ba2871` and was never pushed. It exists on this
+machine and nowhere else. Two things from it that must not be lost:
+
+1. **`echo nonexistent > .felix` disables the whole floor.** A marker that is
+   present and does not resolve reads as ungoverned and the Stop hook exits 0.
+   Highest severity, and a concurrent session was building the fix when this
+   one started, which is why this session did not touch it.
+2. **The architecture question is closed.** `felix_v32_architecture_spec.md`
+   and `felix_v32_conformance_amendments.md`, both under
+   `~/Documents/UC Berkeley/Career/Founder OS/`, outside this repository and
+   loaded by nothing. Read both before proposing anything architectural. Do not
+   derive a fifth kernel.
+
+### What landed: `felix probes` (amendments §4, first increment)
+
+The rule, one level stricter than the one `procedures.tsv` obeys:
+
+> **Felix may declare which question to ask reality. Felix may never author
+> the answer.**
+
+Five states, and exactly one is a claim that nothing is there — `found`,
+`empty`, `blind`, `unknown`, `not-applicable`. `blind` and `unknown` block.
+
+The load-bearing rule is that **a row with no witness can never earn `empty`**.
+A probe with nothing to check it against cannot tell an absent surface from a
+broken command, and every system that guesses there guesses "absent". So
+dropping a witness to quiet a row makes it blocking instead, and that is what
+makes the table non-gameable in the cheap direction.
+
+Refused in three places, because a refusal that exists in one place is one
+somebody routes around: the command, the project gate, and the merge boundary —
+where it fails closed if the probe library is absent from the engine entirely.
+`felix new` seeds the table. `probes.tsv` is in `FELIX_ESCAPE_TABLES` with its
+own `verifier` row. The log is written **and read**: `felix probes` reports what
+changed since the last tree, which is the only thing that can say a count fell.
+
+### What it says about the three projects, measured
+
+- **elenchus**: FastAPI reports **16** routes where the decorators show 12 —
+  the four extra are auto-mounted docs endpoints, in no source line. Two
+  entrypoints, four ceiling sites. Nothing probes `frontend`, `llm`,
+  `observability`, `security`.
+- **veldra**: cargo reports **16** workspace members and axum in **7** of them;
+  the root manifest names axum in none. Nothing probes `frontend`.
+- **felix**: 8 hook bindings, 3 governed projects, 8 enforcing tables, 10 shell
+  entrypoints. No gaps.
+
+### The mutation controls found more than they confirmed
+
+Seven rounds, per amendments §2.1. The decoupled violation — every syntactic
+marker of the witness rule left intact — went red on four assertions, and the
+irrelevant comment reword broke nothing. Both are the controls working.
+
+The two that mattered are the ones that did **not** behave:
+
+- **A failed append reporting success went GREEN.** The line-count guard in
+  `felix_probes_record` had never been exercised by anything: every failure the
+  suite constructed was one the append's own exit status already caught. A
+  guard nothing runs is a guard nobody has checked. Fixed with the case only
+  the count can see — a log path that stopped being a file.
+- **"unknown must block" rested on a single assertion**, one deletion from
+  being a control that controls nothing. A second detector was added at the
+  merge boundary, so the two fail for different reasons or not at all.
+
+Both are in `lessons.md`. Neither was findable by reading the tests.
+
+### Three defects found in adjacent code
+
+- **The seeded witness in the template ended in `| head -1`**, so its exit
+  status was head's — zero, whatever `ls` found. It claimed every repository on
+  earth has tests, and a project created without them was born `blind`. This
+  table's own failure class, inside its own template, and the third instance of
+  the shape in this project. Found by running `felix new`, not by reading it.
+- **The suite's gate-confine test iterated a hand-typed list** of the seven
+  gate checks, so an eighth would sit outside the confine with seven `ok` lines
+  printing. It enumerates from the gate now.
+- **Invariant 1 fired on this work.** A comment in `probes.sh` named a governed
+  project. `git grep` did not see it — the file was untracked — and the suite's
+  check greps the filesystem copy of the runtime, so it caught what a
+  tracked-only search would have missed. The two searches disagree on a new
+  file, and only one of them is right.
+
+### What was deliberately NOT done
+
+The probes check is wired into **Felix's own gate only**. Elenchus and veldra
+have probe tables and `felix probes` reads them, but neither project's gate
+calls it, so for those two the only enforcement is the merge boundary — and
+that arms only once this engine is deployed.
+
+That is a decision, not an omission. Elenchus's gate is that product's single
+CI check and its beta opens on the 5th; putting its CI colour on a FastAPI
+import resolving in a runner, two days out, with nobody awake to look, is not a
+call a session should make unasked. Add it after the soak reads out, and run it
+against a fresh clone first.
+
+### Standing, and what is genuinely open
+
+- `tests/run --record-assertions` after any assertion change; **1183** on record.
+- **Not deployed.** The engine on this machine is 0.49.39 and this work is not
+  in it. `installed` fails structurally in every worktree and is not a defect
+  to fix; a `felix install` from the main checkout is what arms any of this
+  outside felix's own gate.
+- **`felix merge` was unreachable, again.** A worktree that changed the engine
+  cannot produce a green receipt, so the local merge path refused and this
+  landed through `gh pr merge` on green CI. That is issue #2, unchanged, and it
+  is now the second session to route around it.
+- **`probes.sh` is 477 lines** against the 500-line rule. The next thing added
+  there should split the reader out rather than squeeze in.
+- **The residual, and it belongs wherever this reports its own trustworthiness.**
+  A probe that FABRICATES members reads as `found` and nothing catches it: the
+  witness catches a probe that sees too little, and there is no witness for one
+  that claims too much. One level up, what says a probe is MISSING is
+  `felix_detect` — patterns somebody wrote — so a surface no pattern matches
+  produces no capability, no gap, and no probe. That is the same joint moved
+  one level, not a joint removed. There is also no wall-clock timeout: stdin is
+  closed, which removes the common hang, and a probe that genuinely loops still
+  hangs the gate.
+- **Next, from the amendments:** §2's checker qualification is the largest
+  unbuilt piece and it is mechanizable — the gate already prints its check
+  names, so the enumeration is available from reality rather than from a list.
+  The hard part is that a report-only version cannot be armed without turning
+  every gate red on day one, so the mutation runner has to ship with it.
+  §1.3's scheduled discovery is a founder grant and no session may make it.
+
 ## 0aj. Verified at session close, 2026-08-31 (day) — the correction that matters is about method, not code
 
 Each line produced by a command. Newest first under §0. §0ai holds the night;

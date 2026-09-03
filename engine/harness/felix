@@ -135,6 +135,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/procedures.sh"
 # shellcheck source=lib/probes.sh
 . "${SCRIPT_DIR}/lib/probes.sh"
+# shellcheck source=lib/facts.sh
+. "${SCRIPT_DIR}/lib/facts.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -3246,7 +3248,7 @@ cmd_probes() {
   local recorded=1
   felix_probes_record "$proj" "$root" "$tid" "$out" || recorded=0
 
-  local n_all n_block n_empty n_na
+  local n_all n_block n_empty n_na n_nosrc
   n_all="$(printf '%s\n' "$out" | grep -c .)"
   n_block="$(printf '%s\n' "$out" | felix_probes_blocking | grep -c .)"
   n_empty="$(printf '%s\n' "$out" | awk -F'\t' '$3 == "empty"' | grep -c .)"
@@ -3256,6 +3258,12 @@ cmd_probes() {
   # probes.tsv is in the escape set — but the gate would not, and a table that
   # can quietly switch itself off should have to say how much of itself is off.
   n_na="$(printf '%s\n' "$out" | awk -F'\t' '$3 == "not-applicable"' | grep -c .)"
+  # How many rows identify no instrument. Derived from the probe's first word,
+  # so a row beginning with an assignment or a variable gets none — which means
+  # a count that moves in it cannot be told apart from the tool underneath it
+  # moving. That is a real limit on what the drift report can say, and a limit
+  # nobody prints is a limit nobody reads.
+  n_nosrc="$(printf '%s\n' "$out" | awk -F'\t' '$3 != "not-applicable" && ($7 == "-" || $7 == "")' | grep -c .)"
 
   printf 'probes for %s\n\n' "$(basename "$proj")"
   printf '%s\n' "$out" | while IFS= read -r line; do
@@ -3274,7 +3282,7 @@ cmd_probes() {
   # left a project whose every probe came back `found` with two blank lines and
   # then a heading, which reads as a section that failed to render.
   [ "${n_block:-0}" -gt 0 ] || [ "${n_empty:-0}" -gt 0 ] || [ "${n_na:-0}" -gt 0 ] \
-    && printf '\n'
+    || [ "${n_nosrc:-0}" -gt 0 ] && printf '\n'
   if [ "${n_block:-0}" -gt 0 ]; then
     printf '%s of %s could not be established. Those are not passes:\n' "$n_block" "$n_all"
     printf 'blind means the witness proves a surface the probe cannot see, and\n'
@@ -3287,6 +3295,11 @@ cmd_probes() {
   if [ "${n_na:-0}" -gt 0 ]; then
     printf '%s of %s did not apply here and asked nothing. A row can be switched\n' "$n_na" "$n_all"
     printf 'off by making its `when` false, so this number is worth reading.\n'
+  fi
+  if [ "${n_nosrc:-0}" -gt 0 ]; then
+    printf '%s of %s identify no instrument, because the probe does not begin\n' "$n_nosrc" "$n_all"
+    printf 'with a bare command name. A count that moves in those cannot be told\n'
+    printf 'apart from the tool underneath them moving.\n'
   fi
 
   if [ -n "$malformed" ]; then

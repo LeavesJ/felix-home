@@ -33,6 +33,18 @@
 # own template: a verdict taken from the last stage of a pipeline instead of
 # from the question. End a witness in `grep -q .`, not in `head`.
 #
+# START THE PROBE WITH A BARE COMMAND NAME WHERE YOU CAN. The instrument that
+# answered is derived from the first word — `git ls-files` records git and a
+# token that changes when git is replaced, so a count that moves because the
+# tool moved can be told apart from one that moves because the tree did. A probe
+# beginning with an assignment, a variable or a subshell records no instrument,
+# which is honest and is also less than you could have had. `felix probes` says
+# how many rows are in that state.
+#
+# It is only ever the OUTERMOST command, so `python -c "import x; ..."` records
+# python and not x. Where that matters, the report saying "identifies no
+# instrument" is more useful than a name that tracks the wrong thing.
+#
 # Rows run in the checkout being examined, as shell. They are founder-authored
 # and live in an enforcing table: shrinking this file escapes to a person.
 #

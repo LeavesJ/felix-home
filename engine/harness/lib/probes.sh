@@ -146,6 +146,65 @@ _felix_probe_ask() {
     bash -c "$cmd" felix-probe </dev/null >/dev/null 2>&1 )
 }
 
+# Which instrument answered, and a token that changes when it is replaced.
+#
+# v3.2 §2 asks a fact to carry where it was observed from, and §5 makes a
+# provider upgrade an invalidation event. Without it the drift reader can say a
+# count moved and cannot say WHY — and "seven more members" reads as the code
+# changing when it may be the toolchain changing, which is an hour spent
+# looking for a route that was never added.
+#
+# DERIVED, never declared, and that is the whole design decision here. A sixth
+# column would have carried the answer, and it would also have cost the one
+# thing the fifth column bought: a tab inside a probe command splits it in two,
+# and only a fixed field count catches that. Widening the format to allow six
+# would let a tab-corrupted five-column row parse as a valid six-column one.
+# The protection is worth more than the resolution.
+#
+# So this reads the first word of the probe and asks the shell where it is. A
+# probe that begins with an assignment, a subshell or a variable identifies
+# nothing and says `-`, which is honest and visible: one governed project's
+# route probe begins `PY=.venv/bin/python; ...` and gets no identity. Inferring
+# one from a shell fragment is the parsing this project already refuses
+# elsewhere.
+#
+# And the limit that matters most, because the report would otherwise imply
+# more than this does. The first word is the OUTERMOST command, which is not
+# always the authority being consulted. `git ls-files` really is answered by
+# git. `python -c "import fastapi; ..."` is answered by FastAPI, and this would
+# name python — so a FastAPI upgrade that changes the route count would show a
+# moved count and an unchanged instrument, which is the wrong answer stated
+# confidently. Rewriting such a row to begin with a bare command would buy the
+# appearance of instrument tracking and not the substance. The honest output is
+# the one the report gives: those rows identify no instrument, and it says how
+# many.
+#
+# The token is the size in bytes of the resolved file. Not a hash: hashing a
+# 40MB binary on every gate run is a cost with no matching benefit, since the
+# question is only "is this the same instrument as last time". Not mtime, which
+# moves when nothing changed and is not comparable between machines. `wc -c` is
+# portable where `stat` is not.
+felix_probe_source() {
+  local root="$1" cmd="$2" word path size
+  word="${cmd%% *}"
+  # Anything that is not a bare command name identifies no instrument.
+  case "$word" in
+    ''|*=*|*'$'*|'('*|'{'*|'"'*|"'"*) printf -- '-'; return 0 ;;
+  esac
+  path="$( cd "$root" 2>/dev/null && command -v "$word" 2>/dev/null )"
+  [ -n "$path" ] || { printf -- '-'; return 0; }
+  # A builtin or a function resolves to its own name rather than a path. It is
+  # still an identity, and it is one that cannot be versioned — say so by
+  # naming it without a token rather than by pretending it has one.
+  case "$path" in
+    /*) ;;
+    *)  printf '%s' "$word"; return 0 ;;
+  esac
+  size="$(wc -c < "$path" 2>/dev/null | tr -dc '0-9')"
+  [ -n "$size" ] || { printf '%s' "$word"; return 0; }
+  printf '%s@%s' "$word" "$size"
+}
+
 # The computed state of one row, as: state <TAB> count <TAB> detail
 #
 # The order of questions is the design. Applicability first, because a probe
@@ -238,6 +297,7 @@ felix_probe_state() {
 
 # Every row, run. Emits:
 #   predicate <TAB> grounds <TAB> state <TAB> count <TAB> detail <TAB> probe
+#     <TAB> source
 felix_probes_run() {
   local proj="$1" root="$2" line pred grounds when probe witness st
   while IFS= read -r line; do
@@ -248,7 +308,8 @@ felix_probes_run() {
     probe="$(printf '%s\n' "$line" | cut -f4)"
     witness="$(printf '%s\n' "$line" | cut -f5)"
     st="$(felix_probe_state "$root" "$when" "$probe" "$witness")"
-    printf '%s\t%s\t%s\t%s\n' "$pred" "$grounds" "$st" "$probe"
+    printf '%s\t%s\t%s\t%s\t%s\n' \
+      "$pred" "$grounds" "$st" "$probe" "$(felix_probe_source "$root" "$probe")"
   done <<EOF
 $(felix_probe_rows "$proj")
 EOF
@@ -259,181 +320,6 @@ EOF
 # disagree about which ones they are.
 felix_probes_blocking() {
   awk -F'\t' '$3 == "unknown" || $3 == "blind"'
-  return 0
-}
-
-# The epistemic class of a state, in v3.2's vocabulary. A probe can only ever
-# produce two of the four: it observes, or it fails to. It never declares and
-# never infers, and writing either into this log would be the fabrication the
-# header refuses.
-felix_probe_class() {
-  case "${1:-}" in
-    found|empty)     printf 'OBSERVED' ;;
-    unknown|blind)   printf 'UNKNOWN' ;;
-    *)               printf 'n/a' ;;
-  esac
-}
-
-# Append the run to the project's fact log, with provenance.
-#
-# Append-only and never rewritten. A log a command can rewrite is a log that
-# can be made to agree with whatever ran last, and the whole point of keeping
-# facts over time is to be able to see one change.
-#
-# Provenance is the four things a later reader needs in order to decide whether
-# this fact still means anything: when it was taken, which tree it was taken
-# from, what state was computed, and the exact command that produced it. v3.2
-# §2 asks for freshness and dependencies as well; the tree id is what this
-# increment can honestly supply for both, and saying so is better than a column
-# holding a guess.
-#
-# It grows, and by design. The gate calls this on every run, so the file gains
-# one line per row per gate — a few hundred lines a week on a project worked on
-# daily. Nothing rotates it, and nothing should yet: the whole value of an
-# append-only record is that the old rows are still there, and a rotation
-# written before anybody has read a year of it would be deciding what to forget
-# before knowing what was worth keeping. When it needs bounding it belongs in
-# maintenance.tsv, which is where this project already puts upkeep with a
-# cadence.
-#
-# Returns non-zero when the append did not happen. That is issue #84's shape
-# exactly — `felix budget --record` reported success when its append failed and
-# the ceiling silently became no ceiling — and a fact log that can lose a row
-# while reporting a clean run is worse than no log, because it is trusted.
-felix_probes_record() {
-  local proj="$1" root="$2" tid="${3:-}" rows="$4"
-  local dir log stamp line pred grounds state count detail probe before after n
-  dir="$(felix_mem_dir "$proj")"
-  mkdir -p "$dir" 2>/dev/null || return 1
-  log="$dir/facts.log"
-  [ -f "$log" ] || : > "$log" 2>/dev/null || return 1
-
-  stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  [ -n "$tid" ] || tid="unknown-tree"
-  before="$(wc -l < "$log" 2>/dev/null | tr -dc '0-9')"; [ -n "$before" ] || before=0
-  n=0
-
-  while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    pred="$(printf '%s\n' "$line" | cut -f1)"
-    grounds="$(printf '%s\n' "$line" | cut -f2)"
-    state="$(printf '%s\n' "$line" | cut -f3)"
-    count="$(printf '%s\n' "$line" | cut -f4)"
-    detail="$(printf '%s\n' "$line" | cut -f5)"
-    probe="$(printf '%s\n' "$line" | cut -f6)"
-    n=$((n + 1))
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-      "$stamp" "$tid" "$pred" "$(felix_probe_class "$state")" \
-      "$state" "$count" "${grounds:--}" "$probe" >> "$log" || return 1
-  done <<EOF
-$rows
-EOF
-
-  [ "$n" -gt 0 ] || return 0
-  after="$(wc -l < "$log" 2>/dev/null | tr -dc '0-9')"; [ -n "$after" ] || after=0
-  # Counted rather than trusted. `>>` on a full disk, a read-only volume or a
-  # path that stopped being a file reports through an exit status this loop can
-  # miss inside a subshell; the line count cannot be misread.
-  [ "$((after - before))" -eq "$n" ]
-}
-
-# What changed since the last tree this was asked about.
-#
-# The fact log exists to be read, and a log nothing reads is `procedures.tsv`
-# one level down: a surface that accumulates rows forever while nothing ever
-# consults them. So this is the reader, and it is the whole reason the log
-# carries a tree id and a count rather than a verdict.
-#
-# It reports and never blocks, and that is the specification rather than
-# timidity: relations produce facts, not obligations. A member disappearing can
-# be somebody deleting a file on purpose, and a stop that fires on every
-# ordinary deletion is one people learn to route around — which is worse than
-# no stop, because it teaches them to route around the ones that matter. The
-# states already block where blocking is right: a surface that could be seen
-# and now cannot is `blind`, and that is not a drift, it is a refusal.
-#
-# What it catches that nothing else does: a count that fell. `hook_binding`
-# going from eight to six is a floor that stopped running for two events, and
-# no check anywhere greps for a hook that was deleted — absence has no line
-# number. The predicate had eight members yesterday and has six today, and that
-# sentence is only available to something holding both numbers.
-#
-# Compared against the last run on a DIFFERENT tree. Comparing against the last
-# run of any kind would compare a tree with itself the second time anybody runs
-# the command in one sitting, and report that nothing ever changes.
-felix_probes_drift() {
-  local proj="$1" tid="$2" rows="$3"
-  local log key when tree line pred state count was seen_now=""
-  log="$(felix_mem_dir "$proj")/facts.log"
-  [ -f "$log" ] || return 0
-  [ -n "$tid" ] || return 0
-
-  # One run is one timestamp and one tree together. The timestamp alone would
-  # merge two runs that happened inside the same second on different trees,
-  # which is not hypothetical: a gate and a merge check can land together.
-  key="$(awk -F'\t' -v t="$tid" '$2 != "" && $2 != t { k = $1 "\t" $2 } END { if (k != "") print k }' "$log")"
-  [ -n "$key" ] || return 0
-  when="$(printf '%s' "$key" | cut -f1)"
-  tree="$(printf '%s' "$key" | cut -f2)"
-
-  # Iterated in table order rather than with awk's `for (p in array)`, whose
-  # order is unspecified — a report whose lines move between runs cannot be
-  # diffed, and being diffable is the entire point of a log.
-  while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    pred="$(printf '%s\n' "$line" | cut -f1)"
-    state="$(printf '%s\n' "$line" | cut -f3)"
-    count="$(printf '%s\n' "$line" | cut -f4)"
-    seen_now="$seen_now
-$pred"
-    was="$(awk -F'\t' -v w="$when" -v tr="$tree" -v p="$pred" \
-             '$1 == w && $2 == tr && $3 == p { print $5 "\t" $6 }' "$log" | head -1)"
-    if [ -z "$was" ]; then
-      printf '%s\t-\t%s\tnothing had been recorded for this predicate\n' "$pred" "$state"
-      continue
-    fi
-    local wstate wcount
-    wstate="$(printf '%s' "$was" | cut -f1)"
-    wcount="$(printf '%s' "$was" | cut -f2)"
-    if [ "$wstate" != "$state" ]; then
-      printf '%s\t%s\t%s\tthe state changed\n' "$pred" "$wstate" "$state"
-      continue
-    fi
-    # Both sides have to be numbers before they can be compared, and a pair
-    # that is not says so. `[ a -gt b ]` on a non-number errors, the error is
-    # redirected, and the false status then falls through every branch — so a
-    # count nothing could read renders exactly like a count that did not move.
-    # That is this whole file's failure class appearing inside its own reader.
-    case "${wcount}${count}" in
-      *[!0-9]*|'')
-        printf '%s\t%s\t%s\tone of these counts is not a number, so nothing was compared\n' \
-          "$pred" "${wcount:-?}" "${count:-?}"
-        continue ;;
-    esac
-    if [ "$wcount" -gt "$count" ]; then
-      printf '%s\t%s members\t%s members\t%s fewer than on the last tree\n' \
-        "$pred" "$wcount" "$count" "$((wcount - count))"
-    elif [ "$wcount" -lt "$count" ]; then
-      printf '%s\t%s members\t%s members\t%s more than on the last tree\n' \
-        "$pred" "$wcount" "$count" "$((count - wcount))"
-    fi
-  done <<EOF
-$rows
-EOF
-
-  # The other direction: a predicate this project was reading and no row reads
-  # now. Reported rather than blocked, because the table it was removed from is
-  # in the escape set and shrinking it already stops a merge for a person to
-  # look at. A second stop here would be one that can be waited out — the log
-  # only remembers the last run, so running the command twice would clear it.
-  awk -F'\t' -v w="$when" -v tr="$tree" '$1 == w && $2 == tr { print $3 "\t" $5 }' "$log" \
-    | while IFS= read -r line; do
-        [ -n "$line" ] || continue
-        pred="$(printf '%s\n' "$line" | cut -f1)"
-        felix_has_line "$seen_now" "$pred" && continue
-        printf '%s\t%s\tnot read\tthis was being read here and no row reads it now\n' \
-          "$pred" "$(printf '%s\n' "$line" | cut -f2)"
-      done
   return 0
 }
 

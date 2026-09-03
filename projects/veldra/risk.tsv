@@ -22,7 +22,12 @@ yellow	path	^(package|package-lock)\.json$	dependency change
 yellow	path	^(pyproject\.toml|requirements.*\.txt|Cargo\.toml|go\.mod)$	dependency change
 yellow	path	\.(sql|graphql|proto)$	interface or schema
 yellow	path	^\.gitignore$	changes what the repository tracks
-green	path	(^|/)\.felix$	Felix's own project marker
+# Was green — the one tier that can auto-merge — on the file that names
+# which project governs this checkout. Every hook resolves through it, so
+# one line naming a project that does not exist buys no gate and no hold
+# for the whole repository. Corrected across every governed project and in
+# the template on 2026-09-03.
+red	path	(^|/)\.felix$	names which project governs this checkout, and every hook resolves through it	verifier
 green	path	\.(md|markdown|rst|txt)$	documentation
 # A directory name says where a file sits, never what it is. Unqualified, this
 # row made a committed docs/tool.sh green — and green is the tier that can

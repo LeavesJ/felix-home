@@ -22,7 +22,12 @@ yellow	path	^(package|package-lock)\.json$	dependency change
 yellow	path	^(pyproject\.toml|requirements.*\.txt|Cargo\.toml|go\.mod)$	dependency change
 yellow	path	\.(sql|graphql|proto)$	interface or schema
 yellow	path	^\.gitignore$	changes what the repository tracks
-green	path	(^|/)\.felix$	Felix's own project marker
+# Was green until 2026-09-03, which is the tier that can auto-merge. Green
+# on the one file that decides whether Felix is checking anything at all:
+# `echo nonexistent > .felix` disables the floor for a whole checkout and
+# would have merged itself. Every project seeded from this template gets
+# the row that stops it instead.
+red	path	(^|/)\.felix$	names which project governs this checkout, and every hook resolves through it	verifier
 green	path	\.(md|markdown|rst|txt)$	documentation
 # A directory name says where a file sits, never what it is. Unqualified, this
 # row made a committed docs/tool.sh green — and green is the tier that can

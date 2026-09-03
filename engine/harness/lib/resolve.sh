@@ -226,6 +226,107 @@ felix_resolve_project() {
   return 1
 }
 
+# Marker and pointer contents are written by whoever edited the file, and both
+# end up inside a JSON string a hook emits. Printable characters only, and
+# short, so a broken binding cannot be used to say something else.
+_felix_binding_sane() {
+  printf '%s' "$1" | LC_ALL=C tr -cd '[:print:]' | cut -c1-80
+}
+
+# A binding that is PRESENT and does not resolve.
+#
+# felix_resolve_project answers one question — which project governs here — and
+# returns non-zero for two states that are not the same fact. Nothing named
+# this checkout, which is the ordinary case and means ungoverned. Or something
+# named it and the name went nowhere, which means somebody broke the binding
+# and nothing is being checked. Every caller reads a non-zero resolve as the
+# first, so `echo nonexistent > .felix` switched the whole floor off in one
+# line: no gate, no hold, no record, exit 0.
+#
+# Absent is not broken, and that half must keep working. A directory with no
+# marker and no matching remote is a repository Felix does not govern, and it
+# has to stay silent there or Felix is unusable anywhere it has not been
+# adopted. This function is the other half, and it is this project's own rule
+# that "nothing due" and "nothing is being checked" must not render
+# identically.
+#
+# Two surfaces, because there are two ways to say where the binding points.
+# `$HOME/.felix-home` is checked first and matters more: it decides which home
+# the marker below is resolved against, it is read on every invocation, and it
+# sits outside every repository — so changing it produces no diff, no
+# classification, and nothing for a reviewer to see. A pointer that exists and
+# names a directory that is not a Felix home is a broken pointer, not an
+# absence.
+#
+# An explicit $FELIX_HOME wins over the pointer in felix_home, so when it is
+# set the pointer is never consulted and cannot bypass anything. Unread is not
+# broken either.
+#
+# Prints a sentence when the binding is broken and nothing when it is not, the
+# same shape as the other reporters a hook interpolates. It never repairs: the
+# correct binding is not knowable from here, since only a person can say
+# whether this tree is a project that was renamed or a tree Felix should leave
+# alone.
+felix_binding_broken() {
+  local start="${1:-$PWD}" home="${2:-}" root name p known why=""
+
+  # Three ways to be wrong, one place that decides and one place that prints.
+  # Printing from inside each branch and deciding afterwards whether to finish
+  # the sentence is how a partial refusal escapes — and a partial refusal is
+  # worse than none, because the caller tests emptiness and would block on half
+  # an explanation.
+  if [ -z "${FELIX_HOME:-}" ] && [ -f "$HOME/.felix-home" ]; then
+    p="$(tr -d '[:space:]' < "$HOME/.felix-home" 2>/dev/null)"
+    if   [ -z "$p" ]; then
+      why="is empty, so it names no home"
+    elif [ ! -d "$p" ]; then
+      why="names $(_felix_binding_sane "$p"), which is not a Felix home: no such directory"
+    elif [ ! -d "$p/projects" ]; then
+      why="names $(_felix_binding_sane "$p"), which is not a Felix home: it holds no projects/ directory"
+    fi
+    if [ -n "$why" ]; then
+      printf 'The Felix home pointer at %s %s.\n\n' "$HOME/.felix-home" "$why"
+      printf 'Every hook in every session resolves through that pointer, and it lives outside every repository, so breaking it leaves no diff to review.\n\n'
+      printf 'Point it at a real home, or delete it to fall back to the default:\n\n  felix install --home <path>\n'
+      return 0
+    fi
+  fi
+
+  root="$(felix_repo_root "$start")"
+  [ -f "$root/.felix" ] || return 0
+  name="$(tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
+  [ -n "$name" ] && [ -d "$home/projects/$name" ] && return 0
+
+  known="$(ls "$home/projects" 2>/dev/null | tr '\n' ' ')"
+  if [ -z "$name" ]; then
+    printf 'The .felix marker in %s is empty, so it does not resolve to a project. ' "$root"
+  else
+    printf 'The .felix marker in %s names "%s", and that does not resolve to a project under %s. ' \
+      "$root" "$(_felix_binding_sane "$name")" "$home/projects"
+  fi
+  printf 'A marker is present, so this tree was meant to be governed, and right now nothing is checking it.\n\n'
+  printf 'Name a project that exists, or remove the marker if this tree really is ungoverned:\n\n'
+  printf '  known projects: %s\n' "${known:-none}"
+}
+
+# A refusal that belongs to no project, because the thing that broke is what
+# decides which project this is.
+#
+# felix_say and felix_verify_log both key on a resolved project and cannot be
+# used here. The memory root can: it is outside any repository by construction,
+# it is the one writable place that does not need the binding to work, and a
+# line here is the difference between a hook that refused and a hook that never
+# ran.
+felix_unresolved_log() {
+  local reason="$1" where="${2:-}" mem
+  mem="$(felix_mem_root)"
+  [ -d "$mem" ] || mkdir -p "$mem" 2>/dev/null || return 0
+  printf '%s\t%s\t%s\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${where:-unknown}" \
+    "$(printf '%s' "$reason" | tr '\t\n' '  ')" \
+    >> "$mem/unresolved.log" 2>/dev/null || true
+}
+
 # Does this base name something that exists here?
 #
 # The question felix_changed_paths cannot answer, because it sends every git

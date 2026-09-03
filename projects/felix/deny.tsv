@@ -7,3 +7,18 @@
 # tool	extended-regex	reason
 Bash	git push ([^;&|]* )?(--force|-f)( |$)	force push drops commits, and Felix's history is the audit trail
 Bash	git commit ([^;&|]* )?--no-verify	--no-verify is how a gate stops being a gate. Fix the tree instead
+#
+# The binding, which is the one surface a refusal has to protect from the
+# inside. `.felix` names which project governs a checkout and
+# `$HOME/.felix-home` names which home that project is resolved against;
+# break either and every hook in every session resolves nothing. The Stop
+# hook now refuses a binding that is present and does not resolve, but that
+# fires after the damage, and the pointer is worse than the marker because
+# it sits outside every repository — no diff, no classification, nothing at
+# a merge boundary to see. This is the only enforcing row it can have.
+#
+# Reading either is still allowed. What is refused is writing one by hand,
+# because `felix new` and `felix install` write them and say what they did.
+Write	(^|/)\.felix(-home)?$	this file decides whether Felix is enforcing anything here; felix new and felix install write it and record that they did
+Edit	(^|/)\.felix(-home)?$	this file decides whether Felix is enforcing anything here; felix new and felix install write it and record that they did
+Bash	(>|tee|cp |mv |rm |ln |truncate|sed -i|install )[^;&|]*\.felix(-home)?([[:space:]]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home

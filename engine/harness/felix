@@ -239,6 +239,12 @@ USAGE
 resolve_or_die() {
   PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
   [ -n "$PROJ" ] && return 0
+  # The CLI already refused here, but it refused with the wrong sentence. A
+  # marker naming a project that does not exist is not an absent binding, and
+  # telling somebody to "add a .felix file" while a broken one sits in front of
+  # them sends them to add a second problem.
+  local broken; broken="$(felix_binding_broken "$PWD" "$FELIX_HOME_DIR")"
+  [ -n "$broken" ] && die "$broken" 2
   die "no project governs $PWD.
   Either add a .felix file naming one, or declare remote_match in a project.json.
   Known projects: $(ls "$FELIX_HOME_DIR/projects" 2>/dev/null | tr '\n' ' ')" 2

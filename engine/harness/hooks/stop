@@ -32,7 +32,49 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/guard.sh"
 . "${SCRIPT_DIR}/../lib/say.sh"
 
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"; s="${s//$'\r'/\\r}"; s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+# The payload is read before any decision now, because the refusal below is a
+# block like every other one here. The platform documents that a Stop hook must
+# return success while stop_hook_active is set, and deciding to block before
+# consulting that flag is how a hook loops.
+#
+# Tokenised whole rather than parsed, for the same reason the prompt hook does
+# it: a hand-rolled JSON reader breaks on the first payload containing a quote,
+# and the failure mode is a hook that silently stops enforcing anything.
+raw="$(cat 2>/dev/null || true)"
+SID="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+case "$raw" in
+  *'"stop_hook_active"'*'true'*) exit 0 ;;
+esac
+
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
+
+# The one place this file does not fail open, and it is deliberate.
+#
+# Everything else here allows and records, because a completion gate that can
+# strand a session gets removed and a removed gate enforces nothing. That rule
+# is about the unexpected. This is not unexpected: a marker naming a project
+# that does not exist, or a home pointer naming something that is not a home,
+# is somebody's edit, and until now it ended the session here with exit 0 —
+# `echo nonexistent > .felix` bought no gate, no hold and no record, in one
+# line, from inside the repository.
+#
+# An ABSENT binding still means ungoverned and still exits 0 below. What
+# separates the two is the whole fix: "nothing due" and "nothing is being
+# checked" must not render identically.
+broken="$(felix_binding_broken "$PWD" "$FELIX_HOME_DIR")"
+if [ -n "$broken" ]; then
+  felix_unresolved_log "$broken" "$PWD"
+  printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$broken")"
+  exit 0
+fi
+
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
 [ -n "$PROJ" ] || exit 0
 
@@ -44,15 +86,6 @@ GATE="$(felix_json_str "$PROJ/project.json" gate 2>/dev/null)"
 
 ROOT="$(felix_repo_root "$PWD")"
 git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || exit 0
-
-# Tokenised whole rather than parsed, for the same reason the prompt hook does
-# it: a hand-rolled JSON reader breaks on the first payload containing a quote,
-# and the failure mode is a hook that silently stops enforcing anything.
-raw="$(cat 2>/dev/null || true)"
-SID="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
-case "$raw" in
-  *'"stop_hook_active"'*'true'*) exit 0 ;;
-esac
 
 # A clean tree used to end the hook here, which meant committing your work
 # skipped the completion check entirely — and committing is what you do at the
@@ -80,13 +113,6 @@ if [ "${FELIX_ALLOW_RED:-}" = "1" ]; then
   felix_verify_log "$PROJ" "override" "$TID" "FELIX_ALLOW_RED"
   exit 0
 fi
-
-escape_for_json() {
-  local s="$1"
-  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"
-  s="${s//$'\n'/\\n}"; s="${s//$'\r'/\\r}"; s="${s//$'\t'/\\t}"
-  printf '%s' "$s"
-}
 
 # What the active route asked for and this session never used. Needs the route
 # recorded by the prompt hook and the transcript this payload names; without

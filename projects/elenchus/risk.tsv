@@ -28,7 +28,12 @@ red	content	^\+.*(DROP TABLE|TRUNCATE |DELETE FROM [^W]*$)	destructive SQL
 yellow	path	^(package|package-lock)\.json$	dependency change
 red	path	^(pyproject\.toml|requirements.*\.txt|Cargo\.toml|go\.mod)$	a manifest also configures the gate; one addopts line deletes tests	verifier	^[-+][[:space:]]*"?[A-Za-z0-9._-]+(\[[a-z,-]+\])?[[:space:]]*[<>=!~^,"]
 yellow	path	\.(sql|graphql|proto)$	interface or schema
-green	path	(^|/)\.felix$	Felix's own project marker
+# Was green — the one tier that can auto-merge — on the file that names
+# which project governs this checkout. Every hook resolves through it, so
+# one line naming a project that does not exist buys no gate and no hold
+# for the whole repository. Corrected across every governed project and in
+# the template on 2026-09-03.
+red	path	(^|/)\.felix$	names which project governs this checkout, and every hook resolves through it	verifier
 green	path	\.(md|markdown|rst|txt)$	documentation
 green	path	^(docs|documentation)/	documentation
 green	path	^tests?/	test-only change

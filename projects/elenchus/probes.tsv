@@ -1,0 +1,33 @@
+# What Felix asks reality about Elenchus.
+#
+# Felix may declare which question to ask. Felix may never author the answer.
+# Each row names a predicate and the command that enumerates its members; the
+# members come back from the command, and nothing in the engine can add one.
+#
+# predicate	grounds	when	probe	witness
+#
+# A row with no witness can never report `empty` and always blocks as
+# `unknown`. Every row here carries one, and each asks a different question
+# from its probe: the running app versus the file on disk, git's index versus
+# the filesystem. A witness that re-runs the probe agrees with it by
+# construction and buys nothing.
+#
+# `http_route` is why this whole surface exists. Asked on 2026-09-03, FastAPI
+# reports SIXTEEN routes where the decorators in the source show twelve; the
+# four extra are the auto-mounted documentation endpoints and they appear in no
+# source line. A grep for `@app.` would have answered twelve with total
+# confidence, and every question about what this service exposes would have
+# been answered against a number that was wrong by a third.
+#
+# `entrypoint` and `ceiling_site` are the pair, and the reason they are two
+# rows rather than one check. There are two processes that can serve this
+# product, and for a while only one of them armed the per-process call ceiling
+# — so the surface a stranger with a link can loop was unbounded while every
+# grep for the variable name succeeded. A check answers yes or no about a thing
+# somebody remembered to check. Two enumerations put the numbers side by side
+# and let the difference be the finding.
+http_route	api	-	PY=.venv/bin/python; [ -x "$PY" ] || PY=python3; PYTHONPATH=src "$PY" -c 'import os,tempfile;from elenchus.web.app import create_app;print("\n".join(p for p in (getattr(r,"path",None) for r in create_app(os.path.join(tempfile.mkdtemp(),"probe.db")).routes) if p))'	test -f src/elenchus/web/app.py
+entrypoint	-	-	git ls-files 'scripts/serve*' 'src/elenchus/web/__main__.py'	test -d src/elenchus/web
+ceiling_site	-	-	git grep -l ELENCHUS_MAX_CALLS -- scripts src	test -f src/elenchus/spend.py
+test_file	tests	-	git ls-files 'tests/*'	test -d tests
+ci_workflow	ci	-	git ls-files '.github/workflows/*'	test -d .github/workflows

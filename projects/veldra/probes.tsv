@@ -1,0 +1,25 @@
+# What Felix asks reality about veldra.
+#
+# Felix may declare which question to ask. Felix may never author the answer.
+# Each row names a predicate and the command that enumerates its members; the
+# members come back from the command, and nothing in the engine can add one.
+#
+# predicate	grounds	when	probe	witness
+#
+# A row with no witness can never report `empty` and always blocks as
+# `unknown`. Each witness here asks a different question from its probe: the
+# filesystem against cargo's resolution, git's index against the disk.
+#
+# `workspace_member` and `http_service` are asked of cargo rather than of the
+# manifests, and the difference is the point. Measured 2026-09-03: cargo
+# reports axum in SEVEN of sixteen members, and the root manifest names it in
+# none of them — workspace inheritance means a member's real dependency set is
+# not written in any single file a grep can read. A scan that reads manifests
+# finds zero HTTP services here and reports that as clean, which is within one
+# step of what this project's own superscan did when its D5 check ended with
+# `exit 0` and printed "All gates passed" while naming four unlimited services.
+workspace_member	rust	test -f Cargo.toml	cargo metadata --no-deps --format-version 1 --offline | python3 -c "import json,sys;[print(p['name']) for p in json.load(sys.stdin)['packages']]"	test -f Cargo.toml
+http_service	-	test -f Cargo.toml	cargo metadata --no-deps --format-version 1 --offline | python3 -c "import json,sys;[print(p['name']) for p in json.load(sys.stdin)['packages'] if any(d['name']=='axum' for d in p['dependencies'])]"	git grep -q "^axum" -- "*/Cargo.toml"
+container_image	deploy	-	git ls-files 'Dockerfile*' '*/Dockerfile*' 'docker-compose*'	sh -c 'ls Dockerfile* */Dockerfile* docker-compose* 2>/dev/null | grep -q .'
+ci_workflow	ci	-	git ls-files '.github/workflows/*'	test -d .github/workflows
+env_template	secrets	-	git ls-files '.env.example' '.env.sample' '*/.env.example'	sh -c 'ls .env.example .env.sample */.env.example 2>/dev/null | grep -q .'

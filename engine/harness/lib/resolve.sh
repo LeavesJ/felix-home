@@ -205,7 +205,7 @@ felix_resolve_project() {
   # 1. explicit marker file naming the project
   if [ -f "$root/.felix" ]; then
     name="$(tr -d '[:space:]' < "$root/.felix")"
-    if [ -n "$name" ] && [ -d "$felix_root/projects/$name" ]; then
+    if _felix_name_ok "$name" && [ -d "$felix_root/projects/$name" ]; then
       printf '%s' "$felix_root/projects/$name"
       return 0
     fi
@@ -231,6 +231,19 @@ felix_resolve_project() {
 # short, so a broken binding cannot be used to say something else.
 _felix_binding_sane() {
   printf '%s' "$1" | LC_ALL=C tr -cd '[:print:]' | cut -c1-80
+}
+
+# What a project name may be: one directory name under projects/, made of
+# letters, digits, dot, underscore and dash, not starting with a dot or a
+# dash. `.` and `..` are directories and `-d` says so, which is how a marker
+# reading `.` resolved to a healthy binding at `projects/.` — a project with
+# no tables, no deny rows and no gate, and every hook reading it as governed.
+# A name holding a slash is a path, and a path is not a name either.
+_felix_name_ok() {
+  case "${1:-}" in
+    ''|.*|-*|*/*|*[!A-Za-z0-9._-]*) return 1 ;;
+  esac
+  return 0
 }
 
 # A binding that is PRESENT and does not resolve.
@@ -295,11 +308,14 @@ felix_binding_broken() {
   root="$(felix_repo_root "$start")"
   [ -f "$root/.felix" ] || return 0
   name="$(tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
-  [ -n "$name" ] && [ -d "$home/projects/$name" ] && return 0
+  _felix_name_ok "$name" && [ -d "$home/projects/$name" ] && return 0
 
   known="$(ls "$home/projects" 2>/dev/null | tr '\n' ' ')"
   if [ -z "$name" ]; then
     printf 'The .felix marker in %s is empty, so it does not resolve to a project. ' "$root"
+  elif ! _felix_name_ok "$name"; then
+    printf 'The .felix marker in %s names "%s", which is not a project name: a name is one directory name under %s, and this is a path or a dot. ' \
+      "$root" "$(_felix_binding_sane "$name")" "$home/projects"
   else
     printf 'The .felix marker in %s names "%s", and that does not resolve to a project under %s. ' \
       "$root" "$(_felix_binding_sane "$name")" "$home/projects"

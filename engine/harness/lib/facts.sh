@@ -131,9 +131,15 @@ EOF
 felix_probes_drift() {
   local proj="$1" tid="$2" rows="$3"
   local log key when tree line pred state count source was seen_now=""
+  # No tree id is not "no drift". It is a run that cannot be placed against
+  # any other, and a reader that fell silent here rendered exactly like a tree
+  # that had not moved — the one shape this file's own header refuses.
+  if [ -z "$tid" ]; then
+    printf -- '-\t-\t-\tthis run has no tree id, so nothing was compared against the last tree\n'
+    return 0
+  fi
   log="$(felix_mem_dir "$proj")/facts.log"
   [ -f "$log" ] || return 0
-  [ -n "$tid" ] || return 0
 
   # One run is one timestamp and one tree together. The timestamp alone would
   # merge two runs that happened inside the same second on different trees,

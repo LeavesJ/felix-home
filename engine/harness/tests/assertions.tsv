@@ -605,6 +605,7 @@
 1	and scope says which tier it reached
 1	and shipping nothing declared still matches nothing
 1	and shows the decline itself
+1	and skips rather than fails when the engine has no probes command
 1	and so does a failure nobody answered
 1	and so does a worktree of it
 1	and so does the next one
@@ -701,6 +702,7 @@
 1	apply without --yes changes nothing
 1	as a declined verdict
 1	as does another
+1	asking the cli's own usage rather than matching its error text
 1	at most one caller records when one slot is left
 1	backfilled the human steps it implies
 1	backfilled the tooling the capability implies

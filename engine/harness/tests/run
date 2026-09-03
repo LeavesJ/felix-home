@@ -5680,6 +5680,16 @@ PBGATE="$REAL_HARNESS/../../projects/felix/gate.sh"
 if [ -f "$PBGATE" ]; then
   has "the project gate calls the probe check" "$(cat "$PBGATE")" "probes --gate"
   has "and reports it by name whichever way it goes" "$(cat "$PBGATE")" "fail probes"
+  # And tolerates an engine that predates the command. `felix probes` runs on
+  # the DEPLOYED cli, so between a merge and the `felix install` that follows
+  # it that cli is the previous version — which answers `unknown command` with
+  # exit 1, indistinguishable from a probe that came back blind. Every gate run
+  # on every project would have gone red in that window, for a reason that is
+  # not about the work and that `installed` already reports properly.
+  has "and skips rather than fails when the engine has no probes command" \
+      "$(cat "$PBGATE")" "no probes command"
+  has "asking the cli's own usage rather than matching its error text" \
+      "$(cat "$PBGATE")" "help 2>&1 | grep -q"
 else
   skip "the project gate calls the probe check" "no projects/felix/gate.sh beside this harness"
   skip "and reports it by name whichever way it goes" "no projects/felix/gate.sh beside this harness"

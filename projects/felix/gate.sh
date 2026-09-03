@@ -340,10 +340,25 @@ FELIX_CLI=""
 for c in "${FELIX_BIN:-}/../felix" ./engine/harness/felix; do
   [ -n "$c" ] && [ -x "$c" ] && { FELIX_CLI="$c"; break; }
 done
+#
+# An engine that predates this check is a SKIP, not a failure, and that
+# distinction is the difference between a check people read and one they learn
+# to ignore. `felix probes` is called on the DEPLOYED cli, and between a merge
+# and the `felix install` that follows it, that cli is the previous version —
+# which answers `unknown command: probes` with exit 1, indistinguishable from a
+# probe that came back blind. Every gate run on every project would have gone
+# red in that window, for a reason that is not about the work, and `installed`
+# already reports the same fact properly.
+#
+# Asked of the cli's own usage rather than by matching its error text: an
+# engine that has the command lists it, and a message is prose that can be
+# reworded while a command either dispatches or does not.
 if [ -z "$FELIX_CLI" ]; then
   # Announced, never silent. A check that prints nothing when it cannot run is
   # a check that can disappear while the report still looks complete (#77).
   printf '  %-18s skipped (no felix CLI reachable from here)\n' probes
+elif ! "$FELIX_CLI" help 2>&1 | grep -q 'felix probes'; then
+  printf '  %-18s skipped (this engine has no probes command; see installed)\n' probes
 elif PROBES_OUT="$("$FELIX_CLI" probes --gate 2>&1)"; then
   pass probes
   # Each state named rather than totalled. "N of M established" would count a

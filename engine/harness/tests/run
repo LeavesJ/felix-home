@@ -96,6 +96,15 @@ cat > "$FROOT/projects/widget/project.json" <<'EOF'
 EOF
 printf '# widget\n' > "$FROOT/projects/widget/CLAUDE.md"
 
+# One row, deliberately the most boring true thing about this checkout: the
+# marker that binds it. It must never come back `blind`, or every merge
+# assertion in this file would be measuring the probe rather than the merge —
+# so it reads a file the fixture creates and keeps, and if something does
+# remove it the honest answer is `empty`, which blocks nothing.
+printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' \
+  > "$FROOT/projects/widget/probes.tsv"
+cp "$FROOT/projects/widget/probes.tsv" "$TMP/probes.keep"
+
 FELIX="$FROOT/harness/felix"
 # Pin the home. Resolution consults ~/.felix-home, so without this the suite
 # runs against whatever the machine has installed, writes test projects into it,
@@ -1048,7 +1057,21 @@ if [ -f "$REAL_GATE" ]; then
 
   # Every check the gate reports must be behind the confine. Named individually
   # so a failure says WHICH one slipped out rather than that a number moved.
-  for _c in syntax executable installed tests secret independence memory; do
+  #
+  # ENUMERATED FROM THE GATE, not listed here. This was seven names typed by
+  # hand, and it went stale the first time the gate grew an eighth check: the
+  # new one was outside the confine and no assertion said so, while seven `ok`
+  # lines printed. That is the same defect the coverage table exists to catch
+  # and the same one the `executable` check above already records — a list of
+  # things to check is a list that stops matching what exists — arriving in the
+  # test written to keep the gate honest.
+  #
+  # Read before the loop, because the loop rewrites the file it would read.
+  _GCHECKS="$(grep -oE '^[[:space:]]*(pass|fail) [a-z][a-z-]*' "$REPO/projects/thing/gate.sh" \
+              | awk '{print $2}' | LC_ALL=C sort -u | tr '\n' ' ')"
+  [ -n "$_GCHECKS" ] || bad "the gate reports checks this suite can enumerate" \
+                            "no 'pass <name>' or 'fail <name>' lines in $REAL_GATE"
+  for _c in $_GCHECKS; do
     _n_before="$(grep -cE '^[[:space:]]*(pass|fail|check) ' "$REPO/projects/thing/gate.sh")"
     grep -vE "^[[:space:]]*(pass|fail) $_c\$" "$REPO/projects/thing/gate.sh" \
       | grep -vE "^[[:space:]]*(pass|fail) $_c;" > "$TMP/gt" && mv "$TMP/gt" "$REPO/projects/thing/gate.sh"
@@ -5343,6 +5366,522 @@ has "and names the project"            "$out" "procedures for widget"
 has "and reports what nothing answers" "$out" "nothing answers these"
 out="$(cd "$REPO" && "$FELIX" procedures --wat 2>&1)"; rc=$?
 is  "and an unknown flag is refused rather than ignored" "$rc" "1"
+
+
+printf '\nprobes: what reality says, and the difference between empty and blind\n'
+# The rule, one level stricter than the one procedures.tsv obeys: Felix may
+# declare which question to ask reality, and may never author the answer.
+#
+# The failure class stood at five instances by 2026-09-03, every one of them
+# the same shape: a check that reported clean because it found nothing. Three of
+# them. A security
+# audit named a missing request ceiling and the command built to answer it
+# dropped the finding. A governed project WROTE the ceiling check and ended it
+# with `exit 0`, so its scanner printed "All gates passed" while naming four
+# unlimited services. A vocabulary grep reported a ceiling absent that was
+# shipping and armed.
+#
+# No number of extra checks fixes that. What fixes it is refusing to let "found
+# nothing" and "could not look" render the same, which is what every assertion
+# below is about.
+PBP="$TMP/probes-proj"; mkdir -p "$PBP" "$MEM/probes-proj"
+PBR="$TMP/probes-repo"; mkdir -p "$PBR/src" "$PBR/.github/workflows"
+printf 'x\n' > "$PBR/src/a.py"
+printf 'on: push\n' > "$PBR/.github/workflows/ci.yml"
+( cd "$PBR" && git init -q -b main && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
+PBR="$(cd "$PBR" && pwd -P)"
+
+# Written by a function rather than patched in place, because the witness has
+# to be varied and `sed -i` with a \t is not portable between BSD and GNU sed —
+# the substitution silently matches nothing on one of them, which would leave an
+# assertion passing for the wrong reason.
+_pbtable() {
+  { printf '# predicate\tgrounds\twhen\tprobe\twitness\n'
+    # found: the probe enumerates, and the members are its own.
+    printf 'tracked\t-\t-\tgit ls-files\ttest -e .git\n'
+    # empty: nothing came back AND an independent witness agrees there is
+    # nothing to come back. The only state here that is a claim about the world.
+    printf 'rustcrate\t-\t-\tls -1 Cargo.toml 2>/dev/null\t%s\n' "${1:-test -f Cargo.toml}"
+    # blind: the probe saw none of a surface the witness proves is there. The
+    # control with teeth — the shape of every failure named in the header.
+    printf 'pyfile\t-\t-\tgit ls-files "*.rs"\ttest -d src\n'
+    # blind by failure rather than by silence: same verdict, because a probe
+    # that could not run against a surface that exists has seen none of it.
+    printf 'brokenprobe\t-\t-\tsh -c "exit 3"\ttest -d src\n'
+    # unknown: nothing came back and no witness says whether that is true.
+    printf 'nowitness\t-\t-\tgit ls-files "*.rs"\t-\n'
+    # unknown by absent tooling. 127 is never evidence about the surface.
+    printf 'notool\t-\t-\tdefinitely-not-a-real-command-xyz\ttest -d src\n'
+    # not-applicable: the row says it does not apply here, so it claims nothing.
+    printf 'na\t-\ttest -f Cargo.toml\tls -1 src/*.rs\ttest -d src\n'
+    # members AND a failure: partial, so neither found nor nothing-came-back.
+    printf 'partial\t-\t-\tls -1 src no-such-path\ttest -d src\n'
+    # a probe that reads stdin. With a terminal on stdin this WAITS, and this
+    # runs inside a gate — so one row spelt `grep foo` instead of
+    # `grep foo file` would hang every gate run on the project forever. The
+    # only way this assertion can be reached at all is if stdin is closed.
+    printf 'readsstdin\t-\t-\tcat\ttest -d src\n'
+    # anything the caller wants appended for one assertion.
+    [ -n "${2:-}" ] && printf '%s\n' "$2"
+  } > "$PBP/probes.tsv"
+}
+_pbtable
+
+_pbrun() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+             . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_run "$PBP" "$PBR" ); }
+_pbstate() { _pbrun | awk -F'\t' -v p="$1" '$1 == p { print $3 }'; }
+
+is "a probe that enumerates members is found"      "$(_pbstate tracked)"     "found"
+is "nothing found and a witness agreeing is empty" "$(_pbstate rustcrate)"   "empty"
+is "nothing found where a witness proves a surface is blind" \
+   "$(_pbstate pyfile)"      "blind"
+is "and a probe that failed against a real surface is blind too" \
+   "$(_pbstate brokenprobe)" "blind"
+is "nothing found with no witness is unknown, never empty" \
+   "$(_pbstate nowitness)"   "unknown"
+is "a probe whose command does not exist is unknown" "$(_pbstate notool)"    "unknown"
+# Members AND a failure. `ls -1 a.txt missing` prints a.txt and exits 1, which
+# is a real shape rather than a corner. It cannot be `found`, because the
+# enumeration is partial; and it must not be described as a probe that returned
+# nothing, because that sentence would be false. A report stating something
+# untrue about what it saw is the failure this whole section refuses.
+is "a row that does not apply here claims nothing"   "$(_pbstate na)"        "not-applicable"
+is "a probe that printed members and then failed is unknown, not found" \
+   "$(_pbstate partial)" "unknown"
+has "and the report says the enumeration was partial" \
+    "$(_pbrun | awk -F'\t' '$1 == "partial" { print $5 }')" "partial"
+# Reaching this line at all is the assertion: a probe reading a terminal would
+# never return, and the suite would hang here rather than fail.
+is "a probe that reads stdin returns instead of hanging the gate" \
+   "$(_pbstate readsstdin)" "blind"
+
+# ------------------------------------------------------ the instrument ------
+# v3.2 §2 asks a fact to say where it was observed FROM, and §5 makes a provider
+# upgrade an invalidation event. Without it the drift reader can say a count
+# moved and cannot say why — and "seven more members" reads as the code changing
+# when it may be the toolchain changing, which is an hour spent looking for a
+# route that was never added.
+_pbsrc() { _pbrun | awk -F'\t' -v p="$1" '$1 == p { print $7 }'; }
+case "$(_pbsrc tracked)" in
+  git@[0-9]*) ok  "a probe naming a real command carries that instrument and a token" ;;
+  *)          bad "a probe naming a real command carries that instrument and a token" \
+                  "got [$(_pbsrc tracked)]" ;;
+esac
+# Derived, never declared, so anything that is not a bare command name says so
+# rather than having an identity invented from a shell fragment. A real probe
+# in a governed project begins with an assignment for exactly this reason.
+_pbtable "" 'assigned	-	-	PY=/bin/echo; $PY hello	test -d src'
+is "a probe that begins with an assignment identifies no instrument" \
+   "$(_pbsrc assigned)" "-"
+_pbtable "" 'nosuchtool	-	-	definitely-not-a-real-command-xyz	test -d src'
+is "and a command that does not resolve identifies none either" \
+   "$(_pbsrc nosuchtool)" "-"
+_pbtable
+
+
+# The distinction stated as the one thing this surface exists for: two rows
+# that both enumerated zero members, and only one of them is a fact.
+case "$(_pbstate rustcrate):$(_pbstate pyfile)" in
+  empty:blind) ok  "zero members is two different answers depending on the witness" ;;
+  *)           bad "zero members is two different answers depending on the witness" \
+                   "$(_pbstate rustcrate):$(_pbstate pyfile)" ;;
+esac
+
+# Blocking is a property of the state, and nothing else may decide it.
+_pbblock() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+               . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_run "$PBP" "$PBR" \
+               | felix_probes_blocking | cut -f1 | LC_ALL=C sort | tr '\n' ' ' ); }
+is "exactly the states that could not be established block" \
+   "$(_pbblock)" "brokenprobe notool nowitness partial pyfile readsstdin "
+
+# The anti-gaming property, and the reason a witness is not optional decoration.
+# Dropping the witness from a row that was cleanly `empty` does not make it
+# quieter; it makes it blocking, because a probe with nothing to check it
+# against cannot tell an absent surface from a broken command.
+_pbtable -
+is "removing a witness turns a clean empty into a blocking unknown" \
+   "$(_pbstate rustcrate)" "unknown"
+_pbtable
+is "and restoring it makes the row clean again" "$(_pbstate rustcrate)" "empty"
+
+# The residual, asserted rather than only written down. Nothing here catches a
+# probe that FABRICATES members: the witness catches a probe that sees too
+# little and there is no witness for one that claims too much. Enumeration is
+# the weakest joint of any checker and cannot be made behavioural — an
+# entrypoint never found is never executed. Pinned so the claim this system
+# makes about its own trustworthiness stays true as the code moves.
+_pbtable "" 'invented	-	-	printf "ghost1\nghost2\n"	test -d src'
+is "a probe that invents its members is indistinguishable from one that found them" \
+   "$(_pbstate invented)" "found"
+
+# A row that names a predicate and no command. procedures.tsv had this defect
+# inside its own fix: a row recording no judgement still closed a gap and then
+# rendered nowhere. Here it must stand for nothing at all.
+_pbtable "" 'halfrow	-'
+_pbmal() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+             felix_probe_malformed "$PBP" ); }
+has "a row with no command is reported as recording nothing" "$(_pbmal)" "halfrow"
+case "$(_pbrun | cut -f1)" in
+  *halfrow*) bad "and is not run as though it were a probe" "$(_pbrun | cut -f1)" ;;
+  *)         ok  "and is not run as though it were a probe" ;;
+esac
+
+# Six fields is malformed rather than generously truncated. A tab inside a
+# probe command splits it in two, and reading five of six fields would run a
+# command cut off at the tab and check it against the remainder — something
+# nobody wrote, checked against something else nobody wrote.
+_pbtable "" 'wide	-	-	echo a	test -d src	leftover'
+has "a row with more fields than the format has is malformed" "$(_pbmal)" "wide"
+case "$(_pbrun | cut -f1)" in
+  *wide*) bad "and is not run half-read" "$(_pbrun | cut -f1)" ;;
+  *)      ok  "and is not run half-read" ;;
+esac
+_pbtable
+
+# ---------------------------------------------------------------- the log ---
+# Append-only, with provenance, and it must say so when it did not write.
+_pbrec() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+             . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+             felix_probes_record "$PBP" "$PBR" "$1" "$(felix_probes_run "$PBP" "$PBR")" \
+             ) 2>/dev/null; }
+_pbrec treeone
+is "recording a run succeeds" "$?" "0"
+PBLOG="$MEM/probes-proj/facts.log"
+is "one line per row is written" \
+   "$(grep -c . "$PBLOG" 2>/dev/null)" "$(_pbrun | grep -c .)"
+has "each fact carries the tree it was taken from" "$(cat "$PBLOG")" "treeone"
+has "and the exact command that produced it"       "$(cat "$PBLOG")" "git ls-files"
+
+# The column order is a CONTRACT, and these two exist because breaking it cost a
+# real log. The instrument was first written into column eight, where the probe
+# command had always been — so every row already in the append-only log read its
+# own command as its instrument, and the first run afterwards reported that
+# every predicate on the project had changed instrument. An append-only log
+# cannot be re-shaped: the only safe evolution is to add a column at the end.
+is "the probe command stays in the eighth column" \
+   "$(awk -F'\t' '$3 == "tracked" { print $8 }' "$PBLOG" | tail -1)" "git ls-files"
+case "$(awk -F'\t' '$3 == "tracked" { print $9 }' "$PBLOG" | tail -1)" in
+  git@[0-9]*) ok  "and the instrument is appended as the ninth" ;;
+  *)          bad "and the instrument is appended as the ninth" \
+                  "got [$(awk -F'\t' '$3 == "tracked" { print $9 }' "$PBLOG" | tail -1)]" ;;
+esac
+is "an established fact is classed OBSERVED" \
+   "$(awk -F'\t' '$3 == "tracked" { print $4 }' "$PBLOG" | head -1)" "OBSERVED"
+is "and one nothing established is classed UNKNOWN" \
+   "$(awk -F'\t' '$3 == "nowitness" { print $4 }' "$PBLOG" | head -1)" "UNKNOWN"
+PBN1="$(grep -c . "$PBLOG")"
+_pbrec treetwo
+is "a second run appends rather than replacing" \
+   "$(grep -c . "$PBLOG")" "$((PBN1 * 2))"
+has "so the earlier tree is still readable" "$(cat "$PBLOG")" "treeone"
+
+# #84's shape exactly: felix budget --record reported success when its append
+# failed and the ceiling silently became no ceiling. A fact log that can lose a
+# row while reporting a clean run is worse than no log, because it is trusted.
+chmod 444 "$PBLOG"
+_pbrec treethree
+PBRC="$?"
+chmod 644 "$PBLOG"
+is "an append that did not happen is reported as a failure" "$PBRC" "1"
+
+# The case the count exists for, and the only one the exit status cannot see:
+# a path that stopped being a file. `>>` to it succeeds, reports success, and
+# grows nothing — every row computed, every row lost, and a clean status.
+rm -f "$PBLOG"; ln -s /dev/null "$PBLOG"
+_pbrec treefour
+PBRC2="$?"
+rm -f "$PBLOG"
+is "an append that succeeded and wrote nothing is reported as a failure too" \
+   "$PBRC2" "1"
+
+# -------------------------------------------------------------- the drift ---
+# The log exists to be read. A log nothing reads is procedures.tsv one level
+# down: rows accumulating forever while nothing consults them.
+#
+# What it catches that nothing else does is a count that FELL. `hook_binding`
+# going from eight to six is a floor that stopped running for two events, and
+# nothing anywhere greps for a hook that was deleted — absence has no line
+# number. That sentence is only available to something holding both numbers.
+#
+# It reports and never blocks, and that is the specification rather than
+# timidity: relations produce facts, not obligations. The states already block
+# where blocking is right, and a member going away can be somebody deleting a
+# file on purpose.
+PBD="$TMP/probes-drift"; mkdir -p "$PBD" "$MEM/probes-drift"
+_pbdtable() {
+  { printf 'one\t-\t-\t%s\ttest -e .git\n' "${1:-git ls-files}"
+    printf 'two\t-\t-\tls -1 src\ttest -d src\n'
+    [ -n "${2:-}" ] && printf '%s\n' "$2"
+  } > "$PBD/probes.tsv"
+}
+_pbdrec() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+              felix_probes_record "$PBD" "$PBR" "$1" "$(felix_probes_run "$PBD" "$PBR")" ) 2>/dev/null; }
+_pbdrift() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+               . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+               felix_probes_drift "$PBD" "$1" "$(felix_probes_run "$PBD" "$PBR")" ); }
+
+_pbdtable
+is "with nothing on record there is nothing to compare" "$(_pbdrift alpha | grep -c .)" "0"
+_pbdrec alpha
+# The same tree is not a comparison. Comparing a tree with itself would report
+# that nothing ever changes, which is the most confident wrong answer available.
+is "a run compared against its own tree reports nothing" "$(_pbdrift alpha | grep -c .)" "0"
+
+# Fewer members. The signal the whole log exists for.
+_pbdtable 'git ls-files | head -1'
+has "a predicate with fewer members than the last tree is named" \
+    "$(_pbdrift beta)" "one"
+has "and the report says how many fewer" \
+    "$(_pbdrift beta)" "fewer than on the last tree"
+# The row that did not move must not appear. A drift report that lists
+# everything is a report nobody reads.
+case "$(_pbdrift beta | cut -f1)" in
+  *two*) bad "while a predicate that did not move is silent" "$(_pbdrift beta)" ;;
+  *)     ok  "while a predicate that did not move is silent" ;;
+esac
+_pbdrec beta
+
+# More members is the pre-deploy question in the other direction: a route
+# appeared on a service that is about to ship.
+_pbdtable
+has "a predicate with more members than the last tree is named too" \
+    "$(_pbdrift gamma)" "more than on the last tree"
+_pbdrec gamma
+
+# A state change outranks a count change, because `found` becoming `blind` is
+# not a smaller number, it is a surface nobody can see any more.
+_pbdtable 'git ls-files "*.nothing"'
+has "a predicate whose state changed is reported as a state change" \
+    "$(_pbdrift delta)" "the state changed"
+_pbdrec delta
+
+# A predicate nothing had recorded is new rather than missing.
+_pbdtable "" 'three	-	-	git ls-files	test -e .git'
+has "a predicate with no prior record is named as new" "$(_pbdrift epsilon)" "three"
+
+# And the other direction: something that was being read here and no row reads
+# now. Reported, not blocked — probes.tsv is in the escape set, so shrinking it
+# already stops a merge for a person to look at, and a second stop here could be
+# waited out by running the command twice.
+printf 'two\t-\t-\tls -1 src\ttest -d src\n' > "$PBD/probes.tsv"
+has "a predicate that was being read and no longer is gets named" \
+    "$(_pbdrift epsilon)" "one"
+has "and says so plainly" "$(_pbdrift epsilon)" "no row reads it now"
+
+# The instrument, reported before anything about the numbers: a count that moved
+# because the tool was replaced is a different fact from one that moved because
+# the project did.
+_pbdtable
+_pbdrec eta
+printf '%s\tolderTree\tone\tOBSERVED\tfound\t2\t-\tgit ls-files\tgit@999\n' \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$MEM/probes-drift/facts.log"
+has "a predicate whose instrument changed says so" "$(_pbdrift theta)" "the instrument changed"
+has "and names both tokens"                        "$(_pbdrift theta)" "git@999"
+
+# An append-only log holds rows written before instruments existed. Those have
+# eight fields, and a reader that treated the eighth as an instrument would
+# report that every predicate had changed instrument on the first run after the
+# change. That happened, on the real log, and it is why the column was appended.
+printf '%s\toldFormat\tone\tOBSERVED\tfound\t2\t-\tgit ls-files\n' \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$MEM/probes-drift/facts.log"
+case "$(_pbdrift theta)" in
+  *"instrument changed"*) bad "a row written before instruments existed claims none" \
+                              "$(_pbdrift theta)" ;;
+  *)                      ok  "a row written before instruments existed claims none" ;;
+esac
+
+# A count that cannot be read must not render as a count that did not move.
+# This file's own failure class, appearing inside its own reader: `[ a -gt b ]`
+# on a non-number errors, the error goes to /dev/null, and the false status
+# falls through every branch into silence.
+_pbdtable
+printf '%s\tsometree\tone\tOBSERVED\tfound\tnotanumber\t-\techo\n' \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$MEM/probes-drift/facts.log"
+has "a count that is not a number is reported rather than passed over" \
+    "$(_pbdrift zeta)" "not a number"
+
+# --------------------------------------------------------------- the gaps ---
+# Enumerated by felix_detect, not by this table. A gap list Felix wrote cannot
+# report the gap Felix did not think of.
+_pbgaps() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_gaps "$PBP" "$PBR" ); }
+has "a surface the checkout has and no probe reads is a gap" "$(_pbgaps)" "ci"
+_pbtable "" 'workflow	ci	-	git ls-files ".github/workflows/*"	test -d .github/workflows'
+case "$(_pbgaps)" in
+  *ci*) bad "and grounding it closes the gap" "$(_pbgaps)" ;;
+  *)    ok  "and grounding it closes the gap" ;;
+esac
+# The other direction. A table is wrong when it lacks a row reality has and
+# equally wrong when it keeps one reality dropped.
+_pbtable "" 'ghostprobe	billing	-	echo x	test -d src'
+_pborph() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_orphans "$PBP" "$PBR" ); }
+has "a probe grounding a surface nothing enumerates is named" "$(_pborph)" "billing"
+_pbtable "" 'workflow	ci	-	git ls-files ".github/workflows/*"	test -d .github/workflows'
+case "$(_pborph)" in
+  *ci*) bad "and one grounding a real surface is not" "$(_pborph)" ;;
+  *)    ok  "and one grounding a real surface is not" ;;
+esac
+_pbtable
+
+# ------------------------------------------------------- the empty refusal ---
+# procedures.tsv shipped to three projects, none of them ever wrote one, and no
+# gate ever called felix procedures — so a surface built to report gaps reported
+# nothing, forever, and read exactly like a project with no gaps. This is that
+# refused in three places, asserted separately, because a refusal that exists in
+# one place is a refusal somebody routes around.
+PBE="$TMP/probes-empty"; mkdir -p "$PBE"
+printf '{\n  "name": "widget",\n  "gate": "true"\n}\n' > "$PBE/project.json"
+_pbnorows() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+                felix_probe_rows "$PBE" ); }
+is "a project with no probes.tsv declares no probes" "$(_pbnorows | grep -c .)" "0"
+
+# One: the command itself. On a project of its own, because widget carries a
+# table like every project felix new creates, and the case under test is a
+# project that has none.
+mkdir -p "$FROOT/projects/bare" "$MEM/bare"
+printf '{\n  "name": "bare",\n  "gate": "true"\n}\n' > "$FROOT/projects/bare/project.json"
+BARE="$TMP/bare-repo"; mkdir -p "$BARE"
+( cd "$BARE" && git init -q -b main && printf 'x\n' > a.txt ) >/dev/null 2>&1
+BARE="$(cd "$BARE" && pwd -P)"; printf 'bare\n' > "$BARE/.felix"
+
+out="$(cd "$BARE" && "$FELIX" probes 2>&1)"; rc=$?
+is  "felix probes refuses a project that asks reality nothing" "$rc" "1"
+has "and says what is missing rather than printing a clean report" \
+    "$out" "read from reality"
+out="$(cd "$BARE" && "$FELIX" probes --gate 2>&1)"; rc=$?
+is  "and refuses in gate mode as well" "$rc" "1"
+
+# A table that exists and holds only comments is the same fact wearing a file.
+printf '# nothing yet\n' > "$FROOT/projects/bare/probes.tsv"
+out="$(cd "$BARE" && "$FELIX" probes 2>&1)"; rc=$?
+is  "a probes.tsv holding no rows is refused too" "$rc" "1"
+has "and is named as a shelf with nothing on it"  "$out" "declares no probe"
+
+# Two: the merge boundary, the strongest refusal Felix reaches offline.
+_pbblockers() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+                  . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/evidence.sh"
+                  . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+                  felix_merge_blockers "$1" "" "$2" "$FROOT" ) 2>/dev/null; }
+has "a merge is blocked while the project reads nothing from reality" \
+    "$(_pbblockers "$PBE" "$PBR")" "probes"
+has "and blocked by a probe that cannot see what a witness proves is there" \
+    "$(_pbblockers "$PBP" "$PBR")" "pyfile"
+has "and blocked by a row nothing could establish at all" \
+    "$(_pbblockers "$PBP" "$PBR")" "nowitness"
+
+# Fails closed rather than skipping. The `reviewed` lookup in the same function
+# guards itself with command -v because what it does is WIDEN, and skipping it
+# withholds a clearance. Skipping this would drop a blocker: an engine that
+# cannot evaluate probes has not established there is nothing to block on.
+PBNL="$TMP/lib-without-probes"; mkdir -p "$PBNL"
+for _l in resolve detect verify evidence escape review; do
+  cp "$FROOT/harness/lib/$_l.sh" "$PBNL/$_l.sh" 2>/dev/null
+done
+_pbnolib() { ( . "$PBNL/resolve.sh"; . "$PBNL/detect.sh"
+               . "$PBNL/verify.sh"; . "$PBNL/evidence.sh"; . "$PBNL/escape.sh"
+               felix_merge_blockers "$PBP" "" "$PBR" "$FROOT" ) 2>/dev/null; }
+has "an engine shipped without the probe library blocks rather than passing" \
+    "$(_pbnolib)" "probe library is not loaded"
+
+# Three: the gate. The wiring, not only the exit status — the status is
+# reachable from anywhere, and the call site is what actually runs in CI. This
+# reaches out of the harness into Felix's own project directory, which the
+# independence rule permits precisely here: `felix` is the one project the
+# engine may name, because it is the product governing itself.
+PBGATE="$REAL_HARNESS/../../projects/felix/gate.sh"
+if [ -f "$PBGATE" ]; then
+  has "the project gate calls the probe check" "$(cat "$PBGATE")" "probes --gate"
+  has "and reports it by name whichever way it goes" "$(cat "$PBGATE")" "fail probes"
+  # And tolerates an engine that predates the command. `felix probes` runs on
+  # the DEPLOYED cli, so between a merge and the `felix install` that follows
+  # it that cli is the previous version — which answers `unknown command` with
+  # exit 1, indistinguishable from a probe that came back blind. Every gate run
+  # on every project would have gone red in that window, for a reason that is
+  # not about the work and that `installed` already reports properly.
+  has "and skips rather than fails when the engine has no probes command" \
+      "$(cat "$PBGATE")" "no probes command"
+  has "asking the cli's own usage rather than matching its error text" \
+      "$(cat "$PBGATE")" "help 2>&1 | grep -q"
+else
+  skip "the project gate calls the probe check" "no projects/felix/gate.sh beside this harness"
+  skip "and reports it by name whichever way it goes" "no projects/felix/gate.sh beside this harness"
+fi
+
+# The table decides what stops, so shrinking it escapes to a person — the same
+# contract risk.tsv, deny.tsv and evidence.tsv already sit under.
+has "probes.tsv is one of the tables whose shrinkage escapes" \
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/escape.sh"
+        printf '%s' "$FELIX_ESCAPE_TABLES" )" "probes.tsv"
+
+# The full command against a project that has rows, since every assertion above
+# could pass while the CLI died on an unbound variable — the lesson this
+# repository already carries about neutering the call site rather than the
+# library.
+{ printf 'present\t-\t-\tls -1 WIDGET.txt\ttest -f WIDGET.txt\n'
+  printf 'blindrow\t-\t-\tls -1 nothing-here.rs\ttest -f WIDGET.txt\n'
+} > "$FROOT/projects/widget/probes.tsv"
+out="$(cd "$REPO" && "$FELIX" probes 2>&1)"; rc=$?
+is  "felix probes reports without refusing"       "$rc" "0"
+has "and names the project"                       "$out" "probes for widget"
+has "and prints the state rather than a verdict"  "$out" "blind"
+out="$(cd "$REPO" && "$FELIX" probes --gate 2>&1)"; rc=$?
+is  "while gate mode turns that same state into a refusal" "$rc" "1"
+
+{ printf 'present\t-\t-\tls -1 WIDGET.txt\ttest -f WIDGET.txt\n'
+  printf 'switchedoff\t-\tfalse\tls -1 nothing-here\ttest -f WIDGET.txt\n'
+} > "$FROOT/projects/widget/probes.tsv"
+out="$(cd "$REPO" && "$FELIX" probes 2>&1)"
+has "a row switched off by its when column is reported as not applying" \
+    "$out" "not-applicable"
+has "and the report says how much of the table asked nothing" \
+    "$out" "did not apply here"
+out="$(cd "$REPO" && "$FELIX" probes --gate 2>&1)"; rc=$?
+is  "which does not by itself fail the gate, since not applying is not a claim" "$rc" "0"
+out="$(cd "$REPO" && "$FELIX" probes --wat 2>&1)"; rc=$?
+is  "and an unknown flag is refused rather than ignored" "$rc" "1"
+
+# A row nothing can run must stop the gate, not merely appear in the report.
+# procedures.tsv shipped with exactly this hole: the malformed row was named
+# and the surface still read as answered. Reproducing it in the file that
+# documents it would be the same mistake made twice.
+{ printf 'present\t-\t-\tls -1 WIDGET.txt\ttest -f WIDGET.txt\n'
+  printf 'nocommand\t-\n'
+} > "$FROOT/projects/widget/probes.tsv"
+out="$(cd "$REPO" && "$FELIX" probes --gate 2>&1)"; rc=$?
+is  "a malformed row stops the gate rather than only being listed" "$rc" "1"
+has "and is named"                                                 "$out" "nocommand"
+cp "$TMP/probes.keep" "$FROOT/projects/widget/probes.tsv"
+
+# And a project created today is not born reading nothing. Seeded rows are
+# questions git and the filesystem can always answer; the answers still come
+# from the checkout, so this is not Felix authoring an enumeration.
+NEWP="$TMP/probes-new"; mkdir -p "$NEWP"
+( cd "$NEWP" && git init -q -b main && printf 'x\n' > a.txt \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
+out="$(cd "$NEWP" && "$FELIX" new probeseed "$NEWP" 2>&1)"
+is "felix new seeds a probe table" \
+   "$( [ -s "$FROOT/projects/probeseed/probes.tsv" ] && echo yes || echo no )" "yes"
+_pbseed() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+              felix_probe_rows "$FROOT/projects/probeseed" | grep -c . ); }
+case "$(_pbseed)" in
+  0) bad "and the seed holds rows rather than only comments" "0 rows" ;;
+  *) ok  "and the seed holds rows rather than only comments" ;;
+esac
+out="$(cd "$NEWP" && "$FELIX" probes 2>&1)"; rc=$?
+is  "so a project created today reads something from reality" "$rc" "0"
+has "and reports what it found"                               "$out" "found"
+# And is not born BLOCKED. The seeded witnesses have to answer with their exit
+# status: the first `test_file` witness ended in `| head -1`, whose status is
+# head's rather than ls's, so it claimed every repository on earth has tests and
+# every project without them started life blind. This repo has none, so `empty`
+# is the correct answer and the gate must pass.
+has "and calls an absent surface empty rather than blind" "$out" "empty"
+out="$(cd "$NEWP" && "$FELIX" probes --gate 2>&1)"; rc=$?
+is  "so a project created today is not born blocked" "$rc" "0"
+rm -rf "$FROOT/projects/probeseed" "$MEM/probeseed" "$NEWP"
 
 printf '\nthe pulse: the heartbeat that does not wait for a session\n'
 # Memory backup was as current as the last time somebody typed the command —

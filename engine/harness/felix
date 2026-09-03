@@ -133,6 +133,10 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/pulse.sh"
 # shellcheck source=lib/procedures.sh
 . "${SCRIPT_DIR}/lib/procedures.sh"
+# shellcheck source=lib/probes.sh
+. "${SCRIPT_DIR}/lib/probes.sh"
+# shellcheck source=lib/facts.sh
+. "${SCRIPT_DIR}/lib/facts.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -190,6 +194,7 @@ specific project, language, or toolchain.
     felix stack [plan|apply|reconcile] install what this project declares; reconcile reads the record
     felix pulse [--install|--uninstall] back up memory, report what waits; --install schedules it daily
     felix procedures      what each moment must answer for, and what nothing answers yet
+    felix probes [--gate] what reality says about this checkout, and what nothing asks
     felix adopt <cap>      declare a capability and everything it implies
     felix profile [name]   which tools a task profile mounts
     felix quarantine <p>   switch off a plugin that is breaking sessions
@@ -596,6 +601,13 @@ EOF
   cp "$tpl/risk.tsv" "$dir/risk.tsv"
   cp "$tpl/evidence.tsv" "$dir/evidence.tsv"
   cp "$tpl/maintenance.tsv" "$dir/maintenance.tsv"
+  # Seeded, because the alternative is a project that is born reading nothing
+  # from reality and refusing its own gate on day one. The seeded rows are
+  # QUESTIONS — git and the filesystem, which every checkout has — and the
+  # answers still come back from the checkout, so this is not Felix authoring
+  # an enumeration. What it prevents is the shape procedures.tsv had: a surface
+  # nobody was ever handed a starting row for, and so nobody wrote one.
+  cp "$tpl/probes.tsv" "$dir/probes.tsv"
 
   # Same filter for human steps, and only copy the runbooks that survive it.
   {
@@ -3184,6 +3196,189 @@ EOF
   return 0
 }
 
+# What reality says, and what nothing here has asked it.
+#
+# `--gate` is the same run with a verdict attached, for a project gate to call.
+# The two are one command deliberately: a reporting mode and an enforcing mode
+# that compute their answers separately drift, and the enforcing one is the
+# half nobody reads.
+cmd_probes() {
+  resolve_or_die; local proj="$PROJ" gate=0 a
+  for a in "$@"; do
+    case "$a" in
+      --gate) gate=1 ;;
+      *) die "usage: felix probes [--gate] (got: $a)" ;;
+    esac
+  done
+  local root tid rows malformed
+  root="$(felix_repo_root "$PWD")"
+  tid="$(felix_tree_id "$root" "$FELIX_HOME_DIR" 2>/dev/null)" || tid=""
+
+  # The empty case, refused first and refused loudly. This is the first of the
+  # three places it is refused, and it exists because `procedures.tsv` shipped
+  # to three projects and none of them ever wrote one — a surface that reports
+  # gaps, holding no rows, reporting nothing, indistinguishable from a project
+  # with no gaps at all. A table that can be absent and read as fine is the
+  # marker bypass in miniature.
+  if [ ! -f "$proj/probes.tsv" ]; then
+    printf 'probes for %s\n\n' "$(basename "$proj")"
+    printf 'This project has no probes.tsv, so nothing here is read from reality.\n'
+    printf 'Every capability it claims rests on a filename match, and no command\n'
+    printf 'has been asked to confirm any of it.\n\n'
+    printf 'Write %s/probes.tsv. One row per question:\n\n' "$proj"
+    printf '  predicate <TAB> grounds <TAB> when <TAB> probe <TAB> witness\n\n'
+    printf 'A template is at %s/templates/probes.tsv.\n' "$SCRIPT_DIR"
+    return 1
+  fi
+  rows="$(felix_probe_rows "$proj")"
+  malformed="$(felix_probe_malformed "$proj")"
+  if [ -z "$rows" ]; then
+    printf 'probes for %s\n\n' "$(basename "$proj")"
+    printf '%s/probes.tsv exists and declares no probe.\n' "$proj"
+    printf 'An empty table is not a clean bill; it is a shelf with nothing on it.\n'
+    if [ -n "$malformed" ]; then
+      printf '\nrows that name a predicate and no command\n\n'
+      printf '%s\n' "$malformed" | sed 's/^/  /'
+      printf '\nA probe needs a predicate and something to run. These record neither\n'
+      printf 'a question nor an answer, so they enumerate nothing.\n'
+    fi
+    return 1
+  fi
+
+  local out
+  out="$(felix_probes_run "$proj" "$root")"
+
+  # Recorded before anything is printed, so a fact log entry cannot depend on
+  # the report rendering. #84's shape: a record that reports success when the
+  # append failed turns a ceiling into no ceiling and says nothing.
+  local recorded=1
+  felix_probes_record "$proj" "$root" "$tid" "$out" || recorded=0
+
+  local n_all n_block n_empty n_na n_nosrc
+  n_all="$(printf '%s\n' "$out" | grep -c .)"
+  n_block="$(printf '%s\n' "$out" | felix_probes_blocking | grep -c .)"
+  n_empty="$(printf '%s\n' "$out" | awk -F'\t' '$3 == "empty"' | grep -c .)"
+  # Counted because `when` is a disarm channel: a row whose applicability test
+  # is always false claims nothing, blocks nothing, and looks like a row. The
+  # merge boundary catches the edit — rewriting a row removes its old line and
+  # probes.tsv is in the escape set — but the gate would not, and a table that
+  # can quietly switch itself off should have to say how much of itself is off.
+  n_na="$(printf '%s\n' "$out" | awk -F'\t' '$3 == "not-applicable"' | grep -c .)"
+  # How many rows identify no instrument. Derived from the probe's first word,
+  # so a row beginning with an assignment or a variable gets none — which means
+  # a count that moves in it cannot be told apart from the tool underneath it
+  # moving. That is a real limit on what the drift report can say, and a limit
+  # nobody prints is a limit nobody reads.
+  n_nosrc="$(printf '%s\n' "$out" | awk -F'\t' '$3 != "not-applicable" && ($7 == "-" || $7 == "")' | grep -c .)"
+
+  printf 'probes for %s\n\n' "$(basename "$proj")"
+  printf '%s\n' "$out" | while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    printf '  %-10s %-22s %s\n' \
+      "$(printf '%s\n' "$line" | cut -f3)" \
+      "$(printf '%s\n' "$line" | cut -f1)" \
+      "$(printf '%s\n' "$line" | cut -f5)"
+  done
+
+  # Never folded into a total. `empty` is a real observation and it is also the
+  # exact shape of every failure this file was built after, so it is said in
+  # words next to the count rather than counted as one of the fine ones.
+  #
+  # The blank line is printed only when something follows it. Unconditional, it
+  # left a project whose every probe came back `found` with two blank lines and
+  # then a heading, which reads as a section that failed to render.
+  [ "${n_block:-0}" -gt 0 ] || [ "${n_empty:-0}" -gt 0 ] || [ "${n_na:-0}" -gt 0 ] \
+    || [ "${n_nosrc:-0}" -gt 0 ] && printf '\n'
+  if [ "${n_block:-0}" -gt 0 ]; then
+    printf '%s of %s could not be established. Those are not passes:\n' "$n_block" "$n_all"
+    printf 'blind means the witness proves a surface the probe cannot see, and\n'
+    printf 'unknown means nothing decided either way.\n'
+  fi
+  if [ "${n_empty:-0}" -gt 0 ]; then
+    printf '%s returned nothing and a witness agreed the surface is absent. That\n' "$n_empty"
+    printf 'is an observation, not a clean bill: read them.\n'
+  fi
+  if [ "${n_na:-0}" -gt 0 ]; then
+    printf '%s of %s did not apply here and asked nothing. A row can be switched\n' "$n_na" "$n_all"
+    printf 'off by making its `when` false, so this number is worth reading.\n'
+  fi
+  if [ "${n_nosrc:-0}" -gt 0 ]; then
+    printf '%s of %s identify no instrument, because the probe does not begin\n' "$n_nosrc" "$n_all"
+    printf 'with a bare command name. A count that moves in those cannot be told\n'
+    printf 'apart from the tool underneath them moving.\n'
+  fi
+
+  if [ -n "$malformed" ]; then
+    printf '\nrows that name a predicate and no command\n\n'
+    printf '%s\n' "$malformed" | sed 's/^/  /'
+    printf '\nThese enumerate nothing and stand for nothing. They are not counted\n'
+    printf 'above, so a table of them reads as an empty table, which it is.\n'
+  fi
+
+  # What changed since the last tree this was asked about. Reported before the
+  # gaps because it is about what this branch did, and after the states because
+  # a surface nobody can see any more is already a refusal above.
+  local drift
+  drift="$(felix_probes_drift "$proj" "$tid" "$out")"
+  if [ -n "$drift" ]; then
+    printf '\nchanged since the last tree\n\n'
+    printf '%s\n' "$drift" | while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      printf '  %-22s %-14s -> %-14s %s\n' \
+        "$(printf '%s\n' "$line" | cut -f1)" \
+        "$(printf '%s\n' "$line" | cut -f2)" \
+        "$(printf '%s\n' "$line" | cut -f3)" \
+        "$(printf '%s\n' "$line" | cut -f4)"
+    done
+    printf '\nRead rather than enforced, and that is the specification rather than\n'
+    printf 'timidity: relations produce facts, not obligations. A member that went\n'
+    printf 'away can be somebody deleting a file on purpose. What nothing else can\n'
+    printf 'say is that there used to be more of them — nothing greps for a hook\n'
+    printf 'that was deleted, because absence has no line number.\n'
+  fi
+
+  # The gap report, in the idiom procedures already uses: what nothing covers,
+  # enumerated by something other than this table.
+  local gaps orphans
+  gaps="$(felix_probes_gaps "$proj" "$root")"
+  if [ -n "$gaps" ]; then
+    printf '\nsurfaces nothing probes\n\n'
+    printf '%s\n' "$gaps" | while read -r c; do
+      [ -n "$c" ] || continue
+      printf '  %-14s %s\n' "$c" "$(_felix_why "$c")"
+    done
+    printf '\nEach was reached by matching filenames and manifests, and no command\n'
+    printf 'has confirmed any of it. Neither list is one Felix wrote: surfaces come\n'
+    printf 'from the checkout, and a probe grounding one is the difference between\n'
+    printf 'believing that match and having asked the thing that knows.\n'
+  fi
+
+  orphans="$(felix_probes_orphans "$proj" "$root")"
+  if [ -n "$orphans" ]; then
+    printf '\nprobes for surfaces nothing enumerates\n\n'
+    printf '%s\n' "$orphans" | sed 's/^/  /'
+    printf '\nEach grounds a capability this checkout no longer shows, or a name\n'
+    printf 'that never existed. A table is wrong when it lacks a row reality has\n'
+    printf 'and equally wrong when it keeps one reality dropped.\n'
+  fi
+
+  if [ "$recorded" -eq 0 ]; then
+    printf '\nThe fact log was NOT written to %s/facts.log.\n' "$(felix_mem_dir "$proj")"
+    printf 'Every state above was computed and none of it was kept, so nothing\n'
+    printf 'later can compare this run against another one.\n'
+  fi
+
+  [ "$gate" -eq 1 ] || return 0
+  [ "$recorded" -eq 1 ] || return 1
+  [ "${n_block:-0}" -eq 0 ] || return 1
+  # A row nothing can run has to stop the gate as well as appear in the report.
+  # procedures.tsv shipped with exactly this hole — a malformed row was named
+  # and the surface still read as answered — and reproducing it here would be
+  # the same mistake made twice with the file that documents it.
+  [ -z "$malformed" ] || return 1
+  return 0
+}
+
 # The heartbeat, and the one command that may run with no session and no
 # governed checkout anywhere near it: launchd starts it in $HOME. So it does
 # not resolve a project — it is home-scoped, iterating every governed project
@@ -3293,6 +3488,7 @@ case "${1:-help}" in
   doctor)  shift; cmd_doctor "$@" ;;
   pulse)   shift; cmd_pulse "$@" ;;
   procedures) shift; cmd_procedures "$@" ;;
+  probes)     shift; cmd_probes "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;
   decisions) shift; cmd_decisions "$@" ;;

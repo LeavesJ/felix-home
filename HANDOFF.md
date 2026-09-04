@@ -75,9 +75,9 @@ it should be paid deliberately, not rediscovered.
 
 | | |
 |---|---|
-| head | `cf029a5` on `main` (#146–#155, ten merges, plus the one carrying this line), CI `gate` **success** on each |
+| head | `b07b294` on `main` (#146–#157, twelve merges), CI `gate` **success** on each |
 | suite | **1395** passed, 0 failed, manifest re-recorded |
-| deployed engine | **0.49.48**, deployed from the home the moment this landed; every session from here boots with it, the one that built it did not |
+| deployed engine | **0.49.49**, deployed from the home the moment this landed; every session from here boots with it, the one that built it did not |
 | governed projects | felix, elenchus, veldra each carry `commissioning.tsv` and were commissioned by hand through the deployed cli; receipts under `state/commission/`, all `held` |
 | waiting on a session | six provider requests, two per project, none answered; the banner names them every session until they are (#155) |
 

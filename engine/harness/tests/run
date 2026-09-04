@@ -4199,21 +4199,34 @@ is "rolling the same session twice does not double it" "$n" "3"
 # it rewrites its own file rather than appending, so folding a session twice —
 # or folding one that is still live and folds again at its own end — cannot
 # double anything.
+# Two repositories with disjoint histories, because the catch-up folds only
+# sessions THIS repository's history contains — see the attribution block below
+# for why. Every fixture session here is marked as belonging to LGA.
+LGA="$TMP/ledger-attrib-a"; LGB="$TMP/ledger-attrib-b"
+mkdir -p "$LGA" "$LGB"
+( cd "$LGA" && git init -q -b main && git commit -q --allow-empty -m a )
+( cd "$LGB" && git init -q -b main && git commit -q --allow-empty -m b )
+LGA_SHA="$(git -C "$LGA" rev-parse HEAD)"
+LGB_SHA="$(git -C "$LGB" rev-parse HEAD)"
+mkdir -p "$LH/state/session"
+_lgmark() { printf '%s\n' "${2:-$LGA_SHA}" > "$LH/state/session/$1"; }
+
 ( . "$FROOT/harness/lib/ledger.sh"
   felix_ledger_record "$LH" stranded1 "tool	Read"
   felix_ledger_record "$LH" stranded1 "skill	humanizer:humanizer"
   felix_ledger_record "$LH" stranded2 "tool	Write" )
+_lgmark stranded1; _lgmark stranded2
 is "a stranded session has appends but no folded record" \
    "$([ -f "$MEM/widgetledger/ledger.d/stranded1.tsv" ] && echo folded || echo stranded)" "stranded"
 
-_caught="$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" )"
+_caught="$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" "$LGA" )"
 is "catch-up folds every session nothing folded"  "$_caught" "2"
 has "and the stranded reaches are now counted"    "$(cat "$MEM/widgetledger/ledger.d/stranded1.tsv" 2>/dev/null)" "skill	humanizer:humanizer	1"
 has "including the second one"                    "$(cat "$MEM/widgetledger/ledger.d/stranded2.tsv" 2>/dev/null)" "tool	Write	1"
 
 # Already-folded sessions are not re-folded, so catch-up is cheap once it has
 # caught up and reports nothing when there is nothing to say.
-is "a second catch-up finds nothing left"         "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" )" "0"
+is "a second catch-up finds nothing left"         "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" "$LGA" )" "0"
 is "and did not disturb the session that had folded" \
    "$(grep -c '^sess1' "$MEM/widgetledger/ledger.d/sess1.tsv")" "3"
 
@@ -4221,10 +4234,84 @@ is "and did not disturb the session that had folded" \
 # folded under today's date would land in whatever window the reader uses and
 # report old work as recent.
 ( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_record "$LH" stranded3 "tool	Bash" )
+_lgmark stranded3
 touch -t 202608150000 "$LH/state/ledger/stranded3.tsv"
-( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" >/dev/null )
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" "$LGA" >/dev/null )
 has "a stranded session folds under its own date, not today's" \
     "$(cat "$MEM/widgetledger/ledger.d/stranded3.tsv" 2>/dev/null)" "2026-08-15"
+
+# And the banner has to say when its count is partial.
+#
+# Catch-up runs from `felix ledger`, never from a hook, because it is several
+# greps per distinct signal per stranded session. So the moment a session ends
+# uncleanly the fold is incomplete again, and the session-start banner goes on
+# claiming "mounted every session and never once reached for" while calling it
+# the only unconfounded signal here. This repository already carries the lesson
+# in its general form: "Nothing due" and "nothing is being checked" render
+# identically.
+#
+# Counting stranded sessions is one stat per state file and no greps, which is
+# cheap enough for a hook where the catch-up itself is not.
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_record "$LH" notfolded1 "tool	Bash" )
+_lgmark notfolded1
+is "stranded sessions are counted without reading them" \
+   "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_stranded "$LP" "$LH" "$LGA" )" "1"
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_record "$LH" notfolded2 "tool	Read" )
+_lgmark notfolded2
+is "and the count follows"  "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_stranded "$LP" "$LH" "$LGA" )" "2"
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" "$LGA" >/dev/null )
+is "and folding them takes it to zero" \
+   "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_stranded "$LP" "$LH" "$LGA" )" "0"
+
+# The qualifier attaches to the claim, not to the session. An empty retire list
+# needs no caveat: folding more sessions can only ADD reaches, and a reach can
+# only take a capability OFF the list. So the only claim stranded data can
+# falsify is a non-empty one, and that is the only one that gets qualified.
+has "the banner qualifies the retire claim when the fold is incomplete" \
+    "$(cat "$FROOT/harness/hooks/session-start")" "felix_ledger_stranded"
+
+# And the catch-up must fold only THIS project's sessions.
+#
+# state/ledger/ carries no project namespace. The PostToolUse hook deliberately
+# refuses to resolve the project — resolution touches git, and that would put a
+# git invocation behind every Read, Edit and Bash in every session on the
+# machine — so a session's appends are written under its id alone, in one
+# directory shared by every governed project. SessionEnd resolves PWD and folds
+# to the right project. The catch-up had nothing to resolve with and folded
+# every unfolded session into whichever project asked.
+#
+# Measured on the real memory after it shipped: ten session ids were in two
+# projects' ledger.d at once, and `playwright` reached felix's retire list built
+# entirely out of elenchus sessions — felix's routes.tsv and stack.tsv have
+# never contained the word. The CLI then instructed removing a stack row and a
+# play that do not exist.
+#
+# Attribution is mechanical and needs no new record: the user-prompt hook
+# already writes the governed repository's HEAD to state/session/<id>, and the
+# three governed repositories have disjoint histories, so `git cat-file -e`
+# answers it with bash and git alone. A session that cannot be attributed is
+# not folded — unknown holds rather than guessing.
+( . "$FROOT/harness/lib/ledger.sh"
+  felix_ledger_record "$LH" mine   "tool	Bash"
+  felix_ledger_record "$LH" theirs "tool	Bash"
+  felix_ledger_record "$LH" nomark "tool	Bash" )
+_lgmark mine; _lgmark theirs "$LGB_SHA"
+
+_caught2="$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" "$LGA" )"
+is "catch-up folds only the sessions this repository's history contains" "$_caught2" "1"
+is "and the foreign session is not folded" \
+   "$([ -f "$MEM/widgetledger/ledger.d/theirs.tsv" ] && echo folded || echo left)" "left"
+is "and the one it cannot attribute is not folded either" \
+   "$([ -f "$MEM/widgetledger/ledger.d/nomark.tsv" ] && echo folded || echo left)" "left"
+is "the session it does own is folded"  \
+   "$([ -f "$MEM/widgetledger/ledger.d/mine.tsv" ] && echo folded || echo left)" "folded"
+
+# The partial-count qualifier has to be attributed the same way, or the project
+# whose sessions were stolen reads zero stranded while being the most wrong.
+is "and stranded counts only this project's unfolded sessions" \
+   "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_stranded "$LP" "$LH" "$LGA" )" "0"
+is "while the other repository still sees its own"  \
+   "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_stranded "$LP" "$LH" "$LGB" )" "1"
 
 printf '\na count that arrived as two lines\n'
 # `grep -c` prints the count AND exits 1 when that count is zero, so the idiom

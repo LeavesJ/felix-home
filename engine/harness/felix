@@ -1510,7 +1510,8 @@ cmd_ledger() {
   # happened to exit cleanly and calls it unconfounded. Done here rather than in
   # a hook because it is several greps per distinct signal per stranded session,
   # and that cost belongs to a person asking for a report.
-  local caught; caught="$(felix_ledger_catchup "$proj" "$FELIX_HOME_DIR" 2>/dev/null)"
+  local lroot; lroot="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null)"
+  local caught; caught="$(felix_ledger_catchup "$proj" "$FELIX_HOME_DIR" "$lroot" 2>/dev/null)"
 
   local rows; rows="$(_felix_ledger_rows "$(felix_mem_dir "$proj")")"
 

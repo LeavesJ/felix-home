@@ -194,9 +194,29 @@ _mem="$(felix_mem_dir "$PROJ")"
 if [ -f "$_mem/ledger.tsv" ] || [ -d "$_mem/ledger.d" ]; then
   _retire="$(felix_ledger_retire "$PROJ" 2>/dev/null | cut -f1 | tr '\n' ' ')"
   _retire="${_retire% }"
-  [ -n "$_retire" ] && retire_line="
+  if [ -n "$_retire" ]; then
+    retire_line="
 Mounted every session and never once reached for: ${_retire}
 That is the only unconfounded signal here. See 'felix ledger'."
+    # The qualifier hangs off the claim rather than off the session because an
+    # empty list needs no caveat.
+    #
+    # An earlier draft of this comment claimed more: that folding more sessions
+    # "can only ADD reaches, and a reach can only take a capability OFF this
+    # list — so stranded data can never manufacture a row here". That is wrong,
+    # and an audit falsified it the same night it was written. A retire row
+    # needs three things (lib/ledger.sh): calls at zero, named above zero, and
+    # sessions at or above the threshold. Folding raises the last two as well as
+    # the first, so a capability a route named and nobody reached can be carried
+    # ACROSS the threshold by the fold and appear here for the first time. The
+    # claim is hedged, not guaranteed.
+    _stranded="$(felix_ledger_stranded "$PROJ" "$FELIX_HOME_DIR" "$_repo_root" 2>/dev/null)"
+    if [ "${_stranded:-0}" -gt 0 ] 2>/dev/null; then
+      retire_line="$retire_line
+Partial: ${_stranded} session(s) ended without folding, so their calls are not in
+this count yet. 'felix ledger' folds them and may clear rows above."
+    fi
+  fi
 fi
 
 # What the record proposes changing about what is mounted (Decision C step 3,

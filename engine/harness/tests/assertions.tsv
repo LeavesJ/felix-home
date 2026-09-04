@@ -541,6 +541,7 @@
 1	and explains why it now matters
 1	and felix which does not resolve it
 1	and filters residue through the same ignore rule
+1	and folding them takes it to zero
 1	and from CI-absolute paths
 1	and from a worktree of the same repository
 1	and from the first copy of the key, not a later one
@@ -785,6 +786,7 @@
 1	and still says which step went unused
 1	and still verifies when the source really does match
 1	and stops once something is written
+1	and stranded counts only this project's unfolded sessions
 1	and strips a line range
 1	and surfaces nothing as new
 1	and survives a regeneration that was given none
@@ -803,6 +805,7 @@
 1	and the cause is the prompt, not the envelope
 1	and the clean sentence is withheld
 1	and the comment survives
+1	and the count follows
 1	and the discovery cache gone stale
 1	and the domain it speaks for
 1	and the drift line carries the whole name
@@ -813,6 +816,7 @@
 1	and the fixture files this block rewrote are back
 1	and the fixture is restored
 1	and the fixture is restored to awaiting
+1	and the foreign session is not folded
 1	and the founder's one line says how many are due
 1	and the gate exits red
 1	and the gate line called no cli
@@ -831,6 +835,7 @@
 1	and the missing function is named
 1	and the monitor still renders the sentence, not the JSON around it
 1	and the mute is a row, not a silent omission
+1	and the one it cannot attribute is not folded either
 1	and the page has a panel for it
 1	and the person's staged selection is untouched
 1	and the placeholder stays a placeholder
@@ -924,6 +929,7 @@
 1	carries the governed project
 1	carries the matched lesson
 1	catch-up folds every session nothing folded
+1	catch-up folds only the sessions this repository's history contains
 1	catches credential sample 1
 1	catches credential sample 2
 1	catches credential sample 3
@@ -1260,6 +1266,7 @@
 1	still quiet when the value itself says so, sample 4
 1	stop_hook_active is honoured, so it never loops
 1	stops naming tools once the play is done
+1	stranded sessions are counted without reading them
 1	sums invocations across sessions
 1	survives a machine laid out differently
 1	survives a transcript that is not there
@@ -1268,6 +1275,7 @@
 1	the agent points at the served engine, not the running copy
 1	the agent runs the pulse
 1	the always-applicable part is shown
+1	the banner qualifies the retire claim when the fold is incomplete
 1	the best capability wins
 1	the brief names the file the issue names
 1	the budget row is not reported as satisfied
@@ -1360,6 +1368,7 @@
 1	the secret check is behind the verifier confine
 1	the seeded graphify row is due on a checkout with no graph
 1	the seen file never carries the stamp comment
+1	the session it does own is folded
 1	the shipped gate marks its undeployable failure
 1	the shipped layout — memory under ~/.felix — is its own repo
 1	the shipped table considers every moment
@@ -1422,6 +1431,7 @@
 1	while the Felix home Felix itself resolved is its own repo
 1	while the branch's own file still is
 1	while the genuinely reached server is proposed
+1	while the other repository still sees its own
 1	while the others still are
 1	while the path around it does not
 1	while the unruled ones are

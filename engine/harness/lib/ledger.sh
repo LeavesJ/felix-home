@@ -353,14 +353,70 @@ EOF
 # Not called from any hook. It walks every unfolded session and the rollup is
 # several greps per distinct signal, so its cost belongs to a person running
 # `felix ledger` and not to every session start. Prints how many it folded.
-felix_ledger_catchup() {
-  local proj="$1" home="$2" mem dir f session n=0
+# Does this repository's history contain the session's first HEAD?
+#
+# state/ledger/ carries no project namespace, and that is deliberate: the
+# PostToolUse hook refuses to resolve the project because resolution touches
+# git, and that would put a git invocation behind every Read, Edit and Bash in
+# every session on this machine. SessionEnd resolves PWD and folds to the right
+# project. Anything that folds LATER has nothing to resolve with, and the first
+# version of the catch-up therefore folded every unfolded session into whichever
+# project happened to ask — importing one project's routing into another's
+# ledger, and putting a capability on a retire list whose name the project's
+# tables have never contained.
+#
+# No new record is needed to answer it. The user-prompt hook already writes the
+# governed repository's HEAD to state/session/<id> (felix_session_mark, first
+# mark wins), and governed repositories have disjoint histories, so `git
+# cat-file -e` decides it with bash and git and nothing else.
+#
+# A session with no mark, or a mark this repository does not contain, is not
+# ours. Both return 1: unknown holds rather than guessing, which is the same
+# reading of unknown the probes runner and the commissioning table already use.
+_felix_ledger_owns() {   # home, root, session -> 0 when this repository owns it
+  local home="$1" root="$2" session="$3" sha
+  [ -n "$root" ] || return 1
+  sha="$(head -1 "$home/state/session/$session" 2>/dev/null)"
+  [ -n "$sha" ] || return 1
+  git -C "$root" cat-file -e "${sha}^{commit}" 2>/dev/null
+}
+
+# How many sessions have appends that nothing folded.
+#
+# The companion to the catch-up, and the reason it exists separately: the
+# catch-up costs several greps per distinct signal per stranded session and
+# belongs to a person running `felix ledger`, while this is one stat per state
+# file and no reads at all, which is cheap enough for a hook.
+#
+# It exists because the catch-up does not run in a hook. The moment a session
+# ends uncleanly the fold is incomplete again, and the session-start banner
+# goes on saying "mounted every session and never once reached for" and calling
+# it the only unconfounded signal here. That is this repository's own recorded
+# lesson one level down: "Nothing due" and "nothing is being checked" render
+# identically.
+felix_ledger_stranded() {
+  local proj="$1" home="$2" root="${3:-}" mem dir f session n=0
   mem="$(felix_mem_dir "$proj")"
   dir="$mem/ledger.d"
   for f in "$home"/state/ledger/*.tsv; do
     [ -f "$f" ] || continue
     session="$(basename "$f" .tsv)"
     [ -f "$dir/$session.tsv" ] && continue
+    _felix_ledger_owns "$home" "$root" "$session" || continue
+    n=$((n + 1))
+  done
+  printf '%s' "$n"
+}
+
+felix_ledger_catchup() {
+  local proj="$1" home="$2" root="${3:-}" mem dir f session n=0
+  mem="$(felix_mem_dir "$proj")"
+  dir="$mem/ledger.d"
+  for f in "$home"/state/ledger/*.tsv; do
+    [ -f "$f" ] || continue
+    session="$(basename "$f" .tsv)"
+    [ -f "$dir/$session.tsv" ] && continue
+    _felix_ledger_owns "$home" "$root" "$session" || continue
     felix_ledger_rollup "$proj" "$home" "$session" \
       "$(date -r "$f" -u +%Y-%m-%d 2>/dev/null || date -u +%Y-%m-%d)" || continue
     n=$((n + 1))

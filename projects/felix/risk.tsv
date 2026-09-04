@@ -39,6 +39,7 @@ yellow	path	^projects/[^/]+/gate\.sh$	a gate that cannot fail is not a gate	veri
 yellow	path	^engine/harness/tests/run$	weakening the suite is how a gate stops being one	verifier	count:^[[:space:]]*(ok|is|has|bad) 
 yellow	path	^projects/[^/]+/(routes|profiles|stack|risk|evidence)\.tsv$	changes what gets suggested, not what runs
 yellow	path	^projects/[^/]+/probes\.tsv$	a probe removed is a fact nobody reads any more, and the surface it grounded goes back to being a filename match	verifier	count:^[a-z][a-z_]*[[:space:]]
+yellow	path	^projects/[^/]+/commissioning\.tsv$	a need removed is a question nobody asks at first encounter, and the receipt that certified it keeps certifying	verifier	count:^[a-z][a-z_]*[[:space:]]
 green	path	^projects/[^/]+/maintenance\.log$	a record of when upkeep ran
 # Constrained to prose by extension, 2026-08-15. `^docs/` was an unqualified
 # prefix, so a committed docs/tool.sh classified green against the unmodified

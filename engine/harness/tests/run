@@ -105,6 +105,17 @@ printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' \
   > "$FROOT/projects/widget/probes.tsv"
 cp "$FROOT/projects/widget/probes.tsv" "$TMP/probes.keep"
 
+# The same for commissioning: one row a person answers, whose check reads the
+# marker the fixture keeps, so the merge boundary is measuring the merge and
+# not this table. The receipt it needs is stamped by _cm_stamp beside every
+# green gate receipt below, because both are keyed to the tables the tests
+# hand-edit, and a receipt for the wrong tables is exactly what must block.
+printf 'marker\t-\t-\t-\t-\ttest -f .felix\t9\n' > "$FROOT/projects/widget/commissioning.tsv"
+cp "$FROOT/projects/widget/commissioning.tsv" "$TMP/commissioning.keep"
+_cm_stamp() { ( _r="${1:-$REPO}"; cd "$_r" && FELIX_HOME_DIR="$FROOT"; . "$FROOT/harness/lib/commission.sh"
+                _o="$(felix_commission_run "$FROOT/projects/widget" "$_r" -)"
+                felix_commission_receipt_write "$FROOT" "$FROOT/projects/widget" "$_r" "$_o" "" >/dev/null ); }
+
 FELIX="$FROOT/harness/felix"
 # Pin the home. Resolution consults ~/.felix-home, so without this the suite
 # runs against whatever the machine has installed, writes test projects into it,
@@ -202,6 +213,24 @@ is "hook silent in ungoverned repo" "${#out}" "0"
 is "hook still exits 0 there"       "$rc" "0"
 
 printf '\nonboarding a stranger project\n'
+# A `claude` that logs every argument line and REFUSES any shape the suite
+# never taught it, so an assertion that depends on it can fail. It exists
+# because felix new now commissions — runs discover --adopt, stack apply
+# --yes and ready --fix — and the real cli on this machine would take those
+# to the network. Every test that runs felix new goes through it.
+CMSTUB="$TMP/cm-stub"; mkdir -p "$CMSTUB"; CMSTUB_LOG="$TMP/cm-stub.log"; : > "$CMSTUB_LOG"
+cat > "$CMSTUB/claude" <<STUB
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$CMSTUB_LOG"
+case "\$*" in
+  "plugin list --json"|"plugin list --json --available") printf '[]\n' ;;
+  "plugin marketplace list"*|"mcp list"*) : ;;
+  "plugin install "*|"plugin enable "*|"plugin marketplace add "*|"plugin update"*) : ;;
+  *) printf 'stub: untaught shape: %s\n' "\$*" >&2; exit 2 ;;
+esac
+STUB
+chmod +x "$CMSTUB/claude"
+
 # The claim under test: someone who downloads Felix gets what Elenchus got,
 # without hand-writing any of it. A Node app with no git remote, nothing to do
 # with anything already here.
@@ -214,7 +243,7 @@ cat > "$STRANGE/package.json" <<'JSON'
   "devDependencies": { "playwright": "^1" } }
 JSON
 
-out="$(cd "$STRANGE" && "$FELIX" new stranger 2>&1)"; rc=$?
+out="$(cd "$STRANGE" && PATH="$CMSTUB:$PATH" "$FELIX" new stranger 2>&1)"; rc=$?
 is  "felix new exits 0"            "$rc" "0"
 has "detects from their manifest"  "$out" "billing"
 has "guesses their gate"           "$out" "npm run verify"
@@ -251,7 +280,7 @@ case "$out" in
   *) bad "their high-risk rows are blocked too" "$out" ;;
 esac
 
-out="$("$FELIX" new stranger 2>&1)"; rc=$?
+out="$(PATH="$CMSTUB:$PATH" "$FELIX" new stranger 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "refuses to clobber an existing project" \
                 || bad "refuses to clobber an existing project"
 
@@ -1187,6 +1216,7 @@ has "a receipt for another tree still blocks" "$(_blk)" "unverified"
 
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+_cm_stamp
 is "a green receipt for this exact tree clears every blocker" "$(_blk)" ""
 
 # And a red receipt for the right tree is not a pass either.
@@ -1195,12 +1225,14 @@ is "a green receipt for this exact tree clears every blocker" "$(_blk)" ""
 has "a red receipt for this tree blocks" "$(_blk)" "unverified"
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+_cm_stamp
 
 # An escape outranks a green gate. This is the whole point: the gate says the
 # code works, and says nothing about whether merging writes outside the tree.
 mkdir -p "$REPO/.github/workflows"; printf 'on: push\n' > "$REPO/.github/workflows/x.yml"; _stage
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+_cm_stamp
 has "a green gate does not clear an escape" "$(_blk)" "execute"
 
 # #56, at the level that acts. The same branch, the same workflow, the same
@@ -1233,6 +1265,7 @@ printf 'unit\t^src/\t^tests?/\tcode changes need a test\n' > "$FROOT/projects/wi
 mkdir -p "$REPO/src"; printf 'x = 1\n' > "$REPO/src/thing.py"; _stage
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+_cm_stamp
 has "an untested change blocks, naming the evidence owed" "$(_blk)" "evidence"
 has "and says which rule"                                 "$(_blk)" "unit"
 _reset
@@ -1250,6 +1283,7 @@ _reset
 printf 'ordinary\n' > "$REPO/README.md"; _stage
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+_cm_stamp
 out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"; rc=$?
 is  "and reports a clear merge without performing one" "$rc" "0"
 has "saying so plainly"                                "$out" "nothing escapes"
@@ -3108,7 +3142,7 @@ is "the capabilities file is untouched" \
 out="$(cd "$REPO" && "$FELIX" adopt --yes 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "adopt refuses any flag as a capability" \
                 || bad "adopt refuses any flag as a capability" "$out"
-out="$(cd "$REPO" && "$FELIX" new --force 2>&1)"; rc=$?
+out="$(cd "$REPO" && PATH="$CMSTUB:$PATH" "$FELIX" new --force 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "new refuses a flag as a project name" \
                 || bad "new refuses a flag as a project name" "$out"
 out="$(cd "$REPO" && "$FELIX" lesson --oops 2>&1)"; rc=$?
@@ -4307,6 +4341,7 @@ printf 'a change to merge\n' > "$MR/README.md"
 export GHSTUB_LOG="$TMP/gh.log"; : > "$GHSTUB_LOG"
 ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+_cm_stamp "$MR"
 ( cd "$MR" && PATH="$GHB:$PATH" "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
 mg="$(grep '^pr merge' "$GHSTUB_LOG" | head -1)"
 [ -n "$mg" ] && ok "felix merge reaches gh at all" \
@@ -4448,7 +4483,8 @@ _sgmerge() {
   SGMERGES="$(grep -c '^pr merge' "$TMP/gh.sg.log" | tr -d ' ')"
 }
 _sgrecord() { ( cd "$SG" && . "$FROOT/harness/lib/verify.sh"
-                felix_verify_record "$SG" "$FROOT" 0 "true" "$(felix_tree_id "$SG" "$FROOT")" ); }
+                felix_verify_record "$SG" "$FROOT" 0 "true" "$(felix_tree_id "$SG" "$FROOT")" 
+                _cm_stamp "$SG" ); }
 
 # The escape is real, so nothing below can pass by finding nothing.
 # Asserted on WHICH blocker fired, never on "nothing merged". A merge can fail
@@ -4586,6 +4622,7 @@ sed '/KERNEL2/d' "$FROOT/projects/widget/risk.tsv" > "$TMP/rv2" \
 : > "$TMP/gh.prod.log"
 ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+_cm_stamp "$MR"
 ( cd "$MR" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.prod.log" \
     FELIX_KERNEL_CACHE="$TMP/no-cache-at-all" "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
 is "a governed product merges with no installed engine at all" \
@@ -4632,6 +4669,8 @@ _race() {
   local on="$1" cmd="$2"
   ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
     felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+  _cm_stamp "$MR"
+_cm_stamp "$MR"
   : > "$TMP/gh.race.log"; rm -f "$TMP/race.fired"
   ( cd "$MR" && PATH="$GB:$GHB:$PATH" GHSTUB_LOG="$TMP/gh.race.log" \
       RACE_ON="$on" RACE_CMD="$cmd" RACE_FIRED="$TMP/race.fired" \
@@ -4674,6 +4713,7 @@ is "a peer edit to the working tree merges nothing" "$RACE_MERGES" "0"
 # record rendered this case as two identical lines under "the checkout moved".
 ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+_cm_stamp "$MR"
 rm -f "$TMP/race.fired"
 race_out="$( cd "$MR" && PATH="$GB:$GHB:$PATH" GHSTUB_LOG=/dev/null \
     RACE_ON="remote get-url" RACE_CMD="printf 'peer2\n' >> $MR/README.md" \
@@ -8724,6 +8764,212 @@ case " $(grep -E "^FELIX_ESCAPE_TABLES=" "$FROOT/harness/lib/escape.sh" | sed "s
   *) bad "the ecosystem table is an enforcing table, and escape.sh says so" \
          "ecosystem.tsv is not in FELIX_ESCAPE_TABLES" ;;
 esac
+printf '\ncommissioning: one moment, one table, one policy\n'
+# The first-encounter moment (v3.2 §8) as a table. Every stage existed as a
+# command a person typed in order and felix new printed the order; now a row
+# names a need, an instrument, an engine stage that answers it and a check
+# that decides, and `unknown` is reachable by construction.
+CMP="$FROOT/projects/cmproj"; CMR="$TMP/cm-repo"
+mkdir -p "$CMP" "$CMR/src" "$MEM/cmproj"
+( cd "$CMR" && git init -q -b main && printf 'x\n' > src/a.txt && printf 'KEY=\n' > .env.example
+  git add -A && git -c user.name=t -c user.email=t@t commit -qm init
+  printf 'y\n' > src/b.txt && git add -A && git -c user.name=t -c user.email=t@t commit -qm two ) >/dev/null 2>&1
+CMR="$(cd "$CMR" && pwd -P)"
+printf 'cmproj\n' > "$CMR/.felix"
+printf '{"name":"cmproj","gate":"true"}\n' > "$CMP/project.json"
+: > "$CMP/capabilities"
+printf '# k\tn\ts\tr\tc\n' > "$CMP/stack.tsv"
+cp "$FROOT/harness/templates/profiles.tsv" "$FROOT/harness/templates/routes.tsv" "$CMP/"
+_cmtable() { { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'
+               for r in "$@"; do printf '%s\n' "$r"; done; } > "$CMP/commissioning.tsv"; }
+_cm() { ( FELIX_HOME_DIR="$FROOT"; PATH="$CMSTUB:$PATH"
+          . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/stack.sh"
+          . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/toolbox.sh"
+          . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/commission.sh"
+          "$@" ); }
+_cmstate() { _cm felix_commission_run "$CMP" "$CMR" - | awk -F'\t' -v n="$1" '$1 == n { print $2 }'; }
+_cmdetail() { _cm felix_commission_run "$CMP" "$CMR" - | awk -F'\t' -v n="$1" '$1 == n { print $6 }'; }
+
+_cmtable 'alpha	-	-	-	-	test -f src/a.txt	3' \
+         'plain	-	-	-	-	printf x | grep -q x	9' \
+         'beta	-	-	-	felix:toolbox --route	test -f src/made-by-answer	5' \
+         'gamma	-	definitely-not-a-real-command-xyz	-	-	true	5' \
+         'delta	-	-	definitely-not-a-real-command-xyz	-	true	5' \
+         'eps	billing	-	-	-	true	6' \
+         'zeta	-	-	-	-	[ -z "$(felix_no_such_function)" ]	7' \
+         'eta	-	-	-	-	! true	9' \
+         'theta	-	-	-	felix:rm -rf	true	9' \
+         'iota	-	-	-	-	true	99' \
+         'kappa	-	-	-	-	true' \
+         'prov	-	-	-	provider:claude-code-setup:claude-automation-recommender	-	4'
+is  "seven-field rows with an engine-stage answer and a check that can fail are rows" \
+    "$(_cm felix_commission_rows "$CMP" | cut -f1 | tr '\n' ' ')" "alpha plain beta gamma delta eps zeta prov "
+_cmmal="$(_cm felix_commission_malformed "$CMP")"
+has "a negated check is malformed, because it could not fail"      "$_cmmal" "eta"
+has "an answer outside the engine's stages is malformed"           "$_cmmal" 'felix:rm -rf'
+has "a step outside 1-10 is malformed"                             "$_cmmal" "iota"
+has "six fields is malformed, never truncated"                     "$_cmmal" "kappa"
+
+is  "a check that passes is done"                                        "$(_cmstate alpha)" "done"
+is  "a check naming no engine function is not read as one missing"       "$(_cmstate plain)" "done"
+is  "a check that fails is held"                                         "$(_cmstate beta)"  "held"
+is  "an instrument this machine lacks makes the row unknown"             "$(_cmstate gamma)" "unknown"
+has "and says it could not be asked here"                                "$(_cmdetail gamma)" "could not be asked on this machine"
+is  "a when whose command does not exist is unknown, not not-applicable" "$(_cmstate delta)" "unknown"
+is  "an inactive capability makes the row not-applicable"                "$(_cmstate eps)"   "not-applicable"
+is  "an engine function the check names that is not loaded is unknown"   "$(_cmstate zeta)"  "unknown"
+has "and the missing function is named"                                  "$(_cmdetail zeta)" "felix_no_such_function"
+is  "a provider row is awaiting, a class of its own"                     "$(_cmstate prov)"  "awaiting"
+
+# The answer runs in-process through a runner the caller names, and the check
+# decides afterwards. The stub stands in for felix:toolbox --route.
+_cmstub() { touch "$CMR/src/made-by-answer"; return 0; }
+_cmout="$(_cm felix_commission_run "$CMP" "$CMR" _cmstub)"
+is  "a held row whose answer ran and whose check now passes is done" \
+    "$(printf '%s\n' "$_cmout" | awk -F'\t' '$1 == "beta" { print $2 }')" "done"
+has "and the row says what ran"  "$(printf '%s\n' "$_cmout" | awk -F'\t' '$1 == "beta" { print $6 }')" "ran toolbox --route"
+rm -f "$CMR/src/made-by-answer"
+
+# The record: nine fields, one row per row, count-verified.
+_cm felix_commission_record "$CMP" tree1 policy1 "$_cmout" && ok "the record is written" || bad "the record is written"
+is  "one log row per table row"       "$(grep -c . "$MEM/cmproj/commissioning.log")" "8"
+is  "nine fields per log row"         "$(head -1 "$MEM/cmproj/commissioning.log" | awk -F'\t' '{ print NF }')" "9"
+has "a felix-answered row names felix as the actor"   "$(grep '	beta	' "$MEM/cmproj/commissioning.log")" "	felix	"
+has "a provider row is UNKNOWN until its file appears" "$(grep '	prov	' "$MEM/cmproj/commissioning.log")" "	UNKNOWN	"
+chmod 444 "$MEM/cmproj/commissioning.log"
+_cm felix_commission_record "$CMP" tree1 policy1 "$_cmout" >/dev/null 2>&1 \
+  && bad "a record that could not be appended is reported" \
+  || ok  "a record that could not be appended is reported"
+chmod 644 "$MEM/cmproj/commissioning.log"
+
+# The receipt: written after the run, valid only by derivation.
+_cmres="$(_cm felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmout" "$_cmmal")"
+is  "unknown or malformed rows make the receipt indeterminate" "$_cmres" "indeterminate"
+is  "the receipt has ten fields" "$(awk -F'\t' '{ print NF }' "$FROOT/state/commission/cmproj")" "10"
+_cmtable 'alpha	-	-	-	-	test -f src/a.txt	3' \
+         'prov	-	-	-	provider:claude-code-setup:claude-automation-recommender	-	4'
+_cmout="$(_cm felix_commission_run "$CMP" "$CMR" -)"
+is  "every check passing, with a provider still awaiting, is commissioned" \
+    "$(_cm felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmout" "")" "commissioned"
+is  "and the receipt reads valid" "$(_cm felix_commission_receipt_valid "$FROOT" "$CMP" "$CMR")" "commissioned"
+printf 'api\n' >> "$CMP/capabilities"
+has "editing a table in the set makes it stale, with nothing under state/ changing" \
+    "$(_cm felix_commission_receipt_valid "$FROOT" "$CMP" "$CMR")" "stale (table set moved"
+grep -v '^api$' "$CMP/capabilities" > "$CMP/caps.tmp"; mv "$CMP/caps.tmp" "$CMP/capabilities"
+printf '' > "$CMR/main.tf"
+has "a surface appearing in the checkout makes it stale the other way" \
+    "$(_cm felix_commission_receipt_valid "$FROOT" "$CMP" "$CMR")" "stale (detected surfaces moved"
+rm -f "$CMR/main.tf"
+is  "and restoring both makes it valid again" "$(_cm felix_commission_receipt_valid "$FROOT" "$CMP" "$CMR")" "commissioned"
+printf '\n# one more byte\n' >> "$CMSTUB/claude"
+_cmv="$(_cm felix_commission_receipt_valid "$FROOT" "$CMP" "$CMR")"; _cmvrc=$?
+is  "the claude cli changing is announced and never invalidates" "$_cmvrc" "0"
+has "and the announcement names the change"                     "$_cmv" "changed since"
+
+# What nothing serves, reaches or grounds, enumerated from the checkout.
+has "a detected surface no row serves, reaches or grounds is named with all three misses" \
+    "$(_cm felix_commission_gaps "$CMP" "$CMR")" "secrets	no	no	no"
+has "a template need this table lacks is named" \
+    "$(_cm felix_commission_template_missing "$CMP" "$FROOT/harness/templates")" "envelope"
+has "a pipeline step nothing answers is named from the architecture, not the table" \
+    "$(_cm felix_commission_steps_unanswered "$CMP" "$FROOT/harness/templates")" "8	"
+
+# The command: refuses the absent and empty table, writes the receipt, reads
+# it back, and says who answers what is held.
+_cmcli() { ( cd "$CMR" && PATH="$CMSTUB:$PATH" "$FELIX" commission "$@" 2>&1 ); }
+mv "$CMP/commissioning.tsv" "$CMP/commissioning.keep"
+_cmo="$(_cmcli)"; _cmrc=$?
+is  "felix commission on a project without the table exits 1" "$_cmrc" "1"
+has "and names the template"                                  "$_cmo"  "templates/commissioning.tsv"
+printf '# only a comment\n' > "$CMP/commissioning.tsv"
+_cmo="$(_cmcli)"; _cmrc=$?
+is  "a table of comments exits 1"                       "$_cmrc" "1"
+has "and calls it a shelf with nothing on it"           "$_cmo"  "shelf with nothing on it"
+_cmo="$(_cmcli --yes)"; _cmrc=$?
+is  "there is no --yes"                                 "$_cmrc" "1"
+mv "$CMP/commissioning.keep" "$CMP/commissioning.tsv"
+rm -f "$FROOT/state/commission/cmproj"
+_cmo="$(_cmcli --status)"; _cmrc=$?
+is  "--status on a never-commissioned project exits 0 and runs nothing" "$_cmrc" "0"
+has "and says the receipt does not exist here"    "$_cmo" "never commissioned on this machine"
+[ -f "$FROOT/state/commission/cmproj" ] && bad "--status writes no receipt" || ok "--status writes no receipt"
+_cmo="$(_cmcli)"; _cmrc=$?
+is  "a full run on a clean table exits 0"               "$_cmrc" "0"
+has "and reports the receipt it wrote"                  "$_cmo"  "receipt: commissioned"
+has "and names who answers the provider row"            "$_cmo"  "a session runs /claude-code-setup:claude-automation-recommender"
+has "and names the pipeline step nothing answers"       "$_cmo"  "initialize obligation and evidence state"
+[ -f "$FROOT/state/commission/cmproj" ] && ok "the run writes the receipt" || bad "the run writes the receipt"
+printf 'api\n' >> "$CMP/capabilities"
+has "--status after a table edit reads stale"           "$(_cmcli --status)" "stale (table set moved"
+
+# The gate line: offline, announce-only, except the empty case.
+_cmgate() { ( cd "$CMR" && PATH="$CMSTUB:$PATH" "$FELIX" gate 2>&1 ); }
+has "the gate announces a stale receipt and does not fail on it" "$(_cmgate)" "commission         stale"
+_cmcli >/dev/null 2>&1
+: > "$CMSTUB_LOG"
+has "after commissioning the gate line reads ok"        "$(_cmgate)" "commission         ok"
+is  "and the gate line called no cli"                   "$(grep -c . "$CMSTUB_LOG")" "0"
+mv "$CMP/commissioning.tsv" "$CMP/commissioning.keep"
+has "a project without the table is skipped, announced" "$(_cmgate)" "skipped (no commissioning.tsv"
+printf '# empty\n' > "$CMP/commissioning.tsv"
+_cmg="$(_cmgate)"
+has "an empty table fails the gate"                     "$_cmg" "commission         FAIL"
+has "and lands in mistakes.log under its own name"      "$(tail -1 "$MEM/cmproj/mistakes.log")" "commission"
+mv "$CMP/commissioning.keep" "$CMP/commissioning.tsv"
+grep -v '^api$' "$CMP/capabilities" > "$CMP/caps.tmp"; mv "$CMP/caps.tmp" "$CMP/capabilities"
+
+# The merge boundary: the second place the empty case is refused, and the
+# one that bites on staleness. Never on held rows.
+_cmblk() { ( cd "$CMR" && FELIX_HOME_DIR="$FROOT"
+             . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/verify.sh"
+             [ "${1:-}" = "--unload" ] && unset -f felix_commission_rows
+             felix_merge_blockers "$CMP" HEAD~1 "$CMR" "$FROOT" ) 2>/dev/null; }
+_cmcli >/dev/null 2>&1
+case "$(_cmblk)" in
+  *commission*) bad "a valid receipt raises no commission blocker" "$(_cmblk | grep commission)" ;;
+  *)            ok  "a valid receipt raises no commission blocker" ;;
+esac
+printf 'plugin\tlate\t-\tlow\talways\n' >> "$CMP/stack.tsv"
+has "a table edited under a valid receipt blocks the merge as a stale receipt" "$(_cmblk)" "commission	receipt"
+_cmcli >/dev/null 2>&1
+mv "$CMP/commissioning.tsv" "$CMP/commissioning.keep"
+has "a project without the table blocks the merge"      "$(_cmblk)" "commission	table"
+mv "$CMP/commissioning.keep" "$CMP/commissioning.tsv"
+has "an engine that cannot evaluate commissioning blocks rather than skips" "$(_cmblk --unload)" "commission	engine"
+
+# felix new commissions instead of printing the next steps, and writes
+# nothing into the tree but the marker.
+CMS="$TMP/cm-stranger"; mkdir -p "$CMS"
+( cd "$CMS" && git init -q -b main ) >/dev/null 2>&1
+printf '{ "name": "cms", "scripts": { "verify": "echo ok" }, "dependencies": { "express": "^4" } }\n' > "$CMS/package.json"
+: > "$CMSTUB_LOG"
+_cmn="$(cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" new cmstranger 2>&1)"; _cmnrc=$?
+is  "felix new still exits 0"                                    "$_cmnrc" "0"
+has "and commissions"                                            "$_cmn" "commissioning for cmstranger"
+case "$_cmn" in *'next:'*) bad "and no longer prints next steps" ;; *) ok "and no longer prints next steps" ;; esac
+case "$_cmn" in *'Felix already covers verification'*|*'paste into a session'*) bad "nor a paste-in prompt" ;; *) ok "nor a paste-in prompt" ;; esac
+has "and the provider skill is named as a channel a session runs, not a prompt to paste" "$_cmn" "a session runs /claude-md-management:claude-md-improver"
+is  "the tree holds only the marker beside what was there" \
+    "$(cd "$CMS" && ls -A | grep -v '^\.git$' | LC_ALL=C sort | tr '\n' ' ')" ".felix package.json "
+[ -f "$FROOT/projects/cmstranger/commissioning.tsv" ] && ok "the table is seeded" || bad "the table is seeded"
+is  "and the receipt is written with ten fields" \
+    "$(awk -F'\t' '{ print NF }' "$FROOT/state/commission/cmstranger" 2>/dev/null)" "10"
+has "stack apply ran through the stub" "$(cat "$CMSTUB_LOG")" "plugin install"
+printf 'plugin\tevil\t-\thigh\talways\n' >> "$FROOT/projects/cmstranger/stack.tsv"
+: > "$CMSTUB_LOG"
+( cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" commission >/dev/null 2>&1 )
+case "$(cat "$CMSTUB_LOG")" in *evil*) bad "a high-risk row is never installed by commissioning" "$(cat "$CMSTUB_LOG")" ;; *) ok "a high-risk row is never installed by commissioning" ;; esac
+# The stub can fail, so the assertions that depend on it can.
+( PATH="$CMSTUB:$PATH" claude plugin uninstall anything >/dev/null 2>&1 ) && bad "the stub refuses an untaught shape" || ok "the stub refuses an untaught shape"
+
+# The moment is declared, so a stance at it is not a typo.
+printf 'capability:api\tcommissioning\tfelix commission\t-\n' > "$CMP/procedures.tsv"
+case "$(_cm felix_procedures_unknown_moments "$CMP" "$FROOT/harness/templates" 2>/dev/null)" in
+  *commissioning*) bad "a stance at the commissioning moment is not a stance at an unknown moment" ;;
+  *)               ok  "a stance at the commissioning moment is not a stance at an unknown moment" ;;
+esac
+rm -f "$CMP/procedures.tsv"
+
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.
 #

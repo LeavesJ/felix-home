@@ -43,6 +43,7 @@ fi
 # than passing quietly.
 if ! command -v felix_probes_run >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/probes.sh" 2>/dev/null
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/commission.sh" 2>/dev/null
 fi
 
 FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null && pwd)/secret-scan"
@@ -50,7 +51,7 @@ FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null 
 # Enforcing tables: the files that decide what stops. Shrinking one is the edit
 # that cannot be checked by the thing it shrank, because a green produced by a
 # narrowed judge certifies itself. Named by shape, not by project.
-FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv'
+FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv commissioning.tsv'
 
 # The subset whose rows are EXEMPTIONS, and for which "adding is free" is
 # backwards. A row in the ecosystem table says "this word is not a stack name"
@@ -382,5 +383,30 @@ felix_merge_blockers() {
             "$(printf '%s\n' "$line" | cut -f3)" \
             "$(printf '%s\n' "$line" | cut -f5)"
         done
+  fi
+
+  # commission: the fourth consumer of the first-encounter table, and the
+  # second place its empty case is refused. A branch may not land while the
+  # project has never been commissioned on this machine, while its table set
+  # or detected surfaces have moved since it was, or while a row could not be
+  # asked here (indeterminate). Never on held rows: a toolbox that is not yet
+  # installed is a fact about a machine, not about the code being merged. And
+  # never on provider rows, which hold nothing by class. Fails closed on a
+  # missing library for the same reason the probes block does.
+  if ! command -v felix_commission_rows >/dev/null 2>&1; then
+    printf 'commission\tengine\tthe commissioning library is not loaded, so nothing was asked of this project\n'
+  elif [ ! -f "$proj/commissioning.tsv" ]; then
+    printf 'commission\ttable\tthis project was never commissioned; write %s/commissioning.tsv (felix commission says how)\n' "$proj"
+  elif [ -z "$(felix_commission_rows "$proj")" ]; then
+    printf 'commission\ttable\t%s/commissioning.tsv declares no need, which is a shelf with nothing on it\n' "$proj"
+  else
+    felix_commission_malformed "$proj" | while IFS=$'\t' read -r need why; do
+      [ -n "$need" ] || continue
+      printf 'commission\ttable\t%s/commissioning.tsv: %s: %s\n' "$proj" "$need" "$why"
+    done
+    local cwhy
+    if ! cwhy="$(felix_commission_receipt_valid "$home" "$proj" "$root")"; then
+      printf 'commission\treceipt\t%s\n' "$cwhy"
+    fi
   fi
 }

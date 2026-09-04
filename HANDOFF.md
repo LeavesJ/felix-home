@@ -75,9 +75,9 @@ it should be paid deliberately, not rediscovered.
 
 | | |
 |---|---|
-| head | `01720bc` on `main` (#158–#166, nine merges), CI `gate` **success** on each |
-| suite | **1459** passed, 0 failed, manifest re-recorded |
-| deployed engine | **0.49.55**, deployed from the home checkout after each merge |
+| head | `237a2b9` on `main` (#158–#168, eleven merges), CI `gate` **success** on each |
+| suite | **1470** passed, 0 failed, manifest re-recorded |
+| deployed engine | **0.49.60**, deployed from the home checkout after each merge |
 | provider rows | **all six answered, 0 awaiting on all three projects** |
 | the audits | felix 69/100 C, elenchus 89/100 B, veldra 87/100 B |
 | open, and the founder's | one, below. It is what stopped the next increment rather than a preference |
@@ -308,6 +308,93 @@ already declared, and there is no Docker plugin at all. The rows that matter
 are grounded in counts — 21 `unsafe` blocks and 831 `unwrap`/`expect` sites
 across 109 Rust files, in a long-running gateway where a panic is an
 availability fault.
+
+### The ledger fix was itself wrong, and an audit caught it (#168)
+
+**Read this before trusting anything else in this section.** #163 fixed a real defect —
+sessions that end uncleanly never fold, so the ledger was reporting whichever
+sessions happened to exit cleanly. The fix was correct in intent and **wrong in
+scope**, and it shipped that way for several hours.
+
+`state/ledger/` carries no project namespace, deliberately: the PostToolUse hook
+refuses to resolve the project because resolution touches git, and that would put
+a git invocation behind every Read, Edit and Bash in every session on this
+machine. SessionEnd resolves `PWD` and folds to the right project. The catch-up
+had nothing to resolve with, so it folded **every** unfolded session into whichever
+project asked.
+
+Measured before anything was changed: ten session ids sat in two projects'
+`ledger.d` at once, and `playwright` reached felix's retire list built entirely out
+of elenchus sessions — felix's `routes.tsv` and `stack.tsv` have never contained the
+word. The CLI was instructing removal of a stack row and a play that do not exist,
+under the heading "the one signal here worth acting on".
+
+Attribution needed no new record: the user-prompt hook already writes the governed
+repository's HEAD to `state/session/<id>`, and governed repositories have disjoint
+histories, so `git cat-file -e` decides it with bash and git alone. A session with
+no mark, or a mark this repository does not contain, is not folded.
+
+Data repaired: 15 foreign records removed from `felix/ledger.d` (9 elenchus, 6
+veldra), plus three hand-made `probe` fixtures the catch-up had also claimed.
+Copies are outside the memory root. felix now reads **65 sessions**, no duplicated
+session id across projects, and a retire list of `semgrep` alone. `semgrep`'s named
+count fell 3 to 2, because one of the three was an elenchus session.
+
+**And the guarantee written beside the new banner qualifier was unsound**, falsified
+the same night it was written. It claimed folding "can only ADD reaches, and a reach
+can only take a capability OFF this list". A retire row needs three things — calls
+at zero, named above zero, sessions at or above the threshold — and folding raises
+the last two as well. The comment now says hedged, not guaranteed.
+
+### The audit that found it, and the twenty-two findings still open
+
+Four independent lenses over the measurement surfaces — identity, zero-versus-absent,
+aggregation completeness, and the wording of founder-facing claims — with every
+finding then put to three adversarial refuters on distinct angles. 79 agents,
+0 errors, **23 findings survived and 2 were killed**. Three separate lenses found the
+catch-up regression independently, which is the main reason to believe the rest.
+
+Everything is written up with its evidence, its verifier corrections, and the two
+killed findings, at:
+
+    ~/.felix/memory/felix/audits/2026-09-04-measurement-audit.md
+
+The catch-up cluster is fixed. **The remaining high-severity four, none of them
+touched:**
+
+1. **`felix next` asserts "every tool a route names is reachable" from fifteen
+   answers that say "cannot check"** (`engine/harness/felix:1289`). It drops the
+   `unknown` and `undeclared` states and then makes a positive claim over what is
+   left. This is the "Nothing due / nothing is being checked" lesson, one surface
+   over.
+2. **`felix_ledger_signal` can name only three shapes of thing**
+   (`engine/harness/lib/ledger.sh:191`) — tool, mcp server, skill. A plugin whose
+   contribution is hooks, commands or agents is pinned to zero reaches **by
+   construction**, and can therefore never leave the retire list. semgrep may be
+   exactly that artefact, which would leave the retire list empty of true positives.
+3. **The gate receipt is one bit** (`engine/harness/hooks/stop:285`), so
+   `felix gate --quick` — which skips the test suite — is indistinguishable from a
+   full run, while the Stop hook says green "means the suite passed". A verification
+   claim stronger than its evidence, which is the one kind this project treats as
+   serious.
+4. **The MCP name never joins to the plugin name.** `felix_ledger_summary` strips
+   `@suffix` and `:suffix` but not the `plugin_<plugin>_<server>` tool prefix, so
+   routes naming `playwright` and reaches recorded as `plugin_playwright_playwright`
+   are two different capabilities. Measured: **773 reaches across the three projects**
+   attributed to a name no table contains. The fix is one `sub()` in that awk —
+   diagnosed, designed, deliberately not applied, because the session was already
+   three changes deep into the ledger and a fourth unreviewed one is how tonight's
+   regression happened in the first place.
+
+Eleven medium and low findings follow in the same file — the monitor rendering a
+tail window as a lifetime total, the reconciler proposing mounts for things that
+cannot be mounted, `felix_maint_unreachable` called by nothing but the suite, and
+others.
+
+**The method note worth keeping.** Every one of tonight's five real defects was found
+by running something and comparing it against its source, never by reading. The
+audit was pointed at a surface that had just been changed twice, and it found that
+the second change was wrong.
 
 ### Open, and the founder's — this is what stopped the next increment
 

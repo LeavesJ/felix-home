@@ -28,6 +28,15 @@
 # any of that. What it buys is finding out that something ships hooks BEFORE
 # installing it rather than never.
 
+# admit.sh holds the one install policy. Sourced by path because the suite
+# sources this library alone, in a subshell, and this file's own rule — stated
+# again at the adopt call below — is that a helper from a sibling lib turns
+# that into a runtime error rather than a failing assertion. The guard is how
+# that rule and the shared policy both hold.
+if ! command -v felix_admit >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/admit.sh"
+fi
+
 FELIX_DISCOVER_MAX="${FELIX_DISCOVER_MAX:-8}"
 
 # capability <TAB> keywords, for capabilities this project actually declared.
@@ -436,9 +445,14 @@ felix_discover_adopt() {
     if printf '%s\n' "$declared" | grep -xF "$name" >/dev/null 2>&1; then
       printf 'already\t%s\t%s\t%s\n' "$name" "$cap" "$risk"; continue
     fi
-    case "$risk" in
-      low) printf 'declare\t%s\t%s\t%s\n' "$name" "$cap" "$risk" ;;
-      *)   printf 'refuse\t%s\t%s\t%s\n'  "$name" "$cap" "$risk" ;;
+    # A cache row was tiered by this engine reading what the candidate ships,
+    # so the policy is asked as OBSERVED. `hold` and `refuse` both read
+    # `refuse` here: this command's caller can only declare or not, and the
+    # difference between "a person decides" and "nobody may" belongs to the
+    # report, not to a manifest edit that either happens or does not.
+    case "$(felix_admit "$risk" OBSERVED)" in
+      install) printf 'declare\t%s\t%s\t%s\n' "$name" "$cap" "$risk" ;;
+      *)       printf 'refuse\t%s\t%s\t%s\n'  "$name" "$cap" "$risk" ;;
     esac
   done < "$cache"
 }

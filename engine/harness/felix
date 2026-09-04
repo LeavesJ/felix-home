@@ -1909,10 +1909,12 @@ cmd_ready() {
           printf '  FAILED     %s (enable by hand)\n' "$name"; unrepaired=$((unrepaired + 1))
         fi ;;
       absent)
-        # Same bound as felix stack apply, for the same reason: high risk means
-        # the tool can reach production, move money, or hold a credential, and
-        # no flag anywhere should mount one of those unattended.
-        if _felix_risk_is_auto "${risk:-high}"; then
+        # The same policy as felix stack apply, because it is now literally
+        # the same call rather than a second copy of the same bound. The row
+        # came out of stack.tsv, so a person wrote it: DECLARED. A row with no
+        # tier at all reads `high`, which refuses — an absent tier is not a
+        # licence.
+        if [ "$(felix_admit "${risk:-high}" DECLARED)" = "install" ]; then
           if claude plugin install "$owner" --scope user >/dev/null 2>&1; then
             printf '  installed  %s\n' "$name"; repaired=$((repaired + 1))
           else
@@ -1921,7 +1923,7 @@ cmd_ready() {
         else
           # Refused counts as unrepaired. Nothing failed, Felix simply declined
           # to act — which is the outcome most likely to be read as success.
-          printf '  refused    %-24s risk: %s, a person installs this\n' "$name" "${risk:-high}"
+          printf '  refused    %-24s %s\n' "$name" "$(felix_admit_why "${risk:-high}" DECLARED)"
           unrepaired=$((unrepaired + 1))
         fi ;;
     esac

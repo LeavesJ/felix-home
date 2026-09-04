@@ -543,6 +543,33 @@ case "$out" in
 esac
 grep -v 'anthropic-skills' "$FROOT/projects/widget/stack.tsv" > "$TMP/stack.tmp"; mv "$TMP/stack.tmp" "$FROOT/projects/widget/stack.tsv"
 
+# A tier the policy cannot read is not a licence. The old plan tested only for
+# the literal string "high", so every other value fell through to the install
+# branch: an empty column, a typo, and `HIGH` in capitals were all installable
+# unattended. Nothing exploited it, and nothing would have reported it either.
+# Routing the decision through one fail-closed policy is what closed it, so it
+# is asserted here rather than left as a property of the refactor.
+{
+  printf 'plugin\tfelix-test-typo@nowhere\t-\thgih\talways\n'
+  printf 'plugin\tfelix-test-shouty@nowhere\t-\tHIGH\talways\n'
+  printf 'plugin\tfelix-test-blank@nowhere\t-\t\talways\n'
+} >> "$FROOT/projects/widget/stack.tsv"
+out="$(cd "$REPO" && "$FELIX" stack plan 2>&1)"
+for _bad in felix-test-typo felix-test-shouty felix-test-blank; do
+  # Scoped to the row's own line. Matched against the whole report, the glob
+  # finds the word "install" in some other row and passes for the wrong reason.
+  _badline="$(printf '%s\n' "$out" | grep -- "$_bad" | head -1)"
+  case "$_badline" in
+    *blocked*) ok  "an unreadable tier does not install: $_bad" ;;
+    "")        bad "an unreadable tier does not install: $_bad" "no verdict at all" ;;
+    *)         bad "an unreadable tier does not install: $_bad" "$_badline" ;;
+  esac
+done
+has "and says the tier is what it could not read" "$out" "not a tier and a grounding this policy recognises"
+grep -v 'felix-test-typo\|felix-test-shouty\|felix-test-blank' "$FROOT/projects/widget/stack.tsv" > "$TMP/stack.tmp"
+mv "$TMP/stack.tmp" "$FROOT/projects/widget/stack.tsv"
+is "and the fixture is restored" "$(grep -c 'felix-test-typo' "$FROOT/projects/widget/stack.tsv")" "0"
+
 out="$(cd "$REPO" && "$FELIX" stack apply 2>&1)"
 has "apply without --yes changes nothing" "$out" "Nothing changed"
 
@@ -554,6 +581,66 @@ case "$out" in
   *) ok "--yes never installs high risk" ;;
 esac
 has "and says why it was left alone" "$out" "No flag installs those"
+
+printf '\nthe one install policy\n'
+# felix_admit is the single place that decides whether something may be
+# installed with nobody present. It was three places: stack.sh's
+# FELIX_RISK_AUTO, which auto-applies low and medium; discover.sh's adopt,
+# which declares low and refuses medium; and ready --fix, which reached across
+# into stack.sh's helper. Two of those disagreed about medium.
+#
+# The disagreement was not a bug and is not collapsed here. A person who writes
+# a medium row into stack.tsv has decided something the engine's own tiering
+# has not, so the policy takes the grounding as its second argument and says
+# both answers in one place, in v3.2's own vocabulary: DECLARED, OBSERVED,
+# INFERRED.
+_adm() { ( . "$FROOT/harness/lib/admit.sh"; felix_admit "${1:-}" "${2:-}" ); }
+
+is "a person's low row installs"                      "$(_adm low DECLARED)"     "install"
+is "and a person's medium row installs, as it always has" "$(_adm medium DECLARED)" "install"
+is "what the engine tiered low installs"              "$(_adm low OBSERVED)"     "install"
+# The founder's decision, recorded 2026-09-04: an engine-tiered medium ships an
+# MCP server, was read from three files and never sandboxed, and waits for a
+# person. Amendments 1.2 is why — sandbox-exec confines but does not report, so
+# there is no mechanism behind the spec's T2 on this machine.
+is "and what the engine tiered medium holds"          "$(_adm medium OBSERVED)"  "hold"
+# Grounding is required. A provider names a plugin in a file a model wrote, and
+# nothing has fetched it, read it or tiered it — so the file's own claim of
+# `low` is not evidence of anything. Inspecting it is what makes it OBSERVED,
+# and that is the only door from a nomination to an install.
+is "what a provider merely named holds, whatever it tiered itself" "$(_adm low INFERRED)" "hold"
+is "and its medium holds too"                         "$(_adm medium INFERRED)"  "hold"
+
+# Constitution invariant 4: high is refused by every flag from every caller.
+for _admp in DECLARED OBSERVED INFERRED; do
+  is "high is refused however it was grounded: $_admp" "$(_adm high "$_admp")" "refuse"
+done
+
+# It fails closed. An unreadable tier or an unrecognised grounding is not a
+# reason to proceed, and this is the property a later edit is likeliest to
+# lose, because every wrong answer here still looks like a working install.
+is "an unknown tier refuses"        "$(_adm banana DECLARED)" "refuse"
+is "an unknown grounding refuses"   "$(_adm low PROBABLY)"    "refuse"
+is "an empty tier refuses"          "$(_adm '' DECLARED)"     "refuse"
+is "an empty grounding refuses"     "$(_adm low '')"          "refuse"
+is "and no arguments at all refuse" "$(_adm)"                 "refuse"
+
+# The claim is that there is now one policy rather than three. Asserted on the
+# source, because a second copy that agrees today is exactly what drifts later,
+# and no behavioural test can see a duplicate that still gives the same answer.
+has "stack plan asks the policy"     "$(cat "$FROOT/harness/lib/stack.sh")"    "felix_admit"
+has "discover adopt asks the policy" "$(cat "$FROOT/harness/lib/discover.sh")" "felix_admit"
+has "ready --fix asks the policy"    "$(cat "$FELIX")"                         "felix_admit"
+is  "and no caller keeps a tier list of its own" \
+    "$(cat "$FROOT/harness/lib/stack.sh" "$FROOT/harness/lib/discover.sh" "$FELIX" | grep -c 'FELIX_RISK_AUTO=')" "0"
+
+# Sourced alone, the way the suite sources every library and the way discover.sh
+# says it must stay sourceable. A policy call that resolved to nothing would
+# refuse silently, which reads exactly like a correct refusal.
+is "discover.sh alone can still reach the policy" \
+   "$( . "$FROOT/harness/lib/discover.sh"; command -v felix_admit >/dev/null 2>&1 && echo reachable || echo missing )" "reachable"
+is "and stack.sh alone can too" \
+   "$( . "$FROOT/harness/lib/stack.sh"; command -v felix_admit >/dev/null 2>&1 && echo reachable || echo missing )" "reachable"
 
 printf '\nprofiles\n'
 printf 'core\talways\nbilling\tbilling\n' > "$FROOT/projects/widget/profiles.tsv"
@@ -7355,6 +7442,12 @@ has "and says how many are still unusable" "$_fixout" "still cannot be used"
 printf 'skill\tmissing-skill\t-\thigh\talways\n' > "$_RDP/stack.tsv"
 _refout="$( cd "$REPO" && HOME="$_RDH" PATH="$_RDB:$_NOCLI" "$FELIX" ready --fix 2>&1 )"; _refrc=$?
 has "a refusal on risk is reported"  "$_refout" "refused"
+# And it carries the policy's own words. Without this the assertion above
+# passes whether or not the call reaches admit.sh: an undefined felix_admit
+# substitutes empty, empty is not "install", and the refusal branch prints the
+# same word. This is the only line here that can tell a policy from a typo.
+has "and in the policy's own words, which is what proves the call reached it" \
+    "$_refout" "high risk, install by hand"
 [ "$_refrc" -ne 0 ] && ok "and a refusal is not a successful repair" \
                     || bad "and a refusal is not a successful repair" \
                            "exit $_refrc after: $_refout"

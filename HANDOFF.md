@@ -71,14 +71,50 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
-## 0am. Verified at session close, 2026-09-03 (late) — the first-encounter moment is a table, and the two setup skills are rows in it
+## 0am. Verified at session close, 2026-09-04 — the first-encounter moment is a table, the two setup skills are rows in it, and the rows are waiting for a session
 
 | | |
 |---|---|
-| head | `34ce101` on `main` (#146), CI `gate` **success** |
-| suite | **1359** passed, 0 failed, manifest re-recorded |
-| deployed engine | **0.49.44**, deployed from the home at `34ce101`; every session from here boots with it, this one did not |
-| governed projects | felix, elenchus, veldra each carry `commissioning.tsv` and were commissioned once by hand through the deployed cli; receipts under `state/commission/`, all `held` |
+| head | `00eb823` on `main` (#146–#153, eight merges), CI `gate` **success** on each |
+| suite | **1393** passed, 0 failed, manifest re-recorded |
+| deployed engine | **0.49.46**, from the home at `00eb823`; every session from here boots with it, the one that built it did not |
+| governed projects | felix, elenchus, veldra each carry `commissioning.tsv` and were commissioned by hand through the deployed cli; receipts under `state/commission/`, all `held` |
+| waiting on a session | six provider requests, two per project, none answered |
+
+### Start here, if you are the next session
+
+Felix can now decide a repository's toolbox on first encounter, and there is
+exactly one thing built for you that no session has yet done.
+
+1. **Answer the two provider requests.** On this project and on each of the
+   other two, `felix commission --status` ends with two rows reading
+   `awaiting`, each naming a file:
+
+   ```
+   ~/.felix/memory/<project>/commission/requests/constitution_audited.md
+   ~/.felix/memory/<project>/commission/requests/automation_surveyed.md
+   ```
+
+   Read one. It names a skill to run and an answer file to write, in exactly
+   the shape it gives — a topology header, the rows, a terminal `done <count>`.
+   Run the skill, write the file, then `felix commission`. The row moves from
+   awaiting to answered, the accepted rows land in `commissioning.log` as
+   INFERRED with the file's hash and the provider's version and commit, and
+   the report lists what the provider named. **Nothing it names is installed**:
+   the admit phase is PR 3 and is not built. This is the whole point of the
+   protocol, and it has never been exercised on real answers — expect it to
+   find something, and write down what it finds.
+
+2. **Do not re-derive the architecture.** v3.2 plus the conformance amendments
+   govern, they live outside this repository under
+   `~/Documents/UC Berkeley/Career/Founder OS/`, and nothing loads them for
+   you. The question is closed; work conformance.
+
+3. **Then PR 3**, from "Not done, in order" below.
+
+Three rows are `held` on every project and each is the founder's, not yours:
+the `maturity` key in `project.json`, `felix bootstrap --yes`, and one
+outstanding `setup.tsv` step. Do not answer them on their behalf.
 
 ### Read this first: what the founder asked, and what was built to it
 

@@ -310,21 +310,35 @@ _felix_discover_cache() { printf '%s/state/discover/%s' "$2" "$(basename "$1")";
 #
 # Emits: score <TAB> capability. The caller applies its own threshold, because
 # what is worth reporting and what is worth installing are different bars.
+#
+# A keyword is a WORD. The first version matched substrings over the token
+# string, and on the first live commissioning run `rag` — a keyword of the
+# llm rule — matched the name google-cloud-sto*rag*e, scored the name hit of
+# 3 that is also the adoption threshold, and a storage plugin was declared
+# and installed under llm. The tokeniser now splits on everything that is
+# not a letter or digit, hyphens included, so `observability-tool` still
+# matches `observability`, and a keyword with a hyphen (`rest-api`) is
+# matched as the two-word phrase it tokenises to. `eval` no longer matches
+# `evaluation` or `evaltool`, and is not meant to: a keyword that matches
+# inside other words is a keyword that matches by accident.
+_felix_cap_tokens() { printf ' %s ' "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' ' ' | sed 's/^ *//; s/ *$//')"; }
 felix_capability_match() {
   local name="$1" desc="$2" rules="$3" skills="${4:-}"
-  local nhay dhay shay cap kws kw score hit best=0 best_cap=""
-  nhay=" $(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
-  dhay=" $(printf '%s' "$desc" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
-  shay=" $(printf '%s' "$skills" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' ' ') "
+  local nhay dhay shay cap kws kw kwn score hit best=0 best_cap=""
+  nhay="$(_felix_cap_tokens "$name")"
+  dhay="$(_felix_cap_tokens "$desc")"
+  shay="$(_felix_cap_tokens "$skills")"
   while IFS=$'\t' read -r cap kws; do
     [ -n "${cap:-}" ] || continue
     score=0
     for kw in $kws; do
       hit=0
-      case "$nhay" in *"$kw"*) score=$((score+3)); hit=1 ;; esac
-      case "$shay" in *"$kw"*) score=$((score+3)); hit=1 ;; esac
+      kwn="$(_felix_cap_tokens "$kw")"
+      [ "$kwn" != "  " ] || continue
+      case "$nhay" in *"$kwn"*) score=$((score+3)); hit=1 ;; esac
+      case "$shay" in *"$kwn"*) score=$((score+3)); hit=1 ;; esac
       [ "$hit" -eq 1 ] && continue
-      case "$dhay" in *"$kw"*) score=$((score+1)) ;; esac
+      case "$dhay" in *"$kwn"*) score=$((score+1)) ;; esac
     done
     if [ "$score" -gt "$best" ]; then best="$score"; best_cap="$cap"; fi
   done <<EOF

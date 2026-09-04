@@ -71,6 +71,172 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
+## 0am. Verified at session close, 2026-09-03 (late) — the first-encounter moment is a table, and the two setup skills are rows in it
+
+| | |
+|---|---|
+| head | `34ce101` on `main` (#146), CI `gate` **success** |
+| suite | **1359** passed, 0 failed, manifest re-recorded |
+| deployed engine | **0.49.44**, deployed from the home at `34ce101`; every session from here boots with it, this one did not |
+| governed projects | felix, elenchus, veldra each carry `commissioning.tsv` and were commissioned once by hand through the deployed cli; receipts under `state/commission/`, all `held` |
+
+### Read this first: what the founder asked, and what was built to it
+
+The instruction, verbatim: *"felix will and should have the ability to decide
+what are the tools needed upon first encountering a repo/codebase, and that
+'skill' and the 'setup' we can use the preexisting claude md setup as backbone
+then build on top of it."* Then, later: *"gracefully pause"*, and *"continue"*.
+
+v3.2 already names this work. §8 is a ten-step commissioning pipeline; §7 is
+the capability manager; §9 the baseline coverage compiler; and line 330 says
+setup skills are *commissioning instruments, not Felix's constitution*. So the
+claude-md-management skill is an instance of a class the architecture already
+has, and the standing method rule (§0aj, "build the class, not the instance")
+decided the shape before any design did: a moment, a table of what must be
+answered at it, and a selector — with rows that can be missing and be said to
+be missing.
+
+### What the map showed before anything was designed
+
+Six readers over the engine, the tables, the hooks, the handoff, the lessons
+and the machine (`understand_map.json` in the session scratchpad). Every stage
+of §8 already existed as a separate, person-invoked command: `felix new`
+(detects 13 capabilities, seeds from a 15-row catalogue), `discover
+--inspect/--adopt` (fetch at a pinned sha, read never execute, tier by shape),
+`stack apply --yes` and `ready --fix` (install low and medium), `toolbox
+--route`, `bootstrap`, and a session-start hook that auto-adopts. Four things
+were missing: a moment that chains them (`felix new` *printed* the sequence,
+which invariant 3 calls a defect); any way to ingest the two setup providers
+(both were paste-into-session prompts, and by invariant 2 can never be engine
+calls); a record of the toolbox decision itself; and one install policy
+(`--adopt` refuses medium, `stack apply --yes` installs it).
+
+### The design, judged before it was built
+
+Three designs from three angles (compose, provider-protocol-first,
+admission-first), each judged by three refuters, then synthesised: 13 agents.
+"Compose" won on reuse and testability; the panel's 26 fatals were resolved
+or rejected one by one. The ones worth knowing: a provider-written `mcp` row
+would have executed unattended (spec §7 T3) — never fetched, tiered or
+installed now; an INFERRED capability would have been consumed as DECLARED —
+grounding is required; two seed checks passed vacuously against the real CLI
+output — rewritten against the libraries' own TSV; the Stop hook was wired
+after all, through the gate receipt — so the gate line is announce-only; and
+`felix new` would have run `bootstrap --yes` into a stranger's tree — the
+baseline row is a person's.
+
+### What landed (#146)
+
+`projects/<p>/commissioning.tsv`: `need grounds instrument when answer check
+step`. A row names a need, the capability it serves, the **instrument** the
+question needs on this machine, a `when`, the engine stage that answers it
+(`felix:discover --adopt`, `felix:stack apply --yes`, `felix:ready --fix`,
+`felix:toolbox --route`, `provider:<plugin>:<skill>`, or `-` for a person),
+an independent check, and the §8 step. `lib/commission.sh` computes five
+states on every run and stores none: done, held, not-applicable, unknown,
+malformed; provider rows are `awaiting`, a class that holds nothing. Unknown
+is reachable by construction — an absent instrument, a `when` or check whose
+command does not exist, an engine function a check names that this process
+has not loaded, an unenterable checkout — and blocks the receipt.
+`commissioning.log` is append-only with provenance; the
+`project_commissioned` receipt (§8 step 10) carries the table-set hash and the
+detected-surface hash, and its validity is derived on every read, never
+stored. `felix commission [--status]` runs it; `felix new` runs it instead of
+printing next steps and asks maturity on a TTY; the gate has an announce-only
+`commission` line that fails only on an empty or malformed table; the merge
+boundary refuses an absent table, a malformed row, a missing or stale or
+indeterminate receipt, and never a held row. `templates/commission/steps.tsv`
+enumerates the ten §8 steps so the report names the step nothing answers —
+today, 8. Two setup providers are rows: `constitution_audited`
+(claude-md-improver) and `automation_surveyed` (claude-automation-recommender),
+awaiting until a session answers them; the request-file protocol that ingests
+those answers (amendments §1.3 shape) is PR 2.
+
+Found while building, by running rather than reading: a state line captured
+inside `IFS=$'\t' read … <<EOF $(…)` inherits the tab IFS, so the function
+guard saw four names as one and the report cut the message at the first line;
+and a check naming no engine function made `grep -o` exit 1, which under
+pipefail read as "function '' is missing". Both fixed and both asserted.
+
+### The first live run, and what it found (#147)
+
+Commissioned once by hand on this machine, through the deployed cli, all
+three projects: felix 7 done / 4 held, elenchus 7 / 4, veldra 8 / 3 on the
+first run, every receipt `held` and none indeterminate. The held rows are the person's:
+maturity, the bootstrap baseline, a human step. Three findings, all engine
+defects, all fixed the same night:
+
+- **A keyword is a word.** On elenchus, `discover --adopt` declared and
+  installed `google-cloud-storage` under **llm**, because the llm rule's
+  keyword `rag` is a substring of *sto-rag-e* and a name hit scores 3, which
+  is the adoption threshold. The matcher now tokenises on everything that is
+  not a letter or digit and matches whole words; `eval` no longer matches
+  `evaluation` either, and two suite expectations that had encoded that
+  double count were corrected. The plugin was uninstalled and its row
+  dropped. `datadog` under observability was a correct adoption and stays,
+  wired into elenchus's incident route by `toolbox --route`.
+- **A bundled plugin is present.** `anthropic-skills` is `@inline`, appears
+  in no `claude plugin list`, and the stack inventory read it as absent —
+  so `stack apply --yes` tried to install it on every run, the cli said
+  "not found in any configured marketplace", and felix and elenchus held on
+  a plugin that is live in every session. The stack inventory now reads the
+  same `@inline` keys ready.sh already did.
+- **The cache carries the provenance of its verdicts** (#148). The second
+  run, on the engine that had just learned that a keyword is a word, adopted
+  the storage plugin under llm *again*: `discover --adopt` reads
+  `state/discover/<p>.tsv`, written on 2026-08-29 by the old matcher, and a
+  row there was a verdict with no record of which rules or matcher produced
+  it. The cache's first line is now a stamp over the rules table and the
+  engine version; every reader treats a cache without the current stamp as
+  absent, and the command refills it before adopting. This is v3.2's
+  `depends_on` rule applied to Felix's own derived state, found the only way
+  it could have been: by a fix that changed nothing the adopt path read.
+
+After the fixes, all three read 8 done / 3 held / 0 unknown, the held rows
+being maturity, the bootstrap baseline and a human step — a person's, each.
+
+### What the seven governed answers say about felix, measured
+
+`felix commission --status` on felix: 6 done, 5 held, 2 awaiting, 0 unknown.
+Held: the maturity key (nobody has written one), the discovery cache, stack
+rows not yet installed, the bootstrap baseline, and one human step. Surfaces
+nothing serves, reaches or grounds: `ci` and `tests` — no catalogue row, no
+profile — which is what the printed next-steps used to drop.
+
+### Decisions that are the founder's, defaults taken
+
+- An engine-tiered medium plugin (ships an MCP server, read from three files,
+  never sandboxed) is **not** installed unattended; it waits as a person's
+  step. Person-declared medium rows keep installing as today.
+- `felix new` writes only the marker into the product repository; labels,
+  branch protection and the baseline workflow stay `felix bootstrap --yes`.
+- No autonomy `commission` grant exists yet (PR 4); Felix grants itself
+  nothing.
+- No record of ungoverned repositories the hook passes through.
+
+### Not done, in order
+
+1. PR 2: the provider protocol — request files rendered into the memory root,
+   answer files ingested offline as INFERRED, the session-start paragraph once
+   per topology. This is what makes the two skills *used* rather than named.
+2. PR 3: `felix_admit(tier, provenance)`, one install policy for every caller,
+   and the admit phase for grounded provider nominations.
+3. PR 4: the autonomy grant and the background resume.
+4. The Elenchus model step is the founder's: graphify has a `claude-cli`
+   backend billed to the plan, and headless `claude` here reports "OAuth
+   session expired", so it is `claude login` in a terminal, then
+   `graphify label <path> --backend=claude-cli`. Every community already
+   carries a heuristic name; only the semantic relabel and the docs pass wait.
+
+### Standing
+
+- HANDOFF line 506 said no engine work before 2026-09-06; the founder's
+  instructions this session overrode it, deliberately, three times.
+- `tests/run --record-assertions` after any assertion change; **1359** on record.
+- A waiter that names the process it waits for never exits (`pgrep -f` self-match);
+  eight background shells sat thirteen hours on it. Wait on a PID, a done-file,
+  or an exit status, with a ceiling. In `lessons.md`.
+
 ## 0al. Verified at session close, 2026-09-03 (overnight) — the substrate asks reality, and three of the checks written to prove it had never run
 
 Each line produced by a command. Newest first under §0.

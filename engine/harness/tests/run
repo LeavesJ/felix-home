@@ -9099,7 +9099,12 @@ has "the report lists what the provider named and says nothing was installed" "$
 has "and names the refused row"              "$_cmo" "refused"
 
 # The session-start hook: offline record phase, and one paragraph per topology.
+# The routes table goes aside for these calls: with one present the hook's
+# discovery block backgrounds `discover --inspect --quiet`, which reaches the
+# stub asynchronously and landed before the count on the runner and after it
+# here. The commissioning block calls no cli, and that is what is asserted.
 rm -f "$_cmans" "$FROOT/state/commission/cmproj.seen"
+mv "$CMP/routes.tsv" "$CMP/routes.keep"
 _cmhook() { ( cd "$CMR" && PATH="${1:-$PATH}" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1 ); }
 _cmh="$(_cmhook)"
 has "the hook names the request a session still owes"          "$_cmh" "automation_surveyed (awaiting)"
@@ -9114,6 +9119,7 @@ _cmh3="$(_cmhook "$CMSTUB:/usr/bin:/bin")"
 has "the hook ingests an answer file offline"                    "$_cmh3" "1 provider row(s) recorded"
 is  "with no cli call at all"                                    "$(grep -c . "$CMSTUB_LOG")" "0"
 is  "and the row is in the log as INFERRED"                      "$(grep -c '	answered	INFERRED	' "$MEM/cmproj/commissioning.log")" "1"
+mv "$CMP/routes.keep" "$CMP/routes.tsv"
 
 # felix new says where the requests are.
 has "felix new prints the request path for a session" "$(cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" commission 2>&1)" "commission/requests/automation_surveyed.md"

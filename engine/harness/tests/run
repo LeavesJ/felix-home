@@ -9167,6 +9167,51 @@ has "a row carrying a risk column is refused, because risk is not the model's to
     "$(_cm felix_commission_provider_rejects "$CMP" automation_surveyed)" "bar	6 fields"
 has "and an unknown kind is refused"                               "$(_cm felix_commission_provider_rejects "$CMP" automation_surveyed)" "baz	kind"
 
+# The reader enforced a length that nothing stated. An accepted row's fields
+# are written into commissioning.log through `cut -c1-160`, so a long sentence
+# was stored truncated mid-word while the row itself read as accepted. The log
+# is append-only and outlives the answer file, which the next topology change
+# rewrites — so the reason was not clipped, it was lost. #156 settled the rule
+# this breaks: the request states every constraint the reader enforces.
+_cmwhy() { printf 'w%.0s' $(seq 1 "$1"); }
+printf '# topology %s\nplugin\ttoolong\t-\tllm\t%s\ndone\t1\n' "$_cmtopo" "$(_cmwhy 301)" > "$_cmans"
+has "a why past the stated ceiling is refused rather than silently cut" \
+    "$(_cm felix_commission_provider_rejects "$CMP" automation_surveyed)" "toolong	a why longer than"
+is  "and no row is accepted from that file" \
+    "$(_cm felix_commission_provider_rows "$CMP" automation_surveyed)" ""
+printf '# topology %s\nplugin\tsrctoolong\t%s\tllm\twhy\ndone\t1\n' "$_cmtopo" "$(_cmwhy 201)" > "$_cmans"
+has "a source past its ceiling is refused too" \
+    "$(_cm felix_commission_provider_rejects "$CMP" automation_surveyed)" "srctoolong	a source longer than"
+
+# The row at the ceiling is accepted AND survives the log whole. This is the
+# assertion that matters: it is what makes the ceiling and the log's own bound
+# one fact rather than two that can drift apart. A cut that bites anything the
+# reader accepted is the defect, whatever the numbers are.
+printf '# topology %s\nplugin\tatmax\t%s\tllm\t%s\ndone\t1\n' "$_cmtopo" "$(_cmwhy 200)" "$(_cmwhy 300)" > "$_cmans"
+is  "a row at both ceilings is accepted" \
+    "$(_cm felix_commission_provider_rows "$CMP" automation_surveyed | cut -f2)" "atmax"
+: > "$MEM/cmproj/commissioning.log"
+_cmcli >/dev/null 2>&1
+is  "and with the whole sentence, not a prefix of it" \
+    "$(awk -F'\t' '$9 ~ /^plugin atmax/ { n = gsub(/w/, "w", $9); print n }' "$MEM/cmproj/commissioning.log" | tail -1)" "500"
+
+# The request has to say so, or the refusals above are a trap rather than a
+# contract.
+has "the request states the why ceiling"    "$(cat "$_cmreq")" "300"
+has "and states the source ceiling"         "$(cat "$_cmreq")" "200"
+
+# Restore what this block changed, so the ingestion assertions below read the
+# file they were written against.
+printf '# topology %s\nplugin\tfoo\t-\tllm\twhy\nplugin\tbar\t-\tllm\twhy\thigh\nrocket\tbaz\t-\t-\twhy\nmcp\tsentry\t-\tobservability\twhy\ndone\t4\n' "$_cmtopo" > "$_cmans"
+# The log too: the run above ingested a nomination, and the ingestion
+# assertions below count nomination lines from an empty log. Restoring the
+# answer file without the log would leave them counting this block's row.
+: > "$MEM/cmproj/commissioning.log"
+is  "the fixture answer is restored" \
+    "$(_cm felix_commission_provider_rows "$CMP" automation_surveyed | cut -f2 | tr '\n' ' ')" "foo sentry "
+is  "and the log is back to empty, as this block found it" \
+    "$(grep -c . "$MEM/cmproj/commissioning.log")" "0"
+
 # The receipt, the gate line and the merge boundary are byte-identical before
 # and after an answer appears: a model's file clears nothing enforcing.
 mv "$_cmans" "$_cmans.keep"; _cmcli >/dev/null 2>&1

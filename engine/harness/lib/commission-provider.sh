@@ -28,6 +28,43 @@ fi
 FELIX_COMMISSION_PROVIDER_KINDS='plugin mcp hook skill subagent'
 FELIX_COMMISSION_PROVIDER_MAX="${FELIX_COMMISSION_PROVIDER_MAX:-40}"
 
+# Ceilings on the free-text fields, and the reason they exist at all is the
+# log rather than the reader. An accepted row is appended to commissioning.log,
+# which is append-only and outlives the answer file the next topology rewrites
+# — so a field the log cannot hold whole is not clipped, it is lost. The line
+# was bounded at a flat 160 characters, which cut a 238-character sentence
+# mid-word while the row still read as accepted.
+#
+# Bounding the fields and deriving the log's own limit from them is what makes
+# these one fact instead of two that drift. The rule the flat number broke is
+# #156's: the request states every constraint the reader enforces, so all
+# three are written into the request template beside the others.
+FELIX_COMMISSION_PROVIDER_SRC_MAX="${FELIX_COMMISSION_PROVIDER_SRC_MAX:-200}"
+FELIX_COMMISSION_PROVIDER_CAP_MAX="${FELIX_COMMISSION_PROVIDER_CAP_MAX:-64}"
+FELIX_COMMISSION_PROVIDER_WHY_MAX="${FELIX_COMMISSION_PROVIDER_WHY_MAX:-300}"
+# source, capability and why, joined by two single-space separators, plus room
+# for the `<kind> <name>: ` prefix. Derived, never written down twice.
+FELIX_COMMISSION_PROVIDER_LOG_MAX=$(( FELIX_COMMISSION_PROVIDER_SRC_MAX \
+                                    + FELIX_COMMISSION_PROVIDER_CAP_MAX \
+                                    + FELIX_COMMISSION_PROVIDER_WHY_MAX + 2 ))
+
+# The over-length field of a five-field row, or nothing. Shared by the reader
+# and the refusal report so the two can never disagree about which row is too
+# long — the failure that reads as "refused for no stated reason".
+_felix_commission_provider_toolong() {   # line -> "<field> <limit>" or empty
+  local line="$1" src cap why
+  src="$(printf '%s\n' "$line" | cut -f3)"
+  cap="$(printf '%s\n' "$line" | cut -f4)"
+  why="$(printf '%s\n' "$line" | cut -f5)"
+  [ "${#src}" -gt "$FELIX_COMMISSION_PROVIDER_SRC_MAX" ] \
+    && { printf 'source %s' "$FELIX_COMMISSION_PROVIDER_SRC_MAX"; return 0; }
+  [ "${#cap}" -gt "$FELIX_COMMISSION_PROVIDER_CAP_MAX" ] \
+    && { printf 'capability %s' "$FELIX_COMMISSION_PROVIDER_CAP_MAX"; return 0; }
+  [ "${#why}" -gt "$FELIX_COMMISSION_PROVIDER_WHY_MAX" ] \
+    && { printf 'why %s' "$FELIX_COMMISSION_PROVIDER_WHY_MAX"; return 0; }
+  return 0
+}
+
 # The topology an answer is keyed to. Inputs ingestion never writes.
 felix_commission_topology() {
   local proj="$1" root="$2"
@@ -118,6 +155,7 @@ felix_commission_provider_rows() {
     if [ "$want" -eq 5 ]; then
       case " $FELIX_COMMISSION_PROVIDER_KINDS " in *" $kind "*) ;; *) continue ;; esac
       printf '%s' "$name" | grep -qE '^[A-Za-z0-9@._:-]+$' || continue
+      [ -n "$(_felix_commission_provider_toolong "$line")" ] && continue
     fi
     case "$line" in *'`'*|*'$('*|*';'*|*'|'*|*'&'*) continue ;; esac
     printf '%s\n' "$line"
@@ -125,7 +163,7 @@ felix_commission_provider_rows() {
   return 0
 }
 felix_commission_provider_rejects() {
-  local proj="$1" need="$2" want line n kind name i=0
+  local proj="$1" need="$2" want line n kind name long i=0
   want="$(_felix_commission_provider_shape "$need")"
   _felix_commission_provider_lines "$proj" "$need" | while IFS= read -r line; do
     i=$((i + 1))
@@ -137,6 +175,11 @@ felix_commission_provider_rejects() {
     if [ "$want" -eq 5 ]; then
       case " $FELIX_COMMISSION_PROVIDER_KINDS " in *" $kind "*) ;; *) printf '%s\tkind "%s" is not one of %s\n' "$name" "$kind" "$FELIX_COMMISSION_PROVIDER_KINDS"; continue ;; esac
       printf '%s' "$name" | grep -qE '^[A-Za-z0-9@._:-]+$' || { printf '%s\tnot a name\n' "$name"; continue; }
+      long="$(_felix_commission_provider_toolong "$line")"
+      if [ -n "$long" ]; then
+        printf '%s\ta %s longer than %s characters, which the log could not hold whole\n' \
+          "$name" "${long% *}" "${long##* }"; continue
+      fi
     fi
     case "$line" in *'`'*|*'$('*|*';'*|*'|'*|*'&'*) printf '%s\tshell metacharacters, in a row that is never executed anyway\n' "$name" ;; esac
   done
@@ -183,7 +226,7 @@ felix_commission_record_provider() {
     [ -n "$line" ] || continue
     kind="$(printf '%s\n' "$line" | cut -f1)"; name="$(printf '%s\n' "$line" | cut -f2)"
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$stamp" "$tid" "${policy:--}" "$need" "answered" "INFERRED" \
-      "$answer" "$prov" "$kind $name: $(printf '%s\n' "$line" | cut -f3- | tr '\t' ' ' | cut -c1-160)" >> "$log" || { printf '%s' "$n"; return 1; }
+      "$answer" "$prov" "$kind $name: $(printf '%s\n' "$line" | cut -f3- | tr '\t' ' ' | cut -c1-"$FELIX_COMMISSION_PROVIDER_LOG_MAX")" >> "$log" || { printf '%s' "$n"; return 1; }
     n=$((n + 1))
   done <<ROWS
 $rows

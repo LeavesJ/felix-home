@@ -11,12 +11,19 @@
 # it is active. A project with no payments never gets billing tooling proposed,
 # and the day it does, detection surfaces it first.
 #
-# Risk tiers: low and medium can be applied unattended with --yes. High never
-# can, at any flag, from any caller. High means the tool can move money, reach
-# production, or hold a credential, and no automation flag should be able to
-# mount one of those without a person present.
+# Risk tiers: the decision is not made here. admit.sh holds the one install
+# policy for every caller, and a row in this manifest was written by a person,
+# so it is asked as DECLARED. High never installs, at any flag, from any
+# caller. High means the tool can move money, reach production, or hold a
+# credential, and no automation flag should be able to mount one of those
+# without a person present.
 
-FELIX_RISK_AUTO="low medium"
+# Sourced by path because the suite sources this library alone, in a subshell,
+# and a policy call that resolved to nothing would refuse in silence — which
+# reads exactly like a correct refusal.
+if ! command -v felix_admit >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/admit.sh"
+fi
 
 # Manifest rows: kind <TAB> name <TAB> source <TAB> risk <TAB> capability
 _felix_stack_rows() {
@@ -77,9 +84,6 @@ _felix_cap_active() {
   felix_has_line "$(felix_declared "$proj")" "$cap"
 }
 
-_felix_risk_is_auto() {
-  case " $FELIX_RISK_AUTO " in *" $1 "*) return 0 ;; *) return 1 ;; esac
-}
 
 # Classify every manifest row. Emits: action <TAB> kind <TAB> name <TAB> detail
 felix_stack_plan() {
@@ -91,14 +95,14 @@ felix_stack_plan() {
       printf 'present\t%s\t%s\t-\n' "$kind" "$name"
     elif ! _felix_cap_active "${cap:-always}" "$proj"; then
       printf 'dormant\t%s\t%s\tneeds capability: %s\n' "$kind" "$name" "$cap"
-    elif [ "$risk" = "high" ]; then
-      printf 'blocked\t%s\t%s\thigh risk, install by hand\n' "$kind" "$name"
+    elif [ "$(felix_admit "${risk:-}" DECLARED)" != "install" ]; then
+      printf 'blocked\t%s\t%s\t%s\n' "$kind" "$name" "$(felix_admit_why "${risk:-}" DECLARED)"
     elif [ "$kind" = "skill" ]; then
       # Standalone skills are files, not packages. There is no install command
       # to run, so they route to a setup runbook instead of pretending.
       printf 'manual\t%s\t%s\tsee: felix setup\n' "$kind" "$name"
     else
-      printf 'install\t%s\t%s\trisk: %s\n' "$kind" "$name" "$risk"
+      printf 'install\t%s\t%s\t%s\n' "$kind" "$name" "$(felix_admit_why "$risk" DECLARED)"
     fi
   done
 }

@@ -182,6 +182,7 @@
 1	a payload naming nothing to act on is allowed
 1	a peer commit on the same branch merges nothing
 1	a peer edit to the working tree merges nothing
+1	a person's low row installs
 1	a personal excludes file cannot hide real drift
 1	a pinned local server is medium
 1	a pipeline step nothing answers is named from the architecture, not the table
@@ -368,12 +369,14 @@
 1	an append that succeeded and wrote nothing is reported as a failure too
 1	an argument it cannot honour merges nothing
 1	an empty base is not reported as unknown
+1	an empty grounding refuses
 1	an empty marker is reported at session start too
 1	an empty marker refuses too
 1	an empty path is not a copy
 1	an empty payload is not machine text
 1	an empty play is replaced, not appended to
 1	an empty table fails the gate
+1	an empty tier refuses
 1	an engine function the check names that is not loaded is unknown
 1	an engine shipped without the probe library blocks rather than passing
 1	an engine that cannot evaluate commissioning blocks rather than skips
@@ -409,7 +412,9 @@
 1	an undeclared tool is reported, not hidden
 1	an unenforceable probe word is muted on the record
 1	an ungoverned repo is allowed
+1	an unknown grounding refuses
 1	an unknown routine is refused
+1	an unknown tier refuses
 1	an unmerged index is refused whatever wrote it (cherry)
 1	an unmerged index is refused whatever wrote it (squash)
 1	an unmerged index is refused whatever wrote it (stash)
@@ -420,6 +425,9 @@
 1	an unpinned version is high
 1	an unreadable count is unknown
 1	an unreadable risk table yields an unknown tier
+1	an unreadable tier does not install: felix-test-blank
+1	an unreadable tier does not install: felix-test-shouty
+1	an unreadable tier does not install: felix-test-typo
 1	an unrecognised file is yellow, never green
 1	an unrecognised path is yellow, never green
 1	an unregistered marketplace makes no claim either way
@@ -456,6 +464,7 @@
 1	and a hyphenated name still matches its words
 1	and a live one says when it was last caught
 1	and a name
+1	and a person's medium row installs, as it always has
 1	and a probe that failed against a real surface is blind too
 1	and a project with none does not claim it
 1	and a real one still routes
@@ -525,6 +534,7 @@
 1	and hands it a pull request to merge
 1	and holds no prose when nothing matched
 1	and ignores the path so it cannot come back
+1	and in the policy's own words, which is what proves the call reached it
 1	and is clean when the three directories agree
 1	and is left exactly as it was
 1	and is marked unknown rather than unmet
@@ -560,6 +570,7 @@
 1	and it stops the streak rather than being skipped past
 1	and its base's workflow is not escalated as this branch's escape
 1	and its declines count as unchecked
+1	and its medium holds too
 1	and its path is gone from the tokens whatever the key is called
 1	and keeps a never-invoked one at zero
 1	and keeps one Felix does not hold
@@ -604,6 +615,8 @@
 1	and never the newest thing in the cache
 1	and never where it is not declared
 1	and no agent is written there
+1	and no arguments at all refuse
+1	and no caller keeps a tier list of its own
 1	and no conflict markers were committed (cherry)
 1	and no conflict markers were committed (squash)
 1	and no conflict markers were committed (stash)
@@ -707,6 +720,7 @@
 1	and says the gate never ran
 1	and says the gates still apply
 1	and says the receipt does not exist here
+1	and says the tier is what it could not read
 1	and says what a name is
 1	and says what a project name is
 1	and says what is missing rather than printing a clean report
@@ -737,6 +751,7 @@
 1	and so is ordinary work
 1	and so is the content-drift arm
 1	and so is the other one
+1	and stack.sh alone can too
 1	and staging the test closes the gap — the case that started this
 1	and states the tier
 1	and stays small
@@ -774,6 +789,7 @@
 1	and the engine writes no mistake for it
 1	and the exact command that produced it
 1	and the failure is recorded under the check's own name
+1	and the fixture is restored
 1	and the fixture is restored to awaiting
 1	and the founder's one line says how many are due
 1	and the gate exits red
@@ -836,6 +852,7 @@
 1	and the unmount above is the only other proposal
 1	and the version is a dotted number
 1	and what a fix will have to prove
+1	and what the engine tiered medium holds
 1	and what was detected
 1	and what was typed still counts
 1	and whether git tracks it
@@ -902,6 +919,8 @@
 1	counts what was blocked
 1	detects from their manifest
 1	discover --adopt refills a cache the current rules did not write
+1	discover adopt asks the policy
+1	discover.sh alone can still reach the policy
 1	discovery writes nothing
 1	docs classify green
 1	doctor exits 0 despite drift
@@ -976,6 +995,9 @@
 1	handoff lists the session-end checks
 1	hands off for anything broader
 1	help covers every command that dispatches
+1	high is refused however it was grounded: DECLARED
+1	high is refused however it was grounded: INFERRED
+1	high is refused however it was grounded: OBSERVED
 1	high risk classifies as blocked
 1	hits are logged
 1	hook binds the invented project
@@ -1114,6 +1136,7 @@
 1	reads paths from stdin too
 1	reads the files a task declares
 1	reads the per-project limit
+1	ready --fix asks the policy
 1	recommending installs nothing
 1	reconcile answers even where no stack.tsv exists
 1	recording a run succeeds
@@ -1195,6 +1218,7 @@
 1	speaks when a catch went unexplained
 1	spending is counted
 1	stack apply ran through the stub for a declared low row
+1	stack plan asks the policy
 1	stack.tsv is byte-identical after a reconcile
 1	staged destructive SQL still escapes as durable
 1	stamped with date, branch and commit
@@ -1348,8 +1372,10 @@
 1	version strings are not mistaken for plugins
 1	volume inside one entry does not
 1	what a miss records is what was typed
+1	what a provider merely named holds, whatever it tiered itself
 1	what it kept is what it sent
 1	what no route named is not a compliance figure
+1	what the engine tiered low installs
 1	which does not by itself fail the gate, since not applying is not a claim
 1	which is the number it printed
 1	while a complete stance is not called malformed

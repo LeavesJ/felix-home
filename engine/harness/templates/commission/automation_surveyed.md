@@ -26,7 +26,8 @@ to:
 kind is one of plugin, mcp, hook, skill, subagent. name is the plugin or
 server or skill name as the marketplace or registry spells it, no spaces.
 source is a URL or `-`. capability is one of the capabilities Felix detected
-or declared above, or `-`. why is one sentence. There is no risk column:
+or declared above, or `-`. why is one sentence, and one sentence is what the
+300-character ceiling below is for. There is no risk column:
 risk is not the model's to assign, and a row carrying one is malformed.
 
 What the reader enforces, so a row is not refused without a word:
@@ -39,6 +40,10 @@ What the reader enforces, so a row is not refused without a word:
   including why — the row is never executed, and the ban is how that stays
   true
 - at most forty rows; rows past the ceiling are refused
+- source at most 200 characters, capability at most 64, why at most 300 —
+  a longer field is refused, not shortened. The ceilings are the log's:
+  an accepted row is appended to an append-only record that outlives this
+  file, so a field it could not hold whole would be lost rather than clipped
 - line 1 is exactly `# topology {{TOPOLOGY}}`: column 0, one space after `#`,
   no trailing whitespace, LF line endings, no byte-order mark
 - the last non-blank line is `done` <TAB> the count of rows above it; the

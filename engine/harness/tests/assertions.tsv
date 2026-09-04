@@ -257,6 +257,7 @@
 1	a route off the tree is a guess
 1	a route off the tree is not recorded as typed
 1	a row already naming itself is not scored twice
+1	a row at both ceilings is accepted
 1	a row carrying a risk column is refused, because risk is not the model's to assign
 1	a row from before the column proposes nothing
 1	a row inspection judged capability-less is not
@@ -286,6 +287,7 @@
 1	a skill is not looked up as a plugin
 1	a skill is recorded by which skill
 1	a skill name counts triple, like a name
+1	a source past its ceiling is refused too
 1	a stacked branch is not blamed for what its base already merged
 1	a staged row removal still escapes as verifier
 1	a staged source change owes its test
@@ -329,6 +331,7 @@
 1	a well-formed answer is answered
 1	a when test whose command does not exist makes the row unknown, not not-applicable
 1	a when whose command does not exist is unknown, not not-applicable
+1	a why past the stated ceiling is refused rather than silently cut
 1	a wired moment with a stance is ok
 1	a witness whose command does not exist makes the row unknown, not empty
 1	a word shared with a field name still counts
@@ -622,6 +625,7 @@
 1	and no conflict markers were committed (stash)
 1	and no longer prints next steps
 1	and no memory root named --help is minted
+1	and no row is accepted from that file
 1	and no setup.tsv appears from asking for help
 1	and no zero row for one that was used
 1	and none reports a spend past the ceiling as recorded
@@ -753,6 +757,7 @@
 1	and so is the other one
 1	and stack.sh alone can too
 1	and staging the test closes the gap — the case that started this
+1	and states the source ceiling
 1	and states the tier
 1	and stays small
 1	and stays to one line
@@ -802,6 +807,7 @@
 1	and the index holds no gitlink afterwards
 1	and the instrument is appended as the ninth
 1	and the lesson is in the same block
+1	and the log is back to empty, as this block found it
 1	and the memory, which is somewhere else now
 1	and the merge is left exactly where the person left it
 1	and the message does not accuse the subagent
@@ -857,6 +863,7 @@
 1	and what was typed still counts
 1	and whether git tracks it
 1	and which stand alone
+1	and with the whole sentence, not a prefix of it
 1	and without it the same escape stands
 1	and writes no row at all, not even exit-1
 1	another plugin's refusal is not
@@ -1256,6 +1263,7 @@
 1	the engine names no governed project
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
+1	the fixture answer is restored
 1	the fixture is dirty only in Felix's own bookkeeping
 1	the fixture is left as it was found
 1	the fixture puts the catch after the lesson
@@ -1315,6 +1323,7 @@
 1	the report lists what the provider named and says nothing was installed
 1	the repository that ships the engine is self-governed
 1	the repository tracks no project memory
+1	the request states the why ceiling
 1	the resolution is written down exactly once
 1	the root is available on its own
 1	the root is never under the home it was asked about

@@ -105,6 +105,17 @@ printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' \
   > "$FROOT/projects/widget/probes.tsv"
 cp "$FROOT/projects/widget/probes.tsv" "$TMP/probes.keep"
 
+# The same for commissioning: one row a person answers, whose check reads the
+# marker the fixture keeps, so the merge boundary is measuring the merge and
+# not this table. The receipt it needs is stamped by _cm_stamp beside every
+# green gate receipt below, because both are keyed to the tables the tests
+# hand-edit, and a receipt for the wrong tables is exactly what must block.
+printf 'marker\t-\t-\t-\t-\ttest -f .felix\t9\n' > "$FROOT/projects/widget/commissioning.tsv"
+cp "$FROOT/projects/widget/commissioning.tsv" "$TMP/commissioning.keep"
+_cm_stamp() { ( _r="${1:-$REPO}"; cd "$_r" && FELIX_HOME_DIR="$FROOT"; . "$FROOT/harness/lib/commission.sh"
+                _o="$(felix_commission_run "$FROOT/projects/widget" "$_r" -)"
+                felix_commission_receipt_write "$FROOT" "$FROOT/projects/widget" "$_r" "$_o" "" >/dev/null ); }
+
 FELIX="$FROOT/harness/felix"
 # Pin the home. Resolution consults ~/.felix-home, so without this the suite
 # runs against whatever the machine has installed, writes test projects into it,
@@ -1205,6 +1216,7 @@ has "a receipt for another tree still blocks" "$(_blk)" "unverified"
 
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+_cm_stamp
 is "a green receipt for this exact tree clears every blocker" "$(_blk)" ""
 
 # And a red receipt for the right tree is not a pass either.
@@ -1213,12 +1225,14 @@ is "a green receipt for this exact tree clears every blocker" "$(_blk)" ""
 has "a red receipt for this tree blocks" "$(_blk)" "unverified"
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+_cm_stamp
 
 # An escape outranks a green gate. This is the whole point: the gate says the
 # code works, and says nothing about whether merging writes outside the tree.
 mkdir -p "$REPO/.github/workflows"; printf 'on: push\n' > "$REPO/.github/workflows/x.yml"; _stage
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+_cm_stamp
 has "a green gate does not clear an escape" "$(_blk)" "execute"
 
 # #56, at the level that acts. The same branch, the same workflow, the same
@@ -1251,6 +1265,7 @@ printf 'unit\t^src/\t^tests?/\tcode changes need a test\n' > "$FROOT/projects/wi
 mkdir -p "$REPO/src"; printf 'x = 1\n' > "$REPO/src/thing.py"; _stage
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+_cm_stamp
 has "an untested change blocks, naming the evidence owed" "$(_blk)" "evidence"
 has "and says which rule"                                 "$(_blk)" "unit"
 _reset
@@ -1268,6 +1283,7 @@ _reset
 printf 'ordinary\n' > "$REPO/README.md"; _stage
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+_cm_stamp
 out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"; rc=$?
 is  "and reports a clear merge without performing one" "$rc" "0"
 has "saying so plainly"                                "$out" "nothing escapes"
@@ -4325,6 +4341,7 @@ printf 'a change to merge\n' > "$MR/README.md"
 export GHSTUB_LOG="$TMP/gh.log"; : > "$GHSTUB_LOG"
 ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+_cm_stamp "$MR"
 ( cd "$MR" && PATH="$GHB:$PATH" "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
 mg="$(grep '^pr merge' "$GHSTUB_LOG" | head -1)"
 [ -n "$mg" ] && ok "felix merge reaches gh at all" \
@@ -4466,7 +4483,8 @@ _sgmerge() {
   SGMERGES="$(grep -c '^pr merge' "$TMP/gh.sg.log" | tr -d ' ')"
 }
 _sgrecord() { ( cd "$SG" && . "$FROOT/harness/lib/verify.sh"
-                felix_verify_record "$SG" "$FROOT" 0 "true" "$(felix_tree_id "$SG" "$FROOT")" ); }
+                felix_verify_record "$SG" "$FROOT" 0 "true" "$(felix_tree_id "$SG" "$FROOT")" 
+                _cm_stamp "$SG" ); }
 
 # The escape is real, so nothing below can pass by finding nothing.
 # Asserted on WHICH blocker fired, never on "nothing merged". A merge can fail
@@ -4604,6 +4622,7 @@ sed '/KERNEL2/d' "$FROOT/projects/widget/risk.tsv" > "$TMP/rv2" \
 : > "$TMP/gh.prod.log"
 ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+_cm_stamp "$MR"
 ( cd "$MR" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.prod.log" \
     FELIX_KERNEL_CACHE="$TMP/no-cache-at-all" "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
 is "a governed product merges with no installed engine at all" \
@@ -4650,6 +4669,8 @@ _race() {
   local on="$1" cmd="$2"
   ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
     felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+  _cm_stamp "$MR"
+_cm_stamp "$MR"
   : > "$TMP/gh.race.log"; rm -f "$TMP/race.fired"
   ( cd "$MR" && PATH="$GB:$GHB:$PATH" GHSTUB_LOG="$TMP/gh.race.log" \
       RACE_ON="$on" RACE_CMD="$cmd" RACE_FIRED="$TMP/race.fired" \
@@ -4692,6 +4713,7 @@ is "a peer edit to the working tree merges nothing" "$RACE_MERGES" "0"
 # record rendered this case as two identical lines under "the checkout moved".
 ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+_cm_stamp "$MR"
 rm -f "$TMP/race.fired"
 race_out="$( cd "$MR" && PATH="$GB:$GHB:$PATH" GHSTUB_LOG=/dev/null \
     RACE_ON="remote get-url" RACE_CMD="printf 'peer2\n' >> $MR/README.md" \
@@ -8925,7 +8947,8 @@ _cmn="$(cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" new cmstranger 2>&1)"; _cmnrc
 is  "felix new still exits 0"                                    "$_cmnrc" "0"
 has "and commissions"                                            "$_cmn" "commissioning for cmstranger"
 case "$_cmn" in *'next:'*) bad "and no longer prints next steps" ;; *) ok "and no longer prints next steps" ;; esac
-case "$_cmn" in *'/claude-md-management'*) bad "nor a paste-in prompt" ;; *) ok "nor a paste-in prompt" ;; esac
+case "$_cmn" in *'Felix already covers verification'*|*'paste into a session'*) bad "nor a paste-in prompt" ;; *) ok "nor a paste-in prompt" ;; esac
+has "and the provider skill is named as a channel a session runs, not a prompt to paste" "$_cmn" "a session runs /claude-md-management:claude-md-improver"
 is  "the tree holds only the marker beside what was there" \
     "$(cd "$CMS" && ls -A | grep -v '^\.git$' | LC_ALL=C sort | tr '\n' ' ')" ".felix package.json "
 [ -f "$FROOT/projects/cmstranger/commissioning.tsv" ] && ok "the table is seeded" || bad "the table is seeded"

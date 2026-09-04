@@ -294,6 +294,33 @@ FELIX_DISCOVER_STALE_DAYS="${FELIX_DISCOVER_STALE_DAYS:-7}"
 
 _felix_discover_cache() { printf '%s/state/discover/%s' "$2" "$(basename "$1")"; }
 
+# The cache carries the provenance of the verdicts in it. Its rows are
+# (name, capability, tier) computed by the matcher against the rules table at
+# the time it was written, and on the first live commissioning run a cache
+# from five days earlier — written by a matcher that has since been fixed —
+# declared and installed a storage plugin under llm, twice: the fix to the
+# matcher changed nothing the adopt path read. So the first line is a stamp
+# over the rules table and the engine version, and every reader treats a
+# cache whose stamp is not the current one as ABSENT, which the foreground
+# fill in discover --adopt then recomputes. A stale verdict is not a verdict.
+_felix_discover_stamp() {
+  local tpl="${1:-$(dirname "${BASH_SOURCE[0]:-$0}")/../templates}" ver
+  ver="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+          "$(dirname "${BASH_SOURCE[0]:-$0}")/../../.claude-plugin/plugin.json" 2>/dev/null | head -1)"
+  { printf 'matcher=words\nengine=%s\n' "${ver:-?}"; cat "$tpl/discover-rules.tsv" 2>/dev/null; } \
+    | git hash-object --stdin 2>/dev/null
+}
+_felix_discover_stamp_line() { printf '# stamp %s\n' "$(_felix_discover_stamp "${1:-}")"; }
+
+# 0 when the cache exists and was written under the current rules and engine.
+felix_discover_cache_current() {
+  local proj="$1" home="$2" tpl="${3:-}" cache first
+  cache="$(_felix_discover_cache "$proj" "$home").tsv"
+  [ -f "$cache" ] || return 1
+  first="$(head -1 "$cache" 2>/dev/null)"
+  [ "$first" = "$(_felix_discover_stamp_line "$tpl" | tr -d '\n')" ]
+}
+
 # What a thing looks like, scored once.
 #
 # There were two of these and they drifted, which is how a plugin was installed
@@ -378,9 +405,9 @@ felix_plugin_description() {
 #   refuse   medium or high
 #   already  named in stack.tsv, whatever the tier
 felix_discover_adopt() {
-  local proj="$1" home="$2" cache name cap risk declared
+  local proj="$1" home="$2" tpl="${3:-}" cache name cap risk declared
   cache="$(_felix_discover_cache "$proj" "$home").tsv"
-  [ -f "$cache" ] || return 0
+  felix_discover_cache_current "$proj" "$home" "$tpl" || return 0
 
   # Compared without the marketplace suffix, the same way candidates are
   # filtered, so langfuse@x already declared matches a langfuse candidate.
@@ -393,6 +420,7 @@ felix_discover_adopt() {
     # worse than one that adopted nothing. Three fields and a known tier, or it
     # is not a candidate.
     [ -n "${name:-}" ] && [ -n "${cap:-}" ] || continue
+    case "$name" in '#'*) continue ;; esac
     case "${risk:-}" in low|medium|high) ;; *) continue ;; esac
     case "$name" in *' '*) continue ;; esac
     # `-` is inspection's own verdict: the copy on disk ships nothing serving
@@ -419,6 +447,9 @@ felix_discover_adopt() {
 felix_discover_stale() {
   local f; f="$(_felix_discover_cache "$1" "$2").tsv"
   [ -f "$f" ] || return 0
+  # Stale by provenance before stale by age: a cache the current rules and
+  # engine did not write is due for a refresh whatever its mtime says.
+  felix_discover_cache_current "$1" "$2" "${3:-}" || return 0
   local age
   age="$(find "$f" -mtime +"$FELIX_DISCOVER_STALE_DAYS" 2>/dev/null)"
   [ -n "$age" ]
@@ -450,11 +481,12 @@ felix_discover_unseen() {
   base="$(_felix_discover_cache "$proj" "$home")"
   cache="$base.tsv"; seen="$base.seen"
   [ -s "$cache" ] || return 0
+  felix_discover_cache_current "$proj" "$home" || return 0
   if [ -f "$seen" ]; then
-    LC_ALL=C comm -23 <(cut -f1 "$cache" | LC_ALL=C sort -u) \
+    LC_ALL=C comm -23 <(grep -v '^#' "$cache" | cut -f1 | LC_ALL=C sort -u) \
                       <(LC_ALL=C sort -u "$seen") 2>/dev/null
   else
-    cut -f1 "$cache" | LC_ALL=C sort -u
+    grep -v '^#' "$cache" | cut -f1 | LC_ALL=C sort -u
   fi
 }
 

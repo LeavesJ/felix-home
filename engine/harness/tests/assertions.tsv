@@ -26,7 +26,9 @@
 1	a bundled plugin reads as usable
 1	a bundled plugin reads present with no cli at all
 1	a cache path is a plugin copy
+1	a cache stamped by other rules adopts nothing either
 1	a cache that never existed is stale
+1	a cache with no stamp adopts nothing
 1	a cache-side stray matching a directory-only rule is residue
 1	a capability carrying a trailing remark is not a rule
 1	a capability match is still adopt material
@@ -506,6 +508,7 @@
 1	and grounding it closes the gap
 1	and handed the cron line instead
 1	and hands it a pull request to merge
+1	and holds no prose when nothing matched
 1	and ignores the path so it cannot come back
 1	and is clean when the three directories agree
 1	and is left exactly as it was
@@ -638,6 +641,7 @@
 1	and reads as a requirement
 1	and reads its words off the capability probe
 1	and reads only mcp rows
+1	and reads stale whatever its age
 1	and records the failure without being asked
 1	and refuses in gate mode as well
 1	and refuses instead of ignoring it
@@ -725,6 +729,7 @@
 1	and still verifies when the source really does match
 1	and stops once something is written
 1	and strips a line range
+1	and surfaces nothing as new
 1	and survives a regeneration that was given none
 1	and that alone does not fail the gate
 1	and that is more than one, so the count is doing work
@@ -774,6 +779,7 @@
 1	and the receipt reads valid
 1	and the receipt refuses to call that verified
 1	and the record names the channel
+1	and the refilled cache begins with the stamp
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
 1	and the report says how many fewer
@@ -795,6 +801,7 @@
 1	and the sentence still is
 1	and the shipped wiring matches its stance
 1	and the slug comes from the checkout's remote
+1	and the stale row was not adopted
 1	and the state now carries the new route, for the finish-line judge
 1	and the text is actually there
 1	and the tier it carries
@@ -865,6 +872,7 @@
 1	counts repeated calls once with a total
 1	counts what was blocked
 1	detects from their manifest
+1	discover --adopt refills a cache the current rules did not write
 1	discovery writes nothing
 1	docs classify green
 1	doctor exits 0 despite drift
@@ -1261,6 +1269,7 @@
 1	the shipped layout — memory under ~/.felix — is its own repo
 1	the shipped table considers every moment
 1	the squash leaves the merge-base behind main
+1	the stamp changes with the rules table
 1	the step itself still counts as used
 1	the structural verdict shows its evidence too
 1	the stub refuses a selectorless merge the way gh does

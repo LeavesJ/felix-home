@@ -3980,11 +3980,14 @@ is "and neither is an empty message"  "$(_isown '')" "no"
 
 printf '\ndiscovery runs on a cadence, not in front of a prompt\n'
 DH="$TMP/dhome"; mkdir -p "$DH/state/discover"
+# Every fixture cache carries the stamp a real one does, or the readers treat
+# it as absent — which is the point, asserted below.
+_dstamp() { ( . "$FROOT/harness/lib/discover.sh"; _felix_discover_stamp_line "$FROOT/harness/templates" ); }
 DP="$FROOT/projects/widget"
 # Never refreshed is stale; that is what makes the first run happen at all.
 ( . "$FROOT/harness/lib/discover.sh"; felix_discover_stale "$DP" "$DH" ) \
   && ok "a cache that never existed is stale" || bad "a cache that never existed is stale"
-printf 'deepeval\tllm\tlow\nlangfuse\tllm\tlow\n' > "$DH/state/discover/widget.tsv"
+{ _dstamp; printf 'deepeval\tllm\tlow\nlangfuse\tllm\tlow\n'; } > "$DH/state/discover/widget.tsv"
 ( . "$FROOT/harness/lib/discover.sh"; felix_discover_stale "$DP" "$DH" ) \
   && bad "a fresh cache is not stale" || ok "a fresh cache is not stale"
 new="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_unseen "$DP" "$DH" | tr '\n' ' ' )"
@@ -5406,7 +5409,7 @@ has "while the genuinely reached server is proposed" "$r" "mount	context7-docs"
 ADH2="$TMP/adopthome-dash"; ADP2="$TMP/adoptproj-dash"
 mkdir -p "$ADH2/state/discover" "$ADP2"
 printf '# kind\tname\tsource\trisk\tcapability\n' > "$ADP2/stack.tsv"
-printf 'noname\t-\tlow\ngood\tllm\tlow\n' > "$ADH2/state/discover/adoptproj-dash.tsv"
+{ _dstamp; printf 'noname\t-\tlow\ngood\tllm\tlow\n'; } > "$ADH2/state/discover/adoptproj-dash.tsv"
 out="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_adopt "$ADP2" "$ADH2" )"
 has "a capability match is still adopt material" "$out" "declare	good"
 case "$out" in
@@ -7117,7 +7120,7 @@ printf 'plugin\tlangfuse@x\t-\tlow\tllm\n' > "$AP/stack.tsv"
 # A real cache: three tiers, one already declared, and — from the actual felix
 # cache — prose where rows were expected. A parser that adopts a sentence is
 # worse than one that adopts nothing.
-cat > "$AH/state/discover/widget.tsv" <<'EOF'
+{ _dstamp; cat; } > "$AH/state/discover/widget.tsv" <<'EOF'
 deepeval	llm	low
 langfuse	llm	low
 figma	frontend	medium
@@ -7133,6 +7136,36 @@ case "$out" in
   *Nothing*|*marketplaces*) bad "prose in the cache is not adopted" "$out" ;;
   *)                        ok  "prose in the cache is not adopted" ;;
 esac
+
+# The cache carries the provenance of its verdicts. On the first live
+# commissioning run a five-day-old cache written by a since-fixed matcher
+# declared and installed a storage plugin under llm, twice, because nothing
+# the adopt path read had changed when the matcher did. A cache without the
+# current stamp is absent to every reader, and discover --adopt refills it.
+printf 'deepeval\tllm\tlow\n' > "$AH/state/discover/widget.tsv"
+is "a cache with no stamp adopts nothing" \
+   "$( . "$FROOT/harness/lib/discover.sh"; felix_discover_adopt "$AP" "$AH" )" ""
+( . "$FROOT/harness/lib/discover.sh"; felix_discover_stale "$AP" "$AH" ) \
+  && ok "and reads stale whatever its age" || bad "and reads stale whatever its age"
+is "and surfaces nothing as new" \
+   "$( . "$FROOT/harness/lib/discover.sh"; felix_discover_unseen "$AP" "$AH" )" ""
+{ printf '# stamp 0000000000000000000000000000000000000000\n'; printf 'deepeval\tllm\tlow\n'; } > "$AH/state/discover/widget.tsv"
+is "a cache stamped by other rules adopts nothing either" \
+   "$( . "$FROOT/harness/lib/discover.sh"; felix_discover_adopt "$AP" "$AH" )" ""
+DRS="$TMP/other-rules"; mkdir -p "$DRS"; printf 'llm\tllm rag\n' > "$DRS/discover-rules.tsv"
+case "$( . "$FROOT/harness/lib/discover.sh"; _felix_discover_stamp "$DRS" )" in
+  "$( . "$FROOT/harness/lib/discover.sh"; _felix_discover_stamp "$FROOT/harness/templates" )") bad "the stamp changes with the rules table" ;;
+  *) ok "the stamp changes with the rules table" ;;
+esac
+# Through the command, with the stub cli: a mismatched cache is refilled
+# before anything is adopted, and an empty result is a stamp and no prose.
+printf 'stalerow\tllm\tlow\n' > "$FROOT/state/discover/widget.tsv" 2>/dev/null || { mkdir -p "$FROOT/state/discover"; printf 'stalerow\tllm\tlow\n' > "$FROOT/state/discover/widget.tsv"; }
+out="$(cd "$REPO" && PATH="$CMSTUB:$PATH" "$FELIX" discover --adopt 2>&1)"
+has "discover --adopt refills a cache the current rules did not write" "$out" "filling the discovery cache"
+is  "and the refilled cache begins with the stamp" \
+    "$(head -1 "$FROOT/state/discover/widget.tsv")" "$(_dstamp | tr -d '\n')"
+is  "and holds no prose when nothing matched" "$(grep -vc '^#' "$FROOT/state/discover/widget.tsv")" "0"
+case "$out" in *stalerow*) bad "and the stale row was not adopted" "$out" ;; *) ok "and the stale row was not adopted" ;; esac
 n="$(printf '%s\n' "$out" | grep -c '^declare' || true)"
 is "exactly one declaration from that cache" "$n" "1"
 

@@ -108,3 +108,26 @@ felix_toolbox_route_for() {
     done < "$proj/routes.tsv"
   done < "$proj/profiles.tsv"
 }
+
+# The reachable-but-unrouted set: installed here, matched to a capability this
+# project declares, that capability in a profile a route carries, not high
+# risk, and no route naming it yet. This is what `felix toolbox --route`
+# wires, extracted so a commissioning check can ask whether anything is left
+# without re-deriving the loop. Needs no `claude`: the inventory reads the
+# registry files when the cli is absent.
+felix_toolbox_unwired() {
+  local proj="$1" tpl="${2:-$(dirname "${BASH_SOURCE[0]:-$0}")/../templates}" rules kind name dir risk cap
+  rules="$(_felix_discover_rules "$tpl" "$proj")"
+  felix_ready_inventory | LC_ALL=C sort -u | while IFS=$'\t' read -r kind name; do
+    [ "${kind:-}" = "plugin" ] && [ -n "${name:-}" ] || continue
+    felix_toolbox_routed "$proj" "$name" && continue
+    dir="$(felix_toolbox_path "$name")" || dir=""
+    cap="$(felix_toolbox_capability "$name" "$rules" "$dir")"
+    [ -n "$cap" ] || continue
+    [ -n "$(felix_toolbox_route_for "$proj" "$cap")" ] || continue
+    risk="-"; [ -n "$dir" ] && risk="$(felix_discover_risk "$(felix_discover_inspect "$dir")")"
+    [ "$risk" = "high" ] && continue
+    printf '%s\t%s\n' "$name" "$cap"
+  done
+  return 0
+}

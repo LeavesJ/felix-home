@@ -137,6 +137,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/probes.sh"
 # shellcheck source=lib/facts.sh
 . "${SCRIPT_DIR}/lib/facts.sh"
+. "${SCRIPT_DIR}/lib/commission.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -195,6 +196,7 @@ specific project, language, or toolchain.
     felix pulse [--install|--uninstall] back up memory, report what waits; --install schedules it daily
     felix procedures      what each moment must answer for, and what nothing answers yet
     felix probes [--gate] what reality says about this checkout, and what nothing asks
+    felix commission [--status] the first-encounter moment: what serves this checkout, what reaches it, what a person still owes
     felix adopt <cap>      declare a capability and everything it implies
     felix profile [name]   which tools a task profile mounts
     felix quarantine <p>   switch off a plugin that is breaking sessions
@@ -547,6 +549,34 @@ cmd_gate() {
       probes "$(basename "$proj")"
   fi
 
+  # commission: offline and announce-only, except for the empty case. Only
+  # hashes and file parsing run here — no check, no instrument, no cli — so
+  # CI sees the same line a laptop does. A receipt that is stale, absent or
+  # indeterminate is ANNOUNCED and never FAIL, because the Stop hook reads
+  # the gate receipt and would then hold every session for a reason nobody
+  # chose: session-start's own adopt moves the tables it hashes. An empty or
+  # malformed table is a defect somebody made, and that one fails.
+  local croot cwhy crows cmal
+  croot="$(felix_repo_root "$PWD")"
+  if [ ! -f "$proj/commissioning.tsv" ]; then
+    printf '  %-18s skipped (no commissioning.tsv for %s; felix commission says how to write one)\n' \
+      commission "$(basename "$proj")"
+  else
+    crows="$(felix_commission_rows "$proj")"; cmal="$(felix_commission_malformed "$proj")"
+    if [ -z "$crows" ] || [ -n "$cmal" ]; then
+      printf '  %-18s FAIL\n' commission | tee -a "$log"
+      [ -z "$crows" ] && printf '    commissioning.tsv declares no need: a shelf with nothing on it\n'
+      [ -n "$cmal" ] && printf '%s\n' "$cmal" | awk -F'\t' 'NR <= 6 { printf "    %s: %s\n", $1, $2 }'
+      [ "$rc" -eq 0 ] && printf '\ngate: FAIL (commission)\n'
+      rc=1
+    elif cwhy="$(felix_commission_receipt_valid "$FELIX_HOME_DIR" "$proj" "$croot")"; then
+      printf '  %-18s ok\n' commission | tee -a "$log"
+      printf '                     %s\n' "$cwhy"
+    else
+      printf '  %-18s %s\n' commission "$cwhy"
+    fi
+  fi
+
   if [ "$rc" -ne 0 ]; then
     # Which checks failed, if the gate names them. Falls back to the exit status
     # rather than guessing, because an invented cause is worse than a vague one.
@@ -618,11 +648,22 @@ cmd_new() {
 
   # project.json. remote_match is only useful when there is a remote; the .felix
   # marker below covers every other case, including no remote at all.
+  # The risk envelope's first key (v3.2 §8 step 1). Asked only where a person
+  # is present: on a TTY, or through FELIX_MATURITY. Otherwise absent, and the
+  # commissioning row that reads it is held until a person writes it. No
+  # subcommand writes it, because a session could then write it as easily.
+  local maturity="${FELIX_MATURITY:-}"
+  if [ -z "$maturity" ] && [ -t 0 ]; then
+    printf 'maturity (prototype / internal / public-beta / production; blank leaves it for later): ' >&2
+    read -r maturity || maturity=""
+  fi
+  case "$maturity" in prototype|internal|public-beta|production) ;; *) maturity="" ;; esac
   cat > "$dir/project.json" <<EOF
 {
   "name": "$name",
   "remote_match": "$slug",
-  "gate": "$gate"
+  "gate": "$gate"${maturity:+,
+  "maturity": "$maturity"}
 }
 EOF
 
@@ -652,6 +693,7 @@ EOF
   # an enumeration. What it prevents is the shape procedures.tsv had: a surface
   # nobody was ever handed a starting row for, and so nobody wrote one.
   cp "$tpl/probes.tsv" "$dir/probes.tsv"
+  cp "$tpl/commissioning.tsv" "$dir/commissioning.tsv"
 
   # Same filter for human steps, and only copy the runbooks that survive it.
   {
@@ -713,18 +755,15 @@ EOF
   printf '  bound via    %s/.felix\n\n' "$root"
   printf 'seeded stack.tsv, profiles.tsv, setup.tsv and %s runbook(s).\n' \
     "$(ls "$dir/setup" 2>/dev/null | wc -l | tr -d ' ')"
-  printf '\nnext:\n'
-  printf '  1. confirm the gate in project.json actually fails on broken code\n'
-  printf '  2. write %s/CLAUDE.md\n' "$dir"
-  printf '  3. felix stack plan     then apply --yes\n'
-  printf '  4. felix setup          for the steps only you can do\n'
-  printf '\nA starting constitution was written for you at\n%s/CLAUDE.md.\n' "$dir"
-  printf 'To deepen it against the actual codebase, paste into a session:\n\n'
-  printf '  /claude-md-management:claude-md-improver\n'
-  printf '  Audit %s/CLAUDE.md against %s.\n' "$dir" "$root"
-  printf '  Felix already covers verification, capabilities and risk tiers; add\n'
-  printf '  architecture and non-obvious patterns, and leave the invariants alone:\n'
-  printf '  those accrete from felix promote rather than being invented.\n'
+  # The sequence this used to print is run instead. Invariant 3: printing a
+  # suggestion for something Felix could safely have done is a defect, and
+  # every stage below holds its own install ceiling. Commissioning's exit
+  # status is its own report; the project was created either way.
+  printf '\ncommissioning — every engine stage that answers a need runs now, and an\n'
+  printf 'independent check says whether it did.\n\n'
+  ( cd "$root" && cmd_commission ) || true
+  printf '\nA starting constitution was written at %s/CLAUDE.md.\n' "$dir"
+  printf 'felix commission --status re-reads all of this without running anything.\n'
 }
 
 
@@ -1614,11 +1653,23 @@ cmd_discover() {
   # actually ships; printing a shopping list after all that was the governance
   # charter talking. Low only, and no flag from any caller touches high.
   if [ "$adopt" -eq 1 ]; then
+    # An absent cache is filled here, in the foreground, before anything is
+    # adopted. This used to say "felix discover --inspect fills it now", and
+    # it did not: only the --quiet form writes the cache, and only the
+    # session-start hook ran it. Reading is all this does — nothing fetched
+    # here is executed — so it is safe in front of a person.
+    local cache; cache="$(_felix_discover_cache "$proj" "$FELIX_HOME_DIR").tsv"
+    if [ ! -s "$cache" ]; then
+      printf 'filling the discovery cache first: each candidate is fetched at its\n'
+      printf 'pinned commit and read, and nothing is executed.\n\n'
+      mkdir -p "$(dirname "$cache")" 2>/dev/null
+      cmd_discover --inspect --quiet > "$cache.new" 2>/dev/null && mv -f "$cache.new" "$cache"
+    fi
     local plan; plan="$(felix_discover_adopt "$proj" "$FELIX_HOME_DIR")"
     if [ -z "$plan" ]; then
-      printf 'Nothing discovered yet for %s.\n\n' "$(basename "$proj")"
-      printf 'Discovery runs on a cadence rather than in front of a prompt, so the\n'
-      printf 'cache may simply be empty. felix discover --inspect fills it now.\n'
+      printf 'Nothing to adopt for %s.\n\n' "$(basename "$proj")"
+      printf 'The discovery cache holds no candidate matching what this project\n'
+      printf 'declares. Declaring another capability widens the search.\n'
       return 0
     fi
     local n_dec=0 n_ref=0 kind
@@ -3252,6 +3303,155 @@ EOF
 # The two are one command deliberately: a reporting mode and an enforcing mode
 # that compute their answers separately drift, and the enforcing one is the
 # half nobody reads.
+# Runs one `felix:` answer in-process. The stages hold the install policy;
+# commissioning only asks afterwards whether the check now passes.
+_felix_commission_answer() {
+  case "${1:-}" in
+    'felix:discover --adopt')  cmd_discover --adopt ;;
+    'felix:stack apply --yes') cmd_stack apply --yes ;;
+    'felix:ready --fix')       cmd_ready --fix ;;
+    'felix:toolbox --route')   cmd_toolbox --route ;;
+    *) return 127 ;;
+  esac
+}
+
+cmd_commission() {
+  resolve_or_die; local proj="$PROJ" status=0 a tpl="$SCRIPT_DIR/templates"
+  for a in "$@"; do
+    case "$a" in
+      --status) status=1 ;;
+      --yes) die "there is no --yes. felix commission runs the engine stages that already hold the install policy, and a person's rows stay a person's." ;;
+      *) die "usage: felix commission [--status] (got: $a)" ;;
+    esac
+  done
+  local root tid name; root="$(felix_repo_root "$PWD")"; name="$(basename "$proj")"
+  tid="$(felix_tree_id "$root" "$FELIX_HOME_DIR" 2>/dev/null)" || tid=""
+
+  if [ ! -f "$proj/commissioning.tsv" ]; then
+    printf 'commissioning for %s\n\n' "$name"
+    printf 'This project has no commissioning.tsv, so the first-encounter moment was\n'
+    printf 'never asked of it: nothing says what serves this checkout, what reaches\n'
+    printf 'it, or what a person still owes.\n\n'
+    printf 'Write %s/commissioning.tsv. One row per need:\n\n' "$proj"
+    printf '  need <TAB> grounds <TAB> instrument <TAB> when <TAB> answer <TAB> check <TAB> step\n\n'
+    printf 'A template is at %s/templates/commissioning.tsv; felix new copies it.\n' "$SCRIPT_DIR"
+    return 1
+  fi
+  local rows malformed
+  rows="$(felix_commission_rows "$proj")"; malformed="$(felix_commission_malformed "$proj")"
+  if [ -z "$rows" ]; then
+    printf 'commissioning for %s\n\n' "$name"
+    printf '%s/commissioning.tsv exists and declares no need.\n' "$proj"
+    printf 'An empty table is not a clean bill; it is a shelf with nothing on it.\n'
+    if [ -n "$malformed" ]; then
+      printf '\nrows that name a need and nothing readable\n\n'
+      printf '%s\n' "$malformed" | awk -F'\t' '{ printf "  %-22s %s\n", $1, $2 }'
+    fi
+    return 1
+  fi
+
+  local runner="_felix_commission_answer"
+  [ "$status" -eq 1 ] && runner="-"
+  local out; out="$(felix_commission_run "$proj" "$root" "$runner")"
+
+  # Recorded and receipted after the last write of the run, so the hashes
+  # cover what discover --adopt appended and toolbox --route rewrote.
+  local recorded=1 result=""
+  if [ "$status" -eq 0 ]; then
+    felix_commission_record "$proj" "$tid" "$(felix_commission_policy_version "$proj")" "$out" || recorded=0
+    result="$(felix_commission_receipt_write "$FELIX_HOME_DIR" "$proj" "$root" "$out" "$malformed")" || result=""
+  fi
+
+  local n_done n_held n_unk n_mal n_await n_na
+  read -r n_done n_held n_unk n_mal n_await n_na <<EOF
+$(felix_commission_counts "$out" "$malformed")
+EOF
+
+  printf 'commissioning for %s\n\n' "$name"
+  printf '%s\n' "$out" | while IFS=$'\t' read -r need st cls answer step detail prov; do
+    [ -n "$need" ] || continue
+    printf '  %-15s %-20s %s\n' "$st" "$need" "$detail"
+  done
+  printf '\n%s done, %s held, %s unknown, %s awaiting a session, %s did not apply' \
+    "$n_done" "$n_held" "$n_unk" "$n_await" "$n_na"
+  [ "$n_mal" -gt 0 ] && printf ', %s malformed' "$n_mal"
+  printf '\n'
+
+  if [ "$status" -eq 1 ]; then
+    local cwhy; cwhy="$(felix_commission_receipt_valid "$FELIX_HOME_DIR" "$proj" "$root")" || true
+    printf 'receipt: %s\n' "$cwhy"
+  else
+    printf 'receipt: %s, written to %s\n' "${result:-NOT written}" "$(felix_commission_receipt_path "$FELIX_HOME_DIR" "$proj")"
+  fi
+
+  if [ "$n_held" -gt 0 ] || [ "$n_await" -gt 0 ]; then
+    printf '\nheld, and who answers it\n\n'
+    printf '%s\n' "$out" | while IFS=$'\t' read -r need st cls answer step detail prov; do
+      case "$st" in held|awaiting) ;; *) continue ;; esac
+      case "$answer" in
+        felix:*)    printf '  %-20s felix commission ran %s and the check still does not pass\n' "$need" "${answer#felix:}" ;;
+        provider:*) printf '  %-20s a session runs /%s and records its answer; the engine cannot\n' "$need" "${answer#provider:}" ;;
+        *)          printf '  %-20s a person; the check in commissioning.tsv says what would satisfy it\n' "$need" ;;
+      esac
+    done
+  fi
+  if [ "$n_unk" -gt 0 ]; then
+    printf '\ncould not be asked here\n\n'
+    printf '%s\n' "$out" | awk -F'\t' '$2 == "unknown" { printf "  %-20s %s\n", $1, $6 }'
+    printf '\nUnknown is not held and not done. It blocks the receipt, and only the\n'
+    printf 'machine changing can clear it.\n'
+  fi
+  if [ -n "$malformed" ]; then
+    printf '\nrows that name a need and nothing readable\n\n'
+    printf '%s\n' "$malformed" | awk -F'\t' '{ printf "  %-22s %s\n", $1, $2 }'
+    printf '\nThese were not run and count toward nothing. The receipt is\n'
+    printf 'indeterminate while any of them stands.\n'
+  fi
+
+  local gaps; gaps="$(felix_commission_gaps "$proj" "$root")"
+  if [ -n "$gaps" ]; then
+    printf '\nsurfaces nothing serves, reaches, or grounds\n\n'
+    printf '%s\n' "$gaps" | while IFS=$'\t' read -r cap served reached grounded; do
+      [ -n "$cap" ] || continue
+      local miss=""
+      [ "$served" = "no" ]   && miss="$miss; no catalogue row serves it"
+      [ "$reached" = "no" ]  && miss="$miss; no profile reaches it"
+      [ "$grounded" = "no" ] && miss="$miss; no probe grounds it"
+      printf '  %-14s %s\n' "$cap" "${miss#; }"
+    done
+    printf '\nEach is a surface this checkout has or this project declared. The three\n'
+    printf 'questions are the ones stack.tsv, profiles.tsv and probes.tsv already\n'
+    printf 'answer; a miss here is what the printed next-steps used to drop.\n'
+  fi
+  local tmiss; tmiss="$(felix_commission_template_missing "$proj" "$tpl")"
+  if [ -n "$tmiss" ]; then
+    printf '\nquestions the template asks that this table lacks\n\n'
+    printf '%s\n' "$tmiss" | sed 's/^/  /'
+  fi
+  local sun; sun="$(felix_commission_steps_unanswered "$proj" "$tpl")"
+  if [ -n "$sun" ]; then
+    printf '\npipeline steps no row answers\n\n'
+    printf '%s\n' "$sun" | awk -F'\t' '{ printf "  %-3s %s\n", $1, $2 }'
+  fi
+
+  printf '\nWhat this cannot say: the surfaces above come from felix_detect'"'"'s patterns,\n'
+  printf 'so a stack no pattern names produces no capability, no gap and no row;\n'
+  printf 'the checks are shell somebody wrote, and a check written to pass will\n'
+  printf 'pass; and the provider rows wait on a channel whose precision is\n'
+  printf 'unmeasured. Commissioned means every known question was asked and\n'
+  printf 'answered, held by name, or named as unaskable here — not that the\n'
+  printf 'toolbox is right.\n'
+  if [ "$recorded" -eq 0 ]; then
+    printf '\nThe record was NOT written to %s/commissioning.log.\n' "$(felix_mem_dir "$proj")"
+  fi
+
+  [ "$status" -eq 1 ] && return 0
+  [ "$recorded" -eq 1 ] || return 1
+  [ -n "$result" ] || return 1
+  [ "$result" != "indeterminate" ] || return 1
+  return 0
+}
+
 cmd_probes() {
   resolve_or_die; local proj="$PROJ" gate=0 a
   for a in "$@"; do
@@ -3538,6 +3738,7 @@ case "${1:-help}" in
   doctor)  shift; cmd_doctor "$@" ;;
   pulse)   shift; cmd_pulse "$@" ;;
   procedures) shift; cmd_procedures "$@" ;;
+  commission) shift; cmd_commission "$@" ;;
   probes)     shift; cmd_probes "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;

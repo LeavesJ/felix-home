@@ -35,6 +35,10 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/ledger.sh"
 # shellcheck source=../lib/pulse.sh
 . "${SCRIPT_DIR}/../lib/pulse.sh"
+# shellcheck source=../lib/commission.sh
+. "${SCRIPT_DIR}/../lib/commission.sh"
+# shellcheck source=../lib/commission-provider.sh
+. "${SCRIPT_DIR}/../lib/commission-provider.sh"
 
 # JSON-escape via parameter substitution, one C-level pass each.
 #
@@ -280,6 +284,50 @@ Worth a look, found since last time and not installed: ${_new}
 felix discover --inspect shows what each one actually ships."
     felix_discover_mark_seen "$PROJ" "$FELIX_HOME_DIR"
   fi
+fi
+
+# ------------------------------------------------------- commissioning ----
+# Offline, every time: the record phase over any provider answer file (file
+# reads, no cli, no network), receipt validity from the two hashes, and one
+# paragraph naming what a session still owes — spoken ONCE per topology, so
+# it fires once per addressee and an answer consumes it. Nothing here runs a
+# check, an instrument or an installer; that is felix commission's, and a
+# person's to invoke.
+if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/null 2>&1; then
+  _cm_topo="$(felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null)"
+  _cm_seen="$FELIX_HOME_DIR/state/commission/$(basename "$PROJ").seen"
+  _cm_await=""; _cm_ans=0
+  while IFS=$'\t' read -r _cn _cg _ci _cw _ca _cc _cs; do
+    [ -n "$_cn" ] || continue
+    case "$_ca" in provider:*) ;; *) continue ;; esac
+    _cst="$(felix_commission_provider_state "$PROJ" "$_repo_root" "$_cn" 2>/dev/null | cut -f1)"
+    if [ "$_cst" = "answered" ]; then
+      _k="$(felix_commission_record_provider "$PROJ" "$_repo_root" "$_cn" "$_ca" "$(felix_tree_id "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null)" "$(felix_commission_policy_version "$PROJ" 2>/dev/null)" 2>/dev/null)"
+      _cm_ans=$((_cm_ans + ${_k:-0}))
+    else
+      _cm_await="$_cm_await
+  $_cn ($_cst): $(felix_commission_request_path "$PROJ" "$_cn")"
+    fi
+  done <<EOF
+$(felix_commission_rows "$PROJ" 2>/dev/null)
+EOF
+  _cm_valid="$(felix_commission_receipt_valid "$FELIX_HOME_DIR" "$PROJ" "$_repo_root" 2>/dev/null)" || true
+  if [ -n "$_cm_topo" ] && ! grep -qxF "$_cm_topo" "$_cm_seen" 2>/dev/null; then
+    if [ -n "$_cm_await" ]; then
+      context="$context
+
+Commissioning: receipt ${_cm_valid:-unknown}. A session still owes these — run the
+skill each request names, write the answer file it names, then felix commission:${_cm_await}"
+    elif [ -n "$_cm_valid" ]; then
+      context="$context
+
+Commissioning: receipt ${_cm_valid}."
+    fi
+    mkdir -p "$(dirname "$_cm_seen")" 2>/dev/null && printf '%s\n' "$_cm_topo" >> "$_cm_seen" 2>/dev/null
+  fi
+  [ "$_cm_ans" -gt 0 ] && context="$context
+
+Commissioning: ${_cm_ans} provider row(s) recorded from answer files since last time; felix commission --status reads them."
 fi
 
 # One line on the founder's screen. additionalContext reaches the model and

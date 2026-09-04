@@ -185,8 +185,22 @@ felix_commission_state() {
     esac
   fi
   case "$answer" in
-    provider:*) printf 'awaiting\ta session runs %s and records its answer; nothing here can\t%s\n' \
-                  "${answer#provider:}" "$prov"; return 0 ;;
+    provider:*)
+      # The provider library decides from the answer file alone — awaiting,
+      # stale, partial or answered — and is loaded by the command and the
+      # hook. Sourced alone, this file still knows the row is a provider's.
+      if command -v felix_commission_provider_state >/dev/null 2>&1; then
+        local pst pdetail
+        IFS=$'\t' read -r pst pdetail <<PROV
+$(felix_commission_provider_state "$proj" "$root" "$need")
+PROV
+        [ "$pst" = "answered" ] && prov="$(felix_commission_answer_provenance "$proj" "$need")"
+        printf '%s\t%s\t%s\n' "$pst" "$pdetail" "$prov"
+      else
+        printf 'awaiting\ta session runs %s and records its answer; nothing here can\t%s\n' \
+          "${answer#provider:}" "$prov"
+      fi
+      return 0 ;;
   esac
   felix_commission_ask "$root" "$check"; rc=$?
   case "$rc" in
@@ -202,7 +216,7 @@ felix_commission_state() {
 # $3 names a function that runs a `felix:` answer in-process and returns its
 # status; `-` runs nothing, which is what --status and the gate use.
 felix_commission_run() {
-  local proj="$1" root="$2" runner="${3:--}"
+  local proj="$1" root="$2" runner="${3:--}" tpl="${4:-}"
   local need grounds instrument when answer check step st detail prov out arc line
   export FELIX_PROJECT="$proj" FELIX_PROJECT_NAME="$(basename "$proj")" \
          FELIX_ROOT_DIR="$root" FELIX_MEMORY_DIR="$(felix_mem_dir "$proj")"
@@ -216,6 +230,17 @@ felix_commission_run() {
     IFS=$'\t' read -r st detail prov <<EOF
 $line
 EOF
+    # A real run writes every provider row's request afresh — the topology it
+    # carries is what makes an answer current — and never in --status, which
+    # writes nothing. A missing template is a row nobody can answer.
+    if [ "$runner" != "-" ] && [ -n "$tpl" ] && command -v felix_commission_request >/dev/null 2>&1; then
+      case "$answer" in
+        provider:*)
+          if ! felix_commission_request "$proj" "$root" "$need" "$tpl" >/dev/null; then
+            st=unknown; detail="no request template for $need under $tpl/commission, so no session can answer it"
+          fi ;;
+      esac
+    fi
     if [ "$st" = "held" ] && [ "$runner" != "-" ]; then
       case "$answer" in
         felix:*)
@@ -235,10 +260,10 @@ EOF
 
 felix_commission_class() {
   case "${1:-}" in
-    done|held)      printf 'OBSERVED' ;;
-    unknown|awaiting) printf 'UNKNOWN' ;;
-    answered)       printf 'INFERRED' ;;
-    *)              printf 'n/a' ;;
+    done|held)                      printf 'OBSERVED' ;;
+    unknown|awaiting|stale|partial) printf 'UNKNOWN' ;;
+    answered)                       printf 'INFERRED' ;;
+    *)                              printf 'n/a' ;;
   esac
 }
 
@@ -292,7 +317,7 @@ felix_commission_counts() {
     "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "held"' | grep -c .)" \
     "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "unknown"' | grep -c .)" \
     "$(printf '%s\n' "$malformed" | grep -c .)" \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "awaiting"' | grep -c .)" \
+    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "awaiting" || $2 == "stale" || $2 == "partial"' | grep -c .)" \
     "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "not-applicable"' | grep -c .)"
 }
 

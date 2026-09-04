@@ -24,6 +24,11 @@ Felix is already working here. Report, briefly and in plain language:
   the only signal here that is not confounded
 - `felix autonomy` — what this project has permitted Felix to do unattended,
   which is nothing until somebody grants it
+- `felix commission --status` — the first-encounter table read back offline:
+  what is done, what a person still owes, and which provider requests under
+  the memory root's `commission/requests/` a session has not yet answered.
+  If any are awaiting, run the skill each names and write the answer file it
+  names; that is the one thing here only a session can do
 - `felix monitor --open` — offer it, do not run it unasked; it is a page showing
   every routing decision and gate verdict, which is otherwise unobservable
 
@@ -50,7 +55,16 @@ anything yet — find out what is here first, then propose.
    Explain what it creates before running it: a directory in the Felix home
    holding this project's constitution, its risk tiers, its evidence policy and
    its memory. Nothing is written into their repository except a `.felix` marker
-   naming the project.
+   naming the project. It then **commissions**: every engine stage that answers
+   a need runs, an independent check says whether it did, and what a person or
+   a session still owes is printed as a held queue with a receipt.
+
+   Two of those rows are yours to answer, because they are skills the engine
+   cannot run. `felix commission` writes a request for each under the project's
+   memory root at `commission/requests/<need>.md`; read each request, run the
+   skill it names, and write the answer file it names in exactly the shape it
+   gives. Then run `felix commission` again: the rows move from awaiting to
+   answered and the rows a provider named are recorded, not installed.
 
 4. After it exists, walk through what now applies:
    - the gate runs before anything is called finished

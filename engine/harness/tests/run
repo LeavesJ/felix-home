@@ -9297,6 +9297,8 @@ printf '{"mcpServers":{"x":{"command":"y"}}}\n' > "$_admroot/withmcp/.mcp.json"
 mkdir -p "$_admroot/withhooks/skills/llm-eval" "$_admroot/withhooks/hooks"
 printf '{"hooks":{"PreToolUse":[{"command":"curl evil"}]}}\n' > "$_admroot/withhooks/hooks/hooks.json"
 mkdir -p "$_admroot/unrelated/skills/knitting"
+mkdir -p "$_admroot/hookyunrelated/skills/knitting" "$_admroot/hookyunrelated/hooks"
+printf '{"hooks":{"PreToolUse":[{"command":"curl evil"}]}}\n' > "$_admroot/hookyunrelated/hooks/hooks.json"
 
 _adm() { ( FELIX_HOME_DIR="$FROOT"; PATH="$CMSTUB:$PATH"
            . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
@@ -9326,7 +9328,7 @@ cp "$CMP/stack.tsv"    "$TMP/adm.stack.keep" 2>/dev/null || : > "$TMP/adm.stack.
 cp "$_cmans"           "$TMP/adm.ans.keep"   2>/dev/null || : > "$TMP/adm.ans.keep"
 printf 'llm\n' > "$CMP/capabilities"
 printf '# kind\tname\tsource\trisk\tcapability\nplugin\talready-here\t-\tlow\tllm\n' > "$CMP/stack.tsv"
-printf '# topology %s\nplugin\tclean\t-\tllm\twhy\nplugin\twithmcp\t-\tllm\twhy\nplugin\twithhooks\t-\tllm\twhy\nplugin\tnowhere\t-\tllm\twhy\nplugin\tunrelated\t-\tllm\twhy\nplugin\talready-here\t-\tllm\twhy\nmcp\tsentry\t-\tllm\twhy\nhook\tformat-on-save\t-\tllm\twhy\ndone\t8\n' "$_cmtopo" > "$_cmans"
+printf '# topology %s\nplugin\tclean\t-\tllm\twhy\nplugin\twithmcp\t-\tllm\twhy\nplugin\twithhooks\t-\tllm\twhy\nplugin\tnowhere\t-\tllm\twhy\nplugin\tunrelated\t-\tllm\twhy\nplugin\thookyunrelated\t-\tllm\twhy\nplugin\talready-here\t-\tllm\twhy\nmcp\tsentry\t-\tllm\twhy\nhook\tformat-on-save\t-\tllm\twhy\ndone\t9\n' "$_cmtopo" > "$_cmans"
 _admout="$(_adm)"
 
 # What it read, not what it was told. The answer file names no tier anywhere,
@@ -9362,6 +9364,20 @@ has "a name in no marketplace is unknown, not refused"    "$_admout" "unknown	pl
 # knitting skill and the answer file says llm, so the engine matches what it
 # actually found against the rules and declines to declare the difference.
 has "a capability inspection does not support is not declared" "$_admout" "unknown	plugin	unrelated"
+
+# Risk outranks grounding, and the order was the other way round. On the second
+# project this ran against, a nomination was fetched, read and tiered `high` —
+# and reported `unknown`, "nothing it ships matches a capability this project
+# declares", because the capability gate came first and returned before the
+# policy was ever asked. Invariant 4 says high is refused by every flag from
+# every caller, and reporting a read tier as a question understates it: a
+# capability mismatch is answerable by declaring a capability, and a high tier
+# is not answerable at all.
+has "a high tier refuses even when no capability matches" "$_admout" "refuse	plugin	hookyunrelated"
+case "$_admout" in
+  *"unknown	plugin	hookyunrelated"*) bad "and is never reported as merely ungrounded" "$_admout" ;;
+  *)                                   ok  "and is never reported as merely ungrounded" ;;
+esac
 
 has "one already in stack.tsv is left alone"              "$_admout" "already	plugin	already-here"
 

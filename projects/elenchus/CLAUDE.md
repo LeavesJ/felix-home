@@ -141,13 +141,32 @@ re-verify before relying on this map.
 * `persistence.Store` is the only thing that persists: state, ledger, queue.
 * `content_loader.load_library` and `load_progression` read `content/`.
 * `surface` and `terrain` shape what reaches the learner. `web/` is a package:
-  `app`, `session_runner`, `sitting_store`, `slots`, `vessels`, `voice`.
+  `app`, `runtime`, `session_runner`, `sitting_store`, `slots`, `vessels`,
+  `voice`, and `__main__` for the launch line under Delivery.
 * Mining and validation tooling sits alongside the loop: `generator`,
   `admission`, `crystallization`, `elicitation`, `lift_test`, `policy`,
   `veldra_ingest`.
 
 Adding a domain later means new content plus a map under `content/`, never an
 engine edit.
+
+**The repository, one level above the modules.** The map above is the loop; this
+is where everything else lives, and `content/` is here because invariant 1 makes
+it doctrine rather than assets.
+
+* `src/elenchus/` the package, plus `assessment/` and `web/` as subpackages.
+* `content/` fourteen directories of versioned doctrine, not two: `cadence`,
+  `checkables`, `elicitation`, `eval`, `gate`, `lift`, `maps`, `personas`,
+  `prompts`, `rubrics`, `spike`, `steer`, `territories`, `voice`. Anything
+  added here is doctrine and is reviewed as doctrine.
+* `tests/` the offline suite, with eight files carrying `@live` callers the
+  suite never executes — the T1 rule about grepping `tests/` is about these.
+* `scripts/` operational entry points that are not the loop: spend ceiling,
+  preflight, retention, model breakpoint, call report.
+* `data/` runtime state and the sqlite store. Never tracked, invariant 9.
+* `docs/` `DEVLOG.md`, `lessons.md`, handoff, and spike results.
+* `build/` an editable-install artefact. Nothing reads it, and the Delivery
+  rule about `PYTHONPATH=src` exists so nothing does.
 
 Twelve strategy documents sit untracked at the repo root. Only `POSITIONING.md`
 binds; the rest are drafts kept for history. When it disagrees with the code,

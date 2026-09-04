@@ -91,6 +91,17 @@ felix_commission_provider_state() {
 _felix_commission_provider_shape() {   # need -> expected field count
   case "$1" in constitution_audited) printf 3 ;; *) printf 5 ;; esac
 }
+
+# Which field of a row classifies it, for the report. An automation row ends in
+# a sentence and carries its capability in the field before that; a score row
+# ends in its grade. Keyed the same way as the shape and kept beside it,
+# because the two facts are one fact: a need that adds a shape has to say where
+# the classifier is in the same breath, or the report drops a column in silence
+# while the log keeps it. That is exactly what happened to the grade on the
+# protocol's first real answer, 2026-09-04.
+felix_commission_provider_classifier() {   # need -> 1-based field index
+  case "$1" in constitution_audited) printf 3 ;; *) printf 4 ;; esac
+}
 _felix_commission_provider_lines() {
   local f; f="$(felix_commission_answer_path "$1" "$2")"; [ -f "$f" ] || return 0
   grep -vE '^[[:space:]]*(#|$)' "$f" | grep -v $'^done\t'

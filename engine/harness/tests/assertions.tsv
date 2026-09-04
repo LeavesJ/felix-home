@@ -309,6 +309,7 @@
 1	a task notification is not a prompt
 1	a template need this table lacks is named
 1	a term recurring across entries surfaces
+1	a three-field score answer is answered
 1	a tie is broken the same way whichever order the file lists
 1	a tool absent from the manifest is not a clean bill
 1	a trailing colon does not eat it
@@ -472,6 +473,7 @@
 1	and a verified push reads as zero days
 1	and absent from both sides is a fixture, not a drift
 1	and again, so a session can bump twice
+1	and an automation row still ends in its capability
 1	and an older one does not
 1	and an ordinary product repository is not
 2	and an unknown flag is refused rather than ignored
@@ -772,6 +774,7 @@
 1	and the engine writes no mistake for it
 1	and the exact command that produced it
 1	and the failure is recorded under the check's own name
+1	and the fixture is restored to awaiting
 1	and the founder's one line says how many are due
 1	and the gate exits red
 1	and the gate line called no cli
@@ -805,6 +808,7 @@
 1	and the report says how many fewer
 1	and the report says how much of the table asked nothing
 1	and the report says the enumeration was partial
+1	and the report's score row ends in the grade, not blank padding
 1	and the repository is back to where it started
 1	and the request carries the topology it is for
 1	and the residue is not
@@ -1299,6 +1303,7 @@
 1	the second session is still bound
 1	the secret check is behind the verifier confine
 1	the seeded graphify row is due on a checkout with no graph
+1	the seen file never carries the stamp comment
 1	the shipped gate marks its undeployable failure
 1	the shipped layout — memory under ~/.felix — is its own repo
 1	the shipped table considers every moment

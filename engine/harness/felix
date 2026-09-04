@@ -3413,13 +3413,17 @@ EOF
     printf '\nnamed by a provider, recorded and not acted on\n\n'
     printf '%s\n' "$out" | while IFS=$'\t' read -r need st cls answer step detail prov; do
       [ "$st" = "answered" ] || continue
-      felix_commission_provider_rows "$proj" "$need" | while IFS=$'\t' read -r k1 k2 k3 k4 k5; do
-        [ -n "$k1" ] || continue
-        printf '  %-20s %-9s %-30s %s\n' "$need" "$k1" "$k2" "${k4:-}"
+      local pcf; pcf="$(felix_commission_provider_classifier "$need")"
+      felix_commission_provider_rows "$proj" "$need" | while IFS= read -r prow; do
+        [ -n "$prow" ] || continue
+        printf '  %-20s %-9s %-32s %s\n' "$need" \
+          "$(printf '%s\n' "$prow" | cut -f1)" \
+          "$(printf '%s\n' "$prow" | cut -f2)" \
+          "$(printf '%s\n' "$prow" | cut -f"$pcf")"
       done
       felix_commission_provider_rejects "$proj" "$need" | while IFS=$'\t' read -r rn rwhy; do
         [ -n "$rn" ] || continue
-        printf '  %-20s refused   %-30s %s\n' "$need" "$rn" "$rwhy"
+        printf '  %-20s refused   %-32s %s\n' "$need" "$rn" "$rwhy"
       done
     done
     printf '\n%s row(s) recorded as INFERRED this run. Nothing above was installed:\n' "$n_ingested"

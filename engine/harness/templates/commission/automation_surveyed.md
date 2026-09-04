@@ -29,6 +29,21 @@ source is a URL or `-`. capability is one of the capabilities Felix detected
 or declared above, or `-`. why is one sentence. There is no risk column:
 risk is not the model's to assign, and a row carrying one is malformed.
 
+What the reader enforces, so a row is not refused without a word:
+
+- exactly five tab-separated fields per row, tabs not spaces; a sixth field
+  is refused as a risk column
+- name matches `^[A-Za-z0-9@._:-]+$` — no slash, no space, no brackets; a
+  URL belongs in source, not in name
+- no backtick, `$(`, `;`, `|` or `&` anywhere in a row, in any field
+  including why — the row is never executed, and the ban is how that stays
+  true
+- at most forty rows; rows past the ceiling are refused
+- line 1 is exactly `# topology {{TOPOLOGY}}`: column 0, one space after `#`,
+  no trailing whitespace, LF line endings, no byte-order mark
+- the last non-blank line is `done` <TAB> the count of rows above it; the
+  count must equal the rows, or the file reads as partial and nothing is read
+
 Nothing in this file is installed by being written here. A plugin row is
 fetched at its pinned commit, read, tiered and corroborated by the engine
 before anything is declared, and only a low tier installs; an mcp row is

@@ -356,6 +356,20 @@ felix_commission_admit() {
 
     facts="$(felix_discover_inspect "$scratch/$bare" "$sub")"
     tier="$(felix_discover_risk "$facts")"
+
+    # Risk before grounding, and the order was the other way round until a
+    # second project ran this: a nomination fetched, read and tiered `high` was
+    # reported `unknown`, "nothing it ships matches a capability this project
+    # declares", because the capability gate returned before the policy was
+    # ever asked. Invariant 4 says high is refused by every flag from every
+    # caller, and a capability mismatch is answerable by declaring a capability
+    # while a high tier is not answerable at all — so the weaker statement must
+    # not be the one that gets made.
+    if [ "$(felix_admit "$tier" OBSERVED)" = "refuse" ]; then
+      printf 'refuse\t%s\t%s\t%s\t-\t%s\n' "$kind" "$name" "$tier" "$(felix_discover_why "$facts")"
+      continue
+    fi
+
     # The capability, matched against what the copy on disk ships rather than
     # against what the answer file said it would.
     skills="$(printf '%s\n' "$facts" | awk -F'\t' '$1 == "skill" { print $2 }' | tr '\n' ' ')"
@@ -366,6 +380,9 @@ felix_commission_admit() {
       continue
     fi
 
+    # Only install and hold can reach here: refuse returned above, before the
+    # capability was consulted. The third arm stays as a fail-closed default
+    # rather than an assertion that the policy has exactly three answers.
     case "$(felix_admit "$tier" OBSERVED)" in
       install) printf 'declare\t%s\t%s\t%s\t%s\t%s\n' "$kind" "$name" "$tier" "$gcap" "$(felix_discover_why "$facts")" ;;
       hold)    printf 'hold\t%s\t%s\t%s\t%s\t%s\n'    "$kind" "$name" "$tier" "$gcap" "$(felix_admit_why "$tier" OBSERVED)" ;;

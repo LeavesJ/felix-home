@@ -31,3 +31,4 @@ plugin	anthropic-skills	-	low	always
 plugin	deepeval	-	low	llm
 plugin	langfuse	-	low	llm
 cli	strix-agent	pip install strix-agent	high	security
+plugin	datadog	-	low	observability

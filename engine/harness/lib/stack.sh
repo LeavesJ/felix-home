@@ -30,6 +30,13 @@ _felix_load_state() {
   _FELIX_PLUGINS="$(claude plugin list 2>/dev/null || true)"
   _FELIX_MCPS="$(claude mcp list 2>/dev/null || true)"
   _FELIX_MKTS="$(claude plugin marketplace list 2>/dev/null || true)"
+  # Bundled plugins are `<name>@inline` keys in ~/.claude.json and appear in
+  # no `claude plugin list`. Without this a declared bundled row read as
+  # absent, `install` was attempted on every run, the cli said "not found in
+  # any configured marketplace", and the first live commissioning run held
+  # two projects on a plugin that was live in every session. ready.sh already
+  # read the same keys; the stack inventory now reads them too.
+  _FELIX_INLINE="$(sed -n 's/.*"\([A-Za-z0-9._-]*\)@inline".*/\1/p' "$HOME/.claude.json" 2>/dev/null | LC_ALL=C sort -u)"
 }
 
 # A server is mounted only when its line says connected. Configured-but-failing
@@ -52,7 +59,7 @@ EOF
 
 _felix_have() {
   case "$1" in
-    plugin)      felix_contains "$_FELIX_PLUGINS" "$2" ;;
+    plugin)      felix_contains "$_FELIX_PLUGINS" "$2" || felix_has_line "${_FELIX_INLINE:-}" "${2%%@*}" ;;
     # A connected MCP and a merely-configured one are different states. The
     # GitHub server sits in the list reporting "Failed to connect" until someone
     # completes OAuth, and calling that mounted would hide the one fact that

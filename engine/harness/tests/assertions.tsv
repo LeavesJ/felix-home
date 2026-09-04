@@ -24,6 +24,7 @@
 1	a broad but legitimate rule still denies
 1	a bumped tree does not become its own judge
 1	a bundled plugin reads as usable
+1	a bundled plugin reads present with no cli at all
 1	a cache path is a plugin copy
 1	a cache that never existed is stale
 1	a cache-side stray matching a directory-only rule is residue
@@ -113,6 +114,7 @@
 1	a hooks.json that never deployed is not certified
 1	a hostile prompt is neutralised, not dropped
 1	a judge identical to the candidate merges nothing
+1	a keyword inside another word is not a match
 1	a later copy of the field in the envelope is not the subject
 1	a ledger from before the column reports nothing at all
 1	a ledger written as one file is still read
@@ -440,6 +442,7 @@
 1	and a failing one as due for that reason
 1	and a gitignored stray in the cache is too
 1	and a high one is refused
+1	and a hyphenated name still matches its words
 1	and a live one says when it was last caught
 1	and a probe that failed against a real surface is blind too
 1	and a project with none does not claim it
@@ -1151,7 +1154,7 @@
 1	so the session count is the number of sessions
 1	speaks when a catch went unexplained
 1	spending is counted
-1	stack apply ran through the stub
+1	stack apply ran through the stub for a declared low row
 1	stack.tsv is byte-identical after a reconcile
 1	staged destructive SQL still escapes as durable
 1	stamped with date, branch and commit

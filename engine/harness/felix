@@ -1659,13 +1659,13 @@ cmd_discover() {
     # session-start hook ran it. Reading is all this does — nothing fetched
     # here is executed — so it is safe in front of a person.
     local cache; cache="$(_felix_discover_cache "$proj" "$FELIX_HOME_DIR").tsv"
-    if [ ! -s "$cache" ]; then
+    if ! felix_discover_cache_current "$proj" "$FELIX_HOME_DIR" "$tpl"; then
       printf 'filling the discovery cache first: each candidate is fetched at its\n'
       printf 'pinned commit and read, and nothing is executed.\n\n'
       mkdir -p "$(dirname "$cache")" 2>/dev/null
       cmd_discover --inspect --quiet > "$cache.new" 2>/dev/null && mv -f "$cache.new" "$cache"
     fi
-    local plan; plan="$(felix_discover_adopt "$proj" "$FELIX_HOME_DIR")"
+    local plan; plan="$(felix_discover_adopt "$proj" "$FELIX_HOME_DIR" "$tpl")"
     if [ -z "$plan" ]; then
       printf 'Nothing to adopt for %s.\n\n' "$(basename "$proj")"
       printf 'The discovery cache holds no candidate matching what this project\n'
@@ -1709,7 +1709,12 @@ EOF
   fi
 
   local cands; cands="$(felix_discover_candidates "$proj" "$tpl")"
+  # The quiet form writes the cache, so its first line is the stamp the
+  # readers check, and an empty result is an empty cache rather than a
+  # sentence about it — prose in a cache is a row that refuses to parse.
+  [ "$quiet" -eq 1 ] && _felix_discover_stamp_line "$tpl"
   if [ -z "$cands" ]; then
+    [ "$quiet" -eq 1 ] && return 0
     printf 'Nothing in the marketplaces matches what %s declares.\n' "$(basename "$proj")"
     printf '\nThat is a statement about the catalogue and this project, not about\nwhat exists. Declaring another capability widens the search.\n'
     return 0

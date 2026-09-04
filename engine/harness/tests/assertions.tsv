@@ -1,6 +1,7 @@
 1	--status after a table edit reads stale
 1	--status on a never-commissioned project exits 0 and runs nothing
 1	--status writes no receipt
+1	--status writes no request
 1	--strict exits non-zero on a gap
 1	--yes never installs high risk
 1	FELIX_ALLOW_RED lets a founder stop anyway
@@ -80,6 +81,7 @@
 1	a docs-only signal is routine
 1	a doctrine surface with no verdict escapes
 1	a documentation change escapes nothing
+1	a done count that disagrees with the rows is partial
 1	a dormant capability is deferred
 1	a dormant capability stays quiet
 1	a due step containing a colon does not shift it
@@ -254,6 +256,7 @@
 1	a route off the tree is a guess
 1	a route off the tree is not recorded as typed
 1	a row already naming itself is not scored twice
+1	a row carrying a risk column is refused, because risk is not the model's to assign
 1	a row from before the column proposes nothing
 1	a row inspection judged capability-less is not
 1	a row naming no moment does not close its gap
@@ -271,6 +274,7 @@
 1	a run compared against its own tree reports nothing
 1	a run nobody could read does not count as clean
 1	a run with no tree id says nothing was compared
+1	a run writes the request for each provider row
 1	a runbook prints in full
 1	a satisfied step reports done
 1	a second hand-off in the same session stays quiet
@@ -294,6 +298,7 @@
 1	a step outside 1-10 is malformed
 1	a structural failure still fails the gate
 1	a surface appearing in the checkout makes it stale the other way
+1	a surface appearing is a new topology, and it speaks again
 1	a surface detected in the tree is an item even if nobody declared it
 1	a surface the checkout has and no probe reads is a gap
 1	a table declaring the reserved channel still stops the merge
@@ -320,6 +325,7 @@
 1	a version main declares but nobody installed resolves to nothing
 1	a wall of tree tokens cannot outvote the prompt
 1	a web surface counts without package.json
+1	a well-formed answer is answered
 1	a when test whose command does not exist makes the row unknown, not not-applicable
 1	a when whose command does not exist is unknown, not not-applicable
 1	a wired moment with a stance is ok
@@ -354,7 +360,10 @@
 1	an all-structural gate still fails
 1	an always row is not flagged
 1	an ancient run counts as due again
+1	an answer file moves nothing enforcing in the receipt
+1	an answer for another topology is stale, and not read
 1	an answer outside the engine's stages is malformed
+1	an answer with no terminal done row is partial
 1	an append that did not happen is reported as a failure
 1	an append that succeeded and wrote nothing is reported as a failure too
 1	an argument it cannot honour merges nothing
@@ -455,6 +464,7 @@
 1	and a row already on disk is cleaned on the way out
 1	and a ruled capability is not listed there
 1	and a ruled one is not
+1	and a second run does not record the same file twice
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
 1	and a stance for a real item is not
@@ -465,6 +475,7 @@
 1	and an older one does not
 1	and an ordinary product repository is not
 2	and an unknown flag is refused rather than ignored
+1	and an unknown kind is refused
 1	and bin/ is in the searched set, because the gate runs it
 1	and blocked by a probe that cannot see what a witness proves is there
 1	and blocked by a row nothing could establish at all
@@ -491,6 +502,7 @@
 1	and due again after a commit the graph has not seen
 1	and each item appears once however often it bit
 1	and every line is a whole row
+1	and every placeholder was filled
 1	and evidence does too
 2	and exits 0
 1	and exits 0 in a repository Felix does not govern
@@ -560,6 +572,7 @@
 1	and names both tokens
 1	and names itself as the grant
 1	and names none when there is none
+1	and names the answer file to write
 1	and names the base it could not resolve
 1	and names the capability
 1	and names the channel
@@ -570,6 +583,7 @@
 1	and names the pipeline step nothing answers
 1	and names the play in order
 3	and names the project
+1	and names the refused row
 1	and names the source tree it compared
 1	and names the table
 1	and names the template
@@ -628,6 +642,8 @@
 1	and one wrapped in bold
 1	and one written as a path
 1	and only once per session
+1	and only rows of the right shape and kind are accepted
+1	and only the awaiting count records it
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
 1	and passes the facts it already has
@@ -637,6 +653,7 @@
 1	and pushed, and the push is verified
 2	and quotes the name the marker asks for
 1	and quotes what it said
+1	and raises or clears no merge blocker
 1	and re-rolling a session replaces its old rows
 1	and reads as a requirement
 1	and reads its words off the capability probe
@@ -675,6 +692,7 @@
 1	and says plainly that it acted on nothing
 1	and says so
 1	and says so before the detail
+1	and says so once per topology, not every session
 1	and says so plainly
 1	and says so plainly when none does
 1	and says so rather than implying I did
@@ -786,14 +804,17 @@
 1	and the report says how much of the table asked nothing
 1	and the report says the enumeration was partial
 1	and the repository is back to where it started
+1	and the request carries the topology it is for
 1	and the residue is not
 1	and the rest of the file is untouched
 1	and the reviewed one is cleared by it
 1	and the route its path named is not taken
+1	and the row is in the log as INFERRED
 1	and the row is still json
 1	and the row itself is reported as recording nothing
 1	and the row says the witness could not be asked
 1	and the row says what ran
+1	and the row-level line names the same file
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
 1	and the same scanner catches a planted one
@@ -858,6 +879,7 @@
 1	catches credential sample 3
 1	ceiling defaults to 3
 1	ceiling is overridable
+1	changes no gate line
 1	classify names the ref it compared
 1	clean once it is gone
 1	clean project reports no drift
@@ -913,6 +935,7 @@
 1	felix merge reaches gh at all
 1	felix merge refuses on an escape
 1	felix new exits 0
+1	felix new prints the request path for a session
 1	felix new refuses the same names the marker refuses
 1	felix new seeds a probe table
 1	felix new still exits 0
@@ -1211,6 +1234,8 @@
 1	the gate's installed check covers the same three directories
 1	the handoff carries no file comments
 1	the hook announces what it adopted
+1	the hook ingests an answer file offline
+1	the hook names the request a session still owes
 1	the hook routes on the first prompt
 1	the hook says what must be read first
 1	the hook surfaces due maintenance
@@ -1253,12 +1278,15 @@
 1	the registry says where the engine is served from
 1	the remote actually holds the commit
 1	the removed file still exists somewhere
+1	the report lists what the provider named and says nothing was installed
 1	the repository that ships the engine is self-governed
 1	the repository tracks no project memory
 1	the resolution is written down exactly once
 1	the root is available on its own
 1	the root is never under the home it was asked about
 1	the route is there when both apply
+1	the row is awaiting, UNKNOWN by class
+1	the run records the accepted rows as INFERRED with the file's hash as provenance
 1	the run writes the receipt
 1	the same file with an unconfined line escapes
 1	the same route does not repeat itself
@@ -1298,6 +1326,7 @@
 1	twelve sessions ending at once are all still counted
 1	twice makes it a promotion candidate
 1	two rows in one session are one session, calls summed
+1	two rows, once each
 1	two strangers and no upstream is a person's call
 1	undeclared capability classifies as dormant
 1	ungoverned repo refuses to run a gate
@@ -1332,6 +1361,7 @@
 1	wiring the same tool twice is refused
 1	with no CLI and nothing bundled, Felix says it cannot tell
 1	with no checkout in front of it the row stays event, claiming nothing
+1	with no cli call at all
 1	with no session record it behaves as before
 1	with no stances taken, every item is a gap
 1	with nothing due it reports nothing

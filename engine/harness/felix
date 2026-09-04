@@ -138,6 +138,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 # shellcheck source=lib/facts.sh
 . "${SCRIPT_DIR}/lib/facts.sh"
 . "${SCRIPT_DIR}/lib/commission.sh"
+. "${SCRIPT_DIR}/lib/commission-provider.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -3357,7 +3358,21 @@ cmd_commission() {
 
   local runner="_felix_commission_answer"
   [ "$status" -eq 1 ] && runner="-"
-  local out; out="$(felix_commission_run "$proj" "$root" "$runner")"
+  local out; out="$(felix_commission_run "$proj" "$root" "$runner" "$tpl")"
+
+  # The record phase, offline: every answered provider file's accepted rows
+  # go to the log as INFERRED, once per file hash. Nothing here installs; the
+  # admit phase is the next increment and says so below.
+  local n_ingested=0 need st cls answer step detail prov k
+  if [ "$status" -eq 0 ]; then
+    while IFS=$'\t' read -r need st cls answer step detail prov; do
+      [ "$st" = "answered" ] || continue
+      k="$(felix_commission_record_provider "$proj" "$root" "$need" "$answer" "$tid" "$(felix_commission_policy_version "$proj")")"
+      n_ingested=$((n_ingested + ${k:-0}))
+    done <<EOF
+$out
+EOF
+  fi
 
   # Recorded and receipted after the last write of the run, so the hashes
   # cover what discover --adopt appended and toolbox --route rewrote.
@@ -3389,13 +3404,39 @@ EOF
     printf 'receipt: %s, written to %s\n' "${result:-NOT written}" "$(felix_commission_receipt_path "$FELIX_HOME_DIR" "$proj")"
   fi
 
+  # What a provider said, read back from its file: rows the engine accepted
+  # as INFERRED and rows it refused by shape. A provider row that is answered
+  # holds nothing and installs nothing — the admit phase that fetches, reads,
+  # tiers and corroborates a nomination is not built, and this says so.
+  local n_answered; n_answered="$(printf '%s\n' "$out" | awk -F'\t' '$2 == "answered"' | grep -c .)"
+  if [ "$n_answered" -gt 0 ]; then
+    printf '\nnamed by a provider, recorded and not acted on\n\n'
+    printf '%s\n' "$out" | while IFS=$'\t' read -r need st cls answer step detail prov; do
+      [ "$st" = "answered" ] || continue
+      felix_commission_provider_rows "$proj" "$need" | while IFS=$'\t' read -r k1 k2 k3 k4 k5; do
+        [ -n "$k1" ] || continue
+        printf '  %-20s %-9s %-30s %s\n' "$need" "$k1" "$k2" "${k4:-}"
+      done
+      felix_commission_provider_rejects "$proj" "$need" | while IFS=$'\t' read -r rn rwhy; do
+        [ -n "$rn" ] || continue
+        printf '  %-20s refused   %-30s %s\n' "$need" "$rn" "$rwhy"
+      done
+    done
+    printf '\n%s row(s) recorded as INFERRED this run. Nothing above was installed:\n' "$n_ingested"
+    printf 'a nomination is fetched, read, tiered and corroborated by the engine\n'
+    printf 'before anything is declared, and that phase is not built yet.\n'
+  fi
+
   if [ "$n_held" -gt 0 ] || [ "$n_await" -gt 0 ]; then
     printf '\nheld, and who answers it\n\n'
     printf '%s\n' "$out" | while IFS=$'\t' read -r need st cls answer step detail prov; do
-      case "$st" in held|awaiting) ;; *) continue ;; esac
+      case "$st" in held|awaiting|stale|partial) ;; *) continue ;; esac
       case "$answer" in
         felix:*)    printf '  %-20s felix commission ran %s and the check still does not pass\n' "$need" "${answer#felix:}" ;;
-        provider:*) printf '  %-20s a session runs /%s and records its answer; the engine cannot\n' "$need" "${answer#provider:}" ;;
+        provider:*)
+          printf '  %-20s a session runs /%s and writes the answer the request names; the engine cannot\n' "$need" "${answer#provider:}"
+          printf '  %-20s request: %s\n' "" "$(felix_commission_request_path "$proj" "$need")"
+          [ "$st" != "awaiting" ] && printf '  %-20s %s\n' "" "$detail" ;;
         *)          printf '  %-20s a person; the check in commissioning.tsv says what would satisfy it\n' "$need" ;;
       esac
     done

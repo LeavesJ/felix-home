@@ -3428,9 +3428,37 @@ EOF
         printf '  %-20s refused   %-32s %s\n' "$need" "$rn" "$rwhy"
       done
     done
-    printf '\n%s row(s) recorded as INFERRED this run. Nothing above was installed:\n' "$n_ingested"
-    printf 'a nomination is fetched, read, tiered and corroborated by the engine\n'
-    printf 'before anything is declared, and that phase is not built yet.\n'
+    printf '\n%s row(s) recorded as INFERRED this run.\n' "$n_ingested"
+
+    # The admit phase. It reaches the network — one fetch per plugin
+    # nomination, at a pinned sha, read and never executed — so it runs on a
+    # full run and never under --status, which answers offline.
+    if [ "$status" -eq 0 ]; then
+      local adm="" admneed
+      while IFS=$'\t' read -r need st cls answer step detail prov; do
+        [ "$st" = "answered" ] || continue
+        admneed="$(felix_commission_admit "$proj" "$FELIX_HOME_DIR" "$need" "$tpl")"
+        [ -n "$admneed" ] && adm="$adm$admneed
+"
+      done <<EOF
+$out
+EOF
+      if [ -n "$adm" ]; then
+        printf '\nwhat the engine found when it went and looked\n\n'
+        printf '%s' "$adm" | while IFS=$'\t' read -r v k n tier gcap why; do
+          [ -n "${v:-}" ] || continue
+          printf '  %-9s %-9s %-32s %-7s %s\n' "$v" "$k" "$n" "$tier" "$why"
+        done
+        printf '\nA nomination carries no tier: risk is not the model'"'"'s to assign. Every\n'
+        printf 'tier above was read off the copy on disk, fetched at its pinned commit\n'
+        printf 'and never executed, which is what turns INFERRED into OBSERVED. An mcp\n'
+        printf 'row is refused on its kind before anything is fetched. `unknown` is not\n'
+        printf 'a refusal: nothing could be read, so nothing is known, and a later run\n'
+        printf 'can still answer it.\n'
+        printf '\nNothing above was installed. Applying a declaration to stack.tsv is the\n'
+        printf 'next increment.\n'
+      fi
+    fi
   fi
 
   if [ "$n_held" -gt 0 ] || [ "$n_await" -gt 0 ]; then

@@ -233,3 +233,146 @@ $rows
 ROWS
   printf '%s' "$n"
 }
+
+# ------------------------------------------------------- the admit phase ----
+#
+# A nomination is a name in a file a model wrote. Nothing has been fetched,
+# nothing read, and the answer shape carries no tier anywhere on purpose —
+# risk is not the model's to assign. So a nomination cannot be installed on
+# its own authority at any tier, which is what felix_admit says about
+# INFERRED, and the only door out is for the engine to go and look.
+#
+# Looking is what turns INFERRED into OBSERVED: source the plugin, fetch it at
+# its pinned sha, read the three files discovery already reads, and tier what
+# was actually found. The tier that reaches the policy is then the engine's
+# own reading and never the provider's word. This is the panel's finding that
+# an INFERRED capability would otherwise be consumed as DECLARED.
+#
+# Two of the provider's fields are claims, not one, and both are refused as
+# evidence. The tier is never claimed and always read. The capability IS
+# claimed — `plugin<TAB>foo<TAB>-<TAB>llm<TAB>why` asserts a capability — so it
+# is matched again against what the copy on disk actually ships, using the same
+# rules and the same threshold discovery uses. A capability the inspection does
+# not support leaves the row `unknown` rather than declaring the difference.
+#
+# What never reaches the network at all:
+#
+#   mcp       refused on its kind, before anything is fetched. Spec 7 T3: a
+#             provider-written mcp row is the one that would have been
+#             activated unattended, so it is not fetched, tiered or installed.
+#   hook      Felix authors none of these, so there is nothing to fetch and
+#   skill     nothing that could be installed. Recorded and reported is the
+#   subagent  whole verdict.
+#
+# Ungroundable is `unknown`, not `refuse`. A name in no marketplace, or a fetch
+# that failed, is a question nobody answered — amendments 1.4 and the same
+# reading of unknown the probes runner already uses. Unknown holds and
+# fabricates nothing, and a later run can still answer it.
+#
+# This phase decides and writes nothing. Applying a `declare` is the caller's,
+# for the same reason `felix_discover_adopt` does not edit stack.tsv itself.
+#
+# Emits: verdict <TAB> kind <TAB> name <TAB> tier <TAB> capability <TAB> why
+#   declare  | hold | refuse | recorded | unknown | already
+# Is this plugin installed on this machine? Read from the same registry
+# felix_commission_provider_provenance already parses, so no cli call and no
+# network: the admit phase must be able to answer this before it decides
+# whether going to look is even the question.
+_felix_commission_installed() {   # bare name -> 0 when installed
+  local name="$1" reg="$HOME/.claude/plugins/installed_plugins.json"
+  [ -n "$name" ] || return 1
+  [ -f "$reg" ] || return 1
+  grep -q "\"$name@" "$reg" 2>/dev/null
+}
+
+felix_commission_admit() {
+  local proj="$1" home="$2" need="$3"
+  # Declared apart from `home` on purpose: a local statement cannot read a
+  # variable it is declaring in the same statement, and the suite asserts that
+  # nothing in this tree does. It read empty here, which made every rules
+  # lookup miss and turned every verdict into `unknown` — a silent all-refuse.
+  local tpl="${4:-}"
+  [ -n "$tpl" ] || tpl="$home/harness/templates"
+  local rules declared scratch rc=0
+
+  # The automation shape only. A score answer is three fields — `score`,
+  # `69/100`, a grade — with neither a kind nor a name in them, so run through
+  # here it read "score" as a kind and went looking for a plugin called
+  # "69/100". The shape registry already knows which needs carry rows that name
+  # something, and asking it is what keeps a third shape from repeating this.
+  [ "$(_felix_commission_provider_shape "$need")" -eq 5 ] || return 0
+
+  rules="$(_felix_discover_rules "$tpl" "$proj")"
+  # Compared without the marketplace suffix, the same way discover's adopt
+  # compares, so `hookify@claude-plugins-official` matches a `hookify` row.
+  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
+  scratch="${TMPDIR:-/tmp}/felix-admit.$$.$(basename "$proj")"
+  rm -rf "$scratch" 2>/dev/null; mkdir -p "$scratch" 2>/dev/null || return 1
+
+  felix_commission_provider_rows "$proj" "$need" | while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    local kind name bare src sha sub facts tier skills hit score gcap
+    kind="$(printf '%s\n' "$line" | cut -f1)"
+    name="$(printf '%s\n' "$line" | cut -f2)"
+    bare="${name%%@*}"
+
+    case "$kind" in
+      mcp)
+        printf 'refuse\t%s\t%s\t-\t-\tan mcp server is never installed from a request\n' "$kind" "$name"
+        continue ;;
+      hook|skill|subagent)
+        printf 'recorded\t%s\t%s\t-\t-\tFelix authors none of these, so there is nothing to fetch\n' "$kind" "$name"
+        continue ;;
+    esac
+
+    if printf '%s\n' "$declared" | grep -xF "$bare" >/dev/null 2>&1; then
+      printf 'already\t%s\t%s\t-\t-\tnamed in stack.tsv already\n' "$kind" "$name"
+      continue
+    fi
+    # Installed but undeclared is a different answer from unresolvable, and
+    # saying the second when the first is true is what the phase did on its
+    # first real run. An installed plugin is absent from the available list —
+    # that list is what is left to install — so sourcing it fails and the row
+    # came back "nothing could be read". The registry answers it offline.
+    if _felix_commission_installed "$bare"; then
+      printf 'already\t%s\t%s\t-\t-\tinstalled on this machine already, though stack.tsv does not name it\n' "$kind" "$name"
+      continue
+    fi
+
+    # The network boundary. Both halves fail into `unknown`, because a name
+    # nobody could resolve and a fetch that did not complete are the same
+    # thing: nothing was read, so nothing is known.
+    src="$(felix_discover_source "$bare" 2>/dev/null)" || src=""
+    if [ -z "$src" ]; then
+      printf 'unknown\t%s\t%s\t-\t-\tnothing to fetch it by: no pinned url and sha in any configured marketplace\n' "$kind" "$name"
+      continue
+    fi
+    sha="$(printf '%s' "$src" | cut -f2)"; sub="$(printf '%s' "$src" | cut -f3)"
+    [ "$sub" = "-" ] && sub=""
+    if ! felix_discover_fetch "$(printf '%s' "$src" | cut -f1)" "$sha" "$scratch/$bare" 2>/dev/null; then
+      printf 'unknown\t%s\t%s\t-\t-\tcould not be fetched at its pinned commit, so nothing was read\n' "$kind" "$name"
+      continue
+    fi
+
+    facts="$(felix_discover_inspect "$scratch/$bare" "$sub")"
+    tier="$(felix_discover_risk "$facts")"
+    # The capability, matched against what the copy on disk ships rather than
+    # against what the answer file said it would.
+    skills="$(printf '%s\n' "$facts" | awk -F'\t' '$1 == "skill" { print $2 }' | tr '\n' ' ')"
+    hit="$(felix_capability_match "$bare" "" "$rules" "$skills")"
+    score="$(printf '%s' "$hit" | cut -f1)"; gcap="$(printf '%s' "$hit" | cut -f2)"
+    if [ "${score:-0}" -lt "${FELIX_DISCOVER_MIN:-3}" ]; then
+      printf 'unknown\t%s\t%s\t%s\t-\tnothing it ships matches a capability this project declares\n' "$kind" "$name" "$tier"
+      continue
+    fi
+
+    case "$(felix_admit "$tier" OBSERVED)" in
+      install) printf 'declare\t%s\t%s\t%s\t%s\t%s\n' "$kind" "$name" "$tier" "$gcap" "$(felix_discover_why "$facts")" ;;
+      hold)    printf 'hold\t%s\t%s\t%s\t%s\t%s\n'    "$kind" "$name" "$tier" "$gcap" "$(felix_admit_why "$tier" OBSERVED)" ;;
+      *)       printf 'refuse\t%s\t%s\t%s\t%s\t%s\n'  "$kind" "$name" "$tier" "$gcap" "$(felix_discover_why "$facts")" ;;
+    esac
+  done
+  rc=$?
+  rm -rf "$scratch" 2>/dev/null
+  return "$rc"
+}

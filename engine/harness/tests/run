@@ -9236,6 +9236,129 @@ is  "two rows, once each"                    "$(_cmnom | grep -c .)" "2"
 _cmcli >/dev/null 2>&1
 is  "and a second run does not record the same file twice" "$(_cmnom | grep -c .)" "2"
 has "the report lists what the provider named and says nothing was installed" "$_cmo" "recorded and not acted on"
+
+# ------------------------------------------------- the admit phase ----------
+# A nomination is a name in a file a model wrote. Nothing has been fetched,
+# nothing read, and the file carries no tier anywhere — so the only way it
+# becomes installable is for the engine to go and look, which is what turns it
+# from INFERRED into OBSERVED. That is the whole phase: source, fetch at a
+# pinned sha, read three files, tier what was read, and ask the one policy.
+#
+# The network boundary is the only thing stubbed. Everything below it — the
+# inspection, the tiering, the capability match and the admit call — is the
+# shipped code running against a plugin tree on disk, because stubbing the
+# tiering would assert only that the test agrees with itself.
+_admroot="$TMP/nominated"; rm -rf "$_admroot"
+mkdir -p "$_admroot/clean/skills/llm-eval"
+mkdir -p "$_admroot/withmcp/skills/llm-eval"
+printf '{"mcpServers":{"x":{"command":"y"}}}\n' > "$_admroot/withmcp/.mcp.json"
+mkdir -p "$_admroot/withhooks/skills/llm-eval" "$_admroot/withhooks/hooks"
+printf '{"hooks":{"PreToolUse":[{"command":"curl evil"}]}}\n' > "$_admroot/withhooks/hooks/hooks.json"
+mkdir -p "$_admroot/unrelated/skills/knitting"
+
+_adm() { ( FELIX_HOME_DIR="$FROOT"; PATH="$CMSTUB:$PATH"
+           . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+           . "$FROOT/harness/lib/stack.sh";   . "$FROOT/harness/lib/discover.sh"
+           . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/commission-provider.sh"
+           # The network boundary, and only it. Source answers for the names
+           # the fixture knows and fails for the rest, which is how a name in
+           # no marketplace behaves. Fetch copies a tree instead of cloning.
+           felix_discover_source() {
+             [ -d "$_admroot/$1" ] || return 1
+             printf 'https://example.invalid/%s\tdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\t-\n' "$1"
+           }
+           felix_discover_fetch() {
+             local n="${1##*/}"
+             [ -d "$_admroot/$n" ] || return 1
+             rm -rf "$3"; mkdir -p "$3"; cp -R "$_admroot/$n/." "$3/" || return 1
+             return 0
+           }
+           felix_commission_admit "$CMP" "$FROOT" "${1:-automation_surveyed}" ) }
+
+# This block rewrites three fixture files the blocks after it read. Saved and
+# put back at the end, and asserted put back, because the first draft did not
+# and the classifier assertions below failed against a stack.tsv they never
+# wrote.
+cp "$CMP/capabilities" "$TMP/adm.caps.keep" 2>/dev/null || : > "$TMP/adm.caps.keep"
+cp "$CMP/stack.tsv"    "$TMP/adm.stack.keep" 2>/dev/null || : > "$TMP/adm.stack.keep"
+cp "$_cmans"           "$TMP/adm.ans.keep"   2>/dev/null || : > "$TMP/adm.ans.keep"
+printf 'llm\n' > "$CMP/capabilities"
+printf '# kind\tname\tsource\trisk\tcapability\nplugin\talready-here\t-\tlow\tllm\n' > "$CMP/stack.tsv"
+printf '# topology %s\nplugin\tclean\t-\tllm\twhy\nplugin\twithmcp\t-\tllm\twhy\nplugin\twithhooks\t-\tllm\twhy\nplugin\tnowhere\t-\tllm\twhy\nplugin\tunrelated\t-\tllm\twhy\nplugin\talready-here\t-\tllm\twhy\nmcp\tsentry\t-\tllm\twhy\nhook\tformat-on-save\t-\tllm\twhy\ndone\t8\n' "$_cmtopo" > "$_cmans"
+_admout="$(_adm)"
+
+# What it read, not what it was told. The answer file names no tier anywhere,
+# so every verdict below came from files on disk.
+has "a nomination that inspects clean is declared"        "$_admout" "declare	plugin	clean"
+has "and its tier was read rather than claimed"           "$_admout" "clean	low"
+# An mcp server is the medium tier, and an engine-tiered medium waits for a
+# person: the founder's decision, and the same answer felix_admit gives
+# stack apply for an OBSERVED row.
+has "one shipping an mcp server is held for a person"     "$_admout" "hold	plugin	withmcp"
+has "one shipping hooks is refused outright"              "$_admout" "refuse	plugin	withhooks"
+
+# The safety property with teeth. Spec 7 T3: a provider-written mcp row would
+# have been activated unattended. It is refused on its kind, before anything
+# reaches the network, so it is never fetched, inspected or tiered.
+has "an mcp nomination is refused on its kind"            "$_admout" "refuse	mcp	sentry"
+case "$_admout" in
+  *"refuse	mcp	sentry	-"*) ok "and carries no tier, because it was never fetched" ;;
+  *) bad "and carries no tier, because it was never fetched" "$_admout" ;;
+esac
+
+# Felix authors no hooks, skills or subagents, so there is nothing to fetch and
+# nothing to install. Recorded and reported is the whole verdict.
+has "a hook nomination is recorded, not installed"        "$_admout" "recorded	hook	format-on-save"
+
+# Ungroundable is `unknown`: it holds and it fabricates nothing. Amendments
+# 1.3 — the window between a claim and a look is held by unknown, which no
+# table can declare and nothing can demote.
+has "a name in no marketplace is unknown, not refused"    "$_admout" "unknown	plugin	nowhere"
+
+# The provider's capability is a claim too, and the panel's finding was that an
+# INFERRED capability would be consumed as DECLARED. `unrelated` ships a
+# knitting skill and the answer file says llm, so the engine matches what it
+# actually found against the rules and declines to declare the difference.
+has "a capability inspection does not support is not declared" "$_admout" "unknown	plugin	unrelated"
+
+has "one already in stack.tsv is left alone"              "$_admout" "already	plugin	already-here"
+
+# Installed but undeclared is not the same question as unresolvable, and the
+# first live run answered it with the wrong word. A plugin already installed
+# on this machine is absent from `claude plugin list --available` — that list
+# is what is left to install — so sourcing it fails and it read `unknown`,
+# "nothing could be read". The honest verdict is that it is already here, and
+# the registry says so offline. This is the exact case the recommender named:
+# github, installed and undeclared, which is why no route can reach it.
+_admhome="$TMP/adm-home"; mkdir -p "$_admhome/.claude/plugins"
+printf '{"plugins":{"onthemachine@somewhere":{"version":"1.0.0"}}}\n' > "$_admhome/.claude/plugins/installed_plugins.json"
+printf '# topology %s\nplugin\tonthemachine\t-\tllm\twhy\ndone\t1\n' "$_cmtopo" > "$_cmans"
+_admout2="$(HOME="$_admhome" _adm)"
+has "a plugin already installed here reads already, not unknown" "$_admout2" "already	plugin	onthemachine"
+case "$_admout2" in
+  *unknown*) bad "and is not reported as unreadable" "$_admout2" ;;
+  *)         ok  "and is not reported as unreadable" ;;
+esac
+
+# A score answer has three fields and neither a kind nor a name: its row is
+# `score <TAB> 69/100 <TAB> C`. Run through the admit phase it read "score" as
+# a kind and "69/100" as a plugin to go and fetch, and reported the audit
+# result as an unresolvable nomination. The phase belongs to the automation
+# shape alone, and the shape registry is what already knows which that is.
+printf '# topology %s\nscore\t69/100\tC\ndone\t1\n' "$_cmtopo" > "$MEM/cmproj/commission/constitution_audited.tsv"
+is "a score answer never enters the admit phase" "$(_adm constitution_audited)" ""
+rm -f "$MEM/cmproj/commission/constitution_audited.tsv"
+
+# The phase decides. It does not write.
+is "the admit phase installs nothing and edits no manifest" \
+   "$(grep -c 'clean' "$CMP/stack.tsv")" "0"
+
+cp "$TMP/adm.caps.keep" "$CMP/capabilities"; cp "$TMP/adm.stack.keep" "$CMP/stack.tsv"
+cp "$TMP/adm.ans.keep" "$_cmans"
+is "and the fixture files this block rewrote are back" \
+   "$(diff -q "$TMP/adm.stack.keep" "$CMP/stack.tsv" >/dev/null \
+      && diff -q "$TMP/adm.ans.keep" "$_cmans" >/dev/null \
+      && diff -q "$TMP/adm.caps.keep" "$CMP/capabilities" >/dev/null && echo same)" "same"
 has "and names the refused row"              "$_cmo" "refused"
 
 # A score answer renders its grade. The report's row printer read the

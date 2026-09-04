@@ -4204,10 +4204,19 @@ is "rolling the same session twice does not double it" "$n" "3"
 # for why. Every fixture session here is marked as belonging to LGA.
 LGA="$TMP/ledger-attrib-a"; LGB="$TMP/ledger-attrib-b"
 mkdir -p "$LGA" "$LGB"
-( cd "$LGA" && git init -q -b main && git commit -q --allow-empty -m a )
-( cd "$LGB" && git init -q -b main && git commit -q --allow-empty -m b )
-LGA_SHA="$(git -C "$LGA" rev-parse HEAD)"
-LGB_SHA="$(git -C "$LGB" rev-parse HEAD)"
+( cd "$LGA" && git init -q -b main \
+  && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m a )
+( cd "$LGB" && git init -q -b main \
+  && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m b )
+LGA_SHA="$(git -C "$LGA" rev-parse HEAD 2>/dev/null)"
+LGB_SHA="$(git -C "$LGB" rev-parse HEAD 2>/dev/null)"
+# Asserted, because without it the identity failure below is silent: a bare
+# `git commit` has no identity on a CI runner, HEAD never exists, both shas
+# come back empty, and every attribution assertion fails for a reason that has
+# nothing to do with attribution. That is exactly what happened on the first
+# push of this block.
+is "the attribution fixtures have disjoint histories" \
+   "$([ -n "$LGA_SHA" ] && [ -n "$LGB_SHA" ] && [ "$LGA_SHA" != "$LGB_SHA" ] && echo two || echo broken)" "two"
 mkdir -p "$LH/state/session"
 _lgmark() { printf '%s\n' "${2:-$LGA_SHA}" > "$LH/state/session/$1"; }
 

@@ -312,17 +312,28 @@ if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/nu
 $(felix_commission_rows "$PROJ" 2>/dev/null)
 EOF
   _cm_valid="$(felix_commission_receipt_valid "$FELIX_HOME_DIR" "$PROJ" "$_repo_root" 2>/dev/null)" || true
-  if [ -n "$_cm_topo" ] && ! grep -qxF "$_cm_topo" "$_cm_seen" 2>/dev/null; then
-    if [ -n "$_cm_await" ]; then
-      context="$context
+  # An outstanding request REPEATS; an all-clear is said once per topology.
+  #
+  # Both were deduplicated at first, and the first turn of a fresh session
+  # then heard nothing about six unanswered requests: one session had been
+  # told, that session ended without acting, the topology had not moved, and
+  # the reminder was spent. The addressee of this paragraph is a session, and
+  # sessions are ephemeral — a hold keyed to the topology outlives every
+  # session that could discharge it. So the asymmetry is deliberate: the
+  # obligation is repeated until an answer file exists, which is the one thing
+  # that stops it and is entirely in a session's hands; the informational
+  # line, which nobody has to act on, is still said once. Measured on this
+  # machine, not reasoned: state/commission/felix.seen already held the
+  # current topology while all six requests sat unanswered.
+  if [ -n "$_cm_await" ]; then
+    context="$context
 
 Commissioning: receipt ${_cm_valid:-unknown}. A session still owes these — run the
 skill each request names, write the answer file it names, then felix commission:${_cm_await}"
-    elif [ -n "$_cm_valid" ]; then
-      context="$context
+  elif [ -n "$_cm_topo" ] && [ -n "$_cm_valid" ] && ! grep -qxF "$_cm_topo" "$_cm_seen" 2>/dev/null; then
+    context="$context
 
 Commissioning: receipt ${_cm_valid}."
-    fi
     mkdir -p "$(dirname "$_cm_seen")" 2>/dev/null && printf '%s\n' "$_cm_topo" >> "$_cm_seen" 2>/dev/null
   fi
   [ "$_cm_ans" -gt 0 ] && context="$context

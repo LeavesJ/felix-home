@@ -298,7 +298,6 @@
 1	a step outside 1-10 is malformed
 1	a structural failure still fails the gate
 1	a surface appearing in the checkout makes it stale the other way
-1	a surface appearing is a new topology, and it speaks again
 1	a surface detected in the tree is an item even if nobody declared it
 1	a surface the checkout has and no probe reads is a gap
 1	a table declaring the reserved channel still stops the merge
@@ -693,8 +692,8 @@
 1	and says nothing when every capability has a rule
 1	and says plainly that it acted on nothing
 1	and says so
+1	and says so again next session, because the request is still unanswered
 1	and says so before the detail
-1	and says so once per topology, not every session
 1	and says so plainly
 1	and says so plainly when none does
 1	and says so rather than implying I did
@@ -758,6 +757,7 @@
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
 1	and the ack is consumed by the answer
+1	and the all-clear is not repeated every session
 1	and the alphabetical-first remote was not touched
 1	and the announcement names the change
 1	and the bare listing the gate used to do would have counted a plain file
@@ -919,6 +919,7 @@
 1	every decision is logged
 1	every decision is recorded
 1	every ecosystem row carries a written reason
+1	every request answered stops the reminder
 1	every route matches its own name
 1	every row carries the command that clears it
 1	every vocabulary token is a word, not a regex fragment
@@ -1070,6 +1071,7 @@
 1	on a repository with no commit, nothing tracked reads as empty, not blind
 1	onboarding writes one
 1	one already declared is left alone
+1	one answer of two leaves the other still owed
 1	one from what you typed is not
 1	one genuinely absent still reads absent
 1	one line per row is written

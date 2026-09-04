@@ -9108,17 +9108,32 @@ mv "$CMP/routes.tsv" "$CMP/routes.keep"
 _cmhook() { ( cd "$CMR" && PATH="${1:-$PATH}" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1 ); }
 _cmh="$(_cmhook)"
 has "the hook names the request a session still owes"          "$_cmh" "automation_surveyed (awaiting)"
+# It repeats. The addressee is a session and sessions end; a hold keyed to the
+# topology outlives every session that could discharge it, and the first turn
+# of a fresh session then heard nothing about six unanswered requests on this
+# machine. An answer file is what stops it, and that is a session's to write.
 _cmh2="$(_cmhook)"
-case "$_cmh2" in *"still owes"*) bad "and says so once per topology, not every session" ;; *) ok "and says so once per topology, not every session" ;; esac
-printf '' > "$CMR/main.tf"
-has "a surface appearing is a new topology, and it speaks again"  "$(_cmhook)" "still owes"
-rm -f "$CMR/main.tf"
+has "and says so again next session, because the request is still unanswered" "$_cmh2" "still owes"
 printf '# topology %s\nplugin\tfoo\t-\tllm\twhy\ndone\t1\n' "$(_cm felix_commission_topology "$CMP" "$CMR")" > "$_cmans"
 : > "$MEM/cmproj/commissioning.log"; : > "$CMSTUB_LOG"
 _cmh3="$(_cmhook "$CMSTUB:/usr/bin:/bin")"
 has "the hook ingests an answer file offline"                    "$_cmh3" "1 provider row(s) recorded"
 is  "with no cli call at all"                                    "$(grep -c . "$CMSTUB_LOG")" "0"
 is  "and the row is in the log as INFERRED"                      "$(grep -c '	answered	INFERRED	' "$MEM/cmproj/commissioning.log")" "1"
+# One answer of two does not stop it: the table carries two provider rows and
+# only one has been answered, so the other is still owed and still said. This
+# is the per-row behaviour, and asserting it here is why the pair below has to
+# answer both — the first draft answered one and read the survivor as a bug.
+has "one answer of two leaves the other still owed" \
+    "$(_cmhook "$CMSTUB:/usr/bin:/bin")" "constitution_audited (awaiting)"
+# Answered is what stops it: the obligation line goes, and the all-clear that
+# replaces it is said once per topology rather than every session.
+printf '# topology %s\nscore\t85/100\tB\ndone\t1\n' "$(_cm felix_commission_topology "$CMP" "$CMR")" \
+  > "$MEM/cmproj/commission/constitution_audited.tsv"
+_cmh4="$(_cmhook "$CMSTUB:/usr/bin:/bin")"
+case "$_cmh4" in *"still owes"*) bad "every request answered stops the reminder" "$_cmh4" ;; *) ok "every request answered stops the reminder" ;; esac
+_cmh5="$(_cmhook "$CMSTUB:/usr/bin:/bin")"
+case "$_cmh5" in *"Commissioning: receipt"*) bad "and the all-clear is not repeated every session" ;; *) ok "and the all-clear is not repeated every session" ;; esac
 mv "$CMP/routes.keep" "$CMP/routes.tsv"
 
 # felix new says where the requests are.

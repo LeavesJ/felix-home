@@ -285,6 +285,7 @@
 1	a runbook prints in full
 1	a satisfied step reports done
 1	a score answer never enters the admit phase
+1	a second catch-up finds nothing left
 1	a second hand-off in the same session stays quiet
 1	a second run appends rather than replacing
 1	a session reports what was named and what was followed
@@ -305,6 +306,8 @@
 1	a stance for something nothing enumerates is named
 1	a state file from before this existed complains, as it did
 1	a step outside 1-10 is malformed
+1	a stranded session folds under its own date, not today's
+1	a stranded session has appends but no folded record
 1	a structural failure still fails the gate
 1	a surface appearing in the checkout makes it stale the other way
 1	a surface detected in the tree is an item even if nobody declared it
@@ -516,6 +519,7 @@
 1	and declares a version
 1	and declares nothing
 1	and deleting the syntax check escapes as verifier
+1	and did not disturb the session that had folded
 1	and does not ask for a lesson that already exists
 1	and does not blame a checkout that did not move
 1	and does not diagnose a cause it cannot see
@@ -863,6 +867,7 @@
 1	and the slug comes from the checkout's remote
 1	and the stale row was not adopted
 1	and the state now carries the new route, for the finish-line judge
+1	and the stranded reaches are now counted
 1	and the text is actually there
 1	and the tier it carries
 1	and the tier reducer agrees
@@ -916,6 +921,7 @@
 1	but the field names themselves are gone
 1	carries the governed project
 1	carries the matched lesson
+1	catch-up folds every session nothing folded
 1	catches credential sample 1
 1	catches credential sample 2
 1	catches credential sample 3
@@ -1028,7 +1034,7 @@
 1	including fields after it
 1	including one that failed alongside another
 1	including the model-SDK probe, which sits on a continued line
-1	including the second one
+2	including the second one
 1	including what prompted each utterance
 1	inspect still counts the skills
 1	inspecting a plugin never runs it

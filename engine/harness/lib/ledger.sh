@@ -330,3 +330,40 @@ EOF
 
   mv -f "$tmp" "$out" 2>/dev/null || rm -f "$tmp"
 }
+
+# Fold every session nothing folded.
+#
+# The rollup runs from one place: the SessionEnd hook. So a session that is
+# killed, put to sleep, or torn down with its process never folds, and its
+# appends sit in state/ledger/ uncounted forever. Measured on this machine the
+# night it was found: 31 stranded sessions from 2026-08-11 onward, several
+# carrying thousands of reaches, against 12 that had folded. The ledger was
+# therefore reporting the sessions that happened to exit cleanly and calling
+# that "the only unconfounded signal here" — while recommending capabilities be
+# retired for a zero that was an artefact of how their sessions ended.
+#
+# Safe by construction, and for the reason the rollup already gives above: it
+# rewrites its own file rather than appending, so folding a session twice — or
+# folding a live one that folds again at its own end — cannot double anything.
+#
+# The date is the state file's own mtime, never today's. A session from three
+# weeks ago folded under today's date would report old work as recent, which is
+# the same defect one level down from the one this fixes.
+#
+# Not called from any hook. It walks every unfolded session and the rollup is
+# several greps per distinct signal, so its cost belongs to a person running
+# `felix ledger` and not to every session start. Prints how many it folded.
+felix_ledger_catchup() {
+  local proj="$1" home="$2" mem dir f session n=0
+  mem="$(felix_mem_dir "$proj")"
+  dir="$mem/ledger.d"
+  for f in "$home"/state/ledger/*.tsv; do
+    [ -f "$f" ] || continue
+    session="$(basename "$f" .tsv)"
+    [ -f "$dir/$session.tsv" ] && continue
+    felix_ledger_rollup "$proj" "$home" "$session" \
+      "$(date -r "$f" -u +%Y-%m-%d 2>/dev/null || date -u +%Y-%m-%d)" || continue
+    n=$((n + 1))
+  done
+  printf '%s' "$n"
+}

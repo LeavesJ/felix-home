@@ -1502,7 +1502,22 @@ EOF
 
 cmd_ledger() {
   resolve_or_die; local proj="$PROJ" name sessions calls named n=0
+
+  # Fold anything nothing folded, before reading. The rollup runs only from the
+  # SessionEnd hook, so every session that was killed, slept, or torn down left
+  # its appends uncounted — 31 of them on this machine when this was found,
+  # against 12 that had folded. Reading without this reports whichever sessions
+  # happened to exit cleanly and calls it unconfounded. Done here rather than in
+  # a hook because it is several greps per distinct signal per stranded session,
+  # and that cost belongs to a person asking for a report.
+  local caught; caught="$(felix_ledger_catchup "$proj" "$FELIX_HOME_DIR" 2>/dev/null)"
+
   local rows; rows="$(_felix_ledger_rows "$(felix_mem_dir "$proj")")"
+
+  if [ "${caught:-0}" -gt 0 ] 2>/dev/null; then
+    printf 'folded %s session(s) that ended without folding themselves.\n' "$caught"
+    printf 'Their calls were recorded all along and had never been counted.\n\n'
+  fi
 
   if [ -z "$rows" ]; then
     printf 'Nothing recorded yet for %s.\n\n' "$(basename "$proj")"

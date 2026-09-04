@@ -32,6 +32,7 @@
 1	a cache with no stamp adopts nothing
 1	a cache-side stray matching a directory-only rule is residue
 1	a capability carrying a trailing remark is not a rule
+1	a capability inspection does not support is not declared
 1	a capability match is still adopt material
 1	a capability some route names is a keyword problem
 1	a cargo crate is a rust project
@@ -114,6 +115,7 @@
 1	a high-risk row is never installed by commissioning
 1	a home pointer naming something that is not a home refuses
 1	a hook nobody explained is caught
+1	a hook nomination is recorded, not installed
 1	a hook that stopped being wired is caught
 1	a hooks.json that never deployed is not certified
 1	a hostile prompt is neutralised, not dropped
@@ -151,6 +153,7 @@
 1	a missing state file is not a guess
 1	a multi-line utterance stays one greppable line
 1	a name counts triple
+1	a name in no marketplace is unknown, not refused
 1	a name nothing mentions is still not found
 1	a named capability carries its count
 1	a negated check is malformed, because it could not fail
@@ -158,6 +161,7 @@
 1	a never-run routine is due
 1	a new note replaces it
 1	a new untracked file invalidates the receipt
+1	a nomination that inspects clean is declared
 1	a non-executable lookalike is ignored
 1	a note reaches the file
 1	a notebook is matched on its own path field
@@ -190,6 +194,7 @@
 1	a plain tool is recorded by name
 1	a plan declaring no files yields nothing
 1	a play naming a superstring does not name its prefix
+1	a plugin already installed here reads already, not unknown
 1	a plugin cache is never treated as home
 1	a plugin that cannot be checked is not a clean bill
 1	a pointer to a real home is left alone
@@ -279,6 +284,7 @@
 1	a run writes the request for each provider row
 1	a runbook prints in full
 1	a satisfied step reports done
+1	a score answer never enters the admit phase
 1	a second hand-off in the same session stays quiet
 1	a second run appends rather than replacing
 1	a session reports what was named and what was followed
@@ -405,6 +411,7 @@
 1	an mcp call does mark the bare plugin step used
 1	an mcp call does not mark a qualified step of that plugin used
 1	an mcp call is recorded by server
+1	an mcp nomination is refused on its kind
 1	an old stamp is counted in days
 1	an opted-in capability is allowed
 1	an ordinary checkout is not
@@ -497,6 +504,7 @@
 1	and briefs the file it names
 1	and calls an absent surface empty rather than blind
 1	and calls it a shelf with nothing on it
+1	and carries no tier, because it was never fetched
 1	and carries the decline channel
 1	and changes when the tree changes
 1	and claims nothing about surfaces it never compared
@@ -545,6 +553,7 @@
 1	and is named as a shelf with nothing on it
 1	and is not a routing gap either; it is unknown
 1	and is not called agreement
+1	and is not reported as unreadable
 1	and is not run as a probe whose verdict is the witness alone
 1	and is not run as though it were a probe
 1	and is not run half-read
@@ -575,6 +584,7 @@
 1	and its declines count as unchecked
 1	and its medium holds too
 1	and its path is gone from the tokens whatever the key is called
+1	and its tier was read rather than claimed
 1	and keeps a never-invoked one at zero
 1	and keeps one Felix does not hold
 1	and keeps surviving as its own log grows
@@ -794,6 +804,7 @@
 1	and the engine writes no mistake for it
 1	and the exact command that produced it
 1	and the failure is recorded under the check's own name
+1	and the fixture files this block rewrote are back
 1	and the fixture is restored
 1	and the fixture is restored to awaiting
 1	and the founder's one line says how many are due
@@ -1104,6 +1115,7 @@
 1	on a repository with no commit, nothing tracked reads as empty, not blind
 1	onboarding writes one
 1	one already declared is left alone
+1	one already in stack.tsv is left alone
 1	one answer of two leaves the other still owed
 1	one from what you typed is not
 1	one genuinely absent still reads absent
@@ -1112,6 +1124,8 @@
 1	one no route names is not
 1	one red file makes the whole diff red
 1	one red path poisons the whole set
+1	one shipping an mcp server is held for a person
+1	one shipping hooks is refused outright
 1	one superpowers skill does not mark superpowers:brainstorming used
 1	one superpowers skill does not mark superpowers:test-driven-development used
 1	one superpowers skill does not mark superpowers:writing-plans used
@@ -1242,6 +1256,7 @@
 1	survives a machine laid out differently
 1	survives a transcript that is not there
 1	tasks sharing a file are one unit
+1	the admit phase installs nothing and edits no manifest
 1	the agent points at the served engine, not the running copy
 1	the agent runs the pulse
 1	the always-applicable part is shown

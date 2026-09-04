@@ -3993,6 +3993,8 @@ DP="$FROOT/projects/widget"
 new="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_unseen "$DP" "$DH" | tr '\n' ' ' )"
 has "reports findings the first time" "$new" "deepeval"
 ( . "$FROOT/harness/lib/discover.sh"; felix_discover_mark_seen "$DP" "$DH" )
+( . "$FROOT/harness/lib/discover.sh"; grep -q '^#' "$(_felix_discover_cache "$DP" "$DH").seen" ) \
+  && bad "the seen file never carries the stamp comment" || ok "the seen file never carries the stamp comment"
 new="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_unseen "$DP" "$DH" )"
 is "and never mentions the same one twice" "${#new}" "0"
 # Something genuinely new must still get through.

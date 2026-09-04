@@ -467,8 +467,8 @@ felix_discover_refresh_bg() {
   (
     trap 'rmdir "$lock" 2>/dev/null' EXIT
     cd "$(felix_repo_root "$PWD")" 2>/dev/null || exit 0
-    "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new" 2>/dev/null
-    mv -f "$(_felix_discover_cache "$proj" "$home").new" \
+    "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null
+    mv -f "$(_felix_discover_cache "$proj" "$home").new.$$" \
           "$(_felix_discover_cache "$proj" "$home").tsv" 2>/dev/null
   ) </dev/null >/dev/null 2>&1 &
   return 0
@@ -493,7 +493,7 @@ felix_discover_unseen() {
 felix_discover_mark_seen() {
   local base; base="$(_felix_discover_cache "$1" "$2")"
   [ -s "$base.tsv" ] || return 0
-  cut -f1 "$base.tsv" | LC_ALL=C sort -u >> "$base.seen" 2>/dev/null
+  grep -v '^#' "$base.tsv" | cut -f1 | LC_ALL=C sort -u >> "$base.seen" 2>/dev/null
   LC_ALL=C sort -u -o "$base.seen" "$base.seen" 2>/dev/null
   return 0
 }

@@ -75,9 +75,9 @@ it should be paid deliberately, not rediscovered.
 
 | | |
 |---|---|
-| head | `138e524` on `main` (#158–#161, four merges), CI `gate` **success** on each |
-| suite | **1450** passed, 0 failed, manifest re-recorded |
-| deployed engine | **0.49.53**, deployed from the home checkout after each merge |
+| head | `5495eeb` on `main` (#158–#164, seven merges), CI `gate` **success** on each |
+| suite | **1457** passed, 0 failed, manifest re-recorded |
+| deployed engine | **0.49.54**, deployed from the home checkout after each merge |
 | felix's provider rows | **answered**, both. `constitution_audited` 69/100 C, `automation_surveyed` 8 rows |
 | elenchus and veldra | still **awaiting**, two requests each. Nothing here was run on them |
 | open, and the founder's | one, below. It is what stopped the next increment rather than a preference |
@@ -195,6 +195,49 @@ when the phase was pointed at the eight actual nominations:
   statement that read a variable declared beside it, which made every rules
   lookup miss and turned every verdict into a silent `unknown`. It is the one
   failure mode the phase has that looks exactly like correct caution.
+
+### The ledger was counting only the sessions that exited cleanly (#163)
+
+Not planned, and the largest single correction of the night. The session
+banner named `claude-md-management` as *mounted and never once reached for*,
+and this session had just invoked it — so the number was checked instead of
+believed.
+
+The recording path turned out to be fine end to end: `felix_ledger_signal`
+extracts the skill name and `felix_ledger_record` appends it, which ruled out
+the first hypothesis. The loss was entirely in the fold. `felix_ledger_rollup`
+runs from exactly one place, the `SessionEnd` hook, so a session killed, put
+to sleep, or torn down with its process never folded and its appends sat in
+`state/ledger/` uncounted. **31 stranded sessions from 2026-08-11 onward
+against 12 that had folded**, several carrying thousands of reaches.
+
+So the ledger was reporting whichever sessions happened to exit cleanly, while
+calling itself the only unconfounded signal here and recommending capabilities
+be retired for a zero that was an artefact of how their sessions ended.
+
+`felix_ledger_catchup` folds every session nothing folded, from `felix ledger`
+and from no hook — it is several greps per distinct signal per stranded
+session, and that cost belongs to a person asking for a report. It is safe for
+the reason the rollup already documented about itself: it rewrites its own file
+rather than appending, so folding twice cannot double. On the real memory: 35
+folded, 49 sessions to **82**, Bash reaches 16,590 to **31,879**.
+`claude-md-management` left the retire list. `semgrep` stayed on it — 82
+sessions, named 3, reached 0 — which is what the list is actually for.
+
+### The graph was refreshed, and it holds this session (#164)
+
+`graphify` has a cadence of `0`, so six merges made it due. Refreshed
+incrementally rather than rebuilt: 62 changed files, 24 code through AST and 38
+documents through two extraction agents. 1363 nodes, 1725 edges, 130
+communities, health OK. `graphify-out/` is gitignored so only the cadence
+record is in the tree.
+
+One thing to look at later: 11 nodes were dropped to ID collisions where the
+same entity was minted once from a relative `source_file` and once from an
+absolute one. The extraction spec requires absolute paths and says the engine
+relativizes downstream; both forms coexisted anyway. graphify warns and keeps
+one, so nothing is silently wrong — but the two conventions are not
+reconciling the way the spec describes.
 
 ### Open, and the founder's — this is what stopped the next increment
 

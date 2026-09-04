@@ -9100,6 +9100,25 @@ is  "and a second run does not record the same file twice" "$(_cmnom | grep -c .
 has "the report lists what the provider named and says nothing was installed" "$_cmo" "recorded and not acted on"
 has "and names the refused row"              "$_cmo" "refused"
 
+# A score answer renders its grade. The report's row printer read the
+# classifier out of field 4 for every need, which is the automation shape's
+# capability column. A score row has three fields and its third is the grade,
+# so field 4 was empty and the grade vanished from the only surface that lists
+# what a provider named — while commissioning.log kept it, which is why the
+# loss was invisible to every check that reads the log. Found on the protocol's
+# first real answer, 2026-09-04. The shape registry already knew a score row
+# has three fields; nothing asked it where the classifier is.
+_cmans2="$MEM/cmproj/commission/constitution_audited.tsv"
+printf '# topology %s\nscore\t69/100\tC\ndone\t1\n' "$(_cm felix_commission_topology "$CMP" "$CMR")" > "$_cmans2"
+is  "a three-field score answer is answered"   "$(_cmp constitution_audited)" "answered"
+_cmo2="$(_cmcli)"
+is  "and the report's score row ends in the grade, not blank padding" \
+    "$(printf '%s\n' "$_cmo2" | awk '$1 == "constitution_audited" && $2 == "score" { print $NF }')" "C"
+is  "and an automation row still ends in its capability" \
+    "$(printf '%s\n' "$_cmo2" | awk '$1 == "automation_surveyed" && $3 == "foo" { print $NF }')" "llm"
+rm -f "$_cmans2"
+is  "and the fixture is restored to awaiting"  "$(_cmp constitution_audited)" "awaiting"
+
 # The session-start hook: offline record phase, and one paragraph per topology.
 # The routes table goes aside for these calls: with one present the hook's
 # discovery block backgrounds `discover --inspect --quiet`, which reaches the

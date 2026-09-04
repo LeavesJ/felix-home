@@ -90,6 +90,55 @@ The charter was the defect.
    storing memory under it published every governed project's record along with
    the doctrine. Neither is Felix's to delete.
 
+## Architecture
+
+Three top-level directories carry all of it, and the split between them is what
+makes invariant 1 enforceable rather than aspirational.
+
+- **`engine/harness/`** — the engine, which names no project. `felix` is the
+  CLI, `lib/` its forty-one sourced libraries, `hooks/` the entry points Claude
+  Code calls, `templates/` the seeds a new project is cut from, and `tests/run`
+  the suite whose recorded count lives in `tests/assertions.tsv`. Bash and git
+  and nothing else, because it governs projects in languages it must not
+  require.
+- **`projects/<name>/`** — one directory per governed project: its `CLAUDE.md`,
+  its `gate.sh`, a `project.json` naming the remote it matches, and its tables.
+  Governing something new is a directory here and a JSON file, never an edit to
+  the engine.
+- **`state/`** — records the engine derives and re-derives: discovery caches,
+  ledgers, route decisions, gate and commissioning receipts, the monitor page.
+  Nothing here is authored by hand, and nothing here is authority.
+
+Memory is the fourth thing and is deliberately not in the tree: `$FELIX_MEMORY`,
+defaulting to `~/.felix/memory/<project>/`, computed from `$HOME` and never from
+the home. Invariant 6 says why.
+
+**The tables are the extension point, not the code.** `routes.tsv`,
+`stack.tsv`, `profiles.tsv`, `probes.tsv`, `risk.tsv`, `evidence.tsv`,
+`deny.tsv`, `maintenance.tsv` and `commissioning.tsv` are where behaviour is
+added for one project; the matching file under `engine/harness/templates/` is
+where it is added for every project at once. Ask which table already answers a
+question before adding a library that answers it again.
+
+## Non-obvious patterns
+
+- **Engine work happens in the home checkout, not a worktree.** The marketplace
+  is a directory marketplace pinned to one path, so a worktree's engine is never
+  the one served: `felix install` from a worktree re-points the marketplace at
+  that worktree, and `felix merge` cannot be reached from a worktree that
+  changed the engine. The deadlock is structural, not a mistake somebody made.
+- **The gate gates the tree it is standing in, not the tree it lives in**, and
+  it prints that path in its header. Read the header before believing a pass.
+- **A tab-separated read applies its IFS to the substitution too.**
+  `IFS=$'\t' read ... <<EOF $(...)` hands the tab IFS to the captured command as
+  well, so a multi-line capture arrives as one field and everything after the
+  first line is dropped in silence. The engine is TSV the whole way down; this
+  costs a session every time it is rediscovered.
+- **`lessons.md` under the memory root holds the rest**, and it is mounted per
+  matched route rather than per session — so a session on an unmatched route is
+  told none of it. A trap that cost real time belongs there, through
+  `felix promote`, and not in this file.
+
 ## Tiers
 
 Editing `engine/harness/lib` or the hook is adversarial: those run in every

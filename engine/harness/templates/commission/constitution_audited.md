@@ -27,6 +27,10 @@ to:
 
     {{OUT}}
 
-The first line must repeat the topology hash above; an answer written for
-another topology is stale and is not read. The last line is `done` and the
-count of rows before it; a file without it is partial and is not read.
+The first line must repeat the topology hash above, exactly as
+`# topology {{TOPOLOGY}}` — column 0, one space after `#`, no trailing
+whitespace, LF line endings, no byte-order mark; an answer written for
+another topology is stale and is not read. The one data row is exactly three
+tab-separated fields: the word `score`, then `<n>/100`, then a grade. The
+last line is `done` <TAB> `1`; a file without it is partial and is not read.
+No backtick, `$(`, `;`, `|` or `&` anywhere in the file.

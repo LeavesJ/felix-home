@@ -64,7 +64,11 @@ felix_mem_handoff() {
     printf '\n## Recent\n\n```\n%s\n```\n' \
       "$(git -C "$root" log -8 --format='%h %ad %s' --date=short 2>/dev/null)"
     printf '\n## Next\n\n'
-    printf -- '- verify: `%s`\n' "${gate:-declare a gate in project.json}"
+    # The command, not the key. `verify: gate.sh` was project.json's gate value
+    # copied verbatim, and there is no gate.sh at any root a session would look
+    # in; the command that runs it is felix gate, and that is what is printed.
+    if [ -n "$gate" ]; then printf -- '- verify: `felix gate` (runs `%s`)\n' "$gate"
+    else printf -- '- verify: declare a gate in project.json, then `felix gate`\n'; fi
     if [ -n "$note" ]; then
       printf -- '- what was in progress: %s\n' "$note"
     else

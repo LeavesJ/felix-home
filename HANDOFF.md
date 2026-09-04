@@ -75,46 +75,82 @@ it should be paid deliberately, not rediscovered.
 
 | | |
 |---|---|
-| head | `00eb823` on `main` (#146–#153, eight merges), CI `gate` **success** on each |
-| suite | **1393** passed, 0 failed, manifest re-recorded |
-| deployed engine | **0.49.46**, from the home at `00eb823`; every session from here boots with it, the one that built it did not |
+| head | `cf029a5` on `main` (#146–#155, ten merges, plus the one carrying this line), CI `gate` **success** on each |
+| suite | **1395** passed, 0 failed, manifest re-recorded |
+| deployed engine | **0.49.48**, deployed from the home the moment this landed; every session from here boots with it, the one that built it did not |
 | governed projects | felix, elenchus, veldra each carry `commissioning.tsv` and were commissioned by hand through the deployed cli; receipts under `state/commission/`, all `held` |
-| waiting on a session | six provider requests, two per project, none answered |
+| waiting on a session | six provider requests, two per project, none answered; the banner names them every session until they are (#155) |
 
 ### Start here, if you are the next session
 
 Felix can now decide a repository's toolbox on first encounter, and there is
 exactly one thing built for you that no session has yet done.
 
-1. **Answer the two provider requests.** On this project and on each of the
-   other two, `felix commission --status` ends with two rows reading
-   `awaiting`, each naming a file:
+1. **Answer the two provider requests.** On each of the three governed
+   checkouts — `felix commission` resolves the project from the directory it
+   runs in, and two of them are not where a guess would put them:
+
+   ```
+   /Users/a14808/Documents/Felix        felix
+   /Users/a14808/Documents/Elenchus     elenchus
+   /Users/a14808/ReserveGrid-OS         veldra
+   ```
+
+   `felix commission --status` ends with two rows reading `awaiting`, each
+   naming a request file:
 
    ```
    ~/.felix/memory/<project>/commission/requests/constitution_audited.md
    ~/.felix/memory/<project>/commission/requests/automation_surveyed.md
    ```
 
-   Read one. It names a skill to run and an answer file to write, in exactly
-   the shape it gives — a topology header, the rows, a terminal `done <count>`.
-   Run the skill, write the file, then `felix commission`. The row moves from
-   awaiting to answered, the accepted rows land in `commissioning.log` as
-   INFERRED with the file's hash and the provider's version and commit, and
-   the report lists what the provider named. **Nothing it names is installed**:
-   the admit phase is PR 3 and is not built. This is the whole point of the
-   protocol, and it has never been exercised on real answers — expect it to
-   find something, and write down what it finds.
+   Read one to the end. It names a skill to run, the exact shape to write —
+   a byte-exact topology header, tab-separated rows, a terminal `done <count>`,
+   and every constraint the reader enforces — and the **answer file to write,
+   which is a different file** in the parent directory:
+   `~/.felix/memory/<project>/commission/<need>.tsv`. An answer written beside
+   the request is never read. Run the skill, write the file, then
+   `felix commission`.
 
-2. **Do not re-derive the architecture.** v3.2 plus the conformance amendments
-   govern, they live outside this repository under
-   `~/Documents/UC Berkeley/Career/Founder OS/`, and nothing loads them for
-   you. The question is closed; work conformance.
+   Two things about that last command. **`--status` and the full run count
+   differently**: `--status` runs no engine stage, so the four `felix:` rows
+   (discover, stack, preflight, reach) read `held` there whenever their check
+   does not pass on its own, while a full run executes each stage and then
+   re-checks — 7 done / 4 held in `--status` and 8 done / 3 held after a run
+   is the same project, not a drift. And **the full run is not read-only**: it
+   runs `discover --adopt`, `stack apply --yes`, `ready --fix` and
+   `toolbox --route`, which install low and declared-medium rows, adopt low
+   discoveries, and rewrite `routes.tsv` and `stack.tsv` in the home — commit
+   what it writes, as #150 did — and it re-renders every request with the
+   current topology, which is also how a request goes stale-proof after
+   `commissioning.tsv` or the detected surfaces change.
 
-3. **Then PR 3**, from "Not done, in order" below.
+   The row moves from awaiting to answered, accepted rows land in
+   `commissioning.log` as INFERRED with the file's hash and the provider's
+   version and commit, and the report lists what the provider named and
+   what it refused, row by row — the only surface that does. **Nothing it
+   names is installed**: the admit phase is PR 3 and is not built. This
+   protocol has never been exercised on real answers — expect it to find
+   something, and write down what it finds.
 
-Three rows are `held` on every project and each is the founder's, not yours:
-the `maturity` key in `project.json`, `felix bootstrap --yes`, and one
-outstanding `setup.tsv` step. Do not answer them on their behalf.
+2. **Do not re-derive the architecture.** Two files govern, and only two:
+   `felix_v32_architecture_spec.md` and `felix_v32_conformance_amendments.md`
+   under `~/Documents/UC Berkeley/Career/Founder OS/`. The addendum PDF and the
+   authority-kernel PDF beside them are earlier drafts and bind nothing.
+   Nothing loads them for you. The question is closed; work conformance.
+
+3. **Then PR 3**, from "Not done, in order" below — **but read the standing
+   rule first.** §0ak's "no engine work before 2026-09-06" (beta opens the 5th,
+   soak reads out the 6th) was overridden for the sessions of 09-03/04 by the
+   founder's live instruction, not repealed. If you are reading this on the 5th
+   or 6th, PR 3 is engine work and waits for the founder to say so; the
+   provider requests are not, and step 1 stands.
+
+After a full run, three rows are `held` on every project and each is the
+founder's, not yours: the `maturity` key in `project.json`,
+`felix bootstrap --yes`, and one outstanding `setup.tsv` step. Do not answer
+them on their behalf. In `--status` a fourth may show held for the phase
+reason above; that one is the engine's, and a run clears it.
 
 ### Read this first: what the founder asked, and what was built to it
 
@@ -242,9 +278,12 @@ and what it did is in `commissioning.log` and `stack.tsv`, not in a session.
 
 ### What the seven governed answers say about felix, measured
 
-`felix commission --status` on felix: 6 done, 5 held, 2 awaiting, 0 unknown.
-Held: the maturity key (nobody has written one), the discovery cache, stack
-rows not yet installed, the bootstrap baseline, and one human step. Surfaces
+`felix commission --status` on felix, on the first run of the night and
+before the three fixes below: 6 done, 5 held, 2 awaiting, 0 unknown. Held
+then: the maturity key (nobody has written one), the discovery cache, stack
+rows not yet installed, the bootstrap baseline, and one human step. After
+the fixes and a full run it is 8 done, 3 held; see the start-here block for
+why `--status` reads 7 and 4. Surfaces
 nothing serves, reaches or grounds: `ci` and `tests` — no catalogue row, no
 profile — which is what the printed next-steps used to drop.
 
@@ -274,9 +313,11 @@ goes to `commissioning.log` as INFERRED with the file's hash and the provider
 plugin's version and commit, once per file hash. An answered row holds nothing
 and installs nothing — asserted: the receipt, the gate line and the merge
 boundary are byte-identical before and after an answer appears. The
-session-start hook runs the record phase offline every session and speaks
-once per topology, naming what a session still owes. The `/felix` command
-tells the session what to run and what to write.
+session-start hook runs the record phase offline every session and names
+what a session still owes — every session, until an answer file exists,
+since #155; the first version spoke once per topology, and a fresh session
+was then told nothing, which was the last finding of the night. The `/felix`
+command tells the session what to run and what to write.
 
 **And one incident, owned.** PR 2's version bump was written as
 `open(p, "w").write(open(p).read()…)`, which truncates before it reads, so
@@ -307,9 +348,11 @@ named. Nothing it names is installed until PR 3.
 
 ### Standing
 
-- HANDOFF line 506 said no engine work before 2026-09-06; the founder's
-  instructions this session overrode it, deliberately, three times.
-- `tests/run --record-assertions` after any assertion change; **1393** on record.
+- §0ak's "Next, in order" item 3 said no engine work before 2026-09-06; the
+  founder's instructions on the 3rd and 4th overrode it, deliberately, for
+  those sessions. Whether it binds the 5th and 6th is stated in the start-here
+  block above: it does, for engine work, until the founder says otherwise.
+- `tests/run --record-assertions` after any assertion change; **1395** on record.
 - A waiter that names the process it waits for never exits (`pgrep -f` self-match);
   eight background shells sat thirteen hours on it. Wait on a PID, a done-file,
   or an exit status, with a ceiling. In `lessons.md`.

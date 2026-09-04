@@ -75,15 +75,19 @@ it should be paid deliberately, not rediscovered.
 
 | | |
 |---|---|
-| head | `5495eeb` on `main` (#158–#164, seven merges), CI `gate` **success** on each |
-| suite | **1457** passed, 0 failed, manifest re-recorded |
-| deployed engine | **0.49.54**, deployed from the home checkout after each merge |
-| felix's provider rows | **answered**, both. `constitution_audited` 69/100 C, `automation_surveyed` 8 rows |
-| elenchus and veldra | still **awaiting**, two requests each. Nothing here was run on them |
+| head | `01720bc` on `main` (#158–#166, nine merges), CI `gate` **success** on each |
+| suite | **1459** passed, 0 failed, manifest re-recorded |
+| deployed engine | **0.49.55**, deployed from the home checkout after each merge |
+| provider rows | **all six answered, 0 awaiting on all three projects** |
+| the audits | felix 69/100 C, elenchus 89/100 B, veldra 87/100 B |
 | open, and the founder's | one, below. It is what stopped the next increment rather than a preference |
 
 ### Start here, if you are the next session
 
+0. **The six provider requests are answered. That queue is empty.** §0am's
+   headline outstanding item is discharged on felix, elenchus and veldra, and
+   every one of them now reads `0 awaiting a session`. What the protocol found
+   in the doing is below.
 1. **Read the open decision below before touching the admit phase.** It is not
    a preference and it does not have a safe default: applying a `declare` to
    `stack.tsv` would quietly change what `DECLARED` means to the policy that
@@ -238,6 +242,72 @@ absolute one. The extraction spec requires absolute paths and says the engine
 relativizes downstream; both forms coexisted anyway. graphify warns and keeps
 one, so nothing is silently wrong — but the two conventions are not
 reconciling the way the spec describes.
+
+### The other two projects, and what answering them found (#166)
+
+**elenchus, 89/100 B.** Its module map is accurate and was verified symbol by
+symbol rather than read, because the file's own §2 forbids inferring a symbol
+from a doc — `run_session`, `ASSESSORS`, `STATE_UPDATERS`, `veldra_ingest`, the
+`assessment/` trio and the `web/` package all exist where claimed. The gap was
+one level up: `content/` holds **fourteen** directories of what invariant 1
+calls first-class doctrine, and the file named two of them. A repository map
+was added and the `web/` list corrected — it also ships `runtime` and
+`__main__`.
+
+The survey returned five rows and **zero hooks**, because Felix already
+enforces both hooks worth having: elenchus's `deny.tsv` refuses
+`git add -A|.|-f` and force push, and its gate runs `lint`, `secret`,
+`confidential` and `ignore-leak`. Recommending them would have been noise.
+
+**And then the admit phase refused one of my own recommendations, which is the
+best thing that happened all night.** The survey nominated `logfire` under
+observability — a defensible call: elenchus is FastAPI and pydantic, logfire
+auto-instruments both, and the declared observability tools are two error
+trackers and an LLM tracer that never touch the web layer. The engine sourced
+it, fetched it at its pinned sha, read it, and refused it:
+
+```
+refuse  plugin  logfire@...  high  interpolates an environment variable,
+                                   check what it sends where, talks to a
+                                   remote endpoint
+```
+
+A model named a plugin and what the engine read on disk overrode the
+nomination. That is the entire argument for grounding, demonstrated on a real
+recommendation rather than a fixture.
+
+**It also found a defect in the phase built four hours earlier.** The first
+run reported `logfire` as `unknown`, "nothing it ships matches a capability
+this project declares", because the capability gate ran before the risk gate
+and returned first. Both statements were true and the weak one got made: a
+capability mismatch is answerable by declaring a capability, and a high tier
+is not answerable at all. Risk is asked first now.
+
+**veldra, 87/100 B.** The strongest of the three on non-obvious patterns — a
+green checkmark reported over a red D12, a reviewer worktree without `gate.sh`
+silently downgrading to a reader three times in one session, `fmt` failing for
+any uncommitted `.rs`, and a "proven to fail, not assumed to" probe table that
+is invariant 5 discharged with numbers. Every verifiable claim in it checks
+out: `scripts/gate.sh` really is a symlink to `projects/veldra/gate.sh`,
+`superscan.sh` exists, `gate.sh` honours `FELIX_GATE_ROOT`.
+
+**Nothing was added to veldra's file, deliberately.** The request says to add
+architecture. That file's own rule is that it carries only what Felix needs and
+the checkout cannot carry, and a crate map is something the checkout can carry
+— adding it there would create exactly the second, drifting copy the file
+argues against. So it is recorded here instead:
+
+> **Nothing maps veldra's sixteen crates.** Not `projects/veldra/CLAUDE.md`,
+> and not the checkout's 166-line `.claude/CLAUDE.md`, which has no
+> Architecture section at all. They exist only in `Cargo.toml`. The right home
+> is the checkout, which is a different repository, so it was not edited unasked.
+
+veldra's survey returned five rows and **zero plugins**, with a number behind
+it: the only Rust-named plugin in the marketplace is `rust-analyzer-lsp`,
+already declared, and there is no Docker plugin at all. The rows that matter
+are grounded in counts — 21 `unsafe` blocks and 831 `unwrap`/`expect` sites
+across 109 Rust files, in a long-running gateway where a panic is an
+availability fault.
 
 ### Open, and the founder's — this is what stopped the next increment
 

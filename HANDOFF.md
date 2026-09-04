@@ -223,15 +223,47 @@ profile — which is what the printed next-steps used to drop.
   nothing.
 - No record of ungoverned repositories the hook passes through.
 
+### PR 2 landed the same night (#151, deployed as 0.49.46)
+
+The provider protocol, in the amendments' §1.3 shape. `felix commission` now
+writes a request for each provider row under the project's memory root at
+`commission/requests/<need>.md`, keyed to a topology hash over the detected
+and declared surfaces and the table — inputs ingestion never writes. A session
+reads the request, runs the skill it names, and writes the answer file it
+names; the engine reads that file with no model and no network and calls it
+`stale` (another topology), `partial` (no terminal `done` row, or a count that
+disagrees) or `answered`. Rows are accepted by shape and kind, a risk column
+is refused because risk is not the model's to assign, and every accepted row
+goes to `commissioning.log` as INFERRED with the file's hash and the provider
+plugin's version and commit, once per file hash. An answered row holds nothing
+and installs nothing — asserted: the receipt, the gate line and the merge
+boundary are byte-identical before and after an answer appears. The
+session-start hook runs the record phase offline every session and speaks
+once per topology, naming what a session still owes. The `/felix` command
+tells the session what to run and what to write.
+
+**And one incident, owned.** PR 2's version bump was written as
+`open(p, "w").write(open(p).read()…)`, which truncates before it reads, so
+the engine manifest landed on main empty. `felix install` deployed under a
+commit-sha directory, reported the cache as matching the tree (it did), and
+Claude Code reported the plugin as *failed to load* — every session started
+on this machine between that deploy and the fix booted without the floor.
+Neither the gate nor the suite had ever asked whether the manifest parses.
+Restored as #152 at 0.49.46, with the four assertions the deploy loop had been
+missing since `felix install` was written.
+
+**What this means for you, now.** On each governed project the two requests
+exist. The next session that runs `/felix` on felix, Elenchus or veldra will
+be told to run the two skills and write two files; after that,
+`felix commission` moves the rows to answered and lists what the recommender
+named. Nothing it names is installed until PR 3.
+
 ### Not done, in order
 
-1. PR 2: the provider protocol — request files rendered into the memory root,
-   answer files ingested offline as INFERRED, the session-start paragraph once
-   per topology. This is what makes the two skills *used* rather than named.
-2. PR 3: `felix_admit(tier, provenance)`, one install policy for every caller,
+1. PR 3: `felix_admit(tier, provenance)`, one install policy for every caller,
    and the admit phase for grounded provider nominations.
-3. PR 4: the autonomy grant and the background resume.
-4. The Elenchus model step is the founder's: graphify has a `claude-cli`
+2. PR 4: the autonomy grant and the background resume.
+3. The Elenchus model step is the founder's: graphify has a `claude-cli`
    backend billed to the plan, and headless `claude` here reports "OAuth
    session expired", so it is `claude login` in a terminal, then
    `graphify label <path> --backend=claude-cli`. Every community already
@@ -241,7 +273,7 @@ profile — which is what the printed next-steps used to drop.
 
 - HANDOFF line 506 said no engine work before 2026-09-06; the founder's
   instructions this session overrode it, deliberately, three times.
-- `tests/run --record-assertions` after any assertion change; **1359** on record.
+- `tests/run --record-assertions` after any assertion change; **1393** on record.
 - A waiter that names the process it waits for never exits (`pgrep -f` self-match);
   eight background shells sat thirteen hours on it. Wait on a PID, a done-file,
   or an exit status, with a ceiling. In `lessons.md`.

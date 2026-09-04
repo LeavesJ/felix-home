@@ -71,6 +71,173 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
+## 0an. Verified at session close, 2026-09-04 (overnight) — the provider protocol was exercised on real answers, and the admit phase grounds what a model names
+
+| | |
+|---|---|
+| head | `138e524` on `main` (#158–#161, four merges), CI `gate` **success** on each |
+| suite | **1450** passed, 0 failed, manifest re-recorded |
+| deployed engine | **0.49.53**, deployed from the home checkout after each merge |
+| felix's provider rows | **answered**, both. `constitution_audited` 69/100 C, `automation_surveyed` 8 rows |
+| elenchus and veldra | still **awaiting**, two requests each. Nothing here was run on them |
+| open, and the founder's | one, below. It is what stopped the next increment rather than a preference |
+
+### Start here, if you are the next session
+
+1. **Read the open decision below before touching the admit phase.** It is not
+   a preference and it does not have a safe default: applying a `declare` to
+   `stack.tsv` would quietly change what `DECLARED` means to the policy that
+   #159 just built, and the policy's whole load is that `DECLARED` means a
+   person decided. That is why the increment stopped there rather than
+   guessing.
+2. **Answer the four remaining provider requests**, on elenchus and veldra.
+   The protocol works — it was exercised end to end on felix — and §0am's
+   instructions for it are still exactly right. Two checkouts:
+   `/Users/a14808/Documents/Elenchus` and `/Users/a14808/ReserveGrid-OS`.
+   Expect the admit phase to say something about those projects' nominations
+   that it could not say about felix's.
+3. **Then PR 4**, the autonomy grant and the background resume. §0am's
+   standing rule about engine work and the 5th/6th still reads as it did; the
+   founder's live instruction covered the sessions of 09-03 and 09-04.
+
+### What landed
+
+**#158 — the protocol's first real answers, and the defect they found.** Both
+of felix's provider rows were answered by running the skills they name. The
+constitution audit scored `projects/felix/CLAUDE.md` **69/100 (C)**: the two
+weakest criteria were the two heaviest, and both for the same reason — the
+file carried the *conceptual* architecture completely and the *physical* one
+not at all. Architecture and Non-obvious patterns were added and the
+invariants were left alone, because they accrete from `felix promote`. The
+recommender returned 8 rows and **zero mcp rows**, which is the honest answer
+for a stack with no database, no frontend and no external API — the two
+candidates that exist are both closed questions.
+
+The defect: the provider report read each row's classifier out of field 4,
+which is the *automation* shape's capability column. A score row has three
+fields and its third is the grade, so the grade rendered as 25 spaces of
+padding. `commissioning.log` kept it, which is why no check that reads the log
+could see the loss, and the report is the only surface that lists what a
+provider named. The shape registry already knew a score row has three fields;
+nothing had ever asked it *where the classifier is*.
+
+**#159 — one install policy.** `felix_admit(tier, grounding)`. Three places
+decided whether something may be mounted with nobody present and two of them
+disagreed about medium. The disagreement is **not** collapsed, because it was
+never a bug: a person who writes a medium row into `stack.tsv` has decided
+something the engine's own tiering has not. So grounding is the second
+argument and both answers are stated once:
+
+```
+             DECLARED   OBSERVED   INFERRED
+  low        install    install    hold
+  medium     install    hold       hold
+  high       refuse     refuse     refuse
+```
+
+No cell was derived. high everywhere is invariant 4; low and medium DECLARED
+are `stack.sh`'s existing behaviour and §0am's recorded decision; medium
+OBSERVED holding is that decision's other half, and amendments §1.2 is why
+nothing better is available. INFERRED never installs at any tier.
+
+Found by the routing itself, not by looking for it: the old plan tested
+`[ "$risk" = "high" ]`, so **every value that was not that exact word fell
+through to install** — an empty tier column, a typo, and `HIGH` in capitals
+were all installable unattended. Nothing exploited it and nothing would have
+reported it either.
+
+**#160 — the log holds what the reader accepted.** An accepted row went into
+`commissioning.log` through a flat `cut -c1-160`, and the first real answer
+carried a 238-character sentence, stored cut mid-word at "…has actually ship".
+That is worse than clipping: the log is append-only and outlives the answer
+file the next topology rewrites, so the reason was lost rather than shortened.
+The rule it broke is #156's — the request states every constraint the reader
+enforces — and a 160-character ceiling was enforced and stated nowhere. The
+three free-text fields are now bounded (source 200, capability 64, why 300),
+all three are stated in the request, and the log's own limit is **derived from
+them** rather than written down again.
+
+**#161 — the admit phase.** `felix_commission_admit` grounds a nomination so
+it can reach the policy at all. Source the plugin, fetch at its pinned sha,
+read the three files discovery already reads, tier what was found: that is
+what turns INFERRED into OBSERVED. **Both** of the provider's claims are
+refused as evidence, not one — the tier is never claimed and always read, and
+the capability *is* claimed by the row, so it is matched again against what
+the copy on disk actually ships. An `mcp` row is refused on its kind before
+anything is fetched (spec §7 T3, the row that would have been activated
+unattended); `hook`, `skill` and `subagent` rows are recorded, because Felix
+authors none of those. Ungroundable is `unknown`, not `refuse`.
+
+### What running it found that reading it would not have
+
+The protocol had never been exercised on real answers, and §0am said to expect
+it to find something. It found four things, and three of them only appeared
+when the phase was pointed at the eight actual nominations:
+
+- **The score answer was being admitted.** Its row is `score 69/100 C` — three
+  fields, no kind, no name — so the phase read `score` as a kind and went
+  looking for a plugin called `69/100`. The shape registry already knew which
+  needs carry rows that name something.
+- **An installed plugin read `unknown`, "nothing could be read".** An installed
+  plugin is absent from the *available* list, because that list is what is left
+  to install. The honest verdict is that it is already here. This is exactly
+  the case the recommender named: `github`, installed and undeclared, which is
+  why no route can reach it.
+- **42 of the marketplace's 269 available plugins cannot be fetched at all.**
+  Their `source` is a path relative to the marketplace repo with no url and no
+  sha of their own; `hookify` is one. The other 227 carry a nested url and sha
+  and resolve fine. `unknown` is the correct verdict and it holds — but it
+  means the admit phase can never ground a first-party plugin of that
+  marketplace, and no amount of retrying changes that. Whether Felix should
+  learn to fetch the marketplace repo and read a subdirectory is unanswered
+  and was not guessed at.
+- **The suite's own structural check caught a bug in new code**: a `local`
+  statement that read a variable declared beside it, which made every rules
+  lookup miss and turned every verdict into a silent `unknown`. It is the one
+  failure mode the phase has that looks exactly like correct caution.
+
+### Open, and the founder's — this is what stopped the next increment
+
+**When the admit phase says `declare`, should the row be written into
+`stack.tsv`, and if it is, what does `DECLARED` then mean?**
+
+The phase decides and writes nothing today. Writing is the obvious next step
+and `discover --adopt` already does exactly that for catalogue candidates. The
+problem is what the row becomes afterwards. `stack.tsv` has five columns and
+none of them is provenance, so a row the engine wrote after grounding is
+indistinguishable on the next run from a row a person wrote — and
+`felix_admit` reads a manifest row as `DECLARED`, which is the one grounding
+that installs medium unattended. A nomination would arrive as INFERRED,
+be ground to OBSERVED, be written down, and read as DECLARED forever after.
+
+That is not a bug to fix in passing. It is the load-bearing distinction #159
+just established, and three ways out are visible, none obviously right:
+
+1. Write the row and accept the promotion, on the grounds that the engine
+   stands behind what it grounded and `commissioning.log` holds the
+   provenance permanently anyway. This is what `discover --adopt` already
+   does, so it is the status quo made explicit.
+2. Add a provenance column to `stack.tsv`. Correct, and a schema change to
+   every governed project's manifest and every reader of it.
+3. Do not write. Report the `declare`, and let a person move the row. Safe,
+   and it puts the founder back in the tooling loop, which the constitution
+   says is Felix failing at its job.
+
+Nothing in the v3.2 spec or the amendments answers it, which is why the
+moratorium applies: this is architecture and it was not derived here.
+
+### Standing
+
+- `tests/run --record-assertions` after any assertion change; **1450** on record.
+- Engine work happens in the **home checkout**, never a worktree. This session
+  started in one, and moving was the founder's first instruction. The session's
+  own cwd could not be moved — the harness pins it — so every command was run
+  from `/Users/a14808/Documents/Felix` explicitly. `lessons.md` already carried
+  the structural reason; `projects/felix/CLAUDE.md` now carries it too.
+- `felix merge` needs a gate receipt for the **committed** tree. Running the
+  gate before committing and then merging refuses, and the refusal reads as a
+  missing test rather than a stale receipt.
+
 ## 0am. Verified at session close, 2026-09-04 — the first-encounter moment is a table, the two setup skills are rows in it, and the rows are waiting for a session
 
 | | |

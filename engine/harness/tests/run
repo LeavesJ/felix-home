@@ -9124,6 +9124,19 @@ mv "$CMP/routes.keep" "$CMP/routes.tsv"
 # felix new says where the requests are.
 has "felix new prints the request path for a session" "$(cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" commission 2>&1)" "commission/requests/automation_surveyed.md"
 
+
+printf '\nthe engine manifest\n'
+# The plugin manifest is what felix install deploys under, and an empty one
+# deployed the engine under a commit sha with no version at all — written by
+# an edit that opened the file for writing before reading it. Neither the
+# gate nor the suite had ever asked whether the manifest parses.
+_mf="$REAL_HARNESS/../.claude-plugin/plugin.json"
+[ -s "$_mf" ] && ok "the engine manifest is not empty" || bad "the engine manifest is not empty" "$_mf"
+has "and declares a version"  "$(cat "$_mf" 2>/dev/null)" '"version"'
+has "and a name"              "$(cat "$_mf" 2>/dev/null)" '"name"'
+is  "and the version is a dotted number" \
+    "$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([0-9][0-9.]*\)".*/\1/p' "$_mf" 2>/dev/null | grep -c .)" "1"
+
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.
 #

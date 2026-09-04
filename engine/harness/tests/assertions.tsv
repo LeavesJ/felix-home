@@ -455,6 +455,7 @@
 1	and a high one is refused
 1	and a hyphenated name still matches its words
 1	and a live one says when it was last caught
+1	and a name
 1	and a probe that failed against a real surface is blind too
 1	and a project with none does not claim it
 1	and a real one still routes
@@ -491,6 +492,7 @@
 1	and commits nothing to it
 1	and counts the recorded decline
 1	and creates nothing without --create
+1	and declares a version
 1	and declares nothing
 1	and deleting the syntax check escapes as verifier
 1	and does not ask for a lesson that already exists
@@ -828,6 +830,7 @@
 1	and the tier it carries
 1	and the tier reducer agrees
 1	and the unmount above is the only other proposal
+1	and the version is a dotted number
 1	and what a fix will have to prove
 1	and what was detected
 1	and what was typed still counts
@@ -1218,6 +1221,7 @@
 1	the data marker is substituted
 1	the ecosystem check is behind the verifier confine
 1	the ecosystem table is an enforcing table, and escape.sh says so
+1	the engine manifest is not empty
 1	the engine names no ecosystem without a declared reason
 1	the engine names no governed project
 1	the executable check is behind the verifier confine

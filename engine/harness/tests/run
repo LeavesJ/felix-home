@@ -4184,6 +4184,48 @@ esac
 n="$(grep -c '^sess1' "$MEM/widgetledger/ledger.d/sess1.tsv")"
 is "rolling the same session twice does not double it" "$n" "3"
 
+# A session that never ends never folds, and its measurements are stranded.
+#
+# The rollup only ever runs from the SessionEnd hook, so a session killed, put
+# to sleep, or ended with the process torn down leaves its appends in
+# state/ledger/ and they are never counted. Measured on the real memory the
+# night this was found: 31 stranded sessions from 2026-08-11 onward, several
+# carrying thousands of reaches, against 12 that had folded — so the ledger was
+# reporting a biased subsample, the sessions that happened to exit cleanly, and
+# calling it "the only unconfounded signal here" while recommending capabilities
+# be retired for zero use.
+#
+# Catch-up is safe by construction and for the reason the rollup already gives:
+# it rewrites its own file rather than appending, so folding a session twice —
+# or folding one that is still live and folds again at its own end — cannot
+# double anything.
+( . "$FROOT/harness/lib/ledger.sh"
+  felix_ledger_record "$LH" stranded1 "tool	Read"
+  felix_ledger_record "$LH" stranded1 "skill	humanizer:humanizer"
+  felix_ledger_record "$LH" stranded2 "tool	Write" )
+is "a stranded session has appends but no folded record" \
+   "$([ -f "$MEM/widgetledger/ledger.d/stranded1.tsv" ] && echo folded || echo stranded)" "stranded"
+
+_caught="$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" )"
+is "catch-up folds every session nothing folded"  "$_caught" "2"
+has "and the stranded reaches are now counted"    "$(cat "$MEM/widgetledger/ledger.d/stranded1.tsv" 2>/dev/null)" "skill	humanizer:humanizer	1"
+has "including the second one"                    "$(cat "$MEM/widgetledger/ledger.d/stranded2.tsv" 2>/dev/null)" "tool	Write	1"
+
+# Already-folded sessions are not re-folded, so catch-up is cheap once it has
+# caught up and reports nothing when there is nothing to say.
+is "a second catch-up finds nothing left"         "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" )" "0"
+is "and did not disturb the session that had folded" \
+   "$(grep -c '^sess1' "$MEM/widgetledger/ledger.d/sess1.tsv")" "3"
+
+# The date is the state file's own, not today's. A session from three weeks ago
+# folded under today's date would land in whatever window the reader uses and
+# report old work as recent.
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_record "$LH" stranded3 "tool	Bash" )
+touch -t 202608150000 "$LH/state/ledger/stranded3.tsv"
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" >/dev/null )
+has "a stranded session folds under its own date, not today's" \
+    "$(cat "$MEM/widgetledger/ledger.d/stranded3.tsv" 2>/dev/null)" "2026-08-15"
+
 printf '\na count that arrived as two lines\n'
 # `grep -c` prints the count AND exits 1 when that count is zero, so the idiom
 # `$(grep -c ... || echo 0)` yields "0\n0" on every miss — the count grep already

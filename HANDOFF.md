@@ -195,6 +195,15 @@ defects, all fixed the same night:
 After the fixes, all three read 8 done / 3 held / 0 unknown, the held rows
 being maturity, the bootstrap baseline and a human step — a person's, each.
 
+The third run, under the word matcher and the stamped cache, adopted two more
+plugins for elenchus — `sentry-cli` under observability and
+`42crunch-api-security-testing` under its declared `security` capability,
+both low, both matched on a whole word of their names — and wired
+`sentry-cli` into the incident route. Those rows are committed with this
+section. Every `felix commission` re-runs `discover --adopt`, so the toolbox
+grows as the marketplaces do; what it may install is bounded by the tiers,
+and what it did is in `commissioning.log` and `stack.tsv`, not in a session.
+
 ### What the seven governed answers say about felix, measured
 
 `felix commission --status` on felix: 6 done, 5 held, 2 awaiting, 0 unknown.

@@ -4476,6 +4476,13 @@ mkdir -p "$MEM/widget/ledger.d"
 for _i in 1 2 3 4 5; do
   printf 'bnr%s\t2026-09-01\tplugin\tghosttool\t0\t1\n' "$_i" > "$MEM/widget/ledger.d/bnr$_i.tsv"
 done
+# And one session with calls on disk that no fold accounts for, so the
+# qualifier under the list can be READ rather than grepped for in the source.
+# The mark carries this repository's HEAD because the catch-up folds only
+# sessions this repository owns.
+mkdir -p "$FROOT/state/ledger" "$FROOT/state/session"
+printf '%s\n' "$(cd "$REPO" && git rev-parse HEAD)" > "$FROOT/state/session/bnrstrand"
+printf 'tool\tBash\n' > "$FROOT/state/ledger/bnrstrand.tsv"
 _bnr="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
 has "the retire banner names the capability"        "$_bnr" "ghosttool"
 has "and the sessions the filter actually counted"  "$_bnr" "pointed at in 5 of"
@@ -4484,7 +4491,22 @@ case "$_bnr" in
   *"Mounted every session"*) bad "the banner claims a denominator nothing checked" "$_bnr" ;;
   *) ok "and never claims it was mounted every session" ;;
 esac
-rm -f "$MEM/widget/ledger.d"/bnr*.tsv
+# The qualifier describes what it counts. It used to say those sessions "ended
+# without folding", which stopped being true of half of them once the
+# catch-up began re-folding a record that had merely fallen behind.
+has "and qualifies the list with what is not counted yet" \
+    "$_bnr" "no fold accounts for"
+# The same claim on the command surface, from the same fixture.
+_bled="$(cd "$REPO" && "$FELIX" ledger 2>&1)"
+has "felix ledger folds it and says what it folded" \
+    "$_bled" "whose record was behind what is on disk"
+case "$_bled" in
+  *"ended without folding themselves"*)
+    bad "the fold count still claims those sessions never folded" ;;
+  *) ok "and no longer claims a re-folded session never folded" ;;
+esac
+rm -f "$MEM/widget/ledger.d"/bnr*.tsv "$FROOT/state/ledger/bnrstrand.tsv" \
+      "$FROOT/state/session/bnrstrand"
 
 # And the catch-up must fold only THIS project's sessions.
 #

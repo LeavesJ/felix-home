@@ -96,6 +96,7 @@
 1	a filename containing ' and ' cannot hide behind a fragment
 1	a finding names its reason
 1	a flag with no value refuses instead of spinning
+1	a fold older than its own state file is stranded, not finished
 1	a four-column row still reads as event
 1	a fresh cache is not stale
 1	a frontend prompt routes to frontend
@@ -303,6 +304,7 @@
 1	a second catch-up finds nothing left
 1	a second hand-off in the same session stays quiet
 1	a second run appends rather than replacing
+1	a session folds on the first catch-up
 1	a session reports what was named and what was followed
 1	a session that changed nothing stops silently
 1	a short name is not turned into a keyword
@@ -494,6 +496,7 @@
 1	and a document that is not a plan
 1	and a failing one as due for that reason
 1	and a file that does not exist counts zero
+1	and a fold that is current leaves nothing stranded
 1	and a gitignored stray in the cache is too
 1	and a high one is refused
 1	and a hold is not written
@@ -730,6 +733,7 @@
 2	and quotes the name the marker asks for
 1	and quotes what it said
 1	and raises or clears no merge blocker
+1	and re-folding does not double what was already counted
 1	and re-rolling a session replaces its old rows
 1	and reads as a requirement
 1	and reads its words off the capability probe
@@ -847,6 +851,7 @@
 1	and the all-clear is not repeated every session
 1	and the alphabetical-first remote was not touched
 1	and the announcement names the change
+1	and the appends that arrived after it are folded in
 1	and the bare listing the gate used to do would have counted a plain file
 1	and the blurb no longer outranks the manifest
 1	and the cause is the prompt, not the envelope
@@ -1510,6 +1515,7 @@
 1	what the engine tiered low installs
 1	which does not by itself fail the gate, since not applying is not a claim
 1	which is the number it printed
+1	which takes it back to nothing stranded
 1	while a complete stance is not called malformed
 1	while a mount needs no threshold: the reach already happened
 1	while a predicate that did not move is silent

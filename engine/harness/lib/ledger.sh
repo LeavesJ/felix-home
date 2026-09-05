@@ -497,6 +497,34 @@ _felix_ledger_owns() {   # home, root, session -> 0 when this repository owns it
   git -C "$root" cat-file -e "${sha}^{commit}" 2>/dev/null
 }
 
+# Is this session's fold current — does it account for everything on disk?
+#
+# The guard here used to be `[ -f "$dir/$session.tsv" ]`, which tests whether a
+# fold exists and not whether it is finished. Both ways a fold goes stale are
+# ordinary. The catch-up folds sessions that are still alive, because it cannot
+# tell which are; and a resumed session (`--continue`, same id) appends to a
+# state file that a previous SessionEnd already folded. Either way the state
+# file keeps growing, the fold does not, and because a fold now EXISTS neither
+# loop ever looks at it again.
+#
+# The header above this pair used to argue the catch-up is safe by
+# construction. That argument is about double-counting and it is correct — the
+# rollup is a whole-file rewrite, staged and renamed, so folding twice cannot
+# add anything. It says nothing about under-counting, which is what the
+# existence test actually caused: an audit found four signals on disk since
+# 2026-09-01 — one reach and three route namings — that the summary could
+# never see, because a SessionEnd fold at 15:14 was followed by appends until
+# 17:35 and the catch-up skipped it three days running.
+#
+# `-nt` rather than stat: it is a bash builtin, it needs no date parsing, and
+# equal mtimes read as not-newer, which is the right answer for a fold that
+# already accounts for the file.
+_felix_ledger_fold_current() {   # state file, fold file -> 0 when nothing new
+  [ -f "$2" ] || return 1
+  [ "$1" -nt "$2" ] && return 1
+  return 0
+}
+
 # How many sessions have appends that nothing folded.
 #
 # The companion to the catch-up, and the reason it exists separately: the
@@ -506,10 +534,16 @@ _felix_ledger_owns() {   # home, root, session -> 0 when this repository owns it
 #
 # It exists because the catch-up does not run in a hook. The moment a session
 # ends uncleanly the fold is incomplete again, and the session-start banner
-# goes on saying "mounted every session and never once reached for" and calling
-# it the only unconfounded signal here. That is this repository's own recorded
-# lesson one level down: "Nothing due" and "nothing is being checked" render
+# goes on naming what was pointed at and never reached while calling it the
+# only unconfounded signal here. That is this repository's own recorded lesson
+# one level down: "Nothing due" and "nothing is being checked" render
 # identically.
+#
+# It counts a stale fold as well as a missing one, and that is not a detail:
+# the qualifier this number gates is the sentence that tells a reader the list
+# above it may not be clearing. When both loops tested existence alone, a fold
+# that had stopped keeping up made this zero, so the banner printed the retire
+# list with no caveat at all while uncounted reaches sat on disk.
 felix_ledger_stranded() {
   local proj="$1" home="$2" root="${3:-}" mem dir f session n=0
   mem="$(felix_mem_dir "$proj")"
@@ -517,7 +551,7 @@ felix_ledger_stranded() {
   for f in "$home"/state/ledger/*.tsv; do
     [ -f "$f" ] || continue
     session="$(basename "$f" .tsv)"
-    [ -f "$dir/$session.tsv" ] && continue
+    _felix_ledger_fold_current "$f" "$dir/$session.tsv" && continue
     _felix_ledger_owns "$home" "$root" "$session" || continue
     n=$((n + 1))
   done
@@ -531,7 +565,7 @@ felix_ledger_catchup() {
   for f in "$home"/state/ledger/*.tsv; do
     [ -f "$f" ] || continue
     session="$(basename "$f" .tsv)"
-    [ -f "$dir/$session.tsv" ] && continue
+    _felix_ledger_fold_current "$f" "$dir/$session.tsv" && continue
     _felix_ledger_owns "$home" "$root" "$session" || continue
     felix_ledger_rollup "$proj" "$home" "$session" \
       "$(date -r "$f" -u +%Y-%m-%d 2>/dev/null || date -u +%Y-%m-%d)" || continue

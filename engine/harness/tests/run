@@ -5998,6 +5998,56 @@ case "$out" in
   *"stack reconcile"*) bad "a proposal shown once is not volunteered again" "$out" ;;
   *)                   ok  "a proposal shown once is not volunteered again" ;;
 esac
+
+# But "once" is only safe for a proposal a later fold cannot overturn.
+#
+# A mount comes from a reach — calls above zero, which further folding can only
+# confirm. An unmount comes from calls at zero, which is exactly what an
+# unfolded session's reaches would falsify. This hook cannot fold, so it holds
+# the zero-backed half rather than showing it and marking it seen: a held
+# proposal returns on its own, a marked one is gone whether it was right or
+# not. The retire line eleven lines above it has carried a hedge for this since
+# it was written; the reconcile line carried none.
+mkdir -p "$FROOT/projects/holdproj" "$MEM/holdproj"
+cat > "$FROOT/projects/holdproj/project.json" <<'EOF'
+{"name": "holdproj", "remote_match": "example.com/holdproj", "gate": "true"}
+EOF
+printf '# holdproj\n' > "$FROOT/projects/holdproj/CLAUDE.md"
+printf 'mcp\tquietgh\t-\tmedium\talways\n' > "$FROOT/projects/holdproj/stack.tsv"
+{ printf 'h1\t2026-08-01\tmcp\tquietgh\t0\t2\n'
+  printf 'h2\t2026-08-01\tmcp\tquietgh\t0\t2\n'
+  printf 'h3\t2026-08-01\tmcp\tquietgh\t0\t2\n'; } > "$MEM/holdproj/ledger.tsv"
+HREPO="$TMP/hold-repo"; mkdir -p "$HREPO"
+( cd "$HREPO" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
+printf 'holdproj\n' > "$HREPO/.felix"
+mkdir -p "$FROOT/state/ledger" "$FROOT/state/session"
+printf '%s\n' "$(cd "$HREPO" && git rev-parse HEAD)" > "$FROOT/state/session/hstrand"
+printf 'tool\tBash\n' > "$FROOT/state/ledger/hstrand.tsv"
+out="$(cd "$HREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" FELIX_LEDGER_MIN=3 \
+       "$FROOT/harness/hooks/session-start" 2>&1)"
+has "an unmount is held while calls sit unfolded on disk" "$out" "Held: 1 unmount proposal"
+case "$out" in
+  *"unmount:quietgh"*) bad "and is not proposed over a partial record" "$out" ;;
+  *)                   ok  "and is not proposed over a partial record" ;;
+esac
+# Held, not hedged. The seen-gate never saw it, so it comes back by itself.
+( cd "$HREPO" && FELIX_LEDGER_MIN=3 "$FELIX" ledger >/dev/null 2>&1 )
+out="$(cd "$HREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" FELIX_LEDGER_MIN=3 \
+       "$FROOT/harness/hooks/session-start" 2>&1)"
+has "and returns once the record is complete" "$out" "unmount:quietgh"
+
+# And the command folds before it reads, which is what makes its own silence
+# mean anything. It reads felix_ledger_summary directly, so without the fold
+# "the record and the manifest agree" was said over whichever sessions
+# happened to exit cleanly.
+printf '%s\n' "$(cd "$HREPO" && git rev-parse HEAD)" > "$FROOT/state/session/hstrand2"
+printf 'tool\tRead\n' > "$FROOT/state/ledger/hstrand2.tsv"
+out="$(cd "$HREPO" && FELIX_LEDGER_MIN=3 "$FELIX" stack reconcile 2>&1)"
+has "felix stack reconcile folds what nothing folded before reporting" \
+    "$out" "whose record was behind what is on disk"
+rm -f "$FROOT/state/ledger/hstrand.tsv" "$FROOT/state/ledger/hstrand2.tsv" \
+      "$FROOT/state/session/hstrand" "$FROOT/state/session/hstrand2"
 mkdir -p "$FROOT/projects/quietproj" "$MEM/quietproj"
 cat > "$FROOT/projects/quietproj/project.json" <<'EOF'
 {"name": "quietproj", "remote_match": "example.com/quietproj", "gate": "true"}

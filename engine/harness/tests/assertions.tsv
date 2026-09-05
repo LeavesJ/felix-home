@@ -461,6 +461,7 @@
 1	an unmerged index is refused whatever wrote it (stash)
 1	an unmet step reports todo
 1	an unmount below the session threshold is not evidence
+1	an unmount is held while calls sit unfolded on disk
 1	an unparseable payload is allowed
 1	an unparseable payload records nothing
 1	an unpinned version is high
@@ -602,6 +603,7 @@
 1	and is not a routing gap either; it is unknown
 1	and is not called agreement
 1	and is not given an action nobody can take
+1	and is not proposed over a partial record
 1	and is not reported as unreadable
 1	and is not run as a probe whose verdict is the witness alone
 1	and is not run as though it were a probe
@@ -767,6 +769,7 @@
 1	and reports what nothing answers
 1	and restoring both makes it valid again
 1	and restoring it makes the row clean again
+1	and returns once the record is complete
 1	and says a long name at least scores on itself
 1	and says how many are still unusable
 1	and says it cannot be scoped
@@ -1091,6 +1094,7 @@
 1	felix profile lists a row carrying the grounding column
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
+1	felix stack reconcile folds what nothing folded before reporting
 1	felix's own gate no longer carries a private copy of the check
 1	felix_autonomy_allows is defined for the hook
 1	felix_budget_record itself reports the failure

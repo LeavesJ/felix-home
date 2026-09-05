@@ -2112,6 +2112,23 @@ cmd_stack() {
   # declared a stack still has a record worth reading, and every ledger row is
   # evidence whether or not a manifest exists.
   if [ "$sub" = "reconcile" ]; then
+    # Fold anything nothing folded, before reading — the same thing
+    # `felix ledger` does one command over, and for the same reason. This
+    # reads felix_ledger_summary directly, so without it the report is
+    # computed over whichever sessions happened to exit cleanly, and the
+    # sentence at the bottom of the empty case says the record and the
+    # manifest agree on the strength of that subset. An unmount is proposed
+    # from calls at zero, which is precisely what an unfolded session's
+    # reaches would falsify, so silence here was the cheapest possible way to
+    # be wrong. Done here rather than in a hook because the cost is several
+    # greps per distinct signal per stranded session, and that belongs to a
+    # person asking for the report.
+    local lroot; lroot="$(felix_repo_root "$PWD")"
+    local caught; caught="$(felix_ledger_catchup "$proj" "$FELIX_HOME_DIR" "$lroot" 2>/dev/null)"
+    if [ "${caught:-0}" -gt 0 ] 2>/dev/null; then
+      printf 'folded %s session(s) whose record was behind what is on disk.\n' "$caught"
+      printf 'Their calls were recorded all along and had never been counted.\n\n'
+    fi
     local props mem; props="$(felix_stack_reconcile "$proj")"
     if [ -z "$props" ]; then
       # An empty answer has two honest readings and only one of them is

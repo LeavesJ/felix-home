@@ -61,6 +61,7 @@
 1	a declare whose provenance could not be written is not counted
 1	a declared capability with NO row still scores on its name
 1	a declared capability with a row keeps its keywords
+1	a declared plugin's server is proposed no further
 1	a declared server no play ever named is left alone
 1	a declared skill with no directory cannot be used
 1	a declared submodule does not excuse an undeclared one
@@ -304,6 +305,7 @@
 1	a second catch-up finds nothing left
 1	a second hand-off in the same session stays quiet
 1	a second run appends rather than replacing
+1	a server the registry says a plugin provides is proposed as a plugin row
 1	a session folds on the first catch-up
 1	a session reports what was named and what was followed
 1	a session that changed nothing stops silently
@@ -549,6 +551,7 @@
 1	and creates nothing without --create
 1	and declares a version
 1	and declares nothing
+1	and declaring a plugin does not turn the retire rule into an unmount
 1	and deleting the syntax check escapes as verifier
 1	and did not disturb the session that had folded
 1	and does not ask for a lesson that already exists
@@ -665,6 +668,7 @@
 1	and neither is an empty message
 1	and never a verified receipt
 1	and never as a clock reading nobody wrote
+1	and never as an mcp row nothing could add
 1	and never as event, which is what a row with no check says
 1	and never claims it was mounted every session
 1	and never ends on a success line

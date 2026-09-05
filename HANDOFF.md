@@ -82,6 +82,19 @@ it should be paid deliberately, not rediscovered.
 | the audits | felix 69/100 C, elenchus 89/100 B, veldra 87/100 B |
 | open, and the founder's | one, below. It is what stopped the next increment rather than a preference |
 
+### PAUSED mid-change, 2026-09-05 — read this before the list below
+
+One branch holds unmerged work: **`feat/stack-rows-carry-their-grounding`**,
+pushed, one WIP commit, **three assertions red and each diagnosed in the
+commit message**. It is the founder's decision from this morning built out —
+`stack.tsv` rows carry a sixth column saying who grounded them, and the admit
+phase writes its declares — and it is not on `main`, so nothing described in
+its commit is true of the engine any session boots with. Finish it by fixing
+the two fixtures the commit names, running the suite green, and merging
+through the usual chain. Do not rebuild it.
+
+Deployed engine is `main`'s, verified. Working tree clean.
+
 ### Start here, if you are the next session
 
 0. **The six provider requests are answered. That queue is empty.** §0am's

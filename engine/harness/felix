@@ -1463,6 +1463,14 @@ EOF
   printf 'judging that is not mechanical, and a report implying otherwise would\n'
   printf 'be worse than no report. Two gaps were found by a person noticing, and\n'
   printf 'the point of this table is that the third one fails instead.\n'
+  # The residual, stated where trust is claimed rather than kept in a design
+  # note. This table is an enumeration, and enumeration is the joint that
+  # cannot be behavioural: a moment nobody listed is not reported missing, it
+  # is not reported at all.
+  printf '\nOne authority writes both the work and the judgement of the work, and\n'
+  printf 'no row here closes that. A moment absent from the template is missing\n'
+  printf 'from this list rather than reported as a gap in it — an entrypoint\n'
+  printf 'never found is never executed.\n'
 }
 
 cmd_shape() {
@@ -3903,6 +3911,24 @@ cmd_probes() {
     printf 'Every state above was computed and none of it was kept, so nothing\n'
     printf 'later can compare this run against another one.\n'
   fi
+
+  # The residual, on the surface it bites hardest.
+  #
+  # This command exists to ask reality rather than to trust a filename, which
+  # makes it the strongest claim to trustworthiness Felix prints — and its own
+  # weakest joint is the one v3.2's amendments close on. Every count above is
+  # an enumeration, and enumeration cannot be behavioural: a member the probe
+  # never reached is not reported missing, it is absent from the denominator,
+  # and nothing downstream can notice a number that was never wrong.
+  #
+  # Said every run rather than on a condition, because there is no state in
+  # which it stops being true and a caveat that appears only sometimes reads
+  # as a finding about this run.
+  printf '\nWhat none of this can reach. Every row above is an enumeration, and an\n'
+  printf 'entrypoint never found is never executed — a surface no probe names is\n'
+  printf 'missing from these counts rather than reported as a gap in them. And\n'
+  printf 'one authority still writes both the work and the judgement of the work:\n'
+  printf 'these rows narrow what may be claimed, not who claims it.\n'
 
   [ "$gate" -eq 1 ] || return 0
   [ "$recorded" -eq 1 ] || return 1

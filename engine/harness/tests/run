@@ -5578,6 +5578,16 @@ is  "it names a schema version, so a reader can refuse one it does not know" \
 is  "and the domain it speaks for"  "$(_rf "$r" domain)" "engineering"
 has "it names what changed"         "$(_rf "$r" changed.paths)" "src/a.py"
 is  "and says that it knows"        "$(_rf "$r" changed.known)" "true"
+# And it carries what it cannot show. v3.2's conformance amendments close on a
+# residual no layer above them removes — one authority writes both the work and
+# the judgement of the work — and instruct that it be stated wherever the system
+# reports its own trustworthiness. A receipt is exactly that, and it is the one
+# that travels: a peer consuming a confidence figure with no idea what bounds it
+# is the case this field exists for.
+has "the receipt carries the limit no layer above it removes" \
+    "$(_rf "$r" limits.authority)" "writes both the work and the judgement"
+has "and the one enumeration cannot close" \
+    "$(_rf "$r" limits.enumeration)" "never found is never executed"
 
 # The gate has not run against this tree, so nothing may say it is verified.
 # This is the whole point: an absent receipt is not a green one.
@@ -6907,6 +6917,14 @@ has "and names the project"                       "$out" "probes for widget"
 has "and prints the state rather than a verdict"  "$out" "blind"
 out="$(cd "$REPO" && "$FELIX" probes --gate 2>&1)"; rc=$?
 is  "while gate mode turns that same state into a refusal" "$rc" "1"
+# The surface that asks reality is the strongest claim to trustworthiness this
+# engine prints, and its own weakest joint is enumeration: a member no probe
+# names is missing from the counts rather than reported as a gap in them. Said
+# every run, because there is no state in which it stops being true and a
+# caveat that appears only sometimes reads as a finding about this run.
+out="$(cd "$REPO" && "$FELIX" probes 2>&1)"
+has "the probe report says what it cannot reach" "$out" "never found is never executed"
+has "and that one authority writes both halves"  "$out" "writes both the work and the judgement"
 
 { printf 'present\t-\t-\tls -1 WIDGET.txt\ttest -f WIDGET.txt\n'
   printf 'switchedoff\t-\tfalse\tls -1 nothing-here\ttest -f WIDGET.txt\n'
@@ -6916,6 +6934,15 @@ has "a row switched off by its when column is reported as not applying" \
     "$out" "not-applicable"
 has "and the report says how much of the table asked nothing" \
     "$out" "did not apply here"
+
+# felix coverage had no test at all, which for a command whose whole subject is
+# "was every moment considered" is the joke telling itself. Driven here for the
+# caveat it has always carried and the residual it now carries too.
+out="$(cd "$REPO" && "$FELIX" coverage 2>&1)"; rc=$?
+is  "felix coverage answers"                        "$rc" "0"
+has "and says it judges consideration, not quality" "$out" "never that what runs at"
+has "and states the residual no row can close"      "$out" "writes both the work and the judgement"
+has "including the enumeration limit"               "$out" "never found is never executed"
 out="$(cd "$REPO" && "$FELIX" probes --gate 2>&1)"; rc=$?
 is  "which does not by itself fail the gate, since not applying is not a claim" "$rc" "0"
 out="$(cd "$REPO" && "$FELIX" probes --wat 2>&1)"; rc=$?

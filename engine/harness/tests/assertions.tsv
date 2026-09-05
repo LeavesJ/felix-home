@@ -176,6 +176,7 @@
 1	a notebook is matched on its own path field
 1	a notification payload is machine text end to end
 1	a one-line registry answers for the right plugin
+1	a one-line registry answers for the right plugin, not the last one
 1	a parent that is not the resolved home is still foreign
 1	a pass claiming it ran in the reviewed tree is refused
 1	a pass from a separate worktree records the place it ran
@@ -206,6 +207,7 @@
 1	a play naming a superstring does not name its prefix
 1	a plugin already installed here reads already, not unknown
 1	a plugin cache is never treated as home
+1	a plugin not in the registry yields nothing
 1	a plugin shipping hooks and nothing countable is hook-only
 1	a plugin that cannot be checked is not a clean bill
 1	a pointer to a real home is left alone
@@ -411,6 +413,7 @@
 1	an engine that is a checkout is its own source
 1	an engine under that path can deploy
 1	an entry with no path does not inherit the next entry's answer
+1	an entry with no such field yields nothing, not the next entry's value
 1	an envelope field name never does
 1	an escape is named as the founder's
 1	an established fact is classed OBSERVED
@@ -508,6 +511,7 @@
 1	and a ruled capability is not listed there
 1	and a ruled one is not
 1	and a run that skipped nothing says so, rather than leaving it blank
+1	and a second field of the same entry too
 1	and a second run does not record the same file twice
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
@@ -820,6 +824,7 @@
 1	and still returns success, so it cannot loop
 1	and still says which step went unused
 1	and still verifies when the source really does match
+1	and still yields nothing for the entry that lacks the field
 1	and stops once something is written
 1	and stranded counts only this project's unfolded sessions
 1	and strips a line range
@@ -847,6 +852,7 @@
 1	and the drift line carries the whole name
 1	and the earlier verdict is not replaced by it
 1	and the engine writes no mistake for it
+1	and the entry that has one still answers
 1	and the exact command that produced it
 1	and the failure is recorded under the check's own name
 1	and the fixture files this block rewrote are back
@@ -1356,6 +1362,7 @@
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
 1	the extractor names every skipped check and nothing else
+1	the field lookup lives in one place
 1	the fixture answer is restored
 1	the fixture is dirty only in Felix's own bookkeeping
 1	the fixture is left as it was found
@@ -1380,6 +1387,7 @@
 1	the judge is found on whatever branch is being merged into
 1	the judge is the version main declares
 1	the ledger is durable state in the project
+1	the ledger no longer opens the registry itself
 1	the log holds exactly one entry
 1	the log is durable state in the project
 1	the main checkout knows its own storage is not a rival

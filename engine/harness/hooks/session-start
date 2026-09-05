@@ -273,14 +273,48 @@ fi
 
 reconcile_line=""
 if [ -f "$_mem/ledger.tsv" ] || [ -d "$_mem/ledger.d" ]; then
-  _rec="$(felix_stack_reconcile_unseen "$PROJ" "$FELIX_HOME_DIR" 2>/dev/null \
-          | awk -F'\t' '{ print $1 ":" $2 }' | tr '\n' ' ')"
-  _rec="${_rec% }"
-  if [ -n "$_rec" ]; then
-    reconcile_line="
+  _recrows="$(felix_stack_reconcile_unseen "$PROJ" "$FELIX_HOME_DIR" 2>/dev/null)"
+  if [ -n "$_recrows" ]; then
+    # This hook cannot fold — the catch-up is several greps per distinct
+    # signal per stranded session, which is why `felix ledger` and
+    # `felix stack reconcile` do it and nothing here does. So the proposals
+    # below may have been computed over part of the record, and the two kinds
+    # are not equally exposed to that.
+    #
+    # A mount and a declare come from a reach: calls above zero, which further
+    # folding can only confirm. An unmount comes from calls at zero, which is
+    # exactly what an unfolded session's reaches would falsify. And this line
+    # marks what it shows as seen, so an unmount shown over a partial ledger
+    # was suppressed permanently — the retire line eleven lines above got a
+    # hedge for this and the reconcile line never did.
+    #
+    # So the zero-backed half is held, not hedged. A held proposal returns on
+    # its own once the ledger is complete; a hedged one shown and marked is
+    # gone whether it was right or not.
+    _recstranded="$(felix_ledger_stranded "$PROJ" "$FELIX_HOME_DIR" "$_repo_root" 2>/dev/null)"
+    _held=0
+    if [ "${_recstranded:-0}" -gt 0 ] 2>/dev/null; then
+      _held="$(printf '%s\n' "$_recrows" | LC_ALL=C awk -F'\t' '$1 == "unmount" { n++ } END { print n+0 }')"
+      _recrows="$(printf '%s\n' "$_recrows" | LC_ALL=C awk -F'\t' '$1 != "unmount"')"
+    fi
+    _rec="$(printf '%s\n' "$_recrows" | LC_ALL=C awk -F'\t' 'NF { print $1 ":" $2 }' | tr '\n' ' ')"
+    _rec="${_rec% }"
+    if [ -n "$_rec" ]; then
+      reconcile_line="
 The record proposes changing what is mounted: ${_rec}
 Evidence in 'felix stack reconcile'. Nothing moves without a person."
-    felix_stack_reconcile_mark_seen "$PROJ" "$FELIX_HOME_DIR" 2>/dev/null
+      if [ "${_recstranded:-0}" -gt 0 ] 2>/dev/null; then
+        felix_stack_reconcile_mark_seen "$PROJ" "$FELIX_HOME_DIR" '^(mount|declare)$' 2>/dev/null
+      else
+        felix_stack_reconcile_mark_seen "$PROJ" "$FELIX_HOME_DIR" 2>/dev/null
+      fi
+    fi
+    if [ "${_held:-0}" -gt 0 ] 2>/dev/null; then
+      reconcile_line="$reconcile_line
+Held: ${_held} unmount proposal(s). ${_recstranded} session(s) have calls on disk
+that no fold accounts for, and an unmount is proposed from a zero.
+'felix ledger' folds them, and 'felix stack reconcile' folds and reports."
+    fi
   fi
 fi
 

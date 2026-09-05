@@ -226,11 +226,23 @@ felix_stack_reconcile_unseen() {
   done
 }
 
+# Mark proposals as shown. With no third argument, all of them; with one, only
+# the actions whose kind matches that regex.
+#
+# The filter exists because "shown once and never again" is only safe for a
+# proposal a later fold cannot overturn. A mount and a declare are proposed
+# from a reach — calls above zero, which no amount of further folding takes
+# away. An unmount is proposed from calls at zero, and that is exactly what an
+# unfolded session's reaches would falsify. Marking one of those seen over a
+# partial ledger suppresses it permanently, and the thing suppressed is a
+# proposal that may have been wrong when it was made.
 felix_stack_reconcile_mark_seen() {
-  local proj="$1" home="$2" base
+  local proj="$1" home="$2" only="${3:-}" base
   base="$(_felix_reconcile_state "$proj" "$home")"
   mkdir -p "$(dirname "$base")" 2>/dev/null || return 0
-  felix_stack_reconcile "$proj" | cut -f1-2 | tr '\t' ':' >> "$base.seen" 2>/dev/null
+  felix_stack_reconcile "$proj" \
+    | { if [ -n "$only" ]; then LC_ALL=C awk -F'\t' -v a="$only" '$1 ~ a'; else cat; fi; } \
+    | cut -f1-2 | tr '\t' ':' >> "$base.seen" 2>/dev/null
   LC_ALL=C sort -u -o "$base.seen" "$base.seen" 2>/dev/null
   return 0
 }

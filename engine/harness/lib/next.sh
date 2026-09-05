@@ -46,6 +46,39 @@ felix_next() {
     _felix_next_row 1 felix "this tree has no green gate receipt" "felix gate"
   fi
 
+  # And the one thing that makes running that gate a waste of the minutes it
+  # costs: a deployment that is not this tree.
+  #
+  # `felix ledger` ranks the gate's own recurring catches, and `installed` is
+  # the top one — 28 times, against a lesson that already says so. The lesson
+  # is not working because it is advice about an ordering, and what a person
+  # needs at the moment they are about to run the gate is the state. The gate
+  # stops before the suite when the deployment is stale, so the run is cheap
+  # now, but it is still a round trip to learn something askable in a second.
+  #
+  # Only where this checkout is the engine's own source. That is a property of
+  # the checkout — it holds an executable engine at the path the marketplace
+  # manifest declares — and not the name of any project, so the rule stays
+  # inside invariant 1. Standing anywhere else, a stale Felix deployment is
+  # somebody else's work and saying so here would be noise.
+  #
+  # Silent when the CLI cannot answer: felix_deployed_engine fails quiet, and
+  # "I could not look" must not render as "your deployment is stale".
+  if command -v felix_deployed_engine >/dev/null 2>&1 \
+       && command -v felix_deploy_diff >/dev/null 2>&1; then
+    local _eroot _elive
+    _eroot="$(felix_repo_root "$PWD" 2>/dev/null)"
+    if [ -n "$_eroot" ] && [ -x "$_eroot/engine/harness/felix" ]; then
+      _elive="$(felix_deployed_engine 2>/dev/null)" || _elive=""
+      if [ -n "$_elive" ] && [ -d "$_elive/harness" ] \
+           && ! felix_deploy_diff "$_eroot/engine" "$_elive" >/dev/null 2>&1; then
+        _felix_next_row 1 felix \
+          "the deployed engine is not this tree, so the gate stops before the suite" \
+          "felix install"
+      fi
+    fi
+  fi
+
   if command -v felix_evidence_check >/dev/null 2>&1; then
     while IFS=$'\t' read -r kind subject reason; do
       [ "${kind:-}" = "gap" ] || continue

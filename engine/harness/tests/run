@@ -8605,6 +8605,69 @@ has "an unverified tree is the first thing to do" "$(printf '%s\n' "$n" | head -
 has "and it is Felix's own work"                  "$(printf '%s\n' "$n" | head -1)" "felix"
 has "every row carries the command that clears it" "$(printf '%s\n' "$n" | head -1)" "felix gate"
 
+# A deployment that is not this tree, found before the gate run rather than by
+# one.
+#
+# `felix ledger` ranks the gate's own recurring catches and `installed` is the
+# top one — 28 times, against a lesson that already says so. The lesson is not
+# working because it is advice about an ordering, and what a person needs at
+# the moment before running the gate is the state.
+#
+# Only where the checkout is the engine's own source: a property of the
+# checkout, not the name of a project. $REPO above holds no engine, which is
+# why none of the rows already asserted here changed.
+NDR="$TMP/next-drift"; mkdir -p "$NDR/engine"
+( cd "$NDR" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
+NDR="$(cd "$NDR" && pwd -P)"
+cp -R "$FROOT/harness" "$NDR/engine/harness"
+NDL="$TMP/next-live"; mkdir -p "$NDL"
+cp -R "$NDR/engine/harness" "$NDL/harness"
+NDB="$TMP/next-bin"; mkdir -p "$NDB"
+# The stub reads the path it should report from a file beside itself rather
+# than from the environment. A variable assigned in the calling shell and not
+# exported is invisible to the child, and the first draft of this fixture read
+# empty every time — the stub answering "nothing is deployed" while the
+# assertion believed it was answering with a path.
+printf '#!/usr/bin/env bash\nprintf "{\\"felix@felix\\": {\\"installPath\\": \\"%%s\\"}}\\n" "$(cat "$(dirname "$0")/live" 2>/dev/null)"\n' \
+  > "$NDB/claude"
+chmod +x "$NDB/claude"
+_ndlive() { printf '%s' "${1:-}" > "$NDB/live"; }
+_nd() { _ndlive "$1"; ( cd "$NDR" && PATH="$NDB:$PATH"
+          . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+          . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+          . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/evidence.sh"
+          . "$FROOT/harness/lib/maintenance.sh"; . "$FROOT/harness/lib/stack.sh"
+          . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/ledger.sh"
+          . "$FROOT/harness/lib/coverage.sh"; . "$FROOT/harness/lib/deny.sh"
+          . "$FROOT/harness/lib/route.sh"; . "$FROOT/harness/lib/next.sh"
+          felix_next "$NX" "$FROOT" "$NDR" HEAD 2>/dev/null ); }
+# The reader first, since everything below rests on it answering.
+_ndlive "$NDL"
+is "the deployed path is read from the CLI, not guessed from the cache" \
+   "$( cd "$NDR" && PATH="$NDB:$PATH"
+       . "$FROOT/harness/lib/resolve.sh"; felix_deployed_engine )" "$NDL"
+_ndlive ""
+is "and a CLI that cannot answer is not a stale deployment" \
+   "$( cd "$NDR" && PATH="$NDB:$PATH"
+       . "$FROOT/harness/lib/resolve.sh"; felix_deployed_engine; printf '%s' "$?" )" "1"
+case "$(_nd "$NDL")" in
+  *"deployed engine is not this tree"*)
+    bad "a deployment matching the tree is not reported as drift" ;;
+  *) ok "a deployment matching the tree is not reported as drift" ;;
+esac
+printf '\n# drift\n' >> "$NDR/engine/harness/lib/monitor.sh"
+has "a deployment that is not this tree is the first thing to fix" \
+    "$(_nd "$NDL")" "the deployed engine is not this tree"
+has "and it names the command that clears it" "$(_nd "$NDL")" "felix install"
+# Silence when nothing can be asked, because "I could not look" is not a
+# finding about anybody's deployment.
+case "$(_nd "")" in
+  *"deployed engine is not this tree"*)
+    bad "and a CLI that answers nothing reports no drift" ;;
+  *) ok "and a CLI that answers nothing reports no drift" ;;
+esac
+
 # Two capabilities that were never pointed at, for two different reasons, and
 # only one of them is about keywords.
 #

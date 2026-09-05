@@ -166,7 +166,33 @@ write-ups: `~/.felix/memory/felix/audits/2026-09-04-measurement-audit.md`.
    catalogue row hand-copied into `stack.tsv` carries `keywords` in column six
    and is refused forever (fails closed, but says so only in the plan's detail
    column); a failed `stack.tsv` append is silent.
-2. PR 4 of the v3.2 work: the autonomy grant and the background resume.
+2. **PR 4 needs re-aiming before it is built, because its premise is stale.**
+   The conformance amendments §1.3 say "Unbuilt and required: nothing schedules
+   discovery. The pulse command reports staleness and refreshes nothing. A
+   founder-granted schedule is the missing piece." **That is no longer true.**
+   `felix_discover_refresh_bg` exists, is wired into the session-start hook,
+   runs detached under a lock directory when `felix_discover_stale` says so,
+   writes to a temp and renames — which is exactly the shape §1.3 prescribes.
+
+   Verified behaviourally, not by reading: the cache's stamp line was removed
+   to force staleness, the hook was run, and the cache came back rewritten with
+   a current stamp. Two further hook runs did **not** refresh it again, so it
+   settles rather than fetching every session.
+
+   What is genuinely still unbuilt is the other half: an autonomy grant for
+   unattended **commissioning**, which is a different and much sharper thing,
+   because commissioning installs and discovery does not. `autonomy.sh` calls
+   the existing `tidy` grant "the sharpest trust boundary in the system" for
+   merely deleting a stray file. Building the sharpest-boundary feature on a
+   premise the governing document gets wrong is not something to do
+   unsupervised, so it is reported here instead. The founder re-aims it.
+
+   One caution for whoever does: a hand-rolled subshell sourcing
+   `lib/discover.sh` computes a different stamp than the hook or the CLI does,
+   because `_felix_discover_stamp` resolves its inputs from `BASH_SOURCE`.
+   Three subshell invocations gave three different answers, none matching what
+   the CLI writes, and that reads convincingly as a permanently stale cache.
+   It is not one. Test the behaviour, not the function.
 3. `commission-provider.sh` reads the installed registry with the leaky awk
    shape #170 replaced in `ledger.sh` — same fault, not yet fixed there.
 

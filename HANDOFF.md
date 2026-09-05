@@ -75,10 +75,11 @@ it should be paid deliberately, not rediscovered.
 
 | | |
 |---|---|
-| head | `88fd1c8` on `main` (#181–#192, twelve merges), CI `gate` **success** on each |
-| suite | **1594** passed, 0 failed, manifest re-recorded |
-| deployed engine | **0.49.94**, deployed from the home checkout after each merge |
+| head | `main` (#181–#197, seventeen merges), CI `gate` **success** on each |
+| suite | **1611** passed, 0 failed, manifest re-recorded |
+| deployed engine | **0.49.99**, deployed from the home checkout after each merge |
 | the 2026-09-04 measurement audit | **closed** — 4 high (§0ao), 8 medium, 2 low |
+| v3.2 amendments §6, the residual | **stated**, on three surfaces |
 
 ### The correction first
 
@@ -213,6 +214,60 @@ project table rather than in the engine: a signal that is on almost always
 carries no information. It is a project decision, so it is stated rather than
 changed. A cadence in days, or a check against the last commit that touched
 what the graph covers, would both make it mean something.
+
+### After the audit closed
+
+Four more, from Felix's own ranking rather than from the audit.
+
+10. **#195 — a deployment that is not this tree is found before the gate run.**
+    `felix next` ranks the gate's recurring catches and `installed` is the top
+    one at twenty-two separate commits, with its own advice being that the
+    lesson has outgrown `lessons.md` and the mechanism should be built. The
+    lesson is not working because it is advice about an ordering, and what a
+    person needs before running the gate is the state. `felix next` now says
+    it, guarded to checkouts that are the engine's own source, silent when the
+    CLI cannot answer. `felix_deployed_engine` replaces the engine's two copies
+    of that question; the project gate keeps its own, because a project gate
+    must run without the engine's libraries.
+
+11. **#196 — recurrence is counted in occasions, not attempts.** The same rank
+    tells a person to write a lesson, and a lesson generalises across
+    occasions. It was counting rows in `mistakes.log`, which is attempts:
+    `ecosystem` appeared five times, every one the same branch at the same sha,
+    ranked beside `installed` at twenty-two commits. The threshold now reads
+    distinct commits and both numbers are reported. **This changes what earns
+    promotion, which is a judgement rather than a miscount** — the threshold
+    reads `count[t]`, and pointing it back at `runs[t]` restores the old
+    behaviour exactly.
+
+12. **#197 — the residual is stated where trust is claimed.** Amendments §6
+    ends with an instruction, not a design: state plainly, wherever the system
+    reports its own trustworthiness, that one authority writes both the work
+    and the judgement, and that an entrypoint never found is never executed. It
+    was stated nowhere — once in this file and in no surface Felix prints.
+    `felix receipt` now carries it as a field, because the receipt is the one
+    that travels to a peer; `felix probes` and `felix coverage` carry it as
+    prose. `felix coverage` had no test at all before this, which for a command
+    whose subject is "was every moment considered" is the joke telling itself.
+
+### §2 checker qualification: assessed, not started, and why
+
+It is the largest unbuilt piece and this file already says so. Two things
+learned tonight that the next session should have.
+
+**Blind authorship (§2.2) is achievable.** It requires mutations authored by
+something that has not seen the checker, and a subagent given the obligation in
+prose with the checker source withheld is exactly that. It is the one control
+that cannot be satisfied by whoever writes the checker, and it now has a
+mechanism.
+
+**Arming is a founder decision and it is the blocker.** A report-only
+qualification cannot be armed without turning every gate red on day one, so the
+mutation runner has to ship with it — and whether the gate refuses on an
+unqualified check is a question about how much Felix may block, which no
+session may answer. Starting the build without that answer risks a large piece
+half-built against the wrong arming model, which is why this session stopped at
+the assessment rather than the code.
 
 ### For the next session
 

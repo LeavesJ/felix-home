@@ -168,6 +168,22 @@ $(felix_deny_overbroad_rows "$proj" 2>/dev/null)
 EOF
   fi
 
+  # A maintenance row whose capability nothing can satisfy is dormant forever,
+  # and dormant renders exactly like "not due". This rank is named for that
+  # collision, and the guard for it was written and then called by nothing but
+  # the suite — every surface that reads maintenance keeps only `^due`, so a
+  # typo in the capability column is invisible on all of them, permanently.
+  if command -v felix_maint_unreachable >/dev/null 2>&1; then
+    local mname mcap
+    while IFS=$'\t' read -r mname mcap; do
+      [ -n "${mname:-}" ] || continue
+      _felix_next_row 6 felix "upkeep '$mname' waits on a capability nothing declares: $mcap" \
+        "fix the capability in $proj/maintenance.tsv, or declare it — it can never come due as written"
+    done <<EOF
+$(felix_maint_unreachable "$proj" 2>/dev/null)
+EOF
+  fi
+
   # 7 — routing. Mounted, never pointed at. Not the same as "no route names it":
   # the table may name it while its keywords never match the work anybody does,
   # which is the row worth finding. Weak while few sessions are recorded.

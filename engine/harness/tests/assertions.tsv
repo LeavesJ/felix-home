@@ -549,6 +549,7 @@
 1	and does not ask for a lesson that already exists
 1	and does not blame a checkout that did not move
 1	and does not diagnose a cause it cannot see
+1	and does not leave it as a bare dash
 1	and does not nag about ancient history
 1	and does not name a channel it never got to consult
 1	and does not say it recorded
@@ -933,6 +934,7 @@
 1	and the version is a dotted number
 1	and the widget ledger is as this block found it
 1	and the widget manifest is as this block found it
+1	and the widget table is as this block found it
 1	and there is at least one of them
 1	and what a fix will have to prove
 1	and what the engine tiered medium holds
@@ -1047,6 +1049,7 @@
 1	felix gate runs the probes for a project with a table
 1	felix ledger proposes retiring the disuse zero
 1	felix maintenance renders a passing check as such
+1	felix maintenance says a row can never come due
 1	felix merge reaches gh at all
 1	felix merge refuses on an escape
 1	felix new exits 0
@@ -1054,6 +1057,7 @@
 1	felix new refuses the same names the marker refuses
 1	felix new seeds a probe table
 1	felix new still exits 0
+1	felix next ranks it under the checks that are not checking
 1	felix probes refuses a project that asks reality nothing
 1	felix probes reports without refusing
 1	felix procedures runs

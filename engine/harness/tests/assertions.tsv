@@ -16,6 +16,7 @@
 1	a bare branch name prefers the remote-tracking ref
 1	a bare plugin step is used when one of its skills ran
 1	a bare repo has nothing to adopt
+1	a bare skill row is counted as the host's, not the plugin's
 1	a base that does not resolve is unknown, not clean
 1	a base that names nothing is refused
 1	a base that resolves still classifies normally
@@ -394,6 +395,7 @@
 1	an agent reached is credited to the plugin that ships it
 1	an all-structural gate still fails
 1	an always row is not flagged
+1	an ambiguous play naming is counted for the declared plugin
 1	an ancient run counts as due again
 1	an answer file moves nothing enforcing in the receipt
 1	an answer for another topology is stale, and not read
@@ -507,6 +509,7 @@
 1	and a live one says when it was last caught
 1	and a name
 1	and a person's medium row installs, as it always has
+1	and a prefixed skill is never called a built-in
 1	and a probe that failed against a real surface is blind too
 1	and a project with none does not claim it
 1	and a real one still routes
@@ -577,6 +580,7 @@
 1	and felix which does not resolve it
 1	and filters residue through the same ignore rule
 1	and folding them takes it to zero
+1	and for the built-in too, because nothing can tell which was meant
 1	and for the plain one
 1	and from CI-absolute paths
 1	and from a worktree of the same repository
@@ -1338,7 +1342,9 @@
 1	so does a pointer naming a directory that is gone
 1	so no false unmount is proposed from it
 1	so the branch is not blamed for what the remote already had
+1	so the declared plugin keeps none of its reaches
 1	so the earlier tree is still readable
+1	so the plugin with no evidence of its own reaches the retire list
 1	so the session count is the number of sessions
 1	speaks when a catch went unexplained
 1	spending is counted
@@ -1379,6 +1385,7 @@
 1	the cause is not the raw payload
 1	the claude cli changing is announced and never invalidates
 1	the data marker is substituted
+1	the declared plugin still has its presence row
 1	the declares are applied before the receipt is written
 1	the ecosystem check is behind the verifier confine
 1	the ecosystem table is an enforcing table, and escape.sh says so
@@ -1529,6 +1536,7 @@
 1	while a complete stance is not called malformed
 1	while a mount needs no threshold: the reach already happened
 1	while a predicate that did not move is silent
+1	while a provider-prefixed skill still joins to its plugin
 1	while a short one scores on nothing
 1	while a tool that ran keeps its calls
 1	while an owner-reduced play entry still names its plugin

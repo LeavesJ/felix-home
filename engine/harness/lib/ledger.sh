@@ -97,6 +97,30 @@ felix_ledger_summary() {
   local proj="$1"
   _felix_ledger_rows "$(felix_mem_dir "$proj")" | awk -F'\t' '
     $4 != "" {
+      # A built-in skill is not the plugin that shares its name.
+      #
+      # The identity space here is one string, and the host provides skills
+      # into it unqualified. Every plugin-provided item is recorded with its
+      # provider prefix — including where plugin and item share a name — so a
+      # `skill` row with no colon came from the host, not from a plugin. Left
+      # unseparated it lands on the declared plugin, because the declaration
+      # `<name>@<marketplace>` reduces to the same bare string one line below.
+      #
+      # On this machine that donated reaches and namings to a plugin that
+      # ships no skill at all, and the donation is what kept it off every
+      # list: retire needs calls at zero and the borrowed reaches disqualified
+      # it, unrouted needs named at zero and the borrowed namings disqualified
+      # it. The one capability with no evidence of its own was the only one the
+      # report never mentioned. Same class as the plugin_<plugin>_<server>
+      # misjoin below and running the other way: that one loses reaches and
+      # manufactures a retire row, this one donates them and suppresses one.
+      #
+      # Only `skill` rows. A `named` row carrying a bare name is genuinely
+      # ambiguous — a play naming <name> in a project that declares the plugin
+      # of that name may mean either — and it stays with the plugin, which is
+      # both the declared thing and the reading that makes the retire rule
+      # true: pointed at, and whatever answered, the plugin did not.
+      builtin = ($3 == "skill" && $4 !~ /:/)
       owner = $4
       sub(/@.*/, "", owner)
       sub(/:.*/, "", owner)
@@ -114,6 +138,10 @@ felix_ledger_summary() {
         n = split(owner, seg, "_")
         if (n >= 3) owner = seg[2]
       }
+      # Appended after the reductions, never before: a marker containing a
+      # colon or an @ would itself be reduced away, and one containing neither
+      # cannot collide with a provider-prefixed name.
+      if (builtin) owner = owner " (built-in)"
       key = owner SUBSEP $1
       if (!(key in seen)) { seen[key] = 1; sessions[owner]++ }
       calls[owner] += $5
@@ -372,6 +400,7 @@ felix_ledger_record() {
 # and no lock to take.
 felix_ledger_rollup() {
   local proj="$1" home="$2" session="$3" date="$4" state out seen kind name mem dir
+  local seen_owner="" _o=""
   state="$(_felix_ledger_state "$home" "$session")"
   [ -f "$state" ] || return 0
   mem="$(felix_mem_dir "$proj")"
@@ -396,6 +425,19 @@ felix_ledger_rollup() {
       "$(felix_count -xF "named	$name" "$state")" >> "$tmp"
     seen="$seen
 $name"
+    # The owner this signal can stand for, which is not always its own name.
+    #
+    # The zero-row loop below asks "did anything this session stand for the
+    # declared capability", and a signal stands for a plugin when it carries
+    # that plugin's prefix. A bare `skill` name carries none: the host provides
+    # skills unqualified, so it stands for nothing declared and must not
+    # suppress the declared row of the same name — which is what it did, and
+    # the plugin then had no row at all in exactly the sessions where the
+    # built-in ran.
+    _o="${name%%:*}"; _o="${_o%%@*}"
+    case "$kind" in skill) case "$name" in *:*) ;; *) _o="" ;; esac ;; esac
+    [ -n "$_o" ] && seen_owner="$seen_owner
+$_o"
   done <<EOF
 $(sort -u "$state" 2>/dev/null)
 EOF
@@ -411,6 +453,11 @@ EOF
       "$(felix_count -xF "named	$name" "$state")" >> "$tmp"
     seen="$seen
 $name"
+    # A play naming is not a provider signal, so there is no built-in case
+    # here: whatever it names, it names by the owner it wrote.
+    _o="${name%%:*}"; _o="${_o%%@*}"
+    seen_owner="$seen_owner
+$_o"
   done <<EOF
 $(sort -u "$state" 2>/dev/null)
 EOF
@@ -428,7 +475,7 @@ EOF
       # session gets recorded as never reached for — which would put the one
       # unconfounded signal in the design permanently in the wrong column.
       local bare="${name%%@*}"
-      printf '%s\n' "$seen" | sed 's/:.*//' | grep -xF "$bare" >/dev/null 2>&1 && continue
+      printf '%s\n' "$seen_owner" | grep -xF "$bare" >/dev/null 2>&1 && continue
       # Owner-equality, not substring. This used to be `felix_count -F`, and a
       # bare -F match let a declared server accrue `named` it never earned from
       # any play entry it merely prefixes — `context7` counted every naming of

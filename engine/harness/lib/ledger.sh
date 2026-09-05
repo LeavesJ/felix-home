@@ -276,11 +276,27 @@ felix_ledger_partly()     { _felix_ledger_zero_shaped "$1" mixed; }
 # ignored it. It is also weak while few sessions are recorded, since a route
 # that has not fired yet looks identical to one that never will.
 felix_ledger_unrouted() {
-  local proj="$1" name sessions calls named
+  local proj="$1" name sessions calls named uninvokable=""
+  # A kind with no invocation form has no zero to measure.
+  #
+  # The rollup writes a zero row for every stack.tsv line whatever its kind,
+  # and everything downstream is kind-agnostic, so a `marketplace` entered the
+  # capability namespace as an equal. A marketplace is where plugins come
+  # from: it has no play form and no legal route entry, so its named=0 and
+  # calls=0 are a fact about the kind and not evidence about routing. The
+  # report classified it as the one thing routes.tsv can fix, and `felix next`
+  # handed out an action nobody can perform — wire a thing that cannot be
+  # named. Read from stack.tsv rather than filtered at the source, so the
+  # rows already on disk are covered too.
+  if [ -f "$proj/stack.tsv" ]; then
+    uninvokable="$(LC_ALL=C awk -F'\t' '$1 == "marketplace" && $2 != "" {
+                     n = $2; sub(/@.*/, "", n); print n }' "$proj/stack.tsv")"
+  fi
   felix_ledger_summary "$proj" | while IFS=$'\t' read -r name sessions calls named; do
     [ -n "${name:-}" ] || continue
     [ "${named:--1}" -eq 0 ] 2>/dev/null || continue
     [ "${calls:-0}" -eq 0 ] 2>/dev/null || continue
+    felix_has_line "$uninvokable" "$name" && continue
     printf '%s\t%s\n' "$name" "$sessions"
   done
 }

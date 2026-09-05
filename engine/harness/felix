@@ -1611,8 +1611,30 @@ EOF
     printf 'but its keywords have not matched real work yet. Their zero measures\n'
     printf 'what Felix suggests, not what they are worth, so retiring on it would\n'
     printf 'conclude they deserved to be ignored because they were ignored.\n'
-    printf 'Weak while few sessions are recorded: a route that has not fired yet\n'
-    printf 'looks exactly like one that never will.\n'
+    # The caveat, evaluated rather than printed.
+    #
+    # This used to be a straight-line "Weak while few sessions are recorded",
+    # keyed to nothing: the same sentence over three sessions, where it is apt,
+    # and over eighty-two, where the rows two lines above contradict it. A
+    # conditional whose antecedent is never checked is decoration, and the
+    # engine holds what would decide it. felix_ledger_unrouted carries no
+    # session threshold — unlike retire, and correctly, since a one-session row
+    # here is legitimate output — so this sentence is the only thing standing
+    # where retire has a filter, and prose cannot do a filter's job.
+    #
+    # Recomputed from $unrouted rather than read from the loop above: that
+    # `sessions` is a variable inside a pipeline subshell and is gone by here.
+    local _umin
+    _umin="$(printf '%s\n' "$unrouted" \
+             | LC_ALL=C awk -F'\t' 'NF { if (m == "" || $2 + 0 < m) m = $2 + 0 }
+                                     END { print (m == "" ? 0 : m) }')"
+    if [ "${_umin:-0}" -lt "${FELIX_LEDGER_MIN:-5}" ] 2>/dev/null; then
+      printf 'Weak here: the thinnest row above rests on %s session(s). A route that\n' "$_umin"
+      printf 'has not fired yet looks exactly like one that never will.\n'
+    else
+      printf 'Every row above rests on %s session(s) or more, so "it has not fired\n' "$_umin"
+      printf 'yet" is the weaker of the two readings rather than the safe one.\n'
+    fi
   fi
 
   printf '\nOnly retiring is ever proposed, and only for what Felix pointed at.\n'

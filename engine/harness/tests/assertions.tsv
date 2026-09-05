@@ -148,6 +148,7 @@
 1	a marker naming 'widget/..' refuses rather than binding to the projects directory
 1	a marker that resolves gets the normal context
 1	a marker that resolves is not called broken
+1	a marketplace is not reported as a route that never fired
 1	a marketplaces path is one too
 1	a matching test closes the gap
 1	a medium one is refused
@@ -180,6 +181,7 @@
 1	a notification payload is machine text end to end
 1	a one-line registry answers for the right plugin
 1	a one-line registry answers for the right plugin, not the last one
+1	a one-session routing gap is called weak, with the number
 1	a parent that is not the resolved home is still foreign
 1	a pass claiming it ran in the reviewed tree is refused
 1	a pass from a separate worktree records the place it ran
@@ -947,6 +949,7 @@
 1	and the row-level line names the same file
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
+1	and the same rows over more sessions are not
 1	and the same scanner catches a planted one
 1	and the seed holds rows rather than only comments
 1	and the sentence still is
@@ -1346,6 +1349,7 @@
 1	so does a pointer naming a directory that is gone
 1	so no false unmount is proposed from it
 1	so the branch is not blamed for what the remote already had
+1	so the caveat can become untrue
 1	so the declared plugin keeps none of its reaches
 1	so the earlier tree is still readable
 1	so the plugin with no evidence of its own reaches the retire list
@@ -1549,6 +1553,7 @@
 1	while others stay due
 1	while the Felix home Felix itself resolved is its own repo
 1	while the branch's own file still is
+1	while the capability that can be named still is
 1	while the genuinely reached server is proposed
 1	while the other repository still sees its own
 1	while the others still are

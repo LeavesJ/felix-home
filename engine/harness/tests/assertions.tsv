@@ -662,6 +662,7 @@
 1	and neither is an empty message
 1	and never a verified receipt
 1	and never as a clock reading nobody wrote
+1	and never claims it was mounted every session
 1	and never ends on a success line
 1	and never mentions the same one twice
 1	and never reports a tier it could not compute
@@ -757,6 +758,7 @@
 1	and says it did
 1	and says it is recording only
 1	and says it must be fixed before the next session
+1	and says it was never reached
 1	and says it where the founder can see it
 1	and says not to fix it unattended
 1	and says nothing about it afterwards
@@ -927,6 +929,7 @@
 1	and the same scanner catches a planted one
 1	and the seed holds rows rather than only comments
 1	and the sentence still is
+1	and the sessions the filter actually counted
 1	and the shipped wiring matches its stance
 1	and the slug comes from the checkout's remote
 1	and the stale row was not adopted
@@ -1438,6 +1441,7 @@
 1	the repository tracks no project memory
 1	the request states the why ceiling
 1	the resolution is written down exactly once
+1	the retire banner names the capability
 1	the retire list keeps the zero that is disuse
 1	the root is available on its own
 1	the root is never under the home it was asked about

@@ -1538,7 +1538,7 @@ cmd_ledger() {
   fi
 
   printf 'ledger for %s, %s session(s)\n\n' "$(basename "$proj")" \
-    "$(printf '%s\n' "$rows" | cut -f1 | LC_ALL=C sort -u | awk 'NF { n++ } END { print n + 0 }')"
+    "$(felix_ledger_sessions "$proj")"
   printf '  %-34s %-10s %-9s %s\n' CAPABILITY SESSIONS NAMED REACHED
   while IFS=$'\t' read -r name sessions calls named; do
     [ -n "${name:-}" ] || continue

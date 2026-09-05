@@ -192,11 +192,32 @@ Each was backed up to ${FELIX_HOME_DIR}/state/rivals first."
 retire_line=""
 _mem="$(felix_mem_dir "$PROJ")"
 if [ -f "$_mem/ledger.tsv" ] || [ -d "$_mem/ledger.d" ]; then
-  _retire="$(felix_ledger_retire "$PROJ" 2>/dev/null | cut -f1 | tr '\n' ' ')"
-  _retire="${_retire% }"
+  # The counts travel with the names. An earlier draft piped this through
+  # `cut -f1`, dropping the session count the filter had just checked, and the
+  # banner supplied "Mounted every session" in its place — a denominator
+  # nothing had tested. The filter admits a row at FELIX_LEDGER_MIN sessions,
+  # five by default, so a row seen in five of eighty-two was being read as a
+  # row seen in all eighty-two.
+  #
+  # "Mounted" is gone for a second reason, and it is the worse one. Nothing
+  # here reads mount state. A row reaches this list when a route named the
+  # capability and nobody reached for it, whether or not stack.tsv ever
+  # declared it — so the sentence asserted a mount the data does not carry.
+  # `felix ledger` has said "pointed at and never reached for" all along; this
+  # is the same claim in the same words, which is the point.
+  _retire="$(felix_ledger_retire "$PROJ" 2>/dev/null)"
   if [ -n "$_retire" ]; then
+    _total="$(felix_ledger_sessions "$PROJ" 2>/dev/null)"
+    _rl=""
+    while IFS=$'\t' read -r _rn _rs _rnamed; do
+      [ -n "${_rn:-}" ] || continue
+      _rl="${_rl}
+  ${_rn} — pointed at in ${_rs} of ${_total:-?} sessions, named ${_rnamed} times, never reached"
+    done <<EOF
+$_retire
+EOF
     retire_line="
-Mounted every session and never once reached for: ${_retire}
+Pointed at and never once reached for:${_rl}
 That is the only unconfounded signal here. See 'felix ledger'."
     # The qualifier hangs off the claim rather than off the session because an
     # empty list needs no caveat.

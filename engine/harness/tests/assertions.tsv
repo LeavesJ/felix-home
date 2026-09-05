@@ -120,6 +120,7 @@
 1	a hook that stopped being wired is caught
 1	a hooks.json that never deployed is not certified
 1	a hostile prompt is neutralised, not dropped
+1	a hyphenated server name still credits the plugin that ships it
 1	a judge identical to the candidate merges nothing
 1	a keyword inside another word is not a match
 1	a later copy of the field in the envelope is not the subject
@@ -167,6 +168,7 @@
 1	a note reaches the file
 1	a notebook is matched on its own path field
 1	a notification payload is machine text end to end
+1	a one-line registry answers for the right plugin
 1	a parent that is not the resolved home is still foreign
 1	a pass claiming it ran in the reviewed tree is refused
 1	a pass from a separate worktree records the place it ran
@@ -197,6 +199,7 @@
 1	a play naming a superstring does not name its prefix
 1	a plugin already installed here reads already, not unknown
 1	a plugin cache is never treated as home
+1	a plugin shipping hooks and nothing countable is hook-only
 1	a plugin that cannot be checked is not a clean bill
 1	a pointer to a real home is left alone
 1	a predicate that was being read and no longer is gets named
@@ -371,6 +374,8 @@
 1	an absent marker is still silent at session start
 1	an absent marker still means ungoverned
 1	an absent pointer is not a broken pointer
+1	an agent is recorded by which agent
+1	an agent reached is credited to the plugin that ships it
 1	an all-structural gate still fails
 1	an always row is not flagged
 1	an ancient run counts as due again
@@ -395,6 +400,7 @@
 1	an engine that cannot evaluate commissioning blocks rather than skips
 1	an engine that is a checkout is its own source
 1	an engine under that path can deploy
+1	an entry with no path does not inherit the next entry's answer
 1	an envelope field name never does
 1	an escape is named as the founder's
 1	an established fact is classed OBSERVED
@@ -416,6 +422,7 @@
 1	an mcp call does not mark a qualified step of that plugin used
 1	an mcp call is recorded by server
 1	an mcp nomination is refused on its kind
+1	an mcp server reached under its plugin prefix credits the plugin
 1	an old stamp is counted in days
 1	an opted-in capability is allowed
 1	an ordinary checkout is not
@@ -496,6 +503,7 @@
 1	and a verified push reads as zero days
 1	and absent from both sides is a fixture, not a drift
 1	and again, so a session can bump twice
+1	and an Agent call with no type is still a tool
 1	and an automation row still ends in its capability
 1	and an older one does not
 1	and an ordinary product repository is not
@@ -542,6 +550,7 @@
 1	and felix which does not resolve it
 1	and filters residue through the same ignore rule
 1	and folding them takes it to zero
+1	and for the plain one
 1	and from CI-absolute paths
 1	and from a worktree of the same repository
 1	and from the first copy of the key, not a later one
@@ -686,6 +695,7 @@
 1	and passes the facts it already has
 1	and picks the capability the skills serve
 1	and prints the state rather than a verdict
+1	and proposes nothing for it
 1	and prose counts single
 1	and pushed, and the push is verified
 2	and quotes the name the marker asks for
@@ -742,6 +752,7 @@
 1	and says the gates still apply
 1	and says the receipt does not exist here
 1	and says the tier is what it could not read
+1	and says to remove its row and its play
 1	and says what a name is
 1	and says what a project name is
 1	and says what is missing rather than printing a clean report
@@ -761,6 +772,7 @@
 1	and says why it was left alone
 1	and says why the gate is not enough
 1	and scope says which tier it reached
+1	and scopes that proposal to the play, keeping the row
 1	and shipping nothing declared still matches nothing
 1	and shows the decline itself
 1	and so does a failure nobody answered
@@ -835,11 +847,15 @@
 1	and the missing function is named
 1	and the monitor still renders the sentence, not the JSON around it
 1	and the mute is a row, not a silent omission
+1	and the older spelling of the same tool is caught too
 1	and the one it cannot attribute is not folded either
 1	and the page has a panel for it
+1	and the partly-countable list takes the mixed one
+1	and the path-less one still inherits nothing
 1	and the person's staged selection is untouched
 1	and the placeholder stays a placeholder
 1	and the play this project already chose
+1	and the prefixed name is not a capability of its own
 1	and the provider skill is named as a channel a session runs, not a prompt to paste
 1	and the pulse refuses it in words
 1	and the receipt is written with ten fields
@@ -880,6 +896,7 @@
 1	and the tier reducer agrees
 1	and the unmount above is the only other proposal
 1	and the version is a dotted number
+1	and the widget ledger is as this block found it
 1	and what a fix will have to prove
 1	and what the engine tiered medium holds
 1	and what was detected
@@ -990,6 +1007,7 @@
 1	felix commission on a project without the table exits 1
 1	felix decisions reads the record
 1	felix gate runs the probes for a project with a table
+1	felix ledger proposes retiring the disuse zero
 1	felix maintenance renders a passing check as such
 1	felix merge reaches gh at all
 1	felix merge refuses on an escape
@@ -1057,6 +1075,8 @@
 1	it goes quiet once nothing is new
 1	it insists on aggregating
 1	it names a schema version, so a reader can refuse one it does not know
+1	it names the hook-only zero as unmeasurable
+1	it names the mixed zero as only partly countable
 1	it names the verification command
 1	it names what changed
 1	it recorded the capability
@@ -1136,10 +1156,13 @@
 1	one line per row is written
 1	one log row per table row
 1	one no route names is not
+1	one not installed at all is plain, because nothing says otherwise
 1	one red file makes the whole diff red
 1	one red path poisons the whole set
 1	one shipping an mcp server is held for a person
+1	one shipping hooks and a skill is mixed
 1	one shipping hooks is refused outright
+1	one shipping no hooks is plain
 1	one superpowers skill does not mark superpowers:brainstorming used
 1	one superpowers skill does not mark superpowers:test-driven-development used
 1	one superpowers skill does not mark superpowers:writing-plans used
@@ -1357,6 +1380,7 @@
 1	the repository tracks no project memory
 1	the request states the why ceiling
 1	the resolution is written down exactly once
+1	the retire list keeps the zero that is disuse
 1	the root is available on its own
 1	the root is never under the home it was asked about
 1	the route is there when both apply
@@ -1369,6 +1393,7 @@
 1	the secret check is behind the verifier confine
 1	the seeded graphify row is due on a checkout with no graph
 1	the seen file never carries the stamp comment
+1	the session banner does not carry the unmeasurable list
 1	the session it does own is folded
 1	the shipped gate marks its undeployable failure
 1	the shipped layout — memory under ~/.felix — is its own repo
@@ -1385,6 +1410,7 @@
 1	the table resolves to its repo-relative path
 1	the tests check is behind the verifier confine
 1	the tree holds only the marker beside what was there
+1	the unmeasurable list takes the hook-only zero
 1	the widget's probe table is exactly as this section found it
 1	the widget's table is exactly as this section found it
 1	the widget's tables are as this block found them

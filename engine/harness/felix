@@ -1552,6 +1552,38 @@ EOF
     printf '%s/stack.tsv and any play that names it.\n' "$proj"
   fi
 
+  # A zero that cannot be observed is not a zero. A hook leaves no tool call,
+  # so a plugin whose contribution is a hook reads zero forever however much it
+  # does; said as unmeasurable, and proposed for nothing.
+  local unobserved; unobserved="$(felix_ledger_unobserved "$proj")"
+  if [ -n "$unobserved" ]; then
+    printf '\npointed at, never reached for, and unmeasurable: their contribution is a hook\n\n'
+    printf '%s\n' "$unobserved" | while IFS=$'\t' read -r name sessions named; do
+      [ -n "${name:-}" ] || continue
+      printf '  %-34s %s sessions, named %s times, hooks leave no call to count\n' "$name" "$sessions" "$named"
+    done
+    printf '\nA hook fires inside Claude Code and the ledger never sees it, so a zero here\n'
+    printf 'says nothing about use. A capability whose value is keeping a session off a\n'
+    printf 'wrong path is never invoked when it works. Nothing is proposed for these.\n'
+  fi
+
+  # The zero on a plugin that ships a hook AND countable surfaces. The
+  # countable part was pointed at and never reached — that is disuse — while
+  # the hook cannot be counted. Said apart, and the proposal scoped to the play
+  # rather than the row, because the row is what mounts the hook.
+  local partly; partly="$(felix_ledger_partly "$proj")"
+  if [ -n "$partly" ]; then
+    printf '\npointed at, never reached for, and only partly countable: a hook plus something that leaves a call\n\n'
+    printf '%s\n' "$partly" | while IFS=$'\t' read -r name sessions named; do
+      [ -n "${name:-}" ] || continue
+      printf '  %-34s %s sessions, named %s times, its countable surfaces never reached, its hook uncounted\n' "$name" "$sessions" "$named"
+    done
+    printf '\nThe skills, agents or server it ships were pointed at and the session went\n'
+    printf 'elsewhere; that part is disuse. The hook is not, because the ledger cannot see\n'
+    printf 'one fire. Drop it from the play that names it and keep the row in\n'
+    printf '%s/stack.tsv: the row is what mounts the hook.\n' "$proj"
+  fi
+
   local unrouted; unrouted="$(felix_ledger_unrouted "$proj")"
   if [ -n "$unrouted" ]; then
     printf '\nmounted, and no route pointed at it in any recorded session\n\n'

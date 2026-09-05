@@ -217,6 +217,10 @@ Partial: ${_stranded} session(s) ended without folding, so their calls are not i
 this count yet. 'felix ledger' folds them and may clear rows above."
     fi
   fi
+  # A plugin whose zero is a hook nobody can count is not in this line, on
+  # purpose. The line exists to name the one thing worth acting on; an
+  # unmeasurable row proposes nothing, and a report nobody asked for is the
+  # same defect as a decision nobody needed to make. `felix ledger` says it.
 fi
 
 # What the record proposes changing about what is mounted (Decision C step 3,

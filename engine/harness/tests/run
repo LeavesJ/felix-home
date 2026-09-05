@@ -6055,6 +6055,63 @@ esac
 sum="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
         felix_ledger_summary "$BLP" )"
 has "while an owner-reduced play entry still names its plugin" "$sum" "superpowers	1	0	1"
+
+# And a built-in skill is not the plugin that shares its name.
+#
+# The host provides skills into the same identity space unqualified, while
+# every plugin-provided item is recorded with its provider prefix. So a bare
+# `skill` row is the host's, and folding it onto the declaration of the same
+# name — which reduces to that same bare string — donates its reaches. On this
+# machine that gave a plugin shipping no skill at all four reaches and six
+# namings, and the donation is what kept it off every list: retire needs calls
+# at zero, unrouted needs named at zero, and the borrowed numbers disqualified
+# it from both. The capability with no evidence of its own was the only one
+# nothing reported.
+BIH="$TMP/builtinhome"; BIP="$TMP/builtinproj"; mkdir -p "$BIH" "$BIP" "$MEM/builtinproj"
+printf 'plugin	code-review@x	-	low	always
+' > "$BIP/stack.tsv"
+( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+  felix_ledger_note_named "$BIH" b1 "code-review"
+  felix_ledger_record "$BIH" b1 "skill	code-review"
+  felix_ledger_record "$BIH" b1 "skill	superpowers:brainstorming"
+  felix_ledger_rollup "$BIP" "$BIH" b1 2026-08-30 )
+bsum="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+         felix_ledger_summary "$BIP" )"
+has "a bare skill row is counted as the host's, not the plugin's" \
+    "$bsum" "code-review (built-in)	1	1	"
+is "so the declared plugin keeps none of its reaches" \
+   "$(printf '%s\n' "$bsum" | awk -F'\t' '$1 == "code-review" { print $3 }')" "0"
+# A prefixed skill still belongs to the plugin that ships it: the rule is
+# "unqualified means the host", not "skills do not join".
+is "while a provider-prefixed skill still joins to its plugin" \
+   "$(printf '%s\n' "$bsum" | awk -F'\t' '$1 == "superpowers" { print $3 }')" "1"
+case "$bsum" in
+  *"superpowers (built-in)"*) bad "and a prefixed skill is never called a built-in" "$bsum" ;;
+  *)                          ok  "and a prefixed skill is never called a built-in" ;;
+esac
+# The declared plugin still has a row, with none of the reaches.
+#
+# This is the second half, and without it the first half is worse than the
+# defect: the rollup's zero-row loop skips a declared capability whose name it
+# has already seen this session, so a bare skill reach used to suppress the
+# plugin's row entirely — leaving it absent exactly in the sessions where the
+# built-in ran, rather than present with nothing to its name.
+is "the declared plugin still has its presence row" \
+   "$(printf '%s\n' "$bsum" | awk -F'\t' '$1 == "code-review" { print $2 }')" "1"
+# The play named a bare `code-review`, which nothing can disambiguate: the
+# route wrote a name both providers answer to. It is counted for both rather
+# than assigned to one, because assigning it would be a guess and the guess
+# would decide a retire verdict. No verdict turns on the duplication — the
+# built-in was reached, so calls disqualify it from retire whatever its
+# namings say.
+is "an ambiguous play naming is counted for the declared plugin" \
+   "$(printf '%s\n' "$bsum" | awk -F'\t' '$1 == "code-review" { print $4 }')" "1"
+is "and for the built-in too, because nothing can tell which was meant" \
+   "$(printf '%s\n' "$bsum" | awk -F'\t' '$1 == "code-review (built-in)" { print $4 }')" "1"
+# Which is the finding the donation had been suppressing.
+has "so the plugin with no evidence of its own reaches the retire list" \
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+        FELIX_LEDGER_MIN=1 felix_ledger_retire "$BIP" )" "code-review	1	1"
 r="$( HOME="$RCH"; . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
       . "$FROOT/harness/lib/stack.sh"; FELIX_LEDGER_MIN=1 felix_stack_reconcile "$BLP" )"
 case "$r" in

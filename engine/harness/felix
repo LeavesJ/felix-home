@@ -2805,6 +2805,9 @@ cmd_maintenance() {
       ok)      if [ "${cadence:-0}" -eq 0 ] 2>/dev/null; then printf '  ok      %-18s %-14s %s\n' "$name" "check passed" "$desc"
                else printf '  ok      %-18s %-14s every %sd\n' "$name" "${age}d ago" "$cadence"; fi ;;
       event)   printf '  event   %-18s %-14s %s\n' "$name" "on trigger" "$desc" ;;
+      # A row with a check, asked from somewhere with no checkout in front of
+      # it. Not `event`, which would say the row has nothing to answer to.
+      unchecked) printf '  ?       %-18s %-14s %s\n' "$name" "not asked" "$desc" ;;
       dormant) printf '  -       %-18s %-14s %s\n' "$name" "not yet" "$desc" ;;
     esac
   done

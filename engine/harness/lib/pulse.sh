@@ -296,17 +296,46 @@ felix_pulse_backup_age() {
   printf '%s' $(( (now - last) / 86400 ))
 }
 
+# resolve.sh holds felix_repo_root and felix_resolve_project, both used below.
+# Sourced by path with the house guard because the suite sources this library
+# alone, in a subshell — and without it the two calls would be missing rather
+# than wrong, leaving `self` empty, the root never offered, and every checked
+# row reported as unasked. A fix that degrades to doing nothing is the harder
+# kind to notice.
+if ! command -v felix_repo_root >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 # What is waiting, one line per fact. Reads only Felix's own tables and state.
 felix_pulse_report() {
-  local home="$1" proj name due
+  local home="$1" proj name due unasked st root self selfproj
+
+  # The one checkout this may name. The pulse runs from launchd with whatever
+  # cwd launchd had, so $PWD says nothing, and a project records no path — it
+  # is found FROM a checkout by remote match, never the reverse. What is true
+  # is that a home which is itself a checkout is the checkout of exactly one of
+  # these projects, and passing it to the others would run their reality-checks
+  # in a tree that is not theirs. So the root is offered to that project alone
+  # and withheld everywhere else, where the status is now `unchecked` and says
+  # so rather than reading as a row with nothing to answer to.
+  self="$(felix_repo_root "$home" 2>/dev/null)"
+  selfproj=""
+  [ -n "$self" ] && selfproj="$(felix_resolve_project "$self" "$home" 2>/dev/null)"
+
   for proj in "$home"/projects/*/; do
     proj="${proj%/}"
     [ -f "$proj/project.json" ] || continue
     name="$(basename "$proj")"
     if [ -f "$proj/maintenance.tsv" ]; then
-      due="$(felix_maint_status "$proj" 2>/dev/null | grep '^due' | cut -f2 | tr '\n' ' ')"
+      root=""
+      [ -n "$selfproj" ] && [ "$proj" = "$selfproj" ] && root="$self"
+      st="$(felix_maint_status "$proj" "$root" 2>/dev/null)"
+      due="$(printf '%s\n' "$st" | grep '^due' | cut -f2 | tr '\n' ' ')"
       due="${due% }"
       [ -n "$due" ] && printf 'due\t%s\t%s\n' "$name" "$due"
+      unasked="$(printf '%s\n' "$st" | grep '^unchecked' | cut -f2 | tr '\n' ' ')"
+      unasked="${unasked% }"
+      [ -n "$unasked" ] && printf 'unchecked\t%s\t%s\n' "$name" "$unasked"
     fi
     if [ -f "$proj/routes.tsv" ] && felix_discover_stale "$proj" "$home"; then
       printf 'stale\t%s\tdiscovery cache; the next session refreshes it in the background\n' "$name"

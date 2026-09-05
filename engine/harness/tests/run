@@ -6713,9 +6713,15 @@ has "an event row with a failing check is DUE"  "$(_mst "$MTR")" "due	graph"
 printf 'm\n' > "$MTR/map.json"
 has "and once the check passes it is ok"          "$(_mst "$MTR")" "ok	graph"
 # Where no checkout is known — felix pulse is home-scoped — a checked row is
-# `event`, as before, and is not claiming the check passed.
-has "with no checkout in front of it the row stays event, claiming nothing" \
-    "$(_mst "")" "event	graph"
+# `unchecked`, and that word is the whole point. It used to fall through to
+# `event`, which is also what a row with no check emits, so the two became one
+# line downstream and `felix pulse`, keeping only `due`, printed neither.
+has "with no checkout in front of it the row reads unchecked" \
+    "$(_mst "")" "unchecked	graph"
+case "$(_mst "")" in
+  *"event	graph"*) bad "an unaskable row must not read as one with nothing to ask" ;;
+  *) ok "and never as event, which is what a row with no check says" ;;
+esac
 # A row written before the column existed has four fields and keeps working.
 printf 'old\t0\talways\tno check here\n' >> "$MTP/maintenance.tsv"
 has "a four-column row still reads as event"     "$(_mst "$MTR")" "event	old"
@@ -7162,6 +7168,22 @@ out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
         felix_pulse_report "$PRH" )"
 has "names the maintenance that is due"  "$out" "due	pulsey	checkme"
 has "and the discovery cache gone stale" "$out" "stale	pulsey"
+
+# And a row it could not ask is reported rather than dropped.
+#
+# The pulse is home-scoped: it iterates projects with no tree in front of any
+# of them, so a cadence-0 row with a CHECK cannot be evaluated and used to be
+# filtered away by `grep '^due'`. That is the graphify lesson one layer down —
+# "nothing due" and "nothing is being checked" rendering identically — on the
+# one surface nobody is watching when it renders. pulsey's checkout is not
+# this home, so the root is correctly withheld and the row says so.
+printf 'checkme\t7\talways\tsomething with a cadence\nmapped\t0\talways\tthe map\ttest -f map.json\n' \
+  > "$PRH/projects/pulsey/maintenance.tsv"
+out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+        . "$FROOT/harness/lib/stack.sh"; . "$FROOT/harness/lib/maintenance.sh"
+        . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/pulse.sh"
+        felix_pulse_report "$PRH" )"
+has "the pulse reports a check it could not ask" "$out" "unchecked	pulsey	mapped"
 
 # Scheduling is a grant a person makes, so the install path is explicit,
 # writes one launchd agent under $HOME, and says what it did. launchctl is

@@ -116,6 +116,16 @@ felix_stack_plan() {
   done
 }
 
+# resolve.sh holds felix_has_line and felix_registry_field, both used below.
+# Sourced by path with the house guard because the suite sources this library
+# alone, in a subshell. Without it felix_registry_field would be missing rather
+# than wrong, its substitution would be empty, and every plugin-provided server
+# would fall through to the mount branch — the fix degrading silently into the
+# defect it replaces.
+if ! command -v felix_registry_field >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 # What the record proposes changing about what is mounted (Decision C step 3,
 # 2026-08-30). The ledger records which MCP servers were reached; stack.tsv
 # records which are declared. This reads both and proposes — it installs
@@ -147,9 +157,27 @@ felix_stack_plan() {
 # Needs ledger.sh sourced beside this file, as the CLI and both session hooks
 # already do. Emits: action <TAB> name <TAB> evidence
 felix_stack_reconcile() {
-  local proj="$1" name sessions calls named declared
+  local proj="$1" name sessions calls named declared plugins
   declared="$(_felix_stack_rows "$proj" \
     | awk -F'\t' '$1 == "mcp" { n = $2; sub(/@.*/, "", n); print n }')"
+
+  # The plugin declarations, for the mount side alone.
+  #
+  # A plugin can ship an MCP server, and the ledger records that server's
+  # reaches under the plugin's own name — felix_ledger_mcp folds
+  # `plugin_<plugin>_<server>` down to `<plugin>`. So a project that declares
+  # a plugin row and reaches for the server that plugin provides was being told
+  # "no row declares it", because `declared` above reads kind `mcp` and nothing
+  # else. One governed project carried exactly that: the same capability on the
+  # mount list for hundreds of reaches and on the retire list for zero
+  # invocations, at the same time.
+  #
+  # Not shared with the unmount loop. That loop proposes only for declared
+  # rows, and widening its set to plugins would have it propose unmounting
+  # every plugin felix_ledger_retire already proposes retiring — the same
+  # finding twice, in two vocabularies, from one table.
+  plugins="$(_felix_stack_rows "$proj" \
+    | awk -F'\t' '$1 == "plugin" { n = $2; sub(/@.*/, "", n); print n }')"
   felix_ledger_summary "$proj" | while IFS=$'\t' read -r name sessions calls named; do
     [ -n "${name:-}" ] || continue
     felix_has_line "$declared" "$name" || continue
@@ -163,6 +191,18 @@ felix_stack_reconcile() {
     [ -n "${name:-}" ] || continue
     felix_has_line "$declared" "$name" && continue
     [ "${calls:-0}" -gt 0 ] 2>/dev/null || continue
+
+    # A name the registry knows is a plugin, not a server anyone adds with
+    # `claude mcp add`. Declared as a plugin, there is nothing to propose;
+    # undeclared, the row to add is a plugin row, and saying `mcp` would send
+    # a person to write a declaration that cannot match what is recorded.
+    if [ -n "$(felix_registry_field "$name" installPath 2>/dev/null)" ]; then
+      felix_has_line "$plugins" "$name" && continue
+      printf 'declare\t%s\treached %s time(s) across %s session(s); a plugin provides it and no row declares that plugin\n' \
+        "$name" "$calls" "$sessions"
+      continue
+    fi
+
     printf 'mount\t%s\treached %s time(s) across %s session(s), and no row declares it\n' \
       "$name" "$calls" "$sessions"
   done

@@ -2143,10 +2143,16 @@ cmd_stack() {
     printf 'unmount is that row deleted, and claude mcp remove <name> unmounts the\n'
     printf 'server itself. Mounting binds at session start, so either change lands\n'
     printf 'next session, not this one.\n\n'
-    printf 'The record cannot tell a server you mounted from one the host or a\n'
-    printf 'plugin provides. A mount proposal for a host-provided server is the\n'
-    printf 'record saying it is used, not an instruction — leaving it unacted is\n'
-    printf 'an answer, and session start will not raise a proposal twice.\n'
+    printf 'A declare is the same row with kind plugin rather than mcp: the\n'
+    printf 'registry says a plugin provides that server, so claude mcp add has\n'
+    printf 'nothing to add and the declaration a person writes has to name the\n'
+    printf 'plugin the ledger is actually recording.\n\n'
+    printf 'What is left is the case the record genuinely cannot decide: a server\n'
+    printf 'the host provides looks exactly like one you added yourself, and\n'
+    printf 'neither carries a plugin the registry knows. A mount proposal for one\n'
+    printf 'of those is the record saying it is used, not an instruction —\n'
+    printf 'leaving it unacted is an answer, and session start will not raise a\n'
+    printf 'proposal twice.\n'
     return 0
   fi
 

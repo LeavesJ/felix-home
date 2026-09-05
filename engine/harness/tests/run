@@ -5793,6 +5793,15 @@ printf '\nthe reconciler reads the record: reached beside needed\n'
 # priors, and proposing a mount from them would flip the same rows back and
 # forth forever. idle is an undeclared server with no evidence at all — the
 # row an unconditional mount branch would trip over.
+# The reconciler asks the plugin registry whether a reached name is a plugin,
+# so the registry has to be a fixture. Read from $HOME, and unpinned these
+# assertions would answer differently on a laptop that happens to have a plugin
+# by the fixture's name installed than on a runner that does not — a suite that
+# passes in CI and fails at the desk, or the reverse. `provided` is a plugin
+# here and `context7` deliberately is not.
+RCH="$TMP/recon-home"; mkdir -p "$RCH/.claude/plugins"
+printf '{"plugins":{"provided@x":{"version":"1.0.0","installPath":"/tmp/provided"}}}\n' \
+  > "$RCH/.claude/plugins/installed_plugins.json"
 RCL="$TMP/reconlib"; mkdir -p "$RCL" "$MEM/reconlib"
 cat > "$MEM/reconlib/ledger.tsv" <<'EOF'
 s1	2026-08-01	mcp	context7	4	0
@@ -5828,7 +5837,7 @@ esac
   printf 'mcp\tquiet\t-\tmedium\talways\n'
   printf 'mcp\tdup\t-\tlow\talways\n'
 } > "$RCL/stack.tsv"
-r="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+r="$( HOME="$RCH"; . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
       . "$FROOT/harness/lib/stack.sh"; FELIX_LEDGER_MIN=3 felix_stack_reconcile "$RCL" )"
 has "proposes mounting what was reached and never declared" "$r" "mount	context7"
 has "proposes unmounting what was named and never reached, whatever shape recorded it" \
@@ -5849,16 +5858,53 @@ case "$r" in
   *ghost*) bad "rows outliving a deleted declaration do not propose a mount" "$r" ;;
   *)       ok  "rows outliving a deleted declaration do not propose a mount" ;;
 esac
-r="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+r="$( HOME="$RCH"; . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
       . "$FROOT/harness/lib/stack.sh"; FELIX_LEDGER_MIN=5 felix_stack_reconcile "$RCL" )"
 is "an unmount below the session threshold is not evidence" \
    "$(printf '%s\n' "$r" | grep -c '^unmount' | tr -d ' ')" "0"
 has "while a mount needs no threshold: the reach already happened" "$r" "mount	context7"
 
+# A server a plugin provides is a plugin row, not an mcp row.
+#
+# felix_ledger_mcp folds `plugin_<plugin>_<server>` to `<plugin>`, so the name
+# that arrives here is the plugin's. `declared` reads kind mcp and nothing
+# else, so a project that declares the plugin and reaches for its server was
+# told "no row declares it" — one governed project had the same capability on
+# the mount list for hundreds of reaches and on the retire list for zero
+# invocations at once. And the proposal a person was sent to act on named a
+# kind that could never match what the ledger records: `claude mcp add` has
+# nothing to add for a server a plugin ships.
+printf 's9	2026-08-01	mcp	plugin_provided_srv	4	0
+' >> "$MEM/reconlib/ledger.tsv"
+r="$( HOME="$RCH"; . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+      . "$FROOT/harness/lib/stack.sh"; FELIX_LEDGER_MIN=3 felix_stack_reconcile "$RCL" )"
+has "a server the registry says a plugin provides is proposed as a plugin row" \
+    "$r" "declare	provided"
+case "$r" in
+  *"mount	provided"*) bad "and never as an mcp row nothing could add" "$r" ;;
+  *)                   ok  "and never as an mcp row nothing could add" ;;
+esac
+# And declaring that plugin answers it. This is the contradiction closing: the
+# same name can no longer be proposed for mounting while a row declares it.
+printf 'plugin	provided@x	-	low	always
+' >> "$RCL/stack.tsv"
+r="$( HOME="$RCH"; . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+      . "$FROOT/harness/lib/stack.sh"; FELIX_LEDGER_MIN=3 felix_stack_reconcile "$RCL" )"
+case "$r" in
+  *provided*) bad "a declared plugin's server is proposed no further" "$r" ;;
+  *)          ok  "a declared plugin's server is proposed no further" ;;
+esac
+# The plugin declaration is for the mount side alone. Widening the unmount
+# set to plugin rows would have this propose unmounting everything
+# felix_ledger_retire already proposes retiring — one finding, two
+# vocabularies, from one table.
+is "and declaring a plugin does not turn the retire rule into an unmount" \
+   "$(printf '%s\n' "$r" | grep -c '^unmount' | tr -d ' ')" "1"
+
 # A project that never declared a stack still has a record worth reading.
 RNS="$TMP/reconnostack"; mkdir -p "$RNS" "$MEM/reconnostack"
 printf 's1\t2026-08-01\tmcp\tcontext7\t4\t0\n' > "$MEM/reconnostack/ledger.tsv"
-r="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+r="$( HOME="$RCH"; . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
       . "$FROOT/harness/lib/stack.sh"; felix_stack_reconcile "$RNS" )"
 has "no stack.tsv means nothing is declared, not nothing to say" "$r" "mount	context7"
 
@@ -5961,7 +6007,7 @@ esac
 sum="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
         felix_ledger_summary "$BLP" )"
 has "while an owner-reduced play entry still names its plugin" "$sum" "superpowers	1	0	1"
-r="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+r="$( HOME="$RCH"; . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
       . "$FROOT/harness/lib/stack.sh"; FELIX_LEDGER_MIN=1 felix_stack_reconcile "$BLP" )"
 case "$r" in
   *"unmount	context7"*) bad "so no false unmount is proposed from it" "$r" ;;

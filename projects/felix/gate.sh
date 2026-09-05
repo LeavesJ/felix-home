@@ -182,6 +182,19 @@ EOF
       fail installed
       head -5 /tmp/felix-install-drift.log | sed 's/^/    /'
       printf '    reinstall with: felix install\n'
+      # Deployable drift, and the remedy is one command. Everything after this
+      # would be spent verifying a tree whose engine is not the one any session
+      # is running, and the suite alone is minutes. It has cost that twenty-two
+      # times: `installed` is the top row of felix next's "already cost time
+      # more than once", and the lesson beside it cannot help, because the
+      # remedy is procedural rather than something a person learns once.
+      #
+      # Not a loosening. The gate still fails, and fails for the same reason it
+      # did before; it simply stops paying for checks whose answer is about to
+      # be thrown away. The structural branch above does NOT stop, because a
+      # worktree can never satisfy this check and its other results are the
+      # only ones it can give.
+      SKIP_REST=1
     fi
   fi
 else
@@ -189,7 +202,9 @@ else
 fi
 
 # ------------------------------------------------------------- tests ---------
-if [ "${1:-}" = "--quick" ]; then
+if [ "${SKIP_REST:-0}" -eq 1 ]; then
+  printf '  %-18s skipped (the deployed engine is not this tree)\n' tests
+elif [ "${1:-}" = "--quick" ]; then
   printf '  %-18s skipped (--quick)\n' tests
 elif ./engine/harness/tests/run >/tmp/felix-gate-tests.log 2>&1; then
   pass tests

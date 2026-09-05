@@ -219,8 +219,19 @@ what the graph covers, would both make it mean something.
 The ordering that cost three merge refusals: **record the manifest, install,
 commit, gate, merge.** `felix install` mutates the tree — it bumps
 `engine/.claude-plugin/plugin.json` — so install-then-gate-then-commit leaves
-the commit changing the tree the receipt was written for. Install also needs a
-second pass, because it bumps after it deploys.
+the commit changing the tree the receipt was written for, and merge then
+refuses with "no green receipt for this exact tree".
+
+An earlier draft of this section added "install also needs a second pass,
+because it bumps after it deploys". That is not true, and it is worth leaving
+the correction here rather than the claim. I measured it four times: perturb
+the tree, run install once, compare the tree against the deployed copy. Every
+run bumped and verified in one pass — the bump branch redeploys and re-checks,
+which is exactly what it was written to do. I had inferred a mechanism from a
+single incident whose real cause I never established, which is the same error
+as the `grep` one at the top of this section, made twice in one night. The
+second pass I kept running was superstition, and it cost nothing but it
+explained nothing either.
 
 **PR 4 of the commissioning pipeline is still unbuilt**, and §0ao's note
 stands: its premise in amendments §1.3 is stale, discovery is already

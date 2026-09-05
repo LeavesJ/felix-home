@@ -126,6 +126,7 @@
 1	a hyphenated server name still credits the plugin that ships it
 1	a judge identical to the candidate merges nothing
 1	a keyword inside another word is not a match
+1	a kind that is two known kinds run together is refused
 1	a later copy of the field in the envelope is not the subject
 1	a ledger from before the column reports nothing at all
 1	a ledger written as one file is still read
@@ -595,6 +596,7 @@
 1	and it is a tier, not the word
 1	and it is broken by the engine's table, not the file
 1	and it is named
+1	and it is not accepted as a row
 1	and it is not autonomous
 1	and it is reported as unusable, not unchecked
 1	and it is the usage text

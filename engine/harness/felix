@@ -3254,33 +3254,68 @@ cmd_adopt() {
 # The deliberation record, readable. Decision B (approved 2026-08-30) holds
 # enforcement until the recording has run for 20 sessions; this is the tracker
 # that decision is judged from, so losing or eyeballing the data is not an
-# option. Three numbers, each from its own file: mandates rendered (says.log,
-# the "Use this now" lines a session was actually shown), declines recorded
-# (decisions.log, written by felix route --ack), and reaches (the ledger).
-# The answer rate - declines per mandate - is the proxy for whether sessions
-# treat the channel as answerable at all; the 20-session review reads it
-# alongside follow-through, not instead of it.
+# option.
+#
+# Three numbers, each from its own file and each saying only what its file can
+# say. Mandates rendered: the "Use this now" lines a session was shown
+# (says.log). Declines: decisions.log, whose sole appender is
+# `felix route --ack` and whose sole verdict is the literal `declined`.
+# Rendered and not used: the Stop hook's `skipped` row, written once per
+# session when a play was shown and the transcript never reached for it.
+#
+# What is NOT here, and the correction that removed it: this used to render
+# "answered N of M" over declines and mandates. Nothing writes a row when a
+# mandate is FOLLOWED — the Stop hook names both responses, "Decline it on the
+# record ... or use it", and only the first leaves a trace — so the gap
+# collapsed compliance and disregard into one number and called all of it
+# unanswered. A rate needs a numerator that can contain both outcomes, and
+# this one cannot. The `skipped` column recovers the disregard half, which the
+# engine had been writing all along and this command ignored; the rest is
+# unknown and is now said to be unknown.
+#
+# Both counts are windowed from the same date. The numerator was not, so a
+# decline predating the channel counted against mandates that excluded it.
 cmd_decisions() {
   resolve_or_die; local proj="$PROJ"
   local mem; mem="$(felix_mem_dir "$proj")"
   local dlog="$mem/decisions.log" slog="$mem/says.log"
-  local declined=0 mandates=0
-  # The verdict field, not the word: a reason containing "declined" is one
-  # row, not two. Tab-delimited third column, matched with its delimiters.
-  declined="$(felix_count "$(printf '\tdeclined\t')" "$dlog")"
-  # Mandates counted only from the day the answer channel existed. 56 rendered
-  # before felix route --ack shipped could not have been answered, and an
-  # answer rate computed over them reports a compliance failure nobody could
-  # have avoided - the same shape as the follow-through figures computed
-  # against suggestions nobody was shown. The channel shipped 2026-08-30.
+  local declined=0 mandates=0 skipped=0
+  # Counted only from the day the answer channel existed. 56 mandates rendered
+  # before felix route --ack shipped could not have been answered, and a rate
+  # computed over them reports a compliance failure nobody could have avoided -
+  # the same shape as the follow-through figures computed against suggestions
+  # nobody was shown. The channel shipped 2026-08-30.
   FELIX_DECISIONS_SINCE="${FELIX_DECISIONS_SINCE:-2026-08-30}"
+  # The verdict field, not the word: a reason containing "declined" is one row,
+  # not two. And the same window as everything below it.
+  declined="$([ -f "$dlog" ] && awk -F'\t' -v s="$FELIX_DECISIONS_SINCE" \
+    '$1 >= s && $3 == "declined" {n++} END {print n+0}' "$dlog" || printf 0)"
   mandates="$([ -f "$slog" ] && awk -F'\t' -v s="$FELIX_DECISIONS_SINCE" \
     '$1 >= s && index($0,"Use this now") {n++} END {print n+0}' "$slog" || printf 0)"
+  skipped="$([ -f "$slog" ] && awk -F'\t' -v s="$FELIX_DECISIONS_SINCE" \
+    '$1 >= s && $2 == "skipped" {n++} END {print n+0}' "$slog" || printf 0)"
   printf 'capability decisions for %s, since %s\n\n' "$(basename "$proj")" "$FELIX_DECISIONS_SINCE"
   printf '  mandates rendered          %s\n' "$mandates"
   printf '  declined, on the record    %s\n' "$declined"
+  printf '  rendered and not used      %s\n' "$skipped"
   if [ "$mandates" -gt 0 ]; then
-    printf '  answered                   %s of %s\n' "$declined" "$mandates"
+    printf '\nNothing records a mandate that was FOLLOWED, so these do not sum to the\n'
+    printf 'mandates above and the remainder is not a compliance figure. What the\n'
+    printf 'files can say: %s declined on the record, %s shown and demonstrably not\n' \
+      "$declined" "$skipped"
+    # The two counts come from different populations — a session can decline
+    # without ever earning a skipped row, and the skipped row is written once
+    # per session while mandates are counted per rendering. So the remainder is
+    # a subtraction that can go negative, and a negative "nothing was written
+    # about" would be a number nobody can act on. Said as an overlap instead,
+    # which is what it means.
+    if [ "$(( declined + skipped ))" -le "$mandates" ]; then
+      printf 'reached for, and %s about which nothing was written either way.\n' \
+        "$(( mandates - declined - skipped ))"
+    else
+      printf 'reached for — together more than the mandates rendered, so some\n'
+      printf 'sessions are counted in both.\n'
+    fi
   fi
   printf '\n'
   if [ -f "$dlog" ]; then

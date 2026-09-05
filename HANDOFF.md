@@ -71,14 +71,14 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
-## 0ap. Verified at session close, 2026-09-05 (overnight) — six measurement claims now say what was measured, and one of my own findings was false
+## 0ap. Verified at session close, 2026-09-05 (overnight) — the measurement audit is closed, and one of the findings I closed it with was false
 
 | | |
 |---|---|
-| head | `88d8621` on `main` (#181–#186, six merges), CI `gate` **success** on each |
-| suite | **1571** passed, 0 failed, manifest re-recorded |
-| deployed engine | **0.49.81**, deployed from the home checkout after each merge |
-| the audit's mediums | four closed, one verified already-closed, three open |
+| head | `88fd1c8` on `main` (#181–#192, twelve merges), CI `gate` **success** on each |
+| suite | **1594** passed, 0 failed, manifest re-recorded |
+| deployed engine | **0.49.94**, deployed from the home checkout after each merge |
+| the 2026-09-04 measurement audit | **closed** — 4 high (§0ao), 8 medium, 2 low |
 
 ### The correction first
 
@@ -100,103 +100,132 @@ correctly, at 394, identical to `awk`. The engine runs under
 about the engine — it was about my shell.
 
 The assertion is gone rather than shipped, and the comment that recorded the
-false measurement now records what actually happened. `awk` stayed, on the
-smaller and true ground that it does not depend on which `grep` is on `PATH`.
-This is §8's sixth variant again — *the place it ran was not the place it
-mattered* — and it arrived twice more the same night, below.
+false measurement now records what happened. `awk` stayed, on the smaller and
+true ground that it does not depend on which `grep` is on `PATH`. This is §8's
+sixth variant — *the place it ran was not the place it mattered* — and it
+arrived twice more the same night, below.
+
+### What the banner said before, and what it says now
+
+The single clearest measure of the night. Every line a session reads at start
+is now a claim the data supports.
+
+Before, one sentence with a denominator nothing checked and a verb nothing
+read: *"Mounted every session and never once reached for: semgrep"*. Now:
+
+```
+Pointed at and never once reached for:
+  code-review — pointed at in 63 of 66 sessions, named 8 times, never reached
+Partial: 1 session(s) have calls on disk that no fold accounts for...
+The record proposes changing what is mounted: declare:context7 declare:playwright
+```
+
+`code-review` is a finding that was **invisible before tonight** — its zero was
+being filled in by a different provider's reaches. `declare:` is a row a person
+can actually write. The `Partial:` line is this session, correctly.
 
 ### What closed
 
 1. **#181 — the page's totals count the file, not the window.** "Things said"
-   read 60 over a log holding 774; "gate failures" read 20 over 40. The
-   counting was never wrong: the template rendered `array.length` over an
-   array the reader had already bounded with `tail -n limit`. A window is a
-   fine thing to show and a wrong thing to label a total. Five totals now
-   travel beside their windows, and the verdict tag reads "last N of M".
+   read 60 over a log holding 774; "gate failures" 20 over 40. The template
+   rendered `array.length` over an array the reader had already bounded with
+   `tail -n limit`. Five totals now travel beside their windows.
 
 2. **#182 — the retire banner reports the count the filter checked.** The
-   session-start banner said "Mounted every session and never once reached
-   for". Two claims, neither tested. The filter admits a row at
-   `FELIX_LEDGER_MIN` sessions — five — and the banner piped it through
-   `cut -f1`, discarding the count, then supplied "every session". Worse,
-   nothing on that path reads mount state at all: a row arrives there because
-   a route *named* the capability, declared or not. It now says what was
-   checked, in the words `felix ledger` already used.
+   filter admits a row at five sessions; the banner discarded that count with
+   `cut -f1` and supplied "every session". And nothing on that path reads
+   mount state at all, so "Mounted" was asserting something the data does not
+   carry. `felix_ledger_sessions` added for the denominator, one reader shared
+   with the report.
 
 3. **#183 — a check nobody could ask is said, not dropped.** A cadence-0 row
-   with a CHECK falls through to `event` when no checkout root is given —
-   which is also what a row with *no* check emits. `felix pulse` kept `^due`
-   and printed neither, so on the daily heartbeat "this could not be asked"
-   and "nothing is waiting" were the same empty output. That is the graphify
-   lesson one layer down, on the surface nobody watches. `unchecked` is now
-   its own word, and the pulse offers a root to the one project whose
-   checkout it can honestly name.
+   with a CHECK fell through to `event` with no root — which is also what a row
+   with no check emits — and `felix pulse` kept only `due`. `unchecked` is its
+   own word now, and the pulse offers a root to the one project whose checkout
+   it can honestly name.
 
-4. **#184, #185 — a fold that stopped keeping up is not a finished fold.**
-   Both ledger loops guarded with `[ -f fold ]`, which tests whether a fold
-   exists and not whether it accounts for the file. A session folds at its
-   SessionEnd and is resumed under the same id; or the catch-up folds one that
-   is still alive. Either way the state file grows, the fold does not, and
-   because a fold exists neither loop looks again. Two stale folds here, one
-   of them three days old and holding four signals. #185 then corrected the
-   sentence #184 had just made untrue — a re-folded session *did* fold itself.
+4. **#184, #185 — a fold that stopped keeping up is not a finished fold.** Both
+   ledger loops tested whether a fold *exists*, not whether it accounts for the
+   file. Two stale folds here, one three days old holding four signals. #185
+   then corrected the sentence #184 had just made untrue.
 
-5. **#186 — a server a plugin provides is a plugin row.** `felix_ledger_mcp`
-   folds `plugin_<plugin>_<server>` to `<plugin>`, but `declared` read kind
-   `mcp` only, so a project declaring the plugin was told "no row declares
-   it". One governed project had the same capability on the mount list for
-   hundreds of reaches and the retire list for zero invocations at once. The
-   proposal was unactionable anyway: `claude mcp add` has nothing to add for a
-   server a plugin ships.
+5. **#186 — a server a plugin provides is a plugin row.** `declared` read kind
+   `mcp` only, so a project declaring the plugin was told "no row declares it".
+   One governed project had the same capability on the mount list for hundreds
+   of reaches and the retire list for zero, simultaneously.
 
-**Verified already closed, no work done:** the audit's "four hand-made probe
-files counted as real sessions". #168's ownership gate and the data repair had
-already removed them. The live ledger is 66 folds, every id session-shaped,
-plus three `.bak` files the `*.tsv` glob never reads. `perf.tsv` still sits
-unfolded in `state/ledger/` with a mark whose sha this repository does not
-contain, so it cannot be folded. Measured, not assumed.
+6. **#189 — the decisions tracker says what the record holds.** "answered 12 of
+   51" was not a rate: `decisions.log` has one verdict, `declined`, and nothing
+   writes a row when a mandate is *followed*. The gap collapsed compliance and
+   disregard. The disregard half was never missing — the Stop hook's `skipped`
+   row — and is now rendered; the rest is named as unwritten.
 
-### Still open from the audit
+7. **#190 — a built-in skill is not the plugin that shares its name.** The host
+   provides skills unqualified into an identity space where
+   `<name>@<marketplace>` reduces to the same string. The donation is what kept
+   a plugin off *every* list: retire needs calls at zero, unrouted needs named
+   at zero, and the borrowed numbers disqualified it from both.
 
-Three mediums: the built-in code-review skill folded onto the code-review
-plugin; "silence means the record and the manifest agree" said over whatever
-subset happened to fold; and `felix decisions` rendering "answered 12 of 51"
-when a followed mandate is unrecordable.
+8. **#191 — silence over a partial record is not agreement.** `felix stack
+   reconcile` never folded; the hook could not, and marked what it showed as
+   seen. A mount survives folding, an unmount is exactly what folding
+   falsifies, so the hook now *holds* the zero-backed half rather than
+   suppressing it forever.
+
+9. **#192 — a caveat that cannot become untrue, and a kind that cannot be
+   routed.** "Weak while few sessions are recorded" printed identically at
+   n=1 and n=66, and was the only thing standing where retire has a threshold.
+   And a `marketplace` was being reported as a routing gap `felix next` told
+   the reader to wire.
+
+**Verified already closed, no work done:** the "four hand-made probe files
+counted as real sessions". #168's ownership gate and the data repair had
+removed them. 66 folds, every id session-shaped, plus three `.bak` files the
+glob never reads; `perf.tsv` cannot be folded because its mark names a sha this
+repository does not contain. Measured, not assumed.
+
+**#188 — graphify refreshed.** 1447 nodes, 1828 edges, 155 communities, health
+OK.
 
 ### What the gate caught that I would have shipped
 
-Worth more than the fixes. Twice in one night the engine refused my own work
-for the right reason.
+Worth more than the fixes. Three times the engine refused its own author.
 
 - **The independence check refused a comment** naming a governed project and a
-  marketplace. Invariant 1, enforced on the engine's own author.
-- **`felix merge` refused a two-line wording change** with "anything running
-  in every session needs an assertion that would have caught it breaking".
-  It was right — two sentences a person reads every session had changed, and
-  the only thing pointing at either was a source-grep for a function name.
-  Both are driven through the hook and the CLI now.
-- **Four existing assertions became machine-dependent** the moment the
-  reconciler read the plugin registry, which lives under `$HOME` — and one
-  fixture used a server name that is a real installed plugin on this laptop.
-  They would have passed in CI and failed at the desk. §8's sixth variant,
-  third sighting in one night; the fix is the one §8 already names, a fixture
-  `HOME`.
+  marketplace. Invariant 1, enforced on me.
+- **`felix merge` refused a two-line wording change** with "anything running in
+  every session needs an assertion that would have caught it breaking". Right:
+  two sentences a person reads every session had changed, and the only thing
+  pointing at either was a source-grep for a function name.
+- **Four assertions became machine-dependent** the moment the reconciler read
+  the plugin registry under `$HOME` — and one fixture used a server name that
+  is a real installed plugin here. They would have passed in CI and failed at
+  the desk. §8's sixth variant, third sighting in one night; the fix is the one
+  §8 already names, a fixture `HOME`.
+
+### One thing for the founder, not acted on
+
+**The graphify row is due again, and structurally almost always will be.** Its
+check is `graph.json` newer than the last commit, so any commit makes it due —
+including the commit that records the refresh. Tonight it went `due → ok →
+due` within one PR. That is the same defect class as everything above, in a
+project table rather than in the engine: a signal that is on almost always
+carries no information. It is a project decision, so it is stated rather than
+changed. A cadence in days, or a check against the last commit that touched
+what the graph covers, would both make it mean something.
 
 ### For the next session
 
-The ordering that cost three refusals: **record the manifest, install, commit,
-gate, merge.** `felix install` mutates the tree — it bumps
-`engine/.claude-plugin/plugin.json` — so the intuitive install-then-gate-then-
-commit leaves the commit changing the very tree the receipt was written for,
-and merge refuses with "no green receipt for this exact tree". Install can also
-need a second pass, because it bumps after it deploys.
+The ordering that cost three merge refusals: **record the manifest, install,
+commit, gate, merge.** `felix install` mutates the tree — it bumps
+`engine/.claude-plugin/plugin.json` — so install-then-gate-then-commit leaves
+the commit changing the tree the receipt was written for. Install also needs a
+second pass, because it bumps after it deploys.
 
-**graphify is due** and has been through six merges. It is the row that
-motivated the checked-event column in the first place.
-
-**PR 4 of the commissioning pipeline is still unbuilt**, and §0ao's note stands:
-its premise in amendments §1.3 is stale, discovery is already scheduled, and it
-is the sharpest trust boundary in the plan. It wants the founder, not a session.
+**PR 4 of the commissioning pipeline is still unbuilt**, and §0ao's note
+stands: its premise in amendments §1.3 is stale, discovery is already
+scheduled, and it is the sharpest trust boundary in the plan. It wants the
+founder, not a session.
 
 ## 0ao. Verified at session close, 2026-09-05 — the four high-severity audit findings are closed, and the manifest row says who grounded it
 

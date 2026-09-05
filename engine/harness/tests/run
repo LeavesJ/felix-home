@@ -4798,6 +4798,30 @@ has "it names the mixed zero as only partly countable"          "$_zrep" "only p
 has "and scopes that proposal to the play, keeping the row"     "$_zrep" "keep the row"
 rm -f "$MEM/widget/ledger.d"/zshape-h*.tsv
 is "and the widget ledger is as this block found it"            "$(ls "$MEM/widget/ledger.d"/zshape-* 2>/dev/null | wc -l | tr -d ' ')" "0"
+
+# The unrouted block's closing caveat is evaluated, not printed.
+#
+# It used to be a straight-line "Weak while few sessions are recorded", keyed
+# to nothing: the same sentence over two sessions, where it is apt, and over
+# sixty-six, where the rows two lines above contradict it. felix_ledger_unrouted
+# carries no session threshold — unlike retire, and correctly, since a
+# one-session row here is legitimate — so this sentence is the only thing
+# standing where retire has a filter, and prose cannot do a filter's job.
+mkdir -p "$MEM/widget/ledger.d"
+printf 'uw1\t2026-09-01\tplugin\tunrouted-thin@x\t0\t0\n' > "$MEM/widget/ledger.d/uw1.tsv"
+_urep="$(cd "$REPO" && HOME="$LZH" PATH="/usr/bin:/bin" FELIX_LEDGER_MIN=5 "$FELIX" ledger 2>&1)"
+has "a one-session routing gap is called weak, with the number"  "$_urep" "rests on 1 session(s)"
+for _i in 2 3 4 5 6; do
+  printf 'uw%s\t2026-09-0%s\tplugin\tunrouted-thin@x\t0\t0\n' "$_i" "$_i" \
+    > "$MEM/widget/ledger.d/uw$_i.tsv"
+done
+_urep="$(cd "$REPO" && HOME="$LZH" PATH="/usr/bin:/bin" FELIX_LEDGER_MIN=5 "$FELIX" ledger 2>&1)"
+has "and the same rows over more sessions are not"  "$_urep" "session(s) or more"
+case "$_urep" in
+  *"rests on 1 session"*) bad "so the caveat can become untrue" "$_urep" ;;
+  *)                      ok  "so the caveat can become untrue" ;;
+esac
+rm -f "$MEM/widget/ledger.d"/uw*.tsv
 # The banner carries none of this. It names the one thing worth acting on; an
 # unmeasurable row proposes nothing, and a report nobody asked for is the same
 # defect as a decision nobody needed to make.
@@ -4867,6 +4891,24 @@ case "$u" in
   *pointed-at*) bad "and not the one that was pointed at" "$u" ;;
   *)            ok  "and not the one that was pointed at" ;;
 esac
+
+# A kind with no invocation form is not a routing gap.
+#
+# The rollup writes a zero row for every stack.tsv line whatever its kind and
+# everything downstream is kind-agnostic, so a marketplace entered the
+# capability namespace as an equal. It is where plugins come from: no play
+# form, no legal route entry, so its named=0 and calls=0 are a fact about the
+# kind. It was being classified as the one thing routes.tsv can fix, and
+# `felix next` handed out an action nobody can perform.
+printf 'marketplace\tsomewhere\t-\tlow\talways\n' > "$LN/stack.tsv"
+printf 's1\t2026-08-01\tmarketplace\tsomewhere\t0\t0\n' >> "$MEM/ledgernamed/ledger.tsv"
+u="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+      felix_ledger_unrouted "$LN" | tr '\n' ' ' )"
+case "$u" in
+  *somewhere*) bad "a marketplace is not reported as a route that never fired" "$u" ;;
+  *)           ok  "a marketplace is not reported as a route that never fired" ;;
+esac
+has "while the capability that can be named still is" "$u" "never-named"
 
 # Rows written before the column existed say nothing either way. Reading a
 # missing field as "named" would resurrect the overclaim in the one place

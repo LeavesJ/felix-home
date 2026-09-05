@@ -27,14 +27,16 @@ felix_adopt_capability() {
   # consequences invisible, which is the failure this exists to prevent.
   local added_stack=0 added_setup=0
   mkdir -p "$proj/setup"
-  [ -f "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\n' > "$proj/stack.tsv"
+  [ -f "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$proj/stack.tsv"
   [ -f "$proj/setup.tsv" ] || printf '# id\ttitle\tcapability\tcheck\n' > "$proj/setup.tsv"
 
   if [ -f "$tpl/catalog.tsv" ]; then
     while IFS=$'\t' read -r k n src r c _kw; do
       [ "${c:-}" = "$cap" ] || continue
       grep -qF "	$n	" "$proj/stack.tsv" 2>/dev/null && continue
-      printf '%s\t%s\t%s\t%s\t%s\n' "$k" "$n" "$src" "$r" "$c" >> "$proj/stack.tsv"
+      # DECLARED: the catalogue tier is a person's judgment, and the engine
+      # writing the row down does not make it the engine's.
+      printf '%s\t%s\t%s\t%s\t%s\tDECLARED\n' "$k" "$n" "$src" "$r" "$c" >> "$proj/stack.tsv"
       added_stack=$((added_stack+1))
     done < <(grep -vE '^\s*(#|$)' "$tpl/catalog.tsv")
   fi

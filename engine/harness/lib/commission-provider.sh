@@ -272,8 +272,10 @@ ROWS
 # This phase decides and writes nothing. Applying a `declare` is the caller's,
 # for the same reason `felix_discover_adopt` does not edit stack.tsv itself.
 #
-# Emits: verdict <TAB> kind <TAB> name <TAB> tier <TAB> capability <TAB> why
+# Emits: verdict <TAB> kind <TAB> name <TAB> tier <TAB> capability <TAB> sha <TAB> why
 #   declare  | hold | refuse | recorded | unknown | already
+# The sha is the commit the copy was read at, or `-` where nothing was fetched;
+# it is what a declared row's log line carries as provenance.
 # Is this plugin installed on this machine? Read from the same registry
 # felix_commission_provider_provenance already parses, so no cli call and no
 # network: the admit phase must be able to answer this before it decides
@@ -318,15 +320,15 @@ felix_commission_admit() {
 
     case "$kind" in
       mcp)
-        printf 'refuse\t%s\t%s\t-\t-\tan mcp server is never installed from a request\n' "$kind" "$name"
+        printf 'refuse\t%s\t%s\t-\t-\t-\tan mcp server is never installed from a request\n' "$kind" "$name"
         continue ;;
       hook|skill|subagent)
-        printf 'recorded\t%s\t%s\t-\t-\tFelix authors none of these, so there is nothing to fetch\n' "$kind" "$name"
+        printf 'recorded\t%s\t%s\t-\t-\t-\tFelix authors none of these, so there is nothing to fetch\n' "$kind" "$name"
         continue ;;
     esac
 
     if printf '%s\n' "$declared" | grep -xF "$bare" >/dev/null 2>&1; then
-      printf 'already\t%s\t%s\t-\t-\tnamed in stack.tsv already\n' "$kind" "$name"
+      printf 'already\t%s\t%s\t-\t-\t-\tnamed in stack.tsv already\n' "$kind" "$name"
       continue
     fi
     # Installed but undeclared is a different answer from unresolvable, and
@@ -335,7 +337,7 @@ felix_commission_admit() {
     # that list is what is left to install — so sourcing it fails and the row
     # came back "nothing could be read". The registry answers it offline.
     if _felix_commission_installed "$bare"; then
-      printf 'already\t%s\t%s\t-\t-\tinstalled on this machine already, though stack.tsv does not name it\n' "$kind" "$name"
+      printf 'already\t%s\t%s\t-\t-\t-\tinstalled on this machine already, though stack.tsv does not name it\n' "$kind" "$name"
       continue
     fi
 
@@ -344,13 +346,13 @@ felix_commission_admit() {
     # thing: nothing was read, so nothing is known.
     src="$(felix_discover_source "$bare" 2>/dev/null)" || src=""
     if [ -z "$src" ]; then
-      printf 'unknown\t%s\t%s\t-\t-\tnothing to fetch it by: no pinned url and sha in any configured marketplace\n' "$kind" "$name"
+      printf 'unknown\t%s\t%s\t-\t-\t-\tnothing to fetch it by: no pinned url and sha in any configured marketplace\n' "$kind" "$name"
       continue
     fi
     sha="$(printf '%s' "$src" | cut -f2)"; sub="$(printf '%s' "$src" | cut -f3)"
     [ "$sub" = "-" ] && sub=""
     if ! felix_discover_fetch "$(printf '%s' "$src" | cut -f1)" "$sha" "$scratch/$bare" 2>/dev/null; then
-      printf 'unknown\t%s\t%s\t-\t-\tcould not be fetched at its pinned commit, so nothing was read\n' "$kind" "$name"
+      printf 'unknown\t%s\t%s\t-\t-\t%s\tcould not be fetched at its pinned commit, so nothing was read\n' "$kind" "$name" "$sha"
       continue
     fi
 
@@ -366,7 +368,7 @@ felix_commission_admit() {
     # while a high tier is not answerable at all — so the weaker statement must
     # not be the one that gets made.
     if [ "$(felix_admit "$tier" OBSERVED)" = "refuse" ]; then
-      printf 'refuse\t%s\t%s\t%s\t-\t%s\n' "$kind" "$name" "$tier" "$(felix_discover_why "$facts")"
+      printf 'refuse\t%s\t%s\t%s\t-\t%s\t%s\n' "$kind" "$name" "$tier" "$sha" "$(felix_discover_why "$facts")"
       continue
     fi
 
@@ -376,7 +378,7 @@ felix_commission_admit() {
     hit="$(felix_capability_match "$bare" "" "$rules" "$skills")"
     score="$(printf '%s' "$hit" | cut -f1)"; gcap="$(printf '%s' "$hit" | cut -f2)"
     if [ "${score:-0}" -lt "${FELIX_DISCOVER_MIN:-3}" ]; then
-      printf 'unknown\t%s\t%s\t%s\t-\tnothing it ships matches a capability this project declares\n' "$kind" "$name" "$tier"
+      printf 'unknown\t%s\t%s\t%s\t-\t%s\tnothing it ships matches a capability this project declares\n' "$kind" "$name" "$tier" "$sha"
       continue
     fi
 
@@ -384,12 +386,49 @@ felix_commission_admit() {
     # capability was consulted. The third arm stays as a fail-closed default
     # rather than an assertion that the policy has exactly three answers.
     case "$(felix_admit "$tier" OBSERVED)" in
-      install) printf 'declare\t%s\t%s\t%s\t%s\t%s\n' "$kind" "$name" "$tier" "$gcap" "$(felix_discover_why "$facts")" ;;
-      hold)    printf 'hold\t%s\t%s\t%s\t%s\t%s\n'    "$kind" "$name" "$tier" "$gcap" "$(felix_admit_why "$tier" OBSERVED)" ;;
-      *)       printf 'refuse\t%s\t%s\t%s\t%s\t%s\n'  "$kind" "$name" "$tier" "$gcap" "$(felix_discover_why "$facts")" ;;
+      install) printf 'declare\t%s\t%s\t%s\t%s\t%s\t%s\n' "$kind" "$name" "$tier" "$gcap" "$sha" "$(felix_discover_why "$facts")" ;;
+      hold)    printf 'hold\t%s\t%s\t%s\t%s\t%s\t%s\n'    "$kind" "$name" "$tier" "$gcap" "$sha" "$(felix_admit_why "$tier" OBSERVED)" ;;
+      *)       printf 'refuse\t%s\t%s\t%s\t%s\t%s\t%s\n'  "$kind" "$name" "$tier" "$gcap" "$sha" "$(felix_discover_why "$facts")" ;;
     esac
   done
   rc=$?
   rm -rf "$scratch" 2>/dev/null
   return "$rc"
+}
+
+# Apply what the admit phase declared.
+#
+# A `declare` line is a plugin the engine fetched at a pinned sha, read, tiered,
+# matched to a capability this project declares, and found installable under
+# the policy for what it read. Applying it is a row in stack.tsv carrying
+# OBSERVED — the grounding the engine has, never a person's — so that every
+# later run reads the row as what it is. This is the decision that kept the
+# admit phase from writing at all until it was taken: a manifest with no
+# provenance column reads every row as a person's, and person-written is the
+# one grounding that installs medium unattended.
+#
+# The log line carries the sha the copy was read at. Nothing is installed
+# here; `stack apply --yes` installs what the policy allows on the next run.
+# A name already in the manifest is left alone. Prints how many rows it wrote.
+felix_commission_apply_declares() {   # proj, root, admit-output, tid, policy, need -> count
+  local proj="$1" root="$2" adm="$3" tid="${4:-unknown-tree}" policy="${5:-}" need="$6"
+  local v k n tier gcap sha why log stamp declared c=0
+  log="$(felix_mem_dir "$proj")/commissioning.log"
+  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
+  stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  while IFS=$'\t' read -r v k n tier gcap sha why; do
+    [ "${v:-}" = "declare" ] && [ -n "${n:-}" ] || continue
+    printf '%s\n' "$declared" | grep -xF "${n%%@*}" >/dev/null 2>&1 && continue
+    [ -f "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$proj/stack.tsv"
+    printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$k" "$n" "$tier" "$gcap" >> "$proj/stack.tsv" || continue
+    declared="$declared
+${n%%@*}"
+    mkdir -p "$(dirname "$log")" 2>/dev/null
+    printf '%s\t%s\t%s\t%s\tdeclared\tOBSERVED\tfelix:commission\t%s@%s\t%s %s: %s %s\n' \
+      "$stamp" "$tid" "${policy:--}" "$need" "$n" "${sha:--}" "$k" "$n" "$tier" "$gcap" >> "$log"
+    c=$((c + 1))
+  done <<ROWS
+$adm
+ROWS
+  printf '%s' "$c"
 }

@@ -341,6 +341,9 @@ before_stack="$(cat "$FROOT/projects/widget/stack.tsv" 2>/dev/null | wc -l)"
 before_setup="$(cat "$FROOT/projects/widget/setup.tsv" 2>/dev/null | wc -l)"
 out="$(cd "$REPO" && "$FELIX" adopt observability 2>&1)"
 has "adopting reports the backfill" "$out" "backfilled"
+# A backfilled row comes from the catalogue, whose tiers a person assigned,
+# so it carries DECLARED — written by the engine, said as a person's.
+case "$(grep -c $'\tDECLARED$' "$FROOT/projects/widget/stack.tsv")" in 0) bad "a backfilled row carries DECLARED" "$(cat "$FROOT/projects/widget/stack.tsv")" ;; *) ok "a backfilled row carries DECLARED" ;; esac
 after_stack="$(cat "$FROOT/projects/widget/stack.tsv" 2>/dev/null | wc -l)"
 after_setup="$(cat "$FROOT/projects/widget/setup.tsv" 2>/dev/null | wc -l)"
 [ "$after_stack" -gt "$before_stack" ] && ok "backfilled the tooling the capability implies" \
@@ -569,6 +572,27 @@ has "and says the tier is what it could not read" "$out" "not a tier and a groun
 grep -v 'felix-test-typo\|felix-test-shouty\|felix-test-blank' "$FROOT/projects/widget/stack.tsv" > "$TMP/stack.tmp"
 mv "$TMP/stack.tmp" "$FROOT/projects/widget/stack.tsv"
 is "and the fixture is restored" "$(grep -c 'felix-test-typo' "$FROOT/projects/widget/stack.tsv")" "0"
+
+# A row carries its grounding in a sixth column, and the policy reads it.
+# The decision behind this: the engine writes stack.tsv rows itself, and a row
+# it wrote after reading a plugin must not read back next run as a row a
+# person wrote — because person-written is the one grounding that installs
+# medium unattended. A row with no sixth column is a person's (or a
+# template's) and reads DECLARED, which is what every row was until now.
+{
+  printf 'plugin\tfelix-test-obs-medium@nowhere\t-\tmedium\talways\tOBSERVED\n'
+  printf 'plugin\tfelix-test-dec-medium@nowhere\t-\tmedium\talways\tDECLARED\n'
+  printf 'plugin\tfelix-test-bare-medium@nowhere\t-\tmedium\talways\n'
+} >> "$FROOT/projects/widget/stack.tsv"
+out="$(cd "$REPO" && "$FELIX" stack plan 2>&1)"
+_pl() { printf '%s\n' "$out" | grep -- "$1" | head -1; }
+case "$(_pl felix-test-obs-medium)" in *blocked*) ok "a medium row the engine grounded waits for a person" ;; *) bad "a medium row the engine grounded waits for a person" "$(_pl felix-test-obs-medium)" ;; esac
+has  "and says so in the policy's words"                    "$(_pl felix-test-obs-medium)" "a person decides"
+case "$(_pl felix-test-dec-medium)" in *install*) ok "a medium row a person declared installs, as it always has" ;; *) bad "a medium row a person declared installs, as it always has" "$(_pl felix-test-dec-medium)" ;; esac
+case "$(_pl felix-test-bare-medium)" in *install*) ok "and a row with no grounding column is a person's" ;; *) bad "and a row with no grounding column is a person's" "$(_pl felix-test-bare-medium)" ;; esac
+grep -v 'felix-test-obs-medium\|felix-test-dec-medium\|felix-test-bare-medium' "$FROOT/projects/widget/stack.tsv" > "$TMP/stack.tmp"
+mv "$TMP/stack.tmp" "$FROOT/projects/widget/stack.tsv"
+is "and the fixture is restored" "$(grep -c 'felix-test-.*-medium' "$FROOT/projects/widget/stack.tsv")" "0"
 
 out="$(cd "$REPO" && "$FELIX" stack apply 2>&1)"
 has "apply without --yes changes nothing" "$out" "Nothing changed"
@@ -7693,6 +7717,13 @@ has "a refusal on risk is reported"  "$_refout" "refused"
 # same word. This is the only line here that can tell a policy from a typo.
 has "and in the policy's own words, which is what proves the call reached it" \
     "$_refout" "high risk, install by hand"
+# And a medium row the engine grounded is refused here too, by the same
+# policy, in its words: this is the second caller that used to assume every
+# manifest row was a person's.
+printf 'plugin\tfelix-test-obsmed\t-\tmedium\talways\tOBSERVED\n' > "$_RDP/stack.tsv"
+_obsout="$( cd "$REPO" && HOME="$_RDH" PATH="$_RDB:$_NOCLI" "$FELIX" ready --fix 2>&1 )"
+has "ready --fix reads the grounding off the row"     "$_obsout" "refused"
+has "and holds an engine-grounded medium for a person" "$_obsout" "a person decides"
 [ "$_refrc" -ne 0 ] && ok "and a refusal is not a successful repair" \
                     || bad "and a refusal is not a successful repair" \
                            "exit $_refrc after: $_refout"
@@ -9614,6 +9645,21 @@ rm -f "$MEM/cmproj/commission/constitution_audited.tsv"
 is "the admit phase installs nothing and edits no manifest" \
    "$(grep -c 'clean' "$CMP/stack.tsv")" "0"
 
+# What the phase declared is applied by a separate step: a row in stack.tsv
+# carrying OBSERVED — the grounding the engine read, never a person's word —
+# and a line in commissioning.log carrying the sha it was read at. Rows
+# already in the manifest are left alone. The policy then reads that row as
+# OBSERVED forever, which is the whole point of the column.
+_admfx="$(printf 'declare\tplugin\tclean\tlow\tllm\tdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\twhy\nhold\tplugin\twithmcp\tmedium\tllm\tcafe\twhy\ndeclare\tplugin\talready-here\tlow\tllm\tbeef\twhy\n')"
+: > "$MEM/cmproj/commissioning.log"
+is "applying declares appends one row per new declare" \
+   "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/commission-provider.sh"; felix_commission_apply_declares "$CMP" "$CMR" "$_admfx" tree-x pol-y automation_surveyed )" "1"
+has "and the row carries OBSERVED, not a person's word"  "$(cat "$CMP/stack.tsv")" $'plugin\tclean\t-\tlow\tllm\tOBSERVED'
+is  "and a hold is not written"                          "$(grep -c withmcp "$CMP/stack.tsv")" "0"
+is  "and one already declared is not written twice"      "$(grep -c 'already-here' "$CMP/stack.tsv")" "1"
+has "and the log carries the sha it was read at"         "$(cat "$MEM/cmproj/commissioning.log")" $'declared\tOBSERVED\tfelix:commission\tclean@deadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
+has "the command applies them before the receipt is written" "$(cat "$FELIX")" "felix_commission_apply_declares"
+
 cp "$TMP/adm.caps.keep" "$CMP/capabilities"; cp "$TMP/adm.stack.keep" "$CMP/stack.tsv"
 cp "$TMP/adm.ans.keep" "$_cmans"
 is "and the fixture files this block rewrote are back" \
@@ -9681,6 +9727,12 @@ mv "$CMP/routes.keep" "$CMP/routes.tsv"
 
 # felix new says where the requests are.
 has "felix new prints the request path for a session" "$(cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" commission 2>&1)" "commission/requests/automation_surveyed.md"
+# A project felix new seeds carries the grounding column from birth, and
+# every seeded row says DECLARED: the catalogue is a person's table.
+_seeded="$(grep -l $'\tgrounding$' "$FROOT"/projects/*/stack.tsv 2>/dev/null | head -1)"
+[ -n "$_seeded" ] && ok "a seeded stack.tsv carries the grounding column" || bad "a seeded stack.tsv carries the grounding column" "$(ls "$FROOT"/projects)"
+is "and every seeded row in it is DECLARED" \
+   "$([ -n "$_seeded" ] && grep -vE '^\s*(#|$)' "$_seeded" | awk -F'\t' 'NF != 6 || $6 != "DECLARED" { bad++ } END { print bad + 0 }')" "0"
 
 
 printf '\nthe engine manifest\n'

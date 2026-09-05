@@ -4064,6 +4064,54 @@ has "and says it is recording only"           "$out" "Recording only"
 out="$(cd "$REPO" && FELIX_DECISIONS_SINCE=9999-01-01 "$FELIX" decisions 2>&1)"
 has "mandates are counted only inside the answerable window" \
     "$out" "mandates rendered          0"
+# And the numerator is inside the same window as the denominator. It was not:
+# felix_count read the whole of decisions.log while mandates were counted from
+# FELIX_DECISIONS_SINCE, so a decline predating the channel counted against
+# mandates that excluded the period it came from.
+has "and so are the declines, from the same date" \
+    "$out" "declined, on the record    0"
+
+# What the command may not claim.
+#
+# decisions.log has one appender and one verdict, the literal `declined`.
+# Nothing writes a row when a mandate is FOLLOWED — the Stop hook offers both
+# responses, "Decline it on the record ... or use it", and only the first
+# leaves a trace. So declines over mandates is not an answer rate: the gap
+# collapses compliance and disregard into one number. The word is gone, and
+# the disregard half is recovered from the `skipped` row the Stop hook has
+# been writing all along and this command ignored.
+# Counted as a delta, because earlier sections of this file drive the Stop hook
+# and leave skipped rows of their own in this project's says.log. An absolute
+# number here would be an assertion about how many tests ran above it.
+_dskip() { ( cd "$REPO" && "$FELIX" decisions 2>&1 ) \
+             | awk '/rendered and not used/ { print $NF }'; }
+_sk0="$(_dskip)"
+printf '2026-09-01T00:00:00Z\tskipped\tsess-dec\t\tshown and never reached for\n' \
+  >> "$MEM/widget/says.log"
+is "the skipped row the Stop hook writes is counted" "$(_dskip)" "$(( _sk0 + 1 ))"
+out="$(cd "$REPO" && "$FELIX" decisions 2>&1)"
+case "$out" in
+  *"answered "*) bad "and no rate is claimed over a numerator that cannot hold compliance" "$out" ;;
+  *)             ok  "and no rate is claimed over a numerator that cannot hold compliance" ;;
+esac
+has "and the unwritten remainder is named as unwritten" \
+    "$out" "nothing was written either way"
+# The two counts come from different populations, so their sum can exceed the
+# mandates rendered. Subtracting then would print a negative count of things
+# nobody wrote about, which is not a number anyone can act on.
+# Enough rows to exceed the mandates rendered whatever the sections above left
+# behind, so the branch is reached rather than reached on this machine.
+for _i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  printf '2026-09-01T00:00:00Z\tskipped\tsess-dec%s\t\tshown and never reached for\n' "$_i" \
+    >> "$MEM/widget/says.log"
+done
+out="$(cd "$REPO" && "$FELIX" decisions 2>&1)"
+has "an overlap is said as an overlap, not as a negative remainder" \
+    "$out" "counted in both"
+case "$out" in
+  *-[0-9]*"about which nothing"*) bad "and never renders a negative count" "$out" ;;
+  *)                              ok  "and never renders a negative count" ;;
+esac
 
 ( cd "$REPO" && git checkout -q -- WIDGET.txt 2>/dev/null || printf 'contents\n' > "$REPO/WIDGET.txt" )
 

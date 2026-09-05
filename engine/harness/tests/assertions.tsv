@@ -444,6 +444,7 @@
 1	an opted-in capability is allowed
 1	an ordinary checkout is not
 1	an ordinary failure is still written down
+1	an overlap is said as an overlap, not as a negative remainder
 1	an unborn default base refuses rather than previews
 1	an unconsidered moment is named
 1	an undeclared capability is still never scored
@@ -673,6 +674,7 @@
 1	and never claims it was mounted every session
 1	and never ends on a success line
 1	and never mentions the same one twice
+1	and never renders a negative count
 1	and never reports a tier it could not compute
 1	and never reports no remote for an engine that has one
 1	and never the newest thing in the cache
@@ -685,6 +687,7 @@
 1	and no conflict markers were committed (stash)
 1	and no longer prints next steps
 1	and no memory root named --help is minted
+1	and no rate is claimed over a numerator that cannot hold compliance
 1	and no row anywhere carries a grounding the policy cannot read
 1	and no row is accepted from that file
 1	and no setup.tsv appears from asking for help
@@ -817,6 +820,7 @@
 1	and scopes that proposal to the play, keeping the row
 1	and shipping nothing declared still matches nothing
 1	and shows the decline itself
+1	and so are the declines, from the same date
 1	and so does a failure nobody answered
 1	and so does a worktree of it
 1	and so does the next one
@@ -949,6 +953,7 @@
 1	and the tier it carries
 1	and the tier reducer agrees
 1	and the unmount above is the only other proposal
+1	and the unwritten remainder is named as unwritten
 1	and the version is a dotted number
 1	and the widget ledger is as this block found it
 1	and the widget manifest is as this block found it
@@ -1471,6 +1476,7 @@
 1	the shipped gate marks its undeployable failure
 1	the shipped layout — memory under ~/.felix — is its own repo
 1	the shipped table considers every moment
+1	the skipped row the Stop hook writes is counted
 1	the squash leaves the merge-base behind main
 1	the stamp changes with the rules table
 1	the step itself still counts as used

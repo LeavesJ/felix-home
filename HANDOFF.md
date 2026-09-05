@@ -75,9 +75,9 @@ it should be paid deliberately, not rediscovered.
 
 | | |
 |---|---|
-| head | `main` (#181–#197, seventeen merges), CI `gate` **success** on each |
+| head | `main` (#181–#198, eighteen merges), CI `gate` **success** on each |
 | suite | **1611** passed, 0 failed, manifest re-recorded |
-| deployed engine | **0.49.99**, deployed from the home checkout after each merge |
+| deployed engine | **0.49.95**, read from the manifest rather than remembered |
 | the 2026-09-04 measurement audit | **closed** — 4 high (§0ao), 8 medium, 2 low |
 | v3.2 amendments §6, the residual | **stated**, on three surfaces |
 

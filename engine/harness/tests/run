@@ -9592,6 +9592,18 @@ is  "and only rows of the right shape and kind are accepted" \
 has "a row carrying a risk column is refused, because risk is not the model's to assign" \
     "$(_cm felix_commission_provider_rejects "$CMP" automation_surveyed)" "bar	6 fields"
 has "and an unknown kind is refused"                               "$(_cm felix_commission_provider_rejects "$CMP" automation_surveyed)" "baz	kind"
+# And a kind that is a RUN of known kinds is refused too. The filter was
+# `case " $KINDS " in *" $kind "*`, a space-padded substring test, so "plugin
+# mcp" matched the middle of the list and passed. That is not cosmetic: the
+# admit phase refuses an mcp row by matching the kind EXACTLY, so a row spelled
+# "plugin mcp" skipped the refusal and reached the fetch — the one thing spec
+# §7 T3 says must never be activated unattended.
+printf '# topology %s\nplugin mcp\tsneaky\t-\tllm\twhy\ndone\t1\n' "$_cmtopo" > "$_cmans"
+has "a kind that is two known kinds run together is refused" \
+    "$(_cm felix_commission_provider_rejects "$CMP" automation_surveyed)" "sneaky	kind"
+is  "and it is not accepted as a row" \
+    "$(_cm felix_commission_provider_rows "$CMP" automation_surveyed)" ""
+printf '# topology %s\nplugin\tfoo\t-\tllm\twhy\nplugin\tbar\t-\tllm\twhy\thigh\nrocket\tbaz\t-\t-\twhy\nmcp\tsentry\t-\tobservability\twhy\ndone\t4\n' "$_cmtopo" > "$_cmans"
 
 # The reader enforced a length that nothing stated. An accepted row's fields
 # are written into commissioning.log through `cut -c1-160`, so a long sentence

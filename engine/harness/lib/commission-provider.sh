@@ -39,6 +39,21 @@ FELIX_COMMISSION_PROVIDER_MAX="${FELIX_COMMISSION_PROVIDER_MAX:-40}"
 # these one fact instead of two that drift. The rule the flat number broke is
 # #156's: the request states every constraint the reader enforces, so all
 # three are written into the request template beside the others.
+# Is this exactly one of the known kinds?
+#
+# The test was `case " $FELIX_COMMISSION_PROVIDER_KINDS " in *" $kind "*`, a
+# space-padded substring, so any contiguous RUN of the list passed: `plugin
+# mcp`, `mcp hook`. Not cosmetic — felix_commission_admit refuses an mcp row by
+# matching the kind exactly, so a row spelled `plugin mcp` skipped that refusal
+# and reached the fetch, which is the one thing spec §7 T3 says must never be
+# activated unattended. Word-splitting the list compares whole tokens, and a
+# kind containing a space can never equal one.
+_felix_commission_kind_ok() {
+  local one
+  for one in $FELIX_COMMISSION_PROVIDER_KINDS; do [ "$1" = "$one" ] && return 0; done
+  return 1
+}
+
 FELIX_COMMISSION_PROVIDER_SRC_MAX="${FELIX_COMMISSION_PROVIDER_SRC_MAX:-200}"
 FELIX_COMMISSION_PROVIDER_CAP_MAX="${FELIX_COMMISSION_PROVIDER_CAP_MAX:-64}"
 FELIX_COMMISSION_PROVIDER_WHY_MAX="${FELIX_COMMISSION_PROVIDER_WHY_MAX:-300}"
@@ -153,7 +168,7 @@ felix_commission_provider_rows() {
     [ "$n" -eq "$want" ] || continue
     kind="$(printf '%s\n' "$line" | cut -f1)"; name="$(printf '%s\n' "$line" | cut -f2)"
     if [ "$want" -eq 5 ]; then
-      case " $FELIX_COMMISSION_PROVIDER_KINDS " in *" $kind "*) ;; *) continue ;; esac
+      _felix_commission_kind_ok "$kind" || continue
       printf '%s' "$name" | grep -qE '^[A-Za-z0-9@._:-]+$' || continue
       [ -n "$(_felix_commission_provider_toolong "$line")" ] && continue
     fi
@@ -173,7 +188,7 @@ felix_commission_provider_rejects() {
     kind="$(printf '%s\n' "$line" | cut -f1)"
     if [ "$n" -ne "$want" ]; then printf '%s\t%s fields where the shape has %s; a risk column is not the model'"'"'s to write\n' "${name:-(unnamed)}" "$n" "$want"; continue; fi
     if [ "$want" -eq 5 ]; then
-      case " $FELIX_COMMISSION_PROVIDER_KINDS " in *" $kind "*) ;; *) printf '%s\tkind "%s" is not one of %s\n' "$name" "$kind" "$FELIX_COMMISSION_PROVIDER_KINDS"; continue ;; esac
+      _felix_commission_kind_ok "$kind" || { printf '%s\tkind "%s" is not one of %s\n' "$name" "$kind" "$FELIX_COMMISSION_PROVIDER_KINDS"; continue; }
       printf '%s' "$name" | grep -qE '^[A-Za-z0-9@._:-]+$' || { printf '%s\tnot a name\n' "$name"; continue; }
       long="$(_felix_commission_provider_toolong "$line")"
       if [ -n "$long" ]; then
@@ -426,7 +441,14 @@ felix_commission_apply_declares() {   # proj, root, admit-output, tid, policy, n
     # newline is an ordinary thing rather than a corrupt file.
     [ -s "$proj/stack.tsv" ] && [ -n "$(tail -c 1 "$proj/stack.tsv")" ] \
       && printf '\n' >> "$proj/stack.tsv"
-    printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$k" "$n" "$tier" "$gcap" >> "$proj/stack.tsv" || continue
+    if ! printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$k" "$n" "$tier" "$gcap" >> "$proj/stack.tsv"; then
+      # Said, not skipped. A declare that could not be written is a thing the
+      # run tried and failed to do, and reporting it as "nothing was declared"
+      # is the same defect one level down from the one this whole column
+      # exists to prevent.
+      printf 'felix: could not append %s to %s/stack.tsv\n' "$n" "$proj" >&2
+      continue
+    fi
     # The provenance is not optional. A row in the manifest whose sha nobody
     # recorded is exactly the state this column exists to prevent, so a lost
     # log line is a failure of the whole write and is neither counted nor

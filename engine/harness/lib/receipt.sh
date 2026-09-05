@@ -215,6 +215,21 @@ felix_receipt() {
   printf '  "authority": {"autonomous": %s, "founder_required": %s, "granted_by": "%s", "escapes": %s},\n' \
          "$autonomous" "$founder" "$granted" \
          "$(printf '%s\n' "$esc" | _felix_rcpt_rows channel path reason)"
-  printf '  "confidence": {"evidence_quality": "%s"}\n' "$quality"
+  printf '  "confidence": {"evidence_quality": "%s"},\n' "$quality"
+  # The limit that survives every layer above it, carried by the document that
+  # makes the claim rather than left in a design note beside it.
+  #
+  # v3.2's conformance amendments close on it: after every amendment, one
+  # authority still writes both the work and the judgement of the work. Every
+  # layer narrows what a model may write; none changes who writes it. And
+  # enumeration is the weakest joint of any checker, because it cannot be
+  # behavioural — an entrypoint never found is never executed, and nothing
+  # downstream of the finding can notice that it was never found.
+  #
+  # "State this plainly wherever the system reports its own trustworthiness."
+  # A receipt is exactly that, and it is the one that travels: it is what a
+  # peer consumes, so the caveat has to travel with it or the peer reads a
+  # confidence figure with no idea what bounds it.
+  printf '  "limits": {"authority": "one authority writes both the work and the judgement of the work", "enumeration": "an entrypoint never found is never executed"}\n'
   printf '}\n'
 }

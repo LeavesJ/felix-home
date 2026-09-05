@@ -1525,7 +1525,13 @@ cmd_ledger() {
   local rows; rows="$(_felix_ledger_rows "$(felix_mem_dir "$proj")")"
 
   if [ "${caught:-0}" -gt 0 ] 2>/dev/null; then
-    printf 'folded %s session(s) that ended without folding themselves.\n' "$caught"
+    # "ended without folding themselves" was true while the catch-up only ever
+    # folded sessions that had never folded. It now also re-folds one whose
+    # fold stopped keeping up — a session resumed under the same id, or one
+    # that was alive when it was last folded — and that session did fold
+    # itself, once. The count is of folds brought up to date, which covers
+    # both and overstates neither.
+    printf 'folded %s session(s) whose record was behind what is on disk.\n' "$caught"
     printf 'Their calls were recorded all along and had never been counted.\n\n'
   fi
 

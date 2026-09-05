@@ -234,8 +234,9 @@ That is the only unconfounded signal here. See 'felix ledger'."
     _stranded="$(felix_ledger_stranded "$PROJ" "$FELIX_HOME_DIR" "$_repo_root" 2>/dev/null)"
     if [ "${_stranded:-0}" -gt 0 ] 2>/dev/null; then
       retire_line="$retire_line
-Partial: ${_stranded} session(s) ended without folding, so their calls are not in
-this count yet. 'felix ledger' folds them and may clear rows above."
+Partial: ${_stranded} session(s) have calls on disk that no fold accounts for,
+so they are not in this count yet. 'felix ledger' folds them and may clear
+rows above."
     fi
   fi
   # A plugin whose zero is a hook nobody can count is not in this line, on

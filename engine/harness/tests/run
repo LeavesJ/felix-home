@@ -1373,6 +1373,43 @@ has "a red receipt for this tree blocks" "$(_blk)" "unverified"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
 _cm_stamp
 
+# A green receipt says what was checked, and a skipped check is not a check.
+#
+# `felix gate --quick` skips the test suite and still exits 0, so the receipt
+# it stamps was byte-identical to a full run's: one bit, green. Everything
+# downstream then spoke as if the suite had passed — the Stop hook said so in
+# those words. The gate already prints which checks it skipped; the receipt now
+# carries them, so a reader can tell a full verification from a partial one.
+#
+# What this cannot say: a gate that skips something silently is still invisible.
+# The receipt records what the gate REPORTED as skipped, and no absence of skip
+# lines proves nothing was skipped. That limit is stated where it is claimed.
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" "tests,installed" >/dev/null 2>&1 )
+_rcpt="$( . "$FROOT/harness/lib/verify.sh"; felix_verify_receipt "$REPO" "$FROOT" )"
+is "the receipt records which checks the gate skipped" "$(printf '%s' "$_rcpt" | cut -f5)" "tests,installed"
+is "and a run that skipped nothing says so, rather than leaving it blank" \
+   "$( ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+         felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" "" >/dev/null 2>&1 )
+       . "$FROOT/harness/lib/verify.sh"; felix_verify_receipt "$REPO" "$FROOT" | cut -f5 )" "-"
+# The four readers all take fields 1-3 positionally, so a fifth field must not
+# disturb any of them. Asserted rather than assumed: a `read -r a b c d` would
+# have absorbed it, and that is the shape that broke felix profile.
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" "tests" >/dev/null 2>&1 )
+_cm_stamp
+is "a receipt carrying a skip list still clears every blocker" "$(_blk)" ""
+
+# And cmd_gate reads the skips off the gate's own report rather than off its
+# own flags: a project gate that skips for its own reasons is recorded too.
+_skipfx="$(printf '  syntax             ok\n  tests              skipped (--quick)\n  installed          skipped (no plugin installed here)\n  secret             ok\n')"
+is "the extractor names every skipped check and nothing else" \
+   "$(printf '%s\n' "$_skipfx" | awk '$2 == "skipped" { printf "%s%s", sep, $1; sep = "," }')" "tests,installed"
+
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+_cm_stamp
+
 # An escape outranks a green gate. This is the whole point: the gate says the
 # code works, and says nothing about whether merging writes outside the tree.
 mkdir -p "$REPO/.github/workflows"; printf 'on: push\n' > "$REPO/.github/workflows/x.yml"; _stage
@@ -2821,6 +2858,7 @@ out="$(cd "$GREPO" && printf '{"hook_event_name":"Stop","stop_hook_active":false
        | "$STOP" 2>&1)"
 has "a green gate still asks for verification" "$out" "verification-before-completion"
 has "and says why the gate is not enough"      "$out" "does not mean"
+has "and says the suite passed when nothing was skipped" "$out" "which means the suite passed"
 # Once per session. Said at every stop it becomes noise, and noise is skimmed.
 out="$(cd "$GREPO" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"vsess"}' \
        | "$STOP" 2>&1)"
@@ -2828,6 +2866,27 @@ case "$out" in
   *verification-before-completion*) bad "and only once per session" "$out" ;;
   *)                                ok  "and only once per session" ;;
 esac
+
+# And the sentence does NOT claim a passing suite when the gate skipped it.
+# `felix gate --quick` skips the tests and still exits 0, so its receipt was
+# byte-identical to a full run's — one bit — and this said "the suite passed"
+# over it. The receipt's fifth field names what the gate reported skipping.
+# Placed after the once-per-session assertion above, not before it: clearing
+# the marker is what that assertion measures, so a block that clears it in the
+# middle makes the sentence fire twice and reads as a defect in the hook rather
+# than in the fixture.
+rm -rf "$FROOT/state/verified"
+( cd "$GREPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$GREPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$GREPO" "$FROOT")" "tests" >/dev/null 2>&1 )
+out="$(cd "$GREPO" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"vsess-skip"}' \
+       | "$STOP" 2>&1)"
+has "a gate that skipped the suite is not called a passing suite" "$out" "it skipped: tests"
+case "$out" in
+  *"which means the suite passed"*) bad "and the claim it could not support is gone" "$out" ;;
+  *)                                ok  "and the claim it could not support is gone" ;;
+esac
+( cd "$GREPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$GREPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$GREPO" "$FROOT")" "" >/dev/null 2>&1 )
 # A project that does not use superpowers is not told to reach for it.
 printf 'plugin\tsomething-else@x\t-\tlow\talways\n' > "$FROOT/projects/widget/stack.tsv"
 rm -rf "$FROOT/state/verified"

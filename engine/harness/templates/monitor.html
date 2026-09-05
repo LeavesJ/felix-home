@@ -407,10 +407,14 @@ function renderRoutes(){
 }
 function renderMem(){
   const p=cur(),box=clear(at('mem'));
+  /* Totals come from the payload, never from the arrays: those are `tail -n`
+     windows, and rendering a window's length as a total read "things said 60"
+     over a log holding 755. `stack` is the whole manifest, so its length is
+     the count. */
   const rows=[['lessons on file',p.lessons||0],
-              ['gate failures',(p.mistakes||[]).length],
+              ['gate failures',p.mistakesTotal??(p.mistakes||[]).length],
               ['tools declared',(p.stack||[]).length],
-              ['things said',(p.says||[]).length]];
+              ['things said',p.saysTotal??(p.says||[]).length]];
   rows.forEach(([k,v])=>{box.appendChild(el('span','k',k));box.appendChild(el('span','v',v));});
 }
 function meter(label,val,pct,cls){
@@ -452,10 +456,13 @@ function renderVer(){
   const rate=vl.length?Math.round(passed/vl.length*100):0;
   const miss=rl.filter(r=>!r.route||r.route==='-').length;
   const rec=rl.length?Math.round((1-miss/rl.length)*100):0;
-  at('verTag').textContent=vl.length?vl.length+' verdicts':'none yet';
+  /* The rates below are honest about being recent — they are computed over the
+     window the payload carries — so the tag says which. */
+  const vTot=p.verifyLogTotal??vl.length;
+  at('verTag').textContent=vl.length?(vTot>vl.length?('last '+vl.length+' of '+vTot+' verdicts'):(vTot+' verdicts')):'none yet';
   box.appendChild(meter('checks passed',vl.length?rate+'%':'—',rate,rate>=80?'good':rate>=40?'warn':'bad'));
   box.appendChild(meter('asks recognised',rl.length?rec+'%':'—',rec,rec>=80?'good':rec>=50?'warn':'bad'));
-  const held=(p.says||[]).filter(s=>s.kind==='held'||s.kind==='plugin-blocked').length;
+  const held=p.heldTotal??(p.says||[]).filter(s=>s.kind==='held'||s.kind==='plugin-blocked').length;
   box.appendChild(meter('times held',String(held),Math.min(100,held*20),held?'bad':'good'));
 }
 /* Sessions that have ended. The live one is in the middle of the screen; this

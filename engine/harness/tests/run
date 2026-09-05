@@ -697,6 +697,36 @@ mv "$TMP/stack.tmp" "$FROOT/projects/widget/stack.tsv"
 is "and the widget manifest is as this block found it" \
    "$(grep -c 'felix-test-prof' "$FROOT/projects/widget/stack.tsv")" "0"
 
+# A count is not a window's length. The payload bounds each log with `tail -n`,
+# which is right — the page does not need 773 rows to draw a list — but the
+# template rendered `array.length` as a labelled TOTAL, so "things said" read
+# 60 over a log holding 773 and "times held" read 20 where the file holds 112.
+# The count now travels beside the window instead of being derived from it.
+mkdir -p "$MEM/widget"
+: > "$MEM/widget/says.log"
+for _i in $(seq 1 75); do printf 'x\theld\tbody %s\n' "$_i" >> "$MEM/widget/says.log"; done
+for _i in $(seq 1 5); do printf 'x\tsaid\tbody\n' >> "$MEM/widget/says.log"; done
+_mp="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/monitor.sh"
+        _felix_mon_project "$FROOT/projects/widget" "$FROOT" 2>/dev/null )"
+is "the payload carries the whole count, not the window's length" \
+   "$(printf '%s' "$_mp" | tr ',' '\n' | sed -n 's/.*"saysTotal":\([0-9]*\).*/\1/p' | head -1)" "80"
+is "and counts what was held over the whole file too" \
+   "$(printf '%s' "$_mp" | tr ',' '\n' | sed -n 's/.*"heldTotal":\([0-9]*\).*/\1/p' | head -1)" "75"
+# A file that is not there counts zero rather than erroring, which is the guard
+# clause above. There is no assertion here for "counts a log with high bytes":
+# the defect that seemed to motivate one was my own shell shadowing grep with
+# ugrep -I, and an assertion written from a false premise is worse than none.
+is "and a file that does not exist counts zero" \
+   "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/monitor.sh"
+       _felix_mon_count "$MEM/widget/nosuchlog.log" )" "0"
+rm -f "$MEM/widget/says.log"
+# The template reads the totals rather than the arrays.
+_mt="$(cat "$FROOT/harness/templates/monitor.html")"
+has "the page renders the says total"     "$_mt" "p.saysTotal"
+has "and the gate-failure total"          "$_mt" "p.mistakesTotal"
+has "and the held total"                  "$_mt" "p.heldTotal"
+has "and says when a rate is over a window only" "$_mt" "last '+vl.length+' of '"
+
 printf '\nhuman setup steps\n'
 {
   printf 'always-done\tA step that is already satisfied\talways\ttrue\n'

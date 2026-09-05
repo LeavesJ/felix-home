@@ -103,6 +103,7 @@
 1	a full-length sha nothing holds is unknown too
 1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
+1	a gate that skipped the suite is not called a passing suite
 1	a gitignored stray in the tree is residue, not drift
 1	a gitlink already in history does not block every future backup
 1	a governed product merges with no installed engine at all
@@ -242,6 +243,7 @@
 1	a real capability left undeclared is not an error
 1	a real uncommitted edit still speaks, in a fresh session
 1	a real word rises
+1	a receipt carrying a skip list still clears every blocker
 1	a receipt for another tree still blocks
 1	a receipt missing an input is indeterminate, never verified
 1	a receipt survives being written inside the tree it describes
@@ -502,6 +504,7 @@
 1	and a row with no grounding column is a person's
 1	and a ruled capability is not listed there
 1	and a ruled one is not
+1	and a run that skipped nothing says so, rather than leaving it blank
 1	and a second run does not record the same file twice
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
@@ -764,6 +767,7 @@
 1	and says the gate never ran
 1	and says the gates still apply
 1	and says the receipt does not exist here
+1	and says the suite passed when nothing was skipped
 1	and says the tier is what it could not read
 1	and says to remove its row and its play
 1	and says what a name is
@@ -828,6 +832,7 @@
 1	and the bare listing the gate used to do would have counted a plain file
 1	and the blurb no longer outranks the manifest
 1	and the cause is the prompt, not the envelope
+1	and the claim it could not support is gone
 1	and the clean sentence is withheld
 1	and the comment survives
 1	and the count follows
@@ -1343,6 +1348,7 @@
 1	the engine writes manifests carrying the grounding column
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
+1	the extractor names every skipped check and nothing else
 1	the fixture answer is restored
 1	the fixture is dirty only in Felix's own bookkeeping
 1	the fixture is left as it was found
@@ -1395,6 +1401,7 @@
 1	the reason is durable in decisions.log
 1	the receipt has ten fields
 1	the receipt names what granted the authority
+1	the receipt records which checks the gate skipped
 1	the record is written
 1	the refusal is recorded where no project is known
 1	the registry says where the engine is served from

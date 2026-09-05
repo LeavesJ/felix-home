@@ -618,11 +618,17 @@ cmd_gate() {
       felix_mem_mistake "$proj" "$root" "exit-$rc"
     fi
   fi
+  # Which checks the gate said it skipped, read off its own report rather than
+  # off the flags this command was given. A project gate that skips for its own
+  # reasons is recorded the same way, and no gate has to be edited to be heard.
+  local skipped
+  skipped="$(awk '$2 == "skipped" { printf "%s%s", sep, $1; sep = "," }' "$log" 2>/dev/null)"
   rm -f "$log"
 
   # The receipt. Recorded on failure as well as success: no receipt and a red
-  # one both stop a session, but only one of them says what happened.
-  felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid"
+  # one both stop a session, but only one of them says what happened — and now
+  # also what it did not check.
+  felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid" "$skipped"
   exit "$rc"
 }
 

@@ -189,14 +189,30 @@ _felix_receipt_path() {
 
 # Called by the gate. Failure to write is never fatal: a gate that cannot record
 # its own result is still a gate, and refusing to run would be a worse trade.
+# A fifth field: which checks the gate reported as SKIPPED, comma-separated,
+# or `-` when it reported none.
+#
+# The verdict alone is one bit, and `felix gate --quick` skips the test suite
+# and still exits 0 — so its receipt was byte-identical to a full run's, and
+# everything downstream spoke as if the suite had passed. A green that cannot
+# be told from a partial green is the shape invariant 5 is about.
+#
+# Appended rather than inserted because every reader takes fields 1 to 3 by
+# position (`cut -f1`, `-f2`, `-f3`), so a fifth field disturbs none of them —
+# asserted in the suite rather than assumed.
+#
+# What this cannot say, and the readers must not imply otherwise: it records
+# what the gate REPORTED. A gate that skips something without saying so is
+# still invisible here, and no absence of skip lines proves nothing was
+# skipped.
 felix_verify_record() {
-  local root="$1" home="$2" rc="$3" gate="$4" tid="$5" path result
+  local root="$1" home="$2" rc="$3" gate="$4" tid="$5" skipped="${6:-}" path result
   [ -n "$tid" ] || return 0
   path="$(_felix_receipt_path "$root" "$home")"
   mkdir -p "$(dirname "$path")" 2>/dev/null || return 0
   result=green; [ "$rc" -eq 0 ] || result=red
-  printf '%s\t%s\t%s\t%s\n' "$tid" "$result" "$(_felix_now)" "$gate" \
-    > "$path" 2>/dev/null || true
+  printf '%s\t%s\t%s\t%s\t%s\n' "$tid" "$result" "$(_felix_now)" "$gate" \
+    "${skipped:--}" > "$path" 2>/dev/null || true
 }
 
 felix_verify_receipt() { cat "$(_felix_receipt_path "$1" "$2")" 2>/dev/null; }

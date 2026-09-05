@@ -282,7 +282,19 @@ this session either way."
     vstate="$FELIX_HOME_DIR/state/verified/$SID"
     if [ ! -f "$vstate" ]; then
       mkdir -p "$(dirname "$vstate")" 2>/dev/null && : > "$vstate" 2>/dev/null
-      body="The gate is green, which means the suite passed. It does not mean
+      # What the gate actually checked, not what green is assumed to mean.
+      # `felix gate --quick` skips the suite and still exits 0, and this
+      # sentence said "the suite passed" over it. The receipt's fifth field
+      # names what the gate reported skipping; `-` means it reported none,
+      # which is not the same as none having been skipped.
+      _skips="$(printf '%s' "$receipt" | cut -f5)"
+      if [ -n "$_skips" ] && [ "$_skips" != "-" ]; then
+        _green_line="The gate is green, but it skipped: ${_skips}. Green here does not
+mean those ran."
+      else
+        _green_line="The gate is green, which means the suite passed."
+      fi
+      body="${_green_line} It does not mean
 the things you said are true.
 
 Use superpowers:verification-before-completion before calling this done. Check

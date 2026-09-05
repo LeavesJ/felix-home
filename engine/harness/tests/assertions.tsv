@@ -310,6 +310,7 @@
 1	a second catch-up finds nothing left
 1	a second hand-off in the same session stays quiet
 1	a second run appends rather than replacing
+1	a second tree makes it a promotion candidate
 1	a server the registry says a plugin provides is proposed as a plugin row
 1	a session folds on the first catch-up
 1	a session reports what was named and what was followed
@@ -1041,6 +1042,7 @@
 1	copied the runbook their stack implies
 1	core profile excludes other capabilities
 1	core profile mounts unconditional rows
+1	counted in occasions
 1	counts a package and its skill as one thing
 1	counts repeated calls once with a total
 1	counts what was blocked
@@ -1248,6 +1250,7 @@
 1	one superpowers skill does not mark superpowers:brainstorming used
 1	one superpowers skill does not mark superpowers:test-driven-development used
 1	one superpowers skill does not mark superpowers:writing-plans used
+1	one tree gated twice is one occasion, not a habit
 1	only the claim is mounted, not the evidence
 1	origin outranks the name that sorts first
 1	overrides are recorded
@@ -1527,7 +1530,6 @@
 1	tree identity is computable
 1	tree identity survives an unborn HEAD
 1	twelve sessions ending at once are all still counted
-1	twice makes it a promotion candidate
 1	two rows in one session are one session, calls summed
 1	two rows, once each
 1	two strangers and no upstream is a person's call
@@ -1577,6 +1579,7 @@
 1	with nothing on record there is nothing to compare
 1	with the critique step after it
 1	with the newlines escaped, not lost
+1	with the runs it cost beside it
 1	with the usage text
 1	without --strict it only reports
 1	without opting in, nothing is touched

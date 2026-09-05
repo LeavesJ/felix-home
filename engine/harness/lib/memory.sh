@@ -98,8 +98,22 @@ felix_mem_mistake() {
 # What the gate keeps catching. A far better promotion signal than counting words:
 # a check that fails repeatedly is a habit, and a habit is what a lesson is for.
 #
-# Emits `count<TAB>term<TAB>last-seen`, newest-heavy first, and only for terms
-# that are still recurring.
+# Emits `occasions<TAB>term<TAB>last-seen<TAB>runs`, heaviest first, and only
+# for terms that are still recurring.
+#
+# Two numbers because they answer two questions and only one of them earns a
+# promotion. `runs` is how many gate runs the check cost — a fact about time
+# spent. `occasions` is how many DISTINCT trees it was caught on, which is the
+# only one of the two that means "again".
+#
+# The threshold reads occasions. A tree gated five times without being fixed
+# cost five runs and recurred once, and this list's rank in `next.sh` is the
+# one that tells a person to write a lesson — advice that asks them to
+# generalise from a single incident. Felix's own log had `ecosystem` five
+# times, every one of them the same branch at the same sha, sitting in "already
+# cost time more than once" beside `installed` at twenty-two separate commits.
+# The rule of three this project already holds is about occasions, not
+# attempts.
 #
 # The count is for all time and the liveness test is not, because they answer
 # different questions. "It has cost time twice" is a fact about history and does
@@ -131,7 +145,11 @@ felix_mem_recurring_mistakes() {
       for (i = 1; i <= n; i++) {
         t = terms[i]
         if (t == "") continue
-        count[t]++
+        runs[t]++
+        # Column 3 is the commit. One tree gated twice is one occasion, and
+        # the same failure on two trees is two.
+        k = t SUBSEP $3
+        if (!(k in occseen)) { occseen[k] = 1; count[t]++ }
         # Forced to strings: a date is compared as one, never as arithmetic.
         if (($1 "") > (last[t] "")) last[t] = $1
       }
@@ -140,7 +158,7 @@ felix_mem_recurring_mistakes() {
       for (t in count) {
         if (count[t] < MIN) continue
         if (CUT != "" && (last[t] "") < (CUT "")) continue
-        printf "%d\t%s\t%s\n", count[t], t, last[t]
+        printf "%d\t%s\t%s\t%d\n", count[t], t, last[t], runs[t]
       }
     }
   ' "$(felix_mem_dir "$proj")/mistakes.log" 2>/dev/null | sort -rn

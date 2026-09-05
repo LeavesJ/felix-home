@@ -125,6 +125,18 @@ felix_ledger_summary() {
   ' | LC_ALL=C sort
 }
 
+# How many distinct sessions the ledger holds. Field 1 is the session id.
+#
+# This is the denominator for every count rendered beside it, and it exists as
+# a function because it had been written out twice: `felix ledger` computed it
+# inline for its header, while the session-start banner did not compute it at
+# all and asserted "every session" in its place. A row admitted on five
+# sessions was being reported as a row seen in all of them.
+felix_ledger_sessions() {
+  _felix_ledger_rows "$(felix_mem_dir "$1")" \
+    | cut -f1 | LC_ALL=C sort -u | LC_ALL=C awk 'NF { n++ } END { print n + 0 }'
+}
+
 # What Felix pointed at and nobody reached for.
 #
 # The only direction this may ever run. "Loaded and used" is confounded, because

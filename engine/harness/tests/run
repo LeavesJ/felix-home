@@ -4400,7 +4400,7 @@ has "a stranded session folds under its own date, not today's" \
 # Catch-up runs from `felix ledger`, never from a hook, because it is several
 # greps per distinct signal per stranded session. So the moment a session ends
 # uncleanly the fold is incomplete again, and the session-start banner goes on
-# claiming "mounted every session and never once reached for" while calling it
+# claiming a capability was pointed at and never reached while calling it
 # the only unconfounded signal here. This repository already carries the lesson
 # in its general form: "Nothing due" and "nothing is being checked" render
 # identically.
@@ -4424,6 +4424,32 @@ is "and folding them takes it to zero" \
 # falsify is a non-empty one, and that is the only one that gets qualified.
 has "the banner qualifies the retire claim when the fold is incomplete" \
     "$(cat "$FROOT/harness/hooks/session-start")" "felix_ledger_stranded"
+
+# And the banner reports the count the filter checked, rather than asserting a
+# denominator nothing tested.
+#
+# felix_ledger_retire admits a row at FELIX_LEDGER_MIN sessions — five by
+# default — and the banner used to pipe it through `cut -f1` and print
+# "Mounted every session" over whatever came out. Five sessions of eighty-two
+# read as eighty-two of eighty-two. The word "Mounted" was the worse half:
+# nothing on this path reads mount state, so a capability a route merely named,
+# and stack.tsv never declared, arrived described as mounted.
+#
+# Driven through the hook rather than the function, because the sentence is the
+# defect and the sentence lives in the hook.
+mkdir -p "$MEM/widget/ledger.d"
+for _i in 1 2 3 4 5; do
+  printf 'bnr%s\t2026-09-01\tplugin\tghosttool\t0\t1\n' "$_i" > "$MEM/widget/ledger.d/bnr$_i.tsv"
+done
+_bnr="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+has "the retire banner names the capability"        "$_bnr" "ghosttool"
+has "and the sessions the filter actually counted"  "$_bnr" "pointed at in 5 of"
+has "and says it was never reached"                 "$_bnr" "never reached"
+case "$_bnr" in
+  *"Mounted every session"*) bad "the banner claims a denominator nothing checked" "$_bnr" ;;
+  *) ok "and never claims it was mounted every session" ;;
+esac
+rm -f "$MEM/widget/ledger.d"/bnr*.tsv
 
 # And the catch-up must fold only THIS project's sessions.
 #

@@ -138,35 +138,14 @@ felix_ledger_summary() {
 #
 # The window is sessions, not days. A capability unused across two sessions may
 # simply not have come up; the threshold is what separates that from evidence.
-FELIX_LEDGER_MIN="${FELIX_LEDGER_MIN:-5}"
-# Where a plugin's installed copy lives, from the registry Claude Code keeps.
-#
-# Read with awk bounded to the entry — opened by the plugin's own key, closed
-# by the next key or the end of the file — on a pretty-printed registry and a
-# minified one alike. The first draft set a flag on the key line and printed
-# the next installPath it met, which on an entry with no path returned the
-# NEXT plugin's, and on a single-line registry returned the last one in the
-# file for every name. commission-provider.sh reads version and sha off the
-# same file with that first-draft shape and carries the same fault.
-#
-# An entry installed at two scopes answers with its first copy.
-_felix_ledger_install_path() {   # bare name -> installPath, or nothing
-  local name="$1" reg="$HOME/.claude/plugins/installed_plugins.json"
-  [ -n "$name" ] && [ -f "$reg" ] || return 0
-  awk -v p="\"$name@" '
-    {
-      line = $0
-      if (!f) { i = index(line, p); if (!i) next; f = 1; line = substr(line, i + length(p)) }
-      else if (line ~ /^[[:space:]]*"[^"]+@[^"]+"[[:space:]]*:/) exit
-      if (match(line, /"[^"]+@[^"]+"[[:space:]]*:/)) line = substr(line, 1, RSTART - 1)
-      if (match(line, /"installPath"[[:space:]]*:[[:space:]]*"[^"]*"/)) {
-        s = substr(line, RSTART, RLENGTH)
-        sub(/^"installPath"[[:space:]]*:[[:space:]]*"/, "", s); sub(/"$/, "", s)
-        print s; exit
-      }
-    }' "$reg" 2>/dev/null
-}
+# resolve.sh holds felix_mem_dir and felix_registry_field, both used below.
+# Sourced by path with the house guard because the suite sources this library
+# alone, in a subshell.
+if ! command -v felix_mem_dir >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
 
+FELIX_LEDGER_MIN="${FELIX_LEDGER_MIN:-5}"
 # What an installed copy ships, as far as the ledger can see it.
 #
 # A hook fires inside Claude Code and leaves no tool call. PostToolUse sees
@@ -197,7 +176,7 @@ felix_ledger_hook_shape() {   # bare name -> none | only | mixed
   # Not `path`: under zsh that name is the array bound to PATH, and a person
   # sourcing this library from a zsh prompt would watch awk vanish and every
   # plugin read as none. The enforcing path is bash, but the diagnosis is not.
-  local copy; copy="$(_felix_ledger_install_path "$1")"
+  local copy; copy="$(felix_registry_field "$1" installPath)"
   [ -n "$copy" ] && [ -f "$copy/hooks/hooks.json" ] || { printf 'none'; return 0; }
   if [ -f "$copy/.mcp.json" ] || [ -d "$copy/skills" ] || [ -d "$copy/agents" ] || [ -d "$copy/commands" ]; then
     printf 'mixed'

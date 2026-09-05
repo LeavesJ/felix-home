@@ -4582,6 +4582,43 @@ cat > "$LZH/.claude/plugins/installed_plugins.json" <<EOF
   "plain@x": [{"scope": "user", "installPath": "$LZH/cache/plain/1.0.0", "version": "1.0.0"}]
 }}
 EOF
+# One bounded reader, shared. Two libraries carried the same unbounded shape
+# independently — the ledger's hook classifier and the commissioning
+# provenance — and it failed the same two ways in both: an entry lacking the
+# field returned the NEXT plugin's value, and a minified registry returned the
+# last plugin's for every name. A wrong provenance is a declared row traceable
+# to the wrong release, which is the one thing that row exists to prevent.
+cat > "$LZH/.claude/plugins/reg-fields.json" <<EOF
+{"plugins": {
+  "nofield@x": [{"scope": "user"}],
+  "second@x":  [{"scope": "user", "version": "2.0.0", "gitCommitSha": "bbbb"}],
+  "third@x":   [{"scope": "user", "version": "3.0.0", "gitCommitSha": "cccc"}]
+}}
+EOF
+_rf() { ( . "$FROOT/harness/lib/resolve.sh"; felix_registry_field "$1" "$2" "$LZH/.claude/plugins/reg-fields.json" ); }
+is "an entry with no such field yields nothing, not the next entry's value" "$(_rf nofield version)"     ""
+is "and the entry that has one still answers"                               "$(_rf second version)"      "2.0.0"
+is "and a second field of the same entry too"                               "$(_rf second gitCommitSha)" "bbbb"
+is "a plugin not in the registry yields nothing"                            "$(_rf absent version)"      ""
+tr -d '\n' < "$LZH/.claude/plugins/reg-fields.json" > "$LZH/.claude/plugins/reg-min.json"
+_rfm() { ( . "$FROOT/harness/lib/resolve.sh"; felix_registry_field "$1" "$2" "$LZH/.claude/plugins/reg-min.json" ); }
+is "a one-line registry answers for the right plugin, not the last one"     "$(_rfm second version)"     "2.0.0"
+is "and still yields nothing for the entry that lacks the field"            "$(_rfm nofield version)"    ""
+# Neither caller reads the registry itself any more, which is the property
+# that stops a second copy regrowing. Counting how many times each NAMES the
+# shared function was the first draft, and a comment mentioning it counted too.
+is "the ledger no longer opens the registry itself" \
+   "$(grep -c 'installed_plugins.json' "$FROOT/harness/lib/ledger.sh")" "0"
+# commission-provider.sh still names the file, for a presence grep, and that
+# is correct: the fault being fixed is a per-entry FIELD lookup returning a
+# neighbour's value, and a boolean over the whole file has no neighbour.
+# Not "only one library names the file": ready.sh names it too and is right to.
+# It ENUMERATES which plugins exist, which is a different question from looking
+# a field up inside one named entry, and the unbounded scan cannot mislead it.
+# The property is that nothing looks a field up outside the shared reader.
+is "the field lookup lives in one place" \
+   "$(grep -c 'index(line, p)' "$FROOT/harness/lib/"*.sh | awk -F: '$2 > 0 { n++ } END { print n + 0 }')" "1"
+
 _zshape() { ( HOME="$LZH"; . "$FROOT/harness/lib/ledger.sh"; felix_ledger_hook_shape "$1" ); }
 is "a plugin shipping hooks and nothing countable is hook-only"     "$(_zshape security-guidance)" "only"
 is "one shipping hooks and a skill is mixed"                        "$(_zshape mixed)"             "mixed"

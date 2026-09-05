@@ -212,11 +212,15 @@ felix_commission_answer_provenance() {
 # <plugin>@<version>/<sha> from the installed-plugin registry, or <plugin>@?/?
 # — a provider upgrade is then visible as a provenance change (spec §7 step 7).
 felix_commission_provider_provenance() {
-  local plugin="$1" reg="$HOME/.claude/plugins/installed_plugins.json" ver="" sha=""
-  if [ -f "$reg" ]; then
-    ver="$(awk -v p="\"$plugin@" 'index($0, p) { f = 1 } f && /"version"/ { sub(/.*"version"[[:space:]]*:[[:space:]]*"/, ""); sub(/".*/, ""); print; exit }' "$reg" 2>/dev/null)"
-    sha="$(awk -v p="\"$plugin@" 'index($0, p) { f = 1 } f && /"gitCommitSha"/ { sub(/.*"gitCommitSha"[[:space:]]*:[[:space:]]*"/, ""); sub(/".*/, ""); print; exit }' "$reg" 2>/dev/null)"
-  fi
+  # Read bounded to the plugin's own entry. The shape here before returned the
+  # NEXT plugin's version for an entry that carried none, and on a minified
+  # registry returned the last plugin's for every name — so a provenance line,
+  # the thing a declared row exists to be traceable by, could name the wrong
+  # release entirely. Shared with the ledger's classifier rather than fixed
+  # twice.
+  local plugin="$1" ver sha
+  ver="$(felix_registry_field "$plugin" version)"
+  sha="$(felix_registry_field "$plugin" gitCommitSha)"
   printf '%s@%s/%s' "$plugin" "${ver:-?}" "${sha:-?}"
 }
 
@@ -296,6 +300,13 @@ ROWS
 # network: the admit phase must be able to answer this before it decides
 # whether going to look is even the question.
 _felix_commission_installed() {   # bare name -> 0 when installed
+  # A grep over the whole file, deliberately, and NOT the shared bounded
+  # reader. Presence is a question about the file rather than about one entry:
+  # the unbounded-scan fault the reader exists to fix is a per-entry field
+  # lookup returning a NEIGHBOUR's value, and a boolean over the whole file has
+  # no neighbour to confuse. Routing it through the reader was tried and made
+  # this depend on the entry carrying a particular field, which is a constraint
+  # the question does not have.
   local name="$1" reg="$HOME/.claude/plugins/installed_plugins.json"
   [ -n "$name" ] || return 1
   [ -f "$reg" ] || return 1

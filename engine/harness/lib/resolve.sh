@@ -149,6 +149,36 @@ felix_home() {
 felix_mem_root() {
   printf '%s' "${FELIX_MEMORY:-$HOME/.felix/memory}"
 }
+# One field of one plugin's entry in the installed-plugin registry.
+#
+# Bounded to the entry: opened by the plugin's own key, closed by the next key
+# or the end of the file, on a pretty-printed registry and a minified one
+# alike. The shape this replaces set a flag on the key line and printed the
+# next matching field it met, which on an entry lacking that field returned the
+# NEXT plugin's value, and on a single-line registry returned the last one in
+# the file for every name. Two callers carried that shape independently — the
+# ledger's hook classifier and the commissioning provenance — so it lives here,
+# in the library both already depend on, rather than being fixed twice.
+#
+# Prints nothing when the registry, the entry or the field is absent. Nothing
+# is the honest answer: a guess here is a wrong provenance or a wrong tier.
+felix_registry_field() {   # bare plugin name, field name -> value, or nothing
+  local name="$1" field="$2" reg="${3:-$HOME/.claude/plugins/installed_plugins.json}"
+  [ -n "$name" ] && [ -n "$field" ] && [ -f "$reg" ] || return 0
+  awk -v p="\"$name@" -v k="$field" '
+    {
+      line = $0
+      if (!f) { i = index(line, p); if (!i) next; f = 1; line = substr(line, i + length(p)) }
+      else if (line ~ /^[[:space:]]*"[^"]+@[^"]+"[[:space:]]*:/) exit
+      if (match(line, /"[^"]+@[^"]+"[[:space:]]*:/)) line = substr(line, 1, RSTART - 1)
+      if (match(line, "\"" k "\"[[:space:]]*:[[:space:]]*\"[^\"]*\"")) {
+        s = substr(line, RSTART, RLENGTH)
+        sub("^\"" k "\"[[:space:]]*:[[:space:]]*\"", "", s); sub(/"$/, "", s)
+        print s; exit
+      }
+    }' "$reg" 2>/dev/null
+}
+
 
 # The memory directory for one project, named by its doctrine directory.
 #

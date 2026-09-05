@@ -167,19 +167,23 @@ EOF
   # is not working, and the answer is a mechanism or the constitution rather
   # than more prose nobody is reading.
   if command -v felix_mem_recurring_mistakes >/dev/null 2>&1; then
-    local cnt term last
-    while IFS=$'\t' read -r cnt term last; do
+    # Four fields, and the fourth is read into a variable of its own. A
+    # trailing `read` name absorbs every remaining field AND its tab, so a
+    # three-name read over a four-field row would silently glue the run count
+    # onto the date and render it as one.
+    local cnt term last runs
+    while IFS=$'\t' read -r cnt term last runs; do
       [ -n "${term:-}" ] || continue
       # The date is not decoration. It is the only thing on the row that says
       # whether this is a habit or a story, and it is what makes the claim
       # falsifiable by anyone reading it.
       if felix_mem_lesson_names "$proj" "$term"; then
         _felix_next_row 5 felix \
-          "the gate caught '$term' $cnt times, last $last, and a lesson already says so — the lesson is not working" \
+          "the gate caught '$term' on $cnt separate trees ($runs runs), last $last, and a lesson already says so — the lesson is not working" \
           "it has outgrown lessons.md: put it where the gate can see it, or build the mechanism"
       else
         _felix_next_row 5 felix \
-          "the gate caught '$term' $cnt times, last $last, and no lesson mentions it" \
+          "the gate caught '$term' on $cnt separate trees ($runs runs), last $last, and no lesson mentions it" \
           "felix lesson \"...\" — what would change what someone does next time"
       fi
     done <<EOF

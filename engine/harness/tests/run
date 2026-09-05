@@ -2578,10 +2578,28 @@ is "a failing gate still exits non-zero" "$rc" "1"
 grep -q 'lint' "$MISLOG" 2>/dev/null \
   && ok "naming which check failed" || bad "naming which check failed"
 
+# The same tree gated again is the same occasion. It cost a second run, and a
+# run is not a recurrence: this rank's advice is to write a lesson, and there
+# is nothing to generalise from one incident. Felix's own log had `ecosystem`
+# five times, every one of them the same branch at the same sha, ranked beside
+# `installed` at twenty-two separate commits.
 ( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 )
 out="$(cd "$REPO" && "$FELIX" promote 2>&1)"
-has "twice makes it a promotion candidate" "$out" "the gate keeps catching"
-has "and names the habit"                  "$out" "lint"
+case "$out" in
+  *lint*) bad "one tree gated twice is one occasion, not a habit" "$out" ;;
+  *)      ok  "one tree gated twice is one occasion, not a habit" ;;
+esac
+# A second tree is. Same failure, different commit — which is what "again"
+# means and what a lesson would be generalising over.
+( cd "$REPO" && printf 'again\n' >> README.md && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm second ) >/dev/null 2>&1
+( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 )
+out="$(cd "$REPO" && "$FELIX" promote 2>&1)"
+has "a second tree makes it a promotion candidate" "$out" "the gate keeps catching"
+has "and names the habit"                          "$out" "lint"
+# Both numbers, because they are not the same fact: two trees, three runs.
+has "counted in occasions"           "$out" "2    lint"
+has "with the runs it cost beside it" "$out" "(3 run(s))"
 
 # A check that could not have passed did not catch anything.
 #

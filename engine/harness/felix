@@ -3235,9 +3235,14 @@ cmd_promote() {
   if [ -z "$mistakes" ]; then
     printf '  nothing twice yet\n'
   else
-    printf '%s\n' "$mistakes" | while IFS=$'\t' read -r n term last; do
+    # Both numbers, because they are not the same fact. The first is how many
+    # separate trees this was caught on, which is what makes it a habit; the
+    # second is how many gate runs it cost, which is what makes it expensive.
+    # A tree gated five times without being fixed is one of the first and five
+    # of the second, and only the first is an argument for a lesson.
+    printf '%s\n' "$mistakes" | while IFS=$'\t' read -r n term last runs; do
       [ -n "${n:-}" ] || continue
-      printf '  %-4s %-20s last %s\n' "$n" "$term" "${last:-?}"
+      printf '  %-4s %-20s last %s   (%s run(s))\n' "$n" "$term" "${last:-?}" "${runs:-?}"
     done
     printf '\nEach of these is a mistake this project has now made more than once.\n'
     printf 'That is the strongest promotion signal there is: not that something is\n'

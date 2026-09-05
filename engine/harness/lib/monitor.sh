@@ -37,6 +37,26 @@ _felix_mon_prompt() {
 }
 
 # tail -n of a tsv as a json array, newest first, via a per-row formatter.
+# How many rows the file actually holds.
+#
+# _felix_mon_rows below is a `tail -n limit` reader and bounding the payload is
+# right — the page does not need 755 rows to draw a list. What was wrong is
+# that the template then rendered `array.length` as a labelled TOTAL: "things
+# said" read 60 over a log holding 755, and "gate failures" read 20 over 36.
+# A window is a fine thing to show and a wrong thing to count, so the count
+# travels beside the window rather than being derived from it.
+# awk under LC_ALL=C, for a smaller reason than the one first written here. I
+# claimed grep mis-counted routes.log; it does not, and the measurement that
+# said so was taken through a shell whose `grep` is ugrep with -I, which skips
+# a file it reads as binary. Real grep counts it correctly. What survives is
+# only that these logs hold whatever a session said — routes.log here is
+# "Non-ISO extended-ASCII text" — and awk counts lines without any binary-file
+# heuristic in the way, so it does not depend on which grep is on PATH.
+_felix_mon_count() {
+  [ -f "$1" ] || { printf 0; return 0; }
+  LC_ALL=C awk '$0 != "" { n++ } END { print n + 0 }' "$1" 2>/dev/null || printf 0
+}
+
 _felix_mon_rows() {
   local file="$1" limit="$2" fmt="$3" first=1 line
   printf '['
@@ -160,14 +180,23 @@ _felix_mon_project() {
   done < "${proj}/stack.tsv" 2>/dev/null
   printf ']'
 
+  local _md; _md="$(felix_mem_dir "$proj")"
   printf ',"routeLog":'
-  _felix_mon_rows "$(felix_mem_dir "$proj")/routes.log" 40 _felix_mon_route_row
+  _felix_mon_rows "$_md/routes.log" 40 _felix_mon_route_row
+  printf ',"routeLogTotal":%s' "$(_felix_mon_count "$_md/routes.log")"
   printf ',"verifyLog":'
-  _felix_mon_rows "$(felix_mem_dir "$proj")/verification.log" 40 _felix_mon_verify_row
+  _felix_mon_rows "$_md/verification.log" 40 _felix_mon_verify_row
+  printf ',"verifyLogTotal":%s' "$(_felix_mon_count "$_md/verification.log")"
   printf ',"mistakes":'
-  _felix_mon_rows "$(felix_mem_dir "$proj")/mistakes.log" 20 _felix_mon_mistake_row
+  _felix_mon_rows "$_md/mistakes.log" 20 _felix_mon_mistake_row
+  printf ',"mistakesTotal":%s' "$(_felix_mon_count "$_md/mistakes.log")"
   printf ',"says":'
-  _felix_mon_rows "$(felix_mem_dir "$proj")/says.log" 60 _felix_mon_say_row
+  _felix_mon_rows "$_md/says.log" 60 _felix_mon_say_row
+  printf ',"saysTotal":%s' "$(_felix_mon_count "$_md/says.log")"
+  # Counted over the whole file, not the window, for the same reason: this is
+  # rendered as an absolute "times held", and 20 of the last 60 is not 109.
+  printf ',"heldTotal":%s' \
+    "$(LC_ALL=C awk -F'\t' '$2 == "held" || $2 == "plugin-blocked" { n++ } END { print n + 0 }' "$_md/says.log" 2>/dev/null || printf 0)"
 
   printf ',"compliance":['
   first=1

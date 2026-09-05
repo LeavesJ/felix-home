@@ -493,6 +493,7 @@
 1	and a declined one is ok too
 1	and a document that is not a plan
 1	and a failing one as due for that reason
+1	and a file that does not exist counts zero
 1	and a gitignored stray in the cache is too
 1	and a high one is refused
 1	and a hold is not written
@@ -541,6 +542,7 @@
 1	and commissions
 1	and commits nothing to it
 1	and counts the recorded decline
+1	and counts what was held over the whole file too
 1	and creates nothing without --create
 1	and declares a version
 1	and declares nothing
@@ -787,6 +789,7 @@
 1	and says what it removed
 1	and says what would answer it
 1	and says what would have to change
+1	and says when a rate is over a window only
 1	and says which base it could not resolve
 1	and says which channel
 1	and says which directory it was sent to
@@ -866,6 +869,8 @@
 1	and the gate searches the same paths this does
 1	and the gate still runs through it
 1	and the gate's code names no project literally
+1	and the gate-failure total
+1	and the held total
 1	and the hook still exits 0 there
 1	and the independence check above it sees nothing wrong with that file
 1	and the index holds no gitlink afterwards
@@ -1403,10 +1408,12 @@
 1	the model still gets the whole thing
 1	the nested repo is still refused
 1	the page carries the speech
+1	the page renders the says total
 1	the page still closes exactly one script
 1	the patch digit goes up by one
 1	the pattern is written down exactly once
 1	the payload carries compliance
+1	the payload carries the whole count, not the window's length
 1	the payload envelope does not decide the route
 1	the plugins cache root is composed with, not read as ours
 1	the pointer file beats a sibling projects/

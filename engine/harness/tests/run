@@ -4418,6 +4418,41 @@ is "and the count follows"  "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_s
 is "and folding them takes it to zero" \
    "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_stranded "$LP" "$LH" "$LGA" )" "0"
 
+# A fold that has stopped keeping up is stranded too, and folded again.
+#
+# Both loops used to guard with `[ -f fold ]`, which tests whether a fold
+# exists and not whether it accounts for the file. A session folds at its
+# SessionEnd and is then resumed under the same id, or the catch-up folds one
+# that is still alive; either way the state file grows and the fold does not,
+# and because a fold exists neither loop looks again. On this machine that hid
+# four signals for three days — the session named in the audit had a fold from
+# 15:14 and appends until 17:35.
+#
+# The fold's mtime is set back rather than slept past: `-nt` compares whole
+# seconds, and a test that depends on two writes landing in different ones is
+# a test that fails on a fast machine.
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_record "$LH" stale1 "tool	Bash" )
+_lgmark stale1
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" "$LGA" >/dev/null )
+is "a session folds on the first catch-up" \
+   "$([ -f "$MEM/widgetledger/ledger.d/stale1.tsv" ] && echo folded || echo no)" "folded"
+is "and a fold that is current leaves nothing stranded" \
+   "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_stranded "$LP" "$LH" "$LGA" )" "0"
+touch -t 202601010000 "$MEM/widgetledger/ledger.d/stale1.tsv"
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_record "$LH" stale1 "skill	humanizer:humanizer" )
+is "a fold older than its own state file is stranded, not finished" \
+   "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_stranded "$LP" "$LH" "$LGA" )" "1"
+( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_catchup "$LP" "$LH" "$LGA" >/dev/null )
+has "and the appends that arrived after it are folded in" \
+    "$(cat "$MEM/widgetledger/ledger.d/stale1.tsv" 2>/dev/null)" "humanizer"
+is "which takes it back to nothing stranded" \
+   "$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_stranded "$LP" "$LH" "$LGA" )" "0"
+# Re-folding is a whole-file rewrite, so the reach it already had is still
+# one reach and not two. That is the property the old guard was defending,
+# and dropping the guard must not cost it.
+is "and re-folding does not double what was already counted" \
+   "$(awk -F'\t' '$4 == "Bash" { print $5 }' "$MEM/widgetledger/ledger.d/stale1.tsv" 2>/dev/null)" "1"
+
 # The qualifier attaches to the claim, not to the session. An empty retire list
 # needs no caveat: folding more sessions can only ADD reaches, and a reach can
 # only take a capability OFF the list. So the only claim stranded data can

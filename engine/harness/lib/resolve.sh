@@ -102,6 +102,32 @@ felix_engine_source() {
   return 1
 }
 
+# Where the felix plugin is actually deployed, or nothing.
+#
+# Asked of the CLI rather than read off the cache directory, because the cache
+# keeps every version it has ever installed and the newest on disk is not
+# necessarily the one that loads.
+#
+# One reader because it had been written out three times and the copies had
+# already diverged: both of cmd_install's asked the CLI and nothing else, while
+# the project gate falls back to the highest cached version when the CLI is
+# absent. That gate keeps its own copy on purpose — a project's gate must run
+# without the engine's libraries, which is the property the independence check
+# exists to protect — so this replaces the engine's two, not all three.
+#
+# Fails quiet. No CLI, or a CLI that answers nothing, is "no deployment I can
+# see", and every caller here treats that as "say nothing" rather than as a
+# finding.
+felix_deployed_engine() {
+  command -v claude >/dev/null 2>&1 || return 1
+  local p
+  p="$(claude plugin list --json 2>/dev/null \
+       | sed -n '/"felix@felix"/,/}/p' \
+       | sed -n 's/.*"installPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  [ -n "$p" ] || return 1
+  printf '%s' "$p"
+}
+
 felix_home() {
   local engine="$1"
   if [ -n "${FELIX_HOME:-}" ]; then printf '%s' "$FELIX_HOME"; return; fi

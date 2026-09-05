@@ -73,6 +73,8 @@
 1	a declined play is not raised at the finish
 1	a denied command exits 2
 1	a deployed engine resolves the checkout, not itself
+1	a deployment matching the tree is not reported as drift
+1	a deployment that is not this tree is the first thing to fix
 1	a detached HEAD is refused in words
 1	a detected surface no row serves, reaches or grounds is named with all three misses
 1	a detector hard-coded to one stack is caught
@@ -495,6 +497,8 @@
 1	an unverified tree is the first thing to do
 1	an unwritable state directory still exits 0
 1	and --fix does not exit 0 when every repair failed
+1	and a CLI that answers nothing reports no drift
+1	and a CLI that cannot answer is not a stale deployment
 1	and a backticked path naming nothing is still not invented
 1	and a clean table leaves the gate green
 1	and a command that does not resolve identifies none either
@@ -624,6 +628,7 @@
 1	and it is the usage text
 1	and it matches a project name as a literal
 1	and it merges nothing
+1	and it names the command that clears it
 1	and it names the literal that went missing
 1	and it names the tree that can, not a fault
 1	and it names which one
@@ -1395,6 +1400,7 @@
 1	the data marker is substituted
 1	the declared plugin still has its presence row
 1	the declares are applied before the receipt is written
+1	the deployed path is read from the CLI, not guessed from the cache
 1	the ecosystem check is behind the verifier confine
 1	the ecosystem table is an enforcing table, and escape.sh says so
 1	the engine manifest is not empty

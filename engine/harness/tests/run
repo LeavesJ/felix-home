@@ -7978,6 +7978,23 @@ u="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
       done )"
 is "no shipped upkeep row is unreachable" "$(printf '%s' "$u" | tr -d '\n ')" ""
 
+# And something calls it. The guard was written for the "Nothing due" lesson
+# and then wired to nothing: every surface that reads maintenance keeps `^due`
+# alone — cmd_maintenance, the session badge, felix next's rank 4, the pulse —
+# so a row whose capability nothing declares renders as a bare dash beside
+# "Nothing due." forever, on all of them. A guard nobody calls is the lesson it
+# was written about, one level down.
+printf 'ghostrow\t7\tnosuchcapability\ta row nothing can satisfy\n' >> "$FROOT/projects/widget/maintenance.tsv"
+_mo="$(cd "$REPO" && "$FELIX" maintenance 2>&1)"
+has "felix maintenance says a row can never come due"  "$_mo" "ghostrow"
+has "and does not leave it as a bare dash"             "$_mo" "can never come due"
+_mn="$(cd "$REPO" && "$FELIX" next 2>&1)"
+has "felix next ranks it under the checks that are not checking" "$_mn" "waits on a capability nothing declares"
+grep -v 'ghostrow' "$FROOT/projects/widget/maintenance.tsv" > "$TMP/maint.tmp"
+mv "$TMP/maint.tmp" "$FROOT/projects/widget/maintenance.tsv"
+is "and the widget table is as this block found it" \
+   "$(grep -c ghostrow "$FROOT/projects/widget/maintenance.tsv")" "0"
+
 printf '\nan engine a marketplace does not serve\n'
 # `felix install` from a worktree bumps the manifest, runs the three plugin
 # commands, finds the cache unchanged and says "this is no longer the version

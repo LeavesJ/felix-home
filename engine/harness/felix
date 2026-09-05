@@ -2809,6 +2809,22 @@ cmd_maintenance() {
     esac
   done
 
+  # "Nothing due" and "nothing is being checked" render identically — this
+  # project's own recorded lesson, and this is the surface it was written
+  # about. A row whose capability nothing declares is dormant forever, so it
+  # can never be due, and printing only "Nothing due." over it is that
+  # collision. The guard for it was written and then called by nothing but the
+  # suite: every surface that reads maintenance keeps `^due` alone.
+  local _mu; _mu="$(felix_maint_unreachable "$proj" 2>/dev/null)"
+  if [ -n "$_mu" ]; then
+    printf '\nDormant rather than satisfied — these wait on a capability nothing\n'
+    printf 'declares, so they can never come due as written:\n\n'
+    printf '%s\n' "$_mu" | while IFS=$'\t' read -r _mn _mc; do
+      [ -n "${_mn:-}" ] || continue
+      printf '  %-18s waits on: %s\n' "$_mn" "$_mc"
+    done
+    printf '\nFix the capability in %s/maintenance.tsv, or declare it.\n' "$proj"
+  fi
   if [ "$due" -eq 0 ]; then printf '\nNothing due.\n'; return 0; fi
   printf '\n%s routine(s) due.\n\n' "$due"
   printf 'Do them on one branch, not %s. A flood of autonomous maintenance pull\n' "$due"

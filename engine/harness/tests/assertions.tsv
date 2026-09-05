@@ -12,6 +12,7 @@
 1	PreToolUse is bound for NotebookEdit
 1	PreToolUse is bound for Read
 1	PreToolUse is bound for Write
+1	a backfilled row carries DECLARED
 1	a bare branch name prefers the remote-tracking ref
 1	a bare plugin step is used when one of its skills ran
 1	a bare repo has nothing to adopt
@@ -57,6 +58,7 @@
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
 1	a credential in added lines escapes as disclose
+1	a declare whose provenance could not be written is not counted
 1	a declared capability with NO row still scores on its name
 1	a declared capability with a row keeps its keywords
 1	a declared server no play ever named is left alone
@@ -134,6 +136,7 @@
 1	a malformed row is skipped, others still deny
 1	a malformed row is skipped, others still match
 1	a malformed row stops the gate rather than only being listed
+1	a manifest with no final newline still gets its row
 1	a marker naming '.' refuses rather than binding to the projects directory
 1	a marker naming '..' refuses rather than binding to the projects directory
 1	a marker naming '../widget' refuses rather than binding to the projects directory
@@ -143,6 +146,8 @@
 1	a marketplaces path is one too
 1	a matching test closes the gap
 1	a medium one is refused
+1	a medium row a person declared installs, as it always has
+1	a medium row the engine grounded waits for a person
 1	a merge in progress is a person's, and the pulse says so
 1	a merge is blocked while the project reads nothing from reality
 1	a merge stopped for the founder is recorded as one
@@ -482,6 +487,7 @@
 1	and a failing one as due for that reason
 1	and a gitignored stray in the cache is too
 1	and a high one is refused
+1	and a hold is not written
 1	and a hyphenated name still matches its words
 1	and a live one says when it was last caught
 1	and a name
@@ -493,6 +499,7 @@
 1	and a refusal is not a successful repair
 1	and a repository with no main resolves to nothing
 1	and a row already on disk is cleaned on the way out
+1	and a row with no grounding column is a person's
 1	and a ruled capability is not listed there
 1	and a ruled one is not
 1	and a second run does not record the same file twice
@@ -558,6 +565,7 @@
 1	and grounding it closes the gap
 1	and handed the cron line instead
 1	and hands it a pull request to merge
+1	and holds an engine-grounded medium for a person
 1	and holds no prose when nothing matched
 1	and ignores the path so it cannot come back
 1	and in the policy's own words, which is what proves the call reached it
@@ -596,10 +604,12 @@
 1	and it still fails the gate
 1	and it stops being due
 1	and it stops the streak rather than being skipped past
+1	and its actor is the word every other line uses
 1	and its base's workflow is not escalated as this branch's escape
 1	and its declines count as unchecked
 1	and its medium holds too
 1	and its path is gone from the tokens whatever the key is called
+1	and its seeded stack rows carry DECLARED
 1	and its tier was read rather than claimed
 1	and keeps a never-invoked one at zero
 1	and keeps one Felix does not hold
@@ -651,6 +661,7 @@
 1	and no conflict markers were committed (stash)
 1	and no longer prints next steps
 1	and no memory root named --help is minted
+1	and no row anywhere carries a grounding the policy cannot read
 1	and no row is accepted from that file
 1	and no setup.tsv appears from asking for help
 1	and no zero row for one that was used
@@ -676,6 +687,7 @@
 1	and now names each one it found
 1	and ok once a graph newer than the last commit exists
 1	and once the check passes it is ok
+1	and one already declared is not written twice
 1	and one grounding a real surface is not
 1	and one in a double-backtick span
 1	and one named once carries one
@@ -740,6 +752,7 @@
 1	and says so
 1	and says so again next session, because the request is still unanswered
 1	and says so before the detail
+1	and says so in the policy's words
 1	and says so plainly
 1	and says so plainly when none does
 1	and says so rather than implying I did
@@ -826,7 +839,7 @@
 1	and the exact command that produced it
 1	and the failure is recorded under the check's own name
 1	and the fixture files this block rewrote are back
-1	and the fixture is restored
+2	and the fixture is restored
 1	and the fixture is restored to awaiting
 1	and the foreign session is not folded
 1	and the founder's one line says how many are due
@@ -840,13 +853,16 @@
 1	and the index holds no gitlink afterwards
 1	and the instrument is appended as the ninth
 1	and the lesson is in the same block
+1	and the log carries the sha it was read at
 1	and the log is back to empty, as this block found it
 1	and the memory, which is somewhere else now
 1	and the merge is left exactly where the person left it
 1	and the message does not accuse the subagent
 1	and the missing function is named
+1	and the monitor reports its capability unglued from the grounding
 1	and the monitor still renders the sentence, not the JSON around it
 1	and the mute is a row, not a silent omission
+1	and the new row is its own line
 1	and the older spelling of the same tool is caught too
 1	and the one it cannot attribute is not folded either
 1	and the page has a panel for it
@@ -875,11 +891,13 @@
 1	and the rest of the file is untouched
 1	and the reviewed one is cleared by it
 1	and the route its path named is not taken
+1	and the row carries OBSERVED, not a person's word
 1	and the row is in the log as INFERRED
 1	and the row is still json
 1	and the row itself is reported as recording nothing
 1	and the row says the witness could not be asked
 1	and the row says what ran
+1	and the row that was already there survives whole
 1	and the row-level line names the same file
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
@@ -897,6 +915,8 @@
 1	and the unmount above is the only other proposal
 1	and the version is a dotted number
 1	and the widget ledger is as this block found it
+1	and the widget manifest is as this block found it
+1	and there is at least one of them
 1	and what a fix will have to prove
 1	and what the engine tiered medium holds
 1	and what was detected
@@ -911,6 +931,7 @@
 1	anything shipping hooks is high
 1	appended after what was there
 1	apply without --yes changes nothing
+1	applying declares appends one row per new declare
 1	as a declined verdict
 1	as does another
 1	at most one caller records when one slot is left
@@ -1019,6 +1040,7 @@
 1	felix probes refuses a project that asks reality nothing
 1	felix probes reports without refusing
 1	felix procedures runs
+1	felix profile lists a row carrying the grounding column
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
 1	felix's own gate no longer carries a private copy of the check
@@ -1195,6 +1217,7 @@
 1	reads the files a task declares
 1	reads the per-project limit
 1	ready --fix asks the policy
+1	ready --fix reads the grounding off the row
 1	recommending installs nothing
 1	reconcile answers even where no stack.tsv exists
 1	recording a run succeeds
@@ -1311,11 +1334,13 @@
 1	the cause is not the raw payload
 1	the claude cli changing is announced and never invalidates
 1	the data marker is substituted
+1	the declares are applied before the receipt is written
 1	the ecosystem check is behind the verifier confine
 1	the ecosystem table is an enforcing table, and escape.sh says so
 1	the engine manifest is not empty
 1	the engine names no ecosystem without a declared reason
 1	the engine names no governed project
+1	the engine writes manifests carrying the grounding column
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
 1	the fixture answer is restored

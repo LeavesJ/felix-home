@@ -1954,8 +1954,15 @@ cmd_ready() {
     [ -n "${st:-}" ] || continue
     case "$name" in *:*) owner="${name%%:*}" ;; *) owner="$name" ;; esac
     local srow; srow="$(grep -E "	($name|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
-    risk="$(printf '%s' "$srow" | cut -f4)"
-    local sground; sground="$(printf '%s' "$srow" | cut -f6)"
+    # Read the row the way felix_stack_plan reads it, so the two policy callers
+    # cannot disagree about the same line. `cut -f6` and a trailing `read`
+    # variable differ on a row with seven fields: cut takes the sixth alone,
+    # read takes the sixth onwards. Neither is more right, but they must not
+    # both be in the engine deciding the same question.
+    local _sk _sn _ss sground
+    IFS=$'\t' read -r _sk _sn _ss risk _sc sground <<SROW
+$srow
+SROW
     case "$st" in
       disabled)
         if claude plugin enable "$detail" >/dev/null 2>&1 || claude plugin enable "$owner" >/dev/null 2>&1; then
@@ -2065,7 +2072,12 @@ cmd_profile() {
   [ -n "$caps" ] || die "no profile named $want"
   printf 'profile:      %s\ncapabilities: %s\n\nactivates:\n' "$want" "$caps"
   _felix_load_state
-  _felix_stack_rows "$proj" | while IFS=$'\t' read -r kind name _ risk cap; do
+  # Six variables, not five. A trailing `read` variable absorbs every remaining
+  # field INCLUDING its tab, so when stack.tsv grew a grounding column `cap`
+  # became "frontend<TAB>DECLARED", the capability test below could never match,
+  # and this printed an empty activates list — a wrong answer indistinguishable
+  # from the correct one, exit 0. Every reader of these rows takes the column.
+  _felix_stack_rows "$proj" | while IFS=$'\t' read -r kind name _ risk cap _ground; do
     # A row belongs to this profile if the profile claims its capability, or if
     # the row is unconditional.
     case ",$caps,always," in *",$cap,"*) ;; *) continue ;; esac
@@ -2140,7 +2152,10 @@ cmd_stack() {
   n_blocked="$(printf '%s\n' "$plan" | grep -c '^blocked' || true)"
 
   if [ "$sub" = "plan" ]; then
-    printf '\n%s to install, %s blocked as high risk.\n' "$n_install" "$n_blocked"
+    # Not "as high risk": a block is now also what an engine-grounded medium
+    # gets, and what an unreadable tier gets. The plan's own detail column says
+    # which, in the policy's words, and this line stopped being able to.
+    printf '\n%s to install, %s blocked.\n' "$n_install" "$n_blocked"
     [ "$n_install" -gt 0 ] && printf 'apply with: felix stack apply --yes\n'
     return 0
   fi
@@ -3450,6 +3465,13 @@ EOF
     done <<EOF
 $out
 EOF
+    # A declared row changes the manifest, and every need's verdict in `$out`
+    # was computed before it. Left alone, the receipt below would certify a
+    # state this run had already moved — the counts would describe the tree as
+    # it was when the run started. Re-checked with the `-` runner, which runs
+    # no engine stage and only re-asks each row's check, so this costs a
+    # re-read and cannot install anything a second time.
+    [ "$n_app" -gt 0 ] && out="$(felix_commission_run "$proj" "$root" - "$tpl")"
   fi
 
   # Recorded and receipted after the last write of the run, so the hashes
@@ -3519,12 +3541,13 @@ EOF
         printf 'and never executed, which is what turns INFERRED into OBSERVED. An mcp\n'
         printf 'row is refused on its kind before anything is fetched. `unknown` is not\n'
         printf 'a refusal: nothing could be read, so nothing is known, and a later run\n'
-        printf 'can still answer it.\n'
+        printf 'can still answer it. Only a `declare` is written down.\n'
         if [ "${n_app:-0}" -gt 0 ]; then
           printf '\n%s declared into %s/stack.tsv, each row carrying OBSERVED: the\n' "$n_app" "$proj"
-          printf 'grounding the engine read, never a person'"'"'s word, so the policy reads it that\n'
-          printf 'way on every later run. Nothing was installed this run. They install on the\n'
-          printf 'next one under the policy for what was read: low installs, medium waits.\n'
+          printf 'grounding the engine read, never a person'"'"'s word, so the policy reads it\n'
+          printf 'that way on every later run. Nothing in the table above was installed by\n'
+          printf 'the admit phase — a declared row installs through felix stack apply, under\n'
+          printf 'the policy for what the engine read.\n'
         else
           printf '\nNothing above was installed, and nothing was declared.\n'
         fi

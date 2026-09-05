@@ -420,12 +420,27 @@ felix_commission_apply_declares() {   # proj, root, admit-output, tid, policy, n
     [ "${v:-}" = "declare" ] && [ -n "${n:-}" ] || continue
     printf '%s\n' "$declared" | grep -xF "${n%%@*}" >/dev/null 2>&1 && continue
     [ -f "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$proj/stack.tsv"
+    # A manifest whose last line has no newline would otherwise fuse the two
+    # rows into one, destroying the row that was there and losing this one.
+    # stack.tsv is seeded "Edit freely", so a hand edit that drops the final
+    # newline is an ordinary thing rather than a corrupt file.
+    [ -s "$proj/stack.tsv" ] && [ -n "$(tail -c 1 "$proj/stack.tsv")" ] \
+      && printf '\n' >> "$proj/stack.tsv"
     printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$k" "$n" "$tier" "$gcap" >> "$proj/stack.tsv" || continue
+    # The provenance is not optional. A row in the manifest whose sha nobody
+    # recorded is exactly the state this column exists to prevent, so a lost
+    # log line is a failure of the whole write and is neither counted nor
+    # reported as a declare. The sibling writer guards its append the same way.
+    mkdir -p "$(dirname "$log")" 2>/dev/null
+    # Actor `felix`, the word felix_commission_actor emits for an engine
+    # answer. `felix:commission` is an ANSWER string, and putting one in the
+    # actor column makes this line match no reader of the log.
+    if ! printf '%s\t%s\t%s\t%s\tdeclared\tOBSERVED\tfelix\t%s@%s\t%s %s: %s %s\n' \
+      "$stamp" "$tid" "${policy:--}" "$need" "$n" "${sha:--}" "$k" "$n" "$tier" "$gcap" >> "$log"; then
+      continue
+    fi
     declared="$declared
 ${n%%@*}"
-    mkdir -p "$(dirname "$log")" 2>/dev/null
-    printf '%s\t%s\t%s\t%s\tdeclared\tOBSERVED\tfelix:commission\t%s@%s\t%s %s: %s %s\n' \
-      "$stamp" "$tid" "${policy:--}" "$need" "$n" "${sha:--}" "$k" "$n" "$tier" "$gcap" >> "$log"
     c=$((c + 1))
   done <<ROWS
 $adm

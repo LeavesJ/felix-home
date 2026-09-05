@@ -12,9 +12,11 @@
 # and the day it does, detection surfaces it first.
 #
 # Risk tiers: the decision is not made here. admit.sh holds the one install
-# policy for every caller, and a row in this manifest was written by a person,
-# so it is asked as DECLARED. High never installs, at any flag, from any
-# caller. High means the tool can move money, reach production, or hold a
+# policy for every caller, and the row says who grounded it in its sixth
+# column — DECLARED for a person's judgment, OBSERVED for what the engine read
+# off a plugin, and DECLARED again when the column is absent, which is what
+# every manifest written before it relies on. High never installs, at any flag,
+# from any caller. High means the tool can move money, reach production, or hold a
 # credential, and no automation flag should be able to mount one of those
 # without a person present.
 
@@ -26,6 +28,7 @@ if ! command -v felix_admit >/dev/null 2>&1; then
 fi
 
 # Manifest rows: kind <TAB> name <TAB> source <TAB> risk <TAB> capability
+#                [<TAB> grounding], absent meaning DECLARED
 _felix_stack_rows() {
   local proj="$1"
   [ -f "$proj/stack.tsv" ] || return 0

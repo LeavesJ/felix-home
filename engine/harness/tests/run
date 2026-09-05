@@ -675,6 +675,28 @@ case "$out" in
   *) ok "core profile excludes other capabilities" ;;
 esac
 
+# Every reader of a manifest row takes the grounding column, not only the
+# policy. A trailing `read` variable absorbs the last field AND its tab, so a
+# five-variable reader silently gets "always<TAB>DECLARED" where it expected
+# "always". felix profile answered with an empty activates list — a wrong
+# answer that reads exactly like the right one and exits 0 — and the monitor
+# payload carried the glued string as a capability. Asserted together so a
+# seventh column cannot repeat it in either place.
+printf 'plugin\tfelix-test-prof@nowhere\t-\tlow\talways\tDECLARED\n' >> "$FROOT/projects/widget/stack.tsv"
+_prof="$(cd "$REPO" && "$FELIX" profile core 2>&1)"
+has "felix profile lists a row carrying the grounding column" "$_prof" "felix-test-prof@nowhere"
+_mon="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/monitor.sh"
+         _felix_mon_project "$FROOT/projects/widget" "$FROOT" 2>/dev/null )"
+case "$_mon" in
+  *'felix-test-prof'*'"capability":"always"'*) ok "and the monitor reports its capability unglued from the grounding" ;;
+  *'felix-test-prof'*)                         bad "and the monitor reports its capability unglued from the grounding" "$(printf '%s' "$_mon" | tr ',' '\n' | grep -A2 'felix-test-prof' | head -4)" ;;
+  *)                                           skip "and the monitor reports its capability unglued from the grounding" "no payload for widget" ;;
+esac
+grep -v 'felix-test-prof' "$FROOT/projects/widget/stack.tsv" > "$TMP/stack.tmp"
+mv "$TMP/stack.tmp" "$FROOT/projects/widget/stack.tsv"
+is "and the widget manifest is as this block found it" \
+   "$(grep -c 'felix-test-prof' "$FROOT/projects/widget/stack.tsv")" "0"
+
 printf '\nhuman setup steps\n'
 {
   printf 'always-done\tA step that is already satisfied\talways\ttrue\n'
@@ -6472,6 +6494,19 @@ NEWP="$TMP/probes-new"; mkdir -p "$NEWP"
 out="$(cd "$NEWP" && "$FELIX" new probeseed "$NEWP" 2>&1)"
 is "felix new seeds a probe table" \
    "$( [ -s "$FROOT/projects/probeseed/probes.tsv" ] && echo yes || echo no )" "yes"
+# And a seeded stack.tsv says the catalogue's rows are a person's judgment.
+# Asserted here, at a project felix new actually created, rather than over a
+# glob: the tier in catalog.tsv was decided by somebody, and the engine writing
+# it into the manifest does not make it the engine's.
+is "and its seeded stack rows carry DECLARED" \
+   "$(grep -vE '^[[:space:]]*(#|$)' "$FROOT/projects/probeseed/stack.tsv" 2>/dev/null \
+      | awk -F'\t' '$6 != "DECLARED" { n++ } END { print n + 0 }')" "0"
+# Against a number, not against another count of the same file: comparing
+# `grep -c` to `grep -vc` is equal whenever the file is empty or absent, so the
+# first draft passed when there was nothing to count at all.
+_pseed="$(grep -cE $'\tDECLARED$' "$FROOT/projects/probeseed/stack.tsv" 2>/dev/null)" || _pseed=0
+[ "${_pseed:-0}" -gt 0 ] && ok "and there is at least one of them" \
+                         || bad "and there is at least one of them" "counted $_pseed DECLARED rows"
 _pbseed() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
               felix_probe_rows "$FROOT/projects/probeseed" | grep -c . ); }
 case "$(_pbseed)" in
@@ -7720,7 +7755,15 @@ has "and in the policy's own words, which is what proves the call reached it" \
 # And a medium row the engine grounded is refused here too, by the same
 # policy, in its words: this is the second caller that used to assume every
 # manifest row was a person's.
-printf 'plugin\tfelix-test-obsmed\t-\tmedium\talways\tOBSERVED\n' > "$_RDP/stack.tsv"
+# A skill, and a route naming it, exactly as every sibling in this block does.
+# Two reasons, both learned by getting it wrong: `felix ready` reports what a
+# ROUTE names and cannot reach, so a stack row nothing points at is never
+# listed; and this block runs with no claude CLI on PATH, which is what lets it
+# run on CI, so a plugin's installed state cannot be checked at all and reads
+# `could not be checked` rather than `absent`. A skill is a directory, and its
+# absence is answerable with no CLI.
+printf 'skill\tfelix-test-obsmed\t-\tmedium\talways\tOBSERVED\n' > "$_RDP/stack.tsv"
+printf 'preflight\tpreflightword\tfrontend\tfelix-test-obsmed\n' > "$_RDP/routes.tsv"
 _obsout="$( cd "$REPO" && HOME="$_RDH" PATH="$_RDB:$_NOCLI" "$FELIX" ready --fix 2>&1 )"
 has "ready --fix reads the grounding off the row"     "$_obsout" "refused"
 has "and holds an engine-grounded medium for a person" "$_obsout" "a person decides"
@@ -9657,8 +9700,38 @@ is "applying declares appends one row per new declare" \
 has "and the row carries OBSERVED, not a person's word"  "$(cat "$CMP/stack.tsv")" $'plugin\tclean\t-\tlow\tllm\tOBSERVED'
 is  "and a hold is not written"                          "$(grep -c withmcp "$CMP/stack.tsv")" "0"
 is  "and one already declared is not written twice"      "$(grep -c 'already-here' "$CMP/stack.tsv")" "1"
-has "and the log carries the sha it was read at"         "$(cat "$MEM/cmproj/commissioning.log")" $'declared\tOBSERVED\tfelix:commission\tclean@deadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
-has "the command applies them before the receipt is written" "$(cat "$FELIX")" "felix_commission_apply_declares"
+has "and the log carries the sha it was read at"         "$(cat "$MEM/cmproj/commissioning.log")" $'declared\tOBSERVED\tfelix\tclean@deadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
+is  "and its actor is the word every other line uses"   "$(awk -F'\t' '$5 == "declared" { print $7 }' "$MEM/cmproj/commissioning.log" | head -1)" \
+    "$( . "$FROOT/harness/lib/commission.sh"; felix_commission_actor 'felix:commission' )"
+
+# A manifest whose last line has no newline. Appending blind fuses the two rows
+# and destroys the one that was there, which is the ordinary state of a file
+# seeded "Edit freely".
+printf 'plugin\tlastrow\t-\tlow\tllm\tDECLARED' > "$CMP/stack.tsv"
+: > "$MEM/cmproj/commissioning.log"
+_nl="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/commission-provider.sh"
+        felix_commission_apply_declares "$CMP" "$CMR" "$(printf 'declare\tplugin\tnewrow\tlow\tllm\tsha1\twhy\n')" t p automation_surveyed )"
+is "a manifest with no final newline still gets its row"        "$_nl" "1"
+is "and the row that was already there survives whole"          "$(grep -c $'^plugin\tlastrow\t' "$CMP/stack.tsv")" "1"
+is "and the new row is its own line"                            "$(grep -c $'^plugin\tnewrow\t' "$CMP/stack.tsv")" "1"
+
+# A provenance line that cannot be written is a failed declare, not a quiet
+# one: the row exists to be traceable to the sha it was read at.
+printf 'plugin\tkeeper\t-\tlow\tllm\tDECLARED\n' > "$CMP/stack.tsv"
+_lgdir="$(dirname "$MEM/cmproj/commissioning.log")"
+rm -f "$MEM/cmproj/commissioning.log"; mkdir -p "$MEM/cmproj/commissioning.log"
+_bad="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/commission-provider.sh"
+         felix_commission_apply_declares "$CMP" "$CMR" "$(printf 'declare\tplugin\tlostprov\tlow\tllm\tsha2\twhy\n')" t p automation_surveyed 2>/dev/null )"
+is "a declare whose provenance could not be written is not counted" "$_bad" "0"
+rmdir "$MEM/cmproj/commissioning.log" 2>/dev/null; : > "$MEM/cmproj/commissioning.log"
+printf '# kind\tname\tsource\trisk\tcapability\tgrounding\nplugin\talready-here\t-\tlow\tllm\tDECLARED\n' > "$CMP/stack.tsv"
+# Ordering, not spelling. The first draft grepped the whole CLI for the
+# function's name, which is true whether the call sits before the receipt
+# write or after it — a gate that cannot fail. Compare the line numbers.
+_apl="$(grep -n 'felix_commission_apply_declares "' "$FELIX" | head -1 | cut -d: -f1)"
+_rcp="$(grep -n 'felix_commission_receipt_write' "$FELIX" | head -1 | cut -d: -f1)"
+is "the declares are applied before the receipt is written" \
+   "$([ -n "$_apl" ] && [ -n "$_rcp" ] && [ "$_apl" -lt "$_rcp" ] && echo before || echo "after ($_apl vs $_rcp)")" "before"
 
 cp "$TMP/adm.caps.keep" "$CMP/capabilities"; cp "$TMP/adm.stack.keep" "$CMP/stack.tsv"
 cp "$TMP/adm.ans.keep" "$_cmans"
@@ -9729,10 +9802,27 @@ mv "$CMP/routes.keep" "$CMP/routes.tsv"
 has "felix new prints the request path for a session" "$(cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" commission 2>&1)" "commission/requests/automation_surveyed.md"
 # A project felix new seeds carries the grounding column from birth, and
 # every seeded row says DECLARED: the catalogue is a person's table.
-_seeded="$(grep -l $'\tgrounding$' "$FROOT"/projects/*/stack.tsv 2>/dev/null | head -1)"
-[ -n "$_seeded" ] && ok "a seeded stack.tsv carries the grounding column" || bad "a seeded stack.tsv carries the grounding column" "$(ls "$FROOT"/projects)"
-is "and every seeded row in it is DECLARED" \
-   "$([ -n "$_seeded" ] && grep -vE '^\s*(#|$)' "$_seeded" | awk -F'\t' 'NF != 6 || $6 != "DECLARED" { bad++ } END { print bad + 0 }')" "0"
+# Every manifest the engine wrote, not one file a glob happened to pick first.
+# The first draft took `head -1` over every projects/*/stack.tsv and demanded
+# DECLARED of every row in it, which is wrong twice: the file it picked need
+# not be one felix new seeded at all, and a seeded project is commissioned
+# straight after, so discover --adopt legitimately appends OBSERVED rows to it.
+# The invariant that actually holds everywhere is the shape: six fields, and a
+# grounding this policy recognises.
+_gfiles="$(grep -l $'\tgrounding$' "$FROOT"/projects/*/stack.tsv 2>/dev/null)"
+[ -n "$_gfiles" ] && ok "the engine writes manifests carrying the grounding column" \
+                  || bad "the engine writes manifests carrying the grounding column" "$(ls "$FROOT"/projects)"
+# Five fields is legal and means DECLARED — that is the whole compatibility
+# promise, and every manifest written before the column existed relies on it.
+# What must never appear is a sixth field the policy cannot read: that would
+# reach felix_admit as an unknown grounding and refuse, silently, forever.
+_gbad="$(printf '%s\n' "$_gfiles" | while IFS= read -r _f; do [ -n "$_f" ] || continue
+           grep -vE '^[[:space:]]*(#|$)' "$_f" | awk -F'\t' -v f="${_f##*/projects/}" '
+             NF < 5 || NF > 6 { print f "#" FNR " [" $0 "]"; next }
+             NF == 6 && $6 != "DECLARED" && $6 != "OBSERVED" { print f "#" FNR " [" $0 "]" }'
+         done | tr '\n' ' ')"
+is "and no row anywhere carries a grounding the policy cannot read" \
+   "${_gbad% }" ""
 
 
 printf '\nthe engine manifest\n'

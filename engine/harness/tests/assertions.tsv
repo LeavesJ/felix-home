@@ -662,6 +662,7 @@
 1	and neither is an empty message
 1	and never a verified receipt
 1	and never as a clock reading nobody wrote
+1	and never as event, which is what a row with no check says
 1	and never claims it was mounted every session
 1	and never ends on a success line
 1	and never mentions the same one twice
@@ -1425,6 +1426,7 @@
 1	the project marker classifies red, never green
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
+1	the pulse reports a check it could not ask
 1	the quiet control did bind its project
 1	the readiness report runs at all
 1	the reason is durable in decisions.log
@@ -1528,7 +1530,7 @@
 1	wiring into a route that does not exist is refused
 1	wiring the same tool twice is refused
 1	with no CLI and nothing bundled, Felix says it cannot tell
-1	with no checkout in front of it the row stays event, claiming nothing
+1	with no checkout in front of it the row reads unchecked
 1	with no cli call at all
 1	with no session record it behaves as before
 1	with no stances taken, every item is a gap

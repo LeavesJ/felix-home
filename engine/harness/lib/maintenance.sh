@@ -102,10 +102,16 @@ fi
 # clock. A check that cannot run is non-zero, so a broken check is loud rather
 # than a quiet `ok`, which is the direction every verifier here fails in.
 #
-# Evaluated only where a checkout is known. `felix pulse` is home-scoped and
-# iterates projects with no tree in front of it, so there a checked row stays
-# `event` exactly as before — and says nothing false, because it is not
-# claiming the check passed, only that it was not asked.
+# Evaluated only where a checkout is known, and said so when it is not. An
+# earlier draft let a checked row fall through to `event` when no root was
+# given, reasoning that this "says nothing false, because it is not claiming
+# the check passed, only that it was not asked". True of this function and
+# false of its readers: `event` is also what an unchecked row emits, so at the
+# rendering layer "nobody asked" and "there is nothing to ask" became the same
+# line — and `felix pulse`, which keeps only `due`, dropped both. That is the
+# graphify lesson a second time, one layer down. So the two are now different
+# words, and a reader that cannot use `unchecked` at least cannot mistake it
+# for a row that answered.
 felix_maint_status() {
   local proj="$1" root="${2:-}" now; now="$(date +%s)"
   # awk rather than `IFS=$'\t' read`, for the reason procedures.sh records: tab
@@ -126,11 +132,15 @@ felix_maint_status() {
       printf 'dormant\t%s\t-\t%s\t%s\n' "$name" "${cadence:-0}" "$desc"; continue
     fi
     if [ "${cadence:-0}" -eq 0 ] 2>/dev/null; then
-      if [ -n "$check" ] && [ "$check" != "-" ] && [ -n "$root" ] && [ -d "$root" ]; then
-        if ( cd "$root" && bash -c "$check" felix-maint </dev/null >/dev/null 2>&1 ); then
-          printf 'ok\t%s\t-\t0\t%s\n' "$name" "$desc"
+      if [ -n "$check" ] && [ "$check" != "-" ]; then
+        if [ -n "$root" ] && [ -d "$root" ]; then
+          if ( cd "$root" && bash -c "$check" felix-maint </dev/null >/dev/null 2>&1 ); then
+            printf 'ok\t%s\t-\t0\t%s\n' "$name" "$desc"
+          else
+            printf 'due\t%s\tcheck\t0\t%s\n' "$name" "$desc"
+          fi
         else
-          printf 'due\t%s\tcheck\t0\t%s\n' "$name" "$desc"
+          printf 'unchecked\t%s\t-\t0\t%s\n' "$name" "$desc"
         fi
         continue
       fi

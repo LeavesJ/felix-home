@@ -4158,6 +4158,17 @@ is "an mcp call is recorded by server" \
 is "a skill is recorded by which skill" \
    "$(_sig '{"tool_name":"Skill","tool_input":{"skill":"superpowers:brainstorming"}}')" \
    "skill	superpowers:brainstorming"
+# An agent is recorded by which agent, the way a skill is by which skill. It
+# was recorded as `tool Agent`, so a plugin whose whole contribution is a
+# subagent type — code-simplifier ships one agent and nothing else — could not
+# be reached for at all, and sat on the retire list by construction.
+is "an agent is recorded by which agent" \
+   "$(_sig '{"tool_name":"Agent","tool_input":{"subagent_type":"ecc:code-reviewer","prompt":"x"}}')" \
+   "agent	ecc:code-reviewer"
+is "and an Agent call with no type is still a tool" \
+   "$(_sig '{"tool_name":"Agent","tool_input":{"prompt":"x"}}')" "tool	Agent"
+is "and the older spelling of the same tool is caught too" \
+   "$(_sig '{"tool_name":"Task","tool_input":{"subagent_type":"ecc:planner"}}')" "agent	ecc:planner"
 is "an unparseable payload records nothing" "$(_sig 'not json')" ""
 
 LH="$TMP/ledgerhome"; LP="$LH/projects/widgetledger"; mkdir -p "$LP" "$MEM/widgetledger"
@@ -4415,6 +4426,102 @@ printf 'old\t2026-08-01\ttool\tBash\t3\t1\nkept\t2026-08-02\ttool\tRead\t2\t1\n'
 ledsum="$( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_summary "$LLP" )"
 has "a ledger written as one file is still read"     "$ledsum" "Read	1	2"
 has "and re-rolling a session replaces its old rows" "$ledsum" "Bash	1	1"
+
+
+# ----------------------------------------------- what a zero can mean -------
+# An audit of the measurement layer found the retire list built on three
+# structural zeros, none of them disuse. This block is the three of them.
+LZ2="$TMP/lz2"; LZ2P="$LZ2/projects/wzero"; mkdir -p "$LZ2P" "$MEM/wzero/ledger.d"
+printf 'plugin\tsecurity-guidance@x\t-\tlow\talways\nplugin\tplain@x\t-\tlow\talways\nplugin\tplaywright@x\t-\tlow\talways\n' > "$LZ2P/stack.tsv"
+
+# (1) The MCP server a plugin ships is reached as plugin_<plugin>_<server>, and
+# the summary stripped "@..." and ":..." off a name but never that prefix, so
+# routes naming `playwright` and 393 reaches recorded as
+# `plugin_playwright_playwright` were two capabilities that never met.
+# playwright sat on the retire list with 773 reaches across three projects.
+printf 'z1\t2026-09-01\tmcp\tplugin_playwright_playwright\t5\t0\nz1\t2026-09-01\tnamed\tplaywright\t0\t1\n' > "$MEM/wzero/ledger.d/z1.tsv"
+_zsum() { ( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_summary "$LZ2P" ); }
+is "an mcp server reached under its plugin prefix credits the plugin" \
+   "$(_zsum | awk -F'\t' '$1 == "playwright" { print $3 "/" $4 }')" "5/1"
+is "and the prefixed name is not a capability of its own" \
+   "$(_zsum | grep -c '^plugin_playwright')" "0"
+printf 'z2\t2026-09-01\tmcp\tplugin_ecc_chrome-devtools\t2\t0\n' > "$MEM/wzero/ledger.d/z2.tsv"
+is "a hyphenated server name still credits the plugin that ships it" \
+   "$(_zsum | awk -F'\t' '$1 == "ecc" { print $3 }')" "2"
+# (2) An agent row joins to its plugin the way a skill row does.
+printf 'z3\t2026-09-01\tagent\tcode-simplifier:code-simplifier\t3\t0\n' > "$MEM/wzero/ledger.d/z3.tsv"
+is "an agent reached is credited to the plugin that ships it" \
+   "$(_zsum | awk -F'\t' '$1 == "code-simplifier" { print $3 }')" "3"
+
+# (3) A hook leaves no tool call. PostToolUse sees tool calls and nothing else;
+# another plugin's hook firing is invisible to it by construction, so a plugin
+# whose contribution is a hook reads zero forever however much it does. That
+# zero is not disuse and must not be reported as it — the recorded lesson,
+# utilisation is not utility and the ledger was punishing prevention, made
+# mechanical. But "ships a hook" is three things, not one, and the review of
+# the first draft showed that on the real ledger the one row it reclassified
+# was a plugin shipping a hook AND an MCP server AND a skill.
+LZH="$TMP/lz2-home"
+mkdir -p "$LZH/.claude/plugins" "$LZH/cache/security-guidance/1.0.0/hooks" "$LZH/cache/plain/1.0.0" \
+         "$LZH/cache/mixed/1.0.0/hooks" "$LZH/cache/mixed/1.0.0/skills/x"
+printf '{"hooks":{"PreToolUse":[]}}\n' > "$LZH/cache/security-guidance/1.0.0/hooks/hooks.json"
+printf '{"hooks":{"PreToolUse":[]}}\n' > "$LZH/cache/mixed/1.0.0/hooks/hooks.json"
+# The registry is read bounded to the entry. `nopath` sits FIRST with no
+# installPath so that a scan which leaks into the next entry would classify it
+# as the hooked plugin that follows it.
+cat > "$LZH/.claude/plugins/installed_plugins.json" <<EOF
+{"version": 2, "plugins": {
+  "nopath@x": [],
+  "security-guidance@x": [{"scope": "user", "installPath": "$LZH/cache/security-guidance/1.0.0", "version": "1.0.0"}],
+  "mixed@x": [{"scope": "user", "installPath": "$LZH/cache/mixed/1.0.0", "version": "1.0.0"}],
+  "plain@x": [{"scope": "user", "installPath": "$LZH/cache/plain/1.0.0", "version": "1.0.0"}]
+}}
+EOF
+_zshape() { ( HOME="$LZH"; . "$FROOT/harness/lib/ledger.sh"; felix_ledger_hook_shape "$1" ); }
+is "a plugin shipping hooks and nothing countable is hook-only"     "$(_zshape security-guidance)" "only"
+is "one shipping hooks and a skill is mixed"                        "$(_zshape mixed)"             "mixed"
+is "one shipping no hooks is plain"                                 "$(_zshape plain)"             "none"
+is "one not installed at all is plain, because nothing says otherwise" "$(_zshape ghost)"          "none"
+is "an entry with no path does not inherit the next entry's answer" "$(_zshape nopath)"            "none"
+# The same registry minified to one line reads the same way.
+LZM="$TMP/lz2-min"; mkdir -p "$LZM/.claude/plugins"
+tr -d '\n' < "$LZH/.claude/plugins/installed_plugins.json" > "$LZM/.claude/plugins/installed_plugins.json"
+_zshapem() { ( HOME="$LZM"; . "$FROOT/harness/lib/ledger.sh"; felix_ledger_hook_shape "$1" ); }
+is "a one-line registry answers for the right plugin"               "$(_zshapem security-guidance)" "only"
+is "and for the plain one"                                          "$(_zshapem plain)"             "none"
+is "and the path-less one still inherits nothing"                   "$(_zshapem nopath)"            "none"
+
+# All three cross the retire threshold identically: five sessions, named,
+# never reached. They land in three different places.
+for _i in 1 2 3 4 5; do
+  printf 'h%s\t2026-09-0%s\tnamed\tsecurity-guidance\t0\t1\nh%s\t2026-09-0%s\tnamed\tplain\t0\t1\nh%s\t2026-09-0%s\tnamed\tmixed\t0\t1\n' "$_i" "$_i" "$_i" "$_i" "$_i" "$_i" > "$MEM/wzero/ledger.d/h$_i.tsv"
+done
+_zl() { ( HOME="$LZH"; . "$FROOT/harness/lib/ledger.sh"; "$1" "$LZ2P" | cut -f1 | tr '\n' ' ' ); }
+is "the retire list keeps the zero that is disuse"                    "$(_zl felix_ledger_retire)"     "plain "
+is "the unmeasurable list takes the hook-only zero"                   "$(_zl felix_ledger_unobserved)" "security-guidance "
+is "and the partly-countable list takes the mixed one"                "$(_zl felix_ledger_partly)"     "mixed "
+
+# The report renders all three and proposes the right thing for each: the row
+# and the play for disuse, nothing for hook-only, the play alone for mixed.
+# Rendered text, not a grep for a function name: the first draft asserted that
+# the source mentioned felix_ledger_unobserved, which could not fail however
+# wrong the sentence was.
+mkdir -p "$MEM/widget/ledger.d"
+for _i in 1 2 3 4 5; do cp "$MEM/wzero/ledger.d/h$_i.tsv" "$MEM/widget/ledger.d/zshape-h$_i.tsv"; done
+_zrep="$(cd "$REPO" && HOME="$LZH" PATH="/usr/bin:/bin" "$FELIX" ledger 2>&1)"
+has "felix ledger proposes retiring the disuse zero"            "$_zrep" "plain "
+has "and says to remove its row and its play"                   "$_zrep" "Remove the row from"
+has "it names the hook-only zero as unmeasurable"               "$_zrep" "unmeasurable: their contribution is a hook"
+has "and proposes nothing for it"                               "$_zrep" "Nothing is proposed for these"
+has "it names the mixed zero as only partly countable"          "$_zrep" "only partly countable"
+has "and scopes that proposal to the play, keeping the row"     "$_zrep" "keep the row"
+rm -f "$MEM/widget/ledger.d"/zshape-h*.tsv
+is "and the widget ledger is as this block found it"            "$(ls "$MEM/widget/ledger.d"/zshape-* 2>/dev/null | wc -l | tr -d ' ')" "0"
+# The banner carries none of this. It names the one thing worth acting on; an
+# unmeasurable row proposes nothing, and a report nobody asked for is the same
+# defect as a decision nobody needed to make.
+is "the session banner does not carry the unmeasurable list" \
+   "$(grep -c 'felix_ledger_unobserved\|felix_ledger_partly' "$FROOT/harness/hooks/session-start")" "0"
 
 printf '\nreading the ledger, in the one direction that is honest\n'
 # Written rows nothing reads is the same half-built shape as installing a tool

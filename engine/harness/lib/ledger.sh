@@ -100,6 +100,20 @@ felix_ledger_summary() {
       owner = $4
       sub(/@.*/, "", owner)
       sub(/:.*/, "", owner)
+      # An MCP server a plugin ships is reached as plugin_<plugin>_<server>,
+      # and the plugin is the unit that is declared, routed and retired. Left
+      # unjoined, a route naming the plugin and reaches recorded under the
+      # prefix of its server were two capabilities that never met, and one
+      # browser-automation plugin sat on the retire list with 773 reaches
+      # across three projects. Split on the underscore because marketplace
+      # names use hyphens. A plugin name with an underscore of its own would
+      # join to its first segment, and two such names sharing that segment
+      # would be summed into one row; no installed plugin has one today, and
+      # the day one does this is the line to revisit.
+      if ($3 == "mcp" && owner ~ /^plugin_/) {
+        n = split(owner, seg, "_")
+        if (n >= 3) owner = seg[2]
+      }
       key = owner SUBSEP $1
       if (!(key in seen)) { seen[key] = 1; sessions[owner]++ }
       calls[owner] += $5
@@ -125,7 +139,80 @@ felix_ledger_summary() {
 # The window is sessions, not days. A capability unused across two sessions may
 # simply not have come up; the threshold is what separates that from evidence.
 FELIX_LEDGER_MIN="${FELIX_LEDGER_MIN:-5}"
-felix_ledger_retire() {
+# Where a plugin's installed copy lives, from the registry Claude Code keeps.
+#
+# Read with awk bounded to the entry — opened by the plugin's own key, closed
+# by the next key or the end of the file — on a pretty-printed registry and a
+# minified one alike. The first draft set a flag on the key line and printed
+# the next installPath it met, which on an entry with no path returned the
+# NEXT plugin's, and on a single-line registry returned the last one in the
+# file for every name. commission-provider.sh reads version and sha off the
+# same file with that first-draft shape and carries the same fault.
+#
+# An entry installed at two scopes answers with its first copy.
+_felix_ledger_install_path() {   # bare name -> installPath, or nothing
+  local name="$1" reg="$HOME/.claude/plugins/installed_plugins.json"
+  [ -n "$name" ] && [ -f "$reg" ] || return 0
+  awk -v p="\"$name@" '
+    {
+      line = $0
+      if (!f) { i = index(line, p); if (!i) next; f = 1; line = substr(line, i + length(p)) }
+      else if (line ~ /^[[:space:]]*"[^"]+@[^"]+"[[:space:]]*:/) exit
+      if (match(line, /"[^"]+@[^"]+"[[:space:]]*:/)) line = substr(line, 1, RSTART - 1)
+      if (match(line, /"installPath"[[:space:]]*:[[:space:]]*"[^"]*"/)) {
+        s = substr(line, RSTART, RLENGTH)
+        sub(/^"installPath"[[:space:]]*:[[:space:]]*"/, "", s); sub(/"$/, "", s)
+        print s; exit
+      }
+    }' "$reg" 2>/dev/null
+}
+
+# What an installed copy ships, as far as the ledger can see it.
+#
+# A hook fires inside Claude Code and leaves no tool call. PostToolUse sees
+# tool calls and nothing else, so another plugin's hook firing is invisible to
+# the ledger by construction, and a plugin whose contribution is a hook reads
+# zero forever however much it does. That zero is not disuse and must never be
+# reported as it — the recorded lesson that utilisation is not utility, and the
+# ledger was punishing prevention, made mechanical.
+#
+# But "ships a hook" is not one thing. The first draft made it one bit and
+# filed every hooked plugin as unmeasurable; on this machine that reclassified
+# exactly one row, and it was a plugin that ships a hook AND an MCP server AND
+# a skill — two countable surfaces, pointed at by a route, never reached. So:
+#
+#   none    no hooks. Everything it does leaves a tool call; its zero is disuse.
+#   only    hooks and nothing countable. Its zero is unmeasurable.
+#   mixed   hooks and something countable. The countable part's zero is real
+#           and the hook's is not, and the two are said apart — and the
+#           proposal for it is scoped to the route that points at it, never
+#           to the stack.tsv row, because removing the row removes the hook.
+#
+# "Ships" is a file test, not a firing test: a hooks.json that declares no
+# events, or one a plugin option has switched off, still reads as shipped.
+# Countable is any of .mcp.json, skills/, agents/, commands/ being present.
+# Absent from the registry reads as none, because nothing says otherwise and a
+# guess in the lenient direction would hide a real zero.
+felix_ledger_hook_shape() {   # bare name -> none | only | mixed
+  # Not `path`: under zsh that name is the array bound to PATH, and a person
+  # sourcing this library from a zsh prompt would watch awk vanish and every
+  # plugin read as none. The enforcing path is bash, but the diagnosis is not.
+  local copy; copy="$(_felix_ledger_install_path "$1")"
+  [ -n "$copy" ] && [ -f "$copy/hooks/hooks.json" ] || { printf 'none'; return 0; }
+  if [ -f "$copy/.mcp.json" ] || [ -d "$copy/skills" ] || [ -d "$copy/agents" ] || [ -d "$copy/commands" ]; then
+    printf 'mixed'
+  else
+    printf 'only'
+  fi
+}
+
+# Hook-only: nothing here can be counted.
+felix_ledger_unobservable() { [ "$(felix_ledger_hook_shape "$1")" = "only" ]; }
+
+# The rows that are zero for enough sessions to mean something: named by a
+# route, never reached, across FELIX_LEDGER_MIN sessions or more. Split below
+# into the two things a zero can be.
+_felix_ledger_zero_rows() {
   local proj="$1" name sessions calls named
   felix_ledger_summary "$proj" | while IFS=$'\t' read -r name sessions calls named; do
     [ -n "${name:-}" ] || continue
@@ -135,6 +222,28 @@ felix_ledger_retire() {
     printf '%s\t%s\t%s\n' "$name" "$sessions" "$named"
   done
 }
+
+# The zero rows, filtered to one hook shape.
+_felix_ledger_zero_shaped() {   # proj, shape
+  local name sessions named
+  _felix_ledger_zero_rows "$1" | while IFS=$'\t' read -r name sessions named; do
+    [ "$(felix_ledger_hook_shape "$name")" = "$2" ] || continue
+    printf '%s\t%s\t%s\n' "$name" "$sessions" "$named"
+  done
+}
+
+# The zero that is disuse. Proposed for retirement: the row and the play.
+felix_ledger_retire()     { _felix_ledger_zero_shaped "$1" none; }
+
+# The zero that is a hook nobody can count. Said as unmeasurable, proposed
+# for nothing.
+felix_ledger_unobserved() { _felix_ledger_zero_shaped "$1" only; }
+
+# The zero on a plugin that ships a hook AND countable surfaces. The countable
+# surfaces were pointed at and never reached — that part is disuse — while the
+# hook cannot be counted. Proposed: drop it from the play that names it; keep
+# the row, because the row is what mounts the hook.
+felix_ledger_partly()     { _felix_ledger_zero_shaped "$1" mixed; }
 
 # Mounted, and no route pointed at it in any recorded session.
 #
@@ -172,6 +281,10 @@ felix_ledger_mcp() {
   _felix_ledger_rows "$(felix_mem_dir "$proj")" | LC_ALL=C awk -F'\t' '
     $3 == "mcp" && $4 != "" {
       owner = $4; sub(/@.*/, "", owner)
+      # The same plugin_<plugin>_<server> fold the summary applies, or the
+      # reconciler proposes mounting a server the plugin already provides
+      # while the summary credits the plugin for the same reaches.
+      if (owner ~ /^plugin_/) { n = split(owner, seg, "_"); if (n >= 3) owner = seg[2] }
       key = owner SUBSEP $1
       if (!(key in seen)) { seen[key] = 1; sessions[owner]++ }
       calls[owner] += $5
@@ -206,6 +319,18 @@ felix_ledger_signal() {
       skill="$(printf '%s' "$raw" \
         | sed -n 's/.*"skill"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
       [ -n "$skill" ] && { printf 'skill\t%s' "$skill"; return 0; }
+      ;;
+    # Which agent, the way Skill records which skill. Recorded as a bare
+    # `tool Agent`, a plugin whose whole contribution is a subagent type could
+    # not be reached for at all. `Task` is what earlier Claude Code releases
+    # called the same tool. Both extractions here take the LAST unescaped
+    # `"key": "value"` on the line, so they depend on the payload carrying the
+    # key once, in tool_input, which PostToolUse does today; a response that
+    # echoed the same key later on the line would win.
+    Agent|agent|Task|task)
+      skill="$(printf '%s' "$raw" \
+        | sed -n 's/.*"subagent_type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+      [ -n "$skill" ] && { printf 'agent\t%s' "$skill"; return 0; }
       ;;
   esac
   printf 'tool\t%s' "$tool"

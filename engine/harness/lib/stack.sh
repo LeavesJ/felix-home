@@ -12,9 +12,11 @@
 # and the day it does, detection surfaces it first.
 #
 # Risk tiers: the decision is not made here. admit.sh holds the one install
-# policy for every caller, and a row in this manifest was written by a person,
-# so it is asked as DECLARED. High never installs, at any flag, from any
-# caller. High means the tool can move money, reach production, or hold a
+# policy for every caller, and the row says who grounded it in its sixth
+# column — DECLARED for a person's judgment, OBSERVED for what the engine read
+# off a plugin, and DECLARED again when the column is absent, which is what
+# every manifest written before it relies on. High never installs, at any flag,
+# from any caller. High means the tool can move money, reach production, or hold a
 # credential, and no automation flag should be able to mount one of those
 # without a person present.
 
@@ -26,6 +28,7 @@ if ! command -v felix_admit >/dev/null 2>&1; then
 fi
 
 # Manifest rows: kind <TAB> name <TAB> source <TAB> risk <TAB> capability
+#                [<TAB> grounding], absent meaning DECLARED
 _felix_stack_rows() {
   local proj="$1"
   [ -f "$proj/stack.tsv" ] || return 0
@@ -89,20 +92,26 @@ _felix_cap_active() {
 felix_stack_plan() {
   local proj="$1"
   _felix_load_state
-  _felix_stack_rows "$proj" | while IFS=$'\t' read -r kind name source risk cap; do
+  # The sixth column is who grounded the row. Absent, it is a person's —
+  # DECLARED — which is what every row was before the column existed. A row
+  # the engine wrote after reading a plugin says OBSERVED, and the policy
+  # holds an OBSERVED medium for a person where it installs a DECLARED one:
+  # that difference is the reason the column exists.
+  _felix_stack_rows "$proj" | while IFS=$'\t' read -r kind name source risk cap ground; do
     [ -n "${kind:-}" ] || continue
+    ground="${ground:-DECLARED}"
     if _felix_have "$kind" "$name"; then
       printf 'present\t%s\t%s\t-\n' "$kind" "$name"
     elif ! _felix_cap_active "${cap:-always}" "$proj"; then
       printf 'dormant\t%s\t%s\tneeds capability: %s\n' "$kind" "$name" "$cap"
-    elif [ "$(felix_admit "${risk:-}" DECLARED)" != "install" ]; then
-      printf 'blocked\t%s\t%s\t%s\n' "$kind" "$name" "$(felix_admit_why "${risk:-}" DECLARED)"
+    elif [ "$(felix_admit "${risk:-}" "$ground")" != "install" ]; then
+      printf 'blocked\t%s\t%s\t%s\n' "$kind" "$name" "$(felix_admit_why "${risk:-}" "$ground")"
     elif [ "$kind" = "skill" ]; then
       # Standalone skills are files, not packages. There is no install command
       # to run, so they route to a setup runbook instead of pretending.
       printf 'manual\t%s\t%s\tsee: felix setup\n' "$kind" "$name"
     else
-      printf 'install\t%s\t%s\t%s\n' "$kind" "$name" "$(felix_admit_why "$risk" DECLARED)"
+      printf 'install\t%s\t%s\t%s\n' "$kind" "$name" "$(felix_admit_why "$risk" "$ground")"
     fi
   done
 }

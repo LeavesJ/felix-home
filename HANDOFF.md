@@ -409,35 +409,33 @@ by running something and comparing it against its source, never by reading. The
 audit was pointed at a surface that had just been changed twice, and it found that
 the second change was wrong.
 
-### Open, and the founder's — this is what stopped the next increment
+### Decided — the manifest row carries who grounded it
 
-**When the admit phase says `declare`, should the row be written into
-`stack.tsv`, and if it is, what does `DECLARED` then mean?**
+The founder's direction, 2026-09-05: *avoid person-written notes as much as
+possible, to avoid inconsistency.* Read as: the engine writes `stack.tsv`
+rows itself, and a row it wrote must read back as what it is. That is option
+2 from the earlier draft of this section, and it rules out option 3.
 
-The phase decides and writes nothing today. Writing is the obvious next step
-and `discover --adopt` already does exactly that for catalogue candidates. The
-problem is what the row becomes afterwards. `stack.tsv` has five columns and
-none of them is provenance, so a row the engine wrote after grounding is
-indistinguishable on the next run from a row a person wrote — and
-`felix_admit` reads a manifest row as `DECLARED`, which is the one grounding
-that installs medium unattended. A nomination would arrive as INFERRED,
-be ground to OBSERVED, be written down, and read as DECLARED forever after.
+`stack.tsv` has a sixth column, `grounding`. A catalogue row — seeded by
+`felix new` or backfilled by `felix adopt` — is `DECLARED`: the catalogue's
+tiers are a person's judgment, and the engine writing them down does not
+make them the engine's. A row `discover --adopt` or the admit phase writes
+after reading a plugin is `OBSERVED`. A row with no sixth column is a person's,
+`DECLARED`, which is what every row was before the column existed, so nothing
+already in any manifest changes meaning. `felix_stack_plan` and `ready --fix`
+read the column and hand it to `felix_admit`; an `OBSERVED` medium now waits
+for a person where a `DECLARED` one installs, which is the whole reason the
+column exists and the whole reason the admit phase could not write until it
+did.
 
-That is not a bug to fix in passing. It is the load-bearing distinction #159
-just established, and three ways out are visible, none obviously right:
-
-1. Write the row and accept the promotion, on the grounds that the engine
-   stands behind what it grounded and `commissioning.log` holds the
-   provenance permanently anyway. This is what `discover --adopt` already
-   does, so it is the status quo made explicit.
-2. Add a provenance column to `stack.tsv`. Correct, and a schema change to
-   every governed project's manifest and every reader of it.
-3. Do not write. Report the `declare`, and let a person move the row. Safe,
-   and it puts the founder back in the tooling loop, which the constitution
-   says is Felix failing at its job.
-
-Nothing in the v3.2 spec or the amendments answers it, which is why the
-moratorium applies: this is architecture and it was not derived here.
+**And the admit phase writes.** A `declare` becomes a row carrying `OBSERVED`
+and a `commissioning.log` line carrying the sha the copy was read at. It runs
+before the receipt so the receipt's hashes cover the rows it writes; nothing
+installs in that run, and `stack apply --yes` installs what the policy allows
+on the next. On this machine no nomination has yet reached `declare` — the two
+plugin rows on felix are `already` and `unknown`, elenchus's is `refuse` — so
+the path is exercised by the suite and by nothing real yet. Expect the first
+real declare to find something.
 
 ### Standing
 

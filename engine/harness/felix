@@ -674,10 +674,13 @@ EOF
   {
     printf '# Declared tooling for %s. Seeded from the catalogue by felix new,\n' "$name"
     printf '# filtered to what this checkout actually shows. Edit freely.\n#\n'
-    printf '# kind\tname\tsource\trisk\tcapability\n'
+    # The sixth column is who grounded the row. A catalogue tier is a person's
+    # judgment, so a seeded row is DECLARED; a row the engine writes after
+    # reading a plugin is OBSERVED; a row with no sixth column is a person's.
+    printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n'
     grep -vE '^\s*(#|$)' "$tpl/catalog.tsv" | while IFS=$'\t' read -r k n src r c _kw; do
       if [ "$c" = "always" ] || printf '%s\n' "$caps" | grep -qxF "$c"; then
-        printf '%s\t%s\t%s\t%s\t%s\n' "$k" "$n" "$src" "$r" "$c"
+        printf '%s\t%s\t%s\t%s\t%s\tDECLARED\n' "$k" "$n" "$src" "$r" "$c"
       fi
     done
   } > "$dir/stack.tsv"
@@ -1732,7 +1735,9 @@ cmd_discover() {
           # felix stack apply call the wrong installer, so it is stated rather
           # than guessed at install time.
           kind=plugin
-          printf '%s\t%s\t-\t%s\t%s\n' "$kind" "$name" "$risk" "$cap" >> "$proj/stack.tsv"
+          # OBSERVED: the tier is what the engine read off the copy on disk,
+          # and the row must never read back as a person's on the next run.
+          printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$kind" "$name" "$risk" "$cap" >> "$proj/stack.tsv"
           if felix_stack_install "$kind" "$name" "-"; then
             printf '  installed  %-24s %-10s %s\n' "$name" "$risk" "$cap"
           else
@@ -1948,7 +1953,16 @@ cmd_ready() {
   while IFS=$'\t' read -r st name detail; do
     [ -n "${st:-}" ] || continue
     case "$name" in *:*) owner="${name%%:*}" ;; *) owner="$name" ;; esac
-    risk="$(grep -E "	($name|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1 | cut -f4)"
+    local srow; srow="$(grep -E "	($name|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
+    # Read the row the way felix_stack_plan reads it, so the two policy callers
+    # cannot disagree about the same line. `cut -f6` and a trailing `read`
+    # variable differ on a row with seven fields: cut takes the sixth alone,
+    # read takes the sixth onwards. Neither is more right, but they must not
+    # both be in the engine deciding the same question.
+    local _sk _sn _ss sground
+    IFS=$'\t' read -r _sk _sn _ss risk _sc sground <<SROW
+$srow
+SROW
     case "$st" in
       disabled)
         if claude plugin enable "$detail" >/dev/null 2>&1 || claude plugin enable "$owner" >/dev/null 2>&1; then
@@ -1959,10 +1973,10 @@ cmd_ready() {
       absent)
         # The same policy as felix stack apply, because it is now literally
         # the same call rather than a second copy of the same bound. The row
-        # came out of stack.tsv, so a person wrote it: DECLARED. A row with no
-        # tier at all reads `high`, which refuses — an absent tier is not a
-        # licence.
-        if [ "$(felix_admit "${risk:-high}" DECLARED)" = "install" ]; then
+        # says who grounded it in its sixth column; a row with none is a
+        # person's, DECLARED. A row with no tier at all reads `high`, which
+        # refuses — an absent tier is not a licence.
+        if [ "$(felix_admit "${risk:-high}" "${sground:-DECLARED}")" = "install" ]; then
           if claude plugin install "$owner" --scope user >/dev/null 2>&1; then
             printf '  installed  %s\n' "$name"; repaired=$((repaired + 1))
           else
@@ -1971,7 +1985,7 @@ cmd_ready() {
         else
           # Refused counts as unrepaired. Nothing failed, Felix simply declined
           # to act — which is the outcome most likely to be read as success.
-          printf '  refused    %-24s %s\n' "$name" "$(felix_admit_why "${risk:-high}" DECLARED)"
+          printf '  refused    %-24s %s\n' "$name" "$(felix_admit_why "${risk:-high}" "${sground:-DECLARED}")"
           unrepaired=$((unrepaired + 1))
         fi ;;
     esac
@@ -2058,7 +2072,12 @@ cmd_profile() {
   [ -n "$caps" ] || die "no profile named $want"
   printf 'profile:      %s\ncapabilities: %s\n\nactivates:\n' "$want" "$caps"
   _felix_load_state
-  _felix_stack_rows "$proj" | while IFS=$'\t' read -r kind name _ risk cap; do
+  # Six variables, not five. A trailing `read` variable absorbs every remaining
+  # field INCLUDING its tab, so when stack.tsv grew a grounding column `cap`
+  # became "frontend<TAB>DECLARED", the capability test below could never match,
+  # and this printed an empty activates list — a wrong answer indistinguishable
+  # from the correct one, exit 0. Every reader of these rows takes the column.
+  _felix_stack_rows "$proj" | while IFS=$'\t' read -r kind name _ risk cap _ground; do
     # A row belongs to this profile if the profile claims its capability, or if
     # the row is unconditional.
     case ",$caps,always," in *",$cap,"*) ;; *) continue ;; esac
@@ -2133,7 +2152,10 @@ cmd_stack() {
   n_blocked="$(printf '%s\n' "$plan" | grep -c '^blocked' || true)"
 
   if [ "$sub" = "plan" ]; then
-    printf '\n%s to install, %s blocked as high risk.\n' "$n_install" "$n_blocked"
+    # Not "as high risk": a block is now also what an engine-grounded medium
+    # gets, and what an unreadable tier gets. The plan's own detail column says
+    # which, in the policy's words, and this line stopped being able to.
+    printf '\n%s to install, %s blocked.\n' "$n_install" "$n_blocked"
     [ "$n_install" -gt 0 ] && printf 'apply with: felix stack apply --yes\n'
     return 0
   fi
@@ -3424,6 +3446,34 @@ $out
 EOF
   fi
 
+  # The admit phase: fetch each plugin nomination at its pinned sha, read it,
+  # tier it, ask the policy — and apply what it declares as a stack.tsv row
+  # carrying OBSERVED. It reaches the network, so a full run only, never
+  # --status. It runs HERE, before the receipt, so the receipt's hashes cover
+  # the rows it writes; run after, every write would stale the receipt it
+  # had just been given.
+  local adm="" admneed n_app=0 k_app
+  if [ "$status" -eq 0 ]; then
+    while IFS=$'\t' read -r need st cls answer step detail prov; do
+      [ "$st" = "answered" ] || continue
+      admneed="$(felix_commission_admit "$proj" "$FELIX_HOME_DIR" "$need" "$tpl")"
+      [ -n "$admneed" ] || continue
+      adm="$adm$admneed
+"
+      k_app="$(felix_commission_apply_declares "$proj" "$root" "$admneed" "$tid" "$(felix_commission_policy_version "$proj")" "$need")"
+      n_app=$((n_app + ${k_app:-0}))
+    done <<EOF
+$out
+EOF
+    # A declared row changes the manifest, and every need's verdict in `$out`
+    # was computed before it. Left alone, the receipt below would certify a
+    # state this run had already moved — the counts would describe the tree as
+    # it was when the run started. Re-checked with the `-` runner, which runs
+    # no engine stage and only re-asks each row's check, so this costs a
+    # re-read and cannot install anything a second time.
+    [ "$n_app" -gt 0 ] && out="$(felix_commission_run "$proj" "$root" - "$tpl")"
+  fi
+
   # Recorded and receipted after the last write of the run, so the hashes
   # cover what discover --adopt appended and toolbox --route rewrote.
   local recorded=1 result=""
@@ -3478,22 +3528,11 @@ EOF
     done
     printf '\n%s row(s) recorded as INFERRED this run.\n' "$n_ingested"
 
-    # The admit phase. It reaches the network — one fetch per plugin
-    # nomination, at a pinned sha, read and never executed — so it runs on a
-    # full run and never under --status, which answers offline.
+    # The admit phase ran before the receipt above; this is only what it found.
     if [ "$status" -eq 0 ]; then
-      local adm="" admneed
-      while IFS=$'\t' read -r need st cls answer step detail prov; do
-        [ "$st" = "answered" ] || continue
-        admneed="$(felix_commission_admit "$proj" "$FELIX_HOME_DIR" "$need" "$tpl")"
-        [ -n "$admneed" ] && adm="$adm$admneed
-"
-      done <<EOF
-$out
-EOF
       if [ -n "$adm" ]; then
         printf '\nwhat the engine found when it went and looked\n\n'
-        printf '%s' "$adm" | while IFS=$'\t' read -r v k n tier gcap why; do
+        printf '%s' "$adm" | while IFS=$'\t' read -r v k n tier gcap sha why; do
           [ -n "${v:-}" ] || continue
           printf '  %-9s %-9s %-32s %-7s %s\n' "$v" "$k" "$n" "$tier" "$why"
         done
@@ -3502,9 +3541,16 @@ EOF
         printf 'and never executed, which is what turns INFERRED into OBSERVED. An mcp\n'
         printf 'row is refused on its kind before anything is fetched. `unknown` is not\n'
         printf 'a refusal: nothing could be read, so nothing is known, and a later run\n'
-        printf 'can still answer it.\n'
-        printf '\nNothing above was installed. Applying a declaration to stack.tsv is the\n'
-        printf 'next increment.\n'
+        printf 'can still answer it. Only a `declare` is written down.\n'
+        if [ "${n_app:-0}" -gt 0 ]; then
+          printf '\n%s declared into %s/stack.tsv, each row carrying OBSERVED: the\n' "$n_app" "$proj"
+          printf 'grounding the engine read, never a person'"'"'s word, so the policy reads it\n'
+          printf 'that way on every later run. Nothing in the table above was installed by\n'
+          printf 'the admit phase — a declared row installs through felix stack apply, under\n'
+          printf 'the policy for what the engine read.\n'
+        else
+          printf '\nNothing above was installed, and nothing was declared.\n'
+        fi
       fi
     fi
   fi

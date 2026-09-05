@@ -145,8 +145,12 @@ _felix_mon_project() {
 
   printf ',"stack":['
   first=1
-  local kind sname src risk cap
-  while IFS=$'\t' read -r kind sname src risk cap; do
+  # Six, for the reason cmd_profile carries: a trailing read variable absorbs
+  # the grounding column and its tab, and _felix_json_esc escapes the tab
+  # rather than dropping it, so the payload would carry "llm\tOBSERVED" as a
+  # capability — valid JSON saying something untrue.
+  local kind sname src risk cap ground
+  while IFS=$'\t' read -r kind sname src risk cap ground; do
     case "$kind" in ''|'#'*) continue ;; esac
     [ "$first" -eq 1 ] || printf ','
     first=0

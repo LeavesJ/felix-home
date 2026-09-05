@@ -272,6 +272,7 @@
 1	a route naming an unreachable tool is ranked
 1	a route off the tree is a guess
 1	a route off the tree is not recorded as typed
+1	a routed tool no manifest declares is ranked, not dropped
 1	a row already naming itself is not scored twice
 1	a row at both ceilings is accepted
 1	a row carrying a risk column is refused, because risk is not the model's to assign
@@ -335,6 +336,7 @@
 1	a three-field score answer is answered
 1	a tie is broken the same way whichever order the file lists
 1	a tool absent from the manifest is not a clean bill
+1	a tool that could not be checked is said, not counted as reachable
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
 1	a typed intent is not labelled a guess
@@ -580,6 +582,7 @@
 1	and is never reported as merely ungrounded
 1	and is not a routing gap either; it is unknown
 1	and is not called agreement
+1	and is not given an action nobody can take
 1	and is not reported as unreadable
 1	and is not run as a probe whose verdict is the witness alone
 1	and is not run as though it were a probe
@@ -775,6 +778,7 @@
 1	and says what is missing rather than printing a clean report
 1	and says what is not versioned
 1	and says what it removed
+1	and says what would answer it
 1	and says what would have to change
 1	and says which base it could not resolve
 1	and says which channel
@@ -1325,6 +1329,7 @@
 1	the admit phase installs nothing and edits no manifest
 1	the agent points at the served engine, not the running copy
 1	the agent runs the pulse
+1	the all-clear says what could not be checked
 1	the always-applicable part is shown
 1	the attribution fixtures have disjoint histories
 1	the banner qualifies the retire claim when the fold is incomplete

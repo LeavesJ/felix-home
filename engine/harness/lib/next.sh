@@ -78,14 +78,34 @@ EOF
   fi
 
   # 3 — a named tool that is not reachable. Between sessions or never.
+  #
+  # felix_ready_report emits five states, and two of them mean NOT MEASURED
+  # rather than reachable: `undeclared` (a route names it, no manifest declares
+  # it, so the inventory is never consulted at all) and `unknown` (no claude
+  # CLI here, which ready.sh refuses to call `absent` precisely because it
+  # cannot tell "not installed" from "installed where I cannot look"). Keeping
+  # only absent|disabled dropped both on the floor, and an empty rank-3 list is
+  # what cmd_next renders as "every tool a route names is reachable" — putting
+  # back exactly the guess ready.sh had refused, one layer up, in prose.
+  #
+  # Each of the four gets the action that actually answers it, and `unknown`
+  # gets none, because there is nothing the reader can do about a machine that
+  # cannot look. Saying it is the whole point: this project's recorded lesson
+  # is that "nothing due" and "nothing is being checked" render identically.
   if command -v felix_ready_report >/dev/null 2>&1; then
     while IFS=$'\t' read -r kind subject reason; do
       case "${kind:-}" in
-        absent|disabled) ;;
+        absent|disabled)
+          _felix_next_row 3 felix "$subject is $kind — $reason" \
+            "install or enable it before the next session; plugins bind at start" ;;
+        undeclared)
+          _felix_next_row 3 felix "$subject is named by a route and declared nowhere — $reason" \
+            "declare it in stack.tsv, or drop it from the play that names it" ;;
+        unknown)
+          _felix_next_row 3 felix "$subject could not be checked — $reason" \
+            "nothing to do here: this is a limit of this machine, not of the project" ;;
         *) continue ;;
       esac
-      _felix_next_row 3 felix "$subject is $kind — $reason" \
-        "install or enable it before the next session; plugins bind at start"
     done <<EOF
 $(felix_ready_report "$proj" 2>/dev/null)
 EOF

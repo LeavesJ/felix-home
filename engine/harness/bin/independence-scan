@@ -32,6 +32,11 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
 
 INDEP_PATHS="engine/harness/felix engine/harness/lib engine/harness/hooks engine/harness/bin"
 
+# The ecosystem check greps the same four directories, and used to read this
+# list off the gate's own independence block. One list, printed on request, so
+# the two checks cannot search different trees.
+if [ "${1:-}" = "--paths" ]; then printf '%s\n' "$INDEP_PATHS"; exit 0; fi
+
 # A path this cannot search is a FAILURE, not a clean result. git grep exits 128
 # on a pathspec it cannot resolve and abandons the entire search, so one absent
 # path made every name come back non-zero and the check printed ok for

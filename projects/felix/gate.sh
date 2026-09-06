@@ -245,11 +245,19 @@ fi
 # find out. Its comments carry the history this section used to; what stays
 # here is the same shape the secret check has: run it, and announce rather
 # than go silent when it is missing.
+# The ecosystem check below shares two things with this one: the four paths it
+# greps, and the blindness verdict — a path nobody could search fails both, on
+# the same evidence. Both are read off the scanner rather than kept as a second
+# copy here, and both default to blind when the scanner is missing, so an
+# absent scanner cannot turn either check green by having nothing to run.
+INDEP_PATHS=""; INDEP_BLIND=" engine/harness/bin/independence-scan"
 if [ -x engine/harness/bin/independence-scan ]; then
+  INDEP_PATHS="$(engine/harness/bin/independence-scan --paths 2>/dev/null)"
   if OUT="$(engine/harness/bin/independence-scan 2>&1)"; then
-    pass independence
+    pass independence; INDEP_BLIND=""
   else
     fail independence; printf '%s\n' "$OUT" | head -8 | sed 's/^/    /'
+    INDEP_BLIND="$(printf '%s\n' "$OUT" | sed -n 's/^independence-scan: cannot search://p' | head -1)"
   fi
 else
   # Announced, not silent — the rule the secret check already holds (#77). An

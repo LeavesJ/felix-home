@@ -560,9 +560,13 @@ cmd_gate() {
     qout="$(cmd_qualify --gate 2>&1)"; qrc=$?
     if [ "$qrc" -eq 0 ]; then
       printf '  %-18s ok\n' qualified | tee -a "$log"
+      # Counted from the table, not from the rendering. Reading the rendered
+      # rows counted the summary line under them as a checker, so one checker
+      # reported as two — a number nobody wrote, in the line that says how much
+      # was checked.
       printf '                     %s control(s) met across %s checker(s)\n' \
         "$(printf '%s\n' "$qout" | grep -cE '  ok$')" \
-        "$(printf '%s\n' "$qout" | awk 'NR > 3 && NF >= 4 { print $1 }' | sort -u | grep -c .)"
+        "$(felix_qualify_checkers "$proj" | grep -c .)"
     else
       printf '  %-18s FAIL\n' qualified | tee -a "$log"
       printf '%s\n' "$qout" | grep -E 'HELD|UNRUNNABLE' | head -8 | sed 's/^/  /'

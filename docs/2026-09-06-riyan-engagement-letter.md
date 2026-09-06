@@ -152,7 +152,7 @@ here is ordinary.
 
 ---
 
-## Four things to settle before this is signed
+## Things to settle before this is signed
 
 **1. Which entity is Owner.** This is the one item here that can quietly
 invalidate everything else, and the repositories do not settle it. What they
@@ -215,10 +215,18 @@ Riyan develops and does not operate the beta. If you expect that to change withi
 the engagement, say so now rather than amending later, because the invitees agreed
 to you seeing their writing and not to a second person.
 
-**4. Section 2's scope.** As drafted, the license status covers "work performed
-under this engagement". That is deliberately narrower than excluding Riyan from
-"You" for all purposes forever. A lawyer may want it narrower still, or may prefer
-it tied to a defined statement of work.
+**4. Section 2's scope.** As drafted, the authorisation covers the Materials "for
+the purposes of this engagement and on Owner's behalf", and the carve-out sentence
+covers "work performed under this engagement". Both are deliberately narrower than
+excluding Riyan from "You" for all purposes forever. A lawyer may want them
+narrower still, or tied to a defined statement of work.
+
+**5. What the draft does not contain, deliberately.** No compensation clause, no
+statement of work, no notice period, no restriction on pushing to `main`, no
+non-compete. Each is a real decision rather than an oversight, and a lawyer will
+ask about the first two immediately. Consideration in particular is worth settling
+before signing rather than after: an engagement letter that says nothing about
+what either side gives is a document a lawyer will want to fix.
 
 ---
 

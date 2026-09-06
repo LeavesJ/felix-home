@@ -89,6 +89,20 @@ that resolve to nothing on his machine.
 been invited yet, confirmed 2026-09-06. That is circumstantial rather than
 structural, so re-verify if this is ever revisited once the beta has real users.
 
+**`.claude/` is allow-listed too, and for a sharper reason than `docs/`.** Its
+four entries, observed 2026-09-06, are `CLAUDE.md`,
+`CLAUDE.md.pre-reset-2026-07-25`, `settings.local.json` and `worktrees`. Only
+the first is project doctrine and only the first travels.
+
+`CLAUDE.md.pre-reset-2026-07-25` is a superseded copy and sending it hands Riyan
+two documents with no way to tell which one binds. `settings.local.json` is the
+per-machine permission allowlist, which is what `.local` means; it encodes paths
+under your home directory and Riyan's will differ, so he builds his own as he
+goes. `worktrees` is the one that matters: if it holds actual git worktrees then
+`cp -R .claude/.` sweeps entire checkouts into the bundle, along with whatever
+untracked files sit inside them, which is exactly the shape that defeats step
+1.5. **Look at it before you decide**, and if it holds checkouts, leave it.
+
 ```
 mkdir -p ~/handover/{docs,content-lift,claude-config}
 cp docs/DEVLOG.md docs/lessons.md docs/SESSION_HANDOFF.md ~/handover/docs/
@@ -97,11 +111,29 @@ cp -R docs/superpowers               ~/handover/docs/
 cp    POSITIONING.md                 ~/handover/
 cp    content/lift/scenarios.yaml    ~/handover/content-lift/
 cp    content/lift/candidates.yaml   ~/handover/content-lift/
-cp -R .claude/.                      ~/handover/claude-config/
+cp    .claude/CLAUDE.md              ~/handover/claude-config/
+cp    <felix>/docs/2026-09-06-elenchus-environment.md ~/handover/ENVIRONMENT.md
 ```
 
+Check what you left behind before moving on, so the allow-list is a decision
+rather than an oversight:
+
+```
+ls -la .claude/
+```
+
+**The last line is the answer to "he does not know the setup".**
+`2026-09-06-elenchus-environment.md` is the whole local environment written out
+from the tracked code: all six variables with the file and line that reads each,
+where the key goes, which untracked file each command needs, and the asymmetry
+between `python -m elenchus.web` and `scripts/serve_invitee.py` over key
+resolution that has cost this project real hours. It names no secret value, so
+it carries no disclosure risk of its own and could later be tracked, which is
+D5's question rather than this step's.
+
 This list is one checkout observed once, not a permanent inventory. Re-run
-`ls docs/` before trusting it if you build the bundle again later.
+`ls docs/` and `ls .claude/` before trusting it if you build the bundle again
+later.
 
 Two more are conditional and should be left out unless he needs them now:
 
@@ -119,17 +151,29 @@ merge any divergence. **There is nothing to reconcile and never was**: the two
 paths are one file, so `diff` is silent by construction.
 
 What can actually go wrong is the copy preserving links instead of contents.
-Check that:
+The three named files are copied without `-R` so they dereference, but two lines
+in 1.2 do use `-R`, and `cp -R` preserves symlinks found inside a directory
+rather than following them. So check the whole bundle, not just the three:
 
 ```
-ls -la ~/handover/docs/
-wc -l  ~/handover/docs/lessons.md ~/handover/docs/DEVLOG.md ~/handover/docs/SESSION_HANDOFF.md
+find ~/handover -type l
+wc -l ~/handover/docs/lessons.md ~/handover/docs/DEVLOG.md ~/handover/docs/SESSION_HANDOFF.md
+du -sh ~/handover && find ~/handover -type f | wc -l
 ```
 
-Every entry should start with `-`, not `l`. A leading `l` means a symlink was
-copied and Riyan gets a dead pointer; re-copy those three by name without `-R`.
-A near-zero line count means the same thing. `lessons.md` was 36475 bytes when
-observed, so it should be well into the hundreds of lines.
+**`find` must print nothing at all.** Any line it prints is a pointer into
+`/Users/a14808/` that resolves to nothing on Riyan's machine, and it fails
+silently rather than loudly. Replace each one with its contents: `cp` the target
+over the link, without `-R`.
+
+A near-zero line count means the same failure reached the three primary files.
+`lessons.md` was 36475 bytes when observed, so it should be well into the
+hundreds of lines.
+
+The last line is a sanity check on scale rather than on content. You are about to
+read every file in this bundle by hand in 1.5, so a file count in the low
+hundreds is workable and a count in the thousands means something recursive got
+swept in and you should find it now rather than during the read.
 
 ### 1.4 Write NOTES.md
 
@@ -234,7 +278,8 @@ so this is a backstop:
 | `docs/` | `<his-elenchus>/docs/` |
 | `POSITIONING.md` | `<his-elenchus>/POSITIONING.md` |
 | `content-lift/*.yaml` | `<his-elenchus>/content/lift/` |
-| `claude-config/` | `<his-elenchus>/.claude/` |
+| `claude-config/CLAUDE.md` | `<his-elenchus>/.claude/CLAUDE.md` |
+| `ENVIRONMENT.md` | read first, then wherever he keeps notes |
 | `NOTES.md` | wherever he keeps notes |
 
 Every destination is already covered by `.gitignore`, so none of it can be
@@ -405,14 +450,21 @@ is nowhere else to put them.
 ## Every command, in order
 
 ```
-# Part 1, on your machine
+# Part 1, on your machine. Both trees are allow-listed, never copied wholesale:
+# docs/ also holds YC_answers.md and admissions/, and .claude/ also holds a
+# pre-reset CLAUDE.md, settings.local.json and worktrees. None of those travel.
 cd <elenchus> && git status --short --untracked-files=all
+ls docs/ .claude/                # confirm the allow-lists still match reality
 mkdir -p ~/handover/{docs,content-lift,claude-config}
-cp -R <elenchus>/docs/. ~/handover/docs/
-cp <elenchus>/POSITIONING.md ~/handover/
-cp <elenchus>/content/lift/{scenarios,candidates}.yaml ~/handover/content-lift/
-cp -R <elenchus>/.claude/. ~/handover/claude-config/
-ls -la ~/handover/docs/          # every entry must start with -, not l
+cp docs/DEVLOG.md docs/lessons.md docs/SESSION_HANDOFF.md ~/handover/docs/
+cp -R docs/spike-results ~/handover/docs/
+cp -R docs/superpowers ~/handover/docs/
+cp POSITIONING.md ~/handover/
+cp content/lift/{scenarios,candidates}.yaml ~/handover/content-lift/
+cp .claude/CLAUDE.md ~/handover/claude-config/
+cp <felix>/docs/2026-09-06-elenchus-environment.md ~/handover/ENVIRONMENT.md
+find ~/handover -type l          # must print nothing
+du -sh ~/handover && find ~/handover -type f | wc -l
 grep -rnI '' ~/handover/ | <felix>/engine/harness/bin/secret-scan -
 grep -rniE 'sk-ant-|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY|ANTHROPIC_API_KEY[[:space:]]*=' ~/handover/
 

@@ -3,11 +3,16 @@
 Written 2026-09-06. Read this one first. It is the shape of the transition and
 the decisions it needs, in about five minutes.
 
-Two longer documents sit under it and neither is needed yet:
+Longer documents sit under it and none is needed yet:
 
-- `2026-09-06-elenchus-handover-runbook.md` is the step by step execution
-  runbook, with commands, and is for when you are at the machine.
+- `2026-09-06-handover-setup.md` is the linear run sheet you execute.
+- `2026-09-06-elenchus-handover-runbook.md` is the reasoning behind every step,
+  with the evidence, and is where to look when a step seems wrong.
 - `2026-09-06-riyan-onboarding.md` is what Riyan receives on day one.
+- `2026-09-06-elenchus-environment.md` is the local environment written out from
+  the tracked code. It goes in the bundle as `ENVIRONMENT.md` and it is the
+  answer to Riyan saying he does not know the setup, which the repository by
+  itself genuinely does not tell him.
 
 ---
 

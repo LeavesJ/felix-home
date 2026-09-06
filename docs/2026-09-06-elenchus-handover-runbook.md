@@ -807,7 +807,9 @@ handover/
     candidates.yaml          # only if he does lift work
   data-corpus/
     injection_payloads.yaml  # ONLY if he works the injection probe. Live exploits.
-  claude-config/             # .claude/, if you are sending it
+  claude-config/
+    CLAUDE.md                # the ONLY .claude/ entry that travels, see A2b
+  ENVIRONMENT.md             # the local environment, written out from the code
   NOTES.md                   # anything that was only ever in your head
 ```
 
@@ -854,6 +856,40 @@ cp -R docs/superpowers ~/handover/docs/
 `TODO(assumption)`: this exact file list is one checkout's `docs/`, observed
 once. A later session may hold different files. Re-run `ls docs/` before
 building the bundle rather than trusting this list.
+
+**A2b. `.claude/` is allow-listed too, and the reason is sharper than `docs/`.**
+Its four entries, observed 2026-09-06, are `CLAUDE.md`,
+`CLAUDE.md.pre-reset-2026-07-25`, `settings.local.json` and `worktrees`. Only
+the first is project doctrine.
+
+The pre-reset copy is superseded, and sending both hands Riyan two documents
+with no way to tell which one binds. `settings.local.json` is the per-machine
+permission allowlist, which is what `.local` means: it encodes paths under J's
+home directory, Riyan's will differ, and he builds his own as he goes.
+`worktrees` is the one with teeth. If it holds actual git worktrees, then
+`cp -R .claude/.` sweeps entire checkouts into the bundle along with whatever
+untracked files sit inside them, which is precisely the shape that defeats A3's
+read-every-file. Look at it before deciding, and if it holds checkouts, leave it.
+
+```
+ls -la .claude/
+cp .claude/CLAUDE.md ~/handover/claude-config/
+```
+
+**A2c. `ENVIRONMENT.md` is generated, not copied, and it is the answer to the
+gap Riyan named.** He said he does not know the setup, and he is right that the
+repository does not tell him: there is no `.env.example`, and the public README
+covers install and two commands but not one environment variable.
+`2026-09-06-elenchus-environment.md` in this directory is the whole local
+environment read out of the tracked code on 2026-09-06, with a file and line
+beside each claim: the six variables and their defaults, where the key goes,
+which untracked file each command needs, and the asymmetry in §4 of that
+document where `python -m elenchus.web` reads only `<repo>/.env` while the
+launcher and preflight also honour `ELENCHUS_ENV_FILE`. That asymmetry is L-18's
+shape and the code comments record it being paid for three times.
+
+It names no secret value, so it carries no disclosure risk of its own, and it
+could later become a tracked file. That is D5's question and not this step's.
 
 **A3. Read every file in the bundle.** This is the step that gets skipped and it
 is the one that matters. Even with the allow-list above, `DEVLOG.md` and
@@ -922,17 +958,19 @@ drift. `docs/lessons.md` is a symlink to the memory-root file, confirmed
 2026-09-06, so `diff` is silent by construction and always will be.
 
 What replaces the diff is a check that the copy actually dereferenced, since
-that is the step that can genuinely go wrong:
+that is the step that can genuinely go wrong. Check the whole bundle rather than
+one directory: the three named files are copied without `-R` and so dereference,
+but `spike-results` and `superpowers` are copied with `-R`, and `cp -R`
+preserves a symlink found inside a directory instead of following it.
 
 ```
-ls -la ~/handover/docs/
+find ~/handover -type l
 ```
 
-Every entry must be a regular file, shown by a leading `-`. **A leading `l` on
-any of `lessons.md`, `DEVLOG.md` or `SESSION_HANDOFF.md` means a symlink got
-copied instead of its contents**, and Riyan would receive a pointer into
-`/Users/a14808/` that resolves to nothing on his machine. If that happens,
-re-copy those three by name without `-R`.
+**It must print nothing at all.** Anything it prints is a pointer into
+`/Users/a14808/` that resolves to nothing on Riyan's machine, and it fails
+silently rather than loudly. Replace each one with its contents by copying the
+target over the link, without `-R`.
 
 Then confirm they are not empty, which a broken link would also produce:
 

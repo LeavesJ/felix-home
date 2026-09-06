@@ -210,16 +210,25 @@ nothing in it is ever committed.
 
 | From the bundle | Goes to | Never |
 |---|---|---|
+| `ENVIRONMENT.md` | read it first | staged, ever |
 | `docs/` | `<Elenchus>/docs/` | staged, ever |
 | `POSITIONING.md` | `<Elenchus>/POSITIONING.md` | staged, ever |
 | `scenarios.yaml`, `candidates.yaml` | `<Elenchus>/content/lift/` | staged, ever |
+| `claude-config/CLAUDE.md` | `<Elenchus>/.claude/CLAUDE.md` | staged, ever |
 | `NOTES.md` | wherever you keep notes | staged, ever |
 
-All four destinations are already covered by `.gitignore`, so this is safe by
-construction rather than by your memory. `/docs/` is line 6, `/*.md` is line 2,
-and the two lift banks are lines 19 and 20. The gate has a check whose only job
-is to fail if either lift bank ever becomes tracked
+Every destination is already covered by `.gitignore`, so this is safe by
+construction rather than by your memory. `/docs/` is line 6, `.claude/` is line
+7, `/*.md` is line 2, and the two lift banks are lines 19 and 20. The gate has a
+check whose only job is to fail if either lift bank ever becomes tracked
 (`projects/elenchus/gate.sh:175`).
+
+**Read `ENVIRONMENT.md` before anything else in the bundle.** It is the local
+environment written out from the tracked code: all six variables with the file
+and line that reads each, where the key goes, which untracked file each command
+needs, and the one place where the two ways of starting the server disagree
+about key resolution. It exists because none of that is in the public README and
+there is no `.env.example` to read it off.
 
 Read `docs/lessons.md` when you first touch a surface it covers. It is a runbook
 and not a gate, it is long, and it is mostly historical. The parts that still
@@ -264,6 +273,15 @@ The file is `KEY=value` lines, an optional `export ` prefix, optional quotes, an
 `#` comments. `ANTHROPIC_API_KEY` is the only one you need.
 `src/elenchus/web/__main__.py:41` loads `<repo>/.env` at import with `setdefault`,
 so a real exported variable always wins over the file.
+
+**Those two locations are not equivalent, and this is the part to read twice.**
+Only `scripts/serve_invitee.py` and `scripts/preflight.py` consult the
+out-of-tree file. `python -m elenchus.web` reads `<repo>/.env` and nothing else:
+the single call at `__main__.py:41` is `_load_dotenv(_ROOT / ".env")`, and
+`ELENCHUS_ENV_FILE` appears nowhere in `src/`. So putting your key only at
+`~/.config/elenchus/env` and then running the README's command gives you a
+keyless instance that health checks green. If your checkout is not inside a sync
+container, use `<repo>/.env` and ignore the out-of-tree path entirely.
 
 **One warning before you run the web app locally.** The launcher
 `scripts/serve_invitee.py` refuses to start without a reachable key and arms the

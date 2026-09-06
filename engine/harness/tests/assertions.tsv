@@ -83,6 +83,7 @@
 1	a devlog entry newer than the catch settles it too
 1	a different repository is still checked
 1	a directory declaring project.json is enumerated
+1	a directory holding only untracked files is blind too
 1	a directory missing from one side is a drift
 1	a dirty memory repo is committed
 1	a disarmed engine is still judged by main's version
@@ -177,6 +178,10 @@
 1	a name counts triple
 1	a name in no marketplace is unknown, not refused
 1	a name nothing mentions is still not found
+1	a name planted in engine/harness/bin is caught
+1	a name planted in engine/harness/felix is caught
+1	a name planted in engine/harness/hooks is caught
+1	a name planted in engine/harness/lib is caught
 1	a named capability carries its count
 1	a negated check is malformed, because it could not fail
 1	a nested repository is refused, with the restore truth
@@ -218,6 +223,7 @@
 1	a plain checkout with projects/ is a home
 1	a plain tool is recorded by name
 1	a plan declaring no files yields nothing
+1	a planted name is caught
 1	a play naming a superstring does not name its prefix
 1	a plugin already installed here reads already, not unknown
 1	a plugin cache is never treated as home
@@ -560,7 +566,6 @@
 1	and an ordinary product repository is not
 2	and an unknown flag is refused rather than ignored
 1	and an unknown kind is refused
-1	and bin/ is in the searched set, because the gate runs it
 1	and blocked by a probe that cannot see what a witness proves is there
 1	and blocked by a row nothing could establish at all
 1	and both paths in one sentence are found
@@ -589,6 +594,7 @@
 1	and does not leave it as a bare dash
 1	and does not nag about ancient history
 1	and does not name a channel it never got to consult
+1	and does not pretend it searched the rest
 1	and does not say it recorded
 1	and due again after a commit the graph has not seen
 1	and each item appears once however often it bit
@@ -634,7 +640,6 @@
 1	and is not run half-read
 1	and is silent when there is none
 1	and it does not repeat within a session
-1	and it enumerates declared projects, not directory entries
 1	and it holds against the shipped lessons file
 1	and it is Felix's own work
 1	and it is a tier, not the word
@@ -644,7 +649,6 @@
 1	and it is not autonomous
 1	and it is reported as unusable, not unchecked
 1	and it is the usage text
-1	and it matches a project name as a literal
 1	and it merges nothing
 1	and it names the command that clears it
 1	and it names the literal that went missing
@@ -925,9 +929,7 @@
 1	and the founder's one line says how many are due
 1	and the gate exits red
 1	and the gate line called no cli
-1	and the gate searches the same paths this does
 1	and the gate still runs through it
-1	and the gate's code names no project literally
 1	and the gate-failure total
 1	and the held total
 1	and the hook still exits 0 there
@@ -935,6 +937,7 @@
 1	and the index holds no gitlink afterwards
 1	and the instrument is appended as the ninth
 1	and the lesson is in the same block
+1	and the literal name is caught
 1	and the log carries the sha it was read at
 1	and the log is back to empty, as this block found it
 1	and the memory, which is somewhere else now
@@ -1193,8 +1196,10 @@
 1	it appended the tooling row
 1	it copied the runbook the capability implies
 1	it emits parseable json
+1	it enumerates declared projects, not directory entries
 1	it goes quiet once nothing is new
 1	it insists on aggregating
+1	it matches a project name as a literal
 1	it names a schema version, so a reader can refuse one it does not know
 1	it names the hook-only zero as unmeasurable
 1	it names the mixed zero as only partly countable
@@ -1462,7 +1467,6 @@
 1	the founder's item is not buried
 1	the gate announces a stale receipt and does not fail on it
 1	the gate carries the ecosystem check too
-1	the gate refuses to answer on a path it cannot search
 1	the gate's installed check covers the same three directories
 1	the handoff carries no file comments
 1	the hook announces what it adopted
@@ -1532,6 +1536,8 @@
 1	the run writes the receipt
 1	the same file with an unconfined line escapes
 1	the same route does not repeat itself
+1	the scanner refuses to answer on a path it cannot search
+1	the scanner's own code names no project
 1	the second session is still bound
 1	the secret check is behind the verifier confine
 1	the seeded graphify row is due on a checkout with no graph
@@ -1592,6 +1598,7 @@
 1	which takes it back to nothing stranded
 1	while --status reads straight through it
 1	while a complete stance is not called malformed
+1	while a declared one is caught
 1	while a mount needs no threshold: the reach already happened
 1	while a predicate that did not move is silent
 1	while a provider-prefixed skill still joins to its plugin

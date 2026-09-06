@@ -9733,76 +9733,91 @@ case "$(_enum_bare "$_ENUMP")" in
 esac
 rm -rf "$_ENUMP"
 
-# The gate must refuse to answer on a path it cannot search, rather than
-# reporting ok. git grep exits 128 on an unresolvable pathspec and abandons the
-# whole search, so one absent path silenced every name - reproduced against the
-# real gate: with `elenchus` planted in lib/, moving engine/harness/bin aside
-# turned FAIL into ok with the violation still there.
-#
-# Read from the gate's own independence block. Each token below IS the
-# mechanism, not a marker beside it: remove the guard and the assertion goes red
-# because the thing it names is gone.
-_REALG="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
-if [ -f "$_REALG" ]; then
-  _gate_indep="$(sed -n '/^# -.*independence/,/^# -.*ecosystem/p' "$_REALG" | grep -vE '^[[:space:]]*#')"
-  case "$_gate_indep" in
-    *INDEP_BLIND*) ok "the gate refuses to answer on a path it cannot search" ;;
-    *)             bad "the gate refuses to answer on a path it cannot search" \
-                       "no blindness guard in the independence block" ;;
-  esac
-  case "$_gate_indep" in
-    *'ls -1 projects'*) bad "and it enumerates declared projects, not directory entries" \
-                            "still lists bare directory entries" ;;
-    *project.json*)     ok "and it enumerates declared projects, not directory entries" ;;
-    *)                  bad "and it enumerates declared projects, not directory entries" \
-                            "no project.json in the enumeration" ;;
-  esac
-  # -F, not -E. The name is interpolated straight into the search, so a project
-  # called `vel.ra` searched for a pattern rather than for itself.
-  case "$_gate_indep" in
-    *'git grep -qniF'*) ok "and it matches a project name as a literal" ;;
-    *)                  bad "and it matches a project name as a literal" \
-                            "still interpolating a name into a regex" ;;
-  esac
-else
-  skip "the gate refuses to answer on a path it cannot search" "no shipped gate"
-  skip "and it enumerates declared projects, not directory entries" "no shipped gate"
-  skip "and it matches a project name as a literal" "no shipped gate"
-fi
+# The independence check is a command now — engine/harness/bin/independence-scan
+# — so every property below is driven rather than read off the gate's source.
+# The first draft of these grepped the gate's block for tokens; the tokens moved
+# to the scanner, and an assertion about a mechanism should break when the
+# mechanism does, not when it is relocated. Each fixture breaks the property it
+# names and expects the scanner to say so.
+_ISCAN="$FROOT/harness/bin/independence-scan"
+_indep_repo() {   # name -> path of a fresh repo with the four engine dirs tracked
+  local r="$TMP/indep-$1"; mkdir -p "$r/engine/harness/lib" "$r/engine/harness/hooks" \
+    "$r/engine/harness/bin" "$r/projects"
+  ( cd "$r" && git init -q -b main \
+    && printf '#!/bin/sh\n' > engine/harness/felix && printf '# lib\n' > engine/harness/lib/a.sh \
+    && printf '# hook\n' > engine/harness/hooks/h && printf '# bin\n' > engine/harness/bin/b \
+    && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+  printf '%s' "$r"
+}
+_iscan() { ( cd "$1" && "$_ISCAN" 2>&1 ); }
 
-# bin/ is searched. It is the path the earlier check omitted while the gate
-# executed what was in it.
-case " ${runtime[*]} " in
-  *"/harness/bin "*) ok "and bin/ is in the searched set, because the gate runs it" ;;
-  *) bad "and bin/ is in the searched set, because the gate runs it" "${runtime[*]}" ;;
+# Refuses to answer on a path it cannot search. git grep exits 128 on an
+# unresolvable pathspec and abandons the whole search, so one absent path
+# silenced every name — reproduced against the real gate once: a name planted
+# in lib/ read FAIL, and moving bin/ aside turned it into ok with the violation
+# still there. Both halves: the path must exist, and something tracked must be
+# under it, because a directory of only untracked files lets git grep read
+# nothing and return 0.
+_IR="$(_indep_repo blind)"
+printf '{"name":"blindproj"}\n' > "$_IR/projects/blindproj/project.json" 2>/dev/null || { mkdir -p "$_IR/projects/blindproj"; printf '{"name":"blindproj"}\n' > "$_IR/projects/blindproj/project.json"; }
+printf '# blindproj\n' >> "$_IR/engine/harness/lib/a.sh"
+( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm plant ) >/dev/null 2>&1
+has "a planted name is caught" "$(_iscan "$_IR")" "blindproj"
+( cd "$_IR" && git rm -rq engine/harness/bin && git -c user.name=t -c user.email=t@t commit -qm nobin ) >/dev/null 2>&1
+_o="$(_iscan "$_IR")"
+has "the scanner refuses to answer on a path it cannot search" "$_o" "cannot search"
+case "$_o" in
+  *blindproj*) bad "and does not pretend it searched the rest" "$_o" ;;
+  *)           ok  "and does not pretend it searched the rest" ;;
 esac
+mkdir -p "$_IR/engine/harness/bin"; printf '# untracked only\n' > "$_IR/engine/harness/bin/stray"
+has "a directory holding only untracked files is blind too" "$(_iscan "$_IR")" "cannot search"
 
-# The gate keeps its own copy of this check so it fails too, rather than being
-# left to a suite somebody can skip. Two copies drift; this asserts they search
-# the same places.
-# Read from the independence block ALONE, not the whole file. My first version
-# grepped every engine/harness path in gate.sh and passed before the gate was
-# touched, because the secret check names engine/harness/bin/secret-scan and
-# the pattern found it there. An assertion satisfied by an unrelated line is
-# the shape this whole section exists to remove.
-_REALG="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
-if [ -f "$_REALG" ]; then
-  _gate_paths="$(sed -n '/^# -.*independence/,/^# -.*ecosystem/p' "$_REALG" \
-                 | grep -o 'engine/harness/[a-z]*' | sort -u | tr '\n' ' ')"
-  is "and the gate searches the same paths this does" "$_gate_paths" \
-     "engine/harness/bin engine/harness/felix engine/harness/hooks engine/harness/lib "
-  # And it must enumerate rather than carry a literal, or it drifts the moment
-  # a project is mounted - which is exactly what happened.
-  # Non-comment lines only. The block's prose explains which literal it used to
-  # grep and why that was wrong, and a comment naming a project is not the
-  # engine naming one - it is the record of why it stopped.
-  case "$(sed -n '/^# -.*independence/,/^# -.*ecosystem/p' "$_REALG" | grep -vE '^[[:space:]]*#')" in
-    *elenchus*) bad "and the gate's code names no project literally" "still greps a hard-coded name" ;;
-    *)          ok  "and the gate's code names no project literally" ;;
-  esac
-else
-  skip "and the gate searches the same paths this does" "no shipped gate"
-fi
+# Enumerates declared projects, not directory entries. A project is a directory
+# that declares itself with project.json; an empty stray and a plain file
+# dropped in projects/ contribute nothing.
+_IR="$(_indep_repo enum)"
+mkdir -p "$_IR/projects/real" "$_IR/projects/stray"
+printf '{"name":"real"}\n' > "$_IR/projects/real/project.json"
+printf 'not a project\n' > "$_IR/projects/README.md"
+printf '# a stray word and a README word\n' >> "$_IR/engine/harness/lib/a.sh"
+( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm enum ) >/dev/null 2>&1
+( cd "$_IR" && "$_ISCAN" >/dev/null 2>&1 ) && ok "it enumerates declared projects, not directory entries" \
+  || bad "it enumerates declared projects, not directory entries" "$(_iscan "$_IR")"
+printf '# real\n' >> "$_IR/engine/harness/lib/a.sh"
+( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm real ) >/dev/null 2>&1
+has "while a declared one is caught" "$(_iscan "$_IR")" "real"
+
+# Matches a project name as a literal. -F, not -E: the name is interpolated
+# straight into the search, so a project called `vel.ra` searched for a pattern
+# and matched `velXra`, which names nothing.
+_IR="$(_indep_repo literal)"
+mkdir -p "$_IR/projects/vel.ra"; printf '{"name":"vel.ra"}\n' > "$_IR/projects/vel.ra/project.json"
+printf '# velXra is not that project\n' >> "$_IR/engine/harness/lib/a.sh"
+( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm lit ) >/dev/null 2>&1
+( cd "$_IR" && "$_ISCAN" >/dev/null 2>&1 ) && ok "it matches a project name as a literal" \
+  || bad "it matches a project name as a literal" "$(_iscan "$_IR")"
+printf '# vel.ra itself\n' >> "$_IR/engine/harness/lib/a.sh"
+( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm dot ) >/dev/null 2>&1
+has "and the literal name is caught" "$(_iscan "$_IR")" "vel.ra"
+
+# All four engine directories are searched. Planted in each in turn, because
+# a path list is the kind of constant that gets shortened by accident and a
+# source grep for it would pass on a list that a later edit reordered.
+for _d in felix lib/a.sh hooks/h bin/b; do
+  _IR="$(_indep_repo "paths-${_d%%/*}")"
+  mkdir -p "$_IR/projects/pathproj"; printf '{"name":"pathproj"}\n' > "$_IR/projects/pathproj/project.json"
+  printf '# pathproj\n' >> "$_IR/engine/harness/$_d"
+  ( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm p ) >/dev/null 2>&1
+  has "a name planted in engine/harness/${_d%%/*} is caught" "$(_iscan "$_IR")" "pathproj"
+done
+
+# And the scanner's own source names no project. bin/ is searched, and that
+# includes this file, so this is the real tree judging the real scanner —
+# the property, not a grep for a name the comment might have used.
+( cd "$REAL_HARNESS/../.." && ./engine/harness/bin/independence-scan >/dev/null 2>&1 ) \
+  && ok "the scanner's own code names no project" \
+  || bad "the scanner's own code names no project" "$(cd "$REAL_HARNESS/../.." && ./engine/harness/bin/independence-scan 2>&1 | head -3)"
 
 
 printf '\necosystem\n'
@@ -10034,6 +10049,7 @@ is "and nothing else is muted, because muting is how this narrows quietly" \
 # The gate keeps its own copy, for the same reason it keeps one of every other
 # check: a verifier that sources the code it judges can be switched off by
 # editing that code. Asserted in step by naming the mechanism, not a marker.
+_REALG="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
 if [ -f "$_REALG" ]; then
   _gate_eco="$(sed -n '/^# -.*ecosystem/,/^# -.*memory/p' "$_REALG" | grep -vE '^[[:space:]]*#')"
   case "$_gate_eco" in

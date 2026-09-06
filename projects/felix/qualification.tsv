@@ -36,3 +36,29 @@ secret	engine/harness/bin/secret-scan	decoupled_violation	fail	printf '%s\n' '' 
 secret	engine/harness/bin/secret-scan	decoupled_satisfaction	pass	printf '%s\n' '# Placeholders only. Every value below is invented and inert.' 'FELIX_PUBLISH_TOKEN=fakeXbQ7m2ZvT9kLd4RnW8pJyUc0AeGhSfXo' 'FELIX_DB_URL=postgresql://felix:fakeNv4hT2mQxZbLd7RyW9pJ@db.example.invalid:5432/felix' > .env.example && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: decoupled satisfaction"
 secret	engine/harness/bin/secret-scan	alternate	fail	printf -- '-----%s RSA PRIVATE %s-----\nMIIEfakeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' BEGIN KEY > engine/harness/lib/deploy-key.pem && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: pem"
 secret	engine/harness/bin/secret-scan	decoupled_satisfaction	pass	printf '# what the scanner catches\n| `%s RSA PRIVATE %s` | caught |\n' BEGIN KEY > docs/scanner-table.md && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: prose names the pattern"
+#
+# independence. Four of six declared. The two below are written out in full and
+# NOT declared, because a declared control binds and neither of these can be
+# met by the checker as it stands — and they cannot be met by a better grep:
+#
+#   decoupled_violation: the name assembled from fragments at run time. A
+#   checker that reads text cannot see a name that only exists when the engine
+#   runs. This is the residual v3.2 amendments §6 names — enumeration cannot be
+#   behavioural — and it is stated on the receipt rather than hidden here.
+#
+#   decoupled_satisfaction: a governed project named `ledger`, a word the engine
+#   uses ninety-eight times as its own noun. -F rejects the word; -w was measured
+#   and rejected in turn because it misses a governed name inside an identifier.
+#   A checker keyed on the letters cannot pass this without a second signal.
+#
+# They are here as rows-in-waiting so declaring one is one edit, and so
+# `felix qualify` reports the gap by name instead of the table looking complete.
+#
+# UNDECLARED, the name is assembled from fragments at run time; no contiguous string exists for grep to find:
+# independence	engine/harness/bin/independence-scan	decoupled_violation	fail	echo '# When nothing binds, fall back to the project this checkout was built for.' >> engine/harness/lib/resolve.sh && echo 'felix_fallback_project() { printf "%s/projects/%s%s" "$1" vel dra; }' >> engine/harness/lib/resolve.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: decoupled_violation"
+# UNDECLARED, a governed project named for a word the engine already uses 98 times; -F substring match rejects the word, not the project:
+# independence	engine/harness/bin/independence-scan	decoupled_satisfaction	pass	mkdir -p projects/ledger && printf '{"name":"ledger","remote_match":"example.com/ledger","gate":"true"}\n' > projects/ledger/project.json && printf '# A zero row is a ledger entry like any other; it is written down, not inferred.\n' >> engine/harness/lib/ledger.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: decoupled_satisfaction"
+independence	engine/harness/bin/independence-scan	violation	fail	printf '# elenchus reads says.log too; keep the column order stable for it.\n' >> engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: violation"
+independence	engine/harness/bin/independence-scan	restoration	pass	printf '# elenchus reads says.log too; keep the column order stable for it.\n' >> engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: restoration (introduce)" && git checkout HEAD~1 -- engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: restoration"
+independence	engine/harness/bin/independence-scan	irrelevant	pass	sed 's/leaves the decision where it belongs\./leaves the decision with the founder./' engine/harness/lib/unattended.sh > engine/harness/lib/unattended.sh.tmp && mv engine/harness/lib/unattended.sh.tmp engine/harness/lib/unattended.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: irrelevant"
+independence	engine/harness/bin/independence-scan	alternate	fail	{ head -n 1 engine/harness/bin/secret-scan; printf 'VELDRA_ALLOWLIST="${VELDRA_ALLOWLIST:-}"\n'; tail -n +2 engine/harness/bin/secret-scan; } > engine/harness/bin/secret-scan.tmp && mv engine/harness/bin/secret-scan.tmp engine/harness/bin/secret-scan && chmod +x engine/harness/bin/secret-scan && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: alternate"

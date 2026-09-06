@@ -237,104 +237,33 @@ else
 fi
 
 # ------------------------------------------------------------- independence --
-# The engine must name no specific project. Restated here rather than left to
-# the suite alone, because this is the property that makes Felix portable and it
-# is the one most easily lost to a well-meant comment.
-#
-# Every governed name, enumerated - not one literal. This grepped `elenchus`
-# alone, so what it established was that seven particular letters were absent,
-# while constitution invariant 1 says "The engine names no project". Mounting a
-# second project made the gap real rather than theoretical: an engine that
-# hard-codes `veldra` passed, and the identical edit naming `elenchus` failed
-# (#85). Enumerating means governing something new cannot quietly widen what the
-# engine is allowed to say.
-#
-# The engine's OWN name is exempt and has to be. `felix` appears about 1450
-# times in runtime code because it is the product, the function prefix and the
-# binary - not a governed product being named. That is the one exemption, and
-# it is the project Felix governs itself under.
-#
-# bin/ is searched now. It was not, and the gate EXECUTES what is in it, so the
-# literal this check was written for could sit in engine/harness/bin/secret-scan
-# and pass.
-#
-# tests/ and templates/ stay out. The suite names Elenchus in its own comments
-# on purpose - explaining what it refuses to depend on is the point - and the
-# widget fixture names itself a few hundred times.
-INDEP_PATHS="engine/harness/felix engine/harness/lib engine/harness/hooks engine/harness/bin"
-
-# A path this cannot actually search is a FAILURE, not a clean result, and that
-# was the check's blind spot rather than a corner of it.
-#
-# `git grep` exits 128 on a pathspec it cannot resolve and abandons the entire
-# search, so a single absent path made every name come back non-zero and this
-# printed `ok` for violations it never looked at. Demonstrated rather than
-# reasoned: with `elenchus` planted in engine/harness/lib this reported
-# `FAIL -> elenchus`; moving engine/harness/bin aside, with the identical
-# violation still sitting there, it reported `ok`. bin/ holds exactly one
-# tracked file and git does not track directories, so relocating secret-scan
-# would have disarmed invariant 1 silently and on somebody else's schedule.
-# Invariant 5 says a gate that cannot fail is not a gate; this one could not.
-#
-# Both conditions, because there are two ways to search nothing and each needs a
-# different question. The first draft of this asked ls-files alone and still
-# reported `ok` for the exact case it was written for - ls-files reads the INDEX
-# and git grep reads the WORKING TREE, so a path deleted from disk but still
-# staged answers "tracked" and then aborts the search anyway. Caught by replaying
-# the reproduction against the fix rather than by reading it.
-#
-#   -e          the path exists to be searched at all      (git grep exits 128)
-#   ls-files    and something tracked is under it          (git grep reads none)
-#
-# The second is the quieter half: a directory holding only untracked files lets
-# git grep return 0 having read no bytes, which passes an existence test and
-# fails open just the same.
-INDEP_BLIND=""
-for p in $INDEP_PATHS; do
-  if [ ! -e "$p" ] || [ -z "$(git ls-files -- "$p" 2>/dev/null)" ]; then
-    INDEP_BLIND="$INDEP_BLIND $p"
+# The engine must name no specific project: constitution invariant 1, the
+# property that makes Felix portable and the one most easily lost to a
+# well-meant comment. The check itself lives in engine/harness/bin so that
+# felix qualify can ask it whether it fails when the property is broken — the
+# question every checker has to answer — without running this whole gate to
+# find out. Its comments carry the history this section used to; what stays
+# here is the same shape the secret check has: run it, and announce rather
+# than go silent when it is missing.
+# The ecosystem check below shares two things with this one: the four paths it
+# greps, and the blindness verdict — a path nobody could search fails both, on
+# the same evidence. Both are read off the scanner rather than kept as a second
+# copy here, and both default to blind when the scanner is missing, so an
+# absent scanner cannot turn either check green by having nothing to run.
+INDEP_PATHS=""; INDEP_BLIND=" engine/harness/bin/independence-scan"
+if [ -x engine/harness/bin/independence-scan ]; then
+  INDEP_PATHS="$(engine/harness/bin/independence-scan --paths 2>/dev/null)"
+  if OUT="$(engine/harness/bin/independence-scan 2>&1)"; then
+    pass independence; INDEP_BLIND=""
+  else
+    fail independence; printf '%s\n' "$OUT" | head -8 | sed 's/^/    /'
+    INDEP_BLIND="$(printf '%s\n' "$OUT" | sed -n 's/^independence-scan: cannot search://p' | head -1)"
   fi
-done
-
-# A project is a directory that DECLARES itself, not one that happens to exist.
-# `ls -1 projects` enumerated bare directory entries, so an empty stray
-# contributed a grep term - projects/widget is one - and a plain file dropped in
-# projects/ would contribute its filename. project.json is what separates a
-# governed project from a leftover directory, and the memory check below already
-# globs projects/*/, so this also stops one file disagreeing with itself.
-#
-# Matched as a literal. The name is interpolated straight into the search, so -E
-# made a project called `vel.ra` search for a pattern rather than for itself. -F
-# still catches every real violation shape - a bare word, a string literal, and
-# a path inside a directory name - checked before this was changed. -w was tried
-# and rejected on measurement: it rescues none of the common-word names, because
-# `api`, `core`, `web`, `run` and `os` all appear as standalone words in engine
-# prose, and it MISSES `my_elenchus_helper`, which is a violation.
-INDEP_LEAK=""
-for meta in projects/*/project.json; do
-  [ -f "$meta" ] || continue
-  name="${meta%/project.json}"; name="${name##*/}"
-  [ "$name" = "felix" ] && continue
-  # shellcheck disable=SC2086
-  if git grep -qniF -- "$name" $INDEP_PATHS 2>/dev/null; then
-    INDEP_LEAK="$INDEP_LEAK $name"
-  fi
-done
-
-if [ -n "$INDEP_BLIND" ]; then
-  fail independence
-  printf '    cannot search:%s\n' "$INDEP_BLIND"
-  printf '    git grep abandons the whole search on a path it cannot resolve,\n'
-  printf '    so this would have reported ok without reading anything.\n'
-elif [ -n "$INDEP_LEAK" ]; then
-  fail independence
-  printf '    the engine names:%s\n' "$INDEP_LEAK"
-  for name in $INDEP_LEAK; do
-    # shellcheck disable=SC2086
-    git grep -niF -- "$name" $INDEP_PATHS | head -3 | sed 's/^/    /'
-  done
 else
-  pass independence
+  # Announced, not silent — the rule the secret check already holds (#77). An
+  # absent scanner used to print nothing here, and a gate's only portability
+  # check could vanish while the report looked complete.
+  printf '  %-18s skipped (no independence-scan here)\n' independence
 fi
 
 # ------------------------------------------------------------- ecosystem -----

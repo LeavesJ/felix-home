@@ -67,6 +67,27 @@ FELIX_ESCAPE_EXEMPTION_TABLES='ecosystem.tsv'
 # The revert restores the YAML. It does not un-run the job or un-read the key.
 FELIX_ESCAPE_EXECUTE='^\.github/(workflows|actions)/'
 
+# Merging this grants Felix a power it then holds in every session after it,
+# and the stamp beside it says which table the grant was read against.
+#
+# The file IS the permission: writing it is granting it. That is why it exists
+# as a file a person edits rather than a flag a command sets, and why nothing
+# else in the engine may write it. But a file a person edits is also a file a
+# `git add -A` sweeps up, and that is what happened: a grant created while
+# testing the granted path was committed in a pull request whose own body said
+# the grant was ungranted and the founder's to make. Nothing stopped it,
+# because nothing here named the file.
+#
+# So it is an escape, on any change in either direction. A revert takes the
+# word back and does not un-run the sessions Felix ran with it — the marker's
+# own argument, one file over. A revoke is the safe direction and fires too,
+# on the rule this file already holds: failing to demote costs one look, and
+# failing to stop costs the thing the governance exists for.
+#
+# Named by shape. projects/<name>/autonomy exists for every governed project,
+# and the engine names none of them.
+FELIX_ESCAPE_AUTHORITY='(^|/)projects/[^/]+/autonomy(\.[a-z]+)?$'
+
 # Rows already written are not restored by reverting the code that wrote them.
 FELIX_ESCAPE_DURABLE_PATH='(^|/)(migrations|alembic)(/|$)|^prisma/migrations/'
 FELIX_ESCAPE_DURABLE_ADDED='(DROP TABLE|TRUNCATE |DELETE FROM [^W]*$)'
@@ -205,6 +226,9 @@ felix_escapes() {
 
     printf '%s' "$f" | grep -qE "$FELIX_ESCAPE_EXECUTE" \
       && printf 'execute\t%s\tmerging runs this job holding the repository secrets\n' "$f"
+
+    printf '%s' "$f" | grep -qE "$FELIX_ESCAPE_AUTHORITY" \
+      && printf 'authority\t%s\tmerging grants Felix a power it then holds in every session; a revert does not un-run them\n' "$f"
 
     printf '%s' "$f" | grep -qE "$FELIX_ESCAPE_DURABLE_PATH" \
       && printf 'durable\t%s\trows already written are not restored by a revert\n' "$f"

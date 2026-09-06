@@ -1101,6 +1101,20 @@ _reset
 mkdir -p "$REPO/.github/workflows"; printf 'on: push\n' > "$REPO/.github/workflows/ci.yml"; _stage
 has "a workflow change escapes as execute" "$(_esc)" "execute"
 
+# Merging this grants Felix a power it then holds in every session after it.
+# The file IS the permission — writing it is granting it — and that is exactly
+# what a `git add -A` swept into a pull request whose own body said the grant
+# was ungranted. Nothing stopped it, because nothing named the file. A revert
+# takes the word back and does not un-run the sessions Felix ran with it, which
+# is the marker's own argument one file over. Any change fires, in either
+# direction: a revoke is the safe direction and costs one look.
+mkdir -p "$REPO/projects/anyproj"; printf 'commission\n' > "$REPO/projects/anyproj/autonomy"; _stage
+has "a grant of authority escapes"                      "$(_esc)" "authority"
+_reset
+mkdir -p "$REPO/projects/anyproj"; printf 'deadbeef\n' > "$REPO/projects/anyproj/autonomy.commission"; _stage
+has "and so does the stamp that says what it was read against" "$(_esc)" "authority	projects/anyproj/autonomy.commission"
+_reset
+
 # The marker is the binding: break it and every hook resolves nothing, which
 # is not something a revert of the word undoes for the sessions that ran while
 # it was wrong. A tier alone would have said "look carefully" to nobody in

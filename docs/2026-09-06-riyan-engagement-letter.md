@@ -65,13 +65,20 @@ here is ordinary.
 > controls the manner and means of performing the work subject to Owner's
 > direction as to what is to be produced.
 >
-> **2. License status.** For the purposes of the Elenchus Source Available
-> License v1.0 (the "License"), Contractor is a contractor acting on Owner's
+> **2. Authorisation.** Owner, as copyright holder, authorises Contractor to
+> access, copy, modify, create derivative works from, run and deploy the Elenchus
+> materials (the "Materials") for the purposes of this engagement and on Owner's
+> behalf. This authorisation is granted directly by Owner and does not depend on
+> the Elenchus Source Available License v1.0 (the "License").
+>
+> For the avoidance of doubt, Contractor is also a contractor acting on Owner's
 > behalf and is therefore excluded from the definition of "You" in section 1 of
-> the License for the duration of this engagement. The restrictions in sections 4,
-> 5 and 6 of the License do not apply to Contractor's work performed under this
-> engagement. This status begins on the date above and ends when this engagement
-> ends.
+> the License, and the restrictions in sections 4, 5 and 6 of the License do not
+> apply to Contractor's work performed under this engagement.
+>
+> This authorisation begins on the date above and ends when this engagement ends,
+> after which Contractor's position with respect to the Materials is governed by
+> the License alone.
 >
 > **3. Ownership of work product.** Contractor acknowledges that because section 6
 > of the License does not apply to persons excluded under section 1, no rights in
@@ -176,14 +183,32 @@ to use the second's. Not a handover blocker, and worth raising in the same
 conversation with the lawyer since it is the same question wearing different
 clothes.
 
-**2. Whether §6 of the license should be amended too.** This letter patches the
-gap for one person. The gap itself remains: every future contractor needs the
-same letter, and if one is engaged without it, their work is unassigned by
-default. A one line change to §6, splitting the "do not submit pull requests"
-sentence from the contribution grant so that only the first is disapplied, would
-close it at the source. That is a change to a tracked file in a public repository,
-so it is T3 under `projects/elenchus/CLAUDE.md` and it is your call. It is not
-required for this handover.
+**2. The license mixes "You" and "you", and it matters here.** Section 1 defines
+capitalised **"You"**. But **section 5, the one that actually forbids
+modification, opens in lowercase**: `LICENSE:29`, "Except as expressly permitted
+in Section 3, you may not:". Section 3's grant is lowercase too (`LICENSE:20`,
+"Owner grants you a limited... license"). Section 4 uses both in a single
+paragraph. Across the file: capital "You" 8 times, lowercase "you" 7 times.
+
+Read strictly, the section 1 carve-out excludes people from capital "You", while
+the prohibition Riyan needs lifted is addressed to lowercase "you", which the
+license never defines. The drafter plainly meant one thing, and section 6 proves
+the exclusion was meant to have force, but the text does not carry it cleanly.
+
+**This is why section 2 of the draft was rewritten to authorise Riyan directly
+rather than to rely on the carve-out.** Owner holds the copyright and can
+authorise its own contractor regardless of what a public license says to third
+parties. The carve-out is kept as a second, weaker argument rather than the load
+bearing one. Worth telling the lawyer this specifically, because it is the kind
+of thing that reads as pedantry until it is the whole case.
+
+**2b. Whether to fix the license itself.** Two changes would close this at the
+source rather than per contractor: make the "You" usage consistent throughout,
+and split §6's first sentence from its contribution grant so that only the
+prohibition on pull requests is disapplied to excluded persons. Both are changes
+to a tracked file in a public repository, so both are T3 under
+`projects/elenchus/CLAUDE.md` and both are your call. Neither is required for this
+handover, and each future contractor needs this letter until they are done.
 
 **3. Whether the beta carve-out in section 5 is right.** It matches decision D2:
 Riyan develops and does not operate the beta. If you expect that to change within

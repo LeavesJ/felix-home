@@ -121,13 +121,41 @@ workspace you can cap and revoke independently.
 **Recommendation: `write`, pushing branches on `LeavesJ/Elenchus` directly.
 Not a fork, and not `admin`.**
 
-Forks are actively worse here, and this is mechanical rather than a preference.
-`gate.yml` decides from the event whether the private harness is reachable, and
-a pull request from a fork gets `harness=no`, which runs format, lint and the
-suite while skipping `confidential`, `secret`, `lift-bank`, `ignore-leak` and
-`inversion`. The workflow announces that itself in its final step. A fork
-contributor can never turn the real gate green, so Riyan must push branches on
-the origin repository.
+Forks are actively worse here, for two mechanical reasons rather than a
+preference. The second one is the decisive one and it was tested rather than
+reasoned about.
+
+**A fork checkout is not governed by Felix at all.** Elenchus carries no `.felix`
+marker file, so it binds purely by `remote_match` in
+`projects/elenchus/project.json`, which is the literal string `LeavesJ/Elenchus`.
+Verified 2026-09-06 by cloning Elenchus, pointing `origin` at a fork URL, and
+running the real CLI:
+
+```
+felix: no project governs <checkout>.
+  Either add a .felix file naming one, or declare remote_match in a project.json.
+  Known projects: elenchus
+```
+
+No constitution, no gate, no session binding, nothing. Riyan on a fork gets
+ungoverned sessions and does not necessarily notice, because Felix stays quiet
+in repositories it does not govern by design.
+
+**And CI degrades.** `gate.yml` decides from the event whether the private
+harness is reachable, and a pull request from a fork gets `harness=no`, which
+runs format, lint and the suite while skipping `confidential`, `secret`,
+`lift-bank`, `ignore-leak` and `inversion`. The workflow announces that itself in
+its final step.
+
+So: branches on the origin repository, which `write` permits.
+
+**The escape hatch, if a fork ever becomes necessary.** The error message names
+the remedy and it works, also verified: `printf 'elenchus\n' > .felix` at the
+checkout root restores full binding, doctrine, gate and memory. Note that
+`.felix` is not in Elenchus's `.gitignore`, so it shows up as an untracked file.
+That is harmless for the gate, whose `inversion` check filters untracked entries
+(`projects/elenchus/gate.sh:200`), but it is one more untracked thing in a
+repository that already has opinions about those. Prefer the origin branch.
 
 `admin` is not needed for anything he does and would let him change branch
 protection, which is the one enforcement Elenchus actually has
@@ -287,8 +315,16 @@ somebody who never agreed to be published."
 
 **So: no memory directory is copied to Riyan.** Not `~/.felix/memory/felix/`,
 and not `~/.felix/memory/elenchus/` either. His starts empty and fills up with
-his own work. `felix_mem_dir` keys on the project's directory name
-(`resolve.sh` at the definition), so the two never collide.
+his own work.
+
+Note that "just send him the Elenchus subdirectory" is not the safe middle
+option it looks like, for two reasons. `felix_mem_dir` (`resolve.sh:216`) does
+key on the project's directory name, so the per-project trees are separable, but
+**`unresolved.log` is written at the root rather than per project**
+(`resolve.sh:399` writes to `$mem/unresolved.log`), so it spans every project
+Felix governs. And within the Elenchus tree itself, `routes.log` and `says.log`
+hold verbatim text somebody typed at a prompt. A per-project copy is still a
+copy of prompts and of paths from your machine.
 
 The one real cost of that is `lessons.md`, which is matched into prompts and is
 the mechanism that stops a lesson being re-learned. Handling it is Phase A step

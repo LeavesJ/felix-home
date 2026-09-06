@@ -122,8 +122,14 @@ matters.
 
 ### 3.2 Felix
 
-You will receive a private repository URL from J. Clone it somewhere permanent,
-not in `/tmp`, because it becomes your Felix home.
+You will receive a private repository URL from J. **Clone it somewhere permanent
+and do not move or delete it afterwards.** The install does not make the clone
+disposable: only `engine/` is copied into the plugin cache, and
+`projects/elenchus/` never enters it, so your constitution and your gate script
+are read from the clone on every session for as long as you use Felix. Felix
+also explicitly refuses to treat a plugin cache copy as a home, because that
+would freeze the constitution at install time and write memory into a directory
+the next plugin update deletes.
 
 ```
 git clone <felix-dist-url> ~/felix
@@ -147,11 +153,28 @@ cd ~/Elenchus
 ~/felix/engine/harness/felix which
 ```
 
-**Verify:** it names `elenchus`. If it says no project governs this directory,
-your home is wrong. Felix resolves the home in this order: the `FELIX_HOME`
+**Verify:** it names `elenchus`, and `governs:` names your Elenchus checkout.
+
+If it says no project governs this directory, it is one of two things.
+
+**Your home is wrong.** Felix resolves the home in this order: the `FELIX_HOME`
 environment variable, then the `~/.felix-home` pointer file, then a checkout
 carrying `projects/` beside the engine, then `~/.felix`. Re-run
 `felix install --home ~/felix`.
+
+**Or your `origin` is not `LeavesJ/Elenchus`.** Elenchus carries no `.felix`
+marker, so it binds purely on the remote: `projects/elenchus/project.json`
+declares `"remote_match": "LeavesJ/Elenchus"` and nothing else identifies the
+project. Clone from a fork and Felix governs nothing, silently, because it is
+designed to stay quiet in repositories it does not govern. **This is the real
+reason to work on branches of the origin repository rather than a fork**, ahead
+of the CI reason in §10. If you ever genuinely need a differently named remote,
+`printf 'elenchus\n' > .felix` at the checkout root restores full binding, and
+that file will show as untracked because it is not in `.gitignore`.
+
+Prerequisites, while you are here: the engine core needs only `bash` and `git`.
+The `claude` CLI is needed for `felix install` to register the plugin, and `gh`
+for a subset of commands. Neither the gate nor the hooks need `jq` or Python.
 
 Start a new Claude Code session in the Elenchus directory. You should see a
 `Felix: elenchus` line. Hooks bind at session start, so a session you already

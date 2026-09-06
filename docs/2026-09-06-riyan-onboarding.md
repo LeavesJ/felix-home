@@ -149,6 +149,21 @@ Read `docs/lessons.md` when you first touch a surface it covers. It is a runbook
 and not a gate, it is long, and it is mostly historical. The parts that still
 bind are restated as Invariants in the constitution.
 
+That file is worth more than its status suggests. Tracked code cites **27
+distinct lesson identifiers a total of 252 times**, in the form `L-19`, `L-23`
+and so on, scattered through `src/`, `tests/`, `scripts/` and the Felix project
+directory. Every one of those comments points at a file that is not in the
+repository. When you hit an `L-nn` reference and want to know why a piece of
+code is shaped the way it is, that is where the answer is.
+
+Two of the bundle's files are narrower than they look. `content/lift/scenarios.yaml`
+and `candidates.yaml` are needed for lift and mining work only: the loaders at
+`src/elenchus/content_loader.py:259` and `:264` default to those names, but no
+tracked caller uses the defaults, and the suite is green without them. If a
+`data/injection_payloads.yaml` is in your bundle, it is the corpus for
+`run_injection_probe.py` and the tests use the tracked
+`content/gate/injection_payloads.example.yaml` stub instead.
+
 ### 3.4 Your Anthropic key
 
 J issues you your own key on your own workspace with your own spend limit. It is

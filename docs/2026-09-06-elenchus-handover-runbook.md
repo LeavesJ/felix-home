@@ -73,6 +73,17 @@ engineering reason to make it.
 If you later want Riyan operating the beta, that is a second decision taken on
 its own terms with the invitees told. Do not fold it into this one.
 
+One fact that makes that future decision harder than it looks, worth writing
+down now while it is in view. **There is no invitee registry.** Every operator
+script enumerates invitees by globbing the tenant root:
+`scripts/retention_report.py:35` globs `*/elenchus.db` and
+`scripts/call_report.py:36` globs `*/server.log`. Nothing in the code holds a
+name, an email, or a list. The authoritative record is the directory listing
+plus the Cloudflare Access policies, and Access is the only place an invitee's
+email address exists at all. So "hand over the beta" is not a file transfer, it
+is a transfer of a Cloudflare account and a directory of other people's writing,
+which is a further reason to keep D2 where it is.
+
 ### D3. Anthropic billing
 
 **Recommendation: Riyan gets his own key on his own workspace with his own
@@ -133,13 +144,35 @@ each row can be re-derived rather than trusted.
 | `scripts/prepush.sh` | repo, untracked | duplicate | **no**, Felix holds it |
 | `.git/info/exclude` | repo local | internal | contents only, reviewed |
 
-Two of those rows are the ones to slow down on.
+A second untracked corpus belongs in that table and is easy to miss because
+`.gitignore` covers it only through the blanket `/data/` rule:
+**`data/injection_payloads.yaml`**, read at
+`src/elenchus/run_injection_probe.py:88`. The tracked stub is
+`content/gate/injection_payloads.example.yaml`, which is what the tests use
+(`tests/test_injection_probe.py:51`). Send it with the bundle if you want Riyan
+running the injection probe, and leave it out if you do not.
 
-**`content/lift/*.yaml` is required, not optional.** The tracked
-`*.example.yaml` stubs are the public shape and the gate actively fails if the
-real banks are ever tracked (`projects/elenchus/gate.sh:175`, the `lift-bank`
-check). Riyan cannot do lift work without the real files and cannot commit them,
-so they move out of band and stay out of band.
+Three of these rows are the ones to slow down on.
+
+**`docs/` is the highest value thing in the bundle, and the number says so.**
+Tracked code cites **27 distinct lesson identifiers a total of 252 times**
+across `src/`, `tests/`, `scripts/` and `projects/elenchus/`, and the file those
+identifiers resolve to is not in the repository. Without `docs/lessons.md`
+Riyan reads 252 dangling references to reasoning he cannot reach. This is the
+single item whose absence would most slow him down, and it is also the one that
+most needs reading before it is sent, per Phase A step 3.
+
+**`content/lift/*.yaml` unblocks the lift pipeline, and nothing else.** This
+correction matters because the obvious reading is stronger than the truth.
+`content_loader.load_lift_scenarios` and `load_lift_candidates`
+(`src/elenchus/content_loader.py:259` and `:264`) default to the untracked bank
+names, but **no tracked caller invokes them with those defaults**: the only
+callers are `tests/test_content_loader.py:243`, which passes
+`"scenarios.example"`, and `:278`, which passes an explicit `root`. So the suite
+is green without them and day to day development does not touch them. They are
+needed for lift and mining work specifically. The gate still fails if either
+real bank is ever tracked (`projects/elenchus/gate.sh:175`), so they move out of
+band and stay out of band.
 
 **`data/` is two different sensitivities wearing one directory name.**
 `src/elenchus/web/runtime.py:24` sets `DEFAULT_DB` to `<repo>/data/elenchus.db`,

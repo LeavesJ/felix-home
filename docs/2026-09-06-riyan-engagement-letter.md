@@ -36,18 +36,39 @@ not what §1 asks for.
 > derivative works from that feedback or contribution for any purpose, under any
 > terms Owner chooses.
 
-The disapplication is **wholesale**. It takes the second paragraph with it.
+**The grant paragraph is keyed to "You", and a contractor is not "You".**
+`LICENSE:39` says "If **You** submit... **You** grant Owner", both capitalised,
+and `LICENSE:12` excludes "Owner's founders, employees, contractors, or agents
+acting on Owner's behalf" from that definition. So the grant never reaches a
+contractor at all.
 
-So the license currently assigns rights in a stranger's contribution to Owner
-automatically, and assigns nothing at all in a contractor's. Moving Riyan into the
-carve-out gives him permission to modify and, in the same stroke, removes the only
-clause that would have given Owner rights in what he writes. Left there, the
-handover ends with the majority of Elenchus development owned by the person doing
-it.
+So the license assigns rights in a stranger's contribution to Owner automatically
+and assigns nothing whatever in a contractor's. Moving Riyan into the carve-out
+gives him permission to modify and, in the same stroke, leaves Owner with no
+claim on what he writes. Left there, the handover ends with the majority of
+Elenchus development owned by the person doing it.
 
 **The assignment in section 3 below is therefore the load-bearing part of this
-letter.** Not the license carve-out, which is a single sentence. Everything else
-here is ordinary.
+letter.** Not the carve-out, which is one sentence. Everything else here is
+ordinary.
+
+**Correcting an earlier draft of this section, because the distinction changes
+what would fix it.** That draft said the disapplication sentence "is wholesale,
+it takes the second paragraph with it", and proposed splitting §6's two sentences
+so only the prohibition is disapplied. That is the wrong diagnosis and therefore
+the wrong fix. The disapplication sentence is not what excludes a contractor from
+the grant; `LICENSE:12` is, because the grant operates on "You" and a contractor
+is not "You". Delete the disapplication sentence entirely and nothing changes.
+The real fix, if you ever want one, is in item 2b below and it is a different
+edit.
+
+**And the exclusion cuts both ways, which is why section 2 was rewritten.** If
+being outside "You" removes the restrictions in §§4 to 6, it removes the
+permissions in §3 by exactly the same logic: `LICENSE:20` grants "you" the right
+to access, copy and run, and a person outside that definition holds no such
+grant. A letter that only lifted restrictions would engage Riyan to develop
+software he had no stated right to clone or compile. Section 2 therefore
+authorises him directly rather than relying on the carve-out for either half.
 
 ---
 
@@ -80,15 +101,18 @@ here is ordinary.
 > after which Contractor's position with respect to the Materials is governed by
 > the License alone.
 >
-> **3. Ownership of work product.** Contractor acknowledges that because section 6
-> of the License does not apply to persons excluded under section 1, no rights in
-> Contractor's contributions pass to Owner under the License, and this section is
-> the sole source of those rights.
+> **3. Ownership of work product.** Contractor acknowledges that the contribution
+> grant in section 6 of the License operates only on "You" as defined in section 1
+> of the License, that Contractor is excluded from that definition, and that
+> accordingly no rights in Contractor's contributions pass to Owner under the
+> License. This section is the sole source of those rights.
 >
-> (a) All work product created by Contractor in the course of this engagement,
-> including source code, documentation, rubrics, prompts, gate definitions,
-> doctrine files, test corpora, designs and notes, is a work made for hire for
-> Owner where that doctrine applies.
+> (a) All work product created by Contractor in the course of, in anticipation of,
+> or in connection with this engagement, including any contribution made to any
+> Owner repository before the date of this engagement, and including source code,
+> documentation, rubrics, prompts, gate definitions, doctrine files, test corpora,
+> designs and notes, is a work made for hire for Owner where that doctrine
+> applies.
 >
 > (b) To the extent any work product is not a work made for hire, Contractor
 > irrevocably assigns to Owner all right, title and interest in it worldwide,
@@ -102,10 +126,17 @@ here is ordinary.
 >
 > (d) If Contractor incorporates any pre-existing material they own into the work
 > product, Contractor grants Owner a perpetual, worldwide, irrevocable, royalty
-> free, sublicensable license to use it as part of the work product, and will tell
-> Owner in writing when they do so.
+> free, **exclusive**, sublicensable license to use it as part of the work
+> product, and will tell Owner in writing when they do so.
 >
-> (e) Contractor will sign any further documents Owner reasonably requests to
+> (e) Contractor represents that the work product is original to them except as
+> disclosed to Owner in writing. Contractor will not incorporate third party or
+> open source material into the work product without identifying that material and
+> its license to Owner in writing in advance, and will not incorporate material
+> under any license that would require Owner to distribute the work product on
+> terms other than Owner's own.
+>
+> (f) Contractor will sign any further documents Owner reasonably requests to
 > perfect or record these rights.
 >
 > **4. Confidentiality.** In the course of this engagement Contractor will receive
@@ -202,13 +233,39 @@ parties. The carve-out is kept as a second, weaker argument rather than the load
 bearing one. Worth telling the lawyer this specifically, because it is the kind
 of thing that reads as pedantry until it is the whole case.
 
-**2b. Whether to fix the license itself.** Two changes would close this at the
-source rather than per contractor: make the "You" usage consistent throughout,
-and split §6's first sentence from its contribution grant so that only the
-prohibition on pull requests is disapplied to excluded persons. Both are changes
-to a tracked file in a public repository, so both are T3 under
+**2b. Whether to fix the license itself, and the fix that does not work.**
+
+An earlier draft proposed splitting §6's two sentences so that only the
+prohibition on pull requests is disapplied to excluded persons. **That would close
+nothing**, and the reason is worth stating because it is the same trap twice: the
+grant paragraph operates on "You" (`LICENSE:39`, "If You submit... You grant
+Owner"), and `LICENSE:12` excludes contractors from "You". The disapplication
+sentence is not doing the work, so removing it changes nothing.
+
+The change that would actually close it re-keys the grant off the definition
+entirely, for example: "Any person who submits feedback or a contribution grants
+Owner a perpetual, worldwide, irrevocable, royalty free, sublicensable license
+to..." Alongside that, making the "You" and "you" usage consistent throughout
+would remove the ambiguity in item 2.
+
+Both are edits to a tracked file in a public repository, so both are T3 under
 `projects/elenchus/CLAUDE.md` and both are your call. Neither is required for this
-handover, and each future contractor needs this letter until they are done.
+handover. Until they are done, every future contractor needs a letter like this
+one, and any engaged without one owns their work by default.
+
+**2c. Riyan has committed nothing yet, and the draft now covers it anyway.**
+Checked rather than assumed: `git log --all` over Elenchus returns 111 commits
+across three identities, all of them Jarron Deng. `list_commits` filtered to
+`InsertWittyCommentHere` returns empty. So the risk that he commits as "You"
+before the letter is signed is **prospective, not live**.
+
+It is worth closing regardless, because he holds `write` today and could commit
+at any point before signature. Section 3(a) therefore reaches work created "in
+anticipation of, or in connection with this engagement, including any contribution
+made to any Owner repository before the date of this engagement". If any commit
+does land before signing, mention it to the lawyer: such a commit would have been
+made as "You" and would sit against `LICENSE:31` and `LICENSE:38`, which is an
+odd footing to start an engagement on even though the assignment now reaches it.
 
 **3. Whether the beta carve-out in section 5 is right.** It matches decision D2:
 Riyan develops and does not operate the beta. If you expect that to change within

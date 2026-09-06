@@ -40,19 +40,15 @@ profiles. Keeping them separate is most of the work.
 2. **Felix use.** Riyan runs Felix against his Elenchus checkout. Felix is
    private and stays private, and you keep developing it. He needs the engine and
    one project directory, and nothing else in the repository.
-3. **Beta operations.** Per-invitee databases hold real decisions written by
-   real people. That is third party personal data and it is the one thing in
+3. **Beta operations.** Per-invitee databases will hold real decisions written
+   by real people. That is third party personal data and it is the one thing in
    this handover that cannot be un-sent.
 
-   **How many people is unresolved and it matters.** This paragraph said "eight
-   or so" from an early reading; on 2026-09-06 the founder said nobody has been
-   invited yet, and `2026-09-06-riyan-onboarding.md:27` tells Riyan the beta has
-   been running one invited person per instance since 2026-09-05. Those cannot
-   all hold. The answer is load-bearing rather than cosmetic: §3c sends
-   `SESSION_HANDOFF.md` on the specific ground that no invitee material has
-   accumulated in it yet, and that ground evaporates if eight people have sat
-   down. Section 1 of `2026-09-06-notes-template.md` asks for the real sentence,
-   and every document gets corrected from it.
+   **Resolved 2026-09-06: thirty invitations are upcoming and none has been
+   run.** An earlier draft of this paragraph said "eight or so real people have
+   written real decisions", which was wrong; the tenant root is empty today and
+   no invitee material exists anywhere. That makes this the safest possible
+   moment to hand over, and it puts a date on the safety. See §3d.
 
 The recommendation running through this entire document is that these three
 separate cleanly, and that separating them is what makes the handover safe

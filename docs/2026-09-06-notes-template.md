@@ -21,17 +21,14 @@ apply. A short honest NOTES.md beats a complete-looking one.
 
 ## 1. Where the beta actually stands
 
-**Settle this first, because two documents currently imply different things.**
-`2026-09-06-riyan-onboarding.md:27` tells Riyan the status is "a closed beta,
-one invited person per instance, from 2026-09-05". You told me on 2026-09-06
-that nobody has been invited yet. Both can be true, if the infrastructure went
-live on the 5th and no invite has gone out, but Riyan cannot tell that from
-what he has. Write the real sentence here and I will correct the onboarding
-document to match.
+**Settled 2026-09-06: thirty invitations are ready and none has been run.**
+Every document now says so. What is left is the part only you know.
 
-- How many people have been invited, and how many have actually sat down?
+- What has to be true before the first of those thirty goes out?
 - Is anything serving right now? Is a tunnel up?
-- What is the next thing that has to happen for the beta to move.
+- Are the thirty a single wave or staged, and over what period?
+- Who are they, in the sense that affects engineering. Cohort, not names.
+- What would make you stop the rollout after the first few.
 
 Riyan operates none of this and that is D2. He still needs to know it, because
 almost every fragile thing in the codebase is fragile *because* of it.

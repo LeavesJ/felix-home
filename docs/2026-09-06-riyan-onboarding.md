@@ -24,9 +24,17 @@ in `model.py`. The loop, the gates, the maps, the rubrics and the territories ar
 ours, versioned on disk under `content/`, and are never handed to the model as
 taste.
 
-Status is a closed beta, one invited person per instance, from 2026-09-05. J
-operates the beta and you do not. That boundary is deliberate and §7 explains
-it.
+**Status, as of 2026-09-06: the beta has not run yet.** The architecture is one
+invited person per instance, thirty invitations are ready to go out, and none
+has been sent. So there are no live users today and the tenant root is empty.
+
+That is worth knowing for two opposite reasons. Nothing you do this week can
+reach a real person's data, because there is not any. And the window in which
+that is true is short, so the habits you build now are the ones that will be
+running when there are thirty people on the other side of them.
+
+J operates the beta and you do not, before or after those invitations go out.
+That boundary is deliberate and §7 explains it.
 
 Python 3.14, `src/` layout, FastAPI, SQLite, a vendored Three.js renderer. No
 orchestration framework and no vector database. Thin is the architecture, not a
@@ -527,10 +535,11 @@ disagreement as a finding and not as flakiness.
 
 Not a matter of trust. Each of these is a boundary with a specific reason.
 
-- **Beta invitee data.** `~/.local/share/elenchus/data/tenants/*` on J's machine
-  holds what real invited people wrote about real decisions they are facing.
-  They agreed to J seeing it. Your `data/` starts empty and that is the correct
-  state.
+- **Beta invitee data.** `~/.local/share/elenchus/data/tenants/*` on J's
+  machine. Empty today, and it will hold what real invited people wrote about
+  real decisions they are facing. They agreed to J seeing it and to nobody else.
+  Your `data/` starts empty and stays empty, and that is the correct state
+  permanently rather than only until you are trusted.
 - **J's own `data/elenchus.db`.** His own sittings. The code
   describes this file as holding "one particular person's decisions"
   (`src/elenchus/web/runtime.py:54`) and refuses to serve it on a non-loopback

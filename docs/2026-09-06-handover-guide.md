@@ -28,8 +28,10 @@ deliberately does not carry.
 **Felix use.** He runs Felix against his checkout while you keep developing it.
 Felix is private and stays private.
 
-**Beta operations.** Real invited people have written real decisions into per
-invitee databases. This is the one part that cannot be un-sent.
+**Beta operations.** Thirty invitations are ready and none has been run, so the
+per invitee databases are empty today. Once they are not, they hold real
+decisions written by real people, and that is the one part of this handover that
+cannot be un-sent.
 
 The recommendation throughout is that Riyan gets the first, gets a narrow slice
 of the second, and gets none of the third.
@@ -195,14 +197,18 @@ where it is. What remains:
    commit, which was D0's pre-reversal answer. What is left covers only what a
    founder CIIAA does not reach, and its deadline is **before Part 2**, the
    access grant, not before his first commit.
-2. **How many people have actually been invited?** The runbook says eight, and
-   you said none. Both cannot hold, and the answer decides whether
-   `SESSION_HANDOFF.md` is safe to send at all. Section 1 of the NOTES.md
-   template asks for the real sentence.
-3. Does the beta stay yours indefinitely, or is there a date?
-4. Which of your untracked root documents are drafts you would rather not send?
-5. Does `.env.example` get added?
-6. Does he eventually get write access to the gate contract, and how?
+2. Does the beta stay yours indefinitely, or is there a date?
+3. Which of your untracked root documents are drafts you would rather not send?
+4. Does `.env.example` get added?
+5. Does he eventually get write access to the gate contract, and how?
 
-The first two need doing before you grant the felix seat. The rest can wait
+Only the first needs doing before you grant the felix seat. The rest can wait
 until you are at the machine.
+
+**One question came off this list on 2026-09-06 and it changed the shape of the
+handover.** Thirty invitations are ready and none has been run, so the tenant
+root is empty and no invitee material exists. Every "this is safe because
+nothing has accumulated yet" judgement in these documents is therefore correct
+today and expires the day the first invitation goes out. Doing the handover
+before the beta rather than during it is the single largest piece of luck in the
+sequence. Use it.

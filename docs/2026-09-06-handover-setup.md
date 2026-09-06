@@ -125,9 +125,16 @@ makes `cp` read through the link; a `cp -R` over `docs/` would instead hand
 Riyan three pointers into your home directory that resolve to nothing on his
 machine.
 
-`SESSION_HANDOFF.md` travels because it holds no invitee material, none having
-been invited yet, confirmed 2026-09-06. That is circumstantial rather than
-structural, so re-verify if this is ever revisited once the beta has real users.
+`SESSION_HANDOFF.md` travels because it holds no invitee material. Confirmed
+2026-09-06: thirty invitations are upcoming and none has been run, so the tenant
+root is empty and nothing invitee-shaped can have accumulated in the file.
+
+**That is circumstantial, and now it has a date.** The reason this file is safe
+expires the day the first of those thirty invitations goes out. If you ever
+build this bundle again, or send Riyan a later delta, `SESSION_HANDOFF.md` and
+anything else derived from the memory root has to be read line by line first,
+because the allow-list will still pass and the contents will no longer be
+clean.
 
 **`.claude/` is allow-listed too, and for a sharper reason than `docs/`.** Its
 four entries, observed 2026-09-06, are `CLAUDE.md`,
@@ -538,7 +545,7 @@ silently.
 
 ## Standing rules that outlive this setup
 
-Six things nothing in either repository enforces. They live here because there
+Seven things nothing in either repository enforces. They live here because there
 is nowhere else to put them.
 
 1. **`write` on Elenchus is read on `felix`.** Both workflows check out the
@@ -571,7 +578,16 @@ is nowhere else to put them.
    live on 2026-09-06 and both looked like output rather than like nothing
    having happened. Anything meant to be pasted uses `$ELENCHUS` and `$FELIX`
    and carries no `#`.
-6. **The beta is yours.** There is no invitee registry in code; the operator
+6. **This bundle's safety expires when the first invitation goes out.**
+   Confirmed 2026-09-06: thirty invitations are ready and none has been run, so
+   the tenant root is empty and `SESSION_HANDOFF.md` has nothing invitee-shaped
+   in it. Both of those are why the allow-list is safe today. Neither is
+   structural. If you rebuild this bundle after the rollout starts, the script
+   will pass exactly as it does now and the contents will no longer be clean, so
+   anything derived from the memory root has to be read line by line first.
+   Doing the handover before the beta rather than during it is the largest piece
+   of luck in this sequence.
+7. **The beta is yours.** There is no invitee registry in code; the operator
    scripts glob the tenant root, the allocation table lives in your memory root,
    and Cloudflare Access holds the email addresses that `forget_invitee.py`
    cannot reach. Handing it over later is a Cloudflare account transfer and a

@@ -76,8 +76,13 @@ Put your own key in `<repo>/.env`, which `.gitignore` already covers along with
 `.env.*` and `*.key`:
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_API_KEY=paste-your-key-here
 ```
+
+That placeholder is deliberately not key-shaped. An earlier version wrote it
+with the real prefix, which meant this document tripped the handover secret scan
+every time it ran, and a scan with a known-acceptable hit in it is a scan people
+stop reading.
 
 Use your own key on your own workspace with its own spend limit. Do not use J's.
 That is not a formality: a shared key makes spend unattributable and a leak from
@@ -112,7 +117,19 @@ so even the access log reads like a served turn. That is lesson L-18 and the
 code comments record it being paid for three times.
 
 If your checkout is not inside a sync container, use `<repo>/.env` and ignore
-the out-of-tree path entirely. If it is, set both or use the launcher.
+the out-of-tree path entirely.
+
+If it is, there is a better answer than keeping two copies, and it is the one
+J's own checkout uses. Make `<repo>/.env` a symlink to the out-of-tree file:
+
+```
+ln -s ~/.config/elenchus/env <repo>/.env
+```
+
+The sync container then replicates a symlink, which is a short text file holding
+a path, rather than the key itself. Both entrypoints find the key because both
+read `<repo>/.env` and the link resolves locally, and there is one copy of the
+secret rather than two to keep in step. Verified on J's machine 2026-09-06.
 
 ---
 

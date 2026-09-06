@@ -60,20 +60,32 @@ is parsed as an input redirection from a file named `felix`, so zsh answers
 live on 2026-09-06 and both failures looked like output rather than like
 nothing having happened.
 
-So paths come from variables, set once per terminal window:
+So paths come from variables, set once per terminal window. **Set them by hand
+and make them absolute.**
 
 ```
-ELENCHUS=~/Documents/Elenchus
-FELIX=$(cd "$ELENCHUS" && felix which | awk '/^doctrine:/ {print $2}')
-FELIX=${FELIX%/projects/*}
-echo "$ELENCHUS" "$FELIX"
+ELENCHUS=$(cd ~/Documents/Elenchus && pwd)
+FELIX=$(cd ~/Documents/Felix && pwd)
+test -d "$ELENCHUS/src" && test -x "$FELIX/engine/harness/bin/secret-scan" && echo ok
+echo "$ELENCHUS"
+echo "$FELIX"
 ```
 
-The second and third lines ask Felix where it lives rather than keeping a second
-copy of the resolution logic, which is the same reason `scripts/preflight.py:35`
-calls the launcher's own resolver. If `felix` is not on your PATH, set `FELIX`
-by hand to your felix checkout instead. Confirm the `echo` prints two real
-directories before running anything below.
+Adjust the two paths to your checkouts. `cd ... && pwd` is what makes them
+absolute, and the `test` line refuses to print `ok` unless both are what they
+claim to be. Do not continue without `ok` and two paths starting with `/`.
+
+**An earlier version derived `FELIX` from `felix which` and it produced a
+relative path**, which then silently broke every command built on it: zsh
+reported `no such file or directory: Documents/Felix/engine/...` and the
+secret-scan simply did not run, while the second grep in the same paste ran fine
+and printed results, so the block looked like it had worked. The cause is in
+Felix rather than in the awk: `felix_home()` returns `$FELIX_HOME` verbatim
+(`engine/harness/lib/resolve.sh:133`) and the engine directory verbatim
+(`:147`), neither normalised to an absolute path, so `felix which` prints
+whatever it was given. Asking a tool where it lives is still the right instinct,
+and it is why `scripts/preflight.py:35` uses the launcher's own resolver, but it
+only works when the answer is absolute.
 
 ### 1.1 See your actual untracked surface
 

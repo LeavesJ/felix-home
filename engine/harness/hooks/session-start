@@ -373,7 +373,19 @@ fi
 # it fires once per addressee and an answer consumes it. Nothing here runs a
 # check, an instrument or an installer; that is felix commission's, and a
 # person's to invoke.
+#
+# Unless a person has said otherwise, in writing, over this exact table. The
+# `commission` grant is the one thing that moves the line quoted above, and it
+# is absent by default: felix_commission_resume_bg returns without doing
+# anything unless projects/<p>/autonomy names it AND the stamp taken when it
+# was granted still matches commissioning.tsv. Two of that table's columns are
+# eval'd, so a grant that outlived the table it was read against would be
+# consent to something nobody read.
 if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/null 2>&1; then
+  # Detached, and silent when ungranted — which is every project until a person
+  # types the command.
+  command -v felix_commission_resume_bg >/dev/null 2>&1 \
+    && felix_commission_resume_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix" 2>/dev/null
   _cm_topo="$(felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null)"
   _cm_seen="$FELIX_HOME_DIR/state/commission/$(basename "$PROJ").seen"
   _cm_await=""; _cm_ans=0

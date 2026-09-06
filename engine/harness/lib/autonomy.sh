@@ -12,10 +12,47 @@
 # grants itself is not a permission.
 #
 # projects/<p>/autonomy: one capability per line.
-#   tidy    remove a lookalike script when Felix already holds that file
+#   tidy        remove a lookalike script when Felix already holds that file
+#   commission  run the commissioning pipeline with nobody present
 #
 # Reporting is not listed and never needs opting into. Saying "this exists and
 # nothing can reach it" changes nothing on disk.
+
+# The commission grant, and the table it was granted over.
+#
+# Every other grant here names an action the engine defines. This one names a
+# pipeline whose steps come from a project's own commissioning.tsv, and two of
+# that table's columns — `when` and `check` — are eval'd in the checkout
+# (commission.sh). Today nothing on a hook path evaluates them; the session
+# hook says so in as many words, and felix_commission_run has exactly two
+# callers, both in the CLI. Granting this puts them on a hook path.
+#
+# That is the whole of the risk, and it is not about today's table: every check
+# in it is a read-only predicate, and the run declares stack.tsv rows without
+# installing anything — felix_commission_apply_declares writes a row and a log
+# line, and no installer is downstream of it. The risk is that
+# projects/<p>/commissioning.tsv is ORDINARY-tier by this project's own
+# constitution, so a routine edit to it would otherwise become code that runs
+# unattended, forever, with nothing on any surface to show it.
+#
+# So the grant is bound to the table it was granted over. The policy version —
+# already a hash across the table set — is stamped when a person types the
+# command, and a background run refuses when the current hash differs. A table
+# edited after the grant does not inherit it, and re-arming is a person's act
+# of reading what changed. The same shape as the discovery cache's stamp: a
+# stale verdict is not a verdict.
+felix_autonomy_stamp_path() { printf '%s/autonomy.%s' "$1" "$2"; }
+
+# Does the grant still cover what is on disk?
+felix_autonomy_commission_current() {   # proj -> 0 when the stamp matches
+  local proj="$1" stamped now
+  felix_autonomy_allows "$proj" commission || return 1
+  stamped="$(head -1 "$(felix_autonomy_stamp_path "$proj" commission)" 2>/dev/null)"
+  [ -n "$stamped" ] || return 1
+  command -v felix_commission_policy_version >/dev/null 2>&1 || return 1
+  now="$(felix_commission_policy_version "$proj" 2>/dev/null)"
+  [ -n "$now" ] && [ "$stamped" = "$now" ]
+}
 
 felix_autonomy_allows() {
   local proj="$1" want="$2" line

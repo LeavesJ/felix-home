@@ -1387,13 +1387,16 @@ cmd_autonomy() {
       grep -vxF "$revoke" "$proj/autonomy" > "$proj/autonomy.new" 2>/dev/null \
         && mv -f "$proj/autonomy.new" "$proj/autonomy"
     fi
+    # The stamp goes with the grant. Left behind, a later --allow would look
+    # like it had already been read against a table nobody re-read.
+    rm -f "$(felix_autonomy_stamp_path "$proj" "$revoke")" 2>/dev/null
     printf 'revoked: %s\n' "$revoke"
   fi
 
   if [ -n "$allow" ]; then
     case "$allow" in
-      tidy) ;;
-      *) die "unknown capability: $allow. The only one is 'tidy'." ;;
+      tidy|commission) ;;
+      *) die "unknown capability: $allow. They are 'tidy' and 'commission'." ;;
     esac
     if felix_autonomy_allows "$proj" "$allow"; then
       printf 'already allowed: %s\n' "$allow"
@@ -1401,6 +1404,14 @@ cmd_autonomy() {
       [ -f "$proj/autonomy" ] || printf '# What Felix may do here unattended.\n' > "$proj/autonomy"
       printf '%s\n' "$allow" >> "$proj/autonomy"
       printf 'allowed: %s\n' "$allow"
+    fi
+    # Stamped with the table it was granted over, so a later edit to that table
+    # does not inherit the grant. Written on every --allow, not only the first,
+    # because re-granting is how a person re-arms it after reading a change.
+    if [ "$allow" = commission ]; then
+      printf '%s\n' "$(felix_commission_policy_version "$proj")" \
+        > "$(felix_autonomy_stamp_path "$proj" commission)"
+      printf 'stamped against commissioning.tsv as it stands now.\n'
     fi
   fi
 
@@ -1418,8 +1429,34 @@ cmd_autonomy() {
   printf 'readable first. A tracked file is part of what the repository says it\n'
   printf 'contains, and removing one is a change to the project rather than the\n'
   printf 'removal of a stray.\n'
+  if felix_autonomy_allows "$proj" commission; then
+    if felix_autonomy_commission_current "$proj"; then
+      printf '\n  [x] commission  run the commissioning pipeline with nobody present\n'
+    else
+      printf '\n  [!] commission  granted, but not over this commissioning.tsv\n'
+    fi
+  else
+    printf '\n  [ ] commission  run the commissioning pipeline with nobody present\n'
+  fi
+  printf '\nCommission is not a scheduling change, and the wording matters because\n'
+  printf 'it is what is being consented to. The pipeline evaluates two columns of\n'
+  printf '%s/commissioning.tsv as shell — `when` and `check` — in\n' "$proj"
+  printf 'this checkout. Nothing on a hook path does that today; the session hook\n'
+  printf 'says so, and the only callers are commands a person types. Granting\n'
+  printf 'this puts them on a hook path.\n'
+  printf '\nWhat it does NOT do is install anything. A run declares: it appends\n'
+  printf 'rows to stack.tsv carrying OBSERVED, and installing them is still\n'
+  printf 'felix stack apply, which a person still runs. A declaration is a line\n'
+  printf 'in a table and is undone by deleting it.\n'
+  printf '\nThe grant is stamped against that table. Edit commissioning.tsv and\n'
+  printf 'the grant stops covering it — the row above reads [!] and the\n'
+  printf 'unattended run refuses — because an ordinary edit to a project table\n'
+  printf 'must not become code that runs unattended. Re-granting is how a person\n'
+  printf 'says they have read the change.\n'
   printf '\n  felix autonomy --allow tidy      grant it\n'
   printf '  felix autonomy --revoke tidy     take it back\n'
+  printf '  felix autonomy --allow commission    grant it, over the table as it stands\n'
+  printf '  felix autonomy --revoke commission   take it back\n'
 }
 
 cmd_coverage() {

@@ -45,6 +45,14 @@ if ! command -v felix_probes_run >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/probes.sh" 2>/dev/null
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/commission.sh" 2>/dev/null
 fi
+# And the obligation library, for the same reason: the merge boundary asks
+# what the project owes, and a judge that could not ask has not shown that
+# nothing is owed — the blocker below fails closed on exactly that. Found by
+# the self-governed merge fixture, where the pinned kernel is the only copy
+# of the engine the judge has.
+if ! command -v felix_obligations_run >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/obligations.sh" 2>/dev/null
+fi
 
 FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null && pwd)/secret-scan"
 
@@ -422,13 +430,17 @@ felix_merge_blockers() {
     printf 'obligations\tengine\tthe obligation library is not loaded, so what this project owes was not asked\n'
   elif [ ! -f "$proj/obligations.tsv" ]; then
     printf 'obligations\ttable\tthis project admits no obligation; write %s/obligations.tsv\n' "$proj"
-  elif [ -z "$(felix_obligation_rows "$proj")" ]; then
-    printf 'obligations\ttable\t%s/obligations.tsv admits no obligation, which is a ledger with nothing owed\n' "$proj"
   else
+    # Refused rows first, before the table is called empty: a row somebody
+    # wrote and nothing reads is the more specific fact, and a ledger whose
+    # only row is refused should say which row, not just that nothing is owed.
     felix_obligation_malformed "$proj" | while IFS= read -r line; do
       [ -n "$line" ] || continue
       printf 'obligations\ttable\t%s/obligations.tsv: %s\n' "$proj" "$line"
     done
+    if [ -z "$(felix_obligation_rows "$proj")" ]; then
+      printf 'obligations\ttable\t%s/obligations.tsv admits no obligation, which is a ledger with nothing owed\n' "$proj"
+    fi
     felix_obligations_orphans "$proj" | while IFS= read -r line; do
       [ -n "$line" ] || continue
       printf 'obligations\ttable\ta row grounds on %s, which %s/probes.tsv does not declare\n' "$line" "$proj"

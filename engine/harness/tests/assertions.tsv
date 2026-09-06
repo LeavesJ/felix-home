@@ -270,6 +270,7 @@
 1	a red row naming no channel stops nothing
 1	a red rule still wins
 1	a red run breaks the streak
+1	a refreshed graph clears the row
 1	a refusal on risk is reported
 1	a rejected push is reported, not forced
 1	a repair that failed says so
@@ -760,6 +761,7 @@
 1	and reads its words off the capability probe
 1	and reads only mcp rows
 1	and reads stale whatever its age
+1	and recording the run does not put it back
 1	and records the failure without being asked
 1	and refuses in gate mode as well
 1	and refuses instead of ignoring it
@@ -1564,6 +1566,7 @@
 1	while a short one scores on nothing
 1	while a tool that ran keeps its calls
 1	while an owner-reduced play entry still names its plugin
+1	while any other commit still does
 1	while gate mode turns that same state into a refusal
 1	while one at a declared moment still does
 1	while others stay due

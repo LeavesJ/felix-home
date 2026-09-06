@@ -7053,7 +7053,10 @@ printf 'broken\t0\talways\tthe check is nonsense\tdefinitely-not-a-command-xyz\n
 has "a check that cannot run reads as due rather than ok" "$(_mst "$MTR")" "due	broken"
 # The seeded row fires on a checkout with no graph, and not on one whose graph
 # is newer than its last commit — the two states that motivated the column.
-printf 'graphify\t0\talways\tthe map\ttest -n "$(find graphify-out/graph.json -newermt "$(git log -1 --format=%%cd --date=format-local:%%Y-%%m-%%dT%%H:%%M:%%S%%z)" 2>/dev/null)"\n' > "$MTP/maintenance.tsv"
+#
+# Mirrors the shipped row from templates/maintenance.tsv, exclusion and all. If
+# the two drift, this fixture stops testing what any project actually runs.
+printf 'graphify\t0\talways\tthe map\ttest -n "$(find graphify-out/graph.json -newermt "$(git log -1 --format=%%cd --date=format-local:%%Y-%%m-%%dT%%H:%%M:%%S%%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"\n' > "$MTP/maintenance.tsv"
 has "the seeded graphify row is due on a checkout with no graph" "$(_mst "$MTR")" "due	graphify"
 # One second, because BSD find compares -newermt at whole seconds: a graph
 # written 799ms after the commit, inside the same second, is "not newer".
@@ -7072,6 +7075,30 @@ has "and ok once a graph newer than the last commit exists"     "$(_mst "$MTR")"
 sleep 1
 ( cd "$MTR" && printf 'y\n' > b.txt && git add -A && git -c user.name=t -c user.email=t@t commit -qm later ) >/dev/null 2>&1
 has "and due again after a commit the graph has not seen"       "$(_mst "$MTR")" "due	graphify"
+# But recording that the refresh happened must not undo it.
+#
+# A cadence-0 row's run is recorded in maintenance.log, and that write has to be
+# committed for the cadence to survive the machine — so the commit that says
+# "the graph was refreshed" was itself a commit the graph had not seen, and the
+# row came due the moment it was satisfied. Measured on a real project: due,
+# refreshed, recorded, due, inside one pull request.
+#
+# Sound rather than convenient: the log is not in the graph's corpus, so a
+# commit touching only it changes nothing the graph models.
+sleep 1
+mkdir -p "$MTR/graphify-out" && printf '{}\n' > "$MTR/graphify-out/graph.json"
+has "a refreshed graph clears the row"                          "$(_mst "$MTR")" "ok	graphify"
+sleep 1
+mkdir -p "$MTR/projects/widget"
+( cd "$MTR" && printf 'graphify\t1\t2026-09-05\n' >> projects/widget/maintenance.log \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm "record the run" ) >/dev/null 2>&1
+has "and recording the run does not put it back"                "$(_mst "$MTR")" "ok	graphify"
+# The exclusion is that narrow: anything else the same commit shape touches
+# still counts, or the row would be a check that cannot come due.
+sleep 1
+( cd "$MTR" && printf 'z\n' > c.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm content ) >/dev/null 2>&1
+has "while any other commit still does"                         "$(_mst "$MTR")" "due	graphify"
 # And the command renders a checked row as a fact, not as a clock. The ok
 # branch printed `${age}d ago  every ${cadence}d`, which for a checked event
 # row came out as `-d ago  every 0d` — a number nobody wrote, in a row that

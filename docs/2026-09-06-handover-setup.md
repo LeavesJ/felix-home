@@ -253,9 +253,28 @@ was that nothing was looking.
 
 ### 1.4 Write NOTES.md
 
-Anything that has only ever been in your head. Where the beta stands, what you
-were part way through, which surfaces are fragile, what you would not touch
-yet.
+Anything that has only ever been in your head. Start from the scaffold rather
+than a blank file:
+
+```
+cp "$FELIX/docs/2026-09-06-notes-template.md" ~/handover/NOTES.md
+```
+
+Eight sections with the verifiable parts already filled in and a prompt under
+each of the rest: where the beta stands, what you were part way through, what
+you would have him do first, what you would not touch yet and why, what you
+already tried that did not work, the five decisions still open, people and
+context, and how to reach you for what. Delete each prompt as you answer it and
+delete whole sections that do not apply. A short honest NOTES.md beats a
+complete-looking one.
+
+**Section 1 has a real conflict to resolve.**
+`2026-09-06-riyan-onboarding.md:27` tells Riyan the beta has been running with
+one invited person per instance since 2026-09-05, and you said on 2026-09-06
+that nobody has been invited yet. Both can be true if the infrastructure went
+live and no invite went out, but he cannot tell that from what he has. Write
+the real sentence in NOTES.md and the onboarding document gets corrected to
+match it.
 
 ### 1.5 Read every file in the bundle
 

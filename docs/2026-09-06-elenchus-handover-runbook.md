@@ -98,16 +98,27 @@ Atlas, Cooley GO, and similar) have each founder separately sign a founder IP or
 invention assignment agreement at formation: a cofounder owes the company no
 automatic assignment duty the way an employee typically does, absent one.
 
-**One open question, not yet answered, and not decided here:** did Elenchus
-Labs, Inc.'s incorporation already include a founder IP assignment agreement
-signed by Riyan? If yes, section 3 of the engagement letter is redundant with
-something that already exists, and the honest fix is to relabel the letter from
-"Contractor" to "Founder" and drop the now-unneeded contractor reasoning in
-section 2, rather than run two differently worded assignments in parallel. If
-no, section 3 is the fix, and relabeling still applies: he should not sign a
-document that calls him "Contractor" when the cap table calls him a founder,
-because that mismatch is exactly what a future investor's diligence would flag.
-Either way, nothing here is redrafted until that question is answered.
+**Answered 2026-09-06: yes, and it is signed.** J confirmed the Stripe Atlas
+incorporation package includes "Form of Employee CIIAA for Riyan Jain" under
+Documents → Ownership, alongside his stock certificate, RSPA and 83(b) filing,
+and confirmed it carries an actual signature rather than sitting as a generated,
+unsigned form.
+
+**This resolves D0 more completely than the question anticipated.** Not only is
+section 3 redundant, so are sections 1 and 2. Riyan has held founders' stock
+since incorporation, so `LICENSE:12`'s founder exclusion has very likely applied
+to him from that date, self-executing, needing no side letter at all. The
+contractor-engagement letter was solving a problem the incorporation had already
+solved before this handover began.
+
+**The document was rewritten rather than relabeled.** `2026-09-06-riyan-
+engagement-letter.md` dropped the engagement, authorisation and IP-assignment
+sections entirely and kept only what a founder CIIAA does not reach: Felix
+confidentiality (Felix governs more than one venture, and whether Elenchus
+Labs, Inc.'s CIIAA extends to a different venture's material is not something
+to assume), the beta and invitee-data restriction (a promise about third
+parties, never an IP question), and one line on credential handling. Three
+short clauses, not eight.
 
 ### D1. How Riyan gets Felix
 

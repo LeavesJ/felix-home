@@ -21,12 +21,15 @@ checkout, `<felix>` is your Felix checkout.
 
 ## Part 0. Before anything else
 
-**0.1 Write the engagement down.** The license (`LICENSE` §5(b), §6) forbids
-modification and pull requests by "You", and §1 excludes "Owner's founders,
-employees, contractors, or agents acting on Owner's behalf". Riyan is inside that
-carve-out the moment it is written, and outside it until then. One paragraph
-naming him as a contractor or agent of Elenchus Labs, Inc., dated, signed by
-both.
+**0.1 Sign the Felix and beta confidentiality acknowledgment.** Resolved
+2026-09-06: Riyan is already a legal founder of Elenchus Labs, Inc. with a
+signed CIIAA from incorporation, so `LICENSE:12`'s founder exclusion and the IP
+assignment were both already in place before this handover started. What is
+left, and what `2026-09-06-riyan-engagement-letter.md` now covers, is three
+short things a founder CIIAA does not reach: Felix confidentiality, since Felix
+also governs a separate venture and its CIIAA-scope is not something to assume;
+the beta and invitee-data restriction, which is a promise about third parties
+rather than an IP question; and one line on credential handling.
 
 **This must be dated before Part 2.** It is the only prerequisite in this
 document.

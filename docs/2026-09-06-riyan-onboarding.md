@@ -83,12 +83,42 @@ Now run the suite:
 PYTHONPATH=src .venv/bin/pytest -q
 ```
 
-**Verify:** roughly `1439 passed, 35 skipped`. The suite is fully offline against
-a scripted fake model, so this needs no API key and costs nothing. Four of the
-skips need a corpus that is not in the repository, and the rest are the `@live`
-tests that skip without a key.
+**Verify:** `1439 passed, 35 skipped`. This was run on 2026-09-06 from a clone
+with nothing untracked in it, no `.env`, no `data/`, no `docs/` and no lift
+banks, and it took 74 seconds. So it is the number to expect exactly, not
+roughly, and if you get it your environment is correct before anything else
+arrives.
+
+The 35 skips break down precisely, which is worth knowing because it makes them
+a signal rather than noise:
+
+- **31 are "no key".** `test_voice_live.py` (21), `test_live_model.py` (6), and
+  one each in `test_steer_f1.py`, `test_lift_acceptance.py`,
+  `test_frame_gen_spike.py` and `test_elicitation_acceptance.py`. These are the
+  `@live` tests. They stay skipped and that is correct.
+- **4 need untracked corpus.** Two in `test_run_injection_probe.py` (238 and
+  214, "real payloads are gitignored and absent in a fresh worktree") and two in
+  `test_generator.py` (552 and 534, "real seeded corpus (gitignored data/) not
+  present").
+
+**Those four are your bundle check.** After you unpack what J sends, re-run the
+suite. If the corpus files landed where they belong, some or all of those four
+turn from skipped into passed and the skip count drops below 35. If it stays at
+exactly 35, something is in the wrong directory. That is a mechanical test of a
+step that otherwise has no feedback at all.
+
+The suite also writes nothing into the tree. `git status --short
+--untracked-files=all` was empty after a full run, so a dirty tree after testing
+means you did it, not pytest.
 
 If this fails on imports you skipped the `PYTHONPATH=src` part.
+
+One note on the version. This run used Python 3.13 and was green, and
+`pyproject.toml` declares a 3.12 floor, so the suite is not 3.14 locked. Match CI
+at 3.14 anyway: it is what `main` is gated by, and lesson L-19 about the editable
+install is specific to 3.14, so on any lower version you will not hit the problem
+the `PYTHONPATH=src` rule exists to route around and you may forget the rule
+matters.
 
 ### 3.2 Felix
 

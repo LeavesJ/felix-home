@@ -629,6 +629,21 @@ He follows `docs/2026-09-06-riyan-onboarding.md`. Your job in this phase is to
 be reachable, because two of these steps fail in ways that are not
 self-explanatory.
 
+**The good news, measured rather than assumed.** A completely fresh clone with
+nothing untracked in it runs **1439 passed, 35 skipped in 74 seconds**, with no
+`.env`, no `data/`, no `docs/` and no lift banks. Verified 2026-09-06. So his
+first hour does not depend on the bundle arriving, and a failure at this point
+is an environment problem rather than a missing file. The suite also writes
+nothing into the tree, so `git status` stays clean through a full run.
+
+The 35 skips are 31 `@live` tests without a key plus exactly 4 that want
+untracked corpus: two in `tests/test_run_injection_probe.py` and two in
+`tests/test_generator.py`. **That gives the bundle a mechanical receipt.** Tell
+him to re-run the suite after unpacking: if the corpus landed correctly the skip
+count drops below 35. If it stays at exactly 35, a file is in the wrong place.
+Without this, Phase C has no verification at all beyond a checksum on the
+archive.
+
 The finish line is one command producing one line:
 
 ```

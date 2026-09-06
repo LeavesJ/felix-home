@@ -283,14 +283,12 @@ live and no invite went out, but he cannot tell that from what he has. Write
 the real sentence in NOTES.md and the onboarding document gets corrected to
 match it.
 
-### 1.5 Read every file in the bundle
+### 1.5 Scan it, twice, and know what each pass misses
 
-This is the step that gets skipped and it is the one that matters. `docs/` holds
-a DEVLOG written for an audience of one. Read for credentials, invitee names or
-slugs, anything about a person, and anything about Veldra you would rather
-introduce yourself.
-
-### 1.6 Scan it, twice, and know what each pass misses
+**The scan comes before the read**, which is the reverse of an earlier draft and
+of nothing else in this document. The scan is thirty seconds and mechanical, and
+what it surfaces tells you where to look during the read. Reading first means
+reading blind.
 
 ```
 grep -rnI '' ~/handover/ | "$FELIX/engine/harness/bin/secret-scan" -
@@ -315,7 +313,69 @@ Measured, so you know the shape of the gap:
 | `BEGIN RSA PRIVATE KEY` | caught |
 | `my_password = "..."` | caught |
 
-**Stop here until both come back clean and you have read the files.**
+Neither pass looks for a person. That is 1.6.
+
+### 1.6 Read the bundle, hardest files first
+
+This is the step that gets skipped and it is the one that matters. It is also
+the one with no tooling behind it, so the useful thing this section can do is
+tell you where the risk actually concentrates rather than telling you to read
+everything with equal attention.
+
+**Second pass, mechanical, before you read anything.** Neither scan in 1.5 looks
+for a person or for a second venture:
+
+```
+cd ~/handover
+grep -rniE '[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}|veldra|reservegrid|retnovation|execlog|\+1[0-9]{10}' .
+grep -rn -A3 'provenance:' content-lift/candidates.yaml
+```
+
+The first finds email addresses, phone numbers, and every mention of the other
+venture. The second is specific and it is the one to look at hardest.
+
+**The lift banks are the highest-risk files in this bundle and you may not need
+to send them at all.** Both tracked stubs say the real banks are "Veldra-derived"
+in their own header comments (`content/lift/scenarios.example.yaml:2`,
+`content/lift/candidates.example.yaml:2`), and each candidate carries a
+`provenance.pointer` into an internal execution log, in the example's case
+`"EXECLOG EX-028 (abstracted)"`. The design intent is sound, the stub says
+"provenance is a POINTER, never quoted ore", but a pointer still names a real
+internal record and a `frame_detail` can still describe a recognisable real
+situation.
+
+They are also conditional. No tracked caller uses the default bank names, the
+suite is green without them, and Riyan needs them only for lift and mining work.
+**If he is not doing lift work this week, delete both from the bundle rather than
+reading them.** That converts the hardest reading job in this step into one
+command:
+
+```
+rm ~/handover/content-lift/scenarios.yaml ~/handover/content-lift/candidates.yaml
+```
+
+Then read what remains, in this order:
+
+1. **`docs/DEVLOG.md`.** The one that genuinely needs reading. It was written
+   for an audience of one and it is the longest thing in the bundle. Read for a
+   pasted credential, anyone's name, and anything about the other venture you
+   would rather introduce yourself.
+2. **`docs/lessons.md`.** Skim, but stop at every incident description. Lessons
+   are written after something went wrong and what went wrong sometimes
+   involved a person.
+3. **`POSITIONING.md`** and **`NOTES.md`.** You wrote both. Re-read them as
+   someone who does not already know what you meant.
+4. **`docs/superpowers/`** and **`docs/spike-results/`.** Volume rather than
+   risk. Design and plan documents named after engineering surfaces. Skim the
+   list, open anything whose filename is not obviously technical.
+5. **`docs/SESSION_HANDOFF.md`.** Confirmed clean 2026-09-06 on the specific
+   ground that no invitation has been run. Read it anyway, once, because that
+   ground is circumstantial and this is the last moment it is free to check.
+6. **`claude-config/CLAUDE.md`** and **`ENVIRONMENT.md`.** Doctrine you wrote and
+   a document generated from tracked code. Lowest risk in the bundle.
+
+**Stop here until both scans come back clean and you have read at least items 1
+and 2.**
 
 ---
 

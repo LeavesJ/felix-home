@@ -165,7 +165,7 @@ done
 cat <<'NEXT'
 
 Not done. Still to do, in this order:
-  1. Write NOTES.md into the bundle by hand.
-  2. Scan it, both passes, per 2026-09-06-handover-setup.md step 1.6.
-  3. Read every file. That is the step that matters and no script does it.
+  1. Write NOTES.md into the bundle by hand (step 1.4, template beside this script).
+  2. Scan it, both passes (step 1.5). Neither pass looks for a person.
+  3. Read it, hardest files first (step 1.6). No script does this one.
 NEXT

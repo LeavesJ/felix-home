@@ -20,8 +20,16 @@
 # is as close as this gets, and it is unverifiable from inside — a report that
 # it was blind is worth nothing on its own — so this records the method rather
 # than claiming the property.
-secret	engine/harness/bin/secret-scan	violation	fail	printf '%s\n' '' '# publish the run summary to the ops bucket' 'AWS_SECRET_ACCESS_KEY="fakeMHZ7bQx2Jv9pLd4KfR8nTsW1yUcE0aGiOb3X"' >> engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: violation"
-secret	engine/harness/bin/secret-scan	restoration	pass	printf '%s\n' 'AWS_SECRET_ACCESS_KEY="fakeMHZ7bQx2Jv9pLd4KfR8nTsW1yUcE0aGiOb3X"' >> engine/harness/lib/say.sh && printf '%s\n' "$(grep -v 'AWS_SECRET_ACCESS_KEY' engine/harness/lib/say.sh)" > engine/harness/lib/say.sh
+#
+# The values are assembled by the mutation rather than written out here, and
+# that is not cosmetic. A table of mutations for a CREDENTIAL checker is itself
+# full of credential-shaped strings, and the first version of this file was
+# caught by the very scanner it qualifies — correctly. The credential belongs
+# in the worktree the checker is pointed at, never in the diff that adds the
+# table. Keeping the two apart is the same distinction the checker exists to
+# draw, applied to its own fixture.
+secret	engine/harness/bin/secret-scan	violation	fail	{ printf %s\\n "" "# publish the run summary to the ops bucket"; printf AWS_%s_ACCESS_KEY=\"fake%s\"\\n SECRET MHZ7bQx2Jv9pLd4KfR8nTsW1yUcE0aGiOb3X; } >> engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: violation"
+secret	engine/harness/bin/secret-scan	restoration	pass	printf AWS_%s_ACCESS_KEY=\"fake%s\"\\n SECRET MHZ7bQx2Jv9pLd4KfR8nTsW1yUcE0aGiOb3X >> engine/harness/lib/say.sh && printf %s\\n "$(grep -v ACCESS_KEY engine/harness/lib/say.sh)" > engine/harness/lib/say.sh
 secret	engine/harness/bin/secret-scan	irrelevant	pass	printf '%s\n' "$(sed 's/# proj, kind, text, \[what caused it\], \[session\]/# proj, kind, text, [the prompt that caused it], [session id]/' engine/harness/lib/say.sh)" > engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: irrelevant"
 secret	engine/harness/bin/secret-scan	alternate	fail	printf '%s\n' 'name: publish' 'on:' '  workflow_dispatch:' 'jobs:' '  publish:' '    runs-on: ubuntu-latest' '    env:' '      NPM_AUTH_TOKEN: fakenpm7QvZ2mKxT9bLd4RzW8pJyUc0AeGhSfXo31' '    steps:' '      - uses: actions/checkout@v4' '      - run: ./engine/harness/felix gate' > .github/workflows/publish.yml && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: alternate"
 secret	engine/harness/bin/secret-scan	decoupled_violation	fail	printf '%s\n' '' '# Archive the run summary into the ops warehouse.' 'felix_monitor_archive() {' '  psql "postgresql://felix_ops:fakeR7mQx2LbNvT4hJyUc0AeGhSdWq@db.ops.example.com:5432/felix_state" -c "select 1" >/dev/null 2>&1 || true' '}' >> engine/harness/lib/monitor.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: decoupled violation"

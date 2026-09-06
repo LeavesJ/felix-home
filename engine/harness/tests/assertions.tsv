@@ -114,6 +114,7 @@
 1	a gitignored stray in the tree is residue, not drift
 1	a gitlink already in history does not block every future backup
 1	a governed product merges with no installed engine at all
+1	a grant of authority escapes
 1	a grant with no stamp does not cover the table
 1	a green gate does not clear an escape
 1	a green gate on this exact tree allows it
@@ -863,6 +864,7 @@
 1	and so does a failure nobody answered
 1	and so does a worktree of it
 1	and so does the next one
+1	and so does the stamp that says what it was read against
 1	and so is a deny from its own PreToolUse
 1	and so is a second one
 1	and so is every other one

@@ -153,6 +153,16 @@ out="$(cd "$REPO" && "$FELIX" gate 2>&1)"; rc=$?
                 || bad "failing gate propagates non-zero exit" "got 0, a gate that cannot fail is not a gate"
 printf 'contents\n' > "$REPO/WIDGET.txt"
 
+# Qualification is armed on declaration, and on nothing else.
+#
+# A project that has qualified nothing is skipped and told so, the same way an
+# absent probes.tsv is: this gate declines to be the place that turns a new
+# project red on day one, which is the objection that kept qualification
+# unarmed. What binds is a control somebody wrote down — and writing one is the
+# act of claiming the checker catches that case.
+has "a project that has qualified nothing is skipped, not failed" \
+    "$out" "no qualification.tsv for widget"
+
 printf '\nungoverned directories\n'
 PLAIN="$TMP/unrelated"; mkdir -p "$PLAIN"; ( cd "$PLAIN" && git init -q -b main )
 out="$(cd "$PLAIN" && "$FELIX" gate 2>&1)"; rc=$?
@@ -7895,6 +7905,33 @@ printf 'demo\tonly-two\n' >> "$QLP/qualification.tsv"
 has "a row too short to run anything is reported, not skipped" \
     "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
         felix_qualify_malformed "$QLP")" "demo"
+
+# Armed: a declared control that does not hold refuses.
+#
+# This is the whole of the arming decision. Nothing else binds — a checker with
+# no rows is untouched, so the day this landed it could not turn any gate red;
+# the one project with rows met every one of them. What it can do is turn red
+# the day a checker stops catching what it used to, which is the only moment a
+# qualification suite earns its keep.
+cp "$FROOT/projects/widget/qualification.tsv" "$TMP/qual.keep" 2>/dev/null || true
+_qcheck='! grep -rqI FORBIDDEN . 2>/dev/null'
+printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck" \
+  > "$FROOT/projects/widget/qualification.tsv"
+( cd "$REPO" && "$FELIX" qualify --gate >/dev/null 2>&1 ); _qrc=$?
+is "a met control passes the gate check" "$_qrc" "0"
+# The same checker, asked to catch something it does not.
+printf 'demo\t%s\talternate\tfail\tprintf harmless > other.txt\n' "$_qcheck" \
+  >> "$FROOT/projects/widget/qualification.tsv"
+_qo="$(cd "$REPO" && "$FELIX" qualify --gate 2>&1)"; _qrc=$?
+is  "a held control refuses it"          "$_qrc" "1"
+has "and says what a held control means" "$_qo"  "property the tree does not have"
+# It must be the control that decides, not merely the presence of a table:
+# the first row still passes in the same run.
+has "while the control that holds is still reported met" "$_qo" "violation"
+rm -f "$FROOT/projects/widget/qualification.tsv"
+[ -f "$TMP/qual.keep" ] && mv "$TMP/qual.keep" "$FROOT/projects/widget/qualification.tsv"
+is "and the widget project is as this block found it" \
+   "$([ -f "$FROOT/projects/widget/qualification.tsv" ] && echo present || echo absent)" "absent"
 
 printf '\nautonomy is opted into, never assumed\n'
 AUP="$TMP/autoproj"; mkdir -p "$AUP"

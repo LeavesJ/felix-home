@@ -548,6 +548,32 @@ cmd_gate() {
       probes "$(basename "$proj")"
   fi
 
+  # qualified: does each check that claims to catch something still catch it?
+  #
+  # Armed on declaration and on nothing else. A project with no qualification
+  # table is skipped and announced, the same way an absent probes.tsv is —
+  # this gate declines to be the place that turns a new project red on day one.
+  # A checker with rows must meet them, because writing a control is the act of
+  # claiming the checker catches that case.
+  local qout qrc
+  if [ -f "$proj/qualification.tsv" ]; then
+    qout="$(cmd_qualify --gate 2>&1)"; qrc=$?
+    if [ "$qrc" -eq 0 ]; then
+      printf '  %-18s ok\n' qualified | tee -a "$log"
+      printf '                     %s control(s) met across %s checker(s)\n' \
+        "$(printf '%s\n' "$qout" | grep -cE '  ok$')" \
+        "$(printf '%s\n' "$qout" | awk 'NR > 3 && NF >= 4 { print $1 }' | sort -u | grep -c .)"
+    else
+      printf '  %-18s FAIL\n' qualified | tee -a "$log"
+      printf '%s\n' "$qout" | grep -E 'HELD|UNRUNNABLE' | head -8 | sed 's/^/  /'
+      [ "$rc" -eq 0 ] && printf '\ngate: FAIL (qualified)\n'
+      rc=1
+    fi
+  else
+    printf '  %-18s skipped (no qualification.tsv for %s; felix qualify says how to write one)\n' \
+      qualified "$(basename "$proj")"
+  fi
+
   # commission: offline and announce-only, except for the empty case. Only
   # hashes and file parsing run here — no check, no instrument, no cli — so
   # CI sees the same line a laptop does. A receipt that is stale, absent or
@@ -1473,9 +1499,15 @@ cmd_autonomy() {
 # founder's decision. Making the gap visible is the half that needs no decision,
 # and it is the half that was missing.
 cmd_qualify() {
-  resolve_or_die; local proj="$PROJ" want="${1:-}" root
+  resolve_or_die; local proj="$PROJ" want="" gate=0 a root
+  for a in "$@"; do
+    case "$a" in
+      --gate) gate=1 ;;
+      -*)     die "usage: felix qualify [--gate] [checker]" ;;
+      *)      want="$a" ;;
+    esac
+  done
   root="$(felix_repo_root "$PWD")"
-  case "$want" in -*) die "usage: felix qualify [checker]" ;; esac
 
   local rows; rows="$(felix_qualify_rows "$proj")"
   printf 'qualification for %s\n\n' "$(basename "$proj")"
@@ -1528,9 +1560,30 @@ cmd_qualify() {
     printf 'protects. That is not a failing test — it is the check reporting a\n'
     printf 'property the tree does not have.\n'
   fi
-  printf '\nNothing here refuses anything yet. Whether an unqualified checker may\n'
-  printf 'go on enforcing is a decision about how much Felix may block, and that\n'
-  printf "is the founder's. This makes the gap legible; it does not close it.\n"
+  # Armed, and the ratchet is what makes that safe.
+  #
+  # A declared control binds. Nothing else does: a checker with no rows is not
+  # reported as failing, and a control nobody wrote is not a control anybody
+  # broke. So this cannot turn a gate red on the day it lands — on the day it
+  # landed, the one checker with rows met all six of them. What it can do is
+  # turn red the day a checker stops catching something it used to catch, which
+  # is the only moment a qualification suite is worth having.
+  #
+  # Declaring a control is therefore a commitment, taken deliberately, one edit
+  # at a time. That is the opposite of the design this replaced — refuse
+  # everything unqualified, which is unarmable because it fails everything at
+  # once and teaches a person to switch it off.
+  if [ "$gate" -eq 1 ]; then
+    [ "${held:-0}" -eq 0 ] && [ "${unrun:-0}" -eq 0 ] && return 0
+    printf '\nA declared control that does not hold is this check reporting a\n'
+    printf 'property the tree does not have. Fix the checker, or delete the\n'
+    printf 'control and say in the diff that it is no longer claimed.\n'
+    return 1
+  fi
+  printf '\nA declared control binds; an undeclared one does not. felix qualify\n'
+  printf '--gate refuses on a held control, so a checker that stops catching what\n'
+  printf 'it caught turns the gate red — and a checker nobody has qualified yet\n'
+  printf 'is left exactly as it was.\n'
   return 0
 }
 

@@ -414,11 +414,19 @@ Felix checkout), and it proves the mechanism works. As a grant to a human it has
 the same exposure as option 2 with worse revocation, because a deploy key is a
 shared bearer secret rather than an identity.
 
-**4. Tarball or release artifact. Rejected on mechanics.**
+**4. Tarball or release artifact. Works, and still rejected.**
 
-`cmd_install` refuses to deploy from anything that is not a checkout, so this
-does not work without also making it a git repository, at which point it is
-option 1 with a worse update path.
+An earlier draft rejected this on mechanics and was wrong. Tested 2026-09-06: a
+distribution tree with its `.git` removed entirely still resolves correctly,
+`felix which` names `elenchus`, and doctrine, gate and memory paths all come out
+right. `felix_repo_root` falls back to the directory itself outside git, and
+`cmd_install`'s refusal is aimed at a plugin cache copy specifically, not at the
+absence of a repository.
+
+Reject it for the real reason instead: **there is no update path and no way to
+tell which version you are holding.** Every Felix change becomes an archive to
+build, send, and unpack by hand, and nothing in the tree records where it came
+from. Option 1 is the same thing with `git pull`.
 
 ### 4e. Building option 1, and the run that proved it
 
@@ -764,10 +772,10 @@ rather than debugging live.
   one exists to stop, and it is the one that has already cost a day.
 - The suite fails on imports. He is relying on the editable install. Everything
   runs with `PYTHONPATH=src`, per `README.md` Develop and L-19.
-- The `installed` check is red. The engine tree and the deployed cache disagree.
-  On Riyan's machine this should not happen, because he never edits the engine.
-  If it does, it means the distribution repo moved without him re-running
-  `felix install`.
+- He reports the gate has fewer checks than this document says. Count them: the
+  Elenchus gate has eight, `format lint test confidential secret lift-bank
+  ignore-leak inversion`. There is no `installed` check here; that one lives in
+  Felix's own project only, which is why a stale engine on his machine is silent.
 - `lift-bank` or `confidential` fails. He staged something from the bundle. This
   is the gate doing its job, and it is worth him seeing once.
 - `probes` reports a blind `http_route`, and `commission` says "never
@@ -851,22 +859,60 @@ The loop is four steps and only the last is new work:
 3. Sync and push the distribution repository, per §4e.
 4. Riyan pulls and runs `felix install`.
 
-Step 4 is the one that will be forgotten, and the failure is quiet: his sessions
-keep running the engine version he installed last. Two properties of the system
-make this survivable. Hooks bind at session start
-(`HANDOFF.md:3690`), so a stale engine is stale for a whole session and then
-notices. And the `installed` gate check compares his tree against his deployed
-cache, so a pull without an install turns his next gate red rather than letting
-him ship against a contract he does not have.
+Step 4 is the one that will be forgotten, and the failure is quiet. **Correcting
+an earlier draft of this section, which claimed a safety net that does not
+exist:** the `installed` gate check lives only in `projects/felix/gate.sh:148`
+and `:182`. Elenchus's gate has eight checks and `installed` is not one of them,
+verified by grep. So a stale engine on Riyan's machine produces **no red gate and
+no signal at all**. His sessions simply keep running the engine he installed
+last.
 
-### The version skew that has no guard
+What is actually true is weaker and worth stating accurately. Hooks bind at
+session start (`HANDOFF.md:3690`), so a stale engine is stale for a whole session
+rather than half of one. That is the only automatic property here.
 
-`plugin.json` carries a version, but nothing checks that
-`projects/elenchus/gate.sh` and the engine are from the same release. Since your
-sync always ships both together as one commit, a squashed distribution
-repository makes this structurally impossible rather than merely unlikely. That
-is a second reason to prefer option 1 over a collaborator seat, where he could
-pull a partially updated tree.
+So the sync needs a human check rather than a mechanical one. The cheapest
+version: after any push to the distribution repository, tell Riyan in one line,
+and have him run `git pull && felix install --home ~/felix` before his next
+session. `felix install` verifies itself and prints either "verified the
+installed engine matches this tree" or an explanation, so the check is one
+command with a readable answer.
+
+### The version skew that is real, and where it actually lives
+
+An earlier draft said a squashed distribution repository makes skew
+"structurally impossible". That is true on one axis and wrong on the one that
+matters.
+
+**True within the distribution repo.** `plugin.json` carries a version and
+nothing checks that `projects/elenchus/gate.sh` and the engine came from the same
+release, but since your sync ships both in one commit, Riyan cannot pull a
+half-updated tree. That much holds, and it is a real advantage over a
+collaborator seat.
+
+**Wrong between his machine and CI, because the gate contract has two sources.**
+Riyan's local gate comes from the distribution repository. Elenchus CI does not:
+`.github/workflows/gate.yml:73` checks out `repository: LeavesJ/felix` directly,
+with `ssh-key: ${{ secrets.FELIX_DEPLOY_KEY }}`. So CI always runs the gate as it
+exists on felix `main`, and Riyan always runs the gate as it existed when you
+last synced. **Edit `projects/elenchus/gate.sh` in felix, forget to sync, and the
+two disagree.**
+
+That is a genuine hazard and it has a cheap discipline: **a `projects/elenchus/`
+change in felix is not finished until the distribution repository is synced in
+the same sitting.** Treat the sync as part of the change, the way
+`docs/DEVLOG.md` is part of an Elenchus change.
+
+The tell, if it happens anyway, is one you already know:
+`HANDOFF.md:4052` records that CI and local disagreeing is a finding rather than
+flakiness. Under this arrangement it has a new and much more likely cause, so
+both documents name it. Verify it in one command from your own machine:
+
+```
+diff -r <felix>/projects/elenchus <felix-dist>/projects/elenchus
+```
+
+Empty means the two gates are the same gate.
 
 ### The feedback loop, and what you lose
 

@@ -454,10 +454,23 @@ so what Felix gets wrong for you is worth telling him about specifically.
 cd ~/felix && git pull && ./engine/harness/felix install --home ~/felix
 ```
 
-Forgetting this is quiet at first and then loud: your sessions keep the engine
-you installed last, and your next `felix gate` goes red on the `installed` check
-because your tree and your deployed cache disagree. That red is the system
-telling you to run the two commands above.
+**Forgetting this is quiet and stays quiet.** There is no check that catches it.
+The `installed` gate check exists only in Felix's own project, not in Elenchus's,
+so a stale engine on your machine produces no red gate and no warning. Your
+sessions just keep running the engine you installed last. Make the two commands
+above a habit tied to J telling you he pushed, because nothing else will remind
+you.
+
+**The one skew that will actually bite you.** Your local gate comes from your
+distribution clone. Elenchus CI does not use it: `.github/workflows/gate.yml:73`
+checks out `LeavesJ/felix` directly. So CI runs the gate as it exists on felix
+`main` and you run the gate as of your last pull. If those drift, **you get green
+locally and red in CI, or worse, green in both while checking different things.**
+
+If CI and local ever disagree, that is a finding and not flakiness. Say so to J
+immediately rather than re-running the job: under this arrangement the likeliest
+cause is that your gate and CI's gate are different files, and he is the only one
+who can see both.
 
 **When you need the gate contract changed.** `projects/elenchus/gate.sh`, the
 risk rules, the routes and the evidence requirements live in Felix and you

@@ -93,7 +93,7 @@ D2 is revisited, that table has to be extracted deliberately rather than moved
 with anything else.
 
 **Cloudflare Access holds the email addresses, and deletion cannot reach them.**
-`forget.py:162` is explicit: the Access application "carries this person's EMAIL
+`forget.py:163` is explicit: the Access application "carries this person's EMAIL
 ADDRESS in its policy, and this script cannot reach it." So the script prints
 three by-hand steps and reports success without having done them, which means
 the same-day deletion promise in the README depends on an operator completing
@@ -557,8 +557,10 @@ handover/
   docs/                      # from Elenchus, reviewed file by file
   POSITIONING.md             # the one binding root document
   content-lift/
-    scenarios.yaml
-    candidates.yaml
+    scenarios.yaml           # only if he does lift work
+    candidates.yaml          # only if he does lift work
+  data-corpus/
+    injection_payloads.yaml  # ONLY if he works the injection probe. Live exploits.
   claude-config/             # .claude/, if you are sending it
   NOTES.md                   # anything that was only ever in your head
 ```
@@ -570,13 +572,56 @@ says things. Read for: credentials pasted into a log, invitee names or slugs,
 anything about a person, and anything about Veldra or Felix strategy that is not
 Riyan's business.
 
-Verify mechanically as well as by eye, using Felix's own scanner rather than a
-fresh regex:
+Verify mechanically as well as by eye. **The obvious way to do this does not
+work, and it fails silently, so read this part before running anything.**
+
+`secret-scan` takes a git base ref or `-` for stdin. It does not take a
+directory. Pointed at the bundle it prints "no base ref found; scanning
+uncommitted changes only" and **exits 0**, which reads exactly like a clean
+bundle while having scanned a different tree entirely. Verified 2026-09-06
+against a bundle with a live-shaped key planted in it.
+
+The working invocation is stdin, and it keeps file and line attribution because
+`grep -rn` puts them in the text:
 
 ```
-<felix>/engine/harness/bin/secret-scan   # run against the bundle
-grep -rniE "sk-ant|BEGIN [A-Z ]*PRIVATE KEY|api[_-]?key *=" handover/
+grep -rnI '' handover/ | <felix>/engine/harness/bin/secret-scan -
 ```
+
+**And it has one blind spot that matters here more than anywhere else.**
+`FELIX_SCAN_CONTEXT` (`engine/harness/bin/secret-scan:40`) lists
+`ANTHROPIC_API_KEY` as a whole-line exclusion, so **any line containing that
+string is skipped entirely**, including `ANTHROPIC_API_KEY=sk-ant-<a real key>`.
+That exclusion is correct for the job the scanner was built for, which is reading
+source diffs full of `os.environ["ANTHROPIC_API_KEY"]` lookups. It is exactly
+wrong for a bundle, where a line copied out of a `.env` is the single most likely
+way a key travels.
+
+Measured, so you know what you are and are not covered for:
+
+| Planted line | `secret-scan -` |
+|---|---|
+| `ANTHROPIC_API_KEY=sk-ant-...` | **missed** |
+| `export ANTHROPIC_API_KEY="sk-ant-..."` | **missed** |
+| a bare `sk-ant-...` in prose | caught |
+| `aws_key = AKIA...` | caught |
+| `BEGIN RSA PRIVATE KEY` | caught |
+| `my_password = "..."` | caught |
+
+So run both, and treat the second as the one that covers the gap:
+
+```
+grep -rnI '' handover/ | <felix>/engine/harness/bin/secret-scan -
+grep -rniE 'sk-ant-|sk-[A-Za-z0-9]{20}|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY|ANTHROPIC_API_KEY[[:space:]]*=' handover/
+```
+
+The second will fire on any mention of `ANTHROPIC_API_KEY=` including harmless
+ones. That is the right trade for one directory you are reading anyway.
+
+Fixing the exclusion in Felix is not part of this handover. It is arguably not a
+defect at all, because the scanner's designed input is a diff of tracked source
+where that exclusion is load-bearing. It is a wrong tool for this one job, and
+the second command is the fix.
 
 **A4. Reconcile the two lessons files, then extract.** There are two and they may
 have diverged. Elenchus's `README.md:113` points at `docs/lessons.md` and calls

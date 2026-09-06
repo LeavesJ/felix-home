@@ -58,14 +58,21 @@ for gate receipts and route memory, which is gitignored, and into
 `~/.felix/memory/` for your lessons and ledger, which is outside the clone. You
 will never need to push there.
 
-**One thing to settle with J before you commit anything.** Elenchus is public but
-it is not open source. The tracked `LICENSE` is source available: section 5(b)
-forbids modifying or preparing patches for the Materials, and section 6 says not
-to submit pull requests. Section 1 then carves out "Owner's founders, employees,
-contractors, or agents acting on Owner's behalf", and section 6 repeats that
-carve-out, so the work is squarely permitted once you are engaged in one of those
-capacities. Make sure that is written down before your first commit. It is J's to
-arrange, and it is worth your asking rather than assuming.
+**One thing worth understanding, which is already settled.** Elenchus is public
+but it is not open source. The tracked `LICENSE` is source available: section
+5(b) forbids modifying or preparing patches for the Materials, and section 6
+says not to submit pull requests. Section 1 then carves out "Owner's founders,
+employees, contractors, or agents acting on Owner's behalf", and section 6
+repeats that carve-out.
+
+You are a founder of Elenchus Labs, Inc. with founders' stock from
+incorporation, so you have been outside the licence's definition of "You" since
+the stock was issued. Nothing needs to be drafted to make that true and your
+first commit is not gated on it. An earlier version of this paragraph told you
+to chase a document before committing; that was written before the incorporation
+paperwork was confirmed. The one document that does exist covers Felix
+confidentiality and the beta boundary, which a founder CIIAA does not reach, and
+J will have sent it before you have access at all.
 
 ---
 
@@ -124,11 +131,23 @@ a signal rather than noise:
   `test_generator.py` (552 and 534, "real seeded corpus (gitignored data/) not
   present").
 
-**Those four are your bundle check.** After you unpack what J sends, re-run the
-suite. If the corpus files landed where they belong, some or all of those four
-turn from skipped into passed and the skip count drops below 35. If it stays at
-exactly 35, something is in the wrong directory. That is a mechanical test of a
-step that otherwise has no feedback at all.
+**Those four stay skipped for you, permanently, and that is correct.** An
+earlier version of this paragraph called them a bundle receipt and told you that
+a count still at 35 after unpacking meant a file was in the wrong directory.
+That was wrong and would have cost you a day hunting a misfile that does not
+exist.
+
+Both `test_generator.py` skips key on `data/elenchus.db` existing
+(`tests/test_generator.py:534` and `:552`). That is J's own sittings database
+and it never travels, for the reason §7 gives. Both
+`test_run_injection_probe.py` skips key on `PAYLOAD_PATH`, which resolves to
+`<repo>/data/injection_payloads.yaml` (`src/elenchus/run_injection_probe.py:88`),
+and the payload corpus is conditional: it is in your bundle only if you are
+working the injection probe, and the bundle builder refuses `data/` by default.
+
+So **35 is your number before and after unpacking**. The bundle has no
+mechanical self-check. Verify it by listing what you unpacked against the table
+in §3.3.
 
 The suite also writes nothing into the tree. `git status --short
 --untracked-files=all` was empty after a full run, so a dirty tree after testing
@@ -334,10 +353,26 @@ failure later.
 `inversion` is the only one that is advisory. The other seven decide the exit
 code.
 
-Below the eight, Felix prints two more lines that are not gate checks and do not
-decide the verdict. On a fresh machine expect `probes` to report one blind
-`http_route`, and `commission` to say "never commissioned on this machine". Both
-are first-run states and a green gate still reads `gate: pass`.
+Below the eight, Felix prints two more lines. **They are not the same as each
+other, and an earlier version of this paragraph said they were.** It told you
+both were announce-only and that a blind `http_route` was a normal first-run
+state. That is true of one of them and dangerously wrong about the other.
+
+`commission` is announce-only. It prints its state and never changes the exit
+code (`engine/harness/felix:573`).
+
+**`probes` decides the verdict.** A row that comes back `blind` or `unknown`
+counts as blocking (`engine/harness/lib/probes.sh:355`), and one blocking row
+makes Felix print `probes FAIL` and then `gate: FAIL (probes)` and set `rc=1`
+(`engine/harness/felix:3935`, `:541`, `:542`), even when all eight project
+checks passed. So a blind `http_route` is not a first-run state to expect. It is
+a red gate.
+
+If you see one, the cause is almost always your virtualenv. The probe falls back
+to the system `python3` when `.venv/bin/python` is missing
+(`projects/elenchus/probes.tsv:29`), which then fails on an import while the
+witness file still exists, and that combination is what `probes.sh` classifies
+as blind. Check that `.venv` exists and was built with the `[web]` extra.
 
 **`commission` will bite you later though, at `felix merge` rather than at the
 gate.** It is an escape channel, and `escape.sh:14` says "Empty output means
@@ -496,7 +531,7 @@ Not a matter of trust. Each of these is a boundary with a specific reason.
   holds what real invited people wrote about real decisions they are facing.
   They agreed to J seeing it. Your `data/` starts empty and that is the correct
   state.
-- **J's own `data/elenchus.db`.** Nineteen of his own sittings. The code
+- **J's own `data/elenchus.db`.** His own sittings. The code
   describes this file as holding "one particular person's decisions"
   (`src/elenchus/web/runtime.py:54`) and refuses to serve it on a non-loopback
   address for exactly that reason.
@@ -504,8 +539,13 @@ Not a matter of trust. Each of these is a boundary with a specific reason.
   domain.
 - **His Anthropic key.** You have your own, with its own spend limit, so a leak
   from either machine does not burn the other and so spend stays attributable.
-- **The rest of the Felix repository.** `HANDOFF.md`, `projects/veldra/`,
-  `projects/felix/`. Standing strategy for other things.
+- **The rest of the Felix repository is the exception on this list: you do have
+  it.** `HANDOFF.md`, `projects/felix/` and `projects/veldra/` are all inside
+  your read grant, and §2 says so. They are standing direction for other work,
+  including a separate venture, and they are not yours to use or to disclose.
+  That is clause 1 of the acknowledgment you signed, and it is a confidentiality
+  obligation rather than an access boundary. Everything else on this list you
+  genuinely cannot reach.
 - **Elenchus's `projects/elenchus/` in Felix.** You have it read only. A gate
   contract change is a request to J. See §8.
 

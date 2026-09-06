@@ -428,11 +428,20 @@ cd "$ELENCHUS" && ~/felix/engine/harness/felix which
 `felix which` names `elenchus`. Read access is enough: Felix writes only into a
 gitignored `state/` in the clone and into his own `~/.felix/memory/`.
 
-**4.3 Unpack the bundle, then re-run the suite.** This is the receipt. Of the 35
-skips, 31 are `@live` tests without a key and exactly 4 want untracked corpus,
-two in `tests/test_run_injection_probe.py` and two in `tests/test_generator.py`.
-If the corpus landed correctly the skip count drops below 35. **If it stays at
-exactly 35, a file is in the wrong directory.**
+**4.3 Unpack the bundle, then re-run the suite. Expect 35 again.**
+
+Earlier drafts called this a mechanical receipt: 31 of the skips are `@live`
+tests without a key, 4 want untracked corpus, so a count below 35 after
+unpacking would prove the corpus landed. **That is wrong and it would have cost
+Riyan a day.** Both `test_generator.py` skips key on `data/elenchus.db` existing
+(`:534`, `:552`), which is your own sittings database and never travels. Both
+`test_run_injection_probe.py` skips key on `<repo>/data/injection_payloads.yaml`
+(`src/elenchus/run_injection_probe.py:88`), which is conditional and which the
+bundle builder refuses by default.
+
+So 35 is his permanent correct count and the bundle has no self-check at all.
+Verification is him listing what he unpacked against the table in 3.3, which is
+why that table has to be right.
 
 **4.4 First green gate.**
 

@@ -135,14 +135,21 @@ repository. That single file is what makes the codebase legible.
 
 ## 5. The order
 
-Reversibility drops sharply at step three. Everything before it can be undone by
-deleting a repository and removing a collaborator.
+**Reversibility ends at step two, not step three.** An earlier version of this
+paragraph said everything before step three could be undone "by deleting a
+repository and removing a collaborator", which was true only while D1 called for
+a separate distribution repository. There is no such repository now. The moment
+Riyan accepts the `felix` invitation and clones, everything in `LeavesJ/felix`
+is disclosed permanently; removing the seat afterwards removes future access,
+not the copy on his disk.
 
 1. **Prepare.** Assemble the bundle. Read every file in it. Nothing has been
    sent.
 2. **Grant access.** Add him to `felix` with read, issue his key. He already has
-   write on Elenchus. Still fully reversible.
-3. **Send the bundle.** Encrypted. This is the point of no return.
+   write on Elenchus. **This is the first irreversible step.**
+3. **Send the bundle.** Encrypted. Irreversible too, and worse in one respect:
+   the bundle holds material that is in no repository, so nothing else has a
+   copy of it.
 4. **His first green gate.** The finish line for day one.
 5. **His first pushed commit.** Small on purpose, so the whole chain gets
    exercised while nothing is at stake.
@@ -154,14 +161,24 @@ deleting a repository and removing a collaborator.
 
 Each of these is a boundary with a reason, not a matter of trust.
 
-- Felix's memory directory, in any form. It holds verbatim founder prompts.
+- The memory root's raw logs. `routes.log` and `says.log` hold verbatim prompt
+  text, `unresolved.log` spans every governed project, and `mistakes.log`,
+  `verification.log` and `ledger.tsv` are per-machine records.
 - Your own sittings database. That is your personal decision history.
 - Any invitee's database. That is other people's writing.
 - Your API key, and your Cloudflare credentials.
-- `HANDOFF.md`, and the Felix and Veldra project directories.
 
-If he later needs something on this list, that is a new decision on its own
-merits, not an extension of this one.
+**Two earlier entries on this list were wrong and are struck.** "Felix's memory
+directory, in any form" cannot hold, because `docs/lessons.md`, `docs/DEVLOG.md`
+and `docs/SESSION_HANDOFF.md` are symlinks into that directory and all three are
+in the bundle. They are authored prose rather than raw logs and they travel as
+contents. And "`HANDOFF.md`, and the Felix and Veldra project directories" was
+struck by D1: read on `felix` is read on all of it. That is not a leak, it is
+the grant, and §2's D1 records it as accepted. What covers it is clause 1 of the
+confidentiality acknowledgment, not an access boundary.
+
+If he later needs something still on this list, that is a new decision on its
+own merits, not an extension of this one.
 
 ---
 
@@ -171,12 +188,21 @@ Three are answered as of 2026-09-06. Riyan is engaged with high authority, he is
 `InsertWittyCommentHere` and already holds write, and the CI deploy key stays
 where it is. What remains:
 
-1. Get the engagement in writing with a date. The license turns on a capacity,
-   not on a shared understanding, and a paragraph is enough.
-2. Does the beta stay yours indefinitely, or is there a date?
-3. Which of your untracked root documents are drafts you would rather not send?
-4. Does `.env.example` get added?
-5. Does he eventually get write access to the gate contract, and how?
+1. Date the Felix and beta confidentiality acknowledgment. **This is not the
+   license question**, which is closed: `LICENSE:12`'s founder exclusion is
+   self-executing and the CIIAA was signed at incorporation. An earlier version
+   of this item told you to get the engagement in writing before his first
+   commit, which was D0's pre-reversal answer. What is left covers only what a
+   founder CIIAA does not reach, and its deadline is **before Part 2**, the
+   access grant, not before his first commit.
+2. **How many people have actually been invited?** The runbook says eight, and
+   you said none. Both cannot hold, and the answer decides whether
+   `SESSION_HANDOFF.md` is safe to send at all. Section 1 of the NOTES.md
+   template asks for the real sentence.
+3. Does the beta stay yours indefinitely, or is there a date?
+4. Which of your untracked root documents are drafts you would rather not send?
+5. Does `.env.example` get added?
+6. Does he eventually get write access to the gate contract, and how?
 
-Only the first needs doing before he starts committing. The rest can wait until
-you are at the machine.
+The first two need doing before you grant the felix seat. The rest can wait
+until you are at the machine.

@@ -40,9 +40,19 @@ profiles. Keeping them separate is most of the work.
 2. **Felix use.** Riyan runs Felix against his Elenchus checkout. Felix is
    private and stays private, and you keep developing it. He needs the engine and
    one project directory, and nothing else in the repository.
-3. **Beta operations.** Eight or so real people have written real decisions into
-   per invitee databases. That is third party personal data and it is the one
-   thing in this handover that cannot be un-sent.
+3. **Beta operations.** Per-invitee databases hold real decisions written by
+   real people. That is third party personal data and it is the one thing in
+   this handover that cannot be un-sent.
+
+   **How many people is unresolved and it matters.** This paragraph said "eight
+   or so" from an early reading; on 2026-09-06 the founder said nobody has been
+   invited yet, and `2026-09-06-riyan-onboarding.md:27` tells Riyan the beta has
+   been running one invited person per instance since 2026-09-05. Those cannot
+   all hold. The answer is load-bearing rather than cosmetic: §3c sends
+   `SESSION_HANDOFF.md` on the specific ground that no invitee material has
+   accumulated in it yet, and that ground evaporates if eight people have sat
+   down. Section 1 of `2026-09-06-notes-template.md` asks for the real sentence,
+   and every document gets corrected from it.
 
 The recommendation running through this entire document is that these three
 separate cleanly, and that separating them is what makes the handover safe
@@ -1091,11 +1101,22 @@ nothing into the tree, so `git status` stays clean through a full run.
 
 The 35 skips are 31 `@live` tests without a key plus exactly 4 that want
 untracked corpus: two in `tests/test_run_injection_probe.py` and two in
-`tests/test_generator.py`. **That gives the bundle a mechanical receipt.** Tell
-him to re-run the suite after unpacking: if the corpus landed correctly the skip
-count drops below 35. If it stays at exactly 35, a file is in the wrong place.
-Without this, Phase C has no verification at all beyond a checksum on the
-archive.
+`tests/test_generator.py`.
+
+**An earlier version of this paragraph called that a mechanical receipt for the
+bundle. It is not one, and the claim was checked and withdrawn on 2026-09-06.**
+The two `test_generator.py` skips key on `data/elenchus.db` existing (`:534`,
+`:552`), which is the founder's own sittings database and never travels under
+any option in this runbook. The two injection-probe skips key on
+`<repo>/data/injection_payloads.yaml` (`src/elenchus/run_injection_probe.py:88`),
+which is conditional and which `2026-09-06-build-handover-bundle.sh` lists in
+`FORBIDDEN`. So 35 is Riyan's permanent correct count, and telling him a
+persistent 35 means a misfiled bundle sends him hunting something that cannot
+exist, in a direction that ends at asking for the founder's own database.
+
+Phase C therefore has no verification beyond the checksum and his own reading of
+the unpacked tree against the placement table. That is a real gap and naming it
+is better than a receipt that reports failure on a correct outcome.
 
 The finish line is one command producing one line:
 
@@ -1207,7 +1228,10 @@ would send without thinking.
   spans every governed project. None travel. `lessons.md`, `DEVLOG.md` and
   `SESSION_HANDOFF.md` do travel, as contents rather than as symlinks, per the
   corrected rule in §3c.
-- **`data/elenchus.db`.** Your own 19 sittings, per `web/runtime.py:54`. Your
+- **`data/elenchus.db`.** Your own sittings. `web/runtime.py:54` calls this file
+  one that "holds one particular person's decisions", which is the whole reason
+  it may not be served off loopback; the count itself is not in the code and an
+  earlier draft cited that line for a figure it does not contain. Your
   personal decision history.
 - **`~/.local/share/elenchus/data/tenants/*`.** Beta invitees' writing.
   Disclosure, not file transfer.

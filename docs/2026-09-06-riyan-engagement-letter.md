@@ -76,8 +76,8 @@ authorises him directly rather than relying on the carve-out for either half.
 
 > **ENGAGEMENT OF CONTRACTOR**
 >
-> This engagement is made on **[DATE]** between **Elenchus Labs, Inc.**, a
-> **[Delaware]** corporation ("Owner"), and **[FULL LEGAL NAME]** ("Contractor").
+> This engagement is made on **September 6, 2026** between **Elenchus Labs,
+> Inc.**, a **Delaware** corporation ("Owner"), and **Riyan Jain** ("Contractor").
 >
 > **1. Engagement.** Owner engages Contractor as an independent contractor to
 > develop, maintain and operate the Elenchus software and related materials.
@@ -293,10 +293,11 @@ what either side gives is a document a lawyer will want to fix.
 under "Things to settle before this is signed" are accepted as-is rather than
 routed to a lawyer first. This is J's call to make and he made it.
 
-1. Fill in the three placeholders: `[DATE]`, `[STATE]` (the state Elenchus Labs,
-   Inc. is incorporated in), and `[FULL LEGAL NAME]` (Riyan's full legal name, for
-   the signature block). `[DATE]` is conventionally filled at signature rather
-   than before.
+1. **Done 2026-09-06.** Date, state of incorporation and Contractor's full legal
+   name are filled in: September 6, 2026; Delaware; Riyan Jain. Delaware was the
+   working assumption throughout this draft, matching the governing-law clause in
+   section 8, and was not independently confirmed against the entity's actual
+   formation documents. Confirm it if that has not already happened.
 2. Send the signable letter to Riyan. The Notes for Counsel document is
    background for J's own reference and is not sent to him; it explains why the
    letter is shaped the way it is, not something either signatory needs.

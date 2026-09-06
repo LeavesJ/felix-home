@@ -22,7 +22,7 @@
 #
 # NOT SENT because he regenerates or does not want them:
 #   .git .venv* __pycache__ .pytest_cache .ruff_cache build/ graphify-out/
-#   docs.bak-* *.pre-reset-* .worktrees .DS_Store
+#   docs.bak-* *.pre-reset-* .worktrees worktrees .DS_Store
 #
 # HELD BACK unless --all, because they are founder material rather than
 # engineering material:
@@ -62,7 +62,12 @@ existing bundle because a stale file is invisible in a directory listing."
 # --- the deny list ----------------------------------------------------------
 # Matched against the path RELATIVE to the checkout root, at any depth.
 
-DENY='(^|/)(\.git|\.env|\.env\..*|data|\.venv.*|__pycache__|\.pytest_cache|\.ruff_cache|\.mypy_cache|build|dist|graphify-out|\.worktrees|\.DS_Store|.*\.egg-info|docs\.bak-.*|.*\.pre-reset-.*|.*\.pyc|.*\.db|.*\.sqlite3?|.*\.key|cert\.pem|id_[rd]sa.*)$'
+DENY='(^|/)(\.git|\.env|\.env\..*|data|\.venv.*|__pycache__|\.pytest_cache|\.ruff_cache|\.mypy_cache|build|dist|graphify-out|\.?worktrees|node_modules|\.DS_Store|.*\.egg-info|docs\.bak-.*|.*\.pre-reset-.*|.*\.pyc|.*\.db|.*\.sqlite3?|.*\.key|cert\.pem|id_[rd]sa.*)$'
+# `.claude/worktrees/` (no dot) is Claude Code's own per-task worktree
+# directory, distinct from the .gitignore's `.worktrees/` (with a dot). Found
+# live 2026-09-06: it held a full nested checkout for unrelated work, complete
+# with a build artifact that tripped the secret scan on a minified JS keyword
+# match rather than a real credential. `\.?worktrees` denies both spellings.
 ASK='(^|/)(YC_answers\.md|admissions)$'
 
 # --- discover the untracked surface -----------------------------------------

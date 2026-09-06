@@ -31,10 +31,18 @@ of the second, and gets none of the third.
 
 ---
 
-## 2. The five decisions
+## 2. The decisions
 
 Take these before anything else. Reversing one mid sequence is where a handover
 leaks.
+
+**D0. Put Riyan inside the license.** A prerequisite, not a preference. Elenchus
+is public but not open source: the tracked `LICENSE` forbids modification and
+pull requests by "You", and then defines "You" to exclude Owner's founders,
+employees, contractors and agents. So the handover is lawful the moment he is
+engaged in one of those capacities, and outside it every commit he makes is one
+the license tells him not to make. A written engagement, dated before his first
+commit.
 
 **D1. How he gets Felix.** Recommended: a private distribution repository
 holding only the engine and the Elenchus project directory, squashed, no
@@ -51,6 +59,16 @@ either machine burns both.
 
 **D4. His GitHub role.** Recommended: `write` on `LeavesJ/Elenchus`, pushing
 branches directly. Not a fork, and not `admin`.
+
+**D4b. Whether the CI deploy key stays pointed at Felix.** Write on Elenchus is
+transitively read on `felix`: both workflows check out the private repo with
+`FELIX_DEPLOY_KEY`, and a same repo pull request runs the workflow file from the
+branch it came from, before any review. So D1's careful boundary is not enforced
+by anything. Best fix is to point CI at the distribution repo instead, which
+removes the escalation and also makes CI and his local gate read the same source.
+Doing nothing is defensible if he is a contractor under D0 and you would have
+given him read on `felix` anyway, but then D1 is a convenience rather than a
+boundary. Decide which.
 
 **D5. Whether `.env.example` gets added to Elenchus.** Yours alone. It changes
 the tracked set of a public repo, which your own doctrine puts at T3.
@@ -76,9 +94,13 @@ The trap to avoid is the shortcut. Sending him only a marketplace line without
 the clone gives him a working command with no doctrine and no gate, and no error
 saying so.
 
+The caveat is D4b. This solves the distribution problem cleanly, and it does not
+by itself enforce the boundary, because CI hands the same private repository to
+anyone with write on Elenchus. Settle D4b alongside D1 rather than after it.
+
 ---
 
-## 4. Four things worth knowing before you start
+## 4. Things worth knowing before you start
 
 **Someone already has write access to Elenchus.** The account
 `InsertWittyCommentHere` holds `write` today. If that is Riyan, D4 is already
@@ -133,10 +155,14 @@ merits, not an extension of this one.
 
 ## 7. What only you can answer
 
-1. Is `InsertWittyCommentHere` Riyan?
-2. Does the beta stay yours indefinitely, or is there a date?
-3. Which of your untracked root documents are drafts you would rather not send?
-4. Does `.env.example` get added?
-5. Does he eventually get write access to the gate contract, and how?
+1. Is Riyan engaged as a contractor or agent yet, and from what date?
+2. Is `InsertWittyCommentHere` Riyan?
+3. Does the CI deploy key stay pointed at `felix`, or move to the distribution
+   repo?
+4. Does the beta stay yours indefinitely, or is there a date?
+5. Which of your untracked root documents are drafts you would rather not send?
+6. Does `.env.example` get added?
+7. Does he eventually get write access to the gate contract, and how?
 
-The first one changes step two. The rest can wait until you are at the machine.
+The first three change what you do. The rest can wait until you are at the
+machine.

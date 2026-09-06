@@ -2,8 +2,8 @@
 
 For Riyan, 2026-09-06. This is the document to read first and to keep open for
 the first week. It takes you from a machine with nothing on it to a green gate
-and a pushed commit, and then tells you the five things that will otherwise cost
-you a day each.
+and a pushed commit, and then tells you the six things that will otherwise cost
+you a day or a bill each.
 
 Everything here was verified against the two repositories rather than
 remembered. Where a claim is about a file you have not received yet it says so.
@@ -51,6 +51,15 @@ requires.
 You are getting the Felix engine and the one project directory that governs
 Elenchus. You are not getting the rest of the Felix repository, and you do not
 need it.
+
+**One thing to settle with J before you commit anything.** Elenchus is public but
+it is not open source. The tracked `LICENSE` is source available: section 5(b)
+forbids modifying or preparing patches for the Materials, and section 6 says not
+to submit pull requests. Section 1 then carves out "Owner's founders, employees,
+contractors, or agents acting on Owner's behalf", and section 6 repeats that
+carve-out, so the work is squarely permitted once you are engaged in one of those
+capacities. Make sure that is written down before your first commit. It is J's to
+arrange, and it is worth your asking rather than assuming.
 
 ---
 
@@ -379,10 +388,10 @@ breaks by accident.
 
 ---
 
-## 6. The five traps
+## 6. The six traps
 
-Each of these has already cost real time. They are in order of how likely you
-are to hit them.
+Each of these has already cost real time or money. They are in order of how
+likely you are to hit them.
 
 **1. The editable install.** Setuptools editable mode is unreliable on the 3.14
 venv, so `import elenchus` may resolve to something stale or to nothing.
@@ -402,13 +411,26 @@ you until someone runs `pytest -m live` weeks later. Eight test files carry
 `@live` callers. When you change a signature, grep `tests/` for the symbol
 including those files. Lesson L-22.
 
-**5. Hooks bind at session start.** If Felix changes, or you re-run
+**5. The gate is only offline while no key is in the shell.** This one costs
+money rather than time. `gate.sh:126` runs a bare `pytest -q` with no
+`-m "not live"`, and the 31 live tests are held back only by
+`@pytest.mark.skipif(not _HAS_KEY)`. So the moment `ANTHROPIC_API_KEY` is in your
+environment, `felix gate` stops being free and starts making real paid Opus
+calls. The gate's own comment says live tests "are never part of the gate", which
+is the intention and not the mechanism.
+
+The habit that avoids it: never source `.env` in the shell you gate in. Run the
+web app in its own shell with the key, and keep your gating shell clean. If a
+gate run suddenly takes minutes instead of about ninety seconds, that is what
+happened.
+
+**6. Hooks bind at session start.** If Felix changes, or you re-run
 `felix install`, the session you are sitting in keeps running the engine it
 loaded when it started. Check the `Felix:` line in the session start banner
 before concluding a Felix change is live for you. It is live for the *next*
 session, which is a much weaker claim.
 
-There is a sixth that is not yet your problem but is worth knowing the shape of.
+There is a seventh that is not yet your problem but is worth knowing the shape of.
 When code is correct and does nothing, the cause is almost always *where* it was
 installed rather than *what* it says. That failure has happened four times in
 Felix's short life and the tell is always CI and local disagreeing. Treat that

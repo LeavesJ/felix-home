@@ -44,8 +44,35 @@ rather than merely fast.
 
 ## 2. Decisions to take before step one
 
-Take these five now. Every phase below assumes an answer, and reversing one
-mid-sequence is where a handover leaks.
+Take these seven now. Every phase below assumes an answer, and reversing one
+mid-sequence is where a handover leaks. D0 is a prerequisite rather than a
+preference, so it comes first.
+
+### D0. Put Riyan inside the license before he writes a line
+
+**This is a prerequisite rather than a preference, and none of the first three
+drafts of this document mentioned it.**
+
+Elenchus's tracked `LICENSE` is source available, not open source. Section 5(b)
+forbids "You" from modifying, adapting, creating derivative works of, or
+preparing patches for the Materials, and section 6 says "Do not submit pull
+requests or code contributions unless Owner agrees otherwise in writing."
+
+The license already anticipates exactly this situation, which is why it is a
+step and not a blocker. Section 1 defines the term: **"'You' does not include
+Owner's founders, employees, contractors, or agents acting on Owner's behalf,"**
+and section 6 repeats the carve-out explicitly. So the whole handover is
+lawful the moment Riyan is inside that category, and outside it every commit he
+makes is one the license tells him not to make.
+
+So: a contractor agreement, employment, or a written engagement as an agent of
+Elenchus Labs, Inc., dated before Phase E. Nothing else in this runbook depends
+on it, but Phase E is where it starts to matter and Phase C is where he first
+takes possession of Materials.
+
+`TODO(assumption)`: whether such an agreement already exists is not something
+either repository can tell me. If it does, this decision is already taken and
+the only action is to note the date.
 
 ### D1. How Riyan gets Felix
 
@@ -160,6 +187,61 @@ repository that already has opinions about those. Prefer the origin branch.
 `admin` is not needed for anything he does and would let him change branch
 protection, which is the one enforcement Elenchus actually has
 (`HANDOFF.md:3710` records that Felix's own repository cannot have it).
+
+### D4b. Write on Elenchus is transitively read on Felix
+
+**This one undercuts D1 and has to be settled with it rather than after it.**
+
+D1 spends real effort keeping `HANDOFF.md` and two other projects away from
+Riyan. D4 then grants him `write` on Elenchus, which hands him a route to the
+whole of `LeavesJ/felix` anyway. The route is CI.
+
+Both Elenchus workflows check out the private repository with a deploy key:
+
+- `.github/workflows/gate.yml:73` on `pull_request` and on `push` to `main`
+- `.github/workflows/unattended.yml:57` on `workflow_dispatch`
+
+both with `repository: LeavesJ/felix` and
+`ssh-key: ${{ secrets.FELIX_DEPLOY_KEY }}`.
+
+A `pull_request` from a branch **in the same repository** runs the workflow file
+as it exists on that branch, with repository secrets available. `gate.yml`'s own
+fork guard confirms this by inverting it: it computes `harness=no` only when
+`head.repo.full_name != github.repository`. So a write collaborator can push a
+branch that edits the workflow, open a same-repo pull request, and have CI check
+out the private repository under a step of their choosing. No review is needed,
+because the workflow runs before review. Branch protection on `main` does not
+help, and neither would a `CODEOWNERS` entry on `.github/`, since neither gates
+the pull request event itself.
+
+This is not a claim that Riyan would do it. It is a claim that the boundary D1
+draws is not actually enforced by anything, and a boundary you believe in but do
+not have is worse than one you know you lack.
+
+**Two real fixes. The first is better because it also closes a problem §7
+already had.**
+
+**Fix A, recommended: point CI at the distribution repository.** Change both
+workflows to check out `felix-dist` with a deploy key for that repo instead of
+for `felix`. Then a workflow-file exploit reaches only what Riyan already holds,
+so the escalation disappears. And CI and Riyan's local gate begin reading the
+same source, which removes the two-sources-of-truth skew §7 describes and can
+otherwise only be managed by discipline. The cost is that syncing the
+distribution repository becomes load bearing rather than merely tidy: forget the
+sync and CI runs an old gate. That failure is at least visible, which the
+current one is not.
+
+**Fix B: put `FELIX_DEPLOY_KEY` behind a protected Environment** with you as a
+required reviewer. Jobs referencing the environment then wait for your approval
+before the secret is issued. This keeps CI reading `felix` directly and leaves
+the skew problem where it is, and it puts you in the loop on every pull request,
+which is friction Felix's own doctrine would call a defect.
+
+**Doing nothing is also a choice**, and a defensible one if Riyan is a
+contractor under D0 and you would have given him read on `felix` anyway. Then
+D1 stops being a security boundary and becomes what it still genuinely is: the
+thing that keeps 4000 lines of standing strategy out of his way. Decide which of
+those D1 is, because the answer changes what it is for.
 
 ### D5. Whether to add `.env.example` to Elenchus
 
@@ -787,6 +869,13 @@ rather than debugging live.
   Felix's own project only, which is why a stale engine on his machine is silent.
 - `lift-bank` or `confidential` fails. He staged something from the bundle. This
   is the gate doing its job, and it is worth him seeing once.
+- **The gate takes minutes instead of seconds and bills him.** `gate.sh:126` runs
+  a bare `pytest -q` with no `-m "not live"`, and the 31 live tests are held back
+  only by `@pytest.mark.skipif(not _HAS_KEY)`. So the gate is offline only while
+  no key is in the environment. Source `.env` in a shell and then run the gate in
+  that same shell and it makes real paid calls. The gate's own comment at line
+  120 says live tests "are never part of the gate", which is the intent and not
+  the mechanism. Tell him to keep the key out of the shell he gates in.
 - `probes` reports a blind `http_route`, and `commission` says "never
   commissioned on this machine". Both are first-run states rather than defects,
   observed in the 4e verification run. They do not block `gate: pass`.

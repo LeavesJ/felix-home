@@ -73,16 +73,38 @@ engineering reason to make it.
 If you later want Riyan operating the beta, that is a second decision taken on
 its own terms with the invitees told. Do not fold it into this one.
 
-One fact that makes that future decision harder than it looks, worth writing
-down now while it is in view. **There is no invitee registry.** Every operator
-script enumerates invitees by globbing the tenant root:
-`scripts/retention_report.py:35` globs `*/elenchus.db` and
-`scripts/call_report.py:36` globs `*/server.log`. Nothing in the code holds a
-name, an email, or a list. The authoritative record is the directory listing
-plus the Cloudflare Access policies, and Access is the only place an invitee's
-email address exists at all. So "hand over the beta" is not a file transfer, it
-is a transfer of a Cloudflare account and a directory of other people's writing,
-which is a further reason to keep D2 where it is.
+Three facts make that future decision harder than it looks. They are worth
+writing down now, while they are in view, because each would otherwise have to
+be rediscovered on the day the beta actually moves.
+
+**There is no invitee registry in the code.** Every operator script enumerates
+invitees by globbing the tenant root: `scripts/retention_report.py:35` globs
+`*/elenchus.db` and `scripts/call_report.py:36` globs `*/server.log`. Nothing in
+`src/` holds a name, an email, or a list.
+
+**The invitee allocation table lives inside the memory root.**
+`src/elenchus/forget.py:166` names it directly: one of the by-hand deletion
+steps is "Remove `<slug>` from the invitee allocation table in the session
+handoff." Felix writes `SESSION_HANDOFF.md` per project into the memory root
+(`engine/harness/lib/memory.sh:77`), which is the one directory §3c says never
+travels. So the beta's authoritative record of who exists sits inside the
+directory that is off limits. Under D2 that is fine and even tidy. On the day
+D2 is revisited, that table has to be extracted deliberately rather than moved
+with anything else.
+
+**Cloudflare Access holds the email addresses, and deletion cannot reach them.**
+`forget.py:162` is explicit: the Access application "carries this person's EMAIL
+ADDRESS in its policy, and this script cannot reach it." So the script prints
+three by-hand steps and reports success without having done them, which means
+the same-day deletion promise in the README depends on an operator completing
+work the tool announces but does not perform. That is a known and stated gap
+rather than a hidden one, and the handover is a reasonable moment to close it,
+but closing it is Elenchus work and not part of this sequence.
+
+Together these say the same thing three ways: handing over the beta is not a
+file transfer. It is a transfer of a Cloudflare account, a directory of other
+people's writing, and a table that lives somewhere nothing else should follow.
+That is the strongest argument for leaving D2 where it is.
 
 ### D3. Anthropic billing
 
@@ -149,8 +171,18 @@ A second untracked corpus belongs in that table and is easy to miss because
 **`data/injection_payloads.yaml`**, read at
 `src/elenchus/run_injection_probe.py:88`. The tracked stub is
 `content/gate/injection_payloads.example.yaml`, which is what the tests use
-(`tests/test_injection_probe.py:51`). Send it with the bundle if you want Riyan
-running the injection probe, and leave it out if you do not.
+(`tests/test_injection_probe.py:51`).
+
+Treat this one as its own class rather than as corpus. The stub's own header
+says what it is: "The real corpus lives at `data/injection_payloads.yaml` and is
+GITIGNORED on purpose: a payload that works is a live exploit against our own
+grader, and this repo is public." The tracked example is deliberately inert and
+carries no column-0 structure so admission rejects it. So the real file is a set
+of working attacks against the grader of a public product. Send it only if Riyan
+is going to work on the injection probe, send it in the same encrypted archive
+and never separately, and say plainly what it is when you do. A `git add -f` on
+this file publishes live exploits, which is one of the three things `deny.tsv`
+exists to prevent.
 
 Three of these rows are the ones to slow down on.
 
@@ -510,13 +542,30 @@ fresh regex:
 grep -rniE "sk-ant|BEGIN [A-Z ]*PRIVATE KEY|api[_-]?key *=" handover/
 ```
 
-**A4. Extract the Elenchus lessons.** From `~/.felix/memory/elenchus/lessons.md`,
-pull the entries that are about the codebase and rewrite them as prose in
-`handover/NOTES.md`. The file itself does not travel, per §3c. The onboarding
-document already carries the ones this runbook could recover from the tracked
-tree (`L-19` on the editable install, `L-22` on live test rot, `L-23` on piped
-pytest, `L-2` and `L-26` on confidential documents), so you are adding what only
-your memory root holds.
+**A4. Reconcile the two lessons files, then extract.** There are two and they may
+have diverged. Elenchus's `README.md:113` points at `docs/lessons.md` and calls
+it the source of `L-19`, while Felix writes a per-project `lessons.md` into the
+memory root (`engine/harness/lib/memory.sh:35`). Check both:
+
+```
+ls -la <elenchus>/docs/lessons.md ~/.felix/memory/elenchus/lessons.md
+diff <elenchus>/docs/lessons.md ~/.felix/memory/elenchus/lessons.md
+```
+
+`docs/lessons.md` is the one the 252 code comments cite, so it is the one that
+goes in the bundle. From the memory root copy, pull only the entries that are
+about the codebase and rewrite them as prose in `handover/NOTES.md`. The memory
+file itself does not travel, per §3c.
+
+The onboarding document already carries the lessons this runbook could recover
+from the tracked tree (`L-19` on the editable install, `L-22` on live test rot,
+`L-23` on piped pytest, `L-2` and `L-26` on confidential documents), so you are
+adding what only your memory root holds.
+
+`TODO(assumption)`: which of the two files is canonical was not resolvable from
+either repository. If they have diverged, deciding that is worth ten minutes now
+and is expensive later, because a lesson that exists in only one of two files
+with the same name is a lesson that will be re-learned.
 
 **A5. Confirm the inventory against your actual disk.** Every
 `TODO(assumption)` in §3 becomes a fact here:

@@ -44,6 +44,15 @@ engaged in one of those capacities, and outside it every commit he makes is one
 the license tells him not to make. A written engagement, dated before his first
 commit.
 
+**Updated 2026-09-06: Elenchus Labs, Inc. is already incorporated and Riyan is
+a legal cofounder.** He is covered by the license's "founders" clause directly,
+which makes the engagement letter's contractor reasoning no longer the operative
+part. What still needs answering: did incorporation already include a signed
+founder IP assignment for him? If yes, the letter's IP assignment is redundant
+with something that exists; if no, it is still the fix, just mislabeled as
+"Contractor" for someone the cap table calls a founder. Runbook §D0 has the
+detail. Nothing is redrafted until that question is answered.
+
 **D1. How he gets Felix.** Decided: a read only seat on `LeavesJ/felix`. This
 reverses the earlier recommendation of a narrow distribution repository, and it
 reverses it because D4's answer changed the facts. He already has write on

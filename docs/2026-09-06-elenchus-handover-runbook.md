@@ -80,6 +80,35 @@ license turns on a *capacity*, not on a shared understanding. Put it in writing
 with a date, before Phase E. A one paragraph engagement letter is enough, and
 "we both knew" is not what section 1 asks for.
 
+**Updated 2026-09-06: Elenchus Labs, Inc. is already incorporated, and Riyan is
+legally a cofounder, not only a working title.** This changes which half of the
+letter is load bearing and opens one question the letter has not yet answered.
+
+`LICENSE:12` excludes "Owner's founders" from "You" as its own, first-listed
+category, independent of "contractors" or "agents". If Riyan is a legal cofounder
+of the entity that holds the copyright, he is covered by that clause directly.
+The engagement letter's section 2, which reaches him through the contractor and
+agent prongs instead, is no longer the operative reasoning. It does no harm left
+as written, but it is not what is actually doing the work.
+
+**What does not change, and may matter more than before, is section 3.** Being a
+cofounder does not by itself assign his code to the company. That is a distinct
+legal act, and it is exactly why standard incorporation packages (Clerky, Stripe
+Atlas, Cooley GO, and similar) have each founder separately sign a founder IP or
+invention assignment agreement at formation: a cofounder owes the company no
+automatic assignment duty the way an employee typically does, absent one.
+
+**One open question, not yet answered, and not decided here:** did Elenchus
+Labs, Inc.'s incorporation already include a founder IP assignment agreement
+signed by Riyan? If yes, section 3 of the engagement letter is redundant with
+something that already exists, and the honest fix is to relabel the letter from
+"Contractor" to "Founder" and drop the now-unneeded contractor reasoning in
+section 2, rather than run two differently worded assignments in parallel. If
+no, section 3 is the fix, and relabeling still applies: he should not sign a
+document that calls him "Contractor" when the cap table calls him a founder,
+because that mismatch is exactly what a future investor's diligence would flag.
+Either way, nothing here is redrafted until that question is answered.
+
 ### D1. How Riyan gets Felix
 
 **Decided 2026-09-06: a read only collaborator seat on `LeavesJ/felix`.**
@@ -743,20 +772,36 @@ handover/
 
 **A2 correction, from an actual `ls` of the checkout on 2026-09-06.** `docs/`
 does not hold only `DEVLOG.md` and `lessons.md`. On this machine it also
-contains `YC_answers.md` and `SESSION_HANDOFF.md`, plus two subdirectories,
-`admissions/` and `superpowers/`, whose contents were not inspected. The first
-two are exactly the class of material A3 below warns about in the abstract, and
-they are not hypothetical: `YC_answers.md` reads as YC application material and
-`SESSION_HANDOFF.md` as a personal in-progress note, neither written for a new
-engineering hire. `cp -R docs/. ~/handover/docs/` sweeps both in.
+contains `YC_answers.md`, `SESSION_HANDOFF.md`, and two subdirectories,
+`admissions/` and `superpowers/`. `cp -R docs/. ~/handover/docs/` sweeps all of
+it in without distinguishing any of them.
+
+Each was checked rather than assumed to be excludable, and they did not all come
+out the same way. `YC_answers.md` reads as YC application material and stays
+out. `admissions/` holds entries like `withhold_your_best_product_from_funders.yaml`
+and `cap_effort_on_your_best_prospect.yaml`, founder-strategy reflections rather
+than engineering reference, and it stays out by default; open a couple yourself
+if you think otherwise. `superpowers/plans/` and `superpowers/specs/` are a
+different thing entirely: forty-some dated design and plan documents named
+after real engineering surfaces (`harden-judgment-loop`, `cs-checkable-scorer`,
+`injection-efficacy-probe`), with no strategic language anywhere in the list.
+That is exactly the engineering history a new lead should have, and it goes in.
+
+**`SESSION_HANDOFF.md` here is a different file from the one in §3c, and it
+came back clean.** §3c's rule that nothing under `~/.felix/memory/` travels is
+about the copy Felix writes into the memory root, which is genuinely a raw
+session log and can hold verbatim founder prompts. This one lives inside the
+Elenchus checkout itself, and J confirmed 2026-09-06 that it holds no invitee
+material, because none has been invited yet. It goes in. If it is ever checked
+again after invitees exist, re-verify before assuming that still holds.
 
 **So copy `docs/` by allow-list, not wholesale**:
 
 ```
 mkdir -p ~/handover/docs
-cp docs/DEVLOG.md docs/lessons.md ~/handover/docs/
+cp docs/DEVLOG.md docs/lessons.md docs/SESSION_HANDOFF.md ~/handover/docs/
 cp -R docs/spike-results ~/handover/docs/
-ls docs/admissions docs/superpowers   # inspect before deciding on these two
+cp -R docs/superpowers ~/handover/docs/
 ```
 
 `TODO(assumption)`: this exact file list is one checkout's `docs/`, observed

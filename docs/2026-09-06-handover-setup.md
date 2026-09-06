@@ -61,26 +61,38 @@ Run this from inside `<elenchus>` itself: `cd` there first and use relative
 paths, rather than prefixing every source path with the checkout name from
 somewhere else. That prefix mistake is the one this step has actually produced.
 
-**`docs/` is allow-listed below, not copied wholesale, and this is not
-precautionary.** Observed directly on 2026-09-06: alongside `DEVLOG.md` and
-`lessons.md`, this checkout's `docs/` also holds `YC_answers.md` (YC application
-material) and `SESSION_HANDOFF.md` (a personal in-progress note), plus two
-subdirectories, `admissions/` and `superpowers/`, not yet inspected. Neither
-`YC_answers.md` nor `SESSION_HANDOFF.md` was written for a new engineering hire.
-`cp -R docs/. ...` would sweep both into what Riyan receives. This list is one
-checkout observed once, not a permanent inventory, so re-run `ls docs/` before
-trusting it.
+**`docs/` is allow-listed below, not copied wholesale.** Observed directly on
+2026-09-06, then checked item by item rather than assumed: alongside
+`DEVLOG.md` and `lessons.md`, this checkout's `docs/` also holds
+`YC_answers.md`, `SESSION_HANDOFF.md`, and two subdirectories, `admissions/`
+and `superpowers/`. `cp -R docs/. ...` would not distinguish any of them.
+
+`YC_answers.md` reads as YC application material and stays out. `admissions/`
+holds entries like `withhold_your_best_product_from_funders.yaml`, founder
+reflection rather than engineering reference, and stays out by default; open a
+couple yourself before overriding that. `superpowers/plans/` and `superpowers/specs/`
+are forty-some dated design and plan documents named after real engineering
+surfaces, no strategic language in the list, and they go in.
+
+`SESSION_HANDOFF.md` here is a different file from the one Felix writes into
+the memory root, which is the one that never travels. This one lives inside
+the checkout, and it holds no invitee material because none has been invited
+yet, confirmed 2026-09-06. It goes in. If checked again after invitees exist,
+re-verify rather than assume that still holds.
 
 ```
 mkdir -p ~/handover/{docs,content-lift,claude-config}
-cp docs/DEVLOG.md docs/lessons.md   ~/handover/docs/
-cp -R docs/spike-results            ~/handover/docs/
-ls docs/admissions docs/superpowers # inspect before deciding on these two
-cp    POSITIONING.md                ~/handover/
-cp    content/lift/scenarios.yaml   ~/handover/content-lift/
-cp    content/lift/candidates.yaml  ~/handover/content-lift/
-cp -R .claude/.                     ~/handover/claude-config/
+cp docs/DEVLOG.md docs/lessons.md docs/SESSION_HANDOFF.md ~/handover/docs/
+cp -R docs/spike-results             ~/handover/docs/
+cp -R docs/superpowers               ~/handover/docs/
+cp    POSITIONING.md                 ~/handover/
+cp    content/lift/scenarios.yaml    ~/handover/content-lift/
+cp    content/lift/candidates.yaml   ~/handover/content-lift/
+cp -R .claude/.                      ~/handover/claude-config/
 ```
+
+This list is one checkout observed once, not a permanent inventory. Re-run
+`ls docs/` before trusting it if you build the bundle again later.
 
 Two more are conditional and should be left out unless he needs them now:
 

@@ -225,6 +225,11 @@ failure later.
 `inversion` is the only one that is advisory. The other seven decide the exit
 code.
 
+Below the eight, Felix prints two more lines that are not gate checks and do not
+decide the verdict. On a fresh machine expect `probes` to report one blind
+`http_route`, and `commission` to say "never commissioned on this machine". Both
+are first-run states. A green gate still reads `gate: pass`.
+
 ---
 
 ## 5. Doctrine, in the order it will bite you

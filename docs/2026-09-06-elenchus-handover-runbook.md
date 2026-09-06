@@ -319,32 +319,113 @@ shared bearer secret rather than an identity.
 does not work without also making it a git repository, at which point it is
 option 1 with a worse update path.
 
-### 4e. Building option 1
+### 4e. Building option 1, and the run that proved it
+
+**This was executed end to end on 2026-09-06 against the real trees, not
+reasoned about.** The output of each step is below so you can compare rather
+than guess.
 
 Do this in Phase A, before Riyan has any access, so a mistake costs nothing.
 
 ```
 # 1. New private repo, no history carried over.
-mkdir -p /tmp/felix-dist && cd /tmp/felix-dist && git init
+mkdir -p ~/felix-dist && cd ~/felix-dist && git init
+mkdir -p .claude-plugin projects
 
-# 2. Sync exactly three things from the Felix checkout.
-rsync -a --delete <felix>/engine/ ./engine/
-rsync -a --delete <felix>/projects/elenchus/ ./projects/elenchus/
-cp <felix>/.claude-plugin/marketplace.json ./.claude-plugin/marketplace.json
-
-# 3. Prove nothing else came along.
-grep -rniE "veldra|handoff|founder" . --exclude-dir=.git | head
-git status --short
+# 2. Copy exactly three things from the Felix checkout.
+cp -R <felix>/engine              ./engine
+cp -R <felix>/projects/elenchus   ./projects/elenchus
+cp    <felix>/.claude-plugin/marketplace.json ./.claude-plugin/marketplace.json
 ```
 
-Then verify the invariant still holds in the distributed tree before the first
-push:
+`cp -R` rather than `rsync`, deliberately. `rsync` is absent from some
+environments and this step must not depend on one; if you use `rsync -a --delete`
+on your own machine for the re-sync in §7, that is fine and faster.
+
+Result: **105 files, 1.8 MB.** For comparison the full Felix checkout carries
+`HANDOFF.md`, `docs/`, `projects/felix/` and `projects/veldra/` on top of that.
+
+**Step 3, the structural check.** All five must pass before the first push:
 
 ```
-grep -rn "elenchus" engine/ | grep -v "harness/tests/run" # must be empty
-test -x engine/harness/felix                              # must succeed
-test -f projects/elenchus/gate.sh                         # must succeed
+grep -rn "elenchus" engine/ | grep -v "harness/tests/run"   # must be EMPTY
+test -x engine/harness/felix
+test -f projects/elenchus/gate.sh
+test -f projects/elenchus/project.json
+test -f engine/.claude-plugin/plugin.json
 ```
+
+Verified: the first grep returned empty, so invariant 1 survives the copy, and
+all four files were present with the executable bit intact.
+
+**Step 4, the leak check, and what it actually finds.** Run it and read it
+rather than expecting silence, because it is not silent:
+
+```
+grep -rniE "veldra|berkeley|guidebook|founderceo" . --exclude-dir=.git
+```
+
+Three classes come back and only one of them is a decision.
+
+- **`veldra`, three hits.** One is `veldra_ingest` at
+  `projects/elenchus/CLAUDE.md:148`, which is an Elenchus module name that Riyan
+  reads in the public source anyway. The other two are comment lines in
+  `engine/harness/tests/run` (9440 and 9485) where the test's own prose explains
+  why hard-coding a project name was wrong, and names Veldra as the example. Two
+  comment lines in a 9000 line file. **This is the "a path filter does not filter
+  prose" trap from `HANDOFF.md:52` appearing in the tree rather than in commit
+  messages, which that entry did not anticipate.** Harmless here, and worth
+  knowing you have decided rather than missed.
+- **`guidebook` and `berkeley`, 37 hits**, across `evidence.tsv`,
+  `maintenance.tsv`, `profiles.tsv`, `stack.tsv`, `risk.tsv` and the `setup/`
+  documents. Every one is a page citation to the p41 guidebook as the source of a
+  rule. No content travels, but Riyan gets page-number references to a document
+  Elenchus's own `confidential` check is written to keep out of git
+  (`projects/elenchus/gate.sh:145` greps for exactly these words). Decide whether
+  he is told what the source is, or whether the citations read as noise to him.
+- **Everything else: nothing.** No `HANDOFF.md`, no other project.
+
+**Step 5, prove the thing actually governs.** This is the step that turns the
+recommendation from an argument into a fact:
+
+```
+cd <elenchus-checkout>
+FELIX_HOME=~/felix-dist FELIX_MEMORY=~/felix-mem \
+  ~/felix-dist/engine/harness/felix which
+```
+
+Verified output:
+
+```
+project:      elenchus
+doctrine:     ~/felix-dist/projects/elenchus/CLAUDE.md
+memory:       ~/felix-mem/elenchus/
+gate:         gate.sh
+governs:      <elenchus-checkout>
+```
+
+Then the gate itself, through the same tree:
+
+```
+FELIX_HOME=~/felix-dist FELIX_MEMORY=~/felix-mem \
+  ~/felix-dist/engine/harness/felix gate
+```
+
+Verified: **all five doctrine checks passed through the distribution tree**,
+`confidential ok`, `secret ok`, `lift-bank ok`, `ignore-leak ok`, `inversion ok`.
+Those five are precisely the ones a fork pull request cannot run, so this is the
+proof that the distribution unit carries the real gate and not a subset of it.
+`secret ok` in particular means `$FELIX_BIN` resolved and
+`engine/harness/bin/secret-scan` travelled correctly, which is the check most
+likely to degrade silently.
+
+`format`, `lint` and `test` failed in that run because the machine it ran on had
+no venv and no ruff. That is the expected shape of the failure and not a finding.
+
+Two states surfaced that Riyan will meet on his first run and that are worth
+pre-empting: `probes` reports one blind `http_route`, and `commission` reports
+"never commissioned on this machine". Both are first-run states rather than
+defects, and §5 Phase D lists them.
 
 `TODO(assumption)`: `projects/elenchus/maintenance.log` is committed on purpose
 (`.gitignore:8` carries the `!projects/*/maintenance.log` negation with a comment
@@ -492,6 +573,9 @@ rather than debugging live.
   `felix install`.
 - `lift-bank` or `confidential` fails. He staged something from the bundle. This
   is the gate doing its job, and it is worth him seeing once.
+- `probes` reports a blind `http_route`, and `commission` says "never
+  commissioned on this machine". Both are first-run states rather than defects,
+  observed in the 4e verification run. They do not block `gate: pass`.
 
 `TODO(assumption)`: Python 3.14 is what CI pins (`gate.yml`, `python-version:
 '3.14'`) while `pyproject.toml` declares `requires-python = ">=3.12"`. Riyan

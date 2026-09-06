@@ -360,6 +360,15 @@ checkout.
 He needs no part of `projects/felix/`, `projects/veldra/`, `HANDOFF.md` or
 `docs/`.
 
+**The shortcut that looks sufficient and is not.** `claude plugin marketplace
+add` accepts an `owner/repo` form, so once the distribution repository exists it
+is tempting to tell Riyan only that, and skip the clone. Do not. The plugin
+carries `engine/` alone, `projects/` never enters the cache, and a cache copy is
+explicitly refused as a home. He would end up with a working `felix` command,
+no constitution, no gate, and no error saying so, because Felix stays silent in
+anything it does not govern. The clone plus `felix install --home <clone>` is
+the whole install, not the long way round.
+
 ### 4b. Why the split is clean, verified rather than assumed
 
 `grep -rn elenchus engine/` returns **zero** hits outside

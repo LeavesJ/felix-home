@@ -130,8 +130,8 @@ here is ordinary.
 > will not commit any credential, key or personal data to any repository.
 >
 > **7. Term and termination.** This engagement continues until either party ends
-> it by written notice. On termination: the section 2 license status ends
-> immediately, so Contractor's permissions revert to those of "You" under the
+> it by written notice. On termination: the section 2 authorisation ends
+> immediately and Contractor's position reverts to that of "You" under the
 > License; Contractor will stop using the Materials, return or delete all
 > confidential material and all copies of the Materials in their possession or
 > control except where retention is required by law; and sections 3, 4, 5 and 8

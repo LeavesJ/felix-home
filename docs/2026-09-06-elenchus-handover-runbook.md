@@ -70,9 +70,11 @@ Elenchus Labs, Inc., dated before Phase E. Nothing else in this runbook depends
 on it, but Phase E is where it starts to matter and Phase C is where he first
 takes possession of Materials.
 
-`TODO(assumption)`: whether such an agreement already exists is not something
-either repository can tell me. If it does, this decision is already taken and
-the only action is to note the date.
+**Answered 2026-09-06: yes.** Riyan holds high authority in Elenchus and J will
+say so. One thing remains, and it is the whole point of the carve-out: the
+license turns on a *capacity*, not on a shared understanding. Put it in writing
+with a date, before Phase E. A one paragraph engagement letter is enough, and
+"we both knew" is not what section 1 asks for.
 
 ### D1. How Riyan gets Felix
 
@@ -145,8 +147,15 @@ workspace you can cap and revoke independently.
 
 ### D4. Riyan's GitHub role on Elenchus
 
-**Recommendation: `write`, pushing branches on `LeavesJ/Elenchus` directly.
-Not a fork, and not `admin`.**
+**Answered 2026-09-06: already done.** `InsertWittyCommentHere` is Riyan, and he
+already holds `write` on `LeavesJ/Elenchus`. So B0 and B2 in the sequence
+collapse to a confirmation, and there is nothing to grant.
+
+The recommendation stood at `write`, pushing branches directly, not a fork and
+not `admin`, and the current state matches it. The reasoning below still matters
+because it explains what he must not do, not what you must set up.
+
+**And it means D4b is not a future risk. It is the state today.**
 
 Forks are actively worse here, for two mechanical reasons rather than a
 preference. The second one is the decisive one and it was tested rather than
@@ -190,7 +199,10 @@ protection, which is the one enforcement Elenchus actually has
 
 ### D4b. Write on Elenchus is transitively read on Felix
 
-**This one undercuts D1 and has to be settled with it rather than after it.**
+**This one undercuts D1 and has to be settled with it rather than after it.
+Since D4 is already answered, this is not a decision about what to allow. Riyan
+can read the whole of `LeavesJ/felix` today, through CI, and could before this
+handover began.**
 
 D1 spends real effort keeping `HANDOFF.md` and two other projects away from
 Riyan. D4 then grants him `write` on Elenchus, which hands him a route to the

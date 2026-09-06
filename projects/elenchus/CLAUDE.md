@@ -83,7 +83,7 @@ Never downgrade silently.
 
 **T0 direct.** Reversible, one module, no behavior or interface change. Docs,
 comments, tests, an internal refactor.
-Gate: `felix gate`. Then ship. No plan, no review, no announcement.
+Gate: `felix gate`. Then ship. No plan, no review, no announcement. 
 
 **T1 checked.** Behavior changes, or the diff crosses a module boundary, or a
 dependency moves.

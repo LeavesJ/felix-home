@@ -122,6 +122,7 @@
 1	a green row cannot demote the diff that adds it
 1	a green row for a previously unruled path does not green it either
 1	a half-written character does not fail the whole report
+1	a held control refuses it
 1	a held row whose answer ran and whose check now passes is done
 1	a high tier refuses even when no capability matches
 1	a high-risk row is never installed by commissioning
@@ -163,6 +164,7 @@
 1	a merge in progress is a person's, and the pulse says so
 1	a merge is blocked while the project reads nothing from reality
 1	a merge stopped for the founder is recorded as one
+1	a met control passes the gate check
 1	a mid-session route change does not render
 1	a migration classifies red
 1	a migration escapes as durable
@@ -240,6 +242,7 @@
 1	a probes.tsv holding no rows is refused too
 1	a project bounded only by content rules reports the bound
 1	a project declaring no qualification qualifies nothing
+1	a project that has qualified nothing is skipped, not failed
 1	a project with no declared gate is left alone
 1	a project with no probes.tsv declares no probes
 1	a project with no table is skipped, and the skip names itself
@@ -831,6 +834,7 @@
 1	and says the suite passed when nothing was skipped
 1	and says the tier is what it could not read
 1	and says to remove its row and its play
+1	and says what a held control means
 1	and says what a name is
 1	and says what a project name is
 1	and says what is missing rather than printing a clean report
@@ -997,6 +1001,7 @@
 1	and the version is a dotted number
 1	and the widget ledger is as this block found it
 1	and the widget manifest is as this block found it
+1	and the widget project is as this block found it
 1	and the widget table is as this block found it
 1	and there is at least one of them
 1	and what a fix will have to prove
@@ -1598,6 +1603,7 @@
 1	while the Felix home Felix itself resolved is its own repo
 1	while the branch's own file still is
 1	while the capability that can be named still is
+1	while the control that holds is still reported met
 1	while the genuinely reached server is proposed
 1	while the other repository still sees its own
 1	while the others still are

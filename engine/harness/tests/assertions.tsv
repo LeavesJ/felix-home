@@ -112,6 +112,7 @@
 1	a gitignored stray in the tree is residue, not drift
 1	a gitlink already in history does not block every future backup
 1	a governed product merges with no installed engine at all
+1	a grant with no stamp does not cover the table
 1	a green gate does not clear an escape
 1	a green gate on this exact tree allows it
 1	a green gate still asks for verification
@@ -399,6 +400,7 @@
 1	an absent marker is still silent at session start
 1	an absent marker still means ungoverned
 1	an absent pointer is not a broken pointer
+1	an admitted nomination becomes a declared row
 1	an agent is recorded by which agent
 1	an agent reached is credited to the plugin that ships it
 1	an all-structural gate still fails
@@ -461,6 +463,7 @@
 1	an undeclared tool is reported, not hidden
 1	an unenforceable probe word is muted on the record
 1	an ungoverned repo is allowed
+1	an ungranted project starts no background run
 1	an unknown grounding refuses
 1	an unknown routine is refused
 1	an unknown tier refuses
@@ -527,6 +530,7 @@
 1	and a red run at the head means zero
 1	and a refusal is not a successful repair
 1	and a repository with no main resolves to nothing
+1	and a revoked grant covers nothing
 1	and a row already on disk is cleaned on the way out
 1	and a row with no grounding column is a person's
 1	and a ruled capability is not listed there
@@ -728,6 +732,7 @@
 1	and nothing unusable
 1	and nothing was committed
 1	and nothing was committed onto it
+1	and nothing was installed to put it there
 1	and nothing was written
 1	and nothing was written to the real felix home pointer
 1	and now names each one it found
@@ -739,6 +744,7 @@
 1	and one named once carries one
 1	and one no route names
 1	and one nothing established is classed UNKNOWN
+1	and one stamped over this table does
 1	and one that shares nothing stands alone
 1	and one that was not is still not
 1	and one unknown path taints a green set
@@ -1036,6 +1042,7 @@
 1	but the field names themselves are gone
 1	carries the governed project
 1	carries the matched lesson
+1	carrying the grounding that says the engine read it
 1	catch-up folds every session nothing folded
 1	catch-up folds only the sessions this repository's history contains
 1	catches credential sample 1
@@ -1074,6 +1081,7 @@
 1	each fact carries the tree it was taken from
 1	editing a table in the set makes it stale, with nothing under state/ changing
 1	editing the same file again invalidates the receipt
+1	editing the table takes the grant off it
 1	emits the documented UserPromptSubmit shape
 1	entries older than a day do not count
 1	envelope path values are gone from the tokens

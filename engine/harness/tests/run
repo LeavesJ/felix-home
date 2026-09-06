@@ -7852,6 +7852,83 @@ is "and one that was not is still not" "$(a route)" "no"
 printf 'tidy\n' > "$AUP/autonomy"; printf '\n\n# comment\n' >> "$AUP/autonomy"
 is "comments and blanks are not capabilities" "$(a comment)" "no"
 
+# The commission grant is bound to the table it was granted over.
+#
+# Every other grant names an action the engine defines. This one names a
+# pipeline whose steps come from a project's own commissioning.tsv, and two of
+# that table's columns are eval'd in the checkout. The table is ORDINARY-tier
+# by this project's constitution, so without a binding a routine edit to it
+# would become code that runs unattended, forever, with nothing on any surface
+# to show it. The stamp is the binding: a table edited after the grant does not
+# inherit it, and re-granting is a person's act of reading what changed.
+AUC="$TMP/autocomm"; mkdir -p "$AUC" "$MEM/autocomm"
+printf 'envelope	-	-	-	person	test -f "$FELIX_PROJECT/CLAUDE.md"	none
+' > "$AUC/commissioning.tsv"
+printf '# what Felix may do here unattended
+commission
+' > "$AUC/autonomy"
+_ac() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+          . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/autonomy.sh"
+          felix_autonomy_commission_current "$AUC" && echo current || echo stale ); }
+is "a grant with no stamp does not cover the table" "$(_ac)" "stale"
+( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+  . "$FROOT/harness/lib/commission.sh"
+  felix_commission_policy_version "$AUC" ) > "$AUC/autonomy.commission"
+is "and one stamped over this table does"           "$(_ac)" "current"
+printf 'envelope	-	-	-	person	test -f "$FELIX_PROJECT/CLAUDE.md"	none
+later	-	-	-	person	true	none
+' \
+  > "$AUC/commissioning.tsv"
+is "editing the table takes the grant off it"       "$(_ac)" "stale"
+# Revoked is revoked whatever the stamp says: the two are read with AND.
+printf '# what Felix may do here unattended
+' > "$AUC/autonomy"
+is "and a revoked grant covers nothing"             "$(_ac)" "stale"
+
+# The background resume refuses on each of those, and is silent about it —
+# an ungranted project must not learn that a grant exists from a log entry.
+_bg() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+          . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/autonomy.sh"
+          cd "$REPO" && felix_commission_resume_bg "$AUC" "$TMP/autocomm-home" "$FELIX"
+          sleep 1 ); }
+_bg
+is "an ungranted project starts no background run" \
+   "$([ -f "$TMP/autocomm-home/state/commission/autocomm.bg.log" ] && echo ran || echo silent)" "silent"
+
+# And the load-bearing claim, made falsifiable: a granted run DECLARES and
+# installs nothing.
+#
+# The claim is that the grant governs when a declaration happens, never what
+# gets installed. That is not a promise about intent — it is a property of the
+# path: felix_commission_apply_declares appends a stack.tsv row and a log line,
+# and no installer is downstream of it. Installing those rows is still
+# felix stack apply, which a person still runs.
+#
+# Asserted against the stub CLI's log, because "installs nothing" is a
+# statement about what reached `claude`, not about what the source intends.
+# Asserted at the function that applies a verdict, because that is where an
+# install would have to happen if one happened at all. A first draft asserted
+# it over a whole `felix commission` run and found an empty stub log — which
+# passed, and meant only that the run never reached the CLI. The positive
+# control below is what caught that: the row must appear, or "nothing was
+# installed" is a statement about a path nothing walked.
+AUD="$TMP/applydecl"; mkdir -p "$AUD" "$MEM/applydecl"
+printf '# kind\tname\n' > "$AUD/stack.tsv"
+: > "$CMSTUB_LOG"
+( PATH="$CMSTUB:$PATH"
+  . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+  . "$FROOT/harness/lib/admit.sh"; . "$FROOT/harness/lib/commission.sh"
+  . "$FROOT/harness/lib/commission-provider.sh"
+  felix_commission_apply_declares "$AUD" "$REPO" \
+    "$(printf 'declare\tplugin\tsomeplugin@x\tlow\talways\tdeadbeef\tinspected\n')" \
+    treeid policyv someneed ) >/dev/null 2>&1
+is "an admitted nomination becomes a declared row" \
+   "$(grep -c 'someplugin' "$AUD/stack.tsv" 2>/dev/null | tr -d ' ')" "1"
+has "carrying the grounding that says the engine read it" \
+    "$(cat "$AUD/stack.tsv")" "OBSERVED"
+is "and nothing was installed to put it there" \
+   "$(wc -l < "$CMSTUB_LOG" 2>/dev/null | tr -d ' ')" "0"
+
 printf '\ntidying, with the checks that make it safe\n'
 # Felix removing a file from a product repository unattended is the sharpest
 # trust boundary in the system. Every check below must hold, and the file must

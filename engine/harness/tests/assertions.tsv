@@ -55,6 +55,8 @@
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
 1	a content difference is still a drift
+1	a control needing no mutation still runs
+1	a control the checker meets is met
 1	a count that is not a number is reported rather than passed over
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
@@ -237,6 +239,7 @@
 1	a probe whose command does not exist is unknown
 1	a probes.tsv holding no rows is refused too
 1	a project bounded only by content rules reports the bound
+1	a project declaring no qualification qualifies nothing
 1	a project with no declared gate is left alone
 1	a project with no probes.tsv declares no probes
 1	a project with no table is skipped, and the skip names itself
@@ -296,6 +299,7 @@
 1	a row nobody named carries no stray line
 1	a row switched off by its when column is reported as not applying
 1	a row that does not apply here claims nothing
+1	a row too short to run anything is reported, not skipped
 1	a row with an empty probe cell is malformed
 1	a row with more fields than the format has is malformed
 1	a row with no command is reported as recording nothing
@@ -509,6 +513,7 @@
 1	and a backticked path naming nothing is still not invented
 1	and a clean table leaves the gate green
 1	and a command that does not resolve identifies none either
+1	and a declared control is not reported missing
 1	and a declared moment is not
 1	and a declared one the tree no longer shows is still an item
 1	and a declined one is ok too
@@ -741,6 +746,7 @@
 1	and one already declared is not written twice
 1	and one grounding a real surface is not
 1	and one in a double-backtick span
+1	and one it passes over is held, not silently counted
 1	and one named once carries one
 1	and one no route names
 1	and one nothing established is classed UNKNOWN
@@ -1078,6 +1084,7 @@
 1	documentation is in scope
 1	does not demand the later steps yet
 1	dormant steps never nag
+1	each control runs against a tree of its own
 1	each fact carries the tree it was taken from
 1	editing a table in the set makes it stale, with nothing under state/ changing
 1	editing the same file again invalidates the receipt
@@ -1166,6 +1173,7 @@
 1	including one that failed alongside another
 1	including the enumeration limit
 1	including the model-SDK probe, which sits on a continued line
+1	including the one that stops reject-everything winning
 2	including the second one
 1	including what prompted each utterance
 1	inspect still counts the skills
@@ -1422,6 +1430,7 @@
 1	the capability probe yields ecosystem words to check for
 1	the cause is not the raw payload
 1	the claude cli changing is announced and never invalidates
+1	the controls a checker declares nothing for are named
 1	the data marker is substituted
 1	the declared plugin still has its presence row
 1	the declares are applied before the receipt is written

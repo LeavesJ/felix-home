@@ -109,6 +109,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/ledger.sh"
 . "${SCRIPT_DIR}/lib/shape.sh"
 . "${SCRIPT_DIR}/lib/coverage.sh"
+. "${SCRIPT_DIR}/lib/qualify.sh"
 . "${SCRIPT_DIR}/lib/autonomy.sh"
 . "${SCRIPT_DIR}/lib/intake.sh"
 # shellcheck source=lib/deny.sh
@@ -209,6 +210,7 @@ specific project, language, or toolchain.
     felix ledger           what has been mounted, and what was never reached for
     felix autonomy         what Felix may do here unattended
     felix coverage         every lifecycle moment, and Felix's stance on it
+    felix qualify [check]  does a check fail when what it protects is broken?
 
   the loop
     felix doctor [--fix]   drift, rival gates, and the tidying it can safely do
@@ -1457,6 +1459,79 @@ cmd_autonomy() {
   printf '  felix autonomy --revoke tidy     take it back\n'
   printf '  felix autonomy --allow commission    grant it, over the table as it stands\n'
   printf '  felix autonomy --revoke commission   take it back\n'
+}
+
+# Does a check fail when the thing it protects is broken?
+#
+# v3.2's conformance amendments call checker qualification the largest gap in
+# the spec. Every layer above narrows what a model may WRITE; none of them asks
+# whether the checker that judges the writing works. A check that passes over a
+# violation is worse than no check, because the report says the property holds.
+#
+# Report only. Arming this — refusing to let an unqualified checker enforce —
+# turns every gate red the day it lands, and how much Felix may block is a
+# founder's decision. Making the gap visible is the half that needs no decision,
+# and it is the half that was missing.
+cmd_qualify() {
+  resolve_or_die; local proj="$PROJ" want="${1:-}" root
+  root="$(felix_repo_root "$PWD")"
+  case "$want" in -*) die "usage: felix qualify [checker]" ;; esac
+
+  local rows; rows="$(felix_qualify_rows "$proj")"
+  printf 'qualification for %s\n\n' "$(basename "$proj")"
+  if [ -z "$rows" ]; then
+    printf 'No checker here is qualified, because %s/qualification.tsv\n' "$proj"
+    printf 'declares nothing. Every check this project runs is currently trusted\n'
+    printf 'on the strength of having been written.\n\n'
+    printf '  checker <TAB> command <TAB> control <TAB> expect <TAB> mutation\n\n'
+    printf 'Six controls per checker, from the conformance amendments: violation,\n'
+    printf 'restoration, irrelevant, alternate, decoupled_violation and\n'
+    printf 'decoupled_satisfaction.\n'
+    return 1
+  fi
+
+  local mal; mal="$(felix_qualify_malformed "$proj")"
+  if [ -n "$mal" ]; then
+    printf 'rows that name a checker and not enough to run one\n\n'
+    printf '%s\n' "$mal" | awk -F'\t' '{ printf "  %-16s %s field(s)\n", $1, $2 }'
+    printf '\nA row missing its mutation is a control nobody is applying, and\n'
+    printf 'silence about it reads as a control that passed.\n\n'
+  fi
+
+  local out held=0 unrun=0 total=0
+  out="$(felix_qualify_run "$proj" "$root" "$want")"
+  printf '  %-10s %-24s %-7s %-7s %s\n' CHECKER CONTROL EXPECT GOT ''
+  printf '%s\n' "$out" | while IFS=$'\t' read -r c ctl exp got v; do
+    [ -n "${c:-}" ] || continue
+    case "$v" in
+      met)        printf '  %-10s %-24s %-7s %-7s ok\n'         "$c" "$ctl" "$exp" "$got" ;;
+      unrunnable) printf '  %-10s %-24s %-7s %-7s UNRUNNABLE\n' "$c" "$ctl" "$exp" "$got" ;;
+      *)          printf '  %-10s %-24s %-7s %-7s HELD\n'       "$c" "$ctl" "$exp" "$got" ;;
+    esac
+  done
+  held="$(printf '%s\n' "$out"  | awk -F'\t' '$5 == "held" { n++ } END { print n+0 }')"
+  unrun="$(printf '%s\n' "$out" | awk -F'\t' '$5 == "unrunnable" { n++ } END { print n+0 }')"
+  total="$(printf '%s\n' "$out" | awk -F'\t' 'NF >= 5 { n++ } END { print n+0 }')"
+
+  # Controls a checker has no row for. Four of six is not qualified, and the two
+  # usually missing are the two that separate the marker from the property.
+  local c miss
+  for c in $(felix_qualify_checkers "$proj"); do
+    [ -z "$want" ] || [ "$want" = "$c" ] || continue
+    miss="$(felix_qualify_missing_controls "$proj" "$c" | tr '\n' ' ')"
+    [ -n "${miss% }" ] && printf '\n  %s declares no control for: %s\n' "$c" "${miss% }"
+  done
+
+  printf '\n%s of %s control(s) held; %s could not run.\n' "$held" "$total" "$unrun"
+  if [ "${held:-0}" -gt 0 ]; then
+    printf '\nA held control is the checker passing over a tree that violates what it\n'
+    printf 'protects. That is not a failing test — it is the check reporting a\n'
+    printf 'property the tree does not have.\n'
+  fi
+  printf '\nNothing here refuses anything yet. Whether an unqualified checker may\n'
+  printf 'go on enforcing is a decision about how much Felix may block, and that\n'
+  printf "is the founder's. This makes the gap legible; it does not close it.\n"
+  return 0
 }
 
 cmd_coverage() {
@@ -4128,6 +4203,7 @@ case "${1:-help}" in
   ledger)    shift; cmd_ledger "$@" ;;
   shape)     shift; cmd_shape "$@" ;;
   coverage)  shift; cmd_coverage "$@" ;;
+  qualify)   shift; cmd_qualify "$@" ;;
   merge)     shift; cmd_merge "$@" ;;
   review)    shift; cmd_review "$@" ;;
   next)      shift; cmd_next "$@" ;;

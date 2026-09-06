@@ -7842,6 +7842,60 @@ out="$( . "$FROOT/harness/lib/shape.sh"; felix_shape_brief "$SR/docs/p.md" )"
 has "briefs which tasks are one unit" "$out" "1,2"
 has "and which stand alone"           "$out" "3"
 
+printf '\nqualification: does a check fail when what it protects is broken\n'
+# v3.2's conformance amendments call this the largest gap in the spec. Every
+# layer above narrows what a model may WRITE; none asks whether the checker
+# judging the writing works, and a check that passes over a violation is worse
+# than no check because the report says the property holds.
+QLP="$TMP/qualproj"; QLR="$TMP/qualrepo"; mkdir -p "$QLP" "$QLR" "$MEM/qualproj"
+( cd "$QLR" && git init -q -b main && printf 'clean\n' > a.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+QLR="$(cd "$QLR" && pwd -P)"
+_ql() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+          felix_qualify_run "$QLP" "$QLR" "$@" ); }
+is "a project declaring no qualification qualifies nothing" \
+   "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+       felix_qualify_rows "$QLP" | wc -l | tr -d ' ')" "0"
+# A checker that does what it claims, and one control it does not catch. Both
+# in one table, because a suite that only ever shows `met` cannot tell a
+# working runner from one that reports met unconditionally.
+_qc='! grep -rqI FORBIDDEN . 2>/dev/null'
+{ printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qc"
+  printf 'demo\t%s\trestoration\tpass\ttrue\n' "$_qc"
+  printf 'demo\t%s\talternate\tfail\tprintf harmless > other.txt\n' "$_qc"
+} > "$QLP/qualification.tsv"
+_qo="$(_ql)"
+has "a control the checker meets is met" \
+    "$(printf '%s\n' "$_qo" | awk -F'\t' '$2 == "violation" { print $5 }')" "met"
+has "and one it passes over is held, not silently counted"  \
+    "$(printf '%s\n' "$_qo" | awk -F'\t' '$2 == "alternate" { print $5 }')" "held"
+is  "a control needing no mutation still runs"  \
+    "$(printf '%s\n' "$_qo" | awk -F'\t' '$2 == "restoration" { print $5 }')" "met"
+# The tree the mutations ran in is thrown away, or the next control inherits
+# the last one's violation and every verdict after the first is about the
+# wrong tree.
+is  "each control runs against a tree of its own" \
+    "$([ -f "$QLR/bad.txt" ] && echo leaked || echo clean)" "clean"
+# Four of six is not qualified, and the two usually missing are the two that
+# separate the marker from the property.
+_qm="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+        felix_qualify_missing_controls "$QLP" demo | tr '\n' ' ')"
+has "the controls a checker declares nothing for are named" "$_qm" "decoupled_violation"
+has "including the one that stops reject-everything winning" "$_qm" "decoupled_satisfaction"
+case "$_qm" in
+  *violation*) : ;; *) bad "and a declared control is not reported missing" "$_qm" ;;
+esac
+case " $_qm " in
+  *" restoration "*) bad "and a declared control is not reported missing" "$_qm" ;;
+  *)                 ok  "and a declared control is not reported missing" ;;
+esac
+# A row that names a checker and not enough to run one is a control nobody is
+# applying, and silence about it reads as a control that passed.
+printf 'demo\tonly-two\n' >> "$QLP/qualification.tsv"
+has "a row too short to run anything is reported, not skipped" \
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+        felix_qualify_malformed "$QLP")" "demo"
+
 printf '\nautonomy is opted into, never assumed\n'
 AUP="$TMP/autoproj"; mkdir -p "$AUP"
 a() { ( . "$FROOT/harness/lib/autonomy.sh"; felix_autonomy_allows "$AUP" "$1" && echo yes || echo no ); }

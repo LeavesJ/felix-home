@@ -136,6 +136,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/procedures.sh"
 # shellcheck source=lib/probes.sh
 . "${SCRIPT_DIR}/lib/probes.sh"
+# shellcheck source=lib/obligations.sh
+. "${SCRIPT_DIR}/lib/obligations.sh"
 # shellcheck source=lib/facts.sh
 . "${SCRIPT_DIR}/lib/facts.sh"
 . "${SCRIPT_DIR}/lib/commission.sh"
@@ -198,6 +200,7 @@ specific project, language, or toolchain.
     felix pulse [--install|--uninstall] back up memory, report what waits; --install schedules it daily
     felix procedures      what each moment must answer for, and what nothing answers yet
     felix probes [--gate] what reality says about this checkout, and what nothing asks
+    felix obligations [--gate] what this project has admitted it owes, and whether it owes it here
     felix commission [--status] the first-encounter moment: what serves this checkout, what reaches it, what a person still owes
     felix adopt <cap>      declare a capability and everything it implies
     felix profile [name]   which tools a task profile mounts
@@ -576,6 +579,28 @@ cmd_gate() {
   else
     printf '  %-18s skipped (no qualification.tsv for %s; felix qualify says how to write one)\n' \
       qualified "$(basename "$proj")"
+  fi
+
+  # obligations: what this project has admitted it owes, and whether it owes
+  # it in this checkout. Applicability is recomputed here, never read from a
+  # store, so a dormant row is reported as dormant rather than vanishing. A
+  # project with no table is skipped and announced, like probes; the merge
+  # boundary is where absence is refused.
+  local oout orc
+  if [ -f "$proj/obligations.tsv" ]; then
+    oout="$(cmd_obligations --gate 2>&1)"; orc=$?
+    if [ "$orc" -eq 0 ]; then
+      printf '  %-18s ok\n' obligations | tee -a "$log"
+      printf '                     %s\n' "$(printf '%s\n' "$oout" | grep -E '^[0-9]+ obligation' | head -1)"
+    else
+      printf '  %-18s FAIL\n' obligations | tee -a "$log"
+      printf '%s\n' "$oout" | grep -E 'UNSATISFIED|UNKNOWN|admits no|refused|does not declare|^  [a-z]' | head -8 | sed 's/^/  /'
+      [ "$rc" -eq 0 ] && printf '\ngate: FAIL (obligations)\n'
+      rc=1
+    fi
+  else
+    printf '  %-18s skipped (no obligations.tsv for %s; felix obligations says how to write one)\n' \
+      obligations "$(basename "$proj")"
   fi
 
   # commission: offline and announce-only, except for the empty case. Only
@@ -3944,6 +3969,71 @@ EOF
   return 0
 }
 
+cmd_obligations() {
+  resolve_or_die; local proj="$PROJ" gate=0 a
+  for a in "$@"; do
+    case "$a" in
+      --gate) gate=1 ;;
+      *) die "usage: felix obligations [--gate] (got: $a)" ;;
+    esac
+  done
+  local root; root="$(felix_repo_root "$PWD")"
+
+  # The empty case, refused first. The first of three places (this, the gate,
+  # the merge boundary), for the reason cmd_probes gives: a table that can be
+  # absent and read as fine is the marker bypass in miniature.
+  if [ ! -f "$proj/obligations.tsv" ]; then
+    printf 'obligations for %s\n\n' "$(basename "$proj")"
+    printf 'This project has admitted no obligation: there is no obligations.tsv,\n'
+    printf 'so nothing it owes is written anywhere a merge can read.\n\n'
+    printf 'Write %s/obligations.tsv. One row per obligation:\n\n' "$proj"
+    printf '  obligation <TAB> class <TAB> pathway <TAB> applies <TAB> evidence <TAB> grounds <TAB> reason\n\n'
+    printf 'A template is at %s/templates/obligations.tsv.\n' "$SCRIPT_DIR"
+    return 1
+  fi
+  local rows bad; rows="$(felix_obligation_rows "$proj")"; bad="$(felix_obligation_malformed "$proj")"
+  printf 'obligations for %s\n\n' "$(basename "$proj")"
+  if [ -n "$bad" ]; then
+    printf 'rows refused\n\n'; printf '%s\n' "$bad" | sed 's/^/  /'
+    printf '\nA row needs a name, a class from the set, a pathway from the set and an\n'
+    printf 'evidence contract; and a single probabilistic finding may not block.\n\n'
+  fi
+  if [ -z "$rows" ]; then
+    printf '%s/obligations.tsv admits no obligation.\n' "$proj"
+    printf 'An empty ledger is not a clean bill; it is a ledger with nothing owed.\n'
+    return 1
+  fi
+  local orphans; orphans="$(felix_obligations_orphans "$proj")"
+  if [ -n "$orphans" ]; then
+    printf 'grounded on a probe %s/probes.tsv does not declare\n\n' "$proj"
+    printf '%s\n' "$orphans" | sed 's/^/  /'; printf '\n'
+  fi
+
+  local out; out="$(felix_obligations_run "$proj" "$root")"
+  printf '  %-22s %-18s %-9s %-12s %s\n' OBLIGATION CLASS APPLIES DISCHARGE ''
+  printf '%s\n' "$out" | while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    printf '  %-22s %-18s %-9s %-12s %s\n' \
+      "$(printf '%s\n' "$line" | cut -f1)" "$(printf '%s\n' "$line" | cut -f2)" \
+      "$(printf '%s\n' "$line" | cut -f4)" "$(printf '%s\n' "$line" | cut -f5)" \
+      "$(printf '%s\n' "$line" | cut -f6)"
+  done
+  local n_block; n_block="$(printf '%s\n' "$out" | felix_obligations_blocking | grep -c .)"
+  printf '\n%s obligation(s): %s active, %s dormant, %s unknown; %s blocking' \
+    "$(printf '%s\n' "$out" | grep -c .)" \
+    "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "ACTIVE"'  | grep -c .)" \
+    "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "DORMANT"' | grep -c .)" \
+    "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "UNKNOWN"' | grep -c .)" \
+    "$n_block"
+  local n_ung; n_ung="$(felix_obligations_ungrounded "$proj" | grep -c .)"
+  [ "$n_ung" -gt 0 ] && printf '; %s ground on no probe' "$n_ung"
+  printf '\n'
+  if [ "$gate" -eq 1 ]; then
+    [ "$n_block" -eq 0 ] && [ -z "$bad" ] && [ -z "$orphans" ] || return 1
+  fi
+  return 0
+}
+
 cmd_probes() {
   resolve_or_die; local proj="$PROJ" gate=0 a
   for a in "$@"; do
@@ -4250,6 +4340,7 @@ case "${1:-help}" in
   procedures) shift; cmd_procedures "$@" ;;
   commission) shift; cmd_commission "$@" ;;
   probes)     shift; cmd_probes "$@" ;;
+  obligations) shift; cmd_obligations "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;
   decisions) shift; cmd_decisions "$@" ;;

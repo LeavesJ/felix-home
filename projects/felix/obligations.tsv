@@ -1,0 +1,12 @@
+# What Felix has admitted it owes. The template at
+# engine/harness/templates/obligations.tsv explains the columns.
+#
+# The first admitted obligation, and the founder's sentence made mechanical: an
+# engineering requirement nobody explicitly remembers — every lifecycle moment
+# the stance table says is wired must be bound in the hooks this engine ships —
+# blocks a merge while it fails, and goes dormant, not waived, in a checkout
+# that ships no hooks. The night the marker bypass was found, nothing
+# enumerated this; `felix coverage` reported it and nothing refused on it.
+#
+# obligation	class	pathway	applies	evidence	grounds	reason
+lifecycle_wired	RELEASE_BLOCKING	deterministic	test -s engine/hooks/hooks.json	engine/harness/bin/lifecycle-check engine/harness/templates engine/hooks/hooks.json	hook_binding	a moment with nothing at it is a completion nobody checks, and a floor that does not run reports nothing

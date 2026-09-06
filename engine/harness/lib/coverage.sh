@@ -36,10 +36,49 @@
 #   missing   declared wired, nothing wires it
 #   undeclared    wired, but no row says why
 #   stale-reason  declined, and the premise the reason rests on is gone
+# The events a hooks.json binds: the keys of its top-level "hooks" object,
+# whatever the file's formatting. A character scanner rather than a grep,
+# because a grep for `"Event"` reads a string as a binding wherever it sits.
+# Found by a blind-authored control the day the first obligation was
+# qualified: the whole `SubagentStop` entry moved one level down into another
+# event's matcher group, every token still present, the hook never firing, and
+# `grep -q '"SubagentStop"'` said wired. String state and nesting are tracked
+# so a key at the wrong depth, or inside a command string, is not an event.
+felix_hooks_events() {
+  [ -f "${1:-}" ] || return 0
+  awk '
+    BEGIN { depth = 0; instr = 0; esc = 0; buf = ""; want = 0; pending = "" }
+    {
+      line = $0 "\n"; n = length(line)
+      for (i = 1; i <= n; i++) {
+        c = substr(line, i, 1)
+        if (instr) {
+          if (esc) { esc = 0; buf = buf c; continue }
+          if (c == "\\") { esc = 1; buf = buf c; continue }
+          if (c == "\"") { instr = 0; pending = buf; want = 1; continue }
+          buf = buf c; continue
+        }
+        if (c == "\"") { instr = 1; buf = ""; continue }
+        if (want) {
+          if (c == " " || c == "\t" || c == "\n" || c == "\r") continue
+          if (c == ":") {
+            key[depth] = pending
+            if (depth == 2 && key[1] == "hooks") print pending
+          }
+          want = 0
+        }
+        if (c == "{" || c == "[") depth++
+        else if (c == "}" || c == "]") depth--
+      }
+    }' "$1" 2>/dev/null
+  return 0
+}
+
 felix_coverage_check() {
-  local tpl="$1" hooks="$2" event stance reason holds wired seen=""
+  local tpl="$1" hooks="$2" event stance reason holds wired seen="" bound
   [ -f "$tpl/lifecycle.tsv" ] || return 0
   [ -f "$hooks" ] || return 0
+  bound="$(felix_hooks_events "$hooks")"
 
   while IFS=$'\t' read -r event stance reason holds; do
     case "$event" in ''|'#'*) continue ;; esac
@@ -47,7 +86,7 @@ felix_coverage_check() {
     seen="$seen $event"
 
     wired=no
-    grep -q "\"$event\"" "$hooks" 2>/dev/null && wired=yes
+    printf '%s\n' "$bound" | grep -qxF -- "$event" && wired=yes
 
     case "$stance:$wired" in
       wired:yes)    printf 'ok\t%s\t%s\n'      "$event" "${reason:-wired}" ;;
@@ -71,8 +110,7 @@ felix_coverage_check() {
   # table was written after the fact: something wired that no row explains. A
   # hook nobody wrote a reason for is a hook nobody can argue with.
   local h
-  for h in $(grep -oE '"[A-Z][A-Za-z]+"[[:space:]]*:[[:space:]]*\[' "$hooks" 2>/dev/null \
-               | sed 's/"[[:space:]]*:.*//; s/"//g' | sort -u); do
+  for h in $(printf '%s\n' "$bound" | grep . | sort -u); do
     case " $seen " in *" $h "*) continue ;; esac
     printf 'undeclared\t%s\t%s\n' "$h" "wired, but lifecycle.tsv says nothing about it"
   done

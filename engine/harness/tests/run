@@ -105,6 +105,15 @@ printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' \
   > "$FROOT/projects/widget/probes.tsv"
 cp "$FROOT/projects/widget/probes.tsv" "$TMP/probes.keep"
 
+# And one admitted obligation, for the same reason: the merge boundary refuses
+# a project that has admitted nothing, so every merge assertion below would
+# otherwise be measuring the empty ledger. Always applicable, discharged by a
+# command that cannot fail, grounded on nothing — the least an obligation can
+# be while still being one.
+printf 'fixture\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\ta fixture owes one thing, and it holds\n' \
+  > "$FROOT/projects/widget/obligations.tsv"
+cp "$FROOT/projects/widget/obligations.tsv" "$TMP/obligations.keep"
+
 # The same for commissioning: one row a person answers, whose check reads the
 # marker the fixture keeps, so the merge boundary is measuring the merge and
 # not this table. The receipt it needs is stamped by _cm_stamp beside every
@@ -1085,7 +1094,7 @@ printf '\nwhat a revert cannot undo\n'
 #
 # Escapes are engine constants. A project may add to them and may never declare
 # one away, so this is not a table anybody can weaken into agreement.
-_esc() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"
+_esc() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
            felix_escapes "$FROOT/projects/widget" HEAD~1 "$REPO" ); }
 # L-25 again: this section appends rows to the widget's table, and every later
 # assertion in the file reads that table. Snapshot it here, restore at the end,
@@ -1148,7 +1157,7 @@ _reset; _reset
 # with no local `main`, and on the next governed project. The precondition is a
 # clean tree, because a dirty one still yields a working-tree diff — and a clean
 # tree is exactly what felix merge requires, so that softens nothing.
-_esc_at() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"
+_esc_at() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
               felix_escapes "$FROOT/projects/widget" "$1" "$REPO" ); }
 has "a base that does not resolve is unknown, not clean" "$(_esc_at no-such-ref)" "unknown"
 case "$(_esc_at no-such-ref)" in
@@ -1366,7 +1375,7 @@ case "$(_esc)" in
 esac
 # Inline rather than via _blk, which this file does not define until the merging
 # section below. The claim is at the merge layer, so it is asserted there.
-_resv_blk="$( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"
+_resv_blk="$( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
               . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/verify.sh"
               felix_merge_blockers "$FROOT/projects/widget" HEAD~1 "$REPO" "$FROOT" )"
 has "and it reaches merge as an escape, not as unknown" "$_resv_blk" "escape"
@@ -1390,7 +1399,7 @@ printf '\nmerging\n'
 # Every blocker is computed before gh is reached. A merge command that discovers
 # its own preconditions from the network cannot be tested and cannot refuse
 # offline, and refusing offline is the case that matters.
-_blk() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"
+_blk() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
            . "$FROOT/harness/lib/evidence.sh"
            . "$FROOT/harness/lib/verify.sh"
            felix_merge_blockers "$FROOT/projects/widget" HEAD~1 "$REPO" "$FROOT" ); }
@@ -1476,7 +1485,7 @@ has "a green gate does not clear an escape" "$(_blk)" "execute"
 # green receipt — merged against a base git cannot name. This is the shown-
 # failing case the issue requires: today it prints "nothing in it escaped the
 # tree" and merges.
-_blk_at() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"
+_blk_at() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
               . "$FROOT/harness/lib/evidence.sh"
               . "$FROOT/harness/lib/verify.sh"
               felix_merge_blockers "$FROOT/projects/widget" "$1" "$REPO" "$FROOT" ); }
@@ -1539,7 +1548,7 @@ RVH="$TMP/reviewhome"; RVP="$RVH/projects/widget"; mkdir -p "$RVP" "$MEM/widget"
 cp "$TMP/risk.keep" "$RVP/risk.tsv" 2>/dev/null || : > "$RVP/risk.tsv"
 printf 'red\tpath\t^content/\ta doctrine surface; no test can judge it\treviewed\t-\n' >> "$RVP/risk.tsv"
 _resc() { ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
-            . "$FROOT/harness/lib/escape.sh"
+            . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
             felix_escapes "$RVP" HEAD~1 "$REPO" "$RVH" ); }
 
 mkdir -p "$REPO/content"; printf 'teach this\n' > "$REPO/content/rubric.md"; _stage
@@ -1561,7 +1570,7 @@ has "a blocking verdict does not clear it either" "$(_resc)" "reviewed"
 # constant with a different constant would pass the assertion below it.
 _rgrant() { ( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
               . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
-              . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/classify.sh"
+              . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/classify.sh"
               . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/receipt.sh"
               felix_receipt "$RVP" HEAD~1 "$REPO" "$RVH" ) \
             | sed -n 's/.*"granted_by": "\([^"]*\)".*/\1/p'; }
@@ -1767,7 +1776,7 @@ _stk_paths() { ( cd "$STK" && . "$FROOT/harness/lib/resolve.sh"
 is "a stacked branch is not blamed for what its base already merged" \
    "$(_stk_paths)" "NOTES.md"
 
-_stk_esc() { ( cd "$STK" && . "$FROOT/harness/lib/escape.sh"
+_stk_esc() { ( cd "$STK" && . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
                felix_escapes "$FROOT/projects/widget" main "$STK" ); }
 case "$(_stk_esc)" in
   *execute*) bad "and its base's workflow is not escalated as this branch's escape" "$(_stk_esc)" ;;
@@ -5551,7 +5560,7 @@ printf 'on: push\n' > "$STG/.github/workflows/ci.yml"
 ( cd "$STG" && git add .github >/dev/null 2>&1 )   # staged, deliberately not committed
 
 _sesc() { ( cd "$STG" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/verify.sh"
-            . "$FROOT/harness/lib/review.sh"; . "$FROOT/harness/lib/escape.sh"
+            . "$FROOT/harness/lib/review.sh"; . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
             felix_escapes "$FROOT/projects/widget" "$BASE_SHA" "$STG" "$FROOT" ); }
 has "a staged workflow escapes even with commits ahead" "$(_sesc)" "execute"
 
@@ -5585,7 +5594,7 @@ printf '\na receipt that cannot claim more than it knows\n'
 # read as success — so the first consumer of this receipt is that rule.
 _rcpt() { ( cd "$STG" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
             . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
-            . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/classify.sh"
+            . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/classify.sh"
             . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/receipt.sh"
             felix_receipt "$FROOT/projects/widget" "${1:-$BASE_SHA}" "$STG" "$FROOT" ); }
 _rf() { printf '%s' "$1" | python3 -c '
@@ -5725,7 +5734,7 @@ printf 'more\n' >> "$SC2/a.md"
 ( cd "$SC2" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm ahead >/dev/null 2>&1 )
 
 _sc() { ( cd "$SC2" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/verify.sh"
-          . "$FROOT/harness/lib/review.sh"; . "$FROOT/harness/lib/escape.sh"
+          . "$FROOT/harness/lib/review.sh"; . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
           felix_escapes "$FROOT/projects/widget" "$SC2_BASE" "$SC2" "$FROOT" ); }
 
 # Destructive SQL, staged. The path is seen now; the added LINES were not.
@@ -6472,7 +6481,7 @@ _pbtable() {
 _pbtable
 
 _pbrun() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-             . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_run "$PBP" "$PBR" ); }
+             . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"; felix_probes_run "$PBP" "$PBR" ); }
 _pbstate() { _pbrun | awk -F'\t' -v p="$1" '$1 == p { print $3 }'; }
 
 is "a probe that enumerates members is found"      "$(_pbstate tracked)"     "found"
@@ -6533,7 +6542,7 @@ esac
 
 # Blocking is a property of the state, and nothing else may decide it.
 _pbblock() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-               . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_run "$PBP" "$PBR" \
+               . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"; felix_probes_run "$PBP" "$PBR" \
                | felix_probes_blocking | cut -f1 | LC_ALL=C sort | tr '\n' ' ' ); }
 is "exactly the states that could not be established block" \
    "$(_pbblock)" "brokenprobe notool nowitness partial pyfile readsstdin "
@@ -6562,7 +6571,7 @@ is "a probe that invents its members is indistinguishable from one that found th
 # inside its own fix: a row recording no judgement still closed a gap and then
 # rendered nowhere. Here it must stand for nothing at all.
 _pbtable "" 'halfrow	-'
-_pbmal() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+_pbmal() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
              felix_probe_malformed "$PBP" ); }
 has "a row with no command is reported as recording nothing" "$(_pbmal)" "halfrow"
 case "$(_pbrun | cut -f1)" in
@@ -6611,7 +6620,7 @@ is "a when test whose command does not exist makes the row unknown, not not-appl
 # reported as a missing command.
 _pbtable
 _pbroot="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-            . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+            . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
             felix_probes_run "$PBP" "$TMP/no-such-root-at-all" )"
 is "a root that cannot be entered makes every row unknown" \
    "$(printf '%s\n' "$_pbroot" | cut -f3 | LC_ALL=C sort -u | tr '\n' ' ')" "unknown "
@@ -6622,7 +6631,7 @@ _pbtable
 # ---------------------------------------------------------------- the log ---
 # Append-only, with provenance, and it must say so when it did not write.
 _pbrec() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-             . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+             . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
              felix_probes_record "$PBP" "$PBR" "$1" "$(felix_probes_run "$PBP" "$PBR")" \
              ) 2>/dev/null; }
 _pbrec treeone
@@ -6696,10 +6705,10 @@ _pbdtable() {
   } > "$PBD/probes.tsv"
 }
 _pbdrec() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
               felix_probes_record "$PBD" "$PBR" "$1" "$(felix_probes_run "$PBD" "$PBR")" ) 2>/dev/null; }
 _pbdrift() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-               . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+               . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
                felix_probes_drift "$PBD" "$1" "$(felix_probes_run "$PBD" "$PBR")" ); }
 
 _pbdtable
@@ -6790,7 +6799,7 @@ has "a count that is not a number is reported rather than passed over" \
 # Enumerated by felix_detect, not by this table. A gap list Felix wrote cannot
 # report the gap Felix did not think of.
 _pbgaps() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_gaps "$PBP" "$PBR" ); }
+              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"; felix_probes_gaps "$PBP" "$PBR" ); }
 has "a surface the checkout has and no probe reads is a gap" "$(_pbgaps)" "ci"
 _pbtable "" 'workflow	ci	-	git ls-files ".github/workflows/*"	test -d .github/workflows'
 case "$(_pbgaps)" in
@@ -6801,7 +6810,7 @@ esac
 # equally wrong when it keeps one reality dropped.
 _pbtable "" 'ghostprobe	billing	-	echo x	test -d src'
 _pborph() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; felix_probes_orphans "$PBP" "$PBR" ); }
+              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"; felix_probes_orphans "$PBP" "$PBR" ); }
 has "a probe grounding a surface nothing enumerates is named" "$(_pborph)" "billing"
 _pbtable "" 'workflow	ci	-	git ls-files ".github/workflows/*"	test -d .github/workflows'
 case "$(_pborph)" in
@@ -6818,7 +6827,7 @@ _pbtable
 # one place is a refusal somebody routes around.
 PBE="$TMP/probes-empty"; mkdir -p "$PBE"
 printf '{\n  "name": "widget",\n  "gate": "true"\n}\n' > "$PBE/project.json"
-_pbnorows() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+_pbnorows() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
                 felix_probe_rows "$PBE" ); }
 is "a project with no probes.tsv declares no probes" "$(_pbnorows | grep -c .)" "0"
 
@@ -6847,7 +6856,7 @@ has "and is named as a shelf with nothing on it"  "$out" "declares no probe"
 # Two: the merge boundary, the strongest refusal Felix reaches offline.
 _pbblockers() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
                   . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/evidence.sh"
-                  . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+                  . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
                   felix_merge_blockers "$1" "" "$2" "$FROOT" ) 2>/dev/null; }
 has "a merge is blocked while the project reads nothing from reality" \
     "$(_pbblockers "$PBE" "$PBR")" "probes"
@@ -6925,8 +6934,138 @@ fi
 # The table decides what stops, so shrinking it escapes to a person — the same
 # contract risk.tsv, deny.tsv and evidence.tsv already sit under.
 has "probes.tsv is one of the tables whose shrinkage escapes" \
-    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/escape.sh"
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
         printf '%s' "$FELIX_ESCAPE_TABLES" )" "probes.tsv"
+
+# ---------------------------------------------------------------------------
+# obligations: the first admission rule. v3.2 §3's three axes, two of them
+# derived on every run and never stored; the merge boundary refuses the empty
+# ledger; a dormant row is reported and blocks nothing; unknown blocks; and
+# shrinking the ledger escapes to a person.
+OBP="$TMP/oblig-proj"; OBR="$TMP/oblig-repo"; mkdir -p "$OBP" "$OBR"
+( cd "$OBR" && git init -q -b main && printf 'x\n' > x && git add -A && git commit -qm x )
+OBR="$(cd "$OBR" && pwd -P)"
+printf 'thing\t-\t-\tls -1 x\ttest -f x\n' > "$OBP/probes.tsv"
+_ob()    { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
+             . "$FROOT/harness/lib/obligations.sh"; "$@" ) 2>/dev/null; }
+_obrun() { _ob felix_obligations_run "$OBP" "$OBR"; }
+_obblk() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+             . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/evidence.sh"
+             . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/probes.sh"
+             . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
+             felix_merge_blockers "${1:-$OBP}" "" "$OBR" "$FROOT" ) 2>/dev/null | grep '^obligations'; }
+
+# The axes, derived.
+printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\tthing\tholds\n' > "$OBP/obligations.tsv"
+is  "an always-applicable obligation whose evidence holds is ACTIVE SATISFIED" \
+    "$(_obrun | cut -f4,5)" "ACTIVE	SATISFIED"
+is  "and blocks nothing" "$(_obblk)" ""
+printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\tfalse\tthing\tfails\n' > "$OBP/obligations.tsv"
+is  "one whose evidence fails is ACTIVE UNSATISFIED" "$(_obrun | cut -f4,5)" "ACTIVE	UNSATISFIED"
+has "and blocks a release" "$(_obblk)" "obligations	a	ACTIVE UNSATISFIED"
+printf 'a\tRELEASE_BLOCKING\tdeterministic\ttest -f nope\ttouch ran\tthing\tdormant\n' > "$OBP/obligations.tsv"
+is  "an obligation the grounded state does not make applicable is DORMANT" "$(_obrun | cut -f4)" "DORMANT"
+[ ! -f "$OBR/ran" ] && ok  "and its evidence is never run" \
+                    || bad "and its evidence is never run" "the evidence ran on a dormant row"
+is  "and a dormant row blocks nothing" "$(_obblk)" ""
+printf 'a\tRELEASE_BLOCKING\tunknown\ttest -f nope\ttrue\tthing\thold\n' > "$OBP/obligations.tsv"
+is  "even on the unknown pathway, which holds only while the row applies" "$(_obblk)" ""
+printf 'a\tRELEASE_BLOCKING\tunknown\t-\ttrue\tthing\thold\n' > "$OBP/obligations.tsv"
+has "an applicable unknown-pathway row holds even when its evidence passes" \
+    "$(_obblk)" "obligations	a	ACTIVE SATISFIED"
+printf 'a\tRELEASE_BLOCKING\tdeterministic\ttest -f flag\ttrue\tthing\tflips\n' > "$OBP/obligations.tsv"
+is  "applicability follows the grounded state: absent, dormant" "$(_obrun | cut -f4)" "DORMANT"
+: > "$OBR/flag"
+is  "present, active — nothing was stored between the two" "$(_obrun | cut -f4)" "ACTIVE"
+
+# Unknown is never clean.
+printf 'a\tRELEASE_BLOCKING\tdeterministic\tno-such-command-xyz\ttrue\tthing\t?\n' > "$OBP/obligations.tsv"
+is  "an applies command that does not exist here is UNKNOWN on both axes" \
+    "$(_obrun | cut -f4,5)" "UNKNOWN	UNKNOWN"
+has "and blocks" "$(_obblk)" "obligations	a	UNKNOWN UNKNOWN"
+printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\tno-such-command-xyz\tthing\t?\n' > "$OBP/obligations.tsv"
+is  "an evidence command that does not exist here is ACTIVE UNKNOWN" "$(_obrun | cut -f4,5)" "ACTIVE	UNKNOWN"
+printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\techo cannot; exit 2\tthing\t?\n' > "$OBP/obligations.tsv"
+is  "evidence that says it cannot examine is UNKNOWN, not failed" "$(_obrun | cut -f5)" "UNKNOWN"
+has "carrying the evidence's own last line" "$(_obrun | cut -f6)" "cannot"
+
+# Refused rows, and the classes that do not block.
+printf 'a\tRELEASE_BLOCKING\tprobabilistic\t-\ttrue\tthing\tguess\n' > "$OBP/obligations.tsv"
+has "a probabilistic row with a blocking class is refused" \
+    "$(_ob felix_obligation_malformed "$OBP")" "advisory only"
+is  "and never evaluated" "$(_obrun)" ""
+has "and refused at the boundary" "$(_obblk)" "advisory only"
+printf 'a\tSHOUTY\tdeterministic\t-\ttrue\tthing\t?\n' > "$OBP/obligations.tsv"
+has "a class outside the set is refused" "$(_ob felix_obligation_malformed "$OBP")" "not one of"
+printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\t-\tthing\t?\n' > "$OBP/obligations.tsv"
+has "a row with no evidence contract is refused" \
+    "$(_ob felix_obligation_malformed "$OBP")" "no evidence contract"
+printf 'a\tADVISORY\tprobabilistic\t-\tfalse\tthing\tguess\n' > "$OBP/obligations.tsv"
+is  "an advisory probabilistic row that fails blocks nothing" "$(_obblk)" ""
+is  "but is still evaluated and reported" "$(_obrun | cut -f5)" "UNSATISFIED"
+printf 'a\tTASK_BLOCKING\tdeterministic\t-\tfalse\tthing\ttask\n' > "$OBP/obligations.tsv"
+is  "a task-blocking row does not block a release" "$(_obblk)" ""
+is  "and does block a task" "$(_obrun | _ob felix_obligations_blocking | cut -f1)" "a"
+
+# Grounds.
+printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\tnothing\t?\n' > "$OBP/obligations.tsv"
+is  "a row grounded on a probe the project does not declare is an orphan" \
+    "$(_ob felix_obligations_orphans "$OBP")" "nothing"
+has "and refused at the boundary" "$(_obblk)" "does not declare"
+printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\t?\n' > "$OBP/obligations.tsv"
+is  "an ungrounded row is counted" "$(_ob felix_obligations_ungrounded "$OBP")" "a"
+is  "not refused" "$(_ob felix_obligations_orphans "$OBP")" ""
+
+# The empty case, at the boundary.
+printf '# nothing\n' > "$OBP/obligations.tsv"
+has "an obligations.tsv admitting nothing blocks a merge" "$(_obblk)" "admits no obligation"
+OBN="$TMP/oblig-none"; mkdir -p "$OBN"; cp "$OBP/probes.tsv" "$OBN/"
+has "and a project with no obligations.tsv blocks a merge" "$(_obblk "$OBN")" "admits no obligation; write"
+
+# The CLI, on the bound fixture.
+out="$(cd "$REPO" && "$FELIX" obligations --gate 2>&1)"; rc=$?
+is  "felix obligations --gate passes on the fixture's one holding obligation" "$rc" "0"
+has "and reports it on its axes" "$out" "ACTIVE    SATISFIED"
+has "and counts it" "$out" "1 obligation(s): 1 active, 0 dormant, 0 unknown; 0 blocking"
+
+# The first obligation's evidence contract, on the real tree and on a copy.
+if [ -x "$REAL_HARNESS/bin/lifecycle-check" ]; then
+  out="$(cd "$REAL_HARNESS/../.." && "$REAL_HARNESS/bin/lifecycle-check" engine/harness/templates engine/hooks/hooks.json 2>&1)"; rc=$?
+  is  "the shipped hooks bind every moment the stance table says is wired" "$rc" "0"
+  has "and the contract names each moment it examined" "$out" "SubagentStop"
+  LC="$TMP/lc"; mkdir -p "$LC/tpl"; cp "$REAL_HARNESS/templates/lifecycle.tsv" "$LC/tpl/"
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); h=d["hooks"] if "hooks" in d else d; h.pop("SubagentStop", None); json.dump(d, open(sys.argv[2], "w"))' \
+    "$REAL_HARNESS/../hooks/hooks.json" "$LC/hooks.json"
+  out="$(cd "$LC" && "$REAL_HARNESS/bin/lifecycle-check" tpl hooks.json 2>&1)"; rc=$?
+  is  "and fails when a wired moment is unbound" "$rc" "1"
+  has "naming it" "$out" "missing       SubagentStop"
+  is  "and cannot examine without a stance table" \
+      "$(cd "$LC" && "$REAL_HARNESS/bin/lifecycle-check" nowhere hooks.json >/dev/null 2>&1; echo $?)" "2"
+  is  "or without hooks" \
+      "$(cd "$LC" && "$REAL_HARNESS/bin/lifecycle-check" tpl nohooks.json >/dev/null 2>&1; echo $?)" "2"
+else
+  for a in "the shipped hooks bind every moment the stance table says is wired" \
+           "and the contract names each moment it examined" "and fails when a wired moment is unbound" \
+           "naming it" "and cannot examine without a stance table" "or without hooks"; do
+    skip "$a" "no bin/lifecycle-check beside this harness"; done
+fi
+
+# The real ledger on the real tree.
+_REALP="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix"
+if [ -f "$_REALP/obligations.tsv" ] && [ -x "$REAL_HARNESS/bin/obligations-check" ]; then
+  out="$(cd "$REAL_HARNESS/../.." && "$REAL_HARNESS/bin/obligations-check" projects/felix release 2>&1)"; rc=$?
+  is  "felix's own first obligation is discharged on this tree" "$rc" "0"
+  has "and it is the lifecycle one" "$out" "lifecycle_wired"
+  is  "grounded on a probe felix declares" "$(_ob felix_obligations_orphans "$_REALP")" ""
+else
+  for a in "felix's own first obligation is discharged on this tree" "and it is the lifecycle one" \
+           "grounded on a probe felix declares"; do skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
+fi
+
+# Shrinking the ledger escapes, like every table that decides what stops.
+has "obligations.tsv is one of the tables whose shrinkage escapes" \
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/escape.sh"
+        printf '%s' "$FELIX_ESCAPE_TABLES" )" "obligations.tsv"
 
 # The full command against a project that has rows, since every assertion above
 # could pass while the CLI died on an unbound variable — the lesson this
@@ -7006,7 +7145,7 @@ is "and its seeded stack rows carry DECLARED" \
 _pseed="$(grep -cE $'\tDECLARED$' "$FROOT/projects/probeseed/stack.tsv" 2>/dev/null)" || _pseed=0
 [ "${_pseed:-0}" -gt 0 ] && ok "and there is at least one of them" \
                          || bad "and there is at least one of them" "counted $_pseed DECLARED rows"
-_pbseed() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"
+_pbseed() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
               felix_probe_rows "$FROOT/projects/probeseed" | grep -c . ); }
 case "$(_pbseed)" in
   0) bad "and the seed holds rows rather than only comments" "0 rows" ;;
@@ -8736,7 +8875,7 @@ _ago() { date -v-"$1"d +%Y-%m-%d 2>/dev/null || date -d "$1 days ago" +%Y-%m-%d 
 
 _pnext() { ( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
              . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
-             . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/evidence.sh"
+             . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/evidence.sh"
              . "$FROOT/harness/lib/maintenance.sh"; . "$FROOT/harness/lib/stack.sh"
              . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/ledger.sh"
              . "$FROOT/harness/lib/coverage.sh"; . "$FROOT/harness/lib/deny.sh"
@@ -8846,7 +8985,7 @@ printf '{"name":"nextproj","gate":"true"}\n' > "$NX/project.json"
 # been asserting the absence of a library.
 _next() { ( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
             . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
-            . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/evidence.sh"
+            . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/evidence.sh"
             . "$FROOT/harness/lib/maintenance.sh"; . "$FROOT/harness/lib/stack.sh"
             . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/ledger.sh"
             . "$FROOT/harness/lib/coverage.sh"; . "$FROOT/harness/lib/deny.sh"
@@ -8890,7 +9029,7 @@ _ndlive() { printf '%s' "${1:-}" > "$NDB/live"; }
 _nd() { _ndlive "$1"; ( cd "$NDR" && PATH="$NDB:$PATH"
           . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
           . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
-          . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/evidence.sh"
+          . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/evidence.sh"
           . "$FROOT/harness/lib/maintenance.sh"; . "$FROOT/harness/lib/stack.sh"
           . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/ledger.sh"
           . "$FROOT/harness/lib/coverage.sh"; . "$FROOT/harness/lib/deny.sh"
@@ -8974,7 +9113,7 @@ _reset
 # `absent`, so this passed on a laptop and failed on every runner.
 n="$( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
       . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
-      . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/evidence.sh"
+      . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/evidence.sh"
       . "$FROOT/harness/lib/maintenance.sh"; . "$FROOT/harness/lib/stack.sh"
       . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/ledger.sh"
       . "$FROOT/harness/lib/coverage.sh"; . "$FROOT/harness/lib/deny.sh"
@@ -9000,7 +9139,7 @@ has "and says it must be fixed before the next session" "$n" "bind at start"
 _nxs() { _NXROWS="$1"
          ( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
            . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
-           . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/evidence.sh"
+           . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/evidence.sh"
            . "$FROOT/harness/lib/maintenance.sh"; . "$FROOT/harness/lib/stack.sh"
            . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/ledger.sh"
            . "$FROOT/harness/lib/coverage.sh"; . "$FROOT/harness/lib/deny.sh"
@@ -10294,7 +10433,7 @@ grep -v '^api$' "$CMP/capabilities" > "$CMP/caps.tmp"; mv "$CMP/caps.tmp" "$CMP/
 # The merge boundary: the second place the empty case is refused, and the
 # one that bites on staleness. Never on held rows.
 _cmblk() { ( cd "$CMR" && FELIX_HOME_DIR="$FROOT"
-             . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/verify.sh"
+             . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/verify.sh"
              [ "${1:-}" = "--unload" ] && unset -f felix_commission_rows
              felix_merge_blockers "$CMP" HEAD~1 "$CMR" "$FROOT" ) 2>/dev/null; }
 _cmcli >/dev/null 2>&1

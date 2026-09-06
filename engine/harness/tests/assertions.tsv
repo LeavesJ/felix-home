@@ -48,6 +48,7 @@
 1	a check that passes is done
 1	a checkout inside the verification is caught too
 1	a checkout that moves after verification merges nothing
+1	a class outside the set is refused
 1	a clean checkout claims no rival gate
 1	a clean repo says so instead of minting a commit
 1	a comment added to it is still free
@@ -237,6 +238,7 @@
 1	a predicate with fewer members than the last tree is named
 1	a predicate with more members than the last tree is named too
 1	a predicate with no prior record is named as new
+1	a probabilistic row with a blocking class is refused
 1	a probe grounding a surface nothing enumerates is named
 1	a probe naming a real command carries that instrument and a token
 1	a probe row naming a predicate and no command blocks the merge
@@ -303,6 +305,7 @@
 1	a row at both ceilings is accepted
 1	a row carrying a risk column is refused, because risk is not the model's to assign
 1	a row from before the column proposes nothing
+1	a row grounded on a probe the project does not declare is an orphan
 1	a row inspection judged capability-less is not
 1	a row naming no moment does not close its gap
 1	a row naming no real capability is caught
@@ -313,6 +316,7 @@
 1	a row with an empty probe cell is malformed
 1	a row with more fields than the format has is malformed
 1	a row with no command is reported as recording nothing
+1	a row with no evidence contract is refused
 1	a row written before instruments existed claims none
 1	a rule naming Edit does not deny a Write
 1	a rule never matches file content
@@ -362,6 +366,7 @@
 1	a table outside the classified repo is still read once, at HEAD
 1	a table with no holds column still works
 1	a task notification is not a prompt
+1	a task-blocking row does not block a release
 1	a template need this table lacks is named
 1	a term recurring across entries surfaces
 1	a three-field score answer is answered
@@ -415,10 +420,12 @@
 1	an absent marker still means ungoverned
 1	an absent pointer is not a broken pointer
 1	an admitted nomination becomes a declared row
+1	an advisory probabilistic row that fails blocks nothing
 1	an agent is recorded by which agent
 1	an agent reached is credited to the plugin that ships it
 1	an all-structural gate still fails
 1	an always row is not flagged
+1	an always-applicable obligation whose evidence holds is ACTIVE SATISFIED
 1	an ambiguous play naming is counted for the declared plugin
 1	an ancient run counts as due again
 1	an answer file moves nothing enforcing in the receipt
@@ -427,6 +434,8 @@
 1	an answer with no terminal done row is partial
 1	an append that did not happen is reported as a failure
 1	an append that succeeded and wrote nothing is reported as a failure too
+1	an applicable unknown-pathway row holds even when its evidence passes
+1	an applies command that does not exist here is UNKNOWN on both axes
 1	an argument it cannot honour merges nothing
 1	an empty base is not reported as unknown
 1	an empty grounding refuses
@@ -449,6 +458,7 @@
 1	an established fact is classed OBSERVED
 1	an event row with a failing check is DUE
 1	an event-driven routine is not due
+1	an evidence command that does not exist here is ACTIVE UNKNOWN
 1	an excuse elsewhere does not defuse, sample 1
 1	an excuse elsewhere does not defuse, sample 2
 1	an excuse elsewhere does not defuse, sample 3
@@ -466,6 +476,8 @@
 1	an mcp call is recorded by server
 1	an mcp nomination is refused on its kind
 1	an mcp server reached under its plugin prefix credits the plugin
+1	an obligation the grounded state does not make applicable is DORMANT
+1	an obligations.tsv admitting nothing blocks a merge
 1	an old stamp is counted in days
 1	an opted-in capability is allowed
 1	an ordinary checkout is not
@@ -478,6 +490,7 @@
 1	an unenforceable probe word is muted on the record
 1	an ungoverned repo is allowed
 1	an ungranted project starts no background run
+1	an ungrounded row is counted
 1	an unknown grounding refuses
 1	an unknown routine is refused
 1	an unknown tier refuses
@@ -528,6 +541,7 @@
 1	and a declared one the tree no longer shows is still an item
 1	and a declined one is ok too
 1	and a document that is not a plan
+1	and a dormant row blocks nothing
 1	and a failing one as due for that reason
 1	and a file that does not exist counts zero
 1	and a fold that is current leaves nothing stranded
@@ -540,6 +554,7 @@
 1	and a person's medium row installs, as it always has
 1	and a prefixed skill is never called a built-in
 1	and a probe that failed against a real surface is blind too
+1	and a project with no obligations.tsv blocks a merge
 1	and a project with none does not claim it
 1	and a real one still routes
 1	and a red run at the head means zero
@@ -568,10 +583,14 @@
 1	and an unknown kind is refused
 1	and blocked by a probe that cannot see what a witness proves is there
 1	and blocked by a row nothing could establish at all
+1	and blocks
+1	and blocks a release
+1	and blocks nothing
 1	and both paths in one sentence are found
 1	and briefs the file it names
 1	and calls an absent surface empty rather than blind
 1	and calls it a shelf with nothing on it
+1	and cannot examine without a stance table
 1	and carries a low-speed deadline so a stall cannot wait forever
 1	and carries no tier, because it was never fetched
 1	and carries the decline channel
@@ -580,6 +599,7 @@
 1	and claims nothing was unchecked
 1	and commissions
 1	and commits nothing to it
+1	and counts it
 1	and counts the recorded decline
 1	and counts what was held over the whole file too
 1	and creates nothing without --create
@@ -588,6 +608,7 @@
 1	and declaring a plugin does not turn the retire rule into an unmount
 1	and deleting the syntax check escapes as verifier
 1	and did not disturb the session that had folded
+1	and does block a task
 1	and does not ask for a lesson that already exists
 1	and does not blame a checkout that did not move
 1	and does not diagnose a cause it cannot see
@@ -608,6 +629,7 @@
 1	and exits 0 with the tree dirty
 1	and exits 3, distinctly
 1	and explains why it now matters
+1	and fails when a wired moment is unbound
 1	and felix which does not resolve it
 1	and filters residue through the same ignore rule
 1	and folding them takes it to zero
@@ -648,6 +670,7 @@
 1	and it is not accepted as a row
 1	and it is not autonomous
 1	and it is reported as unusable, not unchecked
+1	and it is the lifecycle one
 1	and it is the usage text
 1	and it merges nothing
 1	and it names the command that clears it
@@ -664,6 +687,7 @@
 1	and its actor is the word every other line uses
 1	and its base's workflow is not escalated as this branch's escape
 1	and its declines count as unchecked
+1	and its evidence is never run
 1	and its medium holds too
 1	and its path is gone from the tokens whatever the key is called
 1	and its seeded stack rows carry DECLARED
@@ -709,6 +733,7 @@
 1	and never as event, which is what a row with no check says
 1	and never claims it was mounted every session
 1	and never ends on a success line
+1	and never evaluated
 1	and never mentions the same one twice
 1	and never renders a negative count
 1	and never reports a tier it could not compute
@@ -788,12 +813,14 @@
 1	and reads stale whatever its age
 1	and recording the run does not put it back
 1	and records the failure without being asked
+2	and refused at the boundary
 1	and refuses in gate mode as well
 1	and refuses instead of ignoring it
 1	and refuses to answer when the probe yields no words
 1	and refuses to spend past the ceiling
 1	and refuses with no issue and no input
 1	and reports a clear merge without performing one
+1	and reports it on its axes
 1	and reports no severity for it
 1	and reports nothing for one it does not have
 1	and reports the receipt it wrote
@@ -913,6 +940,7 @@
 1	and the claim it could not support is gone
 1	and the clean sentence is withheld
 1	and the comment survives
+1	and the contract names each moment it examined
 1	and the count follows
 1	and the discovery cache gone stale
 1	and the domain it speaks for
@@ -1022,6 +1050,7 @@
 1	another session's edit changes the tree identity
 1	anything shipping hooks is high
 1	appended after what was there
+1	applicability follows the grounded state: absent, dormant
 1	apply without --yes changes nothing
 1	applying declares appends one row per new declare
 1	as a declined verdict
@@ -1049,6 +1078,7 @@
 1	but auto-merge is withheld on a gap
 1	but cannot impersonate an unscanned diff
 1	but does not hold the session for it
+1	but is still evaluated and reported
 1	but it is counted
 1	but it is logged, so the pivot stays observable
 1	but it still classifies red
@@ -1058,6 +1088,7 @@
 1	but the field names themselves are gone
 1	carries the governed project
 1	carries the matched lesson
+1	carrying the evidence's own last line
 1	carrying the grounding that says the engine read it
 1	catch-up folds every session nothing folded
 1	catch-up folds only the sessions this repository's history contains
@@ -1102,6 +1133,7 @@
 1	emits the documented UserPromptSubmit shape
 1	entries older than a day do not count
 1	envelope path values are gone from the tokens
+1	even on the unknown pathway, which holds only while the row applies
 1	every call is appended
 1	every capability detection can adopt has a discovery rule
 1	every check passing, with a provider still awaiting, is commissioned
@@ -1112,6 +1144,7 @@
 1	every route matches its own name
 1	every row carries the command that clears it
 1	every vocabulary token is a word, not a regex fragment
+1	evidence that says it cannot examine is UNKNOWN, not failed
 1	exactly one declaration from that cache
 1	exactly one name is exempt, and it is the engine's own
 1	exactly the states that could not be established block
@@ -1136,6 +1169,7 @@
 1	felix new seeds a probe table
 1	felix new still exits 0
 1	felix next ranks it under the checks that are not checking
+1	felix obligations --gate passes on the fixture's one holding obligation
 1	felix probes refuses a project that asks reality nothing
 1	felix probes reports without refusing
 1	felix procedures runs
@@ -1143,6 +1177,7 @@
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
 1	felix stack reconcile folds what nothing folded before reporting
+1	felix's own first obligation is discharged on this tree
 1	felix's own gate no longer carries a private copy of the check
 1	felix_autonomy_allows is defined for the hook
 1	felix_budget_record itself reports the failure
@@ -1162,6 +1197,7 @@
 1	gate command actually ran
 1	governs them immediately
 1	green tier is still reported
+1	grounded on a probe felix declares
 1	guesses their gate
 1	handoff is regenerated from the tree
 1	handoff lists the session-end checks
@@ -1232,6 +1268,7 @@
 1	names the first step
 1	names the maintenance that is due
 1	names the suspect commit
+1	naming it
 1	naming skills does not change the risk read
 1	naming the branch's commit
 1	naming the channel that escaped
@@ -1268,10 +1305,12 @@
 1	nor report a spend that did not happen
 1	nor the all-caps sentinel
 1	nor the stop hook talking to itself
+1	not refused
 1	nothing found and a witness agreeing is empty
 1	nothing found where a witness proves a surface is blind
 1	nothing found with no witness is unknown, never empty
 1	nothing is allowed by default
+1	obligations.tsv is one of the tables whose shrinkage escapes
 1	on a repository with no commit, nothing tracked reads as empty, not blind
 1	onboarding writes one
 1	one already declared is left alone
@@ -1293,13 +1332,16 @@
 1	one superpowers skill does not mark superpowers:test-driven-development used
 1	one superpowers skill does not mark superpowers:writing-plans used
 1	one tree gated twice is one occasion, not a habit
+1	one whose evidence fails is ACTIVE UNSATISFIED
 1	only the claim is mounted, not the evidence
+1	or without hooks
 1	origin outranks the name that sorts first
 1	overrides are recorded
 1	passing gate exits 0
 1	path and all
 1	pr previews and exits 0
 1	pr refuses to open a branch against itself
+1	present, active — nothing was stored between the two
 1	probes.tsv is one of the tables whose shrinkage escapes
 1	promote surfaces a word that keeps missing
 1	proposes mounting what was reached and never declared
@@ -1545,6 +1587,7 @@
 1	the session banner does not carry the unmeasurable list
 1	the session it does own is folded
 1	the shipped gate marks its undeployable failure
+1	the shipped hooks bind every moment the stance table says is wired
 1	the shipped layout — memory under ~/.felix — is its own repo
 1	the shipped table considers every moment
 1	the skipped row the Stop hook writes is counted

@@ -45,13 +45,21 @@ if ! command -v felix_probes_run >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/probes.sh" 2>/dev/null
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/commission.sh" 2>/dev/null
 fi
+# And the obligation library, for the same reason: the merge boundary asks
+# what the project owes, and a judge that could not ask has not shown that
+# nothing is owed — the blocker below fails closed on exactly that. Found by
+# the self-governed merge fixture, where the pinned kernel is the only copy
+# of the engine the judge has.
+if ! command -v felix_obligations_run >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/obligations.sh" 2>/dev/null
+fi
 
 FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null && pwd)/secret-scan"
 
 # Enforcing tables: the files that decide what stops. Shrinking one is the edit
 # that cannot be checked by the thing it shrank, because a green produced by a
 # narrowed judge certifies itself. Named by shape, not by project.
-FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv commissioning.tsv'
+FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv commissioning.tsv obligations.tsv'
 
 # The subset whose rows are EXEMPTIONS, and for which "adding is free" is
 # backwards. A row in the ecosystem table says "this word is not a stack name"
@@ -406,6 +414,45 @@ felix_merge_blockers() {
             "$(printf '%s\n' "$line" | cut -f1)" \
             "$(printf '%s\n' "$line" | cut -f3)" \
             "$(printf '%s\n' "$line" | cut -f5)"
+        done
+  fi
+
+  # obligations: what the project has admitted it owes. Only presence and
+  # discharge are stored; whether each row applies is recomputed here from
+  # the grounded state, so a requirement stops blocking when the tree stops
+  # making it applicable and never because somebody wrote it out. A blocking
+  # row that applies, or cannot say whether it applies, and is not discharged
+  # stops the merge. Absent and empty tables are refused for the reason the
+  # probes block gives, and the library failing to load fails closed for the
+  # same reason: an engine that could not ask what is owed has not shown that
+  # nothing is.
+  if ! command -v felix_obligations_run >/dev/null 2>&1; then
+    printf 'obligations\tengine\tthe obligation library is not loaded, so what this project owes was not asked\n'
+  elif [ ! -f "$proj/obligations.tsv" ]; then
+    printf 'obligations\ttable\tthis project admits no obligation; write %s/obligations.tsv\n' "$proj"
+  else
+    # Refused rows first, before the table is called empty: a row somebody
+    # wrote and nothing reads is the more specific fact, and a ledger whose
+    # only row is refused should say which row, not just that nothing is owed.
+    felix_obligation_malformed "$proj" | while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      printf 'obligations\ttable\t%s/obligations.tsv: %s\n' "$proj" "$line"
+    done
+    if [ -z "$(felix_obligation_rows "$proj")" ]; then
+      printf 'obligations\ttable\t%s/obligations.tsv admits no obligation, which is a ledger with nothing owed\n' "$proj"
+    fi
+    felix_obligations_orphans "$proj" | while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      printf 'obligations\ttable\ta row grounds on %s, which %s/probes.tsv does not declare\n' "$line" "$proj"
+    done
+    felix_obligations_run "$proj" "$root" | felix_obligations_blocking release \
+      | while IFS= read -r line; do
+          [ -n "$line" ] || continue
+          printf 'obligations\t%s\t%s %s: %s\n' \
+            "$(printf '%s\n' "$line" | cut -f1)" \
+            "$(printf '%s\n' "$line" | cut -f4)" \
+            "$(printf '%s\n' "$line" | cut -f5)" \
+            "$(printf '%s\n' "$line" | cut -f6)"
         done
   fi
 

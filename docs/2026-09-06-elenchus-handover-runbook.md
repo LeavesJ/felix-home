@@ -4,6 +4,14 @@ Written 2026-09-06. The operator of this runbook is J. It is the private half of
 two document handover: this file says what to do and in what order, and
 `docs/2026-09-06-riyan-onboarding.md` is the document Riyan actually receives.
 
+**Do not paste from this file.** It is the reasoning record: why each step is
+what it is, what was measured, and what was reversed. The thing you execute is
+`docs/2026-09-06-handover-setup.md`, whose command blocks are written for zsh
+and contain no angle brackets and no `#`, because both are errors rather than
+placeholders in an interactive shell. Blocks here still carry both, some of them
+show sample output rather than commands, and §4e is a recipe that was built,
+verified and then deliberately not used.
+
 **Why this file lives in Felix and not in Elenchus.** Elenchus is public. This
 runbook names credential locations, a personal data boundary, and an access
 decision, and none of that belongs in a public tracked set. Elenchus's own gate
@@ -911,7 +919,7 @@ The working invocation is stdin, and it keeps file and line attribution because
 `grep -rn` puts them in the text:
 
 ```
-grep -rnI '' handover/ | <felix>/engine/harness/bin/secret-scan -
+grep -rnI '' handover/ | "$FELIX/engine/harness/bin/secret-scan" -
 ```
 
 **And it has one blind spot that matters here more than anywhere else.**
@@ -937,7 +945,7 @@ Measured, so you know what you are and are not covered for:
 So run both, and treat the second as the one that covers the gap:
 
 ```
-grep -rnI '' handover/ | <felix>/engine/harness/bin/secret-scan -
+grep -rnI '' handover/ | "$FELIX/engine/harness/bin/secret-scan" -
 grep -rniE 'sk-ant-|sk-[A-Za-z0-9]{20}|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY|ANTHROPIC_API_KEY[[:space:]]*=' handover/
 ```
 
@@ -985,12 +993,16 @@ copy did not follow the link.
 `TODO(assumption)` in §3 becomes a fact here:
 
 ```
-ls -la <elenchus>/*.md                        # the twelve, and which bind
-ls -la <elenchus>/docs/
+ELENCHUS=~/Documents/Elenchus
+ls -la "$ELENCHUS"/*.md
+ls -la "$ELENCHUS/docs/"
 ls -la ~/.config/elenchus/ ~/.local/share/elenchus/data/
-cat <elenchus>/.git/info/exclude
-cd <elenchus> && git status --short --untracked-files=all | head -50
+cat "$ELENCHUS/.git/info/exclude"
+cd "$ELENCHUS" && git status --short --untracked-files=all | head -50
 ```
+
+The first listing is the twelve root documents, of which only `POSITIONING.md`
+binds.
 
 That last command is the real inventory. It lists exactly what is in your
 checkout and not in the repository, which is the question this whole section is

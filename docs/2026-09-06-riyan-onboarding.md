@@ -573,11 +573,12 @@ If you want J's setup rather than the snapshot, replicate the symlinks once,
 after your first `felix` run has created the memory directory:
 
 ```
-mv docs/lessons.md ~/.felix/memory/elenchus/lessons.md    # seed with J's copy
+mv docs/lessons.md ~/.felix/memory/elenchus/lessons.md
 ln -s ~/.felix/memory/elenchus/lessons.md docs/lessons.md
 ```
 
-Same shape for the other two. That makes your own `felix lesson` writes land in
+The `mv` seeds the memory root with J's copy, then the `ln -s` puts the pointer
+back where the code expects it. Same shape for the other two. That makes your own `felix lesson` writes land in
 the path the code comments cite, which is the behaviour J has been running with
 since 2026-08-18. Ask him before doing it if you would rather not inherit the
 accumulated file as your own starting point.
@@ -635,8 +636,9 @@ Run the web app when you want to see it:
 
 ```
 PYTHONPATH=src ELENCHUS_MAX_CALLS=200 .venv/bin/python -m elenchus.web
-# http://127.0.0.1:8000
 ```
+
+It serves on `http://127.0.0.1:8000`.
 
 That spends real tokens. So does `pytest -m live`. Nothing else does.
 

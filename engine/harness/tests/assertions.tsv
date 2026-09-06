@@ -137,6 +137,7 @@
 1	a ledger written as one file is still read
 1	a leftover message draft does not stop the backup forever
 1	a local-only branch is taken as given
+1	a lock whose owner is gone is taken over
 1	a lookalike gate is reported
 1	a low-risk candidate is declared
 1	a machine without launchd is refused, not half-served
@@ -309,6 +310,7 @@
 1	a satisfied step reports done
 1	a score answer never enters the admit phase
 1	a second catch-up finds nothing left
+1	a second full run refuses while one is in progress
 1	a second hand-off in the same session stays quiet
 1	a second run appends rather than replacing
 1	a second tree makes it a promotion candidate
@@ -552,6 +554,7 @@
 1	and briefs the file it names
 1	and calls an absent surface empty rather than blind
 1	and calls it a shelf with nothing on it
+1	and carries a low-speed deadline so a stall cannot wait forever
 1	and carries no tier, because it was never fetched
 1	and carries the decline channel
 1	and changes when the tree changes
@@ -672,6 +675,7 @@
 1	and names the hook
 1	and names the pipeline step nothing answers
 1	and names the play in order
+1	and names the process holding it
 3	and names the project
 1	and names the refused row
 1	and names the source tree it compared
@@ -748,6 +752,7 @@
 1	and paint actually calls it
 1	and passes the facts it already has
 1	and picks the capability the skills serve
+1	and points at the read that needs no lock
 1	and prints the state rather than a verdict
 1	and proposes nothing for it
 1	and prose counts single
@@ -961,6 +966,7 @@
 1	and the row-level line names the same file
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
+1	and the run that took it over leaves nothing behind
 1	and the same rows over more sessions are not
 1	and the same scanner catches a planted one
 1	and the seed holds rows rather than only comments
@@ -1421,6 +1427,7 @@
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
 1	the extractor names every skipped check and nothing else
+1	the fetch never asks a terminal for credentials
 1	the field lookup lives in one place
 1	the fixture answer is restored
 1	the fixture is dirty only in Felix's own bookkeeping
@@ -1559,6 +1566,7 @@
 1	which does not by itself fail the gate, since not applying is not a claim
 1	which is the number it printed
 1	which takes it back to nothing stranded
+1	while --status reads straight through it
 1	while a complete stance is not called malformed
 1	while a mount needs no threshold: the reach already happened
 1	while a predicate that did not move is silent

@@ -148,6 +148,51 @@ _felix_commission_functions_present() {
       done
 }
 
+# One commissioning run at a time, per project.
+#
+# The run is a sequence of appends — stack.tsv twice, commissioning.log, and a
+# play into routes.tsv — and an append is neither atomic nor idempotent. Two
+# runs interleaving do not produce a conflict anybody sees; they produce a
+# manifest with a row written half by each, or the same capability declared
+# twice, and both look like a table somebody typed wrong.
+#
+# A directory, because mkdir is atomic everywhere and a lock FILE needs a
+# create-exclusive that /bin/sh does not portably have.
+#
+# The pid is written inside it, and that is the difference between this and the
+# background refresh's lock. That one may sit there: a refresh that never
+# finishes costs a stale cache. This one is taken by a command a person typed,
+# and a lock left behind by a killed run would lock the person out of their own
+# project with no way to tell that from a run in progress. So a lock whose
+# owner is gone is taken over, and only a live owner refuses.
+#
+# Keyed on the project, not the home: one governed project commissioning must
+# not silence another's.
+felix_commission_lock() {   # proj, home -> 0 taken, 1 held by a live run
+  local proj="$1" home="$2" dir owner
+  dir="$home/state/commission/$(basename "$proj").lock"
+  mkdir -p "$(dirname "$dir")" 2>/dev/null || return 0
+  if mkdir "$dir" 2>/dev/null; then
+    printf '%s\n' "$$" > "$dir/pid" 2>/dev/null
+    printf '%s' "$dir"; return 0
+  fi
+  owner="$(head -1 "$dir/pid" 2>/dev/null)"
+  # No pid, or a pid nothing answers to: the run that made this is gone.
+  case "$owner" in
+    ''|*[!0-9]*) ;;
+    *) if kill -0 "$owner" 2>/dev/null; then printf '%s' "$owner"; return 1; fi ;;
+  esac
+  rm -rf "$dir" 2>/dev/null
+  if mkdir "$dir" 2>/dev/null; then
+    printf '%s\n' "$$" > "$dir/pid" 2>/dev/null
+    printf '%s' "$dir"; return 0
+  fi
+  # Lost the race to take over. Whoever won is live by definition.
+  printf 'another'; return 1
+}
+
+felix_commission_unlock() { [ -n "${1:-}" ] && rm -rf "$1" 2>/dev/null; return 0; }
+
 # Run a check or a `when` in the checkout, in-process, with stdin closed.
 # 0 yes, 1 no, 126 cannot enter, 127 a command does not exist.
 felix_commission_ask() {

@@ -201,6 +201,34 @@ felix_discover_source() {
              if (found) print U "\t" S "\t" P }'
 }
 
+# Git, for the one place Felix talks to a host it does not control.
+#
+# Two things this fixes, both of which only bite where nobody is watching.
+#
+# A fetch with no deadline waits forever. In the foreground that is a hang a
+# person cancels; behind any caller that is not a person it is a hang nobody
+# can see. There is no portable `timeout` — neither it nor gtimeout is on this
+# machine, and the enforcing path may not depend on coreutils — so the deadline
+# is git's own: abort an http transfer moving less than LIMIT bytes/sec for
+# TIME seconds. That covers a stalled transfer, which a wall-clock kill covers
+# by also killing a slow success.
+#
+# And a private or moved URL makes git ask for credentials on a terminal. Asked
+# where there is none it blocks; asked where there is one it interrupts a person
+# with a prompt from a command that never said it would authenticate. Both are
+# refusals dressed as hangs. GIT_TERMINAL_PROMPT=0 turns them into an ordinary
+# non-zero exit, which every caller here already handles: a fetch that did not
+# complete reads as `unknown` in the admit phase, and unknown holds.
+#
+# Overridable, so a slow link is a setting rather than a fork.
+_felix_discover_git() {
+  GIT_TERMINAL_PROMPT=0 \
+  GIT_ASKPASS="${GIT_ASKPASS:-/bin/echo}" \
+  GIT_HTTP_LOW_SPEED_LIMIT="${FELIX_FETCH_LOW_SPEED_LIMIT:-1000}" \
+  GIT_HTTP_LOW_SPEED_TIME="${FELIX_FETCH_LOW_SPEED_TIME:-30}" \
+  git "$@"
+}
+
 # Fetch a candidate's source, shallow and at its pinned commit, into a scratch
 # directory. Read only. Never executed, never sourced, never put on a path.
 felix_discover_fetch() {
@@ -209,12 +237,12 @@ felix_discover_fetch() {
   rm -rf "$dest" 2>/dev/null
   mkdir -p "$dest" 2>/dev/null || return 1
   if [ -n "$sha" ]; then
-    git -C "$dest" init -q 2>/dev/null || return 1
-    git -C "$dest" remote add origin "$url" 2>/dev/null || return 1
-    git -C "$dest" fetch -q --depth 1 origin "$sha" 2>/dev/null || return 1
-    git -C "$dest" checkout -q FETCH_HEAD 2>/dev/null || return 1
+    _felix_discover_git -C "$dest" init -q 2>/dev/null || return 1
+    _felix_discover_git -C "$dest" remote add origin "$url" 2>/dev/null || return 1
+    _felix_discover_git -C "$dest" fetch -q --depth 1 origin "$sha" 2>/dev/null || return 1
+    _felix_discover_git -C "$dest" checkout -q FETCH_HEAD 2>/dev/null || return 1
   else
-    git clone -q --depth 1 "$url" "$dest" 2>/dev/null || return 1
+    _felix_discover_git clone -q --depth 1 "$url" "$dest" 2>/dev/null || return 1
   fi
   return 0
 }

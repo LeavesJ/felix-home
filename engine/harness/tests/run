@@ -10010,6 +10010,59 @@ has "and calls it a shelf with nothing on it"           "$_cmo"  "shelf with not
 _cmo="$(_cmcli --yes)"; _cmrc=$?
 is  "there is no --yes"                                 "$_cmrc" "1"
 mv "$CMP/commissioning.keep" "$CMP/commissioning.tsv"
+
+# One run at a time, and only for the run that writes.
+#
+# A full run appends to stack.tsv twice, to commissioning.log and a play into
+# routes.tsv. None is atomic, none idempotent, so two interleaving runs write a
+# row half by each — a table that reads as somebody typing it wrong, produced
+# by two commands each doing what it was told. cmd_commission held no mutex of
+# any kind, so nothing stopped it.
+_cmlock="$FROOT/state/commission/$(basename "$CMP").lock"
+mkdir -p "$(dirname "$_cmlock")"; mkdir "$_cmlock" 2>/dev/null
+printf '%s\n' "$$" > "$_cmlock/pid"          # this process is alive by construction
+_cmo="$(_cmcli)"; _cmrc=$?
+is  "a second full run refuses while one is in progress"  "$_cmrc" "1"
+has "and names the process holding it"                    "$_cmo"  "already in progress (pid $$)"
+has "and points at the read that needs no lock"           "$_cmo"  "--status"
+# --status writes nothing, so it takes nothing: making a person's read wait on
+# somebody else's run would be a lock doing harm to buy nothing.
+_cmo="$(_cmcli --status)"; _cmrc=$?
+is  "while --status reads straight through it"            "$_cmrc" "0"
+# A lock whose owner is gone is not a lock. This one is taken by a command a
+# person typed, so a dead owner must not shut them out of their own project —
+# the opposite of the background refresh's lock, where sitting there costs
+# only a stale cache.
+printf '%s\n' "999999" > "$_cmlock/pid"
+_cmo="$(_cmcli)"
+case "$_cmo" in
+  *"already in progress"*) bad "a lock whose owner is gone is taken over" "$_cmo" ;;
+  *)                       ok  "a lock whose owner is gone is taken over" ;;
+esac
+is  "and the run that took it over leaves nothing behind" \
+    "$([ -d "$_cmlock" ] && echo held || echo clear)" "clear"
+
+# The one place Felix talks to a host it does not control must not be able to
+# hang, or to ask a terminal for credentials.
+#
+# There is no portable timeout — neither timeout nor gtimeout is on this
+# machine — so the deadline is git's own low-speed abort. Asserted through a
+# stub git that reports the environment it was handed, because the property is
+# what git receives, not what the source says.
+_gb="$TMP/gitenv-bin"; mkdir -p "$_gb"
+printf '#!/usr/bin/env bash\nprintf "%%s %%s %%s\\n" "${GIT_TERMINAL_PROMPT:-unset}" "${GIT_HTTP_LOW_SPEED_LIMIT:-unset}" "${GIT_HTTP_LOW_SPEED_TIME:-unset}" > "$GITENV_OUT"\nexit 0\n' > "$_gb/git"
+chmod +x "$_gb/git"
+# Exported, or the stub is a child that cannot see it — the trap this suite
+# already paid for once tonight.
+export GITENV_OUT="$TMP/gitenv.out"
+( PATH="$_gb:$PATH"; . "$FROOT/harness/lib/discover.sh"; _felix_discover_git status >/dev/null 2>&1 )
+is "the fetch never asks a terminal for credentials" \
+   "$(cut -d' ' -f1 "$GITENV_OUT" 2>/dev/null)" "0"
+case "$(cut -d' ' -f2 "$GITENV_OUT" 2>/dev/null)" in
+  unset|'') bad "and carries a low-speed deadline so a stall cannot wait forever" ;;
+  *)        ok  "and carries a low-speed deadline so a stall cannot wait forever" ;;
+esac
+unset GITENV_OUT
 rm -f "$FROOT/state/commission/cmproj"
 _cmo="$(_cmcli --status)"; _cmrc=$?
 is  "--status on a never-commissioned project exits 0 and runs nothing" "$_cmrc" "0"

@@ -3535,6 +3535,35 @@ cmd_commission() {
     printf 'A template is at %s/templates/commissioning.tsv; felix new copies it.\n' "$SCRIPT_DIR"
     return 1
   fi
+
+  # One run at a time, and only for a run that writes.
+  #
+  # A full run appends to stack.tsv twice, to commissioning.log, and a play into
+  # routes.tsv. None of those is atomic and none is idempotent, so two runs
+  # interleaving produce a row written half by each or a capability declared
+  # twice — a table that looks like somebody typed it wrong, from two commands
+  # that each did exactly what they were told.
+  #
+  # --status takes nothing. It writes nothing, so two of them cannot collide,
+  # and making a person's read wait on somebody else's run would be a lock
+  # doing harm to buy nothing.
+  local clock=""
+  if [ "$status" -eq 0 ]; then
+    if ! clock="$(felix_commission_lock "$proj" "$FELIX_HOME_DIR")"; then
+      printf 'a commissioning run for %s is already in progress' "$name" >&2
+      case "$clock" in
+        another) printf '.\n' >&2 ;;
+        *)       printf ' (pid %s).\n' "$clock" >&2 ;;
+      esac
+      printf 'It appends to stack.tsv and routes.tsv, so two at once is a table\n' >&2
+      printf 'written half by each. Wait for it, or felix commission --status to\n' >&2
+      printf 'read the state without running anything.\n' >&2
+      return 1
+    fi
+    # shellcheck disable=SC2064
+    trap "felix_commission_unlock '$clock'" EXIT INT TERM
+  fi
+
   local rows malformed
   rows="$(felix_commission_rows "$proj")"; malformed="$(felix_commission_malformed "$proj")"
   if [ -z "$rows" ]; then

@@ -925,7 +925,7 @@ rather than debugging live.
 
 - `felix which` says no project governs the directory. The home is wrong. It is
   `$FELIX_HOME`, then `~/.felix-home`, then a checkout with `projects/` beside
-  the engine, then `~/.felix` (`resolve.sh:131`). `felix install --home <dist>`
+  the engine, then `~/.felix` (`resolve.sh:131`). `felix install --home ~/felix`
   writes the pointer (`engine/harness/felix:288`).
 - The `secret` check prints `skipped (run through felix gate to enable)`. He ran
   `gate.sh` directly instead of through `felix gate`, so `$FELIX_BIN` was unset

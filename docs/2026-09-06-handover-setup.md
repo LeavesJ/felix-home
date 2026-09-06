@@ -115,68 +115,36 @@ actually produced were both about paths: once every source was prefixed with the
 checkout name while already inside the checkout, and once a recursive copy ran
 against the wrong source entirely.
 
-**`docs/` is allow-listed below, not copied wholesale.** Observed directly on
-2026-09-06, then checked item by item rather than assumed: alongside
-`DEVLOG.md` and `lessons.md`, this checkout's `docs/` also holds
-`YC_answers.md`, `SESSION_HANDOFF.md`, and two subdirectories, `admissions/`
-and `superpowers/`. `cp -R docs/. ...` would not distinguish any of them.
+**What actually travels, from an `ls` of this checkout on 2026-09-06.** Under
+`docs/`: `DEVLOG.md`, `lessons.md`, `SESSION_HANDOFF.md`, `spike-results/`,
+`superpowers/`, and by default not `YC_answers.md` or `admissions/`. At the
+root: `POSITIONING.md` and the twelve design documents, four of which are ML
+design work he should have on day one. Under `.claude/`: `CLAUDE.md` and
+`settings.local.json`, but not the pre-reset copy. Plus the real lift banks.
 
-`YC_answers.md` reads as YC application material and stays out. `admissions/`
-holds entries like `withhold_your_best_product_from_funders.yaml`, founder
-reflection rather than engineering reference, and stays out by default; open a
-couple yourself before overriding that. `superpowers/plans/` and `superpowers/specs/`
-are forty-some dated design and plan documents named after real engineering
-surfaces, no strategic language in the list, and they go in.
+`worktrees` under `.claude/` is the one to look at before you run this. If it
+holds actual git worktrees they are checkouts, they are denied by the
+`.worktrees` rule only if named that way, and the file count in the verify step
+is what would catch them. Glance at it.
 
-**Three of these are symlinks into the memory root, and that changes how they
-must be copied.** Verified 2026-09-06: `docs/lessons.md`, `docs/DEVLOG.md` and
-`docs/SESSION_HANDOFF.md` all point at `~/.felix/memory/elenchus/`. They are
-authored prose rather than raw logs, and they travel, but **as contents, never
-as links**. The script copies those three by name without `-R`, which is what
-makes `cp` read through the link; a `cp -R` over `docs/` would instead hand
-Riyan three pointers into your home directory that resolve to nothing on his
-machine.
+**Do not paste copies by hand. Run the script, and it is a different script
+than it was an hour ago.**
 
-`SESSION_HANDOFF.md` travels because it holds no invitee material. Confirmed
-2026-09-06: thirty invitations are upcoming and none has been run, so the tenant
-root is empty and nothing invitee-shaped can have accumulated in the file.
-
-**That is circumstantial, and now it has a date.** The reason this file is safe
-expires the day the first of those thirty invitations goes out. If you ever
-build this bundle again, or send Riyan a later delta, `SESSION_HANDOFF.md` and
-anything else derived from the memory root has to be read line by line first,
-because the allow-list will still pass and the contents will no longer be
-clean.
-
-**`.claude/` is allow-listed too, and for a sharper reason than `docs/`.** Its
-four entries, observed 2026-09-06, are `CLAUDE.md`,
-`CLAUDE.md.pre-reset-2026-07-25`, `settings.local.json` and `worktrees`. Only
-the first is project doctrine and only the first travels.
-
-`CLAUDE.md.pre-reset-2026-07-25` is a superseded copy and sending it hands Riyan
-two documents with no way to tell which one binds. `settings.local.json` is the
-per-machine permission allowlist, which is what `.local` means; it encodes paths
-under your home directory and Riyan's will differ, so he builds his own as he
-goes. `worktrees` is the one that matters: if it holds actual git worktrees then
-`cp -R .claude/.` sweeps entire checkouts into the bundle, along with whatever
-untracked files sit inside them, which is exactly the shape that defeats step
-1.5. **Look at it before you decide**, and if it holds checkouts, leave it.
-
-**Do not paste these copies by hand. Run the script.**
-`2026-09-06-build-handover-bundle.sh`, beside this document in the felix
-checkout, performs exactly the allow-list above and refuses on the first thing
-that is wrong instead of continuing. That is not a convenience. On 2026-09-06
-the pasted version produced a 276 MB bundle holding an entire repository
-checkout, both root symlinks, both `docs.bak-*` directories, `YC_answers.md`,
-`admissions/` and `settings.local.json`, and none of the three documents it was
-supposed to contain, and every one of those failures was silent.
+The goal you stated is that Riyan's Elenchus folder ends up in the state yours
+is in. That makes this a deny-list, not an allow-list: everything untracked
+travels except what must not and what he regenerates. The allow-list version was
+built for minimum disclosure and it withheld four ML design documents
+(`Elenchus_JudgmentLoop_v0.1.md`, both `Elenchus_LiftTest_EXP-*.md`,
+`Elenchus_ModelBreakpoint_Eval_v0.1.md`) from the person you brought in for
+being better at ML. Wrong objective, wrong bundle.
 
 ```
 "$FELIX/docs/2026-09-06-build-handover-bundle.sh" "$ELENCHUS" "$FELIX"
 ```
 
-It refuses if `~/handover` already exists, so if you have a previous attempt,
-look at it and then remove it:
+It asks git what is untracked, which IS the delta between a fresh clone and your
+working checkout, then walks it. It refuses if `~/handover` exists, so remove a
+previous attempt first:
 
 ```
 du -sh ~/handover
@@ -184,29 +152,55 @@ find ~/handover -type f | wc -l
 rm -rf ~/handover
 ```
 
-Removing it loses nothing. Every file in it is a copy.
+**Never travels, whatever else changes.** `.env` and any `.env.*`, `data/`,
+anything matching `*.db` or `*.sqlite`, any `*.key` or `cert.pem` or `id_rsa`.
+That is your key, the beta invitee databases and your own sittings history. The
+deny list also drops what he regenerates: `.git`, `.venv*`, `__pycache__`, the
+caches, `build/`, `graphify-out/`, `.worktrees`, and the stale copies
+`docs.bak-*` and `CLAUDE.md.pre-reset-*`.
 
-Each refusal prints a stable `reason_code` and a free-form `reason_detail`:
+**Held back unless you pass `--all`:** `docs/YC_answers.md` and
+`docs/admissions/`. Founder material rather than engineering material. The
+script prints both so it stays a visible decision rather than an omission.
+
+**Symlinks are recorded, never copied and never followed.** Your checkout has
+`data` pointing at the invitee store and `.env` pointing at your key file, plus
+three in `docs/` pointing into the memory root. Copying a link would hand Riyan
+a dead pointer; following one would put your key or the invitee databases in the
+bundle. The script writes `symlinks.tsv` instead and `restore.sh` rebuilds the
+equivalent structure against **his** home directory.
+
+**The bundle carries its own `restore.sh`**, which is what makes this
+"integrate and go" rather than twelve manual placements. On his machine it
+refuses unless he is in a checkout whose origin is `LeavesJ/Elenchus`, since a
+fork is governed by nothing and Felix says nothing about it; places every file;
+creates his own empty `data/` store and his own out-of-tree key file, repointing
+either if it arrives aimed at your home; seeds his Felix memory root with the
+three authored documents and links `docs/` to them the way yours is; and then
+verifies. It is idempotent and it never overwrites a file he has changed.
+
+Refusals print a stable `reason_code` and a free-form `reason_detail`:
 
 | `reason_code` | What it means |
 |---|---|
 | `bundle_dest_exists` | `~/handover` is already there. Inspect, remove, re-run. |
-| `bundle_missing_source` | An allow-listed file is not in the checkout. The list has drifted. |
-| `bundle_dangling_symlink` | A `docs/` entry points at a memory-root file that is gone. |
-| `bundle_symlink_in_source` | `spike-results/` or `superpowers/` contains a symlink, which `cp -R` would preserve. |
-| `bundle_symlink_present` | A symlink reached the bundle anyway. |
-| `bundle_forbidden_path` | Something matching `.env`, `.git`, `.venv`, `data`, `admissions`, `docs.bak-*`, `*.db`, `settings.local.json` and twenty more got in. |
-| `bundle_empty_file` | A required document is zero bytes, which is what a broken dereference leaves. |
-| `bundle_too_many_files` / `bundle_too_large` | Over 2000 files or 50 MB. Something recursive got in. |
+| `bundle_not_a_checkout` | A path argument is not an Elenchus checkout. |
+| `bundle_empty_surface` | git reports nothing untracked. Wrong directory. |
+| `bundle_symlink_present` | A symlink reached the bundle. Should be impossible. |
+| `bundle_forbidden_path` | Something on the deny list got in anyway. |
+| `bundle_empty_file` | A required document is zero bytes. |
+| `bundle_too_many_files` / `bundle_too_large` | Over 4000 files or 200 MB. |
+| `restore_wrong_remote` | On his side: he cloned a fork. |
+| `restore_incomplete` | On his side: verification failed, details above it. |
 
-Every one of those was exercised against a fixture built to mirror this
-checkout, symlinks included, before this document was written.
+Both scripts were exercised end to end against a fixture built to mirror your
+checkout, symlinks included: build, then restore into a fresh clone, then verify
+the structure matched.
 
-Check what you left behind, so the allow-list stays a decision rather than an
-oversight:
+Check what was held back before moving on:
 
 ```
-ls -la "$ELENCHUS/.claude/" "$ELENCHUS/docs/"
+ls -la "$ELENCHUS/docs/" "$ELENCHUS/.claude/"
 ```
 
 **`ENVIRONMENT.md` is the answer to "he does not know the setup".** The script
@@ -232,43 +226,34 @@ Two more are conditional and should be left out unless he needs them now:
 - The eleven non binding root markdown documents. Only `POSITIONING.md` binds.
   Send the drafts only if you want him to have the history.
 
-### 1.3 Verify the symlinks dereferenced
+### 1.3 Confirm what the script decided
 
-Earlier drafts had you diff `docs/lessons.md` against the memory-root copy and
-merge any divergence. **There is nothing to reconcile and never was**: the two
-paths are one file, so `diff` is silent by construction.
+The script already ran every mechanical check and exits non-zero on any of them,
+so there is nothing to re-run here. What is worth two minutes is reading its
+three reports, because each is a decision it made on your behalf.
 
-What can actually go wrong is the copy preserving links instead of contents.
-The three named files are copied without `-R` so they dereference, but two of
-the copies use `-R`, and `cp -R` preserves a symlink found inside a directory
-rather than following it.
+**The manifest.** Every file with its byte count. Look for anything you did not
+expect to see and anything conspicuously large.
 
-**The script already ran every check in this step and exits non-zero on any of
-them.** If it printed a manifest and the word `built`, 1.3 is done. Run the
-following only if you built the bundle some other way:
+**`not sent, by rule`.** Each `deny` line is something the script refused. Each
+`held` line is founder material you can include with `--all`. If a `deny` line
+names something you actually want Riyan to have, that is a deny-list change
+rather than a copy you make by hand.
+
+**`symlinks recorded`.** Should list the three under `docs/` pointing into your
+memory root. `data` and `.env` will not appear because they are denied outright,
+which is correct: `restore.sh` creates his own rather than replicating yours.
+
+If you want the paranoid version anyway:
 
 ```
 find ~/handover -type l
-wc -l ~/handover/docs/lessons.md ~/handover/docs/DEVLOG.md ~/handover/docs/SESSION_HANDOFF.md
+grep -c . ~/handover/symlinks.tsv
 du -sh ~/handover
-find ~/handover -type f | wc -l
 ```
 
-`find` must print nothing at all. Any line it prints is a pointer into your home
-directory that resolves to nothing on Riyan's machine, and it fails silently
-rather than loudly. Replace each one with its contents by copying the target
-over the link, without `-R`.
-
-A near-zero line count means the same failure reached the three primary files.
-`lessons.md` was 36475 bytes when observed, so it should be well into the
-hundreds of lines.
-
-The last two check scale rather than content. You are about to read every file
-in this bundle by hand in 1.5, so a count in the low hundreds is workable. A
-count in the thousands, or a size in the hundreds of megabytes, means something
-recursive got in. When this went wrong on 2026-09-06 the numbers were 13328
-files and 276 MB, so the failure is not subtle once someone looks. The problem
-was that nothing was looking.
+`find` must print nothing. When this step went wrong on 2026-09-06 the bundle
+was 13328 files and 276 MB, so the failure is not subtle once someone looks.
 
 ### 1.4 Write NOTES.md
 

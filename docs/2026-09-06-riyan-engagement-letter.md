@@ -289,10 +289,16 @@ what either side gives is a document a lawyer will want to fix.
 
 ## What to do with it
 
-1. Send this draft to a lawyer with the `LICENSE` file attached. The §6 point in
-   the opening section is the thing to draw their attention to; it is easy to miss
-   because it reads as a formality.
-2. Settle the entity question in parallel. It is independent of the drafting and
-   is the longer pole.
+**Decided 2026-09-06: skip counsel, send directly to Riyan.** The four items
+under "Things to settle before this is signed" are accepted as-is rather than
+routed to a lawyer first. This is J's call to make and he made it.
+
+1. Fill in the three placeholders: `[DATE]`, `[STATE]` (the state Elenchus Labs,
+   Inc. is incorporated in), and `[FULL LEGAL NAME]` (Riyan's full legal name, for
+   the signature block). `[DATE]` is conventionally filled at signature rather
+   than before.
+2. Send the signable letter to Riyan. The Notes for Counsel document is
+   background for J's own reference and is not sent to him; it explains why the
+   letter is shaped the way it is, not something either signatory needs.
 3. Sign, date, and keep the executed copy out of git.
 4. Tick step 0.1 and start Part 1.

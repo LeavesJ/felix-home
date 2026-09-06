@@ -622,15 +622,34 @@ asking.
 
 ### Phase B. Grant access, still reversible
 
+**Observed state, 2026-09-06, before any of this runs.** Read via the GitHub API
+rather than a settings page, so you are starting from facts:
+
+| Repository | Collaborators | `main` |
+|---|---|---|
+| `LeavesJ/Elenchus` | `LeavesJ` (admin), **`InsertWittyCommentHere` (write)** | protected |
+| `LeavesJ/felix` | `LeavesJ` (admin) only | not checked |
+
+**B0. Resolve who `InsertWittyCommentHere` is, before anything else.** There is
+already a second person with `write` on the public repository. Either that is
+Riyan and D4 is done, in which case confirm it and skip B2, or it is somebody
+else and a handover is the right moment to decide whether that grant should
+still exist. This runbook cannot tell which, and it is the one item in Phase B
+that is not a step so much as a question.
+
 **B1. Push the distribution repository** as a private repo. Add Riyan with
 `read`.
 
-**B2. Add Riyan to `LeavesJ/Elenchus` with `write`.** Per D4. Confirm he did not
-end up with `admin`.
+**B2. Add Riyan to `LeavesJ/Elenchus` with `write`**, if B0 did not already find
+him there. Per D4. Confirm he did not end up with `admin`.
 
 **B3. Confirm branch protection on `main` is intact** and that `gate` is still
-the required status check. Adding a collaborator does not change it, and
-checking takes ten seconds.
+the required status check. `main` reads `protected: true` today. Adding a
+collaborator does not change that, and checking takes ten seconds.
+
+Note that `felix` currently has exactly one collaborator, which is what makes D1
+a real decision rather than a formality: adding Riyan there would be the first
+time anyone but you could read it.
 
 **B4. Issue his Anthropic key** on his own workspace with its own spend limit,
 per D3. Send it through a channel that is not the same channel as anything else
@@ -851,15 +870,20 @@ by hand steps it cannot perform itself.
 
 ## 9. Open questions only you can answer
 
-1. Does Riyan get `projects/elenchus/` write access eventually, and through what
+1. **Who is `InsertWittyCommentHere`?** They hold `write` on `LeavesJ/Elenchus`
+   today. If that is Riyan, D4 is already satisfied. If it is not, decide whether
+   the grant stands. (§5 B0)
+2. Does Riyan get `projects/elenchus/` write access eventually, and through what
    mechanism? (§5 F2)
-2. Does his `maintenance.log` start from yours or from empty? (§4e)
-3. Which of the twelve root documents are drafts you would rather not hand over,
+3. Does his `maintenance.log` start from yours or from empty? (§4e)
+4. Which of the twelve root documents are drafts you would rather not hand over,
    beyond keeping `POSITIONING.md`? (§3a)
-4. Is `.env.example` added to Elenchus? (D5, T3)
-5. Does the beta stay entirely yours indefinitely, or is there a date where
+5. Which `docs/lessons.md` is canonical, the one in Elenchus or the one in the
+   memory root, and have they diverged? (§5 A4)
+6. Is `.env.example` added to Elenchus? (D5, T3)
+7. Does the beta stay entirely yours indefinitely, or is there a date where
    Riyan takes it with the invitees told? (D2)
-6. Does the distribution repository get its own `HANDOFF.md` for Riyan, so his
+8. Does the distribution repository get its own `HANDOFF.md` for Riyan, so his
    standing direction accumulates the way yours does? The session start hook
    already reads `<repo_root>/HANDOFF.md` when present
    (`engine/harness/hooks/session-start`, the `read_lines` block), so the slot

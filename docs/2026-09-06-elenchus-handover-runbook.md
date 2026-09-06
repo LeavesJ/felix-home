@@ -730,7 +730,7 @@ only what §3a marks as his:
 
 ```
 handover/
-  docs/                      # from Elenchus, reviewed file by file
+  docs/                      # allow-listed from Elenchus, never a blanket copy
   POSITIONING.md             # the one binding root document
   content-lift/
     scenarios.yaml           # only if he does lift work
@@ -741,12 +741,34 @@ handover/
   NOTES.md                   # anything that was only ever in your head
 ```
 
+**A2 correction, from an actual `ls` of the checkout on 2026-09-06.** `docs/`
+does not hold only `DEVLOG.md` and `lessons.md`. On this machine it also
+contains `YC_answers.md` and `SESSION_HANDOFF.md`, plus two subdirectories,
+`admissions/` and `superpowers/`, whose contents were not inspected. The first
+two are exactly the class of material A3 below warns about in the abstract, and
+they are not hypothetical: `YC_answers.md` reads as YC application material and
+`SESSION_HANDOFF.md` as a personal in-progress note, neither written for a new
+engineering hire. `cp -R docs/. ~/handover/docs/` sweeps both in.
+
+**So copy `docs/` by allow-list, not wholesale**:
+
+```
+mkdir -p ~/handover/docs
+cp docs/DEVLOG.md docs/lessons.md ~/handover/docs/
+cp -R docs/spike-results ~/handover/docs/
+ls docs/admissions docs/superpowers   # inspect before deciding on these two
+```
+
+`TODO(assumption)`: this exact file list is one checkout's `docs/`, observed
+once. A later session may hold different files. Re-run `ls docs/` before
+building the bundle rather than trusting this list.
+
 **A3. Read every file in the bundle.** This is the step that gets skipped and it
-is the one that matters. `docs/` holds `DEVLOG.md` and `lessons.md` for a
-project you have been running alone, and a devlog written for an audience of one
-says things. Read for: credentials pasted into a log, invitee names or slugs,
-anything about a person, and anything about Veldra or Felix strategy that is not
-Riyan's business.
+is the one that matters. Even with the allow-list above, `DEVLOG.md` and
+`lessons.md` are still a devlog written for an audience of one, and a devlog
+written for an audience of one says things. Read for: credentials pasted into a
+log, invitee names or slugs, anything about a person, and anything about Veldra
+or Felix strategy that is not Riyan's business.
 
 Verify mechanically as well as by eye. **The obvious way to do this does not
 work, and it fails silently, so read this part before running anything.**

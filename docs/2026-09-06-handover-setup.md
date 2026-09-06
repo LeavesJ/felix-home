@@ -57,16 +57,31 @@ answers.
 
 ### 1.2 Build the bundle
 
+Run this from inside `<elenchus>` itself — `cd` there first and use relative
+paths, rather than prefixing every source path with the checkout name from
+somewhere else. That prefix mistake is the one this step has actually produced.
+
+**`docs/` is allow-listed below, not copied wholesale, and this is not
+precautionary.** Observed directly on 2026-09-06: alongside `DEVLOG.md` and
+`lessons.md`, this checkout's `docs/` also holds `YC_answers.md` (YC application
+material) and `SESSION_HANDOFF.md` (a personal in-progress note), plus two
+subdirectories, `admissions/` and `superpowers/`, not yet inspected. Neither
+`YC_answers.md` nor `SESSION_HANDOFF.md` was written for a new engineering hire.
+`cp -R docs/. ...` would sweep both into what Riyan receives. Re-run `ls docs/`
+first — this list is one checkout observed once, not a permanent inventory.
+
 ```
 mkdir -p ~/handover/{docs,content-lift,claude-config}
-cp -R <elenchus>/docs/.            ~/handover/docs/
-cp    <elenchus>/POSITIONING.md    ~/handover/
-cp    <elenchus>/content/lift/scenarios.yaml  ~/handover/content-lift/
-cp    <elenchus>/content/lift/candidates.yaml ~/handover/content-lift/
-cp -R <elenchus>/.claude/.         ~/handover/claude-config/
+cp docs/DEVLOG.md docs/lessons.md   ~/handover/docs/
+cp -R docs/spike-results            ~/handover/docs/
+ls docs/admissions docs/superpowers # inspect before deciding on these two
+cp    POSITIONING.md                ~/handover/
+cp    content/lift/scenarios.yaml   ~/handover/content-lift/
+cp    content/lift/candidates.yaml  ~/handover/content-lift/
+cp -R .claude/.                     ~/handover/claude-config/
 ```
 
-Two files are conditional and should be left out unless he needs them now:
+Two more are conditional and should be left out unless he needs them now:
 
 - `data/injection_payloads.yaml` only if he is working the injection probe. It is
   a set of working attacks against the grader of a public product, which the

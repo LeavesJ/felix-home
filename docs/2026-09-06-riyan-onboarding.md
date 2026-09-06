@@ -542,6 +542,28 @@ outside any checkout. `felix pulse` will commit and push that to a git remote if
 you give it one. Set up your own private remote in week one. Point it at your
 own, never at J's, because the two records must not merge.
 
+**One thing about `docs/lessons.md` that will confuse you otherwise.** On J's
+machine, three files in `docs/` are symlinks into his memory root:
+`lessons.md`, `DEVLOG.md` and `SESSION_HANDOFF.md`. You receive their contents
+as ordinary files, which is correct, but it means **they are a snapshot and
+they will not update themselves.** Run `felix lesson "..."` and it writes to
+*your* `~/.felix/memory/elenchus/lessons.md`, not to the `docs/lessons.md` in
+your checkout. Those two then drift apart silently, and the 252 code comments
+citing `L-nn` keep pointing at the frozen copy.
+
+If you want J's setup rather than the snapshot, replicate the symlinks once,
+after your first `felix` run has created the memory directory:
+
+```
+mv docs/lessons.md ~/.felix/memory/elenchus/lessons.md    # seed with J's copy
+ln -s ~/.felix/memory/elenchus/lessons.md docs/lessons.md
+```
+
+Same shape for the other two. That makes your own `felix lesson` writes land in
+the path the code comments cite, which is the behaviour J has been running with
+since 2026-08-18. Ask him before doing it if you would rather not inherit the
+accumulated file as your own starting point.
+
 **Escalate with a recommendation, not a research task.** When something needs
 J's call, do the analysis first and arrive with a proposal. His input should be
 a yes or no on a resolved question. Reserve the open question for things that

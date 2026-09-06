@@ -481,24 +481,54 @@ respect: memory "holds verbatim founder prompts, and whatever a governed
 project's work happens to be about, which includes material belonging to
 somebody who never agreed to be published."
 
-**So: no memory directory is copied to Riyan.** Not `~/.felix/memory/felix/`,
-and not `~/.felix/memory/elenchus/` either. His starts empty and fills up with
-his own work.
+**Corrected 2026-09-06, and this correction matters more than the rule it
+replaces.** Earlier drafts of this section said "no memory directory is copied
+to Riyan," full stop. That rule is unworkable, and it was unworkable from the
+moment it was written, because **three of the memory root's files are already
+surfaced into the Elenchus repository as symlinks**:
 
-Note that "just send him the Elenchus subdirectory" is not the safe middle
-option it looks like, for two reasons. `felix_mem_dir` (`resolve.sh:216`) does
-key on the project's directory name, so the per-project trees are separable, but
-**`unresolved.log` is written at the root rather than per project**
-(`resolve.sh:399` writes to `$mem/unresolved.log`), so it spans every project
-Felix governs. And within the Elenchus tree itself, `routes.log` and `says.log`
-hold verbatim text somebody typed at a prompt. A per-project copy is still a
-copy of prompts and of paths from your machine.
+```
+docs/lessons.md          -> ~/.felix/memory/elenchus/lessons.md
+docs/DEVLOG.md           -> ~/.felix/memory/elenchus/DEVLOG.md
+docs/SESSION_HANDOFF.md  -> ~/.felix/memory/elenchus/SESSION_HANDOFF.md
+```
 
-The one real cost of that is `lessons.md`, which is matched into prompts and is
-the mechanism that stops a lesson being re-learned. Handling it is Phase A step
-4: you extract the Elenchus lessons that are about the codebase rather than
-about you, and they travel as prose in the onboarding document. Do not copy the
-file.
+All three created 2026-08-18, observed directly. So the file this handover kept
+calling the single highest-value item in the bundle, the one 252 code comments
+cite, **is** a memory-root file. "Nothing under `~/.felix/memory/` travels" and
+"send `docs/lessons.md`" were asserted in the same document and cannot both
+hold.
+
+**The rule that actually holds, and it is J's own, not an invention of this
+document.** Felix writes nine or so files per project into the memory root. J
+symlinked exactly three of them into `docs/`, and left the rest alone. That
+symlinking was the editorial judgment, made months before this handover: the
+three authored files, the ones a person writes deliberately through
+`felix lesson`, `felix log` and `felix handoff`, are project documentation. The
+raw logs are not.
+
+So:
+
+| Memory-root file | Travels? | Why |
+|---|---|---|
+| `lessons.md` | **yes**, as contents | authored prose, cited by 252 code comments |
+| `DEVLOG.md` | **yes**, as contents | authored prose, required by the constitution |
+| `SESSION_HANDOFF.md` | **yes**, as contents | authored prose, confirmed clean 2026-09-06 |
+| `routes.log`, `says.log` | never | verbatim text typed at a prompt |
+| `mistakes.log`, `verification.log`, `ledger.tsv` | never | machine records, per machine |
+| `unresolved.log` | never | written at the root, spans every governed project |
+
+`felix_mem_dir` (`resolve.sh:216`) keys on the project's directory name, so the
+per-project trees are separable, but `unresolved.log` sits at the root
+(`resolve.sh:399`) and spans everything Felix governs. That is why "send the
+Elenchus subdirectory" is still wrong even now. What travels is three files, by
+name, as contents.
+
+**As contents, never as links.** A `cp -R` over `docs/` preserves symlinks, so
+Riyan would receive three dangling pointers into `/Users/a14808/` that resolve
+to nothing on his machine. The allow-list copy in Phase A2 dereferences because
+it names files individually without `-R`, which is correct by construction
+rather than by luck once you know why.
 
 ---
 
@@ -798,13 +828,19 @@ after real engineering surfaces (`harden-judgment-loop`, `cs-checkable-scorer`,
 `injection-efficacy-probe`), with no strategic language anywhere in the list.
 That is exactly the engineering history a new lead should have, and it goes in.
 
-**`SESSION_HANDOFF.md` here is a different file from the one in §3c, and it
-came back clean.** §3c's rule that nothing under `~/.felix/memory/` travels is
-about the copy Felix writes into the memory root, which is genuinely a raw
-session log and can hold verbatim founder prompts. This one lives inside the
-Elenchus checkout itself, and J confirmed 2026-09-06 that it holds no invitee
-material, because none has been invited yet. It goes in. If it is ever checked
-again after invitees exist, re-verify before assuming that still holds.
+**`SESSION_HANDOFF.md` goes in, and an earlier draft of this paragraph got the
+reason wrong.** That draft said it was "a different file from the one in §3c,"
+distinguishing a checkout copy from a memory-root copy. There is no such
+distinction. `docs/SESSION_HANDOFF.md` is a symlink to
+`~/.felix/memory/elenchus/SESSION_HANDOFF.md`, verified 2026-09-06. One file,
+two paths.
+
+What actually justifies sending it is the fact J supplied, which holds
+regardless of where the file sits: it contains no invitee material, because no
+invitee exists yet. That is the load-bearing check, not the path. **If this is
+ever revisited after the beta has real users, re-verify rather than inheriting
+this answer**, because the file keeps accumulating and the reason it is clean
+today is circumstantial.
 
 **So copy `docs/` by allow-list, not wholesale**:
 
@@ -877,30 +913,35 @@ defect at all, because the scanner's designed input is a diff of tracked source
 where that exclusion is load-bearing. It is a wrong tool for this one job, and
 the second command is the fix.
 
-**A4. Reconcile the two lessons files, then extract.** There are two and they may
-have diverged. Elenchus's `README.md:113` points at `docs/lessons.md` and calls
-it the source of `L-19`, while Felix writes a per-project `lessons.md` into the
-memory root (`engine/harness/lib/memory.sh:35`). Check both:
+**A4. There is nothing to reconcile. Verify the symlinks resolved, instead.**
+
+Earlier drafts of this step had you diff `docs/lessons.md` against
+`~/.felix/memory/elenchus/lessons.md` and merge any divergence, on the
+assumption they were two files that might have drifted apart. They cannot
+drift. `docs/lessons.md` is a symlink to the memory-root file, confirmed
+2026-09-06, so `diff` is silent by construction and always will be.
+
+What replaces the diff is a check that the copy actually dereferenced, since
+that is the step that can genuinely go wrong:
 
 ```
-ls -la <elenchus>/docs/lessons.md ~/.felix/memory/elenchus/lessons.md
-diff <elenchus>/docs/lessons.md ~/.felix/memory/elenchus/lessons.md
+ls -la ~/handover/docs/
 ```
 
-`docs/lessons.md` is the one the 252 code comments cite, so it is the one that
-goes in the bundle. From the memory root copy, pull only the entries that are
-about the codebase and rewrite them as prose in `handover/NOTES.md`. The memory
-file itself does not travel, per §3c.
+Every entry must be a regular file, shown by a leading `-`. **A leading `l` on
+any of `lessons.md`, `DEVLOG.md` or `SESSION_HANDOFF.md` means a symlink got
+copied instead of its contents**, and Riyan would receive a pointer into
+`/Users/a14808/` that resolves to nothing on his machine. If that happens,
+re-copy those three by name without `-R`.
 
-The onboarding document already carries the lessons this runbook could recover
-from the tracked tree (`L-19` on the editable install, `L-22` on live test rot,
-`L-23` on piped pytest, `L-2` and `L-26` on confidential documents), so you are
-adding what only your memory root holds.
+Then confirm they are not empty, which a broken link would also produce:
 
-`TODO(assumption)`: which of the two files is canonical was not resolvable from
-either repository. If they have diverged, deciding that is worth ten minutes now
-and is expensive later, because a lesson that exists in only one of two files
-with the same name is a lesson that will be re-learned.
+```
+wc -l ~/handover/docs/lessons.md ~/handover/docs/DEVLOG.md ~/handover/docs/SESSION_HANDOFF.md
+```
+
+`lessons.md` was 36475 bytes when observed. A near-zero line count means the
+copy did not follow the link.
 
 **A5. Confirm the inventory against your actual disk.** Every
 `TODO(assumption)` in §3 becomes a fact here:
@@ -1110,8 +1151,12 @@ that lapses.
 Worth stating as a list, because each of these is something a helpful person
 would send without thinking.
 
-- **`~/.felix/memory/` in any form.** Verbatim founder prompts, by the design
-  note at `resolve.sh:175`.
+- **`~/.felix/memory/`, except the three authored files.** `routes.log` and
+  `says.log` hold verbatim text typed at a prompt; `mistakes.log`,
+  `verification.log` and `ledger.tsv` are per-machine records; `unresolved.log`
+  spans every governed project. None travel. `lessons.md`, `DEVLOG.md` and
+  `SESSION_HANDOFF.md` do travel, as contents rather than as symlinks, per the
+  corrected rule in §3c.
 - **`data/elenchus.db`.** Your own 19 sittings, per `web/runtime.py:54`. Your
   personal decision history.
 - **`~/.local/share/elenchus/data/tenants/*`.** Beta invitees' writing.

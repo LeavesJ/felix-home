@@ -77,11 +77,17 @@ couple yourself before overriding that. `superpowers/plans/` and `superpowers/sp
 are forty-some dated design and plan documents named after real engineering
 surfaces, no strategic language in the list, and they go in.
 
-`SESSION_HANDOFF.md` here is a different file from the one Felix writes into
-the memory root, which is the one that never travels. This one lives inside
-the checkout, and it holds no invitee material because none has been invited
-yet, confirmed 2026-09-06. It goes in. If checked again after invitees exist,
-re-verify rather than assume that still holds.
+**Three of these are symlinks into the memory root, and that changes how they
+must be copied.** Verified 2026-09-06: `docs/lessons.md`, `docs/DEVLOG.md` and
+`docs/SESSION_HANDOFF.md` all point at `~/.felix/memory/elenchus/`. They are
+authored prose rather than raw logs, and they travel, but **as contents, never
+as links**. The first `cp` line below has no `-R` precisely so it dereferences;
+a `cp -R` over `docs/` would hand Riyan three pointers into `/Users/a14808/`
+that resolve to nothing on his machine.
+
+`SESSION_HANDOFF.md` travels because it holds no invitee material, none having
+been invited yet, confirmed 2026-09-06. That is circumstantial rather than
+structural, so re-verify if this is ever revisited once the beta has real users.
 
 ```
 mkdir -p ~/handover/{docs,content-lift,claude-config}
@@ -106,21 +112,24 @@ Two more are conditional and should be left out unless he needs them now:
 - The eleven non binding root markdown documents. Only `POSITIONING.md` binds.
   Send the drafts only if you want him to have the history.
 
-### 1.3 Reconcile the two lessons files
+### 1.3 Verify the symlinks dereferenced
 
-There are two and nothing says which is canonical.
+Earlier drafts had you diff `docs/lessons.md` against the memory-root copy and
+merge any divergence. **There is nothing to reconcile and never was**: the two
+paths are one file, so `diff` is silent by construction.
+
+What can actually go wrong is the copy preserving links instead of contents.
+Check that:
 
 ```
-ls -la <elenchus>/docs/lessons.md ~/.felix/memory/elenchus/lessons.md
-diff   <elenchus>/docs/lessons.md ~/.felix/memory/elenchus/lessons.md
+ls -la ~/handover/docs/
+wc -l  ~/handover/docs/lessons.md ~/handover/docs/DEVLOG.md ~/handover/docs/SESSION_HANDOFF.md
 ```
 
-`docs/lessons.md` is the one that ships: it is what 252 code comments across 27
-lesson identifiers actually cite. If the memory root copy holds entries the
-tracked one does not, pull those across as prose into `~/handover/NOTES.md`.
-
-**The memory file itself does not travel.** Nothing under `~/.felix/memory/`
-does.
+Every entry should start with `-`, not `l`. A leading `l` means a symlink was
+copied and Riyan gets a dead pointer; re-copy those three by name without `-R`.
+A near-zero line count means the same thing. `lessons.md` was 36475 bytes when
+observed, so it should be well into the hundreds of lines.
 
 ### 1.4 Write NOTES.md
 
@@ -378,9 +387,13 @@ is nowhere else to put them.
    verified, unused.
 2. **The felix read grant widens by itself.** Add a fourth project and Riyan
    reads it the day it lands, with nobody deciding.
-3. **Nothing under `~/.felix/memory/` ever travels.** Not even one project's
-   subdirectory: `unresolved.log` sits at the root across all projects, and
-   `routes.log` and `says.log` hold verbatim prompt text.
+3. **The memory root's raw logs never travel; its three authored files do.**
+   `routes.log` and `says.log` hold verbatim prompt text, `unresolved.log` sits
+   at the root across all projects, and `mistakes.log`, `verification.log` and
+   `ledger.tsv` are per-machine records. None of those move. `lessons.md`,
+   `DEVLOG.md` and `SESSION_HANDOFF.md` are authored prose, are already
+   symlinked into `docs/`, and travel as contents. Sending the subdirectory
+   wholesale is still wrong; sending three files by name is right.
 4. **The beta is yours.** There is no invitee registry in code; the operator
    scripts glob the tenant root, the allocation table lives in your memory root,
    and Cloudflare Access holds the email addresses that `forget_invitee.py`
@@ -399,7 +412,7 @@ cp -R <elenchus>/docs/. ~/handover/docs/
 cp <elenchus>/POSITIONING.md ~/handover/
 cp <elenchus>/content/lift/{scenarios,candidates}.yaml ~/handover/content-lift/
 cp -R <elenchus>/.claude/. ~/handover/claude-config/
-diff <elenchus>/docs/lessons.md ~/.felix/memory/elenchus/lessons.md
+ls -la ~/handover/docs/          # every entry must start with -, not l
 grep -rnI '' ~/handover/ | <felix>/engine/harness/bin/secret-scan -
 grep -rniE 'sk-ant-|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY|ANTHROPIC_API_KEY[[:space:]]*=' ~/handover/
 

@@ -66,9 +66,13 @@ lawful the moment Riyan is inside that category, and outside it every commit he
 makes is one the license tells him not to make.
 
 So: a contractor agreement, employment, or a written engagement as an agent of
-Elenchus Labs, Inc., dated before Phase E. Nothing else in this runbook depends
-on it, but Phase E is where it starts to matter and Phase C is where he first
-takes possession of Materials.
+Elenchus Labs, Inc., **dated before Phase B1**. An earlier draft said "before
+Phase E" and named Phase C in the same sentence as the moment he first takes
+possession, which was two deadlines in one paragraph. B1 is the right one and it
+is the earliest: it is the first thing this handover does that the license has an
+opinion about. Section 3 permits viewing and running for Internal Evaluation
+regardless, so nothing before B1 is at risk, and section 5(b) makes his first
+commit the hard line.
 
 **Answered 2026-09-06: yes.** Riyan holds high authority in Elenchus and J will
 say so. One thing remains, and it is the whole point of the carve-out: the
@@ -869,12 +873,23 @@ collaborator does not change that, and checking takes ten seconds.
 per D3. Send it through a channel that is not the same channel as anything else
 in this handover.
 
-**Verify:** ask Riyan to confirm he can clone both repositories and can see
-neither `HANDOFF.md` nor `projects/veldra/`. If he can see either, D1 was
-misapplied and you stop here.
+**Verify:** ask Riyan to confirm he can clone `LeavesJ/felix` and that
+`felix which` from his Elenchus checkout names `elenchus`. Under D1 he **should**
+be able to see `HANDOFF.md` and `projects/veldra/`. An earlier draft of this step
+told you to stop the handover if he could, which was correct under the old D1 and
+would now halt it every time.
 
-**Stop.** Everything to this point can be undone by removing two collaborator
-seats and revoking one key.
+**Stop, and note what "reversible" does and does not mean here.** Removing a
+collaborator seat is not an undo. From the moment Riyan accepts the invitation he
+can clone, and a clone on his disk survives the seat being removed. What Phase B
+is reversible about is *future* access: revoking the seat stops him receiving
+anything new, and revoking the key stops the spend. The disclosure itself is done
+the first time he runs `git clone`.
+
+So the real boundary is not between Phase B and Phase C. **Phase B1 is the first
+irreversible step, and Phase C is the second.** Phase C is worse only because the
+bundle contains material that was never in any repository, so nothing else holds
+a copy.
 
 ### Phase C. Transfer the bundle
 
@@ -948,7 +963,12 @@ rather than debugging live.
   the mechanism. Tell him to keep the key out of the shell he gates in.
 - `probes` reports a blind `http_route`, and `commission` says "never
   commissioned on this machine". Both are first-run states rather than defects,
-  observed in the 4e verification run. They do not block `gate: pass`.
+  observed in the 4e verification run, and neither blocks `gate: pass`.
+  **But `commission` does block `felix merge`.** It is an escape channel, and
+  `engine/harness/lib/escape.sh:14` is explicit that "Empty output means nothing
+  escaped and Felix may merge." So the gate goes green on day one and his first
+  `felix merge` refuses. That is a surprise worth spending five minutes on before
+  he hits it, not after.
 
 `TODO(assumption)`: Python 3.14 is what CI pins (`gate.yml`, `python-version:
 '3.14'`) while `pyproject.toml` declares `requires-python = ">=3.12"`. Riyan
@@ -967,9 +987,18 @@ job logs "the private harness is unreachable", he pushed from a fork and D4 was
 not applied.
 
 Two doctrine points he will get wrong once and should get wrong here rather than
-later, both from `projects/elenchus/CLAUDE.md` Delivery: a `docs/DEVLOG.md`
-entry rides in the same change, and no `Co-Authored-By` trailer goes in an
-Elenchus commit.
+later, both from `projects/elenchus/CLAUDE.md` Delivery: no `Co-Authored-By`
+trailer goes in an Elenchus commit, and a `docs/DEVLOG.md` entry rides with the
+change.
+
+**That second one needs a ruling from you, because as written it cannot be
+obeyed.** `CLAUDE.md:229` says the DEVLOG entry goes "in the same change", and
+`.gitignore:6` ignores `/docs/` wholesale, so it can never be staged in that
+commit or any other. The only reading that works is that the DEVLOG is a local
+record updated in the same sitting. Riyan's document says so and tells him to ask
+you if in doubt. Worth deciding once and rewording the constitution, because the
+alternative is that every new person reads a rule that forbids itself and quietly
+picks their own interpretation.
 
 ### Phase F. Cut over
 
@@ -979,11 +1008,17 @@ the escalation list and it already names the right things: stable identifier
 meaning changes, durable state migrations, secrets and the public tracked set,
 history rewrites, and any conflict between his design and your instruction.
 
-**F2. Move `projects/elenchus/` ownership deliberately.** It is the gate
-contract and it lives in Felix, which he cannot push to. Decide now whether a
-gate change is a request to you or whether the distribution repo becomes
-writable for that one directory. Requesting is the smaller change and the better
-default while the arrangement is new.
+**F2. Decide how a gate change reaches you.** `projects/elenchus/` is the gate
+contract, it lives in `felix`, and he has read but not write. An earlier draft
+offered "make the distribution repo writable for that one directory" as an
+option; D1 removed the distribution repo, so under the chosen design there are
+only two: he asks you and you push, or he gets `write` on `felix`.
+
+Asking is the better default while the arrangement is new, and it is not much
+friction because gate changes are rare. Note that `write` on `felix` is the one
+grant that would let him change what governs him, which is a different kind of
+authority from writing Elenchus code, so it deserves its own decision rather than
+arriving as a convenience.
 
 **F3. Set the maintenance cadence.** `projects/elenchus/maintenance.tsv` drives
 the "Maintenance due" line the session start hook prints. Under a handover those
@@ -1006,11 +1041,21 @@ would send without thinking.
 - **Your `ANTHROPIC_API_KEY`,** from `.env` or `~/.config/elenchus/env`.
 - **`~/.cloudflared/cert.pem` and tunnel credentials.** These authorize DNS on
   your domain (`serve_invitee.py:204`).
-- **`HANDOFF.md`, `projects/felix/`, `projects/veldra/`, Felix `docs/`.**
 - **The eleven non binding root strategy documents.**
 
-If Riyan later needs something on this list, that is a new decision taken on its
-own merits, not an extension of this one.
+**Struck by D1, and worth saying so rather than quietly deleting:** this list
+used to carry `HANDOFF.md`, `projects/felix/`, `projects/veldra/` and Felix's
+`docs/`. D1 grants read on `LeavesJ/felix`, where all four are tracked, so he
+receives every one of them. That includes the three handover documents in this
+directory, this one included. Written accordingly.
+
+What remains on the list has a property those four never had: **none of it is in
+any repository.** It is your key, your machine, your personal history, and other
+people's writing. A collaborator seat cannot leak it, and only a deliberate act
+can.
+
+If Riyan later needs something still on this list, that is a new decision taken
+on its own merits, not an extension of this one.
 
 ---
 
@@ -1099,11 +1144,17 @@ yours and hand him yours.
 
 ## 8. Rollback
 
-Reversibility drops sharply after Phase C, so the honest answer differs by
-phase.
+**Corrected after D1.** An earlier draft said everything before Phase C could be
+undone and that "nothing was disclosed". That was true when Phase B only created
+a distribution repository you controlled. It is false now.
 
-**Before Phase C**: delete the distribution repository, remove both collaborator
-seats, revoke the key. Nothing was disclosed.
+**Before B1**: nothing has happened. Riyan's existing `write` on Elenchus is the
+status quo, not something this handover granted.
+
+**After B1, the `felix` seat**: not reversible. Removing the seat removes future
+access, not the clone he already took. Assume everything in `LeavesJ/felix` is
+permanently disclosed the moment he accepts, which is the decision D1 took
+deliberately.
 
 **After Phase C**: the bundle exists on another machine and cannot be recalled.
 What you can still do is revoke access going forward and rotate anything

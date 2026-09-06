@@ -80,8 +80,16 @@ at each verify line rather than reading ahead.
 git clone https://github.com/LeavesJ/Elenchus.git
 cd Elenchus
 python3.14 -m venv .venv
-.venv/bin/pip install -e ".[dev,web]"
+.venv/bin/pip install -e ".[dev,web]" "ruff==0.16.0" "pytest==9.1.1"
 ```
+
+**Those two pins are not optional and are not in `pyproject.toml`.** CI installs
+exactly that line (`.github/workflows/gate.yml:90`) while `pyproject.toml`
+declares only `ruff>=0.6`. The project has already been bitten by this: the
+comment at `pyproject.toml:58` records that rebuilding the venv on a newer ruff
+"turned a green gate red across ~40 pre-existing sites that no one had chosen to
+change". Install without the pins and your local `felix gate` lint can disagree
+with CI's for reasons that have nothing to do with your change.
 
 Match 3.14 rather than the 3.12 floor in `pyproject.toml`. CI pins 3.14
 (`.github/workflows/gate.yml`, `python-version: '3.14'`), and the whole
@@ -311,7 +319,13 @@ code.
 Below the eight, Felix prints two more lines that are not gate checks and do not
 decide the verdict. On a fresh machine expect `probes` to report one blind
 `http_route`, and `commission` to say "never commissioned on this machine". Both
-are first-run states. A green gate still reads `gate: pass`.
+are first-run states and a green gate still reads `gate: pass`.
+
+**`commission` will bite you later though, at `felix merge` rather than at the
+gate.** It is an escape channel, and `escape.sh:14` says "Empty output means
+nothing escaped and Felix may merge." So expect your first `felix merge` to
+refuse on a machine that has never been commissioned, even with a green gate
+behind it. Ask J to walk you through `felix commission` once, before you need it.
 
 ---
 
@@ -387,8 +401,13 @@ breaks by accident.
   ignored file. Felix's `deny.tsv` enforces all three.
 - Run the suite and `git commit` as one gated chain. A piped `pytest | tail`
   masks the exit status and commits a red tree. This is lesson L-23.
-- A `docs/DEVLOG.md` entry rides in the same change. A change without one did
-  not happen.
+- A `docs/DEVLOG.md` entry rides with the change. **Read this one carefully,
+  because taken literally it is impossible.** `CLAUDE.md:229` says the entry goes
+  "in the same change", and `.gitignore:6` ignores `/docs/` wholesale, so the
+  entry can never be staged in that commit or any other. The workable reading is
+  that the DEVLOG is a local record you update in the same sitting, not a file
+  you commit. Do not try to force it in: `git add -f` on an ignored path is
+  blocked by `deny.tsv` and is T3 anyway. If in doubt ask J which he means.
 - **No `Co-Authored-By` trailer** in an Elenchus commit.
 - No em dashes in prose.
 
@@ -432,9 +451,16 @@ happened.
 
 **6. Hooks bind at session start.** If Felix changes, or you re-run
 `felix install`, the session you are sitting in keeps running the engine it
-loaded when it started. Check the `Felix:` line in the session start banner
-before concluding a Felix change is live for you. It is live for the *next*
-session, which is a much weaker claim.
+loaded when it started. It is live for the *next* session, which is a much
+weaker claim than it sounds.
+
+Felix's own notes say to check the version in the session start banner. **Do not
+bother: this banner does not carry one.** It prints `Felix: elenchus`, plus
+`N due` and `new tooling found` when either applies, and nothing else
+(`engine/harness/hooks/session-start:439`). The checks that do work are
+`claude plugin list`, which names the deployed version, and re-running
+`felix install`, which compares the tree against the cache and says which it
+found.
 
 There is a seventh that is not yet your problem but is worth knowing the shape of.
 When code is correct and does nothing, the cause is almost always *where* it was

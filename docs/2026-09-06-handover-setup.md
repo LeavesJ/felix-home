@@ -57,7 +57,7 @@ answers.
 
 ### 1.2 Build the bundle
 
-Run this from inside `<elenchus>` itself — `cd` there first and use relative
+Run this from inside `<elenchus>` itself: `cd` there first and use relative
 paths, rather than prefixing every source path with the checkout name from
 somewhere else. That prefix mistake is the one this step has actually produced.
 
@@ -67,8 +67,9 @@ precautionary.** Observed directly on 2026-09-06: alongside `DEVLOG.md` and
 material) and `SESSION_HANDOFF.md` (a personal in-progress note), plus two
 subdirectories, `admissions/` and `superpowers/`, not yet inspected. Neither
 `YC_answers.md` nor `SESSION_HANDOFF.md` was written for a new engineering hire.
-`cp -R docs/. ...` would sweep both into what Riyan receives. Re-run `ls docs/`
-first — this list is one checkout observed once, not a permanent inventory.
+`cp -R docs/. ...` would sweep both into what Riyan receives. This list is one
+checkout observed once, not a permanent inventory, so re-run `ls docs/` before
+trusting it.
 
 ```
 mkdir -p ~/handover/{docs,content-lift,claude-config}

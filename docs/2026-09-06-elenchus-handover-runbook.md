@@ -78,14 +78,42 @@ with a date, before Phase E. A one paragraph engagement letter is enough, and
 
 ### D1. How Riyan gets Felix
 
-**Recommendation: a private distribution repository, squashed, no history.**
+**Decided 2026-09-06: a read only collaborator seat on `LeavesJ/felix`.**
 
-The reasoning is in §4. The short version is that a read only collaborator seat
-on `LeavesJ/felix` hands Riyan `HANDOFF.md` (4061 lines of standing strategy),
-`projects/veldra/`, `projects/felix/`, and `docs/`, none of which he needs and
-some of which is founder private. A distribution repository carrying `engine/`
-and `projects/elenchus/` gives him exactly what the code requires and nothing
-more.
+This reverses the recommendation the earlier drafts of this document carried, and
+it reverses it because D4's answer changed the facts rather than because the
+earlier reasoning was sloppy. Both are recorded, because a plan that hides its
+own reversal is harder to trust than one that shows it.
+
+**The earlier recommendation was a private distribution repository** holding only
+`engine/` and `projects/elenchus/`, on the grounds that a seat on `felix` hands
+Riyan `HANDOFF.md`, `projects/veldra/` and `projects/felix/`, none of which he
+needs. That reasoning was sound and the unit was built and verified (§4e). It
+rested on one assumption that turned out to be false: that the boundary it drew
+was a boundary at all.
+
+**What changed.** Riyan already holds `write` on Elenchus, and `write` on
+Elenchus is read on `felix` through CI (D4b). So the distribution repository
+would have been withholding something he could already fetch, at the cost of a
+sync step on every Felix change, forever. Paying maintenance for a boundary that
+does not hold is the worst of both.
+
+**Why read on `felix` is positively better, not merely equal.** One copy of the
+gate contract exists. Riyan reads `felix` and CI reads `felix`, so the two cannot
+disagree in content, only in time, and `git pull` closes that. The two sources of
+truth problem in §7 does not exist under this decision. There is also no
+publishing step: what you push is what he gets.
+
+**What he sees that he does not need.** `HANDOFF.md`, 4061 lines of working
+notes, candid about what this project keeps getting wrong. `projects/veldra/`, 79
+lines revealing that ReserveGrid OS exists and is a Rust verification stack for
+Bitcoin mining pools at `LeavesJ/ReserveGrid-OS`. Confirmed acceptable
+2026-09-06.
+
+**The one forward looking cost, worth naming because nothing will announce it.**
+The grant widens by itself. Add a fourth project to `felix`, or a client's, and
+Riyan reads it the day it lands, with nobody deciding. §4e keeps the distribution
+recipe intact and verified for the day that matters.
 
 ### D2. Who operates the beta
 
@@ -230,30 +258,32 @@ This is not a claim that Riyan would do it. It is a claim that the boundary D1
 draws is not actually enforced by anything, and a boundary you believe in but do
 not have is worse than one you know you lack.
 
-**Two real fixes. The first is better because it also closes a problem §7
-already had.**
+**Resolved 2026-09-06 by D1, and no CI change is needed.**
 
-**Fix A, recommended: point CI at the distribution repository.** Change both
-workflows to check out `felix-dist` with a deploy key for that repo instead of
-for `felix`. Then a workflow-file exploit reaches only what Riyan already holds,
-so the escalation disappears. And CI and Riyan's local gate begin reading the
-same source, which removes the two-sources-of-truth skew §7 describes and can
-otherwise only be managed by discipline. The cost is that syncing the
-distribution repository becomes load bearing rather than merely tidy: forget the
-sync and CI runs an old gate. That failure is at least visible, which the
-current one is not.
+Once Riyan holds read on `felix` deliberately, the CI route stops being an
+escalation and becomes a second path to access he already has. Both workflows
+stay exactly as they are. `FELIX_DEPLOY_KEY` stays pointed at `felix`. There is
+nothing to fix, because there is no longer a gap between what the boundary says
+and what it does.
 
-**Fix B: put `FELIX_DEPLOY_KEY` behind a protected Environment** with you as a
-required reviewer. Jobs referencing the environment then wait for your approval
-before the secret is issued. This keeps CI reading `felix` directly and leaves
-the skew problem where it is, and it puts you in the loop on every pull request,
-which is friction Felix's own doctrine would call a defect.
+Two options were live before D1 was decided, and they are recorded because they
+become relevant again the moment the answer to D4 changes, which it will if
+anyone else ever gets `write` on Elenchus.
 
-**Doing nothing is also a choice**, and a defensible one if Riyan is a
-contractor under D0 and you would have given him read on `felix` anyway. Then
-D1 stops being a security boundary and becomes what it still genuinely is: the
-thing that keeps 4000 lines of standing strategy out of his way. Decide which of
-those D1 is, because the answer changes what it is for.
+**Point CI at a distribution repository.** Change both workflows to check out a
+narrowed repo with its own deploy key. A workflow-file exploit then reaches only
+what the collaborator already holds. Costs a sync step that becomes load bearing
+for a public repo's required status check.
+
+**Put `FELIX_DEPLOY_KEY` behind a protected Environment** with you as required
+reviewer, so the secret is issued only after you approve the job. Keeps CI on
+`felix` and puts you in the loop on every pull request, which is friction this
+project's own doctrine would call a defect.
+
+**The standing rule this leaves behind:** `write` on Elenchus is read on `felix`.
+Grant the first only to someone you would grant the second, or take one of the
+two fixes above first. Nothing in either repository enforces this, so it lives
+here.
 
 ### D5. Whether to add `.env.example` to Elenchus
 
@@ -485,9 +515,15 @@ carry every commit message about Veldra and about founder decisions.
 
 The fix is to not carry history at all.
 
-### 4d. The options, ranked
+### 4d. The options, ranked as they stood before D1 was decided
 
-**1. Private distribution repository, squashed per release. Recommended.**
+**Read this as history plus a recipe, not as a live recommendation.** D1 chose
+option 2. The ranking below was written when the boundary was believed to hold,
+and it is kept because the moment a second person gets `write` on Elenchus, or a
+fourth project lands in `felix`, option 1 is what you reach for and §4e is how
+you build it in twenty minutes.
+
+**1. Private distribution repository, squashed per release. Was recommended.**
 
 A new private repository, `LeavesJ/felix-dist` or similar, containing
 `.claude-plugin/marketplace.json`, `engine/`, and `projects/elenchus/`. No
@@ -503,12 +539,35 @@ is in the tree and `project.json` declares it.
 The one honest cost is that you now maintain a publishing step. It is small,
 and §7 gives it.
 
-**2. Read only collaborator on `LeavesJ/felix`. Not recommended.**
+**2. Read only collaborator on `LeavesJ/felix`. CHOSEN, see D1.**
 
-Simplest to set up and it hands over `HANDOFF.md`, `projects/veldra/`,
-`projects/felix/` and `docs/`. GitHub has no path level read scoping, so there
-is no way to narrow it after the fact. If you take this option anyway, take it
-knowing that 4061 lines of standing strategy went with it.
+Simplest to set up, and it hands over `HANDOFF.md`, `projects/veldra/`,
+`projects/felix/` and `docs/`. GitHub has no path level read scoping, so there is
+no way to narrow it after the fact, and the grant widens on its own as `felix`
+grows. Confirmed acceptable 2026-09-06.
+
+What tipped it, once D4 was answered, is that this option has a property none of
+the others do: **there is exactly one copy of the gate contract.** Riyan reads
+`felix`, CI reads `felix`, you edit `felix`. They cannot disagree in content,
+only in time, and `git pull` closes that. Every other option here creates a
+second copy and then needs a discipline to keep the two in step.
+
+Riyan's install becomes:
+
+```
+git clone git@github.com:LeavesJ/felix.git ~/felix
+cd ~/felix && ./engine/harness/felix install --home ~/felix
+```
+
+Read is genuinely sufficient. Felix writes into `<home>/state/` for gate
+receipts, route memory, pulse and discovery, and `state/` is gitignored
+(`.gitignore:27`), so nothing it writes ever wants a push. His lessons, ledger
+and session handoffs go to `~/.felix/memory/`, outside the clone entirely.
+
+One surprise to pre-empt: his clone carries all three projects and `felix`'s own
+`.felix` marker names `felix`, so opening the felix clone itself in Claude Code
+binds that session to the Felix project and shows him its constitution. Harmless,
+and it looks alarming the first time.
 
 **3. SSH deploy key on `LeavesJ/felix`. Not recommended for a person.**
 
@@ -658,7 +717,9 @@ not stylistic: phases A and B are reversible and phase C is not.
 Nothing in this phase is visible to anyone but you. If you get something wrong
 here you delete it and start again.
 
-**A1. Build the distribution repository.** Per §4e. Do not push it yet.
+**A1. Nothing to build.** D1 chose read on `felix`, so there is no distribution
+repository to assemble and Phase A is now only about the bundle. The recipe in
+§4e stays valid and unrun, for the day D4b's standing rule bites.
 
 **A2. Assemble the transfer bundle.** One directory, built by hand, containing
 only what §3a marks as his:
@@ -793,19 +854,16 @@ else and a handover is the right moment to decide whether that grant should
 still exist. This runbook cannot tell which, and it is the one item in Phase B
 that is not a step so much as a question.
 
-**B1. Push the distribution repository** as a private repo. Add Riyan with
-`read`.
+**B1. Add Riyan to `LeavesJ/felix` with `read`.** Per D1. This is the only access
+grant the handover still needs, and it is the first time anyone but you has been
+able to read that repository.
 
-**B2. Add Riyan to `LeavesJ/Elenchus` with `write`**, if B0 did not already find
-him there. Per D4. Confirm he did not end up with `admin`.
+**B2. Nothing to do.** He already holds `write` on `LeavesJ/Elenchus`. Confirm he
+is not on `admin` and move on.
 
 **B3. Confirm branch protection on `main` is intact** and that `gate` is still
 the required status check. `main` reads `protected: true` today. Adding a
 collaborator does not change that, and checking takes ten seconds.
-
-Note that `felix` currently has exactly one collaborator, which is what makes D1
-a real decision rather than a formality: adding Riyan there would be the first
-time anyone but you could read it.
 
 **B4. Issue his Anthropic key** on his own workspace with its own spend limit,
 per D3. Send it through a channel that is not the same channel as anything else
@@ -858,7 +916,7 @@ archive.
 The finish line is one command producing one line:
 
 ```
-<felix-dist>/engine/harness/felix gate
+~/felix/engine/harness/felix gate
 # gate: pass
 ```
 
@@ -960,69 +1018,60 @@ own merits, not an extension of this one.
 
 ### Shipping a Felix change to Riyan
 
-The loop is four steps and only the last is new work:
+**D1 removed a step from this loop rather than adding one.** It is now three, and
+none of them is new work:
 
 1. Develop in `LeavesJ/felix` as you do today.
 2. `felix install`, which bumps `engine/.claude-plugin/plugin.json` when the
    tree differs and the version did not. The bump is the deployment
    (`HANDOFF.md:3699`).
-3. Sync and push the distribution repository, per §4e.
-4. Riyan pulls and runs `felix install`.
+3. Push. Riyan runs `git pull && felix install --home ~/felix`.
 
-Step 4 is the one that will be forgotten, and the failure is quiet. **Correcting
-an earlier draft of this section, which claimed a safety net that does not
-exist:** the `installed` gate check lives only in `projects/felix/gate.sh:148`
-and `:182`. Elenchus's gate has eight checks and `installed` is not one of them,
-verified by grep. So a stale engine on Riyan's machine produces **no red gate and
-no signal at all**. His sessions simply keep running the engine he installed
-last.
+Step 3's second half is the one that will be forgotten, and the failure is quiet.
+**Correcting an earlier draft of this section, which claimed a safety net that
+does not exist:** the `installed` gate check lives only in
+`projects/felix/gate.sh:148` and `:182`. Elenchus's gate has eight checks and
+`installed` is not one of them, verified by grep. So a stale engine on Riyan's
+machine produces **no red gate and no signal at all**. His sessions simply keep
+running the engine he installed last.
 
 What is actually true is weaker and worth stating accurately. Hooks bind at
 session start (`HANDOFF.md:3690`), so a stale engine is stale for a whole session
 rather than half of one. That is the only automatic property here.
 
-So the sync needs a human check rather than a mechanical one. The cheapest
-version: after any push to the distribution repository, tell Riyan in one line,
-and have him run `git pull && felix install --home ~/felix` before his next
-session. `felix install` verifies itself and prints either "verified the
-installed engine matches this tree" or an explanation, so the check is one
-command with a readable answer.
+So it needs a human check. The cheapest version: after any push that touches
+`engine/` or `projects/elenchus/`, tell him in one line. `felix install` verifies
+itself and prints either "verified the installed engine matches this tree" or an
+explanation, so his side is one command with a readable answer.
 
-### The version skew that is real, and where it actually lives
+Note what this failure now is and is not. He can be **behind**, which is annoying
+and fixed by pulling. He cannot be **divergent**, because there is one copy of
+the contract and he is reading it. That distinction is the whole benefit of D1.
 
-An earlier draft said a squashed distribution repository makes skew
-"structurally impossible". That is true on one axis and wrong on the one that
-matters.
+### The version skew D1 dissolved, and the one it left
 
-**True within the distribution repo.** `plugin.json` carries a version and
-nothing checks that `projects/elenchus/gate.sh` and the engine came from the same
-release, but since your sync ships both in one commit, Riyan cannot pull a
-half-updated tree. That much holds, and it is a real advantage over a
-collaborator seat.
+**This section is much shorter than it was, and that is the point of D1.**
 
-**Wrong between his machine and CI, because the gate contract has two sources.**
-Riyan's local gate comes from the distribution repository. Elenchus CI does not:
-`.github/workflows/gate.yml:73` checks out `repository: LeavesJ/felix` directly,
-with `ssh-key: ${{ secrets.FELIX_DEPLOY_KEY }}`. So CI always runs the gate as it
-exists on felix `main`, and Riyan always runs the gate as it existed when you
-last synced. **Edit `projects/elenchus/gate.sh` in felix, forget to sync, and the
-two disagree.**
+Two earlier drafts argued about skew. The first claimed a squashed distribution
+repository made it "structurally impossible", which was wrong: it would have been
+true within that repo and false between Riyan's machine and CI, because CI checks
+out `LeavesJ/felix` directly at `.github/workflows/gate.yml:73` while he would
+have been reading a synced copy. Two independently maintained sources of one gate
+contract, kept in step by remembering.
 
-That is a genuine hazard and it has a cheap discipline: **a `projects/elenchus/`
-change in felix is not finished until the distribution repository is synced in
-the same sitting.** Treat the sync as part of the change, the way
-`docs/DEVLOG.md` is part of an Elenchus change.
+Under D1 there is one source. You edit `projects/elenchus/gate.sh` in `felix`,
+CI checks out `felix`, Riyan pulls `felix`. Nothing can disagree in content.
 
-The tell, if it happens anyway, is one you already know:
-`HANDOFF.md:4052` records that CI and local disagreeing is a finding rather than
-flakiness. Under this arrangement it has a new and much more likely cause, so
-both documents name it. Verify it in one command from your own machine:
+**What survives is ordinary and cheap.** He can be behind, if he has not pulled.
+That is visible the moment CI and his local run disagree, and
+`HANDOFF.md:4052` already records that CI and local disagreeing is a finding
+rather than flakiness. The fix is `git pull`. There is no diff to run and no
+discipline to keep.
 
-```
-diff -r <felix>/projects/elenchus <felix-dist>/projects/elenchus
-```
-
-Empty means the two gates are the same gate.
+One thing genuinely has no guard, and it is unchanged by D1: `plugin.json` carries
+a version, but nothing checks that `projects/elenchus/gate.sh` and the engine came
+from the same commit. Since both live in one repository and move together, this
+only bites someone who pulls a partial tree, which git does not do.
 
 ### The feedback loop, and what you lose
 

@@ -48,9 +48,15 @@ here."
 So Felix is not optional tooling. Without it you cannot run the gate that `main`
 requires.
 
-You are getting the Felix engine and the one project directory that governs
-Elenchus. You are not getting the rest of the Felix repository, and you do not
-need it.
+You get read access to the whole Felix repository. Most of it is not about you:
+`HANDOFF.md` is J's standing direction for developing Felix itself,
+`projects/felix/` governs Felix, and `projects/veldra/` governs a different
+product. The part that is yours is `projects/elenchus/`, and §5 is drawn from it.
+
+Read access is all you need and all you have. Felix writes into `<clone>/state/`
+for gate receipts and route memory, which is gitignored, and into
+`~/.felix/memory/` for your lessons and ledger, which is outside the clone. You
+will never need to push there.
 
 **One thing to settle with J before you commit anything.** Elenchus is public but
 it is not open source. The tracked `LICENSE` is source available: section 5(b)
@@ -131,17 +137,17 @@ matters.
 
 ### 3.2 Felix
 
-You will receive a private repository URL from J. **Clone it somewhere permanent
-and do not move or delete it afterwards.** The install does not make the clone
-disposable: only `engine/` is copied into the plugin cache, and
-`projects/elenchus/` never enters it, so your constitution and your gate script
-are read from the clone on every session for as long as you use Felix. Felix
-also explicitly refuses to treat a plugin cache copy as a home, because that
-would freeze the constitution at install time and write memory into a directory
-the next plugin update deletes.
+`LeavesJ/felix` is private and you have read on it. **Clone it somewhere
+permanent and do not move or delete it afterwards.** The install does not make
+the clone disposable: only `engine/` is copied into the plugin cache, and
+`projects/` never enters it, so your constitution and your gate script are read
+from the clone on every session for as long as you use Felix. Felix also
+explicitly refuses to treat a plugin cache copy as a home, because that would
+freeze the constitution at install time and write memory into a directory the
+next plugin update deletes.
 
 ```
-git clone <felix-dist-url> ~/felix
+git clone git@github.com:LeavesJ/felix.git ~/felix
 cd ~/felix
 ./engine/harness/felix install --home ~/felix
 ```
@@ -470,7 +476,7 @@ error.
 credential. Felix development exists to make your Elenchus development better,
 so what Felix gets wrong for you is worth telling him about specifically.
 
-**When Felix changes.** J pushes the distribution repository and you run:
+**When Felix changes.** J pushes to `felix` and you run:
 
 ```
 cd ~/felix && git pull && ./engine/harness/felix install --home ~/felix
@@ -483,16 +489,15 @@ sessions just keep running the engine you installed last. Make the two commands
 above a habit tied to J telling you he pushed, because nothing else will remind
 you.
 
-**The one skew that will actually bite you.** Your local gate comes from your
-distribution clone. Elenchus CI does not use it: `.github/workflows/gate.yml:73`
-checks out `LeavesJ/felix` directly. So CI runs the gate as it exists on felix
-`main` and you run the gate as of your last pull. If those drift, **you get green
-locally and red in CI, or worse, green in both while checking different things.**
+**You can be behind. You cannot be divergent.** Elenchus CI checks out
+`LeavesJ/felix` directly (`.github/workflows/gate.yml:73`), which is the same
+repository you cloned. So CI runs the gate as it exists on `main` and you run it
+as of your last pull. Those are the same file at different times, never two
+different files, which is why the fix is always just `git pull`.
 
-If CI and local ever disagree, that is a finding and not flakiness. Say so to J
-immediately rather than re-running the job: under this arrangement the likeliest
-cause is that your gate and CI's gate are different files, and he is the only one
-who can see both.
+If CI and local disagree anyway, that is a finding rather than flakiness, and
+Felix's own notes say so. Pull first, and if it still disagrees, tell J rather
+than re-running the job.
 
 **When you need the gate contract changed.** `projects/elenchus/gate.sh`, the
 risk rules, the routes and the evidence requirements live in Felix and you

@@ -44,11 +44,16 @@ engaged in one of those capacities, and outside it every commit he makes is one
 the license tells him not to make. A written engagement, dated before his first
 commit.
 
-**D1. How he gets Felix.** Recommended: a private distribution repository
-holding only the engine and the Elenchus project directory, squashed, no
-history. Not a read only seat on `felix`, which would hand him 4000 lines of
-standing strategy and two projects that are not his business, with no way to
-narrow it afterwards.
+**D1. How he gets Felix.** Decided: a read only seat on `LeavesJ/felix`. This
+reverses the earlier recommendation of a narrow distribution repository, and it
+reverses it because D4's answer changed the facts. He already has write on
+Elenchus, and write on Elenchus is read on `felix` through CI, so the
+distribution repo would have withheld nothing while costing a sync step forever.
+Read on `felix` is also positively better: there is then exactly one copy of the
+gate contract, which he reads, CI reads, and you edit. It cannot diverge, only
+lag, and `git pull` fixes lag. He sees `HANDOFF.md` and learns ReserveGrid OS
+exists; confirmed acceptable. The one cost is that the grant widens on its own as
+`felix` grows.
 
 **D2. Who operates the beta.** Recommended: you keep it entirely. Development
 needs nothing from production, so there is no engineering reason to move it.
@@ -60,15 +65,13 @@ either machine burns both.
 **D4. His GitHub role.** Recommended: `write` on `LeavesJ/Elenchus`, pushing
 branches directly. Not a fork, and not `admin`.
 
-**D4b. Whether the CI deploy key stays pointed at Felix.** Write on Elenchus is
-transitively read on `felix`: both workflows check out the private repo with
-`FELIX_DEPLOY_KEY`, and a same repo pull request runs the workflow file from the
-branch it came from, before any review. So D1's careful boundary is not enforced
-by anything. Best fix is to point CI at the distribution repo instead, which
-removes the escalation and also makes CI and his local gate read the same source.
-Doing nothing is defensible if he is a contractor under D0 and you would have
-given him read on `felix` anyway, but then D1 is a convenience rather than a
-boundary. Decide which.
+**D4b. Whether the CI deploy key stays pointed at Felix.** Resolved by D1: it
+stays, and no workflow changes. The finding behind it still matters as a standing
+rule, because nothing in either repository enforces it. **Write on Elenchus is
+read on `felix`**, since both workflows check out the private repo with
+`FELIX_DEPLOY_KEY` and a same repo pull request runs the workflow file from the
+branch it came from, before any review. Grant the first only to someone you would
+grant the second.
 
 **D5. Whether `.env.example` gets added to Elenchus.** Yours alone. It changes
 the tracked set of a public repo, which your own doctrine puts at T3.
@@ -80,31 +83,33 @@ the tracked set of a public repo, which your own doctrine puts at T3.
 Felix is private, he needs to use it, and you keep building it. That sounds like
 it needs a new mechanism. It does not.
 
-The engine already contains no reference to any project by name, and a test
-fails if one ever appears. So the engine and one project directory form a
-complete unit that leaks nothing. I built that unit from your actual repository
-and ran it: it resolved Elenchus correctly and passed every doctrine check,
-including the five that a fork can never reach.
+He clones `felix`, runs `felix install --home ~/felix`, and Felix governs his
+Elenchus checkout. That is the whole thing. Read access is sufficient: Felix
+writes only into a gitignored `state/` inside the clone and into
+`~/.felix/memory/` in his own home, so he never needs to push.
 
-What that buys you: he gets exactly what the code requires, you ship changes
-with a sync and a push, and he pulls. What it costs you: one publishing step
-per Felix change, which is small.
+What it costs you is nothing ongoing. What you push is what he gets.
 
-The trap to avoid is the shortcut. Sending him only a marketplace line without
-the clone gives him a working command with no doctrine and no gate, and no error
-saying so.
+Two traps worth knowing. **Sending him only a marketplace line without the clone**
+gives him a working command with no doctrine and no gate, and no error saying so,
+because only `engine/` enters the plugin cache and Felix stays silent where it
+does not govern. And **his clone carries all three projects**, so opening the
+felix clone itself in Claude Code binds that session to the Felix project rather
+than to Elenchus. Harmless, and alarming the first time.
 
-The caveat is D4b. This solves the distribution problem cleanly, and it does not
-by itself enforce the boundary, because CI hands the same private repository to
-anyone with write on Elenchus. Settle D4b alongside D1 rather than after it.
+For the record, the narrower option was built and verified before D1 was decided:
+a tree of `engine/` plus `projects/elenchus/` is 105 files and 1.8 MB, resolves
+Elenchus correctly, and passes every doctrine check including the five a fork can
+never reach. The recipe is in the runbook at §4e, unused, for the day someone
+else gets write on Elenchus.
 
 ---
 
 ## 4. Things worth knowing before you start
 
-**Someone already has write access to Elenchus.** The account
-`InsertWittyCommentHere` holds `write` today. If that is Riyan, D4 is already
-done. If not, a handover is the moment to decide whether it stands.
+**Riyan already has write on Elenchus.** He is `InsertWittyCommentHere`, so D4
+needs no action. It also means he could already read `felix` through CI before
+this handover began, which is what settled D1.
 
 **A fork breaks Felix completely.** Elenchus binds to its project purely by its
 remote name. Clone from a fork and Felix governs nothing, silently, because it
@@ -126,10 +131,10 @@ repository. That single file is what makes the codebase legible.
 Reversibility drops sharply at step three. Everything before it can be undone by
 deleting a repository and removing a collaborator.
 
-1. **Prepare.** Build the distribution repository. Assemble the bundle. Read
-   every file in it. Nothing has been sent.
-2. **Grant access.** Push the distribution repo, add him to both, issue his key.
-   Still fully reversible.
+1. **Prepare.** Assemble the bundle. Read every file in it. Nothing has been
+   sent.
+2. **Grant access.** Add him to `felix` with read, issue his key. He already has
+   write on Elenchus. Still fully reversible.
 3. **Send the bundle.** Encrypted. This is the point of no return.
 4. **His first green gate.** The finish line for day one.
 5. **His first pushed commit.** Small on purpose, so the whole chain gets
@@ -155,14 +160,16 @@ merits, not an extension of this one.
 
 ## 7. What only you can answer
 
-1. Is Riyan engaged as a contractor or agent yet, and from what date?
-2. Is `InsertWittyCommentHere` Riyan?
-3. Does the CI deploy key stay pointed at `felix`, or move to the distribution
-   repo?
-4. Does the beta stay yours indefinitely, or is there a date?
-5. Which of your untracked root documents are drafts you would rather not send?
-6. Does `.env.example` get added?
-7. Does he eventually get write access to the gate contract, and how?
+Three are answered as of 2026-09-06. Riyan is engaged with high authority, he is
+`InsertWittyCommentHere` and already holds write, and the CI deploy key stays
+where it is. What remains:
 
-The first three change what you do. The rest can wait until you are at the
-machine.
+1. Get the engagement in writing with a date. The license turns on a capacity,
+   not on a shared understanding, and a paragraph is enough.
+2. Does the beta stay yours indefinitely, or is there a date?
+3. Which of your untracked root documents are drafts you would rather not send?
+4. Does `.env.example` get added?
+5. Does he eventually get write access to the gate contract, and how?
+
+Only the first needs doing before he starts committing. The rest can wait until
+you are at the machine.

@@ -476,20 +476,17 @@ The place symlinks are caught is 1.2, by the script, before anything is packed.
 shasum -a 256 handover.tar.gz.age
 ```
 
-**3.3 Tell him where each piece goes.** His onboarding document says this too,
-so this is a backstop:
+**3.3 Tell him what to run, not where each piece goes.** There is no placement
+table any more; `restore.sh` inside the bundle is the placement table, and it
+runs as one command from his Elenchus checkout. Tell him only:
 
-| From the bundle | Goes to |
-|---|---|
-| `docs/` | `<his-elenchus>/docs/` |
-| `POSITIONING.md` | `<his-elenchus>/POSITIONING.md` |
-| `content-lift/*.yaml` | `<his-elenchus>/content/lift/` |
-| `claude-config/CLAUDE.md` | `<his-elenchus>/.claude/CLAUDE.md` |
-| `ENVIRONMENT.md` | read first, then wherever he keeps notes |
-| `NOTES.md` | wherever he keeps notes |
+1. Unpack the archive.
+2. `cd` into his Elenchus checkout.
+3. Run the bundle's `restore.sh`.
+4. Read `SETUP-RUNBOOK.md`, starting at §0, the acknowledgment.
 
-Every destination is already covered by `.gitignore`, so none of it can be
-staged by accident.
+Every destination it writes to is already covered by `.gitignore`, so none of
+it can be staged by accident.
 
 ---
 

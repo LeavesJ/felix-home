@@ -237,22 +237,18 @@ had open will not pick this up.
 
 ### 3.3 The bundle
 
-J sends you an encrypted archive. Nothing in it is in either repository and
-nothing in it is ever committed.
+J sends you an encrypted archive. Unpack it, then run its `restore.sh` from
+inside your Elenchus checkout: that one command places everything, so there is
+no by-hand table here to follow or get wrong.
 
-| From the bundle | Goes to | Never |
-|---|---|---|
-| `ENVIRONMENT.md` | read it first | staged, ever |
-| `docs/` | `<Elenchus>/docs/` | staged, ever |
-| `POSITIONING.md` | `<Elenchus>/POSITIONING.md` | staged, ever |
-| `scenarios.yaml`, `candidates.yaml` | `<Elenchus>/content/lift/` | staged, ever |
-| `claude-config/CLAUDE.md` | `<Elenchus>/.claude/CLAUDE.md` | staged, ever |
-| `NOTES.md` | wherever you keep notes | staged, ever |
-
-Every destination is already covered by `.gitignore`, so this is safe by
-construction rather than by your memory. `/docs/` is line 6, `.claude/` is line
-7, `/*.md` is line 2, and the two lift banks are lines 19 and 20. The gate has a
-check whose only job is to fail if either lift bank ever becomes tracked
+`restore.sh` copies the bundle's `state/` tree onto your checkout at the same
+relative paths, agent-setup's `claude-home/` onto your `~/.claude/`, rebuilds
+`data/` and `.env` as your own out-of-tree files, and links the three authored
+memory-root documents into `docs/`. Nothing it places is ever staged: every
+destination is already covered by `.gitignore`, so this is safe by construction
+rather than by your memory. `/docs/` is line 6, `.claude/` is line 7, `/*.md` is
+line 2, and the two lift banks are lines 19 and 20. The gate has a check whose
+only job is to fail if either lift bank ever becomes tracked
 (`projects/elenchus/gate.sh:175`).
 
 **Read `ENVIRONMENT.md` before anything else in the bundle.** It is the local

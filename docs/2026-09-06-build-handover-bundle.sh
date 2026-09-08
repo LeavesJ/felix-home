@@ -71,6 +71,10 @@ RUNBOOK="$FELIX/docs/2026-09-06-riyan-setup-runbook.md"
 [ -f "$RUNBOOK" ] || die bundle_missing_source "$RUNBOOK not found; is $FELIX current?"
 NOTES="$FELIX/docs/2026-09-06-elenchus-working-notes.md"
 [ -f "$NOTES" ] || die bundle_missing_source "$NOTES not found; is $FELIX current?"
+ACK_MD="$FELIX/docs/2026-09-06-riyan-engagement-letter.md"
+ACK_DOCX="$FELIX/docs/2026-09-06-felix-beta-acknowledgment.docx"
+[ -f "$ACK_MD" ] || die bundle_missing_source "$ACK_MD not found; is $FELIX current?"
+[ -f "$ACK_DOCX" ] || die bundle_missing_source "$ACK_DOCX not found; is $FELIX current?"
 
 OUT=${HANDOVER_OUT:-$HOME/handover}
 [ ! -e "$OUT" ] || die bundle_dest_exists \
@@ -229,11 +233,14 @@ note "$n_files files carried, $n_links symlinks recorded"
 cp "$ENVDOC"  "$OUT/ENVIRONMENT.md"
 cp "$RUNBOOK" "$OUT/SETUP-RUNBOOK.md"
 cp "$NOTES"   "$OUT/WORKING-NOTES.md"
+cp "$ACK_MD"   "$OUT/ACKNOWLEDGMENT.md"
+cp "$ACK_DOCX" "$OUT/ACKNOWLEDGMENT.docx"
 cp "$FELIX/docs/2026-09-06-restore-handover-bundle.sh" "$OUT/restore.sh"
 chmod +x "$OUT/restore.sh"
 note "file  ENVIRONMENT.md (from felix)"
 note "file  SETUP-RUNBOOK.md (from felix, read this first)"
 note "file  WORKING-NOTES.md (from felix, the measured map)"
+note "file  ACKNOWLEDGMENT.md and .docx (he signs and returns this)"
 note "file  restore.sh"
 
 # --- verify -----------------------------------------------------------------
@@ -256,7 +263,7 @@ hits=$(cd "$OUT" && find . -type f | sed 's|^\./||' | grep -E "$DENY_ANY" | grep
 [ -z "$hits" ] || die bundle_forbidden_path "$(echo "$hits" | tr '\n' ' ')"
 note "no denied paths"
 
-for f in state/docs/DEVLOG.md state/docs/lessons.md ENVIRONMENT.md SETUP-RUNBOOK.md restore.sh; do
+for f in state/docs/DEVLOG.md state/docs/lessons.md ENVIRONMENT.md SETUP-RUNBOOK.md ACKNOWLEDGMENT.docx restore.sh; do
   [ -s "$OUT/$f" ] || die bundle_empty_file "$OUT/$f is missing or zero bytes"
 done
 note "required files present and non-empty"

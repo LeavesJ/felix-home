@@ -17,6 +17,34 @@ the last section says so and that list is short.
 
 ---
 
+## 0. Sign the acknowledgment and send it back
+
+Before anything else, and it takes five minutes.
+
+`ACKNOWLEDGMENT.docx` is in this bundle, with `ACKNOWLEDGMENT.md` beside it if
+you would rather read it as text. Sign it, date it, and send the signed copy
+back to J. Nothing else in this runbook waits on it, but do it first so it does
+not become the thing that never happened.
+
+**It is three clauses and it is short on purpose.** Your CIIAA from
+incorporation already covers Elenchus IP, and the licence's founder exclusion
+(`LICENSE:12`) already covers your right to work on the code. This document
+covers only the two things a founder CIIAA does not reach:
+
+- **Felix confidentiality.** Felix governs a separate venture as well as this
+  one, so its contents are not scoped by an agreement about Elenchus.
+- **The beta and invitee data.** Thirty invitations are ready to go out. Those
+  people will write personal material about real decisions, and they agreed to
+  J seeing it and to nobody else. This clause is a promise about third parties
+  rather than an IP question, which is exactly why the CIIAA does not reach it.
+
+Plus one line on credentials: yours are yours, and nothing goes in a repository.
+
+If anything in it reads wrong to you, say so before signing rather than after.
+It is a three-clause document between two founders, not a form.
+
+---
+
 ## 1. Unpack and restore
 
 ```
@@ -314,6 +342,11 @@ person's data. The window in which that is true is short, so the habits you
 build now are the ones running when there are thirty people on the other side.
 
 ---
+
+## What to send J
+
+- The signed acknowledgment from §0. That is the only thing he needs back from
+  you.
 
 ## What to ask J rather than work out
 

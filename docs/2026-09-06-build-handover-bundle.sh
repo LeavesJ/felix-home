@@ -53,6 +53,8 @@ INCLUDE_ALL=${3:-}
 
 ENVDOC="$FELIX/docs/2026-09-06-elenchus-environment.md"
 [ -f "$ENVDOC" ] || die bundle_missing_source "$ENVDOC not found; is $FELIX current?"
+RUNBOOK="$FELIX/docs/2026-09-06-riyan-setup-runbook.md"
+[ -f "$RUNBOOK" ] || die bundle_missing_source "$RUNBOOK not found; is $FELIX current?"
 
 OUT=${HANDOVER_OUT:-$HOME/handover}
 [ ! -e "$OUT" ] || die bundle_dest_exists \
@@ -166,10 +168,12 @@ EOF
 note "$n_files files carried, $n_links symlinks recorded"
 
 # The environment document is not in the checkout; it comes from felix.
-cp "$ENVDOC" "$OUT/ENVIRONMENT.md"
+cp "$ENVDOC"  "$OUT/ENVIRONMENT.md"
+cp "$RUNBOOK" "$OUT/SETUP-RUNBOOK.md"
 cp "$FELIX/docs/2026-09-06-restore-handover-bundle.sh" "$OUT/restore.sh"
 chmod +x "$OUT/restore.sh"
 note "file  ENVIRONMENT.md (from felix)"
+note "file  SETUP-RUNBOOK.md (from felix, read this first)"
 note "file  restore.sh"
 
 # --- verify -----------------------------------------------------------------
@@ -184,7 +188,7 @@ hits=$(cd "$OUT" && find . | sed 's|^\./||' | grep -E "$DENY" || true)
 [ -z "$hits" ] || die bundle_forbidden_path "$(echo "$hits" | tr '\n' ' ')"
 note "no denied paths"
 
-for f in state/docs/DEVLOG.md state/docs/lessons.md ENVIRONMENT.md restore.sh; do
+for f in state/docs/DEVLOG.md state/docs/lessons.md ENVIRONMENT.md SETUP-RUNBOOK.md restore.sh; do
   [ -s "$OUT/$f" ] || die bundle_empty_file "$OUT/$f is missing or zero bytes"
 done
 note "required files present and non-empty"

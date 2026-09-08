@@ -122,10 +122,12 @@ root: `POSITIONING.md` and the twelve design documents, four of which are ML
 design work he should have on day one. Under `.claude/`: `CLAUDE.md` and
 `settings.local.json`, but not the pre-reset copy. Plus the real lift banks.
 
-`worktrees` under `.claude/` is the one to look at before you run this. If it
-holds actual git worktrees they are checkouts, they are denied by the
-`.worktrees` rule only if named that way, and the file count in the verify step
-is what would catch them. Glance at it.
+`.claude/worktrees/` is denied outright now, and it had to be. Found live on
+2026-09-06: it held a full nested checkout for unrelated work, and the deny rule
+at the time only matched `.worktrees` with a leading dot, which is the different
+thing your `.gitignore` names. Claude Code creates the undotted one for isolated
+per-task sessions and there were eleven of them registered. Both spellings are
+denied.
 
 **Do not paste copies by hand. Run the script, and it is a different script
 than it was an hour ago.**
@@ -156,8 +158,8 @@ rm -rf ~/handover
 anything matching `*.db` or `*.sqlite`, any `*.key` or `cert.pem` or `id_rsa`.
 That is your key, the beta invitee databases and your own sittings history. The
 deny list also drops what he regenerates: `.git`, `.venv*`, `__pycache__`, the
-caches, `build/`, `graphify-out/`, `.worktrees`, and the stale copies
-`docs.bak-*` and `CLAUDE.md.pre-reset-*`.
+caches, `build/`, `graphify-out/`, `node_modules`, both spellings of
+`worktrees`, and the stale copies `docs.bak-*` and `CLAUDE.md.pre-reset-*`.
 
 **Held back unless you pass `--all`:** `docs/YC_answers.md` and
 `docs/admissions/`. Founder material rather than engineering material. The
@@ -255,30 +257,37 @@ du -sh ~/handover
 `find` must print nothing. When this step went wrong on 2026-09-06 the bundle
 was 13328 files and 276 MB, so the failure is not subtle once someone looks.
 
-### 1.4 Write NOTES.md
+### 1.4 Add the agent setup
 
-Anything that has only ever been in your head. Start from the scaffold rather
-than a blank file:
+The bundle builder walks the Elenchus checkout, so it sees `.claude/` inside the
+repo and nothing else. Most of what makes your agent setup an agent setup lives
+in `~/.claude/`, outside every repository, and none of it was travelling.
 
 ```
-cp "$FELIX/docs/2026-09-06-notes-template.md" ~/handover/NOTES.md
+"$FELIX/docs/2026-09-06-build-agent-setup.sh" ~/handover
 ```
 
-Eight sections with the verifiable parts already filled in and a prompt under
-each of the rest: where the beta stands, what you were part way through, what
-you would have him do first, what you would not touch yet and why, what you
-already tried that did not work, the five decisions still open, people and
-context, and how to reach you for what. Delete each prompt as you answer it and
-delete whole sections that do not apply. A short honest NOTES.md beats a
-complete-looking one.
+It appends `agent-setup/` to the bundle you already built, so no rebuild.
+Carries `agents/`, `commands/`, `skills/`, `plugins/`, your hook scripts, the
+user-level `CLAUDE.md` and `settings.json`. Refuses `projects/`, which is
+session transcripts and was 62 MB on the machine this was tested against, plus
+`history.jsonl`, `.credentials.json`, `sessions/`, `shell-snapshots/` and
+`backups/`.
 
-**Section 1 has a real conflict to resolve.**
-`2026-09-06-riyan-onboarding.md:27` tells Riyan the beta has been running with
-one invited person per instance since 2026-09-05, and you said on 2026-09-06
-that nobody has been invited yet. Both can be true if the infrastructure went
-live and no invite went out, but he cannot tell that from what he has. Write
-the real sentence in NOTES.md and the onboarding document gets corrected to
-match it.
+`~/.claude.json` never travels: mode 600, and it holds your OAuth account, every
+directory you have ever opened, and each MCP server's env block. The script
+extracts the server list from it, keeping names, commands and args, and rewrites
+every env value to `SET-YOUR-OWN`. Riyan wires them up with his own credentials.
+
+Two verification gates rather than one: no denied path in the output, and
+separately no credential-shaped content, since a token in a settings file has an
+innocent path.
+
+**NOTES.md was dropped on 2026-09-06.** The earlier plan had you hand-write the
+things only you know. You and Riyan have been driving Elenchus work together and
+have covered it in person, so a written version adds nothing. What replaced it
+is `SETUP-RUNBOOK.md`, which the builder ships automatically and which is
+everything he has to *do* rather than everything you know.
 
 ### 1.5 Scan it, twice, and know what each pass misses
 

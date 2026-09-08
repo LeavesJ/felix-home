@@ -218,7 +218,9 @@ note "structure matches"
 
 cat <<NEXT
 
-Restored. What is left, and none of it is a file copy:
+Restored. Read SETUP-RUNBOOK.md in this bundle; it is the sequence and every
+step below is in it with the reasoning. What is left, and none of it is a file
+copy:
 
   1. Put your own Anthropic key in $KEY_FILE.
      Your own, on your own workspace, with its own spend limit. Not J's.
@@ -230,9 +232,13 @@ Restored. What is left, and none of it is a file copy:
      Expect 1439 passed, 35 skipped. Those 35 are correct and permanent for
      you; ENVIRONMENT.md §5 and the onboarding document §3.1 say why.
 
-  3. Install Felix and reach a green gate, per the onboarding document §3.2.
+  3. Install Felix and reach a green gate.
 
-  4. Read state/NOTES.md. It is the only file here nobody could derive.
+  4. Merge anything at ~/.claude/*.from-jarron, and wire up your own MCP
+     credentials. SETUP-RUNBOOK.md §5.
+
+  5. Before any live evaluation, read SETUP-RUNBOOK.md §6. ELENCHUS_MAX_CALLS
+     bounds one process and it is not the one you will be running.
 
 One thing this script cannot do for you: it copied J's docs/ into your memory
 root, so your lessons and devlog START from his and then diverge as you write

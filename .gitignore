@@ -40,3 +40,6 @@ data/
 # receipt: felix_tree_dirty counts untracked files, and the installed check
 # reads them as undeployed work.
 graphify-out/
+
+# Workflow scratch, never doctrine.
+.wf/

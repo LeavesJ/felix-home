@@ -33,6 +33,20 @@
 
 set -euo pipefail
 
+# A refused build must not leave its output on disk. Both of these scripts build
+# first and verify second, so every `die` after the first copy used to leave a
+# rejected tree sitting there looking like a success, and the next run then
+# refused with *_dest_exists instead of the real reason. Observed twice on
+# 2026-09-06. The trap clears it unless the run reached the end.
+BUILD_COMPLETE=0
+cleanup_on_refusal() {
+  [ "$BUILD_COMPLETE" -eq 1 ] && return 0
+  [ -n "${OUT:-}" ] && [ -d "${OUT:-}" ] || return 0
+  rm -rf "$OUT"
+  printf 'removed the partial output at %s\n' "$OUT" >&2
+}
+trap cleanup_on_refusal EXIT
+
 die() { printf 'refused reason_code=%s reason_detail=%s\n' "$1" "$2" >&2; exit 1; }
 note() { printf '  %s\n' "$1"; }
 warn() { printf '  !! %s\n' "$1"; }
@@ -175,6 +189,8 @@ for x in $skipped; do printf '  deny  %s\n' "$x"; done
 
 printf '\nadded %s\n' "$OUT"
 find "$OUT" -maxdepth 2 | sed "s|^$OUT/||" | sort | sed 's/^/  /'
+
+BUILD_COMPLETE=1
 
 cat <<'NEXT'
 

@@ -25,6 +25,7 @@
 1	a block from the live tree is still recorded
 1	a blocking verdict does not clear it either
 1	a broad but legitimate rule still denies
+1	a builtin is named without a token, as before
 1	a bumped tree does not become its own judge
 1	a bundled plugin reads as usable
 1	a bundled plugin reads present with no cli at all
@@ -172,6 +173,7 @@
 1	a migration classifies red
 1	a migration escapes as durable
 1	a migration is out of scope
+1	a missing file is cannot-examine, exit 2, never an empty binding
 1	a missing manifest is refused
 1	a missing runbook fails loudly
 1	a missing state file is not a guess
@@ -211,6 +213,7 @@
 1	a path in the envelope does not decide the route
 1	a path naming nothing real is still not invented
 1	a path rule denies an edit
+1	a path that is not there records no instrument
 1	a path you typed yourself still counts
 1	a path-valued key is not written to the log
 1	a path-valued key the list never heard of still counts what was typed
@@ -240,6 +243,7 @@
 1	a predicate with no prior record is named as new
 1	a probabilistic row with a blocking class is refused
 1	a probe grounding a surface nothing enumerates is named
+1	a probe naming a path under the checkout records that file and its size
 1	a probe naming a real command carries that instrument and a token
 1	a probe row naming a predicate and no command blocks the merge
 1	a probe that begins with an assignment identifies no instrument
@@ -456,6 +460,7 @@
 1	an envelope field name never does
 1	an escape is named as the founder's
 1	an established fact is classed OBSERVED
+1	an event named inside a command string is not bound
 1	an event row with a failing check is DUE
 1	an event-driven routine is not due
 1	an evidence command that does not exist here is ACTIVE UNKNOWN
@@ -544,12 +549,14 @@
 1	and a dormant row blocks nothing
 1	and a failing one as due for that reason
 1	and a file that does not exist counts zero
+1	and a file with no whitespace reads the same as one with
 1	and a fold that is current leaves nothing stranded
 1	and a gitignored stray in the cache is too
 1	and a high one is refused
 1	and a hold is not written
 1	and a hyphenated name still matches its words
 1	and a live one says when it was last caught
+1	and a machine that binds nothing is an empty roster, not an error
 1	and a name
 1	and a person's medium row installs, as it always has
 1	and a prefixed skill is never called a built-in
@@ -699,6 +706,7 @@
 1	and keeps the session it was said in
 1	and lands in mistakes.log under its own name
 1	and launchd was handed the agent
+1	and lists every event its hooks object binds
 1	and matches an ecosystem word on a word boundary
 1	and matches on keywords, not just names
 1	and merge does not call it an unscanned diff
@@ -899,6 +907,7 @@
 1	and so is a deny from its own PreToolUse
 1	and so is a second one
 1	and so is every other one
+1	and so is no argument at all
 1	and so is ordinary work
 1	and so is the content-drift arm
 1	and so is the other one
@@ -959,6 +968,7 @@
 1	and the gate line called no cli
 1	and the gate still runs through it
 1	and the gate-failure total
+1	and the grep the probe used to be counts it, which is why the probe moved
 1	and the held total
 1	and the hook still exits 0 there
 1	and the independence check above it sees nothing wrong with that file
@@ -1177,12 +1187,14 @@
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
 1	felix stack reconcile folds what nothing folded before reporting
+1	felix's hook_binding probe reads through hooks-events, not a grep
 1	felix's own first obligation is discharged on this tree
 1	felix's own gate no longer carries a private copy of the check
 1	felix_autonomy_allows is defined for the hook
 1	felix_budget_record itself reports the failure
 1	felix_classify_diff reports unknown, not empty
 1	felix_contains survives a large haystack under pipefail
+1	felix_coverage_events rosters the events settings.json binds by key
 1	felix_deploy_diff sees the hooks drift
 1	felix_evidence_check reports unknown, not n/a
 1	felix_has_line matches whole lines under pipefail
@@ -1213,6 +1225,7 @@
 1	hook emits Claude Code shape without plugin env
 1	hook silent in ungoverned repo
 1	hook still exits 0 there
+1	hooks-events reads a hooks.json and exits 0
 1	identical deploys are clean before any stray lands
 1	ignores a file that does not exist
 1	including fields after it
@@ -1488,6 +1501,7 @@
 1	the data marker is substituted
 1	the declared plugin still has its presence row
 1	the declares are applied before the receipt is written
+1	the decoupled copy is not an event to hooks-events
 1	the deployed path is read from the CLI, not guessed from the cache
 1	the ecosystem check is behind the verifier confine
 1	the ecosystem table is an enforcing table, and escape.sh says so
@@ -1587,6 +1601,7 @@
 1	the session banner does not carry the unmeasurable list
 1	the session it does own is folded
 1	the shipped gate marks its undeployable failure
+1	the shipped hooks bind SubagentStop by key
 1	the shipped hooks bind every moment the stance table says is wired
 1	the shipped layout — memory under ~/.felix — is its own repo
 1	the shipped table considers every moment

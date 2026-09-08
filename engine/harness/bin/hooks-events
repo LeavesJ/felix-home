@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# The lifecycle events one hooks.json binds: the keys of its top-level "hooks"
+# object, one per line, whatever the file's formatting.
+#
+#   hooks-events <hooks.json>
+#
+#   exit 0  the file was read; every event it binds is on stdout
+#   exit 2  cannot examine: no path given, or no such non-empty file. Never
+#           read as "binds nothing".
+#
+# This is the `hook_binding` probe's instrument. The probe used to be a grep
+# for `"Event": [`, and a blind-authored control moved the whole SubagentStop
+# entry one level down into another event's matcher group — every token still
+# present, the hook never firing — and the grep read it as bound. The check
+# that judges the first admitted obligation was rewritten to read keys through
+# felix_hooks_events; the probe that records the same fact kept the grep and
+# shared the shadow. Now both read through the one scanner, so a key at the
+# wrong depth, or inside a command string, is not an event to either.
+#
+# Lives beside the engine it reads for, so the probe row can name a bare path
+# and felix_probe_source records this file's size as the instrument token: a
+# count that moves because the scanner changed can be told from one that moves
+# because the hooks did.
+set -u
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+HOOKS="${1:-}"
+[ -n "$HOOKS" ] || { printf 'usage: hooks-events <hooks.json>\n' >&2; exit 2; }
+[ -s "$HOOKS" ] || { printf 'hooks-events: cannot examine: no hooks at %s\n' "$HOOKS" >&2; exit 2; }
+
+# shellcheck source=../lib/coverage.sh
+. "$HERE/lib/coverage.sh"
+felix_hooks_events "$HOOKS"
+exit 0

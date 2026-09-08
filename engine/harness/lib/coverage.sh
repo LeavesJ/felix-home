@@ -146,14 +146,18 @@ felix_coverage_unchecked() {
 # no false positives to teach anyone to skim. What it cannot see is an event the
 # platform offers that nothing on this machine binds yet; those become visible
 # the day anything binds one, which is also the first day they could matter.
+#
+# Read through felix_hooks_events, file by file, for the reason it exists: a
+# settings file whose hook command mentions `"Stop": [` in a string is not a
+# file that binds Stop, and the grep this used to be would have rostered it.
 felix_coverage_events() {
-  {
-    grep -ohE '"[A-Z][A-Za-z]+"[[:space:]]*:[[:space:]]*\[' \
-      "$HOME/.claude/settings.json" \
-      "$HOME/.claude/settings.local.json" \
-      "$HOME"/.claude/plugins/cache/*/*/*/hooks/hooks.json 2>/dev/null \
-      | sed 's/"[[:space:]]*:.*//; s/"//g'
-  } 2>/dev/null | LC_ALL=C sort -u
+  local f
+  for f in "$HOME/.claude/settings.json" \
+           "$HOME/.claude/settings.local.json" \
+           "$HOME"/.claude/plugins/cache/*/*/*/hooks/hooks.json; do
+    felix_hooks_events "$f"
+  done 2>/dev/null | grep . | LC_ALL=C sort -u
+  return 0
 }
 
 # Moments something binds that the stance table has never heard of. This is the

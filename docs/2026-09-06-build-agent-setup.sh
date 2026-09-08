@@ -64,8 +64,10 @@ OUT="$BUNDLE/agent-setup"
   "$OUT already exists. Remove it and re-run rather than merging into it."
 
 # Matched against the entry name directly under ~/.claude, or a path below it.
-DENY='(^|/)(projects|history\.jsonl|\.credentials\.json|sessions|session-env|shell-snapshots|backups|statsig|todos|logs|downloads|ide|telemetry|usage|\.last-cleanup|launcher-settings\.json|remote-settings\.json|policy-limits\.json|\.DS_Store|node_modules|__pycache__|\.git|cache|marketplaces|repos|.*\.log)$'
-# `cache`, `marketplaces` and `repos` are the fetched half of ~/.claude/plugins:
+DENY='(^|/)(projects|history\.jsonl|\.credentials\.json|sessions|session-env|shell-snapshots|backups|statsig|todos|logs|downloads|ide|telemetry|usage|\.last-cleanup|launcher-settings\.json|remote-settings\.json|policy-limits\.json|\.DS_Store|node_modules|__pycache__|\.git|cache|marketplaces|repos|security|debug|.*\.log)$'
+# `security` was 244 MB on J's machine and `debug` is a log directory; both are
+# generated rather than authored. `cache`, `marketplaces` and `repos` are the
+# fetched half of ~/.claude/plugins:
 # full checkouts of every installed plugin at every version. Found live
 # 2026-09-06 at 690 MB across 22418 files, which is the plugin ecosystem rather
 # than anyone's setup. Claude Code re-fetches them from the marketplace list,
@@ -78,6 +80,7 @@ mkdir -p "$OUT/claude-home"
 
 skipped=""
 n=0
+BIG_KB=${AGENT_BIG_KB:-20480}
 
 # Recursive, and the deny check runs at EVERY level rather than only on the
 # top-level name. An earlier version copied each surviving directory with cp -R
@@ -92,6 +95,20 @@ carry() {
     sz=$(du -sh "$src" 2>/dev/null | awk '{print $1}')
     skipped="$skipped $rel(${sz:-?})"
     return 0
+  fi
+
+  # A size guard as well as the name list, because the name list only knows what
+  # it has already been bitten by. Three separate trees got in that way on
+  # 2026-09-06: a nested checkout, 589 MB of plugin downloads, and 244 MB under
+  # a directory called `security`. Nothing authored in ~/.claude is 20 MB, so
+  # anything that big is generated or fetched and is skipped by shape rather
+  # than by name. Raise BIG_KB if that ever stops being true.
+  if [ -d "$src" ] || [ -f "$src" ]; then
+    ksz=$(du -sk "$src" 2>/dev/null | awk '{print $1}')
+    if [ -n "${ksz:-}" ] && [ "$ksz" -gt "$BIG_KB" ]; then
+      skipped="$skipped $rel($((ksz / 1024))MB,oversize)"
+      return 0
+    fi
   fi
 
   dst="$OUT/claude-home/$rel"

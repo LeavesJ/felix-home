@@ -50,7 +50,12 @@ OUT="$BUNDLE/agent-setup"
   "$OUT already exists. Remove it and re-run rather than merging into it."
 
 # Matched against the entry name directly under ~/.claude, or a path below it.
-DENY='(^|/)(projects|history\.jsonl|\.credentials\.json|sessions|session-env|shell-snapshots|backups|statsig|todos|logs|downloads|ide|telemetry|usage|\.last-cleanup|launcher-settings\.json|remote-settings\.json|policy-limits\.json|\.DS_Store|node_modules|__pycache__|.*\.log)$'
+DENY='(^|/)(projects|history\.jsonl|\.credentials\.json|sessions|session-env|shell-snapshots|backups|statsig|todos|logs|downloads|ide|telemetry|usage|\.last-cleanup|launcher-settings\.json|remote-settings\.json|policy-limits\.json|\.DS_Store|node_modules|__pycache__|\.git|cache|marketplaces|repos|.*\.log)$'
+# `cache`, `marketplaces` and `repos` are the fetched half of ~/.claude/plugins:
+# full checkouts of every installed plugin at every version. Found live
+# 2026-09-06 at 690 MB across 22418 files, which is the plugin ecosystem rather
+# than anyone's setup. Claude Code re-fetches them from the marketplace list,
+# and that list is a small JSON file at the plugins root, which does travel.
 
 printf 'agent setup from %s\n' "$SRC"
 printf '  into %s\n\n' "$OUT"
@@ -60,41 +65,52 @@ mkdir -p "$OUT/claude-home"
 skipped=""
 n=0
 
+# Recursive, and the deny check runs at EVERY level rather than only on the
+# top-level name. An earlier version copied each surviving directory with cp -R
+# and deleted denied paths afterwards, which meant copying 690 MB of plugin
+# checkouts before removing them, and left the result at the mercy of the strip
+# actually running.
+carry() {
+  local rel=$1 src dst child sz
+  src="$SRC/$rel"
+
+  if printf '%s' "$rel" | grep -qE "$DENY"; then
+    sz=$(du -sh "$src" 2>/dev/null | awk '{print $1}')
+    skipped="$skipped $rel(${sz:-?})"
+    return 0
+  fi
+
+  dst="$OUT/claude-home/$rel"
+
+  # A symlink here points somewhere on J's disk and means nothing on Riyan's.
+  # Recorded rather than copied, same rule as the main builder.
+  if [ -L "$src" ]; then
+    printf '%s\t%s\n' ".claude/$rel" "$(readlink "$src")" >> "$OUT/symlinks.tsv"
+    note "link recorded  $rel"
+    return 0
+  fi
+
+  if [ -d "$src" ]; then
+    mkdir -p "$dst"
+    for child in "$src"/* "$src"/.[!.]*; do
+      [ -e "$child" ] || [ -L "$child" ] || continue
+      carry "$rel/$(basename "$child")"
+    done
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$dst")"
+  cp "$src" "$dst"
+  n=$((n + 1))
+  return 0
+}
+
 for entry in "$SRC"/* "$SRC"/.[!.]*; do
   [ -e "$entry" ] || [ -L "$entry" ] || continue
   base=$(basename "$entry")
-
-  if printf '%s' "$base" | grep -qE "$DENY"; then
-    sz=$(du -sh "$entry" 2>/dev/null | awk '{print $1}')
-    skipped="$skipped $base($sz)"
-    continue
-  fi
-
-  # A symlink here would point somewhere on J's disk and mean nothing on
-  # Riyan's. Recorded rather than copied, same rule as the main builder.
-  if [ -L "$entry" ]; then
-    printf '%s\t%s\n' ".claude/$base" "$(readlink "$entry")" >> "$OUT/symlinks.tsv"
-    note "link recorded  $base"
-    continue
-  fi
-
-  if [ -d "$entry" ]; then
-    inner=$(find "$entry" -type l 2>/dev/null || true)
-    [ -z "$inner" ] || warn "$base contains symlinks; they are copied as links and may dangle"
-    cp -R "$entry" "$OUT/claude-home/"
-    # Strip anything the deny list catches at depth, since cp -R took the lot.
-    while IFS= read -r hit; do
-      [ -n "$hit" ] && rm -rf "$hit"
-    done <<EOF
-$(find "$OUT/claude-home/$base" | grep -E "$DENY" || true)
-EOF
-    n=$((n + 1))
-    note "tree  $base"
-  else
-    cp "$entry" "$OUT/claude-home/"
-    n=$((n + 1))
-    note "file  $base"
-  fi
+  before=$n
+  carry "$base"
+  [ "$n" -eq "$before" ] || note "$base ($((n - before)) files)"
 done
 
 # --- MCP servers, shape only ------------------------------------------------
@@ -145,8 +161,14 @@ leaks=$(grep -rlniE 'sk-ant-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]
 note "no credential-shaped content"
 
 kb=$(du -sk "$OUT" | awk '{print $1}')
+count=$(find "$OUT" -type f | wc -l | tr -d ' ')
+# A count ceiling as well as a size one, because the plugin-checkout failure
+# showed up as 22418 files first and 690 MB second, and a count is the earlier
+# and clearer signal that a fetched tree got in.
+[ "$count" -le 2000 ] || die agent_too_many_files \
+  "$count files, ceiling 2000. A fetched tree got in; check what is under plugins/."
 [ "$kb" -le 51200 ] || die agent_too_large "$((kb / 1024)) MB, ceiling 50 MB."
-note "$n entries carried, $((kb / 1024)) MB"
+note "$count files, $((kb / 1024)) MB"
 
 printf '\nnot sent, by rule:\n'
 for x in $skipped; do printf '  deny  %s\n' "$x"; done

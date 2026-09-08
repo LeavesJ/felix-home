@@ -250,9 +250,21 @@ If you want the paranoid version anyway:
 
 ```
 find ~/handover -type l
-grep -c . ~/handover/symlinks.tsv
+find ~/handover -type d -name worktrees
+find ~/handover -type f | wc -l
 du -sh ~/handover
 ```
+
+**`-type d -name worktrees`, not `-path "*worktree*"`.** The substring form was
+in an earlier draft and it is useless: plugin source code implementing worktree
+features has "worktree" in dozens of filenames, so it reports thirty benign hits
+and buries a real one. Match the directory name exactly.
+
+The count and size are the checks that actually catch a fetched tree. Two have
+got in so far, both silently: a nested checkout under `.claude/worktrees/`, and
+690 MB across 22418 files of plugin downloads under `~/.claude/plugins/cache`
+and `marketplaces`. Both scripts now refuse on a count ceiling, which is the
+earlier and clearer signal than size.
 
 `find` must print nothing. When this step went wrong on 2026-09-06 the bundle
 was 13328 files and 276 MB, so the failure is not subtle once someone looks.

@@ -43,8 +43,14 @@
 # The names are the files the memory root holds for a project, written out
 # because the engine has no one place it enumerates them from either.
 set -u
-cd "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null \
-  || { printf 'memory-scan: cannot search: not a git checkout\n'; exit 1; }
+# Captured first, then tested. `cd "$(git rev-parse ...)"` with the
+# substitution empty is `cd ""`, which bash treats as a no-op that succeeds,
+# so the refusal below was unreachable and the scanner passed outside any
+# checkout by finding nothing — the suite's own lesson about a branch a test
+# cannot reach, caught here by the test that reaches it.
+top="$(git rev-parse --show-toplevel 2>/dev/null)" || top=""
+[ -n "$top" ] || { printf 'memory-scan: cannot search: not a git checkout\n'; exit 1; }
+cd "$top" || { printf 'memory-scan: cannot search: %s\n' "$top"; exit 1; }
 
 MEMORY_NAMES='lessons\.md|ledger\.tsv|DEVLOG\.md|SESSION_HANDOFF\.md|mistakes\.log|verification\.log|facts\.log|says\.log|commissioning\.log'
 rc=0

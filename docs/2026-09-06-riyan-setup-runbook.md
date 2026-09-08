@@ -45,11 +45,61 @@ It is a three-clause document between two founders, not a form.
 
 ---
 
-## 1. Unpack and restore
+## 1. Verify, decrypt, unpack, restore
+
+J sent you two or three things, over separate channels on purpose: an encrypted
+file, a checksum, and (if he used a passphrase rather than your own age key) the
+passphrase itself. Do not skip the checksum. It is the only check that the file
+you received is the file he sent, and encryption gives you zero protection
+against a corrupted or tampered transfer on its own.
+
+**1.0 Verify the checksum before touching the passphrase.**
+
+```
+shasum -a 256 handover.tar.gz.age
+```
+
+Compare it, character by character, against the hash J sent you. **If they do
+not match, stop. Do not decrypt it and do not ask J for the passphrase again
+over the same channel the file came from.** Ask him to resend and get a fresh
+checksum on a clean channel.
+
+**1.1 Decrypt.** Whichever form J used:
+
+```
+age -d handover.tar.gz.age > handover.tar.gz
+```
+
+If he encrypted with a passphrase, this prompts `Enter passphrase:` and takes
+whatever he sent you over the separate channel. If he encrypted to your own age
+public key instead, `age -d` finds your private key automatically and asks
+nothing; there is no passphrase in that case; if it does prompt you for one,
+something is wrong and you are decrypting the wrong file or using the wrong
+key.
+
+If he used gpg instead of age:
+
+```
+gpg -d handover.tar.gz.gpg > handover.tar.gz
+```
+
+**1.2 Unpack.**
+
+```
+tar xzf handover.tar.gz
+ls handover
+```
+
+You should see `ACKNOWLEDGMENT.docx`, `ENVIRONMENT.md`, `SETUP-RUNBOOK.md`,
+`WORKING-NOTES.md`, `MANIFEST`, `restore.sh`, `state/`, `agent-setup/`,
+`symlinks.tsv`. If any of those is missing, the archive did not unpack cleanly;
+do not proceed on a partial bundle.
+
+**1.3 Restore.**
 
 ```
 cd <your Elenchus checkout>
-/path/to/bundle/restore.sh
+/path/to/handover/restore.sh
 ```
 
 It refuses unless you are standing in a checkout whose origin is
@@ -63,8 +113,8 @@ own out-of-tree key file, and links `docs/lessons.md`, `docs/DEVLOG.md` and
 `docs/SESSION_HANDOFF.md` into your Felix memory root the way J's checkout is
 arranged. It is idempotent and it never overwrites a file you have changed.
 
-**Check:** it ends with `structure matches`. Anything marked `!!` is something
-it deliberately left alone for you to look at.
+**Check:** `restore.sh` ends with `structure matches`. Anything marked `!!` is
+something it deliberately left alone for you to look at.
 
 ---
 

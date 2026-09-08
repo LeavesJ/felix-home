@@ -51,8 +51,12 @@ fi
 # else's session while this printed ok. A list of things to check is a list that
 # stops matching what exists, which is the same defect the coverage table exists
 # to catch — found in the check that was supposed to be catching it.
+# Every script under bin/, not a list of the ones somebody remembered: a probe
+# or an evidence contract that names a bin script which lost its bit reads
+# `unknown` and blocks, which is loud, but the gate should say why before the
+# ledger has to.
 NOX=""
-for f in engine/harness/felix engine/harness/tests/run engine/harness/bin/secret-scan \
+for f in engine/harness/felix engine/harness/tests/run engine/harness/bin/* \
          engine/harness/hooks/*; do
   [ -e "$f" ] || continue
   [ -x "$f" ] || NOX="$NOX $f"

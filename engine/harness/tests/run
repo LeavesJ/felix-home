@@ -7330,6 +7330,78 @@ else
   skip "felix's hook_binding probe reads through hooks-events, not a grep" "no projects/felix beside this harness"
 fi
 
+# ------------------------------------ deploy-check, the second obligation ---
+# Written is not installed. The project gate's `installed` check has compared
+# the tree against the deployed cache since #55; the ledger admits the
+# requirement so it cannot leave the gate the way a check can. Dormant where
+# nothing is deployed and where the marketplace serves another tree, which is
+# every CI runner and every worktree — reported, never waived.
+printf '\ndeploy-check: written is not installed\n'
+DCK="$TMP/deploy-check"; mkdir -p "$DCK/tree/engine/.claude-plugin" "$DCK/home/.claude/plugins/cache/felix/felix" "$DCK/bin" "$DCK/nohome" "$DCK/nobin"
+cp -R "$FROOT/harness" "$DCK/tree/engine/harness"
+cp -R "$REAL_HARNESS/../hooks" "$DCK/tree/engine/hooks"
+printf '{ "name": "felix", "version": "0.0.1" }\n' > "$DCK/tree/engine/.claude-plugin/plugin.json"
+printf '*.log\n' > "$DCK/tree/.gitignore"
+( cd "$DCK/tree" && git init -q -b main && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+DCKT="$(cd "$DCK/tree" && pwd -P)"
+cp -R "$DCK/tree/engine" "$DCK/home/.claude/plugins/cache/felix/felix/0.0.1"
+printf '{\n  "felix": {\n    "installLocation": "%s"\n  }\n}\n' "$DCKT" > "$DCK/home/.claude/plugins/known_marketplaces.json"
+cat > "$DCK/bin/claude" <<STUB
+#!/usr/bin/env bash
+case "\$*" in "plugin list --json") printf '{ "felix@felix": { "installPath": "%s" } }\n' "$DCK/home/.claude/plugins/cache/felix/felix/0.0.1" ;; esac
+exit 0
+STUB
+chmod +x "$DCK/bin/claude"
+_dck()  { ( cd "$DCKT" && HOME="$DCK/home"   PATH="$DCK/bin:$PATH" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
+_dckn() { ( cd "$DCKT" && HOME="$DCK/nohome" PATH="$DCK/nobin:/usr/bin:/bin" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
+if [ -x "$DCKT/engine/harness/bin/deploy-check" ]; then
+  has "deploy-check --applies holds where a deployment exists and the marketplace serves this tree" "$(_dck --applies)" "rc=0"
+  out="$(_dck)"
+  has "and a tree byte-identical to the deployed engine matches" "$out" "matches"
+  has "with exit 0" "$out" "rc=0"
+  printf '# drift\n' >> "$DCKT/engine/harness/lib/say.sh"
+  out="$(_dck)"
+  has "a changed library is drift, exit 1" "$out" "rc=1"
+  has "and the report names the path" "$out" "say.sh"
+  has "and counts it" "$out" "1 path(s) differ"
+  ( cd "$DCKT" && git checkout -q -- engine/harness/lib/say.sh )
+  printf 'x\n' > "$DCKT/engine/harness/scratch.log"
+  has "what git ignores is not drift" "$(_dck)" "rc=0"
+  rm -f "$DCKT/engine/harness/scratch.log"
+  printf '{\n  "felix": {\n    "installLocation": "/somewhere/else"\n  }\n}\n' > "$DCK/home/.claude/plugins/known_marketplaces.json"
+  has "a tree the marketplace does not serve is not where this applies" "$(_dck --applies)" "rc=1"
+  has "while the evidence still answers on its own axis" "$(_dck)" "rc=0"
+  has "no plugin cache at all is not where this applies either" "$(_dckn --applies)" "rc=1"
+  out="$(_dckn)"
+  has "and with no deployment to compare against the evidence cannot examine" "$out" "rc=2"
+  has "saying so" "$out" "cannot examine"
+else
+  for a in "deploy-check --applies holds where a deployment exists and the marketplace serves this tree" \
+           "and a tree byte-identical to the deployed engine matches" "with exit 0" \
+           "a changed library is drift, exit 1" "and the report names the path" "and counts it" \
+           "what git ignores is not drift" "a tree the marketplace does not serve is not where this applies" \
+           "while the evidence still answers on its own axis" "no plugin cache at all is not where this applies either" \
+           "and with no deployment to compare against the evidence cannot examine" "saying so"; do
+    skip "$a" "no bin/deploy-check beside this harness"; done
+fi
+# The row itself: task-blocking, grounded on the probe that already asks
+# whether anything is deployed, and never unknown on the tree the suite runs in.
+_DCKP="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix"
+if [ -f "$_DCKP/obligations.tsv" ] && [ -x "$REAL_HARNESS/bin/obligations-check" ]; then
+  is  "felix admits engine_deployed as task-blocking, grounded on deployed_engine" \
+      "$(grep '^engine_deployed' "$_DCKP/obligations.tsv" | cut -f2,6)" "TASK_BLOCKING	deployed_engine"
+  out="$(cd "$REAL_HARNESS/../.." && "$REAL_HARNESS/bin/obligations-check" projects/felix 2>&1 | grep '^  engine_deployed')"
+  case "$out" in
+    *UNKNOWN*) bad "and on this tree it is dormant, satisfied or unsatisfied, never unknown" "$out" ;;
+    '')        bad "and on this tree it is dormant, satisfied or unsatisfied, never unknown" "no row printed" ;;
+    *)         ok  "and on this tree it is dormant, satisfied or unsatisfied, never unknown" ;;
+  esac
+else
+  for a in "felix admits engine_deployed as task-blocking, grounded on deployed_engine" \
+           "and on this tree it is dormant, satisfied or unsatisfied, never unknown"; do
+    skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
+fi
+
 # Shrinking the ledger escapes, like every table that decides what stops.
 has "obligations.tsv is one of the tables whose shrinkage escapes" \
     "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/escape.sh"

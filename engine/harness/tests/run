@@ -4323,6 +4323,69 @@ printf 'sonarqube\tsecrets\thigh\n' >> "$DH/state/discover/widget.tsv"
 new="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_unseen "$DP" "$DH" | tr '\n' ' ' )"
 has "but a new one does get through" "$new" "sonarqube"
 
+# An unreadable catalogue is not an empty one. felix_discover_candidates used to
+# come back with no rows whether the marketplaces had nothing for this project
+# or the CLI had fallen over, and the quiet form wrote the second as the first
+# into a cache that stays current for seven days. Read by an agent from the
+# find-skills plugin's catalogue reader, which draws the line this one did not.
+printf '\nan unreadable catalogue is not an empty one\n'
+DCP="$TMP/discover-cands"; mkdir -p "$DCP/proj" "$DCP/bin-fail" "$DCP/bin-prose" "$DCP/bin-empty" "$DCP/bin-hit" "$DCP/bin-none"
+printf 'llm\n' > "$DCP/proj/capabilities"
+printf 'plugin\tanthropic-skills\t-\tlow\talways\n' > "$DCP/proj/stack.tsv"
+printf '#!/bin/sh\nexit 1\n' > "$DCP/bin-fail/claude"
+printf '#!/bin/sh\necho "Error: could not reach the marketplace"\n' > "$DCP/bin-prose/claude"
+printf '#!/bin/sh\necho "[]"\n' > "$DCP/bin-empty/claude"
+cat > "$DCP/bin-hit/claude" <<'STUB'
+#!/bin/sh
+cat <<'J'
+[
+  {
+    "name": "deepeval",
+    "description": "llm evaluation and prompt testing"
+  }
+]
+J
+STUB
+chmod +x "$DCP"/bin-*/claude
+_dcands() { ( PATH="$DCP/$1:$PATH"; export PATH
+              . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/discover.sh"
+              out="$(felix_discover_candidates "$DCP/proj" "$FROOT/harness/templates")"; rc=$?
+              printf '%s|%s' "$rc" "$out" ); }
+is  "a CLI that fails is exit 3 and no rows" "$(_dcands bin-fail)" "3|"
+is  "a CLI that prints an error and exits 0 is exit 3 and no rows too" "$(_dcands bin-prose)" "3|"
+is  "an empty listing is exit 0 and no rows: a catalogue that was read" "$(_dcands bin-empty)" "0|"
+has "and a listing with a match still scores it" "$(_dcands bin-hit)" "deepeval"
+is  "with exit 0" "$(_dcands bin-hit | cut -d'|' -f1)" "0"
+is  "and no CLI on PATH at all is exit 3, not an empty marketplace" \
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/discover.sh"
+        PATH="$DCP/bin-none"; export PATH
+        felix_discover_candidates "$DCP/proj" "$FROOT/harness/templates" >/dev/null 2>&1; echo $? )" "3"
+# Through the CLI: the quiet form writes nothing and exits non-zero, so the
+# `&&` every cache writer guards with leaves the previous answer standing.
+# The widget declares a capability with a discovery rule for the duration, or
+# the candidates function returns before it ever asks the CLI.
+cp "$FROOT/projects/widget/capabilities" "$TMP/caps.discover.keep" 2>/dev/null || : > "$TMP/caps.discover.keep"
+printf 'llm\n' >> "$FROOT/projects/widget/capabilities"
+DCH="$FROOT/state/discover"; mkdir -p "$DCH"
+{ _dstamp; printf 'langfuse\tllm\tlow\n'; } > "$DCH/widget.tsv"
+DCW="$(cat "$DCH/widget.tsv")"
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover --inspect --quiet 2>/dev/null)"; rc=$?
+is  "felix discover --inspect --quiet exits 2 when the catalogue cannot be read" "$rc" "2"
+is  "and prints nothing, not even the stamp" "$out" ""
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover 2>&1)"
+has "and the loud form says the catalogue was never seen" "$out" "could not be read"
+is  "the cache already there is untouched" "$(cat "$DCH/widget.tsv")" "$DCW"
+rm -f "$DCH/widget.tsv"
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover --adopt 2>&1)"; rc=$?
+is  "discover --adopt with no cache and no catalogue adopts nothing and says why" "$rc" "2"
+has "in words" "$out" "nothing was adopted"
+[ -e "$DCH/widget.tsv" ] && bad "and writes no cache" "$(cat "$DCH/widget.tsv")" || ok "and writes no cache"
+[ -e "$DCH/widget.tsv.new" ] && bad "nor a half-written one" "left behind" || ok "nor a half-written one"
+out="$(cd "$REPO" && PATH="$DCP/bin-empty:$PATH" "$FELIX" discover --inspect --quiet 2>/dev/null)"; rc=$?
+is  "and a catalogue that was read and matched nothing is exit 0" "$rc" "0"
+is  "with the stamp and no rows, which is an empty cache and a real answer" "$out" "$(_dstamp)"
+cp "$TMP/caps.discover.keep" "$FROOT/projects/widget/capabilities"
+
 printf '\ndiscovery reads before it recommends\n'
 # The plugin format has no permission declaration and `claude plugin validate`
 # checks schema only, so the only way to know what something does is to read it.

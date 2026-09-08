@@ -139,16 +139,34 @@ EOF
 #
 # Scored only against capabilities the project declared, so a project with no
 # database never sees database tooling however loudly a plugin advertises.
+#
+# Exit 0 is a catalogue that was read, whether or not anything in it matched.
+# Exit 3 is a catalogue that could not be read: no CLI, a CLI that failed, or
+# a CLI that answered with something other than a listing. The two used to be
+# one — a CLI error came back through the pipeline as no rows — and the quiet
+# form then wrote "nothing matches" into a cache that stays current for seven
+# days. Nothing that reads the cache could tell a marketplace with nothing for
+# this project from a morning the CLI was broken. Read by an agent from the
+# find-skills plugin, which draws the same line in its own catalogue reader.
 felix_discover_candidates() {
-  local proj="$1" tpl="$2" rules
-  command -v claude >/dev/null 2>&1 || return 0
+  local proj="$1" tpl="$2" rules listing
+  command -v claude >/dev/null 2>&1 || return 3
   rules="$(_felix_discover_rules "$tpl" "$proj")"
   [ -n "$rules" ] || return 0
 
   local declared
   declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
 
-  claude plugin list --json --available </dev/null 2>/dev/null \
+  listing="$(claude plugin list --json --available </dev/null 2>/dev/null)" || return 3
+  # A listing is a JSON array or object. An error printed to stdout with a
+  # zero exit — which the CLI has done — begins with neither, and would have
+  # matched no name and read as an empty marketplace.
+  case "$(printf '%s' "$listing" | tr -d '[:space:]' | cut -c1)" in
+    '['|'{') ;;
+    *) return 3 ;;
+  esac
+
+  printf '%s\n' "$listing" \
     | sed -n -e 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/N \1/p' \
              -e 's/.*"description"[[:space:]]*:[[:space:]]*"\(.*\)".*/D \1/p' \
     | awk '/^N /{ if (n != "") print n "\t" d; n=substr($0,3); d="" }
@@ -509,9 +527,15 @@ felix_discover_refresh_bg() {
   (
     trap 'rmdir "$lock" 2>/dev/null' EXIT
     cd "$(felix_repo_root "$PWD")" 2>/dev/null || exit 0
-    "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null
-    mv -f "$(_felix_discover_cache "$proj" "$home").new.$$" \
-          "$(_felix_discover_cache "$proj" "$home").tsv" 2>/dev/null
+    # A refresh that could not read the marketplaces exits non-zero and writes
+    # nothing, and the previous answer stands: an unreadable catalogue is not
+    # an empty one, and must not become one for seven days.
+    if "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null; then
+      mv -f "$(_felix_discover_cache "$proj" "$home").new.$$" \
+            "$(_felix_discover_cache "$proj" "$home").tsv" 2>/dev/null
+    else
+      rm -f "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null
+    fi
   ) </dev/null >/dev/null 2>&1 &
   return 0
 }

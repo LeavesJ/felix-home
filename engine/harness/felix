@@ -1947,7 +1947,17 @@ cmd_discover() {
       printf 'filling the discovery cache first: each candidate is fetched at its\n'
       printf 'pinned commit and read, and nothing is executed.\n\n'
       mkdir -p "$(dirname "$cache")" 2>/dev/null
-      cmd_discover --inspect --quiet > "$cache.new" 2>/dev/null && mv -f "$cache.new" "$cache"
+      if cmd_discover --inspect --quiet > "$cache.new" 2>/dev/null; then
+        mv -f "$cache.new" "$cache"
+      else
+        # Not "nothing matches". The catalogue was never seen, so there is no
+        # answer to act on and none to cache; the next run asks again.
+        rm -f "$cache.new" 2>/dev/null
+        printf 'The marketplaces could not be read, so the cache was not written and\n'
+        printf 'nothing was adopted. That is not "nothing matches": nothing was seen.\n'
+        printf 'Check that `claude plugin list --available` answers, then run this again.\n'
+        return 2
+      fi
     fi
     local plan; plan="$(felix_discover_adopt "$proj" "$FELIX_HOME_DIR" "$tpl")"
     if [ -z "$plan" ]; then
@@ -1994,7 +2004,18 @@ EOF
     return 0
   fi
 
-  local cands; cands="$(felix_discover_candidates "$proj" "$tpl")"
+  local cands crc; cands="$(felix_discover_candidates "$proj" "$tpl")"; crc=$?
+  # A catalogue that could not be read is not one with nothing in it. Before
+  # the stamp, because the stamp is what makes a cache current: the quiet
+  # form must write nothing here, so the caller's `&&` leaves the last real
+  # answer standing rather than replacing it with seven days of "nothing".
+  if [ "$crc" -ne 0 ]; then
+    [ "$quiet" -eq 1 ] && return 2
+    printf 'The marketplaces could not be read for %s.\n\n' "$(basename "$proj")"
+    printf 'That is not "nothing matches": the catalogue was never seen. Check that\n'
+    printf '`claude plugin list --available` answers, then run this again.\n'
+    return 2
+  fi
   # The quiet form writes the cache, so its first line is the stamp the
   # readers check, and an empty result is an empty cache rather than a
   # sentence about it — prose in a cache is a row that refuses to parse.

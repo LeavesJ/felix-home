@@ -12,6 +12,8 @@
 1	PreToolUse is bound for NotebookEdit
 1	PreToolUse is bound for Read
 1	PreToolUse is bound for Write
+1	a CLI that fails is exit 3 and no rows
+1	a CLI that prints an error and exits 0 is exit 3 and no rows too
 1	a backfilled row carries DECLARED
 1	a bare branch name prefers the remote-tracking ref
 1	a bare plugin step is used when one of its skills ran
@@ -86,7 +88,6 @@
 1	a different repository is still checked
 1	a directory declaring project.json is enumerated
 1	a directory holding only untracked files is blind too
-1	a directory is cannot-examine, not an empty binding
 1	a directory missing from one side is a drift
 1	a dirty memory repo is committed
 1	a disarmed engine is still judged by main's version
@@ -103,7 +104,6 @@
 1	a failing gate still exits non-zero
 1	a felix-answered row names felix as the actor
 1	a file facing a directory is a drift, whatever diff exits
-1	a file that does not parse drops out of the roster without taking the rest
 1	a filename containing ' and ' cannot hide behind a fragment
 1	a finding names its reason
 1	a flag with no value refuses instead of spinning
@@ -381,7 +381,6 @@
 1	a tool that could not be checked is said, not counted as reachable
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
-1	a truncated hooks.json is cannot-examine
 1	a typed intent is not labelled a guess
 1	a valid receipt raises no commission blocker
 1	a verdict for another tree does not clear it
@@ -446,6 +445,7 @@
 1	an argument it cannot honour merges nothing
 1	an empty base is not reported as unknown
 1	an empty grounding refuses
+1	an empty listing is exit 0 and no rows: a catalogue that was read
 1	an empty marker is reported at session start too
 1	an empty marker refuses too
 1	an empty path is not a copy
@@ -542,6 +542,7 @@
 1	and a CLI that answers nothing reports no drift
 1	and a CLI that cannot answer is not a stale deployment
 1	and a backticked path naming nothing is still not invented
+1	and a catalogue that was read and matched nothing is exit 0
 1	and a clean table leaves the gate green
 1	and a command that does not resolve identifies none either
 1	and a declared control is not reported missing
@@ -558,6 +559,7 @@
 1	and a high one is refused
 1	and a hold is not written
 1	and a hyphenated name still matches its words
+1	and a listing with a match still scores it
 1	and a live one says when it was last caught
 1	and a machine that binds nothing is an empty roster, not an error
 1	and a name
@@ -751,6 +753,7 @@
 1	and never reports no remote for an engine that has one
 1	and never the newest thing in the cache
 1	and never where it is not declared
+1	and no CLI on PATH at all is exit 3, not an empty marketplace
 1	and no agent is written there
 1	and no arguments at all refuse
 1	and no caller keeps a tier list of its own
@@ -809,7 +812,7 @@
 1	and passes the facts it already has
 1	and picks the capability the skills serve
 1	and points at the read that needs no lock
-1	and prints no events at all, not the ones it managed to reach
+1	and prints nothing, not even the stamp
 1	and prints the state rather than a verdict
 1	and proposes nothing for it
 1	and prose counts single
@@ -909,7 +912,6 @@
 1	and so does the next one
 1	and so does the stamp that says what it was read against
 1	and so is a deny from its own PreToolUse
-1	and so is a file this user cannot read
 1	and so is a second one
 1	and so is every other one
 1	and so is no argument at all
@@ -973,7 +975,6 @@
 1	and the gate line called no cli
 1	and the gate still runs through it
 1	and the gate-failure total
-1	and the grep it replaced counts the entry that never fires
 1	and the grep the probe used to be counts it, which is why the probe moved
 1	and the held total
 1	and the hook still exits 0 there
@@ -984,6 +985,7 @@
 1	and the literal name is caught
 1	and the log carries the sha it was read at
 1	and the log is back to empty, as this block found it
+1	and the loud form says the catalogue was never seen
 1	and the memory, which is somewhere else now
 1	and the merge is left exactly where the person left it
 1	and the message does not accuse the subagent
@@ -1061,6 +1063,7 @@
 1	and which stand alone
 1	and with the whole sentence, not a prefix of it
 1	and without it the same escape stands
+1	and writes no cache
 1	and writes no row at all, not even exit-1
 1	another plugin's refusal is not
 1	another session's edit changes the tree identity
@@ -1130,6 +1133,7 @@
 1	counts what was blocked
 1	detects from their manifest
 1	discover --adopt refills a cache the current rules did not write
+1	discover --adopt with no cache and no catalogue adopts nothing and says why
 1	discover adopt asks the policy
 1	discover.sh alone can still reach the policy
 1	discovery writes nothing
@@ -1173,6 +1177,7 @@
 1	felix commission on a project without the table exits 1
 1	felix coverage answers
 1	felix decisions reads the record
+1	felix discover --inspect --quiet exits 2 when the catalogue cannot be read
 1	felix gate runs the probes for a project with a table
 1	felix ledger proposes retiring the disuse zero
 1	felix maintenance renders a passing check as such
@@ -1234,6 +1239,7 @@
 1	hooks-events reads a hooks.json and exits 0
 1	identical deploys are clean before any stray lands
 1	ignores a file that does not exist
+1	in words
 1	including fields after it
 1	including one that failed alongside another
 1	including the enumeration limit
@@ -1272,7 +1278,6 @@
 1	lesson is recorded
 1	lesson refuses a flag as the lesson
 1	lesson warns against writing too much
-1	lifecycle-check cannot examine a hooks.json that does not parse
 1	listed where a reader must look
 1	lists the skills a plugin ships
 1	lists what the fix must prove
@@ -1316,6 +1321,7 @@
 1	no shipped decline rests on a dead premise
 1	no shipped upkeep row is unreachable
 1	no stack.tsv means nothing is declared, not nothing to say
+1	nor a half-written one
 1	nor a paste-in prompt
 1	nor a semicolon
 1	nor does the key spelt inside a string, which a quote cannot open
@@ -1420,7 +1426,6 @@
 1	running a rival gate is denied
 1	runs that all passed are clean
 1	runs with a failure are dirty
-1	saying it does not parse
 1	saying so plainly
 1	saying what is missing
 1	saying why
@@ -1460,7 +1465,6 @@
 1	so a project created today is not born blocked
 1	so a project created today reads something from reality
 1	so does a pointer naming a directory that is gone
-1	so is a file that ends inside a string
 1	so no false unmount is proposed from it
 1	so the branch is not blamed for what the remote already had
 1	so the caveat can become untrue
@@ -1500,6 +1504,7 @@
 1	the brief names the file the issue names
 1	the budget row is not reported as satisfied
 1	the bump fixture has an identical judge, so the guard can fire
+1	the cache already there is untouched
 1	the cache row carries the capability the skills serve
 1	the cache-side arm is present in the gate's copy
 1	the capabilities file is untouched
@@ -1688,6 +1693,7 @@
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused
 1	wiring the same tool twice is refused
+1	with exit 0
 1	with no CLI and nothing bundled, Felix says it cannot tell
 1	with no checkout in front of it the row reads unchecked
 1	with no cli call at all
@@ -1698,6 +1704,7 @@
 1	with the critique step after it
 1	with the newlines escaped, not lost
 1	with the runs it cost beside it
+1	with the stamp and no rows, which is an empty cache and a real answer
 1	with the usage text
 1	without --strict it only reports
 1	without opting in, nothing is touched

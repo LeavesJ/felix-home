@@ -757,6 +757,12 @@ EOF
   # nobody was ever handed a starting row for, and so nobody wrote one.
   cp "$tpl/probes.tsv" "$dir/probes.tsv"
   cp "$tpl/commissioning.tsv" "$dir/commissioning.tsv"
+  # And the ledger, for the same reason: a project with no obligations.tsv is
+  # refused at its own gate and merge boundary, and the seeded row is dormant
+  # until the project ships hooks, so nothing here is Felix deciding what a
+  # stranger owes. The commissioning row for step 8 seeds it where felix new
+  # did not run — a project older than the template.
+  cp "$tpl/obligations.tsv" "$dir/obligations.tsv"
 
   # Same filter for human steps, and only copy the runbooks that survive it.
   {
@@ -3745,6 +3751,7 @@ _felix_commission_answer() {
     'felix:stack apply --yes') cmd_stack apply --yes ;;
     'felix:ready --fix')       cmd_ready --fix ;;
     'felix:toolbox --route')   cmd_toolbox --route ;;
+    'felix:obligations --seed') cmd_obligations --seed ;;
     *) return 127 ;;
   esac
 }
@@ -4012,14 +4019,39 @@ EOF
 }
 
 cmd_obligations() {
-  resolve_or_die; local proj="$PROJ" gate=0 a
+  resolve_or_die; local proj="$PROJ" gate=0 seed=0 a
   for a in "$@"; do
     case "$a" in
       --gate) gate=1 ;;
-      *) die "usage: felix obligations [--gate] (got: $a)" ;;
+      --seed) seed=1 ;;
+      *) die "usage: felix obligations [--gate|--seed] (got: $a)" ;;
     esac
   done
   local root; root="$(felix_repo_root "$PWD")"
+
+  # --seed: the §8 step 8 answer, "initialize obligation and evidence state".
+  # A project born before the template existed has no ledger, and a ledger
+  # that is absent is refused by the gate and the merge boundary — so the
+  # commissioning row for step 8 names this, and this writes the template's
+  # one row where nothing is. It never touches a ledger that exists: the
+  # epoch rule says admitted obligations may grow without a person and may
+  # not shrink, and overwriting is the second of those dressed as the first.
+  if [ "$seed" -eq 1 ]; then
+    printf 'obligations for %s\n\n' "$(basename "$proj")"
+    if [ -f "$proj/obligations.tsv" ]; then
+      printf '%s/obligations.tsv already exists and seeding never overwrites a\n' "$proj"
+      printf 'ledger: what it admits is a person'"'"'s to change, by hand, one row at a time.\n'
+      return 0
+    fi
+    [ -s "$SCRIPT_DIR/templates/obligations.tsv" ] \
+      || die "no template at $SCRIPT_DIR/templates/obligations.tsv, so there is nothing to seed from"
+    cp "$SCRIPT_DIR/templates/obligations.tsv" "$proj/obligations.tsv" \
+      || die "could not write $proj/obligations.tsv"
+    printf 'seeded %s/obligations.tsv from the template: the one obligation every\n' "$proj"
+    printf 'plugin owes, dormant until this project ships hooks. Presence is\n'
+    printf 'admission; felix obligations reads it back on every run.\n'
+    return 0
+  fi
 
   # The empty case, refused first. The first of three places (this, the gate,
   # the merge boundary), for the reason cmd_probes gives: a table that can be

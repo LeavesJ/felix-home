@@ -15,6 +15,6 @@
 5	inventory existing skills, plugins, MCP servers, hooks, CI and toolchain	rows
 6	resolve and safely acquire missing capabilities	rows
 7	install or derive grounded probes and deterministic relations	rows
-8	initialize obligation and evidence state	none
+8	initialize obligation and evidence state	rows
 9	run commissioning verification	rows
 10	emit the project_commissioned receipt bound to topology and toolchain (state/commission)	engine

@@ -158,6 +158,45 @@ for f in lessons.md DEVLOG.md SESSION_HANDOFF.md; do
   note "docs/$f -> $MEM/$f"
 done
 
+# --- 4b. the agent setup ----------------------------------------------------
+# Optional: present only if build-agent-setup.sh was run against this bundle.
+
+if [ -d "$BUNDLE/agent-setup/claude-home" ]; then
+  printf '\nplacing the agent setup\n'
+  mkdir -p "$HOME/.claude"
+  agent_n=0
+  for entry in "$BUNDLE/agent-setup/claude-home"/* "$BUNDLE/agent-setup/claude-home"/.[!.]*; do
+    [ -e "$entry" ] || continue
+    base=$(basename "$entry")
+    dst="$HOME/.claude/$base"
+    if [ -e "$dst" ]; then
+      # Never clobber his own agents, commands or settings. His win; J's land
+      # beside them with a suffix so he can diff and merge deliberately.
+      if diff -rq "$entry" "$dst" >/dev/null 2>&1; then
+        note "$base identical, left alone"
+      else
+        rm -rf "$dst.from-jarron"
+        cp -R "$entry" "$dst.from-jarron"
+        warn "$base exists and differs. Yours is untouched; J's is at
+     ~/.claude/$base.from-jarron for you to merge."
+      fi
+      continue
+    fi
+    cp -R "$entry" "$dst"
+    agent_n=$((agent_n + 1))
+    note "$base"
+  done
+  note "$agent_n entries placed into ~/.claude/"
+
+  if [ -f "$BUNDLE/agent-setup/mcp-servers.json" ]; then
+    cp "$BUNDLE/agent-setup/mcp-servers.json" "$HOME/.claude/mcp-servers.from-jarron.json"
+    note "mcp-servers.from-jarron.json (every env value reads SET-YOUR-OWN)"
+    warn "MCP servers are NOT wired up. That file lists which servers J runs and
+     how, with every credential removed. Add them yourself with your own
+     credentials; nothing reads that file automatically."
+  fi
+fi
+
 # --- 5. verify --------------------------------------------------------------
 
 printf '\nverifying\n'

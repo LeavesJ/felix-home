@@ -46,9 +46,16 @@ it deliberately left alone for you to look at.
 $EDITOR ~/.config/elenchus/env
 ```
 
-Replace `paste-your-key-here`. Your own key, on your own Anthropic workspace,
-with its own spend limit. Not J's, ever: a shared key makes spend unattributable
-and a leak from either machine burns both.
+Uncomment the `ANTHROPIC_API_KEY` line and put your own key in it. Your own, on
+your own Anthropic workspace, with its own spend limit. Not J's, ever: a shared
+key makes spend unattributable and a leak from either machine burns both.
+
+**It arrives commented out on purpose.** `resolve_key` accepts any non-empty
+value (`scripts/serve_invitee.py:107`), so a placeholder that looked like a key
+would be returned as one: the launcher's refusal would not fire, preflight's
+`key_reachable` axis would report ok, and you would get an instance that
+health-checks green and dies on the first real call. That is L-18. Commented
+out, every guard correctly tells you there is no key yet.
 
 `restore.sh` linked `<repo>/.env` to that file rather than putting the key in
 the checkout, which is J's arrangement and worth keeping. His checkout sits

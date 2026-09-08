@@ -53,7 +53,14 @@ Felix confidentiality (Felix also governs a separate venture), the beta and
 invitee-data restriction (a promise about third parties, not an IP question),
 and credential handling. Runbook §D0 has the full reasoning.
 
-**D1. How he gets Felix.** Decided: a read only seat on `LeavesJ/felix`. This
+**D1. How he gets Felix.** Decided: a seat on `LeavesJ/felix`. Recorded first as
+"read only", which was not achievable and was never checked: a personal GitHub
+repository has one collaborator level and it is `write`. Read-only needs an
+org-owned repo, which is a move for the day Felix becomes an Elenchus Labs tool
+rather than J's. Riyan in fact already held `write` before this handover began,
+and `main` on `felix` is unprotected, so the gate contract is his to change and
+the thing stopping him is agreement rather than permission. Resolved 2026-09-06:
+accepted as is. This
 reverses the earlier recommendation of a narrow distribution repository, and it
 reverses it because D4's answer changed the facts. He already has write on
 Elenchus, and write on Elenchus is read on `felix` through CI, so the
@@ -147,8 +154,10 @@ not the copy on his disk.
 
 1. **Prepare.** Assemble the bundle. Read every file in it. Nothing has been
    sent.
-2. **Grant access.** Add him to `felix` with read, issue his key. He already has
-   write on Elenchus. **This is the first irreversible step.**
+2. **Grant access.** Nothing to grant: he already held `write` on both
+   repositories before this began, so Felix was disclosed before the handover
+   started and this step is not the irreversible one it was written as. What
+   remains is issuing his Anthropic key.
 3. **Send the bundle.** Encrypted. Irreversible too, and worse in one respect:
    the bundle holds material that is in no repository, so nothing else has a
    copy of it.

@@ -404,23 +404,34 @@ and 2.**
 access, not the copy on his disk. Everything in `LeavesJ/felix` is disclosed
 permanently, which is what was decided.
 
-**2.1 Add Riyan to `LeavesJ/felix` with `read`.** Settings, Collaborators, add,
-role `Read`. This is the only grant the handover needs.
+**2.1 Nothing to add. Verified 2026-09-06 against the API:** Riyan
+(`InsertWittyCommentHere`) already holds `write` on both `LeavesJ/Elenchus` and
+`LeavesJ/felix`, and has since before this handover began.
 
-**2.2 Confirm his Elenchus role.** He is `InsertWittyCommentHere` and already
-holds `write`. Confirm it still says `write` and not `admin`. Nothing to change.
+Two things follow. Felix was already disclosed, so **Part 2 is not the first
+irreversible step** and the sequencing this document was built on was wrong from
+the start. And `read` was never available: a personal GitHub repository has one
+collaborator level and it is `write`. An org-owned repo is what makes read-only
+possible, and that is a move for the day Felix becomes a company tool.
 
-**2.3 Confirm `main` is still protected** and `gate` is still the required status
-check. It read `protected: true` on 2026-09-06. Adding a collaborator does not
-change it; checking takes ten seconds.
+`main` on `felix` is also unprotected, unlike Elenchus's, so the gate contract
+is his to change. Reviewed and accepted as is on 2026-09-06: he is a cofounder
+with a signed CIIAA and no reason to touch Felix. The onboarding document states
+the norm plainly rather than claiming an access boundary that does not exist.
+
+**2.2 His Elenchus role. Verified, nothing to do.** `write`, not `admin`.
+
+**2.3 Elenchus `main` protection. Verified, nothing to do.** `protected: true`
+on 2026-09-06.
 
 **2.4 Issue his Anthropic key.** His own workspace, his own spend limit, so spend
 stays attributable and either machine can be revoked without touching the other.
 Send it through a different channel from the bundle.
 
+**So Part 2 is one step: issue the key.** Everything else was already true.
+
 **Verify:** ask him to clone `LeavesJ/felix` and confirm `git log -1` works. He
-will be able to see `HANDOFF.md` and `projects/veldra/`. That is correct and
-expected.
+will see `HANDOFF.md` and `projects/veldra/`. That is correct and expected.
 
 ---
 

@@ -555,8 +555,13 @@ Not a matter of trust. Each of these is a boundary with a specific reason.
   That is clause 1 of the acknowledgment you signed, and it is a confidentiality
   obligation rather than an access boundary. Everything else on this list you
   genuinely cannot reach.
-- **Elenchus's `projects/elenchus/` in Felix.** You have it read only. A gate
-  contract change is a request to J. See §8.
+- **Elenchus's `projects/elenchus/` in Felix.** You have `write` on `felix`,
+  because a personal GitHub repository has exactly one collaborator level and
+  that is it; read-only would need an org-owned repo. **The norm is that you do
+  not use it.** Felix is J's, it governs a separate venture as well as this one,
+  and a gate contract change is a request to him rather than a push. Treat the
+  whole repository as read-only by agreement, which is the arrangement until
+  Felix becomes a company tool rather than his.
 
 If you need something on this list, ask. It is a decision, not a permission
 error.

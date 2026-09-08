@@ -444,10 +444,26 @@ respect: the bundle holds material that is in no repository, so nothing else has
 a copy of it.
 
 **3.1 Encrypt.** The archive is the boundary, not the transport, so any of these
-is fine:
+is fine. Pick one; do not run more than one against the same `~/handover`, since
+`age -p` below prompts interactively and a second run while the first is still
+waiting for input is how a passphrase ends up typed into the wrong prompt.
 
-Set `RECIP` to his age public key, or to his gpg key id if you use the second
-form, then run one of these:
+**Passphrase, no key exchange.** The fastest path when nothing is set up on his
+side yet:
+
+```
+tar czf - -C ~ handover | age -p > handover.tar.gz.age
+```
+
+`-p` prompts for a passphrase twice, interactively, right there in the
+terminal. Anything not guessable is fine; it does not need to be memorable past
+today. Send the resulting file over one channel and speak or text the
+passphrase over a **different** one, never in the same message as the file. He
+decrypts with `age -d handover.tar.gz.age > handover.tar.gz && tar xzf
+handover.tar.gz`, entering the same passphrase when prompted.
+
+**Public key, if he already has one.** Set `RECIP` to his age public key, or to
+his gpg key id for the second form:
 
 ```
 RECIP=age1...
@@ -459,8 +475,8 @@ RECIP=his-gpg-key-id
 tar czf - -C ~ handover | gpg -e -r "$RECIP" > handover.tar.gz.gpg
 ```
 
-Not a shared drive link that outlives the transfer, and not a channel that
-indexes content.
+Whichever form: not a shared drive link that outlives the transfer, and not a
+channel that indexes content.
 
 **The archive step is not a second chance to catch a leak.** `tar` on macOS
 stores a symlink as a symlink and does not follow it, so a bad link inside the

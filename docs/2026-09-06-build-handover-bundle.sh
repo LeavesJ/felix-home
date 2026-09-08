@@ -69,6 +69,8 @@ ENVDOC="$FELIX/docs/2026-09-06-elenchus-environment.md"
 [ -f "$ENVDOC" ] || die bundle_missing_source "$ENVDOC not found; is $FELIX current?"
 RUNBOOK="$FELIX/docs/2026-09-06-riyan-setup-runbook.md"
 [ -f "$RUNBOOK" ] || die bundle_missing_source "$RUNBOOK not found; is $FELIX current?"
+NOTES="$FELIX/docs/2026-09-06-elenchus-working-notes.md"
+[ -f "$NOTES" ] || die bundle_missing_source "$NOTES not found; is $FELIX current?"
 
 OUT=${HANDOVER_OUT:-$HOME/handover}
 [ ! -e "$OUT" ] || die bundle_dest_exists \
@@ -84,7 +86,29 @@ DENY='(^|/)(\.git|\.env|\.env\..*|data|\.venv.*|__pycache__|\.pytest_cache|\.ruf
 # live 2026-09-06: it held a full nested checkout for unrelated work, complete
 # with a build artifact that tripped the secret scan on a minified JS keyword
 # match rather than a real credential. `\.?worktrees` denies both spellings.
-ASK='(^|/)(YC_answers\.md|admissions)$'
+# Checked BEFORE the deny list. Each of these sits under a denied path but is
+# content or is cited by tracked code, so a blanket deny removes a capability
+# rather than a risk.
+#   data/seed/            input to the shipped `elenchus-ingest` console script
+#                         (pyproject.toml:48, veldra_ingest.py:18). Abstracted
+#                         owned problems, no sittings, no invitee anything.
+#   .superpowers/sdd/     probes-report.md is cited from three tracked modules
+#                         (push_screen_probe.py:18, run_prompt_shift_probe.py:23,
+#                         run_injection_probe.py:26).
+ALLOW='(^|/)(data/seed|data/seed/.*|\.superpowers|\.superpowers/sdd|\.superpowers/sdd/.*)$'
+# Carried explicitly after the walk rather than by descending. git collapses
+# `data/` to one denied entry so the walk never reaches data/seed, and teaching
+# it to descend into data/ would put the invitee store one naming mistake away
+# from the bundle. These paths are copied by name instead, and only the
+# credential-shaped half of the deny list applies inside them.
+ALLOW_PATHS="data/seed .superpowers/sdd"
+SECRETS='(^|/)(\.env|\.env\..*|.*\.db|.*\.sqlite3?|.*\.key|cert\.pem|id_[rd]sa.*|\.git)$'
+
+# admissions/ was held here on the belief it was founder reflection. It is not:
+# the files are serialized AdmissionRecord outputs (types.py:748), the worked
+# examples of the frame-admission pipeline, and content/maps/founder_ceo.yaml:8
+# cites one inline. Only YC_answers.md is actually founder material.
+ASK='(^|/)(YC_answers\.md)$'
 
 # --- discover the untracked surface -----------------------------------------
 
@@ -134,7 +158,9 @@ carry() {
   local rel=$1 src dst child
   src="$ELENCHUS/$rel"
 
-  if printf '%s' "$rel" | grep -qE "$DENY"; then
+  if printf '%s' "$rel" | grep -qE "$ALLOW"; then
+    :
+  elif printf '%s' "$rel" | grep -qE "$DENY"; then
     skipped_deny="$skipped_deny $rel"; return 0
   fi
   if printf '%s' "$rel" | grep -qE "$ASK" && [ "$INCLUDE_ALL" != "--all" ]; then
@@ -179,15 +205,35 @@ done <<EOF
 $surface
 EOF
 
+# The explicit carries. Each is content or is cited by tracked code, and each
+# sits under a path the deny list removes wholesale.
+for ap in $ALLOW_PATHS; do
+  [ -e "$ELENCHUS/$ap" ] || continue
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    rel="$ap/${f#./}"
+    printf '%s' "$rel" | grep -qE "$SECRETS" && { skipped_deny="$skipped_deny $rel"; continue; }
+    [ -L "$ELENCHUS/$rel" ] && { skipped_deny="$skipped_deny $rel(symlink)"; continue; }
+    mkdir -p "$(dirname "$OUT/state/$rel")"
+    cp "$ELENCHUS/$rel" "$OUT/state/$rel"
+    n_files=$((n_files + 1))
+  done <<INNER
+$(cd "$ELENCHUS/$ap" && find . -type f 2>/dev/null || true)
+INNER
+  note "allowed  $ap"
+done
+
 note "$n_files files carried, $n_links symlinks recorded"
 
 # The environment document is not in the checkout; it comes from felix.
 cp "$ENVDOC"  "$OUT/ENVIRONMENT.md"
 cp "$RUNBOOK" "$OUT/SETUP-RUNBOOK.md"
+cp "$NOTES"   "$OUT/WORKING-NOTES.md"
 cp "$FELIX/docs/2026-09-06-restore-handover-bundle.sh" "$OUT/restore.sh"
 chmod +x "$OUT/restore.sh"
 note "file  ENVIRONMENT.md (from felix)"
 note "file  SETUP-RUNBOOK.md (from felix, read this first)"
+note "file  WORKING-NOTES.md (from felix, the measured map)"
 note "file  restore.sh"
 
 # --- verify -----------------------------------------------------------------
@@ -198,7 +244,15 @@ links=$(find "$OUT" -type l 2>/dev/null || true)
 [ -z "$links" ] || die bundle_symlink_present "$(echo "$links" | tr '\n' ' ')"
 note "no symlinks in the bundle"
 
-hits=$(cd "$OUT" && find . | sed 's|^\./||' | grep -E "$DENY" || true)
+# Files only, and matched on any path COMPONENT rather than only the last one.
+# Three reasons, each learned the hard way. A bare `state/data` directory is a
+# legitimate container for the allowed `data/seed` beneath it, so checking
+# directories flags the container for its contents. `.git/config` has to be
+# caught, and a last-component match never sees it. And the allowed paths have
+# to be exempted at any depth.
+DENY_ANY=$(printf '%s' "$DENY" | sed 's/\$$/(\/|$)/')
+ALLOW_ANY=$(printf '%s' "$ALLOW" | sed 's/\$$/(\/|$)/')
+hits=$(cd "$OUT" && find . -type f | sed 's|^\./||' | grep -E "$DENY_ANY" | grep -vE "$ALLOW_ANY" || true)
 [ -z "$hits" ] || die bundle_forbidden_path "$(echo "$hits" | tr '\n' ' ')"
 note "no denied paths"
 
@@ -231,12 +285,15 @@ if [ -f "$OUT/symlinks.tsv" ]; then
   while IFS=$'\t' read -r a b; do printf '  %s -> %s\n' "$a" "$b"; done < "$OUT/symlinks.tsv"
 fi
 
+( cd "$OUT/state" && find . -type f | sed 's|^\./||' | sort ) > "$OUT/MANIFEST"
+note "file  MANIFEST ($(grep -c . "$OUT/MANIFEST") entries)"
+
 BUILD_COMPLETE=1
 
 cat <<'NEXT'
 
 Not done. Still to do, in this order:
-  1. Write state/NOTES.md by hand (step 1.4, template beside this script).
+  1. Add the agent setup (step 1.4): build-agent-setup.sh, beside this script.
   2. Scan it, both passes (step 1.5). Neither pass looks for a person.
   3. Read it, hardest files first (step 1.6). No script does this one.
 NEXT

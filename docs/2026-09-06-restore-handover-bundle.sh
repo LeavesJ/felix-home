@@ -79,6 +79,23 @@ tracked_dirty=$(git -C "$REPO" status --porcelain --untracked-files=no | head -5
 [ -z "$tracked_dirty" ] || warn "the bundle modified TRACKED files, which it should never do:
 $tracked_dirty"
 
+# The manifest is what turns "it looked like it copied" into a check. Phase C
+# otherwise has no verification beyond a checksum on the archive.
+if [ -f "$BUNDLE/MANIFEST" ]; then
+  missing=""
+  while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    [ -e "$REPO/$rel" ] || missing="$missing $rel"
+  done < "$BUNDLE/MANIFEST"
+  if [ -n "$missing" ]; then
+    warn "in MANIFEST but not in your checkout:$missing"
+  else
+    note "manifest verified: $(grep -c . "$BUNDLE/MANIFEST") files all present"
+  fi
+else
+  warn "no MANIFEST in this bundle; nothing checked what arrived"
+fi
+
 # --- 3. rebuild the structural symlinks -------------------------------------
 
 printf '\nrebuilding structure\n'
@@ -119,9 +136,23 @@ fi
 # because both read <repo>/.env. ENVIRONMENT.md §4 has the reasoning.
 mkdir -p "$(dirname "$KEY_FILE")"
 if [ ! -e "$KEY_FILE" ]; then
-  printf 'ANTHROPIC_API_KEY=paste-your-key-here\n' > "$KEY_FILE"
+  # The placeholder is a COMMENT, never a value, and that is load-bearing.
+  # resolve_key accepts any non-empty value (serve_invitee.py:107, `if val`), so
+  # a placeholder VALUE is returned as though it were a key: missing_key_warning
+  # goes quiet, preflight's key-reachable axis reports ok, the launcher's
+  # refusal never fires, and the instance health-checks green and dies on the
+  # first real call. That is lesson L-18, which this project paid for three
+  # times, manufactured by the restore script meant to prevent it.
+  # Commented out, every one of those guards correctly says there is no key.
+  cat > "$KEY_FILE" <<'KEYFILE'
+# Your Anthropic API key. Uncomment the next line and replace the value.
+# Leave it commented until you have a real key: every check in this project
+# then correctly reports no key, which is the true state.
+#
+# ANTHROPIC_API_KEY=sk-ant-your-real-key
+KEYFILE
   chmod 600 "$KEY_FILE"
-  note "created $KEY_FILE (placeholder, mode 600)"
+  note "created $KEY_FILE (key commented out, mode 600)"
 else
   note "$KEY_FILE already exists, left alone"
 fi
@@ -209,8 +240,12 @@ done
 [ -z "$(find "$REPO/data" -mindepth 1 2>/dev/null | head -1)" ] \
   || warn "data/ is not empty. Nothing in this bundle put anything there."
 
-if grep -q 'paste-your-key-here' "$KEY_FILE" 2>/dev/null; then
-  warn "your key is still a placeholder at $KEY_FILE"
+# Mirrors resolve_key: an uncommented ANTHROPIC_API_KEY line with a non-empty
+# value. Checking for the placeholder string instead would pass the moment
+# someone replaced it with anything at all.
+if ! grep -qE '^[[:space:]]*(export[[:space:]]+)?ANTHROPIC_API_KEY[[:space:]]*=[[:space:]]*[^[:space:]#]' "$KEY_FILE" 2>/dev/null; then
+  warn "no key set in $KEY_FILE. Nothing that calls the model will work, and
+     every guard will correctly tell you so. Uncomment the line and paste yours."
 fi
 
 [ "$fail" -eq 0 ] || die restore_incomplete "see the !! lines above"

@@ -437,24 +437,23 @@ fi
 # vacuous in a worktree — where these files are untracked and therefore not
 # present — so it passed by finding nothing. git check-ignore evaluates a path
 # whether or not anything is there, which is what makes it a real check.
-MISSED=""
-for d in projects/*/; do
-  [ -d "$d" ] || continue
-  git check-ignore -q "${d}maintenance.log" 2>/dev/null && MISSED="$MISSED ${d}maintenance.log"
-done
-# Tracked, not merely present. A checkout that has not migrated still has these
-# files sitting on disk, and a check that read the disk would fail there forever
-# while a check that reads the index says the only thing that matters: whether
-# this repository is carrying them.
-LEAKED="$(git ls-files -- 'projects/*/memory/*' | tr '\n' ' ')"
-if [ -n "$MISSED" ]; then
-  fail memory; printf '    doctrine ignored:%s\n' "$MISSED"
-elif [ -n "$LEAKED" ]; then
-  fail memory
-  printf '    memory tracked in this repository: %s\n' "$LEAKED"
-  printf '    it belongs under felix_mem_root, outside any checkout.\n'
+#
+# The check is a command now, engine/harness/bin/memory-scan, so felix qualify
+# can ask whether it fails when the thing it protects is broken. The first time
+# it was asked, blind, two things the inline form here could not see: `git
+# check-ignore` never reports a TRACKED file, so the doctrine half only ever
+# fired for a project whose log did not exist yet — the two that existed were
+# invisible to it by construction; and memory is not a path, so lessons.md
+# tracked one level up passed. Both are in the scanner's own comment. Announced
+# when absent, never silent (#77).
+if [ -x engine/harness/bin/memory-scan ]; then
+  if OUT="$(engine/harness/bin/memory-scan 2>&1)"; then
+    pass memory
+  else
+    fail memory; printf '%s\n' "$OUT" | head -8 | sed 's/^/    /'
+  fi
 else
-  pass memory
+  printf '  %-18s skipped (no memory-scan here)\n' memory
 fi
 
 echo

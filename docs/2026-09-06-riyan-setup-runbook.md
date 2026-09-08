@@ -11,6 +11,10 @@ is the sequence.
 
 About ninety minutes, most of it waiting on a venv.
 
+**J is remote for your first commit**, so every check below says what a failure
+means rather than telling you to ask him. Where something genuinely needs him,
+the last section says so and that list is short.
+
 ---
 
 ## 1. Unpack and restore
@@ -117,11 +121,69 @@ eight project checks passed (`engine/harness/lib/probes.sh:355`,
 almost always your venv, because the probe falls back to system `python3` when
 `.venv/bin/python` is missing (`projects/elenchus/probes.tsv:29`).
 
-**`commission` bites later, at `felix merge` rather than at the gate.** It is an
-escape channel, and `escape.sh:14` says "Empty output means nothing escaped and
-Felix may merge", so expect your first `felix merge` to refuse on a machine that
-has never been commissioned even with a green gate behind it. Ask J to walk you
-through `felix commission` once before you need it.
+---
+
+## 4b. Commissioning, which is what will actually block your first merge
+
+`commission` is announce-only at the gate, so a green gate tells you nothing
+about it. It bites at `felix merge`: it is an escape channel, and
+`escape.sh:14` says "Empty output means nothing escaped and Felix may merge",
+so a machine that has never been commissioned refuses to merge with a green
+gate behind it.
+
+An earlier draft of this document said to ask J to walk you through it. He is
+remote, so here it is instead.
+
+**Look before you run anything. `--status` is read-only:**
+
+```
+cd <your Elenchus checkout>
+~/felix/engine/harness/felix commission --status
+```
+
+`projects/elenchus/commissioning.tsv` declares thirteen needs. Most are answered
+from the checkout itself and will already be `done`. Of the states it reports,
+only **`unknown` blocks**; `held` is a person's queue and does not.
+
+**Three prerequisites, and a row goes `unknown` when its instrument is missing
+rather than when its check fails.** That distinction is why a missing tool
+blocks and an unmet task does not.
+
+| Row | Instrument | If missing |
+|---|---|---|
+| `discover`, `stack`, `preflight` | `claude` | three rows `unknown`, blocks |
+| `baseline` | `gh` | `unknown`, blocks |
+
+So before commissioning: `claude` on your PATH, and `gh` installed and
+authenticated (`gh auth status`). Neither is in the bundle and neither is
+mentioned anywhere else.
+
+**One row you cannot satisfy by preparing, only by working.**
+`gate_shown_failing` checks that `mistakes.log` holds a gate failure that is
+neither `commission` nor `probes`. You cannot commission a fresh machine until
+your gate has genuinely failed at least once for a real reason. That is
+deliberate, it is the first-encounter moment doing its job, and on a new machine
+it reads like a bug. Do a real piece of work, let the gate catch something,
+then commission.
+
+**One row nobody can satisfy, including J.** `projects/elenchus/setup.tsv` has a
+`stripe` row whose check is literally `false`, so `human_steps` is permanently
+`held`. That is correct and does not block. Do not go looking for what you did
+wrong.
+
+**Two rows you cannot satisfy with the access you have.** `ci-anthropic-key` and
+`strix` both check `gh secret list --repo LeavesJ/Elenchus`, and listing secrets
+needs `admin`. You have `write`. Both stay `held`, which is fine, and neither is
+yours to fix.
+
+Then, when `--status` shows nothing `unknown`:
+
+```
+~/felix/engine/harness/felix commission
+```
+
+There is no `--yes`. The engine refuses one by name, because the stages already
+hold the install policy and a person's rows stay a person's.
 
 ---
 
@@ -248,7 +310,8 @@ build now are the ones running when there are thirty people on the other side.
 
 ## What to ask J rather than work out
 
-- `felix commission`, once, before your first merge.
+- Anything in §4b that `commission --status` reports as `unknown` after you have
+  `claude` and `gh` in place. Everything else there you can resolve alone.
 - Anything that would change `projects/elenchus/` in Felix.
 - Anything touching the beta, the tunnel, or invitee data.
 - Whether a lift or mining change should go in the real banks or the example

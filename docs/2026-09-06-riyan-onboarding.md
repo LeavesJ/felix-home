@@ -56,15 +56,20 @@ here."
 So Felix is not optional tooling. Without it you cannot run the gate that `main`
 requires.
 
-You get read access to the whole Felix repository. Most of it is not about you:
+You have access to the whole Felix repository. Most of it is not about you:
 `HANDOFF.md` is J's standing direction for developing Felix itself,
 `projects/felix/` governs Felix, and `projects/veldra/` governs a different
 product. The part that is yours is `projects/elenchus/`, and §5 is drawn from it.
 
-Read access is all you need and all you have. Felix writes into `<clone>/state/`
-for gate receipts and route memory, which is gitignored, and into
-`~/.felix/memory/` for your lessons and ledger, which is outside the clone. You
-will never need to push there.
+**Your GitHub permission there is `write`, and the agreement is that you read
+only.** Not a distinction anyone chose: a personal repository has exactly one
+collaborator level, so read-only was never on offer and would need an org-owned
+repo. Treat Felix as J's. A gate contract change is a request to him.
+
+Reading is also all you need. Felix writes into `<clone>/state/` for gate
+receipts and route memory, which is gitignored, and into `~/.felix/memory/` for
+your lessons and ledger, which is outside the clone. Nothing in normal use
+pushes to `felix`.
 
 **One thing worth understanding, which is already settled.** Elenchus is public
 but it is not open source. The tracked `LICENSE` is source available: section

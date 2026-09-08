@@ -60,16 +60,17 @@ org-owned repo, which is a move for the day Felix becomes an Elenchus Labs tool
 rather than J's. Riyan in fact already held `write` before this handover began,
 and `main` on `felix` is unprotected, so the gate contract is his to change and
 the thing stopping him is agreement rather than permission. Resolved 2026-09-06:
-accepted as is. This
-reverses the earlier recommendation of a narrow distribution repository, and it
-reverses it because D4's answer changed the facts. He already has write on
-Elenchus, and write on Elenchus is read on `felix` through CI, so the
-distribution repo would have withheld nothing while costing a sync step forever.
-Read on `felix` is also positively better: there is then exactly one copy of the
-gate contract, which he reads, CI reads, and you edit. It cannot diverge, only
-lag, and `git pull` fixes lag. He sees `HANDOFF.md` and learns ReserveGrid OS
-exists; confirmed acceptable. The one cost is that the grant widens on its own as
-`felix` grows.
+accepted as is, because he is a cofounder with a signed CIIAA and no reason to
+touch Felix.
+
+This still reverses the earlier recommendation of a narrow distribution
+repository, and for the reason that survived: write on Elenchus is read on
+`felix` through CI, so the distribution repo would have withheld nothing while
+costing a sync step forever. One copy of the gate contract remains better than
+two, because it cannot diverge, only lag, and `git pull` fixes lag. He sees
+`HANDOFF.md` and learns ReserveGrid OS exists; confirmed acceptable. Two costs
+rather than one: the grant widens on its own as `felix` grows, and the gate
+contract is now held by agreement rather than by permission.
 
 **D2. Who operates the beta.** Recommended: you keep it entirely. Development
 needs nothing from production, so there is no engineering reason to move it.
@@ -100,9 +101,9 @@ Felix is private, he needs to use it, and you keep building it. That sounds like
 it needs a new mechanism. It does not.
 
 He clones `felix`, runs `felix install --home ~/felix`, and Felix governs his
-Elenchus checkout. That is the whole thing. Read access is sufficient: Felix
-writes only into a gitignored `state/` inside the clone and into
-`~/.felix/memory/` in his own home, so he never needs to push.
+Elenchus checkout. That is the whole thing. He never needs to push, whatever his
+permission says: Felix writes only into a gitignored `state/` inside the clone
+and into `~/.felix/memory/` in his own home.
 
 What it costs you is nothing ongoing. What you push is what he gets.
 
@@ -144,13 +145,14 @@ repository. That single file is what makes the codebase legible.
 
 ## 5. The order
 
-**Reversibility ends at step two, not step three.** An earlier version of this
-paragraph said everything before step three could be undone "by deleting a
-repository and removing a collaborator", which was true only while D1 called for
-a separate distribution repository. There is no such repository now. The moment
-Riyan accepts the `felix` invitation and clones, everything in `LeavesJ/felix`
-is disclosed permanently; removing the seat afterwards removes future access,
-not the copy on his disk.
+**Only step three is irreversible, and this paragraph has now been wrong twice.**
+It first said reversibility dropped at step three because a distribution
+repository could be deleted; that repository was never built. It then said step
+two, on the reasoning that granting the `felix` seat is what discloses Felix.
+Checked against the API on 2026-09-06: Riyan already held `write` on `felix`
+before any of this started, so nothing in step two discloses anything. The
+bundle is the only thing in this sequence that exists in no repository, which
+makes step three the one that cannot be taken back.
 
 1. **Prepare.** Assemble the bundle. Read every file in it. Nothing has been
    sent.

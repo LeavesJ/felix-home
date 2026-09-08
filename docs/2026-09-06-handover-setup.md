@@ -6,13 +6,15 @@ and no reasoning. The reasoning lives in
 `2026-09-06-elenchus-handover-runbook.md` if you ever need to know why a step is
 shaped the way it is.
 
-**What was decided.** Riyan is engaged with high authority. He gets read on
-`LeavesJ/felix` and keeps the `write` he already has on `LeavesJ/Elenchus`. He
-gets his own Anthropic key. The beta stays yours. CI is untouched. Nothing
-tracked is added to Elenchus.
+**What was decided.** Riyan is engaged with high authority. He already holds
+`write` on both repositories, which is the only collaborator level a personal
+repo has, so Felix was disclosed before this began. He gets his own Anthropic
+key. The beta stays yours. CI is untouched. Nothing tracked is added to
+Elenchus.
 
-**Two steps cannot be undone.** Part 2 and Part 3, marked below. Everything
-before Part 2 is private to you.
+**One step cannot be undone: Part 3, sending the bundle.** Part 2 was written as
+the first irreversible step, on the belief that it was when Felix got disclosed.
+It was not. The bundle is the only thing here that exists in no repository.
 
 **Nothing you are meant to paste contains an angle bracket or a `#`.** In prose,
 angle brackets mark something only you can fill in, and `$ELENCHUS` and `$FELIX`
@@ -521,8 +523,9 @@ cd "$ELENCHUS" && ~/felix/engine/harness/felix which
 ```
 
 `felix install` ends with `verified   the installed engine matches this tree`.
-`felix which` names `elenchus`. Read access is enough: Felix writes only into a
-gitignored `state/` in the clone and into his own `~/.felix/memory/`.
+`felix which` names `elenchus`. He never needs to push to `felix`: it writes
+only into a gitignored `state/` in the clone and into his own
+`~/.felix/memory/`.
 
 **4.3 Unpack the bundle, then re-run the suite. Expect 35 again.**
 

@@ -71,6 +71,100 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
+## 0at. Verified at session close, 2026-09-08 — the §0as queue built end to end, as five pull requests nothing here could merge
+
+**Nothing landed on main.** Five stacked pull requests, #212 through
+#216, each branch cut from the one before it, each gate green on the runner
+and red here on `installed` alone — the structural line a worktree cannot
+clear. The session was opened in a worktree despite the constitution and
+§0as both saying the home; the cost is this shape. No PR bumps plugin.json,
+because a bump in each conflicts at squash-merge with the one before; the
+merger runs `felix install` once in the home, which bumps. The founder's
+`commission` grant is bound to a table #214 changes, so it must be
+re-granted after that lands.
+
+**#212, hook_binding reads keys.** `bin/hooks-events` sources the scanner
+coverage.sh grew in #210 and prints the keys of the hooks object, exit 2
+with nothing to read. The probe row names it by a bare path and
+felix_probe_source records a size token for a path under the checkout,
+which is the one instrument whose token should move with the tree. The
+decoupled copy is the control: not an event to hooks-events, an event to
+the grep it replaced. felix_coverage_events, the roster of what anything on
+this machine binds, read the same grep and goes through the scanner too.
+
+**#213, an unreadable catalogue is not an empty one.**
+felix_discover_candidates exits 3 when the CLI is absent, fails, or answers
+with something that is not a listing; cmd_discover checks before the stamp,
+so the quiet form writes nothing and every cache writer's `&&` leaves the
+last real answer standing. --adopt says the catalogue was never seen rather
+than "nothing to adopt", and the background refresh no longer leaves a
+half-written file beside the cache.
+
+**#214, step 8 has a row.** `obligations`, answered by `felix:obligations
+--seed`, done when the ledger has rows, none refused, none orphaned. The
+answer writes the template's row where no ledger exists and never over
+one; `felix new` seeds the same file. The step that had had nothing
+answering it since the pipeline was written reads `rows` in steps.tsv.
+
+**#215, the second obligation.** `engine_deployed`, TASK_BLOCKING,
+evidence `bin/deploy-check`, applies where a plugin cache exists and the
+marketplace serves this tree. DORMANT in every worktree and on every CI
+runner, reported and never waived; in the served checkout it fails beside
+`installed` until `felix install` runs. Not RELEASE_BLOCKING, because at
+the merge boundary the tree judged is a branch main has not taken and
+never matches the deployment. Not in qualification.tsv, because every
+control runs in a detached worktree where the row is dormant by
+construction; the suite shows it failing on a fixture deployment. The
+gate's `executable` check now covers every script under bin/ rather than
+the one somebody listed.
+
+**#216, memory-scan, and what blind controls found in a check that had
+passed since August.** Invariant 6's readable half is a command now. The
+twelve mutations were written by an agent given the property in prose and
+forbidden the checker, and run against the inline form as the gate carried
+it, two held: `git check-ignore` never reports a TRACKED file, so the
+doctrine half only ever fired for a project whose maintenance.log did not
+exist yet — veldra's absence was the only reason the violation row failed
+at all; and the same lessons.md tracked one level up passed, because
+memory was a path. The scanner asks with --no-index and looks for the
+canonical memory files by name under projects/, and says that the second
+is a heuristic with the residual §6 names. All twelve declared, all twelve
+met on the real runner. Qualified checkers: four of twelve. In passing:
+`felix qualify` printed printf's usage in the middle of its report because
+its closing sentence began with `--gate`; fixed in the same PR.
+
+**Found, not fixed.** felix_qualify_ungoverned — the function that names a
+gate check no row qualifies — has no caller anywhere in the engine, so the
+gap it was written to print has never been printed. The eight unqualified
+checkers are known only because this session counted them by hand:
+syntax, executable, installed, tests, ecosystem, probes, qualified,
+commission.
+
+**Two mechanics learned.** The fact-forcing hook keys on removal and force
+tokens inside heredocs too, so a test block that undoes its own fixture
+cannot be written through Bash; copy the seed per case and write the block
+with the Write tool. And the gate in a worktree does run the suite — the
+structural `installed` branch does not skip it — so a red gate here is one
+line, not a skipped verification.
+
+**Distance, corrected.** Build step 2 has two admitted obligations, one
+with a dormancy that is real; step 8 of commissioning has a row; four of
+twelve checkers are through the six controls. Still absent from step 2:
+epochs as hashes, leases, enforcement classes beyond blocking, the
+candidate lifecycle. Still unbuilt: control 7 as a report the gate reads,
+and the find-skills items one and two — a content hash of the copy Felix
+read against the copy it installed, and announced install drift.
+
+**Next session's first actions, in order.** (1) Open in the home. Merge
+#212 through #216 in that order, `felix install` once, re-grant
+`commission`. (2) Give felix_qualify_ungoverned a caller: `felix qualify`
+reads the last gate receipt's lines and prints the checkers no row
+qualifies, so the count above stops being a thing somebody did by hand.
+(3) The next checker, blind: `executable` or `syntax`, both already
+commands in shape. (4) find-skills item one, the content hash. (5) Step 2's
+epochs as hashes, which the amendment counted twice and nothing has
+started.
+
 ## 0as. Verified at session close, 2026-09-06 (late) — the first admission rule exists, and a blind control found the hole before anyone believed the checker
 
 **Landed on main: #210, engine 0.49.108.** `projects/<p>/obligations.tsv`

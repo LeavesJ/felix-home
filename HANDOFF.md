@@ -71,16 +71,20 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
-## 0at. Verified at session close, 2026-09-08 — the §0as queue built end to end, as five pull requests nothing here could merge
+## 0at. Verified at session close, 2026-09-09 — the §0as queue built end to end, then reviewed, and every pull request in it changed
 
 **Nothing landed on main.** Five stacked pull requests, #212 through
 #216, each branch cut from the one before it, each gate green on the runner
 and red here on `installed` alone — the structural line a worktree cannot
 clear. The session was opened in a worktree despite the constitution and
-§0as both saying the home; the cost is this shape. No PR bumps plugin.json;
-the merger runs `felix install` once in the home, which bumps. The founder's
-`commission` grant is bound to a table #214 changes, so it must be
-re-granted after that lands.
+the constitution's Non-obvious patterns entry saying the home; the cost is
+this shape. (§0as says nothing about it: an earlier draft of this section
+cited it, and it does not.) No PR bumps plugin.json; the merger runs
+`felix install` once in the home, which bumps. The founder's `commission`
+grant is stamped over a set of tables that already moved — #210 changed
+risk.tsv, so it reads stale on main today, before any of this — and #212
+(probes.tsv), #214 (commissioning.tsv and, now, obligations.tsv) move it
+again. Re-grant once, after the stack lands.
 
 **How they merge, measured rather than reasoned.** Squash-merging the stack
 in order conflicts at #214 on tests/assertions.tsv: every PR re-records the
@@ -130,16 +134,68 @@ the one somebody listed.
 passed since August.** Invariant 6's readable half is a command now. The
 twelve mutations were written by an agent given the property in prose and
 forbidden the checker, and run against the inline form as the gate carried
-it, two held: `git check-ignore` never reports a TRACKED file, so the
-doctrine half only ever fired for a project whose maintenance.log did not
-exist yet — veldra's absence was the only reason the violation row failed
-at all; and the same lessons.md tracked one level up passed, because
-memory was a path. The scanner asks with --no-index and looks for the
+it, one held: the same lessons.md tracked one level up passed, because
+memory was a path. The second hole came from reading why a control that
+was MET had been met — the violation row failed only because the project
+whose maintenance.log does not exist was reported, and `git check-ignore`
+never reports a TRACKED file, so the two logs that existed were invisible
+to that half by construction. A control can be met for a reason that is
+itself a defect, and only reading says so. The scanner asks with --no-index and looks for the
 canonical memory files by name under projects/, and says that the second
 is a heuristic with the residual §6 names. All twelve declared, all twelve
 met on the real runner. Qualified checkers: four of twelve. In passing:
 `felix qualify` printed printf's usage in the middle of its report because
 its closing sentence began with `--gate`; fixed in the same PR.
+
+**Then the same stack was reviewed, and every PR in it changed.** Fourteen
+agents — one per pull request, three cross-cutting lenses (test
+reachability, constitution invariants and portability, exit-code
+semantics), each finding then put to three refuters told to default to
+refuted. Thirty-one findings. What it caught is worth stating plainly,
+because most of it is the same shape:
+
+- **#213 shipped its own inverse.** `felix_discover_candidates` ended in a
+  pipeline whose status was the scoring loop's, and a `while` loop's status
+  is its last body command's — so it returned 1 whenever the LAST entry in
+  the listing did not match, which is most listings. That was harmless on
+  main, where nobody read the status. #213 started reading it and mapped
+  every non-zero to "could not be read": a catalogue read perfectly well,
+  reported unreadable. Measured against the real CLI, 265 names parsed and
+  the function returned 1. `head -N` closing the pipe was a second path to
+  the same thing. The status is stated now, not inherited, and the caller
+  tests the declared code rather than "non-zero".
+- **A hooks.json that does not parse read as fully wired.** The scanner
+  printed the keys it had reached and returned 0, so a truncated file made
+  lifecycle_wired — RELEASE_BLOCKING — read SATISFIED. Keys are held until
+  the scan ends at depth 0 outside a string; otherwise nothing is printed
+  and the status is cannot-examine.
+- **The seeded ledger blocked a stranger on day one.** The template row
+  applied to any tracked path ending in `hooks.json`, so a web app with
+  `src/config/hooks.json` got an ACTIVE obligation whose evidence exits 2 —
+  UNKNOWN, blocking — the day `felix new` ran. It asks for a plugin
+  manifest and a hooks file at a plugin's path now, and both fixtures are
+  in the suite.
+- **memory-scan could not see the file it exists for.** Its list of memory
+  filenames was written from recollection rather than from the directory,
+  and omitted `routes.log`, which stores the founder's prompt text
+  verbatim. Also decisions.log, the ledger shards, and a rotated ledger.
+- **deploy-check answered "does not apply" for three ways of failing to
+  look**, and DORMANT is a row that stops blocking. It resolves itself
+  before the cd now and answers 126 or 127, which are UNKNOWN.
+- **Seven assertions could not fail for the reason they named.** The
+  roster fixture was green under both implementations; `has ... "rc=1"`
+  is satisfied by rc=126 and rc=127; the "gate runs memory-scan" guard
+  matched a comment in gate.sh; the "cache untouched" case ran a path with
+  no cache writer in it; "felix new seeds the ledger" was true either way
+  because the commissioning answer seeds the same file; the swallowed-rule
+  case got its exit 1 from an untracked log the old form also reported.
+
+Each fix is a commit on the PR it belongs to, and each was shown failing
+on the code before it. The lesson is one this repository already carries in
+another form: a test written from the same understanding as the code
+inherits its blind spot, which is why the blind-authorship rule exists for
+controls — and it should extend to the assertions around a change, not
+only to the mutations that qualify a checker.
 
 **Found, not fixed.** felix_qualify_ungoverned — the function that names a
 gate check no row qualifies — has no caller anywhere in the engine, so the
@@ -166,9 +222,15 @@ read against the copy it installed, and announced install drift.
 **What this session got wrong.** It said twice, in a memory note and in
 the first draft of this section, that the stack squash-merges cleanly,
 from reasoning about three-way merges rather than from running one; a
-clone showed the conflict at the third PR in under a minute. The rule the
-handoffs keep recording — claims about state are read, not recalled —
-covers claims about what git will do as much as claims about the tree.
+clone showed the conflict at the third PR in under a minute. It reported
+the five PRs as finished work with a green CI gate, and a review of that
+same work found thirty-one findings, six of them defects that would have
+shipped — including one that inverted the fix it was part of. And in
+reproducing that one it first ran a bash library under zsh and read the
+result, which this project has a lesson about. The rule the handoffs keep
+recording — claims about state are read, not recalled — covers what git
+will do, what a shell will do, and above all a green suite: 1767
+assertions passed over every one of those defects.
 
 **Next session's first actions, in order.** (1) Open in the home. Merge
 #212 through #217 in that order with `gh pr merge --merge`, not `felix
@@ -176,7 +238,8 @@ merge`, then `felix install` once, then re-grant `commission`. (2) Give felix_qu
 reads the last gate receipt's lines and prints the checkers no row
 qualifies, so the count above stops being a thing somebody did by hand.
 (3) The next checker, blind: `executable` or `syntax`, both already
-commands in shape. (4) find-skills item one, the content hash. (5) Step 2's
+commands in shape. Give its ASSERTIONS to a blind author as well, not just
+its mutations; that is what this round argues for. (4) find-skills item one, the content hash. (5) Step 2's
 epochs as hashes, which the amendment counted twice and nothing has
 started.
 

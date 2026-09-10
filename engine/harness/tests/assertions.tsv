@@ -56,6 +56,7 @@
 1	a clean checkout claims no rival gate
 1	a clean repo says so instead of minting a commit
 1	a comment added to it is still free
+1	a commissioning run seeds the ledger through the row's answer
 1	a commit with no remote does not stamp a push
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
@@ -365,6 +366,7 @@
 1	a step outside 1-10 is malformed
 1	a stranded session folds under its own date, not today's
 1	a stranded session has appends but no folded record
+1	a stranger that is not a plugin is created without a blocking obligation
 1	a structural failure still fails the gate
 1	a surface appearing in the checkout makes it stale the other way
 1	a surface detected in the tree is an item even if nobody declared it
@@ -557,6 +559,7 @@
 1	and a document that is not a plan
 1	and a dormant row blocks nothing
 1	and a failing one as due for that reason
+1	and a file merely named hooks.json does not make the row apply
 1	and a file that does not exist counts zero
 1	and a file with no whitespace reads the same as one with
 1	and a fold that is current leaves nothing stranded
@@ -585,6 +588,7 @@
 1	and a run that skipped nothing says so, rather than leaving it blank
 1	and a second field of the same entry too
 1	and a second run does not record the same file twice
+1	and a second run is a no-op that exits 0
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
 1	and a stance for a real item is not
@@ -647,6 +651,7 @@
 1	and exits 3, distinctly
 1	and explains why it now matters
 1	and fails when a wired moment is unbound
+1	and felix new seeds it itself, without falling through to the answer
 1	and felix which does not resolve it
 1	and filters residue through the same ignore rule
 1	and folding them takes it to zero
@@ -732,7 +737,7 @@
 1	and names the decline channel
 1	and names the habit
 1	and names the hook
-1	and names the pipeline step nothing answers
+1	and names the pipeline step no row here answers
 1	and names the play in order
 1	and names the process holding it
 3	and names the project
@@ -870,7 +875,7 @@
 1	and says nothing was installed
 1	and says nothing when every capability has a rule
 1	and says plainly that it acted on nothing
-1	and says so
+2	and says so
 1	and says so again next session, because the request is still unanswered
 1	and says so before the detail
 1	and says so in the policy's words
@@ -933,6 +938,7 @@
 1	and states the tier
 1	and stays small
 1	and stays to one line
+1	and step 8 is no longer a step nothing answers
 1	and still exits 0, because start cannot refuse
 1	and still offers the handoff
 1	and still proposes from the record
@@ -971,6 +977,7 @@
 1	and the domain it speaks for
 1	and the drift line carries the whole name
 1	and the earlier verdict is not replaced by it
+1	and the engine names the stage among the answers a row may carry
 1	and the engine writes no mistake for it
 1	and the entry that did match is still returned
 1	and the entry that has one still answers
@@ -1011,6 +1018,7 @@
 1	and the page has a panel for it
 1	and the partly-countable list takes the mixed one
 1	and the path-less one still inherits nothing
+1	and the person's edit survives it
 1	and the person's staged selection is untouched
 1	and the placeholder stays a placeholder
 1	and the play this project already chose
@@ -1200,9 +1208,11 @@
 1	felix new prints the request path for a session
 1	felix new refuses the same names the marker refuses
 1	felix new seeds a probe table
+1	felix new seeds the obligations ledger
 1	felix new still exits 0
 1	felix next ranks it under the checks that are not checking
 1	felix obligations --gate passes on the fixture's one holding obligation
+1	felix obligations --seed writes the template where no ledger is
 1	felix probes refuses a project that asks reality nothing
 1	felix probes reports without refusing
 1	felix procedures runs
@@ -1350,6 +1360,7 @@
 1	nothing found where a witness proves a surface is blind
 1	nothing found with no witness is unknown, never empty
 1	nothing is allowed by default
+1	obligations.tsv is one of the tables the receipt is bound to
 1	obligations.tsv is one of the tables whose shrinkage escapes
 1	on a repository with no commit, nothing tracked reads as empty, not blind
 1	onboarding writes one
@@ -1441,6 +1452,7 @@
 1	runs that all passed are clean
 1	runs with a failure are dirty
 1	saying it does not parse
+1	saying seeding never overwrites
 1	saying so plainly
 1	saying what is missing
 1	saying why
@@ -1481,6 +1493,7 @@
 1	so a project created today reads something from reality
 1	so does a pointer naming a directory that is gone
 1	so is a file that ends inside a string
+1	so its gate is not red on the day it was created
 1	so no false unmount is proposed from it
 1	so the branch is not blamed for what the remote already had
 1	so the caveat can become untrue
@@ -1578,6 +1591,7 @@
 1	the message names the play, not only the miss
 1	the model still gets the whole thing
 1	the nested repo is still refused
+1	the obligations row is done on day one, its seeded row dormant in a project with no hooks
 1	the page carries the speech
 1	the page renders the says total
 1	the page still closes exactly one script
@@ -1721,6 +1735,7 @@
 1	with the newlines escaped, not lost
 1	with the runs it cost beside it
 1	with the stamp and no rows, which is an empty cache and a real answer
+1	with the template's one row, the lifecycle obligation every plugin owes
 1	with the usage text
 1	without --strict it only reports
 1	without opting in, nothing is touched

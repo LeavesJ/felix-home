@@ -10677,7 +10677,7 @@ _cmo="$(_cmcli)"; _cmrc=$?
 is  "a full run on a clean table exits 0"               "$_cmrc" "0"
 has "and reports the receipt it wrote"                  "$_cmo"  "receipt: commissioned"
 has "and names who answers the provider row"            "$_cmo"  "a session runs /claude-code-setup:claude-automation-recommender"
-has "and names the pipeline step nothing answers"       "$_cmo"  "initialize obligation and evidence state"
+has "and names the pipeline step no row here answers"    "$_cmo"  "initialize obligation and evidence state"
 [ -f "$FROOT/state/commission/cmproj" ] && ok "the run writes the receipt" || bad "the run writes the receipt"
 printf 'api\n' >> "$CMP/capabilities"
 has "--status after a table edit reads stale"           "$(_cmcli --status)" "stale (table set moved"
@@ -10747,6 +10747,68 @@ has "stack apply ran through the stub for a declared low row" "$(cat "$CMSTUB_LO
 case "$(cat "$CMSTUB_LOG")" in *evil*) bad "a high-risk row is never installed by commissioning" "$(cat "$CMSTUB_LOG")" ;; *) ok "a high-risk row is never installed by commissioning" ;; esac
 # The stub can fail, so the assertions that depend on it can.
 ( PATH="$CMSTUB:$PATH" claude plugin uninstall anything >/dev/null 2>&1 ) && bad "the stub refuses an untaught shape" || ok "the stub refuses an untaught shape"
+
+# Step 8 of the pipeline — initialize obligation and evidence state — had no
+# row answering it since the pipeline was written. Now felix new seeds the
+# ledger, and the commissioning row seeds it where felix new never ran.
+[ -f "$FROOT/projects/cmstranger/obligations.tsv" ] && ok "felix new seeds the obligations ledger" || bad "felix new seeds the obligations ledger"
+is  "with the template's one row, the lifecycle obligation every plugin owes" \
+    "$(grep -vE '^[[:space:]]*(#|$)' "$FROOT/projects/cmstranger/obligations.tsv" 2>/dev/null | cut -f1)" "lifecycle_wired"
+# felix new's OWN cp, not the commissioning answer standing in for it. The
+# first version of this asserted only that the file exists, which is true
+# either way: with the cp removed the row is held, the runner executes
+# `felix:obligations --seed`, and the file appears anyway. The detail line is
+# what tells the two apart.
+case "$_cmn" in
+  *'ran obligations --seed'*) bad "and felix new seeds it itself, without falling through to the answer" "$_cmn" ;;
+  *) ok "and felix new seeds it itself, without falling through to the answer" ;;
+esac
+# And the seeded row is dormant for a project that is not a plugin. The
+# template's applies once asked only for a tracked path ending in hooks.json,
+# so a web app with src/config/hooks.json was handed an ACTIVE obligation
+# whose evidence is a hold — UNKNOWN, blocking — on the day it was created.
+CMW="$TMP/cm-webapp"; mkdir -p "$CMW/src/config"
+( cd "$CMW" && git init -q -b main && printf '{"webhooks":[]}\n' > src/config/hooks.json \
+  && printf '{ "name": "w", "scripts": { "verify": "echo ok" } }\n' > package.json \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
+_cmw="$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" new cmwebapp 2>&1)"
+is  "a stranger that is not a plugin is created without a blocking obligation" \
+    "$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" obligations 2>/dev/null | grep -c 'DORMANT')" "1"
+case "$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" obligations 2>&1)" in
+  *UNKNOWN*) bad "and a file merely named hooks.json does not make the row apply" "$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" obligations 2>&1)" ;;
+  *)         ok  "and a file merely named hooks.json does not make the row apply" ;;
+esac
+is  "so its gate is not red on the day it was created" \
+    "$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" obligations >/dev/null 2>&1; echo $?)" "0"
+# The receipt is hashed over the tables that decide, and the step-8 row reads
+# obligations.tsv, so a ledger edited under a valid receipt must invalidate it.
+is  "obligations.tsv is one of the tables the receipt is bound to" \
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/commission.sh"
+        printf '%s' "$FELIX_COMMISSION_TABLES" | tr ' ' '\n' | grep -cx 'obligations.tsv' )" "1"
+_cms="$(cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" commission --status 2>&1)"
+case "$_cms" in
+  *"initialize obligation and evidence state"*) bad "and step 8 is no longer a step nothing answers" "$_cms" ;;
+  *) ok "and step 8 is no longer a step nothing answers" ;;
+esac
+is  "the obligations row is done on day one, its seeded row dormant in a project with no hooks" \
+    "$(printf '%s\n' "$_cms" | grep -cE '^  done +obligations ')" "1"
+# The answer, run by hand and by the commissioning run, and never over a ledger.
+rm -f "$FROOT/projects/cmstranger/obligations.tsv"
+_cmso="$(cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" obligations --seed 2>&1)"; _cmsrc=$?
+is  "felix obligations --seed writes the template where no ledger is" "$_cmsrc" "0"
+has "and says so" "$_cmso" "seeded"
+printf '# a person wrote this\n' >> "$FROOT/projects/cmstranger/obligations.tsv"
+_cmso="$(cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" obligations --seed 2>&1)"; _cmsrc=$?
+is  "and a second run is a no-op that exits 0" "$_cmsrc" "0"
+has "saying seeding never overwrites" "$_cmso" "never overwrites"
+has "and the person's edit survives it" "$(cat "$FROOT/projects/cmstranger/obligations.tsv")" "a person wrote this"
+rm -f "$FROOT/projects/cmstranger/obligations.tsv"
+( cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" commission >/dev/null 2>&1 )
+[ -f "$FROOT/projects/cmstranger/obligations.tsv" ] && ok "a commissioning run seeds the ledger through the row's answer" \
+  || bad "a commissioning run seeds the ledger through the row's answer"
+has "and the engine names the stage among the answers a row may carry" \
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/commission.sh"; felix_commission_instruments | tr '\n' ' ' )" \
+    "felix:obligations --seed"
 
 # The moment is declared, so a stance at it is not a typo.
 printf 'capability:api\tcommissioning\tfelix commission\t-\n' > "$CMP/procedures.tsv"

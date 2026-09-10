@@ -39,19 +39,21 @@ unset _cml
 
 # The table set a receipt is bound to, in fixed order. Every file that decides
 # what this project reads, refuses, or installs.
-FELIX_COMMISSION_TABLES='project.json capabilities commissioning.tsv stack.tsv profiles.tsv routes.tsv setup.tsv probes.tsv risk.tsv evidence.tsv deny.tsv'
+FELIX_COMMISSION_TABLES='project.json capabilities commissioning.tsv stack.tsv profiles.tsv routes.tsv setup.tsv probes.tsv risk.tsv evidence.tsv deny.tsv obligations.tsv'
 
 # The engine stages an answer may name. A form outside this list is malformed:
 # the answer column is engine wiring, not a place to write a command.
 felix_commission_instruments() {
   printf '%s\n' '-' 'felix:discover --adopt' 'felix:stack apply --yes' \
-    'felix:ready --fix' 'felix:toolbox --route' 'provider:<plugin>:<skill>'
+    'felix:ready --fix' 'felix:toolbox --route' 'felix:obligations --seed' \
+    'provider:<plugin>:<skill>'
 }
 
 _felix_commission_answer_ok() {
   case "${1:-}" in
     -) return 0 ;;
     'felix:discover --adopt'|'felix:stack apply --yes'|'felix:ready --fix'|'felix:toolbox --route') return 0 ;;
+    'felix:obligations --seed') return 0 ;;
     provider:[A-Za-z0-9._-]*:[A-Za-z0-9._-]*) return 0 ;;
   esac
   return 1

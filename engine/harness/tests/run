@@ -4385,11 +4385,15 @@ is  "a CLI that fails is exit 3 and no rows" "$(_dcands bin-fail)" "3|"
 is  "a CLI that prints an error and exits 0 is exit 3 and no rows too" "$(_dcands bin-prose)" "3|"
 is  "an empty listing is exit 0 and no rows: a catalogue that was read" "$(_dcands bin-empty)" "0|"
 has "and a listing with a match still scores it" "$(_dcands bin-hit)" "deepeval"
-is  "with exit 0" "$(_dcands bin-hit | cut -d'|' -f1)" "0"
-is  "a catalogue whose LAST entry does not match is still exit 0" "$(_dcands bin-tail | cut -d'|' -f1)" "0"
-has "and the entry that did match is still returned" "$(_dcands bin-tail)" "deepeval"
-is  "more matches than the row cap is exit 0, not the pipe closing under it" "$(_dcands bin-many | cut -d'|' -f1)" "0"
-is  "and the cap is what it returns" "$(_dcands bin-many | cut -d'|' -f2- | grep -c .)" "8"
+_dchit="$(_dcands bin-hit)"
+is  "with exit 0" "${_dchit%%|*}" "0"
+# `cut -d'|' -f1` is line-oriented, so a result with more than one row leaks
+# rows into the field being compared. The code is taken by expansion.
+_dctail="$(_dcands bin-tail)"; _dcmany="$(_dcands bin-many)"
+is  "a catalogue whose LAST entry does not match is still exit 0" "${_dctail%%|*}" "0"
+has "and the entry that did match is still returned" "$_dctail" "deepeval"
+is  "more matches than the row cap is exit 0, not the pipe closing under it" "${_dcmany%%|*}" "0"
+is  "and the cap is what it returns" "$(printf '%s' "${_dcmany#*|}" | grep -c .)" "8"
 is  "and no CLI on PATH at all is exit 3, not an empty marketplace" \
     "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/discover.sh"
         PATH="$DCP/bin-none"; export PATH

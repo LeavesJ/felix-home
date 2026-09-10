@@ -205,14 +205,23 @@ _felix_receipt_path() {
 # what the gate REPORTED. A gate that skips something without saying so is
 # still invisible here, and no absence of skip lines proves nothing was
 # skipped.
+#
+# A sixth field: every check the gate reported, with the verdict it printed,
+# as `name:verdict` pairs comma-separated, or `-` when none was recorded. The
+# gate's output was a temporary file the command threw away, so the only
+# roster of what the gate checks was one somebody typed into a handoff — and a
+# typed roster is wrong the day a checker is added. `felix qualify` reads this
+# field to say which reported checks no qualification row covers. Same source
+# and same limit as the fifth field: a check that runs without printing a line
+# is not here.
 felix_verify_record() {
-  local root="$1" home="$2" rc="$3" gate="$4" tid="$5" skipped="${6:-}" path result
+  local root="$1" home="$2" rc="$3" gate="$4" tid="$5" skipped="${6:-}" reported="${7:-}" path result
   [ -n "$tid" ] || return 0
   path="$(_felix_receipt_path "$root" "$home")"
   mkdir -p "$(dirname "$path")" 2>/dev/null || return 0
   result=green; [ "$rc" -eq 0 ] || result=red
-  printf '%s\t%s\t%s\t%s\t%s\n' "$tid" "$result" "$(_felix_now)" "$gate" \
-    "${skipped:--}" > "$path" 2>/dev/null || true
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$tid" "$result" "$(_felix_now)" "$gate" \
+    "${skipped:--}" "${reported:--}" > "$path" 2>/dev/null || true
 }
 
 felix_verify_receipt() { cat "$(_felix_receipt_path "$1" "$2")" 2>/dev/null; }

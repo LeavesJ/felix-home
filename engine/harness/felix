@@ -676,12 +676,27 @@ cmd_gate() {
   # reasons is recorded the same way, and no gate has to be edited to be heard.
   local skipped
   skipped="$(awk '$2 == "skipped" { printf "%s%s", sep, $1; sep = "," }' "$log" 2>/dev/null)"
+  # And every check it reported, with the verdict it printed, off the same
+  # report. Until this was recorded the only roster of what the gate checks was
+  # one a session typed into a handoff by hand, and `felix qualify` had no way
+  # to say which of them no row qualifies. Same limit as the skips: a check
+  # that runs without printing a line is not here.
+  #
+  # The line's shape, not a list of verdict words. The first draft took ok,
+  # FAIL and skipped, and its first real gate run printed `commission stale` —
+  # a checker that ran, reported, and would have been absent from the roster;
+  # the source prints `waits` as well. A checker line is exactly two spaces, a
+  # lowercase name, then a word; every sub-line the gate prints is indented
+  # deeper or starts with a number. A reader that has never been given real
+  # input is not known to work, however many tests it has.
+  local reported
+  reported="$(awk '$0 ~ /^  [a-z][a-z-]* +[A-Za-z]/ { printf "%s%s:%s", sep, $1, $2; sep = "," }' "$log" 2>/dev/null)"
   rm -f "$log"
 
   # The receipt. Recorded on failure as well as success: no receipt and a red
   # one both stop a session, but only one of them says what happened — and now
-  # also what it did not check.
-  felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid" "$skipped"
+  # also what it did not check, and what it did.
+  felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid" "$skipped" "$reported"
   exit "$rc"
 }
 
@@ -1609,6 +1624,36 @@ cmd_qualify() {
   # at a time. That is the opposite of the design this replaced — refuse
   # everything unqualified, which is unarmable because it fails everything at
   # once and teaches a person to switch it off.
+  #
+  # Which of the checks the last gate reported has no row here. Read off the
+  # receipt's roster, so the list is what the gate PRINTED for this tree and
+  # not a roster somebody typed — which is how the count was kept until now:
+  # by hand, in a handoff, and wrong the day a checker was added. Not under
+  # --gate, because this is a gap report and not a verdict: the arming
+  # decision above leaves an unqualified checker exactly as it was.
+  if [ "$gate" -eq 0 ]; then
+    local rcpt field roster ungov
+    rcpt="$(felix_verify_receipt "$root" "$FELIX_HOME_DIR" 2>/dev/null)"
+    field="$(printf '%s' "$rcpt" | cut -f6)"
+    if [ -z "$rcpt" ]; then
+      printf '\nNo gate receipt for this tree, so what the gate reports here is not\n'
+      printf 'known; felix gate writes one.\n'
+    elif [ -z "$field" ] || [ "$field" = "-" ]; then
+      printf '\nThe last gate receipt for this tree carries no roster of what it\n'
+      printf 'reported; felix gate writes one now.\n'
+    else
+      # Back into the gate's own line shape — two spaces, name, verdict — so
+      # the reader below has one shape to read, whether it is handed a gate
+      # log or this roster.
+      roster="$(printf '%s\n' "$field" | tr ',' '\n' | sed 's/:/ /; s/^/  /')"
+      ungov="$(felix_qualify_ungoverned "$proj" "$roster" | tr '\n' ' ')"
+      if [ -n "${ungov% }" ]; then
+        printf '\nreported by the last gate and qualified by no row: %s\n' "${ungov% }"
+      else
+        printf '\nEvery check the last gate reported has a row here.\n'
+      fi
+    fi
+  fi
   if [ "$gate" -eq 1 ]; then
     [ "${held:-0}" -eq 0 ] && [ "${unrun:-0}" -eq 0 ] && return 0
     printf '\nA declared control that does not hold is this check reporting a\n'

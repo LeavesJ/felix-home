@@ -86,6 +86,7 @@
 1	a different repository is still checked
 1	a directory declaring project.json is enumerated
 1	a directory holding only untracked files is blind too
+1	a directory is cannot-examine, not an empty binding
 1	a directory missing from one side is a drift
 1	a dirty memory repo is committed
 1	a disarmed engine is still judged by main's version
@@ -102,6 +103,7 @@
 1	a failing gate still exits non-zero
 1	a felix-answered row names felix as the actor
 1	a file facing a directory is a drift, whatever diff exits
+1	a file that does not parse drops out of the roster without taking the rest
 1	a filename containing ' and ' cannot hide behind a fragment
 1	a finding names its reason
 1	a flag with no value refuses instead of spinning
@@ -379,6 +381,7 @@
 1	a tool that could not be checked is said, not counted as reachable
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
+1	a truncated hooks.json is cannot-examine
 1	a typed intent is not labelled a guess
 1	a valid receipt raises no commission blocker
 1	a verdict for another tree does not clear it
@@ -806,6 +809,7 @@
 1	and passes the facts it already has
 1	and picks the capability the skills serve
 1	and points at the read that needs no lock
+1	and prints no events at all, not the ones it managed to reach
 1	and prints the state rather than a verdict
 1	and proposes nothing for it
 1	and prose counts single
@@ -905,6 +909,7 @@
 1	and so does the next one
 1	and so does the stamp that says what it was read against
 1	and so is a deny from its own PreToolUse
+1	and so is a file this user cannot read
 1	and so is a second one
 1	and so is every other one
 1	and so is no argument at all
@@ -968,6 +973,7 @@
 1	and the gate line called no cli
 1	and the gate still runs through it
 1	and the gate-failure total
+1	and the grep it replaced counts the entry that never fires
 1	and the grep the probe used to be counts it, which is why the probe moved
 1	and the held total
 1	and the hook still exits 0 there
@@ -1266,6 +1272,7 @@
 1	lesson is recorded
 1	lesson refuses a flag as the lesson
 1	lesson warns against writing too much
+1	lifecycle-check cannot examine a hooks.json that does not parse
 1	listed where a reader must look
 1	lists the skills a plugin ships
 1	lists what the fix must prove
@@ -1413,6 +1420,7 @@
 1	running a rival gate is denied
 1	runs that all passed are clean
 1	runs with a failure are dirty
+1	saying it does not parse
 1	saying so plainly
 1	saying what is missing
 1	saying why
@@ -1452,6 +1460,7 @@
 1	so a project created today is not born blocked
 1	so a project created today reads something from reality
 1	so does a pointer naming a directory that is gone
+1	so is a file that ends inside a string
 1	so no false unmount is proposed from it
 1	so the branch is not blamed for what the remote already had
 1	so the caveat can become untrue

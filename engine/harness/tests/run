@@ -7116,6 +7116,37 @@ if [ -x "$REAL_HARNESS/bin/hooks-events" ]; then
   is  "a missing file is cannot-examine, exit 2, never an empty binding" \
       "$("$REAL_HARNESS/bin/hooks-events" "$HE/nowhere.json" >/dev/null 2>&1; echo $?)" "2"
   is  "and so is no argument at all" "$("$REAL_HARNESS/bin/hooks-events" >/dev/null 2>&1; echo $?)" "2"
+  # A document the platform would refuse to load binds nothing, whatever keys
+  # a scanner can still pick out of it. Reported as cannot-examine, which is
+  # UNKNOWN and blocks, and never as a file that binds no events — the first
+  # version listed the keys it had found and exited 0, so a truncated
+  # hooks.json read as fully wired and the obligation over it read SATISFIED.
+  head -c 120 "$HE/hooks.json" > "$HE/truncated.json"
+  out="$("$REAL_HARNESS/bin/hooks-events" "$HE/truncated.json" 2>&1)"; rc=$?
+  is  "a truncated hooks.json is cannot-examine" "$rc" "2"
+  has "saying it does not parse" "$out" "does not parse"
+  is  "and prints no events at all, not the ones it managed to reach" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$HE/truncated.json" 2>/dev/null | grep -c .)" "0"
+  printf '{ "hooks": { "Stop": [ { "hooks": [ { "type": "command", "command": "unterminated } ] } ] } }\n' > "$HE/unterminated.json"
+  is  "so is a file that ends inside a string" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$HE/unterminated.json" >/dev/null 2>&1; echo $?)" "2"
+  is  "a directory is cannot-examine, not an empty binding" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$HE" >/dev/null 2>&1; echo $?)" "2"
+  cp "$HE/hooks.json" "$HE/unreadable.json"; chmod 000 "$HE/unreadable.json"
+  is  "and so is a file this user cannot read" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$HE/unreadable.json" >/dev/null 2>&1; echo $?)" "2"
+  chmod 644 "$HE/unreadable.json"
+  # And the checker over it: the evidence contract must not discharge on a
+  # hooks.json nothing could load.
+  if [ -x "$REAL_HARNESS/bin/lifecycle-check" ]; then
+    HEL="$TMP/hooks-events-lc"; mkdir -p "$HEL/tpl"
+    cp "$REAL_HARNESS/templates/lifecycle.tsv" "$HEL/tpl/"
+    head -c 120 "$REAL_HARNESS/../hooks/hooks.json" > "$HEL/hooks.json"
+    is  "lifecycle-check cannot examine a hooks.json that does not parse" \
+        "$(cd "$HEL" && "$REAL_HARNESS/bin/lifecycle-check" tpl hooks.json >/dev/null 2>&1; echo $?)" "2"
+  else
+    skip "lifecycle-check cannot examine a hooks.json that does not parse" "no bin/lifecycle-check beside this harness"
+  fi
   # On the shipped hooks, the instrument and the obligation's checker agree —
   # they are the same scanner — and both see the moment that was once missing.
   has "the shipped hooks bind SubagentStop by key" \
@@ -7127,19 +7158,45 @@ else
            "an event named inside a command string is not bound" \
            "and a file with no whitespace reads the same as one with" \
            "a missing file is cannot-examine, exit 2, never an empty binding" "and so is no argument at all" \
+           "a truncated hooks.json is cannot-examine" "saying it does not parse" \
+           "and prints no events at all, not the ones it managed to reach" \
+           "so is a file that ends inside a string" "a directory is cannot-examine, not an empty binding" \
+           "and so is a file this user cannot read" \
+           "lifecycle-check cannot examine a hooks.json that does not parse" \
            "the shipped hooks bind SubagentStop by key"; do
     skip "$a" "no bin/hooks-events beside this harness"; done
 fi
 
-# The roster of what anything on this machine binds reads the same way. A
-# settings file whose command mentions an event in a string does not bind it.
+# The roster of what anything on this machine binds reads the same way.
+#
+# On the DECOUPLED fixture, deliberately. The first version of this assertion
+# used a settings file whose command string mentioned an event name, and that
+# separates nothing: a quote inside a JSON string is escaped as \", so the
+# grep this replaced never matched it either, and the assertion was green
+# under both implementations — a test that could not fail for the defect it
+# was named after. The nested entry below is the shape that tells them apart:
+# main's grep reports PostToolUse AND SubagentStop, the scanner reports only
+# PostToolUse, and the hook at that depth never fires.
 HEH="$TMP/hooks-events-home"; mkdir -p "$HEH/.claude"
-printf '{ "hooks": { "SessionStart": [ { "hooks": [ { "type": "command", "command": "echo \\"Notification\\": [" } ] } ] } }\n' \
-  > "$HEH/.claude/settings.json"
+cat > "$HEH/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "PostToolUse": [ { "matcher": "Bash", "hooks": [ { "type": "command", "command": "echo post" } ],
+                       "SubagentStop": [ { "hooks": [ { "type": "command", "command": "echo sub" } ] } ] } ]
+  }
+}
+JSON
 out="$( HOME="$HEH"; export HOME; . "$FROOT/harness/lib/coverage.sh"; felix_coverage_events | tr '\n' ' ' )"
-is  "felix_coverage_events rosters the events settings.json binds by key" "$out" "SessionStart "
+is  "felix_coverage_events rosters the events settings.json binds by key" "$out" "PostToolUse "
+has "and the grep it replaced counts the entry that never fires" \
+    "$(_helex "$HEH/.claude/settings.json")" "SubagentStop"
+# One unparseable file on the machine contributes nothing and blanks nothing.
+printf '{ "hooks": { "Stop": [ ' > "$HEH/.claude/settings.local.json"
+out="$( HOME="$HEH"; export HOME; . "$FROOT/harness/lib/coverage.sh"; felix_coverage_events | tr '\n' ' ' )"
+is  "a file that does not parse drops out of the roster without taking the rest" "$out" "PostToolUse "
+rm -f "$HEH/.claude/settings.local.json"
 out="$( HOME="$TMP/no-such-home"; export HOME; . "$FROOT/harness/lib/coverage.sh"; felix_coverage_events; echo "rc=$?" )"
-is  "and a machine that binds nothing is an empty roster, not an error" "$out" "rc=0"
+is  "and a machine that binds nothing is an empty roster, not an error" "${out##*rc=}" "0"
 
 # The probe row names the instrument, and the instrument gets a token. A path
 # under the checkout comes back from command -v relative; it is a file all the

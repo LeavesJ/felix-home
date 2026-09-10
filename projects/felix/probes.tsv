@@ -42,3 +42,4 @@ enforcing_table	-	-	git ls-files 'projects/*/risk.tsv' 'projects/*/deny.tsv' 'pr
 test_assertion	tests	-	cut -f2 engine/harness/tests/assertions.tsv	test -s engine/harness/tests/assertions.tsv
 ci_workflow	ci	-	git ls-files '.github/workflows/*'	test -d .github/workflows
 deployed_engine	-	test -d "$HOME/.claude/plugins/cache/felix/felix"	ls -1d "$HOME"/.claude/plugins/cache/felix/felix/*/	test -d "$HOME/.claude/plugins/cache/felix"
+marketplace_root	-	test -r "$HOME/.claude/plugins/known_marketplaces.json"	sed -n '/"felix"[[:space:]]*:[[:space:]]*{/,/^  }/p' "$HOME/.claude/plugins/known_marketplaces.json" | sed -n 's/.*"installLocation"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'	test -s "$HOME/.claude/plugins/known_marketplaces.json"

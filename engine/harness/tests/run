@@ -7497,19 +7497,53 @@ if [ -x "$REAL_HARNESS/bin/memory-scan" ]; then
   MS3="$TMP/memory-scan-3"; cp -R "$MSS" "$MS3"
   mkdir -p "$MS3/docs/memory"; printf 'memory lives elsewhere\n' > "$MS3/docs/memory/README.md"; _msc "$MS3"
   has "a directory merely named memory, holding doctrine, outside projects/, is not memory" "$(_ms "$MS3")" "rc=0"
+  # Every project's log TRACKED, so plain check-ignore — the inline form this
+  # replaced — reports nothing at all and the rc=1 below can only come from
+  # the --no-index reading. The first version of this case left beta with no
+  # log, and an untracked path is reported by the plain form too, so the
+  # assertion named after tracked files was satisfied without them.
   MS4="$TMP/memory-scan-4"; cp -R "$MSS" "$MS4"
-  printf 'projects/*/maintenance.log\n' >> "$MS4/.gitignore"; _msc "$MS4"
+  printf 'run\n' > "$MS4/projects/beta/maintenance.log"; _msc "$MS4"
+  is  "with every log tracked, the form this replaced sees nothing to report" \
+      "$(cd "$MS4" && printf 'projects/*/maintenance.log\n' >> .gitignore
+         git add -A >/dev/null 2>&1
+         git -c user.name=t -c user.email=t@t commit -qm r >/dev/null 2>&1
+         for d in projects/*/; do git check-ignore -q "${d}maintenance.log" 2>/dev/null && echo hit; done | grep -c .)" "0"
   out="$(_ms "$MS4")"
   has "an ignore rule that swallows a TRACKED maintenance.log fails" "$out" "rc=1"
   has "naming the doctrine" "$out" "doctrine ignored: projects/alpha/maintenance.log"
-  has "and the project with no log yet, whose log could never be added" "$out" "doctrine ignored: projects/beta/maintenance.log"
+  has "and the second project, whose log is tracked too" "$out" "doctrine ignored: projects/beta/maintenance.log"
   cp "$MSS/.gitignore" "$MS4/.gitignore"; _msc "$MS4"
   has "and putting the rule back clears it" "$(_ms "$MS4")" "rc=0"
+  # routes.log stores the founder's prompt text verbatim, one line per routed
+  # prompt. The first name list was written from memory rather than from the
+  # directory and omitted it, along with decisions.log and the ledger shards —
+  # so the file this check exists to keep out of a repository was the one it
+  # could not see.
+  MS5="$TMP/memory-scan-5"; cp -R "$MSS" "$MS5"
+  printf '2026-09-09T00:00:00Z\tharness\t7\tthe founder said this, verbatim\n' > "$MS5/projects/alpha/routes.log"; _msc "$MS5"
+  out="$(_ms "$MS5")"
+  has "routes.log tracked under a project fails: it holds the prompts verbatim" "$out" "rc=1"
+  has "naming it" "$out" "memory tracked by name: projects/alpha/routes.log"
+  MS6="$TMP/memory-scan-6"; cp -R "$MSS" "$MS6"
+  mkdir -p "$MS6/projects/alpha/ledger.d"; printf 'x\n' > "$MS6/projects/alpha/ledger.d/s1.tsv"; _msc "$MS6"
+  has "a ledger shard under a memory directory fails" "$(_ms "$MS6")" "memory tracked in a memory directory: projects/alpha/ledger.d/s1.tsv"
+  MS7="$TMP/memory-scan-7"; cp -R "$MSS" "$MS7"
+  printf 'x\n' > "$MS7/projects/alpha/ledger.tsv.bak-20260816010302"; _msc "$MS7"
+  has "and a rotated ledger is the same record with a date on it" "$(_ms "$MS7")" "memory tracked by name: projects/alpha/ledger.tsv.bak-20260816010302"
+  # A tree with nothing tracked under projects/ is not a clean tree.
+  MS8="$TMP/memory-scan-8"; mkdir -p "$MS8"
+  ( cd "$MS8" && git init -q -b main && printf 'x\n' > README.md && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
+  out="$(_ms "$MS8")"
+  has "a checkout with nothing tracked under projects/ cannot search" "$out" "cannot search"
+  has "rather than reporting clean" "$out" "rc=1"
   has "outside a checkout it cannot search, and says so rather than passing" \
       "$(cd "$TMP" && "$REAL_HARNESS/bin/memory-scan" 2>&1; echo "rc=$?")" "cannot search"
   _MSG="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix"
   if [ -f "$_MSG/gate.sh" ] && [ -f "$_MSG/qualification.tsv" ]; then
-    has "felix's gate runs the memory check through memory-scan" "$(cat "$_MSG/gate.sh")" "engine/harness/bin/memory-scan"
+    has "felix's gate runs the memory check through memory-scan" \
+        "$(grep -v '^[[:space:]]*#' "$_MSG/gate.sh")" 'engine/harness/bin/memory-scan 2>&1'
     is  "and declares every control for it" \
         "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"; felix_qualify_missing_controls "$_MSG" memory | tr '\n' ' ' )" ""
   else
@@ -7520,8 +7554,13 @@ else
   for a in "a tree with doctrine tracked and no memory is clean" "memory tracked under projects/<p>/memory/ fails" \
            "naming the file" "the same file one level up fails by name, where the inline check was blind" "and says so" \
            "a directory merely named memory, holding doctrine, outside projects/, is not memory" \
+           "with every log tracked, the form this replaced sees nothing to report" \
            "an ignore rule that swallows a TRACKED maintenance.log fails" "naming the doctrine" \
-           "and the project with no log yet, whose log could never be added" "and putting the rule back clears it" \
+           "and the second project, whose log is tracked too" "and putting the rule back clears it" \
+           "routes.log tracked under a project fails: it holds the prompts verbatim" "naming it" \
+           "a ledger shard under a memory directory fails" \
+           "and a rotated ledger is the same record with a date on it" \
+           "a checkout with nothing tracked under projects/ cannot search" "rather than reporting clean" \
            "outside a checkout it cannot search, and says so rather than passing" \
            "felix's gate runs the memory check through memory-scan" "and declares every control for it"; do
     skip "$a" "no bin/memory-scan beside this harness"; done

@@ -2009,11 +2009,32 @@ EOF
   # the stamp, because the stamp is what makes a cache current: the quiet
   # form must write nothing here, so the caller's `&&` leaves the last real
   # answer standing rather than replacing it with seven days of "nothing".
+  #
+  # The DECLARED code, not "non-zero". The first version of this tested
+  # `-ne 0`, and felix_discover_candidates used to end in a pipeline whose
+  # status was the scoring loop's — 1 whenever the last plugin in the listing
+  # did not match, which is most listings. So the fix for "an unread
+  # catalogue reads as empty" shipped with its own inverse: a catalogue read
+  # perfectly well, reported unreadable. Measured against the real CLI, not
+  # reasoned about. Reading a status means naming the value you expect.
+  #
+  # Any other non-zero is a defect in that function rather than a fact about
+  # the marketplace. It still refuses to cache, because that is the direction
+  # that cannot invent an answer, and it says which of the two it is so the
+  # next occurrence is a bug report and not a network diagnosis.
   if [ "$crc" -ne 0 ]; then
     [ "$quiet" -eq 1 ] && return 2
-    printf 'The marketplaces could not be read for %s.\n\n' "$(basename "$proj")"
-    printf 'That is not "nothing matches": the catalogue was never seen. Check that\n'
-    printf '`claude plugin list --available` answers, then run this again.\n'
+    if [ "$crc" -eq 3 ]; then
+      printf 'The marketplaces could not be read for %s.\n\n' "$(basename "$proj")"
+      printf 'That is not "nothing matches": the catalogue was never seen. Check that\n'
+      printf '`claude plugin list --available` answers, then run this again.\n'
+    else
+      printf 'Reading the catalogue for %s ended with status %s, which is not a\n' \
+        "$(basename "$proj")" "$crc"
+      printf 'verdict this engine knows how to read: 0 is read and 3 is unreadable.\n'
+      printf 'Nothing was cached and nothing was adopted. This is a defect in\n'
+      printf 'felix_discover_candidates, not an answer about the marketplaces.\n'
+    fi
     return 2
   fi
   # The quiet form writes the cache, so its first line is the stamp the

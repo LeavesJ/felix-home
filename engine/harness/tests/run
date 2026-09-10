@@ -4329,7 +4329,7 @@ has "but a new one does get through" "$new" "sonarqube"
 # into a cache that stays current for seven days. Read by an agent from the
 # find-skills plugin's catalogue reader, which draws the line this one did not.
 printf '\nan unreadable catalogue is not an empty one\n'
-DCP="$TMP/discover-cands"; mkdir -p "$DCP/proj" "$DCP/bin-fail" "$DCP/bin-prose" "$DCP/bin-empty" "$DCP/bin-hit" "$DCP/bin-none"
+DCP="$TMP/discover-cands"; mkdir -p "$DCP/proj" "$DCP/bin-fail" "$DCP/bin-prose" "$DCP/bin-empty" "$DCP/bin-hit" "$DCP/bin-none" "$DCP/bin-tail" "$DCP/bin-many"
 printf 'llm\n' > "$DCP/proj/capabilities"
 printf 'plugin\tanthropic-skills\t-\tlow\talways\n' > "$DCP/proj/stack.tsv"
 printf '#!/bin/sh\nexit 1\n' > "$DCP/bin-fail/claude"
@@ -4346,6 +4346,36 @@ cat <<'J'
 ]
 J
 STUB
+# A listing whose LAST entry does not match. This is the shape the whole
+# fix turned on: a `while` loop's status is its last body command's, so the
+# scoring loop returned 1 for every catalogue ending in a non-match — which
+# is most catalogues — and cmd_discover, once it started reading the status,
+# called a perfectly readable marketplace unreadable.
+cat > "$DCP/bin-tail/claude" <<'STUB'
+#!/bin/sh
+cat <<'J'
+[
+  {
+    "name": "deepeval",
+    "description": "llm evaluation and prompt testing"
+  },
+  {
+    "name": "laundry-folder",
+    "description": "a widget for folding laundry"
+  }
+]
+J
+STUB
+# More matches than FELIX_DISCOVER_MAX, so `head` closes the pipe on the
+# rows still coming and everything upstream takes SIGPIPE. The same shape as
+# the grep -q lesson this repository already carries.
+{ printf '#!/bin/sh\ncat <<J\n[\n'
+  i=1; while [ "$i" -le 12 ]; do
+    [ "$i" -eq 1 ] || printf ',\n'
+    printf '  {\n    "name": "llm-tool-%s",\n    "description": "llm prompt evaluation and inference"\n  }' "$i"
+    i=$((i+1))
+  done
+  printf '\n]\nJ\n'; } > "$DCP/bin-many/claude"
 chmod +x "$DCP"/bin-*/claude
 _dcands() { ( PATH="$DCP/$1:$PATH"; export PATH
               . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/discover.sh"
@@ -4356,6 +4386,10 @@ is  "a CLI that prints an error and exits 0 is exit 3 and no rows too" "$(_dcand
 is  "an empty listing is exit 0 and no rows: a catalogue that was read" "$(_dcands bin-empty)" "0|"
 has "and a listing with a match still scores it" "$(_dcands bin-hit)" "deepeval"
 is  "with exit 0" "$(_dcands bin-hit | cut -d'|' -f1)" "0"
+is  "a catalogue whose LAST entry does not match is still exit 0" "$(_dcands bin-tail | cut -d'|' -f1)" "0"
+has "and the entry that did match is still returned" "$(_dcands bin-tail)" "deepeval"
+is  "more matches than the row cap is exit 0, not the pipe closing under it" "$(_dcands bin-many | cut -d'|' -f1)" "0"
+is  "and the cap is what it returns" "$(_dcands bin-many | cut -d'|' -f2- | grep -c .)" "8"
 is  "and no CLI on PATH at all is exit 3, not an empty marketplace" \
     "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/discover.sh"
         PATH="$DCP/bin-none"; export PATH
@@ -4375,6 +4409,18 @@ is  "and prints nothing, not even the stamp" "$out" ""
 out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover 2>&1)"
 has "and the loud form says the catalogue was never seen" "$out" "could not be read"
 is  "the cache already there is untouched" "$(cat "$DCH/widget.tsv")" "$DCW"
+# And a writer that actually writes. The assertion above runs the loud form,
+# which has no cache writer in any version, so it could not have failed for
+# the defect it is named after. --adopt fills a cache it finds STALE, and
+# that fill is one of the two the guard was added to: a stale answer must
+# survive a failed read rather than be replaced by an empty one.
+DCS="# stamp not-the-current-one
+langfuse	llm	low"
+printf '%s\n' "$DCS" > "$DCH/widget.tsv"
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover --adopt 2>&1)"; rc=$?
+is  "a stale cache and an unreadable catalogue adopts nothing" "$rc" "2"
+is  "and the stale answer is still there, not replaced by an empty one" "$(cat "$DCH/widget.tsv")" "$DCS"
+[ -e "$DCH/widget.tsv.new" ] && bad "and no half-written cache is left beside it" "left behind" || ok "and no half-written cache is left beside it"
 rm -f "$DCH/widget.tsv"
 out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover --adopt 2>&1)"; rc=$?
 is  "discover --adopt with no cache and no catalogue adopts nothing and says why" "$rc" "2"

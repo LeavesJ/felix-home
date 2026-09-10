@@ -161,12 +161,40 @@ felix_discover_candidates() {
   # A listing is a JSON array or object. An error printed to stdout with a
   # zero exit — which the CLI has done — begins with neither, and would have
   # matched no name and read as an empty marketplace.
+  #
+  # The residual, stated rather than closed: a JSON-SHAPED error with a zero
+  # exit, `{"error":"could not reach the marketplace"}`, still passes here and
+  # still reads as a catalogue with nothing in it. Requiring a parsed name
+  # would catch it, and would also call a genuinely empty marketplace
+  # unreadable — an over-refusal in the one direction nobody can act on, which
+  # is how a check gets switched off. The measured failure is the plain-text
+  # one and that is what this rejects.
   case "$(printf '%s' "$listing" | tr -d '[:space:]' | cut -c1)" in
     '['|'{') ;;
     *) return 3 ;;
   esac
 
-  printf '%s\n' "$listing" \
+  # The rows are computed into a variable and the status is stated, not
+  # inherited from the last pipeline. Two ways this function reported failure
+  # over a catalogue it had read perfectly well, both of which mattered only
+  # once cmd_discover started reading the status:
+  #
+  #   a `while` loop's status is that of the last command its body ran, and
+  #   the body ended in `[ "$best" -ge N ] && printf ...`. So whenever the LAST
+  #   entry in the listing scored below the threshold — the common case, since
+  #   most of a marketplace does not match one project — the loop returned 1.
+  #   Measured on main as well: it is older than the status being read, and
+  #   harmless until something read it.
+  #
+  #   and `head -N` closes the pipe on the N+1th row, so a catalogue with more
+  #   matches than FELIX_DISCOVER_MAX takes SIGPIPE upstream and returns 141
+  #   under pipefail. This repository already carries that lesson about grep -q.
+  #
+  # Reaching this line means the catalogue WAS read. Whether anything in it
+  # matched is the answer, not an error, so the status is 0 and the rows say
+  # the rest.
+  local rows
+  rows="$(printf '%s\n' "$listing" \
     | sed -n -e 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/N \1/p' \
              -e 's/.*"description"[[:space:]]*:[[:space:]]*"\(.*\)".*/D \1/p' \
     | awk '/^N /{ if (n != "") print n "\t" d; n=substr($0,3); d="" }
@@ -179,9 +207,12 @@ felix_discover_candidates() {
         hit="$(felix_capability_match "$name" "$desc" "$rules")"
         best="$(printf '%s' "$hit" | cut -f1)"
         best_cap="$(printf '%s' "$hit" | cut -f2)"
-        [ "$best" -ge "${FELIX_DISCOVER_MIN:-3}" ] && printf '%s\t%s\t%s\t%s\n' "$best" "$best_cap" "$name" "$desc"
-      done \
-    | sort -k1,1nr | head -"$FELIX_DISCOVER_MAX"
+        if [ "$best" -ge "${FELIX_DISCOVER_MIN:-3}" ]; then
+          printf '%s\t%s\t%s\t%s\n' "$best" "$best_cap" "$name" "$desc"
+        fi
+      done)"
+  printf '%s\n' "$rows" | grep . | sort -k1,1nr | head -"$FELIX_DISCOVER_MAX"
+  return 0
 }
 
 # Source coordinates for one candidate: url <TAB> sha <TAB> subdir

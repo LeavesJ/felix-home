@@ -73,13 +73,15 @@ it should be paid deliberately, not rediscovered.
 
 ## 0at. Verified at session close, 2026-09-09 — the §0as queue built end to end, then reviewed, and every pull request in it changed
 
-**Nothing landed on main.** Five stacked pull requests, #212 through
-#216, each branch cut from the one before it, each gate green on the runner
-and red here on `installed` alone — the structural line a worktree cannot
-clear. The session was opened in a worktree despite the constitution and
-the constitution's Non-obvious patterns entry saying the home; the cost is
-this shape. (§0as says nothing about it: an earlier draft of this section
-cited it, and it does not.) No PR bumps plugin.json; the merger runs
+**Nothing landed on main.** Six stacked pull requests, #212 through #217 —
+five of code and this section — each branch cut from the one before it,
+each gate green on the runner and red here on `installed` alone: the
+structural line a worktree cannot clear, because clearing it means running
+`felix install` in the home and the marketplace is pinned there. The
+session was opened in a worktree despite the constitution's Non-obvious
+patterns entry saying the home; the cost is this shape, and it is why no
+gate receipt in this session is green. (§0as says nothing about the home:
+an earlier draft of this section cited it, and it does not.) No PR bumps plugin.json; the merger runs
 `felix install` once in the home, which bumps. The founder's `commission`
 grant is stamped over a set of tables that already moved — #210 changed
 risk.tsv, so it reads stale on main today, before any of this — and #212

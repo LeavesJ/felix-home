@@ -77,11 +77,19 @@ it should be paid deliberately, not rediscovered.
 #216, each branch cut from the one before it, each gate green on the runner
 and red here on `installed` alone — the structural line a worktree cannot
 clear. The session was opened in a worktree despite the constitution and
-§0as both saying the home; the cost is this shape. No PR bumps plugin.json,
-because a bump in each conflicts at squash-merge with the one before; the
-merger runs `felix install` once in the home, which bumps. The founder's
+§0as both saying the home; the cost is this shape. No PR bumps plugin.json;
+the merger runs `felix install` once in the home, which bumps. The founder's
 `commission` grant is bound to a table #214 changes, so it must be
 re-granted after that lands.
+
+**How they merge, measured rather than reasoned.** Squash-merging the stack
+in order conflicts at #214 on tests/assertions.tsv: every PR re-records the
+manifest, the file is sorted, and adjacent insertions from two PRs are one
+overlapping hunk to git. Merge commits and rebase merges in order are both
+clean, all six, in a fresh clone of the remote. `felix merge` squashes, so
+it is not the tool for these; `gh pr merge --merge` in order is, and the
+one-merge-then-rebase-the-rest alternative is a person's work six times
+over.
 
 **#212, hook_binding reads keys.** `bin/hooks-events` sources the scanner
 coverage.sh grew in #210 and prints the keys of the hooks object, exit 2
@@ -155,9 +163,16 @@ candidate lifecycle. Still unbuilt: control 7 as a report the gate reads,
 and the find-skills items one and two — a content hash of the copy Felix
 read against the copy it installed, and announced install drift.
 
+**What this session got wrong.** It said twice, in a memory note and in
+the first draft of this section, that the stack squash-merges cleanly,
+from reasoning about three-way merges rather than from running one; a
+clone showed the conflict at the third PR in under a minute. The rule the
+handoffs keep recording — claims about state are read, not recalled —
+covers claims about what git will do as much as claims about the tree.
+
 **Next session's first actions, in order.** (1) Open in the home. Merge
-#212 through #216 in that order, `felix install` once, re-grant
-`commission`. (2) Give felix_qualify_ungoverned a caller: `felix qualify`
+#212 through #217 in that order with `gh pr merge --merge`, not `felix
+merge`, then `felix install` once, then re-grant `commission`. (2) Give felix_qualify_ungoverned a caller: `felix qualify`
 reads the last gate receipt's lines and prints the checkers no row
 qualifies, so the count above stops being a thing somebody did by hand.
 (3) The next checker, blind: `executable` or `syntax`, both already

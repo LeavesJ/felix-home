@@ -7407,7 +7407,7 @@ if [ -x "$DCKT/engine/harness/bin/deploy-check" ]; then
       "$(cd "$DCKB" && HOME="$DCK/home" PATH="$DCK/bin:$PATH" engine/harness/bin/deploy-check >/dev/null 2>&1; echo $?)" "127"
   # And a relative invocation from a subdirectory resolves the same library.
   is  "invoked by a relative path from a subdirectory it still finds its library" \
-      "$(cd "$DCKT/engine/harness" && HOME="$DCK/home" PATH="$DCK/bin:$PATH" ../bin/deploy-check --applies >/dev/null 2>&1; echo $?)" "0"
+      "$(cd "$DCKT/engine/harness" && HOME="$DCK/home" PATH="$DCK/bin:$PATH" bin/deploy-check --applies >/dev/null 2>&1; echo $?)" "0"
 else
   for a in "deploy-check --applies holds where a deployment exists and the marketplace serves this tree" \
            "and a tree byte-identical to the deployed engine matches" "with exit 0" \

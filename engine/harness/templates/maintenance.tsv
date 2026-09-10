@@ -31,6 +31,15 @@
 # Any other commit still makes it due, which is the whole point: the row is a
 # staleness detector and it is meant to fire when real content moves.
 #
+# The graph is looked for beside the repository's .git — `git rev-parse
+# --git-common-dir` is `.git` in the checkout that holds it and the absolute
+# path of that checkout's .git from any worktree — because a worktree has no
+# graphify-out/ of its own, and a check keyed on the current directory read
+# due in every worktree session whatever the graph's age. A due that is on
+# almost always carries no information. The commit compared against is still
+# the one the current checkout stands on, so a worktree that has moved past
+# the graph is due, and the checkout the graph was built from is not.
+#
 # name	cadence	capability	description	check
 dead-code	7	always	one aggregated cleanup PR
 dependencies	7	always	grouped safe updates; majors isolated
@@ -39,4 +48,4 @@ docs-drift	14	always	docs correction PR
 constitution	30	always	CLAUDE.md health; targeted, not accumulation
 architecture	30	always	drift report; update the architecture doc if warranted
 test-flake	0	ci	on repeated CI failure, with evidence
-graphify	0	always	refresh the knowledge graph after a merge; it went fifteen days stale on one project while its row read event	test -n "$(find graphify-out/graph.json -newermt "$(git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%S%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"
+graphify	0	always	refresh the knowledge graph after a merge; it went fifteen days stale on one project while its row read event	test -n "$(find "$(dirname "$(git rev-parse --git-common-dir)")/graphify-out/graph.json" -newermt "$(git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%S%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"

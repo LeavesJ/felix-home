@@ -214,8 +214,14 @@ felix_probe_source() {
   # A builtin or a function resolves to its own name rather than a path. It is
   # still an identity, and it is one that cannot be versioned — say so by
   # naming it without a token rather than by pretending it has one.
+  #
+  # A path under the checkout — `engine/harness/bin/hooks-events` — comes back
+  # from command -v as written, relative, and is a file all the same: it is
+  # the one kind of instrument whose token should move with the tree, because
+  # the tree is where it is versioned.
   case "$path" in
     /*) ;;
+    */*) path="$root/$path" ;;
     *)  printf '%s' "$word"; return 0 ;;
   esac
   size="$(wc -c < "$path" 2>/dev/null | tr -dc '0-9')"

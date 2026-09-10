@@ -19,7 +19,13 @@
 # Two of these were written because of what this checkout could not answer on
 # 2026-09-03. `hook_binding` reads the events the SHIPPED hooks.json binds,
 # which is the fact deciding whether the floor runs at all — the night the
-# marker bypass was found, nothing enumerated it. `test_assertion` grounds the
+# marker bypass was found, nothing enumerated it. It reads them through
+# bin/hooks-events, the same key scanner the first admitted obligation is
+# judged by, and not through a grep for `"Event": [`: a blind-authored control
+# moved a whole event entry one level down into another event's matcher group,
+# every token intact and the hook never firing, and the grep counted it. A
+# probe that shares a checker's shadow records the fact the checker misjudges.
+# `test_assertion` grounds the
 # `tests` capability, which this project declares and its own detector cannot
 # see: felix_detect looks for tests/ at the repo root and this suite lives at
 # engine/harness/tests, so the capability was declared, undetected, and
@@ -30,7 +36,7 @@
 # channel, because a probe removed is a fact nobody reads any more.
 tracked_file	-	-	git ls-files	git ls-tree -r HEAD --name-only 2>/dev/null | grep -q .
 shell_entrypoint	-	-	git ls-files engine/harness/felix engine/harness/hooks engine/harness/bin	test -d engine/harness/hooks
-hook_binding	-	-	grep -ohE '"[A-Z][A-Za-z]+"[[:space:]]*:[[:space:]]*\[' engine/hooks/hooks.json | sed 's/"[[:space:]]*:.*//; s/"//g' | sort -u	test -s engine/hooks/hooks.json
+hook_binding	-	-	engine/harness/bin/hooks-events engine/hooks/hooks.json	test -s engine/hooks/hooks.json
 governed_project	-	-	ls -1 projects/*/project.json	test -d projects
 enforcing_table	-	-	git ls-files 'projects/*/risk.tsv' 'projects/*/deny.tsv' 'projects/*/evidence.tsv' 'projects/*/probes.tsv'	test -d projects
 test_assertion	tests	-	cut -f2 engine/harness/tests/assertions.tsv	test -s engine/harness/tests/assertions.tsv

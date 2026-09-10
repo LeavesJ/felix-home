@@ -7062,6 +7062,161 @@ else
            "grounded on a probe felix declares"; do skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
 fi
 
+# ------------------------------------------ hooks-events, the probe's instrument ---
+# `hook_binding` records which events the shipped hooks.json binds. It used to
+# be a grep for `"Event": [`, and the blind control that qualified the first
+# obligation moved the whole SubagentStop entry one level down into another
+# event's matcher group — every token intact, nothing firing — and the grep
+# counted it. The obligation's checker was rewritten to read keys; the probe
+# kept the grep and shared the shadow. Now both go through bin/hooks-events,
+# and the decoupled copy is the control here as well.
+printf '\nhooks-events reads keys, not strings\n'
+HE="$TMP/hooks-events"; mkdir -p "$HE"
+cat > "$HE/hooks.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse":   [ { "matcher": "Bash", "hooks": [ { "type": "command", "command": "echo pre" } ] } ],
+    "PostToolUse":  [ { "matcher": "Bash", "hooks": [ { "type": "command", "command": "echo post" } ] } ],
+    "SubagentStop": [ { "hooks": [ { "type": "command", "command": "echo sub" } ] } ],
+    "Stop":         [ { "hooks": [ { "type": "command", "command": "echo stop" } ] } ]
+  }
+}
+JSON
+# The decoupled copy: the SubagentStop entry, verbatim, inside PostToolUse's
+# first matcher group. A grep for `"SubagentStop": [` still matches.
+cat > "$HE/decoupled.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse":   [ { "matcher": "Bash", "hooks": [ { "type": "command", "command": "echo pre" } ] } ],
+    "PostToolUse":  [ { "matcher": "Bash", "hooks": [ { "type": "command", "command": "echo post" } ],
+                        "SubagentStop": [ { "hooks": [ { "type": "command", "command": "echo sub" } ] } ] } ],
+    "Stop":         [ { "hooks": [ { "type": "command", "command": "echo stop" } ] } ]
+  }
+}
+JSON
+# A binding named inside a command string, and a file with no whitespace.
+cat > "$HE/embedded.json" <<'JSON'
+{ "hooks": { "SessionStart": [ { "hooks": [ { "type": "command", "command": "grep -c '\"SubagentStart\": [' hooks.json" } ] } ] } }
+JSON
+printf '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"x"}]}],"SessionEnd":[]}}' > "$HE/minified.json"
+_helex() { grep -ohE '"[A-Z][A-Za-z]+"[[:space:]]*:[[:space:]]*\[' "$1" | sed 's/"[[:space:]]*:.*//; s/"//g' | LC_ALL=C sort -u | tr '\n' ' '; }
+if [ -x "$REAL_HARNESS/bin/hooks-events" ]; then
+  out="$("$REAL_HARNESS/bin/hooks-events" "$HE/hooks.json" 2>&1)"; rc=$?
+  is  "hooks-events reads a hooks.json and exits 0" "$rc" "0"
+  is  "and lists every event its hooks object binds" \
+      "$(printf '%s\n' "$out" | LC_ALL=C sort | tr '\n' ' ')" "PostToolUse PreToolUse Stop SubagentStop "
+  out="$("$REAL_HARNESS/bin/hooks-events" "$HE/decoupled.json" 2>&1 | LC_ALL=C sort | tr '\n' ' ')"
+  is  "the decoupled copy is not an event to hooks-events" "$out" "PostToolUse PreToolUse Stop "
+  has "and the grep the probe used to be counts it, which is why the probe moved" \
+      "$(_helex "$HE/decoupled.json")" "SubagentStop"
+  is  "an event named inside a command string is not bound" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$HE/embedded.json" 2>&1 | tr '\n' ' ')" "SessionStart "
+  is  "and a file with no whitespace reads the same as one with" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$HE/minified.json" 2>&1 | LC_ALL=C sort | tr '\n' ' ')" "SessionEnd Stop "
+  is  "a missing file is cannot-examine, exit 2, never an empty binding" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$HE/nowhere.json" >/dev/null 2>&1; echo $?)" "2"
+  is  "and so is no argument at all" "$("$REAL_HARNESS/bin/hooks-events" >/dev/null 2>&1; echo $?)" "2"
+  # A document the platform would refuse to load binds nothing, whatever keys
+  # a scanner can still pick out of it. Reported as cannot-examine, which is
+  # UNKNOWN and blocks, and never as a file that binds no events — the first
+  # version listed the keys it had found and exited 0, so a truncated
+  # hooks.json read as fully wired and the obligation over it read SATISFIED.
+  head -c 120 "$HE/hooks.json" > "$HE/truncated.json"
+  out="$("$REAL_HARNESS/bin/hooks-events" "$HE/truncated.json" 2>&1)"; rc=$?
+  is  "a truncated hooks.json is cannot-examine" "$rc" "2"
+  has "saying it does not parse" "$out" "does not parse"
+  is  "and prints no events at all, not the ones it managed to reach" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$HE/truncated.json" 2>/dev/null | grep -c .)" "0"
+  printf '{ "hooks": { "Stop": [ { "hooks": [ { "type": "command", "command": "unterminated } ] } ] } }\n' > "$HE/unterminated.json"
+  is  "so is a file that ends inside a string" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$HE/unterminated.json" >/dev/null 2>&1; echo $?)" "2"
+  is  "a directory is cannot-examine, not an empty binding" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$HE" >/dev/null 2>&1; echo $?)" "2"
+  cp "$HE/hooks.json" "$HE/unreadable.json"; chmod 000 "$HE/unreadable.json"
+  is  "and so is a file this user cannot read" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$HE/unreadable.json" >/dev/null 2>&1; echo $?)" "2"
+  chmod 644 "$HE/unreadable.json"
+  # And the checker over it: the evidence contract must not discharge on a
+  # hooks.json nothing could load.
+  if [ -x "$REAL_HARNESS/bin/lifecycle-check" ]; then
+    HEL="$TMP/hooks-events-lc"; mkdir -p "$HEL/tpl"
+    cp "$REAL_HARNESS/templates/lifecycle.tsv" "$HEL/tpl/"
+    head -c 120 "$REAL_HARNESS/../hooks/hooks.json" > "$HEL/hooks.json"
+    is  "lifecycle-check cannot examine a hooks.json that does not parse" \
+        "$(cd "$HEL" && "$REAL_HARNESS/bin/lifecycle-check" tpl hooks.json >/dev/null 2>&1; echo $?)" "2"
+  else
+    skip "lifecycle-check cannot examine a hooks.json that does not parse" "no bin/lifecycle-check beside this harness"
+  fi
+  # On the shipped hooks, the instrument and the obligation's checker agree —
+  # they are the same scanner — and both see the moment that was once missing.
+  has "the shipped hooks bind SubagentStop by key" \
+      "$("$REAL_HARNESS/bin/hooks-events" "$REAL_HARNESS/../hooks/hooks.json" 2>&1)" "SubagentStop"
+else
+  for a in "hooks-events reads a hooks.json and exits 0" "and lists every event its hooks object binds" \
+           "the decoupled copy is not an event to hooks-events" \
+           "and the grep the probe used to be counts it, which is why the probe moved" \
+           "an event named inside a command string is not bound" \
+           "and a file with no whitespace reads the same as one with" \
+           "a missing file is cannot-examine, exit 2, never an empty binding" "and so is no argument at all" \
+           "a truncated hooks.json is cannot-examine" "saying it does not parse" \
+           "and prints no events at all, not the ones it managed to reach" \
+           "so is a file that ends inside a string" "a directory is cannot-examine, not an empty binding" \
+           "and so is a file this user cannot read" \
+           "lifecycle-check cannot examine a hooks.json that does not parse" \
+           "the shipped hooks bind SubagentStop by key"; do
+    skip "$a" "no bin/hooks-events beside this harness"; done
+fi
+
+# The roster of what anything on this machine binds reads the same way.
+#
+# On the DECOUPLED fixture, deliberately. The first version of this assertion
+# used a settings file whose command string mentioned an event name, and that
+# separates nothing: a quote inside a JSON string is escaped as \", so the
+# grep this replaced never matched it either, and the assertion was green
+# under both implementations — a test that could not fail for the defect it
+# was named after. The nested entry below is the shape that tells them apart:
+# main's grep reports PostToolUse AND SubagentStop, the scanner reports only
+# PostToolUse, and the hook at that depth never fires.
+HEH="$TMP/hooks-events-home"; mkdir -p "$HEH/.claude"
+cat > "$HEH/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "PostToolUse": [ { "matcher": "Bash", "hooks": [ { "type": "command", "command": "echo post" } ],
+                       "SubagentStop": [ { "hooks": [ { "type": "command", "command": "echo sub" } ] } ] } ]
+  }
+}
+JSON
+out="$( HOME="$HEH"; export HOME; . "$FROOT/harness/lib/coverage.sh"; felix_coverage_events | tr '\n' ' ' )"
+is  "felix_coverage_events rosters the events settings.json binds by key" "$out" "PostToolUse "
+has "and the grep it replaced counts the entry that never fires" \
+    "$(_helex "$HEH/.claude/settings.json")" "SubagentStop"
+# One unparseable file on the machine contributes nothing and blanks nothing.
+printf '{ "hooks": { "Stop": [ ' > "$HEH/.claude/settings.local.json"
+out="$( HOME="$HEH"; export HOME; . "$FROOT/harness/lib/coverage.sh"; felix_coverage_events | tr '\n' ' ' )"
+is  "a file that does not parse drops out of the roster without taking the rest" "$out" "PostToolUse "
+rm -f "$HEH/.claude/settings.local.json"
+out="$( HOME="$TMP/no-such-home"; export HOME; . "$FROOT/harness/lib/coverage.sh"; felix_coverage_events; echo "rc=$?" )"
+is  "and a machine that binds nothing is an empty roster, not an error" "${out##*rc=}" "0"
+
+# The probe row names the instrument, and the instrument gets a token. A path
+# under the checkout comes back from command -v relative; it is a file all the
+# same, and its size is the one token that moves with the tree.
+HEI="$TMP/hooks-events-inst"; mkdir -p "$HEI/bin"
+printf '#!/bin/sh\necho hi\n' > "$HEI/bin/tool"; chmod +x "$HEI/bin/tool"
+_hesrc() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/probes.sh"
+             felix_probe_source "$HEI" "$1" ); }
+is  "a probe naming a path under the checkout records that file and its size" \
+    "$(_hesrc 'bin/tool hooks.json')" "bin/tool@$(wc -c < "$HEI/bin/tool" | tr -dc '0-9')"
+is  "a path that is not there records no instrument" "$(_hesrc 'bin/nothing x')" "-"
+is  "a builtin is named without a token, as before" "$(_hesrc 'printf x')" "printf"
+_HEP="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/probes.tsv"
+if [ -f "$_HEP" ]; then
+  has "felix's hook_binding probe reads through hooks-events, not a grep" \
+      "$(grep '^hook_binding' "$_HEP" | cut -f4)" "engine/harness/bin/hooks-events "
+else
+  skip "felix's hook_binding probe reads through hooks-events, not a grep" "no projects/felix beside this harness"
+fi
+
 # Shrinking the ledger escapes, like every table that decides what stops.
 has "obligations.tsv is one of the tables whose shrinkage escapes" \
     "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/escape.sh"

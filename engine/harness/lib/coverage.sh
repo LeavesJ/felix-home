@@ -44,10 +44,18 @@
 # event's matcher group, every token still present, the hook never firing, and
 # `grep -q '"SubagentStop"'` said wired. String state and nesting are tracked
 # so a key at the wrong depth, or inside a command string, is not an event.
+# A file that does not close every brace it opened, or ends inside a string,
+# is not a document the platform would load — so it binds nothing, whatever
+# keys a scanner can pick out of it. The first version printed the keys it had
+# found and returned 0 regardless, which made a truncated hooks.json read as
+# fully wired and the RELEASE_BLOCKING obligation over it read SATISFIED. Keys
+# are held and printed only once the scan has ended at depth 0 outside a
+# string; otherwise nothing is printed and the status is 3, which every caller
+# here turns into "cannot examine" rather than "binds nothing".
 felix_hooks_events() {
   [ -f "${1:-}" ] || return 0
   awk '
-    BEGIN { depth = 0; instr = 0; esc = 0; buf = ""; want = 0; pending = "" }
+    BEGIN { depth = 0; instr = 0; esc = 0; buf = ""; want = 0; pending = ""; nk = 0 }
     {
       line = $0 "\n"; n = length(line)
       for (i = 1; i <= n; i++) {
@@ -63,22 +71,30 @@ felix_hooks_events() {
           if (c == " " || c == "\t" || c == "\n" || c == "\r") continue
           if (c == ":") {
             key[depth] = pending
-            if (depth == 2 && key[1] == "hooks") print pending
+            if (depth == 2 && key[1] == "hooks") { nk++; found[nk] = pending }
           }
           want = 0
         }
         if (c == "{" || c == "[") depth++
         else if (c == "}" || c == "]") depth--
+        if (depth < 0) { exit 3 }
       }
+    }
+    END {
+      if (depth != 0 || instr) exit 3
+      for (j = 1; j <= nk; j++) print found[j]
     }' "$1" 2>/dev/null
-  return 0
+  return $?
 }
 
 felix_coverage_check() {
   local tpl="$1" hooks="$2" event stance reason holds wired seen="" bound
   [ -f "$tpl/lifecycle.tsv" ] || return 0
   [ -f "$hooks" ] || return 0
-  bound="$(felix_hooks_events "$hooks")"
+  # A hooks file that could not be parsed is not a hooks file binding nothing.
+  # Emitting no rows makes lifecycle-check's "nothing to examine" arm fire,
+  # which is exit 2 and UNKNOWN, and UNKNOWN blocks.
+  bound="$(felix_hooks_events "$hooks")" || return 2
 
   while IFS=$'\t' read -r event stance reason holds; do
     case "$event" in ''|'#'*) continue ;; esac
@@ -146,14 +162,22 @@ felix_coverage_unchecked() {
 # no false positives to teach anyone to skim. What it cannot see is an event the
 # platform offers that nothing on this machine binds yet; those become visible
 # the day anything binds one, which is also the first day they could matter.
+#
+# Read through felix_hooks_events, file by file, for the reason it exists: a
+# settings file whose hook command mentions `"Stop": [` in a string is not a
+# file that binds Stop, and the grep this used to be would have rostered it.
 felix_coverage_events() {
-  {
-    grep -ohE '"[A-Z][A-Za-z]+"[[:space:]]*:[[:space:]]*\[' \
-      "$HOME/.claude/settings.json" \
-      "$HOME/.claude/settings.local.json" \
-      "$HOME"/.claude/plugins/cache/*/*/*/hooks/hooks.json 2>/dev/null \
-      | sed 's/"[[:space:]]*:.*//; s/"//g'
-  } 2>/dev/null | LC_ALL=C sort -u
+  local f
+  for f in "$HOME/.claude/settings.json" \
+           "$HOME/.claude/settings.local.json" \
+           "$HOME"/.claude/plugins/cache/*/*/*/hooks/hooks.json; do
+    # A file that is absent, or that does not parse, contributes nothing and
+    # stops nothing: this is the roster of what something on this machine
+    # binds, and one unparseable plugin manifest must not blank the rest. The
+    # verdict-bearing readers above treat the same status as cannot-examine.
+    felix_hooks_events "$f" || continue
+  done 2>/dev/null | grep . | LC_ALL=C sort -u
+  return 0
 }
 
 # Moments something binds that the stance table has never heard of. This is the

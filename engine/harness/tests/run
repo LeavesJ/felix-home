@@ -7481,22 +7481,25 @@ MSS="$TMP/memory-scan-seed"; mkdir -p "$MSS/projects/alpha" "$MSS/projects/beta"
   && printf 'run\n' > projects/alpha/maintenance.log && printf 'x\n' > projects/alpha/CLAUDE.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 _ms()  { ( cd "$1" && "$REAL_HARNESS/bin/memory-scan" 2>&1; echo "rc=$?" ); }
+# Exact, for the reason the deploy-check block gives: "rc=1" as a substring is
+# satisfied by rc=126 and rc=127, which are a checker that never ran.
+_msrc() { printf '%s' "${1##*rc=}"; }
 _msc() { ( cd "$1" && git add -A && git -c user.name=t -c user.email=t@t commit -qm case ) >/dev/null 2>&1; }
 if [ -x "$REAL_HARNESS/bin/memory-scan" ]; then
-  has "a tree with doctrine tracked and no memory is clean" "$(_ms "$MSS")" "rc=0"
+  is  "a tree with doctrine tracked and no memory is clean" "$(_msrc "$(_ms "$MSS")")" "0"
   MS1="$TMP/memory-scan-1"; cp -R "$MSS" "$MS1"
   mkdir -p "$MS1/projects/alpha/memory"; printf 'l\n' > "$MS1/projects/alpha/memory/lessons.md"; _msc "$MS1"
   out="$(_ms "$MS1")"
-  has "memory tracked under projects/<p>/memory/ fails" "$out" "rc=1"
+  is  "memory tracked under projects/<p>/memory/ fails" "$(_msrc "$out")" "1"
   has "naming the file" "$out" "memory tracked: projects/alpha/memory/lessons.md"
   MS2="$TMP/memory-scan-2"; cp -R "$MSS" "$MS2"
   printf 'l\n' > "$MS2/projects/alpha/lessons.md"; _msc "$MS2"
   out="$(_ms "$MS2")"
-  has "the same file one level up fails by name, where the inline check was blind" "$out" "rc=1"
+  is  "the same file one level up fails by name, where the inline check was blind" "$(_msrc "$out")" "1"
   has "and says so" "$out" "memory tracked by name: projects/alpha/lessons.md"
   MS3="$TMP/memory-scan-3"; cp -R "$MSS" "$MS3"
   mkdir -p "$MS3/docs/memory"; printf 'memory lives elsewhere\n' > "$MS3/docs/memory/README.md"; _msc "$MS3"
-  has "a directory merely named memory, holding doctrine, outside projects/, is not memory" "$(_ms "$MS3")" "rc=0"
+  is  "a directory merely named memory, holding doctrine, outside projects/, is not memory" "$(_msrc "$(_ms "$MS3")")" "0"
   # Every project's log TRACKED, so plain check-ignore — the inline form this
   # replaced — reports nothing at all and the rc=1 below can only come from
   # the --no-index reading. The first version of this case left beta with no
@@ -7510,20 +7513,24 @@ if [ -x "$REAL_HARNESS/bin/memory-scan" ]; then
          git -c user.name=t -c user.email=t@t commit -qm r >/dev/null 2>&1
          for d in projects/*/; do git check-ignore -q "${d}maintenance.log" 2>/dev/null && echo hit; done | grep -c .)" "0"
   out="$(_ms "$MS4")"
-  has "an ignore rule that swallows a TRACKED maintenance.log fails" "$out" "rc=1"
+  is  "an ignore rule that swallows a TRACKED maintenance.log fails" "$(_msrc "$out")" "1"
   has "naming the doctrine" "$out" "doctrine ignored: projects/alpha/maintenance.log"
   has "and the second project, whose log is tracked too" "$out" "doctrine ignored: projects/beta/maintenance.log"
   cp "$MSS/.gitignore" "$MS4/.gitignore"; _msc "$MS4"
-  has "and putting the rule back clears it" "$(_ms "$MS4")" "rc=0"
+  is  "and putting the rule back clears it" "$(_msrc "$(_ms "$MS4")")" "0"
   # routes.log stores the founder's prompt text verbatim, one line per routed
   # prompt. The first name list was written from memory rather than from the
   # directory and omitted it, along with decisions.log and the ledger shards —
   # so the file this check exists to keep out of a repository was the one it
   # could not see.
   MS5="$TMP/memory-scan-5"; cp -R "$MSS" "$MS5"
+  # The seed's own `*.log` rule would cover this file, and an untracked file
+  # is not what the check is about - the property is what the repository
+  # CARRIES. The rule goes for this case so the file is really tracked.
+  printf '\n' > "$MS5/.gitignore"
   printf '2026-09-09T00:00:00Z\tharness\t7\tthe founder said this, verbatim\n' > "$MS5/projects/alpha/routes.log"; _msc "$MS5"
   out="$(_ms "$MS5")"
-  has "routes.log tracked under a project fails: it holds the prompts verbatim" "$out" "rc=1"
+  is  "routes.log tracked under a project fails: it holds the prompts verbatim" "$(_msrc "$out")" "1"
   has "naming it" "$out" "memory tracked by name: projects/alpha/routes.log"
   MS6="$TMP/memory-scan-6"; cp -R "$MSS" "$MS6"
   mkdir -p "$MS6/projects/alpha/ledger.d"; printf 'x\n' > "$MS6/projects/alpha/ledger.d/s1.tsv"; _msc "$MS6"
@@ -7537,7 +7544,7 @@ if [ -x "$REAL_HARNESS/bin/memory-scan" ]; then
     && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
   out="$(_ms "$MS8")"
   has "a checkout with nothing tracked under projects/ cannot search" "$out" "cannot search"
-  has "rather than reporting clean" "$out" "rc=1"
+  is  "rather than reporting clean" "$(_msrc "$out")" "1"
   has "outside a checkout it cannot search, and says so rather than passing" \
       "$(cd "$TMP" && "$REAL_HARNESS/bin/memory-scan" 2>&1; echo "rc=$?")" "cannot search"
   _MSG="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix"

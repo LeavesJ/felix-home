@@ -1455,6 +1455,21 @@ is "and a run that skipped nothing says so, rather than leaving it blank" \
    "$( ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
          felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" "" >/dev/null 2>&1 )
        . "$FROOT/harness/lib/verify.sh"; felix_verify_receipt "$REPO" "$FROOT" | cut -f5 )" "-"
+# A sixth field: every check the gate reported, with the verdict it printed.
+# The gate's output was a temporary file the command threw away, so the only
+# roster of what the gate checks was one typed into a handoff by hand — and a
+# typed roster is wrong the day a checker is added. felix qualify reads this
+# to say which reported checks no row qualifies.
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" "tests" "syntax:ok,tests:skipped,secret:ok" >/dev/null 2>&1 )
+_rcpt="$( . "$FROOT/harness/lib/verify.sh"; felix_verify_receipt "$REPO" "$FROOT" )"
+is "the receipt records every check the gate reported, with its verdict" \
+   "$(printf '%s' "$_rcpt" | cut -f6)" "syntax:ok,tests:skipped,secret:ok"
+is "and the skip list is still where it was" "$(printf '%s' "$_rcpt" | cut -f5)" "tests"
+is "and a receipt written without a roster says so rather than leaving it blank" \
+   "$( ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+         felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" "" "" >/dev/null 2>&1 )
+       . "$FROOT/harness/lib/verify.sh"; felix_verify_receipt "$REPO" "$FROOT" | cut -f6 )" "-"
 # The four readers all take fields 1-3 positionally, so a fifth field must not
 # disturb any of them. Asserted rather than assumed: a `read -r a b c d` would
 # have absorbed it, and that is the shape that broke felix profile.
@@ -1468,6 +1483,20 @@ is "a receipt carrying a skip list still clears every blocker" "$(_blk)" ""
 _skipfx="$(printf '  syntax             ok\n  tests              skipped (--quick)\n  installed          skipped (no plugin installed here)\n  secret             ok\n')"
 is "the extractor names every skipped check and nothing else" \
    "$(printf '%s\n' "$_skipfx" | awk '$2 == "skipped" { printf "%s%s", sep, $1; sep = "," }')" "tests,installed"
+# And the roster the same way: names the gate printed, with what it printed
+# beside them, never names anybody listed. Four verdict words: the gate's own
+# first real run printed `commission stale`, which a three-word extractor
+# dropped — a checker that ran and reported, absent from the roster.
+_rosterfx="$(printf 'gate: /tmp/x\n      main @ abc1234\n%s\n    Files a and b differ\n                     1817 passed, 0 failed\n  commission         stale (table set moved; run felix commission)\n  probes             FAIL\n' "$_skipfx")"
+is "the roster extractor names every reported check with its verdict, in order" \
+   "$(printf '%s\n' "$_rosterfx" | awk '$0 ~ /^  [a-z][a-z-]* +[A-Za-z]/ { printf "%s%s:%s", sep, $1, $2; sep = "," }')" \
+   "syntax:ok,tests:skipped,installed:skipped,secret:ok,commission:stale,probes:FAIL"
+# And the lib reads the same shape back, so a checker the gate reported under
+# any verdict word is a gap when no row qualifies it.
+is "felix_qualify_ungoverned keeps every reported checker and drops every sub-line" \
+   "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+       felix_qualify_ungoverned "$TMP/no-such-proj" "$_rosterfx" | tr '\n' ' ')" \
+   "commission installed probes secret syntax tests "
 
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
@@ -7730,7 +7759,7 @@ has "a check that cannot run reads as due rather than ok" "$(_mst "$MTR")" "due	
 #
 # Mirrors the shipped row from templates/maintenance.tsv, exclusion and all. If
 # the two drift, this fixture stops testing what any project actually runs.
-printf 'graphify\t0\talways\tthe map\ttest -n "$(find graphify-out/graph.json -newermt "$(git log -1 --format=%%cd --date=format-local:%%Y-%%m-%%dT%%H:%%M:%%S%%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"\n' > "$MTP/maintenance.tsv"
+printf 'graphify\t0\talways\tthe map\ttest -n "$(find "$(dirname "$(git rev-parse --git-common-dir)")/graphify-out/graph.json" -newermt "$(git log -1 --format=%%cd --date=format-local:%%Y-%%m-%%dT%%H:%%M:%%S%%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"\n' > "$MTP/maintenance.tsv"
 has "the seeded graphify row is due on a checkout with no graph" "$(_mst "$MTR")" "due	graphify"
 # One second, because BSD find compares -newermt at whole seconds: a graph
 # written 799ms after the commit, inside the same second, is "not newer".
@@ -7773,6 +7802,28 @@ sleep 1
 ( cd "$MTR" && printf 'z\n' > c.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm content ) >/dev/null 2>&1
 has "while any other commit still does"                         "$(_mst "$MTR")" "due	graphify"
+# A worktree has no graphify-out/ of its own. The graph lives beside the
+# repository's .git, and a check keyed on the current directory read due in
+# every worktree session whatever the graph's age — sixteen of the seventeen
+# session roots recorded for this project are worktrees, so the row was on
+# almost always and said nothing. It looks for the graph beside the common git
+# dir now: `.git` from the checkout that holds it, that checkout's .git in
+# full from any worktree.
+sleep 1
+mkdir -p "$MTR/graphify-out" && printf '{}\n' > "$MTR/graphify-out/graph.json"
+MTW="$TMP/maint-worktree"
+( cd "$MTR" && git worktree add -q "$MTW" -b maint-wt ) >/dev/null 2>&1
+MTW="$(cd "$MTW" && pwd -P)"
+has "the checkout holding the graph is ok"                      "$(_mst "$MTR")" "ok	graphify"
+has "and a worktree of it reads the same graph, and is ok too"  "$(_mst "$MTW")" "ok	graphify"
+# The commit compared against is the one the worktree stands on: a commit
+# there that the graph has not seen is due there, and the holding checkout,
+# whose head has not moved, is not.
+sleep 1
+( cd "$MTW" && printf 'w\n' > d.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm "worktree commit" ) >/dev/null 2>&1
+has "a commit in the worktree the graph has not seen is due there" "$(_mst "$MTW")" "due	graphify"
+has "while the checkout the graph was built from is still ok"      "$(_mst "$MTR")" "ok	graphify"
 # And the command renders a checked row as a fact, not as a clock. The ok
 # branch printed `${age}d ago  every ${cadence}d`, which for a checked event
 # row came out as `-d ago  every 0d` — a number nobody wrote, in a row that
@@ -8592,6 +8643,30 @@ has "and says what a held control means" "$_qo"  "property the tree does not hav
 # It must be the control that decides, not merely the presence of a table:
 # the first row still passes in the same run.
 has "while the control that holds is still reported met" "$_qo" "violation"
+# Which of the checks the last gate reported has no row here, read off the
+# receipt's roster and not off a roster somebody typed. felix_qualify_ungoverned
+# had no caller anywhere in the engine, so the gap it was written to print had
+# never been printed, and the count of unqualified checkers was kept by hand in
+# a handoff — right until a checker was added.
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" "" "demo:ok,syntax:ok,executable:FAIL,tests:skipped,commission:stale" >/dev/null 2>&1 )
+_qo="$(cd "$REPO" && "$FELIX" qualify 2>&1)"
+_ql="$(printf '%s\n' "$_qo" | grep 'qualified by no row' || true)"
+has "felix qualify names the reported checks no row qualifies" "$_ql" "qualified by no row: commission executable syntax tests"
+case "$_ql" in
+  *demo*) bad "and not the one a row covers" "$_ql" ;;
+  *)      ok  "and not the one a row covers" ;;
+esac
+# A gap report, not a verdict: --gate is the arming decision, and says nothing
+# about a checker nobody has qualified.
+case "$(cd "$REPO" && "$FELIX" qualify --gate 2>&1)" in
+  *"qualified by no row"*) bad "and --gate does not raise it" ;;
+  *)                       ok  "and --gate does not raise it" ;;
+esac
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" "" "" >/dev/null 2>&1 )
+has "a receipt with no roster is said to have none, never read as nothing left" \
+    "$(cd "$REPO" && "$FELIX" qualify 2>&1)" "carries no roster"
 rm -f "$FROOT/projects/widget/qualification.tsv"
 [ -f "$TMP/qual.keep" ] && mv "$TMP/qual.keep" "$FROOT/projects/widget/qualification.tsv"
 is "and the widget project is as this block found it" \

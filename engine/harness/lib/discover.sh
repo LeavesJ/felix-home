@@ -139,16 +139,62 @@ EOF
 #
 # Scored only against capabilities the project declared, so a project with no
 # database never sees database tooling however loudly a plugin advertises.
+#
+# Exit 0 is a catalogue that was read, whether or not anything in it matched.
+# Exit 3 is a catalogue that could not be read: no CLI, a CLI that failed, or
+# a CLI that answered with something other than a listing. The two used to be
+# one — a CLI error came back through the pipeline as no rows — and the quiet
+# form then wrote "nothing matches" into a cache that stays current for seven
+# days. Nothing that reads the cache could tell a marketplace with nothing for
+# this project from a morning the CLI was broken. Read by an agent from the
+# find-skills plugin, which draws the same line in its own catalogue reader.
 felix_discover_candidates() {
-  local proj="$1" tpl="$2" rules
-  command -v claude >/dev/null 2>&1 || return 0
+  local proj="$1" tpl="$2" rules listing
+  command -v claude >/dev/null 2>&1 || return 3
   rules="$(_felix_discover_rules "$tpl" "$proj")"
   [ -n "$rules" ] || return 0
 
   local declared
   declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
 
-  claude plugin list --json --available </dev/null 2>/dev/null \
+  listing="$(claude plugin list --json --available </dev/null 2>/dev/null)" || return 3
+  # A listing is a JSON array or object. An error printed to stdout with a
+  # zero exit — which the CLI has done — begins with neither, and would have
+  # matched no name and read as an empty marketplace.
+  #
+  # The residual, stated rather than closed: a JSON-SHAPED error with a zero
+  # exit, `{"error":"could not reach the marketplace"}`, still passes here and
+  # still reads as a catalogue with nothing in it. Requiring a parsed name
+  # would catch it, and would also call a genuinely empty marketplace
+  # unreadable — an over-refusal in the one direction nobody can act on, which
+  # is how a check gets switched off. The measured failure is the plain-text
+  # one and that is what this rejects.
+  case "$(printf '%s' "$listing" | tr -d '[:space:]' | cut -c1)" in
+    '['|'{') ;;
+    *) return 3 ;;
+  esac
+
+  # The rows are computed into a variable and the status is stated, not
+  # inherited from the last pipeline. Two ways this function reported failure
+  # over a catalogue it had read perfectly well, both of which mattered only
+  # once cmd_discover started reading the status:
+  #
+  #   a `while` loop's status is that of the last command its body ran, and
+  #   the body ended in `[ "$best" -ge N ] && printf ...`. So whenever the LAST
+  #   entry in the listing scored below the threshold — the common case, since
+  #   most of a marketplace does not match one project — the loop returned 1.
+  #   Measured on main as well: it is older than the status being read, and
+  #   harmless until something read it.
+  #
+  #   and `head -N` closes the pipe on the N+1th row, so a catalogue with more
+  #   matches than FELIX_DISCOVER_MAX takes SIGPIPE upstream and returns 141
+  #   under pipefail. This repository already carries that lesson about grep -q.
+  #
+  # Reaching this line means the catalogue WAS read. Whether anything in it
+  # matched is the answer, not an error, so the status is 0 and the rows say
+  # the rest.
+  local rows
+  rows="$(printf '%s\n' "$listing" \
     | sed -n -e 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/N \1/p' \
              -e 's/.*"description"[[:space:]]*:[[:space:]]*"\(.*\)".*/D \1/p' \
     | awk '/^N /{ if (n != "") print n "\t" d; n=substr($0,3); d="" }
@@ -161,9 +207,12 @@ felix_discover_candidates() {
         hit="$(felix_capability_match "$name" "$desc" "$rules")"
         best="$(printf '%s' "$hit" | cut -f1)"
         best_cap="$(printf '%s' "$hit" | cut -f2)"
-        [ "$best" -ge "${FELIX_DISCOVER_MIN:-3}" ] && printf '%s\t%s\t%s\t%s\n' "$best" "$best_cap" "$name" "$desc"
-      done \
-    | sort -k1,1nr | head -"$FELIX_DISCOVER_MAX"
+        if [ "$best" -ge "${FELIX_DISCOVER_MIN:-3}" ]; then
+          printf '%s\t%s\t%s\t%s\n' "$best" "$best_cap" "$name" "$desc"
+        fi
+      done)"
+  printf '%s\n' "$rows" | grep . | sort -k1,1nr | head -"$FELIX_DISCOVER_MAX"
+  return 0
 }
 
 # Source coordinates for one candidate: url <TAB> sha <TAB> subdir
@@ -509,9 +558,15 @@ felix_discover_refresh_bg() {
   (
     trap 'rmdir "$lock" 2>/dev/null' EXIT
     cd "$(felix_repo_root "$PWD")" 2>/dev/null || exit 0
-    "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null
-    mv -f "$(_felix_discover_cache "$proj" "$home").new.$$" \
-          "$(_felix_discover_cache "$proj" "$home").tsv" 2>/dev/null
+    # A refresh that could not read the marketplaces exits non-zero and writes
+    # nothing, and the previous answer stands: an unreadable catalogue is not
+    # an empty one, and must not become one for seven days.
+    if "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null; then
+      mv -f "$(_felix_discover_cache "$proj" "$home").new.$$" \
+            "$(_felix_discover_cache "$proj" "$home").tsv" 2>/dev/null
+    else
+      rm -f "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null
+    fi
   ) </dev/null >/dev/null 2>&1 &
   return 0
 }

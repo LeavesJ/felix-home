@@ -1617,7 +1617,9 @@ cmd_qualify() {
     return 1
   fi
   printf '\nA declared control binds; an undeclared one does not. felix qualify\n'
-  printf '--gate refuses on a held control, so a checker that stops catching what\n'
+  # `printf --`: the sentence begins with --gate, and bash's printf read the
+  # format as an option and printed its usage in the middle of the report.
+  printf -- '--gate refuses on a held control, so a checker that stops catching what\n'
   printf 'it caught turns the gate red — and a checker nobody has qualified yet\n'
   printf 'is left exactly as it was.\n'
   return 0

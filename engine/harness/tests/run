@@ -7468,6 +7468,111 @@ else
     skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
 fi
 
+# ---------------------------------------------- memory-scan, the fourth checker ---
+# Invariant 6, the half a gate can read, as a command. Blind controls found
+# the inline check could not see an ignore rule swallowing a TRACKED
+# maintenance.log — `git check-ignore` never reports a tracked file — nor the
+# same lessons.md tracked one level up from memory/. One seed, copied per
+# case, so no case depends on another having been undone. The seed's ignore
+# file carries no memory rule on purpose: the property is what is tracked.
+printf '\nmemory-scan: memory stays out, doctrine stays in\n'
+MSS="$TMP/memory-scan-seed"; mkdir -p "$MSS/projects/alpha" "$MSS/projects/beta"
+( cd "$MSS" && git init -q -b main && printf '*.log\n!projects/*/maintenance.log\n' > .gitignore \
+  && printf 'run\n' > projects/alpha/maintenance.log && printf 'x\n' > projects/alpha/CLAUDE.md \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+_ms()  { ( cd "$1" && "$REAL_HARNESS/bin/memory-scan" 2>&1; echo "rc=$?" ); }
+# Exact, for the reason the deploy-check block gives: "rc=1" as a substring is
+# satisfied by rc=126 and rc=127, which are a checker that never ran.
+_msrc() { printf '%s' "${1##*rc=}"; }
+_msc() { ( cd "$1" && git add -A && git -c user.name=t -c user.email=t@t commit -qm case ) >/dev/null 2>&1; }
+if [ -x "$REAL_HARNESS/bin/memory-scan" ]; then
+  is  "a tree with doctrine tracked and no memory is clean" "$(_msrc "$(_ms "$MSS")")" "0"
+  MS1="$TMP/memory-scan-1"; cp -R "$MSS" "$MS1"
+  mkdir -p "$MS1/projects/alpha/memory"; printf 'l\n' > "$MS1/projects/alpha/memory/lessons.md"; _msc "$MS1"
+  out="$(_ms "$MS1")"
+  is  "memory tracked under projects/<p>/memory/ fails" "$(_msrc "$out")" "1"
+  has "naming the file" "$out" "memory tracked: projects/alpha/memory/lessons.md"
+  MS2="$TMP/memory-scan-2"; cp -R "$MSS" "$MS2"
+  printf 'l\n' > "$MS2/projects/alpha/lessons.md"; _msc "$MS2"
+  out="$(_ms "$MS2")"
+  is  "the same file one level up fails by name, where the inline check was blind" "$(_msrc "$out")" "1"
+  has "and says so" "$out" "memory tracked by name: projects/alpha/lessons.md"
+  MS3="$TMP/memory-scan-3"; cp -R "$MSS" "$MS3"
+  mkdir -p "$MS3/docs/memory"; printf 'memory lives elsewhere\n' > "$MS3/docs/memory/README.md"; _msc "$MS3"
+  is  "a directory merely named memory, holding doctrine, outside projects/, is not memory" "$(_msrc "$(_ms "$MS3")")" "0"
+  # Every project's log TRACKED, so plain check-ignore — the inline form this
+  # replaced — reports nothing at all and the rc=1 below can only come from
+  # the --no-index reading. The first version of this case left beta with no
+  # log, and an untracked path is reported by the plain form too, so the
+  # assertion named after tracked files was satisfied without them.
+  MS4="$TMP/memory-scan-4"; cp -R "$MSS" "$MS4"
+  printf 'run\n' > "$MS4/projects/beta/maintenance.log"; _msc "$MS4"
+  is  "with every log tracked, the form this replaced sees nothing to report" \
+      "$(cd "$MS4" && printf 'projects/*/maintenance.log\n' >> .gitignore
+         git add -A >/dev/null 2>&1
+         git -c user.name=t -c user.email=t@t commit -qm r >/dev/null 2>&1
+         for d in projects/*/; do git check-ignore -q "${d}maintenance.log" 2>/dev/null && echo hit; done | grep -c .)" "0"
+  out="$(_ms "$MS4")"
+  is  "an ignore rule that swallows a TRACKED maintenance.log fails" "$(_msrc "$out")" "1"
+  has "naming the doctrine" "$out" "doctrine ignored: projects/alpha/maintenance.log"
+  has "and the second project, whose log is tracked too" "$out" "doctrine ignored: projects/beta/maintenance.log"
+  cp "$MSS/.gitignore" "$MS4/.gitignore"; _msc "$MS4"
+  is  "and putting the rule back clears it" "$(_msrc "$(_ms "$MS4")")" "0"
+  # routes.log stores the founder's prompt text verbatim, one line per routed
+  # prompt. The first name list was written from memory rather than from the
+  # directory and omitted it, along with decisions.log and the ledger shards —
+  # so the file this check exists to keep out of a repository was the one it
+  # could not see.
+  MS5="$TMP/memory-scan-5"; cp -R "$MSS" "$MS5"
+  # The seed's own `*.log` rule would cover this file, and an untracked file
+  # is not what the check is about - the property is what the repository
+  # CARRIES. The rule goes for this case so the file is really tracked.
+  printf '\n' > "$MS5/.gitignore"
+  printf '2026-09-09T00:00:00Z\tharness\t7\tthe founder said this, verbatim\n' > "$MS5/projects/alpha/routes.log"; _msc "$MS5"
+  out="$(_ms "$MS5")"
+  is  "routes.log tracked under a project fails: it holds the prompts verbatim" "$(_msrc "$out")" "1"
+  has "naming it" "$out" "memory tracked by name: projects/alpha/routes.log"
+  MS6="$TMP/memory-scan-6"; cp -R "$MSS" "$MS6"
+  mkdir -p "$MS6/projects/alpha/ledger.d"; printf 'x\n' > "$MS6/projects/alpha/ledger.d/s1.tsv"; _msc "$MS6"
+  has "a ledger shard under a memory directory fails" "$(_ms "$MS6")" "memory tracked in a memory directory: projects/alpha/ledger.d/s1.tsv"
+  MS7="$TMP/memory-scan-7"; cp -R "$MSS" "$MS7"
+  printf 'x\n' > "$MS7/projects/alpha/ledger.tsv.bak-20260816010302"; _msc "$MS7"
+  has "and a rotated ledger is the same record with a date on it" "$(_ms "$MS7")" "memory tracked by name: projects/alpha/ledger.tsv.bak-20260816010302"
+  # A tree with nothing tracked under projects/ is not a clean tree.
+  MS8="$TMP/memory-scan-8"; mkdir -p "$MS8"
+  ( cd "$MS8" && git init -q -b main && printf 'x\n' > README.md && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
+  out="$(_ms "$MS8")"
+  has "a checkout with nothing tracked under projects/ cannot search" "$out" "cannot search"
+  is  "rather than reporting clean" "$(_msrc "$out")" "1"
+  has "outside a checkout it cannot search, and says so rather than passing" \
+      "$(cd "$TMP" && "$REAL_HARNESS/bin/memory-scan" 2>&1; echo "rc=$?")" "cannot search"
+  _MSG="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix"
+  if [ -f "$_MSG/gate.sh" ] && [ -f "$_MSG/qualification.tsv" ]; then
+    has "felix's gate runs the memory check through memory-scan" \
+        "$(grep -v '^[[:space:]]*#' "$_MSG/gate.sh")" 'engine/harness/bin/memory-scan 2>&1'
+    is  "and declares every control for it" \
+        "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"; felix_qualify_missing_controls "$_MSG" memory | tr '\n' ' ' )" ""
+  else
+    for a in "felix's gate runs the memory check through memory-scan" "and declares every control for it"; do
+      skip "$a" "no projects/felix beside this harness"; done
+  fi
+else
+  for a in "a tree with doctrine tracked and no memory is clean" "memory tracked under projects/<p>/memory/ fails" \
+           "naming the file" "the same file one level up fails by name, where the inline check was blind" "and says so" \
+           "a directory merely named memory, holding doctrine, outside projects/, is not memory" \
+           "with every log tracked, the form this replaced sees nothing to report" \
+           "an ignore rule that swallows a TRACKED maintenance.log fails" "naming the doctrine" \
+           "and the second project, whose log is tracked too" "and putting the rule back clears it" \
+           "routes.log tracked under a project fails: it holds the prompts verbatim" "naming it" \
+           "a ledger shard under a memory directory fails" \
+           "and a rotated ledger is the same record with a date on it" \
+           "a checkout with nothing tracked under projects/ cannot search" "rather than reporting clean" \
+           "outside a checkout it cannot search, and says so rather than passing" \
+           "felix's gate runs the memory check through memory-scan" "and declares every control for it"; do
+    skip "$a" "no bin/memory-scan beside this harness"; done
+fi
+
 # Shrinking the ledger escapes, like every table that decides what stops.
 has "obligations.tsv is one of the tables whose shrinkage escapes" \
     "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/escape.sh"

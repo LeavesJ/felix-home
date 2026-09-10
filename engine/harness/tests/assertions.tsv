@@ -53,6 +53,7 @@
 1	a check that passes is done
 1	a checkout inside the verification is caught too
 1	a checkout that moves after verification merges nothing
+1	a checkout with nothing tracked under projects/ cannot search
 1	a class outside the set is refused
 1	a clean checkout claims no rival gate
 1	a clean repo says so instead of minting a commit
@@ -93,6 +94,7 @@
 1	a directory declaring project.json is enumerated
 1	a directory holding only untracked files is blind too
 1	a directory is cannot-examine, not an empty binding
+1	a directory merely named memory, holding doctrine, outside projects/, is not memory
 1	a directory missing from one side is a drift
 1	a dirty memory repo is committed
 1	a disarmed engine is still judged by main's version
@@ -150,6 +152,7 @@
 1	a kind that is two known kinds run together is refused
 1	a later copy of the field in the envelope is not the subject
 1	a ledger from before the column reports nothing at all
+1	a ledger shard under a memory directory fails
 1	a ledger written as one file is still read
 1	a leftover message draft does not stop the backup forever
 1	a local-only branch is taken as given
@@ -390,6 +393,7 @@
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
 1	a tree the marketplace does not serve is not where this applies
+1	a tree with doctrine tracked and no memory is clean
 1	a truncated hooks.json is cannot-examine
 1	a typed intent is not labelled a guess
 1	a valid receipt raises no commission blocker
@@ -484,6 +488,7 @@
 1	an execute path against an unresolvable base blocks the merge
 1	an explicit FELIX_HOME wins
 1	an explicit path is allowed
+1	an ignore rule that swallows a TRACKED maintenance.log fails
 1	an inactive capability makes the row not-applicable
 1	an installed plugin is matched by what it ships
 1	an instrument this machine lacks makes the row unknown
@@ -584,6 +589,7 @@
 1	and a refusal is not a successful repair
 1	and a repository with no main resolves to nothing
 1	and a revoked grant covers nothing
+1	and a rotated ledger is the same record with a date on it
 1	and a row already on disk is cleaned on the way out
 1	and a row with no grounding column is a person's
 1	and a ruled capability is not listed there
@@ -629,6 +635,7 @@
 1	and counts what was held over the whole file too
 1	and creates nothing without --create
 1	and declares a version
+1	and declares every control for it
 1	and declares nothing
 1	and declaring a plugin does not turn the retire rule into an unmount
 1	and deleting the syntax check escapes as verifier
@@ -838,6 +845,7 @@
 1	and proposes nothing for it
 1	and prose counts single
 1	and pushed, and the push is verified
+1	and putting the rule back clears it
 2	and quotes the name the marker asks for
 1	and quotes what it said
 1	and raises or clears no merge blocker
@@ -884,7 +892,7 @@
 1	and says nothing was installed
 1	and says nothing when every capability has a rule
 1	and says plainly that it acted on nothing
-2	and says so
+3	and says so
 1	and says so again next session, because the request is still unanswered
 1	and says so before the detail
 1	and says so in the policy's words
@@ -1065,6 +1073,7 @@
 1	and the run that took it over leaves nothing behind
 1	and the same rows over more sessions are not
 1	and the same scanner catches a planted one
+1	and the second project, whose log is tracked too
 1	and the seed holds rows rather than only comments
 1	and the sentence still is
 1	and the sessions the filter actually counted
@@ -1233,6 +1242,7 @@
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
 1	felix stack reconcile folds what nothing folded before reporting
+1	felix's gate runs the memory check through memory-scan
 1	felix's hook_binding probe reads through hooks-events, not a grep
 1	felix's own first obligation is discharged on this tree
 1	felix's own gate no longer carries a private copy of the check
@@ -1325,17 +1335,19 @@
 1	matching hooks still verify
 1	memory is keyed on the project name
 1	memory outside any repository is said plainly
+1	memory tracked under projects/<p>/memory/ fails
 1	misses are logged too
 1	more matches than the row cap is exit 0, not the pipe closing under it
 1	name and skills accumulate as evidence
 1	names the first step
 1	names the maintenance that is due
 1	names the suspect commit
-1	naming it
+2	naming it
 1	naming skills does not change the risk read
 1	naming the branch's commit
 1	naming the channel that escaped
-1	naming the file
+1	naming the doctrine
+2	naming the file
 1	naming the gate it was removed from
 1	naming which check failed
 1	never proposes retiring something that was used
@@ -1403,6 +1415,7 @@
 1	only the claim is mounted, not the evidence
 1	or without hooks
 1	origin outranks the name that sorts first
+1	outside a checkout it cannot search, and says so rather than passing
 1	overrides are recorded
 1	passing gate exits 0
 1	path and all
@@ -1424,6 +1437,7 @@
 1	quiet on exclusion sample 3
 1	quiet on exclusion sample 4
 1	quiet on exclusion sample 5
+1	rather than reporting clean
 1	reading a key from env is not a credential
 1	reading can be refused too
 1	reads a plugin's own description
@@ -1463,6 +1477,7 @@
 1	rolling the same session twice does not double it
 1	route and lessons arrive as one block
 1	route refuses outside a governed repo
+1	routes.log tracked under a project fails: it holds the prompts verbatim
 1	rows outliving a deleted declaration do not propose a mount
 1	running a rival gate is denied
 1	runs that all passed are clean
@@ -1652,6 +1667,7 @@
 1	the row is awaiting, UNKNOWN by class
 1	the run records the accepted rows as INFERRED with the file's hash as provenance
 1	the run writes the receipt
+1	the same file one level up fails by name, where the inline check was blind
 1	the same file with an unconfined line escapes
 1	the same route does not repeat itself
 1	the scanner refuses to answer on a path it cannot search
@@ -1744,6 +1760,7 @@
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused
 1	wiring the same tool twice is refused
+1	with every log tracked, the form this replaced sees nothing to report
 2	with exit 0
 1	with no CLI and nothing bundled, Felix says it cannot tell
 1	with no CLI to ask, the highest cached version is what it compares against

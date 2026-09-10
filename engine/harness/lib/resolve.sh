@@ -715,12 +715,24 @@ felix_marketplace_root() {
 # under `.claude/worktrees/` *inside* the main checkout, so "starts with the
 # marketplace root" is true of every worktree there is and the check would have
 # passed exactly where it needed to fail.
+#
+# The comparison is between two DIRECTORIES and not between two strings. The
+# registry holds whatever path was typed at registration and this side derives
+# one from `pwd`, so a symlinked home, or /var against /private/var on macOS,
+# made the served checkout read as one the marketplace does not serve — and on
+# the obligation that rests on this, "not served" is DORMANT, which is the
+# permissive direction. `-ef` asks the filesystem the question the string was
+# standing in for; the string compare stays as the answer for a path that no
+# longer exists, where `-ef` cannot answer at all.
 felix_deployable_from() {
   local engine_root="$1" mroot parent
   mroot="$(felix_marketplace_root "${2:-}")"
   [ -n "$mroot" ] || return 0
   parent="${engine_root%/*}"
   [ "$parent" = "$mroot" ] && return 0
+  if [ -d "$parent" ] && [ -d "$mroot" ] && [ "$parent" -ef "$mroot" ]; then
+    return 0
+  fi
   printf '%s' "$mroot"
   return 1
 }

@@ -32,13 +32,29 @@
 # falls back to the highest cached version the way the project gate does —
 # the cache keeps every version it ever installed and the newest on disk is
 # not necessarily the one that loads, so the CLI is asked first.
+#
+# Every way this script can fail to look is 126 or 127, never 1. On the
+# applicability axis obligations.sh reads 1 as "does not apply here", which is
+# DORMANT — a row that stops blocking — so a script that could not resolve its
+# own library used to answer "this does not apply" instead of "I could not
+# say". 126 and 127 are the two codes that library reserves for UNKNOWN, and
+# UNKNOWN blocks.
 set -u
-cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 2
-HERE="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="$(cd "$HERE/.." && pwd)"
+# Before the cd, not after. `$0` is the path as invoked, so resolving it once
+# the working directory has already moved to the repository toplevel made HERE
+# empty for any relative invocation from a subdirectory; the source below then
+# failed without exiting (set -u, no set -e) and both modes answered in the
+# permissive direction.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." 2>/dev/null && pwd)" || exit 127
+[ -n "$HERE" ] || exit 127
+SRC="$(cd "$HERE/.." 2>/dev/null && pwd)" || exit 127
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 126
 
 # shellcheck source=../lib/resolve.sh
-. "$HERE/lib/resolve.sh"
+. "$HERE/lib/resolve.sh" 2>/dev/null || exit 127
+command -v felix_deployable_from >/dev/null 2>&1 || exit 127
+command -v felix_deployed_engine >/dev/null 2>&1 || exit 127
+command -v felix_deploy_diff     >/dev/null 2>&1 || exit 127
 
 if [ "${1:-}" = "--applies" ]; then
   [ -d "$HOME/.claude/plugins/cache/felix/felix" ] || exit 1

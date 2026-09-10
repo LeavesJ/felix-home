@@ -7354,42 +7354,108 @@ STUB
 chmod +x "$DCK/bin/claude"
 _dck()  { ( cd "$DCKT" && HOME="$DCK/home"   PATH="$DCK/bin:$PATH" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
 _dckn() { ( cd "$DCKT" && HOME="$DCK/nohome" PATH="$DCK/nobin:/usr/bin:/bin" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
+# The CLI absent and a cache present: the one branch a machine without the
+# claude CLI takes, which the commit claimed as behaviour and no fixture
+# reached — every other helper here either has the stub on PATH or no cache.
+_dckc() { ( cd "$DCKT" && HOME="$DCK/home"   PATH="$DCK/nobin:/usr/bin:/bin" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
+# The code, exactly. `has ... "rc=1"` is a substring match that rc=126 and
+# rc=127 both satisfy — the two codes that mean the checker never ran at all,
+# so every exit-1 assertion here was green for a script that could not start.
+_rc() { printf '%s' "${1##*rc=}"; }
 if [ -x "$DCKT/engine/harness/bin/deploy-check" ]; then
-  has "deploy-check --applies holds where a deployment exists and the marketplace serves this tree" "$(_dck --applies)" "rc=0"
+  is  "deploy-check --applies holds where a deployment exists and the marketplace serves this tree" "$(_rc "$(_dck --applies)")" "0"
   out="$(_dck)"
   has "and a tree byte-identical to the deployed engine matches" "$out" "matches"
-  has "with exit 0" "$out" "rc=0"
+  is  "with exit 0" "$(_rc "$out")" "0"
   printf '# drift\n' >> "$DCKT/engine/harness/lib/say.sh"
   out="$(_dck)"
-  has "a changed library is drift, exit 1" "$out" "rc=1"
+  is  "a changed library is drift, exit 1" "$(_rc "$out")" "1"
   has "and the report names the path" "$out" "say.sh"
   has "and counts it" "$out" "1 path(s) differ"
   ( cd "$DCKT" && git checkout -q -- engine/harness/lib/say.sh )
   printf 'x\n' > "$DCKT/engine/harness/scratch.log"
-  has "what git ignores is not drift" "$(_dck)" "rc=0"
+  is  "what git ignores is not drift" "$(_rc "$(_dck)")" "0"
   rm -f "$DCKT/engine/harness/scratch.log"
   printf '{\n  "felix": {\n    "installLocation": "/somewhere/else"\n  }\n}\n' > "$DCK/home/.claude/plugins/known_marketplaces.json"
-  has "a tree the marketplace does not serve is not where this applies" "$(_dck --applies)" "rc=1"
-  has "while the evidence still answers on its own axis" "$(_dck)" "rc=0"
-  has "no plugin cache at all is not where this applies either" "$(_dckn --applies)" "rc=1"
+  is  "a tree the marketplace does not serve is not where this applies" "$(_rc "$(_dck --applies)")" "1"
+  is  "while the evidence still answers on its own axis" "$(_rc "$(_dck)")" "0"
+  is  "no plugin cache at all is not where this applies either" "$(_rc "$(_dckn --applies)")" "1"
   out="$(_dckn)"
-  has "and with no deployment to compare against the evidence cannot examine" "$out" "rc=2"
+  is  "and with no deployment to compare against the evidence cannot examine" "$(_rc "$out")" "2"
   has "saying so" "$out" "cannot examine"
+  # No CLI, but a cache. The fallback the commit named and nothing reached.
+  printf '{\n  "felix": {\n    "installLocation": "%s"\n  }\n}\n' "$DCKT" > "$DCK/home/.claude/plugins/known_marketplaces.json"
+  out="$(_dckc)"
+  is  "with no CLI to ask, the highest cached version is what it compares against" "$(_rc "$out")" "0"
+  has "and it names the cache it found" "$out" "0.0.1"
+  cp -R "$DCK/home/.claude/plugins/cache/felix/felix/0.0.1" "$DCK/home/.claude/plugins/cache/felix/felix/0.0.10"
+  printf '# drift only in the newer cache\n' >> "$DCK/home/.claude/plugins/cache/felix/felix/0.0.10/harness/lib/say.sh"
+  out="$(_dckc)"
+  is  "and it is the highest by version order, not the last by name" "$(_rc "$out")" "1"
+  has "which is the one that differs" "$out" "0.0.10"
+  ( cd "$DCK/home/.claude/plugins/cache/felix/felix" && mv 0.0.10 ../../../../../0.0.10.aside ) 2>/dev/null
+  # A script that cannot resolve its own library says so with 127, which the
+  # obligations library reads as UNKNOWN. Exit 1 there would be DORMANT: a row
+  # that stops blocking because its checker could not start.
+  DCKB="$TMP/deploy-check-broken"; mkdir -p "$DCKB/engine/harness/bin"
+  cp "$DCKT/engine/harness/bin/deploy-check" "$DCKB/engine/harness/bin/"
+  ( cd "$DCKB" && git init -q -b main && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm b ) >/dev/null 2>&1
+  is  "a deploy-check with no library beside it is 127, never 1" \
+      "$(cd "$DCKB" && HOME="$DCK/home" PATH="$DCK/bin:$PATH" engine/harness/bin/deploy-check --applies >/dev/null 2>&1; echo $?)" "127"
+  is  "and its evidence mode says the same" \
+      "$(cd "$DCKB" && HOME="$DCK/home" PATH="$DCK/bin:$PATH" engine/harness/bin/deploy-check >/dev/null 2>&1; echo $?)" "127"
+  # And a relative invocation from a subdirectory resolves the same library.
+  is  "invoked by a relative path from a subdirectory it still finds its library" \
+      "$(cd "$DCKT/engine/harness" && HOME="$DCK/home" PATH="$DCK/bin:$PATH" ../bin/deploy-check --applies >/dev/null 2>&1; echo $?)" "0"
 else
   for a in "deploy-check --applies holds where a deployment exists and the marketplace serves this tree" \
            "and a tree byte-identical to the deployed engine matches" "with exit 0" \
            "a changed library is drift, exit 1" "and the report names the path" "and counts it" \
            "what git ignores is not drift" "a tree the marketplace does not serve is not where this applies" \
            "while the evidence still answers on its own axis" "no plugin cache at all is not where this applies either" \
-           "and with no deployment to compare against the evidence cannot examine" "saying so"; do
+           "and with no deployment to compare against the evidence cannot examine" "saying so" \
+           "with no CLI to ask, the highest cached version is what it compares against" \
+           "and it names the cache it found" "and it is the highest by version order, not the last by name" \
+           "which is the one that differs" "a deploy-check with no library beside it is 127, never 1" \
+           "and its evidence mode says the same" \
+           "invoked by a relative path from a subdirectory it still finds its library"; do
     skip "$a" "no bin/deploy-check beside this harness"; done
 fi
+# The gate's executable check, shown failing. It was widened from a list of
+# three named scripts to every file under bin/, and nothing made a bin script
+# non-executable and expected a red line — so the widening was a claim in a
+# commit message. A probe or an evidence contract naming a bin script that
+# lost its bit reads `unknown` and blocks, which is loud; the gate should say
+# which file before the ledger has to.
+GEX="$TMP/gate-executable"; mkdir -p "$GEX/engine/.claude-plugin"
+cp -R "$REAL_HARNESS" "$GEX/engine/harness"
+cp -R "$REAL_HARNESS/../hooks" "$GEX/engine/hooks"
+printf '{ "name": "felix", "version": "0.0.1" }\n' > "$GEX/engine/.claude-plugin/plugin.json"
+_GEXG="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
+if [ -f "$_GEXG" ]; then
+  cp "$_GEXG" "$GEX/gate.sh"
+  ( cd "$GEX" && git init -q -b main && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
+  out="$(cd "$GEX" && bash gate.sh --quick 2>&1 | grep '^  executable')"
+  has "the gate's executable check passes when every script under bin/ has its bit" "$out" "ok"
+  chmod 644 "$GEX/engine/harness/bin/secret-scan"
+  out="$(cd "$GEX" && bash gate.sh --quick 2>&1)"
+  has "and fails when one of them loses it" "$(printf '%s\n' "$out" | grep '^  executable')" "FAIL"
+  has "naming the file" "$out" "engine/harness/bin/secret-scan"
+  chmod 755 "$GEX/engine/harness/bin/secret-scan"
+else
+  for a in "the gate's executable check passes when every script under bin/ has its bit" \
+           "and fails when one of them loses it" "naming the file"; do
+    skip "$a" "no projects/felix/gate.sh beside this harness"; done
+fi
+
 # The row itself: task-blocking, grounded on the probe that already asks
 # whether anything is deployed, and never unknown on the tree the suite runs in.
 _DCKP="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix"
 if [ -f "$_DCKP/obligations.tsv" ] && [ -x "$REAL_HARNESS/bin/obligations-check" ]; then
-  is  "felix admits engine_deployed as task-blocking, grounded on deployed_engine" \
-      "$(grep '^engine_deployed' "$_DCKP/obligations.tsv" | cut -f2,6)" "TASK_BLOCKING	deployed_engine"
+  is  "felix admits engine_deployed as task-blocking, grounded on both facts it rests on" \
+      "$(grep '^engine_deployed' "$_DCKP/obligations.tsv" | cut -f2,6)" "TASK_BLOCKING	deployed_engine,marketplace_root"
   out="$(cd "$REAL_HARNESS/../.." && "$REAL_HARNESS/bin/obligations-check" projects/felix 2>&1 | grep '^  engine_deployed')"
   case "$out" in
     *UNKNOWN*) bad "and on this tree it is dormant, satisfied or unsatisfied, never unknown" "$out" ;;
@@ -7397,7 +7463,7 @@ if [ -f "$_DCKP/obligations.tsv" ] && [ -x "$REAL_HARNESS/bin/obligations-check"
     *)         ok  "and on this tree it is dormant, satisfied or unsatisfied, never unknown" ;;
   esac
 else
-  for a in "felix admits engine_deployed as task-blocking, grounded on deployed_engine" \
+  for a in "felix admits engine_deployed as task-blocking, grounded on both facts it rests on" \
            "and on this tree it is dormant, satisfied or unsatisfied, never unknown"; do
     skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
 fi

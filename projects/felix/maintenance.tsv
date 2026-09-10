@@ -5,4 +5,8 @@ deployed	7	always	confirm the installed engine still matches the repository
 discover	14	always	look for tooling worth having that is not declared yet
 promote	14	always	check whether the gate has caught the same thing twice
 lessons	30	always	reread lessons.md and cut anything that stopped being true
-graphify	0	always	refresh the knowledge graph after a merge	test -n "$(find graphify-out/graph.json -newermt "$(git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%S%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"
+# The graph is looked for beside the repository's .git, not in the current
+# directory: a worktree has no graphify-out/ of its own, and a check keyed on
+# the current directory read due in every worktree session whatever the graph's
+# age. Sixteen of seventeen recorded session roots here are worktrees.
+graphify	0	always	refresh the knowledge graph after a merge	test -n "$(find "$(dirname "$(git rev-parse --git-common-dir)")/graphify-out/graph.json" -newermt "$(git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%S%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"

@@ -21,3 +21,9 @@ plugin	semgrep@claude-plugins-official	-	high	always
 # in no plugin list. Its skills are live in every session regardless; declaring
 # it is what lets a route name one honestly.
 plugin	anthropic-skills	-	low	always
+# A standalone skill under ~/.claude/skills, not a plugin: no marketplace and
+# no entry in the plugin list. Declared so the orient route can name it and
+# felix ready can find it, the same row Elenchus carries. Its graph lives at
+# graphify-out/ in the home checkout and is gitignored; maintenance.tsv says
+# when it is behind the tree.
+skill	graphify	-	low	always

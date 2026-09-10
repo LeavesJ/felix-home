@@ -116,11 +116,18 @@ felix_qualify_run() {
 # Read from the gate rather than from a list, so a check added to the gate and
 # not to this table is a gap the moment it lands. A list would have to be kept
 # in step by whoever remembered.
+#
+# A checker line is exactly two spaces, a lowercase name, then a verdict word,
+# whatever the word: the gate prints ok, FAIL, skipped, stale and waits today,
+# and the first draft here listed three of them. The indent is part of the
+# shape, not decoration: given a real gate log, a rule on the two words alone
+# also took `a` and `drift` from the prose the gate prints under a failure.
+# Sub-lines are indented deeper, and prose is not indented at all.
 felix_qualify_ungoverned() {   # proj, gate-output -> one checker name per line
   local proj="$1" out="$2" known
   known="$(felix_qualify_checkers "$proj")"
   printf '%s\n' "$out" \
-    | LC_ALL=C awk '{ if ($2 == "ok" || $2 == "FAIL" || $2 == "skipped") print $1 }' \
+    | LC_ALL=C awk '$0 ~ /^  [a-z][a-z-]* +[A-Za-z]/ { print $1 }' \
     | LC_ALL=C sort -u \
     | while IFS= read -r c; do
         [ -n "$c" ] || continue

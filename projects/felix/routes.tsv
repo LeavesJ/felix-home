@@ -66,6 +66,20 @@ ship	ship merge pull-request escape channel classify release	core	code-review su
 # session at the wrong work, and teaches it to read routing as noise — after
 # which the correct routes stop working too.
 
+# `orient` added 2026-09-10 from a measurement, not a guess. The knowledge
+# graph under graphify-out/ had been built three times and queried once across
+# 72 recorded sessions, and the once was the session in which the founder asked
+# why it was never used. No row named it, so the ledger's `named` column for it
+# read 0 in every session: a tool no route names cannot be pointed at, and its
+# zero measured this table rather than the tool. The keywords are the words a
+# structure question is actually asked with — who calls what, how the pieces
+# fit. `trace` ties with `debug` on a traceback, and the file order above
+# resolves that toward debugging, which is right. Placed above the subsystem
+# rows so a question ABOUT the harness's shape wins over the play for changing
+# it. Substring matching still applies: `calls` reaches "recalls", and if that
+# misroutes in practice the fix is to narrow, per the note above.
+orient	orient graphify trace caller callers calls architecture codebase	core	graphify
+
 # Subsystem routes. What the work is about, when nothing said what kind.
 harness	harness engine hook resolve lesson routes.tsv verify library	core	superpowers:brainstorming superpowers:writing-plans superpowers:test-driven-development superpowers:requesting-code-review
 gate	gate verification receipt failing regression assertion	core	superpowers:systematic-debugging superpowers:test-driven-development

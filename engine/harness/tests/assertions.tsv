@@ -59,6 +59,7 @@
 1	a clean repo says so instead of minting a commit
 1	a comment added to it is still free
 1	a commissioning run seeds the ledger through the row's answer
+1	a commit in the worktree the graph has not seen is due there
 1	a commit with no remote does not stamp a push
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
@@ -289,6 +290,7 @@
 1	a receipt for another tree still blocks
 1	a receipt missing an input is indeterminate, never verified
 1	a receipt survives being written inside the tree it describes
+1	a receipt with no roster is said to have none, never read as nothing left
 1	a record from before the session column still reads
 1	a record that could not be appended is reported
 1	a record that could not be written does not exit 0
@@ -554,6 +556,7 @@
 1	an unverified tree is the first thing to do
 1	an unwritable state directory still exits 0
 1	and --fix does not exit 0 when every repair failed
+1	and --gate does not raise it
 1	and a CLI that answers nothing reports no drift
 1	and a CLI that cannot answer is not a stale deployment
 1	and a backticked path naming nothing is still not invented
@@ -585,6 +588,7 @@
 1	and a project with no obligations.tsv blocks a merge
 1	and a project with none does not claim it
 1	and a real one still routes
+1	and a receipt written without a roster says so rather than leaving it blank
 1	and a red run at the head means zero
 1	and a refusal is not a successful repair
 1	and a repository with no main resolves to nothing
@@ -604,6 +608,7 @@
 1	and a tree byte-identical to the deployed engine matches
 1	and a verified push does
 1	and a verified push reads as zero days
+1	and a worktree of it reads the same graph, and is ok too
 1	and absent from both sides is a fixture, not a drift
 1	and again, so a session can bump twice
 1	and an Agent call with no type is still a tool
@@ -799,6 +804,7 @@
 1	and not on which home it came from
 1	and not the columns that follow it
 1	and not the irrelevant one
+1	and not the one a row covers
 1	and not the one that was pointed at
 1	and not the pairs the runtime owns
 1	and nothing else is muted, because muting is how this narrows quietly
@@ -1078,6 +1084,7 @@
 1	and the sentence still is
 1	and the sessions the filter actually counted
 1	and the shipped wiring matches its stance
+1	and the skip list is still where it was
 1	and the slug comes from the checkout's remote
 1	and the stale answer is still there, not replaced by an empty one
 1	and the stale row was not adopted
@@ -1239,6 +1246,7 @@
 1	felix probes reports without refusing
 1	felix procedures runs
 1	felix profile lists a row carrying the grounding column
+1	felix qualify names the reported checks no row qualifies
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
 1	felix stack reconcile folds what nothing folded before reporting
@@ -1256,6 +1264,7 @@
 1	felix_has_line matches whole lines under pipefail
 1	felix_has_line rejects partial lines
 1	felix_ledger_retire is defined for the hook
+1	felix_qualify_ungoverned keeps every reported checker and drops every sub-line
 1	felix_tidy_safe is defined for the hook
 1	finds a plan the prompt points at
 1	finds plugins
@@ -1571,6 +1580,7 @@
 1	the capabilities file is untouched
 1	the capability probe yields ecosystem words to check for
 1	the cause is not the raw payload
+1	the checkout holding the graph is ok
 1	the claude cli changing is announced and never invalidates
 1	the controls a checker declares nothing for are named
 1	the data marker is substituted
@@ -1648,6 +1658,7 @@
 1	the receipt carries the limit no layer above it removes
 1	the receipt has ten fields
 1	the receipt names what granted the authority
+1	the receipt records every check the gate reported, with its verdict
 1	the receipt records which checks the gate skipped
 1	the record is written
 1	the refusal is recorded where no project is known
@@ -1663,6 +1674,7 @@
 1	the retire list keeps the zero that is disuse
 1	the root is available on its own
 1	the root is never under the home it was asked about
+1	the roster extractor names every reported check with its verdict, in order
 1	the route is there when both apply
 1	the row is awaiting, UNKNOWN by class
 1	the run records the accepted rows as INFERRED with the file's hash as provenance
@@ -1750,6 +1762,7 @@
 1	while the Felix home Felix itself resolved is its own repo
 1	while the branch's own file still is
 1	while the capability that can be named still is
+1	while the checkout the graph was built from is still ok
 1	while the control that holds is still reported met
 1	while the evidence still answers on its own axis
 1	while the genuinely reached server is proposed

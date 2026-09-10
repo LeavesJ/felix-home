@@ -15,4 +15,4 @@ docs-drift	14	always	docs correction PR
 constitution	30	always	CLAUDE.md health; targeted, not accumulation
 architecture	30	always	drift report; update the architecture doc if warranted
 test-flake	0	ci	on repeated CI failure, with evidence
-graphify	0	always	refresh the knowledge graph after a merge	test -n "$(find graphify-out/graph.json -newermt "$(git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%S%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"
+graphify	0	always	refresh the knowledge graph after a merge	test -n "$(find "$(dirname "$(git rev-parse --git-common-dir)")/graphify-out/graph.json" -newermt "$(git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%S%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"

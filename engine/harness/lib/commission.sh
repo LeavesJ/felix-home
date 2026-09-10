@@ -39,7 +39,7 @@ unset _cml
 
 # The table set a receipt is bound to, in fixed order. Every file that decides
 # what this project reads, refuses, or installs.
-FELIX_COMMISSION_TABLES='project.json capabilities commissioning.tsv stack.tsv profiles.tsv routes.tsv setup.tsv probes.tsv risk.tsv evidence.tsv deny.tsv'
+FELIX_COMMISSION_TABLES='project.json capabilities commissioning.tsv stack.tsv profiles.tsv routes.tsv setup.tsv probes.tsv risk.tsv evidence.tsv deny.tsv obligations.tsv'
 
 # The engine stages an answer may name. A form outside this list is malformed:
 # the answer column is engine wiring, not a place to write a command.

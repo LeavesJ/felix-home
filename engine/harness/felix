@@ -758,10 +758,11 @@ EOF
   cp "$tpl/probes.tsv" "$dir/probes.tsv"
   cp "$tpl/commissioning.tsv" "$dir/commissioning.tsv"
   # And the ledger, for the same reason: a project with no obligations.tsv is
-  # refused at its own gate and merge boundary, and the seeded row is dormant
-  # until the project ships hooks, so nothing here is Felix deciding what a
-  # stranger owes. The commissioning row for step 8 seeds it where felix new
-  # did not run — a project older than the template.
+  # refused at its MERGE boundary — the gate skips it and announces the skip,
+  # which is a weaker thing and is what the code does — and the seeded row is
+  # dormant unless the project is a plugin that ships hooks, so nothing here
+  # is Felix deciding what a stranger owes. The commissioning row for step 8
+  # seeds it where felix new did not run: a project older than the template.
   cp "$tpl/obligations.tsv" "$dir/obligations.tsv"
 
   # Same filter for human steps, and only copy the runbooks that survive it.
@@ -4031,9 +4032,9 @@ cmd_obligations() {
 
   # --seed: the §8 step 8 answer, "initialize obligation and evidence state".
   # A project born before the template existed has no ledger, and a ledger
-  # that is absent is refused by the gate and the merge boundary — so the
-  # commissioning row for step 8 names this, and this writes the template's
-  # one row where nothing is. It never touches a ledger that exists: the
+  # that is absent is refused at the merge boundary and announced as skipped
+  # by the gate — so the commissioning row for step 8 names this, and this
+  # writes the template's one row where nothing is. It never touches a ledger that exists: the
   # epoch rule says admitted obligations may grow without a person and may
   # not shrink, and overwriting is the second of those dressed as the first.
   if [ "$seed" -eq 1 ]; then

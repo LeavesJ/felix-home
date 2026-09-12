@@ -32,6 +32,7 @@
 1	a bundled plugin reads as usable
 1	a bundled plugin reads present with no cli at all
 1	a cache path is a plugin copy
+1	a cache row carrying a digest is still declared
 1	a cache stamped by other rules adopts nothing either
 1	a cache that never existed is stale
 1	a cache with no stamp adopts nothing
@@ -67,6 +68,7 @@
 1	a content difference is still a drift
 1	a control needing no mutation still runs
 1	a control the checker meets is met
+1	a copy with files in it digests to something
 1	a count that is not a number is reported rather than passed over
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
@@ -98,6 +100,8 @@
 1	a directory is cannot-examine, not an empty binding
 1	a directory merely named memory, holding doctrine, outside projects/, is not memory
 1	a directory missing from one side is a drift
+1	a directory that does not exist yields no digest
+1	a directory that exists but holds no files yields no digest
 1	a dirty memory repo is committed
 1	a disarmed engine is still judged by main's version
 1	a docs-only change requires nothing
@@ -200,6 +204,9 @@
 1	a name planted in engine/harness/felix is caught
 1	a name planted in engine/harness/hooks is caught
 1	a name planted in engine/harness/lib is caught
+1	a name the cache never carried reads as no digest
+1	a name the registry does not hold reads absent
+1	a name with no digest recorded claims nothing
 1	a named capability carries its count
 1	a negated check is malformed, because it could not fail
 1	a nested repository is refused, with the restore truth
@@ -337,6 +344,7 @@
 1	a row with more fields than the format has is malformed
 1	a row with no command is reported as recording nothing
 1	a row with no evidence contract is refused
+1	a row written before digests existed reads as no digest, not as its tier
 1	a row written before instruments existed claims none
 1	a rule naming Edit does not deny a Write
 1	a rule never matches file content
@@ -379,6 +387,8 @@
 1	a stranded session has appends but no folded record
 1	a stranger that is not a plugin is created without a blocking obligation
 1	a structural failure still fails the gate
+1	a subdir argument naming no directory digests the copy it was given
+1	a subdirectory named as an argument digests as that subdirectory alone
 1	a surface appearing in the checkout makes it stale the other way
 1	a surface detected in the tree is an item even if nobody declared it
 1	a surface the checkout has and no probe reads is a gap
@@ -392,6 +402,7 @@
 1	a task-blocking row does not block a release
 1	a template need this table lacks is named
 1	a term recurring across entries surfaces
+1	a three-column row beside it is still declared
 1	a three-field score answer is answered
 1	a tie is broken the same way whichever order the file lists
 1	a tool absent from the manifest is not a clean bill
@@ -424,6 +435,7 @@
 1	a writable project still records
 1	a write rule denies a write
 1	adding a Dockerfile surfaces deploy
+1	adding a file changes the digest
 1	adding a key to json escapes nothing
 1	adding a row to an enforcing table escapes nothing
 1	adding a row to the ecosystem table escapes as verifier
@@ -498,6 +510,9 @@
 1	an explicit path is allowed
 1	an ignore rule that swallows a TRACKED maintenance.log fails
 1	an inactive capability makes the row not-applicable
+1	an installPath that is not a directory reads absent
+1	an installed copy that differs from what Felix read reads drift
+1	an installed copy that matches what Felix read reads same
 1	an installed plugin is matched by what it ships
 1	an instrument this machine lacks makes the row unknown
 1	an issue naming no real file still exits 0
@@ -567,6 +582,7 @@
 1	and a CLI that cannot answer is not a stale deployment
 1	and a backticked path naming nothing is still not invented
 1	and a bare script is still caught from inside the engine itself
+1	and a cache file that is not there reads as no digest either
 1	and a catalogue that was read and matched nothing is exit 0
 1	and a clean table leaves the gate green
 1	and a command that does not resolve identifies none either
@@ -588,7 +604,9 @@
 1	and a listing with a match still scores it
 1	and a live one says when it was last caught
 1	and a machine that binds nothing is an empty roster, not an error
+1	and a medium one is still refused
 1	and a name
+1	and a non-zero status too
 1	and a person's medium row installs, as it always has
 1	and a prefixed skill is never called a built-in
 1	and a probe that failed against a real surface is blind too
@@ -620,6 +638,7 @@
 1	and again, so a session can bump twice
 1	and an Agent call with no type is still a tool
 1	and an automation row still ends in its capability
+1	and an installed copy with no files to digest claims nothing either
 1	and an older one does not
 1	and an ordinary product repository is not
 2	and an unknown flag is refused rather than ignored
@@ -670,6 +689,7 @@
 1	and exits 0 in a repository Felix does not govern
 2	and exits 0 there
 1	and exits 0 there too
+1	and exits 0 when it has a digest to print
 1	and exits 0 with the tree dirty
 1	and exits 3, distinctly
 1	and explains why it now matters
@@ -678,6 +698,7 @@
 1	and felix new seeds it itself, without falling through to the answer
 1	and felix which does not resolve it
 1	and filters residue through the same ignore rule
+1	and flipping it back restores the digest
 1	and folding them takes it to zero
 1	and for the built-in too, because nothing can tell which was meant
 1	and for the plain one
@@ -775,6 +796,7 @@
 1	and names the working tree rather than the checkout
 1	and names what was caught
 1	and names who answers the provider row
+1	and neither are the per-session files under .in_use
 1	and neither is a worktree
 1	and neither is an empty message
 1	and never a verified receipt
@@ -860,6 +882,7 @@
 1	and proposes nothing for it
 1	and prose counts single
 1	and pushed, and the push is verified
+1	and putting the byte back puts the digest back
 1	and putting the rule back clears it
 2	and quotes the name the marker asks for
 1	and quotes what it said
@@ -878,6 +901,8 @@
 1	and refuses to answer when the probe yields no words
 1	and refuses to spend past the ceiling
 1	and refuses with no issue and no input
+1	and removing that file restores it
+1	and reporting absent is not failing
 1	and reports a clear merge without performing one
 1	and reports it on its axes
 1	and reports no severity for it
@@ -916,6 +941,7 @@
 1	and says so plainly when none does
 1	and says so rather than implying I did
 1	and says so rather than reporting a merge
+1	and says so with a non-zero status, not the digest of an empty document
 1	and says that it knows
 1	and says the checkout could not be entered rather than naming a missing command
 1	and says the gate failed
@@ -954,6 +980,7 @@
 1	and so are the declines, from the same date
 1	and so does a failure nobody answered
 1	and so does a worktree of it
+1	and so does one whose registry entry carries no installPath
 1	and so does the next one
 1	and so does the stamp that says what it was read against
 1	and so is a deny from its own PreToolUse
@@ -1006,6 +1033,9 @@
 1	and the comment survives
 1	and the contract names each moment it examined
 1	and the count follows
+1	and the detail is the digest the two copies share
+1	and the detail names the digest that was recorded
+1	and the digest the copy on disk carries now
 1	and the discovery cache gone stale
 1	and the domain it speaks for
 1	and the drift line carries the whole name
@@ -1102,6 +1132,7 @@
 1	and the stranded reaches are now counted
 1	and the suite runner beside it, rather than stopping at the first
 1	and the text is actually there
+1	and the tier field is the tier, not a tier with a digest stuck to it
 1	and the tier it carries
 1	and the tier reducer agrees
 1	and the unmount above is the only other proposal
@@ -1222,6 +1253,8 @@
 1	every request answered stops the reminder
 1	every route matches its own name
 1	every row carries the command that clears it
+1	every row the adopt reader emits is four fields wide, digest or no digest
+1	every verdict is one line of two tab-separated fields
 1	every vocabulary token is a word, not a regex fragment
 1	evidence that says it cannot examine is UNKNOWN, not failed
 1	exactly one declaration from that cache
@@ -1277,9 +1310,11 @@
 1	felix_ledger_retire is defined for the hook
 1	felix_qualify_ungoverned keeps every reported checker and drops every sub-line
 1	felix_tidy_safe is defined for the hook
+1	files under .git are not counted
 1	finds a plan the prompt points at
 1	finds plugins
 1	finds the route a capability belongs to
+1	flipping a file's executable bit changes the digest
 1	for every gate check that file actually covers
 1	free text matches the catalogue
 1	from a nested subdirectory the verdict is unchanged
@@ -1291,6 +1326,7 @@
 1	handoff is regenerated from the tree
 1	handoff lists the session-end checks
 1	hands off for anything broader
+1	having nothing to say is not a failure
 1	help covers every command that dispatches
 1	high is refused however it was grounded: DECLARED
 1	high is refused however it was grounded: INFERRED
@@ -1381,6 +1417,7 @@
 1	new refuses a flag as a project name
 1	nine fields per log row
 1	no allow row claims a surface that no longer names it
+1	no candidate is dropped in silence
 1	no deny.tsv means nothing is denied
 1	no entry is listed twice
 1	no evidence rule requires a pattern that matches everything
@@ -1418,7 +1455,9 @@
 1	onboarding writes one
 1	one already declared is left alone
 1	one already in stack.tsv is left alone
+1	one already in the stack still reads already
 1	one answer of two leaves the other still owed
+1	one byte changed inside one file changes the digest
 1	one from what you typed is not
 1	one genuinely absent still reads absent
 1	one line per row is written
@@ -1486,6 +1525,7 @@
 2	removing one escapes as verifier
 1	renders a page
 1	repair refuses outside a governed GitHub repo
+1	repointing a symlink at a different target changes the digest
 1	reporting a rival gate still exits 0
 1	reports a tool no manifest declares
 1	reports findings the first time
@@ -1556,6 +1596,7 @@
 1	so the caveat can become untrue
 1	so the declared plugin keeps none of its reaches
 1	so the earlier tree is still readable
+1	so the plugin subdirectory of the fetched repo digests as the flat installed copy
 1	so the plugin with no evidence of its own reaches the retire list
 1	so the session count is the number of sessions
 1	speaks when a catch went unexplained
@@ -1591,6 +1632,7 @@
 1	the budget row is not reported as satisfied
 1	the bump fixture has an identical judge, so the guard can fire
 1	the cache already there is untouched
+1	the cache hands back the digest recorded beside a name
 1	the cache row carries the capability the skills serve
 1	the cache-side arm is present in the gate's copy
 1	the capabilities file is untouched
@@ -1742,6 +1784,7 @@
 1	tree identity is computable
 1	tree identity survives an unborn HEAD
 1	twelve sessions ending at once are all still counted
+1	two byte-identical copies at two different paths digest the same
 1	two rows in one session are one session, calls summed
 1	two rows, once each
 1	two strangers and no upstream is a person's call
@@ -1802,6 +1845,7 @@
 1	with nothing due it reports nothing
 1	with nothing on record there is nothing to compare
 1	with the critique step after it
+1	with the file's contents untouched
 1	with the newlines escaped, not lost
 1	with the runs it cost beside it
 1	with the stamp and no rows, which is an empty cache and a real answer

@@ -456,10 +456,15 @@ felix_discover_read_digest() {
 # check. Callers pass nothing and get the real one.
 felix_discover_drift() {
   local proj="$1" home="$2" name="$3" reg="${4:-}" read_digest path now
-  read_digest="$(felix_discover_read_digest "$proj" "$home" "$name")"
-  if [ -z "$read_digest" ]; then
-    printf 'unread\tno digest was recorded when %s was read\n' "$name"; return 0
-  fi
+  # The registry is asked first, and the order was decided rather than fallen
+  # into. A name with no recorded digest AND nothing installed is honestly
+  # either state, and the blind author of these assertions stopped at exactly
+  # that overlap and refused to assert through it. The caller that matters
+  # settles it: `--adopt` asks this question one line after installing, and
+  # `absent` there means the install did not register — a different failure
+  # from "the fetch produced no digest", and the one that would otherwise hide
+  # behind `unread`. So: no copy on disk is answered before anything is said
+  # about what was read.
   if [ -n "$reg" ]; then
     path="$(felix_registry_field "$name" installPath "$reg" 2>/dev/null)"
   else
@@ -471,6 +476,10 @@ felix_discover_drift() {
   now="$(felix_discover_digest "$path")" || now=""
   if [ -z "$now" ]; then
     printf 'unread\tthe installed copy of %s has no files to read\n' "$name"; return 0
+  fi
+  read_digest="$(felix_discover_read_digest "$proj" "$home" "$name")"
+  if [ -z "$read_digest" ]; then
+    printf 'unread\tno digest was recorded when %s was read\n' "$name"; return 0
   fi
   if [ "$now" = "$read_digest" ]; then
     printf 'same\t%s\n' "$read_digest"

@@ -94,12 +94,26 @@ felix_epoch_topology() {
   printf '%s\n' "$rows" | _felix_epoch_hash
 }
 
+# The project's table set, hashed. The guard in front of it is the same
+# argument the digest of a plugin copy makes, and the blind author of these
+# assertions made it here before anyone had written it down:
+# felix_commission_policy_version emits a header per file whether or not the
+# file is there, so a project directory that does not exist hashes to a
+# perfectly good sha — and to the SAME sha as every other project with no
+# tables. Two absences that compare equal are worse than an absence that
+# refuses to answer, so a project with no directory and a project with not one
+# table of the set report no policy version at all.
 felix_epoch_policy() {
-  local proj="$1" v
+  local proj="$1" v f found=0
   command -v felix_commission_policy_version >/dev/null 2>&1 || return 1
+  [ -d "$proj" ] || return 1
+  for f in $FELIX_COMMISSION_TABLES; do
+    [ -e "$proj/$f" ] && { found=1; break; }
+  done
+  [ "$found" -eq 1 ] || return 1
   v="$(felix_commission_policy_version "$proj" 2>/dev/null)"
   [ -n "$v" ] || return 1
-  printf '%s' "$v"
+  printf '%s\n' "$v"
 }
 
 # What this decision releases to.
@@ -111,13 +125,18 @@ felix_epoch_policy() {
 # instead of failing over a word.
 felix_epoch_target() {
   local proj="$1" root="$2" t
-  if [ -n "${FELIX_RELEASE_TARGET:-}" ]; then printf '%s' "$FELIX_RELEASE_TARGET"; return 0; fi
+  # Each of these terminates its line. A hash printed without a newline is a
+  # prefix of whatever prints next, and two of them appended to one file read
+  # back as one value — the other three functions here end in a newline
+  # because git hash-object does, and an output contract that holds for three
+  # of five is not one.
+  if [ -n "${FELIX_RELEASE_TARGET:-}" ]; then printf '%s\n' "$FELIX_RELEASE_TARGET"; return 0; fi
   t="$(felix_json_str "$proj/project.json" release_target 2>/dev/null)"
-  if [ -n "$t" ]; then printf '%s' "$t"; return 0; fi
+  if [ -n "$t" ]; then printf '%s\n' "$t"; return 0; fi
   t="$(git -C "$root" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)"
   t="${t#origin/}"
-  if [ -n "$t" ]; then printf '%s' "$t"; return 0; fi
-  printf 'main'
+  if [ -n "$t" ]; then printf '%s\n' "$t"; return 0; fi
+  printf 'main\n'
 }
 
 # component <TAB> value, one per line, in the order the spec lists them.

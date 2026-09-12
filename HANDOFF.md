@@ -71,14 +71,14 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
-## 0az. Verified at session close, 2026-09-12 (overnight) — six branches, and three things that were false before anybody checked
+## 0az. Verified at session close, 2026-09-12 (overnight) — seven branches, and three things that were false before anybody checked
 
 | | |
 |---|---|
-| open, green, waiting on the founder | #222 #223 #224 #225 #226 #227 |
+| open, green, waiting on the founder | #222 #223 #224 #225 #226 #227 #228 |
 | suite at the top of the stack | **1977** passed, 0 failed |
 | assertions authored blind tonight | 18 for the scanner, 44 for the digest, 48 for the epoch |
-| decisions queued | 8: five merges and three questions |
+| decisions queued | 9: six merges and three questions |
 | defects a blind author found that the code's author had not | 3 |
 
 **Invariant 4 was literally false, and is now checkable (#224).** "Felix

@@ -7759,7 +7759,7 @@ has "a check that cannot run reads as due rather than ok" "$(_mst "$MTR")" "due	
 #
 # Mirrors the shipped row from templates/maintenance.tsv, exclusion and all. If
 # the two drift, this fixture stops testing what any project actually runs.
-printf 'graphify\t0\talways\tthe map\ttest -n "$(find "$(dirname "$(git rev-parse --git-common-dir)")/graphify-out/graph.json" -newermt "$(git log -1 --format=%%cd --date=format-local:%%Y-%%m-%%dT%%H:%%M:%%S%%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"\n' > "$MTP/maintenance.tsv"
+printf 'graphify\t0\talways\tthe map\tG="$(dirname "$(git rev-parse --git-common-dir)")"; test -n "$(find "$G/graphify-out/graph.json" -newermt "$(git log -1 --format=%%cd --date=format-local:%%Y-%%m-%%dT%%H:%%M:%%S%%z "$(git -C "$G" rev-parse HEAD)" -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"\n' > "$MTP/maintenance.tsv"
 has "the seeded graphify row is due on a checkout with no graph" "$(_mst "$MTR")" "due	graphify"
 # One second, because BSD find compares -newermt at whole seconds: a graph
 # written 799ms after the commit, inside the same second, is "not newer".
@@ -7816,14 +7816,23 @@ MTW="$TMP/maint-worktree"
 MTW="$(cd "$MTW" && pwd -P)"
 has "the checkout holding the graph is ok"                      "$(_mst "$MTR")" "ok	graphify"
 has "and a worktree of it reads the same graph, and is ok too"  "$(_mst "$MTW")" "ok	graphify"
-# The commit compared against is the one the worktree stands on: a commit
-# there that the graph has not seen is due there, and the holding checkout,
-# whose head has not moved, is not.
+# The commit compared against is the one the checkout HOLDING the graph stands
+# on, not the one the caller stands on. Work that exists only in a worktree is
+# work no refresh would put in the graph — graphify reads the holding checkout
+# — so calling the graph stale over it is a row that is on in every worktree
+# session and cannot be satisfied by the thing it asks for.
 sleep 1
 ( cd "$MTW" && printf 'w\n' > d.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm "worktree commit" ) >/dev/null 2>&1
-has "a commit in the worktree the graph has not seen is due there" "$(_mst "$MTW")" "due	graphify"
-has "while the checkout the graph was built from is still ok"      "$(_mst "$MTR")" "ok	graphify"
+has "work committed only in a worktree does not make the graph stale" "$(_mst "$MTW")" "ok	graphify"
+has "and the checkout the graph was built from reads ok as well"      "$(_mst "$MTR")" "ok	graphify"
+# The holding checkout moving is the thing that does, and it reads the same
+# from both places, because it is one fact about one graph.
+sleep 1
+( cd "$MTR" && printf 'e\n' > e.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm "checkout commit" ) >/dev/null 2>&1
+has "a commit in the checkout the graph was built from is due"        "$(_mst "$MTR")" "due	graphify"
+has "and due from the worktree too, which is where the session is"    "$(_mst "$MTW")" "due	graphify"
 # And the command renders a checked row as a fact, not as a clock. The ok
 # branch printed `${age}d ago  every ${cadence}d`, which for a checked event
 # row came out as `-d ago  every 0d` — a number nobody wrote, in a row that

@@ -31,6 +31,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/maintenance.sh"
 # shellcheck source=../lib/autonomy.sh
 . "${SCRIPT_DIR}/../lib/autonomy.sh"
+# shellcheck source=../lib/overnight.sh
+. "${SCRIPT_DIR}/../lib/overnight.sh"
 # shellcheck source=../lib/ledger.sh
 . "${SCRIPT_DIR}/../lib/ledger.sh"
 # shellcheck source=../lib/pulse.sh
@@ -330,13 +332,36 @@ read_lines="Read before planning: ${PROJ}/CLAUDE.md"
 [ -f "$_mem/SESSION_HANDOFF.md" ] && read_lines="${read_lines}
                    ${_mem}/SESSION_HANDOFF.md"
 
+# A night the founder granted is the first thing a session should know, because
+# it changes what this session does with every boundary it meets. Printed in
+# full rather than as a badge: the point of the mode is that the direction
+# arrives without anybody typing it, and a one-line reminder that something is
+# "on" would send the reader looking for what it means.
+#
+# Silence when no night is running, which is the ordinary case.
+overnight_line=""
+if felix_overnight_active "$PROJ"; then
+  _on_left="$(felix_overnight_field "$PROJ" 3)"
+  _on_wait="$(felix_overnight_deferred_count "$PROJ")"
+  overnight_line="
+$(felix_overnight_direction)
+Granted: ${_on_left} continuation(s) left, ${_on_wait} decision(s) already
+deferred for the morning. felix overnight --report reads them back.
+"
+elif [ -f "$(felix_overnight_dir "$PROJ")/active" ]; then
+  overnight_line="
+Overnight is over: $(felix_overnight_expired "$PROJ"). This is an ordinary
+session again. felix overnight --report, then --end to close it out.
+"
+fi
+
 context="Felix governs this session.
 
 Project: ${project}
 Constitution: ${PROJ}/CLAUDE.md
 ${gate_line}
 Memory: ${_mem}/
-${drift_line}${maint_line}${tidy_line}${retire_line}${reconcile_line}${backup_line}
+${overnight_line}${drift_line}${maint_line}${tidy_line}${retire_line}${reconcile_line}${backup_line}
 
 ${read_lines}
 

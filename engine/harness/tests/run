@@ -11539,6 +11539,155 @@ has "and a name"              "$(cat "$_mf" 2>/dev/null)" '"name"'
 is  "and the version is a dotted number" \
     "$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([0-9][0-9.]*\)".*/\1/p' "$_mf" 2>/dev/null | grep -c .)" "1"
 
+# ------------------------------------------ executable-check, the bit that ships ---
+# Felix runs entirely through scripts something else invokes: the CLI, this
+# suite, every scanner under bin/ and every hook under hooks/. A lost executable
+# bit does not fail here — it fails in somebody else's session, silently, once
+# the plugin is deployed. So the check must (a) enumerate what is actually on
+# disk, or a scanner added next week is unprotected the day it lands, (b) judge
+# by the shebang rather than the directory, or a README turns the gate red, and
+# (c) distinguish "every script is fine" from "I could not look", which is the
+# failure this repository keeps rediscovering under a green line.
+#
+# The fixture is a small invented engine, not a copy of the real one: the count
+# it reports is then a number the assertions can name, and a check that silently
+# stopped enumerating would have to lie about it rather than merely look busy.
+printf '\nexecutable-check: the bit that fails in somebody else session\n'
+EXC="$TMP/executable-check"
+mkdir -p "$EXC/engine/harness/bin" "$EXC/engine/harness/hooks" \
+         "$EXC/engine/harness/tests" "$EXC/deep/nested"
+for _xf in felix tests/run bin/alpha-scan bin/beta-check hooks/session-start hooks/pre-tool; do
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$EXC/engine/harness/$_xf"
+  chmod 755 "$EXC/engine/harness/$_xf"
+done
+# Two files that live in those same directories and are not scripts. Both are
+# created 644, which is the whole point: if the check reads names or directories
+# instead of first lines, these are the false alarms it raises.
+printf '# notes\n\nWhat lives under bin/, and why.\n' > "$EXC/engine/harness/bin/NOTES.md"
+printf 'event\tpurpose\nPreToolUse\tdeny\n'           > "$EXC/engine/harness/hooks/events.tsv"
+( cd "$EXC" && git init -q -b main && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+# macOS resolves /var to /private/var and the engine resolves the same way, so
+# compare against what the filesystem calls this directory, not what mktemp did.
+EXC="$(cd "$EXC" && pwd -P)"
+_xc()   { ( cd "$1" && "$REAL_HARNESS/bin/executable-check" 2>&1; echo "rc=$?" ); }
+# Exact, for the reason the deploy-check block gives: "rc=1" as a substring is
+# satisfied by rc=126 and rc=127, which are a checker that never ran at all.
+_xcrc() { printf '%s' "${1##*rc=}"; }
+# Committed after every mutation, so a reading of the index and a reading of the
+# worktree cannot disagree about what this fixture says.
+_xcc()  { ( cd "$EXC" && git add -A \
+            && git -c user.name=t -c user.email=t@t commit -qm case ) >/dev/null 2>&1; }
+
+if [ -x "$REAL_HARNESS/bin/executable-check" ]; then
+  out="$(_xc "$EXC")"
+  is  "an engine whose every script carries its bit exits 0" "$(_xcrc "$out")" "0"
+  has "and says how many scripts it examined" "$out" "6 script"
+
+  # Enumerated from the directory, never from a list of names. A fixed list
+  # cannot contain a file that did not exist when the list was written, so the
+  # count moving is the only evidence that the enumeration is real.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$EXC/engine/harness/bin/newly-added-scanner"
+  chmod 755 "$EXC/engine/harness/bin/newly-added-scanner"; _xcc
+  out="$(_xc "$EXC")"
+  has "a scanner added today is examined without anyone editing the check" "$out" "7 script"
+  chmod 644 "$EXC/engine/harness/bin/newly-added-scanner"; _xcc
+  out="$(_xc "$EXC")"
+  is  "and one that arrives without its bit fails, where a fixed list saw nothing" \
+      "$(_xcrc "$out")" "1"
+  has "naming the scanner nobody listed" "$out" "engine/harness/bin/newly-added-scanner"
+  chmod 755 "$EXC/engine/harness/bin/newly-added-scanner"; _xcc
+
+  # The same claim for hooks, which are the half nobody runs by hand.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$EXC/engine/harness/hooks/brand-new-hook"
+  chmod 644 "$EXC/engine/harness/hooks/brand-new-hook"; _xcc
+  out="$(_xc "$EXC")"
+  is  "a hook added today without its bit fails the same way" "$(_xcrc "$out")" "1"
+  rm -f "$EXC/engine/harness/hooks/brand-new-hook"; _xcc
+
+  # The two named entry points, bare at the same time. One report that stops at
+  # the first bad file leaves the second to be found by whoever it breaks.
+  chmod 644 "$EXC/engine/harness/felix" "$EXC/engine/harness/tests/run"; _xcc
+  out="$(_xc "$EXC")"
+  is  "the entry point and the suite runner, both bare, fail" "$(_xcrc "$out")" "1"
+  has "naming the entry point" "$out" "engine/harness/felix"
+  has "and the suite runner beside it, rather than stopping at the first" \
+      "$out" "engine/harness/tests/run"
+  chmod 755 "$EXC/engine/harness/felix" "$EXC/engine/harness/tests/run"; _xcc
+
+  # What makes a file a script is its first line. NOTES.md has sat in bin/ at 644
+  # through every assertion above without turning anything red — but so would a
+  # check that skipped the directory, or skipped every name it did not know. So
+  # arm that exact path first: same file, same 644 mode, a shebang added. Caught
+  # with the shebang and ignored without it is the only pair of results that says
+  # the first line is what is being read.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$EXC/engine/harness/bin/NOTES.md"; _xcc
+  out="$(_xc "$EXC")"
+  is  "a file under bin/ that begins with a shebang is a script, and its bare mode is caught" \
+      "$(_xcrc "$out")" "1"
+  has "named as the script it is" "$out" "engine/harness/bin/NOTES.md"
+  printf '# notes\n\nWhat lives under bin/, and why.\n' > "$EXC/engine/harness/bin/NOTES.md"; _xcc
+  out="$(_xc "$EXC")"
+  is  "while the same path without one is documentation, and the run stays green" \
+      "$(_xcrc "$out")" "0"
+
+  # Could not look is not nothing wrong. Both ways in.
+  is  "outside a git repository it cannot look, exit 2" "$(_xcrc "$(_xc "$TMP")")" "2"
+  EXN="$TMP/executable-check-no-engine"; mkdir -p "$EXN"
+  ( cd "$EXN" && git init -q -b main && printf 'x\n' > README.md && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
+  is  "a checkout with no engine directory cannot look either, exit 2" \
+      "$(_xcrc "$(_xc "$EXN")")" "2"
+
+  # And the emptiness this project keeps finding dressed as an all-clear: the
+  # directories are there, they hold nothing it recognises, and zero scripts
+  # examined is a checker that answered about itself rather than about the tree.
+  EXZ="$TMP/executable-check-empty"
+  mkdir -p "$EXZ/engine/harness/bin" "$EXZ/engine/harness/hooks"
+  printf '# notes\n'          > "$EXZ/engine/harness/bin/NOTES.md"
+  printf 'event\tpurpose\n'   > "$EXZ/engine/harness/hooks/events.tsv"
+  ( cd "$EXZ" && git init -q -b main && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
+  is  "an engine holding nothing it recognises is emptiness, not an all clear" \
+      "$(_xcrc "$(_xc "$EXZ")")" "2"
+  # Armed: the same tree, one real script. If this does not flip, the assertion
+  # above was measuring a fixture the check could never have read.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$EXZ/engine/harness/bin/gamma-scan"
+  chmod 755 "$EXZ/engine/harness/bin/gamma-scan"
+  ( cd "$EXZ" && git add -A && git -c user.name=t -c user.email=t@t commit -qm one ) >/dev/null 2>&1
+  is  "and one real script in that same tree is examined, so it was the emptiness" \
+      "$(_xcrc "$(_xc "$EXZ")")" "0"
+
+  # From anywhere inside the checkout. A search rooted at the working directory
+  # finds nothing from deep/nested, which by rule 6 is exit 2 rather than 0.
+  is  "from a nested subdirectory the verdict is unchanged" \
+      "$(_xcrc "$(_xc "$EXC/deep/nested")")" "0"
+  chmod 644 "$EXC/engine/harness/bin/alpha-scan"; _xcc
+  out="$(_xc "$EXC/engine/harness")"
+  is  "and a bare script is still caught from inside the engine itself" "$(_xcrc "$out")" "1"
+  chmod 755 "$EXC/engine/harness/bin/alpha-scan"; _xcc
+else
+  for a in "an engine whose every script carries its bit exits 0" \
+           "and says how many scripts it examined" \
+           "a scanner added today is examined without anyone editing the check" \
+           "and one that arrives without its bit fails, where a fixed list saw nothing" \
+           "naming the scanner nobody listed" \
+           "a hook added today without its bit fails the same way" \
+           "the entry point and the suite runner, both bare, fail" \
+           "naming the entry point" \
+           "and the suite runner beside it, rather than stopping at the first" \
+           "a file under bin/ that begins with a shebang is a script, and its bare mode is caught" \
+           "named as the script it is" \
+           "while the same path without one is documentation, and the run stays green" \
+           "outside a git repository it cannot look, exit 2" \
+           "a checkout with no engine directory cannot look either, exit 2" \
+           "an engine holding nothing it recognises is emptiness, not an all clear" \
+           "and one real script in that same tree is examined, so it was the emptiness" \
+           "from a nested subdirectory the verdict is unchanged" \
+           "and a bare script is still caught from inside the engine itself"; do
+    skip "$a" "no bin/executable-check beside this harness"; done
+fi
+
 printf '\na night the founder granted\n'
 # Overnight mode hands a session the right to keep going instead of stopping to
 # ask. Everything that right rests on is a bound, and a bound nobody measures is

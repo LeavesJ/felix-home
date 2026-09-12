@@ -31,6 +31,9 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/ready.sh"
 . "${SCRIPT_DIR}/../lib/guard.sh"
 . "${SCRIPT_DIR}/../lib/say.sh"
+. "${SCRIPT_DIR}/../lib/detect.sh"
+. "${SCRIPT_DIR}/../lib/maintenance.sh"
+. "${SCRIPT_DIR}/../lib/overnight.sh"
 
 escape_for_json() {
   local s="$1"
@@ -193,6 +196,114 @@ r_when="$(printf '%s' "$receipt" | cut -f3)"
 
 if [ -n "$receipt" ] && [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
   felix_verify_log "$PROJ" "allowed" "$TID" "green"
+
+  # A night that was granted is a reason not to close on a green gate.
+  #
+  # This is the only branch in this file that holds a session whose work IS
+  # verified, and it is deliberately the narrowest: it fires only while a
+  # person's grant is live and inside its own bounds, it spends one of the
+  # continuations that grant allowed, and it ends the night itself the moment a
+  # bound is reached. It cannot loop — the platform sets stop_hook_active on a
+  # block and caps consecutive blocks, which is the same ceiling the gate's own
+  # refusal has always had.
+  #
+  # What it says is what the machine can actually see: maintenance rows that
+  # are due, and decisions already deferred. It does not invent work. When two
+  # continuations in a row find neither, the night ends rather than nag, and the
+  # report is the last thing the session is handed.
+  # The condition is "a night exists", not "a night is live", and the
+  # difference is a branch that could never run. `felix_overnight_active` is
+  # false precisely when a bound has been reached, so an expired night entered
+  # through `active` could only ever be one that expired DURING this stop — a
+  # deadline that passed while the session sat idle would skip the branch
+  # entirely, leave the state file behind, and close without ever handing over
+  # the report. A fixture whose deadline was in the past is what found it.
+  if [ -f "$(felix_overnight_dir "$PROJ")/active" ]; then
+    if _on_over="$(felix_overnight_expired "$PROJ")"; then
+      felix_overnight_end "$PROJ" "$_on_over"
+      _on_body="Overnight is over: ${_on_over}.
+
+$(felix_overnight_report "$PROJ")"
+      felix_say "$PROJ" "overnight-end" "$_on_body" "" "${SID:-}"
+      printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
+        "$(escape_for_json "$_on_body")"
+      exit 0
+    fi
+
+    _on_due="$(felix_maint_status "$PROJ" "$ROOT" 2>/dev/null | awk -F'\t' '$1 == "due" { printf "%s%s", sep, $2; sep = ", " }')"
+    _on_waiting="$(felix_overnight_deferred_count "$PROJ")"
+    _on_quiet=0; [ -z "$_on_due" ] && _on_quiet=1
+    _on_left="$(felix_overnight_spend "$PROJ" "$_on_quiet")"
+
+    # The branch holds the session, so it must also carry what the branches
+    # below it would have said. Written the other way round first, and it cost
+    # the founder's own instruction: a night swallowed the verification nudge
+    # and the skipped-play question entirely, because a blocking branch that
+    # exits first is a branch that silences every message after it. Each is
+    # still once per session, using the same markers those branches use.
+    _on_extra=""
+    _on_blocks="$(_felix_stop_blocks)"
+    [ -n "$_on_blocks" ] && _on_extra="${_on_extra}
+
+${_on_blocks}"
+    _on_unrec="$(felix_guard_unrecorded "$PROJ")"
+    [ -n "$_on_unrec" ] && _on_extra="${_on_extra}
+
+${_on_unrec}"
+    if [ -n "${SID:-}" ] \
+       && grep -qE "	superpowers(@[^	]*)?	" "$PROJ/stack.tsv" 2>/dev/null \
+       && [ ! -f "$FELIX_HOME_DIR/state/verified/$SID" ]; then
+      mkdir -p "$FELIX_HOME_DIR/state/verified" 2>/dev/null \
+        && : > "$FELIX_HOME_DIR/state/verified/$SID" 2>/dev/null
+      _on_extra="${_on_extra}
+
+The gate is green, which means the suite passed. It does not mean the things
+you said are true. Use superpowers:verification-before-completion on this
+piece before you take the next one: check the claims, not the tests."
+    fi
+
+    # Spending can be what exhausts the grant, so the same question is asked
+    # again on the way out.
+    if _on_over="$(felix_overnight_expired "$PROJ")"; then
+      felix_overnight_end "$PROJ" "$_on_over"
+      _on_body="Overnight is over: ${_on_over}.
+
+$(felix_overnight_report "$PROJ")"
+      felix_say "$PROJ" "overnight-end" "$_on_body" "" "${SID:-}"
+      printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' \
+        "$(escape_for_json "$_on_body")"
+      exit 0
+    fi
+
+    _on_body="Overnight is on, the gate is green, and ${_on_left} continuation(s) remain.
+Do not stop to report — take the next piece of work.
+
+What this hook can see from here:"
+    [ -n "$_on_due" ] && _on_body="${_on_body}
+  * maintenance due: ${_on_due}"
+    [ "${_on_waiting:-0}" -gt 0 ] && _on_body="${_on_body}
+  * ${_on_waiting} decision(s) already deferred, which stay deferred until morning"
+    [ -z "$_on_due" ] && _on_body="${_on_body}
+  * nothing mechanical is due. Two continuations in a row with nothing due end
+    the night by themselves."
+    # Pointed at rather than run. felix next ranks the backlog by reading gate
+    # history, the ledger and the tables, which is a second or two of work —
+    # affordable when a person asks for it and not in a hook that fires at
+    # every stop of every session.
+    _on_body="${_on_body}
+  * felix next ranks what is left, and HANDOFF's own Next list is the queue
+    this hook cannot see."
+    _on_body="${_on_body}
+
+Anything that needs the founder gets written down rather than waited on:
+
+  felix overnight --defer approval --what \"...\" --unblock \"the command\"
+
+felix overnight --end stops the night now.${_on_extra}"
+    felix_say "$PROJ" "overnight" "$_on_body" "" "${SID:-}"
+    printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$_on_body")"
+    exit 0
+  fi
   # The gate is satisfied, so nothing is held. But this is the one moment where
   # "you changed the results page and never opened a browser" is a fact about
   # the work rather than a rule quoted at turn one, so it is worth saying.

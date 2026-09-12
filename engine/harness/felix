@@ -111,6 +111,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/coverage.sh"
 . "${SCRIPT_DIR}/lib/qualify.sh"
 . "${SCRIPT_DIR}/lib/autonomy.sh"
+. "${SCRIPT_DIR}/lib/overnight.sh"
 . "${SCRIPT_DIR}/lib/intake.sh"
 # shellcheck source=lib/deny.sh
 . "${SCRIPT_DIR}/lib/deny.sh"
@@ -1536,6 +1537,110 @@ cmd_autonomy() {
   printf '  felix autonomy --revoke tidy     take it back\n'
   printf '  felix autonomy --allow commission    grant it, over the table as it stands\n'
   printf '  felix autonomy --revoke commission   take it back\n'
+}
+
+# A night's standing direction, so a founder types it once instead of every time.
+#
+# The argument for this being a command rather than a habit is in
+# lib/overnight.sh. The argument for it being a command rather than a grant in
+# `autonomy` is here: autonomy rows are permanent until revoked, and a
+# permanent "never stop" is wrong for the two-minute session where somebody
+# asks a question. A night is a duration, so it is started, bounded, and over.
+#
+# It grants no new authority. Every refusal, channel and gate stands exactly as
+# it did; what changes is that a session which hits one writes the decision
+# down and keeps working instead of waiting for somebody who is asleep.
+cmd_overnight() {
+  resolve_or_die; local proj="$PROJ"
+  local start=0 hours="" turns="" note="" report=0 clear=0 end="" defer="" what="" unblock="" sid=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --start)   start=1; shift ;;
+      --hours)   need_value "$@"; hours="$2"; shift 2 ;;
+      --turns)   need_value "$@"; turns="$2"; shift 2 ;;
+      --note)    need_value "$@"; note="$2"; shift 2 ;;
+      --session) need_value "$@"; sid="$2"; shift 2 ;;
+      --defer)   need_value "$@"; defer="$2"; shift 2 ;;
+      --what)    need_value "$@"; what="$2"; shift 2 ;;
+      --unblock) need_value "$@"; unblock="$2"; shift 2 ;;
+      --report)  report=1; shift ;;
+      --clear)   clear=1; shift ;;
+      --end)     end="${2:-ended by hand}"; [ $# -ge 2 ] && shift 2 || shift ;;
+      --status)  shift ;;
+      -*) die "usage: felix overnight [--start [--hours N] [--turns N] [--note ...]] [--defer KIND --what ... [--unblock ...]] [--report] [--clear] [--end [reason]]" ;;
+      *) shift ;;
+    esac
+  done
+
+  if [ -n "$defer" ]; then
+    case "$defer" in
+      approval|irreversible|blocked|question) ;;
+      *) die "unknown kind: $defer. They are approval, irreversible, blocked and question." ;;
+    esac
+    [ -n "$what" ] || die "felix overnight --defer needs --what \"the thing that is waiting\""
+    felix_overnight_defer "$proj" "$defer" "$what" "$unblock" \
+      || die "could not write the deferral queue under $(felix_overnight_dir "$proj")"
+    printf 'deferred [%s] %s\n' "$defer" "$what"
+    [ -n "$unblock" ] && printf '  unblock: %s\n' "$unblock"
+    printf '%s decision(s) now waiting. felix overnight --report reads them.\n' \
+      "$(felix_overnight_deferred_count "$proj")"
+    return 0
+  fi
+
+  if [ -n "$end" ]; then
+    if felix_overnight_active "$proj"; then
+      felix_overnight_end "$proj" "$end"; printf 'overnight ended: %s\n\n' "$end"
+    else
+      felix_overnight_end "$proj" "$end"; printf 'no night was running.\n\n'
+    fi
+    felix_overnight_report "$proj"
+    return 0
+  fi
+
+  if [ "$clear" -eq 1 ]; then
+    local n; n="$(felix_overnight_deferred_count "$proj")"
+    felix_overnight_clear "$proj"
+    printf 'cleared %s deferred decision(s).\n' "$n"
+    return 0
+  fi
+
+  if [ "$start" -eq 1 ]; then
+    local why
+    if why="$(felix_overnight_start "$proj" "${hours:-$FELIX_OVERNIGHT_DEFAULT_HOURS}" \
+                "${turns:-$FELIX_OVERNIGHT_DEFAULT_TURNS}" "$sid" "$note")"; then
+      printf 'overnight is on for %s.\n\n' "$(basename "$proj")"
+      felix_overnight_direction
+      printf '\nIt ends on whichever comes first: %s hour(s), %s continuation(s), or two\n' \
+        "${hours:-$FELIX_OVERNIGHT_DEFAULT_HOURS}" "${turns:-$FELIX_OVERNIGHT_DEFAULT_TURNS}"
+      printf 'continuations in a row with nothing to do. felix overnight --end stops it now,\n'
+      printf 'and closing the session stops it too — nothing here runs without one.\n'
+      return 0
+    fi
+    die "overnight --start refused: $why"
+  fi
+
+  # Status, which is also what a bare `felix overnight` answers.
+  if felix_overnight_active "$proj"; then
+    printf 'overnight is ON for %s\n\n' "$(basename "$proj")"
+    felix_overnight_direction
+    printf '\n'
+  elif [ -f "$(felix_overnight_dir "$proj")/active" ]; then
+    printf 'overnight is OVER for %s: %s\n\n' "$(basename "$proj")" \
+      "$(felix_overnight_expired "$proj")"
+    printf 'The state is still here so the report can read it. felix overnight --end\n'
+    printf 'closes it, and --start begins another.\n\n'
+  else
+    printf 'overnight is off for %s\n\n' "$(basename "$proj")"
+    printf 'A night is a duration a person grants, not a setting. It changes what a\n'
+    printf 'session does when something stops it — write the decision down and keep\n'
+    printf 'working, rather than wait for somebody asleep — and changes nothing about\n'
+    printf 'what may stop it.\n\n'
+    printf '  felix overnight --start                  %s hours, %s continuations\n' \
+      "$FELIX_OVERNIGHT_DEFAULT_HOURS" "$FELIX_OVERNIGHT_DEFAULT_TURNS"
+    printf '  felix overnight --start --hours 10       longer, up to %s\n' "$FELIX_OVERNIGHT_MAX_HOURS"
+    printf '  felix overnight --report                 the morning page\n\n'
+  fi
+  felix_overnight_report "$proj"
 }
 
 # Does a check fail when the thing it protects is broken?
@@ -4478,6 +4583,7 @@ case "${1:-help}" in
   review)    shift; cmd_review "$@" ;;
   next)      shift; cmd_next "$@" ;;
   autonomy)  shift; cmd_autonomy "$@" ;;
+  overnight) shift; cmd_overnight "$@" ;;
   brief)     shift; cmd_brief "$@" ;;
   pr)        shift; cmd_pr "$@" ;;
   quarantine) shift; cmd_quarantine "$@" ;;

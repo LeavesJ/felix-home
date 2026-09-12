@@ -31,6 +31,13 @@ Felix is already working here. Report, briefly and in plain language:
   names; that is the one thing here only a session can do
 - `felix monitor --open` — offer it, do not run it unasked; it is a page showing
   every routing decision and gate verdict, which is otherwise unobservable
+- `felix overnight` — whether a night is running. If one is, its standing
+  direction is already in this session's context and needs no repeating: keep
+  working rather than stopping to report, and write down anything that needs
+  the founder instead of waiting for them, with
+  `felix overnight --defer KIND --what "..." --unblock "the command"`. If one
+  is not, say so only if asked; starting a night is a person's act, and
+  `felix overnight --report` is the morning page either way
 
 Do not run `felix gate` unless asked. It can take minutes.
 

@@ -213,6 +213,7 @@ specific project, language, or toolchain.
     felix scope            what a change is allowed to touch
     felix ledger           what has been mounted, and what was never reached for
     felix autonomy         what Felix may do here unattended
+    felix overnight        grant a night: keep working, defer what needs you
     felix coverage         every lifecycle moment, and Felix's stance on it
     felix qualify [check]  does a check fail when what it protects is broken?
 

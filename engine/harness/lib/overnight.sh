@@ -268,6 +268,15 @@ felix_overnight_report() {   # proj -> prose on stdout
   if [ -f "$log" ]; then
     printf '\nthe night, by event\n\n'
     awk -F'\t' '{ c[$2]++ } END { for (e in c) printf "  %-10s %s\n", e, c[e] }' "$log" 2>/dev/null
+    # The last few continuations in full. A count says how many there were; a
+    # reader wants to know whether the night moved or sat on one thing, and
+    # that is only visible in what each continuation found.
+    if grep -q '	continue	' "$log" 2>/dev/null; then
+      printf '\nthe last continuations\n\n'
+      grep '	continue	' "$log" 2>/dev/null | tail -5 | while IFS=$'\t' read -r when _ detail; do
+        printf '  %s  %s\n' "$(date -r "$when" '+%H:%M' 2>/dev/null || printf '%s' "$when")" "$detail"
+      done
+    fi
   fi
   return 0
 }

@@ -234,6 +234,12 @@ $(felix_overnight_report "$PROJ")"
     _on_waiting="$(felix_overnight_deferred_count "$PROJ")"
     _on_quiet=0; [ -z "$_on_due" ] && _on_quiet=1
     _on_left="$(felix_overnight_spend "$PROJ" "$_on_quiet")"
+    # One line per continuation, so the morning report can show the shape of
+    # the night rather than only its ending. Counting events was all the report
+    # had, and a count cannot say whether the night spent itself on one stuck
+    # thing or moved through several.
+    felix_overnight_log_event "$PROJ" continue \
+      "left ${_on_left}; due ${_on_due:-none}; deferred ${_on_waiting}"
 
     # The branch holds the session, so it must also carry what the branches
     # below it would have said. Written the other way round first, and it cost

@@ -11684,15 +11684,15 @@ printf '\nwhat is waiting for a person in the morning\n'
 # stop to ask, so every question it did not ask has to be written down.
 _ovreset "$NP"; rm -f "$(_ovdir "$NP")/deferred.tsv"
 _ov felix_overnight_start "$NP" 8 5 sess-o "queue" >/dev/null
-_ov felix_overnight_defer "$NP" decision "which name to publish under" "felix overnight --report" >/dev/null
-_ov felix_overnight_defer "$NP" access "the staging token expired" "op signin staging" >/dev/null
+_ov felix_overnight_defer "$NP" question "which name to publish under" "felix overnight --report" >/dev/null
+_ov felix_overnight_defer "$NP" blocked "the staging token expired" "op signin staging" >/dev/null
 is "two deferrals are two things waiting" "$(_ov felix_overnight_deferred_count "$NP")" "2"
 # A row that says something is blocked and not how to unblock it hands the
 # morning the search, which is the part the night was supposed to have done.
 has "and a row carries the command that unblocks it" \
     "$(cat "$(_ovdir "$NP")/deferred.tsv" 2>/dev/null)" "op signin staging"
 _ov felix_overnight_defer "$NP" "" "no kind at all" "true" >/dev/null 2>&1
-_ov felix_overnight_defer "$NP" decision "" "true" >/dev/null 2>&1
+_ov felix_overnight_defer "$NP" question "" "true" >/dev/null 2>&1
 is "a deferral with no kind or no subject writes no row" \
    "$(_ov felix_overnight_deferred_count "$NP")" "2"
 _ov felix_overnight_clear "$NP" >/dev/null 2>&1
@@ -11786,8 +11786,17 @@ _ovnstart() { ( cd "$NREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks
 _ovreset "$WP"
 _ov felix_overnight_start "$WP" 8 12 night-start "a granted night" >/dev/null
 _out="$(_ovnstart)"
-_ovsays_night x "$_out" && ok  "a live night is mounted into the next session's context" \
-                        || bad "a live night is mounted into the next session's context" "$_out"
+# Asked against the direction the library hands out, not against the word
+# "overnight" appearing somewhere in the context. A hook that says a night is on
+# and mounts none of the standing direction is the failure this exists to catch,
+# and the word alone cannot tell the two apart — measured, with the mount
+# removed and the assertion still passing.
+_ovline="$(_ov felix_overnight_direction | awk '{ if (length($0) > length(m)) m = $0 } END { print m }')"
+if [ "${#_ovline}" -lt 20 ]; then
+  bad "a live night is mounted into the next session's context" "no direction to look for"
+else
+  has "a live night is mounted into the next session's context" "$_out" "$_ovline"
+fi
 _ovreset "$WP"
 _out="$(_ovnstart)"
 _ovsays_night x "$_out" && bad "and no night is announced when none was granted" "$_out" \
@@ -11802,10 +11811,10 @@ _ovreset "$WP"; rm -f "$(_ovdir "$WP")/deferred.tsv"
 _out="$(_ovcli)"; _rc=$?
 is "felix overnight with no arguments says where the night stands" \
    "$_rc:$([ -n "$_out" ] && echo said || echo silent)" "0:said"
-_ovcli --start 2 --turns 6 --note "granted from the command line" >/dev/null 2>&1
+_ovcli --start --hours 2 --turns 6 --note "granted from the command line" >/dev/null 2>&1
 _ov felix_overnight_active "$WP" && ok "--start grants the night" \
                                  || bad "--start grants the night" "no state at $(_ovfile "$WP")"
-_ovcli --defer decision --what "which name to publish under" --unblock "felix overnight --report" >/dev/null 2>&1
+_ovcli --defer question --what "which name to publish under" --unblock "felix overnight --report" >/dev/null 2>&1
 is "--defer writes the decision down for the morning" "$(_ov felix_overnight_deferred_count "$WP")" "1"
 # A kind nobody defined means a queue nobody can sort in the morning, and the
 # row is written by a session with no one watching it type.

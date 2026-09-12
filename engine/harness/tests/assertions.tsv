@@ -53,6 +53,7 @@
 1	a check that passes is done
 1	a checkout inside the verification is caught too
 1	a checkout that moves after verification merges nothing
+1	a checkout with no engine directory cannot look either, exit 2
 1	a checkout with nothing tracked under projects/ cannot search
 1	a class outside the set is refused
 1	a clean checkout claims no rival gate
@@ -113,6 +114,7 @@
 1	a felix-answered row names felix as the actor
 1	a file facing a directory is a drift, whatever diff exits
 1	a file that does not parse drops out of the roster without taking the rest
+1	a file under bin/ that begins with a shebang is a script, and its bare mode is caught
 1	a filename containing ' and ' cannot hide behind a fragment
 1	a finding names its reason
 1	a flag with no value refuses instead of spinning
@@ -142,6 +144,7 @@
 1	a high tier refuses even when no capability matches
 1	a high-risk row is never installed by commissioning
 1	a home pointer naming something that is not a home refuses
+1	a hook added today without its bit fails the same way
 1	a hook nobody explained is caught
 1	a hook nomination is recorded, not installed
 1	a hook that stopped being wired is caught
@@ -344,6 +347,7 @@
 1	a run writes the request for each provider row
 1	a runbook prints in full
 1	a satisfied step reports done
+1	a scanner added today is examined without anyone editing the check
 1	a score answer never enters the admit phase
 1	a second catch-up finds nothing left
 1	a second full run refuses while one is in progress
@@ -470,10 +474,12 @@
 1	an empty table fails the gate
 1	an empty tier refuses
 1	an engine function the check names that is not loaded is unknown
+1	an engine holding nothing it recognises is emptiness, not an all clear
 1	an engine shipped without the probe library blocks rather than passing
 1	an engine that cannot evaluate commissioning blocks rather than skips
 1	an engine that is a checkout is its own source
 1	an engine under that path can deploy
+1	an engine whose every script carries its bit exits 0
 1	an entry with no path does not inherit the next entry's answer
 1	an entry with no such field yields nothing, not the next entry's value
 1	an envelope field name never does
@@ -560,6 +566,7 @@
 1	and a CLI that answers nothing reports no drift
 1	and a CLI that cannot answer is not a stale deployment
 1	and a backticked path naming nothing is still not invented
+1	and a bare script is still caught from inside the engine itself
 1	and a catalogue that was read and matched nothing is exit 0
 1	and a clean table leaves the gate green
 1	and a command that does not resolve identifies none either
@@ -830,7 +837,9 @@
 1	and one named once carries one
 1	and one no route names
 1	and one nothing established is classed UNKNOWN
+1	and one real script in that same tree is examined, so it was the emptiness
 1	and one stamped over this table does
+1	and one that arrives without its bit fails, where a fixed list saw nothing
 1	and one that shares nothing stands alone
 1	and one that was not is still not
 1	and one unknown path taints a green set
@@ -884,6 +893,7 @@
 1	and returns once the record is complete
 1	and says a long name at least scores on itself
 1	and says how many are still unusable
+1	and says how many scripts it examined
 1	and says it cannot be scoped
 1	and says it could not be asked here
 1	and says it did
@@ -1090,6 +1100,7 @@
 1	and the stale row was not adopted
 1	and the state now carries the new route, for the finish-line judge
 1	and the stranded reaches are now counted
+1	and the suite runner beside it, rather than stopping at the first
 1	and the text is actually there
 1	and the tier it carries
 1	and the tier reducer agrees
@@ -1271,6 +1282,7 @@
 1	finds the route a capability belongs to
 1	for every gate check that file actually covers
 1	free text matches the catalogue
+1	from a nested subdirectory the verdict is unchanged
 1	gate command actually ran
 1	governs them immediately
 1	green tier is still reported
@@ -1348,6 +1360,7 @@
 1	misses are logged too
 1	more matches than the row cap is exit 0, not the pipe closing under it
 1	name and skills accumulate as evidence
+1	named as the script it is
 1	names the first step
 1	names the maintenance that is due
 1	names the suspect commit
@@ -1356,8 +1369,10 @@
 1	naming the branch's commit
 1	naming the channel that escaped
 1	naming the doctrine
+1	naming the entry point
 2	naming the file
 1	naming the gate it was removed from
+1	naming the scanner nobody listed
 1	naming which check failed
 1	never proposes retiring something that was used
 1	never proposes unmounting what was reached
@@ -1425,6 +1440,7 @@
 1	or without hooks
 1	origin outranks the name that sorts first
 1	outside a checkout it cannot search, and says so rather than passing
+1	outside a git repository it cannot look, exit 2
 1	overrides are recorded
 1	passing gate exits 0
 1	path and all
@@ -1594,6 +1610,7 @@
 1	the engine names no ecosystem without a declared reason
 1	the engine names no governed project
 1	the engine writes manifests carrying the grounding column
+1	the entry point and the suite runner, both bare, fail
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
 1	the extractor names every skipped check and nothing else
@@ -1769,6 +1786,7 @@
 1	while the other repository still sees its own
 1	while the others still are
 1	while the path around it does not
+1	while the same path without one is documentation, and the run stays green
 1	while the unruled ones are
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused

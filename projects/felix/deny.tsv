@@ -28,3 +28,20 @@ Edit	(^|/)\.felix(-home)?$	this file decides whether Felix is enforcing anything
 # both walked past it. A row that ordinary redirect spellings step around is
 # a row that refuses only the person who wrote it.
 Bash	(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*["']?\.felix(-home)?["']?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
+#
+# The third row is not about damage to the tree. It is about a command shape
+# that hangs the session that ran it, which this project learned on 2026-09-12
+# after 22 of them in one session left spinning shells and 34 stray helper
+# processes behind, some alive for more than a day.
+#
+# Measured in both shells, from a probe rather than from a manual:
+# `read -t 5 -r _ < <(tail -f /dev/null)` returns after 5.0s under bash and
+# NEVER returns under zsh — still blocked when a twelve-second cap killed it —
+# and both leave the helper process running. Sessions here run zsh. A wait
+# written this way does not time out, never advances its own counter, and is
+# moved to the background by the tool's own timeout, where it spins until
+# something kills it.
+#
+# There is no good use of it. Work that must be waited on runs as a background
+# job, whose completion notifies the session, or under a monitor.
+Bash	read -t [0-9]+ [^;&|]*< <\(	a timed read from a process substitution never returns under zsh and leaks its helper; run the work as a background job and wait for its completion instead

@@ -37,6 +37,16 @@ if ! command -v felix_admit >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/admit.sh"
 fi
 
+# And the same guard over the one registry reader, for felix_discover_drift.
+# The registry has been read by hand in three places in this repository's
+# history and the copies diverged; resolve.sh holds the reader that survived
+# that, and duplicating it here to keep this file standalone would be choosing
+# the defect over the rule. resolve.sh defines functions and does nothing at
+# source time, so the guard costs a sourced file and no behaviour.
+if ! command -v felix_registry_field >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 FELIX_DISCOVER_MAX="${FELIX_DISCOVER_MAX:-8}"
 
 # capability <TAB> keywords, for capabilities this project actually declared.
@@ -335,6 +345,141 @@ felix_discover_inspect() {
   return 0
 }
 
+# What a copy of a plugin IS, as one line, computed from the bytes on disk.
+#
+# Invariant 4 says Felix installs what it has read and judged low-risk. That is
+# literally false today and has been since the day it was written: `discover`
+# fetches a candidate at its pinned sha into a scratch directory and reads
+# THAT, and `claude plugin install` then fetches its own copy from the
+# marketplace. Two fetches, no comparison. "What it read" and "what it
+# installed" are two different objects that have never once been shown to be
+# the same object.
+#
+# This is what makes them comparable. Every file under the copy — its path,
+# whether it is executable, and the hash of its contents — in C order, hashed
+# as one document. Same bytes in the same places, same digest.
+#
+# The comparison cannot be done by re-fetching later, which is why the digest
+# has to be taken at read time and kept. Measured: `claude plugin list --json
+# --available` omits everything already installed, so the moment a plugin is
+# installed its source coordinates stop being reachable from the catalogue.
+# The recorded digest is the only surviving account of what was read.
+#
+# Two exclusions, both measured on this machine rather than assumed:
+#
+#   .git     is the fetch's own machinery. It is in the scratch copy because
+#            that copy was cloned, and in no installed copy.
+#
+#   .in_use  is written INTO the installed copy by the platform: one file per
+#            running session, named by pid. Four of them under
+#            claude-code-setup, none belonging to the plugin. A digest that
+#            counted those would change every session, and a check that cries
+#            wolf is a check somebody switches off.
+#
+# Nothing else is normalised, because nothing else needed to be: three plugins
+# present both in the marketplace checkout and in the install cache are
+# byte-identical once `.in_use` is dropped. The installer is a straight copy,
+# so any other difference is a real difference and is meant to be caught.
+#
+# Symlinks are digested as their target rather than followed. A link swapped
+# to point somewhere else is exactly the kind of change this exists to see,
+# and `find -type f` would not have seen it at all.
+#
+# No files is no digest, and no digest is not an empty one. An empty document
+# hashes to a perfectly good sha that every other empty directory also has, so
+# returning it would say two things are the same copy when neither was read.
+felix_discover_digest() {
+  local dir="$1" sub="${2:-}" base listing
+  base="$dir"
+  [ -n "$sub" ] && [ -d "$dir/$sub" ] && base="$dir/$sub"
+  [ -d "$base" ] || return 1
+  listing="$(
+    cd "$base" 2>/dev/null || exit 1
+    find . \( -type f -o -type l \) ! -path './.git/*' ! -path './.in_use/*' -print 2>/dev/null \
+    | LC_ALL=C sort \
+    | while IFS= read -r f; do
+        if [ -L "$f" ]; then
+          printf 'l %s %s\n' "$(readlink "$f" 2>/dev/null)" "$f"
+        elif [ -x "$f" ]; then
+          printf 'x %s %s\n' "$(git hash-object "$f" 2>/dev/null)" "$f"
+        else
+          # `f`, not `-`. A format string beginning with a dash is an
+          # OPTION to printf, and this shipped as `- %s %s` for exactly as
+          # long as it took to run it: every ordinary file failed to emit,
+          # the listing came out empty, and the digest was nothing at all.
+          # Two nothings compare equal, so the first demonstration showed
+          # two identical copies "agreeing" and a changed byte "agreeing"
+          # too. A check that cannot fail is not a check.
+          printf 'f %s %s\n' "$(git hash-object "$f" 2>/dev/null)" "$f"
+        fi
+      done
+  )"
+  [ -n "$listing" ] || return 1
+  printf '%s\n' "$listing" | git hash-object --stdin 2>/dev/null
+}
+
+# The digest recorded when this candidate was read, or nothing.
+#
+# Fourth column of the cache row. Absent from every row written before this
+# existed, and absent from any row whose fetch failed, and both of those read
+# back as nothing — which every caller here treats as "no claim", never as a
+# mismatch. A missing record is not evidence of drift.
+felix_discover_read_digest() {
+  local proj="$1" home="$2" want="$3" cache name cap risk digest
+  [ -n "$want" ] || return 0
+  cache="$(_felix_discover_cache "$proj" "$home").tsv"
+  [ -f "$cache" ] || return 0
+  while IFS=$'\t' read -r name cap risk digest; do
+    [ "${name:-}" = "$want" ] || continue
+    [ -n "${digest:-}" ] || return 0
+    printf '%s' "$digest"
+    return 0
+  done < "$cache"
+  return 0
+}
+
+# Does the copy on disk match the copy that was read? state <TAB> detail.
+#
+#   same     the installed bytes are the bytes discovery read and judged
+#   drift    they are not, and the tier on file was scored from other bytes
+#   unread   nothing was recorded for this name, so nothing is claimed
+#   absent   nothing is installed under this name
+#
+# `drift` is not an accusation either. A marketplace that moves its `main`
+# while leaving the version string alone produces it honestly, and measured
+# here that is the common case: claude-code-setup is installed at 1.0.0 and
+# its source at 1.0.0 has gained rows the installed copy does not have. What
+# the state says is that the reading is stale, not that somebody lied.
+# The fourth argument is the registry to ask, and it exists so that this can
+# be shown failing. A function that can only read $HOME's real registry is one
+# nobody can write a control for, and a check nobody can make fail is not a
+# check. Callers pass nothing and get the real one.
+felix_discover_drift() {
+  local proj="$1" home="$2" name="$3" reg="${4:-}" read_digest path now
+  read_digest="$(felix_discover_read_digest "$proj" "$home" "$name")"
+  if [ -z "$read_digest" ]; then
+    printf 'unread\tno digest was recorded when %s was read\n' "$name"; return 0
+  fi
+  if [ -n "$reg" ]; then
+    path="$(felix_registry_field "$name" installPath "$reg" 2>/dev/null)"
+  else
+    path="$(felix_registry_field "$name" installPath 2>/dev/null)"
+  fi
+  if [ -z "$path" ] || [ ! -d "$path" ]; then
+    printf 'absent\t%s is not installed\n' "$name"; return 0
+  fi
+  now="$(felix_discover_digest "$path")" || now=""
+  if [ -z "$now" ]; then
+    printf 'unread\tthe installed copy of %s has no files to read\n' "$name"; return 0
+  fi
+  if [ "$now" = "$read_digest" ]; then
+    printf 'same\t%s\n' "$read_digest"
+  else
+    printf 'drift\tread %s, installed %s\n' "$read_digest" "$now"
+  fi
+  return 0
+}
+
 # Facts in, tier out. Same three tiers stack.tsv already uses, so a discovered
 # row can be pasted into it unchanged.
 felix_discover_risk() {
@@ -491,7 +636,7 @@ felix_plugin_description() {
 #   refuse   medium or high
 #   already  named in stack.tsv, whatever the tier
 felix_discover_adopt() {
-  local proj="$1" home="$2" tpl="${3:-}" cache name cap risk declared
+  local proj="$1" home="$2" tpl="${3:-}" cache name cap risk digest declared
   cache="$(_felix_discover_cache "$proj" "$home").tsv"
   felix_discover_cache_current "$proj" "$home" "$tpl" || return 0
 
@@ -500,7 +645,11 @@ felix_discover_adopt() {
   declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null \
               | cut -f2 | sed 's/@.*//')"
 
-  while IFS=$'\t' read -r name cap risk; do
+  # Four fields, and the fourth is read even though this function does not use
+  # it. A three-field read hands `low<TAB><digest>` to `risk` whole, no tier
+  # matches, and every candidate is dropped in silence — the cache would still
+  # parse, and adoption would quietly stop happening.
+  while IFS=$'\t' read -r name cap risk digest; do
     # The cache is not always rows. When nothing matches, discovery writes prose
     # into it explaining why, and a parser that adopted a sentence would be
     # worse than one that adopted nothing. Three fields and a known tier, or it
@@ -532,6 +681,33 @@ felix_discover_adopt() {
       *)       printf 'refuse\t%s\t%s\t%s\n'  "$name" "$cap" "$risk" ;;
     esac
   done < "$cache"
+}
+
+# Every cached name whose installed copy is not the copy that was read.
+# name <TAB> detail, and nothing at all when nothing has moved.
+#
+# The install-time check answers "did the installer hand me the bytes I read".
+# This answers the other half, which is the half that was actually measured:
+# of five plugins present both in the marketplace checkout and in the install
+# cache on this machine, two had drifted — a marketplace advanced its branch
+# and left the version string at 1.0.0, so the copy on disk stopped being the
+# copy that was judged and nothing anywhere said so. A digest nobody ever
+# compares is a record, not a check.
+felix_discover_drifted() {
+  local proj="$1" home="$2" reg="${3:-}" cache name cap risk digest line state detail
+  cache="$(_felix_discover_cache "$proj" "$home").tsv"
+  [ -f "$cache" ] || return 0
+  while IFS=$'\t' read -r name cap risk digest; do
+    [ -n "${name:-}" ] || continue
+    case "$name" in '#'*) continue ;; esac
+    [ -n "${digest:-}" ] || continue
+    line="$(felix_discover_drift "$proj" "$home" "$name" "$reg")"
+    state="$(printf '%s' "$line" | cut -f1)"
+    detail="$(printf '%s' "$line" | cut -f2-)"
+    [ "$state" = "drift" ] || continue
+    printf '%s\t%s\n' "$name" "$detail"
+  done < "$cache"
+  return 0
 }
 
 # Has the cache aged out, or never existed?

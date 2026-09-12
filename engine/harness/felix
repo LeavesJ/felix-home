@@ -2142,6 +2142,36 @@ cmd_discover() {
           printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$kind" "$name" "$risk" "$cap" >> "$proj/stack.tsv"
           if felix_stack_install "$kind" "$name" "-"; then
             printf '  installed  %-24s %-10s %s\n' "$name" "$risk" "$cap"
+            # Invariant 4 says Felix installs what it has read. This is the
+            # line where that is either true or a sentence in a document: the
+            # copy just installed is digested and compared against the digest
+            # of the copy discovery read and scored. Two fetches happened —
+            # one here, one in the marketplace's installer — and until this
+            # ran nothing had ever compared them.
+            #
+            # It reports and does not undo. An uninstall would be reversible
+            # enough to do unattended, but the common cause measured here is a
+            # marketplace that moved its branch under an unchanged version
+            # string, and ripping out a working plugin over that is a worse
+            # answer than saying what happened.
+            #
+            # Captured and then cut, rather than read with a tab IFS from a
+            # heredoc holding the substitution. That spelling hands the tab
+            # IFS to the captured command as well, and this repository's
+            # constitution names it as the trap that costs a session every
+            # time somebody rediscovers it.
+            local dline dstate ddetail
+            dline="$(felix_discover_drift "$proj" "$FELIX_HOME_DIR" "$name")"
+            dstate="$(printf '%s' "$dline" | cut -f1)"
+            ddetail="$(printf '%s' "$dline" | cut -f2-)"
+            case "${dstate:-}" in
+              drift)
+                printf '  DRIFT      %-24s the installed copy is not the copy that was read\n' "$name"
+                printf '             %s\n' "$ddetail"
+                printf '             the %s tier above was scored from the other one\n' "$risk" ;;
+              unread)
+                printf '             %-24s no digest was recorded, so nothing here is claimed\n' "$name" ;;
+            esac
           else
             printf '  declared   %-24s %-10s %s (install failed; felix stack apply --yes retries)\n' \
               "$name" "$risk" "$cap"
@@ -2226,9 +2256,16 @@ EOF
       sha="$(printf '%s' "$src" | cut -f2)"
       sub="$(printf '%s' "$src" | cut -f3)"
       tier="unknown"
+      local digest=""
       if [ -n "$url" ] && felix_discover_fetch "$url" "$sha" "$scratchq/$name"; then
         facts="$(felix_discover_inspect "$scratchq/$name" "$sub")"
         tier="$(felix_discover_risk "$facts")"
+        # Taken here, from the copy the tier was scored off, because there is
+        # no second chance at it: the catalogue drops a plugin from
+        # --available the moment it is installed, so after adoption there is
+        # no source left to re-read. A tier with no digest beside it is a
+        # judgement about bytes nobody can produce again.
+        digest="$(felix_discover_digest "$scratchq/$name" "$sub")" || digest=""
         # Re-scored against what the plugin says about itself and what it
         # actually ships, now that a copy is on disk. The catalogue blurb is
         # written to be chosen from; the manifest is written to describe, and
@@ -2250,7 +2287,7 @@ EOF
         fi
         rm -rf "$scratchq/$name"
       fi
-      printf '%s\t%s\t%s\n' "$name" "$cap" "$tier"
+      printf '%s\t%s\t%s\t%s\n' "$name" "$cap" "$tier" "$digest"
     done
     return 0
   fi
@@ -2260,6 +2297,21 @@ EOF
     [ -n "${name:-}" ] || continue
     printf '  %-26s %-14s %s\n' "$name" "$cap" "$(printf '%s' "$desc" | cut -c1-64)"
   done
+
+  # Said before the advice, because it is a fact about this machine rather
+  # than about the catalogue: a plugin that was read, judged and installed is
+  # no longer the copy that was judged. Silent when nothing has moved, which
+  # is the only way a line like this stays worth reading.
+  local drifted; drifted="$(felix_discover_drifted "$proj" "$FELIX_HOME_DIR")"
+  if [ -n "$drifted" ]; then
+    printf '\ninstalled copies that are no longer what was read\n\n'
+    printf '%s\n' "$drifted" | while IFS=$'\t' read -r dn dd; do
+      [ -n "${dn:-}" ] || continue
+      printf '  %-26s %s\n' "$dn" "$dd"
+    done
+    printf '\nThe tier on file for each was scored from the other copy. Re-reading\n'
+    printf 'them is felix discover --inspect; nothing here has been changed.\n'
+  fi
 
   if [ "$inspect" -ne 1 ]; then
     printf '\nThat is the catalogue talking. It says nothing about what any of them\n'
@@ -2632,6 +2684,19 @@ cmd_stack() {
     source="$(_felix_stack_rows "$proj" | awk -F'\t' -v n="$name" '$2==n{print $3}')"
     if felix_stack_install "$kind" "$name" "$source"; then
       printf '  installed  %s %s\n' "$kind" "$name"
+      # The same comparison the adopt path makes, for the other door into
+      # installing something. Drift only: most rows in a stack.tsv were
+      # written by a person and never went through discovery, so they carry
+      # no digest, and a line saying so for each of them would be noise
+      # rather than a finding.
+      if [ "$kind" = plugin ]; then
+        local sline
+        sline="$(felix_discover_drift "$proj" "$FELIX_HOME_DIR" "$name")"
+        if [ "$(printf '%s' "$sline" | cut -f1)" = drift ]; then
+          printf '  DRIFT      %s %s is not the copy discovery read\n' "$kind" "$name"
+          printf '             %s\n' "$(printf '%s' "$sline" | cut -f2-)"
+        fi
+      fi
     else
       printf '  FAILED     %s %s\n' "$kind" "$name"
       failed=$((failed+1))

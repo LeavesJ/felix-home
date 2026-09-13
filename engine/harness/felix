@@ -575,9 +575,17 @@ cmd_gate() {
       printf '                     %s control(s) met across %s checker(s)\n' \
         "$(printf '%s\n' "$qout" | grep -cE '  ok$')" \
         "$(felix_qualify_checkers "$proj" | grep -c .)"
+      # An `ok` that covered less than the table declares says by how much, on
+      # the line a reader stops at. Counted off the verdict column, the way the
+      # met count above is, and not off the summary sentence: #206 removed a
+      # count read from prose, and a reworded sentence would drop this line in
+      # exactly the checkout that needs it.
+      local qna
+      qna="$(printf '%s\n' "$qout" | grep -cE '  n/a$')"
+      [ "${qna:-0}" -gt 0 ] 2>/dev/null && printf '                     %s did not apply here\n' "$qna"
     else
       printf '  %-18s FAIL\n' qualified | tee -a "$log"
-      printf '%s\n' "$qout" | grep -E 'HELD|UNRUNNABLE' | head -8 | sed 's/^/  /'
+      printf '%s\n' "$qout" | grep -E 'HELD|UNRUNNABLE|^never shown failing in this checkout' | head -8 | sed 's/^/  /'
       [ "$rc" -eq 0 ] && printf '\ngate: FAIL (qualified)\n'
       rc=1
     fi
@@ -1675,10 +1683,13 @@ cmd_qualify() {
     printf 'No checker here is qualified, because %s/qualification.tsv\n' "$proj"
     printf 'declares nothing. Every check this project runs is currently trusted\n'
     printf 'on the strength of having been written.\n\n'
-    printf '  checker <TAB> command <TAB> control <TAB> expect <TAB> mutation\n\n'
+    printf '  checker <TAB> command <TAB> control <TAB> expect <TAB> mutation [<TAB> premise]\n\n'
     printf 'Six controls per checker, from the conformance amendments: violation,\n'
     printf 'restoration, irrelevant, alternate, decoupled_violation and\n'
-    printf 'decoupled_satisfaction.\n'
+    printf 'decoupled_satisfaction.\n\n'
+    printf 'A premise is optional: a command run before the mutation. Exit 1 means\n'
+    printf 'the control cannot be staged in this checkout and it is reported as not\n'
+    printf 'applying; any other failure is a control that could not run.\n'
     return 1
   fi
 
@@ -1690,20 +1701,23 @@ cmd_qualify() {
     printf 'silence about it reads as a control that passed.\n\n'
   fi
 
-  local out held=0 unrun=0 total=0
+  local out held=0 unrun=0 total=0 inapp=0 unshown
   out="$(felix_qualify_run "$proj" "$root" "$want")"
   printf '  %-10s %-24s %-7s %-7s %s\n' CHECKER CONTROL EXPECT GOT ''
   printf '%s\n' "$out" | while IFS=$'\t' read -r c ctl exp got v; do
     [ -n "${c:-}" ] || continue
     case "$v" in
-      met)        printf '  %-10s %-24s %-7s %-7s ok\n'         "$c" "$ctl" "$exp" "$got" ;;
-      unrunnable) printf '  %-10s %-24s %-7s %-7s UNRUNNABLE\n' "$c" "$ctl" "$exp" "$got" ;;
-      *)          printf '  %-10s %-24s %-7s %-7s HELD\n'       "$c" "$ctl" "$exp" "$got" ;;
+      met)          printf '  %-10s %-24s %-7s %-7s ok\n'         "$c" "$ctl" "$exp" "$got" ;;
+      unrunnable)   printf '  %-10s %-24s %-7s %-7s UNRUNNABLE\n' "$c" "$ctl" "$exp" "$got" ;;
+      inapplicable) printf '  %-10s %-24s %-7s %-7s n/a\n'        "$c" "$ctl" "$exp" "$got" ;;
+      *)            printf '  %-10s %-24s %-7s %-7s HELD\n'       "$c" "$ctl" "$exp" "$got" ;;
     esac
   done
   held="$(printf '%s\n' "$out"  | awk -F'\t' '$5 == "held" { n++ } END { print n+0 }')"
   unrun="$(printf '%s\n' "$out" | awk -F'\t' '$5 == "unrunnable" { n++ } END { print n+0 }')"
+  inapp="$(printf '%s\n' "$out" | awk -F'\t' '$5 == "inapplicable" { n++ } END { print n+0 }')"
   total="$(printf '%s\n' "$out" | awk -F'\t' 'NF >= 5 { n++ } END { print n+0 }')"
+  unshown="$(felix_qualify_unshown "$proj" "$out" | tr '\n' ' ')"
 
   # Controls a checker has no row for. Four of six is not qualified, and the two
   # usually missing are the two that separate the marker from the property.
@@ -1715,6 +1729,27 @@ cmd_qualify() {
   done
 
   printf '\n%s of %s control(s) held; %s could not run.\n' "$held" "$total" "$unrun"
+  # Said only when it happened, and never folded into the held count or the met
+  # one: a control whose premise is absent is neither broken nor kept.
+  [ "${inapp:-0}" -gt 0 ] && printf '%s did not apply in this checkout: its premise is absent here.\n' "$inapp"
+  # One inapplicable control is not a refusal: it is not a control anybody broke.
+  # A checker ALL of whose fail-expecting controls did not apply is, under
+  # --gate, and the first draft of this said otherwise. It reasoned from the
+  # ratchet — a checker with no rows is not red — and the reasoning does not
+  # transfer: those controls were written, which is the claim that the checker
+  # catches something, and in this checkout nothing shows it catching anything.
+  # `qualified ok` over that is invariant 5 broken in the one check that exists
+  # to enforce invariant 5. A review caught it before it merged.
+  #
+  # The remedy is not a looser verdict but a better control: one that stages its
+  # own premise — creates the thing whose absence made the others inapplicable,
+  # then breaks the property with it — applies in every checkout.
+  if [ -n "${unshown% }" ]; then
+    printf '\nnever shown failing in this checkout: %s\n' "${unshown% }"
+    printf 'Every control that expects it to fail has a premise this checkout lacks,\n'
+    printf 'so nothing here shows it catching anything. It is not qualified here.\n'
+    printf 'Declare a control that stages its own premise, and it applies everywhere.\n'
+  fi
   if [ "${held:-0}" -gt 0 ]; then
     printf '\nA held control is the checker passing over a tree that violates what it\n'
     printf 'protects. That is not a failing test — it is the check reporting a\n'
@@ -1764,10 +1799,12 @@ cmd_qualify() {
     fi
   fi
   if [ "$gate" -eq 1 ]; then
-    [ "${held:-0}" -eq 0 ] && [ "${unrun:-0}" -eq 0 ] && return 0
-    printf '\nA declared control that does not hold is this check reporting a\n'
-    printf 'property the tree does not have. Fix the checker, or delete the\n'
-    printf 'control and say in the diff that it is no longer claimed.\n'
+    [ "${held:-0}" -eq 0 ] && [ "${unrun:-0}" -eq 0 ] && [ -z "${unshown% }" ] && return 0
+    if [ "${held:-0}" -gt 0 ] || [ "${unrun:-0}" -gt 0 ]; then
+      printf '\nA declared control that does not hold is this check reporting a\n'
+      printf 'property the tree does not have. Fix the checker, or delete the\n'
+      printf 'control and say in the diff that it is no longer claimed.\n'
+    fi
     return 1
   fi
   printf '\nA declared control binds; an undeclared one does not. felix qualify\n'

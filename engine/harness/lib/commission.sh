@@ -223,6 +223,7 @@ felix_commission_resume_bg() {
   log="$home/state/commission/$(basename "$proj").bg.log"
   mkdir -p "$(dirname "$log")" 2>/dev/null || return 0
   (
+    felix_close_inherited_fds
     cd "$root" 2>/dev/null || exit 0
     if "$bin" commission >/dev/null 2>&1; then
       printf '%s\tran\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$root" >> "$log"

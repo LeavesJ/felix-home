@@ -742,6 +742,7 @@ felix_discover_refresh_bg() {
   mkdir "$lock" 2>/dev/null || return 0   # already running; leave it alone
   (
     trap 'rmdir "$lock" 2>/dev/null' EXIT
+    felix_close_inherited_fds
     cd "$(felix_repo_root "$PWD")" 2>/dev/null || exit 0
     # A refresh that could not read the marketplaces exits non-zero and writes
     # nothing, and the previous answer stands: an unreadable catalogue is not

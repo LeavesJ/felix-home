@@ -12,6 +12,42 @@
 # then says "absent" about something that is present. It is worse than a plain
 # bug because it is timing-dependent for small producers, so it passes in testing
 # and fails against a real repository.
+# Close every descriptor this shell inherited above the standard three.
+#
+# Called as the first thing inside a background subshell. Measured on the
+# shipped session-start hook, with a commission grant live so the background
+# resume actually ran:
+#
+#   hook process exits           1.9s
+#   its stderr pipe reaches EOF  12.2s
+#
+# Ten of those seconds are not work. Something in the background tree was
+# holding the stderr pipe the platform reads to know the hook is done, so the
+# session waited for a refresh it was never supposed to wait for. Redirecting
+# 0, 1 and 2 inside the subshell does not fix it — every background job here
+# already did that. Closing descriptors 10 through 13 in the subshell did:
+# 12.2s became 1.9s, repeatably.
+#
+# What is measured and what is inferred, kept apart on purpose. The
+# measurement is the A/B above. The inference is WHY a descriptor in that range
+# holds the pipe: bash saves a redirected descriptor on a high number to
+# restore it afterwards, and a subshell forked while one is live inherits the
+# copy. A minimal reproduction of that shape did NOT reproduce the hang, so
+# treat the explanation as unconfirmed and the fix as empirical. If you are
+# here because something regressed, re-run the A/B rather than reasoning from
+# this paragraph.
+#
+# Bounded rather than enumerated: bash allocates saved descriptors from 10
+# upward, and /dev/fd enumeration needs a descriptor of its own to read.
+felix_close_inherited_fds() {
+  local _fd=3
+  while [ "$_fd" -le 30 ]; do
+    [ -e "/dev/fd/$_fd" ] && eval "exec ${_fd}>&-"
+    _fd=$((_fd + 1))
+  done
+  return 0
+}
+
 felix_contains() {
   case "$1" in *"$2"*) return 0 ;; *) return 1 ;; esac
 }

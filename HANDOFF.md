@@ -144,13 +144,35 @@ moved the met count to the verdict column.
 Overnight state from 2026-09-12 was closed with `--end`; its deadline had
 passed 26 hours earlier.
 
+**Later the same session: two more, both yellow, both open.**
+
+- **#238 closes #127.** `felix handoff "note"` dropped the note and printed
+  success, and a bare `felix handoff` carried the previous session's note
+  forward in silence — which happened to this session's own close, and was
+  caught by reading the file. Words are the note now, an unknown flag refuses,
+  and a bare call says which note it kept. Twelve assertions written before
+  the change; nine fail against the old parser. 2069 passed, 0 failed.
+- **#239 is #2's first increment**, `docs/2026-08-18-promotion-spec.md` steps
+  2-4, decided on 2026-08-18 and never built until now. `installed` asks
+  whether the cache entry for the version main declares is main's engine,
+  both sides from the base, so any checkout can pass it and the gate certifies
+  the judge `felix merge` uses. On #236's real tree: today's gate reads
+  structural FAIL, this one reads ok. Fifteen assertions on the real
+  `gate.sh` in a fixture; two passed against the old gate for the wrong reason
+  and were tightened before they were believed. 2072 passed, 0 failed. It
+  takes effect only once the home has pulled, because `felix gate` runs the
+  home's working copy of `gate.sh`. Step 5, promotion after acceptance, is red
+  and is the founder's; `deploy-check` and the `engine_deployed` obligation
+  still ask the old question and are the next re-point.
+
 **Next, in order.** (1) Review and merge #236 — red tier, the founder's — then
 the three commands above in the home. `graphify` comes due again after the
 merge. (2) `felix commission` and the re-grant, still only a person's. (3) The
 public snapshot: in the stand-in above qualification no longer blocks the gate,
 but neither that nor the rest of `felix gate` has been run on the snapshot, and updating that repository is
-a publish, so it waits for the founder to say. (4) Standing: `projects/bazaar`
-and `projects/webapp` stay untracked.
+a publish, so it waits for the founder to say. (4) Merge #238 and #239 (yellow);
+#239 needs the home to pull before it does anything. (5) Standing:
+`projects/bazaar` and `projects/webapp` stay untracked.
 
 ## 0ba. Verified at session close, 2026-09-13 — the engine is public, and the repository it came from is not
 

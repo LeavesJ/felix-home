@@ -11,6 +11,7 @@
 1	--yes never installs high risk
 1	FELIX_ALLOW_RED lets a founder stop anyway
 1	FELIX_MEMORY overrides the default
+1	FELIX_RELEASE_TARGET decides the target when it is set
 1	Felix's own gate refusal is recognised as its own
 1	PreToolUse is bound for Bash
 1	PreToolUse is bound for Edit
@@ -68,6 +69,7 @@
 1	a commissioning run seeds the ledger through the row's answer
 1	a commit in the checkout the graph was built from is due
 1	a commit with no remote does not stamp a push
+1	a component that cannot be computed prints as a dash
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
 1	a content difference is still a drift
@@ -79,6 +81,7 @@
 1	a credential in added lines classifies red
 1	a credential in added lines escapes as disclose
 1	a deadline that has passed ends the night and says so
+1	a decision epoch is one line
 1	a declare whose provenance could not be written is not counted
 1	a declared capability with NO row still scores on its name
 1	a declared capability with a row keeps its keywords
@@ -101,6 +104,7 @@
 1	a detected surface no row serves, reaches or grounds is named with all three misses
 1	a detector hard-coded to one stack is caught
 1	a devlog entry newer than the catch settles it too
+1	a different remote_match is a different subject
 1	a different repository is still checked
 1	a directory declaring project.json is enumerated
 1	a directory holding only untracked files is blind too
@@ -152,6 +156,7 @@
 1	a green row cannot demote the diff that adds it
 1	a green row for a previously unruled path does not green it either
 1	a green tree with no night granted still ends the session
+1	a grounded topology is one line
 1	a half-written character does not fail the whole report
 1	a held control refuses it
 1	a held row whose answer ran and whose check now passes is done
@@ -223,7 +228,11 @@
 1	a negated check is malformed, because it could not fail
 1	a nested repository is refused, with the restore truth
 1	a never-run routine is due
+1	a new grounded topology is a new epoch
 1	a new note replaces it
+1	a new policy state is a new epoch
+1	a new release target is a new epoch
+1	a new subject is a new epoch
 1	a new untracked file invalidates the receipt
 1	a night nobody granted is not an expired night
 1	a night of zero hours is not a night
@@ -274,6 +283,7 @@
 1	a plugin shipping hooks and nothing countable is hook-only
 1	a plugin that cannot be checked is not a clean bill
 1	a pointer to a real home is left alone
+1	a policy version is one line
 1	a predicate that was being read and no longer is gets named
 1	a predicate whose instrument changed says so
 1	a predicate whose state changed is reported as a state change
@@ -287,6 +297,7 @@
 1	a probe row naming a predicate and no command blocks the merge
 1	a probe that begins with an assignment identifies no instrument
 1	a probe that enumerates members is found
+1	a probe that enumerates one more member is a new topology
 1	a probe that invents its members is indistinguishable from one that found them
 1	a probe that printed members and then failed is unknown, not found
 1	a probe that reads stdin returns instead of hanging the gate
@@ -294,6 +305,9 @@
 1	a probes.tsv holding no rows is refused too
 1	a project bounded only by content rules reports the bound
 1	a project declaring no qualification qualifies nothing
+1	a project directory that is not there identifies no subject
+1	a project directory that is not there identifies no subject and no topology
+1	a project that declares no probes has no topology
 1	a project that has qualified nothing is skipped, not failed
 1	a project with no declared gate is left alone
 1	a project with no probes.tsv declares no probes
@@ -407,6 +421,8 @@
 1	a structural failure still fails the gate
 1	a subdir argument naming no directory digests the copy it was given
 1	a subdirectory named as an argument digests as that subdirectory alone
+1	a subject identity is one line
+1	a subject that cannot be identified blocks the epoch the same way
 1	a surface appearing in the checkout makes it stale the other way
 1	a surface detected in the tree is an item even if nobody declared it
 1	a surface the checkout has and no probe reads is a gap
@@ -453,6 +469,7 @@
 1	a writable project still records
 1	a write rule denies a write
 1	adding a Dockerfile surfaces deploy
+1	adding a comment line changes the policy version
 1	adding a file changes the digest
 1	adding a key to json escapes nothing
 1	adding a row to an enforcing table escapes nothing
@@ -475,6 +492,7 @@
 1	an absent marker is still silent at session start
 1	an absent marker still means ungoverned
 1	an absent pointer is not a broken pointer
+1	an absent probes.tsv is no topology either
 1	an admitted nomination becomes a declared row
 1	an advisory probabilistic row that fails blocks nothing
 1	an agent is recorded by which agent
@@ -494,6 +512,7 @@
 1	an applies command that does not exist here is UNKNOWN on both axes
 1	an argument it cannot honour merges nothing
 1	an eight-hour grant runs until eight hours from now
+1	an empty FELIX_RELEASE_TARGET is not a target
 1	an empty base is not reported as unknown
 1	an empty grounding refuses
 1	an empty listing is exit 0 and no rows: a catalogue that was read
@@ -556,6 +575,7 @@
 1	an ungoverned repo is allowed
 1	an ungranted project starts no background run
 1	an ungrounded row is counted
+1	an unknown component prints no epoch at all
 1	an unknown grounding refuses
 1	an unknown routine is refused
 1	an unknown tier refuses
@@ -603,6 +623,7 @@
 1	and a bare script is still caught from inside the engine itself
 1	and a cache file that is not there reads as no digest either
 1	and a catalogue that was read and matched nothing is exit 0
+1	and a checkout with no default branch of its own falls back to main
 1	and a clean table leaves the gate green
 1	and a command that does not resolve identifies none either
 1	and a declared control is not reported missing
@@ -659,6 +680,7 @@
 1	and absent from both sides is a fixture, not a drift
 1	and again, so a session can bump twice
 1	and an Agent call with no type is still a tool
+1	and an absent table refuses with a non-zero status too
 1	and an automation row still ends in its capability
 1	and an installed copy with no files to digest claims nothing either
 1	and an older one does not
@@ -683,6 +705,7 @@
 1	and claims nothing was unchecked
 1	and commissions
 1	and commits nothing to it
+1	and components exits 0 even then
 2	and counts it
 1	and counts the recorded decline
 1	and counts what was held over the whole file too
@@ -717,6 +740,7 @@
 1	and exits 0 when it has a digest to print
 1	and exits 0 with the tree dirty
 1	and exits 3, distinctly
+1	and exits non-zero rather than hashing over an absence
 1	and explains why it now matters
 1	and fails when a wired moment is unbound
 1	and fails when one of them loses it
@@ -849,6 +873,7 @@
 1	and no longer prints next steps
 1	and no memory root named --help is minted
 1	and no night is announced when none was granted
+1	and no policy version either, there being no tables to hash
 1	and no rate is claimed over a numerator that cannot hold compliance
 1	and no row anywhere carries a grounding the policy cannot read
 1	and no row is accepted from that file
@@ -912,6 +937,7 @@
 1	and pushed, and the push is verified
 1	and putting the byte back puts the digest back
 1	and putting the rule back clears it
+1	and putting the table back puts the policy version back
 2	and quotes the name the marker asks for
 1	and quotes what it said
 1	and raises or clears no merge blocker
@@ -926,6 +952,7 @@
 2	and refused at the boundary
 1	and refuses in gate mode as well
 1	and refuses instead of ignoring it
+1	and refuses rather than hashing over nothing
 1	and refuses to answer when the probe yields no words
 1	and refuses to spend past the ceiling
 1	and refuses with no issue and no input
@@ -971,6 +998,7 @@
 1	and says so plainly when none does
 1	and says so rather than implying I did
 1	and says so rather than reporting a merge
+1	and says so with a non-zero status
 1	and says so with a non-zero status, not the digest of an empty document
 1	and says that it knows
 1	and says the checkout could not be entered rather than naming a missing command
@@ -1019,6 +1047,7 @@
 1	and so is every other one
 1	and so is no argument at all
 1	and so is ordinary work
+1	and so is project.json
 1	and so is the content-drift arm
 1	and so is the other one
 1	and stack.sh alone can too
@@ -1049,6 +1078,7 @@
 1	and that one authority writes both halves
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
+1	and that refusal is non-zero too
 1	and the ack is consumed by the answer
 1	and the all-clear is not repeated every session
 1	and the alphabetical-first remote was not touched
@@ -1075,6 +1105,7 @@
 1	and the engine writes no mistake for it
 1	and the entry that did match is still returned
 1	and the entry that has one still answers
+1	and the epoch is back where it started once all four are
 1	and the exact command that produced it
 1	and the failure is recorded under the check's own name
 1	and the fixture files this block rewrote are back
@@ -1109,9 +1140,11 @@
 1	and the mute is a row, not a silent omission
 1	and the new row is its own line
 1	and the number it reports is the number it stored
+1	and the old remote_match brings the old subject back
 1	and the older spelling of the same tool is caught too
 1	and the one enumeration cannot close
 1	and the one it cannot attribute is not folded either
+1	and the other three are still there beside it
 1	and the page has a panel for it
 1	and the partly-countable list takes the mixed one
 1	and the path-less one still inherits nothing
@@ -1171,8 +1204,10 @@
 1	and the tier field is the tier, not a tier with a digest stuck to it
 1	and the tier it carries
 1	and the tier reducer agrees
+1	and the topology comes back when the member goes away
 1	and the unmount above is the only other proposal
 1	and the unwritten remainder is named as unwritten
+1	and the values are the ones the four functions compute
 1	and the version is a dotted number
 1	and the widget ledger is as this block found it
 1	and the widget manifest is as this block found it
@@ -1250,6 +1285,9 @@
 1	code with no test is a gap
 1	comments and blanks are not capabilities
 1	committing unverified work no longer skips the check
+1	components exits 0 when all four are known
+1	components exits 0 with a component missing
+1	components prints exactly four lines
 1	continuations run out and the night ends
 1	copied the runbook it implies
 1	copied the runbook their stack implies
@@ -1276,6 +1314,8 @@
 1	dormant steps never nag
 1	each control runs against a tree of its own
 1	each fact carries the tree it was taken from
+1	each line is a name and a value separated by a tab
+1	editing a table in the set is a new policy version
 1	editing a table in the set makes it stale, with nothing under state/ changing
 1	editing the same file again invalidates the receipt
 1	editing the table takes the grant off it
@@ -1289,6 +1329,7 @@
 1	every decision is logged
 1	every decision is recorded
 1	every ecosystem row carries a written reason
+1	every one of them terminates the line it printed
 1	every request answered stops the reminder
 1	every route matches its own name
 1	every row carries the command that clears it
@@ -1438,6 +1479,7 @@
 1	more matches than the row cap is exit 0, not the pipe closing under it
 1	name and skills accumulate as evidence
 1	named as the script it is
+1	named in the order the architecture states them
 1	names the first step
 1	names the maintenance that is due
 1	names the suspect commit
@@ -1486,6 +1528,7 @@
 1	nor the all-caps sentinel
 1	nor the stop hook talking to itself
 1	not refused
+1	nothing changed is the same epoch
 1	nothing found and a witness agreeing is empty
 1	nothing found where a witness proves a surface is blind
 1	nothing found with no witness is unknown, never empty
@@ -1529,6 +1572,7 @@
 1	pr refuses to open a branch against itself
 1	present, active — nothing was stored between the two
 1	probes.tsv is one of the tables whose shrinkage escapes
+1	project.json names the target when the environment does not
 1	promote surfaces a word that keeps missing
 1	proposes mounting what was reached and never declared
 1	proposes retiring what was mounted and never reached for
@@ -1685,6 +1729,7 @@
 1	the cause is not the raw payload
 1	the ceiling itself is still a night somebody can be granted
 1	the checkout holding the graph is ok
+1	the checkout's own default branch is next, without the origin/ prefix
 1	the claude cli changing is announced and never invalidates
 1	the controls a checker declares nothing for are named
 1	the data marker is substituted
@@ -1754,6 +1799,7 @@
 1	the pre-flight runs clean under bash
 1	the probe command stays in the eighth column
 1	the probe report says what it cannot reach
+1	the probe table is in the set too
 1	the project marker classifies red, never green
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
@@ -1785,8 +1831,10 @@
 1	the row is awaiting, UNKNOWN by class
 1	the run records the accepted rows as INFERRED with the file's hash as provenance
 1	the run writes the receipt
+1	the same facts in a different row order are the same topology
 1	the same file one level up fails by name, where the inline check was blind
 1	the same file with an unconfined line escapes
+1	the same project identifies the same subject twice
 1	the same route does not repeat itself
 1	the scanner refuses to answer on a path it cannot search
 1	the scanner's own code names no project

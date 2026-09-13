@@ -139,6 +139,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/probes.sh"
 # shellcheck source=lib/obligations.sh
 . "${SCRIPT_DIR}/lib/obligations.sh"
+# shellcheck source=lib/epoch.sh
+. "${SCRIPT_DIR}/lib/epoch.sh"
 # shellcheck source=lib/facts.sh
 . "${SCRIPT_DIR}/lib/facts.sh"
 . "${SCRIPT_DIR}/lib/commission.sh"
@@ -202,6 +204,7 @@ specific project, language, or toolchain.
     felix procedures      what each moment must answer for, and what nothing answers yet
     felix probes [--gate] what reality says about this checkout, and what nothing asks
     felix obligations [--gate] what this project has admitted it owes, and whether it owes it here
+    felix epoch            the decision epoch those obligations are scoped to, and what would make a new one
     felix commission [--status] the first-encounter moment: what serves this checkout, what reaches it, what a person still owes
     felix adopt <cap>      declare a capability and everything it implies
     felix profile [name]   which tools a task profile mounts
@@ -4321,10 +4324,51 @@ cmd_obligations() {
   local n_ung; n_ung="$(felix_obligations_ungrounded "$proj" | grep -c .)"
   [ "$n_ung" -gt 0 ] && printf '; %s ground on no probe' "$n_ung"
   printf '\n'
+  # The epoch these were evaluated under. Report only, and only in the report:
+  # the gate's copy of this output is read by other things, and a line added
+  # there would be a format change rather than a fact.
+  if [ "$gate" -ne 1 ]; then
+    local ep; ep="$(felix_epoch "$proj" "$root")" || ep=""
+    [ -n "$ep" ] && printf '\nscoped to decision epoch %s\n' "$ep"
+  fi
   if [ "$gate" -eq 1 ]; then
     [ "$n_block" -eq 0 ] && [ -z "$bad" ] && [ -z "$orphans" ] || return 1
   fi
   return 0
+}
+
+cmd_epoch() {
+  resolve_or_die; local proj="$PROJ" root a
+  for a in "$@"; do
+    case "$a" in
+      --*) die "usage: felix epoch (got: $a)" ;;
+    esac
+  done
+  root="$(felix_repo_root "$PWD")"
+
+  local e comps
+  comps="$(felix_epoch_components "$proj" "$root")"
+  e="$(felix_epoch "$proj" "$root")" || e=""
+
+  printf 'decision epoch for %s\n\n' "$(basename "$proj")"
+  printf '%s\n' "$comps" | while IFS=$'\t' read -r k v; do
+    [ -n "${k:-}" ] || continue
+    printf '  %-18s %s\n' "$k" "$v"
+  done
+  printf '\n'
+  if [ -n "$e" ]; then
+    printf '  epoch              %s\n' "$e"
+  else
+    printf '  epoch              -\n\n'
+    printf 'A component above is unknown, so there is no epoch. Hashing over the\n'
+    printf 'absence would read as a world that had moved every time a probe broke.\n'
+    return 2
+  fi
+  printf '\nWithin one epoch, admitted blocking obligations may stay constant or\n'
+  printf 'increase; a new grounded topology or a new table set makes a new one,\n'
+  printf 'and that is when applicability is recomputed. This command reports it\n'
+  printf 'and changes no verdict: shrinking the ledger escapes to a person\n'
+  printf 'whatever the epoch says, which is stricter than the rule above.\n'
 }
 
 cmd_probes() {
@@ -4634,6 +4678,7 @@ case "${1:-help}" in
   commission) shift; cmd_commission "$@" ;;
   probes)     shift; cmd_probes "$@" ;;
   obligations) shift; cmd_obligations "$@" ;;
+  epoch)     shift; cmd_epoch "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;
   decisions) shift; cmd_decisions "$@" ;;

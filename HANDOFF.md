@@ -110,13 +110,24 @@ for itself. The question worth carrying forward is not "is this secret" but
 **The scanner could not see the one credential Felix is about.**
 `ANTHROPIC_API_KEY` sat in `FELIX_SCAN_CONTEXT`, which is applied whole-line and
 claims "nothing on this line is a literal". Every other entry there is an
-expression that produces a value; a variable name is not one. Same key, only
-the name differing: `ANTHROPIC_API_KEY = "sk-ant-…"` exited 0 and `CLAUDE_KEY =
-"sk-ant-…"` exited 1. Fixed, bounded by a new `FELIX_SCAN_HARD` so a lookup no
+expression that produces a value; a variable name is not one. Given one live
+key written twice, differing only in the variable it was assigned to, the
+scanner exited 0 on the one named for Anthropic and 1 on the other. Fixed, bounded by a new `FELIX_SCAN_HARD` so a lookup no
 longer deletes a real key used as its fallback default, `github_pat_` added,
 and `--tree` added because the diff gate compares main to main on a fresh clone
 and reports clean having read zero lines. `--tree` over the tree returns 17
 hits and every one is a planted fixture.
+
+**And it caught this file.** The first draft of the paragraph above quoted the
+two assignments verbatim to show the difference. The fixed scanner flagged the
+line — correctly, it is keyword-assignment shaped — and because the gate's
+`secret` check runs over the tree, four `secret` qualification controls that
+expect a clean tree went from pass to fail with it. Prose poisoned the
+baseline, which is the hazard `qualification.tsv` already solves for itself by
+assembling its credential values at run time. The demonstration is described
+rather than quoted now. Worth knowing before writing the next one: the
+placeholder exclusion covers three ASCII dots and not the single-character
+ellipsis, so `…` does not read as a redaction.
 
 **Ten seconds of every session, in every governed project.** With a commission
 grant live, the session-start hook's process exits at 1.9s and the stderr pipe

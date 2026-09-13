@@ -94,15 +94,17 @@ the project their own mutation writes.
 **The first draft did not refuse, and it was wrong.** It named a checker whose
 every fail-expecting control was inapplicable as "never shown failing in this
 checkout" and let `felix qualify --gate` exit 0, reasoning from the ratchet: a
-checker with no rows is not red. Three of five independent reviewers flagged it
+checker with no rows is not red. Four of five independent reviewers flagged it
 as invariant 5 broken inside the one check that exists to enforce invariant 5,
 and the reasoning did not transfer — rows that were written are a claim that the
 checker catches something. It refuses now. The dilemma that had made refusal
 look wrong (the public checkout would go red) dissolved with a better control
 rather than a looser verdict: two independence rows that **stage their own
 premise**, creating a governed project HEAD lacks and leaking its name, so they
-apply in every checkout. Measured in a clone with the other two projects
-removed: four met, two n/a, `--gate` exit 0 over all 38 controls. Worth carrying
+apply in every checkout. Measured in a clone of this repository with the other
+two projects removed — a stand-in for the public snapshot, not the snapshot —
+on #236's exact files: independence four met and two n/a, 36 of 38 met overall,
+`--gate` exit 0. Worth carrying
 forward as a shape: **a verdict that stops something failing needs, beside it,
 a check that something is still shown failing.**
 
@@ -133,8 +135,9 @@ copy is byte-identical to the first sixteen lines of the result. After merging:
 
 **The code-review plugin was reached for.** The ledger had it pointed at in 83
 of 86 sessions and never used. It ran here adapted — no PR existed yet, so no
-eligibility check and no comment posted — as five parallel reviews of the local
-diff. Two findings cleared the bar and both are in #236: the refusal above, and
+eligibility check, no confidence-scoring pass and no comment posted — as five
+parallel reviews of the local diff, with findings checked by hand. Two are fixed
+in #236: the refusal above, and
 the gate's inapplicable count, which read a sentence where #206 had already
 moved the met count to the verdict column.
 
@@ -144,8 +147,8 @@ passed 26 hours earlier.
 **Next, in order.** (1) Review and merge #236 — red tier, the founder's — then
 the three commands above in the home. `graphify` comes due again after the
 merge. (2) `felix commission` and the re-grant, still only a person's. (3) The
-public snapshot: qualification no longer blocks its gate, but whether the rest
-of `felix gate` is green there has not been run, and updating that repository is
+public snapshot: in the stand-in above qualification no longer blocks the gate,
+but neither that nor the rest of `felix gate` has been run on the snapshot, and updating that repository is
 a publish, so it waits for the founder to say. (4) Standing: `projects/bazaar`
 and `projects/webapp` stay untracked.
 

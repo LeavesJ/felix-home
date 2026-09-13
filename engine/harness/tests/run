@@ -10439,10 +10439,20 @@ runtime=("$FROOT/harness/felix" "$FROOT/harness/lib" "$FROOT/harness/hooks" "$FR
 # which is the shape that reports success whenever the set is empty - and the
 # set is read off a directory, so "no projects found" and "no project leaked"
 # arrived as the same pass.
+#
+# A checkout that governs ONLY the engine's own project is the third case, and
+# it is what anybody who clones this repository has. There is no other name to
+# search for, so the negative assertion below cannot be armed — and a `bad`
+# there would tell a stranger their fresh clone is broken, while an `ok` would
+# be the vacuous pass this comment is about. Both are wrong; the answer is
+# that the check did not run, said out loud, which is what `skip` is for.
 _govn="$(_gov_names | wc -l | tr -d ' ')"
-[ "${_govn:-0}" -gt 0 ] \
-  && ok "there is at least one governed project to check for" \
-  || bad "there is at least one governed project to check for" "_gov_names returned nothing"
+if [ "${_govn:-0}" -gt 0 ]; then
+  ok "there is at least one governed project to check for"
+else
+  skip "there is at least one governed project to check for" \
+       "this checkout governs only the engine's own project, so there is no other name to look for"
+fi
 
 # ONE assertion, with the leaking names in the detail rather than in the name.
 # Per name read better and was wrong: the name is the assertion's identity, and
@@ -10458,11 +10468,16 @@ while IFS= read -r _gn; do
 done <<EOF
 $(_gov_names)
 EOF
-[ -z "$_leaked" ] \
-  && ok "the engine names no governed project" \
-  || bad "the engine names no governed project" \
-         "names:$_leaked
+if [ "${_govn:-0}" -eq 0 ]; then
+  skip "the engine names no governed project" \
+       "no governed project other than the engine's own, so nothing to search for"
+elif [ -z "$_leaked" ]; then
+  ok "the engine names no governed project"
+else
+  bad "the engine names no governed project" \
+      "names:$_leaked
 $(for _gn in $_leaked; do grep -rniF -- "$_gn" "${runtime[@]}" | head -2; done)"
+fi
 
 # The engine's own name is exempt, and that exemption must not silently become
 # a hole for everything: it is one name, and it is the one Felix governs itself

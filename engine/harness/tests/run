@@ -8703,6 +8703,251 @@ rm -f "$FROOT/projects/widget/qualification.tsv"
 is "and the widget project is as this block found it" \
    "$([ -f "$FROOT/projects/widget/qualification.tsv" ] && echo present || echo absent)" "absent"
 
+printf '\nqualification: a control whose premise is absent\n'
+# A control that plants a governed project's name cannot be met in a checkout
+# that governs only itself: there is nothing there for the mutation to break.
+# Counting it held turns a correct engine red, and counting it met would be a
+# lie about a check that never ran. So a row may carry a premise, evaluated in
+# the worktree of HEAD before the mutation, and a premise that does not hold
+# makes the control inapplicable.
+#
+# The trap in a third verdict is that it stops a control failing without fixing
+# anything: a premise that always fails silences its control forever. That is
+# why a premise that errors is unrunnable rather than inapplicable, and why a
+# checker whose every fail control was inapplicable is named as never shown
+# failing and refuses the gate. Writing a fail control is the claim that the
+# checker catches something, and anything that claims to verify is shown
+# failing before it is believed; a gate reading ok over a checker nobody has
+# seen fail breaks that. The remedy is a control that stages its own premise.
+#
+# Authored by a subagent given this behaviour in prose and forbidden the
+# runner's source. That records the method; it is not a property anyone can
+# check from here.
+QPP="$TMP/premproj"; QPR="$TMP/premrepo"; mkdir -p "$QPP" "$QPR" "$MEM/premproj"
+( cd "$QPR" && git init -q -b main && printf 'clean\n' > a.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+QPR="$(cd "$QPR" && pwd -P)"
+# Present in the checkout and absent from HEAD, so a premise that finds it was
+# not evaluated where the spec says.
+printf 'loose\n' > "$QPR/loose.txt"
+# Marks a skipped step must not leave, written outside every worktree. The path
+# goes into the table already expanded, so it does not matter how the runner
+# evaluates a row.
+QPS="$TMP/premside"; mkdir -p "$QPS"
+_qpc='! grep -rqI FORBIDDEN . 2>/dev/null'
+_qp5() { printf '%s\t%s\t%s\t%s\t%s\n' "$@"; }
+_qp6() { printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$@"; }
+{ _qp5 five      "$_qpc" violation fail 'printf FORBIDDEN > bad.txt'
+  _qp6 dashed    "$_qpc" violation fail 'printf FORBIDDEN > bad.txt' '-'
+  _qp6 blanked   "$_qpc" violation fail 'printf FORBIDDEN > bad.txt' ''
+  _qp6 affirmed  "printf x >> '$QPS/checker-applied'; $_qpc" violation fail \
+                 "printf x >> '$QPS/mutation-applied'; printf FORBIDDEN > bad.txt" true
+  _qp6 affirmed  "$_qpc" alternate fail 'printf harmless > other.txt' true
+  _qp6 denied    "printf x >> '$QPS/checker-inapplicable'; $_qpc" violation fail \
+                 "printf x >> '$QPS/mutation-inapplicable'; printf FORBIDDEN > bad.txt" false
+  _qp6 headtree  "$_qpc" violation fail 'printf FORBIDDEN > bad.txt' 'test -f a.txt'
+  _qp6 mutated   "$_qpc" violation fail 'printf FORBIDDEN > made.txt' 'test -f made.txt'
+  _qp6 loosefile "$_qpc" violation fail 'printf FORBIDDEN > bad.txt' 'test -f loose.txt'
+  _qp6 errtwo    "$_qpc" violation fail 'printf FORBIDDEN > bad.txt' "sh -c 'exit 2'"
+  _qp6 nocommand "$_qpc" violation fail 'printf FORBIDDEN > bad.txt' 'felix-no-such-premise-command'
+  # For the never-shown-failing report. lonely has a pass control that applied,
+  # so "every control inapplicable" and "every fail control inapplicable" give
+  # different answers; mixed puts its inapplicable row last, so a last-row-wins
+  # reading names it.
+  _qp5 lonely    "$_qpc" restoration pass true
+  _qp6 lonely    "$_qpc" violation fail 'printf FORBIDDEN > bad.txt' false
+  _qp6 passonly  "$_qpc" restoration pass true false
+  _qp5 mixed     "$_qpc" violation fail 'printf FORBIDDEN > bad.txt'
+  _qp6 mixed     "$_qpc" decoupled_violation fail 'printf FORBIDDEN > deep.txt' false
+  _qp5 heldfail  "$_qpc" alternate fail 'printf harmless > other.txt'
+  _qp6 heldfail  "$_qpc" violation fail 'printf FORBIDDEN > bad.txt' false
+} > "$QPP/qualification.tsv"
+_qpo="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+         felix_qualify_run "$QPP" "$QPR" 2>/dev/null )"
+# Column $3 of the row for checker $1, control $2. awk, because read collapses
+# empty fields.
+_qpv() { printf '%s\n' "$_qpo" | awk -F'\t' -v c="$1" -v k="$2" -v f="$3" '$1 == c && $2 == k { print $f }'; }
+_qpe() { [ -e "$1" ] && echo ran || echo absent; }
+
+is  "a qualification row of five columns has no premise and is met as before" \
+    "$(_qpv five violation 5)" "met"
+is  "a premise of a single dash is no premise"            "$(_qpv dashed violation 5)"   "met"
+is  "and neither is an empty premise column"              "$(_qpv blanked violation 5)"  "met"
+is  "a premise that holds lets its control run and be met" "$(_qpv affirmed violation 5)" "met"
+is  "and leaves a control its checker passes over held"   "$(_qpv affirmed alternate 5)" "held"
+is  "a premise that exits 1 makes its control inapplicable" "$(_qpv denied violation 5)" "inapplicable"
+is  "and an inapplicable control reports no result, not a pass or a fail" \
+    "$(_qpv denied violation 4)" "-"
+is  "an inapplicable control never applies its mutation" \
+    "$(_qpe "$QPS/mutation-inapplicable")" "absent"
+is  "nor runs the checker the control was written against" \
+    "$(_qpe "$QPS/checker-inapplicable")" "absent"
+# Absence is evidence only if the same technique shows presence.
+is  "while an applicable control runs both, so that absence is measured" \
+    "$(_qpe "$QPS/mutation-applied") $(_qpe "$QPS/checker-applied")" "ran ran"
+is  "a premise can see the files HEAD has"                "$(_qpv headtree violation 5)" "met"
+is  "and is evaluated before the mutation, so a file only the mutation makes is not there" \
+    "$(_qpv mutated violation 5)" "inapplicable"
+is  "and reads HEAD, not the checkout's uncommitted files" \
+    "$(_qpv loosefile violation 5)" "inapplicable"
+# A premise that errors is not a premise that is false. Read as inapplicable, a
+# typo in a premise would retire its control without anyone deciding to.
+is  "a premise that exits 2 is unrunnable, not inapplicable" \
+    "$(_qpv errtwo violation 4) $(_qpv errtwo violation 5)" "unrunnable unrunnable"
+is  "and so is a premise whose command does not exist" \
+    "$(_qpv nocommand violation 4) $(_qpv nocommand violation 5)" "unrunnable unrunnable"
+
+_qpu="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+         felix_qualify_unshown "$QPP" "$_qpo" )"
+_qpn() { printf '%s\n' "$_qpu" | awk -v n="$1" '$0 == n { f = 1 } END { print (f ? "named" : "not named") }'; }
+# The positive case comes first and shares the output with every negative
+# below, so an empty report cannot pass them.
+is  "a checker whose every fail control did not apply is named as never shown failing" \
+    "$(_qpn lonely)" "named"
+is  "a checker whose fail control was met is not named"    "$(_qpn five)"     "not named"
+is  "nor one whose fail control applied and was held"      "$(_qpn heldfail)" "not named"
+# A checker with no fail control at all is a missing control, which another
+# report names. "Every fail control inapplicable" is vacuously true of it.
+is  "nor one that declares no fail control at all"         "$(_qpn passonly)" "not named"
+is  "nor one with two fail controls of which one applied"  "$(_qpn mixed)"    "not named"
+is  "nor one whose fail control could not run"             "$(_qpn errtwo)"   "not named"
+
+# A sixth column is allowed, so a row carrying one is not short or long. The
+# short row is there so that silence from the malformed report is measured.
+printf 'short\tonly-two\n' >> "$QPP/qualification.tsv"
+_qpm="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+         felix_qualify_malformed "$QPP" )"
+case "$_qpm" in
+  *short*)
+    case "$_qpm" in
+      *dashed*|*blanked*|*affirmed*|*denied*) bad "a row carrying a premise is not reported malformed" "$_qpm" ;;
+      *) ok "a row carrying a premise is not reported malformed" ;;
+    esac ;;
+  *) bad "a row carrying a premise is not reported malformed" "the short row was not reported either, so nothing was measured: [$_qpm]" ;;
+esac
+
+# The CLI, against the fixture project. What the table was is recorded before
+# anything touches it, and compared at the end.
+_qpw="$FROOT/projects/widget/qualification.tsv"
+_qpwas="$(cat "$_qpw" 2>/dev/null || printf '<absent>')"
+cp "$_qpw" "$TMP/qualprem.keep" 2>/dev/null || true
+# The part of any line from the phrase on, so a name is only counted when it
+# follows the phrase.
+_qpshown() { printf '%s\n' "$1" | awk '{ i = index($0, "never shown failing in this checkout"); if (i) print substr($0, i) }'; }
+# The number nearest phrase $2 in $1: the last one in the clause before it, or
+# else the first one after it. Not merely the right digit somewhere on the line,
+# which a report folding the count into another would also print.
+_qpnear() { printf '%s\n' "$1" | awk -v p="$2" '{
+  i = index($0, p); if (!i) next
+  n = split(substr($0, 1, i - 1), part, /[;,.]/); s = (n ? part[n] : "")
+  if (match(s, /[0-9]+[^0-9]*$/)) { s = substr(s, RSTART); sub(/[^0-9].*$/, "", s); print s; exit }
+  t = substr($0, i); if (match(t, /[0-9]+/)) { print substr(t, RSTART, RLENGTH); exit }
+}'; }
+# Controls did not apply, and every checker that declares a fail control has
+# one that applied and was met. passer declares only a pass control, and it did
+# not apply: a checker with no fail control is a missing control, which another
+# report names, not one never shown failing. Three inapplicable, a number no
+# other count can take (two met, two checkers, none held, none unrunnable).
+_qptab_shown() {
+  _qp5 demo   "$_qpc" violation           fail 'printf FORBIDDEN > bad.txt'
+  _qp6 demo   "$_qpc" restoration         pass true '-'
+  _qp6 demo   "$_qpc" decoupled_violation fail 'printf FORBIDDEN > deep.txt' false
+  _qp6 demo   "$_qpc" alternate           fail 'printf FORBIDDEN > alt.txt' false
+  _qp6 passer "$_qpc" restoration         pass true false
+}
+# Nothing held and nothing unrunnable; the one thing wrong is ghost, whose every
+# control did not apply, two fail and one pass. demo shows failing once and has
+# a fail control that did not apply. Four inapplicable in all (two met, two
+# checkers).
+_qptab_ghost() {
+  _qp5 demo  "$_qpc" violation           fail 'printf FORBIDDEN > bad.txt'
+  _qp6 demo  "$_qpc" restoration         pass true '-'
+  _qp6 demo  "$_qpc" decoupled_violation fail 'printf FORBIDDEN > deep.txt' false
+  _qp6 ghost "$_qpc" alternate           fail 'printf FORBIDDEN > alt.txt' false
+  _qp6 ghost "$_qpc" decoupled_violation fail 'printf FORBIDDEN > deep.txt' false
+  _qp6 ghost "$_qpc" irrelevant          pass true false
+}
+_qptab_shown > "$_qpw"
+( cd "$REPO" && "$FELIX" qualify --gate >/dev/null 2>&1 ); _qprc=$?
+is  "inapplicable controls do not refuse the gate while every checker is shown failing" "$_qprc" "0"
+_qptab_ghost > "$_qpw"
+_qpg="$(cd "$REPO" && "$FELIX" qualify --gate 2>&1)"; _qprc=$?
+is  "a checker never shown failing refuses the gate with nothing held or unrunnable" "$_qprc" "1"
+has "--gate names the checker never shown failing in this checkout" "$(_qpshown "$_qpg")" "ghost"
+_qpr="$(cd "$REPO" && "$FELIX" qualify 2>&1)"
+has "and felix qualify names it as well" "$(_qpshown "$_qpr")" "ghost"
+case "$(_qpshown "$_qpg") $(_qpshown "$_qpr")" in
+  *demo*) bad "but neither names a checker shown failing beside a control that did not apply" \
+              "$(_qpshown "$_qpg") $(_qpshown "$_qpr")" ;;
+  *)      ok  "but neither names a checker shown failing beside a control that did not apply" ;;
+esac
+has "the qualify report says a control did not apply in this checkout" "$_qpr" "did not apply in this checkout"
+is  "and counts every control that did not apply, pass or fail" \
+    "$(_qpnear "$_qpr" "did not apply in this checkout")" "4"
+is  "an inapplicable row is rendered n/a, never ok, HELD or UNRUNNABLE" \
+    "$(printf '%s\n' "$_qpr" | awk '$NF == "n/a"' | wc -l | tr -d ' ')" "4"
+# The remedy the refusal points to: a fail control for ghost with no premise,
+# whose mutation stages the violation itself.
+_qp5 ghost "$_qpc" violation fail 'printf FORBIDDEN > bad.txt' >> "$_qpw"
+_qpg="$(cd "$REPO" && "$FELIX" qualify --gate 2>&1)"; _qprc=$?
+is  "a control that stages its own violation lifts the refusal" "$_qprc" "0"
+# The line was printed for this table one row ago, so its absence is measured.
+case "$(_qpshown "$_qpg")" in
+  *ghost*) bad "and the checker it shows failing is no longer named" "$(_qpshown "$_qpg")" ;;
+  *)       ok  "and the checker it shows failing is no longer named" ;;
+esac
+# The held row comes before the inapplicable ones, so a runner that lets a later
+# inapplicable verdict reset the refusal is caught. Every checker here is shown
+# failing, so the refusal can only be the held row's.
+{ _qp5 demo  "$_qpc" violation           fail 'printf FORBIDDEN > bad.txt'
+  _qp5 demo  "$_qpc" alternate           fail 'printf harmless > other.txt'
+  _qp6 demo  "$_qpc" decoupled_violation fail 'printf FORBIDDEN > deep.txt' false
+  _qp6 demo  "$_qpc" irrelevant          pass true false
+} > "$_qpw"
+( cd "$REPO" && "$FELIX" qualify --gate >/dev/null 2>&1 ); _qprc=$?
+is  "a held control still refuses the gate when inapplicable rows follow it" "$_qprc" "1"
+# broken also has a fail control that was met. Read as inapplicable, its
+# erroring premise would leave it shown failing and the gate would pass; so only
+# an unrunnable verdict refuses here.
+{ _qp6 broken "$_qpc" decoupled_violation fail 'printf FORBIDDEN > deep.txt' "sh -c 'exit 2'"
+  _qp5 broken "$_qpc" violation           fail 'printf FORBIDDEN > bad.txt'
+  _qp6 broken "$_qpc" irrelevant          pass true false
+} > "$_qpw"
+( cd "$REPO" && "$FELIX" qualify --gate >/dev/null 2>&1 ); _qprc=$?
+is  "a premise that errors refuses the gate rather than reading as absent" "$_qprc" "1"
+rm -f "$_qpw"
+[ -f "$TMP/qualprem.keep" ] && mv "$TMP/qualprem.keep" "$_qpw"
+is  "and the widget table is as the premise block found it" \
+    "$(cat "$_qpw" 2>/dev/null || printf '<absent>')" "$_qpwas"
+
+# felix gate carries the same verdict. It runs in a home of its own, built the
+# way the self-governed fixture is, because a gate run writes a receipt and a
+# red one writes mistakes.log, and the widget checkout is read by everything
+# after this block.
+QGH="$TMP/premgatehome"; QGR="$TMP/premgaterepo"
+mkdir -p "$QGH/projects/premgate" "$QGH/harness" "$MEM/premgate" "$QGR"
+cp -R "$FROOT/harness/." "$QGH/harness/"
+printf '{ "name": "premgate", "gate": "true" }\n' > "$QGH/projects/premgate/project.json"
+printf '# premgate\n' > "$QGH/projects/premgate/CLAUDE.md"
+( cd "$QGR" && git init -q -b main && printf 'clean\n' > a.txt && printf 'premgate\n' > .felix \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+QGR="$(cd "$QGR" && pwd -P)"
+_qpgate() { ( cd "$QGR" && FELIX_HOME="$QGH" "$QGH/harness/felix" gate 2>&1 ); }
+# The qualified check's own line with status $2, and the lines under it up to
+# the next check's line (two spaces, a name, a status).
+_qpunder() { printf '%s\n' "$1" | awk -v s="$2" '
+  on && /^  [a-z][a-z_-]* +(ok|FAIL|skipped|stale)/ { on = 0 }
+  $0 ~ ("^ *qualified +" s) { on = 1 }
+  on { print }'; }
+_qptab_ghost > "$QGH/projects/premgate/qualification.tsv"
+_qpgo="$(_qpgate)"
+has "felix gate fails qualification over a checker never shown failing" "$(_qpunder "$_qpgo" FAIL)" "qualified"
+has "and prints the line naming it under qualified FAIL" "$(_qpshown "$(_qpunder "$_qpgo" FAIL)")" "ghost"
+_qptab_shown > "$QGH/projects/premgate/qualification.tsv"
+_qpgo="$(_qpgate)"
+has "felix gate reads qualified ok over controls that did not apply" "$(_qpunder "$_qpgo" ok)" "qualified"
+is  "and says under it how many did not apply here" \
+    "$(_qpnear "$(_qpunder "$_qpgo" ok)" "did not apply here")" "3"
 printf '\nautonomy is opted into, never assumed\n'
 AUP="$TMP/autoproj"; mkdir -p "$AUP"
 a() { ( . "$FROOT/harness/lib/autonomy.sh"; felix_autonomy_allows "$AUP" "$1" && echo yes || echo no ); }

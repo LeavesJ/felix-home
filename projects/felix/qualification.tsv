@@ -1,10 +1,18 @@
 # Checker qualification. Does a check fail when the thing it protects is broken?
 #
-# checker <TAB> command <TAB> control <TAB> expect <TAB> mutation
+# checker <TAB> command <TAB> control <TAB> expect <TAB> mutation [<TAB> premise]
 #
 # The command is the checker, run in a throwaway worktree of HEAD after the
 # mutation has been applied to it. `expect` is what a checker worth having must
 # say.
+#
+# The premise is optional and is run first, in the same worktree. Exit 1 means
+# the control cannot be staged in this checkout — reported as not applying,
+# never as held and never as met. Any other failure is unrunnable, so a premise
+# that errors is loud. A checker whose every fail-expecting control is not
+# applying is named as never shown failing here and refuses the gate (#233),
+# so a checker whose teeth all need a premise also needs one control that
+# stages its own.
 #
 # The six controls come from v3.2 conformance amendments 2.1. The first four
 # all move the marker and the property together, so a checker keyed on a
@@ -54,14 +62,34 @@ secret	engine/harness/bin/secret-scan	decoupled_satisfaction	pass	printf '# what
 # They are here as rows-in-waiting so declaring one is one edit, and so
 # `felix qualify` reports the gap by name instead of the table looking complete.
 #
+# PREMISES. The violation plants one governed project's name and the alternate
+# another's, and the checker can only find a name that is governed. In a
+# checkout that governs no project but the engine's own — which is what anybody
+# who clones the public engine has — both premises answer 1 and neither control
+# applies, rather than holding over an engine with nothing wrong with it. The
+# premises were derived from the mutations' own text, not from the checker: each
+# names the project its mutation writes.
+#
+# SELF-STAGED. With only those two, such a checkout never sees the checker fail,
+# and that refuses the gate — correctly. So the last two rows create a governed
+# project HEAD does not have and leak its name, and apply everywhere: the
+# violation plainly, in a lib comment; the alternate uppercase inside an
+# identifier in a hook's code. Authored 2026-09-13 by a subagent given the
+# property in prose and forbidden bin/. It reported one lapse itself: a shell
+# slip printed the first ten lines of a different checker, none of this one.
+#
 # UNDECLARED, the name is assembled from fragments at run time; no contiguous string exists for grep to find:
 # independence	engine/harness/bin/independence-scan	decoupled_violation	fail	echo '# When nothing binds, fall back to the project this checkout was built for.' >> engine/harness/lib/resolve.sh && echo 'felix_fallback_project() { printf "%s/projects/%s%s" "$1" vel dra; }' >> engine/harness/lib/resolve.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: decoupled_violation"
 # UNDECLARED, a governed project named for a word the engine already uses 98 times; -F substring match rejects the word, not the project:
 # independence	engine/harness/bin/independence-scan	decoupled_satisfaction	pass	mkdir -p projects/ledger && printf '{"name":"ledger","remote_match":"example.com/ledger","gate":"true"}\n' > projects/ledger/project.json && printf '# A zero row is a ledger entry like any other; it is written down, not inferred.\n' >> engine/harness/lib/ledger.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: decoupled_satisfaction"
-independence	engine/harness/bin/independence-scan	violation	fail	printf '# elenchus reads says.log too; keep the column order stable for it.\n' >> engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: violation"
+independence	engine/harness/bin/independence-scan	violation	fail	printf '# elenchus reads says.log too; keep the column order stable for it.\n' >> engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: violation"	test -f projects/elenchus/project.json
 independence	engine/harness/bin/independence-scan	restoration	pass	printf '# elenchus reads says.log too; keep the column order stable for it.\n' >> engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: restoration (introduce)" && git checkout HEAD~1 -- engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: restoration"
 independence	engine/harness/bin/independence-scan	irrelevant	pass	sed 's/leaves the decision where it belongs\./leaves the decision with the founder./' engine/harness/lib/unattended.sh > engine/harness/lib/unattended.sh.tmp && mv engine/harness/lib/unattended.sh.tmp engine/harness/lib/unattended.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: irrelevant"
-independence	engine/harness/bin/independence-scan	alternate	fail	{ head -n 1 engine/harness/bin/secret-scan; printf 'VELDRA_ALLOWLIST="${VELDRA_ALLOWLIST:-}"\n'; tail -n +2 engine/harness/bin/secret-scan; } > engine/harness/bin/secret-scan.tmp && mv engine/harness/bin/secret-scan.tmp engine/harness/bin/secret-scan && chmod +x engine/harness/bin/secret-scan && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: alternate"
+independence	engine/harness/bin/independence-scan	alternate	fail	{ head -n 1 engine/harness/bin/secret-scan; printf 'VELDRA_ALLOWLIST="${VELDRA_ALLOWLIST:-}"\n'; tail -n +2 engine/harness/bin/secret-scan; } > engine/harness/bin/secret-scan.tmp && mv engine/harness/bin/secret-scan.tmp engine/harness/bin/secret-scan && chmod +x engine/harness/bin/secret-scan && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: alternate"	test -f projects/veldra/project.json
+# violation, self-staged: creates governed project qovimarth (absent from HEAD) and names it, lowercase, as a whole word in a comment appended to engine/harness/lib/say.sh; applies in a checkout whose only project is felix.
+independence	engine/harness/bin/independence-scan	violation	fail	mkdir -p projects/qovimarth && printf '{\n  "name": "qovimarth",\n  "remote_match": "example/qovimarth",\n  "gate": "gate.sh"\n}\n' > projects/qovimarth/project.json && printf '\n# qovimarth runs its gate from its own checkout, so the engine copy is skipped there.\n' >> engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: violation self-staged"
+# alternate, self-staged: creates governed project zelthoranix (absent from HEAD) and names it UPPERCASE inside a longer identifier (FELIX_ZELTHORANIX_LEDGER) in executable code appended to engine/harness/hooks/session-end; applies in a checkout whose only project is felix.
+independence	engine/harness/bin/independence-scan	alternate	fail	mkdir -p projects/zelthoranix && printf '{\n  "name": "zelthoranix",\n  "remote_match": "example/zelthoranix",\n  "gate": "gate"\n}\n' > projects/zelthoranix/project.json && printf '%s\n' '' 'FELIX_ZELTHORANIX_LEDGER="${FELIX_HOME_DIR:-}/ledger.tsv"' >> engine/harness/hooks/session-end && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: alternate self-staged"
 
 # obligations: the first admitted obligation's checker, judged over the two
 # files its evidence contract reads. The six mutations were authored blind

@@ -112,9 +112,9 @@ a check that something is still shown failing.**
 came from a subagent given the behaviour in prose and forbidden the
 implementation, revised once when the refusal was added. The two self-staged
 rows came from another, forbidden `bin/`. A zsh word-splitting slip in its
-verification loop ran `git grep` for an empty string over `bin/` and printed the
-first ten lines of `deploy-check` — none of `independence-scan`. It said so
-unprompted, and the 2.7MB capture of that output was deleted unread.
+verification loop ran `git grep` for an empty string over `bin/`, and by its own
+report what reached it was the first ten lines of `deploy-check` and none of
+`independence-scan`. It said so unprompted, and the 2.7MB capture of that output was deleted unread.
 
 **The gate's `qualified` line in a worktree is about the home, not the
 branch.** It printed 36 controls met; the branch's table has 38. The deployed

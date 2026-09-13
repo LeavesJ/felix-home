@@ -73,6 +73,82 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
+## 0bb. Verified at session close, 2026-09-13 (afternoon) — #233 built, and a review reversed its central decision before it merged
+
+| | |
+|---|---|
+| open, waiting on the founder | **#236**, tier **red** (`lib/qualify.sh`), not merged by this session |
+| suite on the branch | **2096** passed, 0 failed; 39 assertions added, all authored blind |
+| the same suite against main's engine | 19 failed, each on behaviour #236 adds |
+| gate on the branch | every check ok except `installed`, the structural red of a worktree whose engine is not the deployed one |
+| deployed engine | **0.49.111**, unchanged |
+
+**A fourth verdict, and the exit status is read strictly.** A qualification
+row may carry a sixth column, a premise, run in the worktree of HEAD before the
+mutation. 0 applies the control. 1 makes it `inapplicable` and nothing runs.
+Anything else is `unrunnable`, because reading 2 or 127 as "absent" is how a
+typo in a premise would retire its control without anybody deciding to. The two
+independence controls that plant `elenchus` and `veldra` carry premises naming
+the project their own mutation writes.
+
+**The first draft did not refuse, and it was wrong.** It named a checker whose
+every fail-expecting control was inapplicable as "never shown failing in this
+checkout" and let `felix qualify --gate` exit 0, reasoning from the ratchet: a
+checker with no rows is not red. Three of five independent reviewers flagged it
+as invariant 5 broken inside the one check that exists to enforce invariant 5,
+and the reasoning did not transfer — rows that were written are a claim that the
+checker catches something. It refuses now. The dilemma that had made refusal
+look wrong (the public checkout would go red) dissolved with a better control
+rather than a looser verdict: two independence rows that **stage their own
+premise**, creating a governed project HEAD lacks and leaking its name, so they
+apply in every checkout. Measured in a clone with the other two projects
+removed: four met, two n/a, `--gate` exit 0 over all 38 controls. Worth carrying
+forward as a shape: **a verdict that stops something failing needs, beside it,
+a check that something is still shown failing.**
+
+**Blind, twice, with one lapse the author reported itself.** The 39 assertions
+came from a subagent given the behaviour in prose and forbidden the
+implementation, revised once when the refusal was added. The two self-staged
+rows came from another, forbidden `bin/`. A zsh word-splitting slip in its
+verification loop ran `git grep` for an empty string over `bin/` and printed the
+first ten lines of `deploy-check` — none of `independence-scan`. It said so
+unprompted, and the 2.7MB capture of that output was deleted unread.
+
+**The gate's `qualified` line in a worktree is about the home, not the
+branch.** It printed 36 controls met; the branch's table has 38. The deployed
+engine resolves project tables through `~/.felix-home`, which is the home at
+#232. That is lessons 2026-09-02 and 2026-09-03 exactly, and it was caught by
+reading a count rather than a word. The 38 were run with the branch's engine and
+table under `FELIX_HOME=$PWD` on `felix qualify --gate` alone, never on the
+gate, because that override sends the gate receipt to a home nothing reads.
+
+**Why the session opened with discover and promote due.** #235 recorded both,
+but `felix maintenance` reads the home's log, and the home has sat at #232: it
+holds two run records (`lessons`, `graphify`, 2026-09-12) written there and
+never committed, and #235 appended after them on a branch, so the home cannot
+fast-forward. #236 carries the two records in epoch order; the home's working
+copy is byte-identical to the first sixteen lines of the result. After merging:
+`git checkout -- projects/felix/maintenance.log`, `git pull --ff-only`,
+`engine/harness/felix install`.
+
+**The code-review plugin was reached for.** The ledger had it pointed at in 83
+of 86 sessions and never used. It ran here adapted — no PR existed yet, so no
+eligibility check and no comment posted — as five parallel reviews of the local
+diff. Two findings cleared the bar and both are in #236: the refusal above, and
+the gate's inapplicable count, which read a sentence where #206 had already
+moved the met count to the verdict column.
+
+Overnight state from 2026-09-12 was closed with `--end`; its deadline had
+passed 26 hours earlier.
+
+**Next, in order.** (1) Review and merge #236 — red tier, the founder's — then
+the three commands above in the home. `graphify` comes due again after the
+merge. (2) `felix commission` and the re-grant, still only a person's. (3) The
+public snapshot: qualification no longer blocks its gate, but whether the rest
+of `felix gate` is green there has not been run, and updating that repository is
+a publish, so it waits for the founder to say. (4) Standing: `projects/bazaar`
+and `projects/webapp` stay untracked.
+
 ## 0ba. Verified at session close, 2026-09-13 — the engine is public, and the repository it came from is not
 
 | | |

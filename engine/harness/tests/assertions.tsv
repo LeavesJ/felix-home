@@ -66,7 +66,7 @@
 1	a clean repo says so instead of minting a commit
 1	a comment added to it is still free
 1	a commissioning run seeds the ledger through the row's answer
-1	a commit in the worktree the graph has not seen is due there
+1	a commit in the checkout the graph was built from is due
 1	a commit with no remote does not stamp a push
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
@@ -703,6 +703,7 @@
 1	and does not pretend it searched the rest
 1	and does not say it recorded
 1	and due again after a commit the graph has not seen
+1	and due from the worktree too, which is where the session is
 1	and each bound is named in its own words
 1	and each item appears once however often it bit
 1	and every line is a whole row
@@ -1057,6 +1058,7 @@
 1	and the blurb no longer outranks the manifest
 1	and the cap is what it returns
 1	and the cause is the prompt, not the envelope
+1	and the checkout the graph was built from reads ok as well
 1	and the claim it could not support is gone
 1	and the clean sentence is withheld
 1	and the comment survives
@@ -1869,7 +1871,6 @@
 1	while the Felix home Felix itself resolved is its own repo
 1	while the branch's own file still is
 1	while the capability that can be named still is
-1	while the checkout the graph was built from is still ok
 1	while the control that holds is still reported met
 1	while the evidence still answers on its own axis
 1	while the genuinely reached server is proposed
@@ -1900,6 +1901,7 @@
 1	with the usage text
 1	without --strict it only reports
 1	without opting in, nothing is touched
+1	work committed only in a worktree does not make the graph stale
 1	work the subagent committed is still checked
 1	writes a zero row for a declared tool nobody reached for
 1	zero members is two different answers depending on the witness

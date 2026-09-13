@@ -71,6 +71,173 @@ it should be paid deliberately, not rediscovered.
    somebody typed the command. The paragraph above is left standing because it
    describes what was true for four days and why it mattered.
 
+## 0az. Verified at session close, 2026-09-12 (overnight) — seven branches, and three things that were false before anybody checked
+
+| | |
+|---|---|
+| open, green, waiting on the founder | #222 #223 #224 #225 #226 #227 #228 |
+| suite at the top of the stack | **1977** passed, 0 failed |
+| assertions authored blind tonight | 18 for the scanner, 44 for the digest, 48 for the epoch |
+| decisions queued | 9: six merges and three questions |
+| defects a blind author found that the code's author had not | 3 |
+
+**Invariant 4 was literally false, and is now checkable (#224).** "Felix
+installs what it has read and judged low-risk" described a thing that never
+happened: `discover` fetches a candidate at its pinned sha into a scratch
+directory and reads THAT, and `claude plugin install` then fetches its own copy
+from the marketplace. Two fetches, no comparison — and no way to make one
+afterwards, because the catalogue drops a plugin from `--available` the moment
+it is installed, so its source coordinates stop existing. The digest is
+therefore taken at read time, from the copy the tier was scored off, and kept
+as the discovery cache's fourth column. Three places compare it: both install
+doors, and `felix discover` for anything that has drifted since.
+
+The exclusions were measured rather than guessed. Five plugins are present both
+in the marketplace checkout and in the install cache here; three are
+byte-identical once `.in_use/` is dropped, which is how the installer was shown
+to be a straight copy. The other two have drifted: a marketplace advanced its
+branch and left the version at 1.0.0, so the copy on disk is not the copy that
+was judged, and nothing anywhere said so.
+
+**The graphify row was on in almost every session and should not have been
+(#225).** It asked whether the graph was newer than the newest commit in the
+tree the caller stands in. In a worktree that is unmerged work no refresh would
+put in the graph, and sixteen of seventeen recorded session roots here are
+worktrees. Measured same-graph, same-second: `ok` from the checkout, `due` from
+a worktree of it. That banner is what sent this session looking for a refresh
+that was not owed. It reverses a reading the suite had written down on purpose,
+and the PR argues the reversal rather than hiding it.
+
+**Decision epochs exist (#227).** v3.2 §3's hash, composed from the four things
+it names: the project and the repository it governs, the grounded probe facts,
+`felix_commission_policy_version`, and the release target. It reports and
+changes no verdict, deliberately — Felix's existing rule is stricter than the
+spec's, and wiring an epoch into a stop so a shrink became permissible would
+widen a mechanical refusal on the strength of a hash computed in the same
+process. An unknown component yields no epoch at all rather than a hash over an
+absence.
+
+**Three defects were found by people who could not see the code.** The blind
+author of the epoch assertions came back with two that did not pass, and both
+were right: `felix_epoch_policy` answered for a project directory that does not
+exist, with the same hash every empty project gets — two absences comparing
+equal, which is the argument the digest on the branch below had already made
+and which they arrived at independently; and two of five functions printed no
+trailing newline, so three ended their line and two did not. The blind author
+of the digest assertions found the third, by stopping where the specification
+stopped rather than copying what the code did.
+
+**Two environmental facts, both measured.** Installed plugins leave the
+catalogue, as above. And the Felix home is inside iCloud Drive:
+`~/Library/Mobile Documents/com~apple~CloudDocs/Documents` is a symlink to
+`~/Documents`, so the checkout and `state/` are both synced, and eleven
+zero-byte files in `state/discover/` named `felix.tsv 2.new` are the sync layer
+renaming a temp file Felix meant to remove. Harmless where it landed; not
+harmless if it ever lands on a receipt mid-write. The memory root is outside it,
+because it is computed from `$HOME` and not from the home — invariant 6's
+second, unplanned payoff.
+
+**The stack merges in order.** Measured before it was claimed: merging #222
+first made #223, #224 and #225 conflict in `tests/run`, because every block of
+assertions is appended before the same anchor. Each branch now carries the one
+below it, so the order is #222, #223, #224, #225, #227, with #226 independent.
+
+**Next, in order.** (1) Merge the queue, then `felix install` in the home, then
+re-grant commission. (2) The topology question in #227's body: counts or shape.
+(3) The next checker through the six controls, blind. (4) `projects/bazaar` and
+`projects/webapp` are still untracked and still the founder's call.
+
+## 0ay. Verified at session close, 2026-09-12 (night) — the standing direction became a mechanism, and two probes caught what reading could not
+
+| | |
+|---|---|
+| head | `main` 77ed1b2; this work on `fix/deny-the-hanging-wait`, tier **red** |
+| suite | **1865** passed, 0 failed — 1818 plus 47 authored blind |
+| new | `felix overnight`, a deny row, 3 duplicate lessons cut, the graph at 1957 nodes |
+| deferred | 2 decisions waiting on the founder, in the night's own queue |
+
+**The founder asked for an overnight session and, more to the point, for the
+instructions to stop being something he types.** Four of them, every long
+session: keep going rather than stopping to report, skip what needs my
+permission and collect it for the morning, verify with the gate, keep building.
+A standing direction repeated by hand is a mechanism nobody built, which this
+project's charter calls a Felix failure in as many words.
+
+**`felix overnight` is that mechanism, and it grants no authority.** A person
+starts a night; it is bounded three ways — wall-clock hours, a count of
+continuations, and two consecutive continuations that found nothing to do —
+and whichever arrives first ends it. `--defer` writes a boundary down with the
+command that would clear it, instead of waiting on somebody asleep, and
+`--report` is the morning page. Every refusal, channel and gate still stands
+exactly as it did; what changed is what a session does when one of them stops
+it. SessionStart mounts the direction while a night is live and says nothing
+otherwise. The Stop hook, on a green gate only, spends one continuation and
+blocks with what it can actually see — maintenance due, decisions deferred —
+then ends the night itself at a bound and hands back the report.
+
+It cannot loop, and not because of anything written here: the platform sets
+`stop_hook_active` on a block and caps consecutive blocks, which is the same
+ceiling the gate's own refusal has always had. What Felix cannot do is make a
+model take a turn, so this lays rails and does not drive: a night with nobody's
+session open is a night where nothing happens.
+
+**The night this was built during ran without it, and that is the usual trap.**
+The hooks that fire in a session are the ones the plugin cache held when that
+session started, so the mode's hook half reaches the NEXT session after `felix
+install`, not this one. The state and the command work immediately from the
+tree, which is how tonight's two deferrals were written. A redeployed engine
+never reaches the session that deployed it; this is that lesson again, and it
+means the first real test of the Stop-hook branch is somebody else's session.
+
+**Two defects in it were found by probing, not by reading.** The branch first
+asked "is a night live", which made the code that ends an expired night
+unreachable — live is false exactly when a bound has been reached, so a
+deadline that passed while a session sat idle would skip the branch, leave the
+state behind and close without ever handing over the report. A fixture whose
+deadline was in the past found it in one run. And blocking first silenced every
+message below it, including the verification nudge the founder had just asked
+to always run; the block carries them now. Both are the same shape: a branch
+that cannot be reached, and a branch that swallows its neighbours.
+
+**The founder also spotted a real defect, and it was mine.** Seventeen
+background tasks and thirty-four stray helper processes, some over a day old.
+Every wait this session used a timed read from a process substitution, which
+returns after five seconds under bash and NEVER returns under zsh — measured
+from a probe, still blocked when a twelve-second cap killed it — and leaks the
+helper either way. Sessions here run zsh, so each wait hung on its first pass,
+was moved to the background by the tool's own timeout, and spun there. The
+pattern appears in exactly one transcript out of 116: this one, 22 times. It is
+a deny row now, shown refusing the shape through the deployed hook and leaving
+five ordinary commands alone.
+
+**The two due routines ran.** `lessons` read all 135 entries through nine
+readers, each defaulting to keep, and every proposed cut then went to a
+defender told to save it: three survived, all exact duplicate pairs, and the
+better-written twin of each was kept. That conservatism is the point — one
+defender re-ran a scenario with a patched `route.sh` to show a "mechanized"
+claim was false. `graphify` refreshed to 1957 nodes, 2601 edges, 194
+communities.
+
+**Three things the graph refresh found, none of them about Felix.** A hyperedge
+with no `id` crashes `build_merge` outright rather than warning, and the
+extraction that produced it was one of my own subagents dropping a schema
+field. The shrink guard then refused the write, correctly, until the reduction
+was accounted for: every one of the 13 lost nodes belonged to the single
+re-extracted document and no other source moved. And re-extraction replaces
+only what the LAST run wrote, so `HANDOFF.md` carried 414 nodes for a document
+that yields about 270 — roughly 135 stale nodes minted by an older run under
+ids that no longer match. That is worth a pass of its own.
+
+**Next, in order.** (1) Merge this branch; it is red tier, so that is the
+founder's. (2) find-skills item one, the content hash: `felix discover` fetches
+a candidate at a pinned sha and reads it, then `felix stack apply` installs
+whatever the marketplace currently holds, and nothing compares the two. The
+read copy is deleted after judging, so the hash has to be taken at read time
+and stored in the cache row. (3) Step 2's epochs as hashes. (4) The stale-node
+pass on the graph. (5) Standing, unchanged: `projects/bazaar` and
+`projects/webapp` are untracked, and `53fc527` holds three assertions absent
+from `main` — both are in the night's deferred queue.
+
 ## 0ax. Verified at session close, 2026-09-12 (late) — the history was cleaned, and the sweep found one commit that existed on one disk
 
 | | |

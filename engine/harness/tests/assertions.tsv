@@ -1,3 +1,8 @@
+1	--clear empties the queue
+1	--defer writes the decision down for the morning
+1	--end ends the night
+1	--report prints the morning page
+1	--start grants the night
 1	--status after a table edit reads stale
 1	--status on a never-commissioned project exits 0 and runs nothing
 1	--status writes no receipt
@@ -6,6 +11,7 @@
 1	--yes never installs high risk
 1	FELIX_ALLOW_RED lets a founder stop anyway
 1	FELIX_MEMORY overrides the default
+1	FELIX_RELEASE_TARGET decides the target when it is set
 1	Felix's own gate refusal is recognised as its own
 1	PreToolUse is bound for Bash
 1	PreToolUse is bound for Edit
@@ -32,6 +38,7 @@
 1	a bundled plugin reads as usable
 1	a bundled plugin reads present with no cli at all
 1	a cache path is a plugin copy
+1	a cache row carrying a digest is still declared
 1	a cache stamped by other rules adopts nothing either
 1	a cache that never existed is stale
 1	a cache with no stamp adopts nothing
@@ -53,23 +60,28 @@
 1	a check that passes is done
 1	a checkout inside the verification is caught too
 1	a checkout that moves after verification merges nothing
+1	a checkout with no engine directory cannot look either, exit 2
 1	a checkout with nothing tracked under projects/ cannot search
 1	a class outside the set is refused
 1	a clean checkout claims no rival gate
 1	a clean repo says so instead of minting a commit
 1	a comment added to it is still free
 1	a commissioning run seeds the ledger through the row's answer
-1	a commit in the worktree the graph has not seen is due there
+1	a commit in the checkout the graph was built from is due
 1	a commit with no remote does not stamp a push
+1	a component that cannot be computed prints as a dash
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
 1	a content difference is still a drift
 1	a control needing no mutation still runs
 1	a control the checker meets is met
+1	a copy with files in it digests to something
 1	a count that is not a number is reported rather than passed over
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
 1	a credential in added lines escapes as disclose
+1	a deadline that has passed ends the night and says so
+1	a decision epoch is one line
 1	a declare whose provenance could not be written is not counted
 1	a declared capability with NO row still scores on its name
 1	a declared capability with a row keeps its keywords
@@ -82,6 +94,7 @@
 1	a decline whose premise died is caught
 1	a decline whose premise still holds is ok
 1	a declined play is not raised at the finish
+1	a deferral with no kind or no subject writes no row
 1	a denied command exits 2
 1	a deploy-check with no library beside it is 127, never 1
 1	a deployed engine resolves the checkout, not itself
@@ -91,12 +104,15 @@
 1	a detected surface no row serves, reaches or grounds is named with all three misses
 1	a detector hard-coded to one stack is caught
 1	a devlog entry newer than the catch settles it too
+1	a different remote_match is a different subject
 1	a different repository is still checked
 1	a directory declaring project.json is enumerated
 1	a directory holding only untracked files is blind too
 1	a directory is cannot-examine, not an empty binding
 1	a directory merely named memory, holding doctrine, outside projects/, is not memory
 1	a directory missing from one side is a drift
+1	a directory that does not exist yields no digest
+1	a directory that exists but holds no files yields no digest
 1	a dirty memory repo is committed
 1	a disarmed engine is still judged by main's version
 1	a docs-only change requires nothing
@@ -113,6 +129,7 @@
 1	a felix-answered row names felix as the actor
 1	a file facing a directory is a drift, whatever diff exits
 1	a file that does not parse drops out of the roster without taking the rest
+1	a file under bin/ that begins with a shebang is a script, and its bare mode is caught
 1	a filename containing ' and ' cannot hide behind a fragment
 1	a finding names its reason
 1	a flag with no value refuses instead of spinning
@@ -130,18 +147,23 @@
 1	a governed product merges with no installed engine at all
 1	a grant of authority escapes
 1	a grant with no stamp does not cover the table
+1	a granted night hands the session its turn back instead
+1	a granted night is in progress
 1	a green gate does not clear an escape
 1	a green gate on this exact tree allows it
 1	a green gate still asks for verification
 1	a green receipt for this exact tree clears every blocker
 1	a green row cannot demote the diff that adds it
 1	a green row for a previously unruled path does not green it either
+1	a green tree with no night granted still ends the session
+1	a grounded topology is one line
 1	a half-written character does not fail the whole report
 1	a held control refuses it
 1	a held row whose answer ran and whose check now passes is done
 1	a high tier refuses even when no capability matches
 1	a high-risk row is never installed by commissioning
 1	a home pointer naming something that is not a home refuses
+1	a hook added today without its bit fails the same way
 1	a hook nobody explained is caught
 1	a hook nomination is recorded, not installed
 1	a hook that stopped being wired is caught
@@ -150,12 +172,14 @@
 1	a hyphenated server name still credits the plugin that ships it
 1	a judge identical to the candidate merges nothing
 1	a keyword inside another word is not a match
+1	a kind nobody defined is refused, with a reason
 1	a kind that is two known kinds run together is refused
 1	a later copy of the field in the envelope is not the subject
 1	a ledger from before the column reports nothing at all
 1	a ledger shard under a memory directory fails
 1	a ledger written as one file is still read
 1	a leftover message draft does not stop the backup forever
+1	a live night is mounted into the next session's context
 1	a local-only branch is taken as given
 1	a lock whose owner is gone is taken over
 1	a lookalike gate is reported
@@ -197,14 +221,26 @@
 1	a name planted in engine/harness/felix is caught
 1	a name planted in engine/harness/hooks is caught
 1	a name planted in engine/harness/lib is caught
+1	a name the cache never carried reads as no digest
+1	a name the registry does not hold reads absent
+1	a name with no digest recorded claims nothing
 1	a named capability carries its count
 1	a negated check is malformed, because it could not fail
 1	a nested repository is refused, with the restore truth
 1	a never-run routine is due
+1	a new grounded topology is a new epoch
 1	a new note replaces it
+1	a new policy state is a new epoch
+1	a new release target is a new epoch
+1	a new subject is a new epoch
 1	a new untracked file invalidates the receipt
+1	a night nobody granted is not an expired night
+1	a night of zero hours is not a night
+1	a night that ran out of time lets the session stop
+1	a night with no continuations in it is refused
 1	a nomination that inspects clean is declared
 1	a non-executable lookalike is ignored
+1	a note carrying a tab and a newline still leaves one line of six fields
 1	a note reaches the file
 1	a notebook is matched on its own path field
 1	a notification payload is machine text end to end
@@ -247,6 +283,7 @@
 1	a plugin shipping hooks and nothing countable is hook-only
 1	a plugin that cannot be checked is not a clean bill
 1	a pointer to a real home is left alone
+1	a policy version is one line
 1	a predicate that was being read and no longer is gets named
 1	a predicate whose instrument changed says so
 1	a predicate whose state changed is reported as a state change
@@ -260,6 +297,7 @@
 1	a probe row naming a predicate and no command blocks the merge
 1	a probe that begins with an assignment identifies no instrument
 1	a probe that enumerates members is found
+1	a probe that enumerates one more member is a new topology
 1	a probe that invents its members is indistinguishable from one that found them
 1	a probe that printed members and then failed is unknown, not found
 1	a probe that reads stdin returns instead of hanging the gate
@@ -267,6 +305,9 @@
 1	a probes.tsv holding no rows is refused too
 1	a project bounded only by content rules reports the bound
 1	a project declaring no qualification qualifies nothing
+1	a project directory that is not there identifies no subject
+1	a project directory that is not there identifies no subject and no topology
+1	a project that declares no probes has no topology
 1	a project that has qualified nothing is skipped, not failed
 1	a project with no declared gate is left alone
 1	a project with no probes.tsv declares no probes
@@ -298,6 +339,7 @@
 1	a recurrence that already has a lesson is different
 1	a recurrence that stopped recurring is not still ranked
 1	a recurrence with no lesson says to write one
+1	a red gate outranks the grant
 1	a red path exits 3
 1	a red receipt for this tree blocks
 1	a red row added applies to the diff that adds it
@@ -334,6 +376,7 @@
 1	a row with more fields than the format has is malformed
 1	a row with no command is reported as recording nothing
 1	a row with no evidence contract is refused
+1	a row written before digests existed reads as no digest, not as its tier
 1	a row written before instruments existed claims none
 1	a rule naming Edit does not deny a Write
 1	a rule never matches file content
@@ -344,6 +387,7 @@
 1	a run writes the request for each provider row
 1	a runbook prints in full
 1	a satisfied step reports done
+1	a scanner added today is examined without anyone editing the check
 1	a score answer never enters the admit phase
 1	a second catch-up finds nothing left
 1	a second full run refuses while one is in progress
@@ -375,6 +419,10 @@
 1	a stranded session has appends but no folded record
 1	a stranger that is not a plugin is created without a blocking obligation
 1	a structural failure still fails the gate
+1	a subdir argument naming no directory digests the copy it was given
+1	a subdirectory named as an argument digests as that subdirectory alone
+1	a subject identity is one line
+1	a subject that cannot be identified blocks the epoch the same way
 1	a surface appearing in the checkout makes it stale the other way
 1	a surface detected in the tree is an item even if nobody declared it
 1	a surface the checkout has and no probe reads is a gap
@@ -388,6 +436,7 @@
 1	a task-blocking row does not block a release
 1	a template need this table lacks is named
 1	a term recurring across entries surfaces
+1	a three-column row beside it is still declared
 1	a three-field score answer is answered
 1	a tie is broken the same way whichever order the file lists
 1	a tool absent from the manifest is not a clean bill
@@ -420,6 +469,8 @@
 1	a writable project still records
 1	a write rule denies a write
 1	adding a Dockerfile surfaces deploy
+1	adding a comment line changes the policy version
+1	adding a file changes the digest
 1	adding a key to json escapes nothing
 1	adding a row to an enforcing table escapes nothing
 1	adding a row to the ecosystem table escapes as verifier
@@ -441,6 +492,7 @@
 1	an absent marker is still silent at session start
 1	an absent marker still means ungoverned
 1	an absent pointer is not a broken pointer
+1	an absent probes.tsv is no topology either
 1	an admitted nomination becomes a declared row
 1	an advisory probabilistic row that fails blocks nothing
 1	an agent is recorded by which agent
@@ -459,6 +511,8 @@
 1	an applicable unknown-pathway row holds even when its evidence passes
 1	an applies command that does not exist here is UNKNOWN on both axes
 1	an argument it cannot honour merges nothing
+1	an eight-hour grant runs until eight hours from now
+1	an empty FELIX_RELEASE_TARGET is not a target
 1	an empty base is not reported as unknown
 1	an empty grounding refuses
 1	an empty listing is exit 0 and no rows: a catalogue that was read
@@ -470,10 +524,12 @@
 1	an empty table fails the gate
 1	an empty tier refuses
 1	an engine function the check names that is not loaded is unknown
+1	an engine holding nothing it recognises is emptiness, not an all clear
 1	an engine shipped without the probe library blocks rather than passing
 1	an engine that cannot evaluate commissioning blocks rather than skips
 1	an engine that is a checkout is its own source
 1	an engine under that path can deploy
+1	an engine whose every script carries its bit exits 0
 1	an entry with no path does not inherit the next entry's answer
 1	an entry with no such field yields nothing, not the next entry's value
 1	an envelope field name never does
@@ -492,6 +548,9 @@
 1	an explicit path is allowed
 1	an ignore rule that swallows a TRACKED maintenance.log fails
 1	an inactive capability makes the row not-applicable
+1	an installPath that is not a directory reads absent
+1	an installed copy that differs from what Felix read reads drift
+1	an installed copy that matches what Felix read reads same
 1	an installed plugin is matched by what it ships
 1	an instrument this machine lacks makes the row unknown
 1	an issue naming no real file still exits 0
@@ -516,6 +575,7 @@
 1	an ungoverned repo is allowed
 1	an ungranted project starts no background run
 1	an ungrounded row is counted
+1	an unknown component prints no epoch at all
 1	an unknown grounding refuses
 1	an unknown routine is refused
 1	an unknown tier refuses
@@ -560,7 +620,10 @@
 1	and a CLI that answers nothing reports no drift
 1	and a CLI that cannot answer is not a stale deployment
 1	and a backticked path naming nothing is still not invented
+1	and a bare script is still caught from inside the engine itself
+1	and a cache file that is not there reads as no digest either
 1	and a catalogue that was read and matched nothing is exit 0
+1	and a checkout with no default branch of its own falls back to main
 1	and a clean table leaves the gate green
 1	and a command that does not resolve identifies none either
 1	and a declared control is not reported missing
@@ -581,7 +644,9 @@
 1	and a listing with a match still scores it
 1	and a live one says when it was last caught
 1	and a machine that binds nothing is an empty roster, not an error
+1	and a medium one is still refused
 1	and a name
+1	and a non-zero status too
 1	and a person's medium row installs, as it always has
 1	and a prefixed skill is never called a built-in
 1	and a probe that failed against a real surface is blind too
@@ -591,10 +656,12 @@
 1	and a receipt written without a roster says so rather than leaving it blank
 1	and a red run at the head means zero
 1	and a refusal is not a successful repair
+1	and a refused grant says why
 1	and a repository with no main resolves to nothing
 1	and a revoked grant covers nothing
 1	and a rotated ledger is the same record with a date on it
 1	and a row already on disk is cleaned on the way out
+1	and a row carries the command that unblocks it
 1	and a row with no grounding column is a person's
 1	and a ruled capability is not listed there
 1	and a ruled one is not
@@ -606,16 +673,18 @@
 1	and a skill that was invoked
 1	and a stance for a real item is not
 1	and a tree byte-identical to the deployed engine matches
+1	and a turn that did something clears the count
 1	and a verified push does
 1	and a verified push reads as zero days
 1	and a worktree of it reads the same graph, and is ok too
 1	and absent from both sides is a fixture, not a drift
 1	and again, so a session can bump twice
 1	and an Agent call with no type is still a tool
+1	and an absent table refuses with a non-zero status too
 1	and an automation row still ends in its capability
+1	and an installed copy with no files to digest claims nothing either
 1	and an older one does not
 1	and an ordinary product repository is not
-2	and an unknown flag is refused rather than ignored
 1	and an unknown kind is refused
 1	and blocked by a probe that cannot see what a witness proves is there
 1	and blocked by a row nothing could establish at all
@@ -635,7 +704,7 @@
 1	and claims nothing was unchecked
 1	and commissions
 1	and commits nothing to it
-2	and counts it
+1	and components exits 0 even then
 1	and counts the recorded decline
 1	and counts what was held over the whole file too
 1	and creates nothing without --create
@@ -655,22 +724,26 @@
 1	and does not pretend it searched the rest
 1	and does not say it recorded
 1	and due again after a commit the graph has not seen
+1	and due from the worktree too, which is where the session is
+1	and each bound is named in its own words
 1	and each item appears once however often it bit
 1	and every line is a whole row
 1	and every placeholder was filled
 1	and evidence does too
-2	and exits 0
+1	and exactly one continuation is spent for it
 1	and exits 0 in a repository Felix does not govern
-2	and exits 0 there
 1	and exits 0 there too
+1	and exits 0 when it has a digest to print
 1	and exits 0 with the tree dirty
 1	and exits 3, distinctly
+1	and exits non-zero rather than hashing over an absence
 1	and explains why it now matters
 1	and fails when a wired moment is unbound
 1	and fails when one of them loses it
 1	and felix new seeds it itself, without falling through to the answer
 1	and felix which does not resolve it
 1	and filters residue through the same ignore rule
+1	and flipping it back restores the digest
 1	and folding them takes it to zero
 1	and for the built-in too, because nothing can tell which was meant
 1	and for the plain one
@@ -760,7 +833,6 @@
 1	and names the pipeline step no row here answers
 1	and names the play in order
 1	and names the process holding it
-3	and names the project
 1	and names the refused row
 1	and names the source tree it compared
 1	and names the table
@@ -768,8 +840,10 @@
 1	and names the working tree rather than the checkout
 1	and names what was caught
 1	and names who answers the provider row
+1	and neither are the per-session files under .in_use
 1	and neither is a worktree
 1	and neither is an empty message
+1	and neither is one that is still running
 1	and never a verified receipt
 1	and never as a clock reading nobody wrote
 1	and never as an mcp row nothing could add
@@ -794,6 +868,8 @@
 1	and no longer claims a re-folded session never folded
 1	and no longer prints next steps
 1	and no memory root named --help is minted
+1	and no night is announced when none was granted
+1	and no policy version either, there being no tables to hash
 1	and no rate is claimed over a numerator that cannot hold compliance
 1	and no row anywhere carries a grounding the policy cannot read
 1	and no row is accepted from that file
@@ -817,6 +893,7 @@
 1	and nothing unusable
 1	and nothing was committed
 1	and nothing was committed onto it
+1	and nothing was granted by any of them
 1	and nothing was installed to put it there
 1	and nothing was written
 1	and nothing was written to the real felix home pointer
@@ -831,7 +908,9 @@
 1	and one named once carries one
 1	and one no route names
 1	and one nothing established is classed UNKNOWN
+1	and one real script in that same tree is examined, so it was the emptiness
 1	and one stamped over this table does
+1	and one that arrives without its bit fails, where a fixed list saw nothing
 1	and one that shares nothing stands alone
 1	and one that was not is still not
 1	and one unknown path taints a green set
@@ -852,9 +931,10 @@
 1	and proposes nothing for it
 1	and prose counts single
 1	and pushed, and the push is verified
+1	and putting the byte back puts the digest back
 1	and putting the rule back clears it
+1	and putting the table back puts the policy version back
 1	and qualifies the list with what is not counted yet
-2	and quotes the name the marker asks for
 1	and quotes what it said
 1	and raises or clears no merge blocker
 1	and re-folding does not double what was already counted
@@ -865,12 +945,15 @@
 1	and reads stale whatever its age
 1	and recording the run does not put it back
 1	and records the failure without being asked
-2	and refused at the boundary
 1	and refuses in gate mode as well
 1	and refuses instead of ignoring it
+1	and refuses rather than hashing over nothing
 1	and refuses to answer when the probe yields no words
 1	and refuses to spend past the ceiling
 1	and refuses with no issue and no input
+1	and refusing costs no continuation
+1	and removing that file restores it
+1	and reporting absent is not failing
 1	and reports a clear merge without performing one
 1	and reports it on its axes
 1	and reports no severity for it
@@ -886,6 +969,7 @@
 1	and returns once the record is complete
 1	and says a long name at least scores on itself
 1	and says how many are still unusable
+1	and says how many scripts it examined
 1	and says it cannot be scoped
 1	and says it could not be asked here
 1	and says it did
@@ -895,12 +979,12 @@
 1	and says it was never reached
 1	and says it where the founder can see it
 1	and says not to fix it unattended
+1	and says nothing about a night nobody granted
 1	and says nothing about it afterwards
 1	and says nothing below the session threshold
 1	and says nothing was installed
 1	and says nothing when every capability has a rule
 1	and says plainly that it acted on nothing
-3	and says so
 1	and says so again next session, because the request is still unanswered
 1	and says so before the detail
 1	and says so in the policy's words
@@ -908,6 +992,8 @@
 1	and says so plainly when none does
 1	and says so rather than implying I did
 1	and says so rather than reporting a merge
+1	and says so with a non-zero status
+1	and says so with a non-zero status, not the digest of an empty document
 1	and says that it knows
 1	and says the checkout could not be entered rather than naming a missing command
 1	and says the gate failed
@@ -933,7 +1019,6 @@
 1	and says which projects it knows
 1	and says which rule
 1	and says which variable it sends
-5	and says why
 1	and says why growth is the narrowing direction there
 1	and says why it could not be
 1	and says why it refused
@@ -946,6 +1031,7 @@
 1	and so are the declines, from the same date
 1	and so does a failure nobody answered
 1	and so does a worktree of it
+1	and so does one whose registry entry carries no installPath
 1	and so does the next one
 1	and so does the stamp that says what it was read against
 1	and so is a deny from its own PreToolUse
@@ -954,6 +1040,7 @@
 1	and so is every other one
 1	and so is no argument at all
 1	and so is ordinary work
+1	and so is project.json
 1	and so is the content-drift arm
 1	and so is the other one
 1	and stack.sh alone can too
@@ -984,6 +1071,7 @@
 1	and that one authority writes both halves
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
+1	and that refusal is non-zero too
 1	and the ack is consumed by the answer
 1	and the all-clear is not repeated every session
 1	and the alphabetical-first remote was not touched
@@ -993,11 +1081,15 @@
 1	and the blurb no longer outranks the manifest
 1	and the cap is what it returns
 1	and the cause is the prompt, not the envelope
+1	and the checkout the graph was built from reads ok as well
 1	and the claim it could not support is gone
 1	and the clean sentence is withheld
 1	and the comment survives
 1	and the contract names each moment it examined
 1	and the count follows
+1	and the detail is the digest the two copies share
+1	and the detail names the digest that was recorded
+1	and the digest the copy on disk carries now
 1	and the discovery cache gone stale
 1	and the domain it speaks for
 1	and the drift line carries the whole name
@@ -1006,10 +1098,10 @@
 1	and the engine writes no mistake for it
 1	and the entry that did match is still returned
 1	and the entry that has one still answers
+1	and the epoch is back where it started once all four are
 1	and the exact command that produced it
 1	and the failure is recorded under the check's own name
 1	and the fixture files this block rewrote are back
-2	and the fixture is restored
 1	and the fixture is restored to awaiting
 1	and the foreign session is not folded
 1	and the founder's one line says how many are due
@@ -1017,8 +1109,10 @@
 1	and the gate line called no cli
 1	and the gate still runs through it
 1	and the gate-failure total
+1	and the grant is not left lying around for the next session
 1	and the grep it replaced counts the entry that never fires
 1	and the grep the probe used to be counts it, which is why the probe moved
+1	and the hand-back names the bound that ended the night
 1	and the held total
 1	and the hook still exits 0 there
 1	and the independence check above it sees nothing wrong with that file
@@ -1037,9 +1131,12 @@
 1	and the monitor still renders the sentence, not the JSON around it
 1	and the mute is a row, not a silent omission
 1	and the new row is its own line
+1	and the number it reports is the number it stored
+1	and the old remote_match brings the old subject back
 1	and the older spelling of the same tool is caught too
 1	and the one enumeration cannot close
 1	and the one it cannot attribute is not folded either
+1	and the other three are still there beside it
 1	and the page has a panel for it
 1	and the partly-countable list takes the mixed one
 1	and the path-less one still inherits nothing
@@ -1055,6 +1152,7 @@
 1	and the receipt refuses to call that verified
 1	and the record names the channel
 1	and the refilled cache begins with the stamp
+1	and the refusal is the gate's own
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
 1	and the report names the path
@@ -1084,6 +1182,7 @@
 1	and the second project, whose log is tracked too
 1	and the seed holds rows rather than only comments
 1	and the sentence still is
+1	and the session is told how many are left
 1	and the sessions the filter actually counted
 1	and the shipped wiring matches its stance
 1	and the skip list is still where it was
@@ -1092,11 +1191,15 @@
 1	and the stale row was not adopted
 1	and the state now carries the new route, for the finish-line judge
 1	and the stranded reaches are now counted
+1	and the suite runner beside it, rather than stopping at the first
 1	and the text is actually there
+1	and the tier field is the tier, not a tier with a digest stuck to it
 1	and the tier it carries
 1	and the tier reducer agrees
+1	and the topology comes back when the member goes away
 1	and the unmount above is the only other proposal
 1	and the unwritten remainder is named as unwritten
+1	and the values are the ones the four functions compute
 1	and the version is a dotted number
 1	and the widget ledger is as this block found it
 1	and the widget manifest is as this block found it
@@ -1116,6 +1219,7 @@
 1	and writes no row at all, not even exit-1
 1	another plugin's refusal is not
 1	another session's edit changes the tree identity
+1	any one bound reached ends the night, whichever it is
 1	anything shipping hooks is high
 1	appended after what was there
 1	applicability follows the grounded state: absent, dormant
@@ -1169,9 +1273,14 @@
 1	classify names the ref it compared
 1	clean once it is gone
 1	clean project reports no drift
+1	clearing the queue empties it
 1	code with no test is a gap
 1	comments and blanks are not capabilities
 1	committing unverified work no longer skips the check
+1	components exits 0 when all four are known
+1	components exits 0 with a component missing
+1	components prints exactly four lines
+1	continuations run out and the night ends
 1	copied the runbook it implies
 1	copied the runbook their stack implies
 1	core profile excludes other capabilities
@@ -1197,6 +1306,8 @@
 1	dormant steps never nag
 1	each control runs against a tree of its own
 1	each fact carries the tree it was taken from
+1	each line is a name and a value separated by a tab
+1	editing a table in the set is a new policy version
 1	editing a table in the set makes it stale, with nothing under state/ changing
 1	editing the same file again invalidates the receipt
 1	editing the table takes the grant off it
@@ -1210,9 +1321,12 @@
 1	every decision is logged
 1	every decision is recorded
 1	every ecosystem row carries a written reason
+1	every one of them terminates the line it printed
 1	every request answered stops the reminder
 1	every route matches its own name
 1	every row carries the command that clears it
+1	every row the adopt reader emits is four fields wide, digest or no digest
+1	every verdict is one line of two tab-separated fields
 1	every vocabulary token is a word, not a regex fragment
 1	evidence that says it cannot examine is UNKNOWN, not failed
 1	exactly one declaration from that cache
@@ -1245,6 +1359,7 @@
 1	felix next ranks it under the checks that are not checking
 1	felix obligations --gate passes on the fixture's one holding obligation
 1	felix obligations --seed writes the template where no ledger is
+1	felix overnight with no arguments says where the night stands
 1	felix probes refuses a project that asks reality nothing
 1	felix probes reports without refusing
 1	felix procedures runs
@@ -1269,19 +1384,24 @@
 1	felix_ledger_retire is defined for the hook
 1	felix_qualify_ungoverned keeps every reported checker and drops every sub-line
 1	felix_tidy_safe is defined for the hook
+1	files under .git are not counted
 1	finds a plan the prompt points at
 1	finds plugins
 1	finds the route a capability belongs to
+1	flipping a file's executable bit changes the digest
 1	for every gate check that file actually covers
 1	free text matches the catalogue
+1	from a nested subdirectory the verdict is unchanged
 1	gate command actually ran
 1	governs them immediately
 1	green tier is still reported
 1	grounded on a probe felix declares
 1	guesses their gate
+1	half an hour is not a whole number of hours
 1	handoff is regenerated from the tree
 1	handoff lists the session-end checks
 1	hands off for anything broader
+1	having nothing to say is not a failure
 1	help covers every command that dispatches
 1	high is refused however it was grounded: DECLARED
 1	high is refused however it was grounded: INFERRED
@@ -1302,7 +1422,6 @@
 1	including the enumeration limit
 1	including the model-SDK probe, which sits on a continued line
 1	including the one that stops reject-everything winning
-2	including the second one
 1	including what prompted each utterance
 1	inspect still counts the skills
 1	inspecting a plugin never runs it
@@ -1351,16 +1470,18 @@
 1	misses are logged too
 1	more matches than the row cap is exit 0, not the pipe closing under it
 1	name and skills accumulate as evidence
+1	named as the script it is
+1	named in the order the architecture states them
 1	names the first step
 1	names the maintenance that is due
 1	names the suspect commit
-2	naming it
 1	naming skills does not change the risk read
 1	naming the branch's commit
 1	naming the channel that escaped
 1	naming the doctrine
-2	naming the file
+1	naming the entry point
 1	naming the gate it was removed from
+1	naming the scanner nobody listed
 1	naming which check failed
 1	never proposes retiring something that was used
 1	never proposes unmounting what was reached
@@ -1369,6 +1490,7 @@
 1	new refuses a flag as a project name
 1	nine fields per log row
 1	no allow row claims a surface that no longer names it
+1	no candidate is dropped in silence
 1	no deny.tsv means nothing is denied
 1	no entry is listed twice
 1	no evidence rule requires a pattern that matches everything
@@ -1396,6 +1518,7 @@
 1	nor the all-caps sentinel
 1	nor the stop hook talking to itself
 1	not refused
+1	nothing changed is the same epoch
 1	nothing found and a witness agreeing is empty
 1	nothing found where a witness proves a surface is blind
 1	nothing found with no witness is unknown, never empty
@@ -1406,7 +1529,10 @@
 1	onboarding writes one
 1	one already declared is left alone
 1	one already in stack.tsv is left alone
+1	one already in the stack still reads already
 1	one answer of two leaves the other still owed
+1	one byte changed inside one file changes the digest
+1	one continuation is spent per turn, not two
 1	one from what you typed is not
 1	one genuinely absent still reads absent
 1	one line per row is written
@@ -1428,6 +1554,7 @@
 1	or without hooks
 1	origin outranks the name that sorts first
 1	outside a checkout it cannot search, and says so rather than passing
+1	outside a git repository it cannot look, exit 2
 1	overrides are recorded
 1	passing gate exits 0
 1	path and all
@@ -1435,6 +1562,7 @@
 1	pr refuses to open a branch against itself
 1	present, active — nothing was stored between the two
 1	probes.tsv is one of the tables whose shrinkage escapes
+1	project.json names the target when the environment does not
 1	promote surfaces a word that keeps missing
 1	proposes mounting what was reached and never declared
 1	proposes retiring what was mounted and never reached for
@@ -1470,9 +1598,9 @@
 1	removes a copy of a file Felix holds
 1	removes an untracked copy Felix holds
 1	removing a witness turns a clean empty into a blocking unknown
-2	removing one escapes as verifier
 1	renders a page
 1	repair refuses outside a governed GitHub repo
+1	repointing a symlink at a different target changes the digest
 1	reporting a rival gate still exits 0
 1	reports a tool no manifest declares
 1	reports findings the first time
@@ -1494,6 +1622,7 @@
 1	running a rival gate is denied
 1	runs that all passed are clean
 1	runs with a failure are dirty
+1	runs with nothing to show accumulate
 1	saying it does not parse
 1	saying seeding never overwrites
 1	saying so
@@ -1520,9 +1649,9 @@
 1	session-start sources autonomy.sh
 1	session-start sources ledger.sh
 1	seven-field rows with an engine-stage answer and a check that can fail are rows
+1	seventeen hours is past the ceiling
 1	severity derives from the risk rules
 1	ships a slash command to be found by
-2	silent in an ungoverned repo
 1	silent outside a git repository
 1	silent when a project has no lessons yet
 1	silent when nothing was blocked
@@ -1543,10 +1672,12 @@
 1	so the caveat can become untrue
 1	so the declared plugin keeps none of its reaches
 1	so the earlier tree is still readable
+1	so the plugin subdirectory of the fetched repo digests as the flat installed copy
 1	so the plugin with no evidence of its own reaches the retire list
 1	so the session count is the number of sessions
 1	speaks when a catch went unexplained
 1	spending is counted
+1	spending past the last continuation stops at zero
 1	stack apply ran through the stub for a declared low row
 1	stack plan asks the policy
 1	stack.tsv is byte-identical after a reconcile
@@ -1578,12 +1709,15 @@
 1	the budget row is not reported as satisfied
 1	the bump fixture has an identical judge, so the guard can fire
 1	the cache already there is untouched
+1	the cache hands back the digest recorded beside a name
 1	the cache row carries the capability the skills serve
 1	the cache-side arm is present in the gate's copy
 1	the capabilities file is untouched
 1	the capability probe yields ecosystem words to check for
 1	the cause is not the raw payload
+1	the ceiling itself is still a night somebody can be granted
 1	the checkout holding the graph is ok
+1	the checkout's own default branch is next, without the origin/ prefix
 1	the claude cli changing is announced and never invalidates
 1	the controls a checker declares nothing for are named
 1	the data marker is substituted
@@ -1597,6 +1731,7 @@
 1	the engine names no ecosystem without a declared reason
 1	the engine names no governed project
 1	the engine writes manifests carrying the grounding column
+1	the entry point and the suite runner, both bare, fail
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
 1	the extractor names every skipped check and nothing else
@@ -1608,6 +1743,7 @@
 1	the fixture puts the catch after the lesson
 1	the fixture really has a base ref behind its remote
 1	the fixture really staged a merge in progress
+1	the fixture tree is green before any night is granted
 1	the founder's item is not buried
 1	the gate announces a stale receipt and does not fail on it
 1	the gate carries the ecosystem check too
@@ -1651,6 +1787,7 @@
 1	the pre-flight runs clean under bash
 1	the probe command stays in the eighth column
 1	the probe report says what it cannot reach
+1	the probe table is in the set too
 1	the project marker classifies red, never green
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
@@ -1682,8 +1819,10 @@
 1	the row is awaiting, UNKNOWN by class
 1	the run records the accepted rows as INFERRED with the file's hash as provenance
 1	the run writes the receipt
+1	the same facts in a different row order are the same topology
 1	the same file one level up fails by name, where the inline check was blind
 1	the same file with an unconfined line escapes
+1	the same project identifies the same subject twice
 1	the same route does not repeat itself
 1	the scanner refuses to answer on a path it cannot search
 1	the scanner's own code names no project
@@ -1723,13 +1862,15 @@
 1	their high-risk rows are blocked too
 1	there are declared ecosystem rows to judge
 1	there is at least one governed project to check for
-2	there is no --yes
 1	three groups from four tasks
 1	tree identity is computable
 1	tree identity survives an unborn HEAD
 1	twelve sessions ending at once are all still counted
+1	two byte-identical copies at two different paths digest the same
+1	two deferrals are two things waiting
 1	two rows in one session are one session, calls summed
 1	two rows, once each
+1	two runs with nothing to show end the night too
 1	two strangers and no upstream is a person's call
 1	undeclared capability classifies as dormant
 1	ungoverned repo refuses to run a gate
@@ -1765,19 +1906,18 @@
 1	while the Felix home Felix itself resolved is its own repo
 1	while the branch's own file still is
 1	while the capability that can be named still is
-1	while the checkout the graph was built from is still ok
 1	while the control that holds is still reported met
 1	while the evidence still answers on its own axis
 1	while the genuinely reached server is proposed
 1	while the other repository still sees its own
 1	while the others still are
 1	while the path around it does not
+1	while the same path without one is documentation, and the run stays green
 1	while the unruled ones are
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused
 1	wiring the same tool twice is refused
 1	with every log tracked, the form this replaced sees nothing to report
-2	with exit 0
 1	with no CLI and nothing bundled, Felix says it cannot tell
 1	with no CLI to ask, the highest cached version is what it compares against
 1	with no checkout in front of it the row reads unchecked
@@ -1787,6 +1927,7 @@
 1	with nothing due it reports nothing
 1	with nothing on record there is nothing to compare
 1	with the critique step after it
+1	with the file's contents untouched
 1	with the newlines escaped, not lost
 1	with the runs it cost beside it
 1	with the stamp and no rows, which is an empty cache and a real answer
@@ -1794,6 +1935,24 @@
 1	with the usage text
 1	without --strict it only reports
 1	without opting in, nothing is touched
+1	work committed only in a worktree does not make the graph stale
 1	work the subagent committed is still checked
 1	writes a zero row for a declared tool nobody reached for
 1	zero members is two different answers depending on the witness
+2	and an unknown flag is refused rather than ignored
+2	and counts it
+2	and exits 0
+2	and exits 0 there
+2	and quotes the name the marker asks for
+2	and refused at the boundary
+2	and the fixture is restored
+2	including the second one
+2	naming it
+2	naming the file
+2	removing one escapes as verifier
+2	silent in an ungoverned repo
+2	there is no --yes
+2	with exit 0
+3	and names the project
+3	and says so
+5	and says why

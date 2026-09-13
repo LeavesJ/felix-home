@@ -48,4 +48,21 @@ docs-drift	14	always	docs correction PR
 constitution	30	always	CLAUDE.md health; targeted, not accumulation
 architecture	30	always	drift report; update the architecture doc if warranted
 test-flake	0	ci	on repeated CI failure, with evidence
-graphify	0	always	refresh the knowledge graph after a merge; it went fifteen days stale on one project while its row read event	test -n "$(find "$(dirname "$(git rev-parse --git-common-dir)")/graphify-out/graph.json" -newermt "$(git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%S%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"
+# Keyed on the checkout that holds the graph, and not on the tree the caller
+# happens to be standing in. Those are the same thing in a plain checkout and
+# different in a worktree, and the difference made this row a permanent DUE:
+# any commit in a worktree is a commit the graph has not seen, sessions commit
+# constantly, and sixteen of the seventeen session roots recorded for this
+# project are worktrees. Measured at the top of one session: `due` from the
+# worktree and `ok` from the checkout beside it, same graph, same second.
+#
+# This reverses the reading written here before it — that the commit compared
+# against is the one the worktree stands on — and the argument is that the
+# refresh that reading asks for cannot do what the DUE says is missing.
+# graphify builds the graph from the checkout that holds it, so a refresh run
+# while standing in a worktree models the HOLDING checkout's tree and not the
+# worktree's unmerged work. It clears the row by moving a file's mtime, which
+# is a change of status and not of what the graph models. A row that is on in
+# almost every session, and whose remedy does not address the thing it names,
+# is the status table this repository already keeps a lesson about.
+graphify	0	always	refresh the knowledge graph after a merge; it went fifteen days stale on one project while its row read event	G="$(dirname "$(git rev-parse --git-common-dir)")"; test -n "$(find "$G/graphify-out/graph.json" -newermt "$(git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%S%z "$(git -C "$G" rev-parse HEAD)" -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"

@@ -111,6 +111,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/coverage.sh"
 . "${SCRIPT_DIR}/lib/qualify.sh"
 . "${SCRIPT_DIR}/lib/autonomy.sh"
+. "${SCRIPT_DIR}/lib/overnight.sh"
 . "${SCRIPT_DIR}/lib/intake.sh"
 # shellcheck source=lib/deny.sh
 . "${SCRIPT_DIR}/lib/deny.sh"
@@ -138,6 +139,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/probes.sh"
 # shellcheck source=lib/obligations.sh
 . "${SCRIPT_DIR}/lib/obligations.sh"
+# shellcheck source=lib/epoch.sh
+. "${SCRIPT_DIR}/lib/epoch.sh"
 # shellcheck source=lib/facts.sh
 . "${SCRIPT_DIR}/lib/facts.sh"
 . "${SCRIPT_DIR}/lib/commission.sh"
@@ -201,6 +204,7 @@ specific project, language, or toolchain.
     felix procedures      what each moment must answer for, and what nothing answers yet
     felix probes [--gate] what reality says about this checkout, and what nothing asks
     felix obligations [--gate] what this project has admitted it owes, and whether it owes it here
+    felix epoch            the decision epoch those obligations are scoped to, and what would make a new one
     felix commission [--status] the first-encounter moment: what serves this checkout, what reaches it, what a person still owes
     felix adopt <cap>      declare a capability and everything it implies
     felix profile [name]   which tools a task profile mounts
@@ -212,6 +216,7 @@ specific project, language, or toolchain.
     felix scope            what a change is allowed to touch
     felix ledger           what has been mounted, and what was never reached for
     felix autonomy         what Felix may do here unattended
+    felix overnight        grant a night: keep working, defer what needs you
     felix coverage         every lifecycle moment, and Felix's stance on it
     felix qualify [check]  does a check fail when what it protects is broken?
 
@@ -1538,6 +1543,110 @@ cmd_autonomy() {
   printf '  felix autonomy --revoke commission   take it back\n'
 }
 
+# A night's standing direction, so a founder types it once instead of every time.
+#
+# The argument for this being a command rather than a habit is in
+# lib/overnight.sh. The argument for it being a command rather than a grant in
+# `autonomy` is here: autonomy rows are permanent until revoked, and a
+# permanent "never stop" is wrong for the two-minute session where somebody
+# asks a question. A night is a duration, so it is started, bounded, and over.
+#
+# It grants no new authority. Every refusal, channel and gate stands exactly as
+# it did; what changes is that a session which hits one writes the decision
+# down and keeps working instead of waiting for somebody who is asleep.
+cmd_overnight() {
+  resolve_or_die; local proj="$PROJ"
+  local start=0 hours="" turns="" note="" report=0 clear=0 end="" defer="" what="" unblock="" sid=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --start)   start=1; shift ;;
+      --hours)   need_value "$@"; hours="$2"; shift 2 ;;
+      --turns)   need_value "$@"; turns="$2"; shift 2 ;;
+      --note)    need_value "$@"; note="$2"; shift 2 ;;
+      --session) need_value "$@"; sid="$2"; shift 2 ;;
+      --defer)   need_value "$@"; defer="$2"; shift 2 ;;
+      --what)    need_value "$@"; what="$2"; shift 2 ;;
+      --unblock) need_value "$@"; unblock="$2"; shift 2 ;;
+      --report)  report=1; shift ;;
+      --clear)   clear=1; shift ;;
+      --end)     end="${2:-ended by hand}"; [ $# -ge 2 ] && shift 2 || shift ;;
+      --status)  shift ;;
+      -*) die "usage: felix overnight [--start [--hours N] [--turns N] [--note ...]] [--defer KIND --what ... [--unblock ...]] [--report] [--clear] [--end [reason]]" ;;
+      *) shift ;;
+    esac
+  done
+
+  if [ -n "$defer" ]; then
+    case "$defer" in
+      approval|irreversible|blocked|question) ;;
+      *) die "unknown kind: $defer. They are approval, irreversible, blocked and question." ;;
+    esac
+    [ -n "$what" ] || die "felix overnight --defer needs --what \"the thing that is waiting\""
+    felix_overnight_defer "$proj" "$defer" "$what" "$unblock" \
+      || die "could not write the deferral queue under $(felix_overnight_dir "$proj")"
+    printf 'deferred [%s] %s\n' "$defer" "$what"
+    [ -n "$unblock" ] && printf '  unblock: %s\n' "$unblock"
+    printf '%s decision(s) now waiting. felix overnight --report reads them.\n' \
+      "$(felix_overnight_deferred_count "$proj")"
+    return 0
+  fi
+
+  if [ -n "$end" ]; then
+    if felix_overnight_active "$proj"; then
+      felix_overnight_end "$proj" "$end"; printf 'overnight ended: %s\n\n' "$end"
+    else
+      felix_overnight_end "$proj" "$end"; printf 'no night was running.\n\n'
+    fi
+    felix_overnight_report "$proj"
+    return 0
+  fi
+
+  if [ "$clear" -eq 1 ]; then
+    local n; n="$(felix_overnight_deferred_count "$proj")"
+    felix_overnight_clear "$proj"
+    printf 'cleared %s deferred decision(s).\n' "$n"
+    return 0
+  fi
+
+  if [ "$start" -eq 1 ]; then
+    local why
+    if why="$(felix_overnight_start "$proj" "${hours:-$FELIX_OVERNIGHT_DEFAULT_HOURS}" \
+                "${turns:-$FELIX_OVERNIGHT_DEFAULT_TURNS}" "$sid" "$note")"; then
+      printf 'overnight is on for %s.\n\n' "$(basename "$proj")"
+      felix_overnight_direction
+      printf '\nIt ends on whichever comes first: %s hour(s), %s continuation(s), or two\n' \
+        "${hours:-$FELIX_OVERNIGHT_DEFAULT_HOURS}" "${turns:-$FELIX_OVERNIGHT_DEFAULT_TURNS}"
+      printf 'continuations in a row with nothing to do. felix overnight --end stops it now,\n'
+      printf 'and closing the session stops it too — nothing here runs without one.\n'
+      return 0
+    fi
+    die "overnight --start refused: $why"
+  fi
+
+  # Status, which is also what a bare `felix overnight` answers.
+  if felix_overnight_active "$proj"; then
+    printf 'overnight is ON for %s\n\n' "$(basename "$proj")"
+    felix_overnight_direction
+    printf '\n'
+  elif [ -f "$(felix_overnight_dir "$proj")/active" ]; then
+    printf 'overnight is OVER for %s: %s\n\n' "$(basename "$proj")" \
+      "$(felix_overnight_expired "$proj")"
+    printf 'The state is still here so the report can read it. felix overnight --end\n'
+    printf 'closes it, and --start begins another.\n\n'
+  else
+    printf 'overnight is off for %s\n\n' "$(basename "$proj")"
+    printf 'A night is a duration a person grants, not a setting. It changes what a\n'
+    printf 'session does when something stops it — write the decision down and keep\n'
+    printf 'working, rather than wait for somebody asleep — and changes nothing about\n'
+    printf 'what may stop it.\n\n'
+    printf '  felix overnight --start                  %s hours, %s continuations\n' \
+      "$FELIX_OVERNIGHT_DEFAULT_HOURS" "$FELIX_OVERNIGHT_DEFAULT_TURNS"
+    printf '  felix overnight --start --hours 10       longer, up to %s\n' "$FELIX_OVERNIGHT_MAX_HOURS"
+    printf '  felix overnight --report                 the morning page\n\n'
+  fi
+  felix_overnight_report "$proj"
+}
+
 # Does a check fail when the thing it protects is broken?
 #
 # v3.2's conformance amendments call checker qualification the largest gap in
@@ -2036,6 +2145,36 @@ cmd_discover() {
           printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$kind" "$name" "$risk" "$cap" >> "$proj/stack.tsv"
           if felix_stack_install "$kind" "$name" "-"; then
             printf '  installed  %-24s %-10s %s\n' "$name" "$risk" "$cap"
+            # Invariant 4 says Felix installs what it has read. This is the
+            # line where that is either true or a sentence in a document: the
+            # copy just installed is digested and compared against the digest
+            # of the copy discovery read and scored. Two fetches happened —
+            # one here, one in the marketplace's installer — and until this
+            # ran nothing had ever compared them.
+            #
+            # It reports and does not undo. An uninstall would be reversible
+            # enough to do unattended, but the common cause measured here is a
+            # marketplace that moved its branch under an unchanged version
+            # string, and ripping out a working plugin over that is a worse
+            # answer than saying what happened.
+            #
+            # Captured and then cut, rather than read with a tab IFS from a
+            # heredoc holding the substitution. That spelling hands the tab
+            # IFS to the captured command as well, and this repository's
+            # constitution names it as the trap that costs a session every
+            # time somebody rediscovers it.
+            local dline dstate ddetail
+            dline="$(felix_discover_drift "$proj" "$FELIX_HOME_DIR" "$name")"
+            dstate="$(printf '%s' "$dline" | cut -f1)"
+            ddetail="$(printf '%s' "$dline" | cut -f2-)"
+            case "${dstate:-}" in
+              drift)
+                printf '  DRIFT      %-24s the installed copy is not the copy that was read\n' "$name"
+                printf '             %s\n' "$ddetail"
+                printf '             the %s tier above was scored from the other one\n' "$risk" ;;
+              unread)
+                printf '             %-24s no digest was recorded, so nothing here is claimed\n' "$name" ;;
+            esac
           else
             printf '  declared   %-24s %-10s %s (install failed; felix stack apply --yes retries)\n' \
               "$name" "$risk" "$cap"
@@ -2120,9 +2259,16 @@ EOF
       sha="$(printf '%s' "$src" | cut -f2)"
       sub="$(printf '%s' "$src" | cut -f3)"
       tier="unknown"
+      local digest=""
       if [ -n "$url" ] && felix_discover_fetch "$url" "$sha" "$scratchq/$name"; then
         facts="$(felix_discover_inspect "$scratchq/$name" "$sub")"
         tier="$(felix_discover_risk "$facts")"
+        # Taken here, from the copy the tier was scored off, because there is
+        # no second chance at it: the catalogue drops a plugin from
+        # --available the moment it is installed, so after adoption there is
+        # no source left to re-read. A tier with no digest beside it is a
+        # judgement about bytes nobody can produce again.
+        digest="$(felix_discover_digest "$scratchq/$name" "$sub")" || digest=""
         # Re-scored against what the plugin says about itself and what it
         # actually ships, now that a copy is on disk. The catalogue blurb is
         # written to be chosen from; the manifest is written to describe, and
@@ -2144,7 +2290,7 @@ EOF
         fi
         rm -rf "$scratchq/$name"
       fi
-      printf '%s\t%s\t%s\n' "$name" "$cap" "$tier"
+      printf '%s\t%s\t%s\t%s\n' "$name" "$cap" "$tier" "$digest"
     done
     return 0
   fi
@@ -2154,6 +2300,21 @@ EOF
     [ -n "${name:-}" ] || continue
     printf '  %-26s %-14s %s\n' "$name" "$cap" "$(printf '%s' "$desc" | cut -c1-64)"
   done
+
+  # Said before the advice, because it is a fact about this machine rather
+  # than about the catalogue: a plugin that was read, judged and installed is
+  # no longer the copy that was judged. Silent when nothing has moved, which
+  # is the only way a line like this stays worth reading.
+  local drifted; drifted="$(felix_discover_drifted "$proj" "$FELIX_HOME_DIR")"
+  if [ -n "$drifted" ]; then
+    printf '\ninstalled copies that are no longer what was read\n\n'
+    printf '%s\n' "$drifted" | while IFS=$'\t' read -r dn dd; do
+      [ -n "${dn:-}" ] || continue
+      printf '  %-26s %s\n' "$dn" "$dd"
+    done
+    printf '\nThe tier on file for each was scored from the other copy. Re-reading\n'
+    printf 'them is felix discover --inspect; nothing here has been changed.\n'
+  fi
 
   if [ "$inspect" -ne 1 ]; then
     printf '\nThat is the catalogue talking. It says nothing about what any of them\n'
@@ -2526,6 +2687,19 @@ cmd_stack() {
     source="$(_felix_stack_rows "$proj" | awk -F'\t' -v n="$name" '$2==n{print $3}')"
     if felix_stack_install "$kind" "$name" "$source"; then
       printf '  installed  %s %s\n' "$kind" "$name"
+      # The same comparison the adopt path makes, for the other door into
+      # installing something. Drift only: most rows in a stack.tsv were
+      # written by a person and never went through discovery, so they carry
+      # no digest, and a line saying so for each of them would be noise
+      # rather than a finding.
+      if [ "$kind" = plugin ]; then
+        local sline
+        sline="$(felix_discover_drift "$proj" "$FELIX_HOME_DIR" "$name")"
+        if [ "$(printf '%s' "$sline" | cut -f1)" = drift ]; then
+          printf '  DRIFT      %s %s is not the copy discovery read\n' "$kind" "$name"
+          printf '             %s\n' "$(printf '%s' "$sline" | cut -f2-)"
+        fi
+      fi
     else
       printf '  FAILED     %s %s\n' "$kind" "$name"
       failed=$((failed+1))
@@ -4150,10 +4324,51 @@ cmd_obligations() {
   local n_ung; n_ung="$(felix_obligations_ungrounded "$proj" | grep -c .)"
   [ "$n_ung" -gt 0 ] && printf '; %s ground on no probe' "$n_ung"
   printf '\n'
+  # The epoch these were evaluated under. Report only, and only in the report:
+  # the gate's copy of this output is read by other things, and a line added
+  # there would be a format change rather than a fact.
+  if [ "$gate" -ne 1 ]; then
+    local ep; ep="$(felix_epoch "$proj" "$root")" || ep=""
+    [ -n "$ep" ] && printf '\nscoped to decision epoch %s\n' "$ep"
+  fi
   if [ "$gate" -eq 1 ]; then
     [ "$n_block" -eq 0 ] && [ -z "$bad" ] && [ -z "$orphans" ] || return 1
   fi
   return 0
+}
+
+cmd_epoch() {
+  resolve_or_die; local proj="$PROJ" root a
+  for a in "$@"; do
+    case "$a" in
+      --*) die "usage: felix epoch (got: $a)" ;;
+    esac
+  done
+  root="$(felix_repo_root "$PWD")"
+
+  local e comps
+  comps="$(felix_epoch_components "$proj" "$root")"
+  e="$(felix_epoch "$proj" "$root")" || e=""
+
+  printf 'decision epoch for %s\n\n' "$(basename "$proj")"
+  printf '%s\n' "$comps" | while IFS=$'\t' read -r k v; do
+    [ -n "${k:-}" ] || continue
+    printf '  %-18s %s\n' "$k" "$v"
+  done
+  printf '\n'
+  if [ -n "$e" ]; then
+    printf '  epoch              %s\n' "$e"
+  else
+    printf '  epoch              -\n\n'
+    printf 'A component above is unknown, so there is no epoch. Hashing over the\n'
+    printf 'absence would read as a world that had moved every time a probe broke.\n'
+    return 2
+  fi
+  printf '\nWithin one epoch, admitted blocking obligations may stay constant or\n'
+  printf 'increase; a new grounded topology or a new table set makes a new one,\n'
+  printf 'and that is when applicability is recomputed. This command reports it\n'
+  printf 'and changes no verdict: shrinking the ledger escapes to a person\n'
+  printf 'whatever the epoch says, which is stricter than the rule above.\n'
 }
 
 cmd_probes() {
@@ -4463,6 +4678,7 @@ case "${1:-help}" in
   commission) shift; cmd_commission "$@" ;;
   probes)     shift; cmd_probes "$@" ;;
   obligations) shift; cmd_obligations "$@" ;;
+  epoch)     shift; cmd_epoch "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;
   decisions) shift; cmd_decisions "$@" ;;
@@ -4478,6 +4694,7 @@ case "${1:-help}" in
   review)    shift; cmd_review "$@" ;;
   next)      shift; cmd_next "$@" ;;
   autonomy)  shift; cmd_autonomy "$@" ;;
+  overnight) shift; cmd_overnight "$@" ;;
   brief)     shift; cmd_brief "$@" ;;
   pr)        shift; cmd_pr "$@" ;;
   quarantine) shift; cmd_quarantine "$@" ;;

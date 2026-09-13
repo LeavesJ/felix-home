@@ -7781,7 +7781,7 @@ has "a check that cannot run reads as due rather than ok" "$(_mst "$MTR")" "due	
 #
 # Mirrors the shipped row from templates/maintenance.tsv, exclusion and all. If
 # the two drift, this fixture stops testing what any project actually runs.
-printf 'graphify\t0\talways\tthe map\ttest -n "$(find "$(dirname "$(git rev-parse --git-common-dir)")/graphify-out/graph.json" -newermt "$(git log -1 --format=%%cd --date=format-local:%%Y-%%m-%%dT%%H:%%M:%%S%%z -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"\n' > "$MTP/maintenance.tsv"
+printf 'graphify\t0\talways\tthe map\tG="$(dirname "$(git rev-parse --git-common-dir)")"; test -n "$(find "$G/graphify-out/graph.json" -newermt "$(git log -1 --format=%%cd --date=format-local:%%Y-%%m-%%dT%%H:%%M:%%S%%z "$(git -C "$G" rev-parse HEAD)" -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"\n' > "$MTP/maintenance.tsv"
 has "the seeded graphify row is due on a checkout with no graph" "$(_mst "$MTR")" "due	graphify"
 # One second, because BSD find compares -newermt at whole seconds: a graph
 # written 799ms after the commit, inside the same second, is "not newer".
@@ -7838,14 +7838,23 @@ MTW="$TMP/maint-worktree"
 MTW="$(cd "$MTW" && pwd -P)"
 has "the checkout holding the graph is ok"                      "$(_mst "$MTR")" "ok	graphify"
 has "and a worktree of it reads the same graph, and is ok too"  "$(_mst "$MTW")" "ok	graphify"
-# The commit compared against is the one the worktree stands on: a commit
-# there that the graph has not seen is due there, and the holding checkout,
-# whose head has not moved, is not.
+# The commit compared against is the one the checkout HOLDING the graph stands
+# on, not the one the caller stands on. Work that exists only in a worktree is
+# work no refresh would put in the graph — graphify reads the holding checkout
+# — so calling the graph stale over it is a row that is on in every worktree
+# session and cannot be satisfied by the thing it asks for.
 sleep 1
 ( cd "$MTW" && printf 'w\n' > d.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm "worktree commit" ) >/dev/null 2>&1
-has "a commit in the worktree the graph has not seen is due there" "$(_mst "$MTW")" "due	graphify"
-has "while the checkout the graph was built from is still ok"      "$(_mst "$MTR")" "ok	graphify"
+has "work committed only in a worktree does not make the graph stale" "$(_mst "$MTW")" "ok	graphify"
+has "and the checkout the graph was built from reads ok as well"      "$(_mst "$MTR")" "ok	graphify"
+# The holding checkout moving is the thing that does, and it reads the same
+# from both places, because it is one fact about one graph.
+sleep 1
+( cd "$MTR" && printf 'e\n' > e.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm "checkout commit" ) >/dev/null 2>&1
+has "a commit in the checkout the graph was built from is due"        "$(_mst "$MTR")" "due	graphify"
+has "and due from the worktree too, which is where the session is"    "$(_mst "$MTW")" "due	graphify"
 # And the command renders a checked row as a fact, not as a clock. The ok
 # branch printed `${age}d ago  every ${cadence}d`, which for a checked event
 # row came out as `-d ago  every 0d` — a number nobody wrote, in a row that
@@ -11560,6 +11569,928 @@ has "and declares a version"  "$(cat "$_mf" 2>/dev/null)" '"version"'
 has "and a name"              "$(cat "$_mf" 2>/dev/null)" '"name"'
 is  "and the version is a dotted number" \
     "$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([0-9][0-9.]*\)".*/\1/p' "$_mf" 2>/dev/null | grep -c .)" "1"
+
+# ------------------------------------------ executable-check, the bit that ships ---
+# Felix runs entirely through scripts something else invokes: the CLI, this
+# suite, every scanner under bin/ and every hook under hooks/. A lost executable
+# bit does not fail here — it fails in somebody else's session, silently, once
+# the plugin is deployed. So the check must (a) enumerate what is actually on
+# disk, or a scanner added next week is unprotected the day it lands, (b) judge
+# by the shebang rather than the directory, or a README turns the gate red, and
+# (c) distinguish "every script is fine" from "I could not look", which is the
+# failure this repository keeps rediscovering under a green line.
+#
+# The fixture is a small invented engine, not a copy of the real one: the count
+# it reports is then a number the assertions can name, and a check that silently
+# stopped enumerating would have to lie about it rather than merely look busy.
+printf '\nexecutable-check: the bit that fails in somebody else session\n'
+EXC="$TMP/executable-check"
+mkdir -p "$EXC/engine/harness/bin" "$EXC/engine/harness/hooks" \
+         "$EXC/engine/harness/tests" "$EXC/deep/nested"
+for _xf in felix tests/run bin/alpha-scan bin/beta-check hooks/session-start hooks/pre-tool; do
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$EXC/engine/harness/$_xf"
+  chmod 755 "$EXC/engine/harness/$_xf"
+done
+# Two files that live in those same directories and are not scripts. Both are
+# created 644, which is the whole point: if the check reads names or directories
+# instead of first lines, these are the false alarms it raises.
+printf '# notes\n\nWhat lives under bin/, and why.\n' > "$EXC/engine/harness/bin/NOTES.md"
+printf 'event\tpurpose\nPreToolUse\tdeny\n'           > "$EXC/engine/harness/hooks/events.tsv"
+( cd "$EXC" && git init -q -b main && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+# macOS resolves /var to /private/var and the engine resolves the same way, so
+# compare against what the filesystem calls this directory, not what mktemp did.
+EXC="$(cd "$EXC" && pwd -P)"
+_xc()   { ( cd "$1" && "$REAL_HARNESS/bin/executable-check" 2>&1; echo "rc=$?" ); }
+# Exact, for the reason the deploy-check block gives: "rc=1" as a substring is
+# satisfied by rc=126 and rc=127, which are a checker that never ran at all.
+_xcrc() { printf '%s' "${1##*rc=}"; }
+# Committed after every mutation, so a reading of the index and a reading of the
+# worktree cannot disagree about what this fixture says.
+_xcc()  { ( cd "$EXC" && git add -A \
+            && git -c user.name=t -c user.email=t@t commit -qm case ) >/dev/null 2>&1; }
+
+if [ -x "$REAL_HARNESS/bin/executable-check" ]; then
+  out="$(_xc "$EXC")"
+  is  "an engine whose every script carries its bit exits 0" "$(_xcrc "$out")" "0"
+  has "and says how many scripts it examined" "$out" "6 script"
+
+  # Enumerated from the directory, never from a list of names. A fixed list
+  # cannot contain a file that did not exist when the list was written, so the
+  # count moving is the only evidence that the enumeration is real.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$EXC/engine/harness/bin/newly-added-scanner"
+  chmod 755 "$EXC/engine/harness/bin/newly-added-scanner"; _xcc
+  out="$(_xc "$EXC")"
+  has "a scanner added today is examined without anyone editing the check" "$out" "7 script"
+  chmod 644 "$EXC/engine/harness/bin/newly-added-scanner"; _xcc
+  out="$(_xc "$EXC")"
+  is  "and one that arrives without its bit fails, where a fixed list saw nothing" \
+      "$(_xcrc "$out")" "1"
+  has "naming the scanner nobody listed" "$out" "engine/harness/bin/newly-added-scanner"
+  chmod 755 "$EXC/engine/harness/bin/newly-added-scanner"; _xcc
+
+  # The same claim for hooks, which are the half nobody runs by hand.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$EXC/engine/harness/hooks/brand-new-hook"
+  chmod 644 "$EXC/engine/harness/hooks/brand-new-hook"; _xcc
+  out="$(_xc "$EXC")"
+  is  "a hook added today without its bit fails the same way" "$(_xcrc "$out")" "1"
+  rm -f "$EXC/engine/harness/hooks/brand-new-hook"; _xcc
+
+  # The two named entry points, bare at the same time. One report that stops at
+  # the first bad file leaves the second to be found by whoever it breaks.
+  chmod 644 "$EXC/engine/harness/felix" "$EXC/engine/harness/tests/run"; _xcc
+  out="$(_xc "$EXC")"
+  is  "the entry point and the suite runner, both bare, fail" "$(_xcrc "$out")" "1"
+  has "naming the entry point" "$out" "engine/harness/felix"
+  has "and the suite runner beside it, rather than stopping at the first" \
+      "$out" "engine/harness/tests/run"
+  chmod 755 "$EXC/engine/harness/felix" "$EXC/engine/harness/tests/run"; _xcc
+
+  # What makes a file a script is its first line. NOTES.md has sat in bin/ at 644
+  # through every assertion above without turning anything red — but so would a
+  # check that skipped the directory, or skipped every name it did not know. So
+  # arm that exact path first: same file, same 644 mode, a shebang added. Caught
+  # with the shebang and ignored without it is the only pair of results that says
+  # the first line is what is being read.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$EXC/engine/harness/bin/NOTES.md"; _xcc
+  out="$(_xc "$EXC")"
+  is  "a file under bin/ that begins with a shebang is a script, and its bare mode is caught" \
+      "$(_xcrc "$out")" "1"
+  has "named as the script it is" "$out" "engine/harness/bin/NOTES.md"
+  printf '# notes\n\nWhat lives under bin/, and why.\n' > "$EXC/engine/harness/bin/NOTES.md"; _xcc
+  out="$(_xc "$EXC")"
+  is  "while the same path without one is documentation, and the run stays green" \
+      "$(_xcrc "$out")" "0"
+
+  # Could not look is not nothing wrong. Both ways in.
+  is  "outside a git repository it cannot look, exit 2" "$(_xcrc "$(_xc "$TMP")")" "2"
+  EXN="$TMP/executable-check-no-engine"; mkdir -p "$EXN"
+  ( cd "$EXN" && git init -q -b main && printf 'x\n' > README.md && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
+  is  "a checkout with no engine directory cannot look either, exit 2" \
+      "$(_xcrc "$(_xc "$EXN")")" "2"
+
+  # And the emptiness this project keeps finding dressed as an all-clear: the
+  # directories are there, they hold nothing it recognises, and zero scripts
+  # examined is a checker that answered about itself rather than about the tree.
+  EXZ="$TMP/executable-check-empty"
+  mkdir -p "$EXZ/engine/harness/bin" "$EXZ/engine/harness/hooks"
+  printf '# notes\n'          > "$EXZ/engine/harness/bin/NOTES.md"
+  printf 'event\tpurpose\n'   > "$EXZ/engine/harness/hooks/events.tsv"
+  ( cd "$EXZ" && git init -q -b main && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
+  is  "an engine holding nothing it recognises is emptiness, not an all clear" \
+      "$(_xcrc "$(_xc "$EXZ")")" "2"
+  # Armed: the same tree, one real script. If this does not flip, the assertion
+  # above was measuring a fixture the check could never have read.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$EXZ/engine/harness/bin/gamma-scan"
+  chmod 755 "$EXZ/engine/harness/bin/gamma-scan"
+  ( cd "$EXZ" && git add -A && git -c user.name=t -c user.email=t@t commit -qm one ) >/dev/null 2>&1
+  is  "and one real script in that same tree is examined, so it was the emptiness" \
+      "$(_xcrc "$(_xc "$EXZ")")" "0"
+
+  # From anywhere inside the checkout. A search rooted at the working directory
+  # finds nothing from deep/nested, which by rule 6 is exit 2 rather than 0.
+  is  "from a nested subdirectory the verdict is unchanged" \
+      "$(_xcrc "$(_xc "$EXC/deep/nested")")" "0"
+  chmod 644 "$EXC/engine/harness/bin/alpha-scan"; _xcc
+  out="$(_xc "$EXC/engine/harness")"
+  is  "and a bare script is still caught from inside the engine itself" "$(_xcrc "$out")" "1"
+  chmod 755 "$EXC/engine/harness/bin/alpha-scan"; _xcc
+else
+  for a in "an engine whose every script carries its bit exits 0" \
+           "and says how many scripts it examined" \
+           "a scanner added today is examined without anyone editing the check" \
+           "and one that arrives without its bit fails, where a fixed list saw nothing" \
+           "naming the scanner nobody listed" \
+           "a hook added today without its bit fails the same way" \
+           "the entry point and the suite runner, both bare, fail" \
+           "naming the entry point" \
+           "and the suite runner beside it, rather than stopping at the first" \
+           "a file under bin/ that begins with a shebang is a script, and its bare mode is caught" \
+           "named as the script it is" \
+           "while the same path without one is documentation, and the run stays green" \
+           "outside a git repository it cannot look, exit 2" \
+           "a checkout with no engine directory cannot look either, exit 2" \
+           "an engine holding nothing it recognises is emptiness, not an all clear" \
+           "and one real script in that same tree is examined, so it was the emptiness" \
+           "from a nested subdirectory the verdict is unchanged" \
+           "and a bare script is still caught from inside the engine itself"; do
+    skip "$a" "no bin/executable-check beside this harness"; done
+fi
+
+printf '\nFelix installs what it read, or says which one it has\n'
+# `felix discover` fetches a candidate at its pinned sha into a scratch
+# directory and READS it there to score a tier. `claude plugin install` later
+# fetches its own copy. Nothing compared the two, so "Felix installs what it
+# has read" was a sentence and not a fact. These assertions are about the
+# comparison: a digest taken from the copy that was read, carried in the
+# discovery cache, and checked afterwards against the copy on disk.
+#
+# Everything below lives under $TMP and goes with the suite's EXIT trap; the
+# block writes nothing into $FROOT, so nothing here needs keeping and
+# restoring.
+_dg()     { ( . "$FROOT/harness/lib/discover.sh"; felix_discover_digest "$@" ); }
+_dgrc()   { ( . "$FROOT/harness/lib/discover.sh"; felix_discover_digest "$@" >/dev/null 2>&1; echo $? ); }
+_dgstamp(){ ( . "$FROOT/harness/lib/discover.sh"; _felix_discover_stamp_line "" ); }
+# A plugin copy: a manifest, a command, an executable, and a symlink — the four
+# things a digest that only hashed file contents would get wrong.
+_mkplug() { mkdir -p "$1/commands"
+            printf 'name: sample\n'        > "$1/plugin.json"
+            printf 'do the thing\n'        > "$1/commands/go.md"
+            printf '#!/bin/sh\necho hi\n'  > "$1/run.sh"; chmod 755 "$1/run.sh"
+            ln -sfn commands/go.md "$1/link"; }
+
+DIG="$TMP/digest-copies"; mkdir -p "$DIG"
+_mkplug "$DIG/read"; _mkplug "$DIG/installed"
+dread="$(_dg "$DIG/read")"
+[ -n "$dread" ] \
+  && ok  "a copy with files in it digests to something" \
+  || bad "a copy with files in it digests to something" "printed nothing"
+is  "and exits 0 when it has a digest to print" "$(_dgrc "$DIG/read")" "0"
+is  "two byte-identical copies at two different paths digest the same" \
+    "$(_dg "$DIG/installed")" "$dread"
+
+# One byte, same length, inside one file.
+printf 'do the thang\n' > "$DIG/installed/commands/go.md"
+case "$(_dg "$DIG/installed")" in
+  "$dread") bad "one byte changed inside one file changes the digest" "unchanged" ;;
+  *)        ok  "one byte changed inside one file changes the digest" ;;
+esac
+printf 'do the thing\n' > "$DIG/installed/commands/go.md"
+is  "and putting the byte back puts the digest back" "$(_dg "$DIG/installed")" "$dread"
+
+printf 'surprise\n' > "$DIG/installed/extra.md"
+case "$(_dg "$DIG/installed")" in
+  "$dread") bad "adding a file changes the digest" "unchanged" ;;
+  *)        ok  "adding a file changes the digest" ;;
+esac
+rm -f "$DIG/installed/extra.md"
+is  "and removing that file restores it" "$(_dg "$DIG/installed")" "$dread"
+
+# The executable bit is the difference between a plugin that runs and one that
+# does not, and it moves no bytes.
+chmod 644 "$DIG/installed/run.sh"
+case "$(_dg "$DIG/installed")" in
+  "$dread") bad "flipping a file's executable bit changes the digest" "unchanged" ;;
+  *)        ok  "flipping a file's executable bit changes the digest" ;;
+esac
+is  "with the file's contents untouched" \
+    "$(cmp -s "$DIG/read/run.sh" "$DIG/installed/run.sh" && echo identical)" "identical"
+chmod 755 "$DIG/installed/run.sh"
+is  "and flipping it back restores the digest" "$(_dg "$DIG/installed")" "$dread"
+
+ln -sfn plugin.json "$DIG/installed/link"
+case "$(_dg "$DIG/installed")" in
+  "$dread") bad "repointing a symlink at a different target changes the digest" "unchanged" ;;
+  *)        ok  "repointing a symlink at a different target changes the digest" ;;
+esac
+ln -sfn commands/go.md "$DIG/installed/link"
+
+# .git is the fetch's own machinery and is never in an installed copy, so a
+# digest that counted it could never report `same` about anything.
+mkdir -p "$DIG/installed/.git/objects"
+printf 'ref: refs/heads/main\n' > "$DIG/installed/.git/HEAD"
+printf 'loose object\n'         > "$DIG/installed/.git/objects/aa"
+is  "files under .git are not counted" "$(_dg "$DIG/installed")" "$dread"
+# .in_use is written INTO an installed plugin by the platform, one file per
+# running session named by pid. A digest that counted them would differ from
+# itself every session and drift would mean nothing.
+mkdir -p "$DIG/installed/.in_use"
+printf 'session\n' > "$DIG/installed/.in_use/$$"
+printf 'session\n' > "$DIG/installed/.in_use/424242"
+is  "and neither are the per-session files under .in_use" "$(_dg "$DIG/installed")" "$dread"
+
+# An empty copy must not digest, because the digest of an empty document is
+# one value and every empty directory would then look like the same copy.
+mkdir -p "$DIG/hollow/nested/deeper"
+is  "a directory that exists but holds no files yields no digest" "$(_dg "$DIG/hollow")" ""
+[ "$(_dgrc "$DIG/hollow")" != "0" ] \
+  && ok  "and says so with a non-zero status, not the digest of an empty document" \
+  || bad "and says so with a non-zero status, not the digest of an empty document" "exited 0"
+is  "a directory that does not exist yields no digest" "$(_dg "$DIG/no-such-copy")" ""
+[ "$(_dgrc "$DIG/no-such-copy")" != "0" ] \
+  && ok  "and a non-zero status too" \
+  || bad "and a non-zero status too" "exited 0"
+
+# The shape this exists for: what Felix read is a repo with the plugin in a
+# subdirectory, beside a README and a .git; what got installed is flat.
+DIGR="$TMP/digest-repo"; mkdir -p "$DIGR"
+_mkplug "$DIGR/felix"
+printf '# readme\n' > "$DIGR/README.md"
+mkdir -p "$DIGR/.git"; printf 'ref: refs/heads/main\n' > "$DIGR/.git/HEAD"
+is  "a subdirectory named as an argument digests as that subdirectory alone" \
+    "$(_dg "$DIGR" felix)" "$(_dg "$DIGR/felix")"
+is  "so the plugin subdirectory of the fetched repo digests as the flat installed copy" \
+    "$(_dg "$DIGR" felix)" "$dread"
+is  "a subdir argument naming no directory digests the copy it was given" \
+    "$(_dg "$DIG/read" no-such-subdir)" "$dread"
+
+# ---- what the cache recorded -------------------------------------------------
+RDG="$TMP/digest-cache-home"; mkdir -p "$RDG/state/discover"
+RDGP="$RDG/projects/widget"; mkdir -p "$RDGP"
+{ _dgstamp
+  printf 'deepeval	llm	low	%s\n' "$dread"
+  printf 'langfuse	llm	low\n'
+} > "$RDG/state/discover/widget.tsv"
+_rdg()   { ( . "$FROOT/harness/lib/discover.sh"; felix_discover_read_digest "$1" "$2" "$3" ); }
+_rdgrc() { ( . "$FROOT/harness/lib/discover.sh"
+             felix_discover_read_digest "$1" "$2" "$3" >/dev/null 2>&1; echo $? ); }
+is  "the cache hands back the digest recorded beside a name" \
+    "$(_rdg "$RDGP" "$RDG" deepeval)" "$dread"
+is  "a row written before digests existed reads as no digest, not as its tier" \
+    "$(_rdg "$RDGP" "$RDG" langfuse)" ""
+is  "a name the cache never carried reads as no digest" \
+    "$(_rdg "$RDGP" "$RDG" figma)" ""
+is  "and a cache file that is not there reads as no digest either" \
+    "$(_rdg "$RDGP" "$TMP/digest-no-such-home" deepeval)" ""
+is  "having nothing to say is not a failure" \
+    "$(_rdgrc "$RDGP" "$TMP/digest-no-such-home" deepeval)" "0"
+
+# ---- the comparison ----------------------------------------------------------
+DFT="$TMP/drift-home"; mkdir -p "$DFT/state/discover"
+DFTP="$DFT/projects/widget"; mkdir -p "$DFTP"
+DFC="$TMP/drift-copies"; mkdir -p "$DFC"
+_mkplug "$DFC/deepeval"; _mkplug "$DFC/langfuse"; _mkplug "$DFC/figma"
+_mkplug "$DFC/sonarqube"; mkdir -p "$DFC/outputai/empty"
+dclean="$(_dg "$DFC/deepeval")"
+{ _dgstamp
+  printf 'deepeval	llm	low	%s\n'      "$dclean"
+  printf 'langfuse	llm	low	%s\n'      "$dclean"
+  printf 'figma	frontend	medium\n'
+  printf 'outputai	llm	high	%s\n'     "$dclean"
+  printf 'sonarqube	secrets	high	%s\n' "$dclean"
+  # Both of these carry a digest, so what they exercise is absence from
+  # the registry and nothing else. A name missing from both tables could
+  # honestly be called either absent or unread, and an assertion that
+  # cannot say which one it is asserting is not an assertion.
+  printf 'unmatched	llm	low	%s\n' "$dclean"
+  printf 'noplace	llm	low	%s\n' "$dclean"
+} > "$DFT/state/discover/widget.tsv"
+# The installed langfuse is not the langfuse that was read.
+printf 'and one more line\n' >> "$DFC/langfuse/plugin.json"
+: > "$TMP/drift-not-a-directory"
+cat > "$TMP/drift-registry.json" <<JSON
+{ "version": 2,
+  "plugins": {
+    "deepeval@felix":  [ { "scope": "user", "version": "1.0.0", "installPath": "$DFC/deepeval" } ],
+    "langfuse@felix":  [ { "scope": "user", "version": "1.0.0", "installPath": "$DFC/langfuse" } ],
+    "figma@felix":     [ { "scope": "user", "version": "1.0.0", "installPath": "$DFC/figma" } ],
+    "outputai@felix":  [ { "scope": "user", "version": "1.0.0", "installPath": "$DFC/outputai" } ],
+    "sonarqube@felix": [ { "scope": "user", "version": "1.0.0", "installPath": "$TMP/drift-not-a-directory" } ],
+    "noplace@felix":   [ { "scope": "user", "version": "1.0.0" } ]
+  }
+}
+JSON
+_drift()   { ( . "$FROOT/harness/lib/discover.sh"
+               felix_discover_drift "$DFTP" "$DFT" "$1" "$TMP/drift-registry.json" ); }
+_driftrc() { ( . "$FROOT/harness/lib/discover.sh"
+               felix_discover_drift "$DFTP" "$DFT" "$1" "$TMP/drift-registry.json" \
+                 >/dev/null 2>&1; echo $? ); }
+is  "an installed copy that matches what Felix read reads same" \
+    "$(_drift deepeval | cut -f1)" "same"
+is  "and the detail is the digest the two copies share" \
+    "$(_drift deepeval | cut -f2)" "$dclean"
+is  "an installed copy that differs from what Felix read reads drift" \
+    "$(_drift langfuse | cut -f1)" "drift"
+has "and the detail names the digest that was recorded" \
+    "$(_drift langfuse | cut -f2)" "$dclean"
+has "and the digest the copy on disk carries now" \
+    "$(_drift langfuse | cut -f2)" "$(_dg "$DFC/langfuse")"
+is  "a name with no digest recorded claims nothing" \
+    "$(_drift figma | cut -f1)" "unread"
+is  "and an installed copy with no files to digest claims nothing either" \
+    "$(_drift outputai | cut -f1)" "unread"
+is  "an installPath that is not a directory reads absent" \
+    "$(_drift sonarqube | cut -f1)" "absent"
+is  "a name the registry does not hold reads absent" \
+    "$(_drift unmatched | cut -f1)" "absent"
+is  "and so does one whose registry entry carries no installPath" \
+    "$(_drift noplace | cut -f1)" "absent"
+is  "every verdict is one line of two tab-separated fields" \
+    "$(_drift deepeval | awk -F'\t' 'END{print NR" "NF}')" "1 2"
+is  "and reporting absent is not failing" "$(_driftrc unmatched)" "0"
+
+# ---- the fourth column must not break the reader that was there first --------
+# A reader that took three fields off a cache line would swallow the digest
+# into the tier, match no tier, and drop every candidate in silence — which is
+# the one failure mode nobody would see.
+ADQ="$TMP/adopt-digest-home"; mkdir -p "$ADQ/state/discover"
+ADQP="$ADQ/projects/widget"; mkdir -p "$ADQP"
+printf 'plugin	langfuse@x	-	low	llm\n' > "$ADQP/stack.tsv"
+{ _dgstamp
+  printf 'deepeval	llm	low	%s\n'   "$dclean"
+  printf 'langfuse	llm	low	%s\n'   "$dclean"
+  printf 'figma	frontend	medium	%s\n' "$dclean"
+  printf 'sonarqube	secrets	low\n'
+} > "$ADQ/state/discover/widget.tsv"
+aout="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_adopt "$ADQP" "$ADQ" "" )"
+has "a cache row carrying a digest is still declared" "$aout" "declare	deepeval"
+has "a three-column row beside it is still declared"  "$aout" "declare	sonarqube"
+has "one already in the stack still reads already"    "$aout" "already	langfuse"
+has "and a medium one is still refused"               "$aout" "refuse	figma"
+is  "every row the adopt reader emits is four fields wide, digest or no digest" \
+    "$(printf '%s\n' "$aout" | awk -F'\t' '{print NF}' | sort -u | tr '\n' ' ')" "4 "
+is  "and the tier field is the tier, not a tier with a digest stuck to it" \
+    "$(printf '%s\n' "$aout" | awk -F'\t' '$2=="deepeval"{print $4}')" "low"
+is  "no candidate is dropped in silence" \
+    "$(printf '%s\n' "$aout" | grep -c .)" "4"
+printf '\na night the founder granted\n'
+# Overnight mode hands a session the right to keep going instead of stopping to
+# ask. Everything that right rests on is a bound, and a bound nobody measures is
+# a grant with no end: these assertions exist so that if any of the three ever
+# stops holding, the suite says which one.
+#
+# The library is driven against a project directory of its own rather than
+# widget, because the hook and command assertions further down write widget's
+# overnight state and the two would otherwise be reading each other's files.
+# Memory is keyed on the project's basename, so the fixture needs both.
+NP="$TMP/nightproj"; mkdir -p "$NP" "$MEM/nightproj"
+_ov() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/overnight.sh"; "$@" 2>&1 ); }
+_ovdir()   { _ov felix_overnight_dir "$1"; }
+_ovfile()  { printf '%s/active' "$(_ovdir "$1")"; }
+# One field of the one-line state. Read with awk rather than cut so a note that
+# smuggled in a newline shows up as a second record instead of being averaged
+# into the answer.
+_ovfield() { awk -F'\t' -v f="$2" 'NR==1 {print $f}' "$(_ovfile "$1")" 2>/dev/null; }
+_ovreset() { rm -f "$(_ovfile "$1")"; }
+# Move the deadline into the past without touching any other field. The field
+# it edits is the one the assertion below proves is the deadline, which is the
+# only reason this rewrite is allowed to stand in for waiting eight hours.
+_ovexpire() {
+  local f p; f="$(_ovfile "$1")"; p="$(( $(date +%s) - 120 ))"
+  awk -F'\t' -v OFS='\t' -v p="$p" 'NR==1 {$2=p} 1' "$f" > "$f.edit" && mv "$f.edit" "$f"
+}
+# The longest word in a sentence, for asking whether some other surface repeated
+# it. Guarded at the call site: an empty needle would match everything, which is
+# this project's oldest way of writing an assertion that cannot fail.
+_ovword() { printf '%s' "$1" | tr -cs 'A-Za-z' '\n' | awk '{ if (length($0) > length(m)) m = $0 } END { print m }'; }
+
+_ovreset "$NP"
+_now="$(date +%s)"
+_ov felix_overnight_start "$NP" 8 5 sess-a "the founder granted a night" >/dev/null
+_ov felix_overnight_active "$NP" && ok "a granted night is in progress" \
+                                 || bad "a granted night is in progress" "$(cat "$(_ovfile "$NP")" 2>/dev/null)"
+# Eight hours means eight hours, and the assertion is here as much for the
+# tests as for the product: the expiry fixtures below rewrite field two, and
+# without this they could be rewriting the wrong number and proving nothing.
+_delta=$(( $(_ovfield "$NP" 2) - _now ))
+is "an eight-hour grant runs until eight hours from now" \
+   "$([ "$_delta" -ge 28700 ] && [ "$_delta" -le 28900 ] && echo yes || echo "no ($_delta seconds)")" "yes"
+
+# Three bounds, and a night is live only while all three hold. Each is armed on
+# its own so a failure names the bound rather than the feature.
+_ovexpire "$NP"; _past="$(_ov felix_overnight_active "$NP" && echo yes || echo no)"
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 1 sess-b "one turn" >/dev/null
+_ov felix_overnight_spend "$NP" 0 >/dev/null
+_spent="$(_ov felix_overnight_active "$NP" && echo yes || echo no)"
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 5 sess-c "quiet" >/dev/null
+_ov felix_overnight_spend "$NP" 1 >/dev/null; _ov felix_overnight_spend "$NP" 1 >/dev/null
+_quiet="$(_ov felix_overnight_active "$NP" && echo yes || echo no)"
+is "any one bound reached ends the night, whichever it is" \
+   "deadline:$_past turns:$_spent quiet:$_quiet" "deadline:no turns:no quiet:no"
+
+# felix_overnight_expired has to tell three states apart, and two of them look
+# identical from the outside: a night nobody granted and a night still running
+# both mean "do not write the morning page". Only the third has anything to say.
+_ovreset "$NP"
+_none="$(_ov felix_overnight_expired "$NP")"; _nonerc=$?
+_ov felix_overnight_start "$NP" 8 5 sess-d "live" >/dev/null
+_live="$(_ov felix_overnight_expired "$NP")"; _liverc=$?
+is "a night nobody granted is not an expired night" "$_nonerc:[$_none]" "1:[]"
+is "and neither is one that is still running"       "$_liverc:[$_live]" "1:[]"
+
+_ovexpire "$NP"
+_whytime="$(_ov felix_overnight_expired "$NP")"; _timerc=$?
+is "a deadline that has passed ends the night and says so" \
+   "$_timerc:$([ -n "$_whytime" ] && echo said || echo silent)" "0:said"
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 1 sess-e "one turn" >/dev/null
+_ov felix_overnight_spend "$NP" 0 >/dev/null
+_whyturns="$(_ov felix_overnight_expired "$NP")"; _turnsrc=$?
+is "continuations run out and the night ends" \
+   "$_turnsrc:$([ -n "$_whyturns" ] && echo said || echo silent)" "0:said"
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 5 sess-f "quiet" >/dev/null
+_ov felix_overnight_spend "$NP" 1 >/dev/null; _ov felix_overnight_spend "$NP" 1 >/dev/null
+_whyquiet="$(_ov felix_overnight_expired "$NP")"; _quietrc=$?
+is "two runs with nothing to show end the night too" \
+   "$_quietrc:$([ -n "$_whyquiet" ] && echo said || echo silent)" "0:said"
+# The morning has to know which wall it hit. One sentence for all three is a
+# report that cannot be acted on: more time, more turns and a stuck session are
+# three different mornings.
+is "and each bound is named in its own words" \
+   "$(printf '%s\n%s\n%s\n' "$_whytime" "$_whyturns" "$_whyquiet" | LC_ALL=C sort -u | grep -c .)" "3"
+
+printf '\nwhat a grant refuses\n'
+# A night is the one thing here nobody is awake to correct, so the refusals are
+# the feature. `felix overnight --start 0.5` that rounds, or `--start 100` that
+# is accepted, is a session running unattended for as long as it feels like.
+_ovreset "$NP"
+_ov felix_overnight_start "$NP" 8.5 5 sess-g "half" >/dev/null 2>&1 \
+  && bad "half an hour is not a whole number of hours" "accepted" \
+  || ok  "half an hour is not a whole number of hours"
+_zero="$(_ov felix_overnight_start "$NP" 0 5 sess-h "none")"; _zerorc=$?
+[ "$_zerorc" -ne 0 ] && ok "a night of zero hours is not a night" \
+                     || bad "a night of zero hours is not a night" "accepted"
+# Refusing without saying why leaves a founder retyping the same command.
+is "and a refused grant says why" "$([ -n "$_zero" ] && echo said || echo silent)" "said"
+_ov felix_overnight_start "$NP" 17 5 sess-i "too long" >/dev/null 2>&1 \
+  && bad "seventeen hours is past the ceiling" "accepted" \
+  || ok  "seventeen hours is past the ceiling"
+_ov felix_overnight_start "$NP" 8 0 sess-j "no turns" >/dev/null 2>&1 \
+  && bad "a night with no continuations in it is refused" "accepted" \
+  || ok  "a night with no continuations in it is refused"
+# The control. Without it every assertion above is satisfied by a start that
+# refuses everything, which is the shape a blanket guard clause takes.
+is "and nothing was granted by any of them" \
+   "$([ -f "$(_ovfile "$NP")" ] && echo granted || echo none)" "none"
+_ov felix_overnight_start "$NP" 16 5 sess-k "the ceiling itself" >/dev/null 2>&1 \
+  && ok  "the ceiling itself is still a night somebody can be granted" \
+  || bad "the ceiling itself is still a night somebody can be granted" "16 refused"
+
+# The state is one line, and the note is the only field a person types. A tab
+# in it silently adds a column; a newline adds a whole second night. Either way
+# the next read gets a deadline that is not a deadline.
+_ovreset "$NP"
+_ov felix_overnight_start "$NP" 2 3 sess-l "$(printf 'ship it\tthen\nsleep')" >/dev/null 2>&1
+is "a note carrying a tab and a newline still leaves one line of six fields" \
+   "$(awk 'END {print NR}' "$(_ovfile "$NP")" 2>/dev/null):$(awk -F'\t' 'NR==1 {print NF}' "$(_ovfile "$NP")" 2>/dev/null)" \
+   "1:6"
+
+printf '\nspending the night down\n'
+_ovreset "$NP"
+_ov felix_overnight_start "$NP" 8 5 sess-m "five turns" >/dev/null
+_said="$(_ov felix_overnight_spend "$NP" 0)"
+is "one continuation is spent per turn, not two" "$(_ovfield "$NP" 3)" "4"
+# The budget lesson, in a second place: a count worked out in advance and
+# printed is not the count that was written down.
+has "and the number it reports is the number it stored" "$_said" "4"
+_ov felix_overnight_spend "$NP" 1 >/dev/null; _ov felix_overnight_spend "$NP" 1 >/dev/null
+is "runs with nothing to show accumulate" "$(_ov felix_overnight_quiets "$NP")" "2"
+_ov felix_overnight_spend "$NP" 0 >/dev/null
+is "and a turn that did something clears the count" "$(_ov felix_overnight_quiets "$NP")" "0"
+# A negative continuation count reads as "below the limit" to any comparison
+# written the obvious way, which turns an exhausted night into an endless one.
+_ovreset "$NP"
+_ov felix_overnight_start "$NP" 8 1 sess-n "last turn" >/dev/null
+_ov felix_overnight_spend "$NP" 0 >/dev/null; _ov felix_overnight_spend "$NP" 0 >/dev/null
+is "spending past the last continuation stops at zero" "$(_ovfield "$NP" 3)" "0"
+
+printf '\nwhat is waiting for a person in the morning\n'
+# The queue is the whole reason a night is allowed at all: the session does not
+# stop to ask, so every question it did not ask has to be written down.
+_ovreset "$NP"; rm -f "$(_ovdir "$NP")/deferred.tsv"
+_ov felix_overnight_start "$NP" 8 5 sess-o "queue" >/dev/null
+_ov felix_overnight_defer "$NP" question "which name to publish under" "felix overnight --report" >/dev/null
+_ov felix_overnight_defer "$NP" blocked "the staging token expired" "op signin staging" >/dev/null
+is "two deferrals are two things waiting" "$(_ov felix_overnight_deferred_count "$NP")" "2"
+# A row that says something is blocked and not how to unblock it hands the
+# morning the search, which is the part the night was supposed to have done.
+has "and a row carries the command that unblocks it" \
+    "$(cat "$(_ovdir "$NP")/deferred.tsv" 2>/dev/null)" "op signin staging"
+_ov felix_overnight_defer "$NP" "" "no kind at all" "true" >/dev/null 2>&1
+_ov felix_overnight_defer "$NP" question "" "true" >/dev/null 2>&1
+is "a deferral with no kind or no subject writes no row" \
+   "$(_ov felix_overnight_deferred_count "$NP")" "2"
+_ov felix_overnight_clear "$NP" >/dev/null 2>&1
+is "clearing the queue empties it" "$(_ov felix_overnight_deferred_count "$NP")" "0"
+
+printf '\nthe Stop hook through a granted night\n'
+# The completion gate is what overnight mode changes, so this drives the real
+# hook with real JSON against a real repository, the way the gate section does.
+# The gate is re-declared rather than inherited: earlier sections rewrite it to
+# prove other things, and a green receipt from a gate of `true` would make every
+# assertion below pass without measuring anything.
+OVSTOP="$FROOT/harness/hooks/stop"
+WP="$FROOT/projects/widget"
+cat > "$WP/project.json" <<'EOF'
+{
+  "name": "widget",
+  "remote_match": "example.com/widget",
+  "gate": "sh -c 'test -f WIDGET.txt && echo widget-gate-ran'"
+}
+EOF
+NREPO="$TMP/nightrepo"
+mkdir -p "$NREPO"
+( cd "$NREPO" && git init -q -b main
+  printf 'contents\n' > WIDGET.txt
+  printf 'widget\n'   > .felix
+  git add -A >/dev/null 2>&1
+  git -c user.name=t -c user.email=t@t commit -qm init >/dev/null 2>&1 )
+# mktemp hands back /var on macOS and the engine resolves it to /private/var, so
+# a fixture that skips this stamps a receipt against a path the hook will not
+# recognise and every green case below reads as a block.
+NREPO="$(cd "$NREPO" && pwd -P)"
+# An edit the session made, then a gate run over exactly that tree: this is the
+# state the hook is designed for, and the only one in which the overnight branch
+# is reached at all.
+printf 'night work\n' >> "$NREPO/WIDGET.txt"
+_ovgate="$(cd "$NREPO" && "$FELIX" gate 2>&1)"; _ovgaterc=$?
+is "the fixture tree is green before any night is granted" "$_ovgaterc" "0"
+
+_ovstop() { ( cd "$NREPO" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s"}' "$1" | "$OVSTOP" 2>&1 ); }
+_ovblocks() { case "$2" in *'"decision"'*'"block"'*) ok "$1" ;; *) bad "$1" "expected a block, got [$2]" ;; esac; }
+_ovholds_open() { case "$2" in *'"decision"'*'"block"'*) bad "$1" "expected no block, got [$2]" ;; *) ok "$1" ;; esac; }
+_ovsays_night() { printf '%s\n' "$2" | grep -qi 'overnight'; }
+
+_ovreset "$WP"
+_out="$(_ovstop night-none)"
+_ovholds_open "a green tree with no night granted still ends the session" "$_out"
+_ovsays_night x "$_out" && bad "and says nothing about a night nobody granted" "$_out" \
+                        || ok  "and says nothing about a night nobody granted"
+
+# The grant, and the behaviour it buys: the session is handed back its own turn
+# instead of being allowed to stop and wait for somebody who is asleep.
+_ov felix_overnight_start "$WP" 8 12 night-live "a granted night" >/dev/null
+_out="$(_ovstop night-live)"
+_ovblocks "a granted night hands the session its turn back instead" "$_out"
+is  "and exactly one continuation is spent for it" "$(_ovfield "$WP" 3)" "11"
+has "and the session is told how many are left"    "$_out" "11"
+
+# Morning. The deadline is the bound that ends most nights, and the session that
+# meets it must be allowed to stop — with the page, not with a block.
+_ovexpire "$WP"
+_whystop="$(_ov felix_overnight_expired "$WP")"
+_out="$(_ovstop night-over)"
+_ovholds_open "a night that ran out of time lets the session stop" "$_out"
+is "and the grant is not left lying around for the next session" \
+   "$([ -f "$(_ovfile "$WP")" ] && echo present || echo gone)" "gone"
+_tok="$(_ovword "$_whystop")"
+if [ "${#_tok}" -lt 4 ]; then
+  bad "and the hand-back names the bound that ended the night" "nothing to look for in [$_whystop]"
+else
+  has "and the hand-back names the bound that ended the night" "$_out" "$_tok"
+fi
+
+# The grant is permission to keep working, never permission to be wrong. A red
+# gate is the one thing a night cannot buy past, and it must not quietly cost a
+# continuation on the way to refusing.
+rm -f "$NREPO/WIDGET.txt"
+( cd "$NREPO" && "$FELIX" gate ) >/dev/null 2>&1
+_ovreset "$WP"
+_ov felix_overnight_start "$WP" 8 12 night-red "a granted night" >/dev/null
+_out="$(_ovstop night-red)"
+_ovblocks "a red gate outranks the grant"   "$_out"
+has "and the refusal is the gate's own"     "$_out" "gate"
+is  "and refusing costs no continuation"    "$(_ovfield "$WP" 3)" "12"
+printf 'contents\nnight work\n' > "$NREPO/WIDGET.txt"
+
+printf '\nwhat the next session is told\n'
+# The direction has to reach the session that will act on it, and the only
+# channel for that is the start of the session. Said when no night is running it
+# is an instruction to work unattended that nobody granted.
+_ovnstart() { ( cd "$NREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1 ); }
+_ovreset "$WP"
+_ov felix_overnight_start "$WP" 8 12 night-start "a granted night" >/dev/null
+_out="$(_ovnstart)"
+# Asked against the direction the library hands out, not against the word
+# "overnight" appearing somewhere in the context. A hook that says a night is on
+# and mounts none of the standing direction is the failure this exists to catch,
+# and the word alone cannot tell the two apart — measured, with the mount
+# removed and the assertion still passing.
+_ovline="$(_ov felix_overnight_direction | awk '{ if (length($0) > length(m)) m = $0 } END { print m }')"
+if [ "${#_ovline}" -lt 20 ]; then
+  bad "a live night is mounted into the next session's context" "no direction to look for"
+else
+  has "a live night is mounted into the next session's context" "$_out" "$_ovline"
+fi
+_ovreset "$WP"
+_out="$(_ovnstart)"
+_ovsays_night x "$_out" && bad "and no night is announced when none was granted" "$_out" \
+                        || ok  "and no night is announced when none was granted"
+
+printf '\nthe command a founder types\n'
+# The surface itself. Everything above is reachable only through this, and a
+# flag that silently does nothing is indistinguishable from a night that went
+# well.
+_ovcli() { ( cd "$NREPO" && "$FELIX" overnight "$@" 2>&1 ); }
+_ovreset "$WP"; rm -f "$(_ovdir "$WP")/deferred.tsv"
+_out="$(_ovcli)"; _rc=$?
+is "felix overnight with no arguments says where the night stands" \
+   "$_rc:$([ -n "$_out" ] && echo said || echo silent)" "0:said"
+_ovcli --start --hours 2 --turns 6 --note "granted from the command line" >/dev/null 2>&1
+_ov felix_overnight_active "$WP" && ok "--start grants the night" \
+                                 || bad "--start grants the night" "no state at $(_ovfile "$WP")"
+_ovcli --defer question --what "which name to publish under" --unblock "felix overnight --report" >/dev/null 2>&1
+is "--defer writes the decision down for the morning" "$(_ov felix_overnight_deferred_count "$WP")" "1"
+# A kind nobody defined means a queue nobody can sort in the morning, and the
+# row is written by a session with no one watching it type.
+_out="$(_ovcli --defer florbnax --what "something" --unblock "true")"; _rc=$?
+is "a kind nobody defined is refused, with a reason" \
+   "$([ "$_rc" -ne 0 ] && [ -n "$_out" ] && echo refused || echo "accepted ($_rc)")" "refused"
+_out="$(_ovcli --report)"; _rc=$?
+is "--report prints the morning page" "$_rc:$([ -n "$_out" ] && echo said || echo silent)" "0:said"
+_ovcli --clear >/dev/null 2>&1
+is "--clear empties the queue" "$(_ov felix_overnight_deferred_count "$WP")" "0"
+_ovcli --end >/dev/null 2>&1
+_ov felix_overnight_active "$WP" && bad "--end ends the night" "still live" \
+                                 || ok  "--end ends the night"
+
+printf '\ndecision epochs: the four things a decision was made under\n'
+# v3.2 §3 defines the epoch as hash(subject_identity, topology_version,
+# policy_version, release_target), and the whole no-backsliding rule hangs off
+# it: inside one epoch admitted blocking obligations may hold or grow and
+# discovery may not remove or relax them, and it is a NEW grounded topology or
+# a NEW policy state that reopens applicability.
+#
+# So there are exactly two properties worth asserting, and they are opposites.
+# A number that drifted on its own would silently reopen every obligation a
+# project had already admitted. A number that sat still while the world moved
+# would freeze a project under a topology it no longer has. Everything below is
+# one or the other: stable when nothing about the decision context changed,
+# different when any of the four inputs did.
+EPP="$TMP/epoch-proj"; mkdir -p "$EPP" "$MEM/epoch-proj"
+EPR="$TMP/epoch-repo"; mkdir -p "$EPR/members"
+printf 'a\n' > "$EPR/members/a.txt"
+printf 'x\n' > "$EPR/tracked.txt"
+# The branch is `sideways` deliberately. The last step of the release-target
+# precedence chain is the literal string `main`, and on a checkout whose branch
+# happens to be named main that assertion would pass whether the fallback is
+# implemented or whether the current branch is being read by accident.
+( cd "$EPR" && git init -q -b sideways && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
+EPR="$(cd "$EPR" && pwd -P)"
+
+# A checkout that does have a default branch of its own, and one that is not
+# main either, so reading origin/HEAD and defaulting can be told apart.
+EPO="$TMP/epoch-origin-repo"; mkdir -p "$EPO"
+( cd "$EPO" && git init -q -b sideways && printf 'x\n' > f.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm init \
+  && git remote add origin https://example.com/epoch-origin.git \
+  && git update-ref refs/remotes/origin/trunk HEAD \
+  && git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/trunk ) >/dev/null 2>&1
+EPO="$(cd "$EPO" && pwd -P)"
+
+# The three tables are written by functions rather than patched in place: every
+# assertion below either varies one of them and puts it back, or claims the
+# value did not move, and `sed -i` with a \t is not portable between BSD and
+# GNU sed — the substitution silently matches nothing on one of them, which is
+# how an assertion about a hash that moved passes while nothing moved.
+#
+# $1 is the remote_match, $2 a release_target written only when non-empty.
+_ep_json() {
+  { printf '{\n  "name": "epoch-proj",\n'
+    printf '  "remote_match": "%s",\n' "${1:-example.com/epoch-proj}"
+    [ -n "${2:-}" ] && printf '  "release_target": "%s",\n' "$2"
+    printf '  "gate": "true"\n}\n'
+  } > "$EPP/project.json"
+}
+# $1 `swapped` reverses the row order without changing a single fact; $2 is an
+# extra line appended verbatim. Both rows are real five-column rows whose `when`
+# is `-`, because a malformed `when` reads as unknown with a count of zero, and
+# an unknown count does not move when the world does — every assertion here
+# would then be green for the wrong reason.
+_ep_table() {
+  { printf '# predicate\tgrounds\twhen\tprobe\twitness\n'
+    case "${1:-}" in
+      swapped)
+        printf 'tracked\t-\t-\tgit ls-files\tgit ls-tree -r HEAD --name-only 2>/dev/null | grep -q .\n'
+        printf 'member\t-\t-\tls -1 members\ttest -d members\n' ;;
+      *)
+        printf 'member\t-\t-\tls -1 members\ttest -d members\n'
+        printf 'tracked\t-\t-\tgit ls-files\tgit ls-tree -r HEAD --name-only 2>/dev/null | grep -q .\n' ;;
+    esac
+    [ -n "${2:-}" ] && printf '%s\n' "$2"
+  } > "$EPP/probes.tsv"
+}
+# A table in the policy set that is neither the subject nor the probes, so a
+# policy change can be made without moving anything else.
+_ep_oblig() {
+  { printf 'fixture\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\ta fixture owes one thing, and it holds\n'
+    [ -n "${1:-}" ] && printf '%s\n' "$1"
+  } > "$EPP/obligations.tsv"
+}
+_ep_json; _ep_table; _ep_oblig
+
+# A project whose probe table holds no rows, for the negative topology cases.
+EPN="$TMP/epoch-noprobes"; mkdir -p "$EPN" "$MEM/epoch-noprobes"
+cp "$EPP/project.json" "$EPN/project.json"
+cp "$EPP/obligations.tsv" "$EPN/obligations.tsv"
+printf '# a table nobody has filled in yet\n' > "$EPN/probes.tsv"
+EPX="$TMP/epoch-not-a-project"
+
+_ep_subject()    { ( unset FELIX_RELEASE_TARGET; . "$FROOT/harness/lib/epoch.sh"
+                     felix_epoch_subject    "${1:-$EPP}" ); }
+_ep_topology()   { ( unset FELIX_RELEASE_TARGET; . "$FROOT/harness/lib/epoch.sh"
+                     felix_epoch_topology   "${1:-$EPP}" "${2:-$EPR}" ); }
+_ep_policy()     { ( unset FELIX_RELEASE_TARGET; . "$FROOT/harness/lib/epoch.sh"
+                     felix_epoch_policy     "${1:-$EPP}" ); }
+_ep_components() { ( unset FELIX_RELEASE_TARGET; . "$FROOT/harness/lib/epoch.sh"
+                     felix_epoch_components "${1:-$EPP}" "${2:-$EPR}" ); }
+_ep_hash()       { ( unset FELIX_RELEASE_TARGET; . "$FROOT/harness/lib/epoch.sh"
+                     felix_epoch            "${1:-$EPP}" "${2:-$EPR}" ); }
+# $1 is what FELIX_RELEASE_TARGET holds for this one run: `-` means unset,
+# anything else is exported verbatim, the empty string included — set-but-empty
+# and unset are two different states and the precedence chain treats them alike
+# only if it says so.
+_ep_target() { ( case "${1--}" in
+                   -) unset FELIX_RELEASE_TARGET ;;
+                   *) export FELIX_RELEASE_TARGET="$1" ;;
+                 esac
+                 . "$FROOT/harness/lib/epoch.sh"
+                 felix_epoch_target "${2:-$EPP}" "${3:-$EPR}" ); }
+_ep_hash_under() { ( export FELIX_RELEASE_TARGET="$1"
+                     . "$FROOT/harness/lib/epoch.sh"; felix_epoch "$EPP" "$EPR" ); }
+_ep_same() { [ "$1" = "$2" ] && echo same || echo different; }
+
+# ------------------------------------------------------------- subject ------
+ep_subj0="$(_ep_subject)"
+is "a subject identity is one line"                       "$(printf '%s' "$ep_subj0" | grep -c .)" "1"
+is "the same project identifies the same subject twice"   "$(_ep_subject)" "$ep_subj0"
+_ep_json "example.com/somewhere-else"
+is "a different remote_match is a different subject"      "$(_ep_same "$(_ep_subject)" "$ep_subj0")" "different"
+# Content-addressed, not a counter and not a clock: the identity of a project
+# whose project.json is put back is the identity it had.
+_ep_json
+is "and the old remote_match brings the old subject back"  "$(_ep_subject)" "$ep_subj0"
+
+out="$(_ep_subject "$EPX")"; rc=$?
+is "a project directory that is not there identifies no subject" "${#out}" "0"
+[ "$rc" -ne 0 ] && ok  "and says so with a non-zero status" \
+                || bad "and says so with a non-zero status" "exited 0 having printed nothing"
+
+# ------------------------------------------------------------ topology ------
+ep_topo0="$(_ep_topology)"
+is "a grounded topology is one line" "$(printf '%s' "$ep_topo0" | grep -c .)" "1"
+printf 'b\n' > "$EPR/members/b.txt"
+is "a probe that enumerates one more member is a new topology" \
+   "$(_ep_same "$(_ep_topology)" "$ep_topo0")" "different"
+rm -f "$EPR/members/b.txt"
+is "and the topology comes back when the member goes away" "$(_ep_topology)" "$ep_topo0"
+# The topology is a fact about what was found in this checkout, not about how a
+# table was sorted. A hash that folded in row order would declare a new epoch —
+# and reopen applicability for every obligation — because somebody tidied a TSV.
+_ep_table swapped
+is "the same facts in a different row order are the same topology" "$(_ep_topology)" "$ep_topo0"
+_ep_table
+
+out="$(_ep_topology "$EPN")"; rc=$?
+is "a project that declares no probes has no topology" "${#out}" "0"
+[ "$rc" -ne 0 ] && ok  "and refuses rather than hashing over nothing" \
+                || bad "and refuses rather than hashing over nothing" "exited 0 having printed nothing"
+rm -f "$EPN/probes.tsv"
+out="$(_ep_topology "$EPN")"; rc=$?
+is "an absent probes.tsv is no topology either" "${#out}" "0"
+[ "$rc" -ne 0 ] && ok  "and an absent table refuses with a non-zero status too" \
+                || bad "and an absent table refuses with a non-zero status too" "exited 0 having printed nothing"
+printf '# a table nobody has filled in yet\n' > "$EPN/probes.tsv"
+
+# -------------------------------------------------------------- policy ------
+ep_pol0="$(_ep_policy)"
+is "a policy version is one line" "$(printf '%s' "$ep_pol0" | grep -c .)" "1"
+_ep_oblig 'second	RELEASE_BLOCKING	deterministic	-	true	-	and now it owes two'
+is "editing a table in the set is a new policy version" \
+   "$(_ep_same "$(_ep_policy)" "$ep_pol0")" "different"
+_ep_oblig
+is "and putting the table back puts the policy version back" "$(_ep_policy)" "$ep_pol0"
+_ep_table "" 'extra	-	-	ls -1 members	test -d members'
+is "the probe table is in the set too" "$(_ep_same "$(_ep_policy)" "$ep_pol0")" "different"
+_ep_table
+_ep_json "example.com/moved"
+is "and so is project.json" "$(_ep_same "$(_ep_policy)" "$ep_pol0")" "different"
+_ep_json
+# A comment is content. A policy version computed over rows rather than bytes
+# would report the same policy state after somebody rewrote what a table means
+# to the person maintaining it, which is the half of a policy that reviews are
+# actually conducted in.
+_ep_table "" '# a comment line, which is content and not whitespace'
+is "adding a comment line changes the policy version" \
+   "$(_ep_same "$(_ep_policy)" "$ep_pol0")" "different"
+_ep_table
+
+# -------------------------------------------------------------- target ------
+is "FELIX_RELEASE_TARGET decides the target when it is set" "$(_ep_target hotfix-7)" "hotfix-7"
+_ep_json "example.com/epoch-proj" "release/9"
+is "an empty FELIX_RELEASE_TARGET is not a target"          "$(_ep_target '')" "release/9"
+is "project.json names the target when the environment does not" "$(_ep_target -)" "release/9"
+_ep_json
+is "the checkout's own default branch is next, without the origin/ prefix" \
+   "$(_ep_target - "$EPP" "$EPO")" "trunk"
+is "and a checkout with no default branch of its own falls back to main" \
+   "$(_ep_target - "$EPP" "$EPR")" "main"
+
+# ------------------------------------------------------- one line each ------
+# Each of the five says it prints one line, and a line is a terminator as well
+# as a count. Output with no newline on the end is not a line, it is a prefix
+# of whatever gets printed next: two of these appended to the same file read
+# back as one hash, and a caller that pipes one into `read` gets nothing. This
+# repository has already paid once for a count that arrived as two lines.
+#
+# Collected rather than asserted five times, so the failure names the functions
+# rather than the property.
+_ep_lastbyte() { ( unset FELIX_RELEASE_TARGET; . "$FROOT/harness/lib/epoch.sh"
+                   "$@" ) | tail -c1 | od -An -tx1 | tr -d ' \n'; }
+ep_unterminated=""
+for _ep_f in felix_epoch_subject felix_epoch_policy; do
+  [ "$(_ep_lastbyte "$_ep_f" "$EPP")" = "0a" ] || ep_unterminated="$ep_unterminated $_ep_f"
+done
+for _ep_f in felix_epoch_topology felix_epoch_target felix_epoch; do
+  [ "$(_ep_lastbyte "$_ep_f" "$EPP" "$EPR")" = "0a" ] || ep_unterminated="$ep_unterminated $_ep_f"
+done
+is "every one of them terminates the line it printed" "${ep_unterminated# }" ""
+
+# ---------------------------------------------------------- components ------
+out="$(_ep_components)"; rc=$?
+is "components prints exactly four lines" "$(printf '%s\n' "$out" | grep -c .)" "4"
+is "named in the order the architecture states them" \
+   "$(printf '%s\n' "$out" | cut -f1 | paste -sd, -)" \
+   "subject_identity,topology_version,policy_version,release_target"
+is "each line is a name and a value separated by a tab" \
+   "$(printf '%s\n' "$out" | awk -F'\t' 'NF == 2 && $1 != "" && $2 != "" { n++ } END { print n+0 }')" "4"
+is "and the values are the ones the four functions compute" \
+   "$(printf '%s\n' "$out" | cut -f2 | paste -sd, -)" \
+   "$ep_subj0,$ep_topo0,$ep_pol0,$(_ep_target -)"
+is "components exits 0 when all four are known" "$rc" "0"
+
+out="$(_ep_components "$EPN")"; rc=$?
+is "a component that cannot be computed prints as a dash" \
+   "$(printf '%s\n' "$out" | awk -F'\t' '$1 == "topology_version" { print $2 }')" "-"
+is "and the other three are still there beside it" "$(printf '%s\n' "$out" | grep -c .)" "4"
+is "components exits 0 with a component missing" "$rc" "0"
+# The report says what is unknown rather than declining to report. Whoever is
+# reading it is trying to find out why an epoch would not compute, and a
+# non-zero exit with no lines is the one answer that cannot tell them.
+out="$(_ep_components "$EPX")"; rc=$?
+is "a project directory that is not there identifies no subject and no topology" \
+   "$(printf '%s\n' "$out" | awk -F'\t' '$1 != "policy_version" { print $2 }' | paste -sd, -)" \
+   "-,-,main"
+is "and components exits 0 even then" "$rc" "0"
+# Read off bullet 5 — a component that cannot be computed prints as a single
+# dash — and the reason bullet 6 gives for refusing to hash over an absence. A
+# project directory that is not there has no table set, so there is no content
+# for a content hash to be over. Stated as the specification states it; see the
+# report for what the library does instead.
+is "and no policy version either, there being no tables to hash" \
+   "$(printf '%s\n' "$out" | awk -F'\t' '$1 == "policy_version" { print $2 }')" "-"
+
+# --------------------------------------------------------------- epoch ------
+ep_hash0="$(_ep_hash)"
+is "a decision epoch is one line" "$(printf '%s' "$ep_hash0" | grep -c .)" "1"
+is "nothing changed is the same epoch" "$(_ep_hash)" "$ep_hash0"
+
+_ep_json "example.com/renamed"
+is "a new subject is a new epoch" "$(_ep_same "$(_ep_hash)" "$ep_hash0")" "different"
+_ep_json
+printf 'b\n' > "$EPR/members/b.txt"
+is "a new grounded topology is a new epoch" "$(_ep_same "$(_ep_hash)" "$ep_hash0")" "different"
+rm -f "$EPR/members/b.txt"
+_ep_oblig 'second	RELEASE_BLOCKING	deterministic	-	true	-	and now it owes two'
+is "a new policy state is a new epoch" "$(_ep_same "$(_ep_hash)" "$ep_hash0")" "different"
+_ep_oblig
+is "a new release target is a new epoch" \
+   "$(_ep_same "$(_ep_hash_under hotfix-7)" "$ep_hash0")" "different"
+is "and the epoch is back where it started once all four are" "$(_ep_hash)" "$ep_hash0"
+
+# Hashing over an absence would read as a world that had moved every time a
+# probe broke — a new epoch on every outage, and applicability recomputed
+# against a topology nobody could see.
+out="$(_ep_hash "$EPN")"; rc=$?
+is "an unknown component prints no epoch at all" "${#out}" "0"
+[ "$rc" -ne 0 ] && ok  "and exits non-zero rather than hashing over an absence" \
+                || bad "and exits non-zero rather than hashing over an absence" "exited 0 having printed nothing"
+out="$(_ep_hash "$EPX")"; rc=$?
+is "a subject that cannot be identified blocks the epoch the same way" "${#out}" "0"
+[ "$rc" -ne 0 ] && ok  "and that refusal is non-zero too" \
+                || bad "and that refusal is non-zero too" "exited 0 having printed nothing"
 
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.

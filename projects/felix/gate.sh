@@ -55,16 +55,22 @@ fi
 # or an evidence contract that names a bin script which lost its bit reads
 # `unknown` and blocks, which is loud, but the gate should say why before the
 # ledger has to.
-NOX=""
-for f in engine/harness/felix engine/harness/tests/run engine/harness/bin/* \
-         engine/harness/hooks/*; do
-  [ -e "$f" ] || continue
-  [ -x "$f" ] || NOX="$NOX $f"
-done
-if [ -z "$NOX" ]; then
-  pass executable
+# The check is a command now, engine/harness/bin/executable-check, for the same
+# reason memory and independence became commands: a check that cannot be run on
+# its own cannot be qualified, and this one had never been asked whether it
+# fails when the thing it protects is broken. Asking it, blind, found that it
+# demanded the mode bit of everything in those directories rather than of the
+# scripts — a README beside the scanners turned the gate red. The scanner asks
+# each file whether it opens with a shebang instead. Announced when absent,
+# never silent (#77).
+if [ -x engine/harness/bin/executable-check ]; then
+  if OUT="$(engine/harness/bin/executable-check 2>&1)"; then
+    pass executable
+  else
+    fail executable; printf '%s\n' "$OUT" | head -8 | sed 's/^/    /'
+  fi
 else
-  fail executable; printf '    %s\n' $NOX
+  printf '  %-18s skipped (no executable-check here)\n' executable
 fi
 
 # Moved above `tests` on 2026-08-13. This check had failed 8 times, every one of

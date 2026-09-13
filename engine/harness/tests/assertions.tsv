@@ -685,6 +685,7 @@
 1	and an installed copy with no files to digest claims nothing either
 1	and an older one does not
 1	and an ordinary product repository is not
+2	and an unknown flag is refused rather than ignored
 1	and an unknown kind is refused
 1	and blocked by a probe that cannot see what a witness proves is there
 1	and blocked by a row nothing could establish at all
@@ -705,6 +706,7 @@
 1	and commissions
 1	and commits nothing to it
 1	and components exits 0 even then
+2	and counts it
 1	and counts the recorded decline
 1	and counts what was held over the whole file too
 1	and creates nothing without --create
@@ -731,7 +733,9 @@
 1	and every placeholder was filled
 1	and evidence does too
 1	and exactly one continuation is spent for it
+2	and exits 0
 1	and exits 0 in a repository Felix does not govern
+2	and exits 0 there
 1	and exits 0 there too
 1	and exits 0 when it has a digest to print
 1	and exits 0 with the tree dirty
@@ -833,6 +837,7 @@
 1	and names the pipeline step no row here answers
 1	and names the play in order
 1	and names the process holding it
+3	and names the project
 1	and names the refused row
 1	and names the source tree it compared
 1	and names the table
@@ -935,6 +940,7 @@
 1	and putting the rule back clears it
 1	and putting the table back puts the policy version back
 1	and qualifies the list with what is not counted yet
+2	and quotes the name the marker asks for
 1	and quotes what it said
 1	and raises or clears no merge blocker
 1	and re-folding does not double what was already counted
@@ -945,6 +951,7 @@
 1	and reads stale whatever its age
 1	and recording the run does not put it back
 1	and records the failure without being asked
+2	and refused at the boundary
 1	and refuses in gate mode as well
 1	and refuses instead of ignoring it
 1	and refuses rather than hashing over nothing
@@ -985,6 +992,7 @@
 1	and says nothing was installed
 1	and says nothing when every capability has a rule
 1	and says plainly that it acted on nothing
+3	and says so
 1	and says so again next session, because the request is still unanswered
 1	and says so before the detail
 1	and says so in the policy's words
@@ -1019,6 +1027,7 @@
 1	and says which projects it knows
 1	and says which rule
 1	and says which variable it sends
+5	and says why
 1	and says why growth is the narrowing direction there
 1	and says why it could not be
 1	and says why it refused
@@ -1102,6 +1111,7 @@
 1	and the exact command that produced it
 1	and the failure is recorded under the check's own name
 1	and the fixture files this block rewrote are back
+2	and the fixture is restored
 1	and the fixture is restored to awaiting
 1	and the foreign session is not folded
 1	and the founder's one line says how many are due
@@ -1422,6 +1432,7 @@
 1	including the enumeration limit
 1	including the model-SDK probe, which sits on a continued line
 1	including the one that stops reject-everything winning
+2	including the second one
 1	including what prompted each utterance
 1	inspect still counts the skills
 1	inspecting a plugin never runs it
@@ -1475,11 +1486,13 @@
 1	names the first step
 1	names the maintenance that is due
 1	names the suspect commit
+2	naming it
 1	naming skills does not change the risk read
 1	naming the branch's commit
 1	naming the channel that escaped
 1	naming the doctrine
 1	naming the entry point
+2	naming the file
 1	naming the gate it was removed from
 1	naming the scanner nobody listed
 1	naming which check failed
@@ -1598,6 +1611,7 @@
 1	removes a copy of a file Felix holds
 1	removes an untracked copy Felix holds
 1	removing a witness turns a clean empty into a blocking unknown
+2	removing one escapes as verifier
 1	renders a page
 1	repair refuses outside a governed GitHub repo
 1	repointing a symlink at a different target changes the digest
@@ -1652,6 +1666,7 @@
 1	seventeen hours is past the ceiling
 1	severity derives from the risk rules
 1	ships a slash command to be found by
+2	silent in an ungoverned repo
 1	silent outside a git repository
 1	silent when a project has no lessons yet
 1	silent when nothing was blocked
@@ -1862,6 +1877,7 @@
 1	their high-risk rows are blocked too
 1	there are declared ecosystem rows to judge
 1	there is at least one governed project to check for
+2	there is no --yes
 1	three groups from four tasks
 1	tree identity is computable
 1	tree identity survives an unborn HEAD
@@ -1918,6 +1934,7 @@
 1	wiring into a route that does not exist is refused
 1	wiring the same tool twice is refused
 1	with every log tracked, the form this replaced sees nothing to report
+2	with exit 0
 1	with no CLI and nothing bundled, Felix says it cannot tell
 1	with no CLI to ask, the highest cached version is what it compares against
 1	with no checkout in front of it the row reads unchecked
@@ -1939,20 +1956,3 @@
 1	work the subagent committed is still checked
 1	writes a zero row for a declared tool nobody reached for
 1	zero members is two different answers depending on the witness
-2	and an unknown flag is refused rather than ignored
-2	and counts it
-2	and exits 0
-2	and exits 0 there
-2	and quotes the name the marker asks for
-2	and refused at the boundary
-2	and the fixture is restored
-2	including the second one
-2	naming it
-2	naming the file
-2	removing one escapes as verifier
-2	silent in an ungoverned repo
-2	there is no --yes
-2	with exit 0
-3	and names the project
-3	and says so
-5	and says why

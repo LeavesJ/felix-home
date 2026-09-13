@@ -178,6 +178,7 @@
 1	a green tree with no night granted still ends the session
 1	a grounded topology is one line
 1	a half-written character does not fail the whole report
+1	a handoff given no note says it kept the last one
 1	a held control refuses it
 1	a held control still refuses the gate when inapplicable rows follow it
 1	a held row whose answer ran and whose check now passes is done
@@ -262,7 +263,9 @@
 1	a nomination that inspects clean is declared
 1	a non-executable lookalike is ignored
 1	a note carrying a tab and a newline still leaves one line of six fields
+1	a note given twice, by flag and by words, refuses
 1	a note reaches the file
+1	a note typed without --was is recorded, not dropped
 1	a notebook is matched on its own path field
 1	a notification payload is machine text end to end
 1	a one-line registry answers for the right plugin
@@ -638,6 +641,7 @@
 1	an unreadable tier does not install: felix-test-shouty
 1	an unreadable tier does not install: felix-test-typo
 1	an unrecognised file is yellow, never green
+1	an unrecognised flag refuses rather than printing success
 1	an unrecognised path is yellow, never green
 1	an unregistered marketplace makes no claim either way
 1	an unrelated context matches nothing
@@ -774,6 +778,7 @@
 1	and does block a task
 1	and does not ask for a lesson that already exists
 1	and does not blame a checkout that did not move
+1	and does not claim to keep a note when there was none
 1	and does not diagnose a cause it cannot see
 1	and does not leave it as a bare dash
 1	and does not nag about ancient history
@@ -888,6 +893,7 @@
 1	and lands in mistakes.log under its own name
 1	and launchd was handed the agent
 1	and leaves a control its checker passes over held
+1	and leaves the recorded note as it was
 1	and lists every event its hooks object binds
 1	and matches an ecosystem word on a word boundary
 1	and matches on keywords, not just names
@@ -1030,6 +1036,7 @@
 1	and reads only mcp rows
 1	and reads stale whatever its age
 1	and recording the run does not put it back
+1	and records neither
 1	and records the failure without being asked
 2	and refused at the boundary
 1	and refuses in gate mode as well
@@ -1059,6 +1066,7 @@
 1	and says a long name at least scores on itself
 1	and says how many are still unusable
 1	and says how many scripts it examined
+1	and says how the command is used
 1	and says it cannot be scoped
 1	and says it could not be asked here
 1	and says it did
@@ -1122,6 +1130,7 @@
 1	and scopes that proposal to the play, keeping the row
 1	and shipping nothing declared still matches nothing
 1	and shows the decline itself
+1	and shows which note it kept
 1	and so are the declines, from the same date
 1	and so does a failure nobody answered
 1	and so does a worktree of it
@@ -1186,6 +1195,7 @@
 1	and the checkout the graph was built from reads ok as well
 1	and the claim it could not support is gone
 1	and the clean sentence is withheld
+1	and the command succeeds
 1	and the comment survives
 1	and the contract names each moment it examined
 1	and the count follows
@@ -1363,6 +1373,7 @@
 1	but neither names a checker shown failing beside a control that did not apply
 1	but one that could not have passed is not
 1	but removing one still escapes
+1	but says there is none to keep
 1	but says what may come later
 1	but the field names themselves are gone
 1	carries the governed project
@@ -1509,6 +1520,7 @@
 1	grounded on a probe felix declares
 1	guesses their gate
 1	half an hour is not a whole number of hours
+1	handoff --was still records the note
 1	handoff is regenerated from the tree
 1	handoff lists the session-end checks
 1	hands off for anything broader

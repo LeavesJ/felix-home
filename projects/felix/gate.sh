@@ -86,42 +86,86 @@ fi
 # change that is not deployed governs nothing, and nothing else would have said
 # so.
 #
-# Compared against the version actually active, not merely the first one found.
-# The cache keeps every version it has ever installed, so after a bump from
-# 0.1.0 to 0.2.0 the old copy is still sitting there and `head -1` picks it:
-# the check then fails permanently against a directory nothing loads, while a
-# genuinely stale deployment would look identical. Ask the CLI, which knows
-# which one is live; fall back to the highest version when it is absent.
+# WHAT IT ASKS, since #2 (docs/2026-08-18-promotion-spec.md, steps 2-4). It used
+# to ask whether the engine in the tree standing here is the deployed one. Only
+# the checkout the marketplace serves can ever answer yes, so `felix merge`
+# existed in one folder, and the only workflow that reached it deployed the
+# candidate before it was judged — by merge time the candidate was the
+# evaluator. It now asks whether the cache entry for the version MAIN declares
+# is byte-identical to MAIN's engine. Every checkout can answer that.
 #
-# Skipped when no plugin is installed, which is the normal state in CI.
-PLUG="$(claude plugin list --json 2>/dev/null \
-        | sed -n '/"felix@felix"/,/}/p' \
-        | sed -n 's/.*"installPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
-if [ -z "$PLUG" ]; then
-  PLUG="$(ls -d "$HOME"/.claude/plugins/cache/felix/felix/* 2>/dev/null | sort -V | tail -1)"
-fi
+# Both sides from the base (spec §4). Resolving either one from this tree or
+# from the live pointer made the verdict depend on whether you had already run
+# the install it was about to ask for. That entry is the engine `felix merge`
+# judges with (felix_kernel_dir), so the gate now certifies the judge, and the
+# trust resolve.sh states in prose — the cache entry for the base's version is
+# what the base contained — is checked every run. Derived inline rather than by
+# calling felix_kernel_dir, deliberately: a verifier that sources the code it
+# judges can be switched off by editing that code. The suite asserts the two
+# name the same entry. FELIX_KERNEL, the suite's override of the judge, is not
+# honoured here: this checks the real cache.
+#
+# Where "written is not installed" went (spec §8 criterion 2): on main, after a
+# merge that changed the engine and before anybody deployed it, main's engine
+# and its version's entry differ, and this fails. A version main declares with
+# no entry at all fails too — never skips.
+#
+# What a green no longer says (spec §7): which engine is live. Installing a
+# candidate adds a different entry and moves the live pointer without touching
+# the one checked here. So when the CLI reports a live engine that is not
+# main's, the ok says which one is, out loud rather than discovered.
+#
 # All three deployed directories, not harness alone (#82). hooks/hooks.json is
 # the file that decides which hooks BIND, so a deploy that carried harness/ and
 # dropped hooks/ read as `installed ok` while every session ran yesterday's
-# bindings — a hook binary deployed perfectly and running nowhere. commands/ is
-# executed by the runtime the same way. A directory absent from both sides is a
-# fixture, not a drift; absent from one side, diff fails on the missing operand,
-# which is the verdict. engine/.claude-plugin stays out: plugin.json differs
-# whenever a bump is pending, which is this tree's normal state. Inline rather
-# than the engine's felix_deploy_diff, deliberately: a verifier that sources the
-# code it judges can be switched off by editing that code.
-if [ -n "$PLUG" ] && [ -d "$PLUG" ]; then
+# bindings. A directory absent from both sides is a fixture, not a drift;
+# absent from one side, diff fails on the missing operand, which is the verdict.
+# engine/.claude-plugin stays out: its version is how the entry was found.
+#
+# Skipped when no felix cache exists on this machine, which is the normal
+# state in CI.
+GCACHE="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix}"
+if [ -d "$GCACHE" ]; then
   INSTALL_DRIFT=0
   : > /tmp/felix-install-drift.log
+  GWHY=""
+  # The branch being merged into, as felix_kernel_dir resolves it: origin/main
+  # first, so a local main that lags the remote is not what gets certified.
+  GBASE=""
+  for GREF in origin/main main; do
+    git rev-parse --verify "$GREF" >/dev/null 2>&1 && { GBASE="$GREF"; break; }
+  done
+  GVER=""
+  [ -n "$GBASE" ] && GVER="$(git show "$GBASE:engine/.claude-plugin/plugin.json" 2>/dev/null \
+    | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  PLUG="$GCACHE/$GVER"
+  GARCH=""
+  if [ -z "$GBASE" ] || [ -z "$GVER" ]; then
+    GWHY="cannot tell which engine main accepted: no main here, or it declares no version"
+    INSTALL_DRIFT=1
+  elif [ ! -d "$PLUG/harness" ]; then
+    GWHY="main declares $GVER and nothing is installed at that version"
+    INSTALL_DRIFT=1
+  elif ! GARCH="$(mktemp -d 2>/dev/null)" || [ -z "$GARCH" ]; then
+    GWHY="could not make a directory to read main's engine into"
+    INSTALL_DRIFT=1
+  else
+    for d in harness hooks commands; do
+      git cat-file -e "$GBASE:engine/$d" 2>/dev/null || continue
+      git archive "$GBASE" "engine/$d" | tar -x -C "$GARCH" \
+        || { GWHY="could not read engine/$d at $GBASE"; INSTALL_DRIFT=1; }
+    done
+  fi
   # A path the repository itself declares non-content is residue, not drift
   # (#86): a claude-flow hook dropped state under tests/ mid-suite and this
-  # check called a byte-identical deploy a drift, then misdiagnosed it as
-  # structural. Each diff line maps to one path, and a path git ignores in
-  # this tree is skipped — on either side, since a stray in the cache is a
-  # deployed stray. Untracked-but-not-ignored still counts: undeployed work.
-  # Missing-operand errors match no path shape and always survive.
+  # check called a byte-identical deploy a drift. Each diff line maps to one
+  # path, and a path git ignores in this tree is skipped. Missing-operand
+  # errors match no path shape and always survive. The diff runs from inside
+  # the directory main's engine was read into, so its lines have the same
+  # `engine/...` shape they had when this compared the working tree.
+  if [ -n "$GARCH" ] && [ -z "$GWHY" ]; then
   for d in harness hooks commands; do
-    [ -e "engine/$d" ] || [ -e "$PLUG/$d" ] || continue
+    [ -e "$GARCH/engine/$d" ] || [ -e "$PLUG/$d" ] || continue
     while IFS= read -r IDLINE; do
       [ -n "$IDLINE" ] || continue
       IDP=""
@@ -151,21 +195,25 @@ if [ -n "$PLUG" ] && [ -d "$PLUG" ]; then
       printf '%s\n' "$IDLINE" >> /tmp/felix-install-drift.log
       INSTALL_DRIFT=1
     done <<EOF
-$(diff -rq "engine/$d" "$PLUG/$d" 2>&1)
+$(cd "$GARCH" && diff -rq "engine/$d" "$PLUG/$d" 2>&1)
 EOF
   done
+  fi
+  [ -n "$GARCH" ] && rm -rf "$GARCH"
+  # A bump felix install wrote here has not reached main until it is merged,
+  # and until then main still names the old entry. Said, because otherwise the
+  # failure reads as a deploy that did not happen.
+  GHERE="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' engine/.claude-plugin/plugin.json 2>/dev/null | head -1)"
   if [ "$INSTALL_DRIFT" -eq 0 ]; then
     pass installed
+    printf '                     main declares %s, and %s is its engine\n' "$GVER" "$PLUG"
+    GLIVE="$(claude plugin list --json 2>/dev/null \
+             | sed -n '/"felix@felix"/,/}/p' \
+             | sed -n 's/.*"installPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+    if [ -n "$GLIVE" ] && [ "${GLIVE%/}" != "$PLUG" ]; then
+      printf '                     the live engine is %s, not the one main declares\n' "${GLIVE##*/}"
+    fi
   else
-    # A worktree can never satisfy this. The felix marketplace is a directory
-    # marketplace pinned to one path, so a worktree's engine is not the one being
-    # served and no amount of installing will make the cache match it. The gate
-    # still fails — the tree genuinely does not match, and quieting that would be
-    # loosening a gate to improve a number — but the failure is marked so it is
-    # not written down as a mistake somebody made. Every gate run in a worktree
-    # used to add an `installed` row, which is how that check reached 11 and
-    # became the top entry of `felix next` rank 5: it manufactured the evidence
-    # that ranked it. See issue #3.
     MROOT=""
     if [ -r "$HOME/.claude/plugins/known_marketplaces.json" ]; then
       MROOT="$(sed -n '/"felix"[[:space:]]*:[[:space:]]*{/,/^  }/p' \
@@ -175,35 +223,29 @@ EOF
     if [ -n "$MROOT" ] && [ "$MROOT" != "$ROOT" ]; then
       # `structural` is load-bearing, not decoration: the engine subtracts
       # failures marked that way from what it writes to mistakes.log, and it
-      # keys on that exact word. Rewriting this message to stop it
-      # misdiagnosing a stray (#86) dropped the word, so every worktree gate
-      # failure went back to recording a mistake nobody made — the
-      # manufactured evidence of #3, returned by a message improvement. The
-      # evidence below is that improvement; this word is the contract.
-      printf '  %-18s FAIL (structural: drift in a tree that cannot deploy — the marketplace serves %s)\n' installed "$MROOT"
+      # keys on that exact word (#3, #86). From a checkout the marketplace does
+      # not serve, main's engine being undeployed is real and is not this
+      # checkout's to fix — only the served checkout can deploy — so it is
+      # marked, and every worktree gate does not record a mistake nobody here
+      # made. No apostrophe in this format: the suite lifts it out of this file.
+      printf '  %-18s FAIL (structural: the engine main declares is not the one deployed, and only the checkout the marketplace serves can deploy it — the marketplace serves %s)\n' installed "$MROOT"
       FAILED="$FAILED installed"
-      # The evidence, not only the verdict (#86). This branch used to print an
-      # instruction while hiding the one line naming the actual drift, and a
-      # session repeated the wrong diagnosis rather than reading the log.
+      [ -n "$GWHY" ] && printf '    %s\n' "$GWHY"
       head -5 /tmp/felix-install-drift.log | sed 's/^/    /'
-      printf '    a worktree passes when byte-identical to the deployed engine; if the\n'
-      printf '    drift above is real work, merge it and run felix install in %s\n' "$MROOT"
+      printf '    run felix install on main in %s\n' "$MROOT"
     else
       fail installed
+      [ -n "$GWHY" ] && printf '    %s\n' "$GWHY"
       head -5 /tmp/felix-install-drift.log | sed 's/^/    /'
-      printf '    reinstall with: felix install\n'
-      # Deployable drift, and the remedy is one command. Everything after this
-      # would be spent verifying a tree whose engine is not the one any session
-      # is running, and the suite alone is minutes. It has cost that twenty-two
-      # times: `installed` is the top row of felix next's "already cost time
-      # more than once", and the lesson beside it cannot help, because the
-      # remedy is procedural rather than something a person learns once.
-      #
-      # Not a loosening. The gate still fails, and fails for the same reason it
-      # did before; it simply stops paying for checks whose answer is about to
-      # be thrown away. The structural branch above does NOT stop, because a
-      # worktree can never satisfy this check and its other results are the
-      # only ones it can give.
+      [ -n "$GHERE" ] && [ "$GHERE" != "$GVER" ] \
+        && printf '    this checkout declares %s and main declares %s: the bump reaches main by merging it\n' "$GHERE" "${GVER:-nothing}"
+      printf '    reinstall with: felix install (on main)\n'
+      # Deployable drift, and the remedy is here. Everything after this would be
+      # spent verifying a tree whose accepted engine is not the one deployed,
+      # and the suite alone is minutes. Not a loosening: the gate still fails,
+      # for the same reason; it stops paying for checks whose answer is about to
+      # be thrown away. The structural branch above does not stop, because its
+      # remedy is somewhere else and its other results are all it can give.
       SKIP_REST=1
     fi
   fi

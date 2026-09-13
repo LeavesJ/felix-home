@@ -29,6 +29,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/stack.sh"
 # shellcheck source=../lib/maintenance.sh
 . "${SCRIPT_DIR}/../lib/maintenance.sh"
+# shellcheck source=../lib/graph.sh
+. "${SCRIPT_DIR}/../lib/graph.sh"
 # shellcheck source=../lib/autonomy.sh
 . "${SCRIPT_DIR}/../lib/autonomy.sh"
 # shellcheck source=../lib/overnight.sh
@@ -177,6 +179,38 @@ if [ -f "$PROJ/maintenance.tsv" ]; then
 Maintenance due: ${_due}
 Do them on one branch. See 'felix maintenance'."
 fi
+
+# The graph, every session, whether or not the prompt happened to say
+# "architecture".
+#
+# The `orient` route already names graphify, and a route fires on the words a
+# prompt uses. Measured before that route existed: built three times, queried
+# once in 72 sessions. The route fixes the case where somebody already knows to
+# ask about structure; it cannot fix the case where a session reads nine files
+# to learn what one query would have said, because nothing in that session ever
+# said the word.
+#
+# So it is stated, not routed. Three facts and no advice: it exists, whether it
+# still describes this tree, and the command. Silent when the project has no
+# graph, which is every project but this one today.
+graph_line=""
+_gl="$(felix_graph_line "$_repo_root" 2>/dev/null)"
+[ -n "$_gl" ] && graph_line="
+${_gl}"
+
+# And the other half of the founder's requirement: that it not rot. `graphify
+# update` re-extracts code files and says of itself that no LLM is needed,
+# which is the only reason it may be called from here — a hook may not call a
+# model. The documents are a different job and stay the maintenance routine's.
+#
+# Only when it is behind, so an ordinary session on a current graph spawns
+# nothing. Locked, backgrounded and best-effort: a refresh that fails leaves
+# the previous graph in place, and graphify replaces graph.json by atomic
+# rename, so a session querying it mid-refresh reads the old file or the new
+# one and never half of either. Checked in the source rather than assumed.
+case "${_gl}" in
+  *"behind this checkout"*) felix_graph_refresh_bg "$_repo_root" 2>/dev/null || true ;;
+esac
 
 # Done, not reported. A duplicate script is not a decision somebody should be
 # handed at the start of their day; it is tidying, and Felix holds the copy that
@@ -361,7 +395,7 @@ Project: ${project}
 Constitution: ${PROJ}/CLAUDE.md
 ${gate_line}
 Memory: ${_mem}/
-${overnight_line}${drift_line}${maint_line}${tidy_line}${retire_line}${reconcile_line}${backup_line}
+${overnight_line}${drift_line}${maint_line}${graph_line}${tidy_line}${retire_line}${reconcile_line}${backup_line}
 
 ${read_lines}
 

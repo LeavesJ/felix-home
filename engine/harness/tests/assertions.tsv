@@ -10,6 +10,7 @@
 1	--strict exits non-zero on a gap
 1	--yes never installs high risk
 1	FELIX_ALLOW_RED lets a founder stop anyway
+1	FELIX_GRAPH_TAIL widens the window when someone needs it to
 1	FELIX_MEMORY overrides the default
 1	FELIX_RELEASE_TARGET decides the target when it is set
 1	Felix's own gate refusal is recognised as its own
@@ -59,6 +60,7 @@
 1	a check that has actually failed is an item
 1	a check that passes is done
 1	a checkout inside the verification is caught too
+1	a checkout that has never been graphed has no graph file
 1	a checkout that moves after verification merges nothing
 1	a checkout with no engine directory cannot look either, exit 2
 1	a checkout with nothing tracked under projects/ cannot search
@@ -68,6 +70,7 @@
 1	a comment added to it is still free
 1	a commissioning run seeds the ledger through the row's answer
 1	a commit in the checkout the graph was built from is due
+1	a commit this repository does not hold is not a distance
 1	a commit with no remote does not stamp a push
 1	a component that cannot be computed prints as a dash
 1	a consistent record is called agreement
@@ -80,6 +83,8 @@
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
 1	a credential in added lines escapes as disclose
+1	a current graph is said to be current
+1	a current graph still names the command that asks it
 1	a deadline that has passed ends the night and says so
 1	a decision epoch is one line
 1	a declare whose provenance could not be written is not counted
@@ -100,6 +105,7 @@
 1	a deployed engine resolves the checkout, not itself
 1	a deployment matching the tree is not reported as drift
 1	a deployment that is not this tree is the first thing to fix
+1	a descriptor the caller left open is closed
 1	a detached HEAD is refused in words
 1	a detected surface no row serves, reaches or grounds is named with all three misses
 1	a detector hard-coded to one stack is caught
@@ -108,6 +114,7 @@
 1	a different repository is still checked
 1	a directory declaring project.json is enumerated
 1	a directory holding only untracked files is blind too
+1	a directory in no repository has no graph home to print
 1	a directory is cannot-examine, not an empty binding
 1	a directory merely named memory, holding doctrine, outside projects/, is not memory
 1	a directory missing from one side is a drift
@@ -149,6 +156,11 @@
 1	a grant with no stamp does not cover the table
 1	a granted night hands the session its turn back instead
 1	a granted night is in progress
+1	a graph built at HEAD is behind by nothing
+1	a graph carrying no stamp prints no stamp
+1	a graph directory it cannot write still exits 0
+1	a graph file that is not there has no stamp either
+1	a graph of another tree does too
 1	a green gate does not clear an escape
 1	a green gate on this exact tree allows it
 1	a green gate still asks for verification
@@ -310,6 +322,7 @@
 1	a project that declares no probes has no topology
 1	a project that has qualified nothing is skipped, not failed
 1	a project with no declared gate is left alone
+1	a project with no graph is told nothing at all
 1	a project with no probes.tsv declares no probes
 1	a project with no table is skipped, and the skip names itself
 1	a project with red paths reports the scope bound
@@ -346,6 +359,7 @@
 1	a red row naming no channel stops nothing
 1	a red rule still wins
 1	a red run breaks the streak
+1	a refresh of a graphed checkout exits 0
 1	a refreshed graph clears the row
 1	a refusal on risk is reported
 1	a rejected push is reported, not forced
@@ -392,10 +406,12 @@
 1	a second catch-up finds nothing left
 1	a second full run refuses while one is in progress
 1	a second hand-off in the same session stays quiet
+1	a second refresh while one is running does nothing
 1	a second run appends rather than replacing
 1	a second tree makes it a promotion candidate
 1	a server the registry says a plugin provides is proposed as a plugin row
 1	a session folds on the first catch-up
+1	a session in a worktree is told the holding checkout's line, word for word
 1	a session reports what was named and what was followed
 1	a session that changed nothing stops silently
 1	a short name is not turned into a keyword
@@ -409,6 +425,11 @@
 1	a staged workflow escapes even with commits ahead
 1	a staged workflow makes this the founder's call
 1	a stale cache and an unreadable catalogue adopts nothing
+1	a stale graph says how many commits it is behind
+1	a stale one does too, because stale is not wrong
+1	a stamp from a tree this repository does not hold is named as that
+1	a stamp inside the last 4096 bytes is read
+1	a stamp only at the start of a large file is not, because the tail is all it reads
 1	a stance at a moment nobody declared answers nothing
 1	a stance at a moment nobody declared is named
 1	a stance at the commissioning moment is not a stance at an unknown moment
@@ -466,6 +487,7 @@
 1	a word shared with a field name still counts
 1	a workflow change escapes as execute
 1	a worktree engine cannot
+1	a worktree refreshes the holding checkout's graph
 1	a writable project still records
 1	a write rule denies a write
 1	adding a Dockerfile surfaces deploy
@@ -514,6 +536,7 @@
 1	an eight-hour grant runs until eight hours from now
 1	an empty FELIX_RELEASE_TARGET is not a target
 1	an empty base is not reported as unknown
+1	an empty graphify-out is still no graph — the file is the thing
 1	an empty grounding refuses
 1	an empty listing is exit 0 and no rows: a catalogue that was read
 1	an empty marker is reported at session start too
@@ -521,6 +544,7 @@
 1	an empty path is not a copy
 1	an empty payload is not machine text
 1	an empty play is replaced, not appended to
+1	an empty stamp is not a distance of zero
 1	an empty table fails the gate
 1	an empty tier refuses
 1	an engine function the check names that is not loaded is unknown
@@ -622,6 +646,7 @@
 1	and a backticked path naming nothing is still not invented
 1	and a bare script is still caught from inside the engine itself
 1	and a cache file that is not there reads as no digest either
+1	and a call from a worktree is held by the same lock, there being one graph
 1	and a catalogue that was read and matched nothing is exit 0
 1	and a checkout with no default branch of its own falls back to main
 1	and a clean table leaves the gate green
@@ -630,6 +655,7 @@
 1	and a declared moment is not
 1	and a declared one the tree no longer shows is still an item
 1	and a declined one is ok too
+1	and a directory in no repository hears nothing either
 1	and a document that is not a plan
 1	and a dormant row blocks nothing
 1	and a failing one as due for that reason
@@ -638,6 +664,9 @@
 1	and a file with no whitespace reads the same as one with
 1	and a fold that is current leaves nothing stranded
 1	and a gitignored stray in the cache is too
+1	and a graph with no stamp admits its currency is unknown
+1	and a graph with no stamp does too
+1	and a graphify that fails outright does not reach the session
 1	and a high one is refused
 1	and a hold is not written
 1	and a hyphenated name still matches its words
@@ -676,6 +705,7 @@
 1	and a turn that did something clears the count
 1	and a verified push does
 1	and a verified push reads as zero days
+1	and a worktree is pointed at that one, having no graph of its own
 1	and a worktree of it reads the same graph, and is ok too
 1	and absent from both sides is a fixture, not a drift
 1	and again, so a session can bump twice
@@ -687,6 +717,8 @@
 1	and an ordinary product repository is not
 2	and an unknown flag is refused rather than ignored
 1	and an unknown kind is refused
+1	and asked from a subdirectory it is still the checkout, not the subdirectory
+1	and asked from a worktree it is still the holding checkout
 1	and blocked by a probe that cannot see what a witness proves is there
 1	and blocked by a row nothing could establish at all
 1	and blocks
@@ -734,14 +766,17 @@
 1	and evidence does too
 1	and exactly one continuation is spent for it
 2	and exits 0
+1	and exits 0 for an ungraphed checkout too
 1	and exits 0 in a repository Felix does not govern
 2	and exits 0 there
 1	and exits 0 there too
 1	and exits 0 when it has a digest to print
 1	and exits 0 with the tree dirty
+1	and exits 0, because upkeep may never fail a session
 1	and exits 3, distinctly
 1	and exits non-zero rather than hashing over an absence
 1	and explains why it now matters
+1	and fails the same way
 1	and fails when a wired moment is unbound
 1	and fails when one of them loses it
 1	and felix new seeds it itself, without falling through to the answer
@@ -758,6 +793,7 @@
 1	and grounding it closes the gap
 1	and handed the cron line instead
 1	and hands it a pull request to merge
+1	and hands the session back at once rather than waiting for the build
 1	and holds an engine-grounded medium for a person
 1	and holds no prose when nothing matched
 1	and ignores the path so it cannot come back
@@ -776,8 +812,12 @@
 1	and is not run as a probe whose verdict is the witness alone
 1	and is not run as though it were a probe
 1	and is not run half-read
+1	and is refused rather than rounded down
+1	and is refused too
 1	and is silent when there is none
+1	and it asks graphify to update the checkout that holds the graph
 1	and it does not repeat within a session
+1	and it fails on the file, not on the directory
 1	and it holds against the shipped lessons file
 1	and it is Felix's own work
 1	and it is a tier, not the word
@@ -786,9 +826,11 @@
 1	and it is not accepted as a row
 1	and it is not autonomous
 1	and it is reported as unusable, not unchecked
+1	and it is spelled with the symlinks taken out
 1	and it is the highest by version order, not the last by name
 1	and it is the lifecycle one
 1	and it is the usage text
+1	and it left no lock file beside the graph
 1	and it merges nothing
 1	and it names the cache it found
 1	and it names the command that clears it
@@ -821,6 +863,7 @@
 1	and lists every event its hooks object binds
 1	and matches an ecosystem word on a word boundary
 1	and matches on keywords, not just names
+1	and matches what the holding checkout itself answers
 1	and merge does not call it an unscanned diff
 1	and names a handoff when the repo has one
 1	and names both tokens
@@ -845,6 +888,7 @@
 1	and names the working tree rather than the checkout
 1	and names what was caught
 1	and names who answers the provider row
+1	and narrows it, which is how this suite knows the window is real
 1	and neither are the per-session files under .in_use
 1	and neither is a worktree
 1	and neither is an empty message
@@ -853,6 +897,7 @@
 1	and never as a clock reading nobody wrote
 1	and never as an mcp row nothing could add
 1	and never as event, which is what a row with no check says
+1	and never asks for a graph of the worktree, which has none
 1	and never claims it was mounted every session
 1	and never ends on a success line
 1	and never evaluated
@@ -880,6 +925,7 @@
 1	and no row is accepted from that file
 1	and no setup.tsv appears from asking for help
 1	and no zero row for one that was used
+1	and none of them names the checkout it read
 1	and none reports a spend past the ceiling as recorded
 1	and not as an escape, which would escalate a typo to the founder
 1	and not found by assuming the branch is called main
@@ -907,6 +953,7 @@
 1	and on this tree it is dormant, satisfied or unsatisfied, never unknown
 1	and once the check passes it is ok
 1	and one already declared is not written twice
+1	and one built three commits ago is behind by three
 1	and one grounding a real surface is not
 1	and one in a double-backtick span
 1	and one it passes over is held, not silently counted
@@ -931,6 +978,7 @@
 1	and picks the capability the skills serve
 1	and points at the read that needs no lock
 1	and prints no events at all, not the ones it managed to reach
+1	and prints nothing into the session
 1	and prints nothing, not even the stamp
 1	and prints the state rather than a verdict
 1	and proposes nothing for it
@@ -965,6 +1013,7 @@
 1	and reports it on its axes
 1	and reports no severity for it
 1	and reports nothing for one it does not have
+1	and reports that by failing
 1	and reports the receipt it wrote
 1	and reports them in the gate's own line shape
 1	and reports what has been spent
@@ -974,6 +1023,7 @@
 1	and restoring both makes it valid again
 1	and restoring it makes the row clean again
 1	and returns once the record is complete
+1	and saying so is an exit code, not an empty line
 1	and says a long name at least scores on itself
 1	and says how many are still unusable
 1	and says how many scripts it examined
@@ -991,6 +1041,7 @@
 1	and says nothing below the session threshold
 1	and says nothing was installed
 1	and says nothing when every capability has a rule
+1	and says nothing while not doing it
 1	and says plainly that it acted on nothing
 3	and says so
 1	and says so again next session, because the request is still unanswered
@@ -1054,17 +1105,21 @@
 1	and so is the other one
 1	and stack.sh alone can too
 1	and staging the test closes the gap — the case that started this
+1	and standard error is left alone
+1	and standard output is left alone
 1	and states the residual no row can close
 1	and states the source ceiling
 1	and states the tier
 1	and stays small
 1	and stays to one line
 1	and step 8 is no longer a step nothing answers
+1	and still exits 0
 1	and still exits 0, because start cannot refuse
 1	and still offers the handoff
 1	and still proposes from the record
 1	and still resolves when the root is spelled the other way
 1	and still returns success, so it cannot loop
+1	and still says nothing
 1	and still says which step went unused
 1	and still verifies when the source really does match
 1	and still yields nothing for the entry that lacks the field
@@ -1074,12 +1129,14 @@
 1	and surfaces nothing as new
 1	and survives a regeneration that was given none
 1	and that alone does not fail the gate
+1	and that is a failure, not a path it might make up
 1	and that is more than one, so the count is doing work
 1	and that is not a clean bill either
 1	and that nothing granted it, on a channel review cannot clear
 1	and that one authority writes both halves
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
+1	and that reads as no stamp, the same verdict a stampless graph gets, not as an error
 1	and that refusal is non-zero too
 1	and the ack is consumed by the answer
 1	and the all-clear is not repeated every session
@@ -1195,6 +1252,7 @@
 1	and the session is told how many are left
 1	and the sessions the filter actually counted
 1	and the shipped wiring matches its stance
+1	and the silence carries an exit code
 1	and the skip list is still where it was
 1	and the slug comes from the checkout's remote
 1	and the stale answer is still there, not replaced by an empty one
@@ -1237,6 +1295,7 @@
 1	applying declares appends one row per new declare
 1	as a declined verdict
 1	as does another
+1	asked from a worktree the distance is still the holding checkout's
 1	at most one caller records when one slot is left
 1	backfilled the human steps it implies
 1	backfilled the tooling the capability implies
@@ -1284,6 +1343,7 @@
 1	clean once it is gone
 1	clean project reports no drift
 1	clearing the queue empties it
+1	closing nothing is not a failure
 1	code with no test is a gap
 1	comments and blanks are not capabilities
 1	committing unverified work no longer skips the check
@@ -1466,6 +1526,9 @@
 1	lesson is recorded
 1	lesson refuses a flag as the lesson
 1	lesson warns against writing too much
+1	lib/commission.sh closes what it inherited before backgrounding
+1	lib/discover.sh closes what it inherited before backgrounding
+1	lib/graph.sh closes what it inherited before backgrounding
 1	lifecycle-check cannot examine a hooks.json that does not parse
 1	listed where a reader must look
 1	lists the skills a plugin ships
@@ -1527,8 +1590,12 @@
 1	nor filler the router already discards
 1	nor is a system reminder
 1	nor is one from both
+1	nor print at it
 1	nor report a spend that did not happen
 1	nor the all-caps sentinel
+1	nor the one about a missing stamp
+1	nor the one about another tree
+1	nor the stale one
 1	nor the stop hook talking to itself
 1	not refused
 1	nothing changed is the same epoch
@@ -1735,6 +1802,7 @@
 1	the checkout's own default branch is next, without the origin/ prefix
 1	the claude cli changing is announced and never invalidates
 1	the controls a checker declares nothing for are named
+1	the current line prints no absolute path
 1	the data marker is substituted
 1	the declared plugin still has its presence row
 1	the declares are applied before the receipt is written
@@ -1760,10 +1828,13 @@
 1	the fixture really staged a merge in progress
 1	the fixture tree is green before any night is granted
 1	the founder's item is not buried
+1	the four readings are four different sentences
 1	the gate announces a stale receipt and does not fail on it
 1	the gate carries the ecosystem check too
 1	the gate's executable check passes when every script under bin/ has its bit
 1	the gate's installed check covers the same three directories
+1	the graph is graphify-out/graph.json under the holding checkout
+1	the graph's home is the checkout that holds the repository
 1	the handoff carries no file comments
 1	the hook announces what it adopted
 1	the hook ingests an answer file offline
@@ -1778,6 +1849,8 @@
 1	the judge is the version main declares
 1	the ledger is durable state in the project
 1	the ledger no longer opens the registry itself
+1	the lock is released when the refresh finishes
+1	the lock it takes while refreshing is a directory, not a file
 1	the log holds exactly one entry
 1	the log is durable state in the project
 1	the main checkout knows its own storage is not a rival
@@ -1855,6 +1928,7 @@
 1	the skipped row the Stop hook writes is counted
 1	the squash leaves the merge-base behind main
 1	the stamp changes with the rules table
+1	the stamp is the commit the graph says it was built at
 1	the step itself still counts as used
 1	the structural verdict shows its evidence too
 1	the stub refuses a selectorless merge the way gh does
@@ -1939,6 +2013,8 @@
 1	with no CLI to ask, the highest cached version is what it compares against
 1	with no checkout in front of it the row reads unchecked
 1	with no cli call at all
+1	with no graphify installed the refresh runs nothing
+1	with no graphify-out beside the checkout it runs nothing
 1	with no session record it behaves as before
 1	with no stances taken, every item is a gap
 1	with nothing due it reports nothing
@@ -1947,6 +2023,7 @@
 1	with the file's contents untouched
 1	with the newlines escaped, not lost
 1	with the runs it cost beside it
+1	with the same exit code
 1	with the stamp and no rows, which is an empty cache and a real answer
 1	with the template's one row, the lifecycle obligation every plugin owes
 1	with the usage text

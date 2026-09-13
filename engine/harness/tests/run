@@ -2274,6 +2274,38 @@ has "handoff lists the session-end checks" "$out" "before you stop"
 grep -q "## Where" "$MEM/widget/SESSION_HANDOFF.md" \
   && ok "handoff is regenerated from the tree" || bad "handoff is regenerated from the tree"
 
+# #127. The note is the one line git cannot rebuild, and the CLI threw away the
+# obvious way of giving it: `felix handoff "what was in progress"` passed a
+# positional, the parser's catch-all shifted it off, and the command printed
+# success over a note from two sessions earlier. The library carries a note
+# across a regeneration on purpose; the defect is the call site, so the call
+# site is what is tested.
+_hn() { sed -n 's/^- what was in progress: //p' "$MEM/widget/SESSION_HANDOFF.md" | head -1; }
+( cd "$MEMREPO" && "$FELIX" handoff --was "set with the flag" >/dev/null 2>&1 )
+is  "handoff --was still records the note" "$(_hn)" "set with the flag"
+( cd "$MEMREPO" && "$FELIX" handoff "given as words" "not a flag" >/dev/null 2>&1 ); _hrc=$?
+is  "a note typed without --was is recorded, not dropped" "$(_hn)" "given as words not a flag"
+is  "and the command succeeds"                            "$_hrc" "0"
+_ho="$(cd "$MEMREPO" && "$FELIX" handoff --wsa "misspelled" 2>&1)"; _hrc=$?
+is  "an unrecognised flag refuses rather than printing success" "$_hrc" "1"
+has "and says how the command is used"                          "$_ho" "usage"
+is  "and leaves the recorded note as it was"                    "$(_hn)" "given as words not a flag"
+( cd "$MEMREPO" && "$FELIX" handoff --was "one" "two" >/dev/null 2>&1 ); _hrc=$?
+is  "a note given twice, by flag and by words, refuses"         "$_hrc" "1"
+is  "and records neither"                                       "$(_hn)" "given as words not a flag"
+# The stale note that started this: nothing given, an old note carried, and
+# nothing said. Carrying stays; silence does not.
+_ho="$(cd "$MEMREPO" && "$FELIX" handoff 2>&1)"
+has "a handoff given no note says it kept the last one" "$_ho" "kept the note from the last handoff"
+has "and shows which note it kept"                      "$_ho" "given as words not a flag"
+rm -f "$MEM/widget/SESSION_HANDOFF.md"
+_ho="$(cd "$MEMREPO" && "$FELIX" handoff 2>&1)"
+case "$_ho" in
+  *"kept the note"*) bad "and does not claim to keep a note when there was none" "$_ho" ;;
+  *)                 ok  "and does not claim to keep a note when there was none" ;;
+esac
+has "but says there is none to keep"                    "$_ho" "no note of what was in progress"
+
 # The promotion signal is recurrence across days, not volume on one day.
 D="$MEM/widget/DEVLOG.md"
 : > "$D"

@@ -230,7 +230,7 @@ specific project, language, or toolchain.
     felix budget           how much unattended work has been spent today
 
   memory
-    felix handoff [--was]  regenerate the handoff; --was records what was in progress
+    felix handoff [note]   regenerate the handoff; the note (or --was) records what was in progress
     felix log <text>       add a devlog entry
     felix lesson <text>    add a lesson, matched into later prompts
     felix lessons          what this project has already paid for
@@ -3651,14 +3651,39 @@ cmd_lesson() {
 }
 
 cmd_handoff() {
-  resolve_or_die; local proj="$PROJ" root gate note=""
+  resolve_or_die; local proj="$PROJ" root gate note="" was="" words=""
+  # #127. The catch-all used to shift anything it did not know, so
+  # `felix handoff "what was in progress"` — the invocation everyone types —
+  # dropped the one line git cannot rebuild and printed success over an older
+  # note. Words are the note now, a flag it does not know refuses, and a note
+  # given both ways refuses rather than choosing one silently.
   while [ $# -gt 0 ]; do
-    case "$1" in --was) need_value "$@"; note="$2"; shift 2 ;; *) shift ;; esac
+    case "$1" in
+      --was) need_value "$@"; was="$2"; shift 2 ;;
+      --)    shift; words="${words:+$words }$*"; break ;;
+      -*)    die "usage: felix handoff [--was \"what was in progress\" | what was in progress]" ;;
+      *)     words="${words:+$words }$1"; shift ;;
+    esac
   done
+  [ -n "$was" ] && [ -n "$words" ] \
+    && die "usage: felix handoff [--was \"what was in progress\" | what was in progress] — the note was given twice"
+  note="${was:-$words}"
   root="$(felix_repo_root "$PWD")"
   gate="$(felix_json_str "$proj/project.json" gate)"
   felix_mem_handoff "$proj" "$root" "$gate" "$note"
   printf 'wrote %s/SESSION_HANDOFF.md\n\n' "$(felix_mem_dir "$proj")"
+  # Carrying a note across a regeneration is right; carrying it in silence is
+  # how a two-session-old note read as this session's. Said only when nothing
+  # was given, because then the note in the file is not the caller's.
+  if [ -z "$note" ]; then
+    local kept
+    kept="$(sed -n 's/^- what was in progress: //p' "$(felix_mem_dir "$proj")/SESSION_HANDOFF.md" 2>/dev/null | head -1)"
+    case "$kept" in
+      ''|_fill*) printf 'no note of what was in progress. felix handoff "..." records one.\n\n' ;;
+      *)         printf 'kept the note from the last handoff, which may not be this session'"'"'s:\n  %s\n' "$(printf '%s' "$kept" | cut -c1-160)"
+                 printf 'felix handoff "..." replaces it.\n\n' ;;
+    esac
+  fi
 
   # The session-end list from the guidebook, as a check rather than a memory
   # exercise. Each line is something a person is about to not do.

@@ -34,11 +34,13 @@
 1	a blind probe fails the gate from the engine
 1	a block from the live tree is still recorded
 1	a blocking verdict does not clear it either
+1	a branch whose engine differs from the deployed one reads installed ok
 1	a broad but legitimate rule still denies
 1	a builtin is named without a token, as before
 1	a bumped tree does not become its own judge
 1	a bundled plugin reads as usable
 1	a bundled plugin reads present with no cli at all
+1	a cache entry for main's version that was tampered with fails
 1	a cache path is a plugin copy
 1	a cache row carrying a digest is still declared
 1	a cache stamped by other rules adopts nothing either
@@ -140,6 +142,7 @@
 1	a failing gate still exits non-zero
 1	a felix-answered row names felix as the actor
 1	a file facing a directory is a drift, whatever diff exits
+1	a file git ignores, left in the cache entry, is not drift
 1	a file that does not parse drops out of the roster without taking the rest
 1	a file under bin/ that begins with a shebang is a script, and its bare mode is caught
 1	a filename containing ' and ' cannot hide behind a fragment
@@ -490,6 +493,7 @@
 1	a version bump alone is not self-judgement
 1	a version it cannot parse is refused, not guessed
 1	a version main declares but nobody installed resolves to nothing
+1	a version main declares with no cache entry fails rather than skipping
 1	a wall of tree tokens cannot outvote the prompt
 1	a web surface counts without package.json
 1	a well-formed answer is answered
@@ -765,6 +769,7 @@
 1	and declares nothing
 1	and declaring a plugin does not turn the retire rule into an unmount
 1	and deleting the syntax check escapes as verifier
+1	and deploying main's engine at that version clears it
 1	and did not disturb the session that had folded
 1	and does block a task
 1	and does not ask for a lesson that already exists
@@ -775,6 +780,7 @@
 1	and does not name a channel it never got to consult
 1	and does not pretend it searched the rest
 1	and does not say it recorded
+1	and drift in the served checkout is a plain FAIL
 1	and due again after a commit the graph has not seen
 1	and due from the worktree too, which is where the session is
 1	and each bound is named in its own words
@@ -852,6 +858,7 @@
 1	and it is the usage text
 1	and it left no lock file beside the graph
 1	and it merges nothing
+1	and it names the cache entry felix merge would judge with
 1	and it names the cache it found
 1	and it names the command that clears it
 1	and it names the literal that went missing
@@ -898,6 +905,7 @@
 1	and names the decline channel
 1	and names the habit
 1	and names the hook
+1	and names the path that differs
 1	and names the pipeline step no row here answers
 1	and names the play in order
 1	and names the process holding it
@@ -1103,6 +1111,7 @@
 1	and says which projects it knows
 1	and says which rule
 1	and says which variable it sends
+1	and says which version is not installed
 5	and says why
 1	and says why growth is the narrowing direction there
 1	and says why it could not be
@@ -1403,6 +1412,7 @@
 1	documentation is in scope
 1	does not demand the later steps yet
 1	dormant steps never nag
+1	drift seen from a checkout the marketplace does not serve is marked structural
 1	each control runs against a tree of its own
 1	each fact carries the tree it was taken from
 1	each line is a name and a value separated by a tab
@@ -1531,6 +1541,7 @@
 1	install answers cleanly
 1	install from the checkout still reports a real mismatch
 1	install from the plugin cache does not certify the cache against itself
+1	installed gives the same verdict whether the branch's engine was installed or not
 1	interpolating a credential is high
 1	invariants say where they come from
 1	invoked by a relative path from a subdirectory it still finds its library
@@ -1643,6 +1654,7 @@
 1	obligations.tsv is one of the tables the receipt is bound to
 1	obligations.tsv is one of the tables whose shrinkage escapes
 1	on a repository with no commit, nothing tracked reads as empty, not blind
+1	on main after an engine change nobody deployed, installed fails
 1	onboarding writes one
 1	one already declared is left alone
 1	one already in stack.tsv is left alone
@@ -1816,6 +1828,7 @@
 1	survives a machine laid out differently
 1	survives a transcript that is not there
 1	tasks sharing a file are one unit
+1	that names the command
 1	the admit phase installs nothing and edits no manifest
 1	the agent points at the served engine, not the running copy
 1	the agent runs the pulse
@@ -2014,6 +2027,7 @@
 1	what it kept is what it sent
 1	what no route named is not a compliance figure
 1	what the engine tiered low installs
+1	when the live engine is not main's, the ok says which one is live
 1	which does not by itself fail the gate, since not applying is not a claim
 1	which is the number it printed
 1	which is the one that differs
@@ -2052,6 +2066,7 @@
 1	with no CLI to ask, the highest cached version is what it compares against
 1	with no checkout in front of it the row reads unchecked
 1	with no cli call at all
+1	with no felix cache on the machine, installed is skipped
 1	with no graphify installed the refresh runs nothing
 1	with no graphify-out beside the checkout it runs nothing
 1	with no session record it behaves as before

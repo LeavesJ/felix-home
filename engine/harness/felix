@@ -2817,8 +2817,8 @@ cmd_bootstrap() {
     gh label create needs-founder --repo "$slug" --color D93F0B --description "Repair loop hit its ceiling; a human must diagnose" >/dev/null 2>&1
     gh label create needs-architecture --repo "$slug" --color 5319E7 --description "Failure is a design problem, not a patch" >/dev/null 2>&1
     gh label create risk-green --repo "$slug" --color 0E8A16 --description "Reversible" >/dev/null 2>&1
-    gh label create risk-yellow --repo "$slug" --color FBCA04 --description "Human reviews" >/dev/null 2>&1
-    gh label create risk-red --repo "$slug" --color B60205 --description "Approval required" >/dev/null 2>&1
+    gh label create risk-yellow --repo "$slug" --color FBCA04 --description "Not obviously safe; look closely, then merge on green CI" >/dev/null 2>&1
+    gh label create risk-red --repo "$slug" --color B60205 --description "Look hardest; an escape channel, not this label, stops a merge" >/dev/null 2>&1
     printf '  created    5 labels\n'
   fi
   if [ -n "$slug" ] && ! _felix_bs_have_protection "$slug" "$branch"; then
@@ -3302,8 +3302,15 @@ cmd_classify() {
         printf 'Reversible, but %s evidence gap(s). Not auto-merge eligible: a green\ntier means no risky path was touched, not that the change was proven.\nRun felix evidence.\n' "$ev_gaps"
       fi
       ;;
-    yellow) printf 'Implement autonomously; a human merges. Nothing here is irreversible,\nbut something in it is not obviously safe.\n' ;;
-    red)    printf 'Approval required before merge. Show a preview of the exact change and\nits reversal path; do not merge on a green gate alone.\n' ;;
+    # Tier is advice about how hard to look, and these two lines are what a
+    # session reads when it ships. They used to say "a human merges" and
+    # "approval required before merge", which nothing enforced — felix merge
+    # never reads the tier, only escape channels — and which the founder had
+    # already overruled (2026-09-12: Felix merges its own pull requests). A
+    # session believed the printed sentence over the direction and left five
+    # merges for a person. The stop is a channel; the sentence now says so.
+    yellow) printf 'Not obviously safe, though nothing here is irreversible. Look closely,\nthen merge once CI is green; felix merge stops only on a channel that\nescapes the tree.\n' ;;
+    red)    printf 'Look hardest here: a mistake in these paths is silent and reaches every\nsession. Put the exact change and its reversal path in the pull request.\nThe tier stops nothing: merge once CI is green unless felix merge names an\nescape channel, which is where a person decides.\n' ;;
   esac
 
   [ "$apply" -eq 1 ] || { printf '\nlabel the PR with: felix classify --apply\n'; return 0; }
@@ -3454,7 +3461,7 @@ EOF
   # Policy, stated every time because urgency is exactly when it gets skipped.
   printf '\nUrgency does not bypass the gates. The fix goes through the same gate,\n'
   printf 'the same classification, and the same evidence policy as any other change.\n'
-  [ "$sev" = "red" ] && printf 'A red path is implicated: a human decides before anything is changed.\n'
+  [ "$sev" = "red" ] && printf 'A red path is implicated: read the fix harder than usual. The tier is\nadvice; the fix merges on green CI unless felix merge names an escape\nchannel, and that is the part a person decides.\n'
 
   [ "$create" -eq 1 ] || { printf '\nopen an issue with: felix incident --create\n'; return 0; }
 
@@ -3519,9 +3526,12 @@ cmd_repair() {
   if [ -n "$implicated" ] && [ -f "$proj/risk.tsv" ]; then
     sev="$(felix_incident_severity "$proj" "$implicated")"
     if [ "$sev" = "red" ]; then
-      printf '\nOUT OF SCOPE. The failure implicates a red path:\n\n'
+      # Out of scope for an unattended repair, which is a consent boundary and
+      # stays one: nobody is present to read a red fix adversarially. It is not
+      # a merge rule — a session takes this, and merges on green like any other.
+      printf '\nOUT OF SCOPE for unattended repair. The failure implicates a red path:\n\n'
       printf '%s\n' "$implicated" | sed 's|^|  |'
-      printf '\nAttempts remaining is the wrong bound here. Escalate:\n\n'
+      printf '\nAttempts remaining is the wrong bound here. A session takes it; to flag it:\n\n'
       printf '  gh pr edit --repo %s --add-label needs-founder\n' "$repo"
       return 3
     fi

@@ -955,6 +955,49 @@ has "an unrecognised file is yellow, never green" "$out" "tier:  yellow"
 has "and says why"                                "$out" "no rule matched"
 _reset
 
+# The tier sentences are what a session reads when it ships. They said "a human
+# merges" and "Approval required before merge", which nothing enforced — felix
+# merge never reads the tier — and which the founder had overruled on 2026-09-12:
+# Felix merges its own pull requests. A session believed the printed sentence
+# over the direction and left five merges for him. Each negative is paired with
+# the sentence that replaced it, so an output that printed nothing cannot pass.
+printf 'x\n' > "$REPO/unknown_thing.xyz"; _stage
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+case "$out" in
+  *"a human merges"*) bad "a yellow diff no longer hands its merge to a person" "$out" ;;
+  *)                  ok  "a yellow diff no longer hands its merge to a person" ;;
+esac
+has "and says it merges once CI is green" "$out" "merge once CI is green"
+_reset
+mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/003.sql"; _stage
+out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
+case "$out" in
+  *"Approval required"*) bad "a red diff no longer says approval is required before merge" "$out" ;;
+  *)                     ok  "a red diff no longer says approval is required before merge" ;;
+esac
+has "and names the escape channel as where a person decides" "$out" "escape channel"
+_reset
+# The same sentence, injected into the session on a routed turn whenever the
+# tree touches a red path. It was the loudest of them: "a person decides here".
+mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/004.sql"
+_rred="$( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/classify.sh"
+          . "$FROOT/harness/lib/incident.sh"; . "$FROOT/harness/lib/route.sh"
+          _felix_route_red "$FROOT/projects/widget" "$REPO" 2>&1 )"
+rm -rf "$REPO/migrations"
+has "a red working tree is still named in the session" "$_rred" "calls red"
+case "$_rred" in
+  *"person"*"decides here"*|*"A person"*) bad "and the session is not told a person decides on tier alone" "$_rred" ;;
+  *)                                      ok  "and the session is not told a person decides on tier alone" ;;
+esac
+# A bootstrapped repository asked a person before every `gh pr merge`, whatever
+# the tier. What still asks is a merge that bypasses a required check.
+_perm="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/bootstrap.sh"; felix_bs_render_perms )"
+has "a bootstrapped repository still asks before a merge that bypasses checks" "$_perm" 'gh pr merge*--admin*'
+case "$_perm" in
+  *'"Bash(gh pr merge*)"'*) bad "but no longer before every merge" "$_perm" ;;
+  *)                        ok  "but no longer before every merge" ;;
+esac
+
 # The marker decides which project governs a checkout, and the template rated
 # it GREEN until 2026-09-03 — the one tier that can auto-merge. So the single
 # file that can switch the floor off for a whole repository was the file least
@@ -5836,6 +5879,24 @@ has "naming the channel that escaped"                "$(_rf "$r" authority.escap
 # clearable by review, so nothing granted here and the field must say so.
 is "and that nothing granted it, on a channel review cannot clear" \
    "$(_rf "$r" authority.granted_by)" "none"
+# And the other direction. A red tier with no channel set founder_required,
+# which no merge honoured and which told any reader of the receipt that a person
+# must approve routine engine work. The founder is required where a channel
+# escapes; a red tier is advice.
+RDR="$TMP/redreceipt"; mkdir -p "$RDR"
+( cd "$RDR" && git init -q -b main && printf 'widget\n' > .felix && printf 'x\n' > seed.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+RDR="$(cd "$RDR" && pwd -P)"; RDB="$(git -C "$RDR" rev-parse HEAD)"
+mkdir -p "$RDR/auth"; printf 'allow = True\n' > "$RDR/auth/policy.py"
+( cd "$RDR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm red ) >/dev/null 2>&1
+_rdr="$( cd "$RDR" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+         . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+         . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/classify.sh"
+         . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/receipt.sh"
+         felix_receipt "$FROOT/projects/widget" "$RDB" "$RDR" "$FROOT" )"
+is "a red change with no channel is red in the receipt"          "$(_rf "$_rdr" risk.tier)"                 "red"
+is "and nothing escapes, so the fixture can tell the two apart"  "$(_rf "$_rdr" authority.escapes)"         "[]"
+is "and the receipt does not claim the founder must approve it"  "$(_rf "$_rdr" authority.founder_required)" "false"
 
 # A base nothing can resolve must not read as "nothing changed". An empty list
 # and an unanswerable question are different facts, and the whole family of

@@ -77,7 +77,7 @@ it should be paid deliberately, not rediscovered.
 
 | | |
 |---|---|
-| open, waiting on the founder | **#236**, tier **red** (`lib/qualify.sh`), not merged by this session |
+| open at close, merged later the same session | **#236**, tier **red** (`lib/qualify.sh`); red is advice and no channel fired, so it was Felix's to merge — see §0bc |
 | suite on the branch | **2096** passed, 0 failed; 39 assertions added, all authored blind |
 | the same suite against main's engine | 19 failed, each on behaviour #236 adds |
 | gate on the branch | every check ok except `installed`, the structural red of a worktree whose engine is not the deployed one |
@@ -161,11 +161,11 @@ passed 26 hours earlier.
   `gate.sh` in a fixture; two passed against the old gate for the wrong reason
   and were tightened before they were believed. 2072 passed, 0 failed. It
   takes effect only once the home has pulled, because `felix gate` runs the
-  home's working copy of `gate.sh`. Step 5, promotion after acceptance, is red
-  and is the founder's; `deploy-check` and the `engine_deployed` obligation
+  home's working copy of `gate.sh`. Step 5, promotion after acceptance, is red tier with no channel: a separate
+  pull request, reviewed hard, that Felix merges on green CI; `deploy-check` and the `engine_deployed` obligation
   still ask the old question and are the next re-point.
 
-**Next, in order.** (1) Review and merge #236 — red tier, the founder's — then
+**Next, in order.** (1) Merge #236 on green CI (red is advice; no channel fires) — then
 the three commands above in the home. `graphify` comes due again after the
 merge. (2) `felix commission` and the re-grant, still only a person's. (3) The
 public snapshot: in the stand-in above qualification no longer blocks the gate,

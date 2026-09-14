@@ -34,6 +34,7 @@
 1	a blind probe fails the gate from the engine
 1	a block from the live tree is still recorded
 1	a blocking verdict does not clear it either
+1	a bootstrapped repository still asks before a merge that bypasses checks
 1	a branch whose engine differs from the deployed one reads installed ok
 1	a broad but legitimate rule still denies
 1	a builtin is named without a token, as before
@@ -371,6 +372,8 @@
 1	a recurrence that already has a lesson is different
 1	a recurrence that stopped recurring is not still ranked
 1	a recurrence with no lesson says to write one
+1	a red change with no channel is red in the receipt
+1	a red diff no longer says approval is required before merge
 1	a red gate outranks the grant
 1	a red path exits 3
 1	a red receipt for this tree blocks
@@ -378,6 +381,7 @@
 1	a red row naming no channel stops nothing
 1	a red rule still wins
 1	a red run breaks the streak
+1	a red working tree is still named in the session
 1	a refresh of a graphed checkout exits 0
 1	a refreshed graph clears the row
 1	a refusal on risk is reported
@@ -511,6 +515,7 @@
 1	a worktree refreshes the holding checkout's graph
 1	a writable project still records
 1	a write rule denies a write
+1	a yellow diff no longer hands its merge to a person
 1	adding a Dockerfile surfaces deploy
 1	adding a comment line changes the policy version
 1	adding a file changes the digest
@@ -909,6 +914,7 @@
 1	and names the channel
 1	and names the command that writes it
 1	and names the decline channel
+1	and names the escape channel as where a person decides
 1	and names the habit
 1	and names the hook
 1	and names the path that differs
@@ -972,6 +978,7 @@
 1	and not the one that was pointed at
 1	and not the pairs the runtime owns
 1	and nothing else is muted, because muting is how this narrows quietly
+1	and nothing escapes, so the fixture can tell the two apart
 1	and nothing is left uncommitted under it
 1	and nothing is merged
 1	and nothing is merged when it lands there
@@ -1072,6 +1079,7 @@
 1	and says it did
 1	and says it is recording only
 1	and says it judges consideration, not quality
+1	and says it merges once CI is green
 1	and says it must be fixed before the next session
 1	and says it was never reached
 1	and says it where the founder can see it
@@ -1260,6 +1268,7 @@
 1	and the prefixed name is not a capability of its own
 1	and the provider skill is named as a channel a session runs, not a prompt to paste
 1	and the pulse refuses it in words
+1	and the receipt does not claim the founder must approve it
 1	and the receipt is written with ten fields
 1	and the receipt reads valid
 1	and the receipt refuses to call that verified
@@ -1295,6 +1304,7 @@
 1	and the second project, whose log is tracked too
 1	and the seed holds rows rather than only comments
 1	and the sentence still is
+1	and the session is not told a person decides on tier alone
 1	and the session is told how many are left
 1	and the sessions the filter actually counted
 1	and the shipped wiring matches its stance
@@ -1371,6 +1381,7 @@
 1	but it is logged, so the pivot stays observable
 1	but it still classifies red
 1	but neither names a checker shown failing beside a control that did not apply
+1	but no longer before every merge
 1	but one that could not have passed is not
 1	but removing one still escapes
 1	but says there is none to keep

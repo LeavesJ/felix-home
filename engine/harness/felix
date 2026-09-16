@@ -708,8 +708,12 @@ cmd_gate() {
 
   # The receipt. Recorded on failure as well as success: no receipt and a red
   # one both stop a session, but only one of them says what happened — and now
-  # also what it did not check, and what it did.
-  felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid" "$skipped" "$reported"
+  # also what it did not check, and what it did, and the decision epoch it ran
+  # under, so a fact that moves outside the tree stales it.
+  local epoch_fields
+  epoch_fields="$(felix_verify_epoch_fields "$proj" "$root")"
+  felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid" "$skipped" "$reported" \
+    "$(printf '%s' "$epoch_fields" | cut -f1)" "$(printf '%s' "$epoch_fields" | cut -f2)"
   exit "$rc"
 }
 
@@ -1159,13 +1163,8 @@ closes #$issue"
   #
   # Opened anyway rather than refused. The repair loop attaches to an existing
   # pull request, so refusing here would leave it nothing to attach to.
-  local draft="--draft" tid receipt
-  tid="$(felix_tree_id "$root" "$FELIX_HOME_DIR" 2>/dev/null)" || tid=""
-  receipt="$(felix_verify_receipt "$root" "$FELIX_HOME_DIR" 2>/dev/null)"
-  if [ -n "$tid" ] && [ "$(printf '%s' "$receipt" | cut -f1)" = "$tid" ] \
-     && [ "$(printf '%s' "$receipt" | cut -f2)" = "green" ]; then
-    draft=""
-  fi
+  local draft="--draft"
+  felix_verify_current "$root" "$FELIX_HOME_DIR" "$proj" >/dev/null 2>&1 && draft=""
 
   # shellcheck disable=SC2086
   gh pr create --repo "$slug" --base "$base" --head "$branch" \

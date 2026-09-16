@@ -366,13 +366,17 @@ felix_merge_blockers() {
     esac
   done
 
-  tid="$(felix_tree_id "$root" "$home" 2>/dev/null)" || tid=""
-  receipt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
-  if [ -z "$tid" ] \
-       || [ "$(printf '%s' "$receipt" | cut -f1)" != "$tid" ] \
-       || [ "$(printf '%s' "$receipt" | cut -f2)" != "green" ]; then
-    printf 'unverified\ttree\tno green receipt for this exact tree; run felix gate\n'
-  fi
+  # One reader for what a current receipt is (verify.sh), so the boundary and
+  # the Stop hook cannot disagree. Stale for a fact that moved outside the tree
+  # is named as such, because "run felix gate" on a tree that did not change
+  # reads as the hook being broken until the reason is beside it.
+  local cur
+  cur="$(felix_verify_current "$root" "$home" "$proj" 2>/dev/null)" || true
+  case "$cur" in
+    current) ;;
+    stale*)  printf 'unverified\ttree\t%s\n' "$(printf '%s' "$cur" | cut -f2)" ;;
+    *)       printf 'unverified\ttree\tno green receipt for this exact tree; run felix gate\n' ;;
+  esac
 
   felix_evidence_check "$proj" "$base" "$root" 2>/dev/null \
     | while IFS=$'\t' read -r status name reason; do

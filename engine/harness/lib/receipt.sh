@@ -138,7 +138,16 @@ felix_receipt() {
     vres="\"$(_felix_rcpt_esc "$rres")\""
     vwhen="\"$(_felix_rcpt_esc "$(printf '%s' "$rec" | cut -f3)")\""
     vtree="\"$(_felix_rcpt_esc "$rtid")\""
-    if [ -n "$tid" ] && [ "$rtid" = "$tid" ]; then vstate="current"; else vstate="stale"; fi
+    # Current only by verify.sh's reading, which also asks whether the facts
+    # the verdict rests on have moved; a receipt that cannot be confirmed is
+    # stale, never current, because this document may not claim more than it
+    # knows. A red receipt for this exact tree still reads as current here —
+    # the state says which tree was judged, and the result says how it went.
+    case "$(felix_verify_current "$root" "$home" "$proj" 2>/dev/null)" in
+      current) vstate="current" ;;
+      red)     if [ -n "$tid" ] && [ "$rtid" = "$tid" ]; then vstate="current"; else vstate="stale"; fi ;;
+      *)       vstate="stale" ;;
+    esac
   fi
 
   # ---- evidence

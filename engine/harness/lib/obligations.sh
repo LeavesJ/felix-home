@@ -24,8 +24,9 @@
 #
 #   class     INFO ADVISORY TASK_BLOCKING RELEASE_BLOCKING AUTHORITY_BLOCKING
 #   pathway   deterministic witness corroborated probabilistic unknown
-#   applies   a command; exit 0 applies, non-zero does not, 126/127 unknown.
-#             `-` means it always applies.
+#   applies   a command; exit 0 applies, 1 does not, and anything else —
+#             126, 127, a crash — is unknown, which blocks. `-` means it
+#             always applies.
 #   evidence  a command; exit 0 holds, 1 fails, 2 cannot examine, 126/127
 #             unknown. Its output is the coverage report: what it examined
 #             and a verdict per member.
@@ -94,9 +95,13 @@ felix_obligation_state() {
     _felix_probe_ask "$root" "$applies"; rc=$?
     case "$rc" in
       0) ;;
+      1)   printf 'DORMANT\t-\tthe grounded state says this does not apply here\n'; return 0 ;;
       126) printf 'UNKNOWN\tUNKNOWN\tthe checkout could not be entered, so whether this applies is not known\n'; return 0 ;;
       127) printf 'UNKNOWN\tUNKNOWN\ta command in `applies` does not exist here, so whether this applies is not known\n'; return 0 ;;
-      *)   printf 'DORMANT\t-\tthe grounded state says this does not apply here\n'; return 0 ;;
+      # Neither yes nor no. This read as DORMANT until 2026-09-16, so an
+      # `applies` that crashed retired a blocking obligation with a sentence
+      # claiming the grounded state had spoken. It had not.
+      *)   printf 'UNKNOWN\tUNKNOWN\tthe applies command exited %s, which is neither yes nor no, so whether this applies is not known\n' "$rc"; return 0 ;;
     esac
   fi
 

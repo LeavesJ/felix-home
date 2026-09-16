@@ -504,10 +504,15 @@
 1	a wall of tree tokens cannot outvote the prompt
 1	a web surface counts without package.json
 1	a well-formed answer is answered
+1	a when test that exits 1 still switches the row off as not-applicable
+1	a when test that exits 2 makes the row unknown, not not-applicable
 1	a when test whose command does not exist makes the row unknown, not not-applicable
 1	a when whose command does not exist is unknown, not not-applicable
 1	a why past the stated ceiling is refused rather than silently cut
 1	a wired moment with a stance is ok
+1	a witness that exits 1 after a silent probe is still empty
+1	a witness that exits 2 after a probe that failed is unknown, not blind
+1	a witness that exits 2 after a silent probe makes the row unknown, never empty
 1	a witness whose command does not exist makes the row unknown, not empty
 1	a word shared with a field name still counts
 1	a workflow change escapes as execute
@@ -558,6 +563,9 @@
 1	an append that succeeded and wrote nothing is reported as a failure too
 1	an applicable unknown-pathway row holds even when its evidence passes
 1	an applies command that does not exist here is UNKNOWN on both axes
+1	an applies command that exits 1 is the one honest no: DORMANT
+1	an applies command that exits 128 is UNKNOWN too, not a second kind of no
+1	an applies command that exits 2 is UNKNOWN on both axes, not DORMANT
 1	an argument it cannot honour merges nothing
 1	an eight-hour grant runs until eight hours from now
 1	an empty FELIX_RELEASE_TARGET is not a target
@@ -829,6 +837,7 @@
 1	and handed the cron line instead
 1	and hands it a pull request to merge
 1	and hands the session back at once rather than waiting for the build
+1	and heads the report with the project and counts every row
 1	and holds an engine-grounded medium for a person
 1	and holds no prose when nothing matched
 1	and ignores the path so it cannot come back
@@ -885,6 +894,7 @@
 1	and its base's workflow is not escalated as this branch's escape
 1	and its declines count as unchecked
 1	and its evidence is never run
+1	and its evidence is never run behind an applicability nobody established
 1	and its evidence mode says the same
 1	and its medium holds too
 1	and its path is gone from the tokens whatever the key is called
@@ -1102,6 +1112,7 @@
 1	and says so with a non-zero status
 1	and says so with a non-zero status, not the digest of an empty document
 1	and says that it knows
+1	and says the answer was neither yes nor no, naming the code
 1	and says the checkout could not be entered rather than naming a missing command
 1	and says the gate failed
 1	and says the gate has not seen it
@@ -1109,6 +1120,7 @@
 1	and says the gates still apply
 1	and says the receipt does not exist here
 1	and says the suite passed when nothing was skipped
+1	and says the table is absent
 1	and says the tier is what it could not read
 1	and says to remove its row and its play
 1	and says under it how many did not apply here
@@ -1266,6 +1278,7 @@
 1	and the placeholder stays a placeholder
 1	and the play this project already chose
 1	and the prefixed name is not a capability of its own
+1	and the probe is never run behind a when test nobody could answer
 1	and the provider skill is named as a channel a session runs, not a prompt to paste
 1	and the pulse refuses it in words
 1	and the receipt does not claim the founder must approve it
@@ -1288,11 +1301,14 @@
 1	and the rest of the file is untouched
 1	and the reviewed one is cleared by it
 1	and the route its path named is not taken
+1	and the row blocks a release rather than vanishing
 1	and the row carries OBSERVED, not a person's word
 1	and the row is in the log as INFERRED
 1	and the row is still json
 1	and the row itself is reported as recording nothing
+1	and the row says the when test was neither yes nor no, with its code
 1	and the row says the witness could not be asked
+1	and the row says the witness was neither yes nor no, with its code
 1	and the row says what ran
 1	and the row that was already there survives whole
 1	and the row-level line names the same file
@@ -1389,6 +1405,7 @@
 1	but the field names themselves are gone
 1	carries the governed project
 1	carries the matched lesson
+1	carrying the code that happened
 1	carrying the evidence's own last line
 1	carrying the grounding that says the engine read it
 1	catch-up folds every session nothing folded
@@ -1462,6 +1479,7 @@
 1	evidence that says it cannot examine is UNKNOWN, not failed
 1	exactly one declaration from that cache
 1	exactly one name is exempt, and it is the engine's own
+1	exactly the rows whose ask crashed block
 1	exactly the states that could not be established block
 1	exhausted exits 3
 1	explain shows the losing routes too
@@ -1623,6 +1641,7 @@
 1	naming the entry point
 2	naming the file
 1	naming the gate it was removed from
+1	naming the predicate that blocks
 1	naming the scanner nobody listed
 1	naming which check failed
 1	never proposes retiring something that was used
@@ -1713,6 +1732,10 @@
 1	pr previews and exits 0
 1	pr refuses to open a branch against itself
 1	present, active — nothing was stored between the two
+1	probes-check fails on a blind row
+1	probes-check fails on a project with no probes.tsv
+1	probes-check fails on an unknown row
+1	probes-check passes a table of found, empty and not-applicable rows
 1	probes.tsv is one of the tables whose shrinkage escapes
 1	project.json names the target when the environment does not
 1	promote surfaces a word that keeps missing

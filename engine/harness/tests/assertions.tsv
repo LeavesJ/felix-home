@@ -413,6 +413,7 @@
 1	a red row added applies to the diff that adds it
 1	a red row naming no channel stops nothing
 1	a red rule still wins
+1	a red run against main exits 0 once the suite has run
 1	a red run breaks the streak
 1	a red working tree is still named in the session
 1	a refresh of a graphed checkout exits 0
@@ -487,6 +488,7 @@
 1	a stale cache and an unreadable catalogue adopts nothing
 1	a stale graph says how many commits it is behind
 1	a stale one does too, because stale is not wrong
+1	a stale red.tsv is overwritten, not appended to
 1	a stamp from a tree this repository does not hold is named as that
 1	a stamp inside the last 4096 bytes is read
 1	a stamp only at the start of a large file is not, because the tail is all it reads
@@ -649,6 +651,7 @@
 1	an excuse elsewhere does not defuse, sample 4
 1	an execute path against an unresolvable base blocks the merge
 1	an explicit FELIX_HOME wins
+1	an explicit base argument names the ref to run against
 1	an explicit path is allowed
 1	an ignore rule that swallows a TRACKED maintenance.log fails
 1	an ignored file the probe counts leaves the tree id where it was
@@ -790,6 +793,7 @@
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
 1	and a stance for a real item is not
+1	and a totals line without a skipped clause records skipped as 0
 1	and a tree byte-identical to the deployed engine matches
 1	and a turn that did something clears the count
 1	and a verified push does
@@ -1055,6 +1059,7 @@
 1	and no row anywhere carries a grounding the policy cannot read
 1	and no row is accepted from that file
 1	and no setup.tsv appears from asking for help
+1	and no temporary directory is left under the tmpdir it was given
 1	and no zero row for one that was used
 1	and none is not a passing answer
 1	and none of them names the checkout it read
@@ -1142,6 +1147,7 @@
 1	and records the failure without being asked
 1	and red is named before any fact that moved
 1	and red returns non-zero
+1	and red.tsv retracts the earlier claim rather than keeping it
 2	and refused at the boundary
 1	and refuses in gate mode as well
 1	and refuses instead of ignoring it
@@ -1193,6 +1199,7 @@
 1	and says so again next session, because the request is still unanswered
 1	and says so before the detail
 1	and says so in the policy's words
+1	and says so on stdout
 1	and says so plainly
 1	and says so plainly when none does
 1	and says so rather than implying I did
@@ -1268,6 +1275,7 @@
 1	and states the tier
 1	and stays small
 1	and stays to one line
+1	and stdout is the one summary line
 1	and step 8 is no longer a step nothing answers
 1	and still exits 0
 1	and still exits 0, because start cannot refuse
@@ -1333,6 +1341,7 @@
 1	and the epoch is back where it started once all four are
 1	and the exact command that produced it
 1	and the failure is recorded under the check's own name
+1	and the file then states that no red run was possible
 1	and the first five are current again: nothing about staleness was stored
 1	and the fixture files this block rewrote are back
 2	and the fixture is restored
@@ -1432,6 +1441,7 @@
 1	and the session is not told a person decides on tier alone
 1	and the session is told how many are left
 1	and the sessions the filter actually counted
+1	and the sha it parenthesises abbreviates main's commit
 1	and the shipped wiring matches its stance
 1	and the silence carries an exit code
 1	and the skip list is still where it was
@@ -1441,6 +1451,8 @@
 1	and the state now carries the new route, for the finish-line judge
 1	and the stranded reaches are now counted
 1	and the suite runner beside it, rather than stopping at the first
+1	and the summary counts three of six assertions failing against main at the engine version main declares
+1	and the summary then counts zero of six
 1	and the text is actually there
 1	and the tier field is the tier, not a tier with a digest stuck to it
 1	and the tier it carries
@@ -1478,6 +1490,7 @@
 1	and writes no request for a topology the probes could not read
 1	and writes no row at all, not even exit-1
 1	and writes the request under the memory root
+1	and zero failures is still exit 0
 1	another plugin's refusal is not
 1	another session's edit changes the tree identity
 1	any one bound reached ends the night, whichever it is
@@ -1721,6 +1734,8 @@
 1	interpolating a credential is high
 1	invariants say where they come from
 1	invoked by a relative path from a subdirectory it still finds its library
+1	invoked by a relative path from a subdirectory it still finds its root
+1	invoked from inside another repository it still reads its own
 1	it appended the tooling row
 1	it copied the runbook the capability implies
 1	it emits parseable json
@@ -1772,6 +1787,7 @@
 1	names the maintenance that is due
 1	names the suspect commit
 2	naming it
+1	naming main explicitly runs against the local branch, whose lib the tree's run passes
 1	naming skills does not change the risk read
 1	naming the branch's commit
 1	naming the channel that escaped
@@ -1837,6 +1853,7 @@
 1	nothing found and a witness agreeing is empty
 1	nothing found where a witness proves a surface is blind
 1	nothing found with no witness is unknown, never empty
+1	nothing in the tree but red.tsv changed
 1	nothing is allowed by default
 1	obligations.tsv is byte-identical after all four
 1	obligations.tsv is byte-identical after the report
@@ -2042,6 +2059,7 @@
 1	the always-applicable part is shown
 1	the attribution fixtures have disjoint histories
 1	the banner qualifies the retire claim when the fold is incomplete
+1	the base row names main, its full sha and the version at that commit, not the tree's
 1	the best capability wins
 1	the brief names the file the issue names
 1	the budget row is not reported as satisfied
@@ -2078,6 +2096,7 @@
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
 1	the extractor names every skipped check and nothing else
+1	the failed names follow in c order, once each, with the times they failed
 1	the fetch never asks a terminal for credentials
 1	the field lookup lives in one place
 1	the fifth is the answer file's name at its hash
@@ -2122,6 +2141,7 @@
 1	the log is durable state in the project
 1	the main checkout knows its own storage is not a rival
 1	the mandate does not claim more precision than measured
+1	the manifest variable reached the run
 1	the marketplace is added from the directory holding its manifest
 1	the mcp record aggregates a server across sessions
 1	the memory check is behind the verifier confine
@@ -2181,6 +2201,7 @@
 1	the row is in candidates.tsv under the widget's memory
 1	the rules print one line per data row, none for the header lines or the done row
 1	the run records the accepted rows as INFERRED with the file's hash as provenance
+1	the run row counts three failed, two passed, one skipped
 1	the run writes the receipt
 1	the same change merged to main with no new deployment is drift, exit 1
 1	the same facts in a different row order are the same topology
@@ -2222,6 +2243,7 @@
 1	the topology is back once the ignored file is gone
 1	the tree holds only the marker beside what was there
 1	the tree id is still the one the receipt names
+1	the tree's run executed against main's lib, never the base's own run
 1	the unmeasurable list takes the hook-only zero
 1	the widget's epoch is a hash
 1	the widget's probe table is exactly as this section found it
@@ -2295,9 +2317,11 @@
 1	wiring into a route that does not exist is refused
 1	wiring the same tool twice is refused
 1	with a fact and a table both moved, the fact is named first
+1	with both refs present origin/main is the default base
 1	with every log tracked, the form this replaced sees nothing to report
 2	with exit 0
 1	with its evidence whole
+1	with neither origin/main nor main to fall back on the red run cannot run, exit 2
 1	with no CLI and nothing bundled, Felix says it cannot tell
 1	with no CLI to ask and a newer entry on disk, the entry main declares is still the one compared
 1	with no checkout in front of it the row reads unchecked
@@ -2307,6 +2331,7 @@
 1	with no graphify installed the refresh runs nothing
 1	with no graphify-out beside the checkout it runs nothing
 1	with no probes.tsv the epoch cannot be computed, and every recorded row is stale
+1	with no run beside it the red run cannot run, exit 2
 1	with no session record it behaves as before
 1	with no stances taken, every item is a gap
 1	with nothing due it reports nothing

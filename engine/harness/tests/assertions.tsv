@@ -75,6 +75,7 @@
 1	a class outside the set is refused
 1	a clean checkout claims no rival gate
 1	a clean repo says so instead of minting a commit
+1	a commands directory main ships that the entry lacks is drift
 1	a comment added to it is still free
 1	a commissioning run seeds the ledger through the row's answer
 1	a commit in the checkout the graph was built from is due
@@ -113,6 +114,7 @@
 1	a deferral with no kind or no subject writes no row
 1	a denied command exits 2
 1	a deploy-check with no library beside it is 127, never 1
+1	a deploy-check with no library beside it is still 127 under the new question
 1	a deployed engine resolves the checkout, not itself
 1	a deployment matching the tree is not reported as drift
 1	a deployment that is not this tree is the first thing to fix
@@ -148,6 +150,7 @@
 1	a failing gate still exits non-zero
 1	a felix-answered row names felix as the actor
 1	a file facing a directory is a drift, whatever diff exits
+1	a file git ignores dropped into the entry is residue, not drift
 1	a file git ignores, left in the cache entry, is not drift
 1	a file that does not parse drops out of the roster without taking the rest
 1	a file under bin/ that begins with a shebang is a script, and its bare mode is caught
@@ -208,6 +211,8 @@
 1	a ledger shard under a memory directory fails
 1	a ledger written as one file is still read
 1	a leftover message draft does not stop the backup forever
+1	a library changed and committed on a branch is not drift
+1	a library changed in the working tree is not drift, because main did not change
 1	a live night is mounted into the next session's context
 1	a local-only branch is taken as given
 1	a lock whose owner is gone is taken over
@@ -503,7 +508,7 @@
 1	a trailing slash resolves the same
 1	a tree that changed is named before a fact that moved
 1	a tree that changed is named before a receipt with no epoch
-1	a tree the marketplace does not serve is not where this applies
+1	a tree the marketplace does not serve still applies, because the question is about main
 1	a tree with doctrine tracked and no memory is clean
 1	a truncated hooks.json is cannot-examine
 1	a typed intent is not labelled a guess
@@ -516,6 +521,7 @@
 1	a version it cannot parse is refused, not guessed
 1	a version main declares but nobody installed resolves to nothing
 1	a version main declares with no cache entry fails rather than skipping
+1	a version main declares with no cache entry is exit 1, not 2
 1	a wall of tree tokens cannot outvote the prompt
 1	a web surface counts without package.json
 1	a well-formed answer is answered
@@ -603,6 +609,7 @@
 1	an engine that is a checkout is its own source
 1	an engine under that path can deploy
 1	an engine whose every script carries its bit exits 0
+1	an entry for main's version tampered under harness is drift
 1	an entry with no path does not inherit the next entry's answer
 1	an entry with no such field yields nothing, not the next entry's value
 1	an envelope field name never does
@@ -799,6 +806,7 @@
 1	and commits nothing to it
 1	and components exits 0 even then
 1	and counts every control that did not apply, pass or fail
+1	and counts exactly that one
 2	and counts it
 1	and counts the recorded decline
 1	and counts what was held over the whole file too
@@ -814,9 +822,11 @@
 1	and does block a task
 1	and does not ask for a lesson that already exists
 1	and does not blame a checkout that did not move
+1	and does not call that unexaminable
 1	and does not claim to keep a note when there was none
 1	and does not claim to know which way the facts went
 1	and does not diagnose a cause it cannot see
+1	and does not hold on a machine with no felix cache
 1	and does not leave it as a bare dash
 1	and does not nag about ancient history
 1	and does not name a channel it never got to consult
@@ -901,19 +911,22 @@
 1	and it is not autonomous
 1	and it is reported as unusable, not unchecked
 1	and it is spelled with the symlinks taken out
-1	and it is the highest by version order, not the last by name
 1	and it is the lifecycle one
 1	and it is the usage text
 1	and it left no lock file beside the graph
 1	and it merges nothing
+1	and it names that entry
 1	and it names the cache entry felix merge would judge with
-1	and it names the cache it found
 1	and it names the command that clears it
+1	and it names the file under it
 1	and it names the literal that went missing
+1	and it names the tampered library
 1	and it names the tree that can, not a fault
 1	and it names which one
+1	and it prints cannot examine
 1	and it reaches merge as an escape, not as unknown
 1	and it registers rather than falling through to a refresh
+1	and it says matches
 1	and it says so where a reader must look
 1	and it says what would actually reach it
 1	and it still fails the gate
@@ -922,6 +935,7 @@
 1	and its actor is the word every other line uses
 1	and its base's workflow is not escalated as this branch's escape
 1	and its declines count as unchecked
+1	and its evidence cannot examine there
 1	and its evidence is never run
 1	and its evidence is never run behind an applicability nobody established
 1	and its evidence mode says the same
@@ -939,6 +953,7 @@
 1	and leaves a control its checker passes over held
 1	and leaves the recorded note as it was
 1	and lists every event its hooks object binds
+1	and main put back matches again
 1	and matches an ecosystem word on a word boundary
 1	and matches on keywords, not just names
 1	and matches what the holding checkout itself answers
@@ -948,12 +963,14 @@
 1	and names both tokens
 1	and names itself as the grant
 1	and names none when there is none
+1	and names origin's version as the one nothing is installed at
 1	and names the answer file to write
 1	and names the base it could not resolve
 1	and names the capability
 1	and names the channel
 1	and names the command that writes it
 1	and names the decline channel
+1	and names the entry main's version selects, not the highest or the live one
 1	and names the escape channel as where a person decides
 1	and names the habit
 1	and names the hook
@@ -1197,6 +1214,7 @@
 1	and so is a premise whose command does not exist
 1	and so is a second one
 1	and so is every other one
+1	and so is its evidence mode
 1	and so is no argument at all
 1	and so is ordinary work
 1	and so is project.json
@@ -1229,6 +1247,7 @@
 1	and strips a line range
 1	and surfaces nothing as new
 1	and survives a regeneration that was given none
+1	and tampered under hooks it is drift as well
 1	and tells the session which fact moved
 1	and that alone does not fail the gate
 1	and that field holds four members
@@ -1312,6 +1331,7 @@
 1	and the one enumeration cannot close
 1	and the one it cannot attribute is not folded either
 1	and the other three are still there beside it
+1	and the output names the version nothing is installed at
 1	and the page has a panel for it
 1	and the partly-countable list takes the mixed one
 1	and the path-less one still inherits nothing
@@ -1334,6 +1354,7 @@
 1	and the refusal is the gate's own
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
+1	and the report names the merged path
 1	and the report names the path
 1	and the report says how many fewer
 1	and the report says how much of the table asked nothing
@@ -1399,6 +1420,7 @@
 1	and whether git tracks it
 1	and which stand alone
 1	and with a fact moved as well, no epoch is still the reason given
+1	and with commands absent from both sides again it matches
 1	and with no deployment to compare against the evidence cannot examine
 1	and with the edit undone the tree id is back
 1	and with the fact back where it was, the same receipt allows again
@@ -1488,7 +1510,9 @@
 1	counts a package and its skill as one thing
 1	counts repeated calls once with a total
 1	counts what was blocked
-1	deploy-check --applies holds where a deployment exists and the marketplace serves this tree
+1	deploy-check --applies holds in a worktree the marketplace does not serve
+1	deploy-check --applies holds where a deployment exists and main can be read
+1	deploying main's engine at that version satisfies it
 1	detects from their manifest
 1	discover --adopt refills a cache the current rules did not write
 1	discover --adopt with no cache and no catalogue adopts nothing and says why
@@ -1538,7 +1562,7 @@
 1	extracts files from container-absolute paths
 1	failing gate propagates non-zero exit
 1	felix --help still answers usage
-1	felix admits engine_deployed as task-blocking, grounded on both facts it rests on
+1	felix admits engine_deployed as task-blocking, grounded on the one fact it rests on
 1	felix adopt --help answers with usage
 1	felix commission on a project without the table exits 1
 1	felix coverage answers
@@ -1622,6 +1646,7 @@
 1	hooks-events reads a hooks.json and exits 0
 1	identical deploys are clean before any stray lands
 1	ignores a file that does not exist
+1	in a repository with no main and no origin, --applies does not hold even with a cache
 1	in words
 1	inapplicable controls do not refuse the gate while every checker is shown failing
 1	including fields after it
@@ -1672,6 +1697,7 @@
 1	lists the skills a plugin ships
 1	lists what the fix must prove
 1	log writes to the devlog
+1	main's engine byte-identical to the entry for main's version is exit 0
 1	maintenance that is due is named
 1	mandates are counted only inside the answerable window
 1	matches the relevant lesson
@@ -1695,6 +1721,7 @@
 1	naming the entry point
 2	naming the file
 1	naming the gate it was removed from
+1	naming the hooks file
 1	naming the predicate that blocks
 1	naming the scanner nobody listed
 1	naming which check failed
@@ -1727,7 +1754,9 @@
 1	nor a semicolon
 1	nor does the key spelt inside a string, which a quote cannot open
 1	nor filler the router already discards
+1	nor is a file added to the working tree that git does not track
 1	nor is a system reminder
+1	nor is a version the branch declares that nothing installed
 1	nor is one from both
 1	nor one that declares no fail control at all
 1	nor one whose fail control applied and was held
@@ -1853,6 +1882,7 @@
 1	runs that all passed are clean
 1	runs with a failure are dirty
 1	runs with nothing to show accumulate
+1	saying cannot examine
 1	saying it does not parse
 1	saying seeding never overwrites
 1	saying so
@@ -2063,6 +2093,7 @@
 1	the row is awaiting, UNKNOWN by class
 1	the run records the accepted rows as INFERRED with the file's hash as provenance
 1	the run writes the receipt
+1	the same change merged to main with no new deployment is drift, exit 1
 1	the same facts in a different row order are the same topology
 1	the same file one level up fails by name, where the inline check was blind
 1	the same file with an unconfined line escapes
@@ -2138,7 +2169,6 @@
 1	when the live engine is not main's, the ok says which one is live
 1	which does not by itself fail the gate, since not applying is not a claim
 1	which is the number it printed
-1	which is the one that differs
 1	which takes it back to nothing stranded
 1	while --status reads straight through it
 1	while a complete stance is not called malformed
@@ -2173,16 +2203,19 @@
 1	with every log tracked, the form this replaced sees nothing to report
 2	with exit 0
 1	with no CLI and nothing bundled, Felix says it cannot tell
-1	with no CLI to ask, the highest cached version is what it compares against
+1	with no CLI to ask and a newer entry on disk, the entry main declares is still the one compared
 1	with no checkout in front of it the row reads unchecked
 1	with no cli call at all
 1	with no felix cache on the machine, installed is skipped
+1	with no felix cache the evidence cannot examine, exit 2
 1	with no graphify installed the refresh runs nothing
 1	with no graphify-out beside the checkout it runs nothing
 1	with no session record it behaves as before
 1	with no stances taken, every item is a gap
 1	with nothing due it reports nothing
 1	with nothing on record there is nothing to compare
+1	with origin/main a bump ahead of main, the check follows origin
+1	with origin/main level with main the verdict is unchanged
 1	with the critique step after it
 1	with the file's contents untouched
 1	with the newlines escaped, not lost

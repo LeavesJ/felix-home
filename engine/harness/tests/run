@@ -14322,6 +14322,170 @@ out="$(_grbg "$GRB" "$GRH" 2>&1)"; rc=$?
 is "and a graphify that fails outright does not reach the session" "$rc"  "0"
 is "nor print at it"                                               "$out" ""
 
+# ------------------------------------------------- red, the recorded red run ---
+# tests/red runs the calling tree's assertions against the engine a base commit
+# holds and writes down which of them fail, so a red assertion is a claim on
+# file rather than a surprise on CI. Written blind from the contract, against a
+# fixture repository rather than this checkout: its committed engine carries an
+# old marker and a run that announces itself if anything executes it; its
+# working tree moves the marker on, uncommitted, and brings a run that reads
+# its lib relative to its own path the way the real suite does. Against the
+# base's lib that run must go red on exactly the lib-derived assertions, and
+# against the tree's it would not — which is the whole point of the script.
+printf '\nred: the recorded red run\n'
+RED="$TMP/red"; mkdir -p "$RED/tmpdir"
+# The base's own run. It is never to be executed, and if it is, it leaves a
+# name behind that red.tsv would have to carry.
+_red_base_run() { cat <<'EOF'
+#!/usr/bin/env bash
+printf '  FAIL  the base run was executed\n'
+printf '0 passed, 1 failed\n'
+EOF
+}
+# The tree's run, suite-shaped: a header, a detail line under a failure that
+# must not read as a name, one name that fails twice, one upper-case name to
+# pin the C collation, a skip, and a totals line with or without a skipped
+# clause. It reports a manifest-shaped failure only when the variable red must
+# set is absent, so a red that forgot it shows one failure too many. It exits
+# 1 on any failure, as a real suite would, which red must not mistake for a
+# run that could not happen.
+_red_tree_run() { cat <<'EOF'
+#!/usr/bin/env bash
+HERE="$(cd "$(dirname "$0")" && pwd)"
+P=0; F=0; S=0
+printf 'marker suite\n\n'
+if grep -q new "$HERE/../lib/marker.sh"; then printf '  ok    a marker exists\n'; P=$((P+1))
+else printf '  FAIL  a marker exists\n        expected [new] got [old]\n'; F=$((F+1)); fi
+for i in 1 2; do
+  if grep -q new "$HERE/../lib/marker.sh"; then printf '  ok    Each pass sees the new marker\n'; P=$((P+1))
+  else printf '  FAIL  Each pass sees the new marker\n'; F=$((F+1)); fi
+done
+printf '  ok    always fine\n'; P=$((P+1))
+printf '  ok    a new assertion the tree added\n'; P=$((P+1))
+[ -z "${FELIX_TEST_NO_MANIFEST:-}" ] && { printf '  FAIL  assertion did not run: x\n'; F=$((F+1)); }
+printf '  skip  needs claude (no cli)\n'; S=$((S+1)) # SKIPLINE
+if [ "$S" -gt 0 ]; then printf '%d passed, %d failed, %d skipped\n' "$P" "$F" "$S"
+else printf '%d passed, %d failed\n' "$P" "$F"; fi
+[ "$F" -eq 0 ]
+EOF
+}
+# dir branch version: a repository whose one commit holds the old marker, the
+# base's run, the red under test, and a red.tsv making a claim that is stale.
+_red_seed() {
+  mkdir -p "$1/engine/.claude-plugin" "$1/engine/harness/lib" "$1/engine/harness/tests"
+  printf '{\n  "name": "felix",\n  "description": "fixture",\n  "version": "%s"\n}\n' "$3" > "$1/engine/.claude-plugin/plugin.json"
+  printf 'marker=old\n' > "$1/engine/harness/lib/marker.sh"
+  _red_base_run > "$1/engine/harness/tests/run"; chmod +x "$1/engine/harness/tests/run"
+  cp "$FROOT/harness/tests/red" "$1/engine/harness/tests/red"
+  printf '# stale\nbase\tmain\tdeadbeef\t0.0.0\nrun\t1\t0\t0\nstale claim\t9\n' > "$1/engine/harness/tests/red.tsv"
+  ( cd "$1" && git init -q -b "$2" && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+}
+# dir [skips]: the working tree moves on without a commit — a new marker, the
+# tree's run, and a version the base does not declare.
+_red_dirty() {
+  printf 'marker=new\n' > "$1/engine/harness/lib/marker.sh"
+  if [ "${2:-}" = skips ]; then _red_tree_run; else _red_tree_run | grep -v SKIPLINE; fi > "$1/engine/harness/tests/run"
+  printf '{\n  "name": "felix",\n  "description": "fixture",\n  "version": "9.9.9"\n}\n' > "$1/engine/.claude-plugin/plugin.json"
+}
+# dir cmd...: stdout to $RED/out, exit status to $RED/rc. The manifest variable
+# is unset on the way in, because the suite running this block may carry it,
+# and the run under test must set it itself. TMPDIR is a directory of this
+# block's own, so what red leaves behind can be counted.
+_red()      { ( cd "$1" && shift && env -u FELIX_TEST_NO_MANIFEST TMPDIR="$RED/tmpdir" "$@" >"$RED/out" 2>"$RED/err"; echo $? >"$RED/rc" ); }
+_red_rc()   { cat "$RED/rc"; }
+_red_sum()  { grep '^red: ' "$RED/out" | head -1 | sed 's/ ([0-9a-f]*) / (SHA) /'; }
+_red_sha()  { grep '^red: ' "$RED/out" | head -1 | sed -n 's/.* (\([0-9a-f]*\)) at engine.*/\1/p'; }
+_red_body() { grep -v '^#' "$1/engine/harness/tests/red.tsv" 2>/dev/null; }
+_red_stat() { ( cd "$1" && git status --porcelain | grep -v 'red\.tsv' ); }
+# full short: yes when short is a non-empty prefix of full at least 7 long.
+_red_abbr() { case "$1" in "$2"*) [ "${#2}" -ge 7 ] && echo yes ;; esac; }
+if [ -x "$FROOT/harness/tests/red" ]; then
+  _red_seed "$RED/repo" main 0.0.7; _red_dirty "$RED/repo" skips
+  RSHA="$(cd "$RED/repo" && git rev-parse main)"
+  before="$(_red_stat "$RED/repo")"
+  _red "$RED/repo" engine/harness/tests/red
+  is  "a red run against main exits 0 once the suite has run" "$(_red_rc)" "0"
+  is  "and stdout is the one summary line" "$(awk 'END{print NR}' "$RED/out")" "1"
+  is  "and the summary counts three of six assertions failing against main at the engine version main declares" \
+      "$(_red_sum)" "red: 3 of 6 assertions fail against main (SHA) at engine 0.0.7"
+  is  "and the sha it parenthesises abbreviates main's commit" "$(_red_abbr "$RSHA" "$(_red_sha)")" "yes"
+  is  "the base row names main, its full sha and the version at that commit, not the tree's" \
+      "$(_red_body "$RED/repo" | sed -n 1p)" "$(printf 'base\tmain\t%s\t0.0.7' "$RSHA")"
+  is  "the run row counts three failed, two passed, one skipped" "$(_red_body "$RED/repo" | sed -n 2p)" "$(printf 'run\t3\t2\t1')"
+  is  "the failed names follow in c order, once each, with the times they failed" \
+      "$(_red_body "$RED/repo" | sed -n '3,$p')" "$(printf 'Each pass sees the new marker\t2\na marker exists\t1')"
+  is  "the tree's run executed against main's lib, never the base's own run" \
+      "$(grep -c 'the base run was executed' "$RED/repo/engine/harness/tests/red.tsv")" "0"
+  is  "the manifest variable reached the run" "$(grep -c 'assertion did not run' "$RED/repo/engine/harness/tests/red.tsv")" "0"
+  is  "a stale red.tsv is overwritten, not appended to" "$(grep -c 'stale claim' "$RED/repo/engine/harness/tests/red.tsv")" "0"
+  is  "nothing in the tree but red.tsv changed" "$(_red_stat "$RED/repo")" "$before"
+  is  "and no temporary directory is left under the tmpdir it was given" "$(ls -A "$RED/tmpdir" | wc -l | tr -d ' ')" "0"
+  # A second repository with no main and no origin: standing inside it while
+  # calling the first's red by absolute path, a red that read $PWD would find
+  # no base and retract; and red.tsv is removed first so a stale row cannot
+  # answer for a run that wrote elsewhere.
+  _red_seed "$RED/trunk" trunk 0.0.9; _red_dirty "$RED/trunk"
+  rm -f "$RED/repo/engine/harness/tests/red.tsv"
+  _red "$RED/trunk" "$RED/repo/engine/harness/tests/red"
+  is  "invoked from inside another repository it still reads its own" \
+      "$(_red_body "$RED/repo" | sed -n 1p)" "$(printf 'base\tmain\t%s\t0.0.7' "$RSHA")"
+  _red "$RED/repo/engine/harness/lib" ../tests/red
+  is  "invoked by a relative path from a subdirectory it still finds its root" \
+      "$(_red_sum)" "red: 3 of 6 assertions fail against main (SHA) at engine 0.0.7"
+  # The trunk repository: an explicit ref works where the defaults would not,
+  # its run prints no skipped clause, and then the defaults are tried.
+  _red "$RED/trunk" engine/harness/tests/red trunk
+  is  "an explicit base argument names the ref to run against" "$(_red_sum)" "red: 3 of 5 assertions fail against trunk (SHA) at engine 0.0.9"
+  is  "and a totals line without a skipped clause records skipped as 0" "$(_red_body "$RED/trunk" | sed -n 2p)" "$(printf 'run\t3\t2\t0')"
+  _red "$RED/trunk" engine/harness/tests/red
+  is  "with neither origin/main nor main to fall back on the red run cannot run, exit 2" "$(_red_rc)" "2"
+  has "and says so on stdout" "$(cat "$RED/out")" "red: not run: "
+  is  "and red.tsv retracts the earlier claim rather than keeping it" "$(_red_body "$RED/trunk")" "$(printf 'base\t-\t-\t-\nrun\t-\t-\t-')"
+  # No run beside red: main resolves, so the only thing missing is the suite.
+  _red_seed "$RED/norun" main 0.0.7; rm -f "$RED/norun/engine/harness/tests/run"
+  _red "$RED/norun" engine/harness/tests/red
+  is  "with no run beside it the red run cannot run, exit 2" "$(_red_rc)" "2"
+  is  "and the file then states that no red run was possible" "$(_red_body "$RED/norun")" "$(printf 'base\t-\t-\t-\nrun\t-\t-\t-')"
+  # A clone of the first repository, so origin/main exists, then a commit on
+  # its main that moves the marker and the version: the two refs now disagree,
+  # and only one of them makes the tree's run pass.
+  git clone -q "$RED/repo" "$RED/clone" >/dev/null 2>&1
+  printf '{\n  "name": "felix",\n  "description": "fixture",\n  "version": "0.0.8"\n}\n' > "$RED/clone/engine/.claude-plugin/plugin.json"
+  printf 'marker=new\n' > "$RED/clone/engine/harness/lib/marker.sh"
+  ( cd "$RED/clone" && git -c user.name=t -c user.email=t@t commit -qam bump ) >/dev/null 2>&1
+  CSHA="$(cd "$RED/clone" && git rev-parse main)"
+  _red_dirty "$RED/clone" skips
+  _red "$RED/clone" engine/harness/tests/red
+  is  "with both refs present origin/main is the default base" \
+      "$(_red_body "$RED/clone" | sed -n 1p)" "$(printf 'base\torigin/main\t%s\t0.0.7' "$RSHA")"
+  _red "$RED/clone" engine/harness/tests/red main
+  is  "naming main explicitly runs against the local branch, whose lib the tree's run passes" \
+      "$(_red_body "$RED/clone")" "$(printf 'base\tmain\t%s\t0.0.8\nrun\t0\t5\t1' "$CSHA")"
+  is  "and zero failures is still exit 0" "$(_red_rc)" "0"
+  is  "and the summary then counts zero of six" "$(_red_sum)" "red: 0 of 6 assertions fail against main (SHA) at engine 0.0.8"
+else
+  for a in "a red run against main exits 0 once the suite has run" "and stdout is the one summary line" \
+           "and the summary counts three of six assertions failing against main at the engine version main declares" \
+           "and the sha it parenthesises abbreviates main's commit" \
+           "the base row names main, its full sha and the version at that commit, not the tree's" \
+           "the run row counts three failed, two passed, one skipped" \
+           "the failed names follow in c order, once each, with the times they failed" \
+           "the tree's run executed against main's lib, never the base's own run" \
+           "the manifest variable reached the run" "a stale red.tsv is overwritten, not appended to" \
+           "nothing in the tree but red.tsv changed" "and no temporary directory is left under the tmpdir it was given" \
+           "invoked from inside another repository it still reads its own" \
+           "invoked by a relative path from a subdirectory it still finds its root" \
+           "an explicit base argument names the ref to run against" \
+           "and a totals line without a skipped clause records skipped as 0" \
+           "with neither origin/main nor main to fall back on the red run cannot run, exit 2" \
+           "and says so on stdout" "and red.tsv retracts the earlier claim rather than keeping it" \
+           "with no run beside it the red run cannot run, exit 2" "and the file then states that no red run was possible" \
+           "with both refs present origin/main is the default base" \
+           "naming main explicitly runs against the local branch, whose lib the tree's run passes" \
+           "and zero failures is still exit 0" "and the summary then counts zero of six"; do
+    skip "$a" "no tests/red beside this harness"; done
+fi
+
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.
 #

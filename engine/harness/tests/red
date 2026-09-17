@@ -12,13 +12,23 @@
 # against a named commit, so "N assertions fail against the previous engine" is
 # a diff on red.tsv that anybody reproduces with the same command.
 #
-# What it does: extracts the base commit's whole tree — libraries, bin
-# scripts, gate, tables, hooks — into a temporary directory, puts THIS tree's
-# tests/run into it, and runs that. So the assertions are the tree's and the
-# engine is the base's, which is exactly the run a reviewer would do by hand.
-# The base's own tests/run never executes. The manifest comparison is off for
-# that run (FELIX_TEST_NO_MANIFEST=1): "assertion did not run" against the
-# base's manifest would count as red, and it is not.
+# What it does: checks the base commit out whole — libraries, bin scripts,
+# gate, tables, hooks — as a detached worktree under a temporary directory,
+# puts THIS tree's tests/run into it, and runs that. So the assertions are the
+# tree's and the engine is the base's, which is exactly the run a reviewer
+# would do by hand. The base's own tests/run never executes. The manifest
+# comparison is off for that run (FELIX_TEST_NO_MANIFEST=1): "assertion did
+# not run" against the base's manifest would count as red, and it is not.
+#
+# A worktree and not an archive, measured: the first version unpacked
+# `git archive` and read 2 of 2357 red against a base whose engine was
+# byte-identical to the tree's. Both were assertions that ask git about the
+# checkout the suite stands in — the independence scanner's `git ls-files`,
+# deploy-check's base ref — and an archive has no repository to answer, so
+# they failed for the wrong reason and would have inflated every count since.
+# The worktree is removed on the way out, whatever happened, and stale
+# metadata is pruned; a red run killed mid-way leaves an entry `git worktree
+# prune` clears.
 #
 # What it writes: red.tsv beside this script, whole, every time —
 #   base   <ref>  <sha>  <engine version at the base>
@@ -60,13 +70,32 @@ _header() {
   printf '# A base of - means no red run was possible. Reproduce with: tests/red <ref>\n'
 }
 
+# Every write to red.tsv lands whole or not at all: a sibling file, then one
+# rename. A truncate-then-write that died half way would leave base and run
+# rows with the failed names missing below them, which reads as zero
+# regressions when there were some — the one shape this file must never take.
+# A write that fails is said, not swallowed; what is on disk then is whatever
+# the retraction below already put there.
+_put() {   # stdin -> red.tsv, atomically
+  cat > "$OUT.tmp" && mv -f "$OUT.tmp" "$OUT"
+}
+
 # Nothing was shown. Said in the file, not only on the terminal, because a
 # red.tsv left over from the previous change is the previous change's claim.
 _none() {
-  { _header; printf 'base\t-\t-\t-\nrun\t-\t-\t-\n'; } > "$OUT" 2>/dev/null
+  { _header; printf 'base\t-\t-\t-\nrun\t-\t-\t-\n'; } | _put \
+    || printf 'red: could not write %s\n' "$OUT" >&2
   printf 'red: not run: %s\n' "$1"
   exit 2
 }
+
+# Retract FIRST, before anything that can take minutes or be killed. A run
+# ended by a signal nothing here can trap — kill -9, an out-of-memory kill, a
+# runner's hard timeout — reaches neither write below, and until this line
+# existed such a run left the previous change's claim on disk, current-looking
+# and false. From here on, a red.tsv that is not this run's result says so.
+{ _header; printf 'base\t-\t-\t-\nrun\t-\t-\t-\n'; } | _put \
+  || { printf 'red: not run: could not write %s\n' "$OUT"; exit 2; }
 
 ROOT="$(git -C "$HERE" rev-parse --show-toplevel 2>/dev/null)" || _none "$HERE is not inside a git repository"
 [ -f "$HERE/run" ] || _none "no tests/run beside $HERE/red"
@@ -84,20 +113,34 @@ VER="$(git -C "$ROOT" show "$SHA:engine/.claude-plugin/plugin.json" 2>/dev/null 
 [ -n "$VER" ] || VER="-"
 
 TMP="$(mktemp -d 2>/dev/null)" || _none "no temporary directory"
-trap 'rm -rf "$TMP"' EXIT
-mkdir -p "$TMP/tree" || _none "could not make $TMP/tree"
+TREE="$TMP/tree"
+_cleanup() {
+  git -C "$ROOT" worktree remove --force "$TREE" >/dev/null 2>&1
+  git -C "$ROOT" worktree prune >/dev/null 2>&1
+  rm -rf "$TMP"
+}
+trap _cleanup EXIT
 # The whole commit, not engine/ alone: the suite reads the repository's own
-# gate, tables, hooks and commands through REAL_HARNESS/../.., and an archive
+# gate, tables, hooks and commands through REAL_HARNESS/../.., and a tree
 # missing them would skip those assertions and call the skip a verdict.
-git -C "$ROOT" archive "$SHA" 2>/dev/null | tar -x -C "$TMP/tree" 2>/dev/null \
-  || _none "could not read the tree at $BASE"
-mkdir -p "$TMP/tree/engine/harness/tests" 2>/dev/null
-cp "$HERE/run" "$TMP/tree/engine/harness/tests/run" 2>/dev/null \
+# Judged by what is on disk, not by the exit status: a post-checkout hook
+# that fails makes `worktree add` exit 1 over a checkout that is complete and
+# registered, and this repository is entitled to grow such a hook.
+git -C "$ROOT" worktree add --detach "$TREE" "$SHA" >/dev/null 2>&1
+[ -d "$TREE/engine/harness" ] && git -C "$TREE" rev-parse --verify --quiet HEAD >/dev/null 2>&1 \
+  || _none "could not check out $BASE under $TMP"
+mkdir -p "$TREE/engine/harness/tests" "$TMP/t" 2>/dev/null
+cp "$HERE/run" "$TREE/engine/harness/tests/run" 2>/dev/null \
   || _none "could not place tests/run into the tree at $BASE"
 
+# The suite makes its own temporary root with mktemp, and everything it
+# spawns names paths under it. Pointed under this run's directory, so that
+# root is removed with this run and a process still holding any of it is
+# findable by one pattern — the path, with its regex metacharacters escaped,
+# since mktemp's own template puts a dot in it.
 LOG="$TMP/red.log"
-( cd "$TMP/tree" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$LOG" 2>&1
-pkill -9 -f "$TMP" >/dev/null 2>&1
+( cd "$TREE" && TMPDIR="$TMP/t" FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$LOG" 2>&1
+pkill -9 -f "$(printf '%s' "$TMP" | sed 's/[][\\.*^$(){}+?|]/\\&/g')" >/dev/null 2>&1
 
 PASSED="$(grep -c '^  ok    ' "$LOG")"
 FAILED="$(grep -c '^  FAIL  ' "$LOG")"
@@ -112,7 +155,7 @@ SKIPPED="$(grep -c '^  skip  ' "$LOG")"
   # suite legitimately appear more than once, and a count keeps that visible.
   sed -n 's/^  FAIL  //p' "$LOG" | LC_ALL=C sort | uniq -c \
     | sed 's/^[[:space:]]*\([0-9][0-9]*\) \(.*\)$/\2	\1/'
-} > "$OUT" || _none "could not write $OUT"
+} | _put || _none "could not write $OUT"
 
 printf 'red: %s of %s assertions fail against %s (%.7s) at engine %s\n' \
   "$FAILED" "$((PASSED + FAILED + SKIPPED))" "$BASE" "$SHA" "$VER"

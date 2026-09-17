@@ -1,0 +1,8 @@
+# The red run: this tree's assertions against the engine the base ref holds,
+# written whole by tests/red, which tests/run --record-assertions calls.
+#   base  <ref>  <sha>  <engine version there>
+#   run   <failed>  <passed>  <skipped>        lines counted, not the summary
+#   <assertion name>  <times it failed>        failed names only
+# A base of - means no red run was possible. Reproduce with: tests/red <ref>
+base	origin/main	392289d91f2e5b9cf5b7e7f267a503332ec195e4	0.49.117
+run	0	2358	25

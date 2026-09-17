@@ -139,6 +139,7 @@
 1	a directory is cannot-examine, not an empty binding
 1	a directory merely named memory, holding doctrine, outside projects/, is not memory
 1	a directory missing from one side is a drift
+1	a directory only the cache holds, with nothing in it but residue, is residue
 1	a directory that does not exist yields no digest
 1	a directory that exists but holds no files yields no digest
 1	a dirty memory repo is committed
@@ -424,6 +425,8 @@
 1	a repair that failed says so
 1	a repo copy of a file Felix holds is reported
 1	a repository that is not the memory's own is named foreign
+1	a resolve.sh committed on the branch being gated does not change the verdict
+1	a resolve.sh stubbed in the cache entry is drift, not the judge
 1	a revision expression is taken as given
 1	a rollup rewrites no file another session wrote
 1	a root nothing has stamped reads as none
@@ -577,6 +580,7 @@
 1	adopting twice is a no-op
 1	advances to the next step once the first is used
 1	after commissioning the gate line reads ok
+1	after the fold, a tampered cache entry still fails
 1	all clean counts them all
 1	all of them
 1	already-installed rows report present
@@ -678,6 +682,7 @@
 1	an ordinary failure is still written down
 1	an overlap is said as an overlap, not as a negative remainder
 1	an unborn default base refuses rather than previews
+1	an uncommitted resolve.sh in the working tree does not change the verdict
 1	an unconsidered moment is named
 1	an undeclared capability is still never scored
 1	an undeclared tool is reported, not hidden
@@ -762,6 +767,7 @@
 1	and a listing with a match still scores it
 1	and a live one says when it was last caught
 1	and a machine that binds nothing is an empty roster, not an error
+1	and a main copy that reports identical is believed over the cache entry
 1	and a medium one is still refused
 1	and a name
 1	and a non-zero status too
@@ -893,7 +899,6 @@
 1	and field 2 is still the verdict
 1	and field 4 is still the gate
 1	and fields 5 and 6 still say nothing skipped and no roster, as dashes
-1	and filters residue through the same ignore rule
 1	and flipping it back restores the digest
 1	and folding them takes it to zero
 1	and for the built-in too, because nothing can tell which was meant
@@ -1007,6 +1012,8 @@
 1	and names the decline channel
 1	and names the entry main's version selects, not the highest or the live one
 1	and names the escape channel as where a person decides
+1	and names the function it could not find
+1	and names the function it could not source
 1	and names the habit
 1	and names the hook
 1	and names the path that differs
@@ -1079,6 +1086,8 @@
 1	and nothing is merged when it lands there
 1	and nothing matching scores nil
 1	and nothing reached the remote
+1	and nothing the branch's copy printed reaches the output
+1	and nothing the working tree's copy printed reaches the output
 1	and nothing unusable
 1	and nothing was committed
 1	and nothing was committed onto it
@@ -1137,6 +1146,7 @@
 1	and reads HEAD, not the checkout's uncommitted files
 1	and reads as a requirement
 1	and reads current, because it rests on the same facts a gate would have recorded
+1	and reads it from the base ref's resolve.sh
 1	and reads its words off the capability probe
 1	and reads only mcp rows
 1	and reads stale whatever its age
@@ -1261,7 +1271,6 @@
 1	and so is no argument at all
 1	and so is ordinary work
 1	and so is project.json
-1	and so is the content-drift arm
 1	and so is the other one
 1	and stack.sh alone can too
 1	and staging the test closes the gap — the case that started this
@@ -1296,6 +1305,7 @@
 1	and tampered under hooks it is drift as well
 1	and tells the session which fact moved
 1	and that alone does not fail the gate
+1	and that copy is the only library the block sources
 1	and that field holds four members
 1	and that is a failure, not a path it might make up
 1	and that is more than one, so the count is doing work
@@ -1416,6 +1426,7 @@
 1	and the repository is back to where it started
 1	and the request carries the topology it is for
 1	and the residue is not
+1	and the residue rule is the library's alone
 1	and the rest of the file is untouched
 1	and the reviewed one is cleared by it
 1	and the route its path named is not taken
@@ -1472,12 +1483,14 @@
 1	and there is at least one of them
 1	and under its own name it is current
 1	and what a fix will have to prove
+1	and what main's copy printed reaches the output
 1	and what the engine tiered medium holds
 1	and what was detected
 1	and what was typed still counts
 1	and whether git tracks it
 1	and which stand alone
 1	and with a fact moved as well, no epoch is still the reason given
+1	and with a real file in it, it is drift
 1	and with commands absent from both sides again it matches
 1	and with no deployment to compare against the evidence cannot examine
 1	and with the edit undone the tree id is back
@@ -1665,6 +1678,7 @@
 1	felix's hook_binding probe reads through hooks-events, not a grep
 1	felix's own first obligation is discharged on this tree
 1	felix's own gate no longer carries a private copy of the check
+1	felix's own gate no longer carries a private copy of the deploy comparison
 1	felix_autonomy_allows is defined for the hook
 1	felix_budget_record itself reports the failure
 1	felix_classify_diff reports unknown, not empty
@@ -1771,6 +1785,7 @@
 1	lists what the fix must prove
 1	log writes to the devlog
 1	main's engine byte-identical to the entry for main's version is exit 0
+1	main's resolve.sh decides the installed verdict
 1	maintenance that is due is named
 1	mandates are counted only inside the answerable window
 1	matches the relevant lesson
@@ -2067,7 +2082,6 @@
 1	the cache already there is untouched
 1	the cache hands back the digest recorded beside a name
 1	the cache row carries the capability the skills serve
-1	the cache-side arm is present in the gate's copy
 1	the candidate fixture's epoch is a hash
 1	the capabilities file is untouched
 1	the capability probe yields ecosystem words to check for
@@ -2116,7 +2130,7 @@
 1	the gate announces a stale receipt and does not fail on it
 1	the gate carries the ecosystem check too
 1	the gate's executable check passes when every script under bin/ has its bit
-1	the gate's installed check covers the same three directories
+1	the gate's installed check asks the one reader, felix_accepted_deploy_diff
 1	the generic reader reads a seven-field answer as answered, not as five fields short
 1	the graph is graphify-out/graph.json under the holding checkout
 1	the graph's home is the checkout that holds the repository
@@ -2283,6 +2297,8 @@
 1	what it kept is what it sent
 1	what no route named is not a compliance figure
 1	what the engine tiered low installs
+1	when main has no resolve.sh to read, installed fails rather than skipping
+1	when main's resolve.sh does not define the check, installed fails rather than skipping
 1	when the live engine is not main's, the ok says which one is live
 1	which does not by itself fail the gate, since not applying is not a claim
 1	which is the number it printed

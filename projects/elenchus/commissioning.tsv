@@ -47,3 +47,4 @@ baseline	-	gh	-	-	cmd_bootstrap 2>/dev/null | grep -q 'Baseline already in place
 human_steps	-	-	-	-	test -f "$FELIX_PROJECT/setup.tsv" && [ "$(felix_setup_status "$FELIX_PROJECT" | grep -c "^todo$(printf '\t')")" -eq 0 ]	6
 constitution_audited	-	-	-	provider:claude-md-management:claude-md-improver	-	4
 automation_surveyed	-	-	-	provider:claude-code-setup:claude-automation-recommender	-	4
+obligations_surveyed	-	-	-	provider:felix:obligations	-	4

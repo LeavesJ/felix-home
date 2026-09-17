@@ -145,6 +145,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/facts.sh"
 . "${SCRIPT_DIR}/lib/commission.sh"
 . "${SCRIPT_DIR}/lib/commission-provider.sh"
+. "${SCRIPT_DIR}/lib/candidates.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -203,7 +204,7 @@ specific project, language, or toolchain.
     felix pulse [--install|--uninstall] back up memory, report what waits; --install schedules it daily
     felix procedures      what each moment must answer for, and what nothing answers yet
     felix probes [--gate] what reality says about this checkout, and what nothing asks
-    felix obligations [--gate] what this project has admitted it owes, and whether it owes it here
+    felix obligations [--gate|--request] what this project has admitted it owes, and whether it owes it here; --request asks a session to propose what nobody named
     felix epoch            the decision epoch those obligations are scoped to, and what would make a new one
     felix commission [--status] the first-encounter moment: what serves this checkout, what reaches it, what a person still owes
     felix adopt <cap>      declare a capability and everything it implies
@@ -4312,15 +4313,35 @@ EOF
 }
 
 cmd_obligations() {
-  resolve_or_die; local proj="$PROJ" gate=0 seed=0 a
+  resolve_or_die; local proj="$PROJ" gate=0 seed=0 request=0 a
   for a in "$@"; do
     case "$a" in
       --gate) gate=1 ;;
       --seed) seed=1 ;;
-      *) die "usage: felix obligations [--gate|--seed] (got: $a)" ;;
+      --request) request=1 ;;
+      *) die "usage: felix obligations [--gate|--seed|--request] (got: $a)" ;;
     esac
   done
   local root; root="$(felix_repo_root "$PWD")"
+
+  # --request: write the discovery request for a session's model to answer
+  # (docs/2026-09-16-discovery-baseline-design.md). felix commission writes
+  # every provider request on a real run and is the founder's; this writes
+  # the one for candidate obligations, touches no table, and is therefore
+  # Felix's to run whenever the epoch has moved. Refused when the epoch cannot
+  # be computed: a request about a topology the probes could not read would
+  # ask for a proposal grounded on nothing.
+  if [ "$request" -eq 1 ]; then
+    local req
+    if req="$(felix_candidates_request "$proj" "$root" "$SCRIPT_DIR/templates")"; then
+      printf 'wrote %s\n\nA session answers it by running the request and writing the answer file\n' "$req"
+      printf 'it names; felix obligations reads the answer back and admits nothing.\n'
+      return 0
+    fi
+    printf 'no request written: the decision epoch cannot be computed for %s here,\n' "$(basename "$proj")"
+    printf 'so nothing could be proposed about it. felix probes says which fact is unknown.\n'
+    return 1
+  fi
 
   # --seed: the §8 step 8 answer, "initialize obligation and evidence state".
   # A project born before the template existed has no ledger, and a ledger
@@ -4401,6 +4422,27 @@ cmd_obligations() {
   if [ "$gate" -ne 1 ]; then
     local ep; ep="$(felix_epoch "$proj" "$root")" || ep=""
     [ -n "$ep" ] && printf '\nscoped to decision epoch %s\n' "$ep"
+    # What a model proposed, and nothing admitted. Ingested here on every
+    # read rather than in a hook, so the file a session wrote is read the
+    # first time anyone asks; reported only in the report, never under
+    # --gate, because the gate's copy of this output is parsed.
+    if [ -f "$(felix_candidates_answer_path "$proj")" ] || [ -f "$(felix_candidates_path "$proj")" ]; then
+      felix_candidates_record "$proj" "$root" >/dev/null 2>&1
+      local cands refused n_c n_cur n_adm
+      cands="$(felix_candidates_stale "$proj" "$root")"
+      refused="$(felix_candidates_rules "$proj" "$root" | awk -F'\t' '$1 == "refuse" { print $2 ": " $3 }')"
+      n_c="$(printf '%s\n' "$cands" | grep -c .)"
+      n_cur="$(printf '%s\n' "$cands" | awk -F'\t' '$2 == "current"' | grep -c .)"
+      n_adm="$(printf '%s\n' "$rows" | grep -c .)"
+      printf '\ncandidates: %s proposed, %s under this epoch, none admitted by the engine\n' "$n_c" "$n_cur"
+      printf '%s\n' "$cands" | awk -F'\t' 'NF == 2 { printf "  %-22s %s\n", $1, $2 }'
+      if [ -n "$refused" ]; then
+        printf '\n  refused, with the reason\n'
+        printf '%s\n' "$refused" | sed 's/^/    /'
+      fi
+      printf '\ndiscovered %s, admitted %s. A candidate is admitted by a person copying its\n' "$n_c" "$n_adm"
+      printf 'row into %s/obligations.tsv and committing; the engine never does.\n' "$proj"
+    fi
   fi
   if [ "$gate" -eq 1 ]; then
     [ "$n_block" -eq 0 ] && [ -z "$bad" ] && [ -z "$orphans" ] || return 1

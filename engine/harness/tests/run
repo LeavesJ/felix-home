@@ -55,7 +55,12 @@ FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"
 # The manifest of assertions this suite is supposed to reach, beside the suite
 # and tracked. Regenerated with `tests/run --record-assertions`, which is the
 # one command that changes it, so the diff on every PR says plainly which
-# assertions were added and which were removed.
+# assertions were added and which were removed. The same command then runs
+# tests/red, which writes red.tsv beside it: this suite against the engine the
+# base ref holds, so "N fail against the previous engine" is a file in the
+# tree and not a sentence in a pull request. FELIX_TEST_NO_MANIFEST=1 is how
+# that red run asks this suite not to compare itself against a manifest that
+# describes another tree.
 FELIX_TEST_MANIFEST="$HERE/assertions.tsv"
 FELIX_TEST_RECORD=0
 [ "${1:-}" = "--record-assertions" ] && { FELIX_TEST_RECORD=1; shift; }
@@ -14336,6 +14341,22 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
   cp "$_ran_counts" "$FELIX_TEST_MANIFEST"
   printf '  recorded %s assertions to %s\n' \
     "$(awk -F'\t' '{s+=$1} END {print s+0}' "$_ran_counts")" "$FELIX_TEST_MANIFEST"
+  # And the red run, so the manifest and the count it was shown red with are
+  # written by one command and travel in one diff. Its exit status is its own:
+  # a red run that could not be made is said in red.tsv and does not turn a
+  # green suite red.
+  if [ -x "$HERE/red" ]; then
+    "$HERE/red" 2>&1 | sed 's/^/  /'
+  else
+    printf '  no tests/red beside this suite: red.tsv not written\n'
+  fi
+elif [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then
+  # The red run: this suite is executing inside the base's tree, whose
+  # manifest describes the base's assertions. Comparing against it would
+  # report every assertion this tree added as one the base never reached,
+  # through bad(), and that would be counted as red. Nothing is compared, and
+  # the line says so rather than reading as a manifest that matched.
+  printf '  manifest comparison off (FELIX_TEST_NO_MANIFEST): this is a red run\n'
 elif [ -f "$FELIX_TEST_MANIFEST" ]; then
   # Emitted through bad(), so these are `  FAIL` lines. That matters: the gate
   # prints only the last line of a passing suite, and greps for `^  FAIL` when

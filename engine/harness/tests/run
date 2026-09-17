@@ -7645,36 +7645,37 @@ _dckc() { ( cd "$DCKT" && HOME="$DCK/home"   PATH="$DCK/nobin:/usr/bin:/bin" eng
 # so every exit-1 assertion here was green for a script that could not start.
 _rc() { printf '%s' "${1##*rc=}"; }
 if [ -x "$DCKT/engine/harness/bin/deploy-check" ]; then
-  is  "deploy-check --applies holds where a deployment exists and the marketplace serves this tree" "$(_rc "$(_dck --applies)")" "0"
+  is  "deploy-check --applies holds where a deployment exists and main can be read" "$(_rc "$(_dck --applies)")" "0"
   out="$(_dck)"
   has "and a tree byte-identical to the deployed engine matches" "$out" "matches"
   is  "with exit 0" "$(_rc "$out")" "0"
+  # Committed on main: the question is main's engine against main's entry, so
+  # a library changed in the working tree is not drift and one merged is.
   printf '# drift\n' >> "$DCKT/engine/harness/lib/say.sh"
+  ( cd "$DCKT" && git -c user.name=t -c user.email=t@t commit -qam drift ) >/dev/null 2>&1
   out="$(_dck)"
   is  "a changed library is drift, exit 1" "$(_rc "$out")" "1"
   has "and the report names the path" "$out" "say.sh"
   has "and counts it" "$out" "1 path(s) differ"
-  ( cd "$DCKT" && git checkout -q -- engine/harness/lib/say.sh )
-  printf 'x\n' > "$DCKT/engine/harness/scratch.log"
+  ( cd "$DCKT" && git reset -q --hard HEAD~1 )
+  printf 'x\n' > "$DCK/home/.claude/plugins/cache/felix/felix/0.0.1/harness/scratch.log"
   is  "what git ignores is not drift" "$(_rc "$(_dck)")" "0"
-  rm -f "$DCKT/engine/harness/scratch.log"
+  rm -f "$DCK/home/.claude/plugins/cache/felix/felix/0.0.1/harness/scratch.log"
   printf '{\n  "felix": {\n    "installLocation": "/somewhere/else"\n  }\n}\n' > "$DCK/home/.claude/plugins/known_marketplaces.json"
-  is  "a tree the marketplace does not serve is not where this applies" "$(_rc "$(_dck --applies)")" "1"
+  is  "a tree the marketplace does not serve still applies, because the question is about main" "$(_rc "$(_dck --applies)")" "0"
   is  "while the evidence still answers on its own axis" "$(_rc "$(_dck)")" "0"
   is  "no plugin cache at all is not where this applies either" "$(_rc "$(_dckn --applies)")" "1"
   out="$(_dckn)"
   is  "and with no deployment to compare against the evidence cannot examine" "$(_rc "$out")" "2"
   has "saying so" "$out" "cannot examine"
-  # No CLI, but a cache. The fallback the commit named and nothing reached.
+  # No CLI, a cache, and a newer entry that differs: the CLI is not asked and
+  # the highest entry is not what main declares, so neither moves the verdict.
   printf '{\n  "felix": {\n    "installLocation": "%s"\n  }\n}\n' "$DCKT" > "$DCK/home/.claude/plugins/known_marketplaces.json"
-  out="$(_dckc)"
-  is  "with no CLI to ask, the highest cached version is what it compares against" "$(_rc "$out")" "0"
-  has "and it names the cache it found" "$out" "0.0.1"
   cp -R "$DCK/home/.claude/plugins/cache/felix/felix/0.0.1" "$DCK/home/.claude/plugins/cache/felix/felix/0.0.10"
   printf '# drift only in the newer cache\n' >> "$DCK/home/.claude/plugins/cache/felix/felix/0.0.10/harness/lib/say.sh"
   out="$(_dckc)"
-  is  "and it is the highest by version order, not the last by name" "$(_rc "$out")" "1"
-  has "which is the one that differs" "$out" "0.0.10"
+  is  "with no CLI to ask and a newer entry on disk, the entry main declares is still the one compared" "$(_rc "$out")" "0"
+  has "and it names that entry" "$out" "0.0.1"
   ( cd "$DCK/home/.claude/plugins/cache/felix/felix" && mv 0.0.10 ../../../../../0.0.10.aside ) 2>/dev/null
   # A script that cannot resolve its own library says so with 127, which the
   # obligations library reads as UNKNOWN. Exit 1 there would be DORMANT: a row
@@ -7691,17 +7692,226 @@ if [ -x "$DCKT/engine/harness/bin/deploy-check" ]; then
   is  "invoked by a relative path from a subdirectory it still finds its library" \
       "$(cd "$DCKT/engine/harness" && HOME="$DCK/home" PATH="$DCK/bin:$PATH" bin/deploy-check --applies >/dev/null 2>&1; echo $?)" "0"
 else
-  for a in "deploy-check --applies holds where a deployment exists and the marketplace serves this tree" \
+  for a in "deploy-check --applies holds where a deployment exists and main can be read" \
            "and a tree byte-identical to the deployed engine matches" "with exit 0" \
            "a changed library is drift, exit 1" "and the report names the path" "and counts it" \
-           "what git ignores is not drift" "a tree the marketplace does not serve is not where this applies" \
+           "what git ignores is not drift" "a tree the marketplace does not serve still applies, because the question is about main" \
            "while the evidence still answers on its own axis" "no plugin cache at all is not where this applies either" \
            "and with no deployment to compare against the evidence cannot examine" "saying so" \
-           "with no CLI to ask, the highest cached version is what it compares against" \
-           "and it names the cache it found" "and it is the highest by version order, not the last by name" \
-           "which is the one that differs" "a deploy-check with no library beside it is 127, never 1" \
+           "with no CLI to ask and a newer entry on disk, the entry main declares is still the one compared" \
+           "and it names that entry" "a deploy-check with no library beside it is 127, never 1" \
            "and its evidence mode says the same" \
            "invoked by a relative path from a subdirectory it still finds its library"; do
+    skip "$a" "no bin/deploy-check beside this harness"; done
+fi
+printf '\ndeploy-check asks what main accepted\n'
+# The block above pinned deploy-check to the tree standing here against the
+# LIVE plugin: the CLI's installPath, else the highest cache entry, applicable
+# only where the marketplace registry named this checkout. Only the served
+# checkout could ever be ACTIVE and satisfied, so the obligation was dormant in
+# every worktree and every CI runner, which is everywhere the gate runs. It now
+# asks what `installed` has asked since #239: is the cache entry for the
+# version MAIN declares byte-identical to MAIN's engine, both sides from the
+# base ref (origin/main, else main), never from the working tree.
+#
+# Written blind to the implementation. Every fixture here is built so the old
+# question and the new one give different answers: the live pointer names an
+# entry that does not exist, a higher entry than main's sits on disk and
+# differs, and the registry serves some other tree.
+DCM="$TMP/deploy-check-main"; DCMC="$DCM/home/.claude/plugins/cache/felix/felix"
+mkdir -p "$DCM/tree/engine/.claude-plugin" "$DCMC" "$DCM/bin" "$DCM/nohome"
+cp -R "$FROOT/harness" "$DCM/tree/engine/harness"
+cp -R "$REAL_HARNESS/../hooks" "$DCM/tree/engine/hooks"
+printf '{ "name": "felix", "version": "0.0.1" }\n' > "$DCM/tree/engine/.claude-plugin/plugin.json"
+printf '*.log\n' > "$DCM/tree/.gitignore"
+( cd "$DCM/tree" && git init -q -b main && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+DCMT="$(cd "$DCM/tree" && pwd -P)"
+# Deploy a ref's engine at a version the way the cache holds it: from the
+# commit rather than the disk, and without engine/.claude-plugin. Into a
+# fresh entry only; a tampered file is put back below from the same commit.
+_dcm_deploy() {   # ref, version
+  mkdir -p "$DCMC/$2" "$DCM/x.$2"
+  git -C "$DCMT" archive "$1" engine | tar -x -C "$DCM/x.$2"
+  for _d in harness hooks commands; do
+    [ -d "$DCM/x.$2/engine/$_d" ] && cp -R "$DCM/x.$2/engine/$_d" "$DCMC/$2/$_d"
+  done
+}
+_dcm_deploy main 0.0.1
+# The decoy: the highest entry on disk, and it differs from main. The replaced
+# fallback compared against it; the new question never looks at it.
+_dcm_deploy main 0.0.10
+printf '# decoy\n' >> "$DCMC/0.0.10/harness/lib/say.sh"
+# The live pointer names an entry that does not exist, and the marketplace
+# serves some other tree. Neither may decide anything any more.
+cat > "$DCM/bin/claude" <<STUB
+#!/usr/bin/env bash
+case "\$*" in "plugin list --json") printf '{ "felix@felix": { "installPath": "%s" } }\n' "$DCMC/0.9.9" ;; esac
+exit 0
+STUB
+chmod +x "$DCM/bin/claude"
+printf '{\n  "felix": {\n    "installLocation": "/served/elsewhere"\n  }\n}\n' \
+  > "$DCM/home/.claude/plugins/known_marketplaces.json"
+_dcm()  { ( cd "$DCMT" && unset FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE \
+            && HOME="$DCM/home"   PATH="$DCM/bin:$PATH" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
+_dcmn() { ( cd "$DCMT" && unset FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE \
+            && HOME="$DCM/nohome" PATH="$DCM/bin:$PATH" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
+# Exact, for the reason the block above gives: "rc=1" as a substring is
+# satisfied by rc=126 and rc=127, which are a checker that never ran.
+_dcmrc() { printf '%s' "${1##*rc=}"; }
+_dcmci() { git -C "$DCMT" -c user.name=t -c user.email=t@t "$@" >/dev/null 2>&1; }
+if [ -x "$FROOT/harness/bin/deploy-check" ]; then
+  # Applicability: a cache and a main. Who the marketplace serves is not asked.
+  is  "deploy-check --applies holds in a worktree the marketplace does not serve" "$(_dcmrc "$(_dcm --applies)")" "0"
+  is  "and does not hold on a machine with no felix cache" "$(_dcmrc "$(_dcmn --applies)")" "1"
+  # Evidence: main's engine against the entry for main's version, whatever the
+  # live pointer says and whatever higher entry sits beside it.
+  out="$(_dcm)"
+  is  "main's engine byte-identical to the entry for main's version is exit 0" "$(_dcmrc "$out")" "0"
+  has "and it says matches" "$out" "matches"
+  case "$out" in
+    *"felix/felix/0.0.10"*) bad "and names the entry main's version selects, not the highest or the live one" "$out" ;;
+    *"felix/felix/0.0.1"*)  ok  "and names the entry main's version selects, not the highest or the live one" ;;
+    *)                      bad "and names the entry main's version selects, not the highest or the live one" "$out" ;;
+  esac
+  # The working tree is not main.
+  printf '# working tree\n' >> "$DCMT/engine/harness/lib/say.sh"
+  is  "a library changed in the working tree is not drift, because main did not change" "$(_dcmrc "$(_dcm)")" "0"
+  ( cd "$DCMT" && git checkout -q -- engine/harness/lib/say.sh )
+  printf 'x\n' > "$DCMT/engine/harness/lib/untracked.sh"
+  is  "nor is a file added to the working tree that git does not track" "$(_dcmrc "$(_dcm)")" "0"
+  rm -f "$DCMT/engine/harness/lib/untracked.sh"
+  # A branch is not main either, whatever engine or version it declares.
+  _dcmci checkout -q -b cand
+  printf '# candidate\n' >> "$DCMT/engine/harness/lib/say.sh"; _dcmci commit -qam cand
+  DCM_CAND="$(git -C "$DCMT" rev-parse HEAD)"
+  is  "a library changed and committed on a branch is not drift" "$(_dcmrc "$(_dcm)")" "0"
+  sed -i.bak 's/"0.0.1"/"0.0.2"/' "$DCMT/engine/.claude-plugin/plugin.json"; rm -f "$DCMT/engine/.claude-plugin/plugin.json.bak"
+  _dcmci commit -qam bump2
+  is  "nor is a version the branch declares that nothing installed" "$(_dcmrc "$(_dcm)")" "0"
+  _dcmci checkout -q main
+  # The control: the same change on main, with nothing deployed, is drift.
+  _dcmci merge -q --ff-only "$DCM_CAND"
+  out="$(_dcm)"
+  is  "the same change merged to main with no new deployment is drift, exit 1" "$(_dcmrc "$out")" "1"
+  has "and the report names the merged path" "$out" "say.sh"
+  has "and counts exactly that one" "$out" "1 path(s) differ"
+  _dcmci revert --no-edit HEAD
+  is  "and main put back matches again" "$(_dcmrc "$(_dcm)")" "0"
+  # A version main declares with no entry is unsatisfied, not unexaminable.
+  sed -i.bak 's/"0.0.1"/"0.0.9"/' "$DCMT/engine/.claude-plugin/plugin.json"; rm -f "$DCMT/engine/.claude-plugin/plugin.json.bak"
+  _dcmci commit -qam bump9
+  out="$(_dcm)"
+  is  "a version main declares with no cache entry is exit 1, not 2" "$(_dcmrc "$out")" "1"
+  has "and the output names the version nothing is installed at" "$out" "0.0.9"
+  case "$out" in
+    *"cannot examine"*) bad "and does not call that unexaminable" "$out" ;;
+    *)                  ok  "and does not call that unexaminable" ;;
+  esac
+  _dcm_deploy main 0.0.9
+  is  "deploying main's engine at that version satisfies it" "$(_dcmrc "$(_dcm)")" "0"
+  # The entry itself, tampered under either directory the engine ships.
+  printf '# tampered\n' >> "$DCMC/0.0.9/harness/lib/say.sh"
+  out="$(_dcm)"
+  is  "an entry for main's version tampered under harness is drift" "$(_dcmrc "$out")" "1"
+  has "and it names the tampered library" "$out" "say.sh"
+  git -C "$DCMT" show main:engine/harness/lib/say.sh > "$DCMC/0.0.9/harness/lib/say.sh"
+  printf '\n' >> "$DCMC/0.0.9/hooks/hooks.json"
+  out="$(_dcm)"
+  is  "and tampered under hooks it is drift as well" "$(_dcmrc "$out")" "1"
+  has "naming the hooks file" "$out" "hooks.json"
+  git -C "$DCMT" show main:engine/hooks/hooks.json > "$DCMC/0.0.9/hooks/hooks.json"
+  # A path git ignores is residue in the entry, not drift.
+  printf 'x\n' > "$DCMC/0.0.9/harness/scratch.log"
+  is  "a file git ignores dropped into the entry is residue, not drift" "$(_dcmrc "$(_dcm)")" "0"
+  rm -f "$DCMC/0.0.9/harness/scratch.log"
+  # A directory absent from both sides is skipped, which every assertion above
+  # already exercises: this tree ships no engine/commands. Present on main
+  # alone it is compared, and every file under it differs.
+  mkdir -p "$DCMT/engine/commands"; printf '# hello\n' > "$DCMT/engine/commands/hello.md"
+  _dcmci add -A; _dcmci commit -qm commands
+  out="$(_dcm)"
+  is  "a commands directory main ships that the entry lacks is drift" "$(_dcmrc "$out")" "1"
+  has "and it names the file under it" "$out" "hello.md"
+  _dcmci revert --no-edit HEAD
+  is  "and with commands absent from both sides again it matches" "$(_dcmrc "$(_dcm)")" "0"
+  # Nothing to examine: no cache on the machine.
+  out="$(_dcmn)"
+  is  "with no felix cache the evidence cannot examine, exit 2" "$(_dcmrc "$out")" "2"
+  has "and it prints cannot examine" "$out" "cannot examine"
+  # No main: a repository that cannot say what was accepted. The cache is
+  # present, so this is the base ref alone deciding.
+  DCMR="$DCM/trunk"; mkdir -p "$DCMR/engine/.claude-plugin"
+  cp -R "$FROOT/harness" "$DCMR/engine/harness"
+  cp -R "$REAL_HARNESS/../hooks" "$DCMR/engine/hooks"
+  printf '{ "name": "felix", "version": "0.0.1" }\n' > "$DCMR/engine/.claude-plugin/plugin.json"
+  ( cd "$DCMR" && git init -q -b trunk && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+  _dcmr() { ( cd "$DCMR" && unset FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE \
+              && HOME="$DCM/home" PATH="$DCM/bin:$PATH" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
+  is  "in a repository with no main and no origin, --applies does not hold even with a cache" "$(_dcmrc "$(_dcmr --applies)")" "1"
+  out="$(_dcmr)"
+  is  "and its evidence cannot examine there" "$(_dcmrc "$out")" "2"
+  has "saying cannot examine" "$out" "cannot examine"
+  # origin/main outranks main. A bare origin level with main changes nothing;
+  # an origin whose main is a bump ahead is what the check follows, while the
+  # local main still declares a version whose entry matches.
+  git init -q --bare "$DCM/origin.git" >/dev/null 2>&1
+  _dcmci remote add origin "$DCM/origin.git"
+  _dcmci push -q origin main; _dcmci fetch -q origin
+  is  "with origin/main level with main the verdict is unchanged" "$(_dcmrc "$(_dcm)")" "0"
+  _dcmci checkout -q -b ahead
+  sed -i.bak 's/"0.0.9"/"0.1.0"/' "$DCMT/engine/.claude-plugin/plugin.json"; rm -f "$DCMT/engine/.claude-plugin/plugin.json.bak"
+  _dcmci commit -qam ahead
+  _dcmci checkout -q main
+  _dcmci push -q origin ahead:main; _dcmci fetch -q origin
+  out="$(_dcm)"
+  is  "with origin/main a bump ahead of main, the check follows origin" "$(_dcmrc "$out")" "1"
+  has "and names origin's version as the one nothing is installed at" "$out" "0.1.0"
+  # A script that cannot resolve its own library still says so with 127. Under
+  # the new question a cache and a main are both present here, so a script
+  # that ran without its library would answer 0 to --applies.
+  DCMB="$DCM/broken"; mkdir -p "$DCMB/engine/harness/bin"
+  cp "$DCMT/engine/harness/bin/deploy-check" "$DCMB/engine/harness/bin/"
+  ( cd "$DCMB" && git init -q -b main && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm b ) >/dev/null 2>&1
+  is  "a deploy-check with no library beside it is still 127 under the new question" \
+      "$(cd "$DCMB" && HOME="$DCM/home" PATH="$DCM/bin:$PATH" engine/harness/bin/deploy-check --applies >/dev/null 2>&1; echo $?)" "127"
+  is  "and so is its evidence mode" \
+      "$(cd "$DCMB" && HOME="$DCM/home" PATH="$DCM/bin:$PATH" engine/harness/bin/deploy-check >/dev/null 2>&1; echo $?)" "127"
+else
+  for a in "deploy-check --applies holds in a worktree the marketplace does not serve" \
+           "and does not hold on a machine with no felix cache" \
+           "main's engine byte-identical to the entry for main's version is exit 0" \
+           "and it says matches" \
+           "and names the entry main's version selects, not the highest or the live one" \
+           "a library changed in the working tree is not drift, because main did not change" \
+           "nor is a file added to the working tree that git does not track" \
+           "a library changed and committed on a branch is not drift" \
+           "nor is a version the branch declares that nothing installed" \
+           "the same change merged to main with no new deployment is drift, exit 1" \
+           "and the report names the merged path" "and counts exactly that one" \
+           "and main put back matches again" \
+           "a version main declares with no cache entry is exit 1, not 2" \
+           "and the output names the version nothing is installed at" \
+           "and does not call that unexaminable" \
+           "deploying main's engine at that version satisfies it" \
+           "an entry for main's version tampered under harness is drift" \
+           "and it names the tampered library" \
+           "and tampered under hooks it is drift as well" "naming the hooks file" \
+           "a file git ignores dropped into the entry is residue, not drift" \
+           "a commands directory main ships that the entry lacks is drift" \
+           "and it names the file under it" \
+           "and with commands absent from both sides again it matches" \
+           "with no felix cache the evidence cannot examine, exit 2" \
+           "and it prints cannot examine" \
+           "in a repository with no main and no origin, --applies does not hold even with a cache" \
+           "and its evidence cannot examine there" "saying cannot examine" \
+           "with origin/main level with main the verdict is unchanged" \
+           "with origin/main a bump ahead of main, the check follows origin" \
+           "and names origin's version as the one nothing is installed at" \
+           "a deploy-check with no library beside it is still 127 under the new question" \
+           "and so is its evidence mode"; do
     skip "$a" "no bin/deploy-check beside this harness"; done
 fi
 # The gate's executable check, shown failing. It was widened from a list of
@@ -7736,8 +7946,8 @@ fi
 # whether anything is deployed, and never unknown on the tree the suite runs in.
 _DCKP="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix"
 if [ -f "$_DCKP/obligations.tsv" ] && [ -x "$REAL_HARNESS/bin/obligations-check" ]; then
-  is  "felix admits engine_deployed as task-blocking, grounded on both facts it rests on" \
-      "$(grep '^engine_deployed' "$_DCKP/obligations.tsv" | cut -f2,6)" "TASK_BLOCKING	deployed_engine,marketplace_root"
+  is  "felix admits engine_deployed as task-blocking, grounded on the one fact it rests on" \
+      "$(grep '^engine_deployed' "$_DCKP/obligations.tsv" | cut -f2,6)" "TASK_BLOCKING	deployed_engine"
   out="$(cd "$REAL_HARNESS/../.." && "$REAL_HARNESS/bin/obligations-check" projects/felix 2>&1 | grep '^  engine_deployed')"
   case "$out" in
     *UNKNOWN*) bad "and on this tree it is dormant, satisfied or unsatisfied, never unknown" "$out" ;;
@@ -7745,7 +7955,7 @@ if [ -f "$_DCKP/obligations.tsv" ] && [ -x "$REAL_HARNESS/bin/obligations-check"
     *)         ok  "and on this tree it is dormant, satisfied or unsatisfied, never unknown" ;;
   esac
 else
-  for a in "felix admits engine_deployed as task-blocking, grounded on both facts it rests on" \
+  for a in "felix admits engine_deployed as task-blocking, grounded on the one fact it rests on" \
            "and on this tree it is dormant, satisfied or unsatisfied, never unknown"; do
     skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
 fi

@@ -926,13 +926,16 @@ felix_base_ref() {
 #   exit 2  cannot examine: no cache on this machine, no base ref, or a
 #           version that cannot be read from the base
 #
-# The gate's `installed` check asks the same question inline, on purpose — a
-# verifier that sources the code it judges can be switched off by editing that
-# code — so the two are kept in step by the suite, not by sharing this. What
-# shares it is deploy-check, the obligation ledger's evidence for the same
-# fact, so the gate and the ledger cannot disagree by construction on the
-# ledger's side. FELIX_KERNEL, the suite's override of the judge, is not read:
-# this asks about the real cache.
+# Both readers of the question share this. deploy-check, the obligation
+# ledger's evidence for the same fact, sources it from the tree beside it. The
+# gate's `installed` check kept an inline copy until 2026-09-17, on the
+# argument that a verifier which sources the code it judges can be switched
+# off by editing that code; it now reads THIS FILE from the base ref with
+# `git show` — never the working tree, never the cache entry — and calls this
+# function in a subshell, so the code that judges is the code main accepted
+# and the argument holds without the copy. The gate and the ledger cannot
+# disagree by construction. FELIX_KERNEL, the suite's override of the judge,
+# is not read: this asks about the real cache.
 felix_accepted_deploy_diff() {
   local root="$1" base="${2:-main}" cache ref ver entry tmp d rc
   cache="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix}"

@@ -4,5 +4,14 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	392289d91f2e5b9cf5b7e7f267a503332ec195e4	0.49.117
-run	0	2358	25
+base	origin/main	ee14fd107dfa68435806088396f5c86541d0ab18	0.49.118
+run	9	2390	0
+and a main copy that reports identical is believed over the cache entry	1
+and names the function it could not find	1
+and names the function it could not source	1
+and reads it from the base ref's resolve.sh	1
+and that copy is the only library the block sources	1
+and the residue rule is the library's alone	1
+and what main's copy printed reaches the output	1
+felix's own gate no longer carries a private copy of the deploy comparison	1
+the gate's installed check asks the one reader, felix_accepted_deploy_diff	1

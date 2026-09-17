@@ -8408,6 +8408,85 @@ STUB
   _gino="$( cd "$GINT" && unset FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE
             HOME="$GIN/nohome" PATH="$GIN/bin:$PATH" bash gate.sh --quick 2>&1 | grep '^  installed' )"
   has "with no felix cache on the machine, installed is skipped" "$_gino" "skipped"
+  # ---- the fold: the verdict is main's own resolve.sh, read from the commit.
+  # Written blind against the contract, not the code. The gate obtains
+  # `installed` by sourcing engine/harness/lib/resolve.sh at the base ref
+  # (origin/main, else main) in a subshell and calling
+  # felix_accepted_deploy_diff — never the working tree's copy, never the
+  # cache entry's. A one-line redefinition appended to a copy says which copy
+  # was sourced, because bash keeps the last definition; the marker in the
+  # output is the evidence, since once main's resolve.sh differs from the
+  # entry the verdict word alone is satisfied by ordinary drift.
+  _gin_sha="$(git -C "$GINT" rev-parse main)"
+  _gin_stub()    { printf '\nfelix_accepted_deploy_diff() { echo %s; return %s; }\n' "$1" "$2" >> "$3"; }  # marker, rc, file
+  _gin_commit()  { git -C "$GINT" -c user.name=t -c user.email=t@t commit -qam "$1" >/dev/null 2>&1; }
+  _gin_restore() {   # main back at the recorded sha, the entry re-cut from it
+    ( cd "$GINT" && git checkout -q main && git reset -q --hard "$_gin_sha" ) >/dev/null 2>&1
+    _gin_deploy main 0.0.9
+  }
+  # 1. Main's copy decides. Committed on main, so the working tree is main as
+  # well; what this isolates is the cache entry's copy, which carries no stub.
+  _gin_stub MARKER-FROM-MAIN 1 "$GINT/engine/harness/lib/resolve.sh"; _gin_commit stub-main
+  _gino="$(_gin)"
+  is  "main's resolve.sh decides the installed verdict" "$(_ginv "$_gino")" "FAIL"
+  has "and what main's copy printed reaches the output" "$_gino" "MARKER-FROM-MAIN"
+  _gin_restore
+  # The same the other way round: main's copy reports identical while the
+  # entry now genuinely differs from main (by this very stub), so a private
+  # comparison would say FAIL and only the sourced function says ok.
+  _gin_stub MARKER-FROM-MAIN 0 "$GINT/engine/harness/lib/resolve.sh"; _gin_commit stub-main-ok
+  is  "and a main copy that reports identical is believed over the cache entry" "$(_ginv "$(_gin)")" "ok"
+  _gin_restore
+  # Never the working tree's: uncommitted first, then committed on the branch
+  # being gated. Either stub would turn the verdict FAIL and print, if sourced.
+  _gin_stub MARKER-FROM-TREE 1 "$GINT/engine/harness/lib/resolve.sh"
+  _gino="$(_gin)"
+  is  "an uncommitted resolve.sh in the working tree does not change the verdict" "$(_ginv "$_gino")" "ok"
+  case "$_gino" in
+    *MARKER-FROM-TREE*) bad "and nothing the working tree's copy printed reaches the output" "$_gino" ;;
+    *)                  ok  "and nothing the working tree's copy printed reaches the output" ;;
+  esac
+  ( cd "$GINT" && git checkout -q -- engine/harness/lib/resolve.sh && git checkout -q -b side ) >/dev/null 2>&1
+  _gin_stub MARKER-FROM-SIDE 1 "$GINT/engine/harness/lib/resolve.sh"; _gin_commit stub-side
+  _gino="$(_gin)"
+  is  "a resolve.sh committed on the branch being gated does not change the verdict" "$(_ginv "$_gino")" "ok"
+  case "$_gino" in
+    *MARKER-FROM-SIDE*) bad "and nothing the branch's copy printed reaches the output" "$_gino" ;;
+    *)                  ok  "and nothing the branch's copy printed reaches the output" ;;
+  esac
+  ( cd "$GINT" && git checkout -q main && git branch -q -D side ) >/dev/null 2>&1
+  # Never the cache entry's: a stub there that reports identical is, to main's
+  # own function, one more path that differs.
+  _gin_stub MARKER-FROM-CACHE 0 "$GINC/0.0.9/harness/lib/resolve.sh"
+  is  "a resolve.sh stubbed in the cache entry is drift, not the judge" "$(_ginv "$(_gin)")" "FAIL"
+  _gin_deploy main 0.0.9
+  # 2. Nothing to call is FAIL, and named — never ok, never skipped. First
+  # main's copy without the definition; then main without the file at all,
+  # gated from a branch that still has it.
+  ( cd "$GINT" && sed -i.bak '/^felix_accepted_deploy_diff()/,/^}/d' engine/harness/lib/resolve.sh \
+    && rm -f engine/harness/lib/resolve.sh.bak ) >/dev/null 2>&1; _gin_commit no-definition
+  _gino="$(_gin)"
+  is  "when main's resolve.sh does not define the check, installed fails rather than skipping" "$(_ginv "$_gino")" "FAIL"
+  has "and names the function it could not find" "$_gino" "felix_accepted_deploy_diff"
+  _gin_restore
+  ( cd "$GINT" && git rm -q engine/harness/lib/resolve.sh ) >/dev/null 2>&1; _gin_commit no-file
+  ( cd "$GINT" && git checkout -q -b side "$_gin_sha" ) >/dev/null 2>&1
+  _gino="$(_gin)"
+  is  "when main has no resolve.sh to read, installed fails rather than skipping" "$(_ginv "$_gino")" "FAIL"
+  has "and names the function it could not source" "$_gino" "felix_accepted_deploy_diff"
+  _gin_restore; git -C "$GINT" branch -q -D side >/dev/null 2>&1
+  # Criterion 4 once more, after the fold.
+  printf '# tampered\n' >> "$GINC/0.0.9/harness/lib/say.sh"
+  is  "after the fold, a tampered cache entry still fails" "$(_ginv "$(_gin)")" "FAIL"
+  _gin_deploy main 0.0.9
+  # 4. Structural: the gate's private copy of the comparison is gone, the way
+  # the probes block asserts its own private copy is.
+  if grep -q 'diff -rq' "$_GING"; then
+    bad "felix's own gate no longer carries a private copy of the deploy comparison" \
+        "diff -rq is still in projects/felix/gate.sh"
+  else
+    ok  "felix's own gate no longer carries a private copy of the deploy comparison"
+  fi
 else
   for a in "installed gives the same verdict whether the branch's engine was installed or not" \
            "a branch whose engine differs from the deployed one reads installed ok" \
@@ -8420,7 +8499,21 @@ else
            "when the live engine is not main's, the ok says which one is live" \
            "drift seen from a checkout the marketplace does not serve is marked structural" \
            "and drift in the served checkout is a plain FAIL" "that names the command" \
-           "with no felix cache on the machine, installed is skipped"; do
+           "with no felix cache on the machine, installed is skipped" \
+           "main's resolve.sh decides the installed verdict" \
+           "and what main's copy printed reaches the output" \
+           "and a main copy that reports identical is believed over the cache entry" \
+           "an uncommitted resolve.sh in the working tree does not change the verdict" \
+           "and nothing the working tree's copy printed reaches the output" \
+           "a resolve.sh committed on the branch being gated does not change the verdict" \
+           "and nothing the branch's copy printed reaches the output" \
+           "a resolve.sh stubbed in the cache entry is drift, not the judge" \
+           "when main's resolve.sh does not define the check, installed fails rather than skipping" \
+           "and names the function it could not find" \
+           "when main has no resolve.sh to read, installed fails rather than skipping" \
+           "and names the function it could not source" \
+           "after the fold, a tampered cache entry still fails" \
+           "felix's own gate no longer carries a private copy of the deploy comparison"; do
     skip "$a" "no projects/felix/gate.sh with a tests marker beside this harness"; done
 fi
 
@@ -11819,45 +11912,64 @@ _ddiff "$RSD/engine" "$RSD/cache" && bad "a file facing a directory is a drift, 
                                   || ok  "a file facing a directory is a drift, whatever diff exits"
 rm -rf "$RSD/cache/harness/mixed" "$RSD/engine/harness/mixed"
 
-# The gate keeps its own inline copy — a verifier that sources the code it
-# judges can be switched off by editing that code — so the copies are asserted
-# in step the same way the independence paths are: the counted tokens ARE the
-# mechanism. Non-comment lines only.
+# 5. A directory only the cache holds, with nothing in it but residue, is
+#    residue: what git ignores is subtracted before the question is asked, so
+#    a whole directory of it is empty. The gate's inline copy read the missing
+#    diff operand as drift; when the gate was folded onto this function
+#    (2026-09-17) it took this reading, which deploy-check had answered for
+#    the same fact all along, and it is pinned here so the two cannot part
+#    again in silence. A real file in that directory is still drift.
+mkdir -p "$RSD/cache/commands/.claude-flow"
+printf 'x\n' > "$RSD/cache/commands/.claude-flow/state"
+_ddiff "$RSD/engine" "$RSD/cache" && ok  "a directory only the cache holds, with nothing in it but residue, is residue" \
+                                  || bad "a directory only the cache holds, with nothing in it but residue, is residue" "reported drift"
+printf 'real\n' > "$RSD/cache/commands/felix.md"
+_ddiff "$RSD/engine" "$RSD/cache" && bad "and with a real file in it, it is drift" "reported clean" \
+                                  || ok  "and with a real file in it, it is drift"
+rm -rf "$RSD/cache/commands"
+
+# The gate kept its own inline copy of this comparison until 2026-09-17, on the
+# argument that a verifier which sources the code it judges can be switched off
+# by editing that code, and four assertions here held the two copies in step by
+# counting the copy's tokens. The fold answered the argument without the copy:
+# the installed block sources felix_accepted_deploy_diff from the BASE REF's
+# resolve.sh — `git show`, never this tree, never the cache entry — and asks
+# it, so the code that judges is the code main accepted. The premise the four
+# rested on is gone, and what is counted now is the new mechanism's tokens, the
+# same way: the function is asked, it is read from the base, that copy is the
+# only thing sourced, and the residue rule (#86) is the library's alone.
+# Non-comment lines only.
 _REALG2="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
 if [ -f "$_REALG2" ]; then
   _gate_inst="$(sed -n '/^# -.*installed/,/^# -.*tests/p' "$_REALG2" | grep -vE '^[[:space:]]*#')"
   case "$_gate_inst" in
-    *"harness hooks commands"*) ok "the gate's installed check covers the same three directories" ;;
-    *) bad "the gate's installed check covers the same three directories" \
-           "no three-directory loop in the installed block" ;;
-  esac
-  # The copies stay in step on the residue rule too (#86): the gate's inline
-  # block filters through git check-ignore like the library does, and the
-  # structural worktree verdict prints the drift evidence instead of
-  # suppressing it — the wrong-diagnosis half of the issue was exactly a
-  # failure message that hid the one line naming the stray.
-  case "$_gate_inst" in
-    *check-ignore*) ok "and filters residue through the same ignore rule" ;;
-    *) bad "and filters residue through the same ignore rule" \
-           "no check-ignore in the installed block" ;;
-  esac
-  # Arm presence, so a half-revert cannot survive: the review constructed a
-  # gate filtering only its own side that passed the token check above.
-  case "$_gate_inst" in
-    *'Only in $PLUG'*) ok "the cache-side arm is present in the gate's copy" ;;
-    *) bad "the cache-side arm is present in the gate's copy" "no Only in \$PLUG arm" ;;
+    *'felix_accepted_deploy_diff "$ROOT"'*) ok "the gate's installed check asks the one reader, felix_accepted_deploy_diff" ;;
+    *) bad "the gate's installed check asks the one reader, felix_accepted_deploy_diff" \
+           "no call to felix_accepted_deploy_diff in the installed block" ;;
   esac
   case "$_gate_inst" in
-    *'Files engine/'*) ok "and so is the content-drift arm" ;;
-    *) bad "and so is the content-drift arm" "no Files engine/ arm" ;;
+    *'git show "$GBASE:engine/harness/lib/resolve.sh"'*) ok "and reads it from the base ref's resolve.sh" ;;
+    *) bad "and reads it from the base ref's resolve.sh" "no git show of the base's resolve.sh" ;;
+  esac
+  # Every `. file` in the block — a dot, a space and then a path — and there
+  # must be exactly the one, on the copy just read: a second source line is a
+  # library from somewhere else. `grep .` is not a source statement.
+  _gate_src="$(printf '%s\n' "$_gate_inst" | grep -E '(^|[[:space:]]|\()\. ["$/.~]' )"
+  case "$(printf '%s\n' "$_gate_src" | grep -c .)|$_gate_src" in
+    '1|'*'"$GLIB/resolve.sh"'*) ok "and that copy is the only library the block sources" ;;
+    *) bad "and that copy is the only library the block sources" "source lines: $_gate_src" ;;
+  esac
+  case "$_gate_inst" in
+    *check-ignore*) bad "and the residue rule is the library's alone" "check-ignore is still in the installed block" ;;
+    *) ok "and the residue rule is the library's alone" ;;
   esac
   is "the structural verdict shows its evidence too" \
      "$(grep -c 'head -5 /tmp/felix-install-drift.log' "$_REALG2")" "2"
 else
-  skip "the gate's installed check covers the same three directories" "no shipped gate"
-  skip "and filters residue through the same ignore rule" "no shipped gate"
-  skip "the cache-side arm is present in the gate's copy" "no shipped gate"
-  skip "and so is the content-drift arm" "no shipped gate"
+  skip "the gate's installed check asks the one reader, felix_accepted_deploy_diff" "no shipped gate"
+  skip "and reads it from the base ref's resolve.sh" "no shipped gate"
+  skip "and that copy is the only library the block sources" "no shipped gate"
+  skip "and the residue rule is the library's alone" "no shipped gate"
   skip "the structural verdict shows its evidence too" "no shipped gate"
 fi
 

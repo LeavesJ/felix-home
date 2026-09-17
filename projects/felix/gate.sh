@@ -94,36 +94,40 @@ fi
 # evaluator. It now asks whether the cache entry for the version MAIN declares
 # is byte-identical to MAIN's engine. Every checkout can answer that.
 #
-# Both sides from the base (spec §4). Resolving either one from this tree or
-# from the live pointer made the verdict depend on whether you had already run
-# the install it was about to ask for. That entry is the engine `felix merge`
-# judges with (felix_kernel_dir), so the gate now certifies the judge, and the
-# trust resolve.sh states in prose — the cache entry for the base's version is
-# what the base contained — is checked every run. Derived inline rather than by
-# calling felix_kernel_dir, deliberately: a verifier that sources the code it
-# judges can be switched off by editing that code. The suite asserts the two
-# name the same entry. FELIX_KERNEL, the suite's override of the judge, is not
-# honoured here: this checks the real cache.
+# WHO ANSWERS. felix_accepted_deploy_diff in lib/resolve.sh, the one reader of
+# this question — the same function deploy-check asks for the engine_deployed
+# obligation, so the gate and the ledger cannot disagree by construction. This
+# block carried its own copy of that comparison until 2026-09-17, on the
+# argument that a verifier which sources the code it judges can be switched off
+# by editing that code. The argument stands and the copy does not: the function
+# sourced here is read from the BASE REF with `git show`, never from this
+# working tree and never from the cache entry, so the code that judges is the
+# code main already accepted, and nothing a candidate branch writes reaches it.
+# Sourced in a subshell, so its definitions never enter this gate. A base whose
+# resolve.sh lacks the function cannot answer, and that is a FAIL naming it —
+# never an ok and never a skip.
 #
 # Where "written is not installed" went (spec §8 criterion 2): on main, after a
 # merge that changed the engine and before anybody deployed it, main's engine
 # and its version's entry differ, and this fails. A version main declares with
-# no entry at all fails too — never skips.
+# no entry at all fails too — never skips. All three deployed directories, not
+# harness alone (#82), and a path git ignores is residue rather than drift (#86);
+# both live in the function now, with their reasons beside them. One reading
+# moved with them, found by review rather than by the suite: a directory main
+# does not ship, present in the entry with nothing in it but ignored residue,
+# was drift to the copy — the missing diff operand — and is residue to the
+# function, because what git ignores is subtracted before the question is
+# asked. That is what deploy-check already answered for the same fact; the
+# gate says the same now, and the suite pins it beside felix_deploy_diff.
 #
 # What a green no longer says (spec §7): which engine is live. Installing a
 # candidate adds a different entry and moves the live pointer without touching
 # the one checked here. So when the CLI reports a live engine that is not
 # main's, the ok says which one is, out loud rather than discovered.
 #
-# All three deployed directories, not harness alone (#82). hooks/hooks.json is
-# the file that decides which hooks BIND, so a deploy that carried harness/ and
-# dropped hooks/ read as `installed ok` while every session ran yesterday's
-# bindings. A directory absent from both sides is a fixture, not a drift;
-# absent from one side, diff fails on the missing operand, which is the verdict.
-# engine/.claude-plugin stays out: its version is how the entry was found.
-#
-# Skipped when no felix cache exists on this machine, which is the normal
-# state in CI.
+# FELIX_KERNEL, the suite's override of the judge, is not honoured here: this
+# checks the real cache. Skipped when no felix cache exists on this machine,
+# which is the normal state in CI.
 GCACHE="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix}"
 if [ -d "$GCACHE" ]; then
   INSTALL_DRIFT=0
@@ -138,68 +142,35 @@ if [ -d "$GCACHE" ]; then
   GVER=""
   [ -n "$GBASE" ] && GVER="$(git show "$GBASE:engine/.claude-plugin/plugin.json" 2>/dev/null \
     | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
-  PLUG="$GCACHE/$GVER"
-  GARCH=""
-  if [ -z "$GBASE" ] || [ -z "$GVER" ]; then
-    GWHY="cannot tell which engine main accepted: no main here, or it declares no version"
+  PLUG=""
+  GLIB=""
+  if [ -z "$GBASE" ]; then
+    GWHY="cannot tell which engine main accepted: no main here"
     INSTALL_DRIFT=1
-  elif [ ! -d "$PLUG/harness" ]; then
-    GWHY="main declares $GVER and nothing is installed at that version"
+  elif ! GLIB="$(mktemp -d 2>/dev/null)" || [ -z "$GLIB" ]; then
+    GWHY="could not make a directory to read main's resolve.sh into"
     INSTALL_DRIFT=1
-  elif ! GARCH="$(mktemp -d 2>/dev/null)" || [ -z "$GARCH" ]; then
-    GWHY="could not make a directory to read main's engine into"
+  elif ! git show "$GBASE:engine/harness/lib/resolve.sh" > "$GLIB/resolve.sh" 2>/dev/null; then
+    GWHY="main's engine at $GBASE has no lib/resolve.sh, so nothing there defines felix_accepted_deploy_diff"
     INSTALL_DRIFT=1
   else
-    for d in harness hooks commands; do
-      git cat-file -e "$GBASE:engine/$d" 2>/dev/null || continue
-      git archive "$GBASE" "engine/$d" | tar -x -C "$GARCH" \
-        || { GWHY="could not read engine/$d at $GBASE"; INSTALL_DRIFT=1; }
-    done
+    # The verdict, from main's own reader. rc 0 prints the entry; rc 1 prints
+    # every differing path, or one line naming the version nothing is
+    # installed at; rc 2 prints why it could not examine. Exit 3 is this
+    # block's own: the function is not defined at that base.
+    GOUT="$( . "$GLIB/resolve.sh" >/dev/null 2>&1
+             command -v felix_accepted_deploy_diff >/dev/null 2>&1 || exit 3
+             felix_accepted_deploy_diff "$ROOT" 2>/dev/null )"; GRC=$?
+    case "$GRC" in
+      0) PLUG="$GOUT" ;;
+      3) GWHY="main's engine at $GBASE cannot answer: its resolve.sh defines no felix_accepted_deploy_diff"
+         INSTALL_DRIFT=1 ;;
+      2) GWHY="$GOUT"; INSTALL_DRIFT=1 ;;
+      *) printf '%s\n' "$GOUT" | grep . > /tmp/felix-install-drift.log
+         INSTALL_DRIFT=1 ;;
+    esac
   fi
-  # A path the repository itself declares non-content is residue, not drift
-  # (#86): a claude-flow hook dropped state under tests/ mid-suite and this
-  # check called a byte-identical deploy a drift. Each diff line maps to one
-  # path, and a path git ignores in this tree is skipped. Missing-operand
-  # errors match no path shape and always survive. The diff runs from inside
-  # the directory main's engine was read into, so its lines have the same
-  # `engine/...` shape they had when this compared the working tree.
-  if [ -n "$GARCH" ] && [ -z "$GWHY" ]; then
-  for d in harness hooks commands; do
-    [ -e "$GARCH/engine/$d" ] || [ -e "$PLUG/$d" ] || continue
-    while IFS= read -r IDLINE; do
-      [ -n "$IDLINE" ] || continue
-      IDP=""
-      case "$IDLINE" in
-        "Files engine/"*)
-          # The filename itself may contain " and ": the separator matched is
-          # the whole " and $PLUG/…" tail, never the first " and ", or
-          # check-ignore is answered about a truncated fragment and an ignore
-          # rule matching it certifies real drift as clean.
-          IDP="${IDLINE#Files engine/}"; IDP="${IDP% differ}"; IDP="${IDP% and "$PLUG"/*}" ;;
-        "Only in engine: "*|"Only in engine/"*)
-          IDREST="${IDLINE#Only in }"; IDDIR="${IDREST%%: *}"; IDNAME="${IDREST#*: }"
-          if [ "$IDDIR" = "engine" ]; then IDP="$IDNAME"; else IDP="${IDDIR#engine/}/$IDNAME"; fi ;;
-        "Only in $PLUG: "*|"Only in $PLUG/"*)
-          IDREST="${IDLINE#Only in }"; IDDIR="${IDREST%%: *}"; IDNAME="${IDREST#*: }"
-          if [ "$IDDIR" = "$PLUG" ]; then IDP="$IDNAME"; else IDP="${IDDIR#"$PLUG"/}/$IDNAME"; fi ;;
-      esac
-      # Twice, because a directory-only pattern like `.claude-flow/` matches
-      # only what git can see is a directory, and a cache-side stray does not
-      # exist in the tree; the trailing slash says what it is. The global
-      # excludes file is shut off — a verifier whose verdict varies with one
-      # machine's personal ignore rules is not a verifier.
-      if [ -n "$IDP" ] && { git -C engine -c core.excludesFile=/dev/null check-ignore -q "$IDP" \
-             || git -C engine -c core.excludesFile=/dev/null check-ignore -q "$IDP/"; } 2>/dev/null; then
-        continue
-      fi
-      printf '%s\n' "$IDLINE" >> /tmp/felix-install-drift.log
-      INSTALL_DRIFT=1
-    done <<EOF
-$(cd "$GARCH" && diff -rq "engine/$d" "$PLUG/$d" 2>&1)
-EOF
-  done
-  fi
-  [ -n "$GARCH" ] && rm -rf "$GARCH"
+  [ -n "$GLIB" ] && rm -rf "$GLIB"
   # A bump felix install wrote here has not reached main until it is merged,
   # and until then main still names the old entry. Said, because otherwise the
   # failure reads as a deploy that did not happen.

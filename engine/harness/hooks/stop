@@ -458,7 +458,9 @@ Do not describe this work as complete until it has passed.
 
 If you have already decided to stop with a red gate, that is the founder's call
 to make, not yours: they can set FELIX_ALLOW_RED=1 in the environment they
-launch a session from."
+launch a session from. If the red is one TASK_BLOCKING obligation, the narrower
+way past it is a row in the project's exceptions.tsv, keyed to that obligation
+and dated, merged by a person; a session cannot grant itself one."
 
 felix_say "$PROJ" "held" "$reason" "" "${SID:-}"
 printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$reason")"

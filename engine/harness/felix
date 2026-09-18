@@ -139,6 +139,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/probes.sh"
 # shellcheck source=lib/obligations.sh
 . "${SCRIPT_DIR}/lib/obligations.sh"
+# shellcheck source=lib/exceptions.sh
+. "${SCRIPT_DIR}/lib/exceptions.sh"
 # shellcheck source=lib/epoch.sh
 . "${SCRIPT_DIR}/lib/epoch.sh"
 # shellcheck source=lib/facts.sh
@@ -604,7 +606,14 @@ cmd_gate() {
   if [ -f "$proj/obligations.tsv" ]; then
     oout="$(cmd_obligations --gate 2>&1)"; orc=$?
     if [ "$orc" -eq 0 ]; then
-      printf '  %-18s ok\n' obligations | tee -a "$log"
+      # A green that rests on a person's grant is not the green of nothing
+      # owed, and the receipt's states carry the word printed here: `excepted`,
+      # so nobody reads a deferred obligation as a discharged one.
+      if printf '%s\n' "$oout" | grep -qE '^[0-9]+ obligation.*; [0-9]+ blocking, [1-9][0-9]* excepted'; then
+        printf '  %-18s excepted\n' obligations | tee -a "$log"
+      else
+        printf '  %-18s ok\n' obligations | tee -a "$log"
+      fi
       printf '                     %s\n' "$(printf '%s\n' "$oout" | grep -E '^[0-9]+ obligation' | head -1)"
     else
       printf '  %-18s FAIL\n' obligations | tee -a "$log"
@@ -797,6 +806,11 @@ EOF
   # is Felix deciding what a stranger owes. The commissioning row for step 8
   # seeds it where felix new did not run: a project older than the template.
   cp "$tpl/obligations.tsv" "$dir/obligations.tsv"
+  # And the table of exceptions, empty: a grant that clears a TASK_BLOCKING
+  # row at the task moment (amendments §3) is read from the base ref, never
+  # the working tree, so seeding the file grants nothing; it gives the person
+  # the columns and the reasons in the place a grant would go.
+  cp "$tpl/exceptions.tsv" "$dir/exceptions.tsv"
 
   # Same filter for human steps, and only copy the runbooks that survive it.
   {
@@ -4398,24 +4412,67 @@ cmd_obligations() {
   fi
 
   local out; out="$(felix_obligations_run "$proj" "$root")"
-  printf '  %-22s %-18s %-9s %-12s %s\n' OBLIGATION CLASS APPLIES DISCHARGE ''
+  # ROW is the hash a grant in exceptions.tsv is keyed to (exceptions.sh): the
+  # ledger line, verbatim, with its newline. Printed so a person copies it
+  # rather than computing it. An excepted row keeps its discharge — the
+  # obligation is still owed — and says who accepted that, until when.
+  printf '  %-22s %-18s %-9s %-12s %-12s %s\n' OBLIGATION CLASS APPLIES DISCHARGE ROW ''
   printf '%s\n' "$out" | while IFS= read -r line; do
     [ -n "$line" ] || continue
-    printf '  %-22s %-18s %-9s %-12s %s\n' \
-      "$(printf '%s\n' "$line" | cut -f1)" "$(printf '%s\n' "$line" | cut -f2)" \
+    local oname odetail oexc ohash
+    oname="$(printf '%s\n' "$line" | cut -f1)"; odetail="$(printf '%s\n' "$line" | cut -f6)"
+    oexc="$(printf '%s\n' "$line" | cut -f8)"
+    ohash="$(command -v felix_obligation_row_hash >/dev/null 2>&1 && felix_obligation_row_hash "$proj" "$oname" 2>/dev/null | cut -c1-12)"
+    case "$oexc" in
+      'excepted|'*) odetail="excepted until $(printf '%s\n' "$oexc" | cut -d'|' -f2) by $(printf '%s\n' "$oexc" | cut -d'|' -f3-)${odetail:+; $odetail}" ;;
+    esac
+    printf '  %-22s %-18s %-9s %-12s %-12s %s\n' \
+      "$oname" "$(printf '%s\n' "$line" | cut -f2)" \
       "$(printf '%s\n' "$line" | cut -f4)" "$(printf '%s\n' "$line" | cut -f5)" \
-      "$(printf '%s\n' "$line" | cut -f6)"
+      "${ohash:--}" "$odetail"
   done
   local n_block; n_block="$(printf '%s\n' "$out" | felix_obligations_blocking | grep -c .)"
-  printf '\n%s obligation(s): %s active, %s dormant, %s unknown; %s blocking' \
+  local n_exc; n_exc="$(printf '%s\n' "$out" | awk -F'\t' 'index($8, "excepted|") == 1' | grep -c .)"
+  printf '\n%s obligation(s): %s active, %s dormant, %s unknown; %s blocking, %s excepted' \
     "$(printf '%s\n' "$out" | grep -c .)" \
     "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "ACTIVE"'  | grep -c .)" \
     "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "DORMANT"' | grep -c .)" \
     "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "UNKNOWN"' | grep -c .)" \
-    "$n_block"
+    "$n_block" "$n_exc"
   local n_ung; n_ung="$(felix_obligations_ungrounded "$proj" | grep -c .)"
   [ "$n_ung" -gt 0 ] && printf '; %s ground on no probe' "$n_ung"
   printf '\n'
+  # A clearance that happened silently would leave the founder a green with
+  # nothing in the record saying a person's grant produced it: said, once per
+  # row, at the moment it is consumed (exceptions.sh, amendments §3).
+  if [ "$gate" -eq 1 ] && [ "$n_exc" -gt 0 ]; then
+    printf '%s\n' "$out" | awk -F'\t' 'index($8, "excepted|") == 1 { print $1 "\t" $8 }' | while IFS=$'\t' read -r xname xexc; do
+      [ -n "$xname" ] || continue
+      felix_say "$proj" "excepted" "$xname: excepted until $(printf '%s\n' "$xexc" | cut -d'|' -f2) by $(printf '%s\n' "$xexc" | cut -d'|' -f3-)" "felix obligations --gate" "" 2>/dev/null || true
+    done
+  fi
+  # The grants themselves, read from the base ref and judged against the
+  # ledger as it stands, and what this tree holds that the base does not.
+  if [ "$gate" -ne 1 ] && command -v felix_exceptions_judge >/dev/null 2>&1 && ! felix_same_repo "$proj" "$root" 2>/dev/null; then
+    if [ -f "$proj/exceptions.tsv" ] && grep -qvE '^[[:space:]]*(#|$)' "$proj/exceptions.tsv"; then
+      printf '\nexceptions: not read for this project. Its tables live in %s, whose merges\n' "$(dirname "$proj")"
+      printf 'this boundary does not examine, so a grant there is not yet a person'"'"'s act.\n'
+    fi
+  elif [ "$gate" -ne 1 ] && command -v felix_exceptions_judge >/dev/null 2>&1; then
+    local xref xj xu n_x
+    xref="$(felix_exceptions_ref "$proj" 2>/dev/null)" || xref=""
+    xj="$(felix_exceptions_judge "$proj" "" "$out")"; xu="$(felix_exceptions_unmerged "$proj" "$root")"; n_x="$(felix_exceptions_count "$proj")"
+    if [ -n "$xj" ] || [ -n "$xu" ]; then
+      local xhead
+      if [ -n "$xref" ]; then xhead="$xref ($(felix_exceptions_ref_date "$proj"))"; else xhead="no refs/remotes/origin/main, so none can be read"; fi
+      printf '\nexceptions at %s: %s granted\n' "$xhead" "$n_x"
+      [ -n "$xj" ] && printf '%s\n' "$xj" | awk -F'\t' 'NF >= 5 { printf "  %-8s %-22s %-21s %-14s %s\n", $1, $2, $3, $4, $5 }'
+      if [ -n "$xu" ]; then
+        printf '\n  written in this tree and not at %s, so not yet a grant:\n' "${xref:-the base ref}"
+        printf '%s\n' "$xu" | awk -F'\t' '{ printf "    %-22s until %s by %s\n", $1, $3, $4 }'
+      fi
+    fi
+  fi
   # The epoch these were evaluated under. Report only, and only in the report:
   # the gate's copy of this output is read by other things, and a line added
   # there would be a format change rather than a fact.
@@ -4440,7 +4497,8 @@ cmd_obligations() {
         printf '\n  refused, with the reason\n'
         printf '%s\n' "$refused" | sed 's/^/    /'
       fi
-      printf '\ndiscovered %s, admitted %s. A candidate is admitted by a person copying its\n' "$n_c" "$n_adm"
+      printf '\ndiscovered %s, admitted %s, granted %s. A candidate is admitted by a person copying its\n' \
+        "$n_c" "$n_adm" "$(command -v felix_exceptions_count >/dev/null 2>&1 && felix_exceptions_count "$proj" || printf 0)"
       printf 'row into %s/obligations.tsv and committing; the engine never does.\n' "$proj"
     fi
   fi

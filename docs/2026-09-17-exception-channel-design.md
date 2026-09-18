@@ -32,9 +32,14 @@ obligation	row_hash	expires	granted_by	reason
   `obligations.tsv`, tabs and reason included; at least twelve hex characters
   of it. `felix obligations` prints each admitted row's hash so a person can
   copy it. The grant is void the moment the row changes, in any column.
-- `expires`: `YYYY-MM-DDTHH:MM:SSZ`, UTC, absolute. The reader compares it
-  as a string against the current UTC stamp of the same shape; a stamp of any
-  other shape is malformed and clears nothing.
+- `expires`: `YYYY-MM-DDTHH:MM:SSZ`, UTC, absolute, with the month, day,
+  hour, minute and second range-checked. The reader compares it as a string
+  against `now`, which is the later of the machine clock and the committer
+  date of `refs/remotes/origin/main` in the same shape, so a `date` shim on
+  PATH cannot revive a grant that had expired by the time the ref was last
+  fetched. An expiry later than the end of the next calendar year is refused
+  (the horizon is a calendar year, not a rolling twelve months). Among
+  several live rows for one obligation the earliest expiry wins.
 - `granted_by`: the person, as text. The commit that merged the row is the
   attestation (§1.1); the row's text is the intent.
 - `reason`: why, for the reader of the ledger.
@@ -96,7 +101,8 @@ grants so the lag is visible, and the expiry is what bounds it.
 ## Where it is consumed
 
 `felix_obligations_run <proj> <root> [mode]` gains an eighth column: `-`, or
-`excepted:<expires>:<granted_by>` when a valid grant exists for a
+`excepted|<expires>|<granted_by>` — a bar, because the stamp carries colons —
+when a valid grant exists for a
 `TASK_BLOCKING` row and the mode is not `release`. `felix_obligations_blocking`
 skips such a row when its mode is empty — the task moment — and never when
 the mode is `release`. The merge boundary passes `release` to both, so the

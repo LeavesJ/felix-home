@@ -40,3 +40,4 @@ green	path	\.(md|markdown|rst|txt)$	documentation
 green	path	^(docs|documentation)/.*\.(md|markdown|rst|txt)$	documentation
 green	path	^tests?/	test-only change
 green	path	(^|/)(LICENSE|CHANGELOG|CODEOWNERS)$	repository metadata
+red	path	^projects/[^/]+/exceptions\.tsv$	a row here clears an obligation at the task moment; merging one is a person's act, and the exception channel escapes on any change

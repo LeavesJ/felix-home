@@ -162,6 +162,7 @@
 1	a file facing a directory is a drift, whatever diff exits
 1	a file git ignores dropped into the entry is residue, not drift
 1	a file git ignores, left in the cache entry, is not drift
+1	a file named exceptions.tsv elsewhere or deeper than projects/<p>/ does not fire it
 1	a file that does not parse drops out of the roster without taking the rest
 1	a file under bin/ that begins with a shebang is a script, and its bare mode is caught
 1	a filename containing ' and ' cannot hide behind a fragment
@@ -179,8 +180,20 @@
 1	a gitignored stray in the tree is residue, not drift
 1	a gitlink already in history does not block every future backup
 1	a governed product merges with no installed engine at all
+1	a grant committed locally on top of the fetched main but not pushed clears nothing
+1	a grant committed on local main with no remote clears nothing
+1	a grant committed only on a side branch clears nothing even once the origin holds that branch
+1	a grant expiring past the horizon clears nothing
+1	a grant hashed over the line without its newline clears nothing
+1	a grant keyed to another line's hash clears nothing
+1	a grant naming a release-blocking obligation clears nothing
+1	a grant naming an unknown-pathway obligation clears nothing
 1	a grant of authority escapes
+1	a grant on a dormant row is not applied
+1	a grant that expired before the base commit is expired whatever the clock says
+1	a grant under a home that is a different repository from the governed root clears nothing
 1	a grant with no stamp does not cover the table
+1	a grant written only in the working tree clears nothing
 1	a granted night hands the session its turn back instead
 1	a granted night is in progress
 1	a graph built at HEAD is behind by nothing
@@ -205,7 +218,9 @@
 1	a held row whose answer ran and whose check now passes is done
 1	a high tier refuses even when no capability matches
 1	a high-risk row is never installed by commissioning
+1	a hold on an unverified tree names the exceptions table and says a session cannot grant itself one
 1	a home pointer naming something that is not a home refuses
+1	a home that is no repository has its grants unread, and the widget report says so under the new summary
 1	a hook added today without its bit fails the same way
 1	a hook nobody explained is caught
 1	a hook nomination is recorded, not installed
@@ -225,6 +240,7 @@
 1	a leftover message draft does not stop the backup forever
 1	a library changed and committed on a branch is not drift
 1	a library changed in the working tree is not drift, because main did not change
+1	a live grant is listed live and a grant on a dormant row is listed armed
 1	a live night is mounted into the next session's context
 1	a local-only branch is taken as given
 1	a lock whose owner is gone is taken over
@@ -260,6 +276,7 @@
 1	a missing runbook fails loudly
 1	a missing state file is not a guess
 1	a multi-line utterance stays one greppable line
+1	a name admitted twice is refused the second time and admitted once
 1	a name counts triple
 1	a name in no marketplace is unknown, not refused
 1	a name nothing mentions is still not found
@@ -362,6 +379,7 @@
 1	a probes.tsv holding no rows is refused too
 1	a project bounded only by content rules reports the bound
 1	a project declaring no qualification qualifies nothing
+1	a project directory outside any repository, or one that is itself the repository root, grants nothing
 1	a project directory that is not there identifies no subject
 1	a project directory that is not there identifies no subject and no topology
 1	a project that declares no probes has no topology
@@ -422,6 +440,7 @@
 1	a refusal on risk is reported
 1	a refused candidate does not fail the report
 1	a rejected push is reported, not forced
+1	a release-mode run carries no clearance in any row
 1	a repair that failed says so
 1	a repo copy of a file Felix holds is reported
 1	a repository that is not the memory's own is named foreign
@@ -617,6 +636,7 @@
 1	an applies command that exits 128 is UNKNOWN too, not a second kind of no
 1	an applies command that exits 2 is UNKNOWN on both axes, not DORMANT
 1	an argument it cannot honour merges nothing
+1	an authority hold on the unknown pathway blocks whatever the table says
 1	an eight-hour grant runs until eight hours from now
 1	an empty FELIX_RELEASE_TARGET is not a target
 1	an empty base is not reported as unknown
@@ -649,11 +669,14 @@
 1	an event row with a failing check is DUE
 1	an event-driven routine is not due
 1	an evidence command that does not exist here is ACTIVE UNKNOWN
+1	an evidence line carrying tabs and a carriage return cannot forge the eighth column nor break the row
+1	an excepted row's detail names its expiry and grantor and keeps its discharge unsatisfied
 1	an excuse elsewhere does not defuse, sample 1
 1	an excuse elsewhere does not defuse, sample 2
 1	an excuse elsewhere does not defuse, sample 3
 1	an excuse elsewhere does not defuse, sample 4
 1	an execute path against an unresolvable base blocks the merge
+1	an expired grant clears nothing
 1	an explicit FELIX_HOME wins
 1	an explicit base argument names the ref to run against
 1	an explicit path is allowed
@@ -732,6 +755,7 @@
 1	an unverified tree is Felix's work, not an interruption
 1	an unverified tree is the first thing to do
 1	an unwritable state directory still exits 0
+1	an upper-case hash, a bad stamp or an empty grantor is no grant
 1	and --fix does not exit 0 when every repair failed
 1	and --gate does not raise it
 1	and TASK_BLOCKING may not block either
@@ -1516,6 +1540,8 @@
 1	as does another
 1	asked from a worktree the distance is still the holding checkout's
 1	at most one caller records when one slot is left
+1	at release a task-blocking row is dropped and a release-blocking one blocks, grant or no grant
+1	at the task moment an excepted row does not block
 1	backfilled the human steps it implies
 1	backfilled the tooling the capability implies
 1	backs the removed copy up first
@@ -1584,6 +1610,8 @@
 1	counts a package and its skill as one thing
 1	counts repeated calls once with a total
 1	counts what was blocked
+1	creating a project's exceptions table escapes on the exception channel
+1	deleting the table from the working tree does not revoke a grant at origin/main
 1	deploy-check --applies holds in a worktree the marketplace does not serve
 1	deploy-check --applies holds where a deployment exists and main can be read
 1	deploying main's engine at that version satisfies it
@@ -1605,6 +1633,7 @@
 1	each control runs against a tree of its own
 1	each fact carries the tree it was taken from
 1	each line is a name and a value separated by a tab
+1	each refused grant is listed with its reason
 1	editing a table in the set is a new policy version
 1	editing a table in the set makes it stale, with nothing under state/ changing
 1	editing the same file again invalidates the receipt
@@ -1621,6 +1650,7 @@
 1	every decision is logged
 1	every decision is recorded
 1	every ecosystem row carries a written reason
+1	every obligations run row carries eight columns
 1	every one of them terminates the line it printed
 1	every recorded row is current under the epoch it was proposed under
 1	every request answered stops the reminder
@@ -1658,13 +1688,17 @@
 1	felix new prints the request path for a session
 1	felix new refuses the same names the marker refuses
 1	felix new seeds a probe table
+1	felix new seeds an exceptions table of comment lines only
 1	felix new seeds the obligations ledger
 1	felix new still exits 0
 1	felix next ranks it under the checks that are not checking
 1	felix obligations --gate passes on the fixture's one holding obligation
+1	felix obligations --gate passes when its only blocking row is excepted, and writes the exception to says.log
+1	felix obligations --gate still fails while unexcepted blocking rows remain
 1	felix obligations --request exits 0 on a project whose epoch computes
 1	felix obligations --seed writes the template where no ledger is
 1	felix obligations ingests an answered file and still exits 0
+1	felix obligations prints a row column carrying the ledger line's twelve-character hash
 1	felix overnight with no arguments says where the night stands
 1	felix probes refuses a project that asks reality nothing
 1	felix probes reports without refusing
@@ -1980,6 +2014,7 @@
 1	route refuses outside a governed repo
 1	routes.log tracked under a project fails: it holds the prompts verbatim
 1	rows outliving a deleted declaration do not propose a mount
+1	rows written in this tree and not at origin/main are listed as not yet grants
 1	running a rival gate is denied
 1	runs that all passed are clean
 1	runs with a failure are dirty
@@ -2028,6 +2063,7 @@
 1	so a project created on git init alone is not born blocked
 1	so a project created today is not born blocked
 1	so a project created today reads something from reality
+1	so do an added row, a comment edit and a deletion
 1	so does a pointer naming a directory that is gone
 1	so is a file that ends inside a string
 1	so its gate is not red on the day it was created
@@ -2068,6 +2104,7 @@
 1	that names the command
 1	the 300-character reason survives the record whole
 1	the admit phase installs nothing and edits no manifest
+1	the admitted sentence now counts the grants
 1	the agent points at the served engine, not the running copy
 1	the agent runs the pulse
 1	the all-clear says what could not be checked
@@ -2107,6 +2144,7 @@
 1	the engine names no governed project
 1	the engine writes manifests carrying the grounding column
 1	the entry point and the suite runner, both bare, fail
+1	the exceptions template names the row hash column and holds no rows
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
 1	the extractor names every skipped check and nothing else
@@ -2131,6 +2169,7 @@
 1	the gate carries the ecosystem check too
 1	the gate's executable check passes when every script under bin/ has its bit
 1	the gate's installed check asks the one reader, felix_accepted_deploy_diff
+1	the gate's obligations line reads excepted and the gate passes
 1	the generic reader reads a seven-field answer as answered, not as five fields short
 1	the graph is graphify-out/graph.json under the holding checkout
 1	the graph's home is the checkout that holds the repository
@@ -2199,6 +2238,7 @@
 1	the registry says where the engine is served from
 1	the remote actually holds the commit
 1	the removed file still exists somewhere
+1	the report heads the grants with the base ref and its commit date
 1	the report lists what the provider named and says nothing was installed
 1	the repository that ships the engine is self-governed
 1	the repository tracks no project memory
@@ -2223,6 +2263,7 @@
 1	the same file with an unconfined line escapes
 1	the same project identifies the same subject twice
 1	the same receipt read for a renamed project is stale because the subject moved
+1	the same repository after push and fetch clears it, and among valid rows the earliest expiry wins
 1	the same route does not repeat itself
 1	the scanner refuses to answer on a path it cannot search
 1	the scanner's own code names no project
@@ -2247,6 +2288,7 @@
 1	the structural verdict shows its evidence too
 1	the stub refuses a selectorless merge the way gh does
 1	the stub refuses an untaught shape
+1	the summary counts the excepted rows
 1	the surviving drift is named
 1	the syntax check is behind the verifier confine
 1	the table did not grow
@@ -2259,6 +2301,7 @@
 1	the tree id is still the one the receipt names
 1	the tree's run executed against main's lib, never the base's own run
 1	the unmeasurable list takes the hook-only zero
+1	the whole forty-character hash grants too, and an expired row above it does not shadow it
 1	the widget's epoch is a hash
 1	the widget's probe table is exactly as this section found it
 1	the widget's table is exactly as this section found it
@@ -2326,6 +2369,7 @@
 1	while the other repository still sees its own
 1	while the others still are
 1	while the path around it does not
+1	while the rows whose grants were refused or absent still do
 1	while the same path without one is documentation, and the run stays green
 1	while the tree id never saw the table
 1	while the unruled ones are
@@ -2368,6 +2412,7 @@
 1	with the template's one row, the lifecycle obligation every plugin owes
 1	with the usage text
 1	without --strict it only reports
+1	without lib/exceptions.sh every eighth column is a dash and every row is still reported
 1	without opting in, nothing is touched
 1	work committed only in a worktree does not make the graph stale
 1	work the subagent committed is still checked

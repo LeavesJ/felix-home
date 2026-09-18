@@ -76,16 +76,29 @@ it should be paid deliberately, not rediscovered.
 ## 0bm. 2026-09-18 — the public snapshot brought forward and found uninstallable, and ECC read against v3.2
 
 The founder's instruction was to update the public repository first and then
-go deeper on what ECC's best-known skills can do for the v3.2 state. §0bl
-below is still where a session starts: nothing in its queue moved, and the one
-command that unblocks it is still the founder's.
+go deeper on what ECC's best-known skills can do for the v3.2 state. It also
+closed the first item of §0bl's queue, and how that came about is worth
+reading, because this section was first written saying the opposite.
+
+**The commission had already been re-stamped, and this section said it had
+not.** `commissioning.log` holds a full run at 2026-09-18T20:31:38Z, two
+minutes before `says.log` records this session's first prompt at 20:33:54Z.
+It was a person's, by elimination: the session's only commission call was
+`--status`, which writes nothing, and the unattended path appends to
+`state/commission/felix.bg.log` whether it runs or fails, and that file was
+last written on 2026-09-12. The first draft of this section, already pushed
+to #262 as `ed03691`, said #262 "still waits on `felix commission`", copied
+from §0bl and not read from the tree. A dry run of `felix merge` is what
+contradicted it. §0bh and §0bl record the same failure: a claim about state
+that was recalled and not read.
 
 | | |
 |---|---|
 | public | `LeavesJ/Felix` main at `f6341ba`, engine **0.49.121**, by `LeavesJ/Felix#1`: two commits, `06393be` and `5455d56`, merged on green CI |
 | cut from | felix-home main `a8ab281` (#261) |
 | suite on the snapshot tree | 2441 passed, 0 failed, 3 skipped, run locally before anything was pushed; the public `suite` workflow passed on the pull request in 2m33s |
-| private | nothing merged. This section, `docs/2026-09-18-ecc-against-v32.md` and a `snapshot` maintenance row ride on #262, which still waits on `felix commission` |
+| private | **#263 merged** as `53eaf24` through `felix merge`, after a fresh gate on its tree (2457 passed, 0 failed, 1 skipped). The home was fast-forwarded and `felix install` run from it: **0.49.122** is in the registry and its cache entry is byte-identical to the home's engine. It reaches sessions that start after this one; this session's hooks ran 0.49.121 throughout |
+| this section | rides on #262 with `docs/2026-09-18-ecc-against-v32.md` and a `snapshot` maintenance row, on a branch that now has main merged into it |
 
 ### The snapshot rule, derived and then proven
 

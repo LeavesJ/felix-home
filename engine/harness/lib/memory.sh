@@ -15,12 +15,49 @@
 # people to stop reading it. The value of a lessons file is entirely in its
 # signal-to-noise, so the failure mode of writing too much is the fatal one.
 
+# The branch and the commit of a tree, each as exactly one field.
+#
+# Both were read as `$(git ... 2>/dev/null || echo '?')`, which is wrong in the
+# one state where it matters. On an unborn HEAD — what `git init` leaves, and
+# where a project is commissioned — `rev-parse --abbrev-ref HEAD` prints `HEAD`
+# AND exits 128, so the fallback does not replace the answer, it is appended to
+# it: the field arrived as "HEAD\n?", and a mistakes.log row became two lines
+# with no fourth column on either. Every reader of that log takes column four a
+# line at a time, so the failure was written down and could not be read.
+#
+# The fallback is assigned, the way felix_tree_id reads HEAD, so a command that
+# failed has its output discarded whole. The branch is asked of symbolic-ref
+# first because an unborn HEAD still has one — `git init -b main` is on main
+# before anything is committed — and a detached HEAD falls through to the
+# `HEAD` rev-parse always gave. The commit there genuinely does not exist, and
+# says `unborn`, felix_tree_id's word for the same state, rather than `?`,
+# which is what a directory that is no repository at all still reads as.
+#
+# Tabs and newlines are stripped on the way out. A ref name cannot hold one, so
+# this changes nothing today; it is here because these are fields of a
+# tab-separated row and the row is only as well-formed as its worst field.
+_felix_mem_branch() {
+  local root="$1" b
+  b="$(git -C "$root" symbolic-ref --short -q HEAD 2>/dev/null)" \
+    || b="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)" || b=""
+  printf '%s' "${b:-?}" | tr -d '\t\n\r'
+}
+
+_felix_mem_commit() {
+  local root="$1" c
+  c="$(git -C "$root" rev-parse --short HEAD 2>/dev/null)" || c=""
+  if [ -z "$c" ]; then
+    if git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then c="unborn"; else c="?"; fi
+  fi
+  printf '%s' "$c" | tr -d '\t\n\r'
+}
+
 _felix_mem_stamp() {
   local root="$1"
   printf '%s %s %s' \
     "$(date +%Y-%m-%d)" \
-    "$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')" \
-    "$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo '?')"
+    "$(_felix_mem_branch "$root")" \
+    "$(_felix_mem_commit "$root")"
 }
 
 felix_mem_log() {
@@ -85,14 +122,18 @@ felix_mem_handoff() {
 # Write cheaply, consolidate on a cadence. The maintenance routine does the
 # curating with the whole file in view, which is when the judgement is actually
 # available.
+#
+# One row per call, four fields, whatever git or the caller hands over: the
+# branch and commit come through the helpers above, and `what` has any tab or
+# newline turned into the space that already separates the checks it names.
 felix_mem_mistake() {
   local proj="$1" root="$2" what="$3"
   mkdir -p "$(felix_mem_dir "$proj")"
   printf '%s\t%s\t%s\t%s\n' \
     "$(date +%Y-%m-%d)" \
-    "$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')" \
-    "$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo '?')" \
-    "$what" >> "$(felix_mem_dir "$proj")/mistakes.log"
+    "$(_felix_mem_branch "$root")" \
+    "$(_felix_mem_commit "$root")" \
+    "$(printf '%s' "$what" | tr '\t\n\r' '   ')" >> "$(felix_mem_dir "$proj")/mistakes.log"
 }
 
 # What the gate keeps catching. A far better promotion signal than counting words:

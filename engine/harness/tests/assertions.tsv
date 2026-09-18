@@ -157,6 +157,7 @@
 1	a due step containing a colon does not shift it
 1	a fact that moved under the receipt raises exactly one
 1	a failed commit says the memory is NOT backed up
+1	a failing gate on an unborn HEAD still exits non-zero
 1	a failing gate still blocks
 1	a failing gate still exits non-zero
 1	a faithful cache entry still merges a self-governed branch
@@ -178,6 +179,7 @@
 1	a full-length sha nothing holds is unknown too
 1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
+1	a gate naming nothing on an unborn HEAD records its status in column four
 1	a gate that skipped the suite is not called a passing suite
 1	a gitignored stray in the tree is residue, not drift
 1	a gitlink already in history does not block every future backup
@@ -1186,6 +1188,7 @@
 1	and reads stale whatever its age
 1	and recorded nowhere
 1	and recording the run does not put it back
+1	and records exactly one line for it
 1	and records neither
 1	and records nothing either
 1	and records the failure without being asked
@@ -1253,6 +1256,7 @@
 1	and says that it knows
 1	and says the answer was neither yes nor no, naming the code
 1	and says the checkout could not be entered rather than naming a missing command
+1	and says the commit is unborn rather than guessing one
 1	and says the gate failed
 1	and says the gate has not seen it
 1	and says the gate never ran
@@ -1923,6 +1927,7 @@
 1	obligations.tsv is byte-identical at the end of the block
 1	obligations.tsv is one of the tables the receipt is bound to
 1	obligations.tsv is one of the tables whose shrinkage escapes
+1	of four tab-separated fields
 1	on a repository with no commit, nothing tracked reads as empty, not blind
 1	on main after an engine change nobody deployed, installed fails
 1	onboarding writes one
@@ -2084,6 +2089,7 @@
 1	so no false unmount is proposed from it
 1	so the branch is not blamed for what the remote already had
 1	so the caveat can become untrue
+1	so the commissioning check that reads column four sees the failure
 1	so the declared plugin keeps none of its reaches
 1	so the earlier tree is still readable
 1	so the plugin subdirectory of the fetched repo digests as the flat installed copy
@@ -2415,6 +2421,7 @@
 1	with the count back, the second pass's row is the stale one
 1	with the critique step after it
 1	with the epoch it named, as provenance
+1	with the failed check in column four
 1	with the file's contents untouched
 1	with the newlines escaped, not lost
 1	with the probe table gone the epoch cannot be computed

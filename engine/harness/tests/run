@@ -2855,6 +2855,56 @@ before="$(wc -l < "$MISLOG")"
 ( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 )
 is "a passing gate records nothing" "$(wc -l < "$MISLOG")" "$before"
 
+# An unborn HEAD is still one row.
+#
+# A repository that has been `git init`ed and not yet committed to is exactly
+# where a project gets commissioned, and commissioning is where the gate has to
+# be watched failing. There `git rev-parse --abbrev-ref HEAD` prints `HEAD` AND
+# exits 128, so a `|| echo '?'` fallback does not replace the answer, it appends
+# to it: the branch field became "HEAD\n?" and the record two lines, neither of
+# them with a fourth column. Every reader of this log is `cut -f4` or awk's $4,
+# so the failure was written down and could not be read. Found 2026-09-18 on a
+# real commissioning, where `gate_shown_failing` stayed held on a gate that had
+# genuinely been seen red.
+#
+# Driven through the real gate in a real unborn repository rather than by
+# calling the writer, because the defect was in what git says there and a
+# fixture that invents git's answer would have inherited the same assumption.
+NOHEAD="$TMP/unborn-repo"; NOHEADP="$FROOT/projects/unbornproj"
+mkdir -p "$NOHEAD" "$NOHEADP" "$MEM/unbornproj"
+( cd "$NOHEAD" && git init -q -b main )
+printf 'unbornproj\n' > "$NOHEAD/.felix"
+printf 'untracked\n'  > "$NOHEAD/file.txt"
+printf '{"name":"unbornproj","gate":"gate.sh"}\n' > "$NOHEADP/project.json"
+cat > "$NOHEADP/gate.sh" <<'GS'
+#!/usr/bin/env bash
+echo "  lint               FAIL"
+exit 1
+GS
+chmod +x "$NOHEADP/gate.sh"
+NOHEADLOG="$MEM/unbornproj/mistakes.log"
+( cd "$NOHEAD" && "$FELIX" gate >/dev/null 2>&1 ); rc=$?
+is "a failing gate on an unborn HEAD still exits non-zero" "$rc" "1"
+is "and records exactly one line for it"  "$(grep -c '' "$NOHEADLOG" 2>/dev/null)" "1"
+is "of four tab-separated fields"         "$(awk -F'\t' '{ print NF }' "$NOHEADLOG" 2>/dev/null | sort -u | tr '\n' ' ')" "4 "
+is "with the failed check in column four" "$(cut -f4 "$NOHEADLOG" 2>/dev/null | tr -d ' ')" "lint"
+is "and says the commit is unborn rather than guessing one" "$(cut -f3 "$NOHEADLOG" 2>/dev/null)" "unborn"
+# The reader the row was lost on, verbatim from templates/commissioning.tsv.
+( FELIX_MEMORY_DIR="$MEM/unbornproj"
+  cut -f4 "$FELIX_MEMORY_DIR/mistakes.log" 2>/dev/null | tr ' ' '\n' | grep -vxE 'commission|probes' | grep -q . ) \
+  && ok  "so the commissioning check that reads column four sees the failure" \
+  || bad "so the commissioning check that reads column four sees the failure" "$(od -c "$NOHEADLOG" 2>/dev/null | head -4)"
+# The fallback status is a fourth field too, not only a named check.
+cat > "$NOHEADP/gate.sh" <<'GS'
+#!/usr/bin/env bash
+echo "no check is named"
+exit 2
+GS
+: > "$NOHEADLOG"
+( cd "$NOHEAD" && "$FELIX" gate >/dev/null 2>&1 )
+is "a gate naming nothing on an unborn HEAD records its status in column four" \
+   "$(cut -f4 "$NOHEADLOG" 2>/dev/null)" "exit-2"
+
 printf '\ngenerated constitution\n'
 CDIR="$FROOT/projects/stranger"
 [ -s "$CDIR/CLAUDE.md" ] && ok "onboarding writes one" || bad "onboarding writes one"

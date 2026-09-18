@@ -86,9 +86,11 @@ not a wall; the wall is branch protection on the remote, which this repository
 does not have (HANDOFF §0bh, the founder's item 3), and until it does the
 clause holds against accident and against every session that uses Felix's
 own commands, not against a session that sets out to forge a ref. The same
-review found that `felix merge` honours `FELIX_KERNEL`, so a session can
+review found that `felix merge` honoured `FELIX_KERNEL`, so a session could
 choose its own judge — a pre-existing hole over every escape channel, filed
-as #260 rather than patched here. And a grant revoked on the remote is
+as #260 and closed the same day: the variable names no judge any more, and
+the boundary refuses any judge that is not byte-identical to the engine main
+holds at the base ref, the same comparison the gate's `installed` check makes. And a grant revoked on the remote is
 honoured locally until somebody fetches, because nothing on the enforcing
 path fetches; `felix obligations` prints the ref's commit date beside the
 grants so the lag is visible, and the expiry is what bounds it.

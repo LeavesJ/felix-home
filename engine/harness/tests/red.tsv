@@ -5,10 +5,14 @@
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
 base	origin/main	a3eee3cac9add8fcd96aaeae407f57aea5eac475	0.49.122
-run	6	2458	1
+run	10	2466	1
 a gate naming nothing on an unborn HEAD records its status in column four	1
+a handoff written on an unborn HEAD names the branch it is on	1
+and names the branch an unborn repository is on	1
 and records exactly one line for it	1
+and says its head is unborn rather than guessing one	1
 and says the commit is unborn rather than guessing one	1
+no engine file appends a fallback to what git said about HEAD	1
 of four tab-separated fields	1
 so the commissioning check that reads column four sees the failure	1
 with the failed check in column four	1

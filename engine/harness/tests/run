@@ -2904,6 +2904,14 @@ GS
 ( cd "$NOHEAD" && "$FELIX" gate >/dev/null 2>&1 )
 is "a gate naming nothing on an unborn HEAD records its status in column four" \
    "$(cut -f4 "$NOHEADLOG" 2>/dev/null)" "exit-2"
+# The handoff names the same branch, from the same reader. Its line had no
+# fallback, so it was never malformed: it printed `HEAD`, git's word for having
+# no commit to abbreviate, to the next session as the branch of a repository
+# that is on main. A project being commissioned is where a handoff gets written
+# with no commit under it.
+( cd "$NOHEAD" && "$FELIX" handoff "being commissioned" >/dev/null 2>&1 )
+has "a handoff written on an unborn HEAD names the branch it is on" \
+    "$(cat "$MEM/unbornproj/SESSION_HANDOFF.md" 2>/dev/null)" '- branch: `main`'
 
 printf '\ngenerated constitution\n'
 CDIR="$FROOT/projects/stranger"
@@ -6142,6 +6150,69 @@ case "$rr" in
 esac
 printf '%s' "$rr" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
   && ok "and the row is still json" || bad "and the row is still json" "$rr"
+
+# The subject is two facts about HEAD, and an unborn HEAD is where both were
+# wrong.
+#
+# felix_receipt read them as `$(git ... 2>/dev/null || printf '?')`, the twin of
+# the expression the mistakes row above was fixed for on 2026-09-18. There git
+# prints `HEAD` AND exits 128, so the fallback is appended to the answer instead
+# of replacing it. The row broke visibly, as two lines. This did not: the
+# escaper flattens a newline to a space, so the document stayed valid json and
+# said `"branch": "HEAD ?"`. A well-formed wrong answer is the worse of the
+# two, because nothing downstream can notice it — and it sat for a day beside
+# the fix because nothing said the two were one question.
+#
+# The branch of an unborn repository is knowable, and the commit is `unborn`,
+# the word felix_tree_id and the mistakes row already use for that state.
+#
+# Through the real CLI in the real unborn repository from the section above,
+# for the reason given there: the defect is in what git says, and a fixture
+# that invents git's answer inherits the assumption.
+NOHEADR="$( cd "$NOHEAD" && "$FELIX" receipt 2>/dev/null )"
+printf '%s' "$NOHEADR" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
+  && ok "a receipt on an unborn HEAD is still json" || bad "a receipt on an unborn HEAD is still json" "$NOHEADR"
+is  "and names the branch an unborn repository is on"      "$(_rf "$NOHEADR" subject.branch)" "main"
+is  "and says its head is unborn rather than guessing one" "$(_rf "$NOHEADR" subject.head)"   "unborn"
+# Knowing the branch is not knowing what changed. `main` names no commit here,
+# so the receipt is exactly as indeterminate as it was.
+has "and still does not know what changed there"           "$(_rf "$NOHEADR" unknown)"        "changed"
+
+# The three states either side of it, so the reader that fixed one did not move
+# another. The expected commit is cut from the full name rather than asked of
+# `--short`, which is the expression under test.
+_rcpt_in() { ( cd "$1" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+               . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+               . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/classify.sh"
+               . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/receipt.sh"
+               felix_receipt "$FROOT/projects/widget" "${2:-main}" "$1" "$FROOT" ); }
+_is_sha_of() {   # name, the short form a receipt gave, the repository it was read in
+  local full; full="$(git -C "$3" rev-parse HEAD 2>/dev/null)"
+  case "$2" in
+    ''|'?'|unborn) bad "$1" "[$2] names no commit" ;;
+    *) case "$full" in "$2"*) ok "$1" ;; *) bad "$1" "[$2] is not the start of [$full]" ;; esac ;;
+  esac
+}
+is         "on a branch with commits the receipt names the branch" "$(_rf "$r" subject.branch)" "main"
+_is_sha_of "and the commit it stands on"                           "$(_rf "$r" subject.head)"   "$STG"
+# Detached, symbolic-ref has no answer and says nothing, so the reader has to
+# fall through to the `HEAD` rev-parse always gave rather than to the fallback.
+( cd "$RDR" && git checkout -q --detach ) >/dev/null 2>&1
+_rdd="$(_rcpt_in "$RDR" "$RDB")"
+is         "a detached HEAD is named HEAD, as it always was" "$(_rf "$_rdd" subject.branch)" "HEAD"
+_is_sha_of "and still names its commit"                      "$(_rf "$_rdd" subject.head)"   "$RDR"
+# And `?` is kept for the one state it is true of: no repository to ask.
+_rng="$(_rcpt_in "$NOGIT")"
+is  "a directory that is no repository has no branch to name" "$(_rf "$_rng" subject.branch)" "?"
+is  "and no commit, which is not the same as an unborn one"   "$(_rf "$_rng" subject.head)"   "?"
+
+# The class, not the instance. Two files held this expression and the first fix
+# reached one of them. Comment lines are skipped because several of them quote
+# the expression in order to explain it, this one included.
+_appended="$(grep -nE '\$\([^()]*rev-parse[^()]*HEAD[^()]*\|\|[[:space:]]*(echo|printf)' \
+               "$FROOT/harness/felix" "$FROOT"/harness/lib/*.sh "$FROOT"/harness/hooks/* "$FROOT"/harness/bin/* 2>/dev/null \
+             | grep -vE '^[^:]*:[0-9]+:[[:space:]]*#')"
+is  "no engine file appends a fallback to what git said about HEAD" "$_appended" ""
 
 printf '\nthe bump is the deployment\n'
 # `felix install` detected the exact condition, knew exactly what to do, and

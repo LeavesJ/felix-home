@@ -283,6 +283,53 @@ felix_repo_root() {
   [ -n "$root" ] && printf '%s' "$root" || printf '%s' "$start"
 }
 
+# The branch and the commit a tree stands on, each as exactly one field.
+#
+# Both were read, in two libraries, as `$(git ... 2>/dev/null || echo '?')`,
+# which is wrong in the one state where it matters. On an unborn HEAD — what
+# `git init` leaves, and where a project is commissioned — `rev-parse
+# --abbrev-ref HEAD` prints `HEAD` AND exits 128, so the fallback does not
+# replace the answer, it is appended to it: the field arrived as "HEAD\n?".
+#
+# In memory.sh that made a mistakes.log row two lines with no fourth column on
+# either, and every reader of that log takes column four a line at a time, so
+# the failure was written down and could not be read. In receipt.sh the escaper
+# flattened the newline, so the document stayed valid json and said
+# `"branch": "HEAD ?"` — the quieter of the two, and found a day after the
+# first, because the fix for the first put these readers in memory.sh, where
+# receipt.sh could not reach them. They are here because this is the one file
+# both already load however they are loaded: the CLI and every hook source it
+# first, receipt.sh sources it itself when it is missing, and memory.sh needs
+# it for felix_mem_dir.
+#
+# The fallback is assigned, the way felix_tree_id reads HEAD, so a command that
+# failed has its output discarded whole. The branch is asked of symbolic-ref
+# first because an unborn HEAD still has one — `git init -b main` is on main
+# before anything is committed — and a detached HEAD falls through to the
+# `HEAD` rev-parse always gave. The commit there genuinely does not exist, and
+# says `unborn`, felix_tree_id's word for the same state, rather than `?`,
+# which is what a directory that is no repository at all still reads as.
+#
+# Tabs and newlines are stripped on the way out. A ref name cannot hold one, so
+# this changes nothing today; it is here because these are fields of a
+# tab-separated row and of a json string, and either is only as well-formed as
+# its worst field.
+felix_head_branch() {
+  local root="$1" b
+  b="$(git -C "$root" symbolic-ref --short -q HEAD 2>/dev/null)" \
+    || b="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)" || b=""
+  printf '%s' "${b:-?}" | tr -d '\t\n\r'
+}
+
+felix_head_commit() {
+  local root="$1" c
+  c="$(git -C "$root" rev-parse --short HEAD 2>/dev/null)" || c=""
+  if [ -z "$c" ]; then
+    if git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then c="unborn"; else c="?"; fi
+  fi
+  printf '%s' "$c" | tr -d '\t\n\r'
+}
+
 # Resolve which project governs a working directory.
 # Prints the project directory on success, prints nothing and returns 1 on miss.
 #

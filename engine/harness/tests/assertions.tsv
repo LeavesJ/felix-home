@@ -127,6 +127,7 @@
 1	a deployment matching the tree is not reported as drift
 1	a deployment that is not this tree is the first thing to fix
 1	a descriptor the caller left open is closed
+1	a detached HEAD is named HEAD, as it always was
 1	a detached HEAD is refused in words
 1	a detected surface no row serves, reaches or grounds is named with all three misses
 1	a detector hard-coded to one stack is caught
@@ -142,6 +143,7 @@
 1	a directory only the cache holds, with nothing in it but residue, is residue
 1	a directory that does not exist yields no digest
 1	a directory that exists but holds no files yields no digest
+1	a directory that is no repository has no branch to name
 1	a dirty memory repo is committed
 1	a dirty tree with a green receipt under the current epoch may stop
 1	a disarmed engine is still judged by main's version
@@ -218,6 +220,7 @@
 1	a grounded topology is one line
 1	a half-written character does not fail the whole report
 1	a handoff given no note says it kept the last one
+1	a handoff written on an unborn HEAD names the branch it is on
 1	a held control refuses it
 1	a held control still refuses the gate when inapplicable rows follow it
 1	a held row whose answer ran and whose check now passes is done
@@ -416,6 +419,7 @@
 1	a receipt carrying a skip list still clears every blocker
 1	a receipt for another tree still blocks
 1	a receipt missing an input is indeterminate, never verified
+1	a receipt on an unborn HEAD is still json
 1	a receipt read under a different release target is stale for that reason
 1	a receipt survives being written inside the tree it describes
 1	a receipt with no epoch is said to have none before the facts are said to be unreadable
@@ -1041,6 +1045,7 @@
 1	and names origin's version as the one nothing is installed at
 1	and names the answer file to write
 1	and names the base it could not resolve
+1	and names the branch an unborn repository is on
 1	and names the capability
 1	and names the channel
 1	and names the command that writes it
@@ -1089,6 +1094,7 @@
 1	and no agent is written there
 1	and no arguments at all refuse
 1	and no caller keeps a tier list of its own
+1	and no commit, which is not the same as an unborn one
 1	and no conflict markers were committed (cherry)
 1	and no conflict markers were committed (squash)
 1	and no conflict markers were committed (stash)
@@ -1234,6 +1240,7 @@
 1	and says it must be fixed before the next session
 1	and says it was never reached
 1	and says it where the founder can see it
+1	and says its head is unborn rather than guessing one
 1	and says not to fix it unattended
 1	and says nothing about a night nobody granted
 1	and says nothing about it afterwards
@@ -1324,8 +1331,10 @@
 1	and stays to one line
 1	and stdout is the one summary line
 1	and step 8 is no longer a step nothing answers
+1	and still does not know what changed there
 1	and still exits 0
 1	and still exits 0, because start cannot refuse
+1	and still names its commit
 1	and still no candidate command has run
 1	and still offers the handoff
 1	and still proposes from the record
@@ -1373,6 +1382,7 @@
 1	and the clean sentence is withheld
 1	and the command succeeds
 1	and the comment survives
+1	and the commit it stands on
 1	and the contract names each moment it examined
 1	and the count follows
 1	and the detail is the digest the two copies share
@@ -1876,6 +1886,7 @@
 1	no candidate is dropped in silence
 1	no candidate's applies or evidence ran through rules, record, read or stale
 1	no deny.tsv means nothing is denied
+1	no engine file appends a fallback to what git said about HEAD
 1	no entry is listed twice
 1	no evidence rule requires a pattern that matches everything
 1	no history is no streak
@@ -1928,6 +1939,7 @@
 1	obligations.tsv is one of the tables the receipt is bound to
 1	obligations.tsv is one of the tables whose shrinkage escapes
 1	of four tab-separated fields
+1	on a branch with commits the receipt names the branch
 1	on a repository with no commit, nothing tracked reads as empty, not blind
 1	on main after an engine change nobody deployed, installed fails
 1	onboarding writes one

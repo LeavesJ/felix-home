@@ -134,6 +134,7 @@
 1	a different remote_match is a different subject
 1	a different repository is still checked
 1	a directory declaring project.json is enumerated
+1	a directory git tracks nothing under is copied whole, even inside a repository that ignores it
 1	a directory holding only untracked files is blind too
 1	a directory in no repository has no graph home to print
 1	a directory is cannot-examine, not an empty binding
@@ -527,6 +528,7 @@
 1	a stranded session folds under its own date, not today's
 1	a stranded session has appends but no folded record
 1	a stranger that is not a plugin is created without a blocking obligation
+1	a stray directory the repository ignores leaves git status clean, so nothing points at it
 1	a structural failure still fails the gate
 1	a subdir argument naming no directory digests the copy it was given
 1	a subdirectory named as an argument digests as that subdirectory alone
@@ -551,6 +553,7 @@
 1	a tie is broken the same way whichever order the file lists
 1	a tool absent from the manifest is not a clean bill
 1	a tool that could not be checked is said, not counted as reachable
+1	a tracked file missing from disk does not stop the copy
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
 1	a tree that changed is named before a fact that moved
@@ -769,6 +772,7 @@
 1	and a CLI that cannot answer is not a stale deployment
 1	and a backticked path naming nothing is still not invented
 1	and a bare script is still caught from inside the engine itself
+1	and a cache entry cut from that copy is still the engine main accepted
 1	and a cache file that is not there reads as no digest either
 1	and a call from a worktree is held by the same lock, there being one graph
 1	and a catalogue that was read and matched nothing is exit 0
@@ -1352,6 +1356,7 @@
 1	and that reads as no stamp, the same verdict a stampless graph gets, not as an error
 1	and that receipt reads stale, never current
 1	and that refusal is non-zero too
+1	and the CLI keeps its executable bit through it
 1	and the ack is consumed by the answer
 1	and the admitted row not to re-propose
 1	and the all-clear is not repeated every session
@@ -1451,6 +1456,7 @@
 1	and the record names the channel
 1	and the refilled cache begins with the stamp
 1	and the refusal is the gate's own
+1	and the refusal names the stray, which is all the incident ever printed
 1	and the refusal names the version main declares or the cache it searched
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
@@ -2302,6 +2308,7 @@
 1	the structural verdict shows its evidence too
 1	the stub refuses a selectorless merge the way gh does
 1	the stub refuses an untaught shape
+1	the suite's copy of a harness holding one leaves it behind
 1	the summary counts the excepted rows
 1	the surviving drift is named
 1	the syntax check is behind the verifier confine
@@ -2383,6 +2390,7 @@
 1	while the other repository still sees its own
 1	while the others still are
 1	while the path around it does not
+1	while the raw copy the suite used to take is refused as a judge
 1	while the rows whose grants were refused or absent still do
 1	while the same path without one is documentation, and the run stays green
 1	while the tree id never saw the table
@@ -2429,6 +2437,7 @@
 1	without lib/exceptions.sh every eighth column is a dash and every row is still reported
 1	without opting in, nothing is touched
 1	work committed only in a worktree does not make the graph stale
+1	work not yet added to git is still carried into the copy
 1	work the subagent committed is still checked
 1	writes a zero row for a declared tool nobody reached for
 1	zero members is two different answers depending on the witness

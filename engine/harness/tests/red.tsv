@@ -4,14 +4,25 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	1854f6cca2824997898ad513144a0e0e942bca9c	0.49.126
-run	9	2524	1
-and keeps the DEVLOG.md it found, byte for byte	1
-and keeps the SESSION_HANDOFF.md it found, byte for byte	1
-and keeps the file it found with content, byte for byte	1
-and keeps the lessons.md it found, byte for byte	1
-and names DEVLOG.md among what it kept	1
-and names SESSION_HANDOFF.md among what it kept	1
-and names lessons.md among what it kept	1
-and names what it kept, the empty placeholder among it	1
-and says the memory it found was kept	1
+base	origin/main	eb13021b600a664990a464ed3f90c5e20e7c2b1e	0.49.127
+run	20	2552	1
+content scan: a #! file without the execute bit, holding npx and GITHUB_TOKEN, is a credential-call	1
+content scan: a .ps1 with Invoke-RestMethod and OPENAI_APIKEY is a credential-call	1
+content scan: a .py file with requests.post( and DB_PASSWORD on different lines is a credential-call	1
+content scan: a command that must fetch a URL is remote-authority	1
+content scan: a credential-call alone makes a plugin medium	1
+content scan: a file named $(touch pwned1).sh is reported by its literal name	1
+content scan: a nested agent treating Sources as authoritative is remote-authority	1
+content scan: a newline in a skill directory name cannot forge a fact line	1
+content scan: a skill naming the live docs the source of truth is remote-authority	1
+content scan: a skills directory linked inside the copy is read	1
+content scan: an executable file holding curl and API_KEY is a credential-call at its base-relative path	1
+content scan: remote authority observed is held for a person, not installed	1
+content scan: remote-authority alone makes a plugin medium	1
+content scan: symlinks, non-executables and files outside scripts/ and skills/ are not counted	1
+content scan: the reason names the file that made it medium	1
+content scan: two executable files under scripts/ and skills/ count as executables 2	1
+content scan: why explains credential-call	1
+content scan: why explains executables	1
+content scan: why explains remote-authority	1
+content scan: with a subdir the scan reads <dir>/<subdir> and paths are relative to it	1

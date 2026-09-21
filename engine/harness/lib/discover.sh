@@ -306,7 +306,10 @@ felix_discover_fetch() {
   return 0
 }
 
-# Read three files and report facts. fact <TAB> detail, one per line.
+# Read what a plugin ships and report facts. fact <TAB> detail, one per line.
+# The three files the platform runs on its own come first; the prose and the
+# bundled scripts, which it runs only when an agent is told to, come after
+# (_felix_discover_content).
 felix_discover_inspect() {
   local dir="$1" sub="${2:-}" base f
   base="$dir"
@@ -336,12 +339,166 @@ felix_discover_inspect() {
     # Named, not only counted. The count feeds the risk read; the names are
     # manifest facts — what the thing ships — and matching on them is what
     # replaces guessing from a listing's prose (Decision C, 2026-08-30).
+    # Printed through the same filter as every path below. A directory named
+    # `q<newline>skill<TAB>forged` printed raw is a second skill line the
+    # author wrote, and skill lines are what the capability matcher adopts
+    # on. Found by the blind assertions for the content scan, which were told
+    # no fact line could be forged and tested the line this loop prints.
     for f in "$base"/skills/*/; do
       [ -d "$f" ] || continue
       f="${f%/}"
-      printf 'skill\t%s\n' "${f##*/}"
+      printf 'skill\t%s\n' "$(_felix_discover_rel "$base/skills" "$f")"
     done
   fi
+
+  _felix_discover_content "$base"
+  return 0
+}
+
+# What the prose and the bundled scripts say, as facts.
+#
+# The three files above are what the platform runs on its own. Everything else
+# a plugin ships was, until this, never opened: the skill bodies, commands and
+# agents a model reads as instructions, and the scripts those instructions tell
+# it to run. So a plugin made only of those tiered `low` without one byte of
+# its content being read, and admit.sh adopted it wherever a capability
+# matched — invariant 4 says "read and judged", and neither had happened.
+#
+# Three facts, each a pattern and nothing cleverer:
+#
+#   executables       regular files with an execute bit under scripts/ or
+#                     skills/. Counted and reported, never raises on its own:
+#                     4 of the 18 installed plugins tiered low ship one, and
+#                     one of the four is a package validator nobody is told
+#                     to run.
+#   credential-call   a script under scripts/ or skills/ that names a network
+#                     call and a credential variable anywhere in the same file.
+#                     Invariant 4: anything touching credentials stops for a
+#                     person, so this raises to medium and admit.sh holds it.
+#   remote-authority  a skill body, command or agent that holds a URL and has
+#                     a line calling remote docs or references the authority.
+#                     What the agent will then follow is text Felix did not
+#                     read and nobody pinned — the prose form of `mcp remote
+#                     endpoint`, and medium for the same reason.
+#
+# Measured before the rules were chosen, on the 27 distinct plugins installed
+# here on 2026-09-21: the two raising facts move 4 of the 18 low plugins to
+# medium, each read by hand and each carrying what its fact names. The full
+# measurement is in the pull request that added this.
+#
+# The ceiling in this file's header holds here unchanged. A pattern reads
+# words, and words are chosen by the author: a credential with no variable
+# name (ambient cloud login), a URL assembled at run time, an authority claim
+# wrapped across two lines, or a NUL byte planted to make a script read as
+# binary all pass. This finds a careless plugin before it is installed; it
+# does not find a hostile one.
+#
+# It can only raise. Every fact is added beside what was already found, and
+# felix_discover_risk matches facts by presence, so nothing added here can
+# remove a finding that tiered something higher.
+#
+# Nothing is executed or sourced, and nothing outside the copy is read:
+# `find -type f` never lists a symlink, and a top directory that is itself a
+# link is walked only when it resolves inside the copy (_felix_discover_root).
+# Paths are walked NUL-separated and printed with control characters
+# replaced, so a file named with a newline cannot print a fact line of its own
+# choosing — a `skill` line forged that way would feed the capability matcher.
+_FELIX_DISCOVER_NET='(^|[^A-Za-z0-9_])(curl|wget|npx|uvx|pipx)([^A-Za-z0-9_]|$)|fetch\(|requests\.(get|post|put|patch|delete|request)\(|urlopen\(|urllib\.request|httpx\.|axios|https?\.(get|request)\(|Invoke-WebRequest|Invoke-RestMethod'
+_FELIX_DISCOVER_CRED='(^|[^A-Za-z0-9_])[A-Z0-9_]*(API_KEY|APIKEY|_TOKEN|_SECRET|_PASSWORD)([^A-Za-z0-9_]|$)'
+
+# A path under the base, printable. Control characters become `?` so that a
+# name cannot end the fact line it is printed in.
+_felix_discover_rel() {
+  printf '%s' "${2#"$1"/}" | LC_ALL=C tr '\001-\037\177' '?'
+}
+
+# One of the directories the scan reads, if it may be read: it exists, and if
+# it is a link, the link resolves inside the copy. A repository that serves
+# several agent platforms often makes `skills` a link to a shared directory,
+# and the skill listing above follows that link by glob; walking it with
+# `find -P` would list nothing, and a plugin laid out that way would be read
+# as having no content — the defect this scan exists to close. A link that
+# leaves the copy is not followed: it points at somebody's machine, not at
+# what was fetched. Links below the top directory are not followed either.
+_felix_discover_root() {
+  local base="$1" dir="$1/$2" real target
+  [ -d "$dir" ] || return 0
+  if [ -L "$dir" ]; then
+    real="$(cd "$base" 2>/dev/null && pwd -P)" || return 0
+    target="$(cd "$dir" 2>/dev/null && pwd -P)" || return 0
+    case "$target/" in "$real"/*) ;; *) return 0 ;; esac
+  fi
+  printf '%s' "$dir"
+}
+
+_felix_discover_content() {
+  local base="$1" f r first n=0 roots=""
+  for r in scripts skills; do
+    r="$(_felix_discover_root "$base" "$r")"
+    [ -n "$r" ] && roots="$roots$r
+"
+  done
+
+  # POSIX -perm rather than `-perm /111` (GNU) or `+111` (BSD): any of the
+  # three execute bits, spelled so both finds read it the same way. -H follows
+  # a root that is itself a link, which _felix_discover_root has vetted.
+  while IFS= read -r -d '' f; do
+    n=$((n+1))
+  done < <(printf '%s' "$roots" | while IFS= read -r r; do
+             find -H "$r" -type f \( -perm -100 -o -perm -010 -o -perm -001 \) -print0 2>/dev/null
+           done)
+  [ "$n" -gt 0 ] && printf 'executables\t%s\n' "$n"
+
+  # A script is whatever can be run: an execute bit, a #! line, or a name an
+  # interpreter takes as given. `<interpreter> scripts/push.py` needs no mode bit, so
+  # the bit alone would miss it; measured, widening from the bit to all three
+  # added no plugin that was not already high. The first two bytes are read
+  # with the builtin, because a skill tree is mostly markdown and a process
+  # per file is most of the cost of this whole scan.
+  while IFS= read -r -d '' f; do
+    case "$f" in
+      *.sh|*.bash|*.zsh|*.py|*.js|*.mjs|*.cjs|*.ts|*.rb|*.pl|*.ps1) ;;
+      *)
+        if [ ! -x "$f" ]; then
+          first=""; IFS= read -r -n 2 first < "$f" 2>/dev/null
+          [ "$first" = '#!' ] || continue
+        fi ;;
+    esac
+    # A binary is not a script whatever its mode. Compiled binaries carry both
+    # words in their string tables — five of semgrep's matched the credential
+    # pattern — and say nothing about what a script was written to do. Asked
+    # twice: `grep -I` first, which gives up at a NUL in the first buffer and
+    # so skips a 16 MB binary for the cost of opening it (semgrep's five took
+    # 16 seconds to regex whole); then the whole file, after both patterns
+    # matched, because a NUL past the first buffer is still a NUL.
+    LC_ALL=C grep -Iq . "$f" 2>/dev/null || continue
+    LC_ALL=C grep -qE "$_FELIX_DISCOVER_NET" "$f" 2>/dev/null || continue
+    LC_ALL=C grep -qE "$_FELIX_DISCOVER_CRED" "$f" 2>/dev/null || continue
+    LC_ALL=C tr -d '\000' < "$f" 2>/dev/null | cmp -s - "$f" || continue
+    printf 'credential-call\t%s\n' "$(_felix_discover_rel "$base" "$f")"
+  done < <(printf '%s' "$roots" | while IFS= read -r r; do
+             find -H "$r" -type f -print0 2>/dev/null
+           done)
+
+  # One line has to carry both the claim and what it is a claim about. "The
+  # codebase is the source of truth" is the commonest sentence in this corpus
+  # that uses the phrase, and it names no remote thing; plural nouns only,
+  # because "source" is inside "source of truth" and "reference" is usually
+  # a reference implementation.
+  while IFS= read -r -d '' f; do
+    LC_ALL=C awk '
+      { l = tolower($0) }
+      l ~ /https?:\/\// { url = 1 }
+      l ~ /source of truth|authoritative|always (trust|fetch|read|consult|check)|must (fetch|read|consult)/ &&
+        (l ~ /https?:\/\// || l ~ /(^|[^a-z0-9_])(docs|documentation|references|sources)([^a-z0-9_]|$)/) { hit = 1 }
+      END { exit !(url && hit) }' "$f" 2>/dev/null || continue
+    printf 'remote-authority\t%s\n' "$(_felix_discover_rel "$base" "$f")"
+  done < <( r="$(_felix_discover_root "$base" skills)"
+            [ -n "$r" ] && find -H "$r" -mindepth 2 -maxdepth 2 -type f -name SKILL.md -print0 2>/dev/null
+            for r in commands agents; do
+              r="$(_felix_discover_root "$base" "$r")"
+              [ -n "$r" ] && find -H "$r" -type f -name '*.md' -print0 2>/dev/null
+            done )
   return 0
 }
 
@@ -491,6 +648,14 @@ felix_discover_drift() {
 
 # Facts in, tier out. Same three tiers stack.tsv already uses, so a discovered
 # row can be pasted into it unchanged.
+#
+# Highest first, and every rule is a presence test, which is what makes the
+# content facts raise-only: adding a line to the facts can make a pattern
+# match, never stop one matching. `executables` is deliberately absent. It is
+# a disclosure, not a tier: a script nobody's prose sends a credential through
+# is still a script the agent runs only when told to, under its own
+# permissions, and raising on it would hold 4 of the 18 low plugins
+# measured here to ask a question with no answer in it.
 felix_discover_risk() {
   local facts="$1"
   case "$facts" in
@@ -499,7 +664,9 @@ felix_discover_risk() {
     *"interpolates	"*) printf 'high';   return ;;
   esac
   case "$facts" in
-    *"mcp	"*) printf 'medium'; return ;;
+    *"mcp	"*)              printf 'medium'; return ;;
+    *"credential-call	"*)  printf 'medium'; return ;;
+    *"remote-authority	"*) printf 'medium'; return ;;
   esac
   printf 'low'
 }
@@ -517,6 +684,12 @@ felix_discover_why() {
     out="$out; talks to a remote endpoint" ;; esac
   case "$facts" in *"mcp	local"*)
     out="$out; runs a local subprocess" ;; esac
+  case "$facts" in *"credential-call	"*)
+    out="$out; a bundled script names a credential beside a network call ($(printf '%s\n' "$facts" | awk -F'\t' '$1 == "credential-call" && !n++ { print $2 }'))" ;; esac
+  case "$facts" in *"remote-authority	"*)
+    out="$out; its prose makes live remote pages the authority, and those were not read ($(printf '%s\n' "$facts" | awk -F'\t' '$1 == "remote-authority" && !n++ { print $2 }'))" ;; esac
+  case "$facts" in *"executables	"*)
+    out="$out; ships $(printf '%s\n' "$facts" | awk -F'\t' '$1 == "executables" && !n++ { print $2 }') executable file(s), read by pattern only" ;; esac
   printf '%s' "${out#; }"
 }
 
@@ -637,8 +810,10 @@ felix_plugin_description() {
 # thinking about tooling at all.
 #
 # Low only. Medium means it ships an MCP server, which usually needs credentials
-# a person has to supply anyway; high means hooks, a floating version, or an
-# interpolated secret, and no flag from any caller installs those.
+# a person has to supply anyway, or a script or prose that reaches past what
+# was read (a credentialed network call, remote pages made the authority);
+# high means hooks, a floating version, or an interpolated secret, and no flag
+# from any caller installs those.
 #
 # Emits: action <TAB> name <TAB> capability <TAB> risk
 #   declare  low risk, not yet in stack.tsv

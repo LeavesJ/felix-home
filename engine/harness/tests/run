@@ -8885,10 +8885,11 @@ printf '\nfelix new: the maturity a person gives is read back\n'
 # The risk envelope's first key. felix new writes it when a person gives it,
 # and the commissioning row `envelope` reads it with felix_json_str, which
 # matches a quoted key only. It was written by `${maturity:+...}` inside an
-# unquoted here-document, and bash 3.2 — the stock macOS /bin/bash — removes
-# the double quotes inside that expansion, so the file said
-# `maturity: prototype`: not JSON, not readable, and the row stayed held after
-# a person had answered it. No assertion named maturity, and CI runs bash 5.
+# unquoted here-document, and bash removes the double quotes inside that
+# expansion there, so the file said `maturity: prototype`: not JSON, not
+# readable, and the row stayed held after a person had answered it. Measured
+# 2026-09-21 on bash 3.2.57, the stock macOS /bin/bash, and on 5.2.21, the CI
+# runner's: both drop them. Nothing caught it because no assertion set it.
 MATP="$TMP/maturity-new"; mkdir -p "$MATP"
 ( cd "$MATP" && git init -q -b main ) >/dev/null 2>&1
 out="$(cd "$MATP" && FELIX_MATURITY=prototype PATH="$CMSTUB:$PATH" "$FELIX" new maturityseed "$MATP" </dev/null 2>&1)"; rc=$?

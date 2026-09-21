@@ -2147,7 +2147,7 @@ cmd_toolbox() {
     # Bundled plugins are real, reachable, and have no directory to read. That
     # is a normal answer: unknown risk, not a missing plugin.
     if [ -n "$dir" ]; then
-      risk="$(felix_discover_risk "$(felix_discover_inspect "$dir")")"
+      risk="$(felix_toolbox_risk "$name" "$dir")"
     fi
     cap="$(felix_toolbox_capability "$name" "$rules" "$dir")"
 
@@ -2371,15 +2371,17 @@ EOF
     local scratchq="$_FELIX_DISCOVER_SCRATCH"
     printf '%s\n' "$cands" | while IFS=$'\t' read -r score cap name desc; do
       [ -n "${name:-}" ] || continue
-      local src url sha sub facts tier
+      local src url sha sub mkt facts tier
       src="$(felix_discover_source "$name")" || src=""
       url="$(printf '%s' "$src" | cut -f1)"
       sha="$(printf '%s' "$src" | cut -f2)"
       sub="$(printf '%s' "$src" | cut -f3)"
+      mkt="$(printf '%s' "$src" | cut -f4)"
       tier="unknown"
       local digest=""
       if [ -n "$url" ] && felix_discover_fetch "$url" "$sha" "$scratchq/$name"; then
-        facts="$(felix_discover_inspect "$scratchq/$name" "$sub")"
+        facts="$(felix_discover_inspect "$scratchq/$name" "$sub" \
+          "$(felix_discover_marketplace_file "$mkt")" "$name")"
         tier="$(felix_discover_risk "$facts")"
         # Taken here, from the copy the tier was scored off, because there is
         # no second chance at it: the catalogue drops a plugin from
@@ -2456,11 +2458,12 @@ EOF
 
   printf '%s\n' "$cands" | while IFS=$'\t' read -r score cap name desc; do
     [ -n "${name:-}" ] || continue
-    local src url sha sub facts risk why
+    local src url sha sub mkt facts risk why
     src="$(felix_discover_source "$name")" || src=""
     url="$(printf '%s' "$src" | cut -f1)"
     sha="$(printf '%s' "$src" | cut -f2)"
     sub="$(printf '%s' "$src" | cut -f3)"
+    mkt="$(printf '%s' "$src" | cut -f4)"
     if [ -z "$url" ]; then
       printf '  %-26s %-8s could not resolve a source to read\n' "$name" "unknown"
       continue
@@ -2469,7 +2472,8 @@ EOF
       printf '  %-26s %-8s fetch failed, skipped\n' "$name" "unknown"
       continue
     fi
-    facts="$(felix_discover_inspect "$scratch/$name" "$sub")"
+    facts="$(felix_discover_inspect "$scratch/$name" "$sub" \
+      "$(felix_discover_marketplace_file "$mkt")" "$name")"
     risk="$(felix_discover_risk "$facts")"
     why="$(felix_discover_why "$facts")"
     printf '  %-26s %-8s %s\n' "$name" "$risk" "${why:-skills only, nothing that runs on its own}"

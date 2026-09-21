@@ -40,13 +40,13 @@
 #   founder's decision of 2026-09-04 that person-declared medium keeps
 #   installing as it does today.
 # - medium OBSERVED holds: the same decision's other half. An engine-tiered
-#   medium ships an MCP server, or a bundled script that sends a named
+#   medium ships an MCP or LSP server, or a bundled script that sends a named
 #   credential over the network, or prose that makes live remote pages its
-#   authority or pipes a download into a shell — read by pattern and never
-#   sandboxed. Amendments 1.2 is why
-#   there is no better answer available: sandbox-exec confines but does not
-#   report, so the spec's T2 has no mechanism on this machine and
-#   denial-on-shape is what remains.
+#   authority or pipes a download into a shell — read by pattern from its
+#   files, its manifest and its marketplace entry, and never sandboxed.
+#   Amendments 1.2 is why there is no better answer available: sandbox-exec
+#   confines but does not report, so the spec's T2 has no mechanism on this
+#   machine and denial-on-shape is what remains.
 # - INFERRED never installs, at any tier. A nomination arrives in a file a
 #   model wrote, so its own claim of `low` is a claim and not evidence. The
 #   door from a nomination to an install is inspection, which is what turns it

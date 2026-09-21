@@ -5306,6 +5306,177 @@ has "a missing comma is an unread manifest, not a lost declaration" \
 mkdir -p "$MFD/badawk"; printf '#!/bin/sh\nexit 2\n' > "$MFD/badawk/awk"; chmod +x "$MFD/badawk/awk"
 has "an awk that fails reads the manifest as unread, not as nothing declared" \
     "$(PATH="$MFD/badawk:$PATH" _mf_facts "$MFD/datadog")" $'unread\tthe manifest'
+printf '\nwhat an LSP server and a marketplace entry declare is read too\n'
+# 2026-09-21. An LSP server is a subprocess the platform starts, declared in
+# .lsp.json or under the manifest's lspServers, and neither was read. A
+# marketplace entry can declare hooks, MCP and LSP servers inline, outside the
+# plugin's own files, and no entry was read either: twelve in the official
+# catalogue carry their LSP server there and nowhere else, and two installed
+# copies of them held a README and tiered `low` with nothing read. An LSP
+# server tiers as an MCP local server does, medium.
+DL="$TMP/discover-lsp"
+mkdir -p "$DL/rootlsp" "$DL/pathlsp/.claude-plugin" "$DL/pathlsp/config" "$DL/inlinelsp/.claude-plugin" \
+         "$DL/listlsp/.claude-plugin" "$DL/credlsp" "$DL/floatlsp" "$DL/outside" \
+         "$DL/leaklsp/.claude-plugin" "$DL/leakmcp" "$DL/gonelsp/.claude-plugin"
+printf '{"py":{"command":"pyright-langserver","args":["--stdio"],"extensionToLanguage":{".py":"python"}}}\n' > "$DL/rootlsp/.lsp.json"
+cp "$DL/rootlsp/.lsp.json" "$DL/pathlsp/config/lsp.json"
+printf '{"name":"pathlsp","lspServers":"./config/lsp.json"}\n'            > "$DL/pathlsp/.claude-plugin/plugin.json"
+printf '{"name":"inlinelsp","lspServers":{"go":{"command":"gopls"}}}\n'  > "$DL/inlinelsp/.claude-plugin/plugin.json"
+cp "$DL/rootlsp/.lsp.json" "$DL/listlsp/a.json"; cp "$DL/rootlsp/.lsp.json" "$DL/listlsp/b.json"
+printf '{"name":"listlsp","lspServers":["./a.json","./b.json"]}\n'      > "$DL/listlsp/.claude-plugin/plugin.json"
+printf '{"x":{"command":"${LS_HOME}/bin/ls-server"}}\n'                 > "$DL/credlsp/.lsp.json"
+printf '{"x":{"command":"npx","args":["some-language-server@latest"]}}\n' > "$DL/floatlsp/.lsp.json"
+printf '{"x":{"command":"quiet-ls"}}\n'                                 > "$DL/outside/lsp.json"
+ln -s ../outside/lsp.json "$DL/leaklsp/lsp.json"
+printf '{"name":"leaklsp","lspServers":"./lsp.json"}\n'                 > "$DL/leaklsp/.claude-plugin/plugin.json"
+printf '{"name":"gonelsp","lspServers":"./nowhere.json"}\n'             > "$DL/gonelsp/.claude-plugin/plugin.json"
+# A default file linked out of the copy. It used to be read wherever the link
+# went, while a path the manifest spelled out was held to the copy.
+printf '{"mcpServers":{"x":{"command":"/usr/local/bin/x"}}}\n' > "$DL/outside/mcp.json"
+ln -s ../outside/mcp.json "$DL/leakmcp/.mcp.json"
+
+is  ".lsp.json at the root is medium"                   "$(_tier "$DL/rootlsp")"   "medium"
+has "and the fact is a local subprocess"                "$( . "$FROOT/harness/lib/discover.sh"; felix_discover_inspect "$DL/rootlsp" )" "lsp	local subprocess"
+is  "lspServers as a path in the manifest is medium"    "$(_tier "$DL/pathlsp")"   "medium"
+is  "lspServers inline in the manifest is medium"       "$(_tier "$DL/inlinelsp")" "medium"
+is  "lspServers as a list of paths is medium"           "$(_tier "$DL/listlsp")"   "medium"
+is  "an LSP server that interpolates a variable is high" "$(_tier "$DL/credlsp")"  "high"
+is  "an unpinned LSP command is high"                   "$(_tier "$DL/floatlsp")"  "high"
+is  "an lspServers path linked out of the copy is high" "$(_tier "$DL/leaklsp")"   "high"
+has "because it was not read"                           "$( . "$FROOT/harness/lib/discover.sh"; felix_discover_inspect "$DL/leaklsp" )" "unread	lspServers ./lsp.json: a link that leaves the copy"
+is  "an lspServers path that does not exist is high"    "$(_tier "$DL/gonelsp")"   "high"
+is  "a default file linked out of the copy is high, not read where it points" "$(_tier "$DL/leakmcp")" "high"
+has "and says which file and why"                       "$( . "$FROOT/harness/lib/discover.sh"; felix_discover_inspect "$DL/leakmcp" )" "unread	.mcp.json: a link that leaves the copy"
+has "the reason names the server it starts" \
+    "$( . "$FROOT/harness/lib/discover.sh"; felix_discover_why "$(felix_discover_inspect "$DL/rootlsp")" )" "language server (pyright-langserver)"
+
+# Frontmatter hooks behind a declared path. A manifest `commands` path replaces
+# commands/ and a `skills` path adds to skills/, and only the defaults were
+# scanned. A hook there is a hook.
+mkdir -p "$DL/cmdpath/.claude-plugin" "$DL/cmdpath/extra-commands" \
+         "$DL/skillpath/.claude-plugin" "$DL/skillpath/more/deploy" "$DL/nocmd/.claude-plugin"
+printf -- '---\nname: run\nhooks:\n  PreToolUse:\n    - matcher: Bash\n---\nbody\n' > "$DL/cmdpath/extra-commands/run.md"
+printf -- '---\nname: deploy\nhooks:\n  Stop:\n    - command: ./x.sh\n---\nbody\n'   > "$DL/skillpath/more/deploy/SKILL.md"
+printf '{"name":"cmdpath","commands":"./extra-commands/"}\n'   > "$DL/cmdpath/.claude-plugin/plugin.json"
+printf '{"name":"skillpath","skills":["./more/deploy"]}\n'     > "$DL/skillpath/.claude-plugin/plugin.json"
+printf '{"name":"nocmd","commands":["./not-here/"]}\n'         > "$DL/nocmd/.claude-plugin/plugin.json"
+is  "a hook in the frontmatter of a declared commands folder is high" "$(_tier "$DL/cmdpath")"   "high"
+is  "and in a declared skill folder's own SKILL.md"                   "$(_tier "$DL/skillpath")" "high"
+is  "a declared commands folder that is missing adds nothing"         "$(_tier "$DL/nocmd")"     "low"
+
+# The entry. A catalogue where the plugin's name also belongs to an owner and
+# to an earlier entry's author, and that earlier entry ships a hook: reading
+# the wrong object would call the LSP plugin high.
+DM="$TMP/discover-entry"
+mkdir -p "$DM/mkt/.claude-plugin" "$DM/readmeonly" "$DM/haspath/hooks" "$DM/tmp"
+printf '# readme\n' > "$DM/readmeonly/README.md"
+printf '{"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"bash extra.sh"}]}]}}\n' > "$DM/haspath/hooks/extra.json"
+mkdir -p "$DM/haspath/more/deploy"; cp "$DL/skillpath/more/deploy/SKILL.md" "$DM/haspath/more/deploy/SKILL.md"
+cat > "$DM/mkt/.claude-plugin/marketplace.json" <<'JSON'
+{
+  "name": "fixmkt",
+  "owner": { "name": "readmeonly" },
+  "plugins": [
+    {
+      "name": "decoy",
+      "description": "mentions { braces }, [brackets] and \"quotes\"",
+      "author": { "name": "readmeonly" },
+      "source": "./plugins/decoy",
+      "strict": false,
+      "hooks": { "SessionStart": [ { "hooks": [ { "type": "command", "command": "curl evil" } ] } ] }
+    },
+    {
+      "name": "readmeonly",
+      "author": { "name": "someone" },
+      "source": "./plugins/readmeonly",
+      "strict": false,
+      "lspServers": { "py": { "command": "pyright-langserver", "args": ["--stdio"] } }
+    },
+    { "name": "entryhooks", "source": "./p", "strict": false,
+      "hooks": { "PreToolUse": [ { "matcher": "Bash", "hooks": [ { "type": "command", "command": "bash guard.sh" } ] } ] } },
+    { "name": "entrymcp",    "source": "./p", "mcpServers": { "x": { "command": "/usr/local/bin/x" } } },
+    { "name": "entrypath",   "source": "./p", "hooks": "./hooks/extra.json" },
+    { "name": "entryskills", "source": "./p", "strict": false, "skills": ["./more/deploy"] },
+    { "name": "clean",       "source": "./p", "description": "nothing declared" }
+  ]
+}
+JSON
+DMF="$DM/mkt/.claude-plugin/marketplace.json"
+_etier() { ( . "$FROOT/harness/lib/discover.sh"
+             felix_discover_risk "$(felix_discover_inspect "$1" "" "$2" "$3")" ); }
+is  "a copy that ships a README alone is low when no entry is read"   "$(_tier "$DM/readmeonly")" "low"
+is  "and medium once its marketplace entry's LSP server is read"      "$(_etier "$DM/readmeonly" "$DMF" readmeonly)" "medium"
+case "$( . "$FROOT/harness/lib/discover.sh"; felix_discover_inspect "$DM/readmeonly" "" "$DMF" readmeonly )" in
+  *"curl evil"*|*"hooks	"*) bad "the entry read is the one named, not one whose author has the name" ;;
+  *)                           ok  "the entry read is the one named, not one whose author has the name" ;;
+esac
+is  "an entry declaring hooks inline is high"                         "$(_etier "$DM/readmeonly" "$DMF" entryhooks)" "high"
+is  "an entry declaring an MCP server inline is medium"               "$(_etier "$DM/readmeonly" "$DMF" entrymcp)"   "medium"
+has "an entry's path is read inside the plugin" \
+    "$( . "$FROOT/harness/lib/discover.sh"; felix_discover_inspect "$DM/haspath" "" "$DMF" entrypath )" "hook-command	bash extra.sh"
+is  "and one the plugin does not ship is high"                        "$(_etier "$DM/readmeonly" "$DMF" entrypath)" "high"
+is  "an entry's skill folder with frontmatter hooks is high"          "$(_etier "$DM/haspath" "$DMF" entryskills)"  "high"
+is  "an entry that declares nothing adds nothing"                     "$(_etier "$DM/readmeonly" "$DMF" clean)"     "low"
+is  "a plugin the catalogue does not list adds nothing"               "$(_etier "$DM/readmeonly" "$DMF" nosuch)"    "low"
+tr -d '\n' < "$DMF" > "$DM/minified.json"
+is  "a minified catalogue is read the same"                           "$(_etier "$DM/readmeonly" "$DM/minified.json" readmeonly)" "medium"
+# The reader failing raises. A catalogue that names the plugin, but not as an
+# element of its top-level plugins list, gives no entry to read.
+printf '{"meta":{"plugins":[{"name":"hidden","hooks":{"Stop":[]}}]}}\n' > "$DM/odd.json"
+is  "a catalogue naming the plugin with no entry to isolate is high"  "$(_etier "$DM/readmeonly" "$DM/odd.json" hidden)" "high"
+is  "a catalogue that cannot be read is high"                         "$(_etier "$DM/readmeonly" "$DM/absent.json" readmeonly)" "high"
+_dg0="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_digest "$DM/readmeonly" )"
+( TMPDIR="$DM/tmp"; . "$FROOT/harness/lib/discover.sh"; felix_discover_inspect "$DM/readmeonly" "" "$DMF" readmeonly >/dev/null )
+is  "reading the entry writes nothing into the copy" "$( . "$FROOT/harness/lib/discover.sh"; felix_discover_digest "$DM/readmeonly" )" "$_dg0"
+is  "and leaves no scratch file behind"              "$(ls -A "$DM/tmp" | wc -l | tr -d ' ')" "0"
+
+# Where the catalogue is: the location known_marketplaces.json records, read by
+# key, pretty-printed or minified.
+printf '{\n  "other": {\n    "source": { "source": "github", "repo": "a/b" },\n    "installLocation": "/nowhere"\n  },\n  "fixmkt": {\n    "source": { "source": "directory", "path": "%s" },\n    "installLocation": "%s"\n  }\n}\n' "$DM/mkt" "$DM/mkt" > "$DM/known.json"
+tr -d '\n' < "$DM/known.json" > "$DM/known-min.json"
+_mkfile() { ( . "$FROOT/harness/lib/discover.sh"; FELIX_KNOWN_MARKETPLACES="$1" felix_discover_marketplace_file "$2" ); }
+is  "a registered marketplace names its catalogue"      "$(_mkfile "$DM/known.json" fixmkt)"     "$DMF"
+is  "from a minified registry too"                      "$(_mkfile "$DM/known-min.json" fixmkt)" "$DMF"
+is  "an unregistered one names none"                    "$(_mkfile "$DM/known.json" elsewhere)"  ""
+
+# The installed copy, through the toolbox: the marketplace comes from where the
+# copy sits in the cache, and the entry from the catalogue that names.
+TBE="$TMP/plugincache-entry"; mkdir -p "$TBE/fixmkt/readmeonly/1.0.0"
+printf '# readme\n' > "$TBE/fixmkt/readmeonly/1.0.0/README.md"
+_tbr() { ( . "$FROOT/harness/lib/toolbox.sh"; . "$FROOT/harness/lib/discover.sh"
+           FELIX_PLUGIN_CACHE="$TBE"; FELIX_KNOWN_MARKETPLACES="$DM/known.json"
+           felix_toolbox_risk "$1" "$(felix_toolbox_path "$1")" ); }
+is  "an installed copy is tiered with its marketplace entry" "$(_tbr readmeonly)" "medium"
+
+# And the catalogue listing, which is where the discover and commission paths
+# learn which marketplace a candidate came from.
+DMB="$TMP/discover-entry-bin"; mkdir -p "$DMB"
+cat > "$DMB/claude" <<'EOF'
+#!/usr/bin/env bash
+cat <<'JSON'
+{
+  "installed": [],
+  "available": [
+    {
+      "pluginId": "subbed@fixmkt",
+      "name": "subbed",
+      "description": "a plugin in a subdirectory",
+      "marketplaceName": "fixmkt",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://example.invalid/subbed.git",
+        "path": "plugins/subbed",
+        "sha": "0123456789abcdef0123456789abcdef01234567"
+      }
+    }
+  ]
+}
+JSON
+EOF
+chmod +x "$DMB/claude"
+is  "the source names the marketplace the entry came from" \
+    "$( . "$FROOT/harness/lib/discover.sh"; PATH="$DMB:$PATH" felix_discover_source subbed )" \
+    "$(printf 'https://example.invalid/subbed.git\t0123456789abcdef0123456789abcdef01234567\tplugins/subbed\tfixmkt')"
 
 printf '\ndiscovery reads a download piped into a shell\n'
 # Written blind, from the contract alone. An install line that pipes a
@@ -10467,6 +10638,38 @@ case "$out" in
   *)                 ok  "and the blurb no longer outranks the manifest" ;;
 esac
 
+# The same path for a candidate whose copy ships nothing that runs and whose
+# marketplace entry declares an LSP server. The listing names the marketplace,
+# the registry names its catalogue, and the row carries what the entry says.
+DQE="$TMP/discover-quiet-entry"
+mkdir -p "$DQE/src/skills/storybook-css" "$DQE/mkt/.claude-plugin" "$DQE/bin"
+printf '# storybook-css\n' > "$DQE/src/skills/storybook-css/SKILL.md"
+( cd "$DQE/src" && git init -q -b main && git add -A \
+  && git -c user.email=t@t.t -c user.name=t commit -qm fixture )
+printf '{"name":"entrymkt","plugins":[{"name":"lspster","source":"./x","strict":false,"lspServers":{"css":{"command":"css-ls"}}}]}\n' \
+  > "$DQE/mkt/.claude-plugin/marketplace.json"
+printf '{"entrymkt":{"installLocation":"%s"}}\n' "$DQE/mkt" > "$DQE/known.json"
+cat > "$DQE/bin/claude" <<EOF
+#!/usr/bin/env bash
+cat <<JSON
+[
+  {
+    "name": "lspster",
+    "description": "an llm prompt evaluation kit",
+    "marketplaceName": "entrymkt",
+    "source": {
+      "url": "file://$DQE/src",
+      "path": ""
+    }
+  }
+]
+JSON
+EOF
+chmod +x "$DQE/bin/claude"
+out="$(cd "$RREPO" && PATH="$DQE/bin:$PATH" FELIX_KNOWN_MARKETPLACES="$DQE/known.json" "$FELIX" discover --quiet 2>&1)"
+is "the cache row carries the tier its marketplace entry declares" \
+   "$(printf '%s\n' "$out" | awk -F'\t' '$1 == "lspster" { print $3 }')" "medium"
+
 printf '\nthe one line git cannot reconstruct\n'
 # The handoff regenerates the whole file, so whoever filled in "what was in
 # progress" lost it the next time anything ran — while the mechanical half,
@@ -14171,7 +14374,7 @@ _adm() { ( FELIX_HOME_DIR="$FROOT"; PATH="$CMSTUB:$PATH"
            # no marketplace behaves. Fetch copies a tree instead of cloning.
            felix_discover_source() {
              [ -d "$_admroot/$1" ] || return 1
-             printf 'https://example.invalid/%s\tdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\t-\n' "$1"
+             printf 'https://example.invalid/%s\tdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\t-\t%s\n' "$1" "${_ADM_MKT:-}"
            }
            felix_discover_fetch() {
              local n="${1##*/}"
@@ -14259,6 +14462,18 @@ case "$_admout2" in
   *unknown*) bad "and is not reported as unreadable" "$_admout2" ;;
   *)         ok  "and is not reported as unreadable" ;;
 esac
+
+# The admit phase reads the entry too. The source names a marketplace and the
+# registry its catalogue; both copies are clean and alike, so what each entry
+# declares is the whole difference between them.
+mkdir -p "$_admroot/entrylsp/skills/llm-eval" "$_admroot/entryhooky/skills/llm-eval" "$TMP/adm-mkt/.claude-plugin"
+printf '{"name":"admmkt","plugins":[{"name":"entrylsp","source":"./a","strict":false,"lspServers":{"x":{"command":"x-ls"}}},{"name":"entryhooky","source":"./b","strict":false,"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bash x.sh"}]}]}}]}\n' \
+  > "$TMP/adm-mkt/.claude-plugin/marketplace.json"
+printf '{"admmkt":{"installLocation":"%s"}}\n' "$TMP/adm-mkt" > "$TMP/adm-known.json"
+printf '# topology %s\nplugin\tentrylsp\t-\tllm\twhy\nplugin\tentryhooky\t-\tllm\twhy\ndone\t2\n' "$_cmtopo" > "$_cmans"
+_admout3="$(HOME="$_admhome" _ADM_MKT=admmkt FELIX_KNOWN_MARKETPLACES="$TMP/adm-known.json" _adm)"
+has "a nomination whose entry declares an LSP server is held for a person" "$_admout3" "hold	plugin	entrylsp	medium"
+has "and one whose entry declares a hook is refused"                       "$_admout3" "refuse	plugin	entryhooky	high"
 
 # A score answer has three fields and neither a kind nor a name: its row is
 # `score <TAB> 69/100 <TAB> C`. Run through the admit phase it read "score" as

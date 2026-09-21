@@ -85,6 +85,32 @@ _felix_emit() {
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 
+# A resume is bound, and says nothing.
+#
+# Claude Code starts a new process on a resume and rebinds every hook, and
+# until the matcher named it Felix was not called there at all, so a resumed
+# session never learned which engine it now runs. The matcher makes the moment
+# reachable; this exit keeps what a resume shows exactly what it showed before,
+# which is nothing. Whatever records the moment belongs above this line, and it
+# comes before the broken-binding report for the same reason: a resume never
+# heard that report either.
+#
+# Claude Code only, because only there was a resume unbound. Copilot CLI fires
+# its sessionStart on a resume with no matcher in front of it, so a resume there
+# always got the banner, and unchanged means it still does; the other harness
+# _felix_emit knows is left as it was for the same reason.
+#
+# The payload is read for this one field, with the sed idiom hooks/post-tool
+# uses. A terminal on stdin is a person running the hook by hand, and waiting
+# on them would hang the hook.
+_felix_source=""
+if [ ! -t 0 ]; then
+  _felix_source="$(cat 2>/dev/null \
+    | sed -n 's/.*"source"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+fi
+[ "$_felix_source" = "resume" ] && [ -z "${COPILOT_CLI:-}" ] && [ -z "${CURSOR_PLUGIN_ROOT:-}" ] \
+  && exit 0
+
 # A binding that is present and does not resolve, reported at the one moment
 # that is early enough to be worth knowing.
 #
@@ -358,13 +384,27 @@ fi
 # home rather than the repository, so nothing auto-loads it: inside Felix itself
 # that is masked, because the file happens to sit in the tree being edited, and
 # for every other project it is not masked at all. The same is true of the
-# handoff. Pointing at them is the whole delivery mechanism, so say plainly that
-# they are required rather than leaving a path and hoping.
+# repository's HANDOFF.md, which Claude Code does not load either. Pointing at
+# them is the whole delivery mechanism, so say plainly that they are required
+# rather than leaving a path and hoping.
 read_lines="Read before planning: ${PROJ}/CLAUDE.md"
 [ -f "${_repo_root}/HANDOFF.md" ] && read_lines="${read_lines}
                    ${_repo_root}/HANDOFF.md"
-[ -f "$_mem/SESSION_HANDOFF.md" ] && read_lines="${read_lines}
-                   ${_mem}/SESSION_HANDOFF.md"
+
+# The session handoff is named apart from those, because it is not direction.
+# A prior session wrote it, sometimes from another worktree, and on a detached
+# HEAD it gives its branch as HEAD. It used to sit in the list above, under a
+# sentence calling all of it "standing direction that has already been
+# decided", and a fresh session copied a stale blocker forward from it on that
+# authority. It is still worth reading. It is state, and state is re-checked
+# by command before anybody acts on it.
+state_lines=""
+[ -f "$_mem/SESSION_HANDOFF.md" ] && state_lines="
+
+Also on disk, and not direction: ${_mem}/SESSION_HANDOFF.md
+A prior session wrote it, possibly from another worktree or branch. Treat what
+it says about branches, blockers and open work as a claim, and re-check each
+one by command before acting on it."
 
 # A night the founder granted is the first thing a session should know, because
 # it changes what this session does with every boundary it meets. Printed in
@@ -400,7 +440,7 @@ ${overnight_line}${drift_line}${maint_line}${graph_line}${tidy_line}${retire_lin
 ${read_lines}
 
 None of those are loaded for you. They carry standing direction that has
-already been decided, so reading them is how you avoid being told twice.
+already been decided, so reading them is how you avoid being told twice.${state_lines}
 
 Run the gate through the command above rather than a repo-relative path, which
 may not exist in the tree you are standing in. Declare your tier before you

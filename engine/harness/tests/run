@@ -13,6 +13,12 @@
 
 set -uo pipefail
 
+# The suite reads nothing from its own stdin, and hooks/session-start reads a
+# payload from stdin whenever stdin is not a terminal. About thirty calls here
+# run that hook without piping one in, so an inherited pipe that stays open
+# would hang the first of them and every run after it. Nothing is inherited.
+exec </dev/null
+
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL_HARNESS="$(cd "$HERE/.." && pwd)"
 
@@ -221,6 +227,77 @@ case "$out" in
   *"$REPO/HANDOFF.md"*) bad "and names none when there is none" "$out" ;;
   *)                    ok  "and names none when there is none" ;;
 esac
+
+# The constitution and the repository's HANDOFF.md are standing direction; the
+# session handoff under memory is not. A prior session wrote it, sometimes from
+# another worktree or on a detached HEAD, and the banner used to put it in the
+# same list and call all three "standing direction that has already been
+# decided". A fresh session then copied a stale blocker forward from it as
+# though it were settled. "those" in that sentence points upward, so both the
+# paragraph that says it and the one above must be free of the session handoff.
+printf '# handoff\n' > "$REPO/HANDOFF.md"
+mkdir -p "$MEM/widget"
+printf '# Handoff\n\nRegenerated 2026-01-01. Anything below is the state of the tree,\n' \
+  > "$MEM/widget/SESSION_HANDOFF.md"
+out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" </dev/null 2>&1)"
+# The context arrives JSON-escaped; paragraphs are blank-line separated once
+# the escapes are real newlines.
+_paras="$(printf '%s' "$out" | awk '{ gsub(/\\n/, "\n"); print }')"
+_para_with() { printf '%s\n' "$_paras" | awk -v RS= -v k="$1" 'index($0, k) { print; exit }'; }
+_dir_idx="$(printf '%s\n' "$_paras" | awk -v RS= 'index($0, "standing direction") { print NR; exit }')"
+_dir_two="$(printf '%s\n' "$_paras" | awk -v RS= -v n="${_dir_idx:-0}" 'NR == n - 1 || NR == n')"
+has "the banner still calls the constitution standing direction" "$_dir_two" "$FROOT/projects/widget/CLAUDE.md"
+has "and the repository handoff with it"                         "$_dir_two" "$REPO/HANDOFF.md"
+case "$_dir_two" in
+  *SESSION_HANDOFF.md*) bad "but not the session handoff, which a prior session wrote" "$_dir_two" ;;
+  *)                    ok  "but not the session handoff, which a prior session wrote" ;;
+esac
+_sh_para="$(_para_with "$MEM/widget/SESSION_HANDOFF.md")"
+has "the session handoff is named as state to re-check by command" "$_sh_para" "by command"
+case "$_sh_para" in
+  *"standing direction"*) bad "and never as standing direction" "$_sh_para" ;;
+  *)                      ok  "and never as standing direction" ;;
+esac
+rm -f "$REPO/HANDOFF.md" "$MEM/widget/SESSION_HANDOFF.md"
+out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" </dev/null 2>&1)"
+case "$out" in
+  *SESSION_HANDOFF*|*"by command"*) bad "and with no session handoff on disk, says nothing about one" "$out" ;;
+  *)                                ok  "and with no session handoff on disk, says nothing about one" ;;
+esac
+
+# A resume starts a new process and rebinds hooks, so it is a lifecycle moment
+# Felix has to be able to see; the matcher did not name it, so session-start
+# was never called there. It is bound now and says nothing, which keeps the
+# banner exactly where it was: the moment is reachable for a recorder, not a
+# second banner.
+_ss_matcher="$(sed -n '/"SessionStart"/,/"matcher"/s/.*"matcher"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+                 "$REAL_HARNESS/../hooks/hooks.json" | head -1)"
+case "|$_ss_matcher|" in
+  *"|resume|"*) ok  "the SessionStart matcher binds resume" ;;
+  *)            bad "the SessionStart matcher binds resume" "matcher is [$_ss_matcher]" ;;
+esac
+_ss_all=1
+for _w in startup clear compact; do
+  case "|$_ss_matcher|" in *"|$_w|"*) ;; *) _ss_all=0 ;; esac
+done
+[ "$_ss_all" = 1 ] && ok  "and still binds startup, clear and compact" \
+                   || bad "and still binds startup, clear and compact" "matcher is [$_ss_matcher]"
+out="$(cd "$REPO" && printf '{"session_id": "s-resume", "hook_event_name": "SessionStart", "source": "resume"}' \
+       | CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"; rc=$?
+is "a resumed session gets no banner" "${#out}" "0"
+is "and the hook exits 0 there"       "$rc"     "0"
+out="$(cd "$REPO" && printf '{"session_id":"s-start","hook_event_name":"SessionStart","source":"startup"}' \
+       | CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+has "a startup payload still gets the banner" "$out" "Project: widget"
+out="$(cd "$REPO" && printf '{"session_id":"s-compact","source":"compact"}' \
+       | CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+has "and so does a compact"                   "$out" "Project: widget"
+# Only Claude Code's resume was unbound. Copilot CLI fires its sessionStart on a
+# resume with no matcher in front of it and a source of "resume", so there the
+# banner was always shown, and "unchanged" means it still is.
+out="$(cd "$REPO" && printf '{"source":"resume"}' \
+       | COPILOT_CLI=1 CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+has "a Copilot resume, which always got the banner, still does" "$out" "Project: widget"
 
 # Felix also installs as a plain settings.json hook, where CLAUDE_PLUGIN_ROOT is
 # unset. Emitting the wrong shape there injects nothing and fails silently.
@@ -3297,6 +3374,10 @@ is  "and still exits 0, because start cannot refuse" "$rc"  "0"
 # floor is switched off learns nothing from a channel they cannot see, and this
 # is the one surface Felix has to tell them.
 has "and says it where the founder can see it"       "$out" "systemMessage"
+# A resume was never bound before, so a broken binding said nothing there, and
+# binding it must not start: the resume exit comes before this report.
+out="$(cd "$BROKEN" && printf '{"source":"resume"}' | CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+is  "a resume on a broken binding stays as silent as before it was bound" "${#out}" "0"
 
 printf '\n' > "$BROKEN/.felix"
 out="$(_start "$BROKEN")"
@@ -9568,6 +9649,181 @@ rm -f "$MEM/handoffproj/SESSION_HANDOFF.md"
 ( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HP" "$REPO" "gate.sh" )
 has "and the placeholder stays a placeholder" \
     "$(cat "$MEM/handoffproj/SESSION_HANDOFF.md")" "fill this in"
+
+printf '\na handoff nobody regenerated is refused, not regenerated over\n'
+# Authored blind, against the written contract, before the guard existed. The
+# incident: a 212,864-byte handoff written by hand, with no Regenerated line,
+# would have been replaced by about 565 bytes of git state. Regeneration now
+# owns only what it wrote: no file, the empty placeholder, or its own shape
+# (line 1 exactly `# Handoff`, line 3 `Regenerated YYYY-MM-DD.`). Anything else
+# is refused unless REPLACE=1 / --replace, and every write lands by rename.
+HG="$TMP/handguard"; HGM="$MEM/handguard"; HGF="$HGM/SESSION_HANDOFF.md"
+mkdir -p "$HG" "$HGM"; printf 'unrelated\n' > "$HGM/DEVLOG.md"
+_hg()     { ( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HG" "$REPO" "gate.sh" "$@" ); }
+_hgsz()   { wc -c < "$1" | tr -d ' '; }
+_hgls()   { ls -A "$1" | sort | tr '\n' ' '; }
+_hgino()  { ls -i "$1" | awk '{print $1}'; }
+_hgnote() { sed -n 's/^- what was in progress: //p' "$1" | head -1; }
+_hgl3()   { sed -n 3p "$1" | grep -qE '^Regenerated [0-9]{4}-[0-9]{2}-[0-9]{2}\.'; }
+# The incident's exact size, deterministic, and titled `# Handoff` so that only
+# line 3 can tell it from the generated shape.
+_hgbig() { awk -v n=212864 'BEGIN {
+  s = "# Handoff\n\nWritten by hand over a long session; none of it is regenerated.\n\n"
+  for (i = 1; ; i++) {
+    if (t + length(s) >= n) { printf "%s", substr(s, 1, n - t); exit }
+    printf "%s", s; t += length(s)
+    s = sprintf("- step %04d: context a person kept that git cannot rebuild, and why\n", i) } }' > "$1"; }
+
+_hgbig "$HGF"; cp "$HGF" "$TMP/handguard.keep"
+_hge="$(_hg "an overwrite nobody asked for" 2>&1 >/dev/null)"; _hgrc=$?
+[ "$_hgrc" -ne 0 ] && ok "a hand-written handoff is refused by the library" \
+  || bad "a hand-written handoff is refused by the library" "returned 0"
+is  "and keeps all 212864 of its bytes" "$(_hgsz "$HGF")" "212864"
+cmp -s "$HGF" "$TMP/handguard.keep" && ok "and every byte is the one it had" \
+  || bad "and every byte is the one it had" "the content changed"
+has "the refusal on stderr names the size in bytes" "$_hge" "212864"
+is  "and a refusal leaves no file beside it" "$(_hgls "$HGM")" "DEVLOG.md SESSION_HANDOFF.md "
+
+# REPLACE=1 is the way through, and it lands by rename: a file rewritten in
+# place keeps its inode, one renamed over it does not. Rebuilt first, so that
+# an engine which overwrote it above cannot pass what follows for that reason.
+_hgbig "$HGF"; _hgi="$(_hgino "$HGF")"
+_hg "taken over on purpose" 1 >/dev/null 2>&1; _hgrc=$?
+is  "REPLACE=1 overwrites a hand-written handoff" "$_hgrc" "0"
+[ "$(sed -n 1p "$HGF")" = "# Handoff" ] && _hgl3 "$HGF" \
+  && ok "with the generated shape" || bad "with the generated shape" "$(sed -n 1,3p "$HGF")"
+is  "and the note it was given" "$(_hgnote "$HGF")" "taken over on purpose"
+if grep -q 'step 0001' "$HGF"; then bad "and none of the hand-written lines" "still there"
+else ok "and none of the hand-written lines"; fi
+[ "$(_hgino "$HGF")" != "$_hgi" ] && ok "the write is renamed into place, not rewritten in it" \
+  || bad "the write is renamed into place, not rewritten in it" "same inode $_hgi"
+is  "and a write leaves no file beside it" "$(_hgls "$HGM")" "DEVLOG.md SESSION_HANDOFF.md "
+
+# Its own shape, and the placeholder, are regenerated as before.
+_hg "second note" >/dev/null 2>&1; _hgrc=$?
+is  "its own shape is regenerated without asking" "$_hgrc" "0"
+is  "and a new note replaces the old one" "$(_hgnote "$HGF")" "second note"
+_hg >/dev/null 2>&1
+is  "and is carried when none is given" "$(_hgnote "$HGF")" "second note"
+printf '# Handoff\n\nRegenerated 2025-01-02. Anything below is the state of the tree,\nnot a summary of intent.\n\n- what was in progress: an old stamped note\n\nappended by hand\n' > "$HGF"
+_hg >/dev/null 2>&1; _hgrc=$?
+is  "a stamped handoff from another day is regenerated" "$_hgrc" "0"
+sed -n 3p "$HGF" | grep -q "^Regenerated $(date +%Y-%m-%d)\." && ! grep -q 'appended by hand' "$HGF" \
+  && ok "into today's shape" || bad "into today's shape" "$(sed -n 1,3p "$HGF")"
+is  "with its note carried forward" "$(_hgnote "$HGF")" "an old stamped note"
+: > "$HGF"
+_hg >/dev/null 2>&1; _hgrc=$?
+is  "the empty placeholder is regenerated" "$_hgrc" "0"
+_hgl3 "$HGF" && ok "into the generated shape" || bad "into the generated shape" "$(sed -n 1,3p "$HGF")"
+rm -f "$HGF"; _hg "from nothing" >/dev/null 2>&1
+is  "a first write leaves only the handoff beside what was there" "$(_hgls "$HGM")" "DEVLOG.md SESSION_HANDOFF.md "
+
+# The shape is two exact lines, not a word found anywhere.
+_hgref() {
+  printf '%b' "$2" > "$HGF"; cp "$HGF" "$TMP/handguard.keep"
+  if _hg "should not land" >/dev/null 2>&1; then bad "$1" "returned 0"
+  elif cmp -s "$HGF" "$TMP/handguard.keep"; then ok "$1"
+  else bad "$1" "refused, but the file changed"; fi
+}
+_hgref "a # Handoff title with no stamp on line 3 is refused" '# Handoff\n\nNotes kept by hand.\n'
+_hgref "a stamp on a line other than 3 is refused" '# Handoff\n\nNotes kept by hand.\n\nRegenerated 2026-09-01. Anything below\n'
+_hgref "a stamp under a different title is refused" '# Handoff, by hand\n\nRegenerated 2026-09-01. Anything below\n'
+_hgref "a stamp with no date is refused" '# Handoff\n\nRegenerated by hand, last week.\n'
+_hgref "a stamp with no full stop after the date is refused" '# Handoff\n\nRegenerated 2026-09-01 by hand\n'
+_hgref "a file of one newline is not the empty placeholder" '\n'
+
+# The CLI. The widget's handoff is saved first and put back after.
+WHF="$MEM/widget/SESSION_HANDOFF.md"
+cp -p "$WHF" "$TMP/widget-handoff.saved" 2>/dev/null; _hgw=$?
+_hgbig "$WHF"; cp "$WHF" "$TMP/widget-big.keep"; _hgwl="$(_hgls "$MEM/widget")"
+_ho="$(cd "$MEMREPO" && "$FELIX" handoff an overwrite nobody asked for 2>&1)"; _hrc=$?
+[ "$_hrc" -ne 0 ] && ok "felix handoff refuses a hand-written handoff" \
+  || bad "felix handoff refuses a hand-written handoff" "exited 0"
+cmp -s "$WHF" "$TMP/widget-big.keep" && ok "and leaves it as it was, byte for byte" \
+  || bad "and leaves it as it was, byte for byte" "$(_hgsz "$WHF") bytes now"
+has "and says how many bytes it would have destroyed" "$_ho" "212864"
+has "and names --replace as the way through" "$_ho" "--replace"
+case "$_ho" in
+  *"wrote $WHF"*) bad "and does not print that it wrote the handoff" "$_ho" ;;
+  *)              ok  "and does not print that it wrote the handoff" ;;
+esac
+is  "and leaves no new file in the project's memory" "$(_hgls "$MEM/widget")" "$_hgwl"
+_hgbig "$WHF"
+_ho="$(cd "$MEMREPO" && "$FELIX" handoff --was "replaced on purpose" --replace 2>&1)"; _hrc=$?
+is  "felix handoff --replace overwrites it" "$_hrc" "0"
+_hgl3 "$WHF" && ok "and writes the generated shape in its place" \
+  || bad "and writes the generated shape in its place" "$(sed -n 1,3p "$WHF")"
+is  "with the note --was gave it" "$(_hgnote "$WHF")" "replaced on purpose"
+is  "and still no new file beside it" "$(_hgls "$MEM/widget")" "$_hgwl"
+: > "$WHF"
+_ho="$(cd "$MEMREPO" && "$FELIX" handoff 2>&1)"; _hrc=$?
+is  "the CLI still regenerates the empty placeholder" "$_hrc" "0"
+has "and says it wrote it" "$_ho" "wrote $WHF"
+if [ "$_hgw" = 0 ]; then cp -p "$TMP/widget-handoff.saved" "$WHF"; else rm -f "$WHF"; fi
+
+# A handoff that is itself a symlink is written through to the file it names,
+# as the redirection the rename replaced did. Renamed onto the link, the link
+# would become a regular file and the file it named would go stale in silence.
+# Both spellings of a link: absolute, and relative to the memory directory.
+HL="$TMP/handlink"; HLM="$MEM/handlink"; mkdir -p "$HL" "$HLM" "$TMP/handlink-abs" "$MEM/handlink-rel"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HL" "$REPO" "gate.sh" "before the link" )
+cp "$HLM/SESSION_HANDOFF.md" "$TMP/handlink-abs/SESSION_HANDOFF.md"
+cp "$HLM/SESSION_HANDOFF.md" "$MEM/handlink-rel/SESSION_HANDOFF.md"
+rm -f "$HLM/SESSION_HANDOFF.md"
+ln -s "$TMP/handlink-abs/SESSION_HANDOFF.md" "$HLM/SESSION_HANDOFF.md"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HL" "$REPO" "gate.sh" "through an absolute link" )
+[ -L "$HLM/SESSION_HANDOFF.md" ] && ok  "a symlinked handoff is still a symlink after a write" \
+                                 || bad "a symlinked handoff is still a symlink after a write"
+has "and the file it names holds the new handoff" \
+    "$(cat "$TMP/handlink-abs/SESSION_HANDOFF.md")" "through an absolute link"
+rm -f "$HLM/SESSION_HANDOFF.md"
+ln -s ../handlink-rel/SESSION_HANDOFF.md "$HLM/SESSION_HANDOFF.md"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HL" "$REPO" "gate.sh" "through a relative link" )
+[ -L "$HLM/SESSION_HANDOFF.md" ] && ok  "a relative link survives a write too" \
+                                 || bad "a relative link survives a write too"
+has "and the file it names, relative to the link, holds the new handoff" \
+    "$(cat "$MEM/handlink-rel/SESSION_HANDOFF.md")" "through a relative link"
+# A link to a link: every hop, each relative to the link it came from. One hop
+# would land the rename on the middle link and strand the file at the end.
+mkdir -p "$MEM/handlink-mid" "$MEM/handlink-end"
+cp "$MEM/handlink-rel/SESSION_HANDOFF.md" "$MEM/handlink-end/SESSION_HANDOFF.md"
+ln -s ../handlink-end/SESSION_HANDOFF.md "$MEM/handlink-mid/SESSION_HANDOFF.md"
+rm -f "$HLM/SESSION_HANDOFF.md"
+ln -s ../handlink-mid/SESSION_HANDOFF.md "$HLM/SESSION_HANDOFF.md"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HL" "$REPO" "gate.sh" "through two links" )
+[ -L "$HLM/SESSION_HANDOFF.md" ] && [ -L "$MEM/handlink-mid/SESSION_HANDOFF.md" ] \
+  && ok  "a chain of links keeps every link" \
+  || bad "a chain of links keeps every link" "$(ls -l "$HLM/SESSION_HANDOFF.md" "$MEM/handlink-mid/SESSION_HANDOFF.md")"
+has "and the file at the end of it holds the new handoff" \
+    "$(cat "$MEM/handlink-end/SESSION_HANDOFF.md")" "through two links"
+
+# The redirection kept the file's mode, because it rewrote the same file. A
+# rename puts a new file there, so the mode is carried across by hand: somebody
+# who closed a handoff to other users should not find it open again.
+HM="$TMP/handmode"; HMM="$MEM/handmode"; mkdir -p "$HM" "$HMM"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HM" "$REPO" "gate.sh" "first" )
+chmod 600 "$HMM/SESSION_HANDOFF.md"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HM" "$REPO" "gate.sh" "second" )
+is  "a regenerated handoff keeps the mode it had" \
+    "$(ls -l "$HMM/SESSION_HANDOFF.md" | cut -c1-10)" "-rw-------"
+
+# The temporary file exists only between the write and the rename, never while
+# git is being asked: the git calls are the slow part and the part a person
+# interrupts, and a temporary file left there would be committed by the next
+# pulse. A git that looks for one before answering.
+HT="$TMP/handtmp"; HTM="$MEM/handtmp"; HTB="$TMP/handtmp-bin"; mkdir -p "$HT" "$HTM" "$HTB"
+: > "$TMP/handtmp.seen"
+cat > "$HTB/git" <<EOF
+#!/usr/bin/env bash
+printf 'asked\n' >> "$TMP/handtmp.seen"
+ls -A "$HTM" | grep -q 'SESSION_HANDOFF.md.' && printf 'present\n' >> "$TMP/handtmp.seen"
+exec "$(command -v git)" "\$@"
+EOF
+chmod +x "$HTB/git"
+( PATH="$HTB:$PATH"; . "$FROOT/harness/lib/memory.sh"; felix_mem_handoff "$HT" "$REPO" "gate.sh" "watched" )
+[ "$(grep -c asked "$TMP/handtmp.seen")" -gt 0 ] && ok  "the watching git was asked" \
+                                                 || bad "the watching git was asked" "the stub never ran"
+is  "no temporary file exists while git is being asked" "$(grep -c present "$TMP/handtmp.seen")" "0"
 
 printf '\nFelix noticing its own gaps\n'
 # Two coverage gaps were found today by a person noticing, not by any check.

@@ -1670,6 +1670,59 @@
 1	components exits 0 when all four are known
 1	components exits 0 with a component missing
 1	components prints exactly four lines
+1	content scan: API_KEY glued to a lower-case letter is not a credential name
+1	content scan: GITHUB_TOKEN_FILE is not a credential name
+1	content scan: README.md and a root-level SKILL.md are not prose
+1	content scan: TOKEN, SECRET and PASSWORD alone are not credential names
+1	content scan: a #! file without the execute bit, holding npx and GITHUB_TOKEN, is a credential-call
+1	content scan: a .ps1 with Invoke-RestMethod and OPENAI_APIKEY is a credential-call
+1	content scan: a .py file with requests.post( and DB_PASSWORD on different lines is a credential-call
+1	content scan: a NUL byte 128 KiB into a script still makes it binary
+1	content scan: a URL and docs with no authority term do not fire
+1	content scan: a command that must fetch a URL is remote-authority
+1	content scan: a credential name with no network token is not a credential-call
+1	content scan: a credential-call alone makes a plugin medium
+1	content scan: a file named $(touch pwned1).sh is reported by its literal name
+1	content scan: a nested agent treating Sources as authoritative is remote-authority
+1	content scan: a network token with no credential name is not a credential-call
+1	content scan: a newline in a file name cannot forge a skill line
+1	content scan: a newline in a file name cannot start a fact line
+1	content scan: a newline in a skill directory name cannot forge a fact line
+1	content scan: a pinned local server stays medium whatever the scan adds
+1	content scan: a script holding a NUL byte is never a credential-call
+1	content scan: a shell-meaningful file name is never evaluated
+1	content scan: a skill naming the live docs the source of truth is remote-authority
+1	content scan: a skill references/ file and a SKILL.md below skills/<name>/ are not prose
+1	content scan: a skills directory linked inside the copy is read
+1	content scan: a skills directory linked out of the copy is not read
+1	content scan: a symlink under scripts/ is not followed to a credentialed script
+1	content scan: always check the reference, singular, does not fire
+1	content scan: an @latest server stays high whatever the scan adds
+1	content scan: an authority line with no URL anywhere in the file does not fire
+1	content scan: an authority term with docs only on the next line does not fire
+1	content scan: an executable file holding curl and API_KEY is a credential-call at its base-relative path
+1	content scan: and a link to the root of the disk is not walked
+1	content scan: and the same plugin declared by a person still installs
+1	content scan: bundled executables alone leave a plugin low
+1	content scan: curl inside curly is not a network token
+1	content scan: hooks stay high whatever the scan adds
+1	content scan: inspecting never runs a bundled script or the prose it reads
+1	content scan: lower-case api_key is not a credential name
+1	content scan: markdown and text under skills/ and scripts/ are not scripts
+1	content scan: no executables line when nothing bundled is executable
+1	content scan: npx inside npxtool is not a network token
+1	content scan: remote authority observed is held for a person, not installed
+1	content scan: remote-authority alone makes a plugin medium
+1	content scan: scripts outside scripts/ and skills/ are not read
+1	content scan: symlinks, non-executables and files outside scripts/ and skills/ are not counted
+1	content scan: the codebase as source of truth, with a URL elsewhere, is not remote-authority
+1	content scan: the reason names the file that made it medium
+1	content scan: two executable files under scripts/ and skills/ count as executables 2
+1	content scan: upper-case CURL is not a network token
+1	content scan: why explains credential-call
+1	content scan: why explains executables
+1	content scan: why explains remote-authority
+1	content scan: with a subdir the scan reads <dir>/<subdir> and paths are relative to it
 1	continuations run out and the night ends
 1	copied the runbook it implies
 1	copied the runbook their stack implies

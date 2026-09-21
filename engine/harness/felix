@@ -867,9 +867,17 @@ EOF
     printf 'beside this file. `felix classify` and `felix evidence` read them, and\n'
     printf 'nothing red is ever touched unattended.\n'
   } > "$dir/CLAUDE.md"
-  : > "$(felix_mem_dir "$dir")/DEVLOG.md"
-  : > "$(felix_mem_dir "$dir")/lessons.md"
-  : > "$(felix_mem_dir "$dir")/SESSION_HANDOFF.md"
+  # Created, never truncated. The refusal above looks at the project directory
+  # and memory is not in it: invariant 6 says nothing deletes a memory root, so
+  # <memory>/<name>/ routinely outlives projects/<name>/ — removed by hand, or
+  # on a second machine whose memory synced first. These were `: >`, which
+  # left a surviving devlog, lessons file and handoff at zero bytes each for
+  # the next pulse commit to record.
+  local memdir kept="" f
+  memdir="$(felix_mem_dir "$dir")"
+  for f in DEVLOG.md lessons.md SESSION_HANDOFF.md; do
+    if [ -e "$memdir/$f" ]; then kept="$kept $f"; else : > "$memdir/$f"; fi
+  done
 
   # The marker binds the checkout without needing a remote.
   printf '%s\n' "$name" > "$root/.felix"
@@ -878,7 +886,9 @@ EOF
   printf '  detected     %s\n' "$(printf '%s' "$caps" | tr '\n' ' ')"
   printf '  gate guess   %s\n' "${gate:-none, set it yourself}"
   printf '  repo         %s\n' "${slug:-no github remote}"
-  printf '  bound via    %s/.felix\n\n' "$root"
+  printf '  bound via    %s/.felix\n' "$root"
+  [ -n "$kept" ] && printf '  memory       kept%s, already in %s\n' "$kept" "$memdir"
+  printf '\n'
   printf 'seeded stack.tsv, profiles.tsv, setup.tsv and %s runbook(s).\n' \
     "$(ls "$dir/setup" 2>/dev/null | wc -l | tr -d ' ')"
   # The sequence this used to print is run instead. Invariant 3: printing a

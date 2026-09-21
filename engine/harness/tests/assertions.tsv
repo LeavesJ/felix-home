@@ -25,12 +25,14 @@
 1	PreToolUse is bound for Write
 1	REPLACE=1 overwrites a hand-written handoff
 1	a # Handoff title with no stamp on line 3 is refused
+1	a --- block that does not open the file is not frontmatter
 1	a CLI that fails is exit 3 and no rows
 1	a CLI that prints an error and exits 0 is exit 3 and no rows too
 1	a Copilot resume, which always got the banner, still does
 1	a RELEASE_BLOCKING candidate is refused because it may not block
 1	a backfilled row carries DECLARED
 1	a bare branch name prefers the remote-tracking ref
+1	a bare hooks: with a sibling key after it is null, and low
 1	a bare plugin step is used when one of its skills ran
 1	a bare repo has nothing to adopt
 1	a bare skill row is counted as the host's, not the plugin's
@@ -85,6 +87,7 @@
 1	a class the ledger does not know is refused for its class
 1	a clean checkout claims no rival gate
 1	a clean repo says so instead of minting a commit
+1	a command whose frontmatter declares hooks is high
 1	a commands directory main ships that the entry lacks is drift
 1	a comment added to it is still free
 1	a commissioning run seeds the ledger through the row's answer
@@ -112,8 +115,23 @@
 1	a deadline that has passed ends the night and says so
 1	a decision epoch is one line
 1	a declare whose provenance could not be written is not counted
+1	a declared absolute path is an unread fact naming the key and the path
+1	a declared absolute path is high
+1	a declared absolute path reads nothing from the file it points at
 1	a declared capability with NO row still scores on its name
 1	a declared capability with a row keeps its keywords
+1	a declared path beginning with ~ is an unread fact naming the key and the path
+1	a declared path beginning with ~ is high
+1	a declared path beginning with ~ reads nothing from the file it points at
+1	a declared path shaped like a command substitution is never evaluated
+1	a declared path that climbs out with .. is an unread fact naming the key and the path
+1	a declared path that climbs out with .. is high
+1	a declared path that climbs out with .. reads nothing from the file it points at
+1	a declared path through a symlink leaving the plugin is an unread fact naming the key and the path
+1	a declared path through a symlink leaving the plugin is high
+1	a declared path through a symlink leaving the plugin reads nothing from the file it points at
+1	a declared path to no file at all is an unread fact naming the key and the path
+1	a declared path to no file at all is high
 1	a declared plugin's server is proposed no further
 1	a declared server no play ever named is left alone
 1	a declared skill with no directory cannot be used
@@ -232,9 +250,12 @@
 1	a home pointer naming something that is not a home refuses
 1	a home that is no repository has its grants unread, and the widget report says so under the new summary
 1	a hook added today without its bit fails the same way
+1	a hook command at a declared path is never run
 1	a hook nobody explained is caught
 1	a hook nomination is recorded, not installed
 1	a hook that stopped being wired is caught
+1	a hooks key nested under another key is not a declaration
+1	a hooks path that climbs out is an unread fact naming hooks
 1	a hooks.json that never deployed is not certified
 1	a hostile prompt is neutralised, not dropped
 1	a hyphen in the name is not a name
@@ -253,6 +274,7 @@
 1	a library changed in the working tree is not drift, because main did not change
 1	a live grant is listed live and a grant on a dormant row is listed armed
 1	a live night is mounted into the next session's context
+1	a local server declared inline in plugin.json is medium
 1	a local-only branch is taken as given
 1	a lock whose owner is gone is taken over
 1	a lookalike gate is reported
@@ -261,6 +283,9 @@
 1	a malformed row is skipped, others still deny
 1	a malformed row is skipped, others still match
 1	a malformed row stops the gate rather than only being listed
+1	a manifest opening with a byte-order mark is still read
+1	a manifest that is itself a link out of the copy is unread
+1	a manifest that is not a JSON object is high
 1	a manifest with no final newline still gets its row
 1	a marker naming '.' refuses rather than binding to the projects directory
 1	a marker naming '..' refuses rather than binding to the projects directory
@@ -282,6 +307,7 @@
 1	a migration classifies red
 1	a migration escapes as durable
 1	a migration is out of scope
+1	a missing comma is an unread manifest, not a lost declaration
 1	a missing file is cannot-examine, exit 2, never an empty binding
 1	a missing manifest is refused
 1	a missing runbook fails loudly
@@ -358,8 +384,10 @@
 1	a plugin already installed here reads already, not unknown
 1	a plugin cache is never treated as home
 1	a plugin not in the registry yields nothing
+1	a plugin reached through a symlinked directory still has its declared file read
 1	a plugin shipping hooks and nothing countable is hook-only
 1	a plugin that cannot be checked is not a clean bill
+1	a plugin that declares no paths has exactly the facts it had before
 1	a pointer to a real home is left alone
 1	a policy version is one line
 1	a predicate that was being read and no longer is gets named
@@ -516,6 +544,10 @@
 1	a skill is not looked up as a plugin
 1	a skill is recorded by which skill
 1	a skill name counts triple, like a name
+1	a skill whose frontmatter declares a PreToolUse hook is high
+1	a skill whose frontmatter says hooks: [] is low
+1	a skill whose frontmatter says hooks: null is low
+1	a skill whose frontmatter says hooks: {} is low
 1	a source past its ceiling is refused too
 1	a stacked branch is not blamed for what its base already merged
 1	a staged row removal still escapes as verifier
@@ -544,6 +576,7 @@
 1	a stranded session folds under its own date, not today's
 1	a stranded session has appends but no folded record
 1	a stranger that is not a plugin is created without a blocking obligation
+1	a string broken across the next key leaves the manifest high
 1	a structural failure still fails the gate
 1	a subdir argument naming no directory digests the copy it was given
 1	a subdirectory named as an argument digests as that subdirectory alone
@@ -552,6 +585,7 @@
 1	a surface appearing in the checkout makes it stale the other way
 1	a surface detected in the tree is an item even if nobody declared it
 1	a surface the checkout has and no probe reads is a gap
+1	a symlink that stays inside the plugin is followed and read
 1	a symlinked handoff is still a symlink after a write
 1	a table declaring the reserved channel still stops the merge
 1	a table edited in the project directory stales the receipt because the table set moved
@@ -639,6 +673,7 @@
 1	an advisory probabilistic row that fails blocks nothing
 1	an agent is recorded by which agent
 1	an agent reached is credited to the plugin that ships it
+1	an agent whose frontmatter declares hooks stays low, since Claude Code ignores them there
 1	an all-structural gate still fails
 1	an always row is not flagged
 1	an always-applicable obligation whose evidence holds is ACTIVE SATISFIED
@@ -658,7 +693,9 @@
 1	an applies command that exits 128 is UNKNOWN too, not a second kind of no
 1	an applies command that exits 2 is UNKNOWN on both axes, not DORMANT
 1	an argument it cannot honour merges nothing
+1	an array of two paths where only the second interpolates is high
 1	an authority hold on the unknown pathway blocks whatever the table says
+1	an awk that fails reads the manifest as unread, not as nothing declared
 1	an eight-hour grant runs until eight hours from now
 1	an empty FELIX_RELEASE_TARGET is not a target
 1	an empty base is not reported as unknown
@@ -708,6 +745,7 @@
 1	an inactive capability makes the row not-applicable
 1	an inapplicable control never applies its mutation
 1	an inapplicable row is rendered n/a, never ok, HELD or UNRUNNABLE
+1	an inline server that interpolates a variable is high
 1	an installPath that is not a directory reads absent
 1	an installed copy that differs from what Felix read reads drift
 1	an installed copy that matches what Felix read reads same
@@ -720,6 +758,7 @@
 1	an mcp call is recorded by server
 1	an mcp nomination is refused on its kind
 1	an mcp server reached under its plugin prefix credits the plugin
+1	an object inside a declared array is read as inline
 1	an obligation the grounded state does not make applicable is DORMANT
 1	an obligations.tsv admitting nothing blocks a merge
 1	an old stamp is counted in days
@@ -749,6 +788,7 @@
 1	an unparseable payload is allowed
 1	an unparseable payload records nothing
 1	an unpinned version is high
+1	an unread declaration alone is high
 1	an unreadable count is unknown
 1	an unreadable risk table yields an unknown tier
 1	an unreadable tier does not install: felix-test-blank
@@ -849,6 +889,7 @@
 1	and a second run is a no-op that exits 0
 1	and a self-governed branch does merge under the kernel
 1	and a skill that was invoked
+1	and a skill whose frontmatter hooks are written on one line
 1	and a stance for a real item is not
 1	and a totals line without a skipped clause records skipped as 0
 1	and a tree byte-identical to the deployed engine matches
@@ -864,6 +905,7 @@
 1	and an absent table refuses with a non-zero status too
 1	and an automation row still ends in its capability
 1	and an empty cache merges nothing
+1	and an empty mcpServers object is no mcp fact
 1	and an epoch that cannot be read returns non-zero
 1	and an inapplicable control reports no result, not a pass or a fail
 1	and an installed copy with no files to digest claims nothing either
@@ -871,6 +913,8 @@
 1	and an ordinary product repository is not
 2	and an unknown flag is refused rather than ignored
 1	and an unknown kind is refused
+1	and are read as hooks, by event
+1	and as a server, each by its own rule
 1	and asked from a subdirectory it is still the checkout, not the subdirectory
 1	and asked from a worktree it is still the holding checkout
 1	and blocked by a probe that cannot see what a witness proves is there
@@ -961,6 +1005,7 @@
 1	and folding them takes it to zero
 1	and for the built-in too, because nothing can tell which was meant
 1	and for the plain one
+1	and for where it sends it
 1	and from CI-absolute paths
 1	and from a worktree of the same repository
 1	and from the first copy of the key, not a later one
@@ -1143,6 +1188,7 @@
 1	and no temporary directory is left under the tmpdir it was given
 1	and no zero row for one that was used
 1	and none is not a passing answer
+1	and none of the commands out there are listed
 1	and none of the hand-written lines
 1	and none of them names the checkout it read
 1	and none reports a spend past the ceiling as recorded
@@ -1415,9 +1461,11 @@
 1	and the claim it could not support is gone
 1	and the clean sentence is withheld
 1	and the command succeeds
+1	and the commands in that file are listed
 1	and the comment survives
 1	and the contract names each moment it examined
 1	and the count follows
+1	and the declared file is read for the key it sends
 1	and the detail is the digest the two copies share
 1	and the detail names the digest that was recorded
 1	and the digest the copy on disk carries now
@@ -1459,6 +1507,7 @@
 1	and the hook still exits 0 there
 1	and the independence check above it sees nothing wrong with that file
 1	and the index holds no gitlink afterwards
+1	and the inline variable is named
 1	and the instrument is appended as the ninth
 1	and the lesson is in the same block
 1	and the literal name is caught
@@ -1573,6 +1622,7 @@
 1	and there is at least one of them
 1	and under its own name it is current
 1	and what a fix will have to prove
+1	and what it links to is not read
 1	and what main's copy printed reaches the output
 1	and what the engine tiered medium holds
 1	and what was detected
@@ -1589,6 +1639,7 @@
 1	and with the table back a fresh receipt is current
 1	and with the target back the receipt is current
 1	and with the whole sentence, not a prefix of it
+1	and without SUB, the manifest at DIR is read
 1	and without it the same escape stands
 1	and writes no cache
 1	and writes no request for a topology the probes could not read
@@ -1605,6 +1656,8 @@
 1	apply without --yes changes nothing
 1	applying declares appends one row per new declare
 1	as a declined verdict
+1	as an unread manifest, not as nothing declared
+1	as an unread manifest, whatever the key before it said
 1	as does another
 1	asked from a worktree the distance is still the holding checkout's
 1	at most one caller records when one slot is left
@@ -1615,6 +1668,7 @@
 1	backs the removed copy up first
 1	backticks plus the punctuation after them
 1	because it carries no epoch
+1	because the second path was read too
 1	before the pulse has ever run there is nothing to report
 1	binds the checkout with no remote
 1	blocks are recorded
@@ -1733,6 +1787,7 @@
 1	counts repeated calls once with a total
 1	counts what was blocked
 1	creating a project's exceptions table escapes on the exception channel
+1	datadog's shape, a server behind a declared path, is high
 1	deleting the table from the working tree does not revoke a grant at origin/main
 1	deploy-check --applies holds in a worktree the marketplace does not serve
 1	deploy-check --applies holds where a deployment exists and main can be read
@@ -1756,6 +1811,7 @@
 1	each fact carries the tree it was taken from
 1	each line is a name and a value separated by a tab
 1	each refused grant is listed with its reason
+1	ecc's shape, an empty mcpServers object beside skills, is low
 1	editing a table in the set is a new policy version
 1	editing a table in the set makes it stale, with nothing under state/ changing
 1	editing the same file again invalidates the receipt
@@ -1866,6 +1922,8 @@
 1	for every gate check that file actually covers
 1	free text matches the catalogue
 1	from a nested subdirectory the verdict is unchanged
+1	frontmatter after a byte-order mark still declares hooks
+1	frontmatter with Windows line endings still declares hooks
 1	gate command actually ran
 1	governs them immediately
 1	green tier is still reported
@@ -1888,7 +1946,15 @@
 1	hook emits Claude Code shape without plugin env
 1	hook silent in ungoverned repo
 1	hook still exits 0 there
+1	hooks and mcpServers both [] declare nothing, not even a fact
+1	hooks and mcpServers both null declare nothing, not even a fact
+1	hooks and mcpServers both {} declare nothing, not even a fact
+1	hooks at a declared path are high
+1	hooks declared inline in plugin.json are high
 1	hooks-events reads a hooks.json and exits 0
+1	hooks: in a skill's body, after the frontmatter closes, is low
+1	hooks: indented under another frontmatter key is low
+1	hooks: inside a frontmatter value is low
 1	identical deploys are clean before any stray lands
 1	ignores a file that does not exist
 1	in a repository with no main and no origin, --applies does not hold even with a cache
@@ -2016,6 +2082,7 @@
 1	nor is a system reminder
 1	nor is a version the branch declares that nothing installed
 1	nor is one from both
+1	nor one declared inline or in a skill's frontmatter
 1	nor one that declares no fail control at all
 1	nor one whose fail control applied and was held
 1	nor one whose fail control could not run
@@ -2050,6 +2117,7 @@
 1	one answer of two leaves the other still owed
 1	one byte changed inside one file changes the digest
 1	one continuation is spent per turn, not two
+1	one file named under both keys is read as hooks
 1	one from what you typed is not
 1	one genuinely absent still reads absent
 1	one line per row is written
@@ -2197,6 +2265,7 @@
 1	so a project created today reads something from reality
 1	so do an added row, a comment edit and a deletion
 1	so does a pointer naming a directory that is gone
+1	so is a command one directory further down
 1	so is a file that ends inside a string
 1	so its gate is not red on the day it was created
 1	so no false unmount is proposed from it
@@ -2230,6 +2299,7 @@
 1	stops naming tools once the play is done
 1	stranded sessions are counted without reading them
 1	sums invocations across sessions
+1	supabase's shape, a remote server two directories down with no variable, is medium
 1	survives a machine laid out differently
 1	survives a transcript that is not there
 1	tasks sharing a file are one unit
@@ -2269,6 +2339,7 @@
 1	the declared plugin still has its presence row
 1	the declares are applied before the receipt is written
 1	the decoupled copy is not an event to hooks-events
+1	the default hooks file named again in the manifest is read once
 1	the deployed path is read from the CLI, not guessed from the cache
 1	the done row is not a candidate
 1	the ecosystem check is behind the verifier confine
@@ -2441,6 +2512,7 @@
 1	the unmeasurable list takes the hook-only zero
 1	the watching git was asked
 1	the whole forty-character hash grants too, and an expired row above it does not shadow it
+1	the why for an unread declaration names its key and its path
 1	the widget's epoch is a hash
 1	the widget's probe table is exactly as this section found it
 1	the widget's table is exactly as this section found it
@@ -2516,6 +2588,7 @@
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused
 1	wiring the same tool twice is refused
+1	with SUB, the manifest under DIR/SUB is read, its paths relative to SUB
 1	with a fact and a table both moved, the fact is named first
 1	with both refs present origin/main is the default base
 1	with every log tracked, the form this replaced sees nothing to report

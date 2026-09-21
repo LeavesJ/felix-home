@@ -233,7 +233,8 @@ specific project, language, or toolchain.
     felix budget           how much unattended work has been spent today
 
   memory
-    felix handoff [note]   regenerate the handoff; the note (or --was) records what was in progress
+    felix handoff [note]   regenerate the handoff; the note (or --was) records what was in progress;
+                           a handoff it did not write is refused unless --replace
     felix log <text>       add a devlog entry
     felix lesson <text>    add a lesson, matched into later prompts
     felix lessons          what this project has already paid for
@@ -3768,7 +3769,7 @@ cmd_lesson() {
 }
 
 cmd_handoff() {
-  resolve_or_die; local proj="$PROJ" root gate note="" was="" words=""
+  resolve_or_die; local proj="$PROJ" root gate note="" was="" words="" replace=0
   # #127. The catch-all used to shift anything it did not know, so
   # `felix handoff "what was in progress"` — the invocation everyone types —
   # dropped the one line git cannot rebuild and printed success over an older
@@ -3776,18 +3777,21 @@ cmd_handoff() {
   # given both ways refuses rather than choosing one silently.
   while [ $# -gt 0 ]; do
     case "$1" in
-      --was) need_value "$@"; was="$2"; shift 2 ;;
-      --)    shift; words="${words:+$words }$*"; break ;;
-      -*)    die "usage: felix handoff [--was \"what was in progress\" | what was in progress]" ;;
-      *)     words="${words:+$words }$1"; shift ;;
+      --was)     need_value "$@"; was="$2"; shift 2 ;;
+      --replace) replace=1; shift ;;
+      --)        shift; words="${words:+$words }$*"; break ;;
+      -*)        die "usage: felix handoff [--was \"what was in progress\" | what was in progress] [--replace]" ;;
+      *)         words="${words:+$words }$1"; shift ;;
     esac
   done
   [ -n "$was" ] && [ -n "$words" ] \
-    && die "usage: felix handoff [--was \"what was in progress\" | what was in progress] — the note was given twice"
+    && die "usage: felix handoff [--was \"what was in progress\" | what was in progress] [--replace] — the note was given twice"
   note="${was:-$words}"
   root="$(felix_repo_root "$PWD")"
   gate="$(felix_json_str "$proj/project.json" gate)"
-  felix_mem_handoff "$proj" "$root" "$gate" "$note"
+  # A handoff this command did not write is refused by the library, which says
+  # why and how large it is; nothing below runs, because nothing was written.
+  felix_mem_handoff "$proj" "$root" "$gate" "$note" "$replace" || exit 1
   printf 'wrote %s/SESSION_HANDOFF.md\n\n' "$(felix_mem_dir "$proj")"
   # Carrying a note across a regeneration is right; carrying it in silence is
   # how a two-session-old note read as this session's. Said only when nothing

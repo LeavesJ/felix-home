@@ -5,7 +5,7 @@
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
 base	origin/main	eb13021b600a664990a464ed3f90c5e20e7c2b1e	0.49.127
-run	20	2552	1
+run	20	2566	1
 content scan: a #! file without the execute bit, holding npx and GITHUB_TOKEN, is a credential-call	1
 content scan: a .ps1 with Invoke-RestMethod and OPENAI_APIKEY is a credential-call	1
 content scan: a .py file with requests.post( and DB_PASSWORD on different lines is a credential-call	1

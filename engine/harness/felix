@@ -760,12 +760,20 @@ cmd_new() {
     read -r maturity || maturity=""
   fi
   case "$maturity" in prototype|internal|public-beta|production) ;; *) maturity="" ;; esac
+  # Built before the here-document, not inside it. It was `${maturity:+...}`
+  # in the body, and bash removes the double quotes inside that expansion
+  # there — 3.2.57 and 5.2.21 both, measured — so the file said
+  # `maturity: prototype` and felix_json_str, which matches a quoted key, read
+  # nothing back.
+  local maturity_line=""
+  if [ -n "$maturity" ]; then
+    maturity_line="$(printf ',\n  "maturity": "%s"' "$maturity")"
+  fi
   cat > "$dir/project.json" <<EOF
 {
   "name": "$name",
   "remote_match": "$slug",
-  "gate": "$gate"${maturity:+,
-  "maturity": "$maturity"}
+  "gate": "$gate"$maturity_line
 }
 EOF
 

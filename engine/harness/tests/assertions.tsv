@@ -1705,6 +1705,7 @@
 1	felix new seeds an exceptions table of comment lines only
 1	felix new seeds the obligations ledger
 1	felix new still exits 0
+1	felix new writes the maturity a person gave as a key felix_json_str reads back
 1	felix next ranks it under the checks that are not checking
 1	felix obligations --gate passes on the fixture's one holding obligation
 1	felix obligations --gate passes when its only blocking row is excepted, and writes the exception to says.log

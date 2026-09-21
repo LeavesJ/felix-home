@@ -8881,6 +8881,28 @@ is  "so a project created on git init alone is not born blocked" "$rc" "0"
 rm -rf "$FROOT/projects/probeseedq" "$MEM/probeseedq" "$NEWQ"
 rm -rf "$FROOT/projects/probeseed" "$MEM/probeseed" "$NEWP"
 
+printf '\nfelix new: the maturity a person gives is read back\n'
+# The risk envelope's first key. felix new writes it when a person gives it,
+# and the commissioning row `envelope` reads it with felix_json_str, which
+# matches a quoted key only. It was written by `${maturity:+...}` inside an
+# unquoted here-document, and bash removes the double quotes inside that
+# expansion there, so the file said `maturity: prototype`: not JSON, not
+# readable, and the row stayed held after a person had answered it. Measured
+# 2026-09-21 on bash 3.2.57, the stock macOS /bin/bash, and on 5.2.21, the CI
+# runner's: both drop them. Nothing caught it because no assertion set it.
+MATP="$TMP/maturity-new"; mkdir -p "$MATP"
+( cd "$MATP" && git init -q -b main ) >/dev/null 2>&1
+out="$(cd "$MATP" && FELIX_MATURITY=prototype PATH="$CMSTUB:$PATH" "$FELIX" new maturityseed "$MATP" </dev/null 2>&1)"; rc=$?
+# The detail names the bash and what the file held, because `got []` alone
+# cannot tell a dropped quote from a felix new that never wrote the file.
+_matj="$FROOT/projects/maturityseed/project.json"
+_matv="$( . "$FROOT/harness/lib/resolve.sh"; felix_json_str "$_matj" maturity )"
+[ "$_matv" = "prototype" ] \
+  && ok  "felix new writes the maturity a person gave as a key felix_json_str reads back" \
+  || bad "felix new writes the maturity a person gave as a key felix_json_str reads back" \
+         "read [$_matv]; bash $BASH_VERSION, felix new rc=$rc, project.json: $(tr '\n' ' ' 2>/dev/null < "$_matj" || printf 'absent')"
+rm -rf "$FROOT/projects/maturityseed" "$MEM/maturityseed" "$MATP"
+
 printf '\nmaintenance: an event row that can come due from reality\n'
 # A cadence of 0 means event-driven, and the format's own words were that such
 # a row "is never reported as overdue". One project carried

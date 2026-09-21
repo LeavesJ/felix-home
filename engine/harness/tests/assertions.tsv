@@ -87,6 +87,7 @@
 1	a class the ledger does not know is refused for its class
 1	a clean checkout claims no rival gate
 1	a clean repo says so instead of minting a commit
+1	a command file piping to a shell is a fact naming that file
 1	a command whose frontmatter declares hooks is high
 1	a commands directory main ships that the entry lacks is drift
 1	a comment added to it is still free
@@ -175,6 +176,12 @@
 1	a done count that disagrees with the rows reads partial
 1	a dormant capability is deferred
 1	a dormant capability stays quiet
+1	a download piped into bash in a skill is a pipe-to-shell fact
+1	a download piped into jq is no pipe-to-shell fact
+1	a download piped into shasum is no pipe-to-shell fact
+1	a download piped into sudo bash is the same fact
+1	a download piped into tee is no pipe-to-shell fact
+1	a download saved on one line and run on a later one is no pipe-to-shell fact
 1	a dry run names the judge before saying what it would squash
 1	a due step containing a colon does not shift it
 1	a fact that moved under the receipt raises exactly one
@@ -374,6 +381,7 @@
 1	a person's low row installs
 1	a personal excludes file cannot hide real drift
 1	a pinned local server is medium
+1	a pipe to a shell observed is held for a person, not installed
 1	a pipe, a semicolon and an ampersand in applies or evidence refuse nothing
 1	a pipeline step nothing answers is named from the architecture, not the table
 1	a plain checkout with projects/ is a home
@@ -671,6 +679,7 @@
 1	an accepted line carries the row whole, seven fields after the verdict
 1	an admitted nomination becomes a declared row
 1	an advisory probabilistic row that fails blocks nothing
+1	an agent file piping to a shell is a fact naming that file
 1	an agent is recorded by which agent
 1	an agent reached is credited to the plugin that ships it
 1	an agent whose frontmatter declares hooks stays low, since Claude Code ignores them there
@@ -832,6 +841,7 @@
 1	and a catalogue that was read and matched nothing is exit 0
 1	and a checkout with no default branch of its own falls back to main
 1	and a clean table leaves the gate green
+1	and a command file piping to a shell is medium
 1	and a command that does not resolve identifies none either
 1	and a declared control is not reported missing
 1	and a declared moment is not
@@ -841,6 +851,10 @@
 1	and a doctored judge merges nothing
 1	and a document that is not a plan
 1	and a dormant row blocks nothing
+1	and a download piped into jq stays low
+1	and a download piped into shasum stays low
+1	and a download piped into tee stays low
+1	and a download saved then run later stays low
 1	and a failing one as due for that reason
 1	and a file merely named hooks.json does not make the row apply
 1	and a file that does not exist counts zero
@@ -863,6 +877,7 @@
 1	and a non-zero status too
 1	and a partial answer records nothing
 1	and a person's medium row installs, as it always has
+1	and a pipe to sudo bash is medium
 1	and a prefixed skill is never called a built-in
 1	and a probe that failed against a real surface is blind too
 1	and a project with no obligations.tsv blocks a merge
@@ -896,6 +911,7 @@
 1	and a turn that did something clears the count
 1	and a verified push does
 1	and a verified push reads as zero days
+1	and a wget pipe to sh is medium
 1	and a worktree is pointed at that one, having no graph of its own
 1	and a worktree of it reads the same graph, and is ok too
 1	and a write leaves no file beside it
@@ -903,6 +919,7 @@
 1	and again, so a session can bump twice
 1	and an Agent call with no type is still a tool
 1	and an absent table refuses with a non-zero status too
+1	and an agent file piping to a shell is medium
 1	and an automation row still ends in its capability
 1	and an empty cache merges nothing
 1	and an empty mcpServers object is no mcp fact
@@ -1017,6 +1034,7 @@
 1	and heads the report with the project and counts every row
 1	and holds an engine-grounded medium for a person
 1	and holds no prose when nothing matched
+1	and hooks beside a pipe to a shell are still high
 1	and ignores the path so it cannot come back
 1	and in the policy's own words, which is what proves the call reached it
 1	and is carried when none is given
@@ -1055,6 +1073,7 @@
 1	and it is the usage text
 1	and it is this checkout's tree id
 1	and it left no lock file beside the graph
+1	and it makes an otherwise low plugin medium
 1	and it merges nothing
 1	and it names that entry
 1	and it names the cache entry felix merge would judge with
@@ -1583,6 +1602,7 @@
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
 1	and the run that took it over leaves nothing behind
+1	and the same plugin declared by a person installs, which high would refuse
 1	and the same rows over more sessions are not
 1	and the same scanner catches a planted one
 1	and the second project, whose log is tracked too
@@ -1946,6 +1966,7 @@
 1	hook emits Claude Code shape without plugin env
 1	hook silent in ungoverned repo
 1	hook still exits 0 there
+1	hooks and a pipe to a shell report the pipe too
 1	hooks and mcpServers both [] declare nothing, not even a fact
 1	hooks and mcpServers both null declare nothing, not even a fact
 1	hooks and mcpServers both {} declare nothing, not even a fact
@@ -2513,6 +2534,7 @@
 1	the watching git was asked
 1	the whole forty-character hash grants too, and an expired row above it does not shadow it
 1	the why for an unread declaration names its key and its path
+1	the why names the file that pipes to a shell
 1	the widget's epoch is a hash
 1	the widget's probe table is exactly as this section found it
 1	the widget's table is exactly as this section found it
@@ -2534,6 +2556,7 @@
 1	twelve sessions ending at once are all still counted
 1	two byte-identical copies at two different paths digest the same
 1	two deferrals are two things waiting
+1	two piped lines in one file are one pipe-to-shell fact
 1	two rows in one session are one session, calls summed
 1	two rows, once each
 1	two runs with nothing to show end the night too
@@ -2546,6 +2569,7 @@
 1	untouched surfaces are n/a
 1	version strings are not mistaken for plugins
 1	volume inside one entry does not
+1	wget piped into sh is the same fact
 1	what a miss records is what was typed
 1	what a provider merely named holds, whatever it tiered itself
 1	what git ignores is not drift

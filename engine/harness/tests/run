@@ -348,6 +348,10 @@ out="$(cd "$STRANGE" && PATH="$CMSTUB:$PATH" "$FELIX" new stranger 2>&1)"; rc=$?
 is  "felix new exits 0"            "$rc" "0"
 has "detects from their manifest"  "$out" "billing"
 has "guesses their gate"           "$out" "npm run verify"
+# Its memory root was empty, so nothing is said to have been kept. The block
+# after "refuses to clobber" below is the case where something was.
+is  "and claims to have kept no memory, having found none" \
+    "$(printf '%s\n' "$out" | grep -cE '^  memory .*kept')" "0"
 
 SP="$FROOT/projects/stranger"
 for f in project.json capabilities stack.tsv profiles.tsv setup.tsv CLAUDE.md; do
@@ -384,6 +388,62 @@ esac
 out="$(PATH="$CMSTUB:$PATH" "$FELIX" new stranger 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "refuses to clobber an existing project" \
                 || bad "refuses to clobber an existing project"
+
+printf '\nfelix new: memory that outlived its project is kept\n'
+# That refusal looks at projects/<name>/ and nothing else, and memory is not
+# there. It lives under $FELIX_MEMORY, which invariant 6 says nothing deletes,
+# so a project directory can be gone while <memory>/<name>/ still holds what the
+# project paid for: removed by hand, or a second machine whose memory synced
+# before its home did. felix new opened the devlog, the lessons and the session
+# handoff with `: >`, which left each at zero bytes, and the next pulse commit
+# recorded the loss.
+RBC="$TMP/reborn"; mkdir -p "$RBC"; ( cd "$RBC" && git init -q -b main )
+RBM="$MEM/reborn"; RBK="$TMP/reborn.keep"; mkdir -p "$RBM" "$RBK"
+printf '# Devlog\n\n## 2026-09-01\n\nthe first entry, written nowhere else\n' > "$RBM/DEVLOG.md"
+printf '\n- **2026-09-02** a lesson this project paid for once\n' > "$RBM/lessons.md"
+printf '# Handoff\n\nwritten by hand, and not in the generated shape\n' > "$RBM/SESSION_HANDOFF.md"
+cp "$RBM/DEVLOG.md" "$RBM/lessons.md" "$RBM/SESSION_HANDOFF.md" "$RBK/"
+out="$(cd "$RBC" && PATH="$CMSTUB:$PATH" "$FELIX" new reborn 2>&1)"; rc=$?
+is "felix new over memory that outlived its project exits 0" "$rc" "0"
+for f in DEVLOG.md lessons.md SESSION_HANDOFF.md; do
+  cmp -s "$RBM/$f" "$RBK/$f" \
+    && ok  "and keeps the $f it found, byte for byte" \
+    || bad "and keeps the $f it found, byte for byte" \
+           "$(wc -c < "$RBM/$f" 2>/dev/null | tr -d ' ') bytes left of $(wc -c < "$RBK/$f" | tr -d ' ')"
+done
+_rbl="$(printf '%s\n' "$out" | grep -E '^  memory ')"
+has "and says the memory it found was kept" "$_rbl" "kept"
+for f in DEVLOG.md lessons.md SESSION_HANDOFF.md; do
+  has "and names $f among what it kept" "$_rbl" "$f"
+done
+
+# Only part of it survived: lessons.md with something in it, and the empty
+# SESSION_HANDOFF.md an earlier felix new left as a placeholder. The test is
+# whether a file exists, not whether it holds bytes, so the placeholder is kept
+# and said to be, and only DEVLOG.md is created. A line naming every file
+# whatever it found would pass the block above; a check for a non-empty file
+# would pass everything here but the kept line.
+RPC="$TMP/rebornpart"; mkdir -p "$RPC"; ( cd "$RPC" && git init -q -b main )
+RPM="$MEM/rebornpart"; mkdir -p "$RPM"
+printf '\n- **2026-09-03** the one file that synced with something in it\n' > "$RPM/lessons.md"
+: > "$RPM/SESSION_HANDOFF.md"
+cp "$RPM/lessons.md" "$TMP/rebornpart.lessons"
+out="$(cd "$RPC" && PATH="$CMSTUB:$PATH" "$FELIX" new rebornpart 2>&1)"; rc=$?
+is "felix new over part of a memory root exits 0" "$rc" "0"
+cmp -s "$RPM/lessons.md" "$TMP/rebornpart.lessons" \
+  && ok  "and keeps the file it found with content, byte for byte" \
+  || bad "and keeps the file it found with content, byte for byte" "$(cat "$RPM/lessons.md" 2>/dev/null)"
+[ -f "$RPM/DEVLOG.md" ] && [ ! -s "$RPM/DEVLOG.md" ] \
+  && ok  "and creates the missing DEVLOG.md empty" \
+  || bad "and creates the missing DEVLOG.md empty" "$(ls -l "$RPM/DEVLOG.md" 2>&1)"
+_rpl="$(printf '%s\n' "$out" | grep -E '^  memory ')"
+has "and names what it kept, the empty placeholder among it" "$_rpl" "kept lessons.md SESSION_HANDOFF.md,"
+case "$_rpl" in
+  *DEVLOG.md*) bad "and does not call the file it created kept" "$_rpl" ;;
+  *) ok "and does not call the file it created kept" ;;
+esac
+rm -rf "$FROOT/projects/reborn" "$MEM/reborn" "$RBC" "$RBK" \
+       "$FROOT/projects/rebornpart" "$MEM/rebornpart" "$RPC" "$TMP/rebornpart.lessons"
 
 printf '\ncapability detection\n'
 # The scenario the founder asked for: a surface that does not exist today, and

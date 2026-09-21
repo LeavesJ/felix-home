@@ -4,29 +4,14 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	fd6ffec81f0d36f8aa35c6b0f0fc8ab8df943f45	0.49.125
-run	24	2495	1
-a # Handoff title with no stamp on line 3 is refused	1
-a file of one newline is not the empty placeholder	1
-a hand-written handoff is refused by the library	1
-a resume on a broken binding stays as silent as before it was bound	1
-a resumed session gets no banner	1
-a stamp on a line other than 3 is refused	1
-a stamp under a different title is refused	1
-a stamp with no date is refused	1
-a stamp with no full stop after the date is refused	1
-and does not print that it wrote the handoff	1
-and every byte is the one it had	1
-and keeps all 212864 of its bytes	1
-and leaves it as it was, byte for byte	1
-and names --replace as the way through	1
-and says how many bytes it would have destroyed	1
-and writes the generated shape in its place	1
-but not the session handoff, which a prior session wrote	1
-felix handoff --replace overwrites it	1
-felix handoff refuses a hand-written handoff	1
-the SessionStart matcher binds resume	1
-the refusal on stderr names the size in bytes	1
-the session handoff is named as state to re-check by command	1
-the write is renamed into place, not rewritten in it	1
-with the note --was gave it	1
+base	origin/main	1854f6cca2824997898ad513144a0e0e942bca9c	0.49.126
+run	9	2524	1
+and keeps the DEVLOG.md it found, byte for byte	1
+and keeps the SESSION_HANDOFF.md it found, byte for byte	1
+and keeps the file it found with content, byte for byte	1
+and keeps the lessons.md it found, byte for byte	1
+and names DEVLOG.md among what it kept	1
+and names SESSION_HANDOFF.md among what it kept	1
+and names lessons.md among what it kept	1
+and names what it kept, the empty placeholder among it	1
+and says the memory it found was kept	1

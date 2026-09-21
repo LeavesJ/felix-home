@@ -891,6 +891,7 @@
 1	and changes when the tree changes
 1	and claims nothing about surfaces it never compared
 1	and claims nothing was unchecked
+1	and claims to have kept no memory, having found none
 1	and commissions
 1	and commits nothing to it
 1	and components exits 0 even then
@@ -900,6 +901,7 @@
 1	and counts the recorded decline
 1	and counts what was held over the whole file too
 1	and creates nothing without --create
+1	and creates the missing DEVLOG.md empty
 1	and current returns 0
 1	and declares a version
 1	and declares every control for it
@@ -912,6 +914,7 @@
 1	and does not ask for a lesson that already exists
 1	and does not blame a checkout that did not move
 1	and does not call that unexaminable
+1	and does not call the file it created kept
 1	and does not claim to keep a note when there was none
 1	and does not claim to know which way the facts went
 1	and does not diagnose a cause it cannot see
@@ -1043,6 +1046,10 @@
 1	and keeps all 212864 of its bytes
 1	and keeps one Felix does not hold
 1	and keeps surviving as its own log grows
+1	and keeps the DEVLOG.md it found, byte for byte
+1	and keeps the SESSION_HANDOFF.md it found, byte for byte
+1	and keeps the file it found with content, byte for byte
+1	and keeps the lessons.md it found, byte for byte
 1	and keeps the prompt that caused it
 1	and keeps the session it was said in
 1	and lands in mistakes.log under its own name
@@ -1060,9 +1067,12 @@
 1	and merges nothing under it
 1	and moves the epoch, because the probe counts it
 1	and names --replace as the way through
+1	and names DEVLOG.md among what it kept
+1	and names SESSION_HANDOFF.md among what it kept
 1	and names a handoff when the repo has one
 1	and names both tokens
 1	and names itself as the grant
+1	and names lessons.md among what it kept
 1	and names none when there is none
 1	and names origin's version as the one nothing is installed at
 1	and names the answer file to write
@@ -1088,6 +1098,7 @@
 1	and names the table
 1	and names the template
 1	and names the working tree rather than the checkout
+1	and names what it kept, the empty placeholder among it
 1	and names what was caught
 1	and names who answers the provider row
 1	and narrows it, which is how this suite knows the window is real
@@ -1289,6 +1300,7 @@
 1	and says the gate has not seen it
 1	and says the gate never ran
 1	and says the gates still apply
+1	and says the memory it found was kept
 1	and says the receipt does not exist here
 1	and says the suite passed when nothing was skipped
 1	and says the table is absent
@@ -1745,6 +1757,8 @@
 1	felix merge refuses a self-governed repository when FELIX_KERNEL is set
 1	felix merge refuses on an escape
 1	felix new exits 0
+1	felix new over memory that outlived its project exits 0
+1	felix new over part of a memory root exits 0
 1	felix new prints the request path for a session
 1	felix new refuses the same names the marker refuses
 1	felix new seeds a probe table

@@ -369,8 +369,9 @@ felix_discover_inspect() {
 #   executables       regular files with an execute bit under scripts/ or
 #                     skills/. Counted and reported, never raises on its own:
 #                     4 of the 18 installed plugins tiered low ship one, and
-#                     one of the four is a package validator nobody is told
-#                     to run.
+#                     one of the four is a package validator its maintainers
+#                     run before publishing, which no skill tells an agent to
+#                     run.
 #   credential-call   a script under scripts/ or skills/ that names a network
 #                     call and a credential variable anywhere in the same file.
 #                     Invariant 4: anything touching credentials stops for a
@@ -480,11 +481,11 @@ _felix_discover_content() {
              find -H "$r" -type f -print0 2>/dev/null
            done)
 
-  # One line has to carry both the claim and what it is a claim about. "The
-  # codebase is the source of truth" is the commonest sentence in this corpus
-  # that uses the phrase, and it names no remote thing; plural nouns only,
-  # because "source" is inside "source of truth" and "reference" is usually
-  # a reference implementation.
+  # One line has to carry both the claim and what it is a claim about. Of the
+  # 24 lines in the installed skills, commands and agents that say "source of
+  # truth", 19 name no remote thing ("the codebase is treated as the primary
+  # source of truth"); plural nouns only, because "source" is inside "source
+  # of truth" and "reference" is usually a reference implementation.
   while IFS= read -r -d '' f; do
     LC_ALL=C awk '
       { l = tolower($0) }

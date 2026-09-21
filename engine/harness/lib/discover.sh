@@ -382,23 +382,31 @@ _felix_discover_inside() {
 # too, so the reader failing raises rather than passes.
 #
 # One line per declaration: `path KEY P` for a path, `inline KEY` for a
-# non-empty object, `odd KEY` for anything else that is not null. A manifest
-# that is not a JSON object at all is `odd` as a whole: Claude Code would not
-# load it, but this is a copy Felix read, not the one it would install.
+# non-empty object, `odd KEY` for anything else that is not null.
+#
+# Strict at the top level, and that is deliberate. A walker that skips what it
+# does not expect and resynchronises on the next quote can take a quote inside
+# a broken string for the start of a key, and then the declaration after the
+# break is read as text and disappears. So a manifest that is not
+# `{ "key": value, ... }` all the way to its closing brace is `odd` as a whole,
+# and so is one that is not an object at all. Claude Code would not load
+# either, but this is a copy Felix read, not the one it would install, and the
+# reader failing must raise rather than pass.
 _FELIX_DISCOVER_MANIFEST_AWK='
 function ws(i) { while (i <= n && substr(s, i, 1) ~ /[ \t\r\n]/) i++; return i }
+function broken() { print "odd\tthe manifest"; exit }
 function str(i,   d, o) {
-  o = ""; i++
+  o = ""; i++; UNTERM = 0
   while (i <= n) {
     d = substr(s, i, 1)
     if (d == "\\") { o = o (substr(s, i + 1, 1) == "/" ? "/" : substr(s, i, 2)); i += 2; continue }
     if (d == "\"") { STR = o; return i + 1 }
     o = o d; i++
   }
-  STR = o; return i
+  STR = o; UNTERM = 1; return i
 }
 function val(i,   c, dep) {
-  c = substr(s, i, 1)
+  c = substr(s, i, 1); UNTERM = 0
   if (c == "\"") { KIND = "string"; return str(i) }
   if (c == "{" || c == "[") {
     KIND = (c == "{") ? "object" : "array"; EMPTY = 1; dep = 0
@@ -410,10 +418,10 @@ function val(i,   c, dep) {
       else if (c !~ /[ \t\r\n]/) EMPTY = 0
       i++
     }
-    return i
+    UNTERM = 1; return i
   }
   KIND = (substr(s, i, 4) == "null") ? "null" : "other"
-  while (i <= n && substr(s, i, 1) !~ /[],} \t\r\n]/) i++
+  while (i <= n && substr(s, i, 1) !~ /[],}{:"[ \t\r\n]/) i++
   return i
 }
 function decl(key) {
@@ -426,31 +434,44 @@ END {
   n = length(s); i = 1
   if (substr(s, 1, 3) == "\357\273\277") i = 4
   i = ws(i)
-  if (substr(s, i, 1) != "{") { print "odd\tthe manifest"; exit }
-  i++
-  while (i <= n) {
-    i = ws(i); c = substr(s, i, 1)
-    if (c == "}") break
-    if (c != "\"") { i++; continue }
-    i = str(i); key = STR; i = ws(i)
-    if (substr(s, i, 1) != ":") continue
-    i = ws(i + 1); b = i; i = val(i); if (i == b) i++
-    if (key != "hooks" && key != "mcpServers") continue
-    if (KIND != "array") { decl(key); continue }
-    j = b + 1
-    while (j < i) {
-      j = ws(j); c = substr(s, j, 1)
-      if (c == "]") break
-      if (c == ",") { j++; continue }
-      e = j; j = val(j); if (j == e) j++
-      if (KIND == "array") KIND = "other"
-      decl(key)
+  if (substr(s, i, 1) != "{") broken()
+  i = ws(i + 1)
+  if (substr(s, i, 1) == "}") exit
+  while (1) {
+    if (substr(s, i, 1) != "\"") broken()
+    i = str(i); if (UNTERM) broken()
+    key = STR; i = ws(i)
+    if (substr(s, i, 1) != ":") broken()
+    i = ws(i + 1); b = i; i = val(i)
+    if (UNTERM || i == b) broken()
+    if (key == "hooks" || key == "mcpServers") {
+      if (KIND != "array") decl(key)
+      else {
+        j = b + 1
+        while (1) {
+          j = ws(j)
+          if (j >= i) { print "odd\t" key; break }
+          if (substr(s, j, 1) == "]") break
+          e = j; j = val(j)
+          if (UNTERM || j == e) { print "odd\t" key; break }
+          if (KIND == "array") KIND = "other"
+          decl(key)
+          j = ws(j); c = substr(s, j, 1)
+          if (c == ",") { j++; continue }
+          if (c != "]") print "odd\t" key
+          break
+        }
+      }
     }
+    i = ws(i); c = substr(s, i, 1)
+    if (c == "}") exit
+    if (c != ",") broken()
+    i = ws(i + 1)
   }
 }'
 
 _felix_discover_manifest() {
-  local base="$1" m kind key p r inline="" seen="" nl='
+  local base="$1" m decls kind key p r inline="" seen="" nl='
 '
   # The manifest itself is held to the same rule: one linked out of the copy
   # is somebody else's file.
@@ -463,6 +484,10 @@ _felix_discover_manifest() {
     r="$(_felix_discover_inside "$base" "$r")" && seen="${seen}mcpServers:$r$nl"
   done
 
+  # An awk that fails prints nothing, and nothing would read as low; its
+  # failure is the manifest going unread instead.
+  decls="$(LC_ALL=C awk "$_FELIX_DISCOVER_MANIFEST_AWK" "$m" 2>/dev/null)" \
+    || decls="$(printf 'odd\tthe manifest')"
   while IFS=$'\t' read -r kind key p; do
     case "$kind" in
       path)
@@ -491,7 +516,7 @@ _felix_discover_manifest() {
         esac ;;
     esac
   done <<EOF
-$(LC_ALL=C awk "$_FELIX_DISCOVER_MANIFEST_AWK" "$m" 2>/dev/null)
+$decls
 EOF
   return 0
 }

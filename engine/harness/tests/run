@@ -5291,6 +5291,22 @@ _mf_f="$(_mf_facts "$MFD/mlink")"
 _mf_unread "a manifest that is itself a link out of the copy is unread" "$_mf_f" "the" "manifest"
 _mf_lacks  "and what it links to is not read"                            "$_mf_f" "ONLY_OUTSIDE_KEY"
 
+# Found by review, not by either block: a walker that resynchronised on the
+# next quote read a broken string's closing quote as the start of a key, and
+# the declaration after the break vanished. Broken JSON is the whole manifest
+# unread, and so is an awk that fails, which would otherwise print nothing.
+_mf_plugin broken $'{"hooks":"./h.json\n"mcpServers":"./m.json"}'
+_mf_put broken/h.json '{"hooks":{"Stop":[]}}'
+_mf_f="$(_mf_facts "$MFD/broken")"
+is  "a string broken across the next key leaves the manifest high" "$(_mf_risk "$_mf_f")" "high"
+has "as an unread manifest, whatever the key before it said"      "$_mf_f" $'unread\tthe manifest'
+_mf_plugin nocomma '{"name":"nc" "mcpServers":"./m.json"}'
+has "a missing comma is an unread manifest, not a lost declaration" \
+    "$(_mf_facts "$MFD/nocomma")" $'unread\tthe manifest'
+mkdir -p "$MFD/badawk"; printf '#!/bin/sh\nexit 2\n' > "$MFD/badawk/awk"; chmod +x "$MFD/badawk/awk"
+has "an awk that fails reads the manifest as unread, not as nothing declared" \
+    "$(PATH="$MFD/badawk:$PATH" _mf_facts "$MFD/datadog")" $'unread\tthe manifest'
+
 printf '\nmore than one session at a time\n'
 # People keep several terminals open on one checkout, so every key Felix writes
 # under has to survive that. Two of these are safe by construction and one was

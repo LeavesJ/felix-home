@@ -20,10 +20,10 @@
 #   as a run of adjacent words that joins into it, over up to three lines;
 #   with one character standing in for one of its own, at any position, when
 #     the name has four or more: any byte but a space, an escape (\x76, \166,
-#     v, \.) or a bracket class ([e], [de], [^x], [[:alpha:]]);
+#     \u0076, \.) or a bracket class ([e], [de], [^x], [[:alpha:]]);
 #   and all of the above again in a decoded copy of each line, where escapes
 #     and one-letter classes read as what they stand for and NUL bytes are
-#     dropped, so v[e]ld\x72a reads as the name it spells.
+#     dropped, so c[o]lo\x72 reads as the word color.
 # Words are runs of letters and digits, so an underscore, a quote or a line
 # break between two halves separates them and does not hide them.
 set -euo pipefail

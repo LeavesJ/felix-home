@@ -20,7 +20,8 @@
 # can only match the structure, never a message that quotes it.
 #
 # Per session, in file order:
-#   an EDIT   a tool_use named Edit, Write, MultiEdit or NotebookEdit, unless
+#   an EDIT   a tool_use named Edit, Write, MultiEdit or NotebookEdit (a file
+#             changed through Bash is not one, and the report says so), unless
 #             its file is scratch (/tmp, TMPDIR) or Claude's own (the config
 #             directory: memory, plans): no gate covers those, and a stop they
 #             alone precede is counted aside, and said
@@ -628,7 +629,8 @@ felix_audit() {
     printf 'A check is a Bash command running tests or a gate (npm test, pytest, cargo test, go test, make check, jest, vitest, felix gate and the like), outside quoted text and here-documents, save a script handed to a shell. A runner it does not name is not a check, so a session that ran only one reads as never; --verify ERE replaces that list for every project read (--dir one project'"'"'s directory to narrow it).\n'
   fi
   printf 'A check piped into another command, followed by one, run in the background or turned over by ! hands its exit status to something else, so its own failure goes unseen: a stop after one is counted failed only when what took that status failed.\n'
-  printf 'Subagents are not seen: their edits and checks sit in files this does not read.\n\n'
+  printf 'Subagents are not seen: their edits and checks sit in files this does not read.\n'
+  printf 'An edit is an Edit, Write, MultiEdit or NotebookEdit call; a file changed through Bash (sed -i, a redirect, git apply) is not seen, so a turn that changed files only that way is not among the stops, and one that did so after a passing check still reads passed.\n\n'
   _felix_audit_next
   return 0
 }

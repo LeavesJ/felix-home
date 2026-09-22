@@ -17457,6 +17457,21 @@ _rv_says "$_rvh" "$_rvre" && _rv_says "$_rvl" "$_rvre" \
   && ok  "the help and the audit say a --no-commission project's sessions are held once felix install has run and a gate is named, not on install alone" \
   || bad "the help and the audit say a --no-commission project's sessions are held once felix install has run and a gate is named, not on install alone" "help: $_rvh | last: $_rvl"
 
+# An edit is one of Claude's edit tools. A file changed through Bash is not
+# seen as one: a turn whose only change was a sed -i is not among the stops,
+# and a sed -i after a passing check leaves it passed. The report and the
+# README say so, as they say what else is left out.
+_rv_new r3/bashed r3-bd1; _au_edit "$_rv_ts:01.000Z" msg_r3bd1a toolu_r3bd1a
+_au_bash "$_rv_ts:02.000Z" msg_r3bd1b toolu_r3bd1b 'npm test'; _au_res "$_rv_ts:03.000Z" toolu_r3bd1b ok
+_au_bash "$_rv_ts:04.000Z" msg_r3bd1c toolu_r3bd1c 'sed -i \"\" s/retries = 3/retries = 0/ src/app.js'; _au_res "$_rv_ts:05.000Z" toolu_r3bd1c ok
+_au_stop "$_rv_ts:06.000Z" msg_r3bd1d
+_rvo="$(_au --dir "$RV/r3/bashed")"
+_rvr="$(awk '/^## / { p = ($0 ~ /^## Try it/); next } p' "$REAL_HARNESS/../../README.md" 2>/dev/null)"
+[ "$(_au_counts "$_rvo")" = "1 0 0 0" ] && _rv_says "$_rvo" 'edit[^.]*bash[^.]*not seen' && _rv_says "$_rvr" 'edit[^.]*bash[^.]*not seen' \
+  && ok  "the report and the README say a file changed through Bash is not seen as an edit, where a sed -i after a passing check still reads passed" \
+  || bad "the report and the README say a file changed through Bash is not seen as an edit, where a sed -i after a passing check still reads passed" \
+         "$(printf '%s\n' "$_rvo" | tail -4) | $(printf '%s\n' "$_rvr" | grep -i 'leaves out')"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

@@ -195,8 +195,8 @@ felix_audit_scan() {
   }
 
   # Whether the exit status of the last check could reach the transcript: not
-  # when a later command, a pipe (without pipefail) or || takes it, nor when
-  # & sends it to the background.
+  # when a later command, a pipe (without pipefail set as an option) or ||
+  # takes it, nor when & sends it to the background.
   function hidden(c,    s, off, e, a, t) {
     s = c; off = 0; e = 1
     while (s != "" && match(s, vre)) {
@@ -205,7 +205,7 @@ felix_audit_scan() {
     }
     t = substr(c, e); sub(/[; ]+$/, "", t)
     if (index(t, ";") || index(t, "||")) return 1
-    if (index(t, "|") && !index(c, "pipefail")) return 1
+    if (index(t, "|") && c !~ /-[A-Za-z]*o +pipefail/) return 1
     gsub(/&&|[<>]&|&>/, "", t)
     return index(t, "&") > 0
   }

@@ -592,7 +592,9 @@ felix_audit() {
   local span=", from $first to $last${since:+ (--since $since)}"
   [ "$first" = "$last" ] && span=", all on $first${since:+ (--since $since)}"
   [ "$first" = "-" ] && span=""
-  [ "$sessions" -eq 0 ] && span=" of the $nfiles transcripts had a record${since:+ on or after $since}"
+  # A transcript can hold records and still no session: summaries carry no
+  # timestamp, and --since can put every stamp before the cutoff.
+  [ "$sessions" -eq 0 ] && span=": $(_felix_audit_n "$nfiles" transcript) read, holding no timestamped record${since:+ on or after $since}"
   printf '  sessions     %s%s\n\n' "$sessions" "$span"
 
   printf '%s came after an edit, in %s. Where each one stood:\n\n' \

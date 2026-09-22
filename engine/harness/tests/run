@@ -17418,6 +17418,18 @@ _au_nums "$_rvo" 'came after' 2 2 && _au_nums "$_rvo2" 'came after' 2 2 \
   || bad "a stop and a hold copied into a resumed session belong to the session their record names, whichever transcript sorts first: 2 stops and 2 holds in 2 sessions both ways" \
          "$(printf '%s\n' "$_rvo" | grep -E 'came after|held') | $(printf '%s\n' "$_rvo2" | grep -E 'came after|held')"
 
+# A transcript of summary records holds records, none with a timestamp: the
+# sessions line says which it lacked, of one transcript in the singular.
+mkdir -p "$RV/r3/nots/-p"
+printf '%s\n' '{"type":"summary","summary":"a","leafUuid":"u-1"}' '{"type":"summary","summary":"b","leafUuid":"u-2"}' > "$RV/r3/nots/-p/s1.jsonl"
+_rvo="$(printf '%s\n' "$(_au --dir "$RV/r3/nots")" | grep -E '^ *sessions ')"
+case "$_rvo" in
+  *"1 transcripts"*|*"had a record"*) bad "a transcript with records but no timestamp is said to lack a timestamped record, of 1 transcript, not 1 transcripts" "$_rvo" ;;
+  *timestamped*"1 transcript"*|*"1 transcript"*timestamped*)
+       ok  "a transcript with records but no timestamp is said to lack a timestamped record, of 1 transcript, not 1 transcripts" ;;
+  *)   bad "a transcript with records but no timestamp is said to lack a timestamped record, of 1 transcript, not 1 transcripts" "$_rvo" ;;
+esac
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

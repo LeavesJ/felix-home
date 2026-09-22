@@ -171,7 +171,9 @@ say "names: ${#AUDIT[@]} searched for; history $(cnt "$NM.history"), memory $(cn
 # cannot read stops the run: an empty answer is never taken for a pass.
 printf '%s\n' "${AUDIT[@]}" > "$NM.searched"
 scan() { bash "$HERE/snapshot-audit.sh" "$NM.searched" "$AUTHOR_EMAIL" "$1" < "$2" > "$3" || die "the audit could not read every file under $1"; }
-textfiles() { (cd "$1" && find . -type f | sed 's|^\./||' | sort | tr '\n' '\0' | xargs -0 grep -lI --null '' || true); }
+# It reads every file of the build, whatever grep would call binary: a name in
+# a file holding one NUL byte once went out unread by the scrub and the audit.
+allfiles() { (cd "$1" && find . -type f | sed 's|^\./||' | sort | tr '\n' '\0'); }
 # Hits no acknowledgement covers. An acknowledgement waives a leak check, so it
 # is authority and not state: a row of .snapshot-ack.tsv at the home's root,
 # tracked, so a person reviews it in a pull request, and read as main holds it,
@@ -224,8 +226,10 @@ perl -0pi -e 's/("remote_match"\s*:\s*")[^"]*(")/${1}LeavesJ\/Felix${2}/' "$B/pr
 # phrase glued to an underscore. Then prose, any case, as one lower-case
 # phrase. Then the pieces: a prefix of three or more and the rest, with a few
 # characters between or one standing in, become the token's pieces.
-# The text files are listed once. A list that comes back short leaves a name
-# unrewritten, and the audit below stops on it, so a failure here is never silent.
+# The text files are listed once, and only they are rewritten: a binary file is
+# never edited, so a name in one is left for the audit, which reads every file,
+# to stop on. A list that comes back short leaves a name unrewritten, and the
+# audit stops on it, so a failure here is never silent.
 find "$B" -type f -print0 | xargs -0 grep -lI --null '' > "$OUT/text.files" || true
 i=0
 for n in ${SCRUB[@]+"${SCRUB[@]}"}; do
@@ -268,14 +272,14 @@ while IFS= read -r f; do
   awk -v f="$f" 'NR == FNR { a[FNR] = $0; next } a[FNR] != $0 { print f "\t" FNR }' "$RAW/$f" "$B/$f" >> "$OUT/changed"
 done < "$OUT/files.raw"
 RM_LINE="projects/$SELF/project.json$TAB$(grep -n '"remote_match"' "$RAW/projects/$SELF/project.json" | cut -d: -f1)"
-textfiles "$RAW" > "$OUT/list.raw"; scan "$RAW" "$OUT/list.raw" "$OUT/scan.raw"
+allfiles "$RAW" > "$OUT/list.raw"; scan "$RAW" "$OUT/list.raw" "$OUT/scan.raw"
 awk -F'\t' '$4 != "address" { print $1 FS $2 }' "$OUT/scan.raw" | sort -u > "$OUT/flagged.raw"
 stray="$(grep -vxF "$RM_LINE" "$OUT/changed" | sort -u | comm -23 - "$OUT/flagged.raw" || true)"
 [ -z "$stray" ] || die "the scrub changed lines the audit reads no name on:" "$(printf '%s\n' "$stray" | tr '\t' ':')"
 diff -ru "$RAW" "$B" > "$OUT/scrub.diff" || true
 
 # Then what is left. Names, addresses and the shape of the tree.
-textfiles "$B" > "$OUT/list.build"; scan "$B" "$OUT/list.build" "$OUT/hits.all"
+allfiles "$B" > "$OUT/list.build"; scan "$B" "$OUT/list.build" "$OUT/hits.all"
 unacked "$OUT/hits.all" > "$OUT/hits"
 bad_shape=""
 for e in $(ls -A "$B"); do case "$e" in engine|projects|.gitignore|.claude-plugin|README.md) ;; *) bad_shape="$bad_shape $e" ;; esac; done

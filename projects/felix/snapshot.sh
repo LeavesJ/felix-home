@@ -331,10 +331,14 @@ if [ -s "$OUT/hits" ] || [ -n "$bad_shape" ] || [ -n "$consent" ] || [ "$rows" !
   [ "$rows" = 0 ] || say "  exceptions.tsv holds $rows row(s)"
   say "  Read each line. One that is not what the audit feared is acknowledged by a person, with the row above"
   say "  added to .snapshot-ack.tsv at the home's root in a pull request; only main's copy is read."
-  exit 1
+  # A self-test reproduces a tree that is already public, never commits, and
+  # stops below either way, so it reports the audit and goes on to compare.
+  [ -n "$EXPECT" ] || exit 1
+  say "  --expect-tree: the comparison below still runs; nothing is committed"
+else
+  nack=$(wc -l < "$OUT/hits.all" | tr -d ' ')
+  say "audit: ${#AUDIT[@]} names derived, ${#SCRUB[@]} rewritten; $(wc -l < "$OUT/changed" | tr -d ' ') lines changed, each on a name; $nack acknowledged, none open; no consent file, no row"
 fi
-nack=$(wc -l < "$OUT/hits.all" | tr -d ' ')
-say "audit: ${#AUDIT[@]} names derived, ${#SCRUB[@]} rewritten; $(wc -l < "$OUT/changed" | tr -d ' ') lines changed, each on a name; $nack acknowledged, none open; no consent file, no row"
 
 # ------------------------------------------------------------- stage -------
 # A fresh clone, never somebody's working copy, and a new branch. The staged
@@ -442,7 +446,7 @@ PR="$OUT/pr-body.md"
   say "- suite: $SUITE, exit 0"
   say "- secret-scan --tree: $(wc -l < "$OUT/secret.new" | tr -d ' ') hits, each also on the public main; none new"
   say "- names: ${#AUDIT[@]} derived at run time and searched whole, in pieces and with a character standing in; none unacknowledged"
-  say "- identity: every commit authored and committed as the public author; no other address in the tree"
+  say "- identity: every commit authored and committed as the public author; $(cut -f3 "$OUT/hits.all" | grep -c '^@' || true) other address(es) in the tree, each acknowledged by a person"
   say "- consent: no autonomy file; the exception table is the empty template"
 } > "$PR"
 audit_text "$PR"

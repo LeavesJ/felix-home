@@ -232,7 +232,8 @@ felix_audit_scan() {
   }
 
   # A tool_use block whose "type" is not its first key (Claude Code writes it
-  # first): its own keys, at its own depth, from its opening brace to its close.
+  # first), or whose input comes before its id and name: its own keys, at its
+  # own depth, from its opening brace to its close.
   function own(pre, seg,    n, C, i, ch, s, d, sp, stk, st, v, k) {
     n = split(pre, C, ""); s = 0; sp = 0
     for (i = 1; i <= n; i++) {
@@ -261,12 +262,19 @@ felix_audit_scan() {
   }
 
   # Every tool_use block on the line. Claude Code writes one per line, but a
-  # line holding several is read block by block.
-  function uses(l,    n, S, i, pre, seg, id, name) {
+  # line holding several is read block by block. Its own id and name come
+  # before its input there, and are read straight off; where the input comes
+  # first, an id or a name inside it would be read instead, so the block is
+  # read by depth, as one whose type is not first is.
+  function uses(l,    n, S, i, pre, seg, id, name, pi, fast) {
     n = split(l, S, K_USE)
     for (i = 2; i <= n; i++) {
-      pre = S[i - 1]; seg = S[i]
-      if (substr(pre, length(pre)) == "{") { id = sval(seg, "\"id\":\""); name = sval(seg, "\"name\":\"") }
+      pre = S[i - 1]; seg = S[i]; fast = 0
+      if (substr(pre, length(pre)) == "{") {
+        id = index(seg, "\"id\":\""); name = index(seg, "\"name\":\""); pi = index(seg, "\"input\":")
+        if (id && name && (!pi || (id < pi && name < pi))) fast = 1; else pre = "{"
+      }
+      if (fast) { id = sval(seg, "\"id\":\""); name = sval(seg, "\"name\":\"") }
       else { own(pre, seg); id = OWN["id"]; name = OWN["name"]; seg = BLK }
       if (id != "") { if (id in used) continue; used[id] = 1 }
       pos++

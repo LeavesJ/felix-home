@@ -29,7 +29,7 @@
 #
 # Published itself, with its audit, snapshot-audit.sh, deliberately. Neither
 # names another project: every name is derived at run time from main's
-# history, the memory root, the remotes the manifests declare and each --name,
+# history, the memory root, the manifests' remotes, the login and each --name,
 # and a published file that carried them would be the leak it exists to
 # prevent. Its literals are the public repository and the public author,
 # both public already. It sits in projects/felix/, so every run audits it with
@@ -126,13 +126,14 @@ while IFS= read -r n; do SCRUB+=("$n"); done < "$OUT/scrub.order"
 
 # AUDIT: wider than SCRUB, and never shaped by what a checkout on this disk
 # happens to hold: a clone without an untracked project folder once dropped
-# two names without a word. It is the union of four sources, each counted, and
+# two names without a word. It is the union of five sources, each counted, and
 # a source that cannot be read stops the run:
 #   history  every name projects/ has held in any commit on the home's main
 #   memory   every directory of the memory root
 #   remotes  every remote_match a manifest on main has declared: whole, without
 #            separators, and by its components of six or more characters
 #   given    each --name
+#   machine  this login and the last part of $HOME, for a private path
 # less this project's own names, and less what a reviewed row of
 # .snapshot-ack.tsv excludes (@name<TAB>name<TAB>why): the suite's fixture
 # names live in the memory root too, and they are the engine's own vocabulary.
@@ -153,9 +154,10 @@ git -C "$HOME_TOP" log --full-history -p --format= "$MAIN" -- 'projects/*/projec
   die "could not read the remotes the manifests on the home's main declared"
 for f in history memory remotes; do [ -s "$NM.$f" ] || die "the audit's $f source came back empty, and it never is"; done
 printf '%s\n' ${GIVEN[@]+"${GIVEN[@]}"} | sed '/^$/d' | sort -u > "$NM.given"
+{ id -un; basename "$HOME"; } | sort -u > "$NM.machine" || die "could not read this machine's login"
 { printf '%s\n' "$SELF" "${PUBLIC_SLUG##*/}"; printf '%s\n' "$HOME_SLUG" | remote_forms; } | norm | sort -u > "$NM.self"
 awk -F'\t' '$1 == "@name" && NF >= 3 { print $2 }' "$ACKS" | norm | sort -u > "$NM.excluded"
-sort -u "$NM.history" "$NM.memory" "$NM.remotes" "$NM.given" | sed '/^$/d' > "$NM.union"
+sort -u "$NM.history" "$NM.memory" "$NM.remotes" "$NM.given" "$NM.machine" | sed '/^$/d' > "$NM.union"
 drop() {  # FILE of normalized names; on stdin names; prints those it does not hold
   awk 'FILENAME == ARGV[1] { d[$0] = 1; next } { m = tolower($0); gsub(/[^a-z0-9]/, "", m); if (m != "" && !(m in d)) print }' "$1" -
 }
@@ -167,7 +169,7 @@ AUDIT=()
 while IFS= read -r n; do AUDIT+=("$n"); done < "$NM.audit"
 [ ${#AUDIT[@]} -gt 0 ] || die "no audit names are left, so the audit would search for nothing"
 cnt() { wc -l < "$1" | tr -d ' '; }
-say "names: ${#AUDIT[@]} searched for; history $(cnt "$NM.history"), memory $(cnt "$NM.memory"), remotes $(cnt "$NM.remotes"), given $(cnt "$NM.given"); less $(($(cnt "$NM.union") - $(cnt "$NM.notself"))) of this project's own and $(($(cnt "$NM.notself") - ${#AUDIT[@]})) excluded by a reviewed row"
+say "names: ${#AUDIT[@]} searched for; history $(cnt "$NM.history"), memory $(cnt "$NM.memory"), remotes $(cnt "$NM.remotes"), given $(cnt "$NM.given"), machine $(cnt "$NM.machine"); less $(($(cnt "$NM.union") - $(cnt "$NM.notself"))) of this project's own and $(($(cnt "$NM.notself") - ${#AUDIT[@]})) excluded by a reviewed row"
 
 # The audit is its own file, snapshot-audit.sh beside this one, and shares no
 # pattern with the scrub below; its header says what it looks for. scan DIR

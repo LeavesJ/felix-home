@@ -173,7 +173,9 @@ printf '%s\n' "${AUDIT[@]}" > "$NM.searched"
 scan() { bash "$HERE/snapshot-audit.sh" "$NM.searched" "$AUTHOR_EMAIL" "$1" < "$2" > "$3" || die "the audit could not read every file under $1"; }
 # It reads every file of the build, whatever grep would call binary: a name in
 # a file holding one NUL byte once went out unread by the scrub and the audit.
-allfiles() { (cd "$1" && find . -type f | sed 's|^\./||' | sort | tr '\n' '\0'); }
+# A symbolic link is listed with the files, and what it reads is its target.
+lsfiles() { (cd "$1" && find . \( -type f -o -type l \) | sed 's|^\./||' | sort); }
+allfiles() { lsfiles "$1" | tr '\n' '\0'; }
 # Hits no acknowledgement covers. An acknowledgement waives a leak check, so it
 # is authority and not state: a row of .snapshot-ack.tsv at the home's root,
 # tracked, so a person reviews it in a pull request, and read as main holds it,
@@ -185,7 +187,7 @@ unacked() { awk -F'\t' 'FILENAME == ARGV[1] { if ($1 !~ /^[#@]/ && NF >= 3) ok[$
 show_hits() {  # DIR HITS: each line, and the row that would acknowledge it
   local p l n r h t
   head -40 "$2" | while IFS="$TAB" read -r p l n r h; do
-    if [ "$l" = 0 ]; then t="(the file's path)"; else t="$(sed -n "${l}p" "$1/$p" | cut -c1-160 | tr -d '\n' | tr -c '[:print:]\t' '?')"; fi
+    if [ "$l" = 0 ]; then t="(the file's path)"; elif [ -L "$1/$p" ]; then t="(a link to) $(readlink "$1/$p")"; else t="$(sed -n "${l}p" "$1/$p" | cut -c1-160 | tr -d '\n' | tr -c '[:print:]\t' '?')"; fi
     printf '  %s:%s [%s, %s] %s\n' "$p" "$l" "$n" "$r" "$t"
     printf '      ack: %s\\t%s\\t<why>\n' "$p" "$h"
   done
@@ -263,11 +265,13 @@ done
 # audit reads a name on in the unscrubbed tree, and no file may change length.
 # A scrub that rewrote anything else mangled text that was not a name, and
 # nothing downstream would say so.
-(cd "$RAW" && find . -type f | sed 's|^\./||' | sort) > "$OUT/files.raw"
-(cd "$B" && find . -type f | sed 's|^\./||' | sort) > "$OUT/files.build"
+lsfiles "$RAW" > "$OUT/files.raw"; lsfiles "$B" > "$OUT/files.build"
 cmp -s "$OUT/files.raw" "$OUT/files.build" || die "the scrub added or removed a file"
 : > "$OUT/changed"
 while IFS= read -r f; do
+  if [ -L "$RAW/$f" ] || [ -L "$B/$f" ]; then
+    [ "$(readlink "$RAW/$f")" = "$(readlink "$B/$f")" ] || die "the scrub changed the symbolic link $f"; continue
+  fi
   cmp -s "$RAW/$f" "$B/$f" && continue
   [ "$(wc -l < "$RAW/$f")" -eq "$(wc -l < "$B/$f")" ] || die "the scrub changed the line count of $f"
   awk -v f="$f" 'NR == FNR { a[FNR] = $0; next } a[FNR] != $0 { print f "\t" FNR }' "$RAW/$f" "$B/$f" >> "$OUT/changed"

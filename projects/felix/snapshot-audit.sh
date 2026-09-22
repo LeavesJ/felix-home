@@ -8,7 +8,7 @@
 # Prints path<TAB>line<TAB>name<TAB>rule<TAB>hash for every line one of them
 # reaches, once a line, where hash is git hash-object of that line. The path
 # itself is read as line 0, because a name in a file name is published as
-# surely as one inside it. Exit 0 when
+# surely as one inside it, and a symbolic link reads as its target. Exit 0 when
 # every file was read and 2 when one could not be, so a caller never takes
 # silence for a pass.
 #
@@ -127,7 +127,8 @@ local $/ = "\0";
 while (my $p = <STDIN>) {
   chomp $p; next unless length $p;
   my $c;
-  if (open(my $fh, '<:raw', "$root/$p")) { local $/; $c = <$fh>; close $fh; }
+  if (-l "$root/$p") { $c = readlink "$root/$p"; defined $c or do { warn "snapshot-audit: cannot read the link $p: $!\n"; $bad = 1; next }; }
+  elsif (open(my $fh, '<:raw', "$root/$p")) { local $/; $c = <$fh>; close $fh; }
   else { warn "snapshot-audit: cannot read $p: $!\n"; $bad = 1; next; }
   $c = '' unless defined $c;
   my @L = split /\n/, $c, -1; pop @L if @L && $L[-1] eq '';

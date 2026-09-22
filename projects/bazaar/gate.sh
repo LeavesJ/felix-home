@@ -49,10 +49,22 @@ else
 fi
 
 # ---- agents: the TypeScript unit tests, including the cross-seam commit-hash vector.
-if [ -f agents/package.json ]; then
-  if (cd agents && npm test >/tmp/bazaar-agents-test.log 2>&1); then pass agents; else fail agents; tail -8 /tmp/bazaar-agents-test.log; fi
-else
+# The log is this run's own, made by mktemp, never a path another gate can open.
+# It was one fixed path under /tmp shared by every run of this gate on the
+# machine: two runs at once each opened it with O_TRUNC and wrote at their own
+# offset, so the eight lines printed under a FAIL could be the other run's. The
+# verdict was always npm's exit status; only the evidence under it could belong
+# to another tree. Deleted on a pass, kept on a failure, where its path is printed.
+LOG_DIR="${TMPDIR:-/tmp}"; LOG_DIR="${LOG_DIR%/}"
+AGENTS_LOG=""
+if [ ! -f agents/package.json ]; then
   fail agents; echo "  agents/package.json missing"
+elif ! AGENTS_LOG="$(mktemp "$LOG_DIR/bazaar-agents-test.XXXXXX" 2>/dev/null)" || [ -z "$AGENTS_LOG" ]; then
+  fail agents; echo "  could not make a log file under $LOG_DIR"
+elif (cd agents && npm test >"$AGENTS_LOG" 2>&1); then
+  pass agents; rm -f "$AGENTS_LOG"
+else
+  fail agents; tail -8 "$AGENTS_LOG"; echo "  full log: $AGENTS_LOG"
 fi
 
 # ---- abi: the ABI beside the agents and the page must match the compiled contract.

@@ -2427,6 +2427,67 @@ for s in 'password = "<redacted>"' \
 done
 unset _ss_n
 
+# A temporary AWS key id begins ASIA, not AKIA, and the STS response that hands
+# one out is JSON, where the keyword is a quoted key and its closing quote sits
+# between it and the colon. A planted snapshot published both (2026-09-22). The
+# values are assembled here, so this file carries no credential's shape.
+_ss_k="$(printf '%s%s' ASIA Q7XK2M9PLR4TWN3B)"
+_ss_s="$(printf '%s%s' wJalrXUtnFEMIK7MDENG bPxRfiCYzQ2wE4rT6yU8i)"
+for s in "export AWS_ACCESS_KEY_ID=\"$_ss_k\"" \
+         "        \"AccessKeyId\": \"$_ss_k\"," \
+         "        \"SecretAccessKey\": \"$_ss_s\"," \
+         "{\"env\": {\"AWS_SESSION_TOKEN\": \"$_ss_s\"}}" \
+         "{'password': '$_ss_s'}"; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && bad "catches a temporary key or a quoted JSON key, sample $_ss_n" "scanner passed: $s" \
+    || ok "catches a temporary key or a quoted JSON key, sample $_ss_n"
+done
+unset _ss_n _ss_k _ss_s
+# And JSON's other values stay quiet: prose naming the prefixes, a reference to
+# the environment, and a sentence under a key that happens to hold a keyword.
+for s in 'An AWS key id begins AKIA when it is long-term and ASIA when STS issued it.' \
+         '        "DD_API_KEY": "${DD_API_KEY:-}",' \
+         '{"env":{"TOKEN":"${INLINE_TOKEN}"}}' \
+         '  "token_description": "the token a run hands to the gate",'; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && ok "quiet on JSON that holds no credential, sample $_ss_n" \
+    || bad "quiet on JSON that holds no credential, sample $_ss_n" "false positive on: $s"
+done
+unset _ss_n
+# A key the keyword only begins names something about a credential, and JSON
+# quotes every value: the first quote rule flagged each of these, which the
+# scanner before it had passed. A key the keyword ends is still read.
+for s in '  "token_type": "access_token",' \
+         '  "tokenizer_class": "GPT2Tokenizer",' \
+         '  "secret_name": "ANTHROPIC_API_KEY",' \
+         '  "api_key_env": "OPENAI_API_KEY",' \
+         '  "password_policy": "strong-only",'; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && ok "quiet on a key the keyword only begins, sample $_ss_n" \
+    || bad "quiet on a key the keyword only begins, sample $_ss_n" "false positive on: $s"
+done
+unset _ss_n
+_ss_s="$(printf '%s%s' wJalrXUtnFEMIK7MDENG bPxRfiCYzQ2wE4rT6yU8i)"
+for s in "  \"client_secret\": \"$_ss_s\"," "  \"apiKey\": \"$_ss_s\"," "  \"refresh_token\": \"$_ss_s\","; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && bad "catches a key the keyword ends, sample $_ss_n" "scanner passed: $s" \
+    || ok "catches a key the keyword ends, sample $_ss_n"
+done
+unset _ss_n _ss_s
+# The scan reads without case, and under it the key id's shape took "Asia" and
+# sixteen letters of one CamelCase word. A key id is capitals and digits, and a
+# real one beside that word is still caught.
+printf '+%s\n' 'The AsiaPacificEconomicCoop forum meets in November.' | "$SS" - >/dev/null 2>&1 \
+  && ok "quiet on a word that begins with a key id's prefix" \
+  || bad "quiet on a word that begins with a key id's prefix" "false positive on AsiaPacificEconomicCoop"
+printf '+AsiaPacificEconomicCoop %s%s\n' ASIA Q7XK2M9PLR4TWN3B | "$SS" - >/dev/null 2>&1 \
+  && bad "a key id beside that word is still caught" "scanner passed a temporary key id" \
+  || ok "a key id beside that word is still caught"
+
 # A new file has no previous version, so git diff cannot see it, and a fresh
 # file is where a key most often lands.
 SECREPO="$TMP/secrepo"; mkdir -p "$SECREPO"

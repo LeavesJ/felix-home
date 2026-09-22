@@ -281,6 +281,7 @@
 1	a hyphenated server name still credits the plugin that ships it
 1	a judge identical to the candidate merges nothing
 1	a judge that differs from main's engine by one comment is not the engine main accepted
+1	a key id beside that word is still caught
 1	a keyword inside another word is not a match
 1	a kind nobody defined is refused, with a reason
 1	a kind that is two known kinds run together is refused
@@ -1827,6 +1828,14 @@
 1	carrying the grounding that says the engine read it
 1	catch-up folds every session nothing folded
 1	catch-up folds only the sessions this repository's history contains
+1	catches a key the keyword ends, sample 1
+1	catches a key the keyword ends, sample 2
+1	catches a key the keyword ends, sample 3
+1	catches a temporary key or a quoted JSON key, sample 1
+1	catches a temporary key or a quoted JSON key, sample 2
+1	catches a temporary key or a quoted JSON key, sample 3
+1	catches a temporary key or a quoted JSON key, sample 4
+1	catches a temporary key or a quoted JSON key, sample 5
 1	catches credential sample 1
 1	catches credential sample 2
 1	catches credential sample 3
@@ -2319,6 +2328,16 @@
 1	prose still counts single beside skills
 1	provenance is not part of the announce key
 1	quarantine refuses a plugin that is not here
+1	quiet on JSON that holds no credential, sample 1
+1	quiet on JSON that holds no credential, sample 2
+1	quiet on JSON that holds no credential, sample 3
+1	quiet on JSON that holds no credential, sample 4
+1	quiet on a key the keyword only begins, sample 1
+1	quiet on a key the keyword only begins, sample 2
+1	quiet on a key the keyword only begins, sample 3
+1	quiet on a key the keyword only begins, sample 4
+1	quiet on a key the keyword only begins, sample 5
+1	quiet on a word that begins with a key id's prefix
 1	quiet on exclusion sample 1
 1	quiet on exclusion sample 2
 1	quiet on exclusion sample 3

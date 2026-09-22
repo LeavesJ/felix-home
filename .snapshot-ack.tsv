@@ -1,0 +1,58 @@
+# Acknowledged hits of the public snapshot's audit (projects/felix/snapshot.sh).
+# A row waives one leak check, so it is a person's judgment, reviewed in the pull
+# request that adds it. snapshot.sh reads this file as main holds it, prints the
+# row a person could add, and never writes here. Withheld from the snapshot: it
+# names what the audit searches for.
+#   path<TAB>git hash-object of the line<TAB>why the line is not what the audit feared
+#     Editing the line voids its row.
+#   @name<TAB>name<TAB>why it is not searched for
+#     The audit searches for every directory name in the memory root; this is
+#     the only way one leaves that source. It leaves no other: the same name
+#     under projects/ on main or on disk, in a remote or given with --name is
+#     still searched for, so a leftover that later becomes a project is found.
+#
+# Carried from the untracked ~/.felix/memory/felix/snapshot-ack.tsv, where an
+# agent wrote them on 2026-09-21. Each hash was re-checked on 2026-09-22 against
+# the line it names at a3eee3c and at 31ed8a8.
+#
+# Not carried: the row for templates/unattended.yml:138, whose why called
+# felix@users.noreply.github.com "no person's address". It is GitHub's no-reply
+# address for the account named felix, a person's. Since 2026-09-22 the template
+# commits as GitHub's own Actions identity, whose [bot] address the audit passes
+# by rule, so no row is needed and none should be added for the old line.
+#
+# The rows below answer the name webapp, an untracked stub folder in the home
+# checkout. What is on disk under projects/, in any worktree of the home or in
+# the home the engine points at, is an audit source, so every run on this
+# machine searches for webapp, as does one given --name webapp. These four were
+# carried:
+engine/harness/tests/run	a0c883ea16c75ff975a340a8b613becf1e8b8a36	prose "a web app" describing a kind of checkout, not the untracked stub project of that generic name (2026-09-21)
+engine/harness/tests/run	b9acd2255cf722dc7f859b14f01e6b5702c5bec9	suite fixture directory cm-webapp, a throwaway web-app repository the test builds itself (2026-09-21)
+engine/harness/tests/run	60f9e0e390d010e75a2838b0ae325464b4c3fabf	the same fixture's project name cmwebapp, passed to felix new inside its throwaway repository (2026-09-21)
+engine/harness/lib/incident.sh	23e57464cd2a50e212bf25d0bc511347b54178b4	example path src/web/app.py in a comment on longest-match resolution (2026-09-21)
+# A run that searches for webapp also stops on the four lines below, found by a
+# --name webapp run on 2026-09-22. An agent wrote these rows and left each one
+# commented out, because a row waives a leak check and that is a judgment for
+# whoever reads the line, not for the agent that found it. The lead read each
+# line on 2026-09-22 (generic prose and path patterns, no project) and turned
+# the four rows on.
+engine/harness/lib/detect.sh	4e2323d1d1a8b45166646433c9cb7bf2698bad64	prose "every web" / "surface ... a Python app" on why package.json alone misses a frontend, not the stub project (2026-09-22, reviewed by the lead 2026-09-22)
+engine/harness/lib/detect.sh	23b5682f36751a7b72bc4d7c3601f1e72fdbe82b	the second line of that sentence, "a Python app with templates" (2026-09-22, reviewed by the lead 2026-09-22)
+engine/harness/templates/evidence.tsv	15a66276b9f4fe023bb898305fefa429f37d70fe	the unit rule's path pattern ^(src|lib|app|internal)/, the source directory app/ (2026-09-22, reviewed by the lead 2026-09-22)
+engine/harness/templates/evidence.tsv	728a23469e16c42a0cba97fcbd87357c1c6e63b0	the e2e rule's path pattern, directories app/ and web/ (2026-09-22, reviewed by the lead 2026-09-22)
+#
+# The memory root's fixtures, reviewed by the lead on 2026-09-22. Each directory
+# holds what an exercise of the engine left there between 2026-08-15 and
+# 2026-09-05 (felix new scaffolds, commissioning rows with tree-x and pol-y
+# stand-ins, a says.log), and no project of that name was ever under projects/
+# on main. As audit names, demo, proj, widget and p2 stop every build on engine
+# words, counted as whole-name matches in the published set at 31ed8a8: demo 47
+# (in demote and demonstrably too), proj 3197, widget 509, p2 23. demo2, demo3
+# and demoproj match nothing whole there; they are the same exercises' leftovers.
+@name	demo	engine exercise leftover under the memory root, not a governed project (reviewed 2026-09-22)
+@name	demo2	engine exercise leftover under the memory root, not a governed project (reviewed 2026-09-22)
+@name	demo3	engine exercise leftover under the memory root, not a governed project (reviewed 2026-09-22)
+@name	demoproj	engine exercise leftover under the memory root, not a governed project (reviewed 2026-09-22)
+@name	p2	engine exercise leftover under the memory root, not a governed project (reviewed 2026-09-22)
+@name	proj	engine exercise leftover under the memory root, not a governed project (reviewed 2026-09-22)
+@name	widget	engine exercise leftover under the memory root, not a governed project (reviewed 2026-09-22)

@@ -9226,6 +9226,106 @@ else
     skip "$a" "no projects/felix/gate.sh beside this harness"; done
 fi
 
+# Two gates at once, each reporting its own suite. The gate wrote the suite's
+# output to one fixed path shared by every gate on the machine, then printed
+# that file's last line as the count and its FAIL lines as the evidence. Two
+# sessions gating at once each opened it with O_TRUNC and wrote at their own
+# offsets, and on 2026-09-21 a gate printed "2645 passed" for a suite that had
+# passed 2586. The verdict was never wrong, being the suite's exit status, so
+# nothing failed; what a PR body quotes under it belonged to another tree.
+#
+# The real gate over stub suites. Each stub writes everything, then waits until
+# the other has written too before it exits, so both gates read after both
+# writes: the collision a shared path allows, made certain rather than likely.
+# The lines are of equal length, so a shared file holds one run's output whole
+# and cannot pass by holding both. TMPDIR is shared between the two, as it is
+# between two sessions on one machine, so only the gate's own choice of path
+# keeps them apart. The rendezvous is asserted, because two gates that never
+# overlapped would pass this whatever path they used.
+#
+# Every literal /tmp/ in the copies is moved under the fixture first. A fixed
+# path stays one path both copies share, so a gate that uses one still fails
+# here for the reason it fails on a machine; but the real one is in use by
+# whatever other sessions are gating right now, and tests/red runs this against
+# the base's gate, which still writes it. A suite that truncated another
+# session's log to prove the log gets truncated would be the defect it names.
+_GCON="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
+if [ -f "$_GCON" ]; then
+  GCT="$TMP/gate-concurrent"; mkdir -p "$GCT/tmp" "$GCT/sync" "$GCT/fixed"
+  for _t in a b; do
+    _o=b; [ "$_t" = b ] && _o=a
+    mkdir -p "$GCT/$_t/engine/harness/tests"
+    sed "s|/tmp/|$GCT/fixed/|g" "$_GCON" > "$GCT/$_t/gate.sh"
+    cat > "$GCT/$_t/engine/harness/tests/run" <<STUB
+#!/usr/bin/env bash
+printf '  ok    the suite of tree $_t\n'
+[ "\${GCT_RED:-0}" = 1 ] && printf '  FAIL  tree $_t broke\n        detail from tree $_t\n'
+printf 'tree $_t: 1 passed, 0 failed, 0 skipped\n'
+touch "$GCT/sync/$_t"
+i=0
+while [ ! -e "$GCT/sync/$_o" ]; do
+  [ "\$i" -ge 200 ] && { echo timeout >> "$GCT/sync/met"; exit 3; }
+  sleep 0.05; i=\$((i+1))
+done
+echo met >> "$GCT/sync/met"
+[ "\${GCT_RED:-0}" = 1 ] && exit 1
+exit 0
+STUB
+    chmod +x "$GCT/$_t/engine/harness/tests/run"
+    ( cd "$GCT/$_t" && git init -q -b main && git add -A \
+      && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
+  done
+  # No plugin cache, so `installed` skips and the suite always runs.
+  _gcon_pair() {
+    rm -f "$GCT/sync/a" "$GCT/sync/b" "$GCT/sync/met"
+    ( cd "$GCT/a" && GCT_RED="$1" TMPDIR="$GCT/tmp" FELIX_KERNEL_CACHE="$GCT/no-cache" \
+        bash gate.sh > "$GCT/a.out" 2>&1 ) & _gpa=$!
+    ( cd "$GCT/b" && GCT_RED="$1" TMPDIR="$GCT/tmp" FELIX_KERNEL_CACHE="$GCT/no-cache" \
+        bash gate.sh > "$GCT/b.out" 2>&1 ) & _gpb=$!
+    wait "$_gpa" "$_gpb"
+  }
+  _gcon_count() { awk 'f { sub(/^ +/, ""); print; exit } /^  tests +ok$/ { f = 1 }' "$1"; }
+  _gcon_met()   { sort "$GCT/sync/met" 2>/dev/null | uniq -c | awk '{ printf "%s %s;", $1, $2 }'; }
+
+  # One assertion for both gates, not one each: which of the two reads the
+  # other's count depends on which wrote last, and red.tsv should name the same
+  # failure every time it is regenerated.
+  _gcon_pair 0
+  is "two gates at once each report their own suite's count" \
+     "$(_gcon_count "$GCT/a.out") | $(_gcon_count "$GCT/b.out")" \
+     "tree a: 1 passed, 0 failed, 0 skipped | tree b: 1 passed, 0 failed, 0 skipped"
+  is "and the two suites were running at the same moment" "$(_gcon_met)" "2 met;"
+  is "a passing gate leaves no suite log behind" "$(ls -A "$GCT/tmp" | wc -l | tr -d ' ')" "0"
+
+  _gcon_pair 1
+  is "two failing gates at once: each FAIL excerpt is its own suite's" \
+     "$(grep -ohE 'tree [ab] broke|detail from tree [ab]' "$GCT/a.out" "$GCT/b.out" | tr '\n' ',')" \
+     "tree a broke,detail from tree a,tree b broke,detail from tree b,"
+  is "and those two suites were running at the same moment" "$(_gcon_met)" "2 met;"
+  _gla="$(sed -n 's/^ *full log: //p' "$GCT/a.out")"
+  _glb="$(sed -n 's/^ *full log: //p' "$GCT/b.out")"
+  if [ -n "$_gla" ] && [ -n "$_glb" ] && [ "$_gla" != "$_glb" ] \
+     && grep -q 'tree a broke' "$_gla" && ! grep -q 'tree b' "$_gla" \
+     && grep -q 'tree b broke' "$_glb" && ! grep -q 'tree a' "$_glb"; then
+    ok "and each full log line names a file holding its own run alone"
+  else
+    bad "and each full log line names a file holding its own run alone" "a [$_gla] b [$_glb]"
+  fi
+  # The class, not the two instances: any fixed path under /tmp is one every
+  # gate on the machine shares. The install-drift list sat in one as well.
+  is "felix's gate names no fixed path under /tmp outside its comments" \
+     "$(grep -vE '^[[:space:]]*#' "$_GCON" | grep -c '/tmp/')" "0"
+else
+  for a in "two gates at once each report their own suite's count" \
+           "and the two suites were running at the same moment" \
+           "a passing gate leaves no suite log behind" \
+           "two failing gates at once: each FAIL excerpt is its own suite's" \
+           "and those two suites were running at the same moment" \
+           "and each full log line names a file holding its own run alone" \
+           "felix's gate names no fixed path under /tmp outside its comments"; do
+    skip "$a" "no projects/felix/gate.sh beside this harness"; done
+fi
+
 # The row itself: task-blocking, grounded on the probe that already asks
 # whether anything is deployed, and never unknown on the tree the suite runs in.
 _DCKP="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix"
@@ -13119,8 +13219,10 @@ if [ -f "$_REALG2" ]; then
     *check-ignore*) bad "and the residue rule is the library's alone" "check-ignore is still in the installed block" ;;
     *) ok "and the residue rule is the library's alone" ;;
   esac
+  # Both failing branches print the differing paths. They were read back from a
+  # fixed file every gate on the machine shared, and are held in GDRIFT now.
   is "the structural verdict shows its evidence too" \
-     "$(grep -c 'head -5 /tmp/felix-install-drift.log' "$_REALG2")" "2"
+     "$(grep -cF 'printf '"'"'%s\n'"'"' "$GDRIFT" | head -5' "$_REALG2")" "2"
 else
   skip "the gate's installed check asks the one reader, felix_accepted_deploy_diff" "no shipped gate"
   skip "and reads it from the base ref's resolve.sh" "no shipped gate"

@@ -22,15 +22,16 @@
 # would otherwise try.
 #
 # Self-test. Each hand-made snapshot is reproduced byte for byte, compared by
-# tree id, with the public README kept as it was then:
+# tree id, with the public README kept as it was then; it never commits, and it
+# reports the audit and still compares when the audit would stop:
 #   --source a3eee3c --base f6341ba --public-readme --expect-tree f5a4d6f
 #   --source a8ab281 --base 3091a76 --public-readme --expect-tree 5455d56
 #
-# Published itself, deliberately. It names no other project: every name it
-# rewrites or audits is derived at run time from this home's history, its
-# projects/ directories, the memory root and the remotes their manifests
-# declare, and a published file that carried them would be the leak it exists
-# to prevent. Its literals are the public repository and the public author,
+# Published itself, with its audit, snapshot-audit.sh, deliberately. Neither
+# names another project: every name is derived at run time from main's
+# history, the memory root, the remotes the manifests declare and each --name,
+# and a published file that carried them would be the leak it exists to
+# prevent. Its literals are the public repository and the public author,
 # both public already. It sits in projects/felix/, so every run audits it with
 # the rest of the tree. Publishing it shows a stranger what is withheld and
 # why, which is the claim the receipts make; withholding it would hide the
@@ -156,7 +157,7 @@ printf '%s\n' ${GIVEN[@]+"${GIVEN[@]}"} | sed '/^$/d' | sort -u > "$NM.given"
 awk -F'\t' '$1 == "@name" && NF >= 3 { print $2 }' "$ACKS" | norm | sort -u > "$NM.excluded"
 sort -u "$NM.history" "$NM.memory" "$NM.remotes" "$NM.given" | sed '/^$/d' > "$NM.union"
 drop() {  # FILE of normalized names; on stdin names; prints those it does not hold
-  awk 'NR == FNR { d[$0] = 1; next } { m = tolower($0); gsub(/[^a-z0-9]/, "", m); if (m != "" && !(m in d)) print }' "$1" -
+  awk 'FILENAME == ARGV[1] { d[$0] = 1; next } { m = tolower($0); gsub(/[^a-z0-9]/, "", m); if (m != "" && !(m in d)) print }' "$1" -
 }
 drop "$NM.self" < "$NM.union" > "$NM.notself"
 drop "$NM.excluded" < "$NM.notself" > "$NM.audit"

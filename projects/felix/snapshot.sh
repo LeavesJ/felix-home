@@ -83,6 +83,9 @@ say "scope: accidents of our own authoring; deliberate obfuscation (leetspeak, e
 HOME_TOP="$(git -C "$HERE" rev-parse --show-toplevel)"
 git -C "$HOME_TOP" fetch -q origin main || die "could not fetch the home's main, so nothing here can say what main is"
 MAIN="$(git -C "$HOME_TOP" rev-parse --verify origin/main)"
+# The token order and the audit's history source read main's whole history; a
+# shallow clone would hand the tokens out in another order and drop names.
+[ "$(git -C "$HOME_TOP" rev-parse --is-shallow-repository)" = false ] || die "the home is a shallow clone, and the token order needs main's whole history" "run: git -C $HOME_TOP fetch --unshallow origin"
 SRC="$(git -C "$HOME_TOP" rev-parse --verify -q "$SRC_REF^{commit}")" || die "no commit named $SRC_REF"
 git -C "$HOME_TOP" merge-base --is-ancestor "$SRC" "$MAIN" || die "$SRC_REF is not on the home's main ($MAIN)" "a snapshot publishes what main accepted, and nothing else"
 # The home's own slug, read and never typed: it is the one remote this file may

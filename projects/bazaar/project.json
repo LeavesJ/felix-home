@@ -1,0 +1,6 @@
+{
+  "name": "bazaar",
+  "remote_match": "LeavesJ/black-box-bazaar",
+  "gate": "gate.sh",
+  "maturity": "prototype"
+}

@@ -40,7 +40,8 @@
 #   felix lessons [--for] what this project already learned, matched to context
 #   felix promote        recurring devlog themes not yet in lessons
 #   felix adopt <cap>    declare a capability this project now has
-#   felix new <name>     scaffold a new project
+#   felix new <name>     scaffold a new project; --no-commission skips commissioning
+#   felix audit          read-only: stops after unchecked edits, from Claude Code transcripts
 #   felix install        register the session hook; --uninstall to remove
 #
 # Adding a project is creating a directory and a JSON file. It is never an edit
@@ -65,6 +66,19 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$_felix_src")" && pwd)"
 unset _felix_src _felix_dir
 FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installed as a plugin
+
+# felix audit is dispatched here, ahead of every other library and before a
+# home is resolved: it is the one command meant to run from a plain clone with
+# nothing installed, and it must leave nothing behind, so it gets the chance to
+# touch nothing before anything else has. What it reads, and why it writes
+# nothing, is in lib/audit.sh.
+cmd_audit() {
+  # shellcheck source=lib/audit.sh
+  . "${SCRIPT_DIR}/lib/audit.sh" || exit 1
+  felix_audit "$@"
+}
+if [ "${1:-}" = "audit" ]; then shift; cmd_audit "$@"; exit $?; fi
+
 # shellcheck source=lib/resolve.sh
 . "${SCRIPT_DIR}/lib/resolve.sh"
 # shellcheck source=lib/detect.sh
@@ -182,6 +196,15 @@ Felix. The engineering OS: it decides how work gets built, and proves it.
 Resolves which project governs the current directory. Knows nothing about any
 specific project, language, or toolchain.
 
+  trying it first
+    felix audit [--dir D] [--since YYYY-MM-DD] [--verify ERE]
+                           read-only, from a plain clone: how often a turn stopped on an edit
+                           nothing had checked, from the transcripts Claude Code keeps
+    felix new <name> --no-commission
+                           bind one project (rules, gate guess, marker) without commissioning:
+                           no plugin installs, no network; felix commission runs it later, and
+                           its sessions are held once felix install has run
+
   every day
     felix which            which project governs here, and where its doctrine is
     felix gate [args]      run this project's gate; exits with the gate's status
@@ -242,7 +265,8 @@ specific project, language, or toolchain.
     felix monitor [--open] render everything Felix did that nobody could see
 
   setup
-    felix new <name>       govern a project: a directory, a JSON file, a marker
+    felix new <name> [path] [--no-commission]
+                           govern a project: a directory, a JSON file, a marker, then commissioning
     felix install          deploy this engine, bumping the version if it must
     felix bootstrap        write CI, permissions and the files a project needs
     felix setup [id]       the steps only a person can do, and what is left
@@ -729,13 +753,31 @@ cmd_gate() {
 }
 
 cmd_new() {
+  # --no-commission is taken wherever it stands, and it is the only flag taken:
+  # everything else keeps its place, so any other leading flag still arrives
+  # as the name and is refused below. It exists so that governing a project can
+  # be tried for the price of a directory and a marker — no marketplace, no
+  # plugin install, no network — with commissioning one command away.
+  local commission=1 a
+  local rest=()
+  for a in "$@"; do
+    case "$a" in --no-commission) commission=0 ;; *) rest+=("$a") ;; esac
+  done
+  set -- ${rest[@]+"${rest[@]}"}
   local name="${1:-}" target="${2:-$PWD}"
-  [ -n "$name" ] || die "usage: felix new <name> [path-to-checkout]"
+  local synopsis="usage: felix new <name> [path-to-checkout] [--no-commission]"
+  [ -n "$name" ] || die "$synopsis"
   # A project directory named after a flag would be enumerated by the
   # independence check and governed forever (#102).
-  case "$name" in -*) die "usage: felix new <name> [path-to-checkout] (got a flag: $name)" ;; esac
+  case "$name" in -*) die "$synopsis (got a flag: $name)" ;; esac
   _felix_name_ok "$name" \
-    || die "usage: felix new <name> [path-to-checkout] (a name is one directory name: letters, digits, . _ -; got: $name)"
+    || die "$synopsis (a name is one directory name: letters, digits, . _ -; got: $name)"
+  # The path is checked before anything is made. A flag there — a mistyped
+  # --no-commission is the natural one — or a path that is not a directory
+  # used to create projects/<name>, fail to write the marker, print "bound via"
+  # anyway and exit 0, leaving a project the retry refuses as already existing.
+  case "$target" in -*) die "$synopsis (got a flag where the path goes: $target)" ;; esac
+  [ -d "$target" ] || die "$synopsis (not a directory: $target)"
   local dir="$FELIX_HOME_DIR/projects/$name"
   [ -e "$dir" ] && die "project $name already exists at $dir"
   local tpl="$SCRIPT_DIR/templates"
@@ -880,7 +922,8 @@ EOF
   done
 
   # The marker binds the checkout without needing a remote.
-  printf '%s\n' "$name" > "$root/.felix"
+  printf '%s\n' "$name" > "$root/.felix" \
+    || die "created $dir, but could not write the marker $root/.felix; write '$name' into it to bind the checkout"
 
   printf 'created %s\n\n' "$dir"
   printf '  detected     %s\n' "$(printf '%s' "$caps" | tr '\n' ' ')"
@@ -895,6 +938,15 @@ EOF
   # suggestion for something Felix could safely have done is a defect, and
   # every stage below holds its own install ceiling. Commissioning's exit
   # status is its own report; the project was created either way.
+  #
+  # Unless the person said not to. That is not a suggestion printed in place
+  # of an action Felix could take (invariant 3): the action was declined, by
+  # the one person entitled to decline it, and the line says how to take it.
+  if [ "$commission" -eq 0 ]; then
+    printf '\ncommissioning skipped (--no-commission): nothing was installed, registered or fetched. Run felix commission in %s when you want it.\n' "$root"
+    printf '\nA starting constitution was written at %s/CLAUDE.md.\n' "$dir"
+    return 0
+  fi
   printf '\ncommissioning — every engine stage that answers a need runs now, and an\n'
   printf 'independent check says whether it did.\n\n'
   ( cd "$root" && cmd_commission ) || true

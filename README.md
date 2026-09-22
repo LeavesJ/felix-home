@@ -194,6 +194,41 @@ to get round it.
 
 ## Try it
 
+Two ways to try it cost nothing. The first installs nothing and writes nothing.
+It reads the transcripts Claude Code already keeps under `~/.claude/projects`
+and counts how often a turn stopped right after an edit that no check had run
+on. It needs bash and awk, and not the `claude` CLI:
+
+```bash
+git clone https://github.com/LeavesJ/Felix.git felix
+felix/engine/harness/felix audit
+```
+
+Each stop after an edit falls into one of four classes. The last check after
+the last edit reported no error, or it failed, or a check ran earlier but not
+since the last edit, or no check had run in the session at all. A check is a
+Bash command that runs tests or a gate. `--verify ERE` says what counts in
+your project, and `--since YYYY-MM-DD` narrows the window. A check piped into
+another command or run in the background never has its result marked as an
+error, whatever it printed, so the report says how many of the passing ones
+that covers. It doesn't read subagent transcripts, and it leaves out edits to
+scratch files and to Claude's own memory and plans.
+
+The second governs one project without commissioning it:
+
+```bash
+cd your-project
+/path/to/felix/engine/harness/felix new your-project --no-commission
+```
+
+That writes the project's rules, a guessed gate, a memory directory under
+`~/.felix/memory` and a `.felix` marker in the checkout. It installs no plugins
+and uses no network. From a plain clone the rules go into the clone's own
+`projects/` directory, because a clone that ships `projects/` is Felix's home.
+`felix gate` and `felix which` work straight away. Sessions aren't held until
+`felix install` has run, because the hooks come with the plugin, and
+`felix commission` runs commissioning whenever you want it.
+
 Installing changes your setup, so read this part first:
 
 - The plugin loads in every Claude Code session on the machine and records
@@ -248,7 +283,8 @@ for every project, currently superpowers, claude-md-management,
 claude-code-setup, context7, code-review, security-guidance and
 code-simplifier. It also installs catalogue rows matching what it detects in
 the checkout, and low-risk plugins discovery has read. High-risk rows such as
-semgrep wait for a person. There's no flag to skip commissioning yet.
+semgrep wait for a person. `felix new your-project --no-commission` skips
+commissioning, and `felix commission` runs it later.
 
 If the guessed gate is empty, set `gate` in `project.json` to any shell command
 that proves the project correct. Run `felix` with no arguments for every

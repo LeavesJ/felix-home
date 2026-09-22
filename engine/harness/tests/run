@@ -16292,6 +16292,826 @@ else
   skip "felix new seeds an exceptions table of comment lines only" "no stranger project seeded by felix new before this point"
 fi
 
+# ------------------------------------------------------- cheap to try ----
+# Two ways to try Felix that cost nothing: a read-only report over the
+# transcripts Claude Code already keeps, run from a plain clone with nothing
+# installed, and a felix new that governs a project without commissioning it.
+# Written blind, from the spec alone, before either existed.
+
+printf '\nfelix audit: a read-only report over Claude Code transcripts\n'
+
+# Everything the audit may see or touch lives under one scratch root, which is
+# listed and checksummed before the first run and after the last. The engine it
+# runs is a plain copy of this one, laid out the way a clone lays it out, with
+# no install, no ~/.felix-home, no FELIX_HOME and no memory root.
+AU="$TMP/audit"; mkdir -p "$AU"; AU="$(cd "$AU" && pwd -P)"
+AUD="$AU/cfg/projects"
+mkdir -p "$AU/home" "$AU/cwd" "$AU/tmp" "$AU/empty" "$AU/clone/felix/engine" "$AUD"
+printf 'export PS1=x\n' > "$AU/home/.profile"
+cp -R "$REAL_HARNESS" "$AU/clone/felix/engine/harness"
+AUF="$AU/clone/felix/engine/harness/felix"
+
+# Everything that could reach the network or the claude CLI, recording any call.
+AUSTUB="$TMP/audit-stub"; AUSTUB_LOG="$TMP/audit-stub.log"; mkdir -p "$AUSTUB"; : > "$AUSTUB_LOG"
+for _c in claude gh curl wget; do
+  printf '#!/bin/sh\nprintf "%%s %%s\\n" "%s" "$*" >> "%s"\nexit 0\n' "$_c" "$AUSTUB_LOG" > "$AUSTUB/$_c"
+  chmod +x "$AUSTUB/$_c"
+done
+
+# Transcripts in the shape Claude Code writes them: one compact JSON object per
+# line, the assistant's own "type":"message" nested before the record's
+# "type":"assistant", one line per content block, stop_reason repeated on each.
+_AU_F=""; _AU_SID=""
+_au_open() { _AU_F="$1"; _AU_SID="$2"; mkdir -p "${1%/*}"; : > "$1"; }
+_au_raw()  { printf '%s\n' "$1" >> "$_AU_F"; }
+_au_a() {    # ts msgid stop_reason block [isSidechain]
+  printf '{"parentUuid":"p","isSidechain":%s,"message":{"model":"claude-test","id":"%s","type":"message","role":"assistant","content":[%s],"stop_reason":%s,"stop_sequence":null,"usage":{"input_tokens":1,"output_tokens":1}},"requestId":"req_%s","type":"assistant","uuid":"u-%s","timestamp":"%s","sessionId":"%s"}\n' \
+    "${5:-false}" "$2" "$4" "$3" "$2" "$2" "$1" "$_AU_SID" >> "$_AU_F"; }
+_au_u() {    # ts content-json [isSidechain]
+  printf '{"parentUuid":"p","isSidechain":%s,"type":"user","message":{"role":"user","content":%s},"uuid":"u","timestamp":"%s","sessionId":"%s"}\n' \
+    "${3:-false}" "$2" "$1" "$_AU_SID" >> "$_AU_F"; }
+_au_say()  { _au_u "$1" "\"$2\"" "${3:-false}"; }
+# A stop hook's feedback, as Claude Code records it: a meta user record whose
+# content is the string the hook returned.
+_au_hold() {  # ts text [isSidechain]
+  printf '{"parentUuid":"p","isSidechain":%s,"promptId":"pr","type":"user","message":{"role":"user","content":"%s"},"isMeta":true,"uuid":"u","timestamp":"%s","sessionId":"%s"}\n' \
+    "${3:-false}" "$2" "$1" "$_AU_SID" >> "$_AU_F"; }
+# Blocks are built with printf -v, never "$(...)": bash 3.2 brace-expands a
+# quoted {"a":1,"b":2} inside a double-quoted command substitution, which cut
+# every Bash call in the first version of this fixture in two.
+_AU_B=""
+_au_tool() { printf -v _AU_B '{"type":"tool_use","id":"%s","name":"%s","input":%s}' "$1" "$2" "$3"; }
+_au_text() { printf -v _AU_B '{"type":"text","text":"%s"}' "$1"; }
+_au_edit() { _au_tool "$3" "${4:-Edit}" '{"file_path":"/w/src/app.js","old_string":"a","new_string":"b"}'
+             _au_a "$1" "$2" '"tool_use"' "$_AU_B" "${5:-false}"; }
+_au_bash() { local inp; printf -v inp '{"command":"%s","description":"%s"}' "$4" "${5:-Run it}"
+             _au_tool "$3" Bash "$inp"; _au_a "$1" "$2" '"tool_use"' "$_AU_B" "${6:-false}"; }
+_au_stop() { _au_text "${3:-Done.}"; _au_a "$1" "$2" '"end_turn"' "$_AU_B" "${4:-false}"; }
+_au_res() {  # ts tool_use_id ok|false|true|true-first [isSidechain]
+  case "$3" in
+    ok)         _au_u "$1" "[{\"tool_use_id\":\"$2\",\"type\":\"tool_result\",\"content\":\"ok\"}]" "${4:-false}" ;;
+    false)      _au_u "$1" "[{\"tool_use_id\":\"$2\",\"type\":\"tool_result\",\"content\":\"ok\",\"is_error\":false}]" "${4:-false}" ;;
+    true)       _au_u "$1" "[{\"tool_use_id\":\"$2\",\"type\":\"tool_result\",\"content\":\"Exit code 1\",\"is_error\":true}]" "${4:-false}" ;;
+    true-first) _au_u "$1" "[{\"type\":\"tool_result\",\"content\":\"Exit code 1\",\"is_error\":true,\"tool_use_id\":\"$2\"}]" "${4:-false}" ;;
+  esac; }
+
+# The main fixture: seven sessions in two project directories, holding ten
+# stops after edits — 4 passed, 1 failed, 2 stale, 3 never — in six of them,
+# and four Felix holds in three. Every awkward case below would change one of
+# those numbers if it were read the wrong way.
+AU_SA=aaaa1111-0000-4000-8000-00000000000a; AU_SB=bbbb2222-0000-4000-8000-00000000000b
+AU_SC=cccc3333-0000-4000-8000-00000000000c; AU_SD=dddd4444-0000-4000-8000-00000000000d
+AU_SE=eeee5555-0000-4000-8000-00000000000e; AU_SF=ffff6666-0000-4000-8000-00000000000f
+AU_SG=abcd7777-0000-4000-8000-000000000007
+
+# A: passed, failed, stale; two holds. A thinking block and an edit share one
+# message id; a sidechain edit after the passing check would make the first
+# stop stale if it were read; the first stop is logged on two lines; the check
+# before the second stop has an escaped quote ahead of the command that makes
+# it a check, and its failure arrives with is_error before tool_use_id.
+_au_open "$AUD/-Users-dev-alpha/$AU_SA.jsonl" "$AU_SA"
+_au_raw '{"type":"summary","summary":"Fixing the parser","leafUuid":"u-last"}'
+T=2026-03-02T10:00
+_au_say  "$T:00.000Z" 'fix the parser'
+_au_a    "$T:01.000Z" msg_A1 '"tool_use"' '{"type":"thinking","thinking":"Look first.","signature":"sig"}'
+_au_edit "$T:01.500Z" msg_A1 toolu_A1
+_au_res  "$T:02.000Z" toolu_A1 ok
+_au_bash "$T:03.000Z" msg_A2 toolu_A2 'npm test' 'Run the tests'
+_au_res  "$T:04.000Z" toolu_A2 false
+_au_edit "$T:05.000Z" msg_SC1 toolu_SC1 Edit true
+_au_res  "$T:05.500Z" toolu_SC1 ok true
+_au_stop "$T:05.800Z" msg_SC2 'Subtask done.' true
+_au_stop "$T:06.000Z" msg_A3 'Fixed.'
+_au_stop "$T:06.000Z" msg_A3 'The tests pass.'
+T=2026-03-02T10:10
+_au_say  "$T:00.000Z" 'also handle unicode'
+_au_edit "$T:01.000Z" msg_A4 toolu_A4 Write
+_au_res  "$T:02.000Z" toolu_A4 ok
+_au_bash "$T:03.000Z" msg_A5 toolu_A5 'cd \"/w/my dir\" && npx vitest run' 'Run vitest where the path has a space'
+_au_res  "$T:04.000Z" toolu_A5 true-first
+_au_stop "$T:05.000Z" msg_A6 'One test still fails.'
+_au_hold "$T:06.000Z" 'Stop hook feedback:\nThe gate failed on this exact tree. It has not passed since the last edit.\n\n  felix gate'
+T=2026-03-02T10:20
+_au_edit "$T:01.000Z" msg_A7 toolu_A7
+_au_res  "$T:02.000Z" toolu_A7 ok
+_au_stop "$T:03.000Z" msg_A8 'Adjusted the test.'
+_au_hold "$T:04.000Z" 'Stop hook feedback:\nThe gate last ran at 2026-03-02T10:00:00Z, on a different tree. It has not seen this work.'
+_au_bash "$T:05.000Z" msg_A9 toolu_A9 'felix gate' 'Run the gate'
+_au_res  "$T:06.000Z" toolu_A9 ok
+_au_stop "$T:07.000Z" msg_A10 'The gate is green.'
+
+# B: never, then passed; one hold. The first Bash call names npm test in its
+# description and not its command. The last check runs beside a parallel call
+# in the same message whose error arrives first.
+_au_open "$AUD/-Users-dev-alpha/$AU_SB.jsonl" "$AU_SB"
+T=2026-03-03T09:00
+_au_say  "$T:00.000Z" 'tidy the notebook'
+_au_bash "$T:01.000Z" msg_B1 toolu_B1 'git status' 'Check the tree before npm test'
+_au_res  "$T:02.000Z" toolu_B1 ok
+_au_edit "$T:03.000Z" msg_B2 toolu_B2 MultiEdit
+_au_res  "$T:04.000Z" toolu_B2 ok
+_au_stop "$T:05.000Z" msg_B3 'Tidied.'
+_au_hold "$T:06.000Z" 'Stop hook feedback:\nThe gate has never run on this checkout.\n\n  felix gate'
+_au_hold "$T:06.500Z" 'Stop hook feedback:\nRemember to update the changelog.'
+_au_edit "$T:07.000Z" msg_B4 toolu_B4 NotebookEdit
+_au_res  "$T:08.000Z" toolu_B4 ok
+_au_bash "$T:09.000Z" msg_B5 toolu_B5 'python -m pytest tests/ -q' 'Run the tests'
+_au_bash "$T:09.100Z" msg_B5 toolu_B5b 'ls /nonexistent' 'Look for the fixture'
+_au_res  "$T:10.000Z" toolu_B5b true
+_au_res  "$T:10.500Z" toolu_B5 ok
+_au_stop "$T:11.000Z" msg_B6 'Done.'
+
+# C: passed, passed; one hold. A failing command that is not a check follows
+# the passing one, and the first stop is logged again, whole, after the next
+# edit: a replayed message is not a second stop.
+_au_open "$AUD/-Users-dev-beta/$AU_SC.jsonl" "$AU_SC"
+T=2026-03-05T12:00
+_au_say  "$T:00.000Z" 'port the build to cargo'
+_au_edit "$T:01.000Z" msg_C1 toolu_C1
+_au_res  "$T:02.000Z" toolu_C1 ok
+_au_bash "$T:03.000Z" msg_C2 toolu_C2 'cargo test' 'Run the tests'
+_au_res  "$T:04.000Z" toolu_C2 true
+_au_edit "$T:05.000Z" msg_C3 toolu_C3
+_au_res  "$T:06.000Z" toolu_C3 ok
+_au_bash "$T:07.000Z" msg_C4 toolu_C4 'make check' 'Run the checks'
+_au_res  "$T:08.000Z" toolu_C4 false
+_au_bash "$T:09.000Z" msg_C4b toolu_C4b 'git diff --stat' 'See what changed'
+_au_res  "$T:10.000Z" toolu_C4b true
+_au_stop "$T:11.000Z" msg_C5 'Ported.'
+_au_hold "$T:12.000Z" 'Stop hook feedback:\nThe gate passed on this exact tree at 2026-03-05T12:00:08Z, and the tree has changed since.'
+_au_edit "$T:13.000Z" msg_C6 toolu_C6
+_au_res  "$T:14.000Z" toolu_C6 ok
+_au_stop "$T:11.000Z" msg_C5 'Ported.'
+_au_bash "$T:15.000Z" msg_C7 toolu_C7 'go test ./...' 'Run the Go tests'
+_au_res  "$T:16.000Z" toolu_C7 ok
+_au_stop "$T:17.000Z" msg_C8 'Done.'
+
+# D: never; no hold. A session-start attachment quotes a hold, a person quotes
+# one mid-sentence, and a sidechain carries a real one. Its subagent files,
+# marked NOT sidechain so only the path can exclude them, hold a failing check,
+# a stop and a hold that would all change the answer if they were read.
+_au_open "$AUD/-Users-dev-beta/$AU_SD.jsonl" "$AU_SD"
+T=2026-03-06T09:00
+_au_raw  "{\"parentUuid\":null,\"isSidechain\":false,\"attachment\":{\"type\":\"hook_success\",\"hookName\":\"SessionStart:startup\",\"content\":\"\",\"stdout\":\"- Stop hook feedback: The gate last ran at 2026-02-11T00:00:00Z, on a different tree.\"},\"type\":\"attachment\",\"uuid\":\"u-d0\",\"timestamp\":\"$T:00.000Z\",\"sessionId\":\"$AU_SD\"}"
+_au_say  "$T:01.000Z" 'I saw Stop hook feedback: The gate last ran at 2026-02-11T00:00:00Z. Why?'
+_au_hold "$T:02.000Z" 'Stop hook feedback:\nThe gate last ran at 2026-03-06T08:00:00Z, on a different tree.' true
+_au_edit "$T:03.000Z" msg_D1 toolu_D1
+_au_res  "$T:04.000Z" toolu_D1 ok
+_au_stop "$T:05.000Z" msg_D2 'Answered, and fixed a typo.'
+_au_open "$AUD/-Users-dev-beta/$AU_SD/subagents/agent-a1b2c3.jsonl" "$AU_SD"
+T=2026-03-06T09:10
+_au_edit "$T:01.000Z" msg_S1 toolu_S1
+_au_res  "$T:02.000Z" toolu_S1 ok
+_au_bash "$T:03.000Z" msg_S2 toolu_S2 'npm test' 'Run the tests'
+_au_res  "$T:04.000Z" toolu_S2 true
+_au_stop "$T:05.000Z" msg_S3 'Subtask done.'
+_au_hold "$T:06.000Z" 'Stop hook feedback:\nThe gate failed on this exact tree.'
+_au_open "$AUD/-Users-dev-beta/$AU_SD/subagents/workflows/wf_1/agent-d4e5f6.jsonl" "$AU_SD"
+_au_edit "$T:07.000Z" msg_S4 toolu_S4
+_au_res  "$T:08.000Z" toolu_S4 ok
+_au_stop "$T:09.000Z" msg_S5 'Workflow step done.'
+
+# E: edits, a check, more edits, and no stop: interrupted, stop_reason null.
+_au_open "$AUD/-Users-dev-beta/$AU_SE.jsonl" "$AU_SE"
+T=2026-03-07T15:00
+_au_say  "$T:00.000Z" 'start the migration'
+_au_edit "$T:01.000Z" msg_E1 toolu_E1
+_au_res  "$T:02.000Z" toolu_E1 ok
+_au_bash "$T:03.000Z" msg_E2 toolu_E2 'npm run verify' 'Verify'
+_au_res  "$T:04.000Z" toolu_E2 ok
+_au_edit "$T:05.000Z" msg_E3 toolu_E3
+_au_res  "$T:06.000Z" toolu_E3 ok
+_au_text 'Still going...'; _au_a "$T:07.000Z" msg_E4 null "$_AU_B"
+
+# F: never by default, passed under --verify 'prove\.sh'.
+_au_open "$AUD/-Users-dev-alpha/$AU_SF.jsonl" "$AU_SF"
+T=2026-03-09T18:00
+_au_say  "$T:00.000Z" 'make the proof script pass'
+_au_bash "$T:01.000Z" msg_F1 toolu_F1 './scripts/prove.sh --quick' 'Run the proof'
+_au_res  "$T:02.000Z" toolu_F1 ok
+_au_edit "$T:03.000Z" msg_F2 toolu_F2
+_au_res  "$T:04.000Z" toolu_F2 ok
+_au_bash "$T:05.000Z" msg_F3 toolu_F3 './scripts/prove.sh' 'Run the proof'
+_au_res  "$T:06.000Z" toolu_F3 ok
+_au_stop "$T:07.000Z" msg_F4 'Proved.'
+
+# G: stale — its only check is four days before its only edit. A --since
+# between them cuts the check and leaves the edit, which makes it never.
+_au_open "$AUD/-Users-dev-beta/$AU_SG.jsonl" "$AU_SG"
+_au_say  2026-03-04T12:00:00.000Z 'run the suite'
+_au_bash 2026-03-04T12:00:01.000Z msg_G1 toolu_G1 'pnpm test' 'Run the tests'
+_au_res  2026-03-04T12:00:02.000Z toolu_G1 ok
+_au_stop 2026-03-04T12:00:03.000Z msg_G2 'All green.'
+_au_say  2026-03-08T12:00:00.000Z 'now rename the helper'
+_au_edit 2026-03-08T12:00:01.000Z msg_G3 toolu_G3
+_au_res  2026-03-08T12:00:02.000Z toolu_G3 ok
+_au_stop 2026-03-08T12:00:03.000Z msg_G4 'Renamed.'
+
+# And one transcript beside the project directories rather than in one: not
+# DIR/*/*.jsonl, so not read. Read, it would add a never and move the range.
+_au_open "$AUD/stray.jsonl" stray-0000
+_au_edit 2026-03-12T08:00:01.000Z msg_X1 toolu_X1
+_au_stop 2026-03-12T08:00:02.000Z msg_X2 'Stray.'
+
+# The same fixture where the defaults look for it, and single sessions alone.
+mkdir -p "$AU/home2/.claude"; cp -R "$AUD" "$AU/home2/.claude/projects"
+for _s in a b c d; do mkdir -p "$AU/solo/$_s/-Users-dev-solo"; done
+cp "$AUD/-Users-dev-alpha/$AU_SA.jsonl" "$AU/solo/a/-Users-dev-solo/"
+cp "$AUD/-Users-dev-alpha/$AU_SB.jsonl" "$AU/solo/b/-Users-dev-solo/"
+cp "$AUD/-Users-dev-beta/$AU_SC.jsonl"  "$AU/solo/c/-Users-dev-solo/"
+cp "$AUD/-Users-dev-beta/$AU_SD.jsonl"  "$AU/solo/d/-Users-dev-solo/"
+cp -R "$AUD/-Users-dev-beta/$AU_SD"     "$AU/solo/d/-Users-dev-solo/"
+
+# And a larger set, for speed: two sessions of 450 turns, each turn twenty
+# reads, an edit, a check and a stop — 41,400 lines, 450 passed and 450 failed.
+_au_big() {  # file session-id turns
+  awk -v sid="$2" -v n="$3" 'BEGIN {
+    a = "{\"parentUuid\":\"p\",\"isSidechain\":false,\"message\":{\"model\":\"claude-test\",\"id\":\"%s\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[%s],\"stop_reason\":\"%s\",\"stop_sequence\":null},\"type\":\"assistant\",\"uuid\":\"u\",\"timestamp\":\"2026-04-01T10:00:00.000Z\",\"sessionId\":\"" sid "\"}\n"
+    u = "{\"parentUuid\":\"p\",\"isSidechain\":false,\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":%s},\"uuid\":\"u\",\"timestamp\":\"2026-04-01T10:00:00.000Z\",\"sessionId\":\"" sid "\"}\n"
+    for (i = 1; i <= n; i++) {
+      printf u, "\"step " i "\""
+      for (j = 1; j <= 20; j++) {
+        id = "toolu_" sid "_" i "_" j
+        printf a, "msg_" sid "_" i "_" j, "{\"type\":\"tool_use\",\"id\":\"" id "\",\"name\":\"Read\",\"input\":{\"file_path\":\"/w/src/f" j ".js\"}}", "tool_use"
+        printf u, "[{\"tool_use_id\":\"" id "\",\"type\":\"tool_result\",\"content\":\"line one of the file\"}]"
+      }
+      id = "toolu_" sid "_" i "_e"
+      printf a, "msg_" sid "_" i "_e", "{\"type\":\"tool_use\",\"id\":\"" id "\",\"name\":\"Edit\",\"input\":{\"file_path\":\"/w/src/f1.js\",\"old_string\":\"a\",\"new_string\":\"b\"}}", "tool_use"
+      printf u, "[{\"tool_use_id\":\"" id "\",\"type\":\"tool_result\",\"content\":\"ok\"}]"
+      id = "toolu_" sid "_" i "_t"
+      printf a, "msg_" sid "_" i "_t", "{\"type\":\"tool_use\",\"id\":\"" id "\",\"name\":\"Bash\",\"input\":{\"command\":\"npm test\"}}", "tool_use"
+      printf u, "[{\"tool_use_id\":\"" id "\",\"type\":\"tool_result\",\"content\":\"done\",\"is_error\":" (i % 2 ? "false" : "true") "}]"
+      printf a, "msg_" sid "_" i "_s", "{\"type\":\"text\",\"text\":\"Done.\"}", "end_turn"
+    } }' > "$1"
+}
+mkdir -p "$AU/big/-Users-dev-big"
+_au_big "$AU/big/-Users-dev-big/big-one.jsonl" bigone 450
+_au_big "$AU/big/-Users-dev-big/big-two.jsonl" bigtwo 450
+
+# felix audit from the plain directory, with the stubs first on PATH, the
+# scratch HOME, TMPDIR inside the scratch root, and nothing of Felix's in the
+# environment. --home and --cfg choose HOME and CLAUDE_CONFIG_DIR (- unsets
+# it). Stdout only; stderr is kept for the failure messages.
+AU_ERR="$TMP/audit.err"; : > "$AU_ERR"
+_au() {
+  local h="$AU/home" c="$AU/cfg"
+  while :; do
+    case "${1:-}" in
+      --home) h="$2"; shift 2 ;;
+      --cfg)  c="$2"; shift 2 ;;
+      *) break ;;
+    esac
+  done
+  ( cd "$AU/cwd" || exit 97
+    unset FELIX_HOME FELIX_MEMORY FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE CLAUDE_PLUGIN_ROOT CLAUDE_CONFIG_DIR
+    [ "$c" = "-" ] || export CLAUDE_CONFIG_DIR="$c"
+    HOME="$h" TMPDIR="$AU/tmp" PATH="$AUSTUB:$PATH" "$AUF" audit "$@" ) 2>>"$AU_ERR"
+}
+# The report is plain text in a wording nobody fixed, so it is read loosely: a
+# class is the line that names it and carries a percentage, its count the
+# first bare number there, its share the first number with a % after it.
+_au_strip() { printf '%s\n' "$1" | awk -v a="$AU" '{ while ((i = index($0, a)) > 0) $0 = substr($0, 1, i - 1) "AUROOT" substr($0, i + length(a)); print }'; }
+_au_first() { printf '%s\n' "$1" | awk 'NF { print; exit }'; }
+_au_last()  { printf '%s\n' "$1" | awk 'NF { l = $0 } END { print l }'; }
+_au_class() {  # text class -> "count pct", "-" where absent
+  printf '%s\n' "$1" | awk -v w="$2" '
+    { l = tolower($0) }
+    l !~ /[0-9]+%/ { next }
+    lead == "" && l ~ ("^[^a-z]*" w "([^a-z]|$)")  { lead = $0 }
+    any  == "" && l ~ ("(^|[^a-z])" w "([^a-z]|$)") { any = $0 }
+    END { s = (lead != "") ? lead : any; c = "-"; p = "-"
+          while (s != "" && match(s, /[0-9]+%?/)) {
+            t = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+            if (t ~ /%$/) { if (p == "-") p = substr(t, 1, length(t) - 1) } else if (c == "-") c = t
+          }
+          print c, p }'
+}
+_au_counts() { local w r=""; for w in passed failed stale never; do r="$r $(_au_class "$(_au_strip "$1")" "$w" | cut -d' ' -f1)"; done; printf '%s' "${r# }"; }
+_au_pcts()   { local w r=""; for w in passed failed stale never; do r="$r $(_au_class "$(_au_strip "$1")" "$w" | cut -d' ' -f2)"; done; printf '%s' "${r# }"; }
+# True when one line without a % matches the pattern and holds these numbers,
+# in this order, each as a whole run of digits.
+_au_nums() {  # text ERE number...
+  local t; t="$(_au_strip "$1")"; local re="$2"; shift 2
+  printf '%s\n' "$t" | awk -v re="$re" -v want="$*" '
+    { l = tolower($0) }
+    index(l, "%") || l !~ re { next }
+    { n = split(want, w, " "); k = 1; s = $0
+      while (k <= n && match(s, /[0-9]+/)) { if (substr(s, RSTART, RLENGTH) == w[k]) k++; s = substr(s, RSTART + RLENGTH) }
+      if (k > n) { f = 1; exit } }
+    END { exit f ? 0 : 1 }'
+}
+_au_none() { printf '%s\n' "$1" | awk '{ l = tolower($0) }
+  l ~ /(^|[^a-z])no([^a-z]|$).*transcript/ || l ~ /transcript.*(none|not found)/ || l ~ /(^|[^0-9])0 (transcripts|sessions)/ { f = 1 }
+  END { exit f ? 0 : 1 }'; }
+_au_snap() { ( cd "$1" && find . -print | LC_ALL=C sort && find . -type f -exec cksum {} + | LC_ALL=C sort ) 2>&1; }
+
+case "$("$FELIX" 2>&1)" in
+  *"felix audit"*) ok  "felix with no arguments lists felix audit in the grouped help" ;;
+  *)               bad "felix with no arguments lists felix audit in the grouped help" "no felix audit line in the help" ;;
+esac
+
+_au_before="$(_au_snap "$AU")"; _au_home_before="$(_au_snap "$AU/home")"
+
+_auo="$(_au --dir "$AUD")"; _aurc=$?
+_au_report=0
+[ "$_aurc" -eq 0 ] && _au_first "$_auo" | grep -qiE 'read[- ]only' && _au_report=1
+_audiag="rc=$_aurc; stdout: $(printf '%s' "$_auo" | head -c 600); stderr: $(tail -c 400 "$AU_ERR")"
+is  "felix audit --dir exits 0 over a directory of transcripts" "$_aurc" "0"
+[ "$_au_report" -eq 1 ] && ok  "its first line says it is read-only" \
+                        || bad "its first line says it is read-only" "$_audiag"
+case "$_auo" in
+  *"$AUD"*) ok  "it names the directory it read" ;;
+  *)        bad "it names the directory it read" "$_audiag" ;;
+esac
+_au_nums "$_auo" 'session|transcript' 7 \
+  && ok  "it counts the seven top-level sessions it read, not the subagent files or the stray one beside them" \
+  || bad "it counts the seven top-level sessions it read, not the subagent files or the stray one beside them" "$_audiag"
+case "$(_au_strip "$_auo")" in
+  *2026-02-11*) bad "it gives the date range from record timestamps, 2026-03-02 to 2026-03-09, not a date quoted in a message" "$_audiag" ;;
+  *2026-03-02*2026-03-09*|*2026-03-09*2026-03-02*)
+                ok  "it gives the date range from record timestamps, 2026-03-02 to 2026-03-09, not a date quoted in a message" ;;
+  *)            bad "it gives the date range from record timestamps, 2026-03-02 to 2026-03-09, not a date quoted in a message" "$_audiag" ;;
+esac
+_au_nums "$_auo" 'stop' 10 6 \
+  && ok  "it counts 10 stops after edits, in 6 sessions" \
+  || bad "it counts 10 stops after edits, in 6 sessions" "$_audiag"
+_auc="$(_au_counts "$_auo")"
+is  "passed is exactly 4: the last check after the last edit did not fail"      "$(printf '%s' "$_auc" | cut -d' ' -f1)" "4"
+is  "failed is exactly 1: the last check after the last edit failed"            "$(printf '%s' "$_auc" | cut -d' ' -f2)" "1"
+is  "stale is exactly 2: no check after the last edit, one earlier in the session" "$(printf '%s' "$_auc" | cut -d' ' -f3)" "2"
+is  "never is exactly 3: no check at any point in the session before the stop"  "$(printf '%s' "$_auc" | cut -d' ' -f4)" "3"
+is  "the shares are whole percentages of the stops after edits"                 "$(_au_pcts "$_auo")" "40 10 20 30"
+_au_nums "$_auo" 'hold|held' 4 3 \
+  && ok  "it counts 4 Felix holds in 3 sessions, not a quoted, sidechain, subagent or foreign stop hook" \
+  || bad "it counts 4 Felix holds in 3 sessions, not a quoted, sidechain, subagent or foreign stop hook" "$_audiag"
+case "$_auo" in
+  *--verify*) ok  "it names what counts as a check and that --verify changes it" ;;
+  *)          bad "it names what counts as a check and that --verify changes it" "$_audiag" ;;
+esac
+printf '%s\n' "$_auo" | grep -qiE 'sub-?agent' \
+  && ok  "it says edits and checks inside subagents are not seen" \
+  || bad "it says edits and checks inside subagents are not seen" "$_audiag"
+case "$(_au_last "$_auo")" in
+  *"felix new"*"--no-commission"*) ok  "its last line points at felix new <name> --no-commission" ;;
+  *) bad "its last line points at felix new <name> --no-commission" "last line: $(_au_last "$_auo")" ;;
+esac
+
+# The awkward cases one session at a time, so a failure names its cause.
+is  "a sidechain edit does not turn a pass stale, and a failure reported before its tool_use_id, behind an escaped quote, still fails" \
+    "$(_au_counts "$(_au --dir "$AU/solo/a")")" "1 1 1 0"
+is  "a check is read from the command, not the description, and a parallel call's error does not fail the check beside it" \
+    "$(_au_counts "$(_au --dir "$AU/solo/b")")" "1 0 0 1"
+is  "a stop is a distinct message id: a stop logged again is not a second one, and a failing non-check fails nothing" \
+    "$(_au_counts "$(_au --dir "$AU/solo/c")")" "2 0 0 0"
+is  "a session is read without its subagent files, which would add a check, a stop and a hold" \
+    "$(_au_counts "$(_au --dir "$AU/solo/d")")" "0 0 0 1"
+
+is  "--since keeps the cut day, drops what came before it, and splits a session across it" \
+    "$(_au_counts "$(_au --since 2026-03-05 --dir "$AUD")")" "2 0 0 3"
+is  "--verify replaces what counts as a check" \
+    "$(_au_counts "$(_au --verify 'prove\.sh' --dir "$AUD")")" "1 0 0 9"
+is  "with no --dir it reads CLAUDE_CONFIG_DIR/projects" \
+    "$(_au_counts "$(_au)")" "4 1 2 3"
+is  "and with CLAUDE_CONFIG_DIR unset, HOME/.claude/projects" \
+    "$(_au_counts "$(_au --home "$AU/home2" --cfg -)")" "4 1 2 3"
+
+_auo2="$(_au --dir "$AU/empty")"; _aurc2=$?
+[ "$_aurc2" -eq 0 ] && _au_none "$_auo2" \
+  && ok  "an empty directory is reported as no transcripts, exit 0" \
+  || bad "an empty directory is reported as no transcripts, exit 0" "rc=$_aurc2; $_auo2"
+_auo2="$(_au --home "$AU/home" --cfg -)"; _aurc2=$?
+[ "$_aurc2" -eq 0 ] && _au_none "$_auo2" \
+  && ok  "so is a machine where Claude Code never ran, exit 0" \
+  || bad "so is a machine where Claude Code never ran, exit 0" "rc=$_aurc2; $_auo2"
+
+# Bad arguments, each beside the run that differs only by them.
+_au --dir "$AUD" --bogus >/dev/null; _aurc2=$?
+[ "$_aurc" -eq 0 ] && [ "$_aurc2" -ne 0 ] \
+  && ok  "an unknown flag exits non-zero where the same run without it exits 0" \
+  || bad "an unknown flag exits non-zero where the same run without it exits 0" "without: $_aurc, with: $_aurc2"
+_au --dir "$AUD" --since notadate >/dev/null; _aurc2=$?
+[ "$_aurc" -eq 0 ] && [ "$_aurc2" -ne 0 ] \
+  && ok  "a --since that is not YYYY-MM-DD exits non-zero" \
+  || bad "a --since that is not YYYY-MM-DD exits non-zero" "without: $_aurc, with: $_aurc2"
+_au --dir >/dev/null; _aurc2=$?
+[ "$_aurc" -eq 0 ] && [ "$_aurc2" -ne 0 ] \
+  && ok  "--dir with no value exits non-zero" \
+  || bad "--dir with no value exits non-zero" "without: $_aurc, with: $_aurc2"
+
+_au_t0="$(date +%s)"; _auo2="$(_au --dir "$AU/big")"; _au_t1="$(date +%s)"
+is  "it counts every stop in 41,400 lines: 450 passed and 450 failed" "$(_au_counts "$_auo2")" "450 450 0 0"
+if [ "$(_au_counts "$_auo2")" = "450 450 0 0" ]; then
+  [ $((_au_t1 - _au_t0)) -le 30 ] && ok  "and reads them in under 30 seconds" \
+                                   || bad "and reads them in under 30 seconds" "took $((_au_t1 - _au_t0))s"
+else
+  bad "and reads them in under 30 seconds" "it did not count them, so its speed says nothing"
+fi
+
+# Read-only, measured after every run above. Unconditional silence would pass
+# against an engine with no audit at all, so each of these needs a report.
+_au_after="$(_au_snap "$AU")"; _au_home_after="$(_au_snap "$AU/home")"
+if [ "$_au_report" -eq 1 ]; then
+  [ "$_au_before" = "$_au_after" ] \
+    && ok  "across every run, no file appeared, vanished or changed under the scratch root" \
+    || bad "across every run, no file appeared, vanished or changed under the scratch root" \
+           "$(diff <(printf '%s\n' "$_au_before") <(printf '%s\n' "$_au_after") | head -20)"
+  [ "$_au_home_before" = "$_au_home_after" ] && [ ! -e "$AU/home/.felix-home" ] && [ ! -e "$AU/home/.felix" ] && [ ! -e "$AU/home/.claude" ] \
+    && ok  "and nothing in the scratch HOME changed: no .felix-home, no .felix, no .claude" \
+    || bad "and nothing in the scratch HOME changed: no .felix-home, no .felix, no .claude" "$(ls -A "$AU/home")"
+  [ ! -s "$AUSTUB_LOG" ] \
+    && ok  "and no claude, gh, curl or wget was called" \
+    || bad "and no claude, gh, curl or wget was called" "$(head -5 "$AUSTUB_LOG")"
+else
+  for _n in "across every run, no file appeared, vanished or changed under the scratch root" \
+            "and nothing in the scratch HOME changed: no .felix-home, no .felix, no .claude" \
+            "and no claude, gh, curl or wget was called"; do
+    bad "$_n" "no report was produced, so an untouched tree proves nothing"
+  done
+fi
+
+printf '\nfelix new --no-commission: governed, not commissioned\n'
+# Its own home and memory root, so no project here is enumerated by the widget
+# fixture's tests, and the same stub as every other felix new in this file.
+NC="$TMP/nocommission"; mkdir -p "$NC/home/projects" "$NC/mem" "$NC/userhome"; NC="$(cd "$NC" && pwd -P)"
+_nc_repo() { mkdir -p "$NC/$1"
+  ( cd "$NC/$1" && git init -q -b main \
+    && printf '{ "name": "cheap", "scripts": { "verify": "echo ok" }, "dependencies": { "express": "^4" } }\n' > package.json ) >/dev/null 2>&1; }
+_nc() {  # cwd, then felix new's arguments; the stub's calls land in CMSTUB_LOG
+  local d="$1"; shift; : > "$CMSTUB_LOG"
+  ( cd "$d" && HOME="$NC/userhome" FELIX_HOME="$NC/home" FELIX_MEMORY="$NC/mem" PATH="$CMSTUB:$PATH" "$FELIX" new "$@" ) 2>&1; }
+_nc_calls() { grep -c . "$CMSTUB_LOG" 2>/dev/null | tr -d ' '; }
+_nc_ls()    { ( cd "$NC/home/projects/$1" 2>/dev/null && find . -print | LC_ALL=C sort | tr '\n' ' ' ); }
+_nc_bound() { [ "$(cat "$NC/$1/.felix" 2>/dev/null)" = "$2" ] && [ -f "$NC/home/projects/$2/project.json" ]; }
+for _r in r-trail r-lead r-mid r-full r-bogus; do _nc_repo "$_r"; done
+
+out="$(cd "$NC" && "$FELIX" new 2>&1)"
+has "felix new's usage line names --no-commission" "$out" "--no-commission"
+case "$("$FELIX" 2>&1)" in
+  *"--no-commission"*) ok  "the grouped help names --no-commission" ;;
+  *)                   bad "the grouped help names --no-commission" "no --no-commission in the help" ;;
+esac
+
+_nct="$(_nc "$NC/r-trail" nctrail --no-commission)"; _nctrc=$?; _nctcalls="$(_nc_calls)"
+_ncf="$(_nc "$NC/r-full" ncfull)"; _ncfrc=$?; _ncfcalls="$(_nc_calls)"
+_nctb=0; [ "$_nctrc" -eq 0 ] && _nc_bound r-trail nctrail && _nctb=1
+if [ "$_nctb" -eq 1 ] && [ -n "$(_nc_ls nctrail)" ] && [ "$(_nc_ls nctrail)" = "$(_nc_ls ncfull)" ] \
+   && [ -f "$NC/mem/nctrail/DEVLOG.md" ] && [ -f "$NC/mem/nctrail/lessons.md" ] && [ -f "$NC/mem/nctrail/SESSION_HANDOFF.md" ]; then
+  ok  "felix new <name> --no-commission creates the project, binds the checkout, and seeds what a commissioned one gets"
+else
+  bad "felix new <name> --no-commission creates the project, binds the checkout, and seeds what a commissioned one gets" \
+      "rc=$_nctrc marker=[$(cat "$NC/r-trail/.felix" 2>/dev/null)] seeded=[$(_nc_ls nctrail)] commissioned=[$(_nc_ls ncfull)]"
+fi
+if [ "$_nctb" -eq 1 ]; then
+  is  "and calls no claude" "$_nctcalls" "0"
+  case "$_nct" in
+    *"commissioning for nctrail"*) bad "and runs none of commissioning: no run, no receipt, no discovery cache, no commissioning log" "$_nct" ;;
+    *) [ ! -e "$NC/home/state/commission/nctrail" ] && [ ! -e "$NC/home/state/discover/nctrail.tsv" ] \
+         && [ ! -e "$NC/mem/nctrail/commissioning.log" ] && [ ! -e "$NC/mem/nctrail/commission" ] \
+         && ok  "and runs none of commissioning: no run, no receipt, no discovery cache, no commissioning log" \
+         || bad "and runs none of commissioning: no run, no receipt, no discovery cache, no commissioning log" \
+                "$(find "$NC/home/state" "$NC/mem/nctrail" -print 2>/dev/null | grep -i -e commission -e discover)" ;;
+  esac
+else
+  bad "and calls no claude" "the project was not created and bound, so a silent stub proves nothing"
+  bad "and runs none of commissioning: no run, no receipt, no discovery cache, no commissioning log" \
+      "the project was not created and bound, so an absent receipt proves nothing"
+fi
+printf '%s\n' "$_nct" | grep -i 'skip' | grep -q 'felix commission' \
+  && ok  "and prints one line saying commissioning was skipped and felix commission runs it later" \
+  || bad "and prints one line saying commissioning was skipped and felix commission runs it later" "$_nct"
+
+# Without the flag the same checkout shape commissions, through the same stub:
+# so the flag, and nothing else about these runs, is what made the difference.
+if [ "$_ncfrc" -eq 0 ] && [ "${_ncfcalls:-0}" -gt 0 ] && [ -f "$NC/home/state/commission/ncfull" ] \
+   && [ "$_nctb" -eq 1 ] && [ "$_nctcalls" = "0" ] && [ ! -e "$NC/home/state/commission/nctrail" ]; then
+  ok  "the flag is what made the difference: the same felix new without it calls claude and writes a receipt"
+else
+  bad "the flag is what made the difference: the same felix new without it calls claude and writes a receipt" \
+      "without: rc=$_ncfrc calls=$_ncfcalls receipt=$([ -f "$NC/home/state/commission/ncfull" ] && echo yes || echo no); with: bound=$_nctb calls=$_nctcalls"
+fi
+
+_ncl="$(_nc "$NC/r-lead" --no-commission nclead)"; _nclrc=$?; _nclcalls="$(_nc_calls)"
+_ncg="$(_nc "$NC/r-bogus" --bogus ncbogus)"; _ncgrc=$?
+if [ "$_nclrc" -eq 0 ] && _nc_bound r-lead nclead && [ "$_nclcalls" = "0" ] \
+   && [ "$_ncgrc" -ne 0 ] && [ ! -e "$NC/home/projects/ncbogus" ] && [ ! -e "$NC/home/projects/--bogus" ]; then
+  case "$_ncg" in
+    *"got a flag"*) ok  "a leading --no-commission is the flag, while any other leading flag is still refused as a name" ;;
+    *)              bad "a leading --no-commission is the flag, while any other leading flag is still refused as a name" "$_ncg" ;;
+  esac
+else
+  bad "a leading --no-commission is the flag, while any other leading flag is still refused as a name" \
+      "leading: rc=$_nclrc calls=$_nclcalls marker=[$(cat "$NC/r-lead/.felix" 2>/dev/null)]; --bogus: rc=$_ncgrc $_ncg"
+fi
+
+_ncm="$(_nc "$NC" ncmid --no-commission "$NC/r-mid")"; _ncmrc=$?; _ncmcalls="$(_nc_calls)"
+[ "$_ncmrc" -eq 0 ] && _nc_bound r-mid ncmid && [ "$_ncmcalls" = "0" ] && [ ! -e "$NC/.felix" ] \
+  && ok  "the flag between the name and the path binds the path given" \
+  || bad "the flag between the name and the path binds the path given" "rc=$_ncmrc calls=$_ncmcalls marker=[$(cat "$NC/r-mid/.felix" 2>/dev/null)] $_ncm"
+
+if [ "$_nctb" -eq 1 ]; then
+  : > "$CMSTUB_LOG"
+  ( cd "$NC/r-trail" && HOME="$NC/userhome" FELIX_HOME="$NC/home" FELIX_MEMORY="$NC/mem" PATH="$CMSTUB:$PATH" "$FELIX" commission ) >/dev/null 2>&1
+  [ "$(_nc_calls)" -gt 0 ] && [ -f "$NC/home/state/commission/nctrail" ] \
+    && ok  "felix commission, run later, commissions what felix new --no-commission created" \
+    || bad "felix commission, run later, commissions what felix new --no-commission created" "calls=$(_nc_calls)"
+else
+  bad "felix commission, run later, commissions what felix new --no-commission created" \
+      "felix new --no-commission created nothing to commission"
+fi
+
+# Not blind: written by the implementer, after the blind section above went
+# green, for the two paths of lib/audit.sh no line of that fixture reaches.
+# Claude Code writes one content block per line, so the block cutting in uses()
+# and results() only ever sees one block there. These lines hold two: a
+# non-check before the check, and results whose first block carries a content
+# array, whose "},{" is not the boundary between the blocks. Read as one block,
+# the first session's check is missed or charged with the other call's error,
+# and the second session's failure lands on nothing.
+printf '\nfelix audit: two blocks on one line\n'
+AUM="$TMP/audit-multi/-Users-dev-multi"; mkdir -p "$AUM"
+_au_open "$AUM/m1.jsonl" m1
+_au_edit 2026-03-10T10:00:01.000Z msg_M1 toolu_M1
+_au_res  2026-03-10T10:00:02.000Z toolu_M1 ok
+_au_tool toolu_M2b Bash '{"command":"ls /nope"}'; _aum_b1="$_AU_B"
+_au_tool toolu_M2a Bash '{"command":"npm test"}'
+_au_a    2026-03-10T10:00:03.000Z msg_M2 '"tool_use"' "$_aum_b1,$_AU_B"
+_au_u    2026-03-10T10:00:04.000Z '[{"tool_use_id":"toolu_M2a","type":"tool_result","content":[{"type":"text","text":"ok"},{"type":"text","text":"12 passed"}]},{"tool_use_id":"toolu_M2b","type":"tool_result","content":"No such file","is_error":true}]'
+_au_stop 2026-03-10T10:00:05.000Z msg_M3 'Done.'
+_au_open "$AUM/m2.jsonl" m2
+_au_edit 2026-03-10T11:00:01.000Z msg_N1 toolu_N1
+_au_res  2026-03-10T11:00:02.000Z toolu_N1 ok
+_au_tool toolu_N2b Bash '{"command":"git status"}'; _aum_b1="$_AU_B"
+_au_tool toolu_N2a Bash '{"command":"npm test"}'
+_au_a    2026-03-10T11:00:03.000Z msg_N2 '"tool_use"' "$_aum_b1,$_AU_B"
+_au_u    2026-03-10T11:00:04.000Z '[{"tool_use_id":"toolu_N2a","type":"tool_result","content":[{"type":"text","text":"1 failed"},{"type":"text","text":"x"}],"is_error":true},{"tool_use_id":"toolu_N2b","type":"tool_result","content":"clean"}]'
+_au_stop 2026-03-10T11:00:05.000Z msg_N3 'Done.'
+is  "a line of two tool_use blocks is read block by block, and an error is charged only to the result block that reported it" \
+    "$(_au_counts "$("$FELIX" audit --dir "$TMP/audit-multi" 2>&1)")" "1 1 0 0"
+out="$("$FELIX" audit --help 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && case "$out" in *"usage: felix audit"*) true ;; *) false ;; esac \
+  && ok  "felix audit --help answers its usage and reads nothing" \
+  || bad "felix audit --help answers its usage and reads nothing" "rc=$rc $out"
+# Beside the same run on a directory, so an engine with no audit, which exits
+# non-zero on both, cannot pass it.
+"$FELIX" audit --dir "$TMP/audit-multi" >/dev/null 2>&1; _aumrc=$?
+"$FELIX" audit --dir "$TMP/audit-nope" >/dev/null 2>&1; rc=$?
+[ "$_aumrc" -eq 0 ] && [ "$rc" -ne 0 ] \
+  && ok  "an explicit --dir that is not a directory is refused, where the same run on a directory exits 0" \
+  || bad "an explicit --dir that is not a directory is refused, where the same run on a directory exits 0" "directory: $_aumrc, not one: $rc"
+
+# Not blind either: written by the fixer, from two reviews of the code above,
+# one assertion per defect they found, each shown failing against the engine
+# before the fix. Fixtures sit under $AU so the report's paths strip to AUROOT
+# and no digit in a temporary path can pass a count; the read-only snapshot
+# above was taken before any of them existed.
+printf '\nfelix audit: what the reviews found\n'
+RV="$AU/rv"
+_rv_ts=2026-04-02T10:00
+_rv_new() { _au_open "$RV/$1/-Users-dev-rv/$2.jsonl" "$2"; }
+
+# A pipe, a later command or the background takes a check's exit status, so
+# "no error reported" is all such a check can say. pipefail, && and 2>&1 do not.
+_rv_new hid h1; _au_edit "$_rv_ts:01.000Z" msg_H1a toolu_H1a
+_au_bash "$_rv_ts:02.000Z" msg_H1b toolu_H1b 'npm test 2>&1 | tail -5'; _au_res "$_rv_ts:03.000Z" toolu_H1b ok
+_au_stop "$_rv_ts:04.000Z" msg_H1c
+_rv_new hid h2; _au_edit "$_rv_ts:01.000Z" msg_H2a toolu_H2a
+_au_bash "$_rv_ts:02.000Z" msg_H2b toolu_H2b 'pytest -q; echo done'; _au_res "$_rv_ts:03.000Z" toolu_H2b ok
+_au_stop "$_rv_ts:04.000Z" msg_H2c
+_rv_new hid h3; _au_edit "$_rv_ts:01.000Z" msg_H3a toolu_H3a
+_au_tool toolu_H3b Bash '{"command":"npm test","run_in_background":true}'; _au_a "$_rv_ts:02.000Z" msg_H3b '"tool_use"' "$_AU_B"
+_au_res "$_rv_ts:03.000Z" toolu_H3b ok; _au_stop "$_rv_ts:04.000Z" msg_H3c
+_rv_new hid h4; _au_edit "$_rv_ts:01.000Z" msg_H4a toolu_H4a
+_au_bash "$_rv_ts:02.000Z" msg_H4b toolu_H4b 'set -o pipefail; npm test | tail -3'; _au_res "$_rv_ts:03.000Z" toolu_H4b ok
+_au_stop "$_rv_ts:04.000Z" msg_H4c
+_rv_new hid h5; _au_edit "$_rv_ts:01.000Z" msg_H5a toolu_H5a
+_au_bash "$_rv_ts:02.000Z" msg_H5b toolu_H5b 'cd /w && npm test 2>&1'; _au_res "$_rv_ts:03.000Z" toolu_H5b ok
+_au_stop "$_rv_ts:04.000Z" msg_H5c
+_rvo="$(_au --dir "$RV/hid")"
+if [ "$(_au_counts "$_rvo")" = "5 0 0 0" ] && _au_nums "$_rvo" 'pipe|background' 3; then
+  ok  "a passing check whose exit status a pipe, a later command or the background took is counted as one that could not fail: 3 of 5"
+else
+  bad "a passing check whose exit status a pipe, a later command or the background took is counted as one that could not fail: 3 of 5" "$_rvo"
+fi
+case "$(printf '%s\n' "$_rvo" | grep -E '^ *passed ')" in
+  *"reported no error"*) ok  "and the passed class claims only that no error was reported" ;;
+  *)                     bad "and the passed class claims only that no error was reported" "$_rvo" ;;
+esac
+
+# The same session under two project directories, and its history copied into
+# a resumed session that then stops again with no new edit: one stop, one hold.
+_rv_new dup s-dup
+_au_edit "$_rv_ts:01.000Z" msg_D1 toolu_D1; _au_bash "$_rv_ts:02.000Z" msg_D2 toolu_D2 'npm test'
+_au_res "$_rv_ts:03.000Z" toolu_D2 ok; _au_stop "$_rv_ts:04.000Z" msg_D3
+_au_hold "$_rv_ts:05.000Z" 'Stop hook feedback:\nThe gate last ran at 2026-04-01T00:00:00Z, on a different tree.'
+mkdir -p "$RV/dup/-Users-dev-rv2"; cp "$RV/dup/-Users-dev-rv/s-dup.jsonl" "$RV/dup/-Users-dev-rv2/"
+cp "$RV/dup/-Users-dev-rv/s-dup.jsonl" "$RV/dup/-Users-dev-rv/s-resumed.jsonl"
+_AU_F="$RV/dup/-Users-dev-rv/s-resumed.jsonl"; _AU_SID=s-resumed
+_au_say "$_rv_ts:09.000Z" 'what did you change?'; _au_stop "$_rv_ts:10.000Z" msg_D4 'Only the parser.'
+_rvo="$(_au --dir "$RV/dup")"
+if _au_nums "$_rvo" '^ *sessions' 2 && _au_nums "$_rvo" 'came after' 1 1 && _au_nums "$_rvo" 'held' 1 1 \
+   && [ "$(_au_counts "$_rvo")" = "1 0 0 0" ]; then
+  ok  "a session filed under two projects, and history copied into a resumed one, count once: 2 sessions, 1 stop, 1 hold"
+else
+  bad "a session filed under two projects, and history copied into a resumed one, count once: 2 sessions, 1 stop, 1 hold" "$_rvo"
+fi
+
+# Runner names that are text: a here-document commit message (backticks and
+# all), a grep alternation, a commit message over several lines. A runner
+# after a quoted path holding an apostrophe still counts.
+_rv_new quoted q1; _au_edit "$_rv_ts:01.000Z" msg_Q1a toolu_Q1a
+_au_bash "$_rv_ts:02.000Z" msg_Q1b toolu_Q1b 'git commit -m \"$(cat <<'"'"'EOF'"'"'\nfix: x\n\n`felix gate` passes; tests/run reports 12\nEOF\n)\"'
+_au_res "$_rv_ts:03.000Z" toolu_Q1b ok; _au_stop "$_rv_ts:04.000Z" msg_Q1c
+_rv_new quoted q2; _au_edit "$_rv_ts:01.000Z" msg_Q2a toolu_Q2a
+_au_bash "$_rv_ts:02.000Z" msg_Q2b toolu_Q2b "grep -nE 'foo|pytest' README.md"; _au_res "$_rv_ts:03.000Z" toolu_Q2b ok
+_au_stop "$_rv_ts:04.000Z" msg_Q2c
+_rv_new quoted q3; _au_edit "$_rv_ts:01.000Z" msg_Q3a toolu_Q3a
+_au_bash "$_rv_ts:02.000Z" msg_Q3b toolu_Q3b 'git commit -m \"fix the parser\n\npytest passes now\"'; _au_res "$_rv_ts:03.000Z" toolu_Q3b ok
+_au_stop "$_rv_ts:04.000Z" msg_Q3c
+_rv_new quoted q4; _au_edit "$_rv_ts:01.000Z" msg_Q4a toolu_Q4a
+_au_bash "$_rv_ts:02.000Z" msg_Q4b toolu_Q4b 'cd \"/w/it'"'"'s here\" && npm test'; _au_res "$_rv_ts:03.000Z" toolu_Q4b ok
+_au_stop "$_rv_ts:04.000Z" msg_Q4c
+is  "a runner named in a here-document, a single-quoted pattern or a multi-line message is text, not a check; one after a quoted path is" \
+    "$(_au_counts "$(_au --dir "$RV/quoted")")" "1 0 0 3"
+
+# Edits no gate covers: a scratch file and a memory note under the config
+# directory. Their stops are said, and left out of the four.
+_rv_new aside a1
+_au_tool toolu_A1a Write '{"file_path":"/tmp/scratch.py","content":"x"}'; _au_a "$_rv_ts:01.000Z" msg_A1a '"tool_use"' "$_AU_B"
+_au_stop "$_rv_ts:02.000Z" msg_A1b
+_au_tool toolu_A1c Edit "{\"file_path\":\"$AU/cfg/projects/-Users-dev-rv/memory/note.md\",\"old_string\":\"a\",\"new_string\":\"b\"}"
+_au_a "$_rv_ts:03.000Z" msg_A1c '"tool_use"' "$_AU_B"; _au_stop "$_rv_ts:04.000Z" msg_A1d
+_au_edit "$_rv_ts:05.000Z" msg_A1e toolu_A1e; _au_stop "$_rv_ts:06.000Z" msg_A1f
+_rvo="$(_au --dir "$RV/aside")"
+if [ "$(_au_counts "$_rvo")" = "0 0 0 1" ] && _au_nums "$_rvo" 'came after' 1 && _au_nums "$_rvo" 'scratch' 2; then
+  ok  "an edit to a scratch file or to Claude's own config directory is left out of the four, and the report says how many stops that was"
+else
+  bad "an edit to a scratch file or to Claude's own config directory is left out of the four, and the report says how many stops that was" "$_rvo"
+fi
+
+# Record-level keys only: an isSidechain and a timestamp nested in a tool's
+# result, a subagent message nested in a progress record, and a tool_use whose
+# type key comes last, with id and name keys nested in its input before its own.
+_rv_new nested n1; _au_edit 2026-09-02T00:00:00.000Z msg_N1a toolu_N1a
+_au_bash 2026-09-02T00:00:01.000Z msg_N1b toolu_N1b 'npm test'
+_au_raw "{\"parentUuid\":\"p\",\"isSidechain\":false,\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"tool_use_id\":\"toolu_N1b\",\"type\":\"tool_result\",\"content\":\"1 failed\",\"is_error\":true}]},\"uuid\":\"u-n1\",\"timestamp\":\"2026-09-02T00:00:02.000Z\",\"toolUseResult\":{\"stdout\":\"\",\"meta\":{\"timestamp\":\"2026-08-01T00:00:00Z\"},\"agent\":{\"isSidechain\":true}}}"
+_au_stop 2026-09-02T00:00:03.000Z msg_N1c
+_rv_new nested n2; _au_bash 2026-09-02T00:00:00.000Z msg_N2a toolu_N2a 'npm test'; _au_res 2026-09-02T00:00:01.000Z toolu_N2a ok
+_au_raw '{"parentUuid":"p","isSidechain":false,"type":"progress","data":{"type":"agent_progress","message":{"type":"assistant","message":{"id":"msg_sub1","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_sub1","name":"Edit","input":{"file_path":"/w/a"}}],"stop_reason":"tool_use"}}},"uuid":"u-p1","timestamp":"2026-09-02T00:00:02.000Z"}'
+_au_raw '{"parentUuid":"p","isSidechain":false,"type":"progress","data":{"type":"agent_progress","message":{"type":"assistant","message":{"id":"msg_sub2","type":"message","role":"assistant","content":[{"type":"text","text":"done"}],"stop_reason":"end_turn"}}},"uuid":"u-p2","timestamp":"2026-09-02T00:00:03.000Z"}'
+_au_stop 2026-09-02T00:00:04.000Z msg_N2b
+_rv_new nested n3
+_au_a 2026-09-02T00:00:00.000Z msg_N3a '"tool_use"' '{"id":"toolu_N3a","name":"Edit","input":{"file_path":"/w/a.js"},"type":"tool_use"}'
+_au_a 2026-09-02T00:00:01.000Z msg_N3b '"tool_use"' '{"input":{"command":"npm test","name":"x","id":"y"},"name":"Bash","id":"toolu_N3b","type":"tool_use"}'
+_au_res 2026-09-02T00:00:02.000Z toolu_N3b true; _au_stop 2026-09-02T00:00:03.000Z msg_N3c
+is  "whose record, when and whether a sidechain are read from the record's own keys, and a tool_use with its type key last is read" \
+    "$(_au_counts "$(_au --since 2026-09-01 --dir "$RV/nested")")" "0 2 0 0"
+
+# The shape of the directory: one project's directory given whole, and a last
+# glob entry that is a directory or a dangling link, not a transcript.
+mkdir -p "$RV/glob/-a" "$RV/glob/-zz/dir.jsonl" "$RV/glob2/-a" "$RV/glob2/-zz"
+cp "$RV/hid/-Users-dev-rv/h1.jsonl" "$RV/glob/-a/"; cp "$RV/hid/-Users-dev-rv/h1.jsonl" "$RV/glob2/-a/"
+ln -s "$RV/nowhere.jsonl" "$RV/glob2/-zz/x.jsonl"
+_au --dir "$RV/glob" >/dev/null; _rvrc=$?; _au --dir "$RV/glob2" >/dev/null; _rvrc2=$?
+_rvo="$(_au --dir "$RV/glob2")"
+[ "$_rvrc" -eq 0 ] && [ "$_rvrc2" -eq 0 ] && [ "$(_au_counts "$_rvo")" = "1 0 0 0" ] \
+  && ok  "a directory or a dangling link named like a transcript, sorting last, is skipped and the run exits 0" \
+  || bad "a directory or a dangling link named like a transcript, sorting last, is skipped and the run exits 0" "rc=$_rvrc,$_rvrc2 $_rvo"
+is  "--dir pointed at one project's directory reads the transcripts in it" \
+    "$(_au_counts "$(_au --dir "$RV/hid/-Users-dev-rv")")" "5 0 0 0"
+
+# The time a line of megabytes costs: a command of 262,144 backslashes before
+# its runner, a result line whose first block holds 131,072 content blocks,
+# and a result record holding 131,072 timestamps of its own. Each was a loop
+# that re-copied the rest of the line per step: 63 seconds on BWK awk, where
+# half these sizes took 17.
+mkdir -p "$RV/perf/-Users-dev-perf"
+awk -v d="$RV/perf/-Users-dev-perf" '
+  function A(id, content, sr) {
+    return "{\"parentUuid\":\"p\",\"isSidechain\":false,\"message\":{\"model\":\"m\",\"id\":\"" id "\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[" content "],\"stop_reason\":\"" sr "\"},\"type\":\"assistant\",\"uuid\":\"u-" id "\",\"timestamp\":\"2026-04-03T10:00:00.000Z\"}" }
+  function U(id, content, extra) {
+    return "{\"parentUuid\":\"p\",\"isSidechain\":false,\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[" content "]},\"uuid\":\"u-" id "\",\"timestamp\":\"2026-04-03T10:00:01.000Z\"" extra "}" }
+  function T(id, name, input) { return "{\"type\":\"tool_use\",\"id\":\"toolu_" id "\",\"name\":\"" name "\",\"input\":" input "}" }
+  function R(id, rest) { return "{\"tool_use_id\":\"toolu_" id "\",\"type\":\"tool_result\"," rest "}" }
+  BEGIN {
+    ed = "{\"file_path\":\"/w/a.js\"}"; done = "{\"type\":\"text\",\"text\":\"Done.\"}"
+    bs = "\\\\"; for (i = 0; i < 18; i++) bs = bs bs
+    tx = "{\"type\":\"text\",\"text\":\"x\"}"; for (i = 0; i < 17; i++) tx = tx "," tx
+    ts = "{\"timestamp\":\"2026-03-01T00:00:00Z\"}"; for (i = 0; i < 17; i++) ts = ts "," ts
+    f = d "/p1.jsonl"
+    print A("msg_p1a", T("p1a", "Edit", ed), "tool_use") > f
+    print A("msg_p1b", T("p1b", "Bash", "{\"command\":\"printf %s \047" bs "\047 && npm test\"}"), "tool_use") > f
+    print U("p1c", R("p1b", "\"content\":\"ok\""), "") > f
+    print A("msg_p1d", done, "end_turn") > f
+    f = d "/p2.jsonl"
+    print A("msg_p2a", T("p2a", "Edit", ed), "tool_use") > f
+    print A("msg_p2b", T("p2x", "Read", ed) "," T("p2b", "Bash", "{\"command\":\"npm test\"}"), "tool_use") > f
+    print U("p2c", R("p2x", "\"content\":[" tx "]") "," R("p2b", "\"content\":\"Exit code 1\",\"is_error\":true"), "") > f
+    print A("msg_p2d", done, "end_turn") > f
+    f = d "/p3.jsonl"
+    print A("msg_p3a", T("p3a", "Edit", ed), "tool_use") > f
+    print A("msg_p3b", T("p3b", "Bash", "{\"command\":\"npm test\"}"), "tool_use") > f
+    print U("p3c", R("p3b", "\"content\":\"ok\""), ",\"toolUseResult\":{\"history\":[" ts "]}") > f
+    print A("msg_p3d", done, "end_turn") > f
+  }'
+_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/perf")"; _rv_t1="$(date +%s)"
+if [ "$(_au_counts "$_rvo")" = "2 1 0 0" ]; then
+  [ $((_rv_t1 - _rv_t0)) -le 15 ] \
+    && ok  "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" \
+    || bad "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" "took $((_rv_t1 - _rv_t0))s"
+else
+  bad "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" \
+      "it did not count them, so its speed says nothing: $(_au_counts "$_rvo")"
+fi
+
+# Arguments that used to pass and answer something nobody meant, each beside
+# the run that differs only by them.
+_au --dir "$RV/hid" --verify 'npm[[:space:]]+test' >/dev/null; _rvrc=$?
+_au --dir "$RV/hid" --verify 'npm\s+test' >/dev/null; _rvrc2=$?
+[ "$_rvrc" -eq 0 ] && [ "$_rvrc2" -ne 0 ] \
+  && ok  "--verify refuses \\s, which is a class on one awk and a letter on another, where [[:space:]] runs" \
+  || bad "--verify refuses \\s, which is a class on one awk and a letter on another, where [[:space:]] runs" "posix: $_rvrc, \\s: $_rvrc2"
+_au --dir "$RV/hid" --since 2026-03-31 >/dev/null; _rvrc=$?
+_au --dir "$RV/hid" --since 2026-19-39 >/dev/null; _rvrc2=$?
+[ "$_rvrc" -eq 0 ] && [ "$_rvrc2" -ne 0 ] \
+  && ok  "--since refuses a month of 19 and a day of 39, where a real date runs" \
+  || bad "--since refuses a month of 19 and a day of 39, where a real date runs" "real: $_rvrc, 2026-19-39: $_rvrc2"
+
+# No HOME and no CLAUDE_CONFIG_DIR is a machine with nowhere to look, not an
+# error; and a transcript that cannot be opened is named, not dropped.
+_rvo="$(cd "$AU/cwd" && env -i PATH="$AUSTUB:$PATH" "$AUF" audit 2>&1)"; _rvrc=$?
+[ "$_rvrc" -eq 0 ] && _au_none "$_rvo" \
+  && ok  "with neither HOME nor CLAUDE_CONFIG_DIR set it reports no transcripts and exits 0" \
+  || bad "with neither HOME nor CLAUDE_CONFIG_DIR set it reports no transcripts and exits 0" "rc=$_rvrc $_rvo"
+mkdir -p "$RV/unread/-a"; cp "$RV/hid/-Users-dev-rv/h1.jsonl" "$RV/hid/-Users-dev-rv/h2.jsonl" "$RV/unread/-a/"
+chmod 000 "$RV/unread/-a/h2.jsonl"
+if [ -r "$RV/unread/-a/h2.jsonl" ]; then
+  skip "a transcript that cannot be opened is named in the report, not silently left out" "running as a user who reads a mode-000 file"
+else
+  _rvo="$(_au --dir "$RV/unread")"
+  case "$(_au_strip "$_rvo")" in
+    *"AUROOT/rv/unread/-a/h2.jsonl"*) ok  "a transcript that cannot be opened is named in the report, not silently left out" ;;
+    *) bad "a transcript that cannot be opened is named in the report, not silently left out" "$_rvo" ;;
+  esac
+fi
+chmod 644 "$RV/unread/-a/h2.jsonl"
+
+# What the words claim. A hold means no passing gate result was current for
+# the tree (it may have passed on it, before something moved), and a held stop
+# is still one of the stops above. felix new --no-commission installs no
+# plugin, but a session is only held once felix install has run.
+_rvo="$(_au --dir "$AUD")"
+case "$_rvo" in
+  *"had not passed"*) bad "the hold line claims no more than the hold does, and says a held stop is counted" "$(printf '%s\n' "$_rvo" | grep -i held)" ;;
+  *held*"still counted"*) ok "the hold line claims no more than the hold does, and says a held stop is counted" ;;
+  *) bad "the hold line claims no more than the hold does, and says a held stop is counted" "$(printf '%s\n' "$_rvo" | grep -i held)" ;;
+esac
+_rvh="$("$FELIX" 2>&1 | grep -A3 -e '--no-commission$')"; _rvl="$(_au_last "$_rvo")"
+case "$_rvh|$_rvl" in
+  *"nothing installed"*|*"without installing anything"*) _rvw=0 ;;
+  *"felix install"*"|"*"felix install"*) _rvw=1 ;;
+  *) _rvw=0 ;;
+esac
+[ "$_rvw" -eq 1 ] \
+  && ok  "neither the help nor the audit says --no-commission governs with nothing installed; both name felix install" \
+  || bad "neither the help nor the audit says --no-commission governs with nothing installed; both name felix install" "help: $_rvh | last: $_rvl"
+
+# felix new: a flag, or a path that is not a directory, where the path goes.
+# Both used to create projects/<name>, write no marker, say "bound via" and
+# exit 0, leaving a project the corrected command refused as already there.
+_nc_repo r-typo
+_ncy="$(_nc "$NC/r-typo" nctypo --no-comission)"; _ncyrc=$?
+_ncz="$(_nc "$NC" ncnodir "$NC/does-not-exist")"; _nczrc=$?
+if [ "$_ncyrc" -ne 0 ] && [ ! -e "$NC/home/projects/nctypo" ] && [ "$_nczrc" -ne 0 ] && [ ! -e "$NC/home/projects/ncnodir" ]; then
+  ok  "felix new with a flag or a missing directory where the path goes is refused before anything is made"
+else
+  bad "felix new with a flag or a missing directory where the path goes is refused before anything is made" \
+      "typo: rc=$_ncyrc made=$([ -e "$NC/home/projects/nctypo" ] && echo yes || echo no); missing: rc=$_nczrc made=$([ -e "$NC/home/projects/ncnodir" ] && echo yes || echo no)"
+fi
+_ncy2="$(_nc "$NC/r-typo" nctypo --no-commission)"; _ncy2rc=$?
+[ "$_ncy2rc" -eq 0 ] && _nc_bound r-typo nctypo \
+  && ok  "so the same command with the flag spelled right then binds it" \
+  || bad "so the same command with the flag spelled right then binds it" "rc=$_ncy2rc $_ncy2"
+
+# The read-only checks at the top of this section, shown able to fail for the
+# reason they name: the same snapshot and the same stub log, around a copy of
+# the engine whose audit writes one file under HOME and calls claude. Their
+# red run only ever showed them failing because the base had no audit at all.
+RVM="$TMP/audit-mutant"; mkdir -p "$RVM/home" "$RVM/cwd"; RVM="$(cd "$RVM" && pwd -P)"
+cp -R "$AU/clone/felix/engine/harness" "$RVM/harness"
+awk '{ print } /^felix_audit\(\) \{$/ { print "  : > \"$HOME/.felix-home\"; claude --version >/dev/null 2>&1" }' \
+  "$AU/clone/felix/engine/harness/lib/audit.sh" > "$RVM/audit.sh"
+cp "$RVM/audit.sh" "$RVM/harness/lib/audit.sh"
+_rvb="$(_au_snap "$RVM/home")"; : > "$AUSTUB_LOG"
+( cd "$RVM/cwd" && HOME="$RVM/home" CLAUDE_CONFIG_DIR="$AU/cfg" TMPDIR="$AU/tmp" PATH="$AUSTUB:$PATH" \
+    "$RVM/harness/felix" audit --dir "$AUD" ) >/dev/null 2>&1
+if [ "$_rvb" != "$(_au_snap "$RVM/home")" ] && grep -q '^claude ' "$AUSTUB_LOG"; then
+  ok  "the read-only checks can fail: an audit that writes under HOME and calls claude changes the snapshot and the stub log"
+else
+  bad "the read-only checks can fail: an audit that writes under HOME and calls claude changes the snapshot and the stub log" \
+      "home: $(ls -A "$RVM/home"); stub log: $(head -3 "$AUSTUB_LOG")"
+fi
+: > "$AUSTUB_LOG"
+
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.
 #

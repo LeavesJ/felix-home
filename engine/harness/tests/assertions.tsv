@@ -360,6 +360,7 @@
 1	a parent that is not the resolved home is still foreign
 1	a pass claiming it ran in the reviewed tree is refused
 1	a pass from a separate worktree records the place it ran
+1	a passing gate leaves no suite log behind
 1	a passing gate records nothing
 1	a passing mention is not a lesson about the check
 1	a passing verdict clears a reviewed escape through the kernel
@@ -990,6 +991,7 @@
 1	and due again after a commit the graph has not seen
 1	and due from the worktree too, which is where the session is
 1	and each bound is named in its own words
+1	and each full log line names a file holding its own run alone
 1	and each item appears once however often it bit
 1	and every byte is the one it had
 1	and every line is a whole row
@@ -1629,6 +1631,7 @@
 1	and the tier reducer agrees
 1	and the topology comes back when the member goes away
 1	and the topology it is keyed to
+1	and the two suites were running at the same moment
 1	and the unmount above is the only other proposal
 1	and the unwritten remainder is named as unwritten
 1	and the values are the ones the four functions compute
@@ -1640,6 +1643,7 @@
 1	and the widget table is as this block found it
 1	and the widget's topology is non-empty
 1	and there is at least one of them
+1	and those two suites were running at the same moment
 1	and under its own name it is current
 1	and what a fix will have to prove
 1	and what it links to is not read
@@ -1912,6 +1916,7 @@
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
 1	felix stack reconcile folds what nothing folded before reporting
+1	felix's gate names no fixed path under /tmp outside its comments
 1	felix's gate runs the memory check through memory-scan
 1	felix's hook_binding probe reads through hooks-events, not a grep
 1	felix's own first obligation is discharged on this tree
@@ -2556,6 +2561,8 @@
 1	twelve sessions ending at once are all still counted
 1	two byte-identical copies at two different paths digest the same
 1	two deferrals are two things waiting
+1	two failing gates at once: each FAIL excerpt is its own suite's
+1	two gates at once each report their own suite's count
 1	two piped lines in one file are one pipe-to-shell fact
 1	two rows in one session are one session, calls summed
 1	two rows, once each

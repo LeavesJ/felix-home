@@ -22,9 +22,10 @@
 # Per session, in file order:
 #   an EDIT   a tool_use named Edit, Write, MultiEdit or NotebookEdit (a file
 #             changed through Bash is not one, and the report says so), unless
-#             its file is scratch (/tmp, TMPDIR) or Claude's own (the config
-#             directory: memory, plans): no gate covers those, and a stop they
-#             alone precede is counted aside, and said
+#             its file is scratch (/tmp, TMPDIR), Claude's own (anything under
+#             the config directory: memory, plans, settings, skills, hooks) or
+#             Felix's memory (FELIX_MEMORY): no gate covers those, and a stop
+#             they alone precede is counted aside, and said
 #   a CHECK   a Bash command (never its description) matching the verify
 #             pattern outside quoted text and here-document bodies, save the
 #             script a shell is handed (bash -c, bash <<EOF); it FAILED when
@@ -125,6 +126,8 @@ felix_audit_scan() {
     t = ENVIRON["FELIX_AUDIT_TMP"]; sub(/\/*$/, "/", t)
     if (length(t) > 1) { ASIDE[++naside] = t; if (t ~ /^\/var\//) ASIDE[++naside] = "/private" t }
     t = ENVIRON["FELIX_AUDIT_CFG"]; sub(/\/*$/, "/", t)
+    if (length(t) > 1) ASIDE[++naside] = t
+    t = ENVIRON["FELIX_AUDIT_MEM"]; sub(/\/*$/, "/", t)
     if (length(t) > 1) ASIDE[++naside] = t
     # A backslash in a command is kept as \001 unless the pattern asks for one:
     # putting them back is a copy per backslash, and a command can hold 300,000.
@@ -494,7 +497,7 @@ _felix_audit_held() {  # holds counted aside noedit -> the clauses, joined by ";
     case "$k" in
       c) n="$2"; one="is still counted above, where the turn tried to end"
          many="are still counted above, where the turn tried to end" ;;
-      a) n="$3"; one="followed edits only to scratch files or Claude's own, left out above"; many="$one" ;;
+      a) n="$3"; one="followed edits only to scratch files or Claude's or Felix's own, left out above"; many="$one" ;;
       n) n="$4"; one="followed a turn with no new edit"; many="$one" ;;
       x) n=$(($1 - $2 - $3 - $4)); one="had no stop before it in what was read"
          many="had no stop before them in what was read" ;;
@@ -550,6 +553,10 @@ felix_audit() {
   local cfg="${CLAUDE_CONFIG_DIR:-}"
   [ -n "$cfg" ] || [ -z "${HOME:-}" ] || cfg="$HOME/.claude"
   [ -n "$dir" ] || dir="${cfg:+$cfg/projects}"
+  # Felix's memory, where felix_mem_root puts it, read here without sourcing
+  # the library that says so, which this command runs before.
+  local mem="${FELIX_MEMORY:-}"
+  [ -n "$mem" ] || [ -z "${HOME:-}" ] || mem="$HOME/.felix/memory"
   [ "$dir" = "/" ] || dir="${dir%/}"
   if [ "$explicit" -eq 1 ] && [ ! -d "$dir" ]; then
     _felix_audit_refuse "--dir $dir is not a directory"; return
@@ -578,7 +585,7 @@ felix_audit() {
   local t bad=""
   t="$(_felix_audit_list "$dir" "$mode" \
        | FELIX_AUDIT_SINCE="$since" FELIX_AUDIT_VERIFY="${verify:-$FELIX_AUDIT_CHECKS}" FELIX_AUDIT_CMDPOS="$FELIX_AUDIT_CMDPOS" \
-         FELIX_AUDIT_CFG="$cfg" FELIX_AUDIT_TMP="${TMPDIR:-}" felix_audit_scan)" \
+         FELIX_AUDIT_CFG="$cfg" FELIX_AUDIT_MEM="$mem" FELIX_AUDIT_TMP="${TMPDIR:-}" felix_audit_scan)" \
     || { printf 'felix audit: the read failed part way; nothing to report\n' >&2; return 1; }
   case "$t" in *$'\n'*) bad="${t#*$'\n'}"; t="${t%%$'\n'*}" ;; esac
   # Eighteen fields, none empty and none with a space, so plain word splitting
@@ -614,7 +621,7 @@ felix_audit() {
     "$never" "$(_felix_audit_pct "$never" "$stops")"
 
   [ "$aside" -gt 0 ] && \
-    printf 'Left out: %s after edits only to scratch files or Claude'"'"'s own (memory, plans, settings), which no gate covers.\n\n' \
+    printf 'Left out: %s after edits only to scratch files, to Claude'"'"'s configuration directory (memory, plans, settings, skills, hooks) or to Felix'"'"'s memory, which no gate covers.\n\n' \
       "$(_felix_audit_n "$aside" stop)"
   [ "$holds" -gt 0 ] && \
     printf 'Felix held %s, in %s, because no passing gate result was current for the tree. %s.\n\n' \

@@ -215,7 +215,9 @@ on, each still read against its whole session. A check piped into
 another command, followed by one, run in the background or turned over by `!`
 hands its exit status to something else, so its own failure goes unseen, and the report says
 how many of the passing ones that covers. It doesn't read subagent transcripts,
-and it leaves out edits to scratch files and to Claude's own memory and plans.
+and it leaves out edits to scratch files, to anything under Claude's
+configuration directory (memory, plans, settings, skills, hooks) and to
+Felix's memory, since no gate covers those.
 An edit is Claude's Edit, Write, MultiEdit or NotebookEdit tool: a file
 changed through Bash (`sed -i`, a redirect, `git apply`) is not seen as one,
 so a `sed -i` after a passing check still reads as passed.

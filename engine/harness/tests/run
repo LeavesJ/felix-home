@@ -17499,6 +17499,23 @@ else
       "typo: rc=$_ncxrc calls=$_ncxcalls made=$_ncxmade $(printf '%s' "$_ncx" | head -c 200) | extra: rc=$_ncwrc | right: rc=$_ncvrc $(printf '%s' "$_ncv" | tail -c 200)"
 fi
 
+# What is left out as no gate's: everything under Claude's configuration
+# directory, a skill's script as much as a memory note, and Felix's own memory
+# too. The report and the README name that whole scope, not memory and plans.
+_rv_new r3/own r3-ow1
+_au_tool toolu_r3ow1 Edit "{\"file_path\":\"$AU/cfg/skills/tool/scripts/run.py\",\"old_string\":\"a\",\"new_string\":\"b\"}"
+_au_a "$_rv_ts:01.000Z" msg_r3ow1a '"tool_use"' "$_AU_B"; _au_stop "$_rv_ts:02.000Z" msg_r3ow1b
+_rv_new r3/own r3-ow2
+_au_tool toolu_r3ow2 Edit "{\"file_path\":\"$AU/home/.felix/memory/proj/DEVLOG.md\",\"old_string\":\"a\",\"new_string\":\"b\"}"
+_au_a "$_rv_ts:01.000Z" msg_r3ow2a '"tool_use"' "$_AU_B"; _au_stop "$_rv_ts:02.000Z" msg_r3ow2b
+_rvo="$(_au --dir "$RV/r3/own")"
+_rvr="$(awk '/^## / { p = ($0 ~ /^## Try it/); next } p' "$REAL_HARNESS/../../README.md" 2>/dev/null)"
+_au_nums "$_rvo" 'came after' 0 0 && _au_nums "$_rvo" 'left out' 2 \
+  && _rv_says "$_rvo" 'left out[^.]*skills[^.]*felix' && _rv_says "$_rvr" 'leaves out[^.]*skills[^.]*felix' \
+  && ok  "an edit to a skill under Claude's configuration directory or to Felix's memory is left out as no gate's, and the report and the README name that scope" \
+  || bad "an edit to a skill under Claude's configuration directory or to Felix's memory is left out as no gate's, and the report and the README name that scope" \
+         "$(printf '%s\n' "$_rvo" | grep -iE 'came after|left out|never ') | $(printf '%s\n' "$_rvr" | grep -i -A1 'leaves out')"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

@@ -394,20 +394,23 @@ fi
 ver_of() { sed -n 's/.*"version"[^"]*"\([^"]*\)".*/\1/p' | head -1; }
 VER="$(ver_of < "$B/engine/.claude-plugin/plugin.json")"
 PREV="$(git -C "$CLONE" show "$BASE:engine/.claude-plugin/plugin.json" 2>/dev/null | ver_of || true)"
-SHORT="$(git -C "$HOME_TOP" rev-parse --short=12 "$SRC")"
+DAY_SRC="$(git -C "$HOME_TOP" log -1 --format=%cd --date=short "$SRC")"
 MSG="$OUT/message.txt"
 if [ -n "$MSGFILE" ]; then cp "$MSGFILE" "$MSG"; else
   {
     say "Engine $VER: the snapshot brought forward from ${PREV:-the last one}"
     say ""
-    say "A snapshot of the engine as its home's main held it on $(git -C "$HOME_TOP" log -1 --format=%cd --date=short "$SRC")."
+    say "A snapshot of the engine as its home's main held it on $DAY_SRC."
     say "The home stays private, so this arrives as one commit rather than the"
     say "pull requests it was built from. The paths it changes:"
     say ""
     git -C "$CLONE" diff --cached --name-status "$BASE" | sed 's/^/    /'
   } > "$MSG"
 fi
-grep -q "$SHORT" "$MSG" || printf '\nCut from the home'"'"'s main at %s.\n' "$SHORT" >> "$MSG"
+# The engine version and the date say where this came from; the home's commit
+# id is private, so it is printed below for the lead to record, never published.
+grep -qF "$VER" "$MSG" || printf '\nEngine %s, as the home'"'"'s main held it on %s.\n' "$VER" "$DAY_SRC" >> "$MSG"
+! grep -qiF "${SRC:0:7}" "$MSG" || die "the message carries the home's commit id ${SRC:0:7}; the public text names the version and the date"
 grep -q '^Withheld, as before' "$MSG" || cat >> "$MSG" <<'EOF'
 
 Withheld, as before: the autonomy grants, which are a person's consent and not
@@ -459,6 +462,7 @@ audit_text "$PR"
 say ""
 git -C "$CLONE" diff --stat=100 "$BASE" HEAD
 say ""
+say "source: the home's $SRC; record it privately, the public message carries engine $VER and $DAY_SRC"
 say "Nothing was pushed. To publish, run:"
 say "  git -C $CLONE push $PUBLIC_URL $BR"
 say "  gh pr create --repo $PUBLIC_SLUG --base main --head $BR --title $(printf '%q' "$SUBJECT") --body-file $PR"

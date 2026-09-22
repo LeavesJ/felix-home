@@ -4,10 +4,36 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	64382c5ab9379752f2c502b4c22c6efe08db6181	0.49.130
-run	5	2685	1
-and each full log line names a file holding its own run alone	1
-felix's gate names no fixed path under /tmp outside its comments	1
-the structural verdict shows its evidence too	1
-two failing gates at once: each FAIL excerpt is its own suite's	1
-two gates at once each report their own suite's count	1
+base	origin/main	81fc3a3251a7e5f093b5dcd976d412e397fd1266	0.49.131
+run	31	2698	1
+.lsp.json at the root is medium	1
+a catalogue naming the plugin with no entry to isolate is high	1
+a catalogue that cannot be read is high	1
+a default file linked out of the copy is high, not read where it points	1
+a hook in the frontmatter of a declared commands folder is high	1
+a minified catalogue is read the same	1
+a nomination whose entry declares an LSP server is held for a person	1
+a registered marketplace names its catalogue	1
+an LSP server that interpolates a variable is high	1
+an entry declaring an MCP server inline is medium	1
+an entry declaring hooks inline is high	1
+an entry's path is read inside the plugin	1
+an entry's skill folder with frontmatter hooks is high	1
+an installed copy is tiered with its marketplace entry	1
+an lspServers path linked out of the copy is high	1
+an lspServers path that does not exist is high	1
+an unpinned LSP command is high	1
+and in a declared skill folder's own SKILL.md	1
+and medium once its marketplace entry's LSP server is read	1
+and one the plugin does not ship is high	1
+and one whose entry declares a hook is refused	1
+and says which file and why	1
+and the fact is a local subprocess	1
+because it was not read	1
+from a minified registry too	1
+lspServers as a list of paths is medium	1
+lspServers as a path in the manifest is medium	1
+lspServers inline in the manifest is medium	1
+the cache row carries the tier its marketplace entry declares	1
+the reason names the server it starts	1
+the source names the marketplace the entry came from	1

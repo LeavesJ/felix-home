@@ -13,6 +13,7 @@
 1	--status writes no request
 1	--strict exits non-zero on a gap
 1	--yes never installs high risk
+1	.lsp.json at the root is medium
 1	FELIX_ALLOW_RED lets a founder stop anyway
 1	FELIX_GRAPH_TAIL widens the window when someone needs it to
 1	FELIX_MEMORY overrides the default
@@ -63,6 +64,8 @@
 1	a capability some route names is a keyword problem
 1	a capital in the name is not a name
 1	a cargo crate is a rust project
+1	a catalogue naming the plugin with no entry to isolate is high
+1	a catalogue that cannot be read is high
 1	a catalogue whose LAST entry does not match is still exit 0
 1	a chain of links keeps every link
 1	a change that does not touch the engine is not called self-judgement
@@ -102,6 +105,7 @@
 1	a control needing no mutation still runs
 1	a control that stages its own violation lifts the refusal
 1	a control the checker meets is met
+1	a copy that ships a README alone is low when no entry is read
 1	a copy with files in it digests to something
 1	a count that is not a number is reported rather than passed over
 1	a credential added to a green path is out of scope
@@ -121,6 +125,7 @@
 1	a declared absolute path reads nothing from the file it points at
 1	a declared capability with NO row still scores on its name
 1	a declared capability with a row keeps its keywords
+1	a declared commands folder that is missing adds nothing
 1	a declared path beginning with ~ is an unread fact naming the key and the path
 1	a declared path beginning with ~ is high
 1	a declared path beginning with ~ reads nothing from the file it points at
@@ -142,6 +147,7 @@
 1	a decline whose premise died is caught
 1	a decline whose premise still holds is ok
 1	a declined play is not raised at the finish
+1	a default file linked out of the copy is high, not read where it points
 1	a deferral with no kind or no subject writes no row
 1	a denied command exits 2
 1	a deploy-check with no library beside it is 127, never 1
@@ -258,6 +264,7 @@
 1	a home that is no repository has its grants unread, and the widget report says so under the new summary
 1	a hook added today without its bit fails the same way
 1	a hook command at a declared path is never run
+1	a hook in the frontmatter of a declared commands folder is high
 1	a hook nobody explained is caught
 1	a hook nomination is recorded, not installed
 1	a hook that stopped being wired is caught
@@ -314,6 +321,7 @@
 1	a migration classifies red
 1	a migration escapes as durable
 1	a migration is out of scope
+1	a minified catalogue is read the same
 1	a missing comma is an unread manifest, not a lost declaration
 1	a missing file is cannot-examine, exit 2, never an empty binding
 1	a missing manifest is refused
@@ -347,6 +355,7 @@
 1	a night that ran out of time lets the session stop
 1	a night with no continuations in it is refused
 1	a nomination that inspects clean is declared
+1	a nomination whose entry declares an LSP server is held for a person
 1	a non-executable lookalike is ignored
 1	a note carrying a tab and a newline still leaves one line of six fields
 1	a note given twice, by flag and by words, refuses
@@ -397,6 +406,7 @@
 1	a plugin shipping hooks and nothing countable is hook-only
 1	a plugin that cannot be checked is not a clean bill
 1	a plugin that declares no paths has exactly the facts it had before
+1	a plugin the catalogue does not list adds nothing
 1	a pointer to a real home is left alone
 1	a policy version is one line
 1	a predicate that was being read and no longer is gets named
@@ -488,6 +498,7 @@
 1	a refusal on risk is reported
 1	a refused candidate does not fail the report
 1	a regenerated handoff keeps the mode it had
+1	a registered marketplace names its catalogue
 1	a rejected push is reported, not forced
 1	a relative link survives a write too
 1	a release-mode run carries no clearance in any row
@@ -671,6 +682,7 @@
 1	already-learned terms drop out
 1	always is a profile, not a wildcard
 1	an INFO candidate is accepted
+1	an LSP server that interpolates a variable is high
 1	an SDK dependency makes it an llm project
 1	an absent gate receipt reads as absent, not as green
 1	an absent marker is still silent at session start
@@ -729,9 +741,14 @@
 1	an engine that is a checkout is its own source
 1	an engine under that path can deploy
 1	an engine whose every script carries its bit exits 0
+1	an entry declaring an MCP server inline is medium
+1	an entry declaring hooks inline is high
 1	an entry for main's version tampered under harness is drift
+1	an entry that declares nothing adds nothing
 1	an entry with no path does not inherit the next entry's answer
 1	an entry with no such field yields nothing, not the next entry's value
+1	an entry's path is read inside the plugin
+1	an entry's skill folder with frontmatter hooks is high
 1	an envelope field name never does
 1	an escape is named as the founder's
 1	an established fact is classed OBSERVED
@@ -757,12 +774,15 @@
 1	an inapplicable row is rendered n/a, never ok, HELD or UNRUNNABLE
 1	an inline server that interpolates a variable is high
 1	an installPath that is not a directory reads absent
+1	an installed copy is tiered with its marketplace entry
 1	an installed copy that differs from what Felix read reads drift
 1	an installed copy that matches what Felix read reads same
 1	an installed plugin is matched by what it ships
 1	an instrument this machine lacks makes the row unknown
 1	an issue naming no real file still exits 0
 1	an item with a stance is no longer a gap
+1	an lspServers path linked out of the copy is high
+1	an lspServers path that does not exist is high
 1	an mcp call does mark the bare plugin step used
 1	an mcp call does not mark a qualified step of that plugin used
 1	an mcp call is recorded by server
@@ -797,6 +817,7 @@
 1	an unmount is held while calls sit unfolded on disk
 1	an unparseable payload is allowed
 1	an unparseable payload records nothing
+1	an unpinned LSP command is high
 1	an unpinned version is high
 1	an unread declaration alone is high
 1	an unreadable count is unknown
@@ -808,6 +829,7 @@
 1	an unrecognised flag refuses rather than printing success
 1	an unrecognised path is yellow, never green
 1	an unregistered marketplace makes no claim either way
+1	an unregistered one names none
 1	an unrelated context matches nothing
 1	an unrelated executable is left alone
 1	an unrelated path is allowed
@@ -1038,6 +1060,7 @@
 1	and holds no prose when nothing matched
 1	and hooks beside a pipe to a shell are still high
 1	and ignores the path so it cannot come back
+1	and in a declared skill folder's own SKILL.md
 1	and in the policy's own words, which is what proves the call reached it
 1	and is carried when none is given
 1	and is clean when the three directories agree
@@ -1123,12 +1146,14 @@
 1	and leaves a control its checker passes over held
 1	and leaves it as it was, byte for byte
 1	and leaves no new file in the project's memory
+1	and leaves no scratch file behind
 1	and leaves the recorded note as it was
 1	and lists every event its hooks object binds
 1	and main put back matches again
 1	and matches an ecosystem word on a word boundary
 1	and matches on keywords, not just names
 1	and matches what the holding checkout itself answers
+1	and medium once its marketplace entry's LSP server is read
 1	and merge does not call it an unscanned diff
 1	and merges nothing under it
 1	and moves the epoch, because the probe counts it
@@ -1254,7 +1279,9 @@
 1	and one that arrives without its bit fails, where a fixed list saw nothing
 1	and one that shares nothing stands alone
 1	and one that was not is still not
+1	and one the plugin does not ship is high
 1	and one unknown path taints a green set
+1	and one whose entry declares a hook is refused
 1	and one with a session id records under exactly that id
 1	and one wrapped in bold
 1	and one written as a path
@@ -1386,6 +1413,7 @@
 1	and says which base it could not resolve
 1	and says which channel
 1	and says which directory it was sent to
+1	and says which file and why
 1	and says which projects it knows
 1	and says which rule
 1	and says which variable it sends
@@ -1501,6 +1529,7 @@
 1	and the entry that has one still answers
 1	and the epoch is back where it started once all four are
 1	and the exact command that produced it
+1	and the fact is a local subprocess
 1	and the failure is recorded under the check's own name
 1	and the file at the end of it holds the new handoff
 1	and the file it names holds the new handoff
@@ -1692,6 +1721,7 @@
 1	backs the removed copy up first
 1	backticks plus the punctuation after them
 1	because it carries no epoch
+1	because it was not read
 1	because the second path was read too
 1	before the pulse has ever run there is nothing to report
 1	binds the checkout with no remote
@@ -1946,6 +1976,7 @@
 1	flipping a file's executable bit changes the digest
 1	for every gate check that file actually covers
 1	free text matches the catalogue
+1	from a minified registry too
 1	from a nested subdirectory the verdict is unchanged
 1	frontmatter after a byte-order mark still declares hooks
 1	frontmatter with Windows line endings still declares hooks
@@ -2041,6 +2072,9 @@
 1	lists the skills a plugin ships
 1	lists what the fix must prove
 1	log writes to the devlog
+1	lspServers as a list of paths is medium
+1	lspServers as a path in the manifest is medium
+1	lspServers inline in the manifest is medium
 1	main's engine byte-identical to the entry for main's version is exit 0
 1	main's resolve.sh decides the installed verdict
 1	maintenance that is due is named
@@ -2197,6 +2231,7 @@
 1	read prints the recorded rows
 1	reading a key from env is not a credential
 1	reading can be refused too
+1	reading the entry writes nothing into the copy
 1	reads a plugin's own description
 1	reads paths from stdin too
 1	reads the files a task declares
@@ -2350,6 +2385,7 @@
 1	the cache already there is untouched
 1	the cache hands back the digest recorded beside a name
 1	the cache row carries the capability the skills serve
+1	the cache row carries the tier its marketplace entry declares
 1	the candidate fixture's epoch is a hash
 1	the capabilities file is untouched
 1	the capability probe yields ecosystem words to check for
@@ -2377,6 +2413,7 @@
 1	the engine names no governed project
 1	the engine writes manifests carrying the grounding column
 1	the entry point and the suite runner, both bare, fail
+1	the entry read is the one named, not one whose author has the name
 1	the exceptions template names the row hash column and holds no rows
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
@@ -2460,6 +2497,7 @@
 1	the re-run's answer names a different epoch
 1	the readiness report runs at all
 1	the reason is durable in decisions.log
+1	the reason names the server it starts
 1	the receipt carries the limit no layer above it removes
 1	the receipt has ten fields
 1	the receipt names what granted the authority
@@ -2515,6 +2553,7 @@
 1	the shipped layout — memory under ~/.felix — is its own repo
 1	the shipped table considers every moment
 1	the skipped row the Stop hook writes is counted
+1	the source names the marketplace the entry came from
 1	the squash leaves the merge-base behind main
 1	the stamp changes with the rules table
 1	the stamp is the commit the graph says it was built at

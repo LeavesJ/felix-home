@@ -539,6 +539,7 @@
 1	a red run against main exits 0 once the suite has run
 1	a red run breaks the streak
 1	a red working tree is still named in the session
+1	a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot
 1	a refresh of a graphed checkout exits 0
 1	a refreshed graph clears the row
 1	a refusal on risk is reported
@@ -946,6 +947,7 @@
 1	and a CLI that cannot answer is not a stale deployment
 1	and a backticked path naming nothing is still not invented
 1	and a bare script is still caught from inside the engine itself
+1	and a base that is a commit here is still compared, so a stale record still fails
 1	and a cache file that is not there reads as no digest either
 1	and a call from a worktree is held by the same lock, there being one graph
 1	and a catalogue that was read and matched nothing is exit 0

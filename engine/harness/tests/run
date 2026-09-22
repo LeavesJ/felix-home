@@ -17398,6 +17398,26 @@ _rvo="$(_au --dir "$RV/r3/since" --since 2026-09-20)"
   && ok  "--since counts the stops on or after the cutoff, read against what came before it: a check the day before is stale, not never" \
   || bad "--since counts the stops on or after the cutoff, read against what came before it: a check the day before is stale, not never" "$_rvo"
 
+# A resumed session copies the history it resumes, stop, hold and sessionId
+# as they were, and then stops again. The same two files, named so that one
+# sorts first in one directory and the other in the next: each stop and hold
+# belongs to the session its record names, whichever file is read first.
+_rv_resume() {  # dir original resumed
+  _rv_new "$1" "$2"
+  _au_edit "$_rv_ts:01.000Z" msg_r3rs1 toolu_r3rs1; _au_stop "$_rv_ts:02.000Z" msg_r3rs2
+  _au_hold "$_rv_ts:03.000Z" 'Stop hook feedback:\nThe gate has never run in this checkout.'
+  cp "$_AU_F" "${_AU_F%/*}/$3.jsonl"; _AU_F="${_AU_F%/*}/$3.jsonl"; _AU_SID="$3"
+  _au_say  "$_rv_ts:05.000Z" 'go on'; _au_edit "$_rv_ts:06.000Z" msg_r3rs3 toolu_r3rs3
+  _au_stop "$_rv_ts:07.000Z" msg_r3rs4
+  _au_hold "$_rv_ts:08.000Z" 'Stop hook feedback:\nThe gate has never run in this checkout.'; }
+_rv_resume r3/resume1 r3-o1 r3-r2; _rv_resume r3/resume2 r3-o2 r3-a1
+_rvo="$(_au --dir "$RV/r3/resume1")"; _rvo2="$(_au --dir "$RV/r3/resume2")"
+_au_nums "$_rvo" 'came after' 2 2 && _au_nums "$_rvo2" 'came after' 2 2 \
+  && _au_nums "$_rvo" 'held' 2 2 && _au_nums "$_rvo2" 'held' 2 2 \
+  && ok  "a stop and a hold copied into a resumed session belong to the session their record names, whichever transcript sorts first: 2 stops and 2 holds in 2 sessions both ways" \
+  || bad "a stop and a hold copied into a resumed session belong to the session their record names, whichever transcript sorts first: 2 stops and 2 holds in 2 sessions both ways" \
+         "$(printf '%s\n' "$_rvo" | grep -E 'came after|held') | $(printf '%s\n' "$_rvo2" | grep -E 'came after|held')"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

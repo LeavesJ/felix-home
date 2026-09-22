@@ -8,7 +8,7 @@
 # it before any other library is sourced and before a home is resolved, it
 # opens no file for writing, makes no temporary file (no here-document either:
 # bash backs those with one), calls no model and touches no network. It reads
-# DIR/*/*.jsonl, a session per file, DIR defaulting to
+# DIR/*/*.jsonl, a transcript per file, DIR defaulting to
 # ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects; an explicit --dir holding only
 # transcripts is read as one project, DIR/*.jsonl. No transcripts is a report.
 #
@@ -103,13 +103,16 @@ _felix_audit_refuse() {
 #   files sessions first last stops stop_sessions passed failed stale never
 #   holds hold_sessions hidden aside unread held_counted held_aside held_noedit
 # (first and last - where no record had a timestamp), then the first file that
-# could not be read, if one. A session filed under two projects counts once.
+# could not be read, if one. A session is the sessionId its records carry (the
+# file name where they carry none), so one filed under two projects counts
+# once, and a stop or a hold copied into a resumed session stays with the
+# session it was made in, whichever transcript is read first.
 felix_audit_scan() {
   awk '
   BEGIN {
     since = ENVIRON["FELIX_AUDIT_SINCE"]; vre = ENVIRON["FELIX_AUDIT_VERIFY"]
     Q = "\""; BS = "\\"; SQ = "\047"; UUID = "\"uuid\":\"[^\"]*\",$"
-    K_SIDE = "\"isSidechain\":true"; K_TS = "\"timestamp\":\""; K_MSG = "\"message\":{"
+    K_SID = "\"sessionId\":\""; K_SIDE = "\"isSidechain\":true"; K_TS = "\"timestamp\":\""; K_MSG = "\"message\":{"
     K_ASST = "\"type\":\"assistant\""; K_USER = "\"type\":\"user\""; K_TYPE = "\"type\":\""
     K_USE = "\"type\":\"tool_use\""; K_RES = "\"type\":\"tool_result\""
     K_END = "\"stop_reason\":\"end_turn\""; K_TID = "\"tool_use_id\":\""
@@ -309,7 +312,7 @@ felix_audit_scan() {
   }
 
   function reset() {
-    seen = 0; sstops = 0; sholds = 0; edited = 0; aside = 0; pos = 0; lastd = ""
+    edited = 0; aside = 0; pos = 0; lastd = ""
     last_edit = 0; last_chk = 0; last_chk_id = ""; last_hid = 0; any_chk = 0
     split("", chk); split("", failed); split("", used)
   }
@@ -352,7 +355,7 @@ felix_audit_scan() {
   function stop() {
     if (cut) { edited = 0; aside = 0; lastd = ""; return }
     if (!edited) { if (aside) { naside_stops++; lastd = "a" } else lastd = "n"; aside = 0; return }
-    edited = 0; aside = 0; stops++; sstops++; lastd = "c"
+    edited = 0; aside = 0; stops++; lastd = "c"; if (!(SK in S2)) { S2[SK] = 1; stop_sessions++ }
     if (last_chk > last_edit) { if (last_chk_id in failed) nfail++; else { npass++; if (last_hid) nhid++ } }
     else if (any_chk) nstale++
     else nnever++
@@ -413,8 +416,9 @@ felix_audit_scan() {
     im = index(l, K_MSG)
     p = index(l, K_SIDE); if (p && (!im || p < im)) return
     stamp(l); cut = (since != "" && TS != "" && TS < since)
+    SK = sval(l, K_SID); if (SK == "") SK = BASE
     if (TS != "" && !cut) {
-      seen = 1
+      if (!(SK in S1)) { S1[SK] = 1; sessions++ }
       if (first == "" || TS < first) first = TS
       if (TS > last) last = TS
     }
@@ -441,20 +445,16 @@ felix_audit_scan() {
             || index(l, "The gate failed on this exact tree") || index(l, "The gate passed on this exact tree at")) \
         && !cut && (UU == "" || !(UU in held))) {
       if (UU != "") held[UU] = 1
-      holds++; sholds++
+      holds++; if (!(SK in S3)) { S3[SK] = 1; hold_sessions++ }
       if (lastd == "c") hcount++; else if (lastd == "a") haside++; else if (lastd == "n") hnoedit++
     }
   }
 
   NF {
-    f = $0; files++; fno++; reset()
+    f = $0; files++; fno++; reset(); BASE = f; sub(/.*\//, "", BASE); sub(/[.]jsonl$/, "", BASE)
     if ((st = (getline line < f)) < 0) { if (!unread++) unread1 = f; next }
     while (st > 0) { record(line); st = (getline line < f) }
     close(f)
-    b = f; sub(/.*\//, "", b)
-    if (seen && !(b in S1)) { S1[b] = 1; sessions++ }
-    if (sstops && !(b in S2)) { S2[b] = 1; stop_sessions++ }
-    if (sholds && !(b in S3)) { S3[b] = 1; hold_sessions++ }
   }
 
   END {

@@ -4,32 +4,14 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	d0b162f0820d865eb9030d4a19539ad78a422398	0.49.136
-run	27	2822	1
-a message from another session is not routed, and moves nothing in the session it lands in	1
-a notification payload is machine text end to end	1
-a summary request behind leading spaces is recorded as nothing too	1
-a summary request leaves a marker for its session in place of a record	1
-a task notification is not a prompt	1
-and SessionEnd folds nothing of it into ledger.d	1
-and Stop neither holds that session nor tells it anything	1
-and a summary session is not	1
-and an older one in which such a prompt was one of several	1
-and counts a person's session whose prompt shares the request's first 200 characters	1
-and keeps no route state for Stop to judge it by	1
-and leaves no session mark for a session nobody held	1
-and logs no routing decision for it	1
-and names no play in a session ledger for it	1
-and one lifecycle row for that session, of kind summary, naming its transcript	1
-and records no hold for it in says.log or verification.log	1
-and records nothing else for it: no brief, no route, no mark, no route state	1
-and so is one behind an escaped leading newline	1
-and writes no brief for it to says.log	1
-but no longer folds an old summary session back into ledger.d	1
-nor is a system reminder	1
-nor the all-caps sentinel	1
-nor the stop hook talking to itself	1
-session-start counts a person's unfolded session as stranded, and not an old summary session	1
-so session-end folds no phantom session into ledger.d	1
-the #264 block leaves the logs and the session state as it found them	1
-the platform's summary request says nothing	1
+base	origin/main	451bd401e863022adaa3eb9a21d0edf5099988e3	0.49.137
+run	9	2859	1
+a key id beside that word is still caught	1
+catches a key the keyword ends, sample 1	1
+catches a key the keyword ends, sample 2	1
+catches a key the keyword ends, sample 3	1
+catches a temporary key or a quoted JSON key, sample 1	1
+catches a temporary key or a quoted JSON key, sample 2	1
+catches a temporary key or a quoted JSON key, sample 3	1
+catches a temporary key or a quoted JSON key, sample 4	1
+catches a temporary key or a quoted JSON key, sample 5	1

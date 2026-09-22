@@ -110,9 +110,9 @@ new one did not. The real checkout gates ok on it.
 script names a fixed path under /tmp outside its comments") reads tracked files
 only, so tracking is what brings bazaar under it. But on 2026-09-21 that
 assertion exists only in `9d5c667`, on local branch
-`claude/unruffled-tesla-8e4e41`: no remote, no PR. The felix gate's own fix is
-#276, open. Until `9d5c667` merges, nothing on main checks any project script
-for a fixed path. Replayed by hand, its loop flags the committed original and
+`claude/unruffled-tesla-8e4e41` (head `0114947` when checked): no remote, no
+PR. The felix gate's own fix merged as #276 while this was in review. Until that
+branch merges, nothing on main checks any project script for a fixed path. Replayed by hand, its loop flags the committed original and
 passes the fix. Its barrier test drives elenchus and veldra only; bazaar joins
 it after that branch merges.
 

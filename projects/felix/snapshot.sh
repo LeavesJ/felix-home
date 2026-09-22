@@ -223,16 +223,41 @@ fi
 perl -0pi -e 's/("remote_match"\s*:\s*")[^"]*(")/${1}LeavesJ\/Felix${2}/' "$B/projects/$SELF/project.json"
 [ "$(slug_of < "$B/projects/$SELF/project.json")" = "$PUBLIC_SLUG" ] || die "remote_match was not rewritten"
 
-# The scrub, per project in token order, and its order is load-bearing. A path
-# first: a phrase with spaces inside a path under projects/ made `test -f` a
-# usage error. The upper-case identifier next, or the prose rule would leave a
-# phrase glued to an underscore. Then prose, any case, as one lower-case
-# phrase. Then the pieces: a prefix of three or more and the rest, with a few
-# characters between or one standing in, become the token's pieces.
+# The scrub, per project in token order, and its order is load-bearing. The
+# upper-case identifier first, or the prose rule would leave a phrase glued to
+# an underscore. Then the name itself, and what it becomes is read from the
+# characters around it. Inside a path (a slash or a hyphen beside it, or a dot
+# and a file extension) it becomes the bare token, which has no space: a phrase
+# with spaces inside a path made `test -f` a usage error, and later turned a
+# redirect into one to a file named for the first word. Anywhere else it is
+# prose and becomes the phrase, in lower case. Then the pieces: a prefix of
+# three or more and the rest, with a few characters between or one standing
+# in, become the token's pieces.
 # The text files are listed once, and only they are rewritten: a binary file is
 # never edited, so a name in one is left for the audit, which reads every file,
 # to stop on. A list that comes back short leaves a name unrewritten, and the
 # audit stops on it, so a failure here is never silent.
+IFS= read -r -d '' SCRUB_PL <<'PERL' || true
+BEGIN { ($n, $t, $ph, $up, $tup) = @ENV{qw(N T PH UP TUP)}; $L = length $n; }
+s{\Q$up\E(?=_)}{$tup}g;
+my $o = $_;
+s{\Q$n\E}{
+  my ($b, $a) = (substr($o, 0, $-[0]), substr($o, $+[0]));
+  my ($p, $pp) = (length $b ? substr($b, -1) : "", length $b > 1 ? substr($b, -2, 1) : "");
+  my ($q, $qq) = (length $a ? substr($a, 0, 1) : "", length $a > 1 ? substr($a, 1, 1) : "");
+  ($p =~ m{[/-]} || $q =~ m{[/-]} || ($q eq "." && $qq =~ /[A-Za-z0-9]/) || ($p eq "." && $pp =~ /[A-Za-z0-9]/)) ? $t : $ph
+}gie;
+for my $k (3 .. $L - 3) {
+  my ($x, $y) = (substr($n, 0, $k), substr($n, $k));
+  my ($tx, $ty) = (substr($t, 0, $k), $k < length $t ? substr($t, $k) : "");
+  s{\Q$x\E(.{1,8}?)\Q$y\E}{$tx$1$ty}g;
+}
+for my $k (3 .. $L - 2) {
+  my ($x, $c, $y) = (substr($n, 0, $k), substr($n, $k, 1), substr($n, $k + 1));
+  my ($tx, $ty) = (substr($t, 0, $k), $k < length $t ? substr($t, $k) : "");
+  s{\Q$x\E([^\Q$c\E])\Q$y\E}{$tx$1$ty}g;
+}
+PERL
 find "$B" -type f -print0 | xargs -0 grep -lI --null '' > "$OUT/text.files" || true
 i=0
 for n in ${SCRUB[@]+"${SCRUB[@]}"}; do
@@ -241,21 +266,7 @@ for n in ${SCRUB[@]+"${SCRUB[@]}"}; do
   N="$n" T="$tok" UP="$(printf '%s' "$n" | tr '[:lower:]' '[:upper:]')"
   TUP="$(printf '%s' "$tok" | tr '[:lower:]' '[:upper:]')_PROJECT"
   export N T PH UP TUP
-  xargs -0 perl -pi -e '
-      s{projects/\Q$ENV{N}\E\b}{projects/$ENV{T}}g;
-      s{\Q$ENV{UP}\E(?=_)}{$ENV{TUP}}g;
-      s{\Q$ENV{N}\E}{$ENV{PH}}gi;
-      my ($n, $t) = ($ENV{N}, $ENV{T}); my $L = length $n;
-      for my $k (3 .. $L - 3) {
-        my ($a, $b) = (substr($n, 0, $k), substr($n, $k));
-        my ($ta, $tb) = (substr($t, 0, $k), $k < length $t ? substr($t, $k) : "");
-        s{\Q$a\E(.{1,8}?)\Q$b\E}{$ta$1$tb}g;
-      }
-      for my $k (3 .. $L - 2) {
-        my ($a, $c, $b) = (substr($n, 0, $k), substr($n, $k, 1), substr($n, $k + 1));
-        my ($ta, $tb) = (substr($t, 0, $k), $k < length $t ? substr($t, $k) : "");
-        s{\Q$a\E([^\Q$c\E])\Q$b\E}{$ta$1$tb}g;
-      }' < "$OUT/text.files"
+  xargs -0 perl -pi -e "$SCRUB_PL" < "$OUT/text.files"
 done
 
 # ------------------------------------------------------------- audit -------

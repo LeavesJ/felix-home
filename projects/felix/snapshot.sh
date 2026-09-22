@@ -321,9 +321,10 @@ awk -F'\t' '$4 != "address" { print $1 FS $2 }' "$OUT/scan.raw" | sort -u > "$OU
 stray="$(grep -vxF "$RM_LINE" "$OUT/changed" | sort -u | comm -23 - "$OUT/flagged.raw" || true)"
 [ -z "$stray" ] || die "the scrub changed lines the audit reads no name on:" "$(printf '%s\n' "$stray" | tr '\t' ':')"
 diff -ru --no-dereference "$RAW" "$B" > "$OUT/scrub.diff" || true
-# And no changed line holds the phrase against a path or identifier character.
+# And no changed line holds the phrase against a path or identifier character
+# (an escape such as \n before it is a space, as it is to the scrub).
 glued="$(BUILD="$B" perl -ne 'chomp; my ($f, $l) = split /\t/; open(my $h, "<", "$ENV{BUILD}/$f") or die "$f: $!\n"; my $x;
-  while (<$h>) { if ($. == $l) { $x = $_; last } } print "$f:$l\n" if $x =~ m{[[:alnum:]_/\$\{-](another|a [a-z]+) governed project|governed project[[:alnum:]_/\}-]}' "$OUT/changed")" ||
+  while (<$h>) { if ($. == $l) { $x = $_; last } } $x =~ s/\\[ntr]/ /g; print "$f:$l\n" if $x =~ m{[[:alnum:]_/\$\{-](another|a [a-z]+) governed project|governed project[[:alnum:]_/\}-]}' "$OUT/changed")" ||
   die "could not read back what the scrub changed"
 [ -z "$glued" ] || die "the scrub put the phrase inside a path or an identifier:" $glued
 

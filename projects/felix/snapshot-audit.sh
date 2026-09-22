@@ -20,9 +20,10 @@
 #   as a run of adjacent words that joins into it, over up to three lines;
 #   with one character standing in for one of its own, at any position, when
 #     the name has four or more: an escape (\x76, \166, \u0076, \.), a bracket
-#     class ([e], [de], [^x], [[:alpha:]]) or, inside the name, any byte but a
-#     space; at its first and last character, where a letter only makes a
-#     longer word, any mark that is not a letter, digit or space;
+#     class ([e], [de], [^x], [[:alpha:]]), a group ((e|x)) or, inside the
+#     name, any byte but a space, each with a quantifier after it or not (.?,
+#     \w+, .{1}); at its first and last character, where a letter only makes
+#     a longer word, any mark that is not a letter, digit or space;
 #   and all of the above again in a decoded copy of each line, where escapes
 #     and one-letter classes read as what they stand for and NUL bytes are
 #     dropped, so c[o]lo\x72 reads as the word color.
@@ -41,10 +42,13 @@ while (my $n = <$nf>) { $n = lc $n; $n =~ s/[^a-z0-9]//g; push @names, $n if len
 close $nf;
 my (%half, %prefix, %full, %standin);
 # A stand-in at position k: the name's own letters before and after it, and
-# between them an escape, a bracket class or any byte but a space. Each
+# between them an escape, a bracket class, a group of alternatives or any byte
+# but a space, and after it a quantifier if one is there: col.?r, co\w+or and
+# c(o|x)lor for color each went through when a stand-in had to be one atom. Each
 # position is its own pattern, tried only where its longer fixed side occurs.
-my $SI = '(?:\\\\{1,2}(?:x[0-9a-f]{2}|u[0-9a-f]{4}|[0-7]{1,3}|.)|\\[\\^?[^\\]\\s]{1,8}\\]|\\[\\[:[a-z]+:\\]\\]|\\S)';
-my $SE = substr($SI, 0, -4) . '|[^a-z0-9\\s])';
+my $ESC = '\\\\{1,2}(?:x[0-9a-f]{2}|u[0-9a-f]{4}|[0-7]{1,3}|.)|\\[\\^?[^\\]\\s]{1,8}\\]|\\[\\[:[a-z]+:\\]\\]|\\((?:[^()|\\s]{1,4}\\|)+[^()|\\s]{1,4}\\)';
+my $Q = '(?:[?*+]|\\{[0-9]*(?:,[0-9]*)?\\})?';
+my ($SI, $SE) = ("(?:(?:$ESC|\\S)$Q)", "(?:(?:$ESC|[^a-z0-9\\s])$Q)");
 for my $n (@names) {
   my $L = length $n; $full{$n} = 1;
   for my $k (1 .. $L - 1) { push @{ $half{substr($n, 0, $k)} }, [$n, substr($n, $k)]; $prefix{substr($n, 0, $k)} = 1; }

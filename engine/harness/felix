@@ -93,6 +93,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"   # engine: read-only when installe
 . "${SCRIPT_DIR}/lib/recommend.sh"
 # shellcheck source=lib/memory.sh
 . "${SCRIPT_DIR}/lib/memory.sh"
+# shellcheck source=lib/lifecycle.sh
+. "${SCRIPT_DIR}/lib/lifecycle.sh"
 # shellcheck source=lib/automerge.sh
 . "${SCRIPT_DIR}/lib/automerge.sh"
 # shellcheck source=lib/budget.sh
@@ -3803,9 +3805,22 @@ cmd_handoff() {
   note="${was:-$words}"
   root="$(felix_repo_root "$PWD")"
   gate="$(felix_json_str "$proj/project.json" gate)"
+  # Asked before the write, because the write is what changes the answer. The
+  # lifecycle row (lib/lifecycle.sh) says which of three things happened: a
+  # handoff this command did not write was refused, or replaced because
+  # --replace said so, or the file was written as it always has been. A write
+  # that fails for any other reason is not a refusal, and records nothing.
+  local foreign=0
+  felix_mem_handoff_foreign "$(felix_mem_dir "$proj")/SESSION_HANDOFF.md" && foreign=1
   # A handoff this command did not write is refused by the library, which says
   # why and how large it is; nothing below runs, because nothing was written.
-  felix_mem_handoff "$proj" "$root" "$gate" "$note" "$replace" || exit 1
+  if ! felix_mem_handoff "$proj" "$root" "$gate" "$note" "$replace"; then
+    [ "$foreign" = 1 ] && [ "$replace" != 1 ] \
+      && felix_lifecycle_handoff "$proj" "$root" refused >/dev/null 2>&1
+    exit 1
+  fi
+  if [ "$foreign" = 1 ]; then felix_lifecycle_handoff "$proj" "$root" replaced >/dev/null 2>&1
+  else                        felix_lifecycle_handoff "$proj" "$root" written  >/dev/null 2>&1; fi
   printf 'wrote %s/SESSION_HANDOFF.md\n\n' "$(felix_mem_dir "$proj")"
   # Carrying a note across a regeneration is right; carrying it in silence is
   # how a two-session-old note read as this session's. Said only when nothing

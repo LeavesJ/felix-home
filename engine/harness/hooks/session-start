@@ -43,6 +43,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/commission.sh"
 # shellcheck source=../lib/commission-provider.sh
 . "${SCRIPT_DIR}/../lib/commission-provider.sh"
+# shellcheck source=../lib/lifecycle.sh
+. "${SCRIPT_DIR}/../lib/lifecycle.sh"
 
 # JSON-escape via parameter substitution, one C-level pass each.
 #
@@ -91,23 +93,49 @@ FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 # until the matcher named it Felix was not called there at all, so a resumed
 # session never learned which engine it now runs. The matcher makes the moment
 # reachable; this exit keeps what a resume shows exactly what it showed before,
-# which is nothing. Whatever records the moment belongs above this line, and it
-# comes before the broken-binding report for the same reason: a resume never
-# heard that report either.
+# which is nothing. What records the moment, lib/lifecycle.sh, sits above this
+# line, and it comes before the broken-binding report for the same reason: a
+# resume never heard that report either.
 #
 # Claude Code only, because only there was a resume unbound. Copilot CLI fires
 # its sessionStart on a resume with no matcher in front of it, so a resume there
 # always got the banner, and unchanged means it still does; the other harness
 # _felix_emit knows is left as it was for the same reason.
 #
-# The payload is read for this one field, with the sed idiom hooks/post-tool
-# uses. A terminal on stdin is a person running the hook by hand, and waiting
-# on them would hang the hook.
-_felix_source=""
-if [ ! -t 0 ]; then
-  _felix_source="$(cat 2>/dev/null \
-    | sed -n 's/.*"source"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
-fi
+# The payload is read once, whole, and the three fields the record and this
+# exit need are taken from it with the sed idiom hooks/post-tool uses, in one
+# pass: each expression starts again from the held line, and the first line
+# that carries a field is the one that answers for it. A terminal on stdin is
+# a person running the hook by hand, and waiting on them would hang the hook.
+_felix_payload=""
+[ -t 0 ] || _felix_payload="$(cat 2>/dev/null)"
+_felix_source=""; _felix_session=""; _felix_transcript=""; _felix_fields=""
+[ -n "$_felix_payload" ] && _felix_fields="$(printf '%s\n' "$_felix_payload" | sed -n -e h \
+  -e 's/.*"source"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/source \1/p' -e g \
+  -e 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/session_id \1/p' -e g \
+  -e 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/transcript_path \1/p' 2>/dev/null)"
+while [ -n "$_felix_fields" ]; do
+  _felix_l="${_felix_fields%%$'\n'*}"
+  case "$_felix_l" in
+    "source "*)          [ -n "$_felix_source" ]     || _felix_source="${_felix_l#source }" ;;
+    "session_id "*)      [ -n "$_felix_session" ]    || _felix_session="${_felix_l#session_id }" ;;
+    "transcript_path "*) [ -n "$_felix_transcript" ] || _felix_transcript="${_felix_l#transcript_path }" ;;
+  esac
+  case "$_felix_fields" in *$'\n'*) _felix_fields="${_felix_fields#*$'\n'}" ;; *) _felix_fields="" ;; esac
+done
+
+# Resolved here, not beside the bail it feeds further down, because the record
+# needs a project and has to be written before a resume leaves. A broken
+# binding resolves to nothing, so it records nothing and is still reported
+# below; a directory nothing governs records nothing and still says nothing.
+PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
+
+# Every source, a resume included, and the Copilot resume that keeps its
+# banner. Nothing it does reaches the screen or the exit status: a recorder
+# that could print would break the silence the exit below exists to keep.
+[ -n "$PROJ" ] && felix_lifecycle_session "$PROJ" "$PWD" \
+  "$_felix_source" "$_felix_session" "$_felix_transcript" >/dev/null 2>&1
+
 [ "$_felix_source" = "resume" ] && [ -z "${COPILOT_CLI:-}" ] && [ -z "${CURSOR_PLUGIN_ROOT:-}" ] \
   && exit 0
 
@@ -143,7 +171,7 @@ if [ -n "$broken" ]; then
   exit 0
 fi
 
-PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
+# PROJ was resolved above the resume exit, for the record.
 [ -n "$PROJ" ] || exit 0
 
 project="$(basename "$PROJ")"

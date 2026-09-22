@@ -4,25 +4,52 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	eb13021b600a664990a464ed3f90c5e20e7c2b1e	0.49.127
-run	20	2566	1
-content scan: a #! file without the execute bit, holding npx and GITHUB_TOKEN, is a credential-call	1
-content scan: a .ps1 with Invoke-RestMethod and OPENAI_APIKEY is a credential-call	1
-content scan: a .py file with requests.post( and DB_PASSWORD on different lines is a credential-call	1
-content scan: a command that must fetch a URL is remote-authority	1
-content scan: a credential-call alone makes a plugin medium	1
-content scan: a file named $(touch pwned1).sh is reported by its literal name	1
-content scan: a nested agent treating Sources as authoritative is remote-authority	1
-content scan: a newline in a skill directory name cannot forge a fact line	1
-content scan: a skill naming the live docs the source of truth is remote-authority	1
-content scan: a skills directory linked inside the copy is read	1
-content scan: an executable file holding curl and API_KEY is a credential-call at its base-relative path	1
-content scan: remote authority observed is held for a person, not installed	1
-content scan: remote-authority alone makes a plugin medium	1
-content scan: symlinks, non-executables and files outside scripts/ and skills/ are not counted	1
-content scan: the reason names the file that made it medium	1
-content scan: two executable files under scripts/ and skills/ count as executables 2	1
-content scan: why explains credential-call	1
-content scan: why explains executables	1
-content scan: why explains remote-authority	1
-content scan: with a subdir the scan reads <dir>/<subdir> and paths are relative to it	1
+base	origin/main	1ac19ae94231fc7736cec0b934bf9e150e7fd5cd	0.49.128
+run	47	2612	1
+a command whose frontmatter declares hooks is high	1
+a declared absolute path is an unread fact naming the key and the path	1
+a declared absolute path is high	1
+a declared path beginning with ~ is an unread fact naming the key and the path	1
+a declared path beginning with ~ is high	1
+a declared path that climbs out with .. is an unread fact naming the key and the path	1
+a declared path that climbs out with .. is high	1
+a declared path through a symlink leaving the plugin is an unread fact naming the key and the path	1
+a declared path through a symlink leaving the plugin is high	1
+a declared path to no file at all is an unread fact naming the key and the path	1
+a declared path to no file at all is high	1
+a hooks path that climbs out is an unread fact naming hooks	1
+a local server declared inline in plugin.json is medium	1
+a manifest opening with a byte-order mark is still read	1
+a manifest that is itself a link out of the copy is unread	1
+a manifest that is not a JSON object is high	1
+a missing comma is an unread manifest, not a lost declaration	1
+a plugin reached through a symlinked directory still has its declared file read	1
+a skill whose frontmatter declares a PreToolUse hook is high	1
+a string broken across the next key leaves the manifest high	1
+a symlink that stays inside the plugin is followed and read	1
+an array of two paths where only the second interpolates is high	1
+an awk that fails reads the manifest as unread, not as nothing declared	1
+an inline server that interpolates a variable is high	1
+an object inside a declared array is read as inline	1
+an unread declaration alone is high	1
+and a skill whose frontmatter hooks are written on one line	1
+and are read as hooks, by event	1
+and as a server, each by its own rule	1
+and for where it sends it	1
+and the commands in that file are listed	1
+and the declared file is read for the key it sends	1
+and the inline variable is named	1
+and without SUB, the manifest at DIR is read	1
+as an unread manifest, not as nothing declared	1
+as an unread manifest, whatever the key before it said	1
+because the second path was read too	1
+datadog's shape, a server behind a declared path, is high	1
+frontmatter after a byte-order mark still declares hooks	1
+frontmatter with Windows line endings still declares hooks	1
+hooks at a declared path are high	1
+hooks declared inline in plugin.json are high	1
+one file named under both keys is read as hooks	1
+so is a command one directory further down	1
+supabase's shape, a remote server two directories down with no variable, is medium	1
+the why for an unread declaration names its key and its path	1
+with SUB, the manifest under DIR/SUB is read, its paths relative to SUB	1

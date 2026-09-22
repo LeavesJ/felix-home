@@ -306,33 +306,313 @@ felix_discover_fetch() {
   return 0
 }
 
+# The rules for one hooks file and one MCP file, wherever it was found: at the
+# default place, at a path the manifest names, or in the manifest itself.
+# Applied to a whole manifest they also see its other keys, which can only add
+# a fact, never remove one.
+_felix_discover_hooks_facts() {
+  local f="$1"
+  printf 'hooks\t%s\n' \
+    "$(grep -oE '"(PreToolUse|PostToolUse|SessionStart|SessionEnd|Stop|UserPromptSubmit|PostToolBatch)"' "$f" \
+       | tr -d '"' | sort -u | tr '\n' ' ')"
+  grep -oE '"command"[[:space:]]*:[[:space:]]*"[^"]{0,90}' "$f" \
+    | sed 's/.*"command"[[:space:]]*:[[:space:]]*"//' \
+    | while IFS= read -r c; do printf 'hook-command\t%s\n' "$c"; done
+  return 0
+}
+
+_felix_discover_mcp_facts() {
+  local f="$1"
+  grep -qE '"type"[[:space:]]*:[[:space:]]*"(http|sse)"' "$f" \
+    && printf 'mcp\tremote endpoint\n' || printf 'mcp\tlocal subprocess\n'
+  grep -oE '\$\{[A-Z_]+' "$f" | tr -d '${' | sort -u \
+    | while IFS= read -r v; do [ -n "$v" ] && printf 'interpolates\t%s\n' "$v"; done
+  grep -qE '@latest|:latest' "$f" && printf 'floating\tan unpinned version in the mcp command\n'
+  return 0
+}
+
+# Where a path the plugin names really lands. Prints the resolved file when it
+# is a regular file inside the copy; otherwise prints why not and returns 1.
+#
+# Refused before anything is opened: an absolute path, a leading ~, and any
+# `..` component. Then every link on the way is resolved, and the directory
+# the file finally sits in must be the copy or below it, so a link that leaves
+# the copy is not followed however it is spelled. What is outside the copy is
+# somebody's machine, not what was fetched, and a fact read from it would
+# describe the wrong object. Claude Code rejects most of these as well; the
+# exception is a link to elsewhere in the same marketplace, which it copies
+# in at install. That one is refused here too, and the caller tiers what it
+# could not read high, so the difference can only hold a plugin, never pass
+# one.
+_felix_discover_inside() {
+  local base="$1" p="$2" real d link n=0
+  case "$p" in /*|'~'*) printf 'an absolute path'; return 1 ;; esac
+  case "/$p/" in */../*) printf 'a path that climbs out with ..'; return 1 ;; esac
+  real="$(cd "$base" 2>/dev/null && pwd -P)" || { printf 'the copy did not resolve'; return 1; }
+  p="$real/${p#./}"
+  while [ -L "$p" ]; do
+    n=$((n+1))
+    [ "$n" -le 8 ] || { printf 'a chain of links'; return 1; }
+    link="$(readlink "$p" 2>/dev/null)" || { printf 'a link that did not resolve'; return 1; }
+    case "$link" in /*) p="$link" ;; *) p="${p%/*}/$link" ;; esac
+  done
+  [ -f "$p" ] || { printf 'no such file'; return 1; }
+  d="$(cd "${p%/*}" 2>/dev/null && pwd -P)" || { printf 'no such directory'; return 1; }
+  case "$d/" in "$real"/*) ;; *) printf 'a link that leaves the copy'; return 1 ;; esac
+  printf '%s/%s' "$d" "${p##*/}"
+}
+
+# What the manifest declares, followed. `hooks` and `mcpServers` may each be a
+# path, a list of paths, or the configuration inline, and the platform loads
+# all three forms. A path is read by the same rules as the default file, once:
+# `./hooks/hooks.json` spelled out in the manifest is not read twice. Inline,
+# the manifest itself is read by those rules.
+#
+# A declaration that is refused or missing is a fact, `unread`, and it tiers
+# high. The manifest says something runs, and Felix only tiers what it read;
+# reporting the plugin as if the declaration were absent is exactly the
+# defect this closes. An empty `{}`, `[]` or null declares nothing: one
+# installed plugin carries `"mcpServers": {}`, and it ships no server.
+#
+# Only the manifest's top-level keys declare anything. A `hooks` key under
+# `userConfig` is a setting's name, and treating it as a declaration would
+# refuse a plugin that ships no hooks at all; a pattern over the flattened file
+# cannot tell the two apart, so the manifest is walked instead, strings and
+# nesting tracked, by the awk below. A value it does not recognise is `unread`
+# too, so the reader failing raises rather than passes.
+#
+# One line per declaration: `path KEY P` for a path, `inline KEY` for a
+# non-empty object, `odd KEY` for anything else that is not null.
+#
+# Strict at the top level, and that is deliberate. A walker that skips what it
+# does not expect and resynchronises on the next quote can take a quote inside
+# a broken string for the start of a key, and then the declaration after the
+# break is read as text and disappears. So a manifest that is not
+# `{ "key": value, ... }` all the way to its closing brace is `odd` as a whole,
+# and so is one that is not an object at all. Claude Code would not load
+# either, but this is a copy Felix read, not the one it would install, and the
+# reader failing must raise rather than pass.
+_FELIX_DISCOVER_MANIFEST_AWK='
+function ws(i) { while (i <= n && substr(s, i, 1) ~ /[ \t\r\n]/) i++; return i }
+function broken() { print "odd\tthe manifest"; exit }
+function str(i,   d, o) {
+  o = ""; i++; UNTERM = 0
+  while (i <= n) {
+    d = substr(s, i, 1)
+    if (d == "\\") { o = o (substr(s, i + 1, 1) == "/" ? "/" : substr(s, i, 2)); i += 2; continue }
+    if (d == "\"") { STR = o; return i + 1 }
+    o = o d; i++
+  }
+  STR = o; UNTERM = 1; return i
+}
+function val(i,   c, dep) {
+  c = substr(s, i, 1); UNTERM = 0
+  if (c == "\"") { KIND = "string"; return str(i) }
+  if (c == "{" || c == "[") {
+    KIND = (c == "{") ? "object" : "array"; EMPTY = 1; dep = 0
+    while (i <= n) {
+      c = substr(s, i, 1)
+      if (c == "\"") { EMPTY = 0; i = str(i); continue }
+      if (c == "{" || c == "[") { if (dep) EMPTY = 0; dep++ }
+      else if (c == "}" || c == "]") { if (--dep == 0) return i + 1 }
+      else if (c !~ /[ \t\r\n]/) EMPTY = 0
+      i++
+    }
+    UNTERM = 1; return i
+  }
+  KIND = (substr(s, i, 4) == "null") ? "null" : "other"
+  while (i <= n && substr(s, i, 1) !~ /[],}{:"[ \t\r\n]/) i++
+  return i
+}
+function decl(key) {
+  if (KIND == "string") print "path\t" key "\t" STR
+  else if (KIND == "object") { if (!EMPTY) print "inline\t" key }
+  else if (KIND != "null") print "odd\t" key
+}
+{ s = s $0 "\n" }
+END {
+  n = length(s); i = 1
+  if (substr(s, 1, 3) == "\357\273\277") i = 4
+  i = ws(i)
+  if (substr(s, i, 1) != "{") broken()
+  i = ws(i + 1)
+  if (substr(s, i, 1) == "}") exit
+  while (1) {
+    if (substr(s, i, 1) != "\"") broken()
+    i = str(i); if (UNTERM) broken()
+    key = STR; i = ws(i)
+    if (substr(s, i, 1) != ":") broken()
+    i = ws(i + 1); b = i; i = val(i)
+    if (UNTERM || i == b) broken()
+    if (key == "hooks" || key == "mcpServers") {
+      if (KIND != "array") decl(key)
+      else {
+        j = b + 1
+        while (1) {
+          j = ws(j)
+          if (j >= i) { print "odd\t" key; break }
+          if (substr(s, j, 1) == "]") break
+          e = j; j = val(j)
+          if (UNTERM || j == e) { print "odd\t" key; break }
+          if (KIND == "array") KIND = "other"
+          decl(key)
+          j = ws(j); c = substr(s, j, 1)
+          if (c == ",") { j++; continue }
+          if (c != "]") print "odd\t" key
+          break
+        }
+      }
+    }
+    i = ws(i); c = substr(s, i, 1)
+    if (c == "}") exit
+    if (c != ",") broken()
+    i = ws(i + 1)
+  }
+}'
+
+_felix_discover_manifest() {
+  local base="$1" m decls kind key p r inline="" seen="" nl='
+'
+  # The manifest itself is held to the same rule: one linked out of the copy
+  # is somebody else's file.
+  if ! m="$(_felix_discover_inside "$base" .claude-plugin/plugin.json)"; then
+    [ "$m" = "no such file" ] || printf 'unread\tthe manifest: %s\n' "$m"
+    return 0
+  fi
+  r="$(_felix_discover_inside "$base" hooks/hooks.json)" && seen="${seen}hooks:$r$nl"
+  for r in .mcp.json mcp.json; do
+    r="$(_felix_discover_inside "$base" "$r")" && seen="${seen}mcpServers:$r$nl"
+  done
+
+  # An awk that fails prints nothing, and nothing would read as low; its
+  # failure is the manifest going unread instead.
+  decls="$(LC_ALL=C awk "$_FELIX_DISCOVER_MANIFEST_AWK" "$m" 2>/dev/null)" \
+    || decls="$(printf 'odd\tthe manifest')"
+  while IFS=$'\t' read -r kind key p; do
+    case "$kind" in
+      path)
+        [ -n "$p" ] || continue
+        if r="$(_felix_discover_inside "$base" "$p")"; then
+          case "$nl$seen" in *"$nl$key:$r$nl"*) continue ;; esac
+          seen="$seen$key:$r$nl"
+          case "$key" in
+            hooks)      _felix_discover_hooks_facts "$r" ;;
+            mcpServers) _felix_discover_mcp_facts "$r" ;;
+          esac
+        else
+          printf 'unread\t%s %s: %s\n' "$key" "$(printf '%.120s' "$p" | LC_ALL=C tr '\001-\037\177' '?')" "$r"
+        fi ;;
+      inline)
+        case " $inline " in *" $key "*) continue ;; esac
+        inline="$inline $key"
+        case "$key" in
+          hooks)      _felix_discover_hooks_facts "$m" ;;
+          mcpServers) _felix_discover_mcp_facts "$m" ;;
+        esac ;;
+      odd)
+        case "$key" in
+          "the manifest") printf 'unread\tthe manifest: not a JSON object\n' ;;
+          *)              printf 'unread\t%s: a value this reader does not parse\n' "$key" ;;
+        esac ;;
+    esac
+  done <<EOF
+$decls
+EOF
+  return 0
+}
+
+# 0 when a file's YAML frontmatter has a top-level `hooks:` with a value in it.
+# Read with the builtin, and only as far as the closing `---`, because a skill
+# tree is mostly files that have no frontmatter hooks at all.
+_felix_discover_fm_hooks() {
+  local line v pend=0
+  {
+    IFS= read -r line || return 1
+    line="${line#$'\xef\xbb\xbf'}"
+    case "${line%$'\r'}" in ---|---[[:space:]]*) ;; *) return 1 ;; esac
+    while IFS= read -r line || [ -n "$line" ]; do
+      line="${line%$'\r'}"
+      if [ "$pend" = 1 ]; then
+        case "$line" in
+          ---|---[[:space:]]*) return 1 ;;
+          [[:space:]]*[![:space:]]*|-*) return 0 ;;
+          *[![:space:]]*) pend=0 ;;
+        esac
+      fi
+      case "$line" in ---|---[[:space:]]*) return 1 ;; esac
+      case "$line" in
+        hooks:*|hooks[[:space:]]*:*)
+          v="${line#hooks}"; v="${v#"${v%%[![:space:]]*}"}"; v="${v#:}"; v="${v%%#*}"
+          v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"
+          case "$v" in
+            '')                          pend=1 ;;
+            '[]'|'{}'|null|Null|NULL|'~') ;;
+            *)                           return 0 ;;
+          esac ;;
+      esac
+    done
+  } 2>/dev/null < "$1"
+  return 1
+}
+
+# Hooks a skill or a command registers in its own frontmatter. Claude Code
+# registers them when the skill is invoked and keeps them for the rest of the
+# session, so for every purpose here they are hooks. Agents are not read for
+# this: Claude Code does not honour `hooks` in a plugin agent's frontmatter, and
+# a fact about something that never runs would be a false one. Only the
+# default directories, which is where every installed plugin keeps them.
+_felix_discover_frontmatter() {
+  local base="$1" real r f
+  real="$(cd "$base" 2>/dev/null && pwd -P)" || return 0
+  if [ -d "$real/skills" ] && r="$(cd "$real/skills" 2>/dev/null && pwd -P)"; then
+    case "$r/" in "$real"/*)
+      for f in "$r"/*/SKILL.md; do
+        [ -f "$f" ] || continue
+        if [ -L "$f" ] || [ -L "${f%/SKILL.md}" ]; then
+          _felix_discover_inside "$base" "${f#"$real"/}" >/dev/null || continue
+        fi
+        _felix_discover_fm_hooks "$f" \
+          && printf 'hooks\tfrontmatter of %s\n' "$(printf '%s' "${f#"$real"/}" | LC_ALL=C tr '\001-\037\177' '?')"
+      done ;;
+    esac
+  fi
+  if [ -d "$real/commands" ] && r="$(cd "$real/commands" 2>/dev/null && pwd -P)"; then
+    case "$r/" in "$real"/*)
+      while IFS= read -r -d '' f; do
+        _felix_discover_fm_hooks "$f" \
+          && printf 'hooks\tfrontmatter of %s\n' "$(printf '%s' "${f#"$real"/}" | LC_ALL=C tr '\001-\037\177' '?')"
+      done < <(find "$r" -type f -name '*.md' -print0 2>/dev/null) ;;
+    esac
+  fi
+  return 0
+}
+
 # Read what a plugin ships and report facts. fact <TAB> detail, one per line.
-# The three files the platform runs on its own come first; the prose and the
-# bundled scripts, which it runs only when an agent is told to, come after
-# (_felix_discover_content).
+# What the platform runs on its own comes first — hooks and MCP servers,
+# wherever they are declared; the prose and the bundled scripts, which it runs
+# only when an agent is told to, come after (_felix_discover_content).
+#
+# Where hooks and MCP servers are declared is wider than the two default files.
+# The manifest can name either one as a path or carry it inline, and a skill or
+# command can register hooks in its own frontmatter. Until 2026-09-21 only the
+# default files were read, so a manifest pointing `mcpServers` at a file of its
+# own was never opened: two of the plugins installed here did exactly that,
+# and one of them sends two interpolated API keys to a remote server while it
+# was tiered `low`.
 felix_discover_inspect() {
   local dir="$1" sub="${2:-}" base f
   base="$dir"
   [ -n "$sub" ] && [ -d "$dir/$sub" ] && base="$dir/$sub"
 
   f="$base/hooks/hooks.json"
-  if [ -f "$f" ]; then
-    printf 'hooks\t%s\n' \
-      "$(grep -oE '"(PreToolUse|PostToolUse|SessionStart|SessionEnd|Stop|UserPromptSubmit|PostToolBatch)"' "$f" \
-         | tr -d '"' | sort -u | tr '\n' ' ')"
-    grep -oE '"command"[[:space:]]*:[[:space:]]*"[^"]{0,90}' "$f" \
-      | sed 's/.*"command"[[:space:]]*:[[:space:]]*"//' \
-      | while IFS= read -r c; do printf 'hook-command\t%s\n' "$c"; done
-  fi
+  if [ -f "$f" ]; then _felix_discover_hooks_facts "$f"; fi
 
   for f in "$base/.mcp.json" "$base/mcp.json"; do
-    [ -f "$f" ] || continue
-    grep -qE '"type"[[:space:]]*:[[:space:]]*"(http|sse)"' "$f" \
-      && printf 'mcp\tremote endpoint\n' || printf 'mcp\tlocal subprocess\n'
-    grep -oE '\$\{[A-Z_]+' "$f" | tr -d '${' | sort -u \
-      | while IFS= read -r v; do [ -n "$v" ] && printf 'interpolates\t%s\n' "$v"; done
-    grep -qE '@latest|:latest' "$f" && printf 'floating\tan unpinned version in the mcp command\n'
+    if [ -f "$f" ]; then _felix_discover_mcp_facts "$f"; fi
   done
+
+  _felix_discover_manifest "$base"
+  _felix_discover_frontmatter "$base"
 
   if [ -d "$base/skills" ]; then
     printf 'skills\t%s\n' "$(ls "$base/skills" 2>/dev/null | wc -l | tr -d ' ')"
@@ -660,6 +940,7 @@ felix_discover_drift() {
 felix_discover_risk() {
   local facts="$1"
   case "$facts" in
+    *"unread	"*)       printf 'high';   return ;;
     *"hooks	"*)        printf 'high';   return ;;
     *"floating	"*)     printf 'high';   return ;;
     *"interpolates	"*) printf 'high';   return ;;
@@ -675,6 +956,8 @@ felix_discover_risk() {
 # Why a tier was chosen, in the words of what was actually found.
 felix_discover_why() {
   local facts="$1" out=""
+  case "$facts" in *"unread	"*)
+    out="$out; its manifest declares what was not read ($(printf '%s\n' "$facts" | awk -F'\t' '$1 == "unread" && !n++ { print $2 }'))" ;; esac
   case "$facts" in *"hooks	"*)
     out="$out; ships hooks, which run on your machine every session" ;; esac
   case "$facts" in *"floating	"*)

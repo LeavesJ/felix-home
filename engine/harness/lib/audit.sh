@@ -44,7 +44,10 @@
 # A Felix hold is a user record whose content starts "Stop hook feedback" and
 # carries a sentence Felix's Stop hook uses when it refuses to let a turn end
 # on an ungated tree. Quoted by a person or an attachment, it is not one;
-# copied into a resumed session, it is the same one.
+# copied into a resumed session, it is the same one. The four classes count
+# only stops after an edit, and a hold can follow any stop, so each hold is
+# told by the stop just before it: counted in the four, left out as after
+# scratch edits only, after no new edit, or none that was read.
 
 # What counts as a check when --verify is not given: the usual test and gate
 # runners, at command position — the start of the command, or after ; & | ( or
@@ -73,7 +76,7 @@ _felix_audit_refuse() {
 
 # The pass. File names on stdin, one per line; out, one line of tab-separated
 #   files sessions first last stops stop_sessions passed failed stale never
-#   holds hold_sessions hidden aside unread
+#   holds hold_sessions hidden aside unread held_counted held_aside held_noedit
 # (first and last - where no record had a timestamp), then the first file that
 # could not be read, if one. A session filed under two projects counts once.
 felix_audit_scan() {
@@ -256,7 +259,7 @@ felix_audit_scan() {
   }
 
   function reset() {
-    seen = 0; sstops = 0; sholds = 0; edited = 0; aside = 0; pos = 0
+    seen = 0; sstops = 0; sholds = 0; edited = 0; aside = 0; pos = 0; lastd = ""
     last_edit = 0; last_chk = 0; last_chk_id = ""; last_hid = 0; any_chk = 0
     split("", chk); split("", failed); split("", used)
   }
@@ -293,9 +296,11 @@ felix_audit_scan() {
     return (r = sval(l, "\"uuid\":\"")) != "" ? r : "line " (++anon)
   }
 
+  # lastd is what the stop was, for a hold after it: c counted in the four, a
+  # left out as after scratch edits only, n after no new edit.
   function stop() {
-    if (!edited) { if (aside) naside_stops++; aside = 0; return }
-    edited = 0; aside = 0; stops++; sstops++
+    if (!edited) { if (aside) { naside_stops++; lastd = "a" } else lastd = "n"; aside = 0; return }
+    edited = 0; aside = 0; stops++; sstops++; lastd = "c"
     if (last_chk > last_edit) { if (last_chk_id in failed) nfail++; else { npass++; if (last_hid) nhid++ } }
     else if (any_chk) nstale++
     else nnever++
@@ -371,8 +376,8 @@ felix_audit_scan() {
       if (index(l, K_USE)) uses(l)
       if (index(l, K_END)) {
         r = msgid(l)
-        if (!(r in stopped)) { stopped[r] = fno; stop() }
-        else if (stopped[r] != fno) { edited = 0; aside = 0 }
+        if (!(r in stopped)) { stopped[r] = fno; stop(); sdisp[r] = lastd }
+        else if (stopped[r] != fno) { edited = 0; aside = 0; lastd = sdisp[r] }
       }
       return
     }
@@ -383,6 +388,7 @@ felix_audit_scan() {
         && (UU == "" || !(UU in held))) {
       if (UU != "") held[UU] = 1
       holds++; sholds++
+      if (lastd == "c") hcount++; else if (lastd == "a") haside++; else if (lastd == "n") hnoedit++
     }
   }
 
@@ -398,9 +404,10 @@ felix_audit_scan() {
   }
 
   END {
-    printf "%d\t%d\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", files, sessions, \
+    printf "%d\t%d\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", files, sessions, \
       (first == "" ? "-" : first), (last == "" ? "-" : last), stops, stop_sessions, \
-      npass, nfail, nstale, nnever, holds, hold_sessions, nhid, naside_stops, unread
+      npass, nfail, nstale, nnever, holds, hold_sessions, nhid, naside_stops, unread, \
+      hcount, haside, hnoedit
     if (unread) print unread1
   }'
 }
@@ -417,6 +424,33 @@ _felix_audit_pct() {   # part whole -> whole-number percent
 _felix_audit_list() {  # dir mode -> the transcripts, one per line; mode 2 is one project's
   local f g="*/*.jsonl"; [ "$2" -eq 2 ] && g="*.jsonl"
   for f in "$1"/$g; do if [ -f "$f" ]; then printf '%s\n' "$f"; fi; done
+}
+
+# What the stop just before each hold was. Holds are read from every stop hook
+# feedback, the four classes only from stops after an edit, so a held stop is
+# among the stops above only when an edit came before it; most real holds
+# follow a turn that edited nothing, and a sentence saying every held stop is
+# counted there was false for them.
+_felix_audit_held() {  # holds counted aside noedit -> the clauses, joined by "; "
+  local all="$1" out="" k n one many
+  for k in c a n x; do
+    case "$k" in
+      c) n="$2"; one="is still counted above, where the turn tried to end"
+         many="are still counted above, where the turn tried to end" ;;
+      a) n="$3"; one="followed edits only to scratch files or Claude's own, left out above"; many="$one" ;;
+      n) n="$4"; one="followed a turn with no new edit"; many="$one" ;;
+      x) n=$(($1 - $2 - $3 - $4)); one="had no stop before it in what was read"
+         many="had no stop before them in what was read" ;;
+    esac
+    [ "$n" -gt 0 ] || continue
+    [ "$n" -eq 1 ] || one="$many"
+    if [ "$n" -eq "$all" ]; then
+      case "$n" in 1) out="It $one" ;; 2) out="Both $one" ;; *) out="All $n $one" ;; esac
+    elif [ -z "$out" ]; then out="$n of them $one"
+    else out="$out; $n $one"
+    fi
+  done
+  printf '%s' "$out"
 }
 
 _felix_audit_next() {
@@ -490,15 +524,15 @@ felix_audit() {
          FELIX_AUDIT_CFG="$cfg" FELIX_AUDIT_TMP="${TMPDIR:-}" felix_audit_scan)" \
     || { printf 'felix audit: the read failed part way; nothing to report\n' >&2; return 1; }
   case "$t" in *$'\n'*) bad="${t#*$'\n'}"; t="${t%%$'\n'*}" ;; esac
-  # Fifteen fields, none empty and none with a space, so plain word splitting
+  # Eighteen fields, none empty and none with a space, so plain word splitting
   # reads them; a tab-IFS read of a substitution is the trap the constitution
   # names, and this avoids needing one.
   # shellcheck disable=SC2086
   set -- $t
-  [ $# -eq 15 ] || { printf 'felix audit: the read returned %s fields, not 15; nothing to report\n' "$#" >&2; return 1; }
+  [ $# -eq 18 ] || { printf 'felix audit: the read returned %s fields, not 18; nothing to report\n' "$#" >&2; return 1; }
   local nfiles="$1" sessions="$2" first="$3" last="$4" stops="$5" ssess="$6"
   local passed="$7" failed="$8" stale="$9" never="${10}" holds="${11}" hsess="${12}"
-  local hid="${13}" aside="${14}" unread="${15}"
+  local hid="${13}" aside="${14}" unread="${15}" hcount="${16}" haside="${17}" hnoedit="${18}"
 
   printf '  transcripts  %s%s\n' "$dir" "$([ "$mode" -eq 2 ] && printf ' (one project: DIR/*.jsonl)')"
   local span=", from $first to $last${since:+ (--since $since)}"
@@ -524,8 +558,9 @@ felix_audit() {
     printf 'Left out: %s after edits only to scratch files or Claude'"'"'s own (memory, plans, settings), which no gate covers.\n\n' \
       "$(_felix_audit_n "$aside" stop)"
   [ "$holds" -gt 0 ] && \
-    printf 'Felix held %s, in %s, because no passing gate result was current for the tree. A held stop is still counted above: the turn tried to end there.\n\n' \
-      "$(_felix_audit_n "$holds" stop)" "$(_felix_audit_n "$hsess" session)"
+    printf 'Felix held %s, in %s, because no passing gate result was current for the tree. %s.\n\n' \
+      "$(_felix_audit_n "$holds" stop)" "$(_felix_audit_n "$hsess" session)" \
+      "$(_felix_audit_held "$holds" "$hcount" "$haside" "$hnoedit")"
   [ "$unread" -gt 0 ] && \
     printf 'Not read: %s could not be opened (the first: %s).\n\n' "$(_felix_audit_n "$unread" transcript)" "$bad"
 

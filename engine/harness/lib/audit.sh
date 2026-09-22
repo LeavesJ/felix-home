@@ -125,19 +125,36 @@ felix_audit_scan() {
   }
 
   # A here-document body is text handed to a command, never a command. Read on
-  # the JSON text, where a line break is backslash-n.
-  function heredocs(c,    out, p, rest, d, t) {
-    out = ""
-    while ((p = index(c, "<<")) > 0) {
-      out = out substr(c, 1, p + 1); rest = substr(c, p + 2); c = rest
-      if (!match(rest, "^-?[ ]*(" SQ "|" BS BS Q ")?[A-Za-z_][A-Za-z0-9_]*")) continue
-      d = substr(rest, 1, RLENGTH); sub("^-?[ ]*(" SQ "|" BS BS Q ")?", "", d)
-      if (!(p = index(rest, BS "n"))) continue
-      t = substr(rest, p)
-      if (!match(t, BS BS "n( |" BS BS "t)*" d "(" BS BS "n|$)")) continue
-      out = out substr(rest, 1, p + 1); c = substr(t, RSTART + RLENGTH)
+  # the JSON text, where a line break is backslash-n. It is split once on <<
+  # and once into lines, a line that could close a body is filed under its
+  # word, and each word is looked up from a pointer that only moves on, so a
+  # command of ten thousand << that are shifts costs one read.
+  function heredocs(c,    n, P, m, L, LS, CL, NC, PT, k, j, w, d, at, ln, t, from, out) {
+    if ((n = split(c, P, "<<")) < 2) return c
+    m = split(c, L, BS BS "n"); LS[1] = 1
+    for (k = 1; k <= m; k++) {
+      LS[k + 1] = LS[k] + length(L[k]) + 2
+      if (k > 1 && length(L[k]) <= 256) {
+        w = L[k]; sub("^( |" BS BS "t)+", "", w)
+        if (w ~ /^[A-Za-z_][A-Za-z0-9_]*$/) CL[w, ++NC[w]] = k
+      }
     }
-    return out c
+    out = ""; from = 1; at = 1; ln = 1
+    for (k = 2; k <= n; k++) {
+      at += length(P[k - 1]) + 2
+      if (at < from) continue
+      w = substr(P[k], 1, 256)
+      if (!match(w, "^-?[ ]*(" SQ "|" BS BS Q ")?[A-Za-z_][A-Za-z0-9_]*")) continue
+      d = substr(w, 1, RLENGTH); sub("^-?[ ]*(" SQ "|" BS BS Q ")?", "", d)
+      while (ln < m && LS[ln + 1] <= at) ln++
+      for (j = PT[d] + 1; j <= NC[d] && CL[d, j] <= ln; j++) ;
+      PT[d] = j - 1
+      if (j > NC[d]) continue
+      t = CL[d, j]
+      out = out substr(c, from, LS[ln + 1] - from)
+      from = t < m ? LS[t + 1] : LS[m + 1] - 2
+    }
+    return out substr(c, from)
   }
 
   # Quoted text is an argument: a single-quoted span always (a grep pattern), a

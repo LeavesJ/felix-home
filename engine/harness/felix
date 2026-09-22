@@ -772,6 +772,11 @@ cmd_new() {
   local name="${1:-}" target="${2:-$PWD}"
   local synopsis="usage: felix new <name> [path-to-checkout] [--no-commission]"
   [ -n "$name" ] || die "$synopsis"
+  # A name and a path, and nothing after them. The synopsis puts the flag in
+  # the third place, so a mistyped --no-commission lands there, and dropped
+  # without a word it let full commissioning run: a marketplace added and
+  # plugins installed at user scope, for someone who asked for neither.
+  [ $# -le 2 ] || die "$synopsis (unexpected argument: $3; nothing was made)"
   # A project directory named after a flag would be enumerated by the
   # independence check and governed forever (#102).
   case "$name" in -*) die "$synopsis (got a flag: $name)" ;; esac

@@ -17481,6 +17481,24 @@ _rvo="$(cd "$AU/cwd" && env -i HOME="$AU/home" PATH="$RV/r3/onlyba" "$AUF" audit
   && ok  "felix audit runs with bash and awk alone on PATH, as the README says, and answers the same report" \
   || bad "felix audit runs with bash and awk alone on PATH, as the README says, and answers the same report" "rc=$_rvrc $(printf '%s' "$_rvo" | head -c 300)"
 
+# felix new takes a name and a path. A third word, where the synopsis puts
+# the flag, is refused before anything is made: a mistyped --no-commission
+# there used to be dropped without a word, and full commissioning ran, with
+# a marketplace added and plugins installed at user scope.
+_nc_repo r-third
+_ncx="$(_nc "$NC/r-third" ncthird . --no-comission)"; _ncxrc=$?; _ncxcalls="$(_nc_calls)"
+_ncxmade=no; [ -e "$NC/home/projects/ncthird" ] && _ncxmade=yes
+_ncw="$(_nc "$NC/r-third" ncextra . extra-arg --no-commission)"; _ncwrc=$?
+_ncv="$(_nc "$NC/r-third" ncthird . --no-commission)"; _ncvrc=$?
+if [ "$_ncxrc" -ne 0 ] && [ "$_ncxcalls" = "0" ] && [ "$_ncxmade" = no ] \
+   && [ "$_ncwrc" -ne 0 ] && [ ! -e "$NC/home/projects/ncextra" ] \
+   && [ "$_ncvrc" -eq 0 ] && _nc_bound r-third ncthird; then
+  ok  "felix new refuses a third argument, a mistyped --no-commission or any other, before it makes anything or calls claude; spelled right, the same command binds"
+else
+  bad "felix new refuses a third argument, a mistyped --no-commission or any other, before it makes anything or calls claude; spelled right, the same command binds" \
+      "typo: rc=$_ncxrc calls=$_ncxcalls made=$_ncxmade $(printf '%s' "$_ncx" | head -c 200) | extra: rc=$_ncwrc | right: rc=$_ncvrc $(printf '%s' "$_ncv" | tail -c 200)"
+fi
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

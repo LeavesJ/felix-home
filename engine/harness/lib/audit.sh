@@ -148,10 +148,11 @@ felix_audit_scan() {
   }
 
   # The Bash command as JSON holds it, and that text unescaped to shell with
-  # real line breaks. BWK awk spends minutes on a gsub over megabytes, so
-  # here-documents go before decoding, and of a command still over 256K only
-  # the first 64K and what follows its last quote are read: the ends hold the
-  # runner and what takes its exit status, and past the last quote is outside.
+  # real line breaks. BWK awk spends minutes on a gsub over megabytes, and as
+  # long splitting megabytes into a million pieces, so of a command over 256K
+  # only the first 64K and what follows its last quote are read, here-documents
+  # and all: the ends hold the runner and what takes its exit status, and past
+  # the last quote is outside.
   function rawcmd(s,    p, r) {
     p = index(s, K_CMD); if (!p) return ""
     r = substr(s, p + length(K_CMD))
@@ -179,7 +180,11 @@ felix_audit_scan() {
   # split once on << and once into lines, a line that could close a body is
   # filed under its word, and each word is looked up from a pointer that only
   # moves on, so a command of ten thousand << that are shifts costs one read.
-  function heredocs(c,    n, P, m, L, LS, CL, NC, PT, k, j, w, d, at, ln, t, from, out) {
+  # Given a window cut from a longer command (open), a body no line in it
+  # closes runs past the window: it goes to the end, and HDW, HDSH and HDAT say
+  # its word, whether a shell reads it, and where the line that opened it ends.
+  function heredocs(c, open,    n, P, m, L, LS, CL, NC, PT, k, j, w, d, at, ln, t, from, out, sh) {
+    HDW = ""; HDSH = 0; HDAT = 0
     if ((n = split(c, P, "<<")) < 2) return c
     m = split(c, L, BS BS "n"); LS[1] = 1
     for (k = 1; k <= m; k++) {
@@ -199,12 +204,17 @@ felix_audit_scan() {
       while (ln < m && LS[ln + 1] <= at) ln++
       for (j = PT[d] + 1; j <= NC[d] && CL[d, j] <= ln; j++) ;
       PT[d] = j - 1
-      if (j > NC[d]) continue
-      t = CL[d, j]
+      if (j > NC[d] && !open) continue
       w = (k == 2) ? P[1] : P[k - 2] "<<" P[k - 1]
       if (k > 3 || length(w) > 64) w = "x" substr(w, length(w) > 64 ? length(w) - 63 : 1)
-      if (w ~ ("(^|[ ;&|(]|" BS BS "n)([^ ;&|()]*/)?(bash|sh|zsh)( +-[-A-Za-z]+)*[ ]*$"))
-        out = out substr(c, from, LS[t] - 2 - from) BS "n"
+      sh = w ~ ("(^|[ ;&|(]|" BS BS "n)([^ ;&|()]*/)?(bash|sh|zsh)( +-[-A-Za-z]+)*[ ]*$")
+      if (j > NC[d]) {
+        HDW = d; HDSH = sh; HDAT = LS[ln + 1]
+        if (!sh) { out = out substr(c, from, LS[ln + 1] - from); from = length(c) + 1 }
+        break
+      }
+      t = CL[d, j]
+      if (sh) out = out substr(c, from, LS[t] - 2 - from) BS "n"
       else out = out substr(c, from, LS[ln + 1] - from)
       from = t < m ? LS[t + 1] : LS[m + 1] - 2
     }
@@ -269,16 +279,32 @@ felix_audit_scan() {
     return index(t, "&") > 0
   }
 
+  # The tail window t of a command r whose first 64K ends inside a
+  # here-document body, which closes at the first line after its opener that
+  # is its word alone. Where that line is in the window, what follows it, and
+  # for a shell the script before it too, less the line; where the body never
+  # closes, none of the window, or all of it for a shell.
+  function afterbody(r, n, t,    s, e, w0) {
+    w0 = n - 65535
+    if (!match(e = substr(r, HDAT - 2), BS BS "n( |" BS BS "t)*" HDW "(" BS BS "n|$)")) return HDSH ? t : ""
+    s = HDAT - 3 + RSTART; e = s + RLENGTH
+    if (e <= w0) return t
+    if (!HDSH) return substr(r, e)
+    return s > w0 ? substr(r, w0, s - w0) BS "n" substr(r, e) : substr(r, e)
+  }
+
   # The quick test reads a quote as a command boundary, since what follows one
   # can be the script of a shell, and a double quote also as nothing, since
   # the quoted path before it can be the program; unquote() then decides what
   # the quotes held.
-  function check(seg,    r, c, n, P, u, big, t) {
-    r = heredocs(rawcmd(seg)); if (r == "") return 0
+  function check(seg,    r, c, n, P, u, big, t, h) {
+    r = rawcmd(seg); if (r == "") return 0
     if (big = ((n = length(r)) > 262144)) {
-      c = decode(substr(r, n - 65535)); n = split(c, P, "[" Q SQ "]")
-      c = decode(substr(r, 1, 65536)); u = unquote(c) "\n" P[n]; c = c "\n" P[n]
-    } else c = decode(r)
+      h = heredocs(substr(r, 1, 65536), 1)
+      t = substr(r, n - 65535); if (HDW != "") t = afterbody(r, n, t)
+      c = decode(heredocs(t, 1)); n = split(c, P, "[" Q SQ "]")
+      c = decode(h); u = unquote(c) "\n" P[n]; c = c "\n" P[n]
+    } else c = decode(heredocs(r, 0))
     r = c; gsub(/\n/, ";", r); gsub(SQ, ";", r); t = r; gsub(Q, "", t); gsub(Q, ";", r)
     if (r !~ vre && t !~ vre) return 0
     if (!big) u = unquote(c)

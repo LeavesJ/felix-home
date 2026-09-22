@@ -17516,6 +17516,39 @@ _au_nums "$_rvo" 'came after' 0 0 && _au_nums "$_rvo" 'left out' 2 \
   || bad "an edit to a skill under Claude's configuration directory or to Felix's memory is left out as no gate's, and the report and the README name that scope" \
          "$(printf '%s\n' "$_rvo" | grep -iE 'came after|left out|never ') | $(printf '%s\n' "$_rvr" | grep -i -A1 'leaves out')"
 
+# Here-documents are looked for within the size a command is read whole at,
+# 256K, and beyond it in the windows read from its ends: splitting 5 MB on
+# << and on line breaks cost minutes on BWK awk. Three 5 MB commands: one of
+# 1.6 million << shifts, one of 700,000 lines that each open a here-document,
+# and one here-document of 560,000 lines with the runner after it. Each is
+# read, each passes, and the three take seconds.
+mkdir -p "$RV/r3/hdbig/-p"
+# one(file, id, command) writes a session of an edit, that Bash command, its
+# passing result and a stop; rep(s, n) is s n times, in log n concatenations.
+_rv_bigawk='
+  function A(id, content, sr) {
+    return "{\"parentUuid\":\"p\",\"isSidechain\":false,\"message\":{\"model\":\"m\",\"id\":\"" id "\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[" content "],\"stop_reason\":\"" sr "\"},\"type\":\"assistant\",\"uuid\":\"u-" id "\",\"timestamp\":\"2026-04-03T10:00:00.000Z\"}" }
+  function one(f, id, cmd) {
+    print A("msg_" id "e", "{\"type\":\"tool_use\",\"id\":\"toolu_" id "e\",\"name\":\"Edit\",\"input\":{\"file_path\":\"/w/a.js\"}}", "tool_use") > f
+    print A("msg_" id "b", "{\"type\":\"tool_use\",\"id\":\"toolu_" id "b\",\"name\":\"Bash\",\"input\":{\"command\":\"" cmd "\"}}", "tool_use") > f
+    print "{\"parentUuid\":\"p\",\"isSidechain\":false,\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"tool_use_id\":\"toolu_" id "b\",\"type\":\"tool_result\",\"content\":\"ok\"}]},\"uuid\":\"u-r" id "\",\"timestamp\":\"2026-04-03T10:00:01.000Z\"}" > f
+    print A("msg_" id "s", "{\"type\":\"text\",\"text\":\"Done.\"}", "end_turn") > f
+    close(f) }
+  function rep(s, n,    r) { r = ""; while (n > 0) { if (n % 2) r = r s; s = s s; n = int(n / 2) } return r }'
+awk -v d="$RV/r3/hdbig/-p" "$_rv_bigawk"'
+  BEGIN {
+    one(d "/shifts.jsonl", "hs", "npm test; echo $((1" rep("<<1", 1600000) "))")
+    one(d "/opens.jsonl", "ho", "npm test; cat <<EOF\\n" rep("<<EOF\\n", 700000) "EOF")
+    one(d "/body.jsonl", "hb", "cat > ids.txt <<\047EOF\047\\n" rep("1234567\\n", 560000) "EOF\\nnpm test")
+  }'
+_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/r3/hdbig")"; _rv_t1="$(date +%s)"
+_rvn="three 5 MB commands dense in << or in line breaks are read in seconds, not minutes, and each still passes: under 30 for the three"
+if [ "$(_au_counts "$_rvo")" = "3 0 0 0" ]; then
+  [ $((_rv_t1 - _rv_t0)) -le 30 ] && ok "$_rvn" || bad "$_rvn" "took $((_rv_t1 - _rv_t0))s"
+else
+  bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") in $((_rv_t1 - _rv_t0))s"
+fi
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

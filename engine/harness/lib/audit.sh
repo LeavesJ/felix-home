@@ -184,8 +184,11 @@ felix_audit_scan() {
 
   # Quoted text is an argument: a single-quoted span (a grep pattern), and a
   # double-quoted one (a message, an echo, a pattern) unless it stands where a
-  # command does, as "./tests/run" can, where it is kept, or holds a $( that
-  # runs one, which is kept from there. The script a shell is handed with -c
+  # command does, as "./tests/run" or "$W/.venv/bin/python" can, where it is
+  # the program, one word: read without its quotes, and with any blank or
+  # ; & | ( ) in it as part of that word, so "npm test" as one name is not npm
+  # (a path holding a blank is not read as a runner either). Or it holds a $(
+  # that runs one, which is kept from there. The script a shell is handed with -c
   # is a command, and is read as one, from a line of its own.
   # split(s, C, "") is a character per element in BWK awk, gawk and mawk alike.
   function unquote(c,    n, C, i, ch, out, q, st, s, w, p) {
@@ -199,7 +202,7 @@ felix_audit_scan() {
         w = st > 129 ? "x" substr(c, st - 128, 128) : substr(c, 1, st - 1); gsub(/\n/, ";", w)
         if (w ~ SHC) out = out "\n" unquote(s)
         else if (q == Q && !index(s, "\n")) {
-          if (w ~ CMDPOS) out = out Q s Q
+          if (w ~ CMDPOS) { gsub(/[ ;&|()]/, "_", s); out = out s }
           else if (p = index(s, "$(")) out = out " " substr(s, p)
         }
         q = ""; st = i + 1
@@ -230,14 +233,17 @@ felix_audit_scan() {
   }
 
   # The quick test reads a quote as a command boundary, since what follows one
-  # can be the script of a shell; unquote() then decides what the quotes held.
-  function check(seg,    r, c, n, P, u, big) {
+  # can be the script of a shell, and a double quote also as nothing, since
+  # the quoted path before it can be the program; unquote() then decides what
+  # the quotes held.
+  function check(seg,    r, c, n, P, u, big, t) {
     r = heredocs(rawcmd(seg)); if (r == "") return 0
     if (big = ((n = length(r)) > 262144)) {
       c = decode(substr(r, n - 65535)); n = split(c, P, "[" Q SQ "]")
       c = decode(substr(r, 1, 65536)); u = unquote(c) "\n" P[n]; c = c "\n" P[n]
     } else c = decode(r)
-    r = c; gsub(/\n/, ";", r); gsub("[" Q SQ "]", ";", r); if (r !~ vre) return 0
+    r = c; gsub(/\n/, ";", r); gsub(SQ, ";", r); t = r; gsub(Q, "", t); gsub(Q, ";", r)
+    if (r !~ vre && t !~ vre) return 0
     if (!big) u = unquote(c)
     gsub(/\n/, ";", u); if (u !~ vre) return 0
     HID = index(seg, K_BG) || hidden(u)

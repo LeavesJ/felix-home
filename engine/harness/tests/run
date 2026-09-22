@@ -17316,6 +17316,17 @@ _rvo="$(_au --dir "$RV/r3/words")"
   && ok  "a runner after if, do, ! or { is a check, and 3 of the 4 hand their status to the if, the loop or the !" \
   || bad "a runner after if, do, ! or { is a check, and 3 of the 4 hand their status to the if, the loop or the !" "$_rvo"
 
+# A program path quoted at command position is the program: the runner may be
+# its last word or the word after it. A quoted span holding a blank is not one
+# command name, so "npm test" run as a name is not npm.
+_rv_one r3/qpath r3-qp1 'W=/w/proj\n\"$W/.venv/bin/python\" -m pytest -q'
+_rv_one r3/qpath r3-qp2 '\"$FELIX_HOME/harness/felix\" gate'
+_rv_one r3/qpath r3-qp3 '\"/usr/bin/python3\" -m pytest tests'
+_rv_one r3/qpath r3-qp4 '\"./tests/run\"'
+_rv_one r3/qpath r3-qp5 '\"npm test\"'
+is  "a quoted program path at command position is the program: \"\$W/.venv/bin/python\" -m pytest and \"\$FELIX_HOME/harness/felix\" gate are checks, \"npm test\" as a name is not" \
+    "$(_au_counts "$(_au --dir "$RV/r3/qpath")")" "4 0 0 1"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

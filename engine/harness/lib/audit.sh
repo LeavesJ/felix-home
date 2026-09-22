@@ -569,7 +569,7 @@ felix_audit() {
   else
     printf 'A check is a Bash command running tests or a gate (npm test, pytest, cargo test, go test, make check, jest, vitest, felix gate and the like), outside quoted text and here-documents, save a script handed to a shell; --verify ERE replaces that list.\n'
   fi
-  printf 'A check piped into another command, followed by one, or run in the background hands its exit status to something else, so its result is never marked an error, whatever it printed.\n'
+  printf 'A check piped into another command, followed by one, or run in the background hands its exit status to something else, so its own failure goes unseen: a stop after one is counted failed only when what took that status failed.\n'
   printf 'Subagents are not seen: their edits and checks sit in files this does not read.\n\n'
   _felix_audit_next
   return 0

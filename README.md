@@ -209,10 +209,10 @@ the last edit reported no error, or it failed, or a check ran earlier but not
 since the last edit, or no check had run in the session at all. A check is a
 Bash command that runs tests or a gate. `--verify ERE` says what counts in
 your project, and `--since YYYY-MM-DD` narrows the window. A check piped into
-another command or run in the background never has its result marked as an
-error, whatever it printed, so the report says how many of the passing ones
-that covers. It doesn't read subagent transcripts, and it leaves out edits to
-scratch files and to Claude's own memory and plans.
+another command, followed by one, or run in the background hands its exit
+status to something else, so its own failure goes unseen, and the report says
+how many of the passing ones that covers. It doesn't read subagent transcripts,
+and it leaves out edits to scratch files and to Claude's own memory and plans.
 
 The second governs one project without commissioning it:
 
@@ -225,8 +225,9 @@ That writes the project's rules, a guessed gate, a memory directory under
 `~/.felix/memory` and a `.felix` marker in the checkout. It installs no plugins
 and uses no network. From a plain clone the rules go into the clone's own
 `projects/` directory, because a clone that ships `projects/` is Felix's home.
-`felix gate` and `felix which` work straight away. Sessions aren't held until
-`felix install` has run, because the hooks come with the plugin, and
+`felix which` works straight away, and so does `felix gate` where a gate was
+guessed; where none was, set `gate` in `project.json` first. Sessions aren't
+held until `felix install` has run, because the hooks come with the plugin, and
 `felix commission` runs commissioning whenever you want it.
 
 Installing changes your setup, so read this part first:

@@ -17352,6 +17352,36 @@ _rvo="$(_au --dir "$RV/r3/comment")"
   && ok  "a shell comment is not code: its apostrophe opens no quote, its (npm test) runs nothing, and its ; takes no status" \
   || bad "a shell comment is not code: its apostrophe opens no quote, its (npm test) runs nothing, and its ; takes no status" "$_rvo"
 
+# The runners a session in another ecosystem uses, the wrappers and flags a
+# runner is reached through, and a loop: each a check by default. A report
+# that calls them never-checked says no check ran where one did. Beside two
+# commands of the same tools that run no tests.
+_rv_i=0
+for _c in 'until npm test; do :; done' 'env CI=1 npm test' 'nohup npm test' 'timeout -s KILL 600 npm test' \
+          'sudo -E npm test' 'make -C engine test' 'npm --prefix web test' 'pnpm -r test' 'pnpm --filter web test' \
+          'yarn workspace web test' 'npx -y jest' 'python -m unittest' 'deno test' 'forge test' 'npx hardhat test' \
+          'flutter test' 'dart test' 'sbt test' 'stack test' 'cabal test' 'zig build test' 'lein test' \
+          'bazel test //...' 'rake test' 'bin/rails test' 'php artisan test' 'mocha' 'npx playwright test' \
+          'npm --prefix web install' 'make -C engine build'; do
+  _rv_i=$((_rv_i + 1)); _rv_one r3/eco "r3-ec$_rv_i" "$_c"
+done
+is  "the default checks reach the runners of more ecosystems, and the flags and wrappers before them: 28 commands, each a check, beside 2 that run none" \
+    "$(_au_counts "$(_au --dir "$RV/r3/eco")")" "28 0 0 2"
+# And no roster names every runner, so the never line claims only the checks
+# it knows, the report says a runner it does not name is no check, and
+# neither it nor the README says --verify is set per project: it replaces the
+# roster for every project the run reads.
+_rvo="$(_au --dir "$RV/r3/eco")"
+_rvr="$(awk '/^## / { p = ($0 ~ /^## Try it/); next } p' "$REAL_HARNESS/../../README.md" 2>/dev/null)"
+if printf '%s\n' "$_rvo" | grep -E '^ *never ' | grep -qiE 'recogni[sz]es|knows' \
+   && _rv_says "$_rvo" 'not (a check|name)|does not name' && _rv_says "$_rvo" 'verify[^.;]*every project' \
+   && _rv_says "$_rvr" 'verify[^.;]*every project' && ! _rv_says "$_rvr" 'verify[^.]*in your project'; then
+  ok  "the never line claims only the checks it knows, and the report and the README say --verify replaces the roster for every project read"
+else
+  bad "the never line claims only the checks it knows, and the report and the README say --verify replaces the roster for every project read" \
+      "$(printf '%s\n' "$_rvo" | grep -iE 'never|verify') | $(printf '%s\n' "$_rvr" | grep -i 'verify')"
+fi
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

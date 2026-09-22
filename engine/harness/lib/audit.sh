@@ -52,19 +52,31 @@
 
 # What counts as a check when --verify is not given: the usual test and gate
 # runners, at command position — the start of the command, or after ; & | ( or
-# $( — behind any VAR=value, a wrapper (npx, or any `<tool> run` or `<tool>
-# exec`), and a path. At command position so that `sed -n 1p tests/run` and
-# `grep jest package.json` read as the reads they are. A value ends where the
-# word does, so what follows `W=/w;` or a line break is the next command, and
-# the path before a runner holds no = , so assigning `G=scripts/gate.sh` is
-# not running it. The shell's reserved words stand where a command does, so
-# the runner after if, then, else, elif, do, while, until, ! or { is run. The
-# roster names test runners across every ecosystem on purpose, the way a probe
-# does; ecosystem.tsv carries the row that says so.
+# $( — behind any VAR=value, a wrapper (npx, env, nohup, sudo, timeout and
+# the like, each with its options, or any `<tool> run` or `<tool> exec`), and
+# a path. At command position so that `sed -n 1p tests/run` and `grep jest
+# package.json` read as the reads they are. A value ends where the word does,
+# so what follows `W=/w;` or a line break is the next command, and the path
+# before a runner holds no = , so assigning `G=scripts/gate.sh` is not running
+# it. The shell's reserved words stand where a command does, so the runner
+# after if, then, else, elif, do, while, until, ! or { is run. Options may
+# stand between a tool and its test command (make -C engine test, npm --prefix
+# web test, pnpm --filter web test). The roster names the test runners of
+# many ecosystems side by side on purpose, the way a probe does, and no list
+# names them all: a runner it does not name is no check, and the report says
+# so rather than calling the session unchecked. ecosystem.tsv carries the row.
 FELIX_AUDIT_WORD='(if|then|else|elif|do|while|until|!|[{]) +'
 FELIX_AUDIT_ASSIGN='[A-Za-z_][A-Za-z0-9_]*=[^ ;&|()]* +'
-FELIX_AUDIT_WRAP='(env|time|exec|command|nice|timeout +[0-9.smh]+|bash|sh|zsh|npx|bunx) +'
-FELIX_AUDIT_CHECKS='(^|[;&|(]|[$][(])[ ]*('"$FELIX_AUDIT_WORD|$FELIX_AUDIT_ASSIGN|$FELIX_AUDIT_WRAP"'|[a-z]+ +(run|exec) +)*([^ ;&|()=]*/)?((npm|pnpm|yarn|bun) +(run +)?(test|verify|check)|pytest|python[0-9.]* +-m +pytest|tox|cargo +(test|check|nextest)|go +test|make +(test|check)|mvnw? +([^;&|]* +)?(test|verify)|gradlew? +([^;&|]* +)?(test|check)|rspec|phpunit|dotnet +test|swift +test|mix +test|ctest|jest|vitest|tests/run|gate[.]sh|felix +gate)([^A-Za-z0-9_]|$)'
+FELIX_AUDIT_OPTS='( +-[-A-Za-z0-9]+(=[^ ;&|()]*)?( +[^- ;&|()][^ ;&|()]*)?)*'
+FELIX_AUDIT_WRAP='((env|time|exec|command|nice|nohup|sudo|bash|sh|zsh|npx|bunx)'"$FELIX_AUDIT_OPTS"'|timeout( +-[-A-Za-z]+( +[A-Z0-9][A-Za-z0-9]*)?)* +[0-9.]+[smhd]?) +'
+FELIX_AUDIT_RUNNERS='(npm|pnpm|yarn|bun)'"$FELIX_AUDIT_OPTS"'( +workspace +[^ ;&|()]+)? +(run +)?(test|verify|check)'\
+'|pytest|python[0-9.]*'"$FELIX_AUDIT_OPTS"' +-m +(pytest|unittest)|tox|nox|cargo +(test|check|nextest)|go +test'\
+'|make'"$FELIX_AUDIT_OPTS"' +(test|check)|mvnw? +([^;&|]* +)?(test|verify)|gradlew? +([^;&|]* +)?(test|check)'\
+'|rspec|phpunit|rake +(test|spec)|rails +test|php +artisan +test|dotnet +test|swift +test|mix +test|ctest'\
+'|jest|vitest|mocha|playwright +test|deno +test|hardhat +test|forge +test|flutter +test|dart +test'\
+'|sbt +test|lein +test|stack +test|cabal +test|zig +build +test|bazel +test'\
+'|tests/run|gate[.]sh|felix +gate'
+FELIX_AUDIT_CHECKS='(^|[;&|(]|[$][(])[ ]*('"$FELIX_AUDIT_WORD|$FELIX_AUDIT_ASSIGN|$FELIX_AUDIT_WRAP"'|[a-z]+ +(run|exec) +)*([^ ;&|()=]*/)?('"$FELIX_AUDIT_RUNNERS"')([^A-Za-z0-9_]|$)'
 # Where a double-quoted span stands for a command, as "./tests/run" can: the
 # same position, read on text whose line breaks are already ; .
 FELIX_AUDIT_CMDPOS='(^|[;&|(])[ ]*('"$FELIX_AUDIT_WORD|$FELIX_AUDIT_ASSIGN|$FELIX_AUDIT_WRAP"')*$'
@@ -76,7 +88,8 @@ felix_audit_usage() {
   printf '  --dir DIR      transcripts to read, DIR/*/*.jsonl, or DIR/*.jsonl for one\n'
   printf '                 project (default: ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects)\n'
   printf '  --since DATE   skip records timestamped before this UTC date\n'
-  printf '  --verify ERE   what counts as a check: a Bash command matching this POSIX ERE\n'
+  printf '  --verify ERE   what counts as a check, in every project read: a Bash command\n'
+  printf '                 matching this POSIX ERE, in place of the default runners\n'
 }
 
 _felix_audit_refuse() {
@@ -587,7 +600,7 @@ felix_audit() {
     "$failed" "$(_felix_audit_pct "$failed" "$stops")"
   printf '  stale   %5s  %3s%%  a check ran earlier in the session, but none after the last edit\n' \
     "$stale" "$(_felix_audit_pct "$stale" "$stops")"
-  printf '  never   %5s  %3s%%  no check had run in the session at all\n\n' \
+  printf '  never   %5s  %3s%%  no check it recognises had run in the session at all\n\n' \
     "$never" "$(_felix_audit_pct "$never" "$stops")"
 
   [ "$aside" -gt 0 ] && \
@@ -601,9 +614,9 @@ felix_audit() {
     printf 'Not read: %s could not be opened (the first: %s).\n\n' "$(_felix_audit_n "$unread" transcript)" "$bad"
 
   if [ -n "$verify" ]; then
-    printf 'A check is a Bash command matching --verify %s, outside quoted text and here-documents, save a script handed to a shell.\n' "'$verify'"
+    printf 'A check is a Bash command matching --verify %s, in every project read, outside quoted text and here-documents, save a script handed to a shell.\n' "'$verify'"
   else
-    printf 'A check is a Bash command running tests or a gate (npm test, pytest, cargo test, go test, make check, jest, vitest, felix gate and the like), outside quoted text and here-documents, save a script handed to a shell; --verify ERE replaces that list.\n'
+    printf 'A check is a Bash command running tests or a gate (npm test, pytest, cargo test, go test, make check, jest, vitest, felix gate and the like), outside quoted text and here-documents, save a script handed to a shell. A runner it does not name is not a check, so a session that ran only one reads as never; --verify ERE replaces that list for every project read (--dir one project'"'"'s directory to narrow it).\n'
   fi
   printf 'A check piped into another command, followed by one, run in the background or turned over by ! hands its exit status to something else, so its own failure goes unseen: a stop after one is counted failed only when what took that status failed.\n'
   printf 'Subagents are not seen: their edits and checks sit in files this does not read.\n\n'

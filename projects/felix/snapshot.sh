@@ -394,7 +394,7 @@ if [ -n "$EXPECT" ]; then
   say "built tree    $got"
   say "expected tree $want"
   if [ "$got" = "$want" ]; then say "MATCH"; exit 0; fi
-  say "DIFFER"; git -C "$CLONE" diff --stat "$want" "$got" | tail -20; exit 1
+  say "DIFFER"; git -C "$CLONE" diff --stat "$want" "$got" | tail -20 || say "(no tree $want in the public clone to list the difference against)"; exit 1
 fi
 [ -n "$(git -C "$CLONE" diff --cached --name-only "$BASE")" ] || die "nothing to publish: the public main already holds this tree"
 

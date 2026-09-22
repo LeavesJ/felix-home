@@ -28,19 +28,15 @@
 #   --source a8ab281 --base 3091a76 --public-readme --expect-tree 5455d56
 #
 # Published itself, with its audit, snapshot-audit.sh, deliberately. Neither
-# names another project: every name is derived at run time from main's
-# history, the memory root, the manifests' remotes, the login and each --name,
-# and a published file that carried them would be the leak it exists to
-# prevent. Its literals are the public repository and the public author,
-# both public already. It sits in projects/felix/, so every run audits it with
-# the rest of the tree. Publishing it shows a stranger what is withheld and
-# why, which is the claim the receipts make; withholding it would hide the
-# method and not one name. What would reverse this: a literal here that the
-# audit has to be told to ignore.
+# names another project: every name is derived at run time (main's history, the
+# memory root, the manifests' remotes, the login, each --name), and the only
+# literals, the public repository and author, are public. Every run audits both
+# with the rest of projects/felix/. They show a stranger what is withheld and
+# why; withholding them would hide the method and not one name. What would
+# reverse this: a literal here that the audit has to be told to ignore.
 set -euo pipefail
-# Bytes, in every locale. Under a UTF-8 locale the platform grep matches
-# nothing after an invalid byte on a line, so an address behind one Latin-1
-# character passed the audit and the credential scan, which inherits this.
+# Bytes, in every locale, here and in the credential scan that inherits it: under
+# UTF-8 the platform grep matched nothing after an invalid byte on a line.
 export LC_ALL=C
 
 PUBLIC_SLUG="LeavesJ/Felix"
@@ -105,18 +101,14 @@ if git -C "$HOME_TOP" cat-file -e "$MAIN:.snapshot-ack.tsv" 2>/dev/null; then gi
 else : > "$ACKS"; fi
 
 # ------------------------------------------------------------- names -------
-# Two sets, and the difference between them is the lesson of the first
-# snapshot. The scrub matched two spellings and a case-insensitive grep found a
-# third; a fragment search found two more. So the set that is rewritten is not
-# the set that is searched for, and the searched set is the wider one.
+# Two sets, and that is the first snapshot's lesson: its scrub matched two
+# spellings and searches found three more, so the set searched for is wider.
 #
 # SCRUB: every project that ever declared a manifest on the source's history,
-# in the order each manifest landed on main: the first-parent line, oldest
-# first, where a merge counts as the moment its branch's manifest arrived. The
-# order hands out the tokens (another, third, ...), and a project retired later
-# keeps its place, because renumbering would rewrite text that is already
-# public. A commit's own time is not that order: a branch whose manifest was
-# committed early and merged late would take an earlier token and shift the rest.
+# in the order each landed on main's first-parent line, oldest first. The order
+# hands out the tokens (another, third, ...); a retired project keeps its place,
+# since renumbering rewrites public text. A commit's own time is not that order:
+# a branch committed early and merged late would shift every later token.
 git -C "$HOME_TOP" log --first-parent -m --diff-filter=A --reverse --format= --name-only "$SRC" -- 'projects/*/project.json' |
   awk -F/ -v self="$SELF" '/^projects\/[^\/]+\/project\.json$/ && $2 != self && !seen[$2]++ { print $2 }' > "$OUT/scrub.order" ||
   die "could not read the order the manifests landed on main"
@@ -184,12 +176,11 @@ scan() { bash "$HERE/snapshot-audit.sh" "$NM.searched" "$AUTHOR_EMAIL" "$1" < "$
 lsfiles() { (cd "$1" && find . \( -type f -o -type l \) | sed 's|^\./||' | sort); }
 allfiles() { lsfiles "$1" | tr '\n' '\0'; }
 # Hits no acknowledgement covers. An acknowledgement waives a leak check, so it
-# is authority and not state: a row of .snapshot-ack.tsv at the home's root,
-# tracked, so a person reviews it in a pull request, and read as main holds it,
-# so an unmerged row waives nothing. It is withheld, because it names what the
-# audit searches for. A row is path, the hash of the line as it stands, and why
-# the line is not what the audit feared; editing the line voids it. Nothing here
-# writes that file. It prints the row a person could add.
+# is authority, not state: a row of .snapshot-ack.tsv at the home's root, tracked
+# and reviewed in a pull request, read as main holds it (an unmerged row waives
+# nothing), and withheld, since it names what is searched for. A row is path,
+# the line's hash and why; editing the line voids it. Nothing here writes that
+# file; it prints the row a person could add.
 unacked() { awk -F'\t' 'FILENAME == ARGV[1] { if ($1 !~ /^[#@]/ && NF >= 3) ok[$1 FS $2] = 1; next } !(($1 FS $5) in ok)' "$ACKS" "$1"; }
 show_hits() {  # DIR HITS: each line, and the row that would acknowledge it
   local p l n r h t
@@ -202,8 +193,7 @@ show_hits() {  # DIR HITS: each line, and the row that would acknowledge it
 }
 
 # ------------------------------------------------------------- build -------
-# The published set, out of the commit, into a directory nothing else writes.
-# The consent files are left out by pathspec, so nothing is deleted by hand.
+# The published set, out of the commit; the consent files left out by pathspec.
 PUB=""
 for p in engine "projects/$SELF" .gitignore .claude-plugin/marketplace.json; do
   if git -C "$HOME_TOP" cat-file -e "$SRC:$p" 2>/dev/null; then PUB="$PUB $p"; fi
@@ -215,6 +205,16 @@ archive_to() {
   git -C "$HOME_TOP" archive "$SRC" -- $PUB ":(exclude)projects/$SELF/autonomy" ":(exclude)projects/$SELF/autonomy.commission" | tar -x -C "$1"
 }
 archive_to "$RAW"; archive_to "$B"
+# The raw tree is the commit's bytes and nothing else. git archive obeys the
+# source's .gitattributes, withheld or not: export-subst wrote the home's commit
+# id into a published file, and export-ignore drops one without a word.
+git -C "$HOME_TOP" ls-tree -r -z "$SRC" -- $PUB > "$OUT/tree.src" || die "could not list the source commit's tree"
+X="projects/$SELF/autonomy" D="$RAW" N="$(lsfiles "$RAW" | wc -l | tr -d ' ')" perl -0 -MDigest::SHA=sha1_hex -ne 'chomp;
+  my ($t, $h, $p) = /^\d+ (\w+) (\w+)\t(.*)$/s or die "ls-tree: $_\n"; next if $p eq $ENV{X} || $p eq "$ENV{X}.commission"; $n++;
+  my ($f, $c, $fh) = ("$ENV{D}/$p"); if (-l $f) { $c = readlink $f } elsif (open $fh, "<:raw", $f) { local $/; $c = <$fh> // "" }
+  print "$p\n" unless $t eq "blob" && defined $c && sha1_hex("blob " . length($c) . "\0" . $c) eq $h;
+  END { print "($n in the commit, $ENV{N} built)\n" if $n != $ENV{N} }' "$OUT/tree.src" > "$OUT/raw.differs" || die "could not hold the build to the commit's blobs"
+[ ! -s "$OUT/raw.differs" ] || die "the build is not the commit's bytes; an export rule in .gitattributes or a filter changed:" "$(head -5 "$OUT/raw.differs")"
 
 # Consent. The exception table ships only while it is the empty seed: a row in
 # it is a person's grant, and a grant is not published. Named, and stopped.

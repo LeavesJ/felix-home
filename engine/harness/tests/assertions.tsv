@@ -30,6 +30,7 @@
 1	a CLI that fails is exit 3 and no rows
 1	a CLI that prints an error and exits 0 is exit 3 and no rows too
 1	a Copilot resume, which always got the banner, still does
+1	a Copilot resume, which keeps its banner, appends a lifecycle row of kind resume too
 1	a RELEASE_BLOCKING candidate is refused because it may not block
 1	a backfilled row carries DECLARED
 1	a bare branch name prefers the remote-tracking ref
@@ -84,12 +85,14 @@
 1	a checkout that has never been graphed has no graph file
 1	a checkout that moves after verification merges nothing
 1	a checkout with no binding gets a dash for its epoch
+1	a checkout with no commit yet records its HEAD as unborn
 1	a checkout with no engine directory cannot look either, exit 2
 1	a checkout with nothing tracked under projects/ cannot search
 1	a class outside the set is refused
 1	a class the ledger does not know is refused for its class
 1	a clean checkout claims no rival gate
 1	a clean repo says so instead of minting a commit
+1	a clear appends one lifecycle row of kind clear
 1	a command file piping to a shell is a fact naming that file
 1	a command whose frontmatter declares hooks is high
 1	a commands directory main ships that the entry lacks is drift
@@ -98,6 +101,7 @@
 1	a commit in the checkout the graph was built from is due
 1	a commit this repository does not hold is not a distance
 1	a commit with no remote does not stamp a push
+1	a compact appends one lifecycle row of kind compact
 1	a component that cannot be computed prints as a dash
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
@@ -218,6 +222,7 @@
 1	a gate that skipped the suite is not called a passing suite
 1	a gitignored stray in the tree is residue, not drift
 1	a gitlink already in history does not block every future backup
+1	a governed directory that is not a git checkout records its HEAD as -, not unborn
 1	a governed product merges with FELIX_KERNEL set and no engine installed
 1	a governed product merges with no installed engine at all
 1	a grant committed locally on top of the fetched main but not pushed clears nothing
@@ -286,6 +291,7 @@
 1	a leftover message draft does not stop the backup forever
 1	a library changed and committed on a branch is not drift
 1	a library changed in the working tree is not drift, because main did not change
+1	a lifecycle.log that cannot be appended to leaves a resume silent, a startup's banner unchanged, and both exiting 0
 1	a live grant is listed live and a grant on a dormant row is listed armed
 1	a live night is mounted into the next session's context
 1	a local server declared inline in plugin.json is medium
@@ -313,6 +319,7 @@
 1	a medium one is refused
 1	a medium row a person declared installs, as it always has
 1	a medium row the engine grounded waits for a person
+1	a memory directory the recorder cannot write leaves the hook's exit 0 and its banner as it was
 1	a merge in progress is a person's, and the pulse says so
 1	a merge is blocked while the project reads nothing from reality
 1	a merge stopped for the founder is recorded as one
@@ -386,6 +393,8 @@
 1	a path-valued key is not written to the log
 1	a path-valued key the list never heard of still counts what was typed
 1	a payload naming nothing to act on is allowed
+1	a payload of 30,000 lines carrying source is answered by its first, recorded inside thirty seconds, and the resume stays silent
+1	a payload with no session_id or transcript_path writes - in lifecycle fields 3 and 8
 1	a peer commit on the same branch merges nothing
 1	a peer edit to the working tree merges nothing
 1	a person's low row installs
@@ -497,6 +506,7 @@
 1	a refreshed graph clears the row
 1	a refusal on risk is reported
 1	a refused candidate does not fail the report
+1	a refused handoff appends a lifecycle row noted refused, with the hash of the file it left alone
 1	a regenerated handoff keeps the mode it had
 1	a registered marketplace names its catalogue
 1	a rejected push is reported, not forced
@@ -507,7 +517,9 @@
 1	a repository that is not the memory's own is named foreign
 1	a resolve.sh committed on the branch being gated does not change the verdict
 1	a resolve.sh stubbed in the cache entry is drift, not the judge
+1	a resume appends one lifecycle row of kind resume, and the hook prints nothing at all and exits 0
 1	a resume on a broken binding stays as silent as before it was bound
+1	a resume where the marker cannot be read prints nothing on either stream, records nothing and exits 0
 1	a resumed session gets no banner
 1	a revision expression is taken as given
 1	a rollup rewrites no file another session wrote
@@ -590,6 +602,7 @@
 1	a stance at a moment nobody declared is named
 1	a stance at the commissioning moment is not a stance at an unknown moment
 1	a stance for something nothing enumerates is named
+1	a startup appends exactly one row to the project's lifecycle.log
 1	a startup payload still gets the banner
 1	a state file from before this existed complains, as it did
 1	a step outside 1-10 is malformed
@@ -625,6 +638,7 @@
 1	a tool that could not be checked is said, not counted as reachable
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
+1	a transcript path holding a tab still leaves nine lifecycle fields, the path kept whole in field 8
 1	a tree that changed is named before a fact that moved
 1	a tree that changed is named before a receipt with no epoch
 1	a tree the marketplace does not serve still applies, because the question is about main
@@ -741,6 +755,7 @@
 1	an engine that is a checkout is its own source
 1	an engine under that path can deploy
 1	an engine whose every script carries its bit exits 0
+1	an engine with no plugin.json of its own records - as the bound engine, never the registry's version
 1	an entry declaring an MCP server inline is medium
 1	an entry declaring hooks inline is high
 1	an entry for main's version tampered under harness is drift
@@ -802,6 +817,7 @@
 1	an undeclared capability is still never scored
 1	an undeclared tool is reported, not hidden
 1	an unenforceable probe word is muted on the record
+1	an ungoverned directory writes no lifecycle.log, under the memory root or in its tree, where a governed start does
 1	an ungoverned repo is allowed
 1	an ungranted project starts no background run
 1	an ungrounded row is counted
@@ -1552,6 +1568,7 @@
 1	and the grep it replaced counts the entry that never fires
 1	and the grep the probe used to be counts it, which is why the probe moved
 1	and the hand-back names the bound that ended the night
+1	and the handoff row names the engine that wrote it and the checkout's HEAD
 1	and the held total
 1	and the hook exits 0 there
 1	and the hook still exits 0 there
@@ -1560,6 +1577,7 @@
 1	and the inline variable is named
 1	and the instrument is appended as the ninth
 1	and the lesson is in the same block
+1	and the lifecycle row has nine tab-separated fields
 1	and the literal name is caught
 1	and the log carries the sha it was read at
 1	and the log is back to empty, as this block found it
@@ -1617,6 +1635,7 @@
 1	and the residue is not
 1	and the residue rule is the library's alone
 1	and the rest of the file is untouched
+1	and the resume row names the engine, the installed engine, the HEAD, the handoff and the transcript
 1	and the reviewed one is cleared by it
 1	and the route its path named is not taken
 1	and the row blocks a release rather than vanishing
@@ -1709,6 +1728,7 @@
 1	apply without --yes changes nothing
 1	applying declares appends one row per new declare
 1	as a declined verdict
+1	as a plain settings.json hook, with no CLAUDE_PLUGIN_ROOT, the lifecycle row still names its own engine
 1	as an unread manifest, not as nothing declared
 1	as an unread manifest, whatever the key before it said
 1	as does another
@@ -1924,7 +1944,9 @@
 1	felix gate fails qualification over a checker never shown failing
 1	felix gate reads qualified ok over controls that did not apply
 1	felix gate runs the probes for a project with a table
+1	felix handoff --replace over a hand-written handoff appends a row noted replaced, with the hash of what replaced it
 1	felix handoff --replace overwrites it
+1	felix handoff appends one lifecycle row of kind handoff, noted written, with the hash of the file it wrote
 1	felix handoff refuses a hand-written handoff
 1	felix ledger folds it and says what it folded
 1	felix ledger proposes retiring the disuse zero
@@ -2023,6 +2045,7 @@
 1	hooks at a declared path are high
 1	hooks declared inline in plugin.json are high
 1	hooks-events reads a hooks.json and exits 0
+1	hooks/session-start records above the resume exit, and its comment saying the record sits above sits between the two
 1	hooks: in a skill's body, after the frontmatter closes, is low
 1	hooks: indented under another frontmatter key is low
 1	hooks: inside a frontmatter value is low
@@ -2081,7 +2104,18 @@
 1	lib/commission.sh closes what it inherited before backgrounding
 1	lib/discover.sh closes what it inherited before backgrounding
 1	lib/graph.sh closes what it inherited before backgrounding
+1	lib/lifecycle.sh opens by dating its exception to rows-first, 2026-09-21, and names the schemas.tsv row owed with queue item 2
+1	lifecycle field 1 is a UTC ISO 8601 stamp, the format the other memory logs use
+1	lifecycle field 2 is the SessionStart source, startup
+1	lifecycle field 3 is the payload's session id
+1	lifecycle field 4 is the engine running the hook, read from its own plugin.json
+1	lifecycle field 5 is the version the Claude Code registry has installed for felix
+1	lifecycle field 6 is the full sha of the checkout's HEAD
+1	lifecycle field 7 is git hash-object of the project's SESSION_HANDOFF.md
+1	lifecycle field 8 is the payload's transcript path
+1	lifecycle field 9, the note, is - on a session row
 1	lifecycle-check cannot examine a hooks.json that does not parse
+1	lifecycle.log is written under the memory root and nowhere in the checkout
 1	listed where a reader must look
 1	lists the skills a plugin ships
 1	lists what the fix must prove
@@ -2486,6 +2520,7 @@
 1	the message names the play, not only the miss
 1	the model still gets the whole thing
 1	the nested repo is still refused
+1	the next session start records the same handoff hash the handoff row did
 1	the north-star row is accepted: ADVISORY, always applies, grounded on http_route and ceiling_site
 1	the north-star row's own columns follow, in the ledger's order
 1	the obligations row is done on day one, its seeded row dormant in a project with no hooks
@@ -2621,6 +2656,7 @@
 1	two rows in one session are one session, calls summed
 1	two rows, once each
 1	two runs with nothing to show end the night too
+1	two session starts append two lifecycle rows in order and rewrite none of the bytes before them
 1	two strangers and no upstream is a person's call
 1	undeclared capability classifies as dormant
 1	ungoverned repo refuses to run a gate
@@ -2697,6 +2733,7 @@
 1	with neither origin/main nor main to fall back on the red run cannot run, exit 2
 1	with no CLI and nothing bundled, Felix says it cannot tell
 1	with no CLI to ask and a newer entry on disk, the entry main declares is still the one compared
+1	with no Claude Code registry in HOME, the installed engine is - and the bound one is still read
 1	with no checkout in front of it the row reads unchecked
 2	with no cli call at all
 1	with no felix cache on the machine, installed is skipped
@@ -2705,6 +2742,7 @@
 1	with no graphify-out beside the checkout it runs nothing
 1	with no probes.tsv the epoch cannot be computed, and every recorded row is stale
 1	with no run beside it the red run cannot run, exit 2
+1	with no session handoff on disk, lifecycle field 7 is -
 1	with no session record it behaves as before
 1	with no stances taken, every item is a gap
 1	with nothing due it reports nothing

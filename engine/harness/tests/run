@@ -17286,6 +17286,22 @@ else
   bad "$_rvn" "it did not count it, so its speed says nothing: $(_au_counts "$_rvo")"
 fi
 
+# Not blind: written by the fixer, from a third review of the audit and of
+# felix new, one assertion per confirmed finding, each shown failing against
+# the engine before its fix. Fixtures sit under $RV, as the reviews' do.
+printf '\nfelix audit: what the third review found\n'
+
+# An assignment's value ends where a word does, at a blank, a line break or
+# ; & | ( ): past that is the next command, not more of the value. And a path
+# assigned to a variable is not run by the assignment.
+_rv_one r3/assign r3-as1 'W=/w/proj\ncp scripts/gate.sh /tmp/gate.bak'
+_rv_one r3/assign r3-as2 'G=projects/felix/gate.sh\nwc -l \"$G\"'
+_rv_one r3/assign r3-as3 'X=a;echo \"./tests/run\"'
+_rv_one r3/assign r3-as4 'W=/w/proj ./scripts/gate.sh'
+_rv_one r3/assign r3-as5 'W=/w\n./scripts/gate.sh'
+is  "a VAR=value ends at ; or a line break, and assigning a gate's path is not running it: a copy or a quote after one is no check" \
+    "$(_au_counts "$(_au --dir "$RV/r3/assign")")" "2 0 0 3"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

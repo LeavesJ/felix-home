@@ -53,10 +53,17 @@
 # runners, at command position — the start of the command, or after ; & | ( or
 # $( — behind any VAR=value, a wrapper (npx, or any `<tool> run` or `<tool>
 # exec`), and a path. At command position so that `sed -n 1p tests/run` and
-# `grep jest package.json` read as the reads they are. The roster names test
-# runners across every ecosystem on purpose, the way a probe does; ecosystem.tsv
-# carries the row that says so.
-FELIX_AUDIT_CHECKS='(^|[;&|(]|[$][(])[ ]*([A-Za-z_][A-Za-z0-9_]*=[^ ]* +)*((env|time|exec|command|nice|timeout +[0-9.smh]+|bash|sh|zsh|npx|bunx|[a-z]+ +(run|exec)) +)*([^ ;&|()]*/)?((npm|pnpm|yarn|bun) +(run +)?(test|verify|check)|pytest|python[0-9.]* +-m +pytest|tox|cargo +(test|check|nextest)|go +test|make +(test|check)|mvnw? +([^;&|]* +)?(test|verify)|gradlew? +([^;&|]* +)?(test|check)|rspec|phpunit|dotnet +test|swift +test|mix +test|ctest|jest|vitest|tests/run|gate[.]sh|felix +gate)([^A-Za-z0-9_]|$)'
+# `grep jest package.json` read as the reads they are. A value ends where the
+# word does, so what follows `W=/w;` or a line break is the next command, and
+# the path before a runner holds no = , so assigning `G=scripts/gate.sh` is
+# not running it. The roster names test runners across every ecosystem on
+# purpose, the way a probe does; ecosystem.tsv carries the row that says so.
+FELIX_AUDIT_ASSIGN='[A-Za-z_][A-Za-z0-9_]*=[^ ;&|()]* +'
+FELIX_AUDIT_WRAP='(env|time|exec|command|nice|timeout +[0-9.smh]+|bash|sh|zsh|npx|bunx) +'
+FELIX_AUDIT_CHECKS='(^|[;&|(]|[$][(])[ ]*('"$FELIX_AUDIT_ASSIGN|$FELIX_AUDIT_WRAP"'|[a-z]+ +(run|exec) +)*([^ ;&|()=]*/)?((npm|pnpm|yarn|bun) +(run +)?(test|verify|check)|pytest|python[0-9.]* +-m +pytest|tox|cargo +(test|check|nextest)|go +test|make +(test|check)|mvnw? +([^;&|]* +)?(test|verify)|gradlew? +([^;&|]* +)?(test|check)|rspec|phpunit|dotnet +test|swift +test|mix +test|ctest|jest|vitest|tests/run|gate[.]sh|felix +gate)([^A-Za-z0-9_]|$)'
+# Where a double-quoted span stands for a command, as "./tests/run" can: the
+# same position, read on text whose line breaks are already ; .
+FELIX_AUDIT_CMDPOS='(^|[;&|(])[ ]*('"$FELIX_AUDIT_ASSIGN|$FELIX_AUDIT_WRAP"')*$'
 
 felix_audit_usage() {
   printf 'usage: felix audit [--dir DIR] [--since YYYY-MM-DD] [--verify ERE]\n'
@@ -102,7 +109,7 @@ felix_audit_scan() {
     # its -c, whose script it is; or command position, behind any VAR=value and
     # wrapper, where a quoted path is the command itself.
     SHC = "(^|[^A-Za-z0-9_.-])(bash|sh|zsh)( +-[-A-Za-z]+| +-[A-Za-z]*o +[a-z]+)* +-[A-Za-z]*c +$"
-    CMDPOS = "(^|[;&|(]|\n)[ ]*([A-Za-z_][A-Za-z0-9_]*=[^ ]* +)*((env|time|exec|command|nice|timeout +[0-9.smh]+|bash|sh|zsh|npx|bunx) +)*$"
+    CMDPOS = ENVIRON["FELIX_AUDIT_CMDPOS"]
     first = ""; last = ""
   }
 
@@ -185,7 +192,7 @@ felix_audit_scan() {
       if (q == "") { if (ch == SQ || ch == Q) { out = out substr(c, st, i - st); q = ch; st = i } }
       else if (ch == q) {
         s = substr(c, st + 1, i - st - 1)
-        w = st > 129 ? "x" substr(c, st - 128, 128) : substr(c, 1, st - 1)
+        w = st > 129 ? "x" substr(c, st - 128, 128) : substr(c, 1, st - 1); gsub(/\n/, ";", w)
         if (w ~ SHC) out = out "\n" unquote(s)
         else if (q == Q && !index(s, "\n")) {
           if (w ~ CMDPOS) out = out Q s Q
@@ -520,7 +527,7 @@ felix_audit() {
 
   local t bad=""
   t="$(_felix_audit_list "$dir" "$mode" \
-       | FELIX_AUDIT_SINCE="$since" FELIX_AUDIT_VERIFY="${verify:-$FELIX_AUDIT_CHECKS}" \
+       | FELIX_AUDIT_SINCE="$since" FELIX_AUDIT_VERIFY="${verify:-$FELIX_AUDIT_CHECKS}" FELIX_AUDIT_CMDPOS="$FELIX_AUDIT_CMDPOS" \
          FELIX_AUDIT_CFG="$cfg" FELIX_AUDIT_TMP="${TMPDIR:-}" felix_audit_scan)" \
     || { printf 'felix audit: the read failed part way; nothing to report\n' >&2; return 1; }
   case "$t" in *$'\n'*) bad="${t#*$'\n'}"; t="${t%%$'\n'*}" ;; esac

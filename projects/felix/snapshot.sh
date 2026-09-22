@@ -107,16 +107,17 @@ else : > "$ACKS"; fi
 # the set that is searched for, and the searched set is the wider one.
 #
 # SCRUB: every project that ever declared a manifest on the source's history,
-# in the order each manifest first landed. The order hands out the tokens
-# (another, third, ...), and a project retired later keeps its place, because
-# renumbering would rewrite text that is already public.
+# in the order each manifest landed on main: the first-parent line, oldest
+# first, where a merge counts as the moment its branch's manifest arrived. The
+# order hands out the tokens (another, third, ...), and a project retired later
+# keeps its place, because renumbering would rewrite text that is already
+# public. A commit's own time is not that order: a branch whose manifest was
+# committed early and merged late would take an earlier token and shift the rest.
+git -C "$HOME_TOP" log --first-parent -m --diff-filter=A --reverse --format= --name-only "$SRC" -- 'projects/*/project.json' |
+  awk -F/ -v self="$SELF" '/^projects\/[^\/]+\/project\.json$/ && $2 != self && !seen[$2]++ { print $2 }' > "$OUT/scrub.order" ||
+  die "could not read the order the manifests landed on main"
 SCRUB=()
-while IFS= read -r n; do if [ -n "$n" ]; then SCRUB+=("$n"); fi; done <<EOF
-$(git -C "$HOME_TOP" log --diff-filter=A --format='@%ct' --name-only "$SRC" -- 'projects/*/project.json' |
-  awk -v self="$SELF" '/^@/ { t = substr($0, 2); next }
-    /^projects\/[^\/]+\/project\.json$/ { split($0, p, "/"); if (p[2] != self) print t " " p[2] }' |
-  sort -k1,1n -k2,2 | awk '!seen[$2]++ { print $2 }')
-EOF
+while IFS= read -r n; do SCRUB+=("$n"); done < "$OUT/scrub.order"
 [ ${#SCRUB[@]} -le ${#ORD[@]} ] || die "more projects than tokens; extend ORD before publishing"
 
 # AUDIT: wider than SCRUB, and never shaped by what a checkout on this disk

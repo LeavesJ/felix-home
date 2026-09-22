@@ -25,7 +25,8 @@
 #             directory: memory, plans): no gate covers those, and a stop they
 #             alone precede is counted aside, and said
 #   a CHECK   a Bash command (never its description) matching the verify
-#             pattern outside quotes and here-document bodies; it FAILED when
+#             pattern outside quoted text and here-document bodies, save the
+#             script a shell is handed (bash -c, bash <<EOF); it FAILED when
 #             its tool_result says is_error:true
 #   a STOP    a distinct end_turn message id. Claude Code writes a line per
 #             content block, logs a message again later, and copies history
@@ -94,6 +95,11 @@ felix_audit_scan() {
     # A backslash in a command is kept as \001 unless the pattern asks for one:
     # putting them back is a copy per backslash, and a command can hold 300,000.
     rejoin = index(vre, BS BS) > 0
+    # What stands before a quote that makes the quoted text code: a shell and
+    # its -c, whose script it is; or command position, behind any VAR=value and
+    # wrapper, where a quoted path is the command itself.
+    SHC = "(^|[^A-Za-z0-9_.-])(bash|sh|zsh)( +-[-A-Za-z]+| +-o +[a-z]+)* +-[A-Za-z]*c +$"
+    CMDPOS = "(^|[;&|(]|\n)[ ]*([A-Za-z_][A-Za-z0-9_]*=[^ ]* +)*((env|time|exec|command|nice|timeout +[0-9.smh]+|bash|sh|zsh|npx|bunx) +)*$"
     first = ""; last = ""
   }
 
@@ -124,11 +130,12 @@ felix_audit_scan() {
     return r
   }
 
-  # A here-document body is text handed to a command, never a command. Read on
-  # the JSON text, where a line break is backslash-n. It is split once on <<
-  # and once into lines, a line that could close a body is filed under its
-  # word, and each word is looked up from a pointer that only moves on, so a
-  # command of ten thousand << that are shifts costs one read.
+  # A here-document body is text handed to a command, never a command, unless
+  # the command is a shell: then the body is its script, and only the closing
+  # line goes. Read on the JSON text, where a line break is backslash-n. It is
+  # split once on << and once into lines, a line that could close a body is
+  # filed under its word, and each word is looked up from a pointer that only
+  # moves on, so a command of ten thousand << that are shifts costs one read.
   function heredocs(c,    n, P, m, L, LS, CL, NC, PT, k, j, w, d, at, ln, t, from, out) {
     if ((n = split(c, P, "<<")) < 2) return c
     m = split(c, L, BS BS "n"); LS[1] = 1
@@ -151,23 +158,36 @@ felix_audit_scan() {
       PT[d] = j - 1
       if (j > NC[d]) continue
       t = CL[d, j]
-      out = out substr(c, from, LS[ln + 1] - from)
+      w = (k == 2) ? P[1] : P[k - 2] "<<" P[k - 1]
+      if (k > 3 || length(w) > 64) w = "x" substr(w, length(w) > 64 ? length(w) - 63 : 1)
+      if (w ~ ("(^|[ ;&|(]|" BS BS "n)([^ ;&|()]*/)?(bash|sh|zsh)( +-[-A-Za-z]+)*[ ]*$"))
+        out = out substr(c, from, LS[t] - 2 - from) BS "n"
+      else out = out substr(c, from, LS[ln + 1] - from)
       from = t < m ? LS[t + 1] : LS[m + 1] - 2
     }
     return out substr(c, from)
   }
 
-  # Quoted text is an argument: a single-quoted span always (a grep pattern), a
-  # double-quoted one when it runs over a line (a commit message). split(s, C,
-  # "") is a character per element in BWK awk, gawk and mawk alike.
-  function unquote(c,    n, C, i, ch, out, q, st) {
+  # Quoted text is an argument: a single-quoted span (a grep pattern), and a
+  # double-quoted one (a message, an echo, a pattern) unless it stands where a
+  # command does, as "./tests/run" can, where it is kept, or holds a $( that
+  # runs one, which is kept from there. The script a shell is handed with -c
+  # is a command, and is read as one, from a line of its own.
+  # split(s, C, "") is a character per element in BWK awk, gawk and mawk alike.
+  function unquote(c,    n, C, i, ch, out, q, st, s, w, p) {
     n = split(c, C, ""); out = ""; q = ""; st = 1
     for (i = 1; i <= n; i++) {
       ch = C[i]
       if ((ch == BS || ch == "\001") && q != SQ) { i++; continue }
       if (q == "") { if (ch == SQ || ch == Q) { out = out substr(c, st, i - st); q = ch; st = i } }
       else if (ch == q) {
-        if (q == Q && !index(substr(c, st, i - st), "\n")) out = out substr(c, st, i - st + 1)
+        s = substr(c, st + 1, i - st - 1)
+        w = st > 129 ? "x" substr(c, st - 128, 128) : substr(c, 1, st - 1)
+        if (w ~ SHC) out = out "\n" unquote(s)
+        else if (q == Q && !index(s, "\n")) {
+          if (w ~ CMDPOS) out = out Q s Q
+          else if (p = index(s, "$(")) out = out " " substr(s, p)
+        }
         q = ""; st = i + 1
       }
     }
@@ -190,15 +210,18 @@ felix_audit_scan() {
     return index(t, "&") > 0
   }
 
-  function check(seg,    r, c, n, P) {
+  # The quick test reads a quote as a command boundary, since what follows one
+  # can be the script of a shell; unquote() then decides what the quotes held.
+  function check(seg,    r, c, n, P, u, big) {
     r = heredocs(rawcmd(seg)); if (r == "") return 0
-    if ((n = length(r)) > 262144) {
+    if (big = ((n = length(r)) > 262144)) {
       c = decode(substr(r, n - 65535)); n = split(c, P, "[" Q SQ "]")
-      c = unquote(decode(substr(r, 1, 65536))) "\n" P[n]
+      c = decode(substr(r, 1, 65536)); u = unquote(c) "\n" P[n]; c = c "\n" P[n]
     } else c = decode(r)
-    r = c; gsub(/\n/, ";", r); if (r !~ vre) return 0
-    c = unquote(c); gsub(/\n/, ";", c); if (c !~ vre) return 0
-    HID = index(seg, K_BG) || hidden(c)
+    r = c; gsub(/\n/, ";", r); gsub("[" Q SQ "]", ";", r); if (r !~ vre) return 0
+    if (!big) u = unquote(c)
+    gsub(/\n/, ";", u); if (u !~ vre) return 0
+    HID = index(seg, K_BG) || hidden(u)
     return 1
   }
 
@@ -499,9 +522,9 @@ felix_audit() {
     printf 'Not read: %s could not be opened (the first: %s).\n\n' "$(_felix_audit_n "$unread" transcript)" "$bad"
 
   if [ -n "$verify" ]; then
-    printf 'A check is a Bash command matching --verify %s, outside quotes and here-documents.\n' "'$verify'"
+    printf 'A check is a Bash command matching --verify %s, outside quoted text and here-documents, save a script handed to a shell.\n' "'$verify'"
   else
-    printf 'A check is a Bash command running tests or a gate (npm test, pytest, cargo test, go test, make check, jest, vitest, felix gate and the like), outside quotes and here-documents; --verify ERE replaces that list.\n'
+    printf 'A check is a Bash command running tests or a gate (npm test, pytest, cargo test, go test, make check, jest, vitest, felix gate and the like), outside quoted text and here-documents, save a script handed to a shell; --verify ERE replaces that list.\n'
   fi
   printf 'A check piped into another command, followed by one, or run in the background hands its exit status to something else, so its result is never marked an error, whatever it printed.\n'
   printf 'Subagents are not seen: their edits and checks sit in files this does not read.\n\n'

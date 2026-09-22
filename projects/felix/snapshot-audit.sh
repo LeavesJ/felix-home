@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The public snapshot's audit, kept apart from its scrub (snapshot.sh).
+# The public snapshot's audit, kept apart from its scrub (snapshot-scrub.sh).
 #
 #   snapshot-audit.sh NAMES AUTHOR ROOT < paths
 #

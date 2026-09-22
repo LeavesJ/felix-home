@@ -27,13 +27,14 @@
 #   --source a3eee3c --base f6341ba --public-readme --expect-tree f5a4d6f
 #   --source a8ab281 --base 3091a76 --public-readme --expect-tree 5455d56
 #
-# Published itself, with its audit, snapshot-audit.sh, deliberately. Neither
-# names another project: every name is derived at run time (main's history, the
-# memory root, the manifests' remotes, the login, each --name), and the only
-# literals, the public repository and author, are public. Every run audits both
-# with the rest of projects/felix/. They show a stranger what is withheld and
-# why; withholding them would hide the method and not one name. What would
-# reverse this: a literal here that the audit has to be told to ignore.
+# Published itself, with its scrub and audit (snapshot-scrub.sh and
+# snapshot-audit.sh), deliberately. None names another project: every name is
+# derived at run time (main's history, the memory root, the manifests' remotes,
+# the login, each --name), and the only literals, the public repository and
+# author, are public. Every run audits all three with the rest of
+# projects/felix/. They show a stranger what is withheld and why; withholding
+# them would hide the method and not one name. What would reverse this: a
+# literal here that the audit has to be told to ignore.
 set -euo pipefail
 # Bytes, in every locale, here and in the credential scan that inherits it: under
 # UTF-8 the platform grep matched nothing after an invalid byte on a line.
@@ -230,63 +231,17 @@ fi
 perl -0pi -e 's/("remote_match"\s*:\s*")[^"]*(")/${1}LeavesJ\/Felix${2}/' "$B/projects/$SELF/project.json"
 [ "$(slug_of < "$B/projects/$SELF/project.json")" = "$PUBLIC_SLUG" ] || die "remote_match was not rewritten"
 
-# The scrub, per project in token order, and its order is load-bearing. The
-# name itself first, and what it becomes is read from the characters around
-# it. Inside an identifier (a letter, digit or underscore beside it, or $, {
-# or } as in a variable) it is the token in the identifier's case: THIRD_PROJECT
-# for an upper-case name, which keeps ${NAME:-} a variable where a phrase made
-# it a bad substitution, and the bare token otherwise. Inside a path (a slash
-# or a hyphen beside it, or a dot and a file extension) it becomes the bare
-# token, which has no space: a phrase with spaces inside a path made `test -f`
-# a usage error, and later turned a redirect into one to a file named for the
-# first word. Anywhere else it is prose and becomes the phrase, in lower case;
-# an escape such as \n before it counts as a space. Then the pieces, and only
-# where no ordinary word can be meant: two halves split anywhere, each a whole
-# word, with up to eight characters between and no letter or digit among them;
-# and a whole word that is the name with one character standing in, where that
-# character is a mark (a dot, say) or a capital among lower-case letters. Each
-# becomes the token's pieces. The first and last characters are never taken as
-# stand-ins here. An ordinary word one letter away from a name (planter against
-# planner) is never rewritten: the audit stops on it for a person to read.
-# The text files are listed once, and only they are rewritten: a binary file is
-# never edited, so a name in one is left for the audit, which reads every file,
-# to stop on. A list that comes back short leaves a name unrewritten, and the
-# audit stops on it, so a failure here is never silent.
-IFS= read -r -d '' SCRUB_PL <<'PERL' || true
-BEGIN { ($n, $t, $ph, $up, $tup) = @ENV{qw(N T PH UP TUP)}; $L = length $n; }
-my $o = $_;
-s{\Q$n\E}{
-  my ($b, $a) = (substr($o, 0, $-[0]), substr($o, $+[0]));
-  my ($p, $pp) = (length $b ? substr($b, -1) : "", length $b > 1 ? substr($b, -2, 1) : "");
-  my ($q, $qq) = (length $a ? substr($a, 0, 1) : "", length $a > 1 ? substr($a, 1, 1) : "");
-  $p = " " if $pp eq "\\" && $p =~ /[ntr]/;
-  if ($p =~ /[A-Za-z0-9_\$\{]/ || $q =~ /[A-Za-z0-9_\}]/) { $& =~ /[a-z]/ ? $t : $tup }
-  elsif ($p =~ m{[/-]} || $q =~ m{[/-]} || ($q eq "." && $qq =~ /[A-Za-z0-9]/) || ($p eq "." && $pp =~ /[A-Za-z0-9]/)) { $t }
-  else { $ph }
-}gie;
-for my $k (1 .. $L - 1) {
-  my ($x, $y) = (substr($n, 0, $k), substr($n, $k));
-  my ($tx, $ty) = (substr($t, 0, $k), $k < length $t ? substr($t, $k) : "");
-  next if $ty eq "";
-  s{(?<![A-Za-z0-9])\Q$x\E([^A-Za-z0-9]{1,8}?)\Q$y\E(?![A-Za-z0-9])}{$tx$1$ty}g;
-}
-for my $k (1 .. $L - 2) {
-  my ($x, $y) = (substr($n, 0, $k), substr($n, $k + 1));
-  my ($tx, $ty) = (substr($t, 0, $k), $k < length $t ? substr($t, $k) : "");
-  next if $ty eq "";
-  s{(?<![A-Za-z0-9])\Q$x\E([^A-Za-z0-9\s]|[A-Z])\Q$y\E(?![A-Za-z0-9])}{$tx$1$ty}g;
-}
-PERL
-find "$B" -type f -print0 | xargs -0 grep -lI --null '' > "$OUT/text.files" || true
-i=0
+# The scrub is its own file, snapshot-scrub.sh beside this one, whose header
+# says what each name becomes and why. It is handed the projects in token order
+# and the text files, and rewrites them in place; what follows checks it.
+: > "$OUT/scrub.plan"; i=0
 for n in ${SCRUB[@]+"${SCRUB[@]}"}; do
   tok=${ORD[$i]}; i=$((i + 1))
   if [ "$tok" = another ]; then PH="another governed project"; else PH="a $tok governed project"; fi
-  N="$n" T="$tok" UP="$(printf '%s' "$n" | tr '[:lower:]' '[:upper:]')"
-  TUP="$(printf '%s' "$tok" | tr '[:lower:]' '[:upper:]')_PROJECT"
-  export N T PH UP TUP
-  xargs -0 perl -pi -e "$SCRUB_PL" < "$OUT/text.files"
+  printf '%s\t%s\t%s\n' "$n" "$tok" "$PH" >> "$OUT/scrub.plan"
 done
+find "$B" -type f -print0 | xargs -0 grep -lI --null '' > "$OUT/text.files" || true
+bash "$HERE/snapshot-scrub.sh" "$OUT/scrub.plan" "$OUT/text.files" || die "the scrub failed"
 # Shell that parsed before the scrub parses after it, or nothing goes out.
 while IFS= read -r -d '' f; do
   r="$RAW/${f#"$B"/}"

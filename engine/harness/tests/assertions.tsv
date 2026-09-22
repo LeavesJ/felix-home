@@ -323,6 +323,7 @@
 1	a merge in progress is a person's, and the pulse says so
 1	a merge is blocked while the project reads nothing from reality
 1	a merge stopped for the founder is recorded as one
+1	a message from another session is not routed, and moves nothing in the session it lands in
 1	a met control passes the gate check
 1	a mid-session route change does not render
 1	a migration classifies red
@@ -397,7 +398,11 @@
 1	a payload with no session_id or transcript_path writes - in lifecycle fields 3 and 8
 1	a peer commit on the same branch merges nothing
 1	a peer edit to the working tree merges nothing
+1	a person quoting the summary opening mid-sentence is still routed and marked
+1	a person who pastes the Stop hook's words and asks about them keeps the session's mark and brief
 1	a person's low row installs
+1	a person's session in a tree no gate has seen is held
+1	a person's session that ends on a green gate is still spoken to at its end
 1	a personal excludes file cannot hide real drift
 1	a pinned local server is medium
 1	a pipe to a shell observed is held for a person, not installed
@@ -467,6 +472,7 @@
 1	a pulse with nothing to do still answers
 1	a push nothing reads back is not called verified
 1	a qualification row of five columns has no premise and is met as before
+1	a quoted attachment with the person's question under it is still routed and marked
 1	a re-run under the new epoch is recorded, same names and all
 1	a reach is the only mount evidence there is
 1	a real capability left undeclared is not an error
@@ -560,6 +566,7 @@
 1	a runbook prints in full
 1	a satisfied step reports done
 1	a scanner added today is examined without anyone editing the check
+1	a scheduled task a person wrote is still routed and marked
 1	a score answer never enters the admit phase
 1	a second catch-up finds nothing left
 1	a second full run refuses while one is in progress
@@ -615,6 +622,9 @@
 1	a subdirectory named as an argument digests as that subdirectory alone
 1	a subject identity is one line
 1	a subject that cannot be identified blocks the epoch the same way
+1	a summary request behind leading spaces is recorded as nothing too
+1	a summary request leaves a marker for its session in place of a record
+1	a summary request with no session id leaves no marker
 1	a surface appearing in the checkout makes it stale the other way
 1	a surface detected in the tree is an item even if nobody declared it
 1	a surface the checkout has and no probe reads is a gap
@@ -672,6 +682,7 @@
 1	a workflow change escapes as execute
 1	a worktree engine cannot
 1	a worktree refreshes the holding checkout's graph
+1	a worktree session's first prompt still marks the session, reminder and all
 1	a writable project still records
 1	a write rule denies a write
 1	a yellow diff no longer hands its merge to a person
@@ -810,6 +821,7 @@
 1	an opted-in capability is allowed
 1	an ordinary checkout is not
 1	an ordinary failure is still written down
+1	an ordinary first prompt still logs its routing decision
 1	an overlap is said as an overlap, not as a negative remainder
 1	an unborn default base refuses rather than previews
 1	an uncommitted resolve.sh in the working tree does not change the verdict
@@ -870,6 +882,10 @@
 1	and --fix does not exit 0 when every repair failed
 1	and --gate does not raise it
 1	and FELIX_KERNEL is refused before the cache is even consulted
+1	and SessionEnd folds nothing of it into ledger.d
+1	and Stop neither holds that session nor tells it anything
+1	and Stop still asks about the work such a session commits
+1	and Stop, with no id, holds that tree as it always did
 1	and TASK_BLOCKING may not block either
 1	and a CLI that answers nothing reports no drift
 1	and a CLI that cannot answer is not a stale deployment
@@ -910,12 +926,14 @@
 1	and a live one says when it was last caught
 1	and a machine that binds nothing is an empty roster, not an error
 1	and a main copy that reports identical is believed over the cache entry
+1	and a marker laid in a session a person has typed into does not excuse it
 1	and a medium one is still refused
 1	and a name
 1	and a new note replaces the old one
 1	and a non-zero status too
 1	and a partial answer records nothing
 1	and a person's medium row installs, as it always has
+1	and a person's prompt adds no lifecycle row at all
 1	and a pipe to sudo bash is medium
 1	and a prefixed skill is never called a built-in
 1	and a probe that failed against a real surface is blind too
@@ -945,6 +963,7 @@
 1	and a skill that was invoked
 1	and a skill whose frontmatter hooks are written on one line
 1	and a stance for a real item is not
+1	and a summary session is not
 1	and a totals line without a skipped clause records skipped as 0
 1	and a tree byte-identical to the deployed engine matches
 1	and a turn that did something clears the count
@@ -966,6 +985,7 @@
 1	and an inapplicable control reports no result, not a pass or a fail
 1	and an installed copy with no files to digest claims nothing either
 1	and an older one does not
+1	and an older one in which such a prompt was one of several
 1	and an ordinary product repository is not
 2	and an unknown flag is refused rather than ignored
 1	and an unknown kind is refused
@@ -995,6 +1015,7 @@
 1	and commissions
 1	and commits nothing to it
 1	and components exits 0 even then
+1	and counts a person's session whose prompt shares the request's first 200 characters
 1	and counts every control that did not apply, pass or fail
 1	and counts exactly that one
 2	and counts it
@@ -1045,6 +1066,7 @@
 1	and exits 0 when it has a digest to print
 1	and exits 0 with the tree dirty
 1	and exits 0, because upkeep may never fail a session
+1	and exits 0, so the request itself still goes through
 1	and exits 3, distinctly
 1	and exits non-zero rather than hashing over an absence
 1	and explains why it now matters
@@ -1060,6 +1082,7 @@
 1	and fields 5 and 6 still say nothing skipped and no roster, as dashes
 1	and flipping it back restores the digest
 1	and folding them takes it to zero
+1	and folds the older one in which such a prompt was one of several
 1	and for the built-in too, because nothing can tell which was meant
 1	and for the plain one
 1	and for where it sends it
@@ -1149,6 +1172,7 @@
 1	and its topology is non-empty
 1	and keeps a never-invoked one at zero
 1	and keeps all 212864 of its bytes
+1	and keeps no route state for Stop to judge it by
 1	and keeps one Felix does not hold
 1	and keeps surviving as its own log grows
 1	and keeps the DEVLOG.md it found, byte for byte
@@ -1163,8 +1187,10 @@
 1	and leaves it as it was, byte for byte
 1	and leaves no new file in the project's memory
 1	and leaves no scratch file behind
+1	and leaves no session mark for a session nobody held
 1	and leaves the recorded note as it was
 1	and lists every event its hooks object binds
+1	and logs no routing decision for it
 1	and main put back matches again
 1	and matches an ecosystem word on a word boundary
 1	and matches on keywords, not just names
@@ -1180,6 +1206,7 @@
 1	and names both tokens
 1	and names itself as the grant
 1	and names lessons.md among what it kept
+1	and names no play in a session ledger for it
 1	and names none when there is none
 1	and names origin's version as the one nothing is installed at
 1	and names the answer file to write
@@ -1287,6 +1314,7 @@
 1	and one grounding a real surface is not
 1	and one in a double-backtick span
 1	and one it passes over is held, not silently counted
+1	and one lifecycle row for that session, of kind summary, naming its transcript
 1	and one named once carries one
 1	and one no route names
 1	and one nothing established is classed UNKNOWN
@@ -1338,7 +1366,9 @@
 1	and recorded nowhere
 1	and recording the run does not put it back
 1	and records neither
+1	and records no hold for it in says.log or verification.log
 1	and records nothing either
+1	and records nothing else for it: no brief, no route, no mark, no route state
 1	and records the failure without being asked
 1	and red is named before any fact that moved
 1	and red returns non-zero
@@ -1442,13 +1472,16 @@
 1	and says why the gate is not enough
 1	and scope says which tier it reached
 1	and scopes that proposal to the play, keeping the row
+1	and session-end still folds it into ledger.d
 1	and shipping nothing declared still matches nothing
 1	and shows the decline itself
 1	and shows which note it kept
 1	and so are the declines, from the same date
 1	and so does a compact
 1	and so does a failure nobody answered
+1	and so does a session that opens on the summary request's opening and the person's own instruction
 1	and so does a worktree of it
+1	and so does one who types a question under a task notification
 1	and so does one whose registry entry carries no installPath
 1	and so does the next one
 1	and so does the stamp that says what it was read against
@@ -1459,6 +1492,11 @@
 1	and so is every other one
 1	and so is its evidence mode
 1	and so is no argument at all
+1	and so is one behind an escaped leading newline
+1	and so is one who opens on its first sentence and goes on in their own words
+1	and so is one who pastes a whole request and writes their own instruction after its closing
+1	and so is one who pastes the whole fixed opening and then writes their own instruction
+1	and so is one who reuses its first two lines and then writes their own instruction
 1	and so is ordinary work
 1	and so is project.json
 1	and so is the other one
@@ -1479,6 +1517,9 @@
 1	and still binds startup, clear and compact
 1	and still exits 0
 1	and still exits 0, because start cannot refuse
+1	and still folds the person's whose prompt shares its first 200 characters, with what it reached for
+1	and still marks the session it opens
+1	and still names its play in the session ledger
 1	and still no candidate command has run
 1	and still no new file beside it
 1	and still offers the handoff
@@ -1487,13 +1528,16 @@
 1	and still returns success, so it cannot loop
 1	and still says nothing
 1	and still says which step went unused
+1	and still speaks, naming its play
 1	and still verifies when the source really does match
+1	and still writes its brief to says.log
 1	and still yields nothing for the entry that lacks the field
 1	and stops once something is written
 1	and stranded counts only this project's unfolded sessions
 1	and strips a line range
 1	and surfaces nothing as new
 1	and survives a regeneration that was given none
+1	and takes the marker away with the session
 1	and tampered under hooks it is drift as well
 1	and tells the session which fact moved
 1	and that alone does not fail the gate
@@ -1713,6 +1757,7 @@
 1	and with the whole sentence, not a prefix of it
 1	and without SUB, the manifest at DIR is read
 1	and without it the same escape stands
+1	and writes no brief for it to says.log
 1	and writes no cache
 1	and writes no request for a topology the probes could not read
 1	and writes no row at all, not even exit-1
@@ -1767,6 +1812,7 @@
 1	but it still classifies red
 1	but neither names a checker shown failing beside a control that did not apply
 1	but no longer before every merge
+1	but no longer folds an old summary session back into ledger.d
 1	but not the session handoff, which a prior session wrote
 1	but once the grounded facts move under that receipt, the hook blocks
 1	but one that could not have passed is not
@@ -1950,6 +1996,7 @@
 1	felix handoff refuses a hand-written handoff
 1	felix ledger folds it and says what it folded
 1	felix ledger proposes retiring the disuse zero
+1	felix ledger still folds a person's session nothing folded
 1	felix maintenance renders a passing check as such
 1	felix maintenance says a row can never come due
 1	felix merge reaches gh at all
@@ -2189,6 +2236,7 @@
 1	nor filler the router already discards
 1	nor is a file added to the working tree that git does not track
 1	nor is a system reminder
+1	nor is a task notification
 1	nor is a version the branch declares that nothing installed
 1	nor is one from both
 1	nor one declared inline or in a skill's frontmatter
@@ -2353,6 +2401,7 @@
 1	session start reports a broken home pointer
 1	session start reports an unresolvable marker
 1	session start surfaces the reconcile proposals
+1	session-start counts a person's unfolded session as stranded, and not an old summary session
 1	session-start sources autonomy.sh
 1	session-start sources ledger.sh
 1	seven-field rows with an engine-stage answer and a check that can fail are rows
@@ -2379,6 +2428,7 @@
 1	so is a file that ends inside a string
 1	so its gate is not red on the day it was created
 1	so no false unmount is proposed from it
+1	so session-end folds no phantom session into ledger.d
 1	so the branch is not blamed for what the remote already had
 1	so the caveat can become untrue
 1	so the declared plugin keeps none of its reaches
@@ -2414,6 +2464,7 @@
 1	survives a transcript that is not there
 1	tasks sharing a file are one unit
 1	that names the command
+1	the #264 block leaves the logs and the session state as it found them
 1	the 300-character reason survives the record whole
 1	the CLI still regenerates the empty placeholder
 1	the SessionStart matcher binds resume
@@ -2532,6 +2583,7 @@
 1	the payload carries compliance
 1	the payload carries the whole count, not the window's length
 1	the payload envelope does not decide the route
+1	the platform's summary request says nothing
 1	the plugins cache root is composed with, not read as ours
 1	the pointer file beats a sibling projects/
 1	the pre-flight runs clean under bash
@@ -2635,6 +2687,7 @@
 1	the widget's tables are as this block found them
 1	the word true in the last message does not read as the flag
 1	the words are read off lib/detect.sh, not carried as a literal
+1	the words those messages carry still bring a lesson when a person types them
 1	the workflow invokes felix
 1	the working tree alone can route
 1	the write is renamed into place, not rewritten in it

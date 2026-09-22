@@ -209,8 +209,8 @@ the last edit reported no error, or it failed, or a check ran earlier but not
 since the last edit, or no check had run in the session at all. A check is a
 Bash command that runs tests or a gate. `--verify ERE` says what counts in
 your project, and `--since YYYY-MM-DD` narrows the window. A check piped into
-another command, followed by one, or run in the background hands its exit
-status to something else, so its own failure goes unseen, and the report says
+another command, followed by one, run in the background or turned over by `!`
+hands its exit status to something else, so its own failure goes unseen, and the report says
 how many of the passing ones that covers. It doesn't read subagent transcripts,
 and it leaves out edits to scratch files and to Claude's own memory and plans.
 

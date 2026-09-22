@@ -36,8 +36,9 @@
 # (the last check after the last edit reported no error), failed (it did),
 # stale (no check since the last edit, one before it) or never (no check in
 # the session yet). A passed check whose exit status could not reach the
-# transcript — piped, followed by another command, backgrounded — is counted
-# again on its own line, because "no error reported" is all it can say.
+# transcript — piped, followed by another command, backgrounded, turned over
+# by ! — is counted again on its own line, because "no error reported" is all
+# it can say.
 # isSidechain records and the subagents/ tree are never read; the report says
 # so, since a session that delegated its testing reads as `never` here.
 #
@@ -56,14 +57,17 @@
 # `grep jest package.json` read as the reads they are. A value ends where the
 # word does, so what follows `W=/w;` or a line break is the next command, and
 # the path before a runner holds no = , so assigning `G=scripts/gate.sh` is
-# not running it. The roster names test runners across every ecosystem on
-# purpose, the way a probe does; ecosystem.tsv carries the row that says so.
+# not running it. The shell's reserved words stand where a command does, so
+# the runner after if, then, else, elif, do, while, until, ! or { is run. The
+# roster names test runners across every ecosystem on purpose, the way a probe
+# does; ecosystem.tsv carries the row that says so.
+FELIX_AUDIT_WORD='(if|then|else|elif|do|while|until|!|[{]) +'
 FELIX_AUDIT_ASSIGN='[A-Za-z_][A-Za-z0-9_]*=[^ ;&|()]* +'
 FELIX_AUDIT_WRAP='(env|time|exec|command|nice|timeout +[0-9.smh]+|bash|sh|zsh|npx|bunx) +'
-FELIX_AUDIT_CHECKS='(^|[;&|(]|[$][(])[ ]*('"$FELIX_AUDIT_ASSIGN|$FELIX_AUDIT_WRAP"'|[a-z]+ +(run|exec) +)*([^ ;&|()=]*/)?((npm|pnpm|yarn|bun) +(run +)?(test|verify|check)|pytest|python[0-9.]* +-m +pytest|tox|cargo +(test|check|nextest)|go +test|make +(test|check)|mvnw? +([^;&|]* +)?(test|verify)|gradlew? +([^;&|]* +)?(test|check)|rspec|phpunit|dotnet +test|swift +test|mix +test|ctest|jest|vitest|tests/run|gate[.]sh|felix +gate)([^A-Za-z0-9_]|$)'
+FELIX_AUDIT_CHECKS='(^|[;&|(]|[$][(])[ ]*('"$FELIX_AUDIT_WORD|$FELIX_AUDIT_ASSIGN|$FELIX_AUDIT_WRAP"'|[a-z]+ +(run|exec) +)*([^ ;&|()=]*/)?((npm|pnpm|yarn|bun) +(run +)?(test|verify|check)|pytest|python[0-9.]* +-m +pytest|tox|cargo +(test|check|nextest)|go +test|make +(test|check)|mvnw? +([^;&|]* +)?(test|verify)|gradlew? +([^;&|]* +)?(test|check)|rspec|phpunit|dotnet +test|swift +test|mix +test|ctest|jest|vitest|tests/run|gate[.]sh|felix +gate)([^A-Za-z0-9_]|$)'
 # Where a double-quoted span stands for a command, as "./tests/run" can: the
 # same position, read on text whose line breaks are already ; .
-FELIX_AUDIT_CMDPOS='(^|[;&|(])[ ]*('"$FELIX_AUDIT_ASSIGN|$FELIX_AUDIT_WRAP"')*$'
+FELIX_AUDIT_CMDPOS='(^|[;&|(])[ ]*('"$FELIX_AUDIT_WORD|$FELIX_AUDIT_ASSIGN|$FELIX_AUDIT_WRAP"')*$'
 
 felix_audit_usage() {
   printf 'usage: felix audit [--dir DIR] [--since YYYY-MM-DD] [--verify ERE]\n'
@@ -206,14 +210,19 @@ felix_audit_scan() {
 
   # Whether the exit status of the last check could reach the transcript: not
   # when a later command, a pipe (without pipefail set as an option) or ||
-  # takes it, nor when & sends it to the background.
-  function hidden(c,    s, off, e, a, t) {
-    s = c; off = 0; e = 1
+  # takes it, nor when & sends it to the background, nor when a ! before it
+  # turns it over. The } that closes a group hands it on, as the fi of an if
+  # whose branch it ends does; the done of a loop does not, since an earlier
+  # pass can fail unseen.
+  function hidden(c,    s, off, e, a, b, t) {
+    s = c; off = 0; e = 1; b = 1
     while (s != "" && match(s, vre)) {
       a = RSTART + RLENGTH - 1; if (a < 1) a = 1
-      e = off + a; off = e; s = substr(c, off + 1)
+      b = off + RSTART; e = off + a; off = e; s = substr(c, off + 1)
     }
-    t = substr(c, e); sub(/[; ]+$/, "", t)
+    t = substr(c, b > 64 ? b - 64 : 1, e - (b > 64 ? b - 64 : 1) + 1); sub(/[;&|()]$/, "", t)
+    if (t ~ /(^|[;&|(])[ ]*((if|elif|while|until|then|else|do|[{]) +)*! +[^;&|()]*$/) return 1
+    t = substr(c, e); sub(/([; }]|[; ]fi)+$/, "", t)
     if (index(t, ";") || index(t, "||")) return 1
     if (index(t, "|") && c !~ /-[A-Za-z]*o +pipefail/) return 1
     gsub(/&&|[<>]&|&>/, "", t)
@@ -553,7 +562,7 @@ felix_audit() {
   printf '  passed  %5s  %3s%%  the last check after the last edit reported no error\n' \
     "$passed" "$(_felix_audit_pct "$passed" "$stops")"
   [ "$hid" -gt 0 ] && \
-    printf '                      and %s of those could not have: piped, followed by another command, or backgrounded\n' "$hid"
+    printf '                      and %s of those could not have: piped, followed by another command, backgrounded, or turned over by !\n' "$hid"
   printf '  failed  %5s  %3s%%  the last check after the last edit failed, and the turn stopped anyway\n' \
     "$failed" "$(_felix_audit_pct "$failed" "$stops")"
   printf '  stale   %5s  %3s%%  a check ran earlier in the session, but none after the last edit\n' \
@@ -576,7 +585,7 @@ felix_audit() {
   else
     printf 'A check is a Bash command running tests or a gate (npm test, pytest, cargo test, go test, make check, jest, vitest, felix gate and the like), outside quoted text and here-documents, save a script handed to a shell; --verify ERE replaces that list.\n'
   fi
-  printf 'A check piped into another command, followed by one, or run in the background hands its exit status to something else, so its own failure goes unseen: a stop after one is counted failed only when what took that status failed.\n'
+  printf 'A check piped into another command, followed by one, run in the background or turned over by ! hands its exit status to something else, so its own failure goes unseen: a stop after one is counted failed only when what took that status failed.\n'
   printf 'Subagents are not seen: their edits and checks sit in files this does not read.\n\n'
   _felix_audit_next
   return 0

@@ -17302,6 +17302,20 @@ _rv_one r3/assign r3-as5 'W=/w\n./scripts/gate.sh'
 is  "a VAR=value ends at ; or a line break, and assigning a gate's path is not running it: a copy or a quote after one is no check" \
     "$(_au_counts "$(_au --dir "$RV/r3/assign")")" "2 0 0 3"
 
+# The shell's reserved words stand where a command does, so the runner after
+# one is run. An if, a loop and a ! each take the runner's exit status, and a
+# { } group hands it on. The words as text are still text.
+_rv_one r3/words r3-kw1 'if npm test; then echo ok; else echo FAILED; fi'
+_rv_one r3/words r3-kw2 'for d in a b; do pytest $d; done'
+_rv_one r3/words r3-kw3 '! npm test'
+_rv_one r3/words r3-kw4 '{ npm test; }'
+_rv_one r3/words r3-kw5 'echo if npm test'
+_rv_one r3/words r3-kw6 'grep -n \"do pytest\" notes.md'
+_rvo="$(_au --dir "$RV/r3/words")"
+[ "$(_au_counts "$_rvo")" = "4 0 0 2" ] && _au_nums "$_rvo" 'pipe|background' 3 \
+  && ok  "a runner after if, do, ! or { is a check, and 3 of the 4 hand their status to the if, the loop or the !" \
+  || bad "a runner after if, do, ! or { is a check, and 3 of the 4 hand their status to the if, the loop or the !" "$_rvo"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

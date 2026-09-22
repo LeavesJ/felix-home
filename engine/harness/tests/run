@@ -16553,6 +16553,9 @@ case "${0##*/} $*" in
   "python -m pytest -q"*)
     if red; then printf 'FAILED tests/tree_%s.py::broke\n1 failed in tree %s\n' "$t" "$t"; meet test; exit 1; fi
     printf '1 passed in tree %s\n' "$t"; meet test; exit 0 ;;
+  "cargo fmt --all -- --check")
+    if red; then printf 'Diff in %s/src/tree_%s.rs:1:\n' "$(pwd -P)" "$t"; meet fmt-check; exit 1; fi
+    meet fmt-check; exit 0 ;;
   "cargo fmt --all")
     if red; then printf 'rustfmt error in tree %s\n' "$t"; meet fmt; exit 1; fi
     meet fmt; exit 0 ;;
@@ -16648,7 +16651,98 @@ _pgl_check el "$_PGL_ROOT/projects/elenchus/gate.sh" "elenchus's gate" \
 _pgl_check pp "$_PGL_ROOT/projects/elenchus/prepush.sh" "elenchus's push guard" \
   "2 met format-check;2 met lint;2 met test;" "tree a, | tree b," 1
 _pgl_check vd "$_PGL_ROOT/projects/veldra/gate.sh" "veldra's gate" \
-  "2 met clippy;2 met fmt;2 met leaks;2 met test;" " | " 4
+  "2 met clippy;2 met fmt;2 met fmt-check;2 met leaks;2 met test;" " | " 4
+
+printf '\nveldra gate: fmt names what rustfmt would rewrite, not what git calls dirty\n'
+# Veldra's fmt check ran `cargo fmt --all`, then reported
+# `git diff --name-only -- '*.rs'` as "rewrote N file(s)". That is every .rs
+# file with uncommitted work, so mid-task the check went red and listed files
+# rustfmt never touched. And git diff cannot see an untracked file, so a new
+# file rustfmt rewrote passed in silence. Elenchus's gate had the same defect
+# and fixed it 2026-08-05; this is the Rust form of that fix: ask
+# `cargo fmt --all -- --check` first, rewrite, report only what the check
+# named, and fail loudly when the check failed and no name parsed.
+#
+# The stand-in prints what rustfmt printed when measured on 2026-09-21: one
+# `Diff in <canonical path>:<line>:` per hunk. The tree is reached through a
+# symlink, as FELIX_GATE_ROOT can be, so the path rustfmt prints is not the
+# one the gate was handed. Each script's literal /tmp/ is moved under the
+# fixture for the reason the block above gives.
+_VFM="$TMP/veldra-fmt"; mkdir -p "$_VFM/bin" "$_VFM/real/src" "$_VFM/fixed"
+cat > "$_VFM/bin/cargo" <<'STUB'
+#!/usr/bin/env bash
+case "$*" in
+  "fmt --all -- --check")
+    [ -f "${VFM_CHECK:-}" ] && sed "s|@ROOT@|$(pwd -P)|g" "$VFM_CHECK"
+    exit "${VFM_CHECK_RC:-0}" ;;
+  "fmt --all")
+    for f in ${VFM_REWRITE:-}; do printf '// rustfmt\n' >> "$f"; done
+    exit 0 ;;
+  "clippy "*|"test "*) exit 0 ;;
+esac
+printf 'stand-in: nothing scripted for cargo %s\n' "$*" >&2; exit 97
+STUB
+printf '#!/usr/bin/env bash\nexit 0\n' > "$_VFM/bin/gitleaks"
+chmod +x "$_VFM/bin/cargo" "$_VFM/bin/gitleaks"
+for _f in a b c; do printf 'fn %s() {}\n' "$_f" > "$_VFM/real/src/$_f.rs"; done
+( cd "$_VFM/real" && git init -q -b main && git add src \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+ln -s "$_VFM/real" "$_VFM/link"
+printf 'fn d( ){}\n' > "$_VFM/real/src/d.rs"
+
+# One gate run: what --check prints, its exit, the files the rewrite touches.
+# Prints the fmt check's lines alone, whitespace squeezed, joined by |.
+_vfm_run() {
+  rm -rf "$_VFM/tmp"; mkdir -p "$_VFM/tmp"
+  printf '%b' "$1" > "$_VFM/check"
+  ( cd "$_VFM/link" && PATH="$_VFM/bin:$PATH" VFM_CHECK="$_VFM/check" VFM_CHECK_RC="$2" \
+      VFM_REWRITE="$3" TMPDIR="$_VFM/tmp" FELIX_GATE_ROOT="$_VFM/link" \
+      bash "$_VFM/script" --quick ) > "$_VFM/out" 2>&1
+  awk '/^  fmt /{p=1; print; next} /^  [a-z]/{p=0} p' "$_VFM/out" \
+    | tr -s ' ' | sed 's/^ //' | tr '\n' '|'
+}
+_vfm_left() { ls -A "$_VFM/tmp" | wc -l | tr -d ' '; }
+
+if [ ! -f "$_PGL_ROOT/projects/veldra/gate.sh" ]; then
+  for _p in "a new file rustfmt rewrites is named, though git diff cannot see it" \
+            "a check that fails with no name it can parse is a loud FAIL" \
+            "and the log it names holds what the check printed" \
+            "edited files rustfmt would not touch are not named" \
+            "and a passing check leaves no log behind" \
+            "only the files rustfmt names, once each, relative to the tree" \
+            "and a check that named its files leaves no log behind"; do
+    skip "veldra's fmt: $_p" "no projects/veldra/gate.sh beside this harness"
+  done
+else
+  sed "s|/tmp/|$_VFM/fixed/|g" "$_PGL_ROOT/projects/veldra/gate.sh" > "$_VFM/script"
+
+  is "veldra's fmt: a new file rustfmt rewrites is named, though git diff cannot see it" \
+     "$(_vfm_run 'Diff in @ROOT@/src/d.rs:1:\n-fn d( ){}\n+fn d() {}\n' 1 src/d.rs)" \
+     "fmt FAIL|rustfmt rewrote 1 file(s); review and stage them|src/d.rs|"
+
+  # An older rustfmt's shape: a parse that cannot read it must not go green.
+  _vfm_out="$(_vfm_run 'Diff in @ROOT@/src/d.rs at line 1:\n-fn d( ){}\n+fn d() {}\n' 1 src/d.rs)"
+  is "veldra's fmt: a check that fails with no name it can parse is a loud FAIL" \
+     "$(printf '%s' "$_vfm_out" | cut -d'|' -f1-2)" \
+     "fmt FAIL|cargo fmt --check exited 1 but no filename parsed"
+  _vfm_log="$(sed -n 's/.*full log: //p' "$_VFM/out")"
+  _vfm_bad=""
+  [ "$(printf '%s\n' "$_vfm_log" | grep -c .)" = 1 ] || _vfm_bad="names $(printf '%s\n' "$_vfm_log" | grep -c .) logs"
+  [ -n "$_vfm_log" ] && { [ -f "$_vfm_log" ] && grep -q 'd.rs at line 1:' "$_vfm_log" || _vfm_bad="$_vfm_bad [$_vfm_log]"; }
+  [ "$(_vfm_left)" = 1 ] || _vfm_bad="$_vfm_bad left-$(_vfm_left)"
+  is "veldra's fmt: and the log it names holds what the check printed" "$_vfm_bad" ""
+
+  # Uncommitted work from here on: two edited files, one of them unformatted.
+  printf 'fn a( ) {}\n' > "$_VFM/real/src/a.rs"; printf 'fn b() { }\n' > "$_VFM/real/src/b.rs"
+  is "veldra's fmt: edited files rustfmt would not touch are not named" \
+     "$(_vfm_run '' 0 '')" "fmt ok|"
+  is "veldra's fmt: and a passing check leaves no log behind" "$(_vfm_left)" "0"
+
+  is "veldra's fmt: only the files rustfmt names, once each, relative to the tree" \
+     "$(_vfm_run 'Diff in @ROOT@/src/a.rs:1:\n-fn a( ) {}\n+fn a() {}\n\nDiff in @ROOT@/src/c.rs:1:\n x\nDiff in @ROOT@/src/c.rs:7:\n y\n' 1 'src/a.rs src/c.rs')" \
+     "fmt FAIL|rustfmt rewrote 2 file(s); review and stage them|src/a.rs|src/c.rs|"
+  is "veldra's fmt: and a check that named its files leaves no log behind" "$(_vfm_left)" "0"
+fi
 
 # The class, not the three instances: a fixed path under /tmp in any script a
 # project holds is one every run of it on the machine shares. Tracked files

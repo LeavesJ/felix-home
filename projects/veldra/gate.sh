@@ -62,24 +62,54 @@ newlog() {
 # ---------------------------------------------------------------- fmt --------
 # R-166: run the formatter, do not --check and hand-chase its complaints.
 # Rustfmt rewrites in place, so the gate reports what it touched for staging.
-FMT_LOG=""
-if ! newlog FMT_LOG fmt; then
+# Ask rustfmt what it WOULD rewrite, then rewrite, and report only what IT named.
+#
+# This used to run the formatter and then report `git diff --name-only --
+# '*.rs'`, which conflates "rustfmt rewrote this" with "this file has
+# uncommitted work". Mid-task that is every .rs file being edited, so the check
+# went red and listed files rustfmt never touched. Elenchus's gate had the same
+# defect and fixed it 2026-08-05. --check prints `Diff in <path>:<line>:` once
+# per hunk, the path absolute and canonical, so /tmp arrives as /private/tmp on
+# macOS: checked 2026-09-21 against rustfmt on toolchains 1.85, 1.92 (the
+# pin) and stable. A file with two hunks is named twice and listed once.
+FMT_CHECK_LOG=""; FMT_LOG=""
+if ! newlog FMT_CHECK_LOG fmt-check || ! newlog FMT_LOG fmt; then
   fail fmt
   note "could not make a log file under $LOG_DIR"
-elif cargo fmt --all >"$FMT_LOG" 2>&1; then
-  rm -f "$FMT_LOG"
-  FMT_DIRTY="$(git diff --name-only -- '*.rs')"
-  if [ -n "$FMT_DIRTY" ]; then
-    fail fmt
-    note "rewrote $(printf '%s\n' "$FMT_DIRTY" | wc -l | tr -d ' ') file(s); review and stage them"
-    printf '%s\n' "$FMT_DIRTY" | sed 's/^/    /'
-  else
-    pass fmt
-  fi
+  rm -f "$FMT_CHECK_LOG"
 else
-  fail fmt
-  tail -20 "$FMT_LOG" | sed 's/^/    /'
-  note "full log: $FMT_LOG"
+  cargo fmt --all -- --check >"$FMT_CHECK_LOG" 2>&1
+  FMT_CHECK_STATUS=$?
+  WOULD_FMT="$(FMT_P="$(pwd -P)/" FMT_L="$REPO_ROOT/" awk '
+    /^Diff in .*:[0-9]+:$/ {
+      p = substr($0, 9); sub(/:[0-9]+:$/, "", p)
+      if (index(p, ENVIRON["FMT_P"]) == 1) p = substr(p, length(ENVIRON["FMT_P"]) + 1)
+      else if (index(p, ENVIRON["FMT_L"]) == 1) p = substr(p, length(ENVIRON["FMT_L"]) + 1)
+      if (!seen[p]++) print p
+    }' "$FMT_CHECK_LOG")"
+  if ! cargo fmt --all >"$FMT_LOG" 2>&1; then
+    fail fmt
+    tail -20 "$FMT_LOG" | sed 's/^/    /'
+    note "full log: $FMT_LOG"
+    rm -f "$FMT_CHECK_LOG"
+  elif [ "$FMT_CHECK_STATUS" -eq 0 ]; then
+    pass fmt
+    rm -f "$FMT_CHECK_LOG" "$FMT_LOG"
+  elif [ -n "$WOULD_FMT" ]; then
+    fail fmt
+    note "rustfmt rewrote $(printf '%s\n' "$WOULD_FMT" | wc -l | tr -d ' ') file(s); review and stage them"
+    printf '%s\n' "$WOULD_FMT" | sed 's/^/    /'
+    rm -f "$FMT_CHECK_LOG" "$FMT_LOG"
+  else
+    # rustfmt wanted changes but this parse did not recognise its output. The
+    # `Diff in` shape is coupled to the rustfmt version, so its failure mode
+    # must be a loud gate, never a silent green one.
+    fail fmt
+    note "cargo fmt --check exited $FMT_CHECK_STATUS but no filename parsed"
+    note "full log: $FMT_CHECK_LOG"
+    note "the Diff in parse above needs updating for this rustfmt"
+    rm -f "$FMT_LOG"
+  fi
 fi
 
 # ------------------------------------------------------------- clippy --------

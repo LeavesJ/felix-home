@@ -4,17 +4,12 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	aacff5cb977e1d8888eeb28edc399d57300a46e3	0.49.133
-run	12	2739	1
-elenchus's gate, two failing at once: each excerpt is its own tree's	1
-elenchus's gate, two failing at once: each log it names holds its own run alone	1
-elenchus's gate, two failing at once: only the logs it names are kept	1
-elenchus's gate, two passing at once: each prints only its own tree	1
-elenchus's push guard, two failing at once: each excerpt is its own tree's	1
-elenchus's push guard, two failing at once: each log it names holds its own run alone	1
-elenchus's push guard, two failing at once: only the logs it names are kept	1
-elenchus's push guard, two passing at once: each prints only its own tree	1
-no project script names a fixed path under /tmp outside its comments	1
-veldra's gate, two failing at once: each excerpt is its own tree's	1
-veldra's gate, two failing at once: each log it names holds its own run alone	1
-veldra's gate, two failing at once: only the logs it names are kept	1
+base	origin/main	b1b624ef1a3256046866fb7b0742d69657b8ddbd	0.49.134
+run	7	2751	1
+veldra's fmt: a check that fails with no name it can parse is a loud FAIL	1
+veldra's fmt: a new file rustfmt rewrites is named, though git diff cannot see it	1
+veldra's fmt: and the log it names holds what the check printed	1
+veldra's fmt: edited files rustfmt would not touch are not named	1
+veldra's fmt: only the files rustfmt names, once each, relative to the tree	1
+veldra's gate, two failing at once: the runs overlapped	1
+veldra's gate, two passing at once: the runs overlapped	1

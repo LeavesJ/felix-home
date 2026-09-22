@@ -154,7 +154,7 @@ git -C "$HOME_TOP" log --full-history -p --format= "$MAIN" -- 'projects/*/projec
   die "could not read the remotes the manifests on the home's main declared"
 for f in history memory remotes; do [ -s "$NM.$f" ] || die "the audit's $f source came back empty, and it never is"; done
 printf '%s\n' ${GIVEN[@]+"${GIVEN[@]}"} | sed '/^$/d' | sort -u > "$NM.given"
-{ id -un; basename "$HOME"; } | sort -u > "$NM.machine" || die "could not read this machine's login"
+{ id -un && basename "$HOME"; } | sort -u > "$NM.machine" || die "could not read this machine's login"
 { printf '%s\n' "$SELF" "${PUBLIC_SLUG##*/}"; printf '%s\n' "$HOME_SLUG" | remote_forms; } | norm | sort -u > "$NM.self"
 awk -F'\t' '$1 == "@name" && NF >= 3 { print $2 }' "$ACKS" | norm | sort -u > "$NM.excluded"
 sort -u "$NM.history" "$NM.memory" "$NM.remotes" "$NM.given" "$NM.machine" | sed '/^$/d' > "$NM.union"

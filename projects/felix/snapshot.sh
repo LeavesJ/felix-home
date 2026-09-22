@@ -233,9 +233,14 @@ perl -0pi -e 's/("remote_match"\s*:\s*")[^"]*(")/${1}LeavesJ\/Felix${2}/' "$B/pr
 # token, which has no space: a phrase with spaces inside a path made `test -f`
 # a usage error, and later turned a redirect into one to a file named for the
 # first word. Anywhere else it is prose and becomes the phrase, in lower case;
-# an escape such as \n before it counts as a space. Then the pieces: a prefix of
-# three or more and the rest, with a few characters between or one standing
-# in, become the token's pieces.
+# an escape such as \n before it counts as a space. Then the pieces, and only
+# where no ordinary word can be meant: two halves split anywhere, each a whole
+# word, with up to eight characters between and no letter or digit among them;
+# and a whole word that is the name with one character standing in, where that
+# character is a mark (a dot, say) or a capital among lower-case letters. Each
+# becomes the token's pieces. The first and last characters are never taken as
+# stand-ins here. An ordinary word one letter away from a name (planter against
+# planner) is never rewritten: the audit stops on it for a person to read.
 # The text files are listed once, and only they are rewritten: a binary file is
 # never edited, so a name in one is left for the audit, which reads every file,
 # to stop on. A list that comes back short leaves a name unrewritten, and the
@@ -252,15 +257,17 @@ s{\Q$n\E}{
   elsif ($p =~ m{[/-]} || $q =~ m{[/-]} || ($q eq "." && $qq =~ /[A-Za-z0-9]/) || ($p eq "." && $pp =~ /[A-Za-z0-9]/)) { $t }
   else { $ph }
 }gie;
-for my $k (3 .. $L - 3) {
+for my $k (1 .. $L - 1) {
   my ($x, $y) = (substr($n, 0, $k), substr($n, $k));
   my ($tx, $ty) = (substr($t, 0, $k), $k < length $t ? substr($t, $k) : "");
-  s{\Q$x\E(.{1,8}?)\Q$y\E}{$tx$1$ty}g;
+  next if $ty eq "";
+  s{(?<![A-Za-z0-9])\Q$x\E([^A-Za-z0-9]{1,8}?)\Q$y\E(?![A-Za-z0-9])}{$tx$1$ty}g;
 }
-for my $k (3 .. $L - 2) {
-  my ($x, $c, $y) = (substr($n, 0, $k), substr($n, $k, 1), substr($n, $k + 1));
+for my $k (1 .. $L - 2) {
+  my ($x, $y) = (substr($n, 0, $k), substr($n, $k + 1));
   my ($tx, $ty) = (substr($t, 0, $k), $k < length $t ? substr($t, $k) : "");
-  s{\Q$x\E([^\Q$c\E])\Q$y\E}{$tx$1$ty}g;
+  next if $ty eq "";
+  s{(?<![A-Za-z0-9])\Q$x\E([^A-Za-z0-9\s]|[A-Z])\Q$y\E(?![A-Za-z0-9])}{$tx$1$ty}g;
 }
 PERL
 find "$B" -type f -print0 | xargs -0 grep -lI --null '' > "$OUT/text.files" || true

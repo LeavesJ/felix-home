@@ -224,13 +224,16 @@ perl -0pi -e 's/("remote_match"\s*:\s*")[^"]*(")/${1}LeavesJ\/Felix${2}/' "$B/pr
 [ "$(slug_of < "$B/projects/$SELF/project.json")" = "$PUBLIC_SLUG" ] || die "remote_match was not rewritten"
 
 # The scrub, per project in token order, and its order is load-bearing. The
-# upper-case identifier first, or the prose rule would leave a phrase glued to
-# an underscore. Then the name itself, and what it becomes is read from the
-# characters around it. Inside a path (a slash or a hyphen beside it, or a dot
-# and a file extension) it becomes the bare token, which has no space: a phrase
-# with spaces inside a path made `test -f` a usage error, and later turned a
-# redirect into one to a file named for the first word. Anywhere else it is
-# prose and becomes the phrase, in lower case. Then the pieces: a prefix of
+# name itself first, and what it becomes is read from the characters around
+# it. Inside an identifier (a letter, digit or underscore beside it, or $, {
+# or } as in a variable) it is the token in the identifier's case: THIRD_PROJECT
+# for an upper-case name, which keeps ${NAME:-} a variable where a phrase made
+# it a bad substitution, and the bare token otherwise. Inside a path (a slash
+# or a hyphen beside it, or a dot and a file extension) it becomes the bare
+# token, which has no space: a phrase with spaces inside a path made `test -f`
+# a usage error, and later turned a redirect into one to a file named for the
+# first word. Anywhere else it is prose and becomes the phrase, in lower case;
+# an escape such as \n before it counts as a space. Then the pieces: a prefix of
 # three or more and the rest, with a few characters between or one standing
 # in, become the token's pieces.
 # The text files are listed once, and only they are rewritten: a binary file is
@@ -239,13 +242,15 @@ perl -0pi -e 's/("remote_match"\s*:\s*")[^"]*(")/${1}LeavesJ\/Felix${2}/' "$B/pr
 # audit stops on it, so a failure here is never silent.
 IFS= read -r -d '' SCRUB_PL <<'PERL' || true
 BEGIN { ($n, $t, $ph, $up, $tup) = @ENV{qw(N T PH UP TUP)}; $L = length $n; }
-s{\Q$up\E(?=_)}{$tup}g;
 my $o = $_;
 s{\Q$n\E}{
   my ($b, $a) = (substr($o, 0, $-[0]), substr($o, $+[0]));
   my ($p, $pp) = (length $b ? substr($b, -1) : "", length $b > 1 ? substr($b, -2, 1) : "");
   my ($q, $qq) = (length $a ? substr($a, 0, 1) : "", length $a > 1 ? substr($a, 1, 1) : "");
-  ($p =~ m{[/-]} || $q =~ m{[/-]} || ($q eq "." && $qq =~ /[A-Za-z0-9]/) || ($p eq "." && $pp =~ /[A-Za-z0-9]/)) ? $t : $ph
+  $p = " " if $pp eq "\\" && $p =~ /[ntr]/;
+  if ($p =~ /[A-Za-z0-9_\$\{]/ || $q =~ /[A-Za-z0-9_\}]/) { $& =~ /[a-z]/ ? $t : $tup }
+  elsif ($p =~ m{[/-]} || $q =~ m{[/-]} || ($q eq "." && $qq =~ /[A-Za-z0-9]/) || ($p eq "." && $pp =~ /[A-Za-z0-9]/)) { $t }
+  else { $ph }
 }gie;
 for my $k (3 .. $L - 3) {
   my ($x, $y) = (substr($n, 0, $k), substr($n, $k));
@@ -268,6 +273,15 @@ for n in ${SCRUB[@]+"${SCRUB[@]}"}; do
   export N T PH UP TUP
   xargs -0 perl -pi -e "$SCRUB_PL" < "$OUT/text.files"
 done
+# Shell that parsed before the scrub parses after it, or nothing goes out.
+while IFS= read -r -d '' f; do
+  r="$RAW/${f#"$B"/}"
+  cmp -s "$r" "$f" && continue
+  case "$f" in *.sh) ;; *) case "$(head -c 64 "$f")" in '#!'*sh*) ;; *) continue ;; esac ;; esac
+  if bash -n "$r" 2>/dev/null && ! bash -n "$f" 2> "$OUT/bash-n.err"; then
+    die "the scrub turned shell that parsed into shell that does not: ${f#"$B"/}" "$(head -3 "$OUT/bash-n.err")"
+  fi
+done < "$OUT/text.files"
 
 # ------------------------------------------------------------- audit -------
 # Separate code from everything above, sharing none of its patterns.
@@ -293,6 +307,11 @@ awk -F'\t' '$4 != "address" { print $1 FS $2 }' "$OUT/scan.raw" | sort -u > "$OU
 stray="$(grep -vxF "$RM_LINE" "$OUT/changed" | sort -u | comm -23 - "$OUT/flagged.raw" || true)"
 [ -z "$stray" ] || die "the scrub changed lines the audit reads no name on:" "$(printf '%s\n' "$stray" | tr '\t' ':')"
 diff -ru --no-dereference "$RAW" "$B" > "$OUT/scrub.diff" || true
+# And no changed line holds the phrase against a path or identifier character.
+glued="$(BUILD="$B" perl -ne 'chomp; my ($f, $l) = split /\t/; open(my $h, "<", "$ENV{BUILD}/$f") or die "$f: $!\n"; my $x;
+  while (<$h>) { if ($. == $l) { $x = $_; last } } print "$f:$l\n" if $x =~ m{[[:alnum:]_/\$\{-](another|a [a-z]+) governed project|governed project[[:alnum:]_/\}-]}' "$OUT/changed")" ||
+  die "could not read back what the scrub changed"
+[ -z "$glued" ] || die "the scrub put the phrase inside a path or an identifier:" $glued
 
 # Then what is left. Names, addresses and the shape of the tree.
 allfiles "$B" > "$OUT/list.build"; scan "$B" "$OUT/list.build" "$OUT/hits.all"

@@ -16653,7 +16653,7 @@ _pgl_check vd "$_PGL_ROOT/projects/veldra/gate.sh" "veldra's gate" \
 # The class, not the three instances: a fixed path under /tmp in any script a
 # project holds is one every run of it on the machine shares. Tracked files
 # only, so an untracked project in somebody's home checkout is not this suite's
-# verdict to give.
+# verdict to give. Felix's own gate is counted too; #276 took it out of /tmp.
 _pgl_fixed="$(git -C "$_PGL_ROOT" ls-files -- projects 2>/dev/null | while IFS= read -r f; do
     [ -f "$_PGL_ROOT/$f" ] && [ "$(head -c2 "$_PGL_ROOT/$f")" = '#!' ] || continue
     grep -vE '^[[:space:]]*#' "$_PGL_ROOT/$f" | grep -q '/tmp/' && printf '%s ' "$f"

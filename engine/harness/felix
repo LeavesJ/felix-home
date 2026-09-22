@@ -788,6 +788,14 @@ cmd_new() {
   caps="$(felix_detect "$root" | sort -u)"
   gate="$(felix_guess_gate "$root")"
   slug="$(felix_repo_slug "$root")"
+  # The marker binds the checkout, so a checkout it cannot be written into is
+  # refused here, before projects/<name> exists. Refused only after it, the
+  # project was left behind, and the same command, once the checkout was
+  # writable, refused it as already there.
+  if [ -d "$root/.felix" ] || { [ -e "$root/.felix" ] && [ ! -w "$root/.felix" ]; } \
+     || { [ ! -e "$root/.felix" ] && [ ! -w "$root" ]; }; then
+    die "cannot write the marker $root/.felix, which binds the checkout; nothing was made"
+  fi
 
   mkdir -p "$(felix_mem_dir "$dir")" "$dir/setup"
 

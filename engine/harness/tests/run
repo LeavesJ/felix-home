@@ -17549,6 +17549,22 @@ else
   bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") in $((_rv_t1 - _rv_t0))s"
 fi
 
+# Over 256K the first 64K is read, and a script handed to a shell with -c
+# that is still open at its end is script, not text the quote has not closed
+# yet; the runner at the script's other end, in the last 64K, is read too.
+# Three -c scripts just over the size holding a runner at either end, beside
+# one holding none.
+mkdir -p "$RV/r3/bigc/-p"
+awk -v d="$RV/r3/bigc/-p" "$_rv_bigawk"'
+  BEGIN {
+    one(d "/c1.jsonl", "c1", "bash -c \047" rep("npm test;", 29200) "\047")
+    one(d "/c2.jsonl", "c2", "bash -c \047" rep("echo filler; ", 23000) "npm test\047")
+    one(d "/c3.jsonl", "c3", "sh -c \\\"npm test; " rep("echo filler; ", 23000) "\\\"")
+    one(d "/c4.jsonl", "c4", "bash -c \047" rep("echo filler; ", 23000) "\047")
+  }'
+is  "a script handed to bash -c or sh -c over 256K is read at both ends: a runner at its start or its end is a check" \
+    "$(_au_counts "$(_au --dir "$RV/r3/bigc")")" "3 0 0 1"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

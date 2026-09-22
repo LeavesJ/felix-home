@@ -230,10 +230,12 @@ felix_audit_scan() {
   # that runs one, which is kept from there. The script a shell is handed with
   # -c is a command, and is read as one, from a line of its own. A # that
   # starts a word outside quotes starts a comment, which goes to the end of its
-  # line before any quote in it is paired.
+  # line before any quote in it is paired. Given the first 64K of a longer
+  # command (cut), a -c script still open at its end is script, and UQSHC is
+  # the quote it is waiting for.
   # split(s, C, "") is a character per element in BWK awk, gawk and mawk alike.
-  function unquote(c,    n, C, i, ch, out, q, st, s, w, p) {
-    n = split(c, C, ""); out = ""; q = ""; st = 1
+  function unquote(c, cut,    n, C, i, ch, out, q, st, s, w, p) {
+    n = split(c, C, ""); out = ""; q = ""; st = 1; UQSHC = ""
     for (i = 1; i <= n; i++) {
       ch = C[i]
       if ((ch == BS || ch == "\001") && q != SQ) { i++; continue }
@@ -255,7 +257,21 @@ felix_audit_scan() {
         q = ""; st = i + 1
       }
     }
-    return q == "" ? out substr(c, st) : out
+    if (q == "") return out substr(c, st)
+    if (cut) {
+      w = st > 129 ? "x" substr(c, st - 128, 128) : substr(c, 1, st - 1); gsub(/\n/, ";", w)
+      if (w ~ SHC) { s = unquote(substr(c, st + 1)); UQSHC = q; return out "\n" s }
+    }
+    return out
+  }
+
+  # Where in r the -c script open at the end of its first 64K closes: at the
+  # first quote of its kind after it, a single quote or a double quote no
+  # backslash escapes (in JSON, one after an even run of escaped backslashes).
+  # One read of the rest; 0 where it never closes.
+  function scriptend(r,    p) {
+    if (UQSHC == SQ) return (p = index(substr(r, 65537), SQ)) ? 65536 + p : 0
+    return match(substr(r, 65537), /(^|[^\\])(\\\\\\\\)*\\"/) ? 65536 + RSTART + RLENGTH - 2 : 0
   }
 
   # Whether the exit status of the last check could reach the transcript: not
@@ -297,13 +313,22 @@ felix_audit_scan() {
   # can be the script of a shell, and a double quote also as nothing, since
   # the quoted path before it can be the program; unquote() then decides what
   # the quotes held.
-  function check(seg,    r, c, n, P, u, big, t, h) {
+  # Over 256K, the last 64K is read from after its last quote, since it can
+  # start inside quoted text; but where the first 64K ends inside a -c script
+  # that closes in it, it is read as the end of that script (from after its
+  # own last quote, for the same reason) and then as what follows the script.
+  function check(seg,    r, c, n, P, u, big, t, h, k, m, s, tu, tc) {
     r = rawcmd(seg); if (r == "") return 0
     if (big = ((n = length(r)) > 262144)) {
-      h = heredocs(substr(r, 1, 65536), 1)
-      t = substr(r, n - 65535); if (HDW != "") t = afterbody(r, n, t)
-      c = decode(heredocs(t, 1)); n = split(c, P, "[" Q SQ "]")
-      c = decode(h); u = unquote(c) "\n" P[n]; c = c "\n" P[n]
+      h = heredocs(substr(r, 1, 65536), 1); t = substr(r, n - 65535)
+      if (HDW != "") t = afterbody(r, n, t)
+      c = decode(h); u = unquote(c, 1)
+      if (HDW == "" && UQSHC != "" && (!(m = scriptend(r)) || m >= n - 65535)) {
+        s = decode(m ? substr(r, n - 65535, m - n + 65535) : t)
+        k = split(s, P, "[" Q SQ "]"); tu = P[k]; tc = s
+        if (m) { s = decode(heredocs(substr(r, m + (UQSHC == SQ ? 1 : 2)), 0)); tu = tu "\n" unquote(s); tc = tc "\n" s }
+      } else { tc = decode(heredocs(t, 1)); k = split(tc, P, "[" Q SQ "]"); tu = tc = P[k] }
+      u = u "\n" tu; c = c "\n" tc
     } else c = decode(heredocs(r, 0))
     r = c; gsub(/\n/, ";", r); gsub(SQ, ";", r); t = r; gsub(Q, "", t); gsub(Q, ";", r)
     if (r !~ vre && t !~ vre) return 0

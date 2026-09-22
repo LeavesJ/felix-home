@@ -16,7 +16,7 @@
 1	--status writes no receipt
 1	--status writes no request
 1	--strict exits non-zero on a gap
-1	--verify refuses \s, which is a class on one awk and a letter on another, where [[:space:]] runs
+1	--verify refuses a backslash class, which is a class on one awk and a letter on another, where [[:space:]] runs
 1	--verify replaces what counts as a check
 1	--yes never installs high risk
 1	FELIX_ALLOW_RED lets a founder stop anyway

@@ -17028,8 +17028,8 @@ fi
 _au --dir "$RV/hid" --verify 'npm[[:space:]]+test' >/dev/null; _rvrc=$?
 _au --dir "$RV/hid" --verify 'npm\s+test' >/dev/null; _rvrc2=$?
 [ "$_rvrc" -eq 0 ] && [ "$_rvrc2" -ne 0 ] \
-  && ok  "--verify refuses \\s, which is a class on one awk and a letter on another, where [[:space:]] runs" \
-  || bad "--verify refuses \\s, which is a class on one awk and a letter on another, where [[:space:]] runs" "posix: $_rvrc, \\s: $_rvrc2"
+  && ok  "--verify refuses a backslash class, which is a class on one awk and a letter on another, where [[:space:]] runs" \
+  || bad "--verify refuses a backslash class, which is a class on one awk and a letter on another, where [[:space:]] runs" "posix: $_rvrc, \\s: $_rvrc2"
 _au --dir "$RV/hid" --since 2026-03-31 >/dev/null; _rvrc=$?
 _au --dir "$RV/hid" --since 2026-19-39 >/dev/null; _rvrc2=$?
 [ "$_rvrc" -eq 0 ] && [ "$_rvrc2" -ne 0 ] \
@@ -17156,7 +17156,9 @@ elif [ -f "$FELIX_TEST_MANIFEST" ]; then
   _missing=0
   while IFS=$'\t' read -r want name; do
     [ -n "${name:-}" ] || continue
-    got="$(awk -F'\t' -v n="$name" '$2==n {print $1}' "$_ran_counts")"
+    # ENVIRON, not -v: awk -v processes backslash escapes, so a name holding a
+    # backslash could never equal itself and would read as never reached.
+    got="$(N="$name" awk -F'\t' '$2==ENVIRON["N"] {print $1}' "$_ran_counts")"
     got="${got:-0}"
     if [ "$got" -lt "$want" ]; then
       bad "assertion did not run: $name" "expected it $want time(s), reached it $got"

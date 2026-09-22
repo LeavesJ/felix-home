@@ -37,6 +37,10 @@
 # method and not one name. What would reverse this: a literal here that the
 # audit has to be told to ignore.
 set -euo pipefail
+# Bytes, in every locale. Under a UTF-8 locale the platform grep matches
+# nothing after an invalid byte on a line, so an address behind one Latin-1
+# character passed the audit and the credential scan, which inherits this.
+export LC_ALL=C
 
 PUBLIC_SLUG="LeavesJ/Felix"
 PUBLIC_URL="https://github.com/$PUBLIC_SLUG.git"
@@ -67,6 +71,7 @@ while [ $# -gt 0 ]; do
     *) die "unknown argument: $1" ;;
   esac
 done
+say "scope: accidents of our own authoring; deliberate obfuscation (leetspeak, encodings, look-alike characters) is not searched for, so a pass is not a claim about an adversary"
 [ -z "$MSGFILE" ] || [ -f "$MSGFILE" ] || die "no message file at $MSGFILE"
 [ -z "$PCLONE" ] || git -C "$PCLONE" rev-parse --git-dir >/dev/null 2>&1 || die "$PCLONE is not a git repository"
 

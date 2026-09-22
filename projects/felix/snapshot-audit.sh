@@ -6,7 +6,9 @@
 # NAMES is a file of audit names, one a line; AUTHOR is the one address that
 # may appear; the paths, NUL-separated and relative to ROOT, are what is read.
 # Prints path<TAB>line<TAB>name<TAB>rule<TAB>hash for every line one of them
-# reaches, once a line, where hash is git hash-object of that line. Exit 0 when
+# reaches, once a line, where hash is git hash-object of that line. The path
+# itself is read as line 0, because a name in a file name is published as
+# surely as one inside it. Exit 0 when
 # every file was read and 2 when one could not be, so a caller never takes
 # silence for a pass.
 #
@@ -62,15 +64,8 @@ sub decode {
   return lc $d;
 }
 sub hash_of { my $l = shift; sha1_hex('blob ' . (length($l) + 1) . "\0" . $l . "\n") }
-my $bad = 0;
-local $/ = "\0";
-while (my $p = <STDIN>) {
-  chomp $p; next unless length $p;
-  my $c;
-  if (open(my $fh, '<:raw', "$root/$p")) { local $/; $c = <$fh>; close $fh; }
-  else { warn "snapshot-audit: cannot read $p: $!\n"; $bad = 1; next; }
-  $c = '' unless defined $c;
-  my @L = split /\n/, $c, -1; pop @L if @L && $L[-1] eq '';
+sub audit {  # the lines of one file; returns the name hits and the address hits, by index
+  my @L = @_;
   my (%hit, %adr, @tok, @set);
   my $mark = sub { my ($i, $n, $r) = @_; $hit{$i} ||= [$n, $r]; };
   my @lc = map { lc } @L; my @dc = map { decode($_) } @L;
@@ -119,8 +114,25 @@ while (my $p = <STDIN>) {
       last unless $prefix{$acc};
     }
   }
-  for my $i (sort { $a <=> $b } keys %hit) { print join("\t", $p, $i + 1, @{ $hit{$i} }, hash_of($L[$i])), "\n"; }
-  for my $i (sort { $a <=> $b } keys %adr) { print join("\t", $p, $i + 1, @{ $adr{$i} }, hash_of($L[$i])), "\n"; }
+  return (\%hit, \%adr);
+}
+sub report {  # path, number of the first line, the lines, name hits, address hits
+  my ($p, $o, $L, $hit, $adr) = @_;
+  for my $h ($hit, $adr) {
+    for my $i (sort { $a <=> $b } keys %$h) { print join("\t", $p, $i + $o, @{ $h->{$i} }, hash_of($L->[$i])), "\n"; }
+  }
+}
+my $bad = 0;
+local $/ = "\0";
+while (my $p = <STDIN>) {
+  chomp $p; next unless length $p;
+  my $c;
+  if (open(my $fh, '<:raw', "$root/$p")) { local $/; $c = <$fh>; close $fh; }
+  else { warn "snapshot-audit: cannot read $p: $!\n"; $bad = 1; next; }
+  $c = '' unless defined $c;
+  my @L = split /\n/, $c, -1; pop @L if @L && $L[-1] eq '';
+  report($p, 0, [$p], audit($p));
+  report($p, 1, \@L, audit(@L));
 }
 exit($bad ? 2 : 0);
 PERL

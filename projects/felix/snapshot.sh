@@ -183,9 +183,10 @@ allfiles() { (cd "$1" && find . -type f | sed 's|^\./||' | sort | tr '\n' '\0');
 # writes that file. It prints the row a person could add.
 unacked() { awk -F'\t' 'FILENAME == ARGV[1] { if ($1 !~ /^[#@]/ && NF >= 3) ok[$1 FS $2] = 1; next } !(($1 FS $5) in ok)' "$ACKS" "$1"; }
 show_hits() {  # DIR HITS: each line, and the row that would acknowledge it
-  local p l n r h
+  local p l n r h t
   head -40 "$2" | while IFS="$TAB" read -r p l n r h; do
-    printf '  %s:%s [%s, %s] %s\n' "$p" "$l" "$n" "$r" "$(sed -n "${l}p" "$1/$p" | cut -c1-160 | tr -d '\n' | tr -c '[:print:]\t' '?')"
+    if [ "$l" = 0 ]; then t="(the file's path)"; else t="$(sed -n "${l}p" "$1/$p" | cut -c1-160 | tr -d '\n' | tr -c '[:print:]\t' '?')"; fi
+    printf '  %s:%s [%s, %s] %s\n' "$p" "$l" "$n" "$r" "$t"
     printf '      ack: %s\\t%s\\t<why>\n' "$p" "$h"
   done
   [ "$(wc -l < "$2")" -le 40 ] || say "  and $(($(wc -l < "$2") - 40)) more, in $2"

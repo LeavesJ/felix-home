@@ -1,0 +1,16 @@
+# Acknowledged hits of the public snapshot's audit (projects/felix/snapshot.sh).
+# A row waives one leak check, so it is a person's judgment, reviewed in the pull
+# request that adds it. snapshot.sh reads this file as main holds it, prints the
+# row a person could add, and never writes here. Withheld from the snapshot: it
+# names what the audit searches for.
+#   path<TAB>git hash-object of the line<TAB>why the line is not what the audit feared
+# Editing the line voids its row.
+#
+# Carried from the untracked ~/.felix/memory/felix/snapshot-ack.tsv, where an
+# agent wrote them on 2026-09-21. Each hash was re-checked on 2026-09-22 against
+# the line it names at a3eee3c and at 31ed8a8.
+engine/harness/tests/run	a0c883ea16c75ff975a340a8b613becf1e8b8a36	prose "a web app" describing a kind of checkout, not the untracked stub project of that generic name (2026-09-21)
+engine/harness/tests/run	b9acd2255cf722dc7f859b14f01e6b5702c5bec9	suite fixture directory cm-webapp, a throwaway web-app repository the test builds itself (2026-09-21)
+engine/harness/tests/run	60f9e0e390d010e75a2838b0ae325464b4c3fabf	the same fixture's project name cmwebapp, passed to felix new inside its throwaway repository (2026-09-21)
+engine/harness/lib/incident.sh	23e57464cd2a50e212bf25d0bc511347b54178b4	example path src/web/app.py in a comment on longest-match resolution (2026-09-21)
+engine/harness/templates/unattended.yml	8421ef9a40fb0b70f01b0d83c430723e16ebe179	bot identity felix[bot] on GitHub's noreply domain in the unattended workflow template; no person's address (2026-09-21)

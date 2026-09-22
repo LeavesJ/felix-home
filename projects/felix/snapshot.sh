@@ -2,7 +2,7 @@
 # The public snapshot, as a command.
 #
 #   projects/felix/snapshot.sh [--source REF] [--base REF] [--public-readme]
-#                              [--out DIR] [--public-clone DIR] [--ack FILE]
+#                              [--out DIR] [--public-clone DIR]
 #                              [--message FILE] [--expect-tree TREE]
 #
 # The engine is published as LeavesJ/Felix, a snapshot with no history of its
@@ -56,14 +56,13 @@ lc() { tr '[:upper:]' '[:lower:]'; }
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SELF="$(basename "$HERE")"
 SRC_REF="origin/main" BASE_REF="" PUBLIC_README=0 OUT="" PCLONE="" EXPECT="" MSGFILE=""
-ACK="${FELIX_MEMORY:-$HOME/.felix/memory}/$SELF/snapshot-ack.tsv"
 while [ $# -gt 0 ]; do
   case "$1" in
-    --source|--base|--out|--public-clone|--ack|--message|--expect-tree)
+    --source|--base|--out|--public-clone|--message|--expect-tree)
       [ $# -ge 2 ] && [ -n "$2" ] || die "$1 needs a value"
       case "$1" in
         --source) SRC_REF=$2 ;; --base) BASE_REF=$2 ;; --out) OUT=$2 ;;
-        --public-clone) PCLONE=$2 ;; --ack) ACK=$2 ;; --message) MSGFILE=$2 ;;
+        --public-clone) PCLONE=$2 ;; --message) MSGFILE=$2 ;;
         --expect-tree) EXPECT=$2 ;;
       esac; shift 2 ;;
     --public-readme) PUBLIC_README=1; shift ;;
@@ -95,6 +94,10 @@ if [ -z "$OUT" ]; then OUT="$(mktemp -d "${TMPDIR:-/tmp}/felix-snapshot.XXXXXX")
 else [ ! -e "$OUT" ] || [ -z "$(ls -A "$OUT")" ] || die "$OUT is not empty"; mkdir -p "$OUT"; fi
 OUT="$(cd "$OUT" && pwd)"
 RAW="$OUT/raw" B="$OUT/build" CLONE="$OUT/clone" V="$OUT/verify"
+# The acknowledgements, as main holds them and never as a checkout does.
+ACKS="$OUT/acks.tsv"
+if git -C "$HOME_TOP" cat-file -e "$MAIN:.snapshot-ack.tsv" 2>/dev/null; then git -C "$HOME_TOP" show "$MAIN:.snapshot-ack.tsv" > "$ACKS"
+else : > "$ACKS"; fi
 
 # ------------------------------------------------------------- names -------
 # Two sets, and the difference between them is the lesson of the first
@@ -204,15 +207,18 @@ scan_emails() {
     }
   }'
 }
-# Hits no acknowledgement covers. An acknowledgement is a row in $ACK, outside
-# the published set because it carries names: path, the hash of the line as it
-# stands, and why the line is not what the audit feared. Editing the line
-# voids it. Nothing here writes that file; acknowledging is a judgment.
+# Hits no acknowledgement covers. An acknowledgement waives a leak check, so it
+# is authority and not state: a row of .snapshot-ack.tsv at the home's root,
+# tracked, so a person reviews it in a pull request, and read as main holds it,
+# so an unmerged row waives nothing. It is withheld, because it names what the
+# audit searches for. A row is path, the hash of the line as it stands, and why
+# the line is not what the audit feared; editing the line voids it. Nothing here
+# writes that file. It prints the row a person could add.
 unacked() {
   local p l n h
   while IFS="$TAB" read -r p l n; do
     h="$(sed -n "${l}p" "$1/$p" | git hash-object --stdin)"
-    if [ -f "$ACK" ] && grep -qF "$p$TAB$h$TAB" "$ACK"; then continue; fi
+    if grep -qF "$p$TAB$h$TAB" "$ACKS"; then continue; fi
     printf '%s\t%s\t%s\t%s\n' "$p" "$l" "$n" "$h"
   done
 }
@@ -323,7 +329,8 @@ if [ -s "$OUT/hits" ] || [ -n "$bad_shape" ] || [ -n "$consent" ] || [ "$rows" !
   [ -z "$bad_shape" ] || say "  outside the published set:$bad_shape"
   [ -z "$consent" ] || say "  consent files in the build: $consent"
   [ "$rows" = 0 ] || say "  exceptions.tsv holds $rows row(s)"
-  say "  Read each line. One that is not what the audit feared is acknowledged by a row in $ACK."
+  say "  Read each line. One that is not what the audit feared is acknowledged by a person, with the row above"
+  say "  added to .snapshot-ack.tsv at the home's root in a pull request; only main's copy is read."
   exit 1
 fi
 nack=$(wc -l < "$OUT/hits.all" | tr -d ' ')
@@ -457,6 +464,7 @@ git -C "$HOME_TOP" ls-tree --name-only "$SRC" | while IFS= read -r e; do
       if [ "$n" != 0 ]; then say "  .claude-plugin/: $n file(s) besides the marketplace manifest, the only one a clone needs"; fi ;;
     projects) say "  projects/: $(git -C "$HOME_TOP" ls-tree -d --name-only "$SRC" projects/ | grep -vcx "projects/$SELF" || true) other director(ies), each another governed project's doctrine" ;;
     HANDOFF.md|docs) say "  $e: the home's own record, written for the people and sessions that work here" ;;
+    .snapshot-ack.tsv) say "  $e: the audit's acknowledgements; it names what the audit searches for" ;;
     .felix) say "  .felix: this checkout's binding to its project" ;;
     .github) say "  .github/: the home's workflows; the public repository keeps its own, outside the staged paths" ;;
     *) say "  $e: in no rule here; decide it before the next snapshot" ;;

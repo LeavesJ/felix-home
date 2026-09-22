@@ -194,6 +194,56 @@ to get round it.
 
 ## Try it
 
+Two ways to try it cost nothing. The first installs nothing and writes nothing.
+It reads the transcripts Claude Code already keeps under `~/.claude/projects`
+and counts how often a turn stopped right after an edit that no check had run
+on. It runs bash, which `felix` finds through `/usr/bin/env`, and awk, and
+`readlink` only where `felix` is reached through a symlink. It doesn't need the
+`claude` CLI:
+
+```bash
+git clone https://github.com/LeavesJ/Felix.git felix
+felix/engine/harness/felix audit
+```
+
+Each stop after an edit falls into one of four classes. The last check after
+the last edit reported no error, or it failed, or a check ran earlier but not
+since the last edit, or no check the roster recognises had run in the session
+at all. A check is a Bash command that runs tests or a gate through a runner
+the roster names, and it names many but not all of them. `--verify ERE` adds a
+project's own, for every project a run reads (give `--dir` one project's
+directory to narrow it), and `--since YYYY-MM-DD` counts only the stops from that day
+on, each still read against its whole session. A check piped into
+another command, followed by one, run in the background or turned over by `!`
+hands its exit status to something else, so its own failure goes unseen, and the report says
+how many of the passing ones that covers. It doesn't read subagent transcripts,
+and it leaves out edits to scratch files, to anything under Claude's
+configuration directory (memory, plans, settings, skills, hooks) and to
+Felix's memory, since no gate covers those: files under `/tmp` or `$TMPDIR`,
+under `$CLAUDE_CONFIG_DIR` (by default `~/.claude`) and under `$FELIX_MEMORY`
+(by default `~/.felix/memory`).
+An edit is Claude's Edit, Write, MultiEdit or NotebookEdit tool, or a Bash
+command that writes a file in place: `sed -i`, `perl -i`, a `>` or `>>` or
+`tee` to a named path, `patch` or `git apply`. Other writes through Bash are
+not seen.
+
+The second governs one project without commissioning it:
+
+```bash
+cd your-project
+/path/to/felix/engine/harness/felix new your-project --no-commission
+```
+
+That writes the project's rules, a guessed gate, a memory directory under
+`~/.felix/memory` and a `.felix` marker in the checkout. It installs no plugins
+and uses no network. From a plain clone the rules go into the clone's own
+`projects/` directory, because a clone that ships `projects/` is Felix's home.
+`felix which` works straight away, and so does `felix gate` where a gate was
+guessed. The hooks come with the plugin, so where a gate was guessed, its
+sessions are held once `felix install` has run; where none was, set `gate` in
+`project.json` first. `felix commission` runs commissioning whenever you want
+it.
+
 Installing changes your setup, so read this part first:
 
 - The plugin loads in every Claude Code session on the machine and records
@@ -248,7 +298,8 @@ for every project, currently superpowers, claude-md-management,
 claude-code-setup, context7, code-review, security-guidance and
 code-simplifier. It also installs catalogue rows matching what it detects in
 the checkout, and low-risk plugins discovery has read. High-risk rows such as
-semgrep wait for a person. There's no flag to skip commissioning yet.
+semgrep wait for a person. `felix new your-project --no-commission` skips
+commissioning, and `felix commission` runs it later.
 
 If the guessed gate is empty, set `gate` in `project.json` to any shell command
 that proves the project correct. Run `felix` with no arguments for every

@@ -4,14 +4,117 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	451bd401e863022adaa3eb9a21d0edf5099988e3	0.49.137
-run	9	2859	1
-a key id beside that word is still caught	1
-catches a key the keyword ends, sample 1	1
-catches a key the keyword ends, sample 2	1
-catches a key the keyword ends, sample 3	1
-catches a temporary key or a quoted JSON key, sample 1	1
-catches a temporary key or a quoted JSON key, sample 2	1
-catches a temporary key or a quoted JSON key, sample 3	1
-catches a temporary key or a quoted JSON key, sample 4	1
-catches a temporary key or a quoted JSON key, sample 5	1
+base	origin/main	091a88893020cb2b0105356929cfc634a51e4ac2	0.49.138
+run	112	2870	5
+--dir pointed at one project's directory reads the transcripts in it	1
+--dir with no value exits non-zero	1
+--since counts the stops on or after the cutoff, read against what came before it: a check the day before is stale, not never	1
+--since keeps the cut day, drops what came before it, and splits a session across it	1
+--since refuses a month of 19 and a day of 39, where a real date runs	1
+--verify adds to what counts as a check	1
+--verify refuses a backslash class, which is a class on one awk and a letter on another, where [[:space:]] runs	1
+a $( ) standing as the command, quoted, runs what it holds, and a path built on one is the program: 3 checks beside a built path that runs no tests	1
+a --since that is not YYYY-MM-DD exits non-zero	1
+a -c script whose here-document body runs past the first 64K goes on after the body to its closing quote, over 256K as under it: the runner there is a check	1
+a 6 MB command holding 300,000 backslashes is read in seconds, with the default checks and with a --verify that holds a backslash: under 10 each	1
+a << that opens no here-document, a shift or one in quotes, reads the same on either side of 256K: the runner after it is a check, and a sed -i after a check leaves the stop stale	1
+a VAR=$( ) or a backquoted value before a runner is an assignment, so the runner is a check; assigning a path built from one is not	1
+a VAR=value ends at ; or a line break, and assigning a gate's path is not running it: a copy or a quote after one is no check	1
+a backslash at the end of a comment does not join the next line to it: the runner there is a check, and a --silent after a commented-out flag takes npm test's status	1
+a cd inside a subshell, a $( ), a -c script or a shell's here-document ends with it: the relative write after it is an edit after the check, and one after a cd in a { } group or the command itself is scratch	1
+a check is read from the command, not the description, and a parallel call's error does not fail the check beside it	1
+a check that ends a { } or ( ) group whose output is redirected could have been seen to fail; only the one another command in the group follows is counted as could not	1
+a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds	1
+a command of 26,000 runners costs no more than twice the CPU of one of the same shape holding one: the last is found in one read	1
+a directory or a dangling link named like a transcript, sorting last, is skipped and the run exits 0	1
+a double-quoted -c script is read with its escapes taken off: a program path quoted inside it is the program, and text quoted inside it is text	1
+a failing piped check is counted failed, and the report does not say a piped check's result is never marked an error	1
+a leading --no-commission is the flag, while any other leading flag is still refused as a name	1
+a line ending in one backslash goes on to the next: an && list across it can fail, and a path on the next line is an argument	1
+a line of two tool_use blocks is read block by block, and an error is charged only to the result block that reported it	1
+a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds	1
+a passing check whose exit status a pipe, a later command or the background took is counted as one that could not fail: 3 of 5	1
+a person's message that starts with pasted stop hook feedback is not a hold; the hook's own meta record is	1
+a quoted program path at command position is the program: "$W/.venv/bin/python" -m pytest and "$FELIX_HOME/harness/felix" gate are checks, "npm test" as a name is not	1
+a runner after if, do, ! or { is a check, and 3 of the 4 hand their status to the if, the loop or the !	1
+a runner at the start of a here-document line is text handed to a command, not a check	1
+a runner in bash -c '...' or in a here-document fed to bash is counted as a check, or the report says such runs are not seen	1
+a runner in markdown backticks inside a one-line commit message is not counted as a check	1
+a runner inside one-line double-quoted text, a grep or pgrep pattern or an echo, is not a check; a runner whose own argument is quoted still is	1
+a runner named in a here-document, a single-quoted pattern or a multi-line message is text, not a check; one after a quoted path is	1
+a script handed to bash -c or sh -c over 256K is read at both ends: a runner at its start or its end is a check	1
+a session filed under two projects, and history copied into a resumed one, count once: 2 sessions, 1 stop, 1 hold	1
+a session is read without its subagent files, which would add a check, a stop and a hold	1
+a shell comment is not code: its apostrophe opens no quote, its (npm test) runs nothing, and its ; takes no status	1
+a sidechain edit does not turn a pass stale, and a failure reported before its tool_use_id, behind an escaped quote, still fails	1
+a stop and a hold copied into a resumed session belong to the session their record names, whichever transcript sorts first: 2 stops and 2 holds in 2 sessions both ways	1
+a stop is a distinct message id: a stop logged again is not a second one, and a failing non-check fails nothing	1
+a tool_use with its type key first is read by its own id and name, not by an id or a name nested in its input ahead of them	1
+a transcript that cannot be opened is named in the report, not silently left out	1
+a transcript with no timestamped record is said to be skipped for it, counted and in the singular or plural, beside sessions or none	1
+across every run, no file appeared, vanished or changed under the scratch root	1
+after the last audit run as after the first: nothing changed under the scratch root outside the review fixtures, nothing in the scratch HOME, and no claude, gh, curl or wget was called	1
+an edit to a scratch file or to Claude's own config directory is left out of the four, and the report says how many stops that was	1
+an edit to a skill under Claude's configuration directory or to Felix's memory is left out as no gate's, and the report and the README name that scope	1
+an empty directory is reported as no transcripts, exit 0	1
+an escaped quote in a -c script is not its close where the cut after the first 64K falls inside the escape: the runner at the script's end is a check	1
+an explicit --dir that is not a directory is refused, where the same run on a directory exits 0	1
+an unknown flag exits non-zero where the same run without it exits 0	1
+and calls no claude	1
+and no claude, gh, curl or wget was called	1
+and nothing in the scratch HOME changed: no .felix-home, no .felix, no .claude	1
+and prints one line saying commissioning was skipped and felix commission runs it later	1
+and reads them in under 30 seconds	1
+and runs none of commissioning: no run, no receipt, no discovery cache, no commissioning log	1
+and the passed class claims only that no error was reported	1
+and with CLAUDE_CONFIG_DIR unset, HOME/.claude/projects	1
+failed is exactly 1: the last check after the last edit failed	1
+felix audit --dir exits 0 over a directory of transcripts	1
+felix audit --help answers its usage and reads nothing	1
+felix audit runs with bash and awk alone on PATH, as the README says, and answers the same report	1
+felix commission, run later, commissions what felix new --no-commission created	1
+felix new --no-commission that could not write its marker binds the checkout when run again, once it is writable	1
+felix new <name> --no-commission creates the project, binds the checkout, and seeds what a commissioned one gets	1
+felix new refuses a third argument, a mistyped --no-commission or any other, before it makes anything or calls claude; spelled right, the same command binds	1
+felix new refuses any flag but --no-commission, first, second, third or fourth, naming it as a flag beside the synopsis, before it makes anything or calls claude	1
+felix new with a flag or a missing directory where the path goes is refused before anything is made	1
+felix new's usage line names --no-commission	1
+felix with no arguments lists felix audit in the grouped help	1
+it counts 10 stops after edits, in 6 sessions	1
+it counts 4 Felix holds in 3 sessions, not a quoted, sidechain, subagent or foreign stop hook	1
+it counts every stop in 41,400 lines: 450 passed and 450 failed	1
+it counts the seven top-level sessions it read, not the subagent files or the stray one beside them	1
+it gives the date range from record timestamps, 2026-03-02 to 2026-03-09, not a date quoted in a message	1
+it names the directory it read	1
+it names what counts as a check and that --verify changes it	1
+it says edits and checks inside subagents are not seen	1
+its first line says it is read-only	1
+its last line points at felix new <name> --no-commission	1
+neither the help nor the audit says --no-commission governs with nothing installed; both name felix install	1
+never is exactly 3: no check at any point in the session before the stop	1
+no line of the report, of felix audit --help or of felix's help says a turn ended, since a held stop did not	1
+of 3 held stops, the hold line counts among the stops above only the 1 that followed an edit, not the 2 after turns with no new edit	1
+passed is exactly 4: the last check after the last edit did not fail	1
+sed -i, perl -i, a > or >> to a named path, tee, patch and git apply are edits: after a passing check the stop is stale, alone it is a stop, to scratch it is left out; the report and the README say other writes through Bash are not seen	1
+so is a machine where Claude Code never ran, exit 0	1
+so the same command with the flag spelled right then binds it	1
+stale is exactly 2: no check after the last edit, one earlier in the session	1
+the README lists by path exactly what the audit leaves out: /tmp, TMPDIR, CLAUDE_CONFIG_DIR or ~/.claude, FELIX_MEMORY or ~/.felix/memory	1
+the README names all felix audit runs, bash through /usr/bin/env, awk, and readlink where felix is reached through a symlink, which bash and awk alone cannot follow	1
+the README's Try it section shows felix audit from a clone and felix new <name> --no-commission, and names felix install as what holds sessions	1
+the audit runs above are wired to the read-only checks: an engine that writes under HOME and calls claude, run through the same wrapper, shows in that HOME and in the stub log	1
+the default checks reach the runners of more ecosystems, and the flags and wrappers before them: 28 commands, each a check, beside 2 that run none	1
+the flag between the name and the path binds the path given	1
+the flag is what made the difference: the same felix new without it calls claude and writes a receipt	1
+the grouped help names --no-commission	1
+the help, the audit and the README say in the same words that a --no-commission project's sessions are held once felix install has run where a gate was guessed, and to set gate in project.json first where none was	1
+the hold line claims no more than the hold does, and says a held stop is counted	1
+the log a group's or a compound's own output goes to is not a write after the check in it: 6 such read passed, and a write after the group is still stale	1
+the never line claims only what the roster recognises, and --verify ERE adds a project's own runner to it, in every project read, as the report, the help, the README and ecosystem.tsv say; none claims every ecosystem	1
+the read-only checks can fail: an audit that writes under HOME and calls claude changes the snapshot and the stub log	1
+the shares are whole percentages of the stops after edits	1
+the word pipefail in an echo does not make a piped check able to fail: 1 of 2 passing checks could not have	1
+three 5 MB commands dense in << or in line breaks are read in seconds, not minutes, and each still passes: under 30 for the three	1
+whose record, when and whether a sidechain are read from the record's own keys, and a tool_use with its type key last is read	1
+with neither HOME nor CLAUDE_CONFIG_DIR set it reports no transcripts and exits 0	1
+with no --dir it reads CLAUDE_CONFIG_DIR/projects	1

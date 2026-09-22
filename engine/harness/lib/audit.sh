@@ -98,7 +98,7 @@ felix_audit_scan() {
     # What stands before a quote that makes the quoted text code: a shell and
     # its -c, whose script it is; or command position, behind any VAR=value and
     # wrapper, where a quoted path is the command itself.
-    SHC = "(^|[^A-Za-z0-9_.-])(bash|sh|zsh)( +-[-A-Za-z]+| +-o +[a-z]+)* +-[A-Za-z]*c +$"
+    SHC = "(^|[^A-Za-z0-9_.-])(bash|sh|zsh)( +-[-A-Za-z]+| +-[A-Za-z]*o +[a-z]+)* +-[A-Za-z]*c +$"
     CMDPOS = "(^|[;&|(]|\n)[ ]*([A-Za-z_][A-Za-z0-9_]*=[^ ]* +)*((env|time|exec|command|nice|timeout +[0-9.smh]+|bash|sh|zsh|npx|bunx) +)*$"
     first = ""; last = ""
   }

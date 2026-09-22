@@ -17472,6 +17472,15 @@ _rvr="$(awk '/^## / { p = ($0 ~ /^## Try it/); next } p' "$REAL_HARNESS/../../RE
   || bad "the report and the README say a file changed through Bash is not seen as an edit, where a sed -i after a passing check still reads passed" \
          "$(printf '%s\n' "$_rvo" | tail -4) | $(printf '%s\n' "$_rvr" | grep -i 'leaves out')"
 
+# The README says the audit needs bash and awk. A PATH holding those two and
+# nothing else, from the plain clone, answers the same report.
+mkdir -p "$RV/r3/onlyba"
+ln -sf "$(command -v bash)" "$RV/r3/onlyba/bash"; ln -sf "$(command -v awk)" "$RV/r3/onlyba/awk"
+_rvo="$(cd "$AU/cwd" && env -i HOME="$AU/home" PATH="$RV/r3/onlyba" "$AUF" audit --dir "$RV/r3/assign" 2>&1)"; _rvrc=$?
+[ "$_rvrc" -eq 0 ] && [ "$(_au_counts "$_rvo")" = "2 0 0 3" ] \
+  && ok  "felix audit runs with bash and awk alone on PATH, as the README says, and answers the same report" \
+  || bad "felix audit runs with bash and awk alone on PATH, as the README says, and answers the same report" "rc=$_rvrc $(printf '%s' "$_rvo" | head -c 300)"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

@@ -32,9 +32,9 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0br. 2026-09-22, closing — six pull requests shipped and deployed, the public snapshot is a command and was brought forward, Elenchus has a working required check again
+### 0br. 2026-09-22, closing — seven pull requests shipped and deployed, the public snapshot is a command and was brought forward, Elenchus has a working required check again
 
-**Deployed: engine 0.49.140**, from the home checkout, verified against the
+**Deployed: engine 0.49.141**, from the home checkout, verified against the
 tree. Every merge below passed `felix gate` on its exact tree and CI.
 
 | PR | What | Engine |
@@ -45,6 +45,7 @@ tree. Every merge below passed `felix gate` on its exact tree and CI.
 | #284 | `projects/felix/snapshot.sh` with an audit that is not its scrub; `secret-scan` reads `ASIA` keys; the unattended template commits as `github-actions[bot]` | 0.49.138 |
 | #285 | `felix audit` (read-only, from a plain clone) and `felix new --no-commission` | 0.49.139 |
 | #286 | The red.tsv base check skips where its base is no commit in the repository, as in a published snapshot | 0.49.140 |
+| #288 | The red.tsv and version checks apply only to a branch that changes the engine; #285 had failed every docs-only pull request, this one's first | 0.49.141 |
 
 **Founder decisions, 2026-09-22:**
 
@@ -105,7 +106,9 @@ land from a fresh GitHub clone, because gate receipts are per checkout and
 the deny table refuses rewriting a remote or force-pushing; check
 `git log origin/main..main` in the home before a deploy (another session had
 committed `projects/sv2-apps` there unpushed); every deploy stales the
-receipts of every open checkout, so gate once, last.
+receipts of every open checkout, so gate once, last; and a check that asks
+something of every branch must say which branches it applies to (#285's
+record checks failed every docs-only branch until #288).
 
 ---
 

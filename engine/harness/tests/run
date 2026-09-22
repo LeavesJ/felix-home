@@ -17430,6 +17430,21 @@ case "$_rvo" in
   *)   bad "a transcript with records but no timestamp is said to lack a timestamped record, of 1 transcript, not 1 transcripts" "$_rvo" ;;
 esac
 
+# A person who pastes the hook's feedback as the first words of their own
+# message is quoting it: only the hook's meta record is a hold. Beside a real
+# hold in another session, so exactly one is counted. Their times differ, since
+# a record copied into a resumed session is known by its uuid and time.
+_rv_new r3/paste r3-ps1
+_au_stop "$_rv_ts:01.000Z" msg_r3ps1a
+_au_say  "$_rv_ts:02.000Z" 'Stop hook feedback:\nThe gate has never run in this checkout.\n\nwhy did I get this?'
+_au_stop "$_rv_ts:03.000Z" msg_r3ps1b
+_rv_new r3/paste r3-ps2
+_au_stop "$_rv_ts:04.000Z" msg_r3ps2a
+_au_hold "$_rv_ts:05.000Z" 'Stop hook feedback:\nThe gate has never run in this checkout.'
+_au_nums "$(_au --dir "$RV/r3/paste")" 'held' 1 1 \
+  && ok  "a person's message that starts with pasted stop hook feedback is not a hold; the hook's own meta record is" \
+  || bad "a person's message that starts with pasted stop hook feedback is not a hold; the hook's own meta record is" "$(_au --dir "$RV/r3/paste" | grep -i held)"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

@@ -42,13 +42,15 @@
 # isSidechain records and the subagents/ tree are never read; the report says
 # so, since a session that delegated its testing reads as `never` here.
 #
-# A Felix hold is a user record whose content starts "Stop hook feedback" and
-# carries a sentence Felix's Stop hook uses when it refuses to let a turn end
-# on an ungated tree. Quoted by a person or an attachment, it is not one;
-# copied into a resumed session, it is the same one. The four classes count
-# only stops after an edit, and a hold can follow any stop, so each hold is
-# told by the stop just before it: counted in the four, left out as after
-# scratch edits only, after no new edit, or none that was read.
+# A Felix hold is a meta user record (isMeta, as Claude Code writes what a
+# hook returns) whose content starts "Stop hook feedback" and carries a
+# sentence Felix's Stop hook uses when it refuses to let a turn end on an
+# ungated tree. Quoted by a person, even as the first words of their message,
+# or by an attachment, it is not one; copied into a resumed session, it is the
+# same one. The four classes count only stops after an edit, and a hold can
+# follow any stop, so each hold is told by the stop just before it: counted in
+# the four, left out as after scratch edits only, after no new edit, or none
+# that was read.
 
 # What counts as a check when --verify is not given: the usual test and gate
 # runners, at command position — the start of the command, or after ; & | ( or
@@ -116,7 +118,7 @@ felix_audit_scan() {
     K_ASST = "\"type\":\"assistant\""; K_USER = "\"type\":\"user\""; K_TYPE = "\"type\":\""
     K_USE = "\"type\":\"tool_use\""; K_RES = "\"type\":\"tool_result\""
     K_END = "\"stop_reason\":\"end_turn\""; K_TID = "\"tool_use_id\":\""
-    K_ERR = "\"is_error\":true"; K_CMD = "\"command\":\""; K_BG = "\"run_in_background\":true"
+    K_ERR = "\"is_error\":true"; K_META = "\"isMeta\":true"; K_CMD = "\"command\":\""; K_BG = "\"run_in_background\":true"
     EDITS["Edit"]; EDITS["Write"]; EDITS["MultiEdit"]; EDITS["NotebookEdit"]
     naside = 0; ASIDE[++naside] = "/tmp/"; ASIDE[++naside] = "/private/tmp/"
     t = ENVIRON["FELIX_AUDIT_TMP"]; sub(/\/*$/, "/", t)
@@ -440,7 +442,7 @@ felix_audit_scan() {
       return
     }
     if (index(l, K_TID)) { if (index(l, K_ERR)) results(l); return }
-    if ((index(l, "\"content\":\"Stop hook feedback") || index(l, "\"text\":\"Stop hook feedback")) \
+    if (index(l, K_META) && (index(l, "\"content\":\"Stop hook feedback") || index(l, "\"text\":\"Stop hook feedback")) \
         && (index(l, "The gate last ran at") || index(l, "The gate has never run") \
             || index(l, "The gate failed on this exact tree") || index(l, "The gate passed on this exact tree at")) \
         && !cut && (UU == "" || !(UU in held))) {

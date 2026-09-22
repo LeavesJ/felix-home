@@ -19286,6 +19286,26 @@ else
   fi
   _rtg() { git -C "$REAL_HARNESS" "$@" 2>/dev/null; }
   _rtv() { sed -n '/"version"/{s/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p;q;}'; }
+  # Whether every base the record names is a commit in this repository. The
+  # record names its base by id, and a published snapshot carries the private
+  # repository's record into a history where that id was never a commit, so
+  # the base question cannot be asked there. Found by the first run of
+  # projects/felix/snapshot.sh, 2026-09-22: the public build failed on it.
+  _rt_base_in() { local b; [ -n "$1" ] || return 1; for b in $1; do _rtg cat-file -e "$b^{commit}" || return 1; done; return 0; }
+  # Both answers, on this repository's own history: an id that is no commit
+  # here, and its root, which is.
+  _rtroot="$(_rtg rev-list --max-parents=0 HEAD | head -1)"
+  if [ -n "$_rtroot" ]; then
+    _rt_base_in 0000000000000000000000000000000000000000 \
+      && bad "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "0000… read as a commit" \
+      || ok  "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot"
+    _rt_base_in "$_rtroot" \
+      && ok  "and a base that is a commit here is still compared, so a stale record still fails" \
+      || bad "and a base that is a commit here is still compared, so a stale record still fails" "root $_rtroot not read as a commit"
+  else
+    skip "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "no git history beside this suite"
+    skip "and a base that is a commit here is still compared, so a stale record still fails" "no git history beside this suite"
+  fi
   if ! _rtg rev-parse -q --verify refs/remotes/origin/main >/dev/null; then
     [ -z "$_rt_skip" ] && skip "$_rtn3" "no origin/main to compare against"
     skip "$_rtn4" "no origin/main to compare against"
@@ -19294,8 +19314,12 @@ else
     skip "$_rtn4" "this tree holds no commit origin/main lacks"
   else
     if [ -z "$_rt_skip" ]; then
-      is "$_rtn3" "$(awk -F'\t' '$1 == "base" { printf "%s%s", s, $3; s = " " }' "$_rt")" \
-                  "$(_rtg merge-base HEAD refs/remotes/origin/main)"
+      _rtbs="$(awk -F'\t' '$1 == "base" { printf "%s%s", s, $3; s = " " }' "$_rt")"
+      if [ -n "$_rtbs" ] && ! _rt_base_in "$_rtbs"; then
+        skip "$_rtn3" "its base is no commit in this repository's history, as in a published snapshot"
+      else
+        is "$_rtn3" "$_rtbs" "$(_rtg merge-base HEAD refs/remotes/origin/main)"
+      fi
     fi
     _rtvh="$(_rtv < "$REAL_HARNESS/../.claude-plugin/plugin.json" 2>/dev/null)"
     _rtvm="$(_rtg show refs/remotes/origin/main:engine/.claude-plugin/plugin.json | _rtv)"

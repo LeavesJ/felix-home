@@ -139,74 +139,39 @@ remote_forms() {
 norm() { lc | tr -cd 'a-z0-9\n'; }
 MEM="${FELIX_MEMORY:-$HOME/.felix/memory}"
 [ -d "$MEM/$SELF" ] || die "no $SELF directory in the memory root $MEM, so the audit's memory source cannot be read" "point FELIX_MEMORY at the memory root"
-N="$OUT/names"
-git -C "$HOME_TOP" log --format= --name-only "$MAIN" -- projects/ | awk -F/ 'NF > 2 { print $2 }' | sort -u > "$N.history" ||
+NM="$OUT/names"
+git -C "$HOME_TOP" log --format= --name-only "$MAIN" -- projects/ | awk -F/ 'NF > 2 { print $2 }' | sort -u > "$NM.history" ||
   die "could not read the history of projects/ on the home's main"
-(cd "$MEM" && find . -mindepth 1 -maxdepth 1 -type d | sed 's|^\./||' | sort -u) > "$N.memory" || die "could not list the memory root $MEM"
+(cd "$MEM" && find . -mindepth 1 -maxdepth 1 -type d | sed 's|^\./||' | sort -u) > "$NM.memory" || die "could not list the memory root $MEM"
 git -C "$HOME_TOP" log -p --format= "$MAIN" -- 'projects/*/project.json' |
-  sed -n 's/^[-+].*"remote_match"[^"]*"\([^"]*\)".*/\1/p' | remote_forms | sort -u > "$N.remotes" ||
+  sed -n 's/^[-+].*"remote_match"[^"]*"\([^"]*\)".*/\1/p' | remote_forms | sort -u > "$NM.remotes" ||
   die "could not read the remotes the manifests on the home's main declared"
-for f in history memory remotes; do [ -s "$N.$f" ] || die "the audit's $f source came back empty, and it never is"; done
-printf '%s\n' ${GIVEN[@]+"${GIVEN[@]}"} | sed '/^$/d' | sort -u > "$N.given"
-{ printf '%s\n' "$SELF" "${PUBLIC_SLUG##*/}"; printf '%s\n' "$HOME_SLUG" | remote_forms; } | norm | sort -u > "$N.self"
-awk -F'\t' '$1 == "@name" && NF >= 3 { print $2 }' "$ACKS" | norm | sort -u > "$N.excluded"
-sort -u "$N.history" "$N.memory" "$N.remotes" "$N.given" | sed '/^$/d' > "$N.union"
+for f in history memory remotes; do [ -s "$NM.$f" ] || die "the audit's $f source came back empty, and it never is"; done
+printf '%s\n' ${GIVEN[@]+"${GIVEN[@]}"} | sed '/^$/d' | sort -u > "$NM.given"
+{ printf '%s\n' "$SELF" "${PUBLIC_SLUG##*/}"; printf '%s\n' "$HOME_SLUG" | remote_forms; } | norm | sort -u > "$NM.self"
+awk -F'\t' '$1 == "@name" && NF >= 3 { print $2 }' "$ACKS" | norm | sort -u > "$NM.excluded"
+sort -u "$NM.history" "$NM.memory" "$NM.remotes" "$NM.given" | sed '/^$/d' > "$NM.union"
 drop() {  # FILE of normalized names; on stdin names; prints those it does not hold
   awk 'NR == FNR { d[$0] = 1; next } { m = tolower($0); gsub(/[^a-z0-9]/, "", m); if (m != "" && !(m in d)) print }' "$1" -
 }
-drop "$N.self" < "$N.union" > "$N.notself"
-drop "$N.excluded" < "$N.notself" > "$N.audit"
-short="$(awk '{ m = tolower($0); gsub(/[^a-z0-9]/, "", m); if (length(m) < 3) print }' "$N.audit")"
+drop "$NM.self" < "$NM.union" > "$NM.notself"
+drop "$NM.excluded" < "$NM.notself" > "$NM.audit"
+short="$(awk '{ m = tolower($0); gsub(/[^a-z0-9]/, "", m); if (length(m) < 3) print }' "$NM.audit")"
 [ -z "$short" ] || die "audit names too short to search for; exclude each with a reviewed @name row, or rename:" $short
 AUDIT=()
-while IFS= read -r n; do AUDIT+=("$n"); done < "$N.audit"
+while IFS= read -r n; do AUDIT+=("$n"); done < "$NM.audit"
 [ ${#AUDIT[@]} -gt 0 ] || die "no audit names are left, so the audit would search for nothing"
 cnt() { wc -l < "$1" | tr -d ' '; }
-say "names: ${#AUDIT[@]} searched for; history $(cnt "$N.history"), memory $(cnt "$N.memory"), remotes $(cnt "$N.remotes"), given $(cnt "$N.given"); less $(($(cnt "$N.union") - $(cnt "$N.notself"))) of this project's own and $(($(cnt "$N.notself") - ${#AUDIT[@]})) excluded by a reviewed row"
+say "names: ${#AUDIT[@]} searched for; history $(cnt "$NM.history"), memory $(cnt "$NM.memory"), remotes $(cnt "$NM.remotes"), given $(cnt "$NM.given"); less $(($(cnt "$NM.union") - $(cnt "$NM.notself"))) of this project's own and $(($(cnt "$NM.notself") - ${#AUDIT[@]})) excluded by a reviewed row"
 
-# The audit's own patterns, built here and nowhere else. Case-insensitive, and
-# three shapes: the name; the name in two halves of three or more characters
-# with up to eight between (the name assembled from pieces); and the name with
-# one character standing in, including an escaped character or a small bracket
-# class (the regex fixture). Near the start of a name the stand-in must not be
-# a space, or ordinary prose that shares four letters with a name would stop
-# every build.
-ere() { printf '%s' "$1" | sed 's/[][\.*^$+?(){}|]/\\&/g'; }
-audit_patterns() {
-  local n=$1 L=${#1} k
-  ere "$n"; echo
-  [ "$L" -ge 6 ] || return 0
-  for ((k = 3; k <= L - 3; k++)); do printf '%s.{1,8}%s\n' "$(ere "${n:0:k}")" "$(ere "${n:k}")"; done
-  for ((k = 1; k <= L - 2; k++)); do
-    if [ "$k" -ge 3 ]; then printf '%s%s%s\n' "$(ere "${n:0:k}")" '(.|\\.|\[[^]]{1,4}\])' "$(ere "${n:k+1}")"
-    elif [ $((L - k - 1)) -ge 3 ]; then printf '%s%s%s\n' "$(ere "${n:0:k}")" '[^[:space:]]' "$(ere "${n:k+1}")"; fi
-  done
-}
-# path<TAB>line<TAB>name for every line of DIR an audit name reaches, once per line.
-scan_names() {
-  local n pf="$OUT/.patterns"
-  for n in ${AUDIT[@]+"${AUDIT[@]}"}; do
-    audit_patterns "$n" > "$pf"
-    ( cd "$1" || exit 2; grep -rnHIiE -f "$pf" . || [ $? -eq 1 ] ) |
-      awk -v n="$n" '{ i = index($0, ":"); p = substr($0, 3, i - 3); r = substr($0, i + 1)
-                       print p "\t" substr(r, 1, index(r, ":") - 1) "\t" n }'
-  done | awk -F'\t' '!seen[$1 FS $2]++'
-  rm -f "$pf"
-}
-# The same shape for every address that is not the public author's and not on
-# a domain reserved for examples. This machine's own address is the one this
-# catches in practice: it is not the address the public commits carry.
-scan_emails() {
-  ( cd "$1" || exit 2; grep -rnHIE '@[A-Za-z0-9-]+\.' . || [ $? -eq 1 ] ) |
-  awk -v me="$AUTHOR_EMAIL" '{
-    i = index($0, ":"); p = substr($0, 3, i - 3); r = substr($0, i + 1); l = substr(r, 1, index(r, ":") - 1); t = r
-    while (match(t, /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z][A-Za-z]+/)) {
-      e = tolower(substr(t, RSTART, RLENGTH)); t = substr(t, RSTART + RLENGTH); d = e; sub(/.*@/, "", d)
-      if (e == me || d ~ /(^|\.)(example|invalid|test|localhost|local)$/ || d ~ /(^|\.)example\.(com|net|org)$/) continue
-      print p "\t" l "\t@" e; break
-    }
-  }'
-}
+# The audit is its own file, snapshot-audit.sh beside this one, and shares no
+# pattern with the scrub below; its header says what it looks for. scan DIR
+# LIST OUT writes path<TAB>line<TAB>name<TAB>rule<TAB>hash for every line of
+# LIST's files (NUL-separated, relative to DIR) that it reaches. A file it
+# cannot read stops the run: an empty answer is never taken for a pass.
+printf '%s\n' "${AUDIT[@]}" > "$NM.searched"
+scan() { bash "$HERE/snapshot-audit.sh" "$NM.searched" "$AUTHOR_EMAIL" "$1" < "$2" > "$3" || die "the audit could not read every file under $1"; }
+textfiles() { (cd "$1" && find . -type f | sed 's|^\./||' | sort | tr '\n' '\0' | xargs -0 grep -lI --null '' || true); }
 # Hits no acknowledgement covers. An acknowledgement waives a leak check, so it
 # is authority and not state: a row of .snapshot-ack.tsv at the home's root,
 # tracked, so a person reviews it in a pull request, and read as main holds it,
@@ -214,20 +179,14 @@ scan_emails() {
 # audit searches for. A row is path, the hash of the line as it stands, and why
 # the line is not what the audit feared; editing the line voids it. Nothing here
 # writes that file. It prints the row a person could add.
-unacked() {
-  local p l n h
-  while IFS="$TAB" read -r p l n; do
-    h="$(sed -n "${l}p" "$1/$p" | git hash-object --stdin)"
-    if grep -qF "$p$TAB$h$TAB" "$ACKS"; then continue; fi
-    printf '%s\t%s\t%s\t%s\n' "$p" "$l" "$n" "$h"
-  done
-}
-show_hits() {  # DIR, on stdin the unacked rows
-  local p l n h
-  while IFS="$TAB" read -r p l n h; do
-    printf '  %s:%s [%s] %s\n' "$p" "$l" "$n" "$(sed -n "${l}p" "$1/$p" | cut -c1-160)"
+unacked() { awk -F'\t' 'FILENAME == ARGV[1] { if ($1 !~ /^[#@]/ && NF >= 3) ok[$1 FS $2] = 1; next } !(($1 FS $5) in ok)' "$ACKS" "$1"; }
+show_hits() {  # DIR HITS: each line, and the row that would acknowledge it
+  local p l n r h
+  head -40 "$2" | while IFS="$TAB" read -r p l n r h; do
+    printf '  %s:%s [%s, %s] %s\n' "$p" "$l" "$n" "$r" "$(sed -n "${l}p" "$1/$p" | cut -c1-160 | tr -d '\n' | tr -c '[:print:]\t' '?')"
     printf '      ack: %s\\t%s\\t<why>\n' "$p" "$h"
   done
+  [ "$(wc -l < "$2")" -le 40 ] || say "  and $(($(wc -l < "$2") - 40)) more, in $2"
 }
 
 # ------------------------------------------------------------- build -------
@@ -309,14 +268,15 @@ while IFS= read -r f; do
   awk -v f="$f" 'NR == FNR { a[FNR] = $0; next } a[FNR] != $0 { print f "\t" FNR }' "$RAW/$f" "$B/$f" >> "$OUT/changed"
 done < "$OUT/files.raw"
 RM_LINE="projects/$SELF/project.json$TAB$(grep -n '"remote_match"' "$RAW/projects/$SELF/project.json" | cut -d: -f1)"
-scan_names "$RAW" | cut -f1,2 | sort -u > "$OUT/flagged.raw"
+textfiles "$RAW" > "$OUT/list.raw"; scan "$RAW" "$OUT/list.raw" "$OUT/scan.raw"
+awk -F'\t' '$4 != "address" { print $1 FS $2 }' "$OUT/scan.raw" | sort -u > "$OUT/flagged.raw"
 stray="$(grep -vxF "$RM_LINE" "$OUT/changed" | sort -u | comm -23 - "$OUT/flagged.raw" || true)"
 [ -z "$stray" ] || die "the scrub changed lines the audit reads no name on:" "$(printf '%s\n' "$stray" | tr '\t' ':')"
 diff -ru "$RAW" "$B" > "$OUT/scrub.diff" || true
 
 # Then what is left. Names, addresses and the shape of the tree.
-{ scan_names "$B"; scan_emails "$B"; } > "$OUT/hits.all"
-unacked "$B" < "$OUT/hits.all" > "$OUT/hits"
+textfiles "$B" > "$OUT/list.build"; scan "$B" "$OUT/list.build" "$OUT/hits.all"
+unacked "$OUT/hits.all" > "$OUT/hits"
 bad_shape=""
 for e in $(ls -A "$B"); do case "$e" in engine|projects|.gitignore|.claude-plugin|README.md) ;; *) bad_shape="$bad_shape $e" ;; esac; done
 for e in $(ls -A "$B/projects"); do [ "$e" = "$SELF" ] || bad_shape="$bad_shape projects/$e"; done
@@ -325,7 +285,7 @@ consent="$({ find "$B" \( -name autonomy -o -name autonomy.commission \) -print;
 rows=0; [ ! -f "$EX" ] || rows="$(grep -cvE '^[[:space:]]*(#|$)' "$EX" || true)"
 if [ -s "$OUT/hits" ] || [ -n "$bad_shape" ] || [ -n "$consent" ] || [ "$rows" != 0 ]; then
   say "audit: STOP"
-  [ ! -s "$OUT/hits" ] || { say "  lines naming a project or carrying an address, unacknowledged:"; show_hits "$B" < "$OUT/hits"; }
+  [ ! -s "$OUT/hits" ] || { say "  lines naming a project or carrying an address, unacknowledged:"; show_hits "$B" "$OUT/hits"; }
   [ -z "$bad_shape" ] || say "  outside the published set:$bad_shape"
   [ -z "$consent" ] || say "  consent files in the build: $consent"
   [ "$rows" = 0 ] || say "  exceptions.tsv holds $rows row(s)"
@@ -410,9 +370,9 @@ where the published files mention them, and an audit wider than the
 replacement, a separate search, found none left.
 EOF
 audit_text() {  # FILE: the words that go public beside the tree, held to the same audit, no acknowledgements
-  local d="$OUT/text.$$"; mkdir -p "$d"; cp "$1" "$d/"
-  local h; h="$({ scan_names "$d"; scan_emails "$d"; })"; rm -rf "$d"
-  [ -z "$h" ] || die "$(basename "$1") names a project or carries an address:" "$h"
+  local d="$OUT/text.$(basename "$1")"; mkdir -p "$d"; cp "$1" "$d/"
+  printf '%s\0' "$(basename "$1")" > "$d.list"; scan "$d" "$d.list" "$d.hits"
+  [ ! -s "$d.hits" ] || die "$(basename "$1") names a project or carries an address:" "$(cut -f1-4 "$d.hits")"
 }
 audit_text "$MSG"
 SUBJECT="$(head -1 "$MSG")"

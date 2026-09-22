@@ -281,7 +281,7 @@ allfiles "$RAW" > "$OUT/list.raw"; scan "$RAW" "$OUT/list.raw" "$OUT/scan.raw"
 awk -F'\t' '$4 != "address" { print $1 FS $2 }' "$OUT/scan.raw" | sort -u > "$OUT/flagged.raw"
 stray="$(grep -vxF "$RM_LINE" "$OUT/changed" | sort -u | comm -23 - "$OUT/flagged.raw" || true)"
 [ -z "$stray" ] || die "the scrub changed lines the audit reads no name on:" "$(printf '%s\n' "$stray" | tr '\t' ':')"
-diff -ru "$RAW" "$B" > "$OUT/scrub.diff" || true
+diff -ru --no-dereference "$RAW" "$B" > "$OUT/scrub.diff" || true
 
 # Then what is left. Names, addresses and the shape of the tree.
 allfiles "$B" > "$OUT/list.build"; scan "$B" "$OUT/list.build" "$OUT/hits.all"

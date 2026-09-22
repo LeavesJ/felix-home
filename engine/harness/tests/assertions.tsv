@@ -2628,6 +2628,13 @@
 1	uninstall takes the grant back
 1	unknown or malformed rows make the receipt indeterminate
 1	untouched surfaces are n/a
+1	veldra's fmt: a check that fails with no name it can parse is a loud FAIL
+1	veldra's fmt: a new file rustfmt rewrites is named, though git diff cannot see it
+1	veldra's fmt: and a check that named its files leaves no log behind
+1	veldra's fmt: and a passing check leaves no log behind
+1	veldra's fmt: and the log it names holds what the check printed
+1	veldra's fmt: edited files rustfmt would not touch are not named
+1	veldra's fmt: only the files rustfmt names, once each, relative to the tree
 1	veldra's gate, two failing at once: each excerpt is its own tree's
 1	veldra's gate, two failing at once: each log it names holds its own run alone
 1	veldra's gate, two failing at once: only the logs it names are kept

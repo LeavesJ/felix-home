@@ -49,9 +49,12 @@ Proven to fail, not assumed to:
 The third is the load-bearing one: gate.sh passed and the composite still
 failed. Re-run these if the wrapper changes.
 
-`gate.sh`'s own `fmt` check reports FAIL for ANY uncommitted `.rs` change.
-That is a known quirk, not a real failure; `cargo fmt --all --check` is the
-honest oracle mid-task.
+`gate.sh`'s `fmt` check names only the files rustfmt rewrote. It asks
+`cargo fmt --all -- --check` first, then formats, so an uncommitted `.rs` edit
+that was already formatted no longer turns it red. Until 2026-09-21 it
+reported every uncommitted `.rs` file instead, and the note here called that a
+quirk. If the check fails and no filename parses, it fails loudly and names
+the check's log. It never goes green on output it could not read.
 
 ## What this project has
 

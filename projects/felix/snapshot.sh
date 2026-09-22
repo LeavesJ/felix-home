@@ -128,7 +128,7 @@ while IFS= read -r n; do SCRUB+=("$n"); done < "$OUT/scrub.order"
 # happens to hold: a clone without an untracked project folder once dropped
 # two names without a word. It is the union of four sources, each counted, and
 # a source that cannot be read stops the run:
-#   history  every name projects/ has held on the home's main
+#   history  every name projects/ has held in any commit on the home's main
 #   memory   every directory of the memory root
 #   remotes  every remote_match a manifest on main has declared: whole, without
 #            separators, and by its components of six or more characters
@@ -145,10 +145,10 @@ norm() { lc | tr -cd 'a-z0-9\n'; }
 MEM="${FELIX_MEMORY:-$HOME/.felix/memory}"
 [ -d "$MEM/$SELF" ] || die "no $SELF directory in the memory root $MEM, so the audit's memory source cannot be read" "point FELIX_MEMORY at the memory root"
 NM="$OUT/names"
-git -C "$HOME_TOP" log --format= --name-only "$MAIN" -- projects/ | awk -F/ 'NF > 2 { print $2 }' | sort -u > "$NM.history" ||
+git -C "$HOME_TOP" log --full-history --format= --name-only "$MAIN" -- projects/ | awk -F/ 'NF > 2 { print $2 }' | sort -u > "$NM.history" ||
   die "could not read the history of projects/ on the home's main"
 (cd "$MEM" && find . -mindepth 1 -maxdepth 1 -type d | sed 's|^\./||' | sort -u) > "$NM.memory" || die "could not list the memory root $MEM"
-git -C "$HOME_TOP" log -p --format= "$MAIN" -- 'projects/*/project.json' |
+git -C "$HOME_TOP" log --full-history -p --format= "$MAIN" -- 'projects/*/project.json' |
   sed -n 's/^[-+].*"remote_match"[^"]*"\([^"]*\)".*/\1/p' | remote_forms | sort -u > "$NM.remotes" ||
   die "could not read the remotes the manifests on the home's main declared"
 for f in history memory remotes; do [ -s "$NM.$f" ] || die "the audit's $f source came back empty, and it never is"; done

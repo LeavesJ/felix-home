@@ -4,12 +4,40 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	b1b624ef1a3256046866fb7b0742d69657b8ddbd	0.49.134
-run	7	2751	1
-veldra's fmt: a check that fails with no name it can parse is a loud FAIL	1
-veldra's fmt: a new file rustfmt rewrites is named, though git diff cannot see it	1
-veldra's fmt: and the log it names holds what the check printed	1
-veldra's fmt: edited files rustfmt would not touch are not named	1
-veldra's fmt: only the files rustfmt names, once each, relative to the tree	1
-veldra's gate, two failing at once: the runs overlapped	1
-veldra's gate, two passing at once: the runs overlapped	1
+base	origin/main	31ed8a8ebd28be9cdf0c7dbf7708adabb767eca4	0.49.135
+run	35	2761	1
+a Copilot resume, which keeps its banner, appends a lifecycle row of kind resume too	1
+a checkout with no commit yet records its HEAD as unborn	1
+a clear appends one lifecycle row of kind clear	1
+a compact appends one lifecycle row of kind compact	1
+a governed directory that is not a git checkout records its HEAD as -, not unborn	1
+a payload of 30,000 lines carrying source is answered by its first, recorded inside thirty seconds, and the resume stays silent	1
+a payload with no session_id or transcript_path writes - in lifecycle fields 3 and 8	1
+a refused handoff appends a lifecycle row noted refused, with the hash of the file it left alone	1
+a resume appends one lifecycle row of kind resume, and the hook prints nothing at all and exits 0	1
+a startup appends exactly one row to the project's lifecycle.log	1
+a transcript path holding a tab still leaves nine lifecycle fields, the path kept whole in field 8	1
+an engine with no plugin.json of its own records - as the bound engine, never the registry's version	1
+an ungoverned directory writes no lifecycle.log, under the memory root or in its tree, where a governed start does	1
+and the handoff row names the engine that wrote it and the checkout's HEAD	1
+and the lifecycle row has nine tab-separated fields	1
+and the resume row names the engine, the installed engine, the HEAD, the handoff and the transcript	1
+as a plain settings.json hook, with no CLAUDE_PLUGIN_ROOT, the lifecycle row still names its own engine	1
+felix handoff --replace over a hand-written handoff appends a row noted replaced, with the hash of what replaced it	1
+felix handoff appends one lifecycle row of kind handoff, noted written, with the hash of the file it wrote	1
+hooks/session-start records above the resume exit, and its comment saying the record sits above sits between the two	1
+lib/lifecycle.sh opens by dating its exception to rows-first, 2026-09-21, and names the schemas.tsv row owed with queue item 2	1
+lifecycle field 1 is a UTC ISO 8601 stamp, the format the other memory logs use	1
+lifecycle field 2 is the SessionStart source, startup	1
+lifecycle field 3 is the payload's session id	1
+lifecycle field 4 is the engine running the hook, read from its own plugin.json	1
+lifecycle field 5 is the version the Claude Code registry has installed for felix	1
+lifecycle field 6 is the full sha of the checkout's HEAD	1
+lifecycle field 7 is git hash-object of the project's SESSION_HANDOFF.md	1
+lifecycle field 8 is the payload's transcript path	1
+lifecycle field 9, the note, is - on a session row	1
+lifecycle.log is written under the memory root and nowhere in the checkout	1
+the next session start records the same handoff hash the handoff row did	1
+two session starts append two lifecycle rows in order and rewrite none of the bytes before them	1
+with no Claude Code registry in HOME, the installed engine is - and the bound one is still read	1
+with no session handoff on disk, lifecycle field 7 is -	1

@@ -71,7 +71,7 @@ felix_mem_handoff() {
   local f dest link hops=0 body tmp
   mkdir -p "$(felix_mem_dir "$proj")"
   f="$(felix_mem_dir "$proj")/SESSION_HANDOFF.md"
-  if [ -s "$f" ] && [ "$replace" != 1 ] && ! _felix_mem_handoff_generated "$f"; then
+  if [ "$replace" != 1 ] && felix_mem_handoff_foreign "$f"; then
     printf 'felix handoff: not replacing %s, %s bytes that felix handoff did not write:\n' \
       "$f" "$(wc -c < "$f" | tr -d ' ')" >&2
     printf 'it does not open with the header this command writes, "# Handoff" and then\n' >&2
@@ -135,6 +135,15 @@ _felix_mem_handoff_text() {
 _felix_mem_handoff_generated() {
   [ "$(sed -n 1p "$1")" = "# Handoff" ] || return 1
   sed -n 3p "$1" | grep -qE '^Regenerated [0-9]{4}-[0-9]{2}-[0-9]{2}\.'
+}
+
+# 0 when the handoff at F is one this command did not write: not the empty
+# placeholder, and not in the generated shape. felix_mem_handoff refuses
+# exactly these unless told to replace them. Named apart so that felix handoff
+# can ask the same question before the write, which is the only moment the
+# answer can be had, and record whether it refused or replaced.
+felix_mem_handoff_foreign() {
+  [ -s "$1" ] && ! _felix_mem_handoff_generated "$1"
 }
 
 # A mistake the gate caught, recorded without anyone deciding it was worth

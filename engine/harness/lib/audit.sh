@@ -134,9 +134,15 @@ felix_audit_scan() {
     r = substr(s, p + length(K_CMD))
     return match(r, /^([^"\\]|\\.)*/) ? substr(r, 1, RLENGTH) : ""
   }
+  # A line that ends in an odd run of backslashes goes on to the next, as the
+  # shell reads it: the last backslash and the line break go, before any line
+  # break becomes a command boundary. Pairs of backslashes are set aside first,
+  # since each is one escaped backslash.
   function decode(r,    n, P, i) {
     if (!index(r, BS)) return r
-    gsub(/\\\\/, "\001", r); gsub(/\\"/, Q, r); gsub(/\\n/, "\n", r); gsub(/\\t/, " ", r)
+    gsub(/\\\\/, "\001", r)
+    if (index(r, "\001" BS "n")) { gsub("\001\001", "\002", r); gsub("\001" BS BS "n", "", r); gsub("\002", "\001\001", r) }
+    gsub(/\\"/, Q, r); gsub(/\\n/, "\n", r); gsub(/\\t/, " ", r)
     if (rejoin && index(r, "\001")) {
       n = split(r, P, "\001"); r = P[1]
       for (i = 2; i <= n; i++) r = r BS P[i]

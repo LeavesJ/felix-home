@@ -17327,6 +17327,18 @@ _rv_one r3/qpath r3-qp5 '\"npm test\"'
 is  "a quoted program path at command position is the program: \"\$W/.venv/bin/python\" -m pytest and \"\$FELIX_HOME/harness/felix\" gate are checks, \"npm test\" as a name is not" \
     "$(_au_counts "$(_au --dir "$RV/r3/qpath")")" "4 0 0 1"
 
+# A backslash that ends a line joins it to the next, so the && list goes on
+# and the argument on the next line is still an argument. Two backslashes are
+# one escaped backslash, and the line break after them does end the command.
+_rv_one r3/contd r3-cn1 'npm test > /tmp/t.log 2>&1 && \\\ngit commit -q -m \"fix\" && echo committed'
+_rv_one r3/contd r3-cn2 'awk '"'"'{print}'"'"' \\\n  tests/run > /tmp/run.copy'
+_rv_one r3/contd r3-cn3 'npm \\\ntest'
+_rv_one r3/contd r3-cn4 'echo a \\\\\nnpm test\necho b'
+_rvo="$(_au --dir "$RV/r3/contd")"
+[ "$(_au_counts "$_rvo")" = "3 0 0 1" ] && _au_nums "$_rvo" 'pipe|background' 1 \
+  && ok  "a line ending in one backslash goes on to the next: an && list across it can fail, and a path on the next line is an argument" \
+  || bad "a line ending in one backslash goes on to the next: an && list across it can fail, and a path on the next line is an argument" "$_rvo"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

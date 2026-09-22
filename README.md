@@ -210,7 +210,8 @@ since the last edit, or no check it recognises had run in the session at all.
 A check is a Bash command that runs tests or a gate through a runner it
 knows, and it knows many but not all of them. `--verify ERE` says what counts
 instead, for every project a run reads (give `--dir` one project's directory
-to narrow it), and `--since YYYY-MM-DD` narrows the window. A check piped into
+to narrow it), and `--since YYYY-MM-DD` counts only the stops from that day
+on, each still read against its whole session. A check piped into
 another command, followed by one, run in the background or turned over by `!`
 hands its exit status to something else, so its own failure goes unseen, and the report says
 how many of the passing ones that covers. It doesn't read subagent transcripts,

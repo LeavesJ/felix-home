@@ -87,7 +87,8 @@ felix_audit_usage() {
   printf '  read from Claude Code transcripts. Writes nothing, installs nothing.\n'
   printf '  --dir DIR      transcripts to read, DIR/*/*.jsonl, or DIR/*.jsonl for one\n'
   printf '                 project (default: ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects)\n'
-  printf '  --since DATE   skip records timestamped before this UTC date\n'
+  printf '  --since DATE   count only stops and holds on or after this UTC date; what\n'
+  printf '                 came before still says whether a check had run\n'
   printf '  --verify ERE   what counts as a check, in every project read: a Bash command\n'
   printf '                 matching this POSIX ERE, in place of the default runners\n'
 }
@@ -346,8 +347,10 @@ felix_audit_scan() {
   }
 
   # lastd is what the stop was, for a hold after it: c counted in the four, a
-  # left out as after scratch edits only, n after no new edit.
+  # left out as after scratch edits only, n after no new edit. One before the
+  # --since cutoff ends its turn and is counted nowhere.
   function stop() {
+    if (cut) { edited = 0; aside = 0; lastd = ""; return }
     if (!edited) { if (aside) { naside_stops++; lastd = "a" } else lastd = "n"; aside = 0; return }
     edited = 0; aside = 0; stops++; sstops++; lastd = "c"
     if (last_chk > last_edit) { if (last_chk_id in failed) nfail++; else { npass++; if (last_hid) nhid++ } }
@@ -403,12 +406,14 @@ felix_audit_scan() {
   # Whose record a line is, from its own keys: isSidechain and a user type sit
   # before its message, an assistant type after it (or before, when synthetic);
   # any other type first is a progress or attachment record, which may nest one.
+  # A record before the --since cutoff is read for what it did, an edit or a
+  # check, so a stop after the cutoff is told by all of its session; only its
+  # own stops and holds, and its dates, are not counted.
   function record(l,    im, p, r, v) {
     im = index(l, K_MSG)
     p = index(l, K_SIDE); if (p && (!im || p < im)) return
-    stamp(l)
-    if (TS != "") {
-      if (since != "" && TS < since) return
+    stamp(l); cut = (since != "" && TS != "" && TS < since)
+    if (TS != "" && !cut) {
       seen = 1
       if (first == "" || TS < first) first = TS
       if (TS > last) last = TS
@@ -434,7 +439,7 @@ felix_audit_scan() {
     if ((index(l, "\"content\":\"Stop hook feedback") || index(l, "\"text\":\"Stop hook feedback")) \
         && (index(l, "The gate last ran at") || index(l, "The gate has never run") \
             || index(l, "The gate failed on this exact tree") || index(l, "The gate passed on this exact tree at")) \
-        && (UU == "" || !(UU in held))) {
+        && !cut && (UU == "" || !(UU in held))) {
       if (UU != "") held[UU] = 1
       holds++; sholds++
       if (lastd == "c") hcount++; else if (lastd == "a") haside++; else if (lastd == "n") hnoedit++

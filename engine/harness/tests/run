@@ -16496,7 +16496,8 @@ _au_res  "$T:06.000Z" toolu_F3 ok
 _au_stop "$T:07.000Z" msg_F4 'Proved.'
 
 # G: stale — its only check is four days before its only edit. A --since
-# between them cuts the check and leaves the edit, which makes it never.
+# between them counts the stop after the edit, and it is still stale: the
+# check before the cutoff still ran in the session.
 _au_open "$AUD/-Users-dev-beta/$AU_SG.jsonl" "$AU_SG"
 _au_say  2026-03-04T12:00:00.000Z 'run the suite'
 _au_bash 2026-03-04T12:00:01.000Z msg_G1 toolu_G1 'pnpm test' 'Run the tests'
@@ -16675,7 +16676,7 @@ is  "a session is read without its subagent files, which would add a check, a st
     "$(_au_counts "$(_au --dir "$AU/solo/d")")" "0 0 0 1"
 
 is  "--since keeps the cut day, drops what came before it, and splits a session across it" \
-    "$(_au_counts "$(_au --since 2026-03-05 --dir "$AUD")")" "2 0 0 3"
+    "$(_au_counts "$(_au --since 2026-03-05 --dir "$AUD")")" "2 0 1 2"
 is  "--verify replaces what counts as a check" \
     "$(_au_counts "$(_au --verify 'prove\.sh' --dir "$AUD")")" "1 0 0 9"
 is  "with no --dir it reads CLAUDE_CONFIG_DIR/projects" \
@@ -17381,6 +17382,21 @@ else
   bad "the never line claims only the checks it knows, and the report and the README say --verify replaces the roster for every project read" \
       "$(printf '%s\n' "$_rvo" | grep -iE 'never|verify') | $(printf '%s\n' "$_rvr" | grep -i 'verify')"
 fi
+
+# --since chooses which stops are counted, not what happened before them: a
+# check the day before the cutoff still ran in that session, and an edit the
+# day before still precedes a stop after it. A stop before the cutoff is not
+# counted, and still ends its turn.
+_rv_new r3/since r3-sn1
+_au_edit 2026-09-19T22:00:00.000Z msg_r3sn1a toolu_r3sn1a; _au_bash 2026-09-19T22:30:00.000Z msg_r3sn1b toolu_r3sn1b 'npm test'
+_au_res  2026-09-19T22:31:00.000Z toolu_r3sn1b ok; _au_stop 2026-09-19T23:00:00.000Z msg_r3sn1c
+_au_edit 2026-09-20T01:00:00.000Z msg_r3sn1d toolu_r3sn1d; _au_stop 2026-09-20T02:00:00.000Z msg_r3sn1e
+_rv_new r3/since r3-sn2
+_au_edit 2026-09-19T22:00:00.000Z msg_r3sn2a toolu_r3sn2a; _au_stop 2026-09-20T01:00:00.000Z msg_r3sn2b
+_rvo="$(_au --dir "$RV/r3/since" --since 2026-09-20)"
+[ "$(_au_counts "$(_au --dir "$RV/r3/since")")" = "1 0 1 1" ] && [ "$(_au_counts "$_rvo")" = "0 0 1 1" ] && _au_nums "$_rvo" 'came after' 2 2 \
+  && ok  "--since counts the stops on or after the cutoff, read against what came before it: a check the day before is stale, not never" \
+  || bad "--since counts the stops on or after the cutoff, read against what came before it: a check the day before is stale, not never" "$_rvo"
 
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same

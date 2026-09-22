@@ -4,7 +4,10 @@
 # row a person could add, and never writes here. Withheld from the snapshot: it
 # names what the audit searches for.
 #   path<TAB>git hash-object of the line<TAB>why the line is not what the audit feared
-# Editing the line voids its row.
+#     Editing the line voids its row.
+#   @name<TAB>name<TAB>why it is not searched for
+#     The audit searches for every directory name in the memory root; this is
+#     the only way one leaves the search.
 #
 # Carried from the untracked ~/.felix/memory/felix/snapshot-ack.tsv, where an
 # agent wrote them on 2026-09-21. Each hash was re-checked on 2026-09-22 against
@@ -14,7 +17,28 @@
 # felix@users.noreply.github.com "no person's address". It is GitHub's no-reply
 # address for the account named felix, a person's, so every snapshot stops on
 # that line until the template carries a bot's address instead.
+#
+# The four rows below answer the name webapp, an untracked stub folder in the
+# home checkout. That folder is no longer a source, so they apply only when a
+# run is given --name webapp.
 engine/harness/tests/run	a0c883ea16c75ff975a340a8b613becf1e8b8a36	prose "a web app" describing a kind of checkout, not the untracked stub project of that generic name (2026-09-21)
 engine/harness/tests/run	b9acd2255cf722dc7f859b14f01e6b5702c5bec9	suite fixture directory cm-webapp, a throwaway web-app repository the test builds itself (2026-09-21)
 engine/harness/tests/run	60f9e0e390d010e75a2838b0ae325464b4c3fabf	the same fixture's project name cmwebapp, passed to felix new inside its throwaway repository (2026-09-21)
 engine/harness/lib/incident.sh	23e57464cd2a50e212bf25d0bc511347b54178b4	example path src/web/app.py in a comment on longest-match resolution (2026-09-21)
+#
+# The memory root's fixtures, proposed by the agent that moved this file and
+# for the reviewer to accept. Each directory holds what an exercise of the
+# engine left there between 2026-08-15 and 2026-09-05 (felix new scaffolds,
+# commissioning rows with tree-x and pol-y stand-ins, a says.log), and no
+# project of that name was ever under projects/ on main.
+# As audit names, demo, proj, widget and p2 stop every build on engine words,
+# counted as whole-name matches in the published set at 31ed8a8: demo 47 (in
+# demote and demonstrably too), proj 3197, widget 509, p2 23. demo2, demo3 and
+# demoproj match nothing whole there; they are the same exercises' leftovers.
+@name	demo	an engine exercise's leftover, not a governed project (2026-09-22)
+@name	demo2	an engine exercise's leftover, not a governed project (2026-09-22)
+@name	demo3	an engine exercise's leftover, not a governed project (2026-09-22)
+@name	demoproj	an engine exercise's leftover, not a governed project (2026-09-22)
+@name	p2	an engine exercise's leftover, not a governed project (2026-09-22)
+@name	proj	an engine exercise's leftover, not a governed project (2026-09-22)
+@name	widget	an engine exercise's leftover, not a governed project (2026-09-22)

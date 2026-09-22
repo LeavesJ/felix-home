@@ -3,7 +3,7 @@
 #
 #   projects/felix/snapshot.sh [--source REF] [--base REF] [--public-readme]
 #                              [--out DIR] [--public-clone DIR]
-#                              [--message FILE] [--expect-tree TREE]
+#                              [--message FILE] [--expect-tree TREE] [--name NAME]...
 #
 # The engine is published as LeavesJ/Felix, a snapshot with no history of its
 # own, because this repository's history carries material that is not Felix's
@@ -56,14 +56,15 @@ lc() { tr '[:upper:]' '[:lower:]'; }
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SELF="$(basename "$HERE")"
 SRC_REF="origin/main" BASE_REF="" PUBLIC_README=0 OUT="" PCLONE="" EXPECT="" MSGFILE=""
+GIVEN=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --source|--base|--out|--public-clone|--message|--expect-tree)
+    --source|--base|--out|--public-clone|--message|--expect-tree|--name)
       [ $# -ge 2 ] && [ -n "$2" ] || die "$1 needs a value"
       case "$1" in
         --source) SRC_REF=$2 ;; --base) BASE_REF=$2 ;; --out) OUT=$2 ;;
         --public-clone) PCLONE=$2 ;; --message) MSGFILE=$2 ;;
-        --expect-tree) EXPECT=$2 ;;
+        --expect-tree) EXPECT=$2 ;; --name) GIVEN+=("$2") ;;
       esac; shift 2 ;;
     --public-readme) PUBLIC_README=1; shift ;;
     -h|--help) sed -n '4,6p' "$0"; exit 0 ;;
@@ -118,51 +119,50 @@ $(git -C "$HOME_TOP" log --diff-filter=A --format='@%ct' --name-only "$SRC" -- '
 EOF
 [ ${#SCRUB[@]} -le ${#ORD[@]} ] || die "more projects than tokens; extend ORD before publishing"
 
-# AUDIT: the scrub set, plus every directory projects/ has ever held, every
-# directory under projects/ in each checkout of the home on this disk (tracked
-# or not: an untracked project is still somebody's name), the memory root's
-# names that some checkout also gives a manifest (the suite's fixture names
-# live there too and are the engine's own vocabulary), and each manifest's
-# remote, whole, without separators and by its long components.
+# AUDIT: wider than SCRUB, and never shaped by what a checkout on this disk
+# happens to hold: a clone without an untracked project folder once dropped
+# two names without a word. It is the union of four sources, each counted, and
+# a source that cannot be read stops the run:
+#   history  every name projects/ has held on the home's main
+#   memory   every directory of the memory root
+#   remotes  every remote_match a manifest on main has declared: whole, without
+#            separators, and by its components of six or more characters
+#   given    each --name
+# less this project's own names, and less what a reviewed row of
+# .snapshot-ack.tsv excludes (@name<TAB>name<TAB>why): the suite's fixture
+# names live in the memory root too, and they are the engine's own vocabulary.
 remote_forms() {
   sed 's|.*/||; s|\.git$||' | lc |
     awk -F'[-_. ]' 'NF { print; s = $0; gsub(/[-_. ]/, "", s); print s
                          for (i = 1; i <= NF; i++) if (length($i) >= 6) print $i }'
 }
-POINTER="${FELIX_HOME:-$(tr -d '[:space:]' 2>/dev/null < "$HOME/.felix-home" || true)}"
-COMMON="$(git -C "$HOME_TOP" rev-parse --path-format=absolute --git-common-dir)"
-ROOTS="$HOME_TOP${TAB}$(dirname "$COMMON")${TAB}$POINTER"
-has_manifest() {
-  local r; local IFS="$TAB"
-  for r in $ROOTS; do [ -n "$r" ] && [ -f "$r/projects/$1/project.json" ] && return 0; done
-  [ -n "$(git -C "$HOME_TOP" log -1 --format=%h "$SRC" -- "projects/$1/project.json")" ]
+norm() { lc | tr -cd 'a-z0-9\n'; }
+MEM="${FELIX_MEMORY:-$HOME/.felix/memory}"
+[ -d "$MEM/$SELF" ] || die "no $SELF directory in the memory root $MEM, so the audit's memory source cannot be read" "point FELIX_MEMORY at the memory root"
+N="$OUT/names"
+git -C "$HOME_TOP" log --format= --name-only "$MAIN" -- projects/ | awk -F/ 'NF > 2 { print $2 }' | sort -u > "$N.history" ||
+  die "could not read the history of projects/ on the home's main"
+(cd "$MEM" && find . -mindepth 1 -maxdepth 1 -type d | sed 's|^\./||' | sort -u) > "$N.memory" || die "could not list the memory root $MEM"
+git -C "$HOME_TOP" log -p --format= "$MAIN" -- 'projects/*/project.json' |
+  sed -n 's/^[-+].*"remote_match"[^"]*"\([^"]*\)".*/\1/p' | remote_forms | sort -u > "$N.remotes" ||
+  die "could not read the remotes the manifests on the home's main declared"
+for f in history memory remotes; do [ -s "$N.$f" ] || die "the audit's $f source came back empty, and it never is"; done
+printf '%s\n' ${GIVEN[@]+"${GIVEN[@]}"} | sed '/^$/d' | sort -u > "$N.given"
+{ printf '%s\n' "$SELF" "${PUBLIC_SLUG##*/}"; printf '%s\n' "$HOME_SLUG" | remote_forms; } | norm | sort -u > "$N.self"
+awk -F'\t' '$1 == "@name" && NF >= 3 { print $2 }' "$ACKS" | norm | sort -u > "$N.excluded"
+sort -u "$N.history" "$N.memory" "$N.remotes" "$N.given" | sed '/^$/d' > "$N.union"
+drop() {  # FILE of normalized names; on stdin names; prints those it does not hold
+  awk 'NR == FNR { d[$0] = 1; next } { m = tolower($0); gsub(/[^a-z0-9]/, "", m); if (m != "" && !(m in d)) print }' "$1" -
 }
-derive_audit() {
-  local r d n; local IFS="$TAB"
-  for n in ${SCRUB[@]+"${SCRUB[@]}"}; do printf '%s\n' "$n"; done
-  git -C "$HOME_TOP" log --format= --name-only "$SRC" -- projects/ | awk -F/ 'NF > 2 { print $2 }'
-  git -C "$HOME_TOP" log -p --format= "$SRC" -- 'projects/*/project.json' |
-    sed -n 's/^[-+].*"remote_match"[^"]*"\([^"]*\)".*/\1/p' | remote_forms
-  for r in $ROOTS; do
-    [ -n "$r" ] && [ -d "$r/projects" ] || continue
-    for d in "$r"/projects/*/; do
-      [ -d "$d" ] || continue
-      basename "$d"
-      [ -f "$d/project.json" ] || continue
-      sed -n 's/.*"name"[^"]*"\([^"]*\)".*/\1/p' "$d/project.json"
-      slug_of < "$d/project.json" | remote_forms
-    done
-  done
-  for d in "${FELIX_MEMORY:-$HOME/.felix/memory}"/*/; do
-    [ -d "$d" ] || continue
-    n="$(basename "$d")"; if has_manifest "$n"; then printf '%s\n' "$n"; fi
-  done
-}
-home_base="$(printf '%s\n' "$HOME_SLUG" | remote_forms | head -2)"
+drop "$N.self" < "$N.union" > "$N.notself"
+drop "$N.excluded" < "$N.notself" > "$N.audit"
+short="$(awk '{ m = tolower($0); gsub(/[^a-z0-9]/, "", m); if (length(m) < 3) print }' "$N.audit")"
+[ -z "$short" ] || die "audit names too short to search for; exclude each with a reviewed @name row, or rename:" $short
 AUDIT=()
-while IFS= read -r n; do if [ -n "$n" ]; then AUDIT+=("$n"); fi; done <<EOF
-$(derive_audit | lc | grep -vxF -e "$SELF" -e "$(printf '%s' "${PUBLIC_SLUG##*/}" | lc)" $(printf -- '-e %s ' $home_base) | awk 'length($0) >= 3' | sort -u || true)
-EOF
+while IFS= read -r n; do AUDIT+=("$n"); done < "$N.audit"
+[ ${#AUDIT[@]} -gt 0 ] || die "no audit names are left, so the audit would search for nothing"
+cnt() { wc -l < "$1" | tr -d ' '; }
+say "names: ${#AUDIT[@]} searched for; history $(cnt "$N.history"), memory $(cnt "$N.memory"), remotes $(cnt "$N.remotes"), given $(cnt "$N.given"); less $(($(cnt "$N.union") - $(cnt "$N.notself"))) of this project's own and $(($(cnt "$N.notself") - ${#AUDIT[@]})) excluded by a reviewed row"
 
 # The audit's own patterns, built here and nowhere else. Case-insensitive, and
 # three shapes: the name; the name in two halves of three or more characters

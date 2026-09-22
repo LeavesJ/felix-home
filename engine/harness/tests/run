@@ -17339,6 +17339,19 @@ _rvo="$(_au --dir "$RV/r3/contd")"
   && ok  "a line ending in one backslash goes on to the next: an && list across it can fail, and a path on the next line is an argument" \
   || bad "a line ending in one backslash goes on to the next: an && list across it can fail, and a path on the next line is an argument" "$_rvo"
 
+# A # that starts a word, outside quotes, starts a comment to the end of the
+# line. Its apostrophe opens no quote, its ( and ; make no command position,
+# and a # inside a word is not one.
+_rv_one r3/comment r3-cm1 '# run the project'"'"'s tests\nnpm test'
+_rv_one r3/comment r3-cm2 '# see README (npm test) for the full suite\nls -la'
+_rv_one r3/comment r3-cm3 'npm test  # quick; full run later'
+_rv_one r3/comment r3-cm4 'echo a#b; npm test'
+_rv_one r3/comment r3-cm5 'python3 - <<'"'"'PY'"'"'\nprint(1)\nPY\n# the test'"'"'s expectation\npython3 - <<'"'"'PY'"'"'\nprint(2)\nPY\nbash engine/harness/tests/run'
+_rvo="$(_au --dir "$RV/r3/comment")"
+[ "$(_au_counts "$_rvo")" = "4 0 0 1" ] && ! _rv_says "$_rvo" 'could not have' \
+  && ok  "a shell comment is not code: its apostrophe opens no quote, its (npm test) runs nothing, and its ; takes no status" \
+  || bad "a shell comment is not code: its apostrophe opens no quote, its (npm test) runs nothing, and its ; takes no status" "$_rvo"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

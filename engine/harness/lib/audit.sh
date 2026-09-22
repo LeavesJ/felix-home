@@ -194,15 +194,23 @@ felix_audit_scan() {
   # the program, one word: read without its quotes, and with any blank or
   # ; & | ( ) in it as part of that word, so "npm test" as one name is not npm
   # (a path holding a blank is not read as a runner either). Or it holds a $(
-  # that runs one, which is kept from there. The script a shell is handed with -c
-  # is a command, and is read as one, from a line of its own.
+  # that runs one, which is kept from there. The script a shell is handed with
+  # -c is a command, and is read as one, from a line of its own. A # that
+  # starts a word outside quotes starts a comment, which goes to the end of its
+  # line before any quote in it is paired.
   # split(s, C, "") is a character per element in BWK awk, gawk and mawk alike.
   function unquote(c,    n, C, i, ch, out, q, st, s, w, p) {
     n = split(c, C, ""); out = ""; q = ""; st = 1
     for (i = 1; i <= n; i++) {
       ch = C[i]
       if ((ch == BS || ch == "\001") && q != SQ) { i++; continue }
-      if (q == "") { if (ch == SQ || ch == Q) { out = out substr(c, st, i - st); q = ch; st = i } }
+      if (q == "") {
+        if (ch == "#" && (i == 1 || index(" \n;&|()<>", C[i - 1]))) {
+          out = out substr(c, st, i - st); while (i < n && C[i + 1] != "\n") i++
+          st = i + 1; continue
+        }
+        if (ch == SQ || ch == Q) { out = out substr(c, st, i - st); q = ch; st = i }
+      }
       else if (ch == q) {
         s = substr(c, st + 1, i - st - 1)
         w = st > 129 ? "x" substr(c, st - 128, 128) : substr(c, 1, st - 1); gsub(/\n/, ";", w)

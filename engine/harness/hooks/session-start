@@ -404,6 +404,23 @@ if [ -f "$_mem/ledger.tsv" ] || [ -d "$_mem/ledger.d" ]; then
       reconcile_line="
 The record proposes changing what is mounted: ${_rec}
 Evidence in 'felix stack reconcile'. Nothing moves without a person."
+      # Marked seen here, and this hook cannot know yet whether anybody will
+      # read it. The platform's summary request starts a session of its own
+      # (#264), and SessionStart fires for that session like any other, before
+      # the request is typed: the prompt hook recognises it, and Stop and
+      # SessionEnd then pass over it, but this runs first. Nothing it is handed
+      # tells the two apart. Its source is `startup`, as a person's is; the
+      # request is not in the transcript it names yet, since in all 78 summary
+      # sessions on record it was enqueued only after SessionStart finished;
+      # the model is Haiku, which people also choose (8 of the 279 most recent
+      # other sessions); and the transcripts show the same entrypoint and
+      # permission mode for both. Checked 2026-09-22.
+      #
+      # So a proposal can be spent on a session nobody reads. It happened once:
+      # mount:scheduled-tasks went to a summary session on 2026-09-17 and was
+      # marked seen. Nothing is lost by it, since `felix stack reconcile` still
+      # lists every proposal; what is lost is the one time it is volunteered.
+      # The same holds for discovery's and commissioning's once-only lines below.
       if [ "${_recstranded:-0}" -gt 0 ] 2>/dev/null; then
         felix_stack_reconcile_mark_seen "$PROJ" "$FELIX_HOME_DIR" '^(mount|declare)$' 2>/dev/null
       else
@@ -500,6 +517,8 @@ if [ -f "$PROJ/routes.tsv" ] && command -v claude >/dev/null 2>&1; then
 
 Worth a look, found since last time and not installed: ${_new}
 felix discover --inspect shows what each one actually ships."
+    # Spent even on a summary session, which cannot be told apart here; see the
+    # reconcile line above.
     felix_discover_mark_seen "$PROJ" "$FELIX_HOME_DIR"
   fi
 fi
@@ -564,6 +583,8 @@ skill each request names, write the answer file it names, then felix commission:
     context="$context
 
 Commissioning: receipt ${_cm_valid}."
+    # Spent even on a summary session, which cannot be told apart here; see the
+    # reconcile line above.
     mkdir -p "$(dirname "$_cm_seen")" 2>/dev/null && printf '%s\n' "$_cm_topo" >> "$_cm_seen" 2>/dev/null
   fi
   [ "$_cm_ans" -gt 0 ] && context="$context

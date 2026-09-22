@@ -28,8 +28,12 @@
 #
 #   1 time        UTC, 2026-09-21T12:00:00Z, the stamp the other memory logs use
 #   2 kind        startup | resume | clear | compact, the SessionStart source;
-#                 or handoff. A source the platform has not named is `-`, so
-#                 the column holds what a schema row can enumerate.
+#                 or handoff; or summary, written by the prompt hook when the
+#                 session is the platform's summary request (#264). SessionStart
+#                 cannot tell one apart, so that session's startup row is
+#                 already here, and a reader drops every row of a session that
+#                 has a summary row. A source the platform has not named is
+#                 `-`, so the column holds what a schema row can enumerate.
 #   3 session     the payload's session_id
 #   4 bound       the engine executing this code, read from its own plugin.json
 #   5 installed   what the Claude Code registry has installed for felix: the
@@ -76,6 +80,13 @@ felix_lifecycle_session() {
 # it now stands — the one the next session start will read.
 felix_lifecycle_handoff() {
   _felix_lifecycle_row "$1" "$2" handoff "" "" "${3:-}"
+}
+
+# The platform's summary request, recognised by the prompt hook (#264). proj,
+# the directory, the payload's session_id and transcript_path. The one row a
+# summary session adds, so the startup row it already has can be told apart.
+felix_lifecycle_summary() {
+  _felix_lifecycle_row "$1" "$2" summary "${3:-}" "${4:-}" ""
 }
 
 # proj, dir, kind, session, transcript, note

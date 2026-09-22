@@ -42,10 +42,32 @@ CARGO_SCOPE="--workspace --exclude rg-desktop"
 
 echo "gate: $REPO_ROOT"
 
+# --------------------------------------------------------------- logs --------
+# Every log below is this run's own, made by mktemp, never a path another gate
+# can open. They were fixed paths under /tmp shared by every gate on the
+# machine, and several sessions gate worktrees at once: each opened the file
+# with O_TRUNC and wrote at its own offset, so a gate could print another
+# tree's clippy errors or failing tests. Measured 2026-09-21 on Felix's own
+# gate, which printed "2645 passed" for a suite that had passed 2586. The
+# verdict was never wrong, being each command's exit status; the evidence
+# under it could belong to another run. A log is deleted once nothing points
+# at it, and kept on a failure, where its path is printed.
+LOG_DIR="${TMPDIR:-/tmp}"; LOG_DIR="${LOG_DIR%/}"
+newlog() {
+  local f
+  f="$(mktemp "$LOG_DIR/rg-gate-$2.XXXXXX" 2>/dev/null)" && [ -n "$f" ] || return 1
+  printf -v "$1" '%s' "$f"
+}
+
 # ---------------------------------------------------------------- fmt --------
 # R-166: run the formatter, do not --check and hand-chase its complaints.
 # Rustfmt rewrites in place, so the gate reports what it touched for staging.
-if cargo fmt --all >/tmp/rg-gate-fmt.log 2>&1; then
+FMT_LOG=""
+if ! newlog FMT_LOG fmt; then
+  fail fmt
+  note "could not make a log file under $LOG_DIR"
+elif cargo fmt --all >"$FMT_LOG" 2>&1; then
+  rm -f "$FMT_LOG"
   FMT_DIRTY="$(git diff --name-only -- '*.rs')"
   if [ -n "$FMT_DIRTY" ]; then
     fail fmt
@@ -56,47 +78,60 @@ if cargo fmt --all >/tmp/rg-gate-fmt.log 2>&1; then
   fi
 else
   fail fmt
-  tail -20 /tmp/rg-gate-fmt.log | sed 's/^/    /'
+  tail -20 "$FMT_LOG" | sed 's/^/    /'
+  note "full log: $FMT_LOG"
 fi
 
 # ------------------------------------------------------------- clippy --------
 # --all-targets is load bearing: it covers integration tests in tests/, which
 # lib-only and bin-only invocations skip. --workspace is load bearing: per crate
 # invocations skip cross crate doc references.
-if cargo clippy $CARGO_SCOPE --all-targets -- -D warnings >/tmp/rg-gate-clippy.log 2>&1; then
+CLIPPY_LOG=""
+if ! newlog CLIPPY_LOG clippy; then
+  fail clippy
+  note "could not make a log file under $LOG_DIR"
+elif cargo clippy $CARGO_SCOPE --all-targets -- -D warnings >"$CLIPPY_LOG" 2>&1; then
   pass clippy
+  rm -f "$CLIPPY_LOG"
 else
   fail clippy
-  grep -E '^(error|warning)' /tmp/rg-gate-clippy.log | head -20 | sed 's/^/    /'
-  note "full log: /tmp/rg-gate-clippy.log"
+  grep -E '^(error|warning)' "$CLIPPY_LOG" | head -20 | sed 's/^/    /'
+  note "full log: $CLIPPY_LOG"
 fi
 
 # --------------------------------------------------------------- test --------
+TEST_LOG=""
 if [ "$QUICK" -eq 1 ]; then
   printf '  %-18s skipped (--quick)\n' test
+elif ! newlog TEST_LOG test; then
+  fail test
+  note "could not make a log file under $LOG_DIR"
+elif cargo test $CARGO_SCOPE >"$TEST_LOG" 2>&1; then
+  pass test
+  rm -f "$TEST_LOG"
 else
-  if cargo test $CARGO_SCOPE >/tmp/rg-gate-test.log 2>&1; then
-    pass test
-  else
-    fail test
-    grep -E '^(test .* FAILED|failures:|error)' /tmp/rg-gate-test.log | head -20 | sed 's/^/    /'
-    note "full log: /tmp/rg-gate-test.log"
-  fi
+  fail test
+  grep -E '^(test .* FAILED|failures:|error)' "$TEST_LOG" | head -20 | sed 's/^/    /'
+  note "full log: $TEST_LOG"
 fi
 
 # ------------------------------------------------------------ secrets --------
 # gitleaks is already pinned in .pre-commit-config.yaml. If it is not installed
 # the gate says so rather than quietly passing a check it never ran.
-if command -v gitleaks >/dev/null 2>&1; then
-  if gitleaks protect --staged --no-banner >/tmp/rg-gate-leaks.log 2>&1; then
-    pass secrets
-  else
-    fail secrets
-    tail -20 /tmp/rg-gate-leaks.log | sed 's/^/    /'
-  fi
-else
+LEAKS_LOG=""
+if ! command -v gitleaks >/dev/null 2>&1; then
   fail secrets
   note "gitleaks not installed; brew install gitleaks"
+elif ! newlog LEAKS_LOG leaks; then
+  fail secrets
+  note "could not make a log file under $LOG_DIR"
+elif gitleaks protect --staged --no-banner >"$LEAKS_LOG" 2>&1; then
+  pass secrets
+  rm -f "$LEAKS_LOG"
+else
+  fail secrets
+  tail -20 "$LEAKS_LOG" | sed 's/^/    /'
+  note "full log: $LEAKS_LOG"
 fi
 
 # ------------------------------------------------------- private-docs --------

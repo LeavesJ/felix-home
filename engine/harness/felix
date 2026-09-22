@@ -202,8 +202,8 @@ specific project, language, or toolchain.
                            nothing had checked, from the transcripts Claude Code keeps
     felix new <name> --no-commission
                            bind one project (rules, gate guess, marker) without commissioning:
-                           no plugin installs, no network; felix commission runs it later, and
-                           its sessions are held once felix install has run
+                           no plugin installs, no network; felix commission runs it later.
+                           Sessions are held once felix install has run and it names a gate
 
   every day
     felix which            which project governs here, and where its doctrine is

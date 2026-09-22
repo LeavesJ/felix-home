@@ -17445,6 +17445,18 @@ _au_nums "$(_au --dir "$RV/r3/paste")" 'held' 1 1 \
   && ok  "a person's message that starts with pasted stop hook feedback is not a hold; the hook's own meta record is" \
   || bad "a person's message that starts with pasted stop hook feedback is not a hold; the hook's own meta record is" "$(_au --dir "$RV/r3/paste" | grep -i held)"
 
+# The Stop hook holds nothing where project.json names no gate, and felix new
+# --no-commission leaves it empty where none was guessed. So the help's lines
+# for it and the audit's closing line, which say when sessions are held, name
+# the gate beside felix install, in the same sentence (project.json's dot does
+# not end one).
+_rvh="$("$FELIX" 2>&1 | awk '/--no-commission$/ { p = 1; next } p && !/^ {20,}[^ ]/ { p = 0 } p')"
+_rvl="$(_au_last "$(_au --dir "$RV/r3/paste")")"
+_rvre='held([^.;]|[.][^ ])*felix install([^.;]|[.][^ ])*gate'
+_rv_says "$_rvh" "$_rvre" && _rv_says "$_rvl" "$_rvre" \
+  && ok  "the help and the audit say a --no-commission project's sessions are held once felix install has run and a gate is named, not on install alone" \
+  || bad "the help and the audit say a --no-commission project's sessions are held once felix install has run and a gate is named, not on install alone" "help: $_rvh | last: $_rvl"
+
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same
 # command, once the checkout is writable, then binds it, rather than refusing

@@ -510,7 +510,7 @@ _felix_audit_held() {  # holds counted aside noedit -> the clauses, joined by ";
 }
 
 _felix_audit_next() {
-  printf 'Next, still cheap: felix new <name> --no-commission binds one project (its rules, a gate guess, a marker) with no plugin installs and no network; its sessions are held once felix install has run.\n'
+  printf 'Next, still cheap: felix new <name> --no-commission binds one project (its rules, a gate guess, a marker) with no plugin installs and no network; its sessions are held once felix install has run and project.json names a gate.\n'
 }
 
 felix_audit() {

@@ -42,7 +42,8 @@
 # - medium OBSERVED holds: the same decision's other half. An engine-tiered
 #   medium ships an MCP server, or a bundled script that sends a named
 #   credential over the network, or prose that makes live remote pages its
-#   authority — read by pattern and never sandboxed. Amendments 1.2 is why
+#   authority or pipes a download into a shell — read by pattern and never
+#   sandboxed. Amendments 1.2 is why
 #   there is no better answer available: sandbox-exec confines but does not
 #   report, so the spec's T2 has no mechanism on this machine and
 #   denial-on-shape is what remains.

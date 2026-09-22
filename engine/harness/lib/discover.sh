@@ -644,7 +644,7 @@ felix_discover_inspect() {
 # its content being read, and admit.sh adopted it wherever a capability
 # matched — invariant 4 says "read and judged", and neither had happened.
 #
-# Three facts, each a pattern and nothing cleverer:
+# Four facts, each a pattern and nothing cleverer:
 #
 #   executables       regular files with an execute bit under scripts/ or
 #                     skills/. Counted and reported, never raises on its own:
@@ -661,18 +661,29 @@ felix_discover_inspect() {
 #                     What the agent will then follow is text Felix did not
 #                     read and nobody pinned — the prose form of `mcp remote
 #                     endpoint`, and medium for the same reason.
+#   pipe-to-shell     a skill body, command or agent with a line that pipes
+#                     curl or wget into sh, bash or zsh. The agent is told to
+#                     run code that was never fetched, read or pinned — the
+#                     prose form of `floating`. Medium and not high, for the
+#                     reason written at felix_discover_risk.
 #
 # Measured before the rules were chosen, on the 27 distinct plugins installed
 # here on 2026-09-21: the two raising facts move 4 of the 18 low plugins to
 # medium, each read by hand and each carrying what its fact names. The full
-# measurement is in the pull request that added this.
+# measurement is in the pull request that added this. pipe-to-shell came
+# after and was measured the same way: its pattern matches prose in 3 of the
+# 27, two of them already high, and moves the third — a vendor CLI whose one
+# skill installs it from the vendor's own domain — from low to medium.
 #
 # The ceiling in this file's header holds here unchanged. A pattern reads
 # words, and words are chosen by the author: a credential with no variable
 # name (ambient cloud login), a URL assembled at run time, an authority claim
-# wrapped across two lines, or a NUL byte planted to make a script read as
-# binary all pass. This finds a careless plugin before it is installed; it
-# does not find a hostile one.
+# wrapped across two lines, a NUL byte planted to make a script read as
+# binary, or a download that reaches the shell some other way — `bash
+# <(curl …)`, `sh -c "$(curl …)"`, `| /bin/bash`, a `tee` in between, a file
+# saved on one line and run on the next — all pass. None of those shell forms
+# appears in the prose installed here. This finds a careless plugin before it
+# is installed; it does not find a hostile one.
 #
 # It can only raise. Every fact is added beside what was already found, and
 # felix_discover_risk matches facts by presence, so nothing added here can
@@ -686,6 +697,10 @@ felix_discover_inspect() {
 # choosing — a `skill` line forged that way would feed the capability matcher.
 _FELIX_DISCOVER_NET='(^|[^A-Za-z0-9_])(curl|wget|npx|uvx|pipx)([^A-Za-z0-9_]|$)|fetch\(|requests\.(get|post|put|patch|delete|request)\(|urlopen\(|urllib\.request|httpx\.|axios|https?\.(get|request)\(|Invoke-WebRequest|Invoke-RestMethod'
 _FELIX_DISCOVER_CRED='(^|[^A-Za-z0-9_])[A-Z0-9_]*(API_KEY|APIKEY|_TOKEN|_SECRET|_PASSWORD)([^A-Za-z0-9_]|$)'
+# One line, and the shell straight after the first pipe: `| jq`, `| tee`,
+# `| shasum` are not it, and neither is a download saved on one line and run
+# on the next, which leaves a file that could have been read first.
+_FELIX_DISCOVER_PIPE='(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z)?sh([^A-Za-z0-9_]|$)'
 
 # A path under the base, printable. Control characters become `?` so that a
 # name cannot end the fact line it is printed in.
@@ -766,14 +781,21 @@ _felix_discover_content() {
   # truth", 19 name no remote thing ("the codebase is treated as the primary
   # source of truth"); plural nouns only, because "source" is inside "source
   # of truth" and "reference" is usually a reference implementation.
+  #
+  # The same walk asks the pipe-to-shell question of the same files, so the
+  # prose is listed once and each fact is decided on its own.
   while IFS= read -r -d '' f; do
-    LC_ALL=C awk '
+    if LC_ALL=C awk '
       { l = tolower($0) }
       l ~ /https?:\/\// { url = 1 }
       l ~ /source of truth|authoritative|always (trust|fetch|read|consult|check)|must (fetch|read|consult)/ &&
         (l ~ /https?:\/\// || l ~ /(^|[^a-z0-9_])(docs|documentation|references|sources)([^a-z0-9_]|$)/) { hit = 1 }
-      END { exit !(url && hit) }' "$f" 2>/dev/null || continue
-    printf 'remote-authority\t%s\n' "$(_felix_discover_rel "$base" "$f")"
+      END { exit !(url && hit) }' "$f" 2>/dev/null; then
+      printf 'remote-authority\t%s\n' "$(_felix_discover_rel "$base" "$f")"
+    fi
+    if LC_ALL=C grep -qE "$_FELIX_DISCOVER_PIPE" "$f" 2>/dev/null; then
+      printf 'pipe-to-shell\t%s\n' "$(_felix_discover_rel "$base" "$f")"
+    fi
   done < <( r="$(_felix_discover_root "$base" skills)"
             [ -n "$r" ] && find -H "$r" -mindepth 2 -maxdepth 2 -type f -name SKILL.md -print0 2>/dev/null
             for r in commands agents; do
@@ -937,6 +959,22 @@ felix_discover_drift() {
 # is still a script the agent runs only when told to, under its own
 # permissions, and raising on it would hold 4 of the 18 low plugins
 # measured here to ask a question with no answer in it.
+#
+# `pipe-to-shell` is medium, and high was the other candidate: what it runs is
+# what `floating` names, code nobody read or pinned. What puts a fact in the
+# high block is that it acts with nobody choosing at the time — hooks fire
+# every session, a floating MCP command is resolved afresh at every session
+# start, an interpolated variable is sent whenever the server starts, and an
+# `unread` declaration is hooks or servers nobody saw, so it may be any of
+# those. A
+# download piped into a shell runs when the agent follows the line, as one
+# command naming the host it trusts, and whether to trust that host is a
+# question a person can answer, which is what medium holds a plugin for. And
+# the pattern cannot tell an instruction from a warning: of the five prose
+# files it matched in the 27 plugins installed here on 2026-09-21, three
+# forbid piping a download into a shell. At medium that error costs a person
+# a look. At high it would refuse such a plugin by every flag, with no row a
+# person wrote able to admit it, for warning against the thing.
 felix_discover_risk() {
   local facts="$1"
   case "$facts" in
@@ -949,6 +987,7 @@ felix_discover_risk() {
     *"mcp	"*)              printf 'medium'; return ;;
     *"credential-call	"*)  printf 'medium'; return ;;
     *"remote-authority	"*) printf 'medium'; return ;;
+    *"pipe-to-shell	"*)    printf 'medium'; return ;;
   esac
   printf 'low'
 }
@@ -972,6 +1011,8 @@ felix_discover_why() {
     out="$out; a bundled script names a credential beside a network call ($(printf '%s\n' "$facts" | awk -F'\t' '$1 == "credential-call" && !n++ { print $2 }'))" ;; esac
   case "$facts" in *"remote-authority	"*)
     out="$out; its prose makes live remote pages the authority, and those were not read ($(printf '%s\n' "$facts" | awk -F'\t' '$1 == "remote-authority" && !n++ { print $2 }'))" ;; esac
+  case "$facts" in *"pipe-to-shell	"*)
+    out="$out; its prose pipes a download into a shell, code nobody read or pinned ($(printf '%s\n' "$facts" | awk -F'\t' '$1 == "pipe-to-shell" && !n++ { print $2 }'))" ;; esac
   case "$facts" in *"executables	"*)
     out="$out; ships $(printf '%s\n' "$facts" | awk -F'\t' '$1 == "executables" && !n++ { print $2 }') executable file(s), read by pattern only" ;; esac
   printf '%s' "${out#; }"
@@ -1095,7 +1136,8 @@ felix_plugin_description() {
 #
 # Low only. Medium means it ships an MCP server, which usually needs credentials
 # a person has to supply anyway, or a script or prose that reaches past what
-# was read (a credentialed network call, remote pages made the authority);
+# was read (a credentialed network call, remote pages made the authority, a
+# download piped into a shell);
 # high means hooks, a floating version, or an interpolated secret, and no flag
 # from any caller installs those.
 #

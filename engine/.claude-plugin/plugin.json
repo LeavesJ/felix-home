@@ -1,11 +1,7 @@
 {
   "name": "felix",
   "description": "Governance layer: binds a session to its project's constitution, gate, and memory",
-<<<<<<< HEAD
   "version": "0.49.148",
-=======
-  "version": "0.49.148",
->>>>>>> origin/main
   "author": {
     "name": "Jarron Deng"
   },

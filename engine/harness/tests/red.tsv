@@ -5,5 +5,6 @@
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
 base	origin/main	5110ca6410ebedd23fede49c12399c48f429ff8e	0.49.150
-run	1	3106	5
-a multi-line command holding an escaped backslash reads the same under a --verify that matches a backslash as under one that does not: its line breaks stay line breaks	1
+run	2	3110	5
+two writers appending to one facts.log at once both report success	1
+two writers on one tree in one second both report success too	1

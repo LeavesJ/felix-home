@@ -340,6 +340,7 @@
 1	a local server declared inline in plugin.json is medium
 1	a local-only branch is taken as given
 1	a lock whose owner is gone is taken over
+1	a log replaced by a directory is reported as a failure
 1	a lookalike gate is reported
 1	a low-risk candidate is declared
 1	a machine without launchd is refused, not half-served
@@ -1091,6 +1092,7 @@
 1	and absent from both sides is a fixture, not a drift
 1	and accepted once its rows fit
 1	and again, so a session can bump twice
+1	and all four rows landed
 1	and an Agent call with no type is still a tool
 1	and an absent table refuses with a non-zero status too
 1	and an agent file piping to a shell is medium
@@ -1888,6 +1890,8 @@
 1	and the widget table is as the premise block found it
 1	and the widget table is as this block found it
 1	and the widget's topology is non-empty
+1	and their rows interleaved too
+1	and their rows interleaved, so each append window held the other's rows
 1	and there is at least one of them
 1	and they still do in a UTF-8 locale, as a founder's shell runs them
 1	and those two suites were running at the same moment
@@ -2964,6 +2968,8 @@
 1	two runs with nothing to show end the night too
 1	two session starts append two lifecycle rows in order and rewrite none of the bytes before them
 1	two strangers and no upstream is a person's call
+1	two writers appending to one facts.log at once both report success
+1	two writers on one tree in one second both report success too
 1	undeclared capability classifies as dormant
 1	ungoverned repo refuses to run a gate
 1	uninstall names the doctrine it left alone

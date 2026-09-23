@@ -123,6 +123,7 @@
 1	a commit in the checkout the graph was built from is due
 1	a commit this repository does not hold is not a distance
 1	a commit with no remote does not stamp a push
+1	a committed rename lists the name it left as well as the one it took
 1	a compact appends one lifecycle row of kind compact
 1	a component that cannot be computed prints as a dash
 1	a consistent record is called agreement
@@ -1049,6 +1050,7 @@
 1	and an ordinary product repository is not
 2	and an unknown flag is refused rather than ignored
 1	and an unknown kind is refused
+1	and an unstaged deletion beside a staged copy names the table it removed
 1	and are read as hooks, by event
 1	and as a server, each by its own rule
 1	and asked from a subdirectory it is still the checkout, not the subdirectory
@@ -1547,6 +1549,7 @@
 1	and so does a compact
 1	and so does a failure nobody answered
 1	and so does a session that opens on the summary request's opening and the person's own instruction
+1	and so does a staged one
 1	and so does a worktree of it
 1	and so does one who types a question under a task notification
 1	and so does one whose registry entry carries no installPath
@@ -2470,6 +2473,7 @@
 1	removes an untracked copy Felix holds
 1	removing a witness turns a clean empty into a blocking unknown
 2	removing one escapes as verifier
+1	renaming an enforcing table away fires the verifier on the table it removed
 1	renders a page
 1	repair refuses outside a governed GitHub repo
 1	repointing a symlink at a different target changes the digest

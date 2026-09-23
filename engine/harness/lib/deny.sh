@@ -175,11 +175,17 @@ EOF
 
 # Whether a row scoped to the checkout passes this call over. Bash is read for
 # where it acts; a tool naming one path acts on that path; a URL acts on no
-# place the checkout owns, so nothing is known and the row stands. Without
-# lib/where.sh loaded nothing is known either.
+# place the checkout owns, so nothing is known and the row stands.
+#
+# lib/where.sh is loaded here, from beside this file, and not by the hook: the
+# hook runs on every tool call and this runs only after a scoped row matched.
+# If it cannot be loaded nothing is known, and the row stands.
+_FELIX_DENY_LIB="${BASH_SOURCE[0]%/*}"
 _felix_deny_scoped_lifts() {
   local want="$1" pattern="$2" subj="$3" start="$4"
   _FELIX_WHERE_WHY=""
+  command -v felix_where_lifts >/dev/null 2>&1 \
+    || . "$_FELIX_DENY_LIB/where.sh" 2>/dev/null || return 1
   case "$want" in
     Bash)
       command -v felix_where_lifts >/dev/null 2>&1 || return 1

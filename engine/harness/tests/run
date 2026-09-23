@@ -13877,9 +13877,13 @@ _sc 0 "scoped: a mktemp fixture read back through pwd -P" - 'T=$(mktemp -d); REP
 has "a scoped row that stands says it covers only the checkout" "$(cat "$SC_ERR")" "covers only the governed checkout"
 has "and names the command and the place" "$(cat "$SC_ERR")" "\`git add -A\`: it acts on $GOV, in the governed checkout"
 # --- it can only keep a refusal when it cannot tell
-is "without lib/where.sh a scoped row stands" \
-   "$( cd "$GOV" && . "$FROOT/harness/lib/deny.sh" && felix_deny_match "$FROOT/projects/widget" Bash "cd $SCR/plain && git add -A" "$SCR/plain" >/dev/null && echo refused )" \
+mkdir -p "$SC/nowhere"; cp "$FROOT/harness/lib/deny.sh" "$SC/nowhere/deny.sh"
+is "without lib/where.sh beside it a scoped row stands" \
+   "$( cd "$GOV" && . "$SC/nowhere/deny.sh" && felix_deny_match "$FROOT/projects/widget" Bash "cd $SCR/plain && git add -A" "$SCR/plain" >/dev/null && echo refused )" \
    "refused"
+is "and with it, the same call lifts" \
+   "$( cd "$GOV" && . "$FROOT/harness/lib/deny.sh" && felix_deny_match "$FROOT/projects/widget" Bash "cd $SCR/plain && git add -A" "$SCR/plain" >/dev/null && echo refused || echo lifted )" \
+   "lifted"
 is "a reader that cannot run lifts nothing" \
    "$( cd "$GOV" && . "$FROOT/harness/lib/where.sh" && _FELIX_WHERE_AWKFILE=/nonexistent/where.awk \
        && felix_where_lifts 'git add' "cd $SCR/plain && git add -A" "$SCR/plain" "$GOV" && echo lifted || echo stood )" \

@@ -392,6 +392,7 @@
 1	a missing manifest is refused
 1	a missing runbook fails loudly
 1	a missing state file is not a guess
+1	a multi-line command holding an escaped backslash reads the same under a --verify that matches a backslash as under one that does not: its line breaks stay line breaks
 1	a multi-line utterance stays one greppable line
 1	a name admitted twice is refused the second time and admitted once
 1	a name counts triple
@@ -1665,6 +1666,7 @@
 1	and so is its evidence mode
 1	and so is no argument at all
 1	and so is one behind an escaped leading newline
+1	and so is one handed to bash -s with arguments
 1	and so is one who opens on its first sentence and goes on in their own words
 1	and so is one who pastes a whole request and writes their own instruction after its closing
 1	and so is one who pastes the whole fixed opening and then writes their own instruction

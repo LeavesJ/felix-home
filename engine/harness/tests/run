@@ -13867,6 +13867,13 @@ is "a file written by a file the command runs is followed there as well" "$rc" "
 {"tool_name":"Bash","tool_input":{"command":"bash <<'EOF'\ngit push --force origin main\nEOF"}}
 J
 is "a here-document a shell reads is code" "$rc" "2"
+# With -s the words after the shell are positional parameters, not a script
+# file, so the body is still its script. 0.49.152 took the first of them for a
+# file and read the body as data; found by the session scoping deny rows.
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"bash -s \"/tmp/gov\" <<'EOF'\ngit push --force origin main\nEOF"}}
+J
+is "and so is one handed to bash -s with arguments" "$rc" "2"
 ( cd "$REPO" && _prb ) <<'J'; rc=$?
 {"tool_name":"Bash","tool_input":{"command":"cat <<EOF\n$(git push --force origin main)\nEOF"}}
 J
@@ -20235,6 +20242,25 @@ _rv_one r4/dqc r4-dq2 'bash -c \"cd /w && \\\"$FELIX_HOME/harness/felix\\\" gate
 _rv_one r4/dqc r4-dq3 'sh -c \"echo \\\"npm test\\\"\"'
 is  "a double-quoted -c script is read with its escapes taken off: a program path quoted inside it is the program, and text quoted inside it is text" \
     "$(_au_counts "$(_au --dir "$RV/r4/dqc")")" "2 0 0 1"
+
+# A --verify that matches a backslash has decode() put each escaped one back
+# with a split on \001, and BWK awk, which macOS ships, splits a string at
+# every line break as well when its separator is one character. So every
+# line break of a command holding an escaped backslash became a backslash,
+# and its lines one: the runner on the line after echo a\b was no check, the
+# sed -i on a line after npm test no write after it, and the line after a
+# check did not take its status. Read under x\\z and under x_z, which match
+# nothing here and differ only in the backslash, and counted the same. gawk
+# and mawk never split there, so only a Mac shows this red.
+_rv_one bwk/nlbs bwk-nb1 'echo a\\b\nnpm test'
+_rv_one bwk/nlbs bwk-nb2 'npm test\necho a\\b\nsed -i s/a/b/ src/app.js'
+_rv_one bwk/nlbs bwk-nb3 'npm test\necho a\\b'
+_rvo="$(_au --dir "$RV/bwk/nlbs" --verify 'x_z')"; _rvo2="$(_au --dir "$RV/bwk/nlbs" --verify 'x\\z')"
+_rvn="a multi-line command holding an escaped backslash reads the same under a --verify that matches a backslash as under one that does not: its line breaks stay line breaks"
+[ "$(_au_counts "$_rvo")" = "2 0 1 0" ] && _au_nums "$_rvo" 'pipe|background' 1 \
+  && [ "$(_au_counts "$_rvo2")" = "2 0 1 0" ] && _au_nums "$_rvo2" 'pipe|background' 1 \
+  && ok  "$_rvn" \
+  || bad "$_rvn" "x_z: $(_au_counts "$_rvo"), x\\\\z: $(_au_counts "$_rvo2"); passed, failed, stale, never, where each should read 2 0 1 0 with one check whose status a later line took"
 
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same

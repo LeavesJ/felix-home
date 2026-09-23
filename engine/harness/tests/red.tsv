@@ -4,16 +4,6 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	ca6389bf2eaf0f19999e04e7e25571ba866ec538	0.49.151
-run	11	3127	5
-a comment is not a command	1
-a commit message in a here-document is not read as a command	1
-a here-document written to a file nothing runs is data	1
-a message quoted in pieces round an apostrophe is still a message	1
-a message that starts with a variable is not taken for a path	1
-a payload piped into a shell handed a script file is data to that script	1
-a quoted argument naming a denied command is data	1
-a quoted here-document word leaves the body unexpanded, so it is data	1
-a row no longer runs across a line break into the next command	1
-a sed script that starts with a slash is not taken for a path	1
-nor is one in the $(cat <<EOF) form of Claude Code's commit template	1
+base	origin/main	1de159177be7d9674a65ae587b8c6ce477c413c4	0.49.153
+run	1	3139	5
+a multi-line command holding an escaped backslash reads the same under a --verify that matches a backslash as under one that does not: its line breaks stay line breaks	1

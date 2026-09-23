@@ -13718,6 +13718,18 @@ is "a row no longer runs across a line break into the next command" "$rc" "0"
 J
 is "a sed script that starts with a slash is not taken for a path" "$rc" "0"
 ( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"printf '%s' '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git push --force origin main\"}}' | bash hooks/pre-tool"}}
+J
+is "a payload piped into a shell handed a script file is data to that script" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -m 'the reader doesn'\\''t refuse git push --force in a message'"}}
+J
+is "a message quoted in pieces round an apostrophe is still a message" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"echo \"$n logged refusals named git push --force here\""}}
+J
+is "a message that starts with a variable is not taken for a path" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
 {"tool_name":"Bash","tool_input":{"command":"cat <<'EOF'\n$(git push --force origin main)\nEOF"}}
 J
 is "a quoted here-document word leaves the body unexpanded, so it is data" "$rc" "0"

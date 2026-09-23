@@ -309,10 +309,18 @@ _FELIX_DENY_READ='
   # a redirect target (RED) or a here-string (HS); and what separated it from
   # the command before (SEP).
   function newseg(sep) {
+    segend()
+    PIN[LV] = 0; SHF[LV] = 0
     CUR[LV] = ""; NW[LV] = 0; PREV[LV] = ""; HSH[LV] = 0; ARG[LV] = 0
     INR[LV] = 0; RED[LV] = 0; HS[LV] = 0; SEP[LV] = sep; PATHOP[LV] = 0
     SID[LV] = ++SEG; FIRST[LV] = ""; PSCR[LV] = ""; SCRW[LV] = 0; RUNNEXT[LV] = 0
   }
+  # A command piped into something that runs its input (PIN) makes that
+  # input its script, unless the shell was handed a file or a -c script (SHF),
+  # when its input is data to that script: a payload printed into `bash
+  # hooks/pre-tool` runs the hook and not the payload. Decided when the
+  # command ends, since the file comes after the name of the shell.
+  function segend() { if (PIN[LV] && !SHF[LV]) FB = 1 }
   # A file named where it is run: in command position, or as the first
   # operand of a shell, source or `.`. Compared by its spelling, so the
   # file a here-document wrote is recognised when the same spelling runs it.
@@ -326,7 +334,7 @@ _FELIX_DENY_READ='
     if (NW[LV] == 0 && w ~ /^[A-Za-z_][A-Za-z0-9_]*=/) return
     if (NW[LV] == 0) { FIRST[LV] = base(w); runs(w) }
     else if (FIRST[LV] == "tee" && w !~ /^-/ && !(SID[LV] in TGT)) TGT[SID[LV]] = w
-    if (RUNNEXT[LV] && w !~ /^-/) { runs(w); RUNNEXT[LV] = 0 }
+    if (RUNNEXT[LV] && w !~ /^-/) { runs(w); RUNNEXT[LV] = 0; SHF[LV] = 1 }
     NW[LV]++; PREV[LV] = w; b = base(w)
     # A path is data to the shell, but to cp or tee it is the file written, and
     # the marker row is about exactly that operand. So a command with a word
@@ -338,17 +346,17 @@ _FELIX_DENY_READ='
     if (b ~ /^(bash|sh|zsh|dash|ksh|fish)$/) { HSH[LV] = 1; INR[LV] = 1 }
     if (b ~ /^(eval|ssh|su|runuser|watch)$/) { ARG[LV] = 1; INR[LV] = 1 }
     if (b == "source" || NW[LV] == 1 && w == ".") INR[LV] = 1
-    if (INR[LV] && SEP[LV] == "|") FB = 1
+    if (INR[LV] && SEP[LV] == "|") PIN[LV] = 1
   }
   # Whether a quoted span here is a script something will run.
   function script() { return ARG[LV] || HSH[LV] && PREV[LV] ~ /^-[A-Za-z]*c[A-Za-z]*$/ }
   function quoted(t, glued) {
     if (HS[LV]) { if (INR[LV]) X[++NX] = sub_view(t); return "_" }
-    if (script() && (SCRW[LV] || CUR[LV] == "")) { PSCR[LV] = PSCR[LV] t; SCRW[LV] = 1; return "_" }
+    if (script() && (SCRW[LV] || CUR[LV] == "")) { PSCR[LV] = PSCR[LV] t; SCRW[LV] = 1; SHF[LV] = 1; return "_" }
     gsub(/\n/, " ", t)
-    if (RED[LV] || PATHOP[LV] || glued || NW[LV] == 0 && CUR[LV] == "") return t
+    if (RED[LV] || PATHOP[LV] || NW[LV] == 0 && CUR[LV] == "") return t
     if (t !~ /[ \t\n]/) return t
-    if (t ~ /^(~\/|\.\.?\/|\$[A-Za-z_{]|\$\(_\))/) return t
+    if (t ~ /^(~\/|\.\.?\/|\$[A-Za-z_][A-Za-z0-9_]*\/|\$\{[^}]*\}\/|\$\(_\)\/)/) return t
     # Data, and kept by the command it belongs to: if that command writes a
     # file the same command line then runs, this is what the file says.
     WD[SID[LV]] = WD[SID[LV]] t "\n"
@@ -368,7 +376,7 @@ _FELIX_DENY_READ='
   # stop is "" for a whole string, ")" for a $( ), or a backtick; lim is the
   # last character of the string being read.
   function code(stop, lim,   out, ch, nx, t, e, k, d, dash, hw, hq, nh, HW, HD, HC, HQ, HSID, line, body, ls, depth, g) {
-    LV++; newseg(""); out = ""; nh = 0; depth = 0
+    LV++; PIN[LV] = 0; SHF[LV] = 0; newseg(""); out = ""; nh = 0; depth = 0
     while (I <= lim) {
       ch = C[I]; nx = I < lim ? C[I + 1] : ""
       if (stop == BQ && ch == BQ) { I++; break }
@@ -465,7 +473,7 @@ _FELIX_DENY_READ='
           if (C[I] == "\\") { I++; hq = 1 }
           while (I <= lim && C[I] ~ /[A-Za-z0-9_.-]/) { hw = hw C[I]; I++ }
         }
-        if (hw != "") { nh++; HW[nh] = hw; HD[nh] = dash; HC[nh] = INR[LV]; HQ[nh] = hq; HSID[nh] = SID[LV] }
+        if (hw != "") { nh++; HW[nh] = hw; HD[nh] = dash; HC[nh] = INR[LV] && !SHF[LV]; HQ[nh] = hq; HSID[nh] = SID[LV] }
         out = out "<<" hw " "; continue
       }
       if (ch == "<" || ch == ">") {
@@ -475,7 +483,7 @@ _FELIX_DENY_READ='
       }
       out = out piece(ch); I++
     }
-    endword(); LV--
+    endword(); segend(); LV--
     return out
   }
 '

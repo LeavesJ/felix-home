@@ -16910,6 +16910,22 @@ if git -C "$XH" rev-parse --verify -q refs/remotes/origin/main >/dev/null 2>&1 &
   is  "a grant committed locally on top of the fetched main but not pushed clears nothing" "$(_xc_col "$XRUN3" t_alone 8)" "-"
   is  "a grant written only in the working tree clears nothing" "$(_xc_col "$XRUN3" t_tree 8)" "-"
 
+  # A surveyed answer under the memory root, written the way the widget's is,
+  # so the report below prints its candidates section and the footer that
+  # counts the grants. Keyed with the candidates section's _cdtopo and
+  # _cdepoch to the tree as it stands after the two rows above, because that
+  # is the tree the report reads; one ADVISORY row, grounded on the one probe
+  # this project declares and named so that no grep below can take it for a
+  # ledger row or a grant. A key that drifted would leave the answer stale and
+  # record nothing, but the footer would still print, which is why the
+  # assertion below pins the grants and not the discovered count. The memory
+  # root is outside the home's repository, so nothing here moves origin/main
+  # or the working tree the grants are judged against.
+  XHANS="$MEM/x/commission/obligations_surveyed.tsv"; mkdir -p "$MEM/x/commission"
+  { printf '# topology %s\n# epoch %s\n' "$(_cdtopo "$XH/projects/x" "$XH")" "$(_cdepoch "$XH/projects/x" "$XH")"
+    _xc_row surveyed_once ADVISORY - true code uncounted 'a survey, so the report prints the footer that counts grants'
+    printf 'done\t1\n'; } > "$XHANS"
+
   # The CLI, inside the governed home.
   XOUT="$(cd "$XH" && FELIX_HOME="$XH" "$XH/harness/felix" obligations 2>&1)"
   case "$XOUT" in
@@ -16955,17 +16971,21 @@ REASONS
     *t_alone*t_tree*|*t_tree*t_alone*) ok "rows written in this tree and not at origin/main are listed as not yet grants" ;;
     *) bad "rows written in this tree and not at origin/main are listed as not yet grants" "$XOUT" ;;
   esac
-  # The discovered/admitted sentence is the candidates section's footer and
-  # prints only when a surveyed answer file exists under the memory root
-  # (tests/run 7525–7560 builds one for the widget). This fixture has none,
-  # so the claim is decided only when the sentence is there to read.
-  if printf '%s\n' "$XOUT" | grep -q 'discovered [0-9]'; then
-    printf '%s\n' "$XOUT" | grep -Eq 'discovered [0-9]+, admitted [0-9]+, granted 12' \
-      && ok  "the admitted sentence now counts the grants" \
-      || bad "the admitted sentence now counts the grants" "$(printf '%s\n' "$XOUT" | grep 'discovered')"
-  else
-    skip "the admitted sentence now counts the grants" "the sentence prints only with a candidates section, which this fixture does not build"
-  fi
+  # The discovered/admitted sentence is the candidates section's footer, and
+  # the report prints that section only when a surveyed answer or
+  # candidates.tsv exists under the memory root. From #261 until the answer
+  # written above, this fixture had neither, and the claim sat behind a branch
+  # that skipped whenever the sentence was absent: that was every run, so the
+  # granted count went untested and was the suite's one standing skip. It is
+  # decided every run now, and a sentence that stops printing fails here.
+  # Twelve is what origin/main holds: seventeen rows in the table above, less
+  # the five that are no grant at all (the upper-case hash and t_garbled's
+  # four), the same twelve the heading states. The full stop after it keeps
+  # 120 from reading as 12.
+  printf '%s\n' "$XOUT" | grep -Eq 'discovered [0-9]+, admitted [0-9]+, granted 12\.' \
+    && ok  "the admitted sentence now counts the grants" \
+    || bad "the admitted sentence now counts the grants" \
+           "$(printf '%s\n' "$XOUT" | grep 'discovered' || printf 'the report printed no discovered/admitted sentence')"
   ( cd "$XH" && FELIX_HOME="$XH" "$XH/harness/felix" obligations --gate >/dev/null 2>&1 ); _rc=$?
   [ "$_rc" -ne 0 ] && ok  "felix obligations --gate still fails while unexcepted blocking rows remain" \
                    || bad "felix obligations --gate still fails while unexcepted blocking rows remain" "exit 0"

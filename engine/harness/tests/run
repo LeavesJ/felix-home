@@ -2957,6 +2957,39 @@ cp "$TMP/project.wf.keep" "$FROOT/projects/widget/project.json"
 unset WFSTUB_LOG WFSTUB_RUNS WFSTUB_WORKFLOWS WFSTUB_PRS
 fi
 
+printf '\nthe unattended repair acts only on a brief\n'
+# The ceiling above is enforced by felix repair's exit status, and the one
+# thing that reads that status in CI is the scope step of
+# templates/unattended.yml. It proceeded on everything but 3, so exit 2,
+# CEILING REACHED, still spent the budget and handed a model the brief that
+# told it to stop: the ceiling held only as long as a model read a sentence.
+# The step is taken out of the shipped template as it stands and run against a
+# stub felix that exits with each status repair can return, with gh stubbed to
+# record what it is asked. Its brief goes to the fixture, not to /tmp.
+SC="$TMP/scope"; mkdir -p "$SC/repo" "$SC/felix/engine/harness" "$SC/bin"
+awk '/- name: Scope the failure/ { f = 1 } f && /^        run: \|/ { r = 1; next }
+     r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' \
+  "$REAL_HARNESS/templates/unattended.yml" | sed "s#/tmp/brief.txt#$SC/brief.txt#" > "$SC/step.sh"
+printf '#!/usr/bin/env bash\nprintf "brief\\n"; exit "${SCOPE_RC:-0}"\n' > "$SC/felix/engine/harness/felix"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "%s/gh.log"\ncase "$1 $2" in "pr list") printf "7\\n" ;; esac\nexit 0\n' "$SC" > "$SC/bin/gh"
+chmod +x "$SC/felix/engine/harness/felix" "$SC/bin/gh"
+_scope() { : > "$SC/out"; : > "$SC/gh.log"
+  ( cd "$SC/repo" && SCOPE_RC="$1" GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
+      bash "$SC/step.sh" ) >/dev/null 2>&1; }
+_sres=""
+for _r in 0 1 2 3; do
+  _scope "$_r"; _src=$?
+  _sres="$_sres $_r:$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
+  case "$_r" in
+    1) _s1rc="$_src" ;;
+    2) _s2gh="$(cat "$SC/gh.log")" ;;
+  esac
+done
+is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no"
+has "a reached repair ceiling is escalated to a person" "$_s2gh" "pr edit 7 --add-label needs-founder"
+[ "${_s1rc:-0}" -ne 0 ] && ok  "a run felix repair could not read fails the job rather than passing quietly" \
+                        || bad "a run felix repair could not read fails the job rather than passing quietly" "exit ${_s1rc:-?}"
+
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts
 # repetition rather than money: ten deliberate attempts in a day is a working

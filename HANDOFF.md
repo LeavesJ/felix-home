@@ -97,9 +97,17 @@ were landed with `felix merge` from fresh clones.
     missing newline, and an unreadable schema reading as exit 1. All are
     fixed and pinned in the suite.
 
-**Founder, per the roadmap's Sep 26-27 window:** re-stamp the commission now
-that the validator has merged. `risk.tsv` is a commissioning table, so the
-policy stamp moved.
+**Founder, and it blocks every merge until done.** #298 added two rows to
+`projects/felix/risk.tsv`, which is a commissioning table, so the commission
+policy hash moved. The grant reads `[!]` and the receipt reads stale, and
+`felix merge` refuses every felix-home pull request on it; this section's own
+PR waits behind it. The gate itself still passes. The act is the founder's
+(§0aq, §0bl; roadmap §6): in the home checkout, `felix autonomy --allow
+commission`, then `felix commission`, then commit the new
+`projects/felix/autonomy.commission`. Discovery has nothing to adopt for felix
+tonight, so the run declares nothing and installs nothing. It was scheduled
+for Sep 26-27; with four engine branches queued in other sessions, sooner
+unblocks them.
 
 **Open, in roadmap order** (Phase 0 of `docs/2026-09-23-roadmap.md`).
 

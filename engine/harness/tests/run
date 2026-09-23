@@ -969,6 +969,17 @@ is "ceiling is overridable" "$out" "1"
 out="$(cd "$PLAIN" && "$FELIX" repair 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "repair refuses outside a governed GitHub repo" \
                 || bad "repair refuses outside a governed GitHub repo" "$out"
+# And with its own status. It exited resolution's 2, which is repair's
+# ceiling, and the unattended template escalated a checkout nothing governs to
+# a person as a spent ceiling. A marker naming a project that does not exist is
+# the other way resolution fails, and takes the same status. Every other
+# command keeps 2: "ungoverned repo refuses to run a gate" holds that.
+is  "repair exits 4 in a checkout no project governs, not the ceiling's 2" "$rc" "4"
+RBRK="$TMP/repair-broken"; mkdir -p "$RBRK"
+( cd "$RBRK" && git init -q -b main && printf 'nonexistent\n' > .felix )
+out="$(cd "$RBRK" && "$FELIX" repair 2>&1)"; rc=$?
+is  "and 4 where the .felix marker names a project that does not exist" "$rc" "4"
+has "and names the broken binding rather than asking for a marker" "$out" "nonexistent"
 
 printf '\nissue intake\n'
 # The first of the two p41 exit criteria nothing met: take an issue. Mirrors
@@ -2995,10 +3006,10 @@ printf '#!/usr/bin/env bash\nprintf "brief\\n"; exit "${SCOPE_RC:-0}"\n' > "$SC/
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "%s/gh.log"\ncase "$1 $2" in "pr list") printf "7\\n" ;; esac\nexit 0\n' "$SC" > "$SC/bin/gh"
 chmod +x "$SC/felix/engine/harness/felix" "$SC/bin/gh"
 _scope() { : > "$SC/out"; : > "$SC/gh.log"
-  ( cd "$SC/repo" && SCOPE_RC="$1" GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
-      bash "$SC/step.sh" ) >/dev/null 2>&1; }
+  ( cd "$SC/${2:-repo}" && SCOPE_RC="$1" GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
+      bash "$SC/step.sh" ) >/dev/null 2>"$SC/err"; }
 _sres=""
-for _r in 0 1 2 3; do
+for _r in 0 1 2 3 4; do
   _scope "$_r"; _src=$?
   _sres="$_sres $_r:$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
   case "$_r" in
@@ -3006,10 +3017,33 @@ for _r in 0 1 2 3; do
     2) _s2gh="$(cat "$SC/gh.log")" ;;
   esac
 done
-is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no"
+is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no 4:no"
 has "a reached repair ceiling is escalated to a person" "$_s2gh" "pr edit 7 --add-label needs-founder"
 [ "${_s1rc:-0}" -ne 0 ] && ok  "a run felix repair could not read fails the job rather than passing quietly" \
                         || bad "a run felix repair could not read fails the job rather than passing quietly" "exit ${_s1rc:-?}"
+
+# A checkout Felix cannot resolve, through the real felix repair rather than a
+# stub's chosen status. Resolution exited 2 there, which this step read as the
+# ceiling and escalated to a person under that reason. It is wiring, and true of
+# every branch at once, so the job fails, no pull request is labelled, and the
+# message names the binding. Both ways resolution fails: no project claims the
+# checkout, and a .felix marker names a project the home does not hold.
+printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$FELIX" > "$SC/felix/engine/harness/felix"
+chmod +x "$SC/felix/engine/harness/felix"
+mkdir -p "$SC/unbound" "$SC/misbound"
+( cd "$SC/unbound" && git init -q -b main )
+( cd "$SC/misbound" && git init -q -b main && printf 'nonexistent\n' > .felix )
+for _w in unbound misbound; do
+  _scope 0 "$_w"; _src=$?
+  _sgot="exit $_src, proceed=$(sed -n 's/^proceed=//p' "$SC/out" | head -1), gh [$(tr '\n' ' ' < "$SC/gh.log")]"
+  is  "the unattended job on the $_w checkout fails and labels no pull request" \
+      "$_sgot" "exit 1, proceed=no, gh []"
+  case "$(cat "$SC/err")" in
+    *ceiling*) bad "and the $_w job says the binding failed, not the ceiling" "$(cat "$SC/err")" ;;
+    *"governs this repository"*) ok "and the $_w job says the binding failed, not the ceiling" ;;
+    *) bad "and the $_w job says the binding failed, not the ceiling" "$(cat "$SC/err")" ;;
+  esac
+done
 
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts

@@ -367,6 +367,7 @@
 1	a missing manifest is refused
 1	a missing runbook fails loudly
 1	a missing state file is not a guess
+1	a multi-line command holding an escaped backslash reads the same under a --verify that matches a backslash as under one that does not: its line breaks stay line breaks
 1	a multi-line utterance stays one greppable line
 1	a name admitted twice is refused the second time and admitted once
 1	a name counts triple

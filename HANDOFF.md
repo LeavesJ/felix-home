@@ -34,20 +34,22 @@ tree; the engine is published as a snapshot with no history at
 
 ### 0bu. 2026-09-23 — Phase 0: the Elenchus candidates checked, deny rows read the command the shell runs, three small items
 
-**Deployed from this session: engine 0.49.149 (#299).** Three more are gated,
-recorded and waiting, behind #300 (another session's, 0.49.151): **every
-felix-home merge is refused until the founder re-stamps the commission**,
-because #298 added rows to `projects/felix/risk.tsv`, a commissioning table.
-Recording and gating still work. The queue after the re-stamp, agreed between
-the sessions by message: #300, #301, the audit-decode fix, #303, #304. Each
-merge owes everyone behind it a red re-run.
+**Deployed from this session: engine 0.49.149 (#299) and 0.49.152 (#301).**
+#298 added rows to `projects/felix/risk.tsv`, a commissioning table, and from
+then `felix merge` refused every felix-home PR until the founder re-stamped
+the commission, which he did on 2026-09-23; #300 and then #301 merged. The
+engine queue now, agreed between the sessions by message: #306 (the audit
+decode fix, 0.49.153), #307 (overnight mode, another session's, .154), then
+this session's #303 (.155) and #304 (.156, last on purpose). Each merge owes
+everyone behind it a red re-run; #303 and #304 also need main merged in and
+their versions re-bumped, and they are gated on an older main.
 
 | PR | What | Engine |
 |---|---|---|
 | #299 | The `granted` count in the obligations sentence is asserted every run, against a fixture that makes the sentence print; the suite's standing skip | 0.49.149, deployed |
-| #301 | Deny rows are refused only when they still match the command the shell runs: heredoc bodies, quoted messages, comments and line breaks stop being read as commands; `lib/deny-read.sh` | 0.49.152, gate pass, waiting |
-| #303 | The repair ceiling and the auto-merge streak read the gate workflow's runs alone (`gate_workflow` in project.json, default gate.yml); the unattended template proceeds only when `felix repair` exits 0 | 0.49.153, waiting |
-| #304 | The decision epoch is the same under any PATH: the instrument token is provenance and leaves the topology hash. Lands last: every receipt and the Elenchus candidates read stale once after it deploys | 0.49.154, waiting |
+| #301 | Deny rows are refused only when they still match the command the shell runs: heredoc bodies, quoted messages, comments and line breaks stop being read as commands; `lib/deny-read.sh` | 0.49.152, deployed |
+| #303 | The repair ceiling and the auto-merge streak read the gate workflow's runs alone (`gate_workflow` in project.json, default gate.yml); the unattended template proceeds only when `felix repair` exits 0 | waiting, then 0.49.155 |
+| #304 | The decision epoch is the same under any PATH: the instrument token is provenance and leaves the topology hash. Lands last: every receipt and the Elenchus candidates read stale once after it deploys | waiting, then 0.49.156 |
 
 **The Elenchus candidates, checked (roadmap Phase 0, for Sep 26-27).** The six
 unverified rows of the 2026-09-22 blind request were checked against the code

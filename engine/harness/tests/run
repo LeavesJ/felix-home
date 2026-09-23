@@ -13892,75 +13892,114 @@ printf '\ndenial refuses what a command changes, not what it reads\n'
 # with argv-logging shims and a hash of the files, and most are in the
 # refusals the hooks logged.
 #
-# The first column says which way: 0, no table refuses the command; 2, some
-# table does. The second set keeps the first honest. A narrowed row that
-# refused nothing would pass every line of the first, so each real write the
-# old rows refused is asserted still refused, a line for each verb they name.
+# The first column says which way: 0, the command is allowed; 2, refused.
+# The second set keeps the first honest. A narrowed row that refused nothing
+# would pass every line of the first, so each real write the old rows refused
+# is asserted still refused, a line for each verb they name, and a line for a
+# write on a later line of the command: a row reads the payload's JSON, where
+# a line break is a backslash and an n, and the first draft of these rows let
+# every such write through.
+#
+# The second column says which tables a line is about. A 0 line holds for
+# every table (-). A 2 line holds for every table with a Bash row whose
+# pattern contains that text, and skips when there is none, because a table
+# only ever refuses what it has a row about: the public snapshot ships one
+# project's table, and a line about another's rows has nothing to ask there.
+# An exit that is neither 0 nor 2, or a table that could not be put in place,
+# is named in the failure and never read as either answer.
 _dtabs=""
 for _dt in "$REAL_HARNESS"/../../projects/*/deny.tsv; do
   [ -f "$_dt" ] && _dtabs="$_dtabs$_dt
 "
 done
-# The tables that refuse a command, each named by its project's directory.
-_drefusers() {
-  local t out=""
+_dkeyed() {
+  local t
   while IFS= read -r t; do
     [ -n "$t" ] || continue
-    cp "$t" "$FROOT/projects/widget/deny.tsv"
-    ( cd "$REPO" && _pre "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$1\"}}" )
-    [ $? -eq 2 ] && { t="${t%/deny.tsv}"; out="$out ${t##*/}"; }
+    [ "$1" = "-" ] \
+      || awk -F'\t' -v k="$1" '$1 == "Bash" && index($2, k) { f = 1 } END { exit !f }' "$t" \
+      || continue
+    printf '%s\n' "$t"
   done <<EOF
 $_dtabs
 EOF
+}
+# Every table on stdin whose exit through the hook is not the one wanted, as
+# " project:exit".
+_dmiss() {
+  local want="$1" cmd="$2" t rc out=""
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    if cp "$t" "$FROOT/projects/widget/deny.tsv"; then
+      ( cd "$REPO" && _pre "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$cmd\"}}" ); rc=$?
+    else
+      rc=nocopy
+    fi
+    t="${t%/deny.tsv}"
+    [ "$rc" = "$want" ] || out="$out ${t##*/}:$rc"
+  done
   printf '%s' "$out"
 }
-while IFS=$'\t' read -r _dw _dn _dc; do
+while IFS=$'\t' read -r _dw _dk _dn _dc; do
   case "$_dw" in 0|2) ;; *) continue ;; esac
-  if [ -z "$_dtabs" ]; then skip "$_dn" "no projects/*/deny.tsv beside this harness"; continue; fi
-  _dr="$(_drefusers "$_dc")"
-  if [ "$_dw" = 0 ]; then is "$_dn" "$_dr" ""
-  elif [ -n "$_dr" ]; then ok "$_dn"
-  else bad "$_dn" "no table beside this harness refuses it"
+  _dks="$(_dkeyed "$_dk")"
+  if [ -z "$_dks" ]; then
+    if [ "$_dk" = "-" ]; then skip "$_dn" "no projects/*/deny.tsv beside this harness"
+    else skip "$_dn" "no table beside this harness has a Bash row about $_dk"; fi
+    continue
   fi
+  is "$_dn" "$(printf '%s\n' "$_dks" | _dmiss "$_dw" "$_dc")" ""
 done <<'J'
-0	no shipped table refuses grep -rln over the marker, whose ln is a flag	grep -rln '\\.felix' engine/harness
-0	nor grep -ln over the pointer	grep -ln '\\.felix-home' engine/harness/lib/resolve.sh
-0	nor the read the engine resolves its home with, whose 2>/dev/null writes no pointer	tr -d '[:space:]' 2>/dev/null < \"$HOME/.felix-home\"
-0	nor a > inside a quoted log format	git log --format='%h>%s' -- .felix
-0	nor cp reading the marker into a backup	cp .felix /tmp/backup
-0	nor a find whose 2>/dev/null comes before its -name .felix	find . -maxdepth 2 2>/dev/null -name .felix
-0	nor git add -n -A, which stages nothing	git add -n -A
-0	nor git add -A --dry-run	git add -A --dry-run
-0	nor listing scripts/gate.sh, which runs nothing	ls -la ./scripts/gate.sh
-2	a shipped table still refuses printf x > .felix	printf x > .felix
-2	and a redirect to a quoted marker path	printf 'p\\n' > \"$T/repo/.felix\"
-2	and to one quoted in part	printf x > \"$HOME\"/.felix-home
-2	and to one quoted round a blank	printf x > \"/tmp/a b/.felix\"
-2	and an append to the marker	echo p >> .felix
-2	and a clobbering redirect, which the old row let through	printf x >| .felix
-2	and tee onto the marker	tee .felix
-2	and cp onto the marker	cp x .felix
-2	and cp onto one quoted round a blank	cp seed \"/tmp/a b/.felix\"
-2	and cp onto the marker with its errors sent away	cp x .felix 2>/dev/null
-2	and cp of a marker into the current directory, where it lands as one	cp ../other/.felix .
-2	and cp of a marker into a directory named with its slash	cp /x/.felix \"$T/repo/\"
-2	and scp onto the marker	scp host:seed .felix
-2	and ln -s onto the marker	ln -s x .felix
-2	and install onto the marker	install -m 644 seed .felix
-2	and mv onto the pointer	mv x \"$HOME/.felix-home\"
-2	and mv of the marker away	mv .felix /tmp/x
-2	and rm of the marker	rm -f .felix
-2	and truncate of the pointer	truncate -s 0 \"$HOME/.felix-home\"
-2	and sed -i on the marker	sed -i s/a/b/ .felix
-2	and dd of= the marker	dd of=.felix
-2	and git add -A	git add -A
-2	and git add --all	git add --all
-2	and git add .	git add .
-2	and git add -A behind another flag	git add -v -A
-2	and git add -A before an &&	git add -A && git commit -m wip
-2	and running scripts/gate.sh	./scripts/gate.sh --quick
-2	and running it after a cd	cd ~/x && ./scripts/gate.sh
-2	and running it under bash	bash ./scripts/gate.sh
+0	-	no shipped table refuses grep -rln over the marker, whose ln is a flag	grep -rln '\\.felix' engine/harness
+0	-	nor grep -ln over the pointer	grep -ln '\\.felix-home' engine/harness/lib/resolve.sh
+0	-	nor the read the engine resolves its home with, whose 2>/dev/null writes no pointer	tr -d '[:space:]' 2>/dev/null < \"$HOME/.felix-home\"
+0	-	nor a > inside a quoted log format	git log --format='%h>%s' -- .felix
+0	-	nor cp reading the marker into a backup	cp .felix /tmp/backup
+0	-	nor a find whose 2>/dev/null comes before its -name .felix	find . -maxdepth 2 2>/dev/null -name .felix
+0	-	nor an ls whose 2>/dev/null comes before the pointer it lists	ls -la 2>/dev/null ~/.felix-home
+0	-	nor tee copying the marker it reads on stdin	tee /tmp/copy < .felix
+0	-	nor dd reading the marker	dd of=/tmp/x if=.felix
+0	-	nor git add -n -A, which stages nothing	git add -n -A
+0	-	nor git add -A --dry-run	git add -A --dry-run
+0	-	nor listing scripts/gate.sh, which runs nothing	ls -la ./scripts/gate.sh
+2	felix(-home)	a table with a row about the marker still refuses printf x > .felix	printf x > .felix
+2	felix(-home)	and a redirect to a quoted marker path	printf 'p\\n' > \"$T/repo/.felix\"
+2	felix(-home)	and to one quoted in part	printf x > \"$HOME\"/.felix-home
+2	felix(-home)	and to one quoted round a blank	printf x > \"/tmp/a b/.felix\"
+2	felix(-home)	and an append to the marker	echo p >> .felix
+2	felix(-home)	and a clobbering redirect, which the old row let through	printf x >| .felix
+2	felix(-home)	and a redirect on a later line of the command	cd /tmp/r\nprintf x > .felix
+2	felix(-home)	and tee onto the marker	tee .felix
+2	felix(-home)	and cp onto the marker	cp x .felix
+2	felix(-home)	and cp onto one quoted round a blank	cp seed \"/tmp/a b/.felix\"
+2	felix(-home)	and cp onto the marker with its errors sent away	cp x .felix 2>/dev/null
+2	felix(-home)	and cp of a marker into the current directory, where it lands as one	cp ../other/.felix .
+2	felix(-home)	and cp of a marker into a directory named with its slash	cp /x/.felix \"$T/repo/\"
+2	felix(-home)	and cp onto the marker on a later line of the command	cd /tmp/r\ncp x .felix
+2	felix(-home)	and scp onto the marker	scp host:seed .felix
+2	felix(-home)	and ln -s onto the marker	ln -s x .felix
+2	felix(-home)	and install onto the marker	install -m 644 seed .felix
+2	felix(-home)	and mv onto the pointer	mv x \"$HOME/.felix-home\"
+2	felix(-home)	and mv of the marker away	mv .felix /tmp/x
+2	felix(-home)	and rm of the marker	rm -f .felix
+2	felix(-home)	and rm of the marker on a later line of the command	cd /tmp/r\nrm -f .felix
+2	felix(-home)	and truncate of the pointer	truncate -s 0 \"$HOME/.felix-home\"
+2	felix(-home)	and sed -i on the marker	sed -i s/a/b/ .felix
+2	felix(-home)	and dd of= the marker	dd of=.felix
+2	felix(-home)	and dd with its of= after another operand, which the old row let through	dd if=/dev/zero of=.felix
+2	git add	a table with a row about git add still refuses git add -A	git add -A
+2	git add	and git add --all	git add --all
+2	git add	and git add .	git add .
+2	git add	and git add -A behind another flag	git add -v -A
+2	git add	and git add -A before an &&	git add -A && git commit -m wip
+2	git add	and git add -A on a later line of the command	cd /tmp/r\ngit add -A
+2	scripts/gate	a table with a row about scripts/gate.sh still refuses running it	./scripts/gate.sh --quick
+2	scripts/gate	and running it after a cd	cd ~/x && ./scripts/gate.sh
+2	scripts/gate	and running it under bash	bash ./scripts/gate.sh
+2	scripts/gate	and running it on a later line, inside an if	if true; then\n  ./scripts/gate.sh\nfi
+2	scripts/gate	and running it after a line continuation	cd ~/x && \\\n  ./scripts/gate.sh
+2	scripts/gate	and running it in a brace group	{ ./scripts/gate.sh; }
+2	scripts/gate	and running it in a command substitution, which the old row let through	x=$(./scripts/gate.sh)
 J
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 

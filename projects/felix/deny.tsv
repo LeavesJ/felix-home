@@ -41,24 +41,31 @@ Edit	(^|/)\.felix(-home)?$	this file decides whether Felix is enforcing anything
 #     quoted or not, and not something later in the command. A target quoted
 #     round a blank is still one word, and the second reading in lib/deny.sh
 #     drops its quotes, so the second redirect row lets the target run across
-#     blanks: only after a redirect operator (the start, a blank or a digit
-#     before the `>`), only over words that start with no `-` and hold no
-#     quote, and only to a marker that ends a path;
-#   - tee, mv, rm, truncate, sed -i and dd of= change every file they name,
-#     so the marker anywhere among their operands is a write;
+#     blanks: only where the `>` is an operator (at the start of a line, or
+#     after a blank, a digit, `;`, `&`, `|` or `(`), only over pieces that
+#     start with no `-` and hold no quote, where every piece after the first
+#     starts with no `/`, `~`, `$` or `.`, each of which begins a path of its
+#     own, and only to a marker that ends a path;
+#   - tee, mv, rm, truncate and sed -i write the files they name, so the
+#     marker among their operands is a write, unless a `<` before it makes
+#     it what they read; dd writes the file its of= names;
 #   - cp, scp, ln and install write their last operand, so the marker is a
 #     write there, and a read before it unless that last operand is a
 #     directory, where the copy lands as a marker of its own: `.`, `..`, or a
 #     path ending in `/`. A directory named without the slash cannot be told
 #     from a file by reading the command, and is let through.
 #
-# A verb is a word, never the tail of one: the character before it is not a
-# letter, digit, `_`, `.` or `-`, so `-rln` and `-ln` are flags again. scp is
-# named because the old row caught it only as the tail `cp `.
+# A verb is a word, never the tail of one: it starts a line, or the character
+# before it is not a letter, digit, `_`, `.` or `-`, so `-rln` and `-ln` are
+# flags again. The start of a line is named on its own because a row reads
+# the payload's JSON string, where a line break is a backslash and an `n`:
+# the first draft of these rows let a write on any line after the first go
+# through, which the old row had refused. scp is named because the old row
+# caught it only as the tail `cp `.
 Bash	>[>|]?[[:space:]]*(["'][^"']*|("[^"]*"|'[^']*'|[^[:space:];&|<>"'])*(["'][^[:space:]"']*)?)\.felix(-home)?["']?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
-Bash	(^|[[:space:];&|(]|[0-9])>[>|]?[[:space:]]*([^-[:space:];&|<>"'][^[:space:];&|<>"']*[[:space:]]+)+[^[:space:];&|<>"']*/\.felix(-home)?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
-Bash	(^|[^[:alnum:]_.-])((tee|mv|rm|truncate)[[:space:]]|sed -i|dd of=)[^;&|]*["']?\.felix(-home)?["']?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
-Bash	(^|[^[:alnum:]_.-])(s?cp|ln|install)[[:space:]][^;&|]*["']?\.felix(-home)?["']?([[:space:]]+([^;&|]*[[:space:]])?["']?([^[:space:];&|]*/|\.\.?)["']?)?([[:space:]]+[0-9]*[<>][^;&|]*)?[[:space:]]*([;&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
+Bash	(^|[[:space:];&|(]|[0-9]|\\n)>[>|]?[[:space:]]*[^-[:space:];&|<>"'][^[:space:];&|<>"']*([[:space:]]+[^-/~$.[:space:];&|<>"'][^[:space:];&|<>"']*)*[[:space:]]+[^-/~$.[:space:];&|<>"'][^[:space:];&|<>"']*/\.felix(-home)?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
+Bash	(^|[^[:alnum:]_.-]|\\n)(((tee|mv|rm|truncate)[[:space:]]|sed -i)[^;&|<]*|dd[[:space:]]([^;&|]*[[:space:]])?of=["']?[^[:space:];&|]*)["']?\.felix(-home)?["']?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
+Bash	(^|[^[:alnum:]_.-]|\\n)(s?cp|ln|install)[[:space:]][^;&|]*["']?\.felix(-home)?["']?([[:space:]]+([^;&|]*[[:space:]])?["']?([^[:space:];&|]*/|\.\.?)["']?)?([[:space:]]+[0-9]*[<>][^;&|]*)?[[:space:]]*([;&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
 #
 # The next row is not about damage to the tree. It is about a command shape
 # that hangs the session that ran it, which this project learned on 2026-09-12

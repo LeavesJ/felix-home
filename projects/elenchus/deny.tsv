@@ -13,17 +13,20 @@
 #
 # Two rows refused commands that change nothing, until 2026-09-23. The gate
 # row matched the path after any space, so `ls -la ./scripts/gate.sh` was a
-# run; it now refuses the path where the shell runs it: first in a command,
-# or behind a keyword (if, do, !), a variable assignment, or a runner that
-# executes its operand (bash, sh, zsh, source, ., env, exec, command, time,
-# nohup, sudo, timeout N). A runner not named here walks past, as `bash -c`
-# already did. The staging row refused `git add -n -A` and `git add -A
-# --dry-run`, which stage nothing. A regex cannot say "unless -n", so it
+# run; it now refuses the path where the shell runs it: first on a line or in
+# a command, after `(`, `{` or a backquote, or behind a keyword (if, do, !),
+# a variable assignment, or a runner (bash, sh, zsh, source, ., env, exec,
+# command, time, nohup, sudo, timeout N) whatever flags it is given, so
+# `bash -n` and `command -v`, which only check or look the script up, are
+# refused too. A runner not named here walks past, as `bash -c` already did.
+# A line break reaches a row as a backslash and an `n`, so the start of a
+# line is named on its own. The staging row refused `git add -n -A` and
+# `git add -A --dry-run`, which stage nothing. A regex cannot say "unless -n", so it
 # refuses `git add` only when every other word in it is something else: a
 # short flag holding no n, a long flag not starting --d, or a path.
 #
 # tool	extended-regex	reason
-Bash	(^|[;&|])[[:space:]]*((if|then|else|elif|do|while|until|!|time|nohup|exec|command|sudo|env|bash|sh|zsh|source|\.|timeout[[:space:]]+[^[:space:];&|]+|[A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*)([[:space:]]+-[^[:space:];&|]+)*[[:space:]]+)*\./scripts/gate\.sh	scripts/gate.sh is a stale copy missing the secret check. Run: felix gate
+Bash	(^|[;&|({`]|\\n)[[:space:]]*((if|then|else|elif|do|while|until|!|time|nohup|exec|command|sudo|env|bash|sh|zsh|source|\.|timeout[[:space:]]+[^[:space:];&|]+|[A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*)([[:space:]]+-[^[:space:];&|]+)*[[:space:]]+)*\./scripts/gate\.sh	scripts/gate.sh is a stale copy missing the secret check. Run: felix gate
 Bash	git add( +(-[^-n[:space:];&|][^n[:space:];&|]*|--([^d[:space:];&|][^[:space:];&|]*)?|[^-[:space:];&|][^[:space:];&|]*))* +(-A|--all|\.)( +(-[^-n[:space:];&|][^n[:space:];&|]*|--([^d[:space:];&|][^[:space:];&|]*)?|[^-[:space:];&|][^[:space:];&|]*))* *([;&|)]|$)	stage explicit paths. -A stages what you have not read, and data/ and confidential docs never enter git
 Bash	git add ([^;&|]* )?-f( |$)	never force-add an ignored file. The ignore rule is the last thing between a secret and a public repo
 Bash	git push ([^;&|]* )?(--force|-f)( |$)	force push is T3. It drops commits, and the founder decides that

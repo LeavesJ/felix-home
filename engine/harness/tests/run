@@ -17118,6 +17118,12 @@ has "and the refusal is the gate's own"     "$_out" "gate"
 is  "and refusing costs no continuation"    "$(_ovfield "$WP" 3 night-red)" "12"
 # Asked on a red tree, where the gate would refuse anybody who got that far.
 # On a green one nothing blocks a bystander, so the exit could not be seen.
+# The chain is one Felix started, by holding the bystander's own stop first:
+# a flagged stop with no hold of Felix's before it belongs to another hook's
+# chain and is judged (felix_hold_take, asserted in the completion gate's
+# section), which is the case this used to be asked without.
+_out="$(_ovstop night-bystander false "$OVTX")"
+_ovblocks "a session with no night is held on a red tree like any other" "$_out"
 _out="$(_ovstop night-bystander true "$OVTX")"
 _ovholds_open "and a chain in a session with no night still ends as the platform asks" "$_out"
 # Inside the chain the night carried the session past the platform's bound, so

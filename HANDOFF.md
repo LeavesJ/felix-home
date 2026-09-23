@@ -35,7 +35,7 @@ tree; the engine is published as a snapshot with no history at
 ### 0bw. 2026-09-23 (day) — a turn another hook woke ended unchecked, measured on the real binary, and the Stop hold now knows its own chain
 
 **One engine PR from this session, branch `claude/stop-hold-own-chain`, engine
-0.49.162** (clear of #310's .160 and #315's .161). The Stop hook left at
+0.49.163** (#321 took .162 while this branch's suite ran; #310 and #315 hold .160 and .161). The Stop hook left at
 `stop_hook_active` whoever had set it. It now honours the flag only at the stop
 its own hold started (`state/held/<sid>`, `felix_hold_*` in `lib/verify.sh`),
 and judges any other flagged stop like an unflagged one.

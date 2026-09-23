@@ -13867,6 +13867,13 @@ is "a file written by a file the command runs is followed there as well" "$rc" "
 {"tool_name":"Bash","tool_input":{"command":"bash <<'EOF'\ngit push --force origin main\nEOF"}}
 J
 is "a here-document a shell reads is code" "$rc" "2"
+# With -s the words after the shell are positional parameters, not a script
+# file, so the body is still its script. 0.49.152 took the first of them for a
+# file and read the body as data; found by the session scoping deny rows.
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"bash -s \"/tmp/gov\" <<'EOF'\ngit push --force origin main\nEOF"}}
+J
+is "and so is one handed to bash -s with arguments" "$rc" "2"
 ( cd "$REPO" && _prb ) <<'J'; rc=$?
 {"tool_name":"Bash","tool_input":{"command":"cat <<EOF\n$(git push --force origin main)\nEOF"}}
 J

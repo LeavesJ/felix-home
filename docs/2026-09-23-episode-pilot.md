@@ -484,9 +484,8 @@ reconstructed before any rule is built on the pilot alone:
 
 ## 10. What was the founder's to decide: DECIDED 2026-09-23
 
-Two things changed a standing direction or asked for the founder's time.
-Everything else here (the capture fixes, the turn table, the mechanisms, the
-next batch) is Felix's to build under the roadmap.
+Two things changed a standing direction or asked for the founder's time; the
+rest of this report is Felix's to build under the roadmap.
 
 1. **Direction-level documents wait for a yes before merging.** This covers
    roadmaps, the charter's account of what Felix is, and amendments over the

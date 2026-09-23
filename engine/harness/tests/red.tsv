@@ -4,29 +4,5 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	f224b0caeca78ef0323bd0308077f975e8498519	0.49.145
-run	24	3015	6
-a branch the gate has not run on has no latest run	1
-a count or a latest run asked for no workflow is refused, not every workflow's	1
-a failure in another workflow on the branch does not dirty a green pull request	1
-a gate_workflow that is not a file name is refused, and named	1
-a project that names its gate workflow is repaired from that workflow's run	1
-a repository without the gate workflow makes no pull request clean	1
-and a history read for no workflow is unknown	1
-and bootstrap looks for the workflow the project names	1
-and counts only the gate's failures against the ceiling	1
-and every run list felix automerge makes names the gate workflow	1
-and every run list felix repair makes names the gate workflow	1
-and every run list names that workflow	1
-and felix unattended's streak row counts the gate's runs alone	1
-and hands on no failing output as if attempts remained	1
-and its repair ceiling does not read as unspent	1
-and none of them asks gh for every workflow's runs	1
-and nothing is asked of gh	1
-and repair hears the gate's runs could not be read, not that there are none	1
-and the run repair is handed is the gate's, not the newest of any workflow	1
-another workflow's failures on the branch are not repair attempts	1
-every run list those three make names the gate workflow	1
-felix automerge judges a green pull request by the gate's runs alone	1
-felix repair reads the gate's run on the branch	1
-felix repair stops at the ceiling when its attempts cannot be counted	1
+base	origin/main	eecfa506976aeaaa692b75e94911630f2cde877f	0.49.147
+run	0	3016	6

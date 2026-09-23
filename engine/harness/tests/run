@@ -16172,19 +16172,25 @@ printf '\na night the founder granted\n'
 # overnight state and the two would otherwise be reading each other's files.
 # Memory is keyed on the project's basename, so the fixture needs both.
 NP="$TMP/nightproj"; mkdir -p "$NP" "$MEM/nightproj"
+# A night is granted to a session, so the library is driven for one.
+NS="lib-night"
 _ov() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/overnight.sh"; "$@" 2>&1 ); }
 _ovdir()   { _ov felix_overnight_dir "$1"; }
-_ovfile()  { printf '%s/active' "$(_ovdir "$1")"; }
+# A night is a session's, so every helper takes the session last. Given none, a
+# helper reads the one project-wide file an older engine wrote, which is still
+# read, swept and ended so that a night granted before the change is closed.
+_ovfile()  { if [ -n "${2:-}" ]; then printf '%s/nights/%s' "$(_ovdir "$1")" "$2"
+             else printf '%s/active' "$(_ovdir "$1")"; fi; }
 # One field of the one-line state. Read with awk rather than cut so a note that
 # smuggled in a newline shows up as a second record instead of being averaged
 # into the answer.
-_ovfield() { awk -F'\t' -v f="$2" 'NR==1 {print $f}' "$(_ovfile "$1")" 2>/dev/null; }
-_ovreset() { rm -f "$(_ovfile "$1")"; }
+_ovfield() { awk -F'\t' -v f="$2" 'NR==1 {print $f}' "$(_ovfile "$1" "${3:-}")" 2>/dev/null; }
+_ovreset() { local d; d="$(_ovdir "$1")"; rm -rf "$d/active" "$d/nights" "$d/marks"; }
 # Move the deadline into the past without touching any other field. The field
 # it edits is the one the assertion below proves is the deadline, which is the
 # only reason this rewrite is allowed to stand in for waiting eight hours.
 _ovexpire() {
-  local f p; f="$(_ovfile "$1")"; p="$(( $(date +%s) - 120 ))"
+  local f p; f="$(_ovfile "$1" "${2:-}")"; p="$(( $(date +%s) - 120 ))"
   awk -F'\t' -v OFS='\t' -v p="$p" 'NR==1 {$2=p} 1' "$f" > "$f.edit" && mv "$f.edit" "$f"
 }
 # The longest word in a sentence, for asking whether some other surface repeated
@@ -16194,25 +16200,25 @@ _ovword() { printf '%s' "$1" | tr -cs 'A-Za-z' '\n' | awk '{ if (length($0) > le
 
 _ovreset "$NP"
 _now="$(date +%s)"
-_ov felix_overnight_start "$NP" 8 5 sess-a "the founder granted a night" >/dev/null
-_ov felix_overnight_active "$NP" && ok "a granted night is in progress" \
-                                 || bad "a granted night is in progress" "$(cat "$(_ovfile "$NP")" 2>/dev/null)"
+_ov felix_overnight_start "$NP" 8 5 "$NS" "the founder granted a night" >/dev/null
+_ov felix_overnight_active "$NP" "$NS" && ok "a granted night is in progress" \
+                                 || bad "a granted night is in progress" "$(cat "$(_ovfile "$NP" "$NS")" 2>/dev/null)"
 # Eight hours means eight hours, and the assertion is here as much for the
 # tests as for the product: the expiry fixtures below rewrite field two, and
 # without this they could be rewriting the wrong number and proving nothing.
-_delta=$(( $(_ovfield "$NP" 2) - _now ))
+_delta=$(( $(_ovfield "$NP" 2 "$NS") - _now ))
 is "an eight-hour grant runs until eight hours from now" \
    "$([ "$_delta" -ge 28700 ] && [ "$_delta" -le 28900 ] && echo yes || echo "no ($_delta seconds)")" "yes"
 
 # Three bounds, and a night is live only while all three hold. Each is armed on
 # its own so a failure names the bound rather than the feature.
-_ovexpire "$NP"; _past="$(_ov felix_overnight_active "$NP" && echo yes || echo no)"
-_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 1 sess-b "one turn" >/dev/null
-_ov felix_overnight_spend "$NP" 0 >/dev/null
-_spent="$(_ov felix_overnight_active "$NP" && echo yes || echo no)"
-_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 5 sess-c "quiet" >/dev/null
-_ov felix_overnight_spend "$NP" 1 >/dev/null; _ov felix_overnight_spend "$NP" 1 >/dev/null
-_quiet="$(_ov felix_overnight_active "$NP" && echo yes || echo no)"
+_ovexpire "$NP" "$NS"; _past="$(_ov felix_overnight_active "$NP" "$NS" && echo yes || echo no)"
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 1 "$NS" "one turn" >/dev/null
+_ov felix_overnight_spend "$NP" 0 "$NS" >/dev/null
+_spent="$(_ov felix_overnight_active "$NP" "$NS" && echo yes || echo no)"
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 5 "$NS" "quiet" >/dev/null
+_ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null; _ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null
+_quiet="$(_ov felix_overnight_active "$NP" "$NS" && echo yes || echo no)"
 is "any one bound reached ends the night, whichever it is" \
    "deadline:$_past turns:$_spent quiet:$_quiet" "deadline:no turns:no quiet:no"
 
@@ -16220,24 +16226,24 @@ is "any one bound reached ends the night, whichever it is" \
 # identical from the outside: a night nobody granted and a night still running
 # both mean "do not write the morning page". Only the third has anything to say.
 _ovreset "$NP"
-_none="$(_ov felix_overnight_expired "$NP")"; _nonerc=$?
-_ov felix_overnight_start "$NP" 8 5 sess-d "live" >/dev/null
-_live="$(_ov felix_overnight_expired "$NP")"; _liverc=$?
+_none="$(_ov felix_overnight_expired "$NP" "$NS")"; _nonerc=$?
+_ov felix_overnight_start "$NP" 8 5 "$NS" "live" >/dev/null
+_live="$(_ov felix_overnight_expired "$NP" "$NS")"; _liverc=$?
 is "a night nobody granted is not an expired night" "$_nonerc:[$_none]" "1:[]"
 is "and neither is one that is still running"       "$_liverc:[$_live]" "1:[]"
 
-_ovexpire "$NP"
-_whytime="$(_ov felix_overnight_expired "$NP")"; _timerc=$?
+_ovexpire "$NP" "$NS"
+_whytime="$(_ov felix_overnight_expired "$NP" "$NS")"; _timerc=$?
 is "a deadline that has passed ends the night and says so" \
    "$_timerc:$([ -n "$_whytime" ] && echo said || echo silent)" "0:said"
-_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 1 sess-e "one turn" >/dev/null
-_ov felix_overnight_spend "$NP" 0 >/dev/null
-_whyturns="$(_ov felix_overnight_expired "$NP")"; _turnsrc=$?
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 1 "$NS" "one turn" >/dev/null
+_ov felix_overnight_spend "$NP" 0 "$NS" >/dev/null
+_whyturns="$(_ov felix_overnight_expired "$NP" "$NS")"; _turnsrc=$?
 is "continuations run out and the night ends" \
    "$_turnsrc:$([ -n "$_whyturns" ] && echo said || echo silent)" "0:said"
-_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 5 sess-f "quiet" >/dev/null
-_ov felix_overnight_spend "$NP" 1 >/dev/null; _ov felix_overnight_spend "$NP" 1 >/dev/null
-_whyquiet="$(_ov felix_overnight_expired "$NP")"; _quietrc=$?
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 5 "$NS" "quiet" >/dev/null
+_ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null; _ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null
+_whyquiet="$(_ov felix_overnight_expired "$NP" "$NS")"; _quietrc=$?
 is "two runs with nothing to show end the night too" \
    "$_quietrc:$([ -n "$_whyquiet" ] && echo said || echo silent)" "0:said"
 # The morning has to know which wall it hit. One sentence for all three is a
@@ -16251,61 +16257,77 @@ printf '\nwhat a grant refuses\n'
 # the feature. `felix overnight --start 0.5` that rounds, or `--start 100` that
 # is accepted, is a session running unattended for as long as it feels like.
 _ovreset "$NP"
-_ov felix_overnight_start "$NP" 8.5 5 sess-g "half" >/dev/null 2>&1 \
+_ov felix_overnight_start "$NP" 8.5 5 "$NS" "half" >/dev/null 2>&1 \
   && bad "half an hour is not a whole number of hours" "accepted" \
   || ok  "half an hour is not a whole number of hours"
-_zero="$(_ov felix_overnight_start "$NP" 0 5 sess-h "none")"; _zerorc=$?
+_zero="$(_ov felix_overnight_start "$NP" 0 5 "$NS" "none")"; _zerorc=$?
 [ "$_zerorc" -ne 0 ] && ok "a night of zero hours is not a night" \
                      || bad "a night of zero hours is not a night" "accepted"
 # Refusing without saying why leaves a founder retyping the same command.
 is "and a refused grant says why" "$([ -n "$_zero" ] && echo said || echo silent)" "said"
-_ov felix_overnight_start "$NP" 17 5 sess-i "too long" >/dev/null 2>&1 \
+_ov felix_overnight_start "$NP" 17 5 "$NS" "too long" >/dev/null 2>&1 \
   && bad "seventeen hours is past the ceiling" "accepted" \
   || ok  "seventeen hours is past the ceiling"
-_ov felix_overnight_start "$NP" 8 0 sess-j "no turns" >/dev/null 2>&1 \
+_ov felix_overnight_start "$NP" 8 0 "$NS" "no turns" >/dev/null 2>&1 \
   && bad "a night with no continuations in it is refused" "accepted" \
   || ok  "a night with no continuations in it is refused"
+# Continuations have had teeth since a night carries through the platform's
+# chain, so their count has a ceiling as the hours do.
+_ov felix_overnight_start "$NP" 8 201 "$NS" "too many" >/dev/null 2>&1 \
+  && bad "two hundred and one continuations is past the ceiling" "accepted" \
+  || ok  "two hundred and one continuations is past the ceiling"
+# Nobody to hold is nobody to grant a night to.
+_ov felix_overnight_start "$NP" 8 5 "" "whose?" >/dev/null 2>&1 \
+  && bad "a night granted to no session is refused" "accepted" \
+  || ok  "a night granted to no session is refused"
+_ov felix_overnight_start "$NP" 8 5 "../../elsewhere" "a path" >/dev/null 2>&1 \
+  && bad "and so is one whose session id would name a path" "accepted" \
+  || ok  "and so is one whose session id would name a path"
 # The control. Without it every assertion above is satisfied by a start that
 # refuses everything, which is the shape a blanket guard clause takes.
 is "and nothing was granted by any of them" \
-   "$([ -f "$(_ovfile "$NP")" ] && echo granted || echo none)" "none"
-_ov felix_overnight_start "$NP" 16 5 sess-k "the ceiling itself" >/dev/null 2>&1 \
+   "$([ -f "$(_ovfile "$NP" "$NS")" ] && echo granted || echo none)" "none"
+_ov felix_overnight_start "$NP" 16 5 "$NS" "the ceiling itself" >/dev/null 2>&1 \
   && ok  "the ceiling itself is still a night somebody can be granted" \
   || bad "the ceiling itself is still a night somebody can be granted" "16 refused"
+_ovreset "$NP"
+_ov felix_overnight_start "$NP" 8 200 "$NS" "the turn ceiling itself" >/dev/null 2>&1 \
+  && ok  "and so is the continuation ceiling itself" \
+  || bad "and so is the continuation ceiling itself" "200 refused"
 
 # The state is one line, and the note is the only field a person types. A tab
 # in it silently adds a column; a newline adds a whole second night. Either way
 # the next read gets a deadline that is not a deadline.
 _ovreset "$NP"
-_ov felix_overnight_start "$NP" 2 3 sess-l "$(printf 'ship it\tthen\nsleep')" >/dev/null 2>&1
+_ov felix_overnight_start "$NP" 2 3 "$NS" "$(printf 'ship it\tthen\nsleep')" >/dev/null 2>&1
 is "a note carrying a tab and a newline still leaves one line of six fields" \
-   "$(awk 'END {print NR}' "$(_ovfile "$NP")" 2>/dev/null):$(awk -F'\t' 'NR==1 {print NF}' "$(_ovfile "$NP")" 2>/dev/null)" \
+   "$(awk 'END {print NR}' "$(_ovfile "$NP" "$NS")" 2>/dev/null):$(awk -F'\t' 'NR==1 {print NF}' "$(_ovfile "$NP" "$NS")" 2>/dev/null)" \
    "1:6"
 
 printf '\nspending the night down\n'
 _ovreset "$NP"
-_ov felix_overnight_start "$NP" 8 5 sess-m "five turns" >/dev/null
-_said="$(_ov felix_overnight_spend "$NP" 0)"
-is "one continuation is spent per turn, not two" "$(_ovfield "$NP" 3)" "4"
+_ov felix_overnight_start "$NP" 8 5 "$NS" "five turns" >/dev/null
+_said="$(_ov felix_overnight_spend "$NP" 0 "$NS")"
+is "one continuation is spent per turn, not two" "$(_ovfield "$NP" 3 "$NS")" "4"
 # The budget lesson, in a second place: a count worked out in advance and
 # printed is not the count that was written down.
 has "and the number it reports is the number it stored" "$_said" "4"
-_ov felix_overnight_spend "$NP" 1 >/dev/null; _ov felix_overnight_spend "$NP" 1 >/dev/null
-is "runs with nothing to show accumulate" "$(_ov felix_overnight_quiets "$NP")" "2"
-_ov felix_overnight_spend "$NP" 0 >/dev/null
-is "and a turn that did something clears the count" "$(_ov felix_overnight_quiets "$NP")" "0"
+_ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null; _ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null
+is "runs with nothing to show accumulate" "$(_ov felix_overnight_quiets "$NP" "$NS")" "2"
+_ov felix_overnight_spend "$NP" 0 "$NS" >/dev/null
+is "and a turn that did something clears the count" "$(_ov felix_overnight_quiets "$NP" "$NS")" "0"
 # A negative continuation count reads as "below the limit" to any comparison
 # written the obvious way, which turns an exhausted night into an endless one.
 _ovreset "$NP"
-_ov felix_overnight_start "$NP" 8 1 sess-n "last turn" >/dev/null
-_ov felix_overnight_spend "$NP" 0 >/dev/null; _ov felix_overnight_spend "$NP" 0 >/dev/null
-is "spending past the last continuation stops at zero" "$(_ovfield "$NP" 3)" "0"
+_ov felix_overnight_start "$NP" 8 1 "$NS" "last turn" >/dev/null
+_ov felix_overnight_spend "$NP" 0 "$NS" >/dev/null; _ov felix_overnight_spend "$NP" 0 "$NS" >/dev/null
+is "spending past the last continuation stops at zero" "$(_ovfield "$NP" 3 "$NS")" "0"
 
 printf '\nwhat is waiting for a person in the morning\n'
 # The queue is the whole reason a night is allowed at all: the session does not
 # stop to ask, so every question it did not ask has to be written down.
 _ovreset "$NP"; rm -f "$(_ovdir "$NP")/deferred.tsv"
-_ov felix_overnight_start "$NP" 8 5 sess-o "queue" >/dev/null
+_ov felix_overnight_start "$NP" 8 5 "$NS" "queue" >/dev/null
 _ov felix_overnight_defer "$NP" question "which name to publish under" "felix overnight --report" >/dev/null
 _ov felix_overnight_defer "$NP" blocked "the staging token expired" "op signin staging" >/dev/null
 is "two deferrals are two things waiting" "$(_ov felix_overnight_deferred_count "$NP")" "2"
@@ -16328,13 +16350,13 @@ printf '\nthe Stop hook through a granted night\n'
 # assertion below pass without measuring anything.
 OVSTOP="$FROOT/harness/hooks/stop"
 WP="$FROOT/projects/widget"
-cat > "$WP/project.json" <<'EOF'
+cat > "$WP/project.json" <<'EOF2'
 {
   "name": "widget",
   "remote_match": "example.com/widget",
   "gate": "sh -c 'test -f WIDGET.txt && echo widget-gate-ran'"
 }
-EOF
+EOF2
 NREPO="$TMP/nightrepo"
 mkdir -p "$NREPO"
 ( cd "$NREPO" && git init -q -b main
@@ -16347,16 +16369,28 @@ mkdir -p "$NREPO"
 # recognise and every green case below reads as a block.
 NREPO="$(cd "$NREPO" && pwd -P)"
 # An edit the session made, then a gate run over exactly that tree: this is the
-# state the hook is designed for, and the only one in which the overnight branch
-# is reached at all.
+# state the hook is designed for. A clean tree reaches the night too, and is
+# measured on its own repository further down.
 printf 'night work\n' >> "$NREPO/WIDGET.txt"
 _ovgate="$(cd "$NREPO" && "$FELIX" gate 2>&1)"; _ovgaterc=$?
 is "the fixture tree is green before any night is granted" "$_ovgaterc" "0"
 
-_ovstop() { ( cd "$NREPO" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s"}' "$1" | "$OVSTOP" 2>&1 ); }
+# The payload names the session, says whether the platform is already
+# continuing from a block, and points at the transcript the night reads to
+# tell work from idling. A tool call is a record whose key is the type; a
+# message that only talks about one carries the same words escaped.
+OVTX="$TMP/night-transcript.jsonl"; : > "$OVTX"
+_ovtool() { printf '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash"}]}}\n' >> "$OVTX"; }
+_ovtalk() { printf '{"type":"assistant","message":{"content":[{"type":"text","text":"no call here, only the words \\"type\\":\\"tool_use\\""}]}}\n' >> "$OVTX"; }
+_ovstopin() {   # dir, sid [, stop_hook_active [, transcript]]
+  ( cd "$1" && printf '{"hook_event_name":"Stop","stop_hook_active":%s,"session_id":"%s","transcript_path":"%s"}' \
+      "${3:-false}" "$2" "${4:-}" | "$OVSTOP" 2>&1 )
+}
+_ovstop() { _ovstopin "$NREPO" "$@"; }
 _ovblocks() { case "$2" in *'"decision"'*'"block"'*) ok "$1" ;; *) bad "$1" "expected a block, got [$2]" ;; esac; }
 _ovholds_open() { case "$2" in *'"decision"'*'"block"'*) bad "$1" "expected no block, got [$2]" ;; *) ok "$1" ;; esac; }
 _ovsays_night() { printf '%s\n' "$2" | grep -qi 'overnight'; }
+_ovgone() { [ -f "$(_ovfile "$1" "${2:-}")" ] && echo present || echo gone; }
 
 _ovreset "$WP"
 _out="$(_ovstop night-none)"
@@ -16367,19 +16401,57 @@ _ovsays_night x "$_out" && bad "and says nothing about a night nobody granted" "
 # The grant, and the behaviour it buys: the session is handed back its own turn
 # instead of being allowed to stop and wait for somebody who is asleep.
 _ov felix_overnight_start "$WP" 8 12 night-live "a granted night" >/dev/null
-_out="$(_ovstop night-live)"
+_ovtool
+_out="$(_ovstop night-live false "$OVTX")"
 _ovblocks "a granted night hands the session its turn back instead" "$_out"
-is  "and exactly one continuation is spent for it" "$(_ovfield "$WP" 3)" "11"
+is  "and exactly one continuation is spent for it" "$(_ovfield "$WP" 3 night-live)" "11"
 has "and the session is told how many are left"    "$_out" "11"
+
+# A night is the session's it was granted to. The project held every session
+# in it at every stop until this was keyed, and they all spent one budget.
+_out="$(_ovstop night-bystander)"
+_ovholds_open "another session in the same project is not held by that night" "$_out"
+is "and its stop costs that night nothing" "$(_ovfield "$WP" 3 night-live)" "11"
+
+# The platform marks every stop after a block. Leaving at that mark held a
+# night's session once per prompt, so a session nobody typed into got one
+# continuation for the whole night.
+_ovtool
+_out="$(_ovstop night-live true "$OVTX")"
+_ovblocks "the night's own session is held again inside the platform's chain" "$_out"
+is "and that continuation is spent like any other" "$(_ovfield "$WP" 3 night-live)" "10"
+_out="$(_ovstop night-bystander true "$OVTX")"
+_ovholds_open "and a chain in a session with no night still ends as the platform asks" "$_out"
+
+# Quiet is read off the transcript: a continuation that called no tool. Prose
+# that quotes a tool call is not one, or a session describing its work would
+# stay awake forever.
+_ovtalk
+_out="$(_ovstop night-live true "$OVTX")"
+_ovblocks "one continuation that called no tool is not yet the end of the night" "$_out"
+is "and it is counted as quiet, prose about a tool call included" "$(_ovfield "$WP" 4 night-live)" "1"
+_ovtool
+_ovstop night-live true "$OVTX" >/dev/null
+is "a tool call after it clears the count" "$(_ovfield "$WP" 4 night-live)" "0"
+_ovtalk; _ovstop night-live true "$OVTX" >/dev/null
+_ovtalk; _out="$(_ovstop night-live true "$OVTX")"
+_ovholds_open "two continuations in a row that call no tool end the night" "$_out"
+is "and the night is closed, not left for the next stop" "$(_ovgone "$WP" night-live)" "gone"
+has "and the hand-back says it was the idling that ended it" "$_out" "called no tool"
+# Unknown is quiet: a hold nobody can show bought any work must not repeat.
+_ov felix_overnight_start "$WP" 8 12 night-blind "no transcript" >/dev/null
+_ovstop night-blind false "$TMP/no-such-transcript.jsonl" >/dev/null
+is "a transcript that cannot be read counts as a quiet continuation" "$(_ovfield "$WP" 4 night-blind)" "1"
+_ov felix_overnight_end "$WP" "done" night-blind
 
 # Morning. The deadline is the bound that ends most nights, and the session that
 # meets it must be allowed to stop — with the page, not with a block.
-_ovexpire "$WP"
-_whystop="$(_ov felix_overnight_expired "$WP")"
-_out="$(_ovstop night-over)"
+_ov felix_overnight_start "$WP" 8 12 night-live "a granted night" >/dev/null
+_ovexpire "$WP" night-live
+_whystop="$(_ov felix_overnight_expired "$WP" night-live)"
+_out="$(_ovstop night-live)"
 _ovholds_open "a night that ran out of time lets the session stop" "$_out"
-is "and the grant is not left lying around for the next session" \
-   "$([ -f "$(_ovfile "$WP")" ] && echo present || echo gone)" "gone"
+is "and the grant is not left lying around for the next session" "$(_ovgone "$WP" night-live)" "gone"
 _tok="$(_ovword "$_whystop")"
 if [ "${#_tok}" -lt 4 ]; then
   bad "and the hand-back names the bound that ended the night" "nothing to look for in [$_whystop]"
@@ -16397,17 +16469,53 @@ _ov felix_overnight_start "$WP" 8 12 night-red "a granted night" >/dev/null
 _out="$(_ovstop night-red)"
 _ovblocks "a red gate outranks the grant"   "$_out"
 has "and the refusal is the gate's own"     "$_out" "gate"
-is  "and refusing costs no continuation"    "$(_ovfield "$WP" 3)" "12"
+is  "and refusing costs no continuation"    "$(_ovfield "$WP" 3 night-red)" "12"
+# Inside the chain the night carried the session past the platform's bound, so
+# a refusal there is the night's to pay for, or a gate that cannot go green
+# holds the session for as long as the platform allows.
+_ovtool
+_out="$(_ovstop night-red true "$OVTX")"
+_ovblocks "inside the night's chain a red gate still refuses" "$_out"
+is  "and there the refusal is charged to the night" "$(_ovfield "$WP" 3 night-red)" "11"
+_ov felix_overnight_start "$WP" 8 1 night-redlast "one continuation" >/dev/null
+_ovtool
+_out="$(_ovstop night-redlast true "$OVTX")"
+_ovholds_open "a night spent down on refusals lets the session close" "$_out"
+is "and hands over the page as it goes" "$(_ovgone "$WP" night-redlast)" "gone"
 printf 'contents\nnight work\n' > "$NREPO/WIDGET.txt"
+# Green again, so a stop below that is not held is not held for the night's
+# reasons rather than because the gate refused.
+( cd "$NREPO" && "$FELIX" gate ) >/dev/null 2>&1
+
+# A tree with nothing to verify let the session close before this, night or
+# no night, so a session that had not committed yet was let go for the night.
+CREPO="$TMP/nightclean"
+mkdir -p "$CREPO"
+( cd "$CREPO" && git init -q -b main
+  printf 'contents\n' > WIDGET.txt
+  printf 'widget\n'   > .felix
+  git add -A >/dev/null 2>&1
+  git -c user.name=t -c user.email=t@t commit -qm init >/dev/null 2>&1 )
+CREPO="$(cd "$CREPO" && pwd -P)"
+_ovreset "$WP"
+_out="$(_ovstopin "$CREPO" night-clean)"
+_ovholds_open "a clean tree with no night still closes in silence" "$_out"
+_ov felix_overnight_start "$WP" 8 12 night-clean "a granted night" >/dev/null
+_ovtool
+_out="$(_ovstopin "$CREPO" night-clean false "$OVTX")"
+_ovblocks "a clean tree does not end the night of the session standing in it" "$_out"
+_ovreset "$WP"
 
 printf '\nwhat the next session is told\n'
 # The direction has to reach the session that will act on it, and the only
 # channel for that is the start of the session. Said when no night is running it
-# is an instruction to work unattended that nobody granted.
-_ovnstart() { ( cd "$NREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1 ); }
+# is an instruction to work unattended that nobody granted, and said to a
+# session the night is not for, it is the same instruction.
+_ovnstart() { ( cd "$NREPO" && printf '{"hook_event_name":"SessionStart","source":"startup","session_id":"%s"}' "$1" \
+                  | CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1 ); }
 _ovreset "$WP"
 _ov felix_overnight_start "$WP" 8 12 night-start "a granted night" >/dev/null
-_out="$(_ovnstart)"
+_out="$(_ovnstart night-start)"
 # Asked against the direction the library hands out, not against the word
 # "overnight" appearing somewhere in the context. A hook that says a night is on
 # and mounts none of the standing direction is the failure this exists to catch,
@@ -16416,26 +16524,59 @@ _out="$(_ovnstart)"
 _ovline="$(_ov felix_overnight_direction | awk '{ if (length($0) > length(m)) m = $0 } END { print m }')"
 if [ "${#_ovline}" -lt 20 ]; then
   bad "a live night is mounted into the next session's context" "no direction to look for"
+  bad "and not into a session the night does not belong to" "no direction to look for"
 else
   has "a live night is mounted into the next session's context" "$_out" "$_ovline"
+  _out="$(_ovnstart night-bystander)"
+  case "$_out" in *"$_ovline"*) bad "and not into a session the night does not belong to" "$_out" ;;
+                  *) ok "and not into a session the night does not belong to" ;; esac
 fi
+# The one file per project an older engine wrote is read and ended, and holds
+# nobody: a night granted before nights were a session's is not announced to
+# whichever session happens to start, which is the defect itself.
 _ovreset "$WP"
-_out="$(_ovnstart)"
+mkdir -p "$(_ovdir "$WP")"
+printf '%s\t%s\t12\t0\t-\tgranted under an older engine\n' "$(date +%s)" "$(( $(date +%s) + 3600 ))" > "$(_ovfile "$WP")"
+_out="$(_ovnstart night-upgraded)"
+case "$_out" in *"${_ovline:-no direction}"*) bad "a night an older engine granted to the project is announced to no session" "$_out" ;;
+                *) ok "a night an older engine granted to the project is announced to no session" ;; esac
+_out="$(_ovstop night-upgraded)"
+_ovholds_open "and holds no session at its stop" "$_out"
+# A session that closed before its night ran out leaves the night behind, and
+# with a night per session nothing else would ever read it again. The session
+# that starts next ends the ones whose deadline passed, and leaves the rest.
+_ovreset "$WP"
+_ov felix_overnight_start "$WP" 8 12 night-gone "its session closed early" >/dev/null
+_ov felix_overnight_start "$WP" 8 12 night-running "still inside its deadline" >/dev/null
+_ovexpire "$WP" night-gone
+_ovnstart night-sweeper >/dev/null
+is "a later session ends a night whose deadline passed, and only that one" \
+   "$(_ovgone "$WP" night-gone):$(_ovgone "$WP" night-running)" "gone:present"
+_ovreset "$WP"
+_out="$(_ovnstart night-none)"
 _ovsays_night x "$_out" && bad "and no night is announced when none was granted" "$_out" \
                         || ok  "and no night is announced when none was granted"
 
 printf '\nthe command a founder types\n'
 # The surface itself. Everything above is reachable only through this, and a
 # flag that silently does nothing is indistinguishable from a night that went
-# well.
-_ovcli() { ( cd "$NREPO" && "$FELIX" overnight "$@" 2>&1 ); }
+# well. The session is set by hand, because the suite runs both inside a
+# session that exports one and on a runner that exports none.
+_ovcli()   { ( cd "$NREPO" && CLAUDE_CODE_SESSION_ID=night-cli "$FELIX" overnight "$@" 2>&1 ); }
+_ovcli2()  { ( cd "$NREPO" && CLAUDE_CODE_SESSION_ID=night-cli2 "$FELIX" overnight "$@" 2>&1 ); }
+_ovcliterm() { ( cd "$NREPO" && env -u CLAUDE_CODE_SESSION_ID "$FELIX" overnight "$@" 2>&1 ); }
+_ovnights() { _ov felix_overnight_nights "$WP" | grep -c .; }
 _ovreset "$WP"; rm -f "$(_ovdir "$WP")/deferred.tsv"
 _out="$(_ovcli)"; _rc=$?
 is "felix overnight with no arguments says where the night stands" \
    "$_rc:$([ -n "$_out" ] && echo said || echo silent)" "0:said"
 _ovcli --start --hours 2 --turns 6 --note "granted from the command line" >/dev/null 2>&1
-_ov felix_overnight_active "$WP" && ok "--start grants the night" \
-                                 || bad "--start grants the night" "no state at $(_ovfile "$WP")"
+_ov felix_overnight_active "$WP" night-cli && ok "--start grants the night" \
+                                           || bad "--start grants the night" "no state at $(_ovfile "$WP" night-cli)"
+is "and grants it to the session it was typed in, and no other" "$(_ovnights)" "1"
+_ovcli2 --start --hours 3 >/dev/null 2>&1
+is "a second session's grant is a second night, not a replacement" \
+   "$(_ovnights):$(_ovfield "$WP" 3 night-cli)" "2:6"
 _ovcli --defer question --what "which name to publish under" --unblock "felix overnight --report" >/dev/null 2>&1
 is "--defer writes the decision down for the morning" "$(_ov felix_overnight_deferred_count "$WP")" "1"
 # A kind nobody defined means a queue nobody can sort in the morning, and the
@@ -16445,11 +16586,30 @@ is "a kind nobody defined is refused, with a reason" \
    "$([ "$_rc" -ne 0 ] && [ -n "$_out" ] && echo refused || echo "accepted ($_rc)")" "refused"
 _out="$(_ovcli --report)"; _rc=$?
 is "--report prints the morning page" "$_rc:$([ -n "$_out" ] && echo said || echo silent)" "0:said"
+is  "and the page shows every session's night, not only the reader's" \
+    "$(printf '%s\n' "$_out" | grep -c '^  session night-cl')" "2"
 _ovcli --clear >/dev/null 2>&1
 is "--clear empties the queue" "$(_ov felix_overnight_deferred_count "$WP")" "0"
 _ovcli --end >/dev/null 2>&1
-_ov felix_overnight_active "$WP" && bad "--end ends the night" "still live" \
-                                 || ok  "--end ends the night"
+_ov felix_overnight_active "$WP" night-cli && bad "--end ends the night" "still live" \
+                                           || ok  "--end ends the night"
+_ov felix_overnight_active "$WP" night-cli2 && ok "and ends that session's night and no other" \
+                                            || bad "and ends that session's night and no other" "night-cli2 ended too"
+# A terminal is inside no session, so there is nobody for a night typed there
+# to hold. It is refused with the way to type it inside one, and --end typed
+# there is a person's way out of every night at once.
+_out="$(_ovcliterm --start)"; _rc=$?
+is "a night typed outside every session is refused, and nothing is granted" \
+   "$([ "$_rc" -ne 0 ] && echo refused || echo accepted):$(_ovnights)" "refused:1"
+has "and the refusal says how to type it inside the session" "$_out" "! felix overnight --start"
+printf '%s\t%s\t12\t0\t-\tan older engine\n' "$(date +%s)" "$(( $(date +%s) + 3600 ))" > "$(_ovfile "$WP")"
+_ovcliterm --end >/dev/null 2>&1
+is "and --end typed there ends every night, an older engine's included" "$(_ovnights)" "0"
+# The id becomes a file name, and it arrives from the environment.
+_out="$( ( cd "$NREPO" && CLAUDE_CODE_SESSION_ID='../../escaped' "$FELIX" overnight --start 2>&1 ) )"; _rc=$?
+is "a session id that cannot name a file is refused, and nothing is granted" \
+   "$([ "$_rc" -ne 0 ] && echo refused || echo "accepted"):$(_ovnights)" "refused:0"
+_ovreset "$WP"
 
 printf '\ndecision epochs: the four things a decision was made under\n'
 # v3.2 §3 defines the epoch as hash(subject_identity, topology_version,

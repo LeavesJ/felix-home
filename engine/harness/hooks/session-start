@@ -468,21 +468,29 @@ one by command before acting on it."
 # arrives without anybody typing it, and a one-line reminder that something is
 # "on" would send the reader looking for what it means.
 #
-# Silence when no night is running, which is the ordinary case.
+# Silence when no night is running, which is the ordinary case, and silence
+# for every session but the one the night belongs to. A night is a session's,
+# not the project's (lib/overnight.sh), and telling a session somebody is
+# typing into that the founder is asleep is an instruction nobody gave it. The
+# session that starts also closes other sessions' nights whose time ran out,
+# since a session that closed early leaves its night where nothing else reads.
 overnight_line=""
-if felix_overnight_active "$PROJ"; then
-  _on_left="$(felix_overnight_field "$PROJ" 3)"
-  _on_wait="$(felix_overnight_deferred_count "$PROJ")"
-  overnight_line="
+if [ -n "${_felix_session:-}" ]; then
+  felix_overnight_sweep "$PROJ" "$_felix_session" >/dev/null 2>&1 || true
+  if felix_overnight_active "$PROJ" "$_felix_session"; then
+    _on_left="$(felix_overnight_field "$PROJ" 3 "$_felix_session")"
+    _on_wait="$(felix_overnight_deferred_count "$PROJ")"
+    overnight_line="
 $(felix_overnight_direction)
-Granted: ${_on_left} continuation(s) left, ${_on_wait} decision(s) already
-deferred for the morning. felix overnight --report reads them back.
+Granted to this session: ${_on_left} continuation(s) left, ${_on_wait} decision(s)
+already deferred for the morning. felix overnight --report reads them back.
 "
-elif [ -f "$(felix_overnight_dir "$PROJ")/active" ]; then
-  overnight_line="
-Overnight is over: $(felix_overnight_expired "$PROJ"). This is an ordinary
-session again. felix overnight --report, then --end to close it out.
+  elif felix_overnight_owns "$PROJ" "$_felix_session"; then
+    overnight_line="
+Overnight is over: $(felix_overnight_expired "$PROJ" "$_felix_session"). This is an
+ordinary session again. felix overnight --report, then --end to close it out.
 "
+  fi
 fi
 
 context="Felix governs this session.

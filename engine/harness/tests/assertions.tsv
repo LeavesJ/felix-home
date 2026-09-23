@@ -2,6 +2,7 @@
 1	--defer writes the decision down for the morning
 1	--dir pointed at one project's directory reads the transcripts in it
 1	--dir with no value exits non-zero
+1	--end --all from inside a session ends every night
 1	--end ends the night
 1	--gate names the checker never shown failing in this checkout
 1	--gate still passes with an answer file present
@@ -119,6 +120,8 @@
 1	a class the ledger does not know is refused for its class
 1	a clean checkout claims no rival gate
 1	a clean repo says so instead of minting a commit
+1	a clean tree does not end the night of the session standing in it
+1	a clean tree with no night still closes in silence
 1	a clear appends one lifecycle row of kind clear
 1	a code point past U+10FFFF is refused as not UTF-8, which the platform's iconv lets through
 1	a column marked optional is not a glob: a seven-cell stack row is refused beside files it would match
@@ -336,6 +339,7 @@
 1	a large payload whose awk fails part way has no subject, rather than the part it printed
 1	a large payload's subject is read by exactly one awk
 1	a later copy of the field in the envelope is not the subject
+1	a later session ends a night whose deadline passed, and only that one
 1	a leading --no-commission is the flag, while any other leading flag is still refused as a name
 1	a ledger from before the column reports nothing at all
 1	a ledger shard under a memory directory fails
@@ -420,9 +424,14 @@
 1	a new release target is a new epoch
 1	a new subject is a new epoch
 1	a new untracked file invalidates the receipt
+1	a night an older engine granted to the project is announced to no session
+1	a night granted to no session is refused
 1	a night nobody granted is not an expired night
 1	a night of zero hours is not a night
+1	a night spent down on refusals lets the session close
 1	a night that ran out of time lets the session stop
+1	a night typed outside every session is refused, and nothing is granted
+1	a night whose state cannot be written lets the session close
 1	a night with no continuations in it is refused
 1	a nomination that inspects clean is declared
 1	a nomination whose entry declares an LSP server is held for a person
@@ -665,14 +674,18 @@
 1	a script handed to bash -c or sh -c over 256K is read at both ends: a runner at its start or its end is a check
 1	a second catch-up finds nothing left
 1	a second full run refuses while one is in progress
+1	a second grant cannot take a session past the day's continuations
 1	a second hand-off in the same session stays quiet
 1	a second refresh while one is running does nothing
 1	a second run appends rather than replacing
+1	a second session's grant is a second night, not a replacement
 1	a second tree makes it a promotion candidate
 1	a sed script that starts with a slash is not taken for a path
 1	a server the registry says a plugin provides is proposed as a plugin row
+1	a session cannot grant a night to another session
 1	a session filed under two projects, and history copied into a resumed one, count once: 2 sessions, 1 stop, 1 hold
 1	a session folds on the first catch-up
+1	a session id that cannot name a file is refused, and nothing is written where it points
 1	a session in a worktree is told the holding checkout's line, word for word
 1	a session is read without its subagent files, which would add a check, a stop and a hold
 1	a session reports what was named and what was followed
@@ -759,6 +772,7 @@
 1	a three-field score answer is answered
 1	a tie is broken the same way whichever order the file lists
 1	a tool absent from the manifest is not a clean bill
+1	a tool call after it clears the count
 1	a tool that could not be checked is said, not counted as reachable
 1	a tool_use with its type key first is read by its own id and name, not by an id or a name nested in its input ahead of them
 1	a tracked table missing from the working tree fails
@@ -766,6 +780,7 @@
 1	a trailing slash resolves the same
 1	a transcript path holding a tab still leaves nine lifecycle fields, the path kept whole in field 8
 1	a transcript that cannot be opened is named in the report, not silently left out
+1	a transcript that cannot be read counts as a quiet continuation
 1	a transcript with no timestamped record is said to be skipped for it, counted and in the singular or plural, beside sessions or none
 1	a tree row no table matches is not a failure: some tables are absent until written
 1	a tree that changed is named before a fact that moved
@@ -1015,6 +1030,7 @@
 1	an unverified tree is the first thing to do
 1	an unwritable state directory still exits 0
 1	an upper-case hash, a bad stamp or an empty grantor is no grant
+1	and --end typed there ends every night, an older engine's included
 1	and --fix does not exit 0 when every repair failed
 1	and --gate does not raise it
 1	and --gate names the row and the verdict its control demands
@@ -1033,6 +1049,7 @@
 1	and a cache file that is not there reads as no digest either
 1	and a call from a worktree is held by the same lock, there being one graph
 1	and a catalogue that was read and matched nothing is exit 0
+1	and a chain in a session with no night still ends as the platform asks
 1	and a checkout with no default branch of its own falls back to main
 1	and a clean table leaves the gate green
 1	and a command file piping to a shell is medium
@@ -1097,6 +1114,7 @@
 1	and a ruled one is not
 1	and a run that skipped nothing says so, rather than leaving it blank
 1	and a second field of the same entry too
+1	and a second grant inside what is left of the day is still a grant
 1	and a second run does not record the same file twice
 1	and a second run is a no-op that exits 0
 1	and a self-governed branch does merge under the kernel
@@ -1200,6 +1218,7 @@
 1	and each bound is named in its own words
 1	and each full log line names a file holding its own run alone
 1	and each item appears once however often it bit
+1	and ends that session's night and no other
 1	and every byte is the one it had
 1	and every line is a whole row
 1	and every one has a schema row and is accepted
@@ -1243,13 +1262,16 @@
 1	and from a worktree of the same repository
 1	and from the first copy of the key, not a later one
 1	and gains its own name as a keyword
+1	and grants it to the session it was typed in, and no other
 1	and grounding it closes the gap
 1	and handed the cron line instead
 1	and hands it a pull request to merge
+1	and hands over the page as it goes
 1	and hands the session back at once rather than waiting for the build
 1	and heads the report with the project and counts every row
 1	and holds an engine-grounded medium for a person
 1	and holds no prose when nothing matched
+1	and holds no session at its stop
 1	and hooks beside a pipe to a shell are still high
 1	and ignores the path so it cannot come back
 1	and in a declared skill folder's own SKILL.md
@@ -1280,6 +1302,7 @@
 1	and it is Felix's own work
 1	and it is a tier, not the word
 1	and it is broken by the engine's table, not the file
+1	and it is counted as quiet, prose about a tool call included
 1	and it is gone again once the fact is back
 1	and it is named
 1	and it is not accepted as a row
@@ -1323,6 +1346,7 @@
 1	and its reason whole
 1	and its row, added in the same tree, clears it
 1	and its seeded stack rows carry DECLARED
+1	and its stop costs that night nothing
 1	and its tier was read rather than claimed
 1	and its topology is non-empty
 1	and keeps a never-invoked one at zero
@@ -1442,6 +1466,7 @@
 1	and none reports a spend past the ceiling as recorded
 1	and not as an escape, which would escalate a typo to the founder
 1	and not found by assuming the branch is called main
+1	and not into a session the night does not belong to
 1	and not on which home it came from
 1	and not the columns that follow it
 1	and not the irrelevant one
@@ -1678,9 +1703,11 @@
 1	and so is one who pastes the whole fixed opening and then writes their own instruction
 1	and so is one who reuses its first two lines and then writes their own instruction
 1	and so is one whose rows may stop after one cell, while a true one-column table is not
+1	and so is one whose session id would name a path, which is not written
 1	and so is ordinary work
 1	and so is project.json
 1	and so is quoted text printed into a file the command then runs
+1	and so is the continuation ceiling itself
 1	and so is the other one
 1	and so is what eval is handed
 1	and stack.sh alone can too
@@ -1724,6 +1751,7 @@
 1	and tampered under hooks it is drift as well
 1	and tells the session which fact moved
 1	and that alone does not fail the gate
+1	and that continuation is spent like any other
 1	and that copy is the only library the block sources
 1	and that field holds four members
 1	and that is a failure, not a path it might make up
@@ -1796,6 +1824,7 @@
 1	and the grep it replaced counts the entry that never fires
 1	and the grep the probe used to be counts it, which is why the probe moved
 1	and the hand-back names the bound that ended the night
+1	and the hand-back says it was the idling that ended it
 1	and the handoff row names the engine that wrote it and the checkout's HEAD
 1	and the held total
 1	and the hook exits 0 there
@@ -1820,6 +1849,8 @@
 1	and the moved fact is not what it blames
 1	and the mute is a row, not a silent omission
 1	and the new row is its own line
+1	and the night is closed as it goes
+1	and the night is closed, not left for the next stop
 1	and the note it was given
 1	and the number it reports is the number it stored
 1	and the old remote_match brings the old subject back
@@ -1829,6 +1860,7 @@
 1	and the other three are still there beside it
 1	and the output names the version nothing is installed at
 1	and the page has a panel for it
+1	and the page shows every session's night, not only the reader's
 1	and the partly-countable list takes the mixed one
 1	and the passed class claims only that no error was reported
 1	and the path-less one still inherits nothing
@@ -1850,6 +1882,7 @@
 1	and the refilled cache begins with the stamp
 1	and the refusal is the gate's own
 1	and the refusal names the version main declares or the cache it searched
+1	and the refusal says how to type it inside the session
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
 1	and the report names the merged path
@@ -1923,6 +1956,7 @@
 1	and their rows interleaved too
 1	and their rows interleaved, so each append window held the other's rows
 1	and there is at least one of them
+1	and there the refusal is charged to the night
 1	and they still do in a UTF-8 locale, as a founder's shell runs them
 1	and those two suites were running at the same moment
 1	and under its own name it is current
@@ -1956,6 +1990,7 @@
 1	and writes the request under the memory root
 1	and zero failures is still exit 0
 1	another plugin's refusal is not
+1	another session in the same project is not held by that night
 1	another session's edit changes the tree identity
 1	any one bound reached ends the night, whichever it is
 1	anything shipping hooks is high
@@ -2331,6 +2366,7 @@
 1	including the one that stops reject-everything winning
 2	including the second one
 1	including what prompted each utterance
+1	inside the night's chain a red gate still refuses
 1	inspect still counts the skills
 1	inspecting a plugin never runs it
 1	install answers cleanly
@@ -2485,6 +2521,7 @@
 1	nor one whose fail control applied and was held
 1	nor one whose fail control could not run
 1	nor one with two fail controls of which one applied
+1	nor past the day's hours
 1	nor print at it
 1	nor probes.tsv
 1	nor report a spend that did not happen
@@ -2517,6 +2554,7 @@
 1	one answer of two leaves the other still owed
 1	one byte changed inside one file changes the digest
 1	one continuation is spent per turn, not two
+1	one continuation that called no tool is not yet the end of the night
 1	one file named under both keys is read as hooks
 1	one from what you typed is not
 1	one genuinely absent still reads absent
@@ -2867,6 +2905,7 @@
 1	the nested repo is still refused
 1	the never line claims only what the roster recognises, and --verify ERE adds a project's own runner to it, in every project read, as the report, the help, the README and ecosystem.tsv say; none claims every ecosystem
 1	the next session start records the same handoff hash the handoff row did
+1	the night's own session is held again inside the platform's chain
 1	the north-star row is accepted: ADVISORY, always applies, grounded on http_route and ceiling_site
 1	the north-star row's own columns follow, in the ledger's order
 1	the obligations row is done on day one, its seeded row dormant in a project with no hooks
@@ -3005,9 +3044,11 @@
 1	tree identity survives an unborn HEAD
 1	twelve sessions ending at once are all still counted
 1	two byte-identical copies at two different paths digest the same
+1	two continuations in a row that call no tool end the night
 1	two deferrals are two things waiting
 1	two failing gates at once: each FAIL excerpt is its own suite's
 1	two gates at once each report their own suite's count
+1	two hundred and one continuations is past the ceiling
 1	two piped lines in one file are one pipe-to-shell fact
 1	two rows in one session are one session, calls summed
 1	two rows, once each

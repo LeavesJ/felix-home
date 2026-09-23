@@ -33,6 +33,7 @@
 1	PreToolUse is bound for Write
 1	REPLACE=1 overwrites a hand-written handoff
 1	a # Handoff title with no stamp on line 3 is refused
+1	a $( ) inside a quoted message still runs, and is refused
 1	a $( ) standing as the command, quoted, runs what it holds, and a path built on one is the program: 3 checks beside a built path that runs no tests
 1	a --- block that does not open the file is not frontmatter
 1	a --since that is not YYYY-MM-DD exits non-zero
@@ -119,8 +120,10 @@
 1	a command whose frontmatter declares hooks is high
 1	a commands directory main ships that the entry lacks is drift
 1	a comment added to it is still free
+1	a comment is not a command
 1	a commissioning run seeds the ledger through the row's answer
 1	a commit in the checkout the graph was built from is due
+1	a commit message in a here-document is not read as a command
 1	a commit this repository does not hold is not a distance
 1	a commit with no remote does not stamp a push
 1	a committed rename lists the name it left as well as the one it took
@@ -235,11 +238,13 @@
 1	a file of one newline is not the empty placeholder
 1	a file that does not parse drops out of the roster without taking the rest
 1	a file under bin/ that begins with a shebang is a script, and its bare mode is caught
+1	a file written by a file the command runs is followed there as well
 1	a filename containing ' and ' cannot hide behind a fragment
 1	a finding names its reason
 1	a first write leaves only the handoff beside what was there
 1	a flag with no value refuses instead of spinning
 1	a fold older than its own state file is stranded, not finished
+1	a force push is still refused
 1	a four-column row still reads as event
 1	a fresh cache is not stale
 1	a frontend prompt routes to frontend
@@ -290,6 +295,10 @@
 1	a held control refuses it
 1	a held control still refuses the gate when inapplicable rows follow it
 1	a held row whose answer ran and whose check now passes is done
+1	a here-document a shell reads is code
+1	a here-document word quoted in part ends where bash ends it
+1	a here-document written to a file nothing runs is data
+1	a here-document written to a file the command then runs is code
 1	a high tier refuses even when no capability matches
 1	a high-risk row is never installed by commissioning
 1	a hold on an unverified tree names the exceptions table and says a session cannot grant itself one
@@ -357,6 +366,8 @@
 1	a merge is blocked while the project reads nothing from reality
 1	a merge stopped for the founder is recorded as one
 1	a message from another session is not routed, and moves nothing in the session it lands in
+1	a message quoted in pieces round an apostrophe is still a message
+1	a message that starts with a variable is not taken for a path
 1	a met control passes the gate check
 1	a mid-session route change does not render
 1	a migration classifies red
@@ -429,6 +440,7 @@
 1	a path-valued key the list never heard of still counts what was typed
 1	a payload naming nothing to act on is allowed
 1	a payload of 30,000 lines carrying source is answered by its first, recorded inside thirty seconds, and the resume stays silent
+1	a payload piped into a shell handed a script file is data to that script
 1	a payload with no session_id or transcript_path writes - in lifecycle fields 3 and 8
 1	a peer commit on the same branch merges nothing
 1	a peer edit to the working tree merges nothing
@@ -484,6 +496,7 @@
 1	a probe that reads stdin returns instead of hanging the gate
 1	a probe whose command does not exist is unknown
 1	a probes.tsv holding no rows is refused too
+1	a process substitution keeps the shape a row is written about
 1	a project bounded only by content rules reports the bound
 1	a project declaring no qualification qualifies nothing
 1	a project directory outside any repository, or one that is itself the repository root, grants nothing
@@ -507,8 +520,12 @@
 1	a pulse with nothing to do still answers
 1	a push nothing reads back is not called verified
 1	a qualification row of five columns has no premise and is met as before
+1	a quoted argument naming a denied command is data
 1	a quoted attachment with the person's question under it is still routed and marked
+1	a quoted here-document word leaves the body unexpanded, so it is data
+1	a quoted path with a blank is still the file cp writes
 1	a quoted program path at command position is the program: "$W/.venv/bin/python" -m pytest and "$FELIX_HOME/harness/felix" gate are checks, "npm test" as a name is not
+1	a quoted redirect target still writes the marker, and is refused
 1	a re-run under the new epoch is recorded, same names and all
 1	a reach is the only mount evidence there is
 1	a real capability left undeclared is not an error
@@ -588,6 +605,7 @@
 1	a row inspection judged capability-less is not
 1	a row naming no moment does not close its gap
 1	a row naming no real capability is caught
+1	a row no longer runs across a line break into the next command
 1	a row nobody named carries no stray line
 1	a row switched off by its when column is reported as not applying
 1	a row that does not apply here claims nothing
@@ -624,6 +642,7 @@
 1	a second refresh while one is running does nothing
 1	a second run appends rather than replacing
 1	a second tree makes it a promotion candidate
+1	a sed script that starts with a slash is not taken for a path
 1	a server the registry says a plugin provides is proposed as a plugin row
 1	a session filed under two projects, and history copied into a resumed one, count once: 2 sessions, 1 stop, 1 hold
 1	a session folds on the first catch-up
@@ -632,6 +651,7 @@
 1	a session reports what was named and what was followed
 1	a session that changed nothing stops silently
 1	a shell comment is not code: its apostrophe opens no quote, its (npm test) runs nothing, and its ; takes no status
+1	a shell's -c script is still read as a command
 1	a short name is not turned into a keyword
 1	a sidechain edit does not turn a pass stale, and a failure reported before its tool_use_id, behind an escaped quote, still fails
 1	a skill is not looked up as a plugin
@@ -918,6 +938,7 @@
 1	an unparseable payload records nothing
 1	an unpinned LSP command is high
 1	an unpinned version is high
+1	an unquoted here-document word expands the body, so its $( ) runs
 1	an unread declaration alone is high
 1	an unreadable count is unknown
 1	an unreadable risk table yields an unknown tier
@@ -1550,7 +1571,7 @@
 1	and says which rule
 1	and says which variable it sends
 1	and says which version is not installed
-5	and says why
+6	and says why
 1	and says why growth is the narrowing direction there
 1	and says why it could not be
 1	and says why it refused
@@ -1590,7 +1611,9 @@
 1	and so is one who reuses its first two lines and then writes their own instruction
 1	and so is ordinary work
 1	and so is project.json
+1	and so is quoted text printed into a file the command then runs
 1	and so is the other one
+1	and so is what eval is handed
 1	and stack.sh alone can too
 1	and staging the test closes the gap — the case that started this
 1	and stale is one line as well
@@ -2373,6 +2396,7 @@
 1	nor is a task notification
 1	nor is a version the branch declares that nothing installed
 1	nor is one from both
+1	nor is one in the $(cat <<EOF) form of Claude Code's commit template
 1	nor one declared inline or in a skill's frontmatter
 1	nor one that declares no fail control at all
 1	nor one whose fail control applied and was held
@@ -2617,6 +2641,7 @@
 1	survives a machine laid out differently
 1	survives a transcript that is not there
 1	tasks sharing a file are one unit
+1	text piped into a shell is its script
 1	that names the command
 1	the #264 block leaves the logs and the session state as it found them
 1	the 300-character reason survives the record whole

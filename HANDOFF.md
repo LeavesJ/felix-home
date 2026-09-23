@@ -15,7 +15,7 @@ and changed none of it: the archive files concatenated in index order, after
 files the split made; later sections join the index above them, below §0).
 
 **The rule for the next session.** Write your section at the top of "Current
-state", with the next id (after 0bu comes 0bv). Move the section it replaces
+state", with the next id (after 0bv comes 0bw). Move the section it replaces
 into `docs/handoff/<id>.md`, unchanged, and add its row to the top of the
 index. A reference like "HANDOFF §0bm" means `docs/handoff/0bm.md`.
 
@@ -32,85 +32,97 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0bu. 2026-09-23 — Phase 0: the Elenchus candidates checked, deny rows read the command the shell runs, three small items
+### 0bv. 2026-09-23 (night) — overnight mode belongs to a session, #307 and #303 landed, the runner probe answered from a runner's own log, Veldra's blind request
 
-**Deployed from this session: engine 0.49.149 (#299) and 0.49.152 (#301).**
-#298 added rows to `projects/felix/risk.tsv`, a commissioning table, and from
-then `felix merge` refused every felix-home PR until the founder re-stamped
-the commission, which he did on 2026-09-23; #300 and then #301 merged. The
-engine queue now, agreed between the sessions by message: #306 (the audit
-decode fix, 0.49.153), #307 (overnight mode, another session's, .154), then
-this session's #303 (.155) and #304 (.156, last on purpose). Each merge owes
-everyone behind it a red re-run; #303 and #304 also need main merged in and
-their versions re-bumped, and they are gated on an older main.
+**Deployed from this session: engine 0.49.156 (#307) and 0.49.157 (#303)**, each
+from the home checkout, where `felix install` verified the installed engine
+against the tree. The engine queue ran #301, #313 (the deny floor fix), #306,
+the linear deny payload read (which landed out of the agreed order and took
+.155), #307, then #303, which this session carried because its owner had
+closed. **#304 was deliberately not merged**: its own description asks to land
+after the founder's Elenchus admission, because it stales every receipt and
+all 22 open candidates once. It is in `felix overnight --report`'s queue with
+the exact unblock steps.
 
 | PR | What | Engine |
 |---|---|---|
-| #299 | The `granted` count in the obligations sentence is asserted every run, against a fixture that makes the sentence print; the suite's standing skip | 0.49.149, deployed |
-| #301 | Deny rows are refused only when they still match the command the shell runs: heredoc bodies, quoted messages, comments and line breaks stop being read as commands; `lib/deny-read.sh` | 0.49.152, deployed |
-| #303 | The repair ceiling and the auto-merge streak read the gate workflow's runs alone (`gate_workflow` in project.json, default gate.yml); the unattended template proceeds only when `felix repair` exits 0 | waiting, then 0.49.155 |
-| #304 | The decision epoch is the same under any PATH: the instrument token is provenance and leaves the topology hash. Lands last: every receipt and the Elenchus candidates read stale once after it deploys | waiting, then 0.49.156 |
+| #307 | Overnight mode: a night per session, carried through the platform's chain on its own bounds, quiet read from the transcript, a clean tree no longer ends the night; `lib/overnight-stop.sh` is new. An adversarial review found one high defect (a session could re-grant itself from inside the chain), one medium and five low, plus three assertions that could not fail. All were fixed in the second commit, and each fixed assertion is shown failing under a mutation that removes its fix | 0.49.156, deployed |
+| #303 | The repair ceiling and the auto-merge streak read the gate workflow alone (another session's work, carried to merge: main merged in, manifest merged mechanically, red re-run) | 0.49.157, deployed |
+| #310 | Phase 1 item 1, draft: `obligations.tsv` gains an optional `needs` column, each capability resolved against `qualification.tsv` as complete, short or absent; report-only. Built by a subagent in its own worktree from a design fixed first; its mini suite reaches 41, all pass, and main's engine fails exactly the 27 new-behaviour assertions. Merging fires the `verifier` escape (rows of `obligations.tsv` and `schemas.tsv` edited in place), so it waits for the founder; land it before #304 | 0.49.160 provisional |
 
-**The Elenchus candidates, checked (roadmap Phase 0, for Sep 26-27).** The six
-unverified rows of the 2026-09-22 blind request were checked against the code
-at `a45a985` and against every place Elenchus keeps a record, one agent each,
-each verdict attacked by a second. The founder has
-`~/.felix/memory/elenchus/commission/pdf/candidates-checked.pdf`; source and
-the full verdicts are beside it (`candidates-checked.md`, `.json`). In short:
-all six evidence commands fail on main for the reason they name and flip on
-the obvious fix, and all six checkers are flawed (each can pass with its hole
-open, or fail a reasonable fix). The launcher's `0.0.0.0` default was found by
-Elenchus's own security audit of 2026-08-31 and dropped: it reached no report,
-no DEVLOG item, no table. The untested forecast route is the strongest new
-one: renaming it leaves 1,439 tests green. The roadmap listed five candidates;
-`served_route_has_http_test` was the sixth, left off. After the epoch change
-deploys, these rows read `stale` in `felix obligations` once; that is the hash
-definition moving, not the facts.
+**Why overnight had to change before it could be switched on.** The founder
+asked for overnight mode while about ten Felix sessions were running. A night
+was one file per project, with the session id written and never read, so
+switching it on would have held every one of those sessions at every stop on
+one shared budget. It also left at `stop_hook_active`, so the session it was
+for would have had one continuation. This session therefore never started a
+night: it worked through its own turn, re-invoked by background tasks. It also
+cannot use the fix, because hooks bind at session start and it started on
+0.49.151. A session started from now on runs `! felix overnight --start` and
+holds that session only (memory: `overnight-mode-is-per-session`).
 
-**The deny change, and what measuring it found.** 175 refusals had been logged
-(`says.log`, felix and elenchus). Replayed: 38 are now allowed, every one read
-and confirmed prose or data; 132 still refused. Of those 132, more than 100
-are real commands in scratch fixture repos (a marker written by `printf`,
-`git remote add`, `update-ref refs/remotes`), the largest source of false
-blocks, which no regex can tell from the governed checkout. 140 cases written
-blind: the new reading agrees on 128, the old on 82. Three adversarial
-reviewers found ten defects between them, all fixed: the semantic ones are
-assertions, the performance ones measured. Their out-of-scope findings are
-filed below. The
-reader was run under macOS's BWK awk here, and its assertions passed on CI's
-Ubuntu runner; mawk and gawk were not run locally.
+**The runner probe (roadmap Phase 0), answered from a run that already
+happened.** Elenchus's required `gate` check has run `felix gate` on
+ubuntu-24.04 with no `claude` CLI since LeavesJ/Elenchus#20. Run 35779335006 on
+`a45a985`: gate pass, 1439 tests, probes 5 found, obligations 1 dormant,
+`qualified` skipped (no table), and `commission: never commissioned on this
+machine`. Nothing on the gate path needs the CLI. What a runner lacks is
+machine-local state (the commission receipt, the ledger, facts), which lives
+under `$HOME/.felix/memory` and is empty there, so the merge-point check cannot
+lean on the commission receipt until receipts live in the repository (Phase 2).
+The image carries jq 1.7 and sqlite3 3.45.1. Go 1.24-1.26 are in the tool
+cache, which puts them on PATH only through setup-go (unverified). Felix is
+checked out from felix-home `main` at run time, not a pinned sha.
 
-**Filed as separate tasks, several already running in their own sessions:**
-deny rows scoped to the governed checkout; the widening direction (commands a
-row names that the raw string never matched); three rows that refuse reads and
-dry runs (escape tables, a person's); `felix_deny_subject`'s bash 3.2 cost on
-large payloads (12-45 s on some 31K payloads, every call); `lib/audit-read.sh`'s
-one-character `split` on BWK awk; Elenchus's copy of the unattended step.
+**Veldra's obligations request (roadmap Phase 0, the second ecosystem).**
+- **The clone.** A durable clone at `~/.felix/clones/veldra-main`, origin/main
+  `2430b1f`. The founder's `~/ReserveGrid-OS` backs the live soak and was only
+  read.
+- **The probes.** workspace_member 16, http_service 7, container_image 14,
+  ci_workflow 2, env_template 1, all found.
+- **The answer.** A Plan subagent answered, given the request and nothing
+  else, verbatim to `commission/obligations_surveyed.tsv`. Read back: 15
+  proposed, 15 current, 0 refused, 0 admitted.
+- **Against main.** All fifteen apply, and 13 evidence commands fail on main.
+- **The check.** Three agents took five candidates each, checking the code and
+  every record Veldra keeps; there was no refuting second agent this time.
+  - Nine candidates are recorded nowhere, so on Veldra this is recall and not
+    only calibration.
+  - Twelve are worth deciding and three are weak as written.
+  - Every checker can pass with its hole still open, as on Elenchus.
+  - The strongest are on the desktop release path: the updater signing key in
+    workflow-level env, and an update manifest that publishes empty
+    signatures.
+- **The founder's copy** is `~/.felix/memory/veldra/commission/pdf/candidates-checked.pdf`,
+  with the source, the verbatim verdicts and the answer file beside it. Roadmap
+  §5's signal (a second project yielding nothing a person would admit) did not
+  fire.
+- **A gap in the request itself.** The answerer could not read the doctrine:
+  Veldra's `.claude/CLAUDE.md` is gitignored, so a clone lacks it.
 
-**Still open in Phase 0:** the marker deny rows for Elenchus and Veldra (after
-#301, so the prose refusals do not spread; Veldra has no deny.tsv); the
-obligations request on a second project, answered blind; the GitHub runner
-probe with no `claude` CLI. The founder admits or refuses the Elenchus
-candidates on Sep 26-27 and re-stamps the commission after #298.
+**Waiting on the founder** (`felix overnight --report`): the Elenchus and
+Veldra candidates' admission, then #310's verifier escape, then #304.
+
+**Next, unowned:**
+- control 7 (the coverage report) after #310;
+- the request naming a gitignored doctrine;
+- #308 and #309 (deny scope), still with their own session.
 
 **Traps paid for this session:**
 
-- BWK awk splits on every line break when `split()` is given a
-  one-character string separator, whatever RS is. Use a regex separator.
-- bash 3.2's `${s//pat/rep}` is quadratic: 14 s over a 31K command. A hook's
-  per-call work is `[[ =~ ]]` or one awk process, never parameter expansion.
-- An awk program held in a bash single-quoted string may hold no apostrophe,
-  not even in a comment; one silently disabled the hook in a working copy.
-- An "allowed" assertion whose payload the old matcher already allowed tests
-  nothing: check every such payload is refused by main's library first.
-- A PR with conflicts gets no `pull_request` CI at all; merge main and push.
-- `felix pr --create` opens a draft when the gate has not passed on that
-  tree; `gh pr ready` after the landing gate, then `felix merge`.
-- zsh reads `$var:e` in `git show $mb:engine/...` as a modifier; brace it.
-- Engine merges went through one queue agreed between sessions by message
-  (#298, #300, #301, the audit-decode fix); each merge costs everyone behind
-  it a red re-run.
-
+- A mode that changes what a stop does must be keyed by the session that
+  asked for it; per-project state was harmless only while sessions were one.
+- The deny row that refuses a hand-written `.felix` marker refuses one in a
+  scratch clone too; a clone resolves by `remote_match` without one.
+- A background suite copies the harness when it starts, so it tests the code
+  as it was then. Restart it after an edit, or it records a stale manifest.
+- A queued engine PR's `red.tsv` goes stale at every merge ahead of it, and
+  an out-of-order merge takes your version silently. Record after the last
+  merge ahead lands, and read main again immediately before `felix merge`.
+- The Workflow tool needs the founder's explicit opt-in. Three Agent calls do
+  the same fan-out without it.
+- `git merge --abort` refused on a file iCloud had touched: `git update-index
+  --refresh` first.
 ---
 
 ## Index of earlier sections
@@ -120,6 +132,7 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0bu](docs/handoff/0bu.md) | 2026-09-23 — Phase 0: the Elenchus candidates checked, deny rows read the command the shell runs, three small items |
 | [0bt](docs/handoff/0bt.md) | 2026-09-22/23 — the table validator (queue item 2, step 1) shipped, and a rename that hid an escape |
 | [0bs](docs/handoff/0bs.md) | 2026-09-22/23 — Felix is a product for other people's projects, built first; the first obligations request answered blind; the roadmap |
 | [0br](docs/handoff/0br.md) | 2026-09-22, closing — seven pull requests shipped and deployed, the public snapshot is a command and was brought forward, Elenchus has a working required check again |

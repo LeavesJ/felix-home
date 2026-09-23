@@ -620,9 +620,14 @@ cmd_gate() {
       local qna
       qna="$(printf '%s\n' "$qout" | grep -cE '  n/a$')"
       [ "${qna:-0}" -gt 0 ] 2>/dev/null && printf '                     %s did not apply here\n' "$qna"
+      # A checker short of the six passes; lib/qualify.sh says why that is
+      # reported rather than refused. This is the report, on the same line a
+      # reader stops at, so `ok` is not read as six controls of six.
+      printf '%s\n' "$qout" | grep -E '^  [^ ]+ declares no control for: ' \
+        | sed 's/^  /                     /'
     else
       printf '  %-18s FAIL\n' qualified | tee -a "$log"
-      printf '%s\n' "$qout" | grep -E 'HELD|UNRUNNABLE|^never shown failing in this checkout' | head -8 | sed 's/^/  /'
+      printf '%s\n' "$qout" | grep -E 'HELD|UNRUNNABLE|MALFORMED|^never shown failing in this checkout' | head -8 | sed 's/^/  /'
       [ "$rc" -eq 0 ] && printf '\ngate: FAIL (qualified)\n'
       rc=1
     fi
@@ -1835,12 +1840,24 @@ cmd_qualify() {
   done
   root="$(felix_repo_root "$PWD")"
 
-  local rows; rows="$(felix_qualify_rows "$proj")"
+  local rows mal
+  rows="$(felix_qualify_rows "$proj")"
+  mal="$(felix_qualify_malformed "$proj")"
   printf 'qualification for %s\n\n' "$(basename "$proj")"
+  # Before the empty-table answer, so a table whose every row is malformed says
+  # which rows and why rather than reading as one that declares nothing.
+  if [ -n "$mal" ]; then
+    printf 'rows that cannot be read as a control\n\n'
+    printf '%s\n' "$mal" | awk -F'\t' '{ printf "  %-16s MALFORMED  %s\n", $1, $2 }'
+    printf '\nA malformed row is a control nobody is applying, so it is not run, and\n'
+    printf 'silence about it would read as a control that passed. Each control has\n'
+    printf 'one verdict: violation, alternate and decoupled_violation fail; the other\n'
+    printf 'three pass. A row may not choose another.\n\n'
+  fi
   if [ -z "$rows" ]; then
     printf 'No checker here is qualified, because %s/qualification.tsv\n' "$proj"
-    printf 'declares nothing. Every check this project runs is currently trusted\n'
-    printf 'on the strength of having been written.\n\n'
+    printf 'declares no control that can be run. Every check this project runs is\n'
+    printf 'currently trusted on the strength of having been written.\n\n'
     printf '  checker <TAB> command <TAB> control <TAB> expect <TAB> mutation [<TAB> premise]\n\n'
     printf 'Six controls per checker, from the conformance amendments: violation,\n'
     printf 'restoration, irrelevant, alternate, decoupled_violation and\n'
@@ -1849,14 +1866,6 @@ cmd_qualify() {
     printf 'the control cannot be staged in this checkout and it is reported as not\n'
     printf 'applying; any other failure is a control that could not run.\n'
     return 1
-  fi
-
-  local mal; mal="$(felix_qualify_malformed "$proj")"
-  if [ -n "$mal" ]; then
-    printf 'rows that name a checker and not enough to run one\n\n'
-    printf '%s\n' "$mal" | awk -F'\t' '{ printf "  %-16s %s field(s)\n", $1, $2 }'
-    printf '\nA row missing its mutation is a control nobody is applying, and\n'
-    printf 'silence about it reads as a control that passed.\n\n'
   fi
 
   local out held=0 unrun=0 total=0 inapp=0 unshown
@@ -1957,11 +1966,16 @@ cmd_qualify() {
     fi
   fi
   if [ "$gate" -eq 1 ]; then
-    [ "${held:-0}" -eq 0 ] && [ "${unrun:-0}" -eq 0 ] && [ -z "${unshown% }" ] && return 0
+    # A malformed row refuses too. It was written as a control, so by the
+    # ratchet it binds, and it cannot be met because it is never run. Running it
+    # is what let a violation expecting `pass` read as met.
+    [ "${held:-0}" -eq 0 ] && [ "${unrun:-0}" -eq 0 ] && [ -z "${unshown% }" ] \
+      && [ -z "$mal" ] && return 0
     if [ "${held:-0}" -gt 0 ] || [ "${unrun:-0}" -gt 0 ]; then
       printf '\nA declared control that does not hold is this check reporting a\n'
       printf 'property the tree does not have. Fix the checker, or delete the\n'
-      printf 'control and say in the diff that it is no longer claimed.\n'
+      printf 'control and say in the diff that it is no longer claimed; felix merge\n'
+      printf 'stops that deletion for a person to read.\n'
     fi
     return 1
   fi

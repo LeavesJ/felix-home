@@ -59,7 +59,15 @@ FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null 
 # Enforcing tables: the files that decide what stops. Shrinking one is the edit
 # that cannot be checked by the thing it shrank, because a green produced by a
 # narrowed judge certifies itself. Named by shape, not by project.
-FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv commissioning.tsv obligations.tsv'
+#
+# qualification.tsv is the plainest case of that sentence. Its rows are the
+# controls `qualified` holds each checker to, and the gate reads the table the
+# branch edited. A branch that deletes a checker's controls or flips what one
+# expects is therefore judged by the table it weakened, and passes. A contract
+# review found it on 2026-09-22 with nothing on the merge path to stop it.
+# Adding a control is free, as it is everywhere else here. Adding a control
+# takes on a commitment and does not withdraw one.
+FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv commissioning.tsv obligations.tsv qualification.tsv'
 
 # The subset whose rows are EXEMPTIONS, and for which "adding is free" is
 # backwards. A row in the ecosystem table says "this word is not a stack name"

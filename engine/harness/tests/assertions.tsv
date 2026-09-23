@@ -516,6 +516,7 @@
 1	a quoted program path at command position is the program: "$W/.venv/bin/python" -m pytest and "$FELIX_HOME/harness/felix" gate are checks, "npm test" as a name is not
 1	a re-run under the new epoch is recorded, same names and all
 1	a reach is the only mount evidence there is
+1	a reached repair ceiling is escalated to a person
 1	a real capability left undeclared is not an error
 1	a real uncommitted edit still speaks, in a fresh session
 1	a real word rises
@@ -609,6 +610,7 @@
 1	a rule never matches file content
 1	a rule that refuses everything is refused as a rule
 1	a run compared against its own tree reports nothing
+1	a run felix repair could not read fails the job rather than passing quietly
 1	a run nobody could read does not count as clean
 1	a run with no tree id says nothing was compared
 1	a run writes the request for each provider row
@@ -2870,6 +2872,7 @@
 1	the tree holds only the marker beside what was there
 1	the tree id is still the one the receipt names
 1	the tree's run executed against main's lib, never the base's own run
+1	the unattended repair proceeds on a brief, and on no other exit of felix repair
 1	the unmeasurable list takes the hook-only zero
 1	the watching git was asked
 1	the whole forty-character hash grants too, and an expired row above it does not shadow it

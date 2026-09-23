@@ -203,6 +203,7 @@
 1	a dirty memory repo is committed
 1	a dirty tree with a green receipt under the current epoch may stop
 1	a disarmed engine is still judged by main's version
+1	a docs commit on main after red.tsv was recorded leaves the record standing, since the engine it ran against is the one the branch now stands on
 1	a docs-only change requires nothing
 1	a docs-only signal is routine
 1	a doctrine surface with no verdict escapes
@@ -1054,6 +1055,7 @@
 1	and an automation row still ends in its capability
 1	and an empty cache merges nothing
 1	and an empty mcpServers object is no mcp fact
+1	and an engine commit on main after it stales the record
 1	and an epoch that cannot be read returns non-zero
 1	and an inapplicable control reports no result, not a pass or a fail
 1	and an installed copy with no files to digest claims nothing either
@@ -1479,6 +1481,7 @@
 1	and restoring both makes it valid again
 1	and restoring it makes the row clean again
 1	and returns once the record is complete
+1	and run from one that holds its own *.csproj, still reports observability for a root whose App.csproj names Sentry
 1	and runs none of commissioning: no run, no receipt, no discovery cache, no commissioning log
 1	and saying so is an exit code, not an empty line
 1	and says a long name at least scores on itself
@@ -2157,6 +2160,7 @@
 1	felix_coverage_events rosters the events settings.json binds by key
 1	felix_deploy_diff sees the hooks drift
 1	felix_detect in a checkout whose path holds a space reports the capabilities its files show
+1	felix_detect run from a directory that holds its own requirements/*.txt still reports billing for a root whose requirements/prod.txt names stripe
 1	felix_evidence_check reports unknown, not n/a
 1	felix_has_line matches whole lines under pipefail
 1	felix_has_line rejects partial lines
@@ -2486,7 +2490,7 @@
 1	records what it said
 1	red beats an unknown too
 1	red.tsv is one record, written whole: one base row, one run row, and failed names that add up to the run's failed count
-1	red.tsv was recorded against the commit this tree branched from origin/main
+1	red.tsv was recorded against the engine origin/main held where this tree branched from it
 1	refused, not downgraded: the blocking row is accepted nowhere
 1	refuses to clobber an existing project
 1	refuses to invent a brief from unknown paths

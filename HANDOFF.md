@@ -72,7 +72,9 @@ are real commands in scratch fixture repos (a marker written by `printf`,
 `git remote add`, `update-ref refs/remotes`), the largest source of false
 blocks, which no regex can tell from the governed checkout. 140 cases written
 blind: the new reading agrees on 128, the old on 82. Three adversarial
-reviewers found nine defects between them, each fixed and asserted. The
+reviewers found ten defects between them, all fixed: the semantic ones are
+assertions, the performance ones measured. Their out-of-scope findings are
+filed below. The
 reader was run under macOS's BWK awk here, and its assertions passed on CI's
 Ubuntu runner; mawk and gawk were not run locally.
 

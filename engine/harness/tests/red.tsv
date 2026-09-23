@@ -4,32 +4,47 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	5110ca6410ebedd23fede49c12399c48f429ff8e	0.49.150
-run	27	3107	5
-a branch the gate has not run on has no latest run	1
-a count or a latest run asked for no workflow is refused, not every workflow's	1
-a failure in another workflow on the branch does not dirty a green pull request	1
-a gate_workflow that is not a file name is refused, and named	1
-a project that names its gate workflow is repaired from that workflow's run	1
-a reached repair ceiling is escalated to a person	1
-a repository without the gate workflow makes no pull request clean	1
-a run felix repair could not read fails the job rather than passing quietly	1
-and a history read for no workflow is unknown	1
-and bootstrap looks for the workflow the project names	1
-and counts only the gate's failures against the ceiling	1
-and every run list felix automerge makes names the gate workflow	1
-and every run list felix repair makes names the gate workflow	1
-and every run list names that workflow	1
-and felix unattended's streak row counts the gate's runs alone	1
-and hands on no failing output as if attempts remained	1
-and its repair ceiling does not read as unspent	1
-and none of them asks gh for every workflow's runs	1
-and nothing is asked of gh	1
-and repair hears the gate's runs could not be read, not that there are none	1
-and the run repair is handed is the gate's, not the newest of any workflow	1
-another workflow's failures on the branch are not repair attempts	1
-every run list those three make names the gate workflow	1
-felix automerge judges a green pull request by the gate's runs alone	1
-felix repair reads the gate's run on the branch	1
-felix repair stops at the ceiling when its attempts cannot be counted	1
-the unattended repair proceeds on a brief, and on no other exit of felix repair	1
+base	origin/main	07bf6feaff6be4dba782c8f0805d945163a040e5	0.49.155
+run	42	3159	5
+--end --all from inside a session ends every night	1
+a clean tree does not end the night of the session standing in it	1
+a deadline that has passed ends the night and says so	1
+a later session ends a night whose deadline passed, and only that one	1
+a night an older engine granted to the project is announced to no session	1
+a night granted to no session is refused	1
+a night that ran out of time lets the session stop	1
+a night typed outside every session is refused, and nothing is granted	1
+a note carrying a tab and a newline still leaves one line of six fields	1
+a second grant cannot take a session past the day's continuations	1
+a second session's grant is a second night, not a replacement	1
+a session cannot grant a night to another session	1
+a session id that cannot name a file is refused, and nothing is written where it points	1
+a tool call after it clears the count	1
+a transcript that cannot be read counts as a quiet continuation	1
+an eight-hour grant runs until eight hours from now	1
+and --end typed there ends every night, an older engine's included	1
+and each bound is named in its own words	1
+and ends that session's night and no other	1
+and exactly one continuation is spent for it	1
+and hands over the page as it goes	1
+and holds no session at its stop	1
+and it is counted as quiet, prose about a tool call included	1
+and its stop costs that night nothing	1
+and not into a session the night does not belong to	1
+and refusing costs no continuation	1
+and so is one whose session id would name a path, which is not written	1
+and that continuation is spent like any other	1
+and the hand-back names the bound that ended the night	1
+and the hand-back says it was the idling that ended it	1
+and the page shows every session's night, not only the reader's	1
+and the refusal says how to type it inside the session	1
+and there the refusal is charged to the night	1
+another session in the same project is not held by that night	1
+any one bound reached ends the night, whichever it is	1
+inside the night's chain a red gate still refuses	1
+nor past the day's hours	1
+one continuation is spent per turn, not two	1
+one continuation that called no tool is not yet the end of the night	1
+spending past the last continuation stops at zero	1
+the night's own session is held again inside the platform's chain	1
+two hundred and one continuations is past the ceiling	1

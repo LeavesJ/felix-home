@@ -8932,6 +8932,80 @@ rm -f "$PBLOG"
 is "an append that succeeded and wrote nothing is reported as a failure too" \
    "$PBRC2" "1"
 
+# A path that stopped being a file the other way: the log is now a directory,
+# and nothing can be appended to it.
+mkdir "$PBLOG"
+_pbrec treefive
+PBRC3="$?"
+rmdir "$PBLOG"
+is "a log replaced by a directory is reported as a failure" "$PBRC3" "1"
+
+# Two gates of one project at once, from two worktrees or clones, append to one
+# facts.log. The write used to be verified by the file's growth, so each run
+# counted the other's rows as its own and reported a failed write although
+# every row had landed. On 2026-09-23 that failed `felix probes --gate` in both
+# gates.
+#
+# The overlap is forced, not left to timing. The append loop calls `cut` for
+# every field, and nothing else in the function calls it, so each writer's
+# `cut` holds it. The first holds at its first field until the second has a row
+# in the log. The second holds after its own first row until the first has one.
+# Each append window then contains a row of the other writer's, however loaded
+# the machine is. The stamp is pinned to one second, and the second pair shares
+# a tree id: stamp and tree are the same in both writers' rows, so neither
+# column can tell whose row is whose.
+PBC="$TMP/probes-concurrent"; mkdir -p "$PBC"
+PBCLOG="$MEM/probes-concurrent/facts.log"
+_pbchas() { awk -F'\t' -v p="$1" 'index($3, p) == 1 { f = 1 } END { exit !f }' "$PBCLOG" 2>/dev/null; }
+_pbcwait() {   # <command...>: until it holds, or once ten seconds are gone
+  local i=0
+  until "$@"; do
+    [ ! -e "$PBC/gave-up" ] || return 1
+    i=$((i + 1)); [ "$i" -le 200 ] || { : > "$PBC/gave-up"; return 1; }
+    sleep 0.05
+  done
+}
+_pbcwriter() {   # <a|b> <tree id>
+  ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+    . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
+    date() { printf '2026-09-23T00:00:00Z\n'; }
+    if [ "$1" = a ]; then
+      cut() { : > "$PBC/a.in"; _pbcwait _pbchas b; command cut "$@"; }
+    else
+      cut() { _pbcwait test -e "$PBC/a.in"; _pbchas b && _pbcwait _pbchas a; command cut "$@"; }
+    fi
+    felix_probes_record "$PBC" "$PBR" "$2" "$(printf '%s1\t-\tfound\t1\tone\tgit ls-files\tgit@1\n%s2\t-\tfound\t2\ttwo\tgit ls-files\tgit@1\n' "$1" "$1")"
+  ) 2>/dev/null
+}
+_pbcpair() {   # <tree a> <tree b> -> "<a's status> <b's status>"
+  local pa pb ra
+  rm -f "$PBCLOG" "$PBC/a.in" "$PBC/gave-up"
+  _pbcwriter a "$1" & pa=$!
+  _pbcwriter b "$2" & pb=$!
+  wait "$pa"; ra=$?
+  wait "$pb"; printf '%s %s' "$ra" "$?"
+}
+# Whether the windows overlapped: the other writer's first row came before this
+# one's last, both ways. Without it, a loop that stopped calling `cut` would let
+# both writers run one after the other and pass here for the wrong reason.
+_pbcinterleaved() {
+  awk -F'\t' '
+    { c = substr($3, 1, 1) }
+    c == "a" { if (!fa) fa = NR; la = NR }
+    c == "b" { if (!fb) fb = NR; lb = NR }
+    END { exit !(fa && fb && fb < la && fa < lb) }' "$PBCLOG" 2>/dev/null
+}
+
+is "two writers appending to one facts.log at once both report success" \
+   "$(_pbcpair treea treeb)" "0 0"
+_pbcinterleaved && ok "and their rows interleaved, so each append window held the other's rows" \
+                || bad "and their rows interleaved, so each append window held the other's rows" "$(cat "$PBCLOG" 2>/dev/null)"
+is "and all four rows landed" "$(grep -c . "$PBCLOG" 2>/dev/null)" "4"
+is "two writers on one tree in one second both report success too" \
+   "$(_pbcpair treeab treeab)" "0 0"
+_pbcinterleaved && ok "and their rows interleaved too" \
+                || bad "and their rows interleaved too" "$(cat "$PBCLOG" 2>/dev/null)"
+
 # -------------------------------------------------------------- the drift ---
 # The log exists to be read. A log nothing reads is procedures.tsv one level
 # down: rows accumulating forever while nothing consults them.
@@ -13961,6 +14035,140 @@ case "$out" in
 esac
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 
+printf '\ndenial reads the command the shell runs\n'
+# A Bash row was matched against the payload's JSON string, where a line break
+# is a backslash and an n and everything the command only carries reads as if
+# it ran. The marker row refused a commit message on 2026-09-22 because its
+# `<name>` placeholder holds a `>`; of 175 refusals logged by then, about
+# thirty were text of that kind. A command a row matches is now read again as
+# the shell reads it, and refused only if the row still matches there. Each
+# payload below is the JSON the hook receives, verbatim, so a line break is
+# written \n and a backslash in the command \\.
+#
+# Both directions are asserted, and the second one is the one that matters:
+# every "still refused" case is code that an earlier draft of the reader set
+# aside as data, and each was a real command in the refusals that were logged.
+{ printf 'Bash\t%s\tforce push drops commits\n' 'git push ([^;&|]* )?(--force|-f)( |$)'
+  printf 'Bash\t%s\trewriting the binding by hand\n' "(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*[\"']?\\.felix(-home)?[\"']?([[:space:];&|)]|\$)"
+  printf 'Bash\t%s\ta timed read never returns under zsh\n' 'read -t [0-9]+ [^;&|]*< <\('
+} > "$FROOT/projects/widget/deny.tsv"
+_prb() { _pre "$(cat)"; }
+
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -F - <<'EOF'\ndocs: felix new <name> writes a .felix marker\nEOF"}}
+J
+is "a commit message in a here-document is not read as a command" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -m \"$(cat <<'EOF'\nfix: never git push --force here\nEOF\n)\""}}
+J
+is "nor is one in the \$(cat <<EOF) form of Claude Code's commit template" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"for c in 'git push --force origin main' 'git status'; do echo \"$c\"; done"}}
+J
+is "a quoted argument naming a denied command is data" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"ls # git push --force origin"}}
+J
+is "a comment is not a command" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git push -q\ngh api repos/x/pages -f source=main"}}
+J
+is "a row no longer runs across a line break into the next command" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"sed -n '/git push --force /p' log.md"}}
+J
+is "a sed script that starts with a slash is not taken for a path" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"printf '%s' '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git push --force origin main\"}}' | bash hooks/pre-tool"}}
+J
+is "a payload piped into a shell handed a script file is data to that script" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -m 'the reader doesn'\\''t refuse git push --force in a message'"}}
+J
+is "a message quoted in pieces round an apostrophe is still a message" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"echo \"$n logged refusals named git push --force here\""}}
+J
+is "a message that starts with a variable is not taken for a path" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat <<'EOF'\n$(git push --force origin main)\nEOF"}}
+J
+is "a quoted here-document word leaves the body unexpanded, so it is data" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat > \"$S/t.md\" <<'EOF'\nprintf 'x\\n' > .felix && true\nEOF\nls"}}
+J
+is "a here-document written to a file nothing runs is data" "$rc" "0"
+
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git push --force origin main"}}
+J
+is "a force push is still refused" "$rc" "2"
+has "and says why" "$(cat "$FROOT/.deny-err")" "force push drops commits"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"bash -c 'git push --force origin main'"}}
+J
+is "a shell's -c script is still read as a command" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"eval 'git push --force origin main'"}}
+J
+is "and so is what eval is handed" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -m \"$(git push --force origin HEAD)\""}}
+J
+is "a \$( ) inside a quoted message still runs, and is refused" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"printf 'p\\n' > \"$T/repo/.felix\""}}
+J
+is "a quoted redirect target still writes the marker, and is refused" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat > \"$S/t.sh\" <<'EOF'\nprintf 'x\\n' > .felix && true\nEOF\nbash \"$S/t.sh\""}}
+J
+is "a here-document written to a file the command then runs is code" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"printf '%s\\n' 'git push --force origin main' > f.sh; bash f.sh"}}
+J
+is "and so is quoted text printed into a file the command then runs" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cp seed \"/tmp/a b/.felix\""}}
+J
+is "a quoted path with a blank is still the file cp writes" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat <<E\"OF\"\nnotes\nEOF\ngit push -f origin topic"}}
+J
+is "a here-document word quoted in part ends where bash ends it" "$rc" "2"
+# A file that writes a file the command then runs. Reading the first opens
+# the command that writes the second, while the list of written files is being
+# walked, and whether a for-in loop sees a key added under it differs between
+# awks: this refused or allowed by hash order until the walk went by number.
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"echo \"echo 'git push -f x' > u.sh\" > t.sh; bash t.sh; bash u.sh"}}
+J
+is "a file written by a file the command runs is followed there as well" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"bash <<'EOF'\ngit push --force origin main\nEOF"}}
+J
+is "a here-document a shell reads is code" "$rc" "2"
+# With -s the words after the shell are positional parameters, not a script
+# file, so the body is still its script. 0.49.152 took the first of them for a
+# file and read the body as data; found by the session scoping deny rows.
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"bash -s \"/tmp/gov\" <<'EOF'\ngit push --force origin main\nEOF"}}
+J
+is "and so is one handed to bash -s with arguments" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat <<EOF\n$(git push --force origin main)\nEOF"}}
+J
+is "an unquoted here-document word expands the body, so its \$( ) runs" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"echo 'git push --force origin main' | bash"}}
+J
+is "text piped into a shell is its script" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"until [ -f x ]; do read -t 5 -r _ < <(tail -f /dev/null); done"}}
+J
+is "a process substitution keeps the shape a row is written about" "$rc" "2"
+rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
+
 # The wiring itself, read off the file that ships rather than the fixture copy.
 # Correct code behind a matcher that never fires is this project's oldest and
 # most expensive failure mode.
@@ -13969,6 +14177,159 @@ mj="$(sed -n '/"PreToolUse"/,/]/p' "$HOOKS_JSON" | sed -n 's/.*"matcher"[[:space
 for t in Bash Edit Write Read NotebookEdit; do
   case "$mj" in *"$t"*) ok "PreToolUse is bound for $t" ;; *) bad "PreToolUse is bound for $t" "matcher is [$mj]" ;; esac
 done
+
+printf '\nthe subject of a large payload\n'
+# felix_deny_subject reads a small payload with parameter expansion and a large
+# one with one awk, because ${s//pat/rep} in bash 3.2 is not linear. Measured
+# 2026-09-23 on 3.2.57, the bash the hook runs under on macOS: a 31K
+# commit-template payload took 12 to 13 s to read, a 9K `python3 -c` one 19 s,
+# and a 45K one did not finish in 110 s, against Claude Code's 60 s hook
+# timeout. Two readings of one thing are safe only if size never changes the
+# answer, so each case is read both ways and held to one expected subject.
+_subj() {  # _subj <inline limit> <tool> <payload>
+  ( . "$FROOT/harness/lib/deny.sh"; _FELIX_DENY_INLINE="$1"; felix_deny_subject "$3" "$2" )
+}
+_both() {  # _both <name> <tool> <payload> <expected>
+  is "$1" "$(_subj 0 "$2" "$3")|$(_subj 999999999 "$2" "$3")" "$4|$4"
+}
+_both "read by awk and by expansion alike: escaped quotes are the value's own" Bash \
+  '{"tool_input":{"command":"echo \"a b\" | grep \"c\"","description":"d"}}' 'echo "a b" | grep "c"'
+_both "read by awk and by expansion alike: an escaped quote does not carry the value into the next field" Bash \
+  '{"tool_input":{"command":"say \"hi\"","description":"git add -A"}}' 'say "hi"'
+_both "read by awk and by expansion alike: the first occurrence of the field wins" Edit \
+  '{"tool_input":{"file_path":"/w/README.md"},"related":{"file_path":"/w/.env"}}' '/w/README.md'
+_both "read by awk and by expansion alike: a value ending on an escaped quote" Bash \
+  '{"tool_input":{"command":"echo \""}}' 'echo "'
+_both "read by awk and by expansion alike: a value opening on an escaped quote" Bash \
+  '{"tool_input":{"command":"\"x\" y"}}' '"x" y'
+_both "read by awk and by expansion alike: an empty value is empty" Bash \
+  '{"tool_input":{"command":"","description":"x"}}' ''
+_both "read by awk and by expansion alike: every other JSON escape is left as written" Bash \
+  '{"tool_input":{"command":"a\nb\tc\\d\/e"}}' 'a\nb\tc\\d\/e'
+_both "read by awk and by expansion alike: a line break in the value is kept, beside escaped quotes" Bash \
+  $'{"tool_input":{"command":"a \\"b\nc\\" d"}}' $'a "b\nc" d'
+_both "read by awk and by expansion alike: a value with no closing quote runs to the end" Bash \
+  '{"tool_input":{"command":"abc' 'abc'
+_both "read by awk and by expansion alike: space round the colon" Bash \
+  '{"tool_input":{"command" : "x y"}}' 'x y'
+# Two of 44 cases derived blind from the contract alone, kept here because
+# they are where awks differ, and CI reads them with another awk than macOS:
+# bytes that are not UTF-8, and CRs, taken as they are; three backslashes
+# before a quote, which lose one.
+_both "read by awk and by expansion alike: bytes that are not UTF-8, and CRs, are kept as they are" Bash \
+  $'{"tool_input":{"command":"caf\xc3\xa9 \xe9\xff\xfe \\"x\\"\r\\"y\\"\r\xc3","description":"d"}}' \
+  $'caf\xc3\xa9 \xe9\xff\xfe "x"\r"y"\r\xc3'
+_both "read by awk and by expansion alike: three backslashes before a quote lose one" Bash \
+  '{"tool_input":{"command":"a\\\"b\\\"","description":"d"}}' 'a\\"b\\"'
+# A quote after an escaped backslash ends a JSON string, and the expansion
+# reads it as escaped: it looks only at the character before each quote. The
+# awk does the same on purpose, so that where the reading is loose, it is
+# loose the same way whatever the size.
+is "a value ending on an escaped backslash is read the same both ways" \
+   "$(_subj 0 Bash '{"tool_input":{"command":"echo a\\","description":"b"}}')" \
+   "$(_subj 999999999 Bash '{"tool_input":{"command":"echo a\\","description":"b"}}')"
+# A raw \001 is not JSON, and it is the expansion's own placeholder, so it
+# read as a quote there and as itself in the awk. Neither reads it now.
+_soh="$(printf '\001')"
+_soh="{\"tool_input\":{\"command\":\"a${_soh}b\",\"description\":\"d\"}}"
+_both "read by awk and by expansion alike: a payload holding a raw SOH byte, which JSON cannot, has no subject" Bash \
+  "$_soh" ''
+
+# What each reading costs. The expansion runs on nearly every call, and a
+# program started there is a tax on the whole session, so a small payload
+# must run no awk. A large one is read by exactly one, whatever it holds.
+_AWKN="$TMP/awk-calls"; mkdir -p "$TMP/awkshim" "$TMP/awkfail"
+printf '#!/bin/sh\nprintf x >> "%s"\nexec "%s" "$@"\n' "$_AWKN" "$(command -v awk)" > "$TMP/awkshim/awk"
+chmod +x "$TMP/awkshim/awk"
+_awkn() {  # _awkn <payload>: how many awk processes reading its subject took
+  : > "$_AWKN"
+  ( . "$FROOT/harness/lib/deny.sh"; PATH="$TMP/awkshim:$PATH"; felix_deny_subject "$1" Bash >/dev/null )
+  wc -c < "$_AWKN" | tr -d ' '
+}
+is "a small payload's subject is read without running awk" \
+   "$(_awkn '{"tool_name":"Bash","tool_input":{"command":"git status --short"}}')" "0"
+# Built into a variable first: in bash 3.2 a quoted {..,..} inside "$( )"
+# is brace-expanded, and the payload arrives as `"tool_name":"Bash"`.
+_mid="$(awk 'BEGIN { for (i = 0; i < 200; i++) printf "echo \\\"%d\\\" ; ", i }')"
+_mid="{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$_mid\"}}"
+is "a large payload's subject is read by exactly one awk" "$(_awkn "$_mid")" "1"
+# Fails open, and never on part of a command: a row anchored at the end can
+# refuse the part an awk printed before it died, where the whole command
+# would not match. An awk that fails reads as no subject.
+printf '#!/bin/sh\ncat >/dev/null\nprintf "git add -A"\nexit 2\n' > "$TMP/awkfail/awk"
+chmod +x "$TMP/awkfail/awk"
+is "a large payload whose awk fails part way has no subject, rather than the part it printed" \
+   "$( . "$FROOT/harness/lib/deny.sh"; PATH="$TMP/awkfail:$PATH"; felix_deny_subject "$_mid" Bash )" ""
+
+# A watchdog ends the whole tree it started: the awk is a grandchild of the
+# hook, and ending the direct children alone leaves it running.
+_killtree() { local c; for c in $(pgrep -P "$1" 2>/dev/null); do _killtree "$c"; done; kill "$1" 2>/dev/null; }
+
+# Linear, and not only fast at one size. A reading with a gsub in it is
+# quadratic in BWK awk and still passes a deadline at 220K: measured 0.22 s
+# there, and 15.7 s at 2M. So the CPU time of one reading, taken inside the
+# subshell so that neither load nor the watchdog's polling adds to it, for a
+# payload and one four times its size: linear is about four times, quadratic
+# sixteen. Under a watchdog at thirty seconds, for the expansion's sake.
+_lin() {  # _lin <units>: CPU ms for one reading of that many 22-byte units, or killed
+  local f="$TMP/lin-$1.json" i=0 pid
+  { printf '{"tool_name":"Bash","tool_input":{"command":"'
+    awk -v n="$1" 'BEGIN { for (i = 0; i < n; i++) printf "printf \\\"%%s\\\" \\\"a\\\" ; " }'
+    printf 'true"}}'; } > "$f"
+  ( . "$FROOT/harness/lib/deny.sh"; raw="$(cat "$f")"
+    felix_deny_subject "$raw" Bash >/dev/null; times > "$f.cpu" ) &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+  if kill -0 "$pid" 2>/dev/null; then _killtree "$pid"; wait "$pid" 2>/dev/null; echo killed; return; fi
+  wait "$pid" 2>/dev/null
+  # times: the subshell's user and system time, then its children's, as 0m1.234s.
+  awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
+       END { printf "%d", ms }' "$f.cpu"
+  rm -f "$f" "$f.cpu"
+}
+_l1="$(_lin 12000)"
+if [ "$_l1" = killed ]; then _lv="264K was not read in thirty seconds"; else
+  _l4="$(_lin 48000)"
+  if [ "$_l4" = killed ]; then _lv="1M was not read in thirty seconds"
+  elif [ "$_l4" -lt $((_l1 * 8)) ]; then _lv=linear
+  else _lv="264K took ${_l1} ms and 1M ${_l4} ms"; fi
+fi
+is "reading a large payload's subject is linear: four times the payload costs under eight times the CPU" "$_lv" "linear"
+
+# The reason for all of it, as deadlines through the hook, refused well
+# inside Claude Code's 60 s. Each under a watchdog that ends the hook and
+# everything under it at twenty seconds, since the expansion on these
+# payloads runs for minutes or days, and a red run is exactly where it would.
+#
+# A refused Bash command is read a second time, by felix_deny_code, at about
+# 12 us a character (2.3 s of CPU for 200K, measured 2026-09-23), and a
+# deadline on a large one would be measuring that. So the Bash command is
+# 44K, where the expansion took 102 s of CPU, and the large payload is a
+# Write: the expansion read everything after the key, a Write's content
+# included.
+_hook_within() {  # _hook_within <payload file>: finished:<exit> or killed:<exit>
+  local pid i=0 end
+  ( cd "$REPO" && exec "$FROOT/harness/hooks/pre-tool" < "$1" 2>/dev/null ) &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 200 ]; do sleep 0.1; i=$((i + 1)); done
+  if kill -0 "$pid" 2>/dev/null; then _killtree "$pid"; end=killed; else end=finished; fi
+  wait "$pid" 2>/dev/null
+  printf '%s:%s' "$end" "$?"
+}
+{ printf 'Bash\tgit add (-A|--all|\\.)$\tstage explicit paths\n'
+  printf 'Write\t\\.lock$\ta lockfile is written by its tool\n'; } > "$FROOT/projects/widget/deny.tsv"
+_big="$TMP/deny-big.json"
+{ printf '{"session_id":"deny-big","tool_name":"Bash","tool_input":{"command":"'
+  awk 'BEGIN { for (i = 0; i < 2000; i++) printf "printf \\\"%%s\\\" \\\"a\\\" ; " }'
+  printf 'git add -A","description":"d"},"tool_use_id":"t"}'; } > "$_big"
+is "a 44K command with 8,000 escaped quotes is refused through the hook inside twenty seconds" \
+   "$(_hook_within "$_big")" "finished:2"
+{ printf '{"session_id":"deny-big","tool_name":"Write","tool_input":{"file_path":"/w/uv.lock","content":"'
+  awk 'BEGIN { for (i = 0; i < 10000; i++) printf (i % 20 ? "printf %%s aaaaaaa ; " : "printf \\\"%%s\\\" \\\"a\\\" ; ") }'
+  printf '"},"tool_use_id":"t"}'; } > "$_big"
+is "a 200K Write holding 2,000 escaped quotes is refused on its path through the hook inside twenty seconds" \
+   "$(_hook_within "$_big")" "finished:2"
+rm -f "$FROOT/projects/widget/deny.tsv" "$_big"
 
 printf '\nwhere memory lives\n'
 # Memory left this repository on 2026-08-14. The property under test is not
@@ -16379,19 +16740,25 @@ printf '\na night the founder granted\n'
 # overnight state and the two would otherwise be reading each other's files.
 # Memory is keyed on the project's basename, so the fixture needs both.
 NP="$TMP/nightproj"; mkdir -p "$NP" "$MEM/nightproj"
+# A night is granted to a session, so the library is driven for one.
+NS="lib-night"
 _ov() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/overnight.sh"; "$@" 2>&1 ); }
 _ovdir()   { _ov felix_overnight_dir "$1"; }
-_ovfile()  { printf '%s/active' "$(_ovdir "$1")"; }
+# A night is a session's, so every helper takes the session last. Given none, a
+# helper reads the one project-wide file an older engine wrote, which is still
+# read, swept and ended so that a night granted before the change is closed.
+_ovfile()  { if [ -n "${2:-}" ]; then printf '%s/nights/%s' "$(_ovdir "$1")" "$2"
+             else printf '%s/active' "$(_ovdir "$1")"; fi; }
 # One field of the one-line state. Read with awk rather than cut so a note that
 # smuggled in a newline shows up as a second record instead of being averaged
 # into the answer.
-_ovfield() { awk -F'\t' -v f="$2" 'NR==1 {print $f}' "$(_ovfile "$1")" 2>/dev/null; }
-_ovreset() { rm -f "$(_ovfile "$1")"; }
+_ovfield() { awk -F'\t' -v f="$2" 'NR==1 {print $f}' "$(_ovfile "$1" "${3:-}")" 2>/dev/null; }
+_ovreset() { local d; d="$(_ovdir "$1")"; rm -rf "$d/active" "$d/nights" "$d/marks" "$d/grants"; }
 # Move the deadline into the past without touching any other field. The field
 # it edits is the one the assertion below proves is the deadline, which is the
 # only reason this rewrite is allowed to stand in for waiting eight hours.
 _ovexpire() {
-  local f p; f="$(_ovfile "$1")"; p="$(( $(date +%s) - 120 ))"
+  local f p; f="$(_ovfile "$1" "${2:-}")"; p="$(( $(date +%s) - 120 ))"
   awk -F'\t' -v OFS='\t' -v p="$p" 'NR==1 {$2=p} 1' "$f" > "$f.edit" && mv "$f.edit" "$f"
 }
 # The longest word in a sentence, for asking whether some other surface repeated
@@ -16401,25 +16768,25 @@ _ovword() { printf '%s' "$1" | tr -cs 'A-Za-z' '\n' | awk '{ if (length($0) > le
 
 _ovreset "$NP"
 _now="$(date +%s)"
-_ov felix_overnight_start "$NP" 8 5 sess-a "the founder granted a night" >/dev/null
-_ov felix_overnight_active "$NP" && ok "a granted night is in progress" \
-                                 || bad "a granted night is in progress" "$(cat "$(_ovfile "$NP")" 2>/dev/null)"
+_ov felix_overnight_start "$NP" 8 5 "$NS" "the founder granted a night" >/dev/null
+_ov felix_overnight_active "$NP" "$NS" && ok "a granted night is in progress" \
+                                 || bad "a granted night is in progress" "$(cat "$(_ovfile "$NP" "$NS")" 2>/dev/null)"
 # Eight hours means eight hours, and the assertion is here as much for the
 # tests as for the product: the expiry fixtures below rewrite field two, and
 # without this they could be rewriting the wrong number and proving nothing.
-_delta=$(( $(_ovfield "$NP" 2) - _now ))
+_delta=$(( $(_ovfield "$NP" 2 "$NS") - _now ))
 is "an eight-hour grant runs until eight hours from now" \
    "$([ "$_delta" -ge 28700 ] && [ "$_delta" -le 28900 ] && echo yes || echo "no ($_delta seconds)")" "yes"
 
 # Three bounds, and a night is live only while all three hold. Each is armed on
 # its own so a failure names the bound rather than the feature.
-_ovexpire "$NP"; _past="$(_ov felix_overnight_active "$NP" && echo yes || echo no)"
-_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 1 sess-b "one turn" >/dev/null
-_ov felix_overnight_spend "$NP" 0 >/dev/null
-_spent="$(_ov felix_overnight_active "$NP" && echo yes || echo no)"
-_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 5 sess-c "quiet" >/dev/null
-_ov felix_overnight_spend "$NP" 1 >/dev/null; _ov felix_overnight_spend "$NP" 1 >/dev/null
-_quiet="$(_ov felix_overnight_active "$NP" && echo yes || echo no)"
+_ovexpire "$NP" "$NS"; _past="$(_ov felix_overnight_active "$NP" "$NS" && echo yes || echo no)"
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 1 "$NS" "one turn" >/dev/null
+_ov felix_overnight_spend "$NP" 0 "$NS" >/dev/null
+_spent="$(_ov felix_overnight_active "$NP" "$NS" && echo yes || echo no)"
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 5 "$NS" "quiet" >/dev/null
+_ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null; _ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null
+_quiet="$(_ov felix_overnight_active "$NP" "$NS" && echo yes || echo no)"
 is "any one bound reached ends the night, whichever it is" \
    "deadline:$_past turns:$_spent quiet:$_quiet" "deadline:no turns:no quiet:no"
 
@@ -16427,24 +16794,24 @@ is "any one bound reached ends the night, whichever it is" \
 # identical from the outside: a night nobody granted and a night still running
 # both mean "do not write the morning page". Only the third has anything to say.
 _ovreset "$NP"
-_none="$(_ov felix_overnight_expired "$NP")"; _nonerc=$?
-_ov felix_overnight_start "$NP" 8 5 sess-d "live" >/dev/null
-_live="$(_ov felix_overnight_expired "$NP")"; _liverc=$?
+_none="$(_ov felix_overnight_expired "$NP" "$NS")"; _nonerc=$?
+_ov felix_overnight_start "$NP" 8 5 "$NS" "live" >/dev/null
+_live="$(_ov felix_overnight_expired "$NP" "$NS")"; _liverc=$?
 is "a night nobody granted is not an expired night" "$_nonerc:[$_none]" "1:[]"
 is "and neither is one that is still running"       "$_liverc:[$_live]" "1:[]"
 
-_ovexpire "$NP"
-_whytime="$(_ov felix_overnight_expired "$NP")"; _timerc=$?
+_ovexpire "$NP" "$NS"
+_whytime="$(_ov felix_overnight_expired "$NP" "$NS")"; _timerc=$?
 is "a deadline that has passed ends the night and says so" \
    "$_timerc:$([ -n "$_whytime" ] && echo said || echo silent)" "0:said"
-_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 1 sess-e "one turn" >/dev/null
-_ov felix_overnight_spend "$NP" 0 >/dev/null
-_whyturns="$(_ov felix_overnight_expired "$NP")"; _turnsrc=$?
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 1 "$NS" "one turn" >/dev/null
+_ov felix_overnight_spend "$NP" 0 "$NS" >/dev/null
+_whyturns="$(_ov felix_overnight_expired "$NP" "$NS")"; _turnsrc=$?
 is "continuations run out and the night ends" \
    "$_turnsrc:$([ -n "$_whyturns" ] && echo said || echo silent)" "0:said"
-_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 5 sess-f "quiet" >/dev/null
-_ov felix_overnight_spend "$NP" 1 >/dev/null; _ov felix_overnight_spend "$NP" 1 >/dev/null
-_whyquiet="$(_ov felix_overnight_expired "$NP")"; _quietrc=$?
+_ovreset "$NP"; _ov felix_overnight_start "$NP" 8 5 "$NS" "quiet" >/dev/null
+_ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null; _ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null
+_whyquiet="$(_ov felix_overnight_expired "$NP" "$NS")"; _quietrc=$?
 is "two runs with nothing to show end the night too" \
    "$_quietrc:$([ -n "$_whyquiet" ] && echo said || echo silent)" "0:said"
 # The morning has to know which wall it hit. One sentence for all three is a
@@ -16458,61 +16825,95 @@ printf '\nwhat a grant refuses\n'
 # the feature. `felix overnight --start 0.5` that rounds, or `--start 100` that
 # is accepted, is a session running unattended for as long as it feels like.
 _ovreset "$NP"
-_ov felix_overnight_start "$NP" 8.5 5 sess-g "half" >/dev/null 2>&1 \
+_ov felix_overnight_start "$NP" 8.5 5 "$NS" "half" >/dev/null 2>&1 \
   && bad "half an hour is not a whole number of hours" "accepted" \
   || ok  "half an hour is not a whole number of hours"
-_zero="$(_ov felix_overnight_start "$NP" 0 5 sess-h "none")"; _zerorc=$?
+_zero="$(_ov felix_overnight_start "$NP" 0 5 "$NS" "none")"; _zerorc=$?
 [ "$_zerorc" -ne 0 ] && ok "a night of zero hours is not a night" \
                      || bad "a night of zero hours is not a night" "accepted"
 # Refusing without saying why leaves a founder retyping the same command.
 is "and a refused grant says why" "$([ -n "$_zero" ] && echo said || echo silent)" "said"
-_ov felix_overnight_start "$NP" 17 5 sess-i "too long" >/dev/null 2>&1 \
+_ov felix_overnight_start "$NP" 17 5 "$NS" "too long" >/dev/null 2>&1 \
   && bad "seventeen hours is past the ceiling" "accepted" \
   || ok  "seventeen hours is past the ceiling"
-_ov felix_overnight_start "$NP" 8 0 sess-j "no turns" >/dev/null 2>&1 \
+_ov felix_overnight_start "$NP" 8 0 "$NS" "no turns" >/dev/null 2>&1 \
   && bad "a night with no continuations in it is refused" "accepted" \
   || ok  "a night with no continuations in it is refused"
+# Continuations have had teeth since a night carries through the platform's
+# chain, so their count has a ceiling as the hours do.
+_ov felix_overnight_start "$NP" 8 201 "$NS" "too many" >/dev/null 2>&1 \
+  && bad "two hundred and one continuations is past the ceiling" "accepted" \
+  || ok  "two hundred and one continuations is past the ceiling"
+# Nobody to hold is nobody to grant a night to.
+_ov felix_overnight_start "$NP" 8 5 "" "whose?" >/dev/null 2>&1 \
+  && bad "a night granted to no session is refused" "accepted" \
+  || ok  "a night granted to no session is refused"
+_ov felix_overnight_start "$NP" 8 5 "../../elsewhere" "a path" >/dev/null 2>&1; _rc=$?
+is "and so is one whose session id would name a path, which is not written" \
+   "$([ "$_rc" -ne 0 ] && echo refused || echo accepted):$([ -e "$(_ovdir "$NP")/elsewhere" ] && echo written || echo absent)" \
+   "refused:absent"
 # The control. Without it every assertion above is satisfied by a start that
 # refuses everything, which is the shape a blanket guard clause takes.
 is "and nothing was granted by any of them" \
-   "$([ -f "$(_ovfile "$NP")" ] && echo granted || echo none)" "none"
-_ov felix_overnight_start "$NP" 16 5 sess-k "the ceiling itself" >/dev/null 2>&1 \
+   "$([ -f "$(_ovfile "$NP" "$NS")" ] && echo granted || echo none)" "none"
+_ov felix_overnight_start "$NP" 16 5 "$NS" "the ceiling itself" >/dev/null 2>&1 \
   && ok  "the ceiling itself is still a night somebody can be granted" \
   || bad "the ceiling itself is still a night somebody can be granted" "16 refused"
+_ovreset "$NP"
+_ov felix_overnight_start "$NP" 8 200 "$NS" "the turn ceiling itself" >/dev/null 2>&1 \
+  && ok  "and so is the continuation ceiling itself" \
+  || bad "and so is the continuation ceiling itself" "200 refused"
+# The ceilings bound a session, not a grant. A session can run the command from
+# its own shell, and a night carries it through the platform's chain, so a
+# second grant from inside the chain that reset the budget would be a loop with
+# nothing to end it.
+_ovreset "$NP"
+_ov felix_overnight_start "$NP" 4 150 "$NS" "most of a day's budget" >/dev/null 2>&1
+_ov felix_overnight_start "$NP" 4 60 "$NS" "and then some" >/dev/null 2>&1 \
+  && bad "a second grant cannot take a session past the day's continuations" "accepted: $(_ovfield "$NP" 3 "$NS") left" \
+  || ok  "a second grant cannot take a session past the day's continuations"
+_ov felix_overnight_start "$NP" 4 50 "$NS" "exactly the rest" >/dev/null 2>&1 \
+  && ok  "and a second grant inside what is left of the day is still a grant" \
+  || bad "and a second grant inside what is left of the day is still a grant" "refused at 200"
+_ovreset "$NP"
+_ov felix_overnight_start "$NP" 10 5 "$NS" "ten hours" >/dev/null 2>&1
+_ov felix_overnight_start "$NP" 7 5 "$NS" "seven more" >/dev/null 2>&1 \
+  && bad "nor past the day's hours" "seventeen hours granted in a day" \
+  || ok  "nor past the day's hours"
 
 # The state is one line, and the note is the only field a person types. A tab
 # in it silently adds a column; a newline adds a whole second night. Either way
 # the next read gets a deadline that is not a deadline.
 _ovreset "$NP"
-_ov felix_overnight_start "$NP" 2 3 sess-l "$(printf 'ship it\tthen\nsleep')" >/dev/null 2>&1
+_ov felix_overnight_start "$NP" 2 3 "$NS" "$(printf 'ship it\tthen\nsleep')" >/dev/null 2>&1
 is "a note carrying a tab and a newline still leaves one line of six fields" \
-   "$(awk 'END {print NR}' "$(_ovfile "$NP")" 2>/dev/null):$(awk -F'\t' 'NR==1 {print NF}' "$(_ovfile "$NP")" 2>/dev/null)" \
+   "$(awk 'END {print NR}' "$(_ovfile "$NP" "$NS")" 2>/dev/null):$(awk -F'\t' 'NR==1 {print NF}' "$(_ovfile "$NP" "$NS")" 2>/dev/null)" \
    "1:6"
 
 printf '\nspending the night down\n'
 _ovreset "$NP"
-_ov felix_overnight_start "$NP" 8 5 sess-m "five turns" >/dev/null
-_said="$(_ov felix_overnight_spend "$NP" 0)"
-is "one continuation is spent per turn, not two" "$(_ovfield "$NP" 3)" "4"
+_ov felix_overnight_start "$NP" 8 5 "$NS" "five turns" >/dev/null
+_said="$(_ov felix_overnight_spend "$NP" 0 "$NS")"
+is "one continuation is spent per turn, not two" "$(_ovfield "$NP" 3 "$NS")" "4"
 # The budget lesson, in a second place: a count worked out in advance and
 # printed is not the count that was written down.
 has "and the number it reports is the number it stored" "$_said" "4"
-_ov felix_overnight_spend "$NP" 1 >/dev/null; _ov felix_overnight_spend "$NP" 1 >/dev/null
-is "runs with nothing to show accumulate" "$(_ov felix_overnight_quiets "$NP")" "2"
-_ov felix_overnight_spend "$NP" 0 >/dev/null
-is "and a turn that did something clears the count" "$(_ov felix_overnight_quiets "$NP")" "0"
+_ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null; _ov felix_overnight_spend "$NP" 1 "$NS" >/dev/null
+is "runs with nothing to show accumulate" "$(_ov felix_overnight_quiets "$NP" "$NS")" "2"
+_ov felix_overnight_spend "$NP" 0 "$NS" >/dev/null
+is "and a turn that did something clears the count" "$(_ov felix_overnight_quiets "$NP" "$NS")" "0"
 # A negative continuation count reads as "below the limit" to any comparison
 # written the obvious way, which turns an exhausted night into an endless one.
 _ovreset "$NP"
-_ov felix_overnight_start "$NP" 8 1 sess-n "last turn" >/dev/null
-_ov felix_overnight_spend "$NP" 0 >/dev/null; _ov felix_overnight_spend "$NP" 0 >/dev/null
-is "spending past the last continuation stops at zero" "$(_ovfield "$NP" 3)" "0"
+_ov felix_overnight_start "$NP" 8 1 "$NS" "last turn" >/dev/null
+_ov felix_overnight_spend "$NP" 0 "$NS" >/dev/null; _ov felix_overnight_spend "$NP" 0 "$NS" >/dev/null
+is "spending past the last continuation stops at zero" "$(_ovfield "$NP" 3 "$NS")" "0"
 
 printf '\nwhat is waiting for a person in the morning\n'
 # The queue is the whole reason a night is allowed at all: the session does not
 # stop to ask, so every question it did not ask has to be written down.
 _ovreset "$NP"; rm -f "$(_ovdir "$NP")/deferred.tsv"
-_ov felix_overnight_start "$NP" 8 5 sess-o "queue" >/dev/null
+_ov felix_overnight_start "$NP" 8 5 "$NS" "queue" >/dev/null
 _ov felix_overnight_defer "$NP" question "which name to publish under" "felix overnight --report" >/dev/null
 _ov felix_overnight_defer "$NP" blocked "the staging token expired" "op signin staging" >/dev/null
 is "two deferrals are two things waiting" "$(_ov felix_overnight_deferred_count "$NP")" "2"
@@ -16535,13 +16936,13 @@ printf '\nthe Stop hook through a granted night\n'
 # assertion below pass without measuring anything.
 OVSTOP="$FROOT/harness/hooks/stop"
 WP="$FROOT/projects/widget"
-cat > "$WP/project.json" <<'EOF'
+cat > "$WP/project.json" <<'EOF2'
 {
   "name": "widget",
   "remote_match": "example.com/widget",
   "gate": "sh -c 'test -f WIDGET.txt && echo widget-gate-ran'"
 }
-EOF
+EOF2
 NREPO="$TMP/nightrepo"
 mkdir -p "$NREPO"
 ( cd "$NREPO" && git init -q -b main
@@ -16554,16 +16955,28 @@ mkdir -p "$NREPO"
 # recognise and every green case below reads as a block.
 NREPO="$(cd "$NREPO" && pwd -P)"
 # An edit the session made, then a gate run over exactly that tree: this is the
-# state the hook is designed for, and the only one in which the overnight branch
-# is reached at all.
+# state the hook is designed for. A clean tree reaches the night too, and is
+# measured on its own repository further down.
 printf 'night work\n' >> "$NREPO/WIDGET.txt"
 _ovgate="$(cd "$NREPO" && "$FELIX" gate 2>&1)"; _ovgaterc=$?
 is "the fixture tree is green before any night is granted" "$_ovgaterc" "0"
 
-_ovstop() { ( cd "$NREPO" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s"}' "$1" | "$OVSTOP" 2>&1 ); }
+# The payload names the session, says whether the platform is already
+# continuing from a block, and points at the transcript the night reads to
+# tell work from idling. A tool call is a record whose key is the type; a
+# message that only talks about one carries the same words escaped.
+OVTX="$TMP/night-transcript.jsonl"; : > "$OVTX"
+_ovtool() { printf '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash"}]}}\n' >> "$OVTX"; }
+_ovtalk() { printf '{"type":"assistant","message":{"content":[{"type":"text","text":"no call here, only the words \\"type\\":\\"tool_use\\""}]}}\n' >> "$OVTX"; }
+_ovstopin() {   # dir, sid [, stop_hook_active [, transcript]]
+  ( cd "$1" && printf '{"hook_event_name":"Stop","stop_hook_active":%s,"session_id":"%s","transcript_path":"%s"}' \
+      "${3:-false}" "$2" "${4:-}" | "$OVSTOP" 2>&1 )
+}
+_ovstop() { _ovstopin "$NREPO" "$@"; }
 _ovblocks() { case "$2" in *'"decision"'*'"block"'*) ok "$1" ;; *) bad "$1" "expected a block, got [$2]" ;; esac; }
 _ovholds_open() { case "$2" in *'"decision"'*'"block"'*) bad "$1" "expected no block, got [$2]" ;; *) ok "$1" ;; esac; }
 _ovsays_night() { printf '%s\n' "$2" | grep -qi 'overnight'; }
+_ovgone() { [ -f "$(_ovfile "$1" "${2:-}")" ] && echo present || echo gone; }
 
 _ovreset "$WP"
 _out="$(_ovstop night-none)"
@@ -16574,24 +16987,60 @@ _ovsays_night x "$_out" && bad "and says nothing about a night nobody granted" "
 # The grant, and the behaviour it buys: the session is handed back its own turn
 # instead of being allowed to stop and wait for somebody who is asleep.
 _ov felix_overnight_start "$WP" 8 12 night-live "a granted night" >/dev/null
-_out="$(_ovstop night-live)"
+_ovtool
+_out="$(_ovstop night-live false "$OVTX")"
 _ovblocks "a granted night hands the session its turn back instead" "$_out"
-is  "and exactly one continuation is spent for it" "$(_ovfield "$WP" 3)" "11"
+is  "and exactly one continuation is spent for it" "$(_ovfield "$WP" 3 night-live)" "11"
 has "and the session is told how many are left"    "$_out" "11"
+
+# A night is the session's it was granted to. The project held every session
+# in it at every stop until this was keyed, and they all spent one budget.
+_out="$(_ovstop night-bystander)"
+_ovholds_open "another session in the same project is not held by that night" "$_out"
+is "and its stop costs that night nothing" "$(_ovfield "$WP" 3 night-live)" "11"
+
+# The platform marks every stop after a block. Leaving at that mark held a
+# night's session once per prompt, so a session nobody typed into got one
+# continuation for the whole night.
+_ovtool
+_out="$(_ovstop night-live true "$OVTX")"
+_ovblocks "the night's own session is held again inside the platform's chain" "$_out"
+is "and that continuation is spent like any other" "$(_ovfield "$WP" 3 night-live)" "10"
+
+# Quiet is read off the transcript: a continuation that called no tool. Prose
+# that quotes a tool call is not one, or a session describing its work would
+# stay awake forever.
+_ovtalk
+_out="$(_ovstop night-live true "$OVTX")"
+_ovblocks "one continuation that called no tool is not yet the end of the night" "$_out"
+is "and it is counted as quiet, prose about a tool call included" "$(_ovfield "$WP" 4 night-live)" "1"
+_ovtool
+_ovstop night-live true "$OVTX" >/dev/null
+is "a tool call after it clears the count" "$(_ovfield "$WP" 4 night-live)" "0"
+_ovtalk; _ovstop night-live true "$OVTX" >/dev/null
+_ovtalk; _out="$(_ovstop night-live true "$OVTX")"
+_ovholds_open "two continuations in a row that call no tool end the night" "$_out"
+is "and the night is closed, not left for the next stop" "$(_ovgone "$WP" night-live)" "gone"
+has "and the hand-back says it was the idling that ended it" "$_out" "called no tool"
+# Unknown is quiet: a hold nobody can show bought any work must not repeat.
+_ov felix_overnight_start "$WP" 8 12 night-blind "no transcript" >/dev/null
+_ovstop night-blind false "$TMP/no-such-transcript.jsonl" >/dev/null
+is "a transcript that cannot be read counts as a quiet continuation" "$(_ovfield "$WP" 4 night-blind)" "1"
+_ov felix_overnight_end "$WP" "done" night-blind
 
 # Morning. The deadline is the bound that ends most nights, and the session that
 # meets it must be allowed to stop — with the page, not with a block.
-_ovexpire "$WP"
-_whystop="$(_ov felix_overnight_expired "$WP")"
-_out="$(_ovstop night-over)"
+_ov felix_overnight_start "$WP" 8 12 night-live "a granted night" >/dev/null
+_ovexpire "$WP" night-live
+_whystop="$(_ov felix_overnight_expired "$WP" night-live)"
+_out="$(_ovstop night-live)"
 _ovholds_open "a night that ran out of time lets the session stop" "$_out"
-is "and the grant is not left lying around for the next session" \
-   "$([ -f "$(_ovfile "$WP")" ] && echo present || echo gone)" "gone"
-_tok="$(_ovword "$_whystop")"
-if [ "${#_tok}" -lt 4 ]; then
+is "and the grant is not left lying around for the next session" "$(_ovgone "$WP" night-live)" "gone"
+# The whole reason, not its longest word: "granted" is in two of the three.
+if [ "${#_whystop}" -lt 10 ]; then
   bad "and the hand-back names the bound that ended the night" "nothing to look for in [$_whystop]"
 else
-  has "and the hand-back names the bound that ended the night" "$_out" "$_tok"
+  has "and the hand-back names the bound that ended the night" "$_out" "$_whystop"
 fi
 
 # The grant is permission to keep working, never permission to be wrong. A red
@@ -16604,17 +17053,72 @@ _ov felix_overnight_start "$WP" 8 12 night-red "a granted night" >/dev/null
 _out="$(_ovstop night-red)"
 _ovblocks "a red gate outranks the grant"   "$_out"
 has "and the refusal is the gate's own"     "$_out" "gate"
-is  "and refusing costs no continuation"    "$(_ovfield "$WP" 3)" "12"
+is  "and refusing costs no continuation"    "$(_ovfield "$WP" 3 night-red)" "12"
+# Asked on a red tree, where the gate would refuse anybody who got that far.
+# On a green one nothing blocks a bystander, so the exit could not be seen.
+_out="$(_ovstop night-bystander true "$OVTX")"
+_ovholds_open "and a chain in a session with no night still ends as the platform asks" "$_out"
+# Inside the chain the night carried the session past the platform's bound, so
+# a refusal there is the night's to pay for, or a gate that cannot go green
+# holds the session for as long as the platform allows.
+_ovtool
+_out="$(_ovstop night-red true "$OVTX")"
+_ovblocks "inside the night's chain a red gate still refuses" "$_out"
+is  "and there the refusal is charged to the night" "$(_ovfield "$WP" 3 night-red)" "11"
+_ov felix_overnight_start "$WP" 8 1 night-redlast "one continuation" >/dev/null
+_ovtool
+_out="$(_ovstop night-redlast true "$OVTX")"
+_ovholds_open "a night spent down on refusals lets the session close" "$_out"
+is "and the night is closed as it goes" "$(_ovgone "$WP" night-redlast)" "gone"
+has "and hands over the page as it goes" "$_out" "overnight report for"
+# A spend that could not be written held the session and spent nothing, which
+# left only the clock as a bound. Now the night ends there and the session may
+# close. Root writes through any mode, so there the case cannot be built.
+if [ "$(id -u)" = "0" ]; then
+  skip "a night whose state cannot be written lets the session close" "running as root"
+else
+  _ovreset "$WP"
+  _ov felix_overnight_start "$WP" 8 12 night-ro "an unwritable night" >/dev/null
+  chmod 555 "$(_ovdir "$WP")" "$(_ovdir "$WP")/nights"
+  _ovtool
+  _out="$(_ovstop night-ro true "$OVTX")"
+  chmod 755 "$(_ovdir "$WP")" "$(_ovdir "$WP")/nights"
+  _ovholds_open "a night whose state cannot be written lets the session close" "$_out"
+fi
 printf 'contents\nnight work\n' > "$NREPO/WIDGET.txt"
+# Green again, so a stop below that is not held is not held for the night's
+# reasons rather than because the gate refused.
+( cd "$NREPO" && "$FELIX" gate ) >/dev/null 2>&1
+
+# A tree with nothing to verify let the session close before this, night or
+# no night, so a session that had not committed yet was let go for the night.
+CREPO="$TMP/nightclean"
+mkdir -p "$CREPO"
+( cd "$CREPO" && git init -q -b main
+  printf 'contents\n' > WIDGET.txt
+  printf 'widget\n'   > .felix
+  git add -A >/dev/null 2>&1
+  git -c user.name=t -c user.email=t@t commit -qm init >/dev/null 2>&1 )
+CREPO="$(cd "$CREPO" && pwd -P)"
+_ovreset "$WP"
+_out="$(_ovstopin "$CREPO" night-clean)"
+_ovholds_open "a clean tree with no night still closes in silence" "$_out"
+_ov felix_overnight_start "$WP" 8 12 night-clean "a granted night" >/dev/null
+_ovtool
+_out="$(_ovstopin "$CREPO" night-clean false "$OVTX")"
+_ovblocks "a clean tree does not end the night of the session standing in it" "$_out"
+_ovreset "$WP"
 
 printf '\nwhat the next session is told\n'
 # The direction has to reach the session that will act on it, and the only
 # channel for that is the start of the session. Said when no night is running it
-# is an instruction to work unattended that nobody granted.
-_ovnstart() { ( cd "$NREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1 ); }
+# is an instruction to work unattended that nobody granted, and said to a
+# session the night is not for, it is the same instruction.
+_ovnstart() { ( cd "$NREPO" && printf '{"hook_event_name":"SessionStart","source":"startup","session_id":"%s"}' "$1" \
+                  | CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1 ); }
 _ovreset "$WP"
 _ov felix_overnight_start "$WP" 8 12 night-start "a granted night" >/dev/null
-_out="$(_ovnstart)"
+_out="$(_ovnstart night-start)"
 # Asked against the direction the library hands out, not against the word
 # "overnight" appearing somewhere in the context. A hook that says a night is on
 # and mounts none of the standing direction is the failure this exists to catch,
@@ -16623,26 +17127,59 @@ _out="$(_ovnstart)"
 _ovline="$(_ov felix_overnight_direction | awk '{ if (length($0) > length(m)) m = $0 } END { print m }')"
 if [ "${#_ovline}" -lt 20 ]; then
   bad "a live night is mounted into the next session's context" "no direction to look for"
+  bad "and not into a session the night does not belong to" "no direction to look for"
 else
   has "a live night is mounted into the next session's context" "$_out" "$_ovline"
+  _out="$(_ovnstart night-bystander)"
+  case "$_out" in *"$_ovline"*) bad "and not into a session the night does not belong to" "$_out" ;;
+                  *) ok "and not into a session the night does not belong to" ;; esac
 fi
+# The one file per project an older engine wrote is read and ended, and holds
+# nobody: a night granted before nights were a session's is not announced to
+# whichever session happens to start, which is the defect itself.
 _ovreset "$WP"
-_out="$(_ovnstart)"
+mkdir -p "$(_ovdir "$WP")"
+printf '%s\t%s\t12\t0\t-\tgranted under an older engine\n' "$(date +%s)" "$(( $(date +%s) + 3600 ))" > "$(_ovfile "$WP")"
+_out="$(_ovnstart night-upgraded)"
+case "$_out" in *"${_ovline:-no direction}"*) bad "a night an older engine granted to the project is announced to no session" "$_out" ;;
+                *) ok "a night an older engine granted to the project is announced to no session" ;; esac
+_out="$(_ovstop night-upgraded)"
+_ovholds_open "and holds no session at its stop" "$_out"
+# A session that closed before its night ran out leaves the night behind, and
+# with a night per session nothing else would ever read it again. The session
+# that starts next ends the ones whose deadline passed, and leaves the rest.
+_ovreset "$WP"
+_ov felix_overnight_start "$WP" 8 12 night-gone "its session closed early" >/dev/null
+_ov felix_overnight_start "$WP" 8 12 night-running "still inside its deadline" >/dev/null
+_ovexpire "$WP" night-gone
+_ovnstart night-sweeper >/dev/null
+is "a later session ends a night whose deadline passed, and only that one" \
+   "$(_ovgone "$WP" night-gone):$(_ovgone "$WP" night-running)" "gone:present"
+_ovreset "$WP"
+_out="$(_ovnstart night-none)"
 _ovsays_night x "$_out" && bad "and no night is announced when none was granted" "$_out" \
                         || ok  "and no night is announced when none was granted"
 
 printf '\nthe command a founder types\n'
 # The surface itself. Everything above is reachable only through this, and a
 # flag that silently does nothing is indistinguishable from a night that went
-# well.
-_ovcli() { ( cd "$NREPO" && "$FELIX" overnight "$@" 2>&1 ); }
+# well. The session is set by hand, because the suite runs both inside a
+# session that exports one and on a runner that exports none.
+_ovcli()   { ( cd "$NREPO" && CLAUDE_CODE_SESSION_ID=night-cli "$FELIX" overnight "$@" 2>&1 ); }
+_ovcli2()  { ( cd "$NREPO" && CLAUDE_CODE_SESSION_ID=night-cli2 "$FELIX" overnight "$@" 2>&1 ); }
+_ovcliterm() { ( cd "$NREPO" && env -u CLAUDE_CODE_SESSION_ID "$FELIX" overnight "$@" 2>&1 ); }
+_ovnights() { _ov felix_overnight_nights "$WP" | grep -c .; }
 _ovreset "$WP"; rm -f "$(_ovdir "$WP")/deferred.tsv"
 _out="$(_ovcli)"; _rc=$?
 is "felix overnight with no arguments says where the night stands" \
    "$_rc:$([ -n "$_out" ] && echo said || echo silent)" "0:said"
 _ovcli --start --hours 2 --turns 6 --note "granted from the command line" >/dev/null 2>&1
-_ov felix_overnight_active "$WP" && ok "--start grants the night" \
-                                 || bad "--start grants the night" "no state at $(_ovfile "$WP")"
+_ov felix_overnight_active "$WP" night-cli && ok "--start grants the night" \
+                                           || bad "--start grants the night" "no state at $(_ovfile "$WP" night-cli)"
+is "and grants it to the session it was typed in, and no other" "$(_ovnights)" "1"
+_ovcli2 --start --hours 3 >/dev/null 2>&1
+is "a second session's grant is a second night, not a replacement" \
+   "$(_ovnights):$(_ovfield "$WP" 3 night-cli)" "2:6"
 _ovcli --defer question --what "which name to publish under" --unblock "felix overnight --report" >/dev/null 2>&1
 is "--defer writes the decision down for the morning" "$(_ov felix_overnight_deferred_count "$WP")" "1"
 # A kind nobody defined means a queue nobody can sort in the morning, and the
@@ -16652,11 +17189,43 @@ is "a kind nobody defined is refused, with a reason" \
    "$([ "$_rc" -ne 0 ] && [ -n "$_out" ] && echo refused || echo "accepted ($_rc)")" "refused"
 _out="$(_ovcli --report)"; _rc=$?
 is "--report prints the morning page" "$_rc:$([ -n "$_out" ] && echo said || echo silent)" "0:said"
+is  "and the page shows every session's night, not only the reader's" \
+    "$(printf '%s\n' "$_out" | grep -c '^  session night-cl')" "2"
 _ovcli --clear >/dev/null 2>&1
 is "--clear empties the queue" "$(_ov felix_overnight_deferred_count "$WP")" "0"
 _ovcli --end >/dev/null 2>&1
-_ov felix_overnight_active "$WP" && bad "--end ends the night" "still live" \
-                                 || ok  "--end ends the night"
+_ov felix_overnight_active "$WP" night-cli && bad "--end ends the night" "still live" \
+                                           || ok  "--end ends the night"
+_ov felix_overnight_active "$WP" night-cli2 && ok "and ends that session's night and no other" \
+                                            || bad "and ends that session's night and no other" "night-cli2 ended too"
+# From inside a session, a night is that session's to take and nobody else's
+# to give: the one it names would be held at every stop.
+_out="$(_ovcli --start --session night-victim)"; _rc=$?
+is "a session cannot grant a night to another session" \
+   "$([ "$_rc" -ne 0 ] && echo refused || echo accepted):$([ -f "$(_ovfile "$WP" night-victim)" ] && echo granted || echo none)" \
+   "refused:none"
+# --end ends the caller's night only, so the way out of all of them from
+# inside any session is named.
+_ovcli --start --hours 1 >/dev/null 2>&1
+_ovcli --end --all >/dev/null 2>&1
+is "--end --all from inside a session ends every night" "$(_ovnights)" "0"
+_ovcli2 --start --hours 1 >/dev/null 2>&1
+# A terminal is inside no session, so there is nobody for a night typed there
+# to hold. It is refused with the way to type it inside one, and --end typed
+# there is a person's way out of every night at once.
+_out="$(_ovcliterm --start)"; _rc=$?
+is "a night typed outside every session is refused, and nothing is granted" \
+   "$([ "$_rc" -ne 0 ] && echo refused || echo accepted):$(_ovnights)" "refused:1"
+has "and the refusal says how to type it inside the session" "$_out" "! felix overnight --start"
+printf '%s\t%s\t12\t0\t-\tan older engine\n' "$(date +%s)" "$(( $(date +%s) + 3600 ))" > "$(_ovfile "$WP")"
+_ovcliterm --end >/dev/null 2>&1
+is "and --end typed there ends every night, an older engine's included" "$(_ovnights)" "0"
+# The id becomes a file name, and it arrives from the environment.
+_out="$( ( cd "$NREPO" && CLAUDE_CODE_SESSION_ID='../../escaped' "$FELIX" overnight --start 2>&1 ) )"; _rc=$?
+is "a session id that cannot name a file is refused, and nothing is written where it points" \
+   "$([ "$_rc" -ne 0 ] && echo refused || echo "accepted"):$([ -e "$(_ovdir "$WP")/escaped" ] && echo written || echo absent):$(_ovnights)" \
+   "refused:absent:0"
+_ovreset "$WP"
 
 printf '\ndecision epochs: the four things a decision was made under\n'
 # v3.2 §3 defines the epoch as hash(subject_identity, topology_version,
@@ -20107,6 +20676,25 @@ _rv_one r4/dqc r4-dq2 'bash -c \"cd /w && \\\"$FELIX_HOME/harness/felix\\\" gate
 _rv_one r4/dqc r4-dq3 'sh -c \"echo \\\"npm test\\\"\"'
 is  "a double-quoted -c script is read with its escapes taken off: a program path quoted inside it is the program, and text quoted inside it is text" \
     "$(_au_counts "$(_au --dir "$RV/r4/dqc")")" "2 0 0 1"
+
+# A --verify that matches a backslash has decode() put each escaped one back
+# with a split on \001, and BWK awk, which macOS ships, splits a string at
+# every line break as well when its separator is one character. So every
+# line break of a command holding an escaped backslash became a backslash,
+# and its lines one: the runner on the line after echo a\b was no check, the
+# sed -i on a line after npm test no write after it, and the line after a
+# check did not take its status. Read under x\\z and under x_z, which match
+# nothing here and differ only in the backslash, and counted the same. gawk
+# and mawk never split there, so only a Mac shows this red.
+_rv_one bwk/nlbs bwk-nb1 'echo a\\b\nnpm test'
+_rv_one bwk/nlbs bwk-nb2 'npm test\necho a\\b\nsed -i s/a/b/ src/app.js'
+_rv_one bwk/nlbs bwk-nb3 'npm test\necho a\\b'
+_rvo="$(_au --dir "$RV/bwk/nlbs" --verify 'x_z')"; _rvo2="$(_au --dir "$RV/bwk/nlbs" --verify 'x\\z')"
+_rvn="a multi-line command holding an escaped backslash reads the same under a --verify that matches a backslash as under one that does not: its line breaks stay line breaks"
+[ "$(_au_counts "$_rvo")" = "2 0 1 0" ] && _au_nums "$_rvo" 'pipe|background' 1 \
+  && [ "$(_au_counts "$_rvo2")" = "2 0 1 0" ] && _au_nums "$_rvo2" 'pipe|background' 1 \
+  && ok  "$_rvn" \
+  || bad "$_rvn" "x_z: $(_au_counts "$_rvo"), x\\\\z: $(_au_counts "$_rvo2"); passed, failed, stale, never, where each should read 2 0 1 0 with one check whose status a later line took"
 
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same

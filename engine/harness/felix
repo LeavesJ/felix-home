@@ -1727,25 +1727,48 @@ cmd_autonomy() {
 # down and keeps working instead of waiting for somebody who is asleep.
 cmd_overnight() {
   resolve_or_die; local proj="$PROJ"
-  local start=0 hours="" turns="" note="" report=0 clear=0 end="" defer="" what="" unblock="" sid=""
+  local start=0 hours="" turns="" note="" report=0 clear=0 end="" defer="" what="" unblock="" sid="" named=0 all=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --start)   start=1; shift ;;
       --hours)   need_value "$@"; hours="$2"; shift 2 ;;
       --turns)   need_value "$@"; turns="$2"; shift 2 ;;
       --note)    need_value "$@"; note="$2"; shift 2 ;;
-      --session) need_value "$@"; sid="$2"; shift 2 ;;
+      --session) need_value "$@"; sid="$2"; named=1; shift 2 ;;
       --defer)   need_value "$@"; defer="$2"; shift 2 ;;
       --what)    need_value "$@"; what="$2"; shift 2 ;;
       --unblock) need_value "$@"; unblock="$2"; shift 2 ;;
       --report)  report=1; shift ;;
       --clear)   clear=1; shift ;;
-      --end)     end="${2:-ended by hand}"; [ $# -ge 2 ] && shift 2 || shift ;;
+      --end)     case "${2:-}" in ''|-*) end="ended by hand"; shift ;; *) end="$2"; shift 2 ;; esac ;;
+      --all)     all=1; shift ;;
       --status)  shift ;;
-      -*) die "usage: felix overnight [--start [--hours N] [--turns N] [--note ...]] [--defer KIND --what ... [--unblock ...]] [--report] [--clear] [--end [reason]]" ;;
+      -*) die "usage: felix overnight [--start [--hours N] [--turns N] [--note ...]] [--session ID] [--defer KIND --what ... [--unblock ...]] [--report] [--clear] [--end [reason] [--all]]" ;;
       *) shift ;;
     esac
   done
+
+  # Whose night this command is about. A night belongs to one session (see
+  # lib/overnight.sh), and the session a shell belongs to is the one the
+  # platform exports to it; --session names another. A terminal outside every
+  # session has no id at all. It cannot start a night, since there is nobody
+  # for the night to hold, and it is the one caller for whom --end means every
+  # night: that is a person's way out, and a person at a terminal is inside
+  # none of them.
+  local scope="session"
+  [ "$named" -eq 1 ] || sid="${CLAUDE_CODE_SESSION_ID:-}"
+  # From inside a session, a night is that session's to take and nobody
+  # else's to give: a grant there holds whatever session it names at every
+  # stop, and the one inside it is the only one that asked. Naming another
+  # session is for a person at a terminal, which exports no id.
+  if [ "$start" -eq 1 ] && [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && [ "$sid" != "$CLAUDE_CODE_SESSION_ID" ]; then
+    die "from inside a session, a night can only be granted to that session. Type it in the session the night is for."
+  fi
+  [ "$all" -eq 1 ] && scope="all"
+  if [ -z "$sid" ]; then scope="all"
+  elif ! _felix_overnight_sid_ok "$sid"; then
+    die "the session id cannot name a night: letters, digits, dot, dash and underscore only"
+  fi
 
   if [ -n "$defer" ]; then
     case "$defer" in
@@ -1763,12 +1786,24 @@ cmd_overnight() {
   fi
 
   if [ -n "$end" ]; then
-    if felix_overnight_active "$proj"; then
-      felix_overnight_end "$proj" "$end"; printf 'overnight ended: %s\n\n' "$end"
+    local id key ended=0
+    if [ "$scope" = "all" ]; then
+      while IFS= read -r id; do
+        [ -n "$id" ] || continue
+        key="$id"; [ "$id" = "-" ] && key=""
+        felix_overnight_end "$proj" "$end" "$key"; ended=$(( ended + 1 ))
+      done <<EOT
+$(felix_overnight_nights "$proj")
+EOT
+      printf 'ended %s night(s): %s\n\n' "$ended" "$end"
+    elif felix_overnight_owns "$proj" "$sid"; then
+      felix_overnight_end "$proj" "$end" "$sid"
+      printf 'overnight ended for %s: %s\n\n' "$(_felix_overnight_whose "$sid")" "$end"
     else
-      felix_overnight_end "$proj" "$end"; printf 'no night was running.\n\n'
+      printf 'no night was running for %s. Another session'"'"'s night is ended from inside\n' "$(_felix_overnight_whose "$sid")"
+      printf 'it, or with felix overnight --end --all, which ends every night.\n\n'
     fi
-    felix_overnight_report "$proj"
+    felix_overnight_report "$proj" "$sid"
     return 0
   fi
 
@@ -1781,41 +1816,50 @@ cmd_overnight() {
 
   if [ "$start" -eq 1 ]; then
     local why
+    [ "$scope" = "all" ] && die "overnight --start needs the session the night is for, and this shell is in none.
+Type it inside that session, where the platform exports its id:  ! felix overnight --start
+or name the session:  felix overnight --start --session <session id>"
     if why="$(felix_overnight_start "$proj" "${hours:-$FELIX_OVERNIGHT_DEFAULT_HOURS}" \
                 "${turns:-$FELIX_OVERNIGHT_DEFAULT_TURNS}" "$sid" "$note")"; then
-      printf 'overnight is on for %s.\n\n' "$(basename "$proj")"
+      printf 'overnight is on for %s, for %s and no other.\n\n' "$(basename "$proj")" "$(_felix_overnight_whose "$sid")"
       felix_overnight_direction
       printf '\nIt ends on whichever comes first: %s hour(s), %s continuation(s), or two\n' \
         "${hours:-$FELIX_OVERNIGHT_DEFAULT_HOURS}" "${turns:-$FELIX_OVERNIGHT_DEFAULT_TURNS}"
-      printf 'continuations in a row with nothing to do. felix overnight --end stops it now,\n'
+      printf 'continuations in a row that call no tool. felix overnight --end stops it now,\n'
       printf 'and closing the session stops it too — nothing here runs without one.\n'
       return 0
     fi
     die "overnight --start refused: $why"
   fi
 
-  # Status, which is also what a bare `felix overnight` answers.
-  if felix_overnight_active "$proj"; then
-    printf 'overnight is ON for %s\n\n' "$(basename "$proj")"
+  # Status, which is also what a bare `felix overnight` answers: about this
+  # session's night when there is a session, and about every night when not.
+  if [ "$scope" = "session" ] && felix_overnight_active "$proj" "$sid"; then
+    printf 'overnight is ON for %s, %s\n\n' "$(basename "$proj")" "$(_felix_overnight_whose "$sid")"
     felix_overnight_direction
     printf '\n'
-  elif [ -f "$(felix_overnight_dir "$proj")/active" ]; then
-    printf 'overnight is OVER for %s: %s\n\n' "$(basename "$proj")" \
-      "$(felix_overnight_expired "$proj")"
+  elif [ "$scope" = "session" ] && felix_overnight_owns "$proj" "$sid"; then
+    printf 'overnight is OVER for %s, %s: %s\n\n' "$(basename "$proj")" \
+      "$(_felix_overnight_whose "$sid")" "$(felix_overnight_expired "$proj" "$sid")"
     printf 'The state is still here so the report can read it. felix overnight --end\n'
     printf 'closes it, and --start begins another.\n\n'
+  elif [ "$scope" = "all" ] && [ -n "$(felix_overnight_nights "$proj")" ]; then
+    printf 'overnight: %s night(s) on record for %s, listed below.\n\n' \
+      "$(felix_overnight_nights "$proj" | grep -c .)" "$(basename "$proj")"
   else
-    printf 'overnight is off for %s\n\n' "$(basename "$proj")"
+    printf 'overnight is off for %s' "$(basename "$proj")"
+    [ "$scope" = "session" ] && printf ', %s' "$(_felix_overnight_whose "$sid")"
+    printf '\n\n'
     printf 'A night is a duration a person grants, not a setting. It changes what a\n'
     printf 'session does when something stops it — write the decision down and keep\n'
     printf 'working, rather than wait for somebody asleep — and changes nothing about\n'
-    printf 'what may stop it.\n\n'
+    printf 'what may stop it. It belongs to the session that starts it.\n\n'
     printf '  felix overnight --start                  %s hours, %s continuations\n' \
       "$FELIX_OVERNIGHT_DEFAULT_HOURS" "$FELIX_OVERNIGHT_DEFAULT_TURNS"
     printf '  felix overnight --start --hours 10       longer, up to %s\n' "$FELIX_OVERNIGHT_MAX_HOURS"
     printf '  felix overnight --report                 the morning page\n\n'
   fi
-  felix_overnight_report "$proj"
+  felix_overnight_report "$proj" "$sid"
 }
 
 # Does a check fail when the thing it protects is broken?

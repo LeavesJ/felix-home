@@ -15,7 +15,7 @@ and changed none of it: the archive files concatenated in index order, after
 files the split made; later sections join the index above them, below §0).
 
 **The rule for the next session.** Write your section at the top of "Current
-state", with the next id (after 0br comes 0bs). Move the section it replaces
+state", with the next id (after 0bu comes 0bv). Move the section it replaces
 into `docs/handoff/<id>.md`, unchanged, and add its row to the top of the
 index. A reference like "HANDOFF §0bm" means `docs/handoff/0bm.md`.
 
@@ -32,85 +32,84 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0bs. 2026-09-22/23 — Felix is a product for other people's projects, built first; the first obligations request answered blind; the roadmap
+### 0bu. 2026-09-23 — Phase 0: the Elenchus candidates checked, deny rows read the command the shell runs, three small items
 
-**No engine change from this session.** Records and doctrine only. The engine
-moved to 0.49.142 and 0.49.143 through other sessions' pull requests (#289,
-#292) while this one ran.
+**Deployed from this session: engine 0.49.149 (#299) and 0.49.152 (#301).**
+#298 added rows to `projects/felix/risk.tsv`, a commissioning table, and from
+then `felix merge` refused every felix-home PR until the founder re-stamped
+the commission, which he did on 2026-09-23; #300 and then #301 merged. The
+engine queue now, agreed between the sessions by message: #306 (the audit
+decode fix, 0.49.153), #307 (overnight mode, another session's, .154), then
+this session's #303 (.155) and #304 (.156, last on purpose). Each merge owes
+everyone behind it a red re-run; #303 and #304 also need main merged in and
+their versions re-bumped, and they are gated on an older main.
 
-| PR | What |
-|---|---|
-| #290 | Constitution: Felix is a product for other people's projects, built first on Claude Code; the Phase-1-only scope is replaced |
-| #293 | `docs/2026-09-23-roadmap.md`, replacing direction-decisions §5's queue |
-| this | The roadmap revised to build first, and this section |
+| PR | What | Engine |
+|---|---|---|
+| #299 | The `granted` count in the obligations sentence is asserted every run, against a fixture that makes the sentence print; the suite's standing skip | 0.49.149, deployed |
+| #301 | Deny rows are refused only when they still match the command the shell runs: heredoc bodies, quoted messages, comments and line breaks stop being read as commands; `lib/deny-read.sh` | 0.49.152, deployed |
+| #303 | The repair ceiling and the auto-merge streak read the gate workflow's runs alone (`gate_workflow` in project.json, default gate.yml); the unattended template proceeds only when `felix repair` exits 0 | waiting, then 0.49.155 |
+| #304 | The decision epoch is the same under any PATH: the instrument token is provenance and leaves the topology hash. Lands last: every receipt and the Elenchus candidates read stale once after it deploys | waiting, then 0.49.156 |
 
-**Founder decisions, 2026-09-22/23:**
+**The Elenchus candidates, checked (roadmap Phase 0, for Sep 26-27).** The six
+unverified rows of the 2026-09-22 blind request were checked against the code
+at `a45a985` and against every place Elenchus keeps a record, one agent each,
+each verdict attacked by a second. The founder has
+`~/.felix/memory/elenchus/commission/pdf/candidates-checked.pdf`; source and
+the full verdicts are beside it (`candidates-checked.md`, `.json`). In short:
+all six evidence commands fail on main for the reason they name and flip on
+the obvious fix, and all six checkers are flawed (each can pass with its hole
+open, or fail a reasonable fix). The launcher's `0.0.0.0` default was found by
+Elenchus's own security audit of 2026-08-31 and dropped: it reached no report,
+no DEVLOG item, no table. The untested forecast route is the strongest new
+one: renaming it leaves 1,439 tests green. The roadmap listed five candidates;
+`served_route_has_http_test` was the sixth, left off. After the epoch change
+deploys, these rows read `stale` in `felix obligations` once; that is the hash
+definition moving, not the facts.
 
-- Felix is a product for other people's projects (#290): Claude Code first
-  and best, host-independent by design, a second host once Claude Code is
-  right. The name stays for now, the IP is his, pricing is deferred, and both
-  planes stay.
-- **Build first (2026-09-23).** Real obligations and working machinery come
-  before anything else; commercialisation is a natural outcome of Felix's
-  quality, not a goal. No outreach track and no user deadlines. The roadmap
-  was revised the same day to say so.
-- The Capability Plane is not "call an agent API". Labour (Claude, Codex,
-  Factory) is one commoditised provider class, consumed on the customer's own
-  key; the distinct core is qualifying the evidence providers (observers and
-  checkers) and deriving needs from standing obligations. Integration order:
-  merge-point check, then ride-along adapters, then dispatch.
-- Approved: the obligations request by hand on Elenchus (done, below) and the
-  qualified-judge slice (roadmap Phase 1). No row is armed before control 7
-  and the judge pin exist; the chat plan of 2026-09-22 said new rows would arm
-  at once, and the roadmap records that correction.
+**The deny change, and what measuring it found.** 175 refusals had been logged
+(`says.log`, felix and elenchus). Replayed: 38 are now allowed, every one read
+and confirmed prose or data; 132 still refused. Of those 132, more than 100
+are real commands in scratch fixture repos (a marker written by `printf`,
+`git remote add`, `update-ref refs/remotes`), the largest source of false
+blocks, which no regex can tell from the governed checkout. 140 cases written
+blind: the new reading agrees on 128, the old on 82. Three adversarial
+reviewers found ten defects between them, all fixed: the semantic ones are
+assertions, the performance ones measured. Their out-of-scope findings are
+filed below. The
+reader was run under macOS's BWK awk here, and its assertions passed on CI's
+Ubuntu runner; mawk and gawk were not run locally.
 
-**Queue item 4a, done 2026-09-22.** `felix obligations --request` ran on a
-scratch clone of Elenchus at origin/main `a45a985`, with `.[dev,web]`
-installed so `http_route` read found (16) rather than blind. A Plan subagent
-answered it: that type loads no memory, so it was not primed by the session's
-talk of rate limiting. The answer was written verbatim to
-`~/.felix/memory/elenchus/commission/obligations_surveyed.tsv` and read back
-by `felix obligations`: 7 proposed, 7 accepted, 0 refused, 0 admitted
-(`candidates.tsv`, 7 rows, epoch `5d2d7b05`). Six of the seven evidence
-commands fail on main. `public_bind_has_spend_ceiling` is LeavesJ/Elenchus#16,
-open since 2026-09-03, and `app.py:74` names it, so this is calibration, not
-recall. The other five are unverified against what Elenchus already records.
-Admission waits on the founder. The scratch clone does not outlive the session.
+**Filed as separate tasks, several already running in their own sessions:**
+deny rows scoped to the governed checkout; the widening direction (commands a
+row names that the raw string never matched); three rows that refuse reads and
+dry runs (escape tables, a person's); `felix_deny_subject`'s bash 3.2 cost on
+large payloads (12-45 s on some 31K payloads, every call); `lib/audit-read.sh`'s
+one-character `split` on BWK awk; Elenchus's copy of the unattended step.
 
-**Records.** Memory: `felix-is-a-commercial-product`,
-`agent-vendor-access-and-terms`, and the market map's 2026-09-22 delta:
-Factory's 2026-08-27 post states the inventory-plus-current-evidence thesis
-for next-generation Missions, Claude Code Projects redesigned on 2026-09-17,
-and Anthropic's Agent SDK terms for products. The founder has PDFs of the
-positioning continuation and of both roadmap versions; their Markdown was
-scratch, so the repository's roadmap is the source.
-
-**Open, in roadmap order:** Phase 0 of `docs/2026-09-23-roadmap.md`. Live in
-other sessions: the table validator on `claude/table-validator`, and
-qualification hardening in `happy-snyder-20f100`, which touches
-`lib/qualify.sh`, so the judge work waits for it. PR #291 is red. Carried from
-§0br: deny rows reading heredocs and quoted text (roadmap Phase 0), and the
-harvest rows (Phase 4).
+**Still open in Phase 0:** the marker deny rows for Elenchus and Veldra (after
+#301, so the prose refusals do not spread; Veldra has no deny.tsv); the
+obligations request on a second project, answered blind; the GitHub runner
+probe with no `claude` CLI. The founder admits or refuses the Elenchus
+candidates on Sep 26-27 and re-stamps the commission after #298.
 
 **Traps paid for this session:**
 
-- A gate receipt belongs to the tree, and committing changes the tree even
-  when no content does. Gate after the commit.
-- `origin/main` moved twice mid-work. Merge it into the branch rather than
-  rebase (a force-push is refused), then gate again.
-- Running probes in another project moved this checkout's grounded facts, and
-  the Stop hold asked for a fresh gate on an unchanged tree.
-- `felix merge` takes no pull request number; it merges the checked-out
-  branch.
-- A discovery answer must not come from the session's own model once the
-  session has discussed what it expects to find. A Plan subagent loads no
-  memory.
-- The request records probe state as last read. Install the product's extras
-  first, or `http_route` reads blind.
-- Headless Chrome with a fresh `--user-data-dir` writes the PDF and then
-  hangs. Bound it and check the file.
-- In zsh a bare word starting with `=`, such as a line of equals signs passed
-  to `echo`, is an expansion error.
+- BWK awk splits on every line break when `split()` is given a
+  one-character string separator, whatever RS is. Use a regex separator.
+- bash 3.2's `${s//pat/rep}` is quadratic: 14 s over a 31K command. A hook's
+  per-call work is `[[ =~ ]]` or one awk process, never parameter expansion.
+- An awk program held in a bash single-quoted string may hold no apostrophe,
+  not even in a comment; one silently disabled the hook in a working copy.
+- An "allowed" assertion whose payload the old matcher already allowed tests
+  nothing: check every such payload is refused by main's library first.
+- A PR with conflicts gets no `pull_request` CI at all; merge main and push.
+- `felix pr --create` opens a draft when the gate has not passed on that
+  tree; `gh pr ready` after the landing gate, then `felix merge`.
+- zsh reads `$var:e` in `git show $mb:engine/...` as a modifier; brace it.
+- Engine merges went through one queue agreed between sessions by message
+  (#298, #300, #301, the audit-decode fix); each merge costs everyone behind
+  it a red re-run.
 
 ---
 
@@ -121,6 +120,8 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0bt](docs/handoff/0bt.md) | 2026-09-22/23 — the table validator (queue item 2, step 1) shipped, and a rename that hid an escape |
+| [0bs](docs/handoff/0bs.md) | 2026-09-22/23 — Felix is a product for other people's projects, built first; the first obligations request answered blind; the roadmap |
 | [0br](docs/handoff/0br.md) | 2026-09-22, closing — seven pull requests shipped and deployed, the public snapshot is a command and was brought forward, Elenchus has a working required check again |
 | [0bq](docs/handoff/0bq.md) | 2026-09-22 — the recorder and #264 deployed, ECC step 1 complete, two branches in repair |
 | [0bp](docs/handoff/0bp.md) | DECIDED 2026-09-21 — `projects/bazaar` is tracked, and its gate keeps its own log |

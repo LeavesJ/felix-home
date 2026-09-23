@@ -4,7 +4,5 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	f224b0caeca78ef0323bd0308077f975e8498519	0.49.145
-run	2	3014	6
-and run from one that holds its own *.csproj, still reports observability for a root whose App.csproj names Sentry	1
-felix_detect run from a directory that holds its own requirements/*.txt still reports billing for a root whose requirements/prod.txt names stripe	1
+base	origin/main	eecfa506976aeaaa692b75e94911630f2cde877f	0.49.147
+run	0	3016	6

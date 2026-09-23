@@ -192,11 +192,13 @@ $(_felix_deny_rows "$proj")
 EOF
 }
 
-# Prints the reason when a command matches a row for this tool, and returns 0.
-# Silent and returns 1 otherwise.
-felix_deny_match() {
-  local proj="$1" want="$2" cmd="$3" tool pattern reason
-  [ -n "$cmd" ] || return 1
+# The first row for this tool whose pattern matches the text: its reason goes
+# in _FELIX_DENY_REASON, and the status says whether there was one. A variable
+# and not output, so the call that nearly always finds nothing costs no
+# subshell to find it.
+_felix_deny_first() {
+  local proj="$1" want="$2" text="$3" tool pattern reason
+  _FELIX_DENY_REASON=""
   while IFS=$'\t' read -r tool pattern reason; do
     [ "${tool:-}" = "$want" ] || continue
     felix_deny_overbroad "$pattern" && continue
@@ -204,12 +206,108 @@ felix_deny_match() {
     # explaining why it could not use `grep -q` — a consumer exiting on first
     # match kills the producer with SIGPIPE and pipefail reports 141, read as
     # "no match" every time. No pipe, no hazard, and no process per rule.
-    if [[ "$cmd" =~ $pattern ]]; then
-      printf '%s' "$reason"
+    if [[ "$text" =~ $pattern ]]; then
+      _FELIX_DENY_REASON="$reason"
       return 0
     fi
   done <<EOF
 $(_felix_deny_rows "$proj")
 EOF
   return 1
+}
+
+# Prints the reason when a command matches a row for this tool, and returns 0.
+# Silent and returns 1 otherwise.
+#
+# A Bash row is about the command the shell runs, and not about text the
+# command only carries. Until 2026-09-23 a row was matched against the payload's
+# string alone, where everything the command carries reads as if it ran: a
+# here-document body handed to `git commit -F -`, a message in `-m "..."`, a
+# JSON payload in single quotes, a comment. The marker row refused a commit
+# message saying "felix new <name> ... a .felix marker", because `<name>` holds
+# a `>`. And the string is JSON, so a line break arrives as a backslash and an
+# `n`, and a pattern's `[^;&|]*` ran across it: `git push -q` on one line and
+# `gh api -f` on the next read as a force push. Of the 175 refusals the hooks
+# had logged by then, about thirty were text of those kinds.
+#
+# So a Bash command that matches a row is read a second time, by
+# felix_deny_code, as the shell reads it, and refused only if the row still
+# matches there. That second reading costs a process, and it is spent only on
+# a command about to be refused: every other call pays exactly what it paid
+# before, which matters because this hook runs on every one of them. A reading
+# done in bash itself was tried first and measured: bash 3.2's ${s//...} took
+# fourteen seconds over a 31K command.
+#
+# This can only ever turn a refusal into an allow. What it does not do is the
+# other direction, and there are commands a row names that the shell runs and
+# the raw string never matched: `git push -f` with a line break after it, or
+# `bash -c "git push --force"`, whose quote stands where the row wants a
+# space. Refusing those would mean reading every command, not only the ones a
+# row already matched, and that is a separate decision with its own cost.
+felix_deny_match() {
+  local proj="$1" want="$2" cmd="$3"
+  [ -n "$cmd" ] || return 1
+  _felix_deny_first "$proj" "$want" "$cmd" || return 1
+  if [ "$want" = "Bash" ]; then
+    _felix_deny_first "$proj" Bash "$(felix_deny_code "$cmd")" || return 1
+  fi
+  printf '%s' "$_FELIX_DENY_REASON"
+}
+
+# The command the shell runs, as one line for a row to match, read from the
+# payload's JSON string: commands joined by `;`, every quoted span that is data
+# standing as the word `_`, comments and here-document bodies gone, and each
+# piece of code found inside something else appended after it, ` ; ` apart, as
+# a command of its own.
+#
+# What counts as data, and each exception to it, since an exception missed is
+# a command the shell runs and a row can no longer see:
+#
+#   - A here-document body is data, unless what reads it runs its input as
+#     code: a shell, ssh, su, runuser, watch, eval, source, or `.` in command
+#     position. Then its lines are commands. Where its word is unquoted the
+#     shell expands the body, so a $( ) or a backtick in it is read as code.
+#     And a body written to a file is read as code when the same command then
+#     runs that file by the same spelling: `cat > $S/t.sh <<'EOF' ... EOF;
+#     bash $S/t.sh`, the shape a scratch fixture takes. Seven of the logged
+#     refusals had it, and in each the body ran what its row names. The same
+#     holds for quoted text printf or echo writes to a file the command runs.
+#   - A quoted span is data, `_`, when it holds a blank or a line break. It is
+#     read as code where it is a shell's -c script or an argument of eval,
+#     ssh, su, runuser or watch, gathered whole when it is quoted in pieces
+#     (`'...'\''...'`). It is its own text, without the quotes, where it is a
+#     redirect's target, an operand of a command that writes its operands
+#     (cp, mv, ln, install, tee, dd, truncate, rm, touch, rsync, sed -i), the
+#     program itself, glued to the word it sits in
+#     (`--for'ce'`, `"$HOME"/.felix`, but not `--message="..."`), a single
+#     word, or a path rooted in a variable, a home or a relative directory
+#     (`$T/...`, `${D}...`, `~/...`, `./...`), so `> "$T/repo/.felix"` still
+#     writes the marker. A span starting with a bare `/` is not taken for a
+#     path, because `sed -n '/git push .* main /p'` starts that way too.
+#   - Inside double quotes a $( ) or a backtick runs, and is read as code. The
+#     here-document inside the $( ) of Claude Code's commit template is data
+#     by the first rule. A substitution keeps its shape where it stood, as
+#     `$(_)` or `<(_)`, since a row can be written about the shape itself.
+#   - A # starting a word outside quotes starts a comment. `$(( ))` and
+#     `(( ))` are arithmetic, whose << is a shift; the second is read as code
+#     as well, in case bash takes it for two subshells.
+#   - A pipe into a shell, a shell reading a process substitution, or a $( )
+#     handed to something that runs its arguments, makes the data the script:
+#     then the whole command is read with every quote dropped and each line
+#     break a `;`.
+#
+# What it does not follow is a file written by anything but a here-document,
+# or run by another name: a script printf wrote to $S/bin/claude and PATH
+# later finds. That is the limit any reading of one command has.
+#
+# One awk process. The program is the same in BWK awk, mawk and gawk:
+# split(s, A, "") is one character per element in all three. Nothing here
+# fails closed: no awk, or a program error, prints nothing, and a row matches
+# nothing in nothing, which allows.
+#
+# The program is lib/deny-read.sh, sourced the first time a command needs it,
+# so the call no row matches does not even read the file.
+felix_deny_code() {
+  [ -n "${_FELIX_DENY_READ:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/deny-read.sh" 2>/dev/null
+  printf '%s' "$1" | awk "${_FELIX_DENY_READ:-}" 2>/dev/null
 }

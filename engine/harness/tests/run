@@ -14834,6 +14834,32 @@ _cmcli >/dev/null 2>&1
 is  "and a second run does not record the same file twice" "$(_cmnom | grep -c .)" "2"
 has "the report lists what the provider named and says nothing was installed" "$_cmo" "recorded and not acted on"
 
+# The topology in a checkout whose path holds a space. felix_detect globs
+# $root/$p unquoted, so what it finds there depends on IFS. `felix commission`
+# read the provider state inside the heredoc of an `IFS=$'\t' read`, and on
+# bash 3.2 that substitution ran under the tab IFS: it hashed a different
+# topology from session-start's and the request's, so an answer current for
+# one read stale on the other. Its own project, so no fixture above moves.
+CSP="$FROOT/projects/cmspace"; CSR="$TMP/cm-ifs space/repo"
+mkdir -p "$CSP" "$CSR/tests" "$MEM/cmspace/commission"
+printf 'FROM scratch\n' > "$CSR/Dockerfile"
+printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\nautomation_surveyed\t-\t-\t-\tprovider:claude-code-setup:claude-automation-recommender\t-\t4\n' \
+  > "$CSP/commissioning.tsv"
+# Computed as session-start computes it, at the default IFS.
+_cstopo="$(_cm felix_commission_topology "$CSP" "$CSR")"
+if [ "$(IFS=$'\t'; _cm felix_commission_topology "$CSP" "$CSR")" != "$_cstopo" ]; then
+  ok   "a checkout path with a space makes the topology depend on IFS, so the assertion below can reach the trap"
+else
+  skip "a checkout path with a space makes the topology depend on IFS, so the assertion below can reach the trap" \
+       "detection no longer depends on IFS here"
+fi
+printf '# topology %s\nplugin\tfoo\t-\tllm\twhy\ndone\t1\n' "$_cstopo" > "$MEM/cmspace/commission/automation_surveyed.tsv"
+is  "session-start reads an answer keyed to its topology as answered, in a checkout whose path holds a space" \
+    "$(_cm felix_commission_provider_state "$CSP" "$CSR" automation_surveyed | cut -f1)" "answered"
+is  "and felix commission hashes the same topology there, so it reads the same answer as answered" \
+    "$(_cm felix_commission_run "$CSP" "$CSR" - | awk -F'\t' '$1 == "automation_surveyed" { print $2 }')" "answered"
+rm -rf "$CSP" "$MEM/cmspace" "$TMP/cm-ifs space"
+
 # ------------------------------------------------- the admit phase ----------
 # A nomination is a name in a file a model wrote. Nothing has been fetched,
 # nothing read, and the file carries no tier anywhere — so the only way it

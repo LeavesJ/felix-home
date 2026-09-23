@@ -101,6 +101,7 @@
 1	a checker whose every fail control did not apply is named as never shown failing
 1	a checker whose fail control was met is not named
 1	a checkout inside the verification is caught too
+1	a checkout path with a space makes the topology depend on IFS, so the assertion below can reach the trap
 1	a checkout that has never been graphed has no graph file
 1	a checkout that moves after verification merges nothing
 1	a checkout with no binding gets a dash for its epoch
@@ -1135,6 +1136,7 @@
 1	and fails the same way
 1	and fails when a wired moment is unbound
 1	and fails when one of them loses it
+1	and felix commission hashes the same topology there, so it reads the same answer as answered
 1	and felix new seeds it itself, without falling through to the answer
 1	and felix qualify names it as well
 1	and felix which does not resolve it
@@ -2523,6 +2525,7 @@
 1	session start reports an unresolvable marker
 1	session start surfaces the reconcile proposals
 1	session-start counts a person's unfolded session as stranded, and not an old summary session
+1	session-start reads an answer keyed to its topology as answered, in a checkout whose path holds a space
 1	session-start sources autonomy.sh
 1	session-start sources ledger.sh
 1	seven-field rows with an engine-stage answer and a check that can fail are rows

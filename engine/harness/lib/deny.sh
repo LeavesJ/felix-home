@@ -79,7 +79,7 @@ _felix_deny_field() {
 # whatever that content said.
 #
 # Read two ways, split by size, and both return the same string. A small
-# payload is read with parameter expansion, which costs no process. A large
+# payload is read with parameter expansion, which runs no program. A large
 # one is read by one awk, because ${s//pat/rep} in bash 3.2, which macOS ships
 # and the hook runs under there, is not linear: for each match it tries every
 # end position back from the end of the string and measures each with a
@@ -92,9 +92,19 @@ felix_deny_subject() {
   local raw="$1" field rest val
   field="$(_felix_deny_field "${2:-}")"
   case "$raw" in *"\"$field\""*) ;; *) return 0 ;; esac
+  # A raw \001 is a control character no JSON string may hold, so this is not
+  # a payload Claude Code sent, and like any payload that does not parse it
+  # has no subject. The expansion below uses \001 as its placeholder, and one
+  # already in the payload would read as a quote there and not in the awk.
+  case "$raw" in *$'\001'*) return 0 ;; esac
 
   if [ "${#raw}" -gt "$_FELIX_DENY_INLINE" ]; then
-    printf '%s' "$raw" | LC_ALL=C awk -v f="$field" "$_FELIX_DENY_SUBJECT_AWK" 2>/dev/null
+    # Printed only when awk finished. Part of a subject can be refused by a
+    # row anchored at its end that the whole would not match, so an awk that
+    # dies, or no awk on PATH, reads as no subject, which allows.
+    val="$(printf '%s' "$raw" | LC_ALL=C awk -v f="$field" "$_FELIX_DENY_SUBJECT_AWK" 2>/dev/null \
+           && printf x)" || return 0
+    printf '%s' "${val%x}"
     return 0
   fi
 
@@ -117,8 +127,10 @@ felix_deny_subject() {
 # of matches: a gsub of 70,000 escaped quotes in 1M took 12 s. match, index,
 # substr and a split on one character are linear. BWK awk splits on a line
 # break as well when the separator is one character, so the value is split
-# into lines first and each line on its quotes. The program holds no single
-# quote, since it is a bash single-quoted string.
+# into lines first and each line on its quotes. The records are split on
+# \001, which felix_deny_subject has turned away before this runs, so the
+# payload is always one record: joining many would be quadratic too. The
+# program holds no single quote, since it is a bash single-quoted string.
 _FELIX_DENY_SUBJECT_AWK='
   BEGIN { RS = "\001" }
   { s = (NR > 1) ? s RS $0 : $0 }

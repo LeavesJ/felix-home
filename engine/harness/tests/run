@@ -13813,11 +13813,17 @@ _both "read by awk and by expansion alike: three backslashes before a quote lose
 is "a value ending on an escaped backslash is read the same both ways" \
    "$(_subj 0 Bash '{"tool_input":{"command":"echo a\\","description":"b"}}')" \
    "$(_subj 999999999 Bash '{"tool_input":{"command":"echo a\\","description":"b"}}')"
+# A raw \001 is not JSON, and it is the expansion's own placeholder, so it
+# read as a quote there and as itself in the awk. Neither reads it now.
+_soh="$(printf '\001')"
+_soh="{\"tool_input\":{\"command\":\"a${_soh}b\",\"description\":\"d\"}}"
+_both "read by awk and by expansion alike: a payload holding a raw SOH byte, which JSON cannot, has no subject" Bash \
+  "$_soh" ''
 
 # What each reading costs. The expansion runs on nearly every call, and a
-# process there is a tax on the whole session, so a small payload must start
-# none. A large one is read by exactly one awk, whatever it holds.
-_AWKN="$TMP/awk-calls"; mkdir -p "$TMP/awkshim"
+# program started there is a tax on the whole session, so a small payload
+# must run no awk. A large one is read by exactly one, whatever it holds.
+_AWKN="$TMP/awk-calls"; mkdir -p "$TMP/awkshim" "$TMP/awkfail"
 printf '#!/bin/sh\nprintf x >> "%s"\nexec "%s" "$@"\n' "$_AWKN" "$(command -v awk)" > "$TMP/awkshim/awk"
 chmod +x "$TMP/awkshim/awk"
 _awkn() {  # _awkn <payload>: how many awk processes reading its subject took
@@ -13825,18 +13831,61 @@ _awkn() {  # _awkn <payload>: how many awk processes reading its subject took
   ( . "$FROOT/harness/lib/deny.sh"; PATH="$TMP/awkshim:$PATH"; felix_deny_subject "$1" Bash >/dev/null )
   wc -c < "$_AWKN" | tr -d ' '
 }
-is "a small payload's subject is read without starting a process" \
+is "a small payload's subject is read without running awk" \
    "$(_awkn '{"tool_name":"Bash","tool_input":{"command":"git status --short"}}')" "0"
 # Built into a variable first: in bash 3.2 a quoted {..,..} inside "$( )"
 # is brace-expanded, and the payload arrives as `"tool_name":"Bash"`.
 _mid="$(awk 'BEGIN { for (i = 0; i < 200; i++) printf "echo \\\"%d\\\" ; ", i }')"
 _mid="{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$_mid\"}}"
 is "a large payload's subject is read by exactly one awk" "$(_awkn "$_mid")" "1"
+# Fails open, and never on part of a command: a row anchored at the end can
+# refuse the part an awk printed before it died, where the whole command
+# would not match. An awk that fails reads as no subject.
+printf '#!/bin/sh\ncat >/dev/null\nprintf "git add -A"\nexit 2\n' > "$TMP/awkfail/awk"
+chmod +x "$TMP/awkfail/awk"
+is "a large payload whose awk fails part way has no subject, rather than the part it printed" \
+   "$( . "$FROOT/harness/lib/deny.sh"; PATH="$TMP/awkfail:$PATH"; felix_deny_subject "$_mid" Bash )" ""
+
+# A watchdog ends the whole tree it started: the awk is a grandchild of the
+# hook, and ending the direct children alone leaves it running.
+_killtree() { local c; for c in $(pgrep -P "$1" 2>/dev/null); do _killtree "$c"; done; kill "$1" 2>/dev/null; }
+
+# Linear, and not only fast at one size. A reading with a gsub in it is
+# quadratic in BWK awk and still passes a deadline at 220K: measured 0.22 s
+# there, and 15.7 s at 2M. So the CPU time of one reading, taken inside the
+# subshell so that neither load nor the watchdog's polling adds to it, for a
+# payload and one four times its size: linear is about four times, quadratic
+# sixteen. Under a watchdog at thirty seconds, for the expansion's sake.
+_lin() {  # _lin <units>: CPU ms for one reading of that many 22-byte units, or killed
+  local f="$TMP/lin-$1.json" i=0 pid
+  { printf '{"tool_name":"Bash","tool_input":{"command":"'
+    awk -v n="$1" 'BEGIN { for (i = 0; i < n; i++) printf "printf \\\"%%s\\\" \\\"a\\\" ; " }'
+    printf 'true"}}'; } > "$f"
+  ( . "$FROOT/harness/lib/deny.sh"; raw="$(cat "$f")"
+    felix_deny_subject "$raw" Bash >/dev/null; times > "$f.cpu" ) &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+  if kill -0 "$pid" 2>/dev/null; then _killtree "$pid"; wait "$pid" 2>/dev/null; echo killed; return; fi
+  wait "$pid" 2>/dev/null
+  # times: the subshell's user and system time, then its children's, as 0m1.234s.
+  awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
+       END { printf "%d", ms }' "$f.cpu"
+  rm -f "$f" "$f.cpu"
+}
+_l1="$(_lin 12000)"
+if [ "$_l1" = killed ]; then _lv="264K was not read in thirty seconds"; else
+  _l4="$(_lin 48000)"
+  if [ "$_l4" = killed ]; then _lv="1M was not read in thirty seconds"
+  elif [ "$_l4" -lt $((_l1 * 8)) ]; then _lv=linear
+  else _lv="264K took ${_l1} ms and 1M ${_l4} ms"; fi
+fi
+is "reading a large payload's subject is linear: four times the payload costs under eight times the CPU" "$_lv" "linear"
 
 # The reason for all of it, as a deadline: 220K and 40,000 escaped quotes,
 # through the hook, refused well inside Claude Code's 60 s. Under a watchdog
-# that ends the hook and its subshells at twenty seconds, since the expansion
-# on this payload runs for days and a red run is exactly where it would.
+# that ends the hook and everything under it at twenty seconds, since the
+# expansion on this payload runs for days and a red run is exactly where it
+# would.
 printf 'Bash\tgit add (-A|--all|\\.)$\tstage explicit paths\n' > "$FROOT/projects/widget/deny.tsv"
 _big="$TMP/deny-big.json"
 { printf '{"session_id":"deny-big","tool_name":"Bash","tool_input":{"command":"'
@@ -13845,11 +13894,7 @@ _big="$TMP/deny-big.json"
 ( cd "$REPO" && exec "$FROOT/harness/hooks/pre-tool" < "$_big" 2>/dev/null ) &
 _dpid=$!; _di=0
 while kill -0 "$_dpid" 2>/dev/null && [ "$_di" -lt 200 ]; do sleep 0.1; _di=$((_di + 1)); done
-if kill -0 "$_dpid" 2>/dev/null; then
-  pkill -P "$_dpid" 2>/dev/null; kill "$_dpid" 2>/dev/null; _dend=killed
-else
-  _dend=finished
-fi
+if kill -0 "$_dpid" 2>/dev/null; then _killtree "$_dpid"; _dend=killed; else _dend=finished; fi
 wait "$_dpid" 2>/dev/null; _drc=$?
 is "a 220K command with 40,000 escaped quotes is refused through the hook inside twenty seconds" \
    "$_dend:$_drc" "finished:2"

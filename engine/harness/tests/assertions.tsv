@@ -130,6 +130,7 @@
 1	a consistent record says nothing at session start
 1	a content difference is still a drift
 1	a control needing no mutation still runs
+1	a control that is not one of the six is malformed
 1	a control that stages its own violation lifts the refusal
 1	a control the checker meets is met
 1	a copy that ships a README alone is low when no entry is read
@@ -576,6 +577,12 @@
 1	a row at both ceilings is accepted
 1	a row carrying a premise is not reported malformed
 1	a row carrying a risk column is refused, because risk is not the model's to assign
+1	a row for alternate given the verdict it may not have is malformed
+1	a row for decoupled_satisfaction given the verdict it may not have is malformed
+1	a row for decoupled_violation given the verdict it may not have is malformed
+1	a row for irrelevant given the verdict it may not have is malformed
+1	a row for restoration given the verdict it may not have is malformed
+1	a row for violation given the verdict it may not have is malformed
 1	a row from before the column proposes nothing
 1	a row grounded on a probe the project does not declare is an orphan
 1	a row inspection judged capability-less is not
@@ -685,6 +692,7 @@
 1	a table in a different repository resolves to nothing
 1	a table of comments exits 1
 1	a table outside the classified repo is still read once, at HEAD
+1	a table whose every row is malformed refuses --gate
 1	a table with no holds column still works
 1	a task notification is not a prompt
 1	a task-blocking row does not block a release
@@ -717,6 +725,8 @@
 1	a version main declares but nobody installed resolves to nothing
 1	a version main declares with no cache entry fails rather than skipping
 1	a version main declares with no cache entry is exit 1, not 2
+1	a violation row expecting pass over a no-op mutation is never run, so never met
+1	a violation row expecting pass refuses --gate rather than counting as met
 1	a wall of tree tokens cannot outvote the prompt
 1	a web surface counts without package.json
 1	a well-formed answer is answered
@@ -741,6 +751,7 @@
 1	across every run, no file appeared, vanished or changed under the scratch root
 1	adding a Dockerfile surfaces deploy
 1	adding a comment line changes the policy version
+1	adding a control to the qualification table escapes nothing
 1	adding a file changes the digest
 1	adding a key to json escapes nothing
 1	adding a row to an enforcing table escapes nothing
@@ -941,6 +952,7 @@
 1	an upper-case hash, a bad stamp or an empty grantor is no grant
 1	and --fix does not exit 0 when every repair failed
 1	and --gate does not raise it
+1	and --gate names the row and the verdict its control demands
 1	and FELIX_KERNEL is refused before the cache is even consulted
 1	and SessionEnd folds nothing of it into ledger.d
 1	and Stop neither holds that session nor tells it anything
@@ -1294,10 +1306,12 @@
 1	and names the process holding it
 3	and names the project
 1	and names the refused row
+1	and names the rows it could not read
 1	and names the source tree it compared
 1	and names the table
 1	and names the template
 1	and names the working tree rather than the checkout
+1	and names under it a checker short of the six controls, without refusing
 1	and names what it kept, the empty placeholder among it
 1	and names what was caught
 1	and names who answers the provider row
@@ -1546,6 +1560,7 @@
 1	and session-end still folds it into ledger.d
 1	and shipping nothing declared still matches nothing
 1	and shows the decline itself
+1	and shows the row and the verdict under qualified FAIL
 1	and shows which note it kept
 1	and so are the declines, from the same date
 1	and so does a compact
@@ -1553,8 +1568,11 @@
 1	and so does a session that opens on the summary request's opening and the person's own instruction
 1	and so does a staged one
 1	and so does a worktree of it
+1	and so does commenting a control out
+1	and so does flipping the verdict a control expects
 1	and so does one who types a question under a task notification
 1	and so does one whose registry entry carries no installPath
+1	and so does swapping its mutation for one that changes nothing
 1	and so does the next one
 1	and so does the stamp that says what it was read against
 1	and so is a deny from its own PreToolUse
@@ -1669,6 +1687,7 @@
 1	and the file then states that no red run was possible
 1	and the first five are current again: nothing about staleness was stored
 1	and the fixture files this block rewrote are back
+1	and the fixture is back where the qualification block found it
 2	and the fixture is restored
 1	and the fixture is restored to awaiting
 1	and the footer still counts one discovered, one admitted
@@ -1745,6 +1764,7 @@
 1	and the report says how many fewer
 1	and the report says how much of the table asked nothing
 1	and the report says the enumeration was partial
+1	and the report says which verdict the control demands
 1	and the report's score row ends in the grade, not blank padding
 1	and the repository handoff with it
 1	and the repository is back to where it started
@@ -1990,6 +2010,7 @@
 1	counts what was blocked
 1	creating a project's exceptions table escapes on the exception channel
 1	datadog's shape, a server behind a declared path, is high
+1	deleting a control from it escapes as verifier
 1	deleting the table from the working tree does not revoke a grant at origin/main
 1	deploy-check --applies holds in a worktree the marketplace does not serve
 1	deploy-check --applies holds where a deployment exists and main can be read
@@ -2076,6 +2097,7 @@
 1	felix decisions reads the record
 1	felix discover --inspect --quiet exits 2 when the catalogue cannot be read
 1	felix gate fails qualification over a checker never shown failing
+1	felix gate fails qualification over a row whose verdict is not its control's
 1	felix gate reads qualified ok over controls that did not apply
 1	felix gate runs the probes for a project with a table
 1	felix handoff --replace over a hand-written handoff appends a row noted replaced, with the hash of what replaced it
@@ -2895,16 +2917,19 @@
 1	which is the number it printed
 1	which takes it back to nothing stranded
 1	while --status reads straight through it
+1	while a comment added to it is free
 1	while a complete stance is not called malformed
 1	while a declared one is caught
 1	while a mount needs no threshold: the reach already happened
 1	while a predicate that did not move is silent
 1	while a provider-prefixed skill still joins to its plugin
+1	while a row pairing each control with its own verdict is not
 1	while a short one scores on nothing
 1	while a tool that ran keeps its calls
 1	while an applicable control runs both, so that absence is measured
 1	while an owner-reduced play entry still names its plugin
 1	while any other commit still does
+1	while every rightly paired row still runs and is met
 1	while gate mode turns that same state into a refusal
 1	while one at a declared moment still does
 1	while others stay due

@@ -1351,6 +1351,41 @@ printf '# a reworded comment\n' >> "$REPO/ecosystem.tsv"; _stage
 is "a comment added to it is still free" "$(_esc | grep -c verifier)" "0"
 _reset; _reset
 
+# The qualification table. Its rows are the controls the gate's `qualified`
+# check holds each checker to, and the gate reads the table the branch edited,
+# so a branch that deletes a control or flips what it expects is judged by the
+# table it weakened and passes. A contract review found it on 2026-09-22, and a
+# scratch clone confirmed that nothing on the merge path looked. Adding a
+# control is free, as it is in every enforcing table but the exemptions.
+_qesc_head="$( cd "$REPO" && git rev-parse --short HEAD )"
+_qesc() { printf 'demo\t! grep -rqI BAD .\t%s\t%s\tprintf BAD > b.txt\n' "$1" "$2"; }
+_qesc_edit() { awk -F'\t' -v OFS='\t' "$1" "$REPO/projects/thing/qualification.tsv" > "$TMP/qesc" \
+                 && mv "$TMP/qesc" "$REPO/projects/thing/qualification.tsv"; _stage; }
+mkdir -p "$REPO/projects/thing"
+{ printf '# checker\tcommand\tcontrol\texpect\tmutation\n'
+  _qesc violation fail; _qesc restoration pass
+} > "$REPO/projects/thing/qualification.tsv"; _stage
+_qesc alternate fail >> "$REPO/projects/thing/qualification.tsv"; _stage
+is "adding a control to the qualification table escapes nothing" "$(_esc)" ""
+_reset
+_qesc_edit '$3 != "violation"'
+has "deleting a control from it escapes as verifier" "$(_esc)" "verifier	projects/thing/qualification.tsv"
+_reset
+_qesc_edit '$3 == "violation" { $4 = "pass" } 1'
+has "and so does flipping the verdict a control expects" "$(_esc)" "verifier	projects/thing/qualification.tsv"
+_reset
+_qesc_edit '$3 == "violation" { $5 = "true" } 1'
+has "and so does swapping its mutation for one that changes nothing" "$(_esc)" "verifier	projects/thing/qualification.tsv"
+_reset
+_qesc_edit '$3 == "violation" { $0 = "# " $0 } 1'
+has "and so does commenting a control out" "$(_esc)" "verifier	projects/thing/qualification.tsv"
+_reset
+printf '# a reworded comment\n' >> "$REPO/projects/thing/qualification.tsv"; _stage
+is "while a comment added to it is free" "$(_esc | grep -c verifier)" "0"
+_reset; _reset
+is "and the fixture is back where the qualification block found it" \
+   "$( cd "$REPO" && git rev-parse --short HEAD )" "$_qesc_head"
+
 # #56. The same workflow, judged against a base git cannot name. Every git error
 # in felix_changed_paths goes to /dev/null, so an unresolvable base produced no
 # paths and no complaint, and felix_escapes returned "nothing escaped" from its
@@ -11619,6 +11654,45 @@ has "a row too short to run anything is reported, not skipped" \
     "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
         felix_qualify_malformed "$QLP")" "demo"
 
+# The verdict is the control's, not the row's. `expect` was free text, so a
+# violation row expecting `pass` over a mutation that changed nothing ran,
+# passed, and was counted met: a control that tests nothing, reported as one
+# that held. A contract review found it on 2026-09-22. Every control is written
+# here with the verdict it may not have, beside a row pairing it rightly, so
+# silence about the right rows is measured against noise about the wrong ones.
+QMP="$TMP/qualmal"; mkdir -p "$QMP"
+{ for _qmc in violation alternate decoupled_violation; do
+    printf 'wrong-%s\t%s\t%s\tpass\ttrue\n' "$_qmc" "$_qc" "$_qmc"
+    printf 'right\t%s\t%s\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qc" "$_qmc"
+  done
+  for _qmc in restoration irrelevant decoupled_satisfaction; do
+    printf 'wrong-%s\t%s\t%s\tfail\ttrue\n' "$_qmc" "$_qc" "$_qmc"
+    printf 'right\t%s\t%s\tpass\ttrue\n' "$_qc" "$_qmc"
+  done
+  printf 'misspelt\t%s\tviolaton\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qc"
+  printf 'noop\t%s\tviolation\tpass\ttrue\n' "$_qc"
+} > "$QMP/qualification.tsv"
+_qmm="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+         felix_qualify_malformed "$QMP" )"
+for _qmc in violation alternate decoupled_violation restoration irrelevant decoupled_satisfaction; do
+  has "a row for $_qmc given the verdict it may not have is malformed" "$_qmm" "wrong-$_qmc	"
+done
+has "and the report says which verdict the control demands" "$_qmm" "violation must expect fail, not [pass]"
+case "$_qmm" in
+  *right*) bad "while a row pairing each control with its own verdict is not" "$_qmm" ;;
+  *)       ok  "while a row pairing each control with its own verdict is not" ;;
+esac
+# One misspelt letter would otherwise take a row out of the rule: a control
+# that is none of the six has no verdict to be held to.
+has "a control that is not one of the six is malformed" "$_qmm" "misspelt	[violaton] is not one of the six controls"
+# The case the review measured. Before this, the row ran and was met.
+is  "a violation row expecting pass over a no-op mutation is never run, so never met" \
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+        felix_qualify_run "$QMP" "$QLR" noop )" ""
+is  "while every rightly paired row still runs and is met" \
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+        felix_qualify_run "$QMP" "$QLR" right | awk -F'\t' '$5 == "met"' | wc -l | tr -d ' ')" "6"
+
 # Armed: a declared control that does not hold refuses.
 #
 # This is the whole of the arming decision. Nothing else binds — a checker with
@@ -11665,6 +11739,22 @@ esac
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" "" "" >/dev/null 2>&1 )
 has "a receipt with no roster is said to have none, never read as nothing left" \
     "$(cd "$REPO" && "$FELIX" qualify 2>&1)" "carries no roster"
+# A malformed row refuses too. It was written as a control, so by the ratchet
+# it binds, and it is never run, so it cannot be met. It sits beside a control
+# that is met, so the malformed row is what decides.
+{ printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck"
+  printf 'demo\t%s\tviolation\tpass\ttrue\n' "$_qcheck"
+} > "$FROOT/projects/widget/qualification.tsv"
+_qo="$(cd "$REPO" && "$FELIX" qualify --gate 2>&1)"; _qrc=$?
+is  "a violation row expecting pass refuses --gate rather than counting as met" "$_qrc" "1"
+has "and --gate names the row and the verdict its control demands" \
+    "$_qo" "MALFORMED  violation must expect fail, not [pass]"
+# With no control left to run, the report still says which rows and why,
+# rather than reading as a table that declares nothing.
+printf 'demo\t%s\tviolation\tpass\ttrue\n' "$_qcheck" > "$FROOT/projects/widget/qualification.tsv"
+_qo="$(cd "$REPO" && "$FELIX" qualify --gate 2>&1)"; _qrc=$?
+is  "a table whose every row is malformed refuses --gate" "$_qrc" "1"
+has "and names the rows it could not read" "$_qo" "MALFORMED"
 rm -f "$FROOT/projects/widget/qualification.tsv"
 [ -f "$TMP/qual.keep" ] && mv "$TMP/qual.keep" "$FROOT/projects/widget/qualification.tsv"
 is "and the widget project is as this block found it" \
@@ -12225,6 +12315,18 @@ _qpgo="$(_qpgate)"
 has "felix gate reads qualified ok over controls that did not apply" "$(_qpunder "$_qpgo" ok)" "qualified"
 is  "and says under it how many did not apply here" \
     "$(_qpnear "$(_qpunder "$_qpgo" ok)" "did not apply here")" "3"
+# A checker short of the six is reported and not refused; lib/qualify.sh says
+# why. demo declares four, so the ok line must not read as six of six.
+has "and names under it a checker short of the six controls, without refusing" \
+    "$(_qpunder "$_qpgo" ok)" "demo declares no control for: irrelevant decoupled_satisfaction"
+# A row that ran and was met before the verdict was the control's: the gate
+# read ok over it. Now it refuses, and says which row and why.
+{ _qptab_shown; _qp5 demo "$_qpc" violation pass true; } > "$QGH/projects/premgate/qualification.tsv"
+_qpgo="$(_qpgate)"
+has "felix gate fails qualification over a row whose verdict is not its control's" \
+    "$(_qpunder "$_qpgo" FAIL)" "qualified"
+has "and shows the row and the verdict under qualified FAIL" \
+    "$(_qpunder "$_qpgo" FAIL)" "violation must expect fail, not [pass]"
 printf '\nautonomy is opted into, never assumed\n'
 AUP="$TMP/autoproj"; mkdir -p "$AUP"
 a() { ( . "$FROOT/harness/lib/autonomy.sh"; felix_autonomy_allows "$AUP" "$1" && echo yes || echo no ); }

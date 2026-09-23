@@ -1789,25 +1789,48 @@ cmd_autonomy() {
 # down and keeps working instead of waiting for somebody who is asleep.
 cmd_overnight() {
   resolve_or_die; local proj="$PROJ"
-  local start=0 hours="" turns="" note="" report=0 clear=0 end="" defer="" what="" unblock="" sid=""
+  local start=0 hours="" turns="" note="" report=0 clear=0 end="" defer="" what="" unblock="" sid="" named=0 all=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --start)   start=1; shift ;;
       --hours)   need_value "$@"; hours="$2"; shift 2 ;;
       --turns)   need_value "$@"; turns="$2"; shift 2 ;;
       --note)    need_value "$@"; note="$2"; shift 2 ;;
-      --session) need_value "$@"; sid="$2"; shift 2 ;;
+      --session) need_value "$@"; sid="$2"; named=1; shift 2 ;;
       --defer)   need_value "$@"; defer="$2"; shift 2 ;;
       --what)    need_value "$@"; what="$2"; shift 2 ;;
       --unblock) need_value "$@"; unblock="$2"; shift 2 ;;
       --report)  report=1; shift ;;
       --clear)   clear=1; shift ;;
-      --end)     end="${2:-ended by hand}"; [ $# -ge 2 ] && shift 2 || shift ;;
+      --end)     case "${2:-}" in ''|-*) end="ended by hand"; shift ;; *) end="$2"; shift 2 ;; esac ;;
+      --all)     all=1; shift ;;
       --status)  shift ;;
-      -*) die "usage: felix overnight [--start [--hours N] [--turns N] [--note ...]] [--defer KIND --what ... [--unblock ...]] [--report] [--clear] [--end [reason]]" ;;
+      -*) die "usage: felix overnight [--start [--hours N] [--turns N] [--note ...]] [--session ID] [--defer KIND --what ... [--unblock ...]] [--report] [--clear] [--end [reason] [--all]]" ;;
       *) shift ;;
     esac
   done
+
+  # Whose night this command is about. A night belongs to one session (see
+  # lib/overnight.sh), and the session a shell belongs to is the one the
+  # platform exports to it; --session names another. A terminal outside every
+  # session has no id at all. It cannot start a night, since there is nobody
+  # for the night to hold, and it is the one caller for whom --end means every
+  # night: that is a person's way out, and a person at a terminal is inside
+  # none of them.
+  local scope="session"
+  [ "$named" -eq 1 ] || sid="${CLAUDE_CODE_SESSION_ID:-}"
+  # From inside a session, a night is that session's to take and nobody
+  # else's to give: a grant there holds whatever session it names at every
+  # stop, and the one inside it is the only one that asked. Naming another
+  # session is for a person at a terminal, which exports no id.
+  if [ "$start" -eq 1 ] && [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && [ "$sid" != "$CLAUDE_CODE_SESSION_ID" ]; then
+    die "from inside a session, a night can only be granted to that session. Type it in the session the night is for."
+  fi
+  [ "$all" -eq 1 ] && scope="all"
+  if [ -z "$sid" ]; then scope="all"
+  elif ! _felix_overnight_sid_ok "$sid"; then
+    die "the session id cannot name a night: letters, digits, dot, dash and underscore only"
+  fi
 
   if [ -n "$defer" ]; then
     case "$defer" in
@@ -1825,12 +1848,24 @@ cmd_overnight() {
   fi
 
   if [ -n "$end" ]; then
-    if felix_overnight_active "$proj"; then
-      felix_overnight_end "$proj" "$end"; printf 'overnight ended: %s\n\n' "$end"
+    local id key ended=0
+    if [ "$scope" = "all" ]; then
+      while IFS= read -r id; do
+        [ -n "$id" ] || continue
+        key="$id"; [ "$id" = "-" ] && key=""
+        felix_overnight_end "$proj" "$end" "$key"; ended=$(( ended + 1 ))
+      done <<EOT
+$(felix_overnight_nights "$proj")
+EOT
+      printf 'ended %s night(s): %s\n\n' "$ended" "$end"
+    elif felix_overnight_owns "$proj" "$sid"; then
+      felix_overnight_end "$proj" "$end" "$sid"
+      printf 'overnight ended for %s: %s\n\n' "$(_felix_overnight_whose "$sid")" "$end"
     else
-      felix_overnight_end "$proj" "$end"; printf 'no night was running.\n\n'
+      printf 'no night was running for %s. Another session'"'"'s night is ended from inside\n' "$(_felix_overnight_whose "$sid")"
+      printf 'it, or with felix overnight --end --all, which ends every night.\n\n'
     fi
-    felix_overnight_report "$proj"
+    felix_overnight_report "$proj" "$sid"
     return 0
   fi
 
@@ -1843,41 +1878,50 @@ cmd_overnight() {
 
   if [ "$start" -eq 1 ]; then
     local why
+    [ "$scope" = "all" ] && die "overnight --start needs the session the night is for, and this shell is in none.
+Type it inside that session, where the platform exports its id:  ! felix overnight --start
+or name the session:  felix overnight --start --session <session id>"
     if why="$(felix_overnight_start "$proj" "${hours:-$FELIX_OVERNIGHT_DEFAULT_HOURS}" \
                 "${turns:-$FELIX_OVERNIGHT_DEFAULT_TURNS}" "$sid" "$note")"; then
-      printf 'overnight is on for %s.\n\n' "$(basename "$proj")"
+      printf 'overnight is on for %s, for %s and no other.\n\n' "$(basename "$proj")" "$(_felix_overnight_whose "$sid")"
       felix_overnight_direction
       printf '\nIt ends on whichever comes first: %s hour(s), %s continuation(s), or two\n' \
         "${hours:-$FELIX_OVERNIGHT_DEFAULT_HOURS}" "${turns:-$FELIX_OVERNIGHT_DEFAULT_TURNS}"
-      printf 'continuations in a row with nothing to do. felix overnight --end stops it now,\n'
+      printf 'continuations in a row that call no tool. felix overnight --end stops it now,\n'
       printf 'and closing the session stops it too — nothing here runs without one.\n'
       return 0
     fi
     die "overnight --start refused: $why"
   fi
 
-  # Status, which is also what a bare `felix overnight` answers.
-  if felix_overnight_active "$proj"; then
-    printf 'overnight is ON for %s\n\n' "$(basename "$proj")"
+  # Status, which is also what a bare `felix overnight` answers: about this
+  # session's night when there is a session, and about every night when not.
+  if [ "$scope" = "session" ] && felix_overnight_active "$proj" "$sid"; then
+    printf 'overnight is ON for %s, %s\n\n' "$(basename "$proj")" "$(_felix_overnight_whose "$sid")"
     felix_overnight_direction
     printf '\n'
-  elif [ -f "$(felix_overnight_dir "$proj")/active" ]; then
-    printf 'overnight is OVER for %s: %s\n\n' "$(basename "$proj")" \
-      "$(felix_overnight_expired "$proj")"
+  elif [ "$scope" = "session" ] && felix_overnight_owns "$proj" "$sid"; then
+    printf 'overnight is OVER for %s, %s: %s\n\n' "$(basename "$proj")" \
+      "$(_felix_overnight_whose "$sid")" "$(felix_overnight_expired "$proj" "$sid")"
     printf 'The state is still here so the report can read it. felix overnight --end\n'
     printf 'closes it, and --start begins another.\n\n'
+  elif [ "$scope" = "all" ] && [ -n "$(felix_overnight_nights "$proj")" ]; then
+    printf 'overnight: %s night(s) on record for %s, listed below.\n\n' \
+      "$(felix_overnight_nights "$proj" | grep -c .)" "$(basename "$proj")"
   else
-    printf 'overnight is off for %s\n\n' "$(basename "$proj")"
+    printf 'overnight is off for %s' "$(basename "$proj")"
+    [ "$scope" = "session" ] && printf ', %s' "$(_felix_overnight_whose "$sid")"
+    printf '\n\n'
     printf 'A night is a duration a person grants, not a setting. It changes what a\n'
     printf 'session does when something stops it — write the decision down and keep\n'
     printf 'working, rather than wait for somebody asleep — and changes nothing about\n'
-    printf 'what may stop it.\n\n'
+    printf 'what may stop it. It belongs to the session that starts it.\n\n'
     printf '  felix overnight --start                  %s hours, %s continuations\n' \
       "$FELIX_OVERNIGHT_DEFAULT_HOURS" "$FELIX_OVERNIGHT_DEFAULT_TURNS"
     printf '  felix overnight --start --hours 10       longer, up to %s\n' "$FELIX_OVERNIGHT_MAX_HOURS"
     printf '  felix overnight --report                 the morning page\n\n'
   fi
-  felix_overnight_report "$proj"
+  felix_overnight_report "$proj" "$sid"
 }
 
 # Does a check fail when the thing it protects is broken?
@@ -2998,6 +3042,10 @@ cmd_bootstrap() {
   slug="$(felix_repo_slug "$root")"
   eco="$(felix_guess_ecosystem "$root")"
   branch="$(git -C "$root" symbolic-ref --short HEAD 2>/dev/null || echo main)"
+  # The file the repair loop and the auto-merge streak read the gate's runs
+  # from, so the one this looks for and writes. Resolved before anything is
+  # printed: a refused gate_workflow is a fact about the project to fix first.
+  local gwf; gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
   # The Felix checkout, not the directory this script happens to sit in. #65:
   # `felix_repo_slug "$FELIX_ROOT"` asked git for a remote inside the running
   # engine, which from the deployed CLI is the plugin cache — no remote, so this
@@ -3021,8 +3069,8 @@ cmd_bootstrap() {
     if [ "$2" = "yes" ]; then printf '  [x] %-12s %s\n' "$1" "$3"
     else printf '  [ ] %-12s %s\n' "$1" "$3"; todo=$((todo+1)); fi
   }
-  _felix_bs_have_workflow "$root" && w=yes || w=no
-  _bs ci-workflow "$w" ".github/workflows/gate.yml calling felix gate"
+  _felix_bs_have_workflow "$root" "$gwf" && w=yes || w=no
+  _bs ci-workflow "$w" ".github/workflows/$gwf calling felix gate"
   if [ -n "$slug" ]; then
     _felix_bs_have_labels "$slug" && l=yes || l=no
     _bs labels "$l" "escalation and risk labels the repair loop applies"
@@ -3042,13 +3090,13 @@ cmd_bootstrap() {
   fi
 
   printf '\napplying\n'
-  if ! _felix_bs_have_workflow "$root"; then
+  if ! _felix_bs_have_workflow "$root" "$gwf"; then
     if [ -z "$felix_repo" ]; then
       printf '  skipped    ci-workflow (Felix has no remote for CI to fetch)\n'
     else
       mkdir -p "$root/.github/workflows"
-      felix_bs_render_workflow "$eco" "$felix_repo" > "$root/.github/workflows/gate.yml"
-      printf '  wrote      .github/workflows/gate.yml (review, then commit it)\n'
+      felix_bs_render_workflow "$eco" "$felix_repo" > "$root/.github/workflows/$gwf"
+      printf '  wrote      .github/workflows/%s (review, then commit it)\n' "$gwf"
     fi
   fi
   if [ -n "$slug" ] && ! _felix_bs_have_labels "$slug"; then
@@ -3201,6 +3249,7 @@ cmd_unattended() {
   command -v gh >/dev/null 2>&1 || die "felix unattended needs the gh CLI"
   local repo; repo="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
   [ -n "$repo" ] || die "no github remote"
+  local gwf; gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
 
   local st switch key dry dryfail streak need
   st="$(felix_unattended_state "$repo")"
@@ -3208,7 +3257,7 @@ cmd_unattended() {
   key="$(printf '%s\n' "$st" | awk -F'\t' '$1=="key"{print $2}')"
   dry="$(printf '%s\n' "$st" | awk -F'\t' '$1=="dryruns"{print $2}')"
   dryfail="$(printf '%s\n' "$st" | awk -F'\t' '$1=="dryfails"{print $2}')"
-  streak="$(felix_automerge_streak "$(felix_automerge_history "$repo")")"
+  streak="$(felix_automerge_streak "$(felix_automerge_history "$repo" "$gwf")")"
   need="$FELIX_AUTOMERGE_REQUIRED"
 
   printf 'repo:  %s\n\n' "$repo"
@@ -3370,9 +3419,10 @@ cmd_automerge() {
   command -v gh >/dev/null 2>&1 || die "felix automerge needs the gh CLI"
   local repo; repo="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
   [ -n "$repo" ] || die "no github remote"
+  local gwf; gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
 
   local history streak need
-  history="$(felix_automerge_history "$repo")"
+  history="$(felix_automerge_history "$repo" "$gwf")"
   streak="$(felix_automerge_streak "$history")"
   need="$FELIX_AUTOMERGE_REQUIRED"
 
@@ -3720,13 +3770,22 @@ EOF
 cmd_repair() {
   resolve_or_die; local proj="$PROJ"
   _felix_repair_require_gh || return 1
-  local repo branch latest run_id status conclusion attempts
+  local repo branch latest run_id status conclusion attempts gwf
   repo="$(git remote get-url origin 2>/dev/null | sed -E 's#.*github\.com[:/]##; s#\.git$##')"
   [ -n "$repo" ] || die "no github remote; felix repair supports GitHub Actions only"
+  gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
   branch="$(felix_repair_branch)"
 
-  latest="$(felix_repair_latest "$branch" "$repo")"
-  [ -n "$latest" ] || { printf 'No CI runs for %s yet.\n' "$branch"; return 0; }
+  # Unreadable is not "no runs". gh fails on a workflow the repository does not
+  # have and on a network that does not answer, and both printed nothing, which
+  # this read as nothing to repair: a claim about CI that nothing had checked.
+  latest="$(felix_repair_latest "$branch" "$repo" "$gwf")" || {
+    printf 'Could not read the %s runs for %s: that workflow is not on %s, or gh\n' "$gwf" "$branch" "$repo"
+    printf 'could not answer. A project whose gate runs in another workflow names it as\n'
+    printf 'gate_workflow in its project.json. Nothing is repaired from a run nobody read.\n'
+    return 1
+  }
+  [ -n "$latest" ] || { printf 'No %s runs for %s yet.\n' "$gwf" "$branch"; return 0; }
   run_id="$(printf '%s' "$latest" | cut -f1)"
   status="$(printf '%s' "$latest" | cut -f2)"
   conclusion="$(printf '%s' "$latest" | cut -f3)"
@@ -3742,7 +3801,19 @@ cmd_repair() {
     return 0
   fi
 
-  attempts="$(felix_repair_attempts "$branch" "$repo")"
+  # A count that could not be read is not zero attempts, which is what it was
+  # read as: every time gh did not answer, the ceiling reported itself unspent.
+  # It stops here with the ceiling's own status, because what could not be
+  # shown is that the bound holds, and a caller that honours the ceiling
+  # honours this without having to learn a new code.
+  attempts="$(felix_repair_attempts "$branch" "$repo" "$gwf")" || {
+    printf 'attempts: unreadable\n\n'
+    printf 'CEILING UNKNOWN. The %s runs on %s could not be counted, so the ceiling\n' "$gwf" "$branch"
+    printf 'cannot be shown unspent. Not patching past a bound nobody read; run this\n'
+    printf 'again once gh answers, or escalate:\n\n'
+    printf '  gh pr edit --repo %s --add-label needs-founder\n' "$repo"
+    return 2
+  }
   printf 'attempts: %s of %s\n' "$attempts" "$FELIX_REPAIR_MAX"
 
   if [ "$attempts" -ge "$FELIX_REPAIR_MAX" ]; then

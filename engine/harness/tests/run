@@ -522,6 +522,26 @@ case "$out" in
 esac
 rm -f "$REPO/requirements.txt" "$REPO/Dockerfile"
 
+# A checkout whose path holds a space. The probes globbed $root/$p with the
+# root unquoted, so at the default IFS the path split into words and every one
+# missed: session-start, the gate, commission and doctor all saw a checkout
+# with no ci, no deploy and no tests. Only a tab IFS found what was there. The
+# fixture reaches both probe loops through a glob, so quoting the pattern along
+# with the root fails here too. Run from the fixture's parent, where nothing
+# can match the manifest loop's own globs.
+DSP="$TMP/detect space/repo"
+mkdir -p "$DSP/tests" "$DSP/.github/workflows" "$DSP/requirements"
+printf 'FROM scratch\n' > "$DSP/Dockerfile"
+printf 'on: push\n'     > "$DSP/.github/workflows/ci.yml"
+printf 'sentry-sdk\n'   > "$DSP/requirements.txt"
+printf 'stripe\n'       > "$DSP/requirements/prod.txt"
+: > "$DSP/.env.example"
+is "felix_detect in a checkout whose path holds a space reports the capabilities its files show" \
+   "$(cd "$TMP/detect space" && IFS=$' \t\n'; . "$FROOT/harness/lib/detect.sh"
+      felix_detect "$DSP" | sort -u | tr '\n' ' ')" \
+   "billing ci deploy observability secrets tests "
+rm -rf "$TMP/detect space"
+
 printf '\nrival gates\n'
 # From a real failure. An untracked, day-stale, strictly weaker copy of the gate
 # sat inside the governed repo, and it was the file physically in front of any

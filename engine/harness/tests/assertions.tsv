@@ -2131,6 +2131,7 @@
 1	felix_contains survives a large haystack under pipefail
 1	felix_coverage_events rosters the events settings.json binds by key
 1	felix_deploy_diff sees the hooks drift
+1	felix_detect in a checkout whose path holds a space reports the capabilities its files show
 1	felix_evidence_check reports unknown, not n/a
 1	felix_has_line matches whole lines under pipefail
 1	felix_has_line rejects partial lines

@@ -32,83 +32,85 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0br. 2026-09-22, closing — seven pull requests shipped and deployed, the public snapshot is a command and was brought forward, Elenchus has a working required check again
+### 0bs. 2026-09-22/23 — Felix is a product for other people's projects, built first; the first obligations request answered blind; the roadmap
 
-**Deployed: engine 0.49.141**, from the home checkout, verified against the
-tree. Every merge below passed `felix gate` on its exact tree and CI.
+**No engine change from this session.** Records and doctrine only. The engine
+moved to 0.49.142 and 0.49.143 through other sessions' pull requests (#289,
+#292) while this one ran.
 
-| PR | What | Engine |
-|---|---|---|
-| #281 | The session lifecycle recorder: `lifecycle.log`, nine columns, a row per start, resume, clear, compact, handoff and summary | 0.49.136 |
-| #282 | #264 closed: the platform's summary request is its own session and recorded as nothing; Stop, SessionEnd and the ledger pass over it | 0.49.137 |
-| #283 | HANDOFF.md split into this file and `docs/handoff/<id>.md`, byte-identical on reassembly | — |
-| #284 | `projects/felix/snapshot.sh` with an audit that is not its scrub; `secret-scan` reads `ASIA` keys; the unattended template commits as `github-actions[bot]` | 0.49.138 |
-| #285 | `felix audit` (read-only, from a plain clone) and `felix new --no-commission` | 0.49.139 |
-| #286 | The red.tsv base check skips where its base is no commit in the repository, as in a published snapshot | 0.49.140 |
-| #288 | The red.tsv and version checks apply only to a branch that changes the engine; #285 had failed every docs-only pull request, this one's first | 0.49.141 |
+| PR | What |
+|---|---|
+| #290 | Constitution: Felix is a product for other people's projects, built first on Claude Code; the Phase-1-only scope is replaced |
+| #293 | `docs/2026-09-23-roadmap.md`, replacing direction-decisions §5's queue |
+| this | The roadmap revised to build first, and this section |
 
-**Founder decisions, 2026-09-22:**
+**Founder decisions, 2026-09-22/23:**
 
-- #285 was stopped by `felix merge` on the `verifier` escape
-  (`engine/harness/ecosystem.tsv`: two `allow` rows for `lib/audit.sh` and
-  `lib/audit-read.sh`, the default runner roster). The founder approved it in
-  session; it was merged with the same `gh pr merge --squash` felix merge
-  uses, and the decision is on the PR.
-- Elenchus's `main` now requires 0 approving reviews (the founder's change);
-  the required `gate` check and admin enforcement stay. So Elenchus's wall is
-  the server-side gate alone, and Felix merges its own Elenchus PRs on it.
-- "Every time you decline something, record it": each declined Felix
-  suggestion goes through `felix route --ack`, and each is counted as a
-  failure of the routing layer v3.2 should remove (memory:
-  `record-every-decline`).
+- Felix is a product for other people's projects (#290): Claude Code first
+  and best, host-independent by design, a second host once Claude Code is
+  right. The name stays for now, the IP is his, pricing is deferred, and both
+  planes stay.
+- **Build first (2026-09-23).** Real obligations and working machinery come
+  before anything else; commercialisation is a natural outcome of Felix's
+  quality, not a goal. No outreach track and no user deadlines. The roadmap
+  was revised the same day to say so.
+- The Capability Plane is not "call an agent API". Labour (Claude, Codex,
+  Factory) is one commoditised provider class, consumed on the customer's own
+  key; the distinct core is qualifying the evidence providers (observers and
+  checkers) and deriving needs from standing obligations. Integration order:
+  merge-point check, then ride-along adapters, then dispatch.
+- Approved: the obligations request by hand on Elenchus (done, below) and the
+  qualified-judge slice (roadmap Phase 1). No row is armed before control 7
+  and the judge pin exist; the chat plan of 2026-09-22 said new rows would arm
+  at once, and the roadmap records that correction.
 
-**Also done:**
+**Queue item 4a, done 2026-09-22.** `felix obligations --request` ran on a
+scratch clone of Elenchus at origin/main `a45a985`, with `.[dev,web]`
+installed so `http_route` read found (16) rather than blind. A Plan subagent
+answered it: that type loads no memory, so it was not primed by the session's
+talk of rate limiting. The answer was written verbatim to
+`~/.felix/memory/elenchus/commission/obligations_surveyed.tsv` and read back
+by `felix obligations`: 7 proposed, 7 accepted, 0 refused, 0 admitted
+(`candidates.tsv`, 7 rows, epoch `5d2d7b05`). Six of the seven evidence
+commands fail on main. `public_bind_has_spend_ceiling` is LeavesJ/Elenchus#16,
+open since 2026-09-03, and `app.py:74` names it, so this is calibration, not
+recall. The other five are unverified against what Elenchus already records.
+Admission waits on the founder. The scratch clone does not outlive the session.
 
-- Queue item 1 is complete: all 23 ids of direction-decisions §2 are in
-  `ECC_DISABLED_HOOKS`, the last two added only after the deployed recorder
-  wrote a correct row.
-- The 78 phantom summary sessions' `ledger.d` files were moved aside (backup
-  `~/.felix/memory.cleanup-264.20260922T181324Z`); `felix ledger` folded 0 back.
-- LeavesJ/Elenchus#20 merged (CI checks out Felix from felix-home); the first
-  main-path gate since 2026-09-13 passed on `4716cb2`. LeavesJ/Elenchus#21
-  merged (its copied workflow no longer commits as a stranger; it never had).
-- The public snapshot was brought forward by the command it now is:
-  LeavesJ/Felix#3, engine 0.49.122 to 0.49.140, merged on green CI as
-  `d6b16e8` (home source `437005e`). Before it: 13 names audited, 8 lines
-  acknowledged, none open; no new secret hits; the suite on the public commit
-  2,957 passed, 0 failed. A fresh public clone runs `felix audit` and stays
-  clean, so the README's first instruction is true. The first build had failed
-  the suite on a check #285 added (fixed in #286), which is the snapshot
-  command catching a defect before publishing. `felix maintenance --ran
-  snapshot` is recorded.
-- The agent-written `~/.felix/memory/felix/snapshot-ack.tsv` (inert since the
-  tracked `.snapshot-ack.tsv` landed) was moved to the session scratchpad.
+**Records.** Memory: `felix-is-a-commercial-product`,
+`agent-vendor-access-and-terms`, and the market map's 2026-09-22 delta:
+Factory's 2026-08-27 post states the inventory-plus-current-evidence thesis
+for next-generation Missions, Claude Code Projects redesigned on 2026-09-17,
+and Anthropic's Agent SDK terms for products. The founder has PDFs of the
+positioning continuation and of both roadmap versions; their Markdown was
+scratch, so the repository's roadmap is the source.
 
-**Open, in queue order:**
+**Open, in roadmap order:** Phase 0 of `docs/2026-09-23-roadmap.md`. Live in
+other sessions: the table validator on `claude/table-validator`, and
+qualification hardening in `happy-snyder-20f100`, which touches
+`lib/qualify.sh`, so the judge work waits for it. PR #291 is red. Carried from
+§0br: deny rows reading heredocs and quoted text (roadmap Phase 0), and the
+harvest rows (Phase 4).
 
-1. Queue item 2: `lib/table.sh` as a validator, `schemas.tsv`, a gate
-   `schema` check, then `coverage.tsv`. It owes schema rows for
-   `lifecycle.log`, the handoff stamp, and `decisions.log`, whose decline rows
-   lack the declined play and the session id, so declines cannot be tallied
-   per route yet. The split of `tests/run` and `felix` rides with it.
-2. A defect found this session: `deny.tsv` rows read heredoc bodies and
-   quoted text as commands. Row 30 refused a commit message and a memory note
-   that only mentioned the project marker file after a `<name>` placeholder.
-   `felix audit`'s reader (`lib/audit-read.sh`) already sets such text aside.
-3. Queue item 3, the harvest rows, after which the founder sets ECC's
-   `hooks_enabled` false.
+**Traps paid for this session:**
 
-**Traps paid for this session** (memory: `workflow-agents-die-together`,
-`fact-gate-keys-on-command-tokens`): an API stall and then the weekly usage
-limit each killed workflow agents mid-run; the desktop app refuses a session's
-writes to worktrees it did not start in, so agents work in scratch clones;
-land from a fresh GitHub clone, because gate receipts are per checkout and
-the deny table refuses rewriting a remote or force-pushing; check
-`git log origin/main..main` in the home before a deploy (another session had
-committed `projects/sv2-apps` there unpushed); every deploy stales the
-receipts of every open checkout, so gate once, last; and a check that asks
-something of every branch must say which branches it applies to (#285's
-record checks failed every docs-only branch until #288).
+- A gate receipt belongs to the tree, and committing changes the tree even
+  when no content does. Gate after the commit.
+- `origin/main` moved twice mid-work. Merge it into the branch rather than
+  rebase (a force-push is refused), then gate again.
+- Running probes in another project moved this checkout's grounded facts, and
+  the Stop hold asked for a fresh gate on an unchanged tree.
+- `felix merge` takes no pull request number; it merges the checked-out
+  branch.
+- A discovery answer must not come from the session's own model once the
+  session has discussed what it expects to find. A Plan subagent loads no
+  memory.
+- The request records probe state as last read. Install the product's extras
+  first, or `http_route` reads blind.
+- Headless Chrome with a fresh `--user-data-dir` writes the PDF and then
+  hangs. Bound it and check the file.
+- In zsh a bare word starting with `=`, such as a line of equals signs passed
+  to `echo`, is an expansion error.
 
 ---
 
@@ -119,6 +121,7 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0br](docs/handoff/0br.md) | 2026-09-22, closing — seven pull requests shipped and deployed, the public snapshot is a command and was brought forward, Elenchus has a working required check again |
 | [0bq](docs/handoff/0bq.md) | 2026-09-22 — the recorder and #264 deployed, ECC step 1 complete, two branches in repair |
 | [0bp](docs/handoff/0bp.md) | DECIDED 2026-09-21 — `projects/bazaar` is tracked, and its gate keeps its own log |
 | [0bo](docs/handoff/0bo.md) | 2026-09-21 — four outside reviews checked against the transcripts, and where Felix stands |

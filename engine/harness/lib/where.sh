@@ -93,9 +93,29 @@ EOF
   printf '%s' "$c"
 }
 
+# The path with . and .. taken off by their spelling, the way cd reads it
+# unless it is given -P: `$GOV/link/..` is the checkout to cd, whatever the
+# link points at.
+_felix_where_lexical() {
+  local p="$1" c out="" IFS=/
+  local -a parts
+  read -r -a parts <<EOF
+$p
+EOF
+  for c in ${parts[@]+"${parts[@]}"}; do
+    case "$c" in
+      ''|.) ;;
+      ..) out="${out%/*}" ;;
+      *) out="$out/$c" ;;
+    esac
+  done
+  printf '%s' "${out:-/}"
+}
+
 # Whether one absolute path is throwaway: under a temporary root, and neither
 # in, above, nor sharing a repository with the governed checkout.
-# Judged physically, from the deepest part of it that exists now.
+# Judged physically, from the deepest part of it that exists now, and by its
+# spelling as well, since cd reads .. by spelling.
 _felix_where_throwaway() {
   local p="$1" hops="${2:-0}" d tail="" dir base phys full r intemp=0 c t
   case "$p" in
@@ -129,6 +149,11 @@ _felix_where_throwaway() {
   fi
   if _felix_where_under "$_FW_GTOP" "$full"; then
     _FELIX_WHERE_WHY="it acts on $full, which holds the governed checkout"; return 1
+  fi
+  c="$(_felix_where_lexical "$p")"
+  if _felix_where_under "$c" "$_FW_GTOP" || _felix_where_under "$_FW_GTOP" "$c" \
+     || { [ -n "$_FW_GCOMMON" ] && _felix_where_under "$c" "$_FW_GCOMMON"; }; then
+    _FELIX_WHERE_WHY="it acts on $c, the governed checkout as cd spells it"; return 1
   fi
   while IFS= read -r r; do
     [ -n "$r" ] && _felix_where_under "$full" "$r" && { intemp=1; break; }

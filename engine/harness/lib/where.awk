@@ -902,7 +902,10 @@ function run_simple(st,   nofn, rdpl, TY, WS, WE, ROS, RO, RFD, RPH, isexec, n, 
     split(FV[base], T, " "); for (j in T) if (T[j] != "") V[s, T[j]] = ALT UNK
     f = s
   }
-  else if (base == "cd" || base == "chdir") { do_cd(cst, WV, WG, ci, nw); s = CD_S; f = CD_F }
+  else if (base == "cd" || base == "chdir") {
+    w = CDP || ((cst, "CDPATH") in V); for (k = 1; k <= ne; k++) if (ENVN[k] == "CDPATH") w = 1
+    do_cd(cst, WV, WG, ci, nw, w); s = CD_S; f = CD_F
+  }
   else if (base == "pushd" || base == "popd") { s = st_copy(cst); WD[s] = ALT UNK; f = s; CDN++ }
   else if (base ~ /^(export|declare|typeset|local|readonly)$/) { s = do_declare(cst, base, WV, WX, WS, WE, ci, nw); f = s }
   else if (base == "shift" || base == "set" && one(WV[ci + 1]) == "--") { s = st_copy(cst); for (j = 1; j <= 9; j++) V[s, j ""] = ALT UNK; f = s }
@@ -926,6 +929,9 @@ function run_simple(st,   nofn, rdpl, TY, WS, WE, ROS, RO, RFD, RPH, isexec, n, 
   else if (base in SHELLS) { do_shell(cst, WV, WX, WS, WE, ci, nw, ENVN, ENVV, ne, n, RO, me, ph0, rdpl); kind = SH_KIND; why = SH_WHY; pl = SH_PL; if (SH_TXT != "") { txt = SH_TXT; sp = SH_SP } }
   else if (base == "git") { do_git(cst, WV, ci, nw, ENVN, ENVV, ne); kind = GIT_KIND; why = GIT_WHY; pl = GIT_PL rdpl; if (GIT_M != "") emit("m", "", txt, GIT_M, "", st) }
   else if (base in FOREIGN || base == "find" && has_exec(WV, ci, nw)) { bad_cmd(base " running a command"); kind = "u"; why = base " runs a command"; NOGUARD = 1 }
+  # A trap runs its text later: on DEBUG, ERR or RETURN between the commands
+  # read here, so nothing after it is known.
+  else if (base == "trap" && trap_unread(WV, ci, nw)) { bad_cmd("trap"); kind = "u"; why = "trap runs text between commands" }
   else if (base in RUNNER || base == "find") { kind = "u"; why = base " runs code whose effect cannot be told"; NOGUARD = 1 }
   else if (base == "mount") { bad_cmd("mount") }
   else if (base ~ /^(ln|link|mv)$/ || base == "cp" && has_link(WV, ci, nw)) {
@@ -1003,19 +1009,24 @@ function do_mkdir(s, WV, ci, nw,   j, w, p, set, n, A, k, out, paths, d) {
   }
   return out
 }
+function trap_unread(WV, ci, nw,   j, w) {
+  if (ci + 1 <= nw && one(WV[ci + 1]) == UNK) return 1
+  for (j = ci + 2; j <= nw; j++) { w = one(WV[j]); if (w == UNK || w ~ /^(SIG)?(DEBUG|ERR|RETURN)$/) return 1 }
+  return 0
+}
 function has_exec(WV, ci, nw,   j) { for (j = ci + 1; j <= nw; j++) if (one(WV[j]) ~ /^-(exec|execdir|ok|okdir)$/) return 1; for (j = ci + 1; j <= nw; j++) if (one(WV[j]) == "-delete") { NOGUARD = 1; deleted() }; return 0 }
 function has_link(WV, ci, nw,   j, w) { for (j = ci + 1; j <= nw; j++) { w = one(WV[j]); if (w ~ /^-[A-Za-z]*[ls]/ || w ~ /^--(link|symbolic-link)$/) return 1 }; return 0 }
-function do_cd(cst, WV, WG, ci, nw,   j, w, tgt, n, A, k, p, nwd, gi, B, m) {
+function do_cd(cst, WV, WG, ci, nw, cdp,   j, w, tgt, n, A, k, p, nwd, gi, B, m) {
   j = ci + 1
   while (j <= nw && (w = one(WV[j])) ~ /^-[LPe@qs]+$|^--$/) j++
   if (j > nw) tgt = getvar(cst, "HOME")
   else if (j < nw) tgt = ALT UNK
-  else { w = one(WV[j]); tgt = (w == "-") ? OLD[cst] : WV[j]; if (WG[j]) tgt = ALT UNK }
+  else { w = one(WV[j]); tgt = (w == "-") ? ALT UNK : WV[j]; if (WG[j]) tgt = ALT UNK }
   n = split(tgt, A, ALTRE); nwd = ""
   for (k = 2; k <= n; k++) {
     p = apath(A[k])
-    if (index(p, UNK)) { nwd = set_union(nwd, ALT UNK); continue }
-    if (CDP && p !~ /^(\/|\.\.?(\/|$))/) { nwd = set_union(nwd, ALT UNK); continue }
+    if (index(p, UNK)) { nwd = set_union(nwd, ALT UNK agrd(A[k])); continue }
+    if (cdp && p !~ /^(\/|\.\.?(\/|$))/) { nwd = set_union(nwd, ALT UNK agrd(A[k])); continue }
     if (p == "") nwd = set_union(nwd, addg(WD[cst], agrd(A[k])))
     else nwd = set_union(nwd, join(WD[cst], A[k]))
   }

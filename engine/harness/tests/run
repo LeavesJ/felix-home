@@ -13706,7 +13706,7 @@ mkdir -p "$GOV" "$SCR/plain"
   && git remote add origin https://example.com/widget.git && git worktree add -q -b wt "$GWT" ) >/dev/null 2>&1
 git clone -q "$GOV" "$SCR/clone" >/dev/null 2>&1
 GOV="$(cd "$GOV" && pwd -P)"; GWT="$(cd "$GWT" 2>/dev/null && pwd -P)"; SCR="$(cd "$SCR" && pwd -P)"
-ln -s "$GOV" "$SCR/to-gov"; ln -s "$GOV/.felix" "$SCR/marker"
+ln -s "$GOV" "$SCR/to-gov"; ln -s "$GOV/.felix" "$SCR/marker"; ln -s "$SCR/plain" "$GOV/out"
 # A fixture that silently lacks its worktree or clone turns every refusal
 # below into a vacuous pass.
 if [ -f "$GWT/.git" ] && [ -d "$SCR/clone/.git" ] && [ -L "$SCR/to-gov" ]; then
@@ -13887,6 +13887,11 @@ _sc 0 "scoped: builtin cd steps past a function of that name" - "cd() { :; }; bu
 _scr stage "scoped: printf -v assigns the variable a later cd reads" - "x=$SCR/plain; printf -v x '%s' \"$GOV\"; cd \"\$x\" && git add -A && git commit -qm x"
 _scr stage "scoped: an ANSI-C escape the reader does not decode" "$SCR/plain" "cd \$'..\\x2f..\\x2fgov' && git add -A && git commit -qm x"
 _scr stage "scoped: a directory named as a command, which AUTO_CD would enter" "$SCR/plain" "$GOV; git add -A && git commit -qm x"
+_scr stage "scoped: a DEBUG trap runs between the commands read" - "trap 'cd $GOV' DEBUG; cd $SCR/clone && git add -A && git commit -qm x"
+_sc 0 "scoped: an EXIT trap with a known action does not" - "trap 'true' EXIT; cd $SCR/clone && git add -A && git commit -qm x"
+_scr stage "scoped: CDPATH given to cd moves a relative cd" "$SCR/plain" "CDPATH=$SC cd gov && git add -A && git commit -qm x"
+_scr stage "scoped: cd - goes where OLDPWD says" "$SCR/plain" "cd $SCR/clone; OLDPWD=$GOV; cd - && git add -A && git commit -qm x"
+_scr stage "scoped: cd reads .. by spelling, through a link out of the checkout" "$SCR/plain" "cd $GOV/out/.. && git add -A && git commit -qm x"
 ( cd "$GOV" && printf '{"session_id":"scoped","cwd":"%s","tool_name":"Bash","tool_input":{"command":"cd \\u002f%s && git add -A"}}' \
     "$SCR/plain" "${GOV#/}" | "$FROOT/harness/hooks/pre-tool" 2>"$SC_ERR" ); rc=$?
 is "scoped: a \\u escape in the payload is not read as its letters" "$rc" "2"

@@ -28,6 +28,21 @@ in. Design its surfaces so something other than a human can drive them.
 **The founder owns what gets built.** Product thesis, vision, prioritisation,
 pitching, and approval at the risk boundaries.
 
+**What waits for the founder's yes is direction, and only direction.** Some
+documents change what Felix is, who it is for, or the order it is built in:
+- a roadmap, or a change to one;
+- this charter's account of what Felix is and of this split;
+- an amendment that overrides the founder's own architecture text.
+
+Such a document is shown to the founder and merged only after a yes. Once it
+lands, the founder gives the delivery one word: yes, partial or no.
+
+Nothing else waits. Engineering, fixes, tables, action items, handoffs, and
+documents that only record what the founder said all merge on green, as
+before. Asking for a yes on any of those is a needless stop, the most common
+way the founder's time went into the agent's job. Decided 2026-09-23, after a
+roadmap merged and was withdrawn four minutes later.
+
 **Felix owns how it gets built, optimally.** Which MCP, which plugin, which
 skill, which agent, in which order, in one context or several. Then the whole
 loop around that choice: read the project, plan the work, arrange the tooling,

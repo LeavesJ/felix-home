@@ -226,6 +226,8 @@ felix_where_lifts() {
                  || { _FELIX_WHERE_WHY="mkdir -p ${line#M	} could fail, and then a cd into it would not move"; return 1; } ;;
       D$'\t'*) [ -d "${line#D	}" ] && [ -w "${line#D	}" ] \
                  || { _FELIX_WHERE_WHY="mktemp works in ${line#D	}, which is not a writable directory now"; return 1; } ;;
+      X$'\t'*) [ -d "${line#X	}" ] \
+                 && { _FELIX_WHERE_WHY="${line#X	} is named as a command and is a directory, which zsh's AUTO_CD would enter"; return 1; } ;;
     esac
   done <<EOF
 $out

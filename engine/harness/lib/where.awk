@@ -75,7 +75,9 @@ function unjson(s,   n, P, k, L, i, c, m) {
     if (c == "\\" && i < L && substr(s, i + 1, 1) ~ /[nrt"\\\/]/) i += 2; else i++
     RE[m] = i - 2
   }
-  gsub(/\\\\/, "\002", s); gsub(/\\n/, "\n", s); gsub(/\\t/, "\t", s)
+  gsub(/\\\\/, "\002", s)
+  if (index(s, "\\u")) bad("a \\u escape in the payload")
+  gsub(/\\n/, "\n", s); gsub(/\\t/, "\t", s)
   gsub(/\\r/, "\r", s); gsub(/\\"/, "\"", s); gsub(/\\\//, "/", s)
   n = split(s, P, /\002/); S = P[1]
   for (k = 2; k <= n; k++) S = S "\\" P[k]
@@ -404,7 +406,7 @@ function expand(ws, we, st,   i, c, lit, set, txt, dq, e, n, t, sp0) {
   if (we >= sp0) XSP = XSP " " sp0 "," we
   XSET = set; XTXT = txt
 }
-function ansi(c) { if (c == "n") return "\n"; if (c == "t") return "\t"; return c }
+function ansi(c) { if (c == "n") return "\n"; if (c == "t") return "\t"; if (c ~ /[\\'"]/) return c; return UNK }
 function param(t, st,   n, v) {
   if (t ~ /^([A-Za-z_][A-Za-z0-9_]*|[0-9])$/) return getvar(st, t)
   if (t ~ /^[A-Za-z_][A-Za-z0-9_]*:?-/) {
@@ -805,7 +807,7 @@ function assign_at(ws, we,   k) {
   if (C[k] == "=") { AAPP = 0; AV = k + 1; return 1 }
   return 0
 }
-function run_simple(st,   rdpl, TY, WS, WE, ROS, RO, RFD, RPH, isexec, n, t, k, words, cst, txt, sp, nw, WV, WT, WG, WX, WSP, ENVN, ENVV, ne, ci, cw, base, w, pl, kind, why, s, f, redir_out, v, me, ph0, j, val, wd, tmp) {
+function run_simple(st,   nofn, rdpl, TY, WS, WE, ROS, RO, RFD, RPH, isexec, n, t, k, words, cst, txt, sp, nw, WV, WT, WG, WX, WSP, ENVN, ENVV, ne, ci, cw, base, w, pl, kind, why, s, f, redir_out, v, me, ph0, j, val, wd, tmp) {
   n = 0; words = 0; CMDN++; me = CMDN; ph0 = NPH
   while (1) {
     t = peek()
@@ -865,6 +867,7 @@ function run_simple(st,   rdpl, TY, WS, WE, ROS, RO, RFD, RPH, isexec, n, t, k, 
     if (base == UNK) { bad_cmd(WT[ci] ", a command whose name it cannot see"); emit("u", "its command word cannot be seen", txt, "", sp, st); RS_S = st_forget(cst); RS_F = RS_S; return }
     if (base == "command" || base == "builtin" || base == "nohup" || base == "time" || base == "exec") {
       if (base == "exec") isexec = 1
+      if (base == "command" || base == "builtin") nofn = 1
       ci++; while (ci <= nw && one(WV[ci]) ~ /^-/) { if (base == "command" && one(WV[ci]) ~ /[vV]/) { ci = nw + 1; break }; ci++ }
     } else if (base == "nice") { ci++; if (one(WV[ci]) == "-n") ci += 2; else if (one(WV[ci]) ~ /^-/) ci++ }
     else if (base == "timeout") { ci++; while (ci <= nw && (w = one(WV[ci])) ~ /^-/) { ci += (w ~ /^-[sk]$/) ? 2 : 1 }; ci++ }
@@ -883,15 +886,30 @@ function run_simple(st,   rdpl, TY, WS, WE, ROS, RO, RFD, RPH, isexec, n, t, k, 
     if (ci > nw) { emit("p", "", txt, rdpl, sp, st); RS_S = cst; RS_F = cst; claim_heredocs(ph0, me, "data", cst, cst, rdpl); return }
   }
   s = cst; f = cst; kind = "p"; why = ""
+  # Under zsh's AUTO_CD a directory named as the command is entered. A path
+  # in command position is written out, and the judge refuses one that is a
+  # directory now.
+  if (EMIT && WT[ci] ~ /\//) { n = split(joinset(wd, WV[ci]), T, ALTRE); for (k = 2; k <= n; k++) if (!index(T[k], UNK)) printf "X\t%s\n", apath(T[k]) }
   pl = rdpl ((base in DATATOOL || base in FILETOOL) ? "" : wd)
   for (j = ci + 1; j <= nw; j++) pl = pl pieces(WV[j], wd, WG[j], 0, base in DATATOOL)
   for (k = 1; k <= ne; k++) pl = pl pieces(ENVV[k], wd, 0, 0, 1)
-  if (base == "cd" || base == "chdir") { do_cd(cst, WV, WG, ci, nw); s = CD_S; f = CD_F }
+  # A function runs before a builtin or a program of its name, so one called
+  # cd or git is read as a function: what it does was read where it was
+  # defined, in an unknown directory.
+  if ((base in FN) && !nofn) {
+    kind = "u"; why = "it calls the function " base; s = st_copy(cst); NOGUARD = 1
+    if (base in FCD) WD[s] = ALT UNK
+    split(FV[base], T, " "); for (j in T) if (T[j] != "") V[s, T[j]] = ALT UNK
+    f = s
+  }
+  else if (base == "cd" || base == "chdir") { do_cd(cst, WV, WG, ci, nw); s = CD_S; f = CD_F }
   else if (base == "pushd" || base == "popd") { s = st_copy(cst); WD[s] = ALT UNK; f = s; CDN++ }
   else if (base ~ /^(export|declare|typeset|local|readonly)$/) { s = do_declare(cst, base, WV, WX, WS, WE, ci, nw); f = s }
   else if (base == "shift" || base == "set" && one(WV[ci + 1]) == "--") { s = st_copy(cst); for (j = 1; j <= 9; j++) V[s, j ""] = ALT UNK; f = s }
   else if (base == "unset") { s = st_copy(cst); for (j = ci + 1; j <= nw; j++) { w = one(WV[j]); if (w ~ /^-f/) break; if (w ~ /^[A-Za-z_][A-Za-z0-9_]*$/) defvar(s, w, ALT "", 0) }; f = s }
   else if (base == "set") { s = st_copy(cst); for (j = ci + 1; j <= nw; j++) { w = one(WV[j]); if (w ~ /^-[a-z]*e/ || (w == "errexit" && one(WV[j - 1]) == "-o")) EE[s] = 1; if (w ~ /^\+[a-z]*e/ || (w == "errexit" && one(WV[j - 1]) == "+o")) EE[s] = 0 }; f = s }
+  else if (base == "printf" && one(WV[ci + 1]) == "-v") { s = st_copy(cst); w = one(WV[ci + 2]); if (w ~ /^[A-Za-z_][A-Za-z0-9_]*$/) defvar(s, w, ALT UNK, 0); else s = st_forget(cst); f = s }
+  else if (base == "let") { s = st_copy(cst); for (j = ci + 1; j <= nw; j++) { w = one(WV[j]); n = split(w, T, /[^A-Za-z0-9_]+/); for (k = 1; k <= n; k++) if (T[k] in KNOWN) V[s, T[k]] = ALT UNK }; f = s }
   else if (base ~ /^(read|getopts|mapfile|readarray)$/) { s = st_copy(cst); for (j = ci + 1; j <= nw; j++) { w = one(WV[j]); if (w ~ /^-[pdtunNia]$/) { j++; continue }; if (w ~ /^[A-Za-z_][A-Za-z0-9_]*$/) defvar(s, w, ALT UNK, 0) }; f = s }
   else if (base == "eval") { bad_cmd("eval"); kind = "u"; why = "eval runs text it cannot follow"; s = st_forget(cst); f = s }
   else if (base == "source" || base == ".") {
@@ -899,7 +917,7 @@ function run_simple(st,   rdpl, TY, WS, WE, ROS, RO, RFD, RPH, isexec, n, t, k, 
     if ((fkey(one(WV[ci + 1]), wd) in WROTE)) bad_cmd(base " of a file this command wrote")
     s = st_forget(cst); f = s; NOGUARD = 1
   }
-  else if (base == "alias") { s = st_forget(cst); f = s; kind = "u"; why = "alias" }
+  else if (base == "alias") { bad_cmd("alias"); s = st_forget(cst); f = s; kind = "u"; why = "alias" }
   else if (base ~ /^(exit|return|logout)$/) { s = DEADST; f = DEADST }
   else if (base == "break" || base == "continue") {
     if (LD > 0) { if (base == "break") BRK[LD] = st_merge(BRK[LD], cst); else CNT[LD] = st_merge(CNT[LD], cst) }
@@ -909,12 +927,6 @@ function run_simple(st,   rdpl, TY, WS, WE, ROS, RO, RFD, RPH, isexec, n, t, k, 
   else if (base == "git") { do_git(cst, WV, ci, nw, ENVN, ENVV, ne); kind = GIT_KIND; why = GIT_WHY; pl = GIT_PL rdpl; if (GIT_M != "") emit("m", "", txt, GIT_M, "", st) }
   else if (base in FOREIGN || base == "find" && has_exec(WV, ci, nw)) { bad_cmd(base " running a command"); kind = "u"; why = base " runs a command"; NOGUARD = 1 }
   else if (base in RUNNER || base == "find") { kind = "u"; why = base " runs code whose effect cannot be told"; NOGUARD = 1 }
-  else if (base in FN) {
-    kind = "u"; why = "it calls the function " base; s = st_copy(cst); NOGUARD = 1
-    if (base in FCD) WD[s] = ALT UNK
-    split(FV[base], T, " "); for (j in T) if (T[j] != "") V[s, T[j]] = ALT UNK
-    f = s
-  }
   else if (base == "mount") { bad_cmd("mount") }
   else if (base ~ /^(ln|link|mv)$/ || base == "cp" && has_link(WV, ci, nw)) {
     NOGUARD = 1; tmp = rdpl
@@ -1023,7 +1035,8 @@ function do_declare(cst, base, WV, WX, WS, WE, ci, nw,   s, j, w, k, x, val) {
   s = st_copy(cst); x = (base == "export")
   for (j = ci + 1; j <= nw; j++) {
     w = one(WV[j])
-    if (w ~ /^-/) { if (w ~ /x/) x = 1; if (w ~ /f/) return s; continue }
+    # A name reference makes an assignment to one name land on another.
+    if (w ~ /^-/) { if (w ~ /n/) return st_forget(cst); if (w ~ /x/) x = 1; if (w ~ /f/) return s; continue }
     k = WX[j]
     if (assign_at(WS[k], WE[k])) {
       EXPST = cst; expand(AV, WE[k], cst); val = (AIDX || AAPP || XGLOB || C[AV] == "(") ? ALT UNK : XSET

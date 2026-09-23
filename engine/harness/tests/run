@@ -13878,6 +13878,18 @@ _scr tracking "scoped: the same script handed the governed checkout" - "bash -s 
 _sc 0 "scoped: a single-quoted bash -c fixture given its directory" - "bash -c 'mkdir -p \"\$1/r\" && cd \"\$1/r\" && git init -q && git remote add origin https://example.com/x.git' sh $SCR/p3"
 _sc 0 "scoped: mkdir -p, cd, then a remote on the lines after" - "W=$SCR/p4; mkdir -p \"\$W/repo\"; cd \"\$W/repo\"; git init -q"$'\n''git remote add origin https://nowhere.example/fx.git'
 _sc 0 "scoped: a mktemp fixture read back through pwd -P" - 'T=$(mktemp -d); REPO="$T/repo"; mkdir -p "$REPO"; (cd "$REPO" && git init -q -b main); REPO="$(cd "$REPO" && pwd -P)"; (cd "$REPO" && git add -A && git commit -qm base)'
+# --- what can change the meaning of a word the reader already knows. Each of
+# these lifted before the reader was taught it, found by reading it against
+# the shell rather than by a case.
+_scr stage "scoped: a function named cd runs instead of the builtin" - "cd() { builtin cd $GOV; }; cd $SCR/plain && git add -A && git commit -qm x"
+_scr stage "scoped: a function named git runs instead of git" - "git() { command git -C $GOV \"\$@\"; }; cd $SCR/clone && git add -A && git commit -qm x"
+_sc 0 "scoped: builtin cd steps past a function of that name" - "cd() { :; }; builtin cd $SCR/clone && command git add -A && command git commit -qm x"
+_scr stage "scoped: printf -v assigns the variable a later cd reads" - "x=$SCR/plain; printf -v x '%s' \"$GOV\"; cd \"\$x\" && git add -A && git commit -qm x"
+_scr stage "scoped: an ANSI-C escape the reader does not decode" "$SCR/plain" "cd \$'..\\x2f..\\x2fgov' && git add -A && git commit -qm x"
+_scr stage "scoped: a directory named as a command, which AUTO_CD would enter" "$SCR/plain" "$GOV; git add -A && git commit -qm x"
+( cd "$GOV" && printf '{"session_id":"scoped","cwd":"%s","tool_name":"Bash","tool_input":{"command":"cd \\u002f%s && git add -A"}}' \
+    "$SCR/plain" "${GOV#/}" | "$FROOT/harness/hooks/pre-tool" 2>"$SC_ERR" ); rc=$?
+is "scoped: a \\u escape in the payload is not read as its letters" "$rc" "2"
 # --- a lift is written down, and a refusal is not written as one
 _lifts() { awk -F'\t' '$2 == "lifted"' "$MEM/widget/says.log" 2>/dev/null; }
 _sc 0 "scoped: a lift to be recorded" "$SCR/clone" 'git add -A && git commit -qm recorded-lift'

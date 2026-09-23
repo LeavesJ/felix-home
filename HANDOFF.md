@@ -15,7 +15,7 @@ and changed none of it: the archive files concatenated in index order, after
 files the split made; later sections join the index above them, below §0).
 
 **The rule for the next session.** Write your section at the top of "Current
-state", with the next id (after 0bu comes 0bv). Move the section it replaces
+state", with the next id (after 0bv comes 0bw). Move the section it replaces
 into `docs/handoff/<id>.md`, unchanged, and add its row to the top of the
 index. A reference like "HANDOFF §0bm" means `docs/handoff/0bm.md`.
 
@@ -32,7 +32,7 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0bu. 2026-09-23 — the public README rewritten for a general reader first, with the Felix mark, and checked against the code three times
+### 0bv. 2026-09-23 — the public README rewritten for a general reader first, with the Felix mark, and checked against the code three times
 
 **No engine change.** `README.md`, a new `assets/` and
 `projects/felix/snapshot.sh`, on `claude/public-readme-styling-e3d61b`.
@@ -112,6 +112,7 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0bu](docs/handoff/0bu.md) | 2026-09-23 — Phase 0: the Elenchus candidates checked, deny rows read the command the shell runs, three small items |
 | [0bt](docs/handoff/0bt.md) | 2026-09-22/23 — the table validator (queue item 2, step 1) shipped, and a rename that hid an escape |
 | [0bs](docs/handoff/0bs.md) | 2026-09-22/23 — Felix is a product for other people's projects, built first; the first obligations request answered blind; the roadmap |
 | [0br](docs/handoff/0br.md) | 2026-09-22, closing — seven pull requests shipped and deployed, the public snapshot is a command and was brought forward, Elenchus has a working required check again |

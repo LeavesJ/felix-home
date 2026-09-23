@@ -2036,6 +2036,31 @@ UNS="$(cd "$UNS" && pwd -P)"
 is "an unstacked branch reports exactly what it changed" \
    "$( cd "$UNS" && . "$FROOT/harness/lib/resolve.sh"; felix_changed_paths "$UNS" main )" "src.txt"
 
+# A rename is two paths. git detects renames by default and then names only
+# where a file went, so a table renamed away was asked about under its new
+# name, which no rule knows. Committed, staged and unstaged, since those are
+# the three sources and each has its own diff.
+REN="$TMP/renamed"; mkdir -p "$REN/projects/p"
+( cd "$REN" && git init -q -b main
+  git config user.email t@t; git config user.name t
+  printf 'Bash\tgit push --force\tforce push drops commits\nBash\tgit commit --no-verify\tno\n' > projects/p/deny.tsv
+  git add -A; git commit -qm init; git checkout -q -b feat
+  git mv projects/p/deny.tsv projects/p/deny-archived.tsv; git commit -qm "archive the deny table" ) >/dev/null 2>&1
+REN="$(cd "$REN" && pwd -P)"
+_renpaths() { ( cd "$REN" && . "$FROOT/harness/lib/resolve.sh"; felix_changed_paths "$REN" main | tr '\n' ' ' ); }
+is  "a committed rename lists the name it left as well as the one it took" \
+    "$(_renpaths)" "projects/p/deny-archived.tsv projects/p/deny.tsv "
+( cd "$REN" && git reset -q --soft HEAD~1 ) >/dev/null 2>&1
+is  "and so does a staged one" "$(_renpaths)" "projects/p/deny-archived.tsv projects/p/deny.tsv "
+( cd "$REN" && git reset -q HEAD -- . && git add projects/p/deny-archived.tsv ) >/dev/null 2>&1
+has "and an unstaged deletion beside a staged copy names the table it removed" "$(_renpaths)" "projects/p/deny.tsv"
+( cd "$REN" && git add -A && git commit -qm "archive the deny table" ) >/dev/null 2>&1
+# What the rename was hiding: the enforcing table's rows go, and the verifier
+# that guards them sees it.
+has "renaming an enforcing table away fires the verifier on the table it removed" \
+    "$( cd "$REN" && . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
+        felix_escapes "$FROOT/projects/widget" main "$REN" )" "verifier	projects/p/deny.tsv"
+
 printf '\nevidence policy\n'
 {
   printf 'unit\t^src/\t^tests?/\tcode changes need a test\n'

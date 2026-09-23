@@ -4,7 +4,7 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	f781de0b680d58150ec4a0d34572351bc5e864f0	0.49.148
-run	2	3020	6
+base	origin/main	5110ca6410ebedd23fede49c12399c48f429ff8e	0.49.150
+run	2	3110	5
 two writers appending to one facts.log at once both report success	1
 two writers on one tree in one second both report success too	1

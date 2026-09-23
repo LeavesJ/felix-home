@@ -13754,6 +13754,140 @@ case "$out" in
 esac
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 
+printf '\ndenial reads the command the shell runs\n'
+# A Bash row was matched against the payload's JSON string, where a line break
+# is a backslash and an n and everything the command only carries reads as if
+# it ran. The marker row refused a commit message on 2026-09-22 because its
+# `<name>` placeholder holds a `>`; of 175 refusals logged by then, about
+# thirty were text of that kind. A command a row matches is now read again as
+# the shell reads it, and refused only if the row still matches there. Each
+# payload below is the JSON the hook receives, verbatim, so a line break is
+# written \n and a backslash in the command \\.
+#
+# Both directions are asserted, and the second one is the one that matters:
+# every "still refused" case is code that an earlier draft of the reader set
+# aside as data, and each was a real command in the refusals that were logged.
+{ printf 'Bash\t%s\tforce push drops commits\n' 'git push ([^;&|]* )?(--force|-f)( |$)'
+  printf 'Bash\t%s\trewriting the binding by hand\n' "(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*[\"']?\\.felix(-home)?[\"']?([[:space:];&|)]|\$)"
+  printf 'Bash\t%s\ta timed read never returns under zsh\n' 'read -t [0-9]+ [^;&|]*< <\('
+} > "$FROOT/projects/widget/deny.tsv"
+_prb() { _pre "$(cat)"; }
+
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -F - <<'EOF'\ndocs: felix new <name> writes a .felix marker\nEOF"}}
+J
+is "a commit message in a here-document is not read as a command" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -m \"$(cat <<'EOF'\nfix: never git push --force here\nEOF\n)\""}}
+J
+is "nor is one in the \$(cat <<EOF) form of Claude Code's commit template" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"for c in 'git push --force origin main' 'git status'; do echo \"$c\"; done"}}
+J
+is "a quoted argument naming a denied command is data" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"ls # git push --force origin"}}
+J
+is "a comment is not a command" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git push -q\ngh api repos/x/pages -f source=main"}}
+J
+is "a row no longer runs across a line break into the next command" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"sed -n '/git push --force /p' log.md"}}
+J
+is "a sed script that starts with a slash is not taken for a path" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"printf '%s' '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git push --force origin main\"}}' | bash hooks/pre-tool"}}
+J
+is "a payload piped into a shell handed a script file is data to that script" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -m 'the reader doesn'\\''t refuse git push --force in a message'"}}
+J
+is "a message quoted in pieces round an apostrophe is still a message" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"echo \"$n logged refusals named git push --force here\""}}
+J
+is "a message that starts with a variable is not taken for a path" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat <<'EOF'\n$(git push --force origin main)\nEOF"}}
+J
+is "a quoted here-document word leaves the body unexpanded, so it is data" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat > \"$S/t.md\" <<'EOF'\nprintf 'x\\n' > .felix && true\nEOF\nls"}}
+J
+is "a here-document written to a file nothing runs is data" "$rc" "0"
+
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git push --force origin main"}}
+J
+is "a force push is still refused" "$rc" "2"
+has "and says why" "$(cat "$FROOT/.deny-err")" "force push drops commits"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"bash -c 'git push --force origin main'"}}
+J
+is "a shell's -c script is still read as a command" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"eval 'git push --force origin main'"}}
+J
+is "and so is what eval is handed" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -m \"$(git push --force origin HEAD)\""}}
+J
+is "a \$( ) inside a quoted message still runs, and is refused" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"printf 'p\\n' > \"$T/repo/.felix\""}}
+J
+is "a quoted redirect target still writes the marker, and is refused" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat > \"$S/t.sh\" <<'EOF'\nprintf 'x\\n' > .felix && true\nEOF\nbash \"$S/t.sh\""}}
+J
+is "a here-document written to a file the command then runs is code" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"printf '%s\\n' 'git push --force origin main' > f.sh; bash f.sh"}}
+J
+is "and so is quoted text printed into a file the command then runs" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cp seed \"/tmp/a b/.felix\""}}
+J
+is "a quoted path with a blank is still the file cp writes" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat <<E\"OF\"\nnotes\nEOF\ngit push -f origin topic"}}
+J
+is "a here-document word quoted in part ends where bash ends it" "$rc" "2"
+# A file that writes a file the command then runs. Reading the first opens
+# the command that writes the second, while the list of written files is being
+# walked, and whether a for-in loop sees a key added under it differs between
+# awks: this refused or allowed by hash order until the walk went by number.
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"echo \"echo 'git push -f x' > u.sh\" > t.sh; bash t.sh; bash u.sh"}}
+J
+is "a file written by a file the command runs is followed there as well" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"bash <<'EOF'\ngit push --force origin main\nEOF"}}
+J
+is "a here-document a shell reads is code" "$rc" "2"
+# With -s the words after the shell are positional parameters, not a script
+# file, so the body is still its script. 0.49.152 took the first of them for a
+# file and read the body as data; found by the session scoping deny rows.
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"bash -s \"/tmp/gov\" <<'EOF'\ngit push --force origin main\nEOF"}}
+J
+is "and so is one handed to bash -s with arguments" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat <<EOF\n$(git push --force origin main)\nEOF"}}
+J
+is "an unquoted here-document word expands the body, so its \$( ) runs" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"echo 'git push --force origin main' | bash"}}
+J
+is "text piped into a shell is its script" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"until [ -f x ]; do read -t 5 -r _ < <(tail -f /dev/null); done"}}
+J
+is "a process substitution keeps the shape a row is written about" "$rc" "2"
+rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
+
 # The wiring itself, read off the file that ships rather than the fixture copy.
 # Correct code behind a matcher that never fires is this project's oldest and
 # most expensive failure mode.
@@ -19900,6 +20034,25 @@ _rv_one r4/dqc r4-dq2 'bash -c \"cd /w && \\\"$FELIX_HOME/harness/felix\\\" gate
 _rv_one r4/dqc r4-dq3 'sh -c \"echo \\\"npm test\\\"\"'
 is  "a double-quoted -c script is read with its escapes taken off: a program path quoted inside it is the program, and text quoted inside it is text" \
     "$(_au_counts "$(_au --dir "$RV/r4/dqc")")" "2 0 0 1"
+
+# A --verify that matches a backslash has decode() put each escaped one back
+# with a split on \001, and BWK awk, which macOS ships, splits a string at
+# every line break as well when its separator is one character. So every
+# line break of a command holding an escaped backslash became a backslash,
+# and its lines one: the runner on the line after echo a\b was no check, the
+# sed -i on a line after npm test no write after it, and the line after a
+# check did not take its status. Read under x\\z and under x_z, which match
+# nothing here and differ only in the backslash, and counted the same. gawk
+# and mawk never split there, so only a Mac shows this red.
+_rv_one bwk/nlbs bwk-nb1 'echo a\\b\nnpm test'
+_rv_one bwk/nlbs bwk-nb2 'npm test\necho a\\b\nsed -i s/a/b/ src/app.js'
+_rv_one bwk/nlbs bwk-nb3 'npm test\necho a\\b'
+_rvo="$(_au --dir "$RV/bwk/nlbs" --verify 'x_z')"; _rvo2="$(_au --dir "$RV/bwk/nlbs" --verify 'x\\z')"
+_rvn="a multi-line command holding an escaped backslash reads the same under a --verify that matches a backslash as under one that does not: its line breaks stay line breaks"
+[ "$(_au_counts "$_rvo")" = "2 0 1 0" ] && _au_nums "$_rvo" 'pipe|background' 1 \
+  && [ "$(_au_counts "$_rvo2")" = "2 0 1 0" ] && _au_nums "$_rvo2" 'pipe|background' 1 \
+  && ok  "$_rvn" \
+  || bad "$_rvn" "x_z: $(_au_counts "$_rvo"), x\\\\z: $(_au_counts "$_rvo2"); passed, failed, stale, never, where each should read 2 0 1 0 with one check whose status a later line took"
 
 printf '\nfelix new: what the reviews left open\n'
 # A marker that cannot be written is said and exits non-zero. The same

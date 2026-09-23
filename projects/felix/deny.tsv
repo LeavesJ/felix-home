@@ -4,7 +4,16 @@
 # and should be equally slow to invent rules for them; these are two its own
 # constitution already states and nothing enforced.
 #
-# tool	extended-regex	reason
+# tool	extended-regex	reason	scope
+#
+# A fourth column, `checkout`, says a row protects the governed checkout and
+# nothing else: a match is passed over when everything the matched command acts
+# on is a throwaway fixture under /tmp or $TMPDIR, and stands otherwise,
+# including whenever that cannot be told (lib/where.sh). The three rows below
+# carrying it were, on 2026-09-23, most of the refusals the hooks had logged:
+# a fixture repository bound with `printf ... > .felix`, a fresh `git init`
+# given a remote, a scratch clone's remote-tracking refs moved. Each protects
+# this checkout's binding, remote or refs, and no fixture's.
 Bash	git push ([^;&|]* )?(--force|-f)( |$)	force push drops commits, and Felix's history is the audit trail
 Bash	git commit ([^;&|]* )?--no-verify	--no-verify is how a gate stops being a gate. Fix the tree instead
 #
@@ -27,7 +36,7 @@ Edit	(^|/)\.felix(-home)?$	this file decides whether Felix is enforcing anything
 # the line after the name, so a quoted marker and a marker followed by `;`
 # both walked past it. A row that ordinary redirect spellings step around is
 # a row that refuses only the person who wrote it.
-Bash	(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*["']?\.felix(-home)?["']?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
+Bash	(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*["']?\.felix(-home)?["']?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home	checkout
 #
 # The third row is not about damage to the tree. It is about a command shape
 # that hangs the session that ran it, which this project learned on 2026-09-12
@@ -53,6 +62,6 @@ Bash	read -t [0-9]+ [^;&|]*< <\(	a timed read from a process substitution never 
 # over command text refuses the spellings it names and no other; branch
 # protection on the remote is the rule that cannot be evaded from here at
 # all, and until it exists these are the floor, not the wall.
-Bash	git( +-[^ ]+( +[^ ]+)?)* +(update-ref|symbolic-ref|fetch|push)[^;&|]*refs/remotes/	a remote-tracking ref is what the remote said, and the exception table is read from it; only a plain fetch may move it
-Bash	git( +-[^ ]+( +[^ ]+)?)* +remote +(add|set-url|rename|remove|rm)( |$)	the remote is where the person is; a session that rewrites it chooses what refs/remotes/origin/main means
+Bash	git( +-[^ ]+( +[^ ]+)?)* +(update-ref|symbolic-ref|fetch|push)[^;&|]*refs/remotes/	a remote-tracking ref is what the remote said, and the exception table is read from it; only a plain fetch may move it	checkout
+Bash	git( +-[^ ]+( +[^ ]+)?)* +remote +(add|set-url|rename|remove|rm)( |$)	the remote is where the person is; a session that rewrites it chooses what refs/remotes/origin/main means	checkout
 Bash	git( +-[^ ]+( +[^ ]+)?)* +push[^;&|]* \+?([^ ]*:)?(refs/heads/)?main([[:space:];&|)]|$)	main is merged through felix merge and a person, never pushed from a session; the exception table is read from it

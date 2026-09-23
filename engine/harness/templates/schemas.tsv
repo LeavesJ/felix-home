@@ -52,7 +52,7 @@ stack.tsv	tree	kind name source risk capability grounding?	allowed
 risk.tsv	tree	tier kind pattern reason channel? confine?	allowed
 # Nothing is refused, present and empty or absent alike (hooks/pre-tool,
 # felix_deny_match). Most projects have none, and felix new seeds none.
-deny.tsv	tree	tool pattern reason	allowed
+deny.tsv	tree	tool pattern reason scope?	allowed
 # Present and empty, the gate's ecosystem check fails as leaks, with nothing
 # allowed and nothing muted. Absent, it fails as blind.
 ecosystem.tsv	tree	kind file token reason	refused

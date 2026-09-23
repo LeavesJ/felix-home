@@ -13807,6 +13807,89 @@ J
 is "a process substitution keeps the shape a row is written about" "$rc" "2"
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 
+printf '\ndenial refuses what a command changes, not what it reads\n'
+# The tables that ship, not a copy of a row. Every projects/*/deny.tsv beside
+# this harness is put in front of the real hook in turn, so the red run, which
+# checks the base out whole, runs these lines against the rows the base holds.
+# Until 2026-09-23 three rows refused commands that change nothing: a grep
+# -rln over the marker, whose ln was taken for a link; the read the engine
+# resolves its home with, whose 2>/dev/null was taken for a write of the
+# pointer; a dry run of git add; a listing of a script. Each was reproduced
+# with argv-logging shims and a hash of the files, and most are in the
+# refusals the hooks logged.
+#
+# The first column says which way: 0, no table refuses the command; 2, some
+# table does. The second set keeps the first honest. A narrowed row that
+# refused nothing would pass every line of the first, so each real write the
+# old rows refused is asserted still refused, a line for each verb they name.
+_dtabs=""
+for _dt in "$REAL_HARNESS"/../../projects/*/deny.tsv; do
+  [ -f "$_dt" ] && _dtabs="$_dtabs$_dt
+"
+done
+# The tables that refuse a command, each named by its project's directory.
+_drefusers() {
+  local t out=""
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    cp "$t" "$FROOT/projects/widget/deny.tsv"
+    ( cd "$REPO" && _pre "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$1\"}}" )
+    [ $? -eq 2 ] && { t="${t%/deny.tsv}"; out="$out ${t##*/}"; }
+  done <<EOF
+$_dtabs
+EOF
+  printf '%s' "$out"
+}
+while IFS=$'\t' read -r _dw _dn _dc; do
+  case "$_dw" in 0|2) ;; *) continue ;; esac
+  if [ -z "$_dtabs" ]; then skip "$_dn" "no projects/*/deny.tsv beside this harness"; continue; fi
+  _dr="$(_drefusers "$_dc")"
+  if [ "$_dw" = 0 ]; then is "$_dn" "$_dr" ""
+  elif [ -n "$_dr" ]; then ok "$_dn"
+  else bad "$_dn" "no table beside this harness refuses it"
+  fi
+done <<'J'
+0	no shipped table refuses grep -rln over the marker, whose ln is a flag	grep -rln '\\.felix' engine/harness
+0	nor grep -ln over the pointer	grep -ln '\\.felix-home' engine/harness/lib/resolve.sh
+0	nor the read the engine resolves its home with, whose 2>/dev/null writes no pointer	tr -d '[:space:]' 2>/dev/null < \"$HOME/.felix-home\"
+0	nor a > inside a quoted log format	git log --format='%h>%s' -- .felix
+0	nor cp reading the marker into a backup	cp .felix /tmp/backup
+0	nor a find whose 2>/dev/null comes before its -name .felix	find . -maxdepth 2 2>/dev/null -name .felix
+0	nor git add -n -A, which stages nothing	git add -n -A
+0	nor git add -A --dry-run	git add -A --dry-run
+0	nor listing scripts/gate.sh, which runs nothing	ls -la ./scripts/gate.sh
+2	a shipped table still refuses printf x > .felix	printf x > .felix
+2	and a redirect to a quoted marker path	printf 'p\\n' > \"$T/repo/.felix\"
+2	and to one quoted in part	printf x > \"$HOME\"/.felix-home
+2	and to one quoted round a blank	printf x > \"/tmp/a b/.felix\"
+2	and an append to the marker	echo p >> .felix
+2	and a clobbering redirect, which the old row let through	printf x >| .felix
+2	and tee onto the marker	tee .felix
+2	and cp onto the marker	cp x .felix
+2	and cp onto one quoted round a blank	cp seed \"/tmp/a b/.felix\"
+2	and cp onto the marker with its errors sent away	cp x .felix 2>/dev/null
+2	and cp of a marker into the current directory, where it lands as one	cp ../other/.felix .
+2	and cp of a marker into a directory named with its slash	cp /x/.felix \"$T/repo/\"
+2	and scp onto the marker	scp host:seed .felix
+2	and ln -s onto the marker	ln -s x .felix
+2	and install onto the marker	install -m 644 seed .felix
+2	and mv onto the pointer	mv x \"$HOME/.felix-home\"
+2	and mv of the marker away	mv .felix /tmp/x
+2	and rm of the marker	rm -f .felix
+2	and truncate of the pointer	truncate -s 0 \"$HOME/.felix-home\"
+2	and sed -i on the marker	sed -i s/a/b/ .felix
+2	and dd of= the marker	dd of=.felix
+2	and git add -A	git add -A
+2	and git add --all	git add --all
+2	and git add .	git add .
+2	and git add -A behind another flag	git add -v -A
+2	and git add -A before an &&	git add -A && git commit -m wip
+2	and running scripts/gate.sh	./scripts/gate.sh --quick
+2	and running it after a cd	cd ~/x && ./scripts/gate.sh
+2	and running it under bash	bash ./scripts/gate.sh
+J
+rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
+
 # The wiring itself, read off the file that ships rather than the fixture copy.
 # Correct code behind a matcher that never fires is this project's oldest and
 # most expensive failure mode.

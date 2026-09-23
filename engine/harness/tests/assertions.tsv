@@ -1585,6 +1585,7 @@
 1	and says it merges once CI is green
 1	and says it must be fixed before the next session
 1	and says it was never reached
+1	and says it was too long to read
 1	and says it where the founder can see it
 1	and says it wrote it
 1	and says not to fix it unattended
@@ -2665,6 +2666,7 @@
 1	scoped: a brace expansion in the path
 1	scoped: a cd first in its chain to an existing directory, then ;
 1	scoped: a cd second in its chain can fail even to an existing directory
+1	scoped: a command longer than the reader reads keeps the refusal
 1	scoped: a command substitution the reader does not know
 1	scoped: a comment beside a lifted command keeps the refusal
 1	scoped: a commit message quoting the marker redirect, in the clone

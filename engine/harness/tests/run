@@ -2783,6 +2783,13 @@ if ! command -v jq >/dev/null 2>&1; then
            "and on a gate run still in progress" \
            "and on a branch the gate has never run on" \
            "felix repair refuses a detached checkout rather than finding nothing to repair on HEAD" \
+           "a gate run that completed without failing is nothing to repair, and one that failed without a log is refused" \
+           "and none of them is handed on as a brief" \
+           "a timed-out gate run is repaired, as the ceiling counts it" \
+           "and its brief carries the failing output" \
+           "and the ceiling counts it with the failure behind it" \
+           "a failed run whose log cannot be read is refused, not briefed" \
+           "and says the log could not be read" \
            "felix automerge judges a green pull request by the gate's runs alone" \
            "and every run list felix automerge makes names the gate workflow" \
            "and felix unattended's streak row counts the gate's runs alone" \
@@ -2830,7 +2837,10 @@ case "$1 $2" in
         n++
       }
       END { print "]" }' "$WFSTUB_RUNS" | jq -r "$q" ;;
-  "run view") printf 'gate\tRun the gate\t2026-09-22T00:00:00.0000000Z Error: the widget test failed\n' ;;
+  # WFSTUB_NOLOG is a log GitHub no longer holds, or never did: gh answers and
+  # there is nothing in it.
+  "run view") [ -n "${WFSTUB_NOLOG:-}" ] \
+                || printf 'gate\tRun the gate\t2026-09-22T00:00:00.0000000Z Error: the widget test failed\n' ;;
 esac
 exit 0
 STUB
@@ -2966,6 +2976,48 @@ out="$(_wfcli repair)"; rc=$?
 is "felix repair refuses a detached checkout rather than finding nothing to repair on HEAD" "$rc" "1"
 ( cd "$WFR" && git checkout -q fix/y )
 cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
+
+# The newest gate run completed and was neither green nor a failure. Only
+# success was caught, so every other conclusion GitHub gives fell through to a
+# brief, exit 0, which the unattended template acts on. It is also a run the
+# ceiling does not count: felix_repair_attempts stops at it, so the ceiling
+# read as unspent however many failures sat behind it. Here one does. Repair
+# acts only on what its ceiling counts, failure and timed_out; a run that
+# completed without failing is nothing to repair; and a run that failed
+# without starting, or whose conclusion is new to this code, has no log to
+# read and no place in the count, so it is refused.
+_wfnewest() { printf 'gate.yml\tgate\tfix/y\t211\tcompleted\t%s\n' "$1"
+              printf 'gate.yml\tgate\tfix/y\t201\tcompleted\tfailure\n'; }
+_wfres=""; _wfbriefed=""
+for _c in cancelled skipped neutral stale action_required startup_failure some_later_state; do
+  _wfnewest "$_c" > "$TMP/wf.runs.$_c"
+  out="$( export WFSTUB_RUNS="$TMP/wf.runs.$_c"; _wfcli repair )"; rc=$?
+  _wfres="$_wfres $_c:$rc"
+  case "$out" in *"failing output"*|*"attempt(s) left"*) _wfbriefed="$_wfbriefed $_c" ;; esac
+done
+is "a gate run that completed without failing is nothing to repair, and one that failed without a log is refused" \
+   "$_wfres" " cancelled:5 skipped:5 neutral:5 stale:5 action_required:5 startup_failure:1 some_later_state:1"
+is "and none of them is handed on as a brief" "$_wfbriefed" ""
+_wfnewest timed_out > "$TMP/wf.runs.timed_out"
+out="$( export WFSTUB_RUNS="$TMP/wf.runs.timed_out"; _wfcli repair )"; rc=$?
+is  "a timed-out gate run is repaired, as the ceiling counts it" "$rc" "0"
+has "and its brief carries the failing output" "$out" "the widget test failed"
+has "and the ceiling counts it with the failure behind it" "$out" "attempts: 2 of"
+
+# A failed run whose log could not be read. The excerpt came back empty, so no
+# path was implicated, the red-path check never ran, and repair exited 0 with a
+# brief naming no path and carrying no failing output. Both ways it happens:
+# gh does not answer, and gh answers with nothing, as for a log GitHub has
+# expired.
+_wfnolog=""
+out="$( export WFSTUB_UNANSWERED='--log-failed'; _wfcli repair )"; rc=$?
+_wfnolog="$_wfnolog unanswered:$rc"
+case "$out" in *"attempt(s) left"*) _wfnolog="$_wfnolog(briefed)" ;; esac
+out="$( export WFSTUB_NOLOG=1; _wfcli repair )"; rc=$?
+_wfnolog="$_wfnolog empty:$rc"
+case "$out" in *"attempt(s) left"*) _wfnolog="$_wfnolog(briefed)" ;; esac
+is  "a failed run whose log cannot be read is refused, not briefed" "$_wfnolog" " unanswered:1 empty:1"
+has "and says the log could not be read" "$out" "log of run 201"
 
 : > "$WFSTUB_LOG"
 out="$(_wfcli automerge)"
@@ -3114,6 +3166,37 @@ for _w in unbound misbound; do
     *) bad "and the $_w job says the binding failed, not the ceiling" "$(cat "$SC/err")" ;;
   esac
 done
+
+printf '\nthe unattended repair says why it stopped before the model\n'
+# The attempt step installs the pinned claude-code with every line of npm's
+# output thrown away, and Actions runs a step that names no shell as `bash -e`.
+# A failed install therefore ended the step at that line with nothing printed,
+# after the budget step had already recorded the run's spend. The step is taken
+# out of the shipped template as it stands and run under `bash -e`, with npm
+# and claude stubbed.
+AT="$TMP/attempt"; mkdir -p "$AT/repo" "$AT/bin"
+awk '/- name: Attempt a repair/ { f = 1 } f && /^        run: \|/ { r = 1; next }
+     r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' \
+  "$REAL_HARNESS/templates/unattended.yml" | sed "s#/tmp/brief.txt#$AT/brief.txt#" > "$AT/step.sh"
+printf 'brief\n' > "$AT/brief.txt"
+cat > "$AT/bin/npm" <<'STUB'
+#!/usr/bin/env bash
+[ -z "${ATTEMPT_NPM_FAILS:-}" ] && exit 0
+printf 'npm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@anthropic-ai%%2fclaude-code\n' >&2
+exit 1
+STUB
+printf '#!/usr/bin/env bash\nprintf "claude\\n" >> "%s/claude.log"\n' "$AT" > "$AT/bin/claude"
+chmod +x "$AT/bin/npm" "$AT/bin/claude"
+_attempt() { : > "$AT/claude.log"
+  ( cd "$AT/repo" && ATTEMPT_NPM_FAILS="$1" PATH="$AT/bin:$PATH" bash -e "$AT/step.sh" ) > "$AT/out" 2>&1; }
+_attempt 1; _arc=$?
+[ "$_arc" -ne 0 ] && ok  "a failed install fails the repair step" \
+                  || bad "a failed install fails the repair step" "exit 0: $(cat "$AT/out")"
+has "and says the install failed rather than ending in silence" "$(cat "$AT/out")" "could not install"
+has "and passes on npm's own reason" "$(cat "$AT/out")" "E404"
+is  "and no model is run" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "0"
+_attempt ""
+is  "an install that succeeds goes on to the model" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "1"
 
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts

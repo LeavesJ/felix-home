@@ -482,17 +482,20 @@ reconstructed before any rule is built on the pilot alone:
   hash (#203), per-project overnight state (#222), the revert rule, and the
   amendments that supersede v3.2.
 
-## 10. What is the founder's to decide
+## 10. What was the founder's to decide: DECIDED 2026-09-23
 
-Two things change a standing direction or ask for the founder's time. Everything
-else here (the capture fixes, the turn table, the mechanisms, the next batch)
-is Felix's to build under the roadmap.
+Two things changed a standing direction or asked for the founder's time.
+Everything else here (the capture fixes, the turn table, the mechanisms, the
+next batch) is Felix's to build under the roadmap.
 
-1. **Should what-level documents wait for a yes before merging?** Rule 9 (§6)
-   would make roadmaps, charter changes and amendments over the founder's text
-   wait for a yes, as an exception to merge-on-green at any tier. The
-   evidence is E18: a roadmap merged and was withdrawn 3 minutes 49 seconds
-   later. **Recommended: yes**, as an escape channel on those paths only.
-2. **Will the founder rate what-level deliveries?** A one-word yes, partial or
-   no after each what-level delivery is the only way the outcome layer stops
-   being a reader's guess. **Recommended: yes, for what-level deliveries only.**
+1. **Direction-level documents wait for a yes before merging.** This covers
+   roadmaps, the charter's account of what Felix is, and amendments over the
+   founder's own text. The evidence is E18: a roadmap merged and was withdrawn
+   3 minutes 49 seconds later.
+2. **The founder rates each direction-level delivery**: yes, partial or no.
+
+The founder bounded both: "don't go like i need a yes for every action item or
+engineering task". Engineering, fixes, action items and records of what the
+founder said merge on green, and asking for a yes on them is the needless stop
+the pilot measured most. The decision is written into the owner/agent split in
+`projects/felix/CLAUDE.md`.

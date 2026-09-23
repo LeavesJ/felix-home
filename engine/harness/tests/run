@@ -13962,6 +13962,9 @@ done <<'J'
 0	-	nor git add -n -A, which stages nothing	git add -n -A
 0	-	nor git add -A --dry-run	git add -A --dry-run
 0	-	nor listing scripts/gate.sh, which runs nothing	ls -la ./scripts/gate.sh
+0	-	nor a backslash-n typed into quoted text before the script's path, which is no line break	printf 'run:\\n./scripts/gate.sh\\n' > /tmp/notes
+0	-	nor a grep for its subshell spelling	grep -rn '(./scripts/gate.sh)' docs
+0	-	nor a brace expansion that names it	ls -la {./scripts/gate.sh,./scripts/x.sh}
 2	felix(-home)	a table with a row about the marker still refuses printf x > .felix	printf x > .felix
 2	felix(-home)	and a redirect to a quoted marker path	printf 'p\\n' > \"$T/repo/.felix\"
 2	felix(-home)	and to one quoted in part	printf x > \"$HOME\"/.felix-home
@@ -13983,6 +13986,10 @@ done <<'J'
 2	felix(-home)	and mv of the marker away	mv .felix /tmp/x
 2	felix(-home)	and rm of the marker	rm -f .felix
 2	felix(-home)	and rm of the marker on a later line of the command	cd /tmp/r\nrm -f .felix
+2	felix(-home)	and rm of the marker on a tab-indented later line	cd /tmp/r\n\trm -f .felix
+2	felix(-home)	and a write with another line after it, which the old row let through	cp x .felix\necho ok
+2	felix(-home)	and a redirect with another line after it, which the old row let through	printf x > .felix\nls
+2	felix(-home)	and cp onto the marker before a comment	cp x .felix # seed
 2	felix(-home)	and truncate of the pointer	truncate -s 0 \"$HOME/.felix-home\"
 2	felix(-home)	and sed -i on the marker	sed -i s/a/b/ .felix
 2	felix(-home)	and dd of= the marker	dd of=.felix
@@ -13993,13 +14000,15 @@ done <<'J'
 2	git add	and git add -A behind another flag	git add -v -A
 2	git add	and git add -A before an &&	git add -A && git commit -m wip
 2	git add	and git add -A on a later line of the command	cd /tmp/r\ngit add -A
+2	git add	and git add -A with another line after it, which the old row let through	git add -A\ngit commit -m wip
 2	scripts/gate	a table with a row about scripts/gate.sh still refuses running it	./scripts/gate.sh --quick
 2	scripts/gate	and running it after a cd	cd ~/x && ./scripts/gate.sh
 2	scripts/gate	and running it under bash	bash ./scripts/gate.sh
 2	scripts/gate	and running it on a later line, inside an if	if true; then\n  ./scripts/gate.sh\nfi
 2	scripts/gate	and running it after a line continuation	cd ~/x && \\\n  ./scripts/gate.sh
 2	scripts/gate	and running it in a brace group	{ ./scripts/gate.sh; }
-2	scripts/gate	and running it in a command substitution, which the old row let through	x=$(./scripts/gate.sh)
+2	scripts/gate	and running it in a command substitution	x=$( ./scripts/gate.sh )
+2	scripts/gate	and running it on a tab-indented later line, which the old row let through	cd ~/x\n\t./scripts/gate.sh
 J
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 

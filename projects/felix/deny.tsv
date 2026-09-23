@@ -57,15 +57,18 @@ Edit	(^|/)\.felix(-home)?$	this file decides whether Felix is enforcing anything
 #
 # A verb is a word, never the tail of one: it starts a line, or the character
 # before it is not a letter, digit, `_`, `.` or `-`, so `-rln` and `-ln` are
-# flags again. The start of a line is named on its own because a row reads
-# the payload's JSON string, where a line break is a backslash and an `n`:
-# the first draft of these rows let a write on any line after the first go
-# through, which the old row had refused. scp is named because the old row
+# flags again. A row reads the payload's JSON string, where a line break or a
+# tab is a backslash and an `n`, `r` or `t`, so those are named on their own,
+# at the start of a verb and at the end of a marker, and only unescaped: a
+# `\n` typed inside quoted text arrives as two backslashes and an `n`, and is
+# no line break. The first drafts of these rows let a write on a later line,
+# or on a tab-indented one, go through, which the old row had refused. A
+# comment may follow the last operand. scp is named because the old row
 # caught it only as the tail `cp `.
-Bash	>[>|]?[[:space:]]*(["'][^"']*|("[^"]*"|'[^']*'|[^[:space:];&|<>"'])*(["'][^[:space:]"']*)?)\.felix(-home)?["']?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
-Bash	(^|[[:space:];&|(]|[0-9]|\\n)>[>|]?[[:space:]]*[^-[:space:];&|<>"'][^[:space:];&|<>"']*([[:space:]]+[^-/~$.[:space:];&|<>"'][^[:space:];&|<>"']*)*[[:space:]]+[^-/~$.[:space:];&|<>"'][^[:space:];&|<>"']*/\.felix(-home)?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
-Bash	(^|[^[:alnum:]_.-]|\\n)(((tee|mv|rm|truncate)[[:space:]]|sed -i)[^;&|<]*|dd[[:space:]]([^;&|]*[[:space:]])?of=["']?[^[:space:];&|]*)["']?\.felix(-home)?["']?([[:space:];&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
-Bash	(^|[^[:alnum:]_.-]|\\n)(s?cp|ln|install)[[:space:]][^;&|]*["']?\.felix(-home)?["']?([[:space:]]+([^;&|]*[[:space:]])?["']?([^[:space:];&|]*/|\.\.?)["']?)?([[:space:]]+[0-9]*[<>][^;&|]*)?[[:space:]]*([;&|)]|$)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
+Bash	>[>|]?[[:space:]]*(["'][^"']*|("[^"]*"|'[^']*'|[^[:space:];&|<>"'])*(["'][^[:space:]"']*)?)\.felix(-home)?["']?([[:space:];&|)]|$|\\[nrt])	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
+Bash	(^|[[:space:];&|(]|[0-9]|(^|[^\\])(\\\\)*(\\[nrt])+)>[>|]?[[:space:]]*[^-[:space:];&|<>"'][^[:space:];&|<>"']*([[:space:]]+[^-/~$.[:space:];&|<>"'][^[:space:];&|<>"']*)*[[:space:]]+[^-/~$.[:space:];&|<>"'][^[:space:];&|<>"']*/\.felix(-home)?([[:space:];&|)]|$|\\[nrt])	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
+Bash	(^|[^[:alnum:]_.-]|(^|[^\\])(\\\\)*(\\[nrt])+)(((tee|mv|rm|truncate)[[:space:]]|sed -i)[^;&|<]*|dd[[:space:]]([^;&|]*[[:space:]])?of=["']?[^[:space:];&|]*)["']?\.felix(-home)?["']?([[:space:];&|)]|$|\\[nrt])	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
+Bash	(^|[^[:alnum:]_.-]|(^|[^\\])(\\\\)*(\\[nrt])+)(s?cp|ln|install)[[:space:]][^;&|]*["']?\.felix(-home)?["']?([[:space:]]+([^;&|]*[[:space:]])?["']?([^[:space:];&|]*/|\.\.?)["']?)?([[:space:]]+[0-9]*[<>][^;&|]*)?([[:space:]]*([;&|)]|$|\\[nrt])|[[:space:]]+#)	rewriting the binding by hand is how the floor gets switched off in one line; use felix new or felix install --home
 #
 # The next row is not about damage to the tree. It is about a command shape
 # that hangs the session that ran it, which this project learned on 2026-09-12

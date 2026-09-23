@@ -1083,6 +1083,7 @@
 1	and a red run at the head means zero
 1	and a redirect on a later line of the command
 1	and a redirect to a quoted marker path
+1	and a redirect with another line after it, which the old row let through
 1	and a refusal is not a successful repair
 1	and a refusal leaves no file beside it
 1	and a refused grant says why
@@ -1115,6 +1116,7 @@
 1	and a worktree is pointed at that one, having no graph of its own
 1	and a worktree of it reads the same graph, and is ok too
 1	and a write leaves no file beside it
+1	and a write with another line after it, which the old row let through
 1	and absent from both sides is a fixture, not a drift
 1	and accepted once its rows fit
 1	and again, so a session can bump twice
@@ -1173,6 +1175,7 @@
 1	and cp of a marker into the current directory, where it lands as one
 1	and cp onto one quoted round a blank
 1	and cp onto the marker
+1	and cp onto the marker before a comment
 1	and cp onto the marker on a later line of the command
 1	and cp onto the marker with its errors sent away
 1	and creates nothing without --create
@@ -1255,6 +1258,7 @@
 1	and git add -A before an &&
 1	and git add -A behind another flag
 1	and git add -A on a later line of the command
+1	and git add -A with another line after it, which the old row let through
 1	and git add .
 1	and grounding it closes the gap
 1	and handed the cron line instead
@@ -1583,12 +1587,14 @@
 1	and returns once the record is complete
 1	and rm of the marker
 1	and rm of the marker on a later line of the command
+1	and rm of the marker on a tab-indented later line
 1	and run from one that holds its own *.csproj, still reports observability for a root whose App.csproj names Sentry
 1	and running it after a cd
 1	and running it after a line continuation
 1	and running it in a brace group
-1	and running it in a command substitution, which the old row let through
+1	and running it in a command substitution
 1	and running it on a later line, inside an if
+1	and running it on a tab-indented later line, which the old row let through
 1	and running it under bash
 1	and runs none of commissioning: no run, no receipt, no discovery cache, no commissioning log
 1	and saying so is an exit code, not an empty line
@@ -2498,7 +2504,10 @@
 1	no stack.tsv means nothing is declared, not nothing to say
 1	no temporary file exists while git is being asked
 1	nor a > inside a quoted log format
+1	nor a backslash-n typed into quoted text before the script's path, which is no line break
+1	nor a brace expansion that names it
 1	nor a find whose 2>/dev/null comes before its -name .felix
+1	nor a grep for its subshell spelling
 1	nor a half-written one
 1	nor a paste-in prompt
 1	nor a semicolon

@@ -212,12 +212,15 @@ felix_deny_match() {
 #     And a body written to a file is read as code when the same command then
 #     runs that file by the same spelling: `cat > $S/t.sh <<'EOF' ... EOF;
 #     bash $S/t.sh`, the shape a scratch fixture takes. Seven of the logged
-#     refusals had it, and in each the body ran what its row names.
+#     refusals had it, and in each the body ran what its row names. The same
+#     holds for quoted text printf or echo writes to a file the command runs.
 #   - A quoted span is data, `_`, when it holds a blank or a line break. It is
 #     read as code where it is a shell's -c script or an argument of eval,
 #     ssh, su, runuser or watch, gathered whole when it is quoted in pieces
 #     (`'...'\''...'`). It is its own text, without the quotes, where it is a
-#     redirect's target, the program itself, glued to the word it sits in
+#     redirect's target, an operand of a command that writes its operands
+#     (cp, mv, ln, install, tee, dd, truncate, rm, touch, rsync, sed -i), the
+#     program itself, glued to the word it sits in
 #     (`--for'ce'`, `"$HOME"/.felix`, but not `--message="..."`), a single
 #     word, or a path rooted in a variable, a home or a relative directory
 #     (`$T/...`, `${D}...`, `~/...`, `./...`), so `> "$T/repo/.felix"` still
@@ -252,6 +255,7 @@ _FELIX_DENY_READ='
   BEGIN { RS = "\001"; SQ = "\047"; BQ = "`"; NX = 0; FB = 0; LV = 0; WN = 0; SEG = 0 }
   { S = unjson($0); S0 = S; N = split(S, C, ""); I = 1; out = code("", N)
     for (m = 1; m <= WN; m++) if (WT[m] in RUN) X[++NX] = sub_view(WB[m])
+    for (sid in TGT) { tg = TGT[sid]; sub(/^\.\//, "", tg); if (WD[sid] != "" && tg in RUN) X[++NX] = sub_view(WD[sid]) }
     for (k = 1; k <= NX; k++) out = out " ; " X[k]
     if (FB) out = lines(S0)
     printf "%s", out }
@@ -301,11 +305,12 @@ _FELIX_DENY_READ='
   }
   # One command being read, per level of nesting: its words so far, and
   # whether one of them runs a script (HSH), its arguments (ARG) or its input
-  # (INR); whether the next word is a redirect target (RED) or a here-string
-  # (HS); and what separated it from the command before (SEP).
+  # (INR), or takes files for its operands (PATHOP); whether the next word is
+  # a redirect target (RED) or a here-string (HS); and what separated it from
+  # the command before (SEP).
   function newseg(sep) {
     CUR[LV] = ""; NW[LV] = 0; PREV[LV] = ""; HSH[LV] = 0; ARG[LV] = 0
-    INR[LV] = 0; RED[LV] = 0; HS[LV] = 0; SEP[LV] = sep
+    INR[LV] = 0; RED[LV] = 0; HS[LV] = 0; SEP[LV] = sep; PATHOP[LV] = 0
     SID[LV] = ++SEG; FIRST[LV] = ""; PSCR[LV] = ""; SCRW[LV] = 0; RUNNEXT[LV] = 0
   }
   # A file named where it is run: in command position, or as the first
@@ -323,6 +328,12 @@ _FELIX_DENY_READ='
     else if (FIRST[LV] == "tee" && w !~ /^-/ && !(SID[LV] in TGT)) TGT[SID[LV]] = w
     if (RUNNEXT[LV] && w !~ /^-/) { runs(w); RUNNEXT[LV] = 0 }
     NW[LV]++; PREV[LV] = w; b = base(w)
+    # A path is data to the shell, but to cp or tee it is the file written, and
+    # the marker row is about exactly that operand. So a command with a word
+    # that writes its operands keeps them as text, quoted or not; sed only
+    # when it edits in place.
+    if (b ~ /^(cp|mv|ln|install|tee|dd|truncate|rm|touch|rsync)$/) PATHOP[LV] = 1
+    if (FIRST[LV] == "sed" && w ~ /^(-[A-Za-z]*i|--in-place)/) PATHOP[LV] = 1
     if (b ~ /^(bash|sh|zsh|dash|ksh|fish|source)$/ || NW[LV] == 1 && w == ".") RUNNEXT[LV] = 1
     if (b ~ /^(bash|sh|zsh|dash|ksh|fish)$/) { HSH[LV] = 1; INR[LV] = 1 }
     if (b ~ /^(eval|ssh|su|runuser|watch)$/) { ARG[LV] = 1; INR[LV] = 1 }
@@ -335,9 +346,12 @@ _FELIX_DENY_READ='
     if (HS[LV]) { if (INR[LV]) X[++NX] = sub_view(t); return "_" }
     if (script() && (SCRW[LV] || CUR[LV] == "")) { PSCR[LV] = PSCR[LV] t; SCRW[LV] = 1; return "_" }
     gsub(/\n/, " ", t)
-    if (RED[LV] || glued || NW[LV] == 0 && CUR[LV] == "") return t
+    if (RED[LV] || PATHOP[LV] || glued || NW[LV] == 0 && CUR[LV] == "") return t
     if (t !~ /[ \t\n]/) return t
     if (t ~ /^(~\/|\.\.?\/|\$[A-Za-z_{]|\$\(_\))/) return t
+    # Data, and kept by the command it belongs to: if that command writes a
+    # file the same command line then runs, this is what the file says.
+    WD[SID[LV]] = WD[SID[LV]] t "\n"
     return "_"
   }
   function word(t) { CUR[LV] = CUR[LV] t; return t }

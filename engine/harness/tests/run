@@ -13731,6 +13731,14 @@ is "a quoted redirect target still writes the marker, and is refused" "$rc" "2"
 J
 is "a here-document written to a file the command then runs is code" "$rc" "2"
 ( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"printf '%s\\n' 'git push --force origin main' > f.sh; bash f.sh"}}
+J
+is "and so is quoted text printed into a file the command then runs" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cp seed \"/tmp/a b/.felix\""}}
+J
+is "a quoted path with a blank is still the file cp writes" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
 {"tool_name":"Bash","tool_input":{"command":"bash <<'EOF'\ngit push --force origin main\nEOF"}}
 J
 is "a here-document a shell reads is code" "$rc" "2"

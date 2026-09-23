@@ -4,5 +4,9 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	f781de0b680d58150ec4a0d34572351bc5e864f0	0.49.148
-run	0	3017	5
+base	origin/main	4f475c359c697b82a1d70ec110ad894084a6f281	0.49.149
+run	4	3020	5
+a different git on PATH computes the same decision epoch	1
+and both shells agree on what the new epoch is	1
+and the member going away brings both back to the epoch they started from	1
+because it computes the same grounded topology	1

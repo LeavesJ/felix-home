@@ -142,13 +142,13 @@ $(_felix_deny_rows "$proj")
 EOF
 }
 
-# Prints the reason when a command matches a row for this tool, and returns 0.
-# Silent and returns 1 otherwise. START is the directory the command starts
-# in, the payload's cwd; it matters only to a row scoped to the checkout, and
-# the governed checkout is the one this process stands in.
-felix_deny_match() {
-  local proj="$1" want="$2" cmd="$3" start="${4:-$PWD}" tool pattern reason scope
-  [ -n "$cmd" ] || return 1
+# The first row for this tool whose pattern matches the text: its reason goes
+# in _FELIX_DENY_REASON, and the status says whether there was one. A variable
+# and not output, so the call that nearly always finds nothing costs no
+# subshell to find it.
+_felix_deny_first() {
+  local proj="$1" want="$2" text="$3" tool pattern reason scope
+  _FELIX_DENY_REASON=""
   while IFS=$'\t' read -r tool pattern reason scope; do
     [ "${tool:-}" = "$want" ] || continue
     felix_deny_overbroad "$pattern" && continue
@@ -156,29 +156,104 @@ felix_deny_match() {
     # explaining why it could not use `grep -q` — a consumer exiting on first
     # match kills the producer with SIGPIPE and pipefail reports 141, read as
     # "no match" every time. No pipe, no hazard, and no process per rule.
-    [[ "$cmd" =~ $pattern ]] || continue
+    [[ "$text" =~ $pattern ]] || continue
     # A row scoped to the checkout is passed over, not answered, when the
     # command acts only on throwaway places: a later row may still refuse it.
     # Everything this costs is spent on a command a row already matched.
     if [ "${scope:-}" = checkout ]; then
-      if _felix_deny_scoped_lifts "$want" "$pattern" "$cmd" "$start"; then
-        # Written down as well as allowed. A lift is this row refusing less
-        # than its regex says, and a record of each one is how a later audit
-        # replays exactly what the column let through.
-        command -v felix_say >/dev/null 2>&1 \
-          && felix_say "$proj" lifted "$cmd
-$reason" "" "" 2>/dev/null
-        continue
-      fi
+      _felix_deny_scoped "$want" "$pattern" "$reason" && continue
       reason="$reason
 It stood although this row covers only the governed checkout: ${_FELIX_WHERE_WHY:-where the command acts cannot be told}."
     fi
-    printf '%s' "$reason"
+    _FELIX_DENY_REASON="$reason"
     return 0
   done <<EOF
 $(_felix_deny_rows "$proj")
 EOF
   return 1
+}
+
+# Prints the reason when a command matches a row for this tool, and returns 0.
+# Silent and returns 1 otherwise.
+#
+# A Bash row is about the command the shell runs, and not about text the
+# command only carries. Until 2026-09-23 a row was matched against the payload's
+# string alone, where everything the command carries reads as if it ran: a
+# here-document body handed to `git commit -F -`, a message in `-m "..."`, a
+# JSON payload in single quotes, a comment. The marker row refused a commit
+# message saying "felix new <name> ... a .felix marker", because `<name>` holds
+# a `>`. And the string is JSON, so a line break arrives as a backslash and an
+# `n`, and a pattern's `[^;&|]*` ran across it: `git push -q` on one line and
+# `gh api -f` on the next read as a force push. Of the 175 refusals the hooks
+# had logged by then, about thirty were text of those kinds.
+#
+# So a Bash command that matches a row is read a second time, by
+# felix_deny_code, as the shell reads it, and refused only if the row still
+# matches there. That second reading costs a process, and it is spent only on
+# a command about to be refused: every other call pays exactly what it paid
+# before, which matters because this hook runs on every one of them. A reading
+# done in bash itself was tried first and measured: bash 3.2's ${s//...} took
+# fourteen seconds over a 31K command.
+#
+# This can only ever turn a refusal into an allow. What it does not do is the
+# other direction, and there are commands a row names that the shell runs and
+# the raw string never matched: `git push -f` with a line break after it, or
+# `bash -c "git push --force"`, whose quote stands where the row wants a
+# space. Refusing those would mean reading every command, not only the ones a
+# row already matched, and that is a separate decision with its own cost.
+#
+# START is the directory the command starts in, the payload's cwd. It matters
+# only to a row scoped to the checkout, which is judged on the command as the
+# payload carries it, whichever reading the row matched; the governed
+# checkout is the one this process stands in.
+felix_deny_match() {
+  local proj="$1" want="$2" cmd="$3" start="${4:-$PWD}"
+  [ -n "$cmd" ] || return 1
+  _FELIX_DENY_RAW="$cmd"; _FELIX_DENY_START="$start"; _FELIX_DENY_SCOPED=""
+  if _felix_deny_first "$proj" "$want" "$cmd" \
+     && { [ "$want" != "Bash" ] || _felix_deny_first "$proj" Bash "$(felix_deny_code "$cmd")"; }; then
+    printf '%s' "$_FELIX_DENY_REASON"
+    return 0
+  fi
+  _felix_deny_record_lifts "$proj" "$cmd"
+  return 1
+}
+
+# A scoped row, judged once per command however many readings match it. Bash
+# is tried against the raw text and then the code view, and the judgement is
+# the same both times, so the second asks this cache instead of the reader.
+_felix_deny_scoped() {
+  local want="$1" pattern="$2" reason="$3" line
+  while IFS= read -r line; do
+    case "$line" in
+      "L	$pattern	"*) return 0 ;;
+      "S	$pattern	"*) _FELIX_WHERE_WHY="${line#S	"$pattern"	}"; return 1 ;;
+    esac
+  done <<EOF
+$_FELIX_DENY_SCOPED
+EOF
+  if _felix_deny_scoped_lifts "$want" "$pattern" "$_FELIX_DENY_RAW" "$_FELIX_DENY_START"; then
+    _FELIX_DENY_SCOPED="$_FELIX_DENY_SCOPED"$'\n'"L	$pattern	$reason"
+    return 0
+  fi
+  _FELIX_DENY_SCOPED="$_FELIX_DENY_SCOPED"$'\n'"S	$pattern	$_FELIX_WHERE_WHY"
+  return 1
+}
+
+# Written down as well as allowed, and only when the command was allowed. A
+# lift is a row refusing less than its regex says, and a record of each is how
+# a later audit replays exactly what the column let through.
+_felix_deny_record_lifts() {
+  local proj="$1" cmd="$2" line rest
+  command -v felix_say >/dev/null 2>&1 || return 0
+  while IFS= read -r line; do
+    case "$line" in L$'\t'*) ;; *) continue ;; esac
+    rest="${line#L	}"
+    felix_say "$proj" lifted "$cmd
+${rest#*	}" "" "" 2>/dev/null
+  done <<EOF
+$_FELIX_DENY_SCOPED
+EOF
 }
 
 # Whether a row scoped to the checkout passes this call over. Bash is read for
@@ -195,12 +270,66 @@ _felix_deny_scoped_lifts() {
   command -v felix_where_lifts >/dev/null 2>&1 \
     || . "$_FELIX_DENY_LIB/where.sh" 2>/dev/null || return 1
   case "$want" in
-    Bash)
-      command -v felix_where_lifts >/dev/null 2>&1 || return 1
-      felix_where_lifts "$pattern" "$subj" "$start" "$PWD" ;;
+    Bash) felix_where_lifts "$pattern" "$subj" "$start" "$PWD" ;;
     WebFetch) return 1 ;;
-    *)
-      command -v felix_where_path_lifts >/dev/null 2>&1 || return 1
-      felix_where_path_lifts "$subj" "$start" "$PWD" ;;
+    *) felix_where_path_lifts "$subj" "$start" "$PWD" ;;
   esac
+}
+
+# The command the shell runs, as one line for a row to match, read from the
+# payload's JSON string: commands joined by `;`, every quoted span that is data
+# standing as the word `_`, comments and here-document bodies gone, and each
+# piece of code found inside something else appended after it, ` ; ` apart, as
+# a command of its own.
+#
+# What counts as data, and each exception to it, since an exception missed is
+# a command the shell runs and a row can no longer see:
+#
+#   - A here-document body is data, unless what reads it runs its input as
+#     code: a shell, ssh, su, runuser, watch, eval, source, or `.` in command
+#     position. Then its lines are commands. Where its word is unquoted the
+#     shell expands the body, so a $( ) or a backtick in it is read as code.
+#     And a body written to a file is read as code when the same command then
+#     runs that file by the same spelling: `cat > $S/t.sh <<'EOF' ... EOF;
+#     bash $S/t.sh`, the shape a scratch fixture takes. Seven of the logged
+#     refusals had it, and in each the body ran what its row names. The same
+#     holds for quoted text printf or echo writes to a file the command runs.
+#   - A quoted span is data, `_`, when it holds a blank or a line break. It is
+#     read as code where it is a shell's -c script or an argument of eval,
+#     ssh, su, runuser or watch, gathered whole when it is quoted in pieces
+#     (`'...'\''...'`). It is its own text, without the quotes, where it is a
+#     redirect's target, an operand of a command that writes its operands
+#     (cp, mv, ln, install, tee, dd, truncate, rm, touch, rsync, sed -i), the
+#     program itself, glued to the word it sits in
+#     (`--for'ce'`, `"$HOME"/.felix`, but not `--message="..."`), a single
+#     word, or a path rooted in a variable, a home or a relative directory
+#     (`$T/...`, `${D}...`, `~/...`, `./...`), so `> "$T/repo/.felix"` still
+#     writes the marker. A span starting with a bare `/` is not taken for a
+#     path, because `sed -n '/git push .* main /p'` starts that way too.
+#   - Inside double quotes a $( ) or a backtick runs, and is read as code. The
+#     here-document inside the $( ) of Claude Code's commit template is data
+#     by the first rule. A substitution keeps its shape where it stood, as
+#     `$(_)` or `<(_)`, since a row can be written about the shape itself.
+#   - A # starting a word outside quotes starts a comment. `$(( ))` and
+#     `(( ))` are arithmetic, whose << is a shift; the second is read as code
+#     as well, in case bash takes it for two subshells.
+#   - A pipe into a shell, a shell reading a process substitution, or a $( )
+#     handed to something that runs its arguments, makes the data the script:
+#     then the whole command is read with every quote dropped and each line
+#     break a `;`.
+#
+# What it does not follow is a file written by anything but a here-document,
+# or run by another name: a script printf wrote to $S/bin/claude and PATH
+# later finds. That is the limit any reading of one command has.
+#
+# One awk process. The program is the same in BWK awk, mawk and gawk:
+# split(s, A, "") is one character per element in all three. Nothing here
+# fails closed: no awk, or a program error, prints nothing, and a row matches
+# nothing in nothing, which allows.
+#
+# The program is lib/deny-read.sh, sourced the first time a command needs it,
+# so the call no row matches does not even read the file.
+felix_deny_code() {
+  [ -n "${_FELIX_DENY_READ:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/deny-read.sh" 2>/dev/null
+  printf '%s' "$1" | awk "${_FELIX_DENY_READ:-}" 2>/dev/null
 }

@@ -4,11 +4,12 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	5110ca6410ebedd23fede49c12399c48f429ff8e	0.49.150
-run	51	3189	5
+base	origin/main	47fe39785421a415ecce2d6292ebfb19e8284ee2	0.49.152
+run	49	3225	5
 a lifted scoped row is written to says.log with the command	1
 a scoped row that stands says it covers only the checkout	1
 and names the command and the place	1
+and says it was too long to read	1
 and with it, the same call lifts	1
 scoped: .. out of the checkout that lands in scratch	1
 scoped: P from pwd keeps the scratch cwd after a cd	1
@@ -16,7 +17,6 @@ scoped: Write to a relative marker under a scratch payload cwd	1
 scoped: Write to a scratch marker lifts	1
 scoped: a cd first in its chain to an existing directory, then ;	1
 scoped: a cd second in its chain can fail even to an existing directory	1
-scoped: a commit message quoting the marker redirect, in the clone	1
 scoped: a fetch from the governed checkout into the scratch clone	1
 scoped: a fixture repo under a scratch variable, marker then git add -A	1
 scoped: a fixture script written by here-document and run with arguments	1
@@ -26,10 +26,8 @@ scoped: a here-document fed to bash sees a prefixed variable	1
 scoped: a lift to be recorded	1
 scoped: a lifted marker row does not lift the stage row	1
 scoped: a lifted row does not stop another row	1
-scoped: a matched assignment in scratch with a scratch value	1
 scoped: a mktemp fixture read back through pwd -P	1
 scoped: a payload cwd already in scratch	1
-scoped: a shared clone moved by a script read from stdin	1
 scoped: a shell running a script this line wrote by here-document, all in scratch	1
 scoped: a sibling whose name extends the checkout's is not the checkout	1
 scoped: a single-quoted bash -c fixture given its directory	1

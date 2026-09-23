@@ -236,7 +236,13 @@ felix_where_lifts() {
   local pattern="$1" subj="$2" start="$3" gdir="$4" LC_ALL=C
   local out line rest kind why text places sp matched=0 noguard=0 lifted="" rem
   _FELIX_WHERE_WHY="the command could not be read"
-  [ "${#subj}" -le 262144 ] && [ -n "${_FELIX_WHERE_READ:-}" ] || return 1
+  [ -n "${_FELIX_WHERE_READ:-}" ] || return 1
+  # The reader costs this awk about a microsecond per character per look, and
+  # this runs inside a synchronous hook. Every command the replay lifted was
+  # under 4.2K (median 1K); past 32K the row stands, as it did before.
+  if [ "${#subj}" -gt 32768 ]; then
+    _FELIX_WHERE_WHY="the command is ${#subj} bytes, longer than this reads (32768)"; return 1
+  fi
   _felix_where_ident "$gdir" || { _FELIX_WHERE_WHY="the governed checkout could not be found"; return 1; }
   start="$(cd -P "$start" 2>/dev/null && pwd -P)" || start="$_FW_GTOP"
   out="$(printf '%s' "$subj" | LC_ALL=C awk -v CWD0="$start" -v HOMEV="$HOME" -v TMPV="${TMPDIR:-}" \

@@ -8651,6 +8651,80 @@ rm -f "$PBLOG"
 is "an append that succeeded and wrote nothing is reported as a failure too" \
    "$PBRC2" "1"
 
+# A path that stopped being a file the other way: the log is now a directory,
+# and nothing can be appended to it.
+mkdir "$PBLOG"
+_pbrec treefive
+PBRC3="$?"
+rmdir "$PBLOG"
+is "a log replaced by a directory is reported as a failure" "$PBRC3" "1"
+
+# Two gates of one project at once, from two worktrees or clones, append to one
+# facts.log. The write used to be verified by the file's growth, so each run
+# counted the other's rows as its own and reported a failed write although
+# every row had landed. On 2026-09-23 that failed `felix probes --gate` in both
+# gates.
+#
+# The overlap is forced, not left to timing. The append loop calls `cut` for
+# every field, and nothing else in the function calls it, so each writer's
+# `cut` holds it. The first holds at its first field until the second has a row
+# in the log. The second holds after its own first row until the first has one.
+# Each append window then contains a row of the other writer's, however loaded
+# the machine is. The stamp is pinned to one second, and the second pair shares
+# a tree id: stamp and tree are the same in both writers' rows, so neither
+# column can tell whose row is whose.
+PBC="$TMP/probes-concurrent"; mkdir -p "$PBC"
+PBCLOG="$MEM/probes-concurrent/facts.log"
+_pbchas() { awk -F'\t' -v p="$1" 'index($3, p) == 1 { f = 1 } END { exit !f }' "$PBCLOG" 2>/dev/null; }
+_pbcwait() {   # <command...>: until it holds, or once ten seconds are gone
+  local i=0
+  until "$@"; do
+    [ ! -e "$PBC/gave-up" ] || return 1
+    i=$((i + 1)); [ "$i" -le 200 ] || { : > "$PBC/gave-up"; return 1; }
+    sleep 0.05
+  done
+}
+_pbcwriter() {   # <a|b> <tree id>
+  ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+    . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
+    date() { printf '2026-09-23T00:00:00Z\n'; }
+    if [ "$1" = a ]; then
+      cut() { : > "$PBC/a.in"; _pbcwait _pbchas b; command cut "$@"; }
+    else
+      cut() { _pbcwait test -e "$PBC/a.in"; _pbchas b && _pbcwait _pbchas a; command cut "$@"; }
+    fi
+    felix_probes_record "$PBC" "$PBR" "$2" "$(printf '%s1\t-\tfound\t1\tone\tgit ls-files\tgit@1\n%s2\t-\tfound\t2\ttwo\tgit ls-files\tgit@1\n' "$1" "$1")"
+  ) 2>/dev/null
+}
+_pbcpair() {   # <tree a> <tree b> -> "<a's status> <b's status>"
+  local pa pb ra
+  rm -f "$PBCLOG" "$PBC/a.in" "$PBC/gave-up"
+  _pbcwriter a "$1" & pa=$!
+  _pbcwriter b "$2" & pb=$!
+  wait "$pa"; ra=$?
+  wait "$pb"; printf '%s %s' "$ra" "$?"
+}
+# Whether the windows overlapped: the other writer's first row came before this
+# one's last, both ways. Without it, a loop that stopped calling `cut` would let
+# both writers run one after the other and pass here for the wrong reason.
+_pbcinterleaved() {
+  awk -F'\t' '
+    { c = substr($3, 1, 1) }
+    c == "a" { if (!fa) fa = NR; la = NR }
+    c == "b" { if (!fb) fb = NR; lb = NR }
+    END { exit !(fa && fb && fb < la && fa < lb) }' "$PBCLOG" 2>/dev/null
+}
+
+is "two writers appending to one facts.log at once both report success" \
+   "$(_pbcpair treea treeb)" "0 0"
+_pbcinterleaved && ok "and their rows interleaved, so each append window held the other's rows" \
+                || bad "and their rows interleaved, so each append window held the other's rows" "$(cat "$PBCLOG" 2>/dev/null)"
+is "and all four rows landed" "$(grep -c . "$PBCLOG" 2>/dev/null)" "4"
+is "two writers on one tree in one second both report success too" \
+   "$(_pbcpair treeab treeab)" "0 0"
+_pbcinterleaved && ok "and their rows interleaved too" \
+                || bad "and their rows interleaved too" "$(cat "$PBCLOG" 2>/dev/null)"
+
 # -------------------------------------------------------------- the drift ---
 # The log exists to be read. A log nothing reads is procedures.tsv one level
 # down: rows accumulating forever while nothing consults them.
@@ -13680,6 +13754,133 @@ case "$out" in
 esac
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 
+printf '\ndenial reads the command the shell runs\n'
+# A Bash row was matched against the payload's JSON string, where a line break
+# is a backslash and an n and everything the command only carries reads as if
+# it ran. The marker row refused a commit message on 2026-09-22 because its
+# `<name>` placeholder holds a `>`; of 175 refusals logged by then, about
+# thirty were text of that kind. A command a row matches is now read again as
+# the shell reads it, and refused only if the row still matches there. Each
+# payload below is the JSON the hook receives, verbatim, so a line break is
+# written \n and a backslash in the command \\.
+#
+# Both directions are asserted, and the second one is the one that matters:
+# every "still refused" case is code that an earlier draft of the reader set
+# aside as data, and each was a real command in the refusals that were logged.
+{ printf 'Bash\t%s\tforce push drops commits\n' 'git push ([^;&|]* )?(--force|-f)( |$)'
+  printf 'Bash\t%s\trewriting the binding by hand\n' "(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*[\"']?\\.felix(-home)?[\"']?([[:space:];&|)]|\$)"
+  printf 'Bash\t%s\ta timed read never returns under zsh\n' 'read -t [0-9]+ [^;&|]*< <\('
+} > "$FROOT/projects/widget/deny.tsv"
+_prb() { _pre "$(cat)"; }
+
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -F - <<'EOF'\ndocs: felix new <name> writes a .felix marker\nEOF"}}
+J
+is "a commit message in a here-document is not read as a command" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -m \"$(cat <<'EOF'\nfix: never git push --force here\nEOF\n)\""}}
+J
+is "nor is one in the \$(cat <<EOF) form of Claude Code's commit template" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"for c in 'git push --force origin main' 'git status'; do echo \"$c\"; done"}}
+J
+is "a quoted argument naming a denied command is data" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"ls # git push --force origin"}}
+J
+is "a comment is not a command" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git push -q\ngh api repos/x/pages -f source=main"}}
+J
+is "a row no longer runs across a line break into the next command" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"sed -n '/git push --force /p' log.md"}}
+J
+is "a sed script that starts with a slash is not taken for a path" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"printf '%s' '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git push --force origin main\"}}' | bash hooks/pre-tool"}}
+J
+is "a payload piped into a shell handed a script file is data to that script" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -m 'the reader doesn'\\''t refuse git push --force in a message'"}}
+J
+is "a message quoted in pieces round an apostrophe is still a message" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"echo \"$n logged refusals named git push --force here\""}}
+J
+is "a message that starts with a variable is not taken for a path" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat <<'EOF'\n$(git push --force origin main)\nEOF"}}
+J
+is "a quoted here-document word leaves the body unexpanded, so it is data" "$rc" "0"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat > \"$S/t.md\" <<'EOF'\nprintf 'x\\n' > .felix && true\nEOF\nls"}}
+J
+is "a here-document written to a file nothing runs is data" "$rc" "0"
+
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git push --force origin main"}}
+J
+is "a force push is still refused" "$rc" "2"
+has "and says why" "$(cat "$FROOT/.deny-err")" "force push drops commits"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"bash -c 'git push --force origin main'"}}
+J
+is "a shell's -c script is still read as a command" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"eval 'git push --force origin main'"}}
+J
+is "and so is what eval is handed" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git commit -m \"$(git push --force origin HEAD)\""}}
+J
+is "a \$( ) inside a quoted message still runs, and is refused" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"printf 'p\\n' > \"$T/repo/.felix\""}}
+J
+is "a quoted redirect target still writes the marker, and is refused" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat > \"$S/t.sh\" <<'EOF'\nprintf 'x\\n' > .felix && true\nEOF\nbash \"$S/t.sh\""}}
+J
+is "a here-document written to a file the command then runs is code" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"printf '%s\\n' 'git push --force origin main' > f.sh; bash f.sh"}}
+J
+is "and so is quoted text printed into a file the command then runs" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cp seed \"/tmp/a b/.felix\""}}
+J
+is "a quoted path with a blank is still the file cp writes" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat <<E\"OF\"\nnotes\nEOF\ngit push -f origin topic"}}
+J
+is "a here-document word quoted in part ends where bash ends it" "$rc" "2"
+# A file that writes a file the command then runs. Reading the first opens
+# the command that writes the second, while the list of written files is being
+# walked, and whether a for-in loop sees a key added under it differs between
+# awks: this refused or allowed by hash order until the walk went by number.
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"echo \"echo 'git push -f x' > u.sh\" > t.sh; bash t.sh; bash u.sh"}}
+J
+is "a file written by a file the command runs is followed there as well" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"bash <<'EOF'\ngit push --force origin main\nEOF"}}
+J
+is "a here-document a shell reads is code" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat <<EOF\n$(git push --force origin main)\nEOF"}}
+J
+is "an unquoted here-document word expands the body, so its \$( ) runs" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"echo 'git push --force origin main' | bash"}}
+J
+is "text piped into a shell is its script" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"until [ -f x ]; do read -t 5 -r _ < <(tail -f /dev/null); done"}}
+J
+is "a process substitution keeps the shape a row is written about" "$rc" "2"
+rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
+
 # The wiring itself, read off the file that ships rather than the fixture copy.
 # Correct code behind a matcher that never fires is this project's oldest and
 # most expensive failure mode.
@@ -13807,7 +14008,9 @@ _sc 0 "scoped: under set -e a cd inside a chain can still fall through" - "set -
 # Amended after it was written: mkdir -p is taken to succeed when the disk says it can,
 # so the cd cannot fall back; the counterparts below, where it cannot, refuse.
 _sc 0 "scoped: set -u is not set -e" - "set -u"$'\n'"mkdir -p $SCR/nx-setu"$'\n'"cd $SCR/nx-setu"$'\n''git init -q . && git add -A && git commit -qm base'
-_scr marker "scoped: a match spanning two commands" "$SCR/plain" $'echo w > log\ncat .felix'
+# Amended after #301: a row that matches only across two commands, or only
+# inside a quoted value, is no match at all once the command is read as code.
+_sc 0 "scoped: a match spanning two commands" "$SCR/plain" $'echo w > log\ncat .felix'
 _scr marker "scoped: an unterminated quote cannot be parsed" "$SCR/plain" 'echo w > .felix; echo "oops'
 # --- refusals: code runners, git push and -c, aliasing anywhere in the line
 _scr stage "scoped: bash -c from scratch whose script cds into the checkout" "$SCR/plain" "bash -c 'cd $GOV && git add -A && git commit -qm x'"
@@ -13828,7 +14031,7 @@ _sc 0 "scoped: git worktree anywhere in the line" "$SCR/clone" 'git worktree add
 _sc 0 "scoped: an echo run from the checkout counts the checkout" - "echo w > $SCR/plain/.felix"
 _scr marker "scoped: an echo argument naming the checkout" "$SCR/plain" "echo $GOV > .felix"
 _sc 0 "scoped: a matched assignment in scratch with a scratch value" "$SCR/plain" "C='cp a .felix' D=$SCR/clone"
-_scr marker "scoped: a matched assignment whose value names the checkout" "$SCR/plain" "C='cp a .felix' D=$GOV"
+_sc 0 "scoped: a matched assignment whose value names the checkout" "$SCR/plain" "C='cp a .felix' D=$GOV"
 # --- A2: an occurrence no lifted command carries keeps the refusal
 _scr marker "scoped: a comment beside a lifted command keeps the refusal" "$SCR/plain" 'echo w > .felix # in the checkout: echo w > .felix'
 _scr stage "scoped: here-document data beside a lifted command keeps the refusal" "$SCR/clone" "git add -A && git commit -q -F - <<'MSG'"$'\n'"never git add -A in the checkout"$'\n'"MSG"
@@ -13874,7 +14077,12 @@ _scr marker "scoped: a printing tool writing a relative path from the checkout" 
 # --- shapes from the replayed refusals
 _sc 0 "scoped: a fixture script written by here-document and run with arguments" - "S=$SCR/p1; mkdir -p \"\$S\"; cat > \"\$S/fx.sh\" <<'EOF'"$'\n''S="$1"'$'\n''R="$S/repo"; mkdir -p "$R"'$'\n'"( cd \"\$R\" && git init -q -b main && printf 'widget\\n' > .felix && git add -A )"$'\n''EOF'$'\n''bash "$S/fx.sh" "$S"'
 _sc 0 "scoped: a shared clone moved by a script read from stdin" - "S=$SCR/p2; git clone -q --shared \"$GOV\" \"\$S/c\" && bash -s \"\$S/c\" <<'EOF'"$'\n''C="$1"; cd "$C" || exit 1'$'\n''git update-ref refs/remotes/origin/main HEAD'$'\n''EOF'
-_scr tracking "scoped: the same script handed the governed checkout" - "bash -s \"$GOV\" <<'EOF'"$'\n''C="$1"; cd "$C" || exit 1'$'\n''git update-ref refs/remotes/origin/main HEAD'$'\n''EOF'
+# Judged directly: #301 reads a here-document as data when the shell is given
+# arguments, so through the hook this never reaches a scoped row.
+is "scoped: the same script handed the governed checkout" \
+   "$( cd "$GOV" && . "$FROOT/harness/lib/where.sh" && felix_where_lifts 'refs/remotes/' \
+       "$(_jstr "bash -s \"$GOV\" <<'EOF'"$'\n''C="$1"; cd "$C" || exit 1'$'\n''git update-ref refs/remotes/origin/main HEAD'$'\n''EOF')" \
+       "$GOV" "$GOV" && echo lifted || echo stood )" "stood"
 _sc 0 "scoped: a single-quoted bash -c fixture given its directory" - "bash -c 'mkdir -p \"\$1/r\" && cd \"\$1/r\" && git init -q && git remote add origin https://example.com/x.git' sh $SCR/p3"
 _sc 0 "scoped: mkdir -p, cd, then a remote on the lines after" - "W=$SCR/p4; mkdir -p \"\$W/repo\"; cd \"\$W/repo\"; git init -q"$'\n''git remote add origin https://nowhere.example/fx.git'
 _sc 0 "scoped: a mktemp fixture read back through pwd -P" - 'T=$(mktemp -d); REPO="$T/repo"; mkdir -p "$REPO"; (cd "$REPO" && git init -q -b main); REPO="$(cd "$REPO" && pwd -P)"; (cd "$REPO" && git add -A && git commit -qm base)'
@@ -13895,6 +14103,9 @@ _scr stage "scoped: cd reads .. by spelling, through a link out of the checkout"
 ( cd "$GOV" && printf '{"session_id":"scoped","cwd":"%s","tool_name":"Bash","tool_input":{"command":"cd \\u002f%s && git add -A"}}' \
     "$SCR/plain" "${GOV#/}" | "$FROOT/harness/hooks/pre-tool" 2>"$SC_ERR" ); rc=$?
 is "scoped: a \\u escape in the payload is not read as its letters" "$rc" "2"
+_long="cd $SCR/clone && git add -A && git commit -qm x$(printf ' %.0s' $(seq 1 33000))"
+_scr stage "scoped: a command longer than the reader reads keeps the refusal" - "$_long"
+has "and says it was too long to read" "$(cat "$SC_ERR")" "longer than this reads"
 # --- a lift is written down, and a refusal is not written as one
 _lifts() { awk -F'\t' '$2 == "lifted"' "$MEM/widget/says.log" 2>/dev/null; }
 _sc 0 "scoped: a lift to be recorded" "$SCR/clone" 'git add -A && git commit -qm recorded-lift'
@@ -13907,7 +14118,7 @@ is "and a scoped row that stood writes no lift" "$(_lifts | wc -l | tr -d ' ')" 
 has "a scoped row that stands says it covers only the checkout" "$(cat "$SC_ERR")" "covers only the governed checkout"
 has "and names the command and the place" "$(cat "$SC_ERR")" "\`git add -A\`: it acts on $GOV, in the governed checkout"
 # --- it can only keep a refusal when it cannot tell
-mkdir -p "$SC/nowhere"; cp "$FROOT/harness/lib/deny.sh" "$SC/nowhere/deny.sh"
+mkdir -p "$SC/nowhere"; cp "$FROOT/harness/lib/deny.sh" "$FROOT/harness/lib/deny-read.sh" "$SC/nowhere/"
 is "without lib/where.sh beside it a scoped row stands" \
    "$( cd "$GOV" && . "$SC/nowhere/deny.sh" && felix_deny_match "$FROOT/projects/widget" Bash "cd $SCR/plain && git add -A" "$SCR/plain" >/dev/null && echo refused )" \
    "refused"

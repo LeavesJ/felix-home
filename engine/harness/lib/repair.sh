@@ -17,24 +17,34 @@
 # GitHub Actions only for now, via gh. Stated plainly rather than hidden behind a
 # provider abstraction with one implementation.
 #
-# felix repair's exit status is its verdict, and the scope step of
-# templates/unattended.yml branches on it and reads nothing else:
+# felix repair's exit status is its contract with templates/unattended.yml,
+# which branches on it and on nothing else, so each status means one thing:
 #
 #   0  a brief for the newest gate run, which completed and did not succeed;
 #      the only status a repair acts on. A cancelled or skipped run lands
 #      here too, and so does a failed run whose log could not be read, whose
 #      brief then names no path
-#   1  the gate's runs could not be read, or repair cannot run here: no gh, no
-#      GitHub remote, a gate workflow that is not a file name, no branch
-#      checked out
-#   2  the ceiling is reached, or the attempts behind it could not be counted;
-#      also no project governing the checkout, refused before any run is read
-#   3  a red path is implicated, which is out of scope for an unattended repair
-#   4  nothing to repair: the gate has not run on the branch, is still running,
+#   1  the gate's runs could not be read: no gh, no GitHub remote, no gate
+#      workflow, no branch checked out, or gh did not answer
+#   2  the repair ceiling is reached, or could not be counted
+#   3  the failure implicates a red path, which unattended repair leaves alone
+#   4  no project governs the checkout, or the binding naming one is broken
+#   5  nothing to repair: the gate has not run on the branch, is still running,
 #      or is green
 #
-# felix brief keeps this shape and uses 0, 1, 2 and 3 of it. It has no 4,
-# because an issue is always something to act on.
+# 4 was 2 until 2026-09-23, the status every other command still exits on a
+# failed resolve, and the template's case read it as a spent ceiling.
+# A failed resolve says the workflow is wired to a Felix that does not govern
+# this repository, which is true of every branch at once and says nothing about
+# the failing change, so the template fails the job on it rather than labelling
+# a pull request.
+#
+# 5 was 0 until the same day, the status of a brief, so the template would
+# have spent the budget and run a model on a brief saying nothing was wrong.
+# Nothing failed, so it stops the job without failing it or asking anyone.
+#
+# felix brief keeps this shape and uses 0, 1, 2 and 3 of it: its 2 is a failed
+# resolve, and it has no 5, because an issue is always something to act on.
 
 FELIX_REPAIR_MAX="${FELIX_REPAIR_MAX:-3}"
 

@@ -75,12 +75,13 @@ jobs:
           set +e -uo pipefail
           ../felix/engine/harness/felix repair | tee /tmp/brief.txt
           rc=${PIPESTATUS[0]}
-          # Only 0 is a brief to act on. 4 is nothing to repair: the gate has
-          # not run on the branch, is still running, or is green. 3 is a red
-          # path, 2 a repair ceiling that is reached or could not be counted,
-          # and anything else a read of the gate's runs that failed. The list
-          # is lib/repair.sh's. Until 2026-09-23 nothing to repair exited 0,
-          # so a dispatch on a green branch would have spent the budget and
+          # Only 0 is a brief to act on. 5 is nothing to repair: the gate has
+          # not run on the branch, is still running, or is green. 4 is a
+          # checkout the Felix checked out above does not govern, 3 a red path,
+          # 2 a repair ceiling that is reached or could not be counted, and
+          # anything else a read of the gate's runs that failed. lib/repair.sh
+          # lists the same statuses. Until 2026-09-23 nothing to repair exited
+          # 0, so a dispatch on a green branch would have spent the budget and
           # handed a model a brief saying nothing was wrong. This also
           # proceeded on everything but 3, which under plain bash let a
           # reached ceiling do the same; under `bash -e` the step ended first.
@@ -90,10 +91,14 @@ jobs:
           case "$rc" in
             # Not a stop for a person: nothing failed, so nothing is escalated
             # and the job passes.
-            4) echo "nothing=yes" >> "$GITHUB_OUTPUT"
+            5) echo "nothing=yes" >> "$GITHUB_OUTPUT"
                echo "nothing to repair on $BRANCH"; exit 0 ;;
             3) echo "out of scope: a red path is implicated" >&2 ;;
-            2) echo "the repair ceiling is reached or could not be counted, or no project governs this checkout" >&2 ;;
+            2) echo "the repair ceiling is reached, or could not be counted" >&2 ;;
+            # Wiring, not the change: it holds for every branch at once, so no
+            # pull request is labelled for it and the job fails instead.
+            4) echo "no project in the Felix this workflow checked out governs this repository, or its .felix names one that does not exist; fix the binding, since no pull request can" >&2
+               exit 1 ;;
             *) echo "felix repair could not read the gate's runs (exit $rc); nothing is repaired from a run nobody read" >&2
                exit 1 ;;
           esac

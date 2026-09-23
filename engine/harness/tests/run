@@ -969,6 +969,17 @@ is "ceiling is overridable" "$out" "1"
 out="$(cd "$PLAIN" && "$FELIX" repair 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "repair refuses outside a governed GitHub repo" \
                 || bad "repair refuses outside a governed GitHub repo" "$out"
+# And with its own status. It exited resolution's 2, which is repair's
+# ceiling, and the unattended template escalated a checkout nothing governs to
+# a person as a spent ceiling. A marker naming a project that does not exist is
+# the other way resolution fails, and takes the same status. Every other
+# command keeps 2: "ungoverned repo refuses to run a gate" holds that.
+is  "repair exits 4 in a checkout no project governs, not the ceiling's 2" "$rc" "4"
+RBRK="$TMP/repair-broken"; mkdir -p "$RBRK"
+( cd "$RBRK" && git init -q -b main && printf 'nonexistent\n' > .felix )
+out="$(cd "$RBRK" && "$FELIX" repair 2>&1)"; rc=$?
+is  "and 4 where the .felix marker names a project that does not exist" "$rc" "4"
+has "and names the broken binding rather than asking for a marker" "$out" "nonexistent"
 
 printf '\nissue intake\n'
 # The first of the two p41 exit criteria nothing met: take an issue. Mirrors
@@ -2768,7 +2779,7 @@ if ! command -v jq >/dev/null 2>&1; then
            "and every run list felix repair makes names the gate workflow" \
            "felix repair stops at the ceiling when its attempts cannot be counted" \
            "and hands on no failing output as if attempts remained" \
-           "felix repair exits 4, nothing to repair, on a green gate run" \
+           "felix repair exits 5, nothing to repair, on a green gate run" \
            "and on a gate run still in progress" \
            "and on a branch the gate has never run on" \
            "felix repair refuses a detached checkout rather than finding nothing to repair on HEAD" \
@@ -2941,13 +2952,13 @@ esac
 # reads the status and nothing else.
 printf 'gate.yml\tgate\tfix/y\t211\tcompleted\tsuccess\n' > "$WFSTUB_RUNS"
 out="$(_wfcli repair)"; rc=$?
-is "felix repair exits 4, nothing to repair, on a green gate run" "$rc" "4"
+is "felix repair exits 5, nothing to repair, on a green gate run" "$rc" "5"
 printf 'gate.yml\tgate\tfix/y\t212\tin_progress\t\n' > "$WFSTUB_RUNS"
 out="$(_wfcli repair)"; rc=$?
-is "and on a gate run still in progress" "$rc" "4"
+is "and on a gate run still in progress" "$rc" "5"
 printf 'gate.yml\tgate\tfeat/x\t213\tcompleted\tfailure\n' > "$WFSTUB_RUNS"
 out="$(_wfcli repair)"; rc=$?
-is "and on a branch the gate has never run on" "$rc" "4"
+is "and on a branch the gate has never run on" "$rc" "5"
 # A detached checkout's branch reads as HEAD, which no run is on, so it would
 # be the third case above for a branch nobody named.
 ( cd "$WFR" && git checkout -q --detach )
@@ -3010,7 +3021,7 @@ printf '\nthe unattended repair acts only on a brief\n'
 # model the brief that told it to stop: the ceiling held only as long as a
 # model read a sentence. Nothing to repair exited 0 until 2026-09-23, so a
 # green branch would have done the same with a brief saying nothing was wrong;
-# it exits 4 now.
+# it exits 5 now.
 # The step is taken out of the shipped template as it stands and run against a
 # stub felix that exits with each status repair can return, with gh stubbed to
 # record what it is asked. Its brief goes to the fixture, not to /tmp. It runs
@@ -3026,35 +3037,35 @@ printf '#!/usr/bin/env bash\nprintf "brief\\n"; exit "${SCOPE_RC:-0}"\n' > "$SC/
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "%s/gh.log"\ncase "$1 $2" in "pr list") printf "7\\n" ;; esac\nexit 0\n' "$SC" > "$SC/bin/gh"
 chmod +x "$SC/felix/engine/harness/felix" "$SC/bin/gh"
 _scope() { : > "$SC/out"; : > "$SC/gh.log"
-  ( cd "$SC/repo" && SCOPE_RC="$1" GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
-      bash -e "$SC/step.sh" ) >/dev/null 2>&1; }
+  ( cd "$SC/${2:-repo}" && SCOPE_RC="$1" GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
+      bash -e "$SC/step.sh" ) >/dev/null 2>"$SC/err"; }
 _sres=""; _snot=""
-for _r in 0 1 2 3 4; do
+for _r in 0 1 2 3 4 5; do
   _scope "$_r"; _src=$?
   _sres="$_sres $_r:$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
   _snot="$_snot $_r:$(sed -n 's/^nothing=//p' "$SC/out" | head -1)"
   case "$_r" in
     1) _s1rc="$_src" ;;
     2) _s2gh="$(cat "$SC/gh.log")" ;;
-    4) _s4rc="$_src"; _s4gh="$(cat "$SC/gh.log")"
-       _s4p="$(sed -n 's/^proceed=//p' "$SC/out" | head -1)" ;;
+    5) _s5rc="$_src"; _s5gh="$(cat "$SC/gh.log")"
+       _s5p="$(sed -n 's/^proceed=//p' "$SC/out" | head -1)" ;;
   esac
 done
-is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no 4:no"
+is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no 4:no 5:no"
 has "a reached repair ceiling is escalated to a person" "$_s2gh" "pr edit 7 --add-label needs-founder"
 [ "${_s1rc:-0}" -ne 0 ] && ok  "a run felix repair could not read fails the job rather than passing quietly" \
                         || bad "a run felix repair could not read fails the job rather than passing quietly" "exit ${_s1rc:-?}"
-[ "${_s4rc:-1}" -eq 0 ] && [ "${_s4p:-}" = "no" ] && [ -z "${_s4gh:-}" ] \
+[ "${_s5rc:-1}" -eq 0 ] && [ "${_s5p:-}" = "no" ] && [ -z "${_s5gh:-}" ] \
   && ok  "nothing to repair ends the job clean: not acted on, not failed, not escalated" \
   || bad "nothing to repair ends the job clean: not acted on, not failed, not escalated" \
-         "exit ${_s4rc:-?}, proceed=${_s4p:-(unset)}, gh asked: ${_s4gh:-nothing}"
+         "exit ${_s5rc:-?}, proceed=${_s5p:-(unset)}, gh asked: ${_s5gh:-nothing}"
 # Under the name the report reads: every steps.scope.outputs key the template
 # reads is one the step writes, since an output never written reads as empty.
 _sread="$(grep -o 'steps\.scope\.outputs\.[a-z_]*' "$REAL_HARNESS/templates/unattended.yml" \
           | sed 's/.*\.//' | sort -u)"
 _sunwritten=""
 for _k in $_sread; do grep -q "echo \"$_k=" "$SC/step.sh" || _sunwritten="$_sunwritten $_k"; done
-[ "$_snot" = " 0: 1: 2: 3: 4:yes" ] && [ -z "$_sunwritten" ] \
+[ "$_snot" = " 0: 1: 2: 3: 4: 5:yes" ] && [ -z "$_sunwritten" ] \
   && ok  "and only nothing to repair tells the report so, under the name the report reads" \
   || bad "and only nothing to repair tells the report so, under the name the report reads" \
          "written:$_snot; read and never written:${_sunwritten:- none}"
@@ -3079,6 +3090,30 @@ else
   skip "a green branch stops the shipped step at scope, read from the real felix repair" \
        "no jq here to evaluate gh's -q expressions"
 fi
+
+# A checkout Felix cannot resolve, through the real felix repair rather than a
+# stub's chosen status. Resolution exited 2 there, which this step's case read
+# as the ceiling and escalated to a person under that reason. It is wiring,
+# and true of every branch at once, so the job fails, no pull request is
+# labelled, and the message names the binding. Both ways resolution fails: no
+# project claims the checkout, and a .felix marker names a project the home
+# does not hold.
+printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$FELIX" > "$SC/felix/engine/harness/felix"
+chmod +x "$SC/felix/engine/harness/felix"
+mkdir -p "$SC/unbound" "$SC/misbound"
+( cd "$SC/unbound" && git init -q -b main )
+( cd "$SC/misbound" && git init -q -b main && printf 'nonexistent\n' > .felix )
+for _w in unbound misbound; do
+  _scope 0 "$_w"; _src=$?
+  _sgot="exit $_src, proceed=$(sed -n 's/^proceed=//p' "$SC/out" | head -1), gh [$(tr '\n' ' ' < "$SC/gh.log")]"
+  is  "the unattended job on the $_w checkout fails and labels no pull request" \
+      "$_sgot" "exit 1, proceed=no, gh []"
+  case "$(cat "$SC/err")" in
+    *ceiling*) bad "and the $_w job says the binding failed, not the ceiling" "$(cat "$SC/err")" ;;
+    *"governs this repository"*) ok "and the $_w job says the binding failed, not the ceiling" ;;
+    *) bad "and the $_w job says the binding failed, not the ceiling" "$(cat "$SC/err")" ;;
+  esac
+done
 
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts

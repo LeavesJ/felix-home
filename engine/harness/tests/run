@@ -8651,6 +8651,80 @@ rm -f "$PBLOG"
 is "an append that succeeded and wrote nothing is reported as a failure too" \
    "$PBRC2" "1"
 
+# A path that stopped being a file the other way: the log is now a directory,
+# and nothing can be appended to it.
+mkdir "$PBLOG"
+_pbrec treefive
+PBRC3="$?"
+rmdir "$PBLOG"
+is "a log replaced by a directory is reported as a failure" "$PBRC3" "1"
+
+# Two gates of one project at once, from two worktrees or clones, append to one
+# facts.log. The write used to be verified by the file's growth, so each run
+# counted the other's rows as its own and reported a failed write although
+# every row had landed. On 2026-09-23 that failed `felix probes --gate` in both
+# gates.
+#
+# The overlap is forced, not left to timing. The append loop calls `cut` for
+# every field, and nothing else in the function calls it, so each writer's
+# `cut` holds it. The first holds at its first field until the second has a row
+# in the log. The second holds after its own first row until the first has one.
+# Each append window then contains a row of the other writer's, however loaded
+# the machine is. The stamp is pinned to one second, and the second pair shares
+# a tree id: stamp and tree are the same in both writers' rows, so neither
+# column can tell whose row is whose.
+PBC="$TMP/probes-concurrent"; mkdir -p "$PBC"
+PBCLOG="$MEM/probes-concurrent/facts.log"
+_pbchas() { awk -F'\t' -v p="$1" 'index($3, p) == 1 { f = 1 } END { exit !f }' "$PBCLOG" 2>/dev/null; }
+_pbcwait() {   # <command...>: until it holds, or once ten seconds are gone
+  local i=0
+  until "$@"; do
+    [ ! -e "$PBC/gave-up" ] || return 1
+    i=$((i + 1)); [ "$i" -le 200 ] || { : > "$PBC/gave-up"; return 1; }
+    sleep 0.05
+  done
+}
+_pbcwriter() {   # <a|b> <tree id>
+  ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+    . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
+    date() { printf '2026-09-23T00:00:00Z\n'; }
+    if [ "$1" = a ]; then
+      cut() { : > "$PBC/a.in"; _pbcwait _pbchas b; command cut "$@"; }
+    else
+      cut() { _pbcwait test -e "$PBC/a.in"; _pbchas b && _pbcwait _pbchas a; command cut "$@"; }
+    fi
+    felix_probes_record "$PBC" "$PBR" "$2" "$(printf '%s1\t-\tfound\t1\tone\tgit ls-files\tgit@1\n%s2\t-\tfound\t2\ttwo\tgit ls-files\tgit@1\n' "$1" "$1")"
+  ) 2>/dev/null
+}
+_pbcpair() {   # <tree a> <tree b> -> "<a's status> <b's status>"
+  local pa pb ra
+  rm -f "$PBCLOG" "$PBC/a.in" "$PBC/gave-up"
+  _pbcwriter a "$1" & pa=$!
+  _pbcwriter b "$2" & pb=$!
+  wait "$pa"; ra=$?
+  wait "$pb"; printf '%s %s' "$ra" "$?"
+}
+# Whether the windows overlapped: the other writer's first row came before this
+# one's last, both ways. Without it, a loop that stopped calling `cut` would let
+# both writers run one after the other and pass here for the wrong reason.
+_pbcinterleaved() {
+  awk -F'\t' '
+    { c = substr($3, 1, 1) }
+    c == "a" { if (!fa) fa = NR; la = NR }
+    c == "b" { if (!fb) fb = NR; lb = NR }
+    END { exit !(fa && fb && fb < la && fa < lb) }' "$PBCLOG" 2>/dev/null
+}
+
+is "two writers appending to one facts.log at once both report success" \
+   "$(_pbcpair treea treeb)" "0 0"
+_pbcinterleaved && ok "and their rows interleaved, so each append window held the other's rows" \
+                || bad "and their rows interleaved, so each append window held the other's rows" "$(cat "$PBCLOG" 2>/dev/null)"
+is "and all four rows landed" "$(grep -c . "$PBCLOG" 2>/dev/null)" "4"
+is "two writers on one tree in one second both report success too" \
+   "$(_pbcpair treeab treeab)" "0 0"
+_pbcinterleaved && ok "and their rows interleaved too" \
+                || bad "and their rows interleaved too" "$(cat "$PBCLOG" 2>/dev/null)"
+
 # -------------------------------------------------------------- the drift ---
 # The log exists to be read. A log nothing reads is procedures.tsv one level
 # down: rows accumulating forever while nothing consults them.

@@ -99,6 +99,10 @@ _FELIX_DENY_READ='
     if (NW[LV] == 0 && w ~ /^[A-Za-z_][A-Za-z0-9_]*=/) return
     if (NW[LV] == 0) { FIRST[LV] = base(w); runs(w) }
     else if (FIRST[LV] == "tee" && w !~ /^-/ && !(SID[LV] in TGT)) TGT[SID[LV]] = w
+    # -s tells a shell its script is its input and every word after it a
+    # positional parameter, so no word after it is a file the shell runs:
+    # bash -s /tmp/x <<EOF runs the body.
+    if (HSH[LV] && NW[LV] > 0 && w ~ /^-[A-Za-z]*s[A-Za-z]*$/) RUNNEXT[LV] = 0
     if (RUNNEXT[LV] && w !~ /^-/) { runs(w); RUNNEXT[LV] = 0; SHF[LV] = 1 }
     NW[LV]++; PREV[LV] = w; b = base(w)
     # A path is data to the shell, but to cp or tee it is the file written, and

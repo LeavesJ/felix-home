@@ -1479,6 +1479,7 @@
 1	and restoring both makes it valid again
 1	and restoring it makes the row clean again
 1	and returns once the record is complete
+1	and run from one that holds its own *.csproj, still reports observability for a root whose App.csproj names Sentry
 1	and runs none of commissioning: no run, no receipt, no discovery cache, no commissioning log
 1	and saying so is an exit code, not an empty line
 1	and says a long name at least scores on itself
@@ -2157,6 +2158,7 @@
 1	felix_coverage_events rosters the events settings.json binds by key
 1	felix_deploy_diff sees the hooks drift
 1	felix_detect in a checkout whose path holds a space reports the capabilities its files show
+1	felix_detect run from a directory that holds its own requirements/*.txt still reports billing for a root whose requirements/prod.txt names stripe
 1	felix_evidence_check reports unknown, not n/a
 1	felix_has_line matches whole lines under pipefail
 1	felix_has_line rejects partial lines

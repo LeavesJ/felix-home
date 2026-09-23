@@ -239,6 +239,10 @@ absence of documentation, not proof of absence.
 
 ## 5. The order this implies
 
+**Superseded 2026-09-23** by [the roadmap](2026-09-23-roadmap.md), after the
+founder made Felix a commercial product (#290). The list below is kept as it
+was decided.
+
 1. The founder's step-1 settings edit (§2).
 2. `table.sh`, `schemas.tsv` and the `schema` gate check; in the same sessions
    `coverage.tsv` with the offline citation check (§1).

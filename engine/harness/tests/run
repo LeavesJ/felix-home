@@ -13763,6 +13763,98 @@ for t in Bash Edit Write Read NotebookEdit; do
   case "$mj" in *"$t"*) ok "PreToolUse is bound for $t" ;; *) bad "PreToolUse is bound for $t" "matcher is [$mj]" ;; esac
 done
 
+printf '\nthe subject of a large payload\n'
+# felix_deny_subject reads a small payload with parameter expansion and a large
+# one with one awk, because ${s//pat/rep} in bash 3.2 is not linear. Measured
+# 2026-09-23 on 3.2.57, the bash the hook runs under on macOS: a 31K
+# commit-template payload took 12 to 13 s to read, a 9K `python3 -c` one 19 s,
+# and a 45K one did not finish in 110 s, against Claude Code's 60 s hook
+# timeout. Two readings of one thing are safe only if size never changes the
+# answer, so each case is read both ways and held to one expected subject.
+_subj() {  # _subj <inline limit> <tool> <payload>
+  ( . "$FROOT/harness/lib/deny.sh"; _FELIX_DENY_INLINE="$1"; felix_deny_subject "$3" "$2" )
+}
+_both() {  # _both <name> <tool> <payload> <expected>
+  is "$1" "$(_subj 0 "$2" "$3")|$(_subj 999999999 "$2" "$3")" "$4|$4"
+}
+_both "read by awk and by expansion alike: escaped quotes are the value's own" Bash \
+  '{"tool_input":{"command":"echo \"a b\" | grep \"c\"","description":"d"}}' 'echo "a b" | grep "c"'
+_both "read by awk and by expansion alike: an escaped quote does not carry the value into the next field" Bash \
+  '{"tool_input":{"command":"say \"hi\"","description":"git add -A"}}' 'say "hi"'
+_both "read by awk and by expansion alike: the first occurrence of the field wins" Edit \
+  '{"tool_input":{"file_path":"/w/README.md"},"related":{"file_path":"/w/.env"}}' '/w/README.md'
+_both "read by awk and by expansion alike: a value ending on an escaped quote" Bash \
+  '{"tool_input":{"command":"echo \""}}' 'echo "'
+_both "read by awk and by expansion alike: a value opening on an escaped quote" Bash \
+  '{"tool_input":{"command":"\"x\" y"}}' '"x" y'
+_both "read by awk and by expansion alike: an empty value is empty" Bash \
+  '{"tool_input":{"command":"","description":"x"}}' ''
+_both "read by awk and by expansion alike: every other JSON escape is left as written" Bash \
+  '{"tool_input":{"command":"a\nb\tc\\d\/e"}}' 'a\nb\tc\\d\/e'
+_both "read by awk and by expansion alike: a line break in the value is kept, beside escaped quotes" Bash \
+  $'{"tool_input":{"command":"a \\"b\nc\\" d"}}' $'a "b\nc" d'
+_both "read by awk and by expansion alike: a value with no closing quote runs to the end" Bash \
+  '{"tool_input":{"command":"abc' 'abc'
+_both "read by awk and by expansion alike: space round the colon" Bash \
+  '{"tool_input":{"command" : "x y"}}' 'x y'
+# Two of 44 cases derived blind from the contract alone, kept here because
+# they are where awks differ, and CI reads them with another awk than macOS:
+# bytes that are not UTF-8, and CRs, taken as they are; three backslashes
+# before a quote, which lose one.
+_both "read by awk and by expansion alike: bytes that are not UTF-8, and CRs, are kept as they are" Bash \
+  $'{"tool_input":{"command":"caf\xc3\xa9 \xe9\xff\xfe \\"x\\"\r\\"y\\"\r\xc3","description":"d"}}' \
+  $'caf\xc3\xa9 \xe9\xff\xfe "x"\r"y"\r\xc3'
+_both "read by awk and by expansion alike: three backslashes before a quote lose one" Bash \
+  '{"tool_input":{"command":"a\\\"b\\\"","description":"d"}}' 'a\\"b\\"'
+# A quote after an escaped backslash ends a JSON string, and the expansion
+# reads it as escaped: it looks only at the character before each quote. The
+# awk does the same on purpose, so that where the reading is loose, it is
+# loose the same way whatever the size.
+is "a value ending on an escaped backslash is read the same both ways" \
+   "$(_subj 0 Bash '{"tool_input":{"command":"echo a\\","description":"b"}}')" \
+   "$(_subj 999999999 Bash '{"tool_input":{"command":"echo a\\","description":"b"}}')"
+
+# What each reading costs. The expansion runs on nearly every call, and a
+# process there is a tax on the whole session, so a small payload must start
+# none. A large one is read by exactly one awk, whatever it holds.
+_AWKN="$TMP/awk-calls"; mkdir -p "$TMP/awkshim"
+printf '#!/bin/sh\nprintf x >> "%s"\nexec "%s" "$@"\n' "$_AWKN" "$(command -v awk)" > "$TMP/awkshim/awk"
+chmod +x "$TMP/awkshim/awk"
+_awkn() {  # _awkn <payload>: how many awk processes reading its subject took
+  : > "$_AWKN"
+  ( . "$FROOT/harness/lib/deny.sh"; PATH="$TMP/awkshim:$PATH"; felix_deny_subject "$1" Bash >/dev/null )
+  wc -c < "$_AWKN" | tr -d ' '
+}
+is "a small payload's subject is read without starting a process" \
+   "$(_awkn '{"tool_name":"Bash","tool_input":{"command":"git status --short"}}')" "0"
+# Built into a variable first: in bash 3.2 a quoted {..,..} inside "$( )"
+# is brace-expanded, and the payload arrives as `"tool_name":"Bash"`.
+_mid="$(awk 'BEGIN { for (i = 0; i < 200; i++) printf "echo \\\"%d\\\" ; ", i }')"
+_mid="{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$_mid\"}}"
+is "a large payload's subject is read by exactly one awk" "$(_awkn "$_mid")" "1"
+
+# The reason for all of it, as a deadline: 220K and 40,000 escaped quotes,
+# through the hook, refused well inside Claude Code's 60 s. Under a watchdog
+# that ends the hook and its subshells at twenty seconds, since the expansion
+# on this payload runs for days and a red run is exactly where it would.
+printf 'Bash\tgit add (-A|--all|\\.)$\tstage explicit paths\n' > "$FROOT/projects/widget/deny.tsv"
+_big="$TMP/deny-big.json"
+{ printf '{"session_id":"deny-big","tool_name":"Bash","tool_input":{"command":"'
+  awk 'BEGIN { for (i = 0; i < 10000; i++) printf "printf \\\"%%s\\\" \\\"a\\\" ; " }'
+  printf 'git add -A","description":"d"},"tool_use_id":"t"}'; } > "$_big"
+( cd "$REPO" && exec "$FROOT/harness/hooks/pre-tool" < "$_big" 2>/dev/null ) &
+_dpid=$!; _di=0
+while kill -0 "$_dpid" 2>/dev/null && [ "$_di" -lt 200 ]; do sleep 0.1; _di=$((_di + 1)); done
+if kill -0 "$_dpid" 2>/dev/null; then
+  pkill -P "$_dpid" 2>/dev/null; kill "$_dpid" 2>/dev/null; _dend=killed
+else
+  _dend=finished
+fi
+wait "$_dpid" 2>/dev/null; _drc=$?
+is "a 220K command with 40,000 escaped quotes is refused through the hook inside twenty seconds" \
+   "$_dend:$_drc" "finished:2"
+rm -f "$FROOT/projects/widget/deny.tsv" "$_big"
+
 printf '\nwhere memory lives\n'
 # Memory left this repository on 2026-08-14. The property under test is not
 # which directory it landed in — that is configurable — but that the answer

@@ -77,10 +77,26 @@ _felix_deny_field() {
 # the last one, which is reachable: file content mentioning the field name puts
 # a second copy after the real one, and the rule would then be tested against
 # whatever that content said.
+#
+# Read two ways, split by size, and both return the same string. A small
+# payload is read with parameter expansion, which costs no process. A large
+# one is read by one awk, because ${s//pat/rep} in bash 3.2, which macOS ships
+# and the hook runs under there, is not linear: for each match it tries every
+# end position back from the end of the string and measures each with a
+# strlen, so it costs about the length squared times the number of escaped
+# quotes. Measured 2026-09-23 on 3.2.57: a 31K commit-template payload took 12
+# to 13 s, a 9K `python3 -c` payload 19 s, and a 45K one did not finish in
+# 110 s. Claude Code's hook timeout is 60 s.
+_FELIX_DENY_INLINE=1024
 felix_deny_subject() {
   local raw="$1" field rest val
   field="$(_felix_deny_field "${2:-}")"
   case "$raw" in *"\"$field\""*) ;; *) return 0 ;; esac
+
+  if [ "${#raw}" -gt "$_FELIX_DENY_INLINE" ]; then
+    printf '%s' "$raw" | LC_ALL=C awk -v f="$field" "$_FELIX_DENY_SUBJECT_AWK" 2>/dev/null
+    return 0
+  fi
 
   # All parameter expansion, no pipeline. This runs inside a synchronous hook on
   # every tool call, and the old tr/sed/awk/sed chain cost four process spawns
@@ -91,6 +107,36 @@ felix_deny_subject() {
   val="${rest%%\"*}"                 # to the first real closing quote
   printf '%s' "${val//$'\001'/\"}"
 }
+
+# The same reading as the expansion above, for a large payload: after the
+# first "field", past the next quote, up to the first quote with no backslash
+# before it, and each backslash-quote in what it took read as a quote.
+#
+# Linear in BWK awk, mawk and gawk. It uses no gsub and no split on a regex,
+# since in BWK awk, which macOS ships, both cost the length times the number
+# of matches: a gsub of 70,000 escaped quotes in 1M took 12 s. match, index,
+# substr and a split on one character are linear. BWK awk splits on a line
+# break as well when the separator is one character, so the value is split
+# into lines first and each line on its quotes. The program holds no single
+# quote, since it is a bash single-quoted string.
+_FELIX_DENY_SUBJECT_AWK='
+  BEGIN { RS = "\001" }
+  { s = (NR > 1) ? s RS $0 : $0 }
+  END {
+    k = index(s, "\"" f "\"")
+    if (!k) exit
+    s = substr(s, k + length(f) + 2)
+    if ((q = index(s, "\"")) > 0) s = substr(s, q + 1)
+    if (substr(s, 1, 1) == "\"") exit
+    if (match(s, /[^\\]"/)) s = substr(s, 1, RSTART)
+    nl = split(s, L, "\n")
+    for (i = 1; i <= nl; i++) {
+      if (i > 1) printf "\n"
+      np = split(L[i], P, "\"")
+      for (j = 1; j < np; j++) printf "%s\"", substr(P[j], 1, length(P[j]) - 1)
+      if (np) printf "%s", P[np]
+    }
+  }'
 
 # Whether a pattern is too broad to be a rule.
 #

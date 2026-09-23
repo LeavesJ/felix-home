@@ -13772,6 +13772,18 @@ is "and so is quoted text printed into a file the command then runs" "$rc" "2"
 J
 is "a quoted path with a blank is still the file cp writes" "$rc" "2"
 ( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat <<E\"OF\"\nnotes\nEOF\ngit push -f origin topic"}}
+J
+is "a here-document word quoted in part ends where bash ends it" "$rc" "2"
+# A file that writes a file the command then runs. Reading the first opens
+# the command that writes the second, while the list of written files is being
+# walked, and whether a for-in loop sees a key added under it differs between
+# awks: this refused or allowed by hash order until the walk went by number.
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"echo \"echo 'git push -f x' > u.sh\" > t.sh; bash t.sh; bash u.sh"}}
+J
+is "a file written by a file the command runs is followed there as well" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
 {"tool_name":"Bash","tool_input":{"command":"bash <<'EOF'\ngit push --force origin main\nEOF"}}
 J
 is "a here-document a shell reads is code" "$rc" "2"

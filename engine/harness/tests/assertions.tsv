@@ -39,6 +39,8 @@
 1	a --- block that does not open the file is not frontmatter
 1	a --since that is not YYYY-MM-DD exits non-zero
 1	a -c script whose here-document body runs past the first 64K goes on after the body to its closing quote, over 256K as under it: the runner there is a check
+1	a 200K Write holding 2,000 escaped quotes is refused on its path through the hook inside twenty seconds
+1	a 44K command with 8,000 escaped quotes is refused through the hook inside twenty seconds
 1	a 6 MB command holding 300,000 backslashes is read in seconds, with the default checks and with a --verify that holds a backslash: under 10 each
 1	a << that opens no here-document, a shift or one in quotes, reads the same on either side of 256K: the runner after it is a check, and a sed -i after a check leaves the stop stale
 1	a CLI that fails is exit 3 and no rows
@@ -331,6 +333,8 @@
 1	a keyword inside another word is not a match
 1	a kind nobody defined is refused, with a reason
 1	a kind that is two known kinds run together is refused
+1	a large payload whose awk fails part way has no subject, rather than the part it printed
+1	a large payload's subject is read by exactly one awk
 1	a later copy of the field in the envelope is not the subject
 1	a leading --no-commission is the flag, while any other leading flag is still refused as a name
 1	a ledger from before the column reports nothing at all
@@ -683,6 +687,7 @@
 1	a skill whose frontmatter says hooks: [] is low
 1	a skill whose frontmatter says hooks: null is low
 1	a skill whose frontmatter says hooks: {} is low
+1	a small payload's subject is read without running awk
 1	a source past its ceiling is refused too
 1	a stacked branch is not blamed for what its base already merged
 1	a staged row removal still escapes as verifier
@@ -770,6 +775,7 @@
 1	a truncated hooks.json is cannot-examine
 1	a typed intent is not labelled a guess
 1	a valid receipt raises no commission blocker
+1	a value ending on an escaped backslash is read the same both ways
 1	a verdict for another tree does not clear it
 1	a verdict never clears a durable escape
 1	a verdict that granted nothing names nothing
@@ -2572,8 +2578,22 @@
 1	quiet on exclusion sample 4
 1	quiet on exclusion sample 5
 1	rather than reporting clean
+1	read by awk and by expansion alike: a line break in the value is kept, beside escaped quotes
+1	read by awk and by expansion alike: a payload holding a raw SOH byte, which JSON cannot, has no subject
+1	read by awk and by expansion alike: a value ending on an escaped quote
+1	read by awk and by expansion alike: a value opening on an escaped quote
+1	read by awk and by expansion alike: a value with no closing quote runs to the end
+1	read by awk and by expansion alike: an empty value is empty
+1	read by awk and by expansion alike: an escaped quote does not carry the value into the next field
+1	read by awk and by expansion alike: bytes that are not UTF-8, and CRs, are kept as they are
+1	read by awk and by expansion alike: escaped quotes are the value's own
+1	read by awk and by expansion alike: every other JSON escape is left as written
+1	read by awk and by expansion alike: space round the colon
+1	read by awk and by expansion alike: the first occurrence of the field wins
+1	read by awk and by expansion alike: three backslashes before a quote lose one
 1	read prints the recorded rows
 1	reading a key from env is not a credential
+1	reading a large payload's subject is linear: four times the payload costs under eight times the CPU
 1	reading can be refused too
 1	reading the entry writes nothing into the copy
 1	reads a plugin's own description

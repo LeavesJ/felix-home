@@ -9,13 +9,19 @@ system that does whatever implementation takes — choosing tooling, installing
 it, tracking what happened, correcting course — so the founder is left with
 "what should we build next" and "should we add this".
 
-Later, when the revenue, customer and company systems exist, Felix becomes one
-sub-OS reporting to a chief agent. Design its surfaces so something other than
-a human can drive them.
+Felix is a product for other people's projects, not only the founder's own.
+Decided 2026-09-22, this replaces "Phase 1 of the guidebook and nothing past
+it" as the statement of what Felix is for. It is built first, and best, on
+Claude Code, and is host-independent by design: what it decides must not
+depend on which agent did the work, and a second host comes once Claude Code
+is right. So judge a change by whether it survives a stranger adopting it —
+what it installs, where its ledger lives, whether its verdict holds on their
+repository — and not only by whether it works here.
 
-Phase 1 of the guidebook and nothing past it. Billing, customers, support and
-company administration are later phases owned by other systems; a Stripe row in
-a template is a dormant capability, not a direction Felix grows in.
+Felix still governs engineering and nothing past it. Billing, customers,
+support and administration of the projects it governs are not its work; a
+Stripe row in a template is a dormant capability, not a direction Felix grows
+in. Design its surfaces so something other than a human can drive them.
 
 ## The split
 

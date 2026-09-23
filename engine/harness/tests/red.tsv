@@ -4,80 +4,32 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	4f475c359c697b82a1d70ec110ad894084a6f281	0.49.149
-run	75	3025	10
-a # in a later cell, UTF-8 text, trailing spaces, a blank line and an optional column left off are accepted	1
-a CR is refused, and only exceptions.sh strips it from the last cell	1
-a NUL is refused, and grep reads the whole table as binary	1
-a checkout with tables and no schemas.tsv cannot look either, exit 2	1
-a code point past U+10FFFF is refused as not UTF-8, which the platform's iconv lets through	1
-a column marked optional is not a glob: a seven-cell stack row is refused beside files it would match	1
-a decline whose reason holds a tab, a newline and a CR is one row	1
-a file that ends in a NUL is refused for its last byte as well as for the NUL	1
-a file whose row says it lives in memory fails when it is in the tree	1
-a line of spaces is refused, and the raw case loops take it for a row	1
-a line that begins with a non-ASCII byte is refused, since whether it is a comment depends on the locale	1
-a missing final newline is refused, and the done-< loops drop that row	1
-a one-column table of one-cell rows is accepted	1
-a probes table with comments and no row is refused, since its row says emptiness is	1
-a row wider than the schema is refused	1
-a row with no tab is refused	1
-a schema row of five cells, and columns with a doubled space, are malformed on their own terms	1
-a schema row with a bad place, a bad emptiness, a path, a required column after an optional one, a bad name or a duplicate is malformed	1
-a schema row with a place that is neither tree nor memory fails	1
-a schemas.tsv it cannot read is cannot-examine, exit 2, not every table undeclared	1
-a tab-indented comment is refused, and the raw case loops take it for a row	1
-a table added today with no schema row fails, where a list of known tables saw nothing	1
-a table created and never added is checked too, and fails with no row	1
-a table emptied whose row refuses emptiness fails	1
-a table not named .tsv, declared by its basename, is read and here refused for a third cell	1
-a table that is a link fails	1
-a table that is a link is refused: the escape check compares the link's text and a reader reads its target	1
-a table under a directory named like an awk assignment is read, and refused	1
-a table whose last row lost its newline fails	1
-a tracked table missing from the working tree fails	1
-a tree row no table matches is not a failure: some tables are absent until written	1
-a tree whose every table is declared and accepted exits 0	1
-an absent file cannot be examined, exit 2	1
-an empty cell is refused, and an IFS read moves every later column	1
-an indented comment is refused, and the read-and-case loops take it for a row	1
-and a tab in one of its rows is a refused second cell	1
-and a table whose name git quotes is one no reader opens by that name	1
-and a table with no schema row cannot be examined either: undeclared is not clean	1
-and accepted once its rows fit	1
-and every one has a schema row and is accepted	1
-and felix's qualification table declares every control for the schema checker	1
-and from a nested subdirectory the verdict is unchanged	1
-and it is said	1
-and its row, added in the same tree, clears it	1
-and names the file	1
-and one that holds no table at all is emptiness, not an all clear	1
-and one under a directory named like an option keeps its final-newline check	1
-and says how many tables it read	1
-and says it is empty	1
-and says so	1
-and says so as emptiness	1
-and so is a zero-byte one	1
-and so is one whose rows may stop after one cell, while a true one-column table is not	1
-and with both gone the tree is clean again	1
-as the schema's own refusal	1
-bytes that are not UTF-8 are refused, since grep drops such a line in a UTF-8 locale	1
-every decisions.log row felix route --ack wrote in this suite is a row its schema accepts	1
-every lifecycle.log row the recorder wrote in this suite is a row its schema accepts	1
-felix's own gate runs schema-check, fails on anything but exit 0, and fails when it is gone	1
-felix's risk table counts the refusals in table.sh and schema-check, so removing one escapes	1
-lib/lifecycle.sh dates its exception to rows-first, taken 2026-09-21 and closed 2026-09-22, and says its row is in schemas.tsv	1
-lifecycle.log tracked under a project fails too	1
-naming it	1
-naming the row	1
-naming the table and the missing row	1
-of four cells, as its schema row says	1
-outside a git repository it cannot look, exit 2	1
-restored, it exits 0 again	1
-the engine's schemas.tsv is one of the tables whose shrinkage escapes	1
-the lifecycle.log schema row names the nine columns lib/lifecycle.sh documents, in order	1
-which the validator accepts	1
-while a basename entry still matches in any directory	1
-while one the tree ignores is not the tree's	1
-while the exception table's seeded, rowless state is accepted	1
-with the count moved by one	1
+base	origin/main	5110ca6410ebedd23fede49c12399c48f429ff8e	0.49.150
+run	27	3107	5
+a branch the gate has not run on has no latest run	1
+a count or a latest run asked for no workflow is refused, not every workflow's	1
+a failure in another workflow on the branch does not dirty a green pull request	1
+a gate_workflow that is not a file name is refused, and named	1
+a project that names its gate workflow is repaired from that workflow's run	1
+a reached repair ceiling is escalated to a person	1
+a repository without the gate workflow makes no pull request clean	1
+a run felix repair could not read fails the job rather than passing quietly	1
+and a history read for no workflow is unknown	1
+and bootstrap looks for the workflow the project names	1
+and counts only the gate's failures against the ceiling	1
+and every run list felix automerge makes names the gate workflow	1
+and every run list felix repair makes names the gate workflow	1
+and every run list names that workflow	1
+and felix unattended's streak row counts the gate's runs alone	1
+and hands on no failing output as if attempts remained	1
+and its repair ceiling does not read as unspent	1
+and none of them asks gh for every workflow's runs	1
+and nothing is asked of gh	1
+and repair hears the gate's runs could not be read, not that there are none	1
+and the run repair is handed is the gate's, not the newest of any workflow	1
+another workflow's failures on the branch are not repair attempts	1
+every run list those three make names the gate workflow	1
+felix automerge judges a green pull request by the gate's runs alone	1
+felix repair reads the gate's run on the branch	1
+felix repair stops at the ceiling when its attempts cannot be counted	1
+the unattended repair proceeds on a brief, and on no other exit of felix repair	1

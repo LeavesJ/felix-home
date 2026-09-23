@@ -14008,23 +14008,39 @@ if [ "$_l1" = killed ]; then _lv="264K was not read in thirty seconds"; else
 fi
 is "reading a large payload's subject is linear: four times the payload costs under eight times the CPU" "$_lv" "linear"
 
-# The reason for all of it, as a deadline: 220K and 40,000 escaped quotes,
-# through the hook, refused well inside Claude Code's 60 s. Under a watchdog
-# that ends the hook and everything under it at twenty seconds, since the
-# expansion on this payload runs for days and a red run is exactly where it
-# would.
-printf 'Bash\tgit add (-A|--all|\\.)$\tstage explicit paths\n' > "$FROOT/projects/widget/deny.tsv"
+# The reason for all of it, as deadlines through the hook, refused well
+# inside Claude Code's 60 s. Each under a watchdog that ends the hook and
+# everything under it at twenty seconds, since the expansion on these
+# payloads runs for minutes or days, and a red run is exactly where it would.
+#
+# A refused Bash command is read a second time, by felix_deny_code, at about
+# 12 us a character (2.3 s of CPU for 200K, measured 2026-09-23), and a
+# deadline on a large one would be measuring that. So the Bash command is
+# 44K, where the expansion took 102 s of CPU, and the large payload is a
+# Write: the expansion read everything after the key, a Write's content
+# included.
+_hook_within() {  # _hook_within <payload file>: finished:<exit> or killed:<exit>
+  local pid i=0 end
+  ( cd "$REPO" && exec "$FROOT/harness/hooks/pre-tool" < "$1" 2>/dev/null ) &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 200 ]; do sleep 0.1; i=$((i + 1)); done
+  if kill -0 "$pid" 2>/dev/null; then _killtree "$pid"; end=killed; else end=finished; fi
+  wait "$pid" 2>/dev/null
+  printf '%s:%s' "$end" "$?"
+}
+{ printf 'Bash\tgit add (-A|--all|\\.)$\tstage explicit paths\n'
+  printf 'Write\t\\.lock$\ta lockfile is written by its tool\n'; } > "$FROOT/projects/widget/deny.tsv"
 _big="$TMP/deny-big.json"
 { printf '{"session_id":"deny-big","tool_name":"Bash","tool_input":{"command":"'
-  awk 'BEGIN { for (i = 0; i < 10000; i++) printf "printf \\\"%%s\\\" \\\"a\\\" ; " }'
+  awk 'BEGIN { for (i = 0; i < 2000; i++) printf "printf \\\"%%s\\\" \\\"a\\\" ; " }'
   printf 'git add -A","description":"d"},"tool_use_id":"t"}'; } > "$_big"
-( cd "$REPO" && exec "$FROOT/harness/hooks/pre-tool" < "$_big" 2>/dev/null ) &
-_dpid=$!; _di=0
-while kill -0 "$_dpid" 2>/dev/null && [ "$_di" -lt 200 ]; do sleep 0.1; _di=$((_di + 1)); done
-if kill -0 "$_dpid" 2>/dev/null; then _killtree "$_dpid"; _dend=killed; else _dend=finished; fi
-wait "$_dpid" 2>/dev/null; _drc=$?
-is "a 220K command with 40,000 escaped quotes is refused through the hook inside twenty seconds" \
-   "$_dend:$_drc" "finished:2"
+is "a 44K command with 8,000 escaped quotes is refused through the hook inside twenty seconds" \
+   "$(_hook_within "$_big")" "finished:2"
+{ printf '{"session_id":"deny-big","tool_name":"Write","tool_input":{"file_path":"/w/uv.lock","content":"'
+  awk 'BEGIN { for (i = 0; i < 10000; i++) printf (i % 20 ? "printf %%s aaaaaaa ; " : "printf \\\"%%s\\\" \\\"a\\\" ; ") }'
+  printf '"},"tool_use_id":"t"}'; } > "$_big"
+is "a 200K Write holding 2,000 escaped quotes is refused on its path through the hook inside twenty seconds" \
+   "$(_hook_within "$_big")" "finished:2"
 rm -f "$FROOT/projects/widget/deny.tsv" "$_big"
 
 printf '\nwhere memory lives\n'

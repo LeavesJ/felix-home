@@ -1,4 +1,5 @@
-# Where a command acts: the reader half of lib/where.sh.
+# Where a command acts: the reader half of lib/where.sh, an awk program kept
+# in a shell string so the engine stays bash, and so the gate reads it as bash.
 #
 # Reads one Bash command, exactly as a PreToolUse payload carries it (a JSON
 # string, escapes and all), the way a shell would: word by word, command by
@@ -9,8 +10,8 @@
 # some path through the line.
 #
 # Input variables: CWD0 the directory the command starts in; HOMEV and TMPV
-# the hook's $HOME and $TMPDIR; CDP set when $CDPATH is; GITENV set when the
-# hook's environment carries GIT_DIR or GIT_WORK_TREE.
+# the $HOME and $TMPDIR the hook sees; CDP set when $CDPATH is; GITENV set
+# when the environment of the hook carries GIT_DIR or GIT_WORK_TREE.
 #
 # Output, one line each, tab-separated:
 #   C kind why text places spans   a simple command. kind p: judge its places
@@ -27,7 +28,7 @@
 # then any guards each led by \035; a guard is directories joined by \037, and
 # the alternative is impossible when every one of them exists. \032 in a path
 # means a part the reader cannot know. spans are the raw byte ranges of the
-# command's own text in the payload string, "a,b" 0-based inclusive, or "-".
+# own text of the command in the payload string, "a,b" 0-based inclusive, or "-".
 #
 # Everything the reader does not follow ends as \032 or as an H line, and the
 # judge reads both as "cannot be told", which keeps the row. So a gap here can
@@ -35,6 +36,8 @@
 # "" is one character per element in all three, and the judge runs this with
 # LC_ALL=C so that is one byte.
 
+# shellcheck disable=SC2016
+_FELIX_WHERE_READ='
 BEGIN {
   RS = "\001"; SQ = "\047"; BQ = "`"
   ALT = "\036"; GRD = "\035"; ALL = "\037"; UNK = "\032"; FRESH = ".felix-where-fresh"
@@ -216,7 +219,7 @@ function skip_ws() {
   }
 }
 # The next token, not consumed: an operator, "REDIR", "WORD" for a word with
-# quoting in it, or a plain word's own text (which is how reserved words are
+# quoting in it, or the text of a plain word (which is how reserved words are
 # recognised, only where a command starts).
 function peek(   c, d, e, k, w) {
   skip_ws()
@@ -230,7 +233,7 @@ function peek(   c, d, e, k, w) {
   if (c == "<" || c == ">") return (d == "(") ? "WORD" : "REDIR"
   if (c ~ /[0-9]/) { k = I; while (k <= LIM && C[k] ~ /[0-9]/) k++; if (C[k] == "<" || C[k] == ">") return "REDIR" }
   w = ""; k = I
-  while (k <= LIM && C[k] !~ /[ \t\n\r;&|()<>]/) { if (C[k] ~ /["'\\$`]/) return "WORD"; w = w C[k]; k++ }
+  while (k <= LIM && C[k] !~ /[ \t\n\r;&|()<>]/) { if (index("\"\047\\$`", C[k])) return "WORD"; w = w C[k]; k++ }
   return w
 }
 function skip_nl(   t) { while ((t = peek()) == "\n") eat_newline() }
@@ -406,7 +409,7 @@ function expand(ws, we, st,   i, c, lit, set, txt, dq, e, n, t, sp0) {
   if (we >= sp0) XSP = XSP " " sp0 "," we
   XSET = set; XTXT = txt
 }
-function ansi(c) { if (c == "n") return "\n"; if (c == "t") return "\t"; if (c ~ /[\\'"]/) return c; return UNK }
+function ansi(c) { if (c == "n") return "\n"; if (c == "t") return "\t"; if (c == "\\" || c == SQ || c == "\"") return c; return UNK }
 function param(t, st,   n, v) {
   if (t ~ /^([A-Za-z_][A-Za-z0-9_]*|[0-9])$/) return getvar(st, t)
   if (t ~ /^[A-Za-z_][A-Za-z0-9_]*:?-/) {
@@ -737,8 +740,8 @@ function read_redir(st, owner,   fd, c, raw, d, q, k, os, op) {
       I++
     }
     R_E = I - 1; raw = substr(S, R_S, R_E - R_S + 1); d = raw
-    gsub(/["'\\]/, "", d)
-    NPH++; PH_DELIM[NPH] = d; PH_STRIP[NPH] = (op == "<<-"); PH_Q[NPH] = (raw ~ /["'\\]/)
+    gsub("[\"\047\\\\]", "", d)
+    NPH++; PH_DELIM[NPH] = d; PH_STRIP[NPH] = (op == "<<-"); PH_Q[NPH] = (raw ~ "[\"\047\\\\]")
     PH_OWNER[NPH] = owner; PH_RID[NPH] = RID; PH_KIND[NPH] = "data"; PH_ST[NPH] = st; PH_XST[NPH] = st; PH_DONE[NPH] = 0; PH_BS[NPH] = 0
     R_PH = NPH
     return
@@ -886,7 +889,7 @@ function run_simple(st,   nofn, rdpl, TY, WS, WE, ROS, RO, RFD, RPH, isexec, n, 
     if (ci > nw) { emit("p", "", txt, rdpl, sp, st); RS_S = cst; RS_F = cst; claim_heredocs(ph0, me, "data", cst, cst, rdpl); return }
   }
   s = cst; f = cst; kind = "p"; why = ""
-  # Under zsh's AUTO_CD a directory named as the command is entered. A path
+  # Under the AUTO_CD option of zsh a directory named as the command is entered. A path
   # in command position is written out, and the judge refuses one that is a
   # directory now.
   if (EMIT && WT[ci] ~ /\//) { n = split(joinset(wd, WV[ci]), T, ALTRE); for (k = 2; k <= n; k++) if (!index(T[k], UNK)) printf "X\t%s\n", apath(T[k]) }
@@ -1084,7 +1087,7 @@ function stdout_of(base, cst, WV, ci, nw,   w, j, v, n, A, k, p) {
   if (base == "git") return ALT UNK
   return ALT UNK
 }
-# mktemp makes a new name nobody has used: in -p's directory, in $TMPDIR
+# mktemp makes a new name nobody has used: in the directory given to -p, in $TMPDIR
 # for -t or no template, or beside its template.
 function mktemp_of(cst, WV, ci, nw,   j, w, dir, tpl, tmp, t, d) {
   dir = ""; tpl = ""; t = 0; d = 0
@@ -1200,9 +1203,10 @@ function do_shell(cst, WV, WX, WS, WE, ci, nw, ENVN, ENVV, ne, n, RO, me, ph0, r
   }
   sh_set("u", "a shell runs a script file", pl, "", ""); NOGUARD = 1
 }
-# A new shell's positional parameters: the words after its script.
+# The positional parameters of a new shell: the words after its script.
 function args(child, WV, from, nw,   k) {
   for (k = 1; k <= 9; k++) V[child, k ""] = (from + k - 1 <= nw) ? WV[from + k - 1] : ALT ""
   for (k = 1; k <= 9; k++) if (!((k "") in KNOWN)) { KNOWN[k ""] = 1; NAME[++NN] = k "" }
 }
 function sh_set(k, w, p, t, s) { SH_KIND = k; SH_WHY = w; SH_PL = p; SH_TXT = t; SH_SP = s; SH_STDIN = 0 }
+'

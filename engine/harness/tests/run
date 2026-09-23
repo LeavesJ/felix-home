@@ -13698,7 +13698,7 @@ printf '\ndenial scoped to the checkout\n'
 # `git init` a remote, moving a scratch clone's refs, staging a fixture. A row
 # may now say `checkout` in a fourth column, and lib/where.sh decides where a
 # matched command acts. The first block of cases below was written from the
-# contract alone, by an author who never saw lib/where.awk or lib/where.sh.
+# contract alone, by an author who never saw lib/where-read.sh or lib/where.sh.
 SC="$TMP/scoped"; GOV="$SC/gov"; GWT="$SC/gov-wt"; SCR="$SC/scr"; SC_ERR="$TMP/.scoped-err"
 mkdir -p "$GOV" "$SCR/plain"
 ( cd "$GOV" && git init -q -b main && printf 'widget\n' > .felix && printf 'readme\n' > README \
@@ -13915,7 +13915,7 @@ is "and with it, the same call lifts" \
    "$( cd "$GOV" && . "$FROOT/harness/lib/deny.sh" && felix_deny_match "$FROOT/projects/widget" Bash "cd $SCR/plain && git add -A" "$SCR/plain" >/dev/null && echo refused || echo lifted )" \
    "lifted"
 is "a reader that cannot run lifts nothing" \
-   "$( cd "$GOV" && . "$FROOT/harness/lib/where.sh" && _FELIX_WHERE_AWKFILE=/nonexistent/where.awk \
+   "$( cd "$GOV" && . "$FROOT/harness/lib/where.sh" && _FELIX_WHERE_READ='this is not awk {' \
        && felix_where_lifts 'git add' "cd $SCR/plain && git add -A" "$SCR/plain" "$GOV" && echo lifted || echo stood )" \
    "stood"
 is "the judge alone: a scratch path is throwaway" \
@@ -13940,7 +13940,7 @@ cat > "$SC/ends.awk" <<'EOF'
 BEGIN { printf "C\tp\t\tgit add -A\t\036%s\t0,9\nE\n", CWD0; exit 0 }
 EOF
 for _sa in stops ends; do
-  _sv="$( cd "$GOV" && . "$FROOT/harness/lib/where.sh" && _FELIX_WHERE_AWKFILE="$SC/$_sa.awk" \
+  _sv="$( cd "$GOV" && . "$FROOT/harness/lib/where.sh" && _FELIX_WHERE_READ="$(cat "$SC/$_sa.awk")" \
           && felix_where_lifts 'git add' 'git add -A' "$SCR/plain" "$GOV" && echo lifted || echo stood )"
   case "$_sa" in
     stops) is "a reader that stops before its end lifts nothing" "$_sv" "stood" ;;

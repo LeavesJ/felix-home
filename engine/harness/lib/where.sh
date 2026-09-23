@@ -12,7 +12,7 @@
 #
 # So a row may say, in a fourth column, that it applies only to the governed
 # checkout (see lib/deny.sh), and this decides whether a matched command acts
-# anywhere else. lib/where.awk reads the command as a shell would and writes
+# anywhere else. lib/where-read.sh reads the command as a shell would and writes
 # every place each simple command can act on; this half judges those places
 # against the disk. A row lifts only when every simple command it matches acts
 # only on throwaway places, and once their own text is blanked the row
@@ -38,7 +38,7 @@
 # here-document, run by a name the line never spells; a gitdir: file planted
 # to point a scratch path into the checkout. The floor is a floor.
 
-_FELIX_WHERE_AWKFILE="${BASH_SOURCE[0]%/*}/where.awk"
+. "${BASH_SOURCE[0]%/*}/where-read.sh" 2>/dev/null || _FELIX_WHERE_READ=""
 
 # Whether a lifted row still stood, and why, for the refusal message.
 _FELIX_WHERE_WHY=""
@@ -236,12 +236,12 @@ felix_where_lifts() {
   local pattern="$1" subj="$2" start="$3" gdir="$4" LC_ALL=C
   local out line rest kind why text places sp matched=0 noguard=0 lifted="" rem
   _FELIX_WHERE_WHY="the command could not be read"
-  [ "${#subj}" -le 262144 ] || return 1
+  [ "${#subj}" -le 262144 ] && [ -n "${_FELIX_WHERE_READ:-}" ] || return 1
   _felix_where_ident "$gdir" || { _FELIX_WHERE_WHY="the governed checkout could not be found"; return 1; }
   start="$(cd -P "$start" 2>/dev/null && pwd -P)" || start="$_FW_GTOP"
   out="$(printf '%s' "$subj" | LC_ALL=C awk -v CWD0="$start" -v HOMEV="$HOME" -v TMPV="${TMPDIR:-}" \
         -v CDP="${CDPATH:+1}" -v GITENV="${GIT_DIR:+1}${GIT_WORK_TREE:+1}" \
-        -f "$_FELIX_WHERE_AWKFILE" 2>/dev/null)" || return 1
+        "$_FELIX_WHERE_READ" 2>/dev/null)" || return 1
   case "$out" in E|*$'\n'E) ;; *) return 1 ;; esac
   while IFS= read -r line; do
     case "$line" in

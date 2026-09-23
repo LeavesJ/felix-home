@@ -34,17 +34,25 @@
 # and skipped. Skipping can only ever allow more than the author intended,
 # which is the same direction every other failure here already takes.
 #
-# deny.tsv rows: tool <TAB> extended-regex <TAB> reason
+# deny.tsv rows: tool <TAB> extended-regex <TAB> reason [<TAB> scope]
+#
+# scope is empty, or `checkout`. Empty is every row written before the column
+# existed and means what it always meant: refuse whatever the regex matches.
+# `checkout` means the row protects the governed checkout and nothing else, so
+# a match is refused unless everything the matched command acts on is
+# throwaway — a fixture under the session scratchpad or $TMPDIR — which
+# lib/where.sh decides. Any other value is read as empty: a scope spelled
+# wrong keeps refusing, which is the direction a typo should fail in.
 
 _felix_deny_rows() {
-  local proj="$1" tool pattern reason
+  local proj="$1" tool pattern reason scope
   [ -f "$proj/deny.tsv" ] || return 0
-  while IFS=$'\t' read -r tool pattern reason; do
+  while IFS=$'\t' read -r tool pattern reason scope; do
     case "$tool" in ''|'#'*) continue ;; esac
     # A row with no pattern is skipped rather than fatal, the same way a
     # malformed routes.tsv row is: one bad line must not stop a table enforcing.
     [ -n "${pattern:-}" ] || continue
-    printf '%s\t%s\t%s\n' "$tool" "$pattern" "${reason:-refused by this project}"
+    printf '%s\t%s\t%s\t%s\n' "$tool" "$pattern" "${reason:-refused by this project}" "${scope:-}"
   done < "$proj/deny.tsv"
 }
 
@@ -125,8 +133,8 @@ EOF
 # harness that repeats a static complaint on every call is noise. felix doctor
 # is where somebody goes to be told what is wrong with their tables.
 felix_deny_overbroad_rows() {
-  local proj="$1" tool pattern reason
-  while IFS=$'\t' read -r tool pattern reason; do
+  local proj="$1" tool pattern reason scope
+  while IFS=$'\t' read -r tool pattern reason scope; do
     [ -n "${pattern:-}" ] || continue
     felix_deny_overbroad "$pattern" && printf '%s\t%s\t%s\n' "$tool" "$pattern" "$reason"
   done <<EOF
@@ -135,23 +143,50 @@ EOF
 }
 
 # Prints the reason when a command matches a row for this tool, and returns 0.
-# Silent and returns 1 otherwise.
+# Silent and returns 1 otherwise. START is the directory the command starts
+# in, the payload's cwd; it matters only to a row scoped to the checkout, and
+# the governed checkout is the one this process stands in.
 felix_deny_match() {
-  local proj="$1" want="$2" cmd="$3" tool pattern reason
+  local proj="$1" want="$2" cmd="$3" start="${4:-$PWD}" tool pattern reason scope
   [ -n "$cmd" ] || return 1
-  while IFS=$'\t' read -r tool pattern reason; do
+  while IFS=$'\t' read -r tool pattern reason scope; do
     [ "${tool:-}" = "$want" ] || continue
     felix_deny_overbroad "$pattern" && continue
     # Bash's own ERE rather than `printf | grep`. The old form needed a comment
     # explaining why it could not use `grep -q` — a consumer exiting on first
     # match kills the producer with SIGPIPE and pipefail reports 141, read as
     # "no match" every time. No pipe, no hazard, and no process per rule.
-    if [[ "$cmd" =~ $pattern ]]; then
-      printf '%s' "$reason"
-      return 0
+    [[ "$cmd" =~ $pattern ]] || continue
+    # A row scoped to the checkout is passed over, not answered, when the
+    # command acts only on throwaway places: a later row may still refuse it.
+    # Everything this costs is spent on a command a row already matched.
+    if [ "${scope:-}" = checkout ]; then
+      _felix_deny_scoped_lifts "$want" "$pattern" "$cmd" "$start" && continue
+      reason="$reason
+It stood although this row covers only the governed checkout: ${_FELIX_WHERE_WHY:-where the command acts cannot be told}."
     fi
+    printf '%s' "$reason"
+    return 0
   done <<EOF
 $(_felix_deny_rows "$proj")
 EOF
   return 1
+}
+
+# Whether a row scoped to the checkout passes this call over. Bash is read for
+# where it acts; a tool naming one path acts on that path; a URL acts on no
+# place the checkout owns, so nothing is known and the row stands. Without
+# lib/where.sh loaded nothing is known either.
+_felix_deny_scoped_lifts() {
+  local want="$1" pattern="$2" subj="$3" start="$4"
+  _FELIX_WHERE_WHY=""
+  case "$want" in
+    Bash)
+      command -v felix_where_lifts >/dev/null 2>&1 || return 1
+      felix_where_lifts "$pattern" "$subj" "$start" "$PWD" ;;
+    WebFetch) return 1 ;;
+    *)
+      command -v felix_where_path_lifts >/dev/null 2>&1 || return 1
+      felix_where_path_lifts "$subj" "$start" "$PWD" ;;
+  esac
 }

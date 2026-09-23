@@ -46,7 +46,6 @@
 1	a RELEASE_BLOCKING candidate is refused because it may not block
 1	a VAR=$( ) or a backquoted value before a runner is an assignment, so the runner is a check; assigning a path built from one is not
 1	a VAR=value ends at ; or a line break, and assigning a gate's path is not running it: a copy or a quote after one is no check
-1	a alternate row given the verdict it may not have is malformed
 1	a backfilled row carries DECLARED
 1	a backslash at the end of a comment does not join the next line to it: the runner there is a check, and a --silent after a commented-out flag takes npm test's status
 1	a bare branch name prefers the remote-tracking ref
@@ -176,8 +175,6 @@
 1	a decline whose premise died is caught
 1	a decline whose premise still holds is ok
 1	a declined play is not raised at the finish
-1	a decoupled_satisfaction row given the verdict it may not have is malformed
-1	a decoupled_violation row given the verdict it may not have is malformed
 1	a default file linked out of the copy is high, not read where it points
 1	a deferral with no kind or no subject writes no row
 1	a denied command exits 2
@@ -309,7 +306,6 @@
 1	a hostile prompt is neutralised, not dropped
 1	a hyphen in the name is not a name
 1	a hyphenated server name still credits the plugin that ships it
-1	a irrelevant row given the verdict it may not have is malformed
 1	a judge identical to the candidate merges nothing
 1	a judge that differs from main's engine by one comment is not the engine main accepted
 1	a key id beside that word is still caught
@@ -563,7 +559,6 @@
 1	a repository that is not the memory's own is named foreign
 1	a resolve.sh committed on the branch being gated does not change the verdict
 1	a resolve.sh stubbed in the cache entry is drift, not the judge
-1	a restoration row given the verdict it may not have is malformed
 1	a resume appends one lifecycle row of kind resume, and the hook prints nothing at all and exits 0
 1	a resume on a broken binding stays as silent as before it was bound
 1	a resume where the marker cannot be read prints nothing on either stream, records nothing and exits 0
@@ -581,6 +576,12 @@
 1	a row at both ceilings is accepted
 1	a row carrying a premise is not reported malformed
 1	a row carrying a risk column is refused, because risk is not the model's to assign
+1	a row for alternate given the verdict it may not have is malformed
+1	a row for decoupled_satisfaction given the verdict it may not have is malformed
+1	a row for decoupled_violation given the verdict it may not have is malformed
+1	a row for irrelevant given the verdict it may not have is malformed
+1	a row for restoration given the verdict it may not have is malformed
+1	a row for violation given the verdict it may not have is malformed
 1	a row from before the column proposes nothing
 1	a row grounded on a probe the project does not declare is an orphan
 1	a row inspection judged capability-less is not
@@ -725,7 +726,6 @@
 1	a version main declares with no cache entry is exit 1, not 2
 1	a violation row expecting pass over a no-op mutation is never run, so never met
 1	a violation row expecting pass refuses --gate rather than counting as met
-1	a violation row given the verdict it may not have is malformed
 1	a wall of tree tokens cannot outvote the prompt
 1	a web surface counts without package.json
 1	a well-formed answer is answered

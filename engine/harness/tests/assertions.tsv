@@ -1049,6 +1049,7 @@
 1	and --fix does not exit 0 when every repair failed
 1	and --gate does not raise it
 1	and --gate names the row and the verdict its control demands
+1	and 4 where the .felix marker names a project that does not exist
 1	and FELIX_KERNEL is refused before the cache is even consulted
 1	and SessionEnd folds nothing of it into ledger.d
 1	and Stop neither holds that session nor tells it anything
@@ -1423,6 +1424,7 @@
 1	and names origin's version as the one nothing is installed at
 1	and names the answer file to write
 1	and names the base it could not resolve
+1	and names the broken binding rather than asking for a marker
 1	and names the capability
 1	and names the channel
 1	and names the command that writes it
@@ -1888,6 +1890,7 @@
 1	and the merge is left exactly where the person left it
 1	and the merge names the entry main declares, not the harness inside it
 1	and the message does not accuse the subagent
+1	and the misbound job says the binding failed, not the ceiling
 1	and the missing function is named
 1	and the monitor reports its capability unglued from the grounding
 1	and the monitor still renders the sentence, not the JSON around it
@@ -1991,6 +1994,7 @@
 1	and the topology comes back when the member goes away
 1	and the topology it is keyed to
 1	and the two suites were running at the same moment
+1	and the unbound job says the binding failed, not the ceiling
 1	and the unmount above is the only other proposal
 1	and the unverified tree blocker names no commission run
 1	and the unwritten remainder is named as unwritten
@@ -2722,6 +2726,7 @@
 2	removing one escapes as verifier
 1	renaming an enforcing table away fires the verifier on the table it removed
 1	renders a page
+1	repair exits 4 in a checkout no project governs, not the ceiling's 2
 1	repair refuses outside a governed GitHub repo
 1	repointing a symlink at a different target changes the digest
 1	reporting a rival gate still exits 0
@@ -3079,6 +3084,8 @@
 1	the tree holds only the marker beside what was there
 1	the tree id is still the one the receipt names
 1	the tree's run executed against main's lib, never the base's own run
+1	the unattended job on the misbound checkout fails and labels no pull request
+1	the unattended job on the unbound checkout fails and labels no pull request
 1	the unattended repair proceeds on a brief, and on no other exit of felix repair
 1	the unmeasurable list takes the hook-only zero
 1	the unverified tree blocker is work Felix owes

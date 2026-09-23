@@ -10377,6 +10377,11 @@ if [ -x "$REAL_HARNESS/bin/memory-scan" ]; then
   out="$(_ms "$MS5")"
   is  "routes.log tracked under a project fails: it holds the prompts verbatim" "$(_msrc "$out")" "1"
   has "naming it" "$out" "memory tracked by name: projects/alpha/routes.log"
+  # The lifecycle recorder (#281) writes lifecycle.log to the memory root, and
+  # the name list did not learn it: the list drifting from what the engine
+  # writes, the defect the paragraph above records, once more.
+  printf '2026-09-22T00:00:00Z\tstartup\ts1\t0.1\t0.1\t-\t-\t-\t-\n' > "$MS5/projects/alpha/lifecycle.log"; _msc "$MS5"
+  has "lifecycle.log tracked under a project fails too" "$(_ms "$MS5")" "memory tracked by name: projects/alpha/lifecycle.log"
   MS6="$TMP/memory-scan-6"; cp -R "$MSS" "$MS6"
   mkdir -p "$MS6/projects/alpha/ledger.d"; printf 'x\n' > "$MS6/projects/alpha/ledger.d/s1.tsv"; _msc "$MS6"
   has "a ledger shard under a memory directory fails" "$(_ms "$MS6")" "memory tracked in a memory directory: projects/alpha/ledger.d/s1.tsv"
@@ -10410,6 +10415,7 @@ else
            "an ignore rule that swallows a TRACKED maintenance.log fails" "naming the doctrine" \
            "and the second project, whose log is tracked too" "and putting the rule back clears it" \
            "routes.log tracked under a project fails: it holds the prompts verbatim" "naming it" \
+           "lifecycle.log tracked under a project fails too" \
            "a ledger shard under a memory directory fails" \
            "and a rotated ledger is the same record with a date on it" \
            "a checkout with nothing tracked under projects/ cannot search" "rather than reporting clean" \
@@ -15681,6 +15687,426 @@ else
     skip "$a" "no bin/executable-check beside this harness"; done
 fi
 
+# --------------------------------------------- the table validator, rows first ---
+# docs/2026-09-19-direction-decisions.md §1: a validator before a reader, one
+# schema row per table, and a gate check that fails on a table nobody declared.
+# The claim the whole layer rests on is narrow and checkable: on a table
+# lib/table.sh accepts, every reader family already in the engine reads the
+# same rows, and the shapes it refuses are ones on which two of them read
+# different ones. Both halves are asserted, the second against each refusal:
+# a refusal no two readers need is a rule somebody made up.
+printf '\ntable: one row, and the shapes two readers disagree about\n'
+TBL="$REAL_HARNESS/lib/table.sh"
+TBS="$REAL_HARNESS/templates/schemas.tsv"
+TBM="$TMP/table-mut"; mkdir -p "$TBM"
+# One table.sh function, in a subshell, so nothing it defines leaks into the
+# rest of the suite; and its exit status alone.
+_tb()   { ( . "$TBL" 2>/dev/null; "$@" ); }
+_tbrc() { ( . "$TBL" 2>/dev/null; "$@" >/dev/null 2>&1; echo $? ); }
+# The reader families, each spelled as the engine spells it and, like the
+# engine, pinning no locale: the caller's LC_ALL decides, and the kill test
+# runs them under two. _tf_cells prints the cells an IFS read assigns,
+# rejoined, so a collapsed empty cell shows as a changed row; _tf_cr is
+# exceptions.sh's scan, the one reader that strips a CR.
+_tf_grep()  { grep -vE '^[[:space:]]*(#|$)' "$1"; }
+_tf_awk()   { awk '!/^[[:space:]]*(#|$)/' "$1"; }
+_tf_case()  { while IFS=$'\t' read -r _tl; do case "$_tl" in ''|'#'*) continue ;; esac
+                printf '%s\n' "$_tl"; done < "$1"; }
+_tf_cells() { while IFS=$'\t' read -r _c1 _c2 _c3 _c4 _c5 _c6 _c7 _c8 _c9 _cx; do
+                case "$_c1" in ''|'#'*) continue ;; esac
+                _to="$_c1"; for _c in "$_c2" "$_c3" "$_c4" "$_c5" "$_c6" "$_c7" "$_c8" "$_c9" "$_cx"; do
+                  [ -n "$_c" ] && _to="$_to	$_c"; done
+                printf '%s\n' "$_to"; done < "$1"; }
+_tf_raw()   { while IFS= read -r _tl || [ -n "$_tl" ]; do case "$_tl" in ''|'#'*) continue ;; esac
+                printf '%s\n' "$_tl"; done < "$1"; }
+_tf_first() { awk -F'\t' '$1 !~ /^[[:space:]]*#/ && $1 != ""' "$1"; }
+_tf_cr()    { awk '/^[[:space:]]*(#|$)/ { next } { sub(/\r$/, ""); print }' "$1"; }
+TBFAMS="_tf_awk _tf_case _tf_cells _tf_raw _tf_first _tf_cr"
+# Which families read <file> differently from the grep filter, under the
+# locale in $2 (C when absent), by name.
+_tfsplit() { local _f _s="" _lc="${2:-C}"
+  LC_ALL="$_lc" _tf_grep "$1" > "$TBM/want" 2>&1
+  for _f in $TBFAMS; do LC_ALL="$_lc" "$_f" "$1" > "$TBM/got" 2>&1; cmp -s "$TBM/want" "$TBM/got" || _s="$_s $_f"; done
+  printf '%s' "$_s"; }
+# A UTF-8 locale this machine has, for the half of the kill test where the
+# readers run as a founder's shell runs them. None is a skip, said as one.
+TBU8="$(locale -a 2>/dev/null | grep -iE '^(C|en_US)\.utf-?8$' | head -1)"
+
+# The kill test, over every table in this repository: every *.tsv, and every
+# file a schema row declares under another name.
+TBROOT="$(git -C "$REAL_HARNESS" rev-parse --show-toplevel 2>/dev/null)"
+if [ -n "$TBROOT" ] && [ -f "$TBROOT/engine/harness/templates/schemas.tsv" ]; then
+  _tbnames="$(_tb felix_table_rows "$TBROOT/engine/harness/templates/schemas.tsv" | cut -f1)"
+  _tbdiff=""; _tbfam=""; _tbfam8=""; _tbn=0
+  while IFS= read -r _tbf; do
+    [ -f "$TBROOT/$_tbf" ] || continue
+    case "$_tbf" in
+      *.tsv) ;;
+      *) printf '%s\n' "$_tbnames" | grep -qxF "${_tbf##*/}" || continue ;;
+    esac
+    _tbn=$((_tbn+1))
+    _tb felix_table_rows "$TBROOT/$_tbf" > "$TBM/rows" 2>&1
+    LC_ALL=C _tf_grep "$TBROOT/$_tbf" > "$TBM/grep" 2>&1
+    cmp -s "$TBM/rows" "$TBM/grep" || _tbdiff="$_tbdiff $_tbf"
+    _tbs="$(_tfsplit "$TBROOT/$_tbf" C)"; [ -z "$_tbs" ] || _tbfam="$_tbfam $_tbf:$_tbs"
+    if [ -n "$TBU8" ]; then
+      _tbs="$(_tfsplit "$TBROOT/$_tbf" "$TBU8")"; [ -z "$_tbs" ] || _tbfam8="$_tbfam8 $_tbf:$_tbs"
+    fi
+  done <<EOF
+$(git -C "$TBROOT" ls-files)
+EOF
+  [ "$_tbn" -gt 20 ] && ok "the kill test reads every table in the tree" \
+                     || bad "the kill test reads every table in the tree" "only $_tbn found under $TBROOT"
+  is  "over every table, felix_table_rows is byte-identical to the grep filter 42 readers use" "$_tbdiff" ""
+  is  "and on every table, every other reader family reads those same rows" "$_tbfam" ""
+  if [ -n "$TBU8" ]; then
+    is "and they still do in a UTF-8 locale, as a founder's shell runs them" "$_tbfam8" ""
+  else
+    skip "and they still do in a UTF-8 locale, as a founder's shell runs them" "no UTF-8 locale on this machine"
+  fi
+else
+  for a in "the kill test reads every table in the tree" \
+           "over every table, felix_table_rows is byte-identical to the grep filter 42 readers use" \
+           "and on every table, every other reader family reads those same rows" \
+           "and they still do in a UTF-8 locale, as a founder's shell runs them"; do
+    skip "$a" "no git checkout with a schemas.tsv above this harness"; done
+fi
+
+# Each refusal, on a copy of a table the engine ships. risk.tsv declares four
+# to six columns, so it can carry every shape at once. For each: refused, and
+# refused for that reason; and where the refusal is about which rows are read,
+# some family reads the copy apart from the grep filter.
+_tbmut() {  # <text to append, printf format>
+  cp "$REAL_HARNESS/templates/risk.tsv" "$TBM/risk.tsv"; printf "$1" >> "$TBM/risk.tsv"; }
+_tbrefuse() {  # <label> <reason> [split]
+  local _o _r _s
+  _o="$(_tb felix_table_check "$TBS" "$TBM/risk.tsv")"; _r=$?
+  _s="$(_tfsplit "$TBM/risk.tsv" C)"
+  if [ "$_r" = "1" ] && printf '%s' "$_o" | cut -f2 | grep -qx "$2" \
+     && { [ "${3:-}" != "split" ] || [ -n "$_s" ]; }; then
+    ok "$1"
+  else
+    bad "$1" "rc=$_r reasons=[$(printf '%s' "$_o" | cut -f2 | tr '\n' ' ')] families apart=[$_s]"
+  fi
+}
+_tbmut '  # red\tpath\t^x/\tan indented comment\n'
+_tbrefuse "an indented comment is refused, and the read-and-case loops take it for a row" indented-comment split
+_tbmut '\t# red\tpath\t^x/\ta tab-indented comment\n'
+_tbrefuse "a tab-indented comment is refused, and the raw case loops take it for a row" indented-comment split
+_tbmut '  \n'
+_tbrefuse "a line of spaces is refused, and the raw case loops take it for a row" whitespace-line split
+_tbmut 'red\tpath\t^cr/\ta row ending in CR\r\n'
+_tbrefuse "a CR is refused, and only exceptions.sh strips it from the last cell" carriage-return split
+_tbmut 'red\tpath\t^nl/\ta last row with no newline'
+_tbrefuse "a missing final newline is refused, and the done-< loops drop that row" no-final-newline split
+_tbmut 'red\tpath\t^n\000ul/\ta NUL\n'
+_tbrefuse "a NUL is refused, and grep reads the whole table as binary" nul-byte split
+_tbmut 'red\t\tpath\t^e/\tan empty cell\n'
+_tbrefuse "an empty cell is refused, and an IFS read moves every later column" empty-cell split
+# Whether a UTF-8 locale takes U+3000 for a space is the machine's business,
+# which is the reason for the refusal, so no split is demanded of this one.
+_tbmut '\343\200\200# red\tpath\t^u/\tan ideographic space before the hash\n'
+_tbrefuse "a line that begins with a non-ASCII byte is refused, since whether it is a comment depends on the locale" nonascii-lead
+_tbmut 'red\tpath\t^enc/\ta Latin-1 byte \351 in a cell\n'
+_tbrefuse "bytes that are not UTF-8 are refused, since grep drops such a line in a UTF-8 locale" encoding
+# macOS iconv, the first instrument, still accepts the forms RFC 2279 had and
+# RFC 3629 dropped, and macOS awk in a UTF-8 locale aborts on them and reads no
+# rows at all. Found by a blind author's test, so it is pinned here.
+_tbmut 'red\tpath\t^u8/\ta code point past U+10FFFF: \364\220\200\200\n'
+_tbrefuse "a code point past U+10FFFF is refused as not UTF-8, which the platform's iconv lets through" encoding
+printf 'a\tb\n\000' > "$TBM/risk.tsv"
+is  "a file that ends in a NUL is refused for its last byte as well as for the NUL" \
+    "$(_tb felix_table_check "$TBS" "$TBM/risk.tsv" | cut -f2 | grep -xE 'no-final-newline|nul-byte' | LC_ALL=C sort | tr '\n' ' ')" "no-final-newline nul-byte "
+_tbmut 'red\tpath\t^w/\treason\tverifier\tcount:x\ta seventh cell\n'
+_tbrefuse "a row wider than the schema is refused" cells
+# The readers that split on a wide row do not differ in which rows they read,
+# only in what a cell holds, so they are asked directly: the reason column, as
+# a four-variable read assigns it and as cut reads it.
+_tbw="$(grep '^red	path	\^w/' "$TBM/risk.tsv")"
+IFS=$'\t' read -r _ _ _ _tbr4 <<EOF
+$_tbw
+EOF
+is  "and on it the reason a four-variable read assigns is not the reason cut -f4 reads" \
+    "$([ "$_tbr4" = "$(printf '%s\n' "$_tbw" | cut -f4)" ] && echo same || echo apart)" "apart"
+_tbmut 'red\n'
+_tbrefuse "a row with no tab is refused" cells
+_tbn1="$(printf 'red\n' | cut -f2)"
+IFS=$'\t' read -r _ _tbn2 <<EOF
+red
+EOF
+is  "and on it cut -f2 reads the first cell where an IFS read reads nothing" "$_tbn1|$_tbn2" "red|"
+mkdir -p "$TBM/link"; cp "$REAL_HARNESS/templates/risk.tsv" "$TBM/link/target.tsv"
+ln -s target.tsv "$TBM/link/risk.tsv"
+is  "a table that is a link is refused: the escape check compares the link's text and a reader reads its target" \
+    "$(_tb felix_table_check "$TBS" "$TBM/link/risk.tsv" | cut -f2)" "symlink"
+
+# What it must not refuse, and why each is safe: every family reads it alike.
+_tbmut 'red\tpath\t^t/ \ta reason with a # inside, \303\251t\303\251 in UTF-8, and trailing spaces  \n\nyellow\tpath\t^four/\tfour cells of six\n'
+out="$(_tb felix_table_check "$TBS" "$TBM/risk.tsv")"; rc=$?
+is  "a # in a later cell, UTF-8 text, trailing spaces, a blank line and an optional column left off are accepted" "$rc" "0"
+is  "and every reader family reads that table alike" "$(_tfsplit "$TBM/risk.tsv" C)" ""
+
+# Emptiness means what the table's row says it means.
+grep '^#' "$REAL_HARNESS/templates/probes.tsv" > "$TBM/probes.tsv"
+out="$(_tb felix_table_check "$TBS" "$TBM/probes.tsv")"; rc=$?
+is  "a probes table with comments and no row is refused, since its row says emptiness is" "$rc" "1"
+has "and says so as emptiness" "$out" "	empty	"
+: > "$TBM/probes.tsv"
+is  "and so is a zero-byte one" "$(_tbrc felix_table_check "$TBS" "$TBM/probes.tsv")" "1"
+cp "$REAL_HARNESS/templates/exceptions.tsv" "$TBM/exceptions.tsv"
+is  "while the exception table's seeded, rowless state is accepted" \
+    "$(_tbrc felix_table_check "$TBS" "$TBM/exceptions.tsv")" "0"
+is  "an absent file cannot be examined, exit 2" \
+    "$(_tbrc felix_table_check "$TBS" "$TBM/not-there.tsv")" "2"
+printf 'a\tb\n' > "$TBM/undeclared.tsv"
+is  "and a table with no schema row cannot be examined either: undeclared is not clean" \
+    "$(_tbrc felix_table_check "$TBS" "$TBM/undeclared.tsv")" "2"
+# A one-column table is a list: a row of one cell is the row, and a tab in it
+# is a second cell nobody declared.
+printf 'ci\ntests\n' > "$TBM/capabilities"
+is  "a one-column table of one-cell rows is accepted" "$(_tbrc felix_table_check "$TBS" "$TBM/capabilities")" "0"
+printf 'ci\tand more\n' > "$TBM/capabilities"
+is  "and a tab in one of its rows is a refused second cell" "$(_tbrc felix_table_check "$TBS" "$TBM/capabilities")" "1"
+
+# A column written `grounding?` is a glob. Counted by a shell loop over an
+# unquoted list, it would match whatever files sit where the caller stands, and
+# two of them would widen the table by one: a seven-cell stack row accepted.
+mkdir -p "$TBM/glob"; : > "$TBM/glob/groundingA"; : > "$TBM/glob/groundingB"
+printf 'plugin\tx@m\tm\tlow\tcore\tDECLARED\ta seventh cell\n' > "$TBM/glob/stack.tsv"
+is  "a column marked optional is not a glob: a seven-cell stack row is refused beside files it would match" \
+    "$(cd "$TBM/glob" && _tbrc felix_table_check "$TBS" stack.tsv)" "1"
+
+# schemas.tsv's own rows: the values only a schema row can get wrong.
+printf 'a.tsv\tnowhere\tx y\tallowed\na.tsv\ttree\tx y\tsometimes\nb/c.tsv\ttree\tx? y\tallowed\nd.tsv\ttree\tx Y\tallowed\n' > "$TBM/schemas.tsv"
+out="$(_tb felix_table_schema_malformed "$TBM/schemas.tsv" | cut -f2 | LC_ALL=C sort -u | tr '\n' ' ')"
+is  "a schema row with a bad place, a bad emptiness, a path, a required column after an optional one, a bad name or a duplicate is malformed" \
+    "$out" "columns duplicate empty lives table "
+printf 'e.tsv\ttree\tname note?\tallowed\nf\ttree\tone\tallowed\n' > "$TBM/schemas.tsv"
+is  "and so is one whose rows may stop after one cell, while a true one-column table is not" \
+    "$(_tb felix_table_schema_malformed "$TBM/schemas.tsv" | cut -f1,2 | tr '\t\n' ': ')" "1:columns "
+printf 'g.tsv\ttree\tx y\tallowed\textra\nh.tsv\ttree\tx  y\tallowed\n' > "$TBM/schemas.tsv"
+is  "a schema row of five cells, and columns with a doubled space, are malformed on their own terms" \
+    "$(_tb felix_table_schema_malformed "$TBM/schemas.tsv" | cut -f1,2 | tr '\t\n' ': ')" "1:cells 2:columns "
+is  "the shipped schema has none of those" \
+    "$(_tb felix_table_schema_malformed "$TBS" | grep -c .)" "0"
+
+# The writers of the two memory stores the schema declares, checked against
+# their rows: the recorder's rows from this suite's own sessions, and a decline.
+if [ -s "$MEM/widget/lifecycle.log" ]; then
+  out="$(_tb felix_table_check "$TBS" "$MEM/widget/lifecycle.log")"; rc=$?
+  is "every lifecycle.log row the recorder wrote in this suite is a row its schema accepts" "$rc" "0"
+else
+  bad "every lifecycle.log row the recorder wrote in this suite is a row its schema accepts" "no lifecycle.log was written"
+fi
+if [ -s "$MEM/widget/decisions.log" ]; then
+  is "every decisions.log row felix route --ack wrote in this suite is a row its schema accepts" \
+     "$(_tbrc felix_table_check "$TBS" "$MEM/widget/decisions.log")" "0"
+else
+  bad "every decisions.log row felix route --ack wrote in this suite is a row its schema accepts" "no decisions.log was written"
+fi
+# A reason is the one field a session writes freely. A tab in it was a fifth
+# cell, and a newline a second row made of the end of a sentence.
+( FELIX_MEMORY="$TBM/ackmem"; export FELIX_MEMORY
+  . "$REAL_HARNESS/lib/resolve.sh"; . "$REAL_HARNESS/lib/route.sh"
+  felix_route_ack ackp "$TBM/ackroot" "$TBM/ackhome" "$(printf 'not this\tone, since\nit has no browser surface\r')" ) >/dev/null 2>&1
+_tbd="$TBM/ackmem/ackp/decisions.log"
+is  "a decline whose reason holds a tab, a newline and a CR is one row" "$(grep -c . "$_tbd" 2>/dev/null)" "1"
+is  "of four cells, as its schema row says" "$(awk -F'\t' '{print NF}' "$_tbd" 2>/dev/null)" "4"
+is  "which the validator accepts" "$(_tbrc felix_table_check "$TBS" "$_tbd")" "0"
+
+# A newborn project: every table felix new seeds has a row, and is accepted.
+# A home of its own, so the fixture home later assertions count projects in
+# is not changed by this one.
+NB="$TMP/newborn"; NBH="$TMP/newborn-home"; mkdir -p "$NB" "$NBH/projects"
+( cd "$NB" && git init -q -b main )
+( cd "$NB" && FELIX_HOME="$NBH" PATH="$CMSTUB:$PATH" "$FELIX" new newborn ) >/dev/null 2>&1
+_nbn=0; _nbbad=""
+for _nbf in "$NBH/projects/newborn/"*.tsv "$NBH/projects/newborn/capabilities"; do
+  [ -f "$_nbf" ] || continue
+  _nbn=$((_nbn+1))
+  _tb felix_table_check "$TBS" "$_nbf" >/dev/null 2>&1 || _nbbad="$_nbbad ${_nbf##*/}"
+done
+[ "$_nbn" -ge 9 ] && ok "felix new seeds its tables in a home of its own" \
+                  || bad "felix new seeds its tables in a home of its own" "only $_nbn table(s) in $NBH/projects/newborn"
+is  "and every one has a schema row and is accepted" "$_nbbad" ""
+[ -f "$NBH/projects/newborn/schemas.tsv" ] && bad "and schemas.tsv is not among them: a project declares no schema" \
+                                            || ok  "and schemas.tsv is not among them: a project declares no schema"
+
+# ----------------------------------------------- schema-check, the gate's half ---
+# The command the gate runs. The fixture is an invented tree with its own small
+# schema, for the reason the executable-check fixture gives: its counts are
+# numbers the assertions can name.
+printf '\nschema-check: every table declared, every row a row\n'
+SCX="$TMP/schema-check"
+mkdir -p "$SCX/engine/harness/templates" "$SCX/data" "$SCX/deep/nested"
+printf '# table\tlives\tcolumns\tempty\nschemas.tsv\ttree\ttable lives columns empty\trefused\nalpha.tsv\ttree\ta b c?\tallowed\nbeta.tsv\ttree\tx y\trefused\nupkeep.log\ttree\tname epoch\tallowed\ngamma.log\tmemory\tp q\tallowed\n' \
+  > "$SCX/engine/harness/templates/schemas.tsv"
+printf '# alpha\none\ttwo\none\ttwo\tthree\n' > "$SCX/data/alpha.tsv"
+printf 'x\ty\n' > "$SCX/data/beta.tsv"
+printf 'ignored.tsv\n' > "$SCX/.gitignore"
+( cd "$SCX" && git init -q -b main && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+SCX="$(cd "$SCX" && pwd -P)"
+_scx()   { ( cd "$1" && "$REAL_HARNESS/bin/schema-check" 2>&1; echo "rc=$?" ); }
+_scxrc() { printf '%s' "${1##*rc=}"; }
+_scxc()  { ( cd "$SCX" && git add -A && git -c user.name=t -c user.email=t@t commit -qm case ) >/dev/null 2>&1; }
+
+out="$(_scx "$SCX")"
+is  "a tree whose every table is declared and accepted exits 0" "$(_scxrc "$out")" "0"
+has "and says how many tables it read" "$out" "3 table(s)"
+# Enumerated from git, never from the schema: the count moving is the evidence.
+printf 'd\te\n' > "$SCX/data/delta.tsv"; _scxc
+out="$(_scx "$SCX")"
+is  "a table added today with no schema row fails, where a list of known tables saw nothing" "$(_scxrc "$out")" "1"
+has "naming the table and the missing row" "$out" "data/delta.tsv:-	no-schema"
+printf 'delta.tsv\ttree\td e\tallowed\n' >> "$SCX/engine/harness/templates/schemas.tsv"; _scxc
+out="$(_scx "$SCX")"
+is  "and its row, added in the same tree, clears it" "$(_scxrc "$out")" "0"
+has "with the count moved by one" "$out" "4 table(s)"
+# Not yet added is still in the tree the gate certifies.
+printf 'f\tg\n' > "$SCX/data/fresh.tsv"
+out="$(_scx "$SCX")"
+is  "a table created and never added is checked too, and fails with no row" "$(_scxrc "$out")" "1"
+has "naming it" "$out" "data/fresh.tsv:-	no-schema"
+rm -f "$SCX/data/fresh.tsv"
+printf 'f\tg\n' > "$SCX/data/ignored.tsv"
+is  "while one the tree ignores is not the tree's" "$(_scxrc "$(_scx "$SCX")")" "0"
+rm -f "$SCX/data/ignored.tsv"
+# A table under another name is found by the name its row gives it.
+printf 'graphify\t1789106119\t2026-09-10\n' > "$SCX/data/upkeep.log"; _scxc
+out="$(_scx "$SCX")"
+is  "a table not named .tsv, declared by its basename, is read and here refused for a third cell" "$(_scxrc "$out")" "1"
+has "naming the row" "$out" "data/upkeep.log:1	cells"
+printf 'graphify\t1789106119\n' > "$SCX/data/upkeep.log"; _scxc
+is  "and accepted once its rows fit" "$(_scxrc "$(_scx "$SCX")")" "0"
+# A table whose row says emptiness is refused, emptied.
+printf '# nothing here\n' > "$SCX/data/beta.tsv"; _scxc
+out="$(_scx "$SCX")"
+is  "a table emptied whose row refuses emptiness fails" "$(_scxrc "$out")" "1"
+has "and says it is empty" "$out" "data/beta.tsv:-	empty"
+printf 'x\ty\n' > "$SCX/data/beta.tsv"; _scxc
+# The deny table's hole, in miniature: the last row, its newline gone.
+printf 'one\ttwo' > "$SCX/data/alpha.tsv"; _scxc
+out="$(_scx "$SCX")"
+is  "a table whose last row lost its newline fails" "$(_scxrc "$out")" "1"
+has "and names the file" "$out" "data/alpha.tsv:-	no-final-newline"
+printf 'one\ttwo\n' > "$SCX/data/alpha.tsv"; _scxc
+# A memory store in the tree, whatever it is called.
+printf 'p\tq\n' > "$SCX/data/gamma.log"; _scxc
+out="$(_scx "$SCX")"
+is  "a file whose row says it lives in memory fails when it is in the tree" "$(_scxrc "$out")" "1"
+has "and says so" "$out" "data/gamma.log:-	memory-tracked"
+( cd "$SCX" && git rm -q data/gamma.log ) >/dev/null 2>&1; _scxc
+# A link, a tracked table gone from the working tree, and a name git quotes.
+mkdir -p "$SCX/data2"; ln -s ../data/alpha.tsv "$SCX/data2/alpha.tsv"; _scxc
+has "a table that is a link fails" "$(_scx "$SCX")" "data2/alpha.tsv:-	symlink"
+( cd "$SCX" && git rm -q data2/alpha.tsv ) >/dev/null 2>&1; _scxc
+rm -f "$SCX/data/beta.tsv"
+has "a tracked table missing from the working tree fails" "$(_scx "$SCX")" "data/beta.tsv:-	missing"
+( cd "$SCX" && git checkout -q -- data/beta.tsv ) >/dev/null 2>&1
+printf 'x\ty\n' > "$SCX/data/tab	name.tsv"
+has "and a table whose name git quotes is one no reader opens by that name" "$(_scx "$SCX")" "unexaminable"
+rm -f "$SCX/data/tab	name.tsv"
+# Names that awk takes for an assignment or for standard input, and tail for
+# an option: handed over as operands, each skipped the file it named in
+# silence. A blind adversary found all three; the files now go in on stdin.
+mkdir -p "$SCX/k=v" "$SCX/-d"
+printf 'x\t\ty\n' > "$SCX/k=v/alpha.tsv"; printf 'one\ttwo' > "$SCX/-d/alpha.tsv"; _scxc
+out="$(_scx "$SCX")"
+has "a table under a directory named like an awk assignment is read, and refused" "$out" "k=v/alpha.tsv:1	empty-cell"
+has "and one under a directory named like an option keeps its final-newline check" "$out" "-d/alpha.tsv:-	no-final-newline"
+( cd "$SCX" && git rm -rq -- "k=v" "-d" ) >/dev/null 2>&1; _scxc
+is  "and with both gone the tree is clean again" "$(_scxrc "$(_scx "$SCX")")" "0"
+chmod 000 "$SCX/engine/harness/templates/schemas.tsv"
+if [ -r "$SCX/engine/harness/templates/schemas.tsv" ]; then
+  skip "a schemas.tsv it cannot read is cannot-examine, exit 2, not every table undeclared" "running as a user every file is readable to"
+else
+  is "a schemas.tsv it cannot read is cannot-examine, exit 2, not every table undeclared" "$(_scxrc "$(_scx "$SCX")")" "2"
+fi
+chmod 644 "$SCX/engine/harness/templates/schemas.tsv"
+
+# The reverse gap: a tree row nothing here is named is said, and does not fail.
+( cd "$SCX" && git rm -q data/delta.tsv ) >/dev/null 2>&1; _scxc
+out="$(_scx "$SCX")"
+is  "a tree row no table matches is not a failure: some tables are absent until written" "$(_scxrc "$out")" "0"
+has "and it is said" "$out" "note  delta.tsv is declared and nothing here is named that"
+# A malformed schema row is the schema check's own refusal, not a skipped row.
+printf 'eps.tsv\tsomewhere\tu v\tallowed\n' >> "$SCX/engine/harness/templates/schemas.tsv"; _scxc
+out="$(_scx "$SCX")"
+is  "a schema row with a place that is neither tree nor memory fails" "$(_scxrc "$out")" "1"
+has "as the schema's own refusal" "$out" "schema-lives"
+awk -F'\t' '$1 != "eps.tsv"' "$SCX/engine/harness/templates/schemas.tsv" > "$SCX/s" \
+  && mv "$SCX/s" "$SCX/engine/harness/templates/schemas.tsv"; _scxc
+is  "restored, it exits 0 again" "$(_scxrc "$(_scx "$SCX")")" "0"
+is  "and from a nested subdirectory the verdict is unchanged" "$(_scxrc "$(_scx "$SCX/deep/nested")")" "0"
+
+# Could not look is not nothing wrong.
+is  "outside a git repository it cannot look, exit 2" "$(_scxrc "$(_scx "$TMP")")" "2"
+SCN="$TMP/schema-check-no-schema"; mkdir -p "$SCN"
+( cd "$SCN" && printf 'a\tb\n' > t.tsv && git init -q -b main && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
+is  "a checkout with tables and no schemas.tsv cannot look either, exit 2" "$(_scxrc "$(_scx "$SCN")")" "2"
+SCZ="$TMP/schema-check-no-tables"; mkdir -p "$SCZ/engine/harness/templates"
+printf '# no table here\n' > "$SCZ/README"
+printf 'schemas.tsv\ttree\ttable lives columns empty\trefused\n' > "$SCZ/engine/harness/templates/schemas.tsv"
+( cd "$SCZ" && printf 'engine/harness/templates/schemas.tsv\n' > .gitignore && git init -q -b main && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
+is  "and one that holds no table at all is emptiness, not an all clear" "$(_scxrc "$(_scx "$SCZ")")" "2"
+
+# The real tree, and the gate that runs this on it.
+if [ -n "$TBROOT" ] && [ -f "$TBROOT/engine/harness/templates/schemas.tsv" ]; then
+  is  "this repository's every table is declared and accepted" "$(_scxrc "$(_scx "$TBROOT")")" "0"
+else
+  skip "this repository's every table is declared and accepted" "no git checkout with a schemas.tsv above this harness"
+fi
+SCGATE="$REAL_HARNESS/../../projects/felix/gate.sh"
+if [ -f "$SCGATE" ]; then
+  case "$(cat "$SCGATE")" in
+    *'engine/harness/bin/schema-check 2>&1)"; then'*'pass schema'*'fail schema'*'else'*'fail schema'*'no executable engine/harness/bin/schema-check'*)
+      ok  "felix's own gate runs schema-check, fails on anything but exit 0, and fails when it is gone" ;;
+    *) bad "felix's own gate runs schema-check, fails on anything but exit 0, and fails when it is gone" "no such schema block in projects/felix/gate.sh" ;;
+  esac
+  # A count row whose pattern matches nothing can never fire: the checker's own
+  # code is guarded only if the pattern counts what it removes.
+  _scrisk="$REAL_HARNESS/../../projects/felix/risk.tsv"
+  _scpat() { awk -F'\t' -v p="$1" '$3 == p { sub(/^count:/, "", $6); print $6 }' "$_scrisk" 2>/dev/null; }
+  _sctb="$(grep -cE "$(_scpat '^engine/harness/lib/table\.sh$')" "$REAL_HARNESS/lib/table.sh" 2>/dev/null)"
+  _scsc="$(grep -cE "$(_scpat '^engine/harness/bin/schema-check$')" "$REAL_HARNESS/bin/schema-check" 2>/dev/null)"
+  [ "${_sctb:-0}" -ge 15 ] && [ "${_scsc:-0}" -ge 5 ] \
+    && ok  "felix's risk table counts the refusals in table.sh and schema-check, so removing one escapes" \
+    || bad "felix's risk table counts the refusals in table.sh and schema-check, so removing one escapes" \
+           "counted ${_sctb:-0} in table.sh and ${_scsc:-0} in schema-check"
+  is  "and felix's qualification table declares every control for the schema checker" \
+      "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+          felix_qualify_missing_controls "$REAL_HARNESS/../../projects/felix" schema | tr '\n' ' ' )" ""
+else
+  for a in "felix's own gate runs schema-check, fails on anything but exit 0, and fails when it is gone" \
+           "felix's risk table counts the refusals in table.sh and schema-check, so removing one escapes" \
+           "and felix's qualification table declares every control for the schema checker"; do
+    skip "$a" "no projects/felix/gate.sh beside this harness"; done
+fi
+
+# The schema table judges every other table's shape, so it is an enforcing
+# table, named by its path: a row removed or loosened in place fires verifier,
+# a row added does not, and a product's own schemas.tsv is not the engine's.
+_scl() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/escape.sh"
+           _felix_escape_listed "$1" "$FELIX_ESCAPE_TABLES" && echo listed || echo not ); }
+is  "the engine's schemas.tsv is one of the tables whose shrinkage escapes" \
+    "$(_scl engine/harness/templates/schemas.tsv)" "listed"
+is  "and a product repository's file of the same name is not" "$(_scl db/schemas.tsv)" "not"
+is  "while a basename entry still matches in any directory" "$(_scl projects/any/risk.tsv)" "listed"
+_scbase="$(git -C "$SCX" rev-parse HEAD)"
+sed 's/^alpha\.tsv	tree	a b c?/alpha.tsv	tree	a b? c?/' "$SCX/engine/harness/templates/schemas.tsv" > "$SCX/s" \
+  && mv "$SCX/s" "$SCX/engine/harness/templates/schemas.tsv"; _scxc
+is  "a schema row loosened in place is a shrink the escape check sees" \
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/escape.sh"
+        _felix_escape_shrank "$SCX" "$_scbase" engine/harness/templates/schemas.tsv && echo fires || echo quiet )" "fires"
+_scbase="$(git -C "$SCX" rev-parse HEAD)"
+printf '# a comment reworded for free\nzeta.tsv\ttree\tu v\tallowed\n' >> "$SCX/engine/harness/templates/schemas.tsv"; _scxc
+is  "while a row added for a new table, and a comment, are free" \
+    "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/escape.sh"
+        _felix_escape_shrank "$SCX" "$_scbase" engine/harness/templates/schemas.tsv && echo fires || echo quiet )" "quiet"
+
 printf '\nFelix installs what it read, or says which one it has\n'
 # `felix discover` fetches a candidate at its pinned sha into a scratch
 # directory and READS it there to score a tier. `claude plugin install` later
@@ -18059,24 +18485,30 @@ _ly_is "felix handoff --replace over a hand-written handoff appends a row noted 
        "0:changed:1:handoff:replaced:$_lyho"
 
 # ------------------------------------------------------------ the header ----
-# A new store before the table validator is an exception to rows-first, and
-# the contract says it is taken as one, dated, in the file that holds it, with
-# the schema row it still owes. The header is the comment block above the
-# first function, read as one line so a sentence may wrap anywhere. Phrases,
-# each inside one sentence, and not five words found anywhere: a header that
-# denied the exception used every one of those words and passed.
+# A new store before the table validator was an exception to rows-first, taken
+# dated in the file that holds it, and closed when its schema row landed. The
+# header is the comment block above the first function, read as one line so a
+# sentence may wrap anywhere. Phrases, each inside one sentence, and not words
+# found anywhere: a header that denied the exception used every one of them.
 _lyhdr="$(awk '/^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*\(\)/ { exit }
                /^#/ { sub(/^#[[:space:]]*/, ""); printf "%s ", $0 }' "$FROOT/harness/lib/lifecycle.sh" 2>/dev/null | tr -s ' ')"
 _lymiss=""
-for _lyw in 'dated exception to rows-first[^.]*2026-09-21' 'schemas\.tsv row[^.]* lands with (queue )?item 2'; do
+for _lyw in 'dated exception to rows-first[^.]*2026-09-21[^.]*closed 2026-09-22' 'schema row is[^.]* in templates/schemas\.tsv'; do
   printf '%s' "$_lyhdr" | grep -qiE -- "$_lyw" || _lymiss="$_lymiss [$_lyw]"
 done
 if [ -n "$_lyhdr" ] && [ -z "$_lymiss" ]; then
-  ok  "lib/lifecycle.sh opens by dating its exception to rows-first, 2026-09-21, and names the schemas.tsv row owed with queue item 2"
+  ok  "lib/lifecycle.sh dates its exception to rows-first, taken 2026-09-21 and closed 2026-09-22, and says its row is in schemas.tsv"
 else
-  bad "lib/lifecycle.sh opens by dating its exception to rows-first, 2026-09-21, and names the schemas.tsv row owed with queue item 2" \
+  bad "lib/lifecycle.sh dates its exception to rows-first, taken 2026-09-21 and closed 2026-09-22, and says its row is in schemas.tsv" \
       "$([ -f "$FROOT/harness/lib/lifecycle.sh" ] && printf 'header lacks%s' "$_lymiss" || echo 'no lib/lifecycle.sh')"
 fi
+# And the row says what the header says: the nine names, in order. The header
+# lists them as `#   <n> <name>` lines; the row lists them in its third cell.
+_lyhdrcols="$(awk '/^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*\(\)/ { exit }
+                   /^#[[:space:]]+[0-9]+ [a-z]+[[:space:]]/ { print $3 }' "$FROOT/harness/lib/lifecycle.sh" 2>/dev/null | tr '\n' ' ' | sed 's/ $//')"
+_lyrowcols="$(awk -F'\t' '$1 == "lifecycle.log" { print $3 }' "$FROOT/harness/templates/schemas.tsv" 2>/dev/null)"
+is "the lifecycle.log schema row names the nine columns lib/lifecycle.sh documents, in order" \
+   "$_lyrowcols" "$_lyhdrcols"
 
 # The contract puts the record above the resume exit, and the hook has a
 # comment that says where the record sits. Both are positions in one file, so

@@ -45,7 +45,7 @@ BEGIN {
   EMIT = 1; HZ = ""; NOGUARD = 0; PIPEPOS = 1
   DEADST = st_new(); DEAD[DEADST] = 1
   split("bash sh zsh dash ksh mksh ash fish csh tcsh", T, " "); for (k in T) SHELLS[T[k]] = 1
-  split("perl python python2 python3 ruby node nodejs deno bun php lua luajit awk gawk mawk nawk osascript make gmake just expect tclsh script tmux screen parallel coproc trap", T, " ")
+  split("awk gawk mawk nawk osascript make gmake just expect tclsh script tmux screen parallel coproc trap", T, " ")
   for (k in T) RUNNER[T[k]] = 1
   split("xargs sudo doas su runuser ssh watch", T, " "); for (k in T) FOREIGN[T[k]] = 1
   split("cd true false : test [ export local declare typeset readonly set unset shift mkdir touch rm rmdir cp chmod ln mv wait sleep", T, " ")
@@ -932,6 +932,10 @@ function run_simple(st,   nofn, rdpl, TY, WS, WE, ROS, RO, RFD, RPH, isexec, n, 
   # A trap runs its text later: on DEBUG, ERR or RETURN between the commands
   # read here, so nothing after it is known.
   else if (base == "trap" && trap_unread(WV, ci, nw)) { bad_cmd("trap"); kind = "u"; why = "trap runs text between commands" }
+  # An interpreter is known by what it is handed, not by its name: code in
+  # an argument after -c, -e, -E, --eval or --command. The engine names no
+  # language, and a list of them would miss the next one.
+  else if (!(base in DATATOOL) && !(base in FILETOOL) && code_arg(WV, ci, nw)) { kind = "u"; why = base " runs code given in its arguments" }
   else if (base in RUNNER || base == "find") { kind = "u"; why = base " runs code whose effect cannot be told"; NOGUARD = 1 }
   else if (base == "mount") { bad_cmd("mount") }
   else if (base ~ /^(ln|link|mv)$/ || base == "cp" && has_link(WV, ci, nw)) {
@@ -1008,6 +1012,10 @@ function do_mkdir(s, WV, ci, nw,   j, w, p, set, n, A, k, out, paths, d) {
     while (d ~ /\/[^\/]/) { MADE[out] = MADE[out] ALT d; MADEAT[d] = DELN; sub(/\/+[^\/]*\/*$/, "", d) }
   }
   return out
+}
+function code_arg(WV, ci, nw,   j) {
+  for (j = ci + 1; j <= nw; j++) if (one(WV[j]) ~ /^(-c|-e|-E|--eval|--command)$/) return 1
+  return 0
 }
 function trap_unread(WV, ci, nw,   j, w) {
   if (ci + 1 <= nw && one(WV[ci + 1]) == UNK) return 1

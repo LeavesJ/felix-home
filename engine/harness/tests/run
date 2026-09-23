@@ -542,6 +542,27 @@ is "felix_detect in a checkout whose path holds a space reports the capabilities
    "billing ci deploy observability secrets tests "
 rm -rf "$TMP/detect space"
 
+# Run from a directory that holds manifests of its own, as felix doctor is from
+# a service folder of a monorepo. The manifest loop listed requirements/*.txt
+# and *.csproj bare, so the shell expanded them against the current directory
+# before joining them to the root: from here, the probe looked for the root's
+# requirements/dev.txt, which does not exist, and never read its prod.txt,
+# which names stripe. Each probe runs from a directory whose file names
+# playwright, so a probe that read the current directory instead says e2e.
+DCW="$TMP/detect-cwd"
+mkdir -p "$DCW/req/requirements" "$DCW/cs" "$DCW/here/requirements"
+printf 'stripe\n'     > "$DCW/req/requirements/prod.txt"
+printf '<PackageReference Include="Sentry" />\n' > "$DCW/cs/App.csproj"
+printf 'playwright\n' > "$DCW/here/requirements/dev.txt"
+printf 'playwright\n' > "$DCW/here/Tool.csproj"
+is "felix_detect run from a directory that holds its own requirements/*.txt still reports billing for a root whose requirements/prod.txt names stripe" \
+   "$(cd "$DCW/here" && . "$FROOT/harness/lib/detect.sh" && felix_detect "$DCW/req" | sort -u | tr '\n' ' ')" \
+   "billing "
+is "and run from one that holds its own *.csproj, still reports observability for a root whose App.csproj names Sentry" \
+   "$(cd "$DCW/here" && . "$FROOT/harness/lib/detect.sh" && felix_detect "$DCW/cs" | sort -u | tr '\n' ' ')" \
+   "observability "
+rm -rf "$DCW"
+
 printf '\nrival gates\n'
 # From a real failure. An untracked, day-stale, strictly weaker copy of the gate
 # sat inside the governed repo, and it was the file physically in front of any

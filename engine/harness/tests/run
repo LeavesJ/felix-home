@@ -13878,6 +13878,13 @@ _scr tracking "scoped: the same script handed the governed checkout" - "bash -s 
 _sc 0 "scoped: a single-quoted bash -c fixture given its directory" - "bash -c 'mkdir -p \"\$1/r\" && cd \"\$1/r\" && git init -q && git remote add origin https://example.com/x.git' sh $SCR/p3"
 _sc 0 "scoped: mkdir -p, cd, then a remote on the lines after" - "W=$SCR/p4; mkdir -p \"\$W/repo\"; cd \"\$W/repo\"; git init -q"$'\n''git remote add origin https://nowhere.example/fx.git'
 _sc 0 "scoped: a mktemp fixture read back through pwd -P" - 'T=$(mktemp -d); REPO="$T/repo"; mkdir -p "$REPO"; (cd "$REPO" && git init -q -b main); REPO="$(cd "$REPO" && pwd -P)"; (cd "$REPO" && git add -A && git commit -qm base)'
+# --- a lift is written down, and a refusal is not written as one
+_lifts() { awk -F'\t' '$2 == "lifted"' "$MEM/widget/says.log" 2>/dev/null; }
+_sc 0 "scoped: a lift to be recorded" "$SCR/clone" 'git add -A && git commit -qm recorded-lift'
+has "a lifted scoped row is written to says.log with the command" "$(_lifts | tail -1)" "recorded-lift"
+_n="$(_lifts | wc -l | tr -d ' ')"
+_scr stage "scoped: a refusal that must not be recorded as a lift" - 'git add -A && git commit -qm not-a-lift'
+is "and a scoped row that stood writes no lift" "$(_lifts | wc -l | tr -d ' ')" "$_n"
 # --- what a refusal of a scoped row says
 ( cd "$GOV" && _scpay - Bash command 'git add -A' | "$FROOT/harness/hooks/pre-tool" 2>"$SC_ERR" )
 has "a scoped row that stands says it covers only the checkout" "$(cat "$SC_ERR")" "covers only the governed checkout"

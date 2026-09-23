@@ -161,7 +161,15 @@ felix_deny_match() {
     # command acts only on throwaway places: a later row may still refuse it.
     # Everything this costs is spent on a command a row already matched.
     if [ "${scope:-}" = checkout ]; then
-      _felix_deny_scoped_lifts "$want" "$pattern" "$cmd" "$start" && continue
+      if _felix_deny_scoped_lifts "$want" "$pattern" "$cmd" "$start"; then
+        # Written down as well as allowed. A lift is this row refusing less
+        # than its regex says, and a record of each one is how a later audit
+        # replays exactly what the column let through.
+        command -v felix_say >/dev/null 2>&1 \
+          && felix_say "$proj" lifted "$cmd
+$reason" "" "" 2>/dev/null
+        continue
+      fi
       reason="$reason
 It stood although this row covers only the governed checkout: ${_FELIX_WHERE_WHY:-where the command acts cannot be told}."
     fi

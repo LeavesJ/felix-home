@@ -24,6 +24,13 @@
 # Unknown counts as quiet. A hold nobody can show bought any work is the one
 # that should not repeat, and a transcript that cannot be read would otherwise
 # hold a session for its whole budget on no evidence at all.
+#
+# Two limits, both bounded by the budget rather than fixed. The first hold of a
+# night has no mark yet and reads from the start of the transcript, so it
+# counts the calls made before the night and is never quiet. And a tool call
+# something refused is still a call on the record: a session whose every call
+# a broken plugin refuses never idles, and spends its budget instead of ending
+# after two.
 felix_overnight_quiet() {   # proj, sid, transcript -> 1 when quiet, 0 when the session worked
   local proj="$1" sid="${2:-}" tp="${3:-}" mark size from n
   mark="$(_felix_overnight_mark "$proj" "$sid")" || { printf '1'; return 0; }
@@ -63,7 +70,15 @@ felix_overnight_continue() {   # proj, sid, transcript, due -> see above
 
   waiting="$(felix_overnight_deferred_count "$proj")"
   quiet="$(felix_overnight_quiet "$proj" "$sid" "$tp")"
-  left="$(felix_overnight_spend "$proj" "$quiet" "$sid")"
+  # A spend that was not written is not a spend, and a hold that costs nothing
+  # is bounded by nothing but the clock. So the night ends here and the session
+  # may close, which is what everything unexpected in the Stop hook does.
+  if ! left="$(felix_overnight_spend "$proj" "$quiet" "$sid")"; then
+    why="the night's state could not be written, so no continuation could be spent"
+    felix_overnight_end "$proj" "$why" "$sid"
+    printf 'Overnight is over: %s.\n\n' "$why"; felix_overnight_report "$proj" "$sid"
+    return 2
+  fi
   worked="yes"; [ "$quiet" = "1" ] && worked="no"
   # One line per continuation, so the morning report can show the shape of
   # the night rather than only its ending.
@@ -112,10 +127,13 @@ felix_overnight_charge() {   # proj, sid, transcript, what-the-gate-said -> see 
   felix_overnight_owns "$proj" "$sid" || return 1
   if ! why="$(felix_overnight_expired "$proj" "$sid")"; then
     quiet="$(felix_overnight_quiet "$proj" "$sid" "$tp")"
-    left="$(felix_overnight_spend "$proj" "$quiet" "$sid")"
-    felix_overnight_log_event "$proj" refused \
-      "left ${left}; gate ${what:-refused}; $(_felix_overnight_whose "$sid")"
-    why="$(felix_overnight_expired "$proj" "$sid")" || return 0
+    if left="$(felix_overnight_spend "$proj" "$quiet" "$sid")"; then
+      felix_overnight_log_event "$proj" refused \
+        "left ${left}; gate ${what:-refused}; $(_felix_overnight_whose "$sid")"
+      why="$(felix_overnight_expired "$proj" "$sid")" || return 0
+    else
+      why="the night's state could not be written, so no continuation could be spent"
+    fi
   fi
   felix_overnight_end "$proj" "$why" "$sid"
   printf 'Overnight is over: %s. The gate is still not green on this tree.\n\n' "$why"

@@ -290,15 +290,31 @@ if [ "$current" = "current" ]; then
     # and the skipped-play question entirely, because a blocking branch that
     # exits first is a branch that silences every message after it. Each is
     # still once per session, using the same markers those branches use.
+    #
+    # Once per session means once per night as well. A night holds a session
+    # through the chain up to its whole budget, and a rider with no marker of
+    # its own repeated at every hold, the plugin report rescanning the whole
+    # transcript each time. So each says itself once and writes that it did.
     _on_extra=""
-    _on_blocks="$(_felix_stop_blocks)"
-    [ -n "$_on_blocks" ] && _on_extra="${_on_extra}
+    _on_said="$FELIX_HOME_DIR/state/overnight-said/${SID:-none}"
+    if ! grep -qx blocks "$_on_said" 2>/dev/null; then
+      _on_blocks="$(_felix_stop_blocks)"
+      if [ -n "$_on_blocks" ]; then
+        _on_extra="${_on_extra}
 
 ${_on_blocks}"
-    _on_unrec="$(felix_guard_unrecorded "$PROJ")"
-    [ -n "$_on_unrec" ] && _on_extra="${_on_extra}
+        mkdir -p "$(dirname "$_on_said")" 2>/dev/null && printf 'blocks\n' >> "$_on_said" 2>/dev/null
+      fi
+    fi
+    if ! grep -qx unrecorded "$_on_said" 2>/dev/null; then
+      _on_unrec="$(felix_guard_unrecorded "$PROJ")"
+      if [ -n "$_on_unrec" ]; then
+        _on_extra="${_on_extra}
 
 ${_on_unrec}"
+        mkdir -p "$(dirname "$_on_said")" 2>/dev/null && printf 'unrecorded\n' >> "$_on_said" 2>/dev/null
+      fi
+    fi
     if [ -n "${SID:-}" ] \
        && grep -qE "	superpowers(@[^	]*)?	" "$PROJ/stack.tsv" 2>/dev/null \
        && [ ! -f "$FELIX_HOME_DIR/state/verified/$SID" ]; then

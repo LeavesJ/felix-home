@@ -1727,7 +1727,7 @@ cmd_autonomy() {
 # down and keeps working instead of waiting for somebody who is asleep.
 cmd_overnight() {
   resolve_or_die; local proj="$PROJ"
-  local start=0 hours="" turns="" note="" report=0 clear=0 end="" defer="" what="" unblock="" sid="" named=0
+  local start=0 hours="" turns="" note="" report=0 clear=0 end="" defer="" what="" unblock="" sid="" named=0 all=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --start)   start=1; shift ;;
@@ -1740,9 +1740,10 @@ cmd_overnight() {
       --unblock) need_value "$@"; unblock="$2"; shift 2 ;;
       --report)  report=1; shift ;;
       --clear)   clear=1; shift ;;
-      --end)     end="${2:-ended by hand}"; [ $# -ge 2 ] && shift 2 || shift ;;
+      --end)     case "${2:-}" in ''|-*) end="ended by hand"; shift ;; *) end="$2"; shift 2 ;; esac ;;
+      --all)     all=1; shift ;;
       --status)  shift ;;
-      -*) die "usage: felix overnight [--start [--hours N] [--turns N] [--note ...]] [--session ID] [--defer KIND --what ... [--unblock ...]] [--report] [--clear] [--end [reason]]" ;;
+      -*) die "usage: felix overnight [--start [--hours N] [--turns N] [--note ...]] [--session ID] [--defer KIND --what ... [--unblock ...]] [--report] [--clear] [--end [reason] [--all]]" ;;
       *) shift ;;
     esac
   done
@@ -1756,6 +1757,14 @@ cmd_overnight() {
   # none of them.
   local scope="session"
   [ "$named" -eq 1 ] || sid="${CLAUDE_CODE_SESSION_ID:-}"
+  # From inside a session, a night is that session's to take and nobody
+  # else's to give: a grant there holds whatever session it names at every
+  # stop, and the one inside it is the only one that asked. Naming another
+  # session is for a person at a terminal, which exports no id.
+  if [ "$start" -eq 1 ] && [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && [ "$sid" != "$CLAUDE_CODE_SESSION_ID" ]; then
+    die "from inside a session, a night can only be granted to that session. Type it in the session the night is for."
+  fi
+  [ "$all" -eq 1 ] && scope="all"
   if [ -z "$sid" ]; then scope="all"
   elif ! _felix_overnight_sid_ok "$sid"; then
     die "the session id cannot name a night: letters, digits, dot, dash and underscore only"
@@ -1791,7 +1800,8 @@ EOT
       felix_overnight_end "$proj" "$end" "$sid"
       printf 'overnight ended for %s: %s\n\n' "$(_felix_overnight_whose "$sid")" "$end"
     else
-      printf 'no night was running for %s.\n\n' "$(_felix_overnight_whose "$sid")"
+      printf 'no night was running for %s. Another session'"'"'s night is ended from inside\n' "$(_felix_overnight_whose "$sid")"
+      printf 'it, or with felix overnight --end --all, which ends every night.\n\n'
     fi
     felix_overnight_report "$proj" "$sid"
     return 0

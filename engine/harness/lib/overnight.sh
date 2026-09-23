@@ -28,7 +28,10 @@
 # carries on through the flag, bounded by the three bounds below and by
 # nothing else of Felix's. The platform keeps a cap of its own on consecutive
 # blocks, which its hooks guide mentions without a number, so a night may end
-# sooner than its bounds say. It cannot run longer.
+# sooner than its bounds say. The bounds hold per session per day, not per
+# grant: a session's own shell can run `felix overnight --start`, and a night
+# it could re-grant from inside the chain would be a loop with nothing to end
+# it but the model's restraint (see felix_overnight_granted).
 #
 # THE BOUNDS, BECAUSE AN UNBOUNDED LOOP IS A DEFECT AND NOT A FEATURE.
 #
@@ -79,6 +82,9 @@ FELIX_OVERNIGHT_MAX_HOURS="${FELIX_OVERNIGHT_MAX_HOURS:-16}"
 # the platform's chain: before, a night could spend one per prompt, and a
 # ceiling on a budget nobody could reach bounded nothing.
 FELIX_OVERNIGHT_MAX_TURNS="${FELIX_OVERNIGHT_MAX_TURNS:-200}"
+# Both ceilings bound what one session is granted in this many seconds, summed
+# over every grant, so a second grant is not a way past the first one's.
+FELIX_OVERNIGHT_WINDOW="${FELIX_OVERNIGHT_WINDOW:-86400}"
 # Consecutive continuations that called no tool before the night ends.
 FELIX_OVERNIGHT_QUIET_LIMIT="${FELIX_OVERNIGHT_QUIET_LIMIT:-2}"
 
@@ -211,6 +217,27 @@ felix_overnight_log_event() {   # proj, event, detail
 # A night is granted to a session. A second grant to the same session
 # replaces its night, and a grant to another session is another night: neither
 # can touch a night that is not its own.
+# What a session has been granted in the last window, as "turns hours". Every
+# grant is appended to the session's ledger, and the ledger is only read here.
+# A session can run `felix overnight --start` from its own shell, and a night
+# carries it through the platform's chain, so a grant made from inside the
+# chain would reset the budget the chain is bounded by. Summing grants over a
+# day is what makes the ceilings a bound on the session and not on one
+# command: a person who wants more starts another session.
+_felix_overnight_grants() {   # proj, sid -> path
+  _felix_overnight_sid_ok "${2:-}" || return 1
+  printf '%s/grants/%s' "$(felix_overnight_dir "$1")" "$2"
+}
+
+felix_overnight_granted() {   # proj, sid -> "turns hours" granted inside the window
+  local f since
+  f="$(_felix_overnight_grants "$1" "${2:-}")" || { printf '0 0'; return 0; }
+  since=$(( $(felix_overnight_now) - FELIX_OVERNIGHT_WINDOW ))
+  [ -f "$f" ] || { printf '0 0'; return 0; }
+  awk -F'\t' -v since="$since" '$1 ~ /^[0-9]+$/ && $1 >= since { t += $2; h += $3 }
+    END { printf "%d %d", t, h }' "$f" 2>/dev/null || printf '0 0'
+}
+
 felix_overnight_start() {   # proj, hours, turns, session, note -> 0, or 1 with a reason on stdout
   local proj="$1" hours="${2:-$FELIX_OVERNIGHT_DEFAULT_HOURS}" turns="${3:-$FELIX_OVERNIGHT_DEFAULT_TURNS}"
   local sid="${4:-}" note="${5:-}" now deadline f mark
@@ -225,6 +252,14 @@ felix_overnight_start() {   # proj, hours, turns, session, note -> 0, or 1 with 
   [ -n "$sid" ] || { printf 'a night is granted to a session, and none was named'; return 1; }
   _felix_overnight_sid_ok "$sid" || {
     printf 'the session id cannot name a night: letters, digits, dot, dash and underscore only'; return 1; }
+  local had had_t had_h
+  had="$(felix_overnight_granted "$proj" "$sid")"; had_t="${had% *}"; had_h="${had#* }"
+  [ $(( had_t + turns )) -le "$FELIX_OVERNIGHT_MAX_TURNS" ] || {
+    printf 'this session was granted %s continuation(s) in the last day, and the ceiling is %s a day; a new session is a new day' \
+      "$had_t" "$FELIX_OVERNIGHT_MAX_TURNS"; return 1; }
+  [ $(( had_h + hours )) -le "$FELIX_OVERNIGHT_MAX_HOURS" ] || {
+    printf 'this session was granted %s hour(s) of night in the last day, and the ceiling is %s a day; a new session is a new day' \
+      "$had_h" "$FELIX_OVERNIGHT_MAX_HOURS"; return 1; }
 
   now="$(felix_overnight_now)"; deadline=$(( now + hours * 3600 ))
   f="$(_felix_overnight_state "$proj" "$sid")"
@@ -237,6 +272,11 @@ felix_overnight_start() {   # proj, hours, turns, session, note -> 0, or 1 with 
   # A new night reads the transcript from its own first hold, not from where
   # an old one stopped.
   mark="$(_felix_overnight_mark "$proj" "$sid" 2>/dev/null)" && rm -f "$mark" 2>/dev/null
+  mark="$(_felix_overnight_grants "$proj" "$sid")"
+  mkdir -p "$(dirname "$mark")" 2>/dev/null
+  printf '%s\t%s\t%s\n' "$now" "$turns" "$hours" >> "$mark" 2>/dev/null || {
+    rm -f "$f" 2>/dev/null
+    printf 'cannot write the grant ledger, so the grant could not be bounded'; return 1; }
   felix_overnight_log_event "$proj" start "${hours}h ${turns} continuations; $(_felix_overnight_whose "$sid")"
   return 0
 }
@@ -263,10 +303,22 @@ felix_overnight_spend() {   # proj, quiet(0|1) [, sid] -> remaining
   case "$quiets" in ''|*[!0-9]*) quiets=0 ;; esac
   [ "$turns" -gt 0 ] && turns=$(( turns - 1 ))
   if [ "$quiet" = "1" ]; then quiets=$(( quiets + 1 )); else quiets=0; fi
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$started" "$deadline" "$turns" "$quiets" "$owner" "$note" \
-    > "$f" 2>/dev/null || true
+  # Written beside and renamed over, and only while the night is still there.
+  # A spend that could not be written must not be a spend that happened: a
+  # hold that costs nothing is a hold with no bound but the clock. The caller
+  # hears the failure and ends the night. A rename over a file an --end or a
+  # sweep removed a moment ago would bring the night back, which the check
+  # before it narrows to the width of one rename.
+  # Outside nights/, so the listing can never read the half-written copy as a night.
+  local tmp; tmp="$(felix_overnight_dir "$proj")/.spend.$$"
+  if printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$started" "$deadline" "$turns" "$quiets" "$owner" "$note" \
+       > "$tmp" 2>/dev/null && [ -f "$f" ] && mv -f "$tmp" "$f" 2>/dev/null; then
+    printf '%s' "$turns"
+    return 0
+  fi
+  rm -f "$tmp" 2>/dev/null
   printf '%s' "$turns"
-  return 0
+  return 1
 }
 
 felix_overnight_quiets() {   # proj [, sid] -> consecutive continuations that called no tool

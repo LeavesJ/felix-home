@@ -13895,6 +13895,9 @@ _scr stage "scoped: cd reads .. by spelling, through a link out of the checkout"
 ( cd "$GOV" && printf '{"session_id":"scoped","cwd":"%s","tool_name":"Bash","tool_input":{"command":"cd \\u002f%s && git add -A"}}' \
     "$SCR/plain" "${GOV#/}" | "$FROOT/harness/hooks/pre-tool" 2>"$SC_ERR" ); rc=$?
 is "scoped: a \\u escape in the payload is not read as its letters" "$rc" "2"
+_long="cd $SCR/clone && git add -A && git commit -qm x$(printf ' %.0s' $(seq 1 33000))"
+_scr stage "scoped: a command longer than the reader reads keeps the refusal" - "$_long"
+has "and says it was too long to read" "$(cat "$SC_ERR")" "longer than this reads"
 # --- a lift is written down, and a refusal is not written as one
 _lifts() { awk -F'\t' '$2 == "lifted"' "$MEM/widget/says.log" 2>/dev/null; }
 _sc 0 "scoped: a lift to be recorded" "$SCR/clone" 'git add -A && git commit -qm recorded-lift'

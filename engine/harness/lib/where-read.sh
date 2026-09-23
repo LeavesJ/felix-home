@@ -71,11 +71,14 @@ BEGIN {
 }
 
 # ---------------------------------------------------------------- input
-function unjson(s,   n, P, k, L, i, c, m) {
-  L = length(s); m = 0; i = 1
+function unjson(s,   n, P, k, L, i, m, CH) {
+  # One split into characters, then a walk over them. A substr per
+  # character reads the whole string again each time in this awk, which
+  # made a 170K command take seconds here before anything else ran.
+  L = split(s, CH, ""); m = 0; i = 1
   while (i <= L) {
-    c = substr(s, i, 1); m++; RP[m] = i - 1
-    if (c == "\\" && i < L && substr(s, i + 1, 1) ~ /[nrt"\\\/]/) i += 2; else i++
+    m++; RP[m] = i - 1
+    if (CH[i] == "\\" && i < L && CH[i + 1] ~ /[nrt"\\\/]/) i += 2; else i++
     RE[m] = i - 2
   }
   gsub(/\\\\/, "\002", s)

@@ -56,8 +56,8 @@ were landed with `felix merge` from fresh clones.
     code points above U+10FFFF, which macOS awk cannot read;
   - `symlink`, `empty-cell`, `cells`;
   - `empty`, where the table's row says emptiness is never legitimate.
-- **`schemas.tsv`, engine-only.** It has 27 rows of `table lives columns
-  empty`: every tracked table kind; `maintenance.log`, `capabilities` and
+- **`schemas.tsv`, engine-only.** It has 29 rows of `table lives columns
+  empty`, 27 for the tree and 2 for memory: every tracked table kind; `maintenance.log`, `capabilities` and
   `autonomy` under their own names; `procedures.tsv`, which nothing has
   written yet; and the owed memory rows for `lifecycle.log` and
   `decisions.log`. Emptiness and absence meanings are comments that cite
@@ -69,7 +69,7 @@ were landed with `felix merge` from fresh clones.
 - **Protection.**
   - The engine's `schemas.tsv` is in `FELIX_ESCAPE_TABLES` by its path, so a
     product's own `schemas.tsv` is not touched.
-  - `count:` verifier rows guard `table.sh` (21 refusal sites) and
+  - `count:` verifier rows guard `table.sh` (23 refusal sites) and
     `schema-check` (7).
   - 15 qualification controls are kept from 42 authored blind. All six types
     are met under #296's type rule, and `qualified` now reads 69 controls

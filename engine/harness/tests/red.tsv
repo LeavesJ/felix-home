@@ -4,7 +4,7 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	b87b782733a0794b7a1a0e906e5ff21a65b3ac5c	0.49.142
+base	origin/main	774f5a56a5af5b1156f2e3a31e4f75ddeb9db463	0.49.142
 run	3	2986	5
 a committed rename lists the name it left as well as the one it took	1
 and so does a staged one	1

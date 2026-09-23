@@ -15,7 +15,7 @@ and changed none of it: the archive files concatenated in index order, after
 files the split made; later sections join the index above them, below §0).
 
 **The rule for the next session.** Write your section at the top of "Current
-state", with the next id (after 0br comes 0bs). Move the section it replaces
+state", with the next id (after 0bt comes 0bu). Move the section it replaces
 into `docs/handoff/<id>.md`, unchanged, and add its row to the top of the
 index. A reference like "HANDOFF §0bm" means `docs/handoff/0bm.md`.
 
@@ -32,85 +32,133 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0bs. 2026-09-22/23 — Felix is a product for other people's projects, built first; the first obligations request answered blind; the roadmap
+### 0bt. 2026-09-22/23 — the table validator (queue item 2, step 1) shipped, and a rename that hid an escape
 
-**No engine change from this session.** Records and doctrine only. The engine
-moved to 0.49.142 and 0.49.143 through other sessions' pull requests (#289,
-#292) while this one ran.
+**Deployed: engine 0.49.150**, from the home checkout, verified against
+the tree. Both merges passed `felix gate` on their exact trees and CI, and
+were landed with `felix merge` from fresh clones.
 
-| PR | What |
-|---|---|
-| #290 | Constitution: Felix is a product for other people's projects, built first on Claude Code; the Phase-1-only scope is replaced |
-| #293 | `docs/2026-09-23-roadmap.md`, replacing direction-decisions §5's queue |
-| this | The roadmap revised to build first, and this section |
+| PR | What | Engine |
+|---|---|---|
+| #291 | `felix_changed_paths` lists a rename's old path (`--no-renames`), so renaming an enforcing table away fires `verifier` | 0.49.144 |
+| #298 | `lib/table.sh`, `templates/schemas.tsv`, `bin/schema-check`, and the gate's `schema` check | 0.49.150 |
 
-**Founder decisions, 2026-09-22/23:**
+**What exists now.**
 
-- Felix is a product for other people's projects (#290): Claude Code first
-  and best, host-independent by design, a second host once Claude Code is
-  right. The name stays for now, the IP is his, pricing is deferred, and both
-  planes stay.
-- **Build first (2026-09-23).** Real obligations and working machinery come
-  before anything else; commercialisation is a natural outcome of Felix's
-  quality, not a goal. No outreach track and no user deadlines. The roadmap
-  was revised the same day to say so.
-- The Capability Plane is not "call an agent API". Labour (Claude, Codex,
-  Factory) is one commoditised provider class, consumed on the customer's own
-  key; the distinct core is qualifying the evidence providers (observers and
-  checkers) and deriving needs from standing obligations. Integration order:
-  merge-point check, then ride-along adapters, then dispatch.
-- Approved: the obligations request by hand on Elenchus (done, below) and the
-  qualified-judge slice (roadmap Phase 1). No row is armed before control 7
-  and the judge pin exist; the chat plan of 2026-09-22 said new rows would arm
-  at once, and the roadmap records that correction.
+- **One row definition.** A row is any line not matching `^[[:space:]]*(#|$)`
+  in the C locale, split into exact tab cells. It is byte-identical to the 42
+  reader sites that already filter that way. The validator refuses the shapes
+  on which two reader families in the engine read different rows or split
+  cells differently:
+  - `indented-comment`, `whitespace-line`, `nonascii-lead`;
+  - `carriage-return`, `no-final-newline`, `nul-byte`;
+  - `encoding`: strict RFC 3629, byte by byte, because macOS `iconv` passes
+    code points above U+10FFFF, which macOS awk cannot read;
+  - `symlink`, `empty-cell`, `cells`;
+  - `empty`, where the table's row says emptiness is never legitimate.
+- **`schemas.tsv`, engine-only.** It has 27 rows of `table lives columns
+  empty`: every tracked table kind; `maintenance.log`, `capabilities` and
+  `autonomy` under their own names; `procedures.tsv`, which nothing has
+  written yet; and the owed memory rows for `lifecycle.log` and
+  `decisions.log`. Emptiness and absence meanings are comments that cite
+  functions, not lines, so keeping them true costs no escalation.
+- **The `schema` check.** It enumerates tracked files plus untracked files
+  that are not ignored. A `.tsv` with no row fails. A declared table that
+  nothing carries is a note and does not fail, because the public snapshot
+  leaves `.snapshot-ack.tsv` behind. The check fails when absent.
+- **Protection.**
+  - The engine's `schemas.tsv` is in `FELIX_ESCAPE_TABLES` by its path, so a
+    product's own `schemas.tsv` is not touched.
+  - `count:` verifier rows guard `table.sh` (21 refusal sites) and
+    `schema-check` (7).
+  - 15 qualification controls are kept from 42 authored blind. All six types
+    are met under #296's type rule, and `qualified` now reads 69 controls
+    across 7 checkers.
+- **Fixed on the way.**
+  - `felix route --ack` folds tab, CR and LF in the reason to spaces.
+  - `bin/memory-scan` knows `lifecycle.log`.
+  - `lib/lifecycle.sh`'s dated exception to rows-first is closed.
 
-**Queue item 4a, done 2026-09-22.** `felix obligations --request` ran on a
-scratch clone of Elenchus at origin/main `a45a985`, with `.[dev,web]`
-installed so `http_route` read found (16) rather than blind. A Plan subagent
-answered it: that type loads no memory, so it was not primed by the session's
-talk of rate limiting. The answer was written verbatim to
-`~/.felix/memory/elenchus/commission/obligations_surveyed.tsv` and read back
-by `felix obligations`: 7 proposed, 7 accepted, 0 refused, 0 admitted
-(`candidates.tsv`, 7 rows, epoch `5d2d7b05`). Six of the seven evidence
-commands fail on main. `public_bind_has_spend_ceiling` is LeavesJ/Elenchus#16,
-open since 2026-09-03, and `app.py:74` names it, so this is calibration, not
-recall. The other five are unverified against what Elenchus already records.
-Admission waits on the founder. The scratch clone does not outlive the session.
+**How it was checked.**
 
-**Records.** Memory: `felix-is-a-commercial-product`,
-`agent-vendor-access-and-terms`, and the market map's 2026-09-22 delta:
-Factory's 2026-08-27 post states the inventory-plus-current-evidence thesis
-for next-generation Missions, Claude Code Projects redesigned on 2026-09-17,
-and Anthropic's Agent SDK terms for products. The founder has PDFs of the
-positioning continuation and of both roadmap versions; their Markdown was
-scratch, so the repository's roadmap is the source.
+- **The map.** Eight agents mapped every table and 507 parsing sites.
+- **Contract review.** Four refuters took the contract before code:
+  - trust found the rename hole, now #291;
+  - false-pass found locale and encoding splits;
+  - portability found that stale rows would have turned the published
+    snapshot red;
+  - omission found non-`.tsv` tables and the memory-scan gap.
+- **Blind review.** Three agents worked without reading the source:
+  - a qualification author, 42 controls, 41 met;
+  - an assertion author, 592 assertions, 576 passing first time;
+  - a black-box adversary. It found that awk took `k=v/` and `-` for an
+    assignment and for stdin, that `tail` took `-d/` for an option (each
+    skipped a table in silence), the iconv range, a NUL last byte hiding a
+    missing newline, and an unreadable schema reading as exit 1. All are
+    fixed and pinned in the suite.
 
-**Open, in roadmap order:** Phase 0 of `docs/2026-09-23-roadmap.md`. Live in
-other sessions: the table validator on `claude/table-validator`, and
-qualification hardening in `happy-snyder-20f100`, which touches
-`lib/qualify.sh`, so the judge work waits for it. PR #291 is red. Carried from
-§0br: deny rows reading heredocs and quoted text (roadmap Phase 0), and the
-harvest rows (Phase 4).
+**Founder, per the roadmap's Sep 26-27 window:** re-stamp the commission now
+that the validator has merged. `risk.tsv` is a commissioning table, so the
+policy stamp moved.
 
-**Traps paid for this session:**
+**Open, in roadmap order** (Phase 0 of `docs/2026-09-23-roadmap.md`).
 
-- A gate receipt belongs to the tree, and committing changes the tree even
-  when no content does. Gate after the commit.
-- `origin/main` moved twice mid-work. Merge it into the branch rather than
-  rebase (a force-push is refused), then gate again.
-- Running probes in another project moved this checkout's grounded facts, and
-  the Stop hold asked for a fresh gate on an unchanged tree.
-- `felix merge` takes no pull request number; it merges the checked-out
-  branch.
-- A discovery answer must not come from the session's own model once the
-  session has discussed what it expects to find. A Plan subagent loads no
-  memory.
-- The request records probe state as last read. Install the product's extras
-  first, or `http_route` reads blind.
-- Headless Chrome with a fresh `--user-data-dir` writes the PDF and then
-  hangs. Bound it and check the file.
-- In zsh a bare word starting with `=`, such as a line of equals signs passed
-  to `echo`, is an expansion error.
+- **Owned by other sessions tonight:**
+  - the Felix development session has `claude/deny-reads-the-command` (deny
+    rows that read prose and heredocs, carried from §0br),
+    `claude/gate-workflow-filter` and `claude/epoch-portable`;
+  - #300 fixes the facts log's concurrent-writer check;
+  - the audit-decode fix and the deny-scope column (`deny.tsv` gains a
+    column, so its schema row changes with it) are on their own branches.
+- **Unowned:** the obligations request on a project in a second ecosystem;
+  the probe of `felix gate` on a runner with no `claude` CLI; checking the
+  five unverified Elenchus candidates against what Elenchus already records,
+  before the founder admits or refuses them.
+- **Phase 1** then carries `coverage.tsv`, born on this validator.
+
+**Recorded, not done** (each needs a decision or a row to force it):
+
+- Per-project table validation inside `cmd_gate`. A stranger's own tables are
+  unchecked until the roadmap's ledger relocation moves them into their
+  repository, and that is where this belongs.
+- Typed row shapes, for `red.tsv`'s three kinds and the provider answer files.
+- Duplicate keys, and glob characters in space-separated cells.
+- An inventory of reader arities: a narrower read folds the extra cells into
+  its last variable, by design.
+- `decisions.log` decline rows still lack a session and a route. The Stop hook
+  consumes the ack and knows both.
+
+**Chips raised for other sessions:** the commission IFS trap (landed as
+#289); qualification hardening (landed as #296); red.tsv comparing engine
+trees rather than commits (#294); concurrent gates failing each other's
+`probes` through `facts.log`'s whole-file line count (#300, open).
+
+**Traps paid for this session** (memory: `landing-engine-prs-under-concurrency`,
+`fact-gate-keys-on-command-tokens`):
+
+- **Main moved nine times while two PRs were in flight** (#289, #290, #292,
+  #293, #295, #296, #297, #294, #299), and six of those took an engine
+  version. Every move staled the open PRs' version and red.tsv. #298 lost
+  four cycles of about 40 minutes each under a load average near 100.
+- **What ended it was asking.** `ListAgents` showed four busy sessions with
+  engine work. Each agreed to hold its engine merges until #298 landed, two
+  paused their suites to cut load, and #298 merged on the next cycle.
+- **Update a pushed branch by merging main in, not rebasing**, since the deny
+  table refuses a force-push. When the merge conflicts in `plugin.json`,
+  start from main's copy and set the version there. Rewriting the version
+  line in the conflicted file committed both sides with their markers once.
+- **From a worktree, `felix gate` runs the home's `gate.sh` and
+  `qualification.tsv`.** The branch's own block runs only with
+  `FELIX_HOME=<tree>`. This is lessons.md 2026-09-02, paid again because no
+  route matched and it was never surfaced. `felix merge` needs the
+  commissioning receipt in the real home, so gate and merge from a fresh
+  clone without the override.
+- **Two gates at once on one project** fail each other's `probes`, through
+  `facts.log`.
+- **The race test injects on `diff --name-only`.** A flag placed between
+  those words silenced it.
+- **The command guard keys on words in the command line.** A scratch script
+  run with bash avoided it three times of three.
 
 ---
 
@@ -121,6 +169,7 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0bs](docs/handoff/0bs.md) | 2026-09-22/23 — Felix is a product for other people's projects, built first; the first obligations request answered blind; the roadmap |
 | [0br](docs/handoff/0br.md) | 2026-09-22, closing — seven pull requests shipped and deployed, the public snapshot is a command and was brought forward, Elenchus has a working required check again |
 | [0bq](docs/handoff/0bq.md) | 2026-09-22 — the recorder and #264 deployed, ECC step 1 complete, two branches in repair |
 | [0bp](docs/handoff/0bp.md) | DECIDED 2026-09-21 — `projects/bazaar` is tracked, and its gate keeps its own log |

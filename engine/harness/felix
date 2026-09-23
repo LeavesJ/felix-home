@@ -2980,6 +2980,10 @@ cmd_bootstrap() {
   slug="$(felix_repo_slug "$root")"
   eco="$(felix_guess_ecosystem "$root")"
   branch="$(git -C "$root" symbolic-ref --short HEAD 2>/dev/null || echo main)"
+  # The file the repair loop and the auto-merge streak read the gate's runs
+  # from, so the one this looks for and writes. Resolved before anything is
+  # printed: a refused gate_workflow is a fact about the project to fix first.
+  local gwf; gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
   # The Felix checkout, not the directory this script happens to sit in. #65:
   # `felix_repo_slug "$FELIX_ROOT"` asked git for a remote inside the running
   # engine, which from the deployed CLI is the plugin cache — no remote, so this
@@ -3003,8 +3007,8 @@ cmd_bootstrap() {
     if [ "$2" = "yes" ]; then printf '  [x] %-12s %s\n' "$1" "$3"
     else printf '  [ ] %-12s %s\n' "$1" "$3"; todo=$((todo+1)); fi
   }
-  _felix_bs_have_workflow "$root" && w=yes || w=no
-  _bs ci-workflow "$w" ".github/workflows/gate.yml calling felix gate"
+  _felix_bs_have_workflow "$root" "$gwf" && w=yes || w=no
+  _bs ci-workflow "$w" ".github/workflows/$gwf calling felix gate"
   if [ -n "$slug" ]; then
     _felix_bs_have_labels "$slug" && l=yes || l=no
     _bs labels "$l" "escalation and risk labels the repair loop applies"
@@ -3024,13 +3028,13 @@ cmd_bootstrap() {
   fi
 
   printf '\napplying\n'
-  if ! _felix_bs_have_workflow "$root"; then
+  if ! _felix_bs_have_workflow "$root" "$gwf"; then
     if [ -z "$felix_repo" ]; then
       printf '  skipped    ci-workflow (Felix has no remote for CI to fetch)\n'
     else
       mkdir -p "$root/.github/workflows"
-      felix_bs_render_workflow "$eco" "$felix_repo" > "$root/.github/workflows/gate.yml"
-      printf '  wrote      .github/workflows/gate.yml (review, then commit it)\n'
+      felix_bs_render_workflow "$eco" "$felix_repo" > "$root/.github/workflows/$gwf"
+      printf '  wrote      .github/workflows/%s (review, then commit it)\n' "$gwf"
     fi
   fi
   if [ -n "$slug" ] && ! _felix_bs_have_labels "$slug"; then
@@ -3183,6 +3187,7 @@ cmd_unattended() {
   command -v gh >/dev/null 2>&1 || die "felix unattended needs the gh CLI"
   local repo; repo="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
   [ -n "$repo" ] || die "no github remote"
+  local gwf; gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
 
   local st switch key dry dryfail streak need
   st="$(felix_unattended_state "$repo")"
@@ -3190,7 +3195,7 @@ cmd_unattended() {
   key="$(printf '%s\n' "$st" | awk -F'\t' '$1=="key"{print $2}')"
   dry="$(printf '%s\n' "$st" | awk -F'\t' '$1=="dryruns"{print $2}')"
   dryfail="$(printf '%s\n' "$st" | awk -F'\t' '$1=="dryfails"{print $2}')"
-  streak="$(felix_automerge_streak "$(felix_automerge_history "$repo")")"
+  streak="$(felix_automerge_streak "$(felix_automerge_history "$repo" "$gwf")")"
   need="$FELIX_AUTOMERGE_REQUIRED"
 
   printf 'repo:  %s\n\n' "$repo"
@@ -3352,9 +3357,10 @@ cmd_automerge() {
   command -v gh >/dev/null 2>&1 || die "felix automerge needs the gh CLI"
   local repo; repo="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
   [ -n "$repo" ] || die "no github remote"
+  local gwf; gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
 
   local history streak need
-  history="$(felix_automerge_history "$repo")"
+  history="$(felix_automerge_history "$repo" "$gwf")"
   streak="$(felix_automerge_streak "$history")"
   need="$FELIX_AUTOMERGE_REQUIRED"
 
@@ -3702,13 +3708,22 @@ EOF
 cmd_repair() {
   resolve_or_die; local proj="$PROJ"
   _felix_repair_require_gh || return 1
-  local repo branch latest run_id status conclusion attempts
+  local repo branch latest run_id status conclusion attempts gwf
   repo="$(git remote get-url origin 2>/dev/null | sed -E 's#.*github\.com[:/]##; s#\.git$##')"
   [ -n "$repo" ] || die "no github remote; felix repair supports GitHub Actions only"
+  gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
   branch="$(felix_repair_branch)"
 
-  latest="$(felix_repair_latest "$branch" "$repo")"
-  [ -n "$latest" ] || { printf 'No CI runs for %s yet.\n' "$branch"; return 0; }
+  # Unreadable is not "no runs". gh fails on a workflow the repository does not
+  # have and on a network that does not answer, and both printed nothing, which
+  # this read as nothing to repair: a claim about CI that nothing had checked.
+  latest="$(felix_repair_latest "$branch" "$repo" "$gwf")" || {
+    printf 'Could not read the %s runs for %s: that workflow is not on %s, or gh\n' "$gwf" "$branch" "$repo"
+    printf 'could not answer. A project whose gate runs in another workflow names it as\n'
+    printf 'gate_workflow in its project.json. Nothing is repaired from a run nobody read.\n'
+    return 1
+  }
+  [ -n "$latest" ] || { printf 'No %s runs for %s yet.\n' "$gwf" "$branch"; return 0; }
   run_id="$(printf '%s' "$latest" | cut -f1)"
   status="$(printf '%s' "$latest" | cut -f2)"
   conclusion="$(printf '%s' "$latest" | cut -f3)"
@@ -3724,7 +3739,19 @@ cmd_repair() {
     return 0
   fi
 
-  attempts="$(felix_repair_attempts "$branch" "$repo")"
+  # A count that could not be read is not zero attempts, which is what it was
+  # read as: every time gh did not answer, the ceiling reported itself unspent.
+  # It stops here with the ceiling's own status, because what could not be
+  # shown is that the bound holds, and a caller that honours the ceiling
+  # honours this without having to learn a new code.
+  attempts="$(felix_repair_attempts "$branch" "$repo" "$gwf")" || {
+    printf 'attempts: unreadable\n\n'
+    printf 'CEILING UNKNOWN. The %s runs on %s could not be counted, so the ceiling\n' "$gwf" "$branch"
+    printf 'cannot be shown unspent. Not patching past a bound nobody read; run this\n'
+    printf 'again once gh answers, or escalate:\n\n'
+    printf '  gh pr edit --repo %s --add-label needs-founder\n' "$repo"
+    return 2
+  }
   printf 'attempts: %s of %s\n' "$attempts" "$FELIX_REPAIR_MAX"
 
   if [ "$attempts" -ge "$FELIX_REPAIR_MAX" ]; then

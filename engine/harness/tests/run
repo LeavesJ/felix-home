@@ -2730,6 +2730,287 @@ is "a run nobody could read does not count as clean" \
 is "and it stops the streak rather than being skipped past" \
    "$(_streak "$(printf '9\tclean\ta\n8\tunknown\tb\n7\tclean\tc')")" "1"
 
+printf '\nonly the gate workflow is evidence\n'
+# The streak above and the repair ceiling both read `gh run list --branch <b>`,
+# and with nothing else on that line it lists every workflow's runs on the
+# branch. That was harmless while a governed repository ran one workflow.
+# Elenchus runs three: the gate, the unattended repair that follows it, and
+# GitHub's Dependency Graph. Measured on 2026-09-22 over its last 82 runs, all
+# 39 that were not the gate's sat on main, 37 of them the repair's, because a
+# workflow_run event records the run on the default branch. So on main the
+# newest run was usually the repair's own: skipped, which stops the count of
+# the gate's failures at zero, or, while it runs, in progress, which would tell
+# the repair asking that the gate is still running. On a pull request's branch
+# it is latent: a second workflow run there would dirty a green pull request.
+# Recorded as item 2 of "before any scheduler" in the direction decisions of
+# 2026-09-19.
+#
+# gh is stubbed, and the stub does what the server does with what it is given:
+# it filters by --workflow and --branch, honours --limit, answers a workflow the
+# repository does not have with gh's own 404, and lists every workflow when
+# --workflow is empty, because gh does. Its output goes through jq for the -q
+# expression, since the expressions are the other half of the contract and a
+# stub that pattern-matched them would be testing itself.
+if ! command -v jq >/dev/null 2>&1; then
+  for a in "a failure in another workflow on the branch does not dirty a green pull request" \
+           "another workflow's failures on the branch are not repair attempts" \
+           "and the run repair is handed is the gate's, not the newest of any workflow" \
+           "every run list those three make names the gate workflow" \
+           "a count or a latest run asked for no workflow is refused, not every workflow's" \
+           "and a history read for no workflow is unknown" \
+           "and none of them asks gh for every workflow's runs" \
+           "a repository without the gate workflow makes no pull request clean" \
+           "and its repair ceiling does not read as unspent" \
+           "and repair hears the gate's runs could not be read, not that there are none" \
+           "a branch the gate has not run on has no latest run" \
+           "felix repair reads the gate's run on the branch" \
+           "and counts only the gate's failures against the ceiling" \
+           "and every run list felix repair makes names the gate workflow" \
+           "felix repair stops at the ceiling when its attempts cannot be counted" \
+           "and hands on no failing output as if attempts remained" \
+           "felix automerge judges a green pull request by the gate's runs alone" \
+           "and every run list felix automerge makes names the gate workflow" \
+           "and felix unattended's streak row counts the gate's runs alone" \
+           "bootstrap looks for gate.yml when the project names no gate workflow" \
+           "a project that names its gate workflow is repaired from that workflow's run" \
+           "and every run list names that workflow" \
+           "and bootstrap looks for the workflow the project names" \
+           "a gate_workflow that is not a file name is refused, and named" \
+           "and nothing is asked of gh"; do
+    skip "$a" "no jq here to evaluate gh's -q expressions"
+  done
+else
+WFB="$TMP/wfgh"; mkdir -p "$WFB"
+cat > "$WFB/gh" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$WFSTUB_LOG"
+# A call that does not answer, for the case of gh answering once and then not.
+if [ -n "${WFSTUB_UNANSWERED:-}" ]; then
+  case "$*" in *"$WFSTUB_UNANSWERED"*) printf 'error connecting to api.github.com\n' >&2; exit 1 ;; esac
+fi
+wf=""; br=""; lim=20; q="."; prev=""
+for a in "$@"; do
+  case "$prev" in
+    --workflow) wf="$a" ;;
+    --branch)   br="$a" ;;
+    --limit)    lim="$a" ;;
+    -q|--jq)    q="$a" ;;
+  esac
+  prev="$a"
+done
+case "$1 $2" in
+  "pr list") printf '%s\n' "$WFSTUB_PRS" | jq -r "$q" ;;
+  "run list")
+    if [ -n "$wf" ]; then
+      case " $WFSTUB_WORKFLOWS " in
+        *" $wf "*) ;;
+        *) printf 'HTTP 404: workflow %s not found on the default branch\n' "$wf" >&2; exit 1 ;;
+      esac
+    fi
+    awk -F'\t' -v wf="$wf" -v br="$br" -v lim="$lim" '
+      BEGIN { printf "["; n = 0 }
+      (wf == "" || $1 == wf) && (br == "" || $3 == br) && n < lim + 0 {
+        printf "%s{\"workflowName\":\"%s\",\"headBranch\":\"%s\",\"databaseId\":%s,\"status\":\"%s\",\"conclusion\":\"%s\"}",
+               (n ? "," : ""), $2, $3, $4, $5, $6
+        n++
+      }
+      END { print "]" }' "$WFSTUB_RUNS" | jq -r "$q" ;;
+  "run view") printf 'gate\tRun the gate\t2026-09-22T00:00:00.0000000Z Error: the widget test failed\n' ;;
+esac
+exit 0
+STUB
+chmod +x "$WFB/gh"
+export WFSTUB_LOG="$TMP/wf.log" WFSTUB_RUNS="$TMP/wf.runs" \
+       WFSTUB_WORKFLOWS="gate.yml unattended.yml dynamic/dependabot/update-graph ci.yml" \
+       WFSTUB_PRS='[{"number":7,"headRefName":"feat/x","title":"a green change"}]'
+# Newest first, as gh lists them. On each branch the gate's own record is clean
+# or holds one failure, and everything that would change the answer belongs to
+# another workflow.
+{ printf 'dynamic/dependabot/update-graph\tDependency Graph\tfeat/x\t901\tcompleted\tfailure\n'
+  printf 'gate.yml\tgate\tfeat/x\t101\tcompleted\tsuccess\n'
+  printf 'unattended.yml\tunattended repair\tfeat/x\t902\tcompleted\tfailure\n'
+  printf 'gate.yml\tgate\tfeat/x\t102\tcompleted\tsuccess\n'
+  printf 'unattended.yml\tunattended repair\tfix/y\t903\tcompleted\tfailure\n'
+  printf 'gate.yml\tgate\tfix/y\t201\tcompleted\tfailure\n'
+  printf 'dynamic/dependabot/update-graph\tDependency Graph\tfix/y\t904\tcompleted\tfailure\n'
+  printf 'ci.yml\tCI\tfix/y\t301\tcompleted\tfailure\n'
+  printf 'unattended.yml\tunattended repair\tfix/y\t905\tcompleted\tfailure\n'
+  printf 'gate.yml\tgate\tfix/y\t202\tcompleted\tsuccess\n'
+} > "$WFSTUB_RUNS"
+_wfhist()   { ( PATH="$WFB:$PATH"; . "$FROOT/harness/lib/automerge.sh"
+                felix_automerge_history example/widget "$1" ); }
+_wfatt()    { ( PATH="$WFB:$PATH"; . "$FROOT/harness/lib/repair.sh"
+                felix_repair_attempts "$1" example/widget "$2" ); }
+_wflatest() { ( PATH="$WFB:$PATH"; . "$FROOT/harness/lib/repair.sh"
+                felix_repair_latest "$1" example/widget "$2" ); }
+# The `run list` calls in the log: all of them, those not naming workflow $1,
+# and those naming no workflow at all.
+_wfruns()  { grep -c '^run list' "$WFSTUB_LOG"; }
+_wfbare()  { grep '^run list' "$WFSTUB_LOG" | grep -vcF -- "--workflow $1"; }
+_wfunfiltered() { grep '^run list' "$WFSTUB_LOG" | grep -vcE -- '--workflow [^ ]'; }
+
+: > "$WFSTUB_LOG"
+is "a failure in another workflow on the branch does not dirty a green pull request" \
+   "$(_wfhist gate.yml | cut -f2)" "clean"
+is "another workflow's failures on the branch are not repair attempts" \
+   "$(_wfatt fix/y gate.yml)" "1"
+is "and the run repair is handed is the gate's, not the newest of any workflow" \
+   "$(_wflatest fix/y gate.yml | cut -f1)" "201"
+[ "$(_wfruns)" -gt 0 ] && [ "$(_wfbare gate.yml)" -eq 0 ] \
+  && ok  "every run list those three make names the gate workflow" \
+  || bad "every run list those three make names the gate workflow" "$(grep '^run list' "$WFSTUB_LOG" | head -3)"
+
+# A caller that names no workflow. gh reads an empty --workflow as no filter,
+# so passing one through would be the same defect one call away; the libraries
+# refuse to ask instead, and a refusal is not a number.
+: > "$WFSTUB_LOG"
+_wa="$(_wfatt fix/y "")"; _war=$?
+_wl="$(_wflatest fix/y "")"; _wlr=$?
+[ -z "$_wa$_wl" ] && [ "$_war" -ne 0 ] && [ "$_wlr" -ne 0 ] \
+  && ok  "a count or a latest run asked for no workflow is refused, not every workflow's" \
+  || bad "a count or a latest run asked for no workflow is refused, not every workflow's" \
+         "attempts rc $_war [$_wa], latest rc $_wlr [$_wl]"
+is "and a history read for no workflow is unknown" "$(_wfhist "" | cut -f2)" "unknown"
+is "and none of them asks gh for every workflow's runs" "$(_wfunfiltered)" "0"
+
+# A repository the gate workflow is not on. gh answers 404 and prints nothing,
+# and both readings have to land on the side that holds: no pull request made
+# clean by it, and no ceiling read as unspent because nothing could be counted.
+WFSTUB_WORKFLOWS="ci.yml"
+cp "$WFSTUB_RUNS" "$TMP/wf.runs.keep"
+{ printf 'ci.yml\tCI\tfeat/x\t302\tcompleted\tsuccess\n'
+  printf 'ci.yml\tCI\tfix/y\t303\tcompleted\tsuccess\n'
+  printf 'ci.yml\tCI\tfix/y\t304\tcompleted\tfailure\n'
+} > "$WFSTUB_RUNS"
+is "a repository without the gate workflow makes no pull request clean" \
+   "$(_wfhist gate.yml | cut -f2)" "unknown"
+_wa="$(_wfatt fix/y gate.yml)"; _war=$?
+[ -z "$_wa" ] && [ "$_war" -ne 0 ] \
+  && ok  "and its repair ceiling does not read as unspent" \
+  || bad "and its repair ceiling does not read as unspent" "rc $_war, printed [$_wa]"
+( _wflatest fix/y gate.yml >/dev/null ); _wlr=$?
+[ "$_wlr" -ne 0 ] \
+  && ok  "and repair hears the gate's runs could not be read, not that there are none" \
+  || bad "and repair hears the gate's runs could not be read, not that there are none" "rc 0"
+
+# The gate on the repository and no run of it on this branch yet. `.[0]` of an
+# empty list is null, and interpolating null printed `null<TAB>null<TAB>-`,
+# which felix repair read as a run still in progress.
+WFSTUB_WORKFLOWS="gate.yml ci.yml"
+is "a branch the gate has not run on has no latest run" "$(_wflatest fix/y gate.yml)" ""
+cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
+WFSTUB_WORKFLOWS="gate.yml unattended.yml dynamic/dependabot/update-graph ci.yml"
+
+# Through the CLI, where the workflow comes from the project rather than from
+# the test. Its own checkout, on a branch, with a GitHub remote: the main
+# fixture is remote-less, and felix repair dies without one before any gh.
+WFR="$TMP/wfrepo"; mkdir -p "$WFR"
+( cd "$WFR" && git init -q -b fix/y \
+  && git remote add origin https://github.com/example/widget.git )
+WFR="$(cd "$WFR" && pwd -P)"
+printf 'widget\n' > "$WFR/.felix"; printf 'contents\n' > "$WFR/WIDGET.txt"
+( cd "$WFR" && git add -A >/dev/null 2>&1 \
+  && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
+cp "$FROOT/projects/widget/project.json" "$TMP/project.wf.keep"
+_wfcli() { ( cd "$WFR" && PATH="$WFB:$PATH" "$FELIX" "$@" 2>&1 ); }
+
+: > "$WFSTUB_LOG"
+out="$(_wfcli repair)"
+has "felix repair reads the gate's run on the branch" "$out" "run:      201"
+has "and counts only the gate's failures against the ceiling" "$out" "attempts: 1 of"
+[ "$(_wfruns)" -gt 0 ] && [ "$(_wfbare gate.yml)" -eq 0 ] \
+  && ok  "and every run list felix repair makes names the gate workflow" \
+  || bad "and every run list felix repair makes names the gate workflow" "$(grep '^run list' "$WFSTUB_LOG" | head -3)"
+
+# The newest gate run read and the count behind it not. The count is the bound,
+# and it used to read as zero whenever gh did not answer, which printed the
+# failing output with every attempt still left.
+out="$( export WFSTUB_UNANSWERED='.[].conclusion'; _wfcli repair )"; rc=$?
+is "felix repair stops at the ceiling when its attempts cannot be counted" "$rc" "2"
+case "$out" in
+  *"attempt(s) left"*) bad "and hands on no failing output as if attempts remained" "$out" ;;
+  *)                   ok  "and hands on no failing output as if attempts remained" ;;
+esac
+
+: > "$WFSTUB_LOG"
+out="$(_wfcli automerge)"
+has "felix automerge judges a green pull request by the gate's runs alone" "$out" "clean  #7"
+[ "$(_wfruns)" -gt 0 ] && [ "$(_wfbare gate.yml)" -eq 0 ] \
+  && ok  "and every run list felix automerge makes names the gate workflow" \
+  || bad "and every run list felix automerge makes names the gate workflow" "$(grep '^run list' "$WFSTUB_LOG" | head -3)"
+# The readiness report reads the same streak, and is what somebody reads while
+# deciding whether to switch on a loop that runs unattended.
+has "and felix unattended's streak row counts the gate's runs alone" \
+    "$(_wfcli unattended | grep -F 'green merges judged well')" " 1 of "
+has "bootstrap looks for gate.yml when the project names no gate workflow" \
+    "$(_wfcli bootstrap)" ".github/workflows/gate.yml"
+
+# A project whose gate already runs in a workflow of its own says so, and is
+# read through that workflow and no other.
+python3 - "$FROOT/projects/widget/project.json" <<'PYJ'
+import json,sys,pathlib
+p=pathlib.Path(sys.argv[1]); d=json.loads(p.read_text())
+d["gate_workflow"]="ci.yml"; p.write_text(json.dumps(d,indent=2))
+PYJ
+: > "$WFSTUB_LOG"
+out="$(_wfcli repair)"
+has "a project that names its gate workflow is repaired from that workflow's run" "$out" "run:      301"
+[ "$(_wfruns)" -gt 0 ] && [ "$(_wfbare ci.yml)" -eq 0 ] \
+  && ok  "and every run list names that workflow" \
+  || bad "and every run list names that workflow" "$(grep '^run list' "$WFSTUB_LOG" | head -3)"
+has "and bootstrap looks for the workflow the project names" \
+    "$(_wfcli bootstrap)" ".github/workflows/ci.yml"
+
+# Refused, not replaced by the default. A declared fact silently overridden
+# reads a workflow the project said it does not use, and a path would reach gh
+# as a display name that matches nothing.
+python3 - "$FROOT/projects/widget/project.json" <<'PYJ'
+import json,sys,pathlib
+p=pathlib.Path(sys.argv[1]); d=json.loads(p.read_text())
+d["gate_workflow"]=".github/workflows/ci.yml"; p.write_text(json.dumps(d,indent=2))
+PYJ
+: > "$WFSTUB_LOG"
+out="$(_wfcli repair)"
+has "a gate_workflow that is not a file name is refused, and named" "$out" "gate_workflow"
+is  "and nothing is asked of gh" "$(wc -l < "$WFSTUB_LOG" | tr -d ' ')" "0"
+
+cp "$TMP/project.wf.keep" "$FROOT/projects/widget/project.json"
+unset WFSTUB_LOG WFSTUB_RUNS WFSTUB_WORKFLOWS WFSTUB_PRS
+fi
+
+printf '\nthe unattended repair acts only on a brief\n'
+# The ceiling above is enforced by felix repair's exit status, and the one
+# thing that reads that status in CI is the scope step of
+# templates/unattended.yml. It proceeded on everything but 3, so exit 2,
+# CEILING REACHED, still spent the budget and handed a model the brief that
+# told it to stop: the ceiling held only as long as a model read a sentence.
+# The step is taken out of the shipped template as it stands and run against a
+# stub felix that exits with each status repair can return, with gh stubbed to
+# record what it is asked. Its brief goes to the fixture, not to /tmp.
+SC="$TMP/scope"; mkdir -p "$SC/repo" "$SC/felix/engine/harness" "$SC/bin"
+awk '/- name: Scope the failure/ { f = 1 } f && /^        run: \|/ { r = 1; next }
+     r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' \
+  "$REAL_HARNESS/templates/unattended.yml" | sed "s#/tmp/brief.txt#$SC/brief.txt#" > "$SC/step.sh"
+printf '#!/usr/bin/env bash\nprintf "brief\\n"; exit "${SCOPE_RC:-0}"\n' > "$SC/felix/engine/harness/felix"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "%s/gh.log"\ncase "$1 $2" in "pr list") printf "7\\n" ;; esac\nexit 0\n' "$SC" > "$SC/bin/gh"
+chmod +x "$SC/felix/engine/harness/felix" "$SC/bin/gh"
+_scope() { : > "$SC/out"; : > "$SC/gh.log"
+  ( cd "$SC/repo" && SCOPE_RC="$1" GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
+      bash "$SC/step.sh" ) >/dev/null 2>&1; }
+_sres=""
+for _r in 0 1 2 3; do
+  _scope "$_r"; _src=$?
+  _sres="$_sres $_r:$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
+  case "$_r" in
+    1) _s1rc="$_src" ;;
+    2) _s2gh="$(cat "$SC/gh.log")" ;;
+  esac
+done
+is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no"
+has "a reached repair ceiling is escalated to a person" "$_s2gh" "pr edit 7 --add-label needs-founder"
+[ "${_s1rc:-0}" -ne 0 ] && ok  "a run felix repair could not read fails the job rather than passing quietly" \
+                        || bad "a run felix repair could not read fails the job rather than passing quietly" "exit ${_s1rc:-?}"
+
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts
 # repetition rather than money: ten deliberate attempts in a day is a working

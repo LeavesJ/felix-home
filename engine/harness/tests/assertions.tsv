@@ -69,6 +69,7 @@
 1	a blocking verdict does not clear it either
 1	a bootstrapped repository still asks before a merge that bypasses checks
 1	a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version
+1	a branch the gate has not run on has no latest run
 1	a branch whose engine differs from the deployed one reads installed ok
 1	a broad but legitimate rule still denies
 1	a builtin is named without a token, as before
@@ -149,6 +150,7 @@
 1	a control the checker meets is met
 1	a copy that ships a README alone is low when no entry is read
 1	a copy with files in it digests to something
+1	a count or a latest run asked for no workflow is refused, not every workflow's
 1	a count that is not a number is reported rather than passed over
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
@@ -241,6 +243,7 @@
 1	a failing gate still blocks
 1	a failing gate still exits non-zero
 1	a failing piped check is counted failed, and the report does not say a piped check's result is never marked an error
+1	a failure in another workflow on the branch does not dirty a green pull request
 1	a faithful cache entry still merges a self-governed branch
 1	a felix-answered row names felix as the actor
 1	a file facing a directory is a drift, whatever diff exits
@@ -267,6 +270,7 @@
 1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
 1	a gate that skipped the suite is not called a passing suite
+1	a gate_workflow that is not a file name is refused, and named
 1	a gitignored stray in the tree is residue, not drift
 1	a gitlink already in history does not block every future backup
 1	a governed directory that is not a git checkout records its HEAD as -, not unborn
@@ -533,6 +537,7 @@
 1	a project directory that is not there identifies no subject and no topology
 1	a project that declares no probes has no topology
 1	a project that has qualified nothing is skipped, not failed
+1	a project that names its gate workflow is repaired from that workflow's run
 1	a project with no declared gate is left alone
 1	a project with no graph is told nothing at all
 1	a project with no probes.tsv declares no probes
@@ -557,6 +562,7 @@
 1	a quoted redirect target still writes the marker, and is refused
 1	a re-run under the new epoch is recorded, same names and all
 1	a reach is the only mount evidence there is
+1	a reached repair ceiling is escalated to a person
 1	a real capability left undeclared is not an error
 1	a real uncommitted edit still speaks, in a fresh session
 1	a real word rises
@@ -604,6 +610,7 @@
 1	a repair that failed says so
 1	a repo copy of a file Felix holds is reported
 1	a repository that is not the memory's own is named foreign
+1	a repository without the gate workflow makes no pull request clean
 1	a resolve.sh committed on the branch being gated does not change the verdict
 1	a resolve.sh stubbed in the cache entry is drift, not the judge
 1	a resume appends one lifecycle row of kind resume, and the hook prints nothing at all and exits 0
@@ -652,6 +659,7 @@
 1	a rule never matches file content
 1	a rule that refuses everything is refused as a rule
 1	a run compared against its own tree reports nothing
+1	a run felix repair could not read fails the job rather than passing quietly
 1	a run nobody could read does not count as clean
 1	a run with no tree id says nothing was compared
 1	a run writes the request for each provider row
@@ -1076,6 +1084,7 @@
 1	and a graph with no stamp does too
 1	and a graphify that fails outright does not reach the session
 1	and a high one is refused
+1	and a history read for no workflow is unknown
 1	and a hold is not written
 1	and a hyphenated name still matches its words
 1	and a listing with a match still scores it
@@ -1163,6 +1172,7 @@
 1	and blocks
 1	and blocks a release
 1	and blocks nothing
+1	and bootstrap looks for the workflow the project names
 1	and both paths in one sentence are found
 1	and briefs the file it names
 1	and calls an absent surface empty rather than blind
@@ -1185,6 +1195,7 @@
 1	and counts every control that did not apply, pass or fail
 1	and counts exactly that one
 2	and counts it
+1	and counts only the gate's failures against the ceiling
 1	and counts the recorded decline
 1	and counts what was held over the whole file too
 1	and creates nothing without --create
@@ -1225,6 +1236,9 @@
 1	and every placeholder in it was filled
 1	and every placeholder was filled
 1	and every reader family reads that table alike
+1	and every run list felix automerge makes names the gate workflow
+1	and every run list felix repair makes names the gate workflow
+1	and every run list names that workflow
 1	and evidence does too
 1	and exactly one continuation is spent for it
 2	and exits 0
@@ -1245,6 +1259,7 @@
 1	and felix commission hashes the same topology there, so it reads the same answer as answered
 1	and felix new seeds it itself, without falling through to the answer
 1	and felix qualify names it as well
+1	and felix unattended's streak row counts the gate's runs alone
 1	and felix which does not resolve it
 1	and felix's qualification table declares every control for the schema checker
 1	and field 1 is still the tree id
@@ -1266,6 +1281,7 @@
 1	and grounding it closes the gap
 1	and handed the cron line instead
 1	and hands it a pull request to merge
+1	and hands on no failing output as if attempts remained
 1	and hands over the page as it goes
 1	and hands the session back at once rather than waiting for the build
 1	and heads the report with the project and counts every row
@@ -1344,6 +1360,7 @@
 1	and its medium holds too
 1	and its path is gone from the tokens whatever the key is called
 1	and its reason whole
+1	and its repair ceiling does not read as unspent
 1	and its row, added in the same tree, clears it
 1	and its seeded stack rows carry DECLARED
 1	and its stop costs that night nothing
@@ -1462,6 +1479,7 @@
 1	and none is not a passing answer
 1	and none of the commands out there are listed
 1	and none of the hand-written lines
+1	and none of them asks gh for every workflow's runs
 1	and none of them names the checkout it read
 1	and none reports a spend past the ceiling as recorded
 1	and not as an escape, which would escalate a typo to the founder
@@ -1476,6 +1494,7 @@
 1	and nothing else is muted, because muting is how this narrows quietly
 1	and nothing escapes, so the fixture can tell the two apart
 1	and nothing in the scratch HOME changed: no .felix-home, no .felix, no .claude
+1	and nothing is asked of gh
 1	and nothing is left uncommitted under it
 1	and nothing is merged
 1	and nothing is merged when it lands there
@@ -1574,6 +1593,7 @@
 1	and refuses with no issue and no input
 1	and refusing costs no continuation
 1	and removing that file restores it
+1	and repair hears the gate's runs could not be read, not that there are none
 1	and reporting absent is not failing
 1	and reports a clear merge without performing one
 1	and reports it on its axes
@@ -1914,6 +1934,7 @@
 1	and the row-level line names the same file
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
+1	and the run repair is handed is the gate's, not the newest of any workflow
 1	and the run that took it over leaves nothing behind
 1	and the same plugin declared by a person installs, which high would refuse
 1	and the same rows over more sessions are not
@@ -1992,6 +2013,7 @@
 1	another plugin's refusal is not
 1	another session in the same project is not held by that night
 1	another session's edit changes the tree identity
+1	another workflow's failures on the branch are not repair attempts
 1	any one bound reached ends the night, whichever it is
 1	anything shipping hooks is high
 1	appended after what was there
@@ -2018,6 +2040,7 @@
 1	before the pulse has ever run there is nothing to report
 1	binds the checkout with no remote
 1	blocks are recorded
+1	bootstrap looks for gate.yml when the project names no gate workflow
 1	bootstrap names the checkout's repo, not the cache's absence
 1	brief reads an issue from stdin
 1	brief refuses outside a governed repo
@@ -2209,6 +2232,7 @@
 1	every route matches its own name
 1	every row carries the command that clears it
 1	every row the adopt reader emits is four fields wide, digest or no digest
+1	every run list those three make names the gate workflow
 1	every verdict is one line of two tab-separated fields
 1	every vocabulary token is a word, not a regex fragment
 1	evidence that says it cannot examine is UNKNOWN, not failed
@@ -2227,6 +2251,7 @@
 1	felix audit --dir exits 0 over a directory of transcripts
 1	felix audit --help answers its usage and reads nothing
 1	felix audit runs with bash and awk alone on PATH, as the README says, and answers the same report
+1	felix automerge judges a green pull request by the gate's runs alone
 1	felix commission on a project without the table exits 1
 1	felix commission, run later, commissions what felix new --no-commission created
 1	felix coverage answers
@@ -2279,6 +2304,8 @@
 1	felix procedures runs
 1	felix profile lists a row carrying the grounding column
 1	felix qualify names the reported checks no row qualifies
+1	felix repair reads the gate's run on the branch
+1	felix repair stops at the ceiling when its attempts cannot be counted
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
 1	felix stack reconcile folds what nothing folded before reporting
@@ -3014,6 +3041,7 @@
 1	the tree holds only the marker beside what was there
 1	the tree id is still the one the receipt names
 1	the tree's run executed against main's lib, never the base's own run
+1	the unattended repair proceeds on a brief, and on no other exit of felix repair
 1	the unmeasurable list takes the hook-only zero
 1	the watching git was asked
 1	the whole forty-character hash grants too, and an expired row above it does not shadow it

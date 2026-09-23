@@ -4,5 +4,8 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	437005ef006b7a72bb7de4281c0e9c16a9e93dce	0.49.140
-run	0	2982	5
+base	origin/main	2362602e71cbcc242a46b6f15d5e3705ca4555dd	0.49.141
+run	3	2983	5
+a committed rename lists the name it left as well as the one it took	1
+and so does a staged one	1
+renaming an enforcing table away fires the verifier on the table it removed	1

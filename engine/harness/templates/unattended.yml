@@ -67,20 +67,33 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
         run: |
-          set -uo pipefail
+          # Actions runs a step that names no shell as `bash -e`, and under
+          # pipefail that ended this step at felix repair's first non-zero
+          # status, before rc was read: a ceiling or a red path failed the job
+          # and escalated nothing, and nothing to repair would have failed it
+          # too. Every exit below is explicit instead.
+          set +e -uo pipefail
           ../felix/engine/harness/felix repair | tee /tmp/brief.txt
           rc=${PIPESTATUS[0]}
-          # Only 0 is a brief to act on. 3 is a red path, 2 a repair ceiling
-          # that is reached or could not be counted, and anything else a read
-          # of the gate's runs that failed. Until 2026-09-23 this proceeded on
-          # everything but 3, so a reached ceiling still spent the budget and
-          # handed a model the brief that said to stop.
+          # Only 0 is a brief to act on. 4 is nothing to repair: the gate has
+          # not run on the branch, is still running, or is green. 3 is a red
+          # path, 2 a repair ceiling that is reached or could not be counted,
+          # and anything else a read of the gate's runs that failed. The list
+          # is lib/repair.sh's. Until 2026-09-23 nothing to repair exited 0,
+          # so a dispatch on a green branch would have spent the budget and
+          # handed a model a brief saying nothing was wrong. This also
+          # proceeded on everything but 3, which under plain bash let a
+          # reached ceiling do the same; under `bash -e` the step ended first.
           if [ "$rc" = "0" ]; then echo "proceed=yes" >> "$GITHUB_OUTPUT"; exit 0; fi
 
           echo "proceed=no" >> "$GITHUB_OUTPUT"
           case "$rc" in
+            # Not a stop for a person: nothing failed, so nothing is escalated
+            # and the job passes.
+            4) echo "nothing=yes" >> "$GITHUB_OUTPUT"
+               echo "nothing to repair on $BRANCH"; exit 0 ;;
             3) echo "out of scope: a red path is implicated" >&2 ;;
-            2) echo "the repair ceiling is reached, or could not be counted" >&2 ;;
+            2) echo "the repair ceiling is reached or could not be counted, or no project governs this checkout" >&2 ;;
             *) echo "felix repair could not read the gate's runs (exit $rc); nothing is repaired from a run nobody read" >&2
                exit 1 ;;
           esac
@@ -160,7 +173,10 @@ jobs:
       - name: Report
         if: always()
         run: |
-          if [ "${{ steps.scope.outputs.proceed }}" != "yes" ]; then
+          if [ "${{ steps.scope.outputs.nothing }}" = "yes" ]; then
+            echo "Nothing to repair: the gate is green, still running, or has not"
+            echo "run on this branch. Nothing was invoked or spent."
+          elif [ "${{ steps.scope.outputs.proceed }}" != "yes" ]; then
             echo "Stopped at scope. A person decides here."
           elif [ "${{ vars.FELIX_UNATTENDED }}" != "true" ]; then
             echo "In scope, and the switch is off. The guards ran and nothing was"

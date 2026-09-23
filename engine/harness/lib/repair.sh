@@ -16,6 +16,25 @@
 #
 # GitHub Actions only for now, via gh. Stated plainly rather than hidden behind a
 # provider abstraction with one implementation.
+#
+# felix repair's exit status is its verdict, and the scope step of
+# templates/unattended.yml branches on it and reads nothing else:
+#
+#   0  a brief for the newest gate run, which completed and did not succeed;
+#      the only status a repair acts on. A cancelled or skipped run lands
+#      here too, and so does a failed run whose log could not be read, whose
+#      brief then names no path
+#   1  the gate's runs could not be read, or repair cannot run here: no gh, no
+#      GitHub remote, a gate workflow that is not a file name, no branch
+#      checked out
+#   2  the ceiling is reached, or the attempts behind it could not be counted;
+#      also no project governing the checkout, refused before any run is read
+#   3  a red path is implicated, which is out of scope for an unattended repair
+#   4  nothing to repair: the gate has not run on the branch, is still running,
+#      or is green
+#
+# felix brief keeps this shape and uses 0, 1, 2 and 3 of it. It has no 4,
+# because an issue is always something to act on.
 
 FELIX_REPAIR_MAX="${FELIX_REPAIR_MAX:-3}"
 

@@ -4,25 +4,5 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	f11749215603364e05892d0ecbdf930d09e7f8f4	0.49.144
-run	20	2994	6
-a control that is not one of the six is malformed	1
-a row for alternate given the verdict it may not have is malformed	1
-a row for decoupled_satisfaction given the verdict it may not have is malformed	1
-a row for decoupled_violation given the verdict it may not have is malformed	1
-a row for irrelevant given the verdict it may not have is malformed	1
-a row for restoration given the verdict it may not have is malformed	1
-a row for violation given the verdict it may not have is malformed	1
-a table whose every row is malformed refuses --gate	1
-a violation row expecting pass over a no-op mutation is never run, so never met	1
-a violation row expecting pass refuses --gate rather than counting as met	1
-and --gate names the row and the verdict its control demands	1
-and names the rows it could not read	1
-and names under it a checker short of the six controls, without refusing	1
-and shows the row and the verdict under qualified FAIL	1
-and so does commenting a control out	1
-and so does flipping the verdict a control expects	1
-and so does swapping its mutation for one that changes nothing	1
-and the report says which verdict the control demands	1
-deleting a control from it escapes as verifier	1
-felix gate fails qualification over a row whose verdict is not its control's	1
+base	origin/main	f224b0caeca78ef0323bd0308077f975e8498519	0.49.145
+run	0	3014	6

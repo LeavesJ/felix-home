@@ -494,7 +494,6 @@ rest of this report is Felix's to build under the roadmap.
 2. **The founder rates each direction-level delivery**: yes, partial or no.
 
 The founder bounded both: "don't go like i need a yes for every action item or
-engineering task". Engineering, fixes, action items and records of what the
-founder said merge on green, and asking for a yes on them is the needless stop
-the pilot measured most. The decision is written into the owner/agent split in
-`projects/felix/CLAUDE.md`.
+engineering task". Everything else merges on green, and asking for a yes on it
+is the needless stop the pilot measured most. The decision is written into the
+owner/agent split in `projects/felix/CLAUDE.md`.

@@ -3824,7 +3824,8 @@ STUB
 chmod +x "$UC/felix/engine/harness/felix" "$UC/bin/git"
 _uctok="ghs_stubtokenstubtokenstubtokenstub"
 : > "$UC/git.log"; : > "$UC/git.cred"
-( cd "$UC/repo" && UC_LOG="$UC/git.log" GITHUB_TOKEN="$_uctok" IMPLICATED=src/a.txt BRANCH=fix/x PATH="$UC/bin:$PATH" \
+( cd "$UC/repo" && UC_LOG="$UC/git.log" GITHUB_TOKEN="$_uctok" IMPLICATED=src/a.txt GITHUB_OUTPUT="$UC/out.gh" \
+    BRANCH=fix/x PATH="$UC/bin:$PATH" \
     bash -e "$UC/step.sh" ) > "$UC/out" 2>&1; _ucrc=$?
 [ "$_ucrc" -eq 0 ] && ok  "a green gate pushes the repair" \
                    || bad "a green gate pushes the repair" "exit $_ucrc: $(cat "$UC/out")"

@@ -11,10 +11,10 @@ records_path, prompts_path, out_path = sys.argv[1:4]
 d = {'records': [json.loads(l) for l in open(records_path) if not l.startswith('{"meta"')]}
 P = collections.defaultdict(list)
 for line in open(prompts_path):
-    ts, sid, wt, br, n, text = line.rstrip('\n').split('\t', 5)
+    ts, sid, wt, br, n, org, text = line.rstrip('\n').split('\t', 6)
     try: t = datetime.strptime(ts[:19], '%Y-%m-%dT%H:%M:%S')
     except ValueError: continue
-    P[sid[:8]].append((t, int(n), ts[:19]))
+    P[sid[:8]].append((t, int(n), ts[:19], org))
 def parse(x):
     blob = x['when'] + ' ' + x['source']
     sid = re.search(r'\b([0-9a-f]{8})\b', x['source'] + ' ' + x['when'])
@@ -38,10 +38,10 @@ for r in d['records']:
         if exact: cands = [p for p in cands if abs((p[0] - t).total_seconds()) <= 60]
         if cands:
             p = min(cands, key=lambda p: abs((p[0] - t).total_seconds()))
-            key, chars, when = sid + ' ' + p[2], p[1], p[2]
+            key, chars, when, org = sid + ' ' + p[2], p[1], p[2], p[3]
         else:
-            key, chars, when = sid + ' ' + t.strftime('%Y-%m-%dT%H:%M') + ' (not indexed)', None, t.strftime('%Y-%m-%dT%H:%M')
-        turns.setdefault(key, {'key': key, 'session': sid, 'when': when, 'chars': chars, 'said': x['founder_said'][:160]})
+            key, chars, when, org = sid + ' ' + t.strftime('%Y-%m-%dT%H:%M') + ' (not indexed)', None, t.strftime('%Y-%m-%dT%H:%M'), 'not indexed'
+        turns.setdefault(key, {'key': key, 'session': sid, 'when': when, 'chars': chars, 'origin': org, 'said': x['founder_said'][:160]})
         votes[key][r['id']].append(x['founder_turn_kind'])
 L = lambda k: k.startswith('leakage')
 table = []
@@ -62,6 +62,7 @@ print('matched to index', sum(r['chars'] is not None for r in table), 'not index
 sl = [r for r in nonop if r['strict_leak']]; tl = [r for r in nonop if r['tie_leak']]
 print('strict-majority leakage', len(sl), f'{len(sl)/len(nonop):.0%}', '| ties', len(tl), '| unanimous with >=2 readers', sum(r['unanimous_leak'] and r['readers'] >= 2 for r in nonop), '| any leakage label', sum(r['leak_votes'] > 0 for r in nonop))
 print('single-reader turns', sum(r['readers'] == 1 for r in nonop))
+print('origin of non-operational turns:', dict(collections.Counter(r['origin'] for r in nonop)), '| of strict-leakage turns:', dict(collections.Counter(r['origin'] for r in sl)))
 print('leak kinds (strict):', collections.Counter(r['leak_kind'] for r in sl).most_common())
 # effort by characters
 ch = [r for r in nonop if r['chars']]

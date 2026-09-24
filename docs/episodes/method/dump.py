@@ -11,6 +11,12 @@ hi = args[args.index('--to') + 1] if '--to' in args else '9999'
 files = [f for f in glob.glob(os.path.expanduser('~/.claude/projects/*/' + sid + '*.jsonl'))]
 if not files: sys.exit('no transcript for ' + sid)
 strip = re.compile(r'<(system-reminder|command-message|command-args|local-command-stdout)>.*?</\1>', re.S)
+def who(t):
+    t = t.lstrip()
+    if t.startswith('<task-notification>'): return 'NOTIFICATION (not the founder)'
+    if t.startswith('<cross-session-message'): return 'PEER SESSION (not the founder)'
+    return 'FOUNDER'
+
 for f in files:
     print('#### transcript', f)
     for line in open(f, errors='replace'):
@@ -24,9 +30,10 @@ for f in files:
             if isinstance(c, list) and any(isinstance(b, dict) and b.get('type') == 'tool_result' for b in c): continue
             text = c if isinstance(c, str) else '\n'.join(b.get('text', '') for b in (c or []) if isinstance(b, dict) and b.get('type') == 'text')
             text = strip.sub('', text or '').strip()
-            if text: print(f'\n=== FOUNDER {ts}\n{text}')
+            if text: print(f'\n=== {who(text)} {ts}\n{text}')
         elif t == 'queue-operation' and e.get('operation') == 'enqueue' and isinstance(e.get('content'), str):
-            print(f'\n=== FOUNDER (mid-turn) {ts}\n{strip.sub("", e["content"]).strip()}')
+            t = strip.sub("", e["content"]).strip()
+            print(f'\n=== {who(t)} (mid-turn) {ts}\n{t}')
         elif t == 'assistant' and isinstance(c, list):
             for b in c:
                 if not isinstance(b, dict): continue

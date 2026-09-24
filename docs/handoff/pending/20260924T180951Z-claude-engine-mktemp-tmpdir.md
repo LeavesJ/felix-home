@@ -38,7 +38,7 @@ block by block, at a load above 150):
 | project gate logs (PGL) | elenchus gate and prepush, veldra gate | template | all six "no log is left behind" and "only the logs it names are kept" |
 | veldra fmt (VFM) | veldra gate | template | "and the log it names…", both "leaves no log behind" |
 | felix audit (AU), and after the reviews (_rvn) | lib/audit.sh | none | both read-only snapshot checks |
-| tests/red (_red) | tests/red's own root | bare on main | b611b9's branch; they are showing it red |
+| tests/red (_red) | tests/red's own root | bare on main | fixed on b611b9's branch, which undertook to show it red; not seen here |
 
 None of the counting blocks reached one of the thirteen, so none of them was
 blind for this reason. The thirteen had no count of their own anywhere. The

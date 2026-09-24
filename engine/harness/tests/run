@@ -3490,6 +3490,28 @@ else
   bad "and Read and Edit stay allowed, since the repair needs both" "--allowedTools ${_atallow:-(absent)}"
 fi
 
+printf '\nthe unattended repair runs the action code its pins name, and no other\n'
+# A tag is a ref its owner can move, so `actions/checkout@v5` runs whatever
+# that repository points v5 at on the day the job runs, and it runs inside the
+# step that fetches Felix with the deploy key, in a job holding a write token.
+# The template pins the Felix ref and the claude-code install for that reason;
+# semgrep's github-actions-mutable-action-tag (1.175, p/github-actions, run
+# 2026-09-24) found the two checkouts had been left on a tag. Every `uses:` key
+# in the file is read, a step's or a job's, so an action added later is held
+# to the same pin without this list being edited. A read that found none is a
+# failure too: an enumeration that matched nothing would pass every file.
+_uauses="$(awk '/^[ \t]*#/ { next }
+                /^[ \t]*(-[ \t]+)?uses:/ { v = $0
+                  sub(/^[ \t]*(-[ \t]+)?uses:[ \t]*/, "", v); sub(/[ \t]+#.*$/, "", v)
+                  print NR ": " v }' "$REAL_HARNESS/templates/unattended.yml" | tr -d "\"'")"
+_ualoose="$(printf '%s\n' "$_uauses" | grep -v -E '^[0-9]+: [^@[:space:]]+@[0-9a-f]{40}$')"
+if [ -n "$_uauses" ] && [ -z "$_ualoose" ]; then
+  ok  "every uses: in the unattended template names a full commit sha, not a ref its owner can move"
+else
+  bad "every uses: in the unattended template names a full commit sha, not a ref its owner can move" \
+      "${_ualoose:-no uses: line found}"
+fi
+
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts
 # repetition rather than money: ten deliberate attempts in a day is a working

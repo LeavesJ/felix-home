@@ -15,7 +15,7 @@ and changed none of it: the archive files concatenated in index order, after
 files the split made; later sections join the index above them, below §0).
 
 **The rule for the next session.** Write your section at the top of "Current
-state", with the next id (after 0bw comes 0bx). Move the section it replaces
+state", with the next id (after 0bx comes 0by). Move the section it replaces
 into `docs/handoff/<id>.md`, unchanged, and add its row to the top of the
 index. A reference like "HANDOFF §0bm" means `docs/handoff/0bm.md`.
 
@@ -32,108 +32,67 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0bw. 2026-09-23 — building Felix, measured as Felix's own workload; direction-level documents wait for the founder
+### 0bx. 2026-09-23 (day) — a turn another hook woke ended unchecked, measured on the real binary, and the Stop hold now knows its own chain
 
-**Nothing deployed from this session; no engine change.** The founder's point:
-the founder brings an idea, sharpens it and judges it, the agent does the rest,
-and that exchange is the model for how Felix works with every user. So the
-history of building Felix is a record of that whole pipeline, from intent
-through the work in between and the delivery to the outcome.
+**One engine PR from this session, branch `claude/stop-hold-own-chain`, engine
+0.49.172** (the carrier's queue took .166 to .171 while this waited its slot). The Stop hook left at
+`stop_hook_active` whoever had set it. It now honours the flag only at the stop
+its own hold started (`state/held/<sid>`, `felix_hold_*` in `lib/verify.sh`),
+and judges any other flagged stop like an unflagged one.
 
-| PR | What |
-|---|---|
-| #316 | The episode pilot. Twenty episodes, weighted to the big decisions, reconstructed from the transcripts with each record checked and the report critiqued: `docs/2026-09-23-episode-pilot.md`, data and method in `docs/episodes/`. |
-| #319 | **DECIDED by the founder.** Documents that change what Felix is, who it is for or its build order wait for his yes, and he rates each delivery in one word. Nothing else waits. Written into the split in `projects/felix/CLAUDE.md`. |
-| #327 | Batch 2: the five episodes the pilot missed, plus two control sessions, with a second blind reader per turn: `docs/2026-09-23-episode-batch-2.md`. The prompt index and transcript reader now tell the founder apart from notifications and other sessions. |
+**What was measured, and how.** The docs are silent. security-guidance's source
+claims the flag is set "session-wide while any asyncRewake Stop is in flight".
+The CLI's own login had expired, so the real binaries (2.1.280, the one the
+desktop runs, and the 2.1.260 CLI) were driven against a local stand-in for
+the Messages API, in a scratch HOME with a scratch Felix home and a governed
+project bound by `remote_match` through a clone. Results, identical on both
+versions:
+- An asyncRewake hook, Stop or PostToolUse, that exits 2 while the session is
+  idle starts a turn with the flag set. On main, Felix exits at that turn's stop
+  unchecked and unrecorded.
+- A hook merely in flight sets nothing, so the plugin's claim is wrong.
+- A rewake that lands mid-turn is folded into that turn and sets nothing.
+- The binary agrees: the rewake is enqueued with `stopHookActive: true`, and a
+  queue batch runs with the flag if any item carries it.
 
-**What the harvest found, briefly.**
-- About a third of the founder's effort went into the agent's job. The pilot's
-  figure is 31% by strict majority, but on turns both batches read the rate
-  runs 42 to 49%. Selection moves the figure more than the counting rule does,
-  so state both beside any rate.
-- The largest kinds are needless stops, restated decisions and answering
-  questions the agent should have decided. Report them as shares, with their
-  label splits.
-- The two readers agreed on 70% of labels. Their most common split was "go":
-  an approval, or a push past a stop that should not have happened.
-- The agent originated 60 decisions across batch 2's records. Several became
-  the founder's chores: a twelve-table hash under the commission receipt and
-  grant, per-project overnight state, and "the commission run is his".
-- The new thing is checks fired at moments, not advice: pilot §7 as amended by
-  batch 2 §6.
+**Real logs.** security-guidance has been installed at user scope since 08-09.
+Across 497 top-level transcripts, no turn was started by its rewake. Its log
+covers the last 12 hours (it rotates at 1 MB) and shows 46 reviews, 0 findings.
+verification.log's 434 `blocked` rows against the transcripts' 424 holds show
+nothing missing. The hole was real and had not yet cost anything.
 
-**Waiting on the founder.**
-- Carried from §0bv: the Elenchus and Veldra candidates' admission, then #310's
-  verifier escape, then #304 (all open on 2026-09-23).
+**Evidence the assertions can fail.** Eighteen assertions were added. Main's
+engine fails 6. Nine mutations, each removing one piece of the fix, fail
+between 1 and 7 each, run on a mini fixture that extracts the blocks verbatim
+from tests/run. The first round caught two assertions that could not fail as
+named:
+- a night assertion satisfied by the gate's hold (the fixture had no probes);
+- a one-turn night, which ends at its first stop.
 
-**DECIDED 2026-09-23 by the founder (batch 2 §8), landed as #332 and rated
-"good." (yes).** Status reaches the founder in the session's closing notice.
-The monitor stays as the deeper page. The charter's stealth paragraph now says
-so. **The notice itself is not built yet,
-and it is the first item below.** Until it ships, the charter describes
-something the engine does not do, which is the failure the pilot found most
-often.
+An independent review found the take's return code overclaiming after a
+failed `rm`. The behaviour was identical either way; the code and comments are
+fixed.
 
-**Next, Felix's to do (none needs the founder):**
-- **Build the closing notice.** The Stop hook speaks to the agent, as
-  `additionalContext`, and the agent relays it in its closing report.
-  - Claude Code gives no "last stop of the session" signal, so the design must
-    choose which stop carries the notice. The candidate is the stop where the
-    gate receipt first matches the tree, then again only if status changed.
-  - Contents: gate state on this tree, owner acts waiting in the queue, Felix's
-    own friction this session (holds, refusals), and what is due.
-  - It must respect the #322 limit on mid-session lines, and carry a deadline
-    assertion in `tests/run`.
-  - This is adversarial tier (`hooks/stop`).
-- **Capture.**
-  - `says.log` keeps whole prompts, or a pointer to the transcript line.
-  - Question-tool answers are indexed.
-  - `escalated` rows carry the session id (`felix:1441`) and are not written
-    on `--dry-run`.
-- **#319 has no mechanism yet.** Build a merge stop on roadmap paths and the
-  charter's split section only, and never on an engineering path.
-- **The interaction layer's first moments.**
-  - The Stop hook reads the closing report for work handed back, and for
-    "next is X" when X is approved work.
-  - An `asked` row per question.
-  - A decisions table with the originator, whether the owner was asked, and
-    the owner cost stated at the time.
-- **Lessons-ladder fixes (batch 2 §6).**
-  - Mount the full headline, not the bare date (132 of 181 entries mount as a
-    date).
-  - Match on the prompt, not the envelope.
-  - Give `mistakes.log` rows a session id.
-  - `projects/felix/CLAUDE.md:160-163` and `felix:930` describe the ladder
-    wrongly.
-- **The next episode batch.** Apply the four codebook rules in batch 2 §4 first,
-  and sample every session in a fixed week rather than choosing episodes.
-- **Carried from §0bv.**
-  - Control 7 after #310.
-  - The request that names a gitignored doctrine.
-  - #308, #309 and #311 (deny scope) and #312 (README), all still open.
+**Next, owned by nobody yet:** once this is merged and deployed, #312's README
+gets the measured paragraph (script and text in this session's record). The
+mutation rig is scratch and not committed: `mini.sh` extracts the two blocks,
+and `mutate.sh` holds the nine perl substitutions.
 
 **Traps paid for this session:**
-- **A docs-only branch passes the gate only while its engine equals
-  `refs/remotes/origin/main`.** Worktrees share that ref, and other sessions
-  fetch it mid-run. Merge main, check
-  `git diff --quiet refs/remotes/origin/main -- :/engine`, and gate at once.
-  Two gates failed on this before the third passed.
-- **Any `*.tsv` in the tree needs a `schemas.tsv` row, or `schema-check` fails
-  the gate.** Put data in as JSONL.
-- **At a load average of 100 to 140 the suite took over an hour, not ten
-  minutes.** Watch your own gate's PID: a watch keyed on "any `felix gate`"
-  never fires while other sessions are gating.
-- **A workflow dies with the session process.** Resuming it with the same
-  arguments re-ran finished stages under new cache keys. The first run's
-  `journal.jsonl` already held every result, so finish from the journal.
-- **The transcript reader printed task notifications and other sessions'
-  messages as FOUNDER,** and the old prompt index counted peer messages as
-  founder prompts. Both are fixed. The pilot, re-checked, holds no peer turns.
-- **The fact gate refuses a force-push whatever facts are given.** Add a commit
-  instead of amending.
-- **A plain `cd` into `docs/episodes` in one Bash call moved the working
-  directory for the calls after it.** Use absolute paths.
 
+- A deny row refuses `git remote add` and a hand-written `.felix` in a scratch
+  directory too. A scratch project gets its origin by cloning from a local path
+  that carries the `remote_match` string.
+- The ECC fact gate trips on the `rm -rf` token in any Bash command. Write
+  scripts that clear scratch state with the Write tool, not in a command line.
+- The tool shell is zsh: `set -- $s` does not split, and a `for` loop can eat
+  its output. Run loops under `bash -c` or from a script.
+- A suite fixture with no `probes.tsv` gives receipts no epoch, so every stop
+  takes the gate's hold. An assertion that accepts any block then passes on the
+  wrong branch. Name the hold by what it says.
+- A background `tests/run` reads its own file as it goes. Editing `tests/run`
+  mid-run corrupts it, and bash defers TERM while it waits on a child, so stop
+  your own run by its process tree, and only yours.
 ---
 
 ## Index of earlier sections
@@ -142,6 +101,7 @@ Newest first. Each file is the section exactly as it stood.
 
 | § | Section |
 |---|---|
+| [0bw](docs/handoff/0bw.md) | 2026-09-23 — building Felix, measured as Felix's own workload; direction-level documents wait for the founder |
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
 | [0bv](docs/handoff/0bv.md) | 2026-09-23 (night) — overnight mode belongs to a session, #307 and #303 landed, the runner probe answered from a runner's own log, Veldra's blind request |
 | [0bu](docs/handoff/0bu.md) | 2026-09-23 — Phase 0: the Elenchus candidates checked, deny rows read the command the shell runs, three small items |

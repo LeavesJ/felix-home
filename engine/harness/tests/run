@@ -14567,6 +14567,216 @@ J
 is "a process substitution keeps the shape a row is written about" "$rc" "2"
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 
+printf '\ndenial reads every command\n'
+# The reading above was, at first, consulted only after the payload's string
+# had matched a row, so it could narrow a refusal and never widen one: a
+# command the shell runs, that a row names, went unrefused wherever the
+# string put something other than a blank at the end of a word the row
+# wanted ended by one. Now the reading is the whole verdict for a Bash row,
+# and the reader prints each separator as a token of its own.
+#
+# The rows are the ten Bash rows felix and elenchus carried on main on
+# 2026-09-23, as written there. The refuse-side cases are the founder's own
+# twelve, in the order of his list of that day, and none was refused before.
+# The allow-side cases were written blind, from the rows alone, by an author
+# who had not seen the reader; four of the forty-five it wrote (a read-only
+# update-ref and symbolic-ref naming refs/remotes/, and a cat and a bash -n
+# of the rival gate's path) are refused by the rows as written under any
+# reader, which is the rows' problem, and are not asserted here.
+cat > "$FROOT/projects/widget/deny.tsv" <<'EOF'
+# tool	pattern	reason
+Bash	git push ([^;&|]* )?(--force|-f)( |$)	force push drops commits
+Bash	git commit ([^;&|]* )?--no-verify	--no-verify is how a gate stops being a gate
+Bash	(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*["']?\.felix(-home)?["']?([[:space:];&|)]|$)	rewriting the binding by hand
+Bash	read -t [0-9]+ [^;&|]*< <\(	a timed read never returns under zsh
+Bash	git( +-[^ ]+( +[^ ]+)?)* +(update-ref|symbolic-ref|fetch|push)[^;&|]*refs/remotes/	a remote-tracking ref is what the remote said
+Bash	git( +-[^ ]+( +[^ ]+)?)* +remote +(add|set-url|rename|remove|rm)( |$)	the remote is where the person is
+Bash	git( +-[^ ]+( +[^ ]+)?)* +push[^;&|]* \+?([^ ]*:)?(refs/heads/)?main([[:space:];&|)]|$)	main is merged through felix merge and a person
+Bash	(^|[;&| ])\./scripts/gate\.sh	that is not the gate Felix runs
+Bash	git add ([^;&|]* )?(-A|--all|\.)( |$)	stage explicit paths
+Bash	git add ([^;&|]* )?-f( |$)	never force-add an ignored file
+EOF
+is "the reader prints a command separator as a token of its own, an operator of two characters whole" \
+   "$( . "$FROOT/harness/lib/deny.sh"; felix_deny_code 'git status;(ls)&&true' )" \
+   "git status ;  ( ls )  && true"
+
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git add -A;"}}
+J
+is "the founder's case 1: a separator glued to the last word ends it, as the shell does" "$rc" "2"
+has "and the row's reason is given" "$(cat "$FROOT/.deny-err")" "stage explicit paths"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"{ git add -A; }"}}
+J
+is "the founder's case 2: a group's separator ends the word too" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"git push -f\ngit status"}}
+J
+is "the founder's case 3: a line break ends a word as a blank does" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"sh -c \"git add -A\""}}
+J
+is "the founder's case 4: a shell's -c script is a command of its own, quotes and all" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"bash -c \"git push --force\""}}
+J
+is "the founder's case 5: and so under bash -c" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"find . -exec sh -c 'git add -A' \\;"}}
+J
+is "the founder's case 6: a -c script handed to find's -exec is still a command" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"x=\"$(git add -A)\""}}
+J
+is "the founder's case 7: a \$( ) assigned to a variable runs" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"\"git\" push -f origin main"}}
+J
+is "the founder's case 8: a quoted program name is the program" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"\"./scripts/gate.sh\""}}
+J
+is "the founder's case 9: a quoted path in command position runs" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"sh <<'EOF'\ngit add -A\nEOF"}}
+J
+is "the founder's case 10: a here-document a shell reads is its script" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"sh -s <<'EOF'\ngit add -A\nEOF"}}
+J
+is "the founder's case 11: and so with -s" "$rc" "2"
+( cd "$REPO" && _prb ) <<'J'; rc=$?
+{"tool_name":"Bash","tool_input":{"command":"cat <<'EOF' > .felix\nwidget\nEOF"}}
+J
+is "the founder's case 12: a redirect's target is written whatever line the here-document ends on" "$rc" "2"
+
+# The blind allow cases, numbered as the author numbered them.
+_allowed() { ( cd "$REPO" && _prb ); is "blind allow case $1: $2" "$?" "0"; }
+_allowed 1 "a push named in a commit message is a message" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git commit -m \"hook: refuse git push --force and git push -f to main\""}}
+J
+_allowed 2 "a here-document handed to git commit -F is a message" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git commit -F - <<'EOF'\nhook: refuse bypassed commits\n\nThe hook now refuses git commit --no-verify, git push --force\nand git add -A. Fix failing checks instead of skipping them.\nEOF"}}
+J
+_allowed 3 "the commit template's \$(cat <<'EOF') is a message" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git commit -m \"$(cat <<'EOF'\nRefuse force-push and whole-tree staging\n\nThe hook now blocks git push --force and git push -f, whole-tree\nstaging with git add -A, git add --all or git add ., and any write\nto .felix or .felix-home.\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\""}}
+J
+_allowed 4 "a pull request body from a quoted here-document is text" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"gh pr create --base main --head feature/hook-hardening --title \"Harden the command-refusal hook\" --body \"$(cat <<'EOF'\n## Summary\n- Refuse git push --force origin main and any push to main\n- Refuse git remote add and git remote set-url\n- Refuse writes to .felix via cp, mv, rm or sed -i\n\n## Test plan\n- [x] git push -f is refused\n- [x] git push --force-with-lease on a feature branch is allowed\nEOF\n)\""}}
+J
+_allowed 5 "a redirect character inside a quoted message is text" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git commit -m \"Protect .felix from agent edits\" -m \"Refuses cp, mv, rm, ln, truncate and sed -i on .felix or .felix-home, and redirections such as > .felix.\""}}
+J
+_allowed 6 "lines naming the marker inside a here-document body are data" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"cat > notes.md <<'EOF'\n# Session notes\n- Never edit .felix by hand\n- Never run git push --force origin main\n- Stage files by name, not with git add -A\nEOF"}}
+J
+_allowed 7 "an append to .gitignore whose body names the marker writes .gitignore" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"cat >> .gitignore <<'EOF'\n.felix\n.felix-home\nEOF"}}
+J
+_allowed 8 "tee writes the file it names, and the body is data" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"tee docs/hook-rules.md <<'EOF' >/dev/null\nDo not edit .felix or .felix-home by hand.\nDo not run ./scripts/gate.sh from an agent session.\nEOF"}}
+J
+_allowed 9 "wc reads a here-document and runs none of it" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"wc -l <<'EOF'\ngit commit --no-verify -m wip\ngit add -A\nrm .felix\nEOF"}}
+J
+_allowed 10 "a python program in a here-document runs no shell" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"python3 - <<'EOF'\nimport re\npattern = r\"git push ([^;&|]* )?(--force|-f)( |$)\"\nfor cmd in [\"git push -f origin main\", \"git push --force-with-lease origin dev\"]:\n    print(cmd, bool(re.search(pattern, cmd)))\nEOF"}}
+J
+_allowed 11 "JSON on jq's stdin is data" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"jq -r '.[] | .cmd' <<'EOF'\n[{\"cmd\": \"git add -A\"}, {\"cmd\": \"git push --force origin main\"}]\nEOF"}}
+J
+_allowed 12 "grep's search phrase is data" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"grep -rn \"git push --force\" ."}}
+J
+_allowed 13 "rg's quoted pattern is data" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"rg -n 'git add -A' docs/"}}
+J
+_allowed 14 "git log's --grep value is data" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git log --oneline --grep='--no-verify'"}}
+J
+_allowed 15 "a JSON body sent by curl is data" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"curl -s -X POST http://localhost:8080/audit -H 'Content-Type: application/json' -d '{\"cmd\": \"git push -f origin main\", \"verdict\": \"refuse\"}'"}}
+J
+_allowed 16 "a quoted issue comment holding a flag and a semicolon is one value" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"gh api repos/{owner}/{repo}/issues/12/comments -f body='Please stop running git add -f on ignored build output; fix .gitignore instead.'"}}
+J
+_allowed 17 "an issue body holding two commands and && is one value" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"gh issue create --title \"Hook misses remote rewrites\" --body \"Repro: git remote add upstream https://github.com/example/repo.git && git push upstream main\""}}
+J
+_allowed 18 "git push -u is not a force" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git push -u origin my-branch"}}
+J
+_allowed 19 "--force-with-lease is not --force" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git push --force-with-lease origin feature/hook-fix"}}
+J
+_allowed 20 "in main:release the destination is release" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git push origin main:release"}}
+J
+_allowed 21 "git add -p stages by patch" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git add -p"}}
+J
+_allowed 22 "named paths are named paths" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git add src/hook.py tests/test_hook.py"}}
+J
+_allowed 23 "./src is a directory, not a bare dot" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git add ./src"}}
+J
+_allowed 24 "-N is not -f" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git add -N src/new_module.py"}}
+J
+_allowed 25 "a plain fetch names no remote-tracking ref" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git fetch origin"}}
+J
+_allowed 28 "git remote -v and show change no remote" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git remote -v && git remote show origin"}}
+J
+_allowed 29 "ls and cat only read the marker" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"ls -la .felix && cat .felix"}}
+J
+_allowed 30 "test, grep and diff only read the marker" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"test -f .felix && grep felix .felix && diff -u .felix .felix.orig"}}
+J
+_allowed 31 "sed -i on another file, with the marker in its script, edits that file" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"sed -i.bak 's/\\.felix-home/.felix/g' docs/setup.md"}}
+J
+_allowed 32 "truncate on debug.log, with the marker only in a comment" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"truncate -s 0 debug.log  # leaves .felix alone"}}
+J
+_allowed 33 "a timed read from a plain file" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"read -t 5 -r line < input.txt"}}
+J
+_allowed 34 "a read from a process substitution with no timeout" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"read -r head_sha < <(git rev-parse HEAD)"}}
+J
+_allowed 35 "a read -t line inside a quoted printf argument is text" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"printf '%s\\n' 'read -t 5 line < <(git status)' >> docs/pitfalls.md"}}
+J
+_allowed 36 "bash on another script is not the rival gate" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"bash scripts/other.sh"}}
+J
+_allowed 39 "a push whose force is named only in a trailing comment" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git push origin feature-branch  # don't git push -f here"}}
+J
+_allowed 40 "a force push on a comment line among plain commands" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"set -e\n# manual step, never automated: git push --force origin main\ngit status --short\ngit log --oneline -5"}}
+J
+_allowed 41 "a flag stored in a variable and echoed is text" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"MSG=\"git push -f\"; echo \"$MSG\""}}
+J
+_allowed 42 "a flag echoed into a file is text" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"echo 'git push -f' > note.txt"}}
+J
+_allowed 43 "an sh -c script that only echoes a quoted string" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"sh -c 'echo \"git add -A is banned\"'"}}
+J
+_allowed 44 "a shell fed a here-document that only echoes a quoted string and lists remotes" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"bash <<'EOF'\necho \"never run: git remote add evil https://example.com/x.git\"\ngit remote -v\nEOF"}}
+J
+_allowed 45 "a bash -c script built by printf that only echoes" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"bash -c \"$(printf '%s' 'echo git add -A')\""}}
+J
+rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
+
 # The wiring itself, read off the file that ships rather than the fixture copy.
 # Correct code behind a matcher that never fires is this project's oldest and
 # most expensive failure mode.

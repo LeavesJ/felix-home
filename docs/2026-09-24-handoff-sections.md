@@ -146,7 +146,8 @@ check, so a tree that deletes it still fails.
 - **The check on the four open branches that edit HANDOFF.md** (2026-09-24):
   - #312, #326 and #330 are hand rotations, and each is refused with the
     instruction to use `--section`.
-  - #332 edits the current section in place, and it is clean.
+  - #332, which has since landed, edited the current section in place, and it
+    was clean.
 - **Qualification:** six controls in `projects/felix/qualification.tsv`, each
   written by a subagent that had the obligation in prose and was barred from
   reading the checker, its tests and this note. On their first run, five held

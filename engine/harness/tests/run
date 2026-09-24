@@ -7511,7 +7511,10 @@ has "but admits it never read the changes"   "$out" "content"
 printf 'more notes\n' >> "$SC/a.md"
 out="$( cd "$SC" && "$FELIX" scope --base HEAD 2>&1 )"; rc=$?
 is  "an uncommitted edit with nothing in it stays in scope" "$rc" "0"
-printf 'token = "sk-ant-api03-RRRRRRRRRRRRRRRRRRRRRRRR"\n' >> "$SC/a.md"   # must_flag
+# `sk-` and not `sk-ant-`: must_flag excuses a fixture line to secret-scan only
+# when no hard shape is on it, and `sk-ant-` is one. The risk table's rule reads
+# both, so the rule under test is the same.
+printf 'token = "sk-RRRRRRRRRRRRRRRRRRRRRRRR"\n' >> "$SC/a.md"   # must_flag
 out="$( cd "$SC" && "$FELIX" scope --base HEAD 2>&1 )"; rc=$?
 is  "an uncommitted credential added to a green path is out of scope" "$rc" "3"
 has "and scope names the tier the line reached"                        "$out" "highest tier: red"
@@ -7535,7 +7538,7 @@ SK="$TMP/scopestack"; mkdir -p "$SK"
   git config user.email t@t; git config user.name t
   printf 'widget\n' > .felix; printf 'notes\n' > a.md; git add -A; git commit -qm init
   git checkout -q -b feat-a
-  printf 'api_key = "sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQ"\n' >> a.md   # must_flag
+  printf 'api_key = "sk-QQQQQQQQQQQQQQQQQQQQQQQQ"\n' >> a.md   # must_flag
   git add -A; git commit -qm "A: a credential"
   git checkout -q -b feat-b
   printf 'more\n' > NOTES.md; git add -A; git commit -qm "B: docs only"
@@ -7549,7 +7552,7 @@ out="$( cd "$SK" && "$FELIX" scope --base main 2>&1 )"; rc=$?
 is "a stacked branch is not out of scope for a credential its base already merged" "$rc" "0"
 # The control that keeps it honest: a fix that narrowed everything would pass
 # the line above and stop enforcing.
-printf 'api_key = "sk-ant-api03-SSSSSSSSSSSSSSSSSSSSSSSS"\n' >> "$SK/NOTES.md"   # must_flag
+printf 'api_key = "sk-SSSSSSSSSSSSSSSSSSSSSSSS"\n' >> "$SK/NOTES.md"   # must_flag
 ( cd "$SK" && git add -A && git -c user.name=t -c user.email=t@t commit -qm "B: its own" ) >/dev/null 2>&1
 out="$( cd "$SK" && "$FELIX" scope --base main 2>&1 )"; rc=$?
 is "but a credential the branch adds itself still is" "$rc" "3"

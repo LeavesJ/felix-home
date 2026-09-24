@@ -4,54 +4,5 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	c6989dc5168f5113745591fde1115b7270dfe933	0.49.193
-run	49	3463	5
-a lifted scoped row is written to says.log with the command	1
-and editing it is denied	1
-and reading the checkout's .git is denied	1
-and with it, the same call lifts	1
-every checkout in the unattended template drops its credential once the fetch is done	1
-scoped: .. out of the checkout that lands in scratch	1
-scoped: P from pwd keeps the scratch cwd after a cd	1
-scoped: Write to a relative marker under a scratch payload cwd	1
-scoped: Write to a scratch marker lifts	1
-scoped: a cd first in its chain to an existing directory, then ;	1
-scoped: a cd second in its chain can fail even to an existing directory	1
-scoped: a fetch from the governed checkout into the scratch clone	1
-scoped: a fixture repo under a scratch variable, marker then git add -A	1
-scoped: a fixture script written by here-document and run with arguments	1
-scoped: a for loop over literal words feeding an assignment	1
-scoped: a here-document fed to bash sees a prefixed variable	1
-scoped: a lift to be recorded	1
-scoped: a lifted marker row does not lift the stage row	1
-scoped: a lifted row does not stop another row	1
-scoped: a payload cwd already in scratch	1
-scoped: a shared clone moved by a script read from stdin	1
-scoped: a shell running a script this line wrote by here-document, all in scratch	1
-scoped: a sibling whose name extends the checkout's is not the checkout	1
-scoped: a single-quoted bash -c fixture given its directory	1
-scoped: a working directory that holds the checkout	1
-scoped: a worktree of the scratch clone, made in scratch	1
-scoped: an EXIT trap with a known action does not	1
-scoped: an echo run from the checkout counts the checkout	1
-scoped: an unmatched command naming the checkout is not judged	1
-scoped: bash -c starts in the directory it was called from	1
-scoped: builtin cd steps past a function of that name	1
-scoped: cd DIR || exit cannot fall back	1
-scoped: dd of= with an input path after = in scratch	1
-scoped: every branch of an if leaves scratch	1
-scoped: git worktree anywhere in the line	1
-scoped: ln anywhere in the line	1
-scoped: mkdir -p, cd, then a remote on the lines after	1
-scoped: mkdir; cd; cmd judges the directory before too	1
-scoped: mktemp -d with a scratch template, then remote add by git -C	1
-scoped: pwd -P of the scratch clone, then update-ref under refs/remotes	1
-scoped: repeated -C, each relative to the last	1
-scoped: set -u is not set -e	1
-scoped: three scoped rows all lifted in one clone	1
-scoped: under set -e a cd inside a chain can still fall through	1
-scoped: under set -e a lone cd on its own line is final	1
-the judge alone: a scratch path is throwaway	1
-the model's tools are allowed inside the checkout and nowhere else	1
-the push step hands git the token itself, through a helper reading the step's environment	1
-the same reader reaching its end would lift	1
+base	cb3a72ce	cb3a72ce4f0d85d37253359ca73b4976e9d45201	0.49.194
+run	0	3513	5

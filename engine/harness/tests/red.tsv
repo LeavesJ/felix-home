@@ -4,13 +4,25 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	c6989dc5168f5113745591fde1115b7270dfe933	0.49.193
-run	49	3463	5
+base	origin/main	aece3552f146779576b749b8f2a44a67fd2570ff	0.49.195
+run	60	3473	5
+a commit holding the project it is asked about pins	1
 a lifted scoped row is written to says.log with the command	1
-and editing it is denied	1
-and reading the checkout's .git is denied	1
+a project no commit on the default branch holds yet is not pinned	1
+a source whose HEAD is origin's default branch pins that commit, in full	1
+and is pinned once the default branch holds it	1
+and pins the source checkout's commit once origin's default branch holds it	1
+and the Felix checkout, which holds the deploy key, drops it	1
+and the gate workflow bootstrap writes checks Felix out at that commit	1
+and the project's own checkout drops the job token	1
+and the rust toolchain step names stable itself, since a commit carries no channel	1
 and with it, the same call lifts	1
-every checkout in the unattended template drops its credential once the fetch is done	1
+and with no commit to give, at the placeholder, quoted so YAML reads a string	1
+and with no origin/HEAD, origin/main is the branch asked	1
+bootstrap with no commit to pin says the workflow gets the placeholder	1
+every checkout in the generated workflow is v5, the lowest major on Node 24	1
+every checkout step in the generated workflow sets persist-credentials: false in its own with	1
+every uses: in the gate workflow bootstrap renders names a full commit sha, for every stack it can render	1
 scoped: .. out of the checkout that lands in scratch	1
 scoped: P from pwd keeps the scratch cwd after a cd	1
 scoped: Write to a relative marker under a scratch payload cwd	1
@@ -51,7 +63,6 @@ scoped: set -u is not set -e	1
 scoped: three scoped rows all lifted in one clone	1
 scoped: under set -e a cd inside a chain can still fall through	1
 scoped: under set -e a lone cd on its own line is final	1
+the generated workflow checks Felix out at the commit it was given	1
 the judge alone: a scratch path is throwaway	1
-the model's tools are allowed inside the checkout and nowhere else	1
-the push step hands git the token itself, through a helper reading the step's environment	1
 the same reader reaching its end would lift	1

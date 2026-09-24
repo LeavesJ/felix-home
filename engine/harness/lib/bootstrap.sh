@@ -78,12 +78,22 @@ felix_guess_ecosystem() {
   echo none
 }
 
+# The setup step each stack needs, pinned the way the workflow's checkouts are:
+# a full commit sha, then the release it was read from. Moving one is the same
+# one-change review as moving the Felix pin; the workflow says why.
+#
+# dtolnay/rust-toolchain tags no releases, and @stable was a branch whose
+# action.yml defaults the toolchain to stable. That branch's head is not on
+# master, and the action's README says a pinned commit must be, since the
+# others are garbage-collected. So the pin is master's head, which its one tag,
+# v1, also names, and the step says `toolchain: stable`, which is required
+# there.
 _felix_bs_setup_block() {
   case "$1" in
-    node)   printf '      - uses: actions/setup-node@v4\n        with:\n          node-version: "22"\n      - run: npm ci\n        working-directory: repo\n' ;;
-    python) printf '      - uses: actions/setup-python@v5\n        with:\n          python-version: "3.12"\n      - run: pip install -e ".[dev]"\n        working-directory: repo\n' ;;
-    rust)   printf '      - uses: dtolnay/rust-toolchain@stable\n' ;;
-    go)     printf '      - uses: actions/setup-go@v5\n        with:\n          go-version: stable\n' ;;
+    node)   printf '      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0\n        with:\n          node-version: "22"\n      - run: npm ci\n        working-directory: repo\n' ;;
+    python) printf '      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0\n        with:\n          python-version: "3.12"\n      - run: pip install -e ".[dev]"\n        working-directory: repo\n' ;;
+    rust)   printf '      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1\n        with:\n          toolchain: stable\n' ;;
+    go)     printf '      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0\n        with:\n          go-version: stable\n' ;;
     *)      printf '      # no toolchain detected; add the setup step this project needs\n' ;;
   esac
 }
@@ -155,7 +165,17 @@ jobs:
       # Sibling checkouts. A harness inside the tree being gated shows up in the
       # checks it is running. v5, the lowest major that runs on Node 24; v4
       # runs on Node 20.
-      - uses: actions/checkout@v5
+      #
+      # Every action in this file is pinned to a full commit sha, with the
+      # release it was read from after it, for the reason Felix is below: a
+      # tag is a ref its owner can move, every action here runs with the job's
+      # token, and the second checkout is handed the key that reads Felix.
+      # Moving a pin is the same one-change review as moving the Felix pin: a
+      # pull request here, graded by the action code it names and merged by a
+      # person. Read the tag's commit (gh api repos/OWNER/NAME/git/ref/tags/vN,
+      # and git/tags/SHA when that answers with a tag object), and write the
+      # release that commit is after the new sha.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           path: repo
           # The job's token stays out of repo/.git/config, where the pull
@@ -191,7 +211,7 @@ jobs:
       # the whole file is refused, which leaves a required check that never
       # reports. A copy still reading {{FELIX_REF}} fails at this checkout
       # instead of falling back to the default branch.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           repository: ${felix_repo}
           ref: '${felix_ref}'

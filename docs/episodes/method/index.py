@@ -1,10 +1,23 @@
-"""index.py <prompts-out.tsv> <sessions-out.tsv>: every founder prompt in the Felix transcripts, one row each."""
+"""index.py <prompts-out.tsv> <sessions-out.tsv>: every user-role prompt in the Felix
+transcripts, one row each: timestamp, session, worktree, branch, length, origin, text.
+Origin tells founder-typed text from task notifications, messages from other
+sessions and platform summaries. A chip-launched session's first prompt is
+agent-written and still reads founder-typed here: check it by hand."""
 import json, sys, glob, os, re
 root = os.path.expanduser('~/.claude/projects')
 dirs = [d for d in glob.glob(root + '/*') if 'Felix' in d and '-private-tmp-' not in d]
 out = open(sys.argv[1], 'w')
 sess = open(sys.argv[2], 'w')
-strip = re.compile(r'<(system-reminder|command-message|command-args|local-command-stdout|task-notification)>.*?</\1>', re.S)
+strip = re.compile(r'<(system-reminder|command-message|command-args|local-command-stdout)>.*?</\1>', re.S)
+
+
+def origin(text):
+    """Who wrote a user-role message. Only founder-typed rows are founder turns."""
+    t = text.lstrip()
+    if t.startswith('<task-notification>'): return 'task-notification'
+    if t.startswith('<cross-session-message'): return 'peer-session'
+    if t.startswith('This session is being continued from a previous conversation'): return 'platform-summary'
+    return 'founder-typed'
 n = 0
 for d in sorted(dirs):
     wt = os.path.basename(d).split('worktrees-')[-1] if 'worktrees-' in d else os.path.basename(d)
@@ -37,6 +50,6 @@ for d in sorted(dirs):
             if key in seen: continue
             seen.add(key)
             count += 1; n += 1
-            out.write('\t'.join([ts, sid, wt, branch, str(len(text)), text.replace('\\', '\\\\').replace('\t', ' ').replace('\n', '\\n')]) + '\n')
+            out.write('\t'.join([ts, sid, wt, branch, str(len(text)), origin(text), text.replace('\\', '\\\\').replace('\t', ' ').replace('\n', '\\n')]) + '\n')
         sess.write('\t'.join([sid, wt, branch, first, last, str(count), str(size), title.replace('\t', ' ')]) + '\n')
 print(n, 'prompts from', len(dirs), 'dirs')

@@ -15,7 +15,7 @@ and changed none of it: the archive files concatenated in index order, after
 files the split made; later sections join the index above them, below §0).
 
 **The rule for the next session.** Write your section at the top of "Current
-state", with the next id (after 0by comes 0bz). Move the section it replaces
+state", with the next id (after 0bz comes 0ca). Move the section it replaces
 into `docs/handoff/<id>.md`, unchanged, and add its row to the top of the
 index. A reference like "HANDOFF §0bm" means `docs/handoff/0bm.md`.
 
@@ -32,13 +32,13 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0by. 2026-09-23/24 — restart moments scoped and placed: step 1 names a session running an older engine, and the founder allowed one line mid-session
+### 0bz. 2026-09-23/24 — restart moments scoped and placed: step 1 names a session running an older engine, and the founder allowed one line mid-session
 
 **No engine change from this session, and nothing deployed.** The installed
-engine was 0.49.162 when this was written. A session's start banner can name an
-older one (see Traps). The open items of §0bx, #325's section, stand: the
+engine was 0.49.172 when this was written. A session's start banner can name an
+older one (see Traps). The open items of §0by, #325's section, stand: the
 landing actor, and the carrier session's no-escape queue. Read
-[docs/handoff/0bx.md](docs/handoff/0bx.md).
+[docs/handoff/0by.md](docs/handoff/0by.md).
 
 | PR | What |
 |---|---|
@@ -118,15 +118,15 @@ record `unsaid:night` and retry after the night (scope §4.2).
 - **S0 checks b, c and e are Felix's** (about 0.25 session), and can run
   before the founder's look.
 - **#312 (public README) is CONFLICTING.** It writes a §0bv that main already
-  has. Its section takes the next free id when it lands (§0bz or later).
+  has. Its section takes the next free id when it lands (§0ca or later).
   It is in the carrier's queue.
 
 **Traps paid for this session:**
 
 - **Four sessions claimed the same handoff id within an hour.** #327
   (landed), #325, #330 and this one all wrote §0bw; this one was drafted 27
-  seconds after #325 opened. #325's section landed here as §0bx and this
-  one as §0by, each unchanged but for its heading. Their ids were assigned
+  seconds after #325 opened. #325's section landed here as §0by and this
+  one as §0bz, each unchanged but for its heading. Their ids were assigned
   at landing by re-reading main. Take the id at merge time: re-read main and
   `gh pr list` for PRs touching `HANDOFF.md` right before merging. Stack on
   an open handoff PR rather than beside it.
@@ -142,7 +142,7 @@ record `unsaid:night` and retry after the night (scope §4.2).
   with tests/run --record-assertions". Merge main in instead of re-recording:
   the engines then match and the check skips.
 - **A session keeps its start banner's CLI path after every deploy.** This
-  one began on 0.49.150 and ended with 0.49.162 installed. Run gate and merge
+  one began on 0.49.150 and ended with 0.49.172 installed. Run gate and merge
   as `<installPath>/harness/felix`, taking `installPath` from the user-scope
   `felix@felix` entry in `~/.claude/plugins/installed_plugins.json`.
 - **Stop's `additionalContext` makes the model take another turn.** See
@@ -161,7 +161,8 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
-| [0bx](docs/handoff/0bx.md) | 2026-09-23/24 — every stuck PR triaged, why the night went stale, and the landing actor designed (not built) |
+| [0by](docs/handoff/0by.md) | 2026-09-23/24 — every stuck PR triaged, why the night went stale, and the landing actor designed (not built) |
+| [0bx](docs/handoff/0bx.md) | 2026-09-23 (day) — a turn another hook woke ended unchecked, measured on the real binary, and the Stop hold now knows its own chain |
 | [0bw](docs/handoff/0bw.md) | 2026-09-23 — building Felix, measured as Felix's own workload; direction-level documents wait for the founder |
 | [0bv](docs/handoff/0bv.md) | 2026-09-23 (night) — overnight mode belongs to a session, #307 and #303 landed, the runner probe answered from a runner's own log, Veldra's blind request |
 | [0bu](docs/handoff/0bu.md) | 2026-09-23 — Phase 0: the Elenchus candidates checked, deny rows read the command the shell runs, three small items |

@@ -3751,14 +3751,14 @@ cmd_repair() {
     printf '\nStill running. Wait for it rather than guessing at the failure.\n'
     return 5
   fi
-  # Repair acts only on what its ceiling counts. felix_repair_attempts counts
-  # failure and timed_out and stops at every other conclusion, so a brief for
-  # any other one is a repair whose ceiling reads zero however many failures
-  # sat behind it. Until 2026-09-23 only success was caught here, and the rest
-  # fell through to a brief. A run that completed without failing is nothing
-  # to repair. startup_failure did fail, but the gate never ran: no step left a
-  # log and the count does not hold it. It is refused, and so is a conclusion
-  # this code does not know, rather than guessed at.
+  # Repair acts only on what its ceiling counts, and failure and timed_out
+  # are what it acts on. Until 2026-09-23 only success was caught here and the
+  # rest fell through to a brief, including conclusions felix_repair_attempts
+  # then stopped at, so the ceiling read zero however many failures sat behind
+  # the run. A run that completed without failing is nothing to repair.
+  # startup_failure did fail, but the gate never ran and no step left a log,
+  # so it is refused, and so is a conclusion this code does not know, rather
+  # than guessed at.
   case "$conclusion" in
     failure|timed_out) ;;
     success)
@@ -3769,9 +3769,8 @@ cmd_repair() {
       printf 'the next gate run decides.\n'
       return 5 ;;
     startup_failure)
-      printf '\nThe gate run failed to start, so no step ran to leave a log, and the\n'
-      printf 'ceiling does not count it. The gate workflow itself needs a look. Nothing\n'
-      printf 'is repaired from a run nobody read.\n'
+      printf '\nThe gate run failed to start, so no step ran to leave a log. The gate\n'
+      printf 'workflow itself needs a look. Nothing is repaired from a run nobody read.\n'
       return 1 ;;
     *)
       printf '\nThe gate run ended %s, a conclusion felix repair does not know, so\n' "$conclusion"

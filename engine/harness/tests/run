@@ -2979,13 +2979,12 @@ cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
 
 # The newest gate run completed and was neither green nor a failure. Only
 # success was caught, so every other conclusion GitHub gives fell through to a
-# brief, exit 0, which the unattended template acts on. It is also a run the
-# ceiling does not count: felix_repair_attempts stops at it, so the ceiling
-# read as unspent however many failures sat behind it. Here one does. Repair
-# acts only on what its ceiling counts, failure and timed_out; a run that
-# completed without failing is nothing to repair; and a run that failed
-# without starting, or whose conclusion is new to this code, has no log to
-# read and no place in the count, so it is refused.
+# brief, exit 0, which the unattended template acts on. It was also a run the
+# ceiling did not count then: felix_repair_attempts stopped at it, so the
+# ceiling read as unspent however many failures sat behind it. Here one does.
+# Repair acts on failure and timed_out; a run that completed without failing
+# is nothing to repair; and a run that failed without starting, or whose
+# conclusion is new to this code, has no log to read and is refused.
 _wfnewest() { printf 'gate.yml\tgate\tfix/y\t211\tcompleted\t%s\n' "$1"
               printf 'gate.yml\tgate\tfix/y\t201\tcompleted\tfailure\n'; }
 _wfres=""; _wfbriefed=""

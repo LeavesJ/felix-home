@@ -20,8 +20,8 @@
 # felix repair's exit status is its contract with templates/unattended.yml,
 # which branches on it and on nothing else, so each status means one thing:
 #
-#   0  a brief for the newest gate run, which failed or timed out, the two
-#      conclusions the ceiling counts; the only status a repair acts on
+#   0  a brief for the newest gate run, which failed or timed out; the only
+#      status a repair acts on
 #   1  the gate's runs could not be read: no gh, no GitHub remote, no gate
 #      workflow, no branch checked out, or gh did not answer. Also the failing
 #      run's own log, when gh does not answer, GitHub no longer holds it, or
@@ -47,12 +47,13 @@
 #
 # Repair acts only on what its ceiling counts. Until the same day only success
 # was caught, so every other conclusion a completed run can have fell through
-# to a brief: a cancelled or skipped run, which felix_repair_attempts stops at,
-# so its ceiling read as unspent however many failures sat behind it. A failed
-# run whose excerpt came back empty was a brief too, and implicated no path, so
-# the red-path check never ran and the model was handed no failing output.
-# startup_failure is the one failure the ceiling leaves out, and repair leaves
-# it out with it: the gate never ran, so no step left a log to read.
+# to a brief: a cancelled or skipped run, which felix_repair_attempts then
+# stopped at, so its ceiling read as unspent however many failures sat behind
+# it. A failed run whose excerpt came back empty was a brief too, and
+# implicated no path, so the red-path check never ran and the model was handed
+# no failing output.
+# startup_failure is left alone too, whether or not the ceiling counts it: the
+# gate never ran, so no step left a log to read.
 #
 # felix brief keeps this shape and uses 0, 1, 2 and 3 of it: its 2 is a failed
 # resolve, and it has no 5, because an issue is always something to act on.

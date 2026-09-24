@@ -76,10 +76,10 @@ flowchart LR
 
 The hold tells the agent to run the gate and not to call the work complete
 until it passes, and in my sessions held agents reran it roughly 130 times. But
-Felix holds at most once per prompt. Once any Stop hook has sent the agent
-back, Felix's included, its next attempt to stop goes through without a check,
-whatever it did in between. Felix records the hold, but not the unchecked stop
-that follows it.
+after Felix sends the agent back, the agent's next attempt to stop goes through
+without a check, whatever it did in between. Felix records the hold, but not
+the unchecked stop that follows it. When some other hook sends the agent back
+or wakes it, Felix checks the next stop as usual.
 
 In the message the agent gets, "you" is the agent, "the founder" is the person
 who owns the project, a red gate is one that failed, and an obligation is
@@ -288,7 +288,7 @@ gets you part of the way. Felix adds three things that hook doesn't have:
 > Felix is a floor, not a wall. Its hooks run inside the agent's own session,
 > so they catch an agent that forgets, not one that's trying to get round them.
 
-The Stop hook holds at most once per prompt and records the hold, and calls
+The Stop hook sends the agent back once and records the hold, and calls
 itself "a speed bump with a permanent record, not an inescapable barrier". The
 agent's next attempt to stop goes through, and nothing tells you it did.
 Receipts are plain files a process running as you could write. And `gh pr
@@ -309,13 +309,19 @@ doing the refused thing in earnest, and none of those was a force push. A regex
 over command text refuses spellings, not intent. Nobody has tested any of
 these guards against a capable agent trying to get round them.
 
-The one send-back per prompt is shared with every other Stop hook you run. If
-another hook sends the agent back first and the agent then edits code, Felix
-lets its next stop through without checking. security-guidance, which
-commissioning installs, runs its Stop hook in the background, and its source
-says Claude Code marks stops as already sent back while that hook is running.
-If so, Felix lets those stops through unchecked. I haven't measured how often
-that happens; holds still fire in sessions that have it installed.
+Claude Code tells a Stop hook when a stop follows a send-back, whichever hook
+did the sending, and Felix used to take that at its word. security-guidance,
+which commissioning installs, reviews code in the background after each stop,
+commit and push, and when it finds something it wakes the agent for a turn of
+its own. I measured that turn on Claude Code 2.1.260 and 2.1.280, in a scratch
+session run against a stand-in for the API. Its stop arrived marked as a
+send-back, and Felix let it through with no check and no record. A review that
+is only running marks nothing, whatever the plugin's source says. Felix now
+writes down its own holds, and lets a marked stop through unchecked only when
+its own hold came before it. The gap hadn't cost anything yet: in the 497
+sessions on my machine since security-guidance was installed on August 9, it
+never woke an agent, and its log for the last twelve hours holds 46 reviews,
+none with a finding.
 
 Felix checks that the gate passed on this tree, not that the gate still tests
 what it tested yesterday. An agent that skips a failing test, or edits the

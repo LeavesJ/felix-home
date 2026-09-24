@@ -1431,13 +1431,26 @@ cmd_merge() {
   fi
 
   if [ -n "$blockers" ]; then
-    local kind subject reason esc=0 unk=0
+    local kind subject reason esc=0 unk=0 stamp=0 table=0 owed=0
     printf 'not merging\n\n'
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
       printf '  %-11s %-22s %s\n' "$kind" "$subject" "$reason"
-      [ "$kind" = "escape" ]  && esc=1
-      [ "$kind" = "unknown" ] && unk=1
+      # Which closing paragraph a blocker belongs under is decided per blocker,
+      # from its kind and subject and never from the reason's wording. A
+      # commission receipt or table ends in a commission run, which is the
+      # founder's or, under their grant, the session-start hook's (HANDOFF
+      # §0aq, §0bl): calling it work Felix owes sent a session to re-run a gate
+      # that had passed, or to commission for itself. `engine` is the judge
+      # failing to load commission.sh, which no run reaches; it sits with every
+      # other kind.
+      case "$kind:$subject" in
+        escape:*)           esc=1 ;;
+        unknown:*)          unk=1 ;;
+        commission:receipt) stamp=1 ;;
+        commission:table)   stamp=1; table=1 ;;
+        *)                  owed=1 ;;
+      esac
     done <<EOF
 $blockers
 EOF
@@ -1456,10 +1469,10 @@ $blockers
 EOF
     fi
 
-    # `unknown` is checked before `escape`, because the sentence in the else
-    # branch is the exact claim #56 is about. Saying "nothing here escapes the
-    # tree" after a scan that never ran would move the false all-clear from the
-    # verdict into the explanation and leave it just as wrong. Nothing was
+    # `unknown` is checked before `escape`, because the sentence in the last
+    # branch below is the exact claim #56 is about. Saying "nothing here escapes
+    # the tree" after a scan that never ran would move the false all-clear from
+    # the verdict into the explanation and leave it just as wrong. Nothing was
     # compared, so nothing can be said about what escapes.
     if [ "$unk" -eq 1 ]; then
       printf '\nNothing was compared, so nothing above is a finding about this branch.\n'
@@ -1470,10 +1483,59 @@ EOF
       printf '\nMerging this writes something outside the tree that a revert does not\n'
       printf 'reach, so it is the founder who decides. Show them the diff and the\n'
       printf 'reversal path; a green gate is not the question here.\n'
-    else
-      printf '\nNothing here escapes the tree, so none of it is a founder decision.\n'
-      printf 'It is work Felix owes: run the gate, or write the test that is missing,\n'
-      printf 'then run this again.\n'
+    fi
+    # Said whatever else is said, beside an escape too: the founder is being
+    # asked already, and a merge they clear would stop again on the receipt.
+    #
+    # What clears it is a commission run, and who makes that run depends on the
+    # grant, which the receipt itself never reads. A grant that still covers
+    # the tables runs one unattended at the next session start
+    # (felix_commission_resume_bg). One stamped over tables that have moved
+    # runs nothing until the founder re-arms it, which is the case a table
+    # edit merged to main produces. With no grant, the run is simply theirs,
+    # and naming `felix autonomy --allow commission` there would be asking for
+    # a standing consent the merge does not need.
+    if [ "$stamp" -eq 1 ]; then
+      local grant=none
+      if felix_autonomy_allows "$proj" commission 2>/dev/null; then
+        grant=stale
+        felix_autonomy_commission_current "$proj" 2>/dev/null && grant=current
+      fi
+      case "$grant" in
+        current)
+          printf '\nThe commission is not a session'"'"'s to clear. The founder'"'"'s commission\n'
+          printf 'grant still covers these tables, so the next session started in this\n'
+          printf 'checkout re-commissions unattended; or they run it themselves:\n\n'
+          printf '  felix commission\n\n' ;;
+        stale)
+          printf '\nThe commission is not Felix'"'"'s to clear: this merge waits for the founder.\n'
+          printf 'Their commission grant was stamped over tables that have moved since, so\n'
+          printf 'nothing re-commissions unattended until they re-arm it, having read what\n'
+          printf 'changed. Ask them to run, in order:\n\n'
+          printf '  felix autonomy --allow commission\n'
+          printf '  felix commission\n\n' ;;
+        *)
+          printf '\nThe commission is not Felix'"'"'s to clear: this merge waits for the founder.\n'
+          printf 'This project grants no unattended commission, so the run is theirs:\n\n'
+          printf '  felix commission\n\n'
+          printf 'Clearing this needs no grant; granting one is a separate decision.\n' ;;
+      esac
+      if [ "$table" -eq 1 ]; then
+        printf 'Put the table named above right first: felix commission cannot clear this\n'
+        printf 'over a table it cannot read.\n'
+      fi
+      printf 'Felix never writes a project'"'"'s autonomy file and a session does not\n'
+      printf 'commission for itself, so a green gate does not clear this.\n'
+    fi
+    if [ "$unk" -eq 0 ] && [ "$esc" -eq 0 ]; then
+      if [ "$stamp" -eq 1 ] && [ "$owed" -eq 1 ]; then
+        printf '\nThe rest escapes nothing and is work Felix owes: run the gate, or\n'
+        printf 'write the test that is missing, then run this again.\n'
+      elif [ "$stamp" -eq 0 ]; then
+        printf '\nNothing here escapes the tree, so none of it is a founder decision.\n'
+        printf 'It is work Felix owes: run the gate, or write the test that is missing,\n'
+        printf 'then run this again.\n'
+      fi
     fi
     return 3
   fi

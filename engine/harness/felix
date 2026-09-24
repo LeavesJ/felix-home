@@ -3721,6 +3721,10 @@ cmd_repair() {
   [ -n "$repo" ] || die "no github remote; felix repair supports GitHub Actions only"
   gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
   branch="$(felix_repair_branch)"
+  # A detached checkout names its branch HEAD, which no run is on, and "no runs
+  # yet" below is nothing to repair: a green job over a failure nobody read.
+  [ -n "$branch" ] && [ "$branch" != "HEAD" ] \
+    || die "no branch is checked out here, so there is no branch whose gate runs to read. Check out the branch whose run failed."
 
   # Unreadable is not "no runs". gh fails on a workflow the repository does not
   # have and on a network that does not answer, and both printed nothing, which
@@ -3731,7 +3735,12 @@ cmd_repair() {
     printf 'gate_workflow in its project.json. Nothing is repaired from a run nobody read.\n'
     return 1
   }
-  [ -n "$latest" ] || { printf 'No %s runs for %s yet.\n' "$gwf" "$branch"; return 0; }
+  # Nothing to repair exits 5, its own status, because 0 is a brief to act on
+  # and the unattended template reads the status and nothing else. All three
+  # cases below exited 0 until 2026-09-23, so a dispatch on a green branch, or
+  # a gate run started after the failure the template was woken for, would have
+  # spent the budget and handed a model a brief saying nothing was wrong.
+  [ -n "$latest" ] || { printf 'No %s runs for %s yet.\n' "$gwf" "$branch"; return 5; }
   run_id="$(printf '%s' "$latest" | cut -f1)"
   status="$(printf '%s' "$latest" | cut -f2)"
   conclusion="$(printf '%s' "$latest" | cut -f3)"
@@ -3740,11 +3749,11 @@ cmd_repair() {
 
   if [ "$status" != "completed" ]; then
     printf '\nStill running. Wait for it rather than guessing at the failure.\n'
-    return 0
+    return 5
   fi
   if [ "$conclusion" = "success" ]; then
     printf '\nGreen. Nothing to repair.\n'
-    return 0
+    return 5
   fi
 
   # A count that could not be read is not zero attempts, which is what it was

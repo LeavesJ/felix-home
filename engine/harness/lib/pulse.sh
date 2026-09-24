@@ -87,7 +87,10 @@ felix_pulse_mem_repo() {
 # permanent latch, and it costs no matching rules that can be wrong.
 _felix_pulse_new_gitlinks() {
   local repo="$1" tmp idx head
-  tmp="$(mktemp)" || return 0
+  # A template under $TMPDIR: a bare mktemp on macOS ignores TMPDIR, and the
+  # suite points TMPDIR at a fixture to count what is left there.
+  local tmpd="${TMPDIR:-/tmp}"
+  tmp="$(mktemp "${tmpd%/}/felix-pulse.XXXXXX")" || return 0
   # A scratch index, so a person's deliberately staged selection survives
   # being asked about. The check used to stage into the real index and then
   # `git reset` on refusal, which is not an undo: it emptied whatever they

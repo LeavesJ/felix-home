@@ -244,6 +244,7 @@
 1	a failing gate still exits non-zero
 1	a failing piped check is counted failed, and the report does not say a piped check's result is never marked an error
 1	a failure in another workflow on the branch does not dirty a green pull request
+1	a failure on a red path is escalated to a person
 1	a faithful cache entry still merges a self-governed branch
 1	a felix-answered row names felix as the actor
 1	a file facing a directory is a drift, whatever diff exits
@@ -1799,6 +1800,7 @@
 1	and the appends that arrived after it are folded in
 1	and the bare listing the gate used to do would have counted a plain file
 1	and the blurb no longer outranks the manifest
+1	and the brief it proceeds on is the file the repair step hands a model
 1	and the candidate's evidence did not run in the report
 1	and the cap is what it returns
 1	and the cause is the prompt, not the envelope
@@ -3056,6 +3058,7 @@
 1	the unattended job on the misbound checkout fails and labels no pull request
 1	the unattended job on the unbound checkout fails and labels no pull request
 1	the unattended repair proceeds on a brief, and on no other exit of felix repair
+1	the unattended template checks Felix out at a pinned ref, not the default branch
 1	the unmeasurable list takes the hook-only zero
 1	the watching git was asked
 1	the whole forty-character hash grants too, and an expired row above it does not shadow it

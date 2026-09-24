@@ -286,7 +286,13 @@ USAGE
 # callers into $(...), and an exit inside a command substitution only kills the
 # subshell: the script would sail past a failed resolution and die later with a
 # misleading message and the wrong status.
+#
+# The status is 2 unless the caller names another. A command whose exit status
+# is read by a machine may already mean something by 2: felix repair's 2 is the
+# repair ceiling, and the unattended template escalated an unresolvable checkout
+# to a person as a spent ceiling.
 resolve_or_die() {
+  local rc="${1:-2}"
   PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
   [ -n "$PROJ" ] && return 0
   # The CLI already refused here, but it refused with the wrong sentence. A
@@ -294,10 +300,10 @@ resolve_or_die() {
   # telling somebody to "add a .felix file" while a broken one sits in front of
   # them sends them to add a second problem.
   local broken; broken="$(felix_binding_broken "$PWD" "$FELIX_HOME_DIR")"
-  [ -n "$broken" ] && die "$broken" 2
+  [ -n "$broken" ] && die "$broken" "$rc"
   die "no project governs $PWD.
   Either add a .felix file naming one, or declare remote_match in a project.json.
-  Known projects: $(ls "$FELIX_HOME_DIR/projects" 2>/dev/null | tr '\n' ' ')" 2
+  Known projects: $(ls "$FELIX_HOME_DIR/projects" 2>/dev/null | tr '\n' ' ')" "$rc"
 }
 
 
@@ -3706,7 +3712,9 @@ EOF
 }
 
 cmd_repair() {
-  resolve_or_die; local proj="$PROJ"
+  # 4, not resolution's usual 2, which here is the ceiling. The statuses are
+  # listed in lib/repair.sh.
+  resolve_or_die 4; local proj="$PROJ"
   _felix_repair_require_gh || return 1
   local repo branch latest run_id status conclusion attempts gwf
   repo="$(git remote get-url origin 2>/dev/null | sed -E 's#.*github\.com[:/]##; s#\.git$##')"

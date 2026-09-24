@@ -16,6 +16,24 @@
 #
 # GitHub Actions only for now, via gh. Stated plainly rather than hidden behind a
 # provider abstraction with one implementation.
+#
+# felix repair's exit status is its contract with templates/unattended.yml,
+# which branches on it and on nothing else, so each status means one thing:
+#
+#   0  a brief for the failing run, or nothing to repair (no runs yet, a run
+#      still going, or green)
+#   1  the gate's runs could not be read: no gh, no GitHub remote, no gate
+#      workflow, or gh did not answer
+#   2  the repair ceiling is reached, or could not be counted
+#   3  the failure implicates a red path, which unattended repair leaves alone
+#   4  no project governs the checkout, or the binding naming one is broken
+#
+# 4 was 2 until 2026-09-23, the status every other command still exits on a
+# failed resolve, and the template escalated it to a person as a spent ceiling.
+# A failed resolve says the workflow is wired to a Felix that does not govern
+# this repository, which is true of every branch at once and says nothing about
+# the failing change, so the template fails the job on it rather than labelling
+# a pull request.
 
 FELIX_REPAIR_MAX="${FELIX_REPAIR_MAX:-3}"
 

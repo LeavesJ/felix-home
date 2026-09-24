@@ -3257,12 +3257,16 @@ cmd_unattended() {
   [ -n "$repo" ] || die "no github remote"
   local gwf; gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
 
-  local st switch key dry dryfail streak need
-  st="$(felix_unattended_state "$repo")"
+  local st switch key dry dryfail streak need dispatch tv tl tp
+  st="$(felix_unattended_state "$repo" "$gwf" "$SCRIPT_DIR/templates/unattended.yml")"
   switch="$(printf '%s\n' "$st" | awk -F'\t' '$1=="switch"{print $2}')"
   key="$(printf '%s\n' "$st" | awk -F'\t' '$1=="key"{print $2}')"
   dry="$(printf '%s\n' "$st" | awk -F'\t' '$1=="dryruns"{print $2}')"
   dryfail="$(printf '%s\n' "$st" | awk -F'\t' '$1=="dryfails"{print $2}')"
+  dispatch="$(printf '%s\n' "$st" | awk -F'\t' '$1=="dispatch"{print $2}')"
+  tv="$(printf '%s\n' "$st" | awk -F'\t' '$1=="template"{print $2}')"
+  tl="$(printf '%s\n' "$st" | awk -F'\t' '$1=="template"{print $3}')"
+  tp="$(printf '%s\n' "$st" | awk -F'\t' '$1=="template"{print $4}')"
   streak="$(felix_automerge_streak "$(felix_automerge_history "$repo" "$gwf")")"
   need="$FELIX_AUTOMERGE_REQUIRED"
 
@@ -3277,6 +3281,29 @@ cmd_unattended() {
   printf '  %s %-26s %s run(s), %s errored\n' \
     "$([ "${dry:-0}" -gt 0 ] && [ "${dryfail:-0}" -eq 0 ] && printf '[x]' || printf '[ ]')" \
     "guards exercised" "${dry:-0}" "${dryfail:-0}"
+  # Read from the default branch, not assumed from the template: a deployed
+  # copy is a person's, and it does not move when this engine does.
+  case "$tv" in
+    match)  printf '  [x] %-26s %s is this engine'\''s template, comments aside\n' \
+              "workflow matches template" "$tp" ;;
+    differ) if [ "$tl" = end ]; then
+              printf '  [ ] %-26s %s stops short of this engine'\''s template; copy templates/unattended.yml again\n' \
+                "workflow matches template" "$tp"
+            else
+              printf '  [ ] %-26s %s differs from this engine'\''s template at line %s; copy templates/unattended.yml again\n' \
+                "workflow matches template" "$tp" "$tl"
+            fi ;;
+    absent) printf '  [ ] %-26s no workflow named "unattended repair" on the default branch\n' \
+              "workflow matches template" ;;
+    *)      printf '  [?] %-26s the workflow list, or the deployed file, could not be read\n' \
+              "workflow matches template" ;;
+  esac
+  case "$dispatch" in
+    yes) printf '  [x] %-26s %s takes workflow_dispatch\n' "gate takes a dispatch" "$gwf" ;;
+    no)  printf '  [ ] %-26s %s takes no workflow_dispatch, so a commit the loop pushes cannot be re-gated by one\n' \
+           "gate takes a dispatch" "$gwf" ;;
+    *)   printf '  [?] %-26s %s could not be read from the default branch\n' "gate takes a dispatch" "$gwf" ;;
+  esac
   # Both of these were printf constants, and this is the report somebody reads
   # while deciding whether to switch on a loop that invokes a model unattended
   # (#87). A checklist that manufactures the evidence for its own switch-on is

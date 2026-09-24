@@ -3516,12 +3516,33 @@ printf '\nunattended readiness\n'
 # not: the ledger lives in a checkout made fresh every run (#84). Felix cannot
 # determine that mechanically, so the honest mark is neither [x] nor [ ].
 UNB="$TMP/unattgh"; mkdir -p "$UNB"
+# `gh api` answers the way the server does for what the drift rows below ask:
+# the workflow list from UNSTUB_WORKFLOWS through jq for the -q expression, a
+# file under UNSTUB_FILES as its raw contents or gh's own 404, and no answer at
+# all for an endpoint containing UNSTUB_UNANSWERED.
 cat > "$UNB/gh" <<'STUB'
 #!/usr/bin/env bash
 case "$1 $2" in
   "variable list") ;;
   "secret list")   printf 'ANTHROPIC_API_KEY\n' ;;
   "run list")      printf '0\n' ;;
+  "api "*)
+    ep=""; q="."; prev=""
+    for a in "$@"; do
+      case "$prev" in -q|--jq) q="$a" ;; esac
+      case "$a" in repos/*) ep="$a" ;; esac
+      prev="$a"
+    done
+    if [ -n "${UNSTUB_UNANSWERED:-}" ]; then
+      case "$ep" in *"$UNSTUB_UNANSWERED"*) printf 'error connecting to api.github.com\n' >&2; exit 1 ;; esac
+    fi
+    case "$ep" in
+      */actions/workflows) printf '%s\n' "${UNSTUB_WORKFLOWS:-}" | jq -r "$q" ;;
+      */contents/*)
+        f="${UNSTUB_FILES:-/nonexistent}/${ep#*/contents/}"
+        [ -f "$f" ] || { printf 'gh: Not Found (HTTP 404)\n' >&2; exit 1; }
+        cat "$f" ;;
+    esac ;;
 esac
 exit 0
 STUB
@@ -3582,6 +3603,84 @@ has "and is marked unknown rather than unmet" "$(_row "$out" 'budget ceiling')" 
 # And it reads the ledger rather than only the configured number, so the row
 # says what has been spent and not merely what was declared.
 has "and reports what has been spent" "$out" "spent"
+
+# Deployed copies drift in silence. A person copies templates/unattended.yml
+# into a repository once, and the engine it checks out moves on without it.
+# Elenchus's copy did exactly that, measured 2026-09-23: its scope step still
+# proceeded on every exit of felix repair but 3, a behaviour #323 and #329
+# had fixed in the template, while nothing here could say so. The repair's
+# push also starts no ordinary run of the gate, since GitHub creates none
+# from an event the workflow token causes except a dispatch, so whether the
+# gate workflow takes workflow_dispatch is a fact about the loop too. Both
+# rows read the repository's default branch, where a workflow_run trigger
+# and a dispatch are both taken from.
+if ! command -v jq >/dev/null 2>&1; then
+  for a in "a gate workflow that takes workflow_dispatch is reported as taking one" \
+           "and one that does not is reported unmet" \
+           "an on: line naming workflow_dispatch counts as taking one" \
+           "workflow_dispatch named only in an if: expression does not" \
+           "a gate workflow that cannot be read is unknown, not unmet" \
+           "a deployed copy that is the template with its placeholders filled matches it" \
+           "and still matches with its comments changed" \
+           "a copy whose scope step drifted is unmet" \
+           "and the row names the line it drifted at" \
+           "a copy with no Felix pin does not match" \
+           "a copy with a placeholder left unfilled does not match" \
+           "a repository with no unattended workflow says so" \
+           "a workflow list that cannot be read is unknown, not unmet"; do
+    skip "$a" "no jq here to evaluate gh's -q expressions"
+  done
+else
+UNF="$TMP/unattfiles"; mkdir -p "$UNF/.github/workflows"
+export UNSTUB_FILES="$UNF" \
+       UNSTUB_WORKFLOWS='{"workflows":[{"name":"gate","path":".github/workflows/gate.yml","state":"active"},{"name":"unattended repair","path":".github/workflows/unattended.yml","state":"active"}]}'
+_tpl="$FROOT/harness/templates/unattended.yml"
+_fill() { sed -e 's#{{FELIX_REPO}}#example/felix-home#' \
+              -e 's#{{FELIX_REF}}#0123456789abcdef0123456789abcdef01234567#' "$_tpl"; }
+_dr() { _row "$(_unatt)" 'gate takes a dispatch'; }
+_tr() { _row "$(_unatt)" 'workflow matches template'; }
+
+printf 'on:\n  pull_request:\n  push:\n    branches: [main]\n  workflow_dispatch:\njobs: {}\n' \
+  > "$UNF/.github/workflows/gate.yml"
+has "a gate workflow that takes workflow_dispatch is reported as taking one" "$(_dr)" "[x]"
+printf 'on:\n  pull_request:\n  push:\n    branches: [main]\njobs: {}\n' \
+  > "$UNF/.github/workflows/gate.yml"
+has "and one that does not is reported unmet" "$(_dr)" "[ ]"
+printf 'on: [pull_request, workflow_dispatch]\njobs: {}\n' > "$UNF/.github/workflows/gate.yml"
+has "an on: line naming workflow_dispatch counts as taking one" "$(_dr)" "[x]"
+printf "on:\n  pull_request:\njobs:\n  gate:\n    if: github.event_name != 'workflow_dispatch'\n" \
+  > "$UNF/.github/workflows/gate.yml"
+has "workflow_dispatch named only in an if: expression does not" "$(_dr)" "[ ]"
+rm -f "$UNF/.github/workflows/gate.yml"
+has "a gate workflow that cannot be read is unknown, not unmet" "$(_dr)" "[?]"
+
+_fill > "$UNF/.github/workflows/unattended.yml"
+has "a deployed copy that is the template with its placeholders filled matches it" "$(_tr)" "[x]"
+# The comment a local copy keeps about its own Felix, and one of the template's
+# own comments gone: neither changes what the workflow does.
+_fill | sed -e '/^      # Pinned, to the full sha/i\
+      # felix-home, not felix: see the Felix checkout in gate.yml.' \
+            -e '/^# Wired, and off\./d' > "$UNF/.github/workflows/unattended.yml"
+has "and still matches with its comments changed" "$(_tr)" "[x]"
+# Elenchus's shape on 2026-09-23: the scope step before #323.
+_fill | sed 's#if \[ "\$rc" = "0" \]; then#if [ "$rc" != "3" ]; then#' \
+  > "$UNF/.github/workflows/unattended.yml"
+_ln="$(grep -n 'if \[ "$rc" != "3" \]' "$UNF/.github/workflows/unattended.yml" | cut -d: -f1)"
+out="$(_tr)"
+has "a copy whose scope step drifted is unmet" "$out" "[ ]"
+has "and the row names the line it drifted at" "$out" "line ${_ln:-?}"
+_fill | grep -v "ref: '0123456789abcdef" > "$UNF/.github/workflows/unattended.yml"
+has "a copy with no Felix pin does not match" "$(_tr)" "[ ]"
+cp "$_tpl" "$UNF/.github/workflows/unattended.yml"
+has "a copy with a placeholder left unfilled does not match" "$(_tr)" "[ ]"
+_fill > "$UNF/.github/workflows/unattended.yml"
+out="$(UNSTUB_WORKFLOWS='{"workflows":[{"name":"gate","path":".github/workflows/gate.yml","state":"active"}]}' _unatt)"
+has "a repository with no unattended workflow says so" \
+    "$(_row "$out" 'workflow matches template')" "no workflow named"
+has "a workflow list that cannot be read is unknown, not unmet" \
+    "$(UNSTUB_UNANSWERED=actions/workflows _tr)" "[?]"
+unset UNSTUB_FILES UNSTUB_WORKFLOWS
+fi
 
 cp "$TMP/risk.unatt.keep" "$FROOT/projects/widget/risk.tsv"
 ( cd "$REPO" && git remote remove origin ) 2>/dev/null

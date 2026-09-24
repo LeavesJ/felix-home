@@ -20488,6 +20488,14 @@ _au() {
     [ "$c" = "-" ] || export CLAUDE_CONFIG_DIR="$c"
     HOME="$h" TMPDIR="$AU/tmp" PATH="$AUSTUB:$PATH" "$e" audit "$@" ) 2>>"$AU_ERR"
 }
+# The CPU an audit cost, in ms, from a file `times` wrote inside the command
+# substitution that ran it: that subshell's user and system time, then its
+# children's, the audit among them, as 0m1.234s. It counts nothing else the
+# suite has running, so load stretches the wall clock and leaves this alone.
+_au_ms() {
+  awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
+       END { printf "%d", ms }' "$1"
+}
 # The report is plain text in a wording nobody fixed, so it is read loosely: a
 # class is the line that names it and carries a percentage, its count the
 # first bare number there, its share the first number with a % after it.
@@ -20629,13 +20637,18 @@ _au --dir >/dev/null; _aurc2=$?
   && ok  "--dir with no value exits non-zero" \
   || bad "--dir with no value exits non-zero" "without: $_aurc, with: $_aurc2"
 
-_au_t0="$(date +%s)"; _auo2="$(_au --dir "$AU/big")"; _au_t1="$(date +%s)"
+# Timed as CPU, not wall clock, and written outside the scratch root, which is
+# checked below for anything a run left there. It measured 1 s at a load
+# average near 340. With each tool_use id looked for among the session's
+# earlier ones, one at a time, rather than by key, it took 10 s and still
+# counted them (2026-09-23), so 5 s stays far from both.
+_auo2="$(_au --dir "$AU/big"; times > "$TMP/audit-big.cpu")"; _au_ms2="$(_au_ms "$TMP/audit-big.cpu")"
 is  "it counts every stop in 41,400 lines: 450 passed and 450 failed" "$(_au_counts "$_auo2")" "450 450 0 0"
 if [ "$(_au_counts "$_auo2")" = "450 450 0 0" ]; then
-  [ $((_au_t1 - _au_t0)) -le 30 ] && ok  "and reads them in under 30 seconds" \
-                                   || bad "and reads them in under 30 seconds" "took $((_au_t1 - _au_t0))s"
+  [ "$_au_ms2" -le 5000 ] && ok  "and reads them in under 5 seconds of CPU" \
+                          || bad "and reads them in under 5 seconds of CPU" "took ${_au_ms2} ms of CPU"
 else
-  bad "and reads them in under 30 seconds" "it did not count them, so its speed says nothing"
+  bad "and reads them in under 5 seconds of CPU" "it did not count them, so its speed says nothing"
 fi
 
 # Read-only, measured after every run above. Unconditional silence would pass
@@ -20947,14 +20960,18 @@ awk -v d="$RV/perf/-Users-dev-perf" '
     print U("p3c", R("p3b", "\"content\":\"ok\""), ",\"toolUseResult\":{\"history\":[" ts "]}") > f
     print A("msg_p3d", done, "end_turn") > f
   }'
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/perf")"; _rv_t1="$(date +%s)"
+# Timed as CPU: 0.5 s at a load average near 340. Each session reaches its
+# own reader, and each reader, made to copy the rest of its line at every
+# step, still counted all three and took far longer (2026-09-23): rawcmd()
+# finding the command's end one escape at a time 15 s, results() finding the
+# last block boundary walking forward 37 s, stamp() walking every timestamp
+# 50 s. So 5 s stays far from all of them.
+_rvo="$(_au --dir "$RV/perf"; times > "$RV/perf.cpu")"; _rv_ms="$(_au_ms "$RV/perf.cpu")"
+_rvn="a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 5 seconds of CPU"
 if [ "$(_au_counts "$_rvo")" = "2 1 0 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 15 ] \
-    && ok  "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" \
-    || bad "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" "took $((_rv_t1 - _rv_t0))s"
+  [ "$_rv_ms" -le 5000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
 else
-  bad "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" \
-      "it did not count them, so its speed says nothing: $(_au_counts "$_rvo")"
+  bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo")"
 fi
 
 # Arguments that used to pass and answer something nobody meant, each beside
@@ -21195,12 +21212,19 @@ awk -v f="$RV/open/huge/-Users-dev-huge/h1.jsonl" -v g="$RV/open/shifts/-Users-d
     B(g, "s1"); for (i = 0; i < 10000; i++) printf "%s", "echo $((1<<2)); " > g
     E(g, "s1", "npm test")
   }'
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/open/huge")"; _rv_t1="$(date +%s)"
-_rvo2="$(_au --dir "$RV/open/huge" --verify 'npm test|x\\z')"; _rv_t2="$(date +%s)"
-_rvn="a 6 MB command holding 300,000 backslashes is read in seconds, with the default checks and with a --verify that holds a backslash: under 10 each"
+# Timed as CPU: 0.4 s each at a load average near 340. The 6 MB reaches one
+# reader whole, rawcmd(), which finds where the command ends; decoding, and
+# the rejoin a backslash in --verify asks for, read only the 64K at its ends,
+# where putting the backslashes back one piece at a time added under 0.1 s.
+# With rawcmd() finding the end one escape at a time, the rest of the line
+# copied at each, both runs still counted it and took 186 s (2026-09-23), so
+# 5 s each stays far from both.
+_rvo="$(_au --dir "$RV/open/huge"; times > "$RV/open/huge.cpu")"; _rv_ms="$(_au_ms "$RV/open/huge.cpu")"
+_rvo2="$(_au --dir "$RV/open/huge" --verify 'npm test|x\\z'; times > "$RV/open/huge2.cpu")"; _rv_ms2="$(_au_ms "$RV/open/huge2.cpu")"
+_rvn="a 6 MB command holding 300,000 backslashes is read in seconds, with the default checks and with a --verify that holds a backslash: under 5 seconds of CPU each"
 if [ "$(_au_counts "$_rvo")" = "0 0 1 0" ] && [ "$(_au_counts "$_rvo2")" = "0 0 1 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 10 ] && [ $((_rv_t2 - _rv_t1)) -le 10 ] && ok "$_rvn" \
-    || bad "$_rvn" "took $((_rv_t1 - _rv_t0))s and $((_rv_t2 - _rv_t1))s"
+  [ "$_rv_ms" -le 5000 ] && [ "$_rv_ms2" -le 5000 ] && ok "$_rvn" \
+    || bad "$_rvn" "took ${_rv_ms} and ${_rv_ms2} ms of CPU"
 else
   bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") / $(_au_counts "$_rvo2")"
 fi
@@ -21211,9 +21235,7 @@ fi
 # running. With each << found again from the start of the command, or the
 # rest of the command searched at each, the read took 18 s and 11 s of CPU
 # and still counted it (2026-09-23), so 5 s stays far from all three.
-_rvo="$(_au --dir "$RV/open/shifts"; times > "$RV/open/shifts.cpu")"
-_rv_ms="$(awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
-               END { printf "%d", ms }' "$RV/open/shifts.cpu")"
+_rvo="$(_au --dir "$RV/open/shifts"; times > "$RV/open/shifts.cpu")"; _rv_ms="$(_au_ms "$RV/open/shifts.cpu")"
 _rvn="a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds of CPU"
 if [ "$(_au_counts "$_rvo")" = "1 0 0 0" ]; then
   [ "$_rv_ms" -le 5000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
@@ -21562,12 +21584,17 @@ awk -v d="$RV/r3/hdbig/-p" "$_rv_bigawk"'
     one(d "/opens.jsonl", "ho", "npm test; cat <<EOF\\n" rep("<<EOF\\n", 700000) "EOF")
     one(d "/body.jsonl", "hb", "cat > ids.txt <<\047EOF\047\\n" rep("1234567\\n", 560000) "EOF\\nnpm test")
   }'
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/r3/hdbig")"; _rv_t1="$(date +%s)"
-_rvn="three 5 MB commands dense in << or in line breaks are read in seconds, not minutes, and each still passes: under 30 for the three"
+# Timed as CPU: 1.5 s for the three at a load average near 340. Past finding
+# where each command ends, what they reach first is heredocs() on the 64K
+# read from each end, nearly 22,000 << in each window of the first. With
+# each << found again from the start of its window, the three still passed
+# and took 185 s (2026-09-23), so 10 s stays far from both.
+_rvo="$(_au --dir "$RV/r3/hdbig"; times > "$RV/r3/hdbig.cpu")"; _rv_ms="$(_au_ms "$RV/r3/hdbig.cpu")"
+_rvn="three 5 MB commands dense in << or in line breaks are read in seconds, not minutes, and each still passes: under 10 seconds of CPU for the three"
 if [ "$(_au_counts "$_rvo")" = "3 0 0 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 30 ] && ok "$_rvn" || bad "$_rvn" "took $((_rv_t1 - _rv_t0))s"
+  [ "$_rv_ms" -le 10000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
 else
-  bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") in $((_rv_t1 - _rv_t0))s"
+  bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") in ${_rv_ms} ms of CPU"
 fi
 
 # Over 256K the first 64K is read, and a script handed to a shell with -c

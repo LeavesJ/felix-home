@@ -37,6 +37,7 @@
 1	a # in a later cell, UTF-8 text, trailing spaces, a blank line and an optional column left off are accepted
 1	a $( ) inside a quoted message still runs, and is refused
 1	a $( ) standing as the command, quoted, runs what it holds, and a path built on one is the program: 3 checks beside a built path that runs no tests
+1	a $HOME under a temporary root still keeps its pointer
 1	a --- block that does not open the file is not frontmatter
 1	a --since that is not YYYY-MM-DD exits non-zero
 1	a -c script whose here-document body runs past the first 64K goes on after the body to its closing quote, over 256K as under it: the runner there is a check
@@ -51,6 +52,8 @@
 1	a Copilot resume, which keeps its banner, appends a lifecycle row of kind resume too
 1	a NUL is refused, and grep reads the whole table as binary
 1	a RELEASE_BLOCKING candidate is refused because it may not block
+1	a TMPDIR of / is not a temporary root
+1	a TMPDIR that holds $HOME is not a temporary root
 1	a VAR=$( ) or a backquoted value before a runner is an assignment, so the runner is a check; assigning a path built from one is not
 1	a VAR=value ends at ; or a line break, and assigning a gate's path is not running it: a copy or a quote after one is no check
 1	a backfilled row carries DECLARED
@@ -364,6 +367,7 @@
 1	a library changed and committed on a branch is not drift
 1	a library changed in the working tree is not drift, because main did not change
 1	a lifecycle.log that cannot be appended to leaves a resume silent, a startup's banner unchanged, and both exiting 0
+1	a lifted scoped row is written to says.log with the command
 1	a line ending in one backslash goes on to the next: an && list across it can fail, and a path on the next line is an argument
 1	a line of spaces is refused, and the raw case loops take it for a row
 1	a line of two tool_use blocks is read block by block, and an error is charged only to the result block that reported it
@@ -579,6 +583,8 @@
 1	a re-run under the new epoch is recorded, same names and all
 1	a reach is the only mount evidence there is
 1	a reached repair ceiling is escalated to a person
+1	a reader that cannot run lifts nothing
+1	a reader that stops before its end lifts nothing
 1	a real capability left undeclared is not an error
 1	a real uncommitted edit still speaks, in a fresh session
 1	a real word rises
@@ -695,6 +701,7 @@
 1	a schema row with a bad place, a bad emptiness, a path, a required column after an optional one, a bad name or a duplicate is malformed
 1	a schema row with a place that is neither tree nor memory fails
 1	a schemas.tsv it cannot read is cannot-examine, exit 2, not every table undeclared
+1	a scoped row that stands says it covers only the checkout
 1	a score answer never enters the admit phase
 1	a script handed to bash -c or sh -c over 256K is read at both ends: a runner at its start or its end is a check
 1	a second --section on the same branch rewrites that file and makes no other
@@ -1156,6 +1163,7 @@
 1	and a ruled capability is not listed there
 1	and a ruled one is not
 1	and a run that skipped nothing says so, rather than leaving it blank
+1	and a scoped row that stood writes no lift
 1	and a second field of the same entry too
 1	and a second grant inside what is left of the day is still a grant
 1	and a second run does not record the same file twice
@@ -1458,6 +1466,7 @@
 1	and names the broken binding rather than asking for a marker
 1	and names the capability
 1	and names the channel
+1	and names the command and the place
 1	and names the command that writes it
 1	and names the decline channel
 1	and names the entry main's version selects, not the highest or the live one
@@ -1689,6 +1698,7 @@
 1	and says it merges once CI is green
 1	and says it must be fixed before the next session
 1	and says it was never reached
+1	and says it was too long to read
 1	and says it where the founder can see it
 1	and says it wrote it
 1	and says not to fix it unattended
@@ -2079,6 +2089,7 @@
 1	and with a real file in it, it is drift
 1	and with both gone the tree is clean again
 1	and with commands absent from both sides again it matches
+1	and with it, the same call lifts
 1	and with no deployment to compare against the evidence cannot examine
 1	and with no session handoff on disk, says nothing about one
 1	and with the edit undone the tree id is back
@@ -2832,6 +2843,125 @@
 1	says so plainly when nothing matches
 1	says something to the founder, not only the model
 1	says what was skipped at the finish
+1	scoped: .. after a directory that does not exist yet
+1	scoped: .. climbing out of scratch into the checkout
+1	scoped: .. out of the checkout that lands in scratch
+1	scoped: CDPATH given to cd moves a relative cd
+1	scoped: P from pwd keeps the scratch cwd after a cd
+1	scoped: Write through a symlink to the checkout
+1	scoped: Write to a relative marker under a scratch payload cwd
+1	scoped: Write to a scratch marker lifts
+1	scoped: Write to the home pointer
+1	scoped: a DEBUG trap runs between the commands read
+1	scoped: a GIT_DIR prefix naming the checkout
+1	scoped: a [[ ]] holding a command substitution
+1	scoped: a \u escape in the payload is not read as its letters
+1	scoped: a brace expansion in the path
+1	scoped: a cd first in its chain to an existing directory, then ;
+1	scoped: a cd second in its chain can fail even to an existing directory
+1	scoped: a command longer than the reader reads keeps the refusal
+1	scoped: a command substitution the reader does not know
+1	scoped: a comment beside a lifted command keeps the refusal
+1	scoped: a commit message quoting the marker redirect, in the clone
+1	scoped: a directory named as a command, which AUTO_CD would enter
+1	scoped: a directory outside every temp root
+1	scoped: a fetch from the governed checkout into the scratch clone
+1	scoped: a fixture repo under a scratch variable, marker then git add -A
+1	scoped: a fixture script written by here-document and run with arguments
+1	scoped: a for loop over literal words feeding an assignment
+1	scoped: a fresh name under the physical /tmp
+1	scoped: a function named cd runs instead of the builtin
+1	scoped: a function named git runs instead of git
+1	scoped: a glob in the path
+1	scoped: a here-document fed to bash sees a prefixed variable
+1	scoped: a lift to be recorded
+1	scoped: a lifted marker row does not lift the stage row
+1	scoped: a lifted row does not stop another row
+1	scoped: a link into the checkout, anywhere in the line
+1	scoped: a match spanning two commands
+1	scoped: a matched assignment in scratch with a scratch value
+1	scoped: a matched assignment whose value names the checkout
+1	scoped: a mktemp fixture read back through pwd -P
+1	scoped: a new repository nested inside the checkout
+1	scoped: a payload cwd already in scratch
+1	scoped: a payload cwd that does not exist falls back to the checkout
+1	scoped: a printing tool writing a relative path from the checkout
+1	scoped: a redirect through a variable the line never assigned
+1	scoped: a refusal that must not be recorded as a lift
+1	scoped: a shared clone moved by a script read from stdin
+1	scoped: a shell reading a pipe refuses the whole line
+1	scoped: a shell running a script this line wrote by here-document, all in scratch
+1	scoped: a shell running a script this line wrote with printf
+1	scoped: a sibling whose name extends the checkout's is not the checkout
+1	scoped: a single-quoted bash -c fixture given its directory
+1	scoped: a subshell's cd does not leak
+1	scoped: a test that can fail before the cd leaves the checkout possible
+1	scoped: a working directory that holds the checkout
+1	scoped: a worktree of the governed checkout made in scratch
+1	scoped: a worktree of the scratch clone, made in scratch
+1	scoped: after source
+1	scoped: an ANSI-C escape the reader does not decode
+1	scoped: an EXIT trap with a known action does not
+1	scoped: an echo argument naming the checkout
+1	scoped: an echo run from the checkout counts the checkout
+1	scoped: an if with no else may leave the checkout
+1	scoped: an interpreter writing the marker
+1	scoped: an rm between the mkdir and the cd
+1	scoped: an unexported variable does not reach a here-document shell
+1	scoped: an unknown scope value refuses in scratch
+1	scoped: an unmatched command naming the checkout is not judged
+1	scoped: an unterminated quote cannot be parsed
+1	scoped: another worktree of the same repository
+1	scoped: bash -c from scratch whose script cds into the checkout
+1	scoped: bash -c starts in the directory it was called from
+1	scoped: bash -c with a script the reader cannot see
+1	scoped: builtin cd steps past a function of that name
+1	scoped: calling a function whose body cds
+1	scoped: cd - goes where OLDPWD says
+1	scoped: cd .. from scratch reaches an ancestor of the checkout
+1	scoped: cd DIR || exit cannot fall back
+1	scoped: cd back to the checkout
+1	scoped: cd reads .. by spelling, through a link out of the checkout
+1	scoped: cd through a symlink to the checkout
+1	scoped: cd to an unknown variable
+1	scoped: cd ~
+1	scoped: commands no row matches stay allowed in the checkout
+1	scoped: cp from the checkout into scratch counts the source
+1	scoped: dd of= with an input path after = in scratch
+1	scoped: eval anywhere refuses the whole line
+1	scoped: every branch of an if leaves scratch
+1	scoped: every matched command is judged
+1	scoped: git -C the checkout from a scratch cwd
+1	scoped: git -C the temp directory that holds the checkout
+1	scoped: git -c alias
+1	scoped: git push into the scratch clone's refs/remotes
+1	scoped: git worktree anywhere in the line
+1	scoped: here-document data beside a lifted command keeps the refusal
+1	scoped: ln anywhere in the line
+1	scoped: mkdir -p under a file cannot succeed, so the cd may not move
+1	scoped: mkdir -p, cd, then a remote on the lines after
+1	scoped: mkdir without -p can fail, so the cd after it may not move
+1	scoped: mkdir; cd; cmd judges the directory before too
+1	scoped: mktemp -d with a scratch template, then remote add by git -C
+1	scoped: mktemp -d, then cd into it
+1	scoped: mktemp in a directory that is not there
+1	scoped: no cd means the checkout
+1	scoped: printf -v assigns the variable a later cd reads
+1	scoped: pushd, even between two scratch directories
+1	scoped: pwd -P of the scratch clone, then update-ref under refs/remotes
+1	scoped: repeated -C, each relative to the last
+1	scoped: set -u is not set -e
+1	scoped: sourcing a file this line wrote, even after the match
+1	scoped: tee through a symlink to a file
+1	scoped: the command word is an unknown variable
+1	scoped: the same script handed the governed checkout
+1	scoped: the unscoped Edit row refuses a scratch path
+1	scoped: the unscoped force-push row refuses in scratch
+1	scoped: three scoped rows all lifted in one clone
+1	scoped: under set -e a cd inside a chain can still fall through
+1	scoped: under set -e a lone cd on its own line is final
+1	scoped: xargs anywhere refuses the whole line
+1	scoped: ~/.felix-home from a scratch cwd
 1	scoping a bare path still answers
 1	sed -i, perl -i, a > or >> to a named path, tee, patch and git apply are edits: after a passing check the stop is stale, alone it is a stop, to scratch it is left out; the report and the README say other writes through Bash are not seen
 1	seeded CLAUDE.md
@@ -3026,6 +3156,8 @@
 1	the independence check is behind the verifier confine
 1	the injected checkout actually moved the branch
 1	the installed check is behind the verifier confine
+1	the judge alone: a scratch path is throwaway
+1	the judge alone: a worktree of the checkout is not
 1	the judge is found on whatever branch is being merged into
 1	the judge is the version main declares
 1	the kill test reads every table in the tree
@@ -3119,12 +3251,15 @@
 1	the same file one level up fails by name, where the inline check was blind
 1	the same file with an unconfined line escapes
 1	the same project identifies the same subject twice
+1	the same reader reaching its end would lift
 1	the same receipt read for a renamed project is stale because the subject moved
 1	the same repository after push and fetch clears it, and among valid rows the earliest expiry wins
 1	the same route does not repeat itself
 1	the scanner refuses to answer on a path it cannot search
 1	the scanner's own code names no project
 1	the schema check is behind the verifier confine
+1	the scoped fixture has its worktree, its clone and its links
+1	the scoped table reads as eight rows with their scopes
 1	the second is a tree id, forty hex
 1	the second session is still bound
 1	the secret check is behind the verifier confine
@@ -3340,6 +3475,7 @@
 1	without --strict it only reports
 1	without claiming that none of it is a founder decision
 1	without lib/exceptions.sh every eighth column is a dash and every row is still reported
+1	without lib/where.sh beside it a scoped row stands
 1	without opting in, nothing is touched
 1	work committed only in a worktree does not make the graph stale
 1	work the subagent committed is still checked

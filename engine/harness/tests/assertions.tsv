@@ -3444,6 +3444,7 @@
 1	the scanner's own code names no project
 1	the schema check is behind the verifier confine
 1	the scoped fixture has its worktree, its clone and its links
+1	the scoped fixture lies under the TMPDIR the suite was given
 1	the scoped table reads as eight rows with their scopes
 1	the second is a tree id, forty hex
 1	the second session is still bound

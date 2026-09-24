@@ -21043,6 +21043,12 @@ printf '### what A did\n\nA ran first, and said so twice.\n' > "$TMP/ho-a.md"
 _hxa2="$(_hx felix_handoff_section "$HX" "$TMP/ho-a.md" refs/remotes/origin/main)"
 is  "a second --section on the same branch rewrites that file and makes no other" \
     "$_hxa2:$(ls "$HX/docs/handoff/pending" | wc -l | tr -d ' ')" "$_hxa:1"
+# Its own file is the whole name, not the tail: branch x/s-a's ends in -s-a too.
+printf '### x/s-a wrote this\n' > "$HX/docs/handoff/pending/20991231T235959Z-x-s-a.md"
+_hx felix_handoff_section "$HX" "$TMP/ho-a.md" refs/remotes/origin/main >/dev/null
+is  "and leaves a file named for a branch whose name only ends like this one's" \
+    "$(head -1 "$HX/docs/handoff/pending/20991231T235959Z-x-s-a.md")" "### x/s-a wrote this"
+rm -f "$HX/docs/handoff/pending/20991231T235959Z-x-s-a.md"
 _hx_commit "A's section"
 _hx_chk >/dev/null; is "a branch that only adds a pending section reads clean" "$?" "0"
 

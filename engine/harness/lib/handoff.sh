@@ -238,6 +238,11 @@ felix_handoff_section() {
   slug="${slug#-}"; slug="${slug%-}"
   for f in "$root/$FELIX_HANDOFF_PENDING"/*-"$slug".md; do
     [ -f "$f" ] || continue
+    # The whole name, not its tail: branch x/a-b ends in -a-b as well.
+    case "${f##*/}" in
+      [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z-"$slug".md) ;;
+      *) continue ;;
+    esac
     rel="${f#"$root"/}"
     [ -n "$ref" ] && git -C "$root" cat-file -e "$ref:$rel" 2>/dev/null && continue
     mine="$f"

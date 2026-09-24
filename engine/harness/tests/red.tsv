@@ -4,8 +4,8 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	b863a5241520d2aefff08a91ba9852e020a25b3a	0.49.169
-run	36	3264	5
+base	origin/main	453f000629959fb1279c04aebadf5a5c6f9133b9	0.49.179
+run	36	3328	5
 a branch that only adds a pending section reads clean	1
 a current section the marker does not name is refused	1
 a fold that main moved past merges and reads clean, and the section that landed after it waits	1

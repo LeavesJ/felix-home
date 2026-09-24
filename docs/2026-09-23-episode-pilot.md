@@ -6,8 +6,10 @@ feedback and judgment, and almost never asks an engineering question; the agent
 does everything else. So the history of building Felix is a record of the
 whole pipeline Felix will run for its users: what the owner meant, what
 happened in between, what was delivered, and whether it was what they meant.
-The founder also pointed out that Felix's `lessons.md` learns only engineering
-from that record, and that a new thing is needed for the rest.
+The agent claimed that Felix's `lessons.md` learns only engineering from that
+record, from a grep cut off at twelve lines, and the founder agreed that a new
+thing is needed for the rest. Batch 2 corrected the claim (E24): `lessons.md`
+holds some interaction entries, but its intake sees only failed gate checks.
 
 This pilot reconstructs twenty episodes from that record, weighted to the big
 architectural decisions, and asks what the new thing has to be.
@@ -401,15 +403,11 @@ owner in general.
 
 **Why not a table of rules mounted like `lessons.md`.** `lessons.md` entries
 reach a session by token overlap, at most four per prompt (`lib/lessons.sh:19`).
-That is advice, and the records show advice failing:
-
-- E19: the lesson "Establish who set a limit" (`lessons.md:176`) was mounted at
-  21:32Z and again at 22:02Z, and broken at 23:15Z.
-- E15: the merge direction was in memory and handoff prose for 33 days while
-  the engine said the opposite.
-
-The auto-memory rule `use-what-you-set-up` already says that a lesson which is
-advice about a behaviour is not working.
+That is advice, and advice failed. In E15 the merge direction was in memory and
+handoff prose for 33 days while the engine said the opposite. In E19 a lesson
+with a full headline (`lessons.md:176`) was mounted twice and broken about an
+hour later. Batch 2 found most entries mount as a bare date (E24), so the mount
+is weak evidence either way. E15 carries the claim.
 
 **The shape.** An interaction layer: moments at which a check fires, each with a
 mechanism and a number read from the owner's turns.

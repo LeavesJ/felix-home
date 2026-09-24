@@ -297,6 +297,7 @@
 1	a graph directory it cannot write still exits 0
 1	a graph file that is not there has no stamp either
 1	a graph of another tree does too
+1	a green branch stops the shipped step at scope, read from the real felix repair
 1	a green gate does not clear an escape
 1	a green gate on this exact tree allows it
 1	a green gate still asks for verification
@@ -1513,6 +1514,8 @@
 1	and nothing was written to the real felix home pointer
 1	and now names each one it found
 1	and ok once a graph newer than the last commit exists
+1	and on a branch the gate has never run on
+1	and on a gate run still in progress
 1	and on every table, every other reader family reads those same rows
 1	and on it cut -f2 reads the first cell where an IFS read reads nothing
 1	and on it the reason a four-variable read assigns is not the reason cut -f4 reads
@@ -1540,6 +1543,7 @@
 1	and one with a session id records under exactly that id
 1	and one wrapped in bold
 1	and one written as a path
+1	and only nothing to repair tells the report so, under the name the report reads
 1	and only once per session
 1	and only rows of the right shape and kind are accepted
 1	and only the awaiting count records it
@@ -2308,7 +2312,9 @@
 1	felix procedures runs
 1	felix profile lists a row carrying the grounding column
 1	felix qualify names the reported checks no row qualifies
+1	felix repair exits 5, nothing to repair, on a green gate run
 1	felix repair reads the gate's run on the branch
+1	felix repair refuses a detached checkout rather than finding nothing to repair on HEAD
 1	felix repair stops at the ceiling when its attempts cannot be counted
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
@@ -2569,6 +2575,7 @@
 1	nothing found with no witness is unknown, never empty
 1	nothing in the tree but red.tsv changed
 1	nothing is allowed by default
+1	nothing to repair ends the job clean: not acted on, not failed, not escalated
 1	obligations.tsv is byte-identical after all four
 1	obligations.tsv is byte-identical after the report
 1	obligations.tsv is byte-identical at the end of the block

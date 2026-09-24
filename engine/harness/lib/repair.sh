@@ -7,8 +7,10 @@
 #
 # The ceiling is the point. The guidebook (p8) asks for a bounded loop, because
 # an agent that retries indefinitely burns money converging on nothing and looks
-# busy the entire time. After FELIX_REPAIR_MAX consecutive failures the answer
-# stops being "try again" and becomes "a human needs to look at this."
+# busy the entire time. After FELIX_REPAIR_MAX failures of the gate with no
+# success between them, the answer stops being "try again" and becomes "a human
+# needs to look at this." A run cancelled or skipped between them does not
+# start the count again; felix_repair_attempts says which conclusions count.
 #
 # Attempts are counted from CI history rather than a local counter, so the count
 # survives a new session, a different machine, and a cleared scratch directory.
@@ -28,7 +30,9 @@
 #      it is empty. And a run that failed to start, which left no log, or one
 #      whose conclusion this code does not know. And an --implicated file
 #      that could not be written
-#   2  the repair ceiling is reached, or could not be counted
+#   2  the repair ceiling is reached, or could not be counted: gh did not
+#      answer, or the newest 100 gate runs held no success and fewer failures
+#      than the ceiling
 #   3  the failure implicates a red path, which unattended repair leaves alone
 #   4  no project governs the checkout, or the binding naming one is broken
 #   5  nothing to repair: the gate has not run on the branch, is still running,
@@ -86,8 +90,8 @@ felix_repair_branch() {
 # recorded on the default branch, which is where a workflow_run event puts
 # them, and on any branch it is dispatched on; GitHub's Dependency Graph runs
 # on the default branch as well. There the newest run was usually the repair's:
-# skipped, which stops the count of the gate's failures at zero, or, while it
-# runs, in progress, which would tell the very repair asking that the gate is
+# skipped, which then ended the count of the gate's failures at zero, or, while
+# it runs, in progress, which would tell the very repair asking that the gate is
 # still running. Any other workflow's failures there spend the ceiling.
 #
 # Where the runs cannot be read, the direction is fixed. No workflow named, or
@@ -97,28 +101,54 @@ felix_repair_branch() {
 # never zero: a ceiling that reads as unspent whenever the network does not
 # answer bounds nothing.
 
-# Consecutive failures at the head of this branch's gate runs.
+# The gate's failures on this branch since its last success: the attempts the
+# ceiling has already spent.
 #
-# A run waiting for a person to approve it is passed over like one still
-# running: it has no verdict, so it neither counts nor ends the count. On
-# github.com a pull request updated with a workflow's GITHUB_TOKEN gets its
-# pull_request runs in that state, so each unattended push leaves one between
-# the gate run it dispatches and the run before. Stopping there held the count
-# at the failures since the last push, and the ceiling never came.
+# Only a success resets the count. failure and timed_out count, and so do
+# startup_failure and any conclusion this code has not met. A run that ended
+# without a verdict (cancelled, skipped, neutral, stale, action_required) is
+# passed over like one still going, and neither spends the ceiling nor resets
+# it. action_required is also how github.com holds a pull_request run that a
+# workflow's GITHUB_TOKEN caused, and each unattended push leaves one. Until
+# 2026-09-23 each of those ended the count, so failure, cancelled,
+# failure, failure read as one attempt and not three, and a gate that cancels
+# in progress, or anyone cancelling a run, could keep an unattended loop from
+# ever reaching its ceiling.
+#
+# startup_failure counts because the gate did not pass. A workflow file the
+# change carries can cause one as surely as a test can fail, and passing it
+# over would bound the loop only while something else refuses to repair from
+# such a run. A run that failed to start for a reason no change caused spends
+# the ceiling too, and what that costs is stopping early, which is the
+# direction the ceiling errs in.
+#
+# The window is the newest 100 runs, one page of GitHub's API; one more is
+# asked for to tell a full window from a history that ends there. Passing a
+# run over spends the window and not the count, so a window that ends before
+# a success and before the ceiling is a count nobody finished. It is refused,
+# not read as the attempts it happened to see. A branch whose whole gate
+# history fits in the window is counted to its first run. gh prints the length
+# first, because a run still going prints an empty line, and trailing ones do
+# not survive the substitution to be counted.
 felix_repair_attempts() {
-  local branch="$1" repo="$2" workflow="${3:-}" n=0 c runs
+  local branch="$1" repo="$2" workflow="${3:-}" window=100 n=0 total c runs
   [ -n "$workflow" ] || return 1
-  runs="$(gh run list --repo "$repo" --branch "$branch" --workflow "$workflow" --limit 10 \
-            --json conclusion -q '.[].conclusion' 2>/dev/null)" || return 1
-  while read -r c; do
-    case "$c" in
-      failure|timed_out) n=$((n+1)) ;;
-      ""|action_required) continue ;;
-      *) break ;;
-    esac
-  done <<EOF
+  runs="$(gh run list --repo "$repo" --branch "$branch" --workflow "$workflow" --limit "$((window + 1))" \
+            --json conclusion -q 'length, .[].conclusion' 2>/dev/null)" || return 1
+  {
+    read -r total
+    case "$total" in ''|*[!0-9]*) return 1 ;; esac
+    while read -r c; do
+      case "$c" in
+        success) printf '%s' "$n"; return 0 ;;
+        ""|cancelled|skipped|neutral|stale|action_required) continue ;;
+        *) n=$((n+1)) ;;
+      esac
+    done
+  } <<EOF
 $runs
 EOF
+  [ "$total" -le "$window" ] || [ "$n" -ge "$FELIX_REPAIR_MAX" ] || return 1
   printf '%s' "$n"
 }
 

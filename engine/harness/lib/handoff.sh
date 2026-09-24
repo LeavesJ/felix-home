@@ -290,6 +290,13 @@ felix_handoff_check() {
   else
     printf 'current\tsection %s is not headed "### %s. " exactly once and closed by a --- line\n' "$x" "$x" >> "$t/p"
   fi
+  # One section is current. Another headed with an id, beside it and with the
+  # marker left alone, is a section written in by hand that no fold made; a
+  # blind qualification control found this shape, which nothing above sees.
+  X="$x" LC_ALL=C awk '/^### [0-9][0-9a-z]*\. / && index($0, "### " ENVIRON["X"] ". ") != 1 {
+      id = substr($2, 1, length($2) - 1)
+      printf "current\tsection %s sits in HANDOFF.md beside the current one; a section is added under docs/handoff/pending/, and only the fold makes it current\n", id }' \
+    "$h" >> "$t/p"
   felix_handoff_rows "$h" > "$t/rows"
   cut -f1 "$t/rows" | LC_ALL=C sort | uniq -d | while IFS= read -r id; do
     printf 'index\t%s has more than one row\n' "$id"; done >> "$t/p"

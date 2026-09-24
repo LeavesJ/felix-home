@@ -21102,6 +21102,13 @@ _hxc="$(_hx_chk)"; _hxcr=$?
 is  "a section written into HANDOFF.md by hand is refused, however correct its id" "$_hxcr" "1"
 has "and the refusal says how to add a section instead" "$_hxc" "felix handoff --section"
 ( cd "$HX" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "handoff-check exits 1 on it, which fails the gate" "$?" "1"
+# And the shape a blind qualification control found first: a section written
+# in above the current one, the marker, rows and archive all left alone.
+_hx_on s/beside
+awk '/^### 0bd\. /{ print "### 0be. written in beside it"; print ""; print "Mine."; print "" } { print }' \
+  "$HX/HANDOFF.md" > "$TMP/ho-bs.md" && cp "$TMP/ho-bs.md" "$HX/HANDOFF.md"; _hx_commit "beside"
+has "a section written in beside the current one, the marker left alone, is refused too" \
+    "$(_hx_chk)" "section 0be sits in HANDOFF.md beside the current one"
 
 _hx_on s/rewrite
 printf '\nAn afterthought.\n' >> "$HX/docs/handoff/0ba.md"; _hx_commit "rewrite"

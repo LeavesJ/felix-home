@@ -400,9 +400,15 @@ _felix_handoff_refold() {
     || printf 'fold\tthe marker is not the one the fold moves it to\n'
   [ "$(felix_handoff_rows "$r/$FELIX_HANDOFF_FILE")" = "$(felix_handoff_rows "$root/$FELIX_HANDOFF_FILE")" ] \
     || printf 'fold\tthe index rows are not the ones the fold writes, in its order\n'
+  # The current section by its heading only. It is editable in place in any
+  # change, a fold's included, so its body is not the fold's to hold; what
+  # the fold owns is the id and title it heads it with, and every archive it
+  # writes, which are compared whole above. Comparing the body refused every
+  # fold whose new section was then amended, and a blind qualification
+  # control turned the first real fold's gate red on it (#351).
   f="$(felix_handoff_marker "$r/$FELIX_HANDOFF_FILE" | cut -f1)"
-  [ "$(_felix_handoff_block "$r/$FELIX_HANDOFF_FILE" "$f")" = "$(_felix_handoff_block "$root/$FELIX_HANDOFF_FILE" "$f")" ] \
-    || printf 'fold\tthe current section is not the pending section it was folded from\n'
+  [ "$(grep -m1 "^### $f\. " "$r/$FELIX_HANDOFF_FILE")" = "$(grep -m1 "^### $f\. " "$root/$FELIX_HANDOFF_FILE")" ] \
+    || printf 'fold\tthe current section is not headed as the pending section it was folded from\n'
   return 0
 }
 

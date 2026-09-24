@@ -123,8 +123,12 @@ Against the merge-base with origin/main, it requires:
 - no archive file changed or removed;
 - when the current id is unchanged, an unchanged heading for it;
 - when the current section changes, the branch must have removed the
-  oldest-landed pending files the base held, and the result must be exactly
-  what the fold of the base writes, part by part.
+  oldest-landed pending files the base held, and the result must be what the
+  fold of the base writes: the archives, marker and index rows exactly, and the
+  new current section's heading exactly. Its body is editable in place, as the
+  current section's always is. The first version compared the body too, and
+  that turned the first real fold's gate red (#351): a blind control amended
+  the new section in place, which the rule allows.
 
 A section written into HANDOFF.md by hand is refused however correct its id,
 because that shared slot is what collided. So is a pending section removed

@@ -4425,6 +4425,34 @@ out="$(_stop_as_home "$GREPO" "$POINTHOME")"
 _blocks "a home pointer naming something that is not a home refuses" "$out"
 has     "and says which directory it was sent to" "$out" "not-a-felix-home"
 
+# A long pointer was shown as its first eighty characters. When the eightieth
+# closed a directory name, the refusal named the target's parent: a real path
+# and a wrong answer, not a short one. Found 2026-09-24, when the suite's $TMP
+# moved deeper and the line above failed, because a plain Mac run's
+# $TMP/not-a-felix-home is eighty characters exactly. The parent here is built
+# to be eighty long whatever $TMP is, and the length is asserted so an edit to
+# it cannot quietly stop testing the slash.
+_parent="/felix-no-such-root/$(printf '%060d' 0)"
+is  "a parent eighty characters long, so a cut at eighty ends on its slash" "${#_parent}" "80"
+printf '%s\n' "$_parent/the-home-it-names" > "$POINTHOME/.felix-home"
+out="$(_stop_as_home "$GREPO" "$POINTHOME")"
+has "a long pointer is refused naming its own directory, not the parent" "$out" "/the-home-it-names, which is not"
+has "and the refusal marks where the middle was cut" "$out" "[...]"
+
+# Short stays, because a marker is a file in the repository: a stranger's
+# clone chooses its text, and the refusal quotes it to the model and to the
+# founder. Showing the whole value would pass the line above and hand that
+# text through at any length.
+printf '%0150d%s%0150d\n' 0 WHOLE 0 > "$BROKEN/.felix"
+out="$(_stop "$BROKEN")"
+_quoted="$(printf '%s' "$out" | sed -n 's/.* names \\"\([^\\]*\)\\", and that does not resolve.*/\1/p')"
+if [ -n "$_quoted" ] && [ "${#_quoted}" -le 80 ]; then
+  ok  "a long marker is quoted at most eighty characters long"
+else
+  bad "a long marker is quoted at most eighty characters long" "quoted ${#_quoted}: [$out]"
+fi
+printf 'widget\n' > "$BROKEN/.felix"
+
 printf '%s\n' "$TMP/no-such-directory-at-all" > "$POINTHOME/.felix-home"
 out="$(_stop_as_home "$GREPO" "$POINTHOME")"
 _blocks "so does a pointer naming a directory that is gone" "$out"

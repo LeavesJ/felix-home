@@ -14944,6 +14944,17 @@ if [ -f "$GWT/.git" ] && [ -d "$SCR/clone/.git" ] && [ -L "$SCR/to-gov" ]; then
 else
   bad "the scoped fixture has its worktree, its clone and its links" "worktree [$GWT] clone [$SCR/clone]"
 fi
+# And one outside the temporary root lib/where.sh reads, $TMPDIR, turns every
+# lift below into a refusal for where the suite put its files. The root is a
+# bare `mktemp -d`, which on a Mac lands in the per-user directory whatever
+# TMPDIR says, so any other TMPDIR does that. Every tests/red run on a Mac
+# did, until red stopped moving TMPDIR (tests/red says why).
+_sc_tr="$(cd -P "${TMPDIR:-/tmp}" 2>/dev/null && pwd -P)"
+if [ -n "$_sc_tr" ] && case "$SCR/" in "${_sc_tr%/}/"*) true ;; *) false ;; esac; then
+  ok "the scoped fixture lies under the TMPDIR the suite was given"
+else
+  bad "the scoped fixture lies under the TMPDIR the suite was given" "fixture [$SCR] TMPDIR [${TMPDIR:-}]"
+fi
 { printf 'Bash\t(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*["\047]?\\.felix(-home)?["\047]?([[:space:];&|)]|$)\tmarker\tcheckout\n'
   printf 'Bash\tgit( +-[^ ]+( +[^ ]+)?)* +(update-ref|symbolic-ref|fetch|push)[^;&|]*refs/remotes/\ttracking\tcheckout\n'
   printf 'Bash\tgit( +-[^ ]+( +[^ ]+)?)* +remote +(add|set-url|rename|remove|rm)( |$)\tremote\tcheckout\n'

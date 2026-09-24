@@ -148,7 +148,10 @@ NM="$OUT/names"
 git -C "$HOME_TOP" log --full-history --format= --name-only "$MAIN" -- projects/ | awk -F/ 'NF > 2 { print $2 }' | sort -u > "$NM.history" ||
   die "could not read the history of projects/ on the home's main"
 PTR="${FELIX_HOME:-}" PF="$HOME/.felix-home"  # the engine's own order, lib/resolve.sh felix_home
-[ -n "$PTR" ] || [ ! -f "$PF" ] || PTR="$(tr -d '[:space:]' < "$PF")" || die "could not read the home pointer $PF"
+if [ -z "$PTR" ] && [ -f "$PF" ]; then  # read as lib/resolve.sh _felix_home_pointer reads it: the two ends trimmed, since a home path may hold a space
+  PTR="$(cat "$PF")" || die "could not read the home pointer $PF"
+  PTR="${PTR#"${PTR%%[![:space:]]*}"}"; PTR="${PTR%"${PTR##*[![:space:]]}"}"
+fi
 [ -z "$PTR" ] || [ -d "$PTR/projects" ] || die "the home the engine points at, $PTR, has no projects/ to read"
 { printf '%s\n' "$HOME_TOP" ${PTR:+"$PTR"}; git -C "$HOME_TOP" worktree list --porcelain | sed -n 's/^worktree //p'; } | sort -u | while IFS= read -r d; do
   [ ! -d "$d/projects" ] || (cd "$d/projects" && find . -mindepth 1 -maxdepth 1 -type d | sed 's|^\./||'); done | sort -u > "$NM.disk" || die "could not list the folders under projects/"

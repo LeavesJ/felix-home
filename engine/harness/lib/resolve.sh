@@ -164,11 +164,28 @@ felix_deployed_engine() {
   printf '%s' "$p"
 }
 
+# What the home pointer names, read the one way both of its readers read it.
+#
+# felix install writes the path verbatim with a newline after it, so the read
+# trims whitespace from the two ends and nothing inside. It deleted every
+# whitespace character until 2026-09-24, which turned a home under
+# `~/Library/Mobile Documents/` — iCloud's Documents, the ordinary place for
+# one — into `.../MobileDocuments/...`: a directory nobody wrote, so the
+# pointer never resolved, and the refusal sent the reader to a path that does
+# not exist. A pointer that is empty or only whitespace still reads as empty.
+_felix_home_pointer() {
+  local p
+  p="$(cat "$HOME/.felix-home" 2>/dev/null)" || p=""
+  p="${p#"${p%%[![:space:]]*}"}"
+  p="${p%"${p##*[![:space:]]}"}"
+  printf '%s' "$p"
+}
+
 felix_home() {
   local engine="$1"
   if [ -n "${FELIX_HOME:-}" ]; then printf '%s' "$FELIX_HOME"; return; fi
   if [ -f "$HOME/.felix-home" ]; then
-    local p; p="$(tr -d '[:space:]' < "$HOME/.felix-home")"
+    local p; p="$(_felix_home_pointer)"
     [ -n "$p" ] && [ -d "$p" ] && { printf '%s' "$p"; return; }
   fi
   # A plugin install is a frozen copy of the whole repository, projects/
@@ -381,7 +398,7 @@ felix_binding_broken() {
   # worse than none, because the caller tests emptiness and would block on half
   # an explanation.
   if [ -z "${FELIX_HOME:-}" ] && [ -f "$HOME/.felix-home" ]; then
-    p="$(tr -d '[:space:]' < "$HOME/.felix-home" 2>/dev/null)"
+    p="$(_felix_home_pointer)"
     if   [ -z "$p" ]; then
       why="is empty, so it names no home"
     elif [ ! -d "$p" ]; then

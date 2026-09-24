@@ -3073,10 +3073,21 @@ cmd_bootstrap() {
   local esrc; esrc="$(felix_engine_source "$FELIX_ROOT" "$FELIX_HOME_DIR")" || esrc=""
   felix_repo=""
   [ -n "$esrc" ] && felix_repo="$(felix_repo_slug "$esrc")"
+  # The commit CI checks Felix out at, from the same checkout as the slug, and
+  # holding this project when the project lives in that checkout. Physical
+  # paths on both sides: macOS spells /var as /private/var, and git reports
+  # the resolved form.
+  local etop pdir prel="" felix_ref
+  etop="$(git -C "$esrc" rev-parse --show-toplevel 2>/dev/null)" || etop=""
+  pdir="$(cd "$proj" 2>/dev/null && pwd -P)" || pdir=""
+  case "$pdir" in "$etop"/?*) [ -n "$etop" ] && prel="${pdir#"$etop"/}" ;; esac
+  felix_ref="$(felix_bs_pin_ref "$esrc" "$prel")" || felix_ref=""
+  local ref_none="none: no commit of the engine checkout that origin's default branch holds${prel:+ with $prel in it}; the workflow gets {{FELIX_REF}} to fill"
 
   printf 'repo:        %s\n' "${slug:-no github remote}"
   printf 'ecosystem:   %s\n' "$eco"
-  printf 'felix repo:  %s\n\n' "${felix_repo:-none, CI cannot fetch the harness}"
+  printf 'felix repo:  %s\n' "${felix_repo:-none, CI cannot fetch the harness}"
+  printf 'felix ref:   %s\n\n' "${felix_ref:-$ref_none}"
 
   local todo=0
   _bs() {  # name, already-satisfied, description
@@ -3109,8 +3120,9 @@ cmd_bootstrap() {
       printf '  skipped    ci-workflow (Felix has no remote for CI to fetch)\n'
     else
       mkdir -p "$root/.github/workflows"
-      felix_bs_render_workflow "$eco" "$felix_repo" > "$root/.github/workflows/$gwf"
+      felix_bs_render_workflow "$eco" "$felix_repo" "$felix_ref" > "$root/.github/workflows/$gwf"
       printf '  wrote      .github/workflows/%s (review, then commit it)\n' "$gwf"
+      [ -n "$felix_ref" ] || printf "             its ref: is {{FELIX_REF}}; set the full sha of a commit on %s's default branch first\n" "$felix_repo"
     fi
   fi
   if [ -n "$slug" ] && ! _felix_bs_have_labels "$slug"; then

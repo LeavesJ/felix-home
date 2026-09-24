@@ -22,22 +22,33 @@
 # felix repair's exit status is its contract with templates/unattended.yml,
 # which branches on it and on nothing else, so each status means one thing:
 #
-#   0  a brief for the failing run, or nothing to repair (no runs yet, a run
-#      still going, or green)
+#   0  a brief for the newest gate run, which completed and did not succeed;
+#      the only status a repair acts on. A cancelled or skipped run lands
+#      here too, and so does a failed run whose log could not be read, whose
+#      brief then names no path
 #   1  the gate's runs could not be read: no gh, no GitHub remote, no gate
-#      workflow, or gh did not answer
+#      workflow, no branch checked out, or gh did not answer
 #   2  the repair ceiling is reached, or could not be counted: gh did not
-#      answer, or the runs it answered with ended before a success or the
-#      ceiling did
+#      answer, or the newest 100 gate runs held no success and fewer failures
+#      than the ceiling
 #   3  the failure implicates a red path, which unattended repair leaves alone
 #   4  no project governs the checkout, or the binding naming one is broken
+#   5  nothing to repair: the gate has not run on the branch, is still running,
+#      or is green
 #
 # 4 was 2 until 2026-09-23, the status every other command still exits on a
-# failed resolve, and the template escalated it to a person as a spent ceiling.
+# failed resolve, and the template's case read it as a spent ceiling.
 # A failed resolve says the workflow is wired to a Felix that does not govern
 # this repository, which is true of every branch at once and says nothing about
 # the failing change, so the template fails the job on it rather than labelling
 # a pull request.
+#
+# 5 was 0 until the same day, the status of a brief, so the template would
+# have spent the budget and run a model on a brief saying nothing was wrong.
+# Nothing failed, so it stops the job without failing it or asking anyone.
+#
+# felix brief keeps this shape and uses 0, 1, 2 and 3 of it: its 2 is a failed
+# resolve, and it has no 5, because an issue is always something to act on.
 
 FELIX_REPAIR_MAX="${FELIX_REPAIR_MAX:-3}"
 
@@ -81,24 +92,25 @@ felix_repair_branch() {
 # in progress, or anyone cancelling a run, could keep an unattended loop from
 # ever reaching its ceiling.
 #
-# startup_failure counts because the gate did not pass: a repair whose push
-# broke the workflow file has spent an attempt as surely as one whose push
-# broke a test. Passing it over would bound the loop only while something else
-# refuses to repair from such a run. A run that failed to start for a reason
-# nobody pushed spends the ceiling too, and what that costs is stopping early,
-# which is the direction the ceiling errs in.
+# startup_failure counts because the gate did not pass. A workflow file the
+# change carries can cause one as surely as a test can fail, and passing it
+# over would bound the loop only while something else refuses to repair from
+# such a run. A run that failed to start for a reason no change caused spends
+# the ceiling too, and what that costs is stopping early, which is the
+# direction the ceiling errs in.
 #
-# The window is the newest 100 runs, the most GitHub returns in one page.
-# Passing a run over spends the window and not the count, so a full window
-# that ends before a success and before the ceiling is a count nobody
-# finished. It is refused, not read as the attempts it happened to see. A
-# branch whose whole gate history fits in the window is counted to its first
-# run. gh prints the length first, because a run still going prints an empty
-# line, and trailing ones do not survive the substitution to be counted.
+# The window is the newest 100 runs, one page of GitHub's API; one more is
+# asked for to tell a full window from a history that ends there. Passing a
+# run over spends the window and not the count, so a window that ends before
+# a success and before the ceiling is a count nobody finished. It is refused,
+# not read as the attempts it happened to see. A branch whose whole gate
+# history fits in the window is counted to its first run. gh prints the length
+# first, because a run still going prints an empty line, and trailing ones do
+# not survive the substitution to be counted.
 felix_repair_attempts() {
   local branch="$1" repo="$2" workflow="${3:-}" window=100 n=0 total c runs
   [ -n "$workflow" ] || return 1
-  runs="$(gh run list --repo "$repo" --branch "$branch" --workflow "$workflow" --limit "$window" \
+  runs="$(gh run list --repo "$repo" --branch "$branch" --workflow "$workflow" --limit "$((window + 1))" \
             --json conclusion -q 'length, .[].conclusion' 2>/dev/null)" || return 1
   {
     read -r total
@@ -113,7 +125,7 @@ felix_repair_attempts() {
   } <<EOF
 $runs
 EOF
-  [ "$total" -lt "$window" ] || [ "$n" -ge "$FELIX_REPAIR_MAX" ] || return 1
+  [ "$total" -le "$window" ] || [ "$n" -ge "$FELIX_REPAIR_MAX" ] || return 1
   printf '%s' "$n"
 }
 

@@ -4,20 +4,16 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	aece3552f146779576b749b8f2a44a67fd2570ff	0.49.195
-run	55	3481	5
-a commit holding the project it is asked about pins	1
+base	origin/main	0115cded785d29e4c60f1462406a728bcd322930	0.49.198
+run	50	3495	5
 a lifted scoped row is written to says.log with the command	1
-a project no commit on the default branch holds yet is not pinned	1
-a source whose HEAD is origin's default branch pins that commit, in full	1
-and is pinned once the default branch holds it	1
-and pins the source checkout's commit once origin's default branch holds it	1
-and the gate workflow bootstrap writes checks Felix out at that commit	1
 and with it, the same call lifts	1
-and with no commit to give, at the placeholder, quoted so YAML reads a string	1
-and with no origin/HEAD, origin/main is the branch asked	1
-bootstrap with no commit to pin says the workflow gets the placeholder	1
-every checkout in the generated workflow is v5, the lowest major on Node 24	1
+catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 1	1
+catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 2	1
+catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 3	1
+catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 4	1
+catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 5	1
+catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 6	1
 scoped: .. out of the checkout that lands in scratch	1
 scoped: P from pwd keeps the scratch cwd after a cd	1
 scoped: Write to a relative marker under a scratch payload cwd	1
@@ -58,6 +54,5 @@ scoped: set -u is not set -e	1
 scoped: three scoped rows all lifted in one clone	1
 scoped: under set -e a cd inside a chain can still fall through	1
 scoped: under set -e a lone cd on its own line is final	1
-the generated workflow checks Felix out at the commit it was given	1
 the judge alone: a scratch path is throwaway	1
 the same reader reaching its end would lift	1

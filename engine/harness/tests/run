@@ -8307,8 +8307,8 @@ mkdir -p "$IP/.git"; : > "$IP/.git/config"
 is  "a path outside the checkout or inside its .git is never implicated" \
     "$(_ip 'see ../ran, .git/config and ../inc/src/thing.py')" "src/thing.py "
 # Two forms a failing log prints all the time, each of which resolved to no
-# file: pytest's node id, and a line number with a colon after it.
-is  "a pytest node id and a line number followed by a colon both name their file" \
+# file: pytest's test id, and a line number with a colon after it.
+is  "a pytest test id and a line number followed by a colon both name their file" \
     "$(_ip 'FAILED tests/test_thing.py::test_x - assert 1 == 2')$(_ip 'src/thing.py:12: AssertionError')" \
     "tests/test_thing.py src/thing.py "
 

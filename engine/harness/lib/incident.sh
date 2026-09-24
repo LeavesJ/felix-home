@@ -49,7 +49,8 @@ felix_incident_paths() {
   #
   # Two forms the line-number rule missed, both common in a failing log, and
   # both mattered once an empty set came to stop the unattended repair at
-  # scope: pytest's node id, `tests/test_a.py::test_x`, and a line number
+  # scope: a test id that names its test after the file,
+  # `tests/test_a.py::test_x`, and a line number
   # followed by a colon, `tests/test_a.py:12: AssertionError` or Go's
   # `a_test.go:12: expected 1`. Each resolved to no file at all.
   printf '%s' "$text" \

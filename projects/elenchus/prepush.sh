@@ -137,10 +137,18 @@ t=$(git log "$RANGE" --format='%b' | grep -ci 'co-authored' || true)
 VENV="$ROOT/.venv/bin"
 [ -x "$VENV/python" ] || VENV="$(git rev-parse --git-common-dir)/../.venv/bin"
 if [ -x "$VENV/python" ]; then
-  if PYTHONPATH=src "$VENV/python" -m pytest -q -m "not live" >/tmp/prepush-pytest.log 2>&1; then
-    pass "suite green ($(tail -1 /tmp/prepush-pytest.log | tr -d '\n'))"
+  # A log of this run's own. It was one fixed path under /tmp, shared with every other push
+  # guard on the machine: two at once truncated and rewrote it at their own offsets, so the
+  # count printed after "suite green" could be another tree's (measured 2026-09-21 on Felix's
+  # own gate). Deleted on a pass, where nothing points at it; kept on a failure, and named.
+  PLOG_DIR="${TMPDIR:-/tmp}"; PLOG_DIR="${PLOG_DIR%/}"; PLOG=""
+  if ! PLOG="$(mktemp "$PLOG_DIR/prepush-pytest.XXXXXX" 2>/dev/null)" || [ -z "$PLOG" ]; then
+    fail "could not make a log file for the suite under $PLOG_DIR"
+  elif PYTHONPATH=src "$VENV/python" -m pytest -q -m "not live" >"$PLOG" 2>&1; then
+    pass "suite green ($(tail -1 "$PLOG" | tr -d '\n'))"
+    rm -f "$PLOG"
   else
-    fail "suite RED - see /tmp/prepush-pytest.log"; tail -5 /tmp/prepush-pytest.log | sed 's/^/        /'
+    fail "suite RED - see $PLOG"; tail -5 "$PLOG" | sed 's/^/        /'
   fi
   "$VENV/python" -m ruff check . >/dev/null 2>&1 && pass "ruff check clean" || fail "ruff check FAILED"
   "$VENV/python" -m ruff format --check . >/dev/null 2>&1 && pass "ruff format clean" || fail "ruff format FAILED"

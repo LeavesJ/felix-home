@@ -76,6 +76,22 @@ if [ -z "$PY" ]; then
   exit 2
 fi
 
+# ----------------------------------------------------------------- logs ------
+# Every log below is this run's own, made by mktemp, never a path another gate can open.
+# They were fixed paths under /tmp shared by every gate on the machine, and several sessions
+# gate worktrees at once: each opened the file with O_TRUNC and wrote at its own offset, so
+# a gate could print another tree's test count, FAILED lines or ruff file list. Measured
+# 2026-09-21 on Felix's own gate, which printed "2645 passed" for a suite that had passed
+# 2586. The verdict was never wrong, being each command's exit status; the evidence under
+# it could belong to another run. A log is deleted once nothing points at it, and kept on
+# a failure, where its path is printed.
+LOG_DIR="${TMPDIR:-/tmp}"; LOG_DIR="${LOG_DIR%/}"
+newlog() {
+  local f
+  f="$(mktemp "$LOG_DIR/ret-gate-$2.XXXXXX" 2>/dev/null)" && [ -n "$f" ] || return 1
+  printf -v "$1" '%s' "$f"
+}
+
 # --------------------------------------------------------------- format ------
 # Ask the formatter what it WOULD rewrite, then rewrite, and report only what IT named.
 #
@@ -86,33 +102,50 @@ fi
 # `ruff format --check .` reported "141 files already formatted". A red signal that does not mean
 # what its name says is worse than no signal, because it trains you to skip the one gate that
 # exists to catch real format drift before a push.
-"$PY" -m ruff format --check . >/tmp/ret-gate-format-check.log 2>&1
-FMT_CHECK_STATUS=$?
-WOULD_FMT="$(sed -n 's/^[[:space:]]*--> \(.*\):[0-9][0-9]*:[0-9][0-9]*$/\1/p' /tmp/ret-gate-format-check.log)"
-if ! "$PY" -m ruff format . >/tmp/ret-gate-format.log 2>&1; then
+FMT_CHECK_LOG=""; FMT_LOG=""
+if ! newlog FMT_CHECK_LOG format-check || ! newlog FMT_LOG format; then
   fail format
-  tail -20 /tmp/ret-gate-format.log | sed 's/^/    /'
-elif [ "$FMT_CHECK_STATUS" -eq 0 ]; then
-  pass format
-elif [ -n "$WOULD_FMT" ]; then
-  fail format
-  note "ruff rewrote $(printf '%s\n' "$WOULD_FMT" | wc -l | tr -d ' ') file(s); review and stage them"
-  printf '%s\n' "$WOULD_FMT" | sed 's/^/    /'
+  note "could not make a log file under $LOG_DIR"
+  rm -f "$FMT_CHECK_LOG"
 else
-  # ruff wanted changes but this parse did not recognise its output. The `-->` shape is coupled
-  # to the ruff version, so its failure mode must be a loud gate, never a silent green one.
-  fail format
-  note "ruff format --check exited $FMT_CHECK_STATUS but no filename parsed"
-  note "read /tmp/ret-gate-format-check.log; the --> parse above needs updating for this ruff"
+  "$PY" -m ruff format --check . >"$FMT_CHECK_LOG" 2>&1
+  FMT_CHECK_STATUS=$?
+  WOULD_FMT="$(sed -n 's/^[[:space:]]*--> \(.*\):[0-9][0-9]*:[0-9][0-9]*$/\1/p' "$FMT_CHECK_LOG")"
+  if ! "$PY" -m ruff format . >"$FMT_LOG" 2>&1; then
+    fail format
+    tail -20 "$FMT_LOG" | sed 's/^/    /'
+    note "full log: $FMT_LOG"
+    rm -f "$FMT_CHECK_LOG"
+  elif [ "$FMT_CHECK_STATUS" -eq 0 ]; then
+    pass format
+    rm -f "$FMT_CHECK_LOG" "$FMT_LOG"
+  elif [ -n "$WOULD_FMT" ]; then
+    fail format
+    note "ruff rewrote $(printf '%s\n' "$WOULD_FMT" | wc -l | tr -d ' ') file(s); review and stage them"
+    printf '%s\n' "$WOULD_FMT" | sed 's/^/    /'
+    rm -f "$FMT_CHECK_LOG" "$FMT_LOG"
+  else
+    # ruff wanted changes but this parse did not recognise its output. The `-->` shape is coupled
+    # to the ruff version, so its failure mode must be a loud gate, never a silent green one.
+    fail format
+    note "ruff format --check exited $FMT_CHECK_STATUS but no filename parsed"
+    note "read $FMT_CHECK_LOG; the --> parse above needs updating for this ruff"
+    rm -f "$FMT_LOG"
+  fi
 fi
 
 # ----------------------------------------------------------------- lint ------
-if "$PY" -m ruff check . >/tmp/ret-gate-lint.log 2>&1; then
+LINT_LOG=""
+if ! newlog LINT_LOG lint; then
+  fail lint
+  note "could not make a log file under $LOG_DIR"
+elif "$PY" -m ruff check . >"$LINT_LOG" 2>&1; then
   pass lint
+  rm -f "$LINT_LOG"
 else
   fail lint
-  head -20 /tmp/ret-gate-lint.log | sed 's/^/    /'
-  note "full log: /tmp/ret-gate-lint.log"
+  head -20 "$LINT_LOG" | sed 's/^/    /'
+  note "full log: $LINT_LOG"
 fi
 
 # ----------------------------------------------------------------- test ------
@@ -120,22 +153,25 @@ fi
 # they are never part of the gate. L-22: a @live test rots silently through a
 # signature change precisely because this run does not execute it. When you
 # change a signature, grep tests/ for the symbol including the live files.
+TEST_LOG=""
 if [ "$QUICK" -eq 1 ]; then
   printf '  %-18s skipped (--quick)\n' test
+elif ! newlog TEST_LOG test; then
+  fail test
+  note "could not make a log file under $LOG_DIR"
+elif "$PY" -m pytest -q >"$TEST_LOG" 2>&1; then
+  pass test
+  # The whole summary line, not a fragment of it. `[^,]*` halted at the first
+  # comma, so "1229 passed, 35 skipped" printed as "1229 passed" and every
+  # skip in this suite was invisible — including the 31 live-API tests that
+  # skip on every CI run, and the preview checks that skip without a server.
+  # A count that silently drops the skipped ones reads as full coverage.
+  note "$(grep -Eo '[0-9]+ (passed|failed|skipped|deselected)[^=]*' "$TEST_LOG" | tail -1 | sed 's/[[:space:]]*$//')"
+  rm -f "$TEST_LOG"
 else
-  if "$PY" -m pytest -q >/tmp/ret-gate-test.log 2>&1; then
-    pass test
-    # The whole summary line, not a fragment of it. `[^,]*` halted at the first
-    # comma, so "1229 passed, 35 skipped" printed as "1229 passed" and every
-    # skip in this suite was invisible — including the 31 live-API tests that
-    # skip on every CI run, and the preview checks that skip without a server.
-    # A count that silently drops the skipped ones reads as full coverage.
-    note "$(grep -Eo '[0-9]+ (passed|failed|skipped|deselected)[^=]*' /tmp/ret-gate-test.log | tail -1 | sed 's/[[:space:]]*$//')"
-  else
-    fail test
-    grep -E '^(FAILED|ERROR)' /tmp/ret-gate-test.log | head -20 | sed 's/^/    /'
-    note "full log: /tmp/ret-gate-test.log"
-  fi
+  fail test
+  grep -E '^(FAILED|ERROR)' "$TEST_LOG" | head -20 | sed 's/^/    /'
+  note "full log: $TEST_LOG"
 fi
 
 # --------------------------------------------------------- confidential ------

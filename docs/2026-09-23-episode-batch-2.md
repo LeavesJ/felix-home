@@ -288,17 +288,17 @@ on E15; E24 shows the lesson mount was a weak carrier.
 - **E19 as a clean test of advice.** The claim that prose fails is kept on
   E15's evidence alone.
 
-## 8. What is the founder's to decide
+## 8. What was the founder's to decide: DECIDED 2026-09-23
 
-One question here is direction-level under #319, because the charter names the
+One question here was direction-level under #319, because the charter names the
 place.
 
-**Where should Felix's status reach you?** The charter says status belongs in
-the monitor, but nothing leads you to the monitor, and it was last rendered on
-09-05. The recommended change: status goes in the end-of-session notice, where
-Felix already speaks, and the monitor stays as the deeper page. That keeps the
-charter's "hear from Felix at its start and at its end" and changes one
-sentence of it.
+**Where should Felix's status reach the founder?** The charter said status
+belongs in the monitor, but nothing led anyone to the monitor, and it was last
+rendered on 09-05. **The founder said yes** to this: status goes in the
+session's closing notice, where Felix already speaks, and the monitor stays as
+the deeper page. The charter's stealth paragraph now says so. The notice itself
+is the first item in the handoff's queue (§0bw).
 
 Everything else here is Felix's to build: the codebook rules, the capture and
 origin fixes, the lessons-ladder fixes, the decisions table, and the next batch

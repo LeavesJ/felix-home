@@ -3347,6 +3347,39 @@ is  "and no model is run" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "0"
 _attempt ""
 is  "an install that succeeds goes on to the model" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "1"
 
+printf '\nthe unattended repair denies the model its own environment\n'
+# The attempt step runs with ANTHROPIC_API_KEY in its environment, so the
+# claude process it starts carries the key, and on Linux a process's
+# environment is a file, /proc/self/environ. A tool-name allow rule matches
+# every path, and `--allowedTools "Read,Edit"` is one. Measured on the pinned
+# 2.1.37 on ubuntu-latest (2026-09-24, the real binary against a scripted
+# Messages API, run in a throwaway Actions repository; the rig is in the pull
+# request): Read on /proc/self/environ returned the environment, key included,
+# and Edit put the key in a tracked file, which the push step commits. A model
+# steered by a hostile failing log is the reader to plan for. A deny rule is
+# read before the allow rule, and the same measurement chose the spelling:
+# `Read(//proc/**)` refused the path however it was written (/proc/self/environ,
+# /proc/self/../self/environ, a relative path climbing to /proc,
+# /proc//self/environ, /proc/thread-self/environ), each as a tool_use_error
+# reading "File is in a directory that is denied by your permission settings"
+# with the result line's permission_denials left empty, and left the
+# repository's own files readable; `Read(/proc/**)`, one slash, refused
+# nothing, since one slash names a path under the working directory. The
+# measurement is the pin's: when the claude-code version moves, measure again.
+# The claude stub records each argument on a line of its own, so what is
+# asserted is what the shell handed the binary, not the template's text.
+printf '#!/usr/bin/env bash\nprintf "claude\\n" >> "%s/claude.log"\nprintf "%%s\\n" "$@" > "%s/claude.args"\n' "$AT" "$AT" > "$AT/bin/claude"
+_attempt ""
+_atdeny="$(awk 'p { print; exit } $0 == "--disallowedTools" { p = 1 }' "$AT/claude.args")"
+if printf '%s\n' "$_atdeny" | tr ', ' '\n\n' | grep -q -x -F 'Read(//proc/**)'; then
+  ok  "the model step disallows Read under /proc, in the spelling 2.1.37 honours"
+else
+  bad "the model step disallows Read under /proc, in the spelling 2.1.37 honours" \
+      "--disallowedTools ${_atdeny:-(absent)}"
+fi
+is  "and Read and Edit stay allowed, since the repair needs both" \
+    "$(awk 'p { print; exit } $0 == "--allowedTools" { p = 1 }' "$AT/claude.args")" "Read,Edit"
+
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts
 # repetition rather than money: ten deliberate attempts in a day is a working

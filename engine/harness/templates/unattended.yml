@@ -66,15 +66,37 @@ jobs:
     outputs:
       pushed: ${{ steps.push.outputs.pushed }}
     steps:
-      - uses: actions/checkout@v4
+      # v5, the lowest major that runs on Node 24. v4 targets Node 20, which
+      # the runner forces onto Node 24 with a warning until it stops doing so.
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_branch || github.ref }}
           fetch-depth: 0
           path: repo
 
-      - uses: actions/checkout@v4
+      # Pinned, to the full sha of the Felix commit this file was copied from,
+      # quoted so it is a string: YAML reads a sha of all digits as a number.
+      # Felix publishes no tags. The scope step below branches on felix repair's
+      # exit status, a contract between this file and the engine that
+      # lib/repair.sh lists. Without a ref the engine is whatever Felix's default
+      # branch holds when the job runs, and that contract changed four times on
+      # 2026-09-23 (2 took in a ceiling that could not be counted, 4 split off
+      # from 2, nothing to repair moved from 0 to 5, then 0 narrowed to failed
+      # or timed-out runs with a log) under copies that had not changed.
+      # Pinned, the engine and this file move together, in one change reviewed
+      # here: copy the template again from the commit the new pin names. The
+      # claude-code install below is pinned for the same reason: this job holds
+      # a write token, and an API key once it is switched on, and an unpinned
+      # checkout runs whatever merged in Felix that day.
+      #
+      # What the pin costs: the risk table and gate script Felix holds for this
+      # repository are read from the same commit. A path made red in Felix after
+      # the pin is not red to this loop until the pin moves, so move it when
+      # either changes.
+      - uses: actions/checkout@v5
         with:
           repository: {{FELIX_REPO}}
+          ref: '{{FELIX_REF}}'
           ssh-key: ${{ secrets.FELIX_DEPLOY_KEY }}
           path: felix
 

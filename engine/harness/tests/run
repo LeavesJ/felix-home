@@ -2911,6 +2911,10 @@ if ! command -v jq >/dev/null 2>&1; then
            "and every run list felix repair makes names the gate workflow" \
            "felix repair stops at the ceiling when its attempts cannot be counted" \
            "and hands on no failing output as if attempts remained" \
+           "felix repair exits 5, nothing to repair, on a green gate run" \
+           "and on a gate run still in progress" \
+           "and on a branch the gate has never run on" \
+           "felix repair refuses a detached checkout rather than finding nothing to repair on HEAD" \
            "felix automerge judges a green pull request by the gate's runs alone" \
            "and every run list felix automerge makes names the gate workflow" \
            "and felix unattended's streak row counts the gate's runs alone" \
@@ -3075,6 +3079,26 @@ case "$out" in
   *)                   ok  "and hands on no failing output as if attempts remained" ;;
 esac
 
+# Nothing failing is not a brief. All three of these printed their sentence
+# and exited 0, the status of a brief to act on, and the unattended template
+# reads the status and nothing else.
+printf 'gate.yml\tgate\tfix/y\t211\tcompleted\tsuccess\n' > "$WFSTUB_RUNS"
+out="$(_wfcli repair)"; rc=$?
+is "felix repair exits 5, nothing to repair, on a green gate run" "$rc" "5"
+printf 'gate.yml\tgate\tfix/y\t212\tin_progress\t\n' > "$WFSTUB_RUNS"
+out="$(_wfcli repair)"; rc=$?
+is "and on a gate run still in progress" "$rc" "5"
+printf 'gate.yml\tgate\tfeat/x\t213\tcompleted\tfailure\n' > "$WFSTUB_RUNS"
+out="$(_wfcli repair)"; rc=$?
+is "and on a branch the gate has never run on" "$rc" "5"
+# A detached checkout's branch reads as HEAD, which no run is on, so it would
+# be the third case above for a branch nobody named.
+( cd "$WFR" && git checkout -q --detach )
+out="$(_wfcli repair)"; rc=$?
+is "felix repair refuses a detached checkout rather than finding nothing to repair on HEAD" "$rc" "1"
+( cd "$WFR" && git checkout -q fix/y )
+cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
+
 : > "$WFSTUB_LOG"
 out="$(_wfcli automerge)"
 has "felix automerge judges a green pull request by the gate's runs alone" "$out" "clean  #7"
@@ -3124,12 +3148,19 @@ fi
 printf '\nthe unattended repair acts only on a brief\n'
 # The ceiling above is enforced by felix repair's exit status, and the one
 # thing that reads that status in CI is the scope step of
-# templates/unattended.yml. It proceeded on everything but 3, so exit 2,
-# CEILING REACHED, still spent the budget and handed a model the brief that
-# told it to stop: the ceiling held only as long as a model read a sentence.
+# templates/unattended.yml. It proceeded on everything but 3, so read under
+# plain bash, exit 2, CEILING REACHED, still spent the budget and handed a
+# model the brief that told it to stop: the ceiling held only as long as a
+# model read a sentence. Nothing to repair exited 0 until 2026-09-23, so a
+# green branch would have done the same with a brief saying nothing was wrong;
+# it exits 5 now.
 # The step is taken out of the shipped template as it stands and run against a
 # stub felix that exits with each status repair can return, with gh stubbed to
-# record what it is asked. Its brief goes to the fixture, not to /tmp.
+# record what it is asked. Its brief goes to the fixture, not to /tmp. It runs
+# under bash -e, as Actions runs a step that names no shell (the shell line of
+# every step in a gate run's log). Under plain bash it read every status; under
+# -e with pipefail it ended at felix repair's first non-zero one, so the
+# escalation asserted below had never run in CI.
 SC="$TMP/scope"; mkdir -p "$SC/repo" "$SC/felix/engine/harness" "$SC/bin"
 awk '/- name: Scope the failure/ { f = 1 } f && /^        run: \|/ { r = 1; next }
      r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' \
@@ -3139,27 +3170,66 @@ printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "%s/gh.log"\ncase "$1 $2" i
 chmod +x "$SC/felix/engine/harness/felix" "$SC/bin/gh"
 _scope() { : > "$SC/out"; : > "$SC/gh.log"
   ( cd "$SC/${2:-repo}" && SCOPE_RC="$1" GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
-      bash "$SC/step.sh" ) >/dev/null 2>"$SC/err"; }
-_sres=""
-for _r in 0 1 2 3 4; do
+      bash -e "$SC/step.sh" ) >/dev/null 2>"$SC/err"; }
+_sres=""; _snot=""
+for _r in 0 1 2 3 4 5; do
   _scope "$_r"; _src=$?
   _sres="$_sres $_r:$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
+  _snot="$_snot $_r:$(sed -n 's/^nothing=//p' "$SC/out" | head -1)"
   case "$_r" in
     1) _s1rc="$_src" ;;
     2) _s2gh="$(cat "$SC/gh.log")" ;;
+    5) _s5rc="$_src"; _s5gh="$(cat "$SC/gh.log")"
+       _s5p="$(sed -n 's/^proceed=//p' "$SC/out" | head -1)" ;;
   esac
 done
-is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no 4:no"
+is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no 4:no 5:no"
 has "a reached repair ceiling is escalated to a person" "$_s2gh" "pr edit 7 --add-label needs-founder"
 [ "${_s1rc:-0}" -ne 0 ] && ok  "a run felix repair could not read fails the job rather than passing quietly" \
                         || bad "a run felix repair could not read fails the job rather than passing quietly" "exit ${_s1rc:-?}"
+[ "${_s5rc:-1}" -eq 0 ] && [ "${_s5p:-}" = "no" ] && [ -z "${_s5gh:-}" ] \
+  && ok  "nothing to repair ends the job clean: not acted on, not failed, not escalated" \
+  || bad "nothing to repair ends the job clean: not acted on, not failed, not escalated" \
+         "exit ${_s5rc:-?}, proceed=${_s5p:-(unset)}, gh asked: ${_s5gh:-nothing}"
+# Under the name the report reads: every steps.scope.outputs key the template
+# reads is one the step writes, since an output never written reads as empty.
+_sread="$(grep -o 'steps\.scope\.outputs\.[a-z_]*' "$REAL_HARNESS/templates/unattended.yml" \
+          | sed 's/.*\.//' | sort -u)"
+_sunwritten=""
+for _k in $_sread; do grep -q "echo \"$_k=" "$SC/step.sh" || _sunwritten="$_sunwritten $_k"; done
+[ "$_snot" = " 0: 1: 2: 3: 4: 5:yes" ] && [ -z "$_sunwritten" ] \
+  && ok  "and only nothing to repair tells the report so, under the name the report reads" \
+  || bad "and only nothing to repair tells the report so, under the name the report reads" \
+         "written:$_snot; read and never written:${_sunwritten:- none}"
+
+# The two halves together: the real felix repair on a green branch, read by the
+# step as shipped. Each half can pass its own assertions while the pair does
+# not, as when repair's status and the step's reading of it change apart.
+if command -v jq >/dev/null 2>&1; then
+  sed "s#\.\./felix/engine/harness/felix#$FELIX#" "$SC/step.sh" > "$SC/step-real.sh"
+  printf 'gate.yml\tgate\tfix/y\t211\tcompleted\tsuccess\n' > "$SC/runs"
+  : > "$SC/out"
+  ( cd "$WFR" && GITHUB_OUTPUT="$SC/out" BRANCH=fix/y WFSTUB_LOG="$SC/wf.log" \
+      WFSTUB_RUNS="$SC/runs" WFSTUB_WORKFLOWS="gate.yml" PATH="$WFB:$PATH" \
+      bash -e "$SC/step-real.sh" ) >/dev/null 2>&1; _serc=$?
+  _sep="$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
+  _sen="$(sed -n 's/^nothing=//p' "$SC/out" | head -1)"
+  [ "$_serc" -eq 0 ] && [ "$_sep" = "no" ] && [ "$_sen" = "yes" ] \
+    && ok  "a green branch stops the shipped step at scope, read from the real felix repair" \
+    || bad "a green branch stops the shipped step at scope, read from the real felix repair" \
+           "exit $_serc, proceed=${_sep:-(unset)}, nothing=${_sen:-(unset)}"
+else
+  skip "a green branch stops the shipped step at scope, read from the real felix repair" \
+       "no jq here to evaluate gh's -q expressions"
+fi
 
 # A checkout Felix cannot resolve, through the real felix repair rather than a
-# stub's chosen status. Resolution exited 2 there, which this step read as the
-# ceiling and escalated to a person under that reason. It is wiring, and true of
-# every branch at once, so the job fails, no pull request is labelled, and the
-# message names the binding. Both ways resolution fails: no project claims the
-# checkout, and a .felix marker names a project the home does not hold.
+# stub's chosen status. Resolution exited 2 there, which this step's case read
+# as the ceiling and escalated to a person under that reason. It is wiring,
+# and true of every branch at once, so the job fails, no pull request is
+# labelled, and the message names the binding. Both ways resolution fails: no
+# project claims the checkout, and a .felix marker names a project the home
+# does not hold.
 printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$FELIX" > "$SC/felix/engine/harness/felix"
 chmod +x "$SC/felix/engine/harness/felix"
 mkdir -p "$SC/unbound" "$SC/misbound"

@@ -344,6 +344,12 @@ felix_handoff_check() {
     while IFS= read -r f; do [ -f "$root/$f" ] || printf '%s\n' "$f"; done < "$t/order" > "$t/gone"
     n="$(grep -c . "$t/gone")"
     if [ "$x" = "$xb" ]; then
+      # Edited in place, the current section keeps its heading. A new heading
+      # under the old id is another section put in its place, and the one it
+      # replaced is gone from the file without being archived.
+      m="$(grep -m1 "^### $xb\. " "$t/base.md")"; f="$(grep -m1 "^### $x\. " "$h")"
+      [ -z "$f" ] || [ "$f" = "$m" ] \
+        || printf 'current\tsection %s is headed differently than on the merge-base, so another section took its place and the one it replaced is lost. A new section goes under %s/\n' "$x" "$FELIX_HANDOFF_PENDING" >> "$t/p"
       while IFS= read -r f; do printf 'pending\t%s was removed without being folded in, which drops it\n' "$f"; done < "$t/gone" >> "$t/p"
       for f in "$root/$FELIX_HANDOFF_DIR"/*.md; do
         [ -f "$f" ] || continue
@@ -352,6 +358,15 @@ felix_handoff_check() {
       done >> "$t/p"
     elif [ "$n" -eq 0 ]; then
       printf 'current\tsection %s replaced %s by hand. Write it with felix handoff --section FILE instead: it lands in %s/, and felix handoff --rotate gives it an id\n' "$x" "$xb" "$FELIX_HANDOFF_PENDING" >> "$t/p"
+      # And the damage a hand rotation does when it was cut from an older
+      # main: the archive it writes is its own stale copy of the section, and
+      # whatever main added to that section since is dropped without a sign.
+      if [ -f "$root/$FELIX_HANDOFF_DIR/$xb.md" ]; then
+        _felix_handoff_block "$t/base.md" "$xb" > "$t/xb"
+        cmp -s "$t/xb" "$root/$FELIX_HANDOFF_DIR/$xb.md" \
+          || printf 'archive\t%s/%s.md is not the section the merge-base holds as current (%s lines against %s), so archiving it drops what the base added\n' \
+               "$FELIX_HANDOFF_DIR" "$xb" "$(wc -l < "$root/$FELIX_HANDOFF_DIR/$xb.md" | tr -d ' ')" "$(wc -l < "$t/xb" | tr -d ' ')" >> "$t/p"
+      fi
     elif [ "$(head -n "$n" "$t/order" | LC_ALL=C sort)" != "$(LC_ALL=C sort "$t/gone")" ]; then
       printf 'pending\tthe sections folded in are not the %s that landed first on the merge-base\n' "$n" >> "$t/p"
     else

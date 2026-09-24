@@ -80,12 +80,11 @@ through the work in between and the delivery to the outcome.
 **Waiting on the founder.**
 - Carried from §0bv: the Elenchus and Veldra candidates' admission, then #310's
   verifier escape, then #304 (all open on 2026-09-23).
-- The one-word rating (yes, partial or no) of the charter change below, once it
-  has landed (#319's rule).
 
-**DECIDED 2026-09-23 by the founder (batch 2 §8).** Status reaches the founder
-in the session's closing notice. The monitor stays as the deeper page. The
-charter's stealth paragraph now says so. **The notice itself is not built yet,
+**DECIDED 2026-09-23 by the founder (batch 2 §8), landed as #332 and rated
+"good." (yes).** Status reaches the founder in the session's closing notice.
+The monitor stays as the deeper page. The charter's stealth paragraph now says
+so. **The notice itself is not built yet,
 and it is the first item below.** Until it ships, the charter describes
 something the engine does not do, which is the failure the pilot found most
 often.

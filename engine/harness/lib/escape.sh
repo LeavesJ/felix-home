@@ -75,7 +75,7 @@ FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null 
 # reading, and a row loosened in place removes the old line, so both fire, and
 # adding a row for a new table is free. By basename it would also stop the
 # merge of any product that keeps a data file called schemas.tsv.
-FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv commissioning.tsv obligations.tsv qualification.tsv engine/harness/templates/schemas.tsv'
+FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv commissioning.tsv obligations.tsv qualification.tsv engine/harness/templates/schemas.tsv land.tsv'
 
 # The subset whose rows are EXEMPTIONS, and for which "adding is free" is
 # backwards. A row in the ecosystem table says "this word is not a stack name"
@@ -85,7 +85,20 @@ FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecos
 # about to break invariant 1 in, and merge green. Any change to one of these
 # fires — the conformance amendments say so in as many words — because there
 # is no direction of edit to such a table that a reviewer need not look at.
-FELIX_ESCAPE_EXEMPTION_TABLES='ecosystem.tsv'
+#
+# land.tsv (lib/land-table.sh) is the same case twice over. A resolver row is
+# a path the landing actor may settle without a session; a founder or session
+# row is one it may not. So adding a resolver row widens, removing a narrowing
+# row widens too, and no direction of edit is free: the landing-actor design
+# says "any change fires, additions included". A basename, like its siblings,
+# because every project keeps its table at projects/<name>/land.tsv and the
+# engine names none of them.
+#
+# It is deliberately NOT in FELIX_COMMISSION_TABLES (commission.sh).
+# felix_commission_policy_version hashes a header for every name listed there
+# whether or not the file exists, so adding the name would move every governed
+# project's policy hash on deploy and stale every commission receipt at once.
+FELIX_ESCAPE_EXEMPTION_TABLES='ecosystem.tsv land.tsv'
 
 # Merging this causes a job to run holding whatever secrets the repository has.
 # The revert restores the YAML. It does not un-run the job or un-read the key.
@@ -389,6 +402,12 @@ felix_merge_checkout() {
 felix_merge_blockers() {
   local proj="$1" base="$2" root="$3" home="$4"
   local tid receipt line
+  # owed and behind (lib/land-table.sh), report-only: each writes a says.log
+  # would-refuse row and prints nothing here. A subshell, so nothing either
+  # does, an unset variable under the judge's set -u included, can reach this
+  # function's output, its status, or the shell that called it; and no input,
+  # so nothing it runs can wait on a terminal.
+  ( felix_land_would_refuse "$proj" "$base" "$root" ) </dev/null >/dev/null 2>&1
 
   felix_escapes "$proj" "$base" "$root" "$home" | while IFS=$'\t' read -r ch path reason; do
     [ -n "${ch:-}" ] || continue
@@ -524,3 +543,14 @@ felix_merge_blockers() {
     fi
   fi
 }
+
+# The land table and its report-only checks, which felix_merge_blockers calls
+# above. Loaded here, after every function this file defines, so the judge's
+# child shell, which sources escape.sh and not land-table.sh, has them; and
+# land-table.sh, which loads this file when escape.sh is missing, finds it
+# already loaded. A land library that cannot be loaded costs the report and
+# nothing else: the status of sourcing this file stays 0, so the judge does
+# not read it as an engine that could not be loaded.
+if ! command -v felix_land_rows >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/land-table.sh" 2>/dev/null || :
+fi

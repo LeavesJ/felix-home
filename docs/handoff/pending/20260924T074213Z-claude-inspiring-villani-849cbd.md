@@ -1,6 +1,6 @@
 ### 2026-09-23/24 — the unattended template left two credentials for the model to read, measured on the pinned binary and closed upstream of the model
 
-**Engine change: `templates/unattended.yml`, `tests/run`, 0.49.183.** The
+**Engine change: `templates/unattended.yml`, `tests/run`, 0.49.194 (merged behind #341, whose `Read(//proc/**)` shares the deny list).** The
 open items of §0bz and §0by stand. Read
 [docs/handoff/0bz.md](docs/handoff/0bz.md).
 

@@ -1841,6 +1841,138 @@ is  "and reports a clear merge without performing one" "$rc" "0"
 has "saying so plainly"                                "$out" "nothing escapes"
 _reset
 
+# A stale commission receipt is not work Felix owes. Observed 2026-09-23 in
+# the worktree for #306, gate and CI green: #298 had added rows to risk.tsv, a
+# commissioning table, so the receipt was stale, and `felix merge --dry-run`
+# closed with "none of it is a founder decision. It is work Felix owes: run
+# the gate". A session told the work was its own re-ran a gate that had
+# passed, or read it as licence to commission. What clears the receipt is a
+# commission run, which is the founder's (§0aq, §0bl), and who makes it turns
+# on the commission grant, which the receipt never reads: a grant stamped over
+# tables that have since moved runs nothing until the founder re-arms it, a
+# current one runs at the next session start, and with none the run is
+# simply theirs. Felix never writes a project's autonomy file.
+#
+# The real case first, through the real libraries: a grant and a receipt
+# stamped over the same tables, then a commissioning table moves under both,
+# the gate is recorded over the moved tables, and the receipt is not
+# re-stamped, so it is the one blocker left.
+_mlacks() { case "$2" in *"$3"*) bad "$1" "$2" ;; *) ok "$1" ;; esac; }
+_mgrant() { ( . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/autonomy.sh"
+              felix_autonomy_commission_current "$FROOT/projects/widget" && echo current || echo stale ); }
+printf 'ordinary\n' > "$REPO/README.md"; _stage
+cp "$FROOT/projects/widget/risk.tsv" "$TMP/risk.cm.keep"
+_cm_stamp
+( cd "$REPO" && "$FELIX" autonomy --allow commission >/dev/null 2>&1 )
+is  "the widget's commission grant covers the tables before one moves" "$(_mgrant)" "current"
+printf '# a row added under the commission receipt\n' >> "$FROOT/projects/widget/risk.tsv"
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+is  "and once it has, the grant no longer covers them"                 "$(_mgrant)" "stale"
+is  "a table moved under the commission receipt is the branch's only blocker" \
+    "$(_blk | cut -f1,2)" "commission	receipt"
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"; rc=$?
+is  "felix merge refuses on a stale commission receipt alone" "$rc" "3"
+has "and says the merge waits for the founder"                "$out" "waits for the founder"
+is  "naming the grant they re-arm, on a line of its own" \
+    "$(printf '%s\n' "$out" | grep -cx '  felix autonomy --allow commission')" "1"
+is  "and the commission run after it" \
+    "$(printf '%s\n' "$out" | grep -A1 -x '  felix autonomy --allow commission' | tail -1)" "  felix commission"
+_mlacks "and does not call it work Felix owes"                "$out" "work Felix owes"
+_mlacks "nor say that none of it is a founder decision"       "$out" "none of it is a founder decision"
+
+# Beside a blocker that is Felix's, each is said about its own: the commission
+# is still the founder's, and the red gate is still Felix's to run again.
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 1 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+has "a red gate beside the stale receipt is listed too"             "$out" "unverified"
+has "and the commission is still named as the founder's"            "$out" "waits for the founder"
+has "while the red gate is handed back as work Felix owes"          "$out" "work Felix owes"
+_mlacks "without claiming that none of it is a founder decision"    "$out" "none of it is a founder decision"
+
+# Re-armed over the moved tables, the grant is current and the receipt still
+# is not: the next session start re-commissions, so re-arming is not asked for
+# again, and it is still not a session's to do by hand.
+( cd "$REPO" && "$FELIX" autonomy --allow commission >/dev/null 2>&1 )
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+is  "a grant re-armed over the moved tables is current, and the receipt still the one blocker" \
+    "$(_mgrant) $(_blk | cut -f1,2)" "current commission	receipt"
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+has "under a current grant it says the next session start re-commissions" \
+    "$out" "next session started in this"
+_mlacks "and asks for no re-arm the grant does not need"            "$out" "felix autonomy --allow commission"
+_mlacks "and is still not work Felix owes"                          "$out" "work Felix owes"
+
+# With no grant the run is the founder's alone, and naming the grant would be
+# asking for a standing consent to unattended runs that this merge does not
+# need: felix commission by hand clears the receipt without one.
+( cd "$REPO" && "$FELIX" autonomy --revoke commission >/dev/null 2>&1 )
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+has "with no grant the merge still waits for the founder"           "$out" "waits for the founder"
+is  "naming the commission run on a line of its own" \
+    "$(printf '%s\n' "$out" | grep -cx '  felix commission')" "1"
+_mlacks "and asks for no grant the merge does not need"             "$out" "felix autonomy --allow commission"
+_mlacks "and is not work Felix owes either"                         "$out" "work Felix owes"
+rm -f "$FROOT/projects/widget/autonomy" "$FROOT/projects/widget/autonomy.commission"
+cp "$TMP/risk.cm.keep" "$FROOT/projects/widget/risk.tsv"
+_reset
+is "the widget's risk table is exactly as this section found it, and it has no grant" \
+   "$(diff -q "$TMP/risk.cm.keep" "$FROOT/projects/widget/risk.tsv" >/dev/null && echo same) $(ls "$FROOT/projects/widget" | grep -c '^autonomy')" \
+   "same 0"
+
+# Then every kind, one at a time, through the CLI with the library's blockers
+# replaced by exactly that line, so the assertion is on what cmd_merge says
+# for the kind and not on whether this fixture can be made to raise it. The
+# kinds are read out of escape.sh first: cmd_merge files anything it does not
+# name under work Felix owes, so a kind or a commission subject added there
+# without a place here would land in that paragraph unannounced.
+_mkinds="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+             | grep -o "printf '[a-z]*\\\\t" | sed "s/printf '//; s/\\\\t\$//" | LC_ALL=C sort -u | tr '\n' ' ')"
+is "felix_merge_blockers emits exactly the kinds cmd_merge places" \
+   "$_mkinds" "commission escape evidence obligations probes unknown unverified "
+_mcsubj="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+             | grep -o "printf 'commission\\\\t[a-z]*" | sed "s/.*\\\\t//" | LC_ALL=C sort -u | tr '\n' ' ')"
+is "and commission blockers carry exactly the subjects cmd_merge places" "$_mcsubj" "engine receipt table "
+
+cp "$FROOT/harness/lib/escape.sh" "$TMP/esc.keep"
+printf 'felix_merge_blockers() { cat "%s"; }\n' "$TMP/mblk.tsv" >> "$FROOT/harness/lib/escape.sh"
+_mclose() { printf "$1" > "$TMP/mblk.tsv"; ( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 ); }
+printf 'ordinary\n' > "$REPO/README.md"; _stage
+
+for _mk in 'unverified\ttree\tno green receipt for this exact tree; run felix gate' \
+           'evidence\tunit\tcode changes need a test' \
+           'probes\tmarker\tempty: nothing read' \
+           'obligations\tfixture\tRELEASE_BLOCKING deterministic: not discharged' \
+           'commission\tengine\tthe commissioning library is not loaded, so nothing was asked of this project'; do
+  _mn="$(printf "$_mk" | cut -f1-2 | tr '\t' ' ')"
+  out="$(_mclose "$_mk\n")"
+  has "the $_mn blocker is work Felix owes"                    "$out" "work Felix owes"
+  _mlacks "and the $_mn blocker names no commission run"       "$out" "The commission is not"
+done
+
+out="$(_mclose 'commission\treceipt\tnever commissioned on this machine\n')"
+has "a missing commission receipt waits for the founder"          "$out" "waits for the founder"
+_mlacks "and is not work Felix owes"                               "$out" "work Felix owes"
+out="$(_mclose 'commission\ttable\tthis project was never commissioned; write projects/widget/commissioning.tsv (felix commission says how)\n')"
+has "a commission table blocker waits for the founder too"        "$out" "waits for the founder"
+has "and says the table is put right before the commission runs" "$out" "table named above right first"
+_mlacks "and is not called work Felix owes"                        "$out" "work Felix owes"
+out="$(_mclose 'unknown\tno-such-ref\tthe base names nothing this repository holds\n')"
+has "an unknown base still says nothing was compared"             "$out" "Nothing was compared"
+_mlacks "and names no commission run"                              "$out" "The commission is not"
+out="$(_mclose 'escape\texecute\t.github/workflows/x.yml: runs on push\ncommission\treceipt\tstale (table set moved; run felix commission)\n')"
+has "an escape beside a stale receipt is still the founder's decision" "$out" "it is the founder who decides"
+is  "and the commission run is named with it, so one visit clears both" \
+    "$(printf '%s\n' "$out" | grep -cx '  felix commission')" "1"
+_mlacks "and neither is work Felix owes"                                "$out" "work Felix owes"
+
+cp "$TMP/esc.keep" "$FROOT/harness/lib/escape.sh"
+_reset
+is "the fixture's escape.sh is exactly the engine's again" \
+   "$(diff -q "$REAL_HARNESS/lib/escape.sh" "$FROOT/harness/lib/escape.sh" >/dev/null && echo same)" "same"
+
 printf '\na surface no test can judge\n'
 # Some changes are revert-complete, touch no store and reach no stranger, and
 # still must not merge unread: a rubric that teaches the wrong thing breaks

@@ -133,6 +133,7 @@
 1	a commands directory main ships that the entry lacks is drift
 1	a comment added to it is still free
 1	a comment is not a command
+1	a commission table blocker waits for the founder too
 1	a commissioning run seeds the ledger through the row's answer
 1	a commit in the checkout the graph was built from is due
 1	a commit message in a here-document is not read as a command
@@ -290,6 +291,7 @@
 1	a grant naming an unknown-pathway obligation clears nothing
 1	a grant of authority escapes
 1	a grant on a dormant row is not applied
+1	a grant re-armed over the moved tables is current, and the receipt still the one blocker
 1	a grant that expired before the base commit is expired whatever the clock says
 1	a grant under a home that is a different repository from the governed root clears nothing
 1	a grant with no stamp does not cover the table
@@ -404,6 +406,7 @@
 1	a migration is out of scope
 1	a minified catalogue is read the same
 1	a missing comma is an unread manifest, not a lost declaration
+1	a missing commission receipt waits for the founder
 1	a missing file is cannot-examine, exit 2, never an empty binding
 1	a missing final newline is refused, and the done-< loops drop that row
 1	a missing manifest is refused
@@ -591,6 +594,7 @@
 1	a recurrence with no lesson says to write one
 1	a red change with no channel is red in the receipt
 1	a red diff no longer says approval is required before merge
+1	a red gate beside the stale receipt is listed too
 1	a red gate outranks the grant
 1	a red path exits 3
 1	a red receipt for this tree blocks
@@ -768,6 +772,7 @@
 1	a table edited under a valid receipt blocks the merge as a stale receipt
 1	a table emptied whose row refuses emptiness fails
 1	a table in a different repository resolves to nothing
+1	a table moved under the commission receipt is the branch's only blocker
 1	a table not named .tsv, declared by its basename, is read and here refused for a third cell
 1	a table of comments exits 1
 1	a table outside the classified repo is still read once, at HEAD
@@ -936,6 +941,7 @@
 1	an entry's path is read inside the plugin
 1	an entry's skill folder with frontmatter hooks is high
 1	an envelope field name never does
+1	an escape beside a stale receipt is still the founder's decision
 1	an escape is named as the founder's
 1	an escaped quote in a -c script is not its close where the cut after the first 64K falls inside the escape: the runner at the script's end is a check
 1	an established fact is classed OBSERVED
@@ -997,6 +1003,7 @@
 1	an ungoverned repo is allowed
 1	an ungranted project starts no background run
 1	an ungrounded row is counted
+1	an unknown base still says nothing was compared
 1	an unknown component prints no epoch at all
 1	an unknown flag exits non-zero where the same run without it exits 0
 1	an unknown grounding refuses
@@ -1175,6 +1182,8 @@
 1	and as a server, each by its own rule
 1	and asked from a subdirectory it is still the checkout, not the subdirectory
 1	and asked from a worktree it is still the holding checkout
+1	and asks for no grant the merge does not need
+1	and asks for no re-arm the grant does not need
 1	and blocked by a probe that cannot see what a witness proves is there
 1	and blocked by a row nothing could establish at all
 1	and blocks
@@ -1196,6 +1205,7 @@
 1	and claims nothing about surfaces it never compared
 1	and claims nothing was unchecked
 1	and claims to have kept no memory, having found none
+1	and commission blockers carry exactly the subjects cmd_merge places
 1	and commissions
 1	and commits nothing to it
 1	and components exits 0 even then
@@ -1219,6 +1229,7 @@
 1	and does block a task
 1	and does not ask for a lesson that already exists
 1	and does not blame a checkout that did not move
+1	and does not call it work Felix owes
 1	and does not call that unexaminable
 1	and does not call the file it created kept
 1	and does not claim to keep a note when there was none
@@ -1310,15 +1321,19 @@
 1	and is never reported as merely ungrounded
 1	and is not a routing gap either; it is unknown
 1	and is not called agreement
+1	and is not called work Felix owes
 1	and is not given an action nobody can take
 1	and is not proposed over a partial record
 1	and is not reported as unreadable
 1	and is not run as a probe whose verdict is the witness alone
 1	and is not run as though it were a probe
 1	and is not run half-read
+1	and is not work Felix owes
+1	and is not work Felix owes either
 1	and is refused rather than rounded down
 1	and is refused too
 1	and is silent when there is none
+1	and is still not work Felix owes
 1	and it asks graphify to update the checkout that holds the graph
 1	and it does not repeat within a session
 1	and it fails on the file, not on the directory
@@ -1411,6 +1426,7 @@
 1	and names both tokens
 1	and names itself as the grant
 1	and names lessons.md among what it kept
+1	and names no commission run
 1	and names no play in a session ledger for it
 1	and names none when there is none
 1	and names origin's version as the one nothing is installed at
@@ -1450,6 +1466,7 @@
 1	and neither is an empty message
 1	and neither is an empty premise column
 1	and neither is one that is still running
+1	and neither is work Felix owes
 1	and neither partial row is in it
 1	and never a verified receipt
 1	and never as a clock reading nobody wrote
@@ -1529,6 +1546,7 @@
 1	and on it cut -f2 reads the first cell where an IFS read reads nothing
 1	and on it the reason a four-variable read assigns is not the reason cut -f4 reads
 1	and on this tree it is dormant, satisfied or unsatisfied, never unknown
+1	and once it has, the grant no longer covers them
 1	and once the check passes it is ok
 1	and one already declared is not written twice
 1	and one built three commits ago is behind by three
@@ -1676,9 +1694,11 @@
 1	and says the install failed rather than ending in silence
 1	and says the log could not be read
 1	and says the memory it found was kept
+1	and says the merge waits for the founder
 1	and says the receipt does not exist here
 1	and says the suite passed when nothing was skipped
 1	and says the table is absent
+1	and says the table is put right before the commission runs
 1	and says the tier is what it could not read
 1	and says to remove its row and its play
 1	and says under it how many did not apply here
@@ -1823,6 +1843,10 @@
 1	and the command succeeds
 1	and the commands in that file are listed
 1	and the comment survives
+1	and the commission engine blocker names no commission run
+1	and the commission is still named as the founder's
+1	and the commission run after it
+1	and the commission run is named with it, so one visit clears both
 1	and the contract names each moment it examined
 1	and the count follows
 1	and the declared file is read for the key it sends
@@ -1839,6 +1863,7 @@
 1	and the entry that did match is still returned
 1	and the entry that has one still answers
 1	and the epoch is back where it started once all four are
+1	and the evidence unit blocker names no commission run
 1	and the exact command that produced it
 1	and the fact is a local subprocess
 1	and the failure is recorded under the check's own name
@@ -1894,6 +1919,7 @@
 1	and the night is closed, not left for the next stop
 1	and the note it was given
 1	and the number it reports is the number it stored
+1	and the obligations fixture blocker names no commission run
 1	and the old remote_match brings the old subject back
 1	and the older spelling of the same tool is caught too
 1	and the one enumeration cannot close
@@ -1911,6 +1937,7 @@
 1	and the play this project already chose
 1	and the prefixed name is not a capability of its own
 1	and the probe is never run behind a when test nobody could answer
+1	and the probes marker blocker names no commission run
 1	and the provider skill is named as a channel a session runs, not a prompt to paste
 1	and the pulse refuses it in words
 1	and the reader prints exactly one line
@@ -1987,6 +2014,7 @@
 1	and the two suites were running at the same moment
 1	and the unbound job says the binding failed, not the ceiling
 1	and the unmount above is the only other proposal
+1	and the unverified tree blocker names no commission run
 1	and the unwritten remainder is named as unwritten
 1	and the values are the ones the four functions compute
 1	and the version is a dotted number
@@ -2294,6 +2322,7 @@
 1	felix maintenance says a row can never come due
 1	felix merge reaches gh at all
 1	felix merge refuses a self-governed repository when FELIX_KERNEL is set
+1	felix merge refuses on a stale commission receipt alone
 1	felix merge refuses on an escape
 1	felix new --no-commission that could not write its marker binds the checkout when run again, once it is writable
 1	felix new <name> --no-commission creates the project, binds the checkout, and seeds what a commissioned one gets
@@ -2354,6 +2383,7 @@
 1	felix_has_line matches whole lines under pipefail
 1	felix_has_line rejects partial lines
 1	felix_ledger_retire is defined for the hook
+1	felix_merge_blockers emits exactly the kinds cmd_merge places
 1	felix_qualify_ungoverned keeps every reported checker and drops every sub-line
 1	felix_tidy_safe is defined for the hook
 1	field 7 is the epoch the receipt was stamped under
@@ -2513,10 +2543,12 @@
 1	naming skills does not change the risk read
 1	naming the branch's commit
 1	naming the channel that escaped
+1	naming the commission run on a line of its own
 1	naming the doctrine
 1	naming the entry point
 2	naming the file
 1	naming the gate it was removed from
+1	naming the grant they re-arm, on a line of its own
 1	naming the hooks file
 1	naming the predicate that blocks
 1	naming the row
@@ -2577,6 +2609,7 @@
 1	nor probes.tsv
 1	nor report a spend that did not happen
 1	nor runs the checker the control was written against
+1	nor say that none of it is a founder decision
 1	nor the all-caps sentinel
 1	nor the one about a missing stamp
 1	nor the one about another tree
@@ -2869,6 +2902,7 @@
 1	the checkout holding the graph is ok
 1	the checkout's own default branch is next, without the origin/ prefix
 1	the claude cli changing is announced and never invalidates
+1	the commission engine blocker is work Felix owes
 1	the control: with the probe table in place the receipt is current
 1	the controls a checker declares nothing for are named
 1	the current line prints no absolute path
@@ -2891,6 +2925,7 @@
 1	the engine's schemas.tsv is one of the tables whose shrinkage escapes
 1	the entry point and the suite runner, both bare, fail
 1	the entry read is the one named, not one whose author has the name
+1	the evidence unit blocker is work Felix owes
 1	the exceptions template names the row hash column and holds no rows
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
@@ -2909,6 +2944,7 @@
 1	the fixture really has a base ref behind its remote
 1	the fixture really staged a merge in progress
 1	the fixture tree is green before any night is granted
+1	the fixture's escape.sh is exactly the engine's again
 1	the flag between the name and the path binds the path given
 1	the flag is what made the difference: the same felix new without it calls claude and writes a receipt
 1	the founder's item is not buried
@@ -2961,6 +2997,7 @@
 1	the night's own session is held again inside the platform's chain
 1	the north-star row is accepted: ADVISORY, always applies, grounded on http_route and ceiling_site
 1	the north-star row's own columns follow, in the ledger's order
+1	the obligations fixture blocker is work Felix owes
 1	the obligations row is done on day one, its seeded row dormant in a project with no hooks
 1	the page carries the speech
 1	the page renders the says total
@@ -2977,6 +3014,7 @@
 1	the probe command stays in the eighth column
 1	the probe report says what it cannot reach
 1	the probe table is in the set too
+1	the probes marker blocker is work Felix owes
 1	the project marker classifies red, never green
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
@@ -3072,12 +3110,15 @@
 1	the unattended repair proceeds on a brief, and on no other exit of felix repair
 1	the unattended template checks Felix out at a pinned ref, not the default branch
 1	the unmeasurable list takes the hook-only zero
+1	the unverified tree blocker is work Felix owes
 1	the watching git was asked
 1	the whole forty-character hash grants too, and an expired row above it does not shadow it
 1	the why for an unread declaration names its key and its path
 1	the why names the file that pipes to a shell
+1	the widget's commission grant covers the tables before one moves
 1	the widget's epoch is a hash
 1	the widget's probe table is exactly as this section found it
+1	the widget's risk table is exactly as this section found it, and it has no grant
 1	the widget's table is exactly as this section found it
 1	the widget's tables are as this block found them
 1	the word pipefail in an echo does not make a piped check able to fail: 1 of 2 passing checks could not have
@@ -3115,6 +3156,7 @@
 1	two writers appending to one facts.log at once both report success
 1	two writers on one tree in one second both report success too
 1	undeclared capability classifies as dormant
+1	under a current grant it says the next session start re-commissions
 1	ungoverned repo refuses to run a gate
 1	uninstall names the doctrine it left alone
 1	uninstall takes the grant back
@@ -3180,6 +3222,7 @@
 1	while the other repository still sees its own
 1	while the others still are
 1	while the path around it does not
+1	while the red gate is handed back as work Felix owes
 1	while the rows whose grants were refused or absent still do
 1	while the same path without one is documentation, and the run stays green
 1	while the tree id never saw the table
@@ -3205,6 +3248,7 @@
 2	with no cli call at all
 1	with no felix cache on the machine, installed is skipped
 1	with no felix cache the evidence cannot examine, exit 2
+1	with no grant the merge still waits for the founder
 1	with no graphify installed the refresh runs nothing
 1	with no graphify-out beside the checkout it runs nothing
 1	with no probes.tsv the epoch cannot be computed, and every recorded row is stale
@@ -3233,6 +3277,7 @@
 1	with the template's one row, the lifecycle obligation every plugin owes
 1	with the usage text
 1	without --strict it only reports
+1	without claiming that none of it is a founder decision
 1	without lib/exceptions.sh every eighth column is a dash and every row is still reported
 1	without opting in, nothing is touched
 1	work committed only in a worktree does not make the graph stale

@@ -50,6 +50,9 @@
 1	a CR is refused, and only exceptions.sh strips it from the last cell
 1	a Copilot resume, which always got the banner, still does
 1	a Copilot resume, which keeps its banner, appends a lifecycle row of kind resume too
+1	a HEAD on a pushed branch the default branch does not hold pins nothing
+1	a HEAD only a branch named main holds, when the default branch is another, pins nothing
+1	a HEAD only this machine holds pins nothing
 1	a NUL is refused, and grep reads the whole table as binary
 1	a RELEASE_BLOCKING candidate is refused because it may not block
 1	a TMPDIR of / is not a temporary root
@@ -87,6 +90,7 @@
 1	a cache that never existed is stale
 1	a cache with no stamp adopts nothing
 1	a cache-side stray matching a directory-only rule is residue
+1	a cancelled gate run between failures neither spends the repair ceiling nor resets it
 1	a capability carrying a trailing remark is not a rule
 1	a capability inspection does not support is not declared
 1	a capability match is still adopt material
@@ -139,8 +143,10 @@
 1	a comment is not a command
 1	a commission table blocker waits for the founder too
 1	a commissioning run seeds the ledger through the row's answer
+1	a commit holding the project it is asked about pins
 1	a commit in the checkout the graph was built from is due
 1	a commit message in a here-document is not read as a command
+1	a commit on the default branch from before the project merged pins nothing
 1	a commit this repository does not hold is not a distance
 1	a commit with no remote does not stamp a push
 1	a committed rename lists the name it left as well as the one it took
@@ -281,6 +287,7 @@
 1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
 1	a gate run that completed without failing is nothing to repair, and one that failed without a log is refused
+1	a gate run that failed to start counts against the ceiling, as do a timed-out one and a conclusion this code does not know
 1	a gate that skipped the suite is not called a passing suite
 1	a gate_workflow that is not a file name is refused, and named
 1	a gitignored stray in the tree is residue, not drift
@@ -313,6 +320,7 @@
 1	a green branch stops the shipped step at scope, read from the real felix repair
 1	a green gate does not clear an escape
 1	a green gate on this exact tree allows it
+1	a green gate pushes the repair
 1	a green gate still asks for verification
 1	a green receipt for this exact tree clears every blocker
 1	a green receipt for this tree under this epoch is current
@@ -555,6 +563,7 @@
 1	a project directory outside any repository, or one that is itself the repository root, grants nothing
 1	a project directory that is not there identifies no subject
 1	a project directory that is not there identifies no subject and no topology
+1	a project no commit on the default branch holds yet is not pinned
 1	a project that declares no probes has no topology
 1	a project that has qualified nothing is skipped, not failed
 1	a project that names its gate workflow is repaired from that workflow's run
@@ -740,6 +749,8 @@
 1	a skill whose frontmatter says hooks: {} is low
 1	a small payload's subject is read without running awk
 1	a source past its ceiling is refused too
+1	a source that is not a checkout pins nothing
+1	a source whose HEAD is origin's default branch pins that commit, in full
 1	a stacked branch is not blamed for what its base already merged
 1	a staged row removal still escapes as verifier
 1	a staged source change owes its test
@@ -851,6 +862,7 @@
 1	a when test whose command does not exist makes the row unknown, not not-applicable
 1	a when whose command does not exist is unknown, not not-applicable
 1	a why past the stated ceiling is refused rather than silently cut
+1	a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw
 1	a wired moment with a stance is ok
 1	a witness that exits 1 after a silent probe is still empty
 1	a witness that exits 2 after a probe that failed is unknown, not blind
@@ -1120,6 +1132,7 @@
 1	and a file with no whitespace reads the same as one with
 1	and a flagged stop under it ends, as before
 1	and a fold that is current leaves nothing stranded
+1	and a gate history exactly as long as the window is counted to its first run
 1	and a gitignored stray in the cache is too
 1	and a graph with no stamp admits its currency is unknown
 1	and a graph with no stamp does too
@@ -1183,6 +1196,7 @@
 1	and a verified push does
 1	and a verified push reads as zero days
 1	and a wget pipe to sh is medium
+1	and a window that reaches the ceiling before it ends reads as reached
 1	and a worktree is pointed at that one, having no graph of its own
 1	and a worktree of it reads the same graph, and is ok too
 1	and a write leaves no file beside it
@@ -1277,6 +1291,7 @@
 1	and each bound is named in its own words
 1	and each full log line names a file holding its own run alone
 1	and each item appears once however often it bit
+1	and editing it is denied
 1	and ends at the flagged stop after it
 1	and ends that session's night and no other
 1	and every byte is the one it had
@@ -1361,6 +1376,7 @@
 1	and is not run half-read
 1	and is not work Felix owes
 1	and is not work Felix owes either
+1	and is pinned once the default branch holds it
 1	and is refused rather than rounded down
 1	and is refused too
 1	and is silent when there is none
@@ -1572,6 +1588,7 @@
 1	and nothing was written
 1	and nothing was written to the real felix home pointer
 1	and now names each one it found
+1	and of the conclusions a completed gate run can have, only success resets it
 1	and ok once a graph newer than the last commit exists
 1	and on a branch the gate has never run on
 1	and on a gate run still in progress
@@ -1613,6 +1630,7 @@
 1	and passes on npm's own reason
 1	and passes the facts it already has
 1	and picks the capability the skills serve
+1	and pins the source checkout's commit once origin's default branch holds it
 1	and points at the read that needs no lock
 1	and prints a candidates section
 1	and prints no events at all, not the ones it managed to reach
@@ -1624,6 +1642,7 @@
 1	and proposes nothing for it
 1	and prose counts single
 1	and pushed, and the push is verified
+1	and pushes it to the branch the run repaired
 1	and putting the byte back puts the digest back
 1	and putting the rule back clears it
 1	and putting the table back makes the same receipt current again
@@ -1634,6 +1653,7 @@
 1	and raises or clears no merge blocker
 1	and re-folding does not double what was already counted
 1	and re-rolling a session replaces its old rows
+1	and reading the checkout's .git is denied
 1	and reads HEAD, not the checkout's uncommitted files
 1	and reads as a requirement
 1	and reads current, because it rests on the same facts a gate would have recorded
@@ -1724,6 +1744,7 @@
 1	and says so with a non-zero status, not the digest of an empty document
 1	and says that it knows
 1	and says the answer was neither yes nor no, naming the code
+1	and says the ceiling is reached, not unknown
 1	and says the checkout could not be entered rather than naming a missing command
 1	and says the gate failed
 1	and says the gate has not seen it
@@ -1925,6 +1946,7 @@
 1	and the gate exits red
 1	and the gate line called no cli
 1	and the gate still runs through it
+1	and the gate workflow bootstrap writes checks Felix out at that commit
 1	and the gate's copy carries no candidates section
 1	and the gate-failure total
 1	and the grant is not left lying around for the next session
@@ -1954,6 +1976,7 @@
 1	and the message does not accuse the subagent
 1	and the misbound job says the binding failed, not the ceiling
 1	and the missing function is named
+1	and the model step is handed no token, in its environment or its text
 1	and the monitor reports its capability unglued from the grounding
 1	and the monitor still renders the sentence, not the JSON around it
 1	and the moved fact is not what it blames
@@ -2057,6 +2080,7 @@
 1	and the tier field is the tier, not a tier with a digest stuck to it
 1	and the tier it carries
 1	and the tier reducer agrees
+1	and the token is in no argument git was given
 1	and the topology comes back when the member goes away
 1	and the topology it is keyed to
 1	and the two suites were running at the same moment
@@ -2093,7 +2117,9 @@
 1	and with both gone the tree is clean again
 1	and with commands absent from both sides again it matches
 1	and with it, the same call lifts
+1	and with no commit to give, at the placeholder, quoted so YAML reads a string
 1	and with no deployment to compare against the evidence cannot examine
+1	and with no origin/HEAD, origin/main is the branch asked
 1	and with no session handoff on disk, says nothing about one
 1	and with the edit undone the tree id is back
 1	and with the fact back where it was, the same receipt allows again
@@ -2142,6 +2168,7 @@
 1	blocks are recorded
 1	bootstrap looks for gate.yml when the project names no gate workflow
 1	bootstrap names the checkout's repo, not the cache's absence
+1	bootstrap with no commit to pin says the workflow gets the placeholder
 1	brief reads an issue from stdin
 1	brief refuses outside a governed repo
 1	briefs which tasks are one unit
@@ -2323,6 +2350,8 @@
 1	every call is appended
 1	every capability detection can adopt has a discovery rule
 1	every check passing, with a provider still awaiting, is commissioned
+1	every checkout in the generated workflow is v5, the lowest major on Node 24
+1	every checkout in the unattended template drops its credential once the fetch is done
 1	every checkout step in the generated workflow sets persist-credentials: false in its own with
 1	every decision is logged
 1	every decision is recorded
@@ -2415,6 +2444,7 @@
 1	felix repair reads the gate's run on the branch
 1	felix repair refuses a detached checkout rather than finding nothing to repair on HEAD
 1	felix repair stops at the ceiling when its attempts cannot be counted
+1	felix repair stops three failed gate runs that a cancelled one sits between
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
 1	felix stack reconcile folds what nothing folded before reporting
@@ -3140,6 +3170,7 @@
 1	the gate's executable check passes when every script under bin/ has its bit
 1	the gate's installed check asks the one reader, felix_accepted_deploy_diff
 1	the gate's obligations line reads excepted and the gate passes
+1	the generated workflow checks Felix out at the commit it was given
 1	the generic reader reads a seven-field answer as answered, not as five fields short
 1	the graph is graphify-out/graph.json under the holding checkout
 1	the graph's home is the checkout that holds the repository
@@ -3183,6 +3214,7 @@
 1	the message names the play, not only the miss
 1	the model step disallows Read under /proc, in the spelling 2.1.37 honours
 1	the model still gets the whole thing
+1	the model's tools are allowed inside the checkout and nowhere else
 1	the nested repo is still refused
 1	the never line claims only what the roster recognises, and --verify ERE adds a project's own runner to it, in every project read, as the report, the help, the README and ecosystem.tsv say; none claims every ecosystem
 1	the next session start records the same handoff hash the handoff row did
@@ -3212,6 +3244,7 @@
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
 1	the pulse reports a check it could not ask
+1	the push step hands git the token itself, through a helper reading the step's environment
 1	the qualify report says a control did not apply in this checkout
 1	the quiet control did bind its project
 1	the re-run's answer names a different epoch

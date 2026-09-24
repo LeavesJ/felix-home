@@ -1,7 +1,7 @@
 ### 2026-09-24 — bootstrap's rendered gate workflow keeps no credential after its checkouts
 
 **One engine PR from this session.** It changes `lib/bootstrap.sh` and
-`tests/run`, and landed right after #331 in the queue carrier's order. The
+`tests/run`, and landed behind #331 in the queue carrier's order. The
 open items of §0bz and §0by stand.
 
 **The finding.** `felix_bs_render_workflow` writes the `gate.yml` a governed

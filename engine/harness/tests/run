@@ -14582,7 +14582,8 @@ printf '\ndenial reads every command\n'
 # who had not seen the reader; four of the forty-five it wrote (a read-only
 # update-ref and symbolic-ref naming refs/remotes/, and a cat and a bash -n
 # of the rival gate's path) are refused by the rows as written under any
-# reader, which is the rows' problem, and are not asserted here.
+# reader, which is the rows' problem, and are not asserted here. The first
+# two are asserted at the end of this section, against the narrowed row.
 cat > "$FROOT/projects/widget/deny.tsv" <<'EOF'
 # tool	pattern	reason
 Bash	git push ([^;&|]* )?(--force|-f)( |$)	force push drops commits
@@ -14774,6 +14775,63 @@ _allowed 44 "a shell fed a here-document that only echoes a quoted string and li
 J
 _allowed 45 "a bash -c script built by printf that only echoes" <<'J'
 {"tool_name":"Bash","tool_input":{"command":"bash -c \"$(printf '%s' 'echo git add -A')\""}}
+J
+
+# Two of those four were felix's refs/remotes row, which refused any mention
+# of refs/remotes/ after update-ref or symbolic-ref, the value a command reads
+# as much as the ref it writes. The row is narrowed in projects/felix/deny.tsv
+# and asserted here against the rows that ship there, not a copy, so each
+# verdict below is the table's. Three columns are kept: a fourth may scope a
+# row to the governed checkout, and this fixture's repository sits in the
+# temporary directory such a scope passes over.
+_DRR="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/deny.tsv"
+[ -f "$_DRR" ] && awk -F'\t' -v OFS='\t' '$1 == "Bash" && $2 ~ /refs\/remotes\// { print $1, $2, $3 }' \
+  "$_DRR" > "$FROOT/projects/widget/deny.tsv"
+_rr() {
+  if [ -f "$_DRR" ]; then ( cd "$REPO" && _prb ); is "$2" "$?" "$1"
+  else cat >/dev/null; skip "$2" "no projects/felix/deny.tsv beside this harness"; fi
+}
+_rr 0 "blind allow case 26: update-ref writes refs/heads/backup, and the remote-tracking ref is only the value it reads" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git update-ref refs/heads/backup refs/remotes/origin/main"}}
+J
+_rr 0 "blind allow case 27: symbolic-ref with one ref reads it and prints" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git symbolic-ref --short refs/remotes/origin/HEAD"}}
+J
+_rr 0 "the target of a redirect after that read is a file, not a second ref" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git symbolic-ref --short refs/remotes/origin/HEAD > head.txt"}}
+J
+_rr 0 "and so when its errors go to /dev/null: the 2 of 2>/dev/null is no second ref" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || echo main"}}
+J
+_rr 0 "a fetch from a plain remote moves the remote-tracking refs itself, and is allowed" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git fetch --prune origin"}}
+J
+_rr 2 "update-ref writing a remote-tracking ref is still refused" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git update-ref refs/remotes/origin/main HEAD"}}
+J
+_rr 2 "and so behind a global option and a quoted -m reason" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git -C \"$R\" update-ref -m \"reset to local\" refs/remotes/origin/main HEAD"}}
+J
+_rr 2 "and so when it deletes one, quoted and ended by a separator" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git update-ref -d \"refs/remotes/origin/main\"; git log -1"}}
+J
+_rr 2 "symbolic-ref with two refs writes the first, and a remote-tracking one is refused" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/trunk"}}
+J
+_rr 2 "pointing HEAD at a remote-tracking ref is refused, since the next commit would move it" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git symbolic-ref HEAD refs/remotes/origin/main"}}
+J
+_rr 2 "symbolic-ref --delete with one ref deletes it, and is refused" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git symbolic-ref --delete refs/remotes/origin/HEAD"}}
+J
+_rr 2 "a redirect between symbolic-ref's two refs does not hide the second" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null refs/remotes/origin/trunk"}}
+J
+_rr 2 "a fetch with a refspec into refs/remotes/ is still refused" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git fetch origin main:refs/remotes/origin/main"}}
+J
+_rr 2 "a push to refs/remotes/ is still refused" <<'J'
+{"tool_name":"Bash","tool_input":{"command":"git push origin HEAD:refs/remotes/origin/main"}}
 J
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 

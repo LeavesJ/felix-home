@@ -11,14 +11,52 @@
 # what a repository will accept, so they are never a side effect of running a
 # read command.
 
+# The workflow file CI runs the gate in, and so the only workflow whose runs
+# are evidence about the gate. The auto-merge streak and the repair ceiling both
+# read it. Before they did, each read every workflow on the branch, so the
+# unattended repair's runs and GitHub's Dependency Graph counted as the gate's.
+#
+# gate.yml by default, because that is the file this library writes. A project
+# whose gate already runs in a workflow of its own, a ci.yml that calls felix
+# gate, says so as `gate_workflow` in project.json, the way it states any other
+# fact about itself, so the engine still names no project and the default is
+# written here once.
+#
+# A bare file name under .github/workflows and nothing else. gh's --workflow
+# also takes a display name or a numeric id, but only the file name is unique
+# within a repository and is what this library writes: display names repeat,
+# and an id means nothing to whoever reads project.json. A value that is not a
+# file name is refused rather than replaced by the default, because a declared
+# fact silently overridden reads a workflow the project said it does not use.
+# On refusal the sentence to refuse with is what prints, so a caller writes
+# `wf="$(felix_gate_workflow "$proj")" || die "$wf"`.
+#
+# The unattended repair template triggers on the gate by its display name,
+# `gate`, which is the name this library writes inside gate.yml. A project that
+# names another file has to name that workflow's display name in the trigger.
+felix_gate_workflow() {
+  local proj="$1" w
+  w="$(felix_json_str "$proj/project.json" gate_workflow 2>/dev/null)"
+  [ -n "$w" ] || { printf 'gate.yml'; return 0; }
+  case "$w" in
+    .*|*[!A-Za-z0-9._-]*) ;;
+    *.yml|*.yaml) printf '%s' "$w"; return 0 ;;
+  esac
+  printf '%s/project.json declares gate_workflow "%s", which is not a workflow file name. Name the file under .github/workflows that runs the gate, such as ci.yml, or remove the key for gate.yml.' \
+    "$(basename "$proj")" "$w"
+  return 1
+}
+
 # Present in the working tree, or already on the remote's default branch. A
 # checkout that has not pulled since the workflow merged would otherwise be told
 # to write a file that already exists upstream, producing a conflict out of
 # nothing.
 _felix_bs_have_workflow() {
-  [ -f "$1/.github/workflows/gate.yml" ] && return 0
-  git -C "$1" cat-file -e "origin/HEAD:.github/workflows/gate.yml" 2>/dev/null && return 0
-  git -C "$1" cat-file -e "origin/main:.github/workflows/gate.yml" 2>/dev/null
+  local root="$1" wf="$2"
+  [ -n "$wf" ] || return 1
+  [ -f "$root/.github/workflows/$wf" ] && return 0
+  git -C "$root" cat-file -e "origin/HEAD:.github/workflows/$wf" 2>/dev/null && return 0
+  git -C "$root" cat-file -e "origin/main:.github/workflows/$wf" 2>/dev/null
 }
 _felix_bs_have_labels()   {
   felix_contains "$(gh label list --repo "$1" 2>/dev/null)" "needs-founder"

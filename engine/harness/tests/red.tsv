@@ -4,12 +4,9 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	ec396777f130fc87c7a32137854400d7cfd38d32	ec396777f130fc87c7a32137854400d7cfd38d32	0.49.180
-run	50	3451	5
+base	3b8de937fe8121ac7bab9d93c0732dc2f3e2c247	3b8de937fe8121ac7bab9d93c0732dc2f3e2c247	0.49.181
+run	45	3458	5
 a lifted scoped row is written to says.log with the command	1
-a scoped row that stands says it covers only the checkout	1
-and names the command and the place	1
-and says it was too long to read	1
 and with it, the same call lifts	1
 scoped: .. out of the checkout that lands in scratch	1
 scoped: P from pwd keeps the scratch cwd after a cd	1
@@ -21,12 +18,10 @@ scoped: a fetch from the governed checkout into the scratch clone	1
 scoped: a fixture repo under a scratch variable, marker then git add -A	1
 scoped: a fixture script written by here-document and run with arguments	1
 scoped: a for loop over literal words feeding an assignment	1
-scoped: a fresh name under the physical /tmp	1
 scoped: a here-document fed to bash sees a prefixed variable	1
 scoped: a lift to be recorded	1
 scoped: a lifted marker row does not lift the stage row	1
 scoped: a lifted row does not stop another row	1
-scoped: a mktemp fixture read back through pwd -P	1
 scoped: a payload cwd already in scratch	1
 scoped: a shared clone moved by a script read from stdin	1
 scoped: a shell running a script this line wrote by here-document, all in scratch	1
@@ -47,7 +42,6 @@ scoped: ln anywhere in the line	1
 scoped: mkdir -p, cd, then a remote on the lines after	1
 scoped: mkdir; cd; cmd judges the directory before too	1
 scoped: mktemp -d with a scratch template, then remote add by git -C	1
-scoped: mktemp -d, then cd into it	1
 scoped: pwd -P of the scratch clone, then update-ref under refs/remotes	1
 scoped: repeated -C, each relative to the last	1
 scoped: set -u is not set -e	1
@@ -55,4 +49,5 @@ scoped: three scoped rows all lifted in one clone	1
 scoped: under set -e a cd inside a chain can still fall through	1
 scoped: under set -e a lone cd on its own line is final	1
 the judge alone: a scratch path is throwaway	1
+the model step disallows Read under /proc, in the spelling 2.1.37 honours	1
 the same reader reaching its end would lift	1

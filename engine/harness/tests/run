@@ -3368,17 +3368,26 @@ printf '\nthe unattended repair denies the model its own environment\n'
 # measurement is the pin's: when the claude-code version moves, measure again.
 # The claude stub records each argument on a line of its own, so what is
 # asserted is what the shell handed the binary, not the template's text.
+# Every --disallowedTools value is read, and every --allowedTools value, so
+# a second deny rule beside this one, in the same list or its own flag, and
+# an allow list that scopes Read and Edit to a path, keep passing.
 printf '#!/usr/bin/env bash\nprintf "claude\\n" >> "%s/claude.log"\nprintf "%%s\\n" "$@" > "%s/claude.args"\n' "$AT" "$AT" > "$AT/bin/claude"
 _attempt ""
-_atdeny="$(awk 'p { print; exit } $0 == "--disallowedTools" { p = 1 }' "$AT/claude.args")"
-if printf '%s\n' "$_atdeny" | tr ', ' '\n\n' | grep -q -x -F 'Read(//proc/**)'; then
+_atrules() { awk -v f="$1" 'p { print; p = 0; next } $0 == f { p = 1 }' "$AT/claude.args" | tr ', ' '\n\n' | grep -v '^$'; }
+_atdeny="$(_atrules --disallowedTools)"
+if printf '%s\n' "$_atdeny" | grep -q -x -F 'Read(//proc/**)'; then
   ok  "the model step disallows Read under /proc, in the spelling 2.1.37 honours"
 else
   bad "the model step disallows Read under /proc, in the spelling 2.1.37 honours" \
       "--disallowedTools ${_atdeny:-(absent)}"
 fi
-is  "and Read and Edit stay allowed, since the repair needs both" \
-    "$(awk 'p { print; exit } $0 == "--allowedTools" { p = 1 }' "$AT/claude.args")" "Read,Edit"
+_atallow="$(_atrules --allowedTools)"
+if printf '%s\n' "$_atallow" | grep -q -x -E 'Read(\(.*\))?' \
+   && printf '%s\n' "$_atallow" | grep -q -x -E 'Edit(\(.*\))?'; then
+  ok  "and Read and Edit stay allowed, since the repair needs both"
+else
+  bad "and Read and Edit stay allowed, since the repair needs both" "--allowedTools ${_atallow:-(absent)}"
+fi
 
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts

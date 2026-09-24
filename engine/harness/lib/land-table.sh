@@ -24,13 +24,26 @@
 # itself, the Felix home for a governed product. A session can write any file
 # in its tree, and a recipe read from there would be a pull request rewriting
 # the recipe that lands it. A local main is the session's to move, so it is
-# not read either. Any change to the table escapes to a person (escape.sh), so
-# the only table this ever reads is one somebody merged.
+# not read either. Every change to a row of the table escapes to a person
+# (escape.sh compares the rows in order and byte for byte; comments are free),
+# so the only rows this ever reads are rows somebody merged. That holds from
+# the first engine that lists land.tsv: the pull request that brings this file
+# is judged by the engine before it, which lists nothing, and goes to the
+# founder by hand.
 #
 # THE SCHEMA RULE. Only session or founder may bind a path whose change is an
 # escape, a commission, an authority grant, an exception, the trust base, or a
 # land table itself. A table that let the actor settle risk.tsv by itself
-# would be a quiet way round everything the merge boundary checks.
+# would be a quiet way round everything the merge boundary checks. And a
+# resolver never overrides a narrowing row: one whose path a session or
+# founder row in the same table matches is refused, wherever the two stand.
+#
+# REFUSED ROWS NARROW NOTHING HERE, SO A CONSUMER MUST. felix_land_rows prints
+# only the rows the schema accepts, so a founder or session row refused for a
+# stray cell is not among them. Nothing may route or refuse from felix_land_rows
+# alone: a table felix_land_malformed refuses any row of (exit 1) is unreadable,
+# and every path in it goes to a session. The report below says so as its own
+# row; the landing actor and the armed checks that come later must do the same.
 #
 # OWED AND BEHIND, REPORT-ONLY. `owed` is a landing that touches a row's
 # trigger and not its path: an engine change with no version bump, say.
@@ -43,22 +56,28 @@
 # base holds `*`, and an unquoted expansion would glob it against whatever
 # directory the caller stands in.
 
-# The helpers this file calls, loaded only when the caller has not. The judge's
-# child shell sources resolve, verify, review, classify, evidence and escape,
-# and nothing else: say.sh and table.sh are not in it, so without these the
-# report would be a command not found, swallowed.
+# The helpers this file calls. The judge's child shell sources resolve,
+# verify, review, classify, evidence and escape, and nothing else: say.sh is
+# not in it, so without it the report would be a command not found, swallowed.
+# resolve.sh only when the caller has not loaded it, which the judge always
+# has. say.sh always, and it defines one function: asked whether felix_say
+# already exists, a function the session exported, which the child shell
+# imports, would write the report in its place.
 if ! command -v felix_changed_paths >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh" 2>/dev/null
 fi
-if [ -z "${FELIX_TABLE_SKIP:-}" ]; then
-  . "$(dirname "${BASH_SOURCE[0]:-$0}")/table.sh" 2>/dev/null
-fi
-if ! command -v felix_say >/dev/null 2>&1; then
-  . "$(dirname "${BASH_SOURCE[0]:-$0}")/say.sh" 2>/dev/null
-fi
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/say.sh" 2>/dev/null
 
 FELIX_LAND_KINDS='version-above keyed-union insertions-union rerun session founder'
 FELIX_LAND_NARROWING='session founder'
+
+# What is not a row: a comment or a blank line, table.sh's definition and
+# escape.sh's, spelled here and assigned whenever this file loads. Never read
+# from table.sh's FELIX_TABLE_SKIP, which a session can export: the judge's
+# child shell inherits the environment and does not load table.sh, so a value
+# exported there would decide which rows the judge reads (#260: the judge is
+# not chosen by the environment, and neither is what it reads).
+FELIX_LAND_SKIP='^[[:space:]]*(#|$)'
 
 # The authority category. A superset of escape.sh's own authority channel,
 # which names autonomy and autonomy.<word>: anything beside the grant that
@@ -127,15 +146,17 @@ felix_land_protected() {
 # One scan decides both the rows and the refusals, the way exceptions.sh and
 # the obligation ledger do, so the two can never disagree about what a row is.
 #
-# A data row is table.sh's: any line not matching FELIX_TABLE_SKIP, a final
-# line with no newline included. Line numbers count every line of the text,
-# comments too, so a refusal names the line an editor shows.
+# A data row is any line not matching FELIX_LAND_SKIP, a final line with no
+# newline included. Line numbers count every line of the text, comments too,
+# so a refusal names the line an editor shows.
 #
-# Two answers need more than awk: whether a narrowing path is a valid ERE, which
-# only grep can say, and whether a resolver path is protected, which is
-# felix_land_protected's alone so that the rule has one definition. Both are
-# asked first, per candidate path, and handed to the scan through the
-# environment, which awk reads without processing backslashes.
+# Three answers need more than awk: whether a narrowing path is a valid ERE,
+# which only grep can say; whether a resolver path is protected, which is
+# felix_land_protected's alone so that the rule has one definition; and
+# whether a narrowing row's ERE matches a resolver's path, which grep says, as
+# it will for the routing that reads these rows. All are asked first, per
+# candidate path, and handed to the scan through the environment, which awk
+# reads without processing backslashes.
 #
 # The reasons, in the order they are reported for one row:
 #   cells      not four tab-separated cells, an empty cell, or a CR. Alone:
@@ -151,31 +172,45 @@ felix_land_protected() {
 #              `-`; every other kind: `-`
 #   protected  a resolver on a path the schema rule reserves; the detail begins
 #              with felix_land_protected's word
+#   narrowed   a resolver on a path that a session or founder row in the same
+#              table matches, before it or after it. A resolver so refused
+#              claims no path, so the narrowing row stands wherever it is
 #   duplicate  a path an earlier row already binds. The earlier row stands, and
-#              a row refused as cells claims no path
+#              a row refused as cells or as narrowed claims no path
 _felix_land_scan() {   # rows|bad <- table text
-  local mode="$1" text k p ere_bad="" prot="" w
+  local mode="$1" text n k p e ere_bad="" prot="" over="" nars="" ress="" w
   text="$(cat; printf .)"; text="${text%.}"
-  while IFS=$'\t' read -r k p; do
+  while IFS=$'\t' read -r n k p; do
     [ -n "$k" ] && [ -n "$p" ] || continue
     case " ${FELIX_LAND_NARROWING:-} " in
       *" $k "*)
         printf '' | grep -E -- "$p" >/dev/null 2>&1
-        [ "$?" -eq 2 ] && ere_bad="$ere_bad$p"$'\n'
+        if [ "$?" -eq 2 ]; then ere_bad="$ere_bad$p"$'\n'; else nars="$nars$n"$'\t'"$p"$'\n'; fi
         ;;
       *)
-        case " ${FELIX_LAND_KINDS:-} " in
-          *" $k "*)
-            w="$(felix_land_protected "$p" 2>/dev/null)" && prot="$prot$p"$'\t'"$w"$'\n' ;;
-        esac ;;
+        case " ${FELIX_LAND_KINDS:-} " in *" $k "*) ress="$ress$p"$'\n' ;; esac ;;
     esac
   done <<EOF
-$(printf '%s' "$text" | S="${FELIX_TABLE_SKIP:-^[[:space:]]*(#|$)}" LC_ALL=C awk -F'\t' '
+$(printf '%s' "$text" | S="$FELIX_LAND_SKIP" LC_ALL=C awk -F'\t' '
     $0 ~ ENVIRON["S"] || /\r/ || NF != 4 || $1 == "" || $2 == "" { next }
-    { print $2 "\t" $1 }')
+    { print NR "\t" $2 "\t" $1 }')
 EOF
-  printf '%s' "$text" | S="${FELIX_TABLE_SKIP:-^[[:space:]]*(#|$)}" K="${FELIX_LAND_KINDS:-}" \
-    N="${FELIX_LAND_NARROWING:-}" B="$ere_bad" PR="$prot" LC_ALL=C awk -F'\t' -v mode="$mode" '
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    w="$(felix_land_protected "$p" 2>/dev/null)" && prot="$prot$p"$'\t'"$w"$'\n'
+    while IFS=$'\t' read -r n e; do
+      [ -n "$e" ] || continue
+      if printf '%s\n' "$p" | LC_ALL=C grep -qE -- "$e" 2>/dev/null; then
+        over="$over$p"$'\t'"$n"$'\n'; break
+      fi
+    done <<EON
+$nars
+EON
+  done <<EOF
+$ress
+EOF
+  printf '%s' "$text" | S="$FELIX_LAND_SKIP" K="${FELIX_LAND_KINDS:-}" \
+    N="${FELIX_LAND_NARROWING:-}" B="$ere_bad" PR="$prot" OV="$over" LC_ALL=C awk -F'\t' -v mode="$mode" '
     function literal(s, dir,   n, seg, i) {
       if (s !~ "^[A-Za-z0-9._][-A-Za-z0-9._/]*$" || index(s, "//")) return 0
       if (!dir && substr(s, length(s)) == "/") return 0
@@ -192,6 +227,8 @@ EOF
       n = split(ENVIRON["B"], a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "") badere[a[i]] = 1
       n = split(ENVIRON["PR"], a, "\n")
       for (i = 1; i <= n; i++) { t = index(a[i], "\t"); if (t) prot[substr(a[i], 1, t - 1)] = substr(a[i], t + 1) }
+      n = split(ENVIRON["OV"], a, "\n")
+      for (i = 1; i <= n; i++) { t = index(a[i], "\t"); if (t) over[substr(a[i], 1, t - 1)] = substr(a[i], t + 1) }
     }
     $0 ~ ENVIRON["S"] { next }
     {
@@ -199,8 +236,9 @@ EOF
         refuse("cells", NF " cell(s), an empty cell or a CR; a land row is exactly path, kind, trigger and arg"); next
       }
       p = $1; k = $2; t = $3; g = $4; bad = 0
-      dup = (p in seen); if (!dup) seen[p] = NR
+      dup = (p in seen)
       if (!(k in kind)) {
+        if (!dup) seen[p] = NR
         refuse("kind", "\"" k "\" is not one of: " ENVIRON["K"])
         if (dup) refuse("duplicate", "line " seen[p] " already binds this path")
         next
@@ -223,7 +261,12 @@ EOF
       if (!nar && pathok && (p in prot)) {
         bad = 1; refuse("protected", prot[p] ": only a session or founder row may bind this path")
       }
+      ovr = (!nar && pathok && (p in over))
+      if (ovr) {
+        bad = 1; refuse("narrowed", "the narrowing row on line " over[p] " matches this path, and a resolver never overrides one")
+      }
       if (dup) { bad = 1; refuse("duplicate", "line " seen[p] " already binds this path") }
+      else if (!ovr) seen[p] = NR
       if (!bad && mode == "rows") print
     }
     END { exit (mode == "bad" && nbad > 0) }'
@@ -318,22 +361,33 @@ felix_merge_behind() {   # root base
 }
 
 # What owed and behind would refuse, written to says.log as `would-refuse`
-# rows, at most two and behind first, and nothing else: nothing on stdout or
-# stderr, and exit 0 whatever happens, because this runs inside the merge
-# boundary and must not change what it says or how it exits.
+# rows, and nothing else: nothing on stdout or stderr, and exit 0 whatever
+# happens, because this runs inside the merge boundary and must not change what
+# it says or how it exits. At most three rows, in this order:
+#
+#   <branch>: behind: <base> <sha> is not in HEAD <sha>
+#   <branch>: owed: <path> (<kind> on <trigger>); ... at HEAD <sha>
+#   <branch>: land-table: line <n> refused: <reason>; ... at HEAD <sha>
+#
+# The third is not owed. owed is the design's (§4): a landing that touches a
+# row's trigger and not its path. A row the schema refuses at the base makes
+# the table unreadable, every path to a session (the header above); what an
+# armed boundary does about that is the step that arms it to decide, so it is
+# said apart and never folded into a debt.
 #
 # Written in every project, with a land table or without one, since behind
 # needs none; and whether or not other blockers fire, since the rows record
-# what these two checks alone would say. The refused and merged rows say what
-# happened, joined to these by branch and time. A dry run writes nothing,
-# whatever it would have found: FELIX_MERGE_DRY_RUN=1, which cmd_merge sets
-# from its own flag, reaches the judge's child shell through the environment.
+# what these checks alone would say. The refused and merged rows say what
+# happened, joined to these by branch and time.
 #
-# A row the schema refuses at the base is an owed item, by line and reason: a
-# table that cannot be read is not a clean one.
+# Written only on a real attempt, which is FELIX_MERGE_DRY_RUN=0 exactly:
+# cmd_merge sets it from its own flag, 0 or 1, and the judge's child shell
+# inherits it. Anything else, unset included, writes nothing, because the only
+# callers that leave it unset are a CLI from before this file, whose
+# `--dry-run` must still write nothing, and callers that are not a merge.
 felix_land_would_refuse() {   # proj base root
-  local proj="${1:-}" base="${2:-}" root="${3:-}" branch head behind items bb bs bh
-  [ "${FELIX_MERGE_DRY_RUN:-}" = "1" ] && return 0
+  local proj="${1:-}" base="${2:-}" root="${3:-}" branch head behind items bad bb bs bh
+  [ "${FELIX_MERGE_DRY_RUN:-}" = "0" ] || return 0
   [ -n "$base" ] || return 0
   command -v felix_say >/dev/null 2>&1 || return 0
   felix_base_resolves "$root" "$base" >/dev/null 2>&1 || return 0
@@ -347,26 +401,33 @@ EOF
     felix_say "$proj" "would-refuse" "$(printf '%s: behind: %s %s is not in HEAD %s' "$branch" "$bb" "$bs" "$bh")" \
       "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" >/dev/null 2>&1
   fi
-  items="$( { felix_land_owed "$proj" "$root" "$base" 2>/dev/null \
-                | awk -F'\t' 'NF >= 3 { printf "%s (%s on %s)\n", $1, $2, $3 }'
-              felix_land_malformed "$proj" 2>/dev/null \
-                | awk -F'\t' 'NF >= 2 { printf "land.tsv line %s refused: %s\n", $1, $2 }'
-            } | awk 'NF { printf "%s%s", s, $0; s = "; " }' )"
+  items="$(felix_land_owed "$proj" "$root" "$base" 2>/dev/null \
+             | awk -F'\t' 'NF >= 3 { printf "%s%s (%s on %s)", s, $1, $2, $3; s = "; " }')"
   if [ -n "$items" ]; then
     felix_say "$proj" "would-refuse" "$(printf '%s: owed: %s at HEAD %s' "$branch" "$items" "$head")" \
+      "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" >/dev/null 2>&1
+  fi
+  bad="$(felix_land_malformed "$proj" 2>/dev/null \
+           | awk -F'\t' 'NF >= 2 { printf "%sline %s refused: %s", s, $1, $2; s = "; " }')"
+  if [ -n "$bad" ]; then
+    felix_say "$proj" "would-refuse" "$(printf '%s: land-table: %s at HEAD %s' "$branch" "$bad" "$head")" \
       "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" >/dev/null 2>&1
   fi
   return 0
 }
 
-# Loaded after every function above, so escape.sh, which loads this file from
-# its own last lines, finds felix_land_rows defined and does not load it again.
+# Loaded after every function above. escape.sh loads this file from its own
+# last lines, so when this file is the one sourced first, it is read once more
+# from there, and that second reading finds felix_escapes defined and stops.
 # escape.sh brings _felix_escape_listed and the escape lists the schema rule
 # reads; commission.sh brings the commission list, when escape.sh did not.
+# Asked of a function, never of FELIX_COMMISSION_TABLES, which a session can
+# export: a list read from the environment would decide what the schema
+# protects.
 if ! command -v felix_escapes >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/escape.sh" 2>/dev/null
 fi
-if [ -z "${FELIX_COMMISSION_TABLES:-}" ]; then
+if ! command -v felix_commission_policy_version >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/commission.sh" 2>/dev/null
 fi
 :

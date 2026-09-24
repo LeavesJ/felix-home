@@ -17,13 +17,15 @@
 # when a landing touches its trigger and not its path. session and founder
 # rows take an ERE path, no trigger and no arg. Only they may bind an escape,
 # commission, authority, exception, workflow or trust-base path, or a land
-# table itself.
+# table itself, and a resolver on a path one of them matches is refused.
 #
 # Read only from refs/remotes/origin/main, never the working tree: a pull
-# request cannot rewrite the recipe that lands it. Every change to this file
-# escapes to the founder, additions included, and the rows are shown to the
-# founder verbatim at the arming sitting. Until then they do nothing
-# unattended: owed and behind only write would-refuse rows to says.log.
+# request cannot rewrite the recipe that lands it. Every change to a row here
+# escapes to the founder, additions, reorders and a changed byte included;
+# comments are free. That holds once an engine listing land.tsv judges: the
+# pull request that adds this file is carried to the founder by hand. The rows
+# are shown to the founder verbatim at the arming sitting. Until then they do
+# nothing unattended: owed and behind only write would-refuse rows to says.log.
 
 engine/.claude-plugin/plugin.json	version-above	engine/	-
 engine/harness/tests/assertions.tsv	keyed-union	-	2

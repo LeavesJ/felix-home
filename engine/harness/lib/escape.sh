@@ -85,6 +85,9 @@ FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecos
 # about to break invariant 1 in, and merge green. Any change to one of these
 # fires — the conformance amendments say so in as many words — because there
 # is no direction of edit to such a table that a reviewer need not look at.
+# "Any change" is every change to a row, compared as the reader reads it: in
+# file order and byte for byte (_felix_escape_changed). Only comments and blank
+# lines are free.
 #
 # land.tsv (lib/land-table.sh) is the same case twice over. A resolver row is
 # a path the landing actor may settle without a session; a founder or session
@@ -92,7 +95,15 @@ FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecos
 # row widens too, and no direction of edit is free: the landing-actor design
 # says "any change fires, additions included". A basename, like its siblings,
 # because every project keeps its table at projects/<name>/land.tsv and the
-# engine names none of them.
+# engine names none of them. That errs toward the founder: a product's own
+# data file called land.tsv escapes on every change, as one called risk.tsv
+# does.
+#
+# The membership binds from the first engine that carries it. The pull request
+# that adds land.tsv here is judged by the engine main already holds, where
+# land.tsv is in no list, and its schemas.tsv row is an addition, which is
+# free; so that pull request does not escape by itself and is carried to the
+# founder by hand.
 #
 # It is deliberately NOT in FELIX_COMMISSION_TABLES (commission.sh).
 # felix_commission_policy_version hashes a header for every name listed there
@@ -233,13 +244,28 @@ _felix_escape_shrank() {
   [ -n "$(comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
 }
 
-# Any row present on one side and not the other, in either direction. Same
-# static blobs, same comment stripping, so a reworded comment is still free.
+# Any change to the rows of an exemption table: the non-comment, non-blank
+# lines of the two sides, in file order and byte for byte, differ. Same static
+# blobs and the same comment stripping, so a reworded comment is still free.
+#
+# Deliberately not _felix_escape_lines. Its comma stripping is for project.json,
+# which is no exemption table, and its sort -u makes order and repetition
+# invisible, while the readers of these tables see both. A land table's reader
+# refuses a row whose last cell gained a comma, so the row it bound is gone;
+# and it keeps the first of two rows on one path, so swapping them changes the
+# row that stands. Compared as sets, both edits read as no change, and a
+# founder or session row could be dropped or overridden with nobody asked.
+# grep -a and the C locale, so a byte that is not text is compared as a byte
+# and never turns one side into grep's "Binary file matches".
+_felix_escape_rows_exact() {
+  felix_file_at "$1" "$2" "$3" | LC_ALL=C grep -avE '^[[:space:]]*(#|$)'
+}
+
 _felix_escape_changed() {
   local root="$1" base="$2" f="$3" before after
-  before="$(_felix_escape_lines "$root" "$base" "$f")"
-  after="$(_felix_escape_lines "$root" HEAD "$f")"
-  [ -n "$(comm -3 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
+  before="$(_felix_escape_rows_exact "$root" "$base" "$f"; printf .)"
+  after="$(_felix_escape_rows_exact "$root" HEAD "$f"; printf .)"
+  [ "$before" != "$after" ]
 }
 
 felix_escapes() {
@@ -402,8 +428,8 @@ felix_merge_checkout() {
 felix_merge_blockers() {
   local proj="$1" base="$2" root="$3" home="$4"
   local tid receipt line
-  # owed and behind (lib/land-table.sh), report-only: each writes a says.log
-  # would-refuse row and prints nothing here. A subshell, so nothing either
+  # owed and behind (lib/land-table.sh), report-only: they write says.log
+  # would-refuse rows and print nothing here. A subshell, so nothing either
   # does, an unset variable under the judge's set -u included, can reach this
   # function's output, its status, or the shell that called it; and no input,
   # so nothing it runs can wait on a terminal.
@@ -547,10 +573,14 @@ felix_merge_blockers() {
 # The land table and its report-only checks, which felix_merge_blockers calls
 # above. Loaded here, after every function this file defines, so the judge's
 # child shell, which sources escape.sh and not land-table.sh, has them; and
-# land-table.sh, which loads this file when escape.sh is missing, finds it
+# land-table.sh, which loads this file when felix_escapes is missing, finds it
 # already loaded. A land library that cannot be loaded costs the report and
 # nothing else: the status of sourcing this file stays 0, so the judge does
 # not read it as an engine that could not be loaded.
-if ! command -v felix_land_rows >/dev/null 2>&1; then
-  . "$(dirname "${BASH_SOURCE[0]:-$0}")/land-table.sh" 2>/dev/null || :
-fi
+#
+# Always, never "unless felix_land_rows exists". The judge's child shell
+# imports the functions the session exported, so that guard would let one of
+# them stand in for the library. When land-table.sh was sourced first and
+# loads this file, it is read a second time, which defines the same functions
+# again and stops there, since felix_escapes is defined by then.
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/land-table.sh" 2>/dev/null || :

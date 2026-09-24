@@ -142,7 +142,7 @@ live on 2026-09-24, and both are refused:
 
 Allowed without comment:
 - adding or editing a pending file;
-- editing the current section in place;
+- editing the current section in place, keeping its heading;
 - editing the preamble or §0.
 
 Where the check file is absent from the gated tree, the gate says `skipped`

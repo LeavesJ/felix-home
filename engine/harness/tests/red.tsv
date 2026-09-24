@@ -4,41 +4,55 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	453f000629959fb1279c04aebadf5a5c6f9133b9	0.49.179
-run	36	3328	5
-a branch that only adds a pending section reads clean	1
-a current section the marker does not name is refused	1
-a fold that main moved past merges and reads clean, and the section that landed after it waits	1
-a pending section that carries an id is refused	1
-a second --section on the same branch rewrites that file and makes no other	1
-a section written in beside the current one, the marker left alone, is refused too	1
-and a hand rotation that archives a stale copy of the section says what it drops	1
-and drops the id its heading carried, since only the fold gives ids	1
-and exits 0 on a clean one	1
-and leaves a file named for a branch whose name only ends like this one's	1
-and says an archived section is never rewritten	1
-and says it dropped it	1
-and says so	1
-and so is removing one	1
-and the handoff sections waiting in docs/handoff/pending/, newest first, beside it	1
-and the next fold gives it the id after theirs	1
-and the refusal says how to add a section instead	1
-another section put in place under the current id is refused, since the one it replaced is lost	1
-but only the newest five, and the rest counted	1
-editing the current section in place, its heading kept, reads clean	1
-felix handoff --rotate folds and reads its work back clean	1
-felix handoff --section writes the section to docs/handoff/pending/<UTC time>-<branch>.md	1
-folding a section ahead of one that landed before it is refused	1
-handoff-check cannot examine a checkout with no HANDOFF.md, and says 2, never 0	1
-handoff-check exits 1 on it, which fails the gate	1
-main with two sections waiting reads clean	1
-removing a pending section without folding it is refused, since that drops it	1
-rewriting an archived section is refused	1
-the fold refuses to write over an archive that holds something else, and writes nothing	1
-the handoff a fold could have written reads clean	1
-the id after 0bv is 0bw, after 0bz 0ca, after 0z 0aa, and after 0zz 0aaa	1
-the marker moves on to the id after the current one	1
-the one that landed last is current, with the id after it	1
-the rows go in newest first, above the newest numbered row and below the standing one	1
-the section it replaced is archived exactly as it stood, its trailing blank line dropped	1
-the section that landed first takes the next id and is archived, as it would have been had it been folded alone	1
+base	ec396777f130fc87c7a32137854400d7cfd38d32	ec396777f130fc87c7a32137854400d7cfd38d32	0.49.180
+run	50	3451	5
+a lifted scoped row is written to says.log with the command	1
+a scoped row that stands says it covers only the checkout	1
+and names the command and the place	1
+and says it was too long to read	1
+and with it, the same call lifts	1
+scoped: .. out of the checkout that lands in scratch	1
+scoped: P from pwd keeps the scratch cwd after a cd	1
+scoped: Write to a relative marker under a scratch payload cwd	1
+scoped: Write to a scratch marker lifts	1
+scoped: a cd first in its chain to an existing directory, then ;	1
+scoped: a cd second in its chain can fail even to an existing directory	1
+scoped: a fetch from the governed checkout into the scratch clone	1
+scoped: a fixture repo under a scratch variable, marker then git add -A	1
+scoped: a fixture script written by here-document and run with arguments	1
+scoped: a for loop over literal words feeding an assignment	1
+scoped: a fresh name under the physical /tmp	1
+scoped: a here-document fed to bash sees a prefixed variable	1
+scoped: a lift to be recorded	1
+scoped: a lifted marker row does not lift the stage row	1
+scoped: a lifted row does not stop another row	1
+scoped: a mktemp fixture read back through pwd -P	1
+scoped: a payload cwd already in scratch	1
+scoped: a shared clone moved by a script read from stdin	1
+scoped: a shell running a script this line wrote by here-document, all in scratch	1
+scoped: a sibling whose name extends the checkout's is not the checkout	1
+scoped: a single-quoted bash -c fixture given its directory	1
+scoped: a working directory that holds the checkout	1
+scoped: a worktree of the scratch clone, made in scratch	1
+scoped: an EXIT trap with a known action does not	1
+scoped: an echo run from the checkout counts the checkout	1
+scoped: an unmatched command naming the checkout is not judged	1
+scoped: bash -c starts in the directory it was called from	1
+scoped: builtin cd steps past a function of that name	1
+scoped: cd DIR || exit cannot fall back	1
+scoped: dd of= with an input path after = in scratch	1
+scoped: every branch of an if leaves scratch	1
+scoped: git worktree anywhere in the line	1
+scoped: ln anywhere in the line	1
+scoped: mkdir -p, cd, then a remote on the lines after	1
+scoped: mkdir; cd; cmd judges the directory before too	1
+scoped: mktemp -d with a scratch template, then remote add by git -C	1
+scoped: mktemp -d, then cd into it	1
+scoped: pwd -P of the scratch clone, then update-ref under refs/remotes	1
+scoped: repeated -C, each relative to the last	1
+scoped: set -u is not set -e	1
+scoped: three scoped rows all lifted in one clone	1
+scoped: under set -e a cd inside a chain can still fall through	1
+scoped: under set -e a lone cd on its own line is final	1
+the judge alone: a scratch path is throwaway	1
+the same reader reaching its end would lift	1

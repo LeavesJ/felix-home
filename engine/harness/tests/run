@@ -3127,7 +3127,7 @@ for _k in $_sread; do grep -q "echo \"$_k=" "$SC/step.sh" || _sunwritten="$_sunw
 
 # The step above branches on felix repair's statuses, and the engine answering
 # is whatever the Felix checkout fetched. With no ref that was the default
-# branch on the day the job ran, and those statuses changed three times on
+# branch on the day the job ran, and those statuses changed four times on
 # 2026-09-23 under copies that had not changed. The pin is what keeps a copy
 # and the engine it reads on the same commit.
 _sfx="$(grep -A1 'repository: {{FELIX_REPO}}' "$REAL_HARNESS/templates/unattended.yml" | sed -n 2p)"

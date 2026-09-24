@@ -2347,6 +2347,37 @@ case "$bs_out" in
     bad "and never reports no remote for an engine that has one" "$bs_out" ;;
   *) ok "and never reports no remote for an engine that has one" ;;
 esac
+# The pin, through the same call site. The checkout has no commit yet, so there
+# is nothing origin could hold; then it has one that origin/main names.
+has "bootstrap with no commit to pin says the workflow gets the placeholder" \
+    "$(printf '%s\n' "$bs_out" | sed -n 's/^felix ref: *//p')" "{{FELIX_REF}}"
+# gh from here on is a stub that answers nothing, so labels and protection
+# fail where no network is asked.
+mkdir -p "$TMP/pinghbin"; printf '#!/bin/sh\nexit 1\n' > "$TMP/pinghbin/gh"; chmod +x "$TMP/pinghbin/gh"
+_bspin() { ( cd "$_ESRC" && HOME="$TMP/ehome" FELIX_HOME="${1:-$FROOT}" PATH="$TMP/pinghbin:$PATH" \
+               "$_EDEPLOY/harness/felix" bootstrap ${2:+"$2"} 2>&1 ) | sed -n 's/^felix ref: *//p'; }
+( cd "$_ESRC" && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m pin \
+  && git update-ref refs/remotes/origin/main HEAD ) >/dev/null 2>&1
+is  "and pins the source checkout's commit once origin's default branch holds it" \
+    "$(_bspin)" "$(git -C "$_ESRC" rev-parse HEAD)"
+# And writes it. The header and the renderer's argument are two uses of one
+# variable, so the header passed with the argument dropped at the call site;
+# the file CI runs is what is read here.
+_bspin "$FROOT" --yes >/dev/null
+is  "and the gate workflow bootstrap writes checks Felix out at that commit" \
+    "$(grep -A1 'repository: someone/felixsrc' "$_ESRC/.github/workflows/gate.yml" 2>/dev/null | sed -n 2p | tr -d ' ')" \
+    "ref:'$(git -C "$_ESRC" rev-parse HEAD)'"
+rm -rf "$_ESRC/.github" "$_ESRC/.claude"
+# A project that lives in the engine's checkout, as every project in a Felix
+# home does, is pinned only at a commit that holds it: CI resolves it from the
+# Felix it checked out. Uncommitted first, then merged.
+mkdir -p "$_ESRC/projects"; cp -R "$FROOT/projects/widget" "$_ESRC/projects/widget"
+has "a project no commit on the default branch holds yet is not pinned" \
+    "$(_bspin "$_ESRC")" "{{FELIX_REF}}"
+( cd "$_ESRC" && git add projects && git -c user.name=t -c user.email=t@t commit -q -m widget \
+  && git update-ref refs/remotes/origin/main HEAD ) >/dev/null 2>&1
+is  "and is pinned once the default branch holds it" \
+    "$(_bspin "$_ESRC")" "$(git -C "$_ESRC" rev-parse HEAD)"
 rm -f "$_ESRC/.felix"
 
 printf '\nincident loop\n'
@@ -3306,6 +3337,80 @@ if [ -x "$REAL_ROOT/$resolved" ]; then
 else
   bad "and that path resolves in a real checkout" "generated $resolved, absent from $REAL_ROOT"
 fi
+
+printf '\ngenerated CI grades against a pinned Felix\n'
+# With no ref the Felix checkout took the default branch at the moment the job
+# ran, so the verdict on one commit depended on when it was graded, and a merge
+# in Felix nobody in the governed repository reviewed redefined its green. The
+# line after repository: is read, not the whole output: the comment above the
+# step names the placeholder too, so matching the output passed with the ref
+# line deleted.
+_pinwf() { ( . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/bootstrap.sh"
+             felix_bs_render_workflow node someone/repo "$@" ) \
+           | grep -A1 'repository: someone/repo' | sed -n 2p | tr -d ' '; }
+_PINSHA="0123456789abcdef0123456789abcdef01234567"
+is  "the generated workflow checks Felix out at the commit it was given" \
+    "$(_pinwf "$_PINSHA")" "ref:'$_PINSHA'"
+# Quoted, and the quotes are the assertion. Unquoted, YAML reads {{FELIX_REF}}
+# as a mapping and GitHub refuses the whole file, so a required check that
+# never reports stood where a failing checkout was meant to.
+is  "and with no commit to give, at the placeholder, quoted so YAML reads a string" \
+    "$(_pinwf)" "ref:'{{FELIX_REF}}'"
+is  "every checkout in the generated workflow is v5, the lowest major on Node 24" \
+    "$(printf '%s\n' "$gen" | grep -c 'actions/checkout@v5')/$(printf '%s\n' "$gen" | grep -c 'actions/checkout@')" "2/2"
+
+# The commit bootstrap pins is the engine source's HEAD, and only when origin's
+# default branch holds it. Any remote branch would do for the checkout to
+# succeed, which is why a pushed branch nobody merged is the case that matters:
+# it fetches, and grades with an engine nobody reviewed.
+_PS="$TMP/pinsrc"; _PC="$TMP/pinclone"
+( git init -q -b main "$_PS" && cd "$_PS" \
+  && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m one \
+  && git checkout -q -b side && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m side \
+  && git checkout -q main && git clone -q "$_PS" "$_PC" ) >/dev/null 2>&1
+_pinref() { ( . "$FROOT/harness/lib/bootstrap.sh"; felix_bs_pin_ref "$1" || printf 'NONE' ); }
+is  "a source whose HEAD is origin's default branch pins that commit, in full" \
+    "$(_pinref "$_PC")" "$(git -C "$_PS" rev-parse main)"
+( cd "$_PC" && git checkout -q --detach origin/side ) >/dev/null 2>&1
+is  "a HEAD on a pushed branch the default branch does not hold pins nothing" \
+    "$(_pinref "$_PC")" "NONE"
+( cd "$_PC" && git checkout -q main \
+  && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m local ) >/dev/null 2>&1
+is  "a HEAD only this machine holds pins nothing" "$(_pinref "$_PC")" "NONE"
+# A clone made some other way may carry no origin/HEAD, and origin/main is
+# still the default branch's name here.
+( cd "$_PC" && git reset -q --hard origin/main && git remote set-head origin -d ) >/dev/null 2>&1
+is  "and with no origin/HEAD, origin/main is the branch asked" \
+    "$(_pinref "$_PC")" "$(git -C "$_PS" rev-parse main)"
+# Bounded, because a $TMP under a directory that is itself a repository would
+# otherwise answer for it.
+mkdir -p "$TMP/pinnone"
+is  "a source that is not a checkout pins nothing" \
+    "$(GIT_CEILING_DIRECTORIES="$TMP" _pinref "$TMP/pinnone")" "NONE"
+
+# origin/HEAD first. Every fixture above has a default branch named main, where
+# the order cannot show; here it is trunk, and a main beside it holds a commit
+# the default branch does not.
+_PT="$TMP/pintrunk"; _PTC="$TMP/pintrunkclone"
+( git init -q -b trunk "$_PT" && cd "$_PT" \
+  && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m one \
+  && git checkout -q -b main && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m two \
+  && git checkout -q trunk && git clone -q "$_PT" "$_PTC" \
+  && cd "$_PTC" && git checkout -q --detach origin/main ) >/dev/null 2>&1
+is  "a HEAD only a branch named main holds, when the default branch is another, pins nothing" \
+    "$(_pinref "$_PTC")" "NONE"
+
+# The project, when asked about. CI resolves the project from the Felix it
+# checked out, so a commit from before the project merged cannot govern it.
+_pinproj() { ( . "$FROOT/harness/lib/bootstrap.sh"; felix_bs_pin_ref "$1" "$2" || printf 'NONE' ); }
+( cd "$_PS" && mkdir -p projects/w && printf '{}\n' > projects/w/project.json && git add projects \
+  && git -c user.name=t -c user.email=t@t commit -q -m project \
+  && cd "$_PC" && git fetch -q origin && git checkout -q --detach origin/main ) >/dev/null 2>&1
+is  "a commit holding the project it is asked about pins" \
+    "$(_pinproj "$_PC" projects/w)" "$(git -C "$_PS" rev-parse main)"
+( cd "$_PC" && git checkout -q --detach origin/main~1 ) >/dev/null 2>&1
+is  "a commit on the default branch from before the project merged pins nothing" \
+    "$(_pinproj "$_PC" projects/w)" "NONE"
 
 printf '\nmistakes record themselves\n'
 # Judgement at write time is the wrong shape: it asks for a decision at the exact

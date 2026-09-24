@@ -2783,6 +2783,42 @@ printf '+AsiaPacificEconomicCoop %s%s\n' ASIA Q7XK2M9PLR4TWN3B | "$SS" - >/dev/n
   && bad "a key id beside that word is still caught" "scanner passed a temporary key id" \
   || ok "a key id beside that word is still caught"
 
+# GitHub's other prefixes, measured 2026-09-23. The scanner knew ghp_ and
+# github_pat_ and not ghs_ (an installation token, the Actions GITHUB_TOKEN),
+# gho_, ghu_ or ghr_: a workflow's unquoted `token:` value slipped the keyword
+# rule on its underscore. actions/checkout also leaves the token in .git/config
+# as a basic-auth header whose base64 begins with the encoding of
+# `x-access-token:`, a fixed prefix. Values assembled, as above; the samples
+# are the blind-authored qualification rows', plus a lookup whose fallback is
+# the token, since a hard shape must bound the context exclusion.
+_ss_i="$(printf '%s%s' ghs_ fakeQ7mZ2vT9kLd4RnW8pJyUc0AeGhSbXo31)"
+_ss_o="$(printf '%s%s' gho_ fakeVb3NqK8tXm2ZrW7yLd0PcJ5uHgE9sTaF)"
+_ss_r="$(printf '%s%s' ghr_ fakeRz4mKq9TvL2xNb7WcJ0pYd5AhGs8EuF3iXoZ1kMt6QwVbP2nLd9rHy4SeKa7UjC0mT3gWx5B)"
+_ss_b="$(printf '%s%s' eC1hY2Nlc3MtdG9rZW46 Z2hzX2Zha2VIazJQdk44bVF6NVRyWDBiTGQ3WWNXM2pVZTlBc0c0Rg==)"
+for s in "          token: $_ss_i" \
+         "GH_TOKEN=$_ss_o" \
+         "github.com,felix-bot,$_ss_r,2026-09-23" \
+         "$(printf '\textraheader = AUTHORIZATION: basic %s' "$_ss_b")" \
+         "git config http.https://github.com/.extraheader \"AUTHORIZATION: basic $_ss_b\"" \
+         "k = os.environ.get('T', '$_ss_i')"; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && bad "catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample $_ss_n" "scanner passed: $s" \
+    || ok "catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample $_ss_n"
+done
+unset _ss_n
+# And prose naming the prefixes stays quiet, as does an identifier that only
+# begins with one.
+for s in '# ghs_ is an installation token, the shape of an Actions GITHUB_TOKEN; gho_ an OAuth token; ghu_ a user-to-server token; ghr_ a refresh token.' \
+         'Because `x-access-token:` is fifteen bytes, its encoding is the fixed prefix `eC1hY2Nlc3MtdG9rZW46` and the token begins right after it.' \
+         'ghs_token_for_the_run = lookup()'; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && ok "quiet on prose naming the GitHub prefixes or the header's fixed base64, sample $_ss_n" \
+    || bad "quiet on prose naming the GitHub prefixes or the header's fixed base64, sample $_ss_n" "false positive on: $s"
+done
+unset _ss_n _ss_i _ss_o _ss_r _ss_b
+
 # A new file has no previous version, so git diff cannot see it, and a fresh
 # file is where a key most often lands.
 SECREPO="$TMP/secrepo"; mkdir -p "$SECREPO"

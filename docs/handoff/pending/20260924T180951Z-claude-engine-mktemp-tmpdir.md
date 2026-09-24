@@ -3,9 +3,12 @@
 **Engine 0.49.205 (the queue carrier's number), branch
 `claude/engine-mktemp-tmpdir`, queued after the unattended.yml sha pin
 (0.49.204).** It follows b611b9's
-`claude/red-mktemp-tmpdir` (0.49.200), which fixed the same thing in tests/run
-and tests/red and cleared the 44 red rows #308's lift assertions showed on
-every Mac.
+`claude/red-mktemp-tmpdir` (0.49.200), which clears the 44 red rows #308's
+lift assertions showed on every Mac. It makes tests/red's own root by a
+template and runs the suite under the caller's TMPDIR, as a plain run does;
+tests/run's root stays a bare `mktemp -d`, because nesting it under a moved
+TMPDIR pushed a displayed path past `_felix_binding_sane`'s 80-character cut
+(a separate task now).
 
 **Measured, 2026-09-24, macOS 26.3.1.** A bare `mktemp` or `mktemp -d` makes
 its file in `getconf DARWIN_USER_TEMP_DIR` (/var/folders/.../T), whatever

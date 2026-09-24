@@ -1877,6 +1877,7 @@
 1	and that reads as no stamp, the same verdict a stampless graph gets, not as an error
 1	and that receipt reads stale, never current
 1	and that refusal is non-zero too
+1	and the Felix checkout, which holds the deploy key, drops it
 1	and the ack is consumed by the answer
 1	and the admitted row not to re-propose
 1	and the all-clear is not repeated every session
@@ -1998,6 +1999,7 @@
 1	and the prefixed name is not a capability of its own
 1	and the probe is never run behind a when test nobody could answer
 1	and the probes marker blocker names no commission run
+1	and the project's own checkout drops the job token
 1	and the provider skill is named as a channel a session runs, not a prompt to paste
 1	and the pulse refuses it in words
 1	and the reader prints exactly one line
@@ -2343,6 +2345,7 @@
 1	every check passing, with a provider still awaiting, is commissioned
 1	every checkout in the generated workflow is v5, the lowest major on Node 24
 1	every checkout in the unattended template drops its credential once the fetch is done
+1	every checkout step in the generated workflow sets persist-credentials: false in its own with
 1	every decision is logged
 1	every decision is recorded
 1	every decisions.log row felix route --ack wrote in this suite is a row its schema accepts

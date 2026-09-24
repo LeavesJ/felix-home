@@ -2205,6 +2205,12 @@
 1	carrying the grounding that says the engine read it
 1	catch-up folds every session nothing folded
 1	catch-up folds only the sessions this repository's history contains
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 1
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 2
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 3
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 4
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 5
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 6
 1	catches a key the keyword ends, sample 1
 1	catches a key the keyword ends, sample 2
 1	catches a key the keyword ends, sample 3
@@ -2789,6 +2795,9 @@
 1	quiet on exclusion sample 3
 1	quiet on exclusion sample 4
 1	quiet on exclusion sample 5
+1	quiet on prose naming the GitHub prefixes or the header's fixed base64, sample 1
+1	quiet on prose naming the GitHub prefixes or the header's fixed base64, sample 2
+1	quiet on prose naming the GitHub prefixes or the header's fixed base64, sample 3
 1	rather than reporting clean
 1	read by awk and by expansion alike: a line break in the value is kept, beside escaped quotes
 1	read by awk and by expansion alike: a payload holding a raw SOH byte, which JSON cannot, has no subject

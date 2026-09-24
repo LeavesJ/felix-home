@@ -260,7 +260,9 @@ EOF
 # since most carry a JSON backslash, and a per-row keyword test needs a
 # proof that it never skips a command its row would refuse. Over the real
 # commands in this machine's transcripts the reading newly refuses about one
-# in two hundred, every one performing its row's action; the counts are in
+# in two hundred, all but two of them performing the row's action; the two
+# hand a gate's path to a shell function as an argument, which a row that
+# matches the path after any blank refuses on any reading. The counts are in
 # the pull request that made the change.
 felix_deny_match() {
   local proj="$1" want="$2" cmd="$3" text

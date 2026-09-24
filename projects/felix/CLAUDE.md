@@ -53,9 +53,11 @@ If the founder is thinking about tooling, Felix has failed at its job.
 **Stealth in the middle.** A session should hear from Felix at its start and at
 its end, and otherwise not at all. Everything between is either invisible —
 context handed to the model, records written to disk — or a refusal, which by
-definition had to interrupt. Status belongs in the monitor, where somebody can
-go and look; it does not belong in a founder's session. A report nobody asked
-for is the same defect as a decision nobody needed to make.
+definition had to interrupt. Status reaches the founder at the end, in the
+session's closing notice, because nobody opened the monitor to find it; the
+monitor stays as the deeper page for anyone who wants more (decided
+2026-09-23). Status does not belong in the middle of a founder's session. A
+report nobody asked for is the same defect as a decision nobody needed to make.
 
 **One exception, allowed by the founder on 2026-09-23 and deliberately
 narrow.** A session whose hooks run an older Felix than the one installed may

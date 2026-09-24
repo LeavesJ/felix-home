@@ -20736,14 +20736,23 @@ awk -v d="$RV/perf/-Users-dev-perf" '
     print U("p3c", R("p3b", "\"content\":\"ok\""), ",\"toolUseResult\":{\"history\":[" ts "]}") > f
     print A("msg_p3d", done, "end_turn") > f
   }'
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/perf")"; _rv_t1="$(date +%s)"
+# The three are timed as CPU, not wall clock, as the shifts below are. A real
+# home gate at a load average near 266 read 308 s of wall clock, on a tree
+# that passed in a branch gate and in three record runs (2026-09-24); the read
+# measures 0.45 s of CPU at a load near 215, and held for 20 s mid-read it
+# took 22 s of wall and still 0.45 s of CPU. times inside the substitution
+# counts that subshell and the audit under it, and nothing else the suite has
+# running. With the last },{ of a result found by searching the rest of the
+# line again after each, or every timestamp found that way, the read took 26 s
+# and 45 s of CPU and still counted them, so 5 s stays far from all three.
+_rvo="$(_au --dir "$RV/perf"; times > "$RV/perf.cpu")"
+_rv_ms="$(awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
+               END { printf "%d", ms }' "$RV/perf.cpu")"
+_rvn="a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 5 seconds of CPU"
 if [ "$(_au_counts "$_rvo")" = "2 1 0 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 15 ] \
-    && ok  "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" \
-    || bad "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" "took $((_rv_t1 - _rv_t0))s"
+  [ "$_rv_ms" -le 5000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
 else
-  bad "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" \
-      "it did not count them, so its speed says nothing: $(_au_counts "$_rvo")"
+  bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo")"
 fi
 
 # Arguments that used to pass and answer something nobody meant, each beside

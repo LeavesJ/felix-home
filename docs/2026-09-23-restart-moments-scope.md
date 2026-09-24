@@ -25,10 +25,12 @@ acts on that, and that measurement is the evidence step 2 needs before Felix
 suggests real restarts.
 
 **Size:** about 4 sessions (3.75 to 4.75), in two stages, plus a probe.
-**Your part:**
-- a 10-minute look at a test line in the desktop app and the CLI;
-- one yes or no on whether Felix may put a line on your screen mid-session (if you don't answer, it stays off);
-- where this goes on the roadmap.
+**Your part** (as of 2026-09-23):
+- the one line on your screen mid-session: **allowed**;
+- where this goes on the roadmap: **left to Felix**, and placed in Phases 0
+  and 1;
+- a 10-minute look at a test line in the desktop app and the CLI: **still
+  to do**. Until then the line stays off.
 
 ## 1. The facts that decided it
 
@@ -364,18 +366,21 @@ ones:
 **Yours:**
 1. **May Felix put one line on your screen mid-session?** At most once per
    session, at a stop where it says nothing else, only to say that a newer
-   Felix is installed and that `/reload-plugins` switches to it. Today the
-   constitution allows only refusals in the middle of a session. With no
-   answer, speech stays off. Step 1a still ships and still protects the gate,
-   handoff and merge calls.
-2. **Placement,** because prioritisation is yours. The proposal:
-   - 1a in the last days of Phase 0 or the first of Phase 1. It touches none
-     of the judge files, and this week most Stops ran an engine older than the
-     one installed, so every Phase 0-1 engine fix reaches running sessions
-     late.
-   - 1b when S0 has passed and you have answered question 1.
-   - Fallback: Phase 3 "Defects".
-3. **Ten minutes** for S0(a) and (d).
+   Felix is installed and that `/reload-plugins` switches to it.
+   **Decided 2026-09-23: yes.** The constitution's stealth paragraph now
+   carries this as a narrow exception. Speech still waits on the look in
+   question 3.
+2. **Placement,** because prioritisation is yours. **Decided 2026-09-23: you
+   left it to Felix.**
+   - 1a goes in the last days of Phase 0. It touches none of the judge files,
+     and this week most Stops ran an engine older than the one installed, so
+     every Phase 0-1 engine fix reaches running sessions late.
+   - 1b goes in Phase 1, outside the judge chain's forced order and after
+     #310, once the shadow week is done.
+   - Step 2 is not scheduled (question 4).
+   - See `docs/2026-09-23-roadmap.md` Phases 0 and 1, and §6.
+3. **Ten minutes** for S0(a) and (d). **Open: you will look later**, before
+   Oct 12 if convenient. Until then 1b lands with speech off.
 4. **For step 2:** whether the 09-21 §6 handoff repair goes back on the
    roadmap, and where. The 09-23 roadmap has none of it, and nothing records
    whether that was on purpose.

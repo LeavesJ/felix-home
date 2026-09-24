@@ -21800,6 +21800,19 @@ is  "the rows go in newest first, above the newest numbered row and below the st
 is  "and the folded files are gone" "$(ls "$HX/docs/handoff/pending" 2>/dev/null | wc -l | tr -d ' ')" "0"
 _hx_commit "fold"
 _hxt="$(git -C "$HX" rev-parse HEAD^{tree})"
+# The current section is editable in place in any change, a fold's included;
+# what the fold owns of it is its heading. A blind qualification control found
+# the first version refusing a fold whose new current section was then amended,
+# which turned the gate red on the first real fold (#351).
+_hx_on s/rotedit
+_hx felix_handoff_rotate "$HX" refs/remotes/origin/main >/dev/null
+sed 's/^A ran first, and said so twice\.$/A ran first, and said so twice; the folder amended it./' "$HX/HANDOFF.md" > "$TMP/ho-re.md" \
+  && cp "$TMP/ho-re.md" "$HX/HANDOFF.md"; _hx_commit "fold, then amend in place"
+_hx_chk >/dev/null; is "a fold whose new current section is then amended in place, its heading kept, reads clean" "$?" "0"
+sed 's/^### 0bd\. what A did$/### 0bd. what A did, retitled/' "$HX/HANDOFF.md" > "$TMP/ho-re.md" \
+  && cp "$TMP/ho-re.md" "$HX/HANDOFF.md"; _hx_commit "fold, then retitle"
+has "but a fold that heads the current section otherwise than its pending file is refused" \
+    "$(_hx_chk)" "not headed as the pending section it was folded from"
 _hx_on s/rot2
 _hx felix_handoff_rotate "$HX" refs/remotes/origin/main >/dev/null; _hx_commit "fold again"
 is  "a second fold of the same main writes the same tree" "$(git -C "$HX" rev-parse HEAD^{tree})" "$_hxt"

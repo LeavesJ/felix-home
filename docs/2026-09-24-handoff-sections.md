@@ -137,8 +137,9 @@ live on 2026-09-24, and both are refused:
   already had. An edit in place keeps the section's heading, so a changed
   heading under an unchanged id is refused.
 - **A hand rotation cut from an older main.** It archives its own stale copy
-  of the section, and #326's branch archives an 85-line §0bw against main's
-  101. Its refusal names the archive and what it drops.
+  of the section. #326's head before d9d8a106 archived an 85-line §0bw against
+  main's 101; the carrier has since re-cut it from main. The refusal names the
+  archive and what it drops.
 
 Allowed without comment:
 - adding or editing a pending file;

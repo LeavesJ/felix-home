@@ -221,6 +221,21 @@ done
 printf '# handoff\n' > "$REPO/HANDOFF.md"
 out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
 has "and names a handoff when the repo has one" "$out" "HANDOFF.md"
+# A section that landed and has not been folded in yet is newer than anything
+# HANDOFF.md holds (lib/handoff.sh), so it is named with it: the newest five,
+# and a count of the rest.
+mkdir -p "$REPO/docs/handoff/pending"
+for _hp in 1 2 3 4 5 6 7; do printf '### section %s\n' "$_hp" > "$REPO/docs/handoff/pending/2026010${_hp}T000000Z-s.md"; done
+out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+_hpl="$(printf '%s' "$out" | awk '{ gsub(/\\n/, "\n"); print }' | awk -v RS= 'index($0, "Read before planning") { print; exit }')"
+has "and the handoff sections waiting in docs/handoff/pending/, newest first, beside it" \
+    "$_hpl" "$REPO/docs/handoff/pending/20260107T000000Z-s.md"
+case "$_hpl" in
+  *20260102T000000Z*) bad "but only the newest five, and the rest counted" "$_hpl" ;;
+  *"and 2 older in"*) ok  "but only the newest five, and the rest counted" ;;
+  *)                  bad "but only the newest five, and the rest counted" "$_hpl" ;;
+esac
+rm -rf "$REPO/docs"
 rm -f "$REPO/HANDOFF.md"
 out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
 case "$out" in
@@ -4028,6 +4043,68 @@ rm -f "$GREPO/untracked.txt"
 printf 'unverified\n' >> "$GREPO/WIDGET.txt"
 out="$(_stop "$GREPO" "$ACTIVE_JSON")"
 _allows "stop_hook_active is honoured, so it never loops" "$out"
+
+# That rule is about a chain Felix started, and the flag does not say who did.
+# An asyncRewake hook that exits 2 wakes the model into a turn of its own with
+# the flag already set (measured on Claude Code 2.1.260 and 2.1.280, a Stop
+# and a PostToolUse hook alike), and security-guidance, which commissioning
+# installs for every project, is one. Leaving at the flag let the turn that
+# answered a background review end unchecked and unrecorded. Driven through
+# the real hook, in the order the platform sends these stops.
+_hj() { printf '{"hook_event_name":"Stop","stop_hook_active":%s,"session_id":"%s"}' "$1" "$2"; }
+_hv="$MEM/widget/verification.log"
+_hn() { awk 'END { print NR }' "$_hv" 2>/dev/null || echo 0; }
+rm -rf "$FROOT/state/held"
+_n0="$(_hn)"
+out="$(_stop "$GREPO" "$(_hj true rw-foreign)")"
+_blocks "a flagged stop in a chain Felix did not start is judged, not waved through" "$out"
+is "and that hold is on the record" "$(( $(_hn) - _n0 )):$(tail -1 "$_hv" | cut -f2)" "1:blocked"
+# Silence alone cannot tell Felix's own chain from a hold that went unrecorded
+# and was then refused inside a chain it took for another's. Only the first
+# writes no row.
+_n0="$(_hn)"
+out="$(_stop "$GREPO" "$(_hj true rw-foreign)")"
+is "the flagged stop after that hold is Felix's own chain, and ends there" \
+   "$(( $(_hn) - _n0 )):[$out]" "0:[]"
+
+# The record is taken by the stop it was for, so a rewake turn right after
+# Felix's own chain is not mistaken for part of it.
+out="$(_stop "$GREPO" "$(_hj false rw-own)")"
+_n0="$(_hn)"
+out="$(_stop "$GREPO" "$(_hj true rw-own)")"
+is "a hold lets the one flagged stop it started end" "$(( $(_hn) - _n0 )):[$out]" "0:[]"
+out="$(_stop "$GREPO" "$(_hj true rw-own)")"
+_blocks "and only that one: the rewake turn after it is judged" "$out"
+
+# A chain can end without reaching its flagged stop (an interrupted turn), and
+# the next prompt's stop is unflagged. That stop starts afresh and clears what
+# was left, or the leftover waves the next rewake turn through.
+out="$(_stop "$GREPO" "$(_hj false rw-stale)")"
+out="$(cd "$GREPO" && _hj false rw-stale | FELIX_ALLOW_RED=1 "$STOP" 2>&1)"
+out="$(_stop "$GREPO" "$(_hj true rw-stale)")"
+_blocks "an unflagged stop clears a hold left behind" "$out"
+
+# The id comes from the payload, so it is checked before it names a file. One
+# that cannot name a file ends a flagged stop, as the flag always did, and a
+# hold made under it writes nothing outside state/held.
+out="$(_stop "$GREPO" "$(_hj false ../held-escape)")"
+_blocks "an id that cannot name a file still holds an unflagged stop" "$out"
+[ -e "$FROOT/state/held-escape" ] && bad "and records nothing outside state/held" "$FROOT/state/held-escape" \
+                                  || ok  "and records nothing outside state/held"
+out="$(_stop "$GREPO" "$(_hj true ../held-escape)")"
+_allows "and a flagged stop under it ends, as before" "$out"
+
+# A hold that cannot be recorded. Starting a chain, Felix holds anyway: the
+# flagged stop after it is judged once more and let through, two holds at
+# most. Inside another hook's chain it does not hold, since that would be the
+# second in a row, and it says so on the record instead.
+rm -rf "$FROOT/state/held"; : > "$FROOT/state/held"
+out="$(_stop "$GREPO" "$(_hj false rw-ro)")"
+_blocks "an unflagged stop holds even when the hold cannot be recorded" "$out"
+out="$(_stop "$GREPO" "$(_hj true rw-ro)")"
+_allows "but a flagged one does not hold again unrecorded" "$out"
+has "and the record says why" "$(tail -1 "$_hv")" "could not be recorded"
+rm -f "$FROOT/state/held"
 
 # The flag is a FIELD. The payload also carries the model's last message, and
 # a glob for the key followed by `true` anywhere after it was satisfied by a
@@ -17662,6 +17739,12 @@ has "and the refusal is the gate's own"     "$_out" "gate"
 is  "and refusing costs no continuation"    "$(_ovfield "$WP" 3 night-red)" "12"
 # Asked on a red tree, where the gate would refuse anybody who got that far.
 # On a green one nothing blocks a bystander, so the exit could not be seen.
+# The chain is one Felix started, by holding the bystander's own stop first:
+# a flagged stop with no hold of Felix's before it belongs to another hook's
+# chain and is judged (felix_hold_take, asserted in the completion gate's
+# section), which is the case this used to be asked without.
+_out="$(_ovstop night-bystander false "$OVTX")"
+_ovblocks "a session with no night is held on a red tree like any other" "$_out"
 _out="$(_ovstop night-bystander true "$OVTX")"
 _ovholds_open "and a chain in a session with no night still ends as the platform asks" "$_out"
 # Inside the chain the night carried the session past the platform's bound, so
@@ -17832,6 +17915,42 @@ is "a session id that cannot name a file is refused, and nothing is written wher
    "$([ "$_rc" -ne 0 ] && echo refused || echo "accepted"):$([ -e "$(_ovdir "$WP")/escaped" ] && echo written || echo absent):$(_ovnights)" \
    "refused:absent:0"
 _ovreset "$WP"
+
+# A night's hold goes on record like any other, and the record is taken at
+# every flagged stop, a night's included (lib/verify.sh, felix_hold_take). Each
+# half has its own way to fail. Unrecorded, a night a person ends mid-chain
+# leaves the flagged stop after its hold looking like another hook's chain, and
+# it is held a second time in a row. Untaken, the record outlives the night and
+# waves the next rewake turn through unchecked.
+#
+# Both need the night's own hold, which only a green tree reaches, so the tree
+# is made green here rather than inherited from whatever ran last, and each
+# hold is asked for by what it says: a block alone is also what the gate's hold
+# looks like, and a fixture with no probes reached that one instead and passed.
+_ovrows() { awk 'END { print NR }' "$MEM/widget/verification.log" 2>/dev/null || echo 0; }
+( cd "$NREPO" && git checkout -q -- . ); printf 'night work\n' >> "$NREPO/WIDGET.txt"
+_ovgate="$(cd "$NREPO" && "$FELIX" gate 2>&1)"; _ovgaterc=$?
+is "the tree is green before the hold record meets a night" "$_ovgaterc" "0"
+rm -rf "$FROOT/state/held"
+_ov felix_overnight_start "$WP" 8 5 night-held "a granted night" >/dev/null
+_ovtool; _out="$(_ovstop night-held false "$OVTX")"
+has "a night holds its session on a green tree with a hold of its own" "$_out" "Overnight is on"
+_ov felix_overnight_end "$WP" "ended by hand" night-held >/dev/null
+_ovn="$(_ovrows)"
+_ovtool; _out="$(_ovstop night-held true "$OVTX")"
+is "a night ended mid-chain leaves the stop after its hold to the night's own chain" \
+   "$(( $(_ovrows) - _ovn )):[$_out]" "0:[]"
+_ovreset "$WP"; rm -rf "$FROOT/state/held"
+_ov felix_overnight_start "$WP" 8 2 night-spent "two turns" >/dev/null
+_ovtool; _out="$(_ovstop night-spent false "$OVTX")"
+has "a two-turn night holds at its first stop" "$_out" "Overnight is on"
+_ovtool; _out="$(_ovstop night-spent true "$OVTX")"
+has "and ends at the flagged stop after it" "$_out" "Overnight is over"
+_ovn="$(_ovrows)"
+_ovtool; _ovstop night-spent true "$OVTX" >/dev/null
+is "and the hold a night made does not outlive it: the rewake turn after is judged" \
+   "$(( $(_ovrows) - _ovn ))" "1"
+_ovreset "$WP"; rm -rf "$FROOT/state/held"
 
 printf '\ndecision epochs: the four things a decision was made under\n'
 # v3.2 §3 defines the epoch as hash(subject_identity, topology_version,
@@ -20746,10 +20865,19 @@ if [ "$(_au_counts "$_rvo")" = "0 0 1 0" ] && [ "$(_au_counts "$_rvo2")" = "0 0 
 else
   bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") / $(_au_counts "$_rvo2")"
 fi
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/open/shifts")"; _rv_t1="$(date +%s)"
-_rvn="a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds"
+# The shifts are timed as CPU, not wall clock. At a load average near 300 the
+# wall clock read 9 s, and an hour later it passed on the same tree; the read
+# measured 0.4 s of CPU at a load near 200. times inside the substitution
+# counts that subshell and the audit under it, and nothing else the suite has
+# running. With each << found again from the start of the command, or the
+# rest of the command searched at each, the read took 18 s and 11 s of CPU
+# and still counted it (2026-09-23), so 5 s stays far from all three.
+_rvo="$(_au --dir "$RV/open/shifts"; times > "$RV/open/shifts.cpu")"
+_rv_ms="$(awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
+               END { printf "%d", ms }' "$RV/open/shifts.cpu")"
+_rvn="a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds of CPU"
 if [ "$(_au_counts "$_rvo")" = "1 0 0 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 5 ] && ok "$_rvn" || bad "$_rvn" "took $((_rv_t1 - _rv_t0))s"
+  [ "$_rv_ms" -le 5000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
 else
   bad "$_rvn" "it did not count it, so its speed says nothing: $(_au_counts "$_rvo")"
 fi
@@ -21369,6 +21497,228 @@ _au --engine "$RVM/harness/felix" --home "$RVM/home2" --dir "$AUD" >/dev/null
   || bad "the audit runs above are wired to the read-only checks: an engine that writes under HOME and calls claude, run through the same wrapper, shows in that HOME and in the stub log" \
          "home: $(ls -A "$RVM/home2"); stub log: $(head -3 "$AUSTUB_LOG")"
 : > "$AUSTUB_LOG"
+
+printf '\nthe handoff, as sections: no two sessions write the same path\n'
+# HANDOFF.md was one slot and one counter every session shared: write your
+# section at the top with the next id, archive the one it replaces. With ten
+# sessions at once, four pull requests claimed one id inside an hour, and each
+# landing after the first was a hand re-cut that could re-archive or drop a
+# section. A session now adds its section as a file of its own under
+# docs/handoff/pending/, and the id, the archive move, the index row and the
+# marker are derived from the order the files landed on main (lib/handoff.sh).
+# The fixture is a checkout with a remote-tracking main moved by hand, and a
+# landing is a squash onto main, which is what the merge boundary does.
+HX="$TMP/handoff"; mkdir -p "$HX/docs/handoff"
+( cd "$HX" && git init -q -b main && git config user.name t && git config user.email t@example.invalid )
+printf 'widget\n' > "$HX/.felix"
+cat > "$HX/HANDOFF.md" <<'EOF'
+# Handoff
+
+Write your section with felix handoff --section; the fold gives it the next id
+(after 0bb comes 0bc).
+
+---
+
+## 0. Standing
+
+Unchanged; read docs/handoff/0.md.
+
+---
+
+## Current state
+
+### 0bb. the session before
+
+What it did.
+
+---
+
+## Index of earlier sections
+
+| § | Section |
+|---|---|
+| [0](docs/handoff/0.md) | Standing |
+| [0ba](docs/handoff/0ba.md) | the one before that |
+| [1](docs/handoff/1.md) | the oldest |
+EOF
+printf '## 0. Standing\n\nThe standing decision.\n\n' > "$HX/docs/handoff/0.md"
+printf '### 0ba. the one before that\n\nIts body.\n' > "$HX/docs/handoff/0ba.md"
+printf '## 1. the oldest\n\nIts body.\n\n' > "$HX/docs/handoff/1.md"
+git -C "$HX" add -A && git -C "$HX" commit -q -m base && git -C "$HX" update-ref refs/remotes/origin/main HEAD
+_hx()     { ( cd "$HX" && . "$REAL_HARNESS/lib/handoff.sh" && "$@" ); }
+_hx_chk() { _hx felix_handoff_check "$HX" "${1:-refs/remotes/origin/main}"; }
+_hx_on()  { git -C "$HX" checkout -q -B "$1" "${2:-refs/remotes/origin/main}"; }
+_hx_commit() { git -C "$HX" add -A && git -C "$HX" commit -q -m "$1"; }
+# A landing: squash the branch onto the remote-tracking main and move it.
+_hx_land() {
+  git -C "$HX" checkout -q --detach refs/remotes/origin/main \
+    && git -C "$HX" merge -q --squash "$1" >/dev/null 2>&1 \
+    && { git -C "$HX" diff --cached --quiet || git -C "$HX" commit -q -m "land $1"; } \
+    && git -C "$HX" update-ref refs/remotes/origin/main HEAD
+}
+_hx_base="$(git -C "$HX" rev-parse HEAD)"
+
+is  "the id after 0bv is 0bw, after 0bz 0ca, after 0z 0aa, and after 0zz 0aaa" \
+    "$(for _i in 0bv 0bz 0z 0zz; do _hx felix_handoff_next_id "$_i"; done | tr '\n' ' ')" "0bw 0ca 0aa 0aaa "
+_hx_chk >/dev/null; is "the handoff a fold could have written reads clean" "$?" "0"
+
+# Session A writes its section, cut under the old rule with an id in the
+# heading, and writes it again: one file, the id dropped.
+_hx_on s/a
+printf '### 0zz. what A did\n\nA ran first.\n\n' > "$TMP/ho-a.md"
+_hxa="$(cd "$HX" && "$FELIX" handoff --section "$TMP/ho-a.md" 2>"$TMP/ho-a.err" | sed -n 's/^wrote //p')"
+printf '%s' "$_hxa" | grep -qE '^docs/handoff/pending/[0-9]{8}T[0-9]{6}Z-s-a\.md$' \
+  && ok  "felix handoff --section writes the section to docs/handoff/pending/<UTC time>-<branch>.md" \
+  || bad "felix handoff --section writes the section to docs/handoff/pending/<UTC time>-<branch>.md" "wrote [$_hxa]"
+is  "and drops the id its heading carried, since only the fold gives ids" "$(head -1 "$HX/$_hxa" 2>/dev/null)" "### what A did"
+has "and says it dropped it" "$(cat "$TMP/ho-a.err")" "dropped the id 0zz"
+printf '### what A did\n\nA ran first, and said so twice.\n' > "$TMP/ho-a.md"
+_hxa2="$(_hx felix_handoff_section "$HX" "$TMP/ho-a.md" refs/remotes/origin/main)"
+is  "a second --section on the same branch rewrites that file and makes no other" \
+    "$_hxa2:$(ls "$HX/docs/handoff/pending" | wc -l | tr -d ' ')" "$_hxa:1"
+# Its own file is the whole name, not the tail: branch x/s-a's ends in -s-a too.
+printf '### x/s-a wrote this\n' > "$HX/docs/handoff/pending/20991231T235959Z-x-s-a.md"
+_hx felix_handoff_section "$HX" "$TMP/ho-a.md" refs/remotes/origin/main >/dev/null
+is  "and leaves a file named for a branch whose name only ends like this one's" \
+    "$(head -1 "$HX/docs/handoff/pending/20991231T235959Z-x-s-a.md")" "### x/s-a wrote this"
+rm -f "$HX/docs/handoff/pending/20991231T235959Z-x-s-a.md"
+_hx_commit "A's section"
+_hx_chk >/dev/null; is "a branch that only adds a pending section reads clean" "$?" "0"
+
+# Session B, cut from the same main before A lands.
+_hx_on s/b
+printf '### what B did\n\nB ran second and landed first.\n' > "$TMP/ho-b.md"
+_hxb="$(_hx felix_handoff_section "$HX" "$TMP/ho-b.md" refs/remotes/origin/main)"
+_hx_commit "B's section"
+is  "two sessions' handoff branches share no path" \
+    "$(LC_ALL=C comm -12 <(git -C "$HX" diff --name-only "$_hx_base" s/a | sort) <(git -C "$HX" diff --name-only "$_hx_base" s/b | sort))" ""
+_hx_land s/b; _hxl1=$?; _hx_land s/a; _hxl2=$?
+is  "so both land, the second on top of the first, without a conflict" "$_hxl1:$_hxl2" "0:0"
+_hx_chk >/dev/null; is "main with two sections waiting reads clean" "$?" "0"
+
+# The fold. B landed first and so takes the next id, though A's file sorts
+# first by name and was written first: the order is main's, not a claim.
+_hx_on s/rot
+_hxr="$(cd "$HX" && "$FELIX" handoff --rotate 2>&1)"; _hxrc=$?
+is  "felix handoff --rotate folds and reads its work back clean" "$_hxrc" "0"
+has "and says so" "$_hxr" "reads it back clean"
+is  "the section that landed first takes the next id and is archived, as it would have been had it been folded alone" \
+    "$(head -1 "$HX/docs/handoff/0bc.md" 2>/dev/null)" "### 0bc. what B did"
+has "the one that landed last is current, with the id after it" "$(cat "$HX/HANDOFF.md")" "### 0bd. what A did"
+is  "the section it replaced is archived exactly as it stood, its trailing blank line dropped" \
+    "$(cat "$HX/docs/handoff/0bb.md" 2>/dev/null; printf x)" "$(printf '### 0bb. the session before\n\nWhat it did.\nx')"
+has "the marker moves on to the id after the current one" "$(cat "$HX/HANDOFF.md")" "(after 0bd comes 0be)"
+is  "the rows go in newest first, above the newest numbered row and below the standing one" \
+    "$(_hx felix_handoff_rows "$HX/HANDOFF.md" | cut -f1 | tr '\n' ' ')" "0 0bc 0bb 0ba 1 "
+is  "and the folded files are gone" "$(ls "$HX/docs/handoff/pending" 2>/dev/null | wc -l | tr -d ' ')" "0"
+_hx_commit "fold"
+_hxt="$(git -C "$HX" rev-parse HEAD^{tree})"
+_hx_on s/rot2
+_hx felix_handoff_rotate "$HX" refs/remotes/origin/main >/dev/null; _hx_commit "fold again"
+is  "a second fold of the same main writes the same tree" "$(git -C "$HX" rev-parse HEAD^{tree})" "$_hxt"
+_hx_land s/rot; _hxl1=$?; _hx_land s/rot2; _hxl2=$?
+is  "so two sessions folding at once both land, and the second changes nothing" \
+    "$_hxl1:$_hxl2:$(git -C "$HX" rev-parse HEAD^{tree})" "0:0:$_hxt"
+
+# The old rule, done perfectly by hand: the next id, the archive, the row and
+# the marker all correct. It is refused, because it is the shared slot that
+# collided, whoever does it well.
+_hx_on s/hand
+cp "$HX/HANDOFF.md" "$TMP/ho-h.md"
+awk '/^### 0bd\. /{ print "### 0be. written in by hand"; print ""; print "Mine."; print ""; skip = 1; next }
+     skip && /^---$/ { skip = 0 } !skip { print }' "$TMP/ho-h.md" \
+  | sed 's/(after 0bd comes 0be)/(after 0be comes 0bf)/' \
+  | awk '/^\| \[0bc\]/ { print "| [0bd](docs/handoff/0bd.md) | what A did |" } { print }' > "$HX/HANDOFF.md"
+_hx _felix_handoff_block "$TMP/ho-h.md" 0bd > "$HX/docs/handoff/0bd.md"
+_hx_commit "by hand"
+_hxc="$(_hx_chk)"; _hxcr=$?
+is  "a section written into HANDOFF.md by hand is refused, however correct its id" "$_hxcr" "1"
+has "and the refusal says how to add a section instead" "$_hxc" "felix handoff --section"
+( cd "$HX" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "handoff-check exits 1 on it, which fails the gate" "$?" "1"
+# And the shape a blind qualification control found first: a section written
+# in above the current one, the marker, rows and archive all left alone.
+_hx_on s/beside
+awk '/^### 0bd\. /{ print "### 0be. written in beside it"; print ""; print "Mine."; print "" } { print }' \
+  "$HX/HANDOFF.md" > "$TMP/ho-bs.md" && cp "$TMP/ho-bs.md" "$HX/HANDOFF.md"; _hx_commit "beside"
+has "a section written in beside the current one, the marker left alone, is refused too" \
+    "$(_hx_chk)" "section 0be sits in HANDOFF.md beside the current one"
+# Two ways a hand rotation loses a section without a sign, both seen on
+# 2026-09-24: another section put in place under the current id, and a
+# rotation cut from an older main that archives its own stale copy.
+_hx_on s/inplace
+sed 's/^A ran first, and said so twice\.$/A ran first, and said so twice; corrected in place./' "$HX/HANDOFF.md" > "$TMP/ho-ip.md" \
+  && cp "$TMP/ho-ip.md" "$HX/HANDOFF.md"; _hx_commit "in place"
+_hx_chk >/dev/null; is "editing the current section in place, its heading kept, reads clean" "$?" "0"
+_hx_on s/samid
+sed 's/^### 0bd\. what A did$/### 0bd. what another session did/' "$HX/HANDOFF.md" > "$TMP/ho-si.md" \
+  && cp "$TMP/ho-si.md" "$HX/HANDOFF.md"; _hx_commit "same id"
+has "another section put in place under the current id is refused, since the one it replaced is lost" \
+    "$(_hx_chk)" "headed differently than on the merge-base"
+_hx_on s/stalehand s/hand
+printf '### 0bd. what A did\n\nA ran first.\n' > "$HX/docs/handoff/0bd.md"; _hx_commit "stale"
+has "and a hand rotation that archives a stale copy of the section says what it drops" \
+    "$(_hx_chk)" "docs/handoff/0bd.md is not the section the merge-base holds as current"
+
+_hx_on s/rewrite
+printf '\nAn afterthought.\n' >> "$HX/docs/handoff/0ba.md"; _hx_commit "rewrite"
+has "rewriting an archived section is refused" "$(_hx_chk)" "docs/handoff/0ba.md was rewritten"
+_hx_on s/gone
+git -C "$HX" rm -q docs/handoff/0bc.md; _hx_commit "gone"
+has "and so is removing one" "$(_hx_chk)" "docs/handoff/0bc.md was archived and is gone"
+
+# Two more sessions land; C lands before D.
+for _s in c d; do
+  _hx_on "s/$_s"; printf '### what %s did\n\nIts body.\n' "$_s" > "$TMP/ho-$_s.md"
+  _hx felix_handoff_section "$HX" "$TMP/ho-$_s.md" refs/remotes/origin/main >/dev/null; _hx_commit "$_s"; _hx_land "s/$_s"
+done
+_hxc_path="$(git -C "$HX" ls-tree --name-only refs/remotes/origin/main docs/handoff/pending/ | grep -- '-s-c\.md$')"
+_hxd_path="$(git -C "$HX" ls-tree --name-only refs/remotes/origin/main docs/handoff/pending/ | grep -- '-s-d\.md$')"
+_hx_on s/drop
+git -C "$HX" rm -q "$_hxc_path"; _hx_commit "drop"
+has "removing a pending section without folding it is refused, since that drops it" "$(_hx_chk)" "which drops it"
+_hx_on s/skip
+printf '%s\n' "$_hxd_path" > "$TMP/ho-order"
+_hx felix_handoff_fold "$HX" "$TMP/ho-order" >/dev/null; _hx_commit "skip"
+has "folding a section ahead of one that landed before it is refused" "$(_hx_chk)" "not the 1 that landed first"
+
+# A fold that main moved past before it landed: E lands while the fold of C
+# and D waits. The fold is still exactly C and D, the oldest two, so the
+# merge result reads clean and E waits for the next fold.
+_hx_on s/stale
+_hx felix_handoff_rotate "$HX" refs/remotes/origin/main >/dev/null; _hx_commit "fold c d"
+_hx_on s/e; printf '### what e did\n\nIts body.\n' > "$TMP/ho-e.md"
+_hx felix_handoff_section "$HX" "$TMP/ho-e.md" refs/remotes/origin/main >/dev/null; _hx_commit e; _hx_land s/e
+git -C "$HX" checkout -q --detach refs/remotes/origin/main
+git -C "$HX" merge -q --no-edit s/stale >/dev/null 2>&1; _hxm=$?
+_hx_chk >/dev/null; _hxcr=$?
+is  "a fold that main moved past merges and reads clean, and the section that landed after it waits" \
+    "$_hxm:$_hxcr:$(ls "$HX/docs/handoff/pending" | grep -c -- '-s-e\.md$')" "0:0:1"
+_hx felix_handoff_rotate "$HX" HEAD >/dev/null
+has "and the next fold gives it the id after theirs" "$(cat "$HX/HANDOFF.md")" "### 0bg. what e did"
+git -C "$HX" checkout -q -f --detach HEAD; git -C "$HX" clean -qfd
+
+# The fold's own refusals: nothing written when one step would fail.
+_hxfx="$TMP/handoff-fold"; mkdir -p "$_hxfx"
+git -C "$HX" archive refs/remotes/origin/main | tar -x -C "$_hxfx"
+printf '### 0bf. something else\n' > "$_hxfx/docs/handoff/0bf.md"
+cp "$_hxfx/HANDOFF.md" "$TMP/ho-keep.md"
+( cd "$_hxfx" && . "$REAL_HARNESS/lib/handoff.sh" && felix_handoff_pending_order "$_hxfx" > "$TMP/ho-o2" \
+  && felix_handoff_fold "$_hxfx" "$TMP/ho-o2" ) > "$TMP/ho-fold.out"; _hxfr=$?
+is  "the fold refuses to write over an archive that holds something else, and writes nothing" \
+    "$_hxfr:$(cmp -s "$_hxfx/HANDOFF.md" "$TMP/ho-keep.md" && echo same):$(ls "$_hxfx/docs/handoff/pending" | wc -l | tr -d ' ')" "1:same:3"
+has "and says an archived section is never rewritten" "$(cat "$TMP/ho-fold.out")" "never rewritten"
+
+# The tree-local half, on the working tree alone.
+_hx_on s/local
+printf '### 0bz. an id\n\nbody\n' > "$HX/docs/handoff/pending/20260101T000000Z-x.md"
+has "a pending section that carries an id is refused" "$(_hx_chk)" "carries an id"
+git -C "$HX" checkout -q -f s/local; git -C "$HX" clean -qfd
+sed 's/^### 0bd\. /### 0bx. /' "$HX/HANDOFF.md" > "$TMP/ho-m.md"; cp "$TMP/ho-m.md" "$HX/HANDOFF.md"
+has "a current section the marker does not name is refused" "$(_hx_chk)" "is not headed"
+git -C "$HX" checkout -q -f s/local
+mkdir -p "$TMP/ho-none"; ( cd "$TMP/ho-none" && git init -q )
+( cd "$TMP/ho-none" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "handoff-check cannot examine a checkout with no HANDOFF.md, and says 2, never 0" "$?" "2"
+( cd "$HX" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "and exits 0 on a clean one" "$?" "0"
 
 printf '\nthe record this branch carries\n'
 # Raised by the same review. After a rebase, red.tsv held two runs' records

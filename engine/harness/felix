@@ -37,6 +37,7 @@
 #   felix log "<text>"    record a devlog entry, stamped with branch and commit
 #   felix lesson "<text>" record something durable enough to repeat
 #   felix handoff        regenerate the handoff from the state of the tree
+#   felix handoff --section FILE | --rotate | --check   the repository's HANDOFF.md sections
 #   felix lessons [--for] what this project already learned, matched to context
 #   felix promote        recurring devlog themes not yet in lessons
 #   felix adopt <cap>    declare a capability this project now has
@@ -172,6 +173,8 @@ if [ "${1:-}" = "audit" ]; then shift; cmd_audit "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/commission.sh"
 . "${SCRIPT_DIR}/lib/commission-provider.sh"
 . "${SCRIPT_DIR}/lib/candidates.sh"
+# shellcheck source=lib/handoff.sh
+. "${SCRIPT_DIR}/lib/handoff.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -269,6 +272,9 @@ specific project, language, or toolchain.
   memory
     felix handoff [note]   regenerate the handoff; the note (or --was) records what was in progress;
                            a handoff it did not write is refused unless --replace
+    felix handoff --section FILE   add this session's HANDOFF.md section as its own file, no id
+    felix handoff --rotate         fold the sections that landed into HANDOFF.md, ids in landing order
+    felix handoff --check          whether HANDOFF.md and its archive are what the fold writes
     felix log <text>       add a devlog entry
     felix lesson <text>    add a lesson, matched into later prompts
     felix lessons          what this project has already paid for
@@ -4057,7 +4063,7 @@ cmd_lesson() {
 }
 
 cmd_handoff() {
-  resolve_or_die; local proj="$PROJ" root gate note="" was="" words="" replace=0
+  resolve_or_die; local proj="$PROJ" root gate note="" was="" words="" replace=0 mode="" section="" base=""
   # #127. The catch-all used to shift anything it did not know, so
   # `felix handoff "what was in progress"` — the invocation everyone types —
   # dropped the one line git cannot rebuild and printed success over an older
@@ -4067,11 +4073,22 @@ cmd_handoff() {
     case "$1" in
       --was)     need_value "$@"; was="$2"; shift 2 ;;
       --replace) replace=1; shift ;;
+      --section) need_value "$@"; mode="${mode:+both}${mode:-section}"; section="$2"; shift 2 ;;
+      --rotate)  mode="${mode:+both}${mode:-rotate}"; shift ;;
+      --check)   mode="${mode:+both}${mode:-check}"; shift ;;
+      --base)    need_value "$@"; base="$2"; shift 2 ;;
       --)        shift; words="${words:+$words }$*"; break ;;
-      -*)        die "usage: felix handoff [--was \"what was in progress\" | what was in progress] [--replace]" ;;
+      -*)        die "usage: felix handoff [--was \"what was in progress\" | what was in progress] [--replace] | --section FILE | --rotate | --check [--base REF]" ;;
       *)         words="${words:+$words }$1"; shift ;;
     esac
   done
+  if [ -n "$mode" ]; then
+    case "$mode" in *both*) die "felix handoff takes one of --section, --rotate and --check at a time" ;; esac
+    [ -z "$was$words" ] && [ "$replace" = 0 ] \
+      || die "--section, --rotate and --check are about the repository's HANDOFF.md, and take no note"
+    _cmd_handoff_sections "$mode" "$section" "$base"; return $?
+  fi
+  [ -n "$base" ] && die "--base goes with --section, --rotate or --check"
   [ -n "$was" ] && [ -n "$words" ] \
     && die "usage: felix handoff [--was \"what was in progress\" | what was in progress] [--replace] — the note was given twice"
   note="${was:-$words}"
@@ -4119,6 +4136,43 @@ cmd_handoff() {
   fi
   printf '  [ ] gate green?                   felix gate\n'
   printf '  [ ] commit the project directory in Felix so this survives the machine\n'
+}
+
+# The repository's HANDOFF.md, kept as sections (lib/handoff.sh). Not the
+# memory handoff above: that one is the state of a tree and is not direction.
+# A session adds its section as a file of its own, and the ids, the archive
+# and the index are derived from the order sections landed on the base, so no
+# two sessions ever write the same path.
+_cmd_handoff_sections() {
+  local mode="$1" file="$2" base="$3" root out rc
+  root="$(felix_repo_root "$PWD")"
+  [ -n "$base" ] || base="$(felix_base_ref "$root" main 2>/dev/null)" || base=""
+  case "$mode" in
+    section)
+      out="$(felix_handoff_section "$root" "$file" "$base")" || exit 1
+      printf 'wrote %s\n\n' "$out"
+      printf 'Commit it on this branch. It lands as a file no other session writes, so\n'
+      printf 'it cannot collide with theirs, and the session start names it until\n'
+      printf 'felix handoff --rotate folds it into HANDOFF.md and gives it an id.\n'
+      ;;
+    rotate)
+      [ -f "$root/$FELIX_HANDOFF_FILE" ] || die "no $FELIX_HANDOFF_FILE in $root"
+      out="$(felix_handoff_rotate "$root" "$base")" || die "nothing folded: $out"
+      printf '%s\n' "$out" | awk -F'\t' 'NF == 2 { printf "  %-6s %s\n", $1, $2; next } { print "  " $0 }'
+      # Read back at once, by the check the gate runs, so a fold that wrote
+      # something the check refuses is said here and not at the gate.
+      out="$(felix_handoff_check "$root" "$base")"; rc=$?
+      [ "$rc" -eq 0 ] || { printf '\nand the check refuses what it wrote:\n'; printf '%s\n' "$out" | sed 's/^/  /'; exit 1; }
+      printf '\nThe check reads it back clean. Commit HANDOFF.md, %s/ and the removed\n' "$FELIX_HANDOFF_DIR"
+      printf 'pending files as one change.\n'
+      ;;
+    check)
+      out="$(felix_handoff_check "$root" "$base")"; rc=$?
+      [ -z "$out" ] || printf '%s\n' "$out" | awk -F'\t' '{ printf "  %-14s %s\n", $1, $2 }'
+      [ "$rc" -eq 0 ] && printf 'handoff: HANDOFF.md and %s/ are what the fold writes\n' "$FELIX_HANDOFF_DIR"
+      return "$rc"
+      ;;
+  esac
 }
 
 

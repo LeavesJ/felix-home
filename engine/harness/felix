@@ -1330,18 +1330,74 @@ _felix_kernel_blockers() {
   ' _ "$kernel" "$proj" "$base" "$root" "$home"
 }
 
+# A refusal at the merge boundary, said where it happens.
+#
+# Every way `felix merge` says no leaves one `refused` row in says.log: one per
+# kind of blocker it printed, and one for a refusal that ends in an error. The
+# landing actor's queue, and anyone asking why a PR did not land, reads these;
+# before this only escapes were recorded, so a merge refused for a stale
+# commission or an untrustworthy judge left no trace that it was ever tried.
+# The row's text is `<branch>: <kind>: <detail>`, which splits cleanly because
+# a git branch name cannot hold a colon, and it carries the session the
+# platform exports, so a refusal can be tied to whoever asked.
+#
+# A dry run writes nothing, refusals included. A triage session dry-runs every
+# open PR, and a row per dry run would record merges nobody attempted.
+_felix_merge_refused() {   # dry proj branch kind detail
+  [ "$1" -eq 1 ] && return 0
+  felix_say "$2" "refused" "${3:-HEAD}: $4: $5" "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" 2>/dev/null || true
+}
+_felix_merge_die() {       # dry proj branch kind message
+  _felix_merge_refused "$1" "$2" "$3" "$4" "$5"
+  die "$5"
+}
+
+# The squash commit's text with every CI skip marker defused.
+#
+# GitHub skips the push run on main when the head commit's message carries one
+# of these, and the squash message is built from what a session wrote: a PR
+# title, or commit messages that quote the marker while describing it. A landed
+# commit whose own CI never ran is a landing nobody checked after the fact.
+# Brackets become parentheses and the trailer key loses its hyphen, so the
+# words stay readable and stop being a marker. Matched without regard to case,
+# since what GitHub matches on is its own business; defusing too much costs
+# nothing.
+_felix_merge_unskip() {    # text on stdin -> the same text, defused
+  LC_ALL=C awk '
+    {
+      line = $0; out = ""
+      while (match(tolower(line), /\[[ \t]*(skip[ \t]+ci|ci[ \t]+skip|no[ \t]+ci|skip[ \t]+actions|actions[ \t]+skip)[ \t]*\]/)) {
+        out = out substr(line, 1, RSTART - 1) "(" substr(line, RSTART + 1, RLENGTH - 2) ")"
+        line = substr(line, RSTART + RLENGTH)
+      }
+      line = out line; out = ""
+      while (match(tolower(line), /skip-checks/)) {
+        out = out substr(line, 1, RSTART - 1) substr(line, RSTART, 4) " " substr(line, RSTART + 5, 6)
+        line = substr(line, RSTART + RLENGTH)
+      }
+      print out line
+    }'
+}
+
 cmd_merge() {
   resolve_or_die
-  local proj="$PROJ" root base="main" dry=0
+  local proj="$PROJ" root base="main" dry=0 a
   root="$(felix_repo_root "$PWD")"
+  # Known before any argument is read, because a refusal of the arguments
+  # themselves is recorded, and a dry run records nothing, whichever order its
+  # flags came in.
+  for a in "$@"; do [ "$a" = "--dry-run" ] && dry=1; done
+  local named; named="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)"
   while [ $# -gt 0 ]; do
     case "$1" in
-      --base)    need_value "$@"; base="$2"; shift 2 ;;
+      --base)    { [ "$#" -ge 2 ] && [ -n "${2:-}" ]; } \
+                   || _felix_merge_die "$dry" "$proj" "$named" usage "felix: $1 needs a value"
+                 base="$2"; shift 2 ;;
       --dry-run) dry=1; shift ;;
       # Discarding this is how `felix merge 35` merged whatever HEAD was on and
       # reported that it had verified it. A command told to merge one thing and
       # given no way to do so has nothing safer to do than stop.
-      *) die "felix merge does not take '$1'. It merges the branch that is checked out, so check out the branch you mean." ;;
+      *) _felix_merge_die "$dry" "$proj" "$named" usage "felix merge does not take '$1'. It merges the branch that is checked out, so check out the branch you mean." ;;
     esac
   done
 
@@ -1360,7 +1416,7 @@ cmd_merge() {
   # window at the whole of felix_merge_blockers rather than at the tail of it.
   local was; was="$(felix_merge_checkout "$root" "$FELIX_HOME_DIR")"
   local branch; branch="$(printf '%s' "$was" | cut -f1)"
-  [ -n "$branch" ] && [ "$branch" != "HEAD" ] || die "cannot name the branch to merge"
+  [ -n "$branch" ] && [ "$branch" != "HEAD" ] || _felix_merge_die "$dry" "$proj" "${branch:-HEAD}" branch "cannot name the branch to merge"
 
   # Judged by the engine main declares, never by this tree — but only where
   # that circularity exists. A governed product's rules live in the Felix home
@@ -1373,13 +1429,13 @@ cmd_merge() {
     # path, so the entry they resolve is checked, byte for byte, against the
     # engine main holds at the base ref — the same question the gate's
     # installed check asks — and a judge that is not that engine does not judge.
-    [ -z "${FELIX_KERNEL:-}" ] || die "FELIX_KERNEL is set, and the merge boundary does not take a judge from the environment: unset it. The judge is the engine main declares, deployed and byte-identical to main."
+    [ -z "${FELIX_KERNEL:-}" ] || _felix_merge_die "$dry" "$proj" "$branch" judge "FELIX_KERNEL is set, and the merge boundary does not take a judge from the environment: unset it. The judge is the engine main declares, deployed and byte-identical to main."
     local kernel; kernel="$(felix_kernel_dir "$root" "$base")" || kernel=""
     if [ -z "$kernel" ] || [ ! -d "$kernel/lib" ]; then
       local jver jcache
       jver="$(_felix_plugin_version "$root" "$base" 2>/dev/null)"
       jcache="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix}"
-      die "no installed copy of the engine main declares (${jver:-no version readable at $base}) under $jcache, so there is nothing to judge this that is not this. Run felix install on main, then try again."
+      _felix_merge_die "$dry" "$proj" "$branch" judge "no installed copy of the engine main declares (${jver:-no version readable at $base}) under $jcache, so there is nothing to judge this that is not this. Run felix install on main, then try again."
     fi
     local jentry jout jrc jlib
     # The judge must not be the candidate — but only when the candidate is the
@@ -1395,7 +1451,7 @@ cmd_merge() {
     # to change the thing being compared.
     if felix_changed_paths "$root" "$base" | grep -q '^engine/harness/' \
          && diff -rq "$root/engine/harness" "$kernel" >/dev/null 2>&1; then
-      die "the engine that would judge this is byte-identical to the tree it is judging, so it would be judging itself. Bump the version and install main's, or say plainly that this is unjudged."
+      _felix_merge_die "$dry" "$proj" "$branch" judge "the engine that would judge this is byte-identical to the tree it is judging, so it would be judging itself. Bump the version and install main's, or say plainly that this is unjudged."
     fi
     # And the judge must be the engine main accepted, byte for byte (#260): the
     # cache entry for main's version against main's engine at the base ref,
@@ -1406,9 +1462,9 @@ cmd_merge() {
     # main accepted, and nothing a candidate writes reaches it. After the
     # self-judgement guard, so a cache cut from the candidate is named as
     # judging itself, which is the truer of the two refusals.
-    jlib="$(mktemp -d 2>/dev/null)" || die "could not make a directory to read main's resolve.sh into"
+    jlib="$(mktemp -d 2>/dev/null)" || _felix_merge_die "$dry" "$proj" "$branch" judge "could not make a directory to read main's resolve.sh into"
     if ! git -C "$root" show "$base:engine/harness/lib/resolve.sh" > "$jlib/resolve.sh" 2>/dev/null; then
-      rm -rf "$jlib"; die "main's engine at $base has no lib/resolve.sh, so nothing there can say whether the judge is main's engine"
+      rm -rf "$jlib"; _felix_merge_die "$dry" "$proj" "$branch" judge "main's engine at $base has no lib/resolve.sh, so nothing there can say whether the judge is main's engine"
     fi
     jout="$( . "$jlib/resolve.sh" >/dev/null 2>&1
              command -v felix_accepted_deploy_diff >/dev/null 2>&1 || exit 3
@@ -1416,17 +1472,17 @@ cmd_merge() {
     rm -rf "$jlib"
     case "$jrc" in
       0) jentry="$jout" ;;
-      3) die "main's engine at $base defines no felix_accepted_deploy_diff, so it cannot say whether the judge is main's engine" ;;
-      2) die "cannot tell whether the judge is main's engine: $jout" ;;
-      *) die "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | head -3 | tr '\n' ';') — a cache entry that differs from main's engine does not judge. Run felix install on main, or unset a cache override that points elsewhere." ;;
+      3) _felix_merge_die "$dry" "$proj" "$branch" judge "main's engine at $base defines no felix_accepted_deploy_diff, so it cannot say whether the judge is main's engine" ;;
+      2) _felix_merge_die "$dry" "$proj" "$branch" judge "cannot tell whether the judge is main's engine: $jout" ;;
+      *) _felix_merge_die "$dry" "$proj" "$branch" judge "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | head -3 | tr '\n' ';') — a cache entry that differs from main's engine does not judge. Run felix install on main, or unset a cache override that points elsewhere." ;;
     esac
-    [ "$kernel" -ef "$jentry/harness" ] || die "the judge resolved to $kernel and the engine main accepted is at $jentry/harness; they are not the same directory, and only that engine judges."
+    [ "$kernel" -ef "$jentry/harness" ] || _felix_merge_die "$dry" "$proj" "$branch" judge "the judge resolved to $kernel and the engine main accepted is at $jentry/harness; they are not the same directory, and only that engine judges."
     blockers="$(_felix_kernel_blockers "$kernel" "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
     krc=$?
     case "$krc" in
       0) ;;
-      4) die "the installed engine at $kernel is too old to judge this: it has no felix_merge_blockers. Install a newer main." ;;
-      *) die "the installed engine at $kernel could not be loaded to judge this." ;;
+      4) _felix_merge_die "$dry" "$proj" "$branch" judge "the installed engine at $kernel is too old to judge this: it has no felix_merge_blockers. Install a newer main." ;;
+      *) _felix_merge_die "$dry" "$proj" "$branch" judge "the installed engine at $kernel could not be loaded to judge this." ;;
     esac
   else
     blockers="$(felix_merge_blockers "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
@@ -1462,13 +1518,30 @@ EOF
     # project rejected twice; and a number nobody records is a number nobody
     # moves. Only escapes count. An unrun gate or a missing test is Felix's own
     # work, and counting those would let the figure improve by gating less.
-    if [ "$esc" -eq 1 ]; then
+    #
+    # And only real attempts count. A dry run asks nobody anything: a triage
+    # session dry-running every open PR wrote one of these per escape per run,
+    # and the figure counted each look as a founder interruption.
+    if [ "$esc" -eq 1 ] && [ "$dry" -eq 0 ]; then
       while IFS=$'\t' read -r kind subject reason; do
         [ "${kind:-}" = "escape" ] || continue
-        felix_say "$proj" "escalated" "$subject: $reason" "felix merge" "" 2>/dev/null || true
+        felix_say "$proj" "escalated" "$subject: $reason" "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" 2>/dev/null || true
       done <<EOF
 $blockers
 EOF
+    fi
+    # One refused row per kind printed above, whatever the kind: the reasons of
+    # every blocker of that kind, joined, after the branch and the kind.
+    if [ "$dry" -eq 0 ]; then
+      printf '%s\n' "$blockers" | LC_ALL=C awk -F'\t' '
+        $1 == "" { next }
+        { rest = substr($0, length($1) + 2); gsub(/\t/, ": ", rest)
+          if (!($1 in seen)) { seen[$1] = 1; order[++n] = $1; d[$1] = rest }
+          else d[$1] = d[$1] "; " rest }
+        END { for (i = 1; i <= n; i++) printf "%s\t%s\n", order[i], d[order[i]] }' \
+        | while IFS=$'\t' read -r kind reason; do
+            _felix_merge_refused 0 "$proj" "$branch" "$kind" "$reason"
+          done
     fi
 
     # `unknown` is checked before `escape`, because the sentence in the last
@@ -1549,13 +1622,59 @@ EOF
     return 0
   fi
 
-  command -v gh >/dev/null 2>&1 || die "felix merge needs the gh CLI, which is not on PATH"
+  command -v gh >/dev/null 2>&1 || _felix_merge_die "$dry" "$proj" "$branch" gh "felix merge needs the gh CLI, which is not on PATH"
   local slug; slug="$(felix_repo_slug "$root")"
-  [ -n "$slug" ] || die "no github remote"
+  [ -n "$slug" ] || _felix_merge_die "$dry" "$proj" "$branch" gh "no github remote"
 
-  # The remote is consulted last and only to perform the merge. Every reason to
-  # refuse was computed above, offline, so this command says no the same way
-  # with or without a network.
+  # What the squash commit says, written here and never left to GitHub's
+  # default, which is every commit message on the branch: those quote CI skip
+  # markers often enough (a change about skip markers says the words), and a
+  # marker in the landed commit skips the push run on main that is the only CI
+  # the landed tree ever gets. The trailers name what was judged and by whom, so
+  # a commit on main that did not come through here can be told from one that
+  # did: the gated tree is the receipt's tree id, and the judge is the version
+  # main declares at the base it was chosen from.
+  local hsha gtree nl=$'\n' view prn prt subject log judge body jv bsha
+  hsha="$(printf '%s' "$was" | cut -f2)"
+  gtree="$(printf '%s' "$was" | cut -f3)"
+  # The pull request's own title and number, as GitHub would have written them.
+  # Read, not required: gh answering nothing usable here leaves the merge below
+  # to answer for itself, and the subject falls back to the branch's newest
+  # commit that is not a merge.
+  view="$(gh pr view "$branch" --repo "$slug" --json number,title --jq '.number, .title' 2>/dev/null)" || view=""
+  prn="${view%%"$nl"*}"; prt="${view#*"$nl"}"
+  case "$prn" in ''|*[!0-9]*) prn="" ;; esac
+  subject=""
+  [ -n "$prn" ] && [ "$prt" != "$view" ] && [ -n "$prt" ] && subject="$prt (#$prn)"
+  [ -n "$subject" ] || subject="$(git -C "$root" log -1 --no-merges --format=%s "$base..HEAD" 2>/dev/null)"
+  [ -n "$subject" ] || subject="$(git -C "$root" log -1 --format=%s HEAD 2>/dev/null)"
+  [ -n "$subject" ] || subject="$branch"
+  subject="$(printf '%s\n' "$subject" | _felix_merge_unskip | head -1)"
+  log="$(git -C "$root" log --reverse --no-merges --format='* %s%n%n%b' "$base..HEAD" 2>/dev/null \
+         | LC_ALL=C awk 'NF { print; b = 0; next } !b { print; b = 1 }')"
+  if [ -n "${jentry:-}" ]; then
+    jv="$(_felix_plugin_version "$root" "$base" 2>/dev/null)"
+    bsha="$(git -C "$root" rev-parse --verify -q "$base^{commit}" 2>/dev/null)"
+    judge="${jv:-unversioned} @ ${bsha:-$base}"
+  else
+    jv="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+            "$FELIX_ROOT/.claude-plugin/plugin.json" 2>/dev/null | head -1)"
+    judge="${jv:-unversioned} (the engine that ran felix merge; a governed product has no judge of its own)"
+  fi
+  body="felix merge squashed $branch at $hsha."
+  [ -n "$log" ] && body="$body
+
+$log"
+  body="$body
+
+Felix-Judge: $judge
+Felix-Gate: ${gtree:-none}"
+  body="$(printf '%s\n' "$body" | _felix_merge_unskip)"
+
+  # The remote is consulted last: to read the pull request's title, and to
+  # perform the merge. Every reason to refuse was computed above, offline, so
+  # this command says no the same way with or without a network; the one
+  # refusal the network adds is GitHub's own, when the head has moved.
   #
   # The branch is the selector, and leaving it out is why this command could
   # never merge anything: `gh pr merge --repo <slug>` with no pull request named
@@ -1585,14 +1704,23 @@ EOF
     if [ "$moved" = "tree" ]; then
       printf '\nThe working tree was edited while this ran, so the receipt accepted\n'
       printf 'above describes a tree that is already gone. Nothing was merged.\n'
+      _felix_merge_refused "$dry" "$proj" "$branch" moved "the working tree was edited while this ran"
     else
       printf '\nThe checkout moved while this ran, so what was verified is not what\n'
       printf 'would be merged. Nothing was merged.\n'
+      _felix_merge_refused "$dry" "$proj" "$branch" moved "the checkout moved while this ran: $wb $ws -> $nb $ns"
     fi
     printf 'Run it again once nothing else is touching this working copy.\n'
     return 4
   fi
-  gh pr merge "$branch" --repo "$slug" --squash || die "gh pr merge failed"
+  # --match-head-commit is the other half of the check just made. That one
+  # holds this checkout still; this one holds the pull request still, which
+  # nothing local can: a push to the branch after the gate ran would otherwise
+  # be squashed onto main under a verdict about the commit before it. GitHub
+  # refuses the merge unless the head is still the commit gated here.
+  gh pr merge "$branch" --repo "$slug" --squash --match-head-commit "$hsha" \
+    --subject "$subject" --body "$body" \
+    || _felix_merge_die "$dry" "$proj" "$branch" gh "gh pr merge failed, for the reason gh gave above. Nothing was merged. If the pull request's head on GitHub is no longer $hsha, the commit gated here, a push landed after the gate: fetch it, gate it, and run this again."
   printf 'merged. nothing in it escaped the tree.\n'
   # Said, not only printed: a merge is the moment the boundary let something
   # through, and which engine judged it is the fact a reader of says.log
@@ -1600,9 +1728,9 @@ EOF
   # last statement, and a product merge has no judge to name.
   if [ -n "${jentry:-}" ]; then
     printf 'judged by %s, the engine main declares, byte-identical to main.\n' "$jentry"
-    felix_say "$proj" "merged" "$branch: judged by $jentry, the engine main declares" "felix merge" "" 2>/dev/null || true
+    felix_say "$proj" "merged" "$branch: judged by $jentry, the engine main declares" "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" 2>/dev/null || true
   else
-    felix_say "$proj" "merged" "$branch: a governed product, judged by this engine" "felix merge" "" 2>/dev/null || true
+    felix_say "$proj" "merged" "$branch: a governed product, judged by this engine" "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" 2>/dev/null || true
   fi
   return 0
 }

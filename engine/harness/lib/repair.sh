@@ -89,6 +89,13 @@ felix_repair_branch() {
 # answer bounds nothing.
 
 # Consecutive failures at the head of this branch's gate runs.
+#
+# A run waiting for a person to approve it is passed over like one still
+# running: it has no verdict, so it neither counts nor ends the count. On
+# github.com a pull request updated with a workflow's GITHUB_TOKEN gets its
+# pull_request runs in that state, so each unattended push leaves one between
+# the gate run it dispatches and the run before. Stopping there held the count
+# at the failures since the last push, and the ceiling never came.
 felix_repair_attempts() {
   local branch="$1" repo="$2" workflow="${3:-}" n=0 c runs
   [ -n "$workflow" ] || return 1
@@ -97,7 +104,7 @@ felix_repair_attempts() {
   while read -r c; do
     case "$c" in
       failure|timed_out) n=$((n+1)) ;;
-      "") continue ;;
+      ""|action_required) continue ;;
       *) break ;;
     esac
   done <<EOF

@@ -18,6 +18,24 @@ name: unattended repair
 # and edit, and nothing else. It cannot run git, cannot push, and cannot decide
 # that its own work is finished. The workflow runs the gate afterwards and pushes
 # only if the gate is green. An agent that verifies itself is not verified.
+#
+# The push uses this workflow's GITHUB_TOKEN, and GitHub starts no workflow for
+# an event that token causes, workflow_dispatch and repository_dispatch
+# excepted. On github.com a pull request the token updates gets a pull_request
+# run that waits for a person to approve it. So the regate job below dispatches
+# the gate on the branch after a push, and that run is where a repaired commit
+# gets its verdict and where felix repair's ceiling sees the repair's outcome.
+# It does not make the loop go round by itself: a run dispatched with this
+# token is reported not to fire workflow_run when it completes
+# (github.com/orgs/community/discussions/48748), so a repair whose run is red
+# waits for a person or the next push. Only a GitHub App or personal token
+# would change that, and a new credential is a person's decision. The same
+# token cannot push a change under .github/workflows, so a repair that edits one
+# is refused before the gate is spent on it.
+#
+# The gate workflow has to accept workflow_dispatch. felix bootstrap writes it
+# that way; a gate workflow written earlier needs `workflow_dispatch:` in its
+# `on:`, or the regate job fails and says so.
 
 on:
   workflow_run:
@@ -45,6 +63,8 @@ jobs:
       (github.event.workflow_run.conclusion == 'failure' &&
        github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
+    outputs:
+      pushed: ${{ steps.push.outputs.pushed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -159,6 +179,7 @@ jobs:
 
       # The gate decides, not the model, and not the absence of an error.
       - name: Verify and push
+        id: push
         if: steps.budget.outputs.proceed == 'yes'
         working-directory: repo
         env:
@@ -167,6 +188,17 @@ jobs:
           set -uo pipefail
           if git diff --quiet; then
             echo "nothing changed; leaving the failure as it was"; exit 0
+          fi
+          # GitHub refuses a push under .github/workflows from a token without
+          # the workflows permission, which a GITHUB_TOKEN cannot be given.
+          # Until 2026-09-23 such a repair ran the gate, passed it, and then
+          # failed at the push.
+          wf="$(git diff --name-only -- .github/workflows)"
+          if [ -n "$wf" ]; then
+            printf '%s\n' "$wf" >&2
+            echo "the attempt edited a workflow file, which this job's token cannot push; not pushing, and a person decides" >&2
+            git checkout -- .
+            exit 1
           fi
           if ! ../felix/engine/harness/felix gate; then
             echo "gate still red after the attempt; not pushing" >&2
@@ -185,6 +217,7 @@ jobs:
           Produced by the unattended loop and pushed only because the gate went
           green afterwards. Scope was checked before the failing log was read."
           git push origin "HEAD:$BRANCH"
+          echo "pushed=yes" >> "$GITHUB_OUTPUT"
 
       - name: Report
         if: always()
@@ -201,3 +234,29 @@ jobs:
           elif [ "${{ steps.budget.outputs.proceed }}" != "yes" ]; then
             echo "Budget exhausted for the last 24h. Nothing was invoked."
           fi
+
+  # The gate again, on the commit the repair pushed, since nothing this
+  # workflow's token pushes starts a workflow (see the top of this file). A job
+  # of its own so that actions: write, which a dispatch needs, is never held
+  # by the job that runs the model. It dispatches the workflow whose failure
+  # started this run, by id, or the gate by name when a person dispatched it.
+  regate:
+    needs: repair
+    if: needs.repair.outputs.pushed == 'yes'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Run the gate on the pushed commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE: ${{ github.event.workflow_run.workflow_id || 'gate' }}
+          BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+        run: |
+          set -uo pipefail
+          if ! out="$(gh workflow run "$GATE" --repo "$GITHUB_REPOSITORY" --ref "$BRANCH" 2>&1)"; then
+            printf '%s\n' "$out" >&2
+            echo "could not start the gate on $BRANCH, so the repair pushed there has no gate verdict. The gate workflow has to accept workflow_dispatch: add it to that workflow's on: block" >&2
+            exit 1
+          fi
+          echo "the gate is running again on $BRANCH, whose tip the repair just pushed"

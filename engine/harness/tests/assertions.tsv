@@ -272,6 +272,8 @@
 1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
 1	a gate run that completed without failing is nothing to repair, and one that failed without a log is refused
+1	a gate run waiting for approval does not end the count of failures behind it
+1	a gate that cannot be dispatched fails the job
 1	a gate that skipped the suite is not called a passing suite
 1	a gate_workflow that is not a file name is refused, and named
 1	a gitignored stray in the tree is residue, not drift
@@ -338,6 +340,7 @@
 1	a hostile prompt is neutralised, not dropped
 1	a hyphen in the name is not a name
 1	a hyphenated server name still credits the plugin that ships it
+1	a job runs the gate again only after the repair job pushed
 1	a judge identical to the candidate merges nothing
 1	a judge that differs from main's engine by one comment is not the engine main accepted
 1	a key id beside that word is still caught
@@ -611,7 +614,10 @@
 1	a rejected push is reported, not forced
 1	a relative link survives a write too
 1	a release-mode run carries no clearance in any row
+1	a repair that edits a workflow file is not pushed, and the gate is not spent on it
 1	a repair that failed says so
+1	a repair the gate fails is not pushed, and asks for no second gate run
+1	a repair the gate passes is pushed, and says so to the job that runs the gate again
 1	a repo copy of a file Felix holds is reported
 1	a repository that is not the memory's own is named foreign
 1	a repository without the gate workflow makes no pull request clean
@@ -1319,6 +1325,7 @@
 1	and is refused too
 1	and is silent when there is none
 1	and it asks graphify to update the checkout that holds the graph
+1	and it dispatches the workflow whose failure started the repair
 1	and it does not repeat within a session
 1	and it fails on the file, not on the directory
 1	and it holds against the shipped lessons file
@@ -1346,6 +1353,7 @@
 1	and it names the literal that went missing
 1	and it names the tampered library
 1	and it names the tree that can, not a fault
+1	and it names the workflow file it will not push
 1	and it names which one
 1	and it prints cannot examine
 1	and it reaches merge as an escape, not as unknown
@@ -1373,6 +1381,7 @@
 1	and its seeded stack rows carry DECLARED
 1	and its stop costs that night nothing
 1	and its tier was read rather than claimed
+1	and its token may dispatch workflows and do nothing else
 1	and its topology is non-empty
 1	and keeps a never-invoked one at zero
 1	and keeps all 212864 of its bytes
@@ -1527,6 +1536,7 @@
 1	and on every table, every other reader family reads those same rows
 1	and on it cut -f2 reads the first cell where an IFS read reads nothing
 1	and on it the reason a four-variable read assigns is not the reason cut -f4 reads
+1	and on the branch the repair pushed to
 1	and on this tree it is dormant, satisfied or unsatisfied, never unknown
 1	and once the check passes it is ok
 1	and one already declared is not written twice
@@ -1557,6 +1567,7 @@
 1	and only the awaiting count records it
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
+1	and passes on GitHub's own reason
 1	and passes on npm's own reason
 1	and passes the facts it already has
 1	and picks the capability the skills serve
@@ -1675,6 +1686,7 @@
 1	and says the install failed rather than ending in silence
 1	and says the log could not be read
 1	and says the memory it found was kept
+1	and says the pushed commit has no gate verdict
 1	and says the receipt does not exist here
 1	and says the suite passed when nothing was skipped
 1	and says the table is absent
@@ -1797,6 +1809,7 @@
 1	and that is stale, reason in the second field
 1	and that nothing granted it, on a channel review cannot clear
 1	and that one authority writes both halves
+1	and that output is handed on from the step that pushed, which writes it
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
 1	and that reads as no stamp, the same verdict a stampless graph gets, not as an error
@@ -1871,6 +1884,7 @@
 1	and the index holds no gitlink afterwards
 1	and the inline variable is named
 1	and the instrument is appended as the ninth
+1	and the job that runs the model holds no actions permission
 1	and the lesson is in the same block
 1	and the lifecycle row has nine tab-separated fields
 1	and the literal name is caught
@@ -2914,6 +2928,8 @@
 1	the fourth names the engine as proposer: felix at a version and a sha
 1	the gate announces a stale receipt and does not fail on it
 1	the gate carries the ecosystem check too
+1	the gate is dispatched on the pushed branch
+1	the gate workflow bootstrap writes can be dispatched
 1	the gate's executable check passes when every script under bin/ has its bit
 1	the gate's installed check asks the one reader, felix_accepted_deploy_diff
 1	the gate's obligations line reads excepted and the gate passes

@@ -3197,6 +3197,140 @@ is  "and no model is run" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "0"
 _attempt ""
 is  "an install that succeeds goes on to the model" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "1"
 
+printf '\nthe unattended repair gets its push gated\n'
+# The repair pushes with the GITHUB_TOKEN actions/checkout leaves in the
+# checkout, and GitHub starts no workflow for an event that token causes,
+# workflow_dispatch and repository_dispatch excepted. On github.com a pull
+# request the token updates gets a pull_request run that waits for a person to
+# approve it. So a repaired commit reached its pull request with no gate
+# verdict, and the ceiling counted gate runs people caused, not repair
+# attempts. The same token cannot push a change under .github/workflows, so a
+# repair that edited one failed at the push, after the gate had passed it.
+# Both rules are GitHub's, from "Triggering a workflow from a workflow".
+#
+# The verify step is taken out of the shipped template and run under bash -e
+# in a clone of a bare remote, with felix stubbed to a gate of the test's
+# choosing. A bare remote takes a workflow file from anyone, so a refusal here
+# is the step's own and not the server's.
+UT="$REAL_HARNESS/templates/unattended.yml"
+VP="$TMP/verify"; mkdir -p "$VP/felix/engine/harness" "$VP/bin"
+awk '/- name: Verify and push/ { f = 1 } f && /^        run: \|/ { r = 1; next }
+     r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' "$UT" > "$VP/step.sh"
+printf '#!/usr/bin/env bash\nprintf "gate\\n" >> "%s/gate.log"\nexit "${VERIFY_GATE_RC:-0}"\n' "$VP" \
+  > "$VP/felix/engine/harness/felix"
+chmod +x "$VP/felix/engine/harness/felix"
+_vfix() { rm -rf "$VP/remote.git" "$VP/repo"
+  git init -q --bare "$VP/remote.git"
+  git init -q -b fix/x "$VP/repo"
+  ( cd "$VP/repo" && git remote add origin "$VP/remote.git" \
+    && mkdir -p .github/workflows src && printf 'on: push\n' > .github/workflows/gate.yml \
+    && printf 'a\n' > src/a.txt && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm base && git push -q origin fix/x ) >/dev/null 2>&1
+  _v0="$(git --git-dir="$VP/remote.git" rev-parse fix/x)"; }
+_verify() { : > "$VP/out"; : > "$VP/gate.log"
+  ( cd "$VP/repo" && VERIFY_GATE_RC="$1" GITHUB_OUTPUT="$VP/out" BRANCH=fix/x \
+      bash -e "$VP/step.sh" ) > "$VP/log" 2>&1; _vrc=$?
+  _vgot="exit $_vrc, remote $([ "$(git --git-dir="$VP/remote.git" rev-parse fix/x)" = "$_v0" ] \
+    && echo unchanged || echo moved), gate $(wc -l < "$VP/gate.log" | tr -d ' '), pushed=$(sed -n 's/^pushed=//p' "$VP/out" | head -1)"; }
+
+_vfix; printf 'on: [push, workflow_dispatch]\n' > "$VP/repo/.github/workflows/gate.yml"
+_verify 0
+is  "a repair that edits a workflow file is not pushed, and the gate is not spent on it" \
+    "$_vgot, tree $(cd "$VP/repo" && git diff --quiet && echo clean || echo dirty)" \
+    "exit 1, remote unchanged, gate 0, pushed=, tree clean"
+has "and it names the workflow file it will not push" "$(cat "$VP/log")" ".github/workflows/gate.yml"
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"
+_verify 0
+is  "a repair the gate passes is pushed, and says so to the job that runs the gate again" \
+    "$_vgot" "exit 0, remote moved, gate 1, pushed=yes"
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"
+_verify 1
+is  "a repair the gate fails is not pushed, and asks for no second gate run" \
+    "$_vgot" "exit 1, remote unchanged, gate 1, pushed="
+
+# The job that runs the gate again, read out of the template: what it waits
+# for, what its token may do, and what it asks GitHub for. It holds actions:
+# write, which dispatching a workflow needs, and nothing else; the job with the
+# model and the push holds none of it.
+_ujob() { awk -v j="  $1:" '$0 == j { f = 1; next } f && (/^  [^ ]/ || /^[^ ]/) { exit } f' "$UT"; }
+_rg="$(_ujob regate)"
+_rgperm="$(printf '%s\n' "$_rg" | awk '/^    permissions:/ { p = 1; next }
+  p && /^      [a-z-]+:/ { gsub(/ /, ""); printf "%s ", $0; next } p { exit }')"
+is  "a job runs the gate again only after the repair job pushed" \
+    "$(printf '%s\n' "$_rg" | sed -n 's/^    needs: //p; s/^    if: //p' | tr '\n' ';')" \
+    "repair;needs.repair.outputs.pushed == 'yes';"
+is  "and its token may dispatch workflows and do nothing else" "$_rgperm" "actions:write "
+_rtop="$(awk '/^permissions:/ { p = 1; next } p && /^  [a-z-]+:/ { gsub(/ /, ""); printf "%s ", $0; next } p { exit }' "$UT")"
+case "$_rtop $(_ujob repair | grep -c 'permissions:')" in
+  *actions*|*" "[1-9]*) bad "and the job that runs the model holds no actions permission" "workflow: $_rtop" ;;
+  *) ok "and the job that runs the model holds no actions permission" ;;
+esac
+# The output it waits on is one the repair job hands on from the step that
+# pushed, and that step writes it. An output never written reads as empty, and
+# the gate would never run again.
+_rpid="$(awk '/- name: Verify and push/ { f = 1; next } f && /^        id: / { print $2; exit } f && /^      - / { exit }' "$UT")"
+_rpout="$(_ujob repair | sed -n 's/^      pushed: //p')"
+[ -n "$_rpid" ] && [ "$_rpout" = "\${{ steps.$_rpid.outputs.pushed }}" ] \
+  && grep -q 'echo "pushed=yes" >> "$GITHUB_OUTPUT"' "$VP/step.sh" \
+  && ok  "and that output is handed on from the step that pushed, which writes it" \
+  || bad "and that output is handed on from the step that pushed, which writes it" \
+         "push step id [$_rpid], job output [$_rpout]"
+has "and it dispatches the workflow whose failure started the repair" "$_rg" \
+    "GATE: \${{ github.event.workflow_run.workflow_id || 'gate' }}"
+is  "and on the branch the repair pushed to" \
+    "$(printf '%s\n' "$_rg" | sed -n 's/^ *BRANCH: //p')" \
+    "$(awk '/- name: Verify and push/ { f = 1 } f && /^ *BRANCH: / { sub(/^ *BRANCH: /, ""); print; exit }' "$UT")"
+
+awk '/- name: Run the gate on the pushed commit/ { f = 1 } f && /^        run: \|/ { r = 1; next }
+     r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' "$UT" > "$VP/regate.sh"
+cat > "$VP/bin/gh" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$REGATE_LOG"
+[ -z "${REGATE_FAILS:-}" ] && exit 0
+printf "could not create workflow dispatch event: HTTP 422: Workflow does not have 'workflow_dispatch' trigger\n" >&2
+exit 1
+STUB
+chmod +x "$VP/bin/gh"
+_regate() { : > "$VP/gh.log"
+  ( cd "$VP" && REGATE_FAILS="$1" REGATE_LOG="$VP/gh.log" GATE=4242 BRANCH=fix/x \
+      GITHUB_REPOSITORY=example/widget GH_TOKEN=t PATH="$VP/bin:$PATH" bash -e "$VP/regate.sh" ) \
+    > "$VP/regate.out" 2>&1; }
+_regate ""; _rgrc=$?
+is  "the gate is dispatched on the pushed branch" "exit $_rgrc: $(cat "$VP/gh.log")" \
+    "exit 0: workflow run 4242 --repo example/widget --ref fix/x"
+_regate 1; _rgrc=$?
+[ "$_rgrc" -ne 0 ] && ok  "a gate that cannot be dispatched fails the job" \
+                   || bad "a gate that cannot be dispatched fails the job" "exit 0: $(cat "$VP/regate.out")"
+has "and says the pushed commit has no gate verdict" "$(cat "$VP/regate.out")" "no gate verdict"
+has "and passes on GitHub's own reason" "$(cat "$VP/regate.out")" "HTTP 422"
+
+# The gate workflow bootstrap writes has to accept the dispatch, or every
+# repository bootstrapped from it fails the job above on its first push.
+has "the gate workflow bootstrap writes can be dispatched" \
+    "$( . "$REAL_HARNESS/lib/detect.sh"; . "$REAL_HARNESS/lib/bootstrap.sh"
+        felix_bs_render_workflow none someone/repo )" "  workflow_dispatch:"
+
+# Each push leaves a gate run on the pull request that waits for a person's
+# approval, so on github.com the branch reads, newest first: the dispatched
+# run, the waiting one, the run before. The count stopped at the waiting run,
+# so however many repairs failed it read as the failures since the last push,
+# and the ceiling never came.
+if command -v jq >/dev/null 2>&1; then
+  { printf 'gate.yml\tgate\tfix/z\t405\tcompleted\tfailure\n'
+    printf 'gate.yml\tgate\tfix/z\t404\tcompleted\taction_required\n'
+    printf 'gate.yml\tgate\tfix/z\t403\tcompleted\tfailure\n'
+    printf 'gate.yml\tgate\tfix/z\t402\tcompleted\taction_required\n'
+    printf 'gate.yml\tgate\tfix/z\t401\tcompleted\tfailure\n'
+    printf 'gate.yml\tgate\tfix/z\t400\tcompleted\tsuccess\n'
+  } > "$VP/runs"
+  is "a gate run waiting for approval does not end the count of failures behind it" \
+     "$( export WFSTUB_LOG="$VP/wf.log" WFSTUB_RUNS="$VP/runs" WFSTUB_WORKFLOWS=gate.yml
+         _wfatt fix/z gate.yml )" "3"
+else
+  skip "a gate run waiting for approval does not end the count of failures behind it" \
+       "no jq here to evaluate gh's -q expressions"
+fi
+
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts
 # repetition rather than money: ten deliberate attempts in a day is a working

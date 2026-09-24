@@ -1,65 +1,85 @@
-### 0bw. 2026-09-23/24 — every stuck PR triaged, why the night went stale, and the landing actor designed (not built)
+### 0bw. 2026-09-23 — building Felix, measured as Felix's own workload; direction-level documents wait for the founder
 
-**No engine change from this session.** It read, measured and wrote documents.
-Everything it produced is under `~/.felix/memory/felix/audits/` (memory root,
-outside iCloud):
+**Nothing deployed from this session; no engine change.** The founder's point:
+the founder brings an idea, sharpens it and judges it, the agent does the rest,
+and that exchange is the model for how Felix works with every user. So the
+history of building Felix is a record of that whole pipeline, from intent
+through the work in between and the delivery to the outcome.
 
-| What | Where |
+| PR | What |
 |---|---|
-| The founder's queue: everything the sessions left for him, from where each stopped, with commands, re-checked against the state at 19:06Z | `2026-09-23-founder-queue/pdf/founder-queue.pdf` |
-| Root cause of the stale-merge night, 17 pages, three reviewers, evidence E1-E20 | `2026-09-23-merge-staleness/pdf/why-merges-went-stale.pdf` (+ `evidence.json`, `reviews.json`) |
-| Landing actor design, **draft**: three designs, three judges, a synthesis; the skeptics and the final revision did not run | `2026-09-23-landing-actor/design-synthesis-DRAFT.md` (+ `designs.json`, `judgments.json`) |
+| #316 | The episode pilot. Twenty episodes, weighted to the big decisions, reconstructed from the transcripts with each record checked and the report critiqued: `docs/2026-09-23-episode-pilot.md`, data and method in `docs/episodes/`. |
+| #319 | **DECIDED by the founder.** Documents that change what Felix is, who it is for or its build order wait for his yes, and he rates each delivery in one word. Nothing else waits. Written into the split in `projects/felix/CLAUDE.md`. |
+| #327 | Batch 2: the five episodes the pilot missed, plus two control sessions, with a second blind reader per turn: `docs/2026-09-23-episode-batch-2.md`. The prompt index and transcript reader now tell the founder apart from notifications and other sessions. |
 
-**The root cause, in two lines.** Nothing in Felix lands a PR outside a live
-chat session, and a PR's readiness (version, red.tsv, manifest, gate receipt)
-decays with every merge and every deploy. Of the 7 PRs stuck at 17:45Z, 2 needed
-the founder on substance (#309, #311), 2 by rule or hold (#310, #304), 3 not at
-all (#308, #312, #315); 51% of commits and 48% of CI minutes were catch-up, and
-0 of 7 CI failures were functional. Memory: `merge-staleness-rca-2026-09-23`.
+**What the harvest found, briefly.**
+- About a third of the founder's effort went into the agent's job. The pilot's
+  figure is 31% by strict majority, but on turns both batches read the rate
+  runs 42 to 49%. Selection moves the figure more than the counting rule does,
+  so state both beside any rate.
+- The largest kinds are needless stops, restated decisions and answering
+  questions the agent should have decided. Report them as shares, with their
+  label splits.
+- The two readers agreed on 70% of labels. Their most common split was "go":
+  an approval, or a push past a stop that should not have happened.
+- The agent originated 60 decisions across batch 2's records. Several became
+  the founder's chores: a twelve-table hash under the commission receipt and
+  grant, per-project overnight state, and "the commission run is his".
+- The new thing is checks fired at moments, not advice: pilot §7 as amended by
+  batch 2 §6.
 
-**The founder said "go" to the landing actor** (the report's rank-1 remedy) on
-2026-09-23. The draft design: a launchd agent runs `felix land --tick` every
-five minutes in its own clone, re-executes as main's accepted engine, takes the
-oldest ready PR, merges main in, writes main-relative files from a declared
-`land.tsv`, gates the merged tree with main's engine as judge, runs `felix
-merge`'s unchanged boundary, checks the landed tree is the gated one, deploys,
-verifies and reverts. No model inside it. Build plan L1-L10 (about 10 sessions
-plus 3 shadow days); L1 (dry runs write nothing, every refusal logged) and L2
-(bookkeeping at landing time, `_rtn3`/`_rtn4` skip untouched files) pay off
-before the actor exists. His decisions F1-F5 are in the draft's §12: F1 (build
-order, a roadmap edit) is direction-level under #319.
+**Waiting on the founder.**
+- The one direction-level question in batch 2 §8: status in the end-of-session
+  notice, with the monitor kept as the deeper page.
+- Carried from §0bv: the Elenchus and Veldra candidates' admission, then #310's
+  verifier escape, then #304 (all open on 2026-09-23).
 
-**A carrier session is landing the no-escape queue** (task_d9dbaf89, "Carry the
-no-escape felix-home PR queue serially"): #315, #308 then #309's rebuild, #312
-and the snapshot, #267 (closing #265), efcfe13, closing #124, then #310/#311/#309
-green for one founder decision. Read its session before touching any of those.
-
-**Next:**
-1. Finish the design: run the safety, mechanics and plan skeptics on the draft,
-   then the final revision (script:
-   `~/.claude/projects/-Users-a14808-Documents-Felix--claude-worktrees-recent-prs-commission-check-1429ca/edb8e650-6a60-467f-aa31-366db70e74e9/workflows/scripts/landing-actor-design-wf_a6cea05a-7ac.js`;
-   its phases after Synthesize can be run with the draft as input). Check the
-   draft against bd740748, which moved restart-moments 1a to the end of Phase 0
-   after the draft was written. Render the PDF, put F1-F5 to the founder.
-2. Build L1, then L2, one PR at a time behind the carrier's queue.
-3. The founder's open items are the queue PDF's §1-§4; the most blocking are the
-   Elenchus `felix commission` (#17 and #19 wait on it), Elenchus #22, and one
-   yes/no on #309/#310/#311 followed by `felix autonomy --allow commission`.
+**Next, Felix's to do (none needs the founder):**
+- **Capture.**
+  - `says.log` keeps whole prompts, or a pointer to the transcript line.
+  - Question-tool answers are indexed.
+  - `escalated` rows carry the session id (`felix:1441`) and are not written
+    on `--dry-run`.
+- **#319 has no mechanism yet.** Build a merge stop on roadmap paths and the
+  charter's split section only, and never on an engineering path.
+- **The interaction layer's first moments.**
+  - The Stop hook reads the closing report for work handed back, and for
+    "next is X" when X is approved work.
+  - An `asked` row per question.
+  - A decisions table with the originator, whether the owner was asked, and
+    the owner cost stated at the time.
+- **Lessons-ladder fixes (batch 2 §6).**
+  - Mount the full headline, not the bare date (132 of 181 entries mount as a
+    date).
+  - Match on the prompt, not the envelope.
+  - Give `mistakes.log` rows a session id.
+  - `projects/felix/CLAUDE.md:160-163` and `felix:930` describe the ladder
+    wrongly.
+- **The next episode batch.** Apply the four codebook rules in batch 2 §4 first,
+  and sample every session in a fixed week rather than choosing episodes.
+- **Carried from §0bv.**
+  - Control 7 after #310.
+  - The request that names a gitignored doctrine.
+  - #308, #309 and #311 (deny scope) and #312 (README), all still open.
 
 **Traps paid for this session:**
-
-- The session ran far past the ~500K restart line (memory
-  `session-lifetime-measured-2026-09-21`) because nothing checked; the founder
-  had to say so, and the process restart killed a running workflow. A long
-  orchestration session should check its size at each workflow boundary.
-- `felix merge --dry-run` writes an `escalated` row to says.log when an escape
-  is present, before it checks `--dry-run`. This session's triage wrote about 19
-  of them on 09-23 between 17:38Z and 18:52Z; they are not founder interruptions.
-- Workflow agents that make scratch worktrees register them in the shared repo,
-  with local branches that track real PR branches. Remove them when done (this
-  session removed 23).
-- Python-markdown needs a blank line before a list, four-space nesting, and no
-  fenced block inside a list item (it collapses to inline code). Check `<pre>`
-  counts before sending a PDF.
-- Resuming a workflow is same-session only; across a restart, read its
-  journal.jsonl (`result` records) and restart from the last completed phase.
+- **A docs-only branch passes the gate only while its engine equals
+  `refs/remotes/origin/main`.** Worktrees share that ref, and other sessions
+  fetch it mid-run. Merge main, check
+  `git diff --quiet refs/remotes/origin/main -- :/engine`, and gate at once.
+  Two gates failed on this before the third passed.
+- **Any `*.tsv` in the tree needs a `schemas.tsv` row, or `schema-check` fails
+  the gate.** Put data in as JSONL.
+- **At a load average of 100 to 140 the suite took over an hour, not ten
+  minutes.** Watch your own gate's PID: a watch keyed on "any `felix gate`"
+  never fires while other sessions are gating.
+- **A workflow dies with the session process.** Resuming it with the same
+  arguments re-ran finished stages under new cache keys. The first run's
+  `journal.jsonl` already held every result, so finish from the journal.
+- **The transcript reader printed task notifications and other sessions'
+  messages as FOUNDER,** and the old prompt index counted peer messages as
+  founder prompts. Both are fixed. The pilot, re-checked, holds no peer turns.
+- **The fact gate refuses a force-push whatever facts are given.** Add a commit
+  instead of amending.
+- **A plain `cd` into `docs/episodes` in one Bash call moved the working
+  directory for the calls after it.** Use absolute paths.

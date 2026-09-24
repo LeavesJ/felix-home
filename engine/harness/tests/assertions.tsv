@@ -240,6 +240,8 @@
 1	a due step containing a colon does not shift it
 1	a fact that moved under the receipt raises exactly one
 1	a failed commit says the memory is NOT backed up
+1	a failed install fails the repair step
+1	a failed run whose log cannot be read is refused, not briefed
 1	a failing gate still blocks
 1	a failing gate still exits non-zero
 1	a failing piped check is counted failed, and the report does not say a piped check's result is never marked an error
@@ -269,6 +271,7 @@
 1	a full-length sha nothing holds is unknown too
 1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
+1	a gate run that completed without failing is nothing to repair, and one that failed without a log is refused
 1	a gate that skipped the suite is not called a passing suite
 1	a gate_workflow that is not a file name is refused, and named
 1	a gitignored stray in the tree is residue, not drift
@@ -297,6 +300,7 @@
 1	a graph directory it cannot write still exits 0
 1	a graph file that is not there has no stamp either
 1	a graph of another tree does too
+1	a green branch stops the shipped step at scope, read from the real felix repair
 1	a green gate does not clear an escape
 1	a green gate on this exact tree allows it
 1	a green gate still asks for verification
@@ -779,6 +783,7 @@
 1	a three-column row beside it is still declared
 1	a three-field score answer is answered
 1	a tie is broken the same way whichever order the file lists
+1	a timed-out gate run is repaired, as the ceiling counts it
 1	a tool absent from the manifest is not a clean bill
 1	a tool call after it clears the count
 1	a tool that could not be checked is said, not counted as reachable
@@ -956,6 +961,7 @@
 1	an inapplicable row is rendered n/a, never ok, HELD or UNRUNNABLE
 1	an indented comment is refused, and the read-and-case loops take it for a row
 1	an inline server that interpolates a variable is high
+1	an install that succeeds goes on to the model
 1	an installPath that is not a directory reads absent
 1	an installed copy is tiered with its marketplace entry
 1	an installed copy that differs from what Felix read reads drift
@@ -1353,6 +1359,7 @@
 1	and it stops the streak rather than being skipped past
 1	and its actor is the word every other line uses
 1	and its base's workflow is not escalated as this branch's escape
+1	and its brief carries the failing output
 1	and its declines count as unchecked
 1	and its evidence cannot examine there
 1	and its evidence is never run
@@ -1470,6 +1477,7 @@
 1	and no longer claims a re-folded session never folded
 1	and no longer prints next steps
 1	and no memory root named --help is minted
+1	and no model is run
 1	and no night is announced when none was granted
 1	and no policy version either, there being no tables to hash
 1	and no rate is claimed over a numerator that cannot hold compliance
@@ -1482,6 +1490,7 @@
 1	and none of the commands out there are listed
 1	and none of the hand-written lines
 1	and none of them asks gh for every workflow's runs
+1	and none of them is handed on as a brief
 1	and none of them names the checkout it read
 1	and none reports a spend past the ceiling as recorded
 1	and not as an escape, which would escalate a typo to the founder
@@ -1513,6 +1522,8 @@
 1	and nothing was written to the real felix home pointer
 1	and now names each one it found
 1	and ok once a graph newer than the last commit exists
+1	and on a branch the gate has never run on
+1	and on a gate run still in progress
 1	and on every table, every other reader family reads those same rows
 1	and on it cut -f2 reads the first cell where an IFS read reads nothing
 1	and on it the reason a four-variable read assigns is not the reason cut -f4 reads
@@ -1540,11 +1551,13 @@
 1	and one with a session id records under exactly that id
 1	and one wrapped in bold
 1	and one written as a path
+1	and only nothing to repair tells the report so, under the name the report reads
 1	and only once per session
 1	and only rows of the right shape and kind are accepted
 1	and only the awaiting count records it
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
+1	and passes on npm's own reason
 1	and passes the facts it already has
 1	and picks the capability the skills serve
 1	and points at the read that needs no lock
@@ -1659,6 +1672,8 @@
 1	and says the gate has not seen it
 1	and says the gate never ran
 1	and says the gates still apply
+1	and says the install failed rather than ending in silence
+1	and says the log could not be read
 1	and says the memory it found was kept
 1	and says the receipt does not exist here
 1	and says the suite passed when nothing was skipped
@@ -1798,6 +1813,7 @@
 1	and the candidate's evidence did not run in the report
 1	and the cap is what it returns
 1	and the cause is the prompt, not the envelope
+1	and the ceiling counts it with the failure behind it
 1	and the checker it shows failing is no longer named
 1	and the checkout the graph was built from reads ok as well
 1	and the claim it could not support is gone
@@ -2308,7 +2324,9 @@
 1	felix procedures runs
 1	felix profile lists a row carrying the grounding column
 1	felix qualify names the reported checks no row qualifies
+1	felix repair exits 5, nothing to repair, on a green gate run
 1	felix repair reads the gate's run on the branch
+1	felix repair refuses a detached checkout rather than finding nothing to repair on HEAD
 1	felix repair stops at the ceiling when its attempts cannot be counted
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
@@ -2569,6 +2587,7 @@
 1	nothing found with no witness is unknown, never empty
 1	nothing in the tree but red.tsv changed
 1	nothing is allowed by default
+1	nothing to repair ends the job clean: not acted on, not failed, not escalated
 1	obligations.tsv is byte-identical after all four
 1	obligations.tsv is byte-identical after the report
 1	obligations.tsv is byte-identical at the end of the block

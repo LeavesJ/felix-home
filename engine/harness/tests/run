@@ -21626,6 +21626,1457 @@ _au --engine "$RVM/harness/felix" --home "$RVM/home2" --dir "$AUD" >/dev/null
          "home: $(ls -A "$RVM/home2"); stub log: $(head -3 "$AUSTUB_LOG")"
 : > "$AUSTUB_LOG"
 
+# ------------------------------------------------------ felix inventory ----
+# Where unlanded work is, derived rather than registered: a session that dies
+# registers nothing, so felix inventory reads disk, git, gh and the host's
+# session records, and writes nothing anywhere. Written blind, from the spec
+# alone (audits/2026-09-24-lost-work-sweep/inventory-spec.md), while the
+# command was being written by someone else, so each assertion names the
+# contract and none reads a wording.
+#
+# Rows are read from --tsv (kind repo ref states owner age_h detail). A row is
+# found by the name the fixture gave its item: a worktree by its directory, a
+# branch by its name, a pull request by its number, first in the ref column
+# and else anywhere on the line. A state is a token of the states column, in
+# the spec's vocabulary; a pull request's words are whole words of its detail.
+# Every check needs the row to exist, so an item left out never passes as an
+# item without the state. Placed after the audit section, whose transcript
+# helpers (_au_open and the rest) it uses.
+
+printf '\nfelix inventory: where unlanded work is, derived from disk, git, gh and the host\n'
+
+# One scratch root holds everything the command may read: a bare origin, a
+# main clone whose origin names GitHub (pushes are rewritten to the bare one
+# and fetches are not, so a fetch fails rather than reaching anything),
+# worktrees and orphans beside the clone, a second small repository for
+# --repo, gh and git behind stand-ins that log every call, and a scratch HOME
+# with Claude Code transcripts. The engine is a plain copy laid out the way a
+# clone lays it out, with no install, as the audit section's is.
+IV="$TMP/inventory"; mkdir -p "$IV"; IV="$(cd "$IV" && pwd -P)"
+IVW="$IV/work"; IVM="$IVW/widget"; IVO="$IV/origin.git"
+IVW2="$IV/work2"; IVG="$IVW2/gadget"; IVO2="$IV/origin2.git"
+IVH="$IV/home"; IVP="$IVH/.claude/projects"; IVT="$IV/tmp"
+IVGH="$IV/gh"; IVSTUB="$IV/stub"; IVGH_LOG="$IV/gh.log"; IVGIT_LOG="$IV/git.log"; IV_ERR="$IV/stderr"
+mkdir -p "$IVW" "$IVW2" "$IVH/.config" "$IVP" "$IVT" "$IVGH" "$IVSTUB" "$IV/cwd" "$IV/clone/felix/engine"
+: > "$IVGH_LOG"; : > "$IVGIT_LOG"; : > "$IV_ERR"
+cp -R "$REAL_HARNESS" "$IV/clone/felix/engine/harness"
+IVF="$IV/clone/felix/engine/harness/felix"
+IV_REALGIT="$(command -v git)"
+IV_JQ=0; command -v jq >/dev/null 2>&1 && IV_JQ=1
+IV_ORDER='hazard:shared-branch hazard:staged-revert live question blocked uncommitted unpushed unproposed pr-open pr-closed-unlanded orphan chip-unstarted handoff-pending landed'
+IV_WTS='wt-squash wt-same wt-dirty wt-unpushed wt-unproposed wt-closed wt-sharea wt-shareb wt-revert wt-live wt-query wt-bold wt-answered wt-blocked wt-unread'
+
+# The fixture's own git: a scratch HOME, no system config, a fixed author. Its
+# reads take no optional lock, so checking the fixture cannot refresh an index
+# the read-only assertion watches. Commits no worktree holds are built in a
+# temporary index outside every repository.
+_ivg() { HOME="$IVH" XDG_CONFIG_HOME="$IVH/.config" GIT_CONFIG_NOSYSTEM=1 \
+         GIT_AUTHOR_NAME=Fixture GIT_AUTHOR_EMAIL=fixture@example.invalid \
+         GIT_COMMITTER_NAME=Fixture GIT_COMMITTER_EMAIL=fixture@example.invalid git "$@"; }
+_ivq() { _ivg --no-optional-locks "$@"; }
+_ivi() { GIT_INDEX_FILE="$IV/idx" HOME="$IVH" XDG_CONFIG_HOME="$IVH/.config" GIT_CONFIG_NOSYSTEM=1 git "$@"; }
+IVC=""
+_ivc() {  # repo parent message path content [path content]... -> IVC
+  local r="$1" par="$2" msg="$3" blob tree; shift 3
+  _ivi -C "$r" read-tree "$par"
+  while [ $# -ge 2 ]; do
+    blob="$(printf '%s\n' "$2" | _ivg -C "$r" hash-object -w --stdin)"
+    _ivi -C "$r" update-index --add --cacheinfo "100644,$blob,$1"
+    shift 2
+  done
+  tree="$(_ivi -C "$r" write-tree)"
+  IVC="$(_ivg -C "$r" commit-tree "$tree" -p "$par" -m "$msg")"
+}
+_ivwc() { _ivg -C "$1" add -A && _ivg -C "$1" commit -q -m "$2"; }
+_ivwt() { _ivg -C "$IVM" worktree add -q "$@"; }
+_ivrepo() {  # bare clone owner/name
+  _ivg -c init.defaultBranch=main init -q --bare "$1"
+  _ivg -C "$1" symbolic-ref HEAD refs/heads/main
+  _ivg -c init.defaultBranch=main -c "url.$1.insteadOf=https://github.com/$3.git" \
+       clone -q "https://github.com/$3.git" "$2" 2>/dev/null
+  _ivg -C "$2" symbolic-ref HEAD refs/heads/main
+  _ivg -C "$2" config "url.$1.pushInsteadOf" "https://github.com/$3.git"
+}
+# A time N minutes ago, as a transcript timestamp or as touch -t wants it.
+_ivago() {
+  local t f u=-u
+  t=$(( $(date +%s) - $1 * 60 ))
+  if [ "$2" = touch ]; then f='+%Y%m%d%H%M.%S'; u=""; else f='+%Y-%m-%dT%H:%M:%S.000Z'; fi
+  date $u -r "$t" "$f" 2>/dev/null || date $u -d "@$t" "$f"
+}
+_ivtouch() { touch -t "$(_ivago "$2" touch)" "$1"; }
+# The host's directory for a working directory: every character outside
+# [A-Za-z0-9-] becomes -, as the spec's adapter section says.
+_ive() { printf '%s/' "$IVP"; printf '%s' "$1" | sed 's/[^A-Za-z0-9-]/-/g'; }
+_ivopen() { _au_open "$(_ive "$1")/$2.jsonl" "$2"; }
+
+# ---- widget: main, and the branches cut from it --------------------------
+_ivrepo "$IVO" "$IVM" acme/widget
+mkdir -p "$IVM/src"
+printf 'widget\n' > "$IVM/README.md"; printf 'core line\n' > "$IVM/src/core.txt"
+printf 'old\n' > "$IVM/src/old.txt"; printf 'base\n' > "$IVM/src/conflict.txt"
+printf '*.log\n' > "$IVM/.gitignore"
+_ivwc "$IVM" 'the first widget'; IV_C0="$(_ivg -C "$IVM" rev-parse HEAD)"
+_ivc "$IVM" "$IV_C0" 'the squash feature' src/squash.txt 'squash feature'; IV_S1="$IVC"
+_ivc "$IVM" "$IV_C0" 'the superseded file' src/superseded.txt 'superseded'; IV_X1="$IVC"
+_ivc "$IVM" "$IV_C0" 'two files, one of them main'"'"'s' src/partly-a.txt 'A' src/partly-b.txt 'B'; IV_PA="$IVC"
+_ivc "$IVM" "$IV_C0" 'the branch side' src/conflict.txt 'branch side' src/plain.txt 'plain'; IV_PL="$IVC"
+_ivc "$IVM" "$IV_C0" 'precedes, first' src/precedes.txt 'one'; IV_P1="$IVC"
+_ivc "$IVM" "$IV_P1" 'precedes, second' src/precedes.txt "$(printf 'one\ntwo')"; IV_P2="$IVC"
+# Main takes #4101 by squash (same content, no ancestry), a second edition
+# that deletes old.txt, holds superseded.txt and partly-a.txt as the branches
+# have them and changes conflict.txt, then #4102 squashed with an edit made
+# in review, and one handoff section waiting in pending/.
+printf 'squash feature\n' > "$IVM/src/squash.txt"
+_ivwc "$IVM" 'the squash feature (#4101)'
+rm -f "$IVM/src/old.txt"
+printf 'widget, second edition\n' > "$IVM/README.md"; printf 'superseded\n' > "$IVM/src/superseded.txt"
+printf 'A\n' > "$IVM/src/partly-a.txt"; printf 'main side\n' > "$IVM/src/conflict.txt"
+_ivwc "$IVM" 'the second edition'
+printf 'one\ntwo, as edited in review\n' > "$IVM/src/precedes.txt"
+mkdir -p "$IVM/docs/handoff/pending"
+cat > "$IVM/docs/handoff/pending/20260920T101010Z-frobnicator.md" <<'IVEOF'
+### 2026-09-20 - the frobnicator waits
+
+The frobnicator was designed here and not built.
+
+**Next:**
+- Build the frobnicator.
+- Measure the frobnicator.
+
+**Traps paid:**
+- Ignore this trap line.
+IVEOF
+_ivwc "$IVM" 'precedes, squashed with an edit (#4102), and a pending handoff'
+IV_C3="$(_ivg -C "$IVM" rev-parse HEAD)"
+_ivg -C "$IVM" push -q origin main
+_ivg -C "$IVM" remote set-head origin main
+
+# ---- worktrees beside the clone, and two orphans -------------------------
+_ivg -C "$IVM" branch topic/squash "$IV_S1"
+_ivwt "$IVW/wt-squash" topic/squash
+_ivwt -b topic/same "$IVW/wt-same" "$IV_C0"
+for _ivn in dirty unpushed unproposed closed revert live query bold answered blocked unread; do
+  _ivwt -b "topic/$_ivn" "$IVW/wt-$_ivn" "$IV_C3"
+done
+_ivg -C "$IVM" branch topic/shared "$IV_C3"
+_ivwt "$IVW/wt-sharea" topic/shared
+_ivwt -f "$IVW/wt-shareb" topic/shared
+_ivwt --detach "$IVW/orphan-edit" "$IV_C3"
+_ivwt --detach "$IVW/orphan-clean" "$IV_C3"
+printf 'unpushed\n' > "$IVW/wt-unpushed/src/unpushed.txt"; _ivwc "$IVW/wt-unpushed" 'work nobody pushed'
+printf 'unproposed\n' > "$IVW/wt-unproposed/src/unproposed.txt"; _ivwc "$IVW/wt-unproposed" 'work pushed with no pull request'
+printf 'closed\n' > "$IVW/wt-closed/src/closed.txt"; _ivwc "$IVW/wt-closed" 'work whose pull request was closed'
+IV_CL="$(_ivg -C "$IVW/wt-closed" rev-parse HEAD)"
+# The staged revert, as the sweep found it: wt-revert commits its tip, then
+# another checkout moves the branch on. wt-revert's HEAD follows the branch,
+# and its index still holds the first tip.
+printf 'revert one\n' > "$IVW/wt-revert/src/revert-one.txt"; _ivwc "$IVW/wt-revert" 'the first tip'
+IV_R1="$(_ivg -C "$IVW/wt-revert" rev-parse HEAD)"
+_ivc "$IVM" "$IV_R1" 'adopted by another checkout' src/revert-two.txt 'revert two'; IV_R2="$IVC"
+_ivg -C "$IVM" update-ref -m 'adopted by another checkout' refs/heads/topic/revert "$IV_R2" "$IV_R1"
+# Branches with no worktree: pull request heads (hold's felix/ready status
+# sits on its parent, not its head), one pushed with no pull request, and
+# local ones never pushed, two of them making the same change.
+_ivc "$IVM" "$IV_C3" 'hold, first' src/hold.txt 'hold one'; IV_H0="$IVC"
+_ivc "$IVM" "$IV_H0" 'hold, second' src/hold.txt 'hold two'; IV_H1="$IVC"
+_ivc "$IVM" "$IV_C3" 'ready' src/ready.txt 'ready'; IV_Y1="$IVC"
+_ivc "$IVM" "$IV_C3" 'needs the founder' src/needs.txt 'needs'; IV_N1="$IVC"
+_ivc "$IVM" "$IV_C3" 'remote only' src/remote-only.txt 'remote only'; IV_RO="$IVC"
+_ivc "$IVM" "$IV_C3" 'the duplicate, once' src/dup.txt 'duplicate'; IV_D1="$IVC"
+_ivc "$IVM" "$IV_C3" 'the duplicate, twice' src/dup.txt 'duplicate'; IV_D2="$IVC"
+_ivg -C "$IVM" branch topic/superseded "$IV_X1"
+_ivg -C "$IVM" branch topic/partly "$IV_PA"
+_ivg -C "$IVM" branch topic/precedes "$IV_P1"
+_ivg -C "$IVM" branch topic/dup-one "$IV_D1"
+_ivg -C "$IVM" branch topic/dup-two "$IV_D2"
+_ivg -C "$IVM" push -q origin topic/squash topic/superseded topic/unproposed topic/closed topic/revert \
+  "$IV_P2:refs/heads/topic/precedes" "$IV_PL:refs/heads/topic/pr-plain" "$IV_H1:refs/heads/topic/pr-hold" \
+  "$IV_Y1:refs/heads/topic/pr-ready" "$IV_N1:refs/heads/topic/pr-needs" "$IV_RO:refs/heads/topic/remote-only"
+# Uncommitted: a staged edit, an untracked file and an ignored one. Landed
+# though dirty: an untracked file and an edit that both hold main's content,
+# a deletion main made too, and an ignored file.
+printf 'dirty edit\n' >> "$IVW/wt-dirty/src/core.txt"; _ivg -C "$IVW/wt-dirty" add src/core.txt
+printf 'fresh\n' > "$IVW/wt-dirty/src/untracked-new.txt"; printf 'noise\n' > "$IVW/wt-dirty/build.log"
+printf 'squash feature\n' > "$IVW/wt-same/src/squash.txt"; rm -f "$IVW/wt-same/src/old.txt"
+printf 'widget, second edition\n' > "$IVW/wt-same/README.md"; printf 'noise\n' > "$IVW/wt-same/debug.log"
+# The orphans: git's record of them goes and the files stay, .git link too.
+# One holds two files whose content is in no object; the other holds none.
+printf 'orphan-only line\n' >> "$IVW/orphan-edit/src/core.txt"
+mkdir -p "$IVW/orphan-edit/notes"; printf 'only here\n' > "$IVW/orphan-edit/notes/orphan-new.txt"
+rm -rf "$IVM/.git/worktrees/orphan-edit" "$IVM/.git/worktrees/orphan-clean"
+
+# ---- gadget: a second repository, for --repo ----------------------------
+_ivrepo "$IVO2" "$IVG" acme/gadget
+printf 'gadget\n' > "$IVG/README.md"; _ivwc "$IVG" 'the first gadget'
+_ivg -C "$IVG" push -q origin main
+_ivg -C "$IVG" remote set-head origin main
+_ivc "$IVG" "$(_ivg -C "$IVG" rev-parse HEAD)" 'gadget work nobody pushed' src/gadget.txt 'gadget'
+_ivg -C "$IVG" branch topic/gadget-only "$IVC"
+
+# Every index goes stale: a file's mtime moves and its content does not, so a
+# git status that refreshes the index would rewrite it, and the read-only
+# assertion sees any git read taken without --no-optional-locks.
+for _ivn in widget $IV_WTS; do _ivtouch "$IVW/$_ivn/README.md" 1440; done
+_ivtouch "$IVG/README.md" 1440
+
+# ---- GitHub, as the stand-in answers it ----------------------------------
+# One JSON object per pull request, in gh's field names. #4101 and #4102
+# merged, #4107 and #4108 closed unmerged, five open.
+: > "$IVGH/prs.lines"
+_ivpr() {  # number branch state head updated-min labels mergeable rollup merged-min closed-min
+  local lab="" l one up cr me=null cl=null ms=CLEAN
+  for l in $6; do
+    printf -v one '{"id":"LA_%s","name":"%s","description":"","color":"ededed"}' "$l" "$l"
+    lab="$lab${lab:+,}$one"
+  done
+  up="$(_ivago "$5" iso)"; cr="$(_ivago 6000 iso)"
+  [ "$9" = - ] || me="\"$(_ivago "$9" iso)\""
+  [ "${10}" = - ] || cl="\"$(_ivago "${10}" iso)\""
+  [ "$7" = CONFLICTING ] && ms=DIRTY
+  printf -v one '{"number":%s,"title":"Change %s","state":"%s","isDraft":false,"headRefName":"%s","headRefOid":"%s","baseRefName":"main","createdAt":"%s","updatedAt":"%s","mergedAt":%s,"closedAt":%s,"labels":[%s],"mergeable":"%s","mergeStateStatus":"%s","statusCheckRollup":[%s],"url":"https://github.com/acme/widget/pull/%s","author":{"login":"fixture"},"headRepositoryOwner":{"login":"acme"},"reviewDecision":""}' \
+    "$1" "$1" "$3" "$2" "$4" "$cr" "$up" "$me" "$cl" "$lab" "$7" "$ms" "$8" "$1"
+  printf '%s\n' "$one" >> "$IVGH/prs.lines"
+}
+printf -v IV_ROLL '{"__typename":"StatusContext","context":"felix/ready","state":"SUCCESS","targetUrl":"","description":"ready","startedAt":"%s"}' "$(_ivago 100 iso)"
+_ivpr 4101 topic/squash     MERGED "$IV_S1" 2880 ''              UNKNOWN     ''         2880 2880
+_ivpr 4102 topic/precedes   MERGED "$IV_P2" 2400 ''              UNKNOWN     ''         2400 2400
+_ivpr 4103 topic/pr-hold    OPEN   "$IV_H1" 1800 'felix:hold'    MERGEABLE   ''         -    -
+_ivpr 4104 topic/pr-ready   OPEN   "$IV_Y1" 120  'felix:founder' MERGEABLE   "$IV_ROLL" -    -
+_ivpr 4105 topic/pr-plain   OPEN   "$IV_PL" 300  ''              CONFLICTING ''         -    -
+_ivpr 4106 topic/pr-needs   OPEN   "$IV_N1" 480  'needs-founder' MERGEABLE   ''         -    -
+_ivpr 4107 topic/closed     CLOSED "$IV_CL" 1200 ''              UNKNOWN     ''         -    1200
+_ivpr 4108 topic/superseded CLOSED "$IV_X1" 1500 ''              UNKNOWN     ''         -    1500
+_ivpr 4109 topic/revert     OPEN   "$IV_R2" 60   ''              MERGEABLE   ''         -    -
+LC_ALL=C awk 'BEGIN { printf "[" } NR > 1 { printf "," } { printf "%s", $0 } END { print "]" }' "$IVGH/prs.lines" > "$IVGH/prs.json"
+printf -v _ivst '{"context":"felix/ready","state":"success","description":"ready","target_url":"","created_at":"%s","updated_at":"%s","creator":{"login":"felix"}}' "$(_ivago 100 iso)" "$(_ivago 100 iso)"
+printf '{"%s":[%s],"%s":[%s]}\n' "$IV_H0" "$_ivst" "$IV_Y1" "$_ivst" > "$IVGH/statuses.json"
+
+# The gh stand-in: pr list/view/checks, repo view, auth status and api GETs
+# for commit statuses and pulls, from the files above, in gh's shapes, with
+# --json fields, --jq, --state, --head and --search head: honoured. Every call
+# is logged first. It serves no graphql and no write.
+printf '#!/bin/bash\nD=%s\nL=%s\n' "'$IVGH'" "'$IVGH_LOG'" > "$IVSTUB/gh"
+cat >> "$IVSTUB/gh" <<'IVGHEOF'
+set -f
+printf '%s\n' "$*" >> "$L"
+KEEP='def pr_keep($f): if $f == "" then . else ($f | split(",")) as $k | with_entries(select(.key as $x | any($k[]; . == $x))) end;'
+SEL='def pr_sel($st; $hd): select(($st == "all") or ($st == "open" and .state == "OPEN") or ($st == "closed" and (.state == "CLOSED" or .state == "MERGED")) or ($st == "merged" and .state == "MERGED")) | select($hd == "" or .headRefName == $hd);'
+REST='def pr_rest: {number, title, state: (if .state == "OPEN" then "open" else "closed" end), draft: .isDraft, merged_at: .mergedAt, closed_at: .closedAt, created_at: .createdAt, updated_at: .updatedAt, head: {ref: .headRefName, sha: .headRefOid, label: ("acme:" + .headRefName)}, base: {ref: .baseRefName}, labels: [.labels[] | {name}], user: {login: .author.login}, html_url: .url, mergeable: (if .mergeable == "CONFLICTING" then false elif .mergeable == "MERGEABLE" then true else null end), mergeable_state: (if .mergeable == "CONFLICTING" then "dirty" elif .mergeable == "MERGEABLE" then "clean" else "unknown" end)};'
+FIND='def pr_find($p): [.[] | select((.number | tostring) == $p or .headRefName == $p)] | sort_by([(if .state == "OPEN" then 1 else 0 end), .updatedAt]) | last;'
+CHECKS='def pr_checks($l): [$l[] | {name: .context, state: (.state | ascii_upcase), bucket: (if .state == "success" then "pass" elif .state == "pending" then "pending" else "fail" end), link: .target_url, description, workflow: ""}];'
+COMB='(.[$s] // []) as $l | {sha: $s, total_count: ($l | length), statuses: $l, state: (if ($l | length) == 0 then "pending" elif all($l[]; .state == "success") then "success" elif any($l[]; .state == "failure" or .state == "error") then "failure" else "pending" end)}'
+PLIST=' [.[] | pr_sel($st; $hd) | pr_keep($f)]'
+PTSV=' .[] | pr_sel($st; $hd) | [(.number | tostring), .title, .headRefName, .state, .createdAt] | @tsv'
+PVIEW=' pr_find($p) | if . == null then empty else pr_keep($f) end'
+PSHA=' pr_find($p) | if . == null then empty else .headRefOid end'
+PCHK=' pr_checks(.[$s] // [])'
+PBYSHA=' [.[] | select(.headRefOid == $s) | pr_rest]'
+PBYNUM=' [.[] | select((.number | tostring) == $n) | pr_rest] | .[0] // empty'
+PREST=' [.[] | pr_sel($st; $hd) | pr_rest]'
+KEEPALL=' [.[] | pr_keep($f)]'
+KEEPONE=' pr_keep($f)'
+REPO='{"nameWithOwner":"acme/widget","name":"widget","owner":{"login":"acme"},"defaultBranchRef":{"name":"main"},"url":"https://github.com/acme/widget","isPrivate":false}'
+RREPO='{"full_name":"acme/widget","name":"widget","owner":{"login":"acme"},"default_branch":"main","private":false,"html_url":"https://github.com/acme/widget"}'
+NF='{"message":"Not Found","status":"404"}'
+out() { if [ -n "$q" ]; then jq -r "$q"; else jq -cS .; fi; }
+nf()  { printf '%s\n' "$NF"; echo 'gh: Not Found (HTTP 404)' >&2; exit 1; }
+no()  { echo 'gh: the stand-in serves reads only' >&2; exit 1; }
+qv()  { printf '%s' "&$qs&" | tr '&' '\n' | sed -n "s/^$1=//p" | head -n 1; }
+cmd="${1:-}"; [ $# -gt 0 ] && shift
+sub=""
+case "$cmd" in pr|repo|auth) sub="${1:-}"; [ $# -gt 0 ] && shift ;; esac
+j=""; q=""; st=open; hd=""; se=""; me=""; fq=""; pos=""
+while [ $# -gt 0 ]; do
+  a="$1"; v="${2:-}"; n=2
+  case "$a" in --*=*) v="${a#*=}"; a="${a%%=*}"; n=1 ;; esac
+  case "$a" in
+    --json) j="$v" ;;
+    -q|--jq) q="$v" ;;
+    -s|--state) st="$v" ;;
+    --head) hd="$v" ;;
+    -H) [ "$cmd" = api ] || hd="$v" ;;
+    -S|--search) se="$v" ;;
+    -X|--method) me="$v" ;;
+    -f|-F|--field|--raw-field) fq="$fq&$v" ;;
+    --input) fq="$fq&input" ;;
+    --header|-R|--repo|-L|--limit|-t|--template|-B|--base|-A|--author|-l|--label|-a|--assignee|--hostname|--cache|-p|--preview) : ;;
+    -*) n=1 ;;
+    *) n=1; [ -n "$pos" ] || pos="$a" ;;
+  esac
+  if [ "$n" -eq 2 ] && [ $# -ge 2 ]; then shift 2; else shift; fi
+done
+for w in $se; do
+  case "$w" in
+    head:*) hd="${w#head:}" ;;
+    is:open|state:open) st=open ;;
+    is:closed|state:closed) st=closed ;;
+    is:merged) st=merged ;;
+  esac
+done
+case "$cmd:$sub" in
+  --version:*|version:*) echo 'gh version 2.99.0 (stand-in)' ;;
+  auth:status) echo 'github.com: logged in as fixture (stand-in)' >&2 ;;
+  pr:list)
+    if [ -z "$j" ]; then jq -r --arg st "$st" --arg hd "$hd" "$SEL$PTSV" "$D/prs.json"
+    else jq -c --arg st "$st" --arg hd "$hd" --arg f "$j" "$KEEP$SEL$PLIST" "$D/prs.json" | out; fi ;;
+  pr:view)
+    r=$(jq -c --arg p "$pos" --arg f "$j" "$KEEP$FIND$PVIEW" "$D/prs.json")
+    [ -n "$r" ] || { echo "no pull requests found for branch \"$pos\"" >&2; exit 1; }
+    printf '%s\n' "$r" | out ;;
+  pr:checks)
+    s=$(jq -r --arg p "$pos" "$FIND$PSHA" "$D/prs.json")
+    [ -n "$s" ] || { echo "no pull requests found for branch \"$pos\"" >&2; exit 1; }
+    c=$(jq -c --arg s "$s" "$CHECKS$PCHK" "$D/statuses.json")
+    [ "$c" != "[]" ] || { echo "no checks reported on the '$pos' branch" >&2; exit 1; }
+    if [ -n "$j" ]; then printf '%s\n' "$c" | jq -c --arg f "$j" "$KEEP$KEEPALL" | out
+    else printf '%s\n' "$c" | jq -r '.[] | [.name, .bucket, "0", .link, .description] | @tsv'; fi ;;
+  repo:view) printf '%s\n' "$REPO" | jq -c --arg f "$j" "$KEEP$KEEPONE" | out ;;
+  api:*)
+    case "$me" in ""|GET|get) ;; *) no ;; esac
+    [ -z "$fq" ] || [ -n "$me" ] || no
+    p="${pos#/}"; qs=""
+    case "$p" in *\?*) qs="${p#*\?}"; p="${p%%\?*}" ;; esac
+    qs="$qs$fq"
+    case "$p" in
+      graphql) echo 'gh: the stand-in serves no graphql' >&2; exit 1 ;;
+      */commits/*/status) s="${p%/status}"; s="${s##*/}"; jq -c --arg s "$s" "$COMB" "$D/statuses.json" | out ;;
+      */commits/*/statuses) s="${p%/statuses}"; s="${s##*/}"; jq -c --arg s "$s" '.[$s] // []' "$D/statuses.json" | out ;;
+      */statuses/*) s="${p##*/}"; jq -c --arg s "$s" '.[$s] // []' "$D/statuses.json" | out ;;
+      */commits/*/check-runs) printf '%s\n' '{"total_count":0,"check_runs":[]}' | out ;;
+      */commits/*/pulls) s="${p%/pulls}"; s="${s##*/}"; jq -c --arg s "$s" "$REST$PBYSHA" "$D/prs.json" | out ;;
+      */pulls/*) n="${p##*/}"; case "$n" in ''|*[!0-9]*) nf ;; esac
+                 r=$(jq -c --arg n "$n" "$REST$PBYNUM" "$D/prs.json"); [ -n "$r" ] || nf
+                 printf '%s\n' "$r" | out ;;
+      */pulls) s2=$(qv state); h2=$(qv head); h2="${h2#*:}"
+               jq -c --arg st "${s2:-open}" --arg hd "$h2" "$REST$SEL$PREST" "$D/prs.json" | out ;;
+      repos/*/*/*) nf ;;
+      repos/*/*) printf '%s\n' "$RREPO" | out ;;
+      *) nf ;;
+    esac ;;
+  *) echo "gh: the stand-in does not answer $cmd $sub" >&2; exit 1 ;;
+esac
+IVGHEOF
+# The git stand-in logs each call, with GIT_OPTIONAL_LOCKS as git itself sets
+# it for its children, and runs the real git.
+cat > "$IVSTUB/git" <<IVGITEOF
+#!/bin/sh
+printf '%s\t%s\n' "\${GIT_OPTIONAL_LOCKS:-}" "\$*" >> "$IVGIT_LOG"
+exec "$IV_REALGIT" "\$@"
+IVGITEOF
+chmod +x "$IVSTUB/gh" "$IVSTUB/git"
+
+# ---- the host's session records ------------------------------------------
+IV_PA_PROMPT='Alpha task: make the parser treat a blank line as the end of a record, then add a test that feeds it two records split by one blank line and checks both.'
+IV_PC_PROMPT='Gamma task: rename the config loader so it says what it loads, update every caller in the tree, and keep the old name as a thin alias for one release.'
+IV_PD_PROMPT='Delta task: give the scheduler a dry-run mode that prints the jobs it would start and starts none, with a test that counts zero starts made by it.'
+IV_PE_PROMPT='Epsilon task: move the retry budget into the settings file so it can change without a release, and assert the default stays at three attempts.'
+IV_PF_PROMPT='Zeta task: make the export write its rows in a stable order so two runs over one input produce the same file, and test that twice in a row.'
+_ivchip() {  # ts tool-id task-id title prompt
+  local inp res
+  printf -v inp '{"title":"%s","tldr":"%s","prompt":"%s"}' "$4" 'Noticed in passing.' "$5"
+  _au_tool "$2" mcp__ccd_session__spawn_task "$inp"; _au_a "$1" "msg_$2" '"tool_use"' "$_AU_B"
+  printf -v res '[{"tool_use_id":"%s","type":"tool_result","content":[{"type":"text","text":"Noted (position 1, task_id: %s). A chip is showing for the user."}]}]' "$2" "$3"
+  _au_u "$1" "$res"
+}
+# wt-query: an older session ended on a statement, the newest on a question.
+_ivopen "$IVW/wt-query" a1a1a1a1-0000-4000-8000-000000000001
+_au_say  "$(_ivago 302 iso)" 'tidy the notes'
+_au_stop "$(_ivago 300 iso)" msg_q0 'Tidied the notes.'
+_ivtouch "$_AU_F" 300
+_ivopen "$IVW/wt-query" a1a1a1a1-0000-4000-8000-000000000002
+_au_say  "$(_ivago 182 iso)" 'prepare the push'
+_au_stop "$(_ivago 180 iso)" msg_q1 'The branch is ready. Shall I push it?'
+_ivtouch "$_AU_F" 180
+# wt-bold: a question in bold, then only a system envelope.
+_ivopen "$IVW/wt-bold" b2b2b2b2-0000-4000-8000-000000000001
+_au_say  "$(_ivago 184 iso)" 'compare the two layouts'
+_au_tool toolu_bold1 Bash '{"command":"ls","description":"List them"}'
+_au_a    "$(_ivago 183 iso)" msg_b1 '"tool_use"' "$_AU_B"
+_au_res  "$(_ivago 182 iso)" toolu_bold1 ok
+_au_stop "$(_ivago 181 iso)" msg_b2 'Two layouts remain. **Which one do you want?**'
+_au_say  "$(_ivago 180 iso)" '<system-reminder>A background task finished.</system-reminder>'
+_ivtouch "$_AU_F" 180
+# wt-answered: an older session ended on a question; the newest asked one and
+# was answered. A fresh subagent transcript ending on a question is added
+# just before the runs, under the newest session's subagents/ directory.
+_ivopen "$IVW/wt-answered" c3c3c3c3-0000-4000-8000-000000000001
+_au_say  "$(_ivago 302 iso)" 'clean up'
+_au_stop "$(_ivago 300 iso)" msg_n0 'Shall I delete the scratch branch?'
+_ivtouch "$_AU_F" 300
+IV_NID=c3c3c3c3-0000-4000-8000-000000000002
+_ivopen "$IVW/wt-answered" "$IV_NID"
+_au_say  "$(_ivago 183 iso)" 'get it ready'
+_au_stop "$(_ivago 182 iso)" msg_n1 'It is ready. Should I push?'
+_au_say  "$(_ivago 180 iso)" 'yes, push it'
+_ivtouch "$_AU_F" 180
+# wt-blocked: the last record is a tool call with no result, two hours old.
+_ivopen "$IVW/wt-blocked" d4d4d4d4-0000-4000-8000-000000000001
+_au_say  "$(_ivago 125 iso)" 'run the daily watch'
+_au_tool toolu_k1 Bash '{"command":"date","description":"Read the clock"}'
+_au_a    "$(_ivago 124 iso)" msg_k1 '"tool_use"' "$_AU_B"
+_au_res  "$(_ivago 123 iso)" toolu_k1 ok
+_au_tool toolu_k2 Bash '{"command":"watch-the-ledger","description":"Watch the ledger"}'
+_au_a    "$(_ivago 120 iso)" msg_k2 '"tool_use"' "$_AU_B"
+_ivtouch "$_AU_F" 120
+# wt-unread: the newest session cannot be read at all.
+_ivopen "$IVW/wt-unread" e5e5e5e5-0000-4000-8000-000000000001
+_au_say  "$(_ivago 182 iso)" 'look around'
+_au_stop "$(_ivago 180 iso)" msg_u1 'Shall I go on?'
+_ivtouch "$_AU_F" 180
+IV_UNREAD="$_AU_F"; chmod 000 "$IV_UNREAD"
+# wt-squash: five chips. Epsilon's session is twenty days old, past the
+# default window of 14 (decision D4 of 2026-09-24; it was ten days old
+# against the old default of 7). Alpha, Gamma and
+# Delta come two days ago; Gamma is dismissed there; Alpha is started a day
+# later by a session whose first human message repeats its prompt's first 120
+# characters; Delta's prompt opens a session from before it was suggested,
+# which starts nothing. Zeta is suggested in a directory of no worktree here.
+_ivopen "$IVW/wt-squash" f6f6f6f6-0000-4000-8000-000000000001
+_au_say  "$(_ivago 28802 iso)" 'note what is left'
+_ivchip  "$(_ivago 28801 iso)" toolu_ce task_e5e5e5e5 'Epsilon chip too old' "$IV_PE_PROMPT"
+_au_stop "$(_ivago 28800 iso)" msg_e9 'Noted.'
+_ivtouch "$_AU_F" 28800
+_ivopen "$IVW/wt-squash" f6f6f6f6-0000-4000-8000-000000000002
+_au_say  "$(_ivago 2885 iso)" 'file the follow-ups'
+_ivchip  "$(_ivago 2884 iso)" toolu_ca task_a1a1a1a1 'Alpha chip started later' "$IV_PA_PROMPT"
+_ivchip  "$(_ivago 2883 iso)" toolu_cc task_c3c3c3c3 'Gamma chip dismissed' "$IV_PC_PROMPT"
+_ivchip  "$(_ivago 2882 iso)" toolu_cd task_d4d4d4d4 'Delta chip never started' "$IV_PD_PROMPT"
+_au_tool toolu_cx mcp__ccd_session__dismiss_task '{"task_id":"task_c3c3c3c3","reason":"fixed in this session"}'
+_au_a    "$(_ivago 2881 iso)" msg_cx '"tool_use"' "$_AU_B"
+_au_res  "$(_ivago 2881 iso)" toolu_cx ok
+_au_stop "$(_ivago 2880 iso)" msg_cz 'Filed the follow-ups.'
+_ivtouch "$_AU_F" 2880
+_au_open "$IVP/-elsewhere-started/a7a7a7a7-0000-4000-8000-000000000001.jsonl" a7a7a7a7-0000-4000-8000-000000000001
+_au_raw  '{"type":"queue-operation","operation":"enqueue","sessionId":"a7a7a7a7-0000-4000-8000-000000000001"}'
+_au_say  "$(_ivago 1442 iso)" "${IV_PA_PROMPT:0:120} - and say so in the changelog."
+_au_stop "$(_ivago 1440 iso)" msg_sa 'Done, and noted.'
+_ivtouch "$_AU_F" 1440
+_au_open "$IVP/-elsewhere-early/a8a8a8a8-0000-4000-8000-000000000001.jsonl" a8a8a8a8-0000-4000-8000-000000000001
+_au_say  "$(_ivago 4322 iso)" "$IV_PD_PROMPT"
+_au_stop "$(_ivago 4320 iso)" msg_se 'Done.'
+_ivtouch "$_AU_F" 4320
+_au_open "$IVP/-elsewhere-other/a9a9a9a9-0000-4000-8000-000000000001.jsonl" a9a9a9a9-0000-4000-8000-000000000001
+_au_say  "$(_ivago 2885 iso)" 'look around'
+_ivchip  "$(_ivago 2884 iso)" toolu_cf task_f6f6f6f6 'Zeta chip elsewhere' "$IV_PF_PROMPT"
+_au_stop "$(_ivago 2880 iso)" msg_so 'Noted.'
+_ivtouch "$_AU_F" 2880
+
+# ---- the fixture holds what the assertions below say it holds ------------
+IV_FX="$IV/fx"
+_ivfx=""
+[ "$(_ivq -C "$IVW/wt-revert" rev-parse HEAD)" = "$IV_R2" ] || _ivfx="$_ivfx HEAD is not the adopted commit;"
+_ivq -C "$IVW/wt-revert" diff-index --cached --quiet "$IV_R1" || _ivfx="$_ivfx the index is not the first tip;"
+_ivq -C "$IVW/wt-revert" diff-index --cached --quiet "$IV_R2" && _ivfx="$_ivfx the index equals HEAD;"
+_ivq -C "$IVM" reflog show --format=%H topic/revert > "$IV_FX" 2>&1
+grep -qx "$IV_R1" "$IV_FX" || _ivfx="$_ivfx the branch reflog lacks the first tip;"
+[ -z "$_ivfx" ] && ok  "the fixture: wt-revert's HEAD moved on while its index holds the branch's earlier tip, which the reflog records" \
+                || bad "the fixture: wt-revert's HEAD moved on while its index holds the branch's earlier tip, which the reflog records" "$_ivfx"
+_ivfx=""
+_ivq -C "$IVM" worktree list --porcelain > "$IV_FX"
+[ "$(grep -c '^branch refs/heads/topic/shared$' "$IV_FX")" = 2 ] || _ivfx="$_ivfx topic/shared is not in two worktrees;"
+grep -q 'orphan-' "$IV_FX" && _ivfx="$_ivfx git still lists an orphan;"
+{ [ -f "$IVW/orphan-edit/.git" ] && [ -f "$IVW/orphan-clean/README.md" ]; } || _ivfx="$_ivfx an orphan lost its files;"
+[ "$(_ivq -C "$IVM" symbolic-ref refs/remotes/origin/HEAD)" = refs/remotes/origin/main ] || _ivfx="$_ivfx origin/HEAD is not origin/main;"
+[ "$(_ivq -C "$IVM" remote get-url origin)" = https://github.com/acme/widget.git ] || _ivfx="$_ivfx origin does not name GitHub;"
+[ -z "$_ivfx" ] && ok  "the fixture: one branch sits in two worktrees, git lists neither orphan, and origin names GitHub with origin/HEAD at main" \
+                || bad "the fixture: one branch sits in two worktrees, git lists neither orphan, and origin names GitHub with origin/HEAD at main" "$_ivfx"
+_ivfx=""
+_ivq -C "$IVM" merge-base --is-ancestor "$IV_S1" origin/main && _ivfx="$_ivfx the squash is an ancestor;"
+[ "$(_ivq -C "$IVM" rev-parse "$IV_S1:src/squash.txt")" = "$(_ivq -C "$IVM" rev-parse origin/main:src/squash.txt)" ] || _ivfx="$_ivfx main lacks the squash content;"
+_ivq -C "$IVM" merge-base --is-ancestor "$IV_P1" "$IV_P2" || _ivfx="$_ivfx P1 does not precede P2;"
+[ "$(_ivq -C "$IVM" rev-parse "$IV_P1:src/precedes.txt")" = "$(_ivq -C "$IVM" rev-parse origin/main:src/precedes.txt)" ] && _ivfx="$_ivfx main holds P1's content;"
+[ "$(_ivq -C "$IVM" rev-parse "$IV_X1:src/superseded.txt")" = "$(_ivq -C "$IVM" rev-parse origin/main:src/superseded.txt)" ] || _ivfx="$_ivfx main lacks superseded.txt;"
+_ivq -C "$IVM" cat-file -e origin/main:src/closed.txt 2>/dev/null && _ivfx="$_ivfx main holds closed.txt;"
+[ "$(_ivq -C "$IVM" rev-parse origin/topic/pr-hold)" = "$IV_H1" ] || _ivfx="$_ivfx origin/topic/pr-hold is not the head;"
+[ "$(_ivq -C "$IVM" rev-parse origin/topic/precedes)" = "$IV_P2" ] || _ivfx="$_ivfx origin/topic/precedes is not P2;"
+[ "$(_ivq -C "$IVM" rev-parse origin/topic/revert)" = "$IV_R2" ] || _ivfx="$_ivfx origin/topic/revert is not the adopted commit;"
+for _ivn in topic/unpushed topic/partly topic/dup-one topic/dup-two; do
+  [ "$(_ivq -C "$IVM" rev-list --count "$_ivn" --not --remotes)" = 1 ] || _ivfx="$_ivfx $_ivn is not one commit on no remote;"
+done
+_ivq -C "$IVM" rev-parse -q --verify refs/heads/topic/remote-only >/dev/null && _ivfx="$_ivfx topic/remote-only has a local copy;"
+[ -z "$_ivfx" ] && ok  "the fixture: squash, precedes, superseded and closed hold main's content as built, and each push and non-push is where it was meant" \
+                || bad "the fixture: squash, precedes, superseded and closed hold main's content as built, and each push and non-push is where it was meant" "$_ivfx"
+_ivfx=""
+for _ivn in src/squash.txt README.md; do
+  [ "$(_ivq -C "$IVW/wt-same" hash-object "$_ivn")" = "$(_ivq -C "$IVM" rev-parse "origin/main:$_ivn")" ] || _ivfx="$_ivfx wt-same's $_ivn is not main's;"
+done
+_ivq -C "$IVM" cat-file -e origin/main:src/old.txt 2>/dev/null && _ivfx="$_ivfx main still has old.txt;"
+_ivq -C "$IVW/wt-same" check-ignore -q debug.log || _ivfx="$_ivfx debug.log is not ignored;"
+_ivq -C "$IVW/wt-dirty" status --porcelain > "$IV_FX"
+[ "$(tr '\n' ';' < "$IV_FX")" = 'M  src/core.txt;?? src/untracked-new.txt;' ] || _ivfx="$_ivfx wt-dirty's status is [$(tr '\n' ';' < "$IV_FX")];"
+_ivq -C "$IVW/wt-squash" status --porcelain > "$IV_FX"
+[ -s "$IV_FX" ] && _ivfx="$_ivfx wt-squash is not clean;"
+[ -z "$_ivfx" ] && ok  "the fixture: wt-same's changes are main's content and an ignored file, and wt-dirty holds a staged edit and an untracked file only" \
+                || bad "the fixture: wt-same's changes are main's content and an ignored file, and wt-dirty holds a staged edit and an untracked file only" "$_ivfx"
+if [ "$IV_JQ" = 1 ]; then
+  _ivfx="$(PATH="$IVSTUB:$PATH" gh pr list --state all --json number,headRefName --jq 'length') $(PATH="$IVSTUB:$PATH" gh api "repos/acme/widget/commits/$IV_Y1/status" --jq .state) $(PATH="$IVSTUB:$PATH" gh pr list --json number --jq 'length') $(PATH="$IVSTUB:$PATH" gh api "repos/acme/widget/commits/$IV_H1/status" --jq .state)"
+  is "the fixture: the gh stand-in lists nine pull requests, five open, with felix/ready on one head and not on another" "$_ivfx" "9 success 5 pending"
+else
+  skip "the fixture: the gh stand-in lists nine pull requests, five open, with felix/ready on one head and not on another" "no jq for the gh stand-in"
+fi
+PATH="$IVSTUB:$PATH" git --no-optional-locks -C "$IVM" rev-parse HEAD >/dev/null
+has "the fixture: the git stand-in logs its calls and runs the real git" "$(cat "$IVGIT_LOG")" "--no-optional-locks -C $IVM rev-parse HEAD"
+: > "$IVGH_LOG"; : > "$IVGIT_LOG"
+
+# ---- the runs ------------------------------------------------------------
+# felix from the main clone, with the stand-ins first on PATH, the scratch
+# HOME and TMPDIR, nothing of Felix's in the environment, no system git config,
+# only the file transport, and discovery stopped at the scratch root.
+_ivrun() {  # [--path P] [--cwd D] [--bash B] felix-args...
+  local p="$IVSTUB:$PATH" d="$IVM" b=""
+  while :; do
+    case "${1:-}" in
+      --path) p="$2"; shift 2 ;;
+      --cwd)  d="$2"; shift 2 ;;
+      --bash) b="$2"; shift 2 ;;
+      *) break ;;
+    esac
+  done
+  ( cd "$d" || exit 97
+    unset FELIX_HOME FELIX_MEMORY FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE CLAUDE_PLUGIN_ROOT \
+          CLAUDE_CONFIG_DIR GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OPTIONAL_LOCKS GIT_CEILING_DIRECTORIES
+    export HOME="$IVH" TMPDIR="$IVT" PATH="$p" XDG_CONFIG_HOME="$IVH/.config" GIT_CONFIG_NOSYSTEM=1 \
+           GIT_ALLOW_PROTOCOL=file GIT_TERMINAL_PROMPT=0 GIT_CEILING_DIRECTORIES="$IV"
+    if [ -n "$b" ]; then "$b" "$IVF" "$@"; else "$IVF" "$@"; fi ) 2>>"$IV_ERR"
+}
+# The help may go to either stream; _ivrun keeps stderr in $IV_ERR, empty
+# until now.
+case "$(_ivrun)$(cat "$IV_ERR")" in
+  *"felix inventory"*) ok  "felix with no arguments lists felix inventory in the grouped help" ;;
+  *)                   bad "felix with no arguments lists felix inventory in the grouped help" "no felix inventory line in the help" ;;
+esac
+: > "$IV_ERR"
+
+# The live session and a fresh subagent transcript are written last, so their
+# ages at the runs are minutes, then everything is listed and checksummed.
+_ivopen "$IVW/wt-live" 99999999-0000-4000-8000-000000000001
+_au_say  "$(_ivago 4 iso)" 'watch the build'
+_au_tool toolu_l1 Bash '{"command":"make watch","description":"Watch the build"}'
+_au_a    "$(_ivago 3 iso)" msg_l1 '"tool_use"' "$_AU_B"
+_ivtouch "$_AU_F" 3
+_au_open "$(_ive "$IVW/wt-answered")/$IV_NID/subagents/agent-a1.jsonl" agent-a1
+_au_say  "$(_ivago 2 iso)" 'look into it'
+_au_stop "$(_ivago 1 iso)" msg_sub 'Found it. Anything else?'
+_ivtouch "$_AU_F" 1
+_iv_sum=cksum; command -v shasum >/dev/null 2>&1 && _iv_sum=shasum
+_iv_snap() {
+  local d
+  for d in "$IVW" "$IVW2" "$IVO" "$IVO2" "$IVH"; do
+    ( cd "$d" && find . -print | LC_ALL=C sort && find . -type f -exec "$_iv_sum" {} + | LC_ALL=C sort ) 2>&1
+  done
+  _ivg -C "$IVM" count-objects -v; _ivg -C "$IVG" count-objects -v
+}
+_iv_before="$(_iv_snap)"
+: > "$IV/marker"
+
+# ---- reading the rows ----------------------------------------------------
+# _iv_sel FILE TOKEN puts the rows naming TOKEN in $IV/sel; _iv_q asks a
+# question of them and needs at least one row. A chip's or a handoff's row
+# may name the worktree it came from, and is never that worktree's row.
+_iv_sel() { LC_ALL=C awk -F'\t' -v t="$2" '
+    $1 == "kind" && $4 == "states" { next }
+    { x = " " $4 " "; gsub(/[^a-z:-]+/, " ", x) }
+    index(x, " chip-unstarted ") || index(x, " handoff-pending ") { next }
+    index($3, t) { r[++n] = $0; next }
+    index($0, t) { o[++m] = $0 }
+    END { if (n) { for (i = 1; i <= n; i++) print r[i] } else { for (i = 1; i <= m; i++) print o[i] } }' "$1" > "$IV/sel"; }
+_iv_selstate() { LC_ALL=C awk -F'\t' -v s="$2" '
+    $1 == "kind" && $4 == "states" { next }
+    { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, t, " "); for (i = 1; i <= k; i++) if (t[i] == s) { print; break } }' "$1" > "$IV/sel"; }
+#   lead S     every row's first state is S      hold S    some row holds S
+#   lack S     no row holds S                    word C:W  some row has word W in column C (0: the line)
+#   noword C:W no row has it                     num L:H   some row's age_h or detail holds a number in L..H
+#   dnum L:H   some row's detail holds one
+_iv_q() { LC_ALL=C awk -F'\t' -v m="$1" -v a="$2" '
+  function has(s,   x, k, i, t) { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, t, " "); for (i = 1; i <= k; i++) if (t[i] == s) return 1; return 0 }
+  function lead(   x, t) { x = $4; gsub(/[^a-z:-]+/, " ", x); split(x, t, " "); return t[1] }
+  function word(c, w,   x) { x = tolower(c == 0 ? $0 : $c); return x ~ ("(^|[^a-z])" w "([^a-z]|$)") }
+  function num(s, lo, hi,   v) { while (match(s, /[0-9]+(\.[0-9]+)?/)) { v = substr(s, RSTART, RLENGTH) + 0; if (v >= lo && v <= hi) return 1; s = substr(s, RSTART + RLENGTH) } return 0 }
+  { n++; split(a, p, ":")
+    if (m == "lead") { if (lead() != a) b = 1 }
+    else if (m == "hold") { if (has(a)) g = 1 }
+    else if (m == "lack") { if (has(a)) b = 1 }
+    else if (m == "word") { if (word(p[1] + 0, p[2])) g = 1 }
+    else if (m == "noword") { if (word(p[1] + 0, p[2])) b = 1 }
+    else if (m == "num") { if (num($6 " " $7, p[1] + 0, p[2] + 0)) g = 1 }
+    else if (m == "dnum") { if (num($7, p[1] + 0, p[2] + 0)) g = 1 } }
+  END { if (!n || b) exit 1; if (m == "hold" || m == "word" || m == "num" || m == "dnum") exit g ? 0 : 1; exit 0 }' "$IV/sel"; }
+# The table's states on each selected row, rows joined by " | ".
+_iv_states() { LC_ALL=C awk -F'\t' -v o="$IV_ORDER" '
+  BEGIN { n = split(o, a, " "); for (i = 1; i <= n; i++) known[a[i]] = 1 }
+  { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, s, " "); r = ""
+    for (i = 1; i <= k; i++) if (s[i] in known) r = r (r == "" ? "" : " ") s[i]
+    out = out (NR > 1 ? " | " : "") r }
+  END { print out }' "$IV/sel"; }
+_iv_diag() { if [ -s "$IV/sel" ]; then tr '\t\n' '|;' < "$IV/sel" | head -c 700; else printf 'no row names it; stderr: '; tail -c 300 "$IV_ERR" | tr '\n' ' '; fi; }
+_iv_chk() {  # name file token mode arg
+  _iv_sel "$2" "$3"
+  if _iv_q "$4" "$5"; then ok "$1"; else bad "$1" "$(_iv_diag)"; fi; }
+_ivgh() { if [ "$IV_JQ" = 1 ]; then "$@"; else skip "$2" "no jq for the gh stand-in"; fi; }
+_iv_count() { LC_ALL=C awk -F'\t' -v s="$2" '
+  $1 == "kind" && $4 == "states" { next }
+  { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, t, " "); for (i = 1; i <= k; i++) if (t[i] == s) { c++; break } }
+  END { print c + 0 }' "$1"; }
+_iv_fields() { LC_ALL=C awk -F'\t' 'NF && NF != 7 { printf "line %d has %d fields; ", NR, NF }' "$1"; }
+_iv_blank()  { LC_ALL=C awk -F'\t' 'NF == 7 && ($1 == "" || $2 == "" || $3 == "" || $4 == "") { printf "line %d; ", NR }' "$1"; }
+_iv_repos()  { LC_ALL=C awk -F'\t' '$1 == "kind" && $4 == "states" { next } NF { r[$2] = 1 } END { for (k in r) print k }' "$1"; }
+_iv_order()  { LC_ALL=C awk -F'\t' -v o="$IV_ORDER" '
+  BEGIN { n = split(o, a, " "); for (i = 1; i <= n; i++) r[a[i]] = i }
+  $1 == "kind" && $4 == "states" { next }
+  { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, s, " "); l = 0
+    for (i = 1; i <= k; i++) if (s[i] in r) { if (r[s[i]] < l) { printf "%s [%s]; ", $3, $4; break } l = r[s[i]] } }' "$1"; }
+_iv_landx()  { LC_ALL=C awk -F'\t' -v o="$IV_ORDER" '
+  BEGIN { n = split(o, a, " "); for (i = 1; i <= n; i++) r[a[i]] = 1 }
+  $1 == "kind" && $4 == "states" { next }
+  { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, s, " "); L = 0; X = 0
+    for (i = 1; i <= k; i++) { if (s[i] == "landed") L = 1; else if (s[i] != "live" && (s[i] in r)) X = 1 }
+    if (L && X) printf "%s [%s]; ", $3, $4 }' "$1"; }
+_iv_kinds()  { LC_ALL=C awk -F'\t' -v g="${2:-}" '$1 == "kind" && $4 == "states" { next } NF && $2 != g { print $1 "\t" $4 }' "$1" | LC_ALL=C sort; }
+_iv_named()  { local f="$1" n m=""; shift; for n in "$@"; do grep -qF -- "$n" "$f" || m="$m $n"; done; printf '%s' "$m"; }
+_iv_col2()   { LC_ALL=C awk -F'\t' 'NR == 1 { print $2 }' "$IV/sel"; }
+_ivnr()      { LC_ALL=C awk 'END { print NR }' "$1"; }
+
+# ---- --tsv ---------------------------------------------------------------
+# Every run that reads items names the repository with --repo, from inside
+# it, so a fault in finding the repository one stands in fails the two
+# assertions about that below and not every item's.
+IV_T1="$IV/t1.tsv"; _ivrun inventory --tsv --repo "$IVM" > "$IV_T1"; IV_RC1=$?
+IV_D1="rc=$IV_RC1; stdout: $(head -c 300 "$IV_T1" | tr '\t\n' '|;'); stderr: $(tail -c 300 "$IV_ERR" | tr '\n' ' ')"
+is  "felix inventory --tsv exits 0 over a repository it can read" "$IV_RC1" "0"
+_ivx="$(_iv_fields "$IV_T1")"
+if [ -s "$IV_T1" ] && [ -z "$_ivx" ]; then ok "every --tsv row has seven tab-separated fields, and there are rows"
+else bad "every --tsv row has seven tab-separated fields, and there are rows" "${_ivx:-no rows; $IV_D1}"; fi
+_ivx="$(_iv_blank "$IV_T1")"
+if [ -s "$IV_T1" ] && [ -z "$_ivx" ]; then ok "every row fills its kind, repo, ref and states"
+else bad "every row fills its kind, repo, ref and states" "${_ivx:-no rows}"; fi
+_ivx="$(_iv_repos "$IV_T1")"
+case "$_ivx" in
+  *widget*) [ "$(printf '%s\n' "$_ivx" | wc -l | tr -d ' ')" = 1 ] && ok "every row names the one repository it was run in" \
+            || bad "every row names the one repository it was run in" "repos: $(printf '%s' "$_ivx" | tr '\n' ';')" ;;
+  *) bad "every row names the one repository it was run in" "repos: [$(printf '%s' "$_ivx" | tr '\n' ';')]" ;;
+esac
+_ivx="$(_iv_order "$IV_T1")"
+if [ -s "$IV_T1" ] && [ -z "$_ivx" ]; then ok "every row prints its states in the spec's table order, so the first is its headline"
+else bad "every row prints its states in the spec's table order, so the first is its headline" "${_ivx:-no rows}"; fi
+_ivx="$(_iv_landx "$IV_T1")"
+if [ -s "$IV_T1" ] && [ -z "$_ivx" ]; then ok "no row is landed together with any state but live"
+else bad "no row is landed together with any state but live" "${_ivx:-no rows}"; fi
+_ivx="$(_iv_named "$IV_T1" $IV_WTS orphan-edit orphan-clean topic/superseded topic/partly topic/precedes topic/dup-one topic/dup-two topic/remote-only 4103 4104 4105 4106 4109)"
+[ -s "$IV_T1" ] && [ -z "$_ivx" ] && ok "every worktree, orphan, unchecked-out branch, remote-only branch and open pull request in the fixture has a row naming it" \
+  || bad "every worktree, orphan, unchecked-out branch, remote-only branch and open pull request in the fixture has a row naming it" "unnamed:${_ivx:- all, no rows}"
+# Standing in the repository, in the main clone or in a linked worktree of it,
+# reads the same repository.
+IV_T0="$IV/t0.tsv"; _ivrun inventory --tsv > "$IV_T0"; IV_RC0=$?
+[ "$IV_RC0" -eq 0 ] && [ -s "$IV_T1" ] && [ "$(_iv_kinds "$IV_T0")" = "$(_iv_kinds "$IV_T1")" ] \
+  && ok "standing in the main clone with no --repo gives the items and states --repo naming it gives" \
+  || bad "standing in the main clone with no --repo gives the items and states --repo naming it gives" \
+         "rc=$IV_RC0; $(_ivnr "$IV_T0") rows standing in, $(_ivnr "$IV_T1") with --repo"
+IV_T0W="$IV/t0w.tsv"; _ivrun --cwd "$IVW/wt-squash" inventory --tsv > "$IV_T0W"; IV_RC0W=$?
+[ "$IV_RC0W" -eq 0 ] && [ -s "$IV_T1" ] && [ "$(_iv_kinds "$IV_T0W")" = "$(_iv_kinds "$IV_T1")" ] \
+  && ok "and standing in a linked worktree reads the same repository" \
+  || bad "and standing in a linked worktree reads the same repository" \
+         "rc=$IV_RC0W; $(_ivnr "$IV_T0W") rows standing in, $(_ivnr "$IV_T1") with --repo"
+if [ "$IV_JQ" != 1 ]; then skip "felix inventory consults gh when gh is on PATH" "no jq for the gh stand-in"
+elif [ -s "$IVGH_LOG" ]; then ok "felix inventory consults gh when gh is on PATH"
+else bad "felix inventory consults gh when gh is on PATH" "the stand-in logged no call"; fi
+
+# Worktrees, one state each.
+_iv_sel "$IV_T1" wt-squash
+_ivgh is "a clean worktree on a squash-merged branch, its pull request's head at the tip, is landed and nothing else" "$(_iv_states)" "landed"
+_iv_chk "a worktree with a staged edit and an untracked file whose contents main lacks leads with uncommitted" "$IV_T1" wt-dirty lead uncommitted
+_iv_chk "and a staged edit that no earlier tip holds is no staged revert" "$IV_T1" wt-dirty lack hazard:staged-revert
+_iv_sel "$IV_T1" wt-same
+is  "a worktree whose changed files hold main's content, whose deleted file main lacks too, and whose other file is ignored, is landed and nothing else" "$(_iv_states)" "landed"
+_iv_chk "a branch with a commit on no remote leads with unpushed" "$IV_T1" wt-unpushed lead unpushed
+_ivgh _iv_chk "and it is not unproposed, since it is on no remote" "$IV_T1" wt-unpushed lack unproposed
+_ivgh _iv_chk "a pushed branch with no pull request, its content not on main, leads with unproposed" "$IV_T1" wt-unproposed lead unproposed
+_iv_chk "and it is not unpushed" "$IV_T1" wt-unproposed lack unpushed
+_ivgh _iv_chk "a remote branch with no pull request and no local copy is unproposed" "$IV_T1" topic/remote-only hold unproposed
+_iv_chk "a local branch changing two paths, one of which main holds, is unpushed" "$IV_T1" topic/partly hold unpushed
+_iv_chk "and its detail says partly" "$IV_T1" topic/partly word 7:partly
+_ivgh _iv_chk "a local branch whose tip precedes a merged pull request's head is landed, though main's squash of it was edited" "$IV_T1" topic/precedes lead landed
+_ivgh _iv_chk "a branch whose pull request was closed but whose content main holds is landed" "$IV_T1" topic/superseded lead landed
+_ivgh _iv_chk "a worktree whose pull request was closed unmerged, its content not on main, leads with pr-closed-unlanded" "$IV_T1" wt-closed lead pr-closed-unlanded
+_ivgh _iv_chk "and it is not unproposed, since a closed pull request has it as head" "$IV_T1" wt-closed lack unproposed
+_iv_sel "$IV_T1" wt-share
+if [ "$(_ivnr "$IV/sel")" = 2 ] && _iv_q lead hazard:shared-branch; then
+  ok  "both worktrees holding one branch lead with hazard:shared-branch"
+else bad "both worktrees holding one branch lead with hazard:shared-branch" "$(_iv_diag)"; fi
+_iv_chk "a worktree whose index holds its branch's earlier tip, after the branch moved on from another checkout, leads with hazard:staged-revert" "$IV_T1" wt-revert lead hazard:staged-revert
+_iv_chk "a directory beside the worktrees that git no longer lists is an orphan" "$IV_T1" orphan-edit lead orphan
+_iv_chk "and its detail counts the 2 files whose content is in no object, and not its .git link" "$IV_T1" orphan-edit dnum 2:2
+# None is the number 0, or a detail with no number at all that says no or
+# none; "1 file in no object" is one, not none.
+_iv_none() { LC_ALL=C awk -F'\t' '{ n++; d = tolower($7)
+    if (d ~ /(^|[^0-9.])0([^0-9.]|$)/) g = 1
+    else if (d !~ /[0-9]/ && d ~ /(^|[^a-z])(no|none)([^a-z]|$)/) g = 1 }
+  END { exit (n && g) ? 0 : 1 }' "$IV/sel"; }
+_iv_sel "$IV_T1" orphan-clean
+if _iv_q lead orphan && _iv_none; then
+  ok  "an orphan whose every file is in an object counts none"
+else bad "an orphan whose every file is in an object counts none" "$(_iv_diag)"; fi
+_iv_chk "two unpushed branches making the same change are each marked possible-duplicate: the first" "$IV_T1" topic/dup-one word 0:possible-duplicate
+_iv_chk "two unpushed branches making the same change are each marked possible-duplicate: the second" "$IV_T1" topic/dup-two word 0:possible-duplicate
+_iv_chk "a clean worktree that changed nothing is no possible-duplicate of the others that changed nothing" "$IV_T1" wt-query noword 0:possible-duplicate
+
+# Pull requests.
+_ivx=""
+for _ivn in 4103 4104 4105 4106 4109; do _iv_sel "$IV_T1" "$_ivn"; _iv_q hold pr-open || _ivx="$_ivx $_ivn"; done
+if [ "$IV_JQ" != 1 ]; then skip "each of the five open pull requests has a row that is pr-open" "no jq for the gh stand-in"
+elif [ -z "$_ivx" ]; then ok "each of the five open pull requests has a row that is pr-open"
+else bad "each of the five open pull requests has a row that is pr-open" "not pr-open:$_ivx"; fi
+_ivgh _iv_chk "the pull request labelled felix:hold says hold in its detail" "$IV_T1" 4103 word 7:hold
+_ivgh _iv_chk "and not ready, though felix/ready sits on its head's parent" "$IV_T1" 4103 noword 7:ready
+_ivgh _iv_chk "the pull request with felix/ready on its head says ready" "$IV_T1" 4104 word 7:ready
+_ivgh _iv_chk "and its label felix:founder says founder" "$IV_T1" 4104 word 7:founder
+_ivgh _iv_chk "and it does not say hold" "$IV_T1" 4104 noword 7:hold
+_ivgh _iv_chk "the label needs-founder says founder too" "$IV_T1" 4106 word 7:founder
+_ivgh _iv_chk "the pull request GitHub calls conflicting says conflicting" "$IV_T1" 4105 word 7:conflicting
+_iv_sel "$IV_T1" 4105
+if [ "$IV_JQ" = 1 ]; then
+  if _iv_q noword 7:ready && _iv_q noword 7:hold && _iv_q noword 7:founder; then ok "and it says none of ready, hold or founder"
+  else bad "and it says none of ready, hold or founder" "$(_iv_diag)"; fi
+else skip "and it says none of ready, hold or founder" "no jq for the gh stand-in"; fi
+_ivgh _iv_chk "the pull request last updated 30 hours ago carries 29 to 31 hours, in age_h or its detail" "$IV_T1" 4103 num 29:31
+_ivgh _iv_chk "and the one updated 2 hours ago carries 1 to 3, its own age" "$IV_T1" 4104 num 1:3
+
+# What only the host's session records say.
+_iv_chk "a worktree whose newest session was written 3 minutes ago leads with live" "$IV_T1" wt-live lead live
+_iv_chk "and it is landed too, live being the one state landed allows" "$IV_T1" wt-live hold landed
+_iv_chk "and its tool call with no result, 3 minutes old, is not yet blocked" "$IV_T1" wt-live lack blocked
+_iv_chk "a worktree whose newest session ended on a question with nothing human after leads with question" "$IV_T1" wt-query lead question
+_iv_chk "a question answered by a later human message is no question, and an older session's question is not the newest's" "$IV_T1" wt-answered lack question
+# Decision D2 of 2026-09-24: a file under a session's subagents/ directory
+# counts toward live (this assertion said it did not), and is still read for
+# no question, which the one above holds.
+_iv_chk "a fresh subagent transcript under the newest session makes its worktree live, though it ends on a question (D2)" "$IV_T1" wt-answered hold live
+_iv_chk "a question ending in ?** and followed only by a system envelope still leads with question" "$IV_T1" wt-bold lead question
+_iv_chk "a worktree whose newest session ends on a tool call with no result, 2 hours old, leads with blocked" "$IV_T1" wt-blocked lead blocked
+if [ -r "$IV_UNREAD" ]; then
+  skip "a worktree whose newest session cannot be read says unknown rather than passing as clean" "this user reads a mode-000 file"
+else
+  _iv_chk "a worktree whose newest session cannot be read says unknown rather than passing as clean" "$IV_T1" wt-unread word 0:unknown
+fi
+is  "exactly one chip is chip-unstarted: of five, one was started, one dismissed, one is older than the default 14 days of --days (D4) and one is another repository's" \
+    "$(_iv_count "$IV_T1" chip-unstarted)" "1"
+_iv_selstate "$IV_T1" chip-unstarted
+if grep -qE 'Delta chip|task_d4d4d4d4' "$IV/sel" && ! grep -qE 'Alpha|Gamma|Epsilon|Zeta|task_a1a1a1a1|task_c3c3c3c3|task_e5e5e5e5|task_f6f6f6f6' "$IV/sel"; then
+  ok  "and it is the chip neither started nor dismissed, named by its title or task id"
+else bad "and it is the chip neither started nor dismissed, named by its title or task id" "$(_iv_diag)"; fi
+_iv_selstate "$IV_T1" handoff-pending
+if grep -qF 'Build the frobnicator' "$IV/sel" && grep -qF 'Measure the frobnicator' "$IV/sel"; then
+  ok  "a section waiting in docs/handoff/pending on main is handoff-pending, carrying both of its Next lines"
+else bad "a section waiting in docs/handoff/pending on main is handoff-pending, carrying both of its Next lines" "$(_iv_diag)"; fi
+[ -s "$IV/sel" ] && ! grep -qF 'trap line' "$IV/sel" && ok "and not the lines of its other lists" \
+  || bad "and not the lines of its other lists" "$(_iv_diag)"
+
+# ---- the human report ----------------------------------------------------
+IV_HU="$IV/human.txt"; _ivrun inventory --repo "$IVM" > "$IV_HU"; IV_RCH=$?
+is  "felix inventory with no flag exits 0" "$IV_RCH" "0"
+_ivln()  { LC_ALL=C awk -v a="$2" -v b="$3" 'index($0, a) || index($0, b) { print NR; exit }' "$1"; }
+_ivlnw() { LC_ALL=C awk -v w="$2" 'tolower($0) ~ ("(^|[^a-z])" w) { print NR; exit }' "$1"; }
+_ivmin() { local m="" v; for v in "$@"; do [ -n "$v" ] || continue; if [ -z "$m" ] || [ "$v" -lt "$m" ]; then m="$v"; fi; done; printf '%s' "$m"; }
+_ivcnt() { LC_ALL=C awk -v w="$2" 'tolower($0) ~ ("(^|[^a-z])" w "([^a-z]|$)") && /[0-9]/ { f = 1 } END { exit f ? 0 : 1 }' "$1"; }
+IV_HH="$(_ivmin "$(_ivln "$IV_HU" wt-revert topic/revert)" "$(_ivln "$IV_HU" wt-share topic/shared)" "$(_ivlnw "$IV_HU" hazard)")"
+IV_HL="$(_ivmin "$(_ivlnw "$IV_HU" landed)" "$(_ivln "$IV_HU" wt-squash topic/squash)")"
+if [ -n "$IV_HH" ] && [ -n "$IV_HL" ] && [ "$IV_HH" -lt "$IV_HL" ]; then ok "its human output lists hazards before any landed item or count"
+else bad "its human output lists hazards before any landed item or count" "first hazard line ${IV_HH:-none}, first landed line ${IV_HL:-none}"; fi
+IV_HQ="$(_ivmin "$(_ivln "$IV_HU" wt-query topic/query)" "$(_ivln "$IV_HU" wt-bold topic/bold)")"
+IV_HD="$(_ivln "$IV_HU" wt-dirty topic/dirty)"; IV_HP="$(_ivln "$IV_HU" wt-unpushed topic/unpushed)"
+IV_HR="$(_ivln "$IV_HU" wt-unproposed topic/unproposed)"
+# Every fixture directory lies in a temporary directory (the suite's TMP), so
+# under decision D5 these worktrees are listed in the group "in temporary
+# directories", and this is the order inside it.
+if [ -n "$IV_HH" ] && [ -n "$IV_HQ" ] && [ -n "$IV_HD" ] && [ -n "$IV_HP" ] && [ -n "$IV_HR" ] \
+   && [ "$IV_HH" -lt "$IV_HQ" ] && [ "$IV_HQ" -lt "$IV_HD" ] && [ "$IV_HD" -lt "$IV_HP" ] && [ "$IV_HP" -lt "$IV_HR" ]; then
+  ok  "and what needs action comes in the spec's order: hazards, questions, uncommitted, unpushed, unproposed"
+else bad "and what needs action comes in the spec's order: hazards, questions, uncommitted, unpushed, unproposed" \
+         "first lines: hazard ${IV_HH:-none}, question ${IV_HQ:-none}, uncommitted ${IV_HD:-none}, unpushed ${IV_HP:-none}, unproposed ${IV_HR:-none}"; fi
+_ivcnt "$IV_HU" live && _ivcnt "$IV_HU" landed && ok "and it ends with counts of live and landed" \
+  || bad "and it ends with counts of live and landed" "$(tail -n 6 "$IV_HU" | tr '\n' ';')"
+
+# ---- --no-gh -------------------------------------------------------------
+_ivg0="$(wc -l < "$IVGH_LOG" | tr -d ' ')"
+IV_T3="$IV/t3.tsv"; _ivrun inventory --tsv --no-gh --repo "$IVM" > "$IV_T3"; IV_RC3=$?
+is  "felix inventory --tsv --no-gh exits 0" "$IV_RC3" "0"
+# A run that printed nothing asked nothing and reported nothing, so each
+# absence below counts only over a run that gave rows.
+_ivrows() { [ -s "$1" ] && printf '%s' "$2" || printf 'no rows'; }
+is  "--no-gh asks gh nothing" "$(_ivrows "$IV_T3" "$(( $(wc -l < "$IVGH_LOG") - _ivg0 ))")" "0"
+is  "--no-gh reports no row pr-open or pr-closed-unlanded" "$(_ivrows "$IV_T3" "$(_iv_count "$IV_T3" pr-open) $(_iv_count "$IV_T3" pr-closed-unlanded)")" "0 0"
+grep -qi unknown "$IV_T3" && ok "--no-gh says unknown for what only GitHub could say" \
+  || bad "--no-gh says unknown for what only GitHub could say" "no unknown in $(head -c 300 "$IV_T3" | tr '\t\n' '|;')"
+_iv_chk "under --no-gh a pushed branch whose pull requests cannot be seen says unknown" "$IV_T3" wt-unproposed word 0:unknown
+_iv_chk "and it is not called unproposed, since no pull request is known to be absent" "$IV_T3" wt-unproposed lack unproposed
+_iv_chk "under --no-gh an open pull request's branch still has a row, and it says unknown" "$IV_T3" topic/pr-hold word 0:unknown
+_iv_chk "under --no-gh a branch only a merged pull request shows landed is not called landed" "$IV_T3" topic/precedes lack landed
+_iv_sel "$IV_T3" wt-revert; _ivx=0; _iv_q lead hazard:staged-revert || _ivx=1
+_iv_sel "$IV_T3" wt-unpushed; _iv_q hold unpushed || _ivx=1
+[ "$_ivx" = 0 ] && ok "under --no-gh what git alone decides stands: the staged revert and the unpushed branch" \
+  || bad "under --no-gh what git alone decides stands: the staged revert and the unpushed branch" "$(_iv_diag)"
+
+# ---- --no-host -----------------------------------------------------------
+IV_T4="$IV/t4.tsv"; _ivrun inventory --tsv --no-host --repo "$IVM" > "$IV_T4"; IV_RC4=$?
+is  "felix inventory --tsv --no-host exits 0" "$IV_RC4" "0"
+is  "--no-host reports no row live, question, blocked or chip-unstarted" \
+    "$(_ivrows "$IV_T4" "$(_iv_count "$IV_T4" live) $(_iv_count "$IV_T4" question) $(_iv_count "$IV_T4" blocked) $(_iv_count "$IV_T4" chip-unstarted)")" "0 0 0 0"
+_iv_chk "--no-host says unknown for the worktree whose session asked a question" "$IV_T4" wt-query word 0:unknown
+_iv_sel "$IV_T4" wt-revert; _ivx=0; _iv_q lead hazard:staged-revert || _ivx=1
+_iv_sel "$IV_T4" wt-dirty; _iv_q hold uncommitted || _ivx=1
+if [ "$IV_JQ" = 1 ]; then _iv_sel "$IV_T4" 4103; _iv_q hold pr-open || _ivx=1; fi
+[ "$_ivx" = 0 ] && ok "under --no-host what git and gh decide stands: the staged revert, the uncommitted worktree and an open pull request" \
+  || bad "under --no-host what git and gh decide stands: the staged revert, the uncommitted worktree and an open pull request" "$(_iv_diag)"
+
+# ---- no gh on PATH at all ------------------------------------------------
+# A directory of links to everything on PATH but gh, first found first.
+mkdir -p "$IV/nogh"
+_ivifs="$IFS"; IFS=:
+for _ivd in $PATH; do
+  IFS="$_ivifs"
+  [ -d "$_ivd" ] || continue
+  for _ivf in "$_ivd"/*; do
+    _ivn="${_ivf##*/}"
+    [ "$_ivn" = gh ] && continue
+    [ -e "$IV/nogh/$_ivn" ] || [ -L "$IV/nogh/$_ivn" ] || { [ -x "$_ivf" ] && [ ! -d "$_ivf" ] && ln -s "$_ivf" "$IV/nogh/$_ivn"; }
+  done
+done
+IFS="$_ivifs"
+if PATH="$IV/nogh" command -v gh >/dev/null 2>&1 || ! PATH="$IV/nogh" command -v git >/dev/null 2>&1; then
+  bad "the fixture: a PATH that holds git and no gh" "gh: $(PATH="$IV/nogh" command -v gh) git: $(PATH="$IV/nogh" command -v git)"
+else
+  ok  "the fixture: a PATH that holds git and no gh"
+fi
+IV_T5="$IV/t5.tsv"; _ivrun --path "$IV/nogh" inventory --tsv --repo "$IVM" > "$IV_T5"; IV_RC5=$?
+is  "with no gh on PATH at all, felix inventory --tsv still exits 0" "$IV_RC5" "0"
+if grep -qi unknown "$IV_T5" && [ "$(_iv_count "$IV_T5" pr-open)" = 0 ]; then
+  ok  "and it says unknown, claiming no pull request open or absent"
+else bad "and it says unknown, claiming no pull request open or absent" "$(head -c 300 "$IV_T5" | tr '\t\n' '|;')"; fi
+
+# ---- --repo --------------------------------------------------------------
+IV_T6="$IV/t6.tsv"; _ivrun --cwd "$IV/cwd" inventory --tsv --repo "$IVM" --repo "$IVG" > "$IV_T6"; IV_RC6=$?
+is  "felix inventory --tsv --repo DIR --repo DIR, run from outside any repository, exits 0" "$IV_RC6" "0"
+_iv_chk "each --repo is read: the second repository's unpushed branch has its row, and it is unpushed" "$IV_T6" topic/gadget-only hold unpushed
+_iv_sel "$IV_T6" topic/gadget-only; IV_RG="$(_iv_col2)"
+_iv_sel "$IV_T6" wt-squash;         IV_RW="$(_iv_col2)"
+[ -n "$IV_RG" ] && [ -n "$IV_RW" ] && [ "$IV_RG" != "$IV_RW" ] && ok "and each row names its own repository" \
+  || bad "and each row names its own repository" "gadget [$IV_RG], widget [$IV_RW]"
+[ -s "$IV_T1" ] && [ -n "$IV_RG" ] && [ "$(_iv_kinds "$IV_T6" "$IV_RG")" = "$(_iv_kinds "$IV_T1")" ] \
+  && ok "and the first repository's rows are the ones reading it alone gives" \
+  || bad "and the first repository's rows are the ones reading it alone gives" "$(diff <(_iv_kinds "$IV_T1") <(_iv_kinds "$IV_T6" "$IV_RG") 2>&1 | head -n 6 | tr '\n' ';')"
+_ivrun --cwd "$IV/cwd" inventory --tsv --repo "$IV/cwd" > /dev/null; IV_RC6B=$?
+[ "$IV_RC6" -eq 0 ] && [ "$IV_RC6B" -ne 0 ] && ok "felix inventory --repo on a directory that is no repository exits nonzero, since it cannot read one" \
+  || bad "felix inventory --repo on a directory that is no repository exits nonzero, since it cannot read one" "exit $IV_RC6B there, $IV_RC6 over two repositories"
+
+# ---- bash 3.2 ------------------------------------------------------------
+if /bin/bash -c 'case "$BASH_VERSION" in 3.*) exit 0 ;; esac; exit 1' 2>/dev/null; then
+  mkdir -p "$IV/b32"; ln -sf /bin/bash "$IV/b32/bash"
+  IV_T7="$IV/t7.tsv"; _ivrun --path "$IV/b32:$IVSTUB:$PATH" --bash /bin/bash inventory --tsv --repo "$IVM" > "$IV_T7"
+  [ -s "$IV_T1" ] && [ "$(_iv_kinds "$IV_T7")" = "$(_iv_kinds "$IV_T1")" ] \
+    && ok "under /bin/bash 3.2 felix inventory --tsv gives the same items and states" \
+    || bad "under /bin/bash 3.2 felix inventory --tsv gives the same items and states" "$(diff <(_iv_kinds "$IV_T1") <(_iv_kinds "$IV_T7") 2>&1 | head -n 6 | tr '\n' ';')"
+else
+  skip "under /bin/bash 3.2 felix inventory --tsv gives the same items and states" "/bin/bash here is not 3.2"
+fi
+
+# ---- --live, --blocked, --days ------------------------------------------
+IV_T8="$IV/t8.tsv"; _ivrun inventory --tsv --repo "$IVM" --live 1 --blocked 1 --days 1 > "$IV_T8"
+_iv_chk "--live 1 makes a session 3 minutes old not live" "$IV_T8" wt-live lack live
+_iv_chk "--blocked 1 makes its tool call with no result blocked" "$IV_T8" wt-live hold blocked
+[ -s "$IV_T8" ] && [ "$(_iv_count "$IV_T8" chip-unstarted)" = 0 ] && ok "--days 1 leaves out the chips of a session two days old" \
+  || bad "--days 1 leaves out the chips of a session two days old" "$(_iv_count "$IV_T8" chip-unstarted) chip-unstarted rows"
+
+# ---- it wrote nothing ----------------------------------------------------
+# Read-only holds trivially for a command that never ran, so each of these
+# needs the first run to have given rows.
+_iv_after="$(_iv_snap)"
+if [ ! -s "$IV_T1" ]; then
+  bad "no file under the fixture's repositories or the scratch HOME changed across every run, nor git's object count" "no run gave rows"
+elif [ "$_iv_after" = "$_iv_before" ]; then
+  ok  "no file under the fixture's repositories or the scratch HOME changed across every run, nor git's object count"
+else
+  printf '%s\n' "$_iv_before" > "$IV/snap.before"; printf '%s\n' "$_iv_after" > "$IV/snap.after"
+  bad "no file under the fixture's repositories or the scratch HOME changed across every run, nor git's object count" \
+      "$(diff "$IV/snap.before" "$IV/snap.after" | head -n 8 | tr '\n' ';')"
+fi
+_ivx="$(find "$IVW" "$IVW2" "$IVO" "$IVO2" "$IVH" -newer "$IV/marker" -print 2>/dev/null | head -n 5 | tr '\n' ' ')"
+[ -s "$IV_T1" ] && [ -z "$_ivx" ] && ok "nothing under them was created, removed or touched after the first run began" \
+  || bad "nothing under them was created, removed or touched after the first run began" "$(_ivrows "$IV_T1" "newer: $_ivx")"
+# macOS mktemp -d with no template ignores TMPDIR (measured on Darwin 25), so
+# there a leftover lands where this cannot see it.
+_ivtp="$(TMPDIR="$IVT" mktemp -d 2>/dev/null)"
+case "$_ivtp" in
+  "$IVT"/*) rmdir "$_ivtp"
+            is  "it left nothing in TMPDIR" "$(_ivrows "$IV_T1" "$(ls -A "$IVT" | tr '\n' ' ')")" "" ;;
+  *)        [ -n "$_ivtp" ] && rmdir "$_ivtp" 2>/dev/null
+            skip "it left nothing in TMPDIR" "this mktemp -d ignores TMPDIR" ;;
+esac
+_iv_gitparse() { LC_ALL=C awk -F'\t' '
+  { n = split($2, w, " "); i = 1; l = ($1 == "0")
+    while (i <= n) {
+      if (w[i] == "-C" || w[i] == "-c" || w[i] == "--git-dir" || w[i] == "--work-tree" || w[i] == "--namespace") { i += 2; continue }
+      if (w[i] == "--no-optional-locks") { l = 1; i++; continue }
+      if (w[i] ~ /^-/) { i++; continue }
+      break }
+    r = ""; for (k = i + 1; k <= n; k++) r = r " " w[k]
+    print (l ? "L" : "-") "\t" (i <= n ? w[i] : "-") "\t" r }' "$IVGIT_LOG"; }
+_iv_gitlocks() { _iv_gitparse | LC_ALL=C awk -F'\t' '$1 == "-" && ($2 == "status" || $2 == "diff" || $2 == "diff-index" || $2 == "diff-files" || $2 == "describe") { printf "git %s%s; ", $2, $3 }'; }
+_iv_gitwrites() { _iv_gitparse | LC_ALL=C awk -F'\t' '
+  BEGIN { n = split("fetch pull push ls-remote commit commit-tree write-tree update-index update-ref read-tree mktree gc prune repack pack-refs reset checkout switch restore add rm mv merge rebase cherry-pick revert clean apply am notes replace maintenance", a, " ")
+          for (i = 1; i <= n; i++) w[a[i]] = 1 }
+  { v = $2; r = " " $3 " "; b = (v in w)
+    if (v == "merge-tree") { np = 0; k = split($3, t, " "); for (i = 1; i <= k; i++) if (t[i] !~ /^-/) np++
+                             if (index(r, " --write-tree ") || (!index(r, " --trivial-merge ") && np != 3)) b = 1 }
+    if (v == "hash-object" && (index(r, " -w ") || index(r, " --write "))) b = 1
+    if (v == "stash" && !index(r, " list ") && !index(r, " show ")) b = 1
+    if (v == "worktree" && match(r, / (add|remove|prune|move|lock|unlock|repair) /)) b = 1
+    if (v == "reflog" && match(r, / (expire|delete) /)) b = 1
+    if (v == "branch" && match(r, / (-d|-D|-m|-M|-c|-C|-f|--delete|--move|--copy|--force|-u|--set-upstream-to|--unset-upstream|--edit-description) /)) b = 1
+    if (v == "remote" && match(r, / (add|remove|rm|rename|set-head|set-url|set-branches|prune|update) /)) b = 1
+    if (v == "config" && match(r, / (--add|--unset|--unset-all|--replace-all|--rename-section|--remove-section|--edit|-e) /)) b = 1
+    if (b) printf "git %s%s; ", v, $3 }'; }
+if [ -s "$IVGIT_LOG" ]; then
+  is  "every git status, diff or describe it ran carries --no-optional-locks" "$(_iv_gitlocks)" ""
+  is  "it ran no git command that writes, or that reaches a remote" "$(_iv_gitwrites)" ""
+else
+  skip "every git status, diff or describe it ran carries --no-optional-locks" "the git stand-in saw no call"
+  skip "it ran no git command that writes, or that reaches a remote" "the git stand-in saw no call"
+fi
+_iv_ghwrites() { LC_ALL=C awk '
+  { n = split($0, w, " "); c = w[1]; s = w[2]; k = 0
+    if (c == "pr" && (s == "list" || s == "view" || s == "checks" || s == "status" || s == "diff")) k = 1
+    else if (c == "repo" && s == "view") k = 1
+    else if (c == "auth" && s == "status") k = 1
+    else if (c == "--version" || c == "version") k = 1
+    else if (c == "api") { k = 1; m = ""; f = 0
+      for (i = 2; i <= n; i++) {
+        if ((w[i] == "-X" || w[i] == "--method") && i < n) m = toupper(w[i + 1])
+        else if (w[i] ~ /^--method=/) m = toupper(substr(w[i], 10))
+        else if (w[i] == "-f" || w[i] == "-F" || w[i] == "--field" || w[i] == "--raw-field" || w[i] == "--input" || w[i] ~ /^--(field|raw-field|input)=/) f = 1 }
+      if ((m != "" && m != "GET") || (f && m != "GET")) k = 0 }
+    if (!k) printf "gh %s; ", $0 }' "$IVGH_LOG"; }
+is  "every gh call it made is a read: pr list, view or checks, repo view, auth status, or an api GET" "$(_ivrows "$IV_T1" "$(_iv_ghwrites)")" ""
+_ivx="$(grep -E 'bad substitution|syntax error|unbound variable|command not found|invalid option|not a valid identifier|division by 0|awk: ' "$IV_ERR" | head -n 3 | tr '\n' ';')"
+is  "no run wrote a shell or awk error to stderr" "$_ivx" ""
+
+# ---- the code ------------------------------------------------------------
+# The spec puts git and GitHub in lib/inventory.sh and what only Claude Code's
+# transcripts say in lib/inventory-host.sh, one adapter, so a second host is a
+# second adapter. Comments are left out: they may name what the other holds.
+IVLIB="$REAL_HARNESS/lib/inventory.sh"; IVLIBH="$REAL_HARNESS/lib/inventory-host.sh"
+# The core may be split into parts beside it (lib/inventory-*.sh other than
+# the adapter); each part is held to what the core is held to.
+IVPARTS=()
+for _ivf in "$REAL_HARNESS"/lib/inventory-*.sh; do [ -f "$_ivf" ] && [ "$_ivf" != "$IVLIBH" ] && IVPARTS[${#IVPARTS[@]}]="$_ivf"; done
+# Lines that are not comments, each prefixed with its file and line number.
+_ivcode() { LC_ALL=C awk '!/^[[:space:]]*#/ { f = FILENAME; sub(/.*\//, "", f); print f ":" FNR ":" $0 }' "$@" 2>/dev/null; }
+# Each pattern sits in a function of its own, never inside "$(...)", where
+# bash 3.2 can brace-expand a quoted literal. A finding names the file, the
+# line and the rule, and quotes no code.
+_ivwhere() { LC_ALL=C awk -F: -v w="$1" '{ printf "%s:%s %s; ", $1, $2, w }' | head -c 300; }
+_iv_hostin() { _ivcode "$IVLIB" ${IVPARTS[@]+"${IVPARTS[@]}"} | grep -E '\.claude/projects|spawn_task|dismiss_task|tool_use|tool_result|\.jsonl' | _ivwhere 'names a transcript detail'; }
+_iv_ghin()   { _ivcode "$IVLIBH" | grep -E '(^|[^A-Za-z0-9_./-])gh[[:space:]]+(pr|api|repo|auth|issue|run|release|workflow|search)([[:space:]]|$)' | _ivwhere 'calls gh'; }
+_iv_bash4()  { _ivcode "$IVLIB" "$IVLIBH" ${IVPARTS[@]+"${IVPARTS[@]}"} | grep -E '(declare|local|typeset)[[:space:]]+-[a-zA-Z]*A|(^|[^a-z_])(mapfile|readarray|coproc)([^a-z_]|$)|\$\{[#!]?[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?(,,?|\^\^?)[^}]*\}|&>>|\|&|\$\{[A-Za-z_][A-Za-z0-9_]*:([[:space:]]+|\()-[0-9]' | _ivwhere 'bash 4 or later'; }
+# Strings and regular-expression literals are blanked before counting match's
+# arguments, so a regex holding commas is not a third argument.
+_iv_gawk()   { _ivcode "$IVLIB" "$IVLIBH" ${IVPARTS[@]+"${IVPARTS[@]}"} | LC_ALL=C awk '
+  { s = $0; gsub(/"([^"\\]|\\.)*"/, "\"\"", s); gsub(/\/([^\/\\]|\\.)+\//, "//", s)
+    if (s ~ /(^|[^a-z_])(gensub|asorti?|strftime|systime|patsplit)[[:space:]]*\(/ || s ~ /match\([^()]*,[^()]*,[^()]*\)/) print }' | _ivwhere 'gawk only'; }
+_iv_gitw()   { _ivcode "$IVLIB" "$IVLIBH" ${IVPARTS[@]+"${IVPARTS[@]}"} | grep -E 'write-tree|stash[[:space:]]+create|update-index|update-ref|hash-object[^|;&]*[[:space:]]-w([[:space:]]|$)' | _ivwhere 'a git write'; }
+IV_NAMES='lib/inventory|inventory\.sh|inventory-host|felix_inventory|cmd_inventory|felix inventory'
+_iv_enforcing() {
+  grep -lE "$IV_NAMES" "$REAL_HARNESS"/hooks/* 2>/dev/null | tr '\n' ' '
+  LC_ALL=C awk '/^cmd_gate\(\)/ { f = 1 } f { print } f && /^}/ { exit }' "$REAL_HARNESS/felix" > "$IV/gate.body"
+  grep -qE "$IV_NAMES" "$IV/gate.body" && printf 'cmd_gate'
+  [ -s "$IV/gate.body" ] || printf 'no cmd_gate found in felix'
+}
+[ -f "$IVLIB" ] && [ -f "$IVLIBH" ] && ok "lib/inventory.sh and lib/inventory-host.sh exist, the core and the host adapter" \
+  || bad "lib/inventory.sh and lib/inventory-host.sh exist, the core and the host adapter" "missing: $([ -f "$IVLIB" ] || printf 'inventory.sh ')$([ -f "$IVLIBH" ] || printf 'inventory-host.sh')"
+_ivx=""
+for _ivf in "$IVLIB" "$IVLIBH" ${IVPARTS[@]+"${IVPARTS[@]}"}; do [ -f "$_ivf" ] && [ "$(wc -l < "$_ivf")" -ge 500 ] && _ivx="$_ivx ${_ivf##*/}"; done
+is  "each of them stays under 500 lines" "$_ivx" ""
+_ivx="$(_iv_hostin)"
+[ -f "$IVLIB" ] && [ -z "$_ivx" ] && ok "lib/inventory.sh reads no Claude Code transcript, which is the adapter's" \
+  || bad "lib/inventory.sh reads no Claude Code transcript, which is the adapter's" "${_ivx:-no lib/inventory.sh}"
+_ivx="$(_iv_ghin)"
+[ -f "$IVLIBH" ] && [ -z "$_ivx" ] && ok "lib/inventory-host.sh calls no gh, which is the core's" \
+  || bad "lib/inventory-host.sh calls no gh, which is the core's" "${_ivx:-no lib/inventory-host.sh}"
+is  "neither library uses a construct bash 3.2 lacks" "$(_iv_bash4)" ""
+is  "no awk in either library uses a gawk-only function or match's third argument" "$(_iv_gawk)" ""
+is  "neither library names write-tree, stash create, update-index, update-ref or hash-object -w" "$(_iv_gitw)" ""
+is  "no hook and nothing in felix's gate names the inventory: it is advisory, off the enforcing path" "$(_iv_enforcing)" ""
+
+# ---- what review found --------------------------------------------------
+# Three reviewers read the command against the spec and against real input.
+# Each defect they found that is a defect in the command, not in the spec,
+# is held here to the contract it broke, on a third repository built for it,
+# so no assertion above changes its fixture. Each was seen failing on the
+# command as it stood before the fix.
+printf '\nfelix inventory: what review found, each held to the contract it broke\n'
+IVW3="$IV/work3"; IVZ="$IVW3/gizmo"; IVZO="$IV/origin3.git"; IVZX="$IV/zx"; IVZD="$IV/decoy"
+IVZC="$IVZ/.claude/worktrees"
+IVGH2="$IV/gh2"; IVGH3="$IV/gh3"; IVSTUB2="$IV/stub2"; IVSTUB3="$IV/stub3"; IVSTUB4="$IV/stub4"
+mkdir -p "$IVW3" "$IVZX" "$IVGH2" "$IVGH3" "$IVSTUB2" "$IVSTUB3" "$IVSTUB4" "$IV/tq" "$IV/tz"
+_ivzwt() { _ivg -C "$IVZ" worktree add -q "$@"; }
+# E for an ASCII path, whatever the locale.
+_ivenc() { printf '%s' "$1" | LC_ALL=C sed 's/[^A-Za-z0-9-]/-/g'; }
+
+# ---- gizmo: main, then a worktree or branch per finding -----------------
+_ivrepo "$IVZO" "$IVZ" acme/gizmo
+_ivg -C "$IVZO" config uploadpack.allowFilter true
+mkdir -p "$IVZ/src" "$IVZC/kept" "$IVZ/docs/handoff/pending"
+printf 'gizmo\n' > "$IVZ/README.md"; printf 'shared copy, first\n' > "$IVZ/src/gate.txt"
+printf 'node_modules/\n*.bak\n' > "$IVZ/.gitignore"; printf 'kept\n' > "$IVZC/kept/README"
+printf '*.flt filter=mark\n' > "$IVZ/.gitattributes"; printf 'HELLO\n' > "$IVZ/src/f.flt"
+printf '### the gizmo waits\n\n**Next:**\n- Build the gizmo.\n' > "$IVZ/docs/handoff/pending/20260924T000000Z-gizmo.md"
+_ivwc "$IVZ" 'the first gizmo'; IVZ_C0="$(_ivg -C "$IVZ" rev-parse HEAD)"
+_ivg -C "$IVZ" push -q origin main; _ivg -C "$IVZ" remote set-head origin main
+printf '.lost/\n' >> "$IVZ/.git/info/exclude"
+# A clean filter that leaves a mark and uppercases: the committed f.flt is
+# its output, and wt-filter's lowercase copy cleans to it.
+_ivzwt -b topic/filter "$IVZC/wt-filter" main; printf 'hello\n' > "$IVZC/wt-filter/src/f.flt"
+# A listed worktree whose .git file is gone, holding a file no object has.
+_ivzwt -b topic/q "$IVZC/wt-q" main
+rm -f "$IVZC/wt-q/.git"; printf 'only here\n' > "$IVZC/wt-q/only-here.txt"; printf 'edited\n' >> "$IVZC/wt-q/README.md"
+# A feature branch made with --track origin/main, pushed under its own name
+# with an open pull request; another pushed with none; a local branch at
+# main whose remote namesake has moved on.
+_ivzwt --track -b topic/feat2 "$IVZC/wt-feat2" origin/main
+printf 'feat2\n' > "$IVZC/wt-feat2/src/f2.txt"; _ivwc "$IVZC/wt-feat2" 'feat2 work'
+_ivg -C "$IVZC/wt-feat2" push -q origin topic/feat2:topic/feat2; IVZ_F2="$(_ivg -C "$IVZC/wt-feat2" rev-parse HEAD)"
+_ivg -C "$IVZ" branch -q --track topic/feat3 origin/main
+_ivc "$IVZ" "$IVZ_C0" 'feat3 work' src/f3.txt 'feat3'; _ivg -C "$IVZ" update-ref refs/heads/topic/feat3 "$IVC"
+_ivg -C "$IVZ" push -q origin topic/feat3:topic/feat3
+_ivg -C "$IVZ" branch -q --no-track topic/diverge main
+_ivc "$IVZ" "$IVZ_C0" 'diverged elsewhere' src/dv.txt 'dv'; _ivg -C "$IVZ" push -q origin "$IVC:refs/heads/topic/diverge"
+# A detached worktree whose HEAD moved on, by reset --soft, from the commit
+# its index still holds.
+_ivc "$IVZ" "$IVZ_C0" 'm3 first' src/m3.txt 'one'; IVZ_X1="$IVC"
+_ivc "$IVZ" "$IVZ_X1" 'm3 second' src/m3b.txt 'two'; IVZ_X2="$IVC"
+_ivzwt --detach "$IVZC/wt-m3" main
+_ivg -C "$IVZC/wt-m3" checkout -q --detach "$IVZ_X1"; _ivg -C "$IVZC/wt-m3" reset -q --soft "$IVZ_X2"
+# A changed file whose content an object already holds, though main's differs.
+_ivc "$IVZ" "$IVZ_C0" 'a second copy' src/gate.txt 'shared copy, second'
+_ivzwt -b topic/f2 "$IVZC/wt-f2" main; printf 'shared copy, second\n' > "$IVZC/wt-f2/src/gate.txt"
+for _ivn in utf8 garbage tab clean; do _ivzwt -b "topic/$_ivn" "$IVZC/wt-$_ivn" main; done
+mkdir -p "$IVZC/wt-clean/tmpdir-here"
+# Orphans: a directory named with a glob character beside a tracked one; a
+# plain directory whose node_modules the repository ignores; one whose only
+# unique content is ignored; and two worktrees pruned from a directory no
+# listed worktree is left in.
+mkdir -p "$IVZC/k*" "$IVZC/plain/node_modules" "$IVZC/ign"
+printf 'only in k star\n' > "$IVZC/k*/g.txt"
+printf 'plain only\n' > "$IVZC/plain/a.txt"; printf 'module only\n' > "$IVZC/plain/node_modules/x.js"
+printf 'gizmo\n' > "$IVZC/ign/seen.txt"; printf 'cache only\n' > "$IVZC/ign/cache.bak"
+_ivzwt -b topic/g1 "$IVZ/.lost/g1" main; _ivzwt -b topic/g2 "$IVZ/.lost/g2" main
+printf 'lost only\n' > "$IVZ/.lost/g1/lost.txt"
+rm -rf "$IVZ/.git/worktrees/g1" "$IVZ/.git/worktrees/g2"
+# Beside the clone: a non-ASCII path, a path whose record name Claude Code
+# cuts at 200, and a path holding a line break that spells another
+# repository's directory.
+IVZ_JOSE="$IVW3/wt-jos$(printf '\303\251')"; _ivzwt -b topic/jose "$IVZ_JOSE" main
+IVZ_L=""; for _ivn in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do IVZ_L="${IVZ_L}llllllllll"; done
+IVZ_LONG="$IVW3/$IVZ_L"; _ivzwt -b topic/long "$IVZ_LONG" main
+_ivg -c init.defaultBranch=main init -q "$IVZD"; printf 'decoy\n' > "$IVZD/x.txt"; _ivwc "$IVZD" 'the decoy'
+IVZ_NL="$(printf '%s/nl\nworktree %s' "$IVW3" "$IVZD")"; _ivzwt --detach "$IVZ_NL" main
+# Only now the filter, so no setup step above ran it.
+_ivg -C "$IVZ" config filter.mark.clean "echo ran >> '$IVZX/filter-ran'; tr a-z A-Z"
+
+# ---- gizmo's sessions ----------------------------------------------------
+# A question whose note is cut inside a two-byte character; a newest session
+# that is not JSON; a live one whose file name holds a tab; live ones in the
+# non-ASCII and the long directory, filed where Claude Code files them; and
+# a chip whose title holds a backslash.
+_ivopen "$IVZC/wt-utf8" 5a5a5a5a-0000-4000-8000-000000000001
+_au_say  "$(_ivago 32 iso)" 'describe it'
+_ivx=""; for _ivn in 1 2 3 4 5 6 7 8 9 10; do _ivx="$_ivx$(printf '\303\251\303\251\303\251\303\251\303\251\303\251\303\251\303\251\303\251\303\251')"; done
+_au_stop "$(_ivago 30 iso)" msg_z1 "$_ivx?"
+_ivtouch "$_AU_F" 30
+_ivopen "$IVZC/wt-garbage" 5b5b5b5b-0000-4000-8000-000000000001
+printf 'not json\n{{{{\n\377\376 binary\n' >> "$_AU_F"; _ivtouch "$_AU_F" 30
+_au_open "$(_ive "$IVZC/wt-tab")/$(printf 'we ird\tname').jsonl" 5c5c5c5c-0000-4000-8000-000000000001
+_au_say  "$(_ivago 3 iso)" 'keep going'
+_au_stop "$(_ivago 2 iso)" msg_z3 'Still going.'
+_ivtouch "$_AU_F" 2
+_au_open "$IVP/$(_ivenc "$IVW3")-wt-jos-/5d5d5d5d-0000-4000-8000-000000000001.jsonl" 5d5d5d5d-0000-4000-8000-000000000001
+_au_say  "$(_ivago 3 iso)" 'keep going'
+_au_stop "$(_ivago 2 iso)" msg_z4 'Still going.'
+_ivtouch "$_AU_F" 2
+IVZ_LE="$(_ivenc "$IVZ_LONG")"
+_au_open "$IVP/${IVZ_LE:0:200}-z9k2p1/5e5e5e5e-0000-4000-8000-000000000001.jsonl" 5e5e5e5e-0000-4000-8000-000000000001
+_au_say  "$(_ivago 3 iso)" 'keep going'
+_au_stop "$(_ivago 2 iso)" msg_z5 'Still going.'
+_ivtouch "$_AU_F" 2
+_ivopen "$IVZ" 5f5f5f5f-0000-4000-8000-000000000001
+_au_say  "$(_ivago 125 iso)" 'note the path work'
+_ivchip  "$(_ivago 124 iso)" toolu_zb task_5f5f5f5f 'Title with C:\\path' 'Theta task: teach the path parser that a drive letter and a backslash begin an absolute path, and test it on three spellings of one path.'
+_au_stop "$(_ivago 120 iso)" msg_z6 'Noted.'
+_ivtouch "$_AU_F" 120
+
+# ---- gh for gizmo --------------------------------------------------------
+# The stand-in again, over gizmo's pull requests, and doing what gh does on
+# its first run in a HOME: keep a device id under its state directory. A
+# second has a list of 1000 pull requests, gh's limit here, none of them
+# gizmo's branches'.
+printf -v _ivx '[{"number":7001,"title":"Feat two","state":"OPEN","isDraft":false,"headRefName":"topic/feat2","headRefOid":"%s","baseRefName":"main","createdAt":"%s","updatedAt":"%s","mergedAt":null,"closedAt":null,"labels":[],"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","statusCheckRollup":[],"url":"u","author":{"login":"fixture"},"headRepositoryOwner":{"login":"acme"},"reviewDecision":""}]' \
+  "$IVZ_F2" "$(_ivago 600 iso)" "$(_ivago 60 iso)"
+printf '%s\n' "$_ivx" > "$IVGH2/prs.json"; printf '{}\n' > "$IVGH2/statuses.json"; printf '{}\n' > "$IVGH3/statuses.json"
+LC_ALL=C awk 'BEGIN { printf "["; for (i = 1; i <= 1000; i++) printf "%s{\"number\":%d,\"title\":\"f\",\"state\":\"CLOSED\",\"isDraft\":false,\"headRefName\":\"filler/%d\",\"headRefOid\":\"%040d\",\"baseRefName\":\"main\",\"createdAt\":\"2026-01-01T00:00:00Z\",\"updatedAt\":\"2026-01-01T00:00:00Z\",\"mergedAt\":null,\"closedAt\":null,\"labels\":[],\"mergeable\":\"UNKNOWN\",\"mergeStateStatus\":\"UNKNOWN\",\"statusCheckRollup\":[],\"url\":\"u\",\"author\":{\"login\":\"f\"},\"headRepositoryOwner\":{\"login\":\"f\"},\"reviewDecision\":\"\"}", (i > 1 ? "," : ""), i, i, i; print "]" }' > "$IVGH3/prs.json"
+for _ivn in 2 3; do
+  eval "_ivd=\$IVGH$_ivn; _ivs=\$IVSTUB$_ivn"
+  LC_ALL=C awk -v d="$_ivd" -v iv="$IV" 'NR == 2 { print "D='"'"'" d "'"'"'"; next } { print }
+    NR == 3 { print "sd=\"${XDG_STATE_HOME:-$HOME/.local/state}/gh\"; case \"$sd\" in '"'"'" iv "'"'"'/*) [ -f \"$sd/device-id\" ] || { mkdir -p \"$sd\" && echo fixture-device > \"$sd/device-id\"; } ;; esac" }' \
+    "$IVSTUB/gh" > "$_ivs/gh"
+  chmod +x "$_ivs/gh"
+done
+# A gh that answers slowly, for a signal to arrive while it runs.
+printf '#!/bin/sh\nprintf "%%s\\n" "$*" >> "%s/gh-slow.log"\nsleep 4\necho "[]"\n' "$IV" > "$IVSTUB4/gh"; chmod +x "$IVSTUB4/gh"
+
+# ---- two partial clones of gizmo ----------------------------------------
+# Neither holds a blob. The first's remote can serve one; the second's
+# cannot be reached.
+_ivg clone -q --no-checkout --filter=blob:none "file://$IVZO" "$IV/pc1" 2>/dev/null
+_ivg clone -q --no-checkout --filter=blob:none "file://$IVZO" "$IV/pc2" 2>/dev/null
+_ivg -C "$IV/pc2" config remote.origin.url "file://$IV/nowhere.git"
+
+# ---- the fixture holds what the assertions below say ---------------------
+_ivfx=""
+[ -e "$IVZX/filter-ran" ] && _ivfx="$_ivfx the filter already ran;"
+[ -e "$IVZC/wt-q/.git" ] && _ivfx="$_ivfx wt-q still has its .git;"
+_ivq -C "$IVZ" worktree list --porcelain | grep -q "^worktree $IVZD\$" || _ivfx="$_ivfx the line break does not spell the decoy;"
+[ "$(_ivq -C "$IVZ" config branch.topic/feat2.merge)" = refs/heads/main ] || _ivfx="$_ivfx feat2 does not track main;"
+[ "$(_ivq -C "$IVZ" rev-parse origin/topic/feat2)" = "$IVZ_F2" ] || _ivfx="$_ivfx feat2 is not pushed;"
+_ivq -C "$IVZ" merge-base --is-ancestor origin/topic/diverge topic/diverge && _ivfx="$_ivfx origin/topic/diverge is behind the local branch;"
+_ivq -C "$IVZC/wt-m3" diff-index --cached --quiet "$IVZ_X1" || _ivfx="$_ivfx wt-m3's index is not X1;"
+[ "$(_ivq -C "$IVZC/wt-m3" rev-parse HEAD)" = "$IVZ_X2" ] || _ivfx="$_ivfx wt-m3's HEAD is not X2;"
+_ivq -C "$IVZC/wt-m3" symbolic-ref -q HEAD >/dev/null && _ivfx="$_ivfx wt-m3 is not detached;"
+_ivq -C "$IVZ" worktree list --porcelain | grep -q '\.lost/' && _ivfx="$_ivfx git still lists .lost;"
+_ivq -C "$IVZ" ls-files -- "$IVZC/k*" | grep -q kept || _ivfx="$_ivfx k* does not glob to kept;"
+[ "$(_ivq -C "$IV/pc1" config remote.origin.promisor)" = true ] || _ivfx="$_ivfx pc1 is no partial clone;"
+# Asked with lazy fetching off, since asking would otherwise fetch it.
+( export GIT_NO_LAZY_FETCH=1; _ivq -C "$IV/pc1" cat-file -e "$(_ivq -C "$IV/pc1" rev-parse origin/main:docs/handoff/pending/20260924T000000Z-gizmo.md)" ) 2>/dev/null \
+  && _ivfx="$_ivfx pc1 already holds the section;"
+[ -z "$_ivfx" ] && ok  "the fixture: gizmo holds each finding's shape, and neither partial clone holds the handoff section" \
+                || bad "the fixture: gizmo holds each finding's shape, and neither partial clone holds the handoff section" "$_ivfx"
+
+# ---- the runs ------------------------------------------------------------
+_ivzrun() {  # [--path P] [--tmp D] [--cwd D] felix-args...
+  local p="$IVSTUB2:$IVSTUB:$PATH" t="$IV/tz" d="$IVZ"
+  while :; do
+    case "${1:-}" in
+      --path) p="$2"; shift 2 ;;
+      --tmp)  t="$2"; shift 2 ;;
+      --cwd)  d="$2"; shift 2 ;;
+      *) break ;;
+    esac
+  done
+  ( cd "$d" || exit 97
+    unset FELIX_HOME FELIX_MEMORY FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE CLAUDE_PLUGIN_ROOT \
+          CLAUDE_CONFIG_DIR GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OPTIONAL_LOCKS GIT_CEILING_DIRECTORIES \
+          XDG_STATE_HOME XDG_CACHE_HOME
+    export HOME="$IVH" TMPDIR="$t" PATH="$p" XDG_CONFIG_HOME="$IVH/.config" GIT_CONFIG_NOSYSTEM=1 \
+           GIT_ALLOW_PROTOCOL=file GIT_TERMINAL_PROMPT=0 GIT_CEILING_DIRECTORIES="$IV"
+    "$IVF" "$@" ) 2>>"$IV_ERR"
+}
+_ivz_snap() {
+  local d
+  for d in "$IVW3" "$IVZO" "$IVZD"; do
+    ( cd "$d" && find . -print | LC_ALL=C sort && find . -type f -exec "$_iv_sum" {} + | LC_ALL=C sort ) 2>&1
+  done
+}
+_ivz_before="$(_ivz_snap)"
+_ivz_pack() { ( cd "$1/.git/objects" && find . -print | LC_ALL=C sort ); }
+_ivz_pc1="$(_ivz_pack "$IV/pc1")"
+: > "$IVGIT_LOG"; : > "$IV/gh-slow.log"
+IVZ_T1="$IV/z1.tsv"; _ivzrun inventory --tsv --repo "$IVZ" > "$IVZ_T1"
+IVZ_H2="$IV/z2.txt"; _ivzrun inventory --no-gh --repo "$IVZ" > "$IVZ_H2"
+IVZ_T3="$IV/z3.tsv"; _ivzrun --path "$IVSTUB3:$IVSTUB:$PATH" inventory --tsv --repo "$IVZ" > "$IVZ_T3"
+IVZ_T4="$IV/z4.tsv"; _ivzrun --tmp "$IVZC/wt-clean/tmpdir-here" inventory --tsv --no-gh --no-host --repo "$IVZ" > "$IVZ_T4"
+IVZ_P1="$IV/p1.tsv"; _ivzrun --cwd "$IV/pc1" inventory --tsv --no-gh --no-host > "$IVZ_P1"
+IVZ_P2="$IV/p2.tsv"; _ivzrun --cwd "$IV/pc2" inventory --tsv --no-gh --no-host > "$IVZ_P2"
+# The rows of one ref, exactly.
+_ivz_sel() { LC_ALL=C awk -F'\t' -v r="$2" '$3 == r' "$1" > "$IV/sel"; }
+_ivz_chk() {  # name file ref mode arg
+  _ivz_sel "$2" "$3"
+  if _iv_q "$4" "$5"; then ok "$1"; else bad "$1" "$(_iv_diag)"; fi; }
+_ivz_det() { LC_ALL=C awk -F'\t' -v e="$1" '$7 ~ e { f = 1 } END { exit !(NR && f) }' "$IV/sel"; }
+
+# Filters (a clean filter is a program the repository's config runs; git-lfs
+# stores what it is handed): none runs, and a path one would have cleaned is
+# not called uncommitted on its raw bytes.
+[ -s "$IVZ_T1" ] && [ ! -e "$IVZX/filter-ran" ] && ok "no clean filter the repository configures runs, in any run" \
+  || bad "no clean filter the repository configures runs, in any run" "$(_ivrows "$IVZ_T1" "the filter left $(wc -l < "$IVZX/filter-ran" 2>/dev/null | tr -d ' ') marks")"
+_ivz_sel "$IVZ_T1" "$IVZC/wt-filter"
+if _iv_q lack uncommitted && _iv_q word 0:unknown; then ok "a worktree whose only changed-looking file sits under a clean filter is not called uncommitted, and says unknown"
+else bad "a worktree whose only changed-looking file sits under a clean filter is not called uncommitted, and says unknown" "$(_iv_diag)"; fi
+# Worktree paths: a line break spells no second worktree, and a directory git
+# lists whose .git file is gone is read as what it is.
+if [ -s "$IVZ_T1" ] && ! LC_ALL=C awk -F'\t' -v r="$IVZD" '$3 == r { f = 1 } END { exit !f }' "$IVZ_T1" \
+   && ! grep -qF -- "-C $IVZD " "$IVGIT_LOG"; then ok "a worktree whose path holds a line break makes no row of the directory the break spells, and no git runs there"
+else bad "a worktree whose path holds a line break makes no row of the directory the break spells, and no git runs there" "$(grep -F -- "$IVZD" "$IVZ_T1" "$IVGIT_LOG" | head -n 3 | tr '\t\n' '|;')"; fi
+_ivz_chk "a listed worktree whose .git file is gone is an orphan of the repository, not the checkout around it" "$IVZ_T1" "$IVZC/wt-q" hold orphan
+_ivz_chk "and it is not landed" "$IVZ_T1" "$IVZC/wt-q" lack landed
+_ivz_chk "and its row says git marks it prunable" "$IVZ_T1" "$IVZC/wt-q" word 7:prunable
+_ivz_chk "the main worktree does not count its linked worktrees' and orphans' files as its own changes" "$IVZ_T1" "$IVZ" lack uncommitted
+# Branches: the default branch is told by name, and a remote branch ahead of
+# its local namesake is read.
+_ivz_chk "a worktree on a branch tracking origin/main, pushed under its own name with an open pull request, is pr-open" "$IVZ_T1" "$IVZC/wt-feat2" hold pr-open
+_ivz_chk "and not landed" "$IVZ_T1" "$IVZC/wt-feat2" lack landed
+_ivz_chk "a branch tracking origin/main, pushed under its own name with no pull request, is unproposed" "$IVZ_T1" topic/feat3 hold unproposed
+_ivz_chk "a remote branch that moved on from its local namesake, content not on main and no pull request, has a row, unproposed" "$IVZ_T1" origin/topic/diverge hold unproposed
+_ivz_chk "a detached worktree whose index holds an earlier HEAD's tree leads with hazard:staged-revert" "$IVZ_T1" "$IVZC/wt-m3" lead hazard:staged-revert
+_ivz_sel "$IVZ_T1" "$IVZC/wt-f2"
+if _iv_q hold uncommitted && _ivz_det ', 0 of them holding content in no object'; then ok "an uncommitted worktree whose changed file's content an object holds says none of its content is in no object"
+else bad "an uncommitted worktree whose changed file's content an object holds says none of its content is in no object" "$(_iv_diag)"; fi
+# Orphans.
+_ivz_chk "a directory named with a glob character is an orphan, not hidden by the tracked directory its name globs to" "$IVZ_T1" "$IVZC/k*" lead orphan
+_ivz_sel "$IVZ_T1" "$IVZC/plain"
+if _iv_q lead orphan && _ivz_det '^1 of 1 files'; then ok "a plain directory's orphan count leaves out what the repository's ignore file ignores"
+else bad "a plain directory's orphan count leaves out what the repository's ignore file ignores" "$(_iv_diag)"; fi
+_ivz_sel "$IVZ_T1" "$IVZC/ign"
+if _iv_q lead orphan && _ivz_det '(^|; )1 of 1 ignored files hold content in no object'; then ok "an orphan's ignored file whose content is in no object is counted, not passed over"
+else bad "an orphan's ignored file whose content is in no object is counted, not passed over" "$(_iv_diag)"; fi
+_ivz_chk "a worktree pruned from a directory where git lists no worktree any more is still an orphan" "$IVZ_T1" "$IVZ/.lost/g1" lead orphan
+# The host's records.
+_ivz_chk "a live session in a non-ASCII directory, filed as Claude Code files it, makes it live" "$IVZ_T1" "$IVZ_JOSE" hold live
+_ivz_chk "a live session in a directory whose record name Claude Code cuts at 200 makes it live" "$IVZ_T1" "$IVZ_LONG" hold live
+_ivz_sel "$IVZ_T1" "$IVZC/wt-tab"
+if _iv_q hold live && _iv_q lack question && _iv_q lack blocked; then ok "a live session whose file name holds a tab is live, and neither a question nor blocked"
+else bad "a live session whose file name holds a tab is live, and neither a question nor blocked" "$(_iv_diag)"; fi
+_ivz_chk "a newest session that is not JSON says unknown, rather than passing as ended on no question" "$IVZ_T1" "$IVZC/wt-garbage" word 0:unknown
+_ivz_chk "a question whose note is cut inside a character is still a question" "$IVZ_T1" "$IVZC/wt-utf8" hold question
+if [ -s "$IVZ_T1" ] && iconv -f UTF-8 -t UTF-8 < "$IVZ_T1" > /dev/null 2>&1; then ok "and every --tsv byte is valid UTF-8"
+else bad "and every --tsv byte is valid UTF-8" "$(_ivrows "$IVZ_T1" "iconv rejects it")"; fi
+_iv_selstate "$IVZ_T1" chip-unstarted
+if grep -qF 'Title with C:\path' "$IV/sel" && ! LC_ALL=C grep -q "$(printf '\001')" "$IV/sel"; then ok "a chip title's backslash prints as a backslash, with no control byte"
+else bad "a chip title's backslash prints as a backslash, with no control byte" "$(_iv_diag | od -c | head -n 3 | tr '\n' ' ')"; fi
+# What gh cannot say.
+grep -qF topic/feat3 "$IVZ_H2" && ok "under --no-gh the human view lists a pushed branch whose content is not on main, rather than only counting it" \
+  || bad "under --no-gh the human view lists a pushed branch whose content is not on main, rather than only counting it" "$(tail -n 4 "$IVZ_H2" | tr '\n' ';')"
+_ivz_sel "$IVZ_T3" topic/feat3
+if _iv_q lack unproposed && _iv_q word 0:unknown; then ok "when gh lists its limit of pull requests, a pushed branch with none among them is unknown, not unproposed"
+else bad "when gh lists its limit of pull requests, a pushed branch with none among them is unknown, not unproposed" "$(_iv_diag)"; fi
+[ ! -e "$IVH/.local/state" ] && [ -s "$IVZ_T1" ] && ok "what gh keeps of its own lands in no file under HOME" \
+  || bad "what gh keeps of its own lands in no file under HOME" "$(_ivrows "$IVZ_T1" "$(find "$IVH/.local" -type f 2>/dev/null | head -n 2 | tr '\n' ' ')")"
+# Scratch, signals and here-documents.
+_ivz_sel "$IVZ_T4" "$IVZC/wt-clean"
+if _iv_q lack uncommitted && [ -z "$(ls -A "$IVZC/wt-clean/tmpdir-here")" ]; then ok "with TMPDIR inside a clean worktree, that worktree is not called uncommitted, and nothing is left there"
+else bad "with TMPDIR inside a clean worktree, that worktree is not called uncommitted, and nothing is left there" "$(_iv_diag)"; fi
+( cd "$IVZ" || exit 97; ulimit -c 0
+  unset FELIX_HOME FELIX_MEMORY GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_CEILING_DIRECTORIES
+  export HOME="$IVH" TMPDIR="$IV/tq" PATH="$IVSTUB4:$IVSTUB:$PATH" XDG_CONFIG_HOME="$IVH/.config" GIT_CONFIG_NOSYSTEM=1 \
+         GIT_ALLOW_PROTOCOL=file GIT_TERMINAL_PROMPT=0 GIT_CEILING_DIRECTORIES="$IV"
+  exec perl -e '$SIG{QUIT} = "DEFAULT"; $SIG{INT} = "DEFAULT"; exec @ARGV or exit 127' "$IVF" inventory --tsv --no-host --repo "$IVZ" ) > /dev/null 2>&1 &
+_ivzq=$!; _ivn=0
+while [ ! -s "$IV/gh-slow.log" ] && [ "$_ivn" -lt 600 ] && kill -0 "$_ivzq" 2>/dev/null; do sleep 0.2; _ivn=$((_ivn + 1)); done
+_ivx="$(ls -A "$IV/tq" | tr '\n' ' ')"
+kill -QUIT "$_ivzq" 2>/dev/null; wait "$_ivzq" 2>/dev/null; _ivzqr=$?
+if [ ! -s "$IV/gh-slow.log" ]; then bad "a QUIT mid-run leaves no scratch behind" "gh was never reached, so no signal was sent (rc $_ivzqr)"
+elif [ -z "$_ivx" ]; then bad "a QUIT mid-run leaves no scratch behind" "no scratch was there to leave while gh ran"
+else is "a QUIT mid-run leaves no scratch behind" "$(ls -A "$IV/tq" | tr '\n' ' ')" ""; fi
+_iv_heredoc() { _ivcode "$IVLIB" "$IVLIBH" ${IVPARTS[@]+"${IVPARTS[@]}"} | grep -E '<<-?[[:space:]]*[A-Za-z_"'"'"']|<<<' | _ivwhere 'a here-document'; }
+is  "no library feeds anything from a here-document or here-string, which bash 3.2 writes to a file outside the scratch" "$(_iv_heredoc)" ""
+# Partial clones: nothing fetched, and what could not be read is unknown.
+[ -s "$IVZ_P1" ] && [ "$(_ivz_pack "$IV/pc1")" = "$_ivz_pc1" ] && ok "reading a partial clone fetches nothing into it" \
+  || bad "reading a partial clone fetches nothing into it" "$(_ivrows "$IVZ_P1" "$(diff <(printf '%s\n' "$_ivz_pc1") <(_ivz_pack "$IV/pc1") | head -n 4 | tr '\n' ';')")"
+_iv_selstate "$IVZ_P2" handoff-pending
+if [ -s "$IV/sel" ] && ! grep -qF 'no Next lines' "$IV/sel"; then ok "a pending section a partial clone cannot read is not said to have no Next lines"
+else bad "a pending section a partial clone cannot read is not said to have no Next lines" "$(_iv_diag)"; fi
+_ivz_after="$(_ivz_snap)"
+[ -s "$IVZ_T1" ] && [ "$_ivz_after" = "$_ivz_before" ] && ok "no file under gizmo, its origin or the decoy changed across these runs" \
+  || bad "no file under gizmo, its origin or the decoy changed across these runs" "$(diff <(printf '%s\n' "$_ivz_before") <(printf '%s\n' "$_ivz_after") | head -n 6 | tr '\n' ';')"
+_ivx="$(grep -E 'bad substitution|syntax error|unbound variable|command not found|invalid option|not a valid identifier|division by 0|awk: |Permission denied' "$IV_ERR" | head -n 3 | tr '\n' ';')"
+is  "no run wrote a shell or awk error to stderr, nor a failed redirection" "$_ivx" ""
+
+# ---- spec decisions of 2026-09-24 ----------------------------------------
+# Six decisions Felix took on the spec after review, each held to the rule it
+# sets and each seen failing on the command as it stood before it was built:
+#   D1 a session ended on a question when the last paragraph of its final
+#      assistant text (after the last blank line, emphasis characters
+#      removed) holds a ?, and no human text follows; the note stays the
+#      text's last 160 characters, cut on a character boundary
+#   D2 live is the newest mtime among a session's own file and every file
+#      under its <session-id>/subagents/ (workflows/ too); blocked also needs
+#      nothing there written within --blocked; question and blocked read the
+#      session's own file only
+#   D3 a row standing for a list not read, or a fact about the whole
+#      repository, is kind repo with ref -; the item kinds are only items
+#   D4 --days defaults to 14, and the human view states the window
+#   D5 a worktree or orphan under $TMPDIR, /tmp, /private/tmp or
+#      /private/var/folders carries the detail word temp, keeps its states,
+#      and is listed in a group of its own after what needs action
+#   D6 no code: pending/ only, which the handoff assertions above hold
+# D1, D2 and D4 are built on a fourth repository, doohickey, so nothing above
+# changes its fixture; D3 and D5 read the runs above as well.
+printf '\nfelix inventory: the spec decisions of 2026-09-24\n'
+IVW4="$IV/work4"; IVK="$IVW4/doohickey"; IVKO="$IV/origin4.git"
+mkdir -p "$IVW4"
+_ivrepo "$IVKO" "$IVK" acme/doohickey
+# Its one commit is ten days old, so a row's age comes from its sessions.
+printf 'doohickey\n' > "$IVK/README.md"
+( _ivx="$(( $(date +%s) - 864000 )) +0000"; export GIT_COMMITTER_DATE="$_ivx" GIT_AUTHOR_DATE="$_ivx"; _ivwc "$IVK" 'the first doohickey' )
+_ivg -C "$IVK" push -q origin main; _ivg -C "$IVK" remote set-head origin main
+for _ivn in midq boldq listq longq trail earlier blankws agent flow stale mid two; do
+  _ivg -C "$IVK" worktree add -q -b "topic/$_ivn" "$IVW4/wt-$_ivn" main
+done
+# D1: sessions two hours old, each ending on one final text. The texts are
+# written as a transcript holds them, a line break as \n.
+_ivk1() {  # worktree sid text
+  _ivopen "$IVW4/$1" "$2"
+  _au_say  "$(_ivago 122 iso)" 'report back'
+  _au_stop "$(_ivago 120 iso)" "msg_$1" "$3"
+  _ivtouch "$_AU_F" 120
+}
+IVK_TAIL='the rest of the paragraph runs on the rest of the paragraph runs on the rest of the paragraph runs on the rest of the paragraph runs on the rest of the paragraph runs on the rest of the paragraph runs on the rest of the paragraph runs on'
+_ivk1 wt-midq    d1d1d1d1-0000-4000-8000-000000000001 'I rebased the branch and the suite is green.\n\nShall I push it? Or leave it for review.'
+_ivk1 wt-boldq   d1d1d1d1-0000-4000-8000-000000000002 'The two layouts differ in one place.\n\n**Want me to merge it?** I can wait.'
+_ivk1 wt-listq   d1d1d1d1-0000-4000-8000-000000000003 'Three options remain:\n- keep it\n- drop it\n- split it\nWhich one do you prefer? Any of them works.'
+_ivk1 wt-longq   d1d1d1d1-0000-4000-8000-000000000004 "Done.\\n\\nShall I go on? $IVK_TAIL "
+_ivk1 wt-trail   d1d1d1d1-0000-4000-8000-000000000005 'Here it is.\n\nWhich one do you want?\n\n'
+_ivk1 wt-earlier d1d1d1d1-0000-4000-8000-000000000006 'Should I push it?\n\nDone for now: the branch is pushed.'
+_ivk1 wt-blankws d1d1d1d1-0000-4000-8000-000000000007 'Should I push it?\n \t \nThanks, that is all.'
+# D2: sessions whose own file last moved two or three hours ago, on a call
+# to a subagent that has had no result, and whose subagents/ holds a file
+# last written some minutes ago.
+_ivk2() {  # worktree sid own-age-min
+  _ivopen "$IVW4/$1" "$2"
+  _au_say  "$(_ivago $(($3 + 2)) iso)" 'look into it'
+  _au_tool "toolu_$1" Agent '{"description":"Look into it","prompt":"look into it","subagent_type":"general-purpose"}'
+  _au_a    "$(_ivago "$3" iso)" "msg_$1" '"tool_use"' "$_AU_B"
+  _ivtouch "$_AU_F" "$3"
+}
+_ivk2sub() {  # worktree sid path-under-subagents age-min
+  _au_open "$(_ive "$IVW4/$1")/$2/subagents/$3" "agent-$1"
+  _au_say  "$(_ivago $(($4 + 1)) iso)" 'look into it'
+  _au_stop "$(_ivago "$4" iso)" "msg_sub_$1" 'Found it. Anything else?'
+  _ivtouch "$_AU_F" "$4"
+}
+_ivk2    wt-agent d2d2d2d2-0000-4000-8000-000000000001 120
+_ivk2sub wt-agent d2d2d2d2-0000-4000-8000-000000000001 agent-a1.jsonl 2
+_ivk2    wt-flow  d2d2d2d2-0000-4000-8000-000000000002 120
+_ivk2sub wt-flow  d2d2d2d2-0000-4000-8000-000000000002 workflows/wf_1/agent-a2.jsonl 2
+_ivk2    wt-stale d2d2d2d2-0000-4000-8000-000000000003 120
+_ivk2sub wt-stale d2d2d2d2-0000-4000-8000-000000000003 agent-a3.jsonl 90
+_ivk2    wt-mid   d2d2d2d2-0000-4000-8000-000000000004 120
+_ivk2sub wt-mid   d2d2d2d2-0000-4000-8000-000000000004 agent-a4.jsonl 30
+# wt-two: an older session, quiet three hours on a subagent that wrote two
+# minutes ago, and a newer one that ended on a question ninety minutes ago.
+_ivk2    wt-two   d2d2d2d2-0000-4000-8000-00000000000a 180
+_ivk2sub wt-two   d2d2d2d2-0000-4000-8000-00000000000a agent-a5.jsonl 2
+_ivopen "$IVW4/wt-two" d2d2d2d2-0000-4000-8000-00000000000b
+_au_say  "$(_ivago 92 iso)" 'is it ready'
+_au_stop "$(_ivago 90 iso)" msg_two_b 'It is ready. Shall I merge it?'
+_ivtouch "$_AU_F" 90
+# D4: a chip in a session ten days old, never started, and one in a session
+# twenty days old.
+IV_PK_PROMPT='Kappa task: make the importer skip a row whose checksum repeats the previous row, and test it on a file holding one row twice in a row.'
+IV_PI_PROMPT='Iota task: teach the report to name the file each total came from, and test that a total built from two files names both of them.'
+_ivopen "$IVK" d4d4d4d4-0000-4000-8000-00000000000a
+_au_say  "$(_ivago 14402 iso)" 'note what is left'
+_ivchip  "$(_ivago 14401 iso)" toolu_ck task_k4k4k4k4 'Kappa chip ten days old' "$IV_PK_PROMPT"
+_au_stop "$(_ivago 14400 iso)" msg_ck 'Noted.'
+_ivtouch "$_AU_F" 14400
+_ivopen "$IVK" d4d4d4d4-0000-4000-8000-00000000000b
+_au_say  "$(_ivago 28802 iso)" 'note what is left'
+_ivchip  "$(_ivago 28801 iso)" toolu_ci task_i4i4i4i4 'Iota chip twenty days old' "$IV_PI_PROMPT"
+_au_stop "$(_ivago 28800 iso)" msg_ci 'Noted.'
+_ivtouch "$_AU_F" 28800
+
+IVK_T1="$IV/k1.tsv"; _ivrun --cwd "$IVK" inventory --tsv --no-gh --repo "$IVK" > "$IVK_T1"; IVK_RC1=$?
+IVK_T2="$IV/k2.tsv"; _ivrun --cwd "$IVK" inventory --tsv --no-gh --blocked 40 --repo "$IVK" > "$IVK_T2"
+IVK_H1="$IV/k1.txt"; _ivrun --cwd "$IVK" inventory --no-gh --repo "$IVK" > "$IVK_H1"
+IVK_H3="$IV/k3.txt"; _ivrun --cwd "$IVK" inventory --no-gh --days 3 --repo "$IVK" > "$IVK_H3"
+is  "the decisions' runs: felix inventory --tsv over doohickey exits 0" "$IVK_RC1" "0"
+# The row of one worktree, by its path exactly.
+_ivk_sel() { LC_ALL=C awk -F'\t' -v r="$IVW4/$2" '$3 == r' "$1" > "$IV/sel"; }
+_ivk_chk() {  # name file worktree mode arg
+  _ivk_sel "$2" "$3"
+  if _iv_q "$4" "$5"; then ok "$1"; else bad "$1" "$(_iv_diag)"; fi; }
+
+# ---- D1: question ----
+_ivk_chk "D1: a last paragraph that asks and then goes on is a question" "$IVK_T1" wt-midq hold question
+_ivk_chk "D1: a question in bold followed by a statement is a question" "$IVK_T1" wt-boldq hold question
+_ivk_chk "D1: a last paragraph of single lines, one of them asking, is a question" "$IVK_T1" wt-listq hold question
+_ivk_chk "D1: blank lines after the question leave it the last paragraph, a question" "$IVK_T1" wt-trail hold question
+_ivk_chk "D1: a ? in an earlier paragraph only is no question" "$IVK_T1" wt-earlier lack question
+_ivk_chk "D1: a line of spaces and a tab is a blank line, so the ? before it is in an earlier paragraph" "$IVK_T1" wt-blankws lack question
+_ivk_sel "$IVK_T1" wt-midq
+has "D1: the note of a short question is the whole text, a line break read as a space" "$(cut -f7 "$IV/sel")" \
+    "ended on: I rebased the branch and the suite is green.  Shall I push it? Or leave it for review."
+_ivx="Done.  Shall I go on? $IVK_TAIL"; _ivx="${_ivx:$((${#_ivx} - 160))}"
+_ivk_sel "$IVK_T1" wt-longq
+if _iv_q hold question; then has "D1: the note of a long question is the text's last 160 characters" "$(cut -f7 "$IV/sel")" "ended on: $_ivx"
+else bad "D1: the note of a long question is the text's last 160 characters" "$(_iv_diag)"; fi
+
+# ---- D2: live and blocked ----
+_ivk_chk "D2: a session quiet two hours on a subagent call is live when a file under its subagents/ was written 2 minutes ago" "$IVK_T1" wt-agent hold live
+_ivk_chk "D2: and it is not blocked, since its subagents wrote within --blocked" "$IVK_T1" wt-agent lack blocked
+_ivk_sel "$IVK_T1" wt-agent
+is  "D2: and its age is its newest file's, 0 hours" "$(cut -f6 "$IV/sel")" "0"
+_ivk_chk "D2: a file under subagents/workflows/ written 2 minutes ago counts as well" "$IVK_T1" wt-flow hold live
+_ivk_sel "$IVK_T1" wt-stale
+if _iv_q lack live && _iv_q hold blocked; then ok "D2: subagents that last wrote 90 minutes ago make it neither live nor unblocked"
+else bad "D2: subagents that last wrote 90 minutes ago make it neither live nor unblocked" "$(_iv_diag)"; fi
+_ivk_sel "$IVK_T1" wt-mid
+if _iv_q hold live && _iv_q hold blocked; then ok "D2: subagents that last wrote 30 minutes ago make it live, and under the default --blocked 20 still blocked"
+else bad "D2: subagents that last wrote 30 minutes ago make it live, and under the default --blocked 20 still blocked" "$(_iv_diag)"; fi
+_ivk_chk "D2: and under --blocked 40 they keep it from being blocked" "$IVK_T2" wt-mid lack blocked
+_ivk_sel "$IVK_T1" wt-two
+if _iv_q hold live && _iv_q hold question; then ok "D2: an older session's subagent writing now makes the worktree live, and the newest session's question stands"
+else bad "D2: an older session's subagent writing now makes the worktree live, and the newest session's question stands" "$(_iv_diag)"; fi
+
+# ---- D3: repository-level rows ----
+# kind repo ref states, for every row of kind repo or with ref -.
+_ivk_repo() { LC_ALL=C awk -F'\t' '$1 == "kind" && $4 == "states" { next } $1 == "repo" || $3 == "-" { print $1 "\t" $3 "\t" $4 }' "$1"; }
+_ivk_rchk() {  # name file state
+  if [ -s "$2" ] && _ivk_repo "$2" | LC_ALL=C awk -F'\t' -v s="$3" '$1 == "repo" && $2 == "-" && index("," $3 ",", "," s ",") { f = 1 } END { exit !f }'; then ok "$1"
+  else bad "$1" "$(_ivrows "$2" "$(_ivk_repo "$2" | tr '\t\n' '|;')")"; fi; }
+_ivk_rchk "D3: under --no-gh the open PRs not listed are a row of kind repo with ref -" "$IV_T3" unknown:pr-open
+_ivk_rchk "D3: with no gh on PATH, likewise" "$IV_T5" unknown:pr-open
+_ivk_rchk "D3: under --no-host the chips not read are a row of kind repo with ref -" "$IV_T4" unknown:chip-unstarted
+_ivk_rchk "D3: when gh lists its limit of 1000, a row of kind repo with ref - says the list may not be all" "$IVZ_T3" unknown:unproposed
+_ivx=""
+for _ivf in "$IV_T0" "$IV_T0W" "$IV_T1" "$IV_T3" "$IV_T4" "$IV_T5" "$IV_T6" "$IV/t7.tsv" "$IV_T8" "$IVZ_T1" "$IVZ_T3" "$IVZ_T4" "$IVZ_P1" "$IVZ_P2" "$IVK_T1" "$IVK_T2"; do
+  [ -f "$_ivf" ] || continue
+  _ivx="$_ivx$(_ivk_repo "$_ivf" | LC_ALL=C awk -F'\t' -v f="${_ivf##*/}" '!($1 == "repo" && $2 == "-") { printf "%s: %s %s; ", f, $1, $2 }')"
+done
+is  "D3: across every run, a row with ref - is of kind repo and a row of kind repo has ref -" "$_ivx" ""
+
+# ---- D4: the chip window ----
+_iv_selstate "$IVK_T1" chip-unstarted
+if grep -qE 'Kappa chip|task_k4k4k4k4' "$IV/sel"; then ok "D4: by default a chip from a session 10 days old is listed"
+else bad "D4: by default a chip from a session 10 days old is listed" "$(_iv_diag)"; fi
+if [ -s "$IVK_T1" ] && ! grep -qE 'Iota chip|task_i4i4i4i4' "$IV/sel"; then ok "D4: and one from a session 20 days old is not"
+else bad "D4: and one from a session 20 days old is not" "$(_ivrows "$IVK_T1" "$(_iv_diag)")"; fi
+LC_ALL=C grep -qiE 'chips.*last 14 days' "$IVK_H1" && ok "D4: the human view states the window: chips from the last 14 days" \
+  || bad "D4: the human view states the window: chips from the last 14 days" "$(head -n 8 "$IVK_H1" | tr '\n' ';')"
+LC_ALL=C grep -qiE 'chips.*last 3 days' "$IVK_H3" && ok "D4: and under --days 3 it says 3 days" \
+  || bad "D4: and under --days 3 it says 3 days" "$(head -n 8 "$IVK_H3" | tr '\n' ';')"
+
+# ---- D5: temporary directories ----
+_iv_chk "D5: a worktree under a temporary directory carries the word temp in its detail" "$IV_T1" wt-dirty word 7:temp
+_iv_chk "D5: and its states are computed as for any other: it still leads with uncommitted" "$IV_T1" wt-dirty lead uncommitted
+_iv_chk "D5: an orphan under one carries temp too" "$IV_T1" orphan-edit word 7:temp
+_ivx="$(LC_ALL=C awk -F'\t' '$1 == "kind" && $4 == "states" { next }
+  $1 != "worktree" && $1 != "orphan" && tolower($7) ~ /(^|[^a-z])temp([^a-z]|$)/ { printf "%s %s; ", $1, $3 }' "$IV_T1" "$IV_T3" "$IV_T4")"
+is  "D5: no row that is not a directory carries temp: branches, remote branches, PRs, chips, handoff sections, repo rows" "$(_ivrows "$IV_T1" "$_ivx")" ""
+# Every fixture lies in a temporary directory (the suite's TMP is one), so
+# the one path outside every temporary directory is asked of the test the
+# command applies, below the command: the libraries sourced, _fi_tmps reading
+# TMPDIR and _fi_temp asked of each path.
+_ivx="$(TMPDIR=/nowhere/t/ /bin/bash -c 'for f in "$@"; do . "$f" || exit 1; done; _fi_tmps; for p in /home/u/x /tmpx/y /private/varx /nowhere/tt /nowhere/t/z /tmp/a /private/tmp /private/var/folders/q/r; do _fi_temp "$p" && printf "%s " "$p"; done; exit 0' _ "$IVLIB" ${IVPARTS[@]+"${IVPARTS[@]}"} 2>&1)"
+is  "D5: of eight paths, the four under TMPDIR, /tmp, /private/tmp or /private/var/folders are temp, and no other" "$_ivx" "/nowhere/t/z /tmp/a /private/tmp /private/var/folders/q/r "
+IV_HT="$(_ivln "$IV_HU" 'in temporary directories' 'in temporary directories')"
+IV_HX="$(LC_ALL=C awk '/(^|[^a-z])live [0-9]/ && /landed [0-9]/ { print NR; exit }' "$IV_HU")"
+IV_HN="$(_ivln "$IV_HU" 'Delta chip' task_d4d4d4d4)"; IV_HF="$(_ivln "$IV_HU" frobnicator frobnicator)"; IV_HW="$(_ivln "$IV_HU" wt-dirty wt-dirty)"
+if [ -n "$IV_HT" ] && [ -n "$IV_HX" ] && [ -n "$IV_HN" ] && [ -n "$IV_HF" ] && [ -n "$IV_HW" ] \
+   && [ "$IV_HN" -lt "$IV_HT" ] && [ "$IV_HF" -lt "$IV_HT" ] && [ "$IV_HT" -lt "$IV_HW" ] && [ "$IV_HW" -lt "$IV_HX" ]; then
+  ok  "D5: the human view lists them under \"in temporary directories\", after the groups that need action and before the live and landed counts"
+else bad "D5: the human view lists them under \"in temporary directories\", after the groups that need action and before the live and landed counts" \
+         "lines: temp group ${IV_HT:-none}, chip ${IV_HN:-none}, handoff ${IV_HF:-none}, wt-dirty ${IV_HW:-none}, counts ${IV_HX:-none}"; fi
+_ivx="$(grep -E 'bad substitution|syntax error|unbound variable|command not found|invalid option|not a valid identifier|division by 0|awk: |Permission denied' "$IV_ERR" | head -n 3 | tr '\n' ';')"
+is  "the decisions' runs wrote no shell or awk error to stderr" "$_ivx" ""
+
 printf '\nthe handoff, as sections: no two sessions write the same path\n'
 # HANDOFF.md was one slot and one counter every session shared: write your
 # section at the top with the next id, archive the one it replaces. With ten

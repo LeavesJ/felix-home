@@ -1,0 +1,136 @@
+# felix inventory's orphans: directories a repository's checkouts left behind
+# that git no longer lists, for lib/inventory.sh, and which of its directories
+# sit in a temporary directory. Read-only as the rest is: every git call is
+# _fi_git, and find and git only list and hash.
+#
+# An orphan is a directory beside the worktrees whose .git file names a
+# gitdir inside this repository's; or, in a directory inside the main
+# worktree, a gitdir that no longer exists at all, or no .git and nothing
+# tracked. Elsewhere that is no evidence: beside a checkout sit other
+# projects, and a temp directory every process's scratch. Where to look is
+# every directory holding a linked worktree git lists, and, since pruning
+# every one of them leaves nothing listed, every directory inside the main
+# worktree, untracked or ignored, whose tree holds within three levels a .git
+# file naming a gitdir inside this repository's, or one gone. A directory
+# holding only other repositories' checkouts is never one to look in.
+#
+# What an orphan holds is read as a checkout of the repository would be:
+# with its own ignore files, or, lacking one at its top, the main worktree's,
+# so a plain directory does not count a build tree the repository ignores.
+# Ignored files are counted apart, and read up to 1 MiB each and 2000 in
+# all, since an ignored directory can hold gigabytes and a file there can
+# still be the only copy of something (a local settings file, a notes file
+# under an ignored .claude/); what was passed over is said, so no count of
+# 0 stands for files nobody read.
+
+# The orphans into $T/orph ("path detail", - for none), the directories
+# inside the main worktree that hold them into $T/scope, and, for the main
+# worktree's status, the paths of its linked worktrees and orphans inside it,
+# relative, into $T/nest.
+_fi_orphan_find() {
+  local p o g x in reg
+  : > "$T/orph"; : > "$T/scope"; : > "$T/nest"
+  reg="$_FI_NL$(cut -f1 "$T/wt")$_FI_NL"
+  { awk -F'\t' 'NR > 1 && $4 !~ /linebreak/ { p = $1; sub(/\/[^\/]*$/, "", p); if (p != "") print p }' "$T/wt"; _fi_orphan_parents; } \
+    | sort -u > "$T/parents"
+  while IFS= read -r p <&3; do
+    in=0; [ -n "$_FI_MAIN" ] && case "$p/" in "$_FI_MAIN"/?*/) in=1; printf '%s/\n' "$p" >> "$T/scope" ;; esac
+    for o in "$p"/*/; do
+      o="${o%/}"; [ -d "$o" ] || continue
+      case "$reg" in *"$_FI_NL$o$_FI_NL"*) continue ;; esac
+      [ -d "$o/.git" ] || { [ -f "$o/HEAD" ] && [ -d "$o/objects" ]; } && continue
+      if [ -f "$o/.git" ]; then
+        g="$(_fi_gitdir "$o")" || continue
+        # Ours, or gone with its whole repository (one since moved) from a
+        # directory inside our main worktree; a live one elsewhere is another's.
+        case "$g" in "$_FI_COMMON"/*) ;; *) [ "$in" = 1 ] && [ ! -e "$g" ] || continue ;; esac
+        x="its .git names $g, which git here does not list"
+      elif [ "$in" = 0 ] || [ -n "$(_fi_git -C "$_FI_MAIN" ls-files -- "${o#"$_FI_MAIN"/}" 2>/dev/null | head -1)" ]; then continue
+      else x=-; fi
+      printf '%s\t%s\n' "$o" "$x" >> "$T/orph"
+    done
+  done 3< "$T/parents"
+  [ -n "$_FI_MAIN" ] || return 0
+  { tail -n +2 "$T/wt" | cut -f1; cut -f1 "$T/orph"; } | while IFS= read -r o; do
+    case "$o" in "$_FI_MAIN"/?*) printf '%s\n' "${o#"$_FI_MAIN"/}" ;; esac
+  done > "$T/nest"
+}
+# The gitdir a directory's .git file names, absolute, resolved as far as it exists.
+_fi_gitdir() {
+  local g x
+  g="$(sed -n 's/^gitdir: //p' "$1/.git" 2>/dev/null | head -1)"
+  case "$g" in /*) ;; ?*) g="$1/$g" ;; *) return 1 ;; esac
+  x="$(cd "${g%/*}" 2>/dev/null && pwd -P)" && g="$x/${g##*/}"
+  printf '%s' "$g"
+}
+# Directories inside the main worktree that hold what a pruned worktree left.
+_fi_orphan_parents() {
+  local e m g
+  [ -n "$_FI_MAIN" ] || return 0
+  { _fi_git -C "$_FI_MAIN" ls-files -z --others --directory --exclude-standard
+    _fi_git -C "$_FI_MAIN" ls-files -z --others --ignored --directory --exclude-standard; } 2>/dev/null | tr '\000' '\n' | grep '/$' > "$T/mo"
+  while IFS= read -r e <&3; do
+    find "$_FI_MAIN/${e%/}" -maxdepth 3 -name .git -type f -print 2>/dev/null
+  done 3< "$T/mo" | while IFS= read -r m; do
+    m="${m%/.git}"; g="$(_fi_gitdir "$m")" || continue
+    case "$g" in "$_FI_COMMON"/*) ;; *) [ -e "$g" ] && continue ;; esac
+    printf '%s\n' "${m%/*}"
+  done
+}
+
+# The temporary directories: $TMPDIR as set and as it resolves, /tmp,
+# /private/tmp and /private/var/folders (a Mac's per-user temp), into _FI_TMPS.
+_fi_tmps() {
+  local t="${TMPDIR:-}" p
+  while [ "${t%/}" != "$t" ]; do t="${t%/}"; done
+  _FI_TMPS=(/tmp /private/tmp /private/var/folders)
+  [ -n "$t" ] || return 0
+  _FI_TMPS[3]="$t"; p="$(cd "$t" 2>/dev/null && pwd -P)" && [ -n "$p" ] && _FI_TMPS[4]="$p"; return 0
+}
+_fi_temp() { local t; for t in "${_FI_TMPS[@]}"; do case "$1/" in "$t"/*) return 0 ;; esac; done; return 1; }
+
+_fi_orphan_rows() {
+  local o x when
+  while IFS="$_FI_TAB" read -r o x <&3; do
+    _FI_DET="$(_fi_uniq "$o")"; [ "$x" = - ] || _fi_add "$x"
+    _fi_host "$o"
+    when="$(date -r "$o" +%s 2>/dev/null)"; case "$when" in *[!0-9]*|'') when=0 ;; esac
+    case "${_FI_H[1]}" in *[!0-9]*|'') ;; *) [ "${_FI_H[1]}" -gt "$when" ] && when="${_FI_H[1]}" ;; esac
+    _fi_states live="${_FI_H[2]}" question="${_FI_H[3]}" blocked="${_FI_H[4]}" orphan=yes; _fi_age "$when"
+    ! _fi_temp "$o" || _fi_add temp
+    _fi_row orphan "$o" "$_FI_S" "${_FI_H[0]}" "$_FI_A" "$_FI_DET" - -
+  done 3< "$T/orph"
+}
+
+# How many files in a directory hold content in no object of the repository,
+# said as one detail: the files the ignore rules keep, then the ignored ones.
+_fi_uniq() {
+  local o="$1" ex="" f n k m ki big past
+  [ -f "$o/.gitignore" ] || [ -z "$_FI_MAIN" ] || [ ! -f "$_FI_MAIN/.gitignore" ] || ex="--exclude-from=$_FI_MAIN/.gitignore"
+  GIT_INDEX_FILE="$_FI_T/no-index" _fi_git --git-dir="$_FI_COMMON" --work-tree="$o" ls-files -z --others --exclude-standard ${ex:+"$ex"} \
+    2>/dev/null | tr '\000' '\n' > "$T/of"
+  while IFS= read -r f <&3; do
+    case "$f" in */) continue ;; esac; [ -f "$o/$f" ] && [ ! -L "$o/$f" ] && printf '%s\n' "$o/$f"
+  done 3< "$T/of" > "$T/of2"
+  n="$(wc -l < "$T/of2" | tr -d ' ')"
+  k="$(head -n 20000 "$T/of2" | _fi_git --git-dir="$_FI_COMMON" hash-object --no-filters --stdin-paths 2>/dev/null \
+    | _fi_git --git-dir="$_FI_COMMON" cat-file --batch-check 2>/dev/null | grep -c ' missing$')"
+  printf '%s of %s files hold content in no object of the repository' "${k:-0}" "$n"
+  [ "$n" -le 20000 ] || printf '; files past the first 20000 not read'
+  GIT_INDEX_FILE="$_FI_T/no-index" _fi_git --git-dir="$_FI_COMMON" --work-tree="$o" ls-files -z --others --ignored --exclude-standard \
+    --directory ${ex:+"$ex"} 2>/dev/null | tr '\000' '\n' > "$T/oi"
+  if [ -s "$T/oi" ]; then
+    while IFS= read -r f <&3; do
+      find "$o/${f%/}" -name .git -prune -o -type f -size -2049 -print -o -type f -exec printf '\001%s\n' {} + 2>/dev/null
+    done 3< "$T/oi" | awk -v st="$T/oib" 'substr($0, 1, 1) == "\001" { b++; next } ++n > 2000 { p = 1; exit } { print }
+      END { printf "%d %d\n", b, p > st }' > "$T/oi2"
+    read -r big past < "$T/oib"
+    m="$(wc -l < "$T/oi2" | tr -d ' ')"
+    ki="$(_fi_git --git-dir="$_FI_COMMON" hash-object --no-filters --stdin-paths < "$T/oi2" 2>/dev/null \
+      | _fi_git --git-dir="$_FI_COMMON" cat-file --batch-check 2>/dev/null | grep -c ' missing$')"
+    printf '; %s of %s ignored files hold content in no object' "${ki:-0}" "$m"
+    [ "${big:-0}" = 0 ] || printf '; %s ignored files over 1 MiB not read' "$big"
+    [ "${past:-0}" = 0 ] || printf '; ignored files past the first 2000 not read'
+  else ki=0; fi
+  [ "$_FI_PARTIAL" = 0 ] || [ "${k:-0}${ki:-0}" = 00 ] || printf '; a partial clone, whose remote may hold that content'
+}

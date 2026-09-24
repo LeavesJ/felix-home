@@ -1099,6 +1099,7 @@
 1	and a graph with no stamp admits its currency is unknown
 1	and a graph with no stamp does too
 1	and a graphify that fails outright does not reach the session
+1	and a hand rotation that archives a stale copy of the section says what it drops
 1	and a high one is refused
 1	and a history read for no workflow is unknown
 1	and a hold is not written
@@ -2051,6 +2052,7 @@
 1	and writes the request under the memory root
 1	and zero failures is still exit 0
 1	another plugin's refusal is not
+1	another section put in place under the current id is refused, since the one it replaced is lost
 1	another session in the same project is not held by that night
 1	another session's edit changes the tree identity
 1	another workflow's failures on the branch are not repair attempts
@@ -2235,6 +2237,7 @@
 1	ecc's shape, an empty mcpServers object beside skills, is low
 1	editing a table in the set is a new policy version
 1	editing a table in the set makes it stale, with nothing under state/ changing
+1	editing the current section in place, its heading kept, reads clean
 1	editing the same file again invalidates the receipt
 1	editing the table takes the grant off it
 1	eight fields is refused for its field count, never cut to seven

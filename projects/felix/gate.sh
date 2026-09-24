@@ -98,6 +98,28 @@ else
   fail schema; printf '    no executable engine/harness/bin/schema-check in this tree\n'
 fi
 
+# ------------------------------------------------------------- handoff -------
+# HANDOFF.md changes only as the fold writes it. A session adds its section as
+# a file under docs/handoff/pending/ (felix handoff --section), and ids, the
+# archive and the index come from the order sections landed on main (felix
+# handoff --rotate). Writing a section into HANDOFF.md by hand is refused here,
+# because that shared slot is how four pull requests claimed one id inside an
+# hour on 2026-09-23; so is rewriting or dropping an archived section.
+#
+# Absent is announced and skipped, not failed, unlike schema's. This file is
+# read from the home while the tree is a worktree's, so a branch cut before the
+# check existed would go red for a file it never had. A tree that removed it
+# is caught anyway, by the suite, which calls it.
+if [ -x engine/harness/bin/handoff-check ]; then
+  if OUT="$(engine/harness/bin/handoff-check 2>&1)"; then
+    pass handoff
+  else
+    fail handoff; printf '%s\n' "$OUT" | head -8 | sed 's/^/    /'
+  fi
+else
+  printf '  %-18s skipped (no engine/harness/bin/handoff-check in this tree)\n' handoff
+fi
+
 # Moved above `tests` on 2026-08-13. This check had failed 8 times, every one of
 # them discovered after a full suite run, because the loop is edit -> gate ->
 # find it never deployed -> bump -> install -> gate again. `felix next` surfaced

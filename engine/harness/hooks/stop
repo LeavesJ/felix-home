@@ -14,8 +14,10 @@
 #
 # Honest about its reach. The platform documents that a Stop hook must return
 # success while stop_hook_active is set, and caps consecutive blocks itself, so
-# this interrupts once per chain. The one exception is a session's own night,
-# which carries through the chain on bounds of its own (lib/overnight.sh).
+# this interrupts once per chain it starts; a chain another hook started is
+# judged like any other stop (felix_hold_take in lib/verify.sh). The one
+# exception is a session's own night, which carries through the chain on bounds
+# of its own (lib/overnight.sh).
 # Everything else is a speed bump with a permanent record,
 # not an inescapable barrier. The inescapable barrier is CI at the merge
 # boundary, which Felix already sets up and which is not affected by this.
@@ -68,7 +70,7 @@ _active="$(printf '%s' "$raw" \
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 
-# A chain the platform started from an earlier block ends here, as the
+# A chain the platform started from Felix's own hold ends here, as the
 # platform asks, except for a session that holds a night of its own. That
 # night is the grant to keep going, and leaving at the flag meant it held a
 # session once per prompt, so a session nobody was typing into (the one kind
@@ -76,12 +78,35 @@ FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 # deadline, budget and quiet count (lib/overnight-stop.sh), and inside the chain
 # nothing else here may block: every other refusal below still lets a chain
 # end, as it always has, except the gate's, which is charged to the night.
-CHAIN=0
+#
+# A chain Felix did not start does not end here. The flag says only that some
+# hook started this turn, and an asyncRewake hook's rewake is a turn started
+# with it set, so leaving at the flag let the turn that answered a background
+# review end unchecked and unrecorded. The hold's own record tells the two
+# apart, and is taken at every flagged stop, a night's included, so a night
+# leaves none behind. An id or a record that cannot tell ends the stop, as
+# before. FOREIGN marks a stop judged inside another hook's chain.
+CHAIN=0 FOREIGN=0
 if [ "${_active:-}" = "true" ]; then
   _chain_proj="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || exit 0
-  felix_overnight_owns "$_chain_proj" "${SID:-}" || exit 0
-  CHAIN=1
+  felix_hold_take "$FELIX_HOME_DIR" "${SID:-}"; _held=$?
+  if felix_overnight_owns "$_chain_proj" "${SID:-}"; then
+    CHAIN=1
+  else
+    [ "$_held" -eq 1 ] || exit 0
+    FOREIGN=1
+  fi
+else
+  felix_hold_clear "$FELIX_HOME_DIR" "${SID:-}"
 fi
+
+# Every hold goes on record as Felix's own before it is made, because the
+# flagged stop after it is let through on that record alone. Inside another
+# hook's chain a hold that cannot be recorded is not made: the stop after it
+# would be judged afresh and held again, and two holds in a row is a loop.
+_felix_stop_may_hold() {
+  felix_hold_mark "$FELIX_HOME_DIR" "${SID:-}" || [ "$FOREIGN" = "0" ]
+}
 
 # The transcript this stop's payload names, or nothing.
 _felix_stop_tp() {
@@ -100,6 +125,7 @@ _felix_stop_night() {   # extra -> exits, or returns
   case "$rc" in
     0)
       body="${body}${1:-}"
+      _felix_stop_may_hold
       felix_say "$PROJ" "overnight" "$body" "" "${SID:-}"
       printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$body")"
       exit 0 ;;
@@ -137,6 +163,7 @@ felix_session_machine "$FELIX_HOME_DIR" "${SID:-}" && exit 0
 broken="$(felix_binding_broken "$PWD" "$FELIX_HOME_DIR")"
 if [ -n "$broken" ]; then
   [ "$CHAIN" = "1" ] && exit 0
+  _felix_stop_may_hold || exit 0
   felix_unresolved_log "$broken" "$PWD"
   printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$broken")"
   exit 0
@@ -477,6 +504,10 @@ if [ "$CHAIN" = "1" ]; then
   [ "$_on_rc" -eq 0 ] || exit 0
 fi
 
+if ! _felix_stop_may_hold; then
+  felix_verify_log "$PROJ" "allowed" "$TID" "$detail; inside another hook's chain, and the hold could not be recorded"
+  exit 0
+fi
 felix_verify_log "$PROJ" "blocked" "$TID" "$detail"
 
 reason="$why

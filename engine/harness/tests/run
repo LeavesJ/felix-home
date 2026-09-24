@@ -14763,7 +14763,7 @@ if [ -n "$_sc_tr" ] && case "$SCR/" in "${_sc_tr%/}/"*) true ;; *) false ;; esac
 else
   bad "the scoped fixture lies under the TMPDIR the suite was given" "fixture [$SCR] TMPDIR [${TMPDIR:-}]"
 fi
-{ printf 'Bash\t(>|tee|cp|mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*["\047]?\\.felix(-home)?["\047]?([[:space:];&|)]|$)\tmarker\tcheckout\n'
+{ printf 'Bash\t(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*["\047]?\\.felix(-home)?["\047]?([[:space:];&|)]|$)\tmarker\tcheckout\n'
   printf 'Bash\tgit( +-[^ ]+( +[^ ]+)?)* +(update-ref|symbolic-ref|fetch|push)[^;&|]*refs/remotes/\ttracking\tcheckout\n'
   printf 'Bash\tgit( +-[^ ]+( +[^ ]+)?)* +remote +(add|set-url|rename|remove|rm)( |$)\tremote\tcheckout\n'
   printf 'Bash\tgit add ([^;&|]* )?(-A|--all|\\.)( |$)\tstage\tcheckout\n'

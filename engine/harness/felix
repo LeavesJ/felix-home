@@ -3856,8 +3856,10 @@ cmd_repair() {
   attempts="$(felix_repair_attempts "$branch" "$repo" "$gwf")" || {
     printf 'attempts: unreadable\n\n'
     printf 'CEILING UNKNOWN. The %s runs on %s could not be counted, so the ceiling\n' "$gwf" "$branch"
-    printf 'cannot be shown unspent. Not patching past a bound nobody read; run this\n'
-    printf 'again once gh answers, or escalate:\n\n'
+    printf 'cannot be shown unspent: gh did not answer, or its newest runs held no\n'
+    printf 'success and fewer failures than the ceiling. Not patching past a bound\n'
+    printf 'nobody read; run this again once gh answers or the gate has passed, or\n'
+    printf 'escalate:\n\n'
     printf '  gh pr edit --repo %s --add-label needs-founder\n' "$repo"
     return 2
   }
@@ -3865,7 +3867,7 @@ cmd_repair() {
 
   if [ "$attempts" -ge "$FELIX_REPAIR_MAX" ]; then
     printf '\nCEILING REACHED. Stop patching.\n\n'
-    printf '%s consecutive failures means the diagnosis is wrong, not the patch.\n' "$attempts"
+    printf '%s failures since the gate last passed means the diagnosis is wrong, not the patch.\n' "$attempts"
     printf 'Escalate instead of trying again:\n\n'
     printf '  gh pr edit --repo %s --add-label needs-founder\n\n' "$repo"
     printf 'Then write what was tried and why each attempt failed into\n'

@@ -2926,9 +2926,17 @@ if ! command -v jq >/dev/null 2>&1; then
            "and its repair ceiling does not read as unspent" \
            "and repair hears the gate's runs could not be read, not that there are none" \
            "a branch the gate has not run on has no latest run" \
+           "a cancelled gate run between failures neither spends the repair ceiling nor resets it" \
+           "and of the conclusions a completed gate run can have, only success resets it" \
+           "a gate run that failed to start counts against the ceiling, as do a timed-out one and a conclusion this code does not know" \
+           "a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw" \
+           "and a gate history exactly as long as the window is counted to its first run" \
+           "and a window that reaches the ceiling before it ends reads as reached" \
            "felix repair reads the gate's run on the branch" \
            "and counts only the gate's failures against the ceiling" \
            "and every run list felix repair makes names the gate workflow" \
+           "felix repair stops three failed gate runs that a cancelled one sits between" \
+           "and says the ceiling is reached, not unknown" \
            "felix repair stops at the ceiling when its attempts cannot be counted" \
            "and hands on no failing output as if attempts remained" \
            "felix repair exits 5, nothing to repair, on a green gate run" \
@@ -3075,8 +3083,51 @@ _wa="$(_wfatt fix/y gate.yml)"; _war=$?
 # which felix repair read as a run still in progress.
 WFSTUB_WORKFLOWS="gate.yml ci.yml"
 is "a branch the gate has not run on has no latest run" "$(_wflatest fix/y gate.yml)" ""
-cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
 WFSTUB_WORKFLOWS="gate.yml unattended.yml dynamic/dependabot/update-graph ci.yml"
+
+# Only a success resets the ceiling. A run that ended without a verdict ended
+# the count, so failure, cancelled, failure, failure read as one attempt, and a
+# gate that cancels in progress, or anyone cancelling a run, could keep an
+# unattended loop from ever reaching its ceiling. Such a run is passed over now,
+# like one still going; a run that failed to start counts; and so does a
+# conclusion this code has not met, because the count errs toward stopping.
+_wfseq() { local c; for c in "$@"; do
+             printf 'gate.yml\tgate\tfix/y\t501\tcompleted\t%s\n' "$c"; done > "$WFSTUB_RUNS"; }
+_wfseq failure cancelled failure failure
+is "a cancelled gate run between failures neither spends the repair ceiling nor resets it" \
+   "$(_wfatt fix/y gate.yml)" "3"
+_wfres=""
+for _c in in_progress cancelled skipped neutral stale action_required success; do
+  _wfseq failure "${_c#in_progress}" failure; _wfres="$_wfres $_c:$(_wfatt fix/y gate.yml)"
+done
+is "and of the conclusions a completed gate run can have, only success resets it" \
+   "$_wfres" " in_progress:2 cancelled:2 skipped:2 neutral:2 stale:2 action_required:2 success:1"
+_wfres=""
+for _c in timed_out startup_failure some_later_state; do
+  _wfseq failure "$_c" failure; _wfres="$_wfres $_c:$(_wfatt fix/y gate.yml)"
+done
+is "a gate run that failed to start counts against the ceiling, as do a timed-out one and a conclusion this code does not know" \
+   "$_wfres" " timed_out:3 startup_failure:3 some_later_state:3"
+# Passing a run over spends the window and not the count. The window is the
+# newest hundred runs, so without a rule for its end ninety-nine cancelled runs
+# would push the failures behind them out of sight, and the count would read as
+# the one it saw. Twice: the second window ends in runs still going, whose empty
+# lines a count of lines would lose, making a full window look like a whole
+# history.
+_wfseq failure $(yes cancelled | head -99) failure failure
+_wa="$(_wfatt fix/y gate.yml)"; _war=$?
+_wfseq failure $(yes cancelled | head -94) "" "" "" "" "" ""
+_wb="$(_wfatt fix/y gate.yml)"; _wbr=$?
+[ -z "$_wa$_wb" ] && [ "$_war" -ne 0 ] && [ "$_wbr" -ne 0 ] \
+  && ok  "a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw" \
+  || bad "a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw" \
+         "rc $_war printed [$_wa]; ending in runs still going, rc $_wbr printed [$_wb]"
+_wfseq failure failure $(yes cancelled | head -98)
+is "and a gate history exactly as long as the window is counted to its first run" \
+   "$(_wfatt fix/y gate.yml)" "2"
+_wfseq failure failure failure $(yes cancelled | head -98)
+is "and a window that reaches the ceiling before it ends reads as reached" "$(_wfatt fix/y gate.yml)" "3"
+cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
 
 # Through the CLI, where the workflow comes from the project rather than from
 # the test. Its own checkout, on a branch, with a GitHub remote: the main
@@ -3098,6 +3149,14 @@ has "and counts only the gate's failures against the ceiling" "$out" "attempts: 
 [ "$(_wfruns)" -gt 0 ] && [ "$(_wfbare gate.yml)" -eq 0 ] \
   && ok  "and every run list felix repair makes names the gate workflow" \
   || bad "and every run list felix repair makes names the gate workflow" "$(grep '^run list' "$WFSTUB_LOG" | head -3)"
+
+# The same history through the command the unattended template runs, where one
+# attempt of three left read as a brief to act on.
+_wfseq failure cancelled failure failure
+out="$(_wfcli repair)"; rc=$?
+is  "felix repair stops three failed gate runs that a cancelled one sits between" "$rc" "2"
+has "and says the ceiling is reached, not unknown" "$out" "CEILING REACHED"
+cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
 
 # The newest gate run read and the count behind it not. The count is the bound,
 # and it used to read as zero whenever gh did not answer, which printed the

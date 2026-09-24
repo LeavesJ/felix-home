@@ -83,7 +83,6 @@
 1	a cache that never existed is stale
 1	a cache with no stamp adopts nothing
 1	a cache-side stray matching a directory-only rule is residue
-1	a cancelled gate run between failures neither spends the repair ceiling nor resets it
 1	a capability carrying a trailing remark is not a rule
 1	a capability inspection does not support is not declared
 1	a capability match is still adopt material
@@ -241,6 +240,8 @@
 1	a due step containing a colon does not shift it
 1	a fact that moved under the receipt raises exactly one
 1	a failed commit says the memory is NOT backed up
+1	a failed install fails the repair step
+1	a failed run whose log cannot be read is refused, not briefed
 1	a failing gate still blocks
 1	a failing gate still exits non-zero
 1	a failing piped check is counted failed, and the report does not say a piped check's result is never marked an error
@@ -270,7 +271,7 @@
 1	a full-length sha nothing holds is unknown too
 1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
-1	a gate run that failed to start counts against the ceiling, as do a timed-out one and a conclusion this code does not know
+1	a gate run that completed without failing is nothing to repair, and one that failed without a log is refused
 1	a gate that skipped the suite is not called a passing suite
 1	a gate_workflow that is not a file name is refused, and named
 1	a gitignored stray in the tree is residue, not drift
@@ -782,6 +783,7 @@
 1	a three-column row beside it is still declared
 1	a three-field score answer is answered
 1	a tie is broken the same way whichever order the file lists
+1	a timed-out gate run is repaired, as the ceiling counts it
 1	a tool absent from the manifest is not a clean bill
 1	a tool call after it clears the count
 1	a tool that could not be checked is said, not counted as reachable
@@ -822,7 +824,6 @@
 1	a when test whose command does not exist makes the row unknown, not not-applicable
 1	a when whose command does not exist is unknown, not not-applicable
 1	a why past the stated ceiling is refused rather than silently cut
-1	a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw
 1	a wired moment with a stance is ok
 1	a witness that exits 1 after a silent probe is still empty
 1	a witness that exits 2 after a probe that failed is unknown, not blind
@@ -960,6 +961,7 @@
 1	an inapplicable row is rendered n/a, never ok, HELD or UNRUNNABLE
 1	an indented comment is refused, and the read-and-case loops take it for a row
 1	an inline server that interpolates a variable is high
+1	an install that succeeds goes on to the model
 1	an installPath that is not a directory reads absent
 1	an installed copy is tiered with its marketplace entry
 1	an installed copy that differs from what Felix read reads drift
@@ -1084,7 +1086,6 @@
 1	and a file that does not exist counts zero
 1	and a file with no whitespace reads the same as one with
 1	and a fold that is current leaves nothing stranded
-1	and a gate history exactly as long as the window is counted to its first run
 1	and a gitignored stray in the cache is too
 1	and a graph with no stamp admits its currency is unknown
 1	and a graph with no stamp does too
@@ -1146,7 +1147,6 @@
 1	and a verified push does
 1	and a verified push reads as zero days
 1	and a wget pipe to sh is medium
-1	and a window that reaches the ceiling before it ends reads as reached
 1	and a worktree is pointed at that one, having no graph of its own
 1	and a worktree of it reads the same graph, and is ok too
 1	and a write leaves no file beside it
@@ -1359,6 +1359,7 @@
 1	and it stops the streak rather than being skipped past
 1	and its actor is the word every other line uses
 1	and its base's workflow is not escalated as this branch's escape
+1	and its brief carries the failing output
 1	and its declines count as unchecked
 1	and its evidence cannot examine there
 1	and its evidence is never run
@@ -1476,6 +1477,7 @@
 1	and no longer claims a re-folded session never folded
 1	and no longer prints next steps
 1	and no memory root named --help is minted
+1	and no model is run
 1	and no night is announced when none was granted
 1	and no policy version either, there being no tables to hash
 1	and no rate is claimed over a numerator that cannot hold compliance
@@ -1488,6 +1490,7 @@
 1	and none of the commands out there are listed
 1	and none of the hand-written lines
 1	and none of them asks gh for every workflow's runs
+1	and none of them is handed on as a brief
 1	and none of them names the checkout it read
 1	and none reports a spend past the ceiling as recorded
 1	and not as an escape, which would escalate a typo to the founder
@@ -1518,7 +1521,6 @@
 1	and nothing was written
 1	and nothing was written to the real felix home pointer
 1	and now names each one it found
-1	and of the conclusions a completed gate run can have, only success resets it
 1	and ok once a graph newer than the last commit exists
 1	and on a branch the gate has never run on
 1	and on a gate run still in progress
@@ -1555,6 +1557,7 @@
 1	and only the awaiting count records it
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
+1	and passes on npm's own reason
 1	and passes the facts it already has
 1	and picks the capability the skills serve
 1	and points at the read that needs no lock
@@ -1664,12 +1667,13 @@
 1	and says so with a non-zero status, not the digest of an empty document
 1	and says that it knows
 1	and says the answer was neither yes nor no, naming the code
-1	and says the ceiling is reached, not unknown
 1	and says the checkout could not be entered rather than naming a missing command
 1	and says the gate failed
 1	and says the gate has not seen it
 1	and says the gate never ran
 1	and says the gates still apply
+1	and says the install failed rather than ending in silence
+1	and says the log could not be read
 1	and says the memory it found was kept
 1	and says the receipt does not exist here
 1	and says the suite passed when nothing was skipped
@@ -1809,6 +1813,7 @@
 1	and the candidate's evidence did not run in the report
 1	and the cap is what it returns
 1	and the cause is the prompt, not the envelope
+1	and the ceiling counts it with the failure behind it
 1	and the checker it shows failing is no longer named
 1	and the checkout the graph was built from reads ok as well
 1	and the claim it could not support is gone
@@ -2323,7 +2328,6 @@
 1	felix repair reads the gate's run on the branch
 1	felix repair refuses a detached checkout rather than finding nothing to repair on HEAD
 1	felix repair stops at the ceiling when its attempts cannot be counted
-1	felix repair stops three failed gate runs that a cancelled one sits between
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
 1	felix stack reconcile folds what nothing folded before reporting

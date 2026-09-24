@@ -3751,10 +3751,32 @@ cmd_repair() {
     printf '\nStill running. Wait for it rather than guessing at the failure.\n'
     return 5
   fi
-  if [ "$conclusion" = "success" ]; then
-    printf '\nGreen. Nothing to repair.\n'
-    return 5
-  fi
+  # Repair acts only on what its ceiling counts, and failure and timed_out
+  # are what it acts on. Until 2026-09-23 only success was caught here and the
+  # rest fell through to a brief, including conclusions felix_repair_attempts
+  # then stopped at, so the ceiling read zero however many failures sat behind
+  # the run. A run that completed without failing is nothing to repair.
+  # startup_failure did fail, but the gate never ran and no step left a log,
+  # so it is refused, and so is a conclusion this code does not know, rather
+  # than guessed at.
+  case "$conclusion" in
+    failure|timed_out) ;;
+    success)
+      printf '\nGreen. Nothing to repair.\n'
+      return 5 ;;
+    cancelled|skipped|neutral|stale|action_required)
+      printf '\nThe gate run ended %s, which is not a failure. Nothing to repair;\n' "$conclusion"
+      printf 'the next gate run decides.\n'
+      return 5 ;;
+    startup_failure)
+      printf '\nThe gate run failed to start, so no step ran to leave a log. The gate\n'
+      printf 'workflow itself needs a look. Nothing is repaired from a run nobody read.\n'
+      return 1 ;;
+    *)
+      printf '\nThe gate run ended %s, a conclusion felix repair does not know, so\n' "$conclusion"
+      printf 'whether it failed is not guessed at. Nothing is repaired from a run nobody read.\n'
+      return 1 ;;
+  esac
 
   # A count that could not be read is not zero attempts, which is what it was
   # read as: every time gh did not answer, the ceiling reported itself unspent.
@@ -3787,7 +3809,16 @@ cmd_repair() {
   # change and telling it afterwards not to touch anything is the wrong order:
   # by then it has a plan.
   local log_text implicated sev
-  log_text="$(felix_repair_excerpt "$run_id" "$repo")"
+
+  # An excerpt that came back empty implicated no path, so the red-path check
+  # below never ran, and the brief named no path and carried no failing output.
+  # gh not answering, a log GitHub no longer holds, and a log with no failed
+  # step in it all read that way, and none of them is a brief.
+  log_text="$(felix_repair_excerpt "$run_id" "$repo")" || {
+    printf '\nThe log of run %s could not be read: gh did not answer, GitHub no longer\n' "$run_id"
+    printf 'holds it, or no failed step left one. Nothing is repaired from a run nobody read.\n'
+    return 1
+  }
   implicated="$(felix_incident_paths "$(felix_repo_root "$PWD")" "$log_text")"
   if [ -n "$implicated" ] && [ -f "$proj/risk.tsv" ]; then
     sev="$(felix_incident_severity "$proj" "$implicated")"

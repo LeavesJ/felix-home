@@ -22,19 +22,21 @@
 # felix repair's exit status is its contract with templates/unattended.yml,
 # which branches on it and on nothing else, so each status means one thing:
 #
-#   0  a brief for the newest gate run, which completed and did not succeed;
-#      the only status a repair acts on. A cancelled or skipped run lands
-#      here too, and so does a failed run whose log could not be read, whose
-#      brief then names no path
+#   0  a brief for the newest gate run, which failed or timed out; the only
+#      status a repair acts on
 #   1  the gate's runs could not be read: no gh, no GitHub remote, no gate
-#      workflow, no branch checked out, or gh did not answer
+#      workflow, no branch checked out, or gh did not answer. Also the failing
+#      run's own log, when gh does not answer, GitHub no longer holds it, or
+#      it is empty. And a run that failed to start, which left no log, or one
+#      whose conclusion this code does not know
 #   2  the repair ceiling is reached, or could not be counted: gh did not
 #      answer, or the newest 100 gate runs held no success and fewer failures
 #      than the ceiling
 #   3  the failure implicates a red path, which unattended repair leaves alone
 #   4  no project governs the checkout, or the binding naming one is broken
 #   5  nothing to repair: the gate has not run on the branch, is still running,
-#      or is green
+#      is green, or ended without failing (cancelled, skipped, neutral, stale,
+#      action_required)
 #
 # 4 was 2 until 2026-09-23, the status every other command still exits on a
 # failed resolve, and the template's case read it as a spent ceiling.
@@ -46,6 +48,16 @@
 # 5 was 0 until the same day, the status of a brief, so the template would
 # have spent the budget and run a model on a brief saying nothing was wrong.
 # Nothing failed, so it stops the job without failing it or asking anyone.
+#
+# Repair acts only on what its ceiling counts. Until the same day only success
+# was caught, so every other conclusion a completed run can have fell through
+# to a brief: a cancelled or skipped run, which felix_repair_attempts then
+# stopped at, so its ceiling read as unspent however many failures sat behind
+# it. A failed run whose excerpt came back empty was a brief too, and
+# implicated no path, so the red-path check never ran and the model was handed
+# no failing output.
+# startup_failure is left alone too, whether or not the ceiling counts it: the
+# gate never ran, so no step left a log to read.
 #
 # felix brief keeps this shape and uses 0, 1, 2 and 3 of it: its 2 is a failed
 # resolve, and it has no 5, because an issue is always something to act on.
@@ -142,11 +154,19 @@ felix_repair_latest() {
 
 # The failing lines, not the whole log. A repair agent handed 4000 lines of
 # ANSI-coded setup output spends its context on apt-get.
+#
+# Non-zero with nothing printed when there is nothing to show: gh failed, or
+# answered with a log that is empty once blank lines go. The pipeline's status
+# was tail's, 0 either way, and an empty excerpt read as a failure with no
+# output and no path in it.
 felix_repair_excerpt() {
-  local run_id="$1" repo="$2"
-  gh run view "$run_id" --repo "$repo" --log-failed 2>/dev/null \
+  local run_id="$1" repo="$2" log out
+  log="$(gh run view "$run_id" --repo "$repo" --log-failed 2>/dev/null)" || return 1
+  out="$(printf '%s\n' "$log" \
     | sed 's/^[^\t]*\t[^\t]*\t//' \
     | sed 's/^[0-9TZ:.-]*Z //' \
     | grep -vE '^\s*$' \
-    | tail -40
+    | tail -40)"
+  [ -n "$out" ] || return 1
+  printf '%s\n' "$out"
 }

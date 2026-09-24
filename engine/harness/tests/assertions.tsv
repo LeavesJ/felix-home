@@ -241,6 +241,8 @@
 1	a due step containing a colon does not shift it
 1	a fact that moved under the receipt raises exactly one
 1	a failed commit says the memory is NOT backed up
+1	a failed install fails the repair step
+1	a failed run whose log cannot be read is refused, not briefed
 1	a failing gate still blocks
 1	a failing gate still exits non-zero
 1	a failing piped check is counted failed, and the report does not say a piped check's result is never marked an error
@@ -270,6 +272,7 @@
 1	a full-length sha nothing holds is unknown too
 1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
+1	a gate run that completed without failing is nothing to repair, and one that failed without a log is refused
 1	a gate that skipped the suite is not called a passing suite
 1	a gate_workflow that is not a file name is refused, and named
 1	a gitignored stray in the tree is residue, not drift
@@ -785,6 +788,7 @@
 1	a three-column row beside it is still declared
 1	a three-field score answer is answered
 1	a tie is broken the same way whichever order the file lists
+1	a timed-out gate run is repaired, as the ceiling counts it
 1	a tool absent from the manifest is not a clean bill
 1	a tool call after it clears the count
 1	a tool that could not be checked is said, not counted as reachable
@@ -963,6 +967,7 @@
 1	an inapplicable row is rendered n/a, never ok, HELD or UNRUNNABLE
 1	an indented comment is refused, and the read-and-case loops take it for a row
 1	an inline server that interpolates a variable is high
+1	an install that succeeds goes on to the model
 1	an installPath that is not a directory reads absent
 1	an installed copy is tiered with its marketplace entry
 1	an installed copy that differs from what Felix read reads drift
@@ -1369,6 +1374,7 @@
 1	and it stops the streak rather than being skipped past
 1	and its actor is the word every other line uses
 1	and its base's workflow is not escalated as this branch's escape
+1	and its brief carries the failing output
 1	and its declines count as unchecked
 1	and its evidence cannot examine there
 1	and its evidence is never run
@@ -1488,6 +1494,7 @@
 1	and no longer claims a re-folded session never folded
 1	and no longer prints next steps
 1	and no memory root named --help is minted
+1	and no model is run
 1	and no night is announced when none was granted
 1	and no policy version either, there being no tables to hash
 1	and no rate is claimed over a numerator that cannot hold compliance
@@ -1500,6 +1507,7 @@
 1	and none of the commands out there are listed
 1	and none of the hand-written lines
 1	and none of them asks gh for every workflow's runs
+1	and none of them is handed on as a brief
 1	and none of them names the checkout it read
 1	and none reports a spend past the ceiling as recorded
 1	and not as an escape, which would escalate a typo to the founder
@@ -1567,6 +1575,7 @@
 1	and only the awaiting count records it
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
+1	and passes on npm's own reason
 1	and passes the facts it already has
 1	and picks the capability the skills serve
 1	and points at the read that needs no lock
@@ -1681,6 +1690,8 @@
 1	and says the gate has not seen it
 1	and says the gate never ran
 1	and says the gates still apply
+1	and says the install failed rather than ending in silence
+1	and says the log could not be read
 1	and says the memory it found was kept
 1	and says the merge waits for the founder
 1	and says the receipt does not exist here
@@ -1822,6 +1833,7 @@
 1	and the candidate's evidence did not run in the report
 1	and the cap is what it returns
 1	and the cause is the prompt, not the envelope
+1	and the ceiling counts it with the failure behind it
 1	and the checker it shows failing is no longer named
 1	and the checkout the graph was built from reads ok as well
 1	and the claim it could not support is gone

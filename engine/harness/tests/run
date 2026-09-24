@@ -55,17 +55,7 @@ SKIP=0
 skip() { SKIP=$((SKIP+1)); _ran "$1"; printf '  skip  %s (%s)\n' "$1" "$2"; }
 has_claude() { command -v claude >/dev/null 2>&1; }
 
-# The root is made under $TMPDIR by an explicit template, not by mktemp's
-# default. Measured 2026-09-24 on macOS 26.3: a bare `mktemp -d` puts its
-# directory in the per-user /var/folders/.../T whatever TMPDIR says, and a
-# template or -p honours it. tests/red points TMPDIR under its own directory,
-# and lib/where.sh counts $TMPDIR as a temporary root, so a root made beside
-# TMPDIR and not in it read as outside every temporary directory: 44 of #308's
-# lift assertions failed in every red run on a Mac, and in none on the Linux
-# runner, whose mktemp honours TMPDIR.
-_tmproot="${TMPDIR:-/tmp}"
-TMP="$(mktemp -d "${_tmproot%/}/tmp.XXXXXXXXXX" 2>/dev/null)" && [ -d "$TMP" ] \
-  || { printf 'tests/run: could not make a directory under %s\n' "$_tmproot" >&2; exit 2; }
+TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"
 # The manifest of assertions this suite is supposed to reach, beside the suite
@@ -14755,8 +14745,10 @@ else
   bad "the scoped fixture has its worktree, its clone and its links" "worktree [$GWT] clone [$SCR/clone]"
 fi
 # And one outside the temporary root lib/where.sh reads, $TMPDIR, turns every
-# lift below into a refusal for where the suite put its files. It did, in
-# every tests/red run on a Mac: see the root's template at the top.
+# lift below into a refusal for where the suite put its files. The root is a
+# bare `mktemp -d`, which on a Mac lands in the per-user directory whatever
+# TMPDIR says, so any other TMPDIR does that. Every tests/red run on a Mac
+# did, until red stopped moving TMPDIR (tests/red says why).
 _sc_tr="$(cd -P "${TMPDIR:-/tmp}" 2>/dev/null && pwd -P)"
 if [ -n "$_sc_tr" ] && case "$SCR/" in "${_sc_tr%/}/"*) true ;; *) false ;; esac; then
   ok "the scoped fixture lies under the TMPDIR the suite was given"

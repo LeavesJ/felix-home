@@ -14,10 +14,22 @@ and changed none of it: the archive files concatenated in index order, after
 `docs/handoff/_preamble.md`, reproduce the old file byte for byte (the sixty
 files the split made; later sections join the index above them, below §0).
 
-**The rule for the next session.** Write your section at the top of "Current
-state", with the next id (after 0bz comes 0ca). Move the section it replaces
-into `docs/handoff/<id>.md`, unchanged, and add its row to the top of the
-index. A reference like "HANDOFF §0bm" means `docs/handoff/0bm.md`.
+**The rule for the next session, since 2026-09-24.** Do not write your section
+into this file. Write it as a file of its own, headed `### <title>` with no id,
+and run `felix handoff --section FILE`. It lands at
+`docs/handoff/pending/<UTC time>-<branch>.md`, a path no other session writes,
+so two sessions' handoffs cannot collide in whatever order they land. The
+session start names every section waiting there. Each is newer than the
+current section below. `felix handoff --rotate`, on a branch cut from main
+when upkeep says it is due, folds them in, oldest-landed first:
+- each takes the next id (after 0bz comes 0ca);
+- the section it replaces moves into `docs/handoff/<id>.md`, unchanged;
+- their rows go in at the top of the index.
+
+The gate's handoff check refuses any other change to what the fold owns,
+including a section written in by hand. Why:
+`docs/2026-09-24-handoff-sections.md`. A reference like "HANDOFF §0bm" means
+`docs/handoff/0bm.md`.
 
 ---
 
@@ -31,6 +43,9 @@ tree; the engine is published as a snapshot with no history at
 ---
 
 ## Current state
+
+Sections newer than this one may be waiting in `docs/handoff/pending/`. The
+session start names them.
 
 ### 0bz. 2026-09-23/24 — restart moments scoped and placed: step 1 names a session running an older engine, and the founder allowed one line mid-session
 

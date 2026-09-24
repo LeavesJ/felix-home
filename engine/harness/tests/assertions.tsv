@@ -315,6 +315,7 @@
 1	a green branch stops the shipped step at scope, read from the real felix repair
 1	a green gate does not clear an escape
 1	a green gate on this exact tree allows it
+1	a green gate pushes the repair
 1	a green gate still asks for verification
 1	a green receipt for this exact tree clears every blocker
 1	a green receipt for this tree under this epoch is current
@@ -1282,6 +1283,7 @@
 1	and each bound is named in its own words
 1	and each full log line names a file holding its own run alone
 1	and each item appears once however often it bit
+1	and editing it is denied
 1	and ends at the flagged stop after it
 1	and ends that session's night and no other
 1	and every byte is the one it had
@@ -1630,6 +1632,7 @@
 1	and proposes nothing for it
 1	and prose counts single
 1	and pushed, and the push is verified
+1	and pushes it to the branch the run repaired
 1	and putting the byte back puts the digest back
 1	and putting the rule back clears it
 1	and putting the table back makes the same receipt current again
@@ -1640,6 +1643,7 @@
 1	and raises or clears no merge blocker
 1	and re-folding does not double what was already counted
 1	and re-rolling a session replaces its old rows
+1	and reading the checkout's .git is denied
 1	and reads HEAD, not the checkout's uncommitted files
 1	and reads as a requirement
 1	and reads current, because it rests on the same facts a gate would have recorded
@@ -1960,6 +1964,7 @@
 1	and the message does not accuse the subagent
 1	and the misbound job says the binding failed, not the ceiling
 1	and the missing function is named
+1	and the model step is handed no token, in its environment or its text
 1	and the monitor reports its capability unglued from the grounding
 1	and the monitor still renders the sentence, not the JSON around it
 1	and the moved fact is not what it blames
@@ -2062,6 +2067,7 @@
 1	and the tier field is the tier, not a tier with a digest stuck to it
 1	and the tier it carries
 1	and the tier reducer agrees
+1	and the token is in no argument git was given
 1	and the topology comes back when the member goes away
 1	and the topology it is keyed to
 1	and the two suites were running at the same moment
@@ -2328,6 +2334,7 @@
 1	every call is appended
 1	every capability detection can adopt has a discovery rule
 1	every check passing, with a provider still awaiting, is commissioned
+1	every checkout in the unattended template drops its credential once the fetch is done
 1	every decision is logged
 1	every decision is recorded
 1	every decisions.log row felix route --ack wrote in this suite is a row its schema accepts
@@ -3188,6 +3195,7 @@
 1	the message names the play, not only the miss
 1	the model step disallows Read under /proc, in the spelling 2.1.37 honours
 1	the model still gets the whole thing
+1	the model's tools are allowed inside the checkout and nowhere else
 1	the nested repo is still refused
 1	the never line claims only what the roster recognises, and --verify ERE adds a project's own runner to it, in every project read, as the report, the help, the README and ecosystem.tsv say; none claims every ecosystem
 1	the next session start records the same handoff hash the handoff row did
@@ -3217,6 +3225,7 @@
 1	the prompt is read out of the envelope
 1	the prompt outweighs the working tree
 1	the pulse reports a check it could not ask
+1	the push step hands git the token itself, through a helper reading the step's environment
 1	the qualify report says a control did not apply in this checkout
 1	the quiet control did bind its project
 1	the re-run's answer names a different epoch

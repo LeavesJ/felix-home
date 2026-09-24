@@ -15,7 +15,7 @@ and changed none of it: the archive files concatenated in index order, after
 files the split made; later sections join the index above them, below §0).
 
 **The rule for the next session.** Write your section at the top of "Current
-state", with the next id (after 0bt comes 0bu). Move the section it replaces
+state", with the next id (after 0bw comes 0bx). Move the section it replaces
 into `docs/handoff/<id>.md`, unchanged, and add its row to the top of the
 index. A reference like "HANDOFF §0bm" means `docs/handoff/0bm.md`.
 
@@ -32,141 +32,107 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0bt. 2026-09-22/23 — the table validator (queue item 2, step 1) shipped, and a rename that hid an escape
+### 0bw. 2026-09-23 — building Felix, measured as Felix's own workload; direction-level documents wait for the founder
 
-**Deployed: engine 0.49.150**, from the home checkout, verified against
-the tree. Both merges passed `felix gate` on their exact trees and CI, and
-were landed with `felix merge` from fresh clones.
+**Nothing deployed from this session; no engine change.** The founder's point:
+the founder brings an idea, sharpens it and judges it, the agent does the rest,
+and that exchange is the model for how Felix works with every user. So the
+history of building Felix is a record of that whole pipeline, from intent
+through the work in between and the delivery to the outcome.
 
-| PR | What | Engine |
-|---|---|---|
-| #291 | `felix_changed_paths` lists a rename's old path (`--no-renames`), so renaming an enforcing table away fires `verifier` | 0.49.144 |
-| #298 | `lib/table.sh`, `templates/schemas.tsv`, `bin/schema-check`, and the gate's `schema` check | 0.49.150 |
+| PR | What |
+|---|---|
+| #316 | The episode pilot. Twenty episodes, weighted to the big decisions, reconstructed from the transcripts with each record checked and the report critiqued: `docs/2026-09-23-episode-pilot.md`, data and method in `docs/episodes/`. |
+| #319 | **DECIDED by the founder.** Documents that change what Felix is, who it is for or its build order wait for his yes, and he rates each delivery in one word. Nothing else waits. Written into the split in `projects/felix/CLAUDE.md`. |
+| #327 | Batch 2: the five episodes the pilot missed, plus two control sessions, with a second blind reader per turn: `docs/2026-09-23-episode-batch-2.md`. The prompt index and transcript reader now tell the founder apart from notifications and other sessions. |
 
-**What exists now.**
+**What the harvest found, briefly.**
+- About a third of the founder's effort went into the agent's job. The pilot's
+  figure is 31% by strict majority, but on turns both batches read the rate
+  runs 42 to 49%. Selection moves the figure more than the counting rule does,
+  so state both beside any rate.
+- The largest kinds are needless stops, restated decisions and answering
+  questions the agent should have decided. Report them as shares, with their
+  label splits.
+- The two readers agreed on 70% of labels. Their most common split was "go":
+  an approval, or a push past a stop that should not have happened.
+- The agent originated 60 decisions across batch 2's records. Several became
+  the founder's chores: a twelve-table hash under the commission receipt and
+  grant, per-project overnight state, and "the commission run is his".
+- The new thing is checks fired at moments, not advice: pilot §7 as amended by
+  batch 2 §6.
 
-- **One row definition.** A row is any line not matching `^[[:space:]]*(#|$)`
-  in the C locale, split into exact tab cells. It is byte-identical to the 42
-  reader sites that already filter that way. The validator refuses the shapes
-  on which two reader families in the engine read different rows or split
-  cells differently:
-  - `indented-comment`, `whitespace-line`, `nonascii-lead`;
-  - `carriage-return`, `no-final-newline`, `nul-byte`;
-  - `encoding`: strict RFC 3629, byte by byte, because macOS `iconv` passes
-    code points above U+10FFFF, which macOS awk cannot read;
-  - `symlink`, `empty-cell`, `cells`;
-  - `empty`, where the table's row says emptiness is never legitimate.
-- **`schemas.tsv`, engine-only.** It has 29 rows of `table lives columns
-  empty`, 27 for the tree and 2 for memory: every tracked table kind; `maintenance.log`, `capabilities` and
-  `autonomy` under their own names; `procedures.tsv`, which nothing has
-  written yet; and the owed memory rows for `lifecycle.log` and
-  `decisions.log`. Emptiness and absence meanings are comments that cite
-  functions, not lines, so keeping them true costs no escalation.
-- **The `schema` check.** It enumerates tracked files plus untracked files
-  that are not ignored. A `.tsv` with no row fails. A declared table that
-  nothing carries is a note and does not fail, because the public snapshot
-  leaves `.snapshot-ack.tsv` behind. The check fails when absent.
-- **Protection.**
-  - The engine's `schemas.tsv` is in `FELIX_ESCAPE_TABLES` by its path, so a
-    product's own `schemas.tsv` is not touched.
-  - `count:` verifier rows guard `table.sh` (23 refusal sites) and
-    `schema-check` (7).
-  - 15 qualification controls are kept from 42 authored blind. All six types
-    are met under #296's type rule, and `qualified` now reads 69 controls
-    across 7 checkers.
-- **Fixed on the way.**
-  - `felix route --ack` folds tab, CR and LF in the reason to spaces.
-  - `bin/memory-scan` knows `lifecycle.log`.
-  - `lib/lifecycle.sh`'s dated exception to rows-first is closed.
+**Waiting on the founder.**
+- Carried from §0bv: the Elenchus and Veldra candidates' admission, then #310's
+  verifier escape, then #304 (all open on 2026-09-23).
 
-**How it was checked.**
+**DECIDED 2026-09-23 by the founder (batch 2 §8), landed as #332 and rated
+"good." (yes).** Status reaches the founder in the session's closing notice.
+The monitor stays as the deeper page. The charter's stealth paragraph now says
+so. **The notice itself is not built yet,
+and it is the first item below.** Until it ships, the charter describes
+something the engine does not do, which is the failure the pilot found most
+often.
 
-- **The map.** Eight agents mapped every table and 507 parsing sites.
-- **Contract review.** Four refuters took the contract before code:
-  - trust found the rename hole, now #291;
-  - false-pass found locale and encoding splits;
-  - portability found that stale rows would have turned the published
-    snapshot red;
-  - omission found non-`.tsv` tables and the memory-scan gap.
-- **Blind review.** Three agents worked without reading the source:
-  - a qualification author, 42 controls, 41 met;
-  - an assertion author, 592 assertions, 576 passing first time;
-  - a black-box adversary. It found that awk took `k=v/` and `-` for an
-    assignment and for stdin, that `tail` took `-d/` for an option (each
-    skipped a table in silence), the iconv range, a NUL last byte hiding a
-    missing newline, and an unreadable schema reading as exit 1. All are
-    fixed and pinned in the suite.
+**Next, Felix's to do (none needs the founder):**
+- **Build the closing notice.** The Stop hook speaks to the agent, as
+  `additionalContext`, and the agent relays it in its closing report.
+  - Claude Code gives no "last stop of the session" signal, so the design must
+    choose which stop carries the notice. The candidate is the stop where the
+    gate receipt first matches the tree, then again only if status changed.
+  - Contents: gate state on this tree, owner acts waiting in the queue, Felix's
+    own friction this session (holds, refusals), and what is due.
+  - It must respect the #322 limit on mid-session lines, and carry a deadline
+    assertion in `tests/run`.
+  - This is adversarial tier (`hooks/stop`).
+- **Capture.**
+  - `says.log` keeps whole prompts, or a pointer to the transcript line.
+  - Question-tool answers are indexed.
+  - `escalated` rows carry the session id (`felix:1441`) and are not written
+    on `--dry-run`.
+- **#319 has no mechanism yet.** Build a merge stop on roadmap paths and the
+  charter's split section only, and never on an engineering path.
+- **The interaction layer's first moments.**
+  - The Stop hook reads the closing report for work handed back, and for
+    "next is X" when X is approved work.
+  - An `asked` row per question.
+  - A decisions table with the originator, whether the owner was asked, and
+    the owner cost stated at the time.
+- **Lessons-ladder fixes (batch 2 §6).**
+  - Mount the full headline, not the bare date (132 of 181 entries mount as a
+    date).
+  - Match on the prompt, not the envelope.
+  - Give `mistakes.log` rows a session id.
+  - `projects/felix/CLAUDE.md:160-163` and `felix:930` describe the ladder
+    wrongly.
+- **The next episode batch.** Apply the four codebook rules in batch 2 §4 first,
+  and sample every session in a fixed week rather than choosing episodes.
+- **Carried from §0bv.**
+  - Control 7 after #310.
+  - The request that names a gitignored doctrine.
+  - #308, #309 and #311 (deny scope) and #312 (README), all still open.
 
-**Founder, and it blocks every merge until done.** #298 added two rows to
-`projects/felix/risk.tsv`, which is a commissioning table, so the commission
-policy hash moved. The grant reads `[!]` and the receipt reads stale, and
-`felix merge` refuses every felix-home pull request on it; this section's own
-PR waits behind it. The gate itself still passes. The act is the founder's
-(§0aq, §0bl; roadmap §6): in the home checkout, `felix autonomy --allow
-commission`, then `felix commission`, then commit the new
-`projects/felix/autonomy.commission`. Discovery has nothing to adopt for felix
-tonight, so the run declares nothing and installs nothing. It was scheduled
-for Sep 26-27; with four engine branches queued in other sessions, sooner
-unblocks them.
-
-**Open, in roadmap order** (Phase 0 of `docs/2026-09-23-roadmap.md`).
-
-- **Owned by other sessions tonight:**
-  - the Felix development session has `claude/deny-reads-the-command` (deny
-    rows that read prose and heredocs, carried from §0br),
-    `claude/gate-workflow-filter` and `claude/epoch-portable`;
-  - #300 fixes the facts log's concurrent-writer check;
-  - the audit-decode fix and the deny-scope column (`deny.tsv` gains a
-    column, so its schema row changes with it) are on their own branches.
-- **Unowned:** the obligations request on a project in a second ecosystem;
-  the probe of `felix gate` on a runner with no `claude` CLI; checking the
-  five unverified Elenchus candidates against what Elenchus already records,
-  before the founder admits or refuses them.
-- **Phase 1** then carries `coverage.tsv`, born on this validator.
-
-**Recorded, not done** (each needs a decision or a row to force it):
-
-- Per-project table validation inside `cmd_gate`. A stranger's own tables are
-  unchecked until the roadmap's ledger relocation moves them into their
-  repository, and that is where this belongs.
-- Typed row shapes, for `red.tsv`'s three kinds and the provider answer files.
-- Duplicate keys, and glob characters in space-separated cells.
-- An inventory of reader arities: a narrower read folds the extra cells into
-  its last variable, by design.
-- `decisions.log` decline rows still lack a session and a route. The Stop hook
-  consumes the ack and knows both.
-
-**Chips raised for other sessions:** the commission IFS trap (landed as
-#289); qualification hardening (landed as #296); red.tsv comparing engine
-trees rather than commits (#294); concurrent gates failing each other's
-`probes` through `facts.log`'s whole-file line count (#300, open).
-
-**Traps paid for this session** (memory: `landing-engine-prs-under-concurrency`,
-`fact-gate-keys-on-command-tokens`):
-
-- **Main moved nine times while two PRs were in flight** (#289, #290, #292,
-  #293, #295, #296, #297, #294, #299), and six of those took an engine
-  version. Every move staled the open PRs' version and red.tsv. #298 lost
-  four cycles of about 40 minutes each under a load average near 100.
-- **What ended it was asking.** `ListAgents` showed four busy sessions with
-  engine work. Each agreed to hold its engine merges until #298 landed, two
-  paused their suites to cut load, and #298 merged on the next cycle.
-- **Update a pushed branch by merging main in, not rebasing**, since the deny
-  table refuses a force-push. When the merge conflicts in `plugin.json`,
-  start from main's copy and set the version there. Rewriting the version
-  line in the conflicted file committed both sides with their markers once.
-- **From a worktree, `felix gate` runs the home's `gate.sh` and
-  `qualification.tsv`.** The branch's own block runs only with
-  `FELIX_HOME=<tree>`. This is lessons.md 2026-09-02, paid again because no
-  route matched and it was never surfaced. `felix merge` needs the
-  commissioning receipt in the real home, so gate and merge from a fresh
-  clone without the override.
-- **Two gates at once on one project** fail each other's `probes`, through
-  `facts.log`.
-- **The race test injects on `diff --name-only`.** A flag placed between
-  those words silenced it.
-- **The command guard keys on words in the command line.** A scratch script
-  run with bash avoided it three times of three.
+**Traps paid for this session:**
+- **A docs-only branch passes the gate only while its engine equals
+  `refs/remotes/origin/main`.** Worktrees share that ref, and other sessions
+  fetch it mid-run. Merge main, check
+  `git diff --quiet refs/remotes/origin/main -- :/engine`, and gate at once.
+  Two gates failed on this before the third passed.
+- **Any `*.tsv` in the tree needs a `schemas.tsv` row, or `schema-check` fails
+  the gate.** Put data in as JSONL.
+- **At a load average of 100 to 140 the suite took over an hour, not ten
+  minutes.** Watch your own gate's PID: a watch keyed on "any `felix gate`"
+  never fires while other sessions are gating.
+- **A workflow dies with the session process.** Resuming it with the same
+  arguments re-ran finished stages under new cache keys. The first run's
+  `journal.jsonl` already held every result, so finish from the journal.
+- **The transcript reader printed task notifications and other sessions'
+  messages as FOUNDER,** and the old prompt index counted peer messages as
+  founder prompts. Both are fixed. The pilot, re-checked, holds no peer turns.
+- **The fact gate refuses a force-push whatever facts are given.** Add a commit
+  instead of amending.
+- **A plain `cd` into `docs/episodes` in one Bash call moved the working
+  directory for the calls after it.** Use absolute paths.
 
 ---
 
@@ -177,6 +143,9 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0bv](docs/handoff/0bv.md) | 2026-09-23 (night) — overnight mode belongs to a session, #307 and #303 landed, the runner probe answered from a runner's own log, Veldra's blind request |
+| [0bu](docs/handoff/0bu.md) | 2026-09-23 — Phase 0: the Elenchus candidates checked, deny rows read the command the shell runs, three small items |
+| [0bt](docs/handoff/0bt.md) | 2026-09-22/23 — the table validator (queue item 2, step 1) shipped, and a rename that hid an escape |
 | [0bs](docs/handoff/0bs.md) | 2026-09-22/23 — Felix is a product for other people's projects, built first; the first obligations request answered blind; the roadmap |
 | [0br](docs/handoff/0br.md) | 2026-09-22, closing — seven pull requests shipped and deployed, the public snapshot is a command and was brought forward, Elenchus has a working required check again |
 | [0bq](docs/handoff/0bq.md) | 2026-09-22 — the recorder and #264 deployed, ECC step 1 complete, two branches in repair |

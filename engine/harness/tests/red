@@ -112,7 +112,11 @@ VER="$(git -C "$ROOT" show "$SHA:engine/.claude-plugin/plugin.json" 2>/dev/null 
        | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
 [ -n "$VER" ] || VER="-"
 
-TMP="$(mktemp -d 2>/dev/null)" || _none "no temporary directory"
+# Under $TMPDIR by a template, since macOS's bare `mktemp -d` ignores TMPDIR
+# (tests/run says what that cost).
+_tmproot="${TMPDIR:-/tmp}"
+TMP="$(mktemp -d "${_tmproot%/}/tmp.XXXXXXXXXX" 2>/dev/null)" && [ -d "$TMP" ] \
+  || _none "no temporary directory under $_tmproot"
 TREE="$TMP/tree"
 _cleanup() {
   git -C "$ROOT" worktree remove --force "$TREE" >/dev/null 2>&1
@@ -137,7 +141,11 @@ cp "$HERE/run" "$TREE/engine/harness/tests/run" 2>/dev/null \
 # spawns names paths under it. Pointed under this run's directory, so that
 # root is removed with this run and a process still holding any of it is
 # findable by one pattern — the path, with its regex metacharacters escaped,
-# since mktemp's own template puts a dot in it.
+# since mktemp's own template puts a dot in it. That holds only because the
+# suite makes its root under $TMPDIR by a template: until it did, the root
+# landed beside this directory on a Mac, a stray naming only that root
+# escaped the pattern, and lib/where.sh saw the suite's fixtures outside every
+# temporary root.
 LOG="$TMP/red.log"
 ( cd "$TREE" && TMPDIR="$TMP/t" FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$LOG" 2>&1
 pkill -9 -f "$(printf '%s' "$TMP" | sed 's/[][\\.*^$(){}+?|]/\\&/g')" >/dev/null 2>&1

@@ -1082,6 +1082,7 @@
 1	and --gate names the row and the verdict its control demands
 1	and 4 where the .felix marker names a project that does not exist
 1	and FELIX_KERNEL is refused before the cache is even consulted
+1	and Read and Edit stay allowed, since the repair needs both
 1	and SessionEnd folds nothing of it into ledger.d
 1	and Stop neither holds that session nor tells it anything
 1	and Stop still asks about the work such a session commits
@@ -3177,6 +3178,7 @@
 1	the mcp record aggregates a server across sessions
 1	the memory check is behind the verifier confine
 1	the message names the play, not only the miss
+1	the model step disallows Read under /proc, in the spelling 2.1.37 honours
 1	the model still gets the whole thing
 1	the nested repo is still refused
 1	the never line claims only what the roster recognises, and --verify ERE adds a project's own runner to it, in every project read, as the report, the help, the README and ecosystem.tsv say; none claims every ecosystem

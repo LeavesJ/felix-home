@@ -3362,6 +3362,92 @@ is  "and no model is run" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "0"
 _attempt ""
 is  "an install that succeeds goes on to the model" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "1"
 
+printf '\nthe unattended repair leaves the model no credential to copy\n'
+# Both checkouts left a credential on the runner for the model step to read.
+# actions/checkout persists what it fetched with unless told otherwise: the
+# job's token as an http.extraheader in repo/.git/config, and the deploy key as
+# a file under $RUNNER_TEMP that felix/.git/config's core.sshCommand names by
+# path. The model step runs `claude -p` with Read and Edit allowed, and a
+# tool-name allow rule matches every path. Measured on the pinned 2.1.37
+# (2026-09-23, the real binary against a scripted Messages API): Read returned
+# all three files, Edit put their contents in a tracked file, and
+# bin/secret-scan passed the diff, since a base64 header and a ghs_ token are
+# shapes it does not know; the push step then commits every tracked change.
+# Without Read in --allowedTools the two paths outside the working directory
+# were refused, so the allow rule is what opens them, and the model needs it.
+# The fix is upstream of the model: neither checkout persists, so the key file
+# is gone before the scope step runs, and the push step hands git the token
+# itself, from its own environment, through a credential helper, so it is in
+# no file and no argument.
+UC="$TMP/uncred"; mkdir -p "$UC/repo" "$UC/bin" "$UC/felix/engine/harness"
+# Every checkout, enumerated. A rule read off the two there are stops holding
+# the day a third is added.
+_ucblocks="$(awk '/^      - uses: actions\/checkout@/ { if (n) print (p ? "dropped" : "kept"); n = 1; p = 0; next }
+                  n && /^      - / { print (p ? "dropped" : "kept"); n = 0; next }
+                  n && /persist-credentials: false/ { p = 1 }
+                  END { if (n) print (p ? "dropped" : "kept") }' "$REAL_HARNESS/templates/unattended.yml")"
+is  "every checkout in the unattended template drops its credential once the fetch is done" \
+    "$(printf '%s\n' "$_ucblocks" | grep -c kept) of $(printf '%s\n' "$_ucblocks" | grep -c .) keep one" "0 of 2 keep one"
+# The token may reach the model step neither as environment nor as text.
+_ucstep="$(awk '/- name: Attempt a repair/ { f = 1; next } f && /^      - / { exit } f' "$REAL_HARNESS/templates/unattended.yml")"
+case "$_ucstep" in
+  *GITHUB_TOKEN*|*GH_TOKEN*|*github.token*|*secrets.GITHUB*)
+     bad "and the model step is handed no token, in its environment or its text" \
+         "$(printf '%s\n' "$_ucstep" | grep -n 'TOKEN\|github\.token\|secrets\.GITHUB')" ;;
+  *) ok  "and the model step is handed no token, in its environment or its text" ;;
+esac
+# The rules the model runs under, read off the step as shipped. What they mean
+# was measured on the binary, which this suite has neither of (no network, no
+# model): a bare tool name matches every path; `./**` as an allow stops at the
+# working directory, so -p refuses the rest as ungranted; `.git/**` as a deny
+# matches under the working directory and nowhere else, which is why the deny
+# alone left ../felix/.git/config editable and core.hooksPath landed in it.
+# The allow list is held exactly, since any widening is the thing guarded; the
+# deny lists are joined, so another rule beside these two is not a failure.
+_ucallow="$(printf '%s\n' "$_ucstep" | sed -n 's/.*--allowedTools "\([^"]*\)".*/\1/p' | tr '\n' ',')"
+_ucdeny="$(printf '%s\n' "$_ucstep" | sed -n 's/.*--disallowedTools "\([^"]*\)".*/\1/p' | tr '\n' ',')"
+is  "the model's tools are allowed inside the checkout and nowhere else" "$_ucallow" "Read(./**),Edit(./**),"
+has "and reading the checkout's .git is denied" ",$_ucdeny" ",Read(.git/**),"
+has "and editing it is denied"                   ",$_ucdeny" ",Edit(.git/**),"
+# The push step, taken out of the shipped template as it stands and run under
+# bash -e with the gate green and a git that records each call. On push the
+# stub runs the credential helper the call configured exactly as git would,
+# `sh -c 'HELPER "$@"' -- get`, so the helper is exercised and not just named.
+awk '/- name: Verify and push/ { f = 1 } f && /^        run: \|/ { r = 1; next }
+     r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' \
+  "$REAL_HARNESS/templates/unattended.yml" > "$UC/step.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$UC/felix/engine/harness/felix"
+cat > "$UC/bin/git" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$UC_LOG"
+case "$1 $2 $3" in "diff --quiet "*) exit 1 ;; esac
+helper=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -c) case "$2" in credential.helper=!*) helper="${2#credential.helper=!}" ;; esac; shift 2 ;;
+    push) [ -n "$helper" ] && sh -c "$helper \"\$@\"" -- get >> "${UC_LOG%.log}.cred" </dev/null
+          # Only the push the step is meant to make succeeds, so "a green
+          # gate pushes" can fail on the push and not just on the shell.
+          [ "$*" = "push origin HEAD:$BRANCH" ] && exit 0; echo "unexpected push: $*" >&2; exit 7 ;;
+    *) shift ;;
+  esac
+done
+exit 0
+STUB
+chmod +x "$UC/felix/engine/harness/felix" "$UC/bin/git"
+_uctok="ghs_stubtokenstubtokenstubtokenstub"
+: > "$UC/git.log"; : > "$UC/git.cred"
+( cd "$UC/repo" && UC_LOG="$UC/git.log" GITHUB_TOKEN="$_uctok" BRANCH=fix/x PATH="$UC/bin:$PATH" \
+    bash -e "$UC/step.sh" ) > "$UC/out" 2>&1; _ucrc=$?
+[ "$_ucrc" -eq 0 ] && ok  "a green gate pushes the repair" \
+                   || bad "a green gate pushes the repair" "exit $_ucrc: $(cat "$UC/out")"
+has "and pushes it to the branch the run repaired" "$(cat "$UC/git.log")" "push origin HEAD:fix/x"
+has "the push step hands git the token itself, through a helper reading the step's environment" \
+    "$(cat "$UC/git.cred")" "password=$_uctok"
+case "$(cat "$UC/git.log")" in
+  *"$_uctok"*) bad "and the token is in no argument git was given" "$(grep -n "$_uctok" "$UC/git.log")" ;;
+  *)           ok  "and the token is in no argument git was given" ;;
+esac
 printf '\nthe unattended repair denies the model its own environment\n'
 # The attempt step runs with ANTHROPIC_API_KEY in its environment, so the
 # claude process it starts carries the key, and on Linux a process's

@@ -260,6 +260,7 @@
 1	a finding names its reason
 1	a first write leaves only the handoff beside what was there
 1	a flag with no value refuses instead of spinning
+1	a flagged stop in a chain Felix did not start is judged, not waved through
 1	a fold older than its own state file is stranded, not finished
 1	a force push is still refused
 1	a four-column row still reads as event
@@ -319,6 +320,7 @@
 1	a here-document written to a file the command then runs is code
 1	a high tier refuses even when no capability matches
 1	a high-risk row is never installed by commissioning
+1	a hold lets the one flagged stop it started end
 1	a hold on an unverified tree names the exceptions table and says a session cannot grant itself one
 1	a home pointer naming something that is not a home refuses
 1	a home that is no repository has its grants unread, and the widget report says so under the new summary
@@ -429,7 +431,9 @@
 1	a new subject is a new epoch
 1	a new untracked file invalidates the receipt
 1	a night an older engine granted to the project is announced to no session
+1	a night ended mid-chain leaves the stop after its hold to the night's own chain
 1	a night granted to no session is refused
+1	a night holds its session on a green tree with a hold of its own
 1	a night nobody granted is not an expired night
 1	a night of zero hours is not a night
 1	a night spent down on refusals lets the session close
@@ -698,6 +702,7 @@
 1	a session is read without its subagent files, which would add a check, a stop and a hold
 1	a session reports what was named and what was followed
 1	a session that changed nothing stops silently
+1	a session with no night is held on a red tree like any other
 1	a shell comment is not code: its apostrophe opens no quote, its (npm test) runs nothing, and its ; takes no status
 1	a shell's -c script is still read as a command
 1	a short name is not turned into a keyword
@@ -797,6 +802,7 @@
 1	a tree whose every table is declared and accepted exits 0
 1	a tree with doctrine tracked and no memory is clean
 1	a truncated hooks.json is cannot-examine
+1	a two-turn night holds at its first stop
 1	a typed intent is not labelled a guess
 1	a valid receipt raises no commission blocker
 1	a value ending on an escaped backslash is read the same both ways
@@ -949,6 +955,7 @@
 1	an explicit FELIX_HOME wins
 1	an explicit base argument names the ref to run against
 1	an explicit path is allowed
+1	an id that cannot name a file still holds an unflagged stop
 1	an ignore rule that swallows a TRACKED maintenance.log fails
 1	an ignored file the probe counts leaves the tree id where it was
 1	an inactive capability makes the row not-applicable
@@ -986,6 +993,8 @@
 1	an undeclared capability is still never scored
 1	an undeclared tool is reported, not hidden
 1	an unenforceable probe word is muted on the record
+1	an unflagged stop clears a hold left behind
+1	an unflagged stop holds even when the hold cannot be recorded
 1	an ungoverned directory writes no lifecycle.log, under the memory root or in its tree, where a governed start does
 1	an ungoverned repo is allowed
 1	an ungranted project starts no background run
@@ -1079,6 +1088,7 @@
 1	and a file merely named hooks.json does not make the row apply
 1	and a file that does not exist counts zero
 1	and a file with no whitespace reads the same as one with
+1	and a flagged stop under it ends, as before
 1	and a fold that is current leaves nothing stranded
 1	and a gitignored stray in the cache is too
 1	and a graph with no stamp admits its currency is unknown
@@ -1230,6 +1240,7 @@
 1	and each bound is named in its own words
 1	and each full log line names a file holding its own run alone
 1	and each item appears once however often it bit
+1	and ends at the flagged stop after it
 1	and ends that session's night and no other
 1	and every byte is the one it had
 1	and every line is a whole row
@@ -1542,6 +1553,7 @@
 1	and one written as a path
 1	and only once per session
 1	and only rows of the right shape and kind are accepted
+1	and only that one: the rewake turn after it is judged
 1	and only the awaiting count records it
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
@@ -1582,6 +1594,7 @@
 1	and records no hold for it in says.log or verification.log
 1	and records nothing either
 1	and records nothing else for it: no brief, no route, no mark, no route state
+1	and records nothing outside state/held
 1	and records the failure without being asked
 1	and red is named before any fact that moved
 1	and red returns non-zero
@@ -1776,6 +1789,7 @@
 1	and that continuation is spent like any other
 1	and that copy is the only library the block sources
 1	and that field holds four members
+1	and that hold is on the record
 1	and that is a failure, not a path it might make up
 1	and that is more than one, so the count is doing work
 1	and that is not a clean bill either
@@ -1849,6 +1863,7 @@
 1	and the hand-back says it was the idling that ended it
 1	and the handoff row names the engine that wrote it and the checkout's HEAD
 1	and the held total
+1	and the hold a night made does not outlive it: the rewake turn after is judged
 1	and the hook exits 0 there
 1	and the hook still exits 0 there
 1	and the independence check above it sees nothing wrong with that file
@@ -1902,6 +1917,7 @@
 1	and the receipt reads valid
 1	and the receipt refuses to call that verified
 1	and the record names the channel
+1	and the record says why
 1	and the refilled cache begins with the stamp
 1	and the refusal is the gate's own
 1	and the refusal names the version main declares or the cache it searched
@@ -2051,6 +2067,7 @@
 1	briefs which tasks are one unit
 1	but Felix's own bookkeeping is not the subagent's work
 1	but a change that does touch it still is
+1	but a flagged one does not hold again unrecorded
 1	but a new one does get through
 1	but a prompt that opens with a slash is still what was typed
 1	but a real edit still blocks
@@ -2890,6 +2907,7 @@
 1	the fixture tree is green before any night is granted
 1	the flag between the name and the path binds the path given
 1	the flag is what made the difference: the same felix new without it calls claude and writes a receipt
+1	the flagged stop after that hold is Felix's own chain, and ends there
 1	the founder's item is not buried
 1	the four readings are four different sentences
 1	the fourth names the engine as proposer: felix at a version and a sha
@@ -3045,6 +3063,7 @@
 1	the topology is back once the ignored file is gone
 1	the tree holds only the marker beside what was there
 1	the tree id is still the one the receipt names
+1	the tree is green before the hold record meets a night
 1	the tree's run executed against main's lib, never the base's own run
 1	the unattended job on the misbound checkout fails and labels no pull request
 1	the unattended job on the unbound checkout fails and labels no pull request

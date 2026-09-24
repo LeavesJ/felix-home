@@ -4,5 +4,41 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	3c960522ae23979d2e4f371e6fa201cb2e5bdb37	0.49.172
-run	0	3322	5
+base	origin/main	453f000629959fb1279c04aebadf5a5c6f9133b9	0.49.179
+run	36	3328	5
+a branch that only adds a pending section reads clean	1
+a current section the marker does not name is refused	1
+a fold that main moved past merges and reads clean, and the section that landed after it waits	1
+a pending section that carries an id is refused	1
+a second --section on the same branch rewrites that file and makes no other	1
+a section written in beside the current one, the marker left alone, is refused too	1
+and a hand rotation that archives a stale copy of the section says what it drops	1
+and drops the id its heading carried, since only the fold gives ids	1
+and exits 0 on a clean one	1
+and leaves a file named for a branch whose name only ends like this one's	1
+and says an archived section is never rewritten	1
+and says it dropped it	1
+and says so	1
+and so is removing one	1
+and the handoff sections waiting in docs/handoff/pending/, newest first, beside it	1
+and the next fold gives it the id after theirs	1
+and the refusal says how to add a section instead	1
+another section put in place under the current id is refused, since the one it replaced is lost	1
+but only the newest five, and the rest counted	1
+editing the current section in place, its heading kept, reads clean	1
+felix handoff --rotate folds and reads its work back clean	1
+felix handoff --section writes the section to docs/handoff/pending/<UTC time>-<branch>.md	1
+folding a section ahead of one that landed before it is refused	1
+handoff-check cannot examine a checkout with no HANDOFF.md, and says 2, never 0	1
+handoff-check exits 1 on it, which fails the gate	1
+main with two sections waiting reads clean	1
+removing a pending section without folding it is refused, since that drops it	1
+rewriting an archived section is refused	1
+the fold refuses to write over an archive that holds something else, and writes nothing	1
+the handoff a fold could have written reads clean	1
+the id after 0bv is 0bw, after 0bz 0ca, after 0z 0aa, and after 0zz 0aaa	1
+the marker moves on to the id after the current one	1
+the one that landed last is current, with the id after it	1
+the rows go in newest first, above the newest numbered row and below the standing one	1
+the section it replaced is archived exactly as it stood, its trailing blank line dropped	1
+the section that landed first takes the next id and is archived, as it would have been had it been folded alone	1

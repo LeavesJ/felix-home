@@ -69,6 +69,7 @@
 1	a blocking verdict does not clear it either
 1	a bootstrapped repository still asks before a merge that bypasses checks
 1	a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version
+1	a branch that only adds a pending section reads clean
 1	a branch the gate has not run on has no latest run
 1	a branch whose engine differs from the deployed one reads installed ok
 1	a broad but legitimate rule still denies
@@ -159,6 +160,7 @@
 1	a current graph is said to be current
 1	a current graph still names the command that asks it
 1	a current receipt raises no unverified line at the merge boundary
+1	a current section the marker does not name is refused
 1	a dash for evidence is no evidence
 1	a dash for grounds is refused, where the ledger would only count it
 1	a dash in the seventh field is written as a dash
@@ -266,6 +268,7 @@
 1	a flag with no value refuses instead of spinning
 1	a flagged stop in a chain Felix did not start is judged, not waved through
 1	a fold older than its own state file is stranded, not finished
+1	a fold that main moved past merges and reads clean, and the section that landed after it waits
 1	a force push is still refused
 1	a four-column row still reads as event
 1	a fresh cache is not stale
@@ -488,6 +491,7 @@
 1	a payload with no session_id or transcript_path writes - in lifecycle fields 3 and 8
 1	a peer commit on the same branch merges nothing
 1	a peer edit to the working tree merges nothing
+1	a pending section that carries an id is refused
 1	a person quoting the summary opening mid-sentence is still routed and marked
 1	a person who pastes the Stop hook's words and asks about them keeps the session's mark and brief
 1	a person's low row installs
@@ -693,7 +697,9 @@
 1	a schemas.tsv it cannot read is cannot-examine, exit 2, not every table undeclared
 1	a score answer never enters the admit phase
 1	a script handed to bash -c or sh -c over 256K is read at both ends: a runner at its start or its end is a check
+1	a second --section on the same branch rewrites that file and makes no other
 1	a second catch-up finds nothing left
+1	a second fold of the same main writes the same tree
 1	a second full run refuses while one is in progress
 1	a second grant cannot take a session past the day's continuations
 1	a second hand-off in the same session stays quiet
@@ -701,6 +707,8 @@
 1	a second run appends rather than replacing
 1	a second session's grant is a second night, not a replacement
 1	a second tree makes it a promotion candidate
+1	a section written in beside the current one, the marker left alone, is refused too
+1	a section written into HANDOFF.md by hand is refused, however correct its id
 1	a sed script that starts with a slash is not taken for a path
 1	a server the registry says a plugin provides is proposed as a plugin row
 1	a session cannot grant a night to another session
@@ -1108,6 +1116,7 @@
 1	and a graph with no stamp admits its currency is unknown
 1	and a graph with no stamp does too
 1	and a graphify that fails outright does not reach the session
+1	and a hand rotation that archives a stale copy of the section says what it drops
 1	and a high one is refused
 1	and a history read for no workflow is unknown
 1	and a hold is not written
@@ -1253,6 +1262,7 @@
 1	and does not print that it wrote the handoff
 1	and does not say it recorded
 1	and drift in the served checkout is a plain FAIL
+1	and drops the id its heading carried, since only the fold gives ids
 1	and due again after a commit the graph has not seen
 1	and due from the worktree too, which is where the session is
 1	and each bound is named in its own words
@@ -1274,6 +1284,7 @@
 2	and exits 0
 1	and exits 0 for an ungraphed checkout too
 1	and exits 0 in a repository Felix does not govern
+1	and exits 0 on a clean one
 2	and exits 0 there
 1	and exits 0 there too
 1	and exits 0 when it has a digest to print
@@ -1415,6 +1426,7 @@
 1	and lands in mistakes.log under its own name
 1	and launchd was handed the agent
 1	and leaves a control its checker passes over held
+1	and leaves a file named for a branch whose name only ends like this one's
 1	and leaves it as it was, byte for byte
 1	and leaves no new file in the project's memory
 1	and leaves no scratch file behind
@@ -1660,6 +1672,7 @@
 1	and runs none of commissioning: no run, no receipt, no discovery cache, no commissioning log
 1	and saying so is an exit code, not an empty line
 1	and says a long name at least scores on itself
+1	and says an archived section is never rewritten
 1	and says how many are still unusable
 1	and says how many bytes it would have destroyed
 1	and says how many scripts it examined
@@ -1668,6 +1681,7 @@
 1	and says it cannot be scoped
 1	and says it could not be asked here
 1	and says it did
+1	and says it dropped it
 1	and says it is empty
 1	and says it is recording only
 1	and says it is the epoch it lacks
@@ -1685,7 +1699,7 @@
 1	and says nothing when every capability has a rule
 1	and says nothing while not doing it
 1	and says plainly that it acted on nothing
-5	and says so
+6	and says so
 1	and says so again next session, because the request is still unanswered
 1	and says so as emptiness
 1	and says so before the detail
@@ -1778,6 +1792,7 @@
 1	and so is ordinary work
 1	and so is project.json
 1	and so is quoted text printed into a file the command then runs
+1	and so is removing one
 1	and so is the continuation ceiling itself
 1	and so is the other one
 1	and so is what eval is handed
@@ -1890,6 +1905,7 @@
 1	and the fixture is back where the qualification block found it
 2	and the fixture is restored
 1	and the fixture is restored to awaiting
+1	and the folded files are gone
 1	and the footer still counts one discovered, one admitted
 1	and the footer: discovered one, admitted one
 1	and the foreign session is not folded
@@ -1905,6 +1921,7 @@
 1	and the hand-back names the bound that ended the night
 1	and the hand-back says it was the idling that ended it
 1	and the handoff row names the engine that wrote it and the checkout's HEAD
+1	and the handoff sections waiting in docs/handoff/pending/, newest first, beside it
 1	and the held total
 1	and the hold a night made does not outlive it: the rewake turn after is judged
 1	and the hook exits 0 there
@@ -1930,6 +1947,7 @@
 1	and the moved fact is not what it blames
 1	and the mute is a row, not a silent omission
 1	and the new row is its own line
+1	and the next fold gives it the id after theirs
 1	and the night is closed as it goes
 1	and the night is closed, not left for the next stop
 1	and the note it was given
@@ -1966,6 +1984,7 @@
 1	and the refilled cache begins with the stamp
 1	and the refusal is the gate's own
 1	and the refusal names the version main declares or the cache it searched
+1	and the refusal says how to add a section instead
 1	and the refusal says how to type it inside the session
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
@@ -2077,6 +2096,7 @@
 1	and writes the request under the memory root
 1	and zero failures is still exit 0
 1	another plugin's refusal is not
+1	another section put in place under the current id is refused, since the one it replaced is lost
 1	another session in the same project is not held by that night
 1	another session's edit changes the tree identity
 1	another workflow's failures on the branch are not repair attempts
@@ -2133,6 +2153,7 @@
 1	but not the session handoff, which a prior session wrote
 1	but once the grounded facts move under that receipt, the hook blocks
 1	but one that could not have passed is not
+1	but only the newest five, and the rest counted
 1	but removing one still escapes
 1	but says there is none to keep
 1	but says what may come later
@@ -2261,6 +2282,7 @@
 1	ecc's shape, an empty mcpServers object beside skills, is low
 1	editing a table in the set is a new policy version
 1	editing a table in the set makes it stale, with nothing under state/ changing
+1	editing the current section in place, its heading kept, reads clean
 1	editing the same file again invalidates the receipt
 1	editing the table takes the grant off it
 1	eight fields is refused for its field count, never cut to seven
@@ -2330,6 +2352,8 @@
 1	felix gate runs the probes for a project with a table
 1	felix handoff --replace over a hand-written handoff appends a row noted replaced, with the hash of what replaced it
 1	felix handoff --replace overwrites it
+1	felix handoff --rotate folds and reads its work back clean
+1	felix handoff --section writes the section to docs/handoff/pending/<UTC time>-<branch>.md
 1	felix handoff appends one lifecycle row of kind handoff, noted written, with the hash of the file it wrote
 1	felix handoff refuses a hand-written handoff
 1	felix ledger folds it and says what it folded
@@ -2413,6 +2437,7 @@
 1	five rows are accepted, by name
 1	five rows in candidates.tsv under the memory root
 1	flipping a file's executable bit changes the digest
+1	folding a section ahead of one that landed before it is refused
 1	for every gate check that file actually covers
 1	free text matches the catalogue
 1	from a minified registry too
@@ -2428,6 +2453,8 @@
 1	handoff --was still records the note
 1	handoff is regenerated from the tree
 1	handoff lists the session-end checks
+1	handoff-check cannot examine a checkout with no HANDOFF.md, and says 2, never 0
+1	handoff-check exits 1 on it, which fails the gate
 1	hands off for anything broader
 1	having nothing to say is not a failure
 1	help covers every command that dispatches
@@ -2538,6 +2565,7 @@
 1	lspServers as a list of paths is medium
 1	lspServers as a path in the manifest is medium
 1	lspServers inline in the manifest is medium
+1	main with two sections waiting reads clean
 1	main's engine byte-identical to the entry for main's version is exit 0
 1	main's resolve.sh decides the installed verdict
 1	maintenance that is due is named
@@ -2760,6 +2788,7 @@
 1	regardless of the order given
 1	removes a copy of a file Felix holds
 1	removes an untracked copy Felix holds
+1	removing a pending section without folding it is refused, since that drops it
 1	removing a witness turns a clean empty into a blocking unknown
 2	removing one escapes as verifier
 1	renaming an enforcing table away fires the verifier on the table it removed
@@ -2780,6 +2809,7 @@
 1	resolves via .felix marker with no remote
 1	restored, it exits 0 again
 1	retires what Felix pointed at and nobody reached for
+1	rewriting an archived section is refused
 1	rewriting assertions without losing any escapes nothing
 1	rolling the same session twice does not double it
 1	route and lessons arrive as one block
@@ -2838,6 +2868,7 @@
 1	so a project created on git init alone is not born blocked
 1	so a project created today is not born blocked
 1	so a project created today reads something from reality
+1	so both land, the second on top of the first, without a conflict
 1	so do an added row, a comment edit and a deletion
 1	so does a pointer naming a directory that is gone
 1	so is a command one directory further down
@@ -2856,6 +2887,7 @@
 1	so the receipt is stale with the tree unchanged
 1	so the same command with the flag spelled right then binds it
 1	so the session count is the number of sessions
+1	so two sessions folding at once both land, and the second changes nothing
 1	speaks when a catch went unexplained
 1	spending is counted
 1	spending past the last continuation stops at zero
@@ -2965,6 +2997,7 @@
 1	the flag between the name and the path binds the path given
 1	the flag is what made the difference: the same felix new without it calls claude and writes a receipt
 1	the flagged stop after that hold is Felix's own chain, and ends there
+1	the fold refuses to write over an archive that holds something else, and writes nothing
 1	the founder's item is not buried
 1	the four readings are four different sentences
 1	the fourth names the engine as proposer: felix at a version and a sha
@@ -2977,7 +3010,9 @@
 1	the graph is graphify-out/graph.json under the holding checkout
 1	the graph's home is the checkout that holds the repository
 1	the grouped help names --no-commission
+1	the handoff a fold could have written reads clean
 1	the handoff carries no file comments
+1	the handoff check is behind the verifier confine
 1	the help, the audit and the README say in the same words that a --no-commission project's sessions are held once felix install has run where a gate was guessed, and to set gate in project.json first where none was
 1	the hold line claims no more than the hold does, and says a held stop is counted
 1	the hook announces what it adopted
@@ -2986,6 +3021,7 @@
 1	the hook routes on the first prompt
 1	the hook says what must be read first
 1	the hook surfaces due maintenance
+1	the id after 0bv is 0bw, after 0bz 0ca, after 0z 0aa, and after 0zz 0aaa
 1	the ignored file leaves the tree id the receipt was stamped for
 1	the independence check is behind the verifier confine
 1	the injected checkout actually moved the branch
@@ -3004,6 +3040,7 @@
 1	the main checkout knows its own storage is not a rival
 1	the mandate does not claim more precision than measured
 1	the manifest variable reached the run
+1	the marker moves on to the id after the current one
 1	the marketplace is added from the directory holding its manifest
 1	the mcp record aggregates a server across sessions
 1	the memory check is behind the verifier confine
@@ -3017,6 +3054,7 @@
 1	the north-star row's own columns follow, in the ledger's order
 1	the obligations fixture blocker is work Felix owes
 1	the obligations row is done on day one, its seeded row dormant in a project with no hooks
+1	the one that landed last is current, with the id after it
 1	the page carries the speech
 1	the page renders the says total
 1	the page still closes exactly one script
@@ -3071,6 +3109,7 @@
 1	the route is there when both apply
 1	the row is awaiting, UNKNOWN by class
 1	the row is in candidates.tsv under the widget's memory
+1	the rows go in newest first, above the newest numbered row and below the standing one
 1	the rules print one line per data row, none for the header lines or the done row
 1	the run records the accepted rows as INFERRED with the file's hash as provenance
 1	the run row counts three failed, two passed, one skipped
@@ -3089,6 +3128,8 @@
 1	the second is a tree id, forty hex
 1	the second session is still bound
 1	the secret check is behind the verifier confine
+1	the section it replaced is archived exactly as it stood, its trailing blank line dropped
+1	the section that landed first takes the next id and is archived, as it would have been had it been folded alone
 1	the seeded graphify row is due on a checkout with no graph
 1	the seen file never carries the stamp comment
 1	the session banner does not carry the unmeasurable list
@@ -3171,6 +3212,7 @@
 1	two rows, once each
 1	two runs with nothing to show end the night too
 1	two session starts append two lifecycle rows in order and rewrite none of the bytes before them
+1	two sessions' handoff branches share no path
 1	two strangers and no upstream is a person's call
 1	two writers appending to one facts.log at once both report success
 1	two writers on one tree in one second both report success too

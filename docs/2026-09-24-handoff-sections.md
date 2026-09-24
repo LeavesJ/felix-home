@@ -121,6 +121,7 @@ In the tree, it requires:
 
 Against the merge-base with origin/main, it requires:
 - no archive file changed or removed;
+- when the current id is unchanged, an unchanged heading for it;
 - when the current section changes, the branch must have removed the
   oldest-landed pending files the base held, and the result must be exactly
   what the fold of the base writes, part by part.
@@ -128,6 +129,16 @@ Against the merge-base with origin/main, it requires:
 A section written into HANDOFF.md by hand is refused however correct its id,
 because that shared slot is what collided. So is a pending section removed
 without being folded in, since that drops it.
+
+Two more shapes lose a section without a sign. A peer session found both
+live on 2026-09-24, and both are refused:
+- **Another section put in place under the current id.** A carrier's merge
+  into #312 renamed #312's section to 0bw, the id main's current section
+  already had. An edit in place keeps the section's heading, so a changed
+  heading under an unchanged id is refused.
+- **A hand rotation cut from an older main.** It archives its own stale copy
+  of the section, and #326's branch archives an 85-line §0bw against main's
+  101. Its refusal names the archive and what it drops.
 
 Allowed without comment:
 - adding or editing a pending file;

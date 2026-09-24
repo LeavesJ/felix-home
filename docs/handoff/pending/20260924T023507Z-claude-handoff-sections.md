@@ -18,12 +18,11 @@ time of writing.** Why, and the options weighed:
   hand, an archive rewritten or removed, and a pending section removed without
   being folded in.
 
-**Branches that still rotate by hand** (checked 2026-09-24): #312 (claims
-§0bv), #326 (§0bx and §0by) and #330 (§0bw). Each is refused once it merges
-main. The design note's last section says how to convert one: take HANDOFF.md
-and `docs/handoff/` back to main's copy, then add the section with `--section`.
-#326 carries #325's section as well, so it writes that one by hand as a second
-pending file. #332 edited the current section in place, and that is allowed.
+**Branches that still rotate by hand.** #330 (§0bx) and #326 (§0by, §0bz)
+landed under the old rule first, by the queue carrier's order, so that only
+#312 had to move its section to `pending/`. The carrier undertook to do that.
+The design note's last section says how to convert a branch. An edit to the
+current section in place, as #332 and #333 made, is allowed.
 
 **The landing actor** (draft in
 `~/.felix/memory/felix/audits/2026-09-23-landing-actor/`) needs one change
@@ -34,7 +33,7 @@ lander to build.
 
 **Next:**
 - Deploy 0.49.177 from the home checkout once it merges.
-- Convert #312, #326 and #330, or tell the sessions carrying them.
+- #312 moves its section to `pending/` (the carrier's).
 - The first real fold, when three sections have landed.
 
 **Traps paid:**

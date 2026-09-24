@@ -4044,6 +4044,68 @@ printf 'unverified\n' >> "$GREPO/WIDGET.txt"
 out="$(_stop "$GREPO" "$ACTIVE_JSON")"
 _allows "stop_hook_active is honoured, so it never loops" "$out"
 
+# That rule is about a chain Felix started, and the flag does not say who did.
+# An asyncRewake hook that exits 2 wakes the model into a turn of its own with
+# the flag already set (measured on Claude Code 2.1.260 and 2.1.280, a Stop
+# and a PostToolUse hook alike), and security-guidance, which commissioning
+# installs for every project, is one. Leaving at the flag let the turn that
+# answered a background review end unchecked and unrecorded. Driven through
+# the real hook, in the order the platform sends these stops.
+_hj() { printf '{"hook_event_name":"Stop","stop_hook_active":%s,"session_id":"%s"}' "$1" "$2"; }
+_hv="$MEM/widget/verification.log"
+_hn() { awk 'END { print NR }' "$_hv" 2>/dev/null || echo 0; }
+rm -rf "$FROOT/state/held"
+_n0="$(_hn)"
+out="$(_stop "$GREPO" "$(_hj true rw-foreign)")"
+_blocks "a flagged stop in a chain Felix did not start is judged, not waved through" "$out"
+is "and that hold is on the record" "$(( $(_hn) - _n0 )):$(tail -1 "$_hv" | cut -f2)" "1:blocked"
+# Silence alone cannot tell Felix's own chain from a hold that went unrecorded
+# and was then refused inside a chain it took for another's. Only the first
+# writes no row.
+_n0="$(_hn)"
+out="$(_stop "$GREPO" "$(_hj true rw-foreign)")"
+is "the flagged stop after that hold is Felix's own chain, and ends there" \
+   "$(( $(_hn) - _n0 )):[$out]" "0:[]"
+
+# The record is taken by the stop it was for, so a rewake turn right after
+# Felix's own chain is not mistaken for part of it.
+out="$(_stop "$GREPO" "$(_hj false rw-own)")"
+_n0="$(_hn)"
+out="$(_stop "$GREPO" "$(_hj true rw-own)")"
+is "a hold lets the one flagged stop it started end" "$(( $(_hn) - _n0 )):[$out]" "0:[]"
+out="$(_stop "$GREPO" "$(_hj true rw-own)")"
+_blocks "and only that one: the rewake turn after it is judged" "$out"
+
+# A chain can end without reaching its flagged stop (an interrupted turn), and
+# the next prompt's stop is unflagged. That stop starts afresh and clears what
+# was left, or the leftover waves the next rewake turn through.
+out="$(_stop "$GREPO" "$(_hj false rw-stale)")"
+out="$(cd "$GREPO" && _hj false rw-stale | FELIX_ALLOW_RED=1 "$STOP" 2>&1)"
+out="$(_stop "$GREPO" "$(_hj true rw-stale)")"
+_blocks "an unflagged stop clears a hold left behind" "$out"
+
+# The id comes from the payload, so it is checked before it names a file. One
+# that cannot name a file ends a flagged stop, as the flag always did, and a
+# hold made under it writes nothing outside state/held.
+out="$(_stop "$GREPO" "$(_hj false ../held-escape)")"
+_blocks "an id that cannot name a file still holds an unflagged stop" "$out"
+[ -e "$FROOT/state/held-escape" ] && bad "and records nothing outside state/held" "$FROOT/state/held-escape" \
+                                  || ok  "and records nothing outside state/held"
+out="$(_stop "$GREPO" "$(_hj true ../held-escape)")"
+_allows "and a flagged stop under it ends, as before" "$out"
+
+# A hold that cannot be recorded. Starting a chain, Felix holds anyway: the
+# flagged stop after it is judged once more and let through, two holds at
+# most. Inside another hook's chain it does not hold, since that would be the
+# second in a row, and it says so on the record instead.
+rm -rf "$FROOT/state/held"; : > "$FROOT/state/held"
+out="$(_stop "$GREPO" "$(_hj false rw-ro)")"
+_blocks "an unflagged stop holds even when the hold cannot be recorded" "$out"
+out="$(_stop "$GREPO" "$(_hj true rw-ro)")"
+_allows "but a flagged one does not hold again unrecorded" "$out"
+has "and the record says why" "$(tail -1 "$_hv")" "could not be recorded"
+rm -f "$FROOT/state/held"
+
 # The flag is a FIELD. The payload also carries the model's last message, and
 # a glob for the key followed by `true` anywhere after it was satisfied by a
 # message that used the word — an unverified tree whose session ended with
@@ -17407,6 +17469,12 @@ has "and the refusal is the gate's own"     "$_out" "gate"
 is  "and refusing costs no continuation"    "$(_ovfield "$WP" 3 night-red)" "12"
 # Asked on a red tree, where the gate would refuse anybody who got that far.
 # On a green one nothing blocks a bystander, so the exit could not be seen.
+# The chain is one Felix started, by holding the bystander's own stop first:
+# a flagged stop with no hold of Felix's before it belongs to another hook's
+# chain and is judged (felix_hold_take, asserted in the completion gate's
+# section), which is the case this used to be asked without.
+_out="$(_ovstop night-bystander false "$OVTX")"
+_ovblocks "a session with no night is held on a red tree like any other" "$_out"
 _out="$(_ovstop night-bystander true "$OVTX")"
 _ovholds_open "and a chain in a session with no night still ends as the platform asks" "$_out"
 # Inside the chain the night carried the session past the platform's bound, so
@@ -17577,6 +17645,42 @@ is "a session id that cannot name a file is refused, and nothing is written wher
    "$([ "$_rc" -ne 0 ] && echo refused || echo "accepted"):$([ -e "$(_ovdir "$WP")/escaped" ] && echo written || echo absent):$(_ovnights)" \
    "refused:absent:0"
 _ovreset "$WP"
+
+# A night's hold goes on record like any other, and the record is taken at
+# every flagged stop, a night's included (lib/verify.sh, felix_hold_take). Each
+# half has its own way to fail. Unrecorded, a night a person ends mid-chain
+# leaves the flagged stop after its hold looking like another hook's chain, and
+# it is held a second time in a row. Untaken, the record outlives the night and
+# waves the next rewake turn through unchecked.
+#
+# Both need the night's own hold, which only a green tree reaches, so the tree
+# is made green here rather than inherited from whatever ran last, and each
+# hold is asked for by what it says: a block alone is also what the gate's hold
+# looks like, and a fixture with no probes reached that one instead and passed.
+_ovrows() { awk 'END { print NR }' "$MEM/widget/verification.log" 2>/dev/null || echo 0; }
+( cd "$NREPO" && git checkout -q -- . ); printf 'night work\n' >> "$NREPO/WIDGET.txt"
+_ovgate="$(cd "$NREPO" && "$FELIX" gate 2>&1)"; _ovgaterc=$?
+is "the tree is green before the hold record meets a night" "$_ovgaterc" "0"
+rm -rf "$FROOT/state/held"
+_ov felix_overnight_start "$WP" 8 5 night-held "a granted night" >/dev/null
+_ovtool; _out="$(_ovstop night-held false "$OVTX")"
+has "a night holds its session on a green tree with a hold of its own" "$_out" "Overnight is on"
+_ov felix_overnight_end "$WP" "ended by hand" night-held >/dev/null
+_ovn="$(_ovrows)"
+_ovtool; _out="$(_ovstop night-held true "$OVTX")"
+is "a night ended mid-chain leaves the stop after its hold to the night's own chain" \
+   "$(( $(_ovrows) - _ovn )):[$_out]" "0:[]"
+_ovreset "$WP"; rm -rf "$FROOT/state/held"
+_ov felix_overnight_start "$WP" 8 2 night-spent "two turns" >/dev/null
+_ovtool; _out="$(_ovstop night-spent false "$OVTX")"
+has "a two-turn night holds at its first stop" "$_out" "Overnight is on"
+_ovtool; _out="$(_ovstop night-spent true "$OVTX")"
+has "and ends at the flagged stop after it" "$_out" "Overnight is over"
+_ovn="$(_ovrows)"
+_ovtool; _ovstop night-spent true "$OVTX" >/dev/null
+is "and the hold a night made does not outlive it: the rewake turn after is judged" \
+   "$(( $(_ovrows) - _ovn ))" "1"
+_ovreset "$WP"; rm -rf "$FROOT/state/held"
 
 printf '\ndecision epochs: the four things a decision was made under\n'
 # v3.2 §3 defines the epoch as hash(subject_identity, topology_version,

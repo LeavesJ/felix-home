@@ -127,7 +127,7 @@
 1	a code point past U+10FFFF is refused as not UTF-8, which the platform's iconv lets through
 1	a column marked optional is not a glob: a seven-cell stack row is refused beside files it would match
 1	a command file piping to a shell is a fact naming that file
-1	a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds
+1	a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds of CPU
 1	a command of 26,000 runners costs no more than twice the CPU of one of the same shape holding one: the last is found in one read
 1	a command whose frontmatter declares hooks is high
 1	a commands directory main ships that the entry lacks is drift

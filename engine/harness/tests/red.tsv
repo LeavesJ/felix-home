@@ -4,13 +4,11 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	c6989dc5168f5113745591fde1115b7270dfe933	0.49.193
-run	49	3463	5
+base	origin/main	cb3a72ce4f0d85d37253359ca73b4976e9d45201	0.49.194
+run	58	3509	5
 a lifted scoped row is written to says.log with the command	1
-and editing it is denied	1
-and reading the checkout's .git is denied	1
+and the row's reason is given	1
 and with it, the same call lifts	1
-every checkout in the unattended template drops its credential once the fetch is done	1
 scoped: .. out of the checkout that lands in scratch	1
 scoped: P from pwd keeps the scratch cwd after a cd	1
 scoped: Write to a relative marker under a scratch payload cwd	1
@@ -51,7 +49,18 @@ scoped: set -u is not set -e	1
 scoped: three scoped rows all lifted in one clone	1
 scoped: under set -e a cd inside a chain can still fall through	1
 scoped: under set -e a lone cd on its own line is final	1
+the founder's case 10: a here-document a shell reads is its script	1
+the founder's case 11: and so with -s	1
+the founder's case 12: a redirect's target is written whatever line the here-document ends on	1
+the founder's case 1: a separator glued to the last word ends it, as the shell does	1
+the founder's case 2: a group's separator ends the word too	1
+the founder's case 3: a line break ends a word as a blank does	1
+the founder's case 4: a shell's -c script is a command of its own, quotes and all	1
+the founder's case 5: and so under bash -c	1
+the founder's case 6: a -c script handed to find's -exec is still a command	1
+the founder's case 7: a $( ) assigned to a variable runs	1
+the founder's case 8: a quoted program name is the program	1
+the founder's case 9: a quoted path in command position runs	1
 the judge alone: a scratch path is throwaway	1
-the model's tools are allowed inside the checkout and nowhere else	1
-the push step hands git the token itself, through a helper reading the step's environment	1
+the reader prints a command separator as a token of its own, an operator of two characters whole	1
 the same reader reaching its end would lift	1

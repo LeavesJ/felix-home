@@ -2030,6 +2030,7 @@
 1	and the row says the witness was neither yes nor no, with its code
 1	and the row says what ran
 1	and the row that was already there survives whole
+1	and the row's reason is given
 1	and the row-level line names the same file
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
@@ -2143,6 +2144,47 @@
 1	because the second path was read too
 1	before the pulse has ever run there is nothing to report
 1	binds the checkout with no remote
+1	blind allow case 10: a python program in a here-document runs no shell
+1	blind allow case 11: JSON on jq's stdin is data
+1	blind allow case 12: grep's search phrase is data
+1	blind allow case 13: rg's quoted pattern is data
+1	blind allow case 14: git log's --grep value is data
+1	blind allow case 15: a JSON body sent by curl is data
+1	blind allow case 16: a quoted issue comment holding a flag and a semicolon is one value
+1	blind allow case 17: an issue body holding two commands and && is one value
+1	blind allow case 18: git push -u is not a force
+1	blind allow case 19: --force-with-lease is not --force
+1	blind allow case 1: a push named in a commit message is a message
+1	blind allow case 20: in main:release the destination is release
+1	blind allow case 21: git add -p stages by patch
+1	blind allow case 22: named paths are named paths
+1	blind allow case 23: ./src is a directory, not a bare dot
+1	blind allow case 24: -N is not -f
+1	blind allow case 25: a plain fetch names no remote-tracking ref
+1	blind allow case 28: git remote -v and show change no remote
+1	blind allow case 29: ls and cat only read the marker
+1	blind allow case 2: a here-document handed to git commit -F is a message
+1	blind allow case 30: test, grep and diff only read the marker
+1	blind allow case 31: sed -i on another file, with the marker in its script, edits that file
+1	blind allow case 32: truncate on debug.log, with the marker only in a comment
+1	blind allow case 33: a timed read from a plain file
+1	blind allow case 34: a read from a process substitution with no timeout
+1	blind allow case 35: a read -t line inside a quoted printf argument is text
+1	blind allow case 36: bash on another script is not the rival gate
+1	blind allow case 39: a push whose force is named only in a trailing comment
+1	blind allow case 3: the commit template's $(cat <<'EOF') is a message
+1	blind allow case 40: a force push on a comment line among plain commands
+1	blind allow case 41: a flag stored in a variable and echoed is text
+1	blind allow case 42: a flag echoed into a file is text
+1	blind allow case 43: an sh -c script that only echoes a quoted string
+1	blind allow case 44: a shell fed a here-document that only echoes a quoted string and lists remotes
+1	blind allow case 45: a bash -c script built by printf that only echoes
+1	blind allow case 4: a pull request body from a quoted here-document is text
+1	blind allow case 5: a redirect character inside a quoted message is text
+1	blind allow case 6: lines naming the marker inside a here-document body are data
+1	blind allow case 7: an append to .gitignore whose body names the marker writes .gitignore
+1	blind allow case 8: tee writes the file it names, and the body is data
+1	blind allow case 9: wc reads a here-document and runs none of it
 1	blocks are recorded
 1	bootstrap looks for gate.yml when the project names no gate workflow
 1	bootstrap names the checkout's repo, not the cache's absence
@@ -3136,6 +3178,18 @@
 1	the flag is what made the difference: the same felix new without it calls claude and writes a receipt
 1	the flagged stop after that hold is Felix's own chain, and ends there
 1	the fold refuses to write over an archive that holds something else, and writes nothing
+1	the founder's case 10: a here-document a shell reads is its script
+1	the founder's case 11: and so with -s
+1	the founder's case 12: a redirect's target is written whatever line the here-document ends on
+1	the founder's case 1: a separator glued to the last word ends it, as the shell does
+1	the founder's case 2: a group's separator ends the word too
+1	the founder's case 3: a line break ends a word as a blank does
+1	the founder's case 4: a shell's -c script is a command of its own, quotes and all
+1	the founder's case 5: and so under bash -c
+1	the founder's case 6: a -c script handed to find's -exec is still a command
+1	the founder's case 7: a $( ) assigned to a variable runs
+1	the founder's case 8: a quoted program name is the program
+1	the founder's case 9: a quoted path in command position runs
 1	the founder's item is not buried
 1	the four readings are four different sentences
 1	the fourth names the engine as proposer: felix at a version and a sha
@@ -3222,6 +3276,7 @@
 1	the quiet control did bind its project
 1	the re-run's answer names a different epoch
 1	the read-only checks can fail: an audit that writes under HOME and calls claude changes the snapshot and the stub log
+1	the reader prints a command separator as a token of its own, an operator of two characters whole
 1	the readiness report runs at all
 1	the reason is durable in decisions.log
 1	the reason names the server it starts

@@ -21436,34 +21436,49 @@ is  "a script handed to bash -c or sh -c over 256K is read at both ends: a runne
 
 # The last check in a command is found without re-reading the rest of the
 # command after each one, so a command's cost does not grow with the runners
-# in it. Eight commands just under 256K, four of 26,000 runners each after a
-# ; and four of one runner whose 26,000 arguments are tests/run, beside eight
-# of the same length and the same ; in the same places holding one: re-read
-# per match, the first eight took three times the CPU of the second. Timed as
-# CPU and side by side, so a loaded machine slows both alike.
-mkdir -p "$RV/r3/many/-p" "$RV/r3/once/-p"
+# in it. Four commands just under 256K of 26,000 runners each after a ;,
+# beside four of the same length and the same ; in the same places holding
+# one; and four of one runner whose 26,000 arguments are tests/run, beside
+# four whose arguments are tests/ruX. Each shape is a pair of its own, since a
+# regression in one is diluted by the other. With hidden() made to read every
+# command whole from its start, the ; shape took 2.7 to 2.8 times the CPU of
+# the one beside it, the other 1.0, and the two mixed 2.0; made to find each
+# match without the = before the rest, the tests/run shape took 3.0 to 3.1
+# times, the other 0.9, and mixed 1.8, which one mixed pair passed three times
+# in three. Both still counted every stop (2026-09-24, load average 200-340).
+# Timed as CPU, so load slows both sides alike, but not always alike: one gate
+# at a load near 300 read the mixed runners at 7.2 s against 3.3 s, where
+# sixteen mixed pairs on the same engine at the same load read 0.93 to 0.95.
+# Contention adds CPU time to the same work and never takes it away, so each
+# set is read three times in turn and its least is compared. A correct engine
+# fails only if all three reads of one set are slowed, and a slow one passes
+# only if all three of the set beside it are; a correct one read 0.9 and 1.0.
+mkdir -p "$RV/r3/smany/-p" "$RV/r3/sonce/-p" "$RV/r3/tmany/-p" "$RV/r3/tonce/-p"
 awk -v d="$RV/r3" "$_rv_bigawk"'
   BEGIN { a = rep("pytest t; ", 26000); b = "pytest t; " rep("pyxest t; ", 25999)
           c = "pytest" rep(" tests/run", 26000); e = "pytest" rep(" tests/ruX", 26000)
           for (i = 1; i <= 4; i++) {
-            one(d "/many/-p/s" i ".jsonl", "m" i, a); one(d "/once/-p/s" i ".jsonl", "o" i, b)
-            one(d "/many/-p/t" i ".jsonl", "n" i, c); one(d "/once/-p/t" i ".jsonl", "p" i, e) } }'
+            one(d "/smany/-p/s" i ".jsonl", "m" i, a); one(d "/sonce/-p/s" i ".jsonl", "o" i, b)
+            one(d "/tmany/-p/t" i ".jsonl", "n" i, c); one(d "/tonce/-p/t" i ".jsonl", "p" i, e) } }'
 _rv_cpu() { awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
                  END { printf "%d", ms }' "$1"; }
-_rvn="a command of 26,000 runners costs no more than twice the CPU of one of the same shape holding one: the last is found in one read"
-_rvp=""; _rvk=0
-while [ "$_rvk" -lt 5 ]; do
-  _rvk=$((_rvk + 1))
-  _rvmo="$(_au --dir "$RV/r3/many"; times > "$RV/r3/many.cpu")"; _rvoo="$(_au --dir "$RV/r3/once"; times > "$RV/r3/once.cpu")"
-  _rvq="$(_au_counts "$_rvmo") / $(_au_counts "$_rvoo")"; _rvm="$(_rv_cpu "$RV/r3/many.cpu")"; _rvo1="$(_rv_cpu "$RV/r3/once.cpu")"
-  [ "$_rvq" = "8 0 0 0 / 8 0 0 0" ] || break
-  _rvp="$_rvp $_rvm/$_rvo1"
-  [ "$_rvm" -le $((2 * _rvo1)) ] && break
+_rvset=(smany sonce tmany tonce); _rvlo=(0 0 0 0); _rvq=""
+for _i in 1 2 3; do
+  for _j in 0 1 2 3; do
+    _rvo="$(_au --dir "$RV/r3/${_rvset[_j]}"; times > "$RV/r3/${_rvset[_j]}.cpu")"; _rvt="$(_rv_cpu "$RV/r3/${_rvset[_j]}.cpu")"
+    [ "$_i" -eq 1 ] && _rvq="$_rvq $(_au_counts "$_rvo")"
+    { [ "$_i" -eq 1 ] || [ "$_rvt" -lt "${_rvlo[_j]}" ]; } && _rvlo[_j]="$_rvt"
+  done
 done
-if [ "$_rvq" != "8 0 0 0 / 8 0 0 0" ]; then
-  bad "$_rvn" "it did not count them, so their times say nothing: $_rvq"
+_rvn="a command of 26,000 runners costs no more than twice the CPU of one of the same shape holding one: the last is found in one read"
+if [ "$_rvq" != " 4 0 0 0 4 0 0 0 4 0 0 0 4 0 0 0" ]; then
+  bad "$_rvn" "it did not count them, so their times say nothing:$_rvq"
+elif [ "${_rvlo[1]}" -le 0 ] || [ "${_rvlo[3]}" -le 0 ]; then
+  bad "$_rvn" "no CPU was read for the commands holding one: ${_rvlo[*]}"
+elif [ "${_rvlo[0]}" -le $((2 * _rvlo[1])) ] && [ "${_rvlo[2]}" -le $((2 * _rvlo[3])) ]; then
+  ok "$_rvn"
 else
-  [ "$_rvm" -le $((2 * _rvo1)) ] && ok "$_rvn" || bad "$_rvn" "over twice in all $_rvk pairs, ms of CPU with 26,000 runners/one:$_rvp"
+  bad "$_rvn" "least ms of CPU in three reads: 26,000 runners after a ; ${_rvlo[0]}, one ${_rvlo[1]}; one runner and 26,000 tests/run ${_rvlo[2]}, 26,000 tests/ruX ${_rvlo[3]}"
 fi
 
 printf '\nfelix audit: what the fourth review found\n'

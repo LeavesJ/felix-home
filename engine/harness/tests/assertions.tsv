@@ -90,6 +90,7 @@
 1	a cache that never existed is stale
 1	a cache with no stamp adopts nothing
 1	a cache-side stray matching a directory-only rule is residue
+1	a cancelled gate run between failures neither spends the repair ceiling nor resets it
 1	a capability carrying a trailing remark is not a rule
 1	a capability inspection does not support is not declared
 1	a capability match is still adopt material
@@ -286,6 +287,7 @@
 1	a fully declared, present inventory reads clean
 1	a gate naming no check still records its status
 1	a gate run that completed without failing is nothing to repair, and one that failed without a log is refused
+1	a gate run that failed to start counts against the ceiling, as do a timed-out one and a conclusion this code does not know
 1	a gate that skipped the suite is not called a passing suite
 1	a gate_workflow that is not a file name is refused, and named
 1	a gitignored stray in the tree is residue, not drift
@@ -860,6 +862,7 @@
 1	a when test whose command does not exist makes the row unknown, not not-applicable
 1	a when whose command does not exist is unknown, not not-applicable
 1	a why past the stated ceiling is refused rather than silently cut
+1	a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw
 1	a wired moment with a stance is ok
 1	a witness that exits 1 after a silent probe is still empty
 1	a witness that exits 2 after a probe that failed is unknown, not blind
@@ -1129,6 +1132,7 @@
 1	and a file with no whitespace reads the same as one with
 1	and a flagged stop under it ends, as before
 1	and a fold that is current leaves nothing stranded
+1	and a gate history exactly as long as the window is counted to its first run
 1	and a gitignored stray in the cache is too
 1	and a graph with no stamp admits its currency is unknown
 1	and a graph with no stamp does too
@@ -1192,6 +1196,7 @@
 1	and a verified push does
 1	and a verified push reads as zero days
 1	and a wget pipe to sh is medium
+1	and a window that reaches the ceiling before it ends reads as reached
 1	and a worktree is pointed at that one, having no graph of its own
 1	and a worktree of it reads the same graph, and is ok too
 1	and a write leaves no file beside it
@@ -1583,6 +1588,7 @@
 1	and nothing was written
 1	and nothing was written to the real felix home pointer
 1	and now names each one it found
+1	and of the conclusions a completed gate run can have, only success resets it
 1	and ok once a graph newer than the last commit exists
 1	and on a branch the gate has never run on
 1	and on a gate run still in progress
@@ -1738,6 +1744,7 @@
 1	and says so with a non-zero status, not the digest of an empty document
 1	and says that it knows
 1	and says the answer was neither yes nor no, naming the code
+1	and says the ceiling is reached, not unknown
 1	and says the checkout could not be entered rather than naming a missing command
 1	and says the gate failed
 1	and says the gate has not seen it
@@ -2439,6 +2446,7 @@
 1	felix repair reads the gate's run on the branch
 1	felix repair refuses a detached checkout rather than finding nothing to repair on HEAD
 1	felix repair stops at the ceiling when its attempts cannot be counted
+1	felix repair stops three failed gate runs that a cancelled one sits between
 1	felix route --ack records without error
 1	felix stack reconcile exits 0
 1	felix stack reconcile folds what nothing folded before reporting

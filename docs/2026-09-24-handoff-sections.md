@@ -113,7 +113,8 @@ runs in the gate as `handoff`.
 In the tree, it requires:
 - one marker, above the current section, naming the current section and the id
   after it;
-- the current section headed once and closed by `---`;
+- the current section headed once and closed by `---`, and no other section
+  headed with an id beside it;
 - archive files and index rows one to one, with the titles agreeing;
 - the current id neither archived nor indexed;
 - pending sections well formed.
@@ -146,9 +147,14 @@ check, so a tree that deletes it still fails.
   - #312, #326 and #330 are hand rotations, and each is refused with the
     instruction to use `--section`.
   - #332 edits the current section in place, and it is clean.
-- **Qualification:** six controls from `projects/felix/qualification.tsv`, each
+- **Qualification:** six controls in `projects/felix/qualification.tsv`, each
   written by a subagent that had the obligation in prose and was barred from
-  reading the checker, its tests and this note.
+  reading the checker, its tests and this note. On their first run, five held
+  and `violation` did not. A section written in above the current one, with
+  the marker, rows and archive left alone, passed the check, because nothing
+  counted id-headed sections. The fixture tests shared that blind spot. The
+  check now refuses a second one, the suite carries the same shape, and all
+  six are met through `felix qualify`.
 
 ## With the landing actor
 

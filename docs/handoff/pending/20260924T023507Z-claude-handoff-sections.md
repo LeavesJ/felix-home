@@ -1,6 +1,6 @@
 ### 2026-09-24 — handoff sections cannot collide: a session adds a file, and one fold of main gives the ids
 
-**Engine 0.49.167 on branch `claude/handoff-sections`, not deployed at the
+**Engine 0.49.168 on branch `claude/handoff-sections`, not deployed at the
 time of writing.** Why, and the options weighed:
 `docs/2026-09-24-handoff-sections.md`.
 
@@ -33,7 +33,7 @@ section has the detail. Nothing here lands anything, so there is still one
 lander to build.
 
 **Next:**
-- Deploy 0.49.167 from the home checkout once it merges.
+- Deploy 0.49.168 from the home checkout once it merges.
 - Convert #312, #326 and #330, or tell the sessions carrying them.
 - The first real fold, when three sections have landed.
 

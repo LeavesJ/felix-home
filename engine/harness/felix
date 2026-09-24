@@ -37,6 +37,7 @@
 #   felix log "<text>"    record a devlog entry, stamped with branch and commit
 #   felix lesson "<text>" record something durable enough to repeat
 #   felix handoff        regenerate the handoff from the state of the tree
+#   felix handoff --section FILE | --rotate | --check   the repository's HANDOFF.md sections
 #   felix lessons [--for] what this project already learned, matched to context
 #   felix promote        recurring devlog themes not yet in lessons
 #   felix adopt <cap>    declare a capability this project now has
@@ -137,6 +138,8 @@ if [ "${1:-}" = "audit" ]; then shift; cmd_audit "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/intake.sh"
 # shellcheck source=lib/deny.sh
 . "${SCRIPT_DIR}/lib/deny.sh"
+# shellcheck source=lib/where.sh
+. "${SCRIPT_DIR}/lib/where.sh"
 # shellcheck source=lib/escape.sh
 . "${SCRIPT_DIR}/lib/escape.sh"
 # shellcheck source=lib/review.sh
@@ -170,6 +173,8 @@ if [ "${1:-}" = "audit" ]; then shift; cmd_audit "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/commission.sh"
 . "${SCRIPT_DIR}/lib/commission-provider.sh"
 . "${SCRIPT_DIR}/lib/candidates.sh"
+# shellcheck source=lib/handoff.sh
+. "${SCRIPT_DIR}/lib/handoff.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -267,6 +272,9 @@ specific project, language, or toolchain.
   memory
     felix handoff [note]   regenerate the handoff; the note (or --was) records what was in progress;
                            a handoff it did not write is refused unless --replace
+    felix handoff --section FILE   add this session's HANDOFF.md section as its own file, no id
+    felix handoff --rotate         fold the sections that landed into HANDOFF.md, ids in landing order
+    felix handoff --check          whether HANDOFF.md and its archive are what the fold writes
     felix log <text>       add a devlog entry
     felix lesson <text>    add a lesson, matched into later prompts
     felix lessons          what this project has already paid for
@@ -1425,13 +1433,26 @@ cmd_merge() {
   fi
 
   if [ -n "$blockers" ]; then
-    local kind subject reason esc=0 unk=0
+    local kind subject reason esc=0 unk=0 stamp=0 table=0 owed=0
     printf 'not merging\n\n'
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
       printf '  %-11s %-22s %s\n' "$kind" "$subject" "$reason"
-      [ "$kind" = "escape" ]  && esc=1
-      [ "$kind" = "unknown" ] && unk=1
+      # Which closing paragraph a blocker belongs under is decided per blocker,
+      # from its kind and subject and never from the reason's wording. A
+      # commission receipt or table ends in a commission run, which is the
+      # founder's or, under their grant, the session-start hook's (HANDOFF
+      # §0aq, §0bl): calling it work Felix owes sent a session to re-run a gate
+      # that had passed, or to commission for itself. `engine` is the judge
+      # failing to load commission.sh, which no run reaches; it sits with every
+      # other kind.
+      case "$kind:$subject" in
+        escape:*)           esc=1 ;;
+        unknown:*)          unk=1 ;;
+        commission:receipt) stamp=1 ;;
+        commission:table)   stamp=1; table=1 ;;
+        *)                  owed=1 ;;
+      esac
     done <<EOF
 $blockers
 EOF
@@ -1450,10 +1471,10 @@ $blockers
 EOF
     fi
 
-    # `unknown` is checked before `escape`, because the sentence in the else
-    # branch is the exact claim #56 is about. Saying "nothing here escapes the
-    # tree" after a scan that never ran would move the false all-clear from the
-    # verdict into the explanation and leave it just as wrong. Nothing was
+    # `unknown` is checked before `escape`, because the sentence in the last
+    # branch below is the exact claim #56 is about. Saying "nothing here escapes
+    # the tree" after a scan that never ran would move the false all-clear from
+    # the verdict into the explanation and leave it just as wrong. Nothing was
     # compared, so nothing can be said about what escapes.
     if [ "$unk" -eq 1 ]; then
       printf '\nNothing was compared, so nothing above is a finding about this branch.\n'
@@ -1464,10 +1485,59 @@ EOF
       printf '\nMerging this writes something outside the tree that a revert does not\n'
       printf 'reach, so it is the founder who decides. Show them the diff and the\n'
       printf 'reversal path; a green gate is not the question here.\n'
-    else
-      printf '\nNothing here escapes the tree, so none of it is a founder decision.\n'
-      printf 'It is work Felix owes: run the gate, or write the test that is missing,\n'
-      printf 'then run this again.\n'
+    fi
+    # Said whatever else is said, beside an escape too: the founder is being
+    # asked already, and a merge they clear would stop again on the receipt.
+    #
+    # What clears it is a commission run, and who makes that run depends on the
+    # grant, which the receipt itself never reads. A grant that still covers
+    # the tables runs one unattended at the next session start
+    # (felix_commission_resume_bg). One stamped over tables that have moved
+    # runs nothing until the founder re-arms it, which is the case a table
+    # edit merged to main produces. With no grant, the run is simply theirs,
+    # and naming `felix autonomy --allow commission` there would be asking for
+    # a standing consent the merge does not need.
+    if [ "$stamp" -eq 1 ]; then
+      local grant=none
+      if felix_autonomy_allows "$proj" commission 2>/dev/null; then
+        grant=stale
+        felix_autonomy_commission_current "$proj" 2>/dev/null && grant=current
+      fi
+      case "$grant" in
+        current)
+          printf '\nThe commission is not a session'"'"'s to clear. The founder'"'"'s commission\n'
+          printf 'grant still covers these tables, so the next session started in this\n'
+          printf 'checkout re-commissions unattended; or they run it themselves:\n\n'
+          printf '  felix commission\n\n' ;;
+        stale)
+          printf '\nThe commission is not Felix'"'"'s to clear: this merge waits for the founder.\n'
+          printf 'Their commission grant was stamped over tables that have moved since, so\n'
+          printf 'nothing re-commissions unattended until they re-arm it, having read what\n'
+          printf 'changed. Ask them to run, in order:\n\n'
+          printf '  felix autonomy --allow commission\n'
+          printf '  felix commission\n\n' ;;
+        *)
+          printf '\nThe commission is not Felix'"'"'s to clear: this merge waits for the founder.\n'
+          printf 'This project grants no unattended commission, so the run is theirs:\n\n'
+          printf '  felix commission\n\n'
+          printf 'Clearing this needs no grant; granting one is a separate decision.\n' ;;
+      esac
+      if [ "$table" -eq 1 ]; then
+        printf 'Put the table named above right first: felix commission cannot clear this\n'
+        printf 'over a table it cannot read.\n'
+      fi
+      printf 'Felix never writes a project'"'"'s autonomy file and a session does not\n'
+      printf 'commission for itself, so a green gate does not clear this.\n'
+    fi
+    if [ "$unk" -eq 0 ] && [ "$esc" -eq 0 ]; then
+      if [ "$stamp" -eq 1 ] && [ "$owed" -eq 1 ]; then
+        printf '\nThe rest escapes nothing and is work Felix owes: run the gate, or\n'
+        printf 'write the test that is missing, then run this again.\n'
+      elif [ "$stamp" -eq 0 ]; then
+        printf '\nNothing here escapes the tree, so none of it is a founder decision.\n'
+        printf 'It is work Felix owes: run the gate, or write the test that is missing,\n'
+        printf 'then run this again.\n'
+      fi
     fi
     return 3
   fi
@@ -3995,7 +4065,7 @@ cmd_lesson() {
 }
 
 cmd_handoff() {
-  resolve_or_die; local proj="$PROJ" root gate note="" was="" words="" replace=0
+  resolve_or_die; local proj="$PROJ" root gate note="" was="" words="" replace=0 mode="" section="" base=""
   # #127. The catch-all used to shift anything it did not know, so
   # `felix handoff "what was in progress"` — the invocation everyone types —
   # dropped the one line git cannot rebuild and printed success over an older
@@ -4005,11 +4075,22 @@ cmd_handoff() {
     case "$1" in
       --was)     need_value "$@"; was="$2"; shift 2 ;;
       --replace) replace=1; shift ;;
+      --section) need_value "$@"; mode="${mode:+both}${mode:-section}"; section="$2"; shift 2 ;;
+      --rotate)  mode="${mode:+both}${mode:-rotate}"; shift ;;
+      --check)   mode="${mode:+both}${mode:-check}"; shift ;;
+      --base)    need_value "$@"; base="$2"; shift 2 ;;
       --)        shift; words="${words:+$words }$*"; break ;;
-      -*)        die "usage: felix handoff [--was \"what was in progress\" | what was in progress] [--replace]" ;;
+      -*)        die "usage: felix handoff [--was \"what was in progress\" | what was in progress] [--replace] | --section FILE | --rotate | --check [--base REF]" ;;
       *)         words="${words:+$words }$1"; shift ;;
     esac
   done
+  if [ -n "$mode" ]; then
+    case "$mode" in *both*) die "felix handoff takes one of --section, --rotate and --check at a time" ;; esac
+    [ -z "$was$words" ] && [ "$replace" = 0 ] \
+      || die "--section, --rotate and --check are about the repository's HANDOFF.md, and take no note"
+    _cmd_handoff_sections "$mode" "$section" "$base"; return $?
+  fi
+  [ -n "$base" ] && die "--base goes with --section, --rotate or --check"
   [ -n "$was" ] && [ -n "$words" ] \
     && die "usage: felix handoff [--was \"what was in progress\" | what was in progress] [--replace] — the note was given twice"
   note="${was:-$words}"
@@ -4057,6 +4138,43 @@ cmd_handoff() {
   fi
   printf '  [ ] gate green?                   felix gate\n'
   printf '  [ ] commit the project directory in Felix so this survives the machine\n'
+}
+
+# The repository's HANDOFF.md, kept as sections (lib/handoff.sh). Not the
+# memory handoff above: that one is the state of a tree and is not direction.
+# A session adds its section as a file of its own, and the ids, the archive
+# and the index are derived from the order sections landed on the base, so no
+# two sessions ever write the same path.
+_cmd_handoff_sections() {
+  local mode="$1" file="$2" base="$3" root out rc
+  root="$(felix_repo_root "$PWD")"
+  [ -n "$base" ] || base="$(felix_base_ref "$root" main 2>/dev/null)" || base=""
+  case "$mode" in
+    section)
+      out="$(felix_handoff_section "$root" "$file" "$base")" || exit 1
+      printf 'wrote %s\n\n' "$out"
+      printf 'Commit it on this branch. It lands as a file no other session writes, so\n'
+      printf 'it cannot collide with theirs, and the session start names it until\n'
+      printf 'felix handoff --rotate folds it into HANDOFF.md and gives it an id.\n'
+      ;;
+    rotate)
+      [ -f "$root/$FELIX_HANDOFF_FILE" ] || die "no $FELIX_HANDOFF_FILE in $root"
+      out="$(felix_handoff_rotate "$root" "$base")" || die "nothing folded: $out"
+      printf '%s\n' "$out" | awk -F'\t' 'NF == 2 { printf "  %-6s %s\n", $1, $2; next } { print "  " $0 }'
+      # Read back at once, by the check the gate runs, so a fold that wrote
+      # something the check refuses is said here and not at the gate.
+      out="$(felix_handoff_check "$root" "$base")"; rc=$?
+      [ "$rc" -eq 0 ] || { printf '\nand the check refuses what it wrote:\n'; printf '%s\n' "$out" | sed 's/^/  /'; exit 1; }
+      printf '\nThe check reads it back clean. Commit HANDOFF.md, %s/ and the removed\n' "$FELIX_HANDOFF_DIR"
+      printf 'pending files as one change.\n'
+      ;;
+    check)
+      out="$(felix_handoff_check "$root" "$base")"; rc=$?
+      [ -z "$out" ] || printf '%s\n' "$out" | awk -F'\t' '{ printf "  %-14s %s\n", $1, $2 }'
+      [ "$rc" -eq 0 ] && printf 'handoff: HANDOFF.md and %s/ are what the fold writes\n' "$FELIX_HANDOFF_DIR"
+      return "$rc"
+      ;;
+  esac
 }
 
 

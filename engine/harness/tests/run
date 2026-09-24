@@ -221,6 +221,21 @@ done
 printf '# handoff\n' > "$REPO/HANDOFF.md"
 out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
 has "and names a handoff when the repo has one" "$out" "HANDOFF.md"
+# A section that landed and has not been folded in yet is newer than anything
+# HANDOFF.md holds (lib/handoff.sh), so it is named with it: the newest five,
+# and a count of the rest.
+mkdir -p "$REPO/docs/handoff/pending"
+for _hp in 1 2 3 4 5 6 7; do printf '### section %s\n' "$_hp" > "$REPO/docs/handoff/pending/2026010${_hp}T000000Z-s.md"; done
+out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+_hpl="$(printf '%s' "$out" | awk '{ gsub(/\\n/, "\n"); print }' | awk -v RS= 'index($0, "Read before planning") { print; exit }')"
+has "and the handoff sections waiting in docs/handoff/pending/, newest first, beside it" \
+    "$_hpl" "$REPO/docs/handoff/pending/20260107T000000Z-s.md"
+case "$_hpl" in
+  *20260102T000000Z*) bad "but only the newest five, and the rest counted" "$_hpl" ;;
+  *"and 2 older in"*) ok  "but only the newest five, and the rest counted" ;;
+  *)                  bad "but only the newest five, and the rest counted" "$_hpl" ;;
+esac
+rm -rf "$REPO/docs"
 rm -f "$REPO/HANDOFF.md"
 out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
 case "$out" in
@@ -1841,6 +1856,138 @@ is  "and reports a clear merge without performing one" "$rc" "0"
 has "saying so plainly"                                "$out" "nothing escapes"
 _reset
 
+# A stale commission receipt is not work Felix owes. Observed 2026-09-23 in
+# the worktree for #306, gate and CI green: #298 had added rows to risk.tsv, a
+# commissioning table, so the receipt was stale, and `felix merge --dry-run`
+# closed with "none of it is a founder decision. It is work Felix owes: run
+# the gate". A session told the work was its own re-ran a gate that had
+# passed, or read it as licence to commission. What clears the receipt is a
+# commission run, which is the founder's (§0aq, §0bl), and who makes it turns
+# on the commission grant, which the receipt never reads: a grant stamped over
+# tables that have since moved runs nothing until the founder re-arms it, a
+# current one runs at the next session start, and with none the run is
+# simply theirs. Felix never writes a project's autonomy file.
+#
+# The real case first, through the real libraries: a grant and a receipt
+# stamped over the same tables, then a commissioning table moves under both,
+# the gate is recorded over the moved tables, and the receipt is not
+# re-stamped, so it is the one blocker left.
+_mlacks() { case "$2" in *"$3"*) bad "$1" "$2" ;; *) ok "$1" ;; esac; }
+_mgrant() { ( . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/autonomy.sh"
+              felix_autonomy_commission_current "$FROOT/projects/widget" && echo current || echo stale ); }
+printf 'ordinary\n' > "$REPO/README.md"; _stage
+cp "$FROOT/projects/widget/risk.tsv" "$TMP/risk.cm.keep"
+_cm_stamp
+( cd "$REPO" && "$FELIX" autonomy --allow commission >/dev/null 2>&1 )
+is  "the widget's commission grant covers the tables before one moves" "$(_mgrant)" "current"
+printf '# a row added under the commission receipt\n' >> "$FROOT/projects/widget/risk.tsv"
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+is  "and once it has, the grant no longer covers them"                 "$(_mgrant)" "stale"
+is  "a table moved under the commission receipt is the branch's only blocker" \
+    "$(_blk | cut -f1,2)" "commission	receipt"
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"; rc=$?
+is  "felix merge refuses on a stale commission receipt alone" "$rc" "3"
+has "and says the merge waits for the founder"                "$out" "waits for the founder"
+is  "naming the grant they re-arm, on a line of its own" \
+    "$(printf '%s\n' "$out" | grep -cx '  felix autonomy --allow commission')" "1"
+is  "and the commission run after it" \
+    "$(printf '%s\n' "$out" | grep -A1 -x '  felix autonomy --allow commission' | tail -1)" "  felix commission"
+_mlacks "and does not call it work Felix owes"                "$out" "work Felix owes"
+_mlacks "nor say that none of it is a founder decision"       "$out" "none of it is a founder decision"
+
+# Beside a blocker that is Felix's, each is said about its own: the commission
+# is still the founder's, and the red gate is still Felix's to run again.
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 1 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+has "a red gate beside the stale receipt is listed too"             "$out" "unverified"
+has "and the commission is still named as the founder's"            "$out" "waits for the founder"
+has "while the red gate is handed back as work Felix owes"          "$out" "work Felix owes"
+_mlacks "without claiming that none of it is a founder decision"    "$out" "none of it is a founder decision"
+
+# Re-armed over the moved tables, the grant is current and the receipt still
+# is not: the next session start re-commissions, so re-arming is not asked for
+# again, and it is still not a session's to do by hand.
+( cd "$REPO" && "$FELIX" autonomy --allow commission >/dev/null 2>&1 )
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+is  "a grant re-armed over the moved tables is current, and the receipt still the one blocker" \
+    "$(_mgrant) $(_blk | cut -f1,2)" "current commission	receipt"
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+has "under a current grant it says the next session start re-commissions" \
+    "$out" "next session started in this"
+_mlacks "and asks for no re-arm the grant does not need"            "$out" "felix autonomy --allow commission"
+_mlacks "and is still not work Felix owes"                          "$out" "work Felix owes"
+
+# With no grant the run is the founder's alone, and naming the grant would be
+# asking for a standing consent to unattended runs that this merge does not
+# need: felix commission by hand clears the receipt without one.
+( cd "$REPO" && "$FELIX" autonomy --revoke commission >/dev/null 2>&1 )
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+has "with no grant the merge still waits for the founder"           "$out" "waits for the founder"
+is  "naming the commission run on a line of its own" \
+    "$(printf '%s\n' "$out" | grep -cx '  felix commission')" "1"
+_mlacks "and asks for no grant the merge does not need"             "$out" "felix autonomy --allow commission"
+_mlacks "and is not work Felix owes either"                         "$out" "work Felix owes"
+rm -f "$FROOT/projects/widget/autonomy" "$FROOT/projects/widget/autonomy.commission"
+cp "$TMP/risk.cm.keep" "$FROOT/projects/widget/risk.tsv"
+_reset
+is "the widget's risk table is exactly as this section found it, and it has no grant" \
+   "$(diff -q "$TMP/risk.cm.keep" "$FROOT/projects/widget/risk.tsv" >/dev/null && echo same) $(ls "$FROOT/projects/widget" | grep -c '^autonomy')" \
+   "same 0"
+
+# Then every kind, one at a time, through the CLI with the library's blockers
+# replaced by exactly that line, so the assertion is on what cmd_merge says
+# for the kind and not on whether this fixture can be made to raise it. The
+# kinds are read out of escape.sh first: cmd_merge files anything it does not
+# name under work Felix owes, so a kind or a commission subject added there
+# without a place here would land in that paragraph unannounced.
+_mkinds="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+             | grep -o "printf '[a-z]*\\\\t" | sed "s/printf '//; s/\\\\t\$//" | LC_ALL=C sort -u | tr '\n' ' ')"
+is "felix_merge_blockers emits exactly the kinds cmd_merge places" \
+   "$_mkinds" "commission escape evidence obligations probes unknown unverified "
+_mcsubj="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+             | grep -o "printf 'commission\\\\t[a-z]*" | sed "s/.*\\\\t//" | LC_ALL=C sort -u | tr '\n' ' ')"
+is "and commission blockers carry exactly the subjects cmd_merge places" "$_mcsubj" "engine receipt table "
+
+cp "$FROOT/harness/lib/escape.sh" "$TMP/esc.keep"
+printf 'felix_merge_blockers() { cat "%s"; }\n' "$TMP/mblk.tsv" >> "$FROOT/harness/lib/escape.sh"
+_mclose() { printf "$1" > "$TMP/mblk.tsv"; ( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 ); }
+printf 'ordinary\n' > "$REPO/README.md"; _stage
+
+for _mk in 'unverified\ttree\tno green receipt for this exact tree; run felix gate' \
+           'evidence\tunit\tcode changes need a test' \
+           'probes\tmarker\tempty: nothing read' \
+           'obligations\tfixture\tRELEASE_BLOCKING deterministic: not discharged' \
+           'commission\tengine\tthe commissioning library is not loaded, so nothing was asked of this project'; do
+  _mn="$(printf "$_mk" | cut -f1-2 | tr '\t' ' ')"
+  out="$(_mclose "$_mk\n")"
+  has "the $_mn blocker is work Felix owes"                    "$out" "work Felix owes"
+  _mlacks "and the $_mn blocker names no commission run"       "$out" "The commission is not"
+done
+
+out="$(_mclose 'commission\treceipt\tnever commissioned on this machine\n')"
+has "a missing commission receipt waits for the founder"          "$out" "waits for the founder"
+_mlacks "and is not work Felix owes"                               "$out" "work Felix owes"
+out="$(_mclose 'commission\ttable\tthis project was never commissioned; write projects/widget/commissioning.tsv (felix commission says how)\n')"
+has "a commission table blocker waits for the founder too"        "$out" "waits for the founder"
+has "and says the table is put right before the commission runs" "$out" "table named above right first"
+_mlacks "and is not called work Felix owes"                        "$out" "work Felix owes"
+out="$(_mclose 'unknown\tno-such-ref\tthe base names nothing this repository holds\n')"
+has "an unknown base still says nothing was compared"             "$out" "Nothing was compared"
+_mlacks "and names no commission run"                              "$out" "The commission is not"
+out="$(_mclose 'escape\texecute\t.github/workflows/x.yml: runs on push\ncommission\treceipt\tstale (table set moved; run felix commission)\n')"
+has "an escape beside a stale receipt is still the founder's decision" "$out" "it is the founder who decides"
+is  "and the commission run is named with it, so one visit clears both" \
+    "$(printf '%s\n' "$out" | grep -cx '  felix commission')" "1"
+_mlacks "and neither is work Felix owes"                                "$out" "work Felix owes"
+
+cp "$TMP/esc.keep" "$FROOT/harness/lib/escape.sh"
+_reset
+is "the fixture's escape.sh is exactly the engine's again" \
+   "$(diff -q "$REAL_HARNESS/lib/escape.sh" "$FROOT/harness/lib/escape.sh" >/dev/null && echo same)" "same"
+
 printf '\na surface no test can judge\n'
 # Some changes are revert-complete, touch no store and reach no stranger, and
 # still must not merge unread: a rubric that teaches the wrong thing breaks
@@ -3160,14 +3307,18 @@ for _r in 0 1 2 3 4 5; do
   _sres="$_sres $_r:$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
   _snot="$_snot $_r:$(sed -n 's/^nothing=//p' "$SC/out" | head -1)"
   case "$_r" in
+    0) _s0brief="$(cat "$SC/brief.txt" 2>/dev/null)" ;;
     1) _s1rc="$_src" ;;
     2) _s2gh="$(cat "$SC/gh.log")" ;;
+    3) _s3gh="$(cat "$SC/gh.log")" ;;
     5) _s5rc="$_src"; _s5gh="$(cat "$SC/gh.log")"
        _s5p="$(sed -n 's/^proceed=//p' "$SC/out" | head -1)" ;;
   esac
 done
 is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no 4:no 5:no"
+is  "and the brief it proceeds on is the file the repair step hands a model" "$_s0brief" "brief"
 has "a reached repair ceiling is escalated to a person" "$_s2gh" "pr edit 7 --add-label needs-founder"
+has "a failure on a red path is escalated to a person" "$_s3gh" "pr edit 7 --add-label needs-founder"
 [ "${_s1rc:-0}" -ne 0 ] && ok  "a run felix repair could not read fails the job rather than passing quietly" \
                         || bad "a run felix repair could not read fails the job rather than passing quietly" "exit ${_s1rc:-?}"
 [ "${_s5rc:-1}" -eq 0 ] && [ "${_s5p:-}" = "no" ] && [ -z "${_s5gh:-}" ] \
@@ -3184,6 +3335,15 @@ for _k in $_sread; do grep -q "echo \"$_k=" "$SC/step.sh" || _sunwritten="$_sunw
   && ok  "and only nothing to repair tells the report so, under the name the report reads" \
   || bad "and only nothing to repair tells the report so, under the name the report reads" \
          "written:$_snot; read and never written:${_sunwritten:- none}"
+
+# The step above branches on felix repair's statuses, and the engine answering
+# is whatever the Felix checkout fetched. With no ref that was the default
+# branch on the day the job ran, and those statuses changed four times on
+# 2026-09-23 under copies that had not changed. The pin is what keeps a copy
+# and the engine it reads on the same commit.
+_sfx="$(grep -A1 'repository: {{FELIX_REPO}}' "$REAL_HARNESS/templates/unattended.yml" | sed -n 2p)"
+is  "the unattended template checks Felix out at a pinned ref, not the default branch" \
+    "$(printf '%s' "$_sfx" | tr -d ' ')" "ref:'{{FELIX_REF}}'"
 
 # The two halves together: the real felix repair on a green branch, read by the
 # step as shipped. Each half can pass its own assertions while the pair does
@@ -3260,6 +3420,48 @@ has "and passes on npm's own reason" "$(cat "$AT/out")" "E404"
 is  "and no model is run" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "0"
 _attempt ""
 is  "an install that succeeds goes on to the model" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "1"
+
+printf '\nthe unattended repair denies the model its own environment\n'
+# The attempt step runs with ANTHROPIC_API_KEY in its environment, so the
+# claude process it starts carries the key, and on Linux a process's
+# environment is a file, /proc/self/environ. A tool-name allow rule matches
+# every path, and `--allowedTools "Read,Edit"` is one. Measured on the pinned
+# 2.1.37 on ubuntu-latest (2026-09-24, the real binary against a scripted
+# Messages API, run in a throwaway Actions repository; the rig is in the pull
+# request): Read on /proc/self/environ returned the environment, key included,
+# and Edit put the key in a tracked file, which the push step commits. A model
+# steered by a hostile failing log is the reader to plan for. A deny rule is
+# read before the allow rule, and the same measurement chose the spelling:
+# `Read(//proc/**)` refused the path however it was written (/proc/self/environ,
+# /proc/self/../self/environ, a relative path climbing to /proc,
+# /proc//self/environ, /proc/thread-self/environ), each as a tool_use_error
+# reading "File is in a directory that is denied by your permission settings"
+# with the result line's permission_denials left empty, and left the
+# repository's own files readable; `Read(/proc/**)`, one slash, refused
+# nothing, since one slash names a path under the working directory. The
+# measurement is the pin's: when the claude-code version moves, measure again.
+# The claude stub records each argument on a line of its own, so what is
+# asserted is what the shell handed the binary, not the template's text.
+# Every --disallowedTools value is read, and every --allowedTools value, so
+# a second deny rule beside this one, in the same list or its own flag, and
+# an allow list that scopes Read and Edit to a path, keep passing.
+printf '#!/usr/bin/env bash\nprintf "claude\\n" >> "%s/claude.log"\nprintf "%%s\\n" "$@" > "%s/claude.args"\n' "$AT" "$AT" > "$AT/bin/claude"
+_attempt ""
+_atrules() { awk -v f="$1" 'p { print; p = 0; next } $0 == f { p = 1 }' "$AT/claude.args" | tr ', ' '\n\n' | grep -v '^$'; }
+_atdeny="$(_atrules --disallowedTools)"
+if printf '%s\n' "$_atdeny" | grep -q -x -F 'Read(//proc/**)'; then
+  ok  "the model step disallows Read under /proc, in the spelling 2.1.37 honours"
+else
+  bad "the model step disallows Read under /proc, in the spelling 2.1.37 honours" \
+      "--disallowedTools ${_atdeny:-(absent)}"
+fi
+_atallow="$(_atrules --allowedTools)"
+if printf '%s\n' "$_atallow" | grep -q -x -E 'Read(\(.*\))?' \
+   && printf '%s\n' "$_atallow" | grep -q -x -E 'Edit(\(.*\))?'; then
+  ok  "and Read and Edit stay allowed, since the repair needs both"
+else
+  bad "and Read and Edit stay allowed, since the repair needs both" "--allowedTools ${_atallow:-(absent)}"
+fi
 
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts
@@ -3942,6 +4144,68 @@ rm -f "$GREPO/untracked.txt"
 printf 'unverified\n' >> "$GREPO/WIDGET.txt"
 out="$(_stop "$GREPO" "$ACTIVE_JSON")"
 _allows "stop_hook_active is honoured, so it never loops" "$out"
+
+# That rule is about a chain Felix started, and the flag does not say who did.
+# An asyncRewake hook that exits 2 wakes the model into a turn of its own with
+# the flag already set (measured on Claude Code 2.1.260 and 2.1.280, a Stop
+# and a PostToolUse hook alike), and security-guidance, which commissioning
+# installs for every project, is one. Leaving at the flag let the turn that
+# answered a background review end unchecked and unrecorded. Driven through
+# the real hook, in the order the platform sends these stops.
+_hj() { printf '{"hook_event_name":"Stop","stop_hook_active":%s,"session_id":"%s"}' "$1" "$2"; }
+_hv="$MEM/widget/verification.log"
+_hn() { awk 'END { print NR }' "$_hv" 2>/dev/null || echo 0; }
+rm -rf "$FROOT/state/held"
+_n0="$(_hn)"
+out="$(_stop "$GREPO" "$(_hj true rw-foreign)")"
+_blocks "a flagged stop in a chain Felix did not start is judged, not waved through" "$out"
+is "and that hold is on the record" "$(( $(_hn) - _n0 )):$(tail -1 "$_hv" | cut -f2)" "1:blocked"
+# Silence alone cannot tell Felix's own chain from a hold that went unrecorded
+# and was then refused inside a chain it took for another's. Only the first
+# writes no row.
+_n0="$(_hn)"
+out="$(_stop "$GREPO" "$(_hj true rw-foreign)")"
+is "the flagged stop after that hold is Felix's own chain, and ends there" \
+   "$(( $(_hn) - _n0 )):[$out]" "0:[]"
+
+# The record is taken by the stop it was for, so a rewake turn right after
+# Felix's own chain is not mistaken for part of it.
+out="$(_stop "$GREPO" "$(_hj false rw-own)")"
+_n0="$(_hn)"
+out="$(_stop "$GREPO" "$(_hj true rw-own)")"
+is "a hold lets the one flagged stop it started end" "$(( $(_hn) - _n0 )):[$out]" "0:[]"
+out="$(_stop "$GREPO" "$(_hj true rw-own)")"
+_blocks "and only that one: the rewake turn after it is judged" "$out"
+
+# A chain can end without reaching its flagged stop (an interrupted turn), and
+# the next prompt's stop is unflagged. That stop starts afresh and clears what
+# was left, or the leftover waves the next rewake turn through.
+out="$(_stop "$GREPO" "$(_hj false rw-stale)")"
+out="$(cd "$GREPO" && _hj false rw-stale | FELIX_ALLOW_RED=1 "$STOP" 2>&1)"
+out="$(_stop "$GREPO" "$(_hj true rw-stale)")"
+_blocks "an unflagged stop clears a hold left behind" "$out"
+
+# The id comes from the payload, so it is checked before it names a file. One
+# that cannot name a file ends a flagged stop, as the flag always did, and a
+# hold made under it writes nothing outside state/held.
+out="$(_stop "$GREPO" "$(_hj false ../held-escape)")"
+_blocks "an id that cannot name a file still holds an unflagged stop" "$out"
+[ -e "$FROOT/state/held-escape" ] && bad "and records nothing outside state/held" "$FROOT/state/held-escape" \
+                                  || ok  "and records nothing outside state/held"
+out="$(_stop "$GREPO" "$(_hj true ../held-escape)")"
+_allows "and a flagged stop under it ends, as before" "$out"
+
+# A hold that cannot be recorded. Starting a chain, Felix holds anyway: the
+# flagged stop after it is judged once more and let through, two holds at
+# most. Inside another hook's chain it does not hold, since that would be the
+# second in a row, and it says so on the record instead.
+rm -rf "$FROOT/state/held"; : > "$FROOT/state/held"
+out="$(_stop "$GREPO" "$(_hj false rw-ro)")"
+_blocks "an unflagged stop holds even when the hold cannot be recorded" "$out"
+out="$(_stop "$GREPO" "$(_hj true rw-ro)")"
+_allows "but a flagged one does not hold again unrecorded" "$out"
+has "and the record says why" "$(tail -1 "$_hv")" "could not be recorded"
+rm -f "$FROOT/state/held"
 
 # The flag is a FIELD. The payload also carries the model's last message, and
 # a glob for the key followed by `true` anywhere after it was satisfied by a
@@ -14428,6 +14692,276 @@ for t in Bash Edit Write Read NotebookEdit; do
   case "$mj" in *"$t"*) ok "PreToolUse is bound for $t" ;; *) bad "PreToolUse is bound for $t" "matcher is [$mj]" ;; esac
 done
 
+printf '\ndenial scoped to the checkout\n'
+# Most deny rows protect the governed checkout — its binding, its remote, its
+# remote-tracking refs, its index — and a regex over the command text cannot
+# tell which repository a command acts on. Of the 175 refusals the hooks had
+# logged by 2026-09-23, more than a hundred were real commands run in fixtures
+# under the session scratchpad: binding a scratch repository, giving a fresh
+# `git init` a remote, moving a scratch clone's refs, staging a fixture. A row
+# may now say `checkout` in a fourth column, and lib/where.sh decides where a
+# matched command acts. The first block of cases below was written from the
+# contract alone, by an author who never saw lib/where-read.sh or lib/where.sh.
+SC="$TMP/scoped"; GOV="$SC/gov"; GWT="$SC/gov-wt"; SCR="$SC/scr"; SC_ERR="$TMP/.scoped-err"
+mkdir -p "$GOV" "$SCR/plain"
+( cd "$GOV" && git init -q -b main && printf 'widget\n' > .felix && printf 'readme\n' > README \
+  && git add .felix README && git -c user.name=t -c user.email=t@t commit -qm init \
+  && git remote add origin https://example.com/widget.git && git worktree add -q -b wt "$GWT" ) >/dev/null 2>&1
+git clone -q "$GOV" "$SCR/clone" >/dev/null 2>&1
+GOV="$(cd "$GOV" && pwd -P)"; GWT="$(cd "$GWT" 2>/dev/null && pwd -P)"; SCR="$(cd "$SCR" && pwd -P)"
+ln -s "$GOV" "$SCR/to-gov"; ln -s "$GOV/.felix" "$SCR/marker"; ln -s "$SCR/plain" "$GOV/out"
+# A fixture that silently lacks its worktree or clone turns every refusal
+# below into a vacuous pass.
+if [ -f "$GWT/.git" ] && [ -d "$SCR/clone/.git" ] && [ -L "$SCR/to-gov" ]; then
+  ok "the scoped fixture has its worktree, its clone and its links"
+else
+  bad "the scoped fixture has its worktree, its clone and its links" "worktree [$GWT] clone [$SCR/clone]"
+fi
+{ printf 'Bash\t(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*["\047]?\\.felix(-home)?["\047]?([[:space:];&|)]|$)\tmarker\tcheckout\n'
+  printf 'Bash\tgit( +-[^ ]+( +[^ ]+)?)* +(update-ref|symbolic-ref|fetch|push)[^;&|]*refs/remotes/\ttracking\tcheckout\n'
+  printf 'Bash\tgit( +-[^ ]+( +[^ ]+)?)* +remote +(add|set-url|rename|remove|rm)( |$)\tremote\tcheckout\n'
+  printf 'Bash\tgit add ([^;&|]* )?(-A|--all|\\.)( |$)\tstage\tcheckout\n'
+  printf 'Bash\tgit push ([^;&|]* )?(--force|-f)( |$)\tforcepush\n'
+  printf 'Bash\t(^|[;&| ])npm publish\tpublish\tbogus\n'
+  printf 'Write\t(^|/)\\.felix(-home)?$\tmarkerwrite\tcheckout\n'
+  printf 'Edit\t(^|/)\\.felix(-home)?$\tmarkeredit\n'
+} > "$FROOT/projects/widget/deny.tsv"
+is "the scoped table reads as eight rows with their scopes" \
+   "$( . "$FROOT/harness/lib/deny.sh"; _felix_deny_rows "$FROOT/projects/widget" | awk -F'\t' '{print $4}' | tr '\n' ,)" \
+   "checkout,checkout,checkout,checkout,,bogus,checkout,,"
+
+# A payload, JSON-escaped the way Claude Code sends it.
+_jstr() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e "s/$(printf '\t')/\\\\t/g" \
+            | awk 'NR > 1 { printf "\\n" } { printf "%s", $0 }'; }
+_scpay() {
+  local c=""; [ "$1" = - ] || c="\"cwd\":\"$(_jstr "$1")\","
+  printf '{"session_id":"scoped",%s"tool_name":"%s","tool_input":{"%s":"%s"}}' "$c" "$2" "$3" "$(_jstr "$4")"
+}
+_sc()  { local rc; ( cd "$GOV" && _scpay "$3" Bash command "$4" | "$FROOT/harness/hooks/pre-tool" 2>"$SC_ERR" ); rc=$?; is "$2" "$rc" "$1"; }
+_scr() {
+  local rc; ( cd "$GOV" && _scpay "$3" Bash command "$4" | "$FROOT/harness/hooks/pre-tool" 2>"$SC_ERR" ); rc=$?
+  if [ "$rc" = 2 ] && grep -q "^$1" "$SC_ERR"; then ok "$2"; else bad "$2" "rc $rc: $(head -c 400 "$SC_ERR")"; fi
+}
+_scp() { local rc; ( cd "$GOV" && _scpay "$5" "$3" file_path "$4" | "$FROOT/harness/hooks/pre-tool" 2>"$SC_ERR" ); rc=$?; is "$2" "$rc" "$1"; }
+
+# ---- blind: written from the contract alone ----
+# --- lifts: fixtures under a scratch variable, and git in the scratch clone
+_sc 0 "scoped: a fixture repo under a scratch variable, marker then git add -A" - "S=$SCR; D=\$S/repro_\$\$; mkdir -p \"\$D/repo\" && cd \"\$D/repo\" && git init -q && printf 'w\\n' > .felix && git add -A && git commit -qm init"
+_sc 0 "scoped: mktemp -d, then cd into it" - 'D=$(mktemp -d); cd "$D" && git init -q && echo w > .felix'
+_sc 0 "scoped: mktemp -d with a scratch template, then remote add by git -C" - "S=$SCR; D=\$(mktemp -d \"\$S/fx.XXXX\"); git -C \"\$D\" init -q; git -C \"\$D\" remote add origin https://example.com/x.git"
+_sc 0 "scoped: a fresh name under the physical /tmp" - 'D=/tmp/felix-blind-$RANDOM; mkdir -p $D && cd $D && git init -q && echo w > .felix'
+_sc 0 "scoped: a sibling whose name extends the checkout's is not the checkout" - "mkdir -p $TMP/scoped/gov2 && cd $TMP/scoped/gov2 && git init -q && git add -A && git commit -qm x"
+_sc 0 "scoped: under set -e a lone cd on its own line is final" - "set -e"$'\n'"mkdir -p $SCR/nx-sete"$'\n'"cd $SCR/nx-sete"$'\n''git init -q . && git add -A && git commit -qm base'
+_sc 0 "scoped: pwd -P of the scratch clone, then update-ref under refs/remotes" - "R=\$(cd \"$SCR/clone\" && pwd -P); git -C \"\$R\" update-ref refs/remotes/origin/main HEAD"
+_sc 0 "scoped: a fetch from the governed checkout into the scratch clone" - "git -C \"$SCR/clone\" fetch -q \"$GOV\" main:refs/remotes/gov/main"
+_sc 0 "scoped: repeated -C, each relative to the last" - "git -C \"$SCR\" -C clone remote add up https://example.com/up.git"
+_sc 0 "scoped: a commit message quoting the marker redirect, in the clone" "$SCR/clone" "git commit -qm 'guard: > .felix is refused'"
+# --- lifts: where the command starts, how cd moves it, nested shells
+_sc 0 "scoped: a payload cwd already in scratch" "$SCR/plain" 'echo w > .felix'
+_sc 0 "scoped: P from pwd keeps the scratch cwd after a cd" "$SCR/plain" "P=\$(pwd); cd $SCR/clone && echo w > \$P/.felix"
+_sc 0 "scoped: .. out of the checkout that lands in scratch" "$SCR/clone" "echo w > $GOV/../scr/plain/.felix"
+_sc 0 "scoped: a cd first in its chain to an existing directory, then ;" - "cd $SCR/plain; echo w > .felix; true"
+_sc 0 "scoped: cd DIR || exit cannot fall back" - "mkdir -p $SCR/nx-exit; cd $SCR/nx-exit || exit; echo w > .felix; true"
+_sc 0 "scoped: every branch of an if leaves scratch" - "if test -d $SCR/plain; then cd $SCR/plain; else cd $SCR/clone; fi; echo w > .felix; true"
+_sc 0 "scoped: a for loop over literal words feeding an assignment" - "for v in new old; do R=$SCR/e2e/\$v/repo; mkdir -p \$R; git -C \$R init -q -b main && git -C \$R remote add origin https://example.com/widget.git; done"
+_sc 0 "scoped: bash -c starts in the directory it was called from" - "cd $SCR/plain && bash -c 'echo w > .felix; true'"
+_sc 0 "scoped: a here-document fed to bash sees a prefixed variable" - "T=\"$SCR\" bash <<'EOF'"$'\n''cd "$T/clone" && git fetch -q origin main:refs/remotes/origin/main'$'\n''EOF'
+# --- lifts: other writers, and the path tools
+_sc 0 "scoped: dd of= with an input path after = in scratch" "$SCR/plain" "dd of=.felix if=$SCR/clone/README"
+_scp 0 "scoped: Write to a scratch marker lifts" Write "$SCR/plain/.felix" -
+_scp 0 "scoped: Write to a relative marker under a scratch payload cwd" Write ".felix" "$SCR/plain"
+# --- refusals: the governed checkout by every route, home, and outside the temp roots
+_scr marker "scoped: no cd means the checkout" - 'echo w > .felix'
+_scr stage "scoped: a payload cwd that does not exist falls back to the checkout" "$SCR/nx-cwd" 'git add -A && git commit -qm x'
+_scr stage "scoped: cd back to the checkout" - "cd $SCR/clone && git add -A && cd $GOV && git add -A && git commit -qm x"
+_scr tracking "scoped: git -C the checkout from a scratch cwd" "$SCR/plain" "git -C $GOV fetch -q $SCR/clone main:refs/remotes/c/main"
+_scr stage "scoped: .. climbing out of scratch into the checkout" "$SCR/plain" 'cd ../../gov && git add -A && git commit -qm x'
+_scr stage "scoped: cd through a symlink to the checkout" - "cd $SCR/to-gov && git add -A && git commit -qm x"
+_sc 2 "scoped: tee through a symlink to a file" "$SCR/plain" "echo w | tee $SCR/marker .felix"
+_scr stage "scoped: another worktree of the same repository" - "cd $GWT && git add -A && git commit -qm x"
+_scr tracking "scoped: a GIT_DIR prefix naming the checkout" "$SCR/clone" "GIT_DIR=$GOV/.git git fetch -q origin main:refs/remotes/origin/main"
+_scr stage "scoped: a new repository nested inside the checkout" - "mkdir -p $GOV/sub/fx && cd $GOV/sub/fx && git init -q && git add -A && git commit -qm x"
+_scr marker "scoped: every matched command is judged" "$SCR/plain" "echo w > .felix; echo w > $GOV/.felix"
+_scr marker "scoped: cp from the checkout into scratch counts the source" "$SCR/plain" "cp $GOV/.felix .felix"
+_scr marker "scoped: ~/.felix-home from a scratch cwd" "$SCR/plain" 'echo w > ~/.felix-home'
+_scr stage "scoped: cd ~" - 'cd ~ && git add -A && git commit -qm x'
+_scr stage "scoped: a directory outside every temp root" - 'cd /felix-where-nowhere && git add -A && git commit -qm x'
+# --- refusals: the directory or a path cannot be told, or a cd may not have happened
+_scr marker "scoped: cd to an unknown variable" "$SCR/plain" 'cd "$FIXTURE" && echo w > .felix'
+_scr marker "scoped: a redirect through a variable the line never assigned" "$SCR/plain" 'echo w > $OUT/.felix'
+_scr marker "scoped: pushd, even between two scratch directories" "$SCR/clone" "pushd $SCR/plain && echo w > .felix"
+_scr marker "scoped: after source" "$SCR/plain" 'source ./env.sh; echo w > .felix'
+_scr marker "scoped: calling a function whose body cds" "$SCR/clone" "f() { cd $SCR/plain; }; f; echo w > .felix"
+_scr marker "scoped: a glob in the path" "$SCR/plain" 'rm -f */.felix'
+_scr marker "scoped: a brace expansion in the path" "$SCR/plain" "echo w | tee $SCR/{plain,clone}/.felix"
+_scr marker "scoped: .. after a directory that does not exist yet" "$SCR/plain" 'echo w > nothere/../.felix'
+_scr marker "scoped: a command substitution the reader does not know" "$SCR/plain" "D=\$(git -C $SCR/clone rev-parse --show-toplevel); echo w > \$D/.felix"
+_scr marker "scoped: a subshell's cd does not leak" - "( cd $SCR/plain ); echo w > .felix; true"
+_scr marker "scoped: an if with no else may leave the checkout" - "if test -d $SCR/plain; then cd $SCR/plain; fi; echo w > .felix; true"
+# Amended after it was written: mkdir -p is taken to succeed when the disk says it can,
+# so the cd cannot fall back; the counterparts below, where it cannot, refuse.
+_sc 0 "scoped: mkdir; cd; cmd judges the directory before too" - "mkdir -p $SCR/nx-semi; cd $SCR/nx-semi; echo w > .felix; true"
+# Amended after it was written: mkdir -p is taken to succeed when the disk says it can,
+# so the cd cannot fall back; the counterparts below, where it cannot, refuse.
+_sc 0 "scoped: a cd second in its chain can fail even to an existing directory" - "mkdir -p $SCR/plain && cd $SCR/plain; echo w > .felix; true"
+# Amended after it was written: mkdir -p is taken to succeed when the disk says it can,
+# so the cd cannot fall back; the counterparts below, where it cannot, refuse.
+_sc 0 "scoped: under set -e a cd inside a chain can still fall through" - "set -e; mkdir -p $SCR/nx-chain; cd $SCR/nx-chain && git init -q; git add -A && git commit -qm x"
+# Amended after it was written: mkdir -p is taken to succeed when the disk says it can,
+# so the cd cannot fall back; the counterparts below, where it cannot, refuse.
+_sc 0 "scoped: set -u is not set -e" - "set -u"$'\n'"mkdir -p $SCR/nx-setu"$'\n'"cd $SCR/nx-setu"$'\n''git init -q . && git add -A && git commit -qm base'
+# Amended after #301: a row that matches only across two commands, or only
+# inside a quoted value, is no match at all once the command is read as code.
+_sc 0 "scoped: a match spanning two commands" "$SCR/plain" $'echo w > log\ncat .felix'
+_scr marker "scoped: an unterminated quote cannot be parsed" "$SCR/plain" 'echo w > .felix; echo "oops'
+# --- refusals: code runners, git push and -c, aliasing anywhere in the line
+_scr stage "scoped: bash -c from scratch whose script cds into the checkout" "$SCR/plain" "bash -c 'cd $GOV && git add -A && git commit -qm x'"
+_scr tracking "scoped: an unexported variable does not reach a here-document shell" - "T=$SCR"$'\n'"bash <<'EOF'"$'\n''cd "$T/clone" && git fetch -q origin main:refs/remotes/origin/main'$'\n''EOF'
+_scr marker "scoped: an interpreter writing the marker" "$SCR/plain" "python3 -c 'print(1)' > .felix"
+_scr marker "scoped: the command word is an unknown variable" "$SCR/plain" '$WRITER w > .felix'
+_scr tracking "scoped: git push into the scratch clone's refs/remotes" "$SCR/clone" 'git push -q origin HEAD:refs/remotes/origin/main'
+_sc 2 "scoped: git -c alias" - "git -c alias.st=status -C $SCR/clone remote add up https://example.com/up.git"
+# Amended after it was written: a link is judged, not refused: one that stays in
+# scratch is throwaway, and one into the checkout still refuses below.
+_sc 0 "scoped: ln anywhere in the line" "$SCR/plain" "ln -s $SCR/clone c2; echo w > .felix; true"
+# Amended after it was written: a worktree is judged, not refused: one of the
+# scratch clone made in scratch is throwaway, one of the checkout still refuses below.
+_sc 0 "scoped: git worktree anywhere in the line" "$SCR/clone" 'git worktree add ../wt2 && cd ../wt2 && git add -A && git commit -qm x'
+# --- A1: echo, printf and assignments are judged like any command
+# Amended after it was written: a printing or file tool acts on its redirects and its
+# arguments, not on the directory it runs in; a relative target in the checkout still refuses.
+_sc 0 "scoped: an echo run from the checkout counts the checkout" - "echo w > $SCR/plain/.felix"
+_scr marker "scoped: an echo argument naming the checkout" "$SCR/plain" "echo $GOV > .felix"
+_sc 0 "scoped: a matched assignment in scratch with a scratch value" "$SCR/plain" "C='cp a .felix' D=$SCR/clone"
+_sc 0 "scoped: a matched assignment whose value names the checkout" "$SCR/plain" "C='cp a .felix' D=$GOV"
+# --- A2: an occurrence no lifted command carries keeps the refusal
+_scr marker "scoped: a comment beside a lifted command keeps the refusal" "$SCR/plain" 'echo w > .felix # in the checkout: echo w > .felix'
+_scr stage "scoped: here-document data beside a lifted command keeps the refusal" "$SCR/clone" "git add -A && git commit -q -F - <<'MSG'"$'\n'"never git add -A in the checkout"$'\n'"MSG"
+# --- A3: an ancestor of the checkout is governed
+_scr stage "scoped: cd .. from scratch reaches an ancestor of the checkout" "$SCR" 'cd .. && git add -A && git commit -qm x'
+_sc 2 "scoped: git -C the temp directory that holds the checkout" "$SCR/plain" "git -C $TMP remote add up https://example.com/up.git"
+# Amended after it was written: cp acts on its arguments, not on its directory; git
+# run in a directory holding the checkout still refuses above.
+_sc 0 "scoped: a working directory that holds the checkout" "$TMP/scoped" 'cp a scr/plain/.felix'
+# --- A4: code the reader did not follow refuses the whole line
+_scr stage "scoped: eval anywhere refuses the whole line" "$SCR/clone" "git add -A && git commit -qm x; eval \"\$NEXT_STEP\""
+_scr stage "scoped: xargs anywhere refuses the whole line" "$SCR/clone" 'git add -A && git ls-files | xargs wc -l'
+_scr marker "scoped: a shell reading a pipe refuses the whole line" "$SCR/plain" "echo w > .felix; echo 'cd $GOV' | bash"
+_scr stage "scoped: bash -c with a script the reader cannot see" "$SCR/clone" 'git add -A && git commit -qm x && bash -c "$HOOK"'
+_scr marker "scoped: a shell running a script this line wrote with printf" "$SCR/plain" "printf 'cd %s\\n' $GOV > run.sh; echo w > .felix; bash run.sh"
+_sc 0 "scoped: a shell running a script this line wrote by here-document, all in scratch" "$SCR/plain" "cat > run.sh <<'EOF'"$'\n'"cd $SCR/clone && git add -A && git commit -qm x"$'\n'"EOF"$'\n''bash run.sh'
+_scr marker "scoped: sourcing a file this line wrote, even after the match" "$SCR/plain" "echo w > .felix; printf 'X=1\\n' > env.sh; . ./env.sh"
+_scr stage "scoped: a [[ ]] holding a command substitution" "$SCR/clone" '[[ -n $(git status --porcelain) ]] && git add -A && git commit -qm x'
+# --- unchanged: unscoped rows, other rows, commands no row matches
+_scr forcepush "scoped: the unscoped force-push row refuses in scratch" "$SCR/clone" 'git push -f origin main'
+_sc 2 "scoped: an unknown scope value refuses in scratch" "$SCR/plain" 'npm publish --dry-run'
+_scr forcepush "scoped: a lifted row does not stop another row" - "cd $SCR/clone && git add -A && git push -f origin main"
+_scr stage "scoped: a lifted marker row does not lift the stage row" "$SCR/plain" "echo w > .felix && cd $GOV && git add -A && git commit -qm x"
+_sc 0 "scoped: three scoped rows all lifted in one clone" - "cd $SCR/clone && git remote add up https://example.com/up.git && git fetch -q up main:refs/remotes/up/main && git add -A && git commit -qm x"
+_sc 0 "scoped: an unmatched command naming the checkout is not judged" "$SCR/plain" "echo w > .felix; git -C $GOV status"
+_sc 0 "scoped: commands no row matches stay allowed in the checkout" - 'git status && git log --oneline -1 && cat .felix'
+_scp 2 "scoped: the unscoped Edit row refuses a scratch path" Edit "$SCR/plain/.felix" -
+_scp 2 "scoped: Write through a symlink to the checkout" Write "$SCR/to-gov/.felix" -
+_scp 2 "scoped: Write to the home pointer" Write "$HOME/.felix-home" -
+
+# ---- written with the reader in view: the counterparts of the amended cases,
+# shapes from the replayed refusals, and what a refusal says ----
+# --- the counterparts: where a cd, a link or a worktree could still reach the checkout
+_scr marker "scoped: mkdir -p under a file cannot succeed, so the cd may not move" - "mkdir -p $SCR/clone/README/x; cd $SCR/clone/README/x; echo w > .felix; true"
+_scr marker "scoped: mkdir without -p can fail, so the cd after it may not move" - "mkdir $SCR/nx-nop; cd $SCR/nx-nop; echo w > .felix; true"
+_scr marker "scoped: a test that can fail before the cd leaves the checkout possible" - "test -d $SCR/nx-none && cd $SCR/plain; echo w > .felix; true"
+_scr marker "scoped: an rm between the mkdir and the cd" - "mkdir -p $SCR/nx-rm; rm -rf $SCR/nx-rm; cd $SCR/nx-rm; echo w > .felix; true"
+_scr marker "scoped: mktemp in a directory that is not there" - "D=\$(mktemp -d \"$SCR/nx-none/fx.XXXX\"); cd \"\$D\" && echo w > .felix"
+_scr marker "scoped: a link into the checkout, anywhere in the line" "$SCR/plain" "ln -s $GOV g; echo w > .felix; true"
+_scr stage "scoped: a worktree of the governed checkout made in scratch" - "git worktree add -q $SCR/wt3 && cd $SCR/wt3 && git add -A && git commit -qm x"
+_sc 0 "scoped: a worktree of the scratch clone, made in scratch" "$SCR/clone" 'git worktree add -q ../wt4 && cd ../wt4 && git add -A && git commit -qm x'
+_scr marker "scoped: a printing tool writing a relative path from the checkout" - "printf 'w\\n' > .felix"
+# --- shapes from the replayed refusals
+_sc 0 "scoped: a fixture script written by here-document and run with arguments" - "S=$SCR/p1; mkdir -p \"\$S\"; cat > \"\$S/fx.sh\" <<'EOF'"$'\n''S="$1"'$'\n''R="$S/repo"; mkdir -p "$R"'$'\n'"( cd \"\$R\" && git init -q -b main && printf 'widget\\n' > .felix && git add -A )"$'\n''EOF'$'\n''bash "$S/fx.sh" "$S"'
+_sc 0 "scoped: a shared clone moved by a script read from stdin" - "S=$SCR/p2; git clone -q --shared \"$GOV\" \"\$S/c\" && bash -s \"\$S/c\" <<'EOF'"$'\n''C="$1"; cd "$C" || exit 1'$'\n''git update-ref refs/remotes/origin/main HEAD'$'\n''EOF'
+# Judged directly: #301 reads a here-document as data when the shell is given
+# arguments, so through the hook this never reaches a scoped row.
+is "scoped: the same script handed the governed checkout" \
+   "$( cd "$GOV" && . "$FROOT/harness/lib/where.sh" && felix_where_lifts 'refs/remotes/' \
+       "$(_jstr "bash -s \"$GOV\" <<'EOF'"$'\n''C="$1"; cd "$C" || exit 1'$'\n''git update-ref refs/remotes/origin/main HEAD'$'\n''EOF')" \
+       "$GOV" "$GOV" && echo lifted || echo stood )" "stood"
+_sc 0 "scoped: a single-quoted bash -c fixture given its directory" - "bash -c 'mkdir -p \"\$1/r\" && cd \"\$1/r\" && git init -q && git remote add origin https://example.com/x.git' sh $SCR/p3"
+_sc 0 "scoped: mkdir -p, cd, then a remote on the lines after" - "W=$SCR/p4; mkdir -p \"\$W/repo\"; cd \"\$W/repo\"; git init -q"$'\n''git remote add origin https://nowhere.example/fx.git'
+_sc 0 "scoped: a mktemp fixture read back through pwd -P" - 'T=$(mktemp -d); REPO="$T/repo"; mkdir -p "$REPO"; (cd "$REPO" && git init -q -b main); REPO="$(cd "$REPO" && pwd -P)"; (cd "$REPO" && git add -A && git commit -qm base)'
+# --- what can change the meaning of a word the reader already knows. Each of
+# these lifted before the reader was taught it, found by reading it against
+# the shell rather than by a case.
+_scr stage "scoped: a function named cd runs instead of the builtin" - "cd() { builtin cd $GOV; }; cd $SCR/plain && git add -A && git commit -qm x"
+_scr stage "scoped: a function named git runs instead of git" - "git() { command git -C $GOV \"\$@\"; }; cd $SCR/clone && git add -A && git commit -qm x"
+_sc 0 "scoped: builtin cd steps past a function of that name" - "cd() { :; }; builtin cd $SCR/clone && command git add -A && command git commit -qm x"
+_scr stage "scoped: printf -v assigns the variable a later cd reads" - "x=$SCR/plain; printf -v x '%s' \"$GOV\"; cd \"\$x\" && git add -A && git commit -qm x"
+_scr stage "scoped: an ANSI-C escape the reader does not decode" "$SCR/plain" "cd \$'..\\x2f..\\x2fgov' && git add -A && git commit -qm x"
+_scr stage "scoped: a directory named as a command, which AUTO_CD would enter" "$SCR/plain" "$GOV; git add -A && git commit -qm x"
+_scr stage "scoped: a DEBUG trap runs between the commands read" - "trap 'cd $GOV' DEBUG; cd $SCR/clone && git add -A && git commit -qm x"
+_sc 0 "scoped: an EXIT trap with a known action does not" - "trap 'true' EXIT; cd $SCR/clone && git add -A && git commit -qm x"
+_scr stage "scoped: CDPATH given to cd moves a relative cd" "$SCR/plain" "CDPATH=$SC cd gov && git add -A && git commit -qm x"
+_scr stage "scoped: cd - goes where OLDPWD says" "$SCR/plain" "cd $SCR/clone; OLDPWD=$GOV; cd - && git add -A && git commit -qm x"
+_scr stage "scoped: cd reads .. by spelling, through a link out of the checkout" "$SCR/plain" "cd $GOV/out/.. && git add -A && git commit -qm x"
+( cd "$GOV" && printf '{"session_id":"scoped","cwd":"%s","tool_name":"Bash","tool_input":{"command":"cd \\u002f%s && git add -A"}}' \
+    "$SCR/plain" "${GOV#/}" | "$FROOT/harness/hooks/pre-tool" 2>"$SC_ERR" ); rc=$?
+is "scoped: a \\u escape in the payload is not read as its letters" "$rc" "2"
+_long="cd $SCR/clone && git add -A && git commit -qm x$(printf ' %.0s' $(seq 1 33000))"
+_scr stage "scoped: a command longer than the reader reads keeps the refusal" - "$_long"
+has "and says it was too long to read" "$(cat "$SC_ERR")" "longer than this reads"
+# --- a lift is written down, and a refusal is not written as one
+_lifts() { awk -F'\t' '$2 == "lifted"' "$MEM/widget/says.log" 2>/dev/null; }
+_sc 0 "scoped: a lift to be recorded" "$SCR/clone" 'git add -A && git commit -qm recorded-lift'
+has "a lifted scoped row is written to says.log with the command" "$(_lifts | tail -1)" "recorded-lift"
+_n="$(_lifts | wc -l | tr -d ' ')"
+_scr stage "scoped: a refusal that must not be recorded as a lift" - 'git add -A && git commit -qm not-a-lift'
+is "and a scoped row that stood writes no lift" "$(_lifts | wc -l | tr -d ' ')" "$_n"
+# --- what a refusal of a scoped row says
+( cd "$GOV" && _scpay - Bash command 'git add -A' | "$FROOT/harness/hooks/pre-tool" 2>"$SC_ERR" )
+has "a scoped row that stands says it covers only the checkout" "$(cat "$SC_ERR")" "covers only the governed checkout"
+has "and names the command and the place" "$(cat "$SC_ERR")" "\`git add -A\`: it acts on $GOV, in the governed checkout"
+# --- it can only keep a refusal when it cannot tell
+mkdir -p "$SC/nowhere"; cp "$FROOT/harness/lib/deny.sh" "$FROOT/harness/lib/deny-read.sh" "$SC/nowhere/"
+is "without lib/where.sh beside it a scoped row stands" \
+   "$( cd "$GOV" && . "$SC/nowhere/deny.sh" && felix_deny_match "$FROOT/projects/widget" Bash "cd $SCR/plain && git add -A" "$SCR/plain" >/dev/null && echo refused )" \
+   "refused"
+is "and with it, the same call lifts" \
+   "$( cd "$GOV" && . "$FROOT/harness/lib/deny.sh" && felix_deny_match "$FROOT/projects/widget" Bash "cd $SCR/plain && git add -A" "$SCR/plain" >/dev/null && echo refused || echo lifted )" \
+   "lifted"
+is "a reader that cannot run lifts nothing" \
+   "$( cd "$GOV" && . "$FROOT/harness/lib/where.sh" && _FELIX_WHERE_READ='this is not awk {' \
+       && felix_where_lifts 'git add' "cd $SCR/plain && git add -A" "$SCR/plain" "$GOV" && echo lifted || echo stood )" \
+   "stood"
+is "the judge alone: a scratch path is throwaway" \
+   "$( . "$FROOT/harness/lib/where.sh"; felix_where_path_lifts "$SCR/plain/.felix" "$SCR" "$GOV" && echo lifted || echo stood )" "lifted"
+is "the judge alone: a worktree of the checkout is not" \
+   "$( . "$FROOT/harness/lib/where.sh"; felix_where_path_lifts "$GWT/.felix" "$SCR" "$GOV" && echo lifted || echo stood )" "stood"
+is "a TMPDIR of / is not a temporary root" \
+   "$( . "$FROOT/harness/lib/where.sh"; TMPDIR=/; felix_where_path_lifts /usr/felix-where-nowhere "$SCR" "$GOV" && echo lifted || echo stood )" "stood"
+is "a TMPDIR that holds \$HOME is not a temporary root" \
+   "$( . "$FROOT/harness/lib/where.sh"; h="$(cd -P "$HOME/.." && pwd -P)"; TMPDIR="$h"
+       felix_where_path_lifts "${h%/}/felix-where-nowhere/x" "$SCR" "$GOV" && echo lifted || echo stood )" "stood"
+mkdir -p "$SCR/home"
+( cd "$GOV" && _scpay "$SCR/plain" Bash command 'echo w > ~/.felix-home' | HOME="$SCR/home" "$FROOT/harness/hooks/pre-tool" 2>"$SC_ERR" ); rc=$?
+is "a \$HOME under a temporary root still keeps its pointer" "$rc" "2"
+# A reader that dies part-way has written only some of what it would have. The
+# control beside it is the same reader reaching its end, which lifts, so the
+# refusal is the missing end and nothing else.
+cat > "$SC/stops.awk" <<'EOF'
+BEGIN { printf "C\tp\t\tgit add -A\t\036%s\t0,9\n", CWD0; exit 0 }
+EOF
+cat > "$SC/ends.awk" <<'EOF'
+BEGIN { printf "C\tp\t\tgit add -A\t\036%s\t0,9\nE\n", CWD0; exit 0 }
+EOF
+for _sa in stops ends; do
+  _sv="$( cd "$GOV" && . "$FROOT/harness/lib/where.sh" && _FELIX_WHERE_READ="$(cat "$SC/$_sa.awk")" \
+          && felix_where_lifts 'git add' 'git add -A' "$SCR/plain" "$GOV" && echo lifted || echo stood )"
+  case "$_sa" in
+    stops) is "a reader that stops before its end lifts nothing" "$_sv" "stood" ;;
+    ends)  is "the same reader reaching its end would lift" "$_sv" "lifted" ;;
+  esac
+done
+rm -f "$FROOT/projects/widget/deny.tsv" "$SC_ERR"
+
 printf '\nthe subject of a large payload\n'
 # felix_deny_subject reads a small payload with parameter expansion and a large
 # one with one awk, because ${s//pat/rep} in bash 3.2 is not linear. Measured
@@ -17306,6 +17840,12 @@ has "and the refusal is the gate's own"     "$_out" "gate"
 is  "and refusing costs no continuation"    "$(_ovfield "$WP" 3 night-red)" "12"
 # Asked on a red tree, where the gate would refuse anybody who got that far.
 # On a green one nothing blocks a bystander, so the exit could not be seen.
+# The chain is one Felix started, by holding the bystander's own stop first:
+# a flagged stop with no hold of Felix's before it belongs to another hook's
+# chain and is judged (felix_hold_take, asserted in the completion gate's
+# section), which is the case this used to be asked without.
+_out="$(_ovstop night-bystander false "$OVTX")"
+_ovblocks "a session with no night is held on a red tree like any other" "$_out"
 _out="$(_ovstop night-bystander true "$OVTX")"
 _ovholds_open "and a chain in a session with no night still ends as the platform asks" "$_out"
 # Inside the chain the night carried the session past the platform's bound, so
@@ -17476,6 +18016,42 @@ is "a session id that cannot name a file is refused, and nothing is written wher
    "$([ "$_rc" -ne 0 ] && echo refused || echo "accepted"):$([ -e "$(_ovdir "$WP")/escaped" ] && echo written || echo absent):$(_ovnights)" \
    "refused:absent:0"
 _ovreset "$WP"
+
+# A night's hold goes on record like any other, and the record is taken at
+# every flagged stop, a night's included (lib/verify.sh, felix_hold_take). Each
+# half has its own way to fail. Unrecorded, a night a person ends mid-chain
+# leaves the flagged stop after its hold looking like another hook's chain, and
+# it is held a second time in a row. Untaken, the record outlives the night and
+# waves the next rewake turn through unchecked.
+#
+# Both need the night's own hold, which only a green tree reaches, so the tree
+# is made green here rather than inherited from whatever ran last, and each
+# hold is asked for by what it says: a block alone is also what the gate's hold
+# looks like, and a fixture with no probes reached that one instead and passed.
+_ovrows() { awk 'END { print NR }' "$MEM/widget/verification.log" 2>/dev/null || echo 0; }
+( cd "$NREPO" && git checkout -q -- . ); printf 'night work\n' >> "$NREPO/WIDGET.txt"
+_ovgate="$(cd "$NREPO" && "$FELIX" gate 2>&1)"; _ovgaterc=$?
+is "the tree is green before the hold record meets a night" "$_ovgaterc" "0"
+rm -rf "$FROOT/state/held"
+_ov felix_overnight_start "$WP" 8 5 night-held "a granted night" >/dev/null
+_ovtool; _out="$(_ovstop night-held false "$OVTX")"
+has "a night holds its session on a green tree with a hold of its own" "$_out" "Overnight is on"
+_ov felix_overnight_end "$WP" "ended by hand" night-held >/dev/null
+_ovn="$(_ovrows)"
+_ovtool; _out="$(_ovstop night-held true "$OVTX")"
+is "a night ended mid-chain leaves the stop after its hold to the night's own chain" \
+   "$(( $(_ovrows) - _ovn )):[$_out]" "0:[]"
+_ovreset "$WP"; rm -rf "$FROOT/state/held"
+_ov felix_overnight_start "$WP" 8 2 night-spent "two turns" >/dev/null
+_ovtool; _out="$(_ovstop night-spent false "$OVTX")"
+has "a two-turn night holds at its first stop" "$_out" "Overnight is on"
+_ovtool; _out="$(_ovstop night-spent true "$OVTX")"
+has "and ends at the flagged stop after it" "$_out" "Overnight is over"
+_ovn="$(_ovrows)"
+_ovtool; _ovstop night-spent true "$OVTX" >/dev/null
+is "and the hold a night made does not outlive it: the rewake turn after is judged" \
+   "$(( $(_ovrows) - _ovn ))" "1"
+_ovreset "$WP"; rm -rf "$FROOT/state/held"
 
 printf '\ndecision epochs: the four things a decision was made under\n'
 # v3.2 §3 defines the epoch as hash(subject_identity, topology_version,
@@ -20390,10 +20966,19 @@ if [ "$(_au_counts "$_rvo")" = "0 0 1 0" ] && [ "$(_au_counts "$_rvo2")" = "0 0 
 else
   bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") / $(_au_counts "$_rvo2")"
 fi
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/open/shifts")"; _rv_t1="$(date +%s)"
-_rvn="a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds"
+# The shifts are timed as CPU, not wall clock. At a load average near 300 the
+# wall clock read 9 s, and an hour later it passed on the same tree; the read
+# measured 0.4 s of CPU at a load near 200. times inside the substitution
+# counts that subshell and the audit under it, and nothing else the suite has
+# running. With each << found again from the start of the command, or the
+# rest of the command searched at each, the read took 18 s and 11 s of CPU
+# and still counted it (2026-09-23), so 5 s stays far from all three.
+_rvo="$(_au --dir "$RV/open/shifts"; times > "$RV/open/shifts.cpu")"
+_rv_ms="$(awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
+               END { printf "%d", ms }' "$RV/open/shifts.cpu")"
+_rvn="a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds of CPU"
 if [ "$(_au_counts "$_rvo")" = "1 0 0 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 5 ] && ok "$_rvn" || bad "$_rvn" "took $((_rv_t1 - _rv_t0))s"
+  [ "$_rv_ms" -le 5000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
 else
   bad "$_rvn" "it did not count it, so its speed says nothing: $(_au_counts "$_rvo")"
 fi
@@ -21013,6 +21598,228 @@ _au --engine "$RVM/harness/felix" --home "$RVM/home2" --dir "$AUD" >/dev/null
   || bad "the audit runs above are wired to the read-only checks: an engine that writes under HOME and calls claude, run through the same wrapper, shows in that HOME and in the stub log" \
          "home: $(ls -A "$RVM/home2"); stub log: $(head -3 "$AUSTUB_LOG")"
 : > "$AUSTUB_LOG"
+
+printf '\nthe handoff, as sections: no two sessions write the same path\n'
+# HANDOFF.md was one slot and one counter every session shared: write your
+# section at the top with the next id, archive the one it replaces. With ten
+# sessions at once, four pull requests claimed one id inside an hour, and each
+# landing after the first was a hand re-cut that could re-archive or drop a
+# section. A session now adds its section as a file of its own under
+# docs/handoff/pending/, and the id, the archive move, the index row and the
+# marker are derived from the order the files landed on main (lib/handoff.sh).
+# The fixture is a checkout with a remote-tracking main moved by hand, and a
+# landing is a squash onto main, which is what the merge boundary does.
+HX="$TMP/handoff"; mkdir -p "$HX/docs/handoff"
+( cd "$HX" && git init -q -b main && git config user.name t && git config user.email t@example.invalid )
+printf 'widget\n' > "$HX/.felix"
+cat > "$HX/HANDOFF.md" <<'EOF'
+# Handoff
+
+Write your section with felix handoff --section; the fold gives it the next id
+(after 0bb comes 0bc).
+
+---
+
+## 0. Standing
+
+Unchanged; read docs/handoff/0.md.
+
+---
+
+## Current state
+
+### 0bb. the session before
+
+What it did.
+
+---
+
+## Index of earlier sections
+
+| § | Section |
+|---|---|
+| [0](docs/handoff/0.md) | Standing |
+| [0ba](docs/handoff/0ba.md) | the one before that |
+| [1](docs/handoff/1.md) | the oldest |
+EOF
+printf '## 0. Standing\n\nThe standing decision.\n\n' > "$HX/docs/handoff/0.md"
+printf '### 0ba. the one before that\n\nIts body.\n' > "$HX/docs/handoff/0ba.md"
+printf '## 1. the oldest\n\nIts body.\n\n' > "$HX/docs/handoff/1.md"
+git -C "$HX" add -A && git -C "$HX" commit -q -m base && git -C "$HX" update-ref refs/remotes/origin/main HEAD
+_hx()     { ( cd "$HX" && . "$REAL_HARNESS/lib/handoff.sh" && "$@" ); }
+_hx_chk() { _hx felix_handoff_check "$HX" "${1:-refs/remotes/origin/main}"; }
+_hx_on()  { git -C "$HX" checkout -q -B "$1" "${2:-refs/remotes/origin/main}"; }
+_hx_commit() { git -C "$HX" add -A && git -C "$HX" commit -q -m "$1"; }
+# A landing: squash the branch onto the remote-tracking main and move it.
+_hx_land() {
+  git -C "$HX" checkout -q --detach refs/remotes/origin/main \
+    && git -C "$HX" merge -q --squash "$1" >/dev/null 2>&1 \
+    && { git -C "$HX" diff --cached --quiet || git -C "$HX" commit -q -m "land $1"; } \
+    && git -C "$HX" update-ref refs/remotes/origin/main HEAD
+}
+_hx_base="$(git -C "$HX" rev-parse HEAD)"
+
+is  "the id after 0bv is 0bw, after 0bz 0ca, after 0z 0aa, and after 0zz 0aaa" \
+    "$(for _i in 0bv 0bz 0z 0zz; do _hx felix_handoff_next_id "$_i"; done | tr '\n' ' ')" "0bw 0ca 0aa 0aaa "
+_hx_chk >/dev/null; is "the handoff a fold could have written reads clean" "$?" "0"
+
+# Session A writes its section, cut under the old rule with an id in the
+# heading, and writes it again: one file, the id dropped.
+_hx_on s/a
+printf '### 0zz. what A did\n\nA ran first.\n\n' > "$TMP/ho-a.md"
+_hxa="$(cd "$HX" && "$FELIX" handoff --section "$TMP/ho-a.md" 2>"$TMP/ho-a.err" | sed -n 's/^wrote //p')"
+printf '%s' "$_hxa" | grep -qE '^docs/handoff/pending/[0-9]{8}T[0-9]{6}Z-s-a\.md$' \
+  && ok  "felix handoff --section writes the section to docs/handoff/pending/<UTC time>-<branch>.md" \
+  || bad "felix handoff --section writes the section to docs/handoff/pending/<UTC time>-<branch>.md" "wrote [$_hxa]"
+is  "and drops the id its heading carried, since only the fold gives ids" "$(head -1 "$HX/$_hxa" 2>/dev/null)" "### what A did"
+has "and says it dropped it" "$(cat "$TMP/ho-a.err")" "dropped the id 0zz"
+printf '### what A did\n\nA ran first, and said so twice.\n' > "$TMP/ho-a.md"
+_hxa2="$(_hx felix_handoff_section "$HX" "$TMP/ho-a.md" refs/remotes/origin/main)"
+is  "a second --section on the same branch rewrites that file and makes no other" \
+    "$_hxa2:$(ls "$HX/docs/handoff/pending" | wc -l | tr -d ' ')" "$_hxa:1"
+# Its own file is the whole name, not the tail: branch x/s-a's ends in -s-a too.
+printf '### x/s-a wrote this\n' > "$HX/docs/handoff/pending/20991231T235959Z-x-s-a.md"
+_hx felix_handoff_section "$HX" "$TMP/ho-a.md" refs/remotes/origin/main >/dev/null
+is  "and leaves a file named for a branch whose name only ends like this one's" \
+    "$(head -1 "$HX/docs/handoff/pending/20991231T235959Z-x-s-a.md")" "### x/s-a wrote this"
+rm -f "$HX/docs/handoff/pending/20991231T235959Z-x-s-a.md"
+_hx_commit "A's section"
+_hx_chk >/dev/null; is "a branch that only adds a pending section reads clean" "$?" "0"
+
+# Session B, cut from the same main before A lands.
+_hx_on s/b
+printf '### what B did\n\nB ran second and landed first.\n' > "$TMP/ho-b.md"
+_hxb="$(_hx felix_handoff_section "$HX" "$TMP/ho-b.md" refs/remotes/origin/main)"
+_hx_commit "B's section"
+is  "two sessions' handoff branches share no path" \
+    "$(LC_ALL=C comm -12 <(git -C "$HX" diff --name-only "$_hx_base" s/a | sort) <(git -C "$HX" diff --name-only "$_hx_base" s/b | sort))" ""
+_hx_land s/b; _hxl1=$?; _hx_land s/a; _hxl2=$?
+is  "so both land, the second on top of the first, without a conflict" "$_hxl1:$_hxl2" "0:0"
+_hx_chk >/dev/null; is "main with two sections waiting reads clean" "$?" "0"
+
+# The fold. B landed first and so takes the next id, though A's file sorts
+# first by name and was written first: the order is main's, not a claim.
+_hx_on s/rot
+_hxr="$(cd "$HX" && "$FELIX" handoff --rotate 2>&1)"; _hxrc=$?
+is  "felix handoff --rotate folds and reads its work back clean" "$_hxrc" "0"
+has "and says so" "$_hxr" "reads it back clean"
+is  "the section that landed first takes the next id and is archived, as it would have been had it been folded alone" \
+    "$(head -1 "$HX/docs/handoff/0bc.md" 2>/dev/null)" "### 0bc. what B did"
+has "the one that landed last is current, with the id after it" "$(cat "$HX/HANDOFF.md")" "### 0bd. what A did"
+is  "the section it replaced is archived exactly as it stood, its trailing blank line dropped" \
+    "$(cat "$HX/docs/handoff/0bb.md" 2>/dev/null; printf x)" "$(printf '### 0bb. the session before\n\nWhat it did.\nx')"
+has "the marker moves on to the id after the current one" "$(cat "$HX/HANDOFF.md")" "(after 0bd comes 0be)"
+is  "the rows go in newest first, above the newest numbered row and below the standing one" \
+    "$(_hx felix_handoff_rows "$HX/HANDOFF.md" | cut -f1 | tr '\n' ' ')" "0 0bc 0bb 0ba 1 "
+is  "and the folded files are gone" "$(ls "$HX/docs/handoff/pending" 2>/dev/null | wc -l | tr -d ' ')" "0"
+_hx_commit "fold"
+_hxt="$(git -C "$HX" rev-parse HEAD^{tree})"
+_hx_on s/rot2
+_hx felix_handoff_rotate "$HX" refs/remotes/origin/main >/dev/null; _hx_commit "fold again"
+is  "a second fold of the same main writes the same tree" "$(git -C "$HX" rev-parse HEAD^{tree})" "$_hxt"
+_hx_land s/rot; _hxl1=$?; _hx_land s/rot2; _hxl2=$?
+is  "so two sessions folding at once both land, and the second changes nothing" \
+    "$_hxl1:$_hxl2:$(git -C "$HX" rev-parse HEAD^{tree})" "0:0:$_hxt"
+
+# The old rule, done perfectly by hand: the next id, the archive, the row and
+# the marker all correct. It is refused, because it is the shared slot that
+# collided, whoever does it well.
+_hx_on s/hand
+cp "$HX/HANDOFF.md" "$TMP/ho-h.md"
+awk '/^### 0bd\. /{ print "### 0be. written in by hand"; print ""; print "Mine."; print ""; skip = 1; next }
+     skip && /^---$/ { skip = 0 } !skip { print }' "$TMP/ho-h.md" \
+  | sed 's/(after 0bd comes 0be)/(after 0be comes 0bf)/' \
+  | awk '/^\| \[0bc\]/ { print "| [0bd](docs/handoff/0bd.md) | what A did |" } { print }' > "$HX/HANDOFF.md"
+_hx _felix_handoff_block "$TMP/ho-h.md" 0bd > "$HX/docs/handoff/0bd.md"
+_hx_commit "by hand"
+_hxc="$(_hx_chk)"; _hxcr=$?
+is  "a section written into HANDOFF.md by hand is refused, however correct its id" "$_hxcr" "1"
+has "and the refusal says how to add a section instead" "$_hxc" "felix handoff --section"
+( cd "$HX" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "handoff-check exits 1 on it, which fails the gate" "$?" "1"
+# And the shape a blind qualification control found first: a section written
+# in above the current one, the marker, rows and archive all left alone.
+_hx_on s/beside
+awk '/^### 0bd\. /{ print "### 0be. written in beside it"; print ""; print "Mine."; print "" } { print }' \
+  "$HX/HANDOFF.md" > "$TMP/ho-bs.md" && cp "$TMP/ho-bs.md" "$HX/HANDOFF.md"; _hx_commit "beside"
+has "a section written in beside the current one, the marker left alone, is refused too" \
+    "$(_hx_chk)" "section 0be sits in HANDOFF.md beside the current one"
+# Two ways a hand rotation loses a section without a sign, both seen on
+# 2026-09-24: another section put in place under the current id, and a
+# rotation cut from an older main that archives its own stale copy.
+_hx_on s/inplace
+sed 's/^A ran first, and said so twice\.$/A ran first, and said so twice; corrected in place./' "$HX/HANDOFF.md" > "$TMP/ho-ip.md" \
+  && cp "$TMP/ho-ip.md" "$HX/HANDOFF.md"; _hx_commit "in place"
+_hx_chk >/dev/null; is "editing the current section in place, its heading kept, reads clean" "$?" "0"
+_hx_on s/samid
+sed 's/^### 0bd\. what A did$/### 0bd. what another session did/' "$HX/HANDOFF.md" > "$TMP/ho-si.md" \
+  && cp "$TMP/ho-si.md" "$HX/HANDOFF.md"; _hx_commit "same id"
+has "another section put in place under the current id is refused, since the one it replaced is lost" \
+    "$(_hx_chk)" "headed differently than on the merge-base"
+_hx_on s/stalehand s/hand
+printf '### 0bd. what A did\n\nA ran first.\n' > "$HX/docs/handoff/0bd.md"; _hx_commit "stale"
+has "and a hand rotation that archives a stale copy of the section says what it drops" \
+    "$(_hx_chk)" "docs/handoff/0bd.md is not the section the merge-base holds as current"
+
+_hx_on s/rewrite
+printf '\nAn afterthought.\n' >> "$HX/docs/handoff/0ba.md"; _hx_commit "rewrite"
+has "rewriting an archived section is refused" "$(_hx_chk)" "docs/handoff/0ba.md was rewritten"
+_hx_on s/gone
+git -C "$HX" rm -q docs/handoff/0bc.md; _hx_commit "gone"
+has "and so is removing one" "$(_hx_chk)" "docs/handoff/0bc.md was archived and is gone"
+
+# Two more sessions land; C lands before D.
+for _s in c d; do
+  _hx_on "s/$_s"; printf '### what %s did\n\nIts body.\n' "$_s" > "$TMP/ho-$_s.md"
+  _hx felix_handoff_section "$HX" "$TMP/ho-$_s.md" refs/remotes/origin/main >/dev/null; _hx_commit "$_s"; _hx_land "s/$_s"
+done
+_hxc_path="$(git -C "$HX" ls-tree --name-only refs/remotes/origin/main docs/handoff/pending/ | grep -- '-s-c\.md$')"
+_hxd_path="$(git -C "$HX" ls-tree --name-only refs/remotes/origin/main docs/handoff/pending/ | grep -- '-s-d\.md$')"
+_hx_on s/drop
+git -C "$HX" rm -q "$_hxc_path"; _hx_commit "drop"
+has "removing a pending section without folding it is refused, since that drops it" "$(_hx_chk)" "which drops it"
+_hx_on s/skip
+printf '%s\n' "$_hxd_path" > "$TMP/ho-order"
+_hx felix_handoff_fold "$HX" "$TMP/ho-order" >/dev/null; _hx_commit "skip"
+has "folding a section ahead of one that landed before it is refused" "$(_hx_chk)" "not the 1 that landed first"
+
+# A fold that main moved past before it landed: E lands while the fold of C
+# and D waits. The fold is still exactly C and D, the oldest two, so the
+# merge result reads clean and E waits for the next fold.
+_hx_on s/stale
+_hx felix_handoff_rotate "$HX" refs/remotes/origin/main >/dev/null; _hx_commit "fold c d"
+_hx_on s/e; printf '### what e did\n\nIts body.\n' > "$TMP/ho-e.md"
+_hx felix_handoff_section "$HX" "$TMP/ho-e.md" refs/remotes/origin/main >/dev/null; _hx_commit e; _hx_land s/e
+git -C "$HX" checkout -q --detach refs/remotes/origin/main
+git -C "$HX" merge -q --no-edit s/stale >/dev/null 2>&1; _hxm=$?
+_hx_chk >/dev/null; _hxcr=$?
+is  "a fold that main moved past merges and reads clean, and the section that landed after it waits" \
+    "$_hxm:$_hxcr:$(ls "$HX/docs/handoff/pending" | grep -c -- '-s-e\.md$')" "0:0:1"
+_hx felix_handoff_rotate "$HX" HEAD >/dev/null
+has "and the next fold gives it the id after theirs" "$(cat "$HX/HANDOFF.md")" "### 0bg. what e did"
+git -C "$HX" checkout -q -f --detach HEAD; git -C "$HX" clean -qfd
+
+# The fold's own refusals: nothing written when one step would fail.
+_hxfx="$TMP/handoff-fold"; mkdir -p "$_hxfx"
+git -C "$HX" archive refs/remotes/origin/main | tar -x -C "$_hxfx"
+printf '### 0bf. something else\n' > "$_hxfx/docs/handoff/0bf.md"
+cp "$_hxfx/HANDOFF.md" "$TMP/ho-keep.md"
+( cd "$_hxfx" && . "$REAL_HARNESS/lib/handoff.sh" && felix_handoff_pending_order "$_hxfx" > "$TMP/ho-o2" \
+  && felix_handoff_fold "$_hxfx" "$TMP/ho-o2" ) > "$TMP/ho-fold.out"; _hxfr=$?
+is  "the fold refuses to write over an archive that holds something else, and writes nothing" \
+    "$_hxfr:$(cmp -s "$_hxfx/HANDOFF.md" "$TMP/ho-keep.md" && echo same):$(ls "$_hxfx/docs/handoff/pending" | wc -l | tr -d ' ')" "1:same:3"
+has "and says an archived section is never rewritten" "$(cat "$TMP/ho-fold.out")" "never rewritten"
+
+# The tree-local half, on the working tree alone.
+_hx_on s/local
+printf '### 0bz. an id\n\nbody\n' > "$HX/docs/handoff/pending/20260101T000000Z-x.md"
+has "a pending section that carries an id is refused" "$(_hx_chk)" "carries an id"
+git -C "$HX" checkout -q -f s/local; git -C "$HX" clean -qfd
+sed 's/^### 0bd\. /### 0bx. /' "$HX/HANDOFF.md" > "$TMP/ho-m.md"; cp "$TMP/ho-m.md" "$HX/HANDOFF.md"
+has "a current section the marker does not name is refused" "$(_hx_chk)" "is not headed"
+git -C "$HX" checkout -q -f s/local
+mkdir -p "$TMP/ho-none"; ( cd "$TMP/ho-none" && git init -q )
+( cd "$TMP/ho-none" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "handoff-check cannot examine a checkout with no HANDOFF.md, and says 2, never 0" "$?" "2"
+( cd "$HX" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "and exits 0 on a clean one" "$?" "0"
 
 printf '\nthe record this branch carries\n'
 # Raised by the same review. After a rebase, red.tsv held two runs' records

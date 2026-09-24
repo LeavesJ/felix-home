@@ -29,12 +29,28 @@ through the work in between and the delivery to the outcome.
   batch 2 §6.
 
 **Waiting on the founder.**
-- The one direction-level question in batch 2 §8: status in the end-of-session
-  notice, with the monitor kept as the deeper page.
 - Carried from §0bv: the Elenchus and Veldra candidates' admission, then #310's
   verifier escape, then #304 (all open on 2026-09-23).
 
+**DECIDED 2026-09-23 by the founder (batch 2 §8), landed as #332 and rated
+"good." (yes).** Status reaches the founder in the session's closing notice.
+The monitor stays as the deeper page. The charter's stealth paragraph now says
+so. **The notice itself is not built yet,
+and it is the first item below.** Until it ships, the charter describes
+something the engine does not do, which is the failure the pilot found most
+often.
+
 **Next, Felix's to do (none needs the founder):**
+- **Build the closing notice.** The Stop hook speaks to the agent, as
+  `additionalContext`, and the agent relays it in its closing report.
+  - Claude Code gives no "last stop of the session" signal, so the design must
+    choose which stop carries the notice. The candidate is the stop where the
+    gate receipt first matches the tree, then again only if status changed.
+  - Contents: gate state on this tree, owner acts waiting in the queue, Felix's
+    own friction this session (holds, refusals), and what is due.
+  - It must respect the #322 limit on mid-session lines, and carry a deadline
+    assertion in `tests/run`.
+  - This is adversarial tier (`hooks/stop`).
 - **Capture.**
   - `says.log` keeps whole prompts, or a pointer to the transcript line.
   - Question-tool answers are indexed.

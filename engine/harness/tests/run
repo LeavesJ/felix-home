@@ -982,9 +982,14 @@ is  "and 4 where the .felix marker names a project that does not exist" "$rc" "4
 has "and names the broken binding rather than asking for a marker" "$out" "nonexistent"
 
 printf '\nissue intake\n'
-# The first of the two p41 exit criteria nothing met: take an issue. Mirrors
-# felix repair exactly - brief on stdout, scope verdict in the exit code - so
-# unattended.yml, which already branches on `rc != 3`, consumes it unchanged.
+# The first of the two p41 exit criteria nothing met: take an issue. felix brief
+# keeps felix repair's shape - brief on stdout, scope verdict in the exit code.
+# Read through the mapping unattended.yml gives repair, 0 is every brief to act
+# on, the one naming no real file included, and proceeds; 3 is a red path and
+# escalates; 1 is an issue that could not be read and fails the job. Its 2 is an
+# unresolved binding, before any brief exists, and that mapping would escalate
+# it as a spent ceiling: repair exits 4 there since #321, brief still exits 2.
+# No template calls felix brief yet.
 mkdir -p "$REPO/src"
 printf 'x\n' > "$REPO/src/widget.py"
 cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
@@ -3096,14 +3101,18 @@ for _r in 0 1 2 3 4 5; do
   _sres="$_sres $_r:$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
   _snot="$_snot $_r:$(sed -n 's/^nothing=//p' "$SC/out" | head -1)"
   case "$_r" in
+    0) _s0brief="$(cat "$SC/brief.txt" 2>/dev/null)" ;;
     1) _s1rc="$_src" ;;
     2) _s2gh="$(cat "$SC/gh.log")" ;;
+    3) _s3gh="$(cat "$SC/gh.log")" ;;
     5) _s5rc="$_src"; _s5gh="$(cat "$SC/gh.log")"
        _s5p="$(sed -n 's/^proceed=//p' "$SC/out" | head -1)" ;;
   esac
 done
 is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no 4:no 5:no"
+is  "and the brief it proceeds on is the file the repair step hands a model" "$_s0brief" "brief"
 has "a reached repair ceiling is escalated to a person" "$_s2gh" "pr edit 7 --add-label needs-founder"
+has "a failure on a red path is escalated to a person" "$_s3gh" "pr edit 7 --add-label needs-founder"
 [ "${_s1rc:-0}" -ne 0 ] && ok  "a run felix repair could not read fails the job rather than passing quietly" \
                         || bad "a run felix repair could not read fails the job rather than passing quietly" "exit ${_s1rc:-?}"
 [ "${_s5rc:-1}" -eq 0 ] && [ "${_s5p:-}" = "no" ] && [ -z "${_s5gh:-}" ] \
@@ -3120,6 +3129,15 @@ for _k in $_sread; do grep -q "echo \"$_k=" "$SC/step.sh" || _sunwritten="$_sunw
   && ok  "and only nothing to repair tells the report so, under the name the report reads" \
   || bad "and only nothing to repair tells the report so, under the name the report reads" \
          "written:$_snot; read and never written:${_sunwritten:- none}"
+
+# The step above branches on felix repair's statuses, and the engine answering
+# is whatever the Felix checkout fetched. With no ref that was the default
+# branch on the day the job ran, and those statuses changed four times on
+# 2026-09-23 under copies that had not changed. The pin is what keeps a copy
+# and the engine it reads on the same commit.
+_sfx="$(grep -A1 'repository: {{FELIX_REPO}}' "$REAL_HARNESS/templates/unattended.yml" | sed -n 2p)"
+is  "the unattended template checks Felix out at a pinned ref, not the default branch" \
+    "$(printf '%s' "$_sfx" | tr -d ' ')" "ref:'{{FELIX_REF}}'"
 
 # The two halves together: the real felix repair on a green branch, read by the
 # step as shipped. Each half can pass its own assertions while the pair does

@@ -20326,10 +20326,19 @@ if [ "$(_au_counts "$_rvo")" = "0 0 1 0" ] && [ "$(_au_counts "$_rvo2")" = "0 0 
 else
   bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") / $(_au_counts "$_rvo2")"
 fi
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/open/shifts")"; _rv_t1="$(date +%s)"
-_rvn="a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds"
+# The shifts are timed as CPU, not wall clock. At a load average near 300 the
+# wall clock read 9 s, and an hour later it passed on the same tree; the read
+# measured 0.4 s of CPU at a load near 200. times inside the substitution
+# counts that subshell and the audit under it, and nothing else the suite has
+# running. With each << found again from the start of the command, or the
+# rest of the command searched at each, the read took 18 s and 11 s of CPU
+# and still counted it (2026-09-23), so 5 s stays far from all three.
+_rvo="$(_au --dir "$RV/open/shifts"; times > "$RV/open/shifts.cpu")"
+_rv_ms="$(awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
+               END { printf "%d", ms }' "$RV/open/shifts.cpu")"
+_rvn="a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds of CPU"
 if [ "$(_au_counts "$_rvo")" = "1 0 0 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 5 ] && ok "$_rvn" || bad "$_rvn" "took $((_rv_t1 - _rv_t0))s"
+  [ "$_rv_ms" -le 5000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
 else
   bad "$_rvn" "it did not count it, so its speed says nothing: $(_au_counts "$_rvo")"
 fi

@@ -2795,6 +2795,11 @@ if ! command -v jq >/dev/null 2>&1; then
            "and the ceiling counts it with the failure behind it" \
            "a failed run whose log cannot be read is refused, not briefed" \
            "and says the log could not be read" \
+           "felix repair writes the files the failing log names where --implicated says" \
+           "and lists them in the brief it hands a model" \
+           "and a brief whose log names no file leaves the set empty" \
+           "and a run that is no brief empties it, rather than leave the last run's set" \
+           "and an --implicated file that cannot be written stops repair before any brief" \
            "felix automerge judges a green pull request by the gate's runs alone" \
            "and every run list felix automerge makes names the gate workflow" \
            "and felix unattended's streak row counts the gate's runs alone" \
@@ -2845,7 +2850,8 @@ case "$1 $2" in
   # WFSTUB_NOLOG is a log GitHub no longer holds, or never did: gh answers and
   # there is nothing in it.
   "run view") [ -n "${WFSTUB_NOLOG:-}" ] \
-                || printf 'gate\tRun the gate\t2026-09-22T00:00:00.0000000Z Error: the widget test failed\n' ;;
+                || printf 'gate\tRun the gate\t2026-09-22T00:00:00.0000000Z Error: %s\n' \
+                          "${WFSTUB_LOGTEXT:-the widget test failed}" ;;
 esac
 exit 0
 STUB
@@ -3023,6 +3029,32 @@ case "$out" in *"attempt(s) left"*) _wfnolog="$_wfnolog(briefed)" ;; esac
 is  "a failed run whose log cannot be read is refused, not briefed" "$_wfnolog" " unanswered:1 empty:1"
 has "and says the log could not be read" "$out" "log of run 201"
 
+# The brief's second half for the unattended template: the files the failing
+# log names, written where --implicated says, and listed in the brief a model
+# reads, so the set a repair is held to is the set it was shown. Emptied on
+# every run, so a run that is no brief cannot leave the last one's set behind
+# to stand for it.
+_wfimp="$TMP/wf.implicated"
+out="$( export WFSTUB_LOGTEXT='WIDGET.txt:3 does not say widget, nor does /tmp/elsewhere.py'
+        _wfcli repair --implicated "$_wfimp" )"; rc=$?
+is  "felix repair writes the files the failing log names where --implicated says" \
+    "exit $rc: $(tr '\n' ' ' < "$_wfimp" 2>/dev/null)" "exit 0: WIDGET.txt "
+has "and lists them in the brief it hands a model" "$out" "$(printf 'implicated files:\n\n  WIDGET.txt')"
+out="$(_wfcli repair --implicated "$_wfimp")"; rc=$?
+is  "and a brief whose log names no file leaves the set empty" \
+    "exit $rc, $(wc -c < "$_wfimp" 2>/dev/null | tr -d ' ') bytes" "exit 0, 0 bytes"
+printf 'WIDGET.txt\n' > "$_wfimp"
+printf 'gate.yml\tgate\tfix/y\t211\tcompleted\tsuccess\n' > "$TMP/wf.runs.green"
+out="$( export WFSTUB_RUNS="$TMP/wf.runs.green"; _wfcli repair --implicated "$_wfimp" )"; rc=$?
+is  "and a run that is no brief empties it, rather than leave the last run's set" \
+    "exit $rc, $(wc -c < "$_wfimp" 2>/dev/null | tr -d ' ') bytes" "exit 5, 0 bytes"
+out="$(_wfcli repair --implicated "$TMP/no/such/dir/implicated")"; rc=$?
+if [ "$rc" = "1" ] && ! printf '%s' "$out" | grep -qE 'failing output|attempt\(s\) left'; then
+  ok  "and an --implicated file that cannot be written stops repair before any brief"
+else
+  bad "and an --implicated file that cannot be written stops repair before any brief" "exit $rc: $out"
+fi
+
 : > "$WFSTUB_LOG"
 out="$(_wfcli automerge)"
 has "felix automerge judges a green pull request by the gate's runs alone" "$out" "clean  #7"
@@ -3088,12 +3120,30 @@ printf '\nthe unattended repair acts only on a brief\n'
 SC="$TMP/scope"; mkdir -p "$SC/repo" "$SC/felix/engine/harness" "$SC/bin"
 awk '/- name: Scope the failure/ { f = 1 } f && /^        run: \|/ { r = 1; next }
      r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' \
-  "$REAL_HARNESS/templates/unattended.yml" | sed "s#/tmp/brief.txt#$SC/brief.txt#" > "$SC/step.sh"
-printf '#!/usr/bin/env bash\nprintf "brief\\n"; exit "${SCOPE_RC:-0}"\n' > "$SC/felix/engine/harness/felix"
+  "$REAL_HARNESS/templates/unattended.yml" \
+  | sed "s#/tmp/brief.txt#$SC/brief.txt#; s#/tmp/implicated.txt#$SC/implicated.txt#g" > "$SC/step.sh"
+# felix repair as the step calls it: --implicated names a file it empties, and
+# a brief (0) writes the named files into it. SCOPE_NAMED is that set, and
+# SCOPE_NOFILE a Felix from before --implicated, which writes nothing.
+cat > "$SC/felix/engine/harness/felix" <<'STUB'
+#!/usr/bin/env bash
+prev=""
+for a in "$@"; do
+  if [ "$prev" = "--implicated" ] && [ -z "${SCOPE_NOFILE:-}" ]; then
+    : > "$a"
+    if [ "${SCOPE_RC:-0}" = "0" ] && [ -n "${SCOPE_NAMED:-}" ]; then
+      printf '%s\n' "$SCOPE_NAMED" > "$a"
+    fi
+  fi
+  prev="$a"
+done
+printf "brief\n"; exit "${SCOPE_RC:-0}"
+STUB
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "%s/gh.log"\ncase "$1 $2" in "pr list") printf "7\\n" ;; esac\nexit 0\n' "$SC" > "$SC/bin/gh"
 chmod +x "$SC/felix/engine/harness/felix" "$SC/bin/gh"
 _scope() { : > "$SC/out"; : > "$SC/gh.log"
-  ( cd "$SC/${2:-repo}" && SCOPE_RC="$1" GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
+  ( cd "$SC/${2:-repo}" && SCOPE_RC="$1" SCOPE_NAMED="${_snamed-src/a.py}" SCOPE_NOFILE="${_snofile:-}" \
+      GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
       bash -e "$SC/step.sh" ) >/dev/null 2>"$SC/err"; }
 _sres=""; _snot=""
 for _r in 0 1 2 3 4 5; do
@@ -3101,7 +3151,8 @@ for _r in 0 1 2 3 4 5; do
   _sres="$_sres $_r:$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
   _snot="$_snot $_r:$(sed -n 's/^nothing=//p' "$SC/out" | head -1)"
   case "$_r" in
-    0) _s0brief="$(cat "$SC/brief.txt" 2>/dev/null)" ;;
+    0) _s0brief="$(cat "$SC/brief.txt" 2>/dev/null)"
+       _s0set="$(awk '/^implicated<</ { d = substr($0, 13); f = 1; next } f && $0 == d { exit } f' "$SC/out")" ;;
     1) _s1rc="$_src" ;;
     2) _s2gh="$(cat "$SC/gh.log")" ;;
     3) _s3gh="$(cat "$SC/gh.log")" ;;
@@ -3111,6 +3162,9 @@ for _r in 0 1 2 3 4 5; do
 done
 is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no 4:no 5:no"
 is  "and the brief it proceeds on is the file the repair step hands a model" "$_s0brief" "brief"
+# The model's Read and Edit reach /tmp, so the set goes on as a step output,
+# which nothing after the step can rewrite.
+is  "and the set it proceeds on is handed on as the step's output" "$_s0set" "src/a.py"
 has "a reached repair ceiling is escalated to a person" "$_s2gh" "pr edit 7 --add-label needs-founder"
 has "a failure on a red path is escalated to a person" "$_s3gh" "pr edit 7 --add-label needs-founder"
 [ "${_s1rc:-0}" -ne 0 ] && ok  "a run felix repair could not read fails the job rather than passing quietly" \
@@ -3124,11 +3178,29 @@ has "a failure on a red path is escalated to a person" "$_s3gh" "pr edit 7 --add
 _sread="$(grep -o 'steps\.scope\.outputs\.[a-z_]*' "$REAL_HARNESS/templates/unattended.yml" \
           | sed 's/.*\.//' | sort -u)"
 _sunwritten=""
-for _k in $_sread; do grep -q "echo \"$_k=" "$SC/step.sh" || _sunwritten="$_sunwritten $_k"; done
+for _k in $_sread; do grep -qE "echo \"$_k(=|<<)" "$SC/step.sh" || _sunwritten="$_sunwritten $_k"; done
 [ "$_snot" = " 0: 1: 2: 3: 4: 5:yes" ] && [ -z "$_sunwritten" ] \
   && ok  "and only nothing to repair tells the report so, under the name the report reads" \
   || bad "and only nothing to repair tells the report so, under the name the report reads" \
          "written:$_snot; read and never written:${_sunwritten:- none}"
+
+# A brief that names no file in the checkout. The model would be told to edit
+# only the files the brief lists, it lists none, and the verify step refuses
+# any other, so every change would be refused after the budget and a model run
+# were spent. It stops at scope instead, and without a label: the failure is
+# already red on the pull request, and nothing risky is known about it.
+_snamed=""; _scope 0; _src=$?; unset _snamed
+is  "a brief that names no file stops at scope: not acted on, not failed, not escalated" \
+    "exit $_src, proceed=$(sed -n 's/^proceed=//p' "$SC/out" | head -1), unnamed=$(sed -n 's/^unnamed=//p' "$SC/out" | head -1), gh [$(tr '\n' ' ' < "$SC/gh.log")]" \
+    "exit 0, proceed=no, unnamed=yes, gh []"
+# A Felix that never writes the set, one pinned from before --implicated, with
+# a set left over from an earlier run on the same runner. Read as this run's,
+# the leftover would hold a repair to files the failing log never named.
+printf 'src/a.py\n' > "$SC/implicated.txt"
+_snofile=1; _scope 0; _src=$?; unset _snofile
+is  "a Felix that writes no implicated set fails the job, and a set left from an earlier run does not stand in" \
+    "exit $_src, proceed=$(sed -n 's/^proceed=//p' "$SC/out" | head -1), gh [$(tr '\n' ' ' < "$SC/gh.log")]" \
+    "exit 1, proceed=no, gh []"
 
 # The step above branches on felix repair's statuses, and the engine answering
 # is whatever the Felix checkout fetched. With no ref that was the default
@@ -3231,27 +3303,54 @@ printf '\nthe unattended repair gets its push gated\n'
 # choosing. A bare remote takes a workflow file from anyone, so a refusal here
 # is the step's own and not the server's.
 UT="$REAL_HARNESS/templates/unattended.yml"
-VP="$TMP/verify"; mkdir -p "$VP/felix/engine/harness" "$VP/bin"
+VP="$TMP/verify"; mkdir -p "$VP/felix/engine/harness" "$VP/bin" "$VP/vbin"
 awk '/- name: Verify and push/ { f = 1 } f && /^        run: \|/ { r = 1; next }
      r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' "$UT" > "$VP/step.sh"
-printf '#!/usr/bin/env bash\nprintf "gate\\n" >> "%s/gate.log"\nexit "${VERIFY_GATE_RC:-0}"\n' "$VP" \
-  > "$VP/felix/engine/harness/felix"
-chmod +x "$VP/felix/engine/harness/felix"
+# The gate is stubbed to a status of the test's choosing. Everything else is
+# the real felix, so the verify step's own scope check is the real classifier
+# reading the real risk table: the fixture checkout is bound to widget, whose
+# table is the shipped template's for the length of this section.
+printf '#!/usr/bin/env bash\n[ "$1" = gate ] || exec "%s" "$@"\nprintf "gate\\n" >> "%s/gate.log"\nexit "${VERIFY_GATE_RC:-0}"\n' \
+  "$FELIX" "$VP" > "$VP/felix/engine/harness/felix"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "%s/gh.log"\ncase "$1 $2" in "pr list") printf "7\\n" ;; esac\nexit 0\n' \
+  "$VP" > "$VP/vbin/gh"
+chmod +x "$VP/felix/engine/harness/felix" "$VP/vbin/gh"
+# The judge the verify step checks is unchanged: a checkout, as in the job,
+# with a risk table of its own in it.
+mkdir -p "$VP/felix/projects/widget"
+cp "$REAL_HARNESS/templates/risk.tsv" "$VP/felix/projects/widget/risk.tsv"
+( cd "$VP/felix" && git init -q -b main && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm felix ) >/dev/null 2>&1
+cp "$FROOT/projects/widget/risk.tsv" "$VP/risk.keep"
+cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
+# The implicated set the scope step would hand on as its output, src/a.txt
+# unless a test says otherwise; _verify passes it in as the job would.
 _vfix() { rm -rf "$VP/remote.git" "$VP/repo"
   git init -q --bare "$VP/remote.git"
   git init -q -b fix/x "$VP/repo"
   ( cd "$VP/repo" && git remote add origin "$VP/remote.git" \
-    && mkdir -p .github/workflows src && printf 'on: push\n' > .github/workflows/gate.yml \
-    && printf 'a\n' > src/a.txt && git add -A \
+    && mkdir -p .github/workflows src tests && printf 'on: push\n' > .github/workflows/gate.yml \
+    && printf 'a\n' > src/a.txt && printf 'def test_a(): pass\n' > tests/test_a.py \
+    && printf 'c\n' > "src/caf$(printf '\303\251').txt" && printf '*.local\n' > .gitignore \
+    && printf 'widget\n' > .felix && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm base && git push -q origin fix/x ) >/dev/null 2>&1
+  printf 'src/a.txt\n' > "$VP/implicated.txt"
   _v0="$(git --git-dir="$VP/remote.git" rev-parse fix/x)"; }
-_verify() { : > "$VP/out"; : > "$VP/gate.log"
-  ( cd "$VP/repo" && VERIFY_GATE_RC="$1" GITHUB_OUTPUT="$VP/out" BRANCH=fix/x \
+_verify() { : > "$VP/out"; : > "$VP/gate.log"; : > "$VP/gh.log"
+  ( cd "$VP/repo" && IMPLICATED="$(cat "$VP/implicated.txt" 2>/dev/null)" VERIFY_GATE_RC="$1" \
+      GITHUB_OUTPUT="$VP/out" BRANCH=fix/x PATH="$VP/vbin:$PATH" \
       bash -e "$VP/step.sh" ) > "$VP/log" 2>&1; _vrc=$?
   _vgot="exit $_vrc, remote $([ "$(git --git-dir="$VP/remote.git" rev-parse fix/x)" = "$_v0" ] \
-    && echo unchanged || echo moved), gate $(wc -l < "$VP/gate.log" | tr -d ' '), pushed=$(sed -n 's/^pushed=//p' "$VP/out" | head -1)"; }
+    && echo unchanged || echo moved), gate $(wc -l < "$VP/gate.log" | tr -d ' '), pushed=$(sed -n 's/^pushed=//p' "$VP/out" | head -1)"
+  _vtree="tree $( cd "$VP/repo" && [ "$(git rev-parse HEAD)" = "$_v0" ] && [ -z "$(git status --porcelain --ignored)" ] \
+    && echo "at base" || echo "not at base" ), refused=$(sed -n 's/^refused=//p' "$VP/out" | head -1)"
+  _vlab="$(tr '\n' ' ' < "$VP/gh.log")"; }
 
-_vfix; printf 'on: [push, workflow_dispatch]\n' > "$VP/repo/.github/workflows/gate.yml"
+# Named in the set, so what stops it is the workflow-file check and not the
+# set: a project whose risk table does not call .github/workflows red lets the
+# scope step hand such a file on.
+_vfix; printf '.github/workflows/gate.yml\n' > "$VP/implicated.txt"
+printf 'on: [push, workflow_dispatch]\n' > "$VP/repo/.github/workflows/gate.yml"
 _verify 0
 is  "a repair that edits a workflow file is not pushed, and the gate is not spent on it" \
     "$_vgot, tree $(cd "$VP/repo" && git diff --quiet && echo clean || echo dirty)" \
@@ -3265,6 +3364,93 @@ _vfix; printf 'b\n' >> "$VP/repo/src/a.txt"
 _verify 1
 is  "a repair the gate fails is not pushed, and asks for no second gate run" \
     "$_vgot" "exit 1, remote unchanged, gate 1, pushed="
+
+# What the attempt may touch, checked on its own diff before the gate. The
+# prompt tells the model to edit only the files the brief names, and until
+# 2026-09-24 nothing else did: whatever it changed was pushed once the gate
+# was green, red paths included, and a gate can be turned green by editing
+# what it reads. A file outside the set is refused whatever its tier, so the
+# one here is a file the risk rules call green.
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"; printf 'import pytest; pytest.skip()\n' >> "$VP/repo/tests/test_a.py"
+_verify 0
+is  "a repair that changes a file the brief did not name is not pushed, and the gate is not spent on it" \
+    "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"
+is  "and it is refused though the risk rules call that file green" \
+    "$(cd "$VP/repo" && "$FELIX" scope tests/test_a.py 2>&1 | sed -n 's/^highest tier: //p')" "green"
+has "and it names the file it will not push" "$(cat "$VP/log")" "tests/test_a.py"
+has "and it hands the change to a person on the branch's pull request" "$_vlab" "pr edit 7 --add-label needs-founder"
+
+# A file the model created is in neither `git diff` nor `git commit -a`, so it
+# is never pushed, but the gate reads it: a conftest.py that skips the failing
+# test would turn the gate green on a commit that never carried it.
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"; printf 'collect_ignore = ["src"]\n' > "$VP/repo/src/conftest.py"
+_verify 0
+is  "a file the attempt created is outside the brief too, and is not left for anything to read" \
+    "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"
+
+# Inside the set, the diff is classified with its content, not only its paths.
+# A credential written into a file the brief named is red whatever the file is
+# called, and scoping the path alone passed it (#100's defect, one step later).
+_vfix; printf 'api_key = "sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQ"\n' >> "$VP/repo/src/a.txt"   # must_flag
+_verify 0
+is  "a credential written into a file the brief named is red, and is not pushed" \
+    "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"
+has "and it says the risk rules called the diff red" "$(cat "$VP/log")" "call the attempt's own diff red"
+has "and it hands that to a person too" "$_vlab" "pr edit 7 --add-label needs-founder"
+
+# An ignored file is untracked too, and the gate reads it the same way: a
+# *.local a test run picks up passed the gate, and the named edit beside it
+# was pushed, since neither the diff nor the untracked list showed it.
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"; printf 'fixed\n' > "$VP/repo/gate.local"
+_verify 0
+is  "an ignored file the attempt created is outside the brief as well, and is removed" \
+    "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"
+# The judge: the scope check and the gate run from the Felix checkout beside
+# this one, and a green row added to its risk table would clear the change it
+# judges. No command the job runs writes there.
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"
+printf 'green\tpath\t.*\tanything goes\n' >> "$VP/felix/projects/widget/risk.tsv"
+_verify 0
+( cd "$VP/felix" && git checkout -q -- . )
+is  "a change to the Felix checkout that judges the repair is refused before it judges" \
+    "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"
+# git quotes a name outside ASCII, so the file the brief named never matched
+# its own entry and every such repair was refused and labelled.
+_vfix; _vcafe="src/caf$(printf '\303\251').txt"
+printf '%s\n' "$_vcafe" > "$VP/implicated.txt"; printf 'd\n' >> "$VP/repo/$_vcafe"
+_verify 0
+is  "a named file whose name is not ASCII is pushed like any other" \
+    "$_vgot, refused=$(sed -n 's/^refused=//p' "$VP/out" | head -1)" "exit 0, remote moved, gate 1, pushed=yes, refused="
+
+# Wiring, not the change, so no label: the scope step left no set, or felix
+# scope could not classify. Neither is pushed on the strength of a check that
+# did not run.
+_vfix; rm -f "$VP/implicated.txt"; printf 'b\n' >> "$VP/repo/src/a.txt"
+_verify 0
+is  "with no implicated set from the scope step, nothing is pushed and no pull request is labelled" \
+    "$_vgot, $_vtree, gh [$_vlab]" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=, gh []"
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"
+mv "$FROOT/projects/widget/risk.tsv" "$VP/risk.away"
+_verify 0
+mv "$VP/risk.away" "$FROOT/projects/widget/risk.tsv"
+is  "a diff felix scope cannot classify is not pushed, and no pull request is labelled" \
+    "$_vgot, $_vtree, gh [$_vlab]" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=, gh []"
+
+# The set reaches the verify step as the scope step's output, never as a file.
+# The model's Read and Edit reach /tmp and the Felix checkout, measured on the
+# pinned CLI, so a set read back from disk after it ran, as the first version
+# of this step read /tmp/implicated.txt, is one it could have widened.
+_vimpenv="$(awk '/- name: Verify and push/ { f = 1 } f && /^ *IMPLICATED: / { sub(/^ *IMPLICATED: /, ""); print; exit }' "$UT")"
+is  "the verify step takes the implicated set from the scope step's output, and reads no file for it" \
+    "$_vimpenv, $(grep -c '/tmp/' "$VP/step.sh" | tr -d ' ') /tmp reads" \
+    "\${{ steps.scope.outputs.implicated }}, 0 /tmp reads"
+# And the report reads the refusal under the name the step writes it.
+_vpunwritten=""
+for _k in $(grep -o 'steps\.push\.outputs\.[a-z_]*' "$UT" | sed 's/.*\.//' | sort -u); do
+  grep -q "echo \"$_k=" "$VP/step.sh" || _vpunwritten="$_vpunwritten $_k"
+done
+is  "every steps.push output the template reads is one the verify step writes" "${_vpunwritten:-none}" "none"
+cp "$VP/risk.keep" "$FROOT/projects/widget/risk.tsv"
 
 # The job that runs the gate again, read out of the template: what it waits
 # for, what its token may do, and what it asks GitHub for. It holds actions:
@@ -7439,6 +7625,18 @@ out="$( cd "$SC" && "$FELIX" scope a.md 2>&1 )"; rc=$?
 is  "scoping a bare path still answers"      "$rc" "0"
 has "but admits it never read the changes"   "$out" "content"
 
+# A base that names nothing compared nothing. The diff it could not read came
+# back empty, which read as nothing to scope, and with a change in the tree
+# the classifier called it unknown, which is not red, so scope said "In
+# scope". Both exited 0, the status the unattended verify step pushes on.
+out="$( cd "$SC" && "$FELIX" scope --base no-such-ref 2>&1 )"; _sbc=$?
+printf 'more notes\n' >> "$SC/a.md"
+out="$out$( cd "$SC" && "$FELIX" scope --base no-such-ref 2>&1 )"; _sbd=$?
+( cd "$SC" && git checkout -q -- a.md )
+is  "a --base that names nothing is refused, not scoped, clean tree or not" \
+    "clean:$_sbc changed:$_sbd" "clean:1 changed:1"
+has "and it says nothing was compared" "$out" "names nothing here"
+
 printf '\nthe line that does the work\n'
 # `felix merge` was shipped, deployed, written into the handoff as "Felix can
 # merge", and could never merge anything. `gh pr merge --repo <slug> --squash`
@@ -8099,6 +8297,20 @@ has "nor a semicolon"                       "$(_ip 'src/thing.py; and then more'
 # The conservative half must survive all of that: still no inventing.
 is  "and a backticked path naming nothing is still not invented" \
     "$(_ip 'see `docs/nope.py` there')" ""
+
+# The implicated set is what the unattended repair may change, and `[ -f ]`
+# from the root took files beside the checkout and inside its repository:
+# ../felix/engine/harness/felix, the CLI the job judges with, resolved from a
+# gate log that named it, and so did .git/config. Neither shows in `git diff`.
+# A path that climbs out still resolves by what is left of it inside.
+mkdir -p "$IP/.git"; : > "$IP/.git/config"
+is  "a path outside the checkout or inside its .git is never implicated" \
+    "$(_ip 'see ../ran, .git/config and ../inc/src/thing.py')" "src/thing.py "
+# Two forms a failing log prints all the time, each of which resolved to no
+# file: pytest's node id, and a line number with a colon after it.
+is  "a pytest node id and a line number followed by a colon both name their file" \
+    "$(_ip 'FAILED tests/test_thing.py::test_x - assert 1 == 2')$(_ip 'src/thing.py:12: AssertionError')" \
+    "tests/test_thing.py src/thing.py "
 
 printf '\nwhat you are about to commit\n'
 # `felix evidence` told a session it owed a web test that the session had

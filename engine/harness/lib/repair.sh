@@ -26,7 +26,8 @@
 #      workflow, no branch checked out, or gh did not answer. Also the failing
 #      run's own log, when gh does not answer, GitHub no longer holds it, or
 #      it is empty. And a run that failed to start, which left no log, or one
-#      whose conclusion this code does not know
+#      whose conclusion this code does not know. And an --implicated file
+#      that could not be written
 #   2  the repair ceiling is reached, or could not be counted
 #   3  the failure implicates a red path, which unattended repair leaves alone
 #   4  no project governs the checkout, or the binding naming one is broken
@@ -54,6 +55,14 @@
 # no failing output.
 # startup_failure is left alone too, whether or not the ceiling counts it: the
 # gate never ran, so no step left a log to read.
+#
+# `--implicated <file>` is the contract's second half. The file is emptied on
+# every run, and a brief (0) writes into it the files the failing log names,
+# one per line, the set the brief lists under "implicated files". The template
+# holds a repair to that set: it stops at scope when the set is empty, since a
+# repair would have nothing it may change, and refuses a diff that reaches
+# outside it. Until 2026-09-24 that boundary was a sentence in the model's
+# prompt and nothing checked it.
 #
 # felix brief keeps this shape and uses 0, 1, 2 and 3 of it: its 2 is a failed
 # resolve, and it has no 5, because an issue is always something to act on.

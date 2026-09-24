@@ -50,6 +50,9 @@
 1	a CR is refused, and only exceptions.sh strips it from the last cell
 1	a Copilot resume, which always got the banner, still does
 1	a Copilot resume, which keeps its banner, appends a lifecycle row of kind resume too
+1	a HEAD on a pushed branch the default branch does not hold pins nothing
+1	a HEAD only a branch named main holds, when the default branch is another, pins nothing
+1	a HEAD only this machine holds pins nothing
 1	a NUL is refused, and grep reads the whole table as binary
 1	a RELEASE_BLOCKING candidate is refused because it may not block
 1	a TMPDIR of / is not a temporary root
@@ -140,8 +143,10 @@
 1	a comment is not a command
 1	a commission table blocker waits for the founder too
 1	a commissioning run seeds the ledger through the row's answer
+1	a commit holding the project it is asked about pins
 1	a commit in the checkout the graph was built from is due
 1	a commit message in a here-document is not read as a command
+1	a commit on the default branch from before the project merged pins nothing
 1	a commit this repository does not hold is not a distance
 1	a commit with no remote does not stamp a push
 1	a committed rename lists the name it left as well as the one it took
@@ -558,6 +563,7 @@
 1	a project directory outside any repository, or one that is itself the repository root, grants nothing
 1	a project directory that is not there identifies no subject
 1	a project directory that is not there identifies no subject and no topology
+1	a project no commit on the default branch holds yet is not pinned
 1	a project that declares no probes has no topology
 1	a project that has qualified nothing is skipped, not failed
 1	a project that names its gate workflow is repaired from that workflow's run
@@ -743,6 +749,8 @@
 1	a skill whose frontmatter says hooks: {} is low
 1	a small payload's subject is read without running awk
 1	a source past its ceiling is refused too
+1	a source that is not a checkout pins nothing
+1	a source whose HEAD is origin's default branch pins that commit, in full
 1	a stacked branch is not blamed for what its base already merged
 1	a staged row removal still escapes as verifier
 1	a staged source change owes its test
@@ -1368,6 +1376,7 @@
 1	and is not run half-read
 1	and is not work Felix owes
 1	and is not work Felix owes either
+1	and is pinned once the default branch holds it
 1	and is refused rather than rounded down
 1	and is refused too
 1	and is silent when there is none
@@ -1621,6 +1630,7 @@
 1	and passes on npm's own reason
 1	and passes the facts it already has
 1	and picks the capability the skills serve
+1	and pins the source checkout's commit once origin's default branch holds it
 1	and points at the read that needs no lock
 1	and prints a candidates section
 1	and prints no events at all, not the ones it managed to reach
@@ -1935,6 +1945,7 @@
 1	and the gate exits red
 1	and the gate line called no cli
 1	and the gate still runs through it
+1	and the gate workflow bootstrap writes checks Felix out at that commit
 1	and the gate's copy carries no candidates section
 1	and the gate-failure total
 1	and the grant is not left lying around for the next session
@@ -2104,7 +2115,9 @@
 1	and with both gone the tree is clean again
 1	and with commands absent from both sides again it matches
 1	and with it, the same call lifts
+1	and with no commit to give, at the placeholder, quoted so YAML reads a string
 1	and with no deployment to compare against the evidence cannot examine
+1	and with no origin/HEAD, origin/main is the branch asked
 1	and with no session handoff on disk, says nothing about one
 1	and with the edit undone the tree id is back
 1	and with the fact back where it was, the same receipt allows again
@@ -2153,6 +2166,7 @@
 1	blocks are recorded
 1	bootstrap looks for gate.yml when the project names no gate workflow
 1	bootstrap names the checkout's repo, not the cache's absence
+1	bootstrap with no commit to pin says the workflow gets the placeholder
 1	brief reads an issue from stdin
 1	brief refuses outside a governed repo
 1	briefs which tasks are one unit
@@ -2191,6 +2205,12 @@
 1	carrying the grounding that says the engine read it
 1	catch-up folds every session nothing folded
 1	catch-up folds only the sessions this repository's history contains
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 1
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 2
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 3
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 4
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 5
+1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 6
 1	catches a key the keyword ends, sample 1
 1	catches a key the keyword ends, sample 2
 1	catches a key the keyword ends, sample 3
@@ -2334,6 +2354,7 @@
 1	every call is appended
 1	every capability detection can adopt has a discovery rule
 1	every check passing, with a provider still awaiting, is commissioned
+1	every checkout in the generated workflow is v5, the lowest major on Node 24
 1	every checkout in the unattended template drops its credential once the fetch is done
 1	every decision is logged
 1	every decision is recorded
@@ -2774,6 +2795,9 @@
 1	quiet on exclusion sample 3
 1	quiet on exclusion sample 4
 1	quiet on exclusion sample 5
+1	quiet on prose naming the GitHub prefixes or the header's fixed base64, sample 1
+1	quiet on prose naming the GitHub prefixes or the header's fixed base64, sample 2
+1	quiet on prose naming the GitHub prefixes or the header's fixed base64, sample 3
 1	rather than reporting clean
 1	read by awk and by expansion alike: a line break in the value is kept, beside escaped quotes
 1	read by awk and by expansion alike: a payload holding a raw SOH byte, which JSON cannot, has no subject
@@ -3152,6 +3176,7 @@
 1	the gate's executable check passes when every script under bin/ has its bit
 1	the gate's installed check asks the one reader, felix_accepted_deploy_diff
 1	the gate's obligations line reads excepted and the gate passes
+1	the generated workflow checks Felix out at the commit it was given
 1	the generic reader reads a seven-field answer as answered, not as five fields short
 1	the graph is graphify-out/graph.json under the holding checkout
 1	the graph's home is the checkout that holds the repository

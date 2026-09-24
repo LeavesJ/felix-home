@@ -15,7 +15,7 @@ and changed none of it: the archive files concatenated in index order, after
 files the split made; later sections join the index above them, below §0).
 
 **The rule for the next session.** Write your section at the top of "Current
-state", with the next id (after 0bv comes 0bw). Move the section it replaces
+state", with the next id (after 0bw comes 0bx). Move the section it replaces
 into `docs/handoff/<id>.md`, unchanged, and add its row to the top of the
 index. A reference like "HANDOFF §0bm" means `docs/handoff/0bm.md`.
 
@@ -32,97 +32,72 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0bv. 2026-09-23 (night) — overnight mode belongs to a session, #307 and #303 landed, the runner probe answered from a runner's own log, Veldra's blind request
+### 0bw. 2026-09-23/24 — every stuck PR triaged, why the night went stale, and the landing actor designed (not built)
 
-**Deployed from this session: engine 0.49.156 (#307) and 0.49.157 (#303)**, each
-from the home checkout, where `felix install` verified the installed engine
-against the tree. The engine queue ran #301, #313 (the deny floor fix), #306,
-the linear deny payload read (which landed out of the agreed order and took
-.155), #307, then #303, which this session carried because its owner had
-closed. **#304 was deliberately not merged**: its own description asks to land
-after the founder's Elenchus admission, because it stales every receipt and
-all 22 open candidates once. It is in `felix overnight --report`'s queue with
-the exact unblock steps.
+**No engine change from this session.** It read, measured and wrote documents.
+Everything it produced is under `~/.felix/memory/felix/audits/` (memory root,
+outside iCloud):
 
-| PR | What | Engine |
-|---|---|---|
-| #307 | Overnight mode: a night per session, carried through the platform's chain on its own bounds, quiet read from the transcript, a clean tree no longer ends the night; `lib/overnight-stop.sh` is new. An adversarial review found one high defect (a session could re-grant itself from inside the chain), one medium and five low, plus three assertions that could not fail. All were fixed in the second commit, and each fixed assertion is shown failing under a mutation that removes its fix | 0.49.156, deployed |
-| #303 | The repair ceiling and the auto-merge streak read the gate workflow alone (another session's work, carried to merge: main merged in, manifest merged mechanically, red re-run) | 0.49.157, deployed |
-| #310 | Phase 1 item 1, draft: `obligations.tsv` gains an optional `needs` column, each capability resolved against `qualification.tsv` as complete, short or absent; report-only. Built by a subagent in its own worktree from a design fixed first; its mini suite reaches 41, all pass, and main's engine fails exactly the 27 new-behaviour assertions. Merging fires the `verifier` escape (rows of `obligations.tsv` and `schemas.tsv` edited in place), so it waits for the founder; land it before #304 | 0.49.160 provisional |
+| What | Where |
+|---|---|
+| The founder's queue: everything the sessions left for him, from where each stopped, with commands, re-checked against the state at 19:06Z | `2026-09-23-founder-queue/pdf/founder-queue.pdf` |
+| Root cause of the stale-merge night, 17 pages, three reviewers, evidence E1-E20 | `2026-09-23-merge-staleness/pdf/why-merges-went-stale.pdf` (+ `evidence.json`, `reviews.json`) |
+| Landing actor design, **draft**: three designs, three judges, a synthesis; the skeptics and the final revision did not run | `2026-09-23-landing-actor/design-synthesis-DRAFT.md` (+ `designs.json`, `judgments.json`) |
 
-**Why overnight had to change before it could be switched on.** The founder
-asked for overnight mode while about ten Felix sessions were running. A night
-was one file per project, with the session id written and never read, so
-switching it on would have held every one of those sessions at every stop on
-one shared budget. It also left at `stop_hook_active`, so the session it was
-for would have had one continuation. This session therefore never started a
-night: it worked through its own turn, re-invoked by background tasks. It also
-cannot use the fix, because hooks bind at session start and it started on
-0.49.151. A session started from now on runs `! felix overnight --start` and
-holds that session only (memory: `overnight-mode-is-per-session`).
+**The root cause, in two lines.** Nothing in Felix lands a PR outside a live
+chat session, and a PR's readiness (version, red.tsv, manifest, gate receipt)
+decays with every merge and every deploy. Of the 7 PRs stuck at 17:45Z, 2 needed
+the founder on substance (#309, #311), 2 by rule or hold (#310, #304), 3 not at
+all (#308, #312, #315); 51% of commits and 48% of CI minutes were catch-up, and
+0 of 7 CI failures were functional. Memory: `merge-staleness-rca-2026-09-23`.
 
-**The runner probe (roadmap Phase 0), answered from a run that already
-happened.** Elenchus's required `gate` check has run `felix gate` on
-ubuntu-24.04 with no `claude` CLI since LeavesJ/Elenchus#20. Run 35779335006 on
-`a45a985`: gate pass, 1439 tests, probes 5 found, obligations 1 dormant,
-`qualified` skipped (no table), and `commission: never commissioned on this
-machine`. Nothing on the gate path needs the CLI. What a runner lacks is
-machine-local state (the commission receipt, the ledger, facts), which lives
-under `$HOME/.felix/memory` and is empty there, so the merge-point check cannot
-lean on the commission receipt until receipts live in the repository (Phase 2).
-The image carries jq 1.7 and sqlite3 3.45.1. Go 1.24-1.26 are in the tool
-cache, which puts them on PATH only through setup-go (unverified). Felix is
-checked out from felix-home `main` at run time, not a pinned sha.
+**The founder said "go" to the landing actor** (the report's rank-1 remedy) on
+2026-09-23. The draft design: a launchd agent runs `felix land --tick` every
+five minutes in its own clone, re-executes as main's accepted engine, takes the
+oldest ready PR, merges main in, writes main-relative files from a declared
+`land.tsv`, gates the merged tree with main's engine as judge, runs `felix
+merge`'s unchanged boundary, checks the landed tree is the gated one, deploys,
+verifies and reverts. No model inside it. Build plan L1-L10 (about 10 sessions
+plus 3 shadow days); L1 (dry runs write nothing, every refusal logged) and L2
+(bookkeeping at landing time, `_rtn3`/`_rtn4` skip untouched files) pay off
+before the actor exists. His decisions F1-F5 are in the draft's §12: F1 (build
+order, a roadmap edit) is direction-level under #319.
 
-**Veldra's obligations request (roadmap Phase 0, the second ecosystem).**
-- **The clone.** A durable clone at `~/.felix/clones/veldra-main`, origin/main
-  `2430b1f`. The founder's `~/ReserveGrid-OS` backs the live soak and was only
-  read.
-- **The probes.** workspace_member 16, http_service 7, container_image 14,
-  ci_workflow 2, env_template 1, all found.
-- **The answer.** A Plan subagent answered, given the request and nothing
-  else, verbatim to `commission/obligations_surveyed.tsv`. Read back: 15
-  proposed, 15 current, 0 refused, 0 admitted.
-- **Against main.** All fifteen apply, and 13 evidence commands fail on main.
-- **The check.** Three agents took five candidates each, checking the code and
-  every record Veldra keeps; there was no refuting second agent this time.
-  - Nine candidates are recorded nowhere, so on Veldra this is recall and not
-    only calibration.
-  - Twelve are worth deciding and three are weak as written.
-  - Every checker can pass with its hole still open, as on Elenchus.
-  - The strongest are on the desktop release path: the updater signing key in
-    workflow-level env, and an update manifest that publishes empty
-    signatures.
-- **The founder's copy** is `~/.felix/memory/veldra/commission/pdf/candidates-checked.pdf`,
-  with the source, the verbatim verdicts and the answer file beside it. Roadmap
-  §5's signal (a second project yielding nothing a person would admit) did not
-  fire.
-- **A gap in the request itself.** The answerer could not read the doctrine:
-  Veldra's `.claude/CLAUDE.md` is gitignored, so a clone lacks it.
+**A carrier session is landing the no-escape queue** (task_d9dbaf89, "Carry the
+no-escape felix-home PR queue serially"): #315, #308 then #309's rebuild, #312
+and the snapshot, #267 (closing #265), efcfe13, closing #124, then #310/#311/#309
+green for one founder decision. Read its session before touching any of those.
 
-**Waiting on the founder** (`felix overnight --report`): the Elenchus and
-Veldra candidates' admission, then #310's verifier escape, then #304.
-
-**Next, unowned:**
-- control 7 (the coverage report) after #310;
-- the request naming a gitignored doctrine;
-- #308 and #309 (deny scope), still with their own session.
+**Next:**
+1. Finish the design: run the safety, mechanics and plan skeptics on the draft,
+   then the final revision (script:
+   `~/.claude/projects/-Users-a14808-Documents-Felix--claude-worktrees-recent-prs-commission-check-1429ca/edb8e650-6a60-467f-aa31-366db70e74e9/workflows/scripts/landing-actor-design-wf_a6cea05a-7ac.js`;
+   its phases after Synthesize can be run with the draft as input). Check the
+   draft against bd740748, which moved restart-moments 1a to the end of Phase 0
+   after the draft was written. Render the PDF, put F1-F5 to the founder.
+2. Build L1, then L2, one PR at a time behind the carrier's queue.
+3. The founder's open items are the queue PDF's §1-§4; the most blocking are the
+   Elenchus `felix commission` (#17 and #19 wait on it), Elenchus #22, and one
+   yes/no on #309/#310/#311 followed by `felix autonomy --allow commission`.
 
 **Traps paid for this session:**
 
-- A mode that changes what a stop does must be keyed by the session that
-  asked for it; per-project state was harmless only while sessions were one.
-- The deny row that refuses a hand-written `.felix` marker refuses one in a
-  scratch clone too; a clone resolves by `remote_match` without one.
-- A background suite copies the harness when it starts, so it tests the code
-  as it was then. Restart it after an edit, or it records a stale manifest.
-- A queued engine PR's `red.tsv` goes stale at every merge ahead of it, and
-  an out-of-order merge takes your version silently. Record after the last
-  merge ahead lands, and read main again immediately before `felix merge`.
-- The Workflow tool needs the founder's explicit opt-in. Three Agent calls do
-  the same fan-out without it.
-- `git merge --abort` refused on a file iCloud had touched: `git update-index
-  --refresh` first.
+- The session ran far past the ~500K restart line (memory
+  `session-lifetime-measured-2026-09-21`) because nothing checked; the founder
+  had to say so, and the process restart killed a running workflow. A long
+  orchestration session should check its size at each workflow boundary.
+- `felix merge --dry-run` writes an `escalated` row to says.log when an escape
+  is present, before it checks `--dry-run`. This session's triage wrote about 19
+  of them on 09-23 between 17:38Z and 18:52Z; they are not founder interruptions.
+- Workflow agents that make scratch worktrees register them in the shared repo,
+  with local branches that track real PR branches. Remove them when done (this
+  session removed 23).
+- Python-markdown needs a blank line before a list, four-space nesting, and no
+  fenced block inside a list item (it collapses to inline code). Check `<pre>`
+  counts before sending a PDF.
+- Resuming a workflow is same-session only; across a restart, read its
+  journal.jsonl (`result` records) and restart from the last completed phase.
+
 ---
 
 ## Index of earlier sections
@@ -132,6 +107,7 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0bv](docs/handoff/0bv.md) | 2026-09-23 (night) — overnight mode belongs to a session, #307 and #303 landed, the runner probe answered from a runner's own log, Veldra's blind request |
 | [0bu](docs/handoff/0bu.md) | 2026-09-23 — Phase 0: the Elenchus candidates checked, deny rows read the command the shell runs, three small items |
 | [0bt](docs/handoff/0bt.md) | 2026-09-22/23 — the table validator (queue item 2, step 1) shipped, and a rename that hid an escape |
 | [0bs](docs/handoff/0bs.md) | 2026-09-22/23 — Felix is a product for other people's projects, built first; the first obligations request answered blind; the roadmap |

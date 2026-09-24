@@ -4,12 +4,12 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	685a58937cd00840ec6a326fabb06afa740c8a1c	0.49.157
-run	7	3229	5
-and 4 where the .felix marker names a project that does not exist	1
-and the misbound job says the binding failed, not the ceiling	1
-and the unbound job says the binding failed, not the ceiling	1
-repair exits 4 in a checkout no project governs, not the ceiling's 2	1
-the shipped table considers every moment	1
-the unattended job on the misbound checkout fails and labels no pull request	1
-the unattended job on the unbound checkout fails and labels no pull request	1
+base	origin/main	bd740748c76510e1fffaffdf23192cb2a5c61a97	0.49.162
+run	7	3248	5
+a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds	1
+a flagged stop in a chain Felix did not start is judged, not waved through	1
+an unflagged stop clears a hold left behind	1
+and only that one: the rewake turn after it is judged	1
+and that hold is on the record	1
+and the hold a night made does not outlive it: the rewake turn after is judged	1
+and the record says why	1

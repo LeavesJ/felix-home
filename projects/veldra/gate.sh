@@ -42,61 +42,126 @@ CARGO_SCOPE="--workspace --exclude rg-desktop"
 
 echo "gate: $REPO_ROOT"
 
+# --------------------------------------------------------------- logs --------
+# Every log below is this run's own, made by mktemp, never a path another gate
+# can open. They were fixed paths under /tmp shared by every gate on the
+# machine, and several sessions gate worktrees at once: each opened the file
+# with O_TRUNC and wrote at its own offset, so a gate could print another
+# tree's clippy errors or failing tests. Measured 2026-09-21 on Felix's own
+# gate, which printed "2645 passed" for a suite that had passed 2586. The
+# verdict was never wrong, being each command's exit status; the evidence
+# under it could belong to another run. A log is deleted once nothing points
+# at it, and kept on a failure, where its path is printed.
+LOG_DIR="${TMPDIR:-/tmp}"; LOG_DIR="${LOG_DIR%/}"
+newlog() {
+  local f
+  f="$(mktemp "$LOG_DIR/rg-gate-$2.XXXXXX" 2>/dev/null)" && [ -n "$f" ] || return 1
+  printf -v "$1" '%s' "$f"
+}
+
 # ---------------------------------------------------------------- fmt --------
 # R-166: run the formatter, do not --check and hand-chase its complaints.
 # Rustfmt rewrites in place, so the gate reports what it touched for staging.
-if cargo fmt --all >/tmp/rg-gate-fmt.log 2>&1; then
-  FMT_DIRTY="$(git diff --name-only -- '*.rs')"
-  if [ -n "$FMT_DIRTY" ]; then
-    fail fmt
-    note "rewrote $(printf '%s\n' "$FMT_DIRTY" | wc -l | tr -d ' ') file(s); review and stage them"
-    printf '%s\n' "$FMT_DIRTY" | sed 's/^/    /'
-  else
-    pass fmt
-  fi
-else
+# Ask rustfmt what it WOULD rewrite, then rewrite, and report only what IT named.
+#
+# This used to run the formatter and then report `git diff --name-only --
+# '*.rs'`, which conflates "rustfmt rewrote this" with "this file has
+# uncommitted work". Mid-task that is every .rs file being edited, so the check
+# went red and listed files rustfmt never touched. Elenchus's gate had the same
+# defect and fixed it 2026-08-05. --check prints `Diff in <path>:<line>:` once
+# per hunk, the path absolute and canonical, so /tmp arrives as /private/tmp on
+# macOS: checked 2026-09-21 against rustfmt on toolchains 1.85, 1.92 (the
+# pin) and stable. A file with two hunks is named twice and listed once.
+FMT_CHECK_LOG=""; FMT_LOG=""
+if ! newlog FMT_CHECK_LOG fmt-check || ! newlog FMT_LOG fmt; then
   fail fmt
-  tail -20 /tmp/rg-gate-fmt.log | sed 's/^/    /'
+  note "could not make a log file under $LOG_DIR"
+  rm -f "$FMT_CHECK_LOG"
+else
+  cargo fmt --all -- --check >"$FMT_CHECK_LOG" 2>&1
+  FMT_CHECK_STATUS=$?
+  WOULD_FMT="$(FMT_P="$(pwd -P)/" FMT_L="$REPO_ROOT/" awk '
+    /^Diff in .*:[0-9]+:$/ {
+      p = substr($0, 9); sub(/:[0-9]+:$/, "", p)
+      if (index(p, ENVIRON["FMT_P"]) == 1) p = substr(p, length(ENVIRON["FMT_P"]) + 1)
+      else if (index(p, ENVIRON["FMT_L"]) == 1) p = substr(p, length(ENVIRON["FMT_L"]) + 1)
+      if (!seen[p]++) print p
+    }' "$FMT_CHECK_LOG")"
+  if ! cargo fmt --all >"$FMT_LOG" 2>&1; then
+    fail fmt
+    tail -20 "$FMT_LOG" | sed 's/^/    /'
+    note "full log: $FMT_LOG"
+    rm -f "$FMT_CHECK_LOG"
+  elif [ "$FMT_CHECK_STATUS" -eq 0 ]; then
+    pass fmt
+    rm -f "$FMT_CHECK_LOG" "$FMT_LOG"
+  elif [ -n "$WOULD_FMT" ]; then
+    fail fmt
+    note "rustfmt rewrote $(printf '%s\n' "$WOULD_FMT" | wc -l | tr -d ' ') file(s); review and stage them"
+    printf '%s\n' "$WOULD_FMT" | sed 's/^/    /'
+    rm -f "$FMT_CHECK_LOG" "$FMT_LOG"
+  else
+    # rustfmt wanted changes but this parse did not recognise its output. The
+    # `Diff in` shape is coupled to the rustfmt version, so its failure mode
+    # must be a loud gate, never a silent green one.
+    fail fmt
+    note "cargo fmt --check exited $FMT_CHECK_STATUS but no filename parsed"
+    note "full log: $FMT_CHECK_LOG"
+    note "the Diff in parse above needs updating for this rustfmt"
+    rm -f "$FMT_LOG"
+  fi
 fi
 
 # ------------------------------------------------------------- clippy --------
 # --all-targets is load bearing: it covers integration tests in tests/, which
 # lib-only and bin-only invocations skip. --workspace is load bearing: per crate
 # invocations skip cross crate doc references.
-if cargo clippy $CARGO_SCOPE --all-targets -- -D warnings >/tmp/rg-gate-clippy.log 2>&1; then
+CLIPPY_LOG=""
+if ! newlog CLIPPY_LOG clippy; then
+  fail clippy
+  note "could not make a log file under $LOG_DIR"
+elif cargo clippy $CARGO_SCOPE --all-targets -- -D warnings >"$CLIPPY_LOG" 2>&1; then
   pass clippy
+  rm -f "$CLIPPY_LOG"
 else
   fail clippy
-  grep -E '^(error|warning)' /tmp/rg-gate-clippy.log | head -20 | sed 's/^/    /'
-  note "full log: /tmp/rg-gate-clippy.log"
+  grep -E '^(error|warning)' "$CLIPPY_LOG" | head -20 | sed 's/^/    /'
+  note "full log: $CLIPPY_LOG"
 fi
 
 # --------------------------------------------------------------- test --------
+TEST_LOG=""
 if [ "$QUICK" -eq 1 ]; then
   printf '  %-18s skipped (--quick)\n' test
+elif ! newlog TEST_LOG test; then
+  fail test
+  note "could not make a log file under $LOG_DIR"
+elif cargo test $CARGO_SCOPE >"$TEST_LOG" 2>&1; then
+  pass test
+  rm -f "$TEST_LOG"
 else
-  if cargo test $CARGO_SCOPE >/tmp/rg-gate-test.log 2>&1; then
-    pass test
-  else
-    fail test
-    grep -E '^(test .* FAILED|failures:|error)' /tmp/rg-gate-test.log | head -20 | sed 's/^/    /'
-    note "full log: /tmp/rg-gate-test.log"
-  fi
+  fail test
+  grep -E '^(test .* FAILED|failures:|error)' "$TEST_LOG" | head -20 | sed 's/^/    /'
+  note "full log: $TEST_LOG"
 fi
 
 # ------------------------------------------------------------ secrets --------
 # gitleaks is already pinned in .pre-commit-config.yaml. If it is not installed
 # the gate says so rather than quietly passing a check it never ran.
-if command -v gitleaks >/dev/null 2>&1; then
-  if gitleaks protect --staged --no-banner >/tmp/rg-gate-leaks.log 2>&1; then
-    pass secrets
-  else
-    fail secrets
-    tail -20 /tmp/rg-gate-leaks.log | sed 's/^/    /'
-  fi
-else
+LEAKS_LOG=""
+if ! command -v gitleaks >/dev/null 2>&1; then
   fail secrets
   note "gitleaks not installed; brew install gitleaks"
+elif ! newlog LEAKS_LOG leaks; then
+  fail secrets
+  note "could not make a log file under $LOG_DIR"
+elif gitleaks protect --staged --no-banner >"$LEAKS_LOG" 2>&1; then
+  pass secrets
+  rm -f "$LEAKS_LOG"
+else
+  fail secrets
+  tail -20 "$LEAKS_LOG" | sed 's/^/    /'
+  note "full log: $LEAKS_LOG"
 fi
 
 # ------------------------------------------------------- private-docs --------

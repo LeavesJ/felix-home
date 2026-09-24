@@ -1,0 +1,4 @@
+# Human steps for bazaar. Seeded by felix new.
+#
+# id	title	capability	check
+fund-deployer	Send about 0.1 Base Sepolia test ETH to the deployer address in .env (DEPLOYER_ADDRESS)	always	PATH="$HOME/.foundry/bin:$PATH" cast balance "$(grep '^DEPLOYER_ADDRESS=' .env | cut -d= -f2)" --rpc-url https://sepolia.base.org 2>/dev/null | grep -qvE '^0$'

@@ -1,0 +1,8 @@
+# Human steps for sv2-apps. Rewritten 2026-09-22: this is an UPSTREAM clone J
+# contributes to, not a repo J owns, so the seeded owner steps (labels, CI secrets)
+# did not apply and were removed.
+#
+# id	title	capability	check
+fork	Fork stratum-mining/sv2-apps to LeavesJ/sv2-apps and add it as the 'fork' remote (origin stays upstream)	always	git -C "$HOME/Documents/cash-ops-work/sv2-apps" remote get-url fork 2>/dev/null | grep -q 'LeavesJ/sv2-apps'
+commit-email	Decide the author email for upstream commits (GitHub noreply, or accept the Berkeley address going public)	always	git -C "$HOME/Documents/cash-ops-work/sv2-apps" config user.email | grep -qE 'users\.noreply\.github\.com$' || [ "$(git -C "$HOME/Documents/cash-ops-work/sv2-apps" config --get contrib.emailok)" = true ]
+commit-signing	Optional: set up SSH or GPG commit signing (CONTRIBUTING.md says "if possible")	always	git -C "$HOME/Documents/cash-ops-work/sv2-apps" config commit.gpgsign | grep -q true

@@ -1,0 +1,6 @@
+{
+  "name": "sv2-apps",
+  "remote_match": "stratum-mining/sv2-apps",
+  "gate": "gate.sh",
+  "maturity": "production"
+}

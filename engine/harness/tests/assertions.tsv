@@ -43,7 +43,7 @@
 1	a -c script whose here-document body runs past the first 64K goes on after the body to its closing quote, over 256K as under it: the runner there is a check
 1	a 200K Write holding 2,000 escaped quotes is refused on its path through the hook inside twenty seconds
 1	a 44K command with 8,000 escaped quotes is refused through the hook inside twenty seconds
-1	a 6 MB command holding 300,000 backslashes is read in seconds, with the default checks and with a --verify that holds a backslash: under 10 each
+1	a 6 MB command holding 300,000 backslashes is read in seconds, with the default checks and with a --verify that holds a backslash: under 5 seconds of CPU each
 1	a << that opens no here-document, a shift or one in quotes, reads the same on either side of 256K: the runner after it is a check, and a sed -i after a check leaves the stop stale
 1	a CLI that fails is exit 3 and no rows
 1	a CLI that prints an error and exits 0 is exit 3 and no rows too
@@ -408,7 +408,7 @@
 1	a medium one is refused
 1	a medium row a person declared installs, as it always has
 1	a medium row the engine grounded waits for a person
-1	a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds
+1	a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 5 seconds of CPU
 1	a memory directory the recorder cannot write leaves the hook's exit 0 and its banner as it was
 1	a merge in progress is a person's, and the pulse says so
 1	a merge is blocked while the project reads nothing from reality
@@ -1661,7 +1661,7 @@
 1	and reads its words off the capability probe
 1	and reads only mcp rows
 1	and reads stale whatever its age
-1	and reads them in under 30 seconds
+1	and reads them in under 5 seconds of CPU
 1	and recorded nowhere
 1	and recording the run does not put it back
 1	and records neither
@@ -3303,6 +3303,7 @@
 1	the scanner's own code names no project
 1	the schema check is behind the verifier confine
 1	the scoped fixture has its worktree, its clone and its links
+1	the scoped fixture lies under the TMPDIR the suite was given
 1	the scoped table reads as eight rows with their scopes
 1	the second is a tree id, forty hex
 1	the second session is still bound
@@ -3375,7 +3376,7 @@
 1	thirteen fields per row
 1	this engine's version is above origin/main's when this tree holds commits origin/main lacks
 1	this repository's every table is declared and accepted
-1	three 5 MB commands dense in << or in line breaks are read in seconds, not minutes, and each still passes: under 30 for the three
+1	three 5 MB commands dense in << or in line breaks are read in seconds, not minutes, and each still passes: under 10 seconds of CPU for the three
 1	three groups from four tasks
 1	tree identity is computable
 1	tree identity survives an unborn HEAD

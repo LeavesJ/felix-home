@@ -4,18 +4,5 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	f1a883c6090abbc2c2dedb43ca62c9f9fa1272b1	0.49.162
-run	13	3230	5
-a green branch stops the shipped step at scope, read from the real felix repair	1
-a reached repair ceiling is escalated to a person	1
-and on a branch the gate has never run on	1
-and on a gate run still in progress	1
-and only nothing to repair tells the report so, under the name the report reads	1
-and the misbound job says the binding failed, not the ceiling	1
-and the unbound job says the binding failed, not the ceiling	1
-felix repair exits 5, nothing to repair, on a green gate run	1
-felix repair refuses a detached checkout rather than finding nothing to repair on HEAD	1
-nothing to repair ends the job clean: not acted on, not failed, not escalated	1
-the unattended job on the misbound checkout fails and labels no pull request	1
-the unattended job on the unbound checkout fails and labels no pull request	1
-the unattended repair proceeds on a brief, and on no other exit of felix repair	1
+base	origin/main	1375e6eec239217a1223b5faef76bd7fab888053	0.49.164
+run	0	3243	5

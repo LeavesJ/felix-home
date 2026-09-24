@@ -982,9 +982,14 @@ is  "and 4 where the .felix marker names a project that does not exist" "$rc" "4
 has "and names the broken binding rather than asking for a marker" "$out" "nonexistent"
 
 printf '\nissue intake\n'
-# The first of the two p41 exit criteria nothing met: take an issue. Mirrors
-# felix repair exactly - brief on stdout, scope verdict in the exit code - so
-# unattended.yml, which already branches on `rc != 3`, consumes it unchanged.
+# The first of the two p41 exit criteria nothing met: take an issue. felix brief
+# keeps felix repair's shape - brief on stdout, scope verdict in the exit code.
+# Read through the mapping unattended.yml gives repair, 0 is every brief to act
+# on, the one naming no real file included, and proceeds; 3 is a red path and
+# escalates; 1 is an issue that could not be read and fails the job. Its 2 is an
+# unresolved binding, before any brief exists, and that mapping would escalate
+# it as a spent ceiling: repair exits 4 there since #321, brief still exits 2.
+# No template calls felix brief yet.
 mkdir -p "$REPO/src"
 printf 'x\n' > "$REPO/src/widget.py"
 cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
@@ -1835,6 +1840,138 @@ out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"; rc=$?
 is  "and reports a clear merge without performing one" "$rc" "0"
 has "saying so plainly"                                "$out" "nothing escapes"
 _reset
+
+# A stale commission receipt is not work Felix owes. Observed 2026-09-23 in
+# the worktree for #306, gate and CI green: #298 had added rows to risk.tsv, a
+# commissioning table, so the receipt was stale, and `felix merge --dry-run`
+# closed with "none of it is a founder decision. It is work Felix owes: run
+# the gate". A session told the work was its own re-ran a gate that had
+# passed, or read it as licence to commission. What clears the receipt is a
+# commission run, which is the founder's (§0aq, §0bl), and who makes it turns
+# on the commission grant, which the receipt never reads: a grant stamped over
+# tables that have since moved runs nothing until the founder re-arms it, a
+# current one runs at the next session start, and with none the run is
+# simply theirs. Felix never writes a project's autonomy file.
+#
+# The real case first, through the real libraries: a grant and a receipt
+# stamped over the same tables, then a commissioning table moves under both,
+# the gate is recorded over the moved tables, and the receipt is not
+# re-stamped, so it is the one blocker left.
+_mlacks() { case "$2" in *"$3"*) bad "$1" "$2" ;; *) ok "$1" ;; esac; }
+_mgrant() { ( . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/autonomy.sh"
+              felix_autonomy_commission_current "$FROOT/projects/widget" && echo current || echo stale ); }
+printf 'ordinary\n' > "$REPO/README.md"; _stage
+cp "$FROOT/projects/widget/risk.tsv" "$TMP/risk.cm.keep"
+_cm_stamp
+( cd "$REPO" && "$FELIX" autonomy --allow commission >/dev/null 2>&1 )
+is  "the widget's commission grant covers the tables before one moves" "$(_mgrant)" "current"
+printf '# a row added under the commission receipt\n' >> "$FROOT/projects/widget/risk.tsv"
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+is  "and once it has, the grant no longer covers them"                 "$(_mgrant)" "stale"
+is  "a table moved under the commission receipt is the branch's only blocker" \
+    "$(_blk | cut -f1,2)" "commission	receipt"
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"; rc=$?
+is  "felix merge refuses on a stale commission receipt alone" "$rc" "3"
+has "and says the merge waits for the founder"                "$out" "waits for the founder"
+is  "naming the grant they re-arm, on a line of its own" \
+    "$(printf '%s\n' "$out" | grep -cx '  felix autonomy --allow commission')" "1"
+is  "and the commission run after it" \
+    "$(printf '%s\n' "$out" | grep -A1 -x '  felix autonomy --allow commission' | tail -1)" "  felix commission"
+_mlacks "and does not call it work Felix owes"                "$out" "work Felix owes"
+_mlacks "nor say that none of it is a founder decision"       "$out" "none of it is a founder decision"
+
+# Beside a blocker that is Felix's, each is said about its own: the commission
+# is still the founder's, and the red gate is still Felix's to run again.
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 1 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+has "a red gate beside the stale receipt is listed too"             "$out" "unverified"
+has "and the commission is still named as the founder's"            "$out" "waits for the founder"
+has "while the red gate is handed back as work Felix owes"          "$out" "work Felix owes"
+_mlacks "without claiming that none of it is a founder decision"    "$out" "none of it is a founder decision"
+
+# Re-armed over the moved tables, the grant is current and the receipt still
+# is not: the next session start re-commissions, so re-arming is not asked for
+# again, and it is still not a session's to do by hand.
+( cd "$REPO" && "$FELIX" autonomy --allow commission >/dev/null 2>&1 )
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+is  "a grant re-armed over the moved tables is current, and the receipt still the one blocker" \
+    "$(_mgrant) $(_blk | cut -f1,2)" "current commission	receipt"
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+has "under a current grant it says the next session start re-commissions" \
+    "$out" "next session started in this"
+_mlacks "and asks for no re-arm the grant does not need"            "$out" "felix autonomy --allow commission"
+_mlacks "and is still not work Felix owes"                          "$out" "work Felix owes"
+
+# With no grant the run is the founder's alone, and naming the grant would be
+# asking for a standing consent to unattended runs that this merge does not
+# need: felix commission by hand clears the receipt without one.
+( cd "$REPO" && "$FELIX" autonomy --revoke commission >/dev/null 2>&1 )
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+has "with no grant the merge still waits for the founder"           "$out" "waits for the founder"
+is  "naming the commission run on a line of its own" \
+    "$(printf '%s\n' "$out" | grep -cx '  felix commission')" "1"
+_mlacks "and asks for no grant the merge does not need"             "$out" "felix autonomy --allow commission"
+_mlacks "and is not work Felix owes either"                         "$out" "work Felix owes"
+rm -f "$FROOT/projects/widget/autonomy" "$FROOT/projects/widget/autonomy.commission"
+cp "$TMP/risk.cm.keep" "$FROOT/projects/widget/risk.tsv"
+_reset
+is "the widget's risk table is exactly as this section found it, and it has no grant" \
+   "$(diff -q "$TMP/risk.cm.keep" "$FROOT/projects/widget/risk.tsv" >/dev/null && echo same) $(ls "$FROOT/projects/widget" | grep -c '^autonomy')" \
+   "same 0"
+
+# Then every kind, one at a time, through the CLI with the library's blockers
+# replaced by exactly that line, so the assertion is on what cmd_merge says
+# for the kind and not on whether this fixture can be made to raise it. The
+# kinds are read out of escape.sh first: cmd_merge files anything it does not
+# name under work Felix owes, so a kind or a commission subject added there
+# without a place here would land in that paragraph unannounced.
+_mkinds="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+             | grep -o "printf '[a-z]*\\\\t" | sed "s/printf '//; s/\\\\t\$//" | LC_ALL=C sort -u | tr '\n' ' ')"
+is "felix_merge_blockers emits exactly the kinds cmd_merge places" \
+   "$_mkinds" "commission escape evidence obligations probes unknown unverified "
+_mcsubj="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+             | grep -o "printf 'commission\\\\t[a-z]*" | sed "s/.*\\\\t//" | LC_ALL=C sort -u | tr '\n' ' ')"
+is "and commission blockers carry exactly the subjects cmd_merge places" "$_mcsubj" "engine receipt table "
+
+cp "$FROOT/harness/lib/escape.sh" "$TMP/esc.keep"
+printf 'felix_merge_blockers() { cat "%s"; }\n' "$TMP/mblk.tsv" >> "$FROOT/harness/lib/escape.sh"
+_mclose() { printf "$1" > "$TMP/mblk.tsv"; ( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 ); }
+printf 'ordinary\n' > "$REPO/README.md"; _stage
+
+for _mk in 'unverified\ttree\tno green receipt for this exact tree; run felix gate' \
+           'evidence\tunit\tcode changes need a test' \
+           'probes\tmarker\tempty: nothing read' \
+           'obligations\tfixture\tRELEASE_BLOCKING deterministic: not discharged' \
+           'commission\tengine\tthe commissioning library is not loaded, so nothing was asked of this project'; do
+  _mn="$(printf "$_mk" | cut -f1-2 | tr '\t' ' ')"
+  out="$(_mclose "$_mk\n")"
+  has "the $_mn blocker is work Felix owes"                    "$out" "work Felix owes"
+  _mlacks "and the $_mn blocker names no commission run"       "$out" "The commission is not"
+done
+
+out="$(_mclose 'commission\treceipt\tnever commissioned on this machine\n')"
+has "a missing commission receipt waits for the founder"          "$out" "waits for the founder"
+_mlacks "and is not work Felix owes"                               "$out" "work Felix owes"
+out="$(_mclose 'commission\ttable\tthis project was never commissioned; write projects/widget/commissioning.tsv (felix commission says how)\n')"
+has "a commission table blocker waits for the founder too"        "$out" "waits for the founder"
+has "and says the table is put right before the commission runs" "$out" "table named above right first"
+_mlacks "and is not called work Felix owes"                        "$out" "work Felix owes"
+out="$(_mclose 'unknown\tno-such-ref\tthe base names nothing this repository holds\n')"
+has "an unknown base still says nothing was compared"             "$out" "Nothing was compared"
+_mlacks "and names no commission run"                              "$out" "The commission is not"
+out="$(_mclose 'escape\texecute\t.github/workflows/x.yml: runs on push\ncommission\treceipt\tstale (table set moved; run felix commission)\n')"
+has "an escape beside a stale receipt is still the founder's decision" "$out" "it is the founder who decides"
+is  "and the commission run is named with it, so one visit clears both" \
+    "$(printf '%s\n' "$out" | grep -cx '  felix commission')" "1"
+_mlacks "and neither is work Felix owes"                                "$out" "work Felix owes"
+
+cp "$TMP/esc.keep" "$FROOT/harness/lib/escape.sh"
+_reset
+is "the fixture's escape.sh is exactly the engine's again" \
+   "$(diff -q "$REAL_HARNESS/lib/escape.sh" "$FROOT/harness/lib/escape.sh" >/dev/null && echo same)" "same"
 
 printf '\na surface no test can judge\n'
 # Some changes are revert-complete, touch no store and reach no stranger, and
@@ -2779,6 +2916,17 @@ if ! command -v jq >/dev/null 2>&1; then
            "and every run list felix repair makes names the gate workflow" \
            "felix repair stops at the ceiling when its attempts cannot be counted" \
            "and hands on no failing output as if attempts remained" \
+           "felix repair exits 5, nothing to repair, on a green gate run" \
+           "and on a gate run still in progress" \
+           "and on a branch the gate has never run on" \
+           "felix repair refuses a detached checkout rather than finding nothing to repair on HEAD" \
+           "a gate run that completed without failing is nothing to repair, and one that failed without a log is refused" \
+           "and none of them is handed on as a brief" \
+           "a timed-out gate run is repaired, as the ceiling counts it" \
+           "and its brief carries the failing output" \
+           "and the ceiling counts it with the failure behind it" \
+           "a failed run whose log cannot be read is refused, not briefed" \
+           "and says the log could not be read" \
            "felix automerge judges a green pull request by the gate's runs alone" \
            "and every run list felix automerge makes names the gate workflow" \
            "and felix unattended's streak row counts the gate's runs alone" \
@@ -2826,7 +2974,10 @@ case "$1 $2" in
         n++
       }
       END { print "]" }' "$WFSTUB_RUNS" | jq -r "$q" ;;
-  "run view") printf 'gate\tRun the gate\t2026-09-22T00:00:00.0000000Z Error: the widget test failed\n' ;;
+  # WFSTUB_NOLOG is a log GitHub no longer holds, or never did: gh answers and
+  # there is nothing in it.
+  "run view") [ -n "${WFSTUB_NOLOG:-}" ] \
+                || printf 'gate\tRun the gate\t2026-09-22T00:00:00.0000000Z Error: the widget test failed\n' ;;
 esac
 exit 0
 STUB
@@ -2943,6 +3094,67 @@ case "$out" in
   *)                   ok  "and hands on no failing output as if attempts remained" ;;
 esac
 
+# Nothing failing is not a brief. All three of these printed their sentence
+# and exited 0, the status of a brief to act on, and the unattended template
+# reads the status and nothing else.
+printf 'gate.yml\tgate\tfix/y\t211\tcompleted\tsuccess\n' > "$WFSTUB_RUNS"
+out="$(_wfcli repair)"; rc=$?
+is "felix repair exits 5, nothing to repair, on a green gate run" "$rc" "5"
+printf 'gate.yml\tgate\tfix/y\t212\tin_progress\t\n' > "$WFSTUB_RUNS"
+out="$(_wfcli repair)"; rc=$?
+is "and on a gate run still in progress" "$rc" "5"
+printf 'gate.yml\tgate\tfeat/x\t213\tcompleted\tfailure\n' > "$WFSTUB_RUNS"
+out="$(_wfcli repair)"; rc=$?
+is "and on a branch the gate has never run on" "$rc" "5"
+# A detached checkout's branch reads as HEAD, which no run is on, so it would
+# be the third case above for a branch nobody named.
+( cd "$WFR" && git checkout -q --detach )
+out="$(_wfcli repair)"; rc=$?
+is "felix repair refuses a detached checkout rather than finding nothing to repair on HEAD" "$rc" "1"
+( cd "$WFR" && git checkout -q fix/y )
+cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
+
+# The newest gate run completed and was neither green nor a failure. Only
+# success was caught, so every other conclusion GitHub gives fell through to a
+# brief, exit 0, which the unattended template acts on. It was also a run the
+# ceiling did not count then: felix_repair_attempts stopped at it, so the
+# ceiling read as unspent however many failures sat behind it. Here one does.
+# Repair acts on failure and timed_out; a run that completed without failing
+# is nothing to repair; and a run that failed without starting, or whose
+# conclusion is new to this code, has no log to read and is refused.
+_wfnewest() { printf 'gate.yml\tgate\tfix/y\t211\tcompleted\t%s\n' "$1"
+              printf 'gate.yml\tgate\tfix/y\t201\tcompleted\tfailure\n'; }
+_wfres=""; _wfbriefed=""
+for _c in cancelled skipped neutral stale action_required startup_failure some_later_state; do
+  _wfnewest "$_c" > "$TMP/wf.runs.$_c"
+  out="$( export WFSTUB_RUNS="$TMP/wf.runs.$_c"; _wfcli repair )"; rc=$?
+  _wfres="$_wfres $_c:$rc"
+  case "$out" in *"failing output"*|*"attempt(s) left"*) _wfbriefed="$_wfbriefed $_c" ;; esac
+done
+is "a gate run that completed without failing is nothing to repair, and one that failed without a log is refused" \
+   "$_wfres" " cancelled:5 skipped:5 neutral:5 stale:5 action_required:5 startup_failure:1 some_later_state:1"
+is "and none of them is handed on as a brief" "$_wfbriefed" ""
+_wfnewest timed_out > "$TMP/wf.runs.timed_out"
+out="$( export WFSTUB_RUNS="$TMP/wf.runs.timed_out"; _wfcli repair )"; rc=$?
+is  "a timed-out gate run is repaired, as the ceiling counts it" "$rc" "0"
+has "and its brief carries the failing output" "$out" "the widget test failed"
+has "and the ceiling counts it with the failure behind it" "$out" "attempts: 2 of"
+
+# A failed run whose log could not be read. The excerpt came back empty, so no
+# path was implicated, the red-path check never ran, and repair exited 0 with a
+# brief naming no path and carrying no failing output. Both ways it happens:
+# gh does not answer, and gh answers with nothing, as for a log GitHub has
+# expired.
+_wfnolog=""
+out="$( export WFSTUB_UNANSWERED='--log-failed'; _wfcli repair )"; rc=$?
+_wfnolog="$_wfnolog unanswered:$rc"
+case "$out" in *"attempt(s) left"*) _wfnolog="$_wfnolog(briefed)" ;; esac
+out="$( export WFSTUB_NOLOG=1; _wfcli repair )"; rc=$?
+_wfnolog="$_wfnolog empty:$rc"
+case "$out" in *"attempt(s) left"*) _wfnolog="$_wfnolog(briefed)" ;; esac
+is  "a failed run whose log cannot be read is refused, not briefed" "$_wfnolog" " unanswered:1 empty:1"
+has "and says the log could not be read" "$out" "log of run 201"
+
 : > "$WFSTUB_LOG"
 out="$(_wfcli automerge)"
 has "felix automerge judges a green pull request by the gate's runs alone" "$out" "clean  #7"
@@ -2992,12 +3204,19 @@ fi
 printf '\nthe unattended repair acts only on a brief\n'
 # The ceiling above is enforced by felix repair's exit status, and the one
 # thing that reads that status in CI is the scope step of
-# templates/unattended.yml. It proceeded on everything but 3, so exit 2,
-# CEILING REACHED, still spent the budget and handed a model the brief that
-# told it to stop: the ceiling held only as long as a model read a sentence.
+# templates/unattended.yml. It proceeded on everything but 3, so read under
+# plain bash, exit 2, CEILING REACHED, still spent the budget and handed a
+# model the brief that told it to stop: the ceiling held only as long as a
+# model read a sentence. Nothing to repair exited 0 until 2026-09-23, so a
+# green branch would have done the same with a brief saying nothing was wrong;
+# it exits 5 now.
 # The step is taken out of the shipped template as it stands and run against a
 # stub felix that exits with each status repair can return, with gh stubbed to
-# record what it is asked. Its brief goes to the fixture, not to /tmp.
+# record what it is asked. Its brief goes to the fixture, not to /tmp. It runs
+# under bash -e, as Actions runs a step that names no shell (the shell line of
+# every step in a gate run's log). Under plain bash it read every status; under
+# -e with pipefail it ended at felix repair's first non-zero one, so the
+# escalation asserted below had never run in CI.
 SC="$TMP/scope"; mkdir -p "$SC/repo" "$SC/felix/engine/harness" "$SC/bin"
 awk '/- name: Scope the failure/ { f = 1 } f && /^        run: \|/ { r = 1; next }
      r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' \
@@ -3007,27 +3226,79 @@ printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "%s/gh.log"\ncase "$1 $2" i
 chmod +x "$SC/felix/engine/harness/felix" "$SC/bin/gh"
 _scope() { : > "$SC/out"; : > "$SC/gh.log"
   ( cd "$SC/${2:-repo}" && SCOPE_RC="$1" GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
-      bash "$SC/step.sh" ) >/dev/null 2>"$SC/err"; }
-_sres=""
-for _r in 0 1 2 3 4; do
+      bash -e "$SC/step.sh" ) >/dev/null 2>"$SC/err"; }
+_sres=""; _snot=""
+for _r in 0 1 2 3 4 5; do
   _scope "$_r"; _src=$?
   _sres="$_sres $_r:$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
+  _snot="$_snot $_r:$(sed -n 's/^nothing=//p' "$SC/out" | head -1)"
   case "$_r" in
+    0) _s0brief="$(cat "$SC/brief.txt" 2>/dev/null)" ;;
     1) _s1rc="$_src" ;;
     2) _s2gh="$(cat "$SC/gh.log")" ;;
+    3) _s3gh="$(cat "$SC/gh.log")" ;;
+    5) _s5rc="$_src"; _s5gh="$(cat "$SC/gh.log")"
+       _s5p="$(sed -n 's/^proceed=//p' "$SC/out" | head -1)" ;;
   esac
 done
-is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no 4:no"
+is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no 4:no 5:no"
+is  "and the brief it proceeds on is the file the repair step hands a model" "$_s0brief" "brief"
 has "a reached repair ceiling is escalated to a person" "$_s2gh" "pr edit 7 --add-label needs-founder"
+has "a failure on a red path is escalated to a person" "$_s3gh" "pr edit 7 --add-label needs-founder"
 [ "${_s1rc:-0}" -ne 0 ] && ok  "a run felix repair could not read fails the job rather than passing quietly" \
                         || bad "a run felix repair could not read fails the job rather than passing quietly" "exit ${_s1rc:-?}"
+[ "${_s5rc:-1}" -eq 0 ] && [ "${_s5p:-}" = "no" ] && [ -z "${_s5gh:-}" ] \
+  && ok  "nothing to repair ends the job clean: not acted on, not failed, not escalated" \
+  || bad "nothing to repair ends the job clean: not acted on, not failed, not escalated" \
+         "exit ${_s5rc:-?}, proceed=${_s5p:-(unset)}, gh asked: ${_s5gh:-nothing}"
+# Under the name the report reads: every steps.scope.outputs key the template
+# reads is one the step writes, since an output never written reads as empty.
+_sread="$(grep -o 'steps\.scope\.outputs\.[a-z_]*' "$REAL_HARNESS/templates/unattended.yml" \
+          | sed 's/.*\.//' | sort -u)"
+_sunwritten=""
+for _k in $_sread; do grep -q "echo \"$_k=" "$SC/step.sh" || _sunwritten="$_sunwritten $_k"; done
+[ "$_snot" = " 0: 1: 2: 3: 4: 5:yes" ] && [ -z "$_sunwritten" ] \
+  && ok  "and only nothing to repair tells the report so, under the name the report reads" \
+  || bad "and only nothing to repair tells the report so, under the name the report reads" \
+         "written:$_snot; read and never written:${_sunwritten:- none}"
+
+# The step above branches on felix repair's statuses, and the engine answering
+# is whatever the Felix checkout fetched. With no ref that was the default
+# branch on the day the job ran, and those statuses changed four times on
+# 2026-09-23 under copies that had not changed. The pin is what keeps a copy
+# and the engine it reads on the same commit.
+_sfx="$(grep -A1 'repository: {{FELIX_REPO}}' "$REAL_HARNESS/templates/unattended.yml" | sed -n 2p)"
+is  "the unattended template checks Felix out at a pinned ref, not the default branch" \
+    "$(printf '%s' "$_sfx" | tr -d ' ')" "ref:'{{FELIX_REF}}'"
+
+# The two halves together: the real felix repair on a green branch, read by the
+# step as shipped. Each half can pass its own assertions while the pair does
+# not, as when repair's status and the step's reading of it change apart.
+if command -v jq >/dev/null 2>&1; then
+  sed "s#\.\./felix/engine/harness/felix#$FELIX#" "$SC/step.sh" > "$SC/step-real.sh"
+  printf 'gate.yml\tgate\tfix/y\t211\tcompleted\tsuccess\n' > "$SC/runs"
+  : > "$SC/out"
+  ( cd "$WFR" && GITHUB_OUTPUT="$SC/out" BRANCH=fix/y WFSTUB_LOG="$SC/wf.log" \
+      WFSTUB_RUNS="$SC/runs" WFSTUB_WORKFLOWS="gate.yml" PATH="$WFB:$PATH" \
+      bash -e "$SC/step-real.sh" ) >/dev/null 2>&1; _serc=$?
+  _sep="$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
+  _sen="$(sed -n 's/^nothing=//p' "$SC/out" | head -1)"
+  [ "$_serc" -eq 0 ] && [ "$_sep" = "no" ] && [ "$_sen" = "yes" ] \
+    && ok  "a green branch stops the shipped step at scope, read from the real felix repair" \
+    || bad "a green branch stops the shipped step at scope, read from the real felix repair" \
+           "exit $_serc, proceed=${_sep:-(unset)}, nothing=${_sen:-(unset)}"
+else
+  skip "a green branch stops the shipped step at scope, read from the real felix repair" \
+       "no jq here to evaluate gh's -q expressions"
+fi
 
 # A checkout Felix cannot resolve, through the real felix repair rather than a
-# stub's chosen status. Resolution exited 2 there, which this step read as the
-# ceiling and escalated to a person under that reason. It is wiring, and true of
-# every branch at once, so the job fails, no pull request is labelled, and the
-# message names the binding. Both ways resolution fails: no project claims the
-# checkout, and a .felix marker names a project the home does not hold.
+# stub's chosen status. Resolution exited 2 there, which this step's case read
+# as the ceiling and escalated to a person under that reason. It is wiring,
+# and true of every branch at once, so the job fails, no pull request is
+# labelled, and the message names the binding. Both ways resolution fails: no
+# project claims the checkout, and a .felix marker names a project the home
+# does not hold.
 printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$FELIX" > "$SC/felix/engine/harness/felix"
 chmod +x "$SC/felix/engine/harness/felix"
 mkdir -p "$SC/unbound" "$SC/misbound"
@@ -3044,6 +3315,37 @@ for _w in unbound misbound; do
     *) bad "and the $_w job says the binding failed, not the ceiling" "$(cat "$SC/err")" ;;
   esac
 done
+
+printf '\nthe unattended repair says why it stopped before the model\n'
+# The attempt step installs the pinned claude-code with every line of npm's
+# output thrown away, and Actions runs a step that names no shell as `bash -e`.
+# A failed install therefore ended the step at that line with nothing printed,
+# after the budget step had already recorded the run's spend. The step is taken
+# out of the shipped template as it stands and run under `bash -e`, with npm
+# and claude stubbed.
+AT="$TMP/attempt"; mkdir -p "$AT/repo" "$AT/bin"
+awk '/- name: Attempt a repair/ { f = 1 } f && /^        run: \|/ { r = 1; next }
+     r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' \
+  "$REAL_HARNESS/templates/unattended.yml" | sed "s#/tmp/brief.txt#$AT/brief.txt#" > "$AT/step.sh"
+printf 'brief\n' > "$AT/brief.txt"
+cat > "$AT/bin/npm" <<'STUB'
+#!/usr/bin/env bash
+[ -z "${ATTEMPT_NPM_FAILS:-}" ] && exit 0
+printf 'npm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@anthropic-ai%%2fclaude-code\n' >&2
+exit 1
+STUB
+printf '#!/usr/bin/env bash\nprintf "claude\\n" >> "%s/claude.log"\n' "$AT" > "$AT/bin/claude"
+chmod +x "$AT/bin/npm" "$AT/bin/claude"
+_attempt() { : > "$AT/claude.log"
+  ( cd "$AT/repo" && ATTEMPT_NPM_FAILS="$1" PATH="$AT/bin:$PATH" bash -e "$AT/step.sh" ) > "$AT/out" 2>&1; }
+_attempt 1; _arc=$?
+[ "$_arc" -ne 0 ] && ok  "a failed install fails the repair step" \
+                  || bad "a failed install fails the repair step" "exit 0: $(cat "$AT/out")"
+has "and says the install failed rather than ending in silence" "$(cat "$AT/out")" "could not install"
+has "and passes on npm's own reason" "$(cat "$AT/out")" "E404"
+is  "and no model is run" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "0"
+_attempt ""
+is  "an install that succeeds goes on to the model" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "1"
 
 printf '\nunattended budget\n'
 # The ceiling worth having fails between runs, not during one, and counts

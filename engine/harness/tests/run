@@ -982,9 +982,14 @@ is  "and 4 where the .felix marker names a project that does not exist" "$rc" "4
 has "and names the broken binding rather than asking for a marker" "$out" "nonexistent"
 
 printf '\nissue intake\n'
-# The first of the two p41 exit criteria nothing met: take an issue. Mirrors
-# felix repair exactly - brief on stdout, scope verdict in the exit code - so
-# unattended.yml, which already branches on `rc != 3`, consumes it unchanged.
+# The first of the two p41 exit criteria nothing met: take an issue. felix brief
+# keeps felix repair's shape - brief on stdout, scope verdict in the exit code.
+# Read through the mapping unattended.yml gives repair, 0 is every brief to act
+# on, the one naming no real file included, and proceeds; 3 is a red path and
+# escalates; 1 is an issue that could not be read and fails the job. Its 2 is an
+# unresolved binding, before any brief exists, and that mapping would escalate
+# it as a spent ceiling: repair exits 4 there since #321, brief still exits 2.
+# No template calls felix brief yet.
 mkdir -p "$REPO/src"
 printf 'x\n' > "$REPO/src/widget.py"
 cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"

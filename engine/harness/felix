@@ -586,21 +586,28 @@ cmd_gate() {
   gnamed="$(grep -icE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null | tr -dc '0-9')"
   # A gate command that could not run at all (G1.3): 127 is the shell saying
   # it was not found, 126 that it was found and could not be executed. Nothing
-  # was tested, so it is not recorded as the gate shown failing, and the gate
-  # says so here, under the shell's own message and above the engine's lines,
-  # rather than leaving a person to read the status. A gate that named a
-  # failure before exiting 126 or 127 ran far enough to catch something, and
-  # is recorded as usual. The verdict does not change: the gate still exits
-  # non-zero and its receipt is red. Printed, never tee'd into the log, so no
-  # reader of the log can mistake it for a check. That a lone exit-5 or an
-  # engine-only failure still reads as shown failing is the rest of G1.3, and
-  # it is a change to the commissioning table, not here.
+  # was tested, so its status is not recorded as the gate shown failing, and
+  # the gate says so in a line of its own, rather than leaving a person to read
+  # the status. A gate that named a failure before exiting 126 or 127 ran far
+  # enough to catch something, and is recorded as usual. The verdict does not
+  # change: the gate still exits non-zero and its receipt is red. That a lone
+  # exit-5 or an engine-only failure still reads as shown failing is the rest
+  # of G1.3, and it is a change to the commissioning table, not here.
+  #
+  # Only the flag is taken here, and the line is printed after the recorder
+  # below. It used to be printed at this point, ending "this run is not
+  # recorded as the gate failing" before any engine check had run; an
+  # obligations or qualified check failing in the same run was then recorded
+  # under its own name, which gate_shown_failing counts, so the screen said the
+  # opposite of the row on disk. What the line says is now decided by what the
+  # recorder wrote. A gate whose output stopped mid-line still gets its newline
+  # here, so the first engine line is not glued onto the shell's text. Both are
+  # printed, never tee'd into the log, so no reader of the log can mistake them
+  # for a check.
+  local unrun=0
   if { [ "$grc" -eq 126 ] || [ "$grc" -eq 127 ]; } && [ "${gnamed:-0}" -eq 0 ]; then
+    unrun=1
     [ "$gbytes" -gt 0 ] && [ "$(tail -c 1 "$log" | od -An -tx1 | tr -d ' \n')" != "0a" ] && printf '\n'
-    case "$grc" in
-      127) printf 'gate: the gate command could not run (exit 127: a command it calls was not found), so nothing was tested and this run is not recorded as the gate failing\n' ;;
-      126) printf 'gate: the gate command could not run (exit 126: it was found but could not be executed), so nothing was tested and this run is not recorded as the gate failing\n' ;;
-    esac
   fi
   # Ground truth, for every project that has a table — asked by the engine
   # rather than by each project's gate script, so no gate has to be edited to
@@ -750,6 +757,9 @@ cmd_gate() {
   # lands after the healed ones. Silent, and it never moves $rc.
   felix_mem_mistakes_heal "$proj" >/dev/null 2>&1
 
+  # What the recorder wrote, empty when it wrote nothing; read by the
+  # could-not-run line after it.
+  local what="" recorded=""
   if [ "$rc" -ne 0 ]; then
     # Which checks failed, if the gate names them. Falls back to the exit status
     # rather than guessing, because an invented cause is worse than a vague one.
@@ -788,7 +798,7 @@ cmd_gate() {
     #
     # The project part's count is `gnamed`, taken above while the log held
     # nothing else.
-    local what pnames enames xtok=""
+    local pnames enames xtok=""
     pnames="$(head -c "$gbytes" "$log" 2>/dev/null \
          | grep -iE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' 2>/dev/null \
          | grep -viE 'FAIL[[:space:]]*\((structural)' \
@@ -803,7 +813,29 @@ cmd_gate() {
     if [ -n "$xtok" ] && [ -n "$enames" ]; then what="$xtok $enames"
     elif [ -n "$xtok" ]; then what="$xtok"
     else what="$pnames$enames"; fi
-    [ -n "$what" ] && felix_mem_mistake "$proj" "$root" "$what"
+    [ -n "$what" ] && felix_mem_mistake "$proj" "$root" "$what" && recorded="$what"
+  fi
+  # The line for a gate command that could not run, flagged above and said
+  # here, once the row is on disk or known not to be, so the sentence is the
+  # row. With no row it says nothing was recorded. With one, the command's own
+  # status is still absent from it, and what the row does hold can only be
+  # engine checks that failed beside it: the project named nothing, which is
+  # what made it unrunnable, and 126 and 127 give no exit-<status>. It names
+  # them rather than claiming none, because gate_shown_failing counts all of
+  # them but probes and commission, and a person who reads "not recorded" and
+  # then finds gate_shown_failing done has been told something false.
+  if [ "$unrun" -eq 1 ]; then
+    local why
+    case "$grc" in
+      127) why='exit 127: a command it calls was not found' ;;
+      *)   why='exit 126: it was found but could not be executed' ;;
+    esac
+    if [ -z "$recorded" ]; then
+      printf 'gate: the gate command could not run (%s), so nothing was tested and this run is not recorded as the gate failing\n' "$why"
+    else
+      printf 'gate: the gate command could not run (%s), so nothing was tested and its exit status is not recorded; mistakes.log records only the engine checks that failed beside it: %s\n' \
+        "$why" "$(printf '%s' "$recorded" | sed -e 's/[[:space:]]*$//' -e 's/  */, /g')"
+    fi
   fi
   # Which checks the gate said it skipped, read off its own report rather than
   # off the flags this command was given. A project gate that skips for its own
@@ -3232,12 +3264,18 @@ cmd_setup() {
   printf 'setup for %s\n\n' "$(basename "$proj")"
   # A dormant row carries a fourth field when it waits on something the
   # checkout lacks, today only a GitHub remote for a row that needs its slug
-  # (G5.1). Said instead of "not needed yet", which would be untrue of it.
+  # (G5.1). Said instead of "not needed yet", which would be untrue of it. A
+  # todo row carries one when Felix could not check it, because origin is a
+  # GitHub remote it cannot read one owner/name from. That row holds
+  # human_steps, and the person is owed the reason, or they do the step and
+  # find it still open.
   printf '%s\n' "$st" | while IFS=$'\t' read -r s id title why; do
     [ -n "${s:-}" ] || continue
     case "$s" in
       done)    printf '  [x] %-22s %s\n' "$id" "$title" ;;
-      todo)    printf '  [ ] %-22s %s\n' "$id" "$title" ;;
+      todo)
+        if [ -n "${why:-}" ]; then printf '  [ ] %-22s %s (%s)\n' "$id" "$title" "$why"
+        else printf '  [ ] %-22s %s\n' "$id" "$title"; fi ;;
       dormant)
         if [ -n "${why:-}" ]; then printf '  [-] %-22s %s (%s)\n' "$id" "$title" "$why"
         else printf '  [-] %-22s %s (not needed yet)\n' "$id" "$title"; fi ;;

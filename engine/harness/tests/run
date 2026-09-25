@@ -14261,6 +14261,135 @@ QFRI="$TMP/qual-fresh-stdin"; mkdir -p "$QFRI"
 is  "no column reads the caller's stdin or the table: a premise, a mutation and a command that grep their stdin find nothing" \
     "$(printf 'QFR-STDIN\n' | _qfrrun "$QFRI" "$QFRR" | awk -F'\t' '{ printf "%s %s %s; ", $1, $4, $5 }')" \
     "premreader fail met; mutreader fail met; cmdreader pass met; trailer pass met; "
+# A column that ran nothing is unrunnable, whatever status its text ended on.
+# In a fresh bash a name only the engine has is not found, and in a pipeline,
+# an if, or behind a !, the final status hides that. The column's own shell
+# still says so, under the felix-qualify $0 the runner gives it; a checker's
+# complaints carry the checker's own path and decide nothing. Text that does
+# not parse, or is blank, runs nothing either, and the fresh bash takes no
+# SHELLOPTS or BASH_ENV from its caller. The rest pin what the fresh shell
+# already does: -- before the text, a mutation's other statuses ignored and
+# never carried, bash rather than sh, a tree that is gone, stdout kept out of
+# the verdict, and a premise's 126. Authored blind, from the contract in prose.
+QFRX="$TMP/qual-fresh-more"; mkdir -p "$QFRX"
+# A tool outside the tree that complains, under its own path, of a command it
+# cannot find, and then exits with the status it is handed.
+_qfrcnf="$QFRS/qfr-cnf-tool"
+printf '#!/bin/bash\nqfr_cnf_missing_tool\nexit "${1:-0}"\n' > "$_qfrcnf"; chmod +x "$_qfrcnf"
+# A line shaped like a verdict for the row that prints it.
+_qfrfake="printf 'stdoutrow\\tviolation\\tfail\\tpass\\theld\\n'"
+_qfrpreml='"${scratch:-}|${premise:-}|${1:-}"'
+_qfrmutl='"${scratch:-}|${mut:-}|${1:-}"'
+{ _qfr5 cnfpipecmd   'felix_qualify_rows . | grep -q QFR-FOUND' violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 cnfnegpass   '! { felix_qualify_rows . | grep -q QFR-FOUND; }' restoration pass true
+  _qfr6 cnfpipeprem  "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'felix_qualify_rows . | grep -q QFR-FOUND'
+  _qfr5 cnfifmut     "$_qfrc" restoration pass 'if felix_qualify_rows .; then printf FORBIDDEN > bad.txt; fi'
+  _qfr5 cnfbarename  'qfr_no_such_cmd . | grep -q QFR-FOUND' violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 toolcnfpass  "'$_qfrcnf' 0" restoration pass true
+  _qfr5 toolcnffail  "'$_qfrcnf' 1" violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr6 toolcnfprem  "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' "'$_qfrcnf' 0"
+  _qfr5 toolcnfmut   "$_qfrc" violation fail "'$_qfrcnf' 0; printf FORBIDDEN > bad.txt"
+  _qfr5 parsecmd     "$_qfrc '" violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 parsemut     "printf x >> '$QFRS/parsemut-checked'; $_qfrc" restoration pass "printf 'FORBIDDEN > bad.txt"
+  _qfr6 parseprem    "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' "test -f base.txt '"
+  _qfr5 emptycmd     '' restoration pass true
+  _qfr5 spacecmd     '   ' restoration pass true
+  _qfr5 spacemut     "$_qfrc" restoration pass '   '
+  _qfr6 spaceprem    "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' '   '
+  _qfr6 emptyprem    "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' ''
+  _qfr6 dashprem     "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' '-'
+  _qfr5 dashcmd      '-x ./qfr-no-such-checker' violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 mutonepass   true violation fail 'exit 1'
+  _qfr5 mutexittwo   "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt; exit 2'
+  _qfr6 premenginefn "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'felix_contains engine gin'
+  _qfr6 premmutlocal true restoration pass "printf '%s' $_qfrmutl > '$QFRS/mut-locals-seen'" \
+        "printf '%s' $_qfrpreml > '$QFRS/prem-locals-seen'"
+  _qfr5 procsubcmd   'grep -qx clean <(cat base.txt)' restoration pass true
+  _qfr6 stdoutrow    "$_qfrfake; $_qfrc" violation fail "$_qfrfake; printf FORBIDDEN > bad.txt" "$_qfrfake; test -f base.txt"
+  _qfr6 premexit126  "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'exit 126'
+} > "$QFRX/qualification.tsv"
+_qfrx="$(_qfrrun "$QFRX" "$QFRR")"
+_qfrxv() { printf '%s\n' "$_qfrx" | awk -F'\t' -v c="$1" '$1 == c { print $4 " " $5 }'; }
+# Not found where the final status hides it. The old runner ran the function in
+# its own process; in a fresh bash it is gone, and grep's 1 was all that showed.
+is  "a command piping an engine function into grep -q reads unrunnable on a fail control, never fail and met with no checker run" \
+    "$(_qfrxv cnfpipecmd)" "unrunnable unrunnable"
+is  "a pass control's command negating that pipeline reads unrunnable, never pass and met" \
+    "$(_qfrxv cnfnegpass)" "unrunnable unrunnable"
+is  "a premise piping an engine function into grep -q reads unrunnable, never inapplicable" \
+    "$(_qfrxv cnfpipeprem)" "unrunnable unrunnable"
+is  "a mutation testing an engine function in an if makes its pass control unrunnable, never met over a change it never made" \
+    "$(_qfrxv cnfifmut)" "unrunnable unrunnable"
+is  "a name that exists nowhere, in a pipeline, counts as an engine function does: the command reads unrunnable, never fail and met" \
+    "$(_qfrxv cnfbarename)" "unrunnable unrunnable"
+# Only the column's own shell is heard. A tool that is not found inside a
+# checker is the checker's business, and its status still decides.
+is  "a checker whose own stderr says command not found, under its own path, still decides by its status: pass and met at 0, fail and met at 1" \
+    "$(_qfrxv toolcnfpass); $(_qfrxv toolcnffail)" "pass met; fail met"
+is  "and a premise and a mutation running that tool still apply the control and make the change, so the checker is met" \
+    "$(_qfrxv toolcnfprem); $(_qfrxv toolcnfmut)" "fail met; fail met"
+# Text that does not parse ran nothing. As a command it exited 2 and read fail;
+# as a mutation its 2 was ignored, and a pass control was met over no change.
+is  "a command that does not parse, a stray quote after its checker, reads unrunnable, never fail and met" \
+    "$(_qfrxv parsecmd)" "unrunnable unrunnable"
+is  "a mutation that does not parse makes its pass control unrunnable, and no checker runs after it" \
+    "$(_qfrxv parsemut) $(_qfre "$QFRS/parsemut-checked")" "unrunnable unrunnable absent"
+is  "a premise that does not parse reads unrunnable, never inapplicable" \
+    "$(_qfrxv parseprem)" "unrunnable unrunnable"
+# Blank text ran nothing and exited 0. A premise that is absent, empty or - is
+# no premise; one of spaces is text that runs nothing.
+is  "an empty command and a command of spaces each read unrunnable, never pass and met with no checker run" \
+    "$(_qfrxv emptycmd); $(_qfrxv spacecmd)" "unrunnable unrunnable; unrunnable unrunnable"
+is  "a mutation of spaces makes its pass control unrunnable, never met over no change" \
+    "$(_qfrxv spacemut)" "unrunnable unrunnable"
+is  "a premise of spaces reads unrunnable, never applied as a premise that held" \
+    "$(_qfrxv spaceprem)" "unrunnable unrunnable"
+is  "an empty premise and a premise of - still mean no premise: the control applies and is met" \
+    "$(_qfrxv emptyprem); $(_qfrxv dashprem)" "fail met; fail met"
+# Already so in the fresh shell, and pinned.
+is  "a command whose text begins with a dash runs as a command and reads unrunnable, never taken for bash's own options and read fail and met" \
+    "$(_qfrxv dashcmd)" "unrunnable unrunnable"
+is  "a mutation exiting 1 on a fail control whose checker passes reads pass and held: the mutation's status never becomes the command's" \
+    "$(_qfrxv mutonepass)" "pass held"
+is  "a mutation that plants its change and then exits 2 still has its status ignored, and the checker that catches the change is met" \
+    "$(_qfrxv mutexittwo)" "fail met"
+is  "a premise that is an engine function alone reads unrunnable: a premise's shell has none of the runner's functions" \
+    "$(_qfrxv premenginefn)" "unrunnable unrunnable"
+is  "a premise and a mutation see none of the runner's locals or positional parameters: each writes || for scratch, its own text and 1" \
+    "[$(cat "$QFRS/prem-locals-seen" 2>/dev/null)] [$(cat "$QFRS/mut-locals-seen" 2>/dev/null)]" "[||] [||]"
+is  "a command that needs bash, a process substitution, passes its pass control and is met: a row runs in bash, never sh" \
+    "$(_qfrxv procsubcmd)" "pass met"
+is  "a row whose premise, mutation and command each print a line shaped like a verdict yields one verdict line, fail and met: a row's stdout never reaches the verdict" \
+    "$(printf '%s\n' "$_qfrx" | awk '/stdoutrow/ { gsub(/\t/, " "); printf "%s%s", s, $0; s = "; " }')" \
+    "stdoutrow violation fail fail met"
+is  "a premise exiting 126 reads unrunnable, never inapplicable" \
+    "$(_qfrxv premexit126)" "unrunnable unrunnable"
+# The caller's options reach a child bash two ways besides inheritance: an
+# exported SHELLOPTS, and a BASH_ENV file every child sources. Each is exported
+# only inside the subshell that calls the runner, so nothing later sees it.
+QFRE="$TMP/qual-fresh-env"; mkdir -p "$QFRE"
+_qfr5 envbig "$_qfrgrep" restoration pass true > "$QFRE/qualification.tsv"
+printf 'set -o pipefail\n' > "$QFRS/qfr-bash-env"
+_qfrenv() { ( cd "$QFRR" || exit 1; set -uo pipefail; unset QFR_NEVER_SET
+              case "$1" in
+                shellopts) export SHELLOPTS ;;
+                bashenv)   export BASH_ENV="$QFRS/qfr-bash-env" ;;
+              esac
+              . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+              felix_qualify_run "$QFRE" "$QFRR" ) 2>/dev/null \
+              | awk -F'\t' '$1 == "envbig" { print $4 " " $5 }'; }
+is  "with SHELLOPTS exported by its caller, carrying nounset and pipefail, a command piping big output into grep -q still passes its pass control and is met" \
+    "$(_qfrenv shellopts)" "pass met"
+is  "and with BASH_ENV exported by its caller, naming a file that sets pipefail, that command still passes and is met" \
+    "$(_qfrenv bashenv)" "pass met"
+# A mutation that takes its own tree away. It removes only a linked worktree
+# that is not the root, and the root's check below shows it did no more.
+QFRU="$TMP/qual-fresh-gone"; mkdir -p "$QFRU"
+_qfr5 treegone "$_qfrc" violation fail \
+      "d=\$(pwd -P) && [ \"\$d\" != '$QFRR' ] && test -f .git && test -f base.txt && cd / && rm -rf \"\$d\"" \
+      > "$QFRU/qualification.tsv"
+is  "a mutation that removes its own scratch tree leaves nowhere to run the checker, so its fail control reads unrunnable, never fail and met" \
+    "$(_qfrrun "$QFRU" "$QFRR" | awk -F'\t' '$1 == "treegone" { print $4 " " $5 }')" "unrunnable unrunnable"
 is  "and the root's tree is left as it was, with nothing a row wrote in it" \
     "$(git -C "$QFRR" status --porcelain --untracked-files=all 2>&1 | tr '\n' ' ')$(git -C "$QFRR" rev-parse HEAD 2>&1)" \
     "$_qfrhead"

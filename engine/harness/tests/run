@@ -17975,13 +17975,13 @@ tail@@x | tail -5 >out@@output to a file
 tail@@x |tail>/dev/null@@with no spaces at all
 # Lists, groups and compounds, per path.
 tail@@x | tail -20 || exit 1@@the || branch never runs
-tail@@a && x | tail@@whenever a succeeds the status is tail's
+tail@@true && x | tail@@after an && that cannot fail, the status is tail's
 tail@@x || y | tail@@the status after || is tail's
 tail@@y; x | tail@@the last command decides, and it is tail
 tail@@{ x | tail; }@@a group carries its inner status
 tail@@( x | tail )@@so does a subshell
 tail@@if a; then x | tail; fi@@the status of a then branch counts
-tail@@if a; then y; else x | tail; fi@@and of an else branch
+tail@@if a; then true; else x | tail; fi@@and of an else branch
 tail@@case "$v" in a) x | tail ;; esac@@and of a case branch
 tail@@for f in a b; do x | tail; done@@and of a loop body
 tail@@sh -c 'x | tail'@@sh -c with a literal script is read as that script
@@ -17990,6 +17990,8 @@ tail@@eval 'x | tail'@@and eval
 tail@@x |& tail -1@@|& joins two stages as | does
 # Admitted: another command decides.
 -@@x | tail && y@@y decides
+-@@a && x | tail@@a can fail, so the text can
+-@@if a; then y; else x | tail; fi@@y can fail, so the text can
 -@@x | tail; y@@y decides after ;
 -@@x | tail &@@a background job's status is 0, not this shape
 -@@! x | tail@@a negation always fails, a different defect
@@ -18081,15 +18083,16 @@ _ffcrow() { printf '%s\t-\t-\t%s\t-\t%s\t9' "$1" "$2" "$3"; }   # need, when, ch
 _ffcmal() { _cm felix_commission_malformed "$CMP" | awk -F'\t' -v n="$1" '$1 == n { print $2 }'; }
 _cmtable "$(_ffcrow ffc_last    - 'printf a | tail -1')" \
          "$(_ffcrow ffc_orexit  - 'printf a | tail -20 || exit 1')" \
-         "$(_ffcrow ffc_andsort - 'test -f src/a.txt && ls src | sort')" \
+         "$(_ffcrow ffc_andsort - 'true && ls src | sort')" \
          "$(_ffcrow ffc_ran     - "touch \"$TMP/ffcran\"; false | tail -1")" \
          "$(_ffcrow ffc_headsub - '[ "$(printf a | head -1)" = a ]')" \
          "$(_ffcrow ffc_headmid - 'printf y | head -5 | grep -q y')" \
          "$(_ffcrow ffc_when    'false | tail -1' 'test -f src/a.txt')" \
          "$(_ffcrow ffc_neg     - '! true')" \
-         "$(_ffcrow ffc_grep    - 'ls src | grep -q a.txt')"
+         "$(_ffcrow ffc_grep    - 'ls src | grep -q a.txt')" \
+         "$(_ffcrow ffc_guard   - 'test -f src/a.txt && ls src | sort')"
 is  "commissioning rows omit every check a final filter makes unfailable, and keep the rest in file order" \
-    "$(_cm felix_commission_rows "$CMP" | cut -f1 | tr '\n' ' ')" "ffc_headsub ffc_headmid ffc_when ffc_grep "
+    "$(_cm felix_commission_rows "$CMP" | cut -f1 | tr '\n' ' ')" "ffc_headsub ffc_headmid ffc_when ffc_grep ffc_guard "
 has "a commissioning check ending in | tail is malformed, and the reason names tail" \
     "$(_ffcmal ffc_last)" "tail"
 has "and says that tail stage succeeds whatever it is fed" \
@@ -18101,6 +18104,7 @@ has "a commissioning check whose status after && is sort's is malformed, naming 
 is  "a commissioning check with | head -1 inside \$( ) is not malformed" "$(_ffcmal ffc_headsub)" ""
 is  "a commissioning check with head mid-pipeline before grep -q is not malformed" "$(_ffcmal ffc_headmid)" ""
 is  "a commissioning when ending in | tail is not judged" "$(_ffcmal ffc_when)" ""
+is  "a commissioning check whose guard can fail before | sort is not malformed" "$(_ffcmal ffc_guard)" ""
 [ -n "$(_ffcmal ffc_neg)" ] \
   && ok  "a negated commissioning check is still malformed" \
   || bad "a negated commissioning check is still malformed" "no reason printed for ffc_neg"
@@ -18109,6 +18113,7 @@ _ffcst() { printf '%s\n' "$_ffcrun" | awk -F'\t' -v n="$1" '$1 == n { print $2 }
 is  "the check with | head -1 inside \$( ) is asked, and done"          "$(_ffcst ffc_headsub)" "done"
 is  "the check with head mid-pipeline is asked, and done"              "$(_ffcst ffc_headmid)" "done"
 is  "a row whose when ends in | tail applies, and its check decides it" "$(_ffcst ffc_when)"    "done"
+is  "the check whose guard can fail before | sort is asked, and done"    "$(_ffcst ffc_guard)"   "done"
 is  "a refused check is no row of the run" \
     "$(printf '%s\n' "$_ffcrun" | awk -F'\t' '$1 ~ /^ffc_(last|orexit|andsort|ran)$/' | grep -c .)" "0"
 _ffccli="$( cd "$CMR" && PATH="$CMSTUB:$PATH" "$FELIX" commission --status 2>&1 )"
@@ -18277,6 +18282,88 @@ unset -f _ffc _ffnot _ffcrow _ffcmal _ffcst _ffob _ffomal _ffost _ffsu _ffsuwhy 
          _ffpr _ffpst _fftpl
 unset _ffT _ffo _ffr _ffl _ffstage _fftx _ffwhy _ffw _fft _ffp _ffto _ffcrun _ffccli _fforun _ffocli \
       _ffsust _ffsumal _ffsucli _ffsuunder _ffmst _ffmcli _ffpp _ffprun
+
+# The rule the blind section above was amended to, and what review found. A
+# text is refused only when it cannot fail and a final filter is why, so a
+# guard that can fail admits it, and a constant run on a hidden status
+# decides nothing. A bare exit returns the status before it; set -e anywhere
+# counts from the start; `! !` is a bash 3.2 syntax error; tr and uniq with an
+# operand count they refuse fail every time. Written by the implementer, not
+# blind, after the rule changed.
+_ffa() {   # text -> "<exit>|<what it printed>"
+  local _o _r
+  _o="$( . "$REAL_HARNESS/lib/final-filter.sh" 2>/dev/null || exit 3
+         felix_final_filter "$1" </dev/null 2>/dev/null )"; _r=$?
+  printf '%s|%s' "$_r" "$_o"
+}
+while IFS= read -r _ffl; do
+  case "$_ffl" in ''|'#'*) continue ;; esac
+  _ffstage="${_ffl%%@@*}"; _ffl="${_ffl#*@@}"; _fftx="${_ffl%%@@*}"; _ffwhy="${_ffl#*@@}"
+  if [ "$_ffstage" = "-" ]; then
+    is "the classifier admits [$_fftx]: $_ffwhy" "$(_ffa "$_fftx")" "1|"
+  else
+    is "the classifier refuses [$_fftx] and names $_ffstage: $_ffwhy" "$(_ffa "$_fftx")" "0|$_ffstage"
+  fi
+done <<'FFAUTHOR'
+tail@@x | tail && echo ok@@a constant run on tail's status decides nothing
+tail@@x | tail && exit 0 || exit 1@@nor does an exit whose code is fixed
+tail@@if ! x | tail; then exit 1; fi@@the then branch never runs
+tail@@if x | tail; then echo ok; else exit 1; fi@@nor does the else branch
+tail@@x | tail; exit@@a bare exit returns tail's status
+tail@@test -f a || x | tail@@either way it ends in success
+tail@@set -e; npm test | tail -5@@set -e does not reach a pipeline's first stage
+the last stage@@x | { tail; }@@a group ending in a filter is one too
+-@@cd dir && npm test 2>&1 | tail -20@@the cd can fail, so the text can
+-@@command -v jq >/dev/null && jq --version | cut -d- -f2@@it fails when jq is absent
+-@@out=$(npm test 2>&1) && printf '%s\n' "$out" | tail -20@@it fails when the tests do
+-@@set -e; npm ci; npm test 2>&1 | tail -5@@npm ci can end the script
+-@@if grep -q ok log; then :; else exit; fi; x | tail@@a bare exit in an else returns the failure
+-@@a || { exit; }; x | tail@@and so does one after ||
+-@@d | tail -1 && for i in 1 2; do d; set -e || a; done@@set -e in a loop ends its second pass
+-@@! ! x | tail@@bash 3.2 rejects a doubled !
+-@@x | tr a@@tr with one set and no -d or -s fails every time
+tr@@x | tr -d a@@tr -d takes one set
+-@@x | uniq in.txt@@uniq reading a file
+uniq@@x | uniq - out.txt@@uniq reading standard input into a file
+-@@. ./strict.sh; x | tail@@a sourced file can set anything
+-@@x | ./bin/sort@@a relative path is the project's own script
+FFAUTHOR
+
+# The same reading, per table and at the gate. felix_final_filter_table names
+# the refused lines of a table by its basename, and schema-check refuses them
+# in the tree that holds them, so a setup or maintenance check nothing runs
+# yet still stops at the pull request that writes it.
+_ffat="$TMP/ff-author"; mkdir -p "$_ffat/engine/harness/templates" "$_ffat/p"
+printf '# table\tlives\tcolumns\tempty\nschemas.tsv\ttree\ttable lives columns empty\trefused\nsetup.tsv\ttree\tid title capability check\tallowed\nmaintenance.tsv\ttree\tname cadence capability description check?\tallowed\n' \
+  > "$_ffat/engine/harness/templates/schemas.tsv"
+printf '# id\ttitle\tcapability\tcheck\nok1\tT\talways\ttest -f x\nbad1\tT\talways\tx | tail -1\n' > "$_ffat/p/setup.tsv"
+printf 'm1\t7\talways\td\tx | tail\nm2\t 0\talways\td\tx | tail\n' > "$_ffat/p/maintenance.tsv"
+( cd "$_ffat" && git init -q -b main && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+is  "felix_final_filter_table names the refused line of a setup table, and why" \
+    "$( . "$REAL_HARNESS/lib/final-filter.sh"; felix_final_filter_table "$_ffat/p/setup.tsv" | cut -c1-25 )" \
+    "3	check cannot fail: it c"
+is  "and reads a maintenance cadence of \" 0\" as the runner does, an event row, and 7 as not one" \
+    "$( . "$REAL_HARNESS/lib/final-filter.sh"; felix_final_filter_table "$_ffat/p/maintenance.tsv" | cut -f1 | tr '\n' ' ' )" "2 "
+_ffao="$( cd "$_ffat" && "$REAL_HARNESS/bin/schema-check" 2>&1; echo "rc=$?" )"
+is  "schema-check fails a tree holding a check that cannot fail" "${_ffao##*rc=}" "1"
+has "naming the line and the refusal" "$_ffao" "p/setup.tsv:3	unfailable	check cannot fail"
+has "in maintenance too" "$_ffao" "p/maintenance.tsv:2	unfailable"
+printf '# id\ttitle\tcapability\tcheck\nok1\tT\talways\ttest -f x\n' > "$_ffat/p/setup.tsv"
+printf 'm1\t7\talways\td\tx | tail\n' > "$_ffat/p/maintenance.tsv"
+( cd "$_ffat" && git add -A && git -c user.name=t -c user.email=t@t commit -qm fix ) >/dev/null 2>&1
+_ffao="$( cd "$_ffat" && "$REAL_HARNESS/bin/schema-check" 2>&1; echo "rc=$?" )"
+is  "and passes once the rows are fixed" "${_ffao##*rc=}" "0"
+
+# A runner that could not judge its table must not run its checks as though
+# it had: when the judging pass fails, every row leads with that fact.
+is  "felix_final_filter_lead leads every row with the failure when its awk cannot run" \
+    "$( . "$REAL_HARNESS/lib/final-filter.sh"; FELIX_FINAL_FILTER_AWK='BEGIN {'
+        printf 'a\tb\tc\tx | grep -q y\n' | felix_final_filter_lead setup.tsv | cut -f1 )" \
+    "check could not be judged: the final-filter reader failed on setup.tsv"
+rm -rf "$_ffat"
+unset -f _ffa
+unset _ffl _ffstage _fftx _ffwhy _ffat _ffao
 
 # The answer runs in-process through a runner the caller names, and the check
 # decides afterwards. The stub stands in for felix:toolbox --route.

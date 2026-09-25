@@ -14,10 +14,22 @@ and changed none of it: the archive files concatenated in index order, after
 `docs/handoff/_preamble.md`, reproduce the old file byte for byte (the sixty
 files the split made; later sections join the index above them, below §0).
 
-**The rule for the next session.** Write your section at the top of "Current
-state", with the next id (after 0bw comes 0bx). Move the section it replaces
-into `docs/handoff/<id>.md`, unchanged, and add its row to the top of the
-index. A reference like "HANDOFF §0bm" means `docs/handoff/0bm.md`.
+**The rule for the next session, since 2026-09-24.** Do not write your section
+into this file. Write it as a file of its own, headed `### <title>` with no id,
+and run `felix handoff --section FILE`. It lands at
+`docs/handoff/pending/<UTC time>-<branch>.md`, a path no other session writes,
+so two sessions' handoffs cannot collide in whatever order they land. The
+session start names every section waiting there. Each is newer than the
+current section below. `felix handoff --rotate`, on a branch cut from main
+when upkeep says it is due, folds them in, oldest-landed first:
+- each takes the next id (after 0cg comes 0ch);
+- the section it replaces moves into `docs/handoff/<id>.md`, unchanged;
+- their rows go in at the top of the index.
+
+The gate's handoff check refuses any other change to what the fold owns,
+including a section written in by hand. Why:
+`docs/2026-09-24-handoff-sections.md`. A reference like "HANDOFF §0bm" means
+`docs/handoff/0bm.md`.
 
 ---
 
@@ -32,107 +44,89 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0bw. 2026-09-23 — building Felix, measured as Felix's own workload; direction-level documents wait for the founder
+Sections newer than this one may be waiting in `docs/handoff/pending/`. The
+session start names them.
 
-**Nothing deployed from this session; no engine change.** The founder's point:
-the founder brings an idea, sharpens it and judges it, the agent does the rest,
-and that exchange is the model for how Felix works with every user. So the
-history of building Felix is a record of that whole pipeline, from intent
-through the work in between and the delivery to the outcome.
+### 0cg. 2026-09-24 — the Actions outage measured: a spending cap, not capacity; a push to main now reuses its pull request's green run of the same tree
 
-| PR | What |
-|---|---|
-| #316 | The episode pilot. Twenty episodes, weighted to the big decisions, reconstructed from the transcripts with each record checked and the report critiqued: `docs/2026-09-23-episode-pilot.md`, data and method in `docs/episodes/`. |
-| #319 | **DECIDED by the founder.** Documents that change what Felix is, who it is for or its build order wait for his yes, and he rates each delivery in one word. Nothing else waits. Written into the split in `projects/felix/CLAUDE.md`. |
-| #327 | Batch 2: the five episodes the pilot missed, plus two control sessions, with a second blind reader per turn: `docs/2026-09-23-episode-batch-2.md`. The prompt index and transcript reader now tell the founder apart from notifications and other sessions. |
+**No engine change.** `.github/workflows/gate.yml` and two scripts beside it,
+on `claude/felix-verification-scheduler-1fe223`. It is an `execute` escape, so
+`felix merge` refuses it and it merges on the founder's yes.
 
-**What the harvest found, briefly.**
-- About a third of the founder's effort went into the agent's job. The pilot's
-  figure is 31% by strict majority, but on turns both batches read the rate
-  runs 42 to 49%. Selection moves the figure more than the counting rule does,
-  so state both beside any rate.
-- The largest kinds are needless stops, restated decisions and answering
-  questions the agent should have decided. Report them as shares, with their
-  label splits.
-- The two readers agreed on 70% of labels. Their most common split was "go":
-  an approval, or a push past a stop that should not have happened.
-- The agent originated 60 decisions across batch 2's records. Several became
-  the founder's chores: a twelve-table hash under the commission receipt and
-  grant, per-project overnight state, and "the commission run is his".
-- The new thing is checks fired at moments, not advice: pilot §7 as amended by
-  batch 2 §6.
+**Why.** From 2026-09-25 00:07Z GitHub refused every felix-home job. The
+founder and an outside reviewer read that as a new verification ceiling. The
+measurement is in `~/.felix/memory/felix/audits/2026-09-24-ci-budget/`
+(`ci-budget.md`, its PDF, and `data/` with the scripts).
 
-**Waiting on the founder.**
-- Carried from §0bv: the Elenchus and Veldra candidates' admission, then #310's
-  verifier escape, then #304 (all open on 2026-09-23).
+**What the data says.**
 
-**DECIDED 2026-09-23 by the founder (batch 2 §8), landed as #332 and rated
-"good." (yes).** Status reaches the founder in the session's closing notice.
-The monitor stays as the deeper page. The charter's stealth paragraph now says
-so. **The notice itself is not built yet,
-and it is the first item below.** Until it ships, the charter describes
-something the engine does not do, which is the failure the pilot found most
-often.
+- **A budget cap, not capacity.** September's 531 runs came to about 2,042
+  billed minutes against the Free plan's 2,000, with a $0 spending limit. Since
+  09-22, jobs waited a median of 3 s to start, and at most 4 ran at once
+  against the plan's 20.
+- **Post-merge runs on main never failed.** They were 34.5% of minutes, and
+  0 of 203 failed. 174 of them gated a tree the pull request's run had already
+  passed.
+- **Drafts:** 20% of minutes gross, but only about 6.5% net, because 45 of 54
+  went ready.
+- **Freshness:** 21 of 37 PR failures were freshness checks alone. L2b removes
+  that class.
+- **Nothing in the engine reads CI.** `felix merge` never does; sessions
+  stopped on the working rule "merge once CI is green". Under the landing
+  actor, CI on landed commits is the brake, so the budget sets availability as
+  well as cost.
 
-**Next, Felix's to do (none needs the founder):**
-- **Build the closing notice.** The Stop hook speaks to the agent, as
-  `additionalContext`, and the agent relays it in its closing report.
-  - Claude Code gives no "last stop of the session" signal, so the design must
-    choose which stop carries the notice. The candidate is the stop where the
-    gate receipt first matches the tree, then again only if status changed.
-  - Contents: gate state on this tree, owner acts waiting in the queue, Felix's
-    own friction this session (holds, refusals), and what is due.
-  - It must respect the #322 limit on mid-session lines, and carry a deadline
-    assertion in `tests/run`.
-  - This is adversarial tier (`hooks/stop`).
-- **Capture.**
-  - `says.log` keeps whole prompts, or a pointer to the transcript line.
-  - Question-tool answers are indexed.
-  - `escalated` rows carry the session id (`felix:1441`) and are not written
-    on `--dry-run`.
-- **#319 has no mechanism yet.** Build a merge stop on roadmap paths and the
-  charter's split section only, and never on an engineering path.
-- **The interaction layer's first moments.**
-  - The Stop hook reads the closing report for work handed back, and for
-    "next is X" when X is approved work.
-  - An `asked` row per question.
-  - A decisions table with the originator, whether the owner was asked, and
-    the owner cost stated at the time.
-- **Lessons-ladder fixes (batch 2 §6).**
-  - Mount the full headline, not the bare date (132 of 181 entries mount as a
-    date).
-  - Match on the prompt, not the envelope.
-  - Give `mistakes.log` rows a session id.
-  - `projects/felix/CLAUDE.md:160-163` and `felix:930` describe the ladder
-    wrongly.
-- **The next episode batch.** Apply the four codebook rules in batch 2 §4 first,
-  and sample every session in a fixed week rather than choosing episodes.
-- **Carried from §0bv.**
-  - Control 7 after #310.
-  - The request that names a gitignored doctrine.
-  - #308, #309 and #311 (deny scope) and #312 (README), all still open.
+**What was built.**
 
-**Traps paid for this session:**
-- **A docs-only branch passes the gate only while its engine equals
-  `refs/remotes/origin/main`.** Worktrees share that ref, and other sessions
-  fetch it mid-run. Merge main, check
-  `git diff --quiet refs/remotes/origin/main -- :/engine`, and gate at once.
-  Two gates failed on this before the third passed.
-- **Any `*.tsv` in the tree needs a `schemas.tsv` row, or `schema-check` fails
-  the gate.** Put data in as JSONL.
-- **At a load average of 100 to 140 the suite took over an hour, not ten
-  minutes.** Watch your own gate's PID: a watch keyed on "any `felix gate`"
-  never fires while other sessions are gating.
-- **A workflow dies with the session process.** Resuming it with the same
-  arguments re-ran finished stages under new cache keys. The first run's
-  `journal.jsonl` already held every result, so finish from the journal.
-- **The transcript reader printed task notifications and other sessions'
-  messages as FOUNDER,** and the old prompt index counted peer messages as
-  founder prompts. Both are fixed. The pilot, re-checked, holds no peer turns.
-- **The fact gate refuses a force-push whatever facts are given.** Add a commit
-  instead of amending.
-- **A plain `cd` into `docs/episodes` in one Bash call moved the working
-  directory for the calls after it.** Use absolute paths.
+- The `reuse` job runs on pushes to main only, holding `pull-requests`,
+  `actions` and `checks` read. It finds the merged pull request, then the
+  pull_request run of `gate.yml` on its head that ran last (by
+  `run_started_at`). That run must be green, and its gate job must name exactly
+  one `gated tree` annotation equal to the landed tree.
+- The `gate` job emits that annotation before the gate runs. It is skipped only
+  when `reuse` names a run.
+- `reuse-verified-tree.test.sh` has 27 cases. Its stand-in `gh` answers only
+  exact URLs, and nine mutations of the step were each caught.
+
+**The review changed the design.** One adversarial reviewer found a hole in
+the first version. It inferred the gated tree from ancestry, so it could reuse
+a run whose base was another branch: a pull request retargeted to main after
+its last run, or a head shared by two pull requests. The run object keeps no
+base once the pull request merges. The annotation records the tree the run
+actually gated, which also drops the dependence on main only moving forward.
+The reviewer also found:
+
+- a stand-in `gh` that three broken copies passed;
+- "latest" meaning latest created rather than latest started;
+- token claims that overstated.
+
+All of these are fixed.
+
+**What is not proven until it runs.** The replay of the first version
+reused 168 of 203 September pushes. The annotation version cannot be replayed,
+because old runs carry no annotation. Its first live test is this PR's own
+push to main. Check that run's `reuse` job summary: a green run with the `gate`
+job skipped means it worked.
+
+**Rules recorded for the verification plane** (R1-R6 in the audit, Felix's
+call, not asked):
+
+- R1: evidence is keyed by tree, judge and environment.
+- R2: a skip is only ever a reuse.
+- R3: remote CI is spent at the landing frontier, with readiness in L6a.
+- R4: freshness never costs a runner; L2b removes it.
+- R5: the month-to-date budget goes on the L3a status page.
+- R6: docs-only changes run the full gate until the suite's reads are
+  measured. This suite pins README text, so a path filter would drop real
+  checks.
+- Not now: a self-hosted runner.
+
+**Next.**
+
+- The founder's yes on the merge.
+- After it lands, read the first push run.
+- Then carry the reuse into the bootstrap template (`lib/bootstrap.sh`), so
+  adopters get it too. That is engine work, through the pipeline.
 
 ---
 
@@ -143,6 +137,16 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0cf](docs/handoff/0cf.md) | 2026-09-23 — the public README rewritten for a general reader first, with the Felix mark, and checked against the code three times |
+| [0ce](docs/handoff/0ce.md) | 2026-09-24 — the 44 red rows every Mac recorded since #308 were tests/red moving TMPDIR, which macOS's mktemp ignores; red now runs the suite in the caller's TMPDIR |
+| [0cd](docs/handoff/0cd.md) | 2026-09-24 — the megabyte-line audit assertion timed by CPU and shown red, then handed to the session that already had it |
+| [0cc](docs/handoff/0cc.md) | 2026-09-23/24 — the unattended template left two credentials for the model to read, measured on the pinned binary and closed upstream of the model |
+| [0cb](docs/handoff/0cb.md) | 2026-09-24 — the unattended model step could read its own API key from /proc, measured on ubuntu-latest, and the template now denies it |
+| [0ca](docs/handoff/0ca.md) | 2026-09-24 — handoff sections cannot collide: a session adds a file, and one fold of main gives the ids |
+| [0bz](docs/handoff/0bz.md) | 2026-09-23/24 — restart moments scoped and placed: step 1 names a session running an older engine, and the founder allowed one line mid-session |
+| [0by](docs/handoff/0by.md) | 2026-09-23/24 — every stuck PR triaged, why the night went stale, and the landing actor designed (not built) |
+| [0bx](docs/handoff/0bx.md) | 2026-09-23 (day) — a turn another hook woke ended unchecked, measured on the real binary, and the Stop hold now knows its own chain |
+| [0bw](docs/handoff/0bw.md) | 2026-09-23 — building Felix, measured as Felix's own workload; direction-level documents wait for the founder |
 | [0bv](docs/handoff/0bv.md) | 2026-09-23 (night) — overnight mode belongs to a session, #307 and #303 landed, the runner probe answered from a runner's own log, Veldra's blind request |
 | [0bu](docs/handoff/0bu.md) | 2026-09-23 — Phase 0: the Elenchus candidates checked, deny rows read the command the shell runs, three small items |
 | [0bt](docs/handoff/0bt.md) | 2026-09-22/23 — the table validator (queue item 2, step 1) shipped, and a rename that hid an escape |

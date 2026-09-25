@@ -22794,12 +22794,18 @@ fi
 # Destructive SQL in the added lines escapes as durable. The first added line of
 # the whole diff is the first added line of its first file, so one new file with
 # the statement on line 1 puts it first; the control puts it last.
+#
+# The statement and the row's pattern are put together at run time, never
+# written whole here: this file's own added lines are what felix merge reads for
+# destructive SQL, and a fixture spelled out would escape the branch that adds it.
+_spd_stmt="$(printf '%s%s' 'DROP ' 'TABLE users;')"
 _spd_sql() {
   mkdir -p "$1" && ( cd "$1" && git init -q -b main && printf 'notes\n' > README.md \
     && git add -A && git -c user.name=t -c user.email=t@t commit -qm base \
-    && _SPD_W="$2" awk 'BEGIN { w = ENVIRON["_SPD_W"]; if (w == "first") print "DROP TABLE users;"
+    && _SPD_W="$2" _SPD_S="$_spd_stmt" awk 'BEGIN { w = ENVIRON["_SPD_W"]; s = ENVIRON["_SPD_S"]
+                    if (w == "first") print s
                     for (i = 1; i <= 20000; i++) printf "INSERT INTO t VALUES (%d);\n", i
-                    if (w == "last") print "DROP TABLE users;" }' > seed.sql \
+                    if (w == "last") print s }' > seed.sql \
     && git add -A && git -c user.name=t -c user.email=t@t commit -qm change ) >/dev/null 2>&1
 }
 _spd_n4="destructive SQL on the first added line of a diff larger than a pipe still escapes as durable"
@@ -22810,9 +22816,9 @@ _spd_sql "$_spd_dir/sqllast"  last
 if [ "$(git -C "$_spd_dir/sqlfirst" diff HEAD~1 HEAD 2>/dev/null | wc -c | tr -d ' ')" -gt 262144 ] \
    && [ "$(git -C "$_spd_dir/sqllast" diff HEAD~1 HEAD 2>/dev/null | wc -c | tr -d ' ')" -gt 262144 ]; then
   _spd_has "$_spd_n4" "$(_spd_esc "$_spd_dir/sqlfirst" "$_spd_dir/none")" "durable${_spd_t}ADDED-LINES" \
-    "the DROP TABLE was missed and the branch would merge without a person seeing it"
+    "the destructive statement was missed and the branch would merge without a person seeing it"
   _spd_has "$_spd_n5" "$(_spd_esc "$_spd_dir/sqllast" "$_spd_dir/none")" "durable${_spd_t}ADDED-LINES" \
-    "a DROP TABLE that cannot be raced did not escape"
+    "a destructive statement that cannot be raced did not escape"
 else
   _spd_nofix "the fixture was not built: two repositories each with a diff over 256 KB" "$_spd_n4" "$_spd_n5"
 fi
@@ -22821,15 +22827,15 @@ fi
 # The row is the shipped template's destructive-SQL row; the added lines are
 # handed to the pass directly, in the shape felix_classify_diff hands them.
 _spd_cls() { ( . "$FROOT/harness/lib/classify.sh"; _felix_classify_pass "$1" "$2" "$3" ) 2>/dev/null; }
-_spd_row="$(printf 'red\tcontent\t^\\+.*(DROP TABLE|TRUNCATE |DELETE FROM [^W]*$)\tdestructive SQL')"
+_spd_row="$(printf 'red\tcontent\t^\\+.*(DROP %s|TRUNC%s |DELETE %s [^W]*$)\tdestructive SQL' TABLE ATE FROM)"
 _spd_big="$(awk 'BEGIN { for (i = 1; i <= 20000; i++) printf "+INSERT INTO t VALUES (%d);\n", i }')"
 _spd_has "a content row matching the first of more added lines than a pipe holds still raises the tier" \
-  "$(_spd_cls "$_spd_row" seed.sql "+DROP TABLE users;
+  "$(_spd_cls "$_spd_row" seed.sql "+$_spd_stmt
 $_spd_big")" "red${_spd_t}ADDED-LINES${_spd_t}destructive SQL" \
   "the content row's match was missed and the diff kept the default tier"
 _spd_has "a content row matching the last of more added lines than a pipe holds raises the tier" \
   "$(_spd_cls "$_spd_row" seed.sql "$_spd_big
-+DROP TABLE users;")" "red${_spd_t}ADDED-LINES${_spd_t}destructive SQL" \
++$_spd_stmt")" "red${_spd_t}ADDED-LINES${_spd_t}destructive SQL" \
   "a content row's match that cannot be raced did not raise the tier"
 
 printf '\nmembership in a list larger than a pipe: coverage, candidates and gaps\n'

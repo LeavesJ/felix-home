@@ -22,6 +22,7 @@
 1	--verify refuses a backslash class, which is a class on one awk and a letter on another, where [[:space:]] runs
 1	--yes never installs high risk
 1	.lsp.json at the root is medium
+1	600 untracked files before the first commit gate green, and the receipt reads current
 1	FELIX_ALLOW_RED lets a founder stop anyway
 1	FELIX_GRAPH_TAIL widens the window when someone needs it to
 1	FELIX_MEMORY overrides the default
@@ -76,6 +77,7 @@
 1	a block from the live tree is still recorded
 1	a blocking verdict does not clear it either
 1	a bootstrapped repository still asks before a merge that bypasses checks
+1	a born tree keeps its id: HEAD, the diff from HEAD, and the untracked metadata in byte order
 1	a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version
 1	a branch that only adds a pending section reads clean
 1	a branch the gate has not run on has no latest run
@@ -93,6 +95,7 @@
 1	a cache with no stamp adopts nothing
 1	a cache-side stray matching a directory-only rule is residue
 1	a cancelled gate run between failures neither spends the repair ceiling nor resets it
+1	a cap raised to 100000 over more untracked paths than ARG_MAX holds still sees an edit
 1	a capability carrying a trailing remark is not a rule
 1	a capability inspection does not support is not declared
 1	a capability match is still adopt material
@@ -152,6 +155,7 @@
 1	a commit this repository does not hold is not a distance
 1	a commit with no remote does not stamp a push
 1	a committed rename lists the name it left as well as the one it took
+1	a committed repository with 601 untracked files gates to a current receipt
 1	a compact appends one lifecycle row of kind compact
 1	a component that cannot be computed prints as a dash
 1	a consistent record is called agreement
@@ -304,10 +308,12 @@
 1	a gate that named a failure and then exited 127 records the name
 1	a gate that ran and failed silently still records exit-1
 1	a gate that skipped the suite is not called a passing suite
+1	a gate that wrote 600 build outputs reads current after its second run
 1	a gate_workflow that is not a file name is refused, and named
 1	a gitignored stray in the tree is residue, not drift
 1	a gitlink already in history does not block every future backup
 1	a governed directory that is not a git checkout records its HEAD as -, not unborn
+1	a governed directory that is not a git repository is marked unborn, with no directory
 1	a governed product merges with FELIX_KERNEL set and no engine installed
 1	a governed product merges with no installed engine at all
 1	a grant committed locally on top of the fetched main but not pushed clears nothing
@@ -607,6 +613,7 @@
 1	a project with red paths reports the scope bound
 1	a project without the table blocks the merge
 1	a project without the table is skipped, announced
+1	a prompt before the first commit marks the session unborn, with the repository's git common dir
 1	a prompt with no session id records no ledger state
 1	a prompt with no signal says nothing
 1	a proposal shown once is not volunteered again
@@ -616,6 +623,7 @@
 1	a pulse with nothing to do still answers
 1	a push nothing reads back is not called verified
 1	a qualification row of five columns has no premise and is met as before
+1	a question in a repository whose only change is its uncommitted marker is not held
 1	a quoted argument naming a denied command is data
 1	a quoted attachment with the person's question under it is still routed and marked
 1	a quoted here-document word leaves the body unexpanded, so it is data
@@ -655,6 +663,7 @@
 1	a red gate outranks the grant
 1	a red path exits 3
 1	a red receipt for this tree blocks
+1	a red receipt on a tree whose only change is the marker does not hold the next session
 1	a red receipt reads as red
 1	a red row added applies to the diff that adds it
 1	a red row naming no channel stops nothing
@@ -767,6 +776,7 @@
 1	a section written into HANDOFF.md by hand is refused, however correct its id
 1	a sed script that starts with a slash is not taken for a path
 1	a server the registry says a plugin provides is proposed as a plugin row
+1	a session before another repository's first commit is not folded into this one
 1	a session cannot grant a night to another session
 1	a session filed under two projects, and history copied into a resumed one, count once: 2 sessions, 1 stop, 1 hold
 1	a session folds on the first catch-up
@@ -776,6 +786,12 @@
 1	a session reports what was named and what was followed
 1	a session start heals a split row
 1	a session that changed nothing stops silently
+1	a session that made the first commit and gated it green is released
+1	a session that made the first commit is held when the gate failed on that tree
+1	a session that made the first commit is held when the gate never ran
+1	a session that made the first commit on an orphan branch is held
+1	a session whose calls all came before the first commit is counted as stranded
+1	a session with no mark that committed its code beside the uncommitted marker is still held
 1	a session with no night is held on a red tree like any other
 1	a shell comment is not code: its apostrophe opens no quote, its (npm test) runs nothing, and its ; takes no status
 1	a shell's -c script is still read as a command
@@ -822,12 +838,15 @@
 1	a step outside 1-10 is malformed
 1	a stop and a hold copied into a resumed session belong to the session their record names, whichever transcript sorts first: 2 stops and 2 holds in 2 sessions both ways
 1	a stop is a distinct message id: a stop logged again is not a second one, and a failing non-check fails nothing
+1	a stop with no session id holds the staged change the gate never saw
 1	a stranded session folds under its own date, not today's
 1	a stranded session has appends but no folded record
 1	a stranger that is not a plugin is created without a blocking obligation
 1	a string broken across the next key leaves the manifest high
 1	a structural failure still fails the gate
 1	a structural project failure beside a failing probe records probes alone
+1	a subagent finishing beside only the uncommitted marker is not told no gate has passed
+1	a subagent in a project that declares no gate is told nothing, dirty tree or not
 1	a subdir argument naming no directory digests the copy it was given
 1	a subdirectory named as an argument digests as that subdirectory alone
 1	a subject identity is one line
@@ -988,6 +1007,9 @@
 1	an awk that fails reads the manifest as unread, not as nothing declared
 1	an edit to a scratch file or to Claude's own config directory is left out of the four, and the report says how many stops that was
 1	an edit to a skill under Claude's configuration directory or to Felix's memory is left out as no gate's, and the report and the README name that scope
+1	an edit to one of 600 untracked files, the count unchanged, stales the receipt
+1	an edit to one untracked file among 601, after the first commit, stales the receipt
+1	an edit to the source beside 600 build outputs stales the receipt
 1	an eight-hour grant runs until eight hours from now
 1	an empty FELIX_RELEASE_TARGET is not a target
 1	an empty base is not reported as unknown
@@ -997,6 +1019,7 @@
 1	an empty graphify-out is still no graph — the file is the thing
 1	an empty grounding refuses
 1	an empty kernel cache leaves the judge unverifiable and the merge refused
+1	an empty ledger beside calls no mark attributes still says nothing is recorded for the project
 1	an empty listing is exit 0 and no rows: a catalogue that was read
 1	an empty marker is reported at session start too
 1	an empty marker refuses too
@@ -1078,6 +1101,10 @@
 1	an overlap is said as an overlap, not as a negative remainder
 1	an ssh alias ssh cannot resolve holds both slug rows as todo, saying why, rather than letting them wait
 1	an unborn default base refuses rather than previews
+1	an unborn mark with no directory in it is folded into no project
+1	an unborn repository holding only its marker stops in silence: the unborn mark is not a commit, the marker is not dirt
+1	an unborn repository with everything staged gates green, and its receipt reads current
+1	an unborn tree with an empty index keeps its id: unborn, no diff, and the untracked files' metadata
 1	an uncommitted resolve.sh in the working tree does not change the verdict
 1	an unconsidered moment is named
 1	an undeclared capability is still never scored
@@ -1148,6 +1175,9 @@
 1	and FELIX_KERNEL is refused before the cache is even consulted
 1	and Read and Edit stay allowed, since the repair needs both
 1	and SessionEnd folds nothing of it into ledger.d
+1	and Stop holds that edit
+1	and Stop holds that edit after the first commit too
+1	and Stop holds the edit beside the build outputs
 1	and Stop neither holds that session nor tells it anything
 1	and Stop still asks about the work such a session commits
 1	and Stop, with no id, holds that tree as it always did
@@ -1167,6 +1197,7 @@
 1	and a clean table leaves the gate green
 1	and a command file piping to a shell is medium
 1	and a command that does not resolve identifies none either
+1	and a committed marker that has since changed
 1	and a declared control is not reported missing
 1	and a declared moment is not
 1	and a declared one the tree no longer shows is still an item
@@ -1202,6 +1233,8 @@
 1	and a machine that binds nothing is an empty roster, not an error
 1	and a main copy that reports identical is believed over the cache entry
 1	and a marker laid in a session a person has typed into does not excuse it
+1	and a marker naming another project, one that exists
+1	and a marker that is a symlink to a file naming the project
 1	and a medium one is still refused
 1	and a name
 1	and a new note replaces the old one
@@ -1215,6 +1248,7 @@
 1	and a product repository's file of the same name is not
 1	and a project with no obligations.tsv blocks a merge
 1	and a project with none does not claim it
+1	and a prompt after the first commit leaves that mark as it was: the first mark wins
 1	and a real one still routes
 1	and a receipt with a dash for an epoch is stale
 1	and a receipt with no epoch never returns 0
@@ -1238,9 +1272,12 @@
 1	and a second run does not record the same file twice
 1	and a second run is a no-op that exits 0
 1	and a self-governed branch does merge under the kernel
+1	and a session there that runs git init and commits everything is held when the gate never ran
 1	and a skill that was invoked
 1	and a skill whose frontmatter hooks are written on one line
 1	and a stance for a real item is not
+1	and a subagent finishing in that session is told no gate has passed
+1	and a subagent in it is still told no gate has passed
 1	and a summary session is not
 1	and a tab in one of its rows is a refused second cell
 1	and a table whose name git quotes is one no reader opens by that name
@@ -1255,6 +1292,7 @@
 1	and a worktree is pointed at that one, having no graph of its own
 1	and a worktree of it reads the same graph, and is ok too
 1	and a write leaves no file beside it
+1	and above the cap an edit beside them still moves the id
 1	and absent from both sides is a fixture, not a drift
 1	and accepted once its rows fit
 1	and again, so a session can bump twice
@@ -1263,6 +1301,7 @@
 1	and an absent table refuses with a non-zero status too
 1	and an agent file piping to a shell is medium
 1	and an automation row still ends in its capability
+1	and an edit to a tracked file there still stales a fresh receipt
 1	and an empty cache merges nothing
 1	and an empty mcpServers object is no mcp fact
 1	and an engine commit on main after it stales the record
@@ -1313,6 +1352,7 @@
 2	and counts it
 1	and counts only the gate's failures against the ceiling
 1	and counts the recorded decline
+1	and counts the sessions that left them
 1	and counts what was held over the whole file too
 1	and creates nothing without --create
 1	and creates the missing DEVLOG.md empty
@@ -1340,6 +1380,7 @@
 1	and does not pretend it searched the rest
 1	and does not print that it wrote the handoff
 1	and does not say it recorded
+1	and does not say those sessions recorded nothing
 1	and drift in the served checkout is a plain FAIL
 1	and drops the id its heading carried, since only the fold gives ids
 1	and due again after a commit the graph has not seen
@@ -1424,6 +1465,7 @@
 1	and holds no prose when nothing matched
 1	and holds no session at its stop
 1	and hooks beside a pipe to a shell are still high
+1	and how to commit it
 1	and ignores the path so it cannot come back
 1	and in a declared skill folder's own SKILL.md
 1	and in the policy's own words, which is what proves the call reached it
@@ -1455,6 +1497,7 @@
 1	and it asks graphify to update the checkout that holds the graph
 1	and it does not repeat within a session
 1	and it fails on the file, not on the directory
+1	and it grows linearly: 4,000 untracked files cost under eight times what 1,000 cost
 1	and it holds against the shipped lessons file
 1	and it is Felix's own work
 1	and it is a tier, not the word
@@ -1504,6 +1547,7 @@
 1	and its output is still one JSON object carrying hookSpecificOutput, with nothing on stderr
 1	and its path is gone from the tokens whatever the key is called
 1	and its reason whole
+1	and its record lands in the project's ledger.d
 1	and its repair ceiling does not read as unspent
 1	and its row, added in the same tree, clears it
 1	and its runbook begins by saying {{REPO}} is left as written until origin points at GitHub
@@ -1620,6 +1664,7 @@
 1	and no conflict markers were committed (squash)
 1	and no conflict markers were committed (stash)
 1	and no half-written cache is left beside it
+1	and no hold is recorded for it
 1	and no longer claims a re-folded session never folded
 1	and no longer prints next steps
 1	and no memory root named --help is minted
@@ -1634,6 +1679,7 @@
 1	and no temporary directory is left under the tmpdir it was given
 1	and no zero row for one that was used
 1	and none is not a passing answer
+1	and none of it is stranded here once this repository's own session has folded
 1	and none of the commands out there are listed
 1	and none of the hand-written lines
 1	and none of them asks gh for every workflow's runs
@@ -1682,6 +1728,7 @@
 1	and once the check passes it is ok
 1	and one already declared is not written twice
 1	and one built three commits ago is behind by three
+1	and one ending in a carriage return
 1	and one grounding a real surface is not
 1	and one in a double-backtick span
 1	and one it passes over is held, not silently counted
@@ -1699,6 +1746,8 @@
 1	and one under a directory named like an option keeps its final-newline check
 1	and one unknown path taints a green set
 1	and one whose entry declares a hook is refused
+1	and one with a NUL byte and more after the name
+1	and one with a leading space
 1	and one with a session id records under exactly that id
 1	and one wrapped in bold
 1	and one written as a path
@@ -1707,6 +1756,7 @@
 1	and only rows of the right shape and kind are accepted
 1	and only that one: the rewake turn after it is judged
 1	and only the awaiting count records it
+1	and over 600 untracked files the default cap gives the id a cap of 100000 gives
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
 1	and passes a well-formed file through byte for byte
@@ -1835,11 +1885,13 @@
 1	and says so with a non-zero status, not the digest of an empty document
 1	and says that it knows
 1	and says the answer was neither yes nor no, naming the code
+1	and says the calls on disk could not be attributed
 1	and says the ceiling is reached, not unknown
 1	and says the checkout could not be entered rather than naming a missing command
 1	and says the commit is unborn rather than guessing one
 1	and says the gate failed
 1	and says the gate has not seen it
+1	and says the gate has not seen this work
 1	and says the gate never ran
 1	and says the gates still apply
 1	and says the install failed rather than ending in silence
@@ -1891,8 +1943,10 @@
 1	and so does a failure nobody answered
 1	and so does a session that opens on the summary request's opening and the person's own instruction
 1	and so does a staged one
+1	and so does a stop in a session that began before the first commit
 1	and so does a worktree of it
 1	and so does commenting a control out
+1	and so does editing it
 1	and so does flipping the verdict a control expects
 1	and so does one who types a question under a task notification
 1	and so does one whose registry entry carries no installPath
@@ -1922,6 +1976,7 @@
 1	and so is the continuation ceiling itself
 1	and so is the other one
 1	and so is what eval is handed
+1	and so it does above the cap
 1	and ssh is asked only for its configuration, with no DNS lookup, about the alias as written
 1	and ssh is never called with it
 1	and stack.sh alone can too
@@ -1938,6 +1993,7 @@
 1	and stays to one line
 1	and stdout is the one summary line
 1	and step 8 is no longer a step nothing answers
+1	and still after the first commit
 1	and still binds startup, clear and compact
 1	and still does not know what changed there
 1	and still exits 0
@@ -1967,6 +2023,7 @@
 1	and takes the marker away with the session
 1	and tampered under hooks it is drift as well
 1	and tells the session which fact moved
+1	and that a session running when the hooks went in records nothing
 1	and that alone does not fail the gate
 1	and that continuation is spent like any other
 1	and that copy is the only library the block sources
@@ -2064,18 +2121,24 @@
 1	and the heal that took it over leaves no lock behind
 1	and the held total
 1	and the hold a night made does not outlive it: the rewake turn after is judged
+1	and the hold is recorded as blocked, never verified
 1	and the hook exits 0 there
 1	and the hook still exits 0 there
 1	and the independence check above it sees nothing wrong with that file
 1	and the index holds no gitlink afterwards
 1	and the inline variable is named
 1	and the instrument is appended as the ninth
+1	and the ledger no longer says nothing is recorded
+1	and the ledger still says it fills from the next session
 1	and the lesson is in the same block
 1	and the lifecycle row has nine tab-separated fields
 1	and the literal name is caught
 1	and the log carries the sha it was read at
 1	and the log is back to empty, as this block found it
 1	and the loud form says the catalogue was never seen
+1	and the marker beside any other untracked file
+1	and the marker once it is staged
+1	and the marker, when the caller does not say which project resolved
 1	and the memory, which is somewhere else now
 1	and the merge is left exactly where the person left it
 1	and the merge names the entry main declares, not the harness inside it
@@ -2121,6 +2184,7 @@
 1	and the reason is that the grounded facts moved
 1	and the receipt does not claim the founder must approve it
 1	and the receipt is written with ten fields
+1	and the receipt reads current again
 1	and the receipt reads valid
 1	and the receipt refuses to call that verified
 1	and the receipt written for that tree is still red
@@ -2132,6 +2196,7 @@
 1	and the refusal names the version main declares or the cache it searched
 1	and the refusal says how to add a section instead
 1	and the refusal says how to type it inside the session
+1	and the release is recorded as allowed, on that tree id, green
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
 1	and the report names the merged path
@@ -2167,6 +2232,7 @@
 1	and the run is on the record
 1	and the run repair is handed is the gate's, not the newest of any workflow
 1	and the run that took it over leaves nothing behind
+1	and the same name with no newline, as clean
 1	and the same plugin declared by a person installs, which high would refuse
 1	and the same rows over more sessions are not
 1	and the same saved rows now read done, three fields, with the slug filled in
@@ -2217,6 +2283,8 @@
 1	and there the refusal is charged to the night
 1	and they still do in a UTF-8 locale, as a founder's shell runs them
 1	and those two suites were running at the same moment
+1	and told it failed on this exact tree
+1	and told the gate never ran
 1	and two heals at once leave no temporary or lock behind
 1	and under its own name it is current
 1	and what a fix will have to prove
@@ -2285,7 +2353,11 @@
 1	because it carries no epoch
 1	because it was not read
 1	because the second path was read too
+1	because the tree changed since the receipt
 1	before any heal, gate_shown_failing cannot see the failure the split rows hold
+1	before the first commit, an uncommitted file still holds the stop
+1	before the first commit, creating an untracked file whose name is not ASCII moves the id
+1	before the first commit, staging different content changes the tree id
 1	before the pulse has ever run there is nothing to report
 1	beside a failing probe, the line never says the run was not recorded, since probes was
 1	binds the checkout with no remote
@@ -2299,6 +2371,7 @@
 1	but Felix's own bookkeeping is not the subagent's work
 1	but a change that does touch it still is
 1	but a flagged one does not hold again unrecorded
+1	but a marker with a second newline is dirt
 1	but a new one does get through
 1	but a prompt that opens with a slash is still what was typed
 1	but a real edit still blocks
@@ -2533,6 +2606,7 @@
 1	felix handoff appends one lifecycle row of kind handoff, noted written, with the hash of the file it wrote
 1	felix handoff refuses a hand-written handoff
 1	felix ledger folds it and says what it folded
+1	felix ledger folds that session
 1	felix ledger proposes retiring the disuse zero
 1	felix ledger still folds a person's session nothing folded
 1	felix maintenance renders a passing check as such
@@ -2544,6 +2618,9 @@
 1	felix new --no-commission that could not write its marker binds the checkout when run again, once it is writable
 1	felix new <name> --no-commission creates the project, binds the checkout, and seeds what a commissioned one gets
 1	felix new exits 0
+1	felix new in a fresh repository says the marker is not committed yet
+1	felix new outside a git repository says nothing about committing the marker
+1	felix new over a marker already committed exits 0 and does not ask for it to be committed
 1	felix new over memory that outlived its project exits 0
 1	felix new over part of a memory root exits 0
 1	felix new prints the request path for a session
@@ -2815,6 +2892,7 @@
 1	no shipped upkeep row is unreachable
 1	no stack.tsv means nothing is declared, not nothing to say
 1	no temporary file exists while git is being asked
+1	no tree id taken over more than 500 untracked files starts with coarse:
 1	nor a half-written one
 1	nor a paste-in prompt
 1	nor a semicolon
@@ -2843,6 +2921,7 @@
 1	nor the all-caps sentinel
 1	nor the one about a missing stamp
 1	nor the one about another tree
+1	nor the session after it
 1	nor the stale one
 1	nor the stop hook talking to itself
 1	not refused
@@ -2861,6 +2940,7 @@
 1	of 3 held stops, the hold line counts among the stops above only the 1 that followed an edit, not the 2 after turns with no new edit
 1	of four cells, as its schema row says
 1	of four tab-separated fields
+1	on a born HEAD the mark is still the sha and a newline, byte for byte
 1	on a branch with commits the receipt names the branch
 1	on a repository with no commit, nothing tracked reads as empty, not blind
 1	on a well-formed log the recurrence report is what it always was
@@ -2890,6 +2970,7 @@
 1	one superpowers skill does not mark superpowers:test-driven-development used
 1	one superpowers skill does not mark superpowers:writing-plans used
 1	one tree gated twice is one occasion, not a habit
+1	one tree id over 3,000 untracked files costs at most 2,000 ms of CPU
 1	one undeclared ground among declared ones refuses the row
 1	one whose evidence fails is ACTIVE UNSATISFIED
 1	only the claim is mounted, not the evidence
@@ -3164,6 +3245,7 @@
 1	session-start reads an answer keyed to its topology as answered, in a checkout whose path holds a space
 1	session-start sources autonomy.sh
 1	session-start sources ledger.sh
+1	sessions that left calls on disk but never ran in this project are not counted as its unattributed ones
 1	seven-field rows with an engine-stage answer and a check that can fail are rows
 1	seventeen hours is past the ceiling
 1	severity derives from the risk rules
@@ -3203,6 +3285,7 @@
 1	so the commissioning check that reads column four sees the failure
 1	so the declared plugin keeps none of its reaches
 1	so the earlier tree is still readable
+1	so the green receipt reads stale over the staged change
 1	so the plugin subdirectory of the fetched repo digests as the flat installed copy
 1	so the plugin with no evidence of its own reaches the retire list
 1	so the receipt cannot be read now
@@ -3218,6 +3301,7 @@
 1	stack plan asks the policy
 1	stack.tsv is byte-identical after a reconcile
 1	staged destructive SQL still escapes as durable
+1	staging the gated content again gives the gated tree id back
 1	stale is exactly 2: no check after the last edit, one earlier in the session
 1	stale prints one line per recorded row
 1	stamped with date, branch and commit
@@ -3287,6 +3371,7 @@
 1	the default checks reach the runners of more ecosystems, and the flags and wrappers before them: 28 commands, each a check, beside 2 that run none
 1	the default hooks file named again in the manifest is read once
 1	the deployed path is read from the CLI, not guessed from the cache
+1	the dirty check reads an untracked marker naming the resolved project, and a newline, as clean
 1	the done row is not a candidate
 1	the ecosystem check is behind the verifier confine
 1	the ecosystem table is an enforcing table, and escape.sh says so
@@ -3345,6 +3430,7 @@
 1	the handoff check is behind the verifier confine
 1	the help, the audit and the README say in the same words that a --no-commission project's sessions are held once felix install has run where a gate was guessed, and to set gate in project.json first where none was
 1	the hold line claims no more than the hold does, and says a held stop is counted
+1	the hold on a staged change is recorded as blocked
 1	the hook announces what it adopted
 1	the hook ingests an answer file offline
 1	the hook names the request a session still owes
@@ -3505,12 +3591,15 @@
 1	the topology is back once the ignored file is gone
 1	the tree holds only the marker beside what was there
 1	the tree id is still the one the receipt names
+1	the tree id is the same whatever FELIX_UNTRACKED_CAP says: 0, 5, 500 and 100000
+1	the tree id still tells the untracked marker's presence from its absence
 1	the tree is green before the hold record meets a night
 1	the tree's run executed against main's lib, never the base's own run
 1	the unattended job on the misbound checkout fails and labels no pull request
 1	the unattended job on the unbound checkout fails and labels no pull request
 1	the unattended repair proceeds on a brief, and on no other exit of felix repair
 1	the unattended template checks Felix out at a pinned ref, not the default branch
+1	the uncommitted marker beside an uncommitted source file still holds the stop
 1	the unmeasurable list takes the hook-only zero
 1	the unrunob fixture's obligation fails from the engine
 1	the unverified tree blocker is work Felix owes
@@ -3567,6 +3656,7 @@
 1	uninstall takes the grant back
 1	unknown or malformed rows make the receipt indeterminate
 1	untouched surfaces are n/a
+1	untracked names that begin with a dash give the same id above the cap as below it
 1	veldra's fmt: a check that fails with no name it can parse is a loud FAIL
 1	veldra's fmt: a new file rustfmt rewrites is named, though git diff cannot see it
 1	veldra's fmt: and a check that named its files leaves no log behind
@@ -3595,6 +3685,7 @@
 1	when the live engine is not main's, the ok says which one is live
 1	which does not by itself fail the gate, since not applying is not a claim
 1	which is the number it printed
+1	which says the gate has not seen this work too
 1	which takes it back to nothing stranded
 1	which the validator accepts
 1	while --status reads straight through it
@@ -3651,6 +3742,7 @@
 1	with no CLI and nothing bundled, Felix says it cannot tell
 1	with no CLI to ask and a newer entry on disk, the entry main declares is still the one compared
 1	with no Claude Code registry in HOME, the installed engine is - and the bound one is still read
+1	with no calls on disk at all, felix ledger says what it always said: nothing recorded yet
 1	with no checkout in front of it the row reads unchecked
 2	with no cli call at all
 1	with no felix cache on the machine, installed is skipped

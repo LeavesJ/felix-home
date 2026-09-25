@@ -17205,6 +17205,83 @@ rm -f "$TMP/cmwcx-table.keep" "$TMP/cmwcx-bg.pid"
 unset -f _cmwcxst _cmwcxaskv _cmwcxnone
 unset _cmwcxrun _cmwcxpid _cmwcxalive _cmwcxbg _cmwcxgarble
 
+# A state line that comes back empty is unknown, not a row without a state.
+#
+# felix_commission_run split the line felix_commission_state printed and took
+# its first field as the row's state without asking whether it was one. When
+# the state function printed nothing, as it does when a fork inside it fails
+# with EAGAIN under this machine's load, the row printed with no state and
+# class n/a, felix_commission_counts counted it as nothing, and the receipt
+# read commissioned once every other row was done: a row nobody asked
+# certified it. A reviewer measured that with ulimit -u 1. Here nothing is
+# starved of processes. Inside _cm the state function is replaced by one that
+# prints nothing for one need and hands every other row to the real function,
+# copied under a name of its own. A first field that is any other word is
+# unknown too, and so is the line read again after a felix: answer ran. These
+# assertions were written blind, from the contract, before the fix.
+# Everything this touches is restored below and everything it defines unset.
+cp "$CMP/commissioning.tsv" "$TMP/cmes-table.keep"
+_cmesrc="$FROOT/state/commission/cmproj"
+rm -f "$TMP/cmes-receipt.keep"; [ -f "$_cmesrc" ] && cp "$_cmesrc" "$TMP/cmes-receipt.keep"
+rm -f "$CMR/cmes-answered"
+# $1 names what the one line becomes and $2 is the runner. The state function
+# runs inside $(...) and keeps nothing between calls, so the re-read is told
+# from the first read by the file the runner leaves.
+_cmesrun() { local _cmesmode="$1" _cmesdef
+  _cmesdef="$(declare -f felix_commission_state)"
+  eval "_cmes_real_state${_cmesdef#felix_commission_state}"
+  felix_commission_state() {
+    case "$_cmesmode:${3:-}" in
+      empty:cmes_gap)    return 0 ;;
+      word:cmes_gap)     printf 'finished\tcmes a word that is no state\t-\n'; return 0 ;;
+      second:cmes_again) [ -e "$CMR/cmes-answered" ] && return 0 ;;
+    esac
+    _cmes_real_state "$@"; }
+  felix_commission_run "$CMP" "$CMR" "$2"; }
+_cmes_answer() { touch "$CMR/cmes-answered"; return 0; }
+_cmesf()    { printf '%s\n' "$1" | awk -F'\t' -v n="$2" -v f="$3" '$1 == n { print $f }'; }
+_cmesline() { printf '%s\n' "$1" | awk -F'\t' -v n="$2" '$1 == n'; }
+_cmessaid() { case "$1" in *'could not be computed'*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
+_cmtable "$(printf 'cmes_done\t-\t-\t-\t-\ttest -f src/a.txt\t9')" \
+         "$(printf 'cmes_gap\t-\t-\t-\t-\ttrue\t9')"
+_cmesnone="$(_cm _cmesrun none -)"
+_cmesempty="$(_cm _cmesrun empty -)"
+_cmesword="$(_cm _cmesrun word -)"
+
+is  "with the state function replaced and every line it gives well formed, both rows are done and the receipt is commissioned" \
+    "$(_cmesf "$_cmesnone" cmes_done 2) $(_cmesf "$_cmesnone" cmes_gap 2) $(_cm felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmesnone" "")" \
+    "done done commissioned"
+is  "a state line that comes back empty makes its row unknown" "$(_cmesf "$_cmesempty" cmes_gap 2)" "unknown"
+is  "and its class is UNKNOWN, not n/a"                         "$(_cmesf "$_cmesempty" cmes_gap 3)" "UNKNOWN"
+has "and it says the row's state could not be computed"        "$(_cmesf "$_cmesempty" cmes_gap 6)" "could not be computed"
+is  "and the row beside it, whose line is well formed, reads as it does with no line empty" \
+    "$(_cmesline "$_cmesempty" cmes_done)" "$(_cmesline "$_cmesnone" cmes_done)"
+is  "and the receipt over those rows, every other row done, is indeterminate and not commissioned" \
+    "$(_cm felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmesempty" "")" "indeterminate"
+is  "a state line whose first field is none of the eight states makes its row unknown, and says it could not be computed" \
+    "$(_cmesf "$_cmesword" cmes_gap 2) $(_cmesf "$_cmesword" cmes_gap 3) $(_cmessaid "$(_cmesf "$_cmesword" cmes_gap 6)")" \
+    "unknown UNKNOWN said"
+
+# The re-read: the first line says held, the runner answers, and the line read
+# after it comes back empty.
+_cmtable "$(printf 'cmes_again\t-\t-\t-\tfelix:toolbox --route\ttest -f cmes-answered\t5')"
+_cmesagain="$(_cm _cmesrun second _cmes_answer)"
+rm -f "$CMR/cmes-answered"
+is  "a state line that comes back empty on the re-read after a felix answer ran makes the row unknown" \
+    "$(_cmesf "$_cmesagain" cmes_again 2) $(_cmesf "$_cmesagain" cmes_again 3)" "unknown UNKNOWN"
+_cmesdt="$(_cmesf "$_cmesagain" cmes_again 6)"
+case "$_cmesdt" in
+  'ran toolbox --route (exit 0); '*'could not be computed'*)
+     ok  "and it says what ran, then that the row's state could not be computed" ;;
+  *) bad "and it says what ran, then that the row's state could not be computed" "got [$_cmesdt]" ;;
+esac
+
+cp "$TMP/cmes-table.keep" "$CMP/commissioning.tsv"
+if [ -f "$TMP/cmes-receipt.keep" ]; then mv "$TMP/cmes-receipt.keep" "$_cmesrc"; else rm -f "$_cmesrc"; fi
+rm -f "$TMP/cmes-table.keep" "$CMR/cmes-answered"
+unset -f _cmesrun _cmes_answer _cmesf _cmesline _cmessaid
+unset _cmesrc _cmesnone _cmesempty _cmesword _cmesagain _cmesdt
+
 # The answer runs in-process through a runner the caller names, and the check
 # decides afterwards. The stub stands in for felix:toolbox --route.
 _cmstub() { touch "$CMR/src/made-by-answer"; return 0; }

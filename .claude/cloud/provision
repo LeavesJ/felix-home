@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# Carries the toolbox Felix routes to into a Claude Code cloud session.
+#
+# A cloud session reads this repository's .claude/settings.json, .claude/skills,
+# .claude/agents and .claude/commands, and nothing from ~/.claude; plugins do
+# not load there at all (code.claude.com/docs/en/cloud-environments, "What
+# carries over from your setup"). Locally the same skills arrive as plugins. So
+# in the cloud this fetches each plugin toolbox.tsv pins, at the commit the
+# founder's machine runs, and copies its skills, agents and commands into the
+# clone's .claude/, each path listed in .git/info/exclude so none of it can be
+# committed by the session.
+#
+#   provision                  do it quietly; the log is $cache/provision.log
+#   provision --session-start  do it, then print superpowers' session context as
+#                              this hook's output, from the plugin's own hook
+#                              run out of the fetched copy
+#   provision --report         print one line per toolbox row saying what this
+#                              machine has of it, and exit non-zero if a fetch
+#                              row is missing
+#
+# Does nothing outside a cloud session (CLAUDE_CODE_REMOTE=true), because this
+# repository's settings are read locally too, where the plugins already load.
+# FELIX_CLOUD_FORCE=1 runs it anyway, for testing on a scratch copy.
+#
+# Every mode but --report exits 0: a failed fetch must not stop a session from
+# starting, and the log says what failed.
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo="$(cd "$here/../.." && pwd)"
+mode="${1:-}"
+
+[ "${CLAUDE_CODE_REMOTE:-}" = true ] || [ "${FELIX_CLOUD_FORCE:-}" = 1 ] || exit 0
+
+cache="${FELIX_CLOUD_CACHE:-$HOME/.cache/felix-cloud}"
+mkdir -p "$cache/src" 2>/dev/null || exit 0
+log="$cache/provision.log"
+
+rows() { grep -vE '^[[:space:]]*(#|$)' "$here/toolbox.tsv"; }
+say() { printf '%s %s\n' "$(date -u +%H:%M:%SZ)" "$*" >> "$log"; }
+src_dir() { printf '%s/src/%s-%s' "$cache" "${1//\//_}" "$2"; }
+
+# One pinned source, downloaded once per machine. The tarball's top directory
+# is <repo>-<sha>; it is unpacked into a scratch directory and moved into place
+# whole, so a download cut off halfway never looks like a finished one.
+fetch() {
+  local src="$1" sha="$2" dest tmp
+  dest="$(src_dir "$src" "$sha")"
+  [ -d "$dest" ] && return 0
+  tmp="$(mktemp -d "$cache/tmp.XXXXXX")" || return 1
+  if curl -sSfL --retry 2 -m 60 "https://codeload.github.com/$src/tar.gz/$sha" 2>>"$log" \
+       | tar xz -C "$tmp" 2>>"$log" \
+     && mv "$tmp"/*/ "$dest" 2>>"$log"; then
+    rm -rf "$tmp"; say "fetched $src@$sha"; return 0
+  fi
+  rm -rf "$tmp"; say "FAILED to fetch $src@$sha"; return 1
+}
+
+exclude_file() { git -C "$repo" rev-parse --git-path info/exclude 2>/dev/null; }
+
+# Copy one plugin's skills, agents and commands into the clone. A path git
+# tracks is never overwritten: a committed skill of the same name is the
+# repository's own decision, and the collision is logged instead.
+materialize() {
+  local name="$1" root="$2" kind item base rel ex
+  ex="$(exclude_file)"; [ -n "$ex" ] || return 1
+  case "$ex" in /*) ;; *) ex="$repo/$ex" ;; esac
+  mkdir -p "$(dirname "$ex")" && touch "$ex"
+  for kind in skills agents commands; do
+    [ -d "$root/$kind" ] || continue
+    for item in "$root/$kind"/*; do
+      [ -e "$item" ] || continue
+      base="${item##*/}"; rel=".claude/$kind/$base"
+      if git -C "$repo" ls-files --error-unmatch -- "$rel" >/dev/null 2>&1; then
+        say "kept the tracked $rel over $name's"; continue
+      fi
+      grep -qxF "/$rel" "$ex" || printf '/%s\n' "$rel" >> "$ex"
+      mkdir -p "$repo/.claude/$kind"
+      rm -rf "$repo/$rel" && cp -R "$item" "$repo/$rel"
+    done
+  done
+  say "materialized $name"
+}
+
+provision() {
+  local name carry src sha sub note root
+  while IFS=$'\t' read -r name carry src sha sub note; do
+    [ "$carry" = fetch ] || continue
+    fetch "$src" "$sha" || continue
+    root="$(src_dir "$src" "$sha")/$sub"; root="${root%/.}"
+    [ -d "$root" ] || { say "no $sub in $src@$sha"; continue; }
+    materialize "$name" "$root"
+  done <<EOF
+$(rows)
+EOF
+}
+
+report() {
+  local name carry src sha sub note bad=0
+  while IFS=$'\t' read -r name carry src sha sub note; do
+    if [ "$carry" = fetch ]; then
+      if [ -d "$(src_dir "$src" "$sha")" ]; then
+        printf 'carried   %-22s %s@%.12s\n' "$name" "$src" "$sha"
+      else
+        printf 'MISSING   %-22s %s@%.12s (see %s)\n' "$name" "$src" "$sha" "$log"; bad=1
+      fi
+    else
+      printf '%-9s %-22s %s\n' "$carry" "$name" "$note"
+    fi
+  done <<EOF
+$(rows)
+EOF
+  return "$bad"
+}
+
+case "$mode" in
+  --report) report; exit $? ;;
+  --session-start)
+    input="$(cat)"
+    provision
+    # The plugin's own hook binds startup, clear and compact, not resume;
+    # match that, or a resumed session is handed the preamble twice.
+    case "$input" in *'"source":"resume"'*|*'"source": "resume"'*) exit 0 ;; esac
+    sp="$(rows | awk -F'\t' '$1 == "superpowers" && $2 == "fetch" { print $3 "\t" $4; exit }')"
+    [ -n "$sp" ] || exit 0
+    hook="$(src_dir "${sp%%$'\t'*}" "${sp##*$'\t'}")/hooks/session-start"
+    [ -f "$hook" ] || exit 0
+    CLAUDE_PLUGIN_ROOT="${hook%/hooks/session-start}" CURSOR_PLUGIN_ROOT='' COPILOT_CLI='' \
+      bash "$hook" 2>>"$log" || true
+    exit 0 ;;
+  *) provision; exit 0 ;;
+esac

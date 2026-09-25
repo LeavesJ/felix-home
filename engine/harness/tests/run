@@ -25054,6 +25054,16 @@ else
   _rtkn4="and an abbreviated id that is no commit here reads as malformed, not as a snapshot"
   _rtkn5="and an empty base, as a record with no base row gives, reads as malformed"
   _rtkn6="and two bases, even one a commit here, read as malformed"
+  # And four at the edges, so that loosening the rule fails here rather than
+  # letting a base written by hand pass for one tests/red wrote: two bases that
+  # are each a commit here are still two, and a snapshot's base is one commit
+  # id as git prints it, forty lower-case hex digits, which forty letters that
+  # are not hex, forty-one digits and forty upper-case ones are not. The six
+  # above left each of those loosenings green (#371, second review, 2026-09-25).
+  _rtkn7="and two bases that are each a commit here read as malformed, not as a commit"
+  _rtkn8="and forty characters that are not hex digits read as malformed, not as a snapshot"
+  _rtkn9="and forty-one hex digits read as malformed, not as a snapshot"
+  _rtkn10="and forty upper-case hex digits that are no commit here read as malformed, not as a snapshot"
   if [ -n "$_rtroot" ]; then
     _rt_base_in 0000000000000000000000000000000000000000 \
       && bad "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "0000… read as a commit" \
@@ -25067,10 +25077,16 @@ else
     is "$_rtkn4" "$(_rt_base_kind deadbeef)" malformed
     is "$_rtkn5" "$(_rt_base_kind "")" malformed
     is "$_rtkn6" "$(_rt_base_kind "$_rtroot -")" malformed
+    is "$_rtkn7" "$(_rt_base_kind "$_rtroot $_rtroot")" malformed
+    is "$_rtkn8" "$(_rt_base_kind gggggggggggggggggggggggggggggggggggggggg)" malformed
+    is "$_rtkn9" "$(_rt_base_kind 00000000000000000000000000000000000000000)" malformed
+    is "$_rtkn10" "$(_rt_base_kind AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA)" malformed
   else
     skip "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "no git history beside this suite"
     skip "and a base that is a commit here is still compared, so a stale record still fails" "no git history beside this suite"
-    for _n in "$_rtkn1" "$_rtkn2" "$_rtkn3" "$_rtkn4" "$_rtkn5" "$_rtkn6"; do skip "$_n" "no git history beside this suite"; done
+    for _n in "$_rtkn1" "$_rtkn2" "$_rtkn3" "$_rtkn4" "$_rtkn5" "$_rtkn6" "$_rtkn7" "$_rtkn8" "$_rtkn9" "$_rtkn10"; do
+      skip "$_n" "no git history beside this suite"
+    done
   fi
   # Whether the engine in this checkout is origin/main's, working tree
   # included. The record and the version belong to the engine: a branch that
@@ -25178,6 +25194,105 @@ else
       && ok  "$_rtn4" \
       || bad "$_rtn4" "this tree declares ${_rtvh:-nothing}, origin/main declares ${_rtvm:-nothing}"
   fi
+  # Whether a helper printed one line whose first word is the verdict asked for
+  # and whose rest holds each phrase given.
+  _rt_said() {   # <name> <what the helper printed> <ok|skip|bad> [<phrase>...]
+    local n="$1" o="$2" w="$3" r="" p; shift 3
+    case "$o" in *' '*) r="${o#* }" ;; esac
+    case "$o" in
+      *$'\n'*) bad "$n" "more than one line: [$o]"; return 0 ;;
+      "$w"|"$w "*) ;;
+      *) bad "$n" "expected [$w ...] got [$o]"; return 0 ;;
+    esac
+    for p in "$@"; do case "$r" in *"$p"*) ;; *) bad "$n" "[$o] lacks [$p]"; return 0 ;; esac; done
+    ok "$n"
+  }
+  # The base check, asked of a checkout rather than of this suite's own record.
+  # _rtn3 is judged only against this repository's red.tsv, which on any branch
+  # is one record, so no fixture reached the decision it makes on the kind of
+  # base: the second review of #371 undid that decision and every assertion in
+  # this suite stayed green (2026-09-25). _rt_base_check <checkout> answers the
+  # base question alone, on one line, ok, or skip and why, or bad and why,
+  # asking git about that checkout; whether the question is owed stays _rtn3's.
+  # Asked here of a repository built for it: a commit origin/main names, then a
+  # branch commit to engine/, with red.tsv rewritten beside that checkout's
+  # suite, uncommitted, for each kind of base.
+  _rtbc="$TMP/rt-base-check"; mkdir -p "$_rtbc/engine/harness/tests"
+  ( cd "$_rtbc" && git init -q && git config user.email t@t && git config user.name t \
+      && echo a > engine/x && git add -A && git commit -qm 'main: engine' \
+      && git update-ref refs/remotes/origin/main HEAD \
+      && echo b > engine/x && git commit -qam 'branch: engine' ) >/dev/null 2>&1
+  _rtbct="$_rtbc/engine/harness/tests/red.tsv"
+  _rtbcm="$(git -C "$_rtbc" rev-parse -q --verify refs/remotes/origin/main 2>/dev/null)"
+  _rtbch="$(git -C "$_rtbc" rev-parse -q --verify HEAD 2>/dev/null)"
+  _rtbn1="the base check, asked of a checkout whose red.tsv is the retraction, fails it, saying no red run was made (base -)"
+  _rtbn2="and of one whose base is a full commit id that is no commit there, it skips as a published snapshot"
+  _rtbn3="and of one whose base is its merge-base with origin/main, it passes, asking that checkout's history and not this suite's"
+  _rtbn4="and of one whose base is an abbreviated id that is no commit there, it fails, naming the value it read"
+  _rtbn5="and of one whose base is a commit there holding another engine than the merge-base, it fails, saying to re-record"
+  _rtbn6="and of one whose red.tsv has no base row, it fails"
+  # Each fails for its own reason only while the fixture stands where it says:
+  # the merge-base is origin/main's commit, and the branch commit's engine is
+  # not that commit's.
+  if [ -n "$_rtbcm" ] && [ -n "$_rtbch" ] \
+     && [ "$(git -C "$_rtbc" merge-base HEAD refs/remotes/origin/main 2>/dev/null)" = "$_rtbcm" ] \
+     && [ -n "$(_rt_engine_tree "$_rtbc" "$_rtbch")" ] \
+     && [ "$(_rt_engine_tree "$_rtbc" "$_rtbcm")" != "$(_rt_engine_tree "$_rtbc" "$_rtbch")" ]; then
+    printf '# a record\nbase\t-\t-\t-\nrun\t-\t-\t-\n' > "$_rtbct"
+    _rt_said "$_rtbn1" "$(_rt_base_check "$_rtbc")" bad "no red run was made (base -)"
+    printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' 0000000000000000000000000000000000000000 > "$_rtbct"
+    _rt_said "$_rtbn2" "$(_rt_base_check "$_rtbc")" skip "published snapshot"
+    printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' "$_rtbcm" > "$_rtbct"
+    is "$_rtbn3" "$(_rt_base_check "$_rtbc")" ok
+    printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' deadbeef > "$_rtbct"
+    _rt_said "$_rtbn4" "$(_rt_base_check "$_rtbc")" bad "[deadbeef]"
+    printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' "$_rtbch" > "$_rtbct"
+    _rt_said "$_rtbn5" "$(_rt_base_check "$_rtbc")" bad "$_rtbch holds engine" "re-record"
+    printf '# a record\nrun\t0\t1\t0\n' > "$_rtbct"
+    _rt_said "$_rtbn6" "$(_rt_base_check "$_rtbc")" bad
+  else
+    for _n in "$_rtbn1" "$_rtbn2" "$_rtbn3" "$_rtbn4" "$_rtbn5" "$_rtbn6"; do
+      bad "$_n" "the fixture does not stand where it says: origin/main ${_rtbcm:-(none)}, HEAD ${_rtbch:-(none)}"
+    done
+  fi
+  # Whether red.tsv is one whole record, asked of records written here.
+  # tests/red writes both rows - when it made no red run and both real when it
+  # made one, and it refuses a run that reached no assertion, so a run row of -
+  # beside a real base, a base of - beside a real run row, and a run row that
+  # counts nothing are none of its records. _rtn1 accepted all three when the
+  # second review of #371 read it (2026-09-25), and the first is what pasting a
+  # sha into a retraction's base row gives, the hand answer to _rtn3's failure
+  # of a retraction. _rt_record_whole <red.tsv> says ok, or bad and why, and
+  # the detail for a count of rows or of names that does not add up is _rtn1's.
+  _rtw="$TMP/rt-record-whole"; mkdir -p "$_rtw"
+  _rtwb="$(printf 'base\torigin/main\t%s\t0.0.1' 0123456789abcdef0123456789abcdef01234567)"
+  printf '# a record\nbase\t-\t-\t-\nrun\t-\t-\t-\n' > "$_rtw/dash"
+  printf '# a record\n%s\nrun\t1\t2\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/real"
+  printf '# a record\n%s\nrun\t-\t-\t-\n' "$_rtwb" > "$_rtw/pasted"
+  printf '# a record\nbase\t-\t-\t-\nrun\t1\t2\t0\nthe one that failed\t1\n' > "$_rtw/unbased"
+  printf '# a record\n%s\nrun\t0\t0\t0\n' "$_rtwb" > "$_rtw/empty"
+  printf '# a record\n%s\nrun\t2\t1\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/short"
+  printf '# a record\n%s\n%s\nrun\t1\t2\t0\nthe one that failed\t1\n' "$_rtwb" "$_rtwb" > "$_rtw/twice"
+  printf '# a record\n%s\nrun\t1\ttwo\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/word"
+  printf '# a record\n%s\nrun\t1\t-2\t2\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/negative"
+  _rtwn1="a red.tsv whose base and run rows are both -, with no names below, is one whole record"
+  _rtwn2="and so is a real base beside a run that failed one, passed two and names the one"
+  _rtwn3="but a real base beside a run row of - is not, which is what pasting a sha into a retraction's base row gives"
+  _rtwn4="nor is a base of - beside a real run row and the name it counts"
+  _rtwn5="nor a real run row that counts no assertion at all, since tests/red refuses such a run"
+  _rtwn6="nor a run whose failed count the names below do not add up to, said as _rtn1 always said it"
+  _rtwn7="nor two base rows, said as _rtn1 always said it"
+  _rtwn8="nor a real run row with a count that is not a number"
+  _rtwn9="nor a real run row with a negative count, though its counts sum to one"
+  is "$_rtwn1" "$(_rt_record_whole "$_rtw/dash")" ok
+  is "$_rtwn2" "$(_rt_record_whole "$_rtw/real")" ok
+  _rt_said "$_rtwn3" "$(_rt_record_whole "$_rtw/pasted")" bad
+  _rt_said "$_rtwn4" "$(_rt_record_whole "$_rtw/unbased")" bad
+  _rt_said "$_rtwn5" "$(_rt_record_whole "$_rtw/empty")" bad
+  _rt_said "$_rtwn6" "$(_rt_record_whole "$_rtw/short")" bad "the run's failed: 2, the names' total: 1"
+  _rt_said "$_rtwn7" "$(_rt_record_whole "$_rtw/twice")" bad "base rows: 2"
+  _rt_said "$_rtwn8" "$(_rt_record_whole "$_rtw/word")" bad
+  _rt_said "$_rtwn9" "$(_rt_record_whole "$_rtw/negative")" bad
 fi
 
 # The suite's proof that it reached its end: tests/red requires exactly this

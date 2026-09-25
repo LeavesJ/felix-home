@@ -1,4 +1,4 @@
-### 2026-09-23 — the public README rewritten for a general reader first, with the Felix mark, and checked against the code three times
+### 0cf. 2026-09-23 — the public README rewritten for a general reader first, with the Felix mark, and checked against the code three times
 
 **No engine change.** `README.md`, a new `assets/` and
 `projects/felix/snapshot.sh`, on `claude/public-readme-styling-e3d61b`.

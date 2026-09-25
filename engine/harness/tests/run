@@ -22416,7 +22416,8 @@ printf '\nno engine test reads a pipe through a grep that can stop early\n'
 # given -c. So `>/dev/null`, `> /dev/null`, `1>`, `>>`, `&>`, `>&` or `>|`,
 # before or after `2>&1`, anywhere in grep's own command is named. That command
 # runs to the first `|`, `;` or `&&` outside quotes, or to a comment, and on
-# past a backslash that ends its line. A digit glued to a word before `>` is
+# past a backslash that ends its line; it does not stop at `)` or a lone `&`.
+# A digit glued to a word before `>` is
 # part of the word, so `y2>/dev/null` is standard output; `2>/dev/null` alone
 # is not named, since where grep's errors go changes nothing. A pipe that ends
 # one line, or ends its code before a comment, carries onto the next line of
@@ -22430,7 +22431,9 @@ printf '\nno engine test reads a pipe through a grep that can stop early\n'
 # `sed | sed | head -1` read with `|| mroot=""`, safe only because each reads
 # one line, and both now read to the end; a new one would pass this lint); a
 # grep whose standard output reaches /dev/null only through a redirect on its
-# caller, on a brace group or subshell around it, or through exec; a pipe into
+# caller, on a brace group around it, on a subshell that closes on a later line
+# (one that closes on grep's own line is named), or through exec; a quoted
+# target (`>"/dev/null"`, `>'/dev/null'`); a pipe into
 # a brace group or subshell that holds the grep; a grep named by its path or
 # through a variable; a wrapper given options of its own (`env -i`,
 # `nice -n 5`, `timeout -s KILL 5`); a VAR= prefix whose quoted value holds a
@@ -22439,7 +22442,9 @@ printf '\nno engine test reads a pipe through a grep that can stop early\n'
 # variable; code built at run time with eval. What it names that is no pipe:
 # looking for the pipe and the grep, it reads quoted strings and here-doc
 # bodies as code, so a message or a pattern holding `| grep -q` is named, and
-# so is the line after a code line whose trailing comment ends in `|`.
+# so is the line after a code line whose trailing comment ends in `|`; and
+# since grep's command runs past `)` and a lone `&`, a redirect to /dev/null
+# that belongs to a later command on the line is named, as is `/dev/nullx`.
 _spl_scan() {
   awk '
     # grep, after the words that may stand before it, able to stop early.

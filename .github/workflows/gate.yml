@@ -3,6 +3,11 @@ name: gate
 # Felix gates itself with its own gate, through its own CLI. If this file ever
 # has to special-case something to make the harness pass, the harness has grown
 # an assumption it does not admit to.
+#
+# The one run it declines is a push to main whose tree the landed pull
+# request's own run already gated green. That is not a special case to make
+# anything pass; it is the same evidence, not bought twice. The conditions are
+# in reuse-verified-tree.sh, and the gate runs whenever any of them is unsure.
 
 on:
   pull_request:
@@ -17,7 +22,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # From 2026-09-01 to 09-25, 174 of the 203 pushes to main gated a tree the
+  # pull request's run had already passed: 28% of the repository's Actions
+  # minutes, and none of the 203 failed. This job asks whether the landed tree
+  # is one of those. It is a job of its own, on pushes to main only, so the
+  # read scopes it needs are never held by a job that runs a pull request's
+  # code.
+  reuse:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read  # which pull request landed the commit
+      actions: read        # that pull request's runs, and their jobs
+      checks: read         # the tree each run's gate job says it gated
+    outputs:
+      run: ${{ steps.reuse.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Only exit 0 names a run. A "no", an unreadable GitHub or a missing
+      # script leave the output empty, and the gate job runs.
+      - name: Stand on the pull request's green run of this exact tree
+        id: reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if run="$(.github/workflows/reuse-verified-tree.sh)"; then
+            printf 'run=%s\n' "$run" >> "$GITHUB_OUTPUT"
+          fi
+
   gate:
+    needs: reuse
+    # Every pull_request run skips reuse, and a reuse that failed names no
+    # run, so both reach the gate. Only a named run keeps it from running.
+    if: ${{ !cancelled() && needs.reuse.outputs.run == '' }}
     runs-on: ubuntu-latest
     steps:
       # Full history: the secret scan diffs against a base, and a shallow clone
@@ -30,6 +71,16 @@ jobs:
           # runs fetches from or pushes to GitHub, and it reads origin/main
           # from the history this fetch already brought.
           persist-credentials: false
+
+      # What a later push to main compares its own tree against. A pull
+      # request's run gates its head merged into the base as it was then, and
+      # this is the only record of which tree that was.
+      - name: Name the tree this run gates
+        run: printf '::notice title=gated tree::This run gates tree %s\n' "$(git rev-parse 'HEAD^{tree}')"
+
+      # Fails closed: a missing or broken reuse script turns this job red.
+      - name: Show the reuse step refusing what it must
+        run: .github/workflows/reuse-verified-tree.test.sh .github/workflows/reuse-verified-tree.sh
 
       - name: Run the gate
         run: ./engine/harness/felix gate

@@ -31,6 +31,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/resolve.sh"
 . "${SCRIPT_DIR}/../lib/verify.sh"
+. "${SCRIPT_DIR}/../lib/left.sh" 2>/dev/null || felix_left_dirty() { felix_tree_dirty "$@"; }
 . "${SCRIPT_DIR}/../lib/route.sh"
 . "${SCRIPT_DIR}/../lib/ready.sh"
 . "${SCRIPT_DIR}/../lib/guard.sh"
@@ -85,7 +86,8 @@ FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 # review end unchecked and unrecorded. The hold's own record tells the two
 # apart, and is taken at every flagged stop, a night's included, so a night
 # leaves none behind. An id or a record that cannot tell ends the stop, as
-# before. FOREIGN marks a stop judged inside another hook's chain.
+# before. FOREIGN marks a stop judged inside another hook's chain. A stop that
+# ends here is still how the session leaves its tree, so it is recorded first.
 CHAIN=0 FOREIGN=0
 if [ "${_active:-}" = "true" ]; then
   _chain_proj="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || exit 0
@@ -93,7 +95,8 @@ if [ "${_active:-}" = "true" ]; then
   if felix_overnight_owns "$_chain_proj" "${SID:-}"; then
     CHAIN=1
   else
-    [ "$_held" -eq 1 ] || exit 0
+    [ "$_held" -eq 1 ] || { felix_left_record "$_chain_proj" "$(felix_repo_root "$PWD")" \
+                              "${SID:-}" "$raw" "$FELIX_HOME_DIR" >/dev/null 2>&1; exit 0; }
     FOREIGN=1
   fi
 else
@@ -171,6 +174,11 @@ fi
 
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
 [ -n "$PROJ" ] || exit 0
+ROOT="$(felix_repo_root "$PWD")"
+
+# How this stop leaves the tree, written before anything below decides whether
+# to hold it (lib/left.sh). The clean-tree check further down reads its status.
+felix_left_record "$PROJ" "$ROOT" "${SID:-}" "$raw" "$FELIX_HOME_DIR" >/dev/null 2>&1
 
 # A project that declares no gate has nothing to enforce. Inventing an
 # obligation for it would make Felix unusable on a repo part-way through
@@ -178,7 +186,6 @@ PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
 GATE="$(felix_json_str "$PROJ/project.json" gate 2>/dev/null)"
 [ -n "$GATE" ] || exit 0
 
-ROOT="$(felix_repo_root "$PWD")"
 git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
 # A clean tree used to end the hook here, which meant committing your work
@@ -193,7 +200,7 @@ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 # A night still has something to say over a tree with nothing to verify: the
 # session stopping before its first commit is the one a night was granted to
 # keep going, and this exit used to let it close for the night.
-if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR"; then
+if ! felix_left_dirty "$ROOT" "$FELIX_HOME_DIR"; then
   if ! felix_session_committed "$FELIX_HOME_DIR" "${SID:-}" "$ROOT"; then
     felix_overnight_owns "$PROJ" "${SID:-}" && _felix_stop_night ""
     exit 0

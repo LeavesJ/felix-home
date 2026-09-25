@@ -27,7 +27,8 @@
 # Everything here is git and GitHub, with lib/inventory-gh.sh (what gh says)
 # and lib/inventory-orphans.sh (what sits beside the worktrees); what only a
 # host's records say (live, question, blocked, chips) is asked of
-# lib/inventory-host.sh, and lib/inventory-view.sh draws the human view.
+# lib/inventory-host.sh, question after Felix's own record (_fi_left), and
+# lib/inventory-view.sh draws the human view.
 # What cannot be read prints unknown, never absent, and a row with an
 # unknown state other than live is never landed.
 #
@@ -311,13 +312,32 @@ _fi_dirty() {
   set -- $_FI_DD; _FI_DD="$1 $2 ${k:-0} $3"
 }
 # The host's answer for a directory, as _FI_H: owner mtime live question
-# blocked note; the note, if any, joins the detail.
+# blocked note replied; the note, if any, joins the detail.
 _fi_host() {
   local x="unknown${_FI_TAB}-${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}-"
   [ "$_FI_HOST" = 1 ] && x="$(felix_inv_host_dir "$1" "$_FI_NOW" "$_FI_LIVE" "$_FI_BLOCKED")"
   local IFS="$_FI_TAB"; set -f; _FI_H=($x); set +f
   [ "${#_FI_H[@]}" -ge 6 ] || _FI_H=(unknown - unknown unknown unknown "the host adapter answered nothing")
-  [ "${_FI_H[5]}" = - ] || _fi_add "${_FI_H[5]}"
+  _fi_left "$1"; [ "${_FI_H[5]}" = - ] || _fi_add "${_FI_H[5]}"
+}
+# Felix's record of how the newest session left a directory (lib/left.sh),
+# found by its id in any project's memory and taken when its dir is this one:
+# its asked decides question ahead of the adapter, whose text a no drops, but
+# a yes yields to the founder speaking after the final text (replied); the
+# adapter stays the reading for a session older than it or with no message.
+_fi_left() {
+  local s="${_FI_H[0]}" p f l d a="" n="${_FI_H[5]}" w=""
+  case "$s" in ''|-|unknown|.|..|-*|*[!A-Za-z0-9._-]*) return 0 ;; esac
+  p="$(cd "$1" 2>/dev/null && pwd -P)" || p=""
+  for f in "${FELIX_MEMORY:-${HOME:-}/.felix/memory}"/*/left/"$s".tsv; do
+    l=""; [ -f "$f" ] && { IFS= read -r l < "$f"; } 2>/dev/null
+    d="${l#*"$_FI_TAB"*"$_FI_TAB"}"; d="${d%%"$_FI_TAB"*}"
+    [ -n "$d" ] && { [ "$d" = "$1" ] || [ "$d" = "$p" ]; } && { a="${l##*"$_FI_TAB"}"; break; }
+  done
+  case "$a,${_FI_H[6]:-}" in yes,yes) return 0 ;; yes,*|no,*) ;; *) return 0 ;; esac
+  [ "$a" = yes ] || case "$n" in "ended on: "*"; waiting on "*) n="waiting on ${n##*; waiting on }" ;; "ended on: "*) n=- ;; esac
+  [ "$n" = - ] || w="; $n"
+  _FI_H[3]="$a"; if [ "$a" = yes ]; then _FI_H[5]="question from Felix's record$w"; else _FI_H[5]="no question, from Felix's record$w"; fi
 }
 
 # The branch-borne states of a tip, into _FI_UNP _FI_UNPROP _FI_PRO _FI_PRC.

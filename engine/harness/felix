@@ -92,8 +92,11 @@ if [ "${1:-}" = "audit" ]; then shift; cmd_audit "$@"; exit $?; fi
 # and gh is in lib/inventory.sh, with its parts lib/inventory-gh.sh,
 # lib/inventory-orphans.sh and lib/inventory-view.sh (the human view); what
 # only the host's session records can say is in lib/inventory-host.sh, the one
-# file a second host would replace.
+# file a second host would replace. The rule for a final message that asks
+# something is lib/asks.sh, which the Stop record runs as well.
 cmd_inventory() {
+  # shellcheck source=lib/asks.sh
+  . "${SCRIPT_DIR}/lib/asks.sh" || exit 1
   # shellcheck source=lib/inventory.sh
   . "${SCRIPT_DIR}/lib/inventory.sh" || exit 1
   # shellcheck source=lib/inventory-gh.sh

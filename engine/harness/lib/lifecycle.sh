@@ -1,8 +1,8 @@
 # The session lifecycle, one row per moment.
 #
-# A session starts, resumes, is cleared or is compacted, and between sessions
-# a handoff is written or refused. The only record of those moments was kept
-# by two of ECC's hooks, session:start's resume markers and
+# A session starts, resumes, is cleared or is compacted, and ends, and between
+# sessions a handoff is written or refused. The only record of those moments
+# was kept by two of ECC's hooks, session:start's resume markers and
 # stop:cost-tracker's costs.jsonl, and the founder's settings edit (queue item
 # 1) switches both off. Every direct-strength failure in the usage analysis
 # was a handoff failure, and none of the per-session questions — resume after
@@ -30,8 +30,11 @@
 #                 session is the platform's summary request (#264). SessionStart
 #                 cannot tell one apart, so that session's startup row is
 #                 already here, and a reader drops every row of a session that
-#                 has a summary row. A source the platform has not named is
-#                 `-`, so the column holds what a schema row can enumerate.
+#                 has a summary row. Or end, written by the SessionEnd hook,
+#                 which fires for few sessions, since one left idle never
+#                 ends (lib/left.sh records every Stop for that reason). A
+#                 source the platform has not named is `-`, so the column
+#                 holds what a schema row can enumerate.
 #   3 session     the payload's session_id
 #   4 bound       the engine executing this code, read from its own plugin.json
 #   5 installed   what the Claude Code registry has installed for felix: the
@@ -42,7 +45,10 @@
 #                 stands at that moment, the join between a handoff row and the
 #                 session start that was handed it
 #   8 transcript  the payload's transcript_path
-#   9 note        on a handoff row, written | replaced | refused; `-` otherwise
+#   9 note        on a handoff row, written | replaced | refused; on an end
+#                 row, how the session left its tree: lib/left.sh's state,
+#                 followed by +asked when its last message asked something,
+#                 as dirty+unpushed+asked; `-` otherwise
 #
 # It never blocks and never fails its caller. It runs at every session start
 # of every governed project, so it asks git two things at most, rev-parse and
@@ -85,6 +91,16 @@ felix_lifecycle_handoff() {
 # summary session adds, so the startup row it already has can be told apart.
 felix_lifecycle_summary() {
   _felix_lifecycle_row "$1" "$2" summary "${3:-}" "${4:-}" ""
+}
+
+# A SessionEnd. proj, the checkout's root, the payload's session_id and
+# transcript_path, then how the session left the tree as lib/left.sh found it:
+# its state, and its asked, which the note carries as +asked when it is yes.
+felix_lifecycle_end() {
+  local note="${5:-}"
+  [ -n "$note" ] || note=-
+  [ "${6:-}" = yes ] && note="$note+asked"
+  _felix_lifecycle_row "$1" "$2" end "${3:-}" "${4:-}" "$note"
 }
 
 # proj, dir, kind, session, transcript, note

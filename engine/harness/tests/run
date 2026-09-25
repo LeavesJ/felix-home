@@ -23145,6 +23145,876 @@ is  "D5: and the human view lists a worktree whose session asked in its needs-ac
 _ivx="$(grep -E 'bad substitution|syntax error|unbound variable|command not found|invalid option|not a valid identifier|division by 0|awk: |Permission denied' "$IV_ERR" | head -n 3 | tr '\n' ';')"
 is  "the decisions' runs wrote no shell or awk error to stderr" "$_ivx" ""
 
+# ----------------------------------------------- how a session left its tree ----
+printf '\nhow a session left its tree: the Stop record and the session-end row\n'
+# Written blind, from the spec alone (audits/2026-09-24-lost-work-sweep/
+# left-spec.md), while the change was being written by someone else, so each
+# assertion names the contract and none reads a wording.
+#
+# SessionEnd fired for 13 of 60 sessions, because a desktop session left idle
+# never ends. So every Stop writes one line saying how the tree stood and
+# whether the session's final message asked the founder something, to
+# <memory>/<project>/left/<session>.tsv: time session dir head state asked.
+# SessionEnd appends a lifecycle.log row of kind end whose note says the same,
+# and writes the record once more. felix inventory reads the record's asked
+# ahead of the transcript.
+#
+# The fixture is its own: an engine copied from this harness, a Felix home
+# with one project, a memory root nothing else here writes to, a scratch HOME
+# and TMPDIR, and checkouts that each stand in one state. Every hook runs as
+# the platform runs it, payload on stdin, from the checkout, with stdout and
+# stderr kept apart, because a record that fails has only stderr to fail on.
+# Placed after felix inventory's section, and so after the audit section,
+# whose transcript helpers (_au_open and the rest) it uses, and after #264's,
+# whose summary request P264_REQ it sends.
+LF="$TMP/left"; mkdir -p "$LF"; LF="$(cd "$LF" && pwd -P)"
+LFE="$LF/engine"; mkdir -p "$LFE"; cp -R "$REAL_HARNESS" "$LFE/harness"
+LFH="$LF/home"; LFM="$LF/memory"; LFU="$LF/user"; LFTD="$LF/tmp"; LFW="$LF/work"
+LFTR="$LF/transcripts"; LFSTUB="$LF/stub"; LFGL="$LF/git.log"
+mkdir -p "$LFH/projects/lf" "$LFM" "$LFU/.config" "$LFTD" "$LFW" "$LFTR" "$LFSTUB" "$LF/origins"
+printf '{\n  "name": "lf",\n  "gate": "true"\n}\n' > "$LFH/projects/lf/project.json"
+printf '# lf\n' > "$LFH/projects/lf/CLAUDE.md"
+LFD="$LFM/lf/left"; LFLOG="$LFM/lf/lifecycle.log"
+LFTBS="$LFE/harness/templates/schemas.tsv"; LFTBL="$LFE/harness/lib/table.sh"
+LF_REALGIT="$(command -v git)"
+
+# The fixture's own git: a scratch HOME, no system config, a fixed author.
+# Its reads take no optional lock, so checking the fixture cannot refresh an
+# index an assertion below watches.
+_lfg() { HOME="$LFU" XDG_CONFIG_HOME="$LFU/.config" GIT_CONFIG_NOSYSTEM=1 \
+         GIT_AUTHOR_NAME=Fixture GIT_AUTHOR_EMAIL=fixture@example.invalid \
+         GIT_COMMITTER_NAME=Fixture GIT_COMMITTER_EMAIL=fixture@example.invalid git "$@"; }
+_lfq() { _lfg --no-optional-locks "$@"; }
+_lfcommit() { _lfg -C "$1" add -A && _lfg -C "$1" commit -q -m "$2"; }
+# A checkout of an origin of its own, bound by a committed marker, pushed.
+_lfrepo() {  # name -> $LFW/name
+  local o="$LF/origins/$1.git" r="$LFW/$1"
+  _lfg -c init.defaultBranch=main init -q --bare "$o"
+  _lfg -c init.defaultBranch=main clone -q "$o" "$r" 2>/dev/null
+  printf 'lf\n' > "$r/.felix"; printf '%s\n' "$1" > "$r/README.md"; printf '*.log\n' > "$r/.gitignore"
+  _lfcommit "$r" "the first $1" && _lfg -C "$r" push -q origin main 2>/dev/null
+}
+# A tracked file's mtime moves and its content does not: a git status that
+# may take the optional lock rewrites .git/index, and one that may not leaves it.
+_lfstale() { touch -t 202001010000 "$1/README.md"; }
+
+# The hook as the platform runs it. LF_MEMROOT, LF_PATH and LF_RED, set on the
+# call, change the memory root, the PATH and FELIX_ALLOW_RED for that one run;
+# LF_CPU holds each of its processes to that many seconds of CPU.
+LFRC=0; LFP=""
+_lfhook() {  # hook directory payload -> $LF/out, $LF/err, LFRC
+  ( cd "$2" || exit 97
+    unset CLAUDE_PLUGIN_ROOT FELIX_ALLOW_RED GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OPTIONAL_LOCKS
+    export HOME="$LFU" XDG_CONFIG_HOME="$LFU/.config" FELIX_HOME="$LFH" FELIX_MEMORY="${LF_MEMROOT:-$LFM}" \
+           TMPDIR="$LFTD" GIT_CONFIG_NOSYSTEM=1 PATH="${LF_PATH:-$PATH}"
+    [ "${LF_RED:-}" = 1 ] && export FELIX_ALLOW_RED=1
+    [ -z "${LF_CPU:-}" ] || ulimit -t "$LF_CPU"
+    printf '%s' "$3" | "$LFE/harness/hooks/$1" ) > "$LF/out" 2> "$LF/err"
+  LFRC=$?
+}
+# Stop, from a directory, for a session, with the final message as the JSON
+# string holds it (escapes and all), or - for a payload that carries none.
+# Payloads are built with printf -v, never "$(...)": bash 3.2 brace-expands a
+# quoted {"a":1,"b":2} inside a double-quoted command substitution.
+_lfs() {  # directory sid message|- [stop_hook_active]
+  if [ "$3" = "-" ]; then
+    printf -v LFP '{"session_id":"%s","transcript_path":"%s/%s.jsonl","cwd":"%s","permission_mode":"default","hook_event_name":"Stop","stop_hook_active":%s}' \
+      "$2" "$LFTR" "$2" "$1" "${4:-false}"
+  else
+    printf -v LFP '{"session_id":"%s","transcript_path":"%s/%s.jsonl","cwd":"%s","permission_mode":"default","hook_event_name":"Stop","stop_hook_active":%s,"last_assistant_message":"%s"}' \
+      "$2" "$LFTR" "$2" "$1" "${4:-false}" "$3"
+  fi
+  _lfhook stop "$1" "$LFP"
+}
+_lfe() {  # directory sid: SessionEnd, whose payload carries no message
+  printf -v LFP '{"session_id":"%s","transcript_path":"%s/%s.jsonl","cwd":"%s","hook_event_name":"SessionEnd","reason":"other"}' \
+    "$2" "$LFTR" "$2" "$1"
+  _lfhook session-end "$1" "$LFP"
+}
+_lfout() { cat "$LF/out" 2>/dev/null; }
+_lferr() { cat "$LF/err" 2>/dev/null; }
+_lfheld() { case "$(_lfout)" in *'"decision"'*'"block"'*) return 0 ;; esac; return 1; }
+# The record, whole, and one column of its first line:
+#   1 time  2 session  3 dir  4 head  5 state  6 asked
+_lfrec() { cat "$LFD/$1.tsv" 2>/dev/null; }
+_lfcol() { _lfrec "$1" | LC_ALL=C awk -F'\t' -v i="$2" 'NR == 1 { print $i }'; }
+_lfn()   { if [ -f "$1" ]; then wc -l < "$1" | tr -d ' '; else printf 'absent'; fi; }
+_lfino() { ls -di "$1" 2>/dev/null | awk '{ print $1 }'; }
+# An expected value the fixture failed to produce fails its assertion instead
+# of matching an empty field: an unimplemented record writes nothing, and
+# nothing equals nothing.
+_lf_is() { if [ -z "$3" ]; then bad "$1" "the fixture produced no expected value, so nothing was compared"
+           else is "$1" "$2" "$3"; fi; }
+_lfsilent() {  # name: exit 0, nothing on stdout, nothing on stderr
+  if [ "$LFRC" = 0 ] && [ -z "$(_lfout)" ] && [ -z "$(_lferr)" ]; then ok "$1"
+  else bad "$1" "exit $LFRC, stdout [$(_lfout)], stderr [$(_lferr)]"; fi
+}
+_lf_sha() { _lfq -C "$1" rev-parse HEAD 2>/dev/null; }
+# A head column names the commit when it is the full sha or a prefix of it
+# of seven characters or more; the spec gives the column and not its width.
+_lfhead() {  # name got full-sha
+  if [ -z "$3" ]; then bad "$1" "the fixture has no HEAD to compare"
+  elif [ "${#2}" -ge 7 ] && case "$3" in "$2"*) true ;; *) false ;; esac; then ok "$1"
+  else bad "$1" "expected [$3] or a prefix of it, got [$2]"; fi
+}
+
+# ---- the tables, and one ask rule --------------------------------------
+is  "templates/schemas.tsv has a row for left: a memory store of time session dir head state asked, empty allowed" \
+    "$(LC_ALL=C awk -F'\t' '$1 == "left"' "$LFTBS")" "$(printf 'left\tmemory\ttime session dir head state asked\tallowed')"
+is  "lifecycle.log's schema row is unchanged, since end is a new value of an existing column" \
+    "$(LC_ALL=C awk -F'\t' '$1 == "lifecycle.log"' "$LFTBS")" \
+    "$(printf 'lifecycle.log\tmemory\ttime kind session bound installed head handoff transcript note\tallowed')"
+# The kind column's paragraph of lib/lifecycle.sh's header, lowercase words
+# only, so SessionEnd and "the end of" are not taken for the kind.
+_lfk="$(LC_ALL=C awk '/^#[[:space:]]+2 kind/ { f = 1 } /^#[[:space:]]+3 session/ { f = 0 } f' "$LFE/harness/lib/lifecycle.sh" | LC_ALL=C tr -c 'a-z' ' ')"
+case " $_lfk " in
+  *" end "*) ok  "the comment in lib/lifecycle.sh that enumerates kinds names end" ;;
+  *)         bad "the comment in lib/lifecycle.sh that enumerates kinds names end" "the kind paragraph reads [$_lfk]" ;;
+esac
+_lfdef="$(grep -l '^_FI_HOST_ASK=' "$LFE/harness/lib/"*.sh "$LFE/harness/hooks/"* "$LFE/harness/felix" 2>/dev/null \
+          | sed "s|^$LFE/harness/||" | tr '\n' ' ')"
+is  "the ask rule is defined once, in lib/asks.sh, so the Stop record and felix inventory run one program" "$_lfdef" "lib/asks.sh "
+[ -n "$(grep -l 'asks\.sh' "$LFE/harness/lib/"inventory*.sh "$LFE/harness/felix" 2>/dev/null)" ] \
+  && ok  "and felix inventory's side sources lib/asks.sh" \
+  || bad "and felix inventory's side sources lib/asks.sh" "no inventory file or the felix CLI names asks.sh"
+[ -n "$(grep -l 'asks\.sh' "$LFE/harness/lib/left.sh" "$LFE/harness/hooks/stop" "$LFE/harness/hooks/session-end" 2>/dev/null)" ] \
+  && ok  "and so does the Stop record's side" \
+  || bad "and so does the Stop record's side" "neither lib/left.sh nor the two hooks name asks.sh"
+
+# ---- the checkouts, one per state --------------------------------------
+for _lfr in clean dirty untracked ignored unpushed both chain over two sum end1 end2 end3 quiet endgit; do
+  _lfrepo "$_lfr"
+done
+printf 'a tracked edit\n' >> "$LFW/dirty/README.md"
+printf 'new\n' > "$LFW/untracked/notes.txt"
+printf 'noise\n' > "$LFW/ignored/build.log"
+printf 'unpushed\n' > "$LFW/unpushed/work.txt"; _lfcommit "$LFW/unpushed" 'work nobody pushed'
+printf 'unpushed\n' > "$LFW/both/work.txt"; _lfcommit "$LFW/both" 'work nobody pushed'
+printf 'and an edit\n' >> "$LFW/both/README.md"
+LFNR="$LFW/noremote"; mkdir -p "$LFNR"; _lfg -C "$LFNR" init -q -b main
+printf 'lf\n' > "$LFNR/.felix"; printf 'x\n' > "$LFNR/README.md"; _lfcommit "$LFNR" 'no remote'
+LFUB="$LFW/unborn"; mkdir -p "$LFUB"; _lfg -C "$LFUB" init -q -b main; printf 'lf\n' > "$LFUB/.felix"
+LFPL="$LFW/plain"; mkdir -p "$LFPL"; printf 'lf\n' > "$LFPL/.felix"
+LFUG="$LFW/ungoverned"; mkdir -p "$LFUG"; _lfg -C "$LFUG" init -q -b main; printf 'x\n' > "$LFUG/README.md"; _lfcommit "$LFUG" 'nobody governs this'
+
+_lffx=""
+for _lfr in clean dirty untracked ignored chain over two sum end1 end2 end3 quiet endgit; do
+  [ "$(_lfq -C "$LFW/$_lfr" rev-list --count HEAD --not --remotes 2>/dev/null)" = 0 ] || _lffx="$_lffx $_lfr has unpushed commits;"
+done
+for _lfr in unpushed both; do
+  [ "$(_lfq -C "$LFW/$_lfr" rev-list --count HEAD --not --remotes 2>/dev/null)" = 1 ] || _lffx="$_lffx $_lfr is not one commit ahead;"
+done
+for _lfr in clean ignored unpushed chain over two end1 end2 end3 quiet endgit; do
+  [ -z "$(_lfq -C "$LFW/$_lfr" status --porcelain 2>/dev/null)" ] || _lffx="$_lffx $_lfr is not clean;"
+done
+for _lfr in dirty untracked both; do
+  [ -n "$(_lfq -C "$LFW/$_lfr" status --porcelain 2>/dev/null)" ] || _lffx="$_lffx $_lfr is clean;"
+done
+_lfq -C "$LFW/ignored" check-ignore -q build.log || _lffx="$_lffx build.log is not ignored;"
+[ -z "$(_lfq -C "$LFNR" remote)" ] || _lffx="$_lffx noremote has a remote;"
+[ "$(_lfq -C "$LFNR" rev-list --count HEAD --not --remotes 2>/dev/null)" = 1 ] || _lffx="$_lffx noremote's commit does not count as unpushed;"
+_lfq -C "$LFUB" rev-parse -q --verify HEAD >/dev/null 2>&1 && _lffx="$_lffx unborn has a commit;"
+_lfq -C "$LFPL" rev-parse --git-dir >/dev/null 2>&1 && _lffx="$_lffx plain is inside a repository;"
+[ -z "$_lffx" ] && ok  "the fixture: each checkout stands in the state it is named for, and plain is in no repository" \
+                || bad "the fixture: each checkout stands in the state it is named for, and plain is in no repository" "$_lffx"
+
+LF_PLAIN='Committed and pushed. The gate is green.'
+LF_ASK='Two ways forward.\n\nShall I push the branch?'
+
+# ---- every state -------------------------------------------------------
+_lfs "$LFW/clean" lf-st-clean "$LF_PLAIN"
+_lfsilent "a Stop on a clean tree is as silent as it was, the record adding nothing to what it prints"
+is  "and it still writes the record, before the clean-tree early exit" "$(_lfn "$LFD/lf-st-clean.tsv")" "1"
+_lfr1="$(_lfrec lf-st-clean)"
+is  "the record is one line of six tab-separated fields: time session dir head state asked" \
+    "$(printf '%s\n' "$_lfr1" | LC_ALL=C awk -F'\t' 'NR == 1 { print NF }')" "6"
+[ "$(tail -c 1 "$LFD/lf-st-clean.tsv" 2>/dev/null | od -An -tx1 | tr -d ' \n')" = "0a" ] \
+  && ok  "and the line ends in a newline, a whole line" \
+  || bad "and the line ends in a newline, a whole line" "[$_lfr1]"
+case "$(_lfcol lf-st-clean 1)" in
+  [0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]T[0-2][0-9]:[0-5][0-9]:[0-5][0-9]Z) ok "the time is a UTC stamp, the form lifecycle.log uses" ;;
+  *) bad "the time is a UTC stamp, the form lifecycle.log uses" "got [$(_lfcol lf-st-clean 1)]" ;;
+esac
+is  "the session is the payload's session_id"                  "$(_lfcol lf-st-clean 2)" "lf-st-clean"
+is  "the dir is the checkout's root, the directory felix inventory matches on" "$(_lfcol lf-st-clean 3)" "$LFW/clean"
+mkdir -p "$LFW/clean/deep/er"
+_lfs "$LFW/clean/deep/er" lf-st-deep "$LF_PLAIN"
+is  "and it is the root still for a session standing in a subdirectory, or inventory could not match it" \
+    "$(_lfcol lf-st-deep 3)" "$LFW/clean"
+_lfhead "the head names the checkout's HEAD commit"             "$(_lfcol lf-st-clean 4)" "$(_lf_sha "$LFW/clean")"
+is  "a pushed tree with nothing uncommitted is clean"           "$(_lfcol lf-st-clean 5)" "clean"
+is  "and a plain final message did not ask"                     "$(_lfcol lf-st-clean 6)" "no"
+
+_lfs "$LFW/dirty" lf-st-dirty "$LF_PLAIN"
+_lfheld && ok "a Stop over unverified work is still held" || bad "a Stop over unverified work is still held" "stdout [$(_lfout)]"
+is  "and the held stop writes its record too, whatever the hold decides: dirty" "$(_lfcol lf-st-dirty 5)" "dirty"
+_lfs "$LFW/untracked" lf-st-untracked "$LF_PLAIN"
+is  "an untracked file that is not ignored makes the tree dirty"   "$(_lfcol lf-st-untracked 5)" "dirty"
+_lfs "$LFW/ignored" lf-st-ignored "$LF_PLAIN"
+is  "an ignored file does not, as felix_tree_dirty already says"   "$(_lfcol lf-st-ignored 5)" "clean"
+_lfs "$LFW/unpushed" lf-st-unpushed "$LF_PLAIN"
+is  "a commit on no remote-tracking ref is unpushed"               "$(_lfcol lf-st-unpushed 5)" "unpushed"
+_lfhead "and the head is that commit"                             "$(_lfcol lf-st-unpushed 4)" "$(_lf_sha "$LFW/unpushed")"
+_lfs "$LFW/both" lf-st-both "$LF_PLAIN"
+is  "both at once is dirty+unpushed"                               "$(_lfcol lf-st-both 5)" "dirty+unpushed"
+_lfs "$LFNR" lf-st-noremote "$LF_PLAIN"
+is  "a repository with no remote is no-remote, not unpushed"       "$(_lfcol lf-st-noremote 5)" "no-remote"
+_lfs "$LFUB" lf-st-unborn "$LF_PLAIN"
+is  "a repository with no commit yet is unborn"                    "$(_lfcol lf-st-unborn 5)" "unborn"
+_lfs "$LFPL" lf-st-plain "$LF_PLAIN"
+is  "a governed directory that is no repository has state -"       "$(_lfcol lf-st-plain 5)" "-"
+is  "and its record still names the directory"                     "$(_lfcol lf-st-plain 3)" "$LFPL"
+LF_RED=1 _lfs "$LFW/dirty" lf-st-red "$LF_PLAIN"
+if ! _lfheld && [ "$LFRC" = 0 ]; then ok "a dirty stop the founder's override allows is allowed"
+else bad "a dirty stop the founder's override allows is allowed" "exit $LFRC, stdout [$(_lfout)]"; fi
+is  "and it writes the record too, on the allowed path past the early exit" "$(_lfcol lf-st-red 5)" "dirty"
+_lfmb="$(find "$LFM" -type f 2>/dev/null | LC_ALL=C sort)"
+_lfs "$LFUG" lf-st-ungov "$LF_PLAIN"
+is  "a directory no project governs writes nothing to memory" "$(find "$LFM" -type f 2>/dev/null | LC_ALL=C sort)" "$_lfmb"
+
+# ---- asked -------------------------------------------------------------
+# Each message as the payload's JSON string holds it, and whether it asks by
+# the rule felix inventory uses (checked below against felix inventory
+# itself). Several ask only once an escape is decoded, or only if it is
+# decoded wrongly: \n and \t read as line break and tab, \" not ending the
+# string, \\n a backslash and an n, and a \u escape left as it is. The last
+# two run past the 16 KiB of its end that the rule reads: one paragraph that
+# closes on a question, and a fenced block opened before that cut and closed
+# after it, then a question, which reads as one only while the fence the cut
+# dropped is still counted. Not written blind: added with that cut.
+LF_LONG="$(LC_ALL=C awk 'BEGIN { for (i = 0; i < 1200; i++) printf "The change is committed and the tests pass.\\n"; printf "Shall I push it?" }')"
+LF_FLONG="$(LC_ALL=C awk 'BEGIN { printf "Here is the run:\\n\\n\140\140\140\\n"; for (i = 0; i < 1100; i++) printf "x = compute(a, b)\\n"; printf "\140\140\140\\n\\nShall I push it?" }')"
+LF_CN=(line newline tab quote offer negoffer span fence bsn slash unicode plain bold long flong)
+LF_CE=(yes  yes     yes yes   yes   no       no   no    no  yes   no      no    yes  yes  yes)
+LF_CM=('Two ways forward.\n\nShall I push the branch?'
+       'Is the table right?\nI left it as the spec had it.'
+       'Which name should it carry?\t\nBoth are free.'
+       'Renamed it to \"loader\" as the spec says.\n\nShall I push it?'
+       'The branch is pushed and the tests pass.\nThe merge is your call.'
+       'Nothing here is your call; it merged on green.'
+       'Replaced `a || b` with `a ?? b`.\nThe tests pass.'
+       'The fallback now reads:\n\n```\nx = a ??\n```\n\nThe tests pass.'
+       'The pattern is foo?\\n and it matches.'
+       'Wrote docs\/plan.md.\nShould I open the pull request?'
+       "The tests pass, and I$(printf '\134')u2019ll leave the branch as it is."
+       'Committed and pushed. The gate is green.'
+       'Ready to merge. **Merge it now?**'
+       "$LF_LONG"
+       "$LF_FLONG")
+LF_CD=("a final line that is a question"
+       "a question ending the first of two lines, which ends a line only once the escaped newline is read as one"
+       "a question followed by an escaped tab and newline"
+       "a question after an escaped quote, which a reader stopping at the first quote never reaches"
+       "an offer with no question mark in it"
+       "an offer the sentence negates"
+       "a code span holding ??, which the rule sets aside"
+       "a fenced block whose line ends in ??"
+       "an escaped backslash before n, which is a backslash and an n and no line break"
+       "an escaped slash before a question"
+       "an apostrophe written as a JSON unicode escape, left as it is as the transcript reader leaves it"
+       "a plain statement"
+       "a question in bold"
+       "a 52 KB paragraph closing on a question"
+       "a question after a fenced block the 16 KiB cut opens inside")
+_lfi=0
+while [ "$_lfi" -lt "${#LF_CN[@]}" ]; do
+  _lfs "$LFW/clean" "lf-ask-${LF_CN[$_lfi]}" "${LF_CM[$_lfi]}"
+  is "asked is ${LF_CE[$_lfi]} for ${LF_CD[$_lfi]}" "$(_lfcol "lf-ask-${LF_CN[$_lfi]}" 6)" "${LF_CE[$_lfi]}"
+  _lfi=$((_lfi + 1))
+done
+# The message is the payload's, and the transcript is never read: one that
+# ends on a question changes nothing.
+_au_open "$LFTR/lf-ask-none.jsonl" lf-ask-none
+_au_say  "2026-09-24T10:00:00.000Z" 'go on'
+_au_stop "2026-09-24T10:01:00.000Z" msg_n1 'Shall I push it?'
+cp "$LFTR/lf-ask-none.jsonl" "$LFTR/lf-ask-tplain.jsonl"
+_lfs "$LFW/clean" lf-ask-none -
+is  "asked is - when the payload carries no message, though the transcript it names ends on a question" "$(_lfcol lf-ask-none 6)" "-"
+_lfs "$LFW/clean" lf-ask-tplain "$LF_PLAIN"
+is  "and no when the message is plain and the transcript asks, since only the message is read" "$(_lfcol lf-ask-tplain 6)" "no"
+
+# Not written blind; each added with the fix for what review found.
+# The platform leaves the field out of a Stop whose last message holds no
+# text, so the stop before it may have asked: that yes was not this stop's.
+# Only SessionEnd, whose payload never carries a message, keeps the asked of
+# the session's last Stop (below).
+_lfs "$LFW/clean" lf-ask-drop "$LF_ASK"; _lfa1="$(_lfcol lf-ask-drop 6)"
+_lfs "$LFW/clean" lf-ask-drop -
+is  "a Stop with no message, after one that asked, records - and not the earlier stop's yes" \
+    "$_lfa1 $(_lfcol lf-ask-drop 6)" "yes -"
+# The rule costs the square of the text for some shapes of it (a clause that
+# runs to the next full stop, from every "i can"), and the record reads the
+# message before any hold is decided. So only the message's end is judged,
+# and each process of this stop is held to 3 s of CPU, which reading the
+# whole of this message took seconds past. It closes on an offer the rule
+# reaches only after that clause, since a closing ? is found first.
+_lfbig="$(LC_ALL=C awk 'BEGIN { for (i = 0; i < 14564; i++) printf "i can do that too "; printf "\\n\\nThe merge is for you to decide." }')"
+LF_CPU=3 _lfs "$LFW/clean" lf-ask-big "$_lfbig"
+is  "a 256 KiB final message is judged within 3 s of CPU a process, and its closing offer read" \
+    "$LFRC $(_lfcol lf-ask-big 6)" "0 yes"
+
+# ---- every stop attempt, one line, one file per session ----------------
+printf 'in the chain\n' >> "$LFW/chain/README.md"
+_lfs "$LFW/chain" lf-chain "$LF_ASK"
+_lfheld && ok "the chain's first stop is held" || bad "the chain's first stop is held" "stdout [$(_lfout)]"
+is  "and its record says dirty and asked yes" "$(_lfcol lf-chain 5) $(_lfcol lf-chain 6)" "dirty yes"
+_lfcommit "$LFW/chain" 'the work, committed in the chain'
+_lfs "$LFW/chain" lf-chain "$LF_PLAIN" true
+is  "the stop that ends Felix's own chain exits 0" "$LFRC" "0"
+is  "and rewrites the record before the hold is taken: unpushed, and no question" "$(_lfcol lf-chain 5) $(_lfcol lf-chain 6)" "unpushed no"
+is  "and the chain's record is still one line" "$(_lfn "$LFD/lf-chain.tsv")" "1"
+
+_lfs "$LFW/over" lf-over "$LF_ASK"
+_lfino1="$(_lfino "$LFD/lf-over.tsv")"
+printf 'later\n' >> "$LFW/over/README.md"
+_lfs "$LFW/over" lf-over "$LF_PLAIN"
+is  "a second stop overwrites the record, and the last one is how the session left" \
+    "$(_lfn "$LFD/lf-over.tsv") $(_lfcol lf-over 5) $(_lfcol lf-over 6)" "1 dirty no"
+_lfino2="$(_lfino "$LFD/lf-over.tsv")"
+if [ -z "$_lfino1" ] || [ -z "$_lfino2" ]; then
+  bad "the new line arrives by rename, a new file in place of the old, never the old one rewritten" "no record to compare"
+elif [ "$_lfino1" != "$_lfino2" ]; then
+  ok  "the new line arrives by rename, a new file in place of the old, never the old one rewritten"
+else
+  bad "the new line arrives by rename, a new file in place of the old, never the old one rewritten" "inode $_lfino1 both times"
+fi
+_lfg -C "$LFW/over" checkout -q -- README.md
+
+_lfs "$LFW/two" lf-two-a "$LF_ASK"; _lfra="$(_lfrec lf-two-a)"
+_lfs "$LFW/two" lf-two-b "$LF_PLAIN"
+is  "two sessions in one checkout keep two files, each naming its own session" \
+    "$(_lfcol lf-two-a 2) $(_lfcol lf-two-a 6) $(_lfcol lf-two-b 2) $(_lfcol lf-two-b 6)" "lf-two-a yes lf-two-b no"
+if [ -n "$_lfra" ] && [ "$(_lfrec lf-two-a)" = "$_lfra" ]; then ok "and the second session's stop leaves the first's record as it was"
+else bad "and the second session's stop leaves the first's record as it was" "before [$_lfra] after [$(_lfrec lf-two-a)]"; fi
+
+# ---- the summary session writes nothing (#264) -------------------------
+printf 'unverified\n' >> "$LFW/sum/README.md"
+printf -v LFP '{"session_id":"lf-summary","transcript_path":"%s/lf-summary.jsonl","cwd":"%s","prompt_id":"lf-summary-id","permission_mode":"default","hook_event_name":"UserPromptSubmit","prompt":"%s"}' \
+  "$LFTR" "$LFW/sum" "$P264_REQ"
+_lfhook user-prompt "$LFW/sum" "$LFP"
+[ -e "$LFH/state/machine/lf-summary" ] \
+  && ok  "the fixture: the summary request left its marker" \
+  || bad "the fixture: the summary request left its marker" "no $LFH/state/machine/lf-summary"
+_lfsum() { find "$LFM" "$LFW/sum" -type f -exec cksum {} + 2>/dev/null | LC_ALL=C sort; }
+_lfb="$(_lfsum)"
+_lfs "$LFW/sum" lf-summary "$LF_ASK"
+_lfe "$LFW/sum" lf-summary
+if [ "$(_lfsum)" = "$_lfb" ] && [ ! -e "$LFD/lf-summary.tsv" ]; then
+  ok  "a summary session's Stop and SessionEnd write nothing: no record, no end row"
+else
+  bad "a summary session's Stop and SessionEnd write nothing: no record, no end row" \
+      "$(printf '%s\n' "$_lfb" > "$LF/sa"; _lfsum > "$LF/sb"; LC_ALL=C comm -3 "$LF/sa" "$LF/sb" | tr '\n\t' '; ')"
+fi
+_lfg -C "$LFW/sum" checkout -q -- README.md
+
+# ---- SessionEnd --------------------------------------------------------
+_lfend() { LC_ALL=C awk -F'\t' -v s="$1" '$2 == "end" && $3 == s' "$LFLOG" 2>/dev/null; }
+_lfef()  { _lfend "$1" | LC_ALL=C awk -F'\t' -v i="$2" 'NR == 1 { print $i }'; }
+printf 'unpushed\n' > "$LFW/end1/work.txt"; _lfcommit "$LFW/end1" 'work nobody pushed'
+printf 'and an edit\n' >> "$LFW/end1/README.md"
+_lfs "$LFW/end1" lf-end1 "$LF_ASK"
+_lfb="$(_lfn "$LFLOG")"
+_lfe "$LFW/end1" lf-end1
+is  "SessionEnd exits 0 and prints nothing" "$LFRC [$(_lfout)] [$(_lferr)]" "0 [] []"
+is  "and appends exactly one lifecycle.log row of kind end for the session" "$(_lfend lf-end1 | grep -c .)" "1"
+is  "the end row has the nine lifecycle columns"                "$(_lfend lf-end1 | LC_ALL=C awk -F'\t' 'NR == 1 { print NF }')" "9"
+is  "its note is the state plus +asked, the spec's own example" "$(_lfef lf-end1 9)" "dirty+unpushed+asked"
+_lf_is "its head is the full sha of the checkout's HEAD"        "$(_lfef lf-end1 6)" "$(_lf_sha "$LFW/end1")"
+is  "its transcript is the payload's transcript_path"           "$(_lfef lf-end1 8)" "$LFTR/lf-end1.jsonl"
+is  "and the record, written once more, still says the final message asked, which a SessionEnd payload cannot say" \
+    "$(_lfn "$LFD/lf-end1.tsv") $(_lfcol lf-end1 5) $(_lfcol lf-end1 6)" "1 dirty+unpushed yes"
+
+printf 'an edit\n' >> "$LFW/end2/README.md"
+_lfs "$LFW/end2" lf-end2 "$LF_PLAIN"
+_lfg -C "$LFW/end2" checkout -q -- README.md
+_lfe "$LFW/end2" lf-end2
+is  "SessionEnd rewrites the record from the tree as it stands at the end" "$(_lfcol lf-end2 5) $(_lfcol lf-end2 6)" "clean no"
+is  "and the note is the state alone when the session did not ask"     "$(_lfef lf-end2 9)" "clean"
+_lfe "$LFW/end3" lf-end3
+is  "a session that never stopped ends with its state alone as the note" "$(_lfef lf-end3 9)" "clean"
+_lfe "$LFUB" lf-end-unborn
+is  "an unborn repository ends with note unborn and head unborn, as lifecycle.log says head" \
+    "$(_lfef lf-end-unborn 9) $(_lfef lf-end-unborn 6)" "unborn unborn"
+_lfe "$LFPL" lf-end-plain
+is  "a directory that is no repository ends with note - and head -" "$(_lfef lf-end-plain 9) $(_lfef lf-end-plain 6)" "- -"
+_lfb="$(_lfn "$LFLOG")"
+_lfe "$LFUG" lf-end-ungov
+is  "a directory no project governs adds no row" "$(_lfn "$LFLOG")" "$_lfb"
+if [ -s "$LFLOG" ]; then
+  is "every lifecycle.log row written here, end rows included, is a row its schema accepts through lib/table.sh" \
+     "$( ( . "$LFTBL" 2>/dev/null; felix_table_check "$LFTBS" "$LFLOG" >/dev/null 2>&1; echo $? ) )" "0"
+else
+  bad "every lifecycle.log row written here, end rows included, is a row its schema accepts through lib/table.sh" "no lifecycle.log was written"
+fi
+
+# ---- nothing else is written, and git is asked without the lock ---------
+# A git stand-in first on PATH logs every call, with GIT_OPTIONAL_LOCKS as git
+# sets it for its children, and runs the real git. A call reads without the
+# lock when it says --no-optional-locks or runs with GIT_OPTIONAL_LOCKS=0.
+cat > "$LFSTUB/git" <<LFGITEOF
+#!/bin/sh
+printf '%s\t%s\n' "\${GIT_OPTIONAL_LOCKS:-}" "\$*" >> "$LFGL"
+exec "$LF_REALGIT" "\$@"
+LFGITEOF
+chmod +x "$LFSTUB/git"
+_lfgit() {  # -> "<status calls> <rev-list calls> <either without the lock>"
+  LC_ALL=C awk -F'\t' '
+    { n = split($2, a, " "); c = ""; nl = ($1 == "0")
+      for (i = 1; i <= n; i++) { t = a[i]
+        if (t == "-C" || t == "-c") { i++; continue }
+        if (t == "--no-optional-locks") { nl = 1; continue }
+        if (t ~ /^-/) continue
+        c = t; break }
+      if (c == "status") s++
+      if (c == "rev-list") r++
+      if ((c == "status" || c == "rev-list") && !nl) l++ }
+    END { printf "%d %d %d\n", s, r, l }' "$LFGL" 2>/dev/null; }
+_lfsnap() {
+  local d
+  for d in "$@"; do
+    find "$d" -print 2>/dev/null | LC_ALL=C sort | while IFS= read -r _lfp; do
+      if [ -f "$_lfp" ]; then printf '%s %s\n' "$_lfp" "$(cksum < "$_lfp" 2>/dev/null)"; else printf '%s\n' "$_lfp"; fi
+    done
+  done
+}
+_lfchanged() {  # before after -> each path that differs, once
+  printf '%s\n' "$1" > "$LF/snap.a"; printf '%s\n' "$2" > "$LF/snap.b"
+  LC_ALL=C comm -3 "$LF/snap.a" "$LF/snap.b" | LC_ALL=C awk '{ sub(/^\t/, ""); print $1 }' | LC_ALL=C sort -u \
+    | grep -v "^$LFW/[a-z0-9]*/\.git/index\$"
+}
+_lfidx() { cksum < "$1/.git/index" 2>/dev/null; }
+
+_lfstale "$LFW/quiet"; _lfi1="$(_lfidx "$LFW/quiet")"
+_lfb="$(_lfsnap "$LFW/quiet" "$LFH" "$LFM" "$LFU" "$LFTD")"; : > "$LFGL"
+LF_PATH="$LFSTUB:$PATH" _lfs "$LFW/quiet" lf-quiet "$LF_ASK"
+_lfa="$(_lfsnap "$LFW/quiet" "$LFH" "$LFM" "$LFU" "$LFTD")"
+is  "a clean stop writes the record and nothing else: not the checkout, the home, the memory root, HOME or TMPDIR" \
+    "$(_lfchanged "$_lfb" "$_lfa" | tr '\n' ' ')" "$LFD/lf-quiet.tsv "
+is  "and leaves a stale .git/index as it was, the state read with --no-optional-locks" "$(_lfidx "$LFW/quiet")" "$_lfi1"
+read -r _lfgs _lfgr _lfgk <<EOF
+$(_lfgit)
+EOF
+# felix_tree_dirty's one status was already there; the change may add one.
+if [ "${_lfgs:-9}" -le 2 ] && [ "${_lfgr:-9}" -le 1 ] && [ "${_lfgk:-9}" = 0 ]; then
+  ok  "a clean stop adds at most one git status and one rev-list, and each is read without the lock"
+else
+  bad "a clean stop adds at most one git status and one rev-list, and each is read without the lock" \
+      "status ${_lfgs:-?}, rev-list ${_lfgr:-?}, with the lock ${_lfgk:-?}: $(tr '\n' ';' < "$LFGL")"
+fi
+# Not written blind. Unpushed needs only whether one commit is missing from
+# every remote-tracking ref; counted in full, a repository none covers (no
+# remote, or one never fetched) is walked whole at every stop.
+_lfrl="$(LC_ALL=C awk -F'\t' '
+    { n = split($2, a, " "); c = ""
+      for (i = 1; i <= n; i++) { t = a[i]
+        if (t == "-C" || t == "-c") { i++; continue }
+        if (t ~ /^-/) continue
+        c = t; break } }
+    c == "rev-list" { printf "%s;", (" " $2 " " ~ / (--max-count=1|-n 1|-n1|-1) / ? "bounded" : $2) }' "$LFGL" 2>/dev/null)"
+is  "and its rev-list asks for one commit at most, so no history is walked whole" "$_lfrl" "bounded;"
+
+_lfstale "$LFW/endgit"; _lfi1="$(_lfidx "$LFW/endgit")"
+_lfb="$(_lfsnap "$LFW/endgit" "$LFH" "$LFM" "$LFU" "$LFTD")"; : > "$LFGL"
+LF_PATH="$LFSTUB:$PATH" _lfe "$LFW/endgit" lf-endgit
+_lfa="$(_lfsnap "$LFW/endgit" "$LFH" "$LFM" "$LFU" "$LFTD")"
+_lfc="$(_lfchanged "$_lfb" "$_lfa" | grep -vx "$LFD/lf-endgit.tsv" | tr '\n' ' ')"
+is  "SessionEnd writes its row and the record and nothing else" "$_lfc" "$LFLOG "
+is  "and leaves a stale .git/index as it was" "$(_lfidx "$LFW/endgit")" "$_lfi1"
+read -r _lfgs _lfgr _lfgk <<EOF
+$(_lfgit)
+EOF
+if [ "${_lfgs:-9}" -le 1 ] && [ "${_lfgr:-9}" -le 1 ] && [ "${_lfgk:-9}" = 0 ]; then
+  ok  "SessionEnd asks git status and rev-list at most once each, without the lock"
+else
+  bad "SessionEnd asks git status and rev-list at most once each, without the lock" \
+      "status ${_lfgs:-?}, rev-list ${_lfgr:-?}, with the lock ${_lfgk:-?}: $(tr '\n' ';' < "$LFGL")"
+fi
+# Not written blind. SessionEnd's own job is the ledger's rollup, and the
+# platform gives the hook 1.5 s when it sets no timeout, less than git status
+# takes on a large tree. So the ledger is folded before git is asked how the
+# tree stands: a stand-in git notes, at each status, whether this session's
+# ledger has been folded yet.
+LFORD="$LF/order"; mkdir -p "$LFORD" "$LFH/state/ledger"
+cat > "$LFORD/git" <<LFORDEOF
+#!/bin/sh
+case " \$* " in *" status "*)
+  if [ -f "$LFM/lf/ledger.d/lf-order.tsv" ]; then echo folded; else echo unfolded; fi >> "$LF/order.log" ;;
+esac
+exec "$LF_REALGIT" "\$@"
+LFORDEOF
+chmod +x "$LFORD/git"
+printf 'skill\tlf:thing\n' > "$LFH/state/ledger/lf-order.tsv"; : > "$LF/order.log"
+LF_PATH="$LFORD:$PATH" _lfe "$LFW/endgit" lf-order
+is  "SessionEnd folds the session's ledger before it asks git how the tree stands, so a hook killed at its limit there has folded" \
+    "$(LC_ALL=C sort -u "$LF/order.log" | tr '\n' ' ')" "folded "
+is  "and it still writes the end row and the record after the rollup" \
+    "$(_lfend lf-order | grep -c .) $(_lfcol lf-order 5)" "1 clean"
+
+# ---- what loses the record and never the session -----------------------
+# The held stop's output does not depend on the session id, so a held stop
+# with the memory root intact is the control for one without it.
+printf 'held\n' >> "$LFW/dirty/README.md"
+_lfs "$LFW/dirty" lf-ctl "$LF_PLAIN"; _lfctl="$(_lfout)"
+_lfheld && ok "the fixture: the control stop is held" || bad "the fixture: the control stop is held" "stdout [$_lfctl]"
+# Not written blind. The clean-tree check reads the record's status, so the
+# hold must not hang on the record's library: an engine without lib/left.sh
+# still holds that stop, as it did before there was a record, and silently.
+LFNL="$LF/noleft"; mkdir -p "$LFNL"; cp -R "$LFE/harness" "$LFNL/harness"; rm -f "$LFNL/harness/lib/left.sh"
+LFE="$LFNL" _lfs "$LFW/dirty" lf-noleft "$LF_PLAIN"
+if [ ! -e "$LFNL/harness/lib/left.sh" ] && _lfheld && [ "$LFRC" = 0 ] && [ -z "$(_lferr)" ]; then
+  ok  "an engine missing lib/left.sh still holds a dirty stop, with nothing on stderr"
+else
+  bad "an engine missing lib/left.sh still holds a dirty stop, with nothing on stderr" "exit $LFRC, stdout [$(_lfout)], stderr [$(_lferr)]"
+fi
+: > "$LF/afile"
+LF_MEMROOT="$LF/afile/memory" _lfs "$LFW/clean" lf-lost-file "$LF_ASK"
+_lfsilent "a memory root under a regular file loses the record, and the clean stop is still silent"
+LF_MEMROOT="$LF/afile/memory" _lfs "$LFW/dirty" lf-lost-held "$LF_PLAIN"
+if [ "$LFRC" = 0 ] && [ "$(_lfout)" = "$_lfctl" ] && [ -z "$(_lferr)" ]; then
+  ok  "and a held stop there holds exactly as the control does, with nothing on stderr"
+else
+  bad "and a held stop there holds exactly as the control does, with nothing on stderr" "exit $LFRC, stderr [$(_lferr)]"
+fi
+LF_MEMROOT="$LF/afile/memory" _lfe "$LFW/clean" lf-lost-end
+_lfsilent "and SessionEnd there exits 0 and prints nothing"
+mkdir -p "$LF/romem"; chmod 555 "$LF/romem"
+if [ -w "$LF/romem" ]; then
+  for _lfa in "an unwritable memory root loses the record, and the clean stop is still silent" \
+              "and SessionEnd there exits 0 and prints nothing, too"; do
+    skip "$_lfa" "this user can write a directory whose mode forbids it"; done
+else
+  LF_MEMROOT="$LF/romem" _lfs "$LFW/clean" lf-lost-ro "$LF_ASK"
+  _lfsilent "an unwritable memory root loses the record, and the clean stop is still silent"
+  LF_MEMROOT="$LF/romem" _lfe "$LFW/clean" lf-lost-ro
+  _lfsilent "and SessionEnd there exits 0 and prints nothing, too"
+fi
+chmod 755 "$LF/romem"
+# Made here if no stop has made it yet, so the case is the one it names and
+# not a directory that is missing.
+mkdir -p "$LFD"; chmod 555 "$LFD"
+if [ -w "$LFD" ]; then
+  for _lfa in "a left directory that cannot be written loses the record, silently" \
+              "and a held stop there holds as the control does, with nothing on stderr" \
+              "and neither leaves a file behind in it"; do
+    skip "$_lfa" "this user can write a directory whose mode forbids it"; done
+else
+  _lfb="$(ls -A "$LFD" 2>/dev/null)"
+  _lfs "$LFW/clean" lf-ro-clean "$LF_ASK"
+  _lfsilent "a left directory that cannot be written loses the record, silently"
+  _lfs "$LFW/dirty" lf-ro-held "$LF_PLAIN"
+  if [ "$LFRC" = 0 ] && [ "$(_lfout)" = "$_lfctl" ] && [ -z "$(_lferr)" ]; then
+    ok  "and a held stop there holds as the control does, with nothing on stderr"
+  else
+    bad "and a held stop there holds as the control does, with nothing on stderr" "exit $LFRC, stderr [$(_lferr)]"
+  fi
+  is  "and neither leaves a file behind in it" "$(ls -A "$LFD" 2>/dev/null)" "$_lfb"
+fi
+chmod 755 "$LFD"
+_lfg -C "$LFW/dirty" checkout -q -- README.md; printf 'a tracked edit\n' >> "$LFW/dirty/README.md"
+# git that is not there: a stand-in that fails as a missing command does.
+mkdir -p "$LF/nogit"; printf '#!/bin/sh\nexit 127\n' > "$LF/nogit/git"; chmod +x "$LF/nogit/git"
+LF_PATH="$LF/nogit:$PATH" _lfs "$LFW/clean" lf-nogit "$LF_ASK"
+_lfsilent "a missing git loses the record and never the session: the clean stop exits 0, silent"
+LF_PATH="$LF/nogit:$PATH" _lfe "$LFW/clean" lf-nogit
+_lfsilent "and so does SessionEnd"
+_lfhook stop "$LFW/clean" 'this is not JSON at all'
+_lfsilent "a payload that is not JSON loses the record, silently"
+_lfhook stop "$LFW/clean" '{"session_id":"lf-cut","hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"cut off in the mid'
+_lfsilent "and so does one cut off inside the message"
+_lfhook stop "$LFW/clean" '{"session_id":"../../lf-escape","hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"Done."}'
+is  "a session id that is a path exits 0" "$LFRC" "0"
+is  "and writes nothing outside the left directory" \
+    "$(find "$LF" -name '*lf-escape*' 2>/dev/null | grep -v "^$LFD/[^/]*\$" | tr '\n' ' ')" ""
+
+# ---- every record, whole ------------------------------------------------
+_lfbad=""; _lfsch=""; _lfnrec=0
+for _lff in "$LFD"/* "$LFD"/.[!.]*; do
+  [ -e "$_lff" ] || continue
+  case "${_lff##*/}" in
+    .*)    _lfbad="$_lfbad ${_lff##*/} is a dotfile, which is no record;"; continue ;;
+    ?*.tsv) ;;
+    *)     _lfbad="$_lfbad ${_lff##*/} is no record;"; continue ;;
+  esac
+  _lfnrec=$((_lfnrec + 1))
+  [ "$(_lfn "$_lff")" = 1 ] || _lfbad="$_lfbad ${_lff##*/} is not one line;"
+  _lfs2="$(LC_ALL=C awk -F'\t' 'NR == 1 { print $2 }' "$_lff")"
+  # A session id that is a path cannot be a file name, and the spec does not
+  # say what becomes of it; every other record is named for its session.
+  case "$_lfs2" in
+    */*) ;;
+    *) [ "$_lfs2.tsv" = "${_lff##*/}" ] || _lfbad="$_lfbad ${_lff##*/} names session [$_lfs2];" ;;
+  esac
+  _lfo="$( ( . "$LFTBL" 2>/dev/null; felix_table_check "$LFTBS" "$_lff" left 2>&1 ) )" \
+    || _lfsch="$_lfsch ${_lff##*/}: $(printf '%s' "$_lfo" | head -n 1 | cut -f2,3);"
+done
+if [ "$_lfnrec" -gt 20 ] && [ -z "$_lfbad" ]; then
+  ok  "every file in left/ is one record of one line named for its session, and no temporary file is left"
+else
+  bad "every file in left/ is one record of one line named for its session, and no temporary file is left" \
+      "$_lfnrec records;$_lfbad"
+fi
+if [ "$_lfnrec" -gt 20 ] && [ -z "$_lfsch" ]; then
+  ok  "and every record is a row the left schema row accepts through lib/table.sh"
+else
+  bad "and every record is a row the left schema row accepts through lib/table.sh" "$_lfnrec records;$_lfsch"
+fi
+is  "and nothing is left in TMPDIR" "$(ls -A "$LFTD" 2>/dev/null | tr '\n' ' ')" ""
+
+# ---- the facts, once, for the landing actor ----------------------------
+# The spec names the three variables L6a reads and not the function that sets
+# them, so it is found by what it does: each function lib/left.sh adds is
+# called in a subshell from the checkout, with the checkout and then the
+# checkout and home as arguments, nothing on stdin, a throwaway memory root,
+# and the first that sets FELIX_LEFT_STATE is the one.
+_lfvars() {  # directory -> function TAB state TAB head TAB pushed, or nothing
+  ( cd "$1" || exit 0
+    export HOME="$LFU" FELIX_HOME="$LFH" FELIX_MEMORY="$LF/fn-memory" TMPDIR="$LF/fn-tmp" GIT_CONFIG_NOSYSTEM=1
+    mkdir -p "$LF/fn-tmp"
+    . "$LFE/harness/lib/resolve.sh" 2>/dev/null; . "$LFE/harness/lib/verify.sh" 2>/dev/null
+    _lfbf=" $(declare -F | awk '{ print $3 }' | tr '\n' ' ')"
+    . "$LFE/harness/lib/left.sh" >/dev/null 2>&1 </dev/null || exit 0
+    for _lff in $(declare -F | awk '{ print $3 }'); do
+      case "$_lfbf" in *" $_lff "*) continue ;; esac
+      for _lfn2 in 1 2; do
+        _lfo="$( unset FELIX_LEFT_STATE FELIX_LEFT_HEAD FELIX_LEFT_PUSHED
+                 if [ "$_lfn2" = 1 ]; then "$_lff" "$1"; else "$_lff" "$1" "$LFH"; fi </dev/null >/dev/null 2>&1
+                 printf '%s\t%s\t%s' "${FELIX_LEFT_STATE:-}" "${FELIX_LEFT_HEAD:-}" "${FELIX_LEFT_PUSHED:-}" )"
+        case "$_lfo" in
+          clean*|dirty*|unpushed*|no-remote*|unborn*|-$'\t'*) printf '%s\t%s\n' "$_lff" "$_lfo"; exit 0 ;;
+        esac
+      done
+    done )
+}
+_lfv1="$(_lfvars "$LFW/clean")"; _lfv2="$(_lfvars "$LFW/unpushed")"
+_lfvf() { printf '%s\n' "$1" | LC_ALL=C awk -F'\t' -v i="$2" 'NR == 1 { print $i }'; }
+if [ -n "$_lfv1" ]; then ok "lib/left.sh has one function that sets FELIX_LEFT_STATE for a checkout"
+else bad "lib/left.sh has one function that sets FELIX_LEFT_STATE for a checkout" "none of its functions set it when called with the checkout, or with the checkout and home"; fi
+is  "it says clean for the clean checkout and unpushed for the unpushed one" "$(_lfvf "$_lfv1" 2) $(_lfvf "$_lfv2" 2)" "clean unpushed"
+_lfhead "FELIX_LEFT_HEAD names the checkout's HEAD commit" "$(_lfvf "$_lfv2" 3)" "$(_lf_sha "$LFW/unpushed")"
+_lfp1="$(_lfvf "$_lfv1" 4)"; _lfp2="$(_lfvf "$_lfv2" 4)"
+if [ -n "$_lfp1" ] && [ -n "$_lfp2" ] && [ "$_lfp1" != "$_lfp2" ]; then
+  ok  "and FELIX_LEFT_PUSHED tells a HEAD on a remote-tracking ref from one that is not"
+else
+  bad "and FELIX_LEFT_PUSHED tells a HEAD on a remote-tracking ref from one that is not" "pushed [$_lfp1], unpushed [$_lfp2]"
+fi
+
+# The three facts L6a added, where HEAD stands against its branch's upstream,
+# asked of felix_left_facts by the name the spec gives it. Not written blind:
+# the reconciler added them once the first two sides both left them out. Each
+# is held against git's own answer, as the spec defines it (the branch, empty
+# when detached; rev-parse --abbrev-ref --symbolic-full-name @{u}, empty when
+# it names none; yes only when HEAD's sha is that upstream's), and against the
+# literal value, so a fixture git answers wrongly cannot pass as agreement.
+# topic/c is the case that tells AT_UPSTREAM from PUSHED: its commit is on
+# origin/main, so it is pushed, while its own upstream is a commit behind.
+for _lfupr in up-at up-ahead up-contained up-none up-gone up-detached; do _lfrepo "$_lfupr"; done
+LFUPD="$LFW/up-at $LFW/up-ahead $LFW/up-contained $LFW/up-none $LFW/up-gone $LFW/up-detached $LFUB $LFPL"
+_lfg -C "$LFW/up-at" branch -q --set-upstream-to=origin/main main
+_lfg -C "$LFW/up-ahead" branch -q --set-upstream-to=origin/main main
+printf 'ahead\n' > "$LFW/up-ahead/work.txt"; _lfcommit "$LFW/up-ahead" 'one past its upstream'
+# And dirty, so the headers are read from a status that has entries after them.
+printf 'a tracked edit\n' >> "$LFW/up-ahead/README.md"; printf 'new\n' > "$LFW/up-ahead/notes.txt"
+_lfg -C "$LFW/up-contained" checkout -q -b topic/c
+_lfg -C "$LFW/up-contained" push -q -u origin topic/c 2>/dev/null
+printf 'landed\n' > "$LFW/up-contained/work.txt"; _lfcommit "$LFW/up-contained" 'landed on main, not on topic/c'
+_lfg -C "$LFW/up-contained" push -q origin topic/c:main 2>/dev/null
+_lfg -C "$LFW/up-none" checkout -q -b topic/none
+_lfg -C "$LFW/up-gone" config branch.main.remote origin
+_lfg -C "$LFW/up-gone" config branch.main.merge refs/heads/nothere
+_lfg -C "$LFW/up-detached" checkout -q --detach
+# git's answer: branch TAB upstream TAB at, for one directory.
+_lfupgit() {
+  local b u a=no
+  b="$(_lfq -C "$1" symbolic-ref -q --short HEAD 2>/dev/null)" || b=""
+  u="$(_lfq -C "$1" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)" || u=""
+  [ -n "$u" ] && [ "$(_lfq -C "$1" rev-parse -q --verify HEAD 2>/dev/null)" = "$(_lfq -C "$1" rev-parse -q --verify '@{u}' 2>/dev/null)" ] && a=yes
+  printf '%s\t%s\t%s' "$b" "$u" "$a"
+}
+# felix_left_facts's answer for each directory, one line each: the directory's
+# name, branch, upstream, at, pushed; with git logged through the stand-in.
+: > "$LFGL"
+_lfupv="$( export HOME="$LFU" FELIX_HOME="$LFH" FELIX_MEMORY="$LF/fn-memory" TMPDIR="$LF/fn-tmp" GIT_CONFIG_NOSYSTEM=1 \
+                  PATH="$LFSTUB:$PATH"
+           . "$LFE/harness/lib/resolve.sh" 2>/dev/null; . "$LFE/harness/lib/verify.sh" 2>/dev/null
+           . "$LFE/harness/lib/left.sh" >/dev/null 2>&1 </dev/null || exit 0
+           command -v felix_left_facts >/dev/null 2>&1 || exit 0
+           for _lfupx in $LFUPD; do
+             FELIX_LEFT_BRANCH=unset FELIX_LEFT_UPSTREAM=unset FELIX_LEFT_AT_UPSTREAM=unset
+             felix_left_facts "$_lfupx" </dev/null >/dev/null 2>&1
+             printf '%s\t%s\t%s\t%s\t%s\n' "${_lfupx##*/}" "${FELIX_LEFT_BRANCH-unset}" "${FELIX_LEFT_UPSTREAM-unset}" \
+               "${FELIX_LEFT_AT_UPSTREAM-unset}" "${FELIX_LEFT_PUSHED-unset}"
+           done )"
+_lfupf() {  # name column (2 branch, 3 upstream, 4 at, 5 pushed)
+  printf '%s\n' "$_lfupv" | LC_ALL=C awk -F'\t' -v n="$1" -v i="$2" '$1 == n { print $i; exit }'
+}
+_lfupl() { printf '%s|%s|%s' "$(_lfupf "$1" 2)" "$(_lfupf "$1" 3)" "$(_lfupf "$1" 4)"; }
+_lfup_mis=""
+for _lfupx in $LFUPD; do
+  _lfupg="$(_lfupgit "$_lfupx" | tr '\t' '|')"
+  [ "$(_lfupl "${_lfupx##*/}")" = "$_lfupg" ] || _lfup_mis="$_lfup_mis ${_lfupx##*/}: facts [$(_lfupl "${_lfupx##*/}")], git [$_lfupg];"
+done
+if [ -n "$_lfupv" ] && [ -z "$_lfup_mis" ]; then
+  ok  "FELIX_LEFT_BRANCH, FELIX_LEFT_UPSTREAM and FELIX_LEFT_AT_UPSTREAM agree with git's own answers in all eight directories"
+else
+  bad "FELIX_LEFT_BRANCH, FELIX_LEFT_UPSTREAM and FELIX_LEFT_AT_UPSTREAM agree with git's own answers in all eight directories" \
+      "${_lfup_mis:-felix_left_facts answered nothing}"
+fi
+is  "a branch at its upstream's commit: main, origin/main, at it"        "$(_lfupl up-at)"        "main|origin/main|yes"
+is  "one commit past it, with a dirty tree: the same upstream, and not at it" "$(_lfupl up-ahead)"   "main|origin/main|no"
+is  "a commit origin/main holds, on a branch whose upstream is behind it, is pushed and not at its upstream" \
+    "$(_lfupl up-contained) $(_lfupf up-contained 5)" "topic/c|origin/topic/c|no yes"
+is  "a branch with no upstream names none"                                "$(_lfupl up-none)"      "topic/none||no"
+is  "an upstream that names a ref not there names none, as rev-parse @{u} does" "$(_lfupl up-gone)" "main||no"
+is  "a detached HEAD has no branch and no upstream"                       "$(_lfupl up-detached)"  "||no"
+is  "an unborn branch is still the branch checked out"                    "$(_lfupl unborn)"       "main||no"
+is  "and a directory that is no repository has none of the three"         "$(_lfupl plain)"        "||no"
+# Offline: across eight calls, one status each and nothing but status,
+# rev-list and a bare git remote, which reads config. fetch, ls-remote,
+# remote show and the rest reach a remote; none may appear.
+read -r _lfupn _lfupw <<EOF
+$(LC_ALL=C awk -F'\t' '
+    { n = split($2, a, " "); c = ""; rest = ""
+      for (i = 1; i <= n; i++) { t = a[i]
+        if (t == "-C" || t == "-c") { i++; continue }
+        if (t ~ /^-/) continue
+        c = t; for (j = i + 1; j <= n; j++) rest = rest " " a[j]; break }
+      if (c == "status") s++
+      else if (c == "rev-list" || (c == "remote" && rest == "")) ;
+      else w = w " " c rest }
+    END { printf "%d %s\n", s, (w == "" ? "-" : w) }' "$LFGL" 2>/dev/null)
+EOF
+is  "felix_left_facts takes one git status a call, and asks git nothing that reaches a remote" "${_lfupn:-?} ${_lfupw:-?}" "8 -"
+# Not written blind. The facts are cut from the status by bash patterns,
+# which in a multibyte locale cost several times what they cost byte by byte,
+# over a status that can run to megabytes. A stand-in git answers a status of
+# 20,000 untracked files, and the facts' CPU under a UTF-8 locale is held to
+# twice the C locale's, the better of two runs each.
+_lfu8="$(locale -a 2>/dev/null | LC_ALL=C grep -i -E '^(en_US|C)\.utf-?8$' | head -n 1)"
+if [ -z "$_lfu8" ]; then
+  skip "the facts cost about the same in a UTF-8 locale as in C, over a long status" "no UTF-8 locale here"
+else
+  LFBS="$LF/bigstatus"; mkdir -p "$LFBS"
+  { printf '# branch.oid %s\n# branch.head main\n' "$(_lf_sha "$LFW/clean")"
+    LC_ALL=C awk 'BEGIN { for (i = 0; i < 20000; i++) printf "? some/deeper/directory/tree/untracked-file-number-%06d.txt\n", i }'; } > "$LFBS/status"
+  printf '#!/bin/sh\ncase " $* " in *" status "*) cat "%s" ;; *" rev-list "*) echo 0 ;; esac\nexit 0\n' "$LFBS/status" > "$LFBS/git"
+  chmod +x "$LFBS/git"
+  _lfms() { local m s; m="${1%%m*}"; s="${1#*m}"; s="${s%s}"; LC_ALL=C awk -v m="$m" -v s="$s" 'BEGIN { printf "%d", (m * 60 + s) * 1000 + 0.5 }'; }
+  _lfcpu() {  # locale -> the facts' state, then the ms of CPU they took (times' children line)
+    local o s
+    o="$( ( LC_ALL="$1" PATH="$LFBS:$PATH" "${BASH:-bash}" -c '. "$1/lib/left.sh" >/dev/null 2>&1; felix_left_facts "$2"; printf "%s\n" "${FELIX_LEFT_STATE:-none}"' \
+              _ "$LFE/harness" "$LFW/clean" 2>/dev/null; times ) )"
+    s="${o%%$'\n'*}"; set -- ${o##*$'\n'}
+    printf '%s %d\n' "${s:-none}" $(( $(_lfms "${1:-0m0s}") + $(_lfms "${2:-0m0s}") ))
+  }
+  _lfcu=""; _lfcc=""; _lfsc=""; _lfsu=""
+  for _lfi in 1 2; do
+    read -r _lfsc _lfx <<EOF
+$(_lfcpu C)
+EOF
+    [ -n "$_lfcc" ] && [ "$_lfcc" -le "${_lfx:-0}" ] || _lfcc="${_lfx:-0}"
+    read -r _lfsu _lfx <<EOF
+$(_lfcpu "$_lfu8")
+EOF
+    [ -n "$_lfcu" ] && [ "$_lfcu" -le "${_lfx:-0}" ] || _lfcu="${_lfx:-0}"
+  done
+  if [ "$_lfsc $_lfsu" = "dirty dirty" ] && [ "$_lfcu" -le $((2 * _lfcc + 30)) ]; then
+    ok  "the facts cost about the same in a UTF-8 locale as in C, over a long status"
+  else
+    bad "the facts cost about the same in a UTF-8 locale as in C, over a long status" \
+        "state [$_lfsc] [$_lfsu]; $_lfu8 ${_lfcu} ms of CPU, C ${_lfcc} ms"
+  fi
+fi
+
+# ---- felix inventory reads the record ahead of the transcript ----------
+# A repository of worktrees, each with a session record in a scratch HOME,
+# run the way the inventory section runs felix: nothing of Felix's in the
+# environment, so home and memory are found as on a machine, through
+# ~/.felix-home and ~/.felix/memory. gh is a stand-in that answers nothing,
+# so no call leaves the machine. Kept short, since the host cuts a session
+# directory's name at 200 characters.
+LFI="$LF/inv"; LFIU="$LFI/u"; LFIM="$LFI/w/main"; LFIS="$LFI/stub"
+mkdir -p "$LFIU/.config" "$LFIU/.claude/projects" "$LFI/w" "$LFIS" "$LFI/tmp"
+LFIL="$LFIU/.felix/memory/lf/left"; mkdir -p "$LFIL"
+printf '%s\n' "$LFH" > "$LFIU/.felix-home"
+printf '#!/bin/sh\necho "gh: the stand-in answers nothing" >&2\nexit 1\n' > "$LFIS/gh"; chmod +x "$LFIS/gh"
+_lfg -c init.defaultBranch=main init -q --bare "$LFI/origin.git"
+_lfg -c init.defaultBranch=main clone -q "$LFI/origin.git" "$LFIM" 2>/dev/null
+printf 'lf\n' > "$LFIM/.felix"; printf 'inv\n' > "$LFIM/README.md"; _lfcommit "$LFIM" 'the first inv'
+_lfg -C "$LFIM" push -q origin main 2>/dev/null; _lfg -C "$LFIM" remote set-head origin main
+_lfie() { printf '%s/' "$LFIU/.claude/projects"; printf '%s' "$1" | sed 's/[^A-Za-z0-9-]/-/g'; }
+_lfisess() {  # worktree sid final-text minutes-ago
+  _au_open "$(_lfie "$1")/$2.jsonl" "$2"
+  _au_say  "2026-09-24T10:00:00.000Z" 'carry on'
+  _au_stop "2026-09-24T10:01:00.000Z" "msg_$2" "$3"
+  touch -t "$(date -r $(( $(date +%s) - $4 * 60 )) +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$(( $(date +%s) - $4 * 60 ))" +%Y%m%d%H%M.%S)" "$_AU_F"
+}
+_lfirec() {  # sid dir asked
+  printf '2026-09-24T10:01:00Z\t%s\t%s\t%s\tclean\t%s\n' "$1" "$2" "$(_lf_sha "$LFIM")" "$3" > "$LFIL/$1.tsv"
+}
+for _lfr in rec recno otherdir older trans replied; do
+  _lfg -C "$LFIM" worktree add -q -b "topic/$_lfr" "$LFI/w/$_lfr" 2>/dev/null
+done
+LFI_ID=aaaa0000-0000-4000-8000-0000000000
+_lfisess "$LFI/w/rec" "${LFI_ID}01" 'Committed the change.' 30;          _lfirec "${LFI_ID}01" "$LFI/w/rec" yes
+_lfisess "$LFI/w/recno" "${LFI_ID}02" 'Shall I push it?' 30;           _lfirec "${LFI_ID}02" "$LFI/w/recno" no
+_lfisess "$LFI/w/otherdir" "${LFI_ID}03" 'Committed the change.' 30;     _lfirec "${LFI_ID}03" "$LFI/w/elsewhere" yes
+_lfisess "$LFI/w/older" "${LFI_ID}04" 'Committed the change.' 300;       _lfirec "${LFI_ID}04" "$LFI/w/older" yes
+_lfisess "$LFI/w/older" "${LFI_ID}05" 'Committed the change.' 30
+_lfisess "$LFI/w/trans" "${LFI_ID}06" 'Shall I push it?' 30
+# The founder answered after the stop the record was written at: a turn still
+# running, one interrupted, or one ended by an error, none of which runs Stop.
+_lfisess "$LFI/w/replied" "${LFI_ID}07" 'Shall I push it?' 30;          _lfirec "${LFI_ID}07" "$LFI/w/replied" yes
+_au_say "2026-09-24T10:02:00.000Z" 'yes, push it'
+# The corpus again, one worktree each, from the transcript alone, so the two
+# readers of one rule can be compared.
+_lfi=0
+while [ "$_lfi" -lt "${#LF_CN[@]}" ]; do
+  _lfg -C "$LFIM" worktree add -q -b "topic/a-${LF_CN[$_lfi]}" "$LFI/w/a-${LF_CN[$_lfi]}" 2>/dev/null
+  _lfisess "$LFI/w/a-${LF_CN[$_lfi]}" "bbbb0000-0000-4000-8000-0000000000$(printf '%02d' "$_lfi")" "${LF_CM[$_lfi]}" 30
+  _lfi=$((_lfi + 1))
+done
+_lfinv() {
+  ( cd "$LFIM" || exit 97
+    unset FELIX_HOME FELIX_MEMORY FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE CLAUDE_PLUGIN_ROOT \
+          CLAUDE_CONFIG_DIR GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OPTIONAL_LOCKS GIT_CEILING_DIRECTORIES \
+          FELIX_INVENTORY_TEMP_ROOTS
+    export HOME="$LFIU" TMPDIR="$LFI/tmp" PATH="$LFIS:$PATH" XDG_CONFIG_HOME="$LFIU/.config" GIT_CONFIG_NOSYSTEM=1 \
+           GIT_ALLOW_PROTOCOL=file GIT_TERMINAL_PROMPT=0 GIT_CEILING_DIRECTORIES="$LFI"
+    "$LFE/harness/felix" inventory --tsv ) 2>"$LFI/err"
+}
+_lfinv > "$LFI/out"; LFI_RC=$?
+_lfirow() { LC_ALL=C awk -F'\t' -v d="$LFI/w/$1" '$1 == "worktree" && $3 == d' "$LFI/out"; }
+_lfiq() {  # worktree -> yes when its row holds question, no when not, missing when there is no row
+  local r; r="$(_lfirow "$1")"
+  [ -n "$r" ] || { printf 'missing'; return; }
+  case ",$(printf '%s\n' "$r" | LC_ALL=C awk -F'\t' 'NR == 1 { print $4 }')," in *,question,*) printf 'yes' ;; *) printf 'no' ;; esac
+}
+_lfid() { _lfirow "$1" | LC_ALL=C awk -F'\t' 'NR == 1 { print $7 }'; }
+is  "the fixture: felix inventory runs over the worktrees and exits 0" "$LFI_RC" "0"
+is  "a worktree whose transcript does not ask but whose record says asked=yes reads question" "$(_lfiq rec)" "yes"
+has "and the detail says the question is from Felix's record" "$(_lfid rec)" "from Felix's record"
+is  "a record saying asked=no decides ahead of a transcript that asks" "$(_lfiq recno)" "no"
+is  "a record whose dir names another directory is not this worktree's" "$(_lfiq otherdir)" "no"
+is  "a record of an older session is not the newest session's" "$(_lfiq older)" "no"
+is  "with no record, the transcript still decides, the fallback for sessions older than this change" "$(_lfiq trans)" "yes"
+case "$(_lfid trans)" in
+  *"from Felix's record"*) bad "and that detail does not claim Felix's record" "$(_lfid trans)" ;;
+  *)                       ok  "and that detail does not claim Felix's record" ;;
+esac
+# Not written blind. A stop's record says how the session stood when it
+# stopped; the founder's message after it in the transcript is later news.
+is  "a record's yes yields when the transcript shows the founder spoke after the session's final text" "$(_lfiq replied)" "no"
+# One rule, two readers: the Stop record's asked for each message of the
+# corpus, and felix inventory's question for a transcript ending on it.
+_lfdis=""; _lfi=0
+while [ "$_lfi" -lt "${#LF_CN[@]}" ]; do
+  _lfqa="$(_lfiq "a-${LF_CN[$_lfi]}")"; _lfsa="$(_lfcol "lf-ask-${LF_CN[$_lfi]}" 6)"
+  [ "$_lfqa" = "$_lfsa" ] || _lfdis="$_lfdis ${LF_CN[$_lfi]}: record [$_lfsa], inventory [$_lfqa];"
+  _lfi=$((_lfi + 1))
+done
+[ -z "$_lfdis" ] && ok  "the Stop record's asked and felix inventory's question agree on every message of the corpus" \
+                 || bad "the Stop record's asked and felix inventory's question agree on every message of the corpus" "$_lfdis"
+
 printf '\nthe handoff, as sections: no two sessions write the same path\n'
 # HANDOFF.md was one slot and one counter every session shared: write your
 # section at the top with the next id, archive the one it replaces. With ten

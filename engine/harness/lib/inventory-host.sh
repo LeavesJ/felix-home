@@ -25,7 +25,8 @@
 # How a session ended is read from its last 256 KiB (tail -c), by awk: a
 # transcript can be hundreds of megabytes, and its end is all this needs.
 #   question  the final text (the last assistant record holding a text item)
-#             asks, by _FI_HOST_ASK below, and no human text comes after it.
+#             asks, by _FI_HOST_ASK (lib/asks.sh), and no human text comes
+#             after it.
 #             Two rules came before it: the text ends on a ?, which found
 #             none of the questions real sessions end on, and a ? anywhere in
 #             the last paragraph, which found 2 of 41 read by hand, since real
@@ -174,69 +175,13 @@ _FI_HOST_AWK='
   function key(r) { return substr(dec(substr(str(r), 1, 2048)), 1, 120) }
 '
 
-# Whether a final text, decoded with its line breaks kept, asks the person
-# something: asks(t) is 1 or 0. Set aside first: curly quotes read as straight
-# ones, fenced blocks, code spans, double-quoted spans and blockquote lines;
-# paragraphs are runs of lines between lines of only blanks. It asks when a ?
-# ends a line (only * _ ) " ' and blanks after it) in the last three
-# paragraphs, or when an offer below appears anywhere in it, lowercased, as
-# whole words, and none of no, not, nothing, never, none is in the 40 bytes
-# before it, cut after the last . ! ? ; : or line break. Measured on 227
-# session endings read by hand on 2026-09-24 (rule R4 of that labelling): 36
-# of 45 asks found and nothing else, over the 201 sessions sampled without
-# regard to any rule; 51 hits over all 227, 50 of them asks. \047 is the
-# apostrophe.
-# shellcheck disable=SC2016
-_FI_HOST_ASK='
-  BEGIN {
-    AQ_B = "(^|[^a-z0-9_])"; AQ_E = "([^a-z0-9_]|$)"; AQ_L = "[?][*_)\"\047]*[ \t\r]*(\n|$)"
-    AQ_N = "(^|[^a-z])(no|not|nothing|never|none)([^a-z]|$)"
-    AQ_P[1] = "your (call|decision|answer|options|side|sign-off|merge|go-ahead)"
-    AQ_P[2] = "([a-z]+\047s|is|are|still|all|both) yours|yours (to|rather)"
-    AQ_P[3] = "(wait(s|ing)?|blocked) (on|for) your?"
-    AQ_P[4] = "needs? your?"
-    AQ_P[5] = "say (so|the word|yes|if|go)"
-    AQ_P[6] = "and i(\047ll| will)"
-    AQ_P[7] = "(want|like) me to|(should|shall) i"
-    AQ_P[8] = "if you(\047d)? rather|if you (want|prefer)[^.?!]*, i(\047ll| can| will| could)|i(\047ll| can| could) [^.?!]* if you want"
-    AQ_P[9] = "(for|on) you:"
-    AQ_P[10] = "(for|to) you to (decide|choose|approve|merge|review|start|run|confirm|pick)"
-    AQ_NP = 10
-  }
-  # An offer matched in t and not negated within its clause.
-  function offer(t, re,    r, s0, off, rest, w) {
-    r = AQ_B "(" re ")" AQ_E; off = 0; rest = t
-    while (match(rest, r)) {
-      s0 = off + RSTART; w = substr(t, s0 > 40 ? s0 - 39 : 1, s0 > 40 ? 40 : s0)
-      while (match(w, /[.!?;:\n]/)) w = substr(w, RSTART + 1)
-      if (w !~ AQ_N) return 1
-      off = s0; rest = substr(t, off + 1)
-    }
-    return 0
-  }
-  function asks(t,    L, n, i, s, fence, cur, np, par, all, l3, k) {
-    n = split(t, L, "\n"); np = 0; fence = 0; cur = ""
-    for (i = 1; i <= n; i++) {
-      s = L[i]
-      if (s ~ /^[ \t]*(```|~~~)/) { fence = !fence; s = "" }
-      else if (fence) s = ""
-      else {
-        gsub("\342\200\234|\342\200\235", "\"", s); gsub("\342\200\231", "\047", s)
-        gsub(/`[^`]*`/, "", s); gsub(/"[^"]*"/, "", s)
-        if (s ~ /^[ \t]*>/) s = ""
-      }
-      if (s ~ /^[ \t\r]*$/) { if (cur != "") par[++np] = cur; cur = "" }
-      else cur = cur (cur != "" ? "\n" : "") s
-    }
-    if (cur != "") par[++np] = cur
-    all = ""; l3 = ""
-    for (i = 1; i <= np; i++) { all = all "\n" par[i]; if (i > np - 3) l3 = l3 "\n" par[i] }
-    if (l3 ~ AQ_L) return 1
-    all = tolower(all)
-    for (k = 1; k <= AQ_NP; k++) if (offer(all, AQ_P[k])) return 1
-    return 0
-  }
-'
+# Whether a final text asks the person something is _FI_HOST_ASK, with
+# asktext to decode it, in lib/asks.sh beside this file: the Stop record
+# (lib/left.sh) runs the same program, so the two read one message alike.
+case "${BASH_SOURCE[0]:-}" in
+  */*) . "${BASH_SOURCE[0]%/*}/asks.sh" || return 1 ;;
+  *)   . ./asks.sh || return 1 ;;
+esac
 
 # The newest file under the directories after the first argument written
 # after it, or nothing: candidates by find -newer, sorted by ls -t, and asked
@@ -256,14 +201,16 @@ _fi_host_mt() { local e; e="$(date -r "$1" +%s 2>/dev/null)"; case "$e" in ''|*[
 
 # How the newest session of one working directory stands.
 #   felix_inv_host_dir DIR NOW LIVE_MIN BLOCKED_MIN
-# prints one tab-separated line: owner mtime live question blocked note, where
-# owner is the newest session's id (- when none ever ran there), mtime when
-# the directory was last active, each state yes, no or unknown, and note what
-# the question or the waiting call was. Unknown throughout when the records
-# cannot be read.
+# prints one tab-separated line: owner mtime live question blocked note
+# replied, where owner is the newest session's id (- when none ever ran
+# there), mtime when the directory was last active, each state yes, no or
+# unknown, note what the question or the waiting call was, and replied yes
+# when human text comes after the session's final text, which a record Felix
+# kept at the session's last stop cannot know. Unknown throughout when the
+# records cannot be read.
 felix_inv_host_dir() {
-  local root d f newest="" amb=0 m mt sa age size cut=0 out q b note live=no t=$'\t' nl=$'\n' nn; local -a subs=()
-  root="$(_fi_host_root)" || { printf 'unknown\t-\tunknown\tunknown\tunknown\tno Claude Code session records under $HOME/.claude/projects\n'; return 0; }
+  local root d f newest="" amb=0 m mt sa age size cut=0 out q b r note live=no t=$'\t' nl=$'\n' nn; local -a subs=()
+  root="$(_fi_host_root)" || { printf 'unknown\t-\tunknown\tunknown\tunknown\tno Claude Code session records under $HOME/.claude/projects\tunknown\n'; return 0; }
   while IFS= read -r d; do
     [ "$d" != '?' ] || { amb=1; continue; }
     for f in "$d"/*.jsonl; do
@@ -272,11 +219,11 @@ felix_inv_host_dir() {
       if [ -z "$newest" ] || [ "$f" -nt "$newest" ]; then newest="$f"; fi
     done
   done < <(_fi_host_dirs "$root" "$1")
-  [ "$amb" = 0 ] || { printf 'unknown\t-\tunknown\tunknown\tunknown\tits session records cannot be told from another directory'"'"'s: its name is over 200 characters\n'; return 0; }
-  [ -n "$newest" ] || { printf -- '-\t-\tno\tno\tno\t-\n'; return 0; }
+  [ "$amb" = 0 ] || { printf 'unknown\t-\tunknown\tunknown\tunknown\tits session records cannot be told from another directory'"'"'s: its name is over 200 characters\tunknown\n'; return 0; }
+  [ -n "$newest" ] || { printf -- '-\t-\tno\tno\tno\t-\tno\n'; return 0; }
   nn="${newest//$t/ }"; nn="${nn//$nl/ }"
   mt="$(_fi_host_mt "$newest")"
-  [ -n "$mt" ] || { printf 'unknown\t-\tunknown\tunknown\tunknown\tcould not read the time of %s\n' "$nn"; return 0; }
+  [ -n "$mt" ] || { printf 'unknown\t-\tunknown\tunknown\tunknown\tcould not read the time of %s\tunknown\n' "$nn"; return 0; }
   m="$mt"
   if [ "${#subs[@]}" -gt 0 ]; then
     sa="$(_fi_host_newer "$newest" "${subs[@]}")"; [ -z "$sa" ] || sa="$(_fi_host_mt "$sa")"
@@ -285,7 +232,7 @@ felix_inv_host_dir() {
   age=$(($2 - m)); [ "$age" -le $(($3 * 60)) ] && live=yes
   size="$(wc -c 2>/dev/null < "$newest" | tr -d ' ')"
   [ "${size:-0}" -gt 262144 ] && cut=1
-  out="$(tail -c 262144 "$newest" 2>/dev/null | awk -v cut="$cut" "$_FI_HOST_AWK$_FI_HOST_ASK"'
+  out="$(tail -c 262144 "$newest" 2>/dev/null | awk -v cut="$cut" "$_FI_HOST_AWK$_FI_HOST_ASK$_FI_HOST_ASKTEXT"'
     NR == 1 && cut { next }
     { k = kind($0); if (k != "") rec++ }
     k == "a" {
@@ -300,10 +247,10 @@ felix_inv_host_dir() {
     pend != "" && index($0, K_TID pend Q) { pend = "" }
     k == "u" && human($0) != "" { lh = NR }
     END {
-      if (!rec) { printf "unknown\tunknown\tthe newest session holds no record this can read\n"; exit }
+      if (!rec) { printf "unknown\tunknown\tunknown\tthe newest session holds no record this can read\n"; exit }
       if (fa) {
         # Decoded with its line breaks kept, and asked whether it asks.
-        t = ft; gsub(/\\\\/, "\001", t); gsub(/\\n/, "\n", t); t = dec(t); sub(/[ \n]+$/, "", t)
+        t = asktext(ft)
         q = (lh < fa && asks(t)) ? "yes" : "no"
         if (q == "yes") { gsub(/\n/, " ", t); s = substr(t, length(t) > 160 ? length(t) - 159 : 1)
           while (s != "" && substr(s, 1, 1) >= "\200" && substr(s, 1, 1) < "\300") s = substr(s, 2)
@@ -311,11 +258,12 @@ felix_inv_host_dir() {
       } else q = (lh || !cut) ? "no" : "unknown"
       if (la) b = pend != "" ? "pending" : "no"; else b = cut ? "unknown" : "no"
       if (b == "pending") note = (note != "" ? note "; " : "") "waiting on " (pname != "" ? pname : "a tool call")
-      printf "%s\t%s\t%s\n", q, b, (note == "" ? "-" : note)
+      r = fa ? (lh > fa ? "yes" : "no") : (lh ? "yes" : (cut ? "unknown" : "no"))
+      printf "%s\t%s\t%s\t%s\n", q, b, r, (note == "" ? "-" : note)
     }')" || out=""
   # Split by expansion, not a tab-IFS read (the constitution says why).
-  q="${out%%"$t"*}"; out="${out#*"$t"}"; b="${out%%"$t"*}"; note="${out#*"$t"}"
-  case "$q" in yes|no|unknown) ;; *) q=unknown; b=unknown; note="could not read $nn" ;; esac
+  q="${out%%"$t"*}"; out="${out#*"$t"}"; b="${out%%"$t"*}"; out="${out#*"$t"}"; r="${out%%"$t"*}"; note="${out#*"$t"}"
+  case "$q" in yes|no|unknown) ;; *) q=unknown; b=unknown; r=unknown; note="could not read $nn" ;; esac
   # Blocked once the call has waited past BLOCKED_MIN and nothing under this
   # session's own subagents/ was written within it.
   if [ "$b" = pending ]; then
@@ -325,7 +273,7 @@ felix_inv_host_dir() {
     else b=no; note="${note%waiting on *}"; note="${note%; }"; note="${note:--}"; fi
   fi
   f="${newest##*/}"; f="${f%.jsonl}"; f="${f//$t/ }"; f="${f//$nl/ }"; note="${note//$t/ }"; note="${note//$nl/ }"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$m" "$live" "$q" "$b" "$note"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$m" "$live" "$q" "$b" "$note" "$r"
 }
 
 # Chips proposed in the sessions of these directories modified within DAYS

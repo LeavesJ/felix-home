@@ -143,3 +143,11 @@ lifecycle.log	memory	time kind session bound installed head handoff transcript n
 # Absent, no decline was ever recorded. A row names no session and no route, so
 # declines cannot yet be tallied per route.
 decisions.log	memory	time root verdict reason	allowed
+# How each session left its checkout, one file a session under left/, named
+# by its id and holding one line, overwritten at every Stop and once more at
+# SessionEnd (felix_left_record, lib/left.sh). felix inventory reads it for
+# the question state (_fi_left). Absent, the session never stopped in a
+# governed checkout since the recorder deployed, or no line could be written:
+# the writer never fails its caller, so the two cannot be told apart, and
+# felix inventory reads the session's transcript instead.
+left	memory	time session dir head state asked	allowed

@@ -117,12 +117,23 @@
 1	a changed library is drift, exit 1
 1	a check is read from the command, not the description, and a parallel call's error does not fail the check beside it
 1	a check named as the head of a path is found
+1	a check naming a command that is not here is unknown, as before
+1	a check naming an unset variable is still held, because nounset stays
 1	a check naming no engine function is not read as one missing
 1	a check that cannot run reads as due rather than ok
+1	a check that does not parse is held, not unknown
 1	a check that ends a { } or ( ) group whose output is redirected could have been seen to fail; only the one another command in the group follows is counted as could not
+1	a check that ends the shell on an unset variable is held, as before
+1	a check that exits 3 is held, as before
 1	a check that fails is held
 1	a check that has actually failed is an item
 1	a check that passes is done
+1	a check that returns 2 is held, as before
+1	a check that writes returned to its descriptors 1 to 9 and exits 1 is held
+1	a check whose engine function ends the shell is held
+1	a check whose producer never shows the match is still held
+1	a check whose producer outruns grep -q, the match on its first line, is done
+1	a check's missing engine function is still found before the when is read
 1	a checker never shown failing refuses the gate with nothing held or unrunnable
 1	a checker short of controls resolves short, naming what it lacks
 1	a checker the gate prints that sorts first of 3,002 qualified checkers is not called ungoverned
@@ -542,6 +553,7 @@
 1	a pipe to a shell observed is held for a person, not installed
 1	a pipe, a semicolon and an ampersand in applies or evidence refuse nothing
 1	a pipeline step nothing answers is named from the architecture, not the table
+1	a pipeline whose first stage fails and whose last succeeds is done, as in a probe
 1	a plain checkout with projects/ is a home
 1	a plain tool is recorded by name
 1	a plan declaring no files yields nothing
@@ -895,10 +907,37 @@
 1	a wall of tree tokens cannot outvote the prompt
 1	a web surface counts without package.json
 1	a well-formed answer is answered
+1	a when may define a function under an engine function's name and call it
+1	a when naming a command that is not here is still unknown
+1	a when naming an unset variable is unknown, not not-applicable
+1	a when of that shape makes its row applicable, and the check decides it
+1	a when over a checkout that cannot be entered is still unknown
+1	a when over a checkout that cannot be entered is unknown on a row no check follows
 1	a when test that exits 1 still switches the row off as not-applicable
 1	a when test that exits 2 makes the row unknown, not not-applicable
 1	a when test whose command does not exist makes the row unknown, not not-applicable
+1	a when that does not parse is unknown
+1	a when that exits 0 applies, and a check that passes makes it done
+1	a when that exits 127 is unknown
+1	a when that exits 3 is unknown
+1	a when that leaves a forked shell running applies, and the check decides done
+1	a when that prints and then says yes applies, and the check decides done
+1	a when that prints returned 0 and then says no is not-applicable
+1	a when that reads its stdin applies, and the check decides done
+1	a when that replaces its shell with false is unknown
+1	a when that returns 126 is unknown
+1	a when that returns 130 is unknown
+1	a when that returns 2 is unknown
+1	a when that returns 3 is unknown
+1	a when that writes returned to its descriptors 1 to 9 and then exits 1 is still unknown
+1	a when whose ${x:?} fails is unknown
 1	a when whose command does not exist is unknown, not not-applicable
+1	a when whose engine function ends the shell is unknown
+1	a when whose grep -q finds nothing is still not-applicable
+1	a when whose own function reads an unset variable is unknown
+1	a when whose test returns 0 applies, and the check decides done
+1	a when whose test returns 1 is still not-applicable
+1	a when written as exit 1 is unknown, because bash's own fatal errors end the shell with 1
 1	a why past the stated ceiling is refused rather than silently cut
 1	a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw
 1	a wired moment bound as the first of 3,000 bound events reads ok
@@ -945,6 +984,7 @@
 1	an SDK dependency makes it an llm project
 1	an absent file cannot be examined, exit 2
 1	an absent gate receipt reads as absent, not as green
+1	an absent instrument is still asked before the when, and says so
 1	an absent marker is still silent at session start
 1	an absent marker still means ungoverned
 1	an absent pointer is not a broken pointer
@@ -976,6 +1016,13 @@
 1	an applies command that exits 2 is UNKNOWN on both axes, not DORMANT
 1	an argument it cannot honour merges nothing
 1	an array of two paths where only the second interpolates is high
+1	an ask and a run leave a caller that had pipefail every option it had
+1	an ask given no variable sets none, even one named how
+1	an ask told a variable name sets it to returned when the text came back with 3
+1	an ask told a variable reads no stdin from its caller
+1	an ask whose answer line comes back garbled says unasked, with 2
+1	an ask whose text ended the shell leaves every option of the caller as it was
+1	an ask with no variable name prints nothing on stdout
 1	an authority hold on the unknown pathway blocks whatever the table says
 1	an awk that fails reads the manifest as unread, not as nothing declared
 1	an edit to a scratch file or to Claude's own config directory is left out of the four, and the report says how many stops that was
@@ -1000,7 +1047,10 @@
 1	an empty stamp is not a distance of zero
 1	an empty table fails the gate
 1	an empty tier refuses
+1	an engine function that is the whole check runs without pipefail, as the row does
+1	an engine function that sources a library redefining what the check names runs the new definitions
 1	an engine function the check names that is not loaded is unknown
+1	an engine function's name passed to command -v comes back as written
 1	an engine holding nothing it recognises is emptiness, not an all clear
 1	an engine shipped without the probe library blocks rather than passing
 1	an engine shipped without the qualification library resolves nothing, rather than absent
@@ -1043,6 +1093,7 @@
 1	an ignore rule that swallows a TRACKED maintenance.log fails
 1	an ignored file the probe counts leaves the tree id where it was
 1	an inactive capability makes the row not-applicable
+1	an inactive capability still makes a row not-applicable before its when is read
 1	an inapplicable control never applies its mutation
 1	an inapplicable row is rendered n/a, never ok, HELD or UNRUNNABLE
 1	an indented comment is refused, and the read-and-case loops take it for a row
@@ -1126,6 +1177,7 @@
 1	an unresolvable marker refuses instead of exiting clean
 1	an unruled capability is named
 1	an unstacked branch reports exactly what it changed
+1	an unterminated case in a when is unknown
 1	an untested change blocks, naming the evidence owed
 1	an untouched clean tree stays silent
 1	an untracked file is in the tree id, so the session's dirt is seen
@@ -1252,6 +1304,10 @@
 1	and a verified push does
 1	and a verified push reads as zero days
 1	and a wget pipe to sh is medium
+1	and a when of that shape still makes its row not-applicable
+1	and a when that exits 0 leaves a check that fails to hold it
+1	and a when whose answer comes back garbled is unknown
+1	and a when whose test returns 0 leaves a failing check held
 1	and a window that reaches the ceiling before it ends reads as reached
 1	and a worktree is pointed at that one, having no graph of its own
 1	and a worktree of it reads the same graph, and is ok too
@@ -1265,10 +1321,12 @@
 1	and an absent table refuses with a non-zero status too
 1	and an agent file piping to a shell is medium
 1	and an append to the marker
+1	and an ask with one prints nothing on stdout either
 1	and an automation row still ends in its capability
 1	and an empty cache merges nothing
 1	and an empty mcpServers object is no mcp fact
 1	and an engine commit on main after it stales the record
+1	and an engine function that fails there reads held
 1	and an epoch that cannot be read returns non-zero
 1	and an inapplicable control reports no result, not a pass or a fail
 1	and an installed copy with no files to digest claims nothing either
@@ -1436,6 +1494,7 @@
 1	and ignores the path so it cannot come back
 1	and in a declared skill folder's own SKILL.md
 1	and in the policy's own words, which is what proves the call reached it
+1	and inside a quoted string that name is the string as written
 1	and install onto the marker
 1	and is carried when none is given
 1	and is clean when the three directories agree
@@ -1484,7 +1543,12 @@
 1	and it left no lock file beside the graph
 1	and it makes an otherwise low plugin medium
 1	and it merges nothing
+1	and it names an unset variable under set -u as a cause
 1	and it names that entry
+1	and it names the 126 as the when's own, not a checkout that could not be entered
+1	and it names the 130
+1	and it names the 2 and says it is neither yes nor no
+1	and it names the 3 and says it is neither yes nor no
 1	and it names the cache entry felix merge would judge with
 1	and it names the command that clears it
 1	and it names the file under it
@@ -1496,13 +1560,22 @@
 1	and it reaches merge as an escape, not as unknown
 1	and it reads stale at once
 1	and it registers rather than falling through to a refresh
+1	and it says a command in the check does not exist here
 1	and it says matches
 1	and it says so where a reader must look
+1	and it says the shell ended with status 1
+1	and it says the shell ended with status 3
+1	and it says the shell ended with that function's status
+1	and it says the shell ended, not that a command is missing
+1	and it says the when does not parse
+1	and it says the when ended the shell, with the status it ended with
 1	and it says what would actually reach it
 1	and it still fails the gate
 1	and it stops being due
 1	and it stops the streak rather than being skipped past
+1	and it too says the when does not parse
 1	and its actor is the word every other line uses
+1	and its answer was read while that shell was still running
 1	and its base's workflow is not escalated as this branch's escape
 1	and its brief carries the failing output
 1	and its declines count as unchecked
@@ -1533,6 +1606,7 @@
 1	and keeps the session it was said in
 1	and lands in mistakes.log under its own name
 1	and launchd was handed the agent
+1	and leave a caller without pipefail every option it had
 1	and leaves a control its checker passes over held
 1	and leaves a file named for a branch whose name only ends like this one's
 1	and leaves it as it was, byte for byte
@@ -1632,6 +1706,8 @@
 1	and no memory root named --help is minted
 1	and no model is run
 1	and no night is announced when none was granted
+1	and no other variable of the caller's moves
+1	and no part of a when that does not parse was run
 1	and no policy version either, there being no tables to hash
 1	and no rate is claimed over a numerator that cannot hold compliance
 1	and no row anywhere carries a grounding the policy cannot read
@@ -1691,6 +1767,7 @@
 1	and one in a double-backtick span
 1	and one it passes over is held, not silently counted
 1	and one lifecycle row for that session, of kind summary, naming its transcript
+1	and one named in a when
 1	and one named once carries one
 1	and one no route names
 1	and one nothing established is classed UNKNOWN
@@ -1724,6 +1801,7 @@
 1	and prints a candidates section
 1	and prints no events at all, not the ones it managed to reach
 1	and prints nothing into the session
+1	and prints nothing of the text's stderr
 1	and prints nothing, not even the stamp
 1	and prints one line saying commissioning was skipped and felix commission runs it later
 1	and prints the count under it
@@ -1752,6 +1830,7 @@
 1	and reads its words off the capability probe
 1	and reads only mcp rows
 1	and reads stale whatever its age
+1	and reads the seeded gate_shown_failing row done over that mistakes.log
 1	and reads them in under 5 seconds of CPU
 1	and recorded nowhere
 1	and recording the run does not put it back
@@ -1788,6 +1867,8 @@
 1	and reports what nothing answers
 1	and restoring both makes it valid again
 1	and restoring it makes the row clean again
+1	and returns a text's 3 as 3
+1	and returns a text's own exit 4 as 4
 1	and returns once the record is complete
 1	and rm of the marker
 1	and rm of the marker on a later line of the command
@@ -1824,6 +1905,7 @@
 1	and says it was too long to read
 1	and says it where the founder can see it
 1	and says it wrote it
+1	and says its answer could not be read
 1	and says not to fix it unattended
 1	and says nothing about a night nobody granted
 1	and says nothing about it afterwards
@@ -1906,6 +1988,7 @@
 1	and so does a worktree of it
 1	and so does commenting a control out
 1	and so does flipping the verdict a control expects
+1	and so does one inside a command substitution
 1	and so does one who types a question under a task notification
 1	and so does one whose registry entry carries no installPath
 1	and so does swapping its mutation for one that changes nothing
@@ -1960,9 +2043,16 @@
 1	and still no new file beside it
 1	and still offers the handoff
 1	and still proposes from the record
+1	and still reads a when whose test says no not-applicable
 1	and still resolves when the root is spelled the other way
+1	and still returns 126 for a checkout it cannot enter
+1	and still returns a no as 1
+1	and still returns a yes as 0
 1	and still returns success, so it cannot loop
+1	and still says a command in it does not exist here
 1	and still says nothing
+1	and still says the checkout could not be entered
+1	and still says the when test says it does not apply
 1	and still says which step went unused
 1	and still speaks, naming its play
 1	and still verifies when the source really does match
@@ -2088,6 +2178,7 @@
 1	and the message does not accuse the subagent
 1	and the misbound job says the binding failed, not the ceiling
 1	and the missing function is named
+1	and the missing function is named, not the when's status
 1	and the model step is handed no token, in its environment or its text
 1	and the monitor reports its capability unglued from the grounding
 1	and the monitor still renders the sentence, not the JSON around it
@@ -2153,6 +2244,7 @@
 1	and the resume row names the engine, the installed engine, the HEAD, the handoff and the transcript
 1	and the reviewed one is cleared by it
 1	and the route its path named is not taken
+1	and the row after it is still read
 1	and the row blocks a release rather than vanishing
 1	and the row carries OBSERVED, not a person's word
 1	and the row is in the log as INFERRED
@@ -2220,9 +2312,20 @@
 1	and there the refusal is charged to the night
 1	and they still do in a UTF-8 locale, as a founder's shell runs them
 1	and those two suites were running at the same moment
+1	and to ended when an engine function the text names ends the shell
+1	and to ended when an unset variable ends the shell, with its status
+1	and to ended when the text exits 0, with 0
+1	and to ended when the text exits 4, with 4
+1	and to ended when the text wrote returned to its descriptors 1 to 9 before exiting 1
 1	and to one quoted in part
 1	and to one quoted round a blank
+1	and to returned for a missing command, with 127
+1	and to returned for a no
+1	and to returned for a text that itself returned 126
+1	and to returned for a yes
+1	and to unentered, with 126, when the checkout cannot be entered
 1	and truncate of the pointer
+1	and type -t calls that name a function
 1	and under its own name it is current
 1	and what a fix will have to prove
 1	and what it links to is not read
@@ -2521,6 +2624,8 @@
 1	felix audit --help answers its usage and reads nothing
 1	felix audit runs with bash and awk alone on PATH, as the README says, and answers the same report
 1	felix automerge judges a green pull request by the gate's runs alone
+1	felix commission --status reads a when naming an unset variable unknown
+1	felix commission --status reads the row whose producer outruns grep -q done
 1	felix commission on a project without the table exits 1
 1	felix commission, run later, commissions what felix new --no-commission created
 1	felix coverage answers
@@ -2600,6 +2705,7 @@
 1	felix_autonomy_allows is defined for the hook
 1	felix_budget_record itself reports the failure
 1	felix_classify_diff reports unknown, not empty
+1	felix_commission_ask returns a text's 2 as 2, not folded to 1
 1	felix_contains survives a large haystack under pipefail
 1	felix_coverage_events rosters the events settings.json binds by key
 1	felix_deploy_diff sees the hooks drift
@@ -3507,12 +3613,15 @@
 1	the secret check is behind the verifier confine
 1	the section it replaced is archived exactly as it stood, its trailing blank line dropped
 1	the section that landed first takes the next id and is archived, as it would have been had it been folded alone
+1	the seeded gate_shown_failing check is done over a mistakes.log far past 64 KB
+1	the seeded gate_shown_failing row is read from the template, not retyped
 1	the seeded graphify row is due on a checkout with no graph
 1	the seen file never carries the stamp comment
 1	the session banner does not carry the unmeasurable list
 1	the session handoff is named as state to re-check by command
 1	the session it does own is folded
 1	the shares are whole percentages of the stops after edits
+1	the shell this suite runs ends on an unset variable with a status that is not 0
 1	the shipped gate marks its undeployable failure
 1	the shipped hooks bind SubagentStop by key
 1	the shipped hooks bind every moment the stance table says is wired
@@ -3550,7 +3659,9 @@
 1	the unattended template checks Felix out at a pinned ref, not the default branch
 1	the unmeasurable list takes the hook-only zero
 1	the unverified tree blocker is work Felix owes
+1	the variable an ask is told to set is set, whatever the caller named it
 1	the watching git was asked
+1	the when-status rows are read as rows, none of them malformed
 1	the whole forty-character hash grants too, and an expired row above it does not shadow it
 1	the why for an unread declaration names its key and its path
 1	the why names the file that pipes to a shell

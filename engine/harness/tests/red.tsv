@@ -4,12 +4,62 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	e77e9629613d2b3533a77115d2380c65f9397f10	0.49.229
-run	7	3742	5
-a stacked branch is not out of scope for a credential its base already merged	1
-an uncommitted credential added to a green path is out of scope	1
-and scope names the tier the line reached	1
-and so does the tier a pull request would be labelled with	1
-and so is a staged one	1
-and the receipt's risk tier	1
-classify reads it too	1
+base	origin/main	d595c3ad823d57de4869d461b57dfa4181df25af	0.49.230
+run	57	3803	5
+a check whose producer outruns grep -q, the match on its first line, is done	1
+a pipeline whose first stage fails and whose last succeeds is done, as in a probe	1
+a when naming an unset variable is unknown, not not-applicable	1
+a when of that shape makes its row applicable, and the check decides it	1
+a when that does not parse is unknown	1
+a when that exits 3 is unknown	1
+a when that replaces its shell with false is unknown	1
+a when that returns 130 is unknown	1
+a when that returns 2 is unknown	1
+a when that returns 3 is unknown	1
+a when that writes returned to its descriptors 1 to 9 and then exits 1 is still unknown	1
+a when whose ${x:?} fails is unknown	1
+a when whose engine function ends the shell is unknown	1
+a when whose own function reads an unset variable is unknown	1
+a when written as exit 1 is unknown, because bash's own fatal errors end the shell with 1	1
+an ask told a variable name sets it to returned when the text came back with 3	1
+an ask told a variable reads no stdin from its caller	1
+an ask whose answer line comes back garbled says unasked, with 2	1
+an engine function that is the whole check runs without pipefail, as the row does	1
+an unterminated case in a when is unknown	1
+and a when whose answer comes back garbled is unknown	1
+and an engine function that fails there reads held	1
+and it names an unset variable under set -u as a cause	1
+and it names the 126 as the when's own, not a checkout that could not be entered	1
+and it names the 130	1
+and it names the 2 and says it is neither yes nor no	1
+and it names the 3 and says it is neither yes nor no	1
+and it says the shell ended with status 1	1
+and it says the shell ended with status 3	1
+and it says the shell ended with that function's status	1
+and it says the shell ended, not that a command is missing	1
+and it says the when does not parse	1
+and it says the when ended the shell, with the status it ended with	1
+and it too says the when does not parse	1
+and no part of a when that does not parse was run	1
+and one named in a when	1
+and prints nothing of the text's stderr	1
+and reads the seeded gate_shown_failing row done over that mistakes.log	1
+and returns a text's 3 as 3	1
+and returns a text's own exit 4 as 4	1
+and says its answer could not be read	1
+and so does one inside a command substitution	1
+and to ended when an engine function the text names ends the shell	1
+and to ended when an unset variable ends the shell, with its status	1
+and to ended when the text exits 0, with 0	1
+and to ended when the text exits 4, with 4	1
+and to ended when the text wrote returned to its descriptors 1 to 9 before exiting 1	1
+and to returned for a missing command, with 127	1
+and to returned for a no	1
+and to returned for a text that itself returned 126	1
+and to returned for a yes	1
+and to unentered, with 126, when the checkout cannot be entered	1
+felix commission --status reads a when naming an unset variable unknown	1
+felix commission --status reads the row whose producer outruns grep -q done	1
+felix_commission_ask returns a text's 2 as 2, not folded to 1	1
+the seeded gate_shown_failing check is done over a mistakes.log far past 64 KB	1
+the variable an ask is told to set is set, whatever the caller named it	1

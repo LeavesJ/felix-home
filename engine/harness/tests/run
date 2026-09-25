@@ -24017,6 +24017,20 @@ else
   # Both answers, on this repository's own history: an id that is no commit
   # here, and its root, which is.
   _rtroot="$(_rtg rev-list --max-parents=0 HEAD | head -1)"
+  # What kind of base the record names, one word of four. tests/red records a
+  # base of - when it made no red run, and - is no commit either, so the base
+  # check skipped a retraction as though it were a published snapshot and an
+  # engine change whose red run was never made passed (#371). A snapshot's base
+  # is a full commit id; a base that is neither a commit here, a full id nor -,
+  # an empty one, or more than one, is malformed. Asked on this repository's
+  # own history, as the two above are: its root is a commit here, forty zeros
+  # a full id that is not, and deadbeef an abbreviated one that is not.
+  _rtkn1="a red.tsv base of - reads as retracted, not as a published snapshot"
+  _rtkn2="and a base that is a commit here reads as a commit"
+  _rtkn3="and a full commit id that is no commit here reads as a snapshot"
+  _rtkn4="and an abbreviated id that is no commit here reads as malformed, not as a snapshot"
+  _rtkn5="and an empty base, as a record with no base row gives, reads as malformed"
+  _rtkn6="and two bases, even one a commit here, read as malformed"
   if [ -n "$_rtroot" ]; then
     _rt_base_in 0000000000000000000000000000000000000000 \
       && bad "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "0000… read as a commit" \
@@ -24024,9 +24038,16 @@ else
     _rt_base_in "$_rtroot" \
       && ok  "and a base that is a commit here is still compared, so a stale record still fails" \
       || bad "and a base that is a commit here is still compared, so a stale record still fails" "root $_rtroot not read as a commit"
+    is "$_rtkn1" "$(_rt_base_kind -)" retracted
+    is "$_rtkn2" "$(_rt_base_kind "$_rtroot")" commit
+    is "$_rtkn3" "$(_rt_base_kind 0000000000000000000000000000000000000000)" snapshot
+    is "$_rtkn4" "$(_rt_base_kind deadbeef)" malformed
+    is "$_rtkn5" "$(_rt_base_kind "")" malformed
+    is "$_rtkn6" "$(_rt_base_kind "$_rtroot -")" malformed
   else
     skip "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "no git history beside this suite"
     skip "and a base that is a commit here is still compared, so a stale record still fails" "no git history beside this suite"
+    for _n in "$_rtkn1" "$_rtkn2" "$_rtkn3" "$_rtkn4" "$_rtkn5" "$_rtkn6"; do skip "$_n" "no git history beside this suite"; done
   fi
   # Whether the engine in this checkout is origin/main's, working tree
   # included. The record and the version belong to the engine: a branch that

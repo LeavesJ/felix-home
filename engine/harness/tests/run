@@ -10898,28 +10898,35 @@ is  "with no qualification.tsv at all, every capability named resolves absent, a
     "$(printf 'n\t-\tnone\t-\na\tpart\tabsent\t-\na\twhole\tabsent\t-\nrc=0')"
 
 # Whichever read fails. A mode cannot stage the case where the declared list was
-# read and a later read of one checker's controls was not, so awk is wrapped:
-# every call that names a qualification.tsv is counted, and the one numbered
-# QSHIM_FAIL runs with that table at mode 000, put back as it returns. Which
-# read fails is counted back from the last one a clean run of the same command
-# made, so nothing here knows how many reads the engine takes to get there.
+# read and a later read of one checker's controls was not, so the readers are
+# wrapped: every call of awk or cat that names a qualification.tsv is counted,
+# and the one numbered QSHIM_FAIL runs with that table at mode 000, put back as
+# it returns. Which read fails is counted back from the last one a clean run of
+# the same command made, so nothing here knows how many reads the engine takes
+# to get there. Both, because the engine's read of the table was awk's and is
+# now cat's: awk cannot see a NUL byte, so the shell reads the table through
+# cat and hands awk what it read (lib/qualify.sh, _felix_qualify_read). A
+# wrapper on one of the two would count a read the other makes as none.
 _QSHIM="$TMP/awk-shim"; _QSC="$TMP/awk-shim.count"; mkdir -p "$_QSHIM"
 _qawk="$(command -v awk)"
-cat > "$_QSHIM/awk" <<EOF
+for _qsn in awk cat; do
+  _qsreal="$(command -v "$_qsn")"
+  cat > "$_QSHIM/$_qsn" <<EOF
 #!/bin/sh
 for a in "\$@"; do
   case "\$a" in
     qualification.tsv|*/qualification.tsv)
       printf x >> "\$QSHIM_COUNT"
       if [ "\$((\$(wc -c < "\$QSHIM_COUNT")))" -eq "\${QSHIM_FAIL:-0}" ]; then
-        chmod 000 "\$a"; "$_qawk" "\$@"; rc=\$?; chmod 644 "\$a"; exit \$rc
+        chmod 000 "\$a"; "$_qsreal" "\$@"; rc=\$?; chmod 644 "\$a"; exit \$rc
       fi
       break ;;
   esac
 done
-exec "$_qawk" "\$@"
+exec "$_qsreal" "\$@"
 EOF
-chmod +x "$_QSHIM/awk"
+  chmod +x "$_QSHIM/$_qsn"
+done
 # _qreads CMD...: how many reads of the table CMD makes through the wrapper.
 _QSE="$TMP/awk-shim.err"
 _qreads() {
@@ -10967,7 +10974,7 @@ _qeach() {
     k=$((k + 1))
   done
 }
-_qsnone="too few reads of qualification.tsv reach awk by name for this one to be made to fail alone"
+_qsnone="too few reads of qualification.tsv reach awk or cat by name for this one to be made to fail alone"
 if [ "$_unreadable" -eq 1 ]; then
   if _qstage 0 _nd felix_obligations_needs "$NDU"; then
     is  "needs whose last read of one checker's controls fails prints nothing and exits 2" "$_qsrc:$_qsout" "2:"
@@ -13655,16 +13662,18 @@ else
     skip "$a" "$_noread"; done
 fi
 # A table that is not there at a read, or not there after one, or not the
-# table it was. Each is staged by an awk wrapper counting the reads as the one
-# above does: aside moves the table away for the Kth read and puts it back,
-# after moves it away once the Kth read is done and it is put back when the
-# run returns, and swap puts another table in its place once the Kth read is
-# done. A table gone between reads read as one declaring nothing, because the
+# table it was. Each is staged by awk and cat wrappers counting the reads as
+# the ones above do: aside moves the table away for the Kth read and puts it
+# back, after moves it away once the Kth read is done and it is put back when
+# the run returns, and swap puts another table in its place once the Kth read
+# is done. A table gone between reads read as one declaring nothing, because the
 # reader returns early on a table that is not a file, and the rest of the run
 # ran nothing and passed. The table here has a met control and a held one, so
 # every right answer refuses.
 _QMSHIM="$TMP/awk-shim-moves"; mkdir -p "$_QMSHIM"
-cat > "$_QMSHIM/awk" <<EOF
+for _qsn in awk cat; do
+  _qsreal="$(command -v "$_qsn")"
+  cat > "$_QMSHIM/$_qsn" <<EOF
 #!/bin/sh
 for a in "\$@"; do
   case "\$a" in
@@ -13672,17 +13681,18 @@ for a in "\$@"; do
       printf x >> "\$QSHIM_COUNT"
       if [ "\$((\$(wc -c < "\$QSHIM_COUNT")))" -eq "\${QSHIM_FAIL:-0}" ]; then
         case "\$QSHIM_MODE" in
-          aside) mv "\$a" "\$a.aside"; "$_qawk" "\$@"; rc=\$?; mv "\$a.aside" "\$a"; exit \$rc ;;
-          after) "$_qawk" "\$@"; rc=\$?; mv "\$a" "\$a.gone"; exit \$rc ;;
-          swap)  "$_qawk" "\$@"; rc=\$?; cp "\$a" "\$a.was"; cp "\$QSHIM_WITH" "\$a"; exit \$rc ;;
+          aside) mv "\$a" "\$a.aside"; "$_qsreal" "\$@"; rc=\$?; mv "\$a.aside" "\$a"; exit \$rc ;;
+          after) "$_qsreal" "\$@"; rc=\$?; mv "\$a" "\$a.gone"; exit \$rc ;;
+          swap)  "$_qsreal" "\$@"; rc=\$?; cp "\$a" "\$a.was"; cp "\$QSHIM_WITH" "\$a"; exit \$rc ;;
         esac
       fi
       break ;;
   esac
 done
-exec "$_qawk" "\$@"
+exec "$_qsreal" "\$@"
 EOF
-chmod +x "$_QMSHIM/awk"
+  chmod +x "$_QMSHIM/$_qsn"
+done
 # _qmeach MODE PRED CMD...: CMD with each of its reads, in turn, staged by MODE,
 # and the widget table put back after each; PRED as for _qeach.
 _qmeach() {

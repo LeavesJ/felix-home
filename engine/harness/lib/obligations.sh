@@ -288,34 +288,51 @@ felix_obligations_ungrounded() {
 # control, which is short of all six; reading it as absent would send somebody
 # to acquire a thing that is already there. `felix qualify --gate` refuses the
 # malformed rows themselves.
+#
+# A qualification.tsv that exists and cannot be read resolves nothing: no line
+# on stdout, not the rows resolved before the read that failed, one line on
+# stderr naming the table, and exit 2, whichever read it was. Read as empty it
+# resolved every capability absent, about a table nobody read. The line is said
+# here, because the reads below discard the libraries' stderr, as they always
+# have; the report is held until every read has held.
 felix_obligations_needs() {   # proj
-  local proj="$1" declared line name needs cap missing
+  local proj="$1" rows mal declared report line name needs cap missing nl='
+'
   command -v felix_qualify_missing_controls >/dev/null 2>&1 \
     || . "$(dirname "${BASH_SOURCE[0]:-$0}")/qualify.sh" 2>/dev/null
   # No qualification library, no resolution: nothing printed and exit 1, so
   # a caller leaves the report off. Printing `absent` would claim that every
   # checker is missing when nobody looked.
   command -v felix_qualify_missing_controls >/dev/null 2>&1 || return 1
-  declared="$( { felix_qualify_rows "$proj"; felix_qualify_malformed "$proj"; } 2>/dev/null \
-    | cut -f1 | LC_ALL=C sort -u )"
-  felix_obligation_rows "$proj" | while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    name="$(_felix_obligation_field "$line" 1)"
-    needs="$(_felix_obligation_field "$line" 8)"
-    if [ -z "$needs" ] || [ "$needs" = "-" ]; then
-      printf '%s\t-\tnone\t-\n' "$name"; continue
-    fi
-    printf '%s\n' "$needs" | tr ',' '\n' | while IFS= read -r cap; do
-      [ -n "$cap" ] || continue
-      if ! felix_has_line "$declared" "$cap"; then
-        printf '%s\t%s\tabsent\t-\n' "$name" "$cap"; continue
-      fi
-      missing="$(felix_qualify_missing_controls "$proj" "$cap" \
-        | awk 'NF { printf "%s%s", (n++ ? "," : ""), $0 }')"
-      if [ -z "$missing" ]; then printf '%s\t%s\tcomplete\t-\n' "$name" "$cap"
-      else                       printf '%s\t%s\tshort\t%s\n' "$name" "$cap" "$missing"; fi
-    done
-  done
+  # Each status is its own assignment's: a pipeline's, without pipefail, is only
+  # its last command's. The resolution runs in a group that exits 2 at the first
+  # read that fails and 0 when it reaches the end, so a loop whose last test was
+  # false does not read as a failure. A needs cell the scan admits holds only
+  # ids matching [a-z][a-z0-9_-]* and commas, so it splits with nothing to glob.
+  rows="$(felix_qualify_rows "$proj" 2>/dev/null)" \
+    && mal="$(felix_qualify_malformed "$proj" 2>/dev/null)" \
+    && declared="$(printf '%s\n%s\n' "$rows" "$mal" | awk -F'\t' 'NF && !seen[$1]++ { print $1 }')" \
+    && report="$(felix_obligation_rows "$proj" | {
+         while IFS= read -r line; do
+           [ -n "$line" ] || continue
+           name="$(_felix_obligation_field "$line" 1)"
+           needs="$(_felix_obligation_field "$line" 8)"
+           if [ -z "$needs" ] || [ "$needs" = "-" ]; then
+             printf '%s\t-\tnone\t-\n' "$name"; continue
+           fi
+           for cap in ${needs//,/ }; do
+             if ! felix_has_line "$declared" "$cap"; then
+               printf '%s\t%s\tabsent\t-\n' "$name" "$cap"; continue
+             fi
+             missing="$(felix_qualify_missing_controls "$proj" "$cap" 2>/dev/null)" || exit 2
+             if [ -z "$missing" ]; then printf '%s\t%s\tcomplete\t-\n' "$name" "$cap"
+             else                       printf '%s\t%s\tshort\t%s\n' "$name" "$cap" "${missing//$nl/,}"; fi
+           done
+         done
+         exit 0; })" \
+    || { printf 'felix: %s/qualification.tsv could not be read, so no need was resolved against it\n' "$proj" >&2
+         return 2; }
+  [ -z "$report" ] || printf '%s\n' "$report"
   return 0
 }
 

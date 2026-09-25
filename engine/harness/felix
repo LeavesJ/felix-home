@@ -661,8 +661,10 @@ cmd_gate() {
     if [ "$orc" -eq 0 ]; then
       # A green that rests on a person's grant is not the green of nothing
       # owed, and the receipt's states carry the word printed here: `excepted`,
-      # so nobody reads a deferred obligation as a discharged one.
-      if printf '%s\n' "$oout" | grep -qE '^[0-9]+ obligation.*; [0-9]+ blocking, [1-9][0-9]* excepted'; then
+      # so nobody reads a deferred obligation as a discharged one. A here-string,
+      # not a pipe: grep -q quits at its match, and pipefail would read the
+      # printf it cut off as no match and print `ok`.
+      if grep -qE '^[0-9]+ obligation.*; [0-9]+ blocking, [1-9][0-9]* excepted' <<<"$oout"; then
         printf '  %-18s excepted\n' obligations | tee -a "$log"
       else
         printf '  %-18s ok\n' obligations | tee -a "$log"
@@ -867,6 +869,11 @@ EOF
   printf '%s\n' "$caps" | grep -v '^$' > "$dir/capabilities" || true
 
   # Keep catalogue rows that are unconditional or whose capability was detected.
+  # Detected is a case over the list, here and for setup.tsv below, not a pipe
+  # into grep -q, which can quit before printf has written the list and leave
+  # a detected capability's rows unseeded.
+  local nl='
+'
   {
     printf '# Declared tooling for %s. Seeded from the catalogue by felix new,\n' "$name"
     printf '# filtered to what this checkout actually shows. Edit freely.\n#\n'
@@ -875,7 +882,7 @@ EOF
     # reading a plugin is OBSERVED; a row with no sixth column is a person's.
     printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n'
     grep -vE '^\s*(#|$)' "$tpl/catalog.tsv" | while IFS=$'\t' read -r k n src r c _kw; do
-      if [ "$c" = "always" ] || printf '%s\n' "$caps" | grep -qxF "$c"; then
+      if [ "$c" = "always" ] || case "$nl$caps$nl" in *"$nl$c$nl"*) true ;; *) false ;; esac; then
         printf '%s\t%s\t%s\t%s\t%s\tDECLARED\n' "$k" "$n" "$src" "$r" "$c"
       fi
     done
@@ -912,7 +919,7 @@ EOF
     printf '# Human steps for %s. Seeded by felix new.\n#\n' "$name"
     printf '# id\ttitle\tcapability\tcheck\n'
     grep -vE '^\s*(#|$)' "$tpl/setup.tsv" | while IFS=$'\t' read -r id title c chk; do
-      if [ "$c" = "always" ] || printf '%s\n' "$caps" | grep -qxF "$c"; then
+      if [ "$c" = "always" ] || case "$nl$caps$nl" in *"$nl$c$nl"*) true ;; *) false ;; esac; then
         printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}"
         [ -f "$tpl/setup/$id.md" ] && \
           sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md" > "$dir/setup/$id.md"
@@ -1392,8 +1399,10 @@ cmd_merge() {
     # every deploy forces a version bump in engine/.claude-plugin — which cannot
     # touch engine/harness. Testing the wider path told a bump-only branch to
     # bump the version and install main's: advice already followed, and unable
-    # to change the thing being compared.
-    if felix_changed_paths "$root" "$base" | grep -q '^engine/harness/' \
+    # to change the thing being compared. awk, not grep -q: it reads every path
+    # before it answers, so a match early in the list cannot kill the writer
+    # and have pipefail read an engine change as none.
+    if felix_changed_paths "$root" "$base" | awk '/^engine\/harness\// { f = 1 } END { exit !f }' \
          && diff -rq "$root/engine/harness" "$kernel" >/dev/null 2>&1; then
       die "the engine that would judge this is byte-identical to the tree it is judging, so it would be judging itself. Bump the version and install main's, or say plainly that this is unjudged."
     fi
@@ -3232,8 +3241,10 @@ cmd_evidence() {
   # the one that gets read. "No evidence gaps" after a scan that never ran is
   # the same false all-clear #56 removed from felix merge, and leaving it here
   # would move it rather than fix it. Exits non-zero regardless of --strict: an
-  # unanswerable question is not a passing report.
-  if printf '%s\n' "$results" | grep -q '^unknown	'; then
+  # unanswerable question is not a passing report. A here-string, not a pipe:
+  # grep -q quits at the first `unknown`, and pipefail would read the printf it
+  # cut off as none, which is that false all-clear again.
+  if grep -q '^unknown	' <<<"$results"; then
     printf '%s\n' "$results" | while IFS=$'\t' read -r st name reason; do
       [ "${st:-}" = "unknown" ] || continue
       printf '  [?] %-14s %s\n' "$name" "$reason"
@@ -3657,7 +3668,16 @@ cmd_maintenance() {
   [ -f "$proj/maintenance.tsv" ] || die "project $(basename "$proj") declares no maintenance routines"
 
   if [ -n "$ran" ]; then
-    _felix_maint_rows "$proj" | cut -f1 | grep -qxF "$ran" \
+    # Read whole, then a case: grep -q on the pipe can quit before the rows are
+    # written, and pipefail reads a routine that exists as missing.
+    local names nl='
+'
+    # A routine name is one line. The case below would take two adjacent
+    # routines as one name, and the log line it wrote would leave the first of
+    # them with no epoch, read as never run.
+    case "$ran" in *"$nl"*) die "a routine name is one line" ;; esac
+    names="$(_felix_maint_rows "$proj" | cut -f1)" \
+      && case "$nl$names$nl" in *"$nl$ran$nl"*) true ;; *) false ;; esac \
       || die "no routine named $ran"
     felix_maint_record "$proj" "$ran"
     printf 'recorded a run of %s\n' "$ran"
@@ -4818,7 +4838,7 @@ cmd_obligations() {
     printf 'This project has admitted no obligation: there is no obligations.tsv,\n'
     printf 'so nothing it owes is written anywhere a merge can read.\n\n'
     printf 'Write %s/obligations.tsv. One row per obligation:\n\n' "$proj"
-    printf '  obligation <TAB> class <TAB> pathway <TAB> applies <TAB> evidence <TAB> grounds <TAB> reason\n\n'
+    printf '  obligation <TAB> class <TAB> pathway <TAB> applies <TAB> evidence <TAB> grounds <TAB> reason [<TAB> needs]\n\n'
     printf 'A template is at %s/templates/obligations.tsv.\n' "$SCRIPT_DIR"
     return 1
   fi
@@ -4827,7 +4847,8 @@ cmd_obligations() {
   if [ -n "$bad" ]; then
     printf 'rows refused\n\n'; printf '%s\n' "$bad" | sed 's/^/  /'
     printf '\nA row needs a name, a class from the set, a pathway from the set and an\n'
-    printf 'evidence contract; and a single probabilistic finding may not block.\n\n'
+    printf 'evidence contract; a single probabilistic finding may not block; and a\n'
+    printf 'needs cell, when there is one, is - or checker ids separated by commas.\n\n'
   fi
   if [ -z "$rows" ]; then
     printf '%s/obligations.tsv admits no obligation.\n' "$proj"
@@ -4860,6 +4881,31 @@ cmd_obligations() {
       "$(printf '%s\n' "$line" | cut -f4)" "$(printf '%s\n' "$line" | cut -f5)" \
       "${ohash:--}" "$odetail"
   done
+  # What each row names as the capability that would discharge it, resolved
+  # against qualification.tsv (felix_obligations_needs). Report only: it is
+  # read after every verdict above was formed and feeds none of them. The
+  # table is left out of the gate's copy, whose indented lines the gate
+  # greps for failing rows; the count rides on the summary line, which the
+  # gate already prints.
+  local needs ncount
+  needs="$(felix_obligations_needs "$proj")"
+  ncount="$(printf '%s\n' "$needs" | felix_obligations_needs_count)"
+  if [ "$gate" -ne 1 ] && [ -n "$needs" ]; then
+    printf '\nwhat would discharge each, by the checkers %s/qualification.tsv declares\n\n' "$(basename "$proj")"
+    printf '%s\n' "$needs" | while IFS=$'\t' read -r nname ncap nres nmiss; do
+      [ -n "$nname" ] || continue
+      case "$nres" in
+        complete) nmiss="declares a row for every control" ;;
+        short)    nmiss="declares no row for: $(printf '%s' "$nmiss" | sed 's/,/, /g')" ;;
+        absent)   nmiss="no checker by that id: a capability Felix would have to acquire" ;;
+        none)     nres="-"; nmiss="names nothing that would discharge it" ;;
+      esac
+      printf '  %-22s %-18s %-9s %s\n' "$nname" "$ncap" "$nres" "$nmiss"
+    done
+    printf '\ncomplete means every control is DECLARED, not that one ran and held: the\n'
+    printf 'gate'"'"'s qualified check runs them. Nothing here discharges, blocks or\n'
+    printf 'clears an obligation.\n'
+  fi
   local n_block; n_block="$(printf '%s\n' "$out" | felix_obligations_blocking | grep -c .)"
   local n_exc; n_exc="$(printf '%s\n' "$out" | awk -F'\t' 'index($8, "excepted|") == 1' | grep -c .)"
   printf '\n%s obligation(s): %s active, %s dormant, %s unknown; %s blocking, %s excepted' \
@@ -4870,6 +4916,13 @@ cmd_obligations() {
     "$n_block" "$n_exc"
   local n_ung; n_ung="$(felix_obligations_ungrounded "$proj" | grep -c .)"
   [ "$n_ung" -gt 0 ] && printf '; %s ground on no probe' "$n_ung"
+  # named complete short absent none, one count per obligation by its weakest
+  # need. Left off when felix_obligations_needs printed nothing, which only
+  # a missing qualification library does: zeros there would read as a ledger
+  # that names nothing, when nobody looked.
+  if [ -n "$ncount" ] && [ -n "$needs" ]; then
+    printf '%s\n' "$ncount" | awk -F'\t' '{ printf "; %d name what discharges them: %d complete, %d short, %d absent; %d name nothing", $1, $2, $3, $4, $5 }'
+  fi
   printf '\n'
   # A clearance that happened silently would leave the founder a green with
   # nothing in the record saying a person's grant produced it: said, once per

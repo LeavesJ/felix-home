@@ -264,11 +264,14 @@ felix_qualify_unshown() {   # proj, run-output -> one checker name per line
 # the same printf into grep -qxF stood here against every checker the table
 # declares, and named one that has rows whenever grep found it before the
 # printf was done. A name is [a-z][a-z-]*, so the unquoted list splits cleanly.
+# The names are cut in the C locale: BSD cut in a UTF-8 one stops with "Illegal
+# byte sequence" at a mutation holding a byte it cannot decode, and a table read
+# whole would then be said to be one that could not be read.
 felix_qualify_ungoverned() {   # proj, gate-output -> one checker name per line
   local proj="$1" out="$2" rows known c gap="" nl='
 '
   rows="$(felix_qualify_rows "$proj" 2>/dev/null)" || { _felix_qualify_unread "$proj"; return 2; }
-  known="$(printf '%s\n' "$rows" | cut -f1)" || { _felix_qualify_unread "$proj"; return 2; }
+  known="$(printf '%s\n' "$rows" | LC_ALL=C cut -f1)" || { _felix_qualify_unread "$proj"; return 2; }
   for c in $(printf '%s\n' "$out" \
                | LC_ALL=C awk '$0 ~ /^  [a-z][a-z-]* +[A-Za-z]/ { print $1 }' \
                | LC_ALL=C sort -u); do

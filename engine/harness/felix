@@ -2014,8 +2014,14 @@ cmd_qualify() {
   # A read of the table that failed is said for the checker it was about:
   # silence would read as every control declared, and the shortfall line as a
   # gap nobody saw. The library names the table on stderr.
+  #
+  # The checkers are the ones in the rows read above, not a read of the table of
+  # their own. That read, failing, listed none: the loop reached no checker and
+  # said nothing, which reads as every control declared. Cut in the C locale,
+  # because BSD cut in a UTF-8 one stops at a byte it cannot decode, and every
+  # checker after that row went unreported the same way.
   local c miss
-  for c in $(felix_qualify_checkers "$proj"); do
+  for c in $(printf '%s\n' "$rows" | LC_ALL=C cut -f1 | LC_ALL=C sort -u); do
     [ -z "$want" ] || [ "$want" = "$c" ] || continue
     if ! miss="$(felix_qualify_missing_controls "$proj" "$c")"; then
       printf '\n  %s: which controls it declares could not be read\n' "$c"; continue

@@ -8258,7 +8258,7 @@ _sgrefused "a judge that differs from main's engine by one comment is not the en
 is "and a doctored judge merges nothing" "$SGMERGES" "0"
 cp "$FROOT/harness/lib/say.sh" "$KC2/1.0.0/harness/lib/say.sh"
 
-# (b2) The same comment, behind an exclude line naming the file (spec pin 12).
+# (b2) The same comment, behind an exclude line naming the file.
 # The judge's byte identity is main's felix_deploy_diff, whose residue rule
 # called a tracked file an ignored directory once any pattern matched it: one
 # local line nobody reviews made a doctored judge read as main's engine.
@@ -11387,7 +11387,7 @@ STUB
   printf '# tampered\n' >> "$GINC/0.0.9/harness/lib/say.sh"
   is  "after the fold, a tampered cache entry still fails" "$(_ginv "$(_gin)")" "FAIL"
   _gin_deploy main 0.0.9
-  # Tracked content is never residue, end to end (spec pin 11). An exclude line
+  # Tracked content is never residue, end to end. An exclude line
   # naming a file main ships made the residue rule's trailing-slash query call
   # that tracked file an ignored directory, so a tampered entry read installed
   # ok. The control first: the line alone, entry faithful, is not drift.

@@ -1,7 +1,7 @@
 ### 2026-09-25: a `qualification.tsv` holding a NUL byte is refused as a whole, through the one read
 
-Stacked on claude/qualify-read-fails-closed. This is the NUL row its section
-handed on.
+Built on #382 (claude/qualify-read-fails-closed), which made `felix qualify
+--gate` read the table once. This is the NUL row its section handed on.
 
 **Defect closed.** macOS ships the BSD awk (20200816). It keeps a record as a
 C string, so a NUL byte ends the line there. `qualification.tsv` was read by
@@ -25,7 +25,7 @@ whole:
 reaches it. The one read is now `cat -- "$f"` into the shell
 (`_felix_qualify_bytes`). There `IFS= read -r -d ''` succeeds only on reaching
 a NUL, and awk parses the body the shell captured. That keeps
-claude/qualify-read-fails-closed's one read. A NUL scan before the parse would
+#382's one read. A NUL scan before the parse would
 be a second open, and the table could change between the two.
 
 The file is opened by cat, by name, rather than by a redirect, for the suite.

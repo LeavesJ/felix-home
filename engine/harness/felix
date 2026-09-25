@@ -4266,8 +4266,25 @@ _felix_why() {
 cmd_log() {
   resolve_or_die; local proj="$PROJ" text="$*"
   [ -n "$text" ] || die 'usage: felix log "what happened and why"'
-  felix_mem_log "$proj" "$(felix_repo_root "$PWD")" "$text"
+  local rc=0
+  felix_mem_log "$proj" "$(felix_repo_root "$PWD")" "$text" || rc=$?
+  _felix_entry_failed "$rc" "$proj" DEVLOG.md "entry"
   printf 'logged to %s/DEVLOG.md\n' "$(felix_mem_dir "$proj")"
+}
+
+# What a failed felix log or felix lesson says. The entry is written first and
+# its owner second (felix_mem_lesson), so a failure after the entry leaves it
+# there with nobody named as its writer: the Stop hook goes on asking, and the
+# obvious retry would write the entry twice, into a file matched into every
+# prompt. So that case says both halves.
+_felix_entry_failed() {
+  local rc="$1" proj="$2" file="$3" what="$4" dir
+  dir="$(felix_mem_dir "$proj")"
+  case "$rc" in
+    0) return 0 ;;
+    2) die "the $what is in $dir/$file, but $dir/written.log could not record who wrote it, so the Stop hook will still ask. Do not write it again: fix written.log, then run felix log to say so" ;;
+    *) die "could not write $dir/$file; nothing was recorded" ;;
+  esac
 }
 
 cmd_lesson() {
@@ -4276,7 +4293,9 @@ cmd_lesson() {
   # A lesson that begins with a dash is a mistyped flag, and this file is
   # matched into every prompt - a row reading "--help" is noise forever (#102).
   case "$text" in -*) die 'usage: felix lesson "the thing worth repeating" (got a flag)' ;; esac
-  felix_mem_lesson "$proj" "$(felix_repo_root "$PWD")" "$text"
+  local rc=0
+  felix_mem_lesson "$proj" "$(felix_repo_root "$PWD")" "$text" || rc=$?
+  _felix_entry_failed "$rc" "$proj" lessons.md "lesson"
   printf 'recorded in %s/lessons.md\n' "$(felix_mem_dir "$proj")"
   printf 'Only durable things belong here. A lessons file people stop reading\n'
   printf 'is worse than none, and it stops being read when it fills with one-offs.\n'

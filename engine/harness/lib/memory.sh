@@ -51,22 +51,26 @@ _felix_mem_sid() {
 felix_mem_log() {
   local proj="$1" root="$2" text="$3"
   mkdir -p "$(felix_mem_dir "$proj")"
-  printf '\n## %s\n\n%s\n' "$(_felix_mem_stamp "$root")" "$text" >> "$(felix_mem_dir "$proj")/DEVLOG.md" \
-    && _felix_mem_written "$proj" "$root" log
+  printf '\n## %s\n\n%s\n' "$(_felix_mem_stamp "$root")" "$text" >> "$(felix_mem_dir "$proj")/DEVLOG.md" || return 1
+  _felix_mem_written "$proj" "$root" log || return 2
 }
 
 felix_mem_lesson() {
   local proj="$1" root="$2" text="$3"
   mkdir -p "$(felix_mem_dir "$proj")"
-  printf '\n- **%s** %s\n' "$(date +%Y-%m-%d)" "$text" >> "$(felix_mem_dir "$proj")/lessons.md" \
-    && _felix_mem_written "$proj" "$root" lesson
+  printf '\n- **%s** %s\n' "$(date +%Y-%m-%d)" "$text" >> "$(felix_mem_dir "$proj")/lessons.md" || return 1
+  _felix_mem_written "$proj" "$root" lesson || return 2
 }
 
 # Who wrote each lesson and devlog entry, and when: one row per entry in
 # written.log, in mistakes.log's shape with the kind where the checks go.
+# felix_mem_lesson and felix_mem_log return 1 when the entry itself was not
+# written and 2 when it was but this row was not, so the command can say the
+# entry is there and must not be written twice.
 #
 # felix_guard_unrecorded lets an entry settle only the catches of whoever wrote
-# it, and neither file can say who that was. lessons.md is prose mounted into
+# it (its session, or for a catch filed under no session its branch), and
+# neither file can say who that was. lessons.md is prose mounted into
 # sessions and names only the day; a devlog header names the day and the
 # branch, never the second or the session. Their modification times say only
 # that somebody wrote, and on a project with many sessions somebody always

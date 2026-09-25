@@ -6303,14 +6303,13 @@ GYDAY="$(date -v-1d +%Y%m%d%H%M 2>/dev/null || date -d '1 day ago' +%Y%m%d%H%M)"
 # about.
 printf '%s\tmain\tabc123\tlint\n' "$(date +%Y-%m-%d)" > "$MEM/guarded/mistakes.log"
 touch -t "$GYDAY" "$MEM/guarded/lessons.md" "$MEM/guarded/DEVLOG.md" 2>/dev/null
-# Asserted here, where the ordering is load-bearing. This is the case that went
-# red on CI, and the guard reads exactly this comparison. The first version of
-# this assertion sat after the *second* case, where the ordering is reversed and
-# the fixture sets it explicitly anyway — so it guarded the mtime that never
-# mattered, and deleting the touch that did would have left the suite green.
-[ -n "$(find "$MEM/guarded/mistakes.log" -newer "$MEM/guarded/lessons.md" 2>/dev/null)" ] \
-  && ok  "the fixture puts the catch after the lesson" \
-  || bad "the fixture puts the catch after the lesson" "lesson is not older than the catch"
+# Asserted here, where the state is load-bearing. This was the case that went
+# red on CI when the guard compared the catch with the lessons file's time; it
+# now reads only the entries written.log records, so what the prompt below
+# rests on is that none has been written yet, whatever the files' times say.
+[ ! -s "$MEM/guarded/written.log" ] \
+  && ok  "the fixture has no entry written for the catch yet" \
+  || bad "the fixture has no entry written for the catch yet" "$(cat "$MEM/guarded/written.log")"
 # Asked from a checkout on the branch the catch names, because an entry settles
 # only the catches of whoever wrote it, and a guard told no checkout cannot
 # know whose a catch is.
@@ -6419,6 +6418,9 @@ has "and one thirty seconds before it does not" "$(_ur "$UCK")" "last caught   l
 _ur_lesson 12960
 { _ur_row claude/this-checkout lint 11520; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
 is "this branch's week-old catch stays history while a peer's rows keep the file fresh" "$(_ur "$UCK")" ""
+# The only entry a fortnight old, so nothing but the day's own age can make
+# this history: a later-day entry would settle it and hide a missing cutoff.
+_ur_lesson 20160
 { printf '%s\tclaude/this-checkout\t0123abcd\tlint \n' "$(_ur_day 10)"; _ur_row claude/peer tests 10; } \
   > "$MEM/guarded/mistakes.log"
 is "and so does an untimed row dated ten days back" "$(_ur "$UCK")" ""
@@ -6429,6 +6431,9 @@ _ur_lesson 60
 has "an untimed row with an empty date is not taken for history" "$(_ur "$UCK")" "last caught   lint"
 { printf -- '-\tclaude/this-checkout\t0123abcd\tlint \n'; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
 has "nor one whose date is a dash, which sorts before every day" "$(_ur "$UCK")" "last caught   lint"
+# And a fortnight-old entry again, or one after the file's time would settle
+# the row and hide a file that never aged.
+_ur_lesson 20160
 printf 'garbage\tclaude/this-checkout\t0123abcd\tlint \n' > "$MEM/guarded/mistakes.log"
 touch -t "$(_ur_ago 11520)" "$MEM/guarded/mistakes.log"
 is "and one whose date is unreadable still ages out with the file" "$(_ur "$UCK")" ""
@@ -6538,6 +6543,30 @@ printf '%s\tclaude/elsewhere\t0123abcd\tlesson\t0%s\tur-this\n' "$(date +%Y-%m-%
 has "an entry whose time is not a time settles nothing" "$(_ur "$UCK" ur-this)" "last caught   lint"
 _ur_lesson 60
 
+# Each kind of owner is weighed on its own. A catch naming no session is
+# settled by anyone's entry on its branch, and review showed one landing after
+# this session's own letting a peer's lesson on the branch silence both: the
+# guard weighed only the newest row it owned, which was the other one.
+{ _ur_row claude/this-checkout lint 120 ur-this; _ur_row claude/this-checkout tests 90; } > "$MEM/guarded/mistakes.log"
+_ur_lesson 60 claude/this-checkout ur-peer
+has "a catch naming no session after this session's own does not let a peer's lesson settle this session's" \
+    "$(_ur "$UCK" ur-this)" "last caught   lint"
+_ur_lesson 60 claude/elsewhere ur-this
+has "and with this session's own settled, the one naming no session is still asked about" \
+    "$(_ur "$UCK" ur-this)" "last caught   tests"
+_ur_lesson 60 claude/this-checkout ur-this
+is  "while this session's lesson on the branch settles both" "$(_ur "$UCK" ur-this)" ""
+# An entry dated after now is after nothing: a clock set back, or a row
+# written ahead, must not settle catches that have not happened yet.
+_ur_row claude/this-checkout lint 120 ur-this > "$MEM/guarded/mistakes.log"
+_ur_w "$((UNOW + 86400))" lesson claude/this-checkout ur-this > "$MEM/guarded/written.log"
+has "an entry of this session's dated tomorrow does not settle its catch" "$(_ur "$UCK" ur-this)" "last caught   lint"
+{ printf '%s\tclaude/this-checkout\t0123abcd\tlint \n' "$(_ur_day 2)"; } > "$MEM/guarded/mistakes.log"
+printf '%s\tclaude/this-checkout\t0123abcd\tlesson\t%s\t-\n' "$(date -v+1d +%Y-%m-%d 2>/dev/null || date -d tomorrow +%Y-%m-%d)" \
+  "$((UNOW - 3600 * 48))" > "$MEM/guarded/written.log"
+has "nor does one whose day is after today settle an untimed catch" "$(_ur "$UCK")" "last caught   lint"
+_ur_lesson 60
+
 # The writer. The session is the one the platform exports to the gate's shell,
 # the same id the Stop hook is handed, and a subagent's shell carries its
 # parent's, so a catch made on a session's behalf is that session's to explain.
@@ -6565,28 +6594,35 @@ is "and a detached one files under HEAD, as the guard reads it" "$(tail -1 "$MEM
 # session exported to the shell that ran felix lesson or felix log, the branch
 # that checkout had, as one field, and the second. The prose is what it was.
 rm -f "$MEM/guarded/written.log"; : > "$MEM/guarded/lessons.md"; : > "$MEM/guarded/DEVLOG.md"
-_uwb="$(date +%s)"
+_uwb="$(date +%s)"; _uwd0="$(date +%Y-%m-%d)"
 ( . "$FROOT/harness/lib/memory.sh"; CLAUDE_CODE_SESSION_ID=ur-writer felix_mem_lesson "$GP" "$UCK" "a durable thing" ) >/dev/null 2>&1
 ( . "$FROOT/harness/lib/memory.sh"; unset CLAUDE_CODE_SESSION_ID; felix_mem_log "$GP" "$UUB" "a one-off" ) >/dev/null 2>&1
-_uwa="$(date +%s)"
+_uwa="$(date +%s)"; _uwd1="$(date +%Y-%m-%d)"
 is "felix lesson files its writer beside the lesson: branch, kind and session" \
    "$(head -1 "$MEM/guarded/written.log" | cut -f2,4,6)" "claude/this-checkout	lesson	ur-writer"
 is "and felix log does too, a dash for no session and the branch of a checkout with no commit" \
    "$(sed -n 2p "$MEM/guarded/written.log" | cut -f2,3,4,6)" "claude/unborn	?	log	-"
-_uwe="$(head -1 "$MEM/guarded/written.log" | cut -f5)"
-case "$_uwe" in
-  ''|*[!0-9]*) bad "each at the second it was written" "fifth column [$_uwe]" ;;
-  *) [ "$_uwe" -ge "$_uwb" ] && [ "$_uwe" -le "$_uwa" ] && ok "each at the second it was written" \
-       || bad "each at the second it was written" "fifth column [$_uwe] outside [$_uwb, $_uwa]" ;;
-esac
+_uwn=0
+for _uwe in $(cut -f5 "$MEM/guarded/written.log"); do
+  case "$_uwe" in ''|*[!0-9]*) continue ;; esac
+  [ "$_uwe" -ge "$_uwb" ] && [ "$_uwe" -le "$_uwa" ] && _uwn=$((_uwn + 1))
+done
+is "each at the second it was written" "$_uwn" "2"
 is "one row per entry, six columns each" "$(awk -F'\t' '{ print NF }' "$MEM/guarded/written.log" | tr '\n' ' ')" "6 6 "
-is "and the lesson itself is the prose it always was" "$(cat "$MEM/guarded/lessons.md")" "
-- **$(date +%Y-%m-%d)** a durable thing"
-is "as is the devlog entry, its header one line on a checkout with no commit" \
-   "$(cat "$MEM/guarded/DEVLOG.md")" "
-## $(date +%Y-%m-%d) claude/unborn ?
+# Dated by the day the writes began, which is the day they wrote unless the
+# run crossed midnight between them, when neither day can be expected.
+if [ "$_uwd0" = "$_uwd1" ]; then
+  is "and the lesson itself is the prose it always was" "$(cat "$MEM/guarded/lessons.md")" "
+- **$_uwd0** a durable thing"
+  is "as is the devlog entry, its header one line on a checkout with no commit" \
+     "$(cat "$MEM/guarded/DEVLOG.md")" "
+## $_uwd0 claude/unborn ?
 
 a one-off"
+else
+  skip "and the lesson itself is the prose it always was" "the writes crossed midnight"
+  skip "as is the devlog entry, its header one line on a checkout with no commit" "the writes crossed midnight"
+fi
 rm -f "$MEM/guarded/written.log"; : > "$MEM/guarded/lessons.md"
 
 # Through the Stop hook, where it is read. Called without a checkout or a
@@ -6637,6 +6673,17 @@ is  "while this session's own felix lesson does" "$(_ur_stop ur-own)" ""
 rm -f "$MEM/unrechook/written.log"
 ( cd "$UHR" && CLAUDE_CODE_SESSION_ID=ur-own "$FROOT/harness/felix" log "a one-off, said so" ) >/dev/null 2>&1
 is  "and so does its felix log" "$(_ur_stop ur-own)" ""
+# A lesson whose writer cannot be recorded is still in lessons.md, and the
+# Stop hook will still ask. The command says both, rather than printing success
+# and inviting the same lesson a second time into a file every prompt reads.
+_ur_row claude/this-checkout lint 30 ur-own > "$MEM/unrechook/mistakes.log"
+rm -f "$MEM/unrechook/written.log"; mkdir -p "$MEM/unrechook/written.log"
+_ulb="$(grep -c 'written once' "$MEM/unrechook/lessons.md" 2>/dev/null)"
+out="$(cd "$UHR" && CLAUDE_CODE_SESSION_ID=ur-own "$FROOT/harness/felix" lesson "written once" 2>&1)"; _ulrc=$?
+is  "a lesson whose writer cannot be recorded exits non-zero" "$_ulrc" "1"
+has "and says the lesson is there and must not be written again" "$out" "Do not write it again"
+is  "and the lesson is in the file once" "$(( $(grep -c 'written once' "$MEM/unrechook/lessons.md") - ${_ulb:-0} ))" "1"
+rmdir "$MEM/unrechook/written.log"
 # Both stops that ask go through one helper, so the arguments cannot drift
 # apart at a call site no fixture reaches: the night's.
 is "the Stop hook calls the guard in one place" "$(grep -c 'felix_guard_unrecorded' "$FROOT/harness/hooks/stop")" "1"
@@ -7018,6 +7065,12 @@ unset -f _bago _bdago _bstamp _bday _bmt _breset _brow _browS _bwrote _blesson _
 # a loose epoch, no settling at all, the file's time read as zero, no log row,
 # the old devlog stamp, an unsanitised session id) failed both blocks on
 # every mutation but the last, which only this one caught.
+#
+# Two rules came after it, from the adversarial review, and the statement
+# these were written from never had them: each kind of owner is weighed on its
+# own, so a catch naming no session cannot let a peer's lesson silence this
+# session's, and an entry dated after now settles nothing. The author's cases
+# above assert both; nothing here does.
 printf '\nunrecorded catches, settled by their writer (blind)\n'
 # Written from the contract alone: a lesson or devlog entry settles only its
 # writer's catches, and only through the row it leaves in written.log. Every

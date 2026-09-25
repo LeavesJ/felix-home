@@ -185,7 +185,10 @@
 1	a control that stages its own violation lifts the refusal
 1	a control the checker meets is met
 1	a copy that ships a README alone is low when no entry is read
+1	a copy whose scope step drifted is unmet
+1	a copy with a placeholder left unfilled does not match
 1	a copy with files in it digests to something
+1	a copy with no Felix pin does not match
 1	a count or a latest run asked for no workflow is refused, not every workflow's
 1	a count that is not a number is reported rather than passed over
 1	a credential added to a green path is out of scope
@@ -237,6 +240,7 @@
 1	a denied command exits 2
 1	a deploy-check with no library beside it is 127, never 1
 1	a deploy-check with no library beside it is still 127 under the new question
+1	a deployed copy that is the template with its placeholders filled matches it
 1	a deployed engine resolves the checkout, not itself
 1	a deployment matching the tree is not reported as drift
 1	a deployment that is not this tree is the first thing to fix
@@ -320,6 +324,8 @@
 1	a gate run that completed without failing is nothing to repair, and one that failed without a log is refused
 1	a gate run that failed to start counts against the ceiling, as do a timed-out one and a conclusion this code does not know
 1	a gate that skipped the suite is not called a passing suite
+1	a gate workflow that cannot be read is unknown, not unmet
+1	a gate workflow that takes workflow_dispatch is reported as taking one
 1	a gate_workflow that is not a file name is refused, and named
 1	a gitignored stray in the tree is residue, not drift
 1	a gitlink already in history does not block every future backup
@@ -682,6 +688,7 @@
 1	a repo copy of a file Felix holds is reported
 1	a reported checker with a row is never called unqualified among twenty thousand, and one with none still is
 1	a repository that is not the memory's own is named foreign
+1	a repository with no unattended workflow says so
 1	a repository without the gate workflow makes no pull request clean
 1	a resolve.sh committed on the branch being gated does not change the verdict
 1	a resolve.sh stubbed in the cache entry is drift, not the judge
@@ -930,6 +937,7 @@
 1	a witness whose command does not exist makes the row unknown, not empty
 1	a word shared with a field name still counts
 1	a workflow change escapes as execute
+1	a workflow list that cannot be read is unknown, not unmet
 1	a worktree engine cannot
 1	a worktree refreshes the holding checkout's graph
 1	a worktree session's first prompt still marks the session, reminder and all
@@ -1087,6 +1095,7 @@
 1	an obligation the grounded state does not make applicable is DORMANT
 1	an obligations.tsv admitting nothing blocks a merge
 1	an old stamp is counted in days
+1	an on: line naming workflow_dispatch counts as taking one
 1	an opted-in capability is allowed
 1	an ordinary checkout is not
 1	an ordinary failure is still written down
@@ -1737,6 +1746,7 @@
 1	and one real script in that same tree is examined, so it was the emptiness
 1	and one stamped over this table does
 1	and one that arrives without its bit fails, where a fixed list saw nothing
+1	and one that does not is reported unmet
 1	and one that finished having given 1 verdict of 2 refuses by itself, saying 1 of 2 ran
 1	and one that holds no table at all is emptiness, not an all clear
 1	and one that shares nothing stands alone
@@ -2009,6 +2019,7 @@
 1	and still exits 0, because start cannot refuse
 1	and still folds the person's whose prompt shares its first 200 characters, with what it reached for
 1	and still marks the session it opens
+1	and still matches with its comments changed
 1	and still names its play in the session ledger
 1	and still no candidate command has run
 1	and still no new file beside it
@@ -2217,6 +2228,7 @@
 1	and the row is in the log as INFERRED
 1	and the row is still json
 1	and the row itself is reported as recording nothing
+1	and the row names the line it drifted at
 1	and the row says the when test was neither yes nor no, with its code
 1	and the row says the witness could not be asked
 1	and the row says the witness was neither yes nor no, with its code
@@ -3819,5 +3831,6 @@
 1	without opting in, nothing is touched
 1	work committed only in a worktree does not make the graph stale
 1	work the subagent committed is still checked
+1	workflow_dispatch named only in an if: expression does not
 1	writes a zero row for a declared tool nobody reached for
 1	zero members is two different answers depending on the witness

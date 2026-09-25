@@ -48,9 +48,10 @@
 # Whether zero is acceptable for a given change is the reviewer's question, and
 # the file gives them the number to ask it about.
 #
-#   exit 0  the red run ran; red.tsv holds its result, zero included
-#   exit 2  it could not: no base ref, no run beside this script, or the tree
-#           could not be read. red.tsv says so.
+#   exit 0  the red run ran to its end; red.tsv holds its result, zero included
+#   exit 2  it could not: no base ref, no run beside this script, a tree that
+#           could not be read, or a suite that stopped before its end, which
+#           is no red run whatever it printed first. red.tsv says so.
 #
 # One trap, from HANDOFF §5: a test for a hang leaks the hang unless its
 # watchdog kills the children, and a red run is precisely where such tests
@@ -154,13 +155,28 @@ cp "$HERE/run" "$TREE/engine/harness/tests/run" 2>/dev/null \
 # what still names this run's directory: the tree the base is checked out in,
 # which the suite reaches as REAL_HARNESS. A stray naming only the suite's own
 # root escapes it, as on a Mac it always did.
+#
+# The run counts only if the suite got to its end, and the exit status cannot
+# say so, since a finished red run exits 1 whenever anything is red. What says
+# so is the line the suite prints after its last assertion, exactly "reached",
+# and the run placed into the base is this tree's, so the line does not depend
+# on the base. Until #371 only a run that reached no assertion was refused, and
+# a suite that died part way was written down as a clean one: on 2026-09-25 a
+# suite killed a few seconds in read 0 of 270 assertions failing, and an earlier
+# record read 0 of 1320 where fork had failed at the per-user process cap, when
+# the whole suite holds some 3,700. The status is kept to name the death in the
+# refusal, and the line is read from the log itself, not through a pipe that
+# pipefail can make report a line missing when it is there.
 LOG="$TMP/red.log"
 ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$LOG" 2>&1
+RC=$?
 pkill -9 -f "$(printf '%s' "$TMP" | sed 's/[][\\.*^$(){}+?|]/\\&/g')" >/dev/null 2>&1
 
 PASSED="$(grep -c '^  ok    ' "$LOG")"
 FAILED="$(grep -c '^  FAIL  ' "$LOG")"
 SKIPPED="$(grep -c '^  skip  ' "$LOG")"
+grep -qx 'reached' "$LOG" \
+  || _none "the suite against $BASE did not finish (exit $RC after $((PASSED + FAILED + SKIPPED)) assertions)"
 [ "$((PASSED + FAILED + SKIPPED))" -gt 0 ] || _none "the suite reached no assertion against $BASE"
 
 {

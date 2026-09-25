@@ -20668,15 +20668,56 @@ EOF
       "$(_red_said)" "1|red: not run: the suite against main did not finish (exit 137 after 2 assertions)"
   is  "and red.tsv holds the two rows saying no red run was made for the suite that went on past reached" \
       "$(_red_body "$RED/past")" "$(printf 'base\t-\t-\t-\nrun\t-\t-\t-')"
-  # The line these cases stand for is this suite's own, printed after its
-  # last section. The fixtures' copies of it sit earlier in this file, so
-  # deleting or rewording the real one fails here rather than in a red run.
-  _red_own="$(_RM="printf '\\nreached\\n'" _RS="printf '\\nthe record this branch carries\\n'" awk '
-    $0 == ENVIRON["_RS"] { s = NR }
-    $0 == ENVIRON["_RM"] { m = NR }
-    END { r = (s && m > s) ? "after" : "not after"; print r }' "$HERE/run")"
+  # A stray reached is outrun by any assertion line after it, an ok or a skip
+  # as much as a failure, so a word a child wrote early that only passes or
+  # only skips follow is still not the suite's end. And the reached that
+  # counts is the last one, not the first: a suite with a stray one early that
+  # prints the real one after its last assertion did finish, and is recorded.
+  _red_seed "$RED/strayok" main 0.0.7
+  _red_cut "$RED/strayok" <<'EOF'
+printf 'marker suite\n\n'
+sh -c 'echo reached >&2'
+printf '  ok    one\n  ok    two\n  ok    three\n'
+kill -9 $$
+EOF
+  _red "$RED/strayok" engine/harness/tests/red
+  is  "a stray reached followed only by ok lines does not make a suite killed after them a red run, exit 2" "$(_red_rc)" "2"
+  is  "and red.tsv holds the two rows saying no red run was made, the ok lines after the stray reached notwithstanding" \
+      "$(_red_body "$RED/strayok")" "$(printf 'base\t-\t-\t-\nrun\t-\t-\t-')"
+  _red_seed "$RED/strayskip" main 0.0.7
+  _red_cut "$RED/strayskip" <<'EOF'
+printf 'marker suite\n\n'
+sh -c 'echo reached >&2'
+printf '  skip  one (no cli)\n  skip  two (no cli)\n'
+kill -9 $$
+EOF
+  _red "$RED/strayskip" engine/harness/tests/red
+  is  "a stray reached followed only by skip lines does not make a suite killed after them a red run, exit 2" "$(_red_rc)" "2"
+  is  "and red.tsv holds the two rows saying no red run was made, the skip lines after the stray reached notwithstanding" \
+      "$(_red_body "$RED/strayskip")" "$(printf 'base\t-\t-\t-\nrun\t-\t-\t-')"
+  _red_seed "$RED/strayend" main 0.0.7
+  _red_cut "$RED/strayend" <<'EOF'
+printf 'marker suite\n\n'
+sh -c 'echo reached >&2'
+printf '  ok    one\n  FAIL  two\n        expected [a] got [b]\n  ok    three\n'
+printf '\nreached\n'
+printf '  manifest comparison off (FELIX_TEST_NO_MANIFEST): this is a red run\n\n2 passed, 1 failed\n'
+exit 1
+EOF
+  ESHA="$(cd "$RED/strayend" && git rev-parse main)"
+  _red "$RED/strayend" engine/harness/tests/red
+  is  "a suite with a stray reached early and the real one after its last assertion is a red run, exit 0" "$(_red_rc)" "0"
+  is  "and its record is the base row, one failed and two passed, and the failed name, the stray reached notwithstanding" \
+      "$(_red_body "$RED/strayend")" "$(printf 'base\tmain\t%s\t0.0.7\nrun\t1\t2\t0\ntwo\t1' "$ESHA")"
+  # The line these cases stand for is this suite's own, and it must be the last
+  # line of this file shaped like a section's header: every top-level header is
+  # a printf of a newline, a title and a newline, and so is the marker. A section
+  # added after the marker, or the marker deleted or reworded, leaves another
+  # line last and fails here rather than in a red run. The fixtures' copies of
+  # the marker sit earlier in this file.
+  _red_own="$(_RP="^printf '\\\\n[^%']*\\\\n'\$" awk '$0 ~ ENVIRON["_RP"] { l = $0 } END { print l }' "$HERE/run")"
   is  "the suite's own completion marker, the reached line tests/red requires, still follows its last section" \
-      "$_red_own" "after"
+      "$_red_own" "printf '\\nreached\\n'"
 else
   for a in "a red run against main exits 0 once the suite has run" "and stdout is the one summary line" \
            "and the summary counts three of six assertions failing against main at the engine version main declares" \
@@ -20721,6 +20762,12 @@ else
            "a suite that printed an assertion after reached and was killed is refused, exit 2" \
            "and its reason counts both assertions, the one after reached among them" \
            "and red.tsv holds the two rows saying no red run was made for the suite that went on past reached" \
+           "a stray reached followed only by ok lines does not make a suite killed after them a red run, exit 2" \
+           "and red.tsv holds the two rows saying no red run was made, the ok lines after the stray reached notwithstanding" \
+           "a stray reached followed only by skip lines does not make a suite killed after them a red run, exit 2" \
+           "and red.tsv holds the two rows saying no red run was made, the skip lines after the stray reached notwithstanding" \
+           "a suite with a stray reached early and the real one after its last assertion is a red run, exit 0" \
+           "and its record is the base row, one failed and two passed, and the failed name, the stray reached notwithstanding" \
            "the suite's own completion marker, the reached line tests/red requires, still follows its last section"; do
     skip "$a" "no tests/red beside this harness"; done
 fi

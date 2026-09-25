@@ -62,11 +62,23 @@ _felix_commission_answer_ok() {
 # A check that cannot fail is not a check. A negated pipeline reads met when
 # its producer dies, and one ending in `head` reports head's status, which is
 # success whatever came before it.
+#
+# The same holds for any filter that succeeds whatever it is fed, because a
+# check runs without pipefail, as a probe does (felix_commission_ask says why):
+# a pipeline's status is its last command's, so `npm test 2>&1 | tail -20`
+# passes when the tests fail. Only the stage after the last `|` is judged, and
+# only when nothing closes or follows it, so a filter inside `$( )` or one an
+# `&&` or `;` hands on from is not.
 _felix_commission_check_ok() {
-  local c="${1:-}"
+  local c="${1:-}" last
   [ -n "$c" ] || return 1
   case "$c" in '!'*) return 1 ;; esac
   case "$c" in *'| head'|*'|head'|*'| head -'*|*'|head -'*) return 1 ;; esac
+  case "$c" in *'|'*) ;; *) return 0 ;; esac
+  last="${c##*|}"
+  case "$last" in *[')];&`']*) return 0 ;; esac
+  last="${last#"${last%%[![:space:]]*}"}"; last="${last%%[[:space:]]*}"
+  case "$last" in tail|tee|cat|sort|uniq|wc|tr|cut|sed) return 1 ;; esac
   return 0
 }
 
@@ -122,18 +134,11 @@ EOF
       case "$answer" in
         provider:*) [ "$check" = "-" ] || printf '%s\ta provider row carries no check; a file it cannot write decides it\n' "$need" ;;
         *) _felix_commission_check_ok "$check" \
-             || printf '%s\tcheck is empty, negated, or ends in head, so it could not fail\n' "$need" ;;
+             || printf '%s\tcheck is empty, negated, or ends in a filter that succeeds whatever it is fed (head, tail, tee, cat, sort, uniq, wc, tr, cut, sed), so it could not fail\n' "$need" ;;
       esac
     fi
   done
   return 0
-}
-
-# The engine function names a row's text mentions, one per line. `|| true`:
-# text naming none makes grep exit 1, and under pipefail that read as
-# "function '' is missing", so every plain check was unknown.
-_felix_commission_function_names() {
-  { printf '%s' "$1" | grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)' || true; } | LC_ALL=C sort -u
 }
 
 # Every engine function a check names must exist in THIS process, or the row
@@ -147,8 +152,10 @@ _felix_commission_function_names() {
 # a multi-line "missing" that the caller's read then truncates. Measured.
 _felix_commission_functions_present() {
   local w
-  # The only status that matters is the loop's.
-  _felix_commission_function_names "$1" \
+  # `|| true`: a check naming no engine function makes grep exit 1, and under
+  # pipefail that read as "function '' is missing" — every plain check was
+  # unknown. The only status that matters is the loop's.
+  { printf '%s' "$1" | grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)' || true; } | LC_ALL=C sort -u \
     | while IFS= read -r w; do
         [ -n "$w" ] || continue
         command -v "$w" >/dev/null 2>&1 || { printf '%s' "$w"; exit 1; }
@@ -242,9 +249,9 @@ felix_commission_resume_bg() {
 # Run a check or a `when` in the checkout, in-process, with stdin closed.
 # 0 yes, 1 no, 126 cannot enter, 127 a command does not exist.
 #
-# In-process because a row may call the engine (felix_json_str, felix_probe_rows,
-# cmd_bootstrap), which a fresh shell does not have. But in-process also handed
-# the row the CLI's pipefail, and no other table runs under it: probes,
+# In-process because a row may call the engine (felix_json_str,
+# felix_probe_rows, cmd_bootstrap), which a fresh shell does not have. But that
+# handed the row the CLI's pipefail, which no other table runner has: probes,
 # obligations, setup and maintenance each start a `bash -c`, where
 # `producer | grep -q x` is grep's answer. Here grep matching and leaving first
 # killed the producer with SIGPIPE, and pipefail turned a line that was found
@@ -252,44 +259,22 @@ felix_commission_resume_bg() {
 # skipped its step. Deterministic once the producer writes more than a pipe
 # holds with the match early; three seeded rows have the shape.
 #
-# So the row's own text runs without pipefail, and every engine function it
-# names runs under the caller's, which is what that code was written and tested
-# under. Options are dynamic and bash 3.2 has no `local -`, so each name the row
-# mentions is aliased to a wrapper that sets them around the call. An alias
-# expands only where the row is parsed and only in command position, so a name
-# the row passes as an argument is untouched, and so are the engine's own
-# bodies, parsed before any alias existed. The one thing a row cannot do is
-# define a function under an engine function's name: the alias expands there too.
+# So the row runs without pipefail, and so do the engine functions it calls,
+# as six of them already do under bin/probes-check and bin/obligations-check.
+# Keeping pipefail for those functions alone was built and dropped in review:
+# the pipeline statuses the engine reads end, nearly all, in a grep that
+# pipefail can only turn from a match into a miss, and carrying it took an
+# alias per name, which changed what `type` says inside a row and stopped a row
+# defining or sourcing an engine function. nounset stays, so a mistyped
+# variable holds a check rather than passing it.
 felix_commission_ask() {
-  local root="$1" expr="$2" rc pf=+o names
+  local root="$1" expr="$2" rc
   [ -n "$expr" ] && [ "$expr" != "-" ] || return 2
-  [ -o pipefail ] && pf=-o
-  names="$(_felix_commission_function_names "$expr")"
   ( cd "$root" 2>/dev/null || exit 126
-    _FELIX_COMMISSION_ENGINE_PF="$pf"
-    shopt -s expand_aliases
-    while IFS= read -r w; do
-      declare -F "$w" >/dev/null 2>&1 && alias "$w=_felix_commission_engine $w"
-    done <<EOF
-$names
-EOF
     set +o pipefail
     eval "$expr" ) </dev/null >/dev/null 2>&1
   rc=$?
   case "$rc" in 0|126|127) return "$rc" ;; *) return 1 ;; esac
-}
-
-# One engine function called from a row, under the caller's pipefail and with
-# aliases off, so a library it sources parses as it would anywhere else. Both are
-# put back as they were, since a function the row itself sourced can nest one.
-_felix_commission_engine() {
-  local _felix_cm_rc _felix_cm_pf=+o _felix_cm_al=-u
-  [ -o pipefail ] && _felix_cm_pf=-o
-  shopt -q expand_aliases && _felix_cm_al=-s
-  shopt -u expand_aliases; set "${_FELIX_COMMISSION_ENGINE_PF:--o}" pipefail
-  "$@"; _felix_cm_rc=$?
-  set "$_felix_cm_pf" pipefail; shopt "$_felix_cm_al" expand_aliases
-  return "$_felix_cm_rc"
 }
 
 # state <TAB> detail <TAB> provenance, without running the answer.

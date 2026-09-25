@@ -549,14 +549,39 @@ EOF
 # mark wins), and governed repositories have disjoint histories, so `git
 # cat-file -e` decides it with bash and git and nothing else.
 #
-# A session with no mark, or a mark this repository does not contain, is not
-# ours. Both return 1: unknown holds rather than guessing, which is the same
-# reading of unknown the probes runner and the commissioning table already use.
+# Before a repository's first commit there is no HEAD to write, and the hook
+# wrote nothing, so a session whose every prompt came before the first commit
+# was nobody's: never folded, never counted as stranded, before or after that
+# commit (U4). Such a session is now marked `unborn<TAB><git common dir>`, and
+# it is ours when that directory is this checkout's, spelled by the one
+# function that wrote it. That directory is asked of git at most once per walk,
+# and only when an unborn mark is met, so a home without one pays nothing.
+#
+# A session with no mark, an unborn mark that could not say where it was, or a
+# mark this repository does not contain, is not ours. All return 1: unknown
+# holds rather than guessing, which is the same reading of unknown the probes
+# runner and the commissioning table already use. An unborn mark never reaches
+# `cat-file`; a ref name cannot hold its tab, which is also why an older engine
+# reads one as not ours.
+_FELIX_LEDGER_GCD_ROOT=""; _FELIX_LEDGER_GCD=""
 _felix_ledger_owns() {   # home, root, session -> 0 when this repository owns it
-  local home="$1" root="$2" session="$3" sha
+  local home="$1" root="$2" session="$3" sha dir
   [ -n "$root" ] || return 1
   sha="$(head -1 "$home/state/session/$session" 2>/dev/null)"
   [ -n "$sha" ] || return 1
+  case "$sha" in
+    unborn|unborn$'\t'*)
+      dir="${sha#unborn}"; dir="${dir#$'\t'}"
+      [ -n "$dir" ] || return 1
+      if [ "$_FELIX_LEDGER_GCD_ROOT" != "$root" ]; then
+        command -v felix_git_common_dir >/dev/null 2>&1 \
+          || . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh" 2>/dev/null
+        _FELIX_LEDGER_GCD="$(felix_git_common_dir "$root" 2>/dev/null)" || _FELIX_LEDGER_GCD=""
+        _FELIX_LEDGER_GCD_ROOT="$root"
+      fi
+      [ -n "$_FELIX_LEDGER_GCD" ] && [ "$dir" = "$_FELIX_LEDGER_GCD" ]
+      return ;;
+  esac
   git -C "$root" cat-file -e "${sha}^{commit}" 2>/dev/null
 }
 
@@ -696,6 +721,29 @@ felix_ledger_catchup() {
     printf '%s\n' "$machine" | grep -qxF -- "$session" && continue
     felix_ledger_rollup "$proj" "$home" "$session" \
       "$(date -r "$f" -u +%Y-%m-%d 2>/dev/null || date -u +%Y-%m-%d)" || continue
+    n=$((n + 1))
+  done
+  printf '%s' "$n"
+}
+
+# How many sessions left calls on disk that no mark attributes to any
+# repository (U4): no mark, an empty one, or an unborn mark that could not say
+# where it was. The same walk as the two above, less the ownership test, and
+# less the sessions nobody typed into, so the count is of sessions a person
+# held. `felix ledger` says this number when it has nothing else to say,
+# because "a session running when the hooks were installed records nothing"
+# was false about these: they recorded, and attribution is what failed.
+felix_ledger_unattributed() {   # proj, home -> a count
+  local proj="$1" home="$2" dir f session mark n=0 machine="" looked=0
+  dir="$(felix_mem_dir "$proj")/ledger.d"
+  for f in "$home"/state/ledger/*.tsv; do
+    [ -f "$f" ] || continue
+    session="${f##*/}"; session="${session%.tsv}"
+    _felix_ledger_fold_current "$f" "$dir/$session.tsv" && continue
+    mark="$(head -1 "$home/state/session/$session" 2>/dev/null)"
+    case "$mark" in ''|unborn|unborn$'\t') ;; *) continue ;; esac
+    [ "$looked" = 1 ] || { machine="$(_felix_ledger_machine_sessions "$proj")"; looked=1; }
+    case $'\n'"$machine"$'\n' in *$'\n'"$session"$'\n'*) continue ;; esac
     n=$((n + 1))
   done
   printf '%s' "$n"

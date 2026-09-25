@@ -1070,6 +1070,16 @@ EOF
   printf '  repo         %s\n' "${slug:-no github remote}"
   printf '  bound via    %s/.felix\n' "$root"
   [ -n "$kept" ] && printf '  memory       kept%s, already in %s\n' "$kept" "$memdir"
+  # The marker is a file in the checkout like any other, and until it is
+  # committed it binds this checkout and no clone of it (U35). Said only where
+  # git would take it: inside a work tree, not yet in the index, not ignored.
+  if [ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" = true ] \
+     && ! git -C "$root" ls-files --error-unmatch -- .felix >/dev/null 2>&1 \
+     && ! git -C "$root" check-ignore -q .felix 2>/dev/null; then
+    printf '\n.felix is not committed yet. Commit it with your next commit (git add .felix):\n'
+    printf 'until then it binds this checkout alone, and a clone or a new worktree of this\n'
+    printf 'repository is not bound by it.\n'
+  fi
   printf '\n'
   printf 'seeded stack.tsv, profiles.tsv, setup.tsv and %s runbook(s).\n' \
     "$(ls "$dir/setup" 2>/dev/null | wc -l | tr -d ' ')"
@@ -2322,6 +2332,17 @@ cmd_ledger() {
 
   if [ -z "$rows" ]; then
     printf 'Nothing recorded yet for %s.\n\n' "$(basename "$proj")"
+    # Calls on disk that no mark attributes are not a session that recorded
+    # nothing, and saying so sent the reader looking at the hooks (U4).
+    local unattributed; unattributed="$(felix_ledger_unattributed "$proj" "$FELIX_HOME_DIR" 2>/dev/null)"
+    if [ "${unattributed:-0}" -gt 0 ] 2>/dev/null; then
+      printf '%s session(s) on this machine left calls on disk that could not be attributed\n' "$unattributed"
+      printf 'to %s, because nothing recorded which repository they ran in.\n' "$(basename "$proj")"
+      printf 'Sessions in directories Felix does not govern leave calls like that, and so\n'
+      printf "did a session whose every prompt came before its repository's first commit,\n"
+      printf 'under an engine older than this one.\n'
+      return 0
+    fi
     printf 'The ledger is written by hooks, and hooks bind when a session starts,\n'
     printf 'so a session running when they were installed records nothing. It fills\n'
     printf 'from the next session onwards.\n'

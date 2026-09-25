@@ -189,11 +189,18 @@ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 # So a clean tree is only silence when this session also committed nothing.
 # Unknown counts as unchanged: no session id, no mark, no git — the hook keeps
 # its old behaviour rather than starting to block trees it knows nothing about.
+# An unborn HEAD is not unknown: the prompt hook marks it `unborn`, so the
+# session that makes a repository's first commit is judged like any other (U3).
+#
+# The resolved project goes to the dirty check so that the untracked .felix
+# `felix new` wrote, naming this project and nothing else changed, is not
+# unverified work (U35); it held every question asked before somebody
+# committed it.
 #
 # A night still has something to say over a tree with nothing to verify: the
 # session stopping before its first commit is the one a night was granted to
 # keep going, and this exit used to let it close for the night.
-if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR"; then
+if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR" "$PROJ"; then
   if ! felix_session_committed "$FELIX_HOME_DIR" "${SID:-}" "$ROOT"; then
     felix_overnight_owns "$PROJ" "${SID:-}" && _felix_stop_night ""
     exit 0

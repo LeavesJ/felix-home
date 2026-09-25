@@ -771,6 +771,26 @@ felix_same_repo() {
   [ -n "$ga" ] && [ "$ga" = "$gb" ]
 }
 
+# The absolute physical path of the git common directory governing a
+# checkout, or nothing (U4).
+#
+# The session mark on an unborn HEAD records it and the ledger compares
+# against it, so both call this one function and cannot disagree about how a
+# path is spelled. `cd -P` and `pwd -P` rather than `--path-format=absolute`,
+# which git before 2.31 does not know: `rev-parse` echoes an unknown flag on
+# stdout and exits 0, so an older git would put two lines into a mark in
+# silence. The common directory rather than the git directory, so a session
+# marked in one worktree is owned by every checkout of that repository, as a
+# sha mark is owned by every checkout whose history holds it.
+felix_git_common_dir() {
+  local root="${1:-}" c
+  [ -n "$root" ] || return 1
+  c="$(cd "$root" >/dev/null 2>&1 && c="$(git rev-parse --git-common-dir 2>/dev/null)" \
+       && cd -P "$c" >/dev/null 2>&1 && pwd -P)" || return 1
+  [ -n "$c" ] || return 1
+  printf '%s' "$c"
+}
+
 # Whether the repository under judgement is the one that ships this engine.
 #
 # Only that repository has the circularity worth breaking. A governed product's

@@ -20,6 +20,12 @@
 # shasum or sha1sum because those differ across platforms and git is already
 # required.
 
+# Chooses HOW the untracked files' metadata is read, never WHAT the tree id is
+# (U2, G2.3). At or below it, one `stat` over an argument list; above it, the
+# sorted list streamed through `xargs`, which batches under ARG_MAX by itself.
+# It used to choose what: above it the id was a count of untracked files, so an
+# edit that kept the count kept the id, and a green receipt stayed current over
+# work the gate never saw. Every value of this gives the same id.
 FELIX_UNTRACKED_CAP="${FELIX_UNTRACKED_CAP:-500}"
 
 _felix_hash() { git hash-object --stdin 2>/dev/null; }
@@ -55,6 +61,34 @@ _felix_meta_all() {
   esac
 }
 
+# The same bytes as _felix_meta_all over "$root/<each path>", for a list too long
+# for one argument list: at 50,000 files building the array cost 2.8 s of shell
+# CPU and the one `stat` printed nothing, since the list is over ARG_MAX, so
+# raising the cap was never a fix (U2, G2.3). The list is the one already taken
+# for the count, so the files counted and the files read are one set, and the
+# tree is walked once.
+#
+# `stat` runs on paths relative to the root and the root is put back after,
+# because every absolute lookup walks the root again (3.5 times the CPU at 5,000
+# files). The root never goes into a format string: BSD `stat -f` reads `%t` as
+# a tab and `%n` as a newline, and `%%` does not survive every root. It reaches
+# awk through the environment, since `awk -v` would read its backslashes.
+#
+# Only reached with a non-empty list: GNU xargs runs its command once on empty
+# input, and `stat` with no operand is an error, not an empty answer.
+_felix_meta_stream() {   # root, untracked paths relative to it, one per line
+  local root="$1" list="$2"
+  _felix_stat_mode
+  ( cd "$root" >/dev/null 2>&1 || exit 0
+    printf '%s\n' "$list" | tr '\n' '\0' \
+      | case "$_FELIX_STAT" in
+          gnu) xargs -0 stat -c '%n %s %Y' 2>/dev/null ;;
+          bsd) xargs -0 stat -f '%N %z %m' 2>/dev/null ;;
+          *)   tr '\0' '\n' ;;
+        esac \
+      | LC_ALL=C _FELIX_META_ROOT="$root/" awk '{ print ENVIRON["_FELIX_META_ROOT"] $0 }' )
+}
+
 # The HEAD a session began at.
 #
 # Stop needs to tell "this session changed something" from "this tree happens to
@@ -66,16 +100,37 @@ _felix_meta_all() {
 # Best effort throughout. No session id, no git, no writable home: no record,
 # and Stop falls back to its old behaviour rather than starting to block trees
 # it has nothing to say about.
+#
+# An unborn HEAD is marked too (U3). It used to be "no git" here, so a session
+# that made a repository's first commit, on `git init` or an orphan branch, had
+# no mark, found a clean tree at Stop, and was released unjudged over a gate
+# that was red or had never run; one earlier commit and the same session was
+# held. The mark is then `unborn<TAB><git common dir>`: the word tells Stop that
+# any HEAD at all is a commit this session made, and the directory tells the
+# ledger which repository the session ran in, since there is no commit yet for
+# `git cat-file` to find (U4). The common directory, so every worktree of the
+# repository owns it, as every checkout whose history holds a sha mark does.
 _felix_session_path() { printf '%s/state/session/%s' "$1" "$2"; }
 
 felix_session_mark() {
-  local home="$1" sid="$2" root="$3" head path
+  local home="$1" sid="$2" root="$3" head path gcd
   [ -n "$sid" ] && [ -n "$home" ] || return 0
-  head="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || return 0
-  [ -n "$head" ] || return 0
   path="$(_felix_session_path "$home" "$sid")"
+  # First mark wins; a compact must not reset it. Asked before any git call, so
+  # every prompt after the first costs none.
+  [ -f "$path" ] && return 0
+  # `rev-parse HEAD` prints the literal HEAD when it fails, so its output is
+  # thrown away with its status rather than tested for emptiness.
+  head="$(git -C "$root" rev-parse -q --verify HEAD 2>/dev/null)" || head=""
+  if [ -z "$head" ]; then
+    git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 0
+    # The suite sources this file alone; resolve.sh sources nothing, so no cycle.
+    command -v felix_git_common_dir >/dev/null 2>&1 \
+      || . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh" 2>/dev/null
+    gcd="$(felix_git_common_dir "$root" 2>/dev/null)" || gcd=""
+    head="unborn	$gcd"
+  fi
   mkdir -p "$(dirname "$path")" 2>/dev/null || return 0
-  [ -f "$path" ] && return 0   # first mark wins; a compact must not reset it
   printf '%s\n' "$head" > "$path" 2>/dev/null || true
 }
 
@@ -184,11 +239,21 @@ felix_hold_clear() {   # home, sid
 
 # Did this session commit anything? Returns 1 when unknown, so the caller keeps
 # whatever it did before rather than treating ignorance as a change.
+#
+# A session marked on an unborn HEAD committed when HEAD resolves now: before
+# the mark there was no commit here at all, so whatever HEAD names was made
+# since (U3). The directory in that mark is the ledger's and is not asked here,
+# as a sha mark is not checked against the repository either.
 felix_session_committed() {
   local home="$1" sid="$2" root="$3" start now
   [ -n "$sid" ] || return 1
   start="$(cat "$(_felix_session_path "$home" "$sid")" 2>/dev/null)" || return 1
   [ -n "$start" ] || return 1
+  case "${start%%$'\n'*}" in
+    unborn|unborn$'\t'*)
+      git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1
+      return ;;
+  esac
   now="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || return 1
   [ -n "$now" ] && [ "$now" != "$start" ]
 }
@@ -198,14 +263,42 @@ felix_session_committed() {
 # Excludes Felix's own bookkeeping for the same reason tree identity does: a
 # session that appended one line to a log has not changed the work, and treating
 # it as dirty would demand a gate run for having recorded that a gate ran.
+#
+# The same goes for the marker `felix new` writes (U35). Until somebody commits
+# it, `?? .felix` was the whole of the dirt in a freshly bound checkout, so a
+# session that only asked a question was held with "the gate has never run", a
+# red gate held every session after it, and every subagent was told no gate had
+# passed. So an untracked root .felix is clean when it is the ONLY change and
+# names the project that resolved, byte for byte, with or without one newline.
+# Anything else is dirt as before: a second change, a staged or committed
+# marker, a symlink, a stray byte, or a marker naming some other project. The
+# caller passes the resolved project as the third argument, and without one
+# nothing is exempt. Only this check: felix_tree_id still counts the marker.
+#
+# `cmp` rather than a read: `$(cat)` strips every trailing newline and drops a
+# NUL, and `read -d ''` stops at the first NUL, so `name\n\n` or `name<NUL>x`
+# would pass. The file is read only when the status is exactly that one line.
 felix_tree_dirty() {
-  local root="$1" home="${2:-}" f
+  local root="$1" home="${2:-}" proj="${3:-}" f s name
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
   local exargs=()
   while IFS= read -r f; do [ -n "$f" ] && exargs+=("$f"); done <<EOF
 $(_felix_tree_excludes "$root" "$home")
 EOF
-  [ -n "$(git -C "$root" status --porcelain -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)" ]
+  s="$(git -C "$root" status --porcelain -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
+  [ -n "$s" ] || return 1
+  [ "$s" = '?? .felix' ] && [ -n "$home" ] && [ -n "$proj" ] || return 0
+  [ -f "$root/.felix" ] && [ ! -L "$root/.felix" ] || return 0
+  name="${proj##*/}"
+  # _felix_name_ok's rule, inline, because the suite sources this file alone.
+  case "$name" in ''|.*|-*|*/*|*[!A-Za-z0-9._-]*) return 0 ;; esac
+  [ "$proj" = "$home/projects/$name" ] && [ -d "$proj" ] || return 0
+  # Under pipefail a `cmp` that stops early on a difference can leave printf a
+  # SIGPIPE, which only turns a mismatch into another mismatch: a match reads
+  # both inputs to the end.
+  printf '%s\n' "$name" | cmp -s - "$root/.felix" && return 1
+  printf '%s' "$name" | cmp -s - "$root/.felix" && return 1
+  return 0
 }
 
 # Identity of a working tree: the commit it sits on, the content of every
@@ -242,7 +335,7 @@ _felix_tree_excludes() {
 }
 
 felix_tree_id() {
-  local root="$1" home="${2:-}" head diff untracked n meta="" prefix="" f
+  local root="$1" home="${2:-}" head diff index untracked n meta="" f
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
   local ex; ex="$(_felix_tree_excludes "$root" "$home")"
   local exargs=()
@@ -256,7 +349,25 @@ EOF
     # a real state — it is what `git init` leaves, and what this suite's own
     # fixture is — and every naive implementation of this dies there.
     head="unborn"
+    # The index is part of the identity here (U1). The diff below runs from the
+    # index to the worktree, so a fully staged tree has none, and every fully
+    # staged tree before the first commit hashed alike: a green receipt for
+    # `exit 0` stayed current over a staged `exit 1`. The index entries carry
+    # the staged object ids and the diff the worktree's departures from them,
+    # so together they fix the content of every path the index knows.
+    #
+    # Not `git diff <empty tree>`, which mirrors the born branch but prints the
+    # whole of every staged file: after `git init && git add -A` over an
+    # existing codebase that is the codebase, twice per Stop (200-590 ms of CPU
+    # at 3,000 files, growing with their size, against about 40 for this).
+    # Unlike the born id, staging an edit changes this one; that can stale a
+    # receipt, never make one current. An index git cannot read gives no id,
+    # which Stop already reads as identity unavailable, never an id without it.
+    # An empty index hashes exactly the bytes it always did.
+    index="$(git -C "$root" ls-files -s -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)" || return 1
     diff="$(git -C "$root" diff -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
+    [ -z "$index" ] || diff="$index
+$diff"
   else
     diff="$(git -C "$root" diff HEAD -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
   fi
@@ -265,11 +376,16 @@ EOF
                  -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null | LC_ALL=C sort)"
   n="$(printf '%s' "$untracked" | grep -c . 2>/dev/null)" || n=0
 
-  if [ "${n:-0}" -gt "$FELIX_UNTRACKED_CAP" ]; then
-    # A repository in this state has larger problems than receipt precision, and
-    # the hook has to stay fast whatever it is handed.
-    prefix="coarse:"
-    meta="$n untracked"
+  # Never a count (U2, G2.3). Above the cap this was `coarse:` and the number
+  # of untracked files, on the reasoning that such a repository had larger
+  # problems than receipt precision. It had one larger problem, which was that
+  # precision: an edit that kept the count kept the id, before the first commit
+  # with nothing staged every file is untracked, and a gate that wrote its build
+  # output tipped the tree over the line by itself. The cap now picks between
+  # two readings of the same bytes. Measured as CPU per id: 64 ms at 600
+  # untracked files and 127 ms at 5,000, against 44 and 51 for the count.
+  if [ "${n:-0}" -gt 0 ] && [ "$n" -gt "$FELIX_UNTRACKED_CAP" ] 2>/dev/null; then
+    meta="$(_felix_meta_stream "$root" "$untracked")"
   elif [ "${n:-0}" -gt 0 ]; then
     local files=()
     while IFS= read -r f; do
@@ -280,8 +396,7 @@ EOF
     meta="$(_felix_meta_all "${files[@]}")"
   fi
 
-  printf '%s%s' "$prefix" \
-    "$(printf '%s\n%s\n%s' "$head" "$diff" "$meta" | _felix_hash)"
+  printf '%s' "$(printf '%s\n%s\n%s' "$head" "$diff" "$meta" | _felix_hash)"
 }
 
 # One receipt per repository, overwritten each run. History of decisions lives in

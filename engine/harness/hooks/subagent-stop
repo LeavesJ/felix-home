@@ -33,6 +33,12 @@ FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT" 2>/dev/null)" || exit 0
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 [ -n "$PROJ" ] || exit 0
 
+# A project that declares no gate has nothing a gate could have passed on, so
+# "no gate has passed on" these changes is true of it forever and says nothing.
+# Stop already leaves such a project alone; this spoke to it anyway (U35).
+GATE="$(felix_json_str "$PROJ/project.json" gate 2>/dev/null)"
+[ -n "$GATE" ] || exit 0
+
 ROOT="$(felix_repo_root "$PWD" 2>/dev/null)"
 git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
@@ -58,8 +64,10 @@ SID="$(printf '%s' "$raw" \
 #
 # Unknown counts as unchanged, as it does in stop: no session id, no mark, no
 # git, and the hook keeps its old silence rather than starting to speak about
-# trees it knows nothing about.
-if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR"; then
+# trees it knows nothing about. An unborn HEAD is marked, so a session that
+# made the first commit is known to have committed (U3), and the untracked
+# marker naming this project is not dirt here either (U35).
+if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR" "$PROJ"; then
   felix_session_committed "$FELIX_HOME_DIR" "${SID:-}" "$ROOT" || exit 0
 fi
 

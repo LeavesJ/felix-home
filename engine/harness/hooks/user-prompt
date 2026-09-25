@@ -94,7 +94,9 @@ sid="$sid_raw"
 # cannot reset it. Stop needs this to tell work that was committed from a tree
 # that merely happens to be clean — before it existed, committing your work
 # skipped the completion check entirely, and committing is what you do at the
-# end.
+# end. An unborn HEAD is marked `unborn` with the repository's git directory,
+# because it once went unmarked and the session that made the first commit was
+# released unjudged, and never attributed in the ledger (U3, U4).
 #
 # Never checked. A session that cannot record this loses one completion check;
 # a session that cannot start loses everything.

@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/cloud-probe.sh\"" },
+          { "type": "command", "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; exec bash \"$CLAUDE_PROJECT_DIR/engine/harness/hooks/session-start\"" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; exec bash \"$CLAUDE_PROJECT_DIR/engine/harness/hooks/user-prompt\"" }
+        ]
+      }
+    ]
+  }
+}

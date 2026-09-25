@@ -3881,6 +3881,82 @@ else
   bad "and that path resolves in a real checkout" "generated $resolved, absent from $REAL_ROOT"
 fi
 
+printf '\ngenerated CI drops the credentials its checkouts fetched with\n'
+# actions/checkout keeps what it fetched with unless told otherwise: the job
+# token in repo/.git/config, and the Felix deploy key in a file felix/.git/config
+# names. The gate then runs the pull request's own test code in that same job,
+# which can read either, and nothing after the fetch needs them.
+#
+# So every checkout step is found in the rendered text and its own with: block
+# is read. A key in a comment, in another step or in the header is not that
+# step's input, and a render with no checkout step at all fails, not passes.
+_wf_render() { ( . "$FROOT/engine/harness/lib/detect.sh" 2>/dev/null || . "$FROOT/harness/lib/detect.sh"
+                 . "$FROOT/engine/harness/lib/bootstrap.sh" 2>/dev/null || . "$FROOT/harness/lib/bootstrap.sh"
+                 felix_bs_render_workflow "$1" someone/repo ); }
+# One row per actions/checkout step, whatever its version: ordinal, whether its
+# with: sets persist-credentials to false, whether its with: holds ssh-key, and
+# its path. Comment lines and block-scalar bodies (a run: | script) are skipped.
+_wf_checkouts() { awk -v q="'" '
+  function unq(v) { return (v ~ /^".*"$/ || (length(v) > 1 && substr(v, 1, 1) == q && substr(v, length(v)) == q)) ? substr(v, 2, length(v) - 2) : v }
+  function flush() { if (ck) printf "%d\t%d\t%d\t%s\n", ++n, pc, ssh, (p == "" ? "-" : p); ck = 0 }
+  BEGIN { bs = st = sd = -1 }
+  /^[ \t]*#/ || /^[ \t]*$/ { next }
+  {
+    match($0, /^ */); ind = RLENGTH; body = substr($0, ind + 1)
+    if (bs >= 0) { if (ind > bs) next; bs = -1 }
+    sub(/[ \t]+#.*$/, "", body)
+    item = 0; dash = ind
+    if (body == "-" || substr(body, 1, 2) == "- ") {
+      item = 1; body = substr(body, 2); match(body, /^ */); ind += 1 + RLENGTH; body = substr(body, RLENGTH + 1)
+    }
+    key = body; val = ""
+    if (match(body, /^[^:]+:/) && (substr(body, RLENGTH + 1, 1) == "" || substr(body, RLENGTH + 1, 1) == " ")) {
+      key = substr(body, 1, RLENGTH - 1); val = substr(body, RLENGTH + 1); sub(/^ +/, "", val); val = unq(val)
+    }
+    lead = item ? dash : ind
+    if (st >= 0) {
+      if (item && (sd < 0 ? (dash >= st) : (dash == sd))) { flush(); sd = dash; ki = ind; instep = 1; pc = ssh = 0; p = ""; wi = wc = -1 }
+      else if (sd >= 0 ? (lead <= sd) : (lead <= st)) { flush(); st = sd = -1; instep = 0 }
+    }
+    if (instep && ind == ki) {
+      if (key == "uses") ck = (val == "actions/checkout" || val ~ /^actions\/checkout@/)
+      wi = (key == "with" && val == "") ? ind : -1; wc = -1
+    } else if (instep && wi >= 0 && ind > wi) {
+      if (wc < 0) wc = ind
+      if (ind == wc && key == "persist-credentials" && val == "false") pc = 1
+      if (ind == wc && key == "ssh-key" && val != "") ssh = 1
+      if (ind == wc && key == "path") p = val
+    }
+    if (key == "steps" && val == "") { flush(); st = ind; sd = -1; instep = 0 }
+    if (val ~ /^[|>][-+0-9]*$/) bs = ind
+  }
+  END { flush() }'; }
+_wf_all=""; _wf_felix=""; _wf_repo=""
+for _wf_eco in node python rust go nosuch; do
+  _wf_rows="$(_wf_render "$_wf_eco" | _wf_checkouts)"
+  [ -n "$_wf_rows" ] || _wf_all="$_wf_all, $_wf_eco renders no checkout step"
+  _wf_hasf=0; _wf_hasr=0
+  while IFS=$'\t' read -r _wf_n _wf_pc _wf_ssh _wf_path; do
+    [ -n "$_wf_n" ] || continue
+    _wf_at="$_wf_eco checkout $_wf_n (path: $_wf_path)"
+    [ "$_wf_pc" = 1 ] || _wf_all="$_wf_all, $_wf_at keeps its credential"
+    if [ "$_wf_ssh" = 1 ]; then
+      _wf_hasf=1; [ "$_wf_pc" = 1 ] || _wf_felix="$_wf_felix, $_wf_at keeps the deploy key"
+    fi
+    if [ "$_wf_path" = repo ]; then
+      _wf_hasr=1; [ "$_wf_pc" = 1 ] || _wf_repo="$_wf_repo, $_wf_at keeps the job token"
+    fi
+  done <<< "$_wf_rows"
+  [ "$_wf_hasf" = 1 ] || _wf_felix="$_wf_felix, $_wf_eco renders no checkout with ssh-key"
+  [ "$_wf_hasr" = 1 ] || _wf_repo="$_wf_repo, $_wf_eco renders no checkout at path: repo"
+done
+if [ -z "$_wf_all" ]; then ok "every checkout step in the generated workflow sets persist-credentials: false in its own with"
+else bad "every checkout step in the generated workflow sets persist-credentials: false in its own with" "${_wf_all#, }"; fi
+if [ -z "$_wf_felix" ]; then ok "and the Felix checkout, which holds the deploy key, drops it"
+else bad "and the Felix checkout, which holds the deploy key, drops it" "${_wf_felix#, }"; fi
+if [ -z "$_wf_repo" ]; then ok "and the project's own checkout drops the job token"
+else bad "and the project's own checkout drops the job token" "${_wf_repo#, }"; fi
+
 printf '\ngenerated CI grades against a pinned Felix\n'
 # With no ref the Felix checkout took the default branch at the moment the job
 # ran, so the verdict on one commit depended on when it was graded, and a merge

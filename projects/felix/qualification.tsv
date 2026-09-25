@@ -59,6 +59,21 @@ secret	engine/harness/bin/secret-scan	decoupled_satisfaction	pass	printf '%s\n' 
 # And one for keys the keyword only begins, the same day, NOT blind: JSON quotes
 # every value, and the first quote rule flagged configuration like this.
 secret	engine/harness/bin/secret-scan	decoupled_satisfaction	pass	printf '%s\n' '{' '  "token_type": "access_token",' '  "tokenizer_class": "GPT2Tokenizer",' '  "secret_name": "ANTHROPIC_API_KEY",' '  "api_key_env": "OPENAI_API_KEY",' '  "password_policy": "strong-only"' '}' > engine/harness/templates/model-config.json && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: keys the keyword only begins"
+# The six below, 2026-09-23, for GitHub's prefixed tokens (ghs_, gho_, ghu_,
+# ghr_) and the base64 header actions/checkout leaves in .git/config. Blind:
+# authored by a subagent given the two shapes in prose and forbidden the
+# scanner's source, as the header records; the session that changed the rule
+# read them afterwards. Four alternates stage a ghs_ token unquoted in a new
+# workflow, a gho_ shell assignment on say.sh, a ghr_ refresh token as a bare
+# field of a hosts CSV, and the extraheader line in a copied git config. The two
+# decoupled satisfactions name the prefixes in prose, one as a shell comment and
+# one in the README, with nothing token-shaped after them.
+secret	engine/harness/bin/secret-scan	alternate	fail	{ printf '%s\n' 'name: token-sync' 'on:' '  workflow_dispatch:' 'jobs:' '  sync:' '    runs-on: ubuntu-latest' '    steps:' '      - uses: actions/checkout@v4' '        with:'; printf '          token: %s%s\n' ghs_ fakeQ7mZ2vT9kLd4RnW8pJyUc0AeGhSbXo31; printf '%s\n' '      - run: ./engine/harness/felix gate'; } > .github/workflows/token-sync.yml && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: ghs in workflow"
+secret	engine/harness/bin/secret-scan	alternate	fail	{ printf '%s\n' '' '# push the run summary to the ops repo'; printf 'GH_TOKEN=%s%s\n' gho_ fakeVb3NqK8tXm2ZrW7yLd0PcJ5uHgE9sTaF; } >> engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: gho assignment"
+secret	engine/harness/bin/secret-scan	alternate	fail	{ printf '%s\n' 'host,account,handle,rotated'; printf '%s,%s,%s%s,%s\n' github.com felix-bot ghr_ fakeRz4mKq9TvL2xNb7WcJ0pYd5AhGs8EuF3iXoZ1kMt6QwVbP2nLd9rHy4SeKa7UjC0mT3gWx5B 2026-09-23; } > engine/harness/hosts.csv && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: ghr as csv field"
+secret	engine/harness/bin/secret-scan	alternate	fail	{ printf '%s\n' '[http "https://github.com/"]'; printf '\textraheader = AUTHORIZATION: basic %s%s\n' eC1hY2Nlc3MtdG9rZW46 Z2hzX2Zha2VIazJQdk44bVF6NVRyWDBiTGQ3WWNXM2pVZTlBc0c0Rg==; } > engine/harness/lib/checkout.gitconfig && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: checkout extraheader"
+secret	engine/harness/bin/secret-scan	decoupled_satisfaction	pass	printf '%s\n' '' '# GitHub token prefixes name the issuer: ghs_ is an installation token, the shape of an Actions GITHUB_TOKEN; gho_ an OAuth token; ghu_ a user-to-server token; ghr_ a refresh token.' '# Say never prints one. A receipt records the prefix alone.' >> engine/harness/lib/say.sh && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: prefixes in prose"
+secret	engine/harness/bin/secret-scan	decoupled_satisfaction	pass	printf '%s\n' '' '## The checkout header' '' 'actions/checkout persists its token as an HTTP header, `AUTHORIZATION: basic <base64>`, where the base64 encodes `x-access-token:<token>`. Because `x-access-token:` is fifteen bytes, its encoding is the fixed prefix `eC1hY2Nlc3MtdG9rZW46` and the token begins right after it.' >> README.md && git add -A && git -c user.name=mut -c user.email=mut@example.invalid commit -q -m "mutation: base64 prefix in prose"
 #
 # independence. Four of six declared. The two below are written out in full and
 # NOT declared, because a declared control binds and neither of these can be

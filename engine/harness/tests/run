@@ -14307,6 +14307,21 @@ _qsout="$(_qpgate)"
 _qpwhy="$(_qpunder "$_qsout" FAIL | sed 1d | grep -v '^gate:' | grep -v '^ *$')"
 has "felix gate over a present, empty table fails qualified and says under it that no checker here is qualified" \
     "$_qpwhy" "No checker here is qualified"
+# The sentence runs onto a second line, and the first alone ended at the
+# table's path, a reason that never said what was wrong with the table.
+has "and says why, that it declares no control that can be run" \
+    "$_qpwhy" "declares no control that can be run"
+# The lines lifted under qualified FAIL were picked by a word anywhere in the
+# line, so a checker whose name held HELD took its met rows for held ones: eight
+# of them filled the eight lines, and the reason, a checker never shown failing,
+# was cut off below them. The reason comes second, so a lift that keeps the
+# first eight matches loses it.
+{ for _qpi in 1 2 3 4 5 6 7 8; do _qp5 HELDOUT "$_qpc" violation fail 'printf FORBIDDEN > bad.txt'; done
+  _qp6 zz "$_qpc" violation fail 'printf FORBIDDEN > bad.txt' false; } > "$_qgt"
+_qpwhy="$(_qpunder "$(_qpgate)" FAIL | sed 1d | grep -v '^gate:' | grep -v '^ *$')"
+has "felix gate names under qualified FAIL a checker never shown failing, beside eight met rows of a checker named HELDOUT" \
+    "$_qpwhy" "never shown failing in this checkout: zz"
+is  "and lifts none of those met rows as a reason" "$(printf '%s\n' "$_qpwhy" | grep -cE ' ok$')" "0"
 cp "$TMP/premgate-qual.keep" "$_qgt"
 # A row that ran and was met before the verdict was the control's: the gate
 # read ok over it. Now it refuses, and says which row and why.

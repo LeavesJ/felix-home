@@ -1,4 +1,4 @@
-### 2026-09-25 — the context cap the founder counted on did not exist, and every session now summarizes at 500K
+### 2026-09-25 — the context cap the founder counted on did not exist, and a session started from now on summarizes at 500K
 
 **No engine change.** One key in the founder's `~/.claude/settings.json`, this
 section, and one `maintenance.log` row.
@@ -34,18 +34,32 @@ and 967K, so "over the window" meant over 200K, not a 1M hit.
 **Decided by the founder, 2026-09-25: summarize at 500K, in every project.**
 Put to the founder because the file is the founder's global settings, with
 200K and leaving it at 1M as the other choices. Set as `"autoCompactWindow":
-500000`, written 07:49:43Z. The schema takes an integer from 100000 to 1000000
-and drops anything else without a warning. A turn reads the window when it
-starts, so a turn already running keeps the old one: a call at 661K 18 s after
-the write did not summarize. No session had yet summarized under the new
-window when this was written; the pull request that carries this section
-records what a watcher on the transcripts saw.
+500000`, written 07:49:43Z. It binds when a session starts. A session already
+open keeps the old point, about 967K, until it restarts: one went on at 664K
+to 670K in a turn begun 17 minutes after the write.
+
+Measured on the real 2.1.280 binary against a local Messages API stand-in,
+with `--debug`:
+- started with the key: `thresholdSource=settings effectiveWindow=480000`, and
+  the decision to compact once past 467K (the window, less a 20K output
+  reserve and a 13K buffer);
+- started without it: no decision at all. A local session with no configured
+  window compacts only when the API refuses the prompt, which is the ~967K the
+  transcripts show;
+- key written mid-session: no decision.
+
+The stand-in's summary then bailed, because all its growth sat in the newest
+turn, which compaction keeps verbatim ("fixed prefix ... compaction cannot
+help"). A real session's growth is spread over its history. The schema takes
+an integer from 100000 to 1000000 and drops anything else silently, and a
+window under 200000 turns proactive compaction off altogether.
 
 **What this changes in Felix's plans.**
-- Restart moments step 2 loses its size trigger. A session past 500K now
-  summarizes in place, so the transcript context reader and the 500K line
-  (scope §8, excluded from step 1) need not be built to name size. Step 1
-  (engine behind) and idle resume are unchanged.
+- Restart moments step 2 loses its size trigger. A session started since
+  07:49Z summarizes in place past about 467K, so the transcript context reader
+  and the 500K line (scope §8, excluded from step 1) need not be built to name
+  size. Step 1 (engine behind) and idle resume are unchanged, and a restart is
+  now also how an open session gets the new window.
 - Scope §7 put the compaction window last, after a continue/restart/compact
   experiment. The window is now set first, by the founder. The experiment, if
   it is still wanted, compares summarizing at 500K with restarting there.
@@ -69,6 +83,12 @@ chooses.**
   them.
 
 **Traps paid:**
+- A stand-in API cannot show a summary at 1M with no configured window,
+  because a local session then compacts only when the API refuses the prompt,
+  and a stand-in never refuses. Read the decision from `--debug` instead:
+  `autocompact: tokens=... level=... effectiveWindow=...`. The same rig first
+  ran on an API key, which gave the plain Opus 5.5 entry a 200K window; `[1m]`
+  restores 1M there.
 - The tool shell's `grep` is ugrep, which refuses `.{0,400}`-style context
   patterns as too complex. Read context around a match in the binary's strings
   with python.

@@ -3073,10 +3073,21 @@ cmd_bootstrap() {
   local esrc; esrc="$(felix_engine_source "$FELIX_ROOT" "$FELIX_HOME_DIR")" || esrc=""
   felix_repo=""
   [ -n "$esrc" ] && felix_repo="$(felix_repo_slug "$esrc")"
+  # The commit CI checks Felix out at, from the same checkout as the slug, and
+  # holding this project when the project lives in that checkout. Physical
+  # paths on both sides: macOS spells /var as /private/var, and git reports
+  # the resolved form.
+  local etop pdir prel="" felix_ref
+  etop="$(git -C "$esrc" rev-parse --show-toplevel 2>/dev/null)" || etop=""
+  pdir="$(cd "$proj" 2>/dev/null && pwd -P)" || pdir=""
+  case "$pdir" in "$etop"/?*) [ -n "$etop" ] && prel="${pdir#"$etop"/}" ;; esac
+  felix_ref="$(felix_bs_pin_ref "$esrc" "$prel")" || felix_ref=""
+  local ref_none="none: no commit of the engine checkout that origin's default branch holds${prel:+ with $prel in it}; the workflow gets {{FELIX_REF}} to fill"
 
   printf 'repo:        %s\n' "${slug:-no github remote}"
   printf 'ecosystem:   %s\n' "$eco"
-  printf 'felix repo:  %s\n\n' "${felix_repo:-none, CI cannot fetch the harness}"
+  printf 'felix repo:  %s\n' "${felix_repo:-none, CI cannot fetch the harness}"
+  printf 'felix ref:   %s\n\n' "${felix_ref:-$ref_none}"
 
   local todo=0
   _bs() {  # name, already-satisfied, description
@@ -3109,8 +3120,9 @@ cmd_bootstrap() {
       printf '  skipped    ci-workflow (Felix has no remote for CI to fetch)\n'
     else
       mkdir -p "$root/.github/workflows"
-      felix_bs_render_workflow "$eco" "$felix_repo" > "$root/.github/workflows/$gwf"
+      felix_bs_render_workflow "$eco" "$felix_repo" "$felix_ref" > "$root/.github/workflows/$gwf"
       printf '  wrote      .github/workflows/%s (review, then commit it)\n' "$gwf"
+      [ -n "$felix_ref" ] || printf "             its ref: is {{FELIX_REF}}; set the full sha of a commit on %s's default branch first\n" "$felix_repo"
     fi
   fi
   if [ -n "$slug" ] && ! _felix_bs_have_labels "$slug"; then
@@ -3856,8 +3868,10 @@ cmd_repair() {
   attempts="$(felix_repair_attempts "$branch" "$repo" "$gwf")" || {
     printf 'attempts: unreadable\n\n'
     printf 'CEILING UNKNOWN. The %s runs on %s could not be counted, so the ceiling\n' "$gwf" "$branch"
-    printf 'cannot be shown unspent. Not patching past a bound nobody read; run this\n'
-    printf 'again once gh answers, or escalate:\n\n'
+    printf 'cannot be shown unspent: gh did not answer, or its newest runs held no\n'
+    printf 'success and fewer failures than the ceiling. Not patching past a bound\n'
+    printf 'nobody read; run this again once gh answers or the gate has passed, or\n'
+    printf 'escalate:\n\n'
     printf '  gh pr edit --repo %s --add-label needs-founder\n' "$repo"
     return 2
   }
@@ -3865,7 +3879,7 @@ cmd_repair() {
 
   if [ "$attempts" -ge "$FELIX_REPAIR_MAX" ]; then
     printf '\nCEILING REACHED. Stop patching.\n\n'
-    printf '%s consecutive failures means the diagnosis is wrong, not the patch.\n' "$attempts"
+    printf '%s failures since the gate last passed means the diagnosis is wrong, not the patch.\n' "$attempts"
     printf 'Escalate instead of trying again:\n\n'
     printf '  gh pr edit --repo %s --add-label needs-founder\n\n' "$repo"
     printf 'Then write what was tried and why each attempt failed into\n'
@@ -4804,7 +4818,7 @@ cmd_obligations() {
     printf 'This project has admitted no obligation: there is no obligations.tsv,\n'
     printf 'so nothing it owes is written anywhere a merge can read.\n\n'
     printf 'Write %s/obligations.tsv. One row per obligation:\n\n' "$proj"
-    printf '  obligation <TAB> class <TAB> pathway <TAB> applies <TAB> evidence <TAB> grounds <TAB> reason\n\n'
+    printf '  obligation <TAB> class <TAB> pathway <TAB> applies <TAB> evidence <TAB> grounds <TAB> reason [<TAB> needs]\n\n'
     printf 'A template is at %s/templates/obligations.tsv.\n' "$SCRIPT_DIR"
     return 1
   fi
@@ -4813,7 +4827,8 @@ cmd_obligations() {
   if [ -n "$bad" ]; then
     printf 'rows refused\n\n'; printf '%s\n' "$bad" | sed 's/^/  /'
     printf '\nA row needs a name, a class from the set, a pathway from the set and an\n'
-    printf 'evidence contract; and a single probabilistic finding may not block.\n\n'
+    printf 'evidence contract; a single probabilistic finding may not block; and a\n'
+    printf 'needs cell, when there is one, is - or checker ids separated by commas.\n\n'
   fi
   if [ -z "$rows" ]; then
     printf '%s/obligations.tsv admits no obligation.\n' "$proj"
@@ -4846,6 +4861,31 @@ cmd_obligations() {
       "$(printf '%s\n' "$line" | cut -f4)" "$(printf '%s\n' "$line" | cut -f5)" \
       "${ohash:--}" "$odetail"
   done
+  # What each row names as the capability that would discharge it, resolved
+  # against qualification.tsv (felix_obligations_needs). Report only: it is
+  # read after every verdict above was formed and feeds none of them. The
+  # table is left out of the gate's copy, whose indented lines the gate
+  # greps for failing rows; the count rides on the summary line, which the
+  # gate already prints.
+  local needs ncount
+  needs="$(felix_obligations_needs "$proj")"
+  ncount="$(printf '%s\n' "$needs" | felix_obligations_needs_count)"
+  if [ "$gate" -ne 1 ] && [ -n "$needs" ]; then
+    printf '\nwhat would discharge each, by the checkers %s/qualification.tsv declares\n\n' "$(basename "$proj")"
+    printf '%s\n' "$needs" | while IFS=$'\t' read -r nname ncap nres nmiss; do
+      [ -n "$nname" ] || continue
+      case "$nres" in
+        complete) nmiss="declares a row for every control" ;;
+        short)    nmiss="declares no row for: $(printf '%s' "$nmiss" | sed 's/,/, /g')" ;;
+        absent)   nmiss="no checker by that id: a capability Felix would have to acquire" ;;
+        none)     nres="-"; nmiss="names nothing that would discharge it" ;;
+      esac
+      printf '  %-22s %-18s %-9s %s\n' "$nname" "$ncap" "$nres" "$nmiss"
+    done
+    printf '\ncomplete means every control is DECLARED, not that one ran and held: the\n'
+    printf 'gate'"'"'s qualified check runs them. Nothing here discharges, blocks or\n'
+    printf 'clears an obligation.\n'
+  fi
   local n_block; n_block="$(printf '%s\n' "$out" | felix_obligations_blocking | grep -c .)"
   local n_exc; n_exc="$(printf '%s\n' "$out" | awk -F'\t' 'index($8, "excepted|") == 1' | grep -c .)"
   printf '\n%s obligation(s): %s active, %s dormant, %s unknown; %s blocking, %s excepted' \
@@ -4856,6 +4896,13 @@ cmd_obligations() {
     "$n_block" "$n_exc"
   local n_ung; n_ung="$(felix_obligations_ungrounded "$proj" | grep -c .)"
   [ "$n_ung" -gt 0 ] && printf '; %s ground on no probe' "$n_ung"
+  # named complete short absent none, one count per obligation by its weakest
+  # need. Left off when felix_obligations_needs printed nothing, which only
+  # a missing qualification library does: zeros there would read as a ledger
+  # that names nothing, when nobody looked.
+  if [ -n "$ncount" ] && [ -n "$needs" ]; then
+    printf '%s\n' "$ncount" | awk -F'\t' '{ printf "; %d name what discharges them: %d complete, %d short, %d absent; %d name nothing", $1, $2, $3, $4, $5 }'
+  fi
   printf '\n'
   # A clearance that happened silently would leave the founder a green with
   # nothing in the record saying a person's grant produced it: said, once per

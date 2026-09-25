@@ -10735,13 +10735,16 @@ is  "with no qualification.tsv at all, every capability named resolves absent, a
 # and the one numbered QSHIM_FAIL runs with that table at mode 000, put back as
 # it returns. Which read fails is counted back from the last one a clean run of
 # the same command made, so nothing here knows how many reads the engine takes
-# to get there. Both, because the engine's read of the table was awk's and is
-# now cat's: awk cannot see a NUL byte, so the shell reads the table through
-# cat and hands awk what it read (lib/qualify.sh, _felix_qualify_read). A
-# wrapper on one of the two would count a read the other makes as none.
+# to get there. Not awk alone: the engine's read of the table was awk's and is
+# now cat's, because awk cannot see a NUL byte (lib/qualify.sh,
+# _felix_qualify_read), and a wrapper on one reader counts a read another makes
+# as none. So every common reader that takes a file by name is wrapped, and a
+# second look added later by grep, wc, od or the like is a count of two. A
+# redirect is the one read no wrapper can see.
+_qsreaders='awk cat grep sed head tail wc od cut sort cmp'
 _QSHIM="$TMP/awk-shim"; _QSC="$TMP/awk-shim.count"; mkdir -p "$_QSHIM"
 _qawk="$(command -v awk)"
-for _qsn in awk cat; do
+for _qsn in $_qsreaders; do
   _qsreal="$(command -v "$_qsn")"
   cat > "$_QSHIM/$_qsn" <<EOF
 #!/bin/sh
@@ -13503,7 +13506,7 @@ fi
 # ran nothing and passed. The table here has a met control and a held one, so
 # every right answer refuses.
 _QMSHIM="$TMP/awk-shim-moves"; mkdir -p "$_QMSHIM"
-for _qsn in awk cat; do
+for _qsn in $_qsreaders; do
   _qsreal="$(command -v "$_qsn")"
   cat > "$_QMSHIM/$_qsn" <<EOF
 #!/bin/sh

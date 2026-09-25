@@ -166,11 +166,20 @@ _felix_qualify_read() {   # proj, awk action
 # pipe. The table is opened by cat, by name, rather than by a redirect: one
 # named command opening it is an open the suite can count and fail, and a
 # redirect is one nothing outside this shell can see.
+#
+# In the C locale, and that is load-bearing. bash 4 to 5.2 in a UTF-8 locale
+# reads the byte after a lead byte as the rest of a character without asking
+# whether it is the delimiter, so in `\303\000` the NUL went into a character,
+# read ran on to the end of input and said it found none, and every row after
+# it was dropped with a status of 0. Found by review on 2026-09-25; bash 5.3
+# pushes the delimiter back. The reader is a ( ) subshell, not a { } group, so
+# the locale and the exit are its own even under a caller's lastpipe.
 _felix_qualify_bytes() {   # file
   local st
-  cat -- "$1" 2>/dev/null | {
+  cat -- "$1" 2>/dev/null | (
+    LC_ALL=C
     IFS= read -r -d '' _fqb && { cat >/dev/null; exit 3; }
-    printf '%s' "$_fqb"; }
+    printf '%s' "$_fqb" )
   st="${PIPESTATUS[0]}:${PIPESTATUS[1]}"
   case "$st" in
     *:3) return 3 ;;
@@ -220,7 +229,7 @@ felix_qualify_snapshot() {
 _felix_qualify_unread() {   # proj, [status of the read]
   local f; f="$(_felix_qualify_table "$1")"
   if [ "${2:-}" = 3 ]; then
-    printf 'felix: %s holds a NUL byte, which ends a line for some awks and makes git call the table binary, so what it declares is not known\n' "$f" >&2
+    printf 'felix: %s holds a NUL byte, which some awks end a line at and others keep, so what it declares is not known\n' "$f" >&2
   else
     printf 'felix: %s could not be read, so what it declares is not known\n' "$f" >&2
   fi

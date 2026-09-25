@@ -81,7 +81,9 @@ jid="$(gh api "repos/$repo/actions/runs/$rid/jobs?filter=latest" \
   --jq "[.jobs[] | select(.name == \"$job\")] | if length == 1 then .[0].id else empty end")" \
   || { printf 'reuse: cannot examine: could not list the jobs of run %s\n' "$rid" >&2; exit 2; }
 [ -n "$jid" ] || { printf 'reuse: no: run %s has no single job named %s\n' "$rid" "$job" >&2; exit 1; }
-gated="$(gh api "repos/$repo/check-runs/$jid/annotations" \
+# A page defaults to 30 annotations. Ask for the most one page holds, so a
+# job with many warnings does not push the gated tree onto a page not read.
+gated="$(gh api "repos/$repo/check-runs/$jid/annotations?per_page=100" \
   --jq '[.[] | select(.title == "gated tree") | .message] | if length == 1 then .[0] else empty end')" \
   || { printf 'reuse: cannot examine: could not read the annotations of job %s\n' "$jid" >&2; exit 2; }
 gated="$(printf '%s' "$gated" | grep -oE '[0-9a-f]{40}' | sed -n '1p')"

@@ -67,7 +67,7 @@ urls() {
   printf '%s\tpulls\n' "repos/$R/commits/$C/pulls"
   printf '%s\truns\n' "repos/$R/actions/workflows/gate.yml/runs?head_sha=$H&event=pull_request&per_page=100"
   printf '%s\tjobs\n' "repos/$R/actions/runs/${1:-1}/jobs?filter=latest"
-  printf '%s\tnotes\n' "repos/$R/check-runs/70/annotations"
+  printf '%s\tnotes\n' "repos/$R/check-runs/70/annotations?per_page=100"
 }
 # Every case starts from the one where all three conditions hold.
 fresh() {

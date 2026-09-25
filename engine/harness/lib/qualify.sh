@@ -74,6 +74,15 @@ FELIX_QUALIFY_CONTROLS="${FELIX_QUALIFY_CONTROLS//:pass/}"
 
 # checker <TAB> command <TAB> control <TAB> expect <TAB> mutation [<TAB> premise]
 #
+# Command, mutation and premise are each shell text, run in a worktree of HEAD
+# by a bash of their own with nothing on stdin, as probe, obligation and
+# maintenance rows are. So none sees the felix CLI's pipefail or nounset, which
+# made `producer | grep -q x` fail with x present and a name the row never set
+# stop it. None sees the engine's functions or variables either: a row reaches
+# its checker by path in the tree the mutation changed. A command or mutation
+# that exits 126 or 127 ran nothing and reads unrunnable. _felix_qualify_one
+# says which way each misfire moved a verdict.
+#
 # The premise, and why a fourth verdict exists (#233).
 #
 # Some controls can only be staged where something already exists. The
@@ -206,8 +215,45 @@ _felix_qualify_missing_in() {   # rows, checker -> one control per line
 # is tracked, what is ignored — and a bare directory of files would make every
 # such checker fail for a reason that has nothing to do with the mutation. It
 # shares the object store, so this costs a checkout and not a clone.
+#
+# Each column runs in a bash of its own (_felix_qualify_sh). Until 2026-09-25
+# each was an eval in the caller's process, which for felix qualify and felix
+# gate is the felix CLI and its set -uo pipefail. Under pipefail
+# `producer | grep -q x` fails with x present: grep leaves at its first match
+# and the producer dies of SIGPIPE, 141. Past a pipe's 64 KB with the match
+# early that is certain; below it, it depends on load, because bash 3.2's printf
+# writes a multi-line value one write() per line. pipefail only ever turns a
+# pipeline that held into one that failed, so each column moved its verdict its
+# own way. A premise read unrunnable, or, negated, applied its control where
+# its premise is absent. A mutation's && chain stopped short, and a pass
+# control was met over a change the checker never saw. A command read fail,
+# which on a fail control is met, exactly what a working checker says, so
+# nothing later can tell the two apart; in the schema rows' negated shape it
+# read pass, a false held. nounset stopped a row at a name it never set, with
+# exit 1: a premise read absent and its control silently not run, a mutation
+# was cut short, and a command read fail.
+#
+# A fresh bash also sees none of the engine's functions or variables, and for
+# qualification that is right. The checker under test is the one in the tree
+# the mutation changed, engine/harness/bin/* as the mutation left it, run as a
+# process of its own that sets its own options. An engine function a row named
+# would be the installed engine's code, which no mutation reaches, so the row
+# would qualify the wrong code.
+#
+# That makes 126 and 127 unrunnable, for a command and a mutation alike. In a
+# fresh bash an engine function is command not found, 127, as is a checker
+# path with a typo; 126 is a file that is not executable, or a tree that could
+# not be entered. Neither ran anything. Read as fail, a command's 127 is met on
+# every fail control, the dangerous direction again. A mutation's 127 leaves
+# the tree unchanged, and its pass control would be met over nothing, so no
+# command runs after it. Every other status keeps its meaning.
+_felix_qualify_sh() {   # dir, text -> the text's own status; 126 if dir cannot be entered
+  ( cd "$1" 2>/dev/null || exit 126
+    bash -c "$2" felix-qualify ) </dev/null >/dev/null 2>&1
+}
+
 _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | unrunnable | inapplicable
-  local root="$1" cmd="$2" mut="$3" premise="${4:-}" base scratch got prc
+  local root="$1" cmd="$2" mut="$3" premise="${4:-}" base scratch got rc
   base="$(mktemp -d 2>/dev/null)" || { printf 'unrunnable'; return 0; }
   scratch="$base/w"
   if ! git -C "$root" worktree add --detach -q "$scratch" HEAD 2>/dev/null; then
@@ -215,24 +261,33 @@ _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | u
   fi
   got=""
   if [ -n "$premise" ] && [ "$premise" != "-" ]; then
-    ( cd "$scratch" && eval "$premise" ) </dev/null >/dev/null 2>&1; prc=$?
-    case "$prc" in
+    _felix_qualify_sh "$scratch" "$premise"; rc=$?
+    case "$rc" in
       0) : ;;
       1) got=inapplicable ;;
       *) got=unrunnable ;;
     esac
   fi
+  # The mutation may legitimately fail (a control whose point is that the tree
+  # already satisfies the obligation), so its status is not the verdict, save
+  # 126 and 127, which say it never ran.
+  #
+  # No column is given anything to read. The mutation and the command inherited
+  # the pipe the rows arrived on, and a checker that read to the end of its
+  # stdin took every row after its own with it: a met row and a held one ran
+  # the met one alone, and the gate counted one control met of one. Nor may
+  # a command that reads stdin wait on a terminal under felix gate.
   if [ -z "$got" ]; then
-    # The mutation may legitimately fail (a control whose point is that the tree
-    # already satisfies the obligation), so its status is not the verdict.
-    #
-    # Neither is given anything to read, as the premise is not. Both inherited
-    # the pipe the rows arrived on, and a checker that read to the end of its
-    # stdin took every row after its own with it: a met row and a held one ran
-    # the met one alone, and the gate counted one control met of one. Nor may
-    # a command that reads stdin wait on a terminal under felix gate.
-    ( cd "$scratch" && eval "$mut" ) </dev/null >/dev/null 2>&1
-    if ( cd "$scratch" && eval "$cmd" ) </dev/null >/dev/null 2>&1; then got=pass; else got=fail; fi
+    _felix_qualify_sh "$scratch" "$mut"; rc=$?
+    case "$rc" in 126|127) got=unrunnable ;; esac
+  fi
+  if [ -z "$got" ]; then
+    _felix_qualify_sh "$scratch" "$cmd"; rc=$?
+    case "$rc" in
+      0)       got=pass ;;
+      126|127) got=unrunnable ;;
+      *)       got=fail ;;
+    esac
   fi
   git -C "$root" worktree remove --force "$scratch" >/dev/null 2>&1
   rmdir "$base" 2>/dev/null

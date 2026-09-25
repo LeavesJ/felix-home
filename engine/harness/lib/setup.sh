@@ -16,7 +16,8 @@
 #
 # setup.tsv rows: id <TAB> title <TAB> capability <TAB> check-command
 
-[ -n "${FELIX_FINAL_FILTER_AWK:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
+command -v felix_final_filter_lead >/dev/null 2>&1 \
+  || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
 
 _felix_setup_rows() {
   local proj="$1"
@@ -24,20 +25,22 @@ _felix_setup_rows() {
   grep -vE '^\s*(#|$)' "$proj/setup.tsv"
 }
 
-# Each row led by `-`, or by the clause refusing its check. The check runs in
-# a `bash -c` without pipefail, so one whose status can be a final filter's
+# Each row led by `-`, or by the sentence refusing its check. The check runs
+# in a `bash -c` without pipefail, so one a final filter makes unable to fail
 # (final-filter.sh) reads done whatever it asked, and the step it guards
 # disappears from the list for good. Such a check is not run: the row stays
-# todo, which every reader that counts todo sees, and felix_setup_malformed
-# says why.
+# todo, which every reader that counts todo sees, felix_setup_malformed says
+# why, and schema-check fails the gate on it.
 _felix_setup_judged() {
-  _felix_setup_rows "$1" | LC_ALL=C awk -F'\t' "$FELIX_FINAL_FILTER_AWK"'
-    { ff = ff_stage($4); print (ff == "" ? "-" : ff_why(ff)) "\t" $0 }'
+  _felix_setup_rows "$1" | felix_final_filter_lead setup.tsv
 }
 
-# id <TAB> why, for every row whose check could not fail.
+# id <TAB> why, for every row whose check is refused, dormant or not.
 felix_setup_malformed() {
-  _felix_setup_judged "$1" | awk -F'\t' '$1 != "-" && $2 != "" { print $2 "\tcheck " $1 }'
+  local ff id rest
+  _felix_setup_judged "$1" | while IFS=$'\t' read -r ff id rest; do
+    [ "$ff" != "-" ] && [ -n "${id:-}" ] && printf '%s\t%s\n' "$id" "$ff"
+  done
   return 0
 }
 
@@ -50,7 +53,7 @@ felix_setup_status() {
       printf 'dormant\t%s\t%s\n' "$id" "$title"
     elif [ "$ff" != "-" ]; then
       printf 'todo\t%s\t%s\n' "$id" "$title"
-    elif [ -n "${check:-}" ] && bash -c "$check" >/dev/null 2>&1; then
+    elif [ -n "${check:-}" ] && bash -c "$check" </dev/null >/dev/null 2>&1; then
       printf 'done\t%s\t%s\n' "$id" "$title"
     else
       printf 'todo\t%s\t%s\n' "$id" "$title"

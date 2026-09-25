@@ -1,12 +1,12 @@
 # The command whose status a table row's text returns, and whether a final
-# filter makes it unfailable.
+# filter makes the row unable to fail.
 #
 # Every table runner evaluates a row's command with pipefail off. Probes,
 # obligations, setup and maintenance each start a `bash -c`, and commissioning
 # evaluates in-process after `set +o pipefail`. So a pipeline's status is its
-# last stage's, and a check whose status comes from a last stage that succeeds
-# whatever it is fed cannot fail: `npm test 2>&1 | tail -20` reads done, or
-# SATISFIED, when the tests fail.
+# last stage's, and a check that ends in a stage that succeeds whatever it is
+# fed cannot fail: `npm test 2>&1 | tail -20` reads done, or SATISFIED, when
+# the tests fail.
 #
 # A first attempt judged the text after the last `|` against a list of filter
 # names, and review found it leaked both ways. `${c##*|}` split `||` at its
@@ -15,272 +15,223 @@
 # `LC_ALL=C sort`, `/usr/bin/tail`, `\tail`, and a redirect after the filter.
 # Text patterns cannot answer this. A parse can.
 #
-# So this reads the text the way bash does, far enough to answer one question.
-# It lexes words, quotes, expansions, comments, operators and redirections.
-# It parses lists, and-or chains, pipelines, groups and the compound commands,
-# and follows each path through the and-or algebra. A path's status is one of
-# three: zero, non-zero, or zero because a final filter dropped its producer's
-# status. The last is carried as `h:<name>`. The text is refused when it can
-# end on such a zero. That is why `x | tail || exit 1` is refused (the `||`
-# never runs), `a && x | tail` is refused (whenever `a` holds, tail decides),
-# and `x | tail && y` is admitted (y decides).
+# So this reads the text as bash does (final-filter-lex.sh), parses lists,
+# and-or chains, pipelines, groups and compound commands, and follows every
+# path. A path ends in one of four ways:
+#   z  success           n  failure
+#   h  success that is a final filter's, whatever fed it
+#   g  failure that is only a hidden success turned over (`! x | tail`)
+# Each may be terminal, ended by an `exit` or by `set -e`, which is read as on
+# from the start of any text that turns it on anywhere. A pipeline of two or
+# more stages whose last stage can only succeed is h: a stage from
+# final-filter-stages.sh, or a group or loop that ends in one. A command that
+# runs because of an h or g decides nothing if it is constant: `x | tail &&
+# echo ok` is still h, and so is the empty else of `if ! x | tail; then exit
+# 1; fi`. A command that can go either way decides, so `x | tail && y` is y's.
+# A bare `exit` returns the status before it, as bash does.
 #
-# A final filter is the last stage of a pipeline of two or more stages whose
-# command exits 0 whatever it reads, given its arguments: cat, tac, head, tail,
-# tee, sort without -c, uniq, wc, tr, cut, paste, nl, fold, rev, column,
-# expand, unexpand, true, :, echo, a sed with a visible script and no exit
-# code, an awk with a visible program and nothing that can make it exit
-# non-zero, and xargs -0 or -d running echo or true. A stage that reads a file
-# operand, or has its standard input redirected, reads a file that can be
-# missing, so it can fail, and it is admitted. xargs without -0 or -d fails on
-# an unmatched quote in its input, and is admitted too. The printed name is
-# the command as bash resolves it, past assignments, command, builtin, env,
-# exec, nice, nohup, stdbuf and a path.
+# THE RULE. A text is refused when no path can end in failure and at least one
+# ends in h. Then it could not fail, and a final filter is why. That is what
+# the refusal says, and it is true of every text refused. `x | tail || exit 1`
+# is refused, since the `||` never runs.
 #
-# Precision first. A refused commissioning row fails its project's gate, and a
-# refused obligation blocks every merge, so a false refusal is loud and costly,
-# while a missed shape only leaves today's hole. So the text is admitted
-# whenever it mentions pipefail, defines a function, holds a here-document, or
-# has syntax this cannot read. A stage named by an expansion is not a filter.
-# An `if`, `case` or loop is read branch by branch. A script handed to
-# `sh -c`, `bash -c` or `eval` as a literal is read as that script.
+# A text that can fail anywhere is admitted, even when the part that does the
+# work cannot. `cd dir && npm test | tail -20` is admitted, because the cd can
+# fail. That is the price of precision, and it was chosen, not missed: the
+# first version refused whenever any path ended in h, and review showed that
+# refusing real, correct checks. `command -v jq >/dev/null && jq --version |
+# cut -d- -f2` fails exactly when jq is absent. `out=$(npm test) && printf
+# '%s\n' "$out" | tail` fails exactly when the tests do. A refused
+# commissioning row fails its project's gate, and a refused obligation blocks
+# every merge. So a false refusal is loud and costly, while a missed shape only
+# leaves today's hole.
+#
+# Admitted whenever this cannot be sure:
+#   - the text mentions pipefail anywhere;
+#   - it defines a function, sources a file, or sets a trap;
+#   - it holds a here-document, `select`, `coproc`, or a case fallthrough;
+#   - it has syntax the parser cannot read, or nesting past 40 levels;
+#   - a stage is named by an expansion, or by a relative path, which is a
+#     project's own script.
+# An absolute path names the command it ends in. A literal script given to
+# `sh -c`, `bash -c` or `eval` is read as that script.
+#
+# Known misses, all admitted:
+#   - `grep -v`, which fails when it selects nothing, so it can fail;
+#   - a status kept in a variable and returned later (`rc=$?; exit $rc`);
+#   - a filter wrapped in `timeout` or `sudo`, which can fail themselves;
+#   - under `set -e`, a failure early in an `&&` chain, which bash forgives
+#     and this counts as the end of the script.
+# `x |& tail` is refused. On bash 3.2 it is a syntax error, so the row can
+# never pass there, and it can never fail elsewhere.
 #
 # The core is awk, held in FELIX_FINAL_FILTER_AWK, because two of the tables
-# it judges are already read by one awk pass. It defines ff_stage(text), which
-# is the filter's name or "", and ff_why(name), the clause a refusal gives.
-# Each caller prepends it to its own program, so a table is judged in one
-# process, not one per row. Every name it defines begins with ff or FF.
+# it judges are already read by one awk pass. Each caller prepends it to its
+# own program, so a table is judged in one process, not one per row. It
+# defines ff_stage(text), the final filter's name or "", and ff_row(table,
+# line), the reason a table row is refused or "". Every name it defines begins
+# with ff or FF.
 #
-# Where it is enforced. Only columns where an unfailable command fails open,
-# reading as a pass, are judged: commissioning's check, obligations' evidence,
-# setup's check, and a maintenance event row's check. Commissioning's `when`,
-# obligations' `applies` and a probe's `when` are not: an unfailable one makes
-# its row always apply, which asks more. A probe's witness is not: an
-# unfailable witness turns an empty probe `blind`, which blocks. A probe's own
-# command is not: its members are its answer, and a real row ends in
-# `sed -n 's/.../p'`. Qualification is not: it shows a checker failing
-# itself, and an unfailable command fails its violation control.
+# WHERE. ff_row decides which column of which table is judged, for the
+# runners and for schema-check alike. Only columns where a check that cannot
+# fail reads as a pass are judged:
+#   - commissioning's check, on rows whose answer is not a provider;
+#   - obligations' evidence;
+#   - setup's check, read as `read` hands it over;
+#   - the check on a maintenance event row.
+# The rest are left alone:
+#   - Commissioning's `when`, obligations' `applies` and a probe's `when`.
+#     One that cannot fail makes its row always apply, which asks more.
+#   - A probe's witness. One that cannot fail turns an empty probe `blind`,
+#     which blocks.
+#   - A probe's own command. Its members are its answer, and a real row ends
+#     in `sed -n 's/.../p'`.
+#   - Qualification, which shows a checker failing by itself. A command that
+#     cannot fail fails its violation control.
 
-FELIX_FINAL_FILTER_AWK='
-function ff_sq(s, i, n) {
-  while (i <= n) { if (substr(s, i, 1) == "\047") return i + 1; i++ }
-  return 0
-}
-function ff_bq(s, i, n,    c) {
-  while (i <= n) { c = substr(s, i, 1); if (c == "\\") { i += 2; continue }; if (c == "`") return i + 1; i++ }
-  return 0
-}
-function ff_ansi(s, i, n,    c, v) {
-  v = ""
-  while (i <= n) {
-    c = substr(s, i, 1)
-    if (c == "\\") { v = v substr(s, i + 1, 1); i += 2; continue }
-    if (c == "\047") { FFDQV = v; FFDQY = 0; return i + 1 }
-    v = v c; i++
-  }
-  return 0
-}
-function ff_dq(s, i, n,    c, k, j, v, y) {
-  v = ""; y = 0
-  while (i <= n) {
-    c = substr(s, i, 1)
-    if (c == "\"") { FFDQV = v; FFDQY = y; return i + 1 }
-    if (c == "\\") { k = substr(s, i + 1, 1)
-      if (k == "\n") { i += 2; continue }
-      if (k == "$" || k == "`" || k == "\"" || k == "\\") { v = v k; i += 2; continue }
-      v = v c; i++; continue }
-    if (c == "`") { j = ff_bq(s, i + 1, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
-    if (c == "$") { k = substr(s, i + 1, 1)
-      if (k == "(") { j = ff_paren(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
-      if (k == "{") { j = ff_brace(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
-      if (k != "" && index("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@*#?$!-", k)) y = 1 }
-    v = v c; i++
-  }
-  return 0
-}
-function ff_paren(s, i, n,    c, d) {
-  d = 1
-  while (i <= n) {
-    c = substr(s, i, 1)
-    if (c == "\\") { i += 2; continue }
-    if (c == "\047") { i = ff_sq(s, i + 1, n); if (!i) return 0; continue }
-    if (c == "\"") { i = ff_dq(s, i + 1, n); if (!i) return 0; continue }
-    if (c == "`") { i = ff_bq(s, i + 1, n); if (!i) return 0; continue }
-    if (c == "(") d++
-    if (c == ")" && --d == 0) return i + 1
-    i++
-  }
-  return 0
-}
-function ff_brace(s, i, n,    c, d) {
-  d = 1
-  while (i <= n) {
-    c = substr(s, i, 1)
-    if (c == "\\") { i += 2; continue }
-    if (c == "\047") { i = ff_sq(s, i + 1, n); if (!i) return 0; continue }
-    if (c == "\"") { i = ff_dq(s, i + 1, n); if (!i) return 0; continue }
-    if (c == "`") { i = ff_bq(s, i + 1, n); if (!i) return 0; continue }
-    if (c == "$" && substr(s, i + 1, 1) == "(") { i = ff_paren(s, i + 2, n); if (!i) return 0; continue }
-    if (c == "$" && substr(s, i + 1, 1) == "{") { d++; i += 2; continue }
-    if (c == "}" && --d == 0) return i + 1
-    i++
-  }
-  return 0
-}
-function ff_arith(s, i, n,    c, d) {
-  d = 2
-  while (i <= n) {
-    c = substr(s, i, 1)
-    if (c == "\047") { i = ff_sq(s, i + 1, n); if (!i) return 0; continue }
-    if (c == "\"") { i = ff_dq(s, i + 1, n); if (!i) return 0; continue }
-    if (c == "(") d++
-    if (c == ")") { d--; if (d == 1) return (substr(s, i + 1, 1) == ")") ? i + 2 : 0 }
-    i++
-  }
-  return 0
-}
-function ff_word(s, i, n,    c, k, j, v, q, y, b) {
-  v = ""; q = 0; y = 0; b = i
-  while (i <= n) {
-    c = substr(s, i, 1)
-    if (index(" \t\n;&|()", c)) break
-    if (c == "<" || c == ">") {
-      if (i == b && substr(s, i + 1, 1) == "(") { j = ff_paren(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
-      break }
-    if (c == "\\") { q = 1; if (substr(s, i + 1, 1) != "\n") v = v substr(s, i + 1, 1); i += 2; continue }
-    if (c == "\047") { j = ff_sq(s, i + 1, n); if (!j) return 0; v = v substr(s, i + 1, j - i - 2); q = 1; i = j; continue }
-    if (c == "\"") { j = ff_dq(s, i + 1, n); if (!j) return 0; v = v FFDQV; if (FFDQY) y = 1; q = 1; i = j; continue }
-    if (c == "`") { j = ff_bq(s, i + 1, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
-    if (c == "$") { k = substr(s, i + 1, 1)
-      if (k == "\047") { j = ff_ansi(s, i + 2, n); if (!j) return 0; v = v FFDQV; q = 1; i = j; continue }
-      if (k == "\"") { j = ff_dq(s, i + 2, n); if (!j) return 0; v = v FFDQV; if (FFDQY) y = 1; q = 1; i = j; continue }
-      if (k == "(") { j = ff_paren(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
-      if (k == "{") { j = ff_brace(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
-      if (k != "" && index("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@*#?$!-", k)) y = 1 }
-    v = v c; i++
-  }
-  FFWV = v; FFWQ = q; FFWY = y; FFWR = substr(s, b, i - b)
-  return i
-}
-function ff_tok(d, t, ty, v, q, y, r, st) {
-  FFT[d, t] = ty; FFV[d, t] = v; FFQ[d, t] = q; FFY[d, t] = y; FFR[d, t] = r; FFS[d, t] = st
-}
-# A redirection at i, with an fd number or {name} before it, or none.
-function ff_redir(s, i, n, d, t, fd,    op, st, j) {
-  op = substr(s, i, 1); st = 0
-  if (op == "<") {
-    if (substr(s, i, 3) == "<<<") op = "<<<"
-    else if (substr(s, i, 2) == "<<") { FFERR = 1; return 0 }
-    else if (substr(s, i, 2) == "<>" || substr(s, i, 2) == "<&") op = substr(s, i, 2)
-    if (fd == "" || fd == "0") st = 1
-  } else {
-    if (substr(s, i, 2) == ">>" || substr(s, i, 2) == ">|" || substr(s, i, 2) == ">&") op = substr(s, i, 2)
-    if (fd == "0") st = 1
-  }
-  i += length(op)
-  while (substr(s, i, 1) == " " || substr(s, i, 1) == "\t") i++
-  j = ff_word(s, i, n)
-  if (!j || j == i) { FFERR = 1; return 0 }
-  ff_tok(d, t, "r", op, 0, 0, "", st)
-  return j
-}
-function ff_lex(s, d,    n, i, c, c2, t, j, fd) {
-  n = length(s); i = 1; t = 0
-  while (i <= n) {
-    c = substr(s, i, 1); c2 = substr(s, i, 2)
-    if (c == " " || c == "\t") { i++; continue }
-    if (c2 == "\\\n") { i += 2; continue }
-    if (c == "\n") { ff_tok(d, ++t, "o", "nl"); i++; continue }
-    if (c == "#") { while (i <= n && substr(s, i, 1) != "\n") i++; continue }
-    if (substr(s, i, 3) == ";;&") { ff_tok(d, ++t, "o", ";;&"); i += 3; continue }
-    if (c2 == "&&" || c2 == "||" || c2 == ";;" || c2 == ";&" || c2 == "|&") { ff_tok(d, ++t, "o", c2); i += 2; continue }
-    if (c2 == "&>") { j = (substr(s, i + 2, 1) == ">") ? 3 : 2; i += j
-      while (substr(s, i, 1) == " " || substr(s, i, 1) == "\t") i++
-      j = ff_word(s, i, n); if (!j || j == i) return 0
-      ff_tok(d, ++t, "r", "&>", 0, 0, "", 0); i = j; continue }
-    if (c == "|" || c == "&" || c == ";" || c == ")") { ff_tok(d, ++t, "o", c); i++; continue }
-    if (c == "(") {
-      if (substr(s, i + 1, 1) == "(") { j = ff_arith(s, i + 2, n); if (!j) return 0; ff_tok(d, ++t, "a", "(("); i = j; continue }
-      ff_tok(d, ++t, "o", "("); i++; continue }
-    if ((c == "<" || c == ">") && substr(s, i + 1, 1) != "(") { i = ff_redir(s, i, n, d, ++t, ""); if (!i) return 0; continue }
-    j = ff_word(s, i, n); if (!j) return 0
-    c = substr(s, j, 1)
-    if ((c == "<" || c == ">") && substr(s, j + 1, 1) != "(" && !FFWQ && !FFWY && FFWV ~ /^([0-9]+|[{][A-Za-z_][A-Za-z0-9_]*[}])$/) {
-      fd = FFWV; i = ff_redir(s, j, n, d, ++t, fd); if (!i) return 0; continue }
-    ff_tok(d, ++t, "w", FFWV, FFWQ, FFWY, FFWR, 0); i = j
-  }
-  FFN[d] = t
-  return 1
-}
-function ff_ty(k) { return (FFP[FFD] + k <= FFN[FFD]) ? FFT[FFD, FFP[FFD] + k] : "" }
-function ff_is(k, v,    p) { p = FFP[FFD] + k; return p <= FFN[FFD] && FFT[FFD, p] == "o" && FFV[FFD, p] == v }
-function ff_kw(k, v,    p) { p = FFP[FFD] + k; return p <= FFN[FFD] && FFT[FFD, p] == "w" && !FFQ[FFD, p] && FFV[FFD, p] == v }
-function ff_end() { return FFP[FFD] > FFN[FFD] }
-function ff_skipnl() { while (ff_is(0, "nl")) FFP[FFD]++ }
-function ff_stop(stops,    p) {
-  p = FFP[FFD]; if (p > FFN[FFD]) return 0
-  if (FFT[FFD, p] == "w" && !FFQ[FFD, p]) return index(stops, " w:" FFV[FFD, p] " ") > 0
-  if (FFT[FFD, p] == "o") return index(stops, " o:" FFV[FFD, p] " ") > 0
-  return 0
-}
-function ff_redirs() { while (ff_ty(0) == "r") FFP[FFD]++ }
-# Sets are strings of " z ", " n " and " h:<name> ".
-function ff_neg(s,    o) {
-  o = " "; if (index(s, " z ")) o = o " n "
-  if (index(s, " n ")) o = o " z "
-  if (index(s, " h:")) o = o " n "
+_ffdir="$(dirname "${BASH_SOURCE[0]:-$0}")"
+. "$_ffdir/final-filter-lex.sh"
+. "$_ffdir/final-filter-stages.sh"
+unset _ffdir
+
+FELIX_FINAL_FILTER_AWK="$FELIX_FINAL_FILTER_LEX$FELIX_FINAL_FILTER_STAGES"'
+# An outcome set is a string of tokens, each set off by spaces: z n h:NAME
+# g:NAME, with a leading t when the path ended the script there, and tq for an
+# exit whose status is the one before it, which the enclosing list fills in.
+function ff_term(t) { return substr(t, 1, 1) == "t" }
+function ff_b(t) { return substr(ff_term(t) ? substr(t, 2) : t, 1, 1) }
+function ff_pick(s, want,    A, k, i, o) {
+  k = split(s, A, " "); o = " "
+  for (i = 1; i <= k; i++) if (ff_term(A[i]) == want) o = o A[i] " "
   return o
 }
-function ff_comb(s, op, r,    o, t) {
-  o = " "
-  if (op == "&&") { if (index(s, " z ") || index(s, " h:")) o = o r; if (index(s, " n ")) o = o " n "; return o }
-  if (index(s, " n ")) o = o r
-  t = s; while (sub(/ n /, " ", t)) { }; return o t
+function ff_neg(s,    A, k, i, t, o) {
+  k = split(s, A, " "); o = " "
+  for (i = 1; i <= k; i++) { t = A[i]
+    if (!ff_term(t)) { if (t == "z") t = "n"; else if (t == "n") t = "z"
+      else if (t ~ /^h:/) t = "g:" substr(t, 3); else if (t ~ /^g:/) t = "h:" substr(t, 3) }
+    o = o t " " }
+  return o
 }
-function ff_text(s,    d, out) {
+# What a subshell hands its parent: an exit inside it ends only the subshell.
+function ff_sub(s,    A, k, i, t, o) {
+  k = split(s, A, " "); o = " "
+  for (i = 1; i <= k; i++) { t = A[i]
+    if (t == "tq") { o = o "z n "; continue }
+    if (ff_term(t)) t = substr(t, 2)
+    o = o t " " }
+  return o
+}
+# Under set -e, a failure that ends a command ends the script.
+function ff_errexit(s,    A, k, i, t, o) {
+  k = split(s, A, " "); o = " "
+  for (i = 1; i <= k; i++) { t = A[i]; if (t == "n" || t ~ /^g:/) t = "t" t; o = o t " " }
+  return o
+}
+# r run after the status t: an exit with no status of its own returns t.
+function ff_q(r, t) { while (sub(/ tq /, " t" t " ", r)) { }; return r }
+function ff_qall(r, s,    A, k, i, o) {
+  if (s == "" || !index(r, " tq ")) return r
+  k = split(ff_pick(s, 0), A, " "); o = ""
+  for (i = 1; i <= k; i++) o = o ff_q(r, A[i])
+  return o == "" ? r : o
+}
+# r run because of a hidden status: if r cannot go both ways, it decided
+# nothing, and the path stays hidden.
+function ff_hid(r, nm,    A, k, i, t, zs, fs, o) {
+  k = split(r, A, " "); zs = 0; fs = 0
+  for (i = 1; i <= k; i++) { if (ff_b(A[i]) == "z" || ff_b(A[i]) == "h") zs = 1; if (ff_b(A[i]) == "n" || ff_b(A[i]) == "g") fs = 1 }
+  o = " "
+  for (i = 1; i <= k; i++) { t = A[i]
+    if (ff_b(t) == "z" && !fs) t = (ff_term(t) ? "t" : "") "h:" nm
+    else if (ff_b(t) == "n" && !zs) t = (ff_term(t) ? "t" : "") "g:" nm
+    o = o t " " }
+  return o
+}
+function ff_comb(s, op, r,    A, k, i, t, b, o) {
+  k = split(s, A, " "); o = " "
+  for (i = 1; i <= k; i++) { t = A[i]; b = substr(t, 1, 1)
+    if (ff_term(t)) o = o t " "
+    else if ((op == "&&" && b == "z") || (op == "||" && b == "n")) o = o ff_q(r, t)
+    else if ((op == "&&" && b == "h") || (op == "||" && b == "g")) o = o ff_hid(ff_q(r, t), substr(t, 3))
+    else o = o t " " }
+  return o
+}
+# An if: the condition c picks t or e, and a hidden condition picks blind.
+function ff_ifc(c, t, e,    A, k, i, x, o) {
+  k = split(c, A, " "); o = ff_pick(c, 1)
+  for (i = 1; i <= k; i++) { x = A[i]; if (ff_term(x)) continue
+    if (x == "z") o = o ff_q(t, "z"); else if (x == "n") o = o ff_q(e, "n")
+    else if (x ~ /^h:/) o = o ff_hid(ff_q(t, x), substr(x, 3)); else o = o ff_hid(ff_q(e, x), substr(x, 3)) }
+  return o
+}
+# set -e anywhere in a text is read as set from its start. Met in a loop, or
+# after an eval, it ends the script at a failure the text reached before it,
+# and a failure that may end the script is still a failure: reading it early
+# can only admit more.
+function ff_text(s, ex,    d, out) {
   if (FFD >= 6) { FFERR = 1; return " z n " }
-  d = ++FFD; FFP[d] = 1
+  if (s ~ /(^|[^A-Za-z0-9_])set[ \t]/ && s ~ /[ \t]-[A-Za-z]*e|errexit/) ex = 1
+  d = ++FFD; FFP[d] = 1; FFEX[d] = ex
   if (!ff_lex(s, d)) { FFERR = 1; FFD--; return " z n " }
   out = ff_list(" ")
   if (!FFERR && !ff_end()) FFERR = 1
   FFD--
   return out
 }
-function ff_list(stops,    out, o) {
-  out = " z "
+function ff_list(stops,    acc, cur, o, dead) {
+  if (++FFNEST > 40) FFERR = 1
+  acc = " "; cur = ""; dead = 0
   while (!FFERR) {
-    while (ff_is(0, "nl") || ff_is(0, ";")) FFP[FFD]++
+    ff_skipnl()
     if (ff_end() || ff_stop(stops)) break
     o = ff_andor(); if (FFERR) break
-    if (ff_is(0, "&")) { FFP[FFD]++; out = " z "; continue }
-    out = o
-    if (ff_is(0, ";") || ff_is(0, "nl")) { FFP[FFD]++; continue }
+    if (!dead) cur = ff_qall(o, cur)
+    if (ff_is(0, "&")) { FFP[FFD]++; if (!dead) cur = " z "; continue }
+    if (ff_is(0, ";") || ff_is(0, "nl")) {
+      FFP[FFD]++
+      if (!dead) {
+        if (FFEX[FFD]) cur = ff_errexit(cur)
+        acc = acc ff_pick(cur, 1); cur = ff_pick(cur, 0)
+        if (cur !~ /[^ ]/) dead = 1 }
+      continue }
     break
   }
-  return out
+  FFNEST--
+  return dead ? acc : acc (cur == "" ? " z " : cur)
 }
-function ff_andor(    s, op, r) {
+function ff_andor(    s, op) {
   s = ff_pipe()
   while (!FFERR && (ff_is(0, "&&") || ff_is(0, "||"))) {
     op = FFV[FFD, FFP[FFD]]; FFP[FFD]++; ff_skipnl()
-    r = ff_pipe(); s = ff_comb(s, op, r)
+    s = ff_comb(s, op, ff_pipe())
   }
   return s
 }
+# `! !` is a syntax error on bash 3.2, so a text holding one never passes.
 function ff_pipe(    neg, out, k) {
   if (ff_kw(0, "time")) { FFP[FFD]++; if (ff_kw(0, "-p")) FFP[FFD]++ }
-  neg = 0; while (ff_kw(0, "!")) { neg = !neg; FFP[FFD]++ }
+  neg = 0
+  if (ff_kw(0, "!")) { FFP[FFD]++; neg = 1
+    if (ff_kw(0, "!")) { FFERR = 1; return " z n " }
+    if (ff_kw(0, "time")) { FFP[FFD]++; if (ff_kw(0, "-p")) FFP[FFD]++ } }
   out = ff_cmd(); k = 1
   while (!FFERR && (ff_is(0, "|") || ff_is(0, "|&"))) { FFP[FFD]++; ff_skipnl(); out = ff_cmd(); k++ }
   if (FFERR) return " z n "
-  if (k > 1 && FFFILT != "") out = " h:" FFFILT " "
+  if (k > 1) { out = ff_sub(out)
+    if (out ~ /[^ ]/ && out !~ / (n|g:[^ ]*) /) out = " h:" (FFFILT != "" ? FFFILT : "?") " " }
   return neg ? ff_neg(out) : out
 }
-function ff_close(o) { ff_redirs(); FFFILT = ""; return o }
-function ff_cmd(    o, w) {
+# A compound command is not a filter by name, and one reading a file on its
+# standard input can fail to open it.
+function ff_close(o) {
+  while (ff_ty(0) == "r") { if (FFS[FFD, FFP[FFD]]) o = o " n "; FFP[FFD]++ }
+  FFFILT = ""; return o
+}
+function ff_cmd(    o, w, c) {
   FFFILT = ""
   if (ff_end()) { FFERR = 1; return " z n " }
-  if (ff_is(0, "(")) { FFP[FFD]++; o = ff_list(" o:) "); if (!ff_is(0, ")")) { FFERR = 1; return o }; FFP[FFD]++; return ff_close(o) }
+  if (ff_is(0, "(")) { FFP[FFD]++; o = ff_list(" o:) "); if (!ff_is(0, ")")) { FFERR = 1; return o }; FFP[FFD]++; return ff_close(ff_sub(o)) }
   if (ff_ty(0) == "a") { FFP[FFD]++; return ff_close(" z n ") }
   if (ff_ty(0) == "r") return ff_simple()
   if (ff_ty(0) != "w") { FFERR = 1; return " z n " }
@@ -289,27 +240,29 @@ function ff_cmd(    o, w) {
   if (w == "{") { FFP[FFD]++; o = ff_list(" w:} "); if (!ff_kw(0, "}")) { FFERR = 1; return o }; FFP[FFD]++; return ff_close(o) }
   if (w == "if") return ff_if()
   if (w == "while" || w == "until") {
-    FFP[FFD]++; ff_list(" w:do "); if (!ff_kw(0, "do")) { FFERR = 1; return " z n " }
+    FFP[FFD]++; c = ff_list(" w:do "); if (!ff_kw(0, "do")) { FFERR = 1; return " z n " }
     FFP[FFD]++; o = ff_list(" w:done "); if (!ff_kw(0, "done")) { FFERR = 1; return o }
-    FFP[FFD]++; return ff_close(o " z ") }
-  if (w == "for" || w == "select") return ff_for()
+    FFP[FFD]++; return ff_close(ff_pick(c, 1) ff_q(o, w == "while" ? "z" : "n") " z ") }
+  if (w == "for") return ff_for()
   if (w == "case") return ff_case()
   if (w == "[[") {
     FFP[FFD]++; while (!ff_end() && !ff_kw(0, "]]")) FFP[FFD]++
     if (ff_end()) { FFERR = 1; return " z n " }
     FFP[FFD]++; return ff_close(" z n ") }
-  if (w ~ /^(function|coproc|then|else|elif|fi|do|done|esac|[}])$/) { FFERR = 1; return " z n " }
+  if (w ~ /^(function|coproc|select|then|else|elif|fi|do|done|esac|[}])$/) { FFERR = 1; return " z n " }
   return ff_simple()
 }
-function ff_if(    o) {
-  FFP[FFD]++; ff_list(" w:then "); if (!ff_kw(0, "then")) { FFERR = 1; return " z n " }
-  FFP[FFD]++; o = ff_list(" w:elif w:else w:fi ")
-  while (!FFERR && ff_kw(0, "elif")) {
-    FFP[FFD]++; ff_list(" w:then "); if (!ff_kw(0, "then")) { FFERR = 1; return o }
-    FFP[FFD]++; o = o ff_list(" w:elif w:else w:fi ") }
-  if (ff_kw(0, "else")) { FFP[FFD]++; o = o ff_list(" w:fi ") } else o = o " z "
-  if (!ff_kw(0, "fi")) { FFERR = 1; return o }
-  FFP[FFD]++; return ff_close(o)
+function ff_if(    nc, C, T, i, r) {
+  nc = 0
+  do {
+    FFP[FFD]++; C[++nc] = ff_list(" w:then "); if (!ff_kw(0, "then")) { FFERR = 1; return " z n " }
+    FFP[FFD]++; T[nc] = ff_list(" w:elif w:else w:fi ")
+  } while (!FFERR && ff_kw(0, "elif"))
+  r = " z "
+  if (ff_kw(0, "else")) { FFP[FFD]++; r = ff_list(" w:fi ") }
+  if (!ff_kw(0, "fi")) { FFERR = 1; return " z n " }
+  for (i = nc; i >= 1; i--) r = ff_ifc(C[i], T[i], r)
+  FFP[FFD]++; return ff_close(r)
 }
 function ff_for(    o) {
   FFP[FFD]++
@@ -337,7 +290,8 @@ function ff_case(    o) {
     while (ff_is(0, "|")) { FFP[FFD]++; if (ff_ty(0) != "w") { FFERR = 1; break }; FFP[FFD]++ }
     if (FFERR || !ff_is(0, ")")) { FFERR = 1; break }
     FFP[FFD]++; o = o ff_list(" o:;; o:;& o:;;& w:esac ")
-    if (ff_is(0, ";;") || ff_is(0, ";&") || ff_is(0, ";;&")) FFP[FFD]++
+    if (ff_is(0, ";&") || ff_is(0, ";;&")) { FFERR = 1; break }
+    if (ff_is(0, ";;")) FFP[FFD]++
   }
   return ff_close(o)
 }
@@ -353,21 +307,46 @@ function ff_simple(    nw, st, p, i, nm) {
   if (nw == 0) return " z n "
   i = ff_prefix(nw); if (!i) return " z n "
   nm = FFNAME
+  if (nm == "." || nm == "source" || nm == "trap" || nm == "return") { FFERR = 1; return " z n " }
   if (nm ~ /^(sh|bash|dash|ksh|mksh|zsh|ash|posh|yash)$/) return ff_shell(i, nw)
   if (nm == "eval") return ff_eval(i, nw)
-  if (!st && ff_filter(nm, i + 1, nw)) FFFILT = nm
-  return (nm == "true" || nm == ":") ? " z " : " z n "
+  if (nm == "exit") return ff_exit(i, nw)
+  if (nm == "set") return ff_set(i, nw)
+  if (nm == "false") return " n "
+  if (!st && ff_filter(nm, i + 1, nw)) { FFFILT = nm; return " z " }
+  return " z n "
 }
-# The index of the word bash runs, past the wrappers that run the rest.
+function ff_exit(i, nw,    v) {
+  if (i == nw) return " tq "
+  if (i + 1 < nw) return " tz tn "
+  v = FFAR[FFD, i + 1]
+  if (v == "$?" || v == "\"$?\"") return " tq "
+  if (FFAY[FFD, i + 1] || FFA[FFD, i + 1] !~ /^[0-9]+$/) return " tz tn "
+  return (FFA[FFD, i + 1] + 0 == 0) ? " tz " : " tn "
+}
+# set succeeds with options it knows. What -e does is read by ff_text.
+function ff_set(i, nw,    p, v) {
+  for (p = i + 1; p <= nw; p++) {
+    v = FFA[FFD, p]; if (FFAY[FFD, p]) return " z n "
+    if (v == "--" || v == "-") break
+    if (v == "-o" || v == "+o") { p++; continue }
+    if (v !~ /^[-+][abefhkmnptuvxBCEHPT]+$/) { if (v ~ /^[-+]/) return " z n "; break }
+  }
+  return " z "
+}
+# The index of the word bash runs, past the wrappers that run the rest. A
+# relative path is a project script, whatever it is called.
 function ff_prefix(nw,    i, v, b) {
   i = 1
   while (i <= nw) {
     if (FFAY[FFD, i]) return 0
-    v = FFA[FFD, i]; b = v; sub(/.*\//, "", b)
+    v = FFA[FFD, i]; b = v
+    if (b ~ /^\//) sub(/.*\//, "", b); else if (index(b, "/")) return 0
     if (b == "command") { i++
       while (i <= nw && FFA[FFD, i] ~ /^-/) { if (FFA[FFD, i] == "--") { i++; break }; if (FFA[FFD, i] ~ /[vV]/) return 0; i++ }
       continue }
-    if (b == "builtin" || b == "nohup") { i++; if (FFA[FFD, i] == "--") i++; continue }
+    if (b == "builtin") { i++; if (i > nw || FFA[FFD, i] !~ /^(echo|true|:|exit|eval|set|false)$/) return 0; continue }
+    if (b == "nohup") { i++; if (i <= nw && FFA[FFD, i] == "--") i++; continue }
     if (b == "exec") { i++
       while (i <= nw && FFA[FFD, i] ~ /^-/) { if (FFA[FFD, i] == "--") { i++; break }; if (FFA[FFD, i] ~ /a$/) i++; i++ }
       continue }
@@ -390,183 +369,96 @@ function ff_prefix(nw,    i, v, b) {
   }
   return 0
 }
-function ff_shell(i, nw,    j, v, c, o) {
-  c = 0
+function ff_shell(i, nw,    j, v, c, ex, o) {
+  c = 0; ex = 0
   for (j = i + 1; j <= nw; j++) {
     v = FFA[FFD, j]; if (FFAY[FFD, j]) return " z n "
     if (v == "--" || v == "-") { j++; break }
-    if (v ~ /^[-+][oO]$/ || v == "--rcfile" || v == "--init-file") { j++; continue }
+    if (v ~ /^[-+][oO]$/ || v == "--rcfile" || v == "--init-file") { if (v == "-o" && j < nw && FFA[FFD, j + 1] == "errexit") ex = 1; j++; continue }
     if (v ~ /^--/) continue
-    if (v ~ /^[-+][A-Za-z]+$/) { if (v ~ /^-.*c/) c = 1; continue }
+    if (v ~ /^[-+][A-Za-z]+$/) { if (v ~ /^-.*c/) c = 1; if (v ~ /^-.*e/) ex = 1; continue }
     break
   }
   if (!c || j > nw || FFAY[FFD, j]) return " z n "
-  o = ff_text(FFA[FFD, j]); FFFILT = ""; return o
+  o = ff_sub(ff_text(FFA[FFD, j], ex)); FFFILT = ""; return o
 }
 function ff_eval(i, nw,    j, t, o) {
   t = ""
   for (j = i + 1; j <= nw; j++) { if (FFAY[FFD, j]) return " z n "; t = t (t == "" ? "" : " ") FFA[FFD, j] }
-  o = ff_text(t); FFFILT = ""; return o
+  o = ff_text(t, FFEX[FFD]); FFFILT = ""; return o
 }
-# Options of a filter: arg are letters taking an argument, ok the letters
-# allowed (* for any), bad the letters that can make it fail on its input;
-# lok and larg the long options allowed, larg those taking an argument.
-# Operands are recorded in FFO; with opok 0 any operand but - is a file.
-function ff_opts(a, b, arg, ok, bad, lok, larg, opok,    j, v, k, c, nm) {
-  FFON = 0
-  for (j = a; j <= b; j++) {
-    v = FFA[FFD, j]
-    if (v == "--") { for (j++; j <= b; j++) { FFO[++FFON] = FFA[FFD, j]; if (!opok && (FFA[FFD, j] != "-" || FFAY[FFD, j])) return 0 }; return 1 }
-    if (v == "-" || v !~ /^-/ || (FFAY[FFD, j] && FFAR[FFD, j] !~ /^-/)) {
-      FFO[++FFON] = v; if (!opok && (v != "-" || FFAY[FFD, j])) return 0; continue }
-    if (v ~ /^--/) { nm = substr(v, 3); sub(/=.*/, "", nm)
-      if (index(lok, " " nm " ")) continue
-      if (!index(larg, " " nm " ")) return 0
-      if (!index(v, "=")) j++
-      continue }
-    for (k = 2; k <= length(v); k++) {
-      c = substr(v, k, 1)
-      if (index(bad, c)) return 0
-      if (index(arg, c)) { if (k == length(v)) j++; break }
-      if (ok != "*" && !index(ok, c)) return 0
-    }
-  }
-  return 1
-}
-function ff_filter(nm, a, b) {
-  if (nm == "true" || nm == ":" || nm == "echo") return 1
-  if (nm == "cat") return ff_opts(a, b, "", "*", "", " number number-nonblank squeeze-blank show-all show-ends show-tabs show-nonprinting ", "", 0)
-  if (nm == "tac") return ff_opts(a, b, "s", "*", "", " before regex ", " separator ", 0)
-  if (nm == "head") return ff_opts(a, b, "nc", "*", "", " quiet silent verbose zero-terminated ", " lines bytes ", 0)
-  if (nm == "tail") return ff_opts(a, b, "ncbs", "*", "", " quiet silent verbose zero-terminated follow retry ", " lines bytes sleep-interval pid max-unchanged-stats ", 0)
-  if (nm == "tee") return ff_opts(a, b, "", "*", "", " append ignore-interrupts output-error ", "", 1)
-  if (nm == "sort") return ff_opts(a, b, "kotTS", "*", "cC", " ignore-leading-blanks dictionary-order ignore-case general-numeric-sort ignore-nonprinting month-sort human-numeric-sort numeric-sort random-sort reverse version-sort merge stable unique zero-terminated debug sort ", " key output field-separator temporary-directory buffer-size parallel random-source compress-program batch-size ", 0)
-  if (nm == "uniq") { if (!ff_opts(a, b, "fsw", "*", "", " count repeated all-repeated group ignore-case unique zero-terminated ", " skip-fields skip-chars check-chars ", 1)) return 0
-    return FFON == 0 || (FFO[1] == "-" && FFON <= 2) }
-  if (nm == "wc") return ff_opts(a, b, "", "*", "", " bytes chars lines words max-line-length total ", "", 0)
-  if (nm == "tr") return ff_opts(a, b, "", "*", "", " complement delete squeeze-repeats truncate-set1 ", "", 1)
-  if (nm == "cut") return ff_opts(a, b, "bcfd", "*", "", " complement only-delimited zero-terminated ", " bytes characters fields delimiter output-delimiter ", 0)
-  if (nm == "paste") return ff_opts(a, b, "d", "*", "", " serial zero-terminated ", " delimiters ", 0)
-  if (nm == "nl") return ff_opts(a, b, "bdfhilnsvw", "*", "", " no-renumber ", " body-numbering section-delimiter footer-numbering header-numbering line-increment join-blank-lines number-format number-separator starting-line-number number-width ", 0)
-  if (nm == "fold") return ff_opts(a, b, "w", "*", "", " bytes spaces ", " width ", 0)
-  if (nm == "rev") return ff_opts(a, b, "", "", "", "", "", 0)
-  if (nm == "column") return ff_opts(a, b, "cs", "tx", "", " table ", " separator columns ", 0)
-  if (nm == "expand" || nm == "unexpand") return ff_opts(a, b, "t", "*", "", " initial first-only all ", " tabs ", 0)
-  if (nm == "sed") return ff_sed(a, b)
-  if (nm ~ /^(awk|gawk|mawk|nawk)$/) return ff_awk(a, b)
-  if (nm == "xargs") return ff_xargs(a, b)
-  return 0
-}
-function ff_sed(a, b,    j, v, k, c, sc, got, nm, opn) {
-  sc = ""; got = 0; opn = 0
-  for (j = a; j <= b; j++) {
-    v = FFA[FFD, j]
-    if (opn || v == "-" || v !~ /^-/ || (FFAY[FFD, j] && FFAR[FFD, j] !~ /^-/)) {
-      if (!got) { if (FFAY[FFD, j]) return 0; sc = v; got = 1; continue }
-      if (v != "-" || FFAY[FFD, j]) return 0
-      continue }
-    if (v == "--") { opn = 1; continue }
-    if (v ~ /^--/) { nm = substr(v, 3); sub(/=.*/, "", nm)
-      if (nm == "expression") { if (index(v, "=")) v = substr(v, index(v, "=") + 1); else { j++; v = FFA[FFD, j]; if (FFAY[FFD, j]) return 0 }
-        sc = sc "\n" v; got = 1; continue }
-      if (index(" quiet silent regexp-extended null-data zero-terminated separate unbuffered posix debug sandbox line-length ", " " nm " ")) continue
-      return 0 }
-    for (k = 2; k <= length(v); k++) {
-      c = substr(v, k, 1)
-      if (c == "e" || c == "l") {
-        if (k < length(v)) v = substr(v, k + 1); else { j++; v = FFA[FFD, j]; if (FFAY[FFD, j]) return 0 }
-        if (c == "e") { sc = sc "\n" v; got = 1 }
-        break }
-      if (!index("nErsuz", c)) return 0
-    }
-  }
-  if (!got || sc ~ /[qQ][ \t]*[0-9]/) return 0
-  return 1
-}
-function ff_awk(a, b,    j, v, p, got) {
-  got = 0
-  for (j = a; j <= b; j++) {
-    v = FFA[FFD, j]
-    if (!got) {
-      if (v == "--") continue
-      if (v ~ /^-[Fv]/) { if (length(v) == 2) j++; continue }
-      if (v ~ /^-./) return 0
-      if (FFAY[FFD, j]) return 0
-      p = v; got = 1; continue }
-    if (v == "-" && !FFAY[FFD, j]) continue
-    if (FFAR[FFD, j] ~ /^[A-Za-z_][A-Za-z0-9_]*=/) continue
-    return 0
-  }
-  return got && ff_awkprog(p)
-}
-# Whether an awk program can only exit 0: no exit, no printf, and no division
-# or modulo, which is fatal on a zero. A slash after one of ( , { } ; ~ ! & | ? :
-# or at the start is a regex; anywhere else it is read as division.
-function ff_awkprog(p,    n, i, c, prev, t) {
-  n = length(p); prev = ""; t = ""
-  for (i = 1; i <= n; i++) {
-    c = substr(p, i, 1)
-    if (c == "\"") { for (i++; i <= n && substr(p, i, 1) != "\""; i++) if (substr(p, i, 1) == "\\") i++
-      if (i > n) return 0
-      t = t " S "; prev = "S"; continue }
-    if (c == "#") { while (i <= n && substr(p, i, 1) != "\n") i++; continue }
-    if (c == "/") {
-      if (prev != "" && !index("(,{};~!&|?:", prev)) return 0
-      for (i++; i <= n && substr(p, i, 1) != "/"; i++) if (substr(p, i, 1) == "\\") i++
-      if (i > n) return 0
-      t = t " R "; prev = "R"; continue }
-    if (c == "%") return 0
-    if (c != " " && c != "\t" && c != "\n") prev = c
-    t = t c
-  }
-  return t !~ /(^|[^A-Za-z0-9_])(exit|printf|sprintf)([^A-Za-z0-9_]|$)/
-}
-function ff_xargs(a, b,    j, v, k, c, sep, nm) {
-  sep = 0
-  for (j = a; j <= b; j++) {
-    v = FFA[FFD, j]
-    if (v == "--") { j++; break }
-    if (v !~ /^-/ || v == "-" || (FFAY[FFD, j] && FFAR[FFD, j] !~ /^-/)) break
-    if (v ~ /^--/) { nm = substr(v, 3); sub(/=.*/, "", nm)
-      if (nm == "null") { sep = 1; continue }
-      if (nm == "delimiter") { sep = 1; if (!index(v, "=")) j++; continue }
-      if (index(" no-run-if-empty verbose ", " " nm " ")) continue
-      if (index(" max-args max-procs max-chars max-lines replace eof ", " " nm " ")) { if (!index(v, "=")) j++; continue }
-      return 0 }
-    for (k = 2; k <= length(v); k++) {
-      c = substr(v, k, 1)
-      if (c == "0") { sep = 1; continue }
-      if (c == "r" || c == "t") continue
-      if (c == "d") { sep = 1; if (k == length(v)) j++; break }
-      if (index("nPsLIJRSE", c)) { if (k == length(v)) j++; break }
-      return 0
-    }
-  }
-  if (!sep) return 0
-  if (j > b) return 1
-  if (FFAY[FFD, j]) return 0
-  v = FFA[FFD, j]; sub(/.*\//, "", v)
-  return v == "echo" || v == "true"
-}
-# The final filter whose status the text can end on, or "".
-function ff_stage(s,    out) {
-  FFERR = 0; FFD = 0; FFFILT = ""
+# The final filter whose status the text can end on, when it cannot fail.
+function ff_stage(s,    out, nm) {
+  FFERR = 0; FFD = 0; FFNEST = 0; FFFILT = ""
   if (s ~ /[Pp][Ii][Pp][Ee]_?[Ff][Aa][Ii][Ll]/) return ""
-  out = ff_text(s)
-  if (FFERR || !match(out, / h:[^ ]+ /)) return ""
-  return substr(out, RSTART + 3, RLENGTH - 4)
+  out = ff_sub(ff_text(s, 0))
+  if (FFERR || out ~ / (n|g:[^ ]*) / || !match(out, / h:[^ ]+ /)) return ""
+  nm = substr(out, RSTART + 3, RLENGTH - 4)
+  return nm == "?" ? "the last stage" : nm
 }
 function ff_why(nm) {
-  return "can end on " nm "\047s status, and " nm " succeeds whatever it is fed, so it could not fail"
+  return "cannot fail: it can end in " nm ", which succeeds whatever it is fed, and no path through it ends in failure"
+}
+# The check setup.tsv runs, as `IFS=$(tab) read -r id title cap check` hands
+# it over: runs of tabs are one separator, and the rest of the line is check.
+function ff_rest(l, n,    k, p) {
+  sub(/^\t+/, "", l); sub(/\t+$/, "", l)
+  for (k = 0; k < n; k++) { p = index(l, "\t"); if (!p) return ""; l = substr(l, p); sub(/^\t+/, "", l) }
+  return l
+}
+# Whether a maintenance cadence makes its row an event row, as the runner
+# reads it: empty, or a whole number that is zero.
+function ff_event(c) { return c == "" || (c ~ /^[ \t]*[-+]?[0-9]+[ \t]*$/ && c + 0 == 0) }
+# Why a table row is refused, or "". The one place that says which column of
+# which table is judged.
+function ff_row(tb, line,    F, n, c, who, s) {
+  n = split(line, F, "\t"); c = ""; who = "check "
+  if (tb == "commissioning.tsv") { if (n == 7 && F[5] !~ /^provider:/) c = F[6] }
+  else if (tb == "obligations.tsv") { if (n >= 5) c = F[5]; who = "the evidence contract " }
+  else if (tb == "setup.tsv") c = ff_rest(line, 3)
+  else if (tb == "maintenance.tsv") { if (n >= 5 && ff_event(F[2])) c = F[5] }
+  if (c == "" || c == "-") return ""
+  s = ff_stage(c)
+  return s == "" ? "" : who ff_why(s)
 }
 '
 
-# The final filter TEXT's status can be, printed, with exit 0; exit 1 and
-# nothing printed when there is none, or when this cannot tell.
+# The final filter TEXT can only end on, printed, with exit 0, when TEXT
+# cannot fail; exit 1 and nothing printed otherwise, or when this cannot tell.
 felix_final_filter() {
   local out
   out="$(FELIX_FF_TEXT="${1:-}" LC_ALL=C awk "$FELIX_FINAL_FILTER_AWK"'
     BEGIN { s = ff_stage(ENVIRON["FELIX_FF_TEXT"]); if (s != "") print s }' </dev/null 2>/dev/null)"
   [ -n "$out" ] || return 1
   printf '%s\n' "$out"
+}
+
+# Every row of a table file whose judged command cannot fail: line <TAB> why.
+# The table is named by the file's basename, as ff_row reads it. Exit 2, with
+# nothing printed, when the file cannot be judged.
+felix_final_filter_table() {
+  local f="$1" out
+  [ -f "$f" ] && [ -r "$f" ] || return 2
+  out="$(LC_ALL=C awk -v tb="${f##*/}" "$FELIX_FINAL_FILTER_AWK"'
+    /^[[:space:]]*(#|$)/ { next }
+    { w = ff_row(tb, $0); if (w != "") print NR "\t" w }' "$f" 2>/dev/null)" || return 2
+  [ -z "$out" ] || printf '%s\n' "$out"
+}
+
+# Each line of a table read from standard input, led by `-` or by the reason
+# its row is refused, so a runner judges its table in one awk pass. When that
+# pass fails, every line is led by that fact instead: a runner that could not
+# judge a check must not run it as if it had.
+felix_final_filter_lead() {   # table basename
+  local rows out
+  rows="$(cat)"
+  [ -n "$rows" ] || return 0
+  if out="$(printf '%s\n' "$rows" | LC_ALL=C awk -v tb="$1" "$FELIX_FINAL_FILTER_AWK"'
+      { w = ff_row(tb, $0); print (w == "" ? "-" : w) "\t" $0 }' 2>/dev/null)" && [ -n "$out" ]; then
+    printf '%s\n' "$out"
+  else
+    printf '%s\n' "$rows" | while IFS= read -r l; do
+      printf 'check could not be judged: the final-filter reader failed on %s\t%s\n' "$1" "$l"
+    done
+  fi
 }

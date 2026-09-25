@@ -85,22 +85,20 @@ felix_maint_unreachable() {
 if ! command -v _felix_cap_active >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/stack.sh"
 fi
-[ -n "${FELIX_FINAL_FILTER_AWK:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
+command -v felix_final_filter_lead >/dev/null 2>&1 \
+  || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
 
-# Each row as five cells, and a sixth: `-`, or the final filter an event row's
-# check can end on. A check only runs on an event row, so only there is it
-# judged.
+# Each row as five cells, and a sixth: `-`, or why its check is refused. A
+# check only runs on an event row, so only there is it judged (final-filter.sh
+# reads the cadence as the runner below does).
 _felix_maint_judged() {
-  _felix_maint_rows "$1" | LC_ALL=C awk -F'\t' "$FELIX_FINAL_FILTER_AWK"'
-    { c = (NF >= 5 ? $5 : "-"); ff = ""
-      if (c != "" && c != "-" && $2 ~ /^[0-9]*$/ && $2 + 0 == 0) ff = ff_stage(c)
-      printf "%s\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, c, (ff == "" ? "-" : ff) }'
+  _felix_maint_rows "$1" | felix_final_filter_lead maintenance.tsv \
+    | awk -F'\t' '{ printf "%s\t%s\t%s\t%s\t%s\t%s\n", $2, $3, $4, $5, (NF >= 6 ? $6 : "-"), $1 }'
 }
 
-# name <TAB> why, for every event row whose check could not fail.
+# name <TAB> why, for every row whose check is refused.
 felix_maint_malformed() {
-  _felix_maint_judged "$1" | LC_ALL=C awk -F'\t' "$FELIX_FINAL_FILTER_AWK"'
-    $6 != "-" && $1 != "" { print $1 "\tcheck " ff_why($6) }'
+  _felix_maint_judged "$1" | awk -F'\t' '$6 != "-" && $1 != "" { print $1 "\t" $6 }'
   return 0
 }
 
@@ -131,7 +129,7 @@ felix_maint_malformed() {
 # words, and a reader that cannot use `unchecked` at least cannot mistake it
 # for a row that answered.
 #
-# A check whose status can be a final filter's (final-filter.sh) is the same
+# A check a final filter makes unable to fail (final-filter.sh) is the same
 # lesson again: the `bash -c` runs it without pipefail, so it reads `ok`
 # whatever it asked and the row is never due. It is not run. The row reads
 # `due` with `refused` where the reason goes, because `due` is the one word the
@@ -142,7 +140,7 @@ felix_maint_status() {
   # is an IFS whitespace character and an empty cell shifts every later column
   # left. Rows written before this column existed have four fields and must
   # keep working, so the fifth is filled with `-` when absent. The sixth is `-`
-  # or the final filter the check can end on.
+  # or why the check is refused.
   _felix_maint_judged "$proj" | while IFS= read -r line; do
     local name cadence cap desc check ff
     name="$(printf '%s\n' "$line" | cut -f1)"

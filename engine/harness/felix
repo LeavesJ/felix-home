@@ -3344,11 +3344,11 @@ cmd_setup() {
     esac
   done
 
-  # A step whose check could not fail is listed as todo above, not done, and
-  # here is why: the row needs a check that can say no.
+  # A step whose check could not fail is never run, so it is not listed as
+  # done above, and here is why: the row needs a check that can say no.
   local bad; bad="$(felix_setup_malformed "$proj")"
   if [ -n "$bad" ]; then
-    printf '\nChecks refused, so these steps read todo until %s/setup.tsv is fixed:\n\n' "$proj"
+    printf '\nChecks refused in %s/setup.tsv, and never run, so no step reads done by one:\n\n' "$proj"
     printf '%s\n' "$bad" | while IFS=$'\t' read -r id why; do
       [ -n "${id:-}" ] && printf '  %-22s %s\n' "$id" "$why"
     done

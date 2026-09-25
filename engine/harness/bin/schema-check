@@ -8,8 +8,9 @@
 #
 #   exit 0  every table here has a schema row and lib/table.sh accepts it
 #   exit 1  a *.tsv no row declares, a refused row or file, an empty table
-#           whose row says emptiness is refused, a memory store sitting in the
-#           tree, a table that cannot be examined, or a malformed row in
+#           whose row says emptiness is refused, a row whose check a final
+#           filter leaves unable to fail, a memory store sitting in the tree,
+#           a table that cannot be examined, or a malformed row in
 #           schemas.tsv itself
 #   exit 2  cannot examine: not a git worktree, no readable schemas.tsv, or no
 #           table at all. Never read as clean.
@@ -34,6 +35,14 @@
 # there and the table with it passes here, and stops at the merge boundary:
 # schemas.tsv is in FELIX_ESCAPE_TABLES, and removing or changing a row of it
 # fires `verifier`. The code that judges is this engine's lib/table.sh.
+#
+# A row of commissioning, obligations, setup or maintenance whose check could
+# only succeed, because a final filter ends it, is refused here too, by the
+# same reading its runner makes (lib/final-filter.sh). Commissioning and
+# obligations refuse such a row themselves. Setup and maintenance only decline
+# to run it, a todo or a due that nothing else fails on, and a row in a
+# project nobody has gated yet is refused by nothing. Here it stops at the
+# pull request that writes it.
 set -u
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 ROOT="${1:-}"
@@ -51,6 +60,8 @@ SCHEMAS="engine/harness/templates/schemas.tsv"
 
 # shellcheck source=../lib/table.sh
 . "$HERE/lib/table.sh"
+# shellcheck source=../lib/final-filter.sh
+. "$HERE/lib/final-filter.sh"
 
 # name <TAB> lives, one per schema row.
 DECLARED="$(felix_table_rows "$SCHEMAS" | cut -f1,2)"
@@ -104,6 +115,18 @@ while IFS= read -r entry; do
     0) ;;
     1) add "$res" ;;
     *) add "$(printf '%s:-\tunexaminable\t%s' "$f" "$(printf '%s' "$res" | cut -f3 | head -1)")" ;;
+  esac
+  case "${f##*/}" in
+    commissioning.tsv|obligations.tsv|setup.tsv|maintenance.tsv)
+      if res="$(felix_final_filter_table "$f")"; then
+        while IFS=$'\t' read -r ln why; do
+          [ -n "$ln" ] && add "$(printf '%s:%s\tunfailable\t%s' "$f" "$ln" "$why")"
+        done <<EOF2
+$res
+EOF2
+      else
+        add "$(printf '%s:-\tunexaminable\tits commands could not be read for a final filter' "$f")"
+      fi ;;
   esac
 done <<EOF
 $TABLES

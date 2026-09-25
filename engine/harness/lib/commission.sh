@@ -36,7 +36,8 @@ for _cml in resolve detect stack probes verify; do
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/$_cml.sh"
 done
 unset _cml
-[ -n "${FELIX_FINAL_FILTER_AWK:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
+command -v felix_final_filter_lead >/dev/null 2>&1 \
+  || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
 
 # The table set a receipt is bound to, in fixed order. Every file that decides
 # what this project reads, refuses, or installs.
@@ -61,26 +62,24 @@ _felix_commission_answer_ok() {
 }
 
 # A check that cannot fail is not a check. A negated pipeline reads met when
-# its producer dies. And a check whose status can be a final filter's, which
-# succeeds whatever came before it, cannot fail: the second argument is that
-# filter, or `-`, from final-filter.sh's reading of the whole text. It used to
-# be text patterns for `| head`, which refused a head inside `$( )` or
-# mid-pipeline, where the check can still fail, and let every other filter by.
-# Prints why a check is refused, and returns 1 then.
+# its producer dies. And a final filter, which succeeds whatever came before
+# it, can leave a check unable to fail: the second argument is why
+# final-filter.sh refused the row, or `-`. It used to be text patterns for
+# `| head`, which refused a head inside `$( )` or mid-pipeline, where the check
+# can still fail, and let every other filter by. Prints why a check is
+# refused, and returns 1 then.
 _felix_commission_check_ok() {
   local c="${1:-}" ff="${2:--}"
   [ -n "$c" ] || { printf 'check is empty, so it could not fail'; return 1; }
   case "$c" in '!'*) printf 'check is negated, so it reads met when its producer dies'; return 1 ;; esac
-  [ "$ff" = "-" ] || { printf 'check %s' "$ff"; return 1; }
+  [ "$ff" = "-" ] || { printf '%s' "$ff"; return 1; }
   return 0
 }
 
 # Each commissioning line, led by `-` or the sentence refusing its check, so
 # the classifier runs once over the table and not once per row.
 _felix_commission_judged() {
-  _felix_commission_lines "$1" | LC_ALL=C awk -F'\t' "$FELIX_FINAL_FILTER_AWK"'
-    { ff = (NF == 7 && $5 !~ /^provider:/) ? ff_stage($6) : ""
-      print (ff == "" ? "-" : ff_why(ff)) "\t" $0 }'
+  _felix_commission_lines "$1" | felix_final_filter_lead commissioning.tsv
 }
 
 _felix_commission_step_ok() {
@@ -269,8 +268,9 @@ felix_commission_resume_bg() {
 # defining or sourcing an engine function. nounset stays, so a mistyped
 # variable holds a check rather than passing it. What follows, as in a probe, is
 # that a pipeline's status is its last stage's, so a check ending in a stage
-# that succeeds whatever it is fed (`| tail`) cannot fail; the template says so,
-# and _felix_commission_check_ok refuses one (final-filter.sh).
+# that succeeds whatever it is fed (`| tail`) cannot fail unless something
+# before it can; the template says so, and _felix_commission_check_ok refuses
+# one that cannot (final-filter.sh).
 felix_commission_ask() {
   local root="$1" expr="$2" rc
   [ -n "$expr" ] && [ "$expr" != "-" ] || return 2

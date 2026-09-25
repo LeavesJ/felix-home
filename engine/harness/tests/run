@@ -19542,6 +19542,9 @@ _red_abbr() { case "$1" in "$2"*) [ "${#2}" -ge 7 ] && echo yes ;; esac; }
 # a suite that stops short of its end. The base, the stale claim and the red
 # under test are still the ones _red_seed committed.
 _red_cut() { { printf '#!/usr/bin/env bash\n'; cat; } > "$1/engine/harness/tests/run"; chmod +x "$1/engine/harness/tests/run"; }
+# stdout whole: how many lines it holds, a bar, then what they say, so a
+# trailing line that $(cat) would strip is still counted.
+_red_said() { printf '%s|%s' "$(awk 'END{print NR}' "$RED/out")" "$(cat "$RED/out")"; }
 if [ -x "$FROOT/harness/tests/red" ]; then
   _red_seed "$RED/repo" main 0.0.7; _red_dirty "$RED/repo" skips
   RSHA="$(cd "$RED/repo" && git rev-parse main)"
@@ -19625,7 +19628,7 @@ EOF
   _red "$RED/dead" engine/harness/tests/red
   is  "a suite killed before it printed reached is not a red run, exit 2" "$(_red_rc)" "2"
   is  "and stdout is the one line naming main, the kill's exit 137 and the four assertions it reached" \
-      "$(cat "$RED/out")" "red: not run: the suite against main did not finish (exit 137 after 4 assertions)"
+      "$(_red_said)" "1|red: not run: the suite against main did not finish (exit 137 after 4 assertions)"
   is  "and red.tsv holds only the two rows saying no red run was made, the stale claim retracted" \
       "$(_red_body "$RED/dead")" "$(printf 'base\t-\t-\t-\nrun\t-\t-\t-')"
   is  "and that exit 2 leaves no temporary directory behind either" \
@@ -19644,12 +19647,12 @@ EOF
   is  "and red.tsv again holds only the two rows saying no red run was made" \
       "$(_red_body "$RED/early")" "$(printf 'base\t-\t-\t-\nrun\t-\t-\t-')"
   # The marker is a whole line. An assertion whose name holds the word, as the
-  # suite's own manifest line does, or the word with anything around it, is
-  # not the marker. This one then ends on SIGTERM.
+  # suite's own manifest line does, the word with anything around it, or the
+  # word alone in another case, is not the marker. This one then ends on SIGTERM.
   _red_seed "$RED/word" main 0.0.7
   _red_cut "$RED/word" <<'EOF'
 printf '  ok    every assertion in the manifest was reached\n  FAIL  the end is reached\n'
-printf 'reached: 2 of 3\n  reached\nreached \nunreached\n'
+printf 'reached: 2 of 3\n  reached\nreached \nunreached\nReached\nREACHED\n'
 kill -TERM $$
 EOF
   _red "$RED/word" engine/harness/tests/red
@@ -19679,6 +19682,69 @@ EOF
   is  "a suite that prints reached having run no assertion is still refused, exit 2" "$(_red_rc)" "2"
   is  "and it is refused as empty, not as unfinished" \
       "$(grep -c '^red: not run: ' "$RED/out") $(grep -c 'did not finish' "$RED/out")" "1 0"
+  # A suite that stops with exit 1 before reached ends as a finished red run
+  # does, failures behind it and a totals line after them, so only the missing
+  # line tells the two apart.
+  _red_seed "$RED/one" main 0.0.7
+  _red_cut "$RED/one" <<'EOF'
+printf 'marker suite\n\n  ok    one\n  FAIL  two\n        expected [a] got [b]\n  ok    three\n\n2 passed, 1 failed\n'
+exit 1
+EOF
+  _red "$RED/one" engine/harness/tests/red
+  is  "a suite that exits 1 without reached, as a finished red run exits, is refused, exit 2" "$(_red_rc)" "2"
+  is  "and its reason names exit 1 and the three assertions it printed, the failure among them, on one line" \
+      "$(_red_said)" "1|red: not run: the suite against main did not finish (exit 1 after 3 assertions)"
+  is  "and red.tsv holds the two rows saying no red run was made, not the failure it printed" \
+      "$(_red_body "$RED/one")" "$(printf 'base\t-\t-\t-\nrun\t-\t-\t-')"
+  # The other way round: a suite killed after it printed reached, in its
+  # manifest step or its totals, did reach its end, and its record stands
+  # whatever the exit status says.
+  _red_seed "$RED/late" main 0.0.7
+  _red_cut "$RED/late" <<'EOF'
+printf 'marker suite\n\n  ok    one\n  FAIL  two\n  skip  three (no cli)\n\nreached\n'
+kill -9 $$
+EOF
+  LSHA="$(cd "$RED/late" && git rev-parse main)"
+  _red "$RED/late" engine/harness/tests/red
+  is  "a suite killed after it printed reached is still a red run, exit 0" "$(_red_rc)" "0"
+  is  "and its record counts one failed, one passed and one skipped, the failed name below" \
+      "$(_red_body "$RED/late")" "$(printf 'base\tmain\t%s\t0.0.7\nrun\t1\t1\t1\ntwo\t1' "$LSHA")"
+  # Reached is the end only when no assertion follows it. A child that wrote
+  # the word to stderr early, which the log shares with stdout, and a suite
+  # that printed it and then went on, are both refused when they die.
+  _red_seed "$RED/stray" main 0.0.7
+  _red_cut "$RED/stray" <<'EOF'
+printf 'marker suite\n\n'
+sh -c 'echo reached >&2'
+printf '  ok    one\n  ok    two\n  FAIL  three\n'
+kill -9 $$
+EOF
+  _red "$RED/stray" engine/harness/tests/red
+  is  "a reached line a child wrote to stderr early does not make a suite killed after it a red run, exit 2" "$(_red_rc)" "2"
+  is  "and its reason counts the three assertions printed after that stray line" \
+      "$(_red_said)" "1|red: not run: the suite against main did not finish (exit 137 after 3 assertions)"
+  is  "and red.tsv holds the two rows saying no red run was made, the stray reached notwithstanding" \
+      "$(_red_body "$RED/stray")" "$(printf 'base\t-\t-\t-\nrun\t-\t-\t-')"
+  _red_seed "$RED/past" main 0.0.7
+  _red_cut "$RED/past" <<'EOF'
+printf 'marker suite\n\n  ok    one\n\nreached\n  FAIL  two\n'
+kill -9 $$
+EOF
+  _red "$RED/past" engine/harness/tests/red
+  is  "a suite that printed an assertion after reached and was killed is refused, exit 2" "$(_red_rc)" "2"
+  is  "and its reason counts both assertions, the one after reached among them" \
+      "$(_red_said)" "1|red: not run: the suite against main did not finish (exit 137 after 2 assertions)"
+  is  "and red.tsv holds the two rows saying no red run was made for the suite that went on past reached" \
+      "$(_red_body "$RED/past")" "$(printf 'base\t-\t-\t-\nrun\t-\t-\t-')"
+  # The line these cases stand for is this suite's own, printed after its
+  # last section. The fixtures' copies of it sit earlier in this file, so
+  # deleting or rewording the real one fails here rather than in a red run.
+  _red_own="$(_RM="printf '\\nreached\\n'" _RS="printf '\\nthe record this branch carries\\n'" awk '
+    $0 == ENVIRON["_RS"] { s = NR }
+    $0 == ENVIRON["_RM"] { m = NR }
+    END { r = (s && m > s) ? "after" : "not after"; print r }' "$HERE/run")"
+  is  "the suite's own completion marker, the reached line tests/red requires, still follows its last section" \
+      "$_red_own" "after"
 else
   for a in "a red run against main exits 0 once the suite has run" "and stdout is the one summary line" \
            "and the summary counts three of six assertions failing against main at the engine version main declares" \
@@ -19711,7 +19777,19 @@ else
            "and red.tsv holds the two rows saying no red run was made for it as well" \
            "a suite killed before its first assertion is refused as unfinished, not as empty" \
            "a suite that prints reached having run no assertion is still refused, exit 2" \
-           "and it is refused as empty, not as unfinished"; do
+           "and it is refused as empty, not as unfinished" \
+           "a suite that exits 1 without reached, as a finished red run exits, is refused, exit 2" \
+           "and its reason names exit 1 and the three assertions it printed, the failure among them, on one line" \
+           "and red.tsv holds the two rows saying no red run was made, not the failure it printed" \
+           "a suite killed after it printed reached is still a red run, exit 0" \
+           "and its record counts one failed, one passed and one skipped, the failed name below" \
+           "a reached line a child wrote to stderr early does not make a suite killed after it a red run, exit 2" \
+           "and its reason counts the three assertions printed after that stray line" \
+           "and red.tsv holds the two rows saying no red run was made, the stray reached notwithstanding" \
+           "a suite that printed an assertion after reached and was killed is refused, exit 2" \
+           "and its reason counts both assertions, the one after reached among them" \
+           "and red.tsv holds the two rows saying no red run was made for the suite that went on past reached" \
+           "the suite's own completion marker, the reached line tests/red requires, still follows its last section"; do
     skip "$a" "no tests/red beside this harness"; done
 fi
 
@@ -24148,6 +24226,10 @@ else
   fi
 fi
 
+# The suite's proof that it reached its end: tests/red requires exactly this
+# line, "reached" after an empty one, and refuses a red run without it, since a
+# finished red run exits 1 as a dead one can (#371). Changing it means
+# changing tests/red.
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.
 #

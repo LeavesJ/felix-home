@@ -80,7 +80,7 @@
 1	a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version
 1	a branch that does not hold origin/main's commit is behind, status 0, naming the base and both commits, or a stale branch would land unannounced
 1	a branch that only adds a pending section reads clean
-1	a branch that owes rows and is not behind adds exactly one would-refuse row, or the debt would leave no record
+1	a branch that owes rows and is not behind adds exactly one row, a would-refuse row and nothing of another kind, or the debt would leave no record or move another count
 1	a branch the gate has not run on has no latest run
 1	a branch whose engine differs from the deployed one reads installed ok
 1	a broad but legitimate rule still denies
@@ -667,6 +667,8 @@
 1	a rerun row whose command is the dash is refused as arg, or the actor would settle the path by running nothing
 1	a resolve.sh committed on the branch being gated does not change the verdict
 1	a resolve.sh stubbed in the cache entry is drift, not the judge
+1	a resolver above a session row on the same path is refused as narrowed and the session row stands, or a row placed first would take a path back from a session
+1	a resolver on a path a founder row's ERE matches is refused as narrowed, while one on a path it does not match stands, or a literal row could carve a path out of the founder's
 1	a resolver path that is an ERE, absolute, dot-dot, dash-led, slash-ended, double-slashed or the dash itself is refused as path, or it would bind a path no change can equal
 1	a resume appends one lifecycle row of kind resume, and the hook prints nothing at all and exits 0
 1	a resume on a broken binding stays as silent as before it was bound
@@ -704,7 +706,7 @@
 1	a row switched off by its when column is reported as not applying
 1	a row that does not apply here claims nothing
 1	a row that exists only on the branch or only in the working tree is never owed, or a pull request could invent a debt the base does not hold
-1	a row the schema refuses at the base is reported in the owed row by its line and reason, or a broken table would pass for a clean one
+1	a row the schema refuses at the base is reported on a land-table row of its own, by line and reason, and in no owed row, or a broken table would pass for a clean one or read as a debt
 1	a row too short to run anything is reported, not skipped
 1	a row whose trigger is - is never owed, not even when a file named - changes and its path is untouched, or the dash would read as a path
 1	a row wider than the schema is refused
@@ -1016,6 +1018,7 @@
 1	an empty stamp is not a distance of zero
 1	an empty table fails the gate
 1	an empty tier refuses
+1	an engine change left unstaged owes both rows, or a landing that commits it later would never have been told
 1	an engine function the check names that is not loaded is unknown
 1	an engine holding nothing it recognises is emptiness, not an all clear
 1	an engine shipped without the probe library blocks rather than passing
@@ -1174,6 +1177,7 @@
 1	and a checkout whose HEAD holds no commit cannot be told either, status 2, or a fresh branch would read as current
 1	and a checkout with no default branch of its own falls back to main
 1	and a clean table leaves the gate green
+1	and a comma added to an ecosystem.tsv row escapes as verifier too, since every exemption table is compared as its reader reads it
 1	and a command file piping to a shell is medium
 1	and a command that does not resolve identifies none either
 1	and a declared control is not reported missing
@@ -1458,7 +1462,7 @@
 1	and is refused too
 1	and is silent when there is none
 1	and is still not work Felix owes
-1	and it adds exactly one would-refuse row to that project's says.log, or the behind branch would leave no record
+1	and it adds exactly one row to that project's says.log, a would-refuse row and nothing of another kind, or the behind branch would leave no record or move another count
 1	and it asks graphify to update the checkout that holds the graph
 1	and it does not repeat within a session
 1	and it fails closed the same way with the escape list or the execute list blanked, or with the lister gone
@@ -1917,6 +1921,7 @@
 1	and so is the other one
 1	and so is what eval is handed
 1	and stack.sh alone can too
+1	and staged, it owes both rows still, or the index would hide a debt the working tree showed
 1	and staging the test closes the gap — the case that started this
 1	and stale is one line as well
 1	and stale returns non-zero
@@ -2084,7 +2089,8 @@
 1	and the one it cannot attribute is not folded either
 1	and the other three are still there beside it
 1	and the output names the version nothing is installed at
-1	and the owed row, or land-table.sh does not bring the table reader into the judge's shell
+1	and the owed row names the version and the record, which main changed and the branch did not, or a behind branch would read as having paid them
+1	and the owed row, or land-table.sh cannot read the table in the judge's shell
 1	and the page has a panel for it
 1	and the page shows every session's night, not only the reader's
 1	and the partly-countable list takes the mixed one
@@ -2206,10 +2212,12 @@
 1	and whether git tracks it
 1	and which stand alone
 1	and with CLAUDE_CONFIG_DIR unset, HOME/.claude/projects
+1	and with FELIX_TABLE_SKIP exported as a pattern every line matches, the judge's owed row is the same, or a session could empty the table the judge reads
 1	and with a fact moved as well, no epoch is still the reason given
 1	and with a real file in it, it is drift
 1	and with both gone the tree is clean again
 1	and with commands absent from both sides again it matches
+1	and with felix_land_rows and felix_say exported by the session as functions that do nothing, the judge still writes both rows, or a session could stand in for the library
 1	and with it, the same call lifts
 1	and with no commit to give, at the placeholder, quoted so YAML reads a string
 1	and with no deployment to compare against the evidence cannot examine
@@ -2239,6 +2247,7 @@
 1	any trigger on a session or founder row is refused as trigger, or a path the actor may never write could be owed
 1	anything shipping hooks is high
 1	appended after what was there
+1	appending a comma to a founder row's last cell escapes as verifier, or the reader would drop that founder row with nobody asked
 1	applicability follows the grounded state: absent, dormant
 1	apply without --yes changes nothing
 1	applying declares appends one row per new declare
@@ -2586,7 +2595,7 @@
 1	felix_land_would_refuse on a behind branch prints nothing on stdout or stderr and returns 0, or it could not sit inside the merge boundary unseen
 1	felix_ledger_retire is defined for the hook
 1	felix_merge_blockers emits exactly the kinds cmd_merge places
-1	felix_merge_blockers on a behind and owing branch writes both would-refuse rows on a real attempt and none on a dry run, or the boundary never reports them
+1	felix_merge_blockers on a behind and owing branch writes both would-refuse rows and no row of another kind on a real attempt, and nothing on a dry run, or the boundary never reports them or reports more than them
 1	felix_qualify_ungoverned keeps every reported checker and drops every sub-line
 1	felix_tidy_safe is defined for the hook
 1	field 7 is the epoch the receipt was stamped under
@@ -2644,6 +2653,7 @@
 1	identical deploys are clean before any stray lands
 1	ignores a file that does not exist
 1	in a repository with no main and no origin, --applies does not hold even with a cache
+1	in the judge's shell a dry run and an unset variable write no row, and a real attempt writes two, each exiting 0, or a self-governed dry run would write the report
 1	in words
 1	inapplicable controls do not refuse the gate while every checker is shown failing
 1	including fields after it
@@ -2763,6 +2773,7 @@
 1	naming the row
 1	naming the scanner nobody listed
 1	naming the table and the missing row
+1	naming the table's line and the rule it breaks
 1	naming which check failed
 1	neither the help nor the audit says --no-commission governs with nothing installed; both name felix install
 1	never is exactly 3: no check at any point in the session before the stop
@@ -2965,6 +2976,7 @@
 1	renders a page
 1	repair exits 4 in a checkout no project governs, not the ceiling's 2
 1	repair refuses outside a governed GitHub repo
+1	repeating a row exactly escapes as verifier, or a line the reader refuses as a duplicate would arrive unseen
 1	repointing a symlink at a different target changes the digest
 1	reporting a rival gate still exits 0
 1	reports a tool no manifest declares
@@ -3005,6 +3017,7 @@
 1	says so plainly when nothing matches
 1	says something to the founder, not only the model
 1	says what was skipped at the finish
+1	schema-check passes a tree whose land table holds felix-home's seven rows, and fails one whose resolver row binds risk.tsv, or a row the reader refuses would merge green
 1	schemas.tsv declares land.tsv a tree table of path, kind, trigger and arg that may be empty, or every land.tsv would be an undeclared table
 1	scoped: .. after a directory that does not exist yet
 1	scoped: .. climbing out of scratch into the checkout
@@ -3206,6 +3219,7 @@
 1	supabase's shape, a remote server two directories down with no variable, is medium
 1	survives a machine laid out differently
 1	survives a transcript that is not there
+1	swapping two rows that bind the same path escapes as verifier, or which of them stands could change with nobody asked
 1	tasks sharing a file are one unit
 1	text piped into a shell is its script
 1	that names the command
@@ -3491,6 +3505,7 @@
 1	the unattended repair proceeds on a brief, and on no other exit of felix repair
 1	the unattended template checks Felix out at a pinned ref, not the default branch
 1	the unborn fixture has no HEAD commit while origin/main resolves
+1	the uncommitted-change fixture's HEAD is origin/main's commit, and x.sh differs only in the working tree
 1	the unmeasurable list takes the hook-only zero
 1	the unverified tree blocker is work Felix owes
 1	the watching git was asked
@@ -3574,6 +3589,7 @@
 1	when the live engine is not main's, the ok says which one is live
 1	which does not by itself fail the gate, since not applying is not a claim
 1	which is the number it printed
+1	which lines are rows does not follow a FELIX_TABLE_SKIP the session exported, or the environment would choose the rows the judge reads
 1	which takes it back to nothing stranded
 1	which the validator accepts
 1	while --status reads straight through it
@@ -3589,6 +3605,7 @@
 1	while a row pairing each control with its own verdict is not
 1	while a short one scores on nothing
 1	while a tool that ran keeps its calls
+1	while a two-dot diff against origin/main also names plugin.json and red.tsv, which main's own landing changed
 1	while an ERE on a founder row is accepted and printed as written, backslash included, or the design's own founder row would be lost
 1	while an applicable control runs both, so that absence is measured
 1	while an owner-reduced play entry still names its plugin
@@ -3620,6 +3637,7 @@
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused
 1	wiring the same tool twice is refused
+1	with FELIX_MERGE_DRY_RUN unset it adds no row, and with it 0 it adds one, or an older CLI's dry run would write the report
 1	with SUB, the manifest under DIR/SUB is read, its paths relative to SUB
 1	with a fact and a table both moved, the fact is named first
 1	with both refs present origin/main is the default base

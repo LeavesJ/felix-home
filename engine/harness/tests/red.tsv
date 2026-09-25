@@ -4,5 +4,23 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	27d61d704c4d762c68dbcecc3783173d62dc1726	27d61d704c4d762c68dbcecc3783173d62dc1726	0.49.212
-run	0	3546	5
+base	c447a3eb38a2aefd82642ba7b6c7015731cecfdf	c447a3eb38a2aefd82642ba7b6c7015731cecfdf	0.49.219
+run	18	3628	5
+and a clobbering redirect, which the old row let through	1
+and a redirect with another line after it, which the old row let through	1
+and a write with another line after it, which the old row let through	1
+and dd with its of= after another operand, which the old row let through	1
+and git add -A with another line after it, which the old row let through	1
+and running it on a tab-indented later line, which the old row let through	1
+no shipped table refuses grep -rln over the marker, whose ln is a flag	1
+nor a > inside a quoted log format	1
+nor a find whose 2>/dev/null comes before its -name .felix	1
+nor an ls whose 2>/dev/null comes before the pointer it lists	1
+nor cp reading the marker into a backup	1
+nor dd reading the marker	1
+nor git add -A --dry-run	1
+nor git add -n -A, which stages nothing	1
+nor grep -ln over the pointer	1
+nor listing scripts/gate.sh, which runs nothing	1
+nor tee copying the marker it reads on stdin	1
+nor the read the engine resolves its home with, whose 2>/dev/null writes no pointer	1

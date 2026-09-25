@@ -10593,6 +10593,149 @@ else
            "grounded on a probe felix declares"; do skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
 fi
 
+# ------------------------------------- obligations name what discharges them ---
+# Roadmap Phase 1, first item. An optional eighth column, `needs`, names the
+# checker ids in qualification.tsv that would discharge a row, and each
+# resolves as complete (a row for every control), short (declared, some
+# missing, named) or absent (no checker by that id). Report only. So the
+# controls here hold on the engine before the column existed as much as after
+# it: a seven-column row is still a row, and discharge and blocking do not
+# move whatever a need resolves to. Fresh fixture dirs, as for the asks above.
+printf '\nobligations: what would discharge each, by name\n'
+NDP="$TMP/needs-proj"; NDR="$TMP/needs-repo"; mkdir -p "$NDP" "$NDR" "$MEM/needs-proj"
+( cd "$NDR" && git init -q -b main && printf 'x\n' > x && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm x ) >/dev/null 2>&1
+NDR="$(cd "$NDR" && pwd -P)"
+printf 'thing\t-\t-\tls -1 x\ttest -f x\n' > "$NDP/probes.tsv"
+# One checker with a row for every control, one with a violation only, and one
+# whose only row is malformed. Nothing here runs them: resolution reads what
+# the table declares and qualifies nothing.
+: > "$NDP/qualification.tsv"
+for _c in violation:fail restoration:pass irrelevant:pass alternate:fail \
+          decoupled_violation:fail decoupled_satisfaction:pass; do
+  printf 'whole\ttrue\t%s\t%s\ttrue\n' "${_c%%:*}" "${_c##*:}" >> "$NDP/qualification.tsv"
+done
+printf 'part\ttrue\tviolation\tfail\ttrue\n'   >> "$NDP/qualification.tsv"
+printf 'broken\ttrue\tviolation\tpass\ttrue\n' >> "$NDP/qualification.tsv"
+_nd()      { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
+               . "$FROOT/harness/lib/obligations.sh"; "$@" ) 2>/dev/null; }
+_ndrun()   { _nd felix_obligations_run "$NDP" "$NDR"; }
+_ndneeds() { _nd felix_obligations_needs "$NDP"; }
+_ndblk()   { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+               . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/evidence.sh"
+               . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/probes.sh"
+               . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
+               felix_merge_blockers "$NDP" "" "$NDR" "$FROOT" ) 2>/dev/null | grep '^obligations'; }
+_ndrow()   {   # evidence [needs]
+  if [ $# -ge 2 ]; then printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\t%s\tthing\towed\t%s\n' "$1" "$2"
+  else                  printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\t%s\tthing\towed\n' "$1"; fi > "$NDP/obligations.tsv"; }
+_ndtc()    { ( . "$FROOT/harness/lib/table.sh" 2>/dev/null
+               felix_table_check "$FROOT/harness/templates/schemas.tsv" "$NDP/obligations.tsv" >/dev/null 2>&1; echo $? ); }
+
+# Controls: the seven-column row, and discharge, exactly as before.
+_ndrow true
+is  "needs: a seven-column row is still a row"                  "$(_nd felix_obligation_rows "$NDP" | grep -c .)" "1"
+is  "and nothing about it is refused"                           "$(_nd felix_obligation_malformed "$NDP")" ""
+is  "and the schema check accepts it"                           "$(_ndtc)" "0"
+_nd7="$(_ndrun)"
+is  "and it is evaluated on its axes as before"                 "$(printf '%s\n' "$_nd7" | cut -f4,5)" "ACTIVE	SATISFIED"
+is  "a seven-column row names nothing that would discharge it"  "$(_ndneeds)" "a	-	none	-"
+_ndrow true gone
+is  "an eighth column of well-formed ids is not refused"        "$(_nd felix_obligation_malformed "$NDP")" ""
+is  "and discharge does not move: the row reads as it did without one" "$(_ndrun)" "$_nd7"
+is  "the schema check accepts the eighth column as needs"       "$(_ndtc)" "0"
+_ndrow false gone
+has "a failing row that names an absent capability blocks a release as before" \
+    "$(_ndblk)" "obligations	a	ACTIVE UNSATISFIED"
+_ndrow false whole
+has "and one whose checker declares every control blocks all the same" \
+    "$(_ndblk)" "obligations	a	ACTIVE UNSATISFIED"
+is  "complete is not discharge: the row is still UNSATISFIED"   "$(_ndrun | cut -f5)" "UNSATISFIED"
+_ndrow true ''
+is  "an empty needs cell is not refused by the scan"            "$(_nd felix_obligation_malformed "$NDP")" ""
+is  "and reads as naming nothing"                               "$(_ndneeds)" "a	-	none	-"
+
+# Resolution, against what qualification.tsv declares.
+_ndrow true -
+is  "a dash names nothing"                                      "$(_ndneeds)" "a	-	none	-"
+_ndrow true whole
+is  "a checker with a row for every control resolves complete"  "$(_ndneeds)" "a	whole	complete	-"
+_ndrow true part
+is  "a checker short of controls resolves short, naming what it lacks" \
+    "$(_ndneeds)" "a	part	short	restoration,irrelevant,alternate,decoupled_violation,decoupled_satisfaction"
+_ndrow true gone
+is  "an id no checker carries resolves absent"                  "$(_ndneeds)" "a	gone	absent	-"
+_ndrow true broken
+is  "a checker whose only row is malformed is short, not absent" "$(_ndneeds | cut -f3)" "short"
+_ndrow true 'whole,part,gone'
+is  "a row needing three capabilities resolves each of them" \
+    "$(_ndneeds | cut -f2,3 | tr '\n' ' ')" "whole	complete part	short gone	absent "
+{ printf 'a\tINFO\tdeterministic\t-\ttrue\t-\tr\twhole\n'
+  printf 'b\tINFO\tdeterministic\t-\ttrue\t-\tr\twhole,gone\n'
+  printf 'c\tINFO\tdeterministic\t-\ttrue\t-\tr\tpart\n'
+  printf 'd\tINFO\tdeterministic\t-\ttrue\t-\tr\n'
+  printf 'e\tINFO\tdeterministic\t-\ttrue\t-\tr\t-\n'; } > "$NDP/obligations.tsv"
+is  "the count is one per obligation, by its weakest need" \
+    "$(_ndneeds | _nd felix_obligations_needs_count)" "3	1	1	1	2"
+# A copy of the engine without the qualification library cannot resolve, and
+# says nothing and fails rather than calling every checker absent.
+NDNL="$TMP/lib-without-qualify"; mkdir -p "$NDNL"
+for _l in resolve probes obligations exceptions; do cp "$FROOT/harness/lib/$_l.sh" "$NDNL/" 2>/dev/null; done
+is  "an engine shipped without the qualification library resolves nothing, rather than absent" \
+    "$( ( . "$NDNL/resolve.sh"; . "$NDNL/probes.sh"; . "$NDNL/obligations.sh"
+          felix_obligations_needs "$NDP"; printf 'rc=%s' "$?" ) 2>/dev/null )" "rc=1"
+
+# A cell that is not an id refuses the row, as every other malformed cell does.
+for _b in Deploy 'a,,b' 'x, y' 9lives 'ok,'; do
+  _ndrow true "$_b"
+  has "needs [$_b] refuses the row with the reason" "$(_nd felix_obligation_malformed "$NDP")" "needs '$_b'"
+done
+_ndrow true Deploy
+is  "a row refused for its needs is never evaluated"            "$(_ndrun)" ""
+has "and is refused at the merge boundary"                      "$(_ndblk)" "needs 'Deploy'"
+
+# The CLI, on the bound fixture: a need nobody declares and a row naming none.
+WNP="$FROOT/projects/widget"
+cp "$WNP/obligations.tsv" "$TMP/needs-w-oblig.keep"
+{ printf 'fixture\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\ta fixture owes one thing, and it holds\tgone\n'
+  printf 'second\tADVISORY\tdeterministic\t-\ttrue\t-\tand one that names nothing\n'; } > "$WNP/obligations.tsv"
+_ndcount="1 name what discharges them: 0 complete, 0 short, 1 absent; 1 name nothing"
+out="$(cd "$REPO" && "$FELIX" obligations 2>&1)"; rc=$?
+is  "felix obligations exits 0 with a need nobody declares"     "$rc" "0"
+has "and shows each row's need with its resolution"             "$(printf '%s\n' "$out" | grep ' gone ')" "absent"
+has "and the row that names nothing, saying so"                 "$out" "names nothing that would discharge it"
+has "and says complete is declared, not run"                    "$out" "DECLARED, not that one ran"
+has "and the summary line counts them"                          "$(printf '%s\n' "$out" | grep 'obligation(s):')" "$_ndcount"
+out="$(cd "$REPO" && "$FELIX" obligations --gate 2>&1)"; rc=$?
+is  "felix obligations --gate exits 0 whatever the needs resolve to" "$rc" "0"
+has "and its summary line carries the same count"               "$(printf '%s\n' "$out" | grep 'obligation(s):')" "$_ndcount"
+case "$out" in
+  *"what would discharge each"*) bad "and the gate's copy carries no needs table" "$out" ;;
+  *)                             ok  "and the gate's copy carries no needs table" ;;
+esac
+out="$(cd "$REPO" && "$FELIX" gate 2>&1)"
+has "the gate's obligations check stays ok with every need absent" "$out" "  obligations        ok"
+has "and prints the count under it" \
+    "$(printf '%s\n' "$out" | awk '/^  obligations  / { getline; print; exit }')" "$_ndcount"
+cp "$TMP/needs-w-oblig.keep" "$WNP/obligations.tsv"
+
+# Felix's own ledger names what would discharge its two rows. Neither has a
+# checker in qualification.tsv yet, and absent is the honest reading.
+_REALP="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix"
+if [ -f "$_REALP/obligations.tsv" ]; then
+  _ndf="$(_nd felix_obligations_needs "$_REALP")"
+  is  "felix's lifecycle_wired needs lifecycle, which no checker declares" \
+      "$(printf '%s\n' "$_ndf" | awk -F'\t' '$1 == "lifecycle_wired" { print $2 "\t" $3 }')" "lifecycle	absent"
+  is  "and engine_deployed needs deploy, absent the same way" \
+      "$(printf '%s\n' "$_ndf" | awk -F'\t' '$1 == "engine_deployed" { print $2 "\t" $3 }')" "deploy	absent"
+else
+  for a in "felix's lifecycle_wired needs lifecycle, which no checker declares" \
+           "and engine_deployed needs deploy, absent the same way"; do
+    skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
+fi
+has "the template documents the needs column" \
+    "$(grep '^# obligation' "$FROOT/harness/templates/obligations.tsv")" "reason	needs"
+
 # ------------------------------------------ hooks-events, the probe's instrument ---
 # `hook_binding` records which events the shipped hooks.json binds. It used to
 # be a grep for `"Event": [`, and the blind control that qualified the first
@@ -14945,6 +15088,137 @@ is "text piped into a shell is its script" "$rc" "2"
 {"tool_name":"Bash","tool_input":{"command":"until [ -f x ]; do read -t 5 -r _ < <(tail -f /dev/null); done"}}
 J
 is "a process substitution keeps the shape a row is written about" "$rc" "2"
+rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
+
+printf '\ndenial refuses what a command changes, not what it reads\n'
+# The tables that ship, not a copy of a row. Every projects/*/deny.tsv beside
+# this harness is put in front of the real hook in turn, so the red run, which
+# checks the base out whole, runs these lines against the rows the base holds.
+# Until 2026-09-23 three rows refused commands that change nothing: a grep
+# -rln over the marker, whose ln was taken for a link; the read the engine
+# resolves its home with, whose 2>/dev/null was taken for a write of the
+# pointer; a dry run of git add; a listing of a script. Each was reproduced
+# with argv-logging shims and a hash of the files, and most are in the
+# refusals the hooks logged.
+#
+# The first column says which way: 0, the command is allowed; 2, refused.
+# The second set keeps the first honest. A narrowed row that refused nothing
+# would pass every line of the first, so each real write the old rows refused
+# is asserted still refused, a line for each verb they name, and a line for a
+# write on a later line of the command: a row reads the payload's JSON, where
+# a line break is a backslash and an n, and the first draft of these rows let
+# every such write through.
+#
+# The second column says which tables a line is about. A 0 line holds for
+# every table (-). A 2 line holds for every table with a Bash row whose
+# pattern contains that text, and skips when there is none, because a table
+# only ever refuses what it has a row about: the public snapshot ships one
+# project's table, and a line about another's rows has nothing to ask there.
+# An exit that is neither 0 nor 2, or a table that could not be put in place,
+# is named in the failure and never read as either answer.
+_dtabs=""
+for _dt in "$REAL_HARNESS"/../../projects/*/deny.tsv; do
+  [ -f "$_dt" ] && _dtabs="$_dtabs$_dt
+"
+done
+_dkeyed() {
+  local t
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    [ "$1" = "-" ] \
+      || awk -F'\t' -v k="$1" '$1 == "Bash" && index($2, k) { f = 1 } END { exit !f }' "$t" \
+      || continue
+    printf '%s\n' "$t"
+  done <<EOF
+$_dtabs
+EOF
+}
+# Every table on stdin whose exit through the hook is not the one wanted, as
+# " project:exit".
+_dmiss() {
+  local want="$1" cmd="$2" t rc out=""
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    if cp "$t" "$FROOT/projects/widget/deny.tsv"; then
+      ( cd "$REPO" && _pre "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$cmd\"}}" ); rc=$?
+    else
+      rc=nocopy
+    fi
+    t="${t%/deny.tsv}"
+    [ "$rc" = "$want" ] || out="$out ${t##*/}:$rc"
+  done
+  printf '%s' "$out"
+}
+while IFS=$'\t' read -r _dw _dk _dn _dc; do
+  case "$_dw" in 0|2) ;; *) continue ;; esac
+  _dks="$(_dkeyed "$_dk")"
+  if [ -z "$_dks" ]; then
+    if [ "$_dk" = "-" ]; then skip "$_dn" "no projects/*/deny.tsv beside this harness"
+    else skip "$_dn" "no table beside this harness has a Bash row about $_dk"; fi
+    continue
+  fi
+  is "$_dn" "$(printf '%s\n' "$_dks" | _dmiss "$_dw" "$_dc")" ""
+done <<'J'
+0	-	no shipped table refuses grep -rln over the marker, whose ln is a flag	grep -rln '\\.felix' engine/harness
+0	-	nor grep -ln over the pointer	grep -ln '\\.felix-home' engine/harness/lib/resolve.sh
+0	-	nor the read the engine resolves its home with, whose 2>/dev/null writes no pointer	tr -d '[:space:]' 2>/dev/null < \"$HOME/.felix-home\"
+0	-	nor a > inside a quoted log format	git log --format='%h>%s' -- .felix
+0	-	nor cp reading the marker into a backup	cp .felix /tmp/backup
+0	-	nor a find whose 2>/dev/null comes before its -name .felix	find . -maxdepth 2 2>/dev/null -name .felix
+0	-	nor an ls whose 2>/dev/null comes before the pointer it lists	ls -la 2>/dev/null ~/.felix-home
+0	-	nor tee copying the marker it reads on stdin	tee /tmp/copy < .felix
+0	-	nor dd reading the marker	dd of=/tmp/x if=.felix
+0	-	nor git add -n -A, which stages nothing	git add -n -A
+0	-	nor git add -A --dry-run	git add -A --dry-run
+0	-	nor listing scripts/gate.sh, which runs nothing	ls -la ./scripts/gate.sh
+0	-	nor a backslash-n typed into quoted text before the script's path, which is no line break	printf 'run:\\n./scripts/gate.sh\\n' > /tmp/notes
+0	-	nor a grep for its subshell spelling	grep -rn '(./scripts/gate.sh)' docs
+0	-	nor a brace expansion that names it	ls -la {./scripts/gate.sh,./scripts/x.sh}
+2	felix(-home)	a table with a row about the marker still refuses printf x > .felix	printf x > .felix
+2	felix(-home)	and a redirect to a quoted marker path	printf 'p\\n' > \"$T/repo/.felix\"
+2	felix(-home)	and to one quoted in part	printf x > \"$HOME\"/.felix-home
+2	felix(-home)	and to one quoted round a blank	printf x > \"/tmp/a b/.felix\"
+2	felix(-home)	and an append to the marker	echo p >> .felix
+2	felix(-home)	and a clobbering redirect, which the old row let through	printf x >| .felix
+2	felix(-home)	and a redirect on a later line of the command	cd /tmp/r\nprintf x > .felix
+2	felix(-home)	and tee onto the marker	tee .felix
+2	felix(-home)	and cp onto the marker	cp x .felix
+2	felix(-home)	and cp onto one quoted round a blank	cp seed \"/tmp/a b/.felix\"
+2	felix(-home)	and cp onto the marker with its errors sent away	cp x .felix 2>/dev/null
+2	felix(-home)	and cp of a marker into the current directory, where it lands as one	cp ../other/.felix .
+2	felix(-home)	and cp of a marker into a directory named with its slash	cp /x/.felix \"$T/repo/\"
+2	felix(-home)	and cp onto the marker on a later line of the command	cd /tmp/r\ncp x .felix
+2	felix(-home)	and scp onto the marker	scp host:seed .felix
+2	felix(-home)	and ln -s onto the marker	ln -s x .felix
+2	felix(-home)	and install onto the marker	install -m 644 seed .felix
+2	felix(-home)	and mv onto the pointer	mv x \"$HOME/.felix-home\"
+2	felix(-home)	and mv of the marker away	mv .felix /tmp/x
+2	felix(-home)	and rm of the marker	rm -f .felix
+2	felix(-home)	and rm of the marker on a later line of the command	cd /tmp/r\nrm -f .felix
+2	felix(-home)	and rm of the marker on a tab-indented later line	cd /tmp/r\n\trm -f .felix
+2	felix(-home)	and a write with another line after it, which the old row let through	cp x .felix\necho ok
+2	felix(-home)	and a redirect with another line after it, which the old row let through	printf x > .felix\nls
+2	felix(-home)	and cp onto the marker before a comment	cp x .felix # seed
+2	felix(-home)	and truncate of the pointer	truncate -s 0 \"$HOME/.felix-home\"
+2	felix(-home)	and sed -i on the marker	sed -i s/a/b/ .felix
+2	felix(-home)	and dd of= the marker	dd of=.felix
+2	felix(-home)	and dd with its of= after another operand, which the old row let through	dd if=/dev/zero of=.felix
+2	git add	a table with a row about git add still refuses git add -A	git add -A
+2	git add	and git add --all	git add --all
+2	git add	and git add .	git add .
+2	git add	and git add -A behind another flag	git add -v -A
+2	git add	and git add -A before an &&	git add -A && git commit -m wip
+2	git add	and git add -A on a later line of the command	cd /tmp/r\ngit add -A
+2	git add	and git add -A with another line after it, which the old row let through	git add -A\ngit commit -m wip
+2	scripts/gate	a table with a row about scripts/gate.sh still refuses running it	./scripts/gate.sh --quick
+2	scripts/gate	and running it after a cd	cd ~/x && ./scripts/gate.sh
+2	scripts/gate	and running it under bash	bash ./scripts/gate.sh
+2	scripts/gate	and running it on a later line, inside an if	if true; then\n  ./scripts/gate.sh\nfi
+2	scripts/gate	and running it after a line continuation	cd ~/x && \\\n  ./scripts/gate.sh
+2	scripts/gate	and running it in a brace group	{ ./scripts/gate.sh; }
+2	scripts/gate	and running it in a command substitution	x=$( ./scripts/gate.sh )
+2	scripts/gate	and running it on a tab-indented later line, which the old row let through	cd ~/x\n\t./scripts/gate.sh
+J
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 
 # The wiring itself, read off the file that ships rather than the fixture copy.

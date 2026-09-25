@@ -484,21 +484,47 @@ down describes what the code does now."
   exit 0
 fi
 
+# Red is read before the tree (G2.2). A red gate that also wrote an artefact,
+# or a red receipt followed by an edit, was told the gate "has not seen this
+# work" and logged as a stale receipt, as if it had never run: the hold was
+# right and the sentence was not. A gate that ran and failed is reported as
+# failed, on this tree or on the one it started on.
 if [ -z "$receipt" ]; then
   why="The gate has never run in this checkout."
   detail="never verified"
-elif [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
+elif [ "$r_res" != "green" ]; then
+  if [ "$r_tid" = "$TID" ]; then
+    why="The gate failed on this exact tree, at $r_when."
+  else
+    why="The gate last ran at $r_when and failed, and the tree has changed since."
+  fi
+  detail="failed"
+elif [ "$r_tid" = "$TID" ]; then
   # Green on this exact tree and still not current: a fact the verdict rests
   # on moved outside the tree. Said with the reason, because "run the gate" on
   # a tree that did not change reads as the hook being broken.
   why="The gate passed on this exact tree at $r_when, but $(printf '%s' "$current" | cut -f2 | sed 's/; run felix gate$//')."
   detail="epoch moved"
-elif [ "$r_tid" = "$TID" ]; then
-  why="The gate failed on this exact tree, at $r_when."
-  detail="failed"
 else
-  why="The gate last ran at $r_when, on a different tree. It has not seen this work."
-  detail="stale receipt"
+  # A green run during which something other than its own output moved keeps
+  # the tree it started on (G1.7, G2.1: a committed lockfile the gate rewrote,
+  # a formatter, an edit landing while it ran). On exactly the tree that run
+  # left, that is what the hold says, with the paths the gate named, and not
+  # that the gate never saw the work. Read from the receipt in hand, and only
+  # here, on a stop that already holds.
+  r_kind="" r_other="" r_names=""
+  IFS=$'\t' read -r _r1 _r2 _r3 _r4 _r5 _r6 _r7 _r8 r_kind r_other r_names <<<"$receipt"
+  if [ "$r_kind" = moved ] && [ "$r_other" = "$TID" ]; then
+    if [ -n "$r_names" ] && [ "$r_names" != "-" ]; then
+      why="The gate last ran at $r_when and passed, but these changed while it ran: $r_names. It passed on the tree it started on, not on this one."
+    else
+      why="The gate last ran at $r_when and passed, but the tree changed while it ran. It passed on the tree it started on, not on this one."
+    fi
+    detail="changed during the gate"
+  else
+    why="The gate last ran at $r_when, on a different tree. It has not seen this work."
+    detail="stale receipt"
+  fi
 fi
 
 # Inside a night's chain this refusal is only bounded by the night, so it is

@@ -547,7 +547,16 @@ cmd_gate() {
   # Identity of the tree as the gate finds it, captured before it runs. A gate
   # that rewrites files — a formatter is the ordinary case — would otherwise
   # stamp a receipt describing a tree it never actually verified.
-  local tid; tid="$(felix_tree_id "$root" "$FELIX_HOME_DIR")" || tid=""
+  #
+  # With its parts, so that after the run the two trees can be compared and
+  # the receipt stamped on the one the gate may vouch for (G2.1, G1.7, G2.4,
+  # PR-B finding 8): see the end of this function and felix_verify_record.
+  # No directory for them, and the second id is still taken, but nothing can
+  # say what moved.
+  local parts tid
+  parts="$(mktemp -d 2>/dev/null)" || parts=""
+  if [ -n "$parts" ] && ! mkdir "$parts/pre" "$parts/post" 2>/dev/null; then parts=""; fi
+  tid="$(felix_tree_id "$root" "$FELIX_HOME_DIR" "${parts:+$parts/pre}")" || tid=""
   export FELIX_PROJECT="$proj"
   # Tools Felix ships for a gate to call. A project gate cannot know where
   # Felix lives, and hardcoding a path would break the moment it moves.
@@ -865,8 +874,60 @@ cmd_gate() {
   # under, so a fact that moves outside the tree stales it.
   local epoch_fields
   epoch_fields="$(felix_verify_epoch_fields "$proj" "$root")"
+
+  # The tree the gate saw (G2.1, G1.7, G2.4, PR-B finding 8). Taken again now
+  # that everything this command runs in the checkout has finished, the
+  # epoch's probes included, and compared with the tree it started on. A gate
+  # that writes coverage, a lockfile, bytecode or a build directory git does
+  # not ignore stamped the tree it started on, so its receipt read stale the
+  # moment it finished, Stop held the session that had just run it green, and
+  # running it again changed nothing: on a clean repository, running the gate
+  # was what created the hold. And a gate that regenerated more than 500 such
+  # files read as the same count before PR-B, and as stale after it.
+  #
+  # When every difference is an untracked file the run wrote (felix_tree_moved
+  # says which, from the ownership manifest), the receipt is for the tree the
+  # run left, and the gate names the files and says to ignore them. When
+  # anything else moved (HEAD, the index, a tracked file, or an untracked file
+  # no gate run wrote), the receipt keeps the tree the run started on and
+  # reads stale, as it always did, and the gate names what moved. Never the
+  # verdict: the exit status is untouched, and a red run is judged the same
+  # way, because this is about who wrote the bytes. Printed and never tee'd,
+  # so no reader of the log mistakes these lines for a check. A gate that
+  # writes nothing prints exactly what it printed before.
+  local kind=same other="" names="" own="" own_new="" post="" rows="" tnames="" fnames=""
+  if [ -n "$tid" ]; then
+    own="$(_felix_receipt_path "$root" "$FELIX_HOME_DIR").own"
+    post="$(felix_tree_id "$root" "$FELIX_HOME_DIR" "${parts:+$parts/post}")" || post=""
+    if [ -z "$post" ]; then
+      kind=unknown
+    elif [ "$post" != "$tid" ]; then
+      if [ -n "$parts" ]; then
+        rows="$(felix_tree_moved "$root" "$parts/pre" "$parts/post" "$own" | LC_ALL=C sort -u)"
+        felix_tree_manifest "$root" "$parts/pre" "$parts/post" "$own" 2>/dev/null > "$parts/own" \
+          && own_new="$parts/own"
+      fi
+      [ -n "$rows" ] || rows="$(printf 'tree\t-')"
+      if LC_ALL=C awk -F'\t' '$1 != "gate" { bad = 1 } END { exit bad }' <<<"$rows"; then
+        kind=gate; other="$tid"; tid="$post"
+        names="$(LC_ALL=C awk -F'\t' '{ print substr($0, index($0, "\t") + 1) }' <<<"$rows" | _felix_gate_names)"
+        printf "gate: this run wrote untracked files git does not ignore: %s. They are the gate's own output, so the receipt is for the tree as the run left it. Add them to .gitignore to keep them out of the tree Felix identifies.\n" "$names"
+      else
+        kind=moved; other="$post"
+        names="$(LC_ALL=C awk -F'\t' '$1 != "gate" && $1 != "tree" { print substr($0, index($0, "\t") + 1) }' <<<"$rows" | _felix_gate_names)"
+        tnames="$(LC_ALL=C awk -F'\t' '$1 == "head" || $1 == "tracked" { print substr($0, index($0, "\t") + 1) }' <<<"$rows" | _felix_gate_names)"
+        fnames="$(LC_ALL=C awk -F'\t' '$1 == "foreign" { print substr($0, index($0, "\t") + 1) }' <<<"$rows" | _felix_gate_names)"
+        [ -z "$tnames" ] || printf 'gate: tracked files changed while the gate ran: %s. The receipt is for the tree the gate started on, so it reads stale; run felix gate again: a run that changes nothing tracked is current.\n' "$tnames"
+        [ -z "$fnames" ] || printf 'gate: untracked files no earlier gate run wrote changed while the gate ran: %s. The receipt is for the tree the gate started on, so it reads stale; if the gate wrote them, the next run counts them as its own.\n' "$fnames"
+        [ -n "$tnames$fnames" ] || printf 'gate: the tree changed while the gate ran, and no path says where. The receipt is for the tree the gate started on, so it reads stale; run felix gate again.\n'
+      fi
+    fi
+    [ "$kind" != unknown ] || printf 'gate: the tree could not be identified after the run, so the receipt is for the tree the gate started on.\n'
+  fi
   felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid" "$skipped" "$reported" \
-    "$(printf '%s' "$epoch_fields" | cut -f1)" "$(printf '%s' "$epoch_fields" | cut -f2)"
+    "$(printf '%s' "$epoch_fields" | cut -f1)" "$(printf '%s' "$epoch_fields" | cut -f2)" \
+    "$kind" "$other" "$names" "$own_new"
+  [ -z "$parts" ] || rm -rf "$parts"
   exit "$rc"
 }
 
@@ -1070,15 +1131,37 @@ EOF
   printf '  repo         %s\n' "${slug:-no github remote}"
   printf '  bound via    %s/.felix\n' "$root"
   [ -n "$kept" ] && printf '  memory       kept%s, already in %s\n' "$kept" "$memdir"
-  # The marker is a file in the checkout like any other, and until it is
-  # committed it binds this checkout and no clone of it (U35). Said only where
-  # git would take it: inside a work tree, not yet in the index, not ignored.
+  # The marker is a file in the checkout like any other, and uncommitted it
+  # binds this checkout and no clone of it (U35). Said only where git would
+  # take it: inside a work tree, not yet in the index, not ignored.
+  #
+  # The advice is to keep it local, not to commit it. A committed .felix names
+  # a project in every clone, and a collaborator whose Felix home does not
+  # govern that project reads it as a broken binding, so Stop holds their
+  # sessions; committing it is right only once every collaborator's home
+  # governs the project. So the line to run appends it to the repository's
+  # info/exclude, in the common git dir, which every worktree of the
+  # repository reads, spelled physically and absolutely so it runs from any
+  # directory and from a linked worktree. `mkdir -p`, because `git init
+  # --template=` leaves no info directory. Printed, never done: felix new
+  # writes nothing in the git dir, which is the person's to change.
   if [ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" = true ] \
      && ! git -C "$root" ls-files --error-unmatch -- .felix >/dev/null 2>&1 \
      && ! git -C "$root" check-ignore -q .felix 2>/dev/null; then
-    printf '\n.felix is not committed yet. Commit it with your next commit (git add .felix):\n'
-    printf 'until then it binds this checkout alone, and a clone or a new worktree of this\n'
-    printf 'repository is not bound by it.\n'
+    local cdir q
+    cdir="$(felix_git_common_dir "$root" 2>/dev/null)" || cdir=""
+    printf '\n.felix binds this checkout and is not committed. Keep it local to this checkout:\n\n'
+    if [ -n "$cdir" ]; then
+      q="$(printf '%s' "$cdir" | sed "s/'/'\\\\''/g")"
+      printf "  mkdir -p '%s/info' && echo .felix >> '%s/info/exclude'\n" "$q" "$q"
+    else
+      printf '  echo .felix >> "$(git rev-parse --git-path info/exclude)"\n'
+      printf '(run it in %s)\n' "$root"
+    fi
+    printf '\nA collaborator whose Felix home does not govern %s would read a committed\n' "$name"
+    printf '.felix as a broken binding, and Stop would hold their sessions. Commit it only\n'
+    printf "when every collaborator's Felix home governs %s. Until then a clone or a new\n" "$name"
+    printf 'worktree of this repository is not bound by it.\n'
   fi
   printf '\n'
   printf 'seeded stack.tsv, profiles.tsv, setup.tsv and %s runbook(s).\n' \

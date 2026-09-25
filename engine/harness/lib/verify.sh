@@ -369,8 +369,23 @@ EOF
 # for the verification log and the route log, which are records *about* the work
 # rather than the work. When home is elsewhere — every governed project that is
 # not Felix — nothing is excluded, so a project with its own `state/` keeps it.
+#
+# And every linked worktree of the repository that sits strictly under the
+# root, whatever the home (G3.3). The desktop app, `claude --worktree`,
+# EnterWorktree and subagent isolation all put a session's worktree at
+# .claude/worktrees/<x> under the checkout, and to the checkout's git that is
+# an untracked directory: unless something had written an info/exclude line
+# for it, the main checkout read as dirty and its id moved with the metadata of
+# the worktree's top entries, so a session that only asked a question in the
+# main checkout was held for work a parallel session did in its own worktree.
+# A worktree is another checkout's tree, never this one's. `literal`, because a
+# worktree may be named `w[1]*`, and a glob exclude would take a plain
+# directory beside it out as well. A plain directory at the same place is still
+# this tree's (see _felix_tree_worktrees), and the root is never excluded from
+# itself. Printed before the home's lines, so a tree with no home still gets it.
 _felix_tree_excludes() {
   local root="$1" home="${2:-}" rel
+  _felix_tree_worktrees "$root" ':(exclude,literal)'
   [ -n "$home" ] || return 0
   case "$home" in
     "$root")   rel="" ;;
@@ -382,8 +397,88 @@ _felix_tree_excludes() {
   printf ':(exclude)%sprojects/*/maintenance.log\n' "$rel"
 }
 
+# The linked worktrees of the repository whose physical path is strictly under
+# the root, relative to it, one per line, each after the prefix given (G3.3).
+#
+# Read from the files git keeps rather than asked of git, because this runs on
+# every Stop, twice (the dirty check and the id), and `git worktree list` there
+# measured 17 ms a call against 7 for reading 65 records. A repository with no
+# linked worktree has no <common>/worktrees, and costs two `[ -d ]` tests and no
+# process; that is every fixture the suite's CPU-timed assertions use. The
+# common dir is found the way git finds it: `.git` is the directory, or a file
+# `gitdir: <g>`, whose `commondir` names the common dir relative to <g>, and a
+# <g> with no `commondir` (a submodule, a --separate-git-dir) is its own. Each
+# <common>/worktrees/<id>/gitdir holds the absolute path of that worktree's
+# `.git` file, and git records it as the real path, even for a worktree added
+# through a symlink to the checkout, so it compares with the root, which
+# felix_repo_root takes with `pwd -P`.
+#
+# Git answers instead whenever those files are not in that form: a relative
+# record (`worktree.useRelativePaths`, `--relative-paths`), a `.git` file that
+# does not start `gitdir: `, a record that cannot be read. Its paths are
+# resolved physically in one subshell, `cd -P` and `$PWD`, with no process per
+# entry. A record that resolves nowhere under the root is not named, which
+# fails toward dirt, as before this existed, and never toward a false green.
+#
+# A record is named only while `<path>/.git` is a file. A worktree whose
+# directory was deleted without `git worktree prune` leaves its record, and a
+# plain directory created later at that path is this tree's untracked content;
+# a stale record must never hide it. No cache: the library stays stateless.
+_felix_tree_worktrees() {
+  local root="$1" pre="${2:-}" line="" g="" c="" common="" f="" p="" w="" out="" need=0
+  if [ -d "$root/.git" ]; then
+    common="$root/.git"
+  elif [ -f "$root/.git" ]; then
+    IFS= read -r line 2>/dev/null < "$root/.git" || [ -n "$line" ] || need=1
+    case "$line" in
+      "gitdir: "?*) g="${line#gitdir: }" ;;
+      *)            need=1 ;;
+    esac
+    case "$g" in /*|'') ;; *) g="$root/$g" ;; esac
+    common="$g"
+    if [ "$need" -eq 0 ] && [ -f "$g/commondir" ]; then
+      IFS= read -r c 2>/dev/null < "$g/commondir" || [ -n "$c" ] || need=1
+      case "$c" in /*) common="$c" ;; ?*) common="$g/$c" ;; *) need=1 ;; esac
+    fi
+  else
+    need=1
+  fi
+  if [ "$need" -eq 0 ]; then
+    [ -d "$common/worktrees" ] || return 0
+    for f in "$common"/worktrees/*/gitdir; do
+      [ -f "$f" ] || continue
+      p=""
+      IFS= read -r p 2>/dev/null < "$f" || [ -n "$p" ] || { need=1; break; }
+      case "$p" in /*) ;; *) need=1; break ;; esac
+      w="${p%/.git}"
+      case "$w" in
+        "$root"/*) [ -f "$w/.git" ] && out="$out$pre${w#"$root"/}
+" ;;
+      esac
+    done
+    if [ "$need" -eq 0 ]; then printf '%s' "$out"; return 0; fi
+  fi
+  git -C "$root" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | (
+    while IFS= read -r w; do
+      cd -P "$w" >/dev/null 2>&1 || continue
+      case "$PWD" in
+        "$root"/*) [ -f "$PWD/.git" ] && printf '%s%s\n' "$pre" "${PWD#"$root"/}" ;;
+      esac
+    done )
+  return 0
+}
+
+# A third argument, a directory, is where the gate asks for the parts of the
+# id to compare two trees (G2.1, G1.7, G2.4, PR-B finding 8): `head`, `index`
+# (the `ls-files -s` entries on an unborn HEAD, empty on a born one), `diff`
+# (the worktree's diff, before the index is joined to it) and `meta` (the
+# untracked files' metadata lines). Written from the very variables hashed, so
+# felix_tree_moved compares what the id is made of and not a second reading
+# of the tree that could disagree with it. The id is the same bytes with or
+# without it, and with none given nothing new runs: no hook passes one. When
+# this returns 1 the parts may be partial, and the caller does not read them.
 felix_tree_id() {
-  local root="$1" home="${2:-}" head diff index untracked n cap meta="" f
+  local root="$1" home="${2:-}" parts="${3:-}" head diff index="" wdiff untracked n cap meta="" f
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
   local ex; ex="$(_felix_tree_excludes "$root" "$home")"
   local exargs=()
@@ -414,10 +509,12 @@ EOF
     # An empty index hashes exactly the bytes it always did.
     index="$(git -C "$root" ls-files -s -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)" || return 1
     diff="$(git -C "$root" diff -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
+    wdiff="$diff"
     [ -z "$index" ] || diff="$index
 $diff"
   else
     diff="$(git -C "$root" diff HEAD -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
+    wdiff="$diff"
   fi
 
   # Listed as the names are on disk. Git's default quotes a name that is not
@@ -459,7 +556,123 @@ EOF
     meta="$(_felix_meta_all "${files[@]}")"
   fi
 
+  if [ -n "$parts" ] && [ -d "$parts" ]; then
+    printf '%s' "$head"  2>/dev/null > "$parts/head"
+    printf '%s' "$index" 2>/dev/null > "$parts/index"
+    printf '%s' "$wdiff" 2>/dev/null > "$parts/diff"
+    printf '%s' "$meta"  2>/dev/null > "$parts/meta"
+  fi
   printf '%s' "$(printf '%s\n%s\n%s' "$head" "$diff" "$meta" | _felix_hash)"
+}
+
+# What moved between the tree a gate started on and the tree it left: two
+# parts directories written by felix_tree_id, and the ownership manifest (G2.1,
+# G1.7, G2.4, PR-B finding 8). One row per thing, `<class> TAB <path>`,
+# unsorted; the caller sorts them in the C locale.
+#
+#   head     HEAD moved                                  (path: HEAD)
+#   tracked  an index entry, or a diff section, appeared, disappeared or
+#            changed                                     (the path it is for)
+#   gate     an untracked file the run created; or one it rewrote or removed
+#            while it was exactly as an earlier gate run left it
+#   foreign  an untracked file rewritten or removed that no gate run left so
+#
+# The gate stamps the tree it left only when every row is `gate`. That rule is
+# about who wrote the bytes, never what they are called: `lcov.info`,
+# `__pycache__` and `target/` are also names a generated source can have, so
+# no name decides anything. "Exactly as a gate left it" is the metadata line
+# felix_tree_id hashes, `<root>/<path> <size> <mtime>`, byte for byte in the
+# manifest, so an untracked file the session wrote and a gate later rewrote is
+# foreign, and the gate is never current over bytes it did not run on.
+#
+# A part is compared with `cmp` first, and awk runs only for a part that
+# differs. Every map lives in awk (bash 3.2 has none). `FILENAME == ARGV[1]`
+# and never `FNR == NR`, which stays true through the second file whenever the
+# first is empty, and any part or manifest here can be. The root reaches awk
+# through the environment, since `awk -v` would read its backslashes. A meta
+# key is its line with the trailing size and mtime taken off; in the `none`
+# stat mode a line is only a path, so a rewrite shows nowhere, exactly as the
+# id cannot see it either. The display name of a diff section is its header's
+# path when the header is `a/P b/P`, and the header's text otherwise (a
+# rename, a quoted name): it is for reading only, and nothing decides on it.
+felix_tree_moved() {   # root, pre parts dir, post parts dir, [manifest]
+  local root="$1" pre="$2" post="$3" own="${4:-}"
+  [ -n "$own" ] && [ -f "$own" ] || own=/dev/null
+  cmp -s "$pre/head" "$post/head" || printf 'head\tHEAD\n'
+  if ! cmp -s "$pre/index" "$post/index"; then
+    LC_ALL=C awk -F'\t' '
+      { k = substr($0, index($0, "\t") + 1) }
+      FILENAME == ARGV[1] { a[k] = a[k] "\n" $0; next }
+      { b[k] = b[k] "\n" $0 }
+      END { for (k in b) if (!(k in a) || a[k] != b[k]) print "tracked\t" k
+            for (k in a) if (!(k in b)) print "tracked\t" k }' "$pre/index" "$post/index"
+  fi
+  if ! cmp -s "$pre/diff" "$post/diff"; then
+    LC_ALL=C awk '
+      function name(h,   s, n) {
+        s = substr(h, 12); n = (length(s) - 5) / 2
+        if (n == int(n) && n > 0 && substr(s, 1, 2) == "a/" && substr(s, n + 3, 3) == " b/" \
+            && substr(s, 3, n) == substr(s, n + 6)) return substr(s, 3, n)
+        return s
+      }
+      FNR == 1 { k = "" }
+      /^diff --git / { k = $0 }
+      FILENAME == ARGV[1] { if (k != "") a[k] = a[k] "\n" $0; next }
+      { if (k != "") b[k] = b[k] "\n" $0 }
+      END { for (k in b) if (!(k in a) || a[k] != b[k]) print "tracked\t" name(k)
+            for (k in a) if (!(k in b)) print "tracked\t" name(k) }' "$pre/diff" "$post/diff"
+  fi
+  if ! cmp -s "$pre/meta" "$post/meta"; then
+    _FELIX_MOVED_ROOT="$root/" LC_ALL=C awk '
+      function key(l) { sub(/ [0-9]+ [0-9]+$/, "", l); return l }
+      function rel(k,   r) { r = ENVIRON["_FELIX_MOVED_ROOT"]
+                             return (index(k, r) == 1) ? substr(k, length(r) + 1) : k }
+      FILENAME == ARGV[1] { own[$0] = 1; next }
+      FILENAME == ARGV[2] { pre[key($0)] = $0; next }
+      { post[key($0)] = $0 }
+      END { for (k in post) if (!(k in pre)) print "gate\t" rel(k)
+                            else if (pre[k] != post[k]) print ((pre[k] in own) ? "gate" : "foreign") "\t" rel(k)
+            for (k in pre) if (!(k in post)) print ((pre[k] in own) ? "gate" : "foreign") "\t" rel(k) }' \
+      "$own" "$pre/meta" "$post/meta"
+  fi
+  return 0
+}
+
+# The next ownership manifest, sorted in the C locale: every untracked file, as
+# the run left it, whose bytes a gate run produced. That is a post-run line
+# that is in the old manifest byte for byte (gate output nothing has touched
+# since), or whose file the run created or rewrote. Rewrites the gate could not
+# claim are included: after the run those bytes are its output, and leaving
+# them out would make an artefact that existed before the first gate (the
+# session ran its own tests) foreign on every run, holding forever instead of
+# once. Removed files drop out. A stale line is harmless, since a match is
+# exact, so nothing prunes it.
+felix_tree_manifest() {   # root, pre parts dir, post parts dir, [old manifest]
+  local own="${4:-}"
+  [ -n "$own" ] && [ -f "$own" ] || own=/dev/null
+  LC_ALL=C awk '
+    function key(l) { sub(/ [0-9]+ [0-9]+$/, "", l); return l }
+    FILENAME == ARGV[1] { own[$0] = 1; next }
+    FILENAME == ARGV[2] { pre[key($0)] = $0; next }
+    length($0) > 0 { k = key($0); if (($0 in own) || !(k in pre) || pre[k] != $0) print }' \
+    "$own" "$2/meta" "$3/meta" | LC_ALL=C sort
+}
+
+# Paths on stdin, as one line a person can read: grouped by their first
+# component, a group of one printed as its path, a larger one as
+# `dir/ (N files)`, joined with commas, and after eight groups `, and K more`.
+# 600 regenerated build files are `build/ (600 files)`, not 600 names.
+_felix_gate_names() {
+  LC_ALL=C sort -u | LC_ALL=C awk '
+    function flush() {
+      if (ng >= 8) { more++; return }
+      out = out (ng ? ", " : "") (n == 1 ? one : g " (" n " files)"); ng++
+    }
+    length($0) == 0 { next }
+    { i = index($0, "/"); k = (i > 0) ? substr($0, 1, i) : $0
+      if (!started || k != g) { if (started) flush(); g = k; n = 0; one = $0; started = 1 }
+      n++ }
+    END { if (started) flush(); if (more) out = out ", and " more " more"; printf "%s", out }'
 }
 
 # One receipt per repository, overwritten each run. History of decisions lives in
@@ -509,9 +722,43 @@ _felix_receipt_path() {
 # author of the assertions refused it as the old engine's receipts riding on.
 # A gate with no epoch to record writes `-`, which on a green receipt means
 # the project declares no probes, and the reader says what to write.
+#
+# A ninth, tenth and eleventh field: which tree the receipt is for, when the
+# gate changed the tree it ran on (G2.1, G1.7, G2.4, PR-B finding 8). The gate
+# takes the id twice, before it runs and after, and field 1 is the one it may
+# vouch for. A gate that writes coverage, a lockfile, bytecode or a build
+# directory git does not ignore used to stamp the tree it started on and read
+# stale the moment it finished: every green gate was followed by a hold that
+# rerunning the gate never cleared.
+#
+#   same     nothing moved; field 1 is the tree, as it always was; 10 and 11 `-`
+#   gate     only untracked files the run wrote moved (felix_tree_moved); field
+#            1 is the tree the run left, 10 the tree it started on, 11 names
+#            what it wrote
+#   moved    something else moved: HEAD, the index, tracked content, or an
+#            untracked file no gate run wrote; field 1 is the tree it started
+#            on, so the receipt reads stale, 10 the tree it left, 11 what moved
+#   unknown  the tree could not be identified after the run; field 1 is the
+#            tree it started on
+#
+# The tree the run left may add to the one it ran on only bytes a gate
+# produced. It never vouches for tracked content, which any `git add` or commit
+# would carry, nor for an untracked file that was in the tree before the run
+# and not exactly as an earlier gate left it. What it cannot tell apart is an
+# untracked file somebody else created during the run, and that one is named
+# as the run's output, and stales the receipt the moment it is staged.
+#
+# Field 1 stays "the tree this receipt is for", so every reader of `cut -f1`
+# (felix_verify_current, Stop, SubagentStop, the receipt JSON) reads on
+# unchanged. Written only when a tenth argument is given; a caller with fewer
+# gets the eight fields it always did, as the suite pins. A thirteenth, a
+# file, becomes the ownership manifest beside the receipt, `<receipt>.own`:
+# the metadata lines of the untracked files gate runs wrote, which is how the
+# next run tells gate output it rewrites from a file somebody else wrote. It
+# is written before the receipt, and left alone when no file is given.
 felix_verify_record() {
   local root="$1" home="$2" rc="$3" gate="$4" tid="$5" skipped="${6:-}" reported="${7:-}" path result
-  local epoch="${8:-}" comps="${9:-}"
+  local epoch="${8:-}" comps="${9:-}" kind="${10:-}" other="${11:-}" names="${12:-}" manifest="${13:-}"
   [ -n "$tid" ] || return 0
   path="$(_felix_receipt_path "$root" "$home")"
   mkdir -p "$(dirname "$path")" 2>/dev/null || return 0
@@ -525,8 +772,17 @@ felix_verify_record() {
       epoch="$(printf '%s' "$fields" | cut -f1)"; comps="$(printf '%s' "$fields" | cut -f2)"
     fi
   fi
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$tid" "$result" "$(_felix_now)" "$gate" \
-    "${skipped:--}" "${reported:--}" "${epoch:--}" "${comps:--}" > "$path" 2>/dev/null || true
+  if [ $# -lt 10 ]; then
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$tid" "$result" "$(_felix_now)" "$gate" \
+      "${skipped:--}" "${reported:--}" "${epoch:--}" "${comps:--}" > "$path" 2>/dev/null || true
+    return 0
+  fi
+  if [ -n "$manifest" ] && [ -f "$manifest" ] && [ -r "$manifest" ]; then
+    cat "$manifest" 2>/dev/null > "$path.own" || true
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$tid" "$result" "$(_felix_now)" "$gate" \
+    "${skipped:--}" "${reported:--}" "${epoch:--}" "${comps:--}" \
+    "${kind:--}" "${other:--}" "${names:--}" > "$path" 2>/dev/null || true
 }
 
 felix_verify_receipt() { cat "$(_felix_receipt_path "$1" "$2")" 2>/dev/null; }
@@ -561,6 +817,22 @@ felix_verify_current() {
   tid="$(felix_tree_id "$root" "$home" 2>/dev/null)" || tid=""
   r_tid="$(printf '%s' "$receipt" | cut -f1)"
   if [ -z "$tid" ] || [ "$r_tid" != "$tid" ]; then
+    # A green run during which something other than its own output moved
+    # keeps the tree it started on (felix_verify_record), and on exactly the
+    # tree it left the reason names what moved, so `felix next` and the merge
+    # boundary say which file to look at, not only that the tree changed
+    # (G1.7, G2.1). Read from the receipt already in hand, with no process,
+    # and only on this branch.
+    local r_1="" r_2="" r_3="" r_4="" r_5="" r_6="" r_7="" r_8="" r_kind="" r_other="" r_names=""
+    IFS=$'\t' read -r r_1 r_2 r_3 r_4 r_5 r_6 r_7 r_8 r_kind r_other r_names <<<"$receipt"
+    if [ -n "$tid" ] && [ "$r_kind" = moved ] && [ "$r_other" = "$tid" ]; then
+      if [ -n "$r_names" ] && [ "$r_names" != "-" ]; then
+        printf 'stale\tfiles changed while the gate ran (%s), so its receipt is for the tree it started on; run felix gate\n' "$r_names"
+      else
+        printf 'stale\tthe tree changed while the gate ran, so its receipt is for the tree it started on; run felix gate\n'
+      fi
+      return 1
+    fi
     printf 'stale\tthe tree changed since the receipt\n'; return 1
   fi
   # Six fields: written before the epoch existed, by an engine that could not

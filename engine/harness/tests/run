@@ -6762,46 +6762,883 @@ else
                           || ok  "a subagent in a project that declares no gate is told nothing, dirty tree or not"
 fi
 
-# felix new says the marker is not committed yet, where that is true. Its own
-# home and memory root, as the --no-commission section below has, so the three
-# projects it makes are enumerated by nothing else in this file.
+# Where felix new says nothing about the marker. It told a fresh repository
+# that the marker was "not committed yet" and to `git add .felix`; that was
+# this branch's own advice, and it is replaced (the next section's D1-D8) by
+# keeping .felix local in the repository's info/exclude, because a committed
+# marker reads as a broken binding to a collaborator whose Felix home does not
+# govern the project. These two keep their fixtures and now look for the new
+# advice's literal, info/exclude, where none may be given. Its own home and
+# memory root, as the --no-commission section below has, so the projects it
+# makes are enumerated by nothing else in this file.
 FRB_NH="$TMP/frb-newhome"; mkdir -p "$FRB_NH/home/projects" "$FRB_NH/mem" "$FRB_NH/userhome"
 _frb_new() { ( cd "$1" && HOME="$FRB_NH/userhome" FELIX_HOME="$FRB_NH/home" FELIX_MEMORY="$FRB_NH/mem" \
                  PATH="$CMSTUB:$PATH" "$FELIX" new "$2" --no-commission ) 2>&1; }
-FRB_N1="$(_frb_repo "$TMP/frb-new1")"
-_frb_out="$(_frb_new "$FRB_N1" frb-new1)"
-has "felix new in a fresh repository says the marker is not committed yet" "$_frb_out" "not committed yet"
-has "and how to commit it"                                                 "$_frb_out" "git add .felix"
 
 FRB_N2="$(_frb_repo "$TMP/frb-new2" frb-new2)"
 printf 'x\n' > "$FRB_N2/a.txt"; _frb_commit "$FRB_N2" base
 if ! git -C "$FRB_N2" ls-files --error-unmatch -- .felix >/dev/null 2>&1 || [ -e "$FRB_NH/home/projects/frb-new2" ]; then
-  bad "felix new over a marker already committed exits 0 and does not ask for it to be committed" \
+  bad "felix new over a marker already committed exits 0 and gives no advice to keep it local" \
       "the fixture: .felix is not tracked, or projects/frb-new2 already exists"
 else
   _frb_out="$(_frb_new "$FRB_N2" frb-new2)"; _frb_rc=$?
   case "$_frb_rc:$_frb_out" in
-    0:*"not committed yet"*) bad "felix new over a marker already committed exits 0 and does not ask for it to be committed" "$_frb_out" ;;
-    0:*)                     ok  "felix new over a marker already committed exits 0 and does not ask for it to be committed" ;;
-    *)                       bad "felix new over a marker already committed exits 0 and does not ask for it to be committed" "exited $_frb_rc: $_frb_out" ;;
+    0:*"info/exclude"*) bad "felix new over a marker already committed exits 0 and gives no advice to keep it local" "$_frb_out" ;;
+    0:*)                ok  "felix new over a marker already committed exits 0 and gives no advice to keep it local" ;;
+    *)                  bad "felix new over a marker already committed exits 0 and gives no advice to keep it local" "exited $_frb_rc: $_frb_out" ;;
   esac
 fi
 
 FRB_N3="$TMP/frb-new3"; mkdir -p "$FRB_N3"; FRB_N3="$(cd "$FRB_N3" && pwd -P)"
 if git -C "$FRB_N3" rev-parse --git-dir >/dev/null 2>&1; then
-  skip "felix new outside a git repository says nothing about committing the marker" "the temporary directory sits inside a git checkout"
+  skip "felix new outside a git repository gives no advice to keep the marker local" "the temporary directory sits inside a git checkout"
 else
   _frb_out="$(_frb_new "$FRB_N3" frb-new3)"
   if [ "$(cat "$FRB_N3/.felix" 2>/dev/null)" != frb-new3 ]; then
-    bad "felix new outside a git repository says nothing about committing the marker" \
+    bad "felix new outside a git repository gives no advice to keep the marker local" \
         "the fixture: felix new did not bind the directory, so its silence says nothing: $_frb_out"
   else
     case "$_frb_out" in
-      *"not committed yet"*) bad "felix new outside a git repository says nothing about committing the marker" "$_frb_out" ;;
-      *)                     ok  "felix new outside a git repository says nothing about committing the marker" ;;
+      *"info/exclude"*) bad "felix new outside a git repository gives no advice to keep the marker local" "$_frb_out" ;;
+      *)                ok  "felix new outside a git repository gives no advice to keep the marker local" ;;
     esac
   fi
 fi
+
+printf '\nthe tree a gate saw, nested worktrees, and a local marker\n'
+# The rest of the fresh-repository sweep of 2026-09-25, each one a verdict about
+# a tree other than the one in front of the session:
+#   G2.1  a gate that writes coverage (lcov.info) stamped the tree it started
+#         on, so its own receipt read stale the moment it finished, and Stop
+#         held the session that had just run it green;
+#   G1.7  the same for a lockfile the first run creates, while a committed one
+#         the gate rewrites must go on reading stale;
+#   G2.4  the same for bytecode, rewritten on every run;
+#         and PR-B's review, finding 8: 600 regenerated build files;
+#   G2.2  a red receipt on a tree that had changed since was reported as a gate
+#         that "has not seen this work", as if it had never run;
+#   G3.3  a linked worktree under the checkout, where the desktop app puts
+#         them, read as untracked dirt in the checkout and moved its tree id.
+# And one decision: felix new says to keep .felix local, in the repository's
+# own info/exclude, and never writes that file itself.
+#
+# The rule under test is who wrote the bytes, not what they are called. The
+# tree a gate stamps may add to the tree it ran on only bytes a gate produced.
+# Anything else that moved while it ran keeps the tree it started on, so the
+# receipt reads stale, and the gate, the reason and Stop all say what moved.
+#
+# Authored blind to the implementation, from the contract's prose. Fixtures are
+# named frc-. Every write a test gate makes to an untracked file changes its
+# length, because untracked files are identified by size and a one-second
+# mtime, and an assertion that waits on a second boundary fails on a fast
+# machine.
+_frb_proj frc-x 'sh gate.sh'; _frb_proj frc-wt 'sh gate.sh'
+FRC_NL='
+'
+FRC_WROTE='gate: this run wrote untracked files git does not ignore: '
+FRC_TRACKED='gate: tracked files changed while the gate ran: '
+FRC_FOREIGN='gate: untracked files no earlier gate run wrote changed while the gate ran: '
+_frc_new()  {   # dir: a repository bound to frc-x, holding app.py, with no commit yet
+  local r; r="$(_frb_repo "$1" frc-x)"; printf 'print("ok")\n' > "$r/app.py"; printf '%s' "$r"; }
+_frc_gate() { ( cd "$1" && "$FELIX" gate ) 2>&1; }
+_frc_rcpt() { ( cd "$1" && . "$FROOT/harness/lib/verify.sh"; felix_verify_receipt "$1" "$FROOT" ); }
+_frc_f()    { _frb_f "$2" "$(_frc_rcpt "$1")"; }
+_frc_nf()   { printf '%s\n' "$1" | awk -F'\t' '{ print NF }'; }
+_frc_cur()  { _frb_f 1 "$(_frb_cur "$1" "${2:-frc-x}")"; }
+_frc_ownp() { ( cd "$1" && . "$FROOT/harness/lib/verify.sh"; printf '%s.own' "$(_felix_receipt_path "$1" "$FROOT")" ); }
+_frc_own()  { ( cd "$1" && . "$FROOT/harness/lib/verify.sh"; cat "$(_felix_receipt_path "$1" "$FROOT").own" ) 2>/dev/null; }
+_frc_log()  { _frb_last "${1:-frc-x}" | awk -F'\t' '{ print $2 "|" $4 }'; }
+_frc_is()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "expected [$3] got [$2]; $4"; }
+# What follows a literal: the rest of the text, or the rest of the line it
+# first appears on. Both print nothing when it does not appear. The gate prints
+# the names straight after a fixed prefix, so "names X after Y" is a claim
+# about that line and not about the whole output, where a path could turn up
+# for any other reason.
+_frc_rest()  { case "$1" in *"$2"*) printf '%s' "${1#*"$2"}" ;; esac; }
+_frc_after() { local t; case "$1" in *"$2"*) t="${1#*"$2"}"; printf '%s' "${t%%"$FRC_NL"*}" ;; esac; }
+_frc_names() {   # name, text, the literal, a name the rest of its line must carry
+  case "$2" in *"$3"*) has "$1" "$(_frc_after "$2" "$3")" "$4" ;; *) bad "$1" "no [$3] in [$2]" ;; esac; }
+_frc_hasline() {   # text, line: whether the text holds exactly that line
+  local l
+  while IFS= read -r l; do [ "$l" = "$2" ] && return 0; done <<EOF
+$1
+EOF
+  return 1
+}
+
+# ------------------------------------------------------------------ A1 ------
+# A gate that writes nothing stamps the tree it ran on, prints nothing new, and
+# its receipt says so in three more fields. No manifest is written for it.
+FRC_A1="$(_frc_new "$TMP/frc-a1")"; printf 'exit 0\n' > "$FRC_A1/gate.sh"; _frb_commit "$FRC_A1" base
+printf 'n\n' > "$FRC_A1/notes.txt"
+_frc_t0="$(_frb_tid "$FRC_A1")"
+_frc_out="$(_frc_gate "$FRC_A1")"; _frc_rc=$?
+_frc_r="$(_frc_rcpt "$FRC_A1")"; _frc_t1="$(_frb_tid "$FRC_A1")"
+if [ -n "$_frc_t0" ] && [ "$_frc_rc" -eq 0 ] && [ "$(_frb_f 1 "$_frc_r")" = "$_frc_t0" ] \
+   && [ "$_frc_t1" = "$_frc_t0" ] && [ "$(_frc_cur "$FRC_A1")" = current ]; then
+  ok  "a gate that writes nothing exits 0 and stamps the tree it ran on, which is still the tree, and current"
+else
+  bad "a gate that writes nothing exits 0 and stamps the tree it ran on, which is still the tree, and current" \
+      "exit $_frc_rc; id before [$_frc_t0], stamped [$(_frb_f 1 "$_frc_r")], after [$_frc_t1]; [$(_frb_cur "$FRC_A1" frc-x)]"
+fi
+case "$_frc_out" in
+  *"gate: this run wrote"*|*"changed while the gate ran"*)
+     bad "and it prints no line about files it wrote or files that moved" "$_frc_out" ;;
+  *) ok  "and it prints no line about files it wrote or files that moved" ;;
+esac
+is "its receipt has eleven fields, and the last three are same, a dash and a dash" \
+   "$(_frc_nf "$_frc_r")|$(_frb_f 9 "$_frc_r")|$(_frb_f 10 "$_frc_r")|$(_frb_f 11 "$_frc_r")" "11|same|-|-"
+if [ -e "$(_frc_ownp "$FRC_A1")" ]; then
+  bad "and no ownership manifest is written beside it" "$(_frc_ownp "$FRC_A1") holds [$(_frc_own "$FRC_A1")]"
+else
+  ok  "and no ownership manifest is written beside it"
+fi
+
+# ------------------------------------------------------------------ A2 ------
+# G2.1. A gate that writes coverage output. One run is enough: the only thing
+# that moved is a file the run created, so the receipt is for the tree the run
+# left, and the gate names the file and suggests .gitignore for it.
+FRC_A2="$(_frc_new "$TMP/frc-a2")"
+printf '%s\n' "printf 'SF:app.py\n' >> lcov.info; exit 0" > "$FRC_A2/gate.sh"; _frb_commit "$FRC_A2" base
+_frb_prompt "$FRC_A2" frc-a2
+_frc_t0="$(_frb_tid "$FRC_A2")"
+_frc_out="$(_frc_gate "$FRC_A2")"; _frc_rc=$?
+_frc_t1="$(_frb_tid "$FRC_A2")"; _frc_r="$(_frc_rcpt "$FRC_A2")"
+_frc_is "one run of a gate that writes lcov.info reads current after that run (G2.1)" \
+        "$(_frc_cur "$FRC_A2")" current \
+        "exit $_frc_rc, status [$(git -C "$FRC_A2" status --porcelain)], [$(_frb_cur "$FRC_A2" frc-x)]"
+_frb_released "and Stop releases the session that ran it" "$(_frb_stop "$FRC_A2" frc-a2)"
+_frc_names "the gate says this run wrote lcov.info" "$_frc_out" "$FRC_WROTE" lcov.info
+has "and suggests .gitignore for it" "$(_frc_rest "$_frc_out" "$FRC_WROTE")" ".gitignore"
+if [ -z "$_frc_t0" ] || [ "$_frc_t0" = "$_frc_t1" ]; then
+  bad "the receipt records gate, the tree the run left, the tree it started on, and lcov.info" \
+      "the fixture: the run did not move the id, before [$_frc_t0] after [$_frc_t1]"
+else
+  is "the receipt records gate, the tree the run left, the tree it started on, and lcov.info" \
+     "$(_frb_f 9 "$_frc_r")|$(_frb_f 1 "$_frc_r")|$(_frb_f 10 "$_frc_r")|$(_frb_f 11 "$_frc_r")" \
+     "gate|$_frc_t1|$_frc_t0|lcov.info"
+fi
+_frc_o="$(_frc_own "$FRC_A2")"
+case "$_frc_o" in
+  *"$FRC_NL"*)           bad "and its ownership manifest is one line, for lcov.info" "[$_frc_o]" ;;
+  "$FRC_A2/lcov.info "*) ok  "and its ownership manifest is one line, for lcov.info" ;;
+  *)                     bad "and its ownership manifest is one line, for lcov.info" "[$_frc_o]" ;;
+esac
+printf '# edit\n' >> "$FRC_A2/app.py"
+is      "an edit to app.py after it reads stale" "$(_frc_cur "$FRC_A2")" stale
+_blocks "and Stop holds the session over that edit" "$(_frb_stop "$FRC_A2" frc-a2)"
+# The second run appends to lcov.info, which the first run left exactly as it
+# is: that rewrite is gate output too.
+_frc_out="$(_frc_gate "$FRC_A2")"; _frc_rc=$?
+_frc_is "the second run rewrites the lcov.info an earlier run wrote, reads current, and records gate" \
+        "$(_frc_cur "$FRC_A2")|$(_frc_f "$FRC_A2" 9)" "current|gate" "exit $_frc_rc, [$(_frb_cur "$FRC_A2" frc-x)]"
+_frb_released "and Stop releases the session again" "$(_frb_stop "$FRC_A2" frc-a2)"
+_frc_gate "$FRC_A2" >/dev/null
+_frc_is "and a third run with no edit between reads current as well" "$(_frc_cur "$FRC_A2")" current \
+        "[$(_frb_cur "$FRC_A2" frc-x)]"
+# The bound on what the post-gate tree may vouch for: once the file is staged it
+# is in the tree git hashes, and the receipt reads stale.
+git -C "$FRC_A2" add lcov.info >/dev/null 2>&1
+is "and git add of the file the gate wrote makes the receipt stale" "$(_frc_cur "$FRC_A2")" stale
+
+# ------------------------------------------------------------------ A3 ------
+# G2.1 before the first commit.
+FRC_A3="$(_frc_new "$TMP/frc-a3")"
+printf '%s\n' "printf 'SF:app.py\n' >> lcov.info; exit 0" > "$FRC_A3/gate.sh"
+( cd "$FRC_A3" && git add -A ) >/dev/null 2>&1
+_frc_gate "$FRC_A3" >/dev/null; _frc_rc=$?
+if git -C "$FRC_A3" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+  bad "before the first commit, one run of that gate reads current too, and records gate" "the fixture: HEAD is born"
+else
+  _frc_is "before the first commit, one run of that gate reads current too, and records gate" \
+          "$(_frc_cur "$FRC_A3")|$(_frc_f "$FRC_A3" 9)" "current|gate" "exit $_frc_rc, [$(_frb_cur "$FRC_A3" frc-x)]"
+fi
+
+# ------------------------------------------------------------------ A4 ------
+# PR-B's review, finding 8: a gate that regenerates 600 build files. Each run
+# appends to every one of them, so every run rewrites all 600.
+FRC_A4="$(_frc_new "$TMP/frc-a4")"
+cat > "$FRC_A4/gate.sh" <<'EOF'
+mkdir -p build; awk 'BEGIN{for(i=0;i<600;i++){f=sprintf("build/o%d",i); print "x" >> f; close(f)}}'; grep -q ok app.py
+EOF
+_frb_commit "$FRC_A4" base
+_frc_ids=""
+_frc_out="$(_frc_gate "$FRC_A4")"; _frc_rc=$?
+_frc_ids="$_frc_ids$(_frb_tid "$FRC_A4")$FRC_NL$(_frc_f "$FRC_A4" 1)$FRC_NL"
+_frc_is "600 build files the first run creates: it reads current after that run" "$(_frc_cur "$FRC_A4")" current \
+        "exit $_frc_rc, [$(_frb_cur "$FRC_A4" frc-x)]"
+_frc_names "and the gate names them as one directory of 600" "$_frc_out" "$FRC_WROTE" 'build/ (600 files)'
+is "and records exactly that name" "$(_frc_f "$FRC_A4" 11)" 'build/ (600 files)'
+printf '# still ok\n' >> "$FRC_A4/app.py"
+_frc_out="$(_frc_gate "$FRC_A4")"; _frc_rc=$?
+_frc_ids="$_frc_ids$(_frb_tid "$FRC_A4")$FRC_NL$(_frc_f "$FRC_A4" 1)$FRC_NL"
+_frc_is "an edit to app.py, then a second run that rewrites all 600, reads current" "$(_frc_cur "$FRC_A4")" current \
+        "exit $_frc_rc, [$(_frb_cur "$FRC_A4" frc-x)]"
+printf 'hand\n' >> "$FRC_A4/build/o5"
+_frc_out="$(_frc_gate "$FRC_A4")"
+_frc_ids="$_frc_ids$(_frb_tid "$FRC_A4")$FRC_NL$(_frc_f "$FRC_A4" 1)$FRC_NL"
+is "a hand edit to one of them, then a third run, reads stale" "$(_frc_cur "$FRC_A4")" stale
+_frc_names "which names build/o5 as a file no earlier gate run wrote" "$_frc_out" "$FRC_FOREIGN" build/o5
+is "and records moved, and build/o5 alone" "$(_frc_f "$FRC_A4" 9)|$(_frc_f "$FRC_A4" 11)" "moved|build/o5"
+_frc_out="$(_frc_gate "$FRC_A4")"; _frc_rc=$?
+_frc_ids="$_frc_ids$(_frb_tid "$FRC_A4")$FRC_NL$(_frc_f "$FRC_A4" 1)$FRC_NL"
+_frc_is "and the fourth run reads current: the third made the hand-edited bytes the gate's own" \
+        "$(_frc_cur "$FRC_A4")" current "exit $_frc_rc, [$(_frb_cur "$FRC_A4" frc-x)]"
+case "$FRC_NL$_frc_ids" in
+  *"${FRC_NL}coarse:"*) bad "no tree id taken over the 600 regenerated files is a count" "[$_frc_ids]" ;;
+  *)                    ok  "no tree id taken over the 600 regenerated files is a count" ;;
+esac
+
+# ------------------------------------------------------------------ A5 ------
+# G1.7. A lockfile the first run creates, and then leaves alone.
+FRC_A5="$(_frc_new "$TMP/frc-a5")"
+cat > "$FRC_A5/gate.sh" <<'EOF'
+[ -f Cargo.lock ] || printf '# lock\nversion = 3\n' > Cargo.lock; exit 0
+EOF
+_frb_commit "$FRC_A5" base
+_frc_out="$(_frc_gate "$FRC_A5")"; _frc_rc=$?
+_frc_is "a lockfile the first run creates reads current after that run (G1.7)" "$(_frc_cur "$FRC_A5")" current \
+        "exit $_frc_rc, [$(_frb_cur "$FRC_A5" frc-x)]"
+_frc_names "and the gate names Cargo.lock as this run's output" "$_frc_out" "$FRC_WROTE" Cargo.lock
+_frc_gate "$FRC_A5" >/dev/null
+is "and a second run, which leaves it alone, reads current" "$(_frc_cur "$FRC_A5")" current
+
+# ------------------------------------------------------------------ A6 ------
+# G1.7's other half. A committed lockfile the gate rewrites is a tracked change,
+# and the receipt keeps the tree the run started on. What is new is that the
+# gate, the stale reason and Stop all name the file. The committed content is a
+# different length from the rewrite, so no assertion leans on git's racy-clean
+# check either.
+FRC_A6="$(_frc_new "$TMP/frc-a6")"
+printf '# lock\nversion = 3\n' > "$FRC_A6/Cargo.lock"
+cat > "$FRC_A6/gate.sh" <<'EOF'
+grep -q 'version = 4' Cargo.lock || printf 'version = 4\n' > Cargo.lock; exit 0
+EOF
+_frb_commit "$FRC_A6" base
+_frb_prompt "$FRC_A6" frc-a6
+_frc_t0="$(_frb_tid "$FRC_A6")"
+_frc_out="$(_frc_gate "$FRC_A6")"; _frc_rc=$?
+_frc_t1="$(_frb_tid "$FRC_A6")"; _frc_r="$(_frc_rcpt "$FRC_A6")"
+is "a committed lockfile the gate rewrites reads stale after the run (G1.7)" "$(_frc_cur "$FRC_A6")" stale
+if [ -z "$_frc_t0" ] || [ "$_frc_t0" = "$_frc_t1" ]; then
+  bad "and the receipt keeps the tree the run started on, and records moved, the tree it left, and Cargo.lock" \
+      "the fixture: the run did not move the id, before [$_frc_t0] after [$_frc_t1]"
+else
+  is "and the receipt keeps the tree the run started on, and records moved, the tree it left, and Cargo.lock" \
+     "$(_frb_f 9 "$_frc_r")|$(_frb_f 1 "$_frc_r")|$(_frb_f 10 "$_frc_r")|$(_frb_f 11 "$_frc_r")" \
+     "moved|$_frc_t0|$_frc_t1|Cargo.lock"
+fi
+_frc_names "the gate says Cargo.lock, a tracked file, changed while it ran" "$_frc_out" "$FRC_TRACKED" Cargo.lock
+_frc_names "and the stale reason says files changed while the gate ran, and names Cargo.lock" \
+           "$(_frb_f 2 "$(_frb_cur "$FRC_A6" frc-x)")" "changed while the gate ran" Cargo.lock
+_frc_s="$(_frb_stop "$FRC_A6" frc-a6)"
+_blocks "Stop holds the session on the tree the run left" "$_frc_s"
+case "$_frc_s" in
+  *"has not seen this work"*) bad "and says Cargo.lock changed while the gate ran, not that the gate has not seen this work" "$_frc_s" ;;
+  *) _frc_names "and says Cargo.lock changed while the gate ran, not that the gate has not seen this work" \
+                "$_frc_s" "changed while it ran" Cargo.lock ;;
+esac
+is "and records that hold as changed during the gate" "$(_frc_log)" "blocked|changed during the gate"
+_frc_gate "$FRC_A6" >/dev/null
+is "a second run, which changes nothing, reads current" "$(_frc_cur "$FRC_A6")" current
+_frb_released "and Stop releases the session" "$(_frb_stop "$FRC_A6" frc-a6)"
+
+# ------------------------------------------------------------------ A7 ------
+# G2.4. Bytecode, rewritten from app.py on every run.
+FRC_A7="$(_frc_new "$TMP/frc-a7")"
+cat > "$FRC_A7/gate.sh" <<'EOF'
+mkdir -p __pycache__; cat app.py > __pycache__/app.cpython.pyc; exit 0
+EOF
+_frb_commit "$FRC_A7" base
+_frc_gate "$FRC_A7" >/dev/null; _frc_rc=$?
+_frc_is "bytecode the first run writes reads current after that run (G2.4)" "$(_frc_cur "$FRC_A7")" current \
+        "exit $_frc_rc, [$(_frb_cur "$FRC_A7" frc-x)]"
+printf '# edit\n' >> "$FRC_A7/app.py"
+_frc_gate "$FRC_A7" >/dev/null
+_frc_is "an edit to app.py, then a second run that rewrites the bytecode, reads current" "$(_frc_cur "$FRC_A7")" current \
+        "[$(_frb_cur "$FRC_A7" frc-x)]"
+# The deliberate cost. A session runs its own tests, which rewrite the bytecode
+# outside any gate, and the next gate that rewrites it holds once and says why.
+printf '# edit\n' >> "$FRC_A7/app.py"
+( cd "$FRC_A7" && sh gate.sh ) >/dev/null 2>&1
+printf '# edit\n' >> "$FRC_A7/app.py"
+_frc_out="$(_frc_gate "$FRC_A7")"
+is "bytecode a session's own test run rewrote, and a gate that rewrites it again, reads stale" "$(_frc_cur "$FRC_A7")" stale
+_frc_names "and the gate names it as a file no earlier gate run wrote" "$_frc_out" "$FRC_FOREIGN" __pycache__/app.cpython.pyc
+# One more edit first, so this run rewrites the bytecode to a new length: the
+# claim is that the run before made those bytes the gate's own, and a rewrite
+# of the same bytes in the same second would not test it.
+printf '# edit\n' >> "$FRC_A7/app.py"
+_frc_gate "$FRC_A7" >/dev/null
+_frc_is "and the run after that reads current: the run before it made the bytecode the gate's own" \
+        "$(_frc_cur "$FRC_A7")" current "[$(_frb_cur "$FRC_A7" frc-x)]"
+
+# ------------------------------------------------------------------ A8 ------
+# A gate is never current over bytes that were in the tree when it started
+# unless it ran on them. Here it runs the session's untracked check.sh and then
+# rewrites it: the run was green, and the check in the tree now fails.
+FRC_A8="$(_frc_new "$TMP/frc-a8")"
+printf '%s\n' "sh check.sh && printf 'exit 1 # rewritten by the gate\n' > check.sh" > "$FRC_A8/gate.sh"
+_frb_commit "$FRC_A8" base
+printf 'exit 0\n' > "$FRC_A8/check.sh"
+_frb_prompt "$FRC_A8" frc-a8
+_frc_out="$(_frc_gate "$FRC_A8")"; _frc_rc=$?
+_frc_v="$(_frc_cur "$FRC_A8")"
+if [ "$_frc_rc" -eq 0 ] && [ "$_frc_v" = stale ]; then
+  ok  "a gate that runs the session's untracked check.sh and then rewrites it exits 0, and is never current over it"
+else
+  bad "a gate that runs the session's untracked check.sh and then rewrites it exits 0, and is never current over it" \
+      "exit $_frc_rc, [$(_frb_cur "$FRC_A8" frc-x)]"
+fi
+is "and records moved" "$(_frc_f "$FRC_A8" 9)" moved
+_frc_names "and names check.sh as a file no earlier gate run wrote" "$_frc_out" "$FRC_FOREIGN" check.sh
+_blocks "and Stop holds the session" "$(_frb_stop "$FRC_A8" frc-a8)"
+_frc_gate "$FRC_A8" >/dev/null; _frc_rc=$?
+if [ "$_frc_rc" -ne 0 ] && [ "$(_frc_f "$FRC_A8" 2)" = red ]; then
+  ok  "and the next run executes the check now in the tree, and is red"
+else
+  bad "and the next run executes the check now in the tree, and is red" "exit $_frc_rc, verdict [$(_frc_f "$FRC_A8" 2)]"
+fi
+
+# A gate that writes a source file and then runs it ran the bytes now in the tree.
+FRC_A8B="$(_frc_new "$TMP/frc-a8b")"
+printf '%s\n' "printf 'exit 0\n' > gen.sh && sh gen.sh" > "$FRC_A8B/gate.sh"; _frb_commit "$FRC_A8B" base
+if [ -e "$FRC_A8B/gen.sh" ]; then
+  bad "a gate that writes gen.sh and then runs it reads current after one run" "the fixture: gen.sh exists before the run"
+else
+  _frc_gate "$FRC_A8B" >/dev/null; _frc_rc=$?
+  _frc_is "a gate that writes gen.sh and then runs it reads current after one run" "$(_frc_cur "$FRC_A8B")" current \
+          "exit $_frc_rc, [$(_frb_cur "$FRC_A8B" frc-x)]"
+fi
+
+# The same shape on a committed check.sh is a tracked change.
+FRC_A8C="$(_frc_new "$TMP/frc-a8c")"
+printf 'exit 0\n' > "$FRC_A8C/check.sh"
+printf '%s\n' "sh check.sh && printf '# touched\n' >> check.sh" > "$FRC_A8C/gate.sh"; _frb_commit "$FRC_A8C" base
+_frc_out="$(_frc_gate "$FRC_A8C")"
+is "a gate that runs a committed check.sh and then appends to it reads stale" "$(_frc_cur "$FRC_A8C")" stale
+is "and records moved for it" "$(_frc_f "$FRC_A8C" 9)" moved
+_frc_names "and names check.sh as a tracked file that changed while the gate ran" "$_frc_out" "$FRC_TRACKED" check.sh
+
+# ------------------------------------------------------------------ A9 ------
+# Edits while the gate runs. The gate waits on a file outside the repository,
+# so the edit lands after the tree the gate starts on is taken and before the
+# run ends. Both waits are bounded, so a build whose gate never starts cannot
+# hang the suite.
+_frc_race() {   # repo, sync dir, then the edit to make while the gate waits
+  local r="$1" y="$2" i=0 pid; shift 2
+  ( cd "$r" && "$FELIX" gate > "$y/out" 2>&1; printf '%s' "$?" > "$y/rc" ) &
+  pid=$!
+  while [ ! -f "$y/started" ] && [ "$i" -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+  [ -f "$y/started" ] && "$@"
+  : > "$y/go"
+  wait "$pid"
+}
+_frc_race_repo() {   # dir, sync dir: a born repository whose committed gate waits on the sync dir
+  local r; r="$(_frc_new "$1")"; mkdir -p "$2"
+  cat > "$r/gate.sh" <<EOF
+: > '$2/started'
+i=0; while [ ! -f '$2/go' ] && [ \$i -lt 300 ]; do sleep 0.1; i=\$((i+1)); done
+exit 0
+EOF
+  _frb_commit "$r" base; printf '%s' "$r"
+}
+_frc_append() { printf '# written while the gate ran\n' >> "$1"; }
+
+FRC_Y="$TMP/frc-sync-a"; FRC_A9="$(_frc_race_repo "$TMP/frc-a9a" "$FRC_Y")"
+_frb_prompt "$FRC_A9" frc-a9a
+_frc_race "$FRC_A9" "$FRC_Y" _frc_append "$FRC_A9/app.py"
+_frc_out="$(cat "$FRC_Y/out" 2>/dev/null)"
+if [ ! -f "$FRC_Y/started" ]; then
+  for _frc_i in "an edit to tracked app.py while the gate runs leaves the receipt stale" \
+                "and Stop holds the session after that run" "and the receipt of that run records moved" \
+                "and the gate names app.py as a tracked file that changed while it ran" \
+                "and Stop says app.py changed while the gate ran"; do
+    bad "$_frc_i" "the fixture: the gate never started: [$_frc_out]"
+  done
+else
+  is "an edit to tracked app.py while the gate runs leaves the receipt stale" "$(_frc_cur "$FRC_A9")" stale
+  _frc_s="$(_frb_stop "$FRC_A9" frc-a9a)"
+  _blocks "and Stop holds the session after that run" "$_frc_s"
+  is "and the receipt of that run records moved" "$(_frc_f "$FRC_A9" 9)" moved
+  _frc_names "and the gate names app.py as a tracked file that changed while it ran" "$_frc_out" "$FRC_TRACKED" app.py
+  _frc_names "and Stop says app.py changed while the gate ran" "$_frc_s" "changed while it ran" app.py
+fi
+
+FRC_Y="$TMP/frc-sync-b"; FRC_A9B="$(_frc_race_repo "$TMP/frc-a9b" "$FRC_Y")"
+printf 'x = 1\n' > "$FRC_A9B/notes.py"
+_frb_prompt "$FRC_A9B" frc-a9b
+_frc_race "$FRC_A9B" "$FRC_Y" _frc_append "$FRC_A9B/notes.py"
+_frc_out="$(cat "$FRC_Y/out" 2>/dev/null)"
+if [ ! -f "$FRC_Y/started" ]; then
+  for _frc_i in "an edit to an untracked notes.py that was there before the gate leaves the receipt stale" \
+                "and the gate names notes.py as a file no earlier gate run wrote"; do
+    bad "$_frc_i" "the fixture: the gate never started: [$_frc_out]"
+  done
+else
+  is "an edit to an untracked notes.py that was there before the gate leaves the receipt stale" "$(_frc_cur "$FRC_A9B")" stale
+  _frc_names "and the gate names notes.py as a file no earlier gate run wrote" "$_frc_out" "$FRC_FOREIGN" notes.py
+fi
+
+# The residual: a file someone else creates while the gate runs cannot be told
+# from one the gate created. Only its bound is asserted, never current or stale
+# before it is staged: it is named as the run's output, and once it is staged
+# or committed the receipt no longer covers it.
+FRC_Y="$TMP/frc-sync-c"; FRC_A9C="$(_frc_race_repo "$TMP/frc-a9c" "$FRC_Y")"
+_frb_prompt "$FRC_A9C" frc-a9c
+_frc_race "$FRC_A9C" "$FRC_Y" _frc_append "$FRC_A9C/new.py"
+_frc_out="$(cat "$FRC_Y/out" 2>/dev/null)"
+if [ ! -f "$FRC_Y/started" ]; then
+  for _frc_i in "a new untracked new.py made while the gate runs is named as this run's output" \
+                "and git add of it makes the receipt stale" "and a commit of it holds the session"; do
+    bad "$_frc_i" "the fixture: the gate never started: [$_frc_out]"
+  done
+else
+  _frc_names "a new untracked new.py made while the gate runs is named as this run's output" "$_frc_out" "$FRC_WROTE" new.py
+  git -C "$FRC_A9C" add new.py >/dev/null 2>&1
+  is "and git add of it makes the receipt stale" "$(_frc_cur "$FRC_A9C")" stale
+  _frb_commit "$FRC_A9C" during
+  _blocks "and a commit of it holds the session" "$(_frb_stop "$FRC_A9C" frc-a9c)"
+fi
+
+# ----------------------------------------------------------------- A10 ------
+# HEAD moves while the gate runs: the gate itself commits.
+FRC_A10="$(_frc_new "$TMP/frc-a10")"
+printf '%s\n' 'git -c user.name=t -c user.email=t@t commit -q --allow-empty -m during; exit 0' > "$FRC_A10/gate.sh"
+_frb_commit "$FRC_A10" base
+_frc_h0="$(git -C "$FRC_A10" rev-parse HEAD 2>/dev/null)"
+_frc_out="$(_frc_gate "$FRC_A10")"
+if [ "$(git -C "$FRC_A10" rev-parse HEAD 2>/dev/null)" = "$_frc_h0" ]; then
+  for _frc_i in "a commit made while the gate runs leaves the receipt stale" "and records moved for the commit" \
+                "and the gate names HEAD as having changed while it ran"; do
+    bad "$_frc_i" "the fixture: the gate made no commit: [$_frc_out]"
+  done
+else
+  is "a commit made while the gate runs leaves the receipt stale" "$(_frc_cur "$FRC_A10")" stale
+  is "and records moved for the commit" "$(_frc_f "$FRC_A10" 9)" moved
+  _frc_names "and the gate names HEAD as having changed while it ran" "$_frc_out" "$FRC_TRACKED" HEAD
+fi
+
+# ----------------------------------------------------------------- A11 ------
+# The parts the gate compares are the parts the id hashes: written to a
+# directory when one is named, and the id rebuilt from them by the contract's
+# own formula, in the repository, is the id. Naming the directory changes
+# nothing about the id.
+_frc_parts() {   # root, a fresh directory: the id, the id with the directory named, and the id the parts rebuild
+  ( cd "$1" && unset FELIX_UNTRACKED_CAP; . "$FROOT/harness/lib/verify.sh"
+    a="$(felix_tree_id "$1" "$FROOT")"; b="$(felix_tree_id "$1" "$FROOT" "$2")"
+    if [ -f "$2/head" ] && [ -f "$2/index" ] && [ -f "$2/diff" ] && [ -f "$2/meta" ]; then
+      if [ -n "$(cat "$2/index")" ]; then x="$(cat "$2/index")
+$(cat "$2/diff")"
+      else x="$(cat "$2/diff")"; fi
+      c="$(printf '%s\n%s\n%s' "$(cat "$2/head")" "$x" "$(cat "$2/meta")" | git hash-object --stdin)"
+    else c="no parts written"; fi
+    printf '%s|%s|%s' "$a" "$b" "$c" )
+}
+_frc_parts_case() {   # what the tree is, root
+  local p d="$TMP/frc-parts-$RANDOM$RANDOM"; mkdir -p "$d"; p="$(_frc_parts "$2" "$d")"
+  local a="${p%%|*}" c="${p##*|}" b
+  b="${p#*|}"; b="${b%%|*}"
+  if [ -n "$a" ] && [ "$a" = "$b" ]; then ok  "on $1, naming a parts directory leaves the tree id as it was"
+  else bad "on $1, naming a parts directory leaves the tree id as it was" "without [$a], with [$b]"; fi
+  if [ -n "$a" ] && [ "$a" = "$c" ]; then ok  "and on $1 the head, index, diff and meta written there rebuild it"
+  else bad "and on $1 the head, index, diff and meta written there rebuild it" "id [$a], rebuilt [$c]"; fi
+}
+FRC_P1="$(_frb_repo "$TMP/frc-a11i")"
+printf 'one\n' > "$FRC_P1/f.txt"; _frb_commit "$FRC_P1" base; printf 'two\n' >> "$FRC_P1/f.txt"
+printf 'a\n' > "$FRC_P1/u1.txt"; printf 'bb\n' > "$FRC_P1/u2.txt"; printf 'ccc\n' > "$FRC_P1/u3.txt"
+_frc_parts_case "a born tree with a tracked edit and three untracked files" "$FRC_P1"
+FRC_P2="$(_frb_repo "$TMP/frc-a11ii")"
+printf 's1\n' > "$FRC_P2/s1.txt"; printf 's2\n' > "$FRC_P2/s2.txt"
+( cd "$FRC_P2" && git add s1.txt s2.txt ) >/dev/null 2>&1
+printf 'edited\n' >> "$FRC_P2/s1.txt"; printf 'u\n' > "$FRC_P2/u1.txt"; printf 'uu\n' > "$FRC_P2/u2.txt"
+_frc_parts_case "an unborn tree with staged files, a worktree edit to one of them, and untracked files" "$FRC_P2"
+FRC_P3="$(_frb_repo "$TMP/frc-a11iii")"
+printf 'seed\n' > "$FRC_P3/seed.txt"; _frb_commit "$FRC_P3" base; mkdir -p "$FRC_P3/u"; _frb_mk "$FRC_P3" 0 600 'u/f%d.txt'
+_frc_parts_case "a born tree with 600 untracked files" "$FRC_P3"
+
+# ------------------------------------------------------------------ B -------
+# G2.2. A red receipt is a failure whatever tree it is on, and Stop says so
+# before it says anything about the tree: a gate that ran and failed is not a
+# gate that has not seen the work.
+FRC_B1="$(_frc_new "$TMP/frc-b1")"
+printf '%s\n' "printf 'x\n' >> lcov.info; exit 1" > "$FRC_B1/gate.sh"; _frb_commit "$FRC_B1" base
+_frb_prompt "$FRC_B1" frc-b1
+printf '# edit\n' >> "$FRC_B1/app.py"
+_frc_gate "$FRC_B1" >/dev/null
+_frc_s="$(_frb_stop "$FRC_B1" frc-b1)"
+_blocks "a red gate that wrote lcov.info holds the session" "$_frc_s"
+case "$_frc_s" in
+  *"has not seen this work"*)             bad "and Stop says the gate failed on this exact tree, not that it has not seen the work (G2.2)" "$_frc_s" ;;
+  *"The gate failed on this exact tree"*) ok  "and Stop says the gate failed on this exact tree, not that it has not seen the work (G2.2)" ;;
+  *)                                      bad "and Stop says the gate failed on this exact tree, not that it has not seen the work (G2.2)" "$_frc_s" ;;
+esac
+is "and records that hold as failed" "$(_frc_log)" "blocked|failed"
+
+FRC_B2="$(_frc_new "$TMP/frc-b2")"
+printf '%s\n' "printf '# x\n' >> app.py; exit 1" > "$FRC_B2/gate.sh"; _frb_commit "$FRC_B2" base
+_frb_prompt "$FRC_B2" frc-b2
+_frc_gate "$FRC_B2" >/dev/null
+_frc_s="$(_frb_stop "$FRC_B2" frc-b2)"
+_blocks "a red gate that changed a tracked file holds the session" "$_frc_s"
+case "$_frc_s" in
+  *"has not seen this work"*) bad "and Stop says the gate last ran and failed, not that it has not seen the work" "$_frc_s" ;;
+  *"The gate last ran at"*"and failed"*) ok "and Stop says the gate last ran and failed, not that it has not seen the work" ;;
+  *) bad "and Stop says the gate last ran and failed, not that it has not seen the work" "$_frc_s" ;;
+esac
+is "and records that hold as failed too" "$(_frc_log)" "blocked|failed"
+
+FRC_B3="$(_frc_new "$TMP/frc-b3")"
+printf 'exit 1\n' > "$FRC_B3/gate.sh"; _frb_commit "$FRC_B3" base
+_frb_prompt "$FRC_B3" frc-b3
+_frc_gate "$FRC_B3" >/dev/null
+printf '# edit\n' >> "$FRC_B3/app.py"
+_frc_s="$(_frb_stop "$FRC_B3" frc-b3)"
+has "a red receipt followed by an edit is reported as a gate that failed" "$_frc_s" "and failed"
+is  "and the hold is recorded as failed, not as a stale receipt" "$(_frc_log)" "blocked|failed"
+
+FRC_B4="$(_frc_new "$TMP/frc-b4")"
+printf 'exit 0\n' > "$FRC_B4/gate.sh"; _frb_commit "$FRC_B4" base
+_frb_prompt "$FRC_B4" frc-b4
+_frc_gate "$FRC_B4" >/dev/null
+printf '# edit\n' >> "$FRC_B4/app.py"
+has "a green receipt followed by an ordinary edit still says the gate has not seen this work" \
+    "$(_frb_stop "$FRC_B4" frc-b4)" "on a different tree. It has not seen this work."
+is  "and still records a stale receipt" "$(_frc_log)" "blocked|stale receipt"
+
+FRC_B5="$(_frc_new "$TMP/frc-b5")"
+printf 'exit 1\n' > "$FRC_B5/gate.sh"; _frb_commit "$FRC_B5" base
+_frb_prompt "$FRC_B5" frc-b5
+printf '# edit\n' >> "$FRC_B5/app.py"
+_frc_gate "$FRC_B5" >/dev/null
+has "a red gate with no edit after it still says it failed on this exact tree" \
+    "$(_frb_stop "$FRC_B5" frc-b5)" "The gate failed on this exact tree"
+is  "and still records failed" "$(_frc_log)" "blocked|failed"
+
+# ------------------------------------------------------------------ C -------
+# G3.3. The desktop app puts a session's worktree in .claude/worktrees under
+# the checkout, and to the checkout's git that is an untracked directory: the
+# checkout read as dirty, and its id moved on the worktree's own saves. A
+# linked worktree strictly under the root is not the root's tree. A plain
+# directory in the same place still is, and a root is never excluded from
+# itself. Nothing here writes the desktop app's info/exclude line: that line
+# is what hid the defect, not a fix for it.
+FRC_M="$(_frb_repo "$TMP/frc-wt" frc-wt)"
+printf '# m\n' > "$FRC_M/README.md"; mkdir -p "$FRC_M/src"; printf 'a\n' > "$FRC_M/src/a.txt"
+printf 'exit 0\n' > "$FRC_M/gate.sh"; _frb_commit "$FRC_M" base
+_frc_m0="$(_frb_tid "$FRC_M")"
+FRC_S2="$FRC_M/.claude/worktrees/s2"
+git -C "$FRC_M" worktree add -q -b frc-s2 "$FRC_S2" >/dev/null 2>&1
+_frc_st="$(git -C "$FRC_M" status --porcelain)"
+if [ -z "$_frc_m0" ] || [ ! -f "$FRC_S2/.git" ] || [ "$_frc_st" != '?? .claude/' ]; then
+  bad "a linked worktree under .claude/worktrees leaves the checkout clean (G3.3)" \
+      "the fixture: id [$_frc_m0], s2/.git a file [$([ -f "$FRC_S2/.git" ] && echo yes || echo no)], status [$_frc_st]"
+else
+  is "a linked worktree under .claude/worktrees leaves the checkout clean (G3.3)" "$(_frb_dirty "$FRC_M" "$FROOT")" clean
+fi
+is "and leaves the checkout's tree id what it was before the worktree was added" "$(_frb_tid "$FRC_M")" "$_frc_m0"
+_frc_c3() { is "$1" "$(_frb_tid "$FRC_M")|$(_frb_dirty "$FRC_M" "$FROOT")" "$_frc_m0|clean"; }
+printf 'more\n' >> "$FRC_S2/README.md"
+_frc_c3 "an append to the worktree's README.md leaves the checkout's id and cleanliness alone"
+printf 'n\n' > "$FRC_S2/src/new.txt"
+_frc_c3 "and so does a new file in a subdirectory of the worktree"
+printf 'n\n' > "$FRC_S2/new.txt"
+_frc_c3 "and so does a new file at the worktree's top"
+printf '# m, saved\n' > "$FRC_S2/README.md.tmp"; mv "$FRC_S2/README.md.tmp" "$FRC_S2/README.md"
+_frc_c3 "and so does an atomic save, a temporary file renamed over README.md"
+
+# The same edits after a gate in the checkout. New names this time, so each
+# one adds an entry to a directory the old id read the metadata of.
+_frc_out="$(_frc_gate "$FRC_M")"; _frc_rc=$?
+printf 'more\n' >> "$FRC_S2/README.md"; printf 'n\n' > "$FRC_S2/src/new4.txt"; printf 'n\n' > "$FRC_S2/new4.txt"
+printf '# m, saved again\n' > "$FRC_S2/README.md.tmp"; mv "$FRC_S2/README.md.tmp" "$FRC_S2/README.md"
+_frc_is "a gate run in the checkout stays current over edits made in the worktree after it" \
+        "$(_frc_cur "$FRC_M" frc-wt)" current "exit $_frc_rc, [$(_frb_cur "$FRC_M" frc-wt)]"
+_frc_n0="$(_frb_nblk frc-wt)"
+_frb_prompt "$FRC_M" frc-c5
+_frb_released "and Stop in the checkout releases a session that changed nothing in it" "$(_frb_stop "$FRC_M" frc-c5)"
+is "and records no hold in the checkout's project" "$(_frb_nblk frc-wt)" "$_frc_n0"
+
+_frc_i0="$(_frb_tid "$FRC_M")"
+printf 'n\n' > "$FRC_M/.claude/notes.txt"
+_frc_i1="$(_frb_tid "$FRC_M")"
+if [ "$(_frb_dirty "$FRC_M" "$FROOT")" = dirty ] && [ -n "$_frc_i1" ] && [ "$_frc_i1" != "$_frc_i0" ]; then
+  ok  "a file in .claude beside the worktrees is dirt and moves the id: the exclusion is exact"
+else
+  bad "a file in .claude beside the worktrees is dirt and moves the id: the exclusion is exact" \
+      "dirty [$(_frb_dirty "$FRC_M" "$FROOT")], id before [$_frc_i0], after [$_frc_i1]"
+fi
+rm -f "$FRC_M/.claude/notes.txt"
+mkdir -p "$FRC_M/.claude/worktrees/plain"; printf 'f\n' > "$FRC_M/.claude/worktrees/plain/f"
+is "a plain directory under .claude/worktrees, not a worktree, is dirt" "$(_frb_dirty "$FRC_M" "$FROOT")" dirty
+rm -rf "$FRC_M/.claude/worktrees/plain"
+
+# A worktree whose name is a glob. The exclusion is literal: it takes that
+# worktree out, and a plain directory the glob would also match stays in.
+FRC_W1="$FRC_M/.claude/worktrees/w[1]*"
+git -C "$FRC_M" worktree add -q -b frc-w1 "$FRC_W1" >/dev/null 2>&1
+if [ ! -f "$FRC_W1/.git" ]; then
+  bad "a worktree named w[1]* leaves the checkout clean" "the fixture: no worktree at $FRC_W1"
+else
+  is "a worktree named w[1]* leaves the checkout clean" "$(_frb_dirty "$FRC_M" "$FROOT")" clean
+fi
+mkdir -p "$FRC_M/.claude/worktrees/w1x"; printf 'f\n' > "$FRC_M/.claude/worktrees/w1x/f"
+is "and a plain w1x beside it, which the glob would match, is still dirt" "$(_frb_dirty "$FRC_M" "$FROOT")" dirty
+rm -rf "$FRC_M/.claude/worktrees/w1x"
+
+# A worktree added through a symlink to the checkout. Git records its real
+# path, which is under the physical root.
+ln -s "$FRC_M" "$TMP/frc-wt-link"
+git -C "$TMP/frc-wt-link" worktree add -q -b frc-s3 "$TMP/frc-wt-link/.claude/worktrees/s3" >/dev/null 2>&1
+FRC_S3="$FRC_M/.claude/worktrees/s3"
+if [ ! -f "$FRC_S3/.git" ]; then
+  bad "a worktree added through a symlink to the checkout leaves it clean, and its id as it was, after an edit there" \
+      "the fixture: no worktree at $FRC_S3"
+else
+  printf 'more\n' >> "$FRC_S3/README.md"; printf 'n\n' > "$FRC_S3/new.txt"
+  is "a worktree added through a symlink to the checkout leaves it clean, and its id as it was, after an edit there" \
+     "$(_frb_tid "$FRC_M")|$(_frb_dirty "$FRC_M" "$FROOT")" "$_frc_m0|clean"
+fi
+
+# The cost. Which worktrees sit under the root is read from the files git
+# keeps, and asking git is the fallback: a wrapper logs every git call over one
+# tree id and one dirty check, and none of them may be `worktree list` while
+# every recorded path is absolute. The total is checked too, so a wrapper that
+# saw nothing cannot pass for a count of zero.
+FRC_GITLOG="$TMP/frc-gitlog.log"; mkdir -p "$TMP/frc-gitlog"
+_frc_realgit="$(command -v git)"
+cat > "$TMP/frc-gitlog/git" <<EOF
+#!/bin/sh
+printf 'git %s\n' "\$*" >> "\$FRC_GITLOG"
+exec "$_frc_realgit" "\$@"
+EOF
+chmod +x "$TMP/frc-gitlog/git"
+_frc_wlc() {   # root: git calls that were worktree list, and all git calls, over one tree id and one dirty check
+  : > "$FRC_GITLOG"
+  ( cd "$1" && PATH="$TMP/frc-gitlog:$PATH"; export PATH FRC_GITLOG
+    unset FELIX_UNTRACKED_CAP; . "$FROOT/harness/lib/verify.sh"
+    felix_tree_id "$1" "$FROOT"; felix_tree_dirty "$1" "$FROOT" ) >/dev/null 2>&1
+  awk '/ worktree list/ { w++ } END { print w + 0 "|" NR }' "$FRC_GITLOG"
+}
+_frc_wl0() {   # name, root
+  local w; w="$(_frc_wlc "$2")"
+  case "$w" in
+    *\|0) bad "$1" "the fixture: the wrapper saw no git call at all" ;;
+    0\|*) ok  "$1" ;;
+    *)    bad "$1" "worktree list calls|all git calls: [$w]" ;;
+  esac
+}
+_frc_wl0 "a repository with no linked worktree never asks git for its worktrees" "$FRC_A1"
+_frc_wl0 "nor does a checkout whose nested worktrees are all recorded by absolute path" "$FRC_M"
+
+is "the worktree as a root of its own is dirty after the edits made in it" "$(_frb_dirty "$FRC_S2" "$FROOT")" dirty
+_frc_i0="$(_frb_tid "$FRC_S2")"; printf 'more\n' >> "$FRC_S2/README.md"; _frc_i1="$(_frb_tid "$FRC_S2")"
+if [ -n "$_frc_i0" ] && [ -n "$_frc_i1" ] && [ "$_frc_i0" != "$_frc_i1" ]; then
+  ok  "and its own id moves with a further edit: a root is never excluded from itself"
+else
+  bad "and its own id moves with a further edit: a root is never excluded from itself" "before [$_frc_i0], after [$_frc_i1]"
+fi
+
+git -C "$FRC_M" worktree add -q -b frc-sib "$TMP/frc-sib" >/dev/null 2>&1
+FRC_SIB="$(cd "$TMP/frc-sib" 2>/dev/null && pwd -P)"
+if [ -z "$FRC_SIB" ] || [ ! -f "$FRC_SIB/.git" ]; then
+  for _frc_i in "an edit in a worktree outside the checkout leaves the checkout's id alone" \
+                "and that worktree, as its own root, is dirty" "and the checkout's excludes never name it"; do
+    bad "$_frc_i" "the fixture: no worktree at $TMP/frc-sib"
+  done
+else
+  _frc_i0="$(_frb_tid "$FRC_M")"; printf 'more\n' >> "$FRC_SIB/README.md"
+  if [ -n "$_frc_i0" ] && [ "$(_frb_tid "$FRC_M")" = "$_frc_i0" ]; then
+    ok  "an edit in a worktree outside the checkout leaves the checkout's id alone"
+  else
+    bad "an edit in a worktree outside the checkout leaves the checkout's id alone" "before [$_frc_i0], after [$(_frb_tid "$FRC_M")]"
+  fi
+  is "and that worktree, as its own root, is dirty" "$(_frb_dirty "$FRC_SIB" "$FROOT")" dirty
+  _frc_ex="$( cd "$FRC_M" && . "$FROOT/harness/lib/verify.sh"; _felix_tree_excludes "$FRC_M" "$FROOT" )"
+  case "$_frc_ex" in
+    *frc-sib*) bad "and the checkout's excludes never name it" "[$_frc_ex]" ;;
+    *)         ok  "and the checkout's excludes never name it" ;;
+  esac
+fi
+
+# A worktree record whose directory was deleted without a prune, and a plain
+# directory made later at the same path: the record hides nothing.
+FRC_GONE="$FRC_M/.claude/worktrees/gone"
+git -C "$FRC_M" worktree add -q -b frc-gone "$FRC_GONE" >/dev/null 2>&1
+_frc_wt="$(git -C "$FRC_M" worktree list --porcelain 2>/dev/null)"
+rm -rf "$FRC_GONE"; mkdir -p "$FRC_GONE"; printf 'f\n' > "$FRC_GONE/f"
+case "$_frc_wt" in
+  *"/.claude/worktrees/gone"*)
+    is "a plain directory where a deleted, unpruned worktree was is dirt: a stale record hides nothing" \
+       "$(_frb_dirty "$FRC_M" "$FROOT")" dirty ;;
+  *) bad "a plain directory where a deleted, unpruned worktree was is dirt: a stale record hides nothing" \
+         "the fixture: git recorded no worktree at gone: [$_frc_wt]" ;;
+esac
+rm -rf "$FRC_GONE"; git -C "$FRC_M" worktree prune >/dev/null 2>&1
+
+# A worktree recorded by relative path, which git writes only when asked to.
+# Asked in the fixture: outside a repository `git worktree add -h` prints only
+# "not a git repository", and a suite started from such a directory skipped
+# this on a git that has the flag.
+case "$(git -C "$FRC_M" worktree add -h 2>&1)" in
+  *relative-paths*)
+    FRC_S4="$FRC_M/.claude/worktrees/s4"
+    git -C "$FRC_M" worktree add -q --relative-paths -b frc-s4 "$FRC_S4" >/dev/null 2>&1
+    if [ ! -f "$FRC_S4/.git" ]; then
+      bad "a worktree recorded by relative path leaves the checkout clean, and its id as it was, after an edit there" \
+          "the fixture: no worktree at $FRC_S4"
+    else
+      printf 'more\n' >> "$FRC_S4/README.md"; printf 'n\n' > "$FRC_S4/new.txt"
+      is "a worktree recorded by relative path leaves the checkout clean, and its id as it was, after an edit there" \
+         "$(_frb_tid "$FRC_M")|$(_frb_dirty "$FRC_M" "$FROOT")" "$_frc_m0|clean"
+    fi
+    _frc_w="$(_frc_wlc "$FRC_M")"
+    if [ "${_frc_w#*|}" != 0 ] && [ "${_frc_w%%|*}" -le 2 ]; then
+      ok  "and with it present, one tree id and one dirty check ask git for the worktrees at most twice"
+    else
+      bad "and with it present, one tree id and one dirty check ask git for the worktrees at most twice" \
+          "worktree list calls|all git calls: [$_frc_w]"
+    fi ;;
+  *)
+    skip "a worktree recorded by relative path leaves the checkout clean, and its id as it was, after an edit there" \
+         "this git has no --relative-paths"
+    skip "and with it present, one tree id and one dirty check ask git for the worktrees at most twice" \
+         "this git has no --relative-paths" ;;
+esac
+
+# ------------------------------------------------------------------ D -------
+# felix new tells a fresh repository to keep .felix local, with one line that
+# can be pasted from anywhere, and writes nothing in the git directory itself.
+# The line is pinned byte for byte because it is the whole of the advice: a
+# line that does not run is advice nobody can take. Its directory is the
+# physical common git dir, so it works from a linked worktree too, and every
+# quote in it is escaped for the single quotes around it.
+_frc_sq()    { printf '%s' "$1" | sed "s/'/'\\\\''/g"; }
+_frc_line()  { local q; q="$(_frc_sq "$(_frb_cdir "$1")")"
+               printf "  mkdir -p '%s/info' && echo .felix >> '%s/info/exclude'" "$q" "$q"; }
+_frc_paste() { ( cd "$TMP" && bash -c "${1#  }" ) >/dev/null 2>&1; }
+
+FRC_N1="$(_frb_repo "$TMP/frc-new1")"
+if [ -f "$FRC_N1/.git/info/exclude" ]; then cp "$FRC_N1/.git/info/exclude" "$TMP/frc-new1.exclude"; fi
+_frc_out="$(_frb_new "$FRC_N1" frc-new1)"
+_frc_l="$(_frc_line "$FRC_N1")"
+if _frc_hasline "$_frc_out" "$_frc_l"; then
+  ok  "felix new in a fresh repository prints the line that keeps .felix out of git, on a line of its own"
+else
+  bad "felix new in a fresh repository prints the line that keeps .felix out of git, on a line of its own" \
+      "no line [$_frc_l] in [$_frc_out]"
+fi
+has "and says to commit it only when every collaborator's Felix home governs the project" \
+    "$_frc_out" "every collaborator's Felix home governs"
+case "$_frc_out" in
+  *"git add .felix"*|*"Commit it with your next commit"*)
+     bad "and no longer says to commit it" "$_frc_out" ;;
+  *) ok  "and no longer says to commit it" ;;
+esac
+if [ "$(cat "$FRC_N1/.felix" 2>/dev/null)" != frc-new1 ]; then
+  for _frc_i in "felix new never writes info/exclude itself" "so right after it .felix is not ignored"; do
+    bad "$_frc_i" "the fixture: felix new did not bind the checkout: $_frc_out"
+  done
+else
+  if [ -f "$TMP/frc-new1.exclude" ]; then
+    cmp -s "$TMP/frc-new1.exclude" "$FRC_N1/.git/info/exclude" \
+      && ok  "felix new never writes info/exclude itself" \
+      || bad "felix new never writes info/exclude itself" "it is now [$(cat "$FRC_N1/.git/info/exclude" 2>/dev/null)]"
+  elif [ -e "$FRC_N1/.git/info/exclude" ]; then
+    bad "felix new never writes info/exclude itself" "there was none, and now there is"
+  else
+    ok  "felix new never writes info/exclude itself"
+  fi
+  if git -C "$FRC_N1" check-ignore -q .felix; then
+    bad "so right after it .felix is not ignored" "check-ignore says it is"
+  else
+    ok  "so right after it .felix is not ignored"
+  fi
+fi
+if _frc_hasline "$_frc_out" "$_frc_l"; then
+  _frc_paste "$_frc_l"
+  git -C "$FRC_N1" check-ignore -q .felix \
+    && ok  "running that line from another directory makes .felix ignored" \
+    || bad "running that line from another directory makes .felix ignored" "info/exclude is [$(cat "$FRC_N1/.git/info/exclude" 2>/dev/null)]"
+  if _frc_hasline "$(git -C "$FRC_N1" status --porcelain)" '?? .felix'; then
+    bad "and git status no longer lists it" "[$(git -C "$FRC_N1" status --porcelain)]"
+  else
+    ok  "and git status no longer lists it"
+  fi
+else
+  for _frc_i in "running that line from another directory makes .felix ignored" "and git status no longer lists it"; do
+    bad "$_frc_i" "the output prints no such line to run: [$_frc_out]"
+  done
+fi
+
+# In a linked worktree the line names the main repository's git dir, where
+# info/exclude is read for every worktree.
+FRC_NM="$(_frb_repo "$TMP/frc-newm")"; printf 'x\n' > "$FRC_NM/a.txt"; _frb_commit "$FRC_NM" base
+git -C "$FRC_NM" worktree add -q -b frc-wtn "$TMP/frc-new-wt" >/dev/null 2>&1
+FRC_NW="$(cd "$TMP/frc-new-wt" 2>/dev/null && pwd -P)"
+if [ -z "$FRC_NW" ] || [ ! -f "$FRC_NW/.git" ]; then
+  for _frc_i in "in a linked worktree the line names the main repository's git dir" \
+                "and running it makes .felix ignored in the worktree, from the main repository's info/exclude"; do
+    bad "$_frc_i" "the fixture: no worktree at $TMP/frc-new-wt"
+  done
+else
+  _frc_out="$(_frb_new "$FRC_NW" frc-new6)"
+  _frc_l="$(_frc_line "$FRC_NM")"
+  if _frc_hasline "$_frc_out" "$_frc_l"; then
+    ok  "in a linked worktree the line names the main repository's git dir"
+    _frc_paste "$_frc_l"
+    if git -C "$FRC_NW" check-ignore -q .felix && _frc_hasline "$(cat "$FRC_NM/.git/info/exclude" 2>/dev/null)" .felix; then
+      ok  "and running it makes .felix ignored in the worktree, from the main repository's info/exclude"
+    else
+      bad "and running it makes .felix ignored in the worktree, from the main repository's info/exclude" \
+          "info/exclude is [$(cat "$FRC_NM/.git/info/exclude" 2>/dev/null)]"
+    fi
+  else
+    bad "in a linked worktree the line names the main repository's git dir" "no line [$_frc_l] in [$_frc_out]"
+    bad "and running it makes .felix ignored in the worktree, from the main repository's info/exclude" \
+        "the output prints no such line to run"
+  fi
+fi
+
+# A repository made with no template has no info directory at all.
+FRC_N7="$TMP/frc-new7"; mkdir -p "$FRC_N7"; ( cd "$FRC_N7" && git init --template= -q -b main ) >/dev/null 2>&1
+FRC_N7="$(cd "$FRC_N7" && pwd -P)"
+if [ -d "$FRC_N7/.git/info" ] || [ ! -d "$FRC_N7/.git" ]; then
+  bad "in a repository with no info directory the printed line works" "the fixture: no repository, or it has an info directory"
+else
+  _frc_out="$(_frb_new "$FRC_N7" frc-new7)"
+  _frc_l="$(_frc_line "$FRC_N7")"
+  if ! _frc_hasline "$_frc_out" "$_frc_l"; then
+    bad "in a repository with no info directory the printed line works" "no line [$_frc_l] in [$_frc_out]"
+  else
+    _frc_paste "$_frc_l"
+    git -C "$FRC_N7" check-ignore -q .felix \
+      && ok  "in a repository with no info directory the printed line works" \
+      || bad "in a repository with no info directory the printed line works" "check-ignore still fails"
+  fi
+fi
+
+# A checkout whose path holds a space and a single quote.
+FRC_N8="$(_frb_repo "$TMP/frc-new o'q")"
+_frc_out="$(_frb_new "$FRC_N8" frc-new8)"
+_frc_l="$(_frc_line "$FRC_N8")"
+case "$_frc_l" in
+  *"'\''"*)
+    if _frc_hasline "$_frc_out" "$_frc_l"; then
+      ok  "with a space and a quote in the path, the line escapes the quote"
+      _frc_paste "$_frc_l"
+      git -C "$FRC_N8" check-ignore -q .felix \
+        && ok  "and it runs, and .felix is ignored there" \
+        || bad "and it runs, and .felix is ignored there" "check-ignore still fails"
+    else
+      bad "with a space and a quote in the path, the line escapes the quote" "no line [$_frc_l] in [$_frc_out]"
+      bad "and it runs, and .felix is ignored there" "the output prints no such line to run"
+    fi ;;
+  *)
+    for _frc_i in "with a space and a quote in the path, the line escapes the quote" "and it runs, and .felix is ignored there"; do
+      bad "$_frc_i" "the fixture: the expected line [$_frc_l] has no escaped quote"
+    done ;;
+esac
 
 printf '\na flag is not a positional\n'
 # #102. felix --help worked; no SUBCOMMAND handled the flag, 24 take a first

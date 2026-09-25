@@ -2499,6 +2499,37 @@ case "$bs_out" in
     bad "and never reports no remote for an engine that has one" "$bs_out" ;;
   *) ok "and never reports no remote for an engine that has one" ;;
 esac
+# The pin, through the same call site. The checkout has no commit yet, so there
+# is nothing origin could hold; then it has one that origin/main names.
+has "bootstrap with no commit to pin says the workflow gets the placeholder" \
+    "$(printf '%s\n' "$bs_out" | sed -n 's/^felix ref: *//p')" "{{FELIX_REF}}"
+# gh from here on is a stub that answers nothing, so labels and protection
+# fail where no network is asked.
+mkdir -p "$TMP/pinghbin"; printf '#!/bin/sh\nexit 1\n' > "$TMP/pinghbin/gh"; chmod +x "$TMP/pinghbin/gh"
+_bspin() { ( cd "$_ESRC" && HOME="$TMP/ehome" FELIX_HOME="${1:-$FROOT}" PATH="$TMP/pinghbin:$PATH" \
+               "$_EDEPLOY/harness/felix" bootstrap ${2:+"$2"} 2>&1 ) | sed -n 's/^felix ref: *//p'; }
+( cd "$_ESRC" && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m pin \
+  && git update-ref refs/remotes/origin/main HEAD ) >/dev/null 2>&1
+is  "and pins the source checkout's commit once origin's default branch holds it" \
+    "$(_bspin)" "$(git -C "$_ESRC" rev-parse HEAD)"
+# And writes it. The header and the renderer's argument are two uses of one
+# variable, so the header passed with the argument dropped at the call site;
+# the file CI runs is what is read here.
+_bspin "$FROOT" --yes >/dev/null
+is  "and the gate workflow bootstrap writes checks Felix out at that commit" \
+    "$(grep -A1 'repository: someone/felixsrc' "$_ESRC/.github/workflows/gate.yml" 2>/dev/null | sed -n 2p | tr -d ' ')" \
+    "ref:'$(git -C "$_ESRC" rev-parse HEAD)'"
+rm -rf "$_ESRC/.github" "$_ESRC/.claude"
+# A project that lives in the engine's checkout, as every project in a Felix
+# home does, is pinned only at a commit that holds it: CI resolves it from the
+# Felix it checked out. Uncommitted first, then merged.
+mkdir -p "$_ESRC/projects"; cp -R "$FROOT/projects/widget" "$_ESRC/projects/widget"
+has "a project no commit on the default branch holds yet is not pinned" \
+    "$(_bspin "$_ESRC")" "{{FELIX_REF}}"
+( cd "$_ESRC" && git add projects && git -c user.name=t -c user.email=t@t commit -q -m widget \
+  && git update-ref refs/remotes/origin/main HEAD ) >/dev/null 2>&1
+is  "and is pinned once the default branch holds it" \
+    "$(_bspin "$_ESRC")" "$(git -C "$_ESRC" rev-parse HEAD)"
 rm -f "$_ESRC/.felix"
 
 printf '\nincident loop\n'
@@ -2752,6 +2783,42 @@ printf '+AsiaPacificEconomicCoop %s%s\n' ASIA Q7XK2M9PLR4TWN3B | "$SS" - >/dev/n
   && bad "a key id beside that word is still caught" "scanner passed a temporary key id" \
   || ok "a key id beside that word is still caught"
 
+# GitHub's other prefixes, measured 2026-09-23. The scanner knew ghp_ and
+# github_pat_ and not ghs_ (an installation token, the Actions GITHUB_TOKEN),
+# gho_, ghu_ or ghr_: a workflow's unquoted `token:` value slipped the keyword
+# rule on its underscore. actions/checkout also leaves the token in .git/config
+# as a basic-auth header whose base64 begins with the encoding of
+# `x-access-token:`, a fixed prefix. Values assembled, as above; the samples
+# are the blind-authored qualification rows', plus a lookup whose fallback is
+# the token, since a hard shape must bound the context exclusion.
+_ss_i="$(printf '%s%s' ghs_ fakeQ7mZ2vT9kLd4RnW8pJyUc0AeGhSbXo31)"
+_ss_o="$(printf '%s%s' gho_ fakeVb3NqK8tXm2ZrW7yLd0PcJ5uHgE9sTaF)"
+_ss_r="$(printf '%s%s' ghr_ fakeRz4mKq9TvL2xNb7WcJ0pYd5AhGs8EuF3iXoZ1kMt6QwVbP2nLd9rHy4SeKa7UjC0mT3gWx5B)"
+_ss_b="$(printf '%s%s' eC1hY2Nlc3MtdG9rZW46 Z2hzX2Zha2VIazJQdk44bVF6NVRyWDBiTGQ3WWNXM2pVZTlBc0c0Rg==)"
+for s in "          token: $_ss_i" \
+         "GH_TOKEN=$_ss_o" \
+         "github.com,felix-bot,$_ss_r,2026-09-23" \
+         "$(printf '\textraheader = AUTHORIZATION: basic %s' "$_ss_b")" \
+         "git config http.https://github.com/.extraheader \"AUTHORIZATION: basic $_ss_b\"" \
+         "k = os.environ.get('T', '$_ss_i')"; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && bad "catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample $_ss_n" "scanner passed: $s" \
+    || ok "catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample $_ss_n"
+done
+unset _ss_n
+# And prose naming the prefixes stays quiet, as does an identifier that only
+# begins with one.
+for s in '# ghs_ is an installation token, the shape of an Actions GITHUB_TOKEN; gho_ an OAuth token; ghu_ a user-to-server token; ghr_ a refresh token.' \
+         'Because `x-access-token:` is fifteen bytes, its encoding is the fixed prefix `eC1hY2Nlc3MtdG9rZW46` and the token begins right after it.' \
+         'ghs_token_for_the_run = lookup()'; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && ok "quiet on prose naming the GitHub prefixes or the header's fixed base64, sample $_ss_n" \
+    || bad "quiet on prose naming the GitHub prefixes or the header's fixed base64, sample $_ss_n" "false positive on: $s"
+done
+unset _ss_n _ss_i _ss_o _ss_r _ss_b
+
 # A new file has no previous version, so git diff cannot see it, and a fresh
 # file is where a key most often lands.
 SECREPO="$TMP/secrepo"; mkdir -p "$SECREPO"
@@ -2926,9 +2993,17 @@ if ! command -v jq >/dev/null 2>&1; then
            "and its repair ceiling does not read as unspent" \
            "and repair hears the gate's runs could not be read, not that there are none" \
            "a branch the gate has not run on has no latest run" \
+           "a cancelled gate run between failures neither spends the repair ceiling nor resets it" \
+           "and of the conclusions a completed gate run can have, only success resets it" \
+           "a gate run that failed to start counts against the ceiling, as do a timed-out one and a conclusion this code does not know" \
+           "a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw" \
+           "and a gate history exactly as long as the window is counted to its first run" \
+           "and a window that reaches the ceiling before it ends reads as reached" \
            "felix repair reads the gate's run on the branch" \
            "and counts only the gate's failures against the ceiling" \
            "and every run list felix repair makes names the gate workflow" \
+           "felix repair stops three failed gate runs that a cancelled one sits between" \
+           "and says the ceiling is reached, not unknown" \
            "felix repair stops at the ceiling when its attempts cannot be counted" \
            "and hands on no failing output as if attempts remained" \
            "felix repair exits 5, nothing to repair, on a green gate run" \
@@ -3075,8 +3150,51 @@ _wa="$(_wfatt fix/y gate.yml)"; _war=$?
 # which felix repair read as a run still in progress.
 WFSTUB_WORKFLOWS="gate.yml ci.yml"
 is "a branch the gate has not run on has no latest run" "$(_wflatest fix/y gate.yml)" ""
-cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
 WFSTUB_WORKFLOWS="gate.yml unattended.yml dynamic/dependabot/update-graph ci.yml"
+
+# Only a success resets the ceiling. A run that ended without a verdict ended
+# the count, so failure, cancelled, failure, failure read as one attempt, and a
+# gate that cancels in progress, or anyone cancelling a run, could keep an
+# unattended loop from ever reaching its ceiling. Such a run is passed over now,
+# like one still going; a run that failed to start counts; and so does a
+# conclusion this code has not met, because the count errs toward stopping.
+_wfseq() { local c; for c in "$@"; do
+             printf 'gate.yml\tgate\tfix/y\t501\tcompleted\t%s\n' "$c"; done > "$WFSTUB_RUNS"; }
+_wfseq failure cancelled failure failure
+is "a cancelled gate run between failures neither spends the repair ceiling nor resets it" \
+   "$(_wfatt fix/y gate.yml)" "3"
+_wfres=""
+for _c in in_progress cancelled skipped neutral stale action_required success; do
+  _wfseq failure "${_c#in_progress}" failure; _wfres="$_wfres $_c:$(_wfatt fix/y gate.yml)"
+done
+is "and of the conclusions a completed gate run can have, only success resets it" \
+   "$_wfres" " in_progress:2 cancelled:2 skipped:2 neutral:2 stale:2 action_required:2 success:1"
+_wfres=""
+for _c in timed_out startup_failure some_later_state; do
+  _wfseq failure "$_c" failure; _wfres="$_wfres $_c:$(_wfatt fix/y gate.yml)"
+done
+is "a gate run that failed to start counts against the ceiling, as do a timed-out one and a conclusion this code does not know" \
+   "$_wfres" " timed_out:3 startup_failure:3 some_later_state:3"
+# Passing a run over spends the window and not the count. The window is the
+# newest hundred runs, so without a rule for its end ninety-nine cancelled runs
+# would push the failures behind them out of sight, and the count would read as
+# the one it saw. Twice: the second window ends in runs still going, whose empty
+# lines a count of lines would lose, making a full window look like a whole
+# history.
+_wfseq failure $(yes cancelled | head -99) failure failure
+_wa="$(_wfatt fix/y gate.yml)"; _war=$?
+_wfseq failure $(yes cancelled | head -94) "" "" "" "" "" ""
+_wb="$(_wfatt fix/y gate.yml)"; _wbr=$?
+[ -z "$_wa$_wb" ] && [ "$_war" -ne 0 ] && [ "$_wbr" -ne 0 ] \
+  && ok  "a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw" \
+  || bad "a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw" \
+         "rc $_war printed [$_wa]; ending in runs still going, rc $_wbr printed [$_wb]"
+_wfseq failure failure $(yes cancelled | head -98)
+is "and a gate history exactly as long as the window is counted to its first run" \
+   "$(_wfatt fix/y gate.yml)" "2"
+_wfseq failure failure failure $(yes cancelled | head -98)
+is "and a window that reaches the ceiling before it ends reads as reached" "$(_wfatt fix/y gate.yml)" "3"
+cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
 
 # Through the CLI, where the workflow comes from the project rather than from
 # the test. Its own checkout, on a branch, with a GitHub remote: the main
@@ -3098,6 +3216,14 @@ has "and counts only the gate's failures against the ceiling" "$out" "attempts: 
 [ "$(_wfruns)" -gt 0 ] && [ "$(_wfbare gate.yml)" -eq 0 ] \
   && ok  "and every run list felix repair makes names the gate workflow" \
   || bad "and every run list felix repair makes names the gate workflow" "$(grep '^run list' "$WFSTUB_LOG" | head -3)"
+
+# The same history through the command the unattended template runs, where one
+# attempt of three left read as a brief to act on.
+_wfseq failure cancelled failure failure
+out="$(_wfcli repair)"; rc=$?
+is  "felix repair stops three failed gate runs that a cancelled one sits between" "$rc" "2"
+has "and says the ceiling is reached, not unknown" "$out" "CEILING REACHED"
+cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
 
 # The newest gate run read and the count behind it not. The count is the bound,
 # and it used to read as zero whenever gh did not answer, which printed the
@@ -3435,7 +3561,10 @@ done
 exit 0
 STUB
 chmod +x "$UC/felix/engine/harness/felix" "$UC/bin/git"
-_uctok="ghs_stubtokenstubtokenstubtokenstub"
+# A placeholder by secret-scan's own rule (an "example" in the value): since
+# #342 taught the scan ghs_ tokens, a real-looking value here was a line the
+# public snapshot's credential scan refused to publish.
+_uctok="ghs_exampletokenexampletokenexample"
 : > "$UC/git.log"; : > "$UC/git.cred"
 ( cd "$UC/repo" && UC_LOG="$UC/git.log" GITHUB_TOKEN="$_uctok" BRANCH=fix/x PATH="$UC/bin:$PATH" \
     bash -e "$UC/step.sh" ) > "$UC/out" 2>&1; _ucrc=$?
@@ -3751,6 +3880,80 @@ if [ -x "$REAL_ROOT/$resolved" ]; then
 else
   bad "and that path resolves in a real checkout" "generated $resolved, absent from $REAL_ROOT"
 fi
+
+printf '\ngenerated CI grades against a pinned Felix\n'
+# With no ref the Felix checkout took the default branch at the moment the job
+# ran, so the verdict on one commit depended on when it was graded, and a merge
+# in Felix nobody in the governed repository reviewed redefined its green. The
+# line after repository: is read, not the whole output: the comment above the
+# step names the placeholder too, so matching the output passed with the ref
+# line deleted.
+_pinwf() { ( . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/bootstrap.sh"
+             felix_bs_render_workflow node someone/repo "$@" ) \
+           | grep -A1 'repository: someone/repo' | sed -n 2p | tr -d ' '; }
+_PINSHA="0123456789abcdef0123456789abcdef01234567"
+is  "the generated workflow checks Felix out at the commit it was given" \
+    "$(_pinwf "$_PINSHA")" "ref:'$_PINSHA'"
+# Quoted, and the quotes are the assertion. Unquoted, YAML reads {{FELIX_REF}}
+# as a mapping and GitHub refuses the whole file, so a required check that
+# never reports stood where a failing checkout was meant to.
+is  "and with no commit to give, at the placeholder, quoted so YAML reads a string" \
+    "$(_pinwf)" "ref:'{{FELIX_REF}}'"
+is  "every checkout in the generated workflow is v5, the lowest major on Node 24" \
+    "$(printf '%s\n' "$gen" | grep -c 'actions/checkout@v5')/$(printf '%s\n' "$gen" | grep -c 'actions/checkout@')" "2/2"
+
+# The commit bootstrap pins is the engine source's HEAD, and only when origin's
+# default branch holds it. Any remote branch would do for the checkout to
+# succeed, which is why a pushed branch nobody merged is the case that matters:
+# it fetches, and grades with an engine nobody reviewed.
+_PS="$TMP/pinsrc"; _PC="$TMP/pinclone"
+( git init -q -b main "$_PS" && cd "$_PS" \
+  && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m one \
+  && git checkout -q -b side && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m side \
+  && git checkout -q main && git clone -q "$_PS" "$_PC" ) >/dev/null 2>&1
+_pinref() { ( . "$FROOT/harness/lib/bootstrap.sh"; felix_bs_pin_ref "$1" || printf 'NONE' ); }
+is  "a source whose HEAD is origin's default branch pins that commit, in full" \
+    "$(_pinref "$_PC")" "$(git -C "$_PS" rev-parse main)"
+( cd "$_PC" && git checkout -q --detach origin/side ) >/dev/null 2>&1
+is  "a HEAD on a pushed branch the default branch does not hold pins nothing" \
+    "$(_pinref "$_PC")" "NONE"
+( cd "$_PC" && git checkout -q main \
+  && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m local ) >/dev/null 2>&1
+is  "a HEAD only this machine holds pins nothing" "$(_pinref "$_PC")" "NONE"
+# A clone made some other way may carry no origin/HEAD, and origin/main is
+# still the default branch's name here.
+( cd "$_PC" && git reset -q --hard origin/main && git remote set-head origin -d ) >/dev/null 2>&1
+is  "and with no origin/HEAD, origin/main is the branch asked" \
+    "$(_pinref "$_PC")" "$(git -C "$_PS" rev-parse main)"
+# Bounded, because a $TMP under a directory that is itself a repository would
+# otherwise answer for it.
+mkdir -p "$TMP/pinnone"
+is  "a source that is not a checkout pins nothing" \
+    "$(GIT_CEILING_DIRECTORIES="$TMP" _pinref "$TMP/pinnone")" "NONE"
+
+# origin/HEAD first. Every fixture above has a default branch named main, where
+# the order cannot show; here it is trunk, and a main beside it holds a commit
+# the default branch does not.
+_PT="$TMP/pintrunk"; _PTC="$TMP/pintrunkclone"
+( git init -q -b trunk "$_PT" && cd "$_PT" \
+  && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m one \
+  && git checkout -q -b main && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m two \
+  && git checkout -q trunk && git clone -q "$_PT" "$_PTC" \
+  && cd "$_PTC" && git checkout -q --detach origin/main ) >/dev/null 2>&1
+is  "a HEAD only a branch named main holds, when the default branch is another, pins nothing" \
+    "$(_pinref "$_PTC")" "NONE"
+
+# The project, when asked about. CI resolves the project from the Felix it
+# checked out, so a commit from before the project merged cannot govern it.
+_pinproj() { ( . "$FROOT/harness/lib/bootstrap.sh"; felix_bs_pin_ref "$1" "$2" || printf 'NONE' ); }
+( cd "$_PS" && mkdir -p projects/w && printf '{}\n' > projects/w/project.json && git add projects \
+  && git -c user.name=t -c user.email=t@t commit -q -m project \
+  && cd "$_PC" && git fetch -q origin && git checkout -q --detach origin/main ) >/dev/null 2>&1
+is  "a commit holding the project it is asked about pins" \
+    "$(_pinproj "$_PC" projects/w)" "$(git -C "$_PS" rev-parse main)"
+( cd "$_PC" && git checkout -q --detach origin/main~1 ) >/dev/null 2>&1
+is  "a commit on the default branch from before the project merged pins nothing" \
+    "$(_pinproj "$_PC" projects/w)" "NONE"
 
 printf '\nmistakes record themselves\n'
 # Judgement at write time is the wrong shape: it asks for a decision at the exact
@@ -10374,6 +10577,149 @@ else
            "grounded on a probe felix declares"; do skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
 fi
 
+# ------------------------------------- obligations name what discharges them ---
+# Roadmap Phase 1, first item. An optional eighth column, `needs`, names the
+# checker ids in qualification.tsv that would discharge a row, and each
+# resolves as complete (a row for every control), short (declared, some
+# missing, named) or absent (no checker by that id). Report only. So the
+# controls here hold on the engine before the column existed as much as after
+# it: a seven-column row is still a row, and discharge and blocking do not
+# move whatever a need resolves to. Fresh fixture dirs, as for the asks above.
+printf '\nobligations: what would discharge each, by name\n'
+NDP="$TMP/needs-proj"; NDR="$TMP/needs-repo"; mkdir -p "$NDP" "$NDR" "$MEM/needs-proj"
+( cd "$NDR" && git init -q -b main && printf 'x\n' > x && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm x ) >/dev/null 2>&1
+NDR="$(cd "$NDR" && pwd -P)"
+printf 'thing\t-\t-\tls -1 x\ttest -f x\n' > "$NDP/probes.tsv"
+# One checker with a row for every control, one with a violation only, and one
+# whose only row is malformed. Nothing here runs them: resolution reads what
+# the table declares and qualifies nothing.
+: > "$NDP/qualification.tsv"
+for _c in violation:fail restoration:pass irrelevant:pass alternate:fail \
+          decoupled_violation:fail decoupled_satisfaction:pass; do
+  printf 'whole\ttrue\t%s\t%s\ttrue\n' "${_c%%:*}" "${_c##*:}" >> "$NDP/qualification.tsv"
+done
+printf 'part\ttrue\tviolation\tfail\ttrue\n'   >> "$NDP/qualification.tsv"
+printf 'broken\ttrue\tviolation\tpass\ttrue\n' >> "$NDP/qualification.tsv"
+_nd()      { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
+               . "$FROOT/harness/lib/obligations.sh"; "$@" ) 2>/dev/null; }
+_ndrun()   { _nd felix_obligations_run "$NDP" "$NDR"; }
+_ndneeds() { _nd felix_obligations_needs "$NDP"; }
+_ndblk()   { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+               . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/evidence.sh"
+               . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/probes.sh"
+               . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
+               felix_merge_blockers "$NDP" "" "$NDR" "$FROOT" ) 2>/dev/null | grep '^obligations'; }
+_ndrow()   {   # evidence [needs]
+  if [ $# -ge 2 ]; then printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\t%s\tthing\towed\t%s\n' "$1" "$2"
+  else                  printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\t%s\tthing\towed\n' "$1"; fi > "$NDP/obligations.tsv"; }
+_ndtc()    { ( . "$FROOT/harness/lib/table.sh" 2>/dev/null
+               felix_table_check "$FROOT/harness/templates/schemas.tsv" "$NDP/obligations.tsv" >/dev/null 2>&1; echo $? ); }
+
+# Controls: the seven-column row, and discharge, exactly as before.
+_ndrow true
+is  "needs: a seven-column row is still a row"                  "$(_nd felix_obligation_rows "$NDP" | grep -c .)" "1"
+is  "and nothing about it is refused"                           "$(_nd felix_obligation_malformed "$NDP")" ""
+is  "and the schema check accepts it"                           "$(_ndtc)" "0"
+_nd7="$(_ndrun)"
+is  "and it is evaluated on its axes as before"                 "$(printf '%s\n' "$_nd7" | cut -f4,5)" "ACTIVE	SATISFIED"
+is  "a seven-column row names nothing that would discharge it"  "$(_ndneeds)" "a	-	none	-"
+_ndrow true gone
+is  "an eighth column of well-formed ids is not refused"        "$(_nd felix_obligation_malformed "$NDP")" ""
+is  "and discharge does not move: the row reads as it did without one" "$(_ndrun)" "$_nd7"
+is  "the schema check accepts the eighth column as needs"       "$(_ndtc)" "0"
+_ndrow false gone
+has "a failing row that names an absent capability blocks a release as before" \
+    "$(_ndblk)" "obligations	a	ACTIVE UNSATISFIED"
+_ndrow false whole
+has "and one whose checker declares every control blocks all the same" \
+    "$(_ndblk)" "obligations	a	ACTIVE UNSATISFIED"
+is  "complete is not discharge: the row is still UNSATISFIED"   "$(_ndrun | cut -f5)" "UNSATISFIED"
+_ndrow true ''
+is  "an empty needs cell is not refused by the scan"            "$(_nd felix_obligation_malformed "$NDP")" ""
+is  "and reads as naming nothing"                               "$(_ndneeds)" "a	-	none	-"
+
+# Resolution, against what qualification.tsv declares.
+_ndrow true -
+is  "a dash names nothing"                                      "$(_ndneeds)" "a	-	none	-"
+_ndrow true whole
+is  "a checker with a row for every control resolves complete"  "$(_ndneeds)" "a	whole	complete	-"
+_ndrow true part
+is  "a checker short of controls resolves short, naming what it lacks" \
+    "$(_ndneeds)" "a	part	short	restoration,irrelevant,alternate,decoupled_violation,decoupled_satisfaction"
+_ndrow true gone
+is  "an id no checker carries resolves absent"                  "$(_ndneeds)" "a	gone	absent	-"
+_ndrow true broken
+is  "a checker whose only row is malformed is short, not absent" "$(_ndneeds | cut -f3)" "short"
+_ndrow true 'whole,part,gone'
+is  "a row needing three capabilities resolves each of them" \
+    "$(_ndneeds | cut -f2,3 | tr '\n' ' ')" "whole	complete part	short gone	absent "
+{ printf 'a\tINFO\tdeterministic\t-\ttrue\t-\tr\twhole\n'
+  printf 'b\tINFO\tdeterministic\t-\ttrue\t-\tr\twhole,gone\n'
+  printf 'c\tINFO\tdeterministic\t-\ttrue\t-\tr\tpart\n'
+  printf 'd\tINFO\tdeterministic\t-\ttrue\t-\tr\n'
+  printf 'e\tINFO\tdeterministic\t-\ttrue\t-\tr\t-\n'; } > "$NDP/obligations.tsv"
+is  "the count is one per obligation, by its weakest need" \
+    "$(_ndneeds | _nd felix_obligations_needs_count)" "3	1	1	1	2"
+# A copy of the engine without the qualification library cannot resolve, and
+# says nothing and fails rather than calling every checker absent.
+NDNL="$TMP/lib-without-qualify"; mkdir -p "$NDNL"
+for _l in resolve probes obligations exceptions; do cp "$FROOT/harness/lib/$_l.sh" "$NDNL/" 2>/dev/null; done
+is  "an engine shipped without the qualification library resolves nothing, rather than absent" \
+    "$( ( . "$NDNL/resolve.sh"; . "$NDNL/probes.sh"; . "$NDNL/obligations.sh"
+          felix_obligations_needs "$NDP"; printf 'rc=%s' "$?" ) 2>/dev/null )" "rc=1"
+
+# A cell that is not an id refuses the row, as every other malformed cell does.
+for _b in Deploy 'a,,b' 'x, y' 9lives 'ok,'; do
+  _ndrow true "$_b"
+  has "needs [$_b] refuses the row with the reason" "$(_nd felix_obligation_malformed "$NDP")" "needs '$_b'"
+done
+_ndrow true Deploy
+is  "a row refused for its needs is never evaluated"            "$(_ndrun)" ""
+has "and is refused at the merge boundary"                      "$(_ndblk)" "needs 'Deploy'"
+
+# The CLI, on the bound fixture: a need nobody declares and a row naming none.
+WNP="$FROOT/projects/widget"
+cp "$WNP/obligations.tsv" "$TMP/needs-w-oblig.keep"
+{ printf 'fixture\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\ta fixture owes one thing, and it holds\tgone\n'
+  printf 'second\tADVISORY\tdeterministic\t-\ttrue\t-\tand one that names nothing\n'; } > "$WNP/obligations.tsv"
+_ndcount="1 name what discharges them: 0 complete, 0 short, 1 absent; 1 name nothing"
+out="$(cd "$REPO" && "$FELIX" obligations 2>&1)"; rc=$?
+is  "felix obligations exits 0 with a need nobody declares"     "$rc" "0"
+has "and shows each row's need with its resolution"             "$(printf '%s\n' "$out" | grep ' gone ')" "absent"
+has "and the row that names nothing, saying so"                 "$out" "names nothing that would discharge it"
+has "and says complete is declared, not run"                    "$out" "DECLARED, not that one ran"
+has "and the summary line counts them"                          "$(printf '%s\n' "$out" | grep 'obligation(s):')" "$_ndcount"
+out="$(cd "$REPO" && "$FELIX" obligations --gate 2>&1)"; rc=$?
+is  "felix obligations --gate exits 0 whatever the needs resolve to" "$rc" "0"
+has "and its summary line carries the same count"               "$(printf '%s\n' "$out" | grep 'obligation(s):')" "$_ndcount"
+case "$out" in
+  *"what would discharge each"*) bad "and the gate's copy carries no needs table" "$out" ;;
+  *)                             ok  "and the gate's copy carries no needs table" ;;
+esac
+out="$(cd "$REPO" && "$FELIX" gate 2>&1)"
+has "the gate's obligations check stays ok with every need absent" "$out" "  obligations        ok"
+has "and prints the count under it" \
+    "$(printf '%s\n' "$out" | awk '/^  obligations  / { getline; print; exit }')" "$_ndcount"
+cp "$TMP/needs-w-oblig.keep" "$WNP/obligations.tsv"
+
+# Felix's own ledger names what would discharge its two rows. Neither has a
+# checker in qualification.tsv yet, and absent is the honest reading.
+_REALP="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix"
+if [ -f "$_REALP/obligations.tsv" ]; then
+  _ndf="$(_nd felix_obligations_needs "$_REALP")"
+  is  "felix's lifecycle_wired needs lifecycle, which no checker declares" \
+      "$(printf '%s\n' "$_ndf" | awk -F'\t' '$1 == "lifecycle_wired" { print $2 "\t" $3 }')" "lifecycle	absent"
+  is  "and engine_deployed needs deploy, absent the same way" \
+      "$(printf '%s\n' "$_ndf" | awk -F'\t' '$1 == "engine_deployed" { print $2 "\t" $3 }')" "deploy	absent"
+else
+  for a in "felix's lifecycle_wired needs lifecycle, which no checker declares" \
+           "and engine_deployed needs deploy, absent the same way"; do
+    skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
+fi
+has "the template documents the needs column" \
+    "$(grep '^# obligation' "$FROOT/harness/templates/obligations.tsv")" "reason	needs"
+
 # ------------------------------------------ hooks-events, the probe's instrument ---
 # `hook_binding` records which events the shipped hooks.json binds. It used to
 # be a grep for `"Event": [`, and the blind control that qualified the first
@@ -14710,6 +15056,145 @@ J
 is "a process substitution keeps the shape a row is written about" "$rc" "2"
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 
+printf '\ndenial refuses what a command changes, not what it reads\n'
+# The tables that ship, not a copy of a row. Every projects/*/deny.tsv beside
+# this harness is put in front of the real hook in turn, so the red run, which
+# checks the base out whole, runs these lines against the rows the base holds.
+# Until 2026-09-23 three rows refused commands that change nothing: a grep
+# -rln over the marker, whose ln was taken for a link; the read the engine
+# resolves its home with, whose 2>/dev/null was taken for a write of the
+# pointer; a dry run of git add; a listing of a script. Each was reproduced
+# with argv-logging shims and a hash of the files, and most are in the
+# refusals the hooks logged.
+#
+# The first column says which way: 0, the command is allowed; 2, refused.
+# The second set keeps the first honest. A narrowed row that refused nothing
+# would pass every line of the first, so each real write the old rows refused
+# is asserted still refused, a line for each verb they name, and a line for a
+# write on a later line of the command: a row reads the payload's JSON, where
+# a line break is a backslash and an n, and the first draft of these rows let
+# every such write through.
+#
+# The second column says which tables a line is about. A 0 line holds for
+# every table (-). A 2 line holds for every table with a Bash row whose
+# pattern contains that text, and skips when there is none, because a table
+# only ever refuses what it has a row about: the public snapshot ships one
+# project's table, and a line about another's rows has nothing to ask there.
+# An exit that is neither 0 nor 2, or a table that could not be put in place,
+# is named in the failure and never read as either answer.
+#
+# A refused line writes into no directory under /tmp. The marker rows and
+# the git add row carry deny.tsv's `checkout` scope, which passes over a
+# command whose every target is a throwaway fixture under /tmp or $TMPDIR,
+# so a refusal asserted about such a path would assert what that scope
+# lifts. These lines are about how far a row's pattern reaches, and a path
+# under $HOME keeps them about that whatever the scope decides. `mv .felix
+# /tmp/x` stays: it moves this checkout's own marker, which no scope lifts.
+_dtabs=""
+for _dt in "$REAL_HARNESS"/../../projects/*/deny.tsv; do
+  [ -f "$_dt" ] && _dtabs="$_dtabs$_dt
+"
+done
+_dkeyed() {
+  local t
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    [ "$1" = "-" ] \
+      || awk -F'\t' -v k="$1" '$1 == "Bash" && index($2, k) { f = 1 } END { exit !f }' "$t" \
+      || continue
+    printf '%s\n' "$t"
+  done <<EOF
+$_dtabs
+EOF
+}
+# Every table on stdin whose exit through the hook is not the one wanted, as
+# " project:exit".
+_dmiss() {
+  local want="$1" cmd="$2" t rc out=""
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    if cp "$t" "$FROOT/projects/widget/deny.tsv"; then
+      ( cd "$REPO" && _pre "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$cmd\"}}" ); rc=$?
+    else
+      rc=nocopy
+    fi
+    t="${t%/deny.tsv}"
+    [ "$rc" = "$want" ] || out="$out ${t##*/}:$rc"
+  done
+  printf '%s' "$out"
+}
+while IFS=$'\t' read -r _dw _dk _dn _dc; do
+  case "$_dw" in 0|2) ;; *) continue ;; esac
+  _dks="$(_dkeyed "$_dk")"
+  if [ -z "$_dks" ]; then
+    if [ "$_dk" = "-" ]; then skip "$_dn" "no projects/*/deny.tsv beside this harness"
+    else skip "$_dn" "no table beside this harness has a Bash row about $_dk"; fi
+    continue
+  fi
+  is "$_dn" "$(printf '%s\n' "$_dks" | _dmiss "$_dw" "$_dc")" ""
+done <<'J'
+0	-	no shipped table refuses grep -rln over the marker, whose ln is a flag	grep -rln '\\.felix' engine/harness
+0	-	nor grep -ln over the pointer	grep -ln '\\.felix-home' engine/harness/lib/resolve.sh
+0	-	nor the read the engine resolves its home with, whose 2>/dev/null writes no pointer	tr -d '[:space:]' 2>/dev/null < \"$HOME/.felix-home\"
+0	-	nor a > inside a quoted log format	git log --format='%h>%s' -- .felix
+0	-	nor cp reading the marker into a backup	cp .felix /tmp/backup
+0	-	nor a find whose 2>/dev/null comes before its -name .felix	find . -maxdepth 2 2>/dev/null -name .felix
+0	-	nor an ls whose 2>/dev/null comes before the pointer it lists	ls -la 2>/dev/null ~/.felix-home
+0	-	nor tee copying the marker it reads on stdin	tee /tmp/copy < .felix
+0	-	nor dd reading the marker	dd of=/tmp/x if=.felix
+0	-	nor git add -n -A, which stages nothing	git add -n -A
+0	-	nor git add -A --dry-run	git add -A --dry-run
+0	-	nor listing scripts/gate.sh, which runs nothing	ls -la ./scripts/gate.sh
+0	-	nor a backslash-n typed into quoted text before the script's path, which is no line break	printf 'run:\\n./scripts/gate.sh\\n' > /tmp/notes
+0	-	nor a grep for its subshell spelling	grep -rn '(./scripts/gate.sh)' docs
+0	-	nor a brace expansion that names it	ls -la {./scripts/gate.sh,./scripts/x.sh}
+2	felix(-home)	a table with a row about the marker still refuses printf x > .felix	printf x > .felix
+2	felix(-home)	and a redirect to a quoted marker path	printf 'p\\n' > \"$T/repo/.felix\"
+2	felix(-home)	and to one quoted in part	printf x > \"$HOME\"/.felix-home
+2	felix(-home)	and to one quoted round a blank	printf x > \"$HOME/a b/.felix\"
+2	felix(-home)	and an append to the marker	echo p >> .felix
+2	felix(-home)	and a clobbering redirect, which the old row let through	printf x >| .felix
+2	felix(-home)	and a redirect on a later line of the command	cd ~/r\nprintf x > .felix
+2	felix(-home)	and tee onto the marker	tee .felix
+2	felix(-home)	and cp onto the marker	cp x .felix
+2	felix(-home)	and cp onto one quoted round a blank	cp seed \"$HOME/a b/.felix\"
+2	felix(-home)	and cp onto the marker with its errors sent away	cp x .felix 2>/dev/null
+2	felix(-home)	and cp of a marker into the current directory, where it lands as one	cp ../other/.felix .
+2	felix(-home)	and cp of a marker into a directory named with its slash	cp /x/.felix \"$T/repo/\"
+2	felix(-home)	and cp onto the marker on a later line of the command	cd ~/r\ncp x .felix
+2	felix(-home)	and scp onto the marker	scp host:seed .felix
+2	felix(-home)	and ln -s onto the marker	ln -s x .felix
+2	felix(-home)	and install onto the marker	install -m 644 seed .felix
+2	felix(-home)	and mv onto the pointer	mv x \"$HOME/.felix-home\"
+2	felix(-home)	and mv of the marker away	mv .felix /tmp/x
+2	felix(-home)	and rm of the marker	rm -f .felix
+2	felix(-home)	and rm of the marker on a later line of the command	cd ~/r\nrm -f .felix
+2	felix(-home)	and rm of the marker on a tab-indented later line	cd ~/r\n\trm -f .felix
+2	felix(-home)	and a write with another line after it, which the old row let through	cp x .felix\necho ok
+2	felix(-home)	and a redirect with another line after it, which the old row let through	printf x > .felix\nls
+2	felix(-home)	and cp onto the marker before a comment	cp x .felix # seed
+2	felix(-home)	and truncate of the pointer	truncate -s 0 \"$HOME/.felix-home\"
+2	felix(-home)	and sed -i on the marker	sed -i s/a/b/ .felix
+2	felix(-home)	and dd of= the marker	dd of=.felix
+2	felix(-home)	and dd with its of= after another operand, which the old row let through	dd if=/dev/zero of=.felix
+2	git add	a table with a row about git add still refuses git add -A	git add -A
+2	git add	and git add --all	git add --all
+2	git add	and git add .	git add .
+2	git add	and git add -A behind another flag	git add -v -A
+2	git add	and git add -A before an &&	git add -A && git commit -m wip
+2	git add	and git add -A on a later line of the command	cd ~/r\ngit add -A
+2	git add	and git add -A with another line after it, which the old row let through	git add -A\ngit commit -m wip
+2	scripts/gate	a table with a row about scripts/gate.sh still refuses running it	./scripts/gate.sh --quick
+2	scripts/gate	and running it after a cd	cd ~/x && ./scripts/gate.sh
+2	scripts/gate	and running it under bash	bash ./scripts/gate.sh
+2	scripts/gate	and running it on a later line, inside an if	if true; then\n  ./scripts/gate.sh\nfi
+2	scripts/gate	and running it after a line continuation	cd ~/x && \\\n  ./scripts/gate.sh
+2	scripts/gate	and running it in a brace group	{ ./scripts/gate.sh; }
+2	scripts/gate	and running it in a command substitution	x=$( ./scripts/gate.sh )
+2	scripts/gate	and running it on a tab-indented later line, which the old row let through	cd ~/x\n\t./scripts/gate.sh
+J
+rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
+
 # The wiring itself, read off the file that ships rather than the fixture copy.
 # Correct code behind a matcher that never fires is this project's oldest and
 # most expensive failure mode.
@@ -14743,6 +15228,17 @@ if [ -f "$GWT/.git" ] && [ -d "$SCR/clone/.git" ] && [ -L "$SCR/to-gov" ]; then
   ok "the scoped fixture has its worktree, its clone and its links"
 else
   bad "the scoped fixture has its worktree, its clone and its links" "worktree [$GWT] clone [$SCR/clone]"
+fi
+# And one outside the temporary root lib/where.sh reads, $TMPDIR, turns every
+# lift below into a refusal for where the suite put its files. The root is a
+# bare `mktemp -d`, which on a Mac lands in the per-user directory whatever
+# TMPDIR says, so any other TMPDIR does that. Every tests/red run on a Mac
+# did, until red stopped moving TMPDIR (tests/red says why).
+_sc_tr="$(cd -P "${TMPDIR:-/tmp}" 2>/dev/null && pwd -P)"
+if [ -n "$_sc_tr" ] && case "$SCR/" in "${_sc_tr%/}/"*) true ;; *) false ;; esac; then
+  ok "the scoped fixture lies under the TMPDIR the suite was given"
+else
+  bad "the scoped fixture lies under the TMPDIR the suite was given" "fixture [$SCR] TMPDIR [${TMPDIR:-}]"
 fi
 { printf 'Bash\t(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*["\047]?\\.felix(-home)?["\047]?([[:space:];&|)]|$)\tmarker\tcheckout\n'
   printf 'Bash\tgit( +-[^ ]+( +[^ ]+)?)* +(update-ref|symbolic-ref|fetch|push)[^;&|]*refs/remotes/\ttracking\tcheckout\n'
@@ -20277,6 +20773,14 @@ _au() {
     [ "$c" = "-" ] || export CLAUDE_CONFIG_DIR="$c"
     HOME="$h" TMPDIR="$AU/tmp" PATH="$AUSTUB:$PATH" "$e" audit "$@" ) 2>>"$AU_ERR"
 }
+# The CPU an audit cost, in ms, from a file `times` wrote inside the command
+# substitution that ran it: that subshell's user and system time, then its
+# children's, the audit among them, as 0m1.234s. It counts nothing else the
+# suite has running, so load stretches the wall clock and leaves this alone.
+_au_ms() {
+  awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
+       END { printf "%d", ms }' "$1"
+}
 # The report is plain text in a wording nobody fixed, so it is read loosely: a
 # class is the line that names it and carries a percentage, its count the
 # first bare number there, its share the first number with a % after it.
@@ -20418,13 +20922,18 @@ _au --dir >/dev/null; _aurc2=$?
   && ok  "--dir with no value exits non-zero" \
   || bad "--dir with no value exits non-zero" "without: $_aurc, with: $_aurc2"
 
-_au_t0="$(date +%s)"; _auo2="$(_au --dir "$AU/big")"; _au_t1="$(date +%s)"
+# Timed as CPU, not wall clock, and written outside the scratch root, which is
+# checked below for anything a run left there. It measured 1 s at a load
+# average near 340. With each tool_use id looked for among the session's
+# earlier ones, one at a time, rather than by key, it took 10 s and still
+# counted them (2026-09-23), so 5 s stays far from both.
+_auo2="$(_au --dir "$AU/big"; times > "$TMP/audit-big.cpu")"; _au_ms2="$(_au_ms "$TMP/audit-big.cpu")"
 is  "it counts every stop in 41,400 lines: 450 passed and 450 failed" "$(_au_counts "$_auo2")" "450 450 0 0"
 if [ "$(_au_counts "$_auo2")" = "450 450 0 0" ]; then
-  [ $((_au_t1 - _au_t0)) -le 30 ] && ok  "and reads them in under 30 seconds" \
-                                   || bad "and reads them in under 30 seconds" "took $((_au_t1 - _au_t0))s"
+  [ "$_au_ms2" -le 5000 ] && ok  "and reads them in under 5 seconds of CPU" \
+                          || bad "and reads them in under 5 seconds of CPU" "took ${_au_ms2} ms of CPU"
 else
-  bad "and reads them in under 30 seconds" "it did not count them, so its speed says nothing"
+  bad "and reads them in under 5 seconds of CPU" "it did not count them, so its speed says nothing"
 fi
 
 # Read-only, measured after every run above. Unconditional silence would pass
@@ -20736,14 +21245,18 @@ awk -v d="$RV/perf/-Users-dev-perf" '
     print U("p3c", R("p3b", "\"content\":\"ok\""), ",\"toolUseResult\":{\"history\":[" ts "]}") > f
     print A("msg_p3d", done, "end_turn") > f
   }'
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/perf")"; _rv_t1="$(date +%s)"
+# Timed as CPU: 0.5 s at a load average near 340. Each session reaches its
+# own reader, and each reader, made to copy the rest of its line at every
+# step, still counted all three and took far longer (2026-09-23): rawcmd()
+# finding the command's end one escape at a time 15 s, results() finding the
+# last block boundary walking forward 37 s, stamp() walking every timestamp
+# 50 s. So 5 s stays far from all of them.
+_rvo="$(_au --dir "$RV/perf"; times > "$RV/perf.cpu")"; _rv_ms="$(_au_ms "$RV/perf.cpu")"
+_rvn="a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 5 seconds of CPU"
 if [ "$(_au_counts "$_rvo")" = "2 1 0 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 15 ] \
-    && ok  "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" \
-    || bad "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" "took $((_rv_t1 - _rv_t0))s"
+  [ "$_rv_ms" -le 5000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
 else
-  bad "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" \
-      "it did not count them, so its speed says nothing: $(_au_counts "$_rvo")"
+  bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo")"
 fi
 
 # Arguments that used to pass and answer something nobody meant, each beside
@@ -20984,12 +21497,19 @@ awk -v f="$RV/open/huge/-Users-dev-huge/h1.jsonl" -v g="$RV/open/shifts/-Users-d
     B(g, "s1"); for (i = 0; i < 10000; i++) printf "%s", "echo $((1<<2)); " > g
     E(g, "s1", "npm test")
   }'
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/open/huge")"; _rv_t1="$(date +%s)"
-_rvo2="$(_au --dir "$RV/open/huge" --verify 'npm test|x\\z')"; _rv_t2="$(date +%s)"
-_rvn="a 6 MB command holding 300,000 backslashes is read in seconds, with the default checks and with a --verify that holds a backslash: under 10 each"
+# Timed as CPU: 0.4 s each at a load average near 340. The 6 MB reaches one
+# reader whole, rawcmd(), which finds where the command ends; decoding, and
+# the rejoin a backslash in --verify asks for, read only the 64K at its ends,
+# where putting the backslashes back one piece at a time added under 0.1 s.
+# With rawcmd() finding the end one escape at a time, the rest of the line
+# copied at each, both runs still counted it and took 186 s (2026-09-23), so
+# 5 s each stays far from both.
+_rvo="$(_au --dir "$RV/open/huge"; times > "$RV/open/huge.cpu")"; _rv_ms="$(_au_ms "$RV/open/huge.cpu")"
+_rvo2="$(_au --dir "$RV/open/huge" --verify 'npm test|x\\z'; times > "$RV/open/huge2.cpu")"; _rv_ms2="$(_au_ms "$RV/open/huge2.cpu")"
+_rvn="a 6 MB command holding 300,000 backslashes is read in seconds, with the default checks and with a --verify that holds a backslash: under 5 seconds of CPU each"
 if [ "$(_au_counts "$_rvo")" = "0 0 1 0" ] && [ "$(_au_counts "$_rvo2")" = "0 0 1 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 10 ] && [ $((_rv_t2 - _rv_t1)) -le 10 ] && ok "$_rvn" \
-    || bad "$_rvn" "took $((_rv_t1 - _rv_t0))s and $((_rv_t2 - _rv_t1))s"
+  [ "$_rv_ms" -le 5000 ] && [ "$_rv_ms2" -le 5000 ] && ok "$_rvn" \
+    || bad "$_rvn" "took ${_rv_ms} and ${_rv_ms2} ms of CPU"
 else
   bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") / $(_au_counts "$_rvo2")"
 fi
@@ -21000,9 +21520,7 @@ fi
 # running. With each << found again from the start of the command, or the
 # rest of the command searched at each, the read took 18 s and 11 s of CPU
 # and still counted it (2026-09-23), so 5 s stays far from all three.
-_rvo="$(_au --dir "$RV/open/shifts"; times > "$RV/open/shifts.cpu")"
-_rv_ms="$(awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
-               END { printf "%d", ms }' "$RV/open/shifts.cpu")"
+_rvo="$(_au --dir "$RV/open/shifts"; times > "$RV/open/shifts.cpu")"; _rv_ms="$(_au_ms "$RV/open/shifts.cpu")"
 _rvn="a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds of CPU"
 if [ "$(_au_counts "$_rvo")" = "1 0 0 0" ]; then
   [ "$_rv_ms" -le 5000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
@@ -21351,12 +21869,17 @@ awk -v d="$RV/r3/hdbig/-p" "$_rv_bigawk"'
     one(d "/opens.jsonl", "ho", "npm test; cat <<EOF\\n" rep("<<EOF\\n", 700000) "EOF")
     one(d "/body.jsonl", "hb", "cat > ids.txt <<\047EOF\047\\n" rep("1234567\\n", 560000) "EOF\\nnpm test")
   }'
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/r3/hdbig")"; _rv_t1="$(date +%s)"
-_rvn="three 5 MB commands dense in << or in line breaks are read in seconds, not minutes, and each still passes: under 30 for the three"
+# Timed as CPU: 1.5 s for the three at a load average near 340. Past finding
+# where each command ends, what they reach first is heredocs() on the 64K
+# read from each end, nearly 22,000 << in each window of the first. With
+# each << found again from the start of its window, the three still passed
+# and took 185 s (2026-09-23), so 10 s stays far from both.
+_rvo="$(_au --dir "$RV/r3/hdbig"; times > "$RV/r3/hdbig.cpu")"; _rv_ms="$(_au_ms "$RV/r3/hdbig.cpu")"
+_rvn="three 5 MB commands dense in << or in line breaks are read in seconds, not minutes, and each still passes: under 10 seconds of CPU for the three"
 if [ "$(_au_counts "$_rvo")" = "3 0 0 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 30 ] && ok "$_rvn" || bad "$_rvn" "took $((_rv_t1 - _rv_t0))s"
+  [ "$_rv_ms" -le 10000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
 else
-  bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") in $((_rv_t1 - _rv_t0))s"
+  bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") in ${_rv_ms} ms of CPU"
 fi
 
 # Over 256K the first 64K is read, and a script handed to a shell with -c
@@ -21377,25 +21900,47 @@ is  "a script handed to bash -c or sh -c over 256K is read at both ends: a runne
 
 # The last check in a command is found without re-reading the rest of the
 # command after each one, so a command's cost does not grow with the runners
-# in it. Eight commands just under 256K, four of 26,000 runners each after a
-# ; and four of one runner whose 26,000 arguments are tests/run, beside eight
-# of the same length and the same ; in the same places holding one: re-read
-# per match, the first eight took three times the CPU of the second. Timed as
-# CPU and side by side, so a loaded machine slows both alike.
-mkdir -p "$RV/r3/many/-p" "$RV/r3/once/-p"
+# in it. Four commands just under 256K of 26,000 runners each after a ;,
+# beside four of the same length and the same ; in the same places holding
+# one; and four of one runner whose 26,000 arguments are tests/run, beside
+# four whose arguments are tests/ruX. Each shape is a pair of its own, since a
+# regression in one is diluted by the other. With hidden() made to read every
+# command whole from its start, the ; shape took 2.7 to 2.8 times the CPU of
+# the one beside it, the other 1.0, and the two mixed 2.0; made to find each
+# match without the = before the rest, the tests/run shape took 3.0 to 3.1
+# times, the other 0.9, and mixed 1.8, which one mixed pair passed three times
+# in three. Both still counted every stop (2026-09-24, load average 200-340).
+# Timed as CPU, so load slows both sides alike, but not always alike: one gate
+# at a load near 300 read the mixed runners at 7.2 s against 3.3 s, where
+# sixteen mixed pairs on the same engine at the same load read 0.93 to 0.95.
+# Contention adds CPU time to the same work and never takes it away, so each
+# set is read three times in turn and its least is compared. A correct engine
+# fails only if all three reads of one set are slowed, and a slow one passes
+# only if all three of the set beside it are; a correct one read 0.9 and 1.0.
+mkdir -p "$RV/r3/smany/-p" "$RV/r3/sonce/-p" "$RV/r3/tmany/-p" "$RV/r3/tonce/-p"
 awk -v d="$RV/r3" "$_rv_bigawk"'
   BEGIN { a = rep("pytest t; ", 26000); b = "pytest t; " rep("pyxest t; ", 25999)
           c = "pytest" rep(" tests/run", 26000); e = "pytest" rep(" tests/ruX", 26000)
           for (i = 1; i <= 4; i++) {
-            one(d "/many/-p/s" i ".jsonl", "m" i, a); one(d "/once/-p/s" i ".jsonl", "o" i, b)
-            one(d "/many/-p/t" i ".jsonl", "n" i, c); one(d "/once/-p/t" i ".jsonl", "p" i, e) } }'
-_rv_cpu() { local TIMEFORMAT=%3U; { time _au --dir "$1" >/dev/null; } 2>&1; }
-_rvm="$(_rv_cpu "$RV/r3/many")"; _rvo1="$(_rv_cpu "$RV/r3/once")"
+            one(d "/smany/-p/s" i ".jsonl", "m" i, a); one(d "/sonce/-p/s" i ".jsonl", "o" i, b)
+            one(d "/tmany/-p/t" i ".jsonl", "n" i, c); one(d "/tonce/-p/t" i ".jsonl", "p" i, e) } }'
+_rvset=(smany sonce tmany tonce); _rvlo=(0 0 0 0); _rvq=""
+for _i in 1 2 3; do
+  for _j in 0 1 2 3; do
+    _rvo="$(_au --dir "$RV/r3/${_rvset[_j]}"; times > "$RV/r3/${_rvset[_j]}.cpu")"; _rvt="$(_au_ms "$RV/r3/${_rvset[_j]}.cpu")"
+    [ "$_i" -eq 1 ] && _rvq="$_rvq $(_au_counts "$_rvo")"
+    { [ "$_i" -eq 1 ] || [ "$_rvt" -lt "${_rvlo[_j]}" ]; } && _rvlo[_j]="$_rvt"
+  done
+done
 _rvn="a command of 26,000 runners costs no more than twice the CPU of one of the same shape holding one: the last is found in one read"
-if [ "$(_au_counts "$(_au --dir "$RV/r3/many")")" = "8 0 0 0" ] && [ "$(_au_counts "$(_au --dir "$RV/r3/once")")" = "8 0 0 0" ]; then
-  awk -v m="$_rvm" -v o="$_rvo1" 'BEGIN { exit !(m + 0 <= 2 * (o + 0)) }' && ok "$_rvn" || bad "$_rvn" "26,000 runners: ${_rvm}s of CPU, one: ${_rvo1}s"
+if [ "$_rvq" != " 4 0 0 0 4 0 0 0 4 0 0 0 4 0 0 0" ]; then
+  bad "$_rvn" "it did not count them, so their times say nothing:$_rvq"
+elif [ "${_rvlo[1]}" -le 0 ] || [ "${_rvlo[3]}" -le 0 ]; then
+  bad "$_rvn" "no CPU was read for the commands holding one: ${_rvlo[*]}"
+elif [ "${_rvlo[0]}" -le $((2 * _rvlo[1])) ] && [ "${_rvlo[2]}" -le $((2 * _rvlo[3])) ]; then
+  ok "$_rvn"
 else
-  bad "$_rvn" "it did not count them, so their times say nothing: $(_au_counts "$(_au --dir "$RV/r3/many")") / $(_au_counts "$(_au --dir "$RV/r3/once")")"
+  bad "$_rvn" "least ms of CPU in three reads: 26,000 runners after a ; ${_rvlo[0]}, one ${_rvlo[1]}; one runner and 26,000 tests/run ${_rvlo[2]}, 26,000 tests/ruX ${_rvlo[3]}"
 fi
 
 printf '\nfelix audit: what the fourth review found\n'

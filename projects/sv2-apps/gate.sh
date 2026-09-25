@@ -105,8 +105,10 @@ if git rev-parse --verify -q origin/main >/dev/null; then
 else fail version-bumps; echo "    origin/main is missing: git fetch origin main"; fi
 
 # ---- openapi (validate-openapi.yaml, only when monitoring code changes)
-if git diff --name-only "$(git merge-base origin/main HEAD 2>/dev/null || echo HEAD)" HEAD \
-   | grep -qE '^stratum-apps/src/(monitoring/|bin/generate-openapi\.rs)'; then
+# A here-string, not a pipe: grep -q quits at the first monitoring path, and
+# pipefail would read the SIGPIPE it leaves git as no change and skip the check.
+if grep -qE '^stratum-apps/src/(monitoring/|bin/generate-openapi\.rs)' \
+   <<<"$(git diff --name-only "$(git merge-base origin/main HEAD 2>/dev/null || echo HEAD)" HEAD)"; then
   openapi_check() {
     (cd stratum-apps && cargo run --bin generate-openapi --features monitoring,asic-rs-telemetry > "$LOG/openapi-fresh.json") || return 1
     diff -q "$LOG/openapi-fresh.json" stratum-apps/src/monitoring/openapi.json

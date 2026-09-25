@@ -2783,6 +2783,42 @@ printf '+AsiaPacificEconomicCoop %s%s\n' ASIA Q7XK2M9PLR4TWN3B | "$SS" - >/dev/n
   && bad "a key id beside that word is still caught" "scanner passed a temporary key id" \
   || ok "a key id beside that word is still caught"
 
+# GitHub's other prefixes, measured 2026-09-23. The scanner knew ghp_ and
+# github_pat_ and not ghs_ (an installation token, the Actions GITHUB_TOKEN),
+# gho_, ghu_ or ghr_: a workflow's unquoted `token:` value slipped the keyword
+# rule on its underscore. actions/checkout also leaves the token in .git/config
+# as a basic-auth header whose base64 begins with the encoding of
+# `x-access-token:`, a fixed prefix. Values assembled, as above; the samples
+# are the blind-authored qualification rows', plus a lookup whose fallback is
+# the token, since a hard shape must bound the context exclusion.
+_ss_i="$(printf '%s%s' ghs_ fakeQ7mZ2vT9kLd4RnW8pJyUc0AeGhSbXo31)"
+_ss_o="$(printf '%s%s' gho_ fakeVb3NqK8tXm2ZrW7yLd0PcJ5uHgE9sTaF)"
+_ss_r="$(printf '%s%s' ghr_ fakeRz4mKq9TvL2xNb7WcJ0pYd5AhGs8EuF3iXoZ1kMt6QwVbP2nLd9rHy4SeKa7UjC0mT3gWx5B)"
+_ss_b="$(printf '%s%s' eC1hY2Nlc3MtdG9rZW46 Z2hzX2Zha2VIazJQdk44bVF6NVRyWDBiTGQ3WWNXM2pVZTlBc0c0Rg==)"
+for s in "          token: $_ss_i" \
+         "GH_TOKEN=$_ss_o" \
+         "github.com,felix-bot,$_ss_r,2026-09-23" \
+         "$(printf '\textraheader = AUTHORIZATION: basic %s' "$_ss_b")" \
+         "git config http.https://github.com/.extraheader \"AUTHORIZATION: basic $_ss_b\"" \
+         "k = os.environ.get('T', '$_ss_i')"; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && bad "catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample $_ss_n" "scanner passed: $s" \
+    || ok "catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample $_ss_n"
+done
+unset _ss_n
+# And prose naming the prefixes stays quiet, as does an identifier that only
+# begins with one.
+for s in '# ghs_ is an installation token, the shape of an Actions GITHUB_TOKEN; gho_ an OAuth token; ghu_ a user-to-server token; ghr_ a refresh token.' \
+         'Because `x-access-token:` is fifteen bytes, its encoding is the fixed prefix `eC1hY2Nlc3MtdG9rZW46` and the token begins right after it.' \
+         'ghs_token_for_the_run = lookup()'; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && ok "quiet on prose naming the GitHub prefixes or the header's fixed base64, sample $_ss_n" \
+    || bad "quiet on prose naming the GitHub prefixes or the header's fixed base64, sample $_ss_n" "false positive on: $s"
+done
+unset _ss_n _ss_i _ss_o _ss_r _ss_b
+
 # A new file has no previous version, so git diff cannot see it, and a fresh
 # file is where a key most often lands.
 SECREPO="$TMP/secrepo"; mkdir -p "$SECREPO"
@@ -3525,7 +3561,10 @@ done
 exit 0
 STUB
 chmod +x "$UC/felix/engine/harness/felix" "$UC/bin/git"
-_uctok="ghs_stubtokenstubtokenstubtokenstub"
+# A placeholder by secret-scan's own rule (an "example" in the value): since
+# #342 taught the scan ghs_ tokens, a real-looking value here was a line the
+# public snapshot's credential scan refused to publish.
+_uctok="ghs_exampletokenexampletokenexample"
 : > "$UC/git.log"; : > "$UC/git.cred"
 ( cd "$UC/repo" && UC_LOG="$UC/git.log" GITHUB_TOKEN="$_uctok" BRANCH=fix/x PATH="$UC/bin:$PATH" \
     bash -e "$UC/step.sh" ) > "$UC/out" 2>&1; _ucrc=$?
@@ -10538,6 +10577,149 @@ else
            "grounded on a probe felix declares"; do skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
 fi
 
+# ------------------------------------- obligations name what discharges them ---
+# Roadmap Phase 1, first item. An optional eighth column, `needs`, names the
+# checker ids in qualification.tsv that would discharge a row, and each
+# resolves as complete (a row for every control), short (declared, some
+# missing, named) or absent (no checker by that id). Report only. So the
+# controls here hold on the engine before the column existed as much as after
+# it: a seven-column row is still a row, and discharge and blocking do not
+# move whatever a need resolves to. Fresh fixture dirs, as for the asks above.
+printf '\nobligations: what would discharge each, by name\n'
+NDP="$TMP/needs-proj"; NDR="$TMP/needs-repo"; mkdir -p "$NDP" "$NDR" "$MEM/needs-proj"
+( cd "$NDR" && git init -q -b main && printf 'x\n' > x && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm x ) >/dev/null 2>&1
+NDR="$(cd "$NDR" && pwd -P)"
+printf 'thing\t-\t-\tls -1 x\ttest -f x\n' > "$NDP/probes.tsv"
+# One checker with a row for every control, one with a violation only, and one
+# whose only row is malformed. Nothing here runs them: resolution reads what
+# the table declares and qualifies nothing.
+: > "$NDP/qualification.tsv"
+for _c in violation:fail restoration:pass irrelevant:pass alternate:fail \
+          decoupled_violation:fail decoupled_satisfaction:pass; do
+  printf 'whole\ttrue\t%s\t%s\ttrue\n' "${_c%%:*}" "${_c##*:}" >> "$NDP/qualification.tsv"
+done
+printf 'part\ttrue\tviolation\tfail\ttrue\n'   >> "$NDP/qualification.tsv"
+printf 'broken\ttrue\tviolation\tpass\ttrue\n' >> "$NDP/qualification.tsv"
+_nd()      { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
+               . "$FROOT/harness/lib/obligations.sh"; "$@" ) 2>/dev/null; }
+_ndrun()   { _nd felix_obligations_run "$NDP" "$NDR"; }
+_ndneeds() { _nd felix_obligations_needs "$NDP"; }
+_ndblk()   { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+               . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/evidence.sh"
+               . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/probes.sh"
+               . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
+               felix_merge_blockers "$NDP" "" "$NDR" "$FROOT" ) 2>/dev/null | grep '^obligations'; }
+_ndrow()   {   # evidence [needs]
+  if [ $# -ge 2 ]; then printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\t%s\tthing\towed\t%s\n' "$1" "$2"
+  else                  printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\t%s\tthing\towed\n' "$1"; fi > "$NDP/obligations.tsv"; }
+_ndtc()    { ( . "$FROOT/harness/lib/table.sh" 2>/dev/null
+               felix_table_check "$FROOT/harness/templates/schemas.tsv" "$NDP/obligations.tsv" >/dev/null 2>&1; echo $? ); }
+
+# Controls: the seven-column row, and discharge, exactly as before.
+_ndrow true
+is  "needs: a seven-column row is still a row"                  "$(_nd felix_obligation_rows "$NDP" | grep -c .)" "1"
+is  "and nothing about it is refused"                           "$(_nd felix_obligation_malformed "$NDP")" ""
+is  "and the schema check accepts it"                           "$(_ndtc)" "0"
+_nd7="$(_ndrun)"
+is  "and it is evaluated on its axes as before"                 "$(printf '%s\n' "$_nd7" | cut -f4,5)" "ACTIVE	SATISFIED"
+is  "a seven-column row names nothing that would discharge it"  "$(_ndneeds)" "a	-	none	-"
+_ndrow true gone
+is  "an eighth column of well-formed ids is not refused"        "$(_nd felix_obligation_malformed "$NDP")" ""
+is  "and discharge does not move: the row reads as it did without one" "$(_ndrun)" "$_nd7"
+is  "the schema check accepts the eighth column as needs"       "$(_ndtc)" "0"
+_ndrow false gone
+has "a failing row that names an absent capability blocks a release as before" \
+    "$(_ndblk)" "obligations	a	ACTIVE UNSATISFIED"
+_ndrow false whole
+has "and one whose checker declares every control blocks all the same" \
+    "$(_ndblk)" "obligations	a	ACTIVE UNSATISFIED"
+is  "complete is not discharge: the row is still UNSATISFIED"   "$(_ndrun | cut -f5)" "UNSATISFIED"
+_ndrow true ''
+is  "an empty needs cell is not refused by the scan"            "$(_nd felix_obligation_malformed "$NDP")" ""
+is  "and reads as naming nothing"                               "$(_ndneeds)" "a	-	none	-"
+
+# Resolution, against what qualification.tsv declares.
+_ndrow true -
+is  "a dash names nothing"                                      "$(_ndneeds)" "a	-	none	-"
+_ndrow true whole
+is  "a checker with a row for every control resolves complete"  "$(_ndneeds)" "a	whole	complete	-"
+_ndrow true part
+is  "a checker short of controls resolves short, naming what it lacks" \
+    "$(_ndneeds)" "a	part	short	restoration,irrelevant,alternate,decoupled_violation,decoupled_satisfaction"
+_ndrow true gone
+is  "an id no checker carries resolves absent"                  "$(_ndneeds)" "a	gone	absent	-"
+_ndrow true broken
+is  "a checker whose only row is malformed is short, not absent" "$(_ndneeds | cut -f3)" "short"
+_ndrow true 'whole,part,gone'
+is  "a row needing three capabilities resolves each of them" \
+    "$(_ndneeds | cut -f2,3 | tr '\n' ' ')" "whole	complete part	short gone	absent "
+{ printf 'a\tINFO\tdeterministic\t-\ttrue\t-\tr\twhole\n'
+  printf 'b\tINFO\tdeterministic\t-\ttrue\t-\tr\twhole,gone\n'
+  printf 'c\tINFO\tdeterministic\t-\ttrue\t-\tr\tpart\n'
+  printf 'd\tINFO\tdeterministic\t-\ttrue\t-\tr\n'
+  printf 'e\tINFO\tdeterministic\t-\ttrue\t-\tr\t-\n'; } > "$NDP/obligations.tsv"
+is  "the count is one per obligation, by its weakest need" \
+    "$(_ndneeds | _nd felix_obligations_needs_count)" "3	1	1	1	2"
+# A copy of the engine without the qualification library cannot resolve, and
+# says nothing and fails rather than calling every checker absent.
+NDNL="$TMP/lib-without-qualify"; mkdir -p "$NDNL"
+for _l in resolve probes obligations exceptions; do cp "$FROOT/harness/lib/$_l.sh" "$NDNL/" 2>/dev/null; done
+is  "an engine shipped without the qualification library resolves nothing, rather than absent" \
+    "$( ( . "$NDNL/resolve.sh"; . "$NDNL/probes.sh"; . "$NDNL/obligations.sh"
+          felix_obligations_needs "$NDP"; printf 'rc=%s' "$?" ) 2>/dev/null )" "rc=1"
+
+# A cell that is not an id refuses the row, as every other malformed cell does.
+for _b in Deploy 'a,,b' 'x, y' 9lives 'ok,'; do
+  _ndrow true "$_b"
+  has "needs [$_b] refuses the row with the reason" "$(_nd felix_obligation_malformed "$NDP")" "needs '$_b'"
+done
+_ndrow true Deploy
+is  "a row refused for its needs is never evaluated"            "$(_ndrun)" ""
+has "and is refused at the merge boundary"                      "$(_ndblk)" "needs 'Deploy'"
+
+# The CLI, on the bound fixture: a need nobody declares and a row naming none.
+WNP="$FROOT/projects/widget"
+cp "$WNP/obligations.tsv" "$TMP/needs-w-oblig.keep"
+{ printf 'fixture\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\ta fixture owes one thing, and it holds\tgone\n'
+  printf 'second\tADVISORY\tdeterministic\t-\ttrue\t-\tand one that names nothing\n'; } > "$WNP/obligations.tsv"
+_ndcount="1 name what discharges them: 0 complete, 0 short, 1 absent; 1 name nothing"
+out="$(cd "$REPO" && "$FELIX" obligations 2>&1)"; rc=$?
+is  "felix obligations exits 0 with a need nobody declares"     "$rc" "0"
+has "and shows each row's need with its resolution"             "$(printf '%s\n' "$out" | grep ' gone ')" "absent"
+has "and the row that names nothing, saying so"                 "$out" "names nothing that would discharge it"
+has "and says complete is declared, not run"                    "$out" "DECLARED, not that one ran"
+has "and the summary line counts them"                          "$(printf '%s\n' "$out" | grep 'obligation(s):')" "$_ndcount"
+out="$(cd "$REPO" && "$FELIX" obligations --gate 2>&1)"; rc=$?
+is  "felix obligations --gate exits 0 whatever the needs resolve to" "$rc" "0"
+has "and its summary line carries the same count"               "$(printf '%s\n' "$out" | grep 'obligation(s):')" "$_ndcount"
+case "$out" in
+  *"what would discharge each"*) bad "and the gate's copy carries no needs table" "$out" ;;
+  *)                             ok  "and the gate's copy carries no needs table" ;;
+esac
+out="$(cd "$REPO" && "$FELIX" gate 2>&1)"
+has "the gate's obligations check stays ok with every need absent" "$out" "  obligations        ok"
+has "and prints the count under it" \
+    "$(printf '%s\n' "$out" | awk '/^  obligations  / { getline; print; exit }')" "$_ndcount"
+cp "$TMP/needs-w-oblig.keep" "$WNP/obligations.tsv"
+
+# Felix's own ledger names what would discharge its two rows. Neither has a
+# checker in qualification.tsv yet, and absent is the honest reading.
+_REALP="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix"
+if [ -f "$_REALP/obligations.tsv" ]; then
+  _ndf="$(_nd felix_obligations_needs "$_REALP")"
+  is  "felix's lifecycle_wired needs lifecycle, which no checker declares" \
+      "$(printf '%s\n' "$_ndf" | awk -F'\t' '$1 == "lifecycle_wired" { print $2 "\t" $3 }')" "lifecycle	absent"
+  is  "and engine_deployed needs deploy, absent the same way" \
+      "$(printf '%s\n' "$_ndf" | awk -F'\t' '$1 == "engine_deployed" { print $2 "\t" $3 }')" "deploy	absent"
+else
+  for a in "felix's lifecycle_wired needs lifecycle, which no checker declares" \
+           "and engine_deployed needs deploy, absent the same way"; do
+    skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
+fi
+has "the template documents the needs column" \
+    "$(grep '^# obligation' "$FROOT/harness/templates/obligations.tsv")" "reason	needs"
+
 # ------------------------------------------ hooks-events, the probe's instrument ---
 # `hook_binding` records which events the shipped hooks.json binds. It used to
 # be a grep for `"Event": [`, and the blind control that qualified the first
@@ -15038,6 +15220,17 @@ if [ -f "$GWT/.git" ] && [ -d "$SCR/clone/.git" ] && [ -L "$SCR/to-gov" ]; then
   ok "the scoped fixture has its worktree, its clone and its links"
 else
   bad "the scoped fixture has its worktree, its clone and its links" "worktree [$GWT] clone [$SCR/clone]"
+fi
+# And one outside the temporary root lib/where.sh reads, $TMPDIR, turns every
+# lift below into a refusal for where the suite put its files. The root is a
+# bare `mktemp -d`, which on a Mac lands in the per-user directory whatever
+# TMPDIR says, so any other TMPDIR does that. Every tests/red run on a Mac
+# did, until red stopped moving TMPDIR (tests/red says why).
+_sc_tr="$(cd -P "${TMPDIR:-/tmp}" 2>/dev/null && pwd -P)"
+if [ -n "$_sc_tr" ] && case "$SCR/" in "${_sc_tr%/}/"*) true ;; *) false ;; esac; then
+  ok "the scoped fixture lies under the TMPDIR the suite was given"
+else
+  bad "the scoped fixture lies under the TMPDIR the suite was given" "fixture [$SCR] TMPDIR [${TMPDIR:-}]"
 fi
 { printf 'Bash\t(>|tee|cp |mv |rm |ln |truncate|sed -i|install |dd of=)[^;&|]*["\047]?\\.felix(-home)?["\047]?([[:space:];&|)]|$)\tmarker\tcheckout\n'
   printf 'Bash\tgit( +-[^ ]+( +[^ ]+)?)* +(update-ref|symbolic-ref|fetch|push)[^;&|]*refs/remotes/\ttracking\tcheckout\n'
@@ -20572,6 +20765,14 @@ _au() {
     [ "$c" = "-" ] || export CLAUDE_CONFIG_DIR="$c"
     HOME="$h" TMPDIR="$AU/tmp" PATH="$AUSTUB:$PATH" "$e" audit "$@" ) 2>>"$AU_ERR"
 }
+# The CPU an audit cost, in ms, from a file `times` wrote inside the command
+# substitution that ran it: that subshell's user and system time, then its
+# children's, the audit among them, as 0m1.234s. It counts nothing else the
+# suite has running, so load stretches the wall clock and leaves this alone.
+_au_ms() {
+  awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
+       END { printf "%d", ms }' "$1"
+}
 # The report is plain text in a wording nobody fixed, so it is read loosely: a
 # class is the line that names it and carries a percentage, its count the
 # first bare number there, its share the first number with a % after it.
@@ -20713,13 +20914,18 @@ _au --dir >/dev/null; _aurc2=$?
   && ok  "--dir with no value exits non-zero" \
   || bad "--dir with no value exits non-zero" "without: $_aurc, with: $_aurc2"
 
-_au_t0="$(date +%s)"; _auo2="$(_au --dir "$AU/big")"; _au_t1="$(date +%s)"
+# Timed as CPU, not wall clock, and written outside the scratch root, which is
+# checked below for anything a run left there. It measured 1 s at a load
+# average near 340. With each tool_use id looked for among the session's
+# earlier ones, one at a time, rather than by key, it took 10 s and still
+# counted them (2026-09-23), so 5 s stays far from both.
+_auo2="$(_au --dir "$AU/big"; times > "$TMP/audit-big.cpu")"; _au_ms2="$(_au_ms "$TMP/audit-big.cpu")"
 is  "it counts every stop in 41,400 lines: 450 passed and 450 failed" "$(_au_counts "$_auo2")" "450 450 0 0"
 if [ "$(_au_counts "$_auo2")" = "450 450 0 0" ]; then
-  [ $((_au_t1 - _au_t0)) -le 30 ] && ok  "and reads them in under 30 seconds" \
-                                   || bad "and reads them in under 30 seconds" "took $((_au_t1 - _au_t0))s"
+  [ "$_au_ms2" -le 5000 ] && ok  "and reads them in under 5 seconds of CPU" \
+                          || bad "and reads them in under 5 seconds of CPU" "took ${_au_ms2} ms of CPU"
 else
-  bad "and reads them in under 30 seconds" "it did not count them, so its speed says nothing"
+  bad "and reads them in under 5 seconds of CPU" "it did not count them, so its speed says nothing"
 fi
 
 # Read-only, measured after every run above. Unconditional silence would pass
@@ -21031,14 +21237,18 @@ awk -v d="$RV/perf/-Users-dev-perf" '
     print U("p3c", R("p3b", "\"content\":\"ok\""), ",\"toolUseResult\":{\"history\":[" ts "]}") > f
     print A("msg_p3d", done, "end_turn") > f
   }'
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/perf")"; _rv_t1="$(date +%s)"
+# Timed as CPU: 0.5 s at a load average near 340. Each session reaches its
+# own reader, and each reader, made to copy the rest of its line at every
+# step, still counted all three and took far longer (2026-09-23): rawcmd()
+# finding the command's end one escape at a time 15 s, results() finding the
+# last block boundary walking forward 37 s, stamp() walking every timestamp
+# 50 s. So 5 s stays far from all of them.
+_rvo="$(_au --dir "$RV/perf"; times > "$RV/perf.cpu")"; _rv_ms="$(_au_ms "$RV/perf.cpu")"
+_rvn="a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 5 seconds of CPU"
 if [ "$(_au_counts "$_rvo")" = "2 1 0 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 15 ] \
-    && ok  "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" \
-    || bad "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" "took $((_rv_t1 - _rv_t0))s"
+  [ "$_rv_ms" -le 5000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
 else
-  bad "a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 15 seconds" \
-      "it did not count them, so its speed says nothing: $(_au_counts "$_rvo")"
+  bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo")"
 fi
 
 # Arguments that used to pass and answer something nobody meant, each beside
@@ -21279,12 +21489,19 @@ awk -v f="$RV/open/huge/-Users-dev-huge/h1.jsonl" -v g="$RV/open/shifts/-Users-d
     B(g, "s1"); for (i = 0; i < 10000; i++) printf "%s", "echo $((1<<2)); " > g
     E(g, "s1", "npm test")
   }'
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/open/huge")"; _rv_t1="$(date +%s)"
-_rvo2="$(_au --dir "$RV/open/huge" --verify 'npm test|x\\z')"; _rv_t2="$(date +%s)"
-_rvn="a 6 MB command holding 300,000 backslashes is read in seconds, with the default checks and with a --verify that holds a backslash: under 10 each"
+# Timed as CPU: 0.4 s each at a load average near 340. The 6 MB reaches one
+# reader whole, rawcmd(), which finds where the command ends; decoding, and
+# the rejoin a backslash in --verify asks for, read only the 64K at its ends,
+# where putting the backslashes back one piece at a time added under 0.1 s.
+# With rawcmd() finding the end one escape at a time, the rest of the line
+# copied at each, both runs still counted it and took 186 s (2026-09-23), so
+# 5 s each stays far from both.
+_rvo="$(_au --dir "$RV/open/huge"; times > "$RV/open/huge.cpu")"; _rv_ms="$(_au_ms "$RV/open/huge.cpu")"
+_rvo2="$(_au --dir "$RV/open/huge" --verify 'npm test|x\\z'; times > "$RV/open/huge2.cpu")"; _rv_ms2="$(_au_ms "$RV/open/huge2.cpu")"
+_rvn="a 6 MB command holding 300,000 backslashes is read in seconds, with the default checks and with a --verify that holds a backslash: under 5 seconds of CPU each"
 if [ "$(_au_counts "$_rvo")" = "0 0 1 0" ] && [ "$(_au_counts "$_rvo2")" = "0 0 1 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 10 ] && [ $((_rv_t2 - _rv_t1)) -le 10 ] && ok "$_rvn" \
-    || bad "$_rvn" "took $((_rv_t1 - _rv_t0))s and $((_rv_t2 - _rv_t1))s"
+  [ "$_rv_ms" -le 5000 ] && [ "$_rv_ms2" -le 5000 ] && ok "$_rvn" \
+    || bad "$_rvn" "took ${_rv_ms} and ${_rv_ms2} ms of CPU"
 else
   bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") / $(_au_counts "$_rvo2")"
 fi
@@ -21295,9 +21512,7 @@ fi
 # running. With each << found again from the start of the command, or the
 # rest of the command searched at each, the read took 18 s and 11 s of CPU
 # and still counted it (2026-09-23), so 5 s stays far from all three.
-_rvo="$(_au --dir "$RV/open/shifts"; times > "$RV/open/shifts.cpu")"
-_rv_ms="$(awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
-               END { printf "%d", ms }' "$RV/open/shifts.cpu")"
+_rvo="$(_au --dir "$RV/open/shifts"; times > "$RV/open/shifts.cpu")"; _rv_ms="$(_au_ms "$RV/open/shifts.cpu")"
 _rvn="a command of 10,000 << shifts, none of them a here-document, is read in one pass: under 5 seconds of CPU"
 if [ "$(_au_counts "$_rvo")" = "1 0 0 0" ]; then
   [ "$_rv_ms" -le 5000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
@@ -21646,12 +21861,17 @@ awk -v d="$RV/r3/hdbig/-p" "$_rv_bigawk"'
     one(d "/opens.jsonl", "ho", "npm test; cat <<EOF\\n" rep("<<EOF\\n", 700000) "EOF")
     one(d "/body.jsonl", "hb", "cat > ids.txt <<\047EOF\047\\n" rep("1234567\\n", 560000) "EOF\\nnpm test")
   }'
-_rv_t0="$(date +%s)"; _rvo="$(_au --dir "$RV/r3/hdbig")"; _rv_t1="$(date +%s)"
-_rvn="three 5 MB commands dense in << or in line breaks are read in seconds, not minutes, and each still passes: under 30 for the three"
+# Timed as CPU: 1.5 s for the three at a load average near 340. Past finding
+# where each command ends, what they reach first is heredocs() on the 64K
+# read from each end, nearly 22,000 << in each window of the first. With
+# each << found again from the start of its window, the three still passed
+# and took 185 s (2026-09-23), so 10 s stays far from both.
+_rvo="$(_au --dir "$RV/r3/hdbig"; times > "$RV/r3/hdbig.cpu")"; _rv_ms="$(_au_ms "$RV/r3/hdbig.cpu")"
+_rvn="three 5 MB commands dense in << or in line breaks are read in seconds, not minutes, and each still passes: under 10 seconds of CPU for the three"
 if [ "$(_au_counts "$_rvo")" = "3 0 0 0" ]; then
-  [ $((_rv_t1 - _rv_t0)) -le 30 ] && ok "$_rvn" || bad "$_rvn" "took $((_rv_t1 - _rv_t0))s"
+  [ "$_rv_ms" -le 10000 ] && ok "$_rvn" || bad "$_rvn" "took ${_rv_ms} ms of CPU"
 else
-  bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") in $((_rv_t1 - _rv_t0))s"
+  bad "$_rvn" "it did not count them, so its speed says nothing: $(_au_counts "$_rvo") in ${_rv_ms} ms of CPU"
 fi
 
 # Over 256K the first 64K is read, and a script handed to a shell with -c
@@ -21672,25 +21892,47 @@ is  "a script handed to bash -c or sh -c over 256K is read at both ends: a runne
 
 # The last check in a command is found without re-reading the rest of the
 # command after each one, so a command's cost does not grow with the runners
-# in it. Eight commands just under 256K, four of 26,000 runners each after a
-# ; and four of one runner whose 26,000 arguments are tests/run, beside eight
-# of the same length and the same ; in the same places holding one: re-read
-# per match, the first eight took three times the CPU of the second. Timed as
-# CPU and side by side, so a loaded machine slows both alike.
-mkdir -p "$RV/r3/many/-p" "$RV/r3/once/-p"
+# in it. Four commands just under 256K of 26,000 runners each after a ;,
+# beside four of the same length and the same ; in the same places holding
+# one; and four of one runner whose 26,000 arguments are tests/run, beside
+# four whose arguments are tests/ruX. Each shape is a pair of its own, since a
+# regression in one is diluted by the other. With hidden() made to read every
+# command whole from its start, the ; shape took 2.7 to 2.8 times the CPU of
+# the one beside it, the other 1.0, and the two mixed 2.0; made to find each
+# match without the = before the rest, the tests/run shape took 3.0 to 3.1
+# times, the other 0.9, and mixed 1.8, which one mixed pair passed three times
+# in three. Both still counted every stop (2026-09-24, load average 200-340).
+# Timed as CPU, so load slows both sides alike, but not always alike: one gate
+# at a load near 300 read the mixed runners at 7.2 s against 3.3 s, where
+# sixteen mixed pairs on the same engine at the same load read 0.93 to 0.95.
+# Contention adds CPU time to the same work and never takes it away, so each
+# set is read three times in turn and its least is compared. A correct engine
+# fails only if all three reads of one set are slowed, and a slow one passes
+# only if all three of the set beside it are; a correct one read 0.9 and 1.0.
+mkdir -p "$RV/r3/smany/-p" "$RV/r3/sonce/-p" "$RV/r3/tmany/-p" "$RV/r3/tonce/-p"
 awk -v d="$RV/r3" "$_rv_bigawk"'
   BEGIN { a = rep("pytest t; ", 26000); b = "pytest t; " rep("pyxest t; ", 25999)
           c = "pytest" rep(" tests/run", 26000); e = "pytest" rep(" tests/ruX", 26000)
           for (i = 1; i <= 4; i++) {
-            one(d "/many/-p/s" i ".jsonl", "m" i, a); one(d "/once/-p/s" i ".jsonl", "o" i, b)
-            one(d "/many/-p/t" i ".jsonl", "n" i, c); one(d "/once/-p/t" i ".jsonl", "p" i, e) } }'
-_rv_cpu() { local TIMEFORMAT=%3U; { time _au --dir "$1" >/dev/null; } 2>&1; }
-_rvm="$(_rv_cpu "$RV/r3/many")"; _rvo1="$(_rv_cpu "$RV/r3/once")"
+            one(d "/smany/-p/s" i ".jsonl", "m" i, a); one(d "/sonce/-p/s" i ".jsonl", "o" i, b)
+            one(d "/tmany/-p/t" i ".jsonl", "n" i, c); one(d "/tonce/-p/t" i ".jsonl", "p" i, e) } }'
+_rvset=(smany sonce tmany tonce); _rvlo=(0 0 0 0); _rvq=""
+for _i in 1 2 3; do
+  for _j in 0 1 2 3; do
+    _rvo="$(_au --dir "$RV/r3/${_rvset[_j]}"; times > "$RV/r3/${_rvset[_j]}.cpu")"; _rvt="$(_au_ms "$RV/r3/${_rvset[_j]}.cpu")"
+    [ "$_i" -eq 1 ] && _rvq="$_rvq $(_au_counts "$_rvo")"
+    { [ "$_i" -eq 1 ] || [ "$_rvt" -lt "${_rvlo[_j]}" ]; } && _rvlo[_j]="$_rvt"
+  done
+done
 _rvn="a command of 26,000 runners costs no more than twice the CPU of one of the same shape holding one: the last is found in one read"
-if [ "$(_au_counts "$(_au --dir "$RV/r3/many")")" = "8 0 0 0" ] && [ "$(_au_counts "$(_au --dir "$RV/r3/once")")" = "8 0 0 0" ]; then
-  awk -v m="$_rvm" -v o="$_rvo1" 'BEGIN { exit !(m + 0 <= 2 * (o + 0)) }' && ok "$_rvn" || bad "$_rvn" "26,000 runners: ${_rvm}s of CPU, one: ${_rvo1}s"
+if [ "$_rvq" != " 4 0 0 0 4 0 0 0 4 0 0 0 4 0 0 0" ]; then
+  bad "$_rvn" "it did not count them, so their times say nothing:$_rvq"
+elif [ "${_rvlo[1]}" -le 0 ] || [ "${_rvlo[3]}" -le 0 ]; then
+  bad "$_rvn" "no CPU was read for the commands holding one: ${_rvlo[*]}"
+elif [ "${_rvlo[0]}" -le $((2 * _rvlo[1])) ] && [ "${_rvlo[2]}" -le $((2 * _rvlo[3])) ]; then
+  ok "$_rvn"
 else
-  bad "$_rvn" "it did not count them, so their times say nothing: $(_au_counts "$(_au --dir "$RV/r3/many")") / $(_au_counts "$(_au --dir "$RV/r3/once")")"
+  bad "$_rvn" "least ms of CPU in three reads: 26,000 runners after a ; ${_rvlo[0]}, one ${_rvlo[1]}; one runner and 26,000 tests/run ${_rvlo[2]}, 26,000 tests/ruX ${_rvlo[3]}"
 fi
 
 printf '\nfelix audit: what the fourth review found\n'

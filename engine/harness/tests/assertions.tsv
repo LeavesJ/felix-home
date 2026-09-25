@@ -786,6 +786,7 @@
 1	a source that is not a checkout pins nothing
 1	a source whose HEAD is origin's default branch pins that commit, in full
 1	a stacked branch is not blamed for what its base already merged
+1	a stacked branch is not out of scope for a credential its base already merged
 1	a staged row removal still escapes as verifier
 1	a staged source change owes its test
 1	a staged workflow escapes even with commits ahead
@@ -1072,6 +1073,8 @@
 1	an ordinary first prompt still logs its routing decision
 1	an overlap is said as an overlap, not as a negative remainder
 1	an unborn default base refuses rather than previews
+1	an uncommitted credential added to a green path is out of scope
+1	an uncommitted edit with nothing in it stays in scope
 1	an uncommitted resolve.sh in the working tree does not change the verdict
 1	an unconsidered moment is named
 1	an undeclared capability is still never scored
@@ -1884,6 +1887,7 @@
 1	and says why it was left alone
 1	and says why the gate is not enough
 1	and schemas.tsv is not among them: a project declares no schema
+1	and scope names the tier the line reached
 1	and scope says which tier it reached
 1	and scopes that proposal to the play, keeping the row
 1	and scp onto the marker
@@ -1907,10 +1911,12 @@
 1	and so does swapping its mutation for one that changes nothing
 1	and so does the next one
 1	and so does the stamp that says what it was read against
+1	and so does the tier a pull request would be labelled with
 1	and so is a deny from its own PreToolUse
 1	and so is a file this user cannot read
 1	and so is a premise whose command does not exist
 1	and so is a second one
+1	and so is a staged one
 1	and so is a zero-byte one
 1	and so is every other one
 1	and so is its evidence mode
@@ -2121,6 +2127,7 @@
 1	and the receipt is written with ten fields
 1	and the receipt reads valid
 1	and the receipt refuses to call that verified
+1	and the receipt's risk tier
 1	and the record names the channel
 1	and the record says why
 1	and the refilled cache begins with the stamp
@@ -2290,6 +2297,7 @@
 1	briefs which tasks are one unit
 1	but Felix's own bookkeeping is not the subagent's work
 1	but a change that does touch it still is
+1	but a credential the branch adds itself still is
 1	but a flagged one does not hold again unrecorded
 1	but a new one does get through
 1	but a prompt that opens with a slash is still what was typed
@@ -2344,6 +2352,7 @@
 1	ceiling is overridable
 1	changes no gate line
 1	classify names the ref it compared
+1	classify reads it too
 1	clean once it is gone
 1	clean project reports no drift
 1	clearing the queue empties it
@@ -3513,6 +3522,7 @@
 1	the skipped row the Stop hook writes is counted
 1	the source names the marketplace the entry came from
 1	the squash leaves the merge-base behind main
+1	the squash leaves this merge-base behind main as well
 1	the stamp changes with the rules table
 1	the stamp is the commit the graph says it was built at
 1	the step itself still counts as used

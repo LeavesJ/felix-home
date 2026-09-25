@@ -88,10 +88,12 @@ FELIX_QUALIFY_CONTROLS="${FELIX_QUALIFY_CONTROLS//:pass/}"
 # that it ran nothing, and it hears only this: text that is blank or only a
 # comment (a premise that is empty or `-` is no premise); text that does not
 # parse (bash -n); 126 or 127 as the final status; a line of the column's own
-# stderr that begins `felix-qualify: ` and says a name was not found, a syntax
-# error or an unexpected EOF. Not heard, so read by the final status: a path
-# that is not there, or a file that is not executable, anywhere but the final
-# command (bash says "No such file or directory" or "Permission denied", as
+# stderr that begins `felix-qualify: ` and says a name was not found, or is
+# bash's parser refusing the text: arithmetic and test errors quote data a
+# checker printed, so they are not heard, and nor is any of it in a locale
+# where bash translates its messages. Not heard, so read by the final status:
+# a path that is not there, or a file that is not executable, anywhere but the
+# final command (bash says "No such file or directory" or "Permission denied", as
 # for a failed redirection, so neither can say what did not run); a row that
 # sends its stderr away (2>/dev/null, 2>&1 into a pipe, exec 2>); a name run
 # through a wrapper or a nested shell; a diagnostic glued to stderr output
@@ -291,8 +293,8 @@ _felix_qualify_missing_in() {   # rows, checker -> one control per line
 #
 # The parse and the row run without SHELLOPTS or BASHOPTS, which carry the
 # caller's set and shopt options into a child bash, BASH_ENV, whose file a
-# child bash runs first, or POSIXLY_CORRECT, whose posix mode cannot parse
-# <( ). And `--`, because bash reads a text that begins with a dash as its own
+# child bash runs first, or POSIXLY_CORRECT, whose posix mode before bash 5.1
+# cannot parse <( ). And `--`, because bash reads a text that begins with a dash as its own
 # options, and "invalid option" exits 2.
 _felix_qualify_sh() {   # dir, text, stderr file outside dir -> the text's own status; 127 if it ran nothing
   local rc said
@@ -304,7 +306,7 @@ _felix_qualify_sh() {   # dir, text, stderr file outside dir -> the text's own s
       bash -c -- "$2" felix-qualify ) </dev/null >/dev/null 2>"$3"
   rc=$?
   LC_ALL=C grep -qE \
-    '^felix-qualify: ((line [0-9]+: )?[^:]+: command not found$|.*(syntax error|unexpected EOF))' \
+    '^felix-qualify: ((line [0-9]+: )?[^:]+: command not found$|((line [0-9]+: )?(command substitution|eval|-c): )?(line [0-9]+: )?(syntax error near unexpected token|syntax error: unexpected end of file|unexpected EOF while looking for matching))' \
     "$3" 2>/dev/null
   said=$?
   rm -f "$3"

@@ -3176,6 +3176,16 @@ cmd_setup() {
     esac
   done
 
+  # A step whose check could not fail is listed as todo above, not done, and
+  # here is why: the row needs a check that can say no.
+  local bad; bad="$(felix_setup_malformed "$proj")"
+  if [ -n "$bad" ]; then
+    printf '\nChecks refused, so these steps read todo until %s/setup.tsv is fixed:\n\n' "$proj"
+    printf '%s\n' "$bad" | while IFS=$'\t' read -r id why; do
+      [ -n "${id:-}" ] && printf '  %-22s %s\n' "$id" "$why"
+    done
+  fi
+
   if [ "$todo" -eq 0 ]; then
     printf '\nNothing outstanding.\n'
     return 0
@@ -3678,6 +3688,7 @@ cmd_maintenance() {
       # mean "days since" and "every N days" would render as `-d ago every 0d`
       # — a number nobody wrote, in a row about a fact rather than a clock.
       due)     if [ "$age" = "check" ]; then printf '  DUE     %-18s %-14s %s\n' "$name" "check failed" "$desc"
+               elif [ "$age" = "refused" ]; then printf '  DUE     %-18s %-14s %s\n' "$name" "check refused" "$desc"
                else printf '  DUE     %-18s %-14s %s\n' "$name" "last: $age" "$desc"; fi ;;
       ok)      if [ "${cadence:-0}" -eq 0 ] 2>/dev/null; then printf '  ok      %-18s %-14s %s\n' "$name" "check passed" "$desc"
                else printf '  ok      %-18s %-14s every %sd\n' "$name" "${age}d ago" "$cadence"; fi ;;
@@ -3704,6 +3715,15 @@ cmd_maintenance() {
       printf '  %-18s waits on: %s\n' "$_mn" "$_mc"
     done
     printf '\nFix the capability in %s/maintenance.tsv, or declare it.\n' "$proj"
+  fi
+  # A refused check is due until the row is fixed, since a check that could
+  # not fail was never asking. Say which, and why.
+  local _mb; _mb="$(felix_maint_malformed "$proj" 2>/dev/null)"
+  if [ -n "$_mb" ]; then
+    printf '\nChecks refused in %s/maintenance.tsv:\n\n' "$proj"
+    printf '%s\n' "$_mb" | while IFS=$'\t' read -r _mn _mw; do
+      [ -n "${_mn:-}" ] && printf '  %-18s %s\n' "$_mn" "$_mw"
+    done
   fi
   if [ "$due" -eq 0 ]; then printf '\nNothing due.\n'; return 0; fi
   printf '\n%s routine(s) due.\n\n' "$due"
@@ -4827,8 +4847,9 @@ cmd_obligations() {
   if [ -n "$bad" ]; then
     printf 'rows refused\n\n'; printf '%s\n' "$bad" | sed 's/^/  /'
     printf '\nA row needs a name, a class from the set, a pathway from the set and an\n'
-    printf 'evidence contract; a single probabilistic finding may not block; and a\n'
-    printf 'needs cell, when there is one, is - or checker ids separated by commas.\n\n'
+    printf 'evidence contract that can fail; a single probabilistic finding may not\n'
+    printf 'block; and a needs cell, when there is one, is - or checker ids separated\n'
+    printf 'by commas.\n\n'
   fi
   if [ -z "$rows" ]; then
     printf '%s/obligations.tsv admits no obligation.\n' "$proj"

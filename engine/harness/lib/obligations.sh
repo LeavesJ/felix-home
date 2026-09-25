@@ -50,6 +50,8 @@
 # rather than evaluated: a model's guess may trigger measurement and may not
 # stop a release.
 
+[ -n "${FELIX_FINAL_FILTER_AWK:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
+
 FELIX_OBLIGATION_CLASSES='INFO ADVISORY TASK_BLOCKING RELEASE_BLOCKING AUTHORITY_BLOCKING'
 FELIX_OBLIGATION_PATHWAYS='deterministic witness corroborated probabilistic unknown'
 
@@ -63,11 +65,16 @@ FELIX_OBLIGATION_PATHWAYS='deterministic witness corroborated probabilistic unkn
 # what Felix lacks made by a typo. Empty reads as `-`, as a missing column
 # does: a trailing tab was a valid row before this column existed, and the
 # schema check already refuses the tab itself.
+#
+# An evidence contract whose status can be a final filter's (final-filter.sh)
+# is refused with the rest: pipefail is off in the `bash -c` that runs it, so
+# `npm test | tail -20` read SATISFIED whatever the tests said. `applies` is
+# not judged. An unfailable one makes its row always apply, which asks more.
 _felix_obligation_scan() {
   local table="$1/obligations.tsv" mode="$2"
   [ -f "$table" ] || return 0
   awk -F'\t' -v mode="$mode" \
-      -v classes=" $FELIX_OBLIGATION_CLASSES " -v paths=" $FELIX_OBLIGATION_PATHWAYS " '
+      -v classes=" $FELIX_OBLIGATION_CLASSES " -v paths=" $FELIX_OBLIGATION_PATHWAYS " "$FELIX_FINAL_FILTER_AWK"'
     function needs_bad(s,   n, i, id) {
       if (s == "" || s == "-") return 0
       n = split(s, id, ",")
@@ -81,6 +88,8 @@ _felix_obligation_scan() {
         why = "a row with no obligation name"
       else if (NF < 5 || $5 == "" || $5 == "-")
         why = $1 ": no evidence contract, so nothing could ever discharge it"
+      else if ((ff = ff_stage($5)) != "")
+        why = $1 ": the evidence contract " ff_why(ff)
       else if (index(classes, " " $2 " ") == 0)
         why = $1 ": class \047" $2 "\047 is not one of" classes
       else if (index(paths, " " $3 " ") == 0)

@@ -907,7 +907,7 @@ _felix_residue() {
 # read from, for a caller whose source side is an archive extracted to a
 # temporary directory and so is not a repository at all; it defaults to the
 # source side. A fourth names a revision in that repository whose tree is also
-# content: felix_accepted_deploy_diff passes the ref it compared against, so a
+# content: felix_accepted_deploy_diff passes the commit it compared against, so a
 # file main ships is compared even from a branch that deleted it or ignores
 # it. Absent or empty, no base is consulted.
 felix_deploy_diff() {
@@ -998,11 +998,18 @@ felix_base_ref() {
 # disagree by construction. FELIX_KERNEL, the suite's override of the judge,
 # is not read: this asks about the real cache.
 felix_accepted_deploy_diff() {
-  local root="$1" base="${2:-main}" cache ref ver entry tmp d rc
+  local root="$1" base="${2:-main}" cache ref sha ver entry tmp d rc
   cache="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix}"
   [ -d "$cache" ] || { printf 'cannot examine: no felix cache at %s\n' "$cache"; return 2; }
   ref="$(felix_base_ref "$root" "$base")" || { printf 'cannot examine: no %s or origin/%s in this repository\n' "$base" "$base"; return 2; }
-  ver="$(_felix_plugin_version "$root" "$ref")"
+  # The name is resolved to a commit once, and every read below — the version,
+  # the archive and the base handed to the comparison — uses that commit. A
+  # fetch that moves the name mid-run would otherwise have the comparison ask
+  # one main what it ships about files cut from another. The name stays for
+  # messages, which a person reads.
+  sha="$(git -C "$root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null)"
+  [ -n "$sha" ] || { printf 'cannot examine: %s names no commit\n' "$ref"; return 2; }
+  ver="$(_felix_plugin_version "$root" "$sha")"
   [ -n "$ver" ] || { printf 'cannot examine: %s declares no engine version\n' "$ref"; return 2; }
   entry="$cache/$ver"
   if [ ! -d "$entry/harness" ]; then
@@ -1011,13 +1018,13 @@ felix_accepted_deploy_diff() {
   fi
   tmp="$(mktemp -d 2>/dev/null)" || { printf 'cannot examine: no temporary directory\n'; return 2; }
   for d in harness hooks commands; do
-    git -C "$root" cat-file -e "$ref:engine/$d" 2>/dev/null || continue
-    git -C "$root" archive "$ref" "engine/$d" 2>/dev/null | tar -x -C "$tmp" 2>/dev/null \
+    git -C "$root" cat-file -e "$sha:engine/$d" 2>/dev/null || continue
+    git -C "$root" archive "$sha" "engine/$d" 2>/dev/null | tar -x -C "$tmp" 2>/dev/null \
       || { rm -rf "$tmp"; printf 'cannot examine: could not read engine/%s at %s\n' "$d" "$ref"; return 2; }
   done
-  # The ref is handed down as the base, so every path main ships is compared
-  # whatever the checkout's index or ignore rules say about it.
-  felix_deploy_diff "$tmp/engine" "$entry" "$root/engine" "$ref"; rc=$?
+  # The commit is handed down as the base, so every path main ships is
+  # compared whatever the checkout's index or ignore rules say about it.
+  felix_deploy_diff "$tmp/engine" "$entry" "$root/engine" "$sha"; rc=$?
   rm -rf "$tmp"
   [ "$rc" -eq 0 ] && printf '%s\n' "$entry"
   return "$rc"

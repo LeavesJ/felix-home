@@ -15937,6 +15937,36 @@ printf 'tampered\n' >> "$TRKV/harness/keep.log"
 _trko="$(_trka)"
 is  "a file main ships is compared though the checked-out branch deleted it" "$(_trkrc "$_trko")" "1"
 has "and the file main ships is named" "$_trko" "harness/keep.log"
+_trk_cut
+
+# 5b. The base is one commit for the whole run. A fetch that moves main after
+# the reader has cut main's files, and before it asks main what it ships, must
+# not have it ask a main that no longer ships keep.log about a keep.log cut
+# from the one that did. The git first on PATH moves main to the branch that
+# deleted keep.log right after the first archive, which is that fetch. Added
+# after review, with the fix it pins in view, so not blind; red on the branch
+# before that fix and on main.
+TRKMAIN="$(git -C "$TRKR" rev-parse main)"; TRKGONE="$(git -C "$TRKR" rev-parse gone)"
+mkdir -p "$TRK/race"
+cat > "$TRK/race/git" <<RACE
+#!/bin/sh
+"$_trkgit" "\$@"; _rc=\$?
+case " \$* " in *" archive "*) "$_trkgit" -C "$TRKR" update-ref refs/heads/main "$TRKGONE" ;; esac
+exit \$_rc
+RACE
+chmod +x "$TRK/race/git"
+_trkrace() { git -C "$TRKR" update-ref refs/heads/main "$TRKMAIN"
+             ( unset FELIX_KERNEL FELIX_PLUGIN_CACHE; . "$FROOT/harness/lib/resolve.sh"; PATH="$TRK/race:$PATH"
+               FELIX_KERNEL_CACHE="$TRKC" felix_accepted_deploy_diff "$TRKR" main 2>"$TRK/err"; echo "rc=$?" ); }
+_trko="$(_trkrace)"
+is  "main moving mid-read leaves a faithful entry clean" "$(_trkrc "$_trko")" "0"
+is  "and main did move mid-read, to a commit that no longer ships the file" \
+    "$(git -C "$TRKR" rev-parse main)|$(git -C "$TRKR" ls-tree --name-only main -- engine/harness/keep.log)" "$TRKGONE|"
+printf 'tampered\n' >> "$TRKV/harness/keep.log"
+_trko="$(_trkrace)"
+is  "a file main shipped when it was read is compared though main moved mid-read" "$(_trkrc "$_trko")" "1"
+has "and the file main shipped when it was read is named" "$_trko" "harness/keep.log"
+git -C "$TRKR" update-ref refs/heads/main "$TRKMAIN"
 ( cd "$TRKR" && git checkout -q main && git branch -q -D gone ) >/dev/null 2>&1; _trk_cut
 
 # 6. Every surviving line is reported. Two tracked ignored files differ and an
@@ -15953,6 +15983,14 @@ case "$(_trkout "$_trko")" in
   *claude-flow*) bad "and the untracked stray beside them is not" "$_trko" ;;
   *)             ok  "and the untracked stray beside them is not" ;;
 esac
+# The same with a base named, so the base query also runs inside the loop over
+# diff's lines: one that read stdin would swallow the second file. Added after
+# review. Red on main, which drops both files whatever the base; on this
+# branch it is the guard on the base query.
+_trko="$(_trkd "$TRKE" "$TRKV" "$TRKE" main)"
+case "$(_trkout "$_trko")" in *claude-flow*) _trks=stray ;; *) _trks=none ;; esac
+is "with a base named, both tracked ignored files are still reported and the stray is not" \
+   "$(_trkrc "$_trko") $(_trkfiles "$(_trkout "$_trko")") $_trks" "1 2 none"
 
 # 10b. The cost shape, on the same state. A tracked path is content before any
 # ignore rule is consulted, so neither ignore query runs for it. The untracked
@@ -15963,10 +16001,18 @@ is "an untracked stray is still put to the ignore queries" "$(( $(_trkasked 'cla
 is "a tracked path is never put to the ignore queries" "$(_trkasked 'harness/(a\.log|lib/b\.log)')" "0"
 _trkshim "$TRKE" "$TRKV" "$TRKE" main
 is "nor when a base is named" "$(_trkasked 'harness/(a\.log|lib/b\.log)')" "0"
-_trkn="$(grep -c . "$TRK/git.log")"
-[ "$_trkn" -le 12 ] && ok  "and git is asked at most four times for each line diff reports" \
-                    || bad "and git is asked at most four times for each line diff reports" \
-                           "$_trkn calls for 3 lines: $(tr '\n' ';' < "$TRK/git.log")"
+# Per line, not only in total: a cheap tracked line must not hide a costly
+# untracked one. Each line is asked at least once, so a count of nothing cannot
+# pass, and all calls together stay within four a line. Tightened after review.
+_trkn="$(grep -c . "$TRK/git.log")"; _trkover=""
+for _p in harness/a.log harness/lib/b.log harness/.claude-flow; do
+  _trkp="$(grep -cF -- "$_p" "$TRK/git.log")"
+  { [ "$_trkp" -ge 1 ] && [ "$_trkp" -le 4 ]; } || _trkover="$_trkover $_p=$_trkp"
+done
+[ "$_trkn" -le 12 ] && [ -z "$_trkover" ] \
+  && ok  "and git is asked at most four times for each line diff reports" \
+  || bad "and git is asked at most four times for each line diff reports" \
+         "$_trkn calls for 3 lines;$_trkover: $(tr '\n' ';' < "$TRK/git.log")"
 rm -rf "$TRKE/harness/.claude-flow"; _trk_cut
 
 # 7. Fail toward drift. A base that does not resolve cannot say a path is not

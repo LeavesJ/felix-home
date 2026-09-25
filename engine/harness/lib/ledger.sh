@@ -464,7 +464,7 @@ EOF
   while IFS=$'\t' read -r kind name; do
     [ "${kind:-}" = "named" ] || continue
     [ -n "${name:-}" ] || continue
-    printf '%s\n' "$seen" | grep -xF "$name" >/dev/null 2>&1 && continue
+    grep -xF "$name" <<<"$seen" >/dev/null 2>&1 && continue
     printf '%s\t%s\tnamed\t%s\t0\t%s\n' "$session" "$date" "$name" \
       "$(felix_count -xF "named	$name" "$state")" >> "$tmp"
     seen="$seen
@@ -491,7 +491,7 @@ EOF
       # session gets recorded as never reached for — which would put the one
       # unconfounded signal in the design permanently in the wrong column.
       local bare="${name%%@*}"
-      printf '%s\n' "$seen_owner" | grep -xF "$bare" >/dev/null 2>&1 && continue
+      grep -xF "$bare" <<<"$seen_owner" >/dev/null 2>&1 && continue
       # Owner-equality, not substring. This used to be `felix_count -F`, and a
       # bare -F match let a declared server accrue `named` it never earned from
       # any play entry it merely prefixes — `context7` counted every naming of
@@ -677,7 +677,7 @@ felix_ledger_stranded() {
     _felix_ledger_fold_current "$f" "$dir/$session.tsv" && continue
     _felix_ledger_owns "$home" "$root" "$session" || continue
     [ "$looked" = 1 ] || { machine="$(_felix_ledger_machine_sessions "$proj")"; looked=1; }
-    printf '%s\n' "$machine" | grep -qxF -- "$session" && continue
+    grep -qxF -- "$session" <<<"$machine" && continue
     n=$((n + 1))
   done
   printf '%s' "$n"
@@ -693,7 +693,7 @@ felix_ledger_catchup() {
     _felix_ledger_fold_current "$f" "$dir/$session.tsv" && continue
     _felix_ledger_owns "$home" "$root" "$session" || continue
     [ "$looked" = 1 ] || { machine="$(_felix_ledger_machine_sessions "$proj")"; looked=1; }
-    printf '%s\n' "$machine" | grep -qxF -- "$session" && continue
+    grep -qxF -- "$session" <<<"$machine" && continue
     felix_ledger_rollup "$proj" "$home" "$session" \
       "$(date -r "$f" -u +%Y-%m-%d 2>/dev/null || date -u +%Y-%m-%d)" || continue
     n=$((n + 1))

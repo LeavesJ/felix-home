@@ -4220,20 +4220,19 @@ fi
 # log reading `printf: write error: Broken pipe`, once #310 lengthened the
 # output it read. Each printf that fed such a chain now hands the chain's first
 # stage a here-string, which bash has written in full before that stage starts,
-# so grep's exit breaks no printf. Seven chains still pipe that first stage's
-# output into a later grep -q, and that writer is safe for another reason, at
-# the sizes these reports have: it prints a few filtered lines, which stdio
-# holds until the stage has read all its input and then writes in one piece.
+# so grep's exit breaks no printf. The chains that went on to pipe that first
+# stage's output into a later grep -q now hand it over through a process
+# substitution, whose writer's status nothing reads, so no size of report can
+# turn them red; the next section's scan holds the suite to that.
 # A match on the first line of a megabyte takes the race out of the pipe form:
 # grep exits after its first read, so the writer can have handed over only
 # that read and one pipe's capacity, a small part of 1.3 MB. The first check
 # pins that failure, which is what gives the second its meaning: on a haystack
 # small enough for the pipe form to pass, the here-string passing would prove
-# nothing. Neither reads the suite, so the third does: it goes red on any
-# check here that pipes printf or echo of a variable into a chain ending in
-# grep -q, which is how the sweep stays swept. It passes over comments, and
-# over the first check's own pipe, which is there to break. It reads a line at
-# a time, so a chain continued onto a second line is not seen; none is today.
+# nothing. Neither reads the suite; the next section's scan does, and goes
+# red on any check here that pipes into a grep able to stop early, which is
+# how the sweep stays swept. It passes over the first check's own pipe, which
+# is there to break.
 if ( set -o pipefail; printf '%s\n' "$big" | grep -Fxq 1 ) 2>/dev/null; then
   bad "under pipefail, printf piped into grep -q fails when grep matches the first line of a megabyte" \
       "the pipe form passed, so this haystack cannot show that the here-string form is immune"
@@ -4245,9 +4244,475 @@ if ( set -o pipefail; grep -Fxq 1 <<<"$big" ); then
 else
   bad "and a here-string into grep -q passes on the same megabyte"
 fi
-_pfre="(printf '%s(\\\\n)?'|echo) \"[\$][^\"]*\" [|] ([^|]*[|] )*grep [^|]*-[a-zA-Z]*q"
-_pfsites="$(grep -nE "$_pfre" "$HERE/run" | grep -vE -e '^[0-9]+:[[:space:]]*#' -e '"[$]big" [|] grep -Fxq 1 [)]')"
-is "no check in this suite pipes printf or echo of a variable into a chain ending in grep -q" "$_pfsites" ""
+
+printf '\nan early-exit reader under pipefail does not decide a verdict\n'
+# The suite's own checks were swept in #364. The engine has the same shape in
+# about fifty places: `printf '%s' "$x" | grep -q PAT`, or a producer piped
+# into grep -q, -m, -l, or a grep whose output is /dev/null. grep stops at its
+# first match. If the writer still holds bytes, it takes SIGPIPE, pipefail
+# reports the pipeline as failed, and the engine reads "absent" about something
+# present. felix, every hook and bin/{secret-scan,executable-check} set
+# pipefail, and a lib function runs under whatever its caller set.
+#
+# Measured on the machine that found it (bash 3.2, BSD grep): a bash builtin
+# writing a multi-line value misses 1-7% of the time from 1 KB, 9 to 58 of 60
+# at 64 KB and every time from 128 KB; a buffered writer (sort, cut, awk) is
+# safe to 16 KB and misses every time from 100 KB. So each fixture below puts
+# the match on the first line and gives the writer well over 128 KB after it,
+# which makes the miss certain rather than a race, and pairs it with the same
+# input where it is not early, or not large, so what differs is where the match
+# sits and nothing else. Where a real haystack is small (ids, names), long
+# names reach the size with fewer rows, because the loop around each reader
+# runs once per row and the suite runs under load.
+#
+# Authored blind, from the classification and not from the lib: each
+# assertion drives the real function or command and names the verdict that
+# goes wrong.
+SPT="$TMP/sigpipe"; mkdir -p "$SPT"
+
+# ------------------------------------------------ the escape and the tier ----
+# lib/escape.sh:300 and lib/classify.sh:125 read every added line of the diff
+# through printf into grep -qE. A megabyte of added lines is not rare: 5 of
+# felix-home's last 40 merges added more than 64 KB. A destructive statement
+# near the top of such a diff escaped nothing and classified by path alone.
+SPP="$SPT/sp-esc-proj"; SPR="$SPT/sp-esc-repo"; mkdir -p "$SPP" "$SPR"
+{ printf '# tier\tkind\tpattern\treason\n'
+  printf 'green\tpath\t\\.md$\tprose\n'
+  printf 'red\tcontent\tDROP[[:space:]]+TABLE\tdestructive sql\n'
+  printf 'red\tpath\t^pyproject\\.toml$\tmanifest is also gate config\tverifier\t'
+  printf '^[-+][[:space:]]*"?[A-Za-z0-9._-]+[[:space:]]*[<>=!~^,"]\n'
+} > "$SPP/risk.tsv"
+# Dependency floors, one per line, under a line the version-bump confine does
+# not cover. Written as the base, so a later edit is a -U0 hunk of both.
+_spdeps() { awk -v n="$1" -v v="$2" 'BEGIN { print "[project]"; print "dependencies = ["
+              for (i = 1; i <= n; i++) printf "  \"package-number-%05d>=%s\",\n", i, v
+              print "]" }'; }
+( cd "$SPR" && git init -q -b main && printf 'widget\n' > .felix && printf 'notes\n' > README.md ) >/dev/null 2>&1
+{ printf 'python_files test_*.py\n'; _spdeps 10000 1.0; } > "$SPR/pyproject.toml"
+( cd "$SPR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+SPR="$(cd "$SPR" && pwd -P)"; SP_BASE="$(git -C "$SPR" rev-parse HEAD)"
+# Each case is a branch off the base, so no case inherits another's commit.
+_spon()     { ( cd "$SPR" && git checkout -q -b "$1" "$SP_BASE" ) >/dev/null 2>&1; }
+_spcommit() { ( cd "$SPR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm "$1" ) >/dev/null 2>&1; }
+_spprose()  { awk -v n="$1" 'BEGIN { for (i = 1; i <= n; i++)
+                printf "prose line %06d of a long document that says nothing at all\n", i }'; }
+_spesc()  { ( cd "$SPR" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/verify.sh"
+              . "$FROOT/harness/lib/review.sh"; . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
+              felix_escapes "$SPP" "$SP_BASE" "$SPR" "$FROOT" ) 2>/dev/null; }
+_sptier() { ( cd "$SPR" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/classify.sh"
+              felix_classify_tier "$(felix_classify_diff "$SPP" "$SP_BASE" "$SPR")" ) 2>/dev/null; }
+
+# 20,000 lines of prose, 1.2 MB, with the statement as the first added line.
+_spon dropfirst; { printf 'DROP TABLE users;\n'; _spprose 20000; } > "$SPR/big.md"; _spcommit dropfirst
+has "a DROP TABLE on the first added line of a megabyte diff still escapes as durable" \
+    "$(_spesc)" "durable	ADDED-LINES"
+is  "and still classifies the diff red, not green by its path" "$(_sptier)" "red"
+# The same bytes with the statement last: grep reads to the end before it can
+# match, so nothing is left to break. If this passes and the one above fails,
+# the position of the match is what decided, which is the defect.
+_spon droplast; { _spprose 20000; printf 'DROP TABLE users;\n'; } > "$SPR/big.md"; _spcommit droplast
+has "the same statement on the last added line escapes as durable" "$(_spesc)" "durable	ADDED-LINES"
+is  "and classifies red"                                          "$(_sptier)" "red"
+# And the megabyte alone is green and escapes nothing, so the red above comes
+# from the content rule and not from the size of the diff.
+_spon nodrop; _spprose 20000 > "$SPR/big.md"; _spcommit nodrop
+is  "the megabyte without it escapes nothing" "$(_spesc)" ""
+is  "and classifies green"                    "$(_sptier)" "green"
+
+# lib/escape.sh:163. A row with a confine fires when any changed line falls
+# outside it, read by grep -qvE over the file's -U0 hunk, which exits on the
+# first such line. A dependency bump is thousands of confined lines; one edit
+# outside the confine near the top of the file was passed over, and because
+# its name matches on both sides of the diff nothing else caught it.
+_spon bumpedit; { printf 'python_files nothing_*.py\n'; _spdeps 10000 1.1; } > "$SPR/pyproject.toml"; _spcommit bumpedit
+has "a line outside the version-bump confine, first in a 600 KB bump, still escapes as verifier" \
+    "$(_spesc)" "verifier	pyproject.toml"
+_spon bumpalone; { printf 'python_files test_*.py\n'; _spdeps 10000 1.1; } > "$SPR/pyproject.toml"; _spcommit bumpalone
+is  "the same bump without it escapes nothing" "$(_spesc)" ""
+_spon editalone; { printf 'python_files nothing_*.py\n'; _spdeps 10000 1.0; } > "$SPR/pyproject.toml"; _spcommit editalone
+has "and the edit alone escapes as verifier" "$(_spesc)" "verifier	pyproject.toml"
+# The same edit and the same bump with the edit last in the hunk.
+SP_BASE0="$SP_BASE"
+_spon base2; { _spdeps 10000 1.0; printf 'python_files test_*.py\n'; } > "$SPR/pyproject.toml"; _spcommit base2
+SP_BASE="$(git -C "$SPR" rev-parse HEAD)"
+_spon bumpeditlast; { _spdeps 10000 1.1; printf 'python_files nothing_*.py\n'; } > "$SPR/pyproject.toml"; _spcommit bumpeditlast
+has "the same edit last in the same bump escapes as verifier" "$(_spesc)" "verifier	pyproject.toml"
+SP_BASE="$SP_BASE0"
+
+# ------------------------------------------------ the merge boundary ----
+# felix:1396. felix merge refuses when the engine that would judge the branch
+# is byte-identical to the tree it judges, and asks first whether the branch
+# touches engine/harness/ at all: felix_changed_paths, which ends in sort -u,
+# piped into grep -q. A branch that also renames or vendors a few hundred files
+# hands sort more than it writes in one piece, the refusal is skipped, and only
+# the check after it (the judge must be main's accepted engine) still stands.
+# Long paths reach the size with 300 files instead of 5,000.
+SPG="$SPT/ghstub"; mkdir -p "$SPG"
+cat > "$SPG/gh" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$GHSTUB_LOG"
+case "$1 $2" in
+  "pr view") printf '{"number":7,"state":"OPEN"}\n' ;;
+  "pr merge") printf 'merged\n' ;;
+esac
+exit 0
+STUB
+chmod +x "$SPG/gh"
+SPS="$SPT/selfgov"; SPK="$SPT/kcache"; mkdir -p "$SPS/engine/.claude-plugin" "$SPS/engine/harness" "$SPK/1.0.0" "$SPK/2.0.0"
+( cd "$SPS" && git init -q -b main && git config user.email t@t && git config user.name t \
+  && git remote add origin https://github.com/example/widget.git ) >/dev/null 2>&1
+SPS="$(cd "$SPS" && pwd -P)"
+printf 'widget\n' > "$SPS/.felix"
+cp -R "$FROOT/harness/." "$SPS/engine/harness/"
+printf '*.log\n.DS_Store\n' > "$SPS/.gitignore"
+printf '{ "version": "1.0.0" }\n' > "$SPS/engine/.claude-plugin/plugin.json"
+( cd "$SPS" && git add -A && git commit -qm base ) >/dev/null 2>&1
+SPS_BASE="$(git -C "$SPS" rev-parse HEAD)"
+# A candidate that edits the judge's own source, and the judge main's version
+# names made byte-identical to it: the case the refusal exists for.
+_spsbranch() {  # name, count of long padding paths
+  ( cd "$SPS" && git checkout -q -b "$1" "$SPS_BASE" ) >/dev/null 2>&1
+  printf '{ "version": "2.0.0" }\n' > "$SPS/engine/.claude-plugin/plugin.json"
+  printf 'candidate edit\n' >> "$SPS/engine/harness/lib/escape.sh"
+  if [ "$2" -gt 0 ]; then
+    # 766 bytes a path: under macOS's 1,024-byte limit on the absolute path
+    # with room for a long $TMPDIR, and each component under 255.
+    _spsdir="$SPS/zz/$(printf 'a%.0s' $(seq 1 200))/$(printf 'b%.0s' $(seq 1 200))/$(printf 'c%.0s' $(seq 1 200))"
+    _spsname="$(printf 'f%.0s' $(seq 1 150))"
+    mkdir -p "$_spsdir"
+    for _spi in $(seq 1 "$2"); do printf 'padding %s\n' "$_spi" > "$_spsdir/$(printf '%05d' "$_spi")-$_spsname.txt"; done
+  fi
+  ( cd "$SPS" && git add -A && git commit -qm candidate ) >/dev/null 2>&1
+  rm -rf "$SPK/1.0.0/harness" "$SPK/2.0.0/harness"
+  cp -R "$SPS/engine/harness" "$SPK/1.0.0/harness"; cp -R "$SPS/engine/harness" "$SPK/2.0.0/harness"
+}
+_spsmerge() {
+  ( cd "$SPS" && . "$FROOT/harness/lib/verify.sh"
+    felix_verify_record "$SPS" "$FROOT" 0 "true" "$(felix_tree_id "$SPS" "$FROOT")" ) >/dev/null 2>&1
+  _cm_stamp "$SPS" >/dev/null 2>&1
+  : > "$SPT/gh.log"
+  ( cd "$SPS" && PATH="$SPG:$PATH" GHSTUB_LOG="$SPT/gh.log" \
+      FELIX_KERNEL_CACHE="$SPK" "$FELIX" merge --base "$SPS_BASE" 2>&1 )
+}
+_spsbranch engineonly 0
+has "an engine edit alone is refused as the engine judging itself" "$(_spsmerge)" "judging itself"
+_spsbranch enginewide 300
+_sps_bytes="$(git -C "$SPS" diff --name-only "$SPS_BASE...HEAD" | wc -c | tr -d ' ')"
+[ "$_sps_bytes" -gt 200000 ] && ok "the wide branch changes more than 200 KB of paths" \
+                             || bad "the wide branch changes more than 200 KB of paths" "$_sps_bytes bytes"
+has "an engine edit among 230 KB of changed paths is still refused as the engine judging itself" \
+    "$(_spsmerge)" "judging itself"
+is  "and nothing is merged" "$(awk '/^pr merge/' "$SPT/gh.log" | wc -l | tr -d ' ')" "0"
+
+# ------------------------------------------------ the ledger ----
+# lib/ledger.sh:680 and :696. A session the platform started to summarise
+# another is excluded from the ledger by a whole-line match against the list of
+# such sessions. felix-home had 78 of them by 2026-09-22, 2.9 KB of ids and
+# growing, in the band where a builtin writer misses a few times in a hundred.
+# Missed, the session-start banner counts it stranded and felix ledger folds it
+# into ledger.d as a session a person ran. Ids of 241 bytes (the file-name
+# limit, less .tsv) reach 150 KB with 620 sessions instead of 4,000.
+SPL="$SPT/ledger"; mkdir -p "$SPL/home/state/ledger" "$SPL/home/state/session" "$SPL/mem" "$SPL/bin" "$SPL/repo"
+( cd "$SPL/repo" && git init -q -b main && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m a ) >/dev/null 2>&1
+SPL_REPO="$(cd "$SPL/repo" && pwd -P)"; SPL_HEAD="$(git -C "$SPL_REPO" rev-parse HEAD)"
+# The platform's summary request, as #264's fixture holds it: its fixed opening,
+# a log, and its fixed closing, JSON-escaped as the prompt hook receives it.
+SPL_REQ='Below is a conversation log from a Claude Code coding session.\nCreate a summary to help the next session quickly understand the context.\n\n## Prioritize including\n- Design decisions and technology choices made this session\n- Bugs and problems solved\n- Files changed or created, with a brief description of changes\n- Unfinished tasks and work to continue in the next session\n- Important context the next session needs to know\n\n## Conversation log\n'
+SPL_REQ="$SPL_REQ"'**User:** the build is broken and the stacktrace shows a crash on reproduce\n\n**Assistant:** Reproduced it. \"felix gate\" fails on the migration.\n\n**User:** fix it and add a rollback\n'
+SPL_REQ="$SPL_REQ"'\n\n## Output format (Markdown only, no preamble)\n\n## Session Summary\n\n### Tasks\n(main tasks worked on this session)\n\n### Decisions Made\n(design decisions and technology choices)\n\n### Files Modified\n(files changed or created)\n\n### Unresolved Issues\n(unfinished tasks and work to continue)\n\n### Next Session Context\n(important context for the next session)'
+printf '#!/bin/sh\nprintf "%%s\\n" "$SPL_AT"\n' > "$SPL/bin/date"; chmod +x "$SPL/bin/date"
+_spl_say() {    # sid, prompt, when: one brief row, stamped by the fixture's clock
+  ( FELIX_MEMORY="$SPL/mem" SPL_AT="$3" PATH="$SPL/bin:$PATH"; export FELIX_MEMORY SPL_AT PATH
+    . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/say.sh"
+    felix_say "$FROOT/projects/widget" brief "Use this now: superpowers:systematic-debugging" "$2" "$1" ) >/dev/null 2>&1
+}
+_spl_state() {  # sid: a mark this repository holds and one append nothing folded
+  printf '%s\n' "$SPL_HEAD" > "$SPL/home/state/session/$1"
+  printf 'named\tsuperpowers:systematic-debugging\n' > "$SPL/home/state/ledger/$1.tsv"
+}
+_spl() { ( FELIX_MEMORY="$SPL/mem"; export FELIX_MEMORY
+           . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+           "$1" "$FROOT/projects/widget" "$SPL/home" "$SPL_REPO" ) 2>/dev/null; }
+SPL_M="00000000-machine-$(printf '%0223d' 0)"
+SPL_P="00000000-person-$(printf '%0224d' 0)"
+_spl_state "$SPL_M"; _spl_say "$SPL_M" "$SPL_REQ" 2026-09-10T21:04:57Z
+_spl_state "$SPL_P"; _spl_say "$SPL_P" 'the build is broken and the stacktrace shows a crash on reproduce' 2026-09-10T21:10:00Z
+is "with one platform-run session beside a person's, one session is stranded" "$(_spl felix_ledger_stranded)" "1"
+# 620 more platform-run sessions, each the first one's brief row under its own
+# id. The list they are matched against comes out in no order the table sets,
+# so these assertions count every session rather than name one: whichever
+# sessions sit early in the list are the ones a pipe form would miss.
+_spl_row="$(sed -n 1p "$SPL/mem/widget/says.log")"
+for _spi in $(seq 1 620); do
+  _spl_id="ffffffff-machine-$(printf '%0223d' "$_spi")"
+  _spl_state "$_spl_id"; printf '%s\n' "${_spl_row/$SPL_M/$_spl_id}" >> "$SPL/mem/widget/says.log"
+done
+is  "among 621 platform-run sessions, 150 KB of ids, none is counted as stranded beside the person's one" \
+    "$(_spl felix_ledger_stranded)" "1"
+_spl felix_ledger_catchup >/dev/null
+_spl_folds="$(ls "$SPL/mem/widget/ledger.d" 2>/dev/null)"
+is  "and felix ledger folds none of them into ledger.d as a session a person ran" \
+    "$(printf '%s\n' "$_spl_folds" | awk '/machine/' | wc -l | tr -d ' ')" "0"
+is  "while it folds the person's session beside them" \
+    "$(printf '%s\n' "$_spl_folds" | awk -v p="$SPL_P.tsv" '$0 == p' | wc -l | tr -d ' ')" "1"
+
+# ------------------------------------------------ coverage ----
+# lib/coverage.sh:105 asks whether hooks.json binds an event, and :193 whether
+# the stance table considers one, each by a whole-line match against a list
+# printed into grep -qxF. Both lists are whatever the files hold.
+SPC="$SPT/cov"; mkdir -p "$SPC"
+_sphooks() { awk -v n="$1" -v first="$2" 'BEGIN { printf "{\"hooks\":{\"%s\":[{}]", first
+               for (i = 1; i <= n; i++) printf ",\"ZzPaddingEventNumber%06d\":[{}]", i
+               print "}}" }'; }
+_spcovrow() { printf '%s\n' "$1" | awk -F'\t' -v e="$2" '$2 == e { print $1 "\t" $3 }'; }
+_sphooks 6000 Stop > "$SPC/hooks.json"
+printf 'Stop\twired\trefuse completion\n' > "$SPC/lifecycle.tsv"
+_spcov="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$SPC" "$SPC/hooks.json" 2>/dev/null )"
+is  "an event hooks.json binds first, ahead of 160 KB of other events, is ok, not reported as nothing wiring it" \
+    "$(_spcovrow "$_spcov" Stop | cut -f1)" "ok"
+printf 'Stop\tdeclined\tnothing to add\t-\n' > "$SPC/lifecycle.tsv"
+_spcov="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$SPC" "$SPC/hooks.json" 2>/dev/null )"
+is  "a declined event hooks.json binds first, ahead of 160 KB of other events, is still reported as wired against its decline" \
+    "$(_spcovrow "$_spcov" Stop)" "missing	declined, yet something wires it"
+printf '{"hooks":{"Stop":[{}]}}\n' > "$SPC/hooks.json"
+_spcov="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$SPC" "$SPC/hooks.json" 2>/dev/null )"
+is  "as it is when hooks.json binds that event alone" \
+    "$(_spcovrow "$_spcov" Stop)" "missing	declined, yet something wires it"
+SPH="$SPT/cov-home"; mkdir -p "$SPH/.claude"
+printf '{"hooks":{"SubagentStop":[],"SessionStart":[]}}\n' > "$SPH/.claude/settings.json"
+{ printf 'SubagentStop\twired\tconsidered first\n'
+  awk 'BEGIN { for (i = 1; i <= 6000; i++) printf "ZzPaddingEventNumber%06d\tdeclined\tpadding\t-\n", i }'
+} > "$SPC/lifecycle.tsv"
+_spun="$( HOME="$SPH" . "$FROOT/harness/lib/coverage.sh"; HOME="$SPH" felix_coverage_unconsidered "$SPC" 2>/dev/null | tr '\n' ' ' )"
+case " $_spun " in
+  *" SubagentStop "*) bad "an event the stance table considers first, ahead of 160 KB of other events, is not reported as unconsidered" "$_spun" ;;
+  *)                  ok  "an event the stance table considers first, ahead of 160 KB of other events, is not reported as unconsidered" ;;
+esac
+has "while an event it does not consider is still named" "$_spun" "SessionStart"
+
+# ------------------------------------------------ qualification ----
+# lib/qualify.sh:138 asks which of the six controls a checker has rows for, and
+# :238 which reported checkers any row qualifies, each against a list printed
+# into grep -qxF. A checker may carry many rows per control (one per mutation),
+# and a table may qualify many checkers.
+SPQ="$SPT/sp-qual-proj"; mkdir -p "$SPQ"
+_spqc='! grep -rqI FORBIDDEN . 2>/dev/null'
+_spq6() { printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_spqc"
+          printf 'demo\t%s\trestoration\tpass\ttrue\n' "$_spqc"
+          printf 'demo\t%s\talternate\tfail\tprintf FORBIDDEN > other.txt\n' "$_spqc"
+          printf 'demo\t%s\tirrelevant\tpass\tprintf harmless > h.txt\n' "$_spqc"
+          printf 'demo\t%s\tdecoupled_violation\tfail\tprintf FORBIDDEN > d.txt\n' "$_spqc"
+          printf 'demo\t%s\tdecoupled_satisfaction\tpass\ttrue\n' "$_spqc"; }
+_spq() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"; "$@" ) 2>/dev/null; }
+_spq6 > "$SPQ/qualification.tsv"
+is  "a checker declaring all six controls is missing none" \
+    "$(_spq felix_qualify_missing_controls "$SPQ" demo | tr '\n' ' ')" ""
+# Every control 2,000 times over: 172 KB of control names, the six first.
+_spq6 > "$SPQ/six"; for _spi in $(seq 1 11); do cat "$SPQ/six" "$SPQ/six" > "$SPQ/twice"; mv "$SPQ/twice" "$SPQ/six"; done
+cat "$SPQ/six" >> "$SPQ/qualification.tsv"
+is  "a checker whose six controls lead 170 KB of its control rows is missing none" \
+    "$(_spq felix_qualify_missing_controls "$SPQ" demo | tr '\n' ' ')" ""
+_spq6 > "$SPQ/qualification.tsv"
+awk -v q="$_spqc" 'BEGIN { for (i = 1; i <= 6000; i++)
+  printf "zzpadding_checker_number_%06d\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n", i, q }' >> "$SPQ/qualification.tsv"
+_sproster="$(printf 'gate: /tmp/x\n  demo               ok\n  syntax             ok\n')"
+_spug="$(_spq felix_qualify_ungoverned "$SPQ" "$_sproster" | tr '\n' ' ')"
+case " $_spug " in
+  *" demo "*) bad "a checker the table qualifies first, ahead of 190 KB of other checkers, is not reported as ungoverned" "$_spug" ;;
+  *)          ok  "a checker the table qualifies first, ahead of 190 KB of other checkers, is not reported as ungoverned" ;;
+esac
+has "while a reported checker no row qualifies still is" "$_spug" "syntax"
+
+# ------------------------------------------------ candidates ----
+# lib/candidates.sh:95 refuses a candidate the ledger already admits, and :113
+# one grounded on a probe nobody declared, each by a whole-line match against
+# a list of names printed into grep -qxF.
+# Named apart from the candidates section's own fixture: the project's memory
+# is keyed on its name.
+SPD="$SPT/sp-cand-proj"; SPDR="$SPT/sp-cand-repo"
+mkdir -p "$SPD" "$SPDR/routes" "$MEM/sp-cand-proj/commission"
+printf 'a\n' > "$SPDR/routes/a"
+( cd "$SPDR" && git init -q -b main && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
+SPDR="$(cd "$SPDR" && pwd -P)"
+printf '{\n  "name": "sp-cand-proj",\n  "remote_match": "example.com/sp-cand-proj",\n  "gate": "true"\n}\n' > "$SPD/project.json"
+{ printf '# predicate\tgrounds\twhen\tprobe\twitness\n'
+  printf 'http_route\t-\t-\tls -1 routes\ttest -d routes\n'
+  printf 'ceiling_site\t-\t-\tls -1 routes\ttest -d routes\n'; } > "$SPD/probes.tsv"
+printf 'lifecycle_wired\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\thttp_route\tthe fixture admits one thing, and it holds\n' \
+  > "$SPD/obligations.tsv"
+printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\nobligations_surveyed\t-\t-\t-\tprovider:felix:obligations\t-\t4\n' \
+  > "$SPD/commissioning.tsv"
+SPDANS="$MEM/sp-cand-proj/commission/obligations_surveyed.tsv"
+_spd()    { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
+              . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/epoch.sh"
+              . "$FROOT/harness/lib/candidates.sh"; "$@" ) 2>/dev/null; }
+_spdlib() { FELIX_HOME_DIR="$FROOT"
+            . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/stack.sh"
+            . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/toolbox.sh"
+            . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/commission.sh"
+            . "$FROOT/harness/lib/commission-provider.sh"; . "$FROOT/harness/lib/epoch.sh"; }
+# The answer file as the provider writes it: the topology and epoch as they
+# are now, the rows, and the count.
+_spdans() { { printf '# topology %s\n# epoch %s\n' "$( ( _spdlib; felix_commission_topology "$SPD" "$SPDR" ) 2>/dev/null )" \
+                                                  "$( ( _spdlib; felix_epoch "$SPD" "$SPDR" ) 2>/dev/null )"
+              local r; for r in "$@"; do printf '%s\n' "$r"; done
+              printf 'done\t%s\n' "$#"; } > "$SPDANS"; }
+_spdr()   { local IFS=$'\t'; printf '%s' "$*"; }
+_spdv()   { _spd felix_candidates_rules "$SPD" "$SPDR" | awk -F'\t' -v n="$1" '$2 == n { print $1 }'; }
+SPD_ADM="$(_spdr lifecycle_wired ADVISORY - true http_route fm 'already in the ledger')"
+SPD_NEW="$(_spdr fresh_one ADVISORY - true http_route fm 'grounded on the first probe')"
+_spdans "$SPD_ADM" "$SPD_NEW"
+is  "with one admitted row, a candidate of the same name is refused" "$(_spdv lifecycle_wired)" "refuse"
+is  "and one grounded on a declared probe is accepted"               "$(_spdv fresh_one)"       "accept"
+# 700 more admitted obligations with 240-character names: 170 KB, the one the
+# candidate repeats first.
+awk 'BEGIN { for (i = 1; i <= 700; i++) { n = sprintf("zz_padding_obligation_%06d_", i)
+             while (length(n) < 240) n = n "x"
+             printf "%s\tADVISORY\tdeterministic\t-\ttrue\thttp_route\tpadding\n", n } }' >> "$SPD/obligations.tsv"
+_spdans "$SPD_ADM" "$SPD_NEW"
+is  "a candidate admitted first in a 170 KB obligations table is still refused as already admitted" \
+    "$(_spdv lifecycle_wired)" "refuse"
+# 30 more declared probes with 6,000-character names: 180 KB, the one the
+# candidate grounds on first. Few rows, because the epoch runs every probe.
+printf 'lifecycle_wired\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\thttp_route\tthe fixture admits one thing, and it holds\n' \
+  > "$SPD/obligations.tsv"
+awk 'BEGIN { for (i = 1; i <= 30; i++) { n = sprintf("zz_padding_probe_%06d_", i)
+             while (length(n) < 6000) n = n "x"
+             printf "%s\t-\t-\ttrue\ttrue\n", n } }' >> "$SPD/probes.tsv"
+_spdans "$SPD_NEW"
+is  "a candidate grounded on the first probe of a 180 KB probe table is accepted, not refused as undeclared" \
+    "$(_spdv fresh_one)" "accept"
+
+# ------------------------------------------------ the shape, everywhere ----
+# The behaviour above covers the sites where a large haystack is reachable.
+# The shape is checked everywhere, because the next site will be written the
+# same way and a small haystack only makes the miss rarer, not impossible. A
+# pipeline stage that is a grep able to stop before its input ends is refused:
+# -q, -l, -L, -m and their long forms, or a grep whose output is /dev/null
+# without a count flag, which GNU grep (the CI runner's) treats as -q. The scan
+# joins a line ending in |, \ or && to the next, and a line whose successor
+# opens with |, && or ||; it skips comment lines and heredoc bodies, masks ||,
+# and reports an unterminated heredoc rather than reading the rest of a file as
+# its body. It does not see head -1, awk exit or sed q: only function-aware
+# parsing could tell whose status is read. The two such readers whose status
+# was read (overnight.sh and resolve.sh, head -1) now read with sed -n 1p,
+# which reads to the end, and both wrote once and under 16 KB before that.
+cat > "$SPT/scan.awk" <<'AWK'
+function flush(   s) {
+  if (buf == "") return
+  s = buf
+  gsub(/\|\|/, " OR ", s)
+  if (s ~ /\|[ \t]*(LC_ALL=[^ \t]+[ \t]+)?grep[ \t]([^|]*[ \t])?(-[A-Za-z]*[qlLm][A-Za-z0-9]*|--quiet|--silent|--max-count|--files-with-matches|--files-without-match)/)
+    printf "%s:%d: G: %s\n", file, start, buf
+  else if (s ~ /\|[ \t]*(LC_ALL=[^ \t]+[ \t]+)?grep[ \t][^|]*[ \t](1|&)?>[ \t]*\/dev\/null/ \
+        && s !~ /\|[ \t]*(LC_ALL=[^ \t]+[ \t]+)?grep[ \t]([^|]*[ \t])?-[A-Za-z]*c/)
+    printf "%s:%d: N: %s\n", file, start, buf
+  buf = ""; cont = 0
+}
+function heredocs(line,   rest, pre, m, w) {
+  rest = line
+  while (match(rest, /<<-?[ \t]*\\?["']?[A-Za-z_][A-Za-z0-9_]*/)) {
+    pre = (RSTART > 1) ? substr(rest, RSTART - 1, 1) : ""
+    m = substr(rest, RSTART, RLENGTH)
+    rest = substr(rest, RSTART + RLENGTH)
+    if (pre == "<" || substr(rest, 1, 1) == "<") continue
+    w = m; sub(/^<<-?[ \t]*\\?["']?/, "", w)
+    nq++; q[nq] = w; qdash[nq] = (m ~ /^<<-/)
+  }
+}
+FNR == 1 {
+  if (file != "") { flush(); if (nq > qi) printf "%s: unterminated heredoc %s\n", file, q[qi + 1] }
+  file = FILENAME; buf = ""; cont = 0; nq = 0; qi = 0
+}
+{
+  line = $0
+  if (qi < nq) {
+    t = line; if (qdash[qi + 1]) sub(/^\t+/, "", t)
+    if (t == q[qi + 1]) qi++
+    next
+  }
+  if (line ~ /^[ \t]*#/) next
+  lead = line; sub(/^[ \t]+/, "", lead)
+  if (buf != "" && (cont || lead ~ /^(\||&&)/)) buf = buf " " lead
+  else { flush(); buf = line; start = FNR }
+  tail = line; sub(/[ \t]+$/, "", tail)
+  cont = (tail ~ /(\||\\|&&)$/)
+  if (cont && tail ~ /\\$/) sub(/\\[ \t]*$/, "", buf)
+  heredocs(line)
+  if (qi < nq) flush()
+}
+END { flush(); if (nq > qi) printf "%s: unterminated heredoc %s\n", file, q[qi + 1] }
+AWK
+_spscan() { awk -f "$SPT/scan.awk" "$@"; }
+_splines() { _spscan "$1" | awk -F: '{ printf "%s%s", sep, $2; sep = " " }'; }
+# Every shape it must refuse, one per numbered line, so the report can be
+# compared line for line. Line 1 is a comment and line 2 blank, so no FIRE is
+# on line 1 by accident.
+cat > "$SPT/fire.sh" <<'FIRE'
+# each command below ending in FIRE must be reported, at the line it starts on
+
+printf '%s\n' "$v" | grep -q x && echo FIRE
+list_things "$p" | grep -qxF "$n" || echo FIRE
+printf '%s\n' "$v" | cut -f1 \
+  | grep -qx -- '-' && echo FIRE
+some_fn | cut -f2 | grep -Fq "$y" && echo FIRE
+printf '%s' "$v" | grep --quiet x && echo FIRE
+printf '%s' "$v" | grep -m1 x && echo FIRE
+printf '%s\n' "$v" | grep -xF "$n" >/dev/null 2>&1 && echo FIRE
+printf '%s' "$v" |
+  LC_ALL=C grep -qE '^x' && echo FIRE
+if producer "$a" \
+     | grep -l x; then echo FIRE; fi
+[ -n "$a" ] && printf '%s' "$a" | grep -qE "$P" && echo FIRE
+FIRE
+is  "the early-exit scan reports every line of its violation fixture, and only those" \
+    "$(_splines "$SPT/fire.sh")" "3 4 5 7 8 9 10 11 13 15"
+# Every safe form, and every lookalike, none of which it may report.
+cat > "$SPT/quiet.sh" <<'QUIET'
+grep -q x <<<"$v" && echo quiet
+grep -qxF "$n" < <(printf '%s\n' "$v") && echo quiet
+printf '%s' "$v" | grep -c x
+# printf '%s' "$v" | grep -q x
+[ -n "$a" ] || [ -n "$b" ]
+a || grep -q x file
+producer | grep x 2>/dev/null
+producer | grep -v x | sort
+n="$(printf '%s\n' "$v" | grep -c . >/dev/null)"
+x=$((1<<3))
+cat <<EOF
+printf '%s' "$v" | grep -q x
+EOF
+cat <<-'EOF'
+	printf '%s' "$v" | grep -q x
+	EOF
+grep -q x <<<'y'
+QUIET
+is  "and nothing in its fixture of safe forms" "$(_spscan "$SPT/quiet.sh")" ""
+# Built from pieces, so this suite's own scan below does not read this line as
+# opening a heredoc or piping into grep.
+printf 'cat %sNEVER\nprintf x %s grep -q x\n' '<''<' '|' > "$SPT/open.sh"
+has "a heredoc that never closes is reported, not read as the rest of the file" \
+    "$(_spscan "$SPT/open.sh")" "unterminated heredoc NEVER"
+_spsrc=( "$FROOT/harness/felix" "$FROOT/harness/hooks/"* "$FROOT/harness/bin/"* "$FROOT/harness/lib/"*.sh )
+is  "the scan reads the engine's sources, not an empty list" \
+    "$(awk 'END { print (NR > 20000) ? "read" : NR }' "${_spsrc[@]}" 2>/dev/null)" "read"
+_spfound="$(_spscan "${_spsrc[@]}" | sed "s|$FROOT/harness/||")"
+is  "no engine source pipes into a grep that stops early" "$_spfound" ""
+# And this suite, which #364 swept with a line-at-a-time check this replaces.
+# Two kinds of line are passed over by text they contain, held in a heredoc so
+# the scan does not read the list itself: the megabyte check in "pipefail
+# safety", whose pipe is there to break, and rows the suite writes into a
+# table for the engine to run, where the pipe is inside the quoted command.
+cat > "$SPT/allow" <<'ALLOW'
+"$big" | grep -Fxq 1 )
+	printf x | grep -q x	9'
+git ls-tree -r HEAD --name-only 2>/dev/null | grep -q .\n'
+ALLOW
+_spfound="$(_spscan "$HERE/run" | awk 'NR == FNR { if ($0 != "") allow[++n] = $0; next }
+  { for (i = 1; i <= n; i++) if (index($0, allow[i])) next; print }' "$SPT/allow" -)"
+is  "no check in this suite pipes into a grep that stops early" "$_spfound" ""
+
+rm -rf "$SPT" "$MEM/sp-cand-proj"
 
 printf '\nthe completion gate\n'
 # The principle under test: an agent must not be able to say it is finished
@@ -17529,7 +17994,7 @@ _tbrefuse() {  # <label> <reason> [split]
   local _o _r _s
   _o="$(_tb felix_table_check "$TBS" "$TBM/risk.tsv")"; _r=$?
   _s="$(_tfsplit "$TBM/risk.tsv" C)"
-  if [ "$_r" = "1" ] && cut -f2 <<<"$_o" | grep -qx "$2" \
+  if [ "$_r" = "1" ] && grep -qx "$2" < <(cut -f2 <<<"$_o") \
      && { [ "${3:-}" != "split" ] || [ -n "$_s" ]; }; then
     ok "$1"
   else
@@ -19612,7 +20077,7 @@ if git -C "$XH" rev-parse --verify -q refs/remotes/origin/main >/dev/null 2>&1 &
     *ROW*"$H12_CLEAR"*|*"$H12_CLEAR"*ROW*) ok "felix obligations prints a row column carrying the ledger line's twelve-character hash" ;;
     *) bad "felix obligations prints a row column carrying the ledger line's twelve-character hash" "$XOUT" ;;
   esac
-  if grep -F 't_clear' <<<"$XOUT" | grep -Fq 'UNSATISFIED' \
+  if grep -Fq 'UNSATISFIED' < <(grep -F 't_clear' <<<"$XOUT") \
      && grep -Fq "excepted until $XC_SOON by earlier" <<<"$XOUT"; then
     ok  "an excepted row's detail names its expiry and grantor and keeps its discharge unsatisfied"
   else
@@ -19626,15 +20091,15 @@ if git -C "$XH" rev-parse --verify -q refs/remotes/origin/main >/dev/null 2>&1 &
     *"exceptions at origin/main ("*"): 12 granted"*) ok "the report heads the grants with the base ref and its commit date" ;;
     *) bad "the report heads the grants with the base ref and its commit date" "$(printf '%s\n' "$XOUT" | grep 'exceptions at')" ;;
   esac
-  if grep -F 't_clear' <<<"$XOUT" | grep -Fq 'live' \
-     && grep -F 't_asleep' <<<"$XOUT" | grep -Fq 'armed'; then
+  if grep -Fq 'live' < <(grep -F 't_clear' <<<"$XOUT") \
+     && grep -Fq 'armed' < <(grep -F 't_asleep' <<<"$XOUT"); then
     ok  "a live grant is listed live and a grant on a dormant row is listed armed"
   else
     bad "a live grant is listed live and a grant on a dormant row is listed armed" "$XOUT"
   fi
   _m=""
   while IFS='|' read -r _n _r; do
-    grep -F "$_n" <<<"$XOUT" | grep -F 'refused' | grep -Fq "$_r" || _m="$_m $_n"
+    grep -Fq "$_r" < <(grep -F "$_n" <<<"$XOUT" | grep -F 'refused') || _m="$_m $_n"
   done <<'REASONS'
 t_lapsed|expired
 t_far|expires past the horizon
@@ -19753,8 +20218,8 @@ _xc_row c_task "$(_xc_h12 "$XC/projects/c/obligations.tsv" c_task)" "$XC_LIVE" f
 ( cd "$XC" && git init -q -b main ) >/dev/null 2>&1; _xc_ci "$XC" clean; _xc_origin "$XC"
 if git -C "$XC" rev-parse --verify -q refs/remotes/origin/main >/dev/null 2>&1; then
   out="$(cd "$XC" && FELIX_HOME="$XC" "$XC/harness/felix" obligations --gate 2>&1)"; _rc=$?
-  if [ "$_rc" -eq 0 ] && grep -F "$(printf '\texcepted\t')" "$MEM/c/says.log" 2>/dev/null \
-       | grep -Fq "c_task: excepted until $XC_LIVE by founder"; then
+  if [ "$_rc" -eq 0 ] && grep -Fq "c_task: excepted until $XC_LIVE by founder" \
+       < <(grep -F "$(printf '\texcepted\t')" "$MEM/c/says.log" 2>/dev/null); then
     ok  "felix obligations --gate passes when its only blocking row is excepted, and writes the exception to says.log"
   else
     bad "felix obligations --gate passes when its only blocking row is excepted, and writes the exception to says.log" \
@@ -20090,13 +20555,15 @@ fi
 # only, so an untracked project in somebody's home checkout is not this suite's
 # verdict to give. Felix's own gate is counted too; #276 took it out of /tmp.
 #
-# The second grep reads to the end rather than quitting at its first match.
+# The second grep reads the first through a process substitution, not a pipe.
 # Under pipefail a grep -q there broke the first grep's pipe whenever more
 # than a pipe's capacity of the script followed the match, the pipeline read
 # as failed, and the && dropped the script's name: a pass for the script most
-# in need of a fail. The fixture names /tmp/ on its second line, ahead of a
-# megabyte, where that form missed it every time.
-_pgl_names_tmp() { grep -vE '^[[:space:]]*#' "$1" | grep '/tmp/' >/dev/null; }
+# in need of a fail. Writing to /dev/null instead of -q is no cure: GNU grep,
+# the CI runner's, stops at its first match there too. The fixture names
+# /tmp/ on its second line, ahead of a megabyte, where the pipe form missed it
+# every time.
+_pgl_names_tmp() { grep '/tmp/' < <(grep -vE '^[[:space:]]*#' "$1") >/dev/null; }
 { printf '#!/bin/sh\nscratch=/tmp/fixed-path\n'; seq 1 200000; } > "$TMP/pgl-early-tmp.sh"
 if _pgl_names_tmp "$TMP/pgl-early-tmp.sh" 2>/dev/null; then
   ok  "a script that names /tmp/ on its second line, ahead of a megabyte, is caught under pipefail"
@@ -20886,7 +21353,7 @@ _au_before="$(_au_snap "$AU")"; _au_home_before="$(_au_snap "$AU/home")"
 
 _auo="$(_au --dir "$AUD")"; _aurc=$?
 _au_report=0
-[ "$_aurc" -eq 0 ] && _au_first "$_auo" | grep -qiE 'read[- ]only' && _au_report=1
+[ "$_aurc" -eq 0 ] && grep -qiE 'read[- ]only' < <(_au_first "$_auo") && _au_report=1
 _audiag="rc=$_aurc; stdout: $(printf '%s' "$_auo" | head -c 600); stderr: $(tail -c 400 "$AU_ERR")"
 is  "felix audit --dir exits 0 over a directory of transcripts" "$_aurc" "0"
 [ "$_au_report" -eq 1 ] && ok  "its first line says it is read-only" \
@@ -21057,7 +21524,7 @@ else
   bad "and runs none of commissioning: no run, no receipt, no discovery cache, no commissioning log" \
       "the project was not created and bound, so an absent receipt proves nothing"
 fi
-grep -i 'skip' <<<"$_nct" | grep -q 'felix commission' \
+grep -q 'felix commission' < <(grep -i 'skip' <<<"$_nct") \
   && ok  "and prints one line saying commissioning was skipped and felix commission runs it later" \
   || bad "and prints one line saying commissioning was skipped and felix commission runs it later" "$_nct"
 

@@ -112,7 +112,7 @@ _felix_classify_pass() {
       path)
         while IFS= read -r f; do
           [ -n "$f" ] || continue
-          if printf '%s' "$f" | grep -qE "$pattern"; then
+          if grep -qE "$pattern" <<<"$f"; then
             printf '%s\t%s\t%s\n' "$tier" "$f" "$reason"
             matched_paths="$matched_paths
 $f"
@@ -122,7 +122,7 @@ $paths
 EOF
         ;;
       content)
-        if [ -n "$added" ] && printf '%s' "$added" | grep -qE "$pattern"; then
+        if [ -n "$added" ] && grep -qE "$pattern" < <(printf '%s' "$added"); then
           printf '%s\tADDED-LINES\t%s\n' "$tier" "$reason"
         fi
         ;;

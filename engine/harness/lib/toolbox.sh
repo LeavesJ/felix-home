@@ -97,7 +97,7 @@ felix_toolbox_routed() {
   local proj="$1" name="$2" plays
   [ -f "$proj/routes.tsv" ] || return 1
   plays="$(grep -vE '^[[:space:]]*(#|$)' "$proj/routes.tsv" | cut -f4 | tr ' ' '\n')"
-  printf '%s\n' "$plays" | sed 's/:.*//' | grep -xF "$name" >/dev/null 2>&1
+  grep -xF "$name" < <(printf '%s\n' "$plays" | sed 's/:.*//') >/dev/null 2>&1
 }
 
 # The route a capability belongs to: profiles.tsv maps a profile to capabilities,

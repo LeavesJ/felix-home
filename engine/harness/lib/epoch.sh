@@ -160,6 +160,6 @@ felix_epoch_components() {
 felix_epoch() {
   local proj="$1" root="$2" comps
   comps="$(felix_epoch_components "$proj" "$root")"
-  printf '%s\n' "$comps" | cut -f2 | grep -qx -- '-' && return 1
+  grep -qx -- '-' < <(cut -f2 <<<"$comps") && return 1
   printf '%s\n' "$comps" | _felix_epoch_hash
 }

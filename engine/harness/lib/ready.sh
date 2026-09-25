@@ -178,8 +178,7 @@ EOF
     # already had. It only ever showed up where no CLI answers, which is every
     # CI runner and no laptop, so the suite went green on the machine that
     # could not reach the branch.
-    if [ -z "$found" ] && felix_ready_inventory 2>/dev/null \
-         | grep -qxF "plugin	$owner"; then
+    if [ -z "$found" ] && grep -qxF "plugin	$owner" < <(felix_ready_inventory 2>/dev/null); then
       printf 'usable\t%s\t%s\n' "$want" "bundled, live in every session"
       continue
     fi

@@ -1404,7 +1404,7 @@ felix_discover_adopt() {
     # helper from a sibling lib turns that into a runtime error rather than a
     # failing assertion. grep without -q for the usual reason — a consumer that
     # exits on its first match kills the producer under `set -o pipefail`.
-    if printf '%s\n' "$declared" | grep -xF "$name" >/dev/null 2>&1; then
+    if grep -xF "$name" <<<"$declared" >/dev/null 2>&1; then
       printf 'already\t%s\t%s\t%s\n' "$name" "$cap" "$risk"; continue
     fi
     # A cache row was tiered by this engine reading what the candidate ships,

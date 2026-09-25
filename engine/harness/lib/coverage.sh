@@ -102,7 +102,7 @@ felix_coverage_check() {
     seen="$seen $event"
 
     wired=no
-    printf '%s\n' "$bound" | grep -qxF -- "$event" && wired=yes
+    grep -qxF -- "$event" <<<"$bound" && wired=yes
 
     case "$stance:$wired" in
       wired:yes)    printf 'ok\t%s\t%s\n'      "$event" "${reason:-wired}" ;;
@@ -190,7 +190,7 @@ felix_coverage_unconsidered() {
   known="$(grep -vE '^[[:space:]]*(#|$)' "$tpl/lifecycle.tsv" | cut -f1)"
   while IFS= read -r e; do
     [ -n "$e" ] || continue
-    printf '%s\n' "$known" | grep -qxF "$e" || printf '%s\n' "$e"
+    grep -qxF "$e" <<<"$known" || printf '%s\n' "$e"
   done <<EOF
 $(felix_coverage_events)
 EOF

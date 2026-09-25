@@ -174,7 +174,7 @@ felix_exception_for() {   # proj obligation class ledger-line [now] -> excepted:
   hash="$(printf '%s\n' "$line" | git hash-object --stdin 2>/dev/null)"
   [ -n "$hash" ] || return 1
   [ -n "$now" ] || now="$(_felix_exceptions_now "$proj")"
-  printf '%s\n' "$now" | grep -qE "$FELIX_EXCEPTION_STAMP" || return 1
+  grep -qE "$FELIX_EXCEPTION_STAMP" <<<"$now" || return 1
   local best="" bestwho="" maxyear=$(( ${now%%-*} + FELIX_EXCEPTION_HORIZON_YEARS ))
   while IFS= read -r row; do
     [ -n "$row" ] || continue
@@ -246,7 +246,7 @@ felix_exceptions_unmerged() {   # proj [root] -> rows
   base="$(felix_exceptions_at_base "$proj" 2>/dev/null)" || base=""
   felix_exceptions_rows < "$f" | while IFS= read -r row; do
     [ -n "$row" ] || continue
-    printf '%s\n' "$base" | felix_exceptions_rows | grep -qxF -- "$row" || printf '%s\n' "$row"
+    grep -qxF -- "$row" < <(printf '%s\n' "$base" | felix_exceptions_rows) || printf '%s\n' "$row"
   done
   return 0
 }

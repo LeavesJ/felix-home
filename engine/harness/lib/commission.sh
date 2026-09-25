@@ -470,7 +470,7 @@ felix_commission_gaps() {
     | while IFS= read -r cap; do
         [ -n "$cap" ] || continue
         served=no; reached=no; grounded=no
-        _felix_stack_rows "$proj" 2>/dev/null | awk -F'\t' -v c="$cap" '$5 == c' | grep -q . && served=yes
+        grep -q . < <(_felix_stack_rows "$proj" 2>/dev/null | awk -F'\t' -v c="$cap" '$5 == c') && served=yes
         [ -n "$(felix_toolbox_route_for "$proj" "$cap" 2>/dev/null)" ] && reached=yes
         felix_has_line "$probed" "$cap" && grounded=yes
         [ "$served$reached$grounded" = "yesyesyes" ] && continue

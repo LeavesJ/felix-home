@@ -89,10 +89,10 @@ felix_candidates_rules() {
     if [ "$n" -ne 7 ]; then
       printf 'refuse\t%s\t%s fields where the shape has 7\n' "${name:-(unnamed)}" "$n"; continue
     fi
-    if ! printf '%s' "$name" | grep -qE '^[a-z][a-z0-9_]*$'; then
+    if ! grep -qE '^[a-z][a-z0-9_]*$' <<<"$name"; then
       printf 'refuse\t%s\tnot a name: an obligation is lowercase letters, digits and underscores\n' "${name:-(unnamed)}"; continue
     fi
-    if printf '%s\n' "$admitted" | grep -qxF "$name"; then
+    if grep -qxF "$name" <<<"$admitted"; then
       printf 'refuse\t%s\talready admitted in obligations.tsv\n' "$name"; continue
     fi
     cls="$(printf '%s\n' "$line" | cut -f2)"
@@ -110,7 +110,7 @@ felix_candidates_rules() {
     grounds="$(printf '%s\n' "$line" | cut -f5)"
     bad=""
     for g in $(printf '%s' "$grounds" | tr ',' ' '); do
-      printf '%s\n' "$preds" | grep -qxF "$g" || bad="$g"
+      grep -qxF "$g" <<<"$preds" || bad="$g"
     done
     [ -z "$grounds" ] && bad="-"
     if [ -n "$bad" ]; then

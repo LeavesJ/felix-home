@@ -135,7 +135,7 @@ felix_qualify_missing_controls() {
   local proj="$1" checker="$2" c have
   have="$(felix_qualify_rows "$proj" | awk -F'\t' -v k="$checker" '$1 == k { print $3 }')"
   for c in $FELIX_QUALIFY_CONTROLS; do
-    printf '%s\n' "$have" | grep -qxF "$c" || printf '%s\n' "$c"
+    grep -qxF "$c" <<<"$have" || printf '%s\n' "$c"
   done
 }
 
@@ -235,6 +235,6 @@ felix_qualify_ungoverned() {   # proj, gate-output -> one checker name per line
     | LC_ALL=C sort -u \
     | while IFS= read -r c; do
         [ -n "$c" ] || continue
-        printf '%s\n' "$known" | grep -qxF "$c" || printf '%s\n' "$c"
+        grep -qxF "$c" <<<"$known" || printf '%s\n' "$c"
       done
 }

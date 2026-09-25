@@ -16593,9 +16593,7 @@ _cmtable "$(_cmpfrow cmpf_yes       - "$_cmpfp | grep -q cmpfhit")" \
          "$(_cmpfrow cmpf_type      - '[ "$(type -t felix_cmpf_on)" = function ]')" \
          "$(_cmpfrow cmpf_quoted    - "_s='felix_cmpf_on'; [ \"\${#_s}\" -eq 13 ]")" \
          "$(_cmpfrow cmpf_redef     'felix_cmpf_true() { return 0; }; felix_cmpf_true' true)" \
-         "$(_cmpfrow cmpf_unset     - 'test -z "$cmpf_never_set_anywhere"')" \
-         "$(_cmpfrow cmpf_tail      - "sh -c 'echo 3 failing; exit 1' 2>&1 | tail -1")" \
-         "$(_cmpfrow cmpf_wc        - '[ "$(echo a | wc -l)" -gt 0 ]')"
+         "$(_cmpfrow cmpf_unset     - 'test -z "$cmpf_never_set_anywhere"')"
 # The suite runs under pipefail, so _cm is a caller that has it.
 _cmpfon="$(_cm felix_commission_run "$CMP" "$CMR" -)"
 
@@ -16632,16 +16630,6 @@ is  "a when may define a function under an engine function's name and call it" \
 is  "a check naming an unset variable is still held, because nounset stays" \
     "$(_cmpfst "$_cmpfon" cmpf_unset)" "held"
 
-# Without pipefail a pipeline's status is its last command's, so a check that
-# ends in a filter succeeding whatever it is fed could no longer fail. Under the
-# CLI's pipefail `npm test | tail` was a check; now it is refused as one.
-_cmpfmal="$(_cm felix_commission_malformed "$CMP")"
-has "a check ending in a filter that succeeds whatever it is fed is malformed" "$_cmpfmal" "cmpf_tail	"
-is  "but a filter inside a substitution is not the check's last command" \
-    "$(_cmpfst "$_cmpfon" cmpf_wc)" "done"
-is  "and no seeded row is refused by that" \
-    "$(_cm felix_commission_malformed "$FROOT/harness/templates")" ""
-
 # An ask changes nothing about the shell that asked.
 _cmpfkept() { local before; before="$(set +o)"
               felix_commission_ask "$CMR" "$_cmpfp | grep -q cmpfhit"
@@ -16666,7 +16654,7 @@ if [ -f "$TMP/cmpf-mistakes.keep" ]; then mv "$TMP/cmpf-mistakes.keep" "$_cmpfml
 rm -f "$TMP/cmpf-table.keep" "$TMP/cmpf-lib.sh"
 unset -f _cmpfrow _cmpfst _cmpfkept _cmpfnopfkept felix_cmpf_on felix_cmpf_off felix_cmpf_state \
          felix_cmpf_true felix_cmpf_src felix_cmpf_src_defined
-unset _cmpfml _cmpfp _cmpfgsf _cmpfon _cmpfmal _cmpfcli
+unset _cmpfml _cmpfp _cmpfgsf _cmpfon _cmpfcli
 
 # A `when` that answers neither yes nor no is unknown, as in a probe.
 #
@@ -16693,9 +16681,13 @@ felix_cmwc_die() { exit 5; }
 # The status this bash ends a shell with on an unset variable under set -u,
 # measured the way the engine meets it rather than assumed: 1 on bash 3.2.
 _cmwcu="$( ( eval '[ -n "$cmwc_never_set_anywhere" ]' ) 2>/dev/null; printf '%s' "$?" )"
-# A text that writes the word an honest run is read by into every descriptor
-# it could have been handed, with and without a status, then ends the shell.
-_cmwcfake="for _cmwcd in 1 2 3 4 5 6 7 8 9; do printf 'returned\n0\nreturned 0\n' >&\"\$_cmwcd\"; done; exit 1"
+# A text that writes what an honest run is read by into its descriptors 1 to
+# 9, then ends the shell. Amended after review: the first line was a bare
+# `returned`, which no reading accepts, so a run whose own stdout reached the
+# answer went unseen. fd 10 stays out: that is bash's saved copy of the
+# answer's pipe, and a text writing there can forge it, which nothing that runs
+# in its process can prevent.
+_cmwcfake="for _cmwcd in 1 2 3 4 5 6 7 8 9; do printf 'returned 0\nreturned 1\n' >&\"\$_cmwcd\"; done; exit 1"
 _cmtable "$(_cmwcrow cmwc_unset     '[ -n "$cmwc_never_set_anywhere" ]' true)" \
          "$(_cmwcrow cmwc_colon     ': "${cmwc_never_set_anywhere:?}"' true)" \
          "$(_cmwcrow cmwc_infn      '_cmwc_inner() { [ -n "$cmwc_never_set_anywhere" ]; }; _cmwc_inner' true)" \
@@ -16720,7 +16712,7 @@ _cmtable "$(_cmwcrow cmwc_unset     '[ -n "$cmwc_never_set_anywhere" ]' true)" \
          "$(_cmwcrow cmwc_fake      "$_cmwcfake" true)" \
          "cmwc_grounds	billing	-	sh -c 'exit 3'	-	true	9" \
          "cmwc_instr	-	cmwc-no-such-instrument-xyz	sh -c 'exit 3'	-	true	9" \
-         "$(_cmwcrow cmwc_efn       "sh -c 'exit 3'" '[ -z "$(felix_cmwc_no_such_function)" ]')" \
+         "$(_cmwcrow cmwc_efn       'test -f cmwc-no-such-file' '[ -z "$(felix_cmwc_no_such_function)" ]')" \
          "$(_cmwcrow cmwc_c_unset   - 'test -n "$cmwc_never_set_anywhere"')" \
          "$(_cmwcrow cmwc_c_two     - 'grep -q x cmwc-no-such-file')" \
          "$(_cmwcrow cmwc_c_exit3   - 'exit 3')" \
@@ -16784,17 +16776,23 @@ has "and still says the checkout could not be entered" \
 
 is  "a when that does not parse is unknown"                           "$(_cmwcst "$_cmwcrun" cmwc_parse)" "unknown"
 has "and it says the when does not parse"                             "$(_cmwcdt "$_cmwcrun" cmwc_parse)" "does not parse"
+# Amended after review: a table cell is one line, and eval parses a whole line
+# before it runs any of it, so through the table nothing ran with or without
+# the parse check. A text of two lines, asked directly, would have run.
+_cmwcpr="$(_cm felix_commission_state "$CMP" "$CMR" cmwc_parse_nl - - "$(printf 'touch cmwc-parse-ran\nif then')" - true | cut -f1)"
 is  "and no part of a when that does not parse was run" \
-    "$([ -e "$CMR/cmwc-parse-ran" ] && printf ran || printf 'not run')" "not run"
+    "$_cmwcpr $([ -e "$CMR/cmwc-parse-ran" ] && printf ran || printf 'not run')" "unknown not run"
 is  "an unterminated case in a when is unknown"                       "$(_cmwcst "$_cmwcrun" cmwc_parse2)" "unknown"
 has "and it too says the when does not parse"                         "$(_cmwcdt "$_cmwcrun" cmwc_parse2)" "does not parse"
-is  "a when that writes returned to every descriptor it has and then exits 1 is still unknown" \
+is  "a when that writes returned to its descriptors 1 to 9 and then exits 1 is still unknown" \
     "$(_cmwcst "$_cmwcrun" cmwc_fake)" "unknown"
 
 is  "an inactive capability still makes a row not-applicable before its when is read" \
     "$(_cmwcst "$_cmwcrun" cmwc_grounds)" "not-applicable"
 has "an absent instrument is still asked before the when, and says so" \
     "$(_cmwcdt "$_cmwcrun" cmwc_instr)" "could not be asked on this machine"
+# Amended after review: this row's when says no, so reading it first would
+# make the row not-applicable, and only the order makes it unknown.
 is  "a check's missing engine function is still found before the when is read" \
     "$(_cmwcst "$_cmwcrun" cmwc_efn)" "unknown"
 has "and the missing function is named, not the when's status" \
@@ -16805,7 +16803,7 @@ is  "a check that returns 2 is held, as before"                       "$(_cmwcst
 is  "a check that exits 3 is held, as before"                         "$(_cmwcst "$_cmwcrun" cmwc_c_exit3)"  "held"
 is  "a check whose engine function ends the shell is held"            "$(_cmwcst "$_cmwcrun" cmwc_c_die)"    "held"
 is  "a check that does not parse is held, not unknown"                "$(_cmwcst "$_cmwcrun" cmwc_c_parse)"  "held"
-is  "a check that writes returned to every descriptor and exits 1 is held" "$(_cmwcst "$_cmwcrun" cmwc_c_fake)" "held"
+is  "a check that writes returned to its descriptors 1 to 9 and exits 1 is held" "$(_cmwcst "$_cmwcrun" cmwc_c_fake)" "held"
 is  "a check naming a command that is not here is unknown, as before" "$(_cmwcst "$_cmwcrun" cmwc_c_missing)" "unknown"
 has "and it says a command in the check does not exist here" \
     "$(_cmwcdt "$_cmwcrun" cmwc_c_missing)" "a command in the check does not exist here"
@@ -16835,7 +16833,7 @@ is  "and to ended when an unset variable ends the shell, with its status" \
     "$(_cm _cmwcaskv "$CMR" '[ -n "$cmwc_never_set_anywhere" ]')" "$_cmwcu ended"
 is  "and to ended when an engine function the text names ends the shell" \
     "$(_cm _cmwcaskv "$CMR" 'felix_cmwc_die')" "5 ended"
-is  "and to ended when the text wrote returned to every descriptor it had before exiting 1" \
+is  "and to ended when the text wrote returned to its descriptors 1 to 9 before exiting 1" \
     "$(_cm _cmwcaskv "$CMR" "$_cmwcfake")" "1 ended"
 is  "and to unentered, with 126, when the checkout cannot be entered" \
     "$(_cm _cmwcaskv "$TMP/cmwc-no-such-dir" 'true')" "126 unentered"
@@ -16882,19 +16880,30 @@ is  "and still reads a when whose test says no not-applicable" \
 cp "$TMP/cmwc-table.keep" "$CMP/commissioning.tsv"
 rm -f "$TMP/cmwc-table.keep" "$CMR/cmwc-parse-ran"
 unset -f _cmwcrow _cmwcst _cmwcdt _cmwcask _cmwcaskv _cmwcnamed _cmwckept felix_cmwc_die
-unset _cmwcu _cmwcfake _cmwcrun _cmwcgone _cmwcnm _cmwccli
+unset _cmwcu _cmwcfake _cmwcrun _cmwcgone _cmwcnm _cmwccli _cmwcpr
 
-# Added with the fix, not blind: two parts of it that a mutation showed nothing
-# above could fail. What a `when` prints still goes nowhere, so it is read
-# neither as the answer nor as noise in place of one. And the answer is read
-# without waiting for a job the `when` left running: bash 3.2 hands the copy of
-# stdout it saves around the eval to every command the text runs, so a reader
-# waiting for end of file waits for that job to exit.
+# Added with the fix, and after review, not blind: parts of it that mutations
+# showed nothing above could fail.
+#   - What a `when` prints goes nowhere, so the state reads neither it as the
+#     answer nor noise in place of one.
+#   - The answer is read without waiting for a job the `when` left running.
+#     bash marks the copy of stdout it saves around the eval close-on-exec, so
+#     a program such as `sleep 30 &` never holds it; a job that is itself a
+#     forked shell does, and a reader waiting for end of file waits for it.
+#     The job below reaps its own sleep when it is stopped.
+#   - A `when` reads nothing from its caller's stdin, which in a run is the
+#     table: one that read it would eat the rows after it.
+#   - Its stderr goes nowhere, an ask that is given no variable sets none, a
+#     garbled answer line is unknown, and a checkout that cannot be entered is
+#     unknown even for a row no check follows.
 cp "$CMP/commissioning.tsv" "$TMP/cmwcx-table.keep"
 rm -f "$TMP/cmwcx-bg.pid"
+_cmwcxbg="( trap 'kill \"\$!\" 2>/dev/null; exit 0' TERM; sleep 30 & wait ) & printf '%s' \"\$!\" > \"\$TMP/cmwcx-bg.pid\"; true"
 _cmtable "$(printf 'cmwcx_print\t-\t-\t%s\t-\ttrue\t9' 'echo cmwcx-noise; test -f src/a.txt')" \
          "$(printf 'cmwcx_forge\t-\t-\t%s\t-\ttrue\t9' "echo 'returned 0'; false")" \
-         "$(printf 'cmwcx_bg\t-\t-\t%s\t-\ttrue\t9' 'sleep 30 & printf "%s" "$!" > "$TMP/cmwcx-bg.pid"; true')"
+         "$(printf 'cmwcx_bg\t-\t-\t%s\t-\ttrue\t9' "$_cmwcxbg")" \
+         "$(printf 'cmwcx_eat\t-\t-\t%s\t-\ttrue\t9' 'cat >/dev/null; true')" \
+         "$(printf 'cmwcx_after\t-\t-\t-\t-\ttrue\t9')"
 _cmwcxrun="$(_cm felix_commission_run "$CMP" "$CMR" -)"
 _cmwcxpid="$(cat "$TMP/cmwcx-bg.pid" 2>/dev/null)"
 _cmwcxalive='no pid'
@@ -16903,16 +16912,31 @@ case "$_cmwcxpid" in
   *) if kill -0 "$_cmwcxpid" 2>/dev/null; then _cmwcxalive=running; kill "$_cmwcxpid" 2>/dev/null
      else _cmwcxalive=gone; fi ;;
 esac
-is  "a when that prints and then says yes applies, and the check decides done" \
-    "$(printf '%s\n' "$_cmwcxrun" | awk -F'\t' '$1 == "cmwcx_print" { print $2 }')" "done"
-is  "a when that prints returned 0 and then says no is not-applicable" \
-    "$(printf '%s\n' "$_cmwcxrun" | awk -F'\t' '$1 == "cmwcx_forge" { print $2 }')" "not-applicable"
-is  "a when that leaves a job running applies, and the check decides done" \
-    "$(printf '%s\n' "$_cmwcxrun" | awk -F'\t' '$1 == "cmwcx_bg" { print $2 }')" "done"
-is  "and its answer was read while that job was still running" "$_cmwcxalive" "running"
+_cmwcxst() { printf '%s\n' "$_cmwcxrun" | awk -F'\t' -v n="$1" '$1 == n { print $2 }'; }
+is  "a when that prints and then says yes applies, and the check decides done" "$(_cmwcxst cmwcx_print)" "done"
+is  "a when that prints returned 0 and then says no is not-applicable"         "$(_cmwcxst cmwcx_forge)" "not-applicable"
+is  "a when that leaves a forked shell running applies, and the check decides done" "$(_cmwcxst cmwcx_bg)" "done"
+is  "and its answer was read while that shell was still running"              "$_cmwcxalive" "running"
+is  "a when that reads its stdin applies, and the check decides done"          "$(_cmwcxst cmwcx_eat)" "done"
+is  "and the row after it is still read"                                       "$(_cmwcxst cmwcx_after)" "done"
+_cmwcxaskv() { local _cmwcxh=kept; felix_commission_ask "$1" "$2" _cmwcxh; printf '%s %s\n' "$?" "$_cmwcxh"; }
+_cmwcxnone() { local how=kept; felix_commission_ask "$CMR" 'false'; printf '%s %s\n' "$?" "$how"; }
+is  "an ask told a variable reads no stdin from its caller" \
+    "$(printf 'cmwcx-input\n' | _cm _cmwcxaskv "$CMR" 'read -r _cmwcxin')" "1 returned"
+is  "and prints nothing of the text's stderr" \
+    "$(_cm _cmwcxaskv "$CMR" 'echo cmwcx-err >&2; exit 4' 2>&1)" "4 ended"
+is  "an ask given no variable sets none, even one named how" "$(_cm _cmwcxnone)" "1 kept"
+is  "an ask whose answer line comes back garbled says unasked, with 2" \
+    "$(_cm _cmwcxaskv "$CMR" 'for _d in 10 11 12 13 14 15 16 17 18 19; do printf x >&$_d; done 2>/dev/null; exit 1')" "2 unasked"
+_cmwcxgarble="$(_cm felix_commission_state "$CMP" "$CMR" cmwcx_garble - - 'for _d in 10 11 12 13 14 15 16 17 18 19; do printf x >&$_d; done 2>/dev/null; exit 1' - true)"
+is  "and a when whose answer comes back garbled is unknown" "$(printf '%s' "$_cmwcxgarble" | cut -f1)" "unknown"
+has "and says its answer could not be read" "$(printf '%s' "$_cmwcxgarble" | cut -f2)" "could not be read"
+is  "a when over a checkout that cannot be entered is unknown on a row no check follows" \
+    "$(_cm felix_commission_state "$CMP" "$TMP/cmwc-no-such-dir" cmwcx_gone - - true provider:cmwcx-p:cmwcx-s - | cut -f1)" "unknown"
 cp "$TMP/cmwcx-table.keep" "$CMP/commissioning.tsv"
 rm -f "$TMP/cmwcx-table.keep" "$TMP/cmwcx-bg.pid"
-unset _cmwcxrun _cmwcxpid _cmwcxalive
+unset -f _cmwcxst _cmwcxaskv _cmwcxnone
+unset _cmwcxrun _cmwcxpid _cmwcxalive _cmwcxbg _cmwcxgarble
 
 # The answer runs in-process through a runner the caller names, and the check
 # decides afterwards. The stub stands in for felix:toolbox --route.

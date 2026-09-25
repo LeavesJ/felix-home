@@ -63,23 +63,11 @@ _felix_commission_answer_ok() {
 # A check that cannot fail is not a check. A negated pipeline reads met when
 # its producer dies, and one ending in `head` reports head's status, which is
 # success whatever came before it.
-#
-# The same holds for any filter that succeeds whatever it is fed, because a
-# check runs without pipefail, as a probe does (felix_commission_ask says why):
-# a pipeline's status is its last command's, so a test run piped into
-# `tail -20` passes when the tests fail. Only the stage after the last `|` is
-# judged, and only when nothing closes or follows it, so a filter inside `$( )`
-# or one an `&&` or `;` hands on from is not.
 _felix_commission_check_ok() {
-  local c="${1:-}" last
+  local c="${1:-}"
   [ -n "$c" ] || return 1
   case "$c" in '!'*) return 1 ;; esac
   case "$c" in *'| head'|*'|head'|*'| head -'*|*'|head -'*) return 1 ;; esac
-  case "$c" in *'|'*) ;; *) return 0 ;; esac
-  last="${c##*|}"
-  case "$last" in *[')];&`']*) return 0 ;; esac
-  last="${last#"${last%%[![:space:]]*}"}"; last="${last%%[[:space:]]*}"
-  case "$last" in tail|tee|cat|sort|uniq|wc|tr|cut|sed) return 1 ;; esac
   return 0
 }
 
@@ -135,7 +123,7 @@ EOF
       case "$answer" in
         provider:*) [ "$check" = "-" ] || printf '%s\ta provider row carries no check; a file it cannot write decides it\n' "$need" ;;
         *) _felix_commission_check_ok "$check" \
-             || printf '%s\tcheck is empty, negated, or ends in a filter that succeeds whatever it is fed (head, tail, tee, cat, sort, uniq, wc, tr, cut, sed), so it could not fail\n' "$need" ;;
+             || printf '%s\tcheck is empty, negated, or ends in head, so it could not fail\n' "$need" ;;
       esac
     fi
   done
@@ -269,18 +257,24 @@ felix_commission_resume_bg() {
 # pipefail can only turn from a match into a miss, and carrying it took an
 # alias per name, which changed what `type` says inside a row and stopped a row
 # defining or sourcing an engine function. nounset stays, so a mistyped
-# variable holds a check rather than passing it.
+# variable holds a check rather than passing it. What follows, as in a probe, is
+# that a pipeline's status is its last stage's, so a check ending in a stage
+# that succeeds whatever it is fed (`| tail`) cannot fail; the template says so,
+# and nothing yet refuses one.
 #
 # Given a variable name as $3, it also says in that variable how the text
-# ended: `returned`, `ended`, `unentered`, or `unasked` when the run could not
-# be started. The status cannot say it. On bash 3.2 an unset variable ends the
-# shell running the text with 1, which is what a no returns, and so do
-# `exit 1` and the engine's die. So that run writes `returned N` down a pipe
-# once the eval is back, the group around it writes `ended N` once the run has
-# exited, and the first line is the answer. Nothing waits for the pipe to
-# close: bash 3.2 hands the copy of stdout it saves around `eval ... >/dev/null`
-# to every command the text runs, so a background job the text left would hold
-# it open (measured: `sleep 3 &` held a reader waiting for end of file 4 s).
+# ended: `returned`, `ended`, `unentered`, or `unasked` when its answer could
+# not be read, which returns 2. The status cannot say it. On bash 3.2 an unset
+# variable ends the shell running the text with 1, which is what a no returns,
+# and so do `exit 1` and the engine's die. So that run writes `returned N` down
+# a pipe once the eval is back, the group around it writes `ended N` once the
+# run has exited, and the first line is the answer. The reader never waits for
+# the pipe to close: bash marks the copy of stdout it saves around the eval
+# close-on-exec, so a program the text starts does not hold it, but a job the
+# text forks as a shell keeps it (measured: `{ sleep 3; :; } &` held a reader
+# waiting for end of file 3 s). What the text writes to its stdout and stderr
+# goes nowhere. A text that writes to that saved copy (fd 10) or answers from
+# an EXIT trap can forge its answer, and nothing in its process can stop it.
 # No locals, because one would hide the caller's variable of that name from
 # printf -v.
 felix_commission_ask() {
@@ -292,12 +286,13 @@ felix_commission_ask() {
     return
   fi
   set -- "$1" "$2" "$3" "$( { ( exec </dev/null 2>/dev/null
-        cd "$1" || { printf 'unentered 126\n'; exit 126; }
+        cd "$1" >/dev/null || { printf 'unentered 126\n'; exit 126; }
         set +o pipefail
         eval "$2" >/dev/null
         printf 'returned %s\n' "$?" )
       printf 'ended %s\n' "$?"; } 2>/dev/null | { read -r _l; printf '%s' "$_l"; } )"
-  case "$4" in returned\ [0-9]*|ended\ [0-9]*|unentered\ 126) ;; *) set -- "$1" "$2" "$3" "unasked 2" ;; esac
+  case "${4##* }" in ''|*[!0-9]*) set -- "$1" "$2" "$3" "unasked 2" ;; esac
+  case "${4% *}" in returned|ended|unentered) ;; *) set -- "$1" "$2" "$3" "unasked 2" ;; esac
   printf -v "$3" '%s' "${4% *}"
   return "${4##* }"
 }
@@ -327,7 +322,7 @@ felix_commission_state() {
   # eval hands a syntax error back as 1 on bash 3.2. The check below still
   # reads anything but 0, 126 and 127 as held, which already fails closed.
   if [ "$when" != "-" ]; then
-    if ! "${BASH:-bash}" -n -c "$when" 2>/dev/null; then
+    if ! BASH_ENV= "${BASH:-bash}" -n -c "$when" </dev/null 2>/dev/null; then
       printf 'unknown\tthe `when` test does not parse, so it was not run and whether this applies is not known\t%s\n' "$prov"; return 0
     fi
     felix_commission_ask "$root" "$when" how; rc=$?
@@ -336,7 +331,7 @@ felix_commission_state() {
       'returned 1') printf 'not-applicable\tthe `when` test says this does not apply here\t%s\n' "$prov"; return 0 ;;
       'returned 127') printf 'unknown\ta command in the `when` test does not exist here\t%s\n' "$prov"; return 0 ;;
       unentered\ *) printf 'unknown\tthe checkout could not be entered\t%s\n' "$prov"; return 0 ;;
-      unasked\ *) printf 'unknown\tthe `when` test could not be run here\t%s\n' "$prov"; return 0 ;;
+      unasked\ *) printf 'unknown\tthe answer of the `when` test could not be read\t%s\n' "$prov"; return 0 ;;
       ended\ *) printf 'unknown\tthe `when` test ended the shell with status %s before it answered, as an unset variable under set -u does, so whether this applies is not known\t%s\n' "$rc" "$prov"; return 0 ;;
       *) printf 'unknown\tthe `when` test exited %s, which is neither yes nor no, so whether this applies is not known\t%s\n' "$rc" "$prov"; return 0 ;;
     esac

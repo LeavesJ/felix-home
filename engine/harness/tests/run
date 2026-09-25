@@ -25044,6 +25044,33 @@ _rtn1="red.tsv is one record, written whole: one base row, one run row, and fail
 _rtn2="every assertion red.tsv names as red is one the manifest lists"
 _rtn3="red.tsv was recorded against the engine origin/main held where this tree branched from it"
 _rtn4="this engine's version is above origin/main's when this tree holds commits origin/main lacks"
+# Whether a red.tsv is one record as tests/red writes one: ok, or bad and why,
+# on one line. Beyond one base row, one run row and names that add up to the
+# failed count, the rows must agree, both - when no red run was made and both
+# real when one was, and a real run counts at least one assertion, since
+# tests/red refuses a run that reached none. A run row of - beside any base
+# once passed, so a sha pasted into a retraction's base row answered _rtn3's
+# failure of it (#371, second review, 2026-09-25).
+_rt_record_whole() {   # <red.tsv> -> ok, or bad <detail>
+  local b r f s
+  read -r b r f s <<< "$(awk -F'\t' '/^#/ || !NF { next }
+    $1 == "base" { b++; next } $1 == "run" { r++; f = $2; next } { s += $NF }
+    END { printf "%d %d %s %d\n", b, r, (f == "" ? "?" : f), s }' "$1")"
+  [ "$b" = 1 ] && [ "$r" = 1 ] && { [ "$f" = "$s" ] || { [ "$f" = "-" ] && [ "$s" = 0 ]; }; } \
+    || { echo "bad base rows: $b, run rows: $r, the run's failed: $f, the names' total: $s"; return 0; }
+  awk -F'\t' '/^#/ || !NF { next }
+    $1 == "base" { base = $3; next } $1 == "run" { f = $2; p = $3; k = $4; next } { n++ }
+    END {
+      run = "[" f " " p " " k "]"; dash = (f == "-" && p == "-" && k == "-"); again = ": re-record with tests/run --record-assertions"
+      if (base == "-" && !dash) print "bad the base is - beside a run row of " run ", and tests/red writes both rows - or both real" again
+      else if (dash && base != "-") print "bad the run row is - beside a base of " (base == "" ? "(none)" : base) ", and tests/red writes both rows - or both real" again
+      else if (dash && n) print "bad the base and run rows are -, yet " n " names are listed below them" again
+      else if (dash) print "ok"
+      else if (f !~ /^[0-9]+$/ || p !~ /^[0-9]+$/ || k !~ /^[0-9]+$/) print "bad the run row reads " run ", which is not three counts of zero or more" again
+      else if (f + p + k < 1) print "bad the run row counts no assertion, a run tests/red refuses to record" again
+      else print "ok"
+    }' "$1"
+}
 _rt_skip=""
 [ "$FELIX_TEST_RECORD" -eq 1 ] && _rt_skip="--record-assertions rewrites red.tsv after this run"
 [ -z "$_rt_skip" ] && [ ! -f "$_rt" ] && _rt_skip="no red.tsv beside this suite"
@@ -25053,12 +25080,8 @@ else
   if [ -n "$_rt_skip" ]; then
     for _n in "$_rtn1" "$_rtn2" "$_rtn3"; do skip "$_n" "$_rt_skip"; done
   else
-    read -r _rtb _rtr _rtf _rts <<< "$(awk -F'\t' '/^#/ || !NF { next }
-      $1 == "base" { b++; next } $1 == "run" { r++; f = $2; next } { s += $NF }
-      END { printf "%d %d %s %d\n", b, r, (f == "" ? "?" : f), s }' "$_rt")"
-    [ "$_rtb" = 1 ] && [ "$_rtr" = 1 ] && { [ "$_rtf" = "$_rts" ] || { [ "$_rtf" = "-" ] && [ "$_rts" = 0 ]; }; } \
-      && ok  "$_rtn1" \
-      || bad "$_rtn1" "base rows: $_rtb, run rows: $_rtr, the run's failed: $_rtf, the names' total: $_rts"
+    _rtwv="$(_rt_record_whole "$_rt")"
+    [ "$_rtwv" = ok ] && ok "$_rtn1" || bad "$_rtn1" "${_rtwv#bad }"
     if [ -f "$FELIX_TEST_MANIFEST" ]; then
       _rtm="$(awk -F'\t' 'NR == FNR { m[$2] = 1; next } /^#/ || !NF || $1 == "base" || $1 == "run" { next }
                           !($1 in m) { print $1 }' "$FELIX_TEST_MANIFEST" "$_rt")"
@@ -25073,8 +25096,13 @@ else
   # record names its base by id, and a published snapshot carries the private
   # repository's record into a history where that id was never a commit, so
   # the base question cannot be asked there. Found by the first run of
-  # projects/felix/snapshot.sh, 2026-09-22: the public build failed on it.
-  _rt_base_in() { local b; [ -n "$1" ] || return 1; for b in $1; do _rtg cat-file -e "$b^{commit}" || return 1; done; return 0; }
+  # projects/felix/snapshot.sh, 2026-09-22: the public build failed on it. It
+  # asks the checkout named second, this suite's own when none is, so that the
+  # base check can be asked of a fixture (#371).
+  _rt_base_in() {   # <bases, space-separated> [<checkout>]
+    local b; [ -n "$1" ] || return 1
+    for b in $1; do git -C "${2:-$REAL_HARNESS}" cat-file -e "$b^{commit}" 2>/dev/null || return 1; done; return 0
+  }
   # Both answers, on this repository's own history: an id that is no commit
   # here, and its root, which is.
   _rtroot="$(_rtg rev-list --max-parents=0 HEAD | head -1)"
@@ -25085,13 +25113,14 @@ else
   # is a full commit id; a base that is neither a commit here, a full id nor -,
   # an empty one, or more than one, is malformed. Asked on this repository's
   # own history, as the two above are: its root is a commit here, forty zeros
-  # a full id that is not, and deadbeef an abbreviated one that is not.
-  _rt_base_kind() {   # <the base field of every base row, space-separated> -> one word
+  # a full id that is not, and deadbeef an abbreviated one that is not. Like
+  # _rt_base_in, it asks the checkout named second, this suite's by default.
+  _rt_base_kind() {   # <the base field of every base row, space-separated> [<checkout>] -> one word
     case "$1" in
       -) echo retracted; return 0 ;;
       ''|*[[:space:]]*) echo malformed; return 0 ;;
     esac
-    if _rt_base_in "$1"; then echo commit
+    if _rt_base_in "$1" "${2:-}"; then echo commit
     elif [ "${#1}" -eq 40 ] && case "$1" in *[!0123456789abcdef]*) false ;; esac; then echo snapshot
     else echo malformed; fi
   }
@@ -25202,6 +25231,33 @@ else
   else
     bad "$_rtrn" "record ${_rtrr:-(none)}, merge-base ${_rtrm:-(none)} ($(git -C "$_rtrh" log -1 --format=%s "$_rtrm" 2>/dev/null))"
   fi
+  # The base question alone, asked of a checkout: ok, or skip and why, or bad
+  # and why, on one line. An engine change owes a red run, so a retraction
+  # (base -), which once skipped as a published snapshot and let an engine
+  # change whose red run was never made pass (#371), fails, as does a base
+  # naming no single commit; only a snapshot's full id still skips. The
+  # decision sat inside _rtn3, where no fixture reached it, so undoing it left
+  # this suite green (second review of #371); it is asked of fixtures below.
+  # Whether the question is owed at all stays _rtn3's.
+  _rt_base_check() {   # <checkout> -> ok, skip <reason> or bad <detail>
+    local bs mb
+    bs="$(awk -F'\t' '$1 == "base" { printf "%s%s", s, $3; s = " " }' "$1/engine/harness/tests/red.tsv" 2>/dev/null)"
+    case "$(_rt_base_kind "$bs" "$1")" in
+      retracted)
+        echo "bad red.tsv records that no red run was made (base -), and tests/red's own output says why: re-record with tests/run --record-assertions" ;;
+      malformed)
+        echo "bad the record's base reads [$bs], which is neither one commit here, a full commit id nor -: re-record with tests/run --record-assertions" ;;
+      snapshot)
+        echo "skip its base is no commit in this repository's history, as in a published snapshot" ;;
+      *)
+        if _rt_record_holds "$1" "$bs"; then
+          echo ok
+        else
+          mb="$(git -C "$1" merge-base HEAD refs/remotes/origin/main 2>/dev/null)"
+          echo "bad the record's base ${bs:-(none)} holds engine $(_rt_engine_tree "$1" "$bs" || echo '(none)'), the merge-base ${mb:-(none)} holds $(_rt_engine_tree "$1" "$mb" || echo '(none)'): re-record with tests/run --record-assertions"
+        fi ;;
+    esac
+  }
   if ! _rtg rev-parse -q --verify refs/remotes/origin/main >/dev/null; then
     [ -z "$_rt_skip" ] && skip "$_rtn3" "no origin/main to compare against"
     skip "$_rtn4" "no origin/main to compare against"
@@ -25213,23 +25269,11 @@ else
     skip "$_rtn4" "this tree changes no engine file, so it keeps origin/main's version"
   else
     if [ -z "$_rt_skip" ]; then
-      _rtbs="$(awk -F'\t' '$1 == "base" { printf "%s%s", s, $3; s = " " }' "$_rt")"
-      # An engine change owes a red run here, so a retraction and a base that
-      # names no single commit fail; only a snapshot's full id still skips.
-      case "$(_rt_base_kind "$_rtbs")" in
-        retracted)
-          bad "$_rtn3" "red.tsv records that no red run was made (base -), and tests/red's own output says why: re-record with tests/run --record-assertions" ;;
-        malformed)
-          bad "$_rtn3" "the record's base reads [$_rtbs], which is neither one commit here, a full commit id nor -: re-record with tests/run --record-assertions" ;;
-        snapshot)
-          skip "$_rtn3" "its base is no commit in this repository's history, as in a published snapshot" ;;
-        *)
-          if _rt_record_holds "$REAL_HARNESS" "$_rtbs"; then
-            ok  "$_rtn3"
-          else
-            _rtmb="$(_rtg merge-base HEAD refs/remotes/origin/main)"
-            bad "$_rtn3" "the record's base ${_rtbs:-(none)} holds engine $(_rt_engine_tree "$REAL_HARNESS" "$_rtbs" || echo '(none)'), the merge-base ${_rtmb:-(none)} holds $(_rt_engine_tree "$REAL_HARNESS" "$_rtmb" || echo '(none)'): re-record with tests/run --record-assertions"
-          fi ;;
+      _rtbv="$(_rt_base_check "$REAL_HARNESS/../..")"
+      case "$_rtbv" in
+        ok)       ok   "$_rtn3" ;;
+        "skip "*) skip "$_rtn3" "${_rtbv#skip }" ;;
+        *)        bad  "$_rtn3" "${_rtbv#bad }" ;;
       esac
     fi
     _rtvh="$(_rtv < "$REAL_HARNESS/../.claude-plugin/plugin.json" 2>/dev/null)"

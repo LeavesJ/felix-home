@@ -32,37 +32,36 @@ it.
   7fe5f0a8), which he reconfirmed in this session. Each landed head was
   checked: #309's rebuild only adds the `checkout` scope. The re-stamp is
   done: the stamp and receipt are at 6153ef96, 07:08Z. #359 landed on his
-  "merge 359 when ready". Every approval is recorded as a comment on its PR.
+  "merge 359 when ready", and #349 landed at 07:31Z as 4a3dcf37 on "merge
+  349 after re-stamp". Every approval is recorded as a comment on its PR.
+- *The printf|grep -q pipefail class.* Split with the carrier: the engine
+  sites went to session 1de88e as #376 (43d3e444, 0.49.227), with four extra
+  sites from this session's sweep that its branch lacked. The suite sites are
+  #364 (dc854d2c, 0.49.228), recorded red against #376's head before #376
+  landed, so it merged straight after. Both are deployed.
 
 **In flight, and who carries it.**
 
-- **Carrier chain ("Carry felix-home queue once Actions runs again"):**
-  - #349 (after the re-stamp, per his words), then the fold and handover docs;
-  - #364, the pipefail flake fix;
-  - persist-credentials, #339, #338;
-  - #361, BehaviorChangeBench tracked;
-  - #343, the deny widening;
-  - #350, landing-actor L1;
-  - #360 and #365, the stranded engine fixes.
+- **Carrier chain ("Carry felix-home queue once Actions runs again"):** the
+  fold (#377) has landed. Still queued: founder-note docs, #369, #373,
+  persist-credentials, #339, #338, #361 (BehaviorChangeBench tracked), #343
+  (the deny widening), #350 (landing-actor L1), and #360 and #365 (the
+  stranded engine fixes). Read the carrier's order, not this list.
 - **Founder's lane:** #340, #358 (L2a) and #304 wait for his yes.
 - **#361's home step, at merge.** Move the home's untracked
   `projects/behaviorchangebench` to
   `~/.felix/backups/2026-09-25-behaviorchangebench-untracked/` and keep it.
   Then `git pull --ff-only`, check the tracked copy is byte-identical, and
   tell the carrier.
-- **#364:**
-  - The tests/run part is done.
-  - The engine part was a workflow in this session. If it is gone, rebuild
-    it from the branch. It covers:
-    - `lib/escape.sh:300` and `lib/classify.sh:125`, which **fail open** on
-      a large diff;
-    - `lib/qualify.sh` and `lib/coverage.sh`, which fail closed;
-    - a gate check that refuses the pattern.
 - **ReserveGrid:**
-  - Merge `14b1216` (rate limits plus D5 enforce, gated green) sits in
-    `/Users/a14808/ReserveGrid-OS/.claude/worktrees/land-rate-limits` and
-    needs the founder's push. Felix-home's deny row 99 fired on it because
-    the hook takes the project from the session's cwd (#362).
+  - The founder landed `claude/land-local-branches-0925` (main e044908),
+    which carries the PB-14 runbook fix and the gateway warning fix.
+  - The rate-limits merge was redone on that main as `469e53f` (rate
+    limits plus D5 enforce). Its diff from the old `14b1216` is exactly
+    main's new commits, and it is gated green (superscan 18/0, D5 PASS). It
+    sits in `/Users/a14808/ReserveGrid-OS/.claude/worktrees/land-rate-limits`
+    and needs the founder's push, because felix-home's deny row 99 fires on
+    it: the hook takes the project from the session's cwd (#362).
   - Deploy the dashboard behind a proxy only after setting
     `[rate_limit] trusted_proxies`.
 - **Undecided:** the untracked `projects/webapp/` in the home.
@@ -82,3 +81,14 @@ it.
 - **The fact gate trips on its trigger words even inside a string.** It fires
   on `rm -rf`, and on "DROP TABLE" text inside a heredoc. Write exports to
   the scratchpad instead of deleting them.
+- **A red record is keyed to the whole `engine/` tree, `tests/run`
+  included.** When #376's head moved by a fixture change alone, #364's
+  record against the old head stopped holding. Watch the base PR's head
+  until it lands.
+- **A workflow that finishes late still pushes.** An engine sweep this
+  session had already superseded landed on #364's branch hours later. It was
+  folded in with `git merge -s ours`, which keeps the tree exact with no
+  force-push.
+- **`felix merge` merges the checked-out branch by name.** A local branch
+  named differently from the PR's head branch cannot be merged until the
+  PR's name points at the verified head.

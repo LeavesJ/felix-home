@@ -247,9 +247,12 @@ _felix_qualify_missing_in() {   # rows, checker -> one control per line
 # every fail control, the dangerous direction again. A mutation's 127 leaves
 # the tree unchanged, and its pass control would be met over nothing, so no
 # command runs after it. Every other status keeps its meaning.
+#
+# `--` because bash reads a text that begins with a dash as its own options,
+# and "invalid option" exits 2, which a command would report as fail.
 _felix_qualify_sh() {   # dir, text -> the text's own status; 126 if dir cannot be entered
   ( cd "$1" 2>/dev/null || exit 126
-    bash -c "$2" felix-qualify ) </dev/null >/dev/null 2>&1
+    bash -c -- "$2" felix-qualify ) </dev/null >/dev/null 2>&1
 }
 
 _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | unrunnable | inapplicable

@@ -14382,6 +14382,100 @@ is  "with SHELLOPTS exported by its caller, carrying nounset and pipefail, a com
     "$(_qfrenv shellopts)" "pass met"
 is  "and with BASH_ENV exported by its caller, naming a file that sets pipefail, that command still passes and is met" \
     "$(_qfrenv bashenv)" "pass met"
+# Text that fails to parse only once it runs, inside a command substitution,
+# ran nothing, and the column's own shell says syntax error under its
+# felix-qualify prefix. Text that is only a comment ran nothing and exited 0.
+# A caller's POSIXLY_CORRECT would put the row's bash in posix mode, where a
+# process substitution does not parse. The rest pin what the fresh shell
+# already does: no temporary path outlives a run, a stderr file that is gone
+# counts as nothing run, a checker the row runs takes no SHELLOPTS or BASH_ENV
+# either, and only a line that begins with the prefix is heard. Authored
+# blind, from the contract in prose.
+QFRK="$TMP/qual-fresh-three"; mkdir -p "$QFRK" "$QFRS/qfr-anchor"
+# A checker outside the tree whose own file is named felix-qualify, and which
+# complains, under that path, of a tool it cannot find before it passes.
+_qfrkanchor="$QFRS/qfr-anchor/felix-qualify"
+printf '#!/bin/bash\nqfr_anchor_missing_tool\nexit 0\n' > "$_qfrkanchor"; chmod +x "$_qfrkanchor"
+{ _qfr5 cssyntaxcmd '[ "$(! grep -rqI FORBIDDEN . 2>/dev/null && echo clean; fi)" = clean ]' violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 cssyntaxmut "printf x >> '$QFRS/cssyntaxmut-checked'; $_qfrc" restoration pass \
+        'x=$(printf FORBIDDEN; fi) && printf "%s" "$x" > bad.txt'
+  _qfr5 commentcmd  '# nothing' restoration pass true
+  _qfr5 commentmut  "printf x >> '$QFRS/commentmut-checked'; $_qfrc" restoration pass '  # nothing'
+  _qfr6 commentprem "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' '# nothing'
+  _qfr5 anchorscan  "'$_qfrkanchor'" restoration pass true
+} > "$QFRK/qualification.tsv"
+_qfrkx="$(_qfrrun "$QFRK" "$QFRR")"
+_qfrkv() { printf '%s\n' "$_qfrkx" | awk -F'\t' -v c="$1" '$1 == c { print $4 " " $5 }'; }
+# bash -n does not look inside a command substitution, so the text parses,
+# and the error comes only when the substitution runs, with no checker run.
+is  "a command whose checker sits in a command substitution holding a syntax error found only when it runs reads unrunnable on a fail control, never fail and met" \
+    "$(_qfrkv cssyntaxcmd)" "unrunnable unrunnable"
+is  "a mutation with such a command substitution in its && chain makes its pass control unrunnable, never met over no change, and no checker runs after it" \
+    "$(_qfrkv cssyntaxmut) $(_qfre "$QFRS/cssyntaxmut-checked")" "unrunnable unrunnable absent"
+is  "a command that is only a comment reads unrunnable, never pass and met with no checker run" \
+    "$(_qfrkv commentcmd)" "unrunnable unrunnable"
+is  "a mutation that is only a comment, after leading spaces, makes its pass control unrunnable, never met over no change, and no checker runs after it" \
+    "$(_qfrkv commentmut) $(_qfre "$QFRS/commentmut-checked")" "unrunnable unrunnable absent"
+is  "a premise that is only a comment reads unrunnable, never applied as a premise that held" \
+    "$(_qfrkv commentprem)" "unrunnable unrunnable"
+is  "a checker whose own file is named felix-qualify, complaining under its own path of a tool it cannot find, still decides by its status and is pass and met at 0: only a line that begins with the prefix is heard" \
+    "$(_qfrkv anchorscan)" "pass met"
+# The caller's environment again. Each variable is exported only inside the
+# subshell that calls the runner, after the libraries are read.
+QFRKP="$TMP/qual-fresh-three-posix"; QFRKC="$TMP/qual-fresh-three-checker"; mkdir -p "$QFRKP" "$QFRKC"
+{ _qfr5 posixplain   'test -f base.txt' restoration pass true
+  _qfr5 posixprocsub 'grep -qx clean <(cat base.txt)' restoration pass true
+} > "$QFRKP/qualification.tsv"
+# A checker outside the tree whose own body pipes big output into grep -q.
+_qfrkbig="$QFRS/qfr-big-checker"
+printf '#!/bin/bash\n%s\n' "$_qfrgrep" > "$_qfrkbig"; chmod +x "$_qfrkbig"
+_qfr5 bigchecker "'$_qfrkbig'" restoration pass true > "$QFRKC/qualification.tsv"
+_qfrkenv() { ( cd "$QFRR" || exit 1; set -uo pipefail
+               . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+               case "$1" in
+                 shellopts) export SHELLOPTS ;;
+                 bashenv)   export BASH_ENV="$QFRS/qfr-bash-env" ;;
+                 posix)     export POSIXLY_CORRECT=1 ;;
+               esac
+               felix_qualify_run "$2" "$QFRR" ) 2>/dev/null \
+               | awk -F'\t' '{ printf "%s%s %s", s, $4, $5; s = "; " }'; }
+is  "with POSIXLY_CORRECT exported by its caller, a command using a process substitution still passes its pass control and is met, as a plain command beside it does" \
+    "$(_qfrkenv posix "$QFRKP")" "pass met; pass met"
+is  "a checker the row runs, whose own body pipes big output into grep -q, passes its pass control and is met with BASH_ENV exported by the caller naming a file that sets pipefail, and again with SHELLOPTS exported: the checker inherits neither" \
+    "bashenv: $(_qfrkenv bashenv "$QFRKC"); shellopts: $(_qfrkenv shellopts "$QFRKC")" "bashenv: pass met; shellopts: pass met"
+# Every temporary path the runner makes is gone after a run whose rows reach
+# each verdict, unrunnable from each column. mktemp is wrapped, inside the
+# subshell that calls the runner, by a function that notes each path it hands
+# back, however it was called.
+QFRKM="$TMP/qual-fresh-three-mktemp"; _qfrkmade="$TMP/qual-fresh-three-made"
+mkdir -p "$QFRKM"; : > "$_qfrkmade"
+{ _qfr5 tmpmet     "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 tmpheld    true violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr6 tmpinapp   "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'exit 1'
+  _qfr6 tmppremcnf "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'qfr_no_such_cmd . | grep -q QFR-FOUND'
+  _qfr5 tmpmutcnf  "$_qfrc" restoration pass 'qfr_no_such_cmd . | grep -q QFR-FOUND'
+  _qfr5 tmpcmdcnf  'qfr_no_such_cmd . | grep -q QFR-FOUND' violation fail 'printf FORBIDDEN > bad.txt'
+} > "$QFRKM/qualification.tsv"
+_qfrkmk="$( ( cd "$QFRR" || exit 1; set -uo pipefail
+              . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+              mktemp() { local p; p="$(command mktemp "$@")" || return
+                         printf '%s\n' "$p" >> "$_qfrkmade"; printf '%s\n' "$p"; }
+              felix_qualify_run "$QFRKM" "$QFRR" ) 2>/dev/null | awk -F'\t' '{ printf "%s ", $5 }')"
+_qfrkleft=""
+while IFS= read -r _qfrkp; do [ -e "$_qfrkp" ] && _qfrkleft="$_qfrkleft $_qfrkp"; done < "$_qfrkmade"
+is  "no temporary path outlives a run whose rows are met, held, inapplicable, and unrunnable from each column: every path mktemp handed the runner is gone, and it was handed at least one" \
+    "$_qfrkmk$([ -s "$_qfrkmade" ] && echo made || echo none-made) left:[$_qfrkleft]" \
+    "met held inapplicable unrunnable unrunnable unrunnable made left:[]"
+# A stderr file that cannot be read counts as nothing run. The mutation takes
+# away its row's base directory, the scratch tree's parent, only when that
+# holds the scratch tree and one file besides; otherwise it does nothing, and
+# the checker passes and is held.
+QFRKB="$TMP/qual-fresh-three-base"; mkdir -p "$QFRKB"
+_qfr5 basegone "$_qfrc" violation fail \
+      "d=\$(pwd -P) && [ \"\$d\" != '$QFRR' ] && test -f .git && test -f base.txt && b=\$(dirname \"\$d\") && [ \"\$(ls -A \"\$b\" | wc -l | tr -d ' ')\" = 2 ] && [ \"\$(find \"\$b\" -mindepth 1 -maxdepth 1 -type f | wc -l | tr -d ' ')\" = 1 ] && cd / && rm -rf \"\$b\"" \
+      > "$QFRKB/qualification.tsv"
+is  "a mutation that takes away its row's base directory, and with it the file its stderr went to, makes its fail control unrunnable, never fail and met" \
+    "$(_qfrrun "$QFRKB" "$QFRR" | awk -F'\t' '$1 == "basegone" { print $4 " " $5 }')" "unrunnable unrunnable"
 # A mutation that takes its own tree away. It removes only a linked worktree
 # that is not the root, and the root's check below shows it did no more.
 QFRU="$TMP/qual-fresh-gone"; mkdir -p "$QFRU"

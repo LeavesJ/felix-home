@@ -4,5 +4,27 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	4e753d68c3ede8b6d5179490eb802acfd12a7c8c	4e753d68c3ede8b6d5179490eb802acfd12a7c8c	0.49.220
-run	0	3646	5
+base	origin/main	4a3dcf37540bc51cfbc5bd36fba146cac753e87e	0.49.221
+run	22	3710	5
+a bound moment on the first row of a 3,000-row stance table is not named unconsidered	1
+a candidate grounded on the first of 9,000 declared probes is accepted	1
+a candidate repeating the first of 9,000 admitted obligations is refused as already admitted	1
+a capability 6,000 stack rows serve is reported served among the gaps	1
+a checker the gate prints that sorts first of 3,002 qualified checkers is not called ungoverned	1
+a checker whose first of 25,000 rows declares a control is short only the three controls it never declares	1
+a content row matching the first of more added lines than a pipe holds still raises the tier	1
+a declined moment wired as the first of 3,000 bound events reads missing	1
+a grant merged first among thousands is not listed as written and not merged	1
+a judge identical to the tree is refused when the engine path sorts first of many	1
+a line outside a risk row's confine near the top of a diff larger than a pipe still fires the row	1
+a live night whose state file runs past a pipe after its first line reads live	1
+a routine name holding a newline is refused, even when its lines are two adjacent routines	1
+a run of the first routine is recorded however many routines follow it	1
+a wired moment bound as the first of 3,000 bound events reads ok	1
+an unknown evidence row is not an all-clear however much text follows it	1
+and writes no fold for that machine session into memory	1
+destructive SQL on the first added line of a diff larger than a pipe still escapes as durable	1
+felix ledger folds the person's session and passes over the first of many machine sessions	1
+no engine test pipes into a grep that can stop reading early	1
+session-start does not count the first of many machine sessions as stranded, only the person's beside it	1
+the felix marketplace root is read, and reported read, from an entry listing more than a pipe holds	1

@@ -4,5 +4,32 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	27d61d704c4d762c68dbcecc3783173d62dc1726	27d61d704c4d762c68dbcecc3783173d62dc1726	0.49.212
-run	0	3546	5
+base	19f3ea4d05a60313096360e956dc1ed26e9a1c99	19f3ea4d05a60313096360e956dc1ed26e9a1c99	0.49.218
+run	27	3560	5
+a checker short of controls resolves short, naming what it lacks	1
+a checker whose only row is malformed is short, not absent	1
+a checker with a row for every control resolves complete	1
+a dash names nothing	1
+a row needing three capabilities resolves each of them	1
+a row refused for its needs is never evaluated	1
+a seven-column row names nothing that would discharge it	1
+an engine shipped without the qualification library resolves nothing, rather than absent	1
+an id no checker carries resolves absent	1
+and engine_deployed needs deploy, absent the same way	1
+and is refused at the merge boundary	1
+and its summary line carries the same count	1
+and prints the count under it	1
+and reads as naming nothing	1
+and says complete is declared, not run	1
+and shows each row's need with its resolution	1
+and the row that names nothing, saying so	1
+and the summary line counts them	1
+felix's lifecycle_wired needs lifecycle, which no checker declares	1
+needs [9lives] refuses the row with the reason	1
+needs [Deploy] refuses the row with the reason	1
+needs [a,,b] refuses the row with the reason	1
+needs [ok,] refuses the row with the reason	1
+needs [x, y] refuses the row with the reason	1
+the count is one per obligation, by its weakest need	1
+the schema check accepts the eighth column as needs	1
+the template documents the needs column	1

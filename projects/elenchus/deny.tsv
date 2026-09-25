@@ -28,8 +28,15 @@
 # in it is something else: a short flag holding no n, a long flag not
 # starting --d, or a path. It ends at a line break as it does at a `;`.
 #
-# tool	extended-regex	reason
+# The `git add` row carries a fourth column, `checkout`: it protects this
+# checkout's index from what nobody read, and is passed over for a fixture
+# repository under /tmp or $TMPDIR, where there is nothing confidential to
+# stage (lib/where.sh in the engine). Of the fourteen refusals this row had
+# logged by 2026-09-23, six were fixtures and are passed over; the eight in
+# this checkout, or that cannot be told, still stand.
+#
+# tool	extended-regex	reason	scope
 Bash	(^|[;&|]|[({`][[:space:]]|(^|[^\\])(\\\\)*(\\[nrt])+)[[:space:]]*((if|then|else|elif|do|while|until|!|time|nohup|exec|command|sudo|env|bash|sh|zsh|source|\.|timeout[[:space:]]+[^[:space:];&|]+|[A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*)([[:space:]]+-[^[:space:];&|]+)*[[:space:]]+)*\./scripts/gate\.sh	scripts/gate.sh is a stale copy missing the secret check. Run: felix gate
-Bash	git add( +(-[^-n[:space:];&|][^n[:space:];&|]*|--([^d[:space:];&|][^[:space:];&|]*)?|[^-[:space:];&|][^[:space:];&|]*))* +(-A|--all|\.)( +(-[^-n[:space:];&|][^n[:space:];&|]*|--([^d[:space:];&|][^[:space:];&|]*)?|[^-[:space:];&|][^[:space:];&|]*))* *([;&|)]|$|\\[nrt])	stage explicit paths. -A stages what you have not read, and data/ and confidential docs never enter git
+Bash	git add( +(-[^-n[:space:];&|][^n[:space:];&|]*|--([^d[:space:];&|][^[:space:];&|]*)?|[^-[:space:];&|][^[:space:];&|]*))* +(-A|--all|\.)( +(-[^-n[:space:];&|][^n[:space:];&|]*|--([^d[:space:];&|][^[:space:];&|]*)?|[^-[:space:];&|][^[:space:];&|]*))* *([;&|)]|$|\\[nrt])	stage explicit paths. -A stages what you have not read, and data/ and confidential docs never enter git	checkout
 Bash	git add ([^;&|]* )?-f( |$)	never force-add an ignored file. The ignore rule is the last thing between a secret and a public repo
 Bash	git push ([^;&|]* )?(--force|-f)( |$)	force push is T3. It drops commits, and the founder decides that

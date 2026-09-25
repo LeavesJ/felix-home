@@ -3672,6 +3672,10 @@ cmd_maintenance() {
     # written, and pipefail reads a routine that exists as missing.
     local names nl='
 '
+    # A routine name is one line. The case below would take two adjacent
+    # routines as one name, and the log line it wrote would leave the first of
+    # them with no epoch, read as never run.
+    case "$ran" in *"$nl"*) die "a routine name is one line" ;; esac
     names="$(_felix_maint_rows "$proj" | cut -f1)" \
       && case "$nl$names$nl" in *"$nl$ran$nl"*) true ;; *) false ;; esac \
       || die "no routine named $ran"

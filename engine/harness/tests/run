@@ -22395,37 +22395,55 @@ printf '\nno engine test reads a pipe through a grep that can stop early\n'
 #
 # _spl_scan is the lint's one matcher, and the same code reads the samples and
 # the engine. It prints file:line wherever a `|` that is not half of `||` is
-# followed, after optional `command` and VAR=value prefixes, by grep, egrep or
-# fgrep given an option that lets it stop reading early: -q, -m, -l or -L, alone
-# or inside a cluster (-qxF, -Eq, -m1), or --quiet, --silent, --max-count,
-# --files-with-matches or --files-without-match. A pipe that ends one line
-# carries onto the next line of code, and a line may start with the pipe; bash
-# reads both as one chain, and it carries a pipe across blank and comment lines
-# too. Comment lines are skipped.
+# followed, after optional `command`, `env`, `nice`, `timeout N`, `if` and `!`
+# words, VAR=value prefixes and a leading backslash, by grep, egrep or fgrep
+# given an option that lets it stop reading early: -q, -m, -l or -L, alone or
+# inside a cluster (-qxF, -Eq, -m1), or --quiet, --silent, --max-count,
+# --files-with-matches or --files-without-match. Options are read letter by
+# letter, and one that takes an argument (-e, -f, -A, -B, -C, -d, -D, --regexp,
+# --file, --context and its halves) takes the rest of its word, or the next
+# word, with it: `-e pat -q` is flagged, and `-eline` is not read as -l. A pipe
+# that ends one line, or ends its code before a comment, carries onto the next
+# line of code, and a line may start with the pipe; bash reads both as one
+# chain, and it carries a pipe across blank and comment lines too. Comment
+# lines are skipped.
 #
 # What it does not see: `head`, `sed q` or an awk that exits early at the end of
 # a pipeline whose status is tested (felix_overnight_field's `cut | head -1` is
 # one, read with `|| return 1`, and safe only because its file is one line); a
 # pipe into a brace group or subshell that holds the grep; a grep named by its
-# path or through a variable; an early option placed after the pattern; a
-# producer whose status is tested through a variable; code built at run time
-# with eval. It reads here-doc bodies as code, so pipeline text inside one
-# would be named as well.
+# path or through a variable; a wrapper given options of its own (`env -i`,
+# `nice -n 5`, `timeout -s KILL 5`); a VAR= prefix whose quoted value holds a
+# space; an early option placed after the pattern, or on a continuation line
+# inside grep's own arguments; a producer whose status is tested through a
+# variable; code built at run time with eval. What it names that is no pipe:
+# it reads quoted strings and here-doc bodies as code, so a message or a
+# pattern holding `| grep -q` is named, and so is the line after a code line
+# whose trailing comment ends in `|`.
 _spl_scan() {
   awk '
-    function early(s,   w, n, i) {
+    function early(s,   w, n, i, k, c) {
       sub(/^[ \t]+/, "", s)
-      while (s ~ /^command[ \t]/ || s ~ /^[A-Za-z_][A-Za-z0-9_]*=[^ \t]*[ \t]/)
+      while (s ~ /^(command|env|nice|if|!)[ \t]/ || s ~ /^timeout[ \t]+[0-9.]+[smhd]?[ \t]/ ||
+             s ~ /^[A-Za-z_][A-Za-z0-9_]*=[^ \t]*[ \t]/) {
+        if (s ~ /^timeout[ \t]/) sub(/^timeout[ \t]+/, "", s)
         sub(/^[^ \t]*[ \t]+/, "", s)
+      }
+      sub(/^\\/, "", s)
       if (s !~ /^[ef]?grep[ \t]/) return 0
       sub(/^[ef]?grep[ \t]+/, "", s)
       n = split(s, w, /[ \t]+/)
       for (i = 1; i <= n; i++) {
         if (w[i] == "--") return 0
         if (w[i] ~ /^--(quiet|silent|max-count|files-with-matches|files-without-match)(=|$)/) return 1
+        if (w[i] ~ /^--(regexp|file|after-context|before-context|context)$/) { i++; continue }
         if (w[i] ~ /^--/) continue
-        if (w[i] ~ /^-[A-Za-z0-9]/) { if (w[i] ~ /^-[A-Za-z0-9]*[qmlL]/) return 1; continue }
-        return 0
+        if (w[i] !~ /^-[A-Za-z0-9]/) return 0
+        for (k = 2; k <= length(w[i]); k++) {
+          c = substr(w[i], k, 1)
+          if (c ~ /[qmlL]/) return 1
+          if (c ~ /[efABCdD]/) { if (k == length(w[i])) i++; break }
+        }
       }
       return 0
     }
@@ -22441,7 +22459,7 @@ _spl_scan() {
       }
       if (hit) print FILENAME ":" FNR
       t = $0; sub(/[ \t]*(\\[ \t]*)?$/, "", t)
-      open = (t ~ /(^|[^|])[|]$/)
+      open = (t ~ /(^|[^|])[|]([ \t]+#.*)?$/)
     }
   ' "$@"
 }
@@ -22484,6 +22502,23 @@ is "the lint flags grep reached through command or a VAR=value prefix" \
    "$(_spl_flags 'x | command grep -q y
 x | LC_ALL=C grep -q y
 x | LC_ALL=C command grep -qx y')" "1 2 3"
+is "the lint flags grep reached through env, timeout, nice, if, ! or a leading backslash" \
+   "$(_spl_flags 'x | \grep -q y
+x | env LC_ALL=C grep -q y
+x | timeout 5 grep -q y
+x | nice grep -q y
+x | if grep -q y; then :; fi
+x | ! grep -q y')" "1 2 3 4 5 6"
+is "the lint flags an early option after an option that takes an argument, attached or apart" \
+   "$(_spl_flags 'x | grep -e pat -q y
+x | grep -f pats -q
+x | grep -A 2 -q y
+x | grep --regexp pat -q
+x | grep -epat -m1')" "1 2 3 4 5"
+is "the lint takes no option's argument for an option: -eline is not -l, and a pattern -quux is not -q" \
+   "$(_spl_flags 'x | grep -eline f
+x | grep -e -quux f
+x | grep -A 2 y')" ""
 is "the lint flags every option that lets grep stop early, in egrep and fgrep as well" \
    "$(_spl_flags 'x | grep -m1 y
 x | grep --quiet y
@@ -22497,6 +22532,9 @@ is "the lint flags a grep -q on the line after a pipe that ends a line, with or 
   grep -q y
 z | \
   grep -qx y')" "2 4"
+is "the lint flags a grep -q on the line after a pipe that a comment follows" \
+   "$(_spl_flags 'x |   # why it is piped
+  grep -q y')" "2"
 is "the lint flags a line that starts with a pipe into grep -qxF, continuing the line above" \
    "$(_spl_flags 'x \
 | grep -qxF y')" "2"
@@ -22511,9 +22549,17 @@ is "the lint carries neither an || nor a comment's trailing pipe onto the next l
   grep -q y
 # a |
   grep -q y')" ""
+# Named on purpose, as the comment above says: pinned so a matcher that learns
+# to skip them also has to change what that comment promises.
+is "the lint reads a quoted string and a code line's trailing comment as code" \
+   "$(_spl_flags "printf 'use: x | grep -q y\\n'
+grep -E 'a| grep -q' f
+foo  # see a |
+grep -q y file")" "1 2 4"
 
 # The engine itself: the CLI, its libraries, its hooks and its bin scripts. Not
-# tests/, which has its own scan, and not templates/, which is table data.
+# tests/, which #364 scans once it lands, and not templates/, which is table
+# data.
 _spl_sites="$( cd "$REAL_HARNESS" 2>/dev/null && [ -f felix ] \
                  || { printf 'no engine to scan at %s\n' "$REAL_HARNESS"; exit 0; }
                set --
@@ -22656,17 +22702,17 @@ _spm_rows() { _SPM_K="$2" awk -F'\t' -v c="$3" '$c == ENVIRON["_SPM_K"]' <<<"$1"
 _spm_first() { printf '%s' "${1%%"$_spm_nl"*}"; }
 
 # ------------------------------------------------------------- fixtures ----
-# coverage.sh:105 reads the events a hooks file binds. 3,000 filler events
-# sit between the one bound first and the one bound last.
+# felix_coverage_check reads the events a hooks file binds. 3,000 filler
+# events sit between the one bound first and the one bound last.
 _spm_cov="$_spm/cov"; mkdir -p "$_spm_cov"
 awk -v pad="$_spm_pad" 'BEGIN {
   printf "{\"hooks\": {\n  \"SpmFirstBound\": [],\n"
   for (i = 1; i <= 3000; i++) printf "  \"SpmFiller%s%05d\": [],\n", pad, i
   printf "  \"SpmLastBound\": []\n}}\n" }' > "$_spm_cov/hooks.json"
 
-# coverage.sh:193 reads the events a stance table lists, against what this
-# machine binds. A fixture HOME binds the table's first event, its last, and
-# one it never lists.
+# felix_coverage_unconsidered reads the events a stance table lists, against
+# what this machine binds. A fixture HOME binds the table's first event, its
+# last, and one it never lists.
 _spm_unc="$_spm/unc"; _spm_home="$_spm/home"; mkdir -p "$_spm_unc" "$_spm_home/.claude"
 awk -v pad="$_spm_pad" 'BEGIN {
   printf "SpmFirstKnown\twired\tthe first row\n"
@@ -22675,9 +22721,9 @@ awk -v pad="$_spm_pad" 'BEGIN {
 printf '{"hooks":{"SpmFirstKnown":[],"SpmLastKnown":[],"SpmNeverListed":[]}}\n' \
   > "$_spm_home/.claude/settings.json"
 
-# candidates.sh:95 reads the admitted obligation names, :113 the declared
-# probe names after a C-locale sort. Zero-padded, so the sort keeps 00001
-# first and 09000 last. Memory is a root of this block's own.
+# felix_candidates_rules reads the admitted obligation names, then the
+# declared probe names after a C-locale sort. Zero-padded, so the sort keeps
+# 00001 first and 09000 last. Memory is a root of this block's own.
 _spm_cp="$_spm/spm-cand"; _spm_cr="$_spm/spm-cand-repo"; _spm_cmem="$_spm/mem"
 mkdir -p "$_spm_cp" "$_spm_cr" "$_spm_cmem/spm-cand/commission"
 awk 'BEGIN { for (i = 1; i <= 9000; i++)
@@ -22692,8 +22738,8 @@ _spm_c4="$(printf 'spm_grounded_on_last\tADVISORY\t-\ttrue\tspm_declared_probe_g
 printf '# topology -\n# epoch -\n%s\n%s\n%s\n%s\ndone\t4\n' "$_spm_c1" "$_spm_c2" "$_spm_c3" "$_spm_c4" \
   > "$_spm_cmem/spm-cand/commission/obligations_surveyed.tsv"
 
-# commission.sh:473 reads awk's rows for one capability. One capability has
-# 6,000 stack rows; another has one, the file's last.
+# felix_commission_gaps reads awk's rows for one capability. One capability
+# has 6,000 stack rows; another has one, the file's last.
 _spm_gp="$_spm/gap-proj"; _spm_gr="$_spm/gap-repo"; mkdir -p "$_spm_gp" "$_spm_gr"
 printf 'spmcapmany\nspmcaplast\n' > "$_spm_gp/capabilities"
 awk 'BEGIN { for (i = 1; i <= 6000; i++)
@@ -22705,20 +22751,20 @@ awk 'BEGIN { for (i = 1; i <= 6000; i++)
 _spm_short=""
 _spm_fits() { [ "${#2}" -ge 262144 ] && [ "$(_spm_first "$2" | cut -f1-2)" = "$3" ] \
                 || _spm_short="$_spm_short $1 (${#2} bytes, first [$(_spm_first "$2" | cut -c1-40)])"; }
-_spm_fits coverage.sh:105 "$( . "$FROOT/harness/lib/coverage.sh"; felix_hooks_events "$_spm_cov/hooks.json" )" \
+_spm_fits felix_coverage_check "$( . "$FROOT/harness/lib/coverage.sh"; felix_hooks_events "$_spm_cov/hooks.json" )" \
           SpmFirstBound
-_spm_fits coverage.sh:193 "$(cut -f1 "$_spm_unc/lifecycle.tsv")" SpmFirstKnown
-_spm_fits candidates.sh:95 "$(cut -f1 "$_spm_cp/obligations.tsv")" spm_admitted_obligation_name_00001
-_spm_fits candidates.sh:113 "$(cut -f1 "$_spm_cp/probes.tsv" | LC_ALL=C sort -u)" \
+_spm_fits felix_coverage_unconsidered "$(cut -f1 "$_spm_unc/lifecycle.tsv")" SpmFirstKnown
+_spm_fits felix_candidates_rules:admitted "$(cut -f1 "$_spm_cp/obligations.tsv")" spm_admitted_obligation_name_00001
+_spm_fits felix_candidates_rules:grounds "$(cut -f1 "$_spm_cp/probes.tsv" | LC_ALL=C sort -u)" \
           spm_declared_probe_ground_name_00001
-_spm_fits commission.sh:473 "$(awk -F'\t' '$5 == "spmcapmany"' "$_spm_gp/stack.tsv")" \
+_spm_fits felix_commission_gaps "$(awk -F'\t' '$5 == "spmcapmany"' "$_spm_gp/stack.tsv")" \
           "$(printf 'plugin\tspm-served-plugin-00001')"
 [ -z "$_spm_short" ] \
   && ok  "every membership fixture below holds more than 256 KB with the value asked about on its first line" \
   || bad "every membership fixture below holds more than 256 KB with the value asked about on its first line" \
          "too small or out of order, so a pass below would prove nothing:$_spm_short"
 
-# --------------------------------------------- coverage.sh:105, declined ----
+# ---------------------------------------- felix_coverage_check, declined ----
 printf 'SpmFirstBound\tdeclined\tnothing to add\nSpmLastBound\tdeclined\tnothing to add\n' \
   > "$_spm_cov/lifecycle.tsv"
 _spm_out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$_spm_cov" "$_spm_cov/hooks.json" )"
@@ -22731,7 +22777,7 @@ _spm_line "$_spm_out" "missing	SpmLastBound	declined, yet something wires it" \
   || bad "a declined moment wired as the last of 3,000 bound events reads missing" \
          "got [$(_spm_rows "$_spm_out" SpmLastBound 2)]: the fixture does not reach the coverage check"
 
-# ----------------------------------------------- coverage.sh:105, wired ----
+# ------------------------------------------ felix_coverage_check, wired ----
 printf 'SpmFirstBound\twired\trefuse completion\nSpmLastBound\twired\trefuse completion\n' \
   > "$_spm_cov/lifecycle.tsv"
 _spm_out="$( . "$FROOT/harness/lib/coverage.sh"; felix_coverage_check "$_spm_cov" "$_spm_cov/hooks.json" )"
@@ -22744,7 +22790,7 @@ _spm_line "$_spm_out" "ok	SpmLastBound	refuse completion" \
   || bad "a wired moment bound as the last of 3,000 bound events reads ok" \
          "got [$(_spm_rows "$_spm_out" SpmLastBound 2)]: the fixture does not reach the coverage check"
 
-# ------------------------------------------------------- coverage.sh:193 ----
+# ------------------------------------------- felix_coverage_unconsidered ----
 _spm_out="$( HOME="$_spm_home"; . "$FROOT/harness/lib/coverage.sh"; felix_coverage_unconsidered "$_spm_unc" )"
 _spm_line "$_spm_out" "SpmFirstKnown" \
   && bad "a bound moment on the first row of a 3,000-row stance table is not named unconsidered" \
@@ -22759,7 +22805,7 @@ _spm_line "$_spm_out" "SpmNeverListed" \
   || bad "a bound moment the 3,000-row stance table never lists is named unconsidered" \
          "got [$(printf '%s' "$_spm_out" | tr '\n' ' ')]: the fixture HOME's bindings were not read"
 
-# --------------------------------------------------- candidates.sh:95, 113 ----
+# -------------------------------------------------- felix_candidates_rules ----
 _spm_out="$( ( FELIX_MEMORY="$_spm_cmem"
                . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
                . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/epoch.sh"
@@ -22782,7 +22828,7 @@ _spm_line "$_spm_out" "accept	$_spm_c4" \
   || bad "a candidate grounded on the last of 9,000 declared probes is accepted" \
          "got [$(_spm_rows "$_spm_out" spm_grounded_on_last 2)]: the fixture does not reach the grounds test"
 
-# ------------------------------------------------------ commission.sh:473 ----
+# -------------------------------------------------- felix_commission_gaps ----
 _spm_out="$( ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
                . "$FROOT/harness/lib/stack.sh"; . "$FROOT/harness/lib/probes.sh"
                . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/toolbox.sh"
@@ -23004,6 +23050,17 @@ if [ "$_spc_rc" -eq 0 ] && grep -q '^routine-020000	' "$_spc_proj/maintenance.lo
   has "and a run of the last routine is recorded too" "$_spc_out" "recorded a run of routine-020000"
 else
   bad "and a run of the last routine is recorded too" "rc=$_spc_rc: $_spc_out"
+fi
+# A routine name is one line. A value holding a newline names no routine, even
+# when its lines are two routines next to each other in the table: logged, it
+# leaves a line with no epoch, and that routine reads as never run. The lines
+# are the table's last two, so no early exit is what refuses them.
+_spc_out="$(_spc_felix "$_spc_repo" maintenance --ran "$(printf 'routine-019999\nroutine-020000')" 2>&1)"; _spc_rc=$?
+if [ "$_spc_rc" -ne 0 ] && ! grep -q '^routine-019999' "$_spc_proj/maintenance.log" 2>/dev/null; then
+  ok  "a routine name holding a newline is refused, even when its lines are two adjacent routines"
+else
+  bad "a routine name holding a newline is refused, even when its lines are two adjacent routines" \
+      "the two-line name was taken for a routine and logged, leaving a line with no epoch (rc=$_spc_rc): $_spc_out"
 fi
 
 # felix evidence. A base that resolves to nothing yields one `unknown` row and

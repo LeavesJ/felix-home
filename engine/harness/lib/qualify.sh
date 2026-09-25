@@ -128,15 +128,47 @@ felix_qualify_malformed() { _felix_qualify_read "$1" '(r = why()) != "" { print 
 
 felix_qualify_checkers() { felix_qualify_rows "$1" | cut -f1 | LC_ALL=C sort -u; }
 
+# A table that exists and cannot be read is said, and resolves nothing. Until
+# 2026-09-25 awk's "can't open file" went to a stderr every caller discards and
+# its status was never read, so a qualification.tsv at mode 000 read as one that
+# declares nothing: every control missing, every reported checker unqualified,
+# every capability absent, each a claim about a table nobody read. The two
+# readers below take each read's status from an assignment of its own, never
+# from a pipeline, whose status without pipefail is only its last command's.
+# On a failed read they print nothing, say this one line, and exit 2. A table
+# that does not exist is still an answer, and declares nothing, as before.
+_felix_qualify_unread() {   # proj
+  local f; f="$(_felix_qualify_table "$1")"
+  printf 'felix: %s could not be read, so what it declares is not known\n' "$f" >&2
+}
+
 # Which controls a checker has no row for. A checker qualified on four of six
 # is not qualified; the amendments say all seven hold or it may not enforce, and
 # the two it is missing are usually the two with teeth.
-felix_qualify_missing_controls() {
-  local proj="$1" checker="$2" c have
-  have="$(felix_qualify_rows "$proj" | awk -F'\t' -v k="$checker" '$1 == k { print $3 }')"
+#
+# Membership is a case over the whole list, in the shell. It was printf into
+# grep -qxF, and grep -q leaves on its first match; bash 3.2's printf writes a
+# list one write() per line, so a printf still writing died of SIGPIPE, and
+# under pipefail, which the felix CLI and the suite both set, `||` named a
+# control the checker declares. Measured 2026-09-25 on a Mac at load 200: 47
+# false `short` resolutions of the suite's needs fixture in two minutes of
+# twelve loops, and five runs of five once a checker's rows outgrow a pipe,
+# because the writer then has to block. Nothing here may pipe a list into a
+# reader that can stop before the end of it: grep -q, head, awk's exit, sed q.
+felix_qualify_missing_controls() {   # proj, checker -> one control per line
+  local proj="$1" checker="$2" rows have c missing="" nl='
+'
+  rows="$(felix_qualify_rows "$proj" 2>/dev/null)" || { _felix_qualify_unread "$proj"; return 2; }
+  # awk reads to the end of its input, so the printf feeding it always finishes.
+  have="$(printf '%s\n' "$rows" | awk -F'\t' -v k="$checker" '$1 == k { print $3 }')" \
+    || { _felix_qualify_unread "$proj"; return 2; }
   for c in $FELIX_QUALIFY_CONTROLS; do
-    printf '%s\n' "$have" | grep -qxF "$c" || printf '%s\n' "$c"
+    case "$nl$have$nl" in
+      *"$nl$c$nl"*) ;;
+      *) missing="$missing$c$nl" ;;
+    esac
   done
+  printf '%s' "$missing"
 }
 
 # Run one row: a real worktree of HEAD, the mutation applied to it, the checker
@@ -227,14 +259,23 @@ felix_qualify_unshown() {   # proj, run-output -> one checker name per line
 # shape, not decoration: given a real gate log, a rule on the two words alone
 # also took `a` and `drift` from the prose the gate prints under a failure.
 # Sub-lines are indented deeper, and prose is not indented at all.
+#
+# Membership is the case felix_qualify_missing_controls uses, for its reason:
+# the same printf into grep -qxF stood here against every checker the table
+# declares, and named one that has rows whenever grep found it before the
+# printf was done. A name is [a-z][a-z-]*, so the unquoted list splits cleanly.
 felix_qualify_ungoverned() {   # proj, gate-output -> one checker name per line
-  local proj="$1" out="$2" known
-  known="$(felix_qualify_checkers "$proj")"
-  printf '%s\n' "$out" \
-    | LC_ALL=C awk '$0 ~ /^  [a-z][a-z-]* +[A-Za-z]/ { print $1 }' \
-    | LC_ALL=C sort -u \
-    | while IFS= read -r c; do
-        [ -n "$c" ] || continue
-        printf '%s\n' "$known" | grep -qxF "$c" || printf '%s\n' "$c"
-      done
+  local proj="$1" out="$2" rows known c gap="" nl='
+'
+  rows="$(felix_qualify_rows "$proj" 2>/dev/null)" || { _felix_qualify_unread "$proj"; return 2; }
+  known="$(printf '%s\n' "$rows" | cut -f1)" || { _felix_qualify_unread "$proj"; return 2; }
+  for c in $(printf '%s\n' "$out" \
+               | LC_ALL=C awk '$0 ~ /^  [a-z][a-z-]* +[A-Za-z]/ { print $1 }' \
+               | LC_ALL=C sort -u); do
+    case "$nl$known$nl" in
+      *"$nl$c$nl"*) ;;
+      *) gap="$gap$c$nl" ;;
+    esac
+  done
+  printf '%s' "$gap"
 }

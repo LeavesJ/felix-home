@@ -78,10 +78,14 @@ FELIX_QUALIFY_CONTROLS="${FELIX_QUALIFY_CONTROLS//:pass/}"
 # by a bash of their own with nothing on stdin, as probe, obligation and
 # maintenance rows are. So none sees the felix CLI's pipefail or nounset, which
 # made `producer | grep -q x` fail with x present and a name the row never set
-# stop it. None sees the engine's functions or variables either: a row reaches
-# its checker by path in the tree the mutation changed. A command or mutation
-# that exits 126 or 127 ran nothing and reads unrunnable. _felix_qualify_one
-# says which way each misfire moved a verdict.
+# stop it. The three share only the tree and the exported environment: not $$,
+# not an unexported variable, not the engine's functions. A row reaches its
+# checker by path in the tree the mutation changed. A column's status is its
+# final command's, as in every table runner, so a checker in an earlier stage
+# of a pipeline has its status dropped: take it first, as the schema rows do,
+# `r=$(checker); s=$?`. A column that ran nothing reads unrunnable, whatever
+# status it ended on. The runner below says which way each misfire moved a
+# verdict, and how a column that ran nothing is told.
 #
 # The premise, and why a fourth verdict exists (#233).
 #
@@ -259,31 +263,53 @@ _felix_qualify_missing_in() {   # rows, checker -> one control per line
 # would be the installed engine's code, which no mutation reaches, so the row
 # would qualify the wrong code.
 #
-# That makes 126 and 127 unrunnable, for a command and a mutation alike. In a
-# fresh bash an engine function is command not found, 127, as is a checker
-# path with a typo; 126 is a file that is not executable, or a tree that could
-# not be entered. Neither ran anything. Read as fail, a command's 127 is met on
-# every fail control, the dangerous direction again. A mutation's 127 leaves
-# the tree unchanged, and its pass control would be met over nothing, so no
-# command runs after it. Every other status keeps its meaning.
+# A column that ran nothing reads unrunnable, whatever status its text ended
+# on: _felix_qualify_sh says 127 for it. Read as fail, a command that ran no
+# checker is met on every fail control, the dangerous direction again; a
+# mutation that made no change leaves its pass control met over nothing, so no
+# command runs after one. In a fresh bash an engine function is command not
+# found, 127, as is a checker path with a typo; 126 is a file that is not
+# executable, or a tree that could not be entered. In a pipeline, an if, or
+# behind ! or ||, the final status hides a name not found, so the column's
+# stderr goes to a file outside the tree, and a line there reading
+# `felix-qualify: [line N: ]NAME: command not found` says it ran nothing. Only
+# the column's own shell prints that, under the $0 it is given; a checker's
+# complaints carry the checker's path. Nothing else there is read: "No such
+# file or directory" and "Permission denied" are printed the same way for a
+# failed redirection, so they cannot say what did not run. A file that cannot
+# be read cannot say either, and reads as nothing run; the helper removes it
+# before it returns. Text that does not parse, or is blank, runs nothing too:
+# it exited 2 or 0, and a command read fail or pass with no checker run. Every
+# other status keeps its meaning.
 #
-# `--` because bash reads a text that begins with a dash as its own options,
-# and "invalid option" exits 2, which a command would report as fail.
-_felix_qualify_sh() {   # dir, text -> the text's own status; 126 if dir cannot be entered
+# The parse and the row get no SHELLOPTS, which carries the caller's pipefail
+# and nounset into a child bash, and no BASH_ENV, whose file a child bash runs
+# first and which can set them again. And `--`, because bash reads a text that
+# begins with a dash as its own options, and "invalid option" exits 2.
+_felix_qualify_sh() {   # dir, text, stderr file outside dir -> the text's own status; 127 if it ran nothing
+  local rc said
+  case "$2" in *[![:space:]]*) ;; *) return 127 ;; esac
+  env -u SHELLOPTS -u BASH_ENV bash -n -c -- "$2" felix-qualify </dev/null >/dev/null 2>&1 || return 127
   ( cd "$1" 2>/dev/null || exit 126
-    bash -c -- "$2" felix-qualify ) </dev/null >/dev/null 2>&1
+    env -u SHELLOPTS -u BASH_ENV bash -c -- "$2" felix-qualify ) </dev/null >/dev/null 2>"$3"
+  rc=$?
+  LC_ALL=C grep -qE '^felix-qualify: (line [0-9]+: )?[^:]+: command not found$' "$3" 2>/dev/null
+  said=$?
+  rm -f "$3"
+  [ "$said" = 1 ] || return 127
+  return "$rc"
 }
 
 _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | unrunnable | inapplicable
-  local root="$1" cmd="$2" mut="$3" premise="${4:-}" base scratch got rc
+  local root="$1" cmd="$2" mut="$3" premise="${4:-}" base scratch err got rc
   base="$(mktemp -d 2>/dev/null)" || { printf 'unrunnable'; return 0; }
-  scratch="$base/w"
+  scratch="$base/w"; err="$base/err"
   if ! git -C "$root" worktree add --detach -q "$scratch" HEAD 2>/dev/null; then
     rmdir "$base" 2>/dev/null; printf 'unrunnable'; return 0
   fi
   got=""
   if [ -n "$premise" ] && [ "$premise" != "-" ]; then
-    _felix_qualify_sh "$scratch" "$premise"; rc=$?
+    _felix_qualify_sh "$scratch" "$premise" "$err"; rc=$?
     case "$rc" in
       0) : ;;
       1) got=inapplicable ;;
@@ -292,7 +318,7 @@ _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | u
   fi
   # The mutation may legitimately fail (a control whose point is that the tree
   # already satisfies the obligation), so its status is not the verdict, save
-  # 126 and 127, which say it never ran.
+  # the 126 or 127 that says it ran nothing.
   #
   # No column is given anything to read. The mutation and the command inherited
   # the pipe the rows arrived on, and a checker that read to the end of its
@@ -300,11 +326,11 @@ _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | u
   # the met one alone, and the gate counted one control met of one. Nor may
   # a command that reads stdin wait on a terminal under felix gate.
   if [ -z "$got" ]; then
-    _felix_qualify_sh "$scratch" "$mut"; rc=$?
+    _felix_qualify_sh "$scratch" "$mut" "$err"; rc=$?
     case "$rc" in 126|127) got=unrunnable ;; esac
   fi
   if [ -z "$got" ]; then
-    _felix_qualify_sh "$scratch" "$cmd"; rc=$?
+    _felix_qualify_sh "$scratch" "$cmd" "$err"; rc=$?
     case "$rc" in
       0)       got=pass ;;
       126|127) got=unrunnable ;;

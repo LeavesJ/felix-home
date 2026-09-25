@@ -79,8 +79,10 @@ it.
   refused ReserveGrid work that an earlier message had asked for. Quote the
   authority, with a timestamp, in every stage prompt.
 - **The fact gate trips on its trigger words even inside a string.** It fires
-  on `rm -rf`, and on "DROP TABLE" text inside a heredoc. Write exports to
-  the scratchpad instead of deleting them.
+  on `rm -rf`, and on a destructive SQL statement quoted inside a heredoc.
+  Write exports to the scratchpad instead of deleting them. The merge
+  boundary does the same with prose: a section that quoted such a statement
+  escaped as durable until it was reworded.
 - **A red record is keyed to the whole `engine/` tree, `tests/run`
   included.** When #376's head moved by a fixture change alone, #364's
   record against the old head stopped holding. Watch the base PR's head

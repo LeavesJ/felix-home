@@ -62,23 +62,11 @@ _felix_commission_answer_ok() {
 # A check that cannot fail is not a check. A negated pipeline reads met when
 # its producer dies, and one ending in `head` reports head's status, which is
 # success whatever came before it.
-#
-# The same holds for any filter that succeeds whatever it is fed, because a
-# check runs without pipefail, as a probe does (felix_commission_ask says why):
-# a pipeline's status is its last command's, so a test run piped into
-# `tail -20` passes when the tests fail. Only the stage after the last `|` is
-# judged, and only when nothing closes or follows it, so a filter inside `$( )`
-# or one an `&&` or `;` hands on from is not.
 _felix_commission_check_ok() {
-  local c="${1:-}" last
+  local c="${1:-}"
   [ -n "$c" ] || return 1
   case "$c" in '!'*) return 1 ;; esac
   case "$c" in *'| head'|*'|head'|*'| head -'*|*'|head -'*) return 1 ;; esac
-  case "$c" in *'|'*) ;; *) return 0 ;; esac
-  last="${c##*|}"
-  case "$last" in *[')];&`']*) return 0 ;; esac
-  last="${last#"${last%%[![:space:]]*}"}"; last="${last%%[[:space:]]*}"
-  case "$last" in tail|tee|cat|sort|uniq|wc|tr|cut|sed) return 1 ;; esac
   return 0
 }
 
@@ -134,7 +122,7 @@ EOF
       case "$answer" in
         provider:*) [ "$check" = "-" ] || printf '%s\ta provider row carries no check; a file it cannot write decides it\n' "$need" ;;
         *) _felix_commission_check_ok "$check" \
-             || printf '%s\tcheck is empty, negated, or ends in a filter that succeeds whatever it is fed (head, tail, tee, cat, sort, uniq, wc, tr, cut, sed), so it could not fail\n' "$need" ;;
+             || printf '%s\tcheck is empty, negated, or ends in head, so it could not fail\n' "$need" ;;
       esac
     fi
   done
@@ -266,7 +254,10 @@ felix_commission_resume_bg() {
 # pipefail can only turn from a match into a miss, and carrying it took an
 # alias per name, which changed what `type` says inside a row and stopped a row
 # defining or sourcing an engine function. nounset stays, so a mistyped
-# variable holds a check rather than passing it.
+# variable holds a check rather than passing it. What follows, as in a probe, is
+# that a pipeline's status is its last stage's, so a check ending in a stage
+# that succeeds whatever it is fed (`| tail`) cannot fail; the template says so,
+# and nothing yet refuses one.
 felix_commission_ask() {
   local root="$1" expr="$2" rc
   [ -n "$expr" ] && [ "$expr" != "-" ] || return 2

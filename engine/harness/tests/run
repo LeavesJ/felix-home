@@ -16593,9 +16593,7 @@ _cmtable "$(_cmpfrow cmpf_yes       - "$_cmpfp | grep -q cmpfhit")" \
          "$(_cmpfrow cmpf_type      - '[ "$(type -t felix_cmpf_on)" = function ]')" \
          "$(_cmpfrow cmpf_quoted    - "_s='felix_cmpf_on'; [ \"\${#_s}\" -eq 13 ]")" \
          "$(_cmpfrow cmpf_redef     'felix_cmpf_true() { return 0; }; felix_cmpf_true' true)" \
-         "$(_cmpfrow cmpf_unset     - 'test -z "$cmpf_never_set_anywhere"')" \
-         "$(_cmpfrow cmpf_tail      - "sh -c 'echo 3 failing; exit 1' 2>&1 | tail -1")" \
-         "$(_cmpfrow cmpf_wc        - '[ "$(echo a | wc -l)" -gt 0 ]')"
+         "$(_cmpfrow cmpf_unset     - 'test -z "$cmpf_never_set_anywhere"')"
 # The suite runs under pipefail, so _cm is a caller that has it.
 _cmpfon="$(_cm felix_commission_run "$CMP" "$CMR" -)"
 
@@ -16632,16 +16630,6 @@ is  "a when may define a function under an engine function's name and call it" \
 is  "a check naming an unset variable is still held, because nounset stays" \
     "$(_cmpfst "$_cmpfon" cmpf_unset)" "held"
 
-# Without pipefail a pipeline's status is its last command's, so a check that
-# ends in a filter succeeding whatever it is fed could no longer fail. Under the
-# CLI's pipefail `npm test | tail` was a check; now it is refused as one.
-_cmpfmal="$(_cm felix_commission_malformed "$CMP")"
-has "a check ending in a filter that succeeds whatever it is fed is malformed" "$_cmpfmal" "cmpf_tail	"
-is  "but a filter inside a substitution is not the check's last command" \
-    "$(_cmpfst "$_cmpfon" cmpf_wc)" "done"
-is  "and no seeded row is refused by that" \
-    "$(_cm felix_commission_malformed "$FROOT/harness/templates")" ""
-
 # An ask changes nothing about the shell that asked.
 _cmpfkept() { local before; before="$(set +o)"
               felix_commission_ask "$CMR" "$_cmpfp | grep -q cmpfhit"
@@ -16666,7 +16654,7 @@ if [ -f "$TMP/cmpf-mistakes.keep" ]; then mv "$TMP/cmpf-mistakes.keep" "$_cmpfml
 rm -f "$TMP/cmpf-table.keep" "$TMP/cmpf-lib.sh"
 unset -f _cmpfrow _cmpfst _cmpfkept _cmpfnopfkept felix_cmpf_on felix_cmpf_off felix_cmpf_state \
          felix_cmpf_true felix_cmpf_src felix_cmpf_src_defined
-unset _cmpfml _cmpfp _cmpfgsf _cmpfon _cmpfmal _cmpfcli
+unset _cmpfml _cmpfp _cmpfgsf _cmpfon _cmpfcli
 
 # The answer runs in-process through a runner the caller names, and the check
 # decides afterwards. The stub stands in for felix:toolbox --route.

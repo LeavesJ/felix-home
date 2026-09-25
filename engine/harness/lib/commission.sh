@@ -375,6 +375,7 @@ PROV
 felix_commission_run() {
   local proj="$1" root="$2" runner="${3:--}" tpl="${4:-}"
   local need grounds instrument when answer check step st detail prov out arc line
+  local uncomputed="this row's state could not be computed, so whether it holds is not known"
   export FELIX_PROJECT="$proj" FELIX_PROJECT_NAME="$(basename "$proj")" \
          FELIX_ROOT_DIR="$root" FELIX_MEMORY_DIR="$(felix_mem_dir "$proj")"
   [ -n "${FELIX_HOME_DIR:-}" ] && export FELIX_HOME_DIR
@@ -384,9 +385,22 @@ felix_commission_run() {
     # heredoc: a substitution expanded under `IFS=$'\t' read` inherits that
     # IFS, and the guard above then read four function names as one.
     line="$(felix_commission_state "$proj" "$root" "$need" "$grounds" "$instrument" "$when" "$answer" "$check")"
+    # Cleared first, because a read that never ran leaves the previous row's
+    # values in place. On bash 3.2 a here-document is a temporary file, and a
+    # reviewer measured one that could not be written carrying the row before's
+    # `done` onto a row whose check failed.
+    st=''; detail=''; prov=''
     IFS=$'\t' read -r st detail prov <<EOF
 $line
 EOF
+    # A state line is read, never trusted. Until 2026-09-25 one that came back
+    # empty, as it does when a fork inside the state function fails with
+    # EAGAIN (measured with ulimit -u 1), gave a row with no state and class
+    # n/a that the counts skipped, so the receipt read commissioned over a row
+    # nobody asked. The guard forks nothing, since a failed fork is what it
+    # catches. A fork that fails in this loop's own shell is not caught here:
+    # it ends the loop, and the rows after it go missing rather than blank.
+    _felix_commission_state_known "$st" || { st=unknown; detail="$uncomputed"; prov=-; }
     # A real run writes every provider row's request afresh — the topology it
     # carries is what makes an answer current — and never in --status, which
     # writes nothing. A missing template is a row nobody can answer.
@@ -403,9 +417,11 @@ EOF
         felix:*)
           out="$( cd "$root" && "$runner" "$answer" 2>&1 )"; arc=$?
           line="$(felix_commission_state "$proj" "$root" "$need" "$grounds" "$instrument" "$when" "$answer" "$check")"
+          st=''; detail=''; prov=''
           IFS=$'\t' read -r st detail prov <<EOF
 $line
 EOF
+          _felix_commission_state_known "$st" || { st=unknown; detail="$uncomputed"; prov=-; }
           detail="ran ${answer#felix:} (exit $arc); $detail" ;;
       esac
     fi
@@ -422,6 +438,17 @@ felix_commission_class() {
     answered)                       printf 'INFERRED' ;;
     *)                              printf 'n/a' ;;
   esac
+}
+
+# The eight states a row can have: done, held, unknown and not-applicable,
+# which felix_commission_state computes, and awaiting, stale, partial and
+# answered, which a provider row gives. Anything else is a state line nobody
+# could read. A builtin case, so asking forks nothing.
+_felix_commission_state_known() {
+  case "${1:-}" in
+    done|held|unknown|not-applicable|awaiting|stale|partial|answered) return 0 ;;
+  esac
+  return 1
 }
 
 felix_commission_actor() {

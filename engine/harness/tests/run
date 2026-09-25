@@ -5044,7 +5044,7 @@ _fs_n="$(cd "$_fs_n" && pwd -P)"; _fs_p="$FROOT/projects/setupproj"
 _fs_saved="$(awk -F'\t' '$1 == "risk-labels" || $1 == "ci-anthropic-key"' "$_fs_p/setup.tsv" 2>/dev/null)"
 if [ "$_fs_nrc" -ne 0 ] || [ "$(printf '%s\n' "$_fs_saved" | grep -c .)" != "2" ]; then
   bad "felix new with no remote saves both slug rows with --repo {{REPO}}, never an empty slug" "felix new exited $_fs_nrc, saved [$_fs_saved]"
-elif [ -z "$(printf '%s\n' "$_fs_saved" | grep -vF -- '--repo {{REPO}}')" ] && ! grep -qF -- '--repo  ' "$_fs_p/setup.tsv"; then
+elif [ -z "$(grep -vF -- '--repo {{REPO}}' <<<"$_fs_saved")" ] && ! grep -qF -- '--repo  ' "$_fs_p/setup.tsv"; then
   ok  "felix new with no remote saves both slug rows with --repo {{REPO}}, never an empty slug"
 else
   bad "felix new with no remote saves both slug rows with --repo {{REPO}}, never an empty slug" "$(printf '%s\n' "$_fs_saved" | cut -f4)"

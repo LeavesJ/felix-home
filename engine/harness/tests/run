@@ -13276,6 +13276,41 @@ is  "while every rightly paired row still runs and is met" \
     "$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
         felix_qualify_run "$QMP" "$QLR" right | awk -F'\t' '$5 == "met"' | wc -l | tr -d ' ')" "6"
 
+# A checker or a mutation that reads its stdin read the rows. They reached the
+# loop that ran them through a pipe, and each row's commands inherited it, so a
+# checker that read to the end swallowed every row after its own: a met row and
+# then a held one ran only the met one, one line of met, and the gate read one
+# control met of one. Each is now given nothing to read. The held row comes
+# second, so a run that stops after the first has nothing held to say, and the
+# verdicts are read in order, so two lines of anything else do not pass.
+QSI="$TMP/qual-stdin"; mkdir -p "$QSI"
+_qsi() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+           felix_qualify_run "$QSI" "$QLR" ) 2>/dev/null | cut -f5 | tr '\n' ' '; }
+{ printf 'demo\tcat >/dev/null; false\tviolation\tfail\ttrue\n'
+  printf 'demo\ttrue\tviolation\tfail\ttrue\n'; } > "$QSI/qualification.tsv"
+is  "a checker that reads its stdin leaves the row after it to run, and that row is held" \
+    "$(_qsi)" "met held "
+{ printf 'demo\t%s\tviolation\tfail\tcat >/dev/null; printf FORBIDDEN > bad.txt\n' "$_qc"
+  printf 'demo\ttrue\tviolation\tfail\ttrue\n'; } > "$QSI/qualification.tsv"
+is  "and so does a mutation that reads its stdin" "$(_qsi)" "met held "
+# The premise was already given nothing to read; this keeps it so.
+{ printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\tcat >/dev/null\n' "$_qc"
+  printf 'demo\ttrue\tviolation\tfail\ttrue\n'; } > "$QSI/qualification.tsv"
+is  "and so does a premise that reads its stdin" "$(_qsi)" "met held "
+# The runner's own read of a table that cannot be read. Its status was a
+# pipeline's, so with the caller's pipefail it said 2 and without it said 0,
+# having run nothing: the empty run a table declaring nothing makes.
+if [ "$_unreadable" -eq 1 ]; then
+  chmod 000 "$QSI/qualification.tsv"
+  _qsir() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+              felix_qualify_run "$QSI" "$QLR"; printf 'rc=%s' "$?" ) 2>/dev/null; }
+  is  "felix_qualify_run over a table it cannot read runs nothing and exits 2, with the caller's pipefail and without" \
+      "$(_qsir) $(set +o pipefail; _qsir)" "rc=2 rc=2"
+  chmod 644 "$QSI/qualification.tsv"
+else
+  skip "felix_qualify_run over a table it cannot read runs nothing and exits 2, with the caller's pipefail and without" "$_noread"
+fi
+
 # Armed: a declared control that does not hold refuses.
 #
 # This is the whole of the arming decision. Nothing else binds — a checker with
@@ -13318,58 +13353,155 @@ case "$(cd "$REPO" && "$FELIX" qualify --gate 2>&1)" in
   *"qualified by no row"*) bad "and --gate does not raise it" ;;
   *)                       ok  "and --gate does not raise it" ;;
 esac
-# A read of the table that fails after the reads before it held, staged with
-# the counting awk from the obligations block. Under --gate the last read is
-# the one that says which controls demo declares, and silence there would read
-# as every control declared; the old line named all six missing instead.
-# Without --gate the last read is the one that says which reported checks have
-# a row, and there both answers the report can give would be false: a gap it
-# did not see, or no gap.
+# felix qualify --gate read qualification.tsv four times and more in one run:
+# the rows, the malformed rows, the rows it ran, and each checker's controls.
+# When the first read held and a later one failed, the later status was never
+# read, so the run could run no control and still count 0 of 0 held and exit
+# 0, and felix gate printed qualified ok over a checker with a held control. A
+# table rewritten between reads (a checkout in the same tree) splits a run the
+# same way. So --gate makes one read, counted with the wrapper from the
+# obligations block, and everything it runs, counts and decides comes from it.
+# Without --gate the report may read the table once more, for the roster gap.
 _qlgate()  { ( cd "$REPO" && "$FELIX" qualify --gate 2>&1 ); }
 _qlplain() { ( cd "$REPO" && "$FELIX" qualify 2>&1 ); }
+_qlw="$FROOT/projects/widget/qualification.tsv"
+is  "felix qualify --gate reads qualification.tsv exactly once" "$(_qreads _qlgate)" "1"
+_qlpr="$(_qreads _qlplain)"
+case "$_qlpr" in
+  1|2) ok  "plain felix qualify reads it once for its controls and at most once more for the roster gap" ;;
+  *)   bad "plain felix qualify reads it once for its controls and at most once more for the roster gap" "$_qlpr read(s)" ;;
+esac
+# What a failed read of the table leaves felix qualify saying, whichever read
+# it is: exit 2, a line naming the table and saying it could not be read, no
+# verdict row and no count, because nothing read means nothing run; and not
+# that the table declares no control, which nobody read it to know, nor awk's
+# own error. Prints what was wrong, or nothing. Counted with grep -c, not
+# grep -q: a printf into grep -q loses the race under pipefail.
+_qlwt="/projects/widget/qualification.tsv"
+_qlunread() {
+  [ "$_qsrc" = 2 ] || printf 'exit %s; ' "$_qsrc"
+  [ "$(printf '%s\n' "$_qsout" | grep -F 'could not be read' | grep -cF "$_qlwt")" -ge 1 ] \
+    || printf 'no line saying %s could not be read; ' "$_qlwt"
+  case "$_qsout" in *"declares no control"*) printf 'says something declares no control; ' ;; esac
+  case "$_qsout" in *"awk:"*|*"can't open file"*) printf "shows awk's own error; " ;; esac
+  [ "$(printf '%s\n' "$_qsout" | grep -cE '^  [^ ]+ +[a-z_]+ +(pass|fail) +[^ ]+ +(ok|HELD|UNRUNNABLE|n/a)$')" -eq 0 ] \
+    || printf 'prints a verdict row; '
+  case "$_qsout" in *"control(s) held"*) printf 'prints a held count; ' ;; esac
+}
+# This read was the one saying which controls demo declares, and it printed
+# demo's controls could not be read beside a run it went on to count. That
+# assertion is rewritten, not dropped: there is one read now, the last is the
+# first, and its failure is the table's, not demo's.
 if [ "$_unreadable" -eq 1 ] && _qstage 0 _qlgate; then
-  is  "felix qualify says demo's declared controls could not be read when that read fails" \
-      "$(printf '%s\n' "$_qsout" | grep 'demo: which controls it declares')" \
-      "  demo: which controls it declares could not be read"
+  is  "when the last read felix qualify --gate makes of the table fails, it says the table could not be read and exits 2" \
+      "$(_qlunread)" ""
   case "$_qsout" in
     *"demo declares no control for:"*)
       bad "and names none of demo's controls missing" "$(printf '%s\n' "$_qsout" | grep 'declares no control for')" ;;
     *) ok  "and names none of demo's controls missing" ;;
   esac
 else
-  for a in "felix qualify says demo's declared controls could not be read when that read fails" \
+  for a in "when the last read felix qualify --gate makes of the table fails, it says the table could not be read and exits 2" \
            "and names none of demo's controls missing"; do
     if [ "$_unreadable" -eq 1 ]; then bad "$a" "$_qsnone"; else skip "$a" "$_noread"; fi; done
 fi
+# Without --gate the last read is the one that says which reported checks have
+# a row, and there both answers the report can give would be false: a gap it
+# did not see, or no gap. It said so, and exited 0 as if it had read it.
 if [ "$_unreadable" -eq 1 ] && _qstage 0 _qlplain; then
   has "felix qualify says which checks have a row could not be read when that read fails" \
       "$_qsout" "which checks have a row here could not be read"
   _qlc="$(printf '%s\n' "$_qsout" | grep -e 'qualified by no row' -e 'Every check the last gate reported' || true)"
   is  "and claims neither a check no row qualifies nor that every check has one" "$_qlc" ""
+  is  "and plain felix qualify exits 2 when the roster gap could not be read" "$_qsrc" "2"
 else
   for a in "felix qualify says which checks have a row could not be read when that read fails" \
-           "and claims neither a check no row qualifies nor that every check has one"; do
+           "and claims neither a check no row qualifies nor that every check has one" \
+           "and plain felix qualify exits 2 when the roster gap could not be read"; do
     if [ "$_unreadable" -eq 1 ]; then bad "$a" "$_qsnone"; else skip "$a" "$_noread"; fi; done
 fi
-# Not only the last read. The checkers felix qualify reports on were a read of
-# the table of their own, after the rows it had run; when that read failed the
-# loop reached no checker and said nothing about demo, and the gate's qualified
-# ok read as six controls of six. So every read after the first is failed in
-# turn, and each time demo's shortfall or its could-not-be-read line is there.
-# The first read failing is the table read as declaring nothing to run, which
-# refuses the gate and names no checker.
-_qlsays() {
-  case "$_qsout" in
-    *"  demo declares no control for: "*|*"  demo: which controls it declares could not be read"*) ;;
-    *) printf 'exit %s and nothing about which controls demo declares' "$_qsrc" ;;
-  esac
+# Every read, from the first. This replaces an assertion that failed each read
+# from the second and wanted demo's shortfall or its could-not-be-read line
+# each time: with one read there is no second, and the first failing read the
+# table as one declaring no control that can be run, which was the old answer
+# to read 1 and is false. Each read that fails refuses, exit 2, and says so.
+_qlplainsays() {
+  [ "$_qsrc" = 2 ] || printf 'exit %s; ' "$_qsrc"
+  [ "$(printf '%s\n' "$_qsout" | grep -c 'could not be read')" -ge 1 ] || printf 'nothing says what could not be read; '
+  case "$_qsout" in *"awk:"*|*"can't open file"*) printf "shows awk's own error; " ;; esac
 }
 if [ "$_unreadable" -eq 1 ]; then
-  is  "whichever later read of the table fails, felix qualify still says what demo declares or that it could not be read" \
-      "$(_qeach 2 _qlsays _qlgate)" ""
+  is  "whichever read of the table felix qualify --gate makes fails, it runs nothing, says the table could not be read, and exits 2" \
+      "$(_qeach 1 _qlunread _qlgate)" ""
+  is  "and whichever read plain felix qualify makes fails, it says what could not be read and exits 2" \
+      "$(_qeach 1 _qlplainsays _qlplain)" ""
 else
-  skip "whichever later read of the table fails, felix qualify still says what demo declares or that it could not be read" "$_noread"
+  for a in "whichever read of the table felix qualify --gate makes fails, it runs nothing, says the table could not be read, and exits 2" \
+           "and whichever read plain felix qualify makes fails, it says what could not be read and exits 2"; do
+    skip "$a" "$_noread"; done
 fi
+# A table that is not there at a read, or not there after one, or not the
+# table it was. Each is staged by an awk wrapper counting the reads as the one
+# above does: aside moves the table away for the Kth read and puts it back,
+# after moves it away once the Kth read is done and it is put back when the
+# run returns, and swap puts another table in its place once the Kth read is
+# done. A table gone between reads read as one declaring nothing, because the
+# reader returns early on a table that is not a file, and the rest of the run
+# ran nothing and passed. The table here has a met control and a held one, so
+# every right answer refuses.
+_QMSHIM="$TMP/awk-shim-moves"; mkdir -p "$_QMSHIM"
+cat > "$_QMSHIM/awk" <<EOF
+#!/bin/sh
+for a in "\$@"; do
+  case "\$a" in
+    qualification.tsv|*/qualification.tsv)
+      printf x >> "\$QSHIM_COUNT"
+      if [ "\$((\$(wc -c < "\$QSHIM_COUNT")))" -eq "\${QSHIM_FAIL:-0}" ]; then
+        case "\$QSHIM_MODE" in
+          aside) mv "\$a" "\$a.aside"; "$_qawk" "\$@"; rc=\$?; mv "\$a.aside" "\$a"; exit \$rc ;;
+          after) "$_qawk" "\$@"; rc=\$?; mv "\$a" "\$a.gone"; exit \$rc ;;
+          swap)  "$_qawk" "\$@"; rc=\$?; cp "\$a" "\$a.was"; cp "\$QSHIM_WITH" "\$a"; exit \$rc ;;
+        esac
+      fi
+      break ;;
+  esac
+done
+exec "$_qawk" "\$@"
+EOF
+chmod +x "$_QMSHIM/awk"
+# _qmeach MODE PRED CMD...: CMD with each of its reads, in turn, staged by MODE,
+# and the widget table put back after each; PRED as for _qeach.
+_qmeach() {
+  local mode="$1" pred="$2" n k said; shift 2
+  n="$(_qreads "$@")"
+  [ "$n" -ge 1 ] || { printf 'a clean run made no read of the table by name\n'; return 0; }
+  k=1
+  while [ "$k" -le "$n" ]; do
+    : > "$_QSC"
+    _qsout="$( PATH="$_QMSHIM:$PATH"; QSHIM_COUNT="$_QSC"; QSHIM_FAIL="$k"; QSHIM_MODE="$mode"
+               QSHIM_WITH="$TMP/qual-swap-with"
+               export PATH QSHIM_COUNT QSHIM_FAIL QSHIM_MODE QSHIM_WITH; "$@" 2>"$_QSE" )"; _qsrc=$?
+    [ -f "$_qlw.gone" ] && mv "$_qlw.gone" "$_qlw"
+    [ -f "$_qlw.was" ] && mv "$_qlw.was" "$_qlw"
+    if [ "$(( $(wc -c < "$_QSC") ))" -lt "$k" ]; then printf 'read %s of %s: never reached\n' "$k" "$n"
+    else said="$("$pred")"; [ -z "$said" ] || printf 'read %s of %s: %s\n' "$k" "$n" "$said"; fi
+    k=$((k + 1))
+  done
+}
+_qlrefused() { [ "$_qsrc" != 0 ] || printf 'exit 0'; }
+_qlheld() {
+  [ "$_qsrc" = 1 ] || printf 'exit %s; ' "$_qsrc"
+  [ "$(printf '%s\n' "$_qsout" | grep -cE ' alternate .*HELD$')" -ge 1 ] || printf 'the held control is not shown; '
+}
+cp "$_qlw" "$TMP/qual-moves.keep"
+printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck" > "$TMP/qual-swap-with"
+is  "a table moved away for any one read felix qualify --gate makes never passes it" \
+    "$(_qmeach aside _qlrefused _qlgate)" ""
+is  "a table gone after any read felix qualify --gate makes never passes it" \
+    "$(_qmeach after _qlrefused _qlgate)" ""
+is  "a table rewritten to one that passes, after any read felix qualify --gate makes, leaves the run it read refusing on its held control" \
+    "$(_qmeach swap _qlheld _qlgate)" ""
+is  "and the widget table is put back after each" "$(cmp -s "$_qlw" "$TMP/qual-moves.keep" && echo same || echo changed)" "same"
 # BSD cut in a UTF-8 locale stops at the first byte it cannot decode, and a
 # mutation may hold one. The checkers listed with it stopped there, and every
 # checker after that row went unreported, silently.
@@ -13403,6 +13535,163 @@ printf 'demo\t%s\tviolation\tpass\ttrue\n' "$_qcheck" > "$FROOT/projects/widget/
 _qo="$(cd "$REPO" && "$FELIX" qualify --gate 2>&1)"; _qrc=$?
 is  "a table whose every row is malformed refuses --gate" "$_qrc" "1"
 has "and names the rows it could not read" "$_qo" "MALFORMED"
+# A present, empty table is a table declaring no control, and refuses as it
+# always has; the tests below it change what a table nobody read says, not this.
+: > "$_qlw"
+_qo="$(cd "$REPO" && "$FELIX" qualify --gate 2>&1)"; _qrc=$?
+is  "a present, empty table refuses felix qualify --gate, as before" "$_qrc" "1"
+has "and says it declares no control that can be run" "$_qo" "declares no control that can be run"
+( cd "$REPO" && "$FELIX" qualify >/dev/null 2>&1 ); _qrc=$?
+is  "and plain felix qualify over it returns 1, as before" "$_qrc" "1"
+
+# A table that cannot be read from the start. It refused, but it said the table
+# declares no control that can be run, which nobody read it to know, and showed
+# awk's own error. Mode 000 stages it.
+{ printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck"
+  printf 'demo\t%s\talternate\tfail\tprintf harmless > other.txt\n' "$_qcheck"; } > "$_qlw"
+if [ "$_unreadable" -eq 1 ]; then
+  chmod 000 "$_qlw"
+  _qsout="$(_qlgate)"; _qsrc=$?
+  is  "felix qualify --gate over a table it cannot read runs nothing, says it could not be read naming it, and exits 2" \
+      "$(_qlunread)" ""
+  _qsout="$(_qlplain)"; _qsrc=$?
+  is  "and plain felix qualify over it does the same" "$(_qlunread)" ""
+  chmod 644 "$_qlw"
+else
+  for a in "felix qualify --gate over a table it cannot read runs nothing, says it could not be read naming it, and exits 2" \
+           "and plain felix qualify over it does the same"; do skip "$a" "$_noread"; done
+fi
+
+# A run that dies part way. It counted what it had: a run killed after one of
+# two met controls said 1 of 1, and one killed before its first said 0 of 0,
+# and both exited 0. git is wrapped so that the Kth worktree add kills the
+# process running the row loop, the grandparent of that git, or its parent
+# when that is the loop, and then fails. It kills only a process whose command
+# line is this felix CLI running qualify, never the suite, and leaves a mark
+# when it has, so a run it never reached is a failure and not a pass. Both
+# controls are met, so the death is the only reason to refuse.
+_QGSHIM="$TMP/git-shim"; mkdir -p "$_QGSHIM"; _qgit="$(command -v git)"
+cat > "$_QGSHIM/git" <<EOF
+#!/bin/sh
+case " \$* " in
+  *" worktree add "*)
+    printf x >> "\$QKILL_COUNT"
+    if [ "\$((\$(wc -c < "\$QKILL_COUNT")))" -eq "\${QKILL_AT:-0}" ]; then
+      for p in "\$(ps -o ppid= -p "\$PPID" | tr -d ' ')" "\$PPID"; do
+        [ -n "\$p" ] && [ "\$p" -gt 1 ] && [ "\$p" != "\$QKILL_SPARE" ] || continue
+        case "\$(ps -ww -o command= -p "\$p")" in
+          *"\$QKILL_FELIX qualify"*)
+            kill -KILL "\$p" && printf '%s\n' "\$p" > "\$QKILL_COUNT.killed"; exit 1 ;;
+        esac
+      done
+      exit 1
+    fi ;;
+esac
+exec "$_qgit" "\$@"
+EOF
+chmod +x "$_QGSHIM/git"
+_qkill() {   # K: felix qualify --gate with its Kth worktree add killing the row loop
+  : > "$_QSC"; rm -f "$_QSC.killed"
+  _qsout="$( cd "$REPO" && PATH="$_QGSHIM:$PATH" QKILL_COUNT="$_QSC" QKILL_AT="$1" \
+             QKILL_FELIX="$FELIX" QKILL_SPARE="$$" "$FELIX" qualify --gate 2>&1 )"; _qsrc=$?
+  [ -s "$_QSC.killed" ]
+}
+_qknone="the wrapped git killed nothing, so no run was cut short"
+{ printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck"
+  printf 'demo\t%s\trestoration\tpass\ttrue\n' "$_qcheck"; } > "$_qlw"
+( cd "$REPO" && "$FELIX" qualify --gate >/dev/null 2>&1 ); _qrc=$?
+is  "two met controls pass --gate when nothing cuts the run short" "$_qrc" "0"
+if _qkill 1; then
+  [ "$_qsrc" != 0 ] && ok "a felix qualify --gate run killed at its first control refuses, never counting none of none as met" \
+                    || bad "a felix qualify --gate run killed at its first control refuses, never counting none of none as met" "$_qsout"
+else bad "a felix qualify --gate run killed at its first control refuses, never counting none of none as met" "$_qknone"; fi
+if _qkill 2; then
+  [ "$_qsrc" != 0 ] && ok "and one killed at its second refuses, never counting one met as the table" \
+                    || bad "and one killed at its second refuses, never counting one met as the table" "$_qsout"
+  # When the kill reached the CLI itself it died, and a CLI that died has
+  # nothing left to say; the line is asked of a run that lived to report.
+  if [ "$_qsrc" -ge 128 ]; then
+    skip "and says it ran 1 of the 2 controls, exiting 1" "the kill reached the felix CLI itself, exit $_qsrc"
+  else
+    _qk="$(printf '%s\n' "$_qsout" | awk '/(^|[^0-9])1 of [^0-9]*2([^0-9]|$)/ && /ran/')"
+    [ "$_qsrc" = 1 ] && [ -n "$_qk" ] && ok "and says it ran 1 of the 2 controls, exiting 1" \
+      || bad "and says it ran 1 of the 2 controls, exiting 1" "exit $_qsrc: $(printf '%s' "$_qsout" | tr '\n' '/')"
+  fi
+else
+  for a in "and one killed at its second refuses, never counting one met as the table" \
+           "and says it ran 1 of the 2 controls, exiting 1"; do bad "$a" "$_qknone"; done
+fi
+# A checker named with no row ran nothing, and 0 of 0 held passed the gate.
+_qsout="$(cd "$REPO" && "$FELIX" qualify --gate nobody 2>&1)"; _qsrc=$?
+_qk="$(printf '%s\n' "$_qsout" | awk '/nobody/ && (/no control/ || /no row/)')"
+[ "$_qsrc" = 1 ] && [ -n "$_qk" ] \
+  && ok  "felix qualify --gate naming a checker with no row refuses, and says no control is declared for it" \
+  || bad "felix qualify --gate naming a checker with no row refuses, and says no control is declared for it" \
+         "exit $_qsrc: $(printf '%s' "$_qsout" | tr '\n' '/')"
+
+# The stdin case above, through the CLI: the checker that read to the end took
+# the held row with it, and the gate passed.
+{ printf 'demo\tcat >/dev/null; false\tviolation\tfail\ttrue\n'
+  printf 'demo\ttrue\tviolation\tfail\ttrue\n'; } > "$_qlw"
+_qsout="$(_qlgate)"; _qsrc=$?
+is  "felix qualify --gate refuses a held row after a checker that reads its stdin" "$_qsrc" "1"
+is  "and shows that row held" "$(printf '%s\n' "$_qsout" | grep -cE '^  demo +violation +fail +pass +HELD$')" "1"
+
+# Every value a verdict is computed from takes its status from its own
+# assignment. One read is not enough if the held count, the total, the rows
+# run or a checker's controls come out of a pipeline whose status nobody
+# reads. So awk, and then tr, is wrapped to fail its Nth call with exit 2
+# without running, for every N a clean run makes, over two tables. One has a
+# single held control and nothing else wrong, so every right answer refuses.
+# The other has a single met control: it may exit 0 only showing that control
+# met and saying nothing could not be read, and demo's could-not-be-read line
+# never comes with exit 0. On the engine these were written against a clean
+# run made 11 awk calls and 3 tr calls over either table, so the two sweeps
+# are about thirty runs of felix qualify --gate.
+_QFSHIM="$TMP/fault-shim"; _QFC="$TMP/fault-shim.count"
+for _qfc in awk tr; do
+  mkdir -p "$_QFSHIM/$_qfc"
+  cat > "$_QFSHIM/$_qfc/$_qfc" <<EOF
+#!/bin/sh
+printf x >> "\$QFAULT_COUNT"
+[ "\$((\$(wc -c < "\$QFAULT_COUNT")))" -eq "\${QFAULT_AT:-0}" ] && exit 2
+exec "$(command -v "$_qfc")" "\$@"
+EOF
+  chmod +x "$_QFSHIM/$_qfc/$_qfc"
+done
+# _qfsweep PRED COMMAND...: for each COMMAND, felix qualify --gate with its
+# Nth call failing, for N from 1 to the calls a clean run makes. Prints
+# "COMMAND N: what PRED said" for each wrong result, and a line for a command
+# a clean run never called, since then nothing was faulted.
+_qfsweep() {
+  local pred="$1" c n k said; shift
+  for c in "$@"; do
+    : > "$_QFC"
+    ( cd "$REPO" && PATH="$_QFSHIM/$c:$PATH" QFAULT_COUNT="$_QFC" QFAULT_AT=0 "$FELIX" qualify --gate ) >/dev/null 2>&1
+    n=$(( $(wc -c < "$_QFC") ))
+    [ "$n" -ge 1 ] || { printf 'a clean run called %s no times, so nothing was faulted\n' "$c"; continue; }
+    k=1
+    while [ "$k" -le "$n" ]; do
+      : > "$_QFC"
+      _qsout="$(cd "$REPO" && PATH="$_QFSHIM/$c:$PATH" QFAULT_COUNT="$_QFC" QFAULT_AT="$k" "$FELIX" qualify --gate 2>&1)"; _qsrc=$?
+      said="$("$pred")"; [ -z "$said" ] || printf '%s %s of %s: %s\n' "$c" "$k" "$n" "$said"
+      k=$((k + 1))
+    done
+  done
+}
+_qfheld() { [ "$_qsrc" != 0 ] || printf 'exit 0'; }
+_qfclean() {
+  [ "$_qsrc" = 0 ] || return 0
+  [ "$(printf '%s\n' "$_qsout" | grep -cE '^  demo +violation +fail +fail +ok$')" = 1 ] \
+    || printf 'exit 0 without showing the one control met; '
+  case "$_qsout" in *"could not be read"*) printf 'exit 0 beside a line saying something could not be read' ;; esac
+}
+printf 'demo\t%s\talternate\tfail\tprintf harmless > other.txt\n' "$_qcheck" > "$_qlw"
+is  "whichever awk or tr call felix qualify --gate makes fails, a run over a held control never exits 0" \
+    "$(_qfsweep _qfheld awk tr)" ""
+printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck" > "$_qlw"
+is  "and a run over a met control exits 0 only showing it met, never beside a line saying what could not be read" \
+    "$(_qfsweep _qfclean awk tr)" ""
 rm -f "$FROOT/projects/widget/qualification.tsv"
 [ -f "$TMP/qual.keep" ] && mv "$TMP/qual.keep" "$FROOT/projects/widget/qualification.tsv"
 is "and the widget project is as this block found it" \
@@ -13967,23 +14256,58 @@ is  "and says under it how many did not apply here" \
 # why. demo declares four, so the ok line must not read as six of six.
 has "and names under it a checker short of the six controls, without refusing" \
     "$(_qpunder "$_qpgo" ok)" "demo declares no control for: irrelevant decoupled_satisfaction"
-# And a checker whose declared controls could not be read is named in the same
-# place, or ok would read as six of six. Reads are failed from the last back,
-# with the counting awk from the obligations block, until one is the read of a
-# checker's controls; the gate's own count of checkers comes after them.
-_qpsays=""
+# A checker whose declared controls could not be read was named here, under
+# qualified ok, and ok with that under it is still ok: the gate passed over a
+# checker nobody knew the controls of. That assertion is rewritten, not
+# dropped: a failed read, of the table or of what a checker declares, is a
+# refusal now, under qualified FAIL. And the gate read the table again for its
+# checker count, and when that read failed it said across 0 checker(s) and
+# showed awk's own error. Every read this gate makes is its qualified check's
+# (premgate has no probes or obligations table), so each is failed in turn with
+# the counting awk from the obligations block. PRED tags what it finds, c6 for
+# the verdict and c7 for the count, so one sweep serves both assertions.
+_qgt="$QGH/projects/premgate/qualification.tsv"
+_qpfails() {
+  local f r
+  [ -z "$(_qpunder "$_qsout" ok)" ] || printf '[c6 qualified ok] '
+  f="$(_qpunder "$_qsout" FAIL)"
+  if [ -z "$f" ]; then printf '[c6 no qualified FAIL] '
+  else
+    r="$(printf '%s\n' "$f" | sed 1d | grep -v '^gate:' | grep -c 'could not be read')"
+    [ "$r" -ge 1 ] || printf '[c6 nothing under qualified FAIL says what could not be read] '
+  fi
+  case "$_qsout" in *"across 0 checker(s)"*) printf '[c7 across 0 checker(s)] ' ;; esac
+  case "$_qsout" in *"awk:"*|*"can't open file"*) printf "[c7 awk's own error] " ;; esac
+}
 if [ "$_unreadable" -eq 1 ]; then
-  _qpk="$(_qreads _qpgate)"
-  while [ "$_qpk" -ge 1 ] && [ -z "$_qpsays" ]; do
-    _qfailat "$_qpk" _qpgate \
-      && _qpsays="$(_qpunder "$_qsout" ok | grep ': which controls it declares could not be read$' || true)"
-    _qpk=$((_qpk - 1))
-  done
-  has "felix gate names under qualified ok a checker whose declared controls could not be read" \
-      "$_qpsays" "which controls it declares could not be read"
+  _qpeach="$(_qeach 1 _qpfails _qpgate)"
+  is  "whichever read of the table felix gate's qualified check makes fails, it prints qualified FAIL with a line under it saying what could not be read" \
+      "$(printf '%s\n' "$_qpeach" | awk '/\[c6/ || (NF && !/\[c7/)')" ""
+  is  "and whichever read fails, felix gate never says across 0 checker(s) nor shows awk's own error" \
+      "$(printf '%s\n' "$_qpeach" | awk '/\[c7/ || (NF && !/\[c6/)')" ""
 else
-  skip "felix gate names under qualified ok a checker whose declared controls could not be read" "$_noread"
+  for a in "whichever read of the table felix gate's qualified check makes fails, it prints qualified FAIL with a line under it saying what could not be read" \
+           "and whichever read fails, felix gate never says across 0 checker(s) nor shows awk's own error"; do
+    skip "$a" "$_noread"; done
 fi
+# The same from the start: a table at mode 000 failed qualified with nothing
+# under FAIL, because the lines the gate lifts from felix qualify's output were
+# only held, unrunnable, malformed and never shown.
+if [ "$_unreadable" -eq 1 ]; then
+  chmod 000 "$_qgt"; _qsout="$(_qpgate)"; chmod 644 "$_qgt"
+  is  "felix gate over a table it cannot read fails qualified and says under it that the table could not be read" \
+      "$(_qpfails)" ""
+else
+  skip "felix gate over a table it cannot read fails qualified and says under it that the table could not be read" "$_noread"
+fi
+# And a present, empty table, which failed the same way with nothing under it.
+cp "$_qgt" "$TMP/premgate-qual.keep"
+: > "$_qgt"
+_qsout="$(_qpgate)"
+_qpwhy="$(_qpunder "$_qsout" FAIL | sed 1d | grep -v '^gate:' | grep -v '^ *$')"
+has "felix gate over a present, empty table fails qualified and says under it that no checker here is qualified" \
+    "$_qpwhy" "No checker here is qualified"
+cp "$TMP/premgate-qual.keep" "$_qgt"
 # A row that ran and was met before the verdict was the control's: the gate
 # read ok over it. Now it refuses, and says which row and why.
 { _qptab_shown; _qp5 demo "$_qpc" violation pass true; } > "$QGH/projects/premgate/qualification.tsv"
@@ -13992,6 +14316,16 @@ has "felix gate fails qualification over a row whose verdict is not its control'
     "$(_qpunder "$_qpgo" FAIL)" "qualified"
 has "and shows the row and the verdict under qualified FAIL" \
     "$(_qpunder "$_qpgo" FAIL)" "violation must expect fail, not [pass]"
+# The checker count under qualified ok is the table's, however it is reached:
+# one read, and the checkers whose controls ran. Three checkers over four met
+# controls, so a count of rows or of met controls cannot pass for it.
+{ _qp5 alpha "$_qpc" violation   fail 'printf FORBIDDEN > bad.txt'
+  _qp5 alpha "$_qpc" restoration pass true
+  _qp5 beta  "$_qpc" violation   fail 'printf FORBIDDEN > bad.txt'
+  _qp5 gamma "$_qpc" violation   fail 'printf FORBIDDEN > bad.txt'; } > "$QGH/projects/premgate/qualification.tsv"
+_qpgo="$(_qpgate)"
+is  "a clean felix gate counts across as many checkers as the table's well-formed rows name" \
+    "$(_qpunder "$_qpgo" ok | grep -o '[0-9]* control(s) met across [0-9]* checker(s)')" "4 control(s) met across 3 checker(s)"
 printf '\nautonomy is opted into, never assumed\n'
 AUP="$TMP/autoproj"; mkdir -p "$AUP"
 a() { ( . "$FROOT/harness/lib/autonomy.sh"; felix_autonomy_allows "$AUP" "$1" && echo yes || echo no ); }

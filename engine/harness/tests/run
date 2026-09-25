@@ -16884,6 +16884,36 @@ rm -f "$TMP/cmwc-table.keep" "$CMR/cmwc-parse-ran"
 unset -f _cmwcrow _cmwcst _cmwcdt _cmwcask _cmwcaskv _cmwcnamed _cmwckept felix_cmwc_die
 unset _cmwcu _cmwcfake _cmwcrun _cmwcgone _cmwcnm _cmwccli
 
+# Added with the fix, not blind: two parts of it that a mutation showed nothing
+# above could fail. What a `when` prints still goes nowhere, so it is read
+# neither as the answer nor as noise in place of one. And the answer is read
+# without waiting for a job the `when` left running: bash 3.2 hands the copy of
+# stdout it saves around the eval to every command the text runs, so a reader
+# waiting for end of file waits for that job to exit.
+cp "$CMP/commissioning.tsv" "$TMP/cmwcx-table.keep"
+rm -f "$TMP/cmwcx-bg.pid"
+_cmtable "$(printf 'cmwcx_print\t-\t-\t%s\t-\ttrue\t9' 'echo cmwcx-noise; test -f src/a.txt')" \
+         "$(printf 'cmwcx_forge\t-\t-\t%s\t-\ttrue\t9' "echo 'returned 0'; false")" \
+         "$(printf 'cmwcx_bg\t-\t-\t%s\t-\ttrue\t9' 'sleep 30 & printf "%s" "$!" > "$TMP/cmwcx-bg.pid"; true')"
+_cmwcxrun="$(_cm felix_commission_run "$CMP" "$CMR" -)"
+_cmwcxpid="$(cat "$TMP/cmwcx-bg.pid" 2>/dev/null)"
+_cmwcxalive='no pid'
+case "$_cmwcxpid" in
+  ''|*[!0-9]*) ;;
+  *) if kill -0 "$_cmwcxpid" 2>/dev/null; then _cmwcxalive=running; kill "$_cmwcxpid" 2>/dev/null
+     else _cmwcxalive=gone; fi ;;
+esac
+is  "a when that prints and then says yes applies, and the check decides done" \
+    "$(printf '%s\n' "$_cmwcxrun" | awk -F'\t' '$1 == "cmwcx_print" { print $2 }')" "done"
+is  "a when that prints returned 0 and then says no is not-applicable" \
+    "$(printf '%s\n' "$_cmwcxrun" | awk -F'\t' '$1 == "cmwcx_forge" { print $2 }')" "not-applicable"
+is  "a when that leaves a job running applies, and the check decides done" \
+    "$(printf '%s\n' "$_cmwcxrun" | awk -F'\t' '$1 == "cmwcx_bg" { print $2 }')" "done"
+is  "and its answer was read while that job was still running" "$_cmwcxalive" "running"
+cp "$TMP/cmwcx-table.keep" "$CMP/commissioning.tsv"
+rm -f "$TMP/cmwcx-table.keep" "$TMP/cmwcx-bg.pid"
+unset _cmwcxrun _cmwcxpid _cmwcxalive
+
 # The answer runs in-process through a runner the caller names, and the check
 # decides afterwards. The stub stands in for felix:toolbox --route.
 _cmstub() { touch "$CMR/src/made-by-answer"; return 0; }

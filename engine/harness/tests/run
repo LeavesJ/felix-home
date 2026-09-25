@@ -15659,22 +15659,25 @@ _df_watch() {  # _df_watch <pid> <tenths of a second>: waits, ending the whole t
   if kill -0 "$1" 2>/dev/null; then _killtree "$1"; _DF_END=killed; else _DF_END=finished; fi
   wait "$1" 2>/dev/null
 }
-# The CPU of a reading at n and at 4n, least of up to three of each, stopping
-# as soon as a pair reads under the bound: load only ever adds CPU, so a pair
-# under it is an answer and a pair over it may be noise. Linear is about four
-# times, quadratic sixteen.
+# The CPU of a reading at n and at 4n. Load that lands on the n reading lowers
+# the ratio, so one slow n reading could pass a quadratic reader: all three n
+# readings are taken, and the least kept, before anything is compared. Load on
+# the 4n reading only raises the ratio, so those stop as soon as one reads
+# under the bound. Linear is about four times, quadratic sixteen.
 _DF_LIN=""
 _df_linear() {  # _df_linear <label n> <label 4n> <reader> <arg n> <arg 4n>: sets _DF_LIN to linear, or why not
   local a b l1="" l4="" i
   _DF_LIN=""
   for i in 1 2 3; do
     a="$("$3" "$4")"; case "$a" in ''|*[!0-9]*) _DF_LIN="$1: $a"; return ;; esac
-    b="$("$3" "$5")"; case "$b" in ''|*[!0-9]*) _DF_LIN="$2: $b"; return ;; esac
     if [ -z "$l1" ] || [ "$a" -lt "$l1" ]; then l1="$a"; fi
+  done
+  [ "$l1" -gt 0 ] || l1=1
+  for i in 1 2 3; do
+    b="$("$3" "$5")"; case "$b" in ''|*[!0-9]*) _DF_LIN="$2: $b"; return ;; esac
     if [ -z "$l4" ] || [ "$b" -lt "$l4" ]; then l4="$b"; fi
-    [ "$l1" -gt 0 ] || l1=1
     if [ "$l4" -lt $((l1 * 8)) ]; then _DF_LIN=linear; return; fi
-    _DF_LIN="$1 took ${l1} ms and $2 ${l4} ms, least of $i"
+    _DF_LIN="$1 took ${l1} ms, least of three, and $2 ${l4} ms, least of $i"
   done
 }
 # The hook on a payload file from $REPO under a sixty-second watchdog, with
@@ -15790,6 +15793,14 @@ _f="$TMP/dk-1m.json"
   awk 'BEGIN { for (i = 0; i < 52000; i++) printf "echo aaaaaaaaaaaaa ; " }'
   printf 'true"}}'; } > "$_f"
 is "a 1M payload whose key lies inside the head is read with no awk" "$(_dk_awkn "$_f")" "[Bash] 0"
+# No other program either: with nothing on PATH the same read still gives its
+# value, so the head is not taken by head, cut or dd. Whether a subshell ran
+# cannot be seen from here; that the value comes back in a variable, not on
+# stdout, is what keeps the read out of one.
+mkdir -p "$TMP/dk-nopath"
+is "a 1M payload whose key lies inside the head is read with nothing on PATH" \
+   "$( export LC_ALL=C; . "$FROOT/harness/lib/deny.sh"; raw="$(cat "$_f")"; PATH="$TMP/dk-nopath"
+       felix_deny_key "$raw" tool_name 2>/dev/null && printf '[%s]' "${_FELIX_DENY_VAL-unset}" )" "[Bash]"
 { printf '{"tool_input":{"command":"'
   awk 'BEGIN { for (i = 0; i < 52000; i++) printf "echo aaaaaaaaaaaaa ; " }'
   printf 'true"},"tool_name":"Bash"}'; } > "$_f"
@@ -15850,7 +15861,7 @@ _dk_scoped() {  # _dk_scoped <cwd>: exit of a git add -A payload from $GOV whose
 is "a scoped row lifts for a scratch cwd that follows 3K of padding, and stands for the governed one" \
    "$(_dk_scoped "$SCR/clone")|$(_dk_scoped "$GOV")" "0|2"
 
-is "pre-tool reads no envelope key with a prefix expansion over the whole payload" \
+is 'pre-tool holds no expansion spelled ${raw#*' \
    "$(grep -c -F '${raw#*' "$REAL_HARNESS/hooks/pre-tool")" "0"
 
 printf '\nwhat a refusal echoes\n'
@@ -15868,9 +15879,15 @@ _de_pay() {  # _de_pay <command>: a payload in Claude Code's key order, cwd the 
 }
 _de_rows() { cat "$MEM/widget/says.log" 2>/dev/null | wc -l | tr -d ' '; }
 _de_pay 'git add -A' > "$TMP/de-small.json"
+_n0="$(_de_rows)"
 _r="$(_df_hook "$TMP/de-small.json")"
 is "a small refusal's stderr is main's text, byte for byte" "$(cat "$TMP/de-small.json.err"; printf .)" \
    "$(printf 'Felix refused this command.\n\n  git add -A\n\nstage explicit paths; -A stages what you did not read\n\nThis is a rule in %s, which this project owns.\nIf the rule is wrong, change the row rather than working around it.\n.' "$FROOT/projects/widget/deny.tsv")"
+# The row's text as felix_say writes it: each line followed by a literal \n.
+_de_new="$(tail -n +$((_n0 + 1)) "$MEM/widget/says.log" 2>/dev/null)"
+is "a small refusal adds one denied row whose text is main's, byte for byte" \
+   "$(printf '%s\n' "$_de_new" | awk -F'\t' '{ printf "%s|%s|%s;", NR, $2, $5 }')" \
+   '1|denied|git add -A\nstage explicit paths; -A stages what you did not read\n;'
 
 # Exactly at the cap and one byte over it: 5 + 2,030 + 13 bytes, then 2,031.
 _de_c="echo $(_dk_pad 2030) ; git add -A"
@@ -15883,6 +15900,26 @@ _de_pay "$_de_c" > "$TMP/de-2049.json"; _r="$(_df_hook "$TMP/de-2049.json")"; _e
 if [ "${_r%% *}" = 2 ] && case "$_e" in *"  ${_de_c:0:2048}"$'\n'"[cut: the first 2048 of 2049 bytes are shown]"$'\n\n'*) true ;; *) false ;; esac; then
   ok "one of 2,049 bytes is echoed as its first 2,048 and a marker naming 2049"
 else bad "one of 2,049 bytes is echoed as its first 2,048 and a marker naming 2049" "exit ${_r%% *}: $(printf '%.80s' "${_e#*this command.}") ... $(printf '%s' "$_e" | tail -c 400)"; fi
+# The echo is bash alone: with nothing on PATH it still counts and cuts, so
+# no wc, head or cut measures the command.
+is "the same 2,049 bytes are echoed as their first 2,048 and the marker with nothing on PATH" \
+   "$( export LC_ALL=C; . "$FROOT/harness/lib/deny.sh"; PATH="$TMP/dk-nopath"
+       felix_deny_echo "$_de_c" 2>/dev/null && printf '%s' "${_FELIX_DENY_SHOWN-unset}" )" \
+   "${_de_c:0:2048}"$'\n'"[cut: the first 2048 of 2049 bytes are shown]"
+# The step back stops after three bytes, even where every byte is a
+# continuation byte, as in text that is not UTF-8 at all.
+LC_ALL=C awk 'BEGIN { for (i = 0; i < 2100; i++) printf "\200" }' > "$TMP/de-cont"
+is "a cut in a run of 2,100 continuation bytes steps back three bytes and no further" \
+   "$( export LC_ALL=C; . "$FROOT/harness/lib/deny.sh"; c="$(cat "$TMP/de-cont")"
+       felix_deny_echo "$c" 2>/dev/null || exit 0
+       s="${_FELIX_DENY_SHOWN-}"; h="${s%$'\n'*}"; printf '%s|%s' "${#h}" "${s##*$'\n'}" )" \
+   "2045|[cut: the first 2045 of 2100 bytes are shown]"
+# Set in a variable, not printed into $( ), so a command's trailing line
+# breaks are kept. The hook cannot show this: its command comes from $( ) and
+# has lost them already.
+is "a short command ending in two line breaks is echoed with both" \
+   "$( export LC_ALL=C; . "$FROOT/harness/lib/deny.sh"
+       felix_deny_echo $'echo a\n\n' 2>/dev/null || exit 0; printf '%s.' "${_FELIX_DENY_SHOWN-}" )" $'echo a\n\n.'
 
 # A 20K command: a first line of its own, benign padding, a tail no other
 # text holds, and the refused fixture at the end.
@@ -15900,9 +15937,11 @@ case "$_e" in
   *"  ${_de_c:0:64}"*"[cut: the first 2048 of $_de_n bytes are shown]"*) ok "and the echo holds its first 64 bytes and a marker naming its exact size" ;;
   *) bad "and the echo holds its first 64 bytes and a marker naming its exact size" "wanted $_de_n in the marker: $(printf '%s' "$_e" | tail -c 300)" ;;
 esac
+# The marker is required here too, so an empty stderr cannot pass.
 case "$_e" in
   *"${_de_c: -64}"*) bad "and not its last 64 bytes" "the tail was echoed" ;;
-  *) ok "and not its last 64 bytes" ;;
+  *"[cut: the first 2048 of $_de_n bytes are shown]"*) ok "and not its last 64 bytes" ;;
+  *) bad "and not its last 64 bytes" "no marker, so nothing shows the echo ran: $(printf '%s' "$_e" | tail -c 200)" ;;
 esac
 _de_k="$(printf '%s\n' "$_de_new" | awk -F'\t' 'END { printf "%d rows, %s", NR, $2 }')"
 _de_b="$(printf '%s' "$_de_new" | wc -c | tr -d ' ')"
@@ -15974,32 +16013,25 @@ printf '\nthe code view of a large command\n'
 # 300K and 1.2M: an escaped backslash every 13 bytes 731 and 9,814 ms (13.4
 # times), quotes every 18 bytes 321 and 4,168 ms (13.0), a JSON line break every
 # 8 bytes 324 and 4,423 ms (13.7). The decoder is now its own program,
-# _FELIX_DENY_DECODE, and the reference it is held to is written here from the
-# contract's statement of it, not copied: pairs of backslashes to a
-# placeholder, then \n, \t, \r, \" and \/, then the placeholder back to one
-# backslash; flattening drops a backslash-newline, turns each line break into
-# " ; ", and drops every quote. It was checked against main's flattened reading
-# of 780K of these strings, line breaks included, before it was used here.
+# _FELIX_DENY_DECODE, and the reference it is held to is main's own unjson and
+# lines, copied verbatim from lib/deny-read.sh at 6b928ace, so it runs on every
+# awk exactly as main's reading did. Its BEGIN sets SQ as main's reader did,
+# and flatten prints lines(s). Slow on a large command, which is why it is
+# the reference and not the engine.
 cat > "$TMP/dc-ref.awk" <<'EOF'
-function unjson(s) {
-  gsub(/\\\\/, "\001", s)
-  gsub(/\\n/, "\n", s)
-  gsub(/\\t/, "\t", s)
-  gsub(/\\r/, "", s)
-  gsub(/\\"/, "\"", s)
-  gsub(/\\\//, "/", s)
-  gsub(/\001/, "\\", s)
-  return s
-}
-function _ref_lines(s,   q) {
-  q = sprintf("%c", 39)
-  gsub(/\\\n/, "", s)
-  gsub(/\n/, " ; ", s)
-  gsub(q, "", s)
-  gsub(/"/, "", s)
-  return s
-}
-function flatten(s) { printf "%s", _ref_lines(s) }
+  BEGIN { SQ = "\047" }
+  function unjson(s,   n, P, k, r) {
+    gsub(/\\\\/, "\001", s); gsub(/\\n/, "\n", s); gsub(/\\t/, "\t", s)
+    gsub(/\\r/, "", s); gsub(/\\"/, "\"", s); gsub(/\\\//, "/", s)
+    n = split(s, P, /\001/); r = P[1]
+    for (k = 2; k <= n; k++) r = r "\\" P[k]
+    return r
+  }
+  function lines(s) {
+    gsub(/\\\n/, "", s); gsub(/\n/, " ; ", s); gsub(SQ, "", s); gsub(/"/, "", s)
+    return s
+  }
+  function flatten(s) { printf "%s", lines(s) }
 EOF
 _dc_ref="$(cat "$TMP/dc-ref.awk")"
 # Every string of up to five characters over a \ n t r " ' / and a line
@@ -16063,7 +16095,7 @@ if [ -z "$_dc_why" ]; then ok "$_dc_nm"; else bad "$_dc_nm" "$_dc_why"; fi
 for _dc_l in default 0; do
   case $_dc_l in
     default) _dc_nm="the recorded commands read the same through the engine's decoder as through the reference, at the default limit"; _dc_x="" ;;
-    0) _dc_nm="and the same at a limit of 0, where every one is flattened"; _dc_x=0 ;;
+    0) _dc_nm="and the same at a limit of 0"; _dc_x=0 ;;
   esac
   if [ -n "$_dc_why" ]; then bad "$_dc_nm" "not compared: $_dc_why"
   elif cmp -s "$TMP/dc-seen.eng$_dc_x" "$TMP/dc-seen.ref$_dc_x"; then ok "$_dc_nm"
@@ -16088,10 +16120,48 @@ is "a 128K command of JSON line breaks read at a limit of 0 is the reference's f
 is "a 128K command of quotes read at a limit of 0 is the reference's flattening, which holds echo x y" \
    "$(_dc_flat 'printf "%s" "a" ; ' 7282)" "same"
 
+# The program's own default, for an awk run with no limit handed in: it reads
+# as at 262,144, so a small command goes through the reader and keeps its
+# quotes, where a limit of 0 flattens it.
+_dc_c='echo "x y" ; git status'
+_dc_dn="$( export LC_ALL=C; . "$FROOT/harness/lib/deny.sh"; . "$FROOT/harness/lib/deny-read.sh"
+           printf '%s' "$_dc_c" | awk "${_FELIX_DENY_READ-}" 2>/dev/null )"
+_dc_dd="$( export LC_ALL=C; . "$FROOT/harness/lib/deny.sh"; . "$FROOT/harness/lib/deny-read.sh"
+           printf '%s' "$_dc_c" | awk -v FLAT=262144 "${_FELIX_DENY_READ-}" 2>/dev/null )"
+_dc_d0="$( export LC_ALL=C; . "$FROOT/harness/lib/deny.sh"; . "$FROOT/harness/lib/deny-read.sh"
+           printf '%s' "$_dc_c" | awk -v FLAT=0 "${_FELIX_DENY_READ-}" 2>/dev/null )"
+_dc_nm="the reader handed no limit reads as at 262,144, not flattened"
+if [ -z "$_dc_dd" ] || [ "$_dc_dd" = "$_dc_d0" ]; then
+  bad "$_dc_nm" "a limit of 262,144 and one of 0 read alike, [$_dc_dd], so the case shows nothing"
+elif [ "$_dc_dn" = "$_dc_dd" ]; then ok "$_dc_nm"
+else bad "$_dc_nm" "read [$_dc_dn] where 262,144 reads [$_dc_dd]"; fi
+
+# Past the limit the decoder and the flattening run no regex, so under a
+# UTF-8 locale a byte that is not UTF-8 does not stop them. Main's gsubs did:
+# macOS awk exits there, and the command had no code view at all.
+_dc_nm="a command past the limit holding a byte that is not UTF-8 has a code view under a UTF-8 locale"
+if [ -n "$_df_u8" ]; then
+  { awk 'BEGIN { for (i = 0; i < 13500; i++) printf "echo aaaaaaaaaaaaa ; " }'
+    LC_ALL=C awk 'BEGIN { printf "echo \377 ; git add -A" }'; } > "$TMP/dc-u8bad"
+  _v="$( export LC_ALL="$_df_u8"; . "$FROOT/harness/lib/deny.sh"; c="$(cat "$TMP/dc-u8bad")"
+         felix_deny_code "$c" 2>/dev/null )"
+  case "$_v" in
+    '') bad "$_dc_nm" "no code view" ;;
+    *" ; git add -A") ok "$_dc_nm" ;;
+    *) bad "$_dc_nm" "a view ending [$(printf '%s' "$_v" | tail -c 40)]" ;;
+  esac
+else
+  skip "$_dc_nm" "no UTF-8 locale"
+fi
+
 # Linear on each dense shape, with both sizes past the limit once decoded, at
-# the default limit, each read under a sixty-second watchdog that ends the
+# the default limit, each read under a three-minute watchdog that ends the
 # tree. The line-break unit is 8 bytes, denser than main's 13, which main
-# read at 12.1 times on 2026-09-24: too near the bound of 8.
+# read at 12.1 times on 2026-09-24: too near the bound of 8. The watchdog is
+# far from the cost, because a killed read is red at once: the 1.28M read
+# took 2.4 to 2.7 s of CPU and up to 8.7 s wall at a load near 200
+# (2026-09-24), and wall has run to 17 times CPU on this machine. Main stays
+# red through the ratio, not the watchdog.
 _DC_UNIT=""
 _dc_cpu() {  # _dc_cpu <count of $_DC_UNIT>: CPU ms of felix_deny_code on that command, or killed
   local f="$TMP/dc-cpu-$1" pid
@@ -16099,7 +16169,7 @@ _dc_cpu() {  # _dc_cpu <count of $_DC_UNIT>: CPU ms of felix_deny_code on that c
   ( export LC_ALL=C; . "$FROOT/harness/lib/deny.sh"; c="$(cat "$f")"
     times > "$f.t0"; felix_deny_code "$c" > /dev/null 2>&1; times > "$f.t1" ) > /dev/null 2>&1 &
   pid=$!
-  _df_watch "$pid" 600
+  _df_watch "$pid" 1800
   if [ "$_DF_END" = killed ]; then printf killed
   elif [ -s "$f.t1" ]; then printf '%s' $(( $(_df_ms "$f.t1") - $(_df_ms "$f.t0") ))
   else printf 'no reading'; fi
@@ -16122,7 +16192,7 @@ awk 'BEGIN { for (i = 0; i < 2500; i++) { for (j = 0; j < 20; j++) printf "echo 
 if [ ! -s "$TMP/dc-one.all" ]; then _v="no code view"
 elif cmp -s "$TMP/dc-one.all" "$TMP/dc-one.only"; then _v=same
 else _v="a different view with awk alone on PATH"; fi
-is "a 1M command's code view runs exactly one awk and no other program" "$(wc -c < "$_AWKN" | tr -d ' ')|$_v" "1|same"
+is "a 1M command's code view starts exactly one awk, and reads the same with nothing but awk on PATH" "$(wc -c < "$_AWKN" | tr -d ' ')|$_v" "1|same"
 
 # End to end: a refused 1M command in Claude Code's key order.
 printf 'Bash\tgit add (-A|--all|\\.)$\tstage explicit paths; -A stages what you did not read\n' > "$FROOT/projects/widget/deny.tsv"

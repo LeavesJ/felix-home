@@ -58,10 +58,11 @@ chooses.**
 - A finished session should archive itself, and for the founder it is always
   on. The desktop setting is "Auto-archive sessions when their pull request
   closes" (`ccAutoArchiveOnPrClose`; the `ccd_settings` key is
-  `auto_archive_on_pr_close`). It was off. Only archiving after 30 inactive
-  days was set. This session had no `ccd_settings` tools, so the founder was
-  pointed at the toggle. A session that has those tools should check it is on.
-  A session with no pull request of its own is not archived by it.
+  `auto_archive_on_pr_close`), an account setting that follows the user across
+  devices. It was off, with only archiving after 30 inactive days set. This
+  session had no `ccd_settings` tools, so the founder was pointed at the
+  toggle, and it has been on since 08:06Z. A session with no pull request of
+  its own is not archived by it.
 - The wider idea: Felix functions become on/off switches a user sets in a UI.
   Which functions, and their defaults, are the founder's to decide later, and
   nothing is scheduled. Until then the founder's own answer is on, for all of

@@ -24506,7 +24506,11 @@ _spa_fits() {   # label, list, first, last
 _spa_fits felix_qualify_missing_controls \
   "$( . "$FROOT/harness/lib/qualify.sh"; felix_qualify_rows "$_spa_qm" | awk -F'\t' '$1 == "spa-big" { print $3 }' )" \
   violation irrelevant
-_spa_fits felix_qualify_ungoverned "$( . "$FROOT/harness/lib/qualify.sh"; felix_qualify_checkers "$_spa_qu" )" \
+# The declared checkers, as felix_qualify_ungoverned reads them: the first
+# column of the rows, once each. felix_qualify_checkers did this until felix
+# gate stopped reading the table a second time and it had no caller left.
+_spa_fits felix_qualify_ungoverned \
+  "$( . "$FROOT/harness/lib/qualify.sh"; felix_qualify_rows "$_spa_qu" | LC_ALL=C cut -f1 | LC_ALL=C sort -u )" \
   spa-a-first spa-z-last
 _spa_declared="$(grep -vE '^[[:space:]]*(#|$)' "$_spa_C/stack.tsv" | cut -f2 | sed 's/@.*//')"
 _spa_fits "felix_commission_admit, felix_commission_apply_declares, felix_discover_adopt" \

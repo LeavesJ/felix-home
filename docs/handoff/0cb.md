@@ -1,4 +1,4 @@
-### 2026-09-24 — the unattended model step could read its own API key from /proc, measured on ubuntu-latest, and the template now denies it
+### 0cb. 2026-09-24 — the unattended model step could read its own API key from /proc, measured on ubuntu-latest, and the template now denies it
 
 **One engine PR from this session, #341, version 0.49.193** (the queue carrier's number; #341 lands after #336 and #308). The
 "Attempt a repair" step of `templates/unattended.yml` runs `claude -p` with

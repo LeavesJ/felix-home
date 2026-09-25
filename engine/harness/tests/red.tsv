@@ -4,5 +4,8 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	4e753d68c3ede8b6d5179490eb802acfd12a7c8c	4e753d68c3ede8b6d5179490eb802acfd12a7c8c	0.49.220
-run	0	3646	5
+base	origin/main	8845bbedd29b0136ce94ef884fdf6927a191ccec	0.49.228
+run	3	3736	5
+and the Felix checkout, which holds the deploy key, drops it	1
+and the project's own checkout drops the job token	1
+every checkout step in the generated workflow sets persist-credentials: false in its own with	1

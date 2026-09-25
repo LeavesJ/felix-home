@@ -979,7 +979,10 @@ felix_base_ref() {
 # cache entry, and main's own engine/{harness,hooks,commands} — read from the
 # commit, never from any working tree — is what that entry must hold. Every
 # checkout can answer this, which is what lets `felix merge` run from a
-# worktree (#2); the tree standing here does not enter into it.
+# worktree (#2). The tree standing here enters in one place only: for a path
+# main does not ship, the checkout's index and its ignore rules decide whether
+# a stray is residue (felix_deploy_diff), so two checkouts can read such a path
+# differently. A file main ships is compared whatever either of them says.
 #
 #   exit 0  identical; prints the entry
 #   exit 1  differs; every differing path on stdout, or one line naming the

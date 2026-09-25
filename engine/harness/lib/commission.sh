@@ -65,10 +65,10 @@ _felix_commission_answer_ok() {
 #
 # The same holds for any filter that succeeds whatever it is fed, because a
 # check runs without pipefail, as a probe does (felix_commission_ask says why):
-# a pipeline's status is its last command's, so `npm test 2>&1 | tail -20`
-# passes when the tests fail. Only the stage after the last `|` is judged, and
-# only when nothing closes or follows it, so a filter inside `$( )` or one an
-# `&&` or `;` hands on from is not.
+# a pipeline's status is its last command's, so a test run piped into
+# `tail -20` passes when the tests fail. Only the stage after the last `|` is
+# judged, and only when nothing closes or follows it, so a filter inside `$( )`
+# or one an `&&` or `;` hands on from is not.
 _felix_commission_check_ok() {
   local c="${1:-}" last
   [ -n "$c" ] || return 1

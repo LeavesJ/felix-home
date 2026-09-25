@@ -25,7 +25,14 @@
 # sorted list streamed through `xargs`, which batches under ARG_MAX by itself.
 # It used to choose what: above it the id was a count of untracked files, so an
 # edit that kept the count kept the id, and a green receipt stayed current over
-# work the gate never saw. Every value of this gives the same id.
+# work the gate never saw.
+#
+# Read from the environment, and felix_tree_id never lets it past 500. One
+# argument list of more paths than that can pass ARG_MAX (1 MB on macOS, with
+# the environment inside it), and then the one `stat` never runs, the metadata
+# is empty, and every untracked edit is hidden exactly as the count hid it. So
+# a raised value, or one that is not a number, reads as 500, a lower one only
+# moves more trees onto the stream, and every value gives the same id.
 FELIX_UNTRACKED_CAP="${FELIX_UNTRACKED_CAP:-500}"
 
 _felix_hash() { git hash-object --stdin 2>/dev/null; }
@@ -74,19 +81,34 @@ _felix_meta_all() {
 # a tab and `%n` as a newline, and `%%` does not survive every root. It reaches
 # awk through the environment, since `awk -v` would read its backslashes.
 #
+# Each path reaches `stat` as `./<path>`, and awk takes the two characters off
+# again. A bare relative path that starts with `-` is an option to `stat`: on
+# BSD `-x` or `--help` prints the usage and nothing else for the whole batch,
+# up to thousands of files, and `-f` takes the next path as its format; GNU
+# getopt reads a `-` name anywhere in the batch that way, and GNU `stat` reads
+# a lone `-` as its standard input, which `--` would not stop. The metadata
+# came back empty and the id blind to every untracked edit, U2 again, for any
+# tree with an untracked top-level `-notes.md`. The array path never met it,
+# because its paths begin with the root.
+#
+# The C locale for all of it: `tr` on macOS stops at the first byte that is not
+# UTF-8 in any other, and a name git lists as it is on disk may hold one on
+# Linux.
+#
 # Only reached with a non-empty list: GNU xargs runs its command once on empty
 # input, and `stat` with no operand is an error, not an empty answer.
 _felix_meta_stream() {   # root, untracked paths relative to it, one per line
   local root="$1" list="$2"
   _felix_stat_mode
   ( cd "$root" >/dev/null 2>&1 || exit 0
-    printf '%s\n' "$list" | tr '\n' '\0' \
+    export LC_ALL=C
+    printf '%s\n' "$list" | sed 's|^|./|' | tr '\n' '\0' \
       | case "$_FELIX_STAT" in
           gnu) xargs -0 stat -c '%n %s %Y' 2>/dev/null ;;
           bsd) xargs -0 stat -f '%N %z %m' 2>/dev/null ;;
           *)   tr '\0' '\n' ;;
         esac \
-      | LC_ALL=C _FELIX_META_ROOT="$root/" awk '{ print ENVIRON["_FELIX_META_ROOT"] $0 }' )
+      | _FELIX_META_ROOT="$root/" awk '{ print ENVIRON["_FELIX_META_ROOT"] substr($0, 3) }' )
 }
 
 # The HEAD a session began at.
@@ -97,9 +119,9 @@ _felix_meta_stream() {   # root, untracked paths relative to it, one per line
 # asked to verify anything. Dirtiness cannot answer it; only a mark from the
 # start of the session can.
 #
-# Best effort throughout. No session id, no git, no writable home: no record,
-# and Stop falls back to its old behaviour rather than starting to block trees
-# it has nothing to say about.
+# Best effort throughout. No session id, no writable home: no record, and Stop
+# falls back to its old behaviour rather than starting to block trees it has
+# nothing to say about.
 #
 # An unborn HEAD is marked too (U3). It used to be "no git" here, so a session
 # that made a repository's first commit, on `git init` or an orphan branch, had
@@ -110,6 +132,13 @@ _felix_meta_stream() {   # root, untracked paths relative to it, one per line
 # ledger which repository the session ran in, since there is no commit yet for
 # `git cat-file` to find (U4). The common directory, so every worktree of the
 # repository owns it, as every checkout whose history holds a sha mark does.
+#
+# A governed directory that is not a git repository yet is marked `unborn` too,
+# with no directory, since there is none to name. It used to get no mark, and
+# a session that ran `git init` there and made the first commit over a red gate
+# was released in silence, the same session U3 is about one step earlier. Stop
+# still says nothing while there is no git, and the ledger reads an unborn
+# mark with no directory as nobody's, as it always read no mark.
 _felix_session_path() { printf '%s/state/session/%s' "$1" "$2"; }
 
 felix_session_mark() {
@@ -123,11 +152,13 @@ felix_session_mark() {
   # thrown away with its status rather than tested for emptiness.
   head="$(git -C "$root" rev-parse -q --verify HEAD 2>/dev/null)" || head=""
   if [ -z "$head" ]; then
-    git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 0
-    # The suite sources this file alone; resolve.sh sources nothing, so no cycle.
-    command -v felix_git_common_dir >/dev/null 2>&1 \
-      || . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh" 2>/dev/null
-    gcd="$(felix_git_common_dir "$root" 2>/dev/null)" || gcd=""
+    gcd=""
+    if git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
+      # The suite sources this file alone; resolve.sh sources nothing, so no cycle.
+      command -v felix_git_common_dir >/dev/null 2>&1 \
+        || . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh" 2>/dev/null
+      gcd="$(felix_git_common_dir "$root" 2>/dev/null)" || gcd=""
+    fi
     head="unborn	$gcd"
   fi
   mkdir -p "$(dirname "$path")" 2>/dev/null || return 0
@@ -258,6 +289,21 @@ felix_session_committed() {
   [ -n "$now" ] && [ "$now" != "$start" ]
 }
 
+# Whether the session has a mark at all, which is when the question above has
+# an answer. Stop and SubagentStop excuse the untracked .felix (U35) only then.
+# A tree whose only change is that marker is clean, and a clean tree is judged
+# by whether the session committed; with no mark that reads as "no", so the
+# excuse released a session that had committed its code and left the marker
+# out. Such a session is the fresh-repository one: its first prompt came before
+# `felix new` bound the checkout, which the prompt hook does not mark, and the
+# marker it was holding on was the only thing still holding it. Without a mark
+# the marker is dirt, as it was before the excuse existed. Checked on the file
+# alone, with no git call.
+felix_session_marked() {   # home, sid -> 0 when the session has a mark
+  [ -n "${1:-}" ] && [ -n "${2:-}" ] || return 1
+  [ -s "$(_felix_session_path "$1" "$2")" ]
+}
+
 # Does this tree hold anything the gate has not seen committed?
 #
 # Excludes Felix's own bookkeeping for the same reason tree identity does: a
@@ -273,7 +319,9 @@ felix_session_committed() {
 # Anything else is dirt as before: a second change, a staged or committed
 # marker, a symlink, a stray byte, or a marker naming some other project. The
 # caller passes the resolved project as the third argument, and without one
-# nothing is exempt. Only this check: felix_tree_id still counts the marker.
+# nothing is exempt; Stop and SubagentStop pass it only for a session that has
+# a mark (felix_session_marked says why). Only this check: felix_tree_id still
+# counts the marker.
 #
 # `cmp` rather than a read: `$(cat)` strips every trailing newline and drops a
 # NUL, and `read -d ''` stops at the first NUL, so `name\n\n` or `name<NUL>x`
@@ -335,7 +383,7 @@ _felix_tree_excludes() {
 }
 
 felix_tree_id() {
-  local root="$1" home="${2:-}" head diff index untracked n meta="" f
+  local root="$1" home="${2:-}" head diff index untracked n cap meta="" f
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
   local ex; ex="$(_felix_tree_excludes "$root" "$home")"
   local exargs=()
@@ -372,9 +420,18 @@ $diff"
     diff="$(git -C "$root" diff HEAD -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
   fi
 
-  untracked="$(git -C "$root" ls-files --others --exclude-standard \
+  # Listed as the names are on disk. Git's default quotes a name that is not
+  # ASCII, `"donn\303\251es.py"`, which is no file `stat` can find, so it was in
+  # neither reading of the metadata, and creating, editing or deleting it never
+  # moved the id; before the first commit with nothing staged, that is every
+  # such file in the tree. A name holding a tab, a newline, a double quote or a
+  # backslash is quoted even so, and still unseen: reading those needs `-z`
+  # through every step here, a larger change than names that rare have been
+  # worth so far. Counted in the C locale, where every line of bytes is a line.
+  # A tree whose untracked names are all ASCII keeps its id byte for byte.
+  untracked="$(git -C "$root" -c core.quotePath=false ls-files --others --exclude-standard \
                  -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null | LC_ALL=C sort)"
-  n="$(printf '%s' "$untracked" | grep -c . 2>/dev/null)" || n=0
+  n="$(printf '%s' "$untracked" | LC_ALL=C grep -c . 2>/dev/null)" || n=0
 
   # Never a count (U2, G2.3). Above the cap this was `coarse:` and the number
   # of untracked files, on the reasoning that such a repository had larger
@@ -384,7 +441,13 @@ $diff"
   # output tipped the tree over the line by itself. The cap now picks between
   # two readings of the same bytes. Measured as CPU per id: 64 ms at 600
   # untracked files and 127 ms at 5,000, against 44 and 51 for the count.
-  if [ "${n:-0}" -gt 0 ] && [ "$n" -gt "$FELIX_UNTRACKED_CAP" ] 2>/dev/null; then
+  #
+  # The cap is never read above 500 (see FELIX_UNTRACKED_CAP): a raised one
+  # sent 50,000 paths to one `stat`, over ARG_MAX, and the id came back as
+  # HEAD and the diff alone. A value `[` cannot compare reads as 500 too.
+  cap="${FELIX_UNTRACKED_CAP:-500}"
+  [ "$cap" -le 500 ] 2>/dev/null || cap=500
+  if [ "${n:-0}" -gt 0 ] && [ "$n" -gt "$cap" ] 2>/dev/null; then
     meta="$(_felix_meta_stream "$root" "$untracked")"
   elif [ "${n:-0}" -gt 0 ]; then
     local files=()

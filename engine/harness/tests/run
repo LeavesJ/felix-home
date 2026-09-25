@@ -6175,18 +6175,25 @@ fi
 # The cap decides how, never what. A root with a space and a % in its name, and
 # untracked names with a space, a % and a tab: the shapes a format string or an
 # argument list gets wrong. Cap 0 and 5 take the path above the cap, 500 and
-# 100000 the one below it.
+# 100000 the one below it. And top-level names that begin with a dash, which
+# the stream once handed `stat` bare. GNU getopt reads every one of them as an
+# option wherever it stands in the batch, and GNU `stat` reads a lone `-` as
+# its standard input. BSD stops reading options at the first operand, and git
+# lists the quoted tab name first here, so on BSD this fixture cannot see it;
+# the one after it can.
 FRB_B5="$(_frb_repo "$TMP/frb r o%t")"
 printf 'base\n' > "$FRB_B5/base.txt"; _frb_commit "$FRB_B5" base
-mkdir -p "$FRB_B5/sp ace"
+mkdir -p "$FRB_B5/sp ace" "$FRB_B5/-dir"
 printf 'a\n' > "$FRB_B5/sp ace/a b.txt"; printf 'pp\n' > "$FRB_B5/p%t.txt"
 printf 'ttt\n' > "$FRB_B5/$(printf 'tab\there.txt')"
+printf 'n\n' > "$FRB_B5/-notes.md"; printf 'ff\n' > "$FRB_B5/-f"; printf 'hhh\n' > "$FRB_B5/--help"
+printf 'd\n' > "$FRB_B5/-"; printf 'in\n' > "$FRB_B5/-dir/inner.txt"
 _frb_mk "$FRB_B5" 0 17 'f%d.txt'
 _frb_n="$(git -C "$FRB_B5" ls-files --others --exclude-standard | wc -l | tr -d ' ')"
 _frb_c0="$(_frb_tidcap "$FRB_B5" 0)"; _frb_c5="$(_frb_tidcap "$FRB_B5" 5)"
 _frb_c500="$(_frb_tidcap "$FRB_B5" 500)"; _frb_cbig="$(_frb_tidcap "$FRB_B5" 100000)"
-if [ "$_frb_n" != 20 ]; then
-  bad "the tree id is the same whatever FELIX_UNTRACKED_CAP says: 0, 5, 500 and 100000" "the fixture has $_frb_n untracked files, not 20"
+if [ "$_frb_n" != 25 ]; then
+  bad "the tree id is the same whatever FELIX_UNTRACKED_CAP says: 0, 5, 500 and 100000" "the fixture has $_frb_n untracked files, not 25"
 elif [ -n "$_frb_c0" ] && [ "$_frb_c0" = "$_frb_c5" ] && [ "$_frb_c5" = "$_frb_c500" ] && [ "$_frb_c500" = "$_frb_cbig" ]; then
   ok  "the tree id is the same whatever FELIX_UNTRACKED_CAP says: 0, 5, 500 and 100000"
 else
@@ -6199,6 +6206,88 @@ if [ -n "$_frb_cdef" ] && [ "$_frb_cbig" = "$_frb_cdef" ]; then
 else
   bad "and over 600 untracked files the default cap gives the id a cap of 100000 gives" \
       "default [$_frb_cdef], 100000 [$_frb_cbig]"
+fi
+
+# Dash names first in the batch, as BSD needs to show them, with nothing
+# ahead of them: no quoted name and no lone `-`, which ends BSD's options. The
+# stream handed BSD `stat` `--help` first, so it printed its usage and nothing
+# else, the metadata was empty, and it stayed empty over any edit. The same id
+# at every cap is not enough on its own, since two empty readings agree too:
+# an edit read above the cap has to move it.
+FRB_B9="$(_frb_repo "$TMP/frb-dash")"
+printf 'base\n' > "$FRB_B9/base.txt"; _frb_commit "$FRB_B9" base
+mkdir -p "$FRB_B9/-dir"; _frb_mk "$FRB_B9" 0 20 'f%d.txt'
+printf 'n\n' > "$FRB_B9/-notes.md"; printf 'ff\n' > "$FRB_B9/-f"; printf 'hhh\n' > "$FRB_B9/--help"
+printf 'in\n' > "$FRB_B9/-dir/inner.txt"
+_frb_first="$(git -C "$FRB_B9" ls-files --others --exclude-standard | LC_ALL=C sort | head -1)"
+_frb_c0="$(_frb_tidcap "$FRB_B9" 0)"; _frb_c500="$(_frb_tidcap "$FRB_B9" 500)"
+printf 'three\n' > "$FRB_B9/f3.txt"
+_frb_c0b="$(_frb_tidcap "$FRB_B9" 0)"
+if [ "$_frb_first" != --help ]; then
+  bad "untracked names that begin with a dash give the same id above the cap as below it" "the fixture: the first name is [$_frb_first], not --help"
+  bad "and above the cap an edit beside them still moves the id" "the fixture, as above"
+else
+  [ -n "$_frb_c0" ] && [ "$_frb_c0" = "$_frb_c500" ] \
+    && ok  "untracked names that begin with a dash give the same id above the cap as below it" \
+    || bad "untracked names that begin with a dash give the same id above the cap as below it" "0 [$_frb_c0] 500 [$_frb_c500]"
+  [ -n "$_frb_c0" ] && [ -n "$_frb_c0b" ] && [ "$_frb_c0" != "$_frb_c0b" ] \
+    && ok  "and above the cap an edit beside them still moves the id" \
+    || bad "and above the cap an edit beside them still moves the id" "before [$_frb_c0], after [$_frb_c0b]"
+fi
+
+# A raised cap cannot hide an edit either. Past ARG_MAX one argument list never
+# reaches `stat`, so a cap that sent every path to one was an id of HEAD and
+# the diff alone, whatever the untracked files held. The fixture is sized from
+# this machine's ARG_MAX, with long paths, so it is past it on either userland.
+FRB_B7="$(_frb_repo "$TMP/frb-argmax")"
+printf 'seed\n' > "$FRB_B7/seed.txt"; _frb_commit "$FRB_B7" base
+_frb_am="$(getconf ARG_MAX 2>/dev/null)"
+case "$_frb_am" in ''|*[!0-9]*) _frb_am=0 ;; esac
+if [ "$_frb_am" -lt 65536 ] || [ "$_frb_am" -gt 8388608 ]; then
+  skip "a cap raised to 100000 over more untracked paths than ARG_MAX holds still sees an edit" "ARG_MAX here is [$_frb_am]"
+else
+  _frb_d="$(printf '%0200d' 0 | tr 0 d)"; mkdir -p "$FRB_B7/$_frb_d"
+  _frb_mk "$FRB_B7" 0 $((_frb_am / 300 + 200)) "$_frb_d/$(printf '%090d' 0 | tr 0 n)%d.txt"
+  _frb_bytes="$(git -C "$FRB_B7" ls-files --others --exclude-standard \
+                  | awk -v r="${#FRB_B7}" '{ s += r + 2 + length($0) } END { printf "%d", s }')"
+  _frb_c1="$(_frb_tidcap "$FRB_B7" 100000)"
+  printf 'edited\n' > "$FRB_B7/$_frb_d/$(printf '%090d' 0 | tr 0 n)7.txt"
+  _frb_c2="$(_frb_tidcap "$FRB_B7" 100000)"
+  if [ "${_frb_bytes:-0}" -le "$_frb_am" ]; then
+    bad "a cap raised to 100000 over more untracked paths than ARG_MAX holds still sees an edit" \
+        "the fixture: its paths are $_frb_bytes bytes, not past ARG_MAX $_frb_am"
+  elif [ -n "$_frb_c1" ] && [ -n "$_frb_c2" ] && [ "$_frb_c1" != "$_frb_c2" ]; then
+    ok  "a cap raised to 100000 over more untracked paths than ARG_MAX holds still sees an edit"
+  else
+    bad "a cap raised to 100000 over more untracked paths than ARG_MAX holds still sees an edit" "before [$_frb_c1], after [$_frb_c2]"
+  fi
+fi
+
+# A name that is not ASCII. Git lists it quoted by default, a spelling no file
+# has, so it was in neither reading of the metadata: before the first commit
+# with nothing staged, creating it, editing it and deleting it all kept the id.
+FRB_B8="$(_frb_repo "$TMP/frb-u2q")"
+printf 'print(1)\n' > "$FRB_B8/app.py"
+_frb_q0="$(_frb_tid "$FRB_B8")"
+printf 'rows = 1\n' > "$FRB_B8/données.py"
+_frb_q1="$(_frb_tid "$FRB_B8")"; _frb_s1="$(_frb_tidcap "$FRB_B8" 0)"
+printf 'rows = 100000\n' > "$FRB_B8/données.py"
+_frb_q2="$(_frb_tid "$FRB_B8")"; _frb_s2="$(_frb_tidcap "$FRB_B8" 0)"
+if [ ! -f "$FRB_B8/données.py" ] || [ -n "$(git -C "$FRB_B8" ls-files)" ]; then
+  for _frb_i in "before the first commit, creating an untracked file whose name is not ASCII moves the id" \
+                "and so does editing it" "and so it does above the cap"; do
+    bad "$_frb_i" "the fixture: no données.py, or something is staged"
+  done
+else
+  [ -n "$_frb_q0" ] && [ "$_frb_q0" != "$_frb_q1" ] \
+    && ok  "before the first commit, creating an untracked file whose name is not ASCII moves the id" \
+    || bad "before the first commit, creating an untracked file whose name is not ASCII moves the id" "before [$_frb_q0], after [$_frb_q1]"
+  [ -n "$_frb_q1" ] && [ "$_frb_q1" != "$_frb_q2" ] \
+    && ok  "and so does editing it" \
+    || bad "and so does editing it" "before [$_frb_q1], after [$_frb_q2]"
+  [ -n "$_frb_s1" ] && [ "$_frb_s1" = "$_frb_q1" ] && [ "$_frb_s2" = "$_frb_q2" ] \
+    && ok  "and so it does above the cap" \
+    || bad "and so it does above the cap" "below [$_frb_q1] then [$_frb_q2], above [$_frb_s1] then [$_frb_s2]"
 fi
 
 # The cost. CPU, self plus children, from `times` inside the subshell that takes
@@ -6279,20 +6368,36 @@ else
   bad "on a born HEAD the mark is still the sha and a newline, byte for byte" "mark [$(_frb_show "$(_frb_mark frb-c3)")]"
 fi
 
+# A governed directory that is not a git repository yet is marked unborn with
+# no directory. It got no mark once, and a session that ran `git init` there
+# and made the first commit, marker and all, over a gate that never ran was
+# released in silence: the same session as above, one step earlier.
 FRB_C4="$TMP/frb-c4"; mkdir -p "$FRB_C4"; FRB_C4="$(cd "$FRB_C4" && pwd -P)"; printf 'frb-u3\n' > "$FRB_C4/.felix"
 if git -C "$FRB_C4" rev-parse --git-dir >/dev/null 2>&1; then
-  skip "a governed directory that is not a git repository gets no mark" "the temporary directory sits inside a git checkout"
+  skip "a governed directory that is not a git repository is marked unborn, with no directory" "the temporary directory sits inside a git checkout"
+  skip "and a session there that runs git init and commits everything is held when the gate never ran" "the temporary directory sits inside a git checkout"
 else
   rm -f "$(_frb_mark frb-c4)"
   _frb_prompt "$FRB_C4" frb-c4
+  printf 'unborn\t\n' > "$TMP/frb-c4.want"
   case "$(cd "$FRB_C4" && "$FELIX" which 2>&1)" in
     *"project:      frb-u3"*)
-      [ -e "$(_frb_mark frb-c4)" ] \
-        && bad "a governed directory that is not a git repository gets no mark" "mark [$(_frb_show "$(_frb_mark frb-c4)")]" \
-        || ok  "a governed directory that is not a git repository gets no mark" ;;
-    *) bad "a governed directory that is not a git repository gets no mark" \
-           "the fixture: felix which does not resolve it, so no mark there says nothing" ;;
+      cmp -s "$(_frb_mark frb-c4)" "$TMP/frb-c4.want" \
+        && ok  "a governed directory that is not a git repository is marked unborn, with no directory" \
+        || bad "a governed directory that is not a git repository is marked unborn, with no directory" \
+               "mark [$(_frb_show "$(_frb_mark frb-c4)")] (> is a tab, | a newline)" ;;
+    *) bad "a governed directory that is not a git repository is marked unborn, with no directory" \
+           "the fixture: felix which does not resolve it, so a mark there says nothing" ;;
   esac
+  ( cd "$FRB_C4" && git init -q -b main ) >/dev/null 2>&1
+  printf 'echo hi\n' > "$FRB_C4/app.sh"; _frb_commit "$FRB_C4" first
+  if git -C "$FRB_C4" rev-parse -q --verify HEAD >/dev/null 2>&1 && [ -z "$(git -C "$FRB_C4" status --porcelain)" ]; then
+    _blocks "and a session there that runs git init and commits everything is held when the gate never ran" \
+            "$(_frb_stop "$FRB_C4" frb-c4)"
+  else
+    bad "and a session there that runs git init and commits everything is held when the gate never ran" \
+        "the fixture: no first commit, or a dirty tree [$(git -C "$FRB_C4" status --porcelain)]"
+  fi
 fi
 
 # The session that makes the first commit. Before this change each of these
@@ -6434,9 +6539,12 @@ else
   ok  "an unborn mark with no directory in it is folded into no project"
 fi
 
+# frb-l6 is an older engine's session in this project: its SessionStart row is
+# in the project's lifecycle.log, and its prompt hook left no mark.
 FRB_H6="$TMP/frb-home-6"; _frb_proj frb-u4c true "$FRB_H6"
 FRB_D6="$(_frb_repo "$TMP/frb-l6" frb-u4c)"; printf 'x\n' > "$FRB_D6/a.txt"; _frb_commit "$FRB_D6" base
 ( . "$FROOT/harness/lib/ledger.sh"; felix_ledger_record "$FRB_H6" frb-l6 "$(printf 'tool\tBash')" )
+printf '2026-09-24T00:00:00Z\tstartup\tfrb-l6\t0.49.200\t0.49.200\tunborn\t-\t-\t-\n' >> "$MEM/frb-u4c/lifecycle.log"
 if [ -e "$FRB_H6/state/session/frb-l6" ] || [ "$(_frb_rows "$FRB_H6/state/ledger/frb-l6.tsv")" -lt 1 ]; then
   _frb_led=""
   _frb_why="the fixture: frb-l6 has a mark, or left no calls on disk"
@@ -6466,6 +6574,28 @@ else
   _frb_led="$(cd "$FRB_D7" && FELIX_HOME="$FRB_H7" "$FELIX" ledger 2>&1)"
   has "with no calls on disk at all, felix ledger says what it always said: nothing recorded yet" "$_frb_led" "Nothing recorded yet"
   has "and that a session running when the hooks went in records nothing" "$_frb_led" "records nothing"
+fi
+
+# Calls from sessions that never ran in this project are not its to count. The
+# post-tool hook records every session on the machine, and the prompt hook
+# marks none where Felix governs nothing, so a count of every unmarked session
+# told a project bound a minute ago that sessions it never had could not be
+# attributed to it, and dropped the true "it fills from the next session".
+FRB_H9="$TMP/frb-home-9"; _frb_proj frb-u4e true "$FRB_H9"
+FRB_U9="$TMP/frb-ungoverned-9"; mkdir -p "$FRB_U9"
+for _frb_i in a b c; do _frb_tool "$FRB_U9" "frb-ungov-$_frb_i" "$FRB_H9"; done
+FRB_D9="$(_frb_repo "$TMP/frb-l9" frb-u4e)"; printf 'x\n' > "$FRB_D9/a.txt"; _frb_commit "$FRB_D9" base
+if [ "$(ls "$FRB_H9/state/ledger" 2>/dev/null | wc -l | tr -d ' ')" != 3 ] || [ -d "$FRB_H9/state/session" ]; then
+  bad "sessions that left calls on disk but never ran in this project are not counted as its unattributed ones" \
+      "the fixture: ledger [$(ls "$FRB_H9/state/ledger" 2>/dev/null | tr '\n' ' ')], or a session was marked"
+  bad "and the ledger still says it fills from the next session" "the fixture, as above"
+else
+  _frb_led="$(cd "$FRB_D9" && FELIX_HOME="$FRB_H9" "$FELIX" ledger 2>&1)"
+  case "$_frb_led" in
+    *"could not be attributed"*) bad "sessions that left calls on disk but never ran in this project are not counted as its unattributed ones" "$_frb_led" ;;
+    *)                           ok  "sessions that left calls on disk but never ran in this project are not counted as its unattributed ones" ;;
+  esac
+  has "and the ledger still says it fills from the next session" "$_frb_led" "from the next session onwards"
 fi
 
 printf "\nFelix's own untracked marker is not dirt\n"
@@ -6505,9 +6635,36 @@ else
   _frb_released "nor the session after it" "$(_frb_stop "$FRB_E2" frb-e2b)"
 fi
 
+_frb_prompt "$FRB_E" frb-e3
 _frb_out="$(_frb_sub "$FRB_E" frb-e3)"
 _sub_speaks "$_frb_out" && bad "a subagent finishing beside only the uncommitted marker is not told no gate has passed" "$_frb_out" \
                         || ok  "a subagent finishing beside only the uncommitted marker is not told no gate has passed"
+
+# The excuse needs a mark to stand on. A tree whose only change is the marker
+# is clean, and a clean tree is judged by whether the session committed, which
+# with no mark reads as no. The session with no mark is the fresh-repository
+# one: its first prompt came before felix new bound the checkout, and the
+# prompt hook marks nothing it does not govern. It commits its code and leaves
+# the marker out; the marker was all that still held it, and must go on doing so.
+_frb_proj frb-u35m false
+FRB_EM="$(_frb_repo "$TMP/frb-e8-unbound")"
+printf 'x = 1\n' > "$FRB_EM/app.py"; _frb_commit "$FRB_EM" first
+rm -f "$FROOT/state/session/frb-e8"
+_frb_prompt "$FRB_EM" frb-e8
+printf 'frb-u35m\n' > "$FRB_EM/.felix"
+printf 'x = 2\n' > "$FRB_EM/app.py"
+( cd "$FRB_EM" && git add app.py && git -c user.name=t -c user.email=t@t commit -qm work ) >/dev/null 2>&1
+if [ -e "$FROOT/state/session/frb-e8" ] || [ "$(git -C "$FRB_EM" status --porcelain)" != '?? .felix' ]; then
+  for _frb_i in "a session with no mark that committed its code beside the uncommitted marker is still held" \
+                "and a subagent in it is still told no gate has passed"; do
+    bad "$_frb_i" "the fixture: a mark [$(_frb_show "$FROOT/state/session/frb-e8")], status [$(git -C "$FRB_EM" status --porcelain)]"
+  done
+else
+  _blocks "a session with no mark that committed its code beside the uncommitted marker is still held" "$(_frb_stop "$FRB_EM" frb-e8)"
+  _frb_out="$(_frb_sub "$FRB_EM" frb-e8)"
+  _sub_speaks "$_frb_out" && ok  "and a subagent in it is still told no gate has passed" \
+                          || bad "and a subagent in it is still told no gate has passed" "$_frb_out"
+fi
 
 # The function, one shape at a time. Before each call the fixture's status is
 # checked, so a clean answer is about the marker's bytes and not a tree that

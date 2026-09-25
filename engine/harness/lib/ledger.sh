@@ -733,8 +733,16 @@ felix_ledger_catchup() {
 # held. `felix ledger` says this number when it has nothing else to say,
 # because "a session running when the hooks were installed records nothing"
 # was false about these: they recorded, and attribution is what failed.
+#
+# Only sessions this project's own memory says ran in it. The post-tool hook
+# records every session on the machine, governed or not, and the prompt hook
+# marks none in a directory Felix does not govern, so without this the count
+# was every such session anywhere: 142 of them on the machine this was written
+# on, 2026-09-25, all reported to a project bound a minute earlier as sessions
+# that could not be attributed to it, in place of the true "it fills from the
+# next session onwards".
 felix_ledger_unattributed() {   # proj, home -> a count
-  local proj="$1" home="$2" dir f session mark n=0 machine="" looked=0
+  local proj="$1" home="$2" dir f session mark n=0 machine="" seen="" looked=0
   dir="$(felix_mem_dir "$proj")/ledger.d"
   for f in "$home"/state/ledger/*.tsv; do
     [ -f "$f" ] || continue
@@ -742,9 +750,30 @@ felix_ledger_unattributed() {   # proj, home -> a count
     _felix_ledger_fold_current "$f" "$dir/$session.tsv" && continue
     mark="$(head -1 "$home/state/session/$session" 2>/dev/null)"
     case "$mark" in ''|unborn|unborn$'\t') ;; *) continue ;; esac
-    [ "$looked" = 1 ] || { machine="$(_felix_ledger_machine_sessions "$proj")"; looked=1; }
+    if [ "$looked" != 1 ]; then
+      seen="$(_felix_ledger_seen_sessions "$proj")"
+      machine="$(_felix_ledger_machine_sessions "$proj")"
+      looked=1
+    fi
+    case $'\n'"$seen"$'\n' in *$'\n'"$session"$'\n'*) ;; *) continue ;; esac
     case $'\n'"$machine"$'\n' in *$'\n'"$session"$'\n'*) continue ;; esac
     n=$((n + 1))
   done
   printf '%s' "$n"
+}
+
+# The sessions this project's memory names: the third column of lifecycle.log,
+# which SessionStart writes for every session of a governed project, and of
+# says.log, which the prompt hook writes whenever Felix spoke into one. Both
+# are keyed on the payload's session id; `-` and `unknown` are what each writes
+# when there was none, and name no session.
+_felix_ledger_seen_sessions() {   # proj -> one session id per line
+  local mem logs=() f
+  mem="$(felix_mem_dir "$1")"
+  for f in "$mem/lifecycle.log" "$mem/says.log"; do
+    [ -f "$f" ] && logs+=("$f")
+  done
+  [ "${#logs[@]}" -gt 0 ] || return 0
+  LC_ALL=C awk -F'\t' '$3 != "" && $3 != "-" && $3 != "unknown" && !($3 in s) { s[$3] = 1; print $3 }' \
+    "${logs[@]}" 2>/dev/null
 }

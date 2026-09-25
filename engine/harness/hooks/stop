@@ -195,12 +195,18 @@ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 # The resolved project goes to the dirty check so that the untracked .felix
 # `felix new` wrote, naming this project and nothing else changed, is not
 # unverified work (U35); it held every question asked before somebody
-# committed it.
+# committed it. Only for a session with a mark, because the clean tree that
+# excuse makes is judged by what the session committed, and with no mark that
+# is unknown and reads as nothing: a session whose first prompt came before
+# `felix new` bound the checkout, which then committed its code and left the
+# marker out, was held by the marker alone, and would have been released.
 #
 # A night still has something to say over a tree with nothing to verify: the
 # session stopping before its first commit is the one a night was granted to
 # keep going, and this exit used to let it close for the night.
-if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR" "$PROJ"; then
+_felix_stop_marker_proj=""
+felix_session_marked "$FELIX_HOME_DIR" "${SID:-}" && _felix_stop_marker_proj="$PROJ"
+if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR" "$_felix_stop_marker_proj"; then
   if ! felix_session_committed "$FELIX_HOME_DIR" "${SID:-}" "$ROOT"; then
     felix_overnight_owns "$PROJ" "${SID:-}" && _felix_stop_night ""
     exit 0

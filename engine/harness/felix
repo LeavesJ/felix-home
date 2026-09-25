@@ -2335,12 +2335,16 @@ cmd_ledger() {
     # Calls on disk that no mark attributes are not a session that recorded
     # nothing, and saying so sent the reader looking at the hooks (U4).
     local unattributed; unattributed="$(felix_ledger_unattributed "$proj" "$FELIX_HOME_DIR" 2>/dev/null)"
+    # Counted only over sessions this project's memory says ran in it, so a
+    # project bound a minute ago is not handed every ungoverned session on
+    # the machine, and still hears that the ledger fills from the next one.
     if [ "${unattributed:-0}" -gt 0 ] 2>/dev/null; then
-      printf '%s session(s) on this machine left calls on disk that could not be attributed\n' "$unattributed"
-      printf 'to %s, because nothing recorded which repository they ran in.\n' "$(basename "$proj")"
-      printf 'Sessions in directories Felix does not govern leave calls like that, and so\n'
-      printf "did a session whose every prompt came before its repository's first commit,\n"
-      printf 'under an engine older than this one.\n'
+      printf '%s session(s) that ran in %s left calls on disk that could not be attributed\n' \
+        "$unattributed" "$(basename "$proj")"
+      printf 'to it, because nothing recorded which repository they ran in. That was every\n'
+      printf "session whose prompts all came before the repository's first commit, under an\n"
+      printf 'engine older than this one, and it is still a session that began before the\n'
+      printf 'directory was a git repository. It fills from the next session onwards.\n'
       return 0
     fi
     printf 'The ledger is written by hooks, and hooks bind when a session starts,\n'

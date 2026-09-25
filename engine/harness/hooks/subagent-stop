@@ -66,8 +66,12 @@ SID="$(printf '%s' "$raw" \
 # git, and the hook keeps its old silence rather than starting to speak about
 # trees it knows nothing about. An unborn HEAD is marked, so a session that
 # made the first commit is known to have committed (U3), and the untracked
-# marker naming this project is not dirt here either (U35).
-if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR" "$PROJ"; then
+# marker naming this project is not dirt here either (U35), for a session with
+# a mark, as in stop: without one the clean tree it makes would read as nothing
+# committed, whatever the session did commit.
+_felix_sub_marker_proj=""
+felix_session_marked "$FELIX_HOME_DIR" "${SID:-}" && _felix_sub_marker_proj="$PROJ"
+if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR" "$_felix_sub_marker_proj"; then
   felix_session_committed "$FELIX_HOME_DIR" "${SID:-}" "$ROOT" || exit 0
 fi
 

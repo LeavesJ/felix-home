@@ -416,7 +416,8 @@ felix_ledger_record() {
 # and no lock to take.
 felix_ledger_rollup() {
   local proj="$1" home="$2" session="$3" date="$4" state out seen kind name mem dir
-  local seen_owner="" _o=""
+  local seen_owner="" _o="" nl='
+'
   state="$(_felix_ledger_state "$home" "$session")"
   [ -f "$state" ] || return 0
   mem="$(felix_mem_dir "$proj")"
@@ -464,7 +465,11 @@ EOF
   while IFS=$'\t' read -r kind name; do
     [ "${kind:-}" = "named" ] || continue
     [ -n "${name:-}" ] || continue
-    printf '%s\n' "$seen" | grep -xF "$name" >/dev/null 2>&1 && continue
+    # Membership by case, here and for the owners below, not a pipe into grep:
+    # GNU grep writing to /dev/null stops at its first match as -q does, and a
+    # printf still writing a long list dies of SIGPIPE, which pipefail reads as
+    # a name not yet seen.
+    case "$nl$seen$nl" in *"$nl$name$nl"*) continue ;; esac
     printf '%s\t%s\tnamed\t%s\t0\t%s\n' "$session" "$date" "$name" \
       "$(felix_count -xF "named	$name" "$state")" >> "$tmp"
     seen="$seen
@@ -491,7 +496,7 @@ EOF
       # session gets recorded as never reached for — which would put the one
       # unconfounded signal in the design permanently in the wrong column.
       local bare="${name%%@*}"
-      printf '%s\n' "$seen_owner" | grep -xF "$bare" >/dev/null 2>&1 && continue
+      case "$nl$seen_owner$nl" in *"$nl$bare$nl"*) continue ;; esac
       # Owner-equality, not substring. This used to be `felix_count -F`, and a
       # bare -F match let a declared server accrue `named` it never earned from
       # any play entry it merely prefixes — `context7` counted every naming of

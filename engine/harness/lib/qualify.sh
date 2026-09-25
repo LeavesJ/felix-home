@@ -82,10 +82,25 @@ FELIX_QUALIFY_CONTROLS="${FELIX_QUALIFY_CONTROLS//:pass/}"
 # not an unexported variable, not the engine's functions. A row reaches its
 # checker by path in the tree the mutation changed. A column's status is its
 # final command's, as in every table runner, so a checker in an earlier stage
-# of a pipeline has its status dropped: take it first, as the schema rows do,
-# `r=$(checker); s=$?`. A column that ran nothing reads unrunnable, whatever
-# status it ended on. The runner below says which way each misfire moved a
-# verdict, and how a column that ran nothing is told.
+# of a pipeline has its status dropped.
+#
+# A column is unrunnable, whatever status it ended on, when the runner hears
+# that it ran nothing, and it hears only this: text that is blank or only a
+# comment (a premise that is empty or `-` is no premise); text that does not
+# parse (bash -n); 126 or 127 as the final status; a line of the column's own
+# stderr that begins `felix-qualify: ` and says a name was not found, a syntax
+# error or an unexpected EOF. Not heard, so read by the final status: a path
+# that is not there, or a file that is not executable, anywhere but the final
+# command (bash says "No such file or directory" or "Permission denied", as
+# for a failed redirection, so neither can say what did not run); a row that
+# sends its stderr away (2>/dev/null, 2>&1 into a pipe, exec 2>); a name run
+# through a wrapper or a nested shell; a diagnostic glued to stderr output
+# with no newline before it. So a row author:
+#   - puts the checker last, or takes its status first: `r=$(checker); s=$?`;
+#   - never folds or hides a checker's stderr;
+#   - probes an optional tool with `command -v`, or sends the probe's stderr
+#     away: a name not found anywhere in the text makes the column unrunnable,
+#     even when a `||` fallback ran.
 #
 # The premise, and why a fourth verdict exists (#233).
 #
@@ -243,18 +258,15 @@ _felix_qualify_missing_in() {   # rows, checker -> one control per line
 # each was an eval in the caller's process, which for felix qualify and felix
 # gate is the felix CLI and its set -uo pipefail. Under pipefail
 # `producer | grep -q x` fails with x present: grep leaves at its first match
-# and the producer dies of SIGPIPE, 141. Past a pipe's 64 KB with the match
-# early that is certain; below it, it depends on load, because bash 3.2's printf
-# writes a multi-line value one write() per line. pipefail only ever turns a
-# pipeline that held into one that failed, so each column moved its verdict its
-# own way. A premise read unrunnable, or, negated, applied its control where
-# its premise is absent. A mutation's && chain stopped short, and a pass
-# control was met over a change the checker never saw. A command read fail,
-# which on a fail control is met, exactly what a working checker says, so
-# nothing later can tell the two apart; in the schema rows' negated shape it
-# read pass, a false held. nounset stopped a row at a name it never set, with
-# exit 1: a premise read absent and its control silently not run, a mutation
-# was cut short, and a command read fail.
+# and the producer dies of SIGPIPE, 141, certain past a pipe's 64 KB with the
+# match early and load-dependent below it, as bash 3.2's printf writes a
+# multi-line value one write() per line. So a premise read unrunnable, or,
+# negated, applied its control where its premise is absent; a mutation's &&
+# chain stopped short and a pass control was met over a change the checker
+# never saw; a command read fail, which on a fail control is met, exactly what
+# a working checker says, or in the schema rows' negated shape pass, a false
+# held. nounset stopped a row at a name it never set, with exit 1, the same
+# ways.
 #
 # A fresh bash also sees none of the engine's functions or variables, and for
 # qualification that is right. The checker under test is the one in the tree
@@ -263,37 +275,37 @@ _felix_qualify_missing_in() {   # rows, checker -> one control per line
 # would be the installed engine's code, which no mutation reaches, so the row
 # would qualify the wrong code.
 #
-# A column that ran nothing reads unrunnable, whatever status its text ended
-# on: _felix_qualify_sh says 127 for it. Read as fail, a command that ran no
-# checker is met on every fail control, the dangerous direction again; a
-# mutation that made no change leaves its pass control met over nothing, so no
-# command runs after one. In a fresh bash an engine function is command not
-# found, 127, as is a checker path with a typo; 126 is a file that is not
-# executable, or a tree that could not be entered. In a pipeline, an if, or
-# behind ! or ||, the final status hides a name not found, so the column's
-# stderr goes to a file outside the tree, and a line there reading
-# `felix-qualify: [line N: ]NAME: command not found` says it ran nothing. Only
-# the column's own shell prints that, under the $0 it is given; a checker's
-# complaints carry the checker's path. Nothing else there is read: "No such
-# file or directory" and "Permission denied" are printed the same way for a
-# failed redirection, so they cannot say what did not run. A file that cannot
-# be read cannot say either, and reads as nothing run; the helper removes it
-# before it returns. Text that does not parse, or is blank, runs nothing too:
-# it exited 2 or 0, and a command read fail or pass with no checker run. Every
-# other status keeps its meaning.
+# Whatever the header says is heard, _felix_qualify_sh returns as 127, save a
+# final 126, which it returns as it is. Read by its status, a command that ran
+# no checker was fail, met on every fail control, the dangerous direction again,
+# and a mutation that made no change left its pass control met over nothing, so
+# no command runs after one. In a fresh bash an engine function is command not
+# found, as is a checker path with a typo; 126 is a file that is not executable,
+# or a tree that could not be entered. In a pipeline, an if, or behind ! or ||,
+# the final status hides a name not found, and bash -n does not look inside
+# $( ), backticks or eval, so the column's stderr goes to a file beside the
+# tree and is scanned. Only the column's own shell prints under the $0 it is
+# given; a checker's messages carry its path. A stderr that cannot be read
+# reads as nothing run, and the helper removes the file before it returns.
+# Every other status keeps its meaning.
 #
-# The parse and the row get no SHELLOPTS, which carries the caller's pipefail
-# and nounset into a child bash, and no BASH_ENV, whose file a child bash runs
-# first and which can set them again. And `--`, because bash reads a text that
-# begins with a dash as its own options, and "invalid option" exits 2.
+# The parse and the row run without SHELLOPTS or BASHOPTS, which carry the
+# caller's set and shopt options into a child bash, BASH_ENV, whose file a
+# child bash runs first, or POSIXLY_CORRECT, whose posix mode cannot parse
+# <( ). And `--`, because bash reads a text that begins with a dash as its own
+# options, and "invalid option" exits 2.
 _felix_qualify_sh() {   # dir, text, stderr file outside dir -> the text's own status; 127 if it ran nothing
   local rc said
-  case "$2" in *[![:space:]]*) ;; *) return 127 ;; esac
-  env -u SHELLOPTS -u BASH_ENV bash -n -c -- "$2" felix-qualify </dev/null >/dev/null 2>&1 || return 127
+  case "${2#"${2%%[![:space:]]*}"}" in ''|'#'*) return 127 ;; esac
+  env -u SHELLOPTS -u BASHOPTS -u BASH_ENV -u POSIXLY_CORRECT \
+    bash -n -c -- "$2" felix-qualify </dev/null >/dev/null 2>&1 || return 127
   ( cd "$1" 2>/dev/null || exit 126
-    env -u SHELLOPTS -u BASH_ENV bash -c -- "$2" felix-qualify ) </dev/null >/dev/null 2>"$3"
+    env -u SHELLOPTS -u BASHOPTS -u BASH_ENV -u POSIXLY_CORRECT \
+      bash -c -- "$2" felix-qualify ) </dev/null >/dev/null 2>"$3"
   rc=$?
-  LC_ALL=C grep -qE '^felix-qualify: (line [0-9]+: )?[^:]+: command not found$' "$3" 2>/dev/null
+  LC_ALL=C grep -qE \
+    '^felix-qualify: ((line [0-9]+: )?[^:]+: command not found$|.*(syntax error|unexpected EOF))' \
+    "$3" 2>/dev/null
   said=$?
   rm -f "$3"
   [ "$said" = 1 ] || return 127

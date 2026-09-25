@@ -16540,6 +16540,146 @@ is  "an engine function the check names that is not loaded is unknown"   "$(_cms
 has "and the missing function is named"                                  "$(_cmdetail zeta)" "felix_no_such_function"
 is  "a provider row is awaiting, a class of its own"                     "$(_cmstate prov)"  "awaiting"
 
+# A row's text means what it means in a probe.
+#
+# felix_commission_ask evaluates a row in-process, so the row inherited the
+# CLI's `set -uo pipefail`, which no other table runner has. A check shaped
+# `producer | grep -q x` whose grep matched and left while the producer still
+# had output to write read as failed, because the producer died of SIGPIPE: a
+# check read held for a step that was done, and a `when` read not-applicable
+# and skipped its step. The producer here writes about 1.3 MB with the match on
+# its first line, far past what one pipe holds, so grep leaving early is
+# certain and not a matter of load. The engine functions a row names stay under
+# the caller's pipefail, because engine code is written and tested under it.
+# Everything this touches is restored below and everything it defines unset.
+cp "$CMP/commissioning.tsv" "$TMP/cmpf-table.keep"
+_cmpfml="$MEM/cmproj/mistakes.log"
+rm -f "$TMP/cmpf-mistakes.keep"; [ -f "$_cmpfml" ] && cp "$_cmpfml" "$TMP/cmpf-mistakes.keep"
+_cmpfp="awk 'BEGIN { print \"cmpfhit\"; for (i = 0; i < 20000; i++) print \"filler that pushes the producer far past what one pipe can hold\" }'"
+_cmpfrow() { printf '%s\t-\t-\t%s\t-\t%s\t9' "$1" "$2" "$3"; }   # need, when, check
+_cmpfst()  { printf '%s\n' "$1" | awk -F'\t' -v n="$2" '$1 == n { print $2 }'; }
+felix_cmpf_on()    { [ -o pipefail ]; }
+felix_cmpf_off()   { ! [ -o pipefail ]; }
+felix_cmpf_state() { if [ -o pipefail ]; then printf 'on\n'; else printf 'off\n'; fi; }
+felix_cmpf_true()  { return 0; }
+# An engine function that sources a library, as cmd_bootstrap's kind do: the
+# library redefines the function running it, redefines functions the row also
+# names, and defines one nothing named before.
+felix_cmpf_src()         { . "$TMP/cmpf-lib.sh" && felix_cmpf_src_fresh; }
+felix_cmpf_src_defined() { return 1; }
+felix_cmpf_src_pf()      { return 1; }
+cat > "$TMP/cmpf-lib.sh" <<'CMPFLIB'
+felix_cmpf_src() { . "$TMP/cmpf-lib.sh" && felix_cmpf_src_fresh; }
+felix_cmpf_src_defined() { return 0; }
+felix_cmpf_src_pf() { [ -o pipefail ]; }
+felix_cmpf_src_fresh() { return 0; }
+CMPFLIB
+# A mistakes.log far past 64 KB whose first row's label is neither commission
+# nor probes, which is the state the seeded gate_shown_failing check calls done.
+awk 'BEGIN { printf "2026-09-25\tmain\tabc1234\tgate\n"
+             for (i = 0; i < 20000; i++)
+               printf "2026-09-25\tmain\tabc1234\tcheck%d filler words that are neither commission nor probes\n", i }' > "$_cmpfml"
+_cmpfgsf="$(awk -F'\t' '$1 == "gate_shown_failing"' "$FROOT/harness/templates/commissioning.tsv")"
+_cmtable "$(_cmpfrow cmpf_yes       - "$_cmpfp | grep -q cmpfhit")" \
+         "$(_cmpfrow cmpf_when_yes  "$_cmpfp | grep -q cmpfhit" true)" \
+         "$(_cmpfrow cmpf_no        - "$_cmpfp | grep -q cmpfnope")" \
+         "$(_cmpfrow cmpf_when_no   "$_cmpfp | grep -q cmpfnope" true)" \
+         "$(_cmpfrow cmpf_early     - "sh -c 'echo hit; exit 3' | grep -q hit")" \
+         "$_cmpfgsf" \
+         "$(_cmpfrow cmpf_whole     - 'felix_cmpf_on')" \
+         "$(_cmpfrow cmpf_and       - 'true && felix_cmpf_on')" \
+         "$(_cmpfrow cmpf_subst     - '[ "$(felix_cmpf_state)" = on ]')" \
+         "$(_cmpfrow cmpf_first     - 'felix_cmpf_state | grep -qx on')" \
+         "$(_cmpfrow cmpf_last      - 'true | felix_cmpf_on')" \
+         "$(_cmpfrow cmpf_if        - 'if felix_cmpf_on; then true; else false; fi')" \
+         "$(_cmpfrow cmpf_when_fn   'felix_cmpf_on' true)" \
+         "$(_cmpfrow cmpf_off       - 'felix_cmpf_off')" \
+         "$(_cmpfrow cmpf_off_subst - '[ "$(felix_cmpf_state)" = off ]')" \
+         "$(_cmpfrow cmpf_after     - 'felix_cmpf_true && false | true')" \
+         "$(_cmpfrow cmpf_after_if  - 'if felix_cmpf_true; then false | true; else false; fi')" \
+         "$(_cmpfrow cmpf_on_after  - 'felix_cmpf_on && false | true')" \
+         "$(_cmpfrow cmpf_src       - 'felix_cmpf_src && felix_cmpf_src_defined')" \
+         "$(_cmpfrow cmpf_src_pf    - 'felix_cmpf_src && felix_cmpf_src_pf')" \
+         "$(_cmpfrow cmpf_cmdv      - '[ "$(command -v felix_cmpf_on)" = felix_cmpf_on ]')" \
+         "$(_cmpfrow cmpf_type      - '[ "$(type -t felix_cmpf_on)" = function ]')" \
+         "$(_cmpfrow cmpf_quoted    - "_s='felix_cmpf_on'; [ \"\${#_s}\" -eq 13 ]")" \
+         "$(_cmpfrow cmpf_unset     - 'test -z "$cmpf_never_set_anywhere"')"
+# The suite runs under pipefail, so _cm is a caller that has it; _cmpfnopf is
+# one that does not.
+_cmpfnopf() { set +o pipefail; felix_commission_run "$@"; }
+_cmpfon="$(_cm felix_commission_run "$CMP" "$CMR" -)"
+_cmpfoff="$(_cm _cmpfnopf "$CMP" "$CMR" -)"
+
+is  "a check whose producer outruns grep -q, the match on its first line, is done" \
+    "$(_cmpfst "$_cmpfon" cmpf_yes)" "done"
+is  "a when of that shape makes its row applicable, and the check decides it" \
+    "$(_cmpfst "$_cmpfon" cmpf_when_yes)" "done"
+has "the seeded gate_shown_failing row is read from the template, not retyped" \
+    "$_cmpfgsf" "gate_shown_failing	"
+is  "the seeded gate_shown_failing check is done over a mistakes.log far past 64 KB" \
+    "$(_cmpfst "$_cmpfon" gate_shown_failing)" "done"
+is  "a check whose producer never shows the match is still held" \
+    "$(_cmpfst "$_cmpfon" cmpf_no)" "held"
+is  "and a when of that shape still makes its row not-applicable" \
+    "$(_cmpfst "$_cmpfon" cmpf_when_no)" "not-applicable"
+is  "a pipeline whose first stage fails and whose last succeeds is done, as in a probe" \
+    "$(_cmpfst "$_cmpfon" cmpf_early)" "done"
+
+is  "an engine function that is the whole check runs under the caller's pipefail" \
+    "$(_cmpfst "$_cmpfon" cmpf_whole)" "done"
+is  "and so does an engine function after &&"                 "$(_cmpfst "$_cmpfon" cmpf_and)"     "done"
+is  "and one inside a command substitution"                   "$(_cmpfst "$_cmpfon" cmpf_subst)"   "done"
+is  "and one writing into a pipeline"                         "$(_cmpfst "$_cmpfon" cmpf_first)"   "done"
+is  "and one ending a pipeline"                               "$(_cmpfst "$_cmpfon" cmpf_last)"    "done"
+is  "and one deciding an if"                                  "$(_cmpfst "$_cmpfon" cmpf_if)"      "done"
+is  "and one named in a when"                                 "$(_cmpfst "$_cmpfon" cmpf_when_fn)" "done"
+is  "under a caller without pipefail an engine function the check names runs without it" \
+    "$(_cmpfst "$_cmpfoff" cmpf_off)" "done"
+is  "and inside a command substitution it is without it too"  "$(_cmpfst "$_cmpfoff" cmpf_off_subst)" "done"
+is  "after an engine function returns, the rest of the check is again without pipefail" \
+    "$(_cmpfst "$_cmpfon" cmpf_after)" "done"
+is  "and so is the body of an if an engine function decided"  "$(_cmpfst "$_cmpfon" cmpf_after_if)" "done"
+is  "one check holds an engine function under pipefail and a pipeline after it without" \
+    "$(_cmpfst "$_cmpfon" cmpf_on_after)" "done"
+is  "an engine function that sources a library redefining what the check names runs the new definitions" \
+    "$(_cmpfst "$_cmpfon" cmpf_src)" "done"
+is  "and a function the library redefined still runs under the caller's pipefail" \
+    "$(_cmpfst "$_cmpfon" cmpf_src_pf)" "done"
+
+is  "an engine function's name passed to command -v comes back as written" \
+    "$(_cmpfst "$_cmpfon" cmpf_cmdv)" "done"
+is  "and type -t calls that name a function"                  "$(_cmpfst "$_cmpfon" cmpf_type)"   "done"
+is  "and inside a quoted string that name is the string as written" \
+    "$(_cmpfst "$_cmpfon" cmpf_quoted)" "done"
+is  "a check naming an unset variable is still held, because nounset stays" \
+    "$(_cmpfst "$_cmpfon" cmpf_unset)" "held"
+
+# An ask changes nothing about the shell that asked.
+_cmpfkept() { local before; before="$(set +o)"
+              felix_commission_ask "$CMR" "$_cmpfp | grep -q cmpfhit"
+              felix_commission_ask "$CMR" 'felix_cmpf_on && false | true'
+              felix_commission_run "$CMP" "$CMR" - >/dev/null
+              if [ "$(set +o)" = "$before" ]; then printf 'kept'; else printf 'moved'; fi
+              if [ -o pipefail ]; then printf ' on\n'; else printf ' off\n'; fi; }
+_cmpfnopfkept() { set +o pipefail; _cmpfkept; }
+is  "an ask and a run leave a caller that had pipefail every option it had" "$(_cm _cmpfkept)"     "kept on"
+is  "and leave a caller without pipefail every option it had"              "$(_cm _cmpfnopfkept)" "kept off"
+
+# And through the real command, whose own shell is `set -uo pipefail`.
+_cmtable "$(_cmpfrow cmpf_yes - "$_cmpfp | grep -q cmpfhit")" "$_cmpfgsf"
+_cmpfcli="$( cd "$CMR" && PATH="$CMSTUB:$PATH" "$FELIX" commission --status 2>&1 )"
+is  "felix commission --status reads the row whose producer outruns grep -q done" \
+    "$(printf '%s\n' "$_cmpfcli" | awk '$2 == "cmpf_yes" { print $1 }')" "done"
+is  "and reads the seeded gate_shown_failing row done over that mistakes.log" \
+    "$(printf '%s\n' "$_cmpfcli" | awk '$2 == "gate_shown_failing" { print $1 }')" "done"
+
+cp "$TMP/cmpf-table.keep" "$CMP/commissioning.tsv"
+if [ -f "$TMP/cmpf-mistakes.keep" ]; then mv "$TMP/cmpf-mistakes.keep" "$_cmpfml"; else rm -f "$_cmpfml"; fi
+rm -f "$TMP/cmpf-table.keep" "$TMP/cmpf-lib.sh"
+unset -f _cmpfrow _cmpfst _cmpfnopf _cmpfkept _cmpfnopfkept felix_cmpf_on felix_cmpf_off felix_cmpf_state \
+         felix_cmpf_true felix_cmpf_src felix_cmpf_src_defined felix_cmpf_src_pf
+unset _cmpfml _cmpfp _cmpfgsf _cmpfon _cmpfoff _cmpfcli
+
 # The answer runs in-process through a runner the caller names, and the check
 # decides afterwards. The stub stands in for felix:toolbox --route.
 _cmstub() { touch "$CMR/src/made-by-answer"; return 0; }

@@ -16285,13 +16285,13 @@ is  "and its line is the one diff wrote for the directory" "$(_trkout "$_trko")"
 _trk_cut
 
 # Carried over from this section's first draft and its review. The pins above
-# do not cover these: two fixture preconditions, the base query inside the
-# loop over diff's lines, the cost shape with a base named and line by line,
-# and one commit for the accepted reader's whole run. The two preconditions,
-# the two ignore-query pins and the no-cost pin with a base were written blind
-# to the implementation. The stdin pin with a base, the per-line count and the
-# mid-read pins were added after review with the fix in view, so they are not
-# blind.
+# do not cover these: two fixture preconditions, pin 6 with its stray listed
+# first (with and without a base), the cost shape with a base named and line by
+# line, and one commit for the accepted reader's whole run. The two
+# preconditions, pin 6 without a base, the two ignore-query pins and the
+# no-cost pin with a base were written blind to the implementation. Pin 6 with
+# a base, the per-line count and the mid-read pins were added after review with
+# the fix in view, so they are not blind.
 
 # The state pins 2 and 3 describe: the exclude line makes git call a tracked
 # file ignored.
@@ -16308,11 +16308,21 @@ has "the stray's name, read as a pattern, matches a tracked file" \
     "$(git -C "$TRKR/engine" ls-files -- 'harness/k*.log' 2>/dev/null)" "harness/keep.log"
 rm -f "$TRKR/engine/harness/k*.log"
 
-# Pin 6 with a base named, so the base query also runs inside the loop over
-# diff's lines. A base query that read stdin would swallow the second file.
-# Red on main, which drops both files whatever the base.
+# Pin 6 with the untracked stray listed FIRST. diff sorts harness/.claude-flow
+# before harness/a.log, so the queries only an untracked line reaches (the
+# base query and the ignore queries) run while both drift lines are still
+# unread. One of them that read stdin would swallow a.log. Pin 6 above puts
+# its stray under tests/, which diff lists last, so it cannot see this.
+# Red on main, which drops both files, with a base or without one.
 printf 'a2\n' >> "$TRKE/harness/a.log"; printf 'b2\n' >> "$TRKE/harness/lib/b.log"
-mkdir -p "$TRKR/engine/harness/tests/.claude-flow"; printf 'x\n' > "$TRKR/engine/harness/tests/.claude-flow/state"
+mkdir -p "$TRKR/engine/harness/.claude-flow"; printf 'x\n' > "$TRKR/engine/harness/.claude-flow/state"
+_trko="$(_trk "$TRKR/engine" "$TRKE")"
+is  "two tracked ignored files that differ are both reported" \
+    "$(_trkrc "$_trko") $(printf '%s\n' "$(_trkout "$_trko")" | grep -c '^Files .* differ$')" "1 2"
+case "$(_trkout "$_trko")" in
+  *claude-flow*) bad "and the untracked stray beside them is not" "$_trko" ;;
+  *)             ok  "and the untracked stray beside them is not" ;;
+esac
 _trko="$(_trk "$TRKR/engine" "$TRKE" "$TRKR/engine" main)"
 case "$(_trkout "$_trko")" in *claude-flow*) _trks=stray ;; *) _trks=none ;; esac
 is  "with a base named, both tracked ignored files are still reported and the stray is not" \
@@ -16329,7 +16339,7 @@ _trkgl "$TRKR/engine" "$TRKE" "$TRKR/engine" main
 is  "and no tracked path is put to check-ignore when a base is named" \
     "$(grep 'check-ignore' "$TRK/git.log" | grep -cE 'harness/(a|lib/b)\.log')" "0"
 _trkg="$(grep -c . "$TRK/git.log")"; _trkover=""
-for _p in harness/a.log harness/lib/b.log harness/tests/.claude-flow; do
+for _p in harness/a.log harness/lib/b.log harness/.claude-flow; do
   _trkp="$(grep -cF -- "$_p" "$TRK/git.log")"
   { [ "$_trkp" -ge 1 ] && [ "$_trkp" -le 4 ]; } || _trkover="$_trkover $_p=$_trkp"
 done
@@ -16339,7 +16349,7 @@ else
   bad "and git is asked at most four times for each line diff reports" \
       "$_trkg calls for 3 lines;$_trkover: $(tr '\n' ';' < "$TRK/git.log")"
 fi
-rm -rf "$TRKR/engine/harness/tests/.claude-flow"; _trk_cut
+rm -rf "$TRKR/engine/harness/.claude-flow"; _trk_cut
 # Nothing to compare costs nothing with a base named, too.
 _trkgl "$TRKR/engine" "$TRKE" "$TRKR/engine" main
 is  "and a deploy with nothing to compare asks git nothing when a base is named" \

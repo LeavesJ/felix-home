@@ -4,8 +4,8 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	4c513055377750a1962efe0aad06d10c746a9a7c	0.49.230
-run	68	3773	5
+base	2b6e2fab9f5da56ede84252e9849e1236c5185f2	2b6e2fab9f5da56ede84252e9849e1236c5185f2	0.49.231
+run	68	3786	5
 a blank line and a comment are still skipped, and an id with digits, _ and - is a checker	1
 a checker that is not an id is malformed, a space, a glob, a capital, a digit or a dash first	1
 a checker that reads its stdin leaves the row after it to run, and that row is held	1

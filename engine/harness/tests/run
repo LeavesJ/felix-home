@@ -3561,7 +3561,10 @@ done
 exit 0
 STUB
 chmod +x "$UC/felix/engine/harness/felix" "$UC/bin/git"
-_uctok="ghs_stubtokenstubtokenstubtokenstub"
+# A placeholder by secret-scan's own rule (an "example" in the value): since
+# #342 taught the scan ghs_ tokens, a real-looking value here was a line the
+# public snapshot's credential scan refused to publish.
+_uctok="ghs_exampletokenexampletokenexample"
 : > "$UC/git.log"; : > "$UC/git.cred"
 ( cd "$UC/repo" && UC_LOG="$UC/git.log" GITHUB_TOKEN="$_uctok" BRANCH=fix/x PATH="$UC/bin:$PATH" \
     bash -e "$UC/step.sh" ) > "$UC/out" 2>&1; _ucrc=$?

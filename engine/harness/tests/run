@@ -16600,10 +16600,12 @@ _cmtable "$(_cmpfrow cmpf_yes       - "$_cmpfp | grep -q cmpfhit")" \
          "$(_cmpfrow cmpf_on_after  - 'felix_cmpf_on && false | true')" \
          "$(_cmpfrow cmpf_src       - 'felix_cmpf_src && felix_cmpf_src_defined')" \
          "$(_cmpfrow cmpf_src_pf    - 'felix_cmpf_src && felix_cmpf_src_pf')" \
-         "$(_cmpfrow cmpf_cmdv      - '[ "$(command -v felix_cmpf_on)" = felix_cmpf_on ]')" \
-         "$(_cmpfrow cmpf_type      - '[ "$(type -t felix_cmpf_on)" = function ]')" \
+         "$(_cmpfrow cmpf_cmdv      - 'command -v felix_cmpf_on >/dev/null')" \
+         "$(_cmpfrow cmpf_type      - '[ "$(type -t felix_cmpf_on)" = alias ]')" \
          "$(_cmpfrow cmpf_quoted    - "_s='felix_cmpf_on'; [ \"\${#_s}\" -eq 13 ]")" \
-         "$(_cmpfrow cmpf_unset     - 'test -z "$cmpf_never_set_anywhere"')"
+         "$(_cmpfrow cmpf_unset     - 'test -z "$cmpf_never_set_anywhere"')" \
+         "$(_cmpfrow cmpf_realias   - 'felix_cmpf_true && [ "$(felix_cmpf_state)" = on ]')" \
+         "$(_cmpfrow cmpf_own       'felix_cmpf_own() { true; }; felix_cmpf_own' true)"
 # The suite runs under pipefail, so _cm is a caller that has it; _cmpfnopf is
 # one that does not.
 _cmpfnopf() { set +o pipefail; felix_commission_run "$@"; }
@@ -16646,13 +16648,27 @@ is  "an engine function that sources a library redefining what the check names r
 is  "and a function the library redefined still runs under the caller's pipefail" \
     "$(_cmpfst "$_cmpfon" cmpf_src_pf)" "done"
 
-is  "an engine function's name passed to command -v comes back as written" \
+# Amended after the blind block was written, and the only place a row can see
+# how its engine calls are carried: each name is an alias to a wrapper, so a
+# row asking what the name IS is told alias. Asking whether it exists is
+# unchanged. The blind versions asked for `felix_cmpf_on` back from command -v
+# and `function` from type -t, and failed on the fix for exactly this reason.
+is  "an engine function's name passed to command -v is still found" \
     "$(_cmpfst "$_cmpfon" cmpf_cmdv)" "done"
-is  "and type -t calls that name a function"                  "$(_cmpfst "$_cmpfon" cmpf_type)"   "done"
+is  "and type -t calls that name an alias, which is how it keeps the caller's pipefail" \
+    "$(_cmpfst "$_cmpfon" cmpf_type)"   "done"
 is  "and inside a quoted string that name is the string as written" \
     "$(_cmpfst "$_cmpfon" cmpf_quoted)" "done"
 is  "a check naming an unset variable is still held, because nounset stays" \
     "$(_cmpfst "$_cmpfon" cmpf_unset)" "held"
+# Added with the fix, not blind: two parts of it that a mutation showed nothing
+# above could fail. bash 3.2 parses a command substitution only when it runs,
+# so aliases must be back on after an engine call returns; and only a name that
+# is already a function is aliased, or a row's own helper would not parse.
+is  "an engine function in a substitution after another engine call still keeps the caller's pipefail" \
+    "$(_cmpfst "$_cmpfon" cmpf_realias)" "done"
+is  "a when may define and call a helper of its own under a felix_ name" \
+    "$(_cmpfst "$_cmpfon" cmpf_own)" "done"
 
 # An ask changes nothing about the shell that asked.
 _cmpfkept() { local before; before="$(set +o)"

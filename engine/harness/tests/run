@@ -83,6 +83,13 @@ MEM="$TMP/memory"
 export FELIX_MEMORY="$MEM"
 mkdir -p "$MEM"
 
+# No session, as on the CI runner. The gate files each catch under the session
+# its shell was given, and the Stop hook asks a session only about its own, so
+# a suite run from inside a session would file every fixture's catch under
+# that session and judge the hooks differently from CI. Cases that need one
+# set it where they need it.
+unset CLAUDE_CODE_SESSION_ID
+
 # Every lib that writes memory calls felix_mem_dir, which resolve.sh defines and
 # which the CLI and both hooks always source first. The subshells below source
 # one lib at a time, so without this they run under a load order production
@@ -4057,6 +4064,16 @@ is "a failing gate still exits non-zero" "$rc" "1"
                  || bad "and records the failure without being asked"
 grep -q 'lint' "$MISLOG" 2>/dev/null \
   && ok "naming which check failed" || bad "naming which check failed"
+# And when, to the second. The file is shared by every session on the project,
+# so its own time is whoever wrote last; felix_guard_unrecorded reads this
+# column to tell this checkout's catch from a peer's appended after it.
+_mst="$(tail -1 "$MISLOG" 2>/dev/null | cut -f5)"
+case "$_mst" in
+  ''|*[!0-9]*) bad "and the second it was caught, since the file's own time is whoever wrote last" "fifth column [$_mst]" ;;
+  *) [ $(( $(date +%s) - _mst )) -lt 600 ] \
+       && ok  "and the second it was caught, since the file's own time is whoever wrote last" \
+       || bad "and the second it was caught, since the file's own time is whoever wrote last" "fifth column [$_mst]" ;;
+esac
 
 # The same tree gated again is the same occasion. It cost a second run, and a
 # run is not a recurrence: this rank's advice is to write a lesson, and there
@@ -4192,6 +4209,14 @@ PYJ
 before="$(wc -l < "$MISLOG")"
 ( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 )
 is "a passing gate records nothing" "$(wc -l < "$MISLOG")" "$before"
+# Caught a moment ago, and the lessons written below land within the same
+# second on a fast runner, which the Stop hook's guard does not count as after
+# the catch; the green stops further down would then hear about this catch
+# instead of what they assert. Aged an hour here, stated like every other
+# ordering this suite depends on.
+_mag="$(( $(date +%s) - 3600 ))"
+awk -F'\t' -v OFS='\t' -v T="$_mag" 'NF >= 5 { $5 = T } { print }' "$MISLOG" > "$TMP/mislog.aged"
+cat "$TMP/mislog.aged" > "$MISLOG"
 
 printf '\ngenerated constitution\n'
 CDIR="$FROOT/projects/stranger"
@@ -6173,7 +6198,11 @@ is "silent when the gate has caught nothing" "${#out}" "0"
 # So the order is stated. Every case sets the mtimes it depends on, which also
 # means the run is a second faster and neither case can be won by luck.
 GYDAY="$(date -v-1d +%Y%m%d%H%M 2>/dev/null || date -d '1 day ago' +%Y%m%d%H%M)"
-printf '2026-01-01\tmain\tabc123\tlint\n' > "$MEM/guarded/mistakes.log"
+# Dated today, as the gate dates a row. An untimed row is aged by the day it
+# names since rows began carrying their own time, and a row dated January
+# in a file written today would be history rather than the catch this asks
+# about.
+printf '%s\tmain\tabc123\tlint\n' "$(date +%Y-%m-%d)" > "$MEM/guarded/mistakes.log"
 touch -t "$GYDAY" "$MEM/guarded/lessons.md" "$MEM/guarded/DEVLOG.md" 2>/dev/null
 # Asserted here, where the ordering is load-bearing. This is the case that went
 # red on CI, and the guard reads exactly this comparison. The first version of
@@ -6199,7 +6228,7 @@ is "and stops once something is written" "${#out}" "0"
 # fixture left DEVLOG.md empty, the guard skips the clause unless the file is
 # non-empty, so the entire branch could be deleted with the suite still green.
 # Both directions asserted, or the quiet one proves nothing.
-printf '2026-01-01\tmain\tabc123\tlint\n' > "$MEM/guarded/mistakes.log"
+printf '%s\tmain\tabc123\tlint\n' "$(date +%Y-%m-%d)" > "$MEM/guarded/mistakes.log"
 touch -t "$GYDAY" "$MEM/guarded/lessons.md" 2>/dev/null
 printf '## 2026-01-01 what happened and why\n' > "$MEM/guarded/DEVLOG.md"
 out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
@@ -6213,6 +6242,541 @@ printf '2020-01-01\tmain\tabc\told\n' > "$MEM/guarded/mistakes.log"
 touch -t 202001010000 "$MEM/guarded/mistakes.log" 2>/dev/null
 out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
 is "and does not nag about ancient history" "${#out}" "0"
+
+# Whose catch it is. Every session's gate appends to the one mistakes.log a
+# project has, so with many sessions open the newest row is usually somebody
+# else's, and the guard compared the whole file's time with the lessons. On
+# 2026-09-25 a session that had merged #339 and written its lesson at 08:19 was
+# asked three times about a `tests` catch another branch logged at 08:27. The
+# gate now files each row with the second it was caught and the session that
+# ran it, and the guard weighs only this session's rows, or, for a row that
+# names no session, the rows of the branch this checkout has checked out.
+#
+# The times are minutes apart and stated, never left to the order of writes:
+# the section above is the account of what that cost.
+UNOW="$(date +%s)"
+_ur_ago() { date -v-"$1"M +%Y%m%d%H%M 2>/dev/null || date -d "$1 minutes ago" +%Y%m%d%H%M; }
+_ur_day() { date -v-"$1"d +%Y-%m-%d 2>/dev/null || date -d "$1 days ago" +%Y-%m-%d; }
+_ur_at()  { date -d "@$1" +%Y%m%d%H%M.%S 2>/dev/null || date -r "$1" +%Y%m%d%H%M.%S; }
+_ur_row() {   # branch, check, minutes ago, [session]: the shape felix_mem_mistake writes
+  printf '%s\t%s\t%s\t%s \t%s\t%s\n' "$(date +%Y-%m-%d)" "$1" 0123abcd "$2" "$((UNOW - $3 * 60))" "${4:--}"
+}
+_ur_repo() {  # dir, branch
+  mkdir -p "$1" && ( cd "$1" && git init -q -b "$2" \
+    && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init ) >/dev/null 2>&1
+}
+_ur() { ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$1" "${2:-}" ); }
+_ur_lesson() { printf -- '- **a lesson**\n' > "$MEM/guarded/lessons.md"; touch -t "$(_ur_ago "$1")" "$MEM/guarded/lessons.md"; }
+UCK="$TMP/unrec-checkout"; _ur_repo "$UCK" claude/this-checkout
+: > "$MEM/guarded/DEVLOG.md"; _ur_lesson 60
+
+_ur_row claude/peer tests 30 > "$MEM/guarded/mistakes.log"
+is "a peer branch's newer catch does not prompt" "$(_ur "$UCK")" ""
+
+{ _ur_row claude/this-checkout lint 30; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
+has "this branch's own newer catch still prompts, and names it rather than a peer's logged after it" \
+    "$(_ur "$UCK")" "last caught   lint"
+
+{ _ur_row claude/this-checkout lint 120; _ur_row claude/peer tests 30; } > "$MEM/guarded/mistakes.log"
+is  "a lesson written after this branch's catch clears it, whatever a peer logged since" "$(_ur "$UCK")" ""
+# The same rows with the lesson moved before the catch, or the silence above
+# could be a guard that says nothing at all.
+_ur_lesson 180
+has "and a lesson written before it does not" "$(_ur "$UCK")" "last caught   lint"
+printf '## an entry\n' > "$MEM/guarded/DEVLOG.md"; touch -t "$(_ur_ago 60)" "$MEM/guarded/DEVLOG.md"
+is  "a devlog entry after this branch's catch clears it too" "$(_ur "$UCK")" ""
+: > "$MEM/guarded/DEVLOG.md"
+# To the second, not the minute: every case above is minutes apart, which a
+# guard comparing minutes would pass as well.
+printf '%s\tclaude/this-checkout\t0123abcd\tlint \t%s\t-\n' "$(date +%Y-%m-%d)" "$((UNOW - 600))" > "$MEM/guarded/mistakes.log"
+touch -t "$(_ur_at $((UNOW - 570)))" "$MEM/guarded/lessons.md"
+is  "a lesson thirty seconds after the catch clears it" "$(_ur "$UCK")" ""
+touch -t "$(_ur_at $((UNOW - 630)))" "$MEM/guarded/lessons.md"
+has "and one thirty seconds before it does not" "$(_ur "$UCK")" "last caught   lint"
+
+# The week is this catch's week. A peer appending keeps the file's time fresh
+# forever, and a debt that was history must not come back because of it. A row
+# from before rows carried a time is aged by the day it names.
+_ur_lesson 12960
+{ _ur_row claude/this-checkout lint 11520; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
+is "this branch's week-old catch stays history while a peer's rows keep the file fresh" "$(_ur "$UCK")" ""
+{ printf '%s\tclaude/this-checkout\t0123abcd\tlint \n' "$(_ur_day 10)"; _ur_row claude/peer tests 10; } \
+  > "$MEM/guarded/mistakes.log"
+is "and so does an untimed row dated ten days back" "$(_ur "$UCK")" ""
+# A date column that is not a date names no day: it neither makes the row
+# history nor keeps the file's own week from aging it.
+_ur_lesson 60
+{ printf '\tclaude/this-checkout\t0123abcd\tlint \n'; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
+has "an untimed row with an empty date is not taken for history" "$(_ur "$UCK")" "last caught   lint"
+{ printf -- '-\tclaude/this-checkout\t0123abcd\tlint \n'; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
+has "nor one whose date is a dash, which sorts before every day" "$(_ur "$UCK")" "last caught   lint"
+printf 'garbage\tclaude/this-checkout\t0123abcd\tlint \n' > "$MEM/guarded/mistakes.log"
+touch -t "$(_ur_ago 11520)" "$MEM/guarded/mistakes.log"
+is "and one whose date is unreadable still ages out with the file" "$(_ur "$UCK")" ""
+# An untimed row was caught by the end of the day it names, so a lesson from
+# a later day settles it, however fresh a peer keeps the file. Without this,
+# every checkout on a branch with a row from before this change was asked at
+# each peer's append until the row's week ran out. Two days back, so a lesson
+# half an hour old is on a later day even just after midnight.
+{ printf '%s\tclaude/this-checkout\t0123abcd\tlint \n' "$(_ur_day 2)"; _ur_row claude/peer tests 1; } \
+  > "$MEM/guarded/mistakes.log"
+_ur_lesson 30
+is "an untimed row is settled by a lesson written on a later day than it names" "$(_ur "$UCK")" ""
+{ printf '%s\tclaude/this-checkout\t0123abcd\tlint \n' "$(_ur_day 2)"; _ur_row claude/peer tests 1; } \
+  > "$MEM/guarded/mistakes.log"
+printf -- '- **a lesson**\n' > "$MEM/guarded/lessons.md"; touch -t "$(_ur_ago 4320)" "$MEM/guarded/lessons.md"
+has "and not by one from an earlier day" "$(_ur "$UCK")" "last caught   lint"
+_ur_lesson 60
+
+# The session that ran the gate owns the row, wherever the gate stood. The
+# branch was a stand-in for it, and the review of this change found where the
+# stand-in fails open: a session that gated on the branch it was handed and
+# then made its own, one that gated another checkout, one that ran checkout -B.
+# A row naming another session is that session's, on this very branch too.
+UCK2="$TMP/unrec-renamed"; _ur_repo "$UCK2" auto/handed
+( cd "$UCK2" && git checkout -q -b claude/made && git branch -m claude/renamed ) >/dev/null 2>&1
+{ _ur_row auto/handed lint 30 ur-this; _ur_row claude/peer tests 10 ur-peer; } > "$MEM/guarded/mistakes.log"
+has "this session's catch prompts after its checkout moves to another branch" \
+    "$(_ur "$UCK2" ur-this)" "last caught   lint"
+{ _ur_row claude/renamed lint 30 ur-earlier; _ur_row claude/peer tests 10 ur-peer; } > "$MEM/guarded/mistakes.log"
+is  "and another session's catch on this very branch does not" "$(_ur "$UCK2" ur-this)" ""
+has "a conversation holding more than one session owns the rows of each" \
+    "$(_ur "$UCK2" "ur-restored ur-earlier")" "last caught   lint"
+{ _ur_row claude/renamed lint 30; _ur_row claude/peer tests 10 ur-peer; } > "$MEM/guarded/mistakes.log"
+has "a row that names no session is this checkout's when its branch is the one checked out" \
+    "$(_ur "$UCK2" ur-this)" "last caught   lint"
+UCK3="$TMP/unrec-reused"; _ur_repo "$UCK3" claude/earlier-session
+( cd "$UCK3" && git checkout -q --detach && git checkout -q -b claude/this-session ) >/dev/null 2>&1
+_ur_row claude/earlier-session lint 30 > "$MEM/guarded/mistakes.log"
+is  "and an earlier session's catch in a reused checkout does not" "$(_ur "$UCK3" ur-this)" ""
+( cd "$UCK3" && git checkout -q --detach ) >/dev/null 2>&1
+{ _ur_row HEAD lint 30; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
+has "a detached checkout's own catch, filed as HEAD, prompts" "$(_ur "$UCK3")" "last caught   lint"
+# A checkout git cannot name, and a row from before rows carried a time, are
+# both weighed the way the whole file used to be: toward asking.
+mkdir -p "$TMP/unrec-plain"
+_ur_row claude/peer tests 30 > "$MEM/guarded/mistakes.log"
+has "a checkout git cannot name weighs every catch, as before" "$(_ur "$TMP/unrec-plain")" "last caught   tests"
+{ printf '%s\tclaude/this-checkout\t0123abcd\tlint \n' "$(date +%Y-%m-%d)"; _ur_row claude/peer tests 90; } \
+  > "$MEM/guarded/mistakes.log"
+has "an untimed row of this branch's is taken at the file's time" "$(_ur "$UCK")" "last caught   lint"
+# A time column that is not a time is read as none, toward asking, and quietly:
+# the arithmetic it would otherwise reach aborts on a leading zero.
+printf '%s\tclaude/this-checkout\t0123abcd\tlint \t0189\t-\n' "$(date +%Y-%m-%d)" > "$MEM/guarded/mistakes.log"
+out="$( ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$UCK" ) 2>&1 )"
+case "$out" in
+  *"last caught   lint"*) case "$out" in *"base"*|*"expression"*|*"guard.sh"*) bad "a time column that is not a time is read as none" "$out" ;;
+                            *) ok "a time column that is not a time is read as none" ;; esac ;;
+  *) bad "a time column that is not a time is read as none" "$out" ;;
+esac
+
+# The writer. The session is the one the platform exports to the gate's shell,
+# the same id the Stop hook is handed, and a subagent's shell carries its
+# parent's, so a catch made on a session's behalf is that session's to explain.
+: > "$MEM/guarded/mistakes.log"
+( . "$FROOT/harness/lib/memory.sh"; CLAUDE_CODE_SESSION_ID=ur-writer felix_mem_mistake "$GP" "$UCK" lint ) >/dev/null 2>&1
+is "the gate's row names the session that ran it" "$(tail -1 "$MEM/guarded/mistakes.log" | cut -f2,6)" "claude/this-checkout	ur-writer"
+( . "$FROOT/harness/lib/memory.sh"; unset CLAUDE_CODE_SESSION_ID; felix_mem_mistake "$GP" "$UCK" lint ) >/dev/null 2>&1
+is "and a dash when no session ran it" "$(tail -1 "$MEM/guarded/mistakes.log" | cut -f6)" "-"
+( . "$FROOT/harness/lib/memory.sh"; CLAUDE_CODE_SESSION_ID="$(printf 'a\tb')" felix_mem_mistake "$GP" "$UCK" lint ) >/dev/null 2>&1
+is "and a dash for an id that would break the row" "$(tail -1 "$MEM/guarded/mistakes.log" | awk -F'\t' '{print NF "|" $6}')" "6|-"
+# A checkout with no commit yet. `rev-parse --abbrev-ref` prints HEAD and fails
+# there, so its fallback wrote a second line into the row, and the fifth
+# column landed in the fourth, where every reader of checks would take a
+# timestamp for one.
+UUB="$TMP/unrec-unborn"; mkdir -p "$UUB" && ( cd "$UUB" && git init -q -b claude/unborn ) >/dev/null 2>&1
+: > "$MEM/guarded/mistakes.log"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_mistake "$GP" "$UUB" lint ) >/dev/null 2>&1
+is "a checkout with no commit yet writes one row, under its branch" \
+   "$(wc -l < "$MEM/guarded/mistakes.log" | tr -d ' ')|$(cut -f2,4 "$MEM/guarded/mistakes.log" | head -1)" "1|claude/unborn	lint"
+( cd "$UCK3" && git checkout -q --detach ) >/dev/null 2>&1
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_mistake "$GP" "$UCK3" lint ) >/dev/null 2>&1
+is "and a detached one files under HEAD, as the guard reads it" "$(tail -1 "$MEM/guarded/mistakes.log" | cut -f2)" "HEAD"
+
+# Through the Stop hook, where it is read. Called without a checkout or a
+# session the guard weighs every row, so a hook that never passed them would
+# leave every assertion above green and the founder still asked about a peer's
+# catch.
+UHP="$FROOT/projects/unrechook"; mkdir -p "$UHP" "$MEM/unrechook"
+printf '{\n  "name": "unrechook",\n  "remote_match": "example.com/unrechook",\n  "gate": "true"\n}\n' > "$UHP/project.json"
+cp "$TMP/probes.keep" "$UHP/probes.tsv"
+UHR="$TMP/unrechook-repo"; _ur_repo "$UHR" claude/this-checkout
+UHR="$(cd "$UHR" && pwd -P)"
+printf 'unrechook\n' > "$UHR/.felix"; printf 'uncommitted\n' > "$UHR/work.txt"
+( cd "$UHR" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$UHR" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$UHR" "$FROOT")" "" >/dev/null 2>&1 )
+printf -- '- **a lesson**\n' > "$MEM/unrechook/lessons.md"; touch -t "$(_ur_ago 60)" "$MEM/unrechook/lessons.md"
+_ur_stop() { ( cd "$UHR" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s"}' "$1" \
+               | "$FROOT/harness/hooks/stop" 2>&1 ); }
+_ur_row claude/this-checkout lint 30 ur-own > "$MEM/unrechook/mistakes.log"
+has "through the Stop hook, this session's own catch prompts" "$(_ur_stop ur-own)" "nothing has been written down"
+_ur_row claude/this-checkout lint 30 ur-own > "$MEM/unrechook/mistakes.log"
+is  "and another session's on this same branch does not" "$(_ur_stop ur-peer)" ""
+_ur_row claude/peer tests 30 > "$MEM/unrechook/mistakes.log"
+is  "and a peer branch's does not, nor anything else on this green stop" "$(_ur_stop ur-peer2)" ""
+# A conversation the desktop app carried on under a new id: its transcript
+# opens under the old one, and the catch made then is still this one's. A
+# transcript that never held that id does not claim it.
+_ur_stop_tp() { ( cd "$UHR" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s","transcript_path":"%s"}' "$1" "$2" \
+                  | "$FROOT/harness/hooks/stop" 2>&1 ); }
+printf '%s\n' '{"type":"user","sessionId":"ur-before","message":{"content":"a \"sessionId\":\"ur-quoted\" in the text"},"toolUseResult":{"sessionId":"ur-nested"}}' \
+               '{"type":"user","sessionId":"ur-after","message":{"content":"on"}}' > "$TMP/ur-restored.jsonl"
+printf '%s\n' '{"type":"user","sessionId":"ur-other","message":{"content":"x"}}' > "$TMP/ur-other.jsonl"
+_ur_row claude/peer lint 30 ur-before > "$MEM/unrechook/mistakes.log"
+has "through the Stop hook, a catch under the id the transcript opens with is this conversation's" \
+    "$(_ur_stop_tp ur-after "$TMP/ur-restored.jsonl")" "nothing has been written down"
+is  "and a transcript that never held that id does not claim it" "$(_ur_stop_tp ur-after2 "$TMP/ur-other.jsonl")" ""
+_ur_row claude/peer lint 30 ur-nested > "$MEM/unrechook/mistakes.log"
+is  "nor does an id nested later in a record than the record's own" "$(_ur_stop_tp ur-after3 "$TMP/ur-restored.jsonl")" ""
+# Both stops that ask go through one helper, so the arguments cannot drift
+# apart at a call site no fixture reaches: the night's.
+is "the Stop hook calls the guard in one place" "$(grep -c 'felix_guard_unrecorded' "$FROOT/harness/hooks/stop")" "1"
+rm -rf "$UHP"
+
+# The same contract, asserted blind. These were written from a statement of
+# what felix_guard_unrecorded and felix_mem_mistake must do, by an author who
+# never saw the implementation or the assertions above, and run against
+# origin/main's engine before this one existed: 23 of these 43 failed there,
+# every one for a reason the contract names. Kept beside the author's own
+# because each finds what the other left unsaid.
+#
+# Four were re-keyed after the adversarial review, which found the contract's
+# reflog walk failing open (checkout -B, a detached round trip, a session that
+# gates more than one branch) and replaced it with the session each row now
+# names. The three cases that walked renames and checkouts give their row the
+# session asking, and the writer's row has six columns where it had five. The
+# names say what each asks now.
+printf '\nunrecorded catches, per checkout (blind)\n'
+
+_B="$MEM/guarded"; _BM="$_B/mistakes.log"; _BL="$_B/lessons.md"; _BD="$_B/DEVLOG.md"
+_BFIRST='The gate caught something here and nothing has been written down since.'
+_BN="$(date +%s)"
+
+# epoch n minutes ago, and n days ago
+_bago()  { printf '%s' "$(( _BN - $1 * 60 ))"; }
+_bdago() { printf '%s' "$(( _BN - $1 * 86400 ))"; }
+# epoch -> touch -t stamp / YYYY-MM-DD (BSD date -r, else GNU date -d @)
+_bstamp() { date -r "$1" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$1" +%Y%m%d%H%M.%S; }
+_bday()   { date -r "$1" +%Y-%m-%d 2>/dev/null || date -d "@$1" +%Y-%m-%d; }
+# set a file's mtime to an epoch second
+_bmt() { touch -t "$(_bstamp "$1")" "$2"; }
+
+# a fresh memory dir: no log, no lessons, no devlog
+_breset() { rm -f "$_BM" "$_BL" "$_BD"; }
+# append a row: branch checks [epoch]. With an epoch the row has five columns
+# and its date column is that epoch's day; without, the old four-column shape.
+_brow() {
+  local day
+  if [ $# -ge 3 ]; then day="$(_bday "$3")"; else day="$(date +%Y-%m-%d)"; fi
+  printf '%s\t%s\t%s\t%s' "$day" "$1" "abc1234" "$2" >> "$_BM"
+  [ $# -ge 3 ] && printf '\t%s' "$3" >> "$_BM"
+  printf '\n' >> "$_BM"
+}
+# a lesson / devlog entry at an epoch second
+_blesson() { printf -- '- **something learned**\n' > "$_BL"; _bmt "$1" "$_BL"; }
+_bdevlog() { printf '## what happened and why\n' > "$_BD"; _bmt "$1" "$_BD"; }
+
+# the guard, for one checkout root (or none)
+_bu()   { ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$1" ) 2>/dev/null; }
+_bu0()  { ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" ) 2>/dev/null; }
+_bus()  { ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$1" "$2" ) 2>/dev/null; }
+# a row this session filed: branch checks epoch, with the session in column 6
+_browS() { printf '%s\t%s\t%s\t%s\t%s\tb-sess\n' "$(_bday "$3")" "$1" "abc1234" "$2" "$3" >> "$_BM"; }
+# the value of the "  last caught   <checks>" line
+_bcaught() { printf '%s\n' "$1" | sed -n 's/^  last caught   //p' | head -1; }
+
+# throwaway repos
+_bg() { git -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null "$@"; }
+_brepo() { # dir initial-branch
+  mkdir -p "$1"
+  _bg -C "$1" -c init.defaultBranch="$2" init -q >/dev/null 2>&1
+  _bg -C "$1" commit -q --allow-empty -m init >/dev/null 2>&1
+}
+_bhead() { git -C "$1" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?'; }
+
+R_MINE="$TMP/b-mine";   _brepo "$R_MINE" mine
+R_OTHER="$TMP/b-other"; _brepo "$R_OTHER" other
+R_V="$TMP/b-v";         _brepo "$R_V" v1.2
+# renamed: created as oldname, then git branch -m
+R_REN="$TMP/b-ren";     _brepo "$R_REN" oldname
+_bg -C "$R_REN" branch -m oldname newname >/dev/null 2>&1
+# checkout -b from parent, then a commit on the new branch
+R_CO="$TMP/b-co";       _brepo "$R_CO" parent
+_bg -C "$R_CO" checkout -q -b child >/dev/null 2>&1
+_bg -C "$R_CO" commit -q --allow-empty -m more >/dev/null 2>&1
+# switch -c from base
+R_SW="$TMP/b-sw";       _brepo "$R_SW" base
+_bg -C "$R_SW" switch -q -c topic >/dev/null 2>&1
+# on trunk, detached, then a new branch made from the detached HEAD
+R_DET2="$TMP/b-det2";   _brepo "$R_DET2" trunk
+_bg -C "$R_DET2" checkout -q --detach >/dev/null 2>&1
+_bg -C "$R_DET2" checkout -q -b fresh >/dev/null 2>&1
+# detached now
+R_DET="$TMP/b-det";     _brepo "$R_DET" main
+_bg -C "$R_DET" checkout -q --detach >/dev/null 2>&1
+# not a repository
+R_NG="$TMP/b-nongit";   mkdir -p "$R_NG"
+# the writer's checkout and a sibling on another branch
+R_W="$TMP/b-writer";    _brepo "$R_W" writer-br
+R_S="$TMP/b-sibling";   _brepo "$R_S" sibling-br
+
+_bfx="$(_bhead "$R_MINE") $(_bhead "$R_V") $(_bhead "$R_REN") $(_bhead "$R_CO") $(_bhead "$R_SW") $(_bhead "$R_DET2") $(_bhead "$R_DET") $(_bhead "$R_W")"
+is "fixture: every throwaway checkout is on the branch its case assumes" \
+   "$_bfx" "mine v1.2 newname child topic fresh HEAD writer-br"
+git -C "$R_NG" rev-parse --git-dir >/dev/null 2>&1 \
+  && bad "fixture: the non-git root is outside any repository" "$R_NG is inside a repo" \
+  || ok  "fixture: the non-git root is outside any repository"
+
+# --------------------------------------------------------------- (e) empty --
+_breset
+out="$(_bu "$R_MINE")"
+is "silent when mistakes.log is missing" "${#out}" "0"
+
+: > "$_BM"
+out="$(_bu "$R_MINE")"
+is "silent when mistakes.log is empty" "${#out}" "0"
+
+# positive control for both: one row of this checkout's own, nothing written
+_breset
+_brow mine "lint " "$(_bago 30)"; _bmt "$(_bago 30)" "$_BM"
+out="$(_bu "$R_MINE")"
+is "speaks for this checkout's own unexplained catch, first line exact" \
+   "$(printf '%s\n' "$out" | head -1)" "$_BFIRST"
+is "and its last-caught line names that catch, trimmed" "$(_bcaught "$out")" "lint"
+
+# ------------------------------------------------------ (a)(c) belonging --
+# This checkout's catch was explained an hour ago; another checkout's later
+# catch is not this checkout's to explain.
+_breset
+_brow mine  "tests "            "$(_bago 180)"
+_brow other "secret qualified " "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "another checkout's newer catch does not make this one speak" "${#out}" "0"
+out="$(_bu "$R_OTHER")"
+has "the same catch speaks for the checkout that owns it" "$out" "$_BFIRST"
+is "and names it trimmed at the ends with its inner space kept" \
+   "$(_bcaught "$out")" "secret qualified"
+
+# Neither explained: this checkout's prompt names its own catch, not the
+# file's last row.
+_breset
+_brow mine  "tests "            "$(_bago 30)"
+_brow other "secret qualified " "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+out="$(_bu "$R_MINE")"
+is "last caught names this checkout's catch, not the file's last row" \
+   "$(_bcaught "$out")" "tests"
+
+# No row belongs at all.
+_breset
+_brow other     "otherscheck" "$(_bago 30)"
+_brow elsewhere "elsecheck"   "$(_bago 20)"
+_bmt "$(_bago 20)" "$_BM"
+out="$(_bu "$R_MINE")"
+is "silent when no row belongs to this checkout" "${#out}" "0"
+out="$(_bu "$R_OTHER")"
+is "while a checkout with a row there is named by it" "$(_bcaught "$out")" "otherscheck"
+
+# Look-alike branch names: a dot is not a wildcard, a prefix or suffix is not
+# the branch.
+_breset
+_brow v1.2    "owncheck"    "$(_bago 180)"
+_brow v1x2    "dotcheck"    "$(_bago 20)"
+_brow v1.2-rc "rccheck"     "$(_bago 15)"
+_brow xv1.2   "prefixcheck" "$(_bago 10)"
+_brow v1      "shortcheck"  "$(_bago 8)"
+_bmt "$(_bago 8)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_V")"
+is "rows of look-alike branch names do not belong (exact match only)" "${#out}" "0"
+rm -f "$_BL"
+out="$(_bu "$R_V")"
+is "with the lesson gone it names its own row past the look-alikes" \
+   "$(_bcaught "$out")" "owncheck"
+
+# Renamed with git branch -m: the session's catch under the old name is still its own.
+_breset
+_browS oldname  "renamedcheck" "$(_bago 60)"
+_brow unrelated "zzz"          "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+out="$(_bus "$R_REN" b-sess)"
+is "a session's catch under its branch's name before git branch -m is still its own" \
+   "$(_bcaught "$out")" "renamedcheck"
+
+# Made with checkout -b from parent, with a commit since.
+_breset
+_browS parent   "parentcheck" "$(_bago 60)"
+_brow unrelated "zzz"         "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+out="$(_bus "$R_CO" b-sess)"
+is "a session's catch on the branch it left by checkout -b is its own, even after a commit" \
+   "$(_bcaught "$out")" "parentcheck"
+
+# Made with switch -c from base.
+_breset
+_browS base     "basecheck" "$(_bago 60)"
+_brow unrelated "zzz"       "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+out="$(_bus "$R_SW" b-sess)"
+is "and one on the branch it left by switch -c" "$(_bcaught "$out")" "basecheck"
+
+# Reached from a detached HEAD: nothing from before the detach, and the
+# detached rows are not a branch it came from.
+_breset
+_brow trunk "beforedetach" "$(_bago 60)"
+_bmt "$(_bago 60)" "$_BM"
+out="$(_bu "$R_DET2")"
+is "a branch made from a detached HEAD inherits nothing from before the detach" "${#out}" "0"
+_breset
+_brow HEAD "whiledetached" "$(_bago 60)"
+_bmt "$(_bago 60)" "$_BM"
+out="$(_bu "$R_DET2")"
+is "nor the HEAD rows, once it is on a branch" "${#out}" "0"
+_brow fresh "freshcheck" "$(_bago 30)"
+_bmt "$(_bago 30)" "$_BM"
+out="$(_bu "$R_DET2")"
+is "but its own branch's catch still speaks" "$(_bcaught "$out")" "freshcheck"
+
+# A detached checkout owns HEAD rows.
+_breset
+_brow HEAD      "detachedcheck" "$(_bago 60)"
+_brow unrelated "zzz"           "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+out="$(_bu "$R_DET")"
+is "a detached checkout owns rows whose branch column is HEAD" \
+   "$(_bcaught "$out")" "detachedcheck"
+_breset
+_brow elsewhere "elsecheck" "$(_bago 30)"
+_bmt "$(_bago 30)" "$_BM"
+out="$(_bu "$R_DET")"
+is "a detached checkout is silent about other branches' rows" "${#out}" "0"
+
+# ------------------------------------------------------------ (b)(c) time --
+# A lesson strictly after the catch settles it; one before does not.
+_breset
+_brow mine "lint" "$(_bago 120)"; _bmt "$(_bago 120)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "a lesson written after the catch settles it" "${#out}" "0"
+_blesson "$(_bago 180)"
+out="$(_bu "$R_MINE")"
+has "a lesson written before the catch does not" "$out" "$_BFIRST"
+
+# The same second is not after.
+_breset
+_bt="$(_bago 60)"
+_brow mine "lint" "$_bt"; _bmt "$_bt" "$_BM"
+_blesson "$_bt"
+out="$(_bu "$R_MINE")"
+has "a lesson stamped the very second of the catch does not settle it" "$out" "$_BFIRST"
+_blesson "$(( _bt + 60 ))"
+out="$(_bu "$R_MINE")"
+is "a lesson a minute after the catch does" "${#out}" "0"
+
+# The devlog settles too, but only when it has something in it.
+_breset
+_brow mine  "lint" "$(_bago 180)"
+_brow other "zzz"  "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+_bdevlog "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "a non-empty devlog written after the catch settles it" "${#out}" "0"
+_bdevlog "$(_bago 240)"
+out="$(_bu "$R_MINE")"
+has "a non-empty devlog written before the catch does not" "$out" "$_BFIRST"
+: > "$_BD"; _bmt "$(_bago 60)" "$_BD"
+out="$(_bu "$R_MINE")"
+has "an empty devlog newer than the catch does not settle it" "$out" "$_BFIRST"
+
+# The week is measured from column 5, not from the file.
+_breset
+_brow mine  "stalecheck" "$(_bdago 8)"
+_brow other "zzz"        "$(_bago 5)"
+_bmt "$(_bago 5)" "$_BM"
+out="$(_bu "$R_MINE")"
+is "a catch eight days old is silent though the log was written since" "${#out}" "0"
+_breset
+_brow mine  "weekcheck" "$(_bdago 6)"
+_brow other "zzz"       "$(_bago 5)"
+_bmt "$(_bago 5)" "$_BM"
+out="$(_bu "$R_MINE")"
+is "a catch six days old still speaks" "$(_bcaught "$out")" "weekcheck"
+
+# Column 5 is the time, even when the file's own mtime says otherwise.
+_breset
+_brow mine "lint" "$(_bago 30)"
+_bmt "$(_bdago 10)" "$_BM"
+_blesson "$(_bago 120)"
+out="$(_bu "$R_MINE")"
+has "a column-5 time after the lesson speaks though the log's mtime is old" "$out" "$_BFIRST"
+
+# The newest belonging row is the last one in the file.
+_breset
+_brow mine "alpha" "$(_bago 10)"
+_brow mine "beta"  "$(_bago 120)"
+_bmt "$(_bago 10)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "the last belonging row in the file decides, not the largest time" "${#out}" "0"
+rm -f "$_BL"
+out="$(_bu "$R_MINE")"
+is "and it is the one named" "$(_bcaught "$out")" "beta"
+
+# ------------------------------------------------------ (d) never fail open --
+_breset
+_brow "?"   "qcheck"   "$(_bago 90)"
+_brow other "lastrow " "$(_bago 30)"
+_bmt "$(_bago 30)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_NG")"
+is "a checkout root that is not a git repository counts every row" \
+   "$(_bcaught "$out")" "lastrow"
+out="$(_bu0)"
+is "no checkout root at all counts every row" "$(_bcaught "$out")" "lastrow"
+
+# A belonging row without column 5 is taken at the log's mtime.
+_breset
+_brow mine  "untimed"
+_brow other "zzz" "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "an untimed row of this checkout is taken at the log's mtime, and speaks" \
+   "$(_bcaught "$out")" "untimed"
+_breset
+_brow mine "untimed"
+_bmt "$(_bago 120)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "and is settled by a lesson newer than that mtime" "${#out}" "0"
+
+# ---------------------------------------------------------------- writer --
+_breset
+_brow sibling-br "sibcheck" "$(_bago 180)"
+_bmt "$(_bago 180)" "$_BM"
+_blesson "$(_bago 120)"
+_bbefore="$(date +%s)"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_mistake "$GP" "$R_W" "lint" ) >/dev/null 2>&1
+_bafter="$(date +%s)"
+_blast="$(tail -1 "$_BM")"
+is "the writer appends, keeping the rows already there" \
+   "$(wc -l < "$_BM" | tr -d ' ')|$(head -1 "$_BM" | cut -f2,4)" "2|sibling-br	sibcheck"
+is "the writer keeps the four old columns" "$(printf '%s' "$_blast" | cut -f1-4)" \
+   "$(date +%Y-%m-%d)	writer-br	$(git -C "$R_W" rev-parse --short HEAD)	lint"
+_bc5="$(printf '%s' "$_blast" | awk -F'\t' '{print NF "|" $5}')"
+_bep="${_bc5#*|}"
+case "$_bep" in ''|*[!0-9]*) _bepok=no ;;
+  *) [ "$_bep" -ge "$_bbefore" ] && [ "$_bep" -le "$_bafter" ] && _bepok=yes || _bepok=no ;; esac
+is "the writer's fifth column is the current epoch second" "${_bc5%%|*}|$_bepok" "6|yes"
+out="$(_bu "$R_W")"
+is "the row it wrote speaks for the checkout that wrote it" "$(_bcaught "$out")" "lint"
+out="$(_bu "$R_S")"
+is "and not for a sibling checkout whose own catch was explained" "${#out}" "0"
+
+_breset
+unset -f _bago _bdago _bstamp _bday _bmt _breset _brow _browS _blesson _bdevlog _bu _bu0 _bus _bcaught _bg _brepo _bhead
 rm -rf "$GP"
 
 printf '\nnoticing when another plugin breaks the session\n'

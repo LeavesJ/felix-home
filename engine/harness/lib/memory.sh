@@ -157,14 +157,29 @@ felix_mem_handoff_foreign() {
 # Write cheaply, consolidate on a cadence. The maintenance routine does the
 # curating with the whole file in view, which is when the judgement is actually
 # available.
+#
+# The fifth and sixth columns are the second it was caught and the session
+# whose gate caught it. Every session on the project appends here, so the
+# file's own time is whoever wrote last, and felix_guard_unrecorded needs both
+# to tell this session's catch from a peer's. The session is the one the
+# platform exports to the gate's shell, which a subagent's shell inherits from
+# its parent; a dash when there is none, or when the id holds anything that
+# could break the row. Appended last, so every reader of the first four is
+# unchanged.
+#
+# The branch is the one HEAD names. `rev-parse --abbrev-ref` prints HEAD and
+# then fails in a checkout with no commit yet, and its fallback wrote a second
+# line into the row.
 felix_mem_mistake() {
-  local proj="$1" root="$2" what="$3"
+  local proj="$1" root="$2" what="$3" br sha sid="${CLAUDE_CODE_SESSION_ID:-}"
   mkdir -p "$(felix_mem_dir "$proj")"
-  printf '%s\t%s\t%s\t%s\n' \
-    "$(date +%Y-%m-%d)" \
-    "$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')" \
-    "$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo '?')" \
-    "$what" >> "$(felix_mem_dir "$proj")/mistakes.log"
+  br="$(git -C "$root" symbolic-ref --short -q HEAD 2>/dev/null)" \
+    || { git -C "$root" rev-parse --git-dir >/dev/null 2>&1 && br=HEAD || br='?'; }
+  sha="$(git -C "$root" rev-parse -q --verify --short HEAD 2>/dev/null)" || sha='?'
+  case "$sid" in ''|*[!A-Za-z0-9._-]*) sid=- ;; esac
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$(date +%Y-%m-%d)" "${br:-?}" "${sha:-?}" "$what" "$(date +%s)" "$sid" \
+    >> "$(felix_mem_dir "$proj")/mistakes.log"
 }
 
 # What the gate keeps catching. A far better promotion signal than counting words:

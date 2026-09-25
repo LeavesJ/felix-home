@@ -1,6 +1,6 @@
 ### 2026-09-25 — the needs-count flake was printf into grep -q under pipefail, not a failed read; qualify's membership is a case in the shell now, and an unreadable qualification.tsv is said, not resolved
 
-**One engine PR from this session, version 0.49.221** (lib/qualify.sh,
+**One engine PR from this session, version 0.49.222** (lib/qualify.sh,
 lib/obligations.sh, felix, tests/run). Why the #310 count assertion read
 `3 0 2 1 2` once under load: `printf '%s\n' "$have" | grep -qxF "$c" || missing`.
 grep -q leaves at its first match, bash 3.2's printf writes a list one write()

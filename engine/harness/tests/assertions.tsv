@@ -745,6 +745,7 @@
 1	a scoped row that stands says it covers only the checkout
 1	a score answer never enters the admit phase
 1	a script handed to bash -c or sh -c over 256K is read at both ends: a runner at its start or its end is a check
+1	a script that names /tmp/ on its second line, ahead of a megabyte, is caught under pipefail
 1	a second --section on the same branch rewrites that file and makes no other
 1	a second catch-up finds nothing left
 1	a second fold of the same main writes the same tree
@@ -1185,6 +1186,7 @@
 1	and a graph with no stamp does too
 1	and a graphify that fails outright does not reach the session
 1	and a hand rotation that archives a stale copy of the section says what it drops
+1	and a here-string into grep -q passes on the same megabyte
 1	and a high one is refused
 1	and a history read for no workflow is unknown
 1	and a hold is not written
@@ -2788,6 +2790,7 @@
 1	no allow row claims a surface that no longer names it
 1	no candidate is dropped in silence
 1	no candidate's applies or evidence ran through rules, record, read or stale
+1	no check in this suite pipes printf or echo of a variable into a chain ending in grep -q
 1	no deny.tsv means nothing is denied
 1	no engine test pipes into a grep that can stop reading early
 1	no entry is listed twice
@@ -3582,6 +3585,7 @@
 1	undeclared capability classifies as dormant
 1	under a current grant it says the next session start re-commissions
 1	under pipefail, printf of a megabyte piped into grep -q reads a match on its first line as absent
+1	under pipefail, printf piped into grep -q fails when grep matches the first line of a megabyte
 1	ungoverned repo refuses to run a gate
 1	uninstall names the doctrine it left alone
 1	uninstall takes the grant back

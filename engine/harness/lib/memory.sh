@@ -17,22 +17,67 @@
 
 _felix_mem_stamp() {
   local root="$1"
-  printf '%s %s %s' \
-    "$(date +%Y-%m-%d)" \
-    "$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')" \
-    "$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo '?')"
+  printf '%s %s %s' "$(date +%Y-%m-%d)" "$(_felix_mem_branch "$root")" "$(_felix_mem_sha "$root")"
+}
+
+# Where a memory row was written, spelled one way for every row that says so:
+# a devlog header, a gate's catch, the owner of a lesson. The branch is the one
+# HEAD names, HEAD when detached and ? outside git; the commit is ? when there
+# is none. `rev-parse --abbrev-ref` prints HEAD and then fails in a checkout
+# with no commit yet, and its fallback wrote a second line into whatever it
+# was part of.
+_felix_mem_branch() {
+  local br
+  br="$(git -C "$1" symbolic-ref --short -q HEAD 2>/dev/null)" \
+    || { git -C "$1" rev-parse --git-dir >/dev/null 2>&1 && br=HEAD || br='?'; }
+  printf '%s' "${br:-?}"
+}
+
+_felix_mem_sha() {
+  local sha
+  sha="$(git -C "$1" rev-parse -q --verify --short HEAD 2>/dev/null)" || sha='?'
+  printf '%s' "${sha:-?}"
+}
+
+# The session the platform exports to this shell, which a subagent's shell
+# inherits from its parent. A dash when there is none, or when the id holds
+# anything that could break a row.
+_felix_mem_sid() {
+  local sid="${CLAUDE_CODE_SESSION_ID:-}"
+  case "$sid" in ''|*[!A-Za-z0-9._-]*) sid=- ;; esac
+  printf '%s' "$sid"
 }
 
 felix_mem_log() {
   local proj="$1" root="$2" text="$3"
   mkdir -p "$(felix_mem_dir "$proj")"
-  printf '\n## %s\n\n%s\n' "$(_felix_mem_stamp "$root")" "$text" >> "$(felix_mem_dir "$proj")/DEVLOG.md"
+  printf '\n## %s\n\n%s\n' "$(_felix_mem_stamp "$root")" "$text" >> "$(felix_mem_dir "$proj")/DEVLOG.md" \
+    && _felix_mem_written "$proj" "$root" log
 }
 
 felix_mem_lesson() {
   local proj="$1" root="$2" text="$3"
   mkdir -p "$(felix_mem_dir "$proj")"
-  printf '\n- **%s** %s\n' "$(date +%Y-%m-%d)" "$text" >> "$(felix_mem_dir "$proj")/lessons.md"
+  printf '\n- **%s** %s\n' "$(date +%Y-%m-%d)" "$text" >> "$(felix_mem_dir "$proj")/lessons.md" \
+    && _felix_mem_written "$proj" "$root" lesson
+}
+
+# Who wrote each lesson and devlog entry, and when: one row per entry in
+# written.log, in mistakes.log's shape with the kind where the checks go.
+#
+# felix_guard_unrecorded lets an entry settle only the catches of whoever wrote
+# it, and neither file can say who that was. lessons.md is prose mounted into
+# sessions and names only the day; a devlog header names the day and the
+# branch, never the second or the session. Their modification times say only
+# that somebody wrote, and on a project with many sessions somebody always
+# has: review measured the real lessons.md gaining 5 to 16 lessons a day
+# against 2 to 21 catches, so a peer's lesson landed within hours of nearly
+# every catch and silenced it. So the prose stays exactly as it was and the
+# owner is written beside it.
+_felix_mem_written() {
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$(date +%Y-%m-%d)" "$(_felix_mem_branch "$2")" "$(_felix_mem_sha "$2")" "$3" "$(date +%s)" "$(_felix_mem_sid)" \
+    >> "$(felix_mem_dir "$1")/written.log"
 }
 
 # Regenerate the handoff from what git already knows. A handoff written by hand
@@ -165,20 +210,14 @@ felix_mem_handoff_foreign() {
 # platform exports to the gate's shell, which a subagent's shell inherits from
 # its parent; a dash when there is none, or when the id holds anything that
 # could break the row. Appended last, so every reader of the first four is
-# unchanged.
-#
-# The branch is the one HEAD names. `rev-parse --abbrev-ref` prints HEAD and
-# then fails in a checkout with no commit yet, and its fallback wrote a second
-# line into the row.
+# unchanged. The branch, commit and session are spelled by the helpers at the
+# top of this file, as the owner of a lesson is, so the guard can match the one
+# against the other.
 felix_mem_mistake() {
-  local proj="$1" root="$2" what="$3" br sha sid="${CLAUDE_CODE_SESSION_ID:-}"
+  local proj="$1" root="$2" what="$3"
   mkdir -p "$(felix_mem_dir "$proj")"
-  br="$(git -C "$root" symbolic-ref --short -q HEAD 2>/dev/null)" \
-    || { git -C "$root" rev-parse --git-dir >/dev/null 2>&1 && br=HEAD || br='?'; }
-  sha="$(git -C "$root" rev-parse -q --verify --short HEAD 2>/dev/null)" || sha='?'
-  case "$sid" in ''|*[!A-Za-z0-9._-]*) sid=- ;; esac
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-    "$(date +%Y-%m-%d)" "${br:-?}" "${sha:-?}" "$what" "$(date +%s)" "$sid" \
+    "$(date +%Y-%m-%d)" "$(_felix_mem_branch "$root")" "$(_felix_mem_sha "$root")" "$what" "$(date +%s)" "$(_felix_mem_sid)" \
     >> "$(felix_mem_dir "$proj")/mistakes.log"
 }
 

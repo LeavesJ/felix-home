@@ -89,9 +89,9 @@ felix_guard_is_own() {
 # learn to dismiss. Only when the gate actually caught something and nothing
 # was written down since.
 #
-# Compared by time, which needs no state and cannot drift: if a catch is newer
-# than both the lessons and the devlog, then something failed and nobody said
-# what it meant.
+# Compared by time, which cannot drift: if a catch is newer than every lesson
+# and devlog entry its owner wrote, then something failed and nobody said what
+# it meant.
 #
 # Whose catch, though. Every session's gate appends to the one mistakes.log a
 # project has, so the file's own time is whoever wrote last. Compared whole,
@@ -121,8 +121,18 @@ felix_guard_is_own() {
 # old one's context, so a catch made before it is left to the id that made it,
 # and the conversation after it is not asked to explain what it never saw.
 #
-# The lessons and the devlog stay project-wide: a lesson names no session, and
-# whoever writes one is taken to have settled the debt.
+# The settling side has the same owner. The lessons and the devlog are
+# project-wide, and their modification times said only that somebody wrote:
+# review measured the real lessons.md gaining 5 to 16 lessons a day against 2
+# to 21 catches, so a peer's lesson landed within hours of nearly any catch
+# and silenced it, failing open on the very catch this is for. So an entry
+# settles a catch only when its owner wrote it, after it. `felix lesson` and
+# `felix log` put each entry's owner in written.log (felix_mem_lesson), and
+# that owner is matched the way the catch was found to be this session's: by
+# the session, where the catch was known by its session, and by the branch,
+# where it was known by its branch. Where it was known by neither, no entry
+# settles it. An edit by hand, a consolidation rewriting lessons.md, and an
+# entry from before written.log existed all name no owner, and settle nothing.
 #
 # Every way of not knowing errs toward asking, as the whole file did: no
 # session and no checkout, one git cannot name, or a row written before rows
@@ -131,59 +141,55 @@ felix_guard_unrecorded() {
   local proj="$1" root="${2:-}" sids="${3:-}"
   local m="$(felix_mem_dir "$proj")/mistakes.log"
   local l="$(felix_mem_dir "$proj")/lessons.md"
-  local d="$(felix_mem_dir "$proj")/DEVLOG.md"
+  local w="$(felix_mem_dir "$proj")/written.log"
   [ -s "$m" ] || return 0
 
-  local cur="" row at day what cutoff
+  local cur="" row at day how rb what cutoff mt
   [ -n "$root" ] && cur="$(_felix_guard_branch "$root")"
-  # `at<TAB>day<TAB>what`: the newest row that is this session's, its second
-  # or `-`. A time is digits with no leading zero and at most twelve of them,
-  # because anything else reaches shell arithmetic as an error or as octal.
+  # `at<TAB>day<TAB>how<TAB>branch<TAB>what`: the newest row that is this
+  # session's, its second or `-`, and how it was known to be this session's:
+  # `s` by the session it names, `b` by its branch, `-` by nothing. A time is
+  # digits with no leading zero and at most twelve of them, because anything
+  # else reaches shell arithmetic as an error or as octal.
   row="$(awk -F'\t' -v C="$cur" -v S="$sids" '
     BEGIN { ns = split(S, sv, " "); for (i = 1; i <= ns; i++) mine[sv[i]] = 1 }
     {
       rs = ($6 == "-") ? "" : $6
-      if (ns > 0 && rs != "") { if (!(rs in mine)) next }
-      else if (C != "" && $2 != C) next
+      if (ns > 0 && rs != "") { if (!(rs in mine)) next; how = "s" }
+      else if (C != "") { if ($2 != C) next; how = "b" }
+      else how = "-"
       at = ($5 ~ /^[1-9][0-9]*$/ && length($5) <= 12) ? $5 : "-"
       what = $4; gsub(/^[ \t]+|[ \t]+$/, "", what)
-      r = at "\t" $1 "\t" what
+      r = at "\t" $1 "\t" how "\t" $2 "\t" what
     }
     END { if (r != "") print r }
   ' "$m" 2>/dev/null)"
   [ -n "$row" ] || return 0
   at="${row%%$'\t'*}"; row="${row#*$'\t'}"
-  day="${row%%$'\t'*}"; what="${row#*$'\t'}"
+  day="${row%%$'\t'*}"; row="${row#*$'\t'}"
+  how="${row%%$'\t'*}"; row="${row#*$'\t'}"
+  rb="${row%%$'\t'*}"; what="${row#*$'\t'}"
 
   if [ "$at" = "-" ]; then
     # An old debt should surface once, not forever. Past a week it is history
     # rather than something this session is in a position to explain. Aged by
     # the day the row names as well as by the file, which a peer keeps fresh,
-    # and settled by a lesson written on a later day than that, since the
+    # and settled by an entry written on a later day than that, since the
     # catch was made by the end of it. A day that is not a date names nothing,
     # and no usable `date` means no cutoff: neither calls a row history.
     [ -n "$(find "$m" -mtime -7 2>/dev/null)" ] || return 0
     [[ "$day" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || day=""
     cutoff="$(date -v-7d +%Y-%m-%d 2>/dev/null || date -d '7 days ago' +%Y-%m-%d 2>/dev/null)"
     if [ -n "$day" ] && [ -n "$cutoff" ] && [[ "$day" < "$cutoff" ]]; then return 0; fi
-    if [ -f "$l" ]; then
-      [ -n "$(find "$m" -newer "$l" 2>/dev/null)" ] || return 0
-      _felix_guard_day_after "$l" "$day" && return 0
-    fi
-    if [ -f "$d" ] && [ -s "$d" ]; then
-      [ -n "$(find "$m" -newer "$d" 2>/dev/null)" ] || return 0
-      _felix_guard_day_after "$d" "$day" && return 0
-    fi
+    # Taken at the file's time. A file whose time cannot be read gives none,
+    # rather than the epoch's first second, which every entry is after.
+    mt="$(_felix_guard_mtime "$m")"; [ "$mt" -gt 0 ] || mt=""
+    _felix_guard_settled "$w" "$how" "$rb" "$sids" "$mt" "$day" && return 0
   else
-    # The same week, measured from the catch. A lesson in the very second of
+    # The same week, measured from the catch. An entry in the very second of
     # the catch is not taken to be after it.
     [ $(( $(date +%s) - at )) -lt 604800 ] || return 0
-    if [ -f "$l" ]; then
-      [ "$at" -ge "$(_felix_guard_mtime "$l")" ] || return 0
-    fi
-    if [ -f "$d" ] && [ -s "$d" ]; then
-      [ "$at" -ge "$(_felix_guard_mtime "$d")" ] || return 0
-    fi
+    _felix_guard_settled "$w" "$how" "$rb" "$sids" "$at" "" && return 0
   fi
 
   printf 'The gate caught something here and nothing has been written down since.\n\n'
@@ -193,7 +199,32 @@ felix_guard_unrecorded() {
   printf 'not hypothetical: a bug was repeated here within a day because its first\n'
   printf 'fix was explained in a commit message, which nothing ever reads back.\n'
   printf '\nIf it would change what someone does next time:\n\n  felix lesson "..."\n'
-  printf '\nIf it was a one-off, say so and move on — but say it.\n'
+  printf '\nIf it was a one-off, say so and move on — but say it:\n\n  felix log "..."\n'
+  printf '\nOnly an entry this session writes with one of those settles it. An edit by\n'
+  printf 'hand, or another session'"'"'s lesson, does not.\n'
+}
+
+# Whether written.log holds an entry that settles the catch: written by its
+# owner, and after it. HOW is how the catch was known to be this session's,
+# BRANCH the branch its row names, SIDS the conversation's sessions. AFTER is
+# the second the entry must be later than, and DAY, when given, a day any
+# entry dated later than settles it too. An entry naming no session, `-`, is
+# never a session's; one whose time is not a time is after nothing.
+_felix_guard_settled() {
+  local w="$1" how="$2" br="$3" sids="$4" after="$5" day="$6"
+  [ -s "$w" ] || return 1
+  case "$how" in s|b) ;; *) return 1 ;; esac
+  awk -F'\t' -v H="$how" -v B="$br" -v S="$sids" -v A="$after" -v D="$day" '
+    BEGIN { ns = split(S, sv, " "); for (i = 1; i <= ns; i++) if (sv[i] != "-") mine[sv[i]] = 1 }
+    {
+      if (H == "s") { if ($6 == "" || $6 == "-" || !($6 in mine)) next }
+      else if ($2 != B) next
+      e = ($5 ~ /^[1-9][0-9]*$/ && length($5) <= 12) ? $5 + 0 : 0
+      if (A != "" && e > A + 0) { found = 1; exit }
+      if (D != "" && $1 ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/ && $1 > D) { found = 1; exit }
+    }
+    END { exit (found ? 0 : 1) }
+  ' "$w" 2>/dev/null
 }
 
 # The branch a checkout's gate files its rows under, spelled as the writer
@@ -203,16 +234,6 @@ felix_guard_unrecorded() {
 _felix_guard_branch() {
   git -C "$1" rev-parse --git-dir >/dev/null 2>&1 || return 0
   git -C "$1" symbolic-ref --short -q HEAD 2>/dev/null || printf 'HEAD'
-}
-
-# Whether a file was last written on a later day than DAY, both local dates.
-# GNU first: BSD's `date -r` takes seconds, GNU's takes a file to read.
-_felix_guard_day_after() {
-  local e fd
-  [ -n "$2" ] || return 1
-  e="$(_felix_guard_mtime "$1")"
-  fd="$(date -d "@$e" +%Y-%m-%d 2>/dev/null || date -r "$e" +%Y-%m-%d 2>/dev/null)"
-  [ -n "$fd" ] && [[ "$fd" > "$2" ]]
 }
 
 # A file's modification time in whole seconds. GNU first, because `stat -f` on

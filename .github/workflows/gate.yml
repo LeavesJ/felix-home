@@ -25,6 +25,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # The job's token stays out of .git/config. The gate runs this pull
+          # request's own code, and none of it needs the token: nothing it
+          # runs fetches from or pushes to GitHub, and it reads origin/main
+          # from the history this fetch already brought.
+          persist-credentials: false
 
       - name: Run the gate
         run: ./engine/harness/felix gate

@@ -3,6 +3,11 @@ name: gate
 # Felix gates itself with its own gate, through its own CLI. If this file ever
 # has to special-case something to make the harness pass, the harness has grown
 # an assumption it does not admit to.
+#
+# The one run it declines is a push to main whose tree the landed pull
+# request's own run already gated green. That is not a special case to make
+# anything pass; it is the same evidence, not bought twice. The conditions are
+# in reuse-verified-tree.sh, and the gate runs whenever any of them is unsure.
 
 on:
   pull_request:
@@ -19,6 +24,13 @@ concurrency:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    # Two reads for the reuse step on a push to main: which pull request
+    # landed the commit, and that pull request's own runs. Neither can write,
+    # and only that step is handed the token.
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
     steps:
       # Full history: the secret scan diffs against a base, and a shallow clone
       # has no base to diff against.
@@ -31,5 +43,24 @@ jobs:
           # from the history this fetch already brought.
           persist-credentials: false
 
+      # From 2026-09-01 to 09-25, 174 of the 203 pushes to main gated a tree
+      # the pull request's run had already passed: 28% of the repository's
+      # Actions minutes, and none of the 203 failed. Only exit 0 reuses; a
+      # "no", an unreadable GitHub or a missing script all run the gate.
+      - name: Stand on the pull request's green run of this exact tree
+        id: reuse
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if run="$(.github/workflows/reuse-verified-tree.sh)"; then
+            printf 'run=%s\n' "$run" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Show the reuse step refusing what it must
+        if: steps.reuse.outputs.run == ''
+        run: .github/workflows/reuse-verified-tree.test.sh .github/workflows/reuse-verified-tree.sh
+
       - name: Run the gate
+        if: steps.reuse.outputs.run == ''
         run: ./engine/harness/felix gate

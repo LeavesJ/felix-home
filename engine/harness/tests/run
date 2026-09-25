@@ -24103,6 +24103,15 @@ else
   # an empty one, or more than one, is malformed. Asked on this repository's
   # own history, as the two above are: its root is a commit here, forty zeros
   # a full id that is not, and deadbeef an abbreviated one that is not.
+  _rt_base_kind() {   # <the base field of every base row, space-separated> -> one word
+    case "$1" in
+      -) echo retracted; return 0 ;;
+      ''|*[[:space:]]*) echo malformed; return 0 ;;
+    esac
+    if _rt_base_in "$1"; then echo commit
+    elif [ "${#1}" -eq 40 ] && case "$1" in *[!0123456789abcdef]*) false ;; esac; then echo snapshot
+    else echo malformed; fi
+  }
   _rtkn1="a red.tsv base of - reads as retracted, not as a published snapshot"
   _rtkn2="and a base that is a commit here reads as a commit"
   _rtkn3="and a full commit id that is no commit here reads as a snapshot"
@@ -24206,14 +24215,23 @@ else
   else
     if [ -z "$_rt_skip" ]; then
       _rtbs="$(awk -F'\t' '$1 == "base" { printf "%s%s", s, $3; s = " " }' "$_rt")"
-      if [ -n "$_rtbs" ] && ! _rt_base_in "$_rtbs"; then
-        skip "$_rtn3" "its base is no commit in this repository's history, as in a published snapshot"
-      elif _rt_record_holds "$REAL_HARNESS" "$_rtbs"; then
-        ok  "$_rtn3"
-      else
-        _rtmb="$(_rtg merge-base HEAD refs/remotes/origin/main)"
-        bad "$_rtn3" "the record's base ${_rtbs:-(none)} holds engine $(_rt_engine_tree "$REAL_HARNESS" "$_rtbs" || echo '(none)'), the merge-base ${_rtmb:-(none)} holds $(_rt_engine_tree "$REAL_HARNESS" "$_rtmb" || echo '(none)'): re-record with tests/run --record-assertions"
-      fi
+      # An engine change owes a red run here, so a retraction and a base that
+      # names no single commit fail; only a snapshot's full id still skips.
+      case "$(_rt_base_kind "$_rtbs")" in
+        retracted)
+          bad "$_rtn3" "red.tsv records that no red run was made (base -), and tests/red's own output says why: re-record with tests/run --record-assertions" ;;
+        malformed)
+          bad "$_rtn3" "the record's base reads [$_rtbs], which is neither one commit here, a full commit id nor -: re-record with tests/run --record-assertions" ;;
+        snapshot)
+          skip "$_rtn3" "its base is no commit in this repository's history, as in a published snapshot" ;;
+        *)
+          if _rt_record_holds "$REAL_HARNESS" "$_rtbs"; then
+            ok  "$_rtn3"
+          else
+            _rtmb="$(_rtg merge-base HEAD refs/remotes/origin/main)"
+            bad "$_rtn3" "the record's base ${_rtbs:-(none)} holds engine $(_rt_engine_tree "$REAL_HARNESS" "$_rtbs" || echo '(none)'), the merge-base ${_rtmb:-(none)} holds $(_rt_engine_tree "$REAL_HARNESS" "$_rtmb" || echo '(none)'): re-record with tests/run --record-assertions"
+          fi ;;
+      esac
     fi
     _rtvh="$(_rtv < "$REAL_HARNESS/../.claude-plugin/plugin.json" 2>/dev/null)"
     _rtvm="$(_rtg show refs/remotes/origin/main:engine/.claude-plugin/plugin.json | _rtv)"

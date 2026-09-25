@@ -178,7 +178,14 @@ felix_classify_diff() {
   paths="$(felix_changed_paths "$root" "$base")"
   # Added lines only. A removed secret is not a new exposure, and counting it as
   # one trains people to ignore the finding.
-  added="$(git -C "$root" diff "$base...HEAD" 2>/dev/null | grep '^+' | grep -v '^+++' || true)"
+  #
+  # Read from the same three sources as the paths, with the same merge-refs
+  # correction, by the one function that does that. This line read `base...HEAD`
+  # alone after the paths had moved to felix_changed_paths, so a staged or
+  # unstaged credential was a path whose content no rule saw: `felix scope`
+  # called it in scope, and on a stacked branch every line the branch below
+  # added was read again as this one's. escape.sh already read felix_added_lines.
+  added="$(felix_added_lines "$root" "$base" || true)"
 
   out="$(_felix_classify_pass "$(_felix_risk_rows "$proj")" "$paths" "$added")"
 

@@ -826,6 +826,44 @@ felix_version_bump() {
   printf '%s' "$next"
 }
 
+# Is P, a path relative to IGROOT, residue? 0 only when all three hold, in
+# this order: git tracks nothing at P or beneath it; BASE, when given, has
+# nothing at P; and an ignore rule matches P. Paths are matched literally, so a
+# stray whose name holds glob characters is asked about itself and not about
+# the tracked files the pattern would match. Every query reads nothing from
+# stdin, because the caller's loop reads diff's lines there, and a query that
+# errors answers "not residue".
+#
+# Tracked paths are never put to the ignore queries. check-ignore alone never
+# reports a tracked path, but the second query below asks about P with a
+# trailing slash, which is in no index, so git matched a tracked FILE against
+# the patterns as if it were an untracked directory: a file main ships, named
+# by a force-added *.log, a .git/info/exclude line, or a .gitignore line
+# committed on the branch being checked, had its drift discarded.
+#
+# For an untracked path the ignore queries are the #86 ones, unchanged. Asked
+# twice because a directory-only pattern — `.claude-flow/`, the incident's own
+# rule — matches only what git can see is a directory, and a cache-side stray
+# does not exist in the tree at all; the trailing slash supplies what the
+# filesystem cannot. The global excludes file is shut off: a verifier whose
+# verdict varies with one machine's personal ignore rules is not a verifier.
+# What cannot be shut off is .git/info/exclude — inside the repository's own
+# .git, a rule there is this machine's deliberate act, and it is named here so
+# nobody discovers it as a surprise. Since tracked and base paths never reach
+# these queries, such a rule can quiet only an untracked path the base does not
+# ship.
+_felix_residue() {
+  local r="$1" p="$2" base="${3:-}" hit
+  hit="$(git -C "$r" --literal-pathspecs ls-files -- "$p" </dev/null 2>/dev/null)" || return 1
+  [ -z "$hit" ] || return 1
+  if [ -n "$base" ]; then
+    hit="$(git -C "$r" --literal-pathspecs ls-tree "$base" -- "$p" </dev/null 2>/dev/null)" || return 1
+    [ -z "$hit" ] || return 1
+  fi
+  { git -C "$r" -c core.excludesFile=/dev/null check-ignore -q "$p" </dev/null \
+    || git -C "$r" -c core.excludesFile=/dev/null check-ignore -q "$p/" </dev/null; } 2>/dev/null
+}
+
 # The deployed surface is three directories, and comparing one of them
 # certified deployments that never happened (#82). The cache serves harness/,
 # hooks/ and commands/; hooks.json is the file that decides which hooks BIND,
@@ -848,18 +886,32 @@ felix_version_bump() {
 # (#86). A claude-flow hook dropped 4KB of state under tests/ while the suite
 # ran there, and this comparison called a byte-identical deploy a drift — in a
 # worktree the gate then misdiagnosed that as "structural: cannot deploy".
-# The rule is the repository's own .gitignore, asked per surviving line via
-# git check-ignore, on both sides: a stray in the cache is a deployed stray,
-# same non-content. Untracked-but-not-ignored still counts — that is
-# undeployed work, and quieting it would be loosening the check. Lines diff
-# emits about a missing operand match no path shape and always survive, which
-# keeps "absent from one side is the verdict".
+# Asked per surviving line, on both sides: a stray in the cache is a deployed
+# stray, same non-content. Lines diff emits about a missing operand match no
+# path shape and always survive, which keeps "absent from one side is the
+# verdict".
 #
-# A third argument names the repository the ignore rule is read from, for a
-# caller whose source side is an archive extracted to a temporary directory
-# and so is not a repository at all; it defaults to the source side.
+# Residue is narrow, and _felix_residue above is the whole rule. What the index
+# tracks is content, and so is what the base ships when one is named: both are
+# always compared, whatever an ignore rule says. Only an untracked path the
+# base does not ship is put to the repository's own ignore rules, and only a
+# match there makes it residue. Tracked paths skip the ignore queries because
+# the trailing-slash one defeats git's rule that nothing tracked is ignored: it
+# called a tracked file an ignored directory, and its drift was discarded.
+# Untracked-but-not-ignored still counts — that is undeployed work, and
+# quieting it would be loosening the check. A question git cannot answer (no
+# repository, an unreadable index, a base that is not a tree) leaves the line
+# standing as drift: a verifier that cannot tell does not certify.
+#
+# A third argument names the repository the rules, the index and the base are
+# read from, for a caller whose source side is an archive extracted to a
+# temporary directory and so is not a repository at all; it defaults to the
+# source side. A fourth names a revision in that repository whose tree is also
+# content: felix_accepted_deploy_diff passes the commit it compared against, so a
+# file main ships is compared even from a branch that deleted it or ignores
+# it. Absent or empty, no base is consulted.
 felix_deploy_diff() {
-  local src="$1" live="$2" igroot="${3:-$1}" d rc=0 line rest dir name p only
+  local src="$1" live="$2" igroot="${3:-$1}" base="${4:-}" d rc=0 line rest dir name p only
   for d in harness hooks commands; do
     [ -e "$src/$d" ] || [ -e "$live/$d" ] || continue
     # A directory on one side only is reported file by file, in the shape
@@ -894,17 +946,9 @@ felix_deploy_diff() {
           rest="${line#Only in }"; dir="${rest%%: *}"; name="${rest#*: }"
           if [ "$dir" = "$live" ]; then p="$name"; else p="${dir#"$live/"}/$name"; fi ;;
       esac
-      # Asked twice because a directory-only pattern — `.claude-flow/`, the
-      # incident's own rule — matches only what git can see is a directory,
-      # and a cache-side stray does not exist in the tree at all; the
-      # trailing slash supplies what the filesystem cannot. The global
-      # excludes file is shut off: a verifier whose verdict varies with one
-      # machine's personal ignore rules is not a verifier. What cannot be
-      # shut off is .git/info/exclude — inside the repository's own .git, a
-      # rule there is this machine's deliberate act, and it is named here so
-      # nobody discovers it as a surprise.
-      if [ -n "$p" ] && { git -C "$igroot" -c core.excludesFile=/dev/null check-ignore -q "$p" \
-             || git -C "$igroot" -c core.excludesFile=/dev/null check-ignore -q "$p/"; } 2>/dev/null; then
+      # Tracked and base paths are content and never residue; only an
+      # untracked path the base does not ship reaches the ignore rules.
+      if [ -n "$p" ] && _felix_residue "$igroot" "$p" "$base"; then
         continue
       fi
       printf '%s\n' "$line"
@@ -935,7 +979,10 @@ felix_base_ref() {
 # cache entry, and main's own engine/{harness,hooks,commands} — read from the
 # commit, never from any working tree — is what that entry must hold. Every
 # checkout can answer this, which is what lets `felix merge` run from a
-# worktree (#2); the tree standing here does not enter into it.
+# worktree (#2). The tree standing here enters in one place only: for a path
+# main does not ship, the checkout's index and its ignore rules decide whether
+# a stray is residue (felix_deploy_diff), so two checkouts can read such a path
+# differently. A file main ships is compared whatever either of them says.
 #
 #   exit 0  identical; prints the entry
 #   exit 1  differs; every differing path on stdout, or one line naming the
@@ -954,11 +1001,18 @@ felix_base_ref() {
 # disagree by construction. FELIX_KERNEL, the suite's override of the judge,
 # is not read: this asks about the real cache.
 felix_accepted_deploy_diff() {
-  local root="$1" base="${2:-main}" cache ref ver entry tmp d rc
+  local root="$1" base="${2:-main}" cache ref sha ver entry tmp d rc
   cache="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix}"
   [ -d "$cache" ] || { printf 'cannot examine: no felix cache at %s\n' "$cache"; return 2; }
   ref="$(felix_base_ref "$root" "$base")" || { printf 'cannot examine: no %s or origin/%s in this repository\n' "$base" "$base"; return 2; }
-  ver="$(_felix_plugin_version "$root" "$ref")"
+  # The name is resolved to a commit once, and every read below — the version,
+  # the archive and the base handed to the comparison — uses that commit. A
+  # fetch that moves the name mid-run would otherwise have the comparison ask
+  # one main what it ships about files cut from another. The name stays for
+  # messages, which a person reads.
+  sha="$(git -C "$root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null)"
+  [ -n "$sha" ] || { printf 'cannot examine: %s names no commit\n' "$ref"; return 2; }
+  ver="$(_felix_plugin_version "$root" "$sha")"
   [ -n "$ver" ] || { printf 'cannot examine: %s declares no engine version\n' "$ref"; return 2; }
   entry="$cache/$ver"
   if [ ! -d "$entry/harness" ]; then
@@ -967,11 +1021,13 @@ felix_accepted_deploy_diff() {
   fi
   tmp="$(mktemp -d 2>/dev/null)" || { printf 'cannot examine: no temporary directory\n'; return 2; }
   for d in harness hooks commands; do
-    git -C "$root" cat-file -e "$ref:engine/$d" 2>/dev/null || continue
-    git -C "$root" archive "$ref" "engine/$d" 2>/dev/null | tar -x -C "$tmp" 2>/dev/null \
+    git -C "$root" cat-file -e "$sha:engine/$d" 2>/dev/null || continue
+    git -C "$root" archive "$sha" "engine/$d" 2>/dev/null | tar -x -C "$tmp" 2>/dev/null \
       || { rm -rf "$tmp"; printf 'cannot examine: could not read engine/%s at %s\n' "$d" "$ref"; return 2; }
   done
-  felix_deploy_diff "$tmp/engine" "$entry" "$root/engine"; rc=$?
+  # The commit is handed down as the base, so every path main ships is
+  # compared whatever the checkout's index or ignore rules say about it.
+  felix_deploy_diff "$tmp/engine" "$entry" "$root/engine" "$sha"; rc=$?
   rm -rf "$tmp"
   [ "$rc" -eq 0 ] && printf '%s\n' "$entry"
   return "$rc"

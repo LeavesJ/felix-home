@@ -24,12 +24,13 @@
 #
 # How a session ended is read from its last 256 KiB (tail -c), by awk: a
 # transcript can be hundreds of megabytes, and its end is all this needs.
-#   question  the last paragraph of the final text (the last assistant
-#             record holding a text item), which is what follows its last
-#             line holding only blanks once * and _ are removed, holds a ?,
-#             and no human text comes after it. Asking whether the text ends
-#             on a ? found none of the questions real sessions end on, which
-#             ask and then go on to say what happens either way.
+#   question  the final text (the last assistant record holding a text item)
+#             asks, by _FI_HOST_ASK below, and no human text comes after it.
+#             Two rules came before it: the text ends on a ?, which found
+#             none of the questions real sessions end on, and a ? anywhere in
+#             the last paragraph, which found 2 of 41 read by hand, since real
+#             endings ask and then say what happens either way, or offer
+#             without a ?.
 #   blocked   the last assistant record's last item is a tool call, and no
 #             later record carries a result for its id; the caller is told how
 #             long ago, since a call that has waited seconds is merely running,
@@ -173,6 +174,70 @@ _FI_HOST_AWK='
   function key(r) { return substr(dec(substr(str(r), 1, 2048)), 1, 120) }
 '
 
+# Whether a final text, decoded with its line breaks kept, asks the person
+# something: asks(t) is 1 or 0. Set aside first: curly quotes read as straight
+# ones, fenced blocks, code spans, double-quoted spans and blockquote lines;
+# paragraphs are runs of lines between lines of only blanks. It asks when a ?
+# ends a line (only * _ ) " ' and blanks after it) in the last three
+# paragraphs, or when an offer below appears anywhere in it, lowercased, as
+# whole words, and none of no, not, nothing, never, none is in the 40 bytes
+# before it, cut after the last . ! ? ; : or line break. Measured on 227
+# session endings read by hand on 2026-09-24 (rule R4 of that labelling): 36
+# of 45 asks found and nothing else, over the 201 sessions sampled without
+# regard to any rule; 51 hits over all 227, 50 of them asks. \047 is the
+# apostrophe.
+# shellcheck disable=SC2016
+_FI_HOST_ASK='
+  BEGIN {
+    AQ_B = "(^|[^a-z0-9_])"; AQ_E = "([^a-z0-9_]|$)"; AQ_L = "[?][*_)\"\047]*[ \t\r]*(\n|$)"
+    AQ_N = "(^|[^a-z])(no|not|nothing|never|none)([^a-z]|$)"
+    AQ_P[1] = "your (call|decision|answer|options|side|sign-off|merge|go-ahead)"
+    AQ_P[2] = "([a-z]+\047s|is|are|still|all|both) yours|yours (to|rather)"
+    AQ_P[3] = "(wait(s|ing)?|blocked) (on|for) your?"
+    AQ_P[4] = "needs? your?"
+    AQ_P[5] = "say (so|the word|yes|if|go)"
+    AQ_P[6] = "and i(\047ll| will)"
+    AQ_P[7] = "(want|like) me to|(should|shall) i"
+    AQ_P[8] = "if you(\047d)? rather|if you (want|prefer)[^.?!]*, i(\047ll| can| will| could)|i(\047ll| can| could) [^.?!]* if you want"
+    AQ_P[9] = "(for|on) you:"
+    AQ_P[10] = "(for|to) you to (decide|choose|approve|merge|review|start|run|confirm|pick)"
+    AQ_NP = 10
+  }
+  # An offer matched in t and not negated within its clause.
+  function offer(t, re,    r, s0, off, rest, w) {
+    r = AQ_B "(" re ")" AQ_E; off = 0; rest = t
+    while (match(rest, r)) {
+      s0 = off + RSTART; w = substr(t, s0 > 40 ? s0 - 39 : 1, s0 > 40 ? 40 : s0)
+      while (match(w, /[.!?;:\n]/)) w = substr(w, RSTART + 1)
+      if (w !~ AQ_N) return 1
+      off = s0; rest = substr(t, off + 1)
+    }
+    return 0
+  }
+  function asks(t,    L, n, i, s, fence, cur, np, par, all, l3, k) {
+    n = split(t, L, "\n"); np = 0; fence = 0; cur = ""
+    for (i = 1; i <= n; i++) {
+      s = L[i]
+      if (s ~ /^[ \t]*(```|~~~)/) { fence = !fence; s = "" }
+      else if (fence) s = ""
+      else {
+        gsub("\342\200\234|\342\200\235", "\"", s); gsub("\342\200\231", "\047", s)
+        gsub(/`[^`]*`/, "", s); gsub(/"[^"]*"/, "", s)
+        if (s ~ /^[ \t]*>/) s = ""
+      }
+      if (s ~ /^[ \t\r]*$/) { if (cur != "") par[++np] = cur; cur = "" }
+      else cur = cur (cur != "" ? "\n" : "") s
+    }
+    if (cur != "") par[++np] = cur
+    all = ""; l3 = ""
+    for (i = 1; i <= np; i++) { all = all "\n" par[i]; if (i > np - 3) l3 = l3 "\n" par[i] }
+    if (l3 ~ AQ_L) return 1
+    all = tolower(all)
+    for (k = 1; k <= AQ_NP; k++) if (offer(all, AQ_P[k])) return 1
+    return 0
+  }
+'
+
 # The newest file under the directories after the first argument written
 # after it, or nothing: candidates by find -newer, sorted by ls -t, and asked
 # again until none is newer, since a long list reaches ls in batches.
@@ -220,7 +285,7 @@ felix_inv_host_dir() {
   age=$(($2 - m)); [ "$age" -le $(($3 * 60)) ] && live=yes
   size="$(wc -c 2>/dev/null < "$newest" | tr -d ' ')"
   [ "${size:-0}" -gt 262144 ] && cut=1
-  out="$(tail -c 262144 "$newest" 2>/dev/null | awk -v cut="$cut" "$_FI_HOST_AWK"'
+  out="$(tail -c 262144 "$newest" 2>/dev/null | awk -v cut="$cut" "$_FI_HOST_AWK$_FI_HOST_ASK"'
     NR == 1 && cut { next }
     { k = kind($0); if (k != "") rec++ }
     k == "a" {
@@ -237,12 +302,9 @@ felix_inv_host_dir() {
     END {
       if (!rec) { printf "unknown\tunknown\tthe newest session holds no record this can read\n"; exit }
       if (fa) {
-        # Decoded with its line breaks kept; the last paragraph follows the
-        # last line holding only blanks, with * and _ removed.
+        # Decoded with its line breaks kept, and asked whether it asks.
         t = ft; gsub(/\\\\/, "\001", t); gsub(/\\n/, "\n", t); t = dec(t); sub(/[ \n]+$/, "", t)
-        p = t; gsub(/[*_]/, "", p); sub(/[ \n]+$/, "", p)
-        while (match(p, /\n[ ]*\n/)) p = substr(p, RSTART + RLENGTH)
-        q = (index(p, "?") && lh < fa) ? "yes" : "no"
+        q = (lh < fa && asks(t)) ? "yes" : "no"
         if (q == "yes") { gsub(/\n/, " ", t); s = substr(t, length(t) > 160 ? length(t) - 159 : 1)
           while (s != "" && substr(s, 1, 1) >= "\200" && substr(s, 1, 1) < "\300") s = substr(s, 2)
           note = "ended on: " s }

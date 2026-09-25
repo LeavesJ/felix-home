@@ -27,8 +27,9 @@
 # Everything here is git and GitHub, with lib/inventory-gh.sh (what gh says)
 # and lib/inventory-orphans.sh (what sits beside the worktrees); what only a
 # host's records say (live, question, blocked, chips) is asked of
-# lib/inventory-host.sh. What cannot be read prints unknown, never absent,
-# and a row with an unknown state other than live is never landed.
+# lib/inventory-host.sh, and lib/inventory-view.sh draws the human view.
+# What cannot be read prints unknown, never absent, and a row with an
+# unknown state other than live is never landed.
 #
 # One row per item: a worktree, an orphan, a local branch checked out
 # nowhere, a remote branch no local branch covers (one at its tip or ahead of
@@ -41,8 +42,10 @@
 # that could not be read (open PRs, chips) or a fact about the whole
 # repository (gh's list at its limit) is a row of kind repo with ref -, never
 # an item's. A worktree or orphan in a temporary directory ($TMPDIR, /tmp,
-# /private/tmp, /private/var/folders) says temp in its detail and is read as
-# any other; the human view lists it apart from what needs action.
+# /private/tmp, /private/var/folders, or instead the colon-separated
+# FELIX_INVENTORY_TEMP_ROOTS when set, which tests use) says temp in its
+# detail and is read as any other; the human view lists it apart from what
+# needs action.
 # Content is on the default branch (origin/HEAD's target, else origin/main,
 # else origin/master) when the branch reaches the tip, or a merged PR's head
 # is the tip or descends from it, since squash merges defeat ancestry;
@@ -451,19 +454,18 @@ _fi_chips() {
   local -a a=("$_FI_REPO"); local d id s e title
   [ "$_FI_HOST" = 1 ] || { _fi_row repo - unknown:chip-unstarted - - "chips not listed: session records not read (--no-host)" - -; return 0; }
   while IFS= read -r d <&3; do a[${#a[@]}]="$d"; done 3< <(awk -F'\t' '$4 !~ /bare|linebreak/ { print $1 }' "$T/wt"; cut -f1 "$T/orph"; cat "$T/scope")
+  # The header's chips line is replaced when they cannot be read, since the
+  # human view states a repository's own unknowns there and counts no repo row.
   felix_inv_host_chips "$_FI_NOW" "$_FI_DAYS" "${a[@]}" > "$T/chips" \
-    || { _fi_row repo - unknown:chip-unstarted - - "chips not listed: no $FELIX_INV_HOST_NAME session records to read" - -; return 0; }
+    || { _fi_row repo - unknown:chip-unstarted - - "chips not listed: no $FELIX_INV_HOST_NAME session records to read" - -
+         printf '%s\tchips\tunknown: no %s session records to read\n' "$_FI_REPO" "$FELIX_INV_HOST_NAME" >> "$_FI_T/meta"; return 0; }
   while IFS="$_FI_TAB" read -r id s e title <&3; do _fi_age "$e"; _fi_row chip "$id" chip-unstarted "$s" "$_FI_A" "$title" - -; done 3< "$T/chips"
 }
 
 # ---------------------------------------------------------------- output ----
 # Two rows of one repository holding unlanded content whose changed paths and
 # blobs are the same, on different branches, are each a possible-duplicate.
-# Then the rows: as TSV, or grouped by headline, what needs action first; an
-# item undecided only because a fact is unknown, whose content is known not
-# to be landed, is listed in a group of its own rather than only counted. A
-# row in a temporary directory that would be listed is listed after all of
-# those, in the same order, its headline shown with its other states.
+# Then the rows: as TSV, or as lib/inventory-view.sh groups them for a person.
 _fi_out() {
   awk -F'\t' -v OFS='\t' '{ R[NR] = $0 }
     $8 != "-" && $4 ~ /(^|,)(uncommitted|unpushed|unproposed|pr-open|pr-closed-unlanded)(,|$)/ {
@@ -473,27 +475,5 @@ _fi_out() {
           p = index(f[4], "unknown:"); f[4] = p ? substr(f[4], 1, p - 1) "possible-duplicate," substr(f[4], p) : f[4] ",possible-duplicate"
           f[7] = f[7] "; possible duplicate of" o }
         print f[1], f[2], f[3], f[4], f[5], f[6], f[7] } }' "$_FI_T/rows" > "$_FI_T/out"
-  [ "$1" = 1 ] && { cat "$_FI_T/out"; return 0; }
-  printf 'felix inventory: read-only. It wrote nothing into a repository and fetched nothing; gh, if asked, only listed pull requests.\n'
-  [ -s "$_FI_T/meta" ] || return 0
-  awk -F'\t' -v order="${_FI_ORDER/ live / } undecided" 'NR == FNR { if (!($1 in S)) { S[$1] = 1; RP[++nr] = $1 }
-      M[$1] = M[$1] sprintf("  %-9s %s\n", $2, $3); next }
-    { m = split($4, st, ","); h = st[1]; r = $2; ref = $3; if (index(ref, r "/") == 1) ref = substr(ref, length(r) + 2)
-      if (h ~ /^unknown:/) { if ($7 !~ /(^|; )(on [^;]*; )?content (not|partly) on /) { U[r]++; next }; h = "undecided" }
-      if (h == "live") { LV[r]++; if ($4 ~ /(^|,)blocked(,|$)/) LB[r]++; next }
-      if (h == "landed") { LD[r]++; next }
-      if (h == "orphan" && $7 ~ /^0 of / && $7 !~ /not read/ && ($7 !~ /ignored files hold/ || $7 ~ /; 0 of [0-9]+ ignored files hold/)) { OZ[r]++; next }
-      tp = $7 ~ /(^|; )temp(;|$)/; a = ""; u = ""
-      for (j = tp ? 1 : 2; j <= m; j++) if (st[j] ~ /^unknown:/) u = u (u == "" ? "" : ",") substr(st[j], 9)
-        else if (st[j] != "landed") a = a (a == "" ? "" : ",") st[j]
-      if (u != "") a = a (a == "" ? "" : "; ") "unknown: " u
-      if (tp) { TN[r]++; h = "~" h }
-      G[r, h] = G[r, h] sprintf("    %-8s %s%s\n             %s (%sh%s)\n", $1, ref, (a == "" ? "" : "  [" a "]"), $7, $6, \
-        ($5 ~ /^(-|unknown)$/ ? "" : ", session " substr($5, 1, 8))); N[r, h]++ }
-    END { n = split(order, O, " ")
-      for (i = 1; i <= nr; i++) { r = RP[i]; printf "\n%s\n%s", r, M[r]
-        for (j = 1; j <= n; j++) if (N[r, O[j]]) printf "\n  %s  %d\n%s", (O[j] == "undecided" ? "undecided, content not landed" : O[j]), N[r, O[j]], G[r, O[j]]
-        if (TN[r]) { printf "\n  in temporary directories  %d\n", TN[r]; for (j = 1; j <= n; j++) printf "%s", G[r, "~" O[j]] }
-        printf "\n  live %d%s, landed %d, orphans holding nothing unique %d, nothing decided but unknown %d\n", LV[r], \
-          (LB[r] ? " (" LB[r] " blocked on a tool call)" : ""), LD[r], OZ[r], U[r] } }' "$_FI_T/meta" "$_FI_T/out"
+  if [ "$1" = 1 ]; then cat "$_FI_T/out"; else _fi_view; fi
 }

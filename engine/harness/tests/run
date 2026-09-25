@@ -22123,21 +22123,25 @@ has "the fixture: the git stand-in logs its calls and runs the real git" "$(cat 
 # felix from the main clone, with the stand-ins first on PATH, the scratch
 # HOME and TMPDIR, nothing of Felix's in the environment, no system git config,
 # only the file transport, and discovery stopped at the scratch root.
-_ivrun() {  # [--path P] [--cwd D] [--bash B] felix-args...
-  local p="$IVSTUB:$PATH" d="$IVM" b=""
+_ivrun() {  # [--path P] [--cwd D] [--bash B] [--home H] [--troots R] felix-args...
+  local p="$IVSTUB:$PATH" d="$IVM" b="" h="$IVH" tr="" trs=0
   while :; do
     case "${1:-}" in
       --path) p="$2"; shift 2 ;;
       --cwd)  d="$2"; shift 2 ;;
       --bash) b="$2"; shift 2 ;;
+      --home) h="$2"; shift 2 ;;
+      --troots) tr="$2"; trs=1; shift 2 ;;
       *) break ;;
     esac
   done
   ( cd "$d" || exit 97
     unset FELIX_HOME FELIX_MEMORY FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE CLAUDE_PLUGIN_ROOT \
-          CLAUDE_CONFIG_DIR GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OPTIONAL_LOCKS GIT_CEILING_DIRECTORIES
-    export HOME="$IVH" TMPDIR="$IVT" PATH="$p" XDG_CONFIG_HOME="$IVH/.config" GIT_CONFIG_NOSYSTEM=1 \
+          CLAUDE_CONFIG_DIR GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OPTIONAL_LOCKS GIT_CEILING_DIRECTORIES \
+          FELIX_INVENTORY_TEMP_ROOTS
+    export HOME="$h" TMPDIR="$IVT" PATH="$p" XDG_CONFIG_HOME="$IVH/.config" GIT_CONFIG_NOSYSTEM=1 \
            GIT_ALLOW_PROTOCOL=file GIT_TERMINAL_PROMPT=0 GIT_CEILING_DIRECTORIES="$IV"
+    [ "$trs" = 0 ] || export FELIX_INVENTORY_TEMP_ROOTS="$tr"
     if [ -n "$b" ]; then "$b" "$IVF" "$@"; else "$IVF" "$@"; fi ) 2>>"$IV_ERR"
 }
 # The help may go to either stream; _ivrun keeps stderr in $IV_ERR, empty
@@ -22773,7 +22777,7 @@ _ivzrun() {  # [--path P] [--tmp D] [--cwd D] felix-args...
   ( cd "$d" || exit 97
     unset FELIX_HOME FELIX_MEMORY FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE CLAUDE_PLUGIN_ROOT \
           CLAUDE_CONFIG_DIR GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OPTIONAL_LOCKS GIT_CEILING_DIRECTORIES \
-          XDG_STATE_HOME XDG_CACHE_HOME
+          XDG_STATE_HOME XDG_CACHE_HOME FELIX_INVENTORY_TEMP_ROOTS
     export HOME="$IVH" TMPDIR="$t" PATH="$p" XDG_CONFIG_HOME="$IVH/.config" GIT_CONFIG_NOSYSTEM=1 \
            GIT_ALLOW_PROTOCOL=file GIT_TERMINAL_PROMPT=0 GIT_CEILING_DIRECTORIES="$IV"
     "$IVF" "$@" ) 2>>"$IV_ERR"
@@ -22891,10 +22895,13 @@ is  "no run wrote a shell or awk error to stderr, nor a failed redirection" "$_i
 # ---- spec decisions of 2026-09-24 ----------------------------------------
 # Six decisions Felix took on the spec after review, each held to the rule it
 # sets and each seen failing on the command as it stood before it was built:
-#   D1 a session ended on a question when the last paragraph of its final
-#      assistant text (after the last blank line, emphasis characters
-#      removed) holds a ?, and no human text follows; the note stays the
-#      text's last 160 characters, cut on a character boundary
+#   D1 a session ended on a question when its final assistant text asks,
+#      and no human text follows. Asks is the rule measured on 227 real
+#      endings read by hand on 2026-09-24: fenced blocks, code spans,
+#      double-quoted spans and blockquotes set aside, a ? ends a line in the
+#      last three paragraphs, or the text makes one of ten offers (say the
+#      word, want me to, your call, ...) not negated within its clause. The
+#      note stays the text's last 160 characters, cut on a character boundary
 #   D2 live is the newest mtime among a session's own file and every file
 #      under its <session-id>/subagents/ (workflows/ too); blocked also needs
 #      nothing there written within --blocked; question and blocked read the
@@ -22916,7 +22923,7 @@ _ivrepo "$IVKO" "$IVK" acme/doohickey
 printf 'doohickey\n' > "$IVK/README.md"
 ( _ivx="$(( $(date +%s) - 864000 )) +0000"; export GIT_COMMITTER_DATE="$_ivx" GIT_AUTHOR_DATE="$_ivx"; _ivwc "$IVK" 'the first doohickey' )
 _ivg -C "$IVK" push -q origin main; _ivg -C "$IVK" remote set-head origin main
-for _ivn in midq boldq listq longq trail earlier blankws agent flow stale mid two; do
+for _ivn in midq boldq listq longq trail earlier blankws quoted code then offer plain agent flow stale mid two; do
   _ivg -C "$IVK" worktree add -q -b "topic/$_ivn" "$IVW4/wt-$_ivn" main
 done
 # D1: sessions two hours old, each ending on one final text. The texts are
@@ -22930,11 +22937,23 @@ _ivk1() {  # worktree sid text
 IVK_TAIL='the rest of the paragraph runs on the rest of the paragraph runs on the rest of the paragraph runs on the rest of the paragraph runs on the rest of the paragraph runs on the rest of the paragraph runs on the rest of the paragraph runs on'
 _ivk1 wt-midq    d1d1d1d1-0000-4000-8000-000000000001 'I rebased the branch and the suite is green.\n\nShall I push it? Or leave it for review.'
 _ivk1 wt-boldq   d1d1d1d1-0000-4000-8000-000000000002 'The two layouts differ in one place.\n\n**Want me to merge it?** I can wait.'
-_ivk1 wt-listq   d1d1d1d1-0000-4000-8000-000000000003 'Three options remain:\n- keep it\n- drop it\n- split it\nWhich one do you prefer? Any of them works.'
+_ivk1 wt-listq   d1d1d1d1-0000-4000-8000-000000000003 'Three options remain:\n- keep it\n- drop it\n- split it\nWhich one do you prefer?\nAny of them works.'
 _ivk1 wt-longq   d1d1d1d1-0000-4000-8000-000000000004 "Done.\\n\\nShall I go on? $IVK_TAIL "
 _ivk1 wt-trail   d1d1d1d1-0000-4000-8000-000000000005 'Here it is.\n\nWhich one do you want?\n\n'
-_ivk1 wt-earlier d1d1d1d1-0000-4000-8000-000000000006 'Should I push it?\n\nDone for now: the branch is pushed.'
-_ivk1 wt-blankws d1d1d1d1-0000-4000-8000-000000000007 'Should I push it?\n \t \nThanks, that is all.'
+# A ? four paragraphs back, in a text that makes no offer; and the same with
+# the first break a line of spaces and a tab, which three paragraphs would
+# reach if that line were not blank.
+_ivk1 wt-earlier d1d1d1d1-0000-4000-8000-000000000006 'Is it pushed?\n\nOne thing is left.\n\nThe tests pass.\n\nThe branch is pushed.'
+_ivk1 wt-blankws d1d1d1d1-0000-4000-8000-000000000007 'Is it pushed?\n \t \nOne thing is left.\n\nThe tests pass.\n\nThe branch is pushed.'
+# What a ? in the last paragraph got wrong on real endings, each way: a
+# question quoted from someone else, git status's ?? in a code span, a
+# question with one more paragraph after it, an offer with no ?, and a
+# summary whose one offer-like phrase is negated.
+_ivk1 wt-quoted  d1d1d1d1-0000-4000-8000-000000000008 'I answered the one review comment, which asked \"is this realistic?\"'
+_ivk1 wt-code    d1d1d1d1-0000-4000-8000-000000000009 'The tree is clean but for one scratch file, `?? notes.txt`, which stays out of the commit.'
+_ivk1 wt-then    d1d1d1d1-0000-4000-8000-00000000000a 'Is the second layout the one to keep?\n\nEverything else is pushed.'
+_ivk1 wt-offer   d1d1d1d1-0000-4000-8000-00000000000b 'The fix is on the branch. Say the word and I will open the pull request.'
+_ivk1 wt-plain   d1d1d1d1-0000-4000-8000-00000000000c 'The branch is merged and the worktree is clean; nothing here needs your decision.'
 # D2: sessions whose own file last moved two or three hours ago, on a call
 # to a subagent that has had no result, and whose subagents/ holds a file
 # last written some minutes ago.
@@ -22986,6 +23005,12 @@ IVK_T1="$IV/k1.tsv"; _ivrun --cwd "$IVK" inventory --tsv --no-gh --repo "$IVK" >
 IVK_T2="$IV/k2.tsv"; _ivrun --cwd "$IVK" inventory --tsv --no-gh --blocked 40 --repo "$IVK" > "$IVK_T2"
 IVK_H1="$IV/k1.txt"; _ivrun --cwd "$IVK" inventory --no-gh --repo "$IVK" > "$IVK_H1"
 IVK_H3="$IV/k3.txt"; _ivrun --cwd "$IVK" inventory --no-gh --days 3 --repo "$IVK" > "$IVK_H3"
+# The temporary directories replaced by one outside the fixture, so its rows
+# read as a checkout anywhere else would; and a HOME with no session records.
+IVK_T4="$IV/k4.tsv"; _ivrun --cwd "$IVK" --troots "$TMP/elsewhere" inventory --tsv --no-gh --repo "$IVK" > "$IVK_T4"
+IVK_H4="$IV/k4.txt"; _ivrun --cwd "$IVK" --troots "$TMP/elsewhere" inventory --no-gh --repo "$IVK" > "$IVK_H4"
+mkdir -p "$IV/norecords"
+IVK_H5="$IV/k5.txt"; _ivrun --cwd "$IVK" --home "$IV/norecords" inventory --no-gh --repo "$IVK" > "$IVK_H5"
 is  "the decisions' runs: felix inventory --tsv over doohickey exits 0" "$IVK_RC1" "0"
 # The row of one worktree, by its path exactly.
 _ivk_sel() { LC_ALL=C awk -F'\t' -v r="$IVW4/$2" '$3 == r' "$1" > "$IV/sel"; }
@@ -22994,12 +23019,17 @@ _ivk_chk() {  # name file worktree mode arg
   if _iv_q "$4" "$5"; then ok "$1"; else bad "$1" "$(_iv_diag)"; fi; }
 
 # ---- D1: question ----
-_ivk_chk "D1: a last paragraph that asks and then goes on is a question" "$IVK_T1" wt-midq hold question
+_ivk_chk "D1: an offer that asks and then goes on on the same line is a question" "$IVK_T1" wt-midq hold question
 _ivk_chk "D1: a question in bold followed by a statement is a question" "$IVK_T1" wt-boldq hold question
-_ivk_chk "D1: a last paragraph of single lines, one of them asking, is a question" "$IVK_T1" wt-listq hold question
-_ivk_chk "D1: blank lines after the question leave it the last paragraph, a question" "$IVK_T1" wt-trail hold question
-_ivk_chk "D1: a ? in an earlier paragraph only is no question" "$IVK_T1" wt-earlier lack question
-_ivk_chk "D1: a line of spaces and a tab is a blank line, so the ? before it is in an earlier paragraph" "$IVK_T1" wt-blankws lack question
+_ivk_chk "D1: a last paragraph of single lines, one of them ending on ?, is a question" "$IVK_T1" wt-listq hold question
+_ivk_chk "D1: blank lines after the question leave it in the last paragraphs, a question" "$IVK_T1" wt-trail hold question
+_ivk_chk "D1: a ? four paragraphs back, in a text that makes no offer, is no question" "$IVK_T1" wt-earlier lack question
+_ivk_chk "D1: a line of spaces and a tab is a blank line, so the ? before it is four paragraphs back" "$IVK_T1" wt-blankws lack question
+_ivk_chk "D1: a question inside double quotes is no question" "$IVK_T1" wt-quoted lack question
+_ivk_chk "D1: a ?? inside a code span is no question" "$IVK_T1" wt-code lack question
+_ivk_chk "D1: a question followed by one more paragraph is a question" "$IVK_T1" wt-then hold question
+_ivk_chk "D1: an offer with no ? is a question" "$IVK_T1" wt-offer hold question
+_ivk_chk "D1: a plain summary, even one saying nothing needs your decision, is no question" "$IVK_T1" wt-plain lack question
 _ivk_sel "$IVK_T1" wt-midq
 has "D1: the note of a short question is the whole text, a line break read as a space" "$(cut -f7 "$IV/sel")" \
     "ended on: I rebased the branch and the suite is green.  Shall I push it? Or leave it for review."
@@ -23064,7 +23094,7 @@ is  "D5: no row that is not a directory carries temp: branches, remote branches,
 # the one path outside every temporary directory is asked of the test the
 # command applies, below the command: the libraries sourced, _fi_tmps reading
 # TMPDIR and _fi_temp asked of each path.
-_ivx="$(TMPDIR=/nowhere/t/ /bin/bash -c 'for f in "$@"; do . "$f" || exit 1; done; _fi_tmps; for p in /home/u/x /tmpx/y /private/varx /nowhere/tt /nowhere/t/z /tmp/a /private/tmp /private/var/folders/q/r; do _fi_temp "$p" && printf "%s " "$p"; done; exit 0' _ "$IVLIB" ${IVPARTS[@]+"${IVPARTS[@]}"} 2>&1)"
+_ivx="$(TMPDIR=/nowhere/t/ /bin/bash -c 'unset FELIX_INVENTORY_TEMP_ROOTS; for f in "$@"; do . "$f" || exit 1; done; _fi_tmps; for p in /home/u/x /tmpx/y /private/varx /nowhere/tt /nowhere/t/z /tmp/a /private/tmp /private/var/folders/q/r; do _fi_temp "$p" && printf "%s " "$p"; done; exit 0' _ "$IVLIB" ${IVPARTS[@]+"${IVPARTS[@]}"} 2>&1)"
 is  "D5: of eight paths, the four under TMPDIR, /tmp, /private/tmp or /private/var/folders are temp, and no other" "$_ivx" "/nowhere/t/z /tmp/a /private/tmp /private/var/folders/q/r "
 IV_HT="$(_ivln "$IV_HU" 'in temporary directories' 'in temporary directories')"
 IV_HX="$(LC_ALL=C awk '/(^|[^a-z])live [0-9]/ && /landed [0-9]/ { print NR; exit }' "$IV_HU")"
@@ -23074,6 +23104,44 @@ if [ -n "$IV_HT" ] && [ -n "$IV_HX" ] && [ -n "$IV_HN" ] && [ -n "$IV_HF" ] && [
   ok  "D5: the human view lists them under \"in temporary directories\", after the groups that need action and before the live and landed counts"
 else bad "D5: the human view lists them under \"in temporary directories\", after the groups that need action and before the live and landed counts" \
          "lines: temp group ${IV_HT:-none}, chip ${IV_HN:-none}, handoff ${IV_HF:-none}, wt-dirty ${IV_HW:-none}, counts ${IV_HX:-none}"; fi
+
+# ---- what review of the decisions found ----
+# Each held to the rule it broke, and seen failing on the command before its
+# fix. A human view's item line is "    kind     ref  [states]": the group it
+# sits in is the last heading above it, and a ref is matched whole.
+_ivk_item()  { LC_ALL=C awk -v n="$2" '/^    [^ ]/ { s = substr($0, 14); sub(/  \[.*$/, "", s); if (s == n) { print; exit } }' "$1"; }
+_ivk_group() { LC_ALL=C awk -v n="$2" '/^  [^ ]/ { g = $0; sub(/^  /, "", g); sub(/  [0-9]+$/, "", g); next }
+    /^    [^ ]/ { s = substr($0, 14); sub(/  \[.*$/, "", s); if (s == n) { print g; exit } }' "$1"; }
+_ivx="$(_ivk_item "$IVK_H1" "$IVW4/wt-two")"
+[ -n "$_ivx" ] && ok "the human view lists a live worktree whose newest session ended on a question, rather than only counting it live" \
+  || bad "the human view lists a live worktree whose newest session ended on a question, rather than only counting it live" "$(grep -F wt-two "$IVK_H1" | head -n 3 | tr '\n' ';')"
+_ivx="$(_ivk_item "$IVK_H4" "$IVW4/wt-two")"
+case "$(_ivk_group "$IVK_H4" "$IVW4/wt-two"):$_ivx" in
+  question:*live*) ok  "and outside a temporary directory it is listed under question, its listing saying live" ;;
+  *)               bad "and outside a temporary directory it is listed under question, its listing saying live" "group [$(_ivk_group "$IVK_H4" "$IVW4/wt-two")], line [$_ivx]" ;;
+esac
+is  "a live worktree whose tool call has waited past --blocked is listed under blocked, rather than only counted" "$(_ivk_group "$IVK_H4" "$IVW4/wt-mid")" "blocked"
+_ivx="$(LC_ALL=C awk '/nothing decided but unknown [0-9]/ { sub(/.*nothing decided but unknown /, ""); print; exit }' "$IVK_H1")"
+if [ "$_ivx" = 0 ] && LC_ALL=C grep -qE '^  PR facts +unknown' "$IVK_H1"; then
+  ok  "nothing decided but unknown counts items, not the repository's own unknowns, which its header states"
+else bad "nothing decided but unknown counts items, not the repository's own unknowns, which its header states" "count [$_ivx]; $(head -n 6 "$IVK_H1" | tr '\n' ';')"; fi
+LC_ALL=C grep -qE '^  chips +unknown' "$IVK_H5" && ok "with no session records to read, the header says the chips are unknown, since no count does" \
+  || bad "with no session records to read, the header says the chips are unknown, since no count does" "$(head -n 7 "$IVK_H5" | tr '\n' ';')"
+_ivx="$(_ivk_item "$IVZ_H2" topic/feat3)"
+case "$_ivx" in
+  *unproposed*pr-open*pr-closed-unlanded*) ok  "an undecided row lists every state it could not decide, the first of them too" ;;
+  *)                                       bad "an undecided row lists every state it could not decide, the first of them too" "[$_ivx]" ;;
+esac
+# D5's list, replaced: the unit, then the command.
+_ivx="$(FELIX_INVENTORY_TEMP_ROOTS=/nowhere/a:/nowhere/b/ TMPDIR=/nowhere/t /bin/bash -c 'for f in "$@"; do . "$f" || exit 1; done; _fi_tmps; for p in /nowhere/a/x /nowhere/b/y /nowhere/t/z /tmp/a /nowhere/ab; do _fi_temp "$p" && printf "%s " "$p"; done; exit 0' _ "$IVLIB" ${IVPARTS[@]+"${IVPARTS[@]}"} 2>&1)"
+is  "D5: FELIX_INVENTORY_TEMP_ROOTS, colon-separated, replaces the list: of five paths only the two under its roots are temp" "$_ivx" "/nowhere/a/x /nowhere/b/y "
+_ivx="$(LC_ALL=C awk -F'\t' '$1 == "kind" && $4 == "states" { next } tolower($7) ~ /(^|[^a-z])temp([^a-z]|$)/ { printf "%s; ", $3 }' "$IVK_T4")"
+_ivk_sel "$IVK_T4" wt-midq
+if [ -s "$IVK_T4" ] && [ -z "$_ivx" ] && _iv_q hold question; then
+  ok  "D5: with it naming a directory outside the fixture, no fixture row carries temp, and each keeps its states"
+else bad "D5: with it naming a directory outside the fixture, no fixture row carries temp, and each keeps its states" "temp: [$_ivx]; $(_iv_diag)"; fi
+is  "D5: and the human view lists a worktree whose session asked in its needs-action group, question" "$(_ivk_group "$IVK_H4" "$IVW4/wt-midq")" "question"
+
 _ivx="$(grep -E 'bad substitution|syntax error|unbound variable|command not found|invalid option|not a valid identifier|division by 0|awk: |Permission denied' "$IV_ERR" | head -n 3 | tr '\n' ';')"
 is  "the decisions' runs wrote no shell or awk error to stderr" "$_ivx" ""
 

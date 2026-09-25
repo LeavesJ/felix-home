@@ -80,14 +80,33 @@ _fi_orphan_parents() {
 
 # The temporary directories: $TMPDIR as set and as it resolves, /tmp,
 # /private/tmp and /private/var/folders (a Mac's per-user temp), into _FI_TMPS.
+# FELIX_INVENTORY_TEMP_ROOTS, when set, replaces that list: its directories,
+# colon-separated, each as given and as it resolves. It exists for tests,
+# whose fixtures all lie in a temporary directory, so the path every real
+# checkout takes, listed in its needs-action group, can be driven too.
 _fi_tmps() {
-  local t="${TMPDIR:-}" p
-  while [ "${t%/}" != "$t" ]; do t="${t%/}"; done
-  _FI_TMPS=(/tmp /private/tmp /private/var/folders)
-  [ -n "$t" ] || return 0
-  _FI_TMPS[3]="$t"; p="$(cd "$t" 2>/dev/null && pwd -P)" && [ -n "$p" ] && _FI_TMPS[4]="$p"; return 0
+  local r rest
+  _FI_TMPS=()
+  if [ -z "${FELIX_INVENTORY_TEMP_ROOTS+set}" ]; then
+    _FI_TMPS=(/tmp /private/tmp /private/var/folders); _fi_tmp_add "${TMPDIR:-}"; return 0
+  fi
+  rest="$FELIX_INVENTORY_TEMP_ROOTS"
+  while [ -n "$rest" ]; do
+    r="${rest%%:*}"; case "$rest" in *:*) rest="${rest#*:}" ;; *) rest="" ;; esac
+    _fi_tmp_add "$r"
+  done
+  return 0
 }
-_fi_temp() { local t; for t in "${_FI_TMPS[@]}"; do case "$1/" in "$t"/*) return 0 ;; esac; done; return 1; }
+# One directory into _FI_TMPS, its trailing slashes off, as given and as it
+# resolves; nothing for an empty one or /.
+_fi_tmp_add() {
+  local t="$1" p
+  while [ "${t%/}" != "$t" ]; do t="${t%/}"; done
+  [ -n "$t" ] || return 0
+  _FI_TMPS[${#_FI_TMPS[@]}]="$t"; p="$(cd "$t" 2>/dev/null && pwd -P)" && [ -n "$p" ] && _FI_TMPS[${#_FI_TMPS[@]}]="$p"
+  return 0
+}
+_fi_temp() { local t; for t in ${_FI_TMPS[@]+"${_FI_TMPS[@]}"}; do case "$1/" in "$t"/*) return 0 ;; esac; done; return 1; }
 
 _fi_orphan_rows() {
   local o x when

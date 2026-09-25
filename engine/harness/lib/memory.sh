@@ -170,14 +170,190 @@ felix_mem_handoff_foreign() {
 # branch and commit come through resolve.sh's two readers, and `what` has any
 # tab or newline turned into the space that already separates the checks it
 # names.
+#
+# The append is made holding the log's lock, the one felix_mem_mistakes_heal
+# below takes to rewrite the file, so a row written by this engine can never
+# land on the inode a heal is about to rename away (U44). The fields are read
+# before the lock, because the git calls are the slow part. The wait is
+# bounded, about three seconds, and then the row is appended anyway: a lock is
+# there to protect rows, and one that could cost a row would be the defect it
+# exists to prevent. The heal's tail recovery picks up an unlocked append in
+# all but a microsecond window. The row itself is byte for byte what #267
+# writes.
 felix_mem_mistake() {
-  local proj="$1" root="$2" what="$3"
-  mkdir -p "$(felix_mem_dir "$proj")"
-  printf '%s\t%s\t%s\t%s\n' \
-    "$(date +%Y-%m-%d)" \
-    "$(felix_head_branch "$root")" \
-    "$(felix_head_commit "$root")" \
-    "$(printf '%s' "$what" | tr '\t\n\r' '   ')" >> "$(felix_mem_dir "$proj")/mistakes.log"
+  local proj="$1" root="$2" what="$3" dir d b c w held=0 tries=0 rc
+  dir="$(felix_mem_dir "$proj")"
+  mkdir -p "$dir"
+  d="$(date +%Y-%m-%d)"
+  b="$(felix_head_branch "$root")"
+  c="$(felix_head_commit "$root")"
+  w="$(printf '%s' "$what" | tr '\t\n\r' '   ')"
+  while [ "$tries" -lt 30 ]; do
+    if _felix_mem_lock "$dir/.mistakes.lock"; then held=1; break; fi
+    sleep 0.1
+    tries=$((tries + 1))
+  done
+  printf '%s\t%s\t%s\t%s\n' "$d" "$b" "$c" "$w" >> "$dir/mistakes.log"; rc=$?
+  [ "$held" -eq 1 ] && _felix_mem_unlock "$dir/.mistakes.lock"
+  return "$rc"
+}
+
+# The mistakes log's lock: a directory, `<memory>/.mistakes.lock`, holding one
+# file, `pid`, with the owner's pid. The name is a contract, because the suite
+# makes one by hand to stand in for a holder.
+#
+# The shape of felix_commission_lock, and for its reason: mkdir is atomic
+# everywhere, and a lock left by a killed process must not stand forever. So a
+# lock is stale, and taken over, when its pid names a process that is gone, or
+# when the directory is more than a minute old whatever it holds. The age rule
+# covers what a pid cannot: a pid the system has since reused, and a holder
+# that died between the mkdir and writing its pid. Nothing that takes this lock
+# holds it for more than the few milliseconds a rename or an append costs.
+# Anything else is live, a lock with no pid included while it is young, because
+# its owner may be between the two steps. Losing the race to take over a stale
+# lock means someone else holds it now, and that is live too.
+#
+# Two takers can still both see one stale lock and both take it over, the
+# window every mkdir lock with takeover has. What that costs here is bounded:
+# two appends interleave safely under O_APPEND, and two heals are kept apart
+# by the heal's own `-ef` check, not by this lock.
+_felix_mem_lock() {   # lock-dir -> 0 taken, 1 held by a live owner
+  local lock="$1" owner stale=0
+  if mkdir "$lock" 2>/dev/null; then
+    printf '%s\n' "$$" > "$lock/pid" 2>/dev/null
+    return 0
+  fi
+  [ -d "$lock" ] || return 1
+  owner="$(head -n 1 "$lock/pid" 2>/dev/null)"
+  case "$owner" in
+    ''|*[!0-9]*) ;;
+    *) kill -0 "$owner" 2>/dev/null || stale=1 ;;
+  esac
+  if [ "$stale" -eq 0 ] && [ -n "$(find "$lock" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then
+    stale=1
+  fi
+  [ "$stale" -eq 1 ] || return 1
+  rm -rf "$lock" 2>/dev/null
+  if mkdir "$lock" 2>/dev/null; then
+    printf '%s\n' "$$" > "$lock/pid" 2>/dev/null
+    return 0
+  fi
+  return 1
+}
+
+# Called only by the process that took the lock, and it removes the lock only
+# while it still names that process: a holder that was taken over as stale and
+# comes back to release must not remove the lock its successor now holds. A
+# lock whose pid file is missing or empty is removed too, because the write of
+# the pid can fail (a full disk), and a lock this call left behind would have
+# every writer wait out its three seconds, and every heal decline, until the
+# lock aged past a minute.
+_felix_mem_unlock() {
+  local owner
+  owner="$(head -n 1 "$1/pid" 2>/dev/null)"
+  case "$owner" in
+    ''|"$$") rm -rf "$1" 2>/dev/null ;;
+  esac
+  return 0
+}
+
+# Heal the split rows an engine before #267 left in a project's mistakes.log,
+# joining each pair into the one row #267 would have written (U44, U42).
+#
+# Why on disk, and not only in the readers: templates/commissioning.tsv's
+# gate_shown_failing row reads the file with `cut -f4`, and that table is an
+# escape table, so its check cannot learn the split shape. And the writer
+# cannot fix it, because a gate that passes writes no row: an install stuck on
+# a split row stays stuck however often its gate goes green. So this runs where
+# every install passes whatever the gate did: every session start, every gate,
+# pass or fail, and every full commission run. The lib readers read through
+# felix_mem_mistake_rows as well, because this can decline.
+#
+# It rewrites a memory file, so it is written to decline rather than risk a
+# row. Silent, always 0, and nothing it does changes a caller's status:
+#
+#   - Read-only first. A missing, empty, symlinked or non-regular log, one whose
+#     last byte is not a newline, and one with no pair all return here, with no
+#     lock, no temporary, and the file's bytes, mode and mtime untouched. That
+#     is every well-formed log in every session. A symlink is left alone
+#     because a rename onto it would make the link a regular file; the readers
+#     still read it joined.
+#   - Then the lock. A live owner means someone is appending or healing, and
+#     this leaves it to them.
+#   - The inode is pinned with a hard link, and the rewrite is built from
+#     exactly the bytes that link held at one moment. The result must be one
+#     line shorter and three bytes longer per pair (`\n?\t?\t` out, `\tunborn\t`
+#     in), and the log must still be that inode, or nothing is replaced. A
+#     prototype that skipped this renamed an empty file over a log.
+#   - The rename is atomic, in the same directory, and `mv` is resolved on PATH
+#     like felix_mem_handoff's, which the suite relies on to land an append in
+#     the middle of it.
+#   - An append that landed on the old inode after the snapshot, from a writer
+#     that takes no lock (an older engine in a session not yet restarted, or a
+#     person's >>), is still on the pinned inode, and is copied onto the end of
+#     the new file. What remains is only an append opened on the old inode
+#     before the rename and written after the last read of it, and only for a
+#     writer that takes no lock. This engine's writer takes it.
+#   - The mode is carried across as felix_mem_handoff carries it, and the mtime
+#     is restored from the pinned inode, because felix_guard_unrecorded compares
+#     it with the lessons and the devlog: a heal that bumped it would have the
+#     Stop hook announce a failure nobody had in this session.
+#
+# No trap: cmd_commission owns an EXIT trap and a function that set its own
+# would clobber it, so every path below cleans up after itself. The engine's
+# own temporaries a killed heal left, over a minute old, are cleared while the
+# lock is held. They are never memory, so this is not deleting a memory root.
+felix_mem_mistakes_heal() {
+  local proj="$1" dir f lock pin tmp n0 n1 l0 lt nt pairs i
+  dir="$(felix_mem_dir "$proj")"
+  f="$dir/mistakes.log"
+  [ -f "$f" ] && [ ! -L "$f" ] || return 0
+  [ -s "$f" ] || return 0
+  [ "$(tail -c 1 "$f" 2>/dev/null | od -An -tx1 | tr -d ' \n')" = "0a" ] || return 0
+  felix_mem_mistake_rows "$f" | cmp -s - "$f" 2>/dev/null && return 0
+
+  lock="$dir/.mistakes.lock"
+  _felix_mem_lock "$lock" || return 0
+  find "$dir" -maxdepth 1 -type f \( -name '.mistakes.log.heal.*' -o -name '.mistakes.log.orig.*' \) \
+    -mmin +1 -exec rm -f {} + 2>/dev/null
+
+  pin="$dir/.mistakes.log.orig.$$"
+  tmp="$dir/.mistakes.log.heal.$$"
+  if ! ln "$f" "$pin" 2>/dev/null; then
+    _felix_mem_unlock "$lock"; return 0
+  fi
+  n0="$(wc -c < "$pin" 2>/dev/null | tr -dc '0-9')"
+  if [ -z "$n0" ] || [ "$(tail -c 1 "$pin" 2>/dev/null | od -An -tx1 | tr -d ' \n')" != "0a" ]; then
+    rm -f "$pin"; _felix_mem_unlock "$lock"; return 0
+  fi
+  # Copied first only for its mode; the redirection below replaces the text.
+  if ! cp -p "$pin" "$tmp" 2>/dev/null \
+     || ! head -c "$n0" "$pin" 2>/dev/null | _felix_mem_mistake_join > "$tmp" 2>/dev/null; then
+    rm -f "$tmp" "$pin"; _felix_mem_unlock "$lock"; return 0
+  fi
+  l0="$(head -c "$n0" "$pin" 2>/dev/null | wc -l | tr -dc '0-9')"
+  lt="$(wc -l < "$tmp" 2>/dev/null | tr -dc '0-9')"
+  nt="$(wc -c < "$tmp" 2>/dev/null | tr -dc '0-9')"
+  pairs=$(( ${l0:-0} - ${lt:-0} ))
+  if [ -z "$l0" ] || [ -z "$lt" ] || [ -z "$nt" ] || [ "$pairs" -lt 1 ] \
+     || [ "$nt" -ne $((n0 + 3 * pairs)) ] || [ ! "$f" -ef "$pin" ]; then
+    rm -f "$tmp" "$pin"; _felix_mem_unlock "$lock"; return 0
+  fi
+  if ! mv -f "$tmp" "$f" 2>/dev/null; then
+    rm -f "$tmp" "$pin"; _felix_mem_unlock "$lock"; return 0
+  fi
+  i=0
+  while [ "$i" -lt 5 ]; do
+    n1="$(wc -c < "$pin" 2>/dev/null | tr -dc '0-9')"
+    [ -n "$n1" ] && [ "$n1" -gt "$n0" ] || break
+    tail -c +"$((n0 + 1))" "$pin" 2>/dev/null >> "$f"
+    n0="$n1"
+    i=$((i + 1))
+  done
+  touch -r "$pin" "$f" 2>/dev/null
+  rm -f "$pin"
+  _felix_mem_unlock "$lock"
+  return 0
 }
 
 # What the gate keeps catching. A far better promotion signal than counting words:
@@ -218,12 +394,16 @@ felix_mem_mistake() {
 #
 # No usable `date` means no window and everything is reported, which shows more
 # rather than less. That is the safe direction for a signal about mistakes.
+#
+# Read through felix_mem_mistake_rows, so a split row an older engine wrote is
+# counted as the one row it was, with `unborn` in column three, whether or not
+# a heal has run on the file yet (U44).
 felix_mem_recurring_mistakes() {
   local proj="$1" min="${2:-2}" days="${3:-14}" cutoff
   [ -f "$(felix_mem_dir "$proj")/mistakes.log" ] || return 0
   cutoff="$(date -v-"${days}"d +%Y-%m-%d 2>/dev/null \
             || date -d "${days} days ago" +%Y-%m-%d 2>/dev/null)"
-  awk -F'\t' -v MIN="$min" -v CUT="$cutoff" '
+  felix_mem_mistake_rows "$(felix_mem_dir "$proj")/mistakes.log" | awk -F'\t' -v MIN="$min" -v CUT="$cutoff" '
     {
       # Column 4 holds every check that failed in one run, space separated.
       n = split($4, terms, " ")
@@ -246,7 +426,7 @@ felix_mem_recurring_mistakes() {
         printf "%d\t%s\t%s\t%d\n", count[t], t, last[t], runs[t]
       }
     }
-  ' "$(felix_mem_dir "$proj")/mistakes.log" 2>/dev/null | sort -rn
+  ' 2>/dev/null | sort -rn
 }
 
 # Whether the lessons file holds a lesson about a check of this name.

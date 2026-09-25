@@ -330,6 +330,65 @@ felix_head_commit() {
   printf '%s' "$c" | tr -d '\t\n\r'
 }
 
+# mistakes.log as its rows, with the split rows an older engine left joined
+# back into the one row they were meant to be (U44).
+#
+# #267 fixed the writer above, and nothing fixed what it had already written.
+# One failure on an unborn HEAD, before #267, is two physical lines on disk:
+#
+#   <date> TAB HEAD                 exactly two fields
+#   ? TAB ? TAB <what>              exactly three fields
+#
+# rev-parse printed `HEAD` and exited 128, so `|| echo ?` appended `\n?` to the
+# branch, and the commit field was the lone `?`. Column four is on neither
+# line, so every reader that takes column four a line at a time read nothing
+# there: gate_shown_failing stayed held on an install whose gate the person had
+# watched go red, and the monitor counted the one failure twice (U42).
+#
+# A pair becomes `<date> TAB HEAD TAB unborn TAB <what>`. HEAD stays because it
+# is what was recorded and the real branch cannot be recovered; `unborn` is
+# #267's own word for the state, and the pair proves it, because HEAD with a
+# non-zero exit happens only there. So a healed row and a new row on the same
+# unborn tree are one occasion to felix_mem_recurring_mistakes, as #267 meant.
+#
+# Only an exact pair is joined, matched on fields rather than on a regex with
+# `\t` or `\?` in it, because the CI's awk may be mawk. A two-field HEAD line
+# whose first field is not a date, a ?-? line of any other width, either half
+# alone, and every other line (a detached HEAD's four-field row, a directory
+# that was no repository, anything #267 writes) pass through byte for byte. The
+# date is spelled out rather than written `{4}`, which older awks lack.
+#
+# This is the one definition of the pair. The heal in memory.sh rewrites the
+# file with it, and every lib reader reads through it, because the heal can
+# decline and `felix commission --status` never heals, and a reader must be
+# right either way. It is here and not in memory.sh for the reason the two
+# readers above are: every entry point sources resolve.sh first, and so do the
+# suite's single-lib subshells, which load the monitor or the guard with
+# nothing else beside them.
+#
+# _felix_mem_mistake_join reads stdin, so the heal can feed it a snapshot bounded
+# to a byte count; felix_mem_mistake_rows takes the file. A file whose last line
+# has no newline gets one on stdout, which a reader does not mind and the heal
+# never writes back. A missing file prints nothing. Both always return 0.
+_felix_mem_mistake_join() {
+  LC_ALL=C awk -F'\t' '
+    held != "" {
+      if (NF == 3 && $1 == "?" && $2 == "?") { print held "\tunborn\t" $3; held = ""; next }
+      print held; held = ""
+    }
+    NF == 2 && $2 == "HEAD" && $1 ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/ { held = $0; next }
+    { print }
+    END { if (held != "") print held }
+  ' 2>/dev/null
+  return 0
+}
+
+felix_mem_mistake_rows() {
+  [ -f "${1:-}" ] || return 0
+  _felix_mem_mistake_join < "$1" 2>/dev/null
+  return 0
+}
+
 # Resolve which project governs a working directory.
 # Prints the project directory on success, prints nothing and returns 1 on miss.
 #

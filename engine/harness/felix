@@ -565,6 +565,43 @@ cmd_gate() {
   else
     bash -c "$gate \"\$@\"" felix-gate "$@" 2>&1 | tee "$log"; rc=${PIPESTATUS[0]}
   fi
+  # The project gate's own status, and where its output ends, taken before any
+  # engine check below appends a line to the same log (G5.2, G1.8). The
+  # recorder used to read FAIL names and the exit fallback off the whole log,
+  # so a project gate that failed without naming a check, beside a probe that
+  # failed with it, was recorded as `probes` alone, which gate_shown_failing
+  # does not count: held however often the person watched the gate go red.
+  # And a project line with no final newline had the first engine line glued
+  # to it, so one of the two names was lost. `grc`, not `prc`, which is the
+  # probes status below. The pipeline has finished, so the size is final.
+  local grc gbytes gnamed
+  grc="$rc"
+  gbytes="$(wc -c < "$log" 2>/dev/null | tr -dc '0-9')"; gbytes="${gbytes:-0}"
+  # How many FAIL lines the project printed, structural ones included. No
+  # `|| printf 0` here. `grep -c` prints the count and *also* exits 1 when
+  # that count is zero, so the fallback appended a second zero and made this
+  # "0\n0" — not an integer, so the test that reads it errored and took the
+  # wrong branch. A fallback firing on a command that succeeded at reporting
+  # nothing is the shape this engine keeps paying for.
+  gnamed="$(grep -icE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null | tr -dc '0-9')"
+  # A gate command that could not run at all (G1.3): 127 is the shell saying
+  # it was not found, 126 that it was found and could not be executed. Nothing
+  # was tested, so it is not recorded as the gate shown failing, and the gate
+  # says so here, under the shell's own message and above the engine's lines,
+  # rather than leaving a person to read the status. A gate that named a
+  # failure before exiting 126 or 127 ran far enough to catch something, and
+  # is recorded as usual. The verdict does not change: the gate still exits
+  # non-zero and its receipt is red. Printed, never tee'd into the log, so no
+  # reader of the log can mistake it for a check. That a lone exit-5 or an
+  # engine-only failure still reads as shown failing is the rest of G1.3, and
+  # it is a change to the commissioning table, not here.
+  if { [ "$grc" -eq 126 ] || [ "$grc" -eq 127 ]; } && [ "${gnamed:-0}" -eq 0 ]; then
+    [ "$gbytes" -gt 0 ] && [ "$(tail -c 1 "$log" | od -An -tx1 | tr -d ' \n')" != "0a" ] && printf '\n'
+    case "$grc" in
+      127) printf 'gate: the gate command could not run (exit 127: a command it calls was not found), so nothing was tested and this run is not recorded as the gate failing\n' ;;
+      126) printf 'gate: the gate command could not run (exit 126: it was found but could not be executed), so nothing was tested and this run is not recorded as the gate failing\n' ;;
+    esac
+  fi
   # Ground truth, for every project that has a table — asked by the engine
   # rather than by each project's gate script, so no gate has to be edited to
   # get it and none can quietly leave it out. This is the class-level form of
@@ -707,6 +744,12 @@ cmd_gate() {
     fi
   fi
 
+  # Split rows an engine before #267 left in mistakes.log are joined here, pass
+  # or fail (U44). A passing gate writes no row, so this is the one place CI,
+  # where no session starts, reaches them; and a failing gate's own row then
+  # lands after the healed ones. Silent, and it never moves $rc.
+  felix_mem_mistakes_heal "$proj" >/dev/null 2>&1
+
   if [ "$rc" -ne 0 ]; then
     # Which checks failed, if the gate names them. Falls back to the exit status
     # rather than guessing, because an invented cause is worse than a vague one.
@@ -731,21 +774,36 @@ cmd_gate() {
     # back to `exit-1` there would re-introduce the same permanent row under a
     # less informative name — which is what happened the first time this was
     # tried, caught by running it in a real worktree rather than the suite.
-    local what named
-    # No `|| printf 0` here. `grep -c` prints the count and *also* exits 1 when
-    # that count is zero, so the fallback appended a second zero and made this
-    # "0\n0" — not an integer, so the test below errored and took the wrong
-    # branch. A guard firing on a command that succeeded at reporting nothing is
-    # the same shape as everything else in this commit.
-    named="$(grep -icE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null | tr -dc '0-9')"
-    what="$(grep -iE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null \
-            | grep -viE 'FAIL[[:space:]]*\((structural)' \
-            | awk '{print $1}' | tr '\n' ' ')"
-    if [ -n "$what" ]; then
-      felix_mem_mistake "$proj" "$root" "$what"
-    elif [ "${named:-0}" -eq 0 ]; then
-      felix_mem_mistake "$proj" "$root" "exit-$rc"
+    #
+    # Read in two parts, split at the byte the project gate's output ended on
+    # (G5.2, G1.8). The project's part gives its own names and, when it named
+    # nothing, `exit-<its own status>`; the engine's part gives the engine
+    # checks that failed after it. Both are kept, the project's first. So a
+    # project gate that failed silently beside a failing probe is `exit-1
+    # probes`, which gate_shown_failing reads as the gate shown failing, and
+    # not `probes` alone, which it rightly does not. The fallback still fires
+    # only when the project named nothing, structural lines included, and
+    # never for 126 or 127, a gate that could not run (G1.3). Engine lines are
+    # never structural. With nothing from either part, nothing is written.
+    #
+    # The project part's count is `gnamed`, taken above while the log held
+    # nothing else.
+    local what pnames enames xtok=""
+    pnames="$(head -c "$gbytes" "$log" 2>/dev/null \
+         | grep -iE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' 2>/dev/null \
+         | grep -viE 'FAIL[[:space:]]*\((structural)' \
+         | awk '{print $1}' | tr '\n' ' ')"
+    enames="$(tail -c +"$((gbytes + 1))" "$log" 2>/dev/null \
+         | grep -iE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' 2>/dev/null \
+         | awk '{print $1}' | tr '\n' ' ')"
+    if [ "$grc" -ne 0 ] && [ "${gnamed:-0}" -eq 0 ] && [ "$grc" -ne 126 ] && [ "$grc" -ne 127 ]; then
+      xtok="exit-$grc"
     fi
+    what=""
+    if [ -n "$xtok" ] && [ -n "$enames" ]; then what="$xtok $enames"
+    elif [ -n "$xtok" ]; then what="$xtok"
+    else what="$pnames$enames"; fi
+    [ -n "$what" ] && felix_mem_mistake "$proj" "$root" "$what"
   fi
   # Which checks the gate said it skipped, read off its own report rather than
   # off the flags this command was given. A project gate that skips for its own
@@ -908,14 +966,19 @@ EOF
   cp "$tpl/exceptions.tsv" "$dir/exceptions.tsv"
 
   # Same filter for human steps, and only copy the runbooks that survive it.
+  #
+  # Copied with {{REPO}} as the template has it, and filled in when a row is
+  # read (lib/setup.sh), never here (G5.1, U19). felix new is most often run
+  # before a repository has a remote, and a slug spliced in now was empty: the
+  # saved check failed forever and held human_steps, and a remote added later
+  # changed nothing, because nothing rewrites a saved row.
   {
     printf '# Human steps for %s. Seeded by felix new.\n#\n' "$name"
     printf '# id\ttitle\tcapability\tcheck\n'
     grep -vE '^\s*(#|$)' "$tpl/setup.tsv" | while IFS=$'\t' read -r id title c chk; do
       if [ "$c" = "always" ] || printf '%s\n' "$caps" | grep -qxF "$c"; then
-        printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}"
-        [ -f "$tpl/setup/$id.md" ] && \
-          sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md" > "$dir/setup/$id.md"
+        printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "$chk"
+        [ -f "$tpl/setup/$id.md" ] && cp "$tpl/setup/$id.md" "$dir/setup/$id.md"
       fi
     done
   } > "$dir/setup.tsv"
@@ -3167,12 +3230,17 @@ cmd_setup() {
   local todo; todo="$(printf '%s\n' "$st" | grep -c '^todo' || true)"
 
   printf 'setup for %s\n\n' "$(basename "$proj")"
-  printf '%s\n' "$st" | while IFS=$'\t' read -r s id title; do
+  # A dormant row carries a fourth field when it waits on something the
+  # checkout lacks, today only a GitHub remote for a row that needs its slug
+  # (G5.1). Said instead of "not needed yet", which would be untrue of it.
+  printf '%s\n' "$st" | while IFS=$'\t' read -r s id title why; do
     [ -n "${s:-}" ] || continue
     case "$s" in
       done)    printf '  [x] %-22s %s\n' "$id" "$title" ;;
       todo)    printf '  [ ] %-22s %s\n' "$id" "$title" ;;
-      dormant) printf '  [-] %-22s %s (not needed yet)\n' "$id" "$title" ;;
+      dormant)
+        if [ -n "${why:-}" ]; then printf '  [-] %-22s %s (%s)\n' "$id" "$title" "$why"
+        else printf '  [-] %-22s %s (not needed yet)\n' "$id" "$title"; fi ;;
     esac
   done
 
@@ -4557,6 +4625,37 @@ cmd_commission() {
     return 1
   fi
 
+  # A full run only, and both before the first row is asked; --status writes
+  # nothing, so it does neither.
+  #
+  # The heal joins split rows an engine before #267 left in mistakes.log, so
+  # gate_shown_failing, whose check reads the file with `cut -f4` from a table
+  # this cannot change, is asked of the healed file (U44).
+  #
+  # Then every capability the checkout shows and the project has not declared
+  # is adopted, as session-start adopts it (G5.1). Adoption appends to
+  # capabilities, stack.tsv and setup.tsv, and all three are in the table set
+  # the receipt is hashed over: a receipt written while a capability sat
+  # undeclared, `ci` after bootstrap wrote a workflow being the ordinary case,
+  # read stale at the very next session start, when the hook adopted it. Done
+  # first so the answers see it (stack apply sees ci's catalogue rows) and the
+  # rows, the record and the receipt all describe the table set the next
+  # session will find. One pass is enough because no `felix:` answer writes a
+  # file felix_detect reads; an answer that does must move this after itself.
+  local adopted="" _acap _acounts _aslug
+  if [ "$status" -eq 0 ]; then
+    felix_mem_mistakes_heal "$proj" >/dev/null 2>&1
+    _aslug="$(felix_repo_slug "$root" 2>/dev/null)" || _aslug=""
+    while IFS= read -r _acap; do
+      [ -n "$_acap" ] || continue
+      if _acounts="$(felix_adopt_capability "$proj" "$_acap" "$tpl" "$_aslug" 2>/dev/null)"; then
+        adopted="$adopted $_acap(${_acounts// /+})"
+      fi
+    done <<EOF
+$(felix_undeclared "$root" "$proj" 2>/dev/null)
+EOF
+  fi
+
   local runner="_felix_commission_answer"
   [ "$status" -eq 1 ] && runner="-"
   local out; out="$(felix_commission_run "$proj" "$root" "$runner" "$tpl")"
@@ -4617,6 +4716,8 @@ $(felix_commission_counts "$out" "$malformed")
 EOF
 
   printf 'commissioning for %s\n\n' "$name"
+  # In session-start's notation, capability(tooling-rows+human-steps).
+  [ -n "$adopted" ] && printf 'adopted before this run, because the checkout shows them:%s\n\n' "$adopted"
   printf '%s\n' "$out" | while IFS=$'\t' read -r need st cls answer step detail prov; do
     [ -n "$need" ] || continue
     printf '  %-15s %-20s %s\n' "$st" "$need" "$detail"

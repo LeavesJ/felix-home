@@ -110,8 +110,11 @@ felix_guard_unrecorded() {
     [ -n "$(find "$m" -newer "$d" 2>/dev/null)" ] || return 0
   fi
 
+  # The last row, not the last line: an older engine's split row on an unborn
+  # HEAD ends the file with `?-?-<what>`, and column four of that line is
+  # empty, so the catch was announced with nothing named (U44).
   local what
-  what="$(tail -1 "$m" | cut -f4 | tr -d '[:space:]')"
+  what="$(felix_mem_mistake_rows "$m" | tail -1 | cut -f4 | tr -d '[:space:]')"
   printf 'The gate caught something here and nothing has been written down since.\n\n'
   [ -n "$what" ] && printf '  last caught   %s\n' "$what"
   printf '  lessons       %s\n' "$l"

@@ -45,6 +45,9 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/commission-provider.sh"
 # shellcheck source=../lib/lifecycle.sh
 . "${SCRIPT_DIR}/../lib/lifecycle.sh"
+# memory.sh for the mistakes.log heal below; sourcing it only defines functions.
+# shellcheck source=../lib/memory.sh
+. "${SCRIPT_DIR}/../lib/memory.sh"
 
 # JSON-escape via parameter substitution, one C-level pass each.
 #
@@ -145,6 +148,14 @@ PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 # that could print would break the silence the exit below exists to keep.
 [ -n "$PROJ" ] && felix_lifecycle_session "$PROJ" "$PWD" \
   "$_felix_source" "$_felix_session" "$_felix_transcript" >/dev/null 2>&1
+
+# Join the split rows an engine before #267 left in mistakes.log (U44). Here
+# because every install passes through a session start whatever its gate did
+# last, and a gate that passes writes no row: a stuck install is healed by
+# this even if its gate never fails again. Above the resume exit, so a resumed
+# session heals too. A well-formed log is read and left alone, bytes and mtime.
+# Silent, and redirected besides: a byte printed here breaks the hook's JSON.
+[ -n "$PROJ" ] && felix_mem_mistakes_heal "$PROJ" >/dev/null 2>&1
 
 # The record sits above this line, so a resume is recorded before it leaves.
 [ "$_felix_source" = "resume" ] && [ -z "${COPILOT_CLI:-}" ] && [ -z "${CURSOR_PLUGIN_ROOT:-}" ] \

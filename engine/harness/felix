@@ -697,8 +697,10 @@ cmd_gate() {
     if [ "$orc" -eq 0 ]; then
       # A green that rests on a person's grant is not the green of nothing
       # owed, and the receipt's states carry the word printed here: `excepted`,
-      # so nobody reads a deferred obligation as a discharged one.
-      if printf '%s\n' "$oout" | grep -qE '^[0-9]+ obligation.*; [0-9]+ blocking, [1-9][0-9]* excepted'; then
+      # so nobody reads a deferred obligation as a discharged one. A here-string,
+      # not a pipe: grep -q quits at its match, and pipefail would read the
+      # printf it cut off as no match and print `ok`.
+      if grep -qE '^[0-9]+ obligation.*; [0-9]+ blocking, [1-9][0-9]* excepted' <<<"$oout"; then
         printf '  %-18s excepted\n' obligations | tee -a "$log"
       else
         printf '  %-18s ok\n' obligations | tee -a "$log"
@@ -903,6 +905,11 @@ EOF
   printf '%s\n' "$caps" | grep -v '^$' > "$dir/capabilities" || true
 
   # Keep catalogue rows that are unconditional or whose capability was detected.
+  # Detected is a case over the list, here and for setup.tsv below, not a pipe
+  # into grep -q, which can quit before printf has written the list and leave
+  # a detected capability's rows unseeded.
+  local nl='
+'
   {
     printf '# Declared tooling for %s. Seeded from the catalogue by felix new,\n' "$name"
     printf '# filtered to what this checkout actually shows. Edit freely.\n#\n'
@@ -911,7 +918,7 @@ EOF
     # reading a plugin is OBSERVED; a row with no sixth column is a person's.
     printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n'
     grep -vE '^\s*(#|$)' "$tpl/catalog.tsv" | while IFS=$'\t' read -r k n src r c _kw; do
-      if [ "$c" = "always" ] || printf '%s\n' "$caps" | grep -qxF "$c"; then
+      if [ "$c" = "always" ] || case "$nl$caps$nl" in *"$nl$c$nl"*) true ;; *) false ;; esac; then
         printf '%s\t%s\t%s\t%s\t%s\tDECLARED\n' "$k" "$n" "$src" "$r" "$c"
       fi
     done
@@ -948,7 +955,7 @@ EOF
     printf '# Human steps for %s. Seeded by felix new.\n#\n' "$name"
     printf '# id\ttitle\tcapability\tcheck\n'
     grep -vE '^\s*(#|$)' "$tpl/setup.tsv" | while IFS=$'\t' read -r id title c chk; do
-      if [ "$c" = "always" ] || printf '%s\n' "$caps" | grep -qxF "$c"; then
+      if [ "$c" = "always" ] || case "$nl$caps$nl" in *"$nl$c$nl"*) true ;; *) false ;; esac; then
         printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}"
         [ -f "$tpl/setup/$id.md" ] && \
           sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md" > "$dir/setup/$id.md"
@@ -1428,8 +1435,10 @@ cmd_merge() {
     # every deploy forces a version bump in engine/.claude-plugin — which cannot
     # touch engine/harness. Testing the wider path told a bump-only branch to
     # bump the version and install main's: advice already followed, and unable
-    # to change the thing being compared.
-    if felix_changed_paths "$root" "$base" | grep -q '^engine/harness/' \
+    # to change the thing being compared. awk, not grep -q: it reads every path
+    # before it answers, so a match early in the list cannot kill the writer
+    # and have pipefail read an engine change as none.
+    if felix_changed_paths "$root" "$base" | awk '/^engine\/harness\// { f = 1 } END { exit !f }' \
          && diff -rq "$root/engine/harness" "$kernel" >/dev/null 2>&1; then
       die "the engine that would judge this is byte-identical to the tree it is judging, so it would be judging itself. Bump the version and install main's, or say plainly that this is unjudged."
     fi
@@ -3391,8 +3400,10 @@ cmd_evidence() {
   # the one that gets read. "No evidence gaps" after a scan that never ran is
   # the same false all-clear #56 removed from felix merge, and leaving it here
   # would move it rather than fix it. Exits non-zero regardless of --strict: an
-  # unanswerable question is not a passing report.
-  if printf '%s\n' "$results" | grep -q '^unknown	'; then
+  # unanswerable question is not a passing report. A here-string, not a pipe:
+  # grep -q quits at the first `unknown`, and pipefail would read the printf it
+  # cut off as none, which is that false all-clear again.
+  if grep -q '^unknown	' <<<"$results"; then
     printf '%s\n' "$results" | while IFS=$'\t' read -r st name reason; do
       [ "${st:-}" = "unknown" ] || continue
       printf '  [?] %-14s %s\n' "$name" "$reason"
@@ -3816,7 +3827,16 @@ cmd_maintenance() {
   [ -f "$proj/maintenance.tsv" ] || die "project $(basename "$proj") declares no maintenance routines"
 
   if [ -n "$ran" ]; then
-    _felix_maint_rows "$proj" | cut -f1 | grep -qxF "$ran" \
+    # Read whole, then a case: grep -q on the pipe can quit before the rows are
+    # written, and pipefail reads a routine that exists as missing.
+    local names nl='
+'
+    # A routine name is one line. The case below would take two adjacent
+    # routines as one name, and the log line it wrote would leave the first of
+    # them with no epoch, read as never run.
+    case "$ran" in *"$nl"*) die "a routine name is one line" ;; esac
+    names="$(_felix_maint_rows "$proj" | cut -f1)" \
+      && case "$nl$names$nl" in *"$nl$ran$nl"*) true ;; *) false ;; esac \
       || die "no routine named $ran"
     felix_maint_record "$proj" "$ran"
     printf 'recorded a run of %s\n' "$ran"

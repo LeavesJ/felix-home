@@ -4,44 +4,92 @@
 # program. Split from lib/deny.sh on 2026-09-23 to keep each file under 500
 # lines, the way lib/audit-read.sh was split from lib/audit.sh.
 #
-# The program is a bash single-quoted string, so it may hold no single quote,
-# not even in a comment: one apostrophe ends the string, the rest runs as bash
-# when the hook sources this file, and the second reading silently stops.
-# SQ stands for the quote inside the program.
+# The program is two bash single-quoted strings, joined, so neither may hold
+# a single quote, not even in a comment: one apostrophe ends the string, the
+# rest runs as bash when the hook sources this file, and the second reading
+# silently stops. SQ, or \047, stands for the quote inside the program.
+#
+# The first is the decoder, and it is a program of its own so the suite can
+# hold it to a reference alone: unjson(s) takes the JSON string escapes off,
+# and flatten(s) prints the reading of a command too large to read as the
+# shell does. Read left to right, unjson turns a backslash before a backslash
+# into one backslash, before n, t, a quote or a slash into a line break, a tab,
+# the quote or the slash, and before r into nothing; before anything else the
+# backslash is kept with what follows. flatten drops a backslash that ends a
+# line together with its line break, turns every other line break into ` ; `,
+# and drops every quote of either kind.
+#
+# Linear in BWK awk, mawk and gawk. Until 2026-09-24 both were written with
+# gsub, a split on a regex and a string grown once per match, and in BWK awk,
+# which macOS ships, each costs the length times the number of matches: a 1.2M
+# command with an escaped backslash every 13 bytes took 9.8 s of CPU against
+# 0.73 s at 300K, measured on awk 20200816. What is linear there is split on
+# one character, which BWK also splits at a line break, so lines are split
+# first; index and substr on short pieces; printf per piece; and a pairwise
+# join, which copies the text once per level. Its names start _dj, and it
+# reads nothing the reader sets.
 # shellcheck disable=SC2016
-_FELIX_DENY_READ='
+_FELIX_DENY_DECODE='
+  function _djput(x) { _djF[++_djN] = x }
+  function _djjoin(   n, i, j) {
+    if (_djN == 0) return ""
+    for (n = _djN; n > 1; n = j) { j = 0; for (i = 1; i <= n; i += 2) _djF[++j] = (i < n) ? _djF[i] _djF[i + 1] : _djF[i] }
+    _djN = 0; return _djF[1]
+  }
+  function unjson(s,   nl, L, i, n, P, k, p, c) {
+    if (!index(s, "\\")) return s
+    _djN = 0; nl = split(s, L, "\n")
+    for (i = 1; i <= nl; i++) {
+      if (i > 1) _djput("\n")
+      n = split(L[i], P, "\\"); if (n) _djput(P[1])
+      for (k = 2; k <= n; k++) {
+        p = P[k]
+        # An empty piece is a backslash straight after the one before: the
+        # pair is one backslash, or a lone one ends the line and is kept.
+        if (p == "") { _djput("\\"); if (k < n) _djput(P[++k]); continue }
+        c = substr(p, 1, 1)
+        if (c == "n") _djput("\n"); else if (c == "t") _djput("\t")
+        else if (c == "\"" || c == "/") _djput(c); else if (c != "r") _djput("\\" c)
+        _djput(substr(p, 2))
+      }
+    }
+    return _djjoin()
+  }
+  function _djunq(x,   n, Q, j, m, R, h) {
+    if (!index(x, "\"") && !index(x, "\047")) { printf "%s", x; return }
+    n = split(x, Q, "\"")
+    for (j = 1; j <= n; j++) { m = split(Q[j], R, "\047"); for (h = 1; h <= m; h++) printf "%s", R[h] }
+  }
+  function flatten(s,   n, L, i, l, m) {
+    n = split(s, L, "\n")
+    for (i = 1; i <= n; i++) {
+      l = L[i]; m = length(l)
+      if (i < n && substr(l, m) == "\\") { _djunq(substr(l, 1, m - 1)); continue }
+      _djunq(l); if (i < n) printf " ; "
+    }
+  }
+'
+# The second is the reader, which calls only unjson and flatten from the
+# decoder. FLAT is the size past which a command is read flattened, handed in
+# by felix_deny_code and 256K when nothing is.
+# shellcheck disable=SC2016
+_FELIX_DENY_READER='
   BEGIN { RS = "\001"; SQ = "\047"; BQ = "`"; NX = 0; FB = 0; LV = 0; WN = 0; SEG = 0
+    if (FLAT == "") FLAT = 262144
     PLAIN = "[^ \t\n;&|()<>\"`$\\\\#" SQ "]"; DQPLAIN = "[^\"`$\\\\]" }
   { S = unjson($0); S0 = S
     # Past 256K the reading is not worth its time inside a synchronous hook:
     # read flattened, every quote dropped, which can only refuse more.
-    if (length(S) > 262144) { printf "%s", lines(S); next }
+    if (length(S) > FLAT) { flatten(S); next }
     N = split(S, C, ""); I = 1; out = code("", N)
     for (m = 1; m <= WN; m++) if (WT[m] in RUN) X[++NX] = sub_view(WB[m])
     # By number and not by for-in: reading one body can open more commands,
     # and which keys a for-in visits once the array grows differs between awks.
     for (sid = 1; sid <= SEG; sid++) if (sid in TGT) { tg = TGT[sid]; sub(/^\.\//, "", tg); if (WD[sid] != "" && tg in RUN) X[++NX] = sub_view(WD[sid]) }
     for (k = 1; k <= NX; k++) out = out " ; " X[k]
-    if (FB) out = lines(S0)
-    printf "%s", out }
+    if (FB) flatten(S0); else printf "%s", out }
 
-  # The JSON string escapes taken off. A doubled backslash is set aside
-  # first, so that \\n stays a backslash and an n. It is put back by a split
-  # on a regex: BWK awk, which macOS ships, splits on a line break as well
-  # when the separator is a one-character string, and gsub reads the
-  # backslashes of its replacement differently in each awk.
-  function unjson(s,   n, P, k, r) {
-    gsub(/\\\\/, "\001", s); gsub(/\\n/, "\n", s); gsub(/\\t/, "\t", s)
-    gsub(/\\r/, "", s); gsub(/\\"/, "\"", s); gsub(/\\\//, "/", s)
-    n = split(s, P, /\001/); r = P[1]
-    for (k = 2; k <= n; k++) r = r "\\" P[k]
-    return r
-  }
   function base(w) { sub(/^.*\//, "", w); return w }
-  function lines(s) {
-    gsub(/\\\n/, "", s); gsub(/\n/, " ; ", s); gsub(SQ, "", s); gsub(/"/, "", s)
-    return s
-  }
   # Text that is read in its own right, appended to the buffer and read there,
   # so the place in the outer string needs no copy to come back to.
   function append(t,   n, T, j) {
@@ -267,3 +315,4 @@ _FELIX_DENY_READ='
     return out
   }
 '
+_FELIX_DENY_READ="$_FELIX_DENY_DECODE$_FELIX_DENY_READER"

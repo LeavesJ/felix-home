@@ -31,20 +31,14 @@ PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 [ -n "$PROJ" ] || exit 0
 [ -f "$PROJ/deny.tsv" ] || exit 0
 
-# The tool name, read the same conservative way as the command: escaped quotes
-# are neutralised first so a payload cannot run a match past its own string.
-# Extracted with parameter expansion, not a pipeline. This hook is synchronous
-# on every tool call, so a subprocess here is a tax on the whole session: the
-# old `printf | sed | sed | head` cost about 21ms of the 49ms floor, purely in
-# process spawns, for a substring any shell can find on its own.
-tool=""
-case "$raw" in
-  *'"tool_name"'*)
-    tool="${raw#*\"tool_name\"}"      # everything after the key
-    tool="${tool#*\"}"                # past the colon, to the opening quote
-    tool="${tool%%\"*}"               # up to the closing quote
-    ;;
-esac
+# The tool name: after the key, past the next quote, up to the quote after it.
+# Unlike the command, an escaped quote is not read as part of the value, which
+# no tool name needs. Read by felix_deny_key into a variable, with no
+# subshell and, when the key lies in the payload's first 2K as Claude Code
+# puts it, no program. This hook is synchronous on every tool call, so a
+# subprocess here is a tax on the whole session: the old `printf | sed | sed |
+# head` cost about 21ms of the 49ms floor, purely in process spawns.
+felix_deny_key "$raw" tool_name; tool="$_FELIX_DENY_VAL"
 [ -n "$tool" ] || exit 0
 
 # Does any row even name this tool? One grep on a small table, before anything
@@ -71,11 +65,9 @@ cmd="$(felix_deny_subject "$raw" "$tool")"
 
 # Where the command starts, for a row scoped to the checkout: the session's
 # directory as the payload reports it, which can be a fixture the session
-# moved into while this process still stands in the checkout it resolved.
-start=""
-case "$raw" in
-  *'"cwd"'*) start="${raw#*\"cwd\"}"; start="${start#*\"}"; start="${start%%\"*}" ;;
-esac
+# moved into while this process still stands in the checkout it resolved. A
+# cwd that cannot be read is the checkout, where a scoped row stands.
+felix_deny_key "$raw" cwd; start="$_FELIX_DENY_VAL"
 [ -n "$start" ] && [ -d "$start" ] || start="$PWD"
 
 reason="$(felix_deny_match "$PROJ" "$tool" "$cmd" "$start")" || exit 0
@@ -83,13 +75,15 @@ reason="$(felix_deny_match "$PROJ" "$tool" "$cmd" "$start")" || exit 0
 
 # Said out loud as well as refused. A refusal with no record is indistinguishable
 # from a tool that is broken, which is the whole complaint guard.sh exists to
-# make about other people's plugins.
+# make about other people's plugins. Both show the command up to its first 2K,
+# and say so when it was cut; the row was matched against all of it.
+felix_deny_echo "$cmd"
 sid="$(printf '%s' "$raw" \
   | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
-felix_say "$PROJ" "denied" "$cmd
+felix_say "$PROJ" "denied" "$_FELIX_DENY_SHOWN
 $reason" "" "${sid:-}" 2>/dev/null || true
 
-printf 'Felix refused this command.\n\n  %s\n\n%s\n\n' "$cmd" "$reason" >&2
+printf 'Felix refused this command.\n\n  %s\n\n%s\n\n' "$_FELIX_DENY_SHOWN" "$reason" >&2
 printf 'This is a rule in %s/deny.tsv, which this project owns.\n' "$PROJ" >&2
 printf 'If the rule is wrong, change the row rather than working around it.\n' >&2
 exit 2

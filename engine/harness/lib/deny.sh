@@ -158,6 +158,52 @@ _FELIX_DENY_SUBJECT_AWK='
     }
   }'
 
+# An envelope key's value, for the hook: tool_name on every call, and cwd on
+# a call some row names. Set in _FELIX_DENY_VAL and not printed, so the read
+# every tool call makes runs no subshell and no program.
+#
+# The value is what the hook always read: after the first "key", past the
+# next quote, up to the quote after that. It is loose on purpose and kept so:
+# a backslash before that quote does not escape it, a value with no quote
+# after the key is the rest of the payload, and a number where a string
+# belongs reads as the next quoted word. It was read by three prefix
+# expansions over the whole payload, and bash 3.2 matches such a prefix at
+# every length, so it cost the square of the key's offset: Claude Code puts
+# both keys before tool_input, but after a 99K tool_input one read took 10 s
+# of CPU (measured 2026-09-24 on 3.2.57). So the same expansions now run on
+# the first _FELIX_DENY_HEAD bytes, where their cost is bounded, and a key or
+# a value reaching past them is read by one awk over the whole payload. A raw
+# \001, which no JSON string holds, gives no value, as it gives no subject;
+# so does an awk that fails, or none on PATH, and never part of one.
+_FELIX_DENY_HEAD=2048
+felix_deny_key() {
+  local v here=""   # the payload stays in $1: a copy of a 1M one costs
+  _FELIX_DENY_VAL=""
+  case "$1" in *$'\001'*) return 0 ;; *"\"$2\""*) ;; *) return 0 ;; esac
+  v="${1:0:$_FELIX_DENY_HEAD}"
+  # Read here when the key and both quotes after it lie inside the head, or
+  # the head is the whole payload.
+  case "$v" in
+    *"\"$2\""*)
+      v="${v#*\"$2\"}"
+      case "$v" in *\"*\"*) here=1 ;; esac
+      [ "${#1}" -gt "$_FELIX_DENY_HEAD" ] || here=1 ;;
+  esac
+  if [ -n "$here" ]; then v="${v#*\"}"; _FELIX_DENY_VAL="${v%%\"*}"; return 0; fi
+  v="$(printf '%s' "$1" | LC_ALL=C awk -v k="$2" "$_FELIX_DENY_KEY_AWK" 2>/dev/null && printf x)" || return 0
+  _FELIX_DENY_VAL="${v%x}"
+}
+# The same reading, with index and substr alone, which are linear in every awk.
+_FELIX_DENY_KEY_AWK='
+  BEGIN { RS = "\001" }
+  { s = (NR > 1) ? s RS $0 : $0 }
+  END {
+    i = index(s, "\"" k "\""); if (!i) exit
+    s = substr(s, i + length(k) + 2)
+    if ((i = index(s, "\"")) > 0) { s = substr(s, i + 1); if ((i = index(s, "\"")) > 0) s = substr(s, 1, i - 1) }
+    printf "%s", s
+  }'
+
 # Whether a pattern is too broad to be a rule.
 #
 # A rule says which work this project refuses. A pattern that also matches
@@ -386,8 +432,35 @@ _felix_deny_scoped_lifts() {
 # nothing in nothing, which allows.
 #
 # The program is lib/deny-read.sh, sourced the first time a command needs it,
-# so the call no row matches does not even read the file.
+# so the call no row matches does not even read the file. Past
+# _FELIX_DENY_FLAT decoded bytes a command is read flattened, every quote
+# dropped; a parameter so the suite can reach that reading with a small one.
+_FELIX_DENY_FLAT=262144
 felix_deny_code() {
   [ -n "${_FELIX_DENY_READ:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/deny-read.sh" 2>/dev/null
-  printf '%s' "$1" | awk "${_FELIX_DENY_READ:-}" 2>/dev/null
+  printf '%s' "$1" | awk -v FLAT="${_FELIX_DENY_FLAT:-}" "${_FELIX_DENY_READ:-}" 2>/dev/null
+}
+
+# What a refusal shows of the command it refused, to the model on stderr and
+# in the denied row of says.log: the whole command up to _FELIX_DENY_ECHO
+# bytes, and past that its first bytes and a line saying how many of how many
+# are shown. Until 2026-09-24 it was the whole command, and a 1.28 MB payload
+# refused with a megabyte of stderr and a megabyte-long row that felix monitor
+# pipes through sed. Rows are still matched against the whole command, and a
+# lifted row still records it whole. The cut counts bytes and steps back, at
+# most three, so it does not fall inside a UTF-8 character. Pure bash, with a
+# function-local LC_ALL=C for byte lengths and offsets; set in
+# _FELIX_DENY_SHOWN rather than printed, which would drop trailing newlines.
+_FELIX_DENY_ECHO=2048
+_FELIX_DENY_CONT=$'\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f'
+_FELIX_DENY_CONT="$_FELIX_DENY_CONT"$'\xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf'
+felix_deny_echo() {
+  local LC_ALL=C cmd="$1" n h s=0
+  n="${#cmd}"
+  if [ "$n" -le "$_FELIX_DENY_ECHO" ]; then _FELIX_DENY_SHOWN="$cmd"; return 0; fi
+  h="$_FELIX_DENY_ECHO"
+  while [ "$s" -lt 3 ] && [ "$h" -gt 0 ]; do
+    case "$_FELIX_DENY_CONT" in *"${cmd:$h:1}"*) h=$((h - 1)); s=$((s + 1)) ;; *) break ;; esac
+  done
+  _FELIX_DENY_SHOWN="${cmd:0:$h}"$'\n'"[cut: the first $h of $n bytes are shown]"
 }

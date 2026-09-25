@@ -111,14 +111,26 @@ _felix_qualify_table() { printf '%s/qualification.tsv' "$1"; }
 
 # One reading of a row, shared by the readers below, so what runs and what is
 # reported malformed cannot drift apart. why() is empty for a control and
-# otherwise says why the row is not one. Each non-comment row with a checker
-# name is exactly one of the two.
+# otherwise says why the row is not one. Each line that is not blank or a
+# comment is exactly one of the two.
 #
 # An absent table declares nothing, and returns here before awk. That answer is
 # only as good as the moment it was taken, which is why felix qualify takes it
 # once (felix_qualify_snapshot): a table there at one read and gone at the next
 # read as a run that declared nothing and passed. The path is worked out with
 # its status, because a path that came back empty is a table that is not a file.
+#
+# Only a blank line and a comment are skipped, each by the whole line. A line
+# was skipped when its first field was empty, so a held row with a tab in front
+# of it was never run, never called malformed and never counted, and the gate
+# passed over it. A row with a carriage return in it is malformed, and so is
+# one of more than six fields: a table whose lines end in a bare CR is one line
+# to awk, every row after the first rode in columns nobody reads, and a held
+# control among them passed the gate. A checker is an id, [a-z][a-z0-9_-]*,
+# the shape a needs cell and the gate's own lines already take: a name with a
+# space was split into two checkers declaring nothing, a name like * was
+# expanded to the files of the checkout, and the gate counted six controls met
+# by `my check` across 0 checkers.
 _felix_qualify_read() {   # proj, awk action
   local f; f="$(_felix_qualify_table "$1")" || return 2
   [ -f "$f" ] || return 0
@@ -126,21 +138,26 @@ _felix_qualify_read() {   # proj, awk action
     BEGIN { n = split(pairs, p, " ")
             for (i = 1; i <= n; i++) { split(p[i], kv, ":"); want[kv[1]] = kv[2] } }
     function why() {
+      if (index($0, "\r"))  return "a carriage return; a row ends at a newline alone"
+      if ($1 == "")         return "no checker name"
+      if ($1 !~ /^[a-z][a-z0-9_-]*$/) return "[" $1 "] is not a checker name: a lowercase letter, then lowercase letters, digits, _ or -"
       if (NF < 5)          return NF " field(s); a control needs five"
+      if (NF > 6)          return NF " field(s); a control has five, or six with a premise"
       if ($5 == "")        return "no mutation"
       if (!($3 in want))   return "[" $3 "] is not one of the six controls"
       if ($4 != want[$3])  return $3 " must expect " want[$3] ", not [" $4 "]"
       return ""
     }
-    $1 ~ /^[[:space:]]*#/ || $1 == "" { next }
+    $0 ~ /^[[:space:]]*#/ || $0 ~ /^[[:space:]]*$/ { next }
     '"$2" "$f"
 }
 
 felix_qualify_rows() { _felix_qualify_read "$1" 'why() == "" { print }'; }
 
-# A row that is not a control: too short to run, no mutation, a control that is
-# not one of the six, or a verdict that is not the control's. Reported and never
-# run. A malformed row is a control nobody is applying, and silence about it
+# A row that is not a control: no checker, or a checker that is not an id, a
+# carriage return, too short to run or too long to be one, no mutation, a
+# control that is not one of the six, or a verdict that is not the control's.
+# Reported and never run. A malformed row is a control nobody is applying, and silence about it
 # reads as a control that passed; running it is how a violation expecting
 # `pass` came to be met. `felix qualify --gate` refuses on any.
 felix_qualify_malformed() { _felix_qualify_read "$1" '(r = why()) != "" { print $1 "\t" r }'; }
@@ -164,9 +181,11 @@ felix_qualify_snapshot() {
 # in this file that answers for a table (felix_qualify_missing_controls,
 # felix_qualify_run, felix_qualify_ungoverned) and felix qualify's own read take
 # the read's status from an assignment of its own, never from a pipeline, whose
-# status without pipefail is only its last command's. On a failed read they run
-# and print nothing, say this one line, and exit 2. A table that does not exist
-# is still an answer, and declares nothing, as before.
+# status without pipefail is only its last command's. On a failed read the
+# three readers run and print nothing, say this one line, and exit 2; felix
+# qualify runs nothing, prints its header, this line and one saying nothing was
+# run, and exits 2. A table that does not exist is still an answer, and
+# declares nothing, as before.
 _felix_qualify_unread() {   # proj
   local f; f="$(_felix_qualify_table "$1")"
   printf 'felix: %s could not be read, so what it declares is not known\n' "$f" >&2

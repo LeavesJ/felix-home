@@ -627,9 +627,16 @@ cmd_gate() {
       # the table of its own. That read, failing, said across 0 checker(s) and
       # showed awk's error, and a second read is a verdict nobody took: the
       # count now comes from the run felix qualify --gate made of its one read.
+      #
+      # The checker is what is left of the row once the last four columns are
+      # taken off it, the control named from the six. Taken as one word, a
+      # checker named `my check` matched no row, and six met controls were met
+      # across 0 checkers.
       local qk
-      qk="$(printf '%s\n' "$qout" | LC_ALL=C awk '
-        /^  [^ ]+ +[a-z_]+ +(pass|fail) +[^ ]+ +(ok|n\/a)$/ { if (!($1 in s)) { s[$1] = 1; n++ } }
+      qk="$(printf '%s\n' "$qout" | LC_ALL=C awk -v ctl="$FELIX_QUALIFY_CONTROLS" '
+        BEGIN { gsub(/ +/, "|", ctl); tail = " +(" ctl ") +(pass|fail) +[^ ]+ +(ok|n/a)$" }
+        /^  / { c = substr($0, 3)
+                if (sub(tail, "", c) && c != "" && !(c in s)) { s[c] = 1; n++ } }
         END { print n + 0 }' 2>/dev/null)" || qk="an unknown number of"
       printf '                     %s control(s) met across %s checker(s)\n' \
         "$(printf '%s\n' "$qout" | grep -cE '  ok$')" "$qk"
@@ -648,7 +655,7 @@ cmd_gate() {
       # with that under it passed over a checker nobody knew the controls of;
       # felix qualify --gate refuses on it now, and it is said under FAIL.
       printf '%s\n' "$qout" \
-        | grep -E '^  [^ ]+ declares no control for: ' \
+        | grep -E '^  .+ declares no control for: ' \
         | sed 's/^  /                     /'
     else
       printf '  %-18s FAIL\n' qualified | tee -a "$log"
@@ -658,9 +665,16 @@ cmd_gate() {
       # under it. Each is lifted now, and a refusal that says none of them
       # still says where to read why. Its status is not read: head leaving
       # early is not a failure of what it kept.
+      #
+      # Each is picked by where its word sits, never by the word anywhere in
+      # the line: HELD anywhere took the met rows of a checker named HELDOUT,
+      # eight of them filled the eight lines, and the reason fell below them.
+      # A verdict ends the row, MALFORMED follows the padded checker, and every
+      # line felix qualify says a step failed with begins felix:. The empty
+      # table's sentence runs onto a second line, which is lifted with it.
       local qwhy
       qwhy="$(printf '%s\n' "$qout" \
-        | grep -E 'HELD|UNRUNNABLE|MALFORMED|^never shown failing in this checkout|could not be (read|worked out)|did not finish|declared control\(s\) ran|^no control is declared for|^No checker here is qualified' \
+        | grep -E ' (HELD|UNRUNNABLE)$|^  .* MALFORMED  |^never shown failing in this checkout: |^felix: |^  .*: which controls it declares could not be read$|^only [0-9]+ of [0-9]+ declared control\(s\) ran|^no control is declared for |^No checker here is qualified|^declares no control that can be run' \
         | head -8)"
       [ -n "$qwhy" ] || qwhy='felix qualify --gate refused; run it to read why'
       printf '%s\n' "$qwhy" | sed 's/^/  /'
@@ -2119,7 +2133,14 @@ cmd_qualify() {
     printf '\nfelix: which checkers %s declares could not be worked out\n' "$(_felix_qualify_table "$proj")"
     cs=""
   fi
-  for c in $cs; do
+  # Walked a line at a time, as the rows are. An unquoted for split a checker
+  # named `my check` into two checkers declaring nothing, and expanded one
+  # named * into the files in the checkout.
+  rest="$cs"
+  while [ -n "$rest" ]; do
+    c="${rest%%"$nl"*}"
+    case "$rest" in *"$nl"*) rest="${rest#*"$nl"}" ;; *) rest="" ;; esac
+    [ -n "$c" ] || continue
     [ -z "$want" ] || [ "$want" = "$c" ] || continue
     if ! miss="$(_felix_qualify_missing_in "$rows" "$c")" \
        || ! miss="$(printf '%s\n' "$miss" | tr '\n' ' ')"; then

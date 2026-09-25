@@ -4,23 +4,37 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	c447a3eb38a2aefd82642ba7b6c7015731cecfdf	c447a3eb38a2aefd82642ba7b6c7015731cecfdf	0.49.219
-run	18	3628	5
-and a clobbering redirect, which the old row let through	1
-and a redirect with another line after it, which the old row let through	1
-and a write with another line after it, which the old row let through	1
-and dd with its of= after another operand, which the old row let through	1
-and git add -A with another line after it, which the old row let through	1
-and running it on a tab-indented later line, which the old row let through	1
-no shipped table refuses grep -rln over the marker, whose ln is a flag	1
-nor a > inside a quoted log format	1
-nor a find whose 2>/dev/null comes before its -name .felix	1
-nor an ls whose 2>/dev/null comes before the pointer it lists	1
-nor cp reading the marker into a backup	1
-nor dd reading the marker	1
-nor git add -A --dry-run	1
-nor git add -n -A, which stages nothing	1
-nor grep -ln over the pointer	1
-nor listing scripts/gate.sh, which runs nothing	1
-nor tee copying the marker it reads on stdin	1
-nor the read the engine resolves its home with, whose 2>/dev/null writes no pointer	1
+base	origin/main	fc97c2f88c87445f2296f78c75f302e75a046bb9	0.49.220
+run	32	3654	5
+a checker declaring every control resolves complete however many rows precede its last	1
+a checker with twenty thousand violation rows before its other five controls is missing none	1
+a reported checker with a row is never called unqualified among twenty thousand, and one with none still is	1
+a table that cannot be read names no control missing, rather than all six, and exits 2	1
+and claims neither a check no row qualifies nor that every check has one	1
+and counts nothing it could not read	1
+and its summary line ends saying what would discharge them could not be read	1
+and leaves off the table of what would discharge each	1
+and missing_controls says on stderr which table could not be read	1
+and missing_controls says so without the caller's pipefail	1
+and names none of demo's controls missing	1
+and needs says on stderr which table could not be read	1
+and needs says so without the caller's pipefail	1
+and so without the caller's pipefail	1
+and that is the one line missing_controls writes there	1
+and that is the one line needs writes there	1
+and that is the one line ungoverned writes there	1
+and the gate's summary counts nothing it could not read	1
+and the gate's summary line ends saying what would discharge them could not be read	1
+and the same when the read that fails is an earlier one, with a later one read	1
+and ungoverned says on stderr which table could not be read	1
+and ungoverned says so without the caller's pipefail	1
+felix gate names under qualified ok a checker whose declared controls could not be read	1
+felix qualify says demo's declared controls could not be read when that read fails	1
+felix qualify says which checks have a row could not be read when that read fails	1
+in a UTF-8 locale, a row holding a byte that is not UTF-8 hides no checker after it from felix qualify	1
+in a UTF-8 locale, a row holding a byte that is not UTF-8 is read, and ungoverned names only the unqualified	1
+needs over a table that cannot be read resolves nothing, not every capability absent, and exits 2	1
+needs whose last read of one checker's controls fails prints nothing and exits 2	1
+ungoverned over a table that cannot be read names no reported checker, and exits 2	1
+whichever later read of the table fails, felix qualify still says what demo declares or that it could not be read	1
+whichever read of the table fails, needs prints nothing, exits 2, and says so in one stderr line naming it	1

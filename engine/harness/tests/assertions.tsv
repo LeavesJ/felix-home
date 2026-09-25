@@ -113,12 +113,15 @@
 1	a check that fails is held
 1	a check that has actually failed is an item
 1	a check that passes is done
+1	a checker declaring every control resolves complete however many rows precede its last
+1	a checker declaring only the two decoupled controls is missing violation and the three others
 1	a checker never shown failing refuses the gate with nothing held or unrunnable
 1	a checker short of controls resolves short, naming what it lacks
 1	a checker whose every fail control did not apply is named as never shown failing
 1	a checker whose fail control was met is not named
 1	a checker whose only row is malformed is short, not absent
 1	a checker with a row for every control resolves complete
+1	a checker with twenty thousand violation rows before its other five controls is missing none
 1	a checkout inside the verification is caught too
 1	a checkout path with a space makes the topology depend on IFS, so the assertion below can reach the trap
 1	a checkout that has never been graphed has no graph file
@@ -646,6 +649,7 @@
 1	a release-mode run carries no clearance in any row
 1	a repair that failed says so
 1	a repo copy of a file Felix holds is reported
+1	a reported checker with a row is never called unqualified among twenty thousand, and one with none still is
 1	a repository that is not the memory's own is named foreign
 1	a repository without the gate workflow makes no pull request clean
 1	a resolve.sh committed on the branch being gated does not change the verdict
@@ -815,6 +819,7 @@
 1	a table not named .tsv, declared by its basename, is read and here refused for a third cell
 1	a table of comments exits 1
 1	a table outside the classified repo is still read once, at HEAD
+1	a table that cannot be read names no control missing, rather than all six, and exits 2
 1	a table that is a link fails
 1	a table that is a link is refused: the escape check compares the link's text and a reader reads its target
 1	a table under a directory named like an awk assignment is read, and refused
@@ -1187,6 +1192,7 @@
 1	and a refusal is not a successful repair
 1	and a refusal leaves no file beside it
 1	and a refused grant says why
+1	and a reported checker whose name is part of a declared one's is still unqualified
 1	and a repository with no main resolves to nothing
 1	and a revoked grant covers nothing
 1	and a rotated ledger is the same record with a date on it
@@ -1265,6 +1271,7 @@
 1	and carries the decline channel
 1	and carries the epoch of the checkout's binding, not a dash
 1	and changes when the tree changes
+1	and claims neither a check no row qualifies nor that every check has one
 1	and claims nothing about surfaces it never compared
 1	and claims nothing was unchecked
 1	and claims to have kept no memory, having found none
@@ -1276,6 +1283,7 @@
 1	and counts every control that did not apply, pass or fail
 1	and counts exactly that one
 2	and counts it
+1	and counts nothing it could not read
 1	and counts only the gate's failures against the ceiling
 1	and counts the recorded decline
 1	and counts what was held over the whole file too
@@ -1332,6 +1340,7 @@
 1	and every placeholder in it was filled
 1	and every placeholder was filled
 1	and every reader family reads that table alike
+1	and every reported checker is unqualified, and that exits 0
 1	and every run list felix automerge makes names the gate workflow
 1	and every run list felix repair makes names the gate workflow
 1	and every run list names that workflow
@@ -1477,6 +1486,7 @@
 1	and its seeded stack rows carry DECLARED
 1	and its stop costs that night nothing
 1	and its summary line carries the same count
+1	and its summary line ends saying what would discharge them could not be read
 1	and its tier was read rather than claimed
 1	and its topology is non-empty
 1	and keeps a never-invoked one at zero
@@ -1498,6 +1508,7 @@
 1	and leaves no new file in the project's memory
 1	and leaves no scratch file behind
 1	and leaves no session mark for a session nobody held
+1	and leaves off the table of what would discharge each
 1	and leaves the recorded note as it was
 1	and lists every event its hooks object binds
 1	and ln -s onto the marker
@@ -1509,6 +1520,8 @@
 1	and medium once its marketplace entry's LSP server is read
 1	and merge does not call it an unscanned diff
 1	and merges nothing under it
+1	and missing_controls says on stderr which table could not be read
+1	and missing_controls says so without the caller's pipefail
 1	and moves the epoch, because the probe counts it
 1	and mv of the marker away
 1	and mv onto the pointer
@@ -1521,6 +1534,7 @@
 1	and names lessons.md among what it kept
 1	and names no commission run
 1	and names no play in a session ledger for it
+1	and names none of demo's controls missing
 1	and names none when there is none
 1	and names origin's version as the one nothing is installed at
 1	and names the answer file to write
@@ -1555,6 +1569,8 @@
 1	and names what was caught
 1	and names who answers the provider row
 1	and narrows it, which is how this suite knows the window is real
+1	and needs says on stderr which table could not be read
+1	and needs says so without the caller's pipefail
 1	and neither are the per-session files under .in_use
 1	and neither is a worktree
 1	and neither is an empty message
@@ -1605,6 +1621,7 @@
 1	and none of them is handed on as a brief
 1	and none of them names the checkout it read
 1	and none reports a spend past the ceiling as recorded
+1	and none without the caller's pipefail either
 1	and not as an escape, which would escalate a typo to the founder
 1	and not found by assuming the branch is called main
 1	and not into a session the night does not belong to
@@ -1891,6 +1908,7 @@
 1	and so is the continuation ceiling itself
 1	and so is the other one
 1	and so is what eval is handed
+1	and so without the caller's pipefail
 1	and stack.sh alone can too
 1	and staging the test closes the gap — the case that started this
 1	and stale is one line as well
@@ -1941,6 +1959,9 @@
 1	and that is more than one, so the count is doing work
 1	and that is not a clean bill either
 1	and that is stale, reason in the second field
+1	and that is the one line missing_controls writes there
+1	and that is the one line needs writes there
+1	and that is the one line ungoverned writes there
 1	and that nothing granted it, on a channel review cannot clear
 1	and that one authority writes both halves
 1	and that output is valid JSON
@@ -2012,6 +2033,8 @@
 1	and the gate workflow bootstrap writes checks Felix out at that commit
 1	and the gate's copy carries no candidates section
 1	and the gate's copy carries no needs table
+1	and the gate's summary counts nothing it could not read
+1	and the gate's summary line ends saying what would discharge them could not be read
 1	and the gate-failure total
 1	and the grant is not left lying around for the next session
 1	and the grep it replaced counts the entry that never fires
@@ -2122,6 +2145,7 @@
 1	and the same plugin declared by a person installs, which high would refuse
 1	and the same rows over more sessions are not
 1	and the same scanner catches a planted one
+1	and the same when the read that fails is an earlier one, with a later one read
 1	and the schema check accepts it
 1	and the second project, whose log is tracked too
 1	and the seed holds rows rather than only comments
@@ -2172,6 +2196,8 @@
 1	and to one quoted round a blank
 1	and truncate of the pointer
 1	and under its own name it is current
+1	and ungoverned says on stderr which table could not be read
+1	and ungoverned says so without the caller's pipefail
 1	and what a fix will have to prove
 1	and what it links to is not read
 1	and what main's copy printed reaches the output
@@ -2467,6 +2493,7 @@
 1	felix discover --inspect --quiet exits 2 when the catalogue cannot be read
 1	felix gate fails qualification over a checker never shown failing
 1	felix gate fails qualification over a row whose verdict is not its control's
+1	felix gate names under qualified ok a checker whose declared controls could not be read
 1	felix gate reads qualified ok over controls that did not apply
 1	felix gate runs the probes for a project with a table
 1	felix handoff --replace over a hand-written handoff appends a row noted replaced, with the hash of what replaced it
@@ -2503,6 +2530,7 @@
 1	felix new's usage line names --no-commission
 1	felix next ranks it under the checks that are not checking
 1	felix obligations --gate exits 0 whatever the needs resolve to
+1	felix obligations --gate over a table it cannot read exits as it does over one it can
 1	felix obligations --gate passes on the fixture's one holding obligation
 1	felix obligations --gate passes when its only blocking row is excepted, and writes the exception to says.log
 1	felix obligations --gate still fails while unexcepted blocking rows remain
@@ -2510,6 +2538,7 @@
 1	felix obligations --seed writes the template where no ledger is
 1	felix obligations exits 0 with a need nobody declares
 1	felix obligations ingests an answered file and still exits 0
+1	felix obligations over a table it cannot read exits as it does over one it can
 1	felix obligations prints a row column carrying the ledger line's twelve-character hash
 1	felix overnight with no arguments says where the night stands
 1	felix probes refuses a project that asks reality nothing
@@ -2517,6 +2546,8 @@
 1	felix procedures runs
 1	felix profile lists a row carrying the grounding column
 1	felix qualify names the reported checks no row qualifies
+1	felix qualify says demo's declared controls could not be read when that read fails
+1	felix qualify says which checks have a row could not be read when that read fails
 1	felix repair exits 5, nothing to repair, on a green gate run
 1	felix repair reads the gate's run on the branch
 1	felix repair refuses a detached checkout rather than finding nothing to repair on HEAD
@@ -2604,6 +2635,8 @@
 1	hooks: inside a frontmatter value is low
 1	identical deploys are clean before any stray lands
 1	ignores a file that does not exist
+1	in a UTF-8 locale, a row holding a byte that is not UTF-8 hides no checker after it from felix qualify
+1	in a UTF-8 locale, a row holding a byte that is not UTF-8 is read, and ungoverned names only the unqualified
 1	in a repository with no main and no origin, --applies does not hold even with a cache
 1	in words
 1	inapplicable controls do not refuse the gate while every checker is shown failing
@@ -2728,6 +2761,8 @@
 1	needs [a,,b] refuses the row with the reason
 1	needs [ok,] refuses the row with the reason
 1	needs [x, y] refuses the row with the reason
+1	needs over a table that cannot be read resolves nothing, not every capability absent, and exits 2
+1	needs whose last read of one checker's controls fails prints nothing and exits 2
 1	needs: a seven-column row is still a row
 1	neither the help nor the audit says --no-commission governs with nothing installed; both name felix install
 1	never is exactly 3: no check at any point in the session before the stop
@@ -3498,6 +3533,7 @@
 1	two writers on one tree in one second both report success too
 1	undeclared capability classifies as dormant
 1	under a current grant it says the next session start re-commissions
+1	ungoverned over a table that cannot be read names no reported checker, and exits 2
 1	ungoverned repo refuses to run a gate
 1	uninstall names the doctrine it left alone
 1	uninstall takes the grant back
@@ -3533,6 +3569,8 @@
 1	which is the number it printed
 1	which takes it back to nothing stranded
 1	which the validator accepts
+1	whichever later read of the table fails, felix qualify still says what demo declares or that it could not be read
+1	whichever read of the table fails, needs prints nothing, exits 2, and says so in one stderr line naming it
 1	while --status reads straight through it
 1	while a basename entry still matches in any directory
 1	while a comment added to it is free
@@ -3593,6 +3631,8 @@
 1	with no graphify installed the refresh runs nothing
 1	with no graphify-out beside the checkout it runs nothing
 1	with no probes.tsv the epoch cannot be computed, and every recorded row is stale
+1	with no qualification.tsv at all a checker is missing all six, and that exits 0
+1	with no qualification.tsv at all, every capability named resolves absent, and exits 0
 1	with no run beside it the red run cannot run, exit 2
 1	with no session handoff on disk, lifecycle field 7 is -
 1	with no session record it behaves as before

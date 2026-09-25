@@ -8258,6 +8258,22 @@ _sgrefused "a judge that differs from main's engine by one comment is not the en
 is "and a doctored judge merges nothing" "$SGMERGES" "0"
 cp "$FROOT/harness/lib/say.sh" "$KC2/1.0.0/harness/lib/say.sh"
 
+# (b2) The same comment, behind an exclude line naming the file (spec pin 12).
+# The judge's byte identity is main's felix_deploy_diff, whose residue rule
+# called a tracked file an ignored directory once any pattern matched it: one
+# local line nobody reviews made a doctored judge read as main's engine.
+# Written blind to the implementation.
+mkdir -p "$SG/.git/info"
+cp "$SG/.git/info/exclude" "$TMP/sg.exclude.keep" 2>/dev/null || : > "$TMP/sg.exclude.keep"
+printf 'say.sh\n' >> "$SG/.git/info/exclude"
+printf '# one more line than main accepted\n' >> "$KC2/1.0.0/harness/lib/say.sh"
+_sgrecord; _sgmerge_under
+_sgrefused "an exclude line naming a doctored file does not make the judge main's engine" \
+           "the judge is not the engine main accepted"
+is "and a judge doctored behind an exclude line merges nothing" "$SGMERGES" "0"
+cp "$TMP/sg.exclude.keep" "$SG/.git/info/exclude"; rm -f "$TMP/sg.exclude.keep"
+cp "$FROOT/harness/lib/say.sh" "$KC2/1.0.0/harness/lib/say.sh"
+
 # (c) A cache with nothing in it. Whether the CLI says it cannot tell or that
 # nothing is installed at main's version, it must not merge, and it must say
 # what it looked for or where it looked.
@@ -11371,6 +11387,21 @@ STUB
   printf '# tampered\n' >> "$GINC/0.0.9/harness/lib/say.sh"
   is  "after the fold, a tampered cache entry still fails" "$(_ginv "$(_gin)")" "FAIL"
   _gin_deploy main 0.0.9
+  # Tracked content is never residue, end to end (spec pin 11). An exclude line
+  # naming a file main ships made the residue rule's trailing-slash query call
+  # that tracked file an ignored directory, so a tampered entry read installed
+  # ok. The control first: the line alone, entry faithful, is not drift.
+  # Written blind to the implementation.
+  mkdir -p "$GINT/.git/info"
+  cp "$GINT/.git/info/exclude" "$GIN/exclude.keep" 2>/dev/null || : > "$GIN/exclude.keep"
+  printf 'say.sh\n' >> "$GINT/.git/info/exclude"
+  is  "an exclude line naming a shipped file leaves a faithful entry installed ok" "$(_ginv "$(_gin)")" "ok"
+  printf '# tampered\n' >> "$GINC/0.0.9/harness/lib/say.sh"
+  _gino="$(_gin)"
+  is  "an exclude line naming a tampered file does not hide it from installed" "$(_ginv "$_gino")" "FAIL"
+  has "and installed names the file the exclude line named" "$_gino" "say.sh"
+  cp "$GIN/exclude.keep" "$GINT/.git/info/exclude"; rm -f "$GIN/exclude.keep"
+  _gin_deploy main 0.0.9
   # 4. Structural: the gate's private copy of the comparison is gone, the way
   # the probes block asserts its own private copy is.
   if grep -q 'diff -rq' "$_GING"; then
@@ -11405,6 +11436,9 @@ else
            "when main has no resolve.sh to read, installed fails rather than skipping" \
            "and names the function it could not source" \
            "after the fold, a tampered cache entry still fails" \
+           "an exclude line naming a shipped file leaves a faithful entry installed ok" \
+           "an exclude line naming a tampered file does not hide it from installed" \
+           "and installed names the file the exclude line named" \
            "felix's own gate no longer carries a private copy of the deploy comparison"; do
     skip "$a" "no projects/felix/gate.sh with a tests marker beside this harness"; done
 fi
@@ -15736,6 +15770,242 @@ else
   skip "and the residue rule is the library's alone" "no shipped gate"
   skip "the structural verdict shows its evidence too" "no shipped gate"
 fi
+
+printf '\ntracked content is never residue\n'
+# #86 made a path the repository declares non-content residue, not drift. The
+# rule asks check-ignore twice, once for the path and once with a trailing
+# slash, because a directory-only rule matches only what git can see is a
+# directory. The slash query answers for a TRACKED FILE as if it were an
+# untracked directory, so git's rule that nothing tracked is ignored stopped
+# holding: a file main ships, matched by any ignore or exclude pattern, had its
+# drift discarded. One .git/info/exclude line, one force-added *.log, or one
+# .gitignore line committed on the branch being gated hid a tampered cache
+# entry from felix install, felix next, deploy-check, the gate's installed
+# check and #260's judge. What the index tracks, and what the base ref ships,
+# is content; only an untracked path the base does not ship can be residue.
+#
+# Written blind to the implementation, from the contract. The fixture tracks
+# three files its own ignore rule matches and a directory under a
+# directory-only rule, so every tamper below is one the old rule hid. The
+# controls run first on the same fixture, because a check that refuses
+# everything passes every tamper test. Self-contained: it reads no variable an
+# earlier section set, so it can be lifted alone.
+TRK="$TMP/residue-tracked"
+mkdir -p "$TRK/repo/engine/.claude-plugin" "$TRK/repo/engine/harness/lib" \
+         "$TRK/repo/engine/harness/tests" "$TRK/repo/engine/harness/data" "$TRK/cache" "$TRK/shim"
+TRK="$(cd "$TRK" && pwd -P)"
+TRKR="$TRK/repo"; TRKE="$TRKR/engine"; TRKC="$TRK/cache"; TRKV="$TRK/cache/0.0.1"
+printf '*.log\ndata/\n.claude-flow/\n' > "$TRKR/.gitignore"
+printf '{ "name": "felix", "version": "0.0.1" }\n' > "$TRKE/.claude-plugin/plugin.json"
+printf 'felix\n' > "$TRKE/harness/felix"
+printf 'say\n'   > "$TRKE/harness/lib/say.sh"
+printf 'suite\n' > "$TRKE/harness/tests/run"
+printf 'kept\n'  > "$TRKE/harness/keep.log"
+printf 'a\n'     > "$TRKE/harness/a.log"
+printf 'b\n'     > "$TRKE/harness/lib/b.log"
+printf 'row\n'   > "$TRKE/harness/data/rows.tsv"
+( cd "$TRKR" && git init -q -b main && git add -A \
+  && git add -f engine/harness/keep.log engine/harness/a.log engine/harness/lib/b.log \
+                engine/harness/data/rows.tsv \
+  && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+mkdir -p "$TRKR/.git/info"
+cp "$TRKR/.git/info/exclude" "$TRK/exclude.keep" 2>/dev/null || : > "$TRK/exclude.keep"
+# The entry for main's version, cut from the commit the way the cache holds it,
+# into a fresh directory: every tamper below is undone by cutting again.
+_trk_cut() {
+  rm -rf "$TRKV" "$TRK/x"; mkdir -p "$TRKV" "$TRK/x"
+  git -C "$TRKR" archive main engine | tar -x -C "$TRK/x"
+  for _d in harness hooks commands; do
+    [ -d "$TRK/x/engine/$_d" ] && cp -R "$TRK/x/engine/$_d" "$TRKV/$_d"
+  done
+  rm -rf "$TRK/x"
+}
+# felix_deploy_diff with the arguments given: stdout, then rc=N. Stderr goes to
+# its own file, so a count of lines is a count of what the function reported.
+_trkd() { ( . "$FROOT/harness/lib/resolve.sh"; felix_deploy_diff "$@" 2>"$TRK/err"; echo "rc=$?" ); }
+# The accepted reader with main as the base, pinned to this cache and to
+# nothing on the machine.
+_trka() { ( unset FELIX_KERNEL FELIX_PLUGIN_CACHE; . "$FROOT/harness/lib/resolve.sh"
+            FELIX_KERNEL_CACHE="$TRKC" felix_accepted_deploy_diff "$TRKR" main 2>"$TRK/err"; echo "rc=$?" ); }
+# Exact, because "rc=1" as a substring is satisfied by rc=126 and rc=127.
+_trkrc()    { printf '%s' "${1##*rc=}"; }
+_trkout()   { printf '%s' "${1%rc=*}"; }
+_trkfiles() { printf '%s\n' "$1" | grep -c '^Files .* differ$'; }
+_trkentry() { printf '%s\n' "$1" | grep -qxF "$TRKV"; }
+_trkign()   { git -C "$TRKR" -c core.excludesFile=/dev/null ls-files -ci --exclude-standard; }
+# A git first on PATH that logs each invocation's arguments and runs the real
+# one: the cost is asserted on what was asked, never on the clock. resolve.sh
+# is sourced before PATH changes, so only the function's own calls are logged.
+_trkgit="$(command -v git)"
+cat > "$TRK/shim/git" <<SHIM
+#!/bin/sh
+printf '%s\n' "\$*" >> "$TRK/git.log"
+exec "$_trkgit" "\$@"
+SHIM
+chmod +x "$TRK/shim/git"
+_trkshim()  { : > "$TRK/git.log"
+              ( . "$FROOT/harness/lib/resolve.sh"; PATH="$TRK/shim:$PATH"
+                felix_deploy_diff "$@" >/dev/null 2>&1 ); }
+_trkasked() { grep 'check-ignore' "$TRK/git.log" | grep -cE "$1"; }
+_trk_cut
+
+# The fixture is what it claims: git itself lists these as tracked AND matched
+# by an ignore rule. A file that is not both passes every pin for the wrong
+# reason.
+_trkmiss=""
+for _p in engine/harness/a.log engine/harness/keep.log engine/harness/lib/b.log; do
+  _trkign | grep -qxF "$_p" || _trkmiss="$_trkmiss $_p"
+done
+is "the fixture tracks files its own ignore rule matches" "$_trkmiss" ""
+
+# C1. Nothing differs: clean, and the accepted reader names the entry it judged.
+_trko="$(_trkd "$TRKE" "$TRKV")"
+is "a faithful entry of a tree that tracks ignored files is clean" \
+   "$(_trkrc "$_trko")|$(_trkout "$_trko")" "0|"
+_trko="$(_trka)"
+is "and main's accepted reader finds it clean" "$(_trkrc "$_trko")" "0"
+_trkentry "$(_trkout "$_trko")" && ok  "and prints the entry it judged" \
+                                || bad "and prints the entry it judged" "$_trko"
+
+# C3. Residue stays residue on a tree that tracks ignored files. A fix that made
+# every ignored path drift would pass every pin below and fail these.
+mkdir -p "$TRKE/harness/tests/.claude-flow"; printf 'x\n' > "$TRKE/harness/tests/.claude-flow/state"
+is "an untracked stray in a tree that tracks ignored files is still residue" \
+   "$(_trkrc "$(_trkd "$TRKE" "$TRKV")")" "0"
+rm -rf "$TRKE/harness/tests/.claude-flow"
+mkdir -p "$TRKV/harness/.claude-flow"; printf 'x\n' > "$TRKV/harness/.claude-flow/state"
+is "a stray only the entry holds, under a directory-only rule, is residue to the accepted reader" \
+   "$(_trkrc "$(_trka)")" "0"
+rm -rf "$TRKV/harness/.claude-flow"
+printf 'x\n' > "$TRKV/harness/scratch.log"
+is "and so is an ignored file only the entry holds" "$(_trkrc "$(_trka)")" "0"
+rm -f "$TRKV/harness/scratch.log"
+
+# 1. A tracked file an ignore rule matches is compared. The slash query called
+# keep.log an ignored directory and dropped its line.
+printf 'tampered\n' >> "$TRKV/harness/keep.log"
+_trko="$(_trkd "$TRKE" "$TRKV")"
+is "a tracked file an ignore rule matches is still compared" "$(_trkrc "$_trko")" "1"
+is "and its line is the one diff wrote, whole" "$(_trkout "$_trko")" \
+   "Files $TRKE/harness/keep.log and $TRKV/harness/keep.log differ"
+_trk_cut
+
+# 2 and 3. An exclude line naming a shipped file: a local file nobody reviews.
+# The control first: the line alone, with a faithful entry, is not drift.
+printf 'say.sh\n' >> "$TRKR/.git/info/exclude"
+has "an exclude line makes git call a tracked file ignored" "$(_trkign)" "engine/harness/lib/say.sh"
+is  "an exclude line naming a shipped file is not itself drift" "$(_trkrc "$(_trkd "$TRKE" "$TRKV")")" "0"
+is  "and not to the accepted reader either" "$(_trkrc "$(_trka)")" "0"
+printf '# tampered\n' >> "$TRKV/harness/lib/say.sh"
+_trko="$(_trkd "$TRKE" "$TRKV")"
+is  "an exclude line cannot hide a tampered shipped file" "$(_trkrc "$_trko")" "1"
+has "and the tampered file is named" "$_trko" "harness/lib/say.sh"
+# The reader behind deploy-check, the gate and #260.
+_trko="$(_trka)"
+is  "nor hide it from the accepted reader deploy-check and the gate ask" "$(_trkrc "$_trko")" "1"
+has "which names the tampered file" "$_trko" "harness/lib/say.sh"
+_trkentry "$(_trkout "$_trko")" && bad "and does not print the entry as if it were judged clean" "$_trko" \
+                                || ok  "and does not print the entry as if it were judged clean"
+cp "$TRK/exclude.keep" "$TRKR/.git/info/exclude"; _trk_cut
+
+# 4. The same from a .gitignore line committed on the branch that is checked out
+# when the gate, deploy-check or felix merge runs: the ignore rules are read
+# from the checkout, so a branch can carry one.
+( cd "$TRKR" && git checkout -q -b cand && printf 'say.sh\n' >> .gitignore \
+  && git -c user.name=t -c user.email=t@t commit -qam ignore-say ) >/dev/null 2>&1
+has "a branch's committed ignore line makes git call a shipped file ignored" "$(_trkign)" "engine/harness/lib/say.sh"
+is  "a branch that ignores a shipped file reads clean while the entry is faithful" "$(_trkrc "$(_trka)")" "0"
+printf '# tampered\n' >> "$TRKV/harness/lib/say.sh"
+_trko="$(_trka)"
+is  "a branch's committed ignore line cannot hide a tampered entry from main's check" "$(_trkrc "$_trko")" "1"
+has "and the file the branch ignores is named" "$_trko" "harness/lib/say.sh"
+( cd "$TRKR" && git checkout -q main && git branch -q -D cand ) >/dev/null 2>&1; _trk_cut
+
+# 5. A file main ships that the checked-out branch deleted. No index here holds
+# it and an ignore rule matches it, so only the base can say it is content: the
+# accepted reader has to hand its ref down.
+( cd "$TRKR" && git checkout -q -b gone && git rm -q engine/harness/keep.log \
+  && git -c user.name=t -c user.email=t@t commit -qm drop-keep ) >/dev/null 2>&1
+is "the branch no longer tracks a file main still ships" \
+   "$(git -C "$TRKR" ls-files -- engine/harness/keep.log)|$(git -C "$TRKR" ls-tree --name-only main -- engine/harness/keep.log)" \
+   "|engine/harness/keep.log"
+is  "a branch that deleted a shipped file reads clean while the entry is faithful" "$(_trkrc "$(_trka)")" "0"
+printf 'tampered\n' >> "$TRKV/harness/keep.log"
+_trko="$(_trka)"
+is  "a file main ships is compared though the checked-out branch deleted it" "$(_trkrc "$_trko")" "1"
+has "and the file main ships is named" "$_trko" "harness/keep.log"
+( cd "$TRKR" && git checkout -q main && git branch -q -D gone ) >/dev/null 2>&1; _trk_cut
+
+# 6. Every surviving line is reported. Two tracked ignored files differ and an
+# untracked stray sits beside them: both files are reported and the stray is
+# not. The classification runs in a loop reading diff's lines on stdin, so a
+# query that read stdin would swallow every line after the first it met.
+printf 'tampered\n' >> "$TRKV/harness/a.log"
+printf 'tampered\n' >> "$TRKV/harness/lib/b.log"
+mkdir -p "$TRKE/harness/.claude-flow"; printf 'x\n' > "$TRKE/harness/.claude-flow/state"
+_trko="$(_trkd "$TRKE" "$TRKV")"
+is "two tracked ignored files that differ are both reported" \
+   "$(_trkrc "$_trko") $(_trkfiles "$(_trkout "$_trko")")" "1 2"
+case "$(_trkout "$_trko")" in
+  *claude-flow*) bad "and the untracked stray beside them is not" "$_trko" ;;
+  *)             ok  "and the untracked stray beside them is not" ;;
+esac
+
+# 10b. The cost shape, on the same state. A tracked path is content before any
+# ignore rule is consulted, so neither ignore query runs for it. The untracked
+# stray still gets them, which is also the proof that the shim sees what the
+# function asks: an empty log would pass the next two for nothing.
+_trkshim "$TRKE" "$TRKV"
+is "an untracked stray is still put to the ignore queries" "$(( $(_trkasked 'claude-flow') > 0 ))" "1"
+is "a tracked path is never put to the ignore queries" "$(_trkasked 'harness/(a\.log|lib/b\.log)')" "0"
+_trkshim "$TRKE" "$TRKV" "$TRKE" main
+is "nor when a base is named" "$(_trkasked 'harness/(a\.log|lib/b\.log)')" "0"
+_trkn="$(grep -c . "$TRK/git.log")"
+[ "$_trkn" -le 12 ] && ok  "and git is asked at most four times for each line diff reports" \
+                    || bad "and git is asked at most four times for each line diff reports" \
+                           "$_trkn calls for 3 lines: $(tr '\n' ';' < "$TRK/git.log")"
+rm -rf "$TRKE/harness/.claude-flow"; _trk_cut
+
+# 7. Fail toward drift. A base that does not resolve cannot say a path is not
+# content, so the line it would have judged survives. With a base that
+# resolves, the same stray is residue.
+mkdir -p "$TRKV/harness/.claude-flow"; printf 'x\n' > "$TRKV/harness/.claude-flow/state"
+is  "a stray only the entry holds is residue when the base resolves" \
+    "$(_trkrc "$(_trkd "$TRKE" "$TRKV" "$TRKE" main)")" "0"
+_trko="$(_trkd "$TRKE" "$TRKV" "$TRKE" no-such-ref)"
+is  "a base that does not resolve leaves the stray drift, not residue" "$(_trkrc "$_trko")" "1"
+has "and the stray the base could not judge is named" "$_trko" ".claude-flow"
+is  "and the base it could not read puts nothing on stderr" "$(cat "$TRK/err")" ""
+rm -rf "$TRKV/harness/.claude-flow"
+
+# 8. Literal, not a pattern. A stray literally named k*.log sits beside the
+# tracked keep.log. Read as a pattern it names keep.log, so it would count as
+# tracked, or as shipped, and a faithful entry would read as drift.
+printf 'x\n' > "$TRKE/harness/k*.log"
+has "the stray's name, read as a pattern, matches a tracked file" \
+    "$(git -C "$TRKE" ls-files -- 'harness/k*.log')" "harness/keep.log"
+is  "a stray whose name is a pattern over a tracked file is still residue" \
+    "$(_trkrc "$(_trkd "$TRKE" "$TRKV")")" "0"
+is  "and still residue when a base is named" \
+    "$(_trkrc "$(_trkd "$TRKE" "$TRKV" "$TRKE" main)")" "0"
+rm -f "$TRKE/harness/k*.log"
+
+# 9. A tracked directory under a directory-only rule, missing from the entry,
+# is drift, reported as the directory. It held before the fix too; this guards
+# the directory arm against the change.
+rm -rf "$TRKV/harness/data"
+_trko="$(_trkd "$TRKE" "$TRKV")"
+is "a tracked directory the entry lacks is drift under a directory-only rule" \
+   "$(_trkrc "$_trko")|$(_trkout "$_trko")" "1|Only in $TRKE/harness: data"
+_trk_cut
+
+# 10a. Nothing differs, so nothing is asked, with or without a base: the fix
+# adds no process when diff reports nothing. After 10b, which showed the shim
+# sees the function's calls.
+_trkshim "$TRKE" "$TRKV"
+is "identical trees ask git nothing" "$(grep -c . "$TRK/git.log")" "0"
+_trkshim "$TRKE" "$TRKV" "$TRKE" main
+is "and naming a base asks git nothing either" "$(grep -c . "$TRK/git.log")" "0"
 
 printf '\nindependence\n'
 # #85, and mounting a second real project is what made it matter. The check

@@ -4,5 +4,5 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	4e753d68c3ede8b6d5179490eb802acfd12a7c8c	4e753d68c3ede8b6d5179490eb802acfd12a7c8c	0.49.220
-run	0	3646	5
+base	8581717346ef08c55203640a6dacd111f44351fb	8581717346ef08c55203640a6dacd111f44351fb	0.49.227
+run	0	3736	5

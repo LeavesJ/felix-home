@@ -18320,6 +18320,8 @@ the last stage@@x | { tail; }@@a group ending in a filter is one too
 -@@if grep -q ok log; then :; else exit; fi; x | tail@@a bare exit in an else returns the failure
 -@@a || { exit; }; x | tail@@and so does one after ||
 -@@d | tail -1 && for i in 1 2; do d; set -e || a; done@@set -e in a loop ends its second pass
+-@@( set -e; false; true ) && exit 1 || x | tail@@bash ignores set -e in a subshell left of &&, so exit 1 runs
+-@@set -e & ( false; true ) && exit 1 || x | tail@@set -e in a background job leaves this shell's subshell to go on
 -@@! ! x | tail@@bash 3.2 rejects a doubled !
 -@@x | tr a@@tr with one set and no -d or -s fails every time
 tr@@x | tr -d a@@tr -d takes one set

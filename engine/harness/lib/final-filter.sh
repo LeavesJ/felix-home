@@ -60,8 +60,8 @@
 #   - `grep -v`, which fails when it selects nothing, so it can fail;
 #   - a status kept in a variable and returned later (`rc=$?; exit $rc`);
 #   - a filter wrapped in `timeout` or `sudo`, which can fail themselves;
-#   - under `set -e`, a failure early in an `&&` chain, which bash forgives
-#     and this counts as the end of the script.
+#   - under `set -e`, a failure bash forgives (in a condition, an `&&` chain,
+#     a subshell tested by `||`), which this counts as one that can end it.
 # `x |& tail` is refused. On bash 3.2 it is a syntax error, so the row can
 # never pass there, and it can never fail elsewhere.
 #
@@ -122,7 +122,10 @@ function ff_sub(s,    A, k, i, t, o) {
     o = o t " " }
   return o
 }
-# Under set -e, a failure that ends a command ends the script.
+# Under set -e, a failure that ends a command may end the script. ff_list adds
+# that ending and lets the path go on as well, because bash ignores -e in a
+# condition, an && chain, a subshell tested by || and more. Only adding paths
+# keeps every failure bash can reach, whichever of those holds.
 function ff_errexit(s,    A, k, i, t, o) {
   k = split(s, A, " "); o = " "
   for (i = 1; i <= k; i++) { t = A[i]; if (t == "n" || t ~ /^g:/) t = "t" t; o = o t " " }
@@ -167,8 +170,8 @@ function ff_ifc(c, t, e,    A, k, i, x, o) {
 }
 # set -e anywhere in a text is read as set from its start. Met in a loop, or
 # after an eval, it ends the script at a failure the text reached before it,
-# and a failure that may end the script is still a failure: reading it early
-# can only admit more.
+# and ff_list only adds endings for it, so reading it early can only admit
+# more.
 function ff_text(s, ex,    d, out) {
   if (FFD >= 6) { FFERR = 1; return " z n " }
   if (s ~ /(^|[^A-Za-z0-9_])set[ \t]/ && s ~ /[ \t]-[A-Za-z]*e|errexit/) ex = 1
@@ -191,8 +194,8 @@ function ff_list(stops,    acc, cur, o, dead) {
     if (ff_is(0, ";") || ff_is(0, "nl")) {
       FFP[FFD]++
       if (!dead) {
-        if (FFEX[FFD]) cur = ff_errexit(cur)
         acc = acc ff_pick(cur, 1); cur = ff_pick(cur, 0)
+        if (FFEX[FFD]) acc = acc ff_pick(ff_errexit(cur), 1)
         if (cur !~ /[^ ]/) dead = 1 }
       continue }
     break

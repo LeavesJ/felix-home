@@ -5,7 +5,7 @@
 # .claude/agents and .claude/commands, and nothing from ~/.claude; plugins do
 # not load there at all (code.claude.com/docs/en/cloud-environments, "What
 # carries over from your setup"). Locally the same skills arrive as plugins. So
-# in the cloud this fetches each plugin toolbox.tsv pins, at the commit the
+# in the cloud this fetches each plugin toolbox.json pins, at the commit the
 # founder's machine runs, and copies its skills, agents and commands into the
 # clone's .claude/, each path listed in .git/info/exclude so none of it can be
 # committed by the session.
@@ -14,7 +14,7 @@
 #   provision --session-start  do it, then print superpowers' session context as
 #                              this hook's output, from the plugin's own hook
 #                              run out of the fetched copy
-#   provision --report         print one line per toolbox row saying what this
+#   provision --report         print one line per toolbox entry saying what this
 #                              machine has of it, and exit non-zero if a fetch
 #                              row is missing
 #
@@ -35,7 +35,13 @@ cache="${FELIX_CLOUD_CACHE:-$HOME/.cache/felix-cloud}"
 mkdir -p "$cache/src" 2>/dev/null || exit 0
 log="$cache/provision.log"
 
-rows() { grep -vE '^[[:space:]]*(#|$)' "$here/toolbox.tsv"; }
+# One tab-separated line per toolbox entry, absent fields as "-". jq is in the
+# cloud image (docs/en/cloud-environments, "Installed tools"); without it the
+# log says so and nothing is fetched, which --report then shows as MISSING.
+rows() {
+  jq -r '.tools[] | [.name, .carry, (.source // "-"), (.sha // "-"), (.subdir // "-"), (.note // "-")] | @tsv' \
+    "$here/toolbox.json" 2>>"$log" || say "could not read $here/toolbox.json"
+}
 say() { printf '%s %s\n' "$(date -u +%H:%M:%SZ)" "$*" >> "$log"; }
 src_dir() { printf '%s/src/%s-%s' "$cache" "${1//\//_}" "$2"; }
 

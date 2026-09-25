@@ -46,12 +46,6 @@ profiles.tsv	tree	name capabilities	allowed
 # Empty or absent, every play entry renders as undeclared (_felix_route_kind,
 # felix_ready_report). Absent, felix stack plan and apply die.
 stack.tsv	tree	kind name source risk capability grounding?	allowed
-# Not read by the engine: .claude/cloud/provision reads it, and the Felix gate's
-# cloud check holds it against stack.tsv. It says what a Claude Code cloud
-# session gets of each stack row. Empty is refused, because a toolbox with no
-# rows carries nothing and decides nothing. Absent, provision fetches nothing and
-# the cloud check fails for every plugin and skill row in stack.tsv.
-toolbox.tsv	tree	name carry source sha subdir note	refused
 # Present and empty, every changed path is yellow, green is unreachable and no
 # project channel escapes (felix_classify_diff, felix_escapes). Absent is not no
 # risk: the receipt's tier is unknown and felix classify dies.

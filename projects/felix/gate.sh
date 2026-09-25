@@ -551,7 +551,7 @@ fi
 #     not, and the cloud never runs it;
 #   - a settings command without the guard runs locally beside the plugin's
 #     hook, and Felix fires twice in every local session;
-#   - a stack.tsv plugin or skill with no row in .claude/cloud/toolbox.tsv never
+#   - a stack.tsv plugin or skill with no entry in .claude/cloud/toolbox.json never
 #     reaches the cloud, and nobody decided that it should not.
 # Pairs are read per event off the four-space layout both files share, so a
 # reformatted file reads as unreadable and fails, rather than as agreement.
@@ -575,10 +575,13 @@ if [ -f .claude/settings.json ]; then
   N_CMD="$(grep -c '"command":' .claude/settings.json)"
   N_GUARD="$(grep -cF '"command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; ' .claude/settings.json)"
   [ "$N_CMD" = "$N_GUARD" ] || CLOUD_BAD="$CLOUD_BAD $((N_CMD - N_GUARD)) command(s) without the CLAUDE_CODE_REMOTE guard;"
-  TOOLBOX="$(grep -vE '^[[:space:]]*(#|$)' .claude/cloud/toolbox.tsv 2>/dev/null | cut -f1)"
+  # Names read with sed, not jq: the gate runs on bash and git alone
+  # (constitution invariant 2), and a reformatted file reads as no names, so
+  # every stack row fails rather than passing.
+  TOOLBOX="$(sed -n 's/^      "name": "\([^"]*\)",$/\1/p' .claude/cloud/toolbox.json 2>/dev/null)"
   for n in $(grep -vE '^[[:space:]]*(#|$)' projects/felix/stack.tsv \
              | awk -F'\t' '$1 == "plugin" || $1 == "skill" { sub(/@.*/, "", $2); print $2 }'); do
-    printf '%s\n' "$TOOLBOX" | grep -qxF "$n" || CLOUD_BAD="$CLOUD_BAD $n has no row in .claude/cloud/toolbox.tsv;"
+    printf '%s\n' "$TOOLBOX" | grep -qxF "$n" || CLOUD_BAD="$CLOUD_BAD $n has no entry in .claude/cloud/toolbox.json;"
   done
   if [ -z "$CLOUD_BAD" ]; then
     pass cloud

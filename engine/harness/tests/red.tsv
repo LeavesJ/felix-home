@@ -4,32 +4,23 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	19f3ea4d05a60313096360e956dc1ed26e9a1c99	19f3ea4d05a60313096360e956dc1ed26e9a1c99	0.49.218
-run	27	3560	5
-a checker short of controls resolves short, naming what it lacks	1
-a checker whose only row is malformed is short, not absent	1
-a checker with a row for every control resolves complete	1
-a dash names nothing	1
-a row needing three capabilities resolves each of them	1
-a row refused for its needs is never evaluated	1
-a seven-column row names nothing that would discharge it	1
-an engine shipped without the qualification library resolves nothing, rather than absent	1
-an id no checker carries resolves absent	1
-and engine_deployed needs deploy, absent the same way	1
-and is refused at the merge boundary	1
-and its summary line carries the same count	1
-and prints the count under it	1
-and reads as naming nothing	1
-and says complete is declared, not run	1
-and shows each row's need with its resolution	1
-and the row that names nothing, saying so	1
-and the summary line counts them	1
-felix's lifecycle_wired needs lifecycle, which no checker declares	1
-needs [9lives] refuses the row with the reason	1
-needs [Deploy] refuses the row with the reason	1
-needs [a,,b] refuses the row with the reason	1
-needs [ok,] refuses the row with the reason	1
-needs [x, y] refuses the row with the reason	1
-the count is one per obligation, by its weakest need	1
-the schema check accepts the eighth column as needs	1
-the template documents the needs column	1
+base	c447a3eb38a2aefd82642ba7b6c7015731cecfdf	c447a3eb38a2aefd82642ba7b6c7015731cecfdf	0.49.219
+run	18	3628	5
+and a clobbering redirect, which the old row let through	1
+and a redirect with another line after it, which the old row let through	1
+and a write with another line after it, which the old row let through	1
+and dd with its of= after another operand, which the old row let through	1
+and git add -A with another line after it, which the old row let through	1
+and running it on a tab-indented later line, which the old row let through	1
+no shipped table refuses grep -rln over the marker, whose ln is a flag	1
+nor a > inside a quoted log format	1
+nor a find whose 2>/dev/null comes before its -name .felix	1
+nor an ls whose 2>/dev/null comes before the pointer it lists	1
+nor cp reading the marker into a backup	1
+nor dd reading the marker	1
+nor git add -A --dry-run	1
+nor git add -n -A, which stages nothing	1
+nor grep -ln over the pointer	1
+nor listing scripts/gate.sh, which runs nothing	1
+nor tee copying the marker it reads on stdin	1
+nor the read the engine resolves its home with, whose 2>/dev/null writes no pointer	1

@@ -112,7 +112,7 @@ _felix_classify_pass() {
       path)
         while IFS= read -r f; do
           [ -n "$f" ] || continue
-          if printf '%s' "$f" | grep -qE "$pattern"; then
+          if grep -qE "$pattern" <<<"$f"; then
             printf '%s\t%s\t%s\n' "$tier" "$f" "$reason"
             matched_paths="$matched_paths
 $f"
@@ -122,7 +122,13 @@ $paths
 EOF
         ;;
       content)
-        if [ -n "$added" ] && printf '%s' "$added" | grep -qE "$pattern"; then
+        # A here-string, not a pipe: grep -q stops at its first match, and a
+        # printf still writing a long diff dies of SIGPIPE, which pipefail
+        # reads as no match. $added is a $(...) capture, so it cannot end in a
+        # newline, and the one the here-string adds only ends its last line.
+        # Nothing is stripped first: a % removal of a trailing newline scans
+        # every suffix of a value that has none, which is seconds on a long diff.
+        if [ -n "$added" ] && grep -qE "$pattern" <<<"$added"; then
           printf '%s\tADDED-LINES\t%s\n' "$tier" "$reason"
         fi
         ;;

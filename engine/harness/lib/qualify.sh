@@ -172,9 +172,11 @@ felix_qualify_snapshot() {
 # in this file that answers for a table (felix_qualify_missing_controls,
 # felix_qualify_run, felix_qualify_ungoverned) and felix qualify's own read take
 # the read's status from an assignment of its own, never from a pipeline, whose
-# status without pipefail is only its last command's. On a failed read they run
-# and print nothing, say this one line, and exit 2. A table that does not exist
-# is still an answer, and declares nothing, as before.
+# status without pipefail is only its last command's. On a failed read the
+# three readers run and print nothing, say this one line, and exit 2; felix
+# qualify runs nothing, prints its header, this line and one saying nothing was
+# run, and exits 2. A table that does not exist is still an answer, and
+# declares nothing, as before.
 _felix_qualify_unread() {   # proj
   local f; f="$(_felix_qualify_table "$1")"
   printf 'felix: %s could not be read, so what it declares is not known\n' "$f" >&2

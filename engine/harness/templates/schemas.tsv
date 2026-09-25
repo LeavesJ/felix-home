@@ -65,6 +65,8 @@ evidence.tsv	tree	name when requires reason	allowed
 # merge boundary refuses.
 probes.tsv	tree	predicate grounds when probe witness?	refused
 # Present and empty, felix qualify returns 1 and the gate fails qualified.
+# Present and unreadable, felix qualify exits 2 and the gate fails qualified,
+# saying under it that the table could not be read.
 # Absent, the gate skips and announces it.
 qualification.tsv	tree	checker command control expect mutation premise?	refused
 # Present and admitting nothing, an empty ledger is not a clean bill: felix

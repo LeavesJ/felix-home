@@ -178,8 +178,14 @@ EOF
     # already had. It only ever showed up where no CLI answers, which is every
     # CI runner and no laptop, so the suite went green on the machine that
     # could not reach the branch.
-    if [ -z "$found" ] && felix_ready_inventory 2>/dev/null \
-         | grep -qxF "plugin	$owner"; then
+    #
+    # The inventory is read whole and matched with a case. Piped into grep -q,
+    # a match can end grep before the inventory is all written, and pipefail
+    # then reads a bundled plugin as not usable.
+    local inv nl='
+'
+    if [ -z "$found" ] && inv="$(felix_ready_inventory 2>/dev/null)" \
+         && case "$nl$inv$nl" in *"${nl}plugin	$owner$nl"*) true ;; *) false ;; esac; then
       printf 'usable\t%s\t%s\n' "$want" "bundled, live in every session"
       continue
     fi

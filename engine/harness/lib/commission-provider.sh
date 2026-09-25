@@ -195,7 +195,7 @@ felix_commission_provider_rows() {
     kind="$(printf '%s\n' "$line" | cut -f1)"; name="$(printf '%s\n' "$line" | cut -f2)"
     if [ "$want" -eq 5 ]; then
       _felix_commission_kind_ok "$kind" || continue
-      printf '%s' "$name" | grep -qE '^[A-Za-z0-9@._:-]+$' || continue
+      grep -qE '^[A-Za-z0-9@._:-]+$' <<<"$name" || continue
       [ -n "$(_felix_commission_provider_toolong "$line")" ] && continue
     fi
     # A candidate obligation carries two shell commands by design, so the
@@ -221,7 +221,7 @@ felix_commission_provider_rejects() {
     if [ "$n" -ne "$want" ]; then printf '%s\t%s fields where the shape has %s; a risk column is not the model'"'"'s to write\n' "${name:-(unnamed)}" "$n" "$want"; continue; fi
     if [ "$want" -eq 5 ]; then
       _felix_commission_kind_ok "$kind" || { printf '%s\tkind "%s" is not one of %s\n' "$name" "$kind" "$FELIX_COMMISSION_PROVIDER_KINDS"; continue; }
-      printf '%s' "$name" | grep -qE '^[A-Za-z0-9@._:-]+$' || { printf '%s\tnot a name\n' "$name"; continue; }
+      grep -qE '^[A-Za-z0-9@._:-]+$' <<<"$name" || { printf '%s\tnot a name\n' "$name"; continue; }
       long="$(_felix_commission_provider_toolong "$line")"
       if [ -n "$long" ]; then
         printf '%s\ta %s longer than %s characters, which the log could not hold whole\n' \

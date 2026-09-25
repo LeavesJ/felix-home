@@ -668,7 +668,8 @@ _felix_ledger_machine_sessions() {   # proj -> one session id per line
 # that had stopped keeping up made this zero, so the banner printed the retire
 # list with no caveat at all while uncounted reaches sat on disk.
 felix_ledger_stranded() {
-  local proj="$1" home="$2" root="${3:-}" mem dir f session n=0 machine="" looked=0
+  local proj="$1" home="$2" root="${3:-}" mem dir f session n=0 machine="" looked=0 nl='
+'
   mem="$(felix_mem_dir "$proj")"
   dir="$mem/ledger.d"
   for f in "$home"/state/ledger/*.tsv; do
@@ -677,14 +678,18 @@ felix_ledger_stranded() {
     _felix_ledger_fold_current "$f" "$dir/$session.tsv" && continue
     _felix_ledger_owns "$home" "$root" "$session" || continue
     [ "$looked" = 1 ] || { machine="$(_felix_ledger_machine_sessions "$proj")"; looked=1; }
-    printf '%s\n' "$machine" | grep -qxF -- "$session" && continue
+    # Membership by case, not a pipe into grep -q: grep stops at the first
+    # match, and a printf still writing a long list dies of SIGPIPE, which
+    # pipefail reads as a session the machine never held.
+    case "$nl$machine$nl" in *"$nl$session$nl"*) continue ;; esac
     n=$((n + 1))
   done
   printf '%s' "$n"
 }
 
 felix_ledger_catchup() {
-  local proj="$1" home="$2" root="${3:-}" mem dir f session n=0 machine="" looked=0
+  local proj="$1" home="$2" root="${3:-}" mem dir f session n=0 machine="" looked=0 nl='
+'
   mem="$(felix_mem_dir "$proj")"
   dir="$mem/ledger.d"
   for f in "$home"/state/ledger/*.tsv; do
@@ -693,7 +698,8 @@ felix_ledger_catchup() {
     _felix_ledger_fold_current "$f" "$dir/$session.tsv" && continue
     _felix_ledger_owns "$home" "$root" "$session" || continue
     [ "$looked" = 1 ] || { machine="$(_felix_ledger_machine_sessions "$proj")"; looked=1; }
-    printf '%s\n' "$machine" | grep -qxF -- "$session" && continue
+    # By case, for the reason felix_ledger_stranded gives.
+    case "$nl$machine$nl" in *"$nl$session$nl"*) continue ;; esac
     felix_ledger_rollup "$proj" "$home" "$session" \
       "$(date -r "$f" -u +%Y-%m-%d 2>/dev/null || date -u +%Y-%m-%d)" || continue
     n=$((n + 1))

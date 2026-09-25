@@ -104,7 +104,8 @@ _felix_tier_rank() {
 # without the second pass being a copy of the first that drifts from it.
 _felix_classify_pass() {
   local rows="$1" paths="$2" added="$3"
-  local tier kind pattern reason f
+  local tier kind pattern reason f nl='
+'
   local matched_paths=""
   while IFS=$'\t' read -r tier kind pattern reason; do
     [ -n "${tier:-}" ] || continue
@@ -112,7 +113,7 @@ _felix_classify_pass() {
       path)
         while IFS= read -r f; do
           [ -n "$f" ] || continue
-          if printf '%s' "$f" | grep -qE "$pattern"; then
+          if grep -qE "$pattern" <<<"$f"; then
             printf '%s\t%s\t%s\n' "$tier" "$f" "$reason"
             matched_paths="$matched_paths
 $f"
@@ -122,7 +123,11 @@ $paths
 EOF
         ;;
       content)
-        if [ -n "$added" ] && printf '%s' "$added" | grep -qE "$pattern"; then
+        # A here-string, not a pipe: grep -q stops at its first match, and a
+        # printf still writing a long diff dies of SIGPIPE, which pipefail
+        # reads as no match. One trailing newline comes off because the
+        # here-string adds one, so grep reads the lines printf '%s' gave it.
+        if [ -n "$added" ] && grep -qE "$pattern" <<<"${added%"$nl"}"; then
           printf '%s\tADDED-LINES\t%s\n' "$tier" "$reason"
         fi
         ;;

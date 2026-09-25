@@ -4,13 +4,12 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	da47158e9ed887f24de8c91221d735bd648d85f4	0.49.199
-run	71	3515	5
+base	19f3ea4d05a60313096360e956dc1ed26e9a1c99	19f3ea4d05a60313096360e956dc1ed26e9a1c99	0.49.218
+run	27	3560	5
 a checker short of controls resolves short, naming what it lacks	1
 a checker whose only row is malformed is short, not absent	1
 a checker with a row for every control resolves complete	1
 a dash names nothing	1
-a lifted scoped row is written to says.log with the command	1
 a row needing three capabilities resolves each of them	1
 a row refused for its needs is never evaluated	1
 a seven-column row names nothing that would discharge it	1
@@ -25,55 +24,12 @@ and says complete is declared, not run	1
 and shows each row's need with its resolution	1
 and the row that names nothing, saying so	1
 and the summary line counts them	1
-and with it, the same call lifts	1
 felix's lifecycle_wired needs lifecycle, which no checker declares	1
 needs [9lives] refuses the row with the reason	1
 needs [Deploy] refuses the row with the reason	1
 needs [a,,b] refuses the row with the reason	1
 needs [ok,] refuses the row with the reason	1
 needs [x, y] refuses the row with the reason	1
-scoped: .. out of the checkout that lands in scratch	1
-scoped: P from pwd keeps the scratch cwd after a cd	1
-scoped: Write to a relative marker under a scratch payload cwd	1
-scoped: Write to a scratch marker lifts	1
-scoped: a cd first in its chain to an existing directory, then ;	1
-scoped: a cd second in its chain can fail even to an existing directory	1
-scoped: a fetch from the governed checkout into the scratch clone	1
-scoped: a fixture repo under a scratch variable, marker then git add -A	1
-scoped: a fixture script written by here-document and run with arguments	1
-scoped: a for loop over literal words feeding an assignment	1
-scoped: a here-document fed to bash sees a prefixed variable	1
-scoped: a lift to be recorded	1
-scoped: a lifted marker row does not lift the stage row	1
-scoped: a lifted row does not stop another row	1
-scoped: a payload cwd already in scratch	1
-scoped: a shared clone moved by a script read from stdin	1
-scoped: a shell running a script this line wrote by here-document, all in scratch	1
-scoped: a sibling whose name extends the checkout's is not the checkout	1
-scoped: a single-quoted bash -c fixture given its directory	1
-scoped: a working directory that holds the checkout	1
-scoped: a worktree of the scratch clone, made in scratch	1
-scoped: an EXIT trap with a known action does not	1
-scoped: an echo run from the checkout counts the checkout	1
-scoped: an unmatched command naming the checkout is not judged	1
-scoped: bash -c starts in the directory it was called from	1
-scoped: builtin cd steps past a function of that name	1
-scoped: cd DIR || exit cannot fall back	1
-scoped: dd of= with an input path after = in scratch	1
-scoped: every branch of an if leaves scratch	1
-scoped: git worktree anywhere in the line	1
-scoped: ln anywhere in the line	1
-scoped: mkdir -p, cd, then a remote on the lines after	1
-scoped: mkdir; cd; cmd judges the directory before too	1
-scoped: mktemp -d with a scratch template, then remote add by git -C	1
-scoped: pwd -P of the scratch clone, then update-ref under refs/remotes	1
-scoped: repeated -C, each relative to the last	1
-scoped: set -u is not set -e	1
-scoped: three scoped rows all lifted in one clone	1
-scoped: under set -e a cd inside a chain can still fall through	1
-scoped: under set -e a lone cd on its own line is final	1
 the count is one per obligation, by its weakest need	1
-the judge alone: a scratch path is throwaway	1
-the same reader reaching its end would lift	1
 the schema check accepts the eighth column as needs	1
 the template documents the needs column	1

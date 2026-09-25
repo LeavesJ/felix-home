@@ -1,8 +1,8 @@
 ### 2026-09-24 — the engine makes its scratch under TMPDIR, because a bare mktemp on a Mac does not, and no count of what a path left behind could see it
 
-**Engine 0.49.205 (the queue carrier's number), branch
-`claude/engine-mktemp-tmpdir`, queued after the unattended.yml sha pin
-(0.49.204).** It follows b611b9's
+**Engine version: the next above main and every open claim when it is
+recorded (the queue carrier's rule), branch `claude/engine-mktemp-tmpdir`,
+queued after the unattended.yml sha pin and before L1 #350.** It follows b611b9's
 `claude/red-mktemp-tmpdir` (0.49.200), which clears the 44 red rows #308's
 lift assertions showed on every Mac. It makes tests/red's own root by a
 template and runs the suite under the caller's TMPDIR, as a plain run does;

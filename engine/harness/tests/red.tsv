@@ -4,12 +4,18 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	e77e9629613d2b3533a77115d2380c65f9397f10	0.49.229
-run	7	3742	5
-a stacked branch is not out of scope for a credential its base already merged	1
-an uncommitted credential added to a green path is out of scope	1
-and scope names the tier the line reached	1
-and so does the tier a pull request would be labelled with	1
-and so is a staged one	1
-and the receipt's risk tier	1
-classify reads it too	1
+base	origin/main	31c6e36f36112dfb35817e4955708b7e660464c0	0.49.230
+run	13	3749	5
+a copy whose scope step drifted is unmet	1
+a copy with a placeholder left unfilled does not match	1
+a copy with no Felix pin does not match	1
+a deployed copy that is the template with its placeholders filled matches it	1
+a gate workflow that cannot be read is unknown, not unmet	1
+a gate workflow that takes workflow_dispatch is reported as taking one	1
+a repository with no unattended workflow says so	1
+a workflow list that cannot be read is unknown, not unmet	1
+an on: line naming workflow_dispatch counts as taking one	1
+and one that does not is reported unmet	1
+and still matches with its comments changed	1
+and the row names the line it drifted at	1
+workflow_dispatch named only in an if: expression does not	1

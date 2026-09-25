@@ -1,4 +1,4 @@
-### 2026-09-24 — the megabyte-line audit assertion timed by CPU and shown red, then handed to the session that already had it
+### 0cd. 2026-09-24 — the megabyte-line audit assertion timed by CPU and shown red, then handed to the session that already had it
 
 **No engine change from this session, and nothing deployed.** This section is
 all it lands.

@@ -132,10 +132,14 @@ felix_qualify_checkers() { felix_qualify_rows "$1" | cut -f1 | LC_ALL=C sort -u;
 # is not qualified; the amendments say all seven hold or it may not enforce, and
 # the two it is missing are usually the two with teeth.
 felix_qualify_missing_controls() {
-  local proj="$1" checker="$2" c have
+  local proj="$1" checker="$2" c have nl='
+'
   have="$(felix_qualify_rows "$proj" | awk -F'\t' -v k="$checker" '$1 == k { print $3 }')"
   for c in $FELIX_QUALIFY_CONTROLS; do
-    printf '%s\n' "$have" | grep -qxF "$c" || printf '%s\n' "$c"
+    # A case, not a pipe into grep -q: grep stops at its first match, and a
+    # printf still writing a long list dies of SIGPIPE, which pipefail reads as
+    # a control the checker lacks.
+    case "$nl$have$nl" in *"$nl$c$nl"*) ;; *) printf '%s\n' "$c" ;; esac
   done
 }
 
@@ -228,13 +232,15 @@ felix_qualify_unshown() {   # proj, run-output -> one checker name per line
 # also took `a` and `drift` from the prose the gate prints under a failure.
 # Sub-lines are indented deeper, and prose is not indented at all.
 felix_qualify_ungoverned() {   # proj, gate-output -> one checker name per line
-  local proj="$1" out="$2" known
+  local proj="$1" out="$2" known nl='
+'
   known="$(felix_qualify_checkers "$proj")"
   printf '%s\n' "$out" \
     | LC_ALL=C awk '$0 ~ /^  [a-z][a-z-]* +[A-Za-z]/ { print $1 }' \
     | LC_ALL=C sort -u \
     | while IFS= read -r c; do
         [ -n "$c" ] || continue
-        printf '%s\n' "$known" | grep -qxF "$c" || printf '%s\n' "$c"
+        # By case, for the reason felix_qualify_missing_controls gives.
+        case "$nl$known$nl" in *"$nl$c$nl"*) ;; *) printf '%s\n' "$c" ;; esac
       done
 }

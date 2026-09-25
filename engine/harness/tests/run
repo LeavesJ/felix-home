@@ -14109,6 +14109,40 @@ if [ "$_unreadable" -eq 1 ]; then
 else
   skip "felix qualify --gate over a table at mode 000 still says it could not be read, never that it holds a NUL, and exits 2" "$_noread"
 fi
+# A NUL right after a byte that starts a UTF-8 character. bash 4 to 5.2 read
+# the byte after a lead byte as the rest of the character without asking
+# whether it is the delimiter, so in a UTF-8 locale `\303\000` hid the NUL
+# from the read: it ran on to the end of input, said it found none, and every
+# row after it was dropped with a status of 0, a held one included. Found by
+# review on 2026-09-25; the reader pins the C locale for its read. macOS's
+# bash 3.2 never had the flaw, so this fails only on a newer bash, which is
+# what Linux CI runs.
+_qlu8="$_u8"
+[ -n "$_qlu8" ] || _qlu8="$(locale -a 2>/dev/null | awk '/^C\.(UTF-8|utf8)$/ && !n++')"
+_qllead() {   # [clean]: a met row, a comment ending in a lead byte and a NUL, a held row
+  printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck"
+  printf '# reviewed by Jos\303'; [ "${1:-}" = clean ] || printf '\000'; printf '\n'
+  printf 'held\ttrue\tviolation\tfail\ttrue\n'
+}
+if [ -n "$_qlu8" ]; then
+  _qllead > "$_qlw"; rm -f "$_qzmark"
+  _qsout="$( export LC_ALL="$_qlu8"; _qlgate )"; _qsrc=$?
+  is  "in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2" \
+      "$(_qlnul)" ""
+  _qlrows="$( export LC_ALL="$_qlu8"; . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+              felix_qualify_rows "$FROOT/projects/widget" 2>/dev/null )"; _qlrc=$?
+  is  "and in that locale the library reads no row of it and exits non-zero" \
+      "$([ "$_qlrc" -ne 0 ] && printf refused || printf 'exit 0')$([ -z "$_qlrows" ] || printf ', rows read')" "refused"
+  _qllead clean > "$_qlw"
+  _qsout="$( export LC_ALL="$_qlu8"; _qlgate )"; _qsrc=$?
+  is  "and without the NUL the same table runs, refusing --gate on the held row after the lead byte" \
+      "$_qsrc:$(printf '%s\n' "$_qsout" | grep -cE '^  held +violation +fail +pass +HELD$')" "1:1"
+else
+  for a in "in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2" \
+           "and in that locale the library reads no row of it and exits non-zero" \
+           "and without the NUL the same table runs, refusing --gate on the held row after the lead byte"; do
+    skip "$a" "no UTF-8 locale is installed here"; done
+fi
 cp "$TMP/qual-nul.keep" "$_qlw"
 # A present, empty table is a table declaring no control, and refuses as it
 # always has; the tests below it change what a table nobody read says, not this.

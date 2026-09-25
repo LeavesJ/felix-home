@@ -16014,6 +16014,14 @@ printf '\ndenial refuses what a command changes, not what it reads\n'
 # project's table, and a line about another's rows has nothing to ask there.
 # An exit that is neither 0 nor 2, or a table that could not be put in place,
 # is named in the failure and never read as either answer.
+#
+# A refused line writes into no directory under /tmp. The marker rows and
+# the git add row carry deny.tsv's `checkout` scope, which passes over a
+# command whose every target is a throwaway fixture under /tmp or $TMPDIR,
+# so a refusal asserted about such a path would assert what that scope
+# lifts. These lines are about how far a row's pattern reaches, and a path
+# under $HOME keeps them about that whatever the scope decides. `mv .felix
+# /tmp/x` stays: it moves this checkout's own marker, which no scope lifts.
 _dtabs=""
 for _dt in "$REAL_HARNESS"/../../projects/*/deny.tsv; do
   [ -f "$_dt" ] && _dtabs="$_dtabs$_dt
@@ -16075,25 +16083,25 @@ done <<'J'
 2	felix(-home)	a table with a row about the marker still refuses printf x > .felix	printf x > .felix
 2	felix(-home)	and a redirect to a quoted marker path	printf 'p\\n' > \"$T/repo/.felix\"
 2	felix(-home)	and to one quoted in part	printf x > \"$HOME\"/.felix-home
-2	felix(-home)	and to one quoted round a blank	printf x > \"/tmp/a b/.felix\"
+2	felix(-home)	and to one quoted round a blank	printf x > \"$HOME/a b/.felix\"
 2	felix(-home)	and an append to the marker	echo p >> .felix
 2	felix(-home)	and a clobbering redirect, which the old row let through	printf x >| .felix
-2	felix(-home)	and a redirect on a later line of the command	cd /tmp/r\nprintf x > .felix
+2	felix(-home)	and a redirect on a later line of the command	cd ~/r\nprintf x > .felix
 2	felix(-home)	and tee onto the marker	tee .felix
 2	felix(-home)	and cp onto the marker	cp x .felix
-2	felix(-home)	and cp onto one quoted round a blank	cp seed \"/tmp/a b/.felix\"
+2	felix(-home)	and cp onto one quoted round a blank	cp seed \"$HOME/a b/.felix\"
 2	felix(-home)	and cp onto the marker with its errors sent away	cp x .felix 2>/dev/null
 2	felix(-home)	and cp of a marker into the current directory, where it lands as one	cp ../other/.felix .
 2	felix(-home)	and cp of a marker into a directory named with its slash	cp /x/.felix \"$T/repo/\"
-2	felix(-home)	and cp onto the marker on a later line of the command	cd /tmp/r\ncp x .felix
+2	felix(-home)	and cp onto the marker on a later line of the command	cd ~/r\ncp x .felix
 2	felix(-home)	and scp onto the marker	scp host:seed .felix
 2	felix(-home)	and ln -s onto the marker	ln -s x .felix
 2	felix(-home)	and install onto the marker	install -m 644 seed .felix
 2	felix(-home)	and mv onto the pointer	mv x \"$HOME/.felix-home\"
 2	felix(-home)	and mv of the marker away	mv .felix /tmp/x
 2	felix(-home)	and rm of the marker	rm -f .felix
-2	felix(-home)	and rm of the marker on a later line of the command	cd /tmp/r\nrm -f .felix
-2	felix(-home)	and rm of the marker on a tab-indented later line	cd /tmp/r\n\trm -f .felix
+2	felix(-home)	and rm of the marker on a later line of the command	cd ~/r\nrm -f .felix
+2	felix(-home)	and rm of the marker on a tab-indented later line	cd ~/r\n\trm -f .felix
 2	felix(-home)	and a write with another line after it, which the old row let through	cp x .felix\necho ok
 2	felix(-home)	and a redirect with another line after it, which the old row let through	printf x > .felix\nls
 2	felix(-home)	and cp onto the marker before a comment	cp x .felix # seed
@@ -16106,7 +16114,7 @@ done <<'J'
 2	git add	and git add .	git add .
 2	git add	and git add -A behind another flag	git add -v -A
 2	git add	and git add -A before an &&	git add -A && git commit -m wip
-2	git add	and git add -A on a later line of the command	cd /tmp/r\ngit add -A
+2	git add	and git add -A on a later line of the command	cd ~/r\ngit add -A
 2	git add	and git add -A with another line after it, which the old row let through	git add -A\ngit commit -m wip
 2	scripts/gate	a table with a row about scripts/gate.sh still refuses running it	./scripts/gate.sh --quick
 2	scripts/gate	and running it after a cd	cd ~/x && ./scripts/gate.sh

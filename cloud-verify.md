@@ -204,3 +204,9 @@ The handoff left two questions that only a cloud run could settle. Whether skill
 1. Allow `codeload.github.com` in this environment's Network access settings, or widen the access level, then rerun provision so the toolbox can land and the SessionStart question can be measured.
 2. Confirm or rule out the root hypothesis for the gate's test failures by running the failing suite as an unprivileged user.
 3. The commissioning requests `constitution_audited` and `automation_surveyed` are still awaiting, and the gate reports this machine as never commissioned.
+
+## After this report, 2026-09-29
+
+The Stop hook fired at the end of the turn and held the stop until the gate passed on the exact tree, which answers the last open question above. Follow up 2 is settled too, because as an unprivileged user the permission assertions run and pass, while as root they cannot be built.
+
+The red gate had five causes, all in the environment rather than in this file: root and file modes, a clone that held no `main`, a plugin registry without a felix marketplace, mawk's handling of anchored repeats, and VM system time counted as CPU. Step 4 also changed after a restart, since the plugins that were installed into this VM's `~/.claude` during the first gate run loaded when the session resumed. The branch's pending handoff section records each cause, its fix and the evidence.

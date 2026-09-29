@@ -3384,6 +3384,7 @@
 1	the checkout holding the graph is ok
 1	the checkout's own default branch is next, without the origin/ prefix
 1	the claude cli changing is announced and never invalidates
+1	the cloud check is behind the verifier confine
 1	the commission engine blocker is work Felix owes
 1	the control: with the probe table in place the receipt is current
 1	the controls a checker declares nothing for are named

@@ -1,4 +1,4 @@
-### 2026-09-24 — handoff sections cannot collide: a session adds a file, and one fold of main gives the ids
+### 0ca. 2026-09-24 — handoff sections cannot collide: a session adds a file, and one fold of main gives the ids
 
 **Engine 0.49.180, #336 (branch `claude/handoff-sections`), not deployed at the
 time of writing.** Why, and the options weighed:

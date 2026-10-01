@@ -2015,11 +2015,13 @@ cmd_qualify() {
   # A table that could not be read runs nothing and says so, exit 2, gate or
   # not. It used to be taken for a table declaring no control that can be run,
   # which nobody had read it to know. The line is the library's, on stderr,
-  # naming the table; awk's own error is not shown.
-  local snap rows="" mal="" rest line split=0 derr=0 nl=$'\n' tab=$'\t'
+  # naming the table; awk's own error is not shown. A table holding a NUL byte
+  # is refused the same way, and the line says it holds one.
+  local snap snaprc=0 rows="" mal="" rest line split=0 derr=0 nl=$'\n' tab=$'\t'
   printf 'qualification for %s\n\n' "$(basename "$proj")"
-  if ! snap="$(felix_qualify_snapshot "$proj" 2>/dev/null)"; then
-    _felix_qualify_unread "$proj"
+  snap="$(felix_qualify_snapshot "$proj" 2>/dev/null)" || snaprc=$?
+  if [ "$snaprc" -ne 0 ]; then
+    _felix_qualify_unread "$proj" "$snaprc"
     printf 'Nothing was run, so no control here is known to hold or not.\n'
     return 2
   fi

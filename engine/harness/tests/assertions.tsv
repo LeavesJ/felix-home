@@ -53,7 +53,9 @@
 1	a HEAD on a pushed branch the default branch does not hold pins nothing
 1	a HEAD only a branch named main holds, when the default branch is another, pins nothing
 1	a HEAD only this machine holds pins nothing
+1	a NUL after more than a pipe's 64 KB of rows refuses the table all the same, in one stderr line naming it
 1	a NUL is refused, and grep reads the whole table as binary
+1	a NUL refuses the whole table: with it in a comment between two met controls on clean lines neither runs and --gate exits 2, where without it both run and pass
 1	a RELEASE_BLOCKING candidate is refused because it may not block
 1	a TMPDIR of / is not a temporary root
 1	a TMPDIR that holds $HOME is not a temporary root
@@ -854,6 +856,7 @@
 1	a symlinked handoff is still a symlink after a write
 1	a tab-indented comment is refused, and the raw case loops take it for a row
 1	a table added today with no schema row fails, where a list of known tables saw nothing
+1	a table at mode 000 is still one that could not be read, never one said to hold a NUL, and each reader exits 2
 1	a table created and never added is checked too, and fails with no row
 1	a table declaring the reserved channel still stops the merge
 1	a table edited in the project directory stales the receipt because the table set moved
@@ -861,6 +864,7 @@
 1	a table emptied whose row refuses emptiness fails
 1	a table gone after any read felix qualify --gate makes never passes it
 1	a table in a different repository resolves to nothing
+1	a table larger than a pipe's 64 KB with no NUL is read byte for byte, every row and the snapshot
 1	a table moved away for any one read felix qualify --gate makes never passes it
 1	a table moved under the commission receipt is the branch's only blocker
 1	a table not named .tsv, declared by its basename, is read and here refused for a third cell
@@ -877,6 +881,7 @@
 1	a table with a row about git add still refuses git add -A
 1	a table with a row about scripts/gate.sh still refuses running it
 1	a table with a row about the marker still refuses printf x > .felix
+1	a table with no NUL is read byte for byte as before: its rows, its malformed rows and its snapshot
 1	a table with no holds column still works
 1	a task notification is not a prompt
 1	a task-blocking row does not block a release
@@ -1277,6 +1282,7 @@
 1	and a summary session is not
 1	and a tab in one of its rows is a refused second cell
 1	and a table whose name git quotes is one no reader opens by that name
+1	and a table with no NUL is read so in the C locale as well
 1	and a table with no schema row cannot be examined either: undeclared is not clean
 1	and a totals line without a skipped clause records skipped as 0
 1	and a tree byte-identical to the deployed engine matches
@@ -1433,6 +1439,7 @@
 1	and felix unattended's streak row counts the gate's runs alone
 1	and felix which does not resolve it
 1	and felix's qualification table declares every control for the schema checker
+1	and felix_qualify_run refuses it so without the caller's pipefail
 1	and field 1 is still the tree id
 1	and field 2 is still the verdict
 1	and field 4 is still the gate
@@ -1471,6 +1478,7 @@
 1	and hooks beside a pipe to a shell are still high
 1	and ignores the path so it cannot come back
 1	and in a declared skill folder's own SKILL.md
+1	and in that locale the library reads no row of it and exits non-zero
 1	and in the policy's own words, which is what proves the call reached it
 1	and install onto the marker
 1	and is carried when none is given
@@ -1589,6 +1597,7 @@
 1	and medium once its marketplace entry's LSP server is read
 1	and merge does not call it an unscanned diff
 1	and merges nothing under it
+1	and missing_controls refuses it so without the caller's pipefail
 1	and missing_controls says on stderr which table could not be read
 1	and missing_controls says so without the caller's pipefail
 1	and moves the epoch, because the probe counts it
@@ -1638,6 +1647,8 @@
 1	and names what was caught
 1	and names who answers the provider row
 1	and narrows it, which is how this suite knows the window is real
+1	and needs over each twin, its NUL taken out, resolves as before and exits 0
+1	and needs refuses such a table without the caller's pipefail too
 1	and needs says on stderr which table could not be read
 1	and needs says so without the caller's pipefail
 1	and neither are the per-session files under .in_use
@@ -1766,6 +1777,7 @@
 1	and only that one: the rewake turn after it is judged
 1	and only the awaiting count records it
 1	and over a felix qualify --gate killed before it said anything, qualified FAIL still says where to read why
+1	and over each twin, its NUL taken out, felix gate reads as before: qualified FAIL over the held or unrunnable row, and qualified ok when the NUL sat on a blank or comment line
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
 1	and passes on npm's own reason
@@ -1773,6 +1785,7 @@
 1	and picks the capability the skills serve
 1	and pins the source checkout's commit once origin's default branch holds it
 1	and plain felix qualify exits 2 when the roster gap could not be read
+1	and plain felix qualify over each of those tables runs no control, says the table holds a NUL, and exits 2
 1	and plain felix qualify over it does the same
 1	and plain felix qualify over it returns 1, as before
 1	and points at the read that needs no lock
@@ -1974,6 +1987,7 @@
 1	and so does the next one
 1	and so does the stamp that says what it was read against
 1	and so does the tier a pull request would be labelled with
+1	and so in a UTF-8 locale, a mutation holding a byte that is not UTF-8 included
 1	and so is a deny from its own PreToolUse
 1	and so is a file this user cannot read
 1	and so is a premise whose command does not exist
@@ -2297,6 +2311,7 @@
 1	and to one quoted round a blank
 1	and truncate of the pointer
 1	and under its own name it is current
+1	and ungoverned refuses it so without the caller's pipefail
 1	and ungoverned says on stderr which table could not be read
 1	and ungoverned says so without the caller's pipefail
 1	and what a fix will have to prove
@@ -2326,6 +2341,7 @@
 1	and with the whole sentence, not a prefix of it
 1	and without SUB, the manifest at DIR is read
 1	and without it the same escape stands
+1	and without the NUL the same table runs, refusing --gate on the held row after the lead byte
 1	and writes no brief for it to says.log
 1	and writes no cache
 1	and writes no fold for that machine session into memory
@@ -2527,9 +2543,12 @@
 1	does not demand the later steps yet
 1	dormant steps never nag
 1	drift seen from a checkout the marketplace does not serve is marked structural
+1	each NUL table holds one NUL, its twin is the same bytes without it, and git calls it binary unless the NUL is past byte 8000
+1	each NUL table's twin, the NUL taken out, is run by the library as before, every row of it, and exits 0
 1	each control runs against a tree of its own
 1	each fact carries the tree it was taken from
 1	each line is a name and a value separated by a tab
+1	each of those tables with its NUL taken out reads through felix qualify --gate as before, refusing on its held or unrunnable row and passing when the NUL sat on a blank or comment line
 1	each refused grant is listed with its reason
 1	ecc's shape, an empty mcpServers object beside skills, is low
 1	editing a table in the set is a new policy version
@@ -2608,6 +2627,7 @@
 1	felix gate names under qualified FAIL a checker never shown failing, beside eight met rows of a checker named heldout
 1	felix gate over a felix qualify --gate whose row loop was killed says under qualified FAIL that the run did not finish and 1 of 2 ran
 1	felix gate over a present, empty table fails qualified and says under it that no checker here is qualified
+1	felix gate over a table holding a NUL byte anywhere fails qualified, never ok, and shows under it the felix: line naming the table and its NUL
 1	felix gate over a table it cannot read fails qualified and says under it that the table could not be read
 1	felix gate reads qualified ok over controls that did not apply
 1	felix gate runs the probes for a project with a table
@@ -2662,7 +2682,15 @@
 1	felix procedures runs
 1	felix profile lists a row carrying the grounding column
 1	felix qualify --gate naming a checker with no row refuses, and says no control is declared for it
+1	felix qualify --gate opens a table holding a NUL exactly once, and its twin without the NUL once
+1	felix qualify --gate over a table at mode 000 still says it could not be read, never that it holds a NUL, and exits 2
 1	felix qualify --gate over a table it cannot read runs nothing, says it could not be read naming it, and exits 2
+1	felix qualify --gate over a table with a NUL after a row's fifth field runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2
+1	felix qualify --gate over a table with a NUL alone on a line runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2
+1	felix qualify --gate over a table with a NUL inside a comment runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2
+1	felix qualify --gate over a table with a NUL inside a held row's mutation runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2
+1	felix qualify --gate over a table with a NUL past byte 8000 runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2
+1	felix qualify --gate over a table with a NUL starting a held row runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2
 1	felix qualify --gate reads qualification.tsv exactly once
 1	felix qualify --gate refuses a held row after a checker that reads its stdin
 1	felix qualify --gate refuses rows whose checker is my check or *, rather than running them
@@ -2699,8 +2727,12 @@
 1	felix_has_line rejects partial lines
 1	felix_ledger_retire is defined for the hook
 1	felix_merge_blockers emits exactly the kinds cmd_merge places
+1	felix_qualify_missing_controls over a table holding a NUL byte anywhere prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL
+1	felix_qualify_rows, felix_qualify_malformed and felix_qualify_snapshot each exit non-zero over a table holding a NUL byte anywhere, with the caller's pipefail and without
+1	felix_qualify_run over a table holding a NUL byte anywhere runs nothing, prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL
 1	felix_qualify_run over a table it cannot read runs nothing and exits 2, with the caller's pipefail and without
 1	felix_qualify_ungoverned keeps every reported checker and drops every sub-line
+1	felix_qualify_ungoverned over a table holding a NUL byte anywhere names no checker, exits 2, and says in one stderr line naming the table that it holds a NUL
 1	felix_tidy_safe is defined for the hook
 1	field 7 is the epoch the receipt was stamped under
 1	field 8 is the four components, comma-joined in the order the spec lists them
@@ -2758,6 +2790,7 @@
 1	ignores a file that does not exist
 1	in a UTF-8 locale, a row holding a byte that is not UTF-8 hides no checker after it from felix qualify
 1	in a UTF-8 locale, a row holding a byte that is not UTF-8 is read, and ungoverned names only the unqualified
+1	in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2
 1	in a repository with no main and no origin, --applies does not hold even with a cache
 1	in words
 1	inapplicable controls do not refuse the gate while every checker is shown failing
@@ -2882,6 +2915,7 @@
 1	needs [a,,b] refuses the row with the reason
 1	needs [ok,] refuses the row with the reason
 1	needs [x, y] refuses the row with the reason
+1	needs over a table holding a NUL byte anywhere resolves nothing, exits 2, and says in one stderr line naming the table that it holds a NUL
 1	needs over a table that cannot be read resolves nothing, not every capability absent, and exits 2
 1	needs whose last read of one checker's controls fails prints nothing and exits 2
 1	needs: a seven-column row is still a row
@@ -3800,6 +3834,7 @@
 1	with no probes.tsv the epoch cannot be computed, and every recorded row is stale
 1	with no qualification.tsv at all a checker is missing all six, and that exits 0
 1	with no qualification.tsv at all, every capability named resolves absent, and exits 0
+1	with no qualification.tsv at all, rows, malformed, snapshot and the runner print nothing and exit 0
 1	with no run beside it the red run cannot run, exit 2
 1	with no session handoff on disk, lifecycle field 7 is -
 1	with no session record it behaves as before

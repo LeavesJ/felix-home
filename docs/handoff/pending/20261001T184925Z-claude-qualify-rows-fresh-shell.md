@@ -68,6 +68,14 @@ Every assertion is red on a named wrong runner, built as a scratch variant.
   checkout on 2026-09-25. The session "Stop qualify scratch worktrees
   leaking" carries the fix.
 
+- lib/qualify.sh is 520 lines after #383 merged in: 467 on this branch, plus
+  #383's 53. The split is deferred on purpose. Two stacked branches edit
+  `_felix_qualify_one`: claude/qualify-scratch-cleanup and
+  claude/engine-mktemp-tmpdir. Moving the function now would conflict both.
+  The seam is the row runner (`_felix_qualify_sh`, `_felix_qualify_one`) on
+  one side, and the table read and verdict logic on the other. Split there
+  once both have landed.
+
 **Traps paid:**
 - A reviewer prompt named the implementation commit's parent as the "unfixed"
   baseline, but the parent already held the fix. Name the blind-tests commit

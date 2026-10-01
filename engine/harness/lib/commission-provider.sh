@@ -146,8 +146,9 @@ felix_commission_request() {
 # whole or not, which is the state every ingestion reads. A count is digits or
 # it was not taken, and a count over a first grep that failed is not one: the
 # second grep counts whatever reached it and prints a number, so the first
-# grep's own status is asked too, from PIPESTATUS, which pipefail does not
-# change.
+# grep's own status is asked too, and the counting grep's, from PIPESTATUS,
+# which pipefail does not change. Taken whole into the positional parameters
+# first, because the first test resets it.
 felix_commission_provider_state() {
   local proj="$1" root="$2" need="$3" f first last n rows
   f="$(felix_commission_answer_path "$proj" "$need")"
@@ -159,7 +160,8 @@ felix_commission_provider_state() {
     printf 'stale\tthe answer at %s is for another topology; run the skill again from the request\n' "$f"; return 0
   fi
   last="$(grep -vE '^[[:space:]]*$' "$f" | tail -1)"
-  rows="$(grep -vE '^[[:space:]]*(#|$)' "$f" | grep -vc $'^done\t'; [ "${PIPESTATUS[0]}" -le 1 ] || printf '?')"
+  rows="$(grep -vE '^[[:space:]]*(#|$)' "$f" | grep -vc $'^done\t'
+    set -- "${PIPESTATUS[@]}"; [ "${1:-2}" -le 1 ] && [ "${2:-2}" -le 1 ] || printf '?')"
   n="$(printf '%s' "$last" | awk -F'\t' '$1 == "done" && NF == 2 { print $2 }')"
   case "$n" in ''|*[!0-9]*) printf 'partial\tthe answer at %s has no terminal done row, so the skill did not finish\n' "$f"; return 0 ;; esac
   case "$rows" in ''|*[!0-9]*) printf 'unknown\tthe rows of the answer at %s could not be counted, so whether it is whole is not known\n' "$f"; return 0 ;; esac

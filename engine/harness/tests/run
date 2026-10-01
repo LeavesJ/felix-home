@@ -18264,6 +18264,223 @@ is  "and this block leaves the table, the receipt and every cmes- file as it fou
 unset -f _cmesrun _cmes_answer _cmesf _cmesline _cmessaid _cmesfixture _cmeshdrun
 unset _cmesrc _cmesnone _cmesempty _cmesword _cmesagain _cmesdt _cmesran _cmeshd _cmesfound
 
+# A lookup that could not be made is unknown, never a no.
+#
+# felix_commission_state decides a row from lookups made inside $(...), and
+# under load a fork inside one fails with EAGAIN: the substitution prints
+# nothing and returns 128. Three lookups read that as a valid answer. The
+# declared capabilities came back as none, so a row whose capability is
+# declared read not-applicable and the receipt said commissioned; the run's
+# empty-state guard cannot see it, because not-applicable is a state. The
+# engine functions a check names came back as none, so a check over a function
+# that is not loaded ran and read done. And the count of an answer's rows came
+# back empty, the comparison with its done line errored and was false, and the
+# answer read answered, whole or not, which is the state every ingestion
+# reads. The adversarial reviewer of the empty-state fix above found the
+# first on bash 3.2; the other two were found by surveying the same shape. Here
+# nothing is starved of processes: inside _cm the lookup is replaced by one
+# that fails as a substitution whose fork could not be made fails, printing
+# nothing and returning 128, and the engine is called after it. A list that was
+# read and is empty is still a no; one that could not be read is unknown. These
+# assertions were written blind, from the contract, before the fix, and each
+# was run against main's engine first.
+# Everything this touches is restored below and everything it defines unset.
+_cmlfad="$MEM/cmproj/commission"
+_cmlffixture() { local _cmlff
+  for _cmlff in "$CMP/capabilities" "$CMP/commissioning.tsv" "$FROOT/state/commission/cmproj" \
+                "$MEM/cmproj/commissioning.log"; do
+    if [ -f "$_cmlff" ]; then printf '%s %s | ' "$(cksum < "$_cmlff")" "$(ls -l "$_cmlff" | cut -c1-10)"
+    else printf 'absent | '; fi
+  done
+  if [ -d "$_cmlfad" ]; then find "$_cmlfad" -type f -exec cksum {} + | sort | tr '\n' ' '
+  else printf 'no answer directory '; fi
+  printf '| %s | %s\n' "$(find "$FROOT/state/commission" -name 'cmproj*' -exec cksum {} + 2>/dev/null | sort | tr '\n' ' ')" \
+                       "$(ls -a "$TMP" | grep -c '^cmlf-')"; }
+_cmlffound="$(_cmlffixture)"
+rm -f "$TMP/cmlf-caps.keep" "$TMP/cmlf-table.keep" "$TMP/cmlf-receipt.keep" "$TMP/cmlf-log.keep"
+[ -f "$CMP/capabilities" ] && mv "$CMP/capabilities" "$TMP/cmlf-caps.keep"
+[ -f "$CMP/commissioning.tsv" ] && cp "$CMP/commissioning.tsv" "$TMP/cmlf-table.keep"
+[ -f "$FROOT/state/commission/cmproj" ] && cp "$FROOT/state/commission/cmproj" "$TMP/cmlf-receipt.keep"
+[ -f "$MEM/cmproj/commissioning.log" ] && cp "$MEM/cmproj/commissioning.log" "$TMP/cmlf-log.keep"
+_cmlfmade=''; [ -d "$_cmlfad" ] || { mkdir -p "$_cmlfad"; _cmlfmade=made; }
+# $1 names the lookup to break and the rest is the engine call made after it.
+# Every stub is defined inside the _cm subshell, never in this shell.
+_cmlfstub() { local _cmlfmode="$1"; shift
+  case "$_cmlfmode" in
+    declared)     felix_declared() { return 128; } ;;
+    declared-api) felix_declared() { printf 'api\n'; return 128; } ;;
+    has-line)     felix_has_line() { return 1; } ;;
+    names)        grep() { case "$1" in -oE) return 128 ;; esac; command grep "$@"; } ;;
+    names-nopf)   set +o pipefail
+                  grep() { case "$1" in -oE) return 128 ;; esac; command grep "$@"; } ;;
+    count)        grep() { case "$1" in -vc) return 128 ;; esac; command grep "$@"; } ;;
+    cap-3)        _felix_cap_active() { return 3; } ;;
+    present-1)    _felix_commission_functions_present() { return 1; } ;;
+    present-3)    _felix_commission_functions_present() { return 3; } ;;
+    tab)          IFS=$'\t' ;;
+  esac
+  "$@"; }
+# What a call printed and the status it returned, as "status [output]".
+_cmlfrc()   { local _cmlfo _cmlfs; _cmlfo="$("$@" 2>/dev/null)"; _cmlfs=$?; printf '%s [%s]\n' "$_cmlfs" "$_cmlfo"; }
+_cmlff()    { printf '%s\n' "$1" | awk -F'\t' -v n="$2" -v f="$3" '$1 == n { print $f }'; }
+_cmlfsays() { case "$1" in *"$2"*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
+_cmlfnz()   { case "$1" in '0 '*) printf 'returned 0\n' ;; *' []') printf 'nonzero, nothing\n' ;; *) printf '%s\n' "$1" ;; esac; }
+
+# The declared capabilities.
+_cmtable $'cmlf_cap\tapi\t-\t-\t-\ttrue\t9' \
+         $'cmlf_plain\t-\t-\t-\t-\ttest -f src/a.txt\t9'
+printf 'api\n' > "$CMP/capabilities"
+_cmlfrun0="$(_cm felix_commission_run "$CMP" "$CMR" -)"
+_cmlfrun1="$(_cm _cmlfstub declared felix_commission_run "$CMP" "$CMR" - 2>/dev/null)"
+_cmlfrun2="$(_cm _cmlfstub declared-api felix_commission_run "$CMP" "$CMR" - 2>/dev/null)"
+is  "with api declared and nothing stubbed, a row grounded on api and the row beside it are done, and the receipt is commissioned" \
+    "$(_cmlff "$_cmlfrun0" cmlf_cap 2) $(_cmlff "$_cmlfrun0" cmlf_plain 2) $(_cm felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmlfrun0" "")" \
+    "done done commissioned"
+is  "a declared list that could not be read makes a row grounded on a declared capability unknown, not not-applicable" \
+    "$(_cmlff "$_cmlfrun1" cmlf_cap 2) $(_cmlff "$_cmlfrun1" cmlf_cap 3)" "unknown UNKNOWN"
+has "and it says the capabilities this project declares could not be read" \
+    "$(_cmlff "$_cmlfrun1" cmlf_cap 6)" "the capabilities this project declares could not be read"
+is  "and the receipt over it, every other row done, is indeterminate and not commissioned" \
+    "$(_cmlff "$_cmlfrun1" cmlf_plain 2) $(_cm felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmlfrun1" "")" \
+    "done indeterminate"
+is  "a declared list that names api but came back with a failure is not trusted: the row is unknown, not done" \
+    "$(_cmlff "$_cmlfrun2" cmlf_cap 2)" "unknown"
+
+_cmlfca() { _cm _cmlfstub "$1" _cmlfrc _felix_cap_active "$2" "$CMP"; }
+is  "_felix_cap_active returns 2 when felix_declared fails, whether it printed nothing or printed the capability" \
+    "$(_cmlfca declared api) $(_cmlfca declared-api api)" "2 [] 2 []"
+is  "and grounds always are active, 0, without reading the failing list" "$(_cmlfca declared always)" "0 []"
+_cmlfalone="$(_cmlfca none api)"
+printf 'web\napi\nml\n' > "$CMP/capabilities"
+is  "it returns 0 for a list that was read and holds the capability as a line, alone or among others" \
+    "$_cmlfalone $(_cmlfca none api)" "0 [] 0 []"
+printf 'web\napis\nmy-api\n# api\n' > "$CMP/capabilities"
+is  "and 1 for a list that was read and holds other capabilities, or the name only inside a longer one or a comment" \
+    "$(_cmlfca none api)" "1 []"
+printf '# cmlf a capabilities file with no capability in it\n\n# api\n\n' > "$CMP/capabilities"
+is  "and 1 for a list of only comments and blank lines" "$(_cmlfca none api)" "1 []"
+is  "felix_declared over a file of only comments and blank lines prints nothing and returns 0: it was read, and holds none" \
+    "$(_cm _cmlfrc felix_declared "$CMP")" "0 []"
+is  "a capabilities file of only comments and blank lines still makes the row not-applicable" \
+    "$(_cmlff "$(_cm felix_commission_run "$CMP" "$CMR" -)" cmlf_cap 2)" "not-applicable"
+rm -f "$CMP/capabilities"
+is  "felix_declared over an absent capabilities file prints nothing and returns 0" \
+    "$(_cm _cmlfrc felix_declared "$CMP")" "0 []"
+is  "and _felix_cap_active reads an absent file as a list without the capability, 1" "$(_cmlfca none api)" "1 []"
+printf 'api\n# cmlf a comment\n\nweb\n' > "$CMP/capabilities"
+is  "felix_declared still prints the lines that are not blank and not comments, and returns 0" \
+    "$(_cm _cmlfrc felix_declared "$CMP")" "$(printf '0 [api\nweb]')"
+
+# A capabilities file that exists and cannot be read, with nothing stubbed.
+printf 'api\n' > "$CMP/capabilities"; chmod 000 "$CMP/capabilities"
+if [ -r "$CMP/capabilities" ]; then
+  skip "felix_declared returns nonzero and prints nothing over a capabilities file that exists and cannot be read" \
+       "the file is readable at mode 000 here, as it is to root"
+  skip "and _felix_cap_active returns 2 there, and the row grounded on it is unknown, not not-applicable" \
+       "the file is readable at mode 000 here, as it is to root"
+else
+  _cmlfur="$(_cm _cmlfrc felix_declared "$CMP")"
+  is  "felix_declared returns nonzero and prints nothing over a capabilities file that exists and cannot be read" \
+      "$(_cmlfnz "$_cmlfur")" "nonzero, nothing"
+  is  "and _felix_cap_active returns 2 there, and the row grounded on it is unknown, not not-applicable" \
+      "$(_cmlfca none api) $(_cm felix_commission_state "$CMP" "$CMR" cmlf_cap api - - - true 2>/dev/null | cut -f1)" \
+      "2 [] unknown"
+fi
+rm -f "$CMP/capabilities"
+
+# The membership itself makes no here-document, which on bash 3.2 is a
+# temporary file: one that cannot be written leaves the read loop unread, as
+# felix_has_line returning 1 does here.
+printf 'api\n' > "$CMP/capabilities"
+is  "with felix_has_line failing as an unwritable here-document makes it fail, a declared api is still active and its row done" \
+    "$(_cmlfca has-line api) $(_cm _cmlfstub has-line felix_commission_state "$CMP" "$CMR" cmlf_cap api - - - true 2>/dev/null | cut -f1)" \
+    "0 [] done"
+_cmlfc3="$(_cm _cmlfstub cap-3 felix_commission_state "$CMP" "$CMR" cmlf_cap api - - - true 2>/dev/null)"
+is  "a capability lookup that answers neither 0 nor 1 makes the row unknown, and says the declared list could not be read" \
+    "$(printf '%s\n' "$_cmlfc3" | cut -f1) $(_cmlfsays "$(printf '%s\n' "$_cmlfc3" | cut -f2)" 'the capabilities this project declares could not be read')" \
+    "unknown said"
+
+# The engine functions a check names.
+felix_cmlf_one() { return 0; }
+felix_cmlf_two() { return 0; }
+_cmlfgone='[ -z "$(felix_cmlf_gone)" ]'
+_cmlfefn()  { _cm _cmlfstub "$1" felix_commission_state "$CMP" "$CMR" cmlf_efn - - - - "$2" 2>/dev/null; }
+_cmlfpres() { _cm _cmlfstub "$1" _cmlfrc _felix_commission_functions_present "$2"; }
+_cmlfe0="$(_cmlfefn none "$_cmlfgone")"
+_cmlfe1="$(_cmlfefn names "$_cmlfgone")"
+_cmlfe2="$(_cmlfefn names-nopf "$_cmlfgone")"
+is  "unstubbed, a check over an engine function that is not loaded is unknown and names it" \
+    "$(printf '%s\n' "$_cmlfe0" | cut -f1) $(_cmlfsays "$(printf '%s\n' "$_cmlfe0" | cut -f2)" felix_cmlf_gone)" "unknown said"
+is  "when the names a check holds could not be read from it, the row is unknown, not done" \
+    "$(printf '%s\n' "$_cmlfe1" | cut -f1)" "unknown"
+has "and it says the engine functions the check names could not be read" \
+    "$(printf '%s\n' "$_cmlfe1" | cut -f2)" "the engine functions the check names could not be read"
+is  "and so with pipefail off in the caller" "$(printf '%s\n' "$_cmlfe2" | cut -f1)" "unknown"
+is  "the lookup of the names returns 2 and names nothing when its grep fails, with pipefail on or off" \
+    "$(_cmlfpres names "$_cmlfgone") $(_cmlfpres names-nopf "$_cmlfgone")" "2 [] 2 []"
+is  "unstubbed it returns 1 naming the one not loaded, and 0 naming nothing for a check of none or of loaded ones" \
+    "$(_cmlfpres none "$_cmlfgone") $(_cmlfpres none 'test -f src/a.txt') $(_cmlfpres none 'felix_cmlf_one && felix_cmlf_two')" \
+    "1 [felix_cmlf_gone] 0 [] 0 []"
+is  "a check naming two loaded engine functions is done with IFS a tab in the calling shell" \
+    "$(_cmlfpres tab 'felix_cmlf_one && felix_cmlf_two') $(_cmlfefn tab 'felix_cmlf_one && felix_cmlf_two' | cut -f1)" "0 [] done"
+_cmlfp1="$(_cmlfefn present-1 "$_cmlfgone")"
+_cmlfp3="$(_cmlfefn present-3 "$_cmlfgone")"
+is  "a names lookup that returns 1 naming nothing, or 3, makes the row unknown and says the names could not be read" \
+    "$(printf '%s\n' "$_cmlfp1" | cut -f1) $(_cmlfsays "$(printf '%s\n' "$_cmlfp1" | cut -f2)" 'the engine functions the check names could not be read') $(printf '%s\n' "$_cmlfp3" | cut -f1) $(_cmlfsays "$(printf '%s\n' "$_cmlfp3" | cut -f2)" 'the engine functions the check names could not be read')" \
+    "unknown said unknown said"
+
+# The rows of a provider's answer.
+_cmlfprov='provider:claude-code-setup:claude-automation-recommender'
+_cmlftopo="$(_cm felix_commission_topology "$CMP" "$CMR")"
+_cmlfans() { printf '# topology %s\n' "$_cmlftopo"; printf '%s\n' "$@"; }
+_cmlfans $'plugin\tcmlfone\t-\tllm\twhy' $'plugin\tcmlftwo\t-\tllm\twhy' $'done\t2' > "$_cmlfad/cmlf_whole.tsv"
+_cmlfans $'plugin\tcmlfone\t-\tllm\twhy' $'done\t2' > "$_cmlfad/cmlf_part.tsv"
+_cmlfans $'done\t0' > "$_cmlfad/cmlf_zero.tsv"
+# A twin of the whole answer with rows of its own, for the ingestion control:
+# a file already ingested is not ingested again, so the control cannot share
+# the stubbed call's file.
+_cmlfans $'plugin\tcmlfthree\t-\tllm\twhy' $'plugin\tcmlffour\t-\tllm\twhy' $'done\t2' > "$_cmlfad/cmlf_twin.tsv"
+_cmlfps() { _cm _cmlfstub "$1" felix_commission_provider_state "$CMP" "$CMR" "$2" 2>/dev/null; }
+_cmlfpw="$(_cmlfps count cmlf_whole)"
+is  "unstubbed, a whole answer of two rows is answered and one of its two rows is partial" \
+    "$(_cmlfps none cmlf_whole | cut -f1) $(_cmlfps none cmlf_part | cut -f1)" "answered partial"
+is  "and an answer of done 0 with no rows is answered" "$(_cmlfps none cmlf_zero | cut -f1)" "answered"
+is  "a whole answer whose rows could not be counted is unknown, not answered" \
+    "$(printf '%s\n' "$_cmlfpw" | cut -f1)" "unknown"
+has "and it says the rows could not be counted" "$(printf '%s\n' "$_cmlfpw" | cut -f2)" "could not be counted"
+is  "a partial answer whose rows could not be counted is unknown, not answered" \
+    "$(_cmlfps count cmlf_part | cut -f1)" "unknown"
+is  "through felix_commission_state, unstubbed, the provider row over the whole answer is answered" \
+    "$(_cm felix_commission_state "$CMP" "$CMR" cmlf_whole - - - "$_cmlfprov" - 2>/dev/null | cut -f1)" "answered"
+is  "and with its rows uncountable it is unknown" \
+    "$(_cm _cmlfstub count felix_commission_state "$CMP" "$CMR" cmlf_whole - - - "$_cmlfprov" - 2>/dev/null | cut -f1)" "unknown"
+_cmlfsum() { if [ -f "$1" ]; then cksum < "$1"; else printf 'absent\n'; fi; }
+_cmlflogt="$(_cmlfsum "$MEM/cmproj/commissioning.log")"
+_cmlfrect="$(_cm felix_commission_record_provider "$CMP" "$CMR" cmlf_twin "$_cmlfprov" cmlf-tree cmlf-policy 2>/dev/null)"
+_cmlflog0="$(_cmlfsum "$MEM/cmproj/commissioning.log")"
+is  "unstubbed, a whole answer of two rows is ingested: the record prints 2 and appends to the log" \
+    "$_cmlfrect $([ "$_cmlflog0" = "$_cmlflogt" ] && printf unchanged || printf appended)" "2 appended"
+_cmlfrec1="$(_cm _cmlfstub count felix_commission_record_provider "$CMP" "$CMR" cmlf_whole "$_cmlfprov" cmlf-tree cmlf-policy 2>/dev/null)"
+_cmlflog1="$(_cmlfsum "$MEM/cmproj/commissioning.log")"
+is  "an answer whose rows could not be counted is not ingested: the record prints 0 and appends nothing to the log" \
+    "$_cmlfrec1 $([ "$_cmlflog1" = "$_cmlflog0" ] && printf unchanged || printf appended)" "0 unchanged"
+
+rm -f "$_cmlfad/cmlf_whole.tsv" "$_cmlfad/cmlf_part.tsv" "$_cmlfad/cmlf_zero.tsv" "$_cmlfad/cmlf_twin.tsv"
+[ -n "$_cmlfmade" ] && rmdir "$_cmlfad"
+rm -f "$CMP/capabilities"; [ -f "$TMP/cmlf-caps.keep" ] && mv "$TMP/cmlf-caps.keep" "$CMP/capabilities"
+if [ -f "$TMP/cmlf-table.keep" ]; then cp "$TMP/cmlf-table.keep" "$CMP/commissioning.tsv"; else rm -f "$CMP/commissioning.tsv"; fi
+if [ -f "$TMP/cmlf-receipt.keep" ]; then mv "$TMP/cmlf-receipt.keep" "$FROOT/state/commission/cmproj"
+else rm -f "$FROOT/state/commission/cmproj"; fi
+if [ -f "$TMP/cmlf-log.keep" ]; then cp "$TMP/cmlf-log.keep" "$MEM/cmproj/commissioning.log"
+else rm -f "$MEM/cmproj/commissioning.log"; fi
+rm -f "$TMP/cmlf-table.keep" "$TMP/cmlf-log.keep"
+is  "and this block leaves the capabilities, the table, the receipt, the log and every answer file as it found them" \
+    "$(_cmlffixture)" "$_cmlffound"
+unset -f _cmlffixture _cmlfstub _cmlfrc _cmlff _cmlfsays _cmlfnz _cmlfca _cmlfefn _cmlfpres _cmlfps _cmlfans _cmlfsum \
+         felix_cmlf_one felix_cmlf_two
+unset _cmlfad _cmlffound _cmlfmade _cmlfrun0 _cmlfrun1 _cmlfrun2 _cmlfc3 _cmlfgone _cmlfe0 _cmlfe1 _cmlfe2 \
+      _cmlfp1 _cmlfp3 _cmlfprov _cmlftopo _cmlfpw _cmlflogt _cmlflog0 _cmlflog1 _cmlfrect _cmlfrec1 _cmlfur _cmlfalone
+
 # The answer runs in-process through a runner the caller names, and the check
 # decides afterwards. The stub stands in for felix:toolbox --route.
 _cmstub() { touch "$CMR/src/made-by-answer"; return 0; }

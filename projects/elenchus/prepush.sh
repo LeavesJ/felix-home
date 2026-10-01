@@ -34,8 +34,10 @@ secret_hits() {
 # A guard whose own behaviour is untested is a guess about what it catches.
 if [ "${1:-}" = "--self-test" ]; then
   fails=0
-  must_flag() { printf '%s\n' "$1" | secret_hits | grep -q . || { echo "  MISS  $1"; fails=$((fails+1)); }; }
-  must_pass() { printf '%s\n' "$1" | secret_hits | grep -q . && { echo "  FALSE $1"; fails=$((fails+1)); } || true; }
+  # The hits are captured, then searched: piped straight into grep -q, a long hit list leaves
+  # printf to die of SIGPIPE, and pipefail reads a hit as none.
+  must_flag() { grep -q . <<<"$(printf '%s\n' "$1" | secret_hits)" || { echo "  MISS  $1"; fails=$((fails+1)); }; }
+  must_pass() { grep -q . <<<"$(printf '%s\n' "$1" | secret_hits)" && { echo "  FALSE $1"; fails=$((fails+1)); } || true; }
 
   echo "positives (must flag):"
   must_flag '+api_key = "sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAA"'

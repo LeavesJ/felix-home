@@ -129,13 +129,25 @@ _FELIX_DENY_READ='
   }
   # Whether a quoted span here is a script something will run.
   function script() { return ARG[LV] || HSH[LV] && PREV[LV] ~ /^-[A-Za-z]*c[A-Za-z]*$/ }
+  # A backslash typed inside quotes is printed doubled, as the JSON string
+  # writes it. A row may name an escaped \n, \r or \t for a line break in
+  # the payload, and in this reading a line break is ` ; `, so a lone
+  # backslash before an n here is always text a person typed: a printf
+  # format holding run:\n./scripts/gate.sh names the gate in its text, not
+  # after a line break. Split and joined on a regex for the reason unjson
+  # gives.
+  function dbs(t,   n, P, k, r) {
+    n = split(t, P, /\\/); r = P[1]
+    for (k = 2; k <= n; k++) r = r "\\\\" P[k]
+    return r
+  }
   function quoted(t, glued) {
     if (HS[LV]) { if (INR[LV]) X[++NX] = sub_view(t); return "_" }
     if (script() && (SCRW[LV] || CUR[LV] == "")) { PSCR[LV] = PSCR[LV] t; SCRW[LV] = 1; SHF[LV] = 1; return "_" }
     gsub(/\n/, " ", t)
-    if (RED[LV] || PATHOP[LV] || NW[LV] == 0 && CUR[LV] == "") return t
-    if (t !~ /[ \t\n]/) return t
-    if (t ~ /^(~\/|\.\.?\/|\$[A-Za-z_][A-Za-z0-9_]*\/|\$\{[^}]*\}\/|\$\(_\)\/)/) return t
+    if (RED[LV] || PATHOP[LV] || NW[LV] == 0 && CUR[LV] == "") return dbs(t)
+    if (t !~ /[ \t\n]/) return dbs(t)
+    if (t ~ /^(~\/|\.\.?\/|\$[A-Za-z_][A-Za-z0-9_]*\/|\$\{[^}]*\}\/|\$\(_\)\/)/) return dbs(t)
     # Data, and kept by the command it belongs to: if that command writes a
     # file the same command line then runs, this is what the file says.
     WD[SID[LV]] = WD[SID[LV]] t "\n"

@@ -260,16 +260,20 @@ _felix_qualify_missing_in() {   # rows, checker -> one control per line
 #     failed, the rmdir failed, the checkout stayed. A retry cannot mend it,
 #     since git drops the registration on its way out of a failed remove. So
 #     every directory short of the owner's rwx gets it back first, before git
-#     runs; deleting needs the bits on the directory, not on the file. Only
-#     directories, one at a time from the top so a 000 one is opened before
-#     find reads it: a file's mode is its inode's, and a hard link a
-#     mutation made (`git clone . sub` makes them of the root's objects)
-#     would carry chmod outside the base. find follows no symlink, and no
-#     user can hard-link a directory.
-#   - A scratch tree swapped for a symlink is unlinked, never followed:
-#     `git worktree remove` resolves the path it is given, and through a link
-#     to another worktree of the root it deleted that worktree, uncommitted
-#     work and all. A base swapped for a link is unlinked the same way.
+#     runs; deleting needs the bits on the directory, not on the file. The
+#     base first, by name, since find cannot search a starting point left
+#     without x; then the rest one at a time from the top, so a 000 one is
+#     opened before find reads it. Only directories: a file's mode is its
+#     inode's, and a hard link a mutation made (`git clone . sub` makes them
+#     of the root's objects) would carry chmod outside the base. find follows
+#     no symlink, and no user can hard-link a directory. A directory deeper
+#     than PATH_MAX is past chmod's reach, and is left and said.
+#   - A scratch tree or a base swapped for a symlink is unlinked, never
+#     followed: `git worktree remove` resolves the path it is given, and
+#     through a link to another worktree of the root it deleted that
+#     worktree, uncommitted work and all. The base gets its bits back before
+#     the tree's link is unlinked, and a link that is still there afterwards
+#     stops the drop, said: nothing is handed to git or rm through it.
 #   - A base the mutation took away is made again, empty, so that $base/w
 #     resolves to the path git registered.
 #   - -f twice, so a tree the mutation locked is removed too.
@@ -290,10 +294,21 @@ _felix_qualify_drop() {   # root, base
   [ -n "$base" ] || return 0
   if [ -L "$base" ]; then
     rm -f "$base" 2>/dev/null
+    if [ -L "$base" ]; then
+      printf 'felix: the scratch directory %s is a symlink that could not be removed, so nothing is removed through it\n' "$base" >&2
+      return 0
+    fi
     printf 'felix: the scratch directory %s had been replaced by a symlink, so whatever the row moved out of it is not removed\n' "$base" >&2
   fi
   [ -e "$base" ] || mkdir "$base" 2>/dev/null
-  [ ! -L "$base/w" ] || rm -f "$base/w" 2>/dev/null
+  [ -d "$base" ] && chmod u+rwx "$base" 2>/dev/null
+  if [ -L "$base/w" ]; then
+    rm -f "$base/w" 2>/dev/null
+    if [ -L "$base/w" ]; then
+      printf 'felix: the scratch worktree %s is a symlink that could not be removed, so nothing is removed through it\n' "$base/w" >&2
+      return 0
+    fi
+  fi
   find "$base" -type d ! -perm -0700 -exec chmod u+rwx {} \; 2>/dev/null
   if ! git -C "$root" worktree remove -f -f "$base/w" >/dev/null 2>&1; then
     rm -rf "$base/w" 2>/dev/null
@@ -308,7 +323,11 @@ _felix_qualify_drop() {   # root, base
     fi
   fi
   rm -rf "$base" 2>/dev/null
-  [ ! -e "$base" ] || printf 'felix: the scratch directory %s could not be deleted, and stays on disk\n' "$base" >&2
+  if [ -e "$base/w" ] || [ -L "$base/w" ]; then
+    printf 'felix: the scratch worktree %s could not be deleted, and stays on disk\n' "$base/w" >&2
+  elif [ -e "$base" ]; then
+    printf 'felix: the scratch directory %s could not be deleted, and stays on disk\n' "$base" >&2
+  fi
 }
 
 # The traps that throw a row's tree away when the row is stopped, set in the
@@ -392,9 +411,15 @@ _felix_qualify_arm() {   # root, base
 # so each column makes it new before it runs (_felix_qualify_errfile). A
 # redirection that fails runs nothing and returns 1, which on the command
 # reads fail, met on a fail control: `chmod -R a-w ..` did that with the
-# checker never run. And a 2> follows a link, so `ln -s $OUT ../err` sent the next
-# column's stderr into a file outside the base. A file that cannot be made
-# new, plain and empty, is a column that ran nothing.
+# checker never run. And a 2> follows a link, so `ln -s $OUT ../err` sent
+# the next column's stderr into a file outside the base. A file that cannot
+# be made new, plain and empty, is a column that ran nothing. The scan then
+# reads it through descriptor 9, opened on it before the column runs and
+# closed to the column itself, so whatever the column does to the path, a
+# link or a fifo in the file's place, changes neither what is read nor the
+# verdict, and grep cannot be left waiting on a fifo. The redirection is
+# 2>|, since a caller's noclobber would refuse to write over the file just
+# made, and the column would run nothing and read fail.
 #
 # The parse and the row run without SHELLOPTS or BASHOPTS, which carry the
 # caller's set and shopt options into a child bash, BASH_ENV, whose file a
@@ -407,14 +432,16 @@ _felix_qualify_sh() {   # dir, text, stderr file outside dir -> the text's own s
   env -u SHELLOPTS -u BASHOPTS -u BASH_ENV -u POSIXLY_CORRECT \
     bash -n -c -- "$2" felix-qualify </dev/null >/dev/null 2>&1 || return 127
   _felix_qualify_errfile "$3" || return 127
-  ( cd "$1" 2>/dev/null || exit 126
-    env -u SHELLOPTS -u BASHOPTS -u BASH_ENV -u POSIXLY_CORRECT \
-      bash -c -- "$2" felix-qualify ) </dev/null >/dev/null 2>"$3"
-  rc=$?
-  LC_ALL=C grep -qE \
-    '^felix-qualify: ((line [0-9]+: )?[^:]+: command not found$|((line [0-9]+: )?(command substitution|eval|-c): )?(line [0-9]+: )?(syntax error near unexpected token|syntax error: unexpected end of file|unexpected EOF while looking for matching))' \
-    "$3" 2>/dev/null
-  said=$?
+  said=2
+  { ( cd "$1" 2>/dev/null || exit 126
+      env -u SHELLOPTS -u BASHOPTS -u BASH_ENV -u POSIXLY_CORRECT \
+        bash -c -- "$2" felix-qualify ) </dev/null >/dev/null 2>|"$3" 9<&-
+    rc=$?
+    LC_ALL=C grep -qE \
+      '^felix-qualify: ((line [0-9]+: )?[^:]+: command not found$|((line [0-9]+: )?(command substitution|eval|-c): )?(line [0-9]+: )?(syntax error near unexpected token|syntax error: unexpected end of file|unexpected EOF while looking for matching))' \
+      <&9 2>/dev/null
+    said=$?
+  } 9<"$3" 2>/dev/null
   # Quietly: a column that took the base's write bit away leaves the file,
   # and the next column's _felix_qualify_errfile or _felix_qualify_drop
   # takes it.

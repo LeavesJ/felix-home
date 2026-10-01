@@ -18,8 +18,10 @@
 # detached worktree — which is where qualification runs it, and why `felix
 # obligations` is not enough on its own.
 set -u
+# Found before moving: $0 may be relative to where this was called from. A
+# library it cannot find is 127, as deploy-check says it: exit 1 is a violation.
+HERE="$(cd "$(dirname "$0")/.." && pwd)" || exit 127
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
-HERE="$(cd "$(dirname "$0")/.." && pwd)"
 PROJ="${1:-}"; MODE="${2:-}"
 [ -n "$PROJ" ] || { printf 'usage: obligations-check <project-dir> [release]\n' >&2; exit 1; }
 [ -d "$PROJ" ] || { printf 'obligations-check: no project at %s\n' "$PROJ"; exit 1; }

@@ -25140,6 +25140,16 @@ else
   _rtkn8="and forty characters that are not hex digits read as malformed, not as a snapshot"
   _rtkn9="and forty-one hex digits read as malformed, not as a snapshot"
   _rtkn10="and forty upper-case hex digits that are no commit here read as malformed, not as a snapshot"
+  # And a commit is one as tests/red writes a base, the forty lower-case hex
+  # digits git rev-parse prints, that is a commit here. Any value git resolved
+  # read as a commit, ref names included, so a base edited by hand to
+  # origin/main, main or an abbreviated id passed _rtn3 after every merge of
+  # main and never went stale (#371, third review). Asked with HEAD, since this
+  # suite's own checkout may have no origin/main, and with the root above cut
+  # to twelve characters and spelled in upper case.
+  _rtkn11="and HEAD, which git resolves to a commit here, reads as malformed, since tests/red writes a base as a full id"
+  _rtkn12="and the first twelve characters of a commit here read as malformed, not as a commit"
+  _rtkn13="and a commit here spelled in forty upper-case hex digits reads as malformed, not as a commit"
   if [ -n "$_rtroot" ]; then
     _rt_base_in 0000000000000000000000000000000000000000 \
       && bad "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "0000… read as a commit" \
@@ -25157,10 +25167,14 @@ else
     is "$_rtkn8" "$(_rt_base_kind gggggggggggggggggggggggggggggggggggggggg)" malformed
     is "$_rtkn9" "$(_rt_base_kind 00000000000000000000000000000000000000000)" malformed
     is "$_rtkn10" "$(_rt_base_kind AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA)" malformed
+    is "$_rtkn11" "$(_rt_base_kind HEAD)" malformed
+    is "$_rtkn12" "$(_rt_base_kind "${_rtroot:0:12}")" malformed
+    is "$_rtkn13" "$(_rt_base_kind "$(printf '%s' "$_rtroot" | tr abcdef ABCDEF)")" malformed
   else
     skip "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "no git history beside this suite"
     skip "and a base that is a commit here is still compared, so a stale record still fails" "no git history beside this suite"
-    for _n in "$_rtkn1" "$_rtkn2" "$_rtkn3" "$_rtkn4" "$_rtkn5" "$_rtkn6" "$_rtkn7" "$_rtkn8" "$_rtkn9" "$_rtkn10"; do
+    for _n in "$_rtkn1" "$_rtkn2" "$_rtkn3" "$_rtkn4" "$_rtkn5" "$_rtkn6" "$_rtkn7" "$_rtkn8" "$_rtkn9" "$_rtkn10" \
+              "$_rtkn11" "$_rtkn12" "$_rtkn13"; do
       skip "$_n" "no git history beside this suite"
     done
   fi
@@ -25298,6 +25312,40 @@ else
     for p in "$@"; do case "$r" in *"$p"*) ;; *) bad "$n" "[$o] lacks [$p]"; return 0 ;; esac; done
     ok "$n"
   }
+  # How _rtn1 and _rtn3 report a check's verdict line: _rt_report <name>
+  # <verdict> reports ok for ok, skip and the reason for skip <reason>, bad and
+  # the detail for bad <detail>, and bad, naming the line, for any line it
+  # cannot read. The mapping was written out in each, judged only against this
+  # repository's own red.tsv, so turning bad into skip or ok there, which
+  # reopens #371, left every assertion green (third review of #371). It is
+  # asked here with ok, skip and bad printing what they were asked to report, in
+  # a subshell, so that what is judged is the mapping alone and nothing counts.
+  _rt_reported() {   # <name> <verdict line> -> ok|<name>, skip|<name>|<reason> or bad|<name>|<detail>
+    ( ok()   { printf 'ok|%s\n' "$1"; }
+      skip() { printf 'skip|%s|%s\n' "$1" "${2-}"; }
+      bad()  { printf 'bad|%s|%s\n' "$1" "${2-}"; }
+      _rt_report "$1" "$2" )
+  }
+  _rtpn1="a check's verdict of ok is reported as a pass of the assertion it is reported for"
+  _rtpn2="and skip with a reason as a skip of it, giving the reason"
+  _rtpn3="and bad with a detail as a failure of it, giving the detail, not as a skip or a pass"
+  _rtpn4="and an empty verdict as a failure, with a detail, since a check that said nothing has not passed"
+  _rtpn5="and a verdict it cannot read, okay, as a failure whose detail names what it read"
+  is "$_rtpn1" "$(_rt_reported "a name" ok)" "ok|a name"
+  is "$_rtpn2" "$(_rt_reported "a name" "skip the reason, in words")" "skip|a name|the reason, in words"
+  is "$_rtpn3" "$(_rt_reported "a name" "bad the detail, in words")" "bad|a name|the detail, in words"
+  _rtpo="$(_rt_reported "a name" "")"
+  case "$_rtpo" in
+    *$'\n'*)       bad "$_rtpn4" "more than one line: [$_rtpo]" ;;
+    "bad|a name|"?*) ok  "$_rtpn4" ;;
+    *)              bad "$_rtpn4" "expected [bad|a name|<a detail>] got [$_rtpo]" ;;
+  esac
+  _rtpo="$(_rt_reported "a name" okay)"
+  case "$_rtpo" in
+    *$'\n'*)             bad "$_rtpn5" "more than one line: [$_rtpo]" ;;
+    "bad|a name|"*okay*) ok  "$_rtpn5" ;;
+    *)                   bad "$_rtpn5" "expected [bad|a name|<a detail naming okay>] got [$_rtpo]" ;;
+  esac
   # The base check, asked of a checkout rather than of this suite's own record.
   # _rtn3 is judged only against this repository's red.tsv, which on any branch
   # is one record, so no fixture reached the decision it makes on the kind of
@@ -25322,6 +25370,7 @@ else
   _rtbn4="and of one whose base is an abbreviated id that is no commit there, it fails, naming the value it read"
   _rtbn5="and of one whose base is a commit there holding another engine than the merge-base, it fails, saying to re-record"
   _rtbn6="and of one whose red.tsv has no base row, it fails"
+  _rtbn7="and its verdict on the retraction, reported as _rtn3 reports it, is that failure with that detail, not a skip or a pass"
   # Each fails for its own reason only while the fixture stands where it says:
   # the merge-base is origin/main's commit, and the branch commit's engine is
   # not that commit's.
@@ -25331,6 +25380,11 @@ else
      && [ "$(_rt_engine_tree "$_rtbc" "$_rtbcm")" != "$(_rt_engine_tree "$_rtbc" "$_rtbch")" ]; then
     printf '# a record\nbase\t-\t-\t-\nrun\t-\t-\t-\n' > "$_rtbct"
     _rt_said "$_rtbn1" "$(_rt_base_check "$_rtbc")" bad "no red run was made (base -)"
+    _rtpv="$(_rt_base_check "$_rtbc")"
+    case "$_rtpv" in
+      "bad "*"no red run was made (base -)"*) is "$_rtbn7" "$(_rt_reported "a name" "$_rtpv")" "bad|a name|${_rtpv#bad }" ;;
+      *) bad "$_rtbn7" "the base check said [$_rtpv]" ;;
+    esac
     printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' 0000000000000000000000000000000000000000 > "$_rtbct"
     _rt_said "$_rtbn2" "$(_rt_base_check "$_rtbc")" skip "published snapshot"
     printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' "$_rtbcm" > "$_rtbct"
@@ -25342,7 +25396,7 @@ else
     printf '# a record\nrun\t0\t1\t0\n' > "$_rtbct"
     _rt_said "$_rtbn6" "$(_rt_base_check "$_rtbc")" bad
   else
-    for _n in "$_rtbn1" "$_rtbn2" "$_rtbn3" "$_rtbn4" "$_rtbn5" "$_rtbn6"; do
+    for _n in "$_rtbn1" "$_rtbn2" "$_rtbn3" "$_rtbn4" "$_rtbn5" "$_rtbn6" "$_rtbn7"; do
       bad "$_n" "the fixture does not stand where it says: origin/main ${_rtbcm:-(none)}, HEAD ${_rtbch:-(none)}"
     done
   fi
@@ -25366,6 +25420,17 @@ else
   printf '# a record\n%s\n%s\nrun\t1\t2\t0\nthe one that failed\t1\n' "$_rtwb" "$_rtwb" > "$_rtw/twice"
   printf '# a record\n%s\nrun\t1\ttwo\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/word"
   printf '# a record\n%s\nrun\t1\t-2\t2\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/negative"
+  # And five more, each the record a rule loosened by one step would take or
+  # refuse wrongly: the third review of #371 named five rules here that no
+  # fixture held, one run row, a failed count that is a number, a skipped count
+  # that is a number, a run row of - only when all three of its counts are, and
+  # at least one assertion counted across the three, not the failed count alone.
+  # A run that failed none is a clean record, which tests/red's header allows.
+  printf '# a record\n%s\nrun\t0\t3\t0\n' "$_rtwb" > "$_rtw/clean"
+  printf '# a record\n%s\nrun\t-\t3\t0\n' "$_rtwb" > "$_rtw/unfailed"
+  printf '# a record\n%s\nrun\t1\t2\tx\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/unskipped"
+  printf '# a record\nbase\t-\t-\t-\nrun\t-\t3\t0\n' > "$_rtw/halfdash"
+  printf '# a record\n%s\nrun\t1\t2\t0\nrun\t1\t3\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/rerun"
   _rtwn1="a red.tsv whose base and run rows are both -, with no names below, is one whole record"
   _rtwn2="and so is a real base beside a run that failed one, passed two and names the one"
   _rtwn3="but a real base beside a run row of - is not, which is what pasting a sha into a retraction's base row gives"
@@ -25375,8 +25440,14 @@ else
   _rtwn7="nor two base rows, said as _rtn1 always said it"
   _rtwn8="nor a real run row with a count that is not a number"
   _rtwn9="nor a real run row with a negative count, though its counts sum to one"
+  _rtwn10="and so is a real base beside a run that failed none and passed three, with no names below, since zero red is an answer"
+  _rtwn11="nor a real base beside a run row whose failed count alone is -"
+  _rtwn12="nor a real run row whose skipped count is not a number, though its failed count and the names agree"
+  _rtwn13="nor a base of - beside a run row whose failed count alone is -"
+  _rtwn14="nor one base row beside two run rows, said as _rtn1 always said it"
   is "$_rtwn1" "$(_rt_record_whole "$_rtw/dash")" ok
   is "$_rtwn2" "$(_rt_record_whole "$_rtw/real")" ok
+  is "$_rtwn10" "$(_rt_record_whole "$_rtw/clean")" ok
   _rt_said "$_rtwn3" "$(_rt_record_whole "$_rtw/pasted")" bad
   _rt_said "$_rtwn4" "$(_rt_record_whole "$_rtw/unbased")" bad
   _rt_said "$_rtwn5" "$(_rt_record_whole "$_rtw/empty")" bad
@@ -25384,6 +25455,10 @@ else
   _rt_said "$_rtwn7" "$(_rt_record_whole "$_rtw/twice")" bad "base rows: 2"
   _rt_said "$_rtwn8" "$(_rt_record_whole "$_rtw/word")" bad
   _rt_said "$_rtwn9" "$(_rt_record_whole "$_rtw/negative")" bad
+  _rt_said "$_rtwn11" "$(_rt_record_whole "$_rtw/unfailed")" bad
+  _rt_said "$_rtwn12" "$(_rt_record_whole "$_rtw/unskipped")" bad
+  _rt_said "$_rtwn13" "$(_rt_record_whole "$_rtw/halfdash")" bad
+  _rt_said "$_rtwn14" "$(_rt_record_whole "$_rtw/rerun")" bad "run rows: 2"
 fi
 
 # The suite's proof that it reached its end: tests/red requires exactly this

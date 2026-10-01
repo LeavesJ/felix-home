@@ -308,7 +308,7 @@ fi
 
 # What is waiting, one line per fact. Reads only Felix's own tables and state.
 felix_pulse_report() {
-  local home="$1" proj name due unasked st root self selfproj
+  local home="$1" proj name due unasked unread st root self selfproj
 
   # The one checkout this may name. The pulse runs from launchd with whatever
   # cwd launchd had, so $PWD says nothing, and a project records no path — it
@@ -336,6 +336,12 @@ felix_pulse_report() {
       unasked="$(printf '%s\n' "$st" | grep '^unchecked' | cut -f2 | tr '\n' ' ')"
       unasked="${unasked% }"
       [ -n "$unasked" ] && printf 'unchecked\t%s\t%s\n' "$name" "$unasked"
+      # A row whose capability could not be looked up is neither due nor
+      # dormant. Its own line, and never in the due one: a false due sends
+      # someone to work that may not apply.
+      unread="$(printf '%s\n' "$st" | grep '^unknown' | cut -f2 | tr '\n' ' ')"
+      unread="${unread% }"
+      [ -n "$unread" ] && printf 'unknown\t%s\t%s\n' "$name" "$unread"
     fi
     if [ -f "$proj/routes.tsv" ] && felix_discover_stale "$proj" "$home"; then
       printf 'stale\t%s\tdiscovery cache; the next session refreshes it in the background\n' "$name"

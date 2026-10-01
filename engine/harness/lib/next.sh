@@ -210,10 +210,20 @@ EOF
   # collision, and the guard for it was written and then called by nothing but
   # the suite — every surface that reads maintenance keeps only `^due`, so a
   # typo in the capability column is invisible on all of them, permanently.
+  #
+  # A third column of `unknown` is a list that could not be read at all, which
+  # says nothing about whether the capability is declared. Until 2026-10-01 that
+  # read as "nothing declares it" and sent someone to edit a table that may be
+  # right; it is its own row now, and its action is to ask again.
   if command -v felix_maint_unreachable >/dev/null 2>&1; then
-    local mname mcap
-    while IFS=$'\t' read -r mname mcap; do
+    local mname mcap mwhy
+    while IFS=$'\t' read -r mname mcap mwhy; do
       [ -n "${mname:-}" ] || continue
+      if [ "${mwhy:-}" = "unknown" ]; then
+        _felix_next_row 6 felix "upkeep '$mname': the capabilities this project declares could not be read, so whether $mcap is declared is not known" \
+          "run felix maintenance again"
+        continue
+      fi
       _felix_next_row 6 felix "upkeep '$mname' waits on a capability nothing declares: $mcap" \
         "fix the capability in $proj/maintenance.tsv, or declare it — it can never come due as written"
     done <<EOF

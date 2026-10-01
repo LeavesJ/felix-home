@@ -3160,15 +3160,19 @@ cmd_stack() {
     printf '%-9s %-11s %-46s %s\n' "$act" "$kind" "$name" "$detail"
   done
 
-  local n_install n_blocked
+  local n_install n_blocked n_unknown
   n_install="$(printf '%s\n' "$plan" | grep -c '^install' || true)"
   n_blocked="$(printf '%s\n' "$plan" | grep -c '^blocked' || true)"
+  # Rows whose capability list could not be read. Not installed, not blocked,
+  # not dormant: said, and apply does not exit 0 over them.
+  n_unknown="$(printf '%s\n' "$plan" | grep -c '^unknown' || true)"
 
   if [ "$sub" = "plan" ]; then
     # Not "as high risk": a block is now also what an engine-grounded medium
     # gets, and what an unreadable tier gets. The plan's own detail column says
     # which, in the policy's words, and this line stopped being able to.
     printf '\n%s to install, %s blocked.\n' "$n_install" "$n_blocked"
+    [ "$n_unknown" -gt 0 ] && printf '%s could not be read: the capabilities this project declares could not be read, so whether they apply is not known.\n' "$n_unknown"
     [ "$n_install" -gt 0 ] && printf 'apply with: felix stack apply --yes\n'
     return 0
   fi
@@ -3211,7 +3215,12 @@ EOF
   if [ "$n_blocked" -gt 0 ]; then
     printf '\n%s high-risk item(s) were not touched. No flag installs those.\n' "$n_blocked"
   fi
+  # Nothing was installed on a list nobody read, and that is not a clean run.
+  if [ "$n_unknown" -gt 0 ]; then
+    printf '\n%s could not be read: the capabilities this project declares could not be read, so whether they apply is not known.\n' "$n_unknown"
+  fi
   [ "$failed" -eq 0 ] || { printf '\n%s failed.\n' "$failed"; return 1; }
+  [ "$n_unknown" -eq 0 ] || return 1
 }
 
 
@@ -3333,6 +3342,7 @@ cmd_setup() {
 
   local st; st="$(felix_setup_status "$proj")"
   local todo; todo="$(printf '%s\n' "$st" | grep -c '^todo' || true)"
+  local unk; unk="$(printf '%s\n' "$st" | grep -c '^unknown' || true)"
 
   printf 'setup for %s\n\n' "$(basename "$proj")"
   printf '%s\n' "$st" | while IFS=$'\t' read -r s id title; do
@@ -3341,11 +3351,19 @@ cmd_setup() {
       done)    printf '  [x] %-22s %s\n' "$id" "$title" ;;
       todo)    printf '  [ ] %-22s %s\n' "$id" "$title" ;;
       dormant) printf '  [-] %-22s %s (not needed yet)\n' "$id" "$title" ;;
+      # The capability list could not be read, so the step is neither needed
+      # yet nor not: said as such, where it was `[-] (not needed yet)`.
+      unknown) printf '  [?] %-22s %s (not checked: the capabilities this project declares could not be read)\n' "$id" "$title" ;;
     esac
   done
 
+  # "Nothing outstanding" is a claim about every row, and a row that could not
+  # be checked is not one it can be made over.
+  if [ "$unk" -gt 0 ]; then
+    printf '\n%s step(s) could not be checked: the capabilities this project declares could not be read.\n' "$unk"
+  fi
   if [ "$todo" -eq 0 ]; then
-    printf '\nNothing outstanding.\n'
+    [ "$unk" -gt 0 ] || printf '\nNothing outstanding.\n'
     return 0
   fi
   printf '\n%s step(s) need you. These are things an agent should not do:\n' "$todo"
@@ -3874,6 +3892,7 @@ cmd_maintenance() {
   local st due
   st="$(felix_maint_status "$proj" "$(felix_repo_root "$PWD")")"
   due="$(printf '%s\n' "$st" | grep -c '^due' || true)"
+  local unk; unk="$(printf '%s\n' "$st" | grep -c '^unknown' || true)"
 
   printf 'maintenance for %s\n\n' "$(basename "$proj")"
   printf '%s\n' "$st" | while IFS=$'\t' read -r s name age cadence desc; do
@@ -3891,6 +3910,8 @@ cmd_maintenance() {
       # A row with a check, asked from somewhere with no checkout in front of
       # it. Not `event`, which would say the row has nothing to answer to.
       unchecked) printf '  ?       %-18s %-14s %s\n' "$name" "not asked" "$desc" ;;
+      # The capability list could not be read, so it is neither due nor not yet.
+      unknown) printf '  ?       %-18s %-14s %s\n' "$name" "not read" "$desc" ;;
       dormant) printf '  -       %-18s %-14s %s\n' "$name" "not yet" "$desc" ;;
     esac
   done
@@ -3901,17 +3922,36 @@ cmd_maintenance() {
   # can never be due, and printing only "Nothing due." over it is that
   # collision. The guard for it was written and then called by nothing but the
   # suite: every surface that reads maintenance keeps `^due` alone.
-  local _mu; _mu="$(felix_maint_unreachable "$proj" 2>/dev/null)"
-  if [ -n "$_mu" ]; then
+  #
+  # A row whose third column is `unknown` is one whose list could not be read:
+  # whether its capability is declared is not known, so it is not listed as
+  # waiting on one nothing declares.
+  local _mu _mk _mr; _mu="$(felix_maint_unreachable "$proj" 2>/dev/null)"
+  _mk="$(printf '%s\n' "$_mu" | awk -F'\t' 'NF == 2')"
+  _mr="$(printf '%s\n' "$_mu" | awk -F'\t' 'NF >= 3 && $3 == "unknown"')"
+  if [ -n "$_mk" ]; then
     printf '\nDormant rather than satisfied — these wait on a capability nothing\n'
     printf 'declares, so they can never come due as written:\n\n'
-    printf '%s\n' "$_mu" | while IFS=$'\t' read -r _mn _mc; do
+    printf '%s\n' "$_mk" | while IFS=$'\t' read -r _mn _mc; do
       [ -n "${_mn:-}" ] || continue
       printf '  %-18s waits on: %s\n' "$_mn" "$_mc"
     done
     printf '\nFix the capability in %s/maintenance.tsv, or declare it.\n' "$proj"
   fi
-  if [ "$due" -eq 0 ]; then printf '\nNothing due.\n'; return 0; fi
+  if [ -n "$_mr" ]; then
+    printf '\n'
+    printf '%s\n' "$_mr" | while IFS=$'\t' read -r _mn _mc _; do
+      [ -n "${_mn:-}" ] || continue
+      printf '  %-18s waits on: %s, and whether it is declared could not be read\n' "$_mn" "$_mc"
+    done
+  fi
+  if [ "$unk" -gt 0 ]; then
+    printf '\n%s routine(s) could not be read: the capabilities this project declares could not be read, so whether they are due is not known.\n' "$unk"
+  fi
+  if [ "$due" -eq 0 ]; then
+    [ "$unk" -gt 0 ] || printf '\nNothing due.\n'
+    return 0
+  fi
   printf '\n%s routine(s) due.\n\n' "$due"
   printf 'Do them on one branch, not %s. A flood of autonomous maintenance pull\n' "$due"
   printf 'requests is not review, it is noise that trains people to rubber-stamp.\n'

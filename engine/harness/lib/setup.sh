@@ -22,14 +22,25 @@ _felix_setup_rows() {
   grep -vE '^\s*(#|$)' "$proj/setup.tsv"
 }
 
-# done | todo | dormant, one row each: status <TAB> id <TAB> title
+# done | todo | dormant | unknown, one row each: status <TAB> id <TAB> title
+#
+# Until 2026-10-01 this asked _felix_cap_active with `!`, so a declared list
+# that could not be read (status 2) printed `dormant`: a step that still needs
+# a person, said to be not needed yet. A list nobody read is its own word,
+# `unknown`, and its check is not run, as an `unchecked` maintenance row's is
+# not: nothing here can say a step is done or todo on a capability it could
+# not look up.
 felix_setup_status() {
-  local proj="$1"
+  local proj="$1" rc
   _felix_setup_rows "$proj" | while IFS=$'\t' read -r id title cap check; do
     [ -n "${id:-}" ] || continue
-    if ! _felix_cap_active "${cap:-always}" "$proj"; then
-      printf 'dormant\t%s\t%s\n' "$id" "$title"
-    elif [ -n "${check:-}" ] && bash -c "$check" >/dev/null 2>&1; then
+    _felix_cap_active "${cap:-always}" "$proj"; rc=$?
+    case "$rc" in
+      0) ;;
+      1) printf 'dormant\t%s\t%s\n' "$id" "$title"; continue ;;
+      *) printf 'unknown\t%s\t%s\n' "$id" "$title"; continue ;;
+    esac
+    if [ -n "${check:-}" ] && bash -c "$check" >/dev/null 2>&1; then
       printf 'done\t%s\t%s\n' "$id" "$title"
     else
       printf 'todo\t%s\t%s\n' "$id" "$title"

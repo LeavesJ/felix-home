@@ -44,7 +44,7 @@ felix_maint_record() {
 }
 
 # Emits: status <TAB> name <TAB> days-since <TAB> cadence <TAB> description
-# status is due | ok | event | dormant
+# status is due | ok | event | unchecked | dormant | unknown
 # Upkeep rows that can never come due.
 #
 # The capability column takes `always` or a capability name. Anything else
@@ -58,19 +58,30 @@ felix_maint_record() {
 # into noise. Only a name that is not a capability at all is caught, because
 # that is a typo wearing a dash.
 #
-# Emits: name <TAB> capability, one line per unreachable row.
+# Emits: name <TAB> capability, one line per unreachable row, and
+# name <TAB> capability <TAB> unknown when the declared list could not be read
+# at all.
+#
+# Until 2026-10-01 the list was read here with felix_has_line over
+# $(felix_declared), so a list that could not be read said "nothing declares
+# it", the same claim as a list that was read and does not. The row is now
+# asked of _felix_cap_active, whose status 2 is the third column.
 FELIX_MAINT_CAPABILITIES='ci deploy iac observability billing e2e database api frontend llm rust tests secrets'
 
 felix_maint_unreachable() {
-  local proj="$1" name cadence cap desc
+  local proj="$1" name cadence cap desc rc
   [ -f "$proj/maintenance.tsv" ] || return 0
   while IFS=$'\t' read -r name cadence cap desc; do
     case "$name" in ''|'#'*) continue ;; esac
     [ -n "${cap:-}" ] || continue
     [ "$cap" = "always" ] && continue
     case " $FELIX_MAINT_CAPABILITIES " in *" $cap "*) continue ;; esac
-    felix_has_line "$(felix_declared "$proj")" "$cap" 2>/dev/null && continue
-    printf '%s\t%s\n' "$name" "$cap"
+    _felix_cap_active "$cap" "$proj" 2>/dev/null; rc=$?
+    case "$rc" in
+      0) continue ;;
+      1) printf '%s\t%s\n' "$name" "$cap" ;;
+      *) printf '%s\t%s\tunknown\n' "$name" "$cap" ;;
+    esac
   done < "$proj/maintenance.tsv"
 }
 
@@ -121,16 +132,26 @@ felix_maint_status() {
   _felix_maint_rows "$proj" \
     | awk -F'\t' '{ printf "%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, (NF >= 5 ? $5 : "-") }' \
     | while IFS= read -r line; do
-    local name cadence cap desc check
+    local name cadence cap desc check rc
     name="$(printf '%s\n' "$line" | cut -f1)"
     cadence="$(printf '%s\n' "$line" | cut -f2)"
     cap="$(printf '%s\n' "$line" | cut -f3)"
     desc="$(printf '%s\n' "$line" | cut -f4)"
     check="$(printf '%s\n' "$line" | cut -f5)"
     [ -n "${name:-}" ] || continue
-    if ! _felix_cap_active "${cap:-always}" "$proj"; then
-      printf 'dormant\t%s\t-\t%s\t%s\n' "$name" "${cadence:-0}" "$desc"; continue
-    fi
+    # Until 2026-10-01 this was `! _felix_cap_active`, so a declared list that
+    # could not be read (status 2) printed `dormant`, a routine that may be due
+    # said to be not yet. It is `unknown` now, never due: `due` is what session
+    # start's "Maintenance due" line, the stop hook's overnight list, next.sh
+    # rank 4 and pulse act on, and a false due sends someone to work that may
+    # not apply. The `unchecked` precedent, a row that could not be asked being
+    # its own word. Its check is not run and its last run is not read.
+    _felix_cap_active "${cap:-always}" "$proj"; rc=$?
+    case "$rc" in
+      0) ;;
+      1) printf 'dormant\t%s\t-\t%s\t%s\n' "$name" "${cadence:-0}" "$desc"; continue ;;
+      *) printf 'unknown\t%s\t-\t%s\t%s\n' "$name" "${cadence:-0}" "$desc"; continue ;;
+    esac
     if [ "${cadence:-0}" -eq 0 ] 2>/dev/null; then
       if [ -n "$check" ] && [ "$check" != "-" ]; then
         if [ -n "$root" ] && [ -d "$root" ]; then

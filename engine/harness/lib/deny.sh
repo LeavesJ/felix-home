@@ -378,7 +378,10 @@ _felix_deny_scoped_lifts() {
 #     bash $S/t.sh`, the shape a scratch fixture takes. Seven of the logged
 #     refusals had it, and in each the body ran what its row names. The same
 #     holds for quoted text printf or echo writes to a file the command runs.
-#   - A quoted span is data, `_`, when it holds a blank or a line break. It is
+#   - A quoted span is data, `_`, when it holds a blank or a line break, or a
+#     backslash before an n, t or r: a row written for the payload's JSON,
+#     where that pair is a line break, would take `'run:\n./x.sh'` for two
+#     commands (a case in tests/run since #311 narrowed such a row). It is
 #     read as code where it is a shell's -c script or an argument of eval,
 #     ssh, su, runuser or watch, gathered whole when it is quoted in pieces
 #     (`'...'\''...'`). It is its own text, without the quotes, where it is a

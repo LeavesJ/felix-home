@@ -134,7 +134,9 @@ _FELIX_DENY_READ='
     if (script() && (SCRW[LV] || CUR[LV] == "")) { PSCR[LV] = PSCR[LV] t; SCRW[LV] = 1; SHF[LV] = 1; return "_" }
     gsub(/\n/, " ", t)
     if (RED[LV] || PATHOP[LV] || NW[LV] == 0 && CUR[LV] == "") return t
-    if (t !~ /[ \t\n]/) return t
+    # A backslash before an n, t or r is data as much as the break it spells:
+    # a row written for the payload JSON takes that pair for a line break.
+    if (t !~ /[ \t\n]/ && t !~ /\\[nrt]/) return t
     if (t ~ /^(~\/|\.\.?\/|\$[A-Za-z_][A-Za-z0-9_]*\/|\$\{[^}]*\}\/|\$\(_\)\/)/) return t
     # Data, and kept by the command it belongs to: if that command writes a
     # file the same command line then runs, this is what the file says.

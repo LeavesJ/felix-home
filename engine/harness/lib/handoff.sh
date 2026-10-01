@@ -216,6 +216,89 @@ felix_handoff_rotate() {
   rm -f "$t"; return "$rc"
 }
 
+# "<rev>\t<id>" for each rev named on stdin whose HANDOFF.md carries a marker:
+# the current id of the first one, as felix_handoff_marker reads it. One git
+# grep for all of them, since a remote can hold a few hundred branches.
+_felix_handoff_ids() {
+  local root="$1" r revs=()
+  while IFS= read -r r; do [ -n "$r" ] && revs+=("$r"); done
+  [ "${#revs[@]}" -gt 0 ] || return 0
+  git -C "$root" -c grep.lineNumber=false -c grep.column=false -c grep.fullName=false \
+      grep --no-color -o -E '\(after 0[a-z]+ comes 0[a-z]+\)' "${revs[@]}" -- "$FELIX_HANDOFF_FILE" 2>/dev/null \
+    | LC_ALL=C awk -v f=":$FELIX_HANDOFF_FILE:" '{
+        i = index($0, f); if (!i) next
+        rev = substr($0, 1, i - 1); if (rev in seen) next
+        if (match($0, /\(after 0[a-z]+ comes 0[a-z]+\)/)) {
+          split(substr($0, RSTART + 7, RLENGTH - 8), w, " "); seen[rev] = 1; print rev "\t" w[1] } }'
+}
+
+# The folds of <ref>'s handoff that wait on other branches of its remote.
+#
+# Folding is upkeep, so the row that asks for it is read by every session at
+# once, and on 2026-09-24/25 three of them folded the same sections (#347,
+# #351, #377) where one could land. This names the fold already pushed, so
+# the row can say so instead of asking again. A branch counts when its marker
+# is past <ref>'s and its merge-base with <ref> holds <ref>'s marker: main's
+# handoff has not moved since the branch was cut, so what it folded is what
+# main holds now. A fold cut from an older main is stale and handoff-check
+# refuses it; a fold that landed is no longer past main; one whose tip is
+# older than <within> seconds (0, no bound) is taken as abandoned, because
+# without the network nothing here can tell a closed pull request from a
+# waiting one, and a fold that silenced the row forever would be worse than a
+# second fold. Remote-tracking refs only, as last fetched: a local branch is a
+# session's own until it is pushed.
+#
+# "<branch>\t<id>\t<tip epoch>", the branch named without its remote, the
+# newest tip first.
+#   exit 0  the folds in flight, or nothing
+#   exit 2  cannot examine, and why, on stdout
+felix_handoff_in_flight() {
+  local root="$1" ref="${2:-}" within="${3:-0}" full ns x t mid now r sha ep id mb
+  case "$within" in ''|*[!0-9]*) printf 'cannot examine\tthe bound %s is not a whole number of seconds\n' "$within"; return 2 ;; esac
+  full="$(git -C "$root" rev-parse --verify --quiet --symbolic-full-name "$ref" 2>/dev/null)"
+  case "$full" in
+    refs/remotes/?*/?*) ;;
+    *) printf 'cannot examine\t%s is not a remote-tracking branch here\n' "${ref:-no ref}"; return 2 ;;
+  esac
+  x="${full#refs/remotes/}"; ns="refs/remotes/${x%%/*}"
+  t="$(mktemp -d 2>/dev/null)" || { printf 'cannot examine\tcould not make a scratch directory\n'; return 2; }
+  # Every other branch of the remote, and the blob its HANDOFF.md is. Most
+  # share one, and a branch whose blob is main's has folded nothing, so only
+  # one branch per other blob is read for its marker.
+  git -C "$root" for-each-ref --format='%(refname)%09%(objectname)%09%(committerdate:unix)%09%(symref)' "$ns" 2>/dev/null \
+    | FULL="$full" LC_ALL=C awk -F'\t' '$4 == "" && $1 != ENVIRON["FULL"] { print $1 "\t" $2 "\t" $3 }' > "$t/refs"
+  { printf '%s\n' "$full"; cut -f2 "$t/refs"; } | sed "s|\$|:$FELIX_HANDOFF_FILE|" \
+    | git -C "$root" cat-file --batch-check='%(objectname) %(objecttype)' > "$t/blobs" 2>/dev/null
+  LC_ALL=C awk -F'\t' '
+    FNR == NR { split($0, w, " "); b[FNR] = (w[2] == "blob") ? w[1] : ""; next }
+    { k = b[FNR + 1]; if (k != "" && k != b[1]) print $0 "\t" k }' "$t/blobs" "$t/refs" > "$t/cand"
+  { printf '%s\n' "$full"; LC_ALL=C awk -F'\t' '!seen[$4]++ { print $1 }' "$t/cand"; } \
+    | _felix_handoff_ids "$root" > "$t/ids"
+  mid="$(FULL="$full" LC_ALL=C awk -F'\t' '$1 == ENVIRON["FULL"] { print $2; exit }' "$t/ids")"
+  if [ -z "$mid" ]; then
+    rm -rf "$t"; printf 'cannot examine\t%s holds no %s with an (after <id> comes <next>) marker\n' "$ref" "$FELIX_HANDOFF_FILE"; return 2
+  fi
+  # A branch's id is its blob's, read once; it is a candidate when it is past
+  # main's in fold order: a longer id is later, and one of the same length
+  # compares letter by letter.
+  LC_ALL=C awk -F'\t' -v mid="$mid" '
+    FNR == NR { id[$1] = $2; next }
+    ($1 in id) { bid[$4] = id[$1] }
+    ($4 in bid) { i = bid[$4]
+      if (length(i) > length(mid) || (length(i) == length(mid) && i > mid)) print $1 "\t" $2 "\t" $3 "\t" i }' \
+    "$t/ids" "$t/cand" > "$t/after"
+  now="$(date +%s)"
+  while IFS=$'\t' read -r r sha ep id; do
+    [ -n "$r" ] || continue
+    [ "$within" -gt 0 ] && [ $((now - ep)) -gt "$within" ] && continue
+    mb="$(git -C "$root" merge-base "$sha" "$full" 2>/dev/null)" || continue
+    [ "$(printf '%s\n' "$mb" | _felix_handoff_ids "$root" | cut -f2)" = "$mid" ] || continue
+    printf '%s\t%s\t%s\n' "${r#"$ns"/}" "$id" "$ep"
+  done < "$t/after" | LC_ALL=C sort -t "$(printf '\t')" -k3,3nr -k1,1
+  rm -rf "$t"
+  return 0
+}
+
 # Writes <file> as this branch's pending section and prints its path. The path
 # is a UTC stamp and the branch name, which no concurrent session shares; a
 # second call on the same branch rewrites the file the first one made, as long

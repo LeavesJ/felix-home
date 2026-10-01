@@ -18464,6 +18464,10 @@ is  "and the receipt keeps ten fields, each count digits or ?" "$(_cmrcfields)" 
 is  "one count come back empty, so the rest would shift into its place, gives indeterminate" \
     "$(_cm _cmrccounts '2 0  0 0 0')" "indeterminate"
 is  "and that receipt still keeps ten fields, each count digits or ?" "$(_cmrcfields)" "10 digits"
+# Added after review, not blind: the counts after a gap sit one place left, so
+# none of them is written as if it were the count its field names.
+is  "and every count in it is ?, not a number moved into its neighbour's place" \
+    "$(cut -f6-10 "$_cmrcrc" 2>/dev/null | tr '\t' ' ')" "? ? ? ? ?"
 is  "a count that reads ? gives indeterminate, not commissioned" \
     "$(_cm _cmrccounts '2 0 ? 0 0 0')" "indeterminate"
 is  "and no test on stderr says integer expression expected over the ?" "$(_cmrcerr)" "silent"

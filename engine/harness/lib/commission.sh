@@ -22,9 +22,10 @@
 # fails the run.
 # A row whose answer is a provider — a skill a session's model runs — is a
 # separate class by construction: it is `awaiting` until a file it cannot
-# write appears, it holds nothing, and awaiting, stale or partial it never
-# reaches the receipt. An answer whose rows could not be counted is `unknown`
-# like any row, and blocks it.
+# write appears, it holds nothing, and awaiting, stale, partial or answered it
+# never decides the receipt (the first three are counted in its awaiting
+# field). One whose answer could not be read is `unknown` like any row, and
+# makes the receipt indeterminate.
 #
 # The install policy is not here. Answers call the commands that already
 # hold it (stack apply --yes, ready --fix, discover --adopt) and this file
@@ -141,11 +142,15 @@ EOF
 #
 # 0 when every name is loaded, 1 printing the first that is not, and 2 when
 # the names could not be read from the text at all. Until 2026-10-01 a grep
-# that failed was swallowed by the `|| true` that keeps a check naming no
-# function (grep's 1) from reading missing, so a failed fork read "names
-# none" and a check over a function that is not loaded ran and read done.
-# Now the substitution says from grep's status whether the names were read,
-# the same with pipefail on or off, and they are walked with no further fork.
+# that ran and failed (exit 2 or more, or killed) was swallowed by the
+# `|| true` that keeps a check naming no function (grep's 1) from reading
+# missing, so a check over a function that is not loaded ran and read done. A
+# fork that failed there ended the group before that `|| true`, and read
+# unknown under the CLI's pipefail but named no function, and done without it.
+# Now the names carry a `.` written only when grep's status says they were
+# read, because on bash 3.2 a substitution that cannot make its pipe expands to
+# nothing with status 0 (measured). The same with pipefail on or off, and the
+# names are walked with no further fork.
 #
 # IFS is set here because this runs inside command substitutions whose caller
 # may have IFS set to a tab for a `read`, and a `for w in $(…)` there sees
@@ -153,7 +158,8 @@ EOF
 # the caller's read then truncates. Measured.
 _felix_commission_functions_present() {
   local names w IFS=$' \t\n'
-  names="$(printf '%s' "$1" | grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)'; [ "$?" -le 1 ])" || return 2
+  names="$(printf '%s' "$1" | grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)'; [ "$?" -le 1 ] && printf .)"
+  case "$names" in *.) names="${names%.}" ;; *) return 2 ;; esac
   for w in $names; do
     command -v "$w" >/dev/null 2>&1 || { printf '%s' "$w"; return 1; }
   done
@@ -327,7 +333,12 @@ felix_commission_state() {
     prov="$(felix_probe_source "$root" "$instrument")"
   fi
   if [ "$check" != "-" ]; then
-    missing="$(_felix_commission_functions_present "$check")"; rc=$?
+    # The status rides in the text, after a `/` no name holds: a substitution
+    # that could not make its pipe gives status 0 and no text, and that must
+    # read as not asked, not as every function present.
+    missing="$(_felix_commission_functions_present "$check"; printf '/%s' "$?")"
+    case "$missing" in */0) rc=0 ;; */1) rc=1 ;; *) rc=2 ;; esac
+    missing="${missing%/*}"
     if [ "$rc" -eq 1 ] && [ -n "$missing" ]; then
       printf 'unknown\tthe engine function %s is not loaded here, so the check could not be asked\t%s\n' "$missing" "$prov"; return 0
     elif [ "$rc" -ne 0 ]; then
@@ -341,7 +352,11 @@ felix_commission_state() {
   # unknown even at 1, since an unset variable ends it with 1 too, and applies
   # at 0, which only the text's own exit gives. Parsing is asked first because
   # eval hands a syntax error back as 1 on bash 3.2. The check below still
-  # reads anything but 0, 126 and 127 as held, which already fails closed.
+  # reads anything but 0, 126 and 127 as held, which fails closed on its
+  # status. Not on its text: a check shaped `[ -z "$(lookup)" ]` reads a
+  # lookup whose fork failed inside it as empty, and passes. Three seeded
+  # checks have that shape, and changing them is a table change, the
+  # founder's (2026-10-01).
   if [ "$when" != "-" ]; then
     if ! BASH_ENV= "${BASH:-bash}" -n -c "$when" </dev/null 2>/dev/null; then
       printf 'unknown\tthe `when` test does not parse, so it was not run and whether this applies is not known\t%s\n' "$prov"; return 0
@@ -463,7 +478,7 @@ felix_commission_class() {
 
 # The eight states a row can have: done, held, unknown and not-applicable,
 # which felix_commission_state computes, and awaiting, stale, partial and
-# answered, which a provider row gives. Anything else is a state line nobody
+# answered, which a provider row gives, as well as unknown. Anything else is a state line nobody
 # could read. A builtin case, so asking forks nothing.
 _felix_commission_state_known() {
   case "${1:-}" in

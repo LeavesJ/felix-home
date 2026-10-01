@@ -509,8 +509,10 @@ felix_merge_blockers() {
   # or detected surfaces have moved since it was, or while a row could not be
   # asked here (indeterminate). Never on held rows: a toolbox that is not yet
   # installed is a fact about a machine, not about the code being merged. And
-  # never on provider rows, which hold nothing by class. Fails closed on a
-  # missing library for the same reason the probes block does.
+  # never on a provider row's answer, which holds nothing by class; a provider
+  # row whose answer could not be read is unknown like any row, and blocks
+  # through the indeterminate receipt. Fails closed on a missing library for
+  # the same reason the probes block does.
   if ! command -v felix_commission_rows >/dev/null 2>&1; then
     printf 'commission\tengine\tthe commissioning library is not loaded, so nothing was asked of this project\n'
   elif [ ! -f "$proj/commissioning.tsv" ]; then

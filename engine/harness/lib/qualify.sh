@@ -30,9 +30,10 @@
 # What refuses and what only reports. This file refuses nothing itself;
 # `felix qualify --gate` refuses on a declared control that did not hold, one
 # that could not run, a checker never shown failing here, and a row that cannot
-# be read as a control. It refuses as well on a table it could not read, on a
-# run that produced fewer verdicts than the rows it selected, and on any count
-# or list a verdict is worked out from that could not be worked out: each of
+# be read as a control. It refuses as well on a table it could not read or
+# that holds a NUL byte, on a run that produced fewer verdicts than the rows it
+# selected, and on any count or list a verdict is worked out from that could
+# not be worked out: each of
 # those once came out as none, and none held reads as a pass. A control nobody
 # declared refuses nothing. That is the
 # ratchet cmd_qualify argues for, and it is what made arming safe: refusing to
@@ -152,10 +153,25 @@ _felix_qualify_table() { printf '%s/qualification.tsv' "$1"; }
 # space was split into two checkers declaring nothing, a name like * was
 # expanded to the files of the checkout, and the gate counted six controls met
 # by `my check` across 0 checkers.
+#
+# A table holding a NUL byte anywhere is not read at all, and returns 3. awk
+# was the reader, and the BSD awk macOS ships ends a line at a NUL: a held row
+# starting with one read as a blank line, was never run and never called
+# malformed, and the gate passed over it; one later in a row cut the row there,
+# dropping a premise or the end of a mutation. mawk and gawk keep the byte, so
+# the same table read two ways on two machines, and git calls a file with an
+# early NUL binary, so its diff showed a reviewer no row of it. So no row of
+# such a table is trusted, not only the one holding the byte.
+#
+# awk cannot be asked, because the byte never reaches it, so the shell reads
+# the table (_felix_qualify_bytes) and awk is handed what it read. That is
+# still the one read: a scan for the byte first, then awk opening the file
+# again, would be two, and the table could change between them.
 _felix_qualify_read() {   # proj, awk action
-  local f; f="$(_felix_qualify_table "$1")" || return 2
+  local f body; f="$(_felix_qualify_table "$1")" || return 2
   [ -f "$f" ] || return 0
-  LC_ALL=C awk -F'\t' -v pairs="$FELIX_QUALIFY_EXPECT" '
+  body="$(_felix_qualify_bytes "$f")" || return $?
+  printf '%s\n' "$body" | LC_ALL=C awk -F'\t' -v pairs="$FELIX_QUALIFY_EXPECT" '
     BEGIN { n = split(pairs, p, " ")
             for (i = 1; i <= n; i++) { split(p[i], kv, ":"); want[kv[1]] = kv[2] } }
     function why() {
@@ -170,7 +186,36 @@ _felix_qualify_read() {   # proj, awk action
       return ""
     }
     $0 ~ /^[[:space:]]*#/ || $0 ~ /^[[:space:]]*$/ { next }
-    '"$2" "$f"
+    '"$2"
+}
+
+# The table's bytes on stdout, whole; 3, having printed nothing, when one of
+# them is a NUL; 2 when it cannot be read. read -d '' stops at a NUL and
+# succeeds only there, so success is the byte found and end of input its
+# absence; the rest is drained so cat ends on its own rather than on a broken
+# pipe. The table is opened by cat, by name, rather than by a redirect: one
+# named command opening it is an open the suite can count and fail, and a
+# redirect is one nothing outside this shell can see.
+#
+# In the C locale, and that is load-bearing. bash 4 to 5.2 in a UTF-8 locale
+# reads the byte after a lead byte as the rest of a character without asking
+# whether it is the delimiter, so in `\303\000` the NUL went into a character,
+# read ran on to the end of input and said it found none, and every row after
+# it was dropped with a status of 0. Found by review on 2026-09-25; bash 5.3
+# pushes the delimiter back. The reader is a ( ) subshell, not a { } group, so
+# the locale and the exit are its own even under a caller's lastpipe.
+_felix_qualify_bytes() {   # file
+  local st
+  cat -- "$1" 2>/dev/null | (
+    LC_ALL=C
+    IFS= read -r -d '' _fqb && { cat >/dev/null; exit 3; }
+    printf '%s' "$_fqb" )
+  st="${PIPESTATUS[0]}:${PIPESTATUS[1]}"
+  case "$st" in
+    *:3) return 3 ;;
+    0:0) return 0 ;;
+    *)   return 2 ;;
+  esac
 }
 
 felix_qualify_rows() { _felix_qualify_read "$1" 'why() == "" { print }'; }
@@ -207,9 +252,17 @@ felix_qualify_snapshot() {
 # qualify runs nothing, prints its header, this line and one saying nothing was
 # run, and exits 2. A table that does not exist is still an answer, and
 # declares nothing, as before.
-_felix_qualify_unread() {   # proj
+#
+# Given the read's status, a table that was read and holds a NUL (status 3) is
+# said to hold one, and not to be unreadable: whoever looks for a permission
+# or a missing file would find neither.
+_felix_qualify_unread() {   # proj, [status of the read]
   local f; f="$(_felix_qualify_table "$1")"
-  printf 'felix: %s could not be read, so what it declares is not known\n' "$f" >&2
+  if [ "${2:-}" = 3 ]; then
+    printf 'felix: %s holds a NUL byte, which some awks end a line at and others keep, so what it declares is not known\n' "$f" >&2
+  else
+    printf 'felix: %s could not be read, so what it declares is not known\n' "$f" >&2
+  fi
 }
 
 # Which controls a checker has no row for. A checker qualified on four of six
@@ -227,7 +280,7 @@ _felix_qualify_unread() {   # proj
 # reader that can stop before the end of it: grep -q, head, awk's exit, sed q.
 felix_qualify_missing_controls() {   # proj, checker -> one control per line
   local proj="$1" checker="$2" rows
-  rows="$(felix_qualify_rows "$proj" 2>/dev/null)" || { _felix_qualify_unread "$proj"; return 2; }
+  rows="$(felix_qualify_rows "$proj" 2>/dev/null)" || { _felix_qualify_unread "$proj" "$?"; return 2; }
   _felix_qualify_missing_in "$rows" "$checker" || { _felix_qualify_unread "$proj"; return 2; }
 }
 
@@ -367,7 +420,7 @@ _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | u
 # 0 having run nothing, the empty run of a table that declares nothing.
 felix_qualify_run() {   # proj, root, [checker]
   local rows
-  rows="$(felix_qualify_rows "$1" 2>/dev/null)" || { _felix_qualify_unread "$1"; return 2; }
+  rows="$(felix_qualify_rows "$1" 2>/dev/null)" || { _felix_qualify_unread "$1" "$?"; return 2; }
   _felix_qualify_run_rows "$rows" "$2" "${3:-}"
 }
 
@@ -453,7 +506,7 @@ felix_qualify_unshown() {   # proj, run-output -> one checker name per line
 felix_qualify_ungoverned() {   # proj, gate-output -> one checker name per line
   local proj="$1" out="$2" rows known c gap="" nl='
 '
-  rows="$(felix_qualify_rows "$proj" 2>/dev/null)" || { _felix_qualify_unread "$proj"; return 2; }
+  rows="$(felix_qualify_rows "$proj" 2>/dev/null)" || { _felix_qualify_unread "$proj" "$?"; return 2; }
   known="$(printf '%s\n' "$rows" | LC_ALL=C cut -f1)" || { _felix_qualify_unread "$proj"; return 2; }
   for c in $(printf '%s\n' "$out" \
                | LC_ALL=C awk '$0 ~ /^  [a-z][a-z-]* +[A-Za-z]/ { print $1 }' \

@@ -18332,7 +18332,7 @@ has "and the announcement names the change"                     "$_cmv" "changed
 # one that prints the broken line, a count is made to come back empty by a
 # grep that prints nothing for the unknown rows, and a receipt is rewritten in
 # place with counts or a result no run writes. For the command, two stubs are
-# appended to the fixture's copy of the library for the length of three runs,
+# appended to the fixture's copy of the library for the length of five runs,
 # and the copy is put back byte for byte.
 # These assertions were written blind, from the contract, before the fix.
 # Everything this touches is restored below and everything it defines unset.
@@ -18380,6 +18380,10 @@ is  "an output that carries a need the table does not list is not complete" \
     "$(_cm _cmrccomplete "$(printf '%s\n%s\n%s' "$_cmrcalpha" "$_cmrcauto" "$_cmrcstray")")" "1 [3 of 2]"
 is  "an output whose rows are those the table lists, in another order, is not complete" \
     "$(_cm _cmrccomplete "$(printf '%s\n%s' "$_cmrcauto" "$_cmrcalpha")")" "1 [2 of 2]"
+# Added after review, not blind: K counts rows, so a blank line and a line
+# naming no need in a short output are not counted toward it.
+is  "an output missing a row, with a blank line and a line naming no need, reports 1 of 2" \
+    "$(_cm _cmrccomplete "$(printf '%s\n\n\tdone\tOBSERVED\t-\t9\t\t-\n' "$_cmrcalpha")")" "1 [1 of 2]"
 is  "a receipt over an output missing a row the table lists is indeterminate, printed and written" \
     "$(_cm _cmrcwrite "$_cmrcalpha") $(_cmrcresult)" "indeterminate indeterminate"
 is  "a receipt over an output carrying a row twice is indeterminate" \
@@ -18388,6 +18392,19 @@ is  "a receipt over an output carrying a need the table does not list is indeter
     "$(_cm _cmrcwrite "$(printf '%s\n%s\n%s' "$_cmrcalpha" "$_cmrcauto" "$_cmrcstray")")" "indeterminate"
 is  "a receipt over the table's rows in another order is indeterminate" \
     "$(_cm _cmrcwrite "$(printf '%s\n%s' "$_cmrcauto" "$_cmrcalpha")")" "indeterminate"
+
+# Added after review, not blind. A need holding a byte that is not UTF-8, read
+# under a UTF-8 locale. The first fix read the table's needs with cut, and BSD
+# cut stops at that byte, so on macOS an honest run of this table read 3 of 1
+# and its receipt was indeterminate on every run. Where cut reads bytes, or the
+# locale is not installed, this passes either way.
+_cmtable 'alpha	-	-	-	-	test -f src/a.txt	3' \
+         "$(printf 'cmrc_caf\351\t-\t-\t-\t-\ttest -f src/a.txt\t3')" \
+         "$(printf 'cmrc_gamma\t-\t-\t-\t-\ttest -f src/a.txt\t3')"
+_cmrcl1() { LC_ALL=en_US.UTF-8; export LC_ALL
+  _cmrcwrite "$(felix_commission_run "$CMP" "$CMR" - 2>/dev/null)"; }
+is  "a need holding a byte that is not UTF-8, under a UTF-8 locale, is a complete run and a commissioned receipt" \
+    "$(_cm _cmrcl1 2>/dev/null)" "commissioned"
 
 # A need the table itself lists twice is asked twice, and both are owed.
 _cmtable 'alpha	-	-	-	-	test -f src/a.txt	3' \
@@ -18494,11 +18511,22 @@ _cmrcredo '{ $5 = "indeterminate"; $8 = ""; print }'
 _cmrcbegins "an indeterminate receipt with a count missing still reads indeterminate first" "$(_cmrcvalid)" "1 indeterminate"
 _cmrcredo '{ $2 = "cmrc-not-the-table"; $8 = ""; print }'
 _cmrcbegins "a stale receipt with a count missing still reads stale first" "$(_cmrcvalid)" "1 stale (table set moved"
+# Added after review, not blind: each end of the count fields alone, and the
+# claude cli having changed since, which announces and returns 0 for a
+# well-formed receipt and must not for one whose counts no run wrote.
+_cmrcredo '{ $6 = ""; print }'
+_cmrcbegins "a receipt whose done count alone is empty is unreadable" "$(_cmrcvalid)" "1 unreadable ("
+_cmrcredo '{ $10 = "?"; print }'
+_cmrcbegins "a receipt whose awaiting count alone is ? is unreadable" "$(_cmrcvalid)" "1 unreadable ("
+_cmrcredo '{ $4 = "cmrc-older-claude"; print }'
+_cmrcbegins "a well-formed receipt from an older claude cli still reads valid, and says so" "$(_cmrcvalid)" "0 commissioned (the claude cli changed since"
+_cmrcredo '{ $4 = "cmrc-older-claude"; for (i = 6; i <= 10; i++) $i = ""; print }'
+_cmrcbegins "a receipt from an older claude cli whose counts are empty is unreadable, not announced" "$(_cmrcvalid)" "1 unreadable ("
 
 # The command. Two stubs appended to the fixture's copy of the library, each
 # idle unless the run is handed its variable: the check on a row's state ends
 # the loop's shell at the call FELIX_CMRC_DIE_AT names, and the counts print
-# FELIX_CMRC_COUNTS. The copy is put back the moment the third run returns.
+# FELIX_CMRC_COUNTS. The copy is put back the moment the last run returns.
 _cmtable "$(printf 'cmrc_first\t-\t-\t-\t-\ttest -f src/a.txt\t9')" \
          "$(printf 'cmrc_held\t-\t-\t-\t-\ttest -f cmrc-no-such-file\t9')" \
          "$(printf 'cmrc_last\t-\t-\t-\t-\ttest -f src/a.txt\t9')"
@@ -18524,6 +18552,7 @@ _cmrcclean="$(_cmrccli '' '')"; _cmrccleanx=$?; _cmrccleanr="$(_cmrcresult)"
 _cmrcstat="$(_cmrccli 2 '' --status)"
 _cmrcshortcli="$(_cmrccli 2 '')"; _cmrcshortx=$?; _cmrcshortr="$(_cmrcresult)"
 _cmrcqcli="$(_cmrccli '' '1 1 ? 0 0 0')"; _cmrcqx=$?; _cmrcqr="$(_cmrcresult)"
+_cmrcallq="$(_cmrccli '' '? ? ? ? ? ?')"; _cmrcallqx=$?; _cmrcallqr="$(_cmrcresult)"
 cp "$TMP/cmrc-lib.keep" "$_cmrclib"
 is  "and the engine copy the command ran from is put back byte for byte" \
     "$(cksum < "$_cmrclib")" "$(cksum < "$TMP/cmrc-lib.keep")"
@@ -18547,6 +18576,23 @@ case "$_cmrcqcli" in
   *) ok  "a full run whose unknown count reads ? writes no integer expression expected anywhere" ;;
 esac
 is  "and writes the receipt indeterminate and exits 1, not held" "$_cmrcqr $_cmrcqx" "indeterminate 1"
+# Added after review, not blind. The summary line and the two sections after
+# it test the held, malformed, awaiting and unknown counts, and only the
+# unknown one was ever ?. And the sentence under a short run says only what is
+# true of the receipt: --status writes none, so it may not say indeterminate.
+case "$_cmrcallq" in
+  *'integer expression expected'*)
+     bad "a full run whose every count reads ? writes no integer expression expected anywhere" \
+         "$(printf '%s\n' "$_cmrcallq" | grep 'integer expression expected')" ;;
+  *) ok  "a full run whose every count reads ? writes no integer expression expected anywhere" ;;
+esac
+is  "and writes the receipt indeterminate and exits 1" "$_cmrcallqr $_cmrcallqx" "indeterminate 1"
+has "--status over a short run says a receipt over it would be indeterminate" "$_cmrcstat" "would be indeterminate"
+case "$_cmrcstat" in
+  *'was written indeterminate'*) bad "and does not say one was written" "$(printf '%s\n' "$_cmrcstat" | grep 'was written')" ;;
+  *)                             ok  "and does not say one was written" ;;
+esac
+has "a full run over a short run says the receipt was written indeterminate" "$_cmrcshortcli" "The receipt was written indeterminate"
 
 cp "$TMP/cmrc-table.keep" "$CMP/commissioning.tsv"
 if [ -f "$TMP/cmrc-receipt.keep" ]; then mv "$TMP/cmrc-receipt.keep" "$_cmrcrc"; else rm -f "$_cmrcrc"; fi
@@ -18555,10 +18601,10 @@ rm -f "$TMP/cmrc-table.keep" "$TMP/cmrc-lib.keep" "$TMP/cmrc-stderr" "$TMP/cmrc-
 is  "and this block leaves the table, the receipt, the log, the engine copy and every cmrc- file as it found them" \
     "$(_cmrcfixture)" "$_cmrcfound"
 unset -f _cmrcfixture _cmrccomplete _cmrcwrite _cmrcresult _cmrcline _cmrcdie _cmrccounts _cmrcfields _cmrcerr \
-         _cmrcblank _cmrcplain _cmrcvalid _cmrcredo _cmrcbegins _cmrccli _cmrcreported
+         _cmrcblank _cmrcplain _cmrcvalid _cmrcredo _cmrcbegins _cmrccli _cmrcreported _cmrcl1
 unset _cmrcrc _cmrclib _cmrclog _cmrcfound _cmrcfull _cmrcalpha _cmrcauto _cmrcstray _cmrctwice _cmrcshort _cmrcwhole \
       _cmrcrows _cmrcgap _cmrcclean _cmrccleanx _cmrccleanr _cmrcstat _cmrcshortcli _cmrcshortx _cmrcshortr \
-      _cmrcqcli _cmrcqx _cmrcqr
+      _cmrcqcli _cmrcqx _cmrcqr _cmrcallq _cmrcallqx _cmrcallqr
 
 # What nothing serves, reaches or grounds, enumerated from the checkout.
 has "a detected surface no row serves, reaches or grounds is named with all three misses" \

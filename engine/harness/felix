@@ -4836,13 +4836,22 @@ EOF
   printf '\n'
   # The run's loop can end early and still return 0, and the rows after that
   # are then missing from everything above. The receipt refuses such a run;
-  # this says why, in --status too.
+  # this says why, in --status too, and says only what is true of the receipt
+  # in force: --status writes none, and a write that died writes none either.
   local creported=''
   if ! creported="$(felix_commission_run_complete "$proj" "$out")"; then
     printf '\nthe run reported %s rows of %s/commissioning.tsv. The rest were never\n' \
       "${creported:-fewer than all the}" "$proj"
-    printf 'reported, so nothing here says whether they hold, and the receipt is\n'
-    printf 'indeterminate. Run felix commission again.\n'
+    printf 'reported, so nothing here says whether they hold.\n'
+    if [ "$status" -eq 1 ]; then
+      printf 'A receipt written over this run would be indeterminate; the receipt line\n'
+      printf 'below is what is on disk now.\n'
+    elif [ "$result" = "indeterminate" ]; then
+      printf 'The receipt was written indeterminate. Run felix commission again.\n'
+    elif [ -z "$result" ]; then
+      printf 'No receipt could be written over it, so whatever receipt is on disk came\n'
+      printf 'from an earlier run. Run felix commission again.\n'
+    fi
   fi
 
   if [ "$status" -eq 1 ]; then

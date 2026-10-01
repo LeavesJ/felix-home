@@ -504,13 +504,23 @@ EOF
 # rows giving one line, and the receipt read commissioned with the held row
 # gone. So the reader counts, against the table read again. A table that lists
 # nothing never has a complete run: a run that asked nothing certifies
-# nothing. Prints `K of N` when the run is short or wrong, nothing when whole.
-felix_commission_run_complete() {   # proj, out -> 0 whole; 1 and "K of N" otherwise
+# nothing. Prints `K of N` when the run is short or wrong, nothing when whole,
+# and only the status when given a third argument: the receipt needs no more,
+# and every fork it skips is one fewer place for a starved run to die.
+#
+# Both sides are read by the same awk. The table's side was `cut -f1` until
+# review, and BSD cut under a UTF-8 locale stops at the first need holding a
+# byte that is not UTF-8, so an honest run of such a table read `3 of 1` on
+# every run and no rerun could clear it. awk passes those bytes through, and
+# counting records rather than matching `.` counts that row too.
+felix_commission_run_complete() {   # proj, out[, quiet] -> 0 whole; 1 and "K of N" otherwise
   local want='' got=''
-  want="$(felix_commission_rows "$1" | cut -f1)"
+  want="$(felix_commission_rows "$1" | awk -F'\t' '$1 != "" { print $1 }')"
   got="$(printf '%s\n' "${2:-}" | awk -F'\t' '$1 != "" { print $1 }')"
   [ -n "$want" ] && [ "$want" = "$got" ] && return 0
-  printf '%s of %s' "$(printf '%s' "$got" | grep -c .)" "$(printf '%s' "$want" | grep -c .)"
+  [ -z "${3:-}" ] || return 1
+  printf '%s of %s' "$(printf '%s' "$got" | awk 'END { print NR }')" \
+    "$(printf '%s' "$want" | awk 'END { print NR }')"
   return 1
 }
 
@@ -569,7 +579,7 @@ EOF
   case "$n_await" in ''|*[!0-9]*) n_await='?'; unread=1 ;; esac
   case "$n_na"    in ''|*[!0-9]*) n_na='?';    unread=1 ;; esac
   if [ "$unread" -ne 0 ]; then result=indeterminate
-  elif ! felix_commission_run_complete "$proj" "$rows" >/dev/null; then result=indeterminate
+  elif ! felix_commission_run_complete "$proj" "$rows" quiet; then result=indeterminate
   elif [ "$n_unk" -gt 0 ] || [ "$n_mal" -gt 0 ]; then result=indeterminate
   elif [ "$n_held" -gt 0 ]; then result=held
   else result=commissioned; fi

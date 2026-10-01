@@ -54,7 +54,13 @@ change:
   command read `fail`, `met` on a fail control with no checker run. It also
   found that a planted `../err` symlink sent the next column's stderr into
   a file outside the base. Both were true of b75e80ff. A file that cannot be
-  made new, plain and empty now reads as a column that ran nothing.
+  made new, plain and empty now reads as a column that ran nothing. Both of
+  its ends are opened before the column runs, 8 to write (`8>|`, past a
+  caller's noclobber) and 9 to read. The column gets 8 as its stderr and
+  neither descriptor besides, and the scan reads 9. A link or fifo the
+  column puts at the path then changes neither the verdict nor what is
+  read; a first guard that read such a file as unrunnable changed the
+  verdict, and a blind assertion caught it.
 - **A stopped row prints `unrunnable` before it exits 128+N**, with PIPE
   ignored for that one write. A row loop that the signal did not reach is
   still reading, and a row that printed nothing was counted `held`: a claim
@@ -65,6 +71,35 @@ change:
   which gave false alarms (a group signal during the add, a tree past
   PATH_MAX) and the wrong advice for a locked entry. No repo-wide prune is
   run: other sessions' stale entries are not Felix's to remove.
+
+**Built in three review rounds, from a contract written before the code.**
+- **Blind assertions:** the author saw only the spec and its addendum, never
+  the fix, and wrote 33 assertions. Against the unfixed engines, 27 are red
+  on b75e80ff and 26 on origin/main. Every one passes on a stand-in written
+  to the contract, and on this branch. The few the old engines already meet
+  are the mode guards and the ordinary-run cases, plus one difference:
+  b75e80ff's row survives a group INT, so its INT defect shows up as the
+  verdict.
+- **Adversarial review:** three rounds, each with reproducers.
+  - Round 1: six breaks, among them the hard-link chmod, the sibling-worktree
+    deletion, the faked `fail met` and the lock.
+  - Round 2: five more:
+    - the sibling deletion again, behind an unwritable base;
+    - noclobber;
+    - a link base whose unlink failed;
+    - a 000 base defeating find;
+    - a fifo at `../err` hanging the scan.
+  - Round 3: one low, a failed write end hidden by the group's
+    `2>/dev/null`.
+
+  Every finding is fixed, and each fix was rerun against its reproducer.
+- **Unchanged verdicts:** all 82 rows of `projects/felix/qualification.tsv`
+  give per-row verdicts identical to b75e80ff (81 met, 1 inapplicable), with
+  empty stderr and no entry left in the home's worktree list.
+- **qualify-rows' own section** gives the same results on this branch as on
+  b75e80ff, measured by running it alone against each library.
+- **Live:** a TERM to an in-flight `felix qualify` of felix-home left no
+  scratch tree behind.
 
 **Not reached, and said so in the code.**
 - SIGKILL. Filed as a task: a later run sweeps trees whose run is dead.

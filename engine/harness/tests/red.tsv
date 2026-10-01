@@ -4,55 +4,26 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	cb3a72ce4f0d85d37253359ca73b4976e9d45201	0.49.194
-run	50	3470	5
-a cancelled gate run between failures neither spends the repair ceiling nor resets it	1
-a gate run that failed to start counts against the ceiling, as do a timed-out one and a conclusion this code does not know	1
-a lifted scoped row is written to says.log with the command	1
-a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw	1
-and of the conclusions a completed gate run can have, only success resets it	1
-and says the ceiling is reached, not unknown	1
-and with it, the same call lifts	1
-felix repair stops three failed gate runs that a cancelled one sits between	1
-scoped: .. out of the checkout that lands in scratch	1
-scoped: P from pwd keeps the scratch cwd after a cd	1
-scoped: Write to a relative marker under a scratch payload cwd	1
-scoped: Write to a scratch marker lifts	1
-scoped: a cd first in its chain to an existing directory, then ;	1
-scoped: a cd second in its chain can fail even to an existing directory	1
-scoped: a fetch from the governed checkout into the scratch clone	1
-scoped: a fixture repo under a scratch variable, marker then git add -A	1
-scoped: a fixture script written by here-document and run with arguments	1
-scoped: a for loop over literal words feeding an assignment	1
-scoped: a here-document fed to bash sees a prefixed variable	1
-scoped: a lift to be recorded	1
-scoped: a lifted marker row does not lift the stage row	1
-scoped: a lifted row does not stop another row	1
-scoped: a payload cwd already in scratch	1
-scoped: a shared clone moved by a script read from stdin	1
-scoped: a shell running a script this line wrote by here-document, all in scratch	1
-scoped: a sibling whose name extends the checkout's is not the checkout	1
-scoped: a single-quoted bash -c fixture given its directory	1
-scoped: a working directory that holds the checkout	1
-scoped: a worktree of the scratch clone, made in scratch	1
-scoped: an EXIT trap with a known action does not	1
-scoped: an echo run from the checkout counts the checkout	1
-scoped: an unmatched command naming the checkout is not judged	1
-scoped: bash -c starts in the directory it was called from	1
-scoped: builtin cd steps past a function of that name	1
-scoped: cd DIR || exit cannot fall back	1
-scoped: dd of= with an input path after = in scratch	1
-scoped: every branch of an if leaves scratch	1
-scoped: git worktree anywhere in the line	1
-scoped: ln anywhere in the line	1
-scoped: mkdir -p, cd, then a remote on the lines after	1
-scoped: mkdir; cd; cmd judges the directory before too	1
-scoped: mktemp -d with a scratch template, then remote add by git -C	1
-scoped: pwd -P of the scratch clone, then update-ref under refs/remotes	1
-scoped: repeated -C, each relative to the last	1
-scoped: set -u is not set -e	1
-scoped: three scoped rows all lifted in one clone	1
-scoped: under set -e a cd inside a chain can still fall through	1
-scoped: under set -e a lone cd on its own line is final	1
-the judge alone: a scratch path is throwaway	1
-the same reader reaching its end would lift	1
+base	origin/main	a1af3c007d971ec6ec6f1e8617ded9fd81c5bcc7	0.49.232
+run	21	3868	5
+a NUL after more than a pipe's 64 KB of rows refuses the table all the same, in one stderr line naming it	1
+a NUL refuses the whole table: with it in a comment between two met controls on clean lines neither runs and --gate exits 2, where without it both run and pass	1
+and felix_qualify_run refuses it so without the caller's pipefail	1
+and in that locale the library reads no row of it and exits non-zero	1
+and missing_controls refuses it so without the caller's pipefail	1
+and needs refuses such a table without the caller's pipefail too	1
+and plain felix qualify over each of those tables runs no control, says the table holds a NUL, and exits 2	1
+and ungoverned refuses it so without the caller's pipefail	1
+felix gate over a table holding a NUL byte anywhere fails qualified, never ok, and shows under it the felix: line naming the table and its NUL	1
+felix qualify --gate over a table with a NUL after a row's fifth field runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix qualify --gate over a table with a NUL alone on a line runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix qualify --gate over a table with a NUL inside a comment runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix qualify --gate over a table with a NUL inside a held row's mutation runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix qualify --gate over a table with a NUL past byte 8000 runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix qualify --gate over a table with a NUL starting a held row runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix_qualify_missing_controls over a table holding a NUL byte anywhere prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL	1
+felix_qualify_rows, felix_qualify_malformed and felix_qualify_snapshot each exit non-zero over a table holding a NUL byte anywhere, with the caller's pipefail and without	1
+felix_qualify_run over a table holding a NUL byte anywhere runs nothing, prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL	1
+felix_qualify_ungoverned over a table holding a NUL byte anywhere names no checker, exits 2, and says in one stderr line naming the table that it holds a NUL	1
+in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2	1
+needs over a table holding a NUL byte anywhere resolves nothing, exits 2, and says in one stderr line naming the table that it holds a NUL	1

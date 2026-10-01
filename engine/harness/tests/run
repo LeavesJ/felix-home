@@ -18511,6 +18511,21 @@ rm -f "$CMP/capabilities"; ln -s "$TMP/cmlf-no-such-target" "$CMP/capabilities"
 is  "a capabilities link whose target is gone is not an absent file: _felix_cap_active returns 2 and the row is unknown" \
     "$(_cmlfca none api) $(_cm felix_commission_state "$CMP" "$CMR" cmlf_cap api - - - true 2>/dev/null | cut -f1)" \
     "2 [] unknown"
+# And only a regular file is read. A directory or a pipe named capabilities is
+# something there that is no list; a pipe must not even be opened, because
+# grep waits on it for a writer, which is what the first `-e` in place of `-f`
+# did here, hanging (found after review). So the pipe is asked under a
+# watchdog that ends the whole tree it started.
+_cmlfkill() { local _cmlfc; for _cmlfc in $(pgrep -P "$1" 2>/dev/null); do _cmlfkill "$_cmlfc"; done; kill "$1" 2>/dev/null; }
+rm -f "$CMP/capabilities"; mkfifo "$CMP/capabilities"
+( _cmlfca none api > "$TMP/cmlf-fifo.out" 2>/dev/null ) & _cmlfw=$!
+_cmlfi=0; while kill -0 "$_cmlfw" 2>/dev/null && [ "$_cmlfi" -lt 100 ]; do sleep 0.1; _cmlfi=$((_cmlfi + 1)); done
+if kill -0 "$_cmlfw" 2>/dev/null; then _cmlfkill "$_cmlfw"; wait "$_cmlfw" 2>/dev/null; _cmlffifo='still waiting after ten seconds'
+else wait "$_cmlfw" 2>/dev/null; _cmlffifo="$(cat "$TMP/cmlf-fifo.out")"; fi
+rm -f "$CMP/capabilities" "$TMP/cmlf-fifo.out"; mkdir "$CMP/capabilities"
+is  "a capabilities pipe or directory is no list: _felix_cap_active returns 2 at once for each, neither waiting on the pipe nor reading either as absent" \
+    "$_cmlffifo $(_cmlfca none api)" "2 [] 2 []"
+rmdir "$CMP/capabilities"
 # The answers below are keyed to the topology taken with api declared.
 rm -f "$CMP/capabilities"; printf 'api\n' > "$CMP/capabilities"
 _cmlfans $'plugin\tcmlfone\t-\tllm\twhy' $'plugin\tcmlftwo\t-\tllm\twhy' $'done\t0' > "$_cmlfad/cmlf_zero2.tsv"
@@ -18548,10 +18563,10 @@ else rm -f "$MEM/cmproj/commissioning.log"; fi
 rm -f "$TMP/cmlf-table.keep" "$TMP/cmlf-log.keep"
 is  "and this block leaves the capabilities, the table, the receipt, the log and every answer file as it found them" \
     "$(_cmlffixture)" "$_cmlffound"
-unset -f _cmlffixture _cmlfstub _cmlfrc _cmlff _cmlfsays _cmlfnz _cmlfca _cmlfefn _cmlfpres _cmlfps _cmlfans _cmlfsum _cmlfshape \
+unset -f _cmlffixture _cmlfstub _cmlfrc _cmlff _cmlfsays _cmlfnz _cmlfca _cmlfefn _cmlfpres _cmlfps _cmlfans _cmlfsum _cmlfshape _cmlfkill \
          felix_cmlf_one felix_cmlf_two
 unset _cmlfad _cmlffound _cmlfmade _cmlfrun0 _cmlfrun1 _cmlfrun2 _cmlfc3 _cmlfgone _cmlfe0 _cmlfe1 _cmlfe2 \
-      _cmlfp1 _cmlfp3 _cmlfprov _cmlftopo _cmlfpw _cmlflogt _cmlflog0 _cmlflog1 _cmlfrect _cmlfrec1 _cmlfur _cmlfalone
+      _cmlfw _cmlfi _cmlffifo _cmlfp1 _cmlfp3 _cmlfprov _cmlftopo _cmlfpw _cmlflogt _cmlflog0 _cmlflog1 _cmlfrect _cmlfrec1 _cmlfur _cmlfalone
 
 # The answer runs in-process through a runner the caller names, and the check
 # decides afterwards. The stub stands in for felix:toolbox --route.

@@ -36,7 +36,9 @@
 #   <assertion name>  <times it failed>        one row per failed name
 # and when no complete red run was made, base and run rows of `-`, so the file
 # says nothing was shown rather than keeping the previous claim: none was
-# possible, or the suite stopped before `reached`, and stdout said which.
+# possible, the suite stopped before `reached` or reached no assertion, or
+# tests/red itself was stopped, since it retracts before the run; its stdout
+# said which unless it was the one stopped.
 #
 # Lines are counted, not the summary. PASS and FAIL are incremented in the
 # suite's main shell only, and some assertions run inside subshells, so the
@@ -71,8 +73,9 @@ _header() {
   printf '#   base  <ref>  <sha>  <engine version there>\n'
   printf '#   run   <failed>  <passed>  <skipped>        lines counted, not the summary\n'
   printf '#   <assertion name>  <times it failed>        failed names only\n'
-  printf '# A base of - means no complete red run was made: none was possible, or the\n'
-  printf '# suite stopped before reached, and tests/red said which on stdout.\n'
+  printf '# A base of - means no complete red run was made: none was possible, the\n'
+  printf '# suite stopped before reached or reached no assertion, or tests/red itself\n'
+  printf '# was stopped; its stdout said which unless it was the one stopped.\n'
   printf '# Reproduce with: tests/red <ref>\n'
 }
 
@@ -171,10 +174,10 @@ cp "$HERE/run" "$TREE/engine/harness/tests/run" 2>/dev/null \
 # end. Until #371 only a run that reached no assertion was refused, and
 # a suite that died part way was written down as a clean one: on 2026-09-25 a
 # suite stopped at assertion 270 read 0 of 270 failing, and an earlier
-# record read 0 of 1320 where fork had failed at the per-user process cap, when
-# the whole suite holds some 3,700. The status is kept to name the death in the
-# refusal, and the line is read from the log itself, not through a pipe that
-# pipefail can make report a line missing when it is there.
+# record read 0 of 1320 just after fork had failed at the per-user process
+# cap, when the whole suite holds some 3,700. The status is kept to name the
+# death in the refusal, and the line is read from the log itself, not through
+# a pipe that pipefail can make report a line missing when it is there.
 LOG="$TMP/red.log"
 ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$LOG" 2>&1
 RC=$?

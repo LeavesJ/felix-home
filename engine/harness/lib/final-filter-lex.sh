@@ -12,10 +12,21 @@
 #
 # A redirection takes its target word with it and never becomes an argument,
 # so `tail 2>&1`, `tail>/dev/null` and `&>/dev/null tail` read as tail. It
-# records whether it replaces standard input (`<`, `<<<`, `<>`, `<&`, `0>`),
-# because a stage reading a file instead of its pipe can fail when the file
-# is missing. A here-document sets FFERR: its body is on lines a row cannot
-# hold, and a text this cannot read is admitted.
+# records whether it can fail by itself: one replacing standard input (`<`,
+# `<<<`, `<>`, `<&`, `0>`), because a stage reading a file instead of its
+# pipe can fail when the file is missing, and likewise one reading a file on
+# any fd, one closing an fd (`>&-`), and one duplicating an fd above 2, which
+# may not be open. A here-document sets FFERR: its body is on lines a row
+# cannot hold, and a text this cannot read is admitted. So do `&>>` and
+# `{fd}>`, which bash 3.2 cannot read or reads as a file name.
+#
+# FFVAR is set when the text expands a parameter that may be unset: under
+# nounset, which commissioning runs with, that ends the check. The names the
+# runners export, $?, $$, $# and $- are never unset, nor is ${name:-word} and
+# its kin with a default; every other name counts, and so does any parameter
+# inside $( ), backticks or arithmetic. A $'...'
+# word with a backslash escape is read as an expansion: escapes are not
+# decoded, so a command or option spelled with one is not one this can name.
 #
 # Tokens are kept per depth d, because a literal script handed to `sh -c` or
 # `eval` is lexed and parsed in turn while its caller's words are still held.
@@ -33,16 +44,29 @@ function ff_bq(s, i, n,    c) {
   while (i <= n) { c = substr(s, i, 1); if (c == "\\") { i += 2; continue }; if (c == "`") return i + 1; i++ }
   return 0
 }
-function ff_ansi(s, i, n,    c, v) {
-  v = ""
+function ff_ansi(s, i, n,    c, v, e) {
+  v = ""; e = 0
   while (i <= n) {
     c = substr(s, i, 1)
-    if (c == "\\") { v = v substr(s, i + 1, 1); i += 2; continue }
-    if (c == "\047") { FFDQV = v; FFDQY = 0; return i + 1 }
+    if (c == "\\") { v = v substr(s, i + 1, 1); e = 1; i += 2; continue }
+    if (c == "\047") { FFDQV = v; FFDQY = e; return i + 1 }
     v = v c; i++
   }
   return 0
 }
+function ff_known(nm) { return index(" FELIX_PROJECT FELIX_PROJECT_NAME FELIX_MEMORY_DIR FELIX_ROOT_DIR HOME PATH PWD ", " " nm " ") > 0 }
+# Whether the $ at i expands a parameter that may be unset.
+function ff_var(s, i,    k, t) {
+  k = substr(s, i + 1, 1)
+  if (k == "{") { t = substr(s, i + 2)
+    if (t ~ /^[A-Za-z_][A-Za-z0-9_]*:?[-=+]/) return 0
+    return !(match(t, /^[A-Za-z_][A-Za-z0-9_]*}/) && ff_known(substr(t, 1, RLENGTH - 1))) }
+  if (k ~ /[A-Za-z_]/) { t = substr(s, i + 1); match(t, /^[A-Za-z_][A-Za-z0-9_]*/); return !ff_known(substr(t, 1, RLENGTH)) }
+  return k ~ /[0-9@*!]/
+}
+function ff_vars(t,    i) { for (i = 1; i <= length(t); i++) if (substr(t, i, 1) == "$" && ff_var(t, i)) return 1; return 0 }
+# The same for a whole $( ), $(( )) or backtick text.
+function ff_cs(t) { return substr(t, 1, 3) == "$((" ? t ~ /[A-Za-z_@*!]/ : ff_vars(substr(t, 2)) }
 function ff_dq(s, i, n,    c, k, j, v, y) {
   v = ""; y = 0
   while (i <= n) {
@@ -52,11 +76,11 @@ function ff_dq(s, i, n,    c, k, j, v, y) {
       if (k == "\n") { i += 2; continue }
       if (k == "$" || k == "`" || k == "\"" || k == "\\") { v = v k; i += 2; continue }
       v = v c; i++; continue }
-    if (c == "`") { j = ff_bq(s, i + 1, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
+    if (c == "`") { j = ff_bq(s, i + 1, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; if (ff_cs(substr(s, i, j - i))) FFVAR = 1; i = j; continue }
     if (c == "$") { k = substr(s, i + 1, 1)
-      if (k == "(") { j = ff_paren(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
-      if (k == "{") { j = ff_brace(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
-      if (k != "" && index("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@*#?$!-", k)) y = 1 }
+      if (k == "(") { j = ff_paren(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; if (ff_cs(substr(s, i, j - i))) FFVAR = 1; i = j; continue }
+      if (k == "{") { j = ff_brace(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; if (ff_var(s, i) || ff_vars(substr(s, i + 2, j - i - 3))) FFVAR = 1; i = j; continue }
+      if (k != "" && index("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@*#?$!-", k)) { y = 1; if (ff_var(s, i)) FFVAR = 1 } }
     v = v c; i++
   }
   return 0
@@ -108,18 +132,18 @@ function ff_word(s, i, n,    c, k, j, v, q, y, b) {
     c = substr(s, i, 1)
     if (index(" \t\n;&|()", c)) break
     if (c == "<" || c == ">") {
-      if (i == b && substr(s, i + 1, 1) == "(") { j = ff_paren(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
+      if (i == b && substr(s, i + 1, 1) == "(") { j = ff_paren(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; if (ff_cs(substr(s, i, j - i))) FFVAR = 1; i = j; continue }
       break }
     if (c == "\\") { q = 1; if (substr(s, i + 1, 1) != "\n") v = v substr(s, i + 1, 1); i += 2; continue }
     if (c == "\047") { j = ff_sq(s, i + 1, n); if (!j) return 0; v = v substr(s, i + 1, j - i - 2); q = 1; i = j; continue }
     if (c == "\"") { j = ff_dq(s, i + 1, n); if (!j) return 0; v = v FFDQV; if (FFDQY) y = 1; q = 1; i = j; continue }
-    if (c == "`") { j = ff_bq(s, i + 1, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
+    if (c == "`") { j = ff_bq(s, i + 1, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; if (ff_cs(substr(s, i, j - i))) FFVAR = 1; i = j; continue }
     if (c == "$") { k = substr(s, i + 1, 1)
-      if (k == "\047") { j = ff_ansi(s, i + 2, n); if (!j) return 0; v = v FFDQV; q = 1; i = j; continue }
+      if (k == "\047") { j = ff_ansi(s, i + 2, n); if (!j) return 0; v = v FFDQV; if (FFDQY) y = 1; q = 1; i = j; continue }
       if (k == "\"") { j = ff_dq(s, i + 2, n); if (!j) return 0; v = v FFDQV; if (FFDQY) y = 1; q = 1; i = j; continue }
-      if (k == "(") { j = ff_paren(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
-      if (k == "{") { j = ff_brace(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; i = j; continue }
-      if (k != "" && index("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@*#?$!-", k)) y = 1 }
+      if (k == "(") { j = ff_paren(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; if (ff_cs(substr(s, i, j - i))) FFVAR = 1; i = j; continue }
+      if (k == "{") { j = ff_brace(s, i + 2, n); if (!j) return 0; v = v substr(s, i, j - i); y = 1; if (ff_var(s, i) || ff_vars(substr(s, i + 2, j - i - 3))) FFVAR = 1; i = j; continue }
+      if (k != "" && index("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@*#?$!-", k)) { y = 1; if (ff_var(s, i)) FFVAR = 1 } }
     v = v c; i++
   }
   FFWV = v; FFWQ = q; FFWY = y; FFWR = substr(s, b, i - b)
@@ -135,7 +159,7 @@ function ff_redir(s, i, n, d, t, fd,    op, st, j) {
     if (substr(s, i, 3) == "<<<") op = "<<<"
     else if (substr(s, i, 2) == "<<") { FFERR = 1; return 0 }
     else if (substr(s, i, 2) == "<>" || substr(s, i, 2) == "<&") op = substr(s, i, 2)
-    if (fd == "" || fd == "0") st = 1
+    st = 1
   } else {
     if (substr(s, i, 2) == ">>" || substr(s, i, 2) == ">|" || substr(s, i, 2) == ">&") op = substr(s, i, 2)
     if (fd == "0") st = 1
@@ -144,6 +168,7 @@ function ff_redir(s, i, n, d, t, fd,    op, st, j) {
   while (substr(s, i, 1) == " " || substr(s, i, 1) == "\t") i++
   j = ff_word(s, i, n)
   if (!j || j == i) { FFERR = 1; return 0 }
+  if (op == ">&" && (FFWY || FFWV == "-" || (FFWV ~ /^[0-9]+-?$/ && FFWV + 0 > 2))) st = 1
   ff_tok(d, t, "r", op, 0, 0, "", st)
   return j
 }
@@ -157,18 +182,19 @@ function ff_lex(s, d,    n, i, c, c2, t, j, fd) {
     if (c == "#") { while (i <= n && substr(s, i, 1) != "\n") i++; continue }
     if (substr(s, i, 3) == ";;&") { ff_tok(d, ++t, "o", ";;&"); i += 3; continue }
     if (c2 == "&&" || c2 == "||" || c2 == ";;" || c2 == ";&" || c2 == "|&") { ff_tok(d, ++t, "o", c2); i += 2; continue }
-    if (c2 == "&>") { j = (substr(s, i + 2, 1) == ">") ? 3 : 2; i += j
+    if (c2 == "&>") { if (substr(s, i + 2, 1) == ">") { FFERR = 1; return 0 }; i += 2
       while (substr(s, i, 1) == " " || substr(s, i, 1) == "\t") i++
       j = ff_word(s, i, n); if (!j || j == i) return 0
       ff_tok(d, ++t, "r", "&>", 0, 0, "", 0); i = j; continue }
     if (c == "|" || c == "&" || c == ";" || c == ")") { ff_tok(d, ++t, "o", c); i++; continue }
     if (c == "(") {
-      if (substr(s, i + 1, 1) == "(") { j = ff_arith(s, i + 2, n); if (!j) return 0; ff_tok(d, ++t, "a", "(("); i = j; continue }
+      if (substr(s, i + 1, 1) == "(") { j = ff_arith(s, i + 2, n); if (!j) return 0; if (substr(s, i, j - i) ~ /[A-Za-z_@*!]/) FFVAR = 1; ff_tok(d, ++t, "a", "(("); i = j; continue }
       ff_tok(d, ++t, "o", "("); i++; continue }
     if ((c == "<" || c == ">") && substr(s, i + 1, 1) != "(") { i = ff_redir(s, i, n, d, ++t, ""); if (!i) return 0; continue }
     j = ff_word(s, i, n); if (!j) return 0
     c = substr(s, j, 1)
     if ((c == "<" || c == ">") && substr(s, j + 1, 1) != "(" && !FFWQ && !FFWY && FFWV ~ /^([0-9]+|[{][A-Za-z_][A-Za-z0-9_]*[}])$/) {
+      if (FFWV ~ /^[{]/) { FFERR = 1; return 0 }
       fd = FFWV; i = ff_redir(s, j, n, d, ++t, fd); if (!i) return 0; continue }
     ff_tok(d, ++t, "w", FFWV, FFWQ, FFWY, FFWR, 0); i = j
   }

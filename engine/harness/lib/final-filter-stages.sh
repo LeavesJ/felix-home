@@ -4,126 +4,288 @@
 # ff_filter(name, a, b) answers for the command `name` with the arguments held
 # in FFA[FFD, a..b]. It says yes only when, with those arguments, the command
 # reads its standard input and nothing in that input can make it exit
-# non-zero. A command that reads a file operand, or whose option makes it a
-# check, can fail, so it is not a final filter and a pipeline ending in it is
-# left alone:
+# non-zero, on macOS and on GNU alike. A row runs on both: the founder's
+# machine has BSD tools and bash 3.2, CI has GNU ones. So an option either
+# platform rejects, a value it rejects, or a file operand makes the answer no,
+# and a pipeline ending there is left alone. Measured on macOS 26 against the
+# GNU manuals:
 #
-#   cat, tac, head, tail, sort, wc, cut, paste, nl, fold, rev, column,
-#   expand, unexpand   an input file operand makes each of them a reader of
-#                      that file. `-` is standard input for cat, paste, sort,
-#                      cut and nl on macOS as on GNU; macOS head, tail, wc,
-#                      fold, rev, column and expand open a file named "-".
-#   sort               -c, -C and --check fail on unsorted input.
+#   cat, head, tail, sort, wc, cut, paste, nl, fold, rev, expand, unexpand
+#                      read standard input only. `-` is standard input for
+#                      cat, paste, sort, cut and nl on both; macOS head, tail,
+#                      wc, fold, rev and expand open a file named "-". macOS
+#                      takes no long option but head's, tail's and sort's.
+#   head               -n and -c from 1, -NUM from 1: macOS refuses 0.
+#   tail               -n, -c and -NUM, signed.
+#   sort               -c, -C and --check fail on unsorted input; -k must
+#                      start at field 1 and character 1 or later; -t is one
+#                      character.
 #   uniq               no operand, or `-` and then its output file.
-#   tee                always: its operands are its outputs.
+#   cut                one of -b, -c, -f, with a list from 1; -d is one
+#                      character, and -d and -s only with -f.
+#   paste              macOS needs an operand, so `-`.
+#   nl, fold, expand   their values as both read them: a width from 1, tab
+#                      stops ascending from 1, a numbering type a, t, n or p.
+#   tee                its operands are its outputs, and a process
+#                      substitution among them can close early, so only
+#                      literal names.
 #   tr                 its operands are sets, and it takes two, or one with
 #                      -d or -s; any other count is a usage error, which
 #                      fails every time.
-#   sed                only with a script in view (the first operand, or -e),
-#                      no -f, no -i, no file operand, and no q or Q followed
-#                      by an exit code, which GNU sed returns on a match.
-#   awk                only with a program in view, no operand but `-` and
-#                      assignments, and nothing in the program that is
-#                      fatal on some input: exit, printf, a division or
-#                      modulo (by zero), a computed field `$(`, a field named
-#                      by a variable, a `~` against anything but a regex
-#                      literal, getline, system, close, split, sub, gsub,
-#                      match, and any `<`, `>` or `|` inside an action, which
-#                      is a redirection as often as a comparison.
-#   xargs              only with -0 or -d, running echo or true or nothing:
-#                      without them it fails on an unmatched quote in its
-#                      input.
+#   sed                a script in view (the first operand, or -e), options
+#                      -n -E -r -u only, and commands both seds take: p d =
+#                      n N P D h H g G x, q without an exit code (GNU returns
+#                      one on a match), s with its three delimiters and flags
+#                      g p I or a number, y. Brackets and groups balance, and
+#                      no back-reference names a group that is not there.
+#   awk                a program in view, no operand but `-` and
+#                      assignments, and nothing in it that is fatal on some
+#                      input: exit, printf, a division or modulo (by zero), a
+#                      computed field `$(`, a field named by a variable, a `~`
+#                      against anything but a regex literal, NF assigned, ARGV
+#                      or ARGC, getline, system, close, split, sub, gsub,
+#                      match, a call to anything but length, substr, index,
+#                      tolower, toupper, int and the arithmetic functions, and
+#                      any `<`, `>` or `|` inside an action, which is a
+#                      redirection as often as a comparison.
 #   true, :, echo      always.
 #
-# An unknown option, long or short, makes the answer no. Some filters also
-# fail for reasons that are not the command feeding them: an output file that
-# cannot be opened, a byte BSD cut, tr, sed or sort rejects in a UTF-8 locale,
-# a GNU-only option on macOS. Those failures say nothing about the work before
-# the pipe, and the stage still counts.
+# Left out, measured: tac (not on macOS); column (macOS fails on a line past
+# about 2 KB); xargs (fails past an argument-size limit, and BSD has no -d).
+#
+# An option's value that is an expansion makes the answer no: empty or unset,
+# it is a usage error. Some filters still fail for reasons that are not the
+# command feeding them: an output file that cannot be opened, a byte BSD cut,
+# tr, sed or sort rejects in a UTF-8 locale, a regular expression or tr set
+# the platform rejects. Those say nothing about the work before the pipe, and
+# the stage still counts.
 
 FELIX_FINAL_FILTER_STAGES='
-# Options of a filter: arg are letters taking an argument, ok the letters
-# allowed (* for any), bad the letters that make it a check; lok and larg the
-# long options allowed, larg those taking an argument. opok 1 when operands
-# are not files, dash 1 when an operand of - is standard input.
-function ff_opts(a, b, arg, ok, bad, lok, larg, opok, dash,    j, v, k, c, nm) {
-  FFON = 0
+# The index of the word bash runs, past the wrappers that run the rest, with
+# its name in FFNAME; 0 when no name can be told. A relative path is a
+# project script, whatever it is called. FFEXEC is set when exec runs it.
+function ff_prefix(nw,    i, v, b) {
+  i = 1
+  while (i <= nw) {
+    if (FFAY[FFD, i]) return 0
+    v = FFA[FFD, i]; b = v
+    if (b ~ /^\//) sub(/.*\//, "", b); else if (index(b, "/")) return 0
+    if (b == "command") { i++
+      while (i <= nw && FFA[FFD, i] ~ /^-/) { if (FFA[FFD, i] == "--") { i++; break }; if (FFA[FFD, i] ~ /[vV]/) return 0; i++ }
+      continue }
+    if (b == "builtin") { i++; if (i > nw || FFA[FFD, i] !~ /^(echo|true|:|exit|eval|set|false)$/) return 0; continue }
+    if (b == "nohup") { i++; if (i <= nw && FFA[FFD, i] == "--") i++; continue }
+    if (b == "exec") { i++; FFEXEC = 1
+      while (i <= nw && FFA[FFD, i] ~ /^-/) { if (FFA[FFD, i] == "--") { i++; break }; if (FFA[FFD, i] ~ /a$/) i++; i++ }
+      continue }
+    if (b == "nice" || b == "stdbuf") { i++
+      while (i <= nw && FFA[FFD, i] ~ /^-/) { if (FFA[FFD, i] == "--") { i++; break }; if (FFA[FFD, i] ~ /^-[nioe]$/) i++; i++ }
+      continue }
+    if (b == "time") { i++; while (i <= nw && FFA[FFD, i] ~ /^-[pl]+$/) i++; continue }
+    if (b == "env") { i++
+      while (i <= nw) {
+        v = FFA[FFD, i]; if (FFAY[FFD, i]) return 0
+        if (v == "--") { i++; break }
+        if (v == "-" || v == "-i" || v == "--ignore-environment") { i++; continue }
+        if (v == "-u" || v == "--unset") { i += 2; continue }
+        if (v ~ /^(-u.|--unset=)/) { i++; continue }
+        if (v ~ /^-/) return 0
+        if (v ~ /^(PATH|SHELLOPTS|BASHOPTS|BASH_ENV)=/) return 0
+        if (v ~ /^[A-Za-z_][A-Za-z0-9_]*=/) { i++; continue }
+        break }
+      continue }
+    FFNAME = b; return i
+  }
+  return 0
+}
+# Options of a filter: arg are letters taking a value, ok the letters allowed,
+# bad the letters that make it a check; lok and larg the long options allowed,
+# larg those taking a value. opok 1 when operands are not files, dash 1 when an
+# operand of - is standard input. Every value is kept, in order, in FFAL (the
+# letter or long name) and FFAV; FFSEEN holds the letters and <names> seen.
+function ff_opts(a, b, arg, ok, bad, lok, larg, opok, dash,    j, v, k, c, nm, val) {
+  FFON = 0; FFAN = 0; FFSEEN = ""
   for (j = a; j <= b; j++) {
     v = FFA[FFD, j]
-    if (v == "--") { for (j++; j <= b; j++) { FFO[++FFON] = FFA[FFD, j]; if (!opok && !(dash && FFA[FFD, j] == "-" && !FFAY[FFD, j])) return 0 }; return 1 }
-    if (v == "-" || v !~ /^-/ || (FFAY[FFD, j] && FFAR[FFD, j] !~ /^-/)) {
-      FFO[++FFON] = v; if (!opok && !(dash && v == "-" && !FFAY[FFD, j])) return 0; continue }
+    if (v == "--") { for (j++; j <= b; j++) if (!ff_operand(j, opok, dash)) return 0; return 1 }
+    if (v == "-" || v !~ /^-/ || (FFAY[FFD, j] && FFAR[FFD, j] !~ /^-/)) { if (!ff_operand(j, opok, dash)) return 0; continue }
+    if (FFAY[FFD, j]) return 0
     if (v ~ /^--/) { nm = substr(v, 3); sub(/=.*/, "", nm)
-      if (index(lok, " " nm " ")) continue
+      if (index(lok, " " nm " ") && !index(v, "=")) { FFSEEN = FFSEEN "<" nm ">"; continue }
       if (!index(larg, " " nm " ")) return 0
-      if (!index(v, "=")) j++
-      continue }
+      if (index(v, "=")) val = substr(v, index(v, "=") + 1)
+      else { if (++j > b || FFAY[FFD, j]) return 0; val = FFA[FFD, j] }
+      FFAL[++FFAN] = nm; FFAV[FFAN] = val; FFSEEN = FFSEEN "<" nm ">"; continue }
     for (k = 2; k <= length(v); k++) {
       c = substr(v, k, 1)
       if (index(bad, c)) return 0
-      if (index(arg, c)) { if (k == length(v)) j++; break }
-      if (ok != "*" && !index(ok, c)) return 0
+      if (index(arg, c)) {
+        if (k < length(v)) val = substr(v, k + 1)
+        else { if (++j > b || FFAY[FFD, j]) return 0; val = FFA[FFD, j] }
+        FFAL[++FFAN] = c; FFAV[FFAN] = val; FFSEEN = FFSEEN c; break }
+      if (!index(ok, c)) return 0
+      FFSEEN = FFSEEN c
     }
   }
   return 1
 }
-function ff_filter(nm, a, b) {
-  if (nm == "true" || nm == ":" || nm == "echo") return 1
-  if (nm == "cat") return ff_opts(a, b, "", "benstuv", "", " number number-nonblank squeeze-blank show-nonprinting ", "", 0, 1)
-  if (nm == "tac") return ff_opts(a, b, "s", "br", "", " before regex ", " separator ", 0, 0)
-  if (nm == "head") return ff_opts(a, b, "nc", "*", "", " quiet silent verbose zero-terminated ", " lines bytes ", 0, 0)
-  if (nm == "tail") return ff_opts(a, b, "ncbs", "*", "", " quiet silent verbose zero-terminated follow retry ", " lines bytes sleep-interval pid max-unchanged-stats ", 0, 0)
-  if (nm == "tee") return ff_opts(a, b, "", "aip", "", " append ignore-interrupts output-error ", "", 1, 1)
-  if (nm == "sort") return ff_opts(a, b, "kotTS", "*", "cC", " ignore-leading-blanks dictionary-order ignore-case general-numeric-sort ignore-nonprinting month-sort human-numeric-sort numeric-sort random-sort reverse version-sort merge stable unique zero-terminated debug sort ", " key output field-separator temporary-directory buffer-size parallel random-source compress-program batch-size ", 0, 1)
-  if (nm == "uniq") return ff_opts(a, b, "fsw", "*", "", " count repeated all-repeated group ignore-case unique zero-terminated ", " skip-fields skip-chars check-chars ", 1, 0) && (FFON == 0 || (FFON <= 2 && FFO[1] == "-"))
-  if (nm == "wc") return ff_opts(a, b, "", "clmwL", "", " bytes chars lines words max-line-length ", "", 0, 0)
-  if (nm == "tr") return ff_tr(a, b)
-  if (nm == "cut") return ff_opts(a, b, "bcfd", "nsz", "", " complement only-delimited zero-terminated ", " bytes characters fields delimiter output-delimiter ", 0, 1)
-  if (nm == "paste") return ff_opts(a, b, "d", "sz", "", " serial zero-terminated ", " delimiters ", 0, 1)
-  if (nm == "nl") return ff_opts(a, b, "bdfhilnsvw", "p", "", " no-renumber ", " body-numbering section-delimiter footer-numbering header-numbering line-increment join-blank-lines number-format number-separator starting-line-number number-width ", 0, 1)
-  if (nm == "fold") return ff_opts(a, b, "w", "bs", "", " bytes spaces ", " width ", 0, 0)
-  if (nm == "rev") return ff_opts(a, b, "", "", "", "", "", 0, 0)
-  if (nm == "column") return ff_opts(a, b, "cs", "tx", "", " table ", " separator columns ", 0, 0)
-  if (nm == "expand" || nm == "unexpand") return ff_opts(a, b, "t", "ai", "", " initial first-only all ", " tabs ", 0, 0)
-  if (nm == "sed") return ff_sed(a, b)
-  if (nm ~ /^(awk|gawk|mawk|nawk)$/) return ff_awk(a, b)
-  if (nm == "xargs") return ff_xargs(a, b)
+function ff_operand(j, opok, dash) {
+  FFO[++FFON] = FFA[FFD, j]; FFOY[FFON] = FFAY[FFD, j]
+  return opok || (dash && FFA[FFD, j] == "-" && !FFAY[FFD, j])
+}
+# Whether every value given for one of the letters or names in `which` matches
+# re. `which` is a list like " n lines ".
+function ff_vals(which, re,    i) {
+  for (i = 1; i <= FFAN; i++) if (index(which, " " FFAL[i] " ") && FFAV[i] !~ re) return 0
+  return 1
+}
+function ff_has(which,    i) {
+  for (i = 1; i <= FFAN; i++) if (index(which, " " FFAL[i] " ")) return 1
   return 0
 }
-function ff_tr(a, b,    j, v, d, s) {
-  if (!ff_opts(a, b, "", "cCdst", "", " complement delete squeeze-repeats truncate-set1 ", "", 1, 1)) return 0
-  d = 0; s = 0
+# -NUM, the old count both head and tail take: from 1 for head.
+function ff_oldnum(a, b, min,    j, v) {
   for (j = a; j <= b; j++) { v = FFA[FFD, j]; if (v == "--") break
-    if (v ~ /^-[cCdst]+$/) { if (index(v, "d")) d = 1; if (index(v, "s")) s = 1 }
-    else if (v == "--delete") d = 1; else if (v == "--squeeze-repeats") s = 1 }
+    if (v ~ /^-[0-9]+$/ && substr(v, 2) + 0 < min) return 0 }
+  return 1
+}
+function ff_filter(nm, a, b,    i, v, p) {
+  if (nm == "true" || nm == ":" || nm == "echo") return 1
+  if (nm == "cat") return ff_opts(a, b, "", "benstuv", "", "", "", 0, 1)
+  if (nm == "head") return ff_opts(a, b, "nc", "0123456789", "", "", " lines bytes ", 0, 0) \
+    && ff_vals(" n c lines bytes ", "^[1-9][0-9]*$") && !(ff_has(" n lines ") && ff_has(" c bytes ")) && ff_oldnum(a, b, 1)
+  if (nm == "tail") return ff_opts(a, b, "nc", "0123456789", "", "", " lines bytes ", 0, 0) \
+    && ff_vals(" n c lines bytes ", "^[-+]?[0-9]+$") && !(ff_has(" n lines ") && ff_has(" c bytes "))
+  if (nm == "tee") { if (!ff_opts(a, b, "", "ai", "", "", "", 1, 1)) return 0
+    for (i = 1; i <= FFON; i++) if (FFOY[i]) return 0
+    return 1 }
+  if (nm == "sort") return ff_opts(a, b, "kotTS", "bdfghiMnrRsuVzm", "cC", " ignore-leading-blanks dictionary-order ignore-case general-numeric-sort ignore-nonprinting month-sort human-numeric-sort numeric-sort random-sort reverse version-sort merge stable unique zero-terminated ", " key output field-separator temporary-directory buffer-size ", 0, 1) \
+    && ff_vals(" k key ", "^[1-9][0-9]*(\\.[1-9][0-9]*)?[bdfgiMhnRrV]*(,[1-9][0-9]*(\\.[0-9]+)?[bdfgiMhnRrV]*)?$") \
+    && ff_vals(" t field-separator ", "^.$") && ff_vals(" S buffer-size ", "^[0-9]+[%bKMGT]?$")
+  if (nm == "uniq") return ff_opts(a, b, "fs", "cdiuD", "", "", "", 1, 0) && ff_vals(" f s ", "^[0-9]+$") \
+    && (FFON == 0 || (FFON <= 2 && FFO[1] == "-" && !FFOY[1] && !FFOY[FFON]))
+  if (nm == "wc") return ff_opts(a, b, "", "clmwL", "", "", "", 0, 0)
+  if (nm == "tr") return ff_tr(a, b)
+  if (nm == "cut") return ff_cut(a, b)
+  if (nm == "paste") { if (!ff_opts(a, b, "d", "s", "", "", "", 0, 1) || !ff_vals(" d ", ".")) return 0
+    return FFON >= 1 }
+  if (nm == "nl") return ff_opts(a, b, "bdfhilnsvw", "p", "", "", "", 0, 1) && ff_vals(" b f h ", "^(a|t|n|p.+)$") \
+    && ff_vals(" i l v ", "^[0-9]+$") && ff_vals(" w ", "^[1-9][0-9]*$") && ff_vals(" n ", "^(ln|rn|rz)$") && ff_vals(" d ", "^..?$")
+  if (nm == "fold") return ff_opts(a, b, "w", "bs", "", "", "", 0, 0) && ff_vals(" w ", "^[1-9][0-9]*$")
+  if (nm == "rev") return ff_opts(a, b, "", "", "", "", "", 0, 0)
+  if (nm == "expand" || nm == "unexpand") {
+    if (!ff_opts(a, b, "t", nm == "unexpand" ? "a" : "", "", "", "", 0, 0)) return 0
+    for (i = 1; i <= FFAN; i++) { v = FFAV[i]; p = 0
+      if (v !~ /^[1-9][0-9]*([, ][1-9][0-9]*)*$/) return 0
+      while (match(v, /^[0-9]+/)) { if (substr(v, 1, RLENGTH) + 0 <= p) return 0; p = substr(v, 1, RLENGTH) + 0; v = substr(v, RLENGTH + 2) } }
+    return 1 }
+  if (nm == "sed") return ff_sed(a, b)
+  if (nm ~ /^(awk|gawk|mawk|nawk)$/) return ff_awk(a, b)
+  return 0
+}
+function ff_tr(a, b,    d, s) {
+  if (!ff_opts(a, b, "", "cCds", "", "", "", 1, 1)) return 0
+  d = index(FFSEEN, "d") > 0; s = index(FFSEEN, "s") > 0
   return FFON == 2 ? (!d || s) : (FFON == 1 && (d != s))
 }
-function ff_sed(a, b,    j, v, k, c, sc, got, nm, opn) {
-  sc = ""; got = 0; opn = 0
+function ff_cut(a, b,    n, l) {
+  if (!ff_opts(a, b, "bcfd", "ns", "", "", "", 0, 1)) return 0
+  n = ff_has(" b ") + ff_has(" c ") + ff_has(" f ")
+  if (n != 1) return 0
+  l = "^([1-9][0-9]*(-([1-9][0-9]*)?)?|-[1-9][0-9]*)(,([1-9][0-9]*(-([1-9][0-9]*)?)?|-[1-9][0-9]*))*$"
+  if (!ff_vals(" b c f ", l) || !ff_vals(" d ", "^.$")) return 0
+  return ff_has(" f ") || (!ff_has(" d ") && !index(FFSEEN, "s"))
+}
+function ff_sed(a, b,    j, v, k, c, sc, got, opn, ere) {
+  sc = ""; got = 0; opn = 0; ere = 0
   for (j = a; j <= b; j++) {
     v = FFA[FFD, j]
     if (opn || v == "-" || v !~ /^-/ || (FFAY[FFD, j] && FFAR[FFD, j] !~ /^-/)) {
       if (!got) { if (FFAY[FFD, j]) return 0; sc = v; got = 1; continue }
       return 0 }
     if (v == "--") { opn = 1; continue }
-    if (v ~ /^--/) { nm = substr(v, 3); sub(/=.*/, "", nm)
-      if (nm == "expression") {
-        if (index(v, "=")) v = substr(v, index(v, "=") + 1)
-        else { if (++j > b || FFAY[FFD, j]) return 0; v = FFA[FFD, j] }
-        sc = sc "\n" v; got = 1; continue }
-      if (index(" quiet silent regexp-extended null-data zero-terminated separate unbuffered posix debug sandbox ", " " nm " ")) continue
-      return 0 }
+    if (FFAY[FFD, j] || v ~ /^--/) return 0
     for (k = 2; k <= length(v); k++) {
       c = substr(v, k, 1)
-      if (c == "e" || c == "l") {
+      if (c == "e") {
         if (k < length(v)) v = substr(v, k + 1); else { if (++j > b || FFAY[FFD, j]) return 0; v = FFA[FFD, j] }
-        if (c == "e") { sc = sc "\n" v; got = 1 }
+        sc = sc (sc == "" ? "" : "\n") v; got = 1
         break }
-      if (!index("nErsuz", c)) return 0
+      if (c == "E" || c == "r") ere = 1
+      else if (c != "n" && c != "u") return 0
     }
   }
-  if (!got || sc ~ /[qQ][ \t]*[0-9]/) return 0
+  return got && ff_sedok(sc, ere)
+}
+# A script both seds take, as the stage list above names it.
+function ff_sedok(s, ere,    n, i, c, d, p, re, rep, g) {
+  n = length(s); i = 1
+  while (i <= n) {
+    c = substr(s, i, 1)
+    if (index(" \t\n;", c)) { i++; continue }
+    if (!(i = ff_sedaddr(s, i, ere))) return 0
+    if (substr(s, i, 1) == ",") { if (!(i = ff_sedaddr(s, i + 1, ere)) || i == FFSA) return 0 }
+    while (substr(s, i, 1) ~ /[ \t]/) i++
+    if (substr(s, i, 1) == "!") { i++; while (substr(s, i, 1) ~ /[ \t]/) i++ }
+    c = substr(s, i, 1); i++
+    if (c == "s" || c == "y") {
+      d = substr(s, i, 1); if (d == "" || d == "\\" || d == "\n") return 0
+      if (!(p = ff_seddelim(s, i + 1, d))) return 0
+      re = substr(s, i + 1, p - i - 1); i = p
+      if (!(p = ff_seddelim(s, i + 1, d))) return 0
+      rep = substr(s, i + 1, p - i - 1); i = p + 1
+      if (c == "y" && (index(re rep, "\\") || length(re) != length(rep))) return 0
+      if (c == "s") {
+        if (!ff_reok(re, ere)) return 0
+        g = FFGRP
+        while (match(rep, /\\[0-9]/)) { if (substr(rep, RSTART + 1, 1) + 0 > g) return 0; rep = substr(rep, RSTART + 2) }
+        while (substr(s, i, 1) ~ /[gpI0-9]/) i++ }
+    } else if (!index("pd=nNPDhHgGxq", c) || c == "") return 0
+    while (substr(s, i, 1) ~ /[ \t]/) i++
+    if (i <= n && !index(";\n", substr(s, i, 1))) return 0
+  }
   return 1
+}
+function ff_sedaddr(s, i, ere,    p) {
+  FFSA = i
+  if (substr(s, i, 1) == "$") return i + 1
+  if (substr(s, i) ~ /^[0-9]/) { p = i; while (substr(s, i, 1) ~ /[0-9]/) i++; return substr(s, p, i - p) + 0 ? i : 0 }
+  if (substr(s, i, 1) == "/") {
+    if (!(p = ff_seddelim(s, i + 1, "/")) || !ff_reok(substr(s, i + 1, p - i - 1), ere)) return 0
+    return p + 1 }
+  return i
+}
+# The index of the next unescaped d from i, outside a bracket expression.
+function ff_seddelim(s, i, d,    n, c) {
+  n = length(s)
+  while (i <= n) {
+    c = substr(s, i, 1)
+    if (c == "\\") { i += 2; continue }
+    if (c == "\n") return 0
+    if (c == d) return i
+    i++
+  }
+  return 0
+}
+# Brackets close and groups balance; FFGRP is the number of groups. An empty
+# alternative in an extended expression is refused by BSD.
+function ff_reok(r, ere,    n, i, c, dep) {
+  n = length(r); dep = 0; FFGRP = 0
+  if (ere && (r ~ /^\|/ || r ~ /\|$/ || r ~ /\(\||\|\)|\|\|/)) return 0
+  for (i = 1; i <= n; i++) {
+    c = substr(r, i, 1)
+    if (c == "[") {
+      i++; if (substr(r, i, 1) == "^") i++
+      if (substr(r, i, 1) == "]") i++
+      while (i <= n && substr(r, i, 1) != "]") { if (substr(r, i, 2) ~ /^\[[:.=]/) { c = substr(r, i + 1, 1); i += 2; while (i <= n && substr(r, i, 2) != c "]") i++; i++ }; i++ }
+      if (i > n) return 0
+      continue }
+    if (c == "\\") { c = substr(r, ++i, 1)
+      if (!ere && c == "(") { dep++; FFGRP++ } else if (!ere && c == ")") { if (--dep < 0) return 0 }
+      continue }
+    if (ere && c == "(") { dep++; FFGRP++ } else if (ere && c == ")") { if (--dep < 0) return 0 }
+  }
+  return dep == 0
 }
 function ff_awk(a, b,    j, v, p, got) {
   got = 0
@@ -142,7 +304,7 @@ function ff_awk(a, b,    j, v, p, got) {
 }
 # A slash after one of ( , { } ; ~ ! & | ? : or at the start is a regex
 # literal; anywhere else it is read as division, which admits.
-function ff_awkprog(p,    n, i, c, prev, t, d) {
+function ff_awkprog(p,    n, i, c, prev, t, d, f) {
   n = length(p); prev = ""; t = ""; d = 0
   for (i = 1; i <= n; i++) {
     c = substr(p, i, 1)
@@ -168,33 +330,12 @@ function ff_awkprog(p,    n, i, c, prev, t, d) {
     if (c ~ /[0-9]/ || (substr(t, i + 1, 2) == "NF" && substr(t, i + 3, 1) !~ /[A-Za-z0-9_]/)) continue
     return 0 }
   if (t ~ /~[ \t]*([^ \tR]|$)/) return 0
-  return t !~ /(^|[^A-Za-z0-9_])(exit|printf|sprintf|getline|system|close|split|sub|gsub|match)([^A-Za-z0-9_]|$)/
-}
-function ff_xargs(a, b,    j, v, k, c, sep, nm) {
-  sep = 0
-  for (j = a; j <= b; j++) {
-    v = FFA[FFD, j]
-    if (v == "--") { j++; break }
-    if (v !~ /^-/ || v == "-" || (FFAY[FFD, j] && FFAR[FFD, j] !~ /^-/)) break
-    if (v ~ /^--/) { nm = substr(v, 3); sub(/=.*/, "", nm)
-      if (nm == "null") { sep = 1; continue }
-      if (nm == "delimiter") { sep = 1; if (!index(v, "=")) j++; continue }
-      if (index(" no-run-if-empty verbose ", " " nm " ")) continue
-      if (index(" max-args max-procs max-chars max-lines replace eof ", " " nm " ")) { if (!index(v, "=")) j++; continue }
-      return 0 }
-    for (k = 2; k <= length(v); k++) {
-      c = substr(v, k, 1)
-      if (c == "0") { sep = 1; continue }
-      if (c == "r" || c == "t") continue
-      if (c == "d") { sep = 1; if (k == length(v)) j++; break }
-      if (index("nPsLIJRSE", c)) { if (k == length(v)) j++; break }
-      return 0
-    }
-  }
-  if (!sep) return 0
-  if (j > b) return 1
-  if (FFAY[FFD, j]) return 0
-  v = FFA[FFD, j]; sub(/^\/.*\//, "", v)
-  return v == "echo" || v == "true"
+  if (t ~ /(^|[^A-Za-z0-9_$])NF[ \t]*([-+*\/^]?=([^=]|$)|\+\+|--)/ || t ~ /(\+\+|--)[ \t]*NF([^A-Za-z0-9_]|$)/) return 0
+  f = t
+  while (match(f, /[A-Za-z_][A-Za-z0-9_]*[ \t]*\(/)) {
+    c = substr(f, RSTART, RLENGTH); sub(/[ \t]*\($/, "", c)
+    if (!index(" length substr index tolower toupper int sqrt exp log sin cos atan2 rand srand if while for print return in ", " " c " ")) return 0
+    f = substr(f, RSTART + RLENGTH) }
+  return t !~ /(^|[^A-Za-z0-9_])(exit|printf|sprintf|getline|system|close|split|sub|gsub|match|function|func|ARGV|ARGC)([^A-Za-z0-9_]|$)/
 }
 '

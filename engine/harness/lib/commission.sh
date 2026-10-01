@@ -15,12 +15,16 @@
 # state this table exists to make reachable: an instrument that is not
 # installed here, a `when` or check whose command does not exist, a `when`
 # that answers neither yes nor no, an engine function a check names that this
-# process has not loaded, or a checkout that cannot be entered. It blocks the
-# receipt and nothing can demote it but the machine changing. `malformed`
-# counts toward nothing and fails the run.
+# process has not loaded, a checkout that cannot be entered, or a lookup the
+# state is read from that could not be made: the declared capabilities, or the
+# engine functions a check names. It blocks the receipt and nothing can
+# demote it but the machine changing. `malformed` counts toward nothing and
+# fails the run.
 # A row whose answer is a provider — a skill a session's model runs — is a
 # separate class by construction: it is `awaiting` until a file it cannot
-# write appears, it holds nothing, and it never reaches the receipt.
+# write appears, it holds nothing, and awaiting, stale or partial it never
+# reaches the receipt. An answer whose rows could not be counted is `unknown`
+# like any row, and blocks it.
 #
 # The install policy is not here. Answers call the commands that already
 # hold it (stack apply --yes, ready --fix, discover --adopt) and this file
@@ -135,20 +139,25 @@ EOF
 # swallowed by the test around it — `[ -z "$(felix_gone)" ]` is true — so the
 # exit status alone cannot say the question was never asked.
 #
-# Read line by line rather than word-split: this runs inside command
-# substitutions whose caller may have IFS set to a tab for a `read`, and a
-# `for w in $(…)` there sees every name as one word, fails on it, and prints
-# a multi-line "missing" that the caller's read then truncates. Measured.
+# 0 when every name is loaded, 1 printing the first that is not, and 2 when
+# the names could not be read from the text at all. Until 2026-10-01 a grep
+# that failed was swallowed by the `|| true` that keeps a check naming no
+# function (grep's 1) from reading missing, so a failed fork read "names
+# none" and a check over a function that is not loaded ran and read done.
+# Now the substitution says from grep's status whether the names were read,
+# the same with pipefail on or off, and they are walked with no further fork.
+#
+# IFS is set here because this runs inside command substitutions whose caller
+# may have IFS set to a tab for a `read`, and a `for w in $(…)` there sees
+# every name as one word, fails on it, and prints a multi-line "missing" that
+# the caller's read then truncates. Measured.
 _felix_commission_functions_present() {
-  local w
-  # `|| true`: a check naming no engine function makes grep exit 1, and under
-  # pipefail that read as "function '' is missing" — every plain check was
-  # unknown. The only status that matters is the loop's.
-  { printf '%s' "$1" | grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)' || true; } | LC_ALL=C sort -u \
-    | while IFS= read -r w; do
-        [ -n "$w" ] || continue
-        command -v "$w" >/dev/null 2>&1 || { printf '%s' "$w"; exit 1; }
-      done
+  local names w IFS=$' \t\n'
+  names="$(printf '%s' "$1" | grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)'; [ "$?" -le 1 ])" || return 2
+  for w in $names; do
+    command -v "$w" >/dev/null 2>&1 || { printf '%s' "$w"; return 1; }
+  done
+  return 0
 }
 
 # One commissioning run at a time, per project.
@@ -301,8 +310,15 @@ felix_commission_ask() {
 felix_commission_state() {
   local proj="$1" root="$2" need="$3" grounds="$4" instrument="$5" when="$6" answer="$7" check="$8"
   local rc how prov="-" missing
-  if [ "$grounds" != "-" ] && ! _felix_cap_active "$grounds" "$proj"; then
-    printf 'not-applicable\tcapability %s is not active here\t-\n' "$grounds"; return 0
+  # Only a list that was read can say a capability is not active. One that
+  # could not be read is unknown, never not-applicable (2026-10-01).
+  if [ "$grounds" != "-" ]; then
+    _felix_cap_active "$grounds" "$proj"; rc=$?
+    case "$rc" in
+      0) ;;
+      1) printf 'not-applicable\tcapability %s is not active here\t-\n' "$grounds"; return 0 ;;
+      *) printf 'unknown\tthe capabilities this project declares could not be read, so whether %s is active here is not known\t-\n' "$grounds"; return 0 ;;
+    esac
   fi
   if [ "$instrument" != "-" ]; then
     if ! ( cd "$root" 2>/dev/null && command -v "$instrument" >/dev/null 2>&1 ); then
@@ -310,8 +326,13 @@ felix_commission_state() {
     fi
     prov="$(felix_probe_source "$root" "$instrument")"
   fi
-  if [ "$check" != "-" ] && ! missing="$(_felix_commission_functions_present "$check")"; then
-    printf 'unknown\tthe engine function %s is not loaded here, so the check could not be asked\t%s\n' "$missing" "$prov"; return 0
+  if [ "$check" != "-" ]; then
+    missing="$(_felix_commission_functions_present "$check")"; rc=$?
+    if [ "$rc" -eq 1 ] && [ -n "$missing" ]; then
+      printf 'unknown\tthe engine function %s is not loaded here, so the check could not be asked\t%s\n' "$missing" "$prov"; return 0
+    elif [ "$rc" -ne 0 ]; then
+      printf 'unknown\tthe engine functions the check names could not be read from it, so whether they are loaded here is not known\t%s\n' "$prov"; return 0
+    fi
   fi
   # A `when` says no by returning 1, and nothing else skips the row: anything
   # else is unknown, as a probe's `when` and an obligation's `applies` are.
@@ -339,8 +360,8 @@ felix_commission_state() {
   case "$answer" in
     provider:*)
       # The provider library decides from the answer file alone — awaiting,
-      # stale, partial or answered — and is loaded by the command and the
-      # hook. Sourced alone, this file still knows the row is a provider's.
+      # stale, partial, answered or unknown — and is loaded by the command and
+      # the hook. Sourced alone, this file still knows the row is a provider's.
       if command -v felix_commission_provider_state >/dev/null 2>&1; then
         local pst pdetail pline
         # Captured before the tab-split read, as in felix_commission_run: inside

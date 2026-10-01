@@ -139,7 +139,11 @@ felix_commission_request() {
 }
 
 # The shape of an answer, decided from the file alone.
-# Prints: state <TAB> detail. States: awaiting, stale, partial, answered.
+# Prints: state <TAB> detail. States: awaiting, stale, partial, answered, and
+# unknown when the rows could not be counted. Until 2026-10-01 an empty count,
+# as a fork that fails inside its substitution leaves, made the comparison
+# with the done line error, which is false, and the answer read answered,
+# whole or not, which is the state every ingestion reads.
 felix_commission_provider_state() {
   local proj="$1" root="$2" need="$3" f first last n rows
   f="$(felix_commission_answer_path "$proj" "$need")"
@@ -154,6 +158,7 @@ felix_commission_provider_state() {
   rows="$(grep -vE '^[[:space:]]*(#|$)' "$f" | grep -vc $'^done\t')"
   n="$(printf '%s' "$last" | awk -F'\t' '$1 == "done" && NF == 2 { print $2 }')"
   case "$n" in ''|*[!0-9]*) printf 'partial\tthe answer at %s has no terminal done row, so the skill did not finish\n' "$f"; return 0 ;; esac
+  case "$rows" in ''|*[!0-9]*) printf 'unknown\tthe rows of the answer at %s could not be counted, so whether it is whole is not known\n' "$f"; return 0 ;; esac
   if [ "$n" -ne "$rows" ]; then
     printf 'partial\tthe answer at %s says done %s and holds %s rows\n' "$f" "$n" "$rows"; return 0
   fi

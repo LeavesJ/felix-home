@@ -103,10 +103,17 @@ felix_detect() {
 }
 
 # Capabilities a project has declared it knows about, one per line.
+#
+# 0 when there is no file or it was read, whether or not it holds a line, and
+# 2 when the file is there and could not be read. Until 2026-10-01 a file of
+# only comments returned grep's 1, so a caller asking the status, as
+# _felix_cap_active now does, read a list that holds none as one that failed.
 felix_declared() {
-  local proj="$1"
+  local proj="$1" rc
   [ -f "$proj/capabilities" ] || return 0
-  grep -vE '^\s*(#|$)' "$proj/capabilities" 2>/dev/null
+  grep -vE '^\s*(#|$)' "$proj/capabilities" 2>/dev/null; rc=$?
+  [ "$rc" -le 1 ] || return 2
+  return 0
 }
 
 # Present in the checkout but never declared. This is the drift worth surfacing.

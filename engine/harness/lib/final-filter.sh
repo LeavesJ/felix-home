@@ -48,9 +48,10 @@
 #
 # Admitted whenever this cannot be sure:
 #   - a word anywhere, however quoted, names pipefail, PATH, SHELLOPTS,
-#     BASHOPTS, BASH_ENV, BASH_CMDS or a kill, which can end the shell from
-#     any process the text starts;
-#   - it sets an option spelled with quotes or an expansion;
+#     BASHOPTS, BASH_ENV, BASH_CMDS, POSIXLY_CORRECT or a kill in any
+#     spelling, which can end the shell from any process the text starts;
+#   - it sets an option spelled with quotes or an expansion, or posix; it
+#     names a builtin or a shell with quotes; it assigns a read-only name;
 #   - it uses a builtin other than those ff_safe lists: a function, source,
 #     trap, return, shopt, hash, alias, readonly, ulimit, unset and the rest
 #     can each change what follows;

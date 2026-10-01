@@ -16,9 +16,11 @@
 # gate, tables, hooks — as a detached worktree under a temporary directory,
 # puts THIS tree's tests/run into it, and runs that. So the assertions are the
 # tree's and the engine is the base's, which is exactly the run a reviewer
-# would do by hand. The base's own tests/run never executes. The manifest
-# comparison is off for that run (FELIX_TEST_NO_MANIFEST=1): "assertion did
-# not run" against the base's manifest would count as red, and it is not.
+# would do by hand. The base's own tests/run never executes. The suite's own
+# manifest comparison is off for that run (FELIX_TEST_NO_MANIFEST=1): standing
+# in the base's tree it would read the base's manifest, and "assertion did not
+# run" against that would count as red, and it is not. The comparison that
+# matters, against this tree's manifest, is made here after the run (below).
 #
 # A worktree and not an archive, measured: the first version unpacked
 # `git archive` and read 2 of 2357 red against a base whose engine was
@@ -34,13 +36,50 @@
 #   base   <ref>  <sha>  <engine version at the base>
 #   run    <failed>  <passed>  <skipped>
 #   <assertion name>  <times it failed>        one row per failed name
-# and when no red run was possible, base and run rows of `-`, so the file says
-# nothing was shown rather than keeping the previous claim.
+# where an assertion this tree's manifest lists and the base run never reached
+# counts as failed, by how many times it fell short; and when no red run was
+# possible, base and run rows of `-`, so the file says nothing was shown
+# rather than keeping the previous claim.
 #
 # Lines are counted, not the summary. PASS and FAIL are incremented in the
 # suite's main shell only, and some assertions run inside subshells, so the
 # summary line can read fewer than the FAIL lines above it. The lines are the
 # record; the summary is a convenience.
+#
+# The end of the suite is not every assertion in it. The `reached` line below
+# says the suite's main shell got to its last line, and bash lets a statement
+# vanish on the way without stopping. Measured in bash 3.2.57, which runs the
+# suite on a Mac: an arithmetic error inside $(( )), an operand of -, 08, 1.5
+# or two lines, prints a syntax error to stderr, discards the rest of the
+# top-level command it sits in (the one statement at top level, every
+# statement left in an if, a for or a { } block) and carries on, its exit
+# status untouched. "and only the awaiting count records it" computes what it
+# expects from a field the engine under test wrote, so against a base that
+# writes - there it vanishes. Found in #371's review, 2026-09-25: a fixture
+# built on it read 0 of 2 assertions failing, `run 0 2 0`, the vanished one
+# counted nowhere, which is fewer red than true, the one shape this file must
+# never take. So this tree's manifest, assertions.tsv beside this script, is
+# read before the suite runs, refused there if it is not a manifest, and kept;
+# after the run each name it lists is counted in the log's ok, FAIL and skip
+# lines, per name as the suite's own comparison counts, and a name reached
+# fewer times than the manifest says is recorded as red by the shortfall.
+#
+# Recorded, not refused. The manifest says the assertion ran against this
+# tree's own engine: tests/run --record-assertions wrote it from that run
+# immediately before it called this. If it did not run against the base's, the
+# base's engine kept this tree's suite from asking it, by a statement that
+# erred on what the engine wrote or a block the engine's behaviour gates.
+# Either way the base does not meet the tree's contract there, which is what
+# red means. Refusing would make every change whose new assertion sits in such
+# a block unrecordable, and write - exactly where red is the true answer. A
+# skip prints a line, so an assertion that depends on the machine is reached,
+# not red. The cost, said plainly: a manifest out of date with tests/run, an
+# assertion renamed without re-recording, reads its old name as red, more red
+# than true. That is the safe direction, and the record path writes the
+# manifest from this same tree just before it calls this, so it arises only in
+# a run by hand. The log is read and not the suite's ran file because that file
+# goes with the suite's temporary directory, and the log is what is counted
+# already.
 #
 # What it does not do: judge. A red count of zero is a true statement about a
 # change that added no assertion the old engine fails — a documentation change,
@@ -48,12 +87,13 @@
 # Whether zero is acceptable for a given change is the reviewer's question, and
 # the file gives them the number to ask it about.
 #
-#   exit 0  the suite's main shell reached its end, which is not proof that
-#           every assertion statement in it ran; red.tsv holds the result,
+#   exit 0  the suite reached its end, and every assertion the manifest lists
+#           was either reached or recorded as red; red.tsv holds the result,
 #           zero included
-#   exit 2  it could not: no base ref, no run beside this script, a tree that
-#           could not be read, or a suite that stopped before its end, which
-#           is no red run whatever it printed first. red.tsv says so.
+#   exit 2  it could not: no base ref, no run or no readable manifest beside
+#           this script, a tree that could not be read, or a suite that
+#           stopped before its end, which is no red run whatever it printed
+#           first. red.tsv says so.
 #
 # One trap, from HANDOFF §5: a test for a hang leaks the hang unless its
 # watchdog kills the children, and a red run is precisely where such tests
@@ -70,6 +110,7 @@ _header() {
   printf '#   base  <ref>  <sha>  <engine version there>\n'
   printf '#   run   <failed>  <passed>  <skipped>        lines counted, not the summary\n'
   printf '#   <assertion name>  <times it failed>        failed names only\n'
+  printf '#   an assertion the manifest lists that the base run never reached counts as failed, by its shortfall\n'
   printf '# A base of - means no red run was possible. Reproduce with: tests/red <ref>\n'
 }
 
@@ -102,6 +143,33 @@ _none() {
 
 ROOT="$(git -C "$HERE" rev-parse --show-toplevel 2>/dev/null)" || _none "$HERE is not inside a git repository"
 [ -f "$HERE/run" ] || _none "no tests/run beside $HERE/red"
+
+# This tree's manifest, read once and here, before the suite: a bad one costs
+# seconds, not a whole run. It is kept in memory, so a manifest rewritten while
+# the suite runs does not change what the run is compared with. One row is a
+# count, a tab and a name, the name being all after the first tab; an empty
+# line is skipped, as the suite's own comparison skips a row with no name. A
+# name on two rows (a textual merge makes them) is refused, not summed, since
+# the record would then rest on a count nobody wrote. awk reads every line and
+# reports the first fault at the end, so the pipe into it never breaks.
+MANF="$HERE/assertions.tsv"
+{ [ -f "$MANF" ] && [ -r "$MANF" ]; } || _none "no readable assertions.tsv beside $HERE/red"
+MAN="$(cat "$MANF" 2>/dev/null)" || _none "no readable assertions.tsv beside $HERE/red"
+_mv="$(printf '%s\n' "$MAN" | LC_ALL=C awk '
+  v != "" || $0 == "" { next }
+  {
+    i = index($0, "\t"); c = substr($0, 1, i - 1); n = substr($0, i + 1)
+    if (i == 0 || c !~ /^[1-9][0-9]*$/ || n == "") { v = "line " NR " is not a count, a tab and a name"; next }
+    if (n in seen) { v = "line " NR " repeats a name an earlier line holds"; next }
+    seen[n] = 1; rows++
+  }
+  END { print (v != "" ? v : (rows ? "ok" : "none")) }')"
+case "$_mv" in
+  ok) ;;
+  none) _none "assertions.tsv beside $HERE/red lists no assertion" ;;
+  line\ *) _none "assertions.tsv $_mv" ;;
+  *) _none "no readable assertions.tsv beside $HERE/red" ;;
+esac
 
 BASE="${1:-}"
 if [ -z "$BASE" ]; then
@@ -185,16 +253,58 @@ awk '/^  (ok    |FAIL  |skip  )/ { a = NR } $0 == "reached" { r = NR }
   || _none "the suite against $BASE did not finish (exit $RC after $((PASSED + FAILED + SKIPPED)) assertions)"
 [ "$((PASSED + FAILED + SKIPPED))" -gt 0 ] || _none "the suite reached no assertion against $BASE"
 
+# Then the manifest kept above, against the log. What the run did adds red
+# and is never a refusal; what is refused here is a comparison that could not
+# be made, an awk that failed or a count no number holds. Per name, counted,
+# since eleven names legitimately appear more than once and losing one of a
+# pair is as silent as losing a unique one. An ok or FAIL line is the name
+# exactly. A skip line is the name, " (", a reason and ")", and either may
+# hold parentheses, so it goes to the longest listed name it begins with
+# followed by " (". Out comes one row per name with FAIL lines or a
+# shortfall: FAIL lines, shortfall, name. Names over-reached or not listed are
+# not compared, as in the suite's own check; their FAIL lines count as ever.
+# Strings go through files, never awk -v, which would eat a backslash.
+CMP="$TMP/red.cmp"
+printf '%s\n' "$MAN" | LC_ALL=C awk '
+  NR == FNR { if ($0 != "") { i = index($0, "\t"); want[substr($0, i + 1)] = substr($0, 1, i - 1) + 0 }; next }
+  { h = substr($0, 1, 8) }
+  h == "  ok    " || h == "  FAIL  " {
+    n = substr($0, 9); if (h == "  FAIL  ") fail[n]++
+    if (n in want) got[n]++
+    next
+  }
+  h == "  skip  " && substr($0, length($0)) == ")" {
+    t = substr($0, 9); p = 0; hit = 0
+    while ((k = index(substr(t, p + 1), " (")) > 0) {
+      p += k; c = substr(t, 1, p - 1)
+      if (c in want) { best = c; hit = 1 }
+    }
+    if (hit) got[best]++
+  }
+  END {
+    for (n in want) if (want[n] > got[n] + 0) short[n] = want[n] - got[n]
+    for (n in fail) printf "%.0f\t%.0f\t%s\n", fail[n], short[n] + 0, n
+    for (n in short) if (!(n in fail)) printf "0\t%.0f\t%s\n", short[n], n
+  }' - "$LOG" > "$CMP" 2>/dev/null || _none "could not compare the run against assertions.tsv"
+read -r FAILED_ALL TOTAL UNREACHED <<< "$(RED_F="$FAILED" RED_P="$PASSED" RED_S="$SKIPPED" LC_ALL=C awk -F'\t' '
+  { u += $2 } END { f = ENVIRON["RED_F"] + u; printf "%.0f %.0f %.0f\n", f, f + ENVIRON["RED_P"] + ENVIRON["RED_S"], u }' "$CMP")"
+for _v in "$FAILED_ALL" "$TOTAL" "$UNREACHED"; do
+  case "$_v" in ''|*[!0-9]*) _none "could not compare the run against assertions.tsv" ;; esac
+done
+
 {
   _header
   printf 'base\t%s\t%s\t%s\n' "$BASE" "$SHA" "$VER"
-  printf 'run\t%s\t%s\t%s\n' "$FAILED" "$PASSED" "$SKIPPED"
-  # The names, once each, with how many times each failed: eleven names in the
-  # suite legitimately appear more than once, and a count keeps that visible.
-  sed -n 's/^  FAIL  //p' "$LOG" | LC_ALL=C sort | uniq -c \
-    | sed 's/^[[:space:]]*\([0-9][0-9]*\) \(.*\)$/\2	\1/'
+  printf 'run\t%s\t%s\t%s\n' "$FAILED_ALL" "$PASSED" "$SKIPPED"
+  # The names, once each, in C order of the name, each with its FAIL lines and
+  # its shortfall together, so the names still add up to the run's failed.
+  LC_ALL=C sort -t "$(printf '\t')" -k3 "$CMP" | LC_ALL=C awk '{
+    i = index($0, "\t"); r = substr($0, i + 1); j = index(r, "\t")
+    printf "%s\t%.0f\n", substr(r, j + 1), substr($0, 1, i - 1) + substr(r, 1, j - 1) }'
 } | _put || _none "could not write $OUT"
 
-printf 'red: %s of %s assertions fail against %s (%.7s) at engine %s\n' \
-  "$FAILED" "$((PASSED + FAILED + SKIPPED))" "$BASE" "$SHA" "$VER"
+_never=""
+[ "$UNREACHED" = 0 ] || _never=", $UNREACHED of them never reached"
+printf 'red: %s of %s assertions fail against %s (%.7s) at engine %s%s\n' \
+  "$FAILED_ALL" "$TOTAL" "$BASE" "$SHA" "$VER" "$_never"
 exit 0

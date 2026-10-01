@@ -65,16 +65,22 @@ Every assertion is red on a named wrong runner, built as a scratch variant.
   exposure and the missing `--`.
 - A scratch worktree leaks when a mutation makes a directory unwritable, or
   when the run is killed. Three such trees were registered in the home
-  checkout on 2026-09-25. The session "Stop qualify scratch worktrees
-  leaking" carries the fix.
+  checkout on 2026-09-25. Fixed in this same PR by
+  claude/qualify-scratch-cleanup, which has its own section beside this
+  one. It also fixes a defect in this branch's `_felix_qualify_sh`: a
+  mutation running `chmod -R a-w ..` left the column's stderr file behind
+  and unwritable, so the command's `2>` failed and a fail control read met
+  with no checker run. Each column now opens a fresh file at both ends
+  before it runs. Reproduced on 4272a56c with a checker that always passes:
+  it read fail there, and reads pass on the fix.
 
-- lib/qualify.sh is 520 lines after #383 merged in: 467 on this branch, plus
-  #383's 53. The split is deferred on purpose. Two stacked branches edit
-  `_felix_qualify_one`: claude/qualify-scratch-cleanup and
-  claude/engine-mktemp-tmpdir. Moving the function now would conflict both.
-  The seam is the row runner (`_felix_qualify_sh`, `_felix_qualify_one`) on
-  one side, and the table read and verdict logic on the other. Split there
-  once both have landed.
+- lib/qualify.sh is 674 lines: 467 on this branch, #383's 53, and the
+  scratch cleanup's helpers. The split is deferred on purpose, because
+  claude/engine-mktemp-tmpdir still edits `_felix_qualify_one` and moving
+  the function now would conflict it. The seam is the row runner on one
+  side (`_felix_qualify_sh`, `_felix_qualify_errfile`, `_felix_qualify_arm`,
+  `_felix_qualify_drop`, `_felix_qualify_one`), and the table read and
+  verdict logic on the other. Split there once that branch has landed.
 
 **Traps paid:**
 - A reviewer prompt named the implementation commit's parent as the "unfixed"

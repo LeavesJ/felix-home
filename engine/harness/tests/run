@@ -18300,6 +18300,13 @@ unset _ffT _ffo _ffr _ffl _ffstage _fftx _ffwhy _ffw _fft _ffp _ffto _ffcrun _ff
 # duplicating fd 3 or above can fail; bash-4 redirects bash 3.2 misreads;
 # usage errors on either platform; and nounset, which commissioning runs
 # under, ending a text at an unset name.
+#
+# The verification pass found the same classes under other spellings, and
+# commands before the last that end the shell: ${y:?}, arithmetic, [[ ]],
+# readonly, a kill from any process. The rows after `HOME is always set` take
+# one spelling per class, each admitted one measured failing under /bin/bash
+# 3.2 but the two GNU-only refusals, and red against the classifier before
+# that fix; the refused rows beside them are what still bites.
 _ffa() {   # text -> "<exit>|<what it printed>"
   local _o _r
   _o="$( . "$REAL_HARNESS/lib/final-filter.sh" 2>/dev/null || exit 3
@@ -18382,6 +18389,54 @@ sed@@x | sed -n 1p@@line 1 is fine
 tail@@x | tail && echo "$U"@@without nounset it expands empty, and the run is constant
 tail@@set -u; x | tail && echo "${U:-}"@@a default keeps it set
 tail@@set -u; x | tail && echo "$HOME"@@HOME is always set
+-@@x | tail; v=$(exit 3) exit@@an exit after an assignment that ran a command returns its status
+tail@@x | tail; v=1 exit@@and after one that ran none, tail's
+-@@x | tail; { exit; } 2>/dev/null$(exit 3)@@and after a redirect that ran one
+-@@x | tail; for ((i=0$(exit 3); i<1; i++)); do exit; done@@arithmetic is not read
+-@@o="o pipe"; set -${o}fail; x | tail@@an option built from an expansion may be pipefail
+-@@set $'-\x6f' pipe''fail; x | tail@@and so may one spelled with an escape
+-@@eval "$(echo exit 3)"; x | tail@@eval of an expansion can exit
+-@@$(echo exit) 3; x | tail@@and so can a name that is one
+-@@set -''e; false; x | tail@@errexit spelled with quotes
+-@@set -''u; : $y; x | tail@@and nounset
+-@@set -o pipefial && x | tail@@set fails on an option it does not know
+-@@builtin hash -p /usr/bin/false tail; x | tail@@builtin reaches hash
+-@@builtin trap 'exit 3' EXIT; x | tail@@and trap
+tail@@builtin echo a; x | tail@@and echo, which changes nothing
+-@@(kill $$); x | tail@@a kill in a subshell still ends the shell
+-@@echo $$ | xargs kill; x | tail@@and through xargs
+-@@exec bash -c 'exit 1'; x | tail@@exec of a shell ends with its status
+-@@exec >&-; x | tail@@exec with only a redirect closes the output for what follows
+-@@export PA''TH=/x; x | tail@@PATH with quotes in it
+-@@read PATH <<< /x; x | tail@@or set by read
+tail@@export LC_ALL=C; x | tail@@export of another name changes nothing
+-@@ulimit -n 3; x | tail@@ulimit can starve what follows
+-@@x | stdbuf -oL tail@@macOS has no stdbuf
+-@@x | tail >&0@@a duplicate of fd 0 is not an output
+-@@x | tail 2>&1-@@moving fd 1 closes it
+tail@@x | tail >&2@@a duplicate of fd 2 is open
+-@@x | tail 99999>&1@@an fd past the limit
+-@@x | cat > >(true)@@a process substitution can close early, and cat dies of SIGPIPE
+-@@x | cat - -n@@macOS reads an option after an operand as a file
+cat@@x | cat -n -@@and before one, as an option
+-@@x | sort -nM@@two orderings at once
+sort@@x | sort -k1,1n@@one is fine
+-@@x | sed 's/a/b/gg'@@g twice
+sed@@x | sed 's/a/b/gp'@@g and p once each
+-@@x | awk '{print'@@an unbalanced brace
+-@@x | awk -v foo '{print}'@@-v without an assignment
+awk@@x | awk -v n=1 '{print}'@@-v with one
+-@@x | awk '{print}' NF=-1@@an operand assigning NF
+-@@x | head -n 99999999999999999999@@a count past the integer range
+head@@x | head -n 999999999@@a large count within it
+-@@[[ a b ]]; x | tail@@[[ ]] can be a syntax error, which ends the shell
+-@@: ${HOME,,}; x | tail@@bash 3.2 has no case conversion, and ends the shell
+-@@: "${y:?}"; x | tail@@${y:?} ends the shell when y is unset
+tail@@: "${y:-}"; x | tail@@a default cannot
+-@@: $((1/0)); x | tail@@an arithmetic error ends the shell
+-@@readonly v=1; v=2; x | tail@@so does assigning a readonly name
+-@@x | uniq -cD@@GNU refuses -c with -D
+-@@x | sort -dn@@GNU refuses -d with -n
 FFAUTHOR
 
 # A carriage return, as the last column of a row saved on Windows carries,

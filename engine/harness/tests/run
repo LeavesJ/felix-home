@@ -20470,9 +20470,9 @@ _red_body() { grep -v '^#' "$1/engine/harness/tests/red.tsv" 2>/dev/null; }
 _red_stat() { ( cd "$1" && git status --porcelain | grep -v 'red\.tsv' ); }
 # full short: yes when short is a non-empty prefix of full at least 7 long.
 _red_abbr() { case "$1" in "$2"*) [ "${#2}" -ge 7 ] && echo yes ;; esac; }
-# dir: the working tree's run becomes a script whose body is read from stdin,
-# a suite that stops short of its end. The base, the stale claim and the red
-# under test are still the ones _red_seed committed.
+# dir: the working tree's run becomes a script whose body is read from stdin.
+# The base, the stale claim and the red under test are still the ones
+# _red_seed committed.
 _red_cut() { { printf '#!/usr/bin/env bash\n'; cat; } > "$1/engine/harness/tests/run"; chmod +x "$1/engine/harness/tests/run"; }
 # stdout whole: how many lines it holds, a bar, then what they say, so a
 # trailing line that $(cat) would strip is still counted.
@@ -20542,13 +20542,14 @@ if [ -x "$FROOT/harness/tests/red" ]; then
   is  "and zero failures is still exit 0" "$(_red_rc)" "0"
   is  "and the summary then counts zero of six" "$(_red_sum)" "red: 0 of 6 assertions fail against main (SHA) at engine 0.0.8"
   # A suite that stops before its end is not a red run, whatever it printed
-  # first. On 2026-09-25 a suite killed a few seconds in was written down as 0
-  # of 270 assertions failing, and an earlier one cut off by a fork failure as
-  # 0 of 1320, when the whole suite holds some 3,700. What proves a suite
-  # finished is the line it prints after its last assertion, exactly "reached",
-  # and not its exit status, since a finished red run exits 1. Each run here
-  # stops short of that line, in a fresh repository whose red.tsv starts with
-  # a stale claim, so red must refuse, retract the claim and clean up.
+  # first. On 2026-09-25 a suite stopped at assertion 270 was written down as
+  # 0 of 270 failing, and an earlier one cut off by a fork failure as 0 of
+  # 1320, when the whole suite holds some 3,700. What proves a suite finished
+  # is the line it prints after its last assertion, exactly "reached", and not
+  # its exit status, since a finished red run exits 1. Each run here is in a
+  # fresh repository whose red.tsv starts with a stale claim. Red must refuse
+  # one that stops short of that line, retract the claim and clean up; the
+  # empty, late and strayend runs reach the line on purpose.
   _red_seed "$RED/dead" main 0.0.7
   _red_cut "$RED/dead" <<'EOF'
 printf 'marker suite\n\n'
@@ -25039,7 +25040,6 @@ printf '\nthe record this branch carries\n'
 # These read the tree's own record and, where origin/main is known, git. They
 # skip while --record-assertions is about to rewrite the record, and in the red
 # run, which stands in the base's tree and reads the base's record.
-_rt="$HERE/red.tsv"
 _rtn1="red.tsv is one record, written whole: one base row, one run row, and failed names that add up to the run's failed count"
 _rtn2="every assertion red.tsv names as red is one the manifest lists"
 _rtn3="red.tsv was recorded against the engine origin/main held where this tree branched from it"
@@ -25085,24 +25085,9 @@ _rt_report() {   # <name> <verdict line>
     *)         bad  "$1" "the check's verdict reads [$2], which is none of ok, skip <reason> or bad <detail>" ;;
   esac
 }
-_rt_skip=""
-[ "$FELIX_TEST_RECORD" -eq 1 ] && _rt_skip="--record-assertions rewrites red.tsv after this run"
-[ -z "$_rt_skip" ] && [ ! -f "$_rt" ] && _rt_skip="no red.tsv beside this suite"
 if [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then
   for _n in "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4"; do skip "$_n" "a red run reads the base's record"; done
 else
-  if [ -n "$_rt_skip" ]; then
-    for _n in "$_rtn1" "$_rtn2" "$_rtn3"; do skip "$_n" "$_rt_skip"; done
-  else
-    _rt_report "$_rtn1" "$(_rt_record_whole "$_rt")"
-    if [ -f "$FELIX_TEST_MANIFEST" ]; then
-      _rtm="$(awk -F'\t' 'NR == FNR { m[$2] = 1; next } /^#/ || !NF || $1 == "base" || $1 == "run" { next }
-                          !($1 in m) { print $1 }' "$FELIX_TEST_MANIFEST" "$_rt")"
-      [ -z "$_rtm" ] && ok "$_rtn2" || bad "$_rtn2" "not in the manifest: $(printf '%s\n' "$_rtm" | head -3)"
-    else
-      skip "$_rtn2" "no manifest beside this suite"
-    fi
-  fi
   _rtg() { git -C "$REAL_HARNESS" "$@" 2>/dev/null; }
   _rtv() { sed -n '/"version"/{s/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p;q;}'; }
   # Whether every base the record names is a commit in this repository. The
@@ -25269,7 +25254,7 @@ else
   # that is not one full commit id; only a snapshot's full id still skips. The
   # decision sat inside _rtn3, where no fixture reached it, so undoing it left
   # this suite green (second review of #371); it is asked of fixtures below.
-  # Whether the question is owed at all stays _rtn3's. A published snapshot
+  # Whether the question is owed at all is _rt_judge's. A published snapshot
   # carrying a retraction fails too, rightly, since its engine's red run was
   # never shown either, but it cannot re-record there, so the detail says where
   # (#371, third review).
@@ -25292,26 +25277,51 @@ else
         fi ;;
     esac
   }
-  if ! _rtg rev-parse -q --verify refs/remotes/origin/main >/dev/null; then
-    [ -z "$_rt_skip" ] && skip "$_rtn3" "no origin/main to compare against"
-    skip "$_rtn4" "no origin/main to compare against"
-  elif _rtg merge-base --is-ancestor HEAD refs/remotes/origin/main; then
-    [ -z "$_rt_skip" ] && skip "$_rtn3" "this tree holds no commit origin/main lacks"
-    skip "$_rtn4" "this tree holds no commit origin/main lacks"
-  elif _rt_engine_same "$REAL_HARNESS"; then
-    [ -z "$_rt_skip" ] && skip "$_rtn3" "this tree changes no engine file, so origin/main's record is still this engine's"
-    skip "$_rtn4" "this tree changes no engine file, so it keeps origin/main's version"
-  else
-    [ -z "$_rt_skip" ] && _rt_report "$_rtn3" "$(_rt_base_check "$REAL_HARNESS/../..")"
-    _rtvh="$(_rtv < "$REAL_HARNESS/../.claude-plugin/plugin.json" 2>/dev/null)"
-    _rtvm="$(_rtg show refs/remotes/origin/main:engine/.claude-plugin/plugin.json | _rtv)"
-    [ -n "$_rtvh" ] && [ -n "$_rtvm" ] && [ "$(awk -v a="$_rtvh" -v b="$_rtvm" 'BEGIN {
-        n = split(a, A, "."); m = split(b, B, "."); k = (n > m) ? n : m; r = 0
-        for (i = 1; i <= k && !r; i++) r = (A[i] + 0 > B[i] + 0) ? 1 : (A[i] + 0 < B[i] + 0) ? -1 : 0
-        print (r > 0) ? "above" : "not" }')" = "above" ] \
-      && ok  "$_rtn4" \
-      || bad "$_rtn4" "this tree declares ${_rtvh:-nothing}, origin/main declares ${_rtvm:-nothing}"
-  fi
+  # The whole judgment of a checkout's record: _rtn1 to _rtn4, each reported
+  # through ok, skip and bad, and whether each is asked, from the checkout's
+  # red.tsv, manifest, plugin.json and git. record is --record-assertions, in
+  # which the first three skip. Made for this suite's own checkout alone, its
+  # report of _rtn3, then of _rtn1, could be a plain ok and leave every
+  # assertion green (#371, fourth review), so it is also asked of one below.
+  _rt_judge() {   # <checkout> [record]
+    local c="$1" t="$1/engine/harness/tests/red.tsv" a="$1/engine/harness/tests/assertions.tsv" s="" n vh vm
+    [ "${2:-}" = record ] && s="--record-assertions rewrites red.tsv after this run"
+    [ -z "$s" ] && [ ! -f "$t" ] && s="no red.tsv beside this suite"
+    if [ -n "$s" ]; then
+      for n in "$_rtn1" "$_rtn2" "$_rtn3"; do skip "$n" "$s"; done
+    else
+      _rt_report "$_rtn1" "$(_rt_record_whole "$t")"
+      if [ -f "$a" ]; then
+        n="$(awk -F'\t' 'NR == FNR { m[$2] = 1; next } /^#/ || !NF || $1 == "base" || $1 == "run" { next }
+                         !($1 in m) { print $1 }' "$a" "$t")"
+        [ -z "$n" ] && ok "$_rtn2" || bad "$_rtn2" "not in the manifest: $(printf '%s\n' "$n" | head -3)"
+      else
+        skip "$_rtn2" "no manifest beside this suite"
+      fi
+    fi
+    if ! git -C "$c" rev-parse -q --verify refs/remotes/origin/main >/dev/null 2>&1; then
+      [ -z "$s" ] && skip "$_rtn3" "no origin/main to compare against"
+      skip "$_rtn4" "no origin/main to compare against"
+    elif git -C "$c" merge-base --is-ancestor HEAD refs/remotes/origin/main 2>/dev/null; then
+      [ -z "$s" ] && skip "$_rtn3" "this tree holds no commit origin/main lacks"
+      skip "$_rtn4" "this tree holds no commit origin/main lacks"
+    elif _rt_engine_same "$c"; then
+      [ -z "$s" ] && skip "$_rtn3" "this tree changes no engine file, so origin/main's record is still this engine's"
+      skip "$_rtn4" "this tree changes no engine file, so it keeps origin/main's version"
+    else
+      [ -z "$s" ] && _rt_report "$_rtn3" "$(_rt_base_check "$c")"
+      vh="$(_rtv < "$c/engine/.claude-plugin/plugin.json" 2>/dev/null)"
+      vm="$(git -C "$c" show refs/remotes/origin/main:engine/.claude-plugin/plugin.json 2>/dev/null | _rtv)"
+      [ -n "$vh" ] && [ -n "$vm" ] && [ "$(awk -v a="$vh" -v b="$vm" 'BEGIN {
+          n = split(a, A, "."); m = split(b, B, "."); k = (n > m) ? n : m; r = 0
+          for (i = 1; i <= k && !r; i++) r = (A[i] + 0 > B[i] + 0) ? 1 : (A[i] + 0 < B[i] + 0) ? -1 : 0
+          print (r > 0) ? "above" : "not" }')" = "above" ] \
+        && ok  "$_rtn4" \
+        || bad "$_rtn4" "this tree declares ${vh:-nothing}, origin/main declares ${vm:-nothing}"
+    fi
+  }
+  # This suite's own checkout, judged once.
+  if [ "$FELIX_TEST_RECORD" -eq 1 ]; then _rt_judge "$REAL_HARNESS/../.." record; else _rt_judge "$REAL_HARNESS/../.."; fi
   # Whether a helper printed one line whose first word is the verdict asked for
   # and whose rest holds each phrase given.
   _rt_said() {   # <name> <what the helper printed> <ok|skip|bad> [<phrase>...]
@@ -25371,12 +25381,12 @@ else
     *)                 bad "$_rtpn6" "expected one report, [bad|a name|<a detail>], got [$_rtpo]" ;;
   esac
   # The base check, asked of a checkout rather than of this suite's own record.
-  # _rtn3 is judged only against this repository's red.tsv, which on any branch
+  # _rtn3 was judged only against this repository's red.tsv, which on any branch
   # is one record, so no fixture reached the decision it makes on the kind of
   # base: the second review of #371 undid that decision and every assertion in
   # this suite stayed green (2026-09-25). _rt_base_check <checkout> answers the
   # base question alone, on one line, ok, or skip and why, or bad and why,
-  # asking git about that checkout; whether the question is owed stays _rtn3's.
+  # asking git about that checkout; whether the question is owed is _rt_judge's.
   # Asked here of a repository built for it: a commit origin/main names, then a
   # branch commit to engine/, with red.tsv rewritten beside that checkout's
   # suite, uncommitted, for each kind of base.
@@ -25611,10 +25621,11 @@ else
   fi
 fi
 
-# The suite's proof that it reached its end: tests/red requires exactly this
-# line, "reached" after an empty one, and refuses a red run without it, since a
-# finished red run exits 1 as a dead one can (#371). Changing it means
-# changing tests/red.
+# The suite's proof that it reached its end: tests/red counts a red run only
+# when a line that is exactly "reached" follows its last assertion line, since
+# a finished red run exits 1 as a dead one can (#371). The empty line before it
+# is this suite's own, and the red block's marker assertion pins this printf.
+# Changing it means changing tests/red.
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.
 #

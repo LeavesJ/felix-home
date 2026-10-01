@@ -248,6 +248,61 @@ _felix_qualify_missing_in() {   # rows, checker -> one control per line
   printf '%s' "$missing"
 }
 
+# Throw one row's scratch tree away: the worktree, its registration in the
+# root's repository, and the directory mktemp made to hold them.
+#
+# Until 2026-10-01 this was `git worktree remove --force` and `rmdir`, and a
+# mutation that took a write bit away beat both. A control has every reason to
+# stage an unwritable file, and `mkdir d && touch d/f && chmod a-w d` left git
+# unable to unlink d/f, so the remove failed, the rmdir failed, and the
+# checkout stayed in TMPDIR. A retry cannot mend it: git 2.54 drops the
+# registration on its way out of a remove that failed, and the second remove
+# says "not a working tree". So the owner's bits come back first, u+rwX, the X
+# so a directory left at 000 can be entered again. chmod -R follows no symlink
+# it meets inside the tree, BSD and GNU alike, so a link a mutation plants to
+# a file outside reaches nothing. The base is checked not to be a link
+# itself, since a link named on the command line is followed.
+#
+# What is left in the base once git has removed the tree is the runner's own:
+# a column's stderr file, and whatever a mutation wrote beside the tree. It
+# goes whole. A tree git would not remove (a mutation took its .git away, or
+# the tree itself) is said, not left in silence.
+_felix_qualify_drop() {   # root, base
+  local root="$1" base="$2"
+  [ -n "$base" ] && [ -d "$base" ] && [ ! -L "$base" ] || return 0
+  chmod -R u+rwX "$base" 2>/dev/null
+  git -C "$root" worktree remove --force "$base/w" >/dev/null 2>&1 \
+    || printf 'felix: git could not remove the scratch worktree %s, so %s may still list it; git worktree prune there clears an entry whose directory is gone\n' \
+              "$base/w" "$root" >&2
+  rm -rf "$base" 2>/dev/null
+  [ ! -e "$base" ] || printf 'felix: %s could not be deleted, and stays on disk\n' "$base" >&2
+}
+
+# The traps that throw a row's tree away when the row is stopped, set in the
+# row's own process, because that is the one place that can act on them in
+# time. A trap in cmd_qualify or the row loop runs only once the $(...) it
+# waits on returns: measured 2026-10-01 on bash 3.2, a caller's TERM trap ran
+# six seconds late, after the row had finished. The row's process is in the
+# process group that a terminal's Ctrl-C, timeout and a tool's kill all
+# signal, and it carries the CLI's command line, so a kill by pattern reaches
+# it too. A column that is running is ended by the same signal, the trap runs
+# when it has, the tree goes, and the row exits 128+N with no later column
+# run. The trap ignores the three first: a child inherits an ignored signal,
+# so a second Ctrl-C cannot cut git off half way through the tree.
+#
+# What no trap reaches. SIGKILL. And a signal sent to the CLI's process alone,
+# which leaves the row to run to its end and throw its tree away there, as
+# every row always has. Without a trap the row died where it stood, and three
+# trees from runs killed mid-row were found in the founder's checkout on
+# 2026-09-25, still registered.
+_felix_qualify_arm() {   # root, base
+  local r b
+  printf -v r '%q' "$1"; printf -v b '%q' "$2"
+  trap "trap '' INT TERM HUP; _felix_qualify_drop $r $b; exit 130" INT
+  trap "trap '' INT TERM HUP; _felix_qualify_drop $r $b; exit 143" TERM
+  trap "trap '' INT TERM HUP; _felix_qualify_drop $r $b; exit 129" HUP
+}
+
 # Run one row: a real worktree of HEAD, the mutation applied to it, the checker
 # run in it, the tree thrown away.
 #
@@ -318,8 +373,11 @@ _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | u
   local root="$1" cmd="$2" mut="$3" premise="${4:-}" base scratch err got rc
   base="$(mktemp -d 2>/dev/null)" || { printf 'unrunnable'; return 0; }
   scratch="$base/w"; err="$base/err"
+  # Before the add, so a row stopped while git checks the tree out goes too.
+  # Every way out of this function lifts them, though it runs in a $(...).
+  _felix_qualify_arm "$root" "$base"
   if ! git -C "$root" worktree add --detach -q "$scratch" HEAD 2>/dev/null; then
-    rmdir "$base" 2>/dev/null; printf 'unrunnable'; return 0
+    rmdir "$base" 2>/dev/null; trap - INT TERM HUP; printf 'unrunnable'; return 0
   fi
   got=""
   if [ -n "$premise" ] && [ "$premise" != "-" ]; then
@@ -351,8 +409,8 @@ _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | u
       *)       got=fail ;;
     esac
   fi
-  git -C "$root" worktree remove --force "$scratch" >/dev/null 2>&1
-  rmdir "$base" 2>/dev/null
+  _felix_qualify_drop "$root" "$base"
+  trap - INT TERM HUP
   printf '%s' "$got"
 }
 

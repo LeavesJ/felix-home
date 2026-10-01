@@ -88,10 +88,47 @@ _felix_bs_setup_block() {
   esac
 }
 
+# The Felix commit a rendered gate workflow checks out, or nothing.
+#
+# The engine source's HEAD, and only when origin's default branch contains it:
+# a commit only this machine holds fails the checkout on every run, and one on
+# a branch nobody merged grades a repository with an engine nobody reviewed.
+# origin because it is the remote felix_repo_slug names, so the ref and the
+# repository: beside it are one repository. origin/HEAD names the default
+# branch; origin/main is asked only when a clone never recorded one.
+#
+# The second argument, when given, is the project's directory relative to that
+# checkout, and the commit must hold it. CI resolves the project from the Felix
+# it checked out, so a pin taken after `felix new` and before the project
+# merged would fail to resolve on every run until someone moved it, where an
+# unpinned checkout recovered on its own once the project landed.
+#
+# Nothing printed, and the renderer writes the {{FELIX_REF}} placeholder, which
+# fails the checkout until someone fills it, rather than a ref that quietly
+# means the default branch.
+felix_bs_pin_ref() {
+  local src="$1" need="${2:-}" head base
+  [ -n "$src" ] || return 1
+  head="$(git -C "$src" rev-parse --verify -q 'HEAD^{commit}' 2>/dev/null)" || return 1
+  base="$(git -C "$src" rev-parse --verify -q 'refs/remotes/origin/HEAD^{commit}' 2>/dev/null)" \
+    || base="$(git -C "$src" rev-parse --verify -q 'refs/remotes/origin/main^{commit}' 2>/dev/null)" \
+    || return 1
+  git -C "$src" merge-base --is-ancestor "$head" "$base" 2>/dev/null || return 1
+  if [ -n "$need" ]; then
+    git -C "$src" cat-file -e "$head:$need" 2>/dev/null || return 1
+  fi
+  printf '%s' "$head"
+}
+
 # The workflow calls `felix gate` and nothing else. What the gate means stays in
 # the project, so changing the checks never means editing CI.
+#
+# The third argument is the Felix commit to check out, felix_bs_pin_ref's
+# answer; empty writes the placeholder. Why the checkout is pinned at all is
+# written into the workflow, where the repository that adopts it reads it.
 felix_bs_render_workflow() {
-  local eco="$1" felix_repo="$2"
+  local eco="$1" felix_repo="$2" felix_ref="${3:-}"
+  [ -n "$felix_ref" ] || felix_ref='{{FELIX_REF}}'
   cat <<YAML
 name: gate
 
@@ -116,16 +153,56 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Sibling checkouts. A harness inside the tree being gated shows up in the
-      # checks it is running.
-      - uses: actions/checkout@v4
+      # checks it is running. v5, the lowest major that runs on Node 24; v4
+      # runs on Node 20.
+      - uses: actions/checkout@v5
         with:
           path: repo
+          # The job's token stays out of repo/.git/config, where the pull
+          # request's own code, which the gate runs, could read it. This job
+          # pushes nothing, so nothing after the fetch needs it.
+          persist-credentials: false
 
-      - uses: actions/checkout@v4
+      # Felix at a pinned commit, decided 2026-09-23. With no ref this took
+      # Felix's default branch as it stood when the job ran, so a verdict here
+      # depended on when it was graded, and whatever merged in Felix that day,
+      # reviewed by nobody here, redefined green for this repository. Branch
+      # protection, the auto-merge streak and the repair ceiling read these
+      # runs as evidence about this repository, which runs graded by different
+      # engines are not. The job fetches with a read token and a key that
+      # reads Felix, keeps neither past its checkouts, and holds no model key,
+      # so the case is the verdict, not the credentials.
+      #
+      # The pin sits in this file because Felix does not merge a pull request
+      # that edits a workflow; a person does. Such a pull request can still
+      # change the pin and be graded by the Felix it names, but that grade does
+      # not merge it. A ref read from any other file would let a pull request
+      # choose the Felix that grades it and be merged on that grade.
+      #
+      # What it costs: the gate script and tables Felix keeps for this
+      # repository are read at the pin too, so changes to them reach CI only
+      # when it moves, and a local felix gate on a newer engine can disagree
+      # with CI until then. Moving it is a pull request here that grades this
+      # repository with the new Felix before that Felix defines green. A repair
+      # loop that checks Felix out at the same commit gets the same verdict
+      # from its pre-push gate; one on another commit can disagree with it.
+      #
+      # A full sha, since a branch or tag can move. Quoted, so YAML reads it as
+      # a string whatever it holds: unquoted, the placeholder is a mapping and
+      # the whole file is refused, which leaves a required check that never
+      # reports. A copy still reading {{FELIX_REF}} fails at this checkout
+      # instead of falling back to the default branch.
+      - uses: actions/checkout@v5
         with:
           repository: ${felix_repo}
+          ref: '${felix_ref}'
           ssh-key: \${{ secrets.FELIX_DEPLOY_KEY }}
           path: felix
+          # Once the fetch is done, the key file under \$RUNNER_TEMP and the
+          # core.sshCommand in felix/.git/config that names it are removed,
+          # so the pull request's code finds neither. Nothing after this talks
+          # to Felix's remote: the engine is read from disk.
+          persist-credentials: false
 
 $(_felix_bs_setup_block "$eco")
       - name: Confirm the governing project

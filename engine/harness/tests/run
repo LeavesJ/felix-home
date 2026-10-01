@@ -25524,24 +25524,30 @@ else
   # _rtn1 to _rtn4 were reported for this suite's own checkout alone, so the
   # fourth review of #371 replaced the report of _rtn3, then of _rtn1, with a
   # plain ok, and every assertion stayed green while a retraction, and a sha
-  # pasted beside a run row of -, passed. _rt_judge <checkout> [record] makes
-  # that judgment of the checkout named, reading its red.tsv, its manifest, its
+  # pasted beside a run row of -, passed. _rt_judge <checkout> makes that
+  # judgment of the checkout named, reading its red.tsv, its manifest, its
   # plugin.json and its git, and reports the four names through ok, skip and
-  # bad as this block always did; record is --record-assertions. Its reports
-  # are captured as _rt_reported captures _rt_report's, one line each, in a
-  # subshell, so that nothing counts, and with FELIX_TEST_RECORD at 0 there,
-  # so that record mode is the argument's alone. The checkout: origin/main
-  # holds engine 1.0.0, a manifest listing one name and the retraction; a
-  # branch commit changes a file under engine/ and one under docs/ and
-  # declares 1.0.1, and red.tsv and plugin.json are rewritten beside it,
-  # uncommitted, for each record. Then a second branch commit puts engine/
-  # back as origin/main holds it and keeps the docs change.
-  _rt_judged() {   # <checkout> [record] -> ok|<name>, skip|<name>|<reason> or bad|<name>|<detail>, a line each
-    ( FELIX_TEST_RECORD=0
+  # bad as this block always did. Record mode, --record-assertions, is
+  # FELIX_TEST_RECORD at exactly 1, as the suite sets it, and _rt_judge reads
+  # it itself: decided at the suite's one call, it was asked by no assertion,
+  # and a test at that call that took the suite's normal 0 for record mode,
+  # ${FELIX_TEST_RECORD:+record} among them, skipped _rtn1 to _rtn3 on every
+  # run with every assertion green (#371, fifth review). Its reports are
+  # captured as _rt_reported captures _rt_report's, one line each, in a
+  # subshell, so that nothing counts, with FELIX_TEST_RECORD set there for
+  # each case: 0, as a normal run sets it, for every case but record mode's,
+  # 1 for that one, and unset for one more. The checkout: origin/main holds
+  # engine 1.0.0, a manifest listing one name and the retraction; a branch
+  # commit changes a file under engine/ and one under docs/ and declares
+  # 1.0.1, and red.tsv and plugin.json are rewritten beside it, uncommitted,
+  # for each record, red.tsv removed for one. Then a second branch commit
+  # puts engine/ back as origin/main holds it and keeps the docs change.
+  _rt_judged() {   # <checkout> <FELIX_TEST_RECORD: 0, 1 or unset> -> ok|<name>, skip|<name>|<reason> or bad|<name>|<detail>, a line each
+    ( if [ "$2" = unset ]; then unset FELIX_TEST_RECORD; else FELIX_TEST_RECORD="$2"; fi
       ok()   { printf 'ok|%s\n' "$1"; }
       skip() { printf 'skip|%s|%s\n' "$1" "${2-}"; }
       bad()  { printf 'bad|%s|%s\n' "$1" "${2-}"; }
-      _rt_judge "$@" )
+      _rt_judge "$1" )
   }
   # Whether those reports hold one line for a name, its verdict the one asked
   # for and its rest holding each phrase given: nothing when they do, and what
@@ -25560,6 +25566,7 @@ else
   _rtj="$TMP/rt-judge"; mkdir -p "$_rtj/engine/.claude-plugin" "$_rtj/engine/harness/tests" "$_rtj/engine/harness/lib" "$_rtj/docs"
   _rtjt="$_rtj/engine/harness/tests/red.tsv"; _rtjp="$_rtj/engine/.claude-plugin/plugin.json"
   _rtja="the one assertion the judged checkout's manifest lists"
+  _rtju="an assertion the judged checkout's manifest does not list"
   _rtjd="$(printf '# a record\nbase\t-\t-\t-\nrun\t-\t-\t-')"
   ( cd "$_rtj" && git init -q && git config user.email t@t && git config user.name t \
       && printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp" && echo a > engine/harness/lib/x.sh && echo a > docs/y \
@@ -25577,45 +25584,65 @@ else
   _rtjn4="and in record mode it skips the whole-record, manifest and base checks, saying --record-assertions rewrites red.tsv, and still asks the version"
   _rtjn5="and of one whose engine change declares origin/main's version, it fails the version check"
   _rtjn6="and of a branch that puts its engine change back but keeps a docs change, it skips the base and version checks, though its record is the retraction"
+  _rtjn7="and with FELIX_TEST_RECORD unset it judges the real record as a normal run does, all four passed, since record mode is that variable at exactly 1"
+  _rtjn8="and of one whose engine change has no red.tsv beside it, as a conflict resolved by removing the file leaves, it fails the base check, saying there is no red.tsv, where the whole-record and manifest checks skip"
+  _rtjn9="and of one whose real record names as failed an assertion its manifest does not list, it fails the manifest check, naming that assertion"
   # Each fails for its own reason only while the checkout stands where it
   # says: the branch commit's merge-base is origin/main's commit.
   if [ -n "$_rtjm" ] && [ "$(git -C "$_rtj" merge-base HEAD refs/remotes/origin/main 2>/dev/null)" = "$_rtjm" ] \
      && [ "$(git -C "$_rtj" log -1 --format=%s HEAD 2>/dev/null)" = "branch: engine 1.0.1, and docs" ]; then
     printf '%s\n' "$_rtjr" > "$_rtjt"
-    is "$_rtjn1" "$(_rt_judged "$_rtj" | LC_ALL=C sort)" "$(printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort)"
+    is "$_rtjn1" "$(_rt_judged "$_rtj" 0 | LC_ALL=C sort)" "$(printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort)"
     printf '%s\n' "$_rtjd" > "$_rtjt"
-    _rtjo="$(_rt_judged "$_rtj")"
+    _rtjo="$(_rt_judged "$_rtj" 0)"
     _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn3" bad "no red run was made (base -)"; _rt_judged_one "$_rtjo" "$_rtn1" ok)"
     [ -z "$_rtjw" ] && ok "$_rtjn2" || bad "$_rtjn2" "$_rtjw"
     printf '%s\n' "$_rtjq" > "$_rtjt"
-    _rtjo="$(_rt_judged "$_rtj")"
+    _rtjo="$(_rt_judged "$_rtj" 0)"
     _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn1" bad; _rt_judged_one "$_rtjo" "$_rtn3" ok)"
     [ -z "$_rtjw" ] && ok "$_rtjn3" || bad "$_rtjn3" "$_rtjw"
     printf '%s\n' "$_rtjr" > "$_rtjt"
-    _rtjo="$(_rt_judged "$_rtj" record)"
+    _rtjo="$(_rt_judged "$_rtj" 1)"
     _rtjw="$(for _n in "$_rtn1" "$_rtn2" "$_rtn3"; do
                _rt_judged_one "$_rtjo" "$_n" skip "--record-assertions rewrites red.tsv after this run"
              done
              _rt_judged_one "$_rtjo" "$_rtn4" ok)"
     [ -z "$_rtjw" ] && ok "$_rtjn4" || bad "$_rtjn4" "$_rtjw"
+    is "$_rtjn7" "$(_rt_judged "$_rtj" unset | LC_ALL=C sort)" "$(printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort)"
     printf '%s\n' "$_rtjr" > "$_rtjt"; printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp"
-    _rtjo="$(_rt_judged "$_rtj")"
+    _rtjo="$(_rt_judged "$_rtj" 0)"
     _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn4" bad)"
     [ -z "$_rtjw" ] && ok "$_rtjn5" || bad "$_rtjn5" "$_rtjw"
+    # And two records no case above reached, each beside the branch's 1.0.1.
+    # None at all, as a red.tsv merge conflict resolved by removing the file
+    # leaves: an engine change still owes one, and its absence skipped _rtn1
+    # to _rtn3, so that change passed (#371, fifth review). And a real record
+    # whose failed name the manifest does not list, the one record here that
+    # fails _rtn2, whose report could be a plain ok with every case above
+    # still passing.
+    printf '{\n  "version": "1.0.1"\n}\n' > "$_rtjp"; rm -f "$_rtjt"
+    _rtjo="$(_rt_judged "$_rtj" 0)"
+    _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn3" bad "no red.tsv"
+             for _n in "$_rtn1" "$_rtn2"; do _rt_judged_one "$_rtjo" "$_n" skip "no red.tsv beside this suite"; done)"
+    [ -z "$_rtjw" ] && ok "$_rtjn8" || bad "$_rtjn8" "$_rtjw"
+    printf '# a record\nbase\torigin/main\t%s\t1.0.0\nrun\t1\t1\t0\n%s\t1\n' "$_rtjm" "$_rtju" > "$_rtjt"
+    _rtjo="$(_rt_judged "$_rtj" 0)"
+    _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn2" bad "not in the manifest" "$_rtju"; _rt_judged_one "$_rtjo" "$_rtn1" ok)"
+    [ -z "$_rtjw" ] && ok "$_rtjn9" || bad "$_rtjn9" "$_rtjw"
     ( cd "$_rtj" && printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp" && echo a > engine/harness/lib/x.sh \
         && printf '%s\n' "$_rtjd" > "$_rtjt" && git commit -qam 'branch: engine put back, docs kept' ) >/dev/null 2>&1
     # And this one only while engine/ is origin/main's again and docs/ is not.
     if [ "$(git -C "$_rtj" log -1 --format=%s HEAD 2>/dev/null)" = "branch: engine put back, docs kept" ] \
        && git -C "$_rtj" diff --quiet refs/remotes/origin/main -- engine 2>/dev/null \
        && ! git -C "$_rtj" diff --quiet refs/remotes/origin/main -- docs 2>/dev/null; then
-      _rtjo="$(_rt_judged "$_rtj")"
+      _rtjo="$(_rt_judged "$_rtj" 0)"
       _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn3" skip "changes no engine file"; _rt_judged_one "$_rtjo" "$_rtn4" skip "changes no engine file")"
       [ -z "$_rtjw" ] && ok "$_rtjn6" || bad "$_rtjn6" "$_rtjw"
     else
       bad "$_rtjn6" "the fixture does not stand where it says: HEAD $(git -C "$_rtj" log -1 --format='%h %s' HEAD 2>/dev/null), with engine/ origin/main's and docs/ not"
     fi
   else
-    for _n in "$_rtjn1" "$_rtjn2" "$_rtjn3" "$_rtjn4" "$_rtjn5" "$_rtjn6"; do
+    for _n in "$_rtjn1" "$_rtjn2" "$_rtjn3" "$_rtjn4" "$_rtjn5" "$_rtjn6" "$_rtjn7" "$_rtjn8" "$_rtjn9"; do
       bad "$_n" "the fixture does not stand where it says: origin/main ${_rtjm:-(none)}, HEAD $(git -C "$_rtj" log -1 --format='%h %s' HEAD 2>/dev/null)"
     done
   fi

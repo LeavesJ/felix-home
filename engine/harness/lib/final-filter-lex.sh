@@ -15,8 +15,10 @@
 # records whether it can fail by itself: one replacing standard input (`<`,
 # `<<<`, `<>`, `<&`, `0>`), because a stage reading a file instead of its
 # pipe can fail when the file is missing, and likewise one reading a file on
-# any fd, one closing an fd (`>&-`), and one duplicating an fd above 2, which
-# may not be open. A here-document sets FFERR: its body is on lines a row
+# any fd; a duplicate of anything but fd 1 or 2 (`>&0`, `>&3`, `>&-`,
+# `2>&1-`), which may not be open or closes an output; an fd above 9; and a
+# target that is a process substitution, which can close early, or that runs
+# a command, whose status bash then keeps. A here-document sets FFERR: its body is on lines a row
 # cannot hold, and a text this cannot read is admitted. So do `&>>` and
 # `{fd}>`, which bash 3.2 cannot read or reads as a file name.
 #
@@ -52,6 +54,24 @@ function ff_ansi(s, i, n,    c, v, e) {
     if (c == "\047") { FFDQV = v; FFDQY = e; return i + 1 }
     v = v c; i++
   }
+  return 0
+}
+# A word that can change what the shell does next, however it is quoted:
+# pipefail, the variables that set options or say what a name runs, and a
+# kill, which can end the shell from any process the text starts.
+function ff_bad(v) {
+  return v ~ /[Pp][Ii][Pp][Ee]_?[Ff][Aa][Ii][Ll]|SHELLOPTS|BASHOPTS|BASH_ENV|BASH_CMDS/ ||
+    v ~ /(^|[^A-Za-z0-9_])PATH([^A-Za-z0-9_]|$)/ || v ~ /(^|[^A-Za-z0-9_-])(kill|pkill|killall)([^A-Za-z0-9_-]|$)/
+}
+# A text this does not read: one holding a word ff_bad names, a carriage
+# return, arithmetic, or an expansion that can end the shell with an error,
+# which every ${ } form can but ${name}, ${#name}, and ${name with :- - :+ +
+# # ## % %% or /.
+function ff_unsure(s,    t, i) {
+  if (ff_bad(s) || s ~ /\r|\$\[|\(\(/) return 1
+  t = s
+  while ((i = index(t, "${"))) { t = substr(t, i + 2)
+    if (t !~ /^(#[A-Za-z_][A-Za-z0-9_]*}|[A-Za-z_][A-Za-z0-9_]*(}|:?[-+]|##?|%%?|\/)|[0-9@*#?$!-](}|:?[-+]))/) return 1 }
   return 0
 }
 function ff_known(nm) { return index(" FELIX_PROJECT FELIX_PROJECT_NAME FELIX_MEMORY_DIR FELIX_ROOT_DIR HOME PATH PWD ", " " nm " ") > 0 }
@@ -168,7 +188,9 @@ function ff_redir(s, i, n, d, t, fd,    op, st, j) {
   while (substr(s, i, 1) == " " || substr(s, i, 1) == "\t") i++
   j = ff_word(s, i, n)
   if (!j || j == i) { FFERR = 1; return 0 }
-  if (op == ">&" && (FFWY || FFWV == "-" || (FFWV ~ /^[0-9]+-?$/ && FFWV + 0 > 2))) st = 1
+  if (FFWR ~ /^[<>]\(|\$\(|`/) st = 1
+  if (op == ">&" && (FFWY || (FFWV ~ /^[0-9-]/ && FFWV !~ /^[12]$/))) st = 1
+  if (fd != "" && fd + 0 > 9) st = 1
   ff_tok(d, t, "r", op, 0, 0, "", st)
   return j
 }
@@ -185,7 +207,7 @@ function ff_lex(s, d,    n, i, c, c2, t, j, fd) {
     if (c2 == "&>") { if (substr(s, i + 2, 1) == ">") { FFERR = 1; return 0 }; i += 2
       while (substr(s, i, 1) == " " || substr(s, i, 1) == "\t") i++
       j = ff_word(s, i, n); if (!j || j == i) return 0
-      ff_tok(d, ++t, "r", "&>", 0, 0, "", 0); i = j; continue }
+      ff_tok(d, ++t, "r", "&>", 0, 0, "", FFWR ~ /^[<>]\(|\$\(|`/); i = j; continue }
     if (c == "|" || c == "&" || c == ";" || c == ")") { ff_tok(d, ++t, "o", c); i++; continue }
     if (c == "(") {
       if (substr(s, i + 1, 1) == "(") { j = ff_arith(s, i + 2, n); if (!j) return 0; if (substr(s, i, j - i) ~ /[A-Za-z_@*!]/) FFVAR = 1; ff_tok(d, ++t, "a", "(("); i = j; continue }

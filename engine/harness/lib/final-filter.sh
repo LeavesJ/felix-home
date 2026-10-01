@@ -47,11 +47,16 @@
 # leaves today's hole.
 #
 # Admitted whenever this cannot be sure:
-#   - the text mentions pipefail, SHELLOPTS or BASH_ENV anywhere, or sets an
-#     option named by an expansion or by quoted text;
-#   - it assigns PATH, which can make any name a project's own script;
-#   - it defines a function, sources a file, sets a trap, or uses shopt,
-#     hash, alias, unalias or enable;
+#   - a word anywhere, however quoted, names pipefail, PATH, SHELLOPTS,
+#     BASHOPTS, BASH_ENV, BASH_CMDS or a kill, which can end the shell from
+#     any process the text starts;
+#   - it sets an option spelled with quotes or an expansion;
+#   - it uses a builtin other than those ff_safe lists: a function, source,
+#     trap, return, shopt, hash, alias, readonly, ulimit, unset and the rest
+#     can each change what follows;
+#   - it holds arithmetic, `[[ ]]`, or a `${ }` other than ${name},
+#     ${#name} and ${name} with :- - :+ + # ## % %% or /, any of which can
+#     end the shell with an error;
 #   - it holds a carriage return, a here-document, `select`, `coproc`, a case
 #     fallthrough, `&>>` or a `{fd}` redirect;
 #   - it has syntax the parser cannot read, or nesting past 40 levels;
@@ -61,9 +66,9 @@
 #     commissioning evaluates with `set -u`, and a text can turn it on.
 # An absolute path names the command it ends in. A literal script given to
 # `sh -c`, `bash -c` or `eval` is read as that script. `exec` with a command
-# ends the script with that command's status, `kill` may end it, and an exit
-# in a `for` or `case` whose words hold an expansion returns that expansion's
-# status, which can be anything.
+# ends the script with that command's status, and an exit in a `for` or
+# `case` whose words hold an expansion, or after an assignment or redirect
+# that ran a command, returns that command's status, which can be anything.
 #
 # Known misses, all admitted:
 #   - `grep -v`, which fails when it selects nothing, so it can fail;
@@ -199,7 +204,7 @@ function ff_ifc(c, t, e,    A, k, i, x, o) {
 # and ff_list only adds endings for it, so reading it early can only admit
 # more.
 function ff_text(s, ex,    d, out) {
-  if (FFD >= 6) { FFERR = 1; return " z n " }
+  if (FFD >= 6 || ff_unsure(s)) { FFERR = 1; return " z n " }
   if (s ~ /(^|[^A-Za-z0-9_])set[ \t]/ && s ~ /[ \t]-[A-Za-z]*e|errexit/) ex = 1
   d = ++FFD; FFP[d] = 1; FFEX[d] = ex
   if (!ff_lex(s, d)) { FFERR = 1; FFD--; return " z n " }
@@ -262,7 +267,7 @@ function ff_cmd(    o, w, c) {
   FFFILT = ""
   if (ff_end()) { FFERR = 1; return " z n " }
   if (ff_is(0, "(")) { FFP[FFD]++; o = ff_list(" o:) "); if (!ff_is(0, ")")) { FFERR = 1; return o }; FFP[FFD]++; return ff_close(ff_sub(o)) }
-  if (ff_ty(0) == "a") { FFP[FFD]++; return ff_close(" z n ") }
+  if (ff_ty(0) == "a") { FFERR = 1; return " z n " }
   if (ff_ty(0) == "r") return ff_simple()
   if (ff_ty(0) != "w") { FFERR = 1; return " z n " }
   if (FFQ[FFD, FFP[FFD]]) return ff_simple()
@@ -275,11 +280,7 @@ function ff_cmd(    o, w, c) {
     FFP[FFD]++; return ff_close(ff_pick(c, 1) ff_q(o, w == "while" ? "z" : "n") " z ") }
   if (w == "for") return ff_for()
   if (w == "case") return ff_case()
-  if (w == "[[") {
-    FFP[FFD]++; while (!ff_end() && !ff_kw(0, "]]")) FFP[FFD]++
-    if (ff_end()) { FFERR = 1; return " z n " }
-    FFP[FFD]++; return ff_close(" z n ") }
-  if (w ~ /^(function|coproc|select|then|else|elif|fi|do|done|esac|[}])$/) { FFERR = 1; return " z n " }
+  if (w ~ /^(function|coproc|select|then|else|elif|fi|do|done|esac|[}]|\[\[)$/) { FFERR = 1; return " z n " }
   return ff_simple()
 }
 function ff_if(    nc, C, T, i, r) {
@@ -296,11 +297,9 @@ function ff_if(    nc, C, T, i, r) {
 }
 function ff_for(    o, y) {
   FFP[FFD]++; y = 0
-  if (ff_ty(0) == "a") FFP[FFD]++
-  else {
-    if (ff_ty(0) != "w") { FFERR = 1; return " z n " }
-    FFP[FFD]++; ff_skipnl()
-    if (ff_kw(0, "in")) { FFP[FFD]++; while (ff_ty(0) == "w") { if (FFY[FFD, FFP[FFD]]) y = 1; FFP[FFD]++ } } }
+  if (ff_ty(0) != "w") { FFERR = 1; return " z n " }
+  FFP[FFD]++; ff_skipnl()
+  if (ff_kw(0, "in")) { FFP[FFD]++; while (ff_ty(0) == "w") { if (FFY[FFD, FFP[FFD]]) y = 1; FFP[FFD]++ } }
   while (ff_is(0, ";") || ff_is(0, "nl")) FFP[FFD]++
   if (!ff_kw(0, "do")) { FFERR = 1; return " z n " }
   FFP[FFD]++; o = ff_list(" w:done "); if (!ff_kw(0, "done")) { FFERR = 1; return o }
@@ -326,82 +325,38 @@ function ff_case(    o, y, b) {
   }
   return ff_close(o)
 }
-function ff_simple(    nw, st, p, i, nm, r) {
-  nw = 0; st = 0
+# A simple command. A builtin ff_safe does not list can change the shell, and
+# so can a word ff_bad names however it is quoted: the text is admitted. A
+# name that is an expansion may be exit. A redirection that can fail stops
+# the command with status 1, and a bare exit after an assignment that ran a
+# command returns the status of that command.
+function ff_simple(    nw, st, p, i, nm, r, ex, cs) {
+  nw = 0; st = 0; cs = 0
   while (!ff_end() && (ff_ty(0) == "w" || ff_ty(0) == "r")) {
     p = FFP[FFD]; FFP[FFD]++
     if (FFT[FFD, p] == "r") { if (FFS[FFD, p]) st = 1; continue }
-    if (nw == 0 && FFR[FFD, p] ~ /^[A-Za-z_][A-Za-z0-9_]*(\[[^=]*\])?[+]?=/) continue
+    if (ff_bad(FFV[FFD, p])) { FFERR = 1; return " z n " }
+    if (nw == 0 && FFR[FFD, p] ~ /^[A-Za-z_][A-Za-z0-9_]*(\[[^=]*\])?[+]?=/) { if (FFR[FFD, p] ~ /\$\(|`/) cs = 1; continue }
     nw++; FFA[FFD, nw] = FFV[FFD, p]; FFAY[FFD, nw] = FFY[FFD, p]; FFAR[FFD, nw] = FFR[FFD, p]
     if (nw == 1 && ff_is(0, "(")) { FFERR = 1; return " z n " }
   }
   if (nw == 0) return " z n "
-  FFEXEC = 0; i = ff_prefix(nw); if (!i) return " z n "
+  FFEXEC = 0; FFBI = 0; FFPX = ""; i = ff_prefix(nw); ex = FFEXEC
+  if (!i) { if (ex && FFPX == "n") FFERR = 1; return FFPX == "y" ? " z n tn " : " z n " }
   nm = FFNAME
-  if (nm ~ /^([.]|source|trap|return|shopt|hash|alias|unalias|enable)$/) { FFERR = 1; return " z n " }
+  if (FFBI && !ff_isbuiltin(nm)) return " n "
+  if (ff_isbuiltin(nm) && !ff_safe(nm)) { FFERR = 1; return " z n " }
   # exec runs a file, so a name only the shell knows is not found, and the
   # shell ends there.
-  if (FFEXEC && nm ~ /^(exit|eval|set|:)$/) return " tn "
+  if (ex && nm ~ /^(exit|eval|set|:)$/) return " tn "
   r = ff_run(nm, i, nw, st)
-  return FFEXEC ? ff_mkterm(r) : r
-}
-function ff_run(nm, i, nw, st) {
-  if (nm ~ /^(sh|bash|dash|ksh|mksh|zsh|ash|posh|yash)$/) return ff_shell(i, nw)
-  if (nm == "eval") return ff_eval(i, nw)
-  if (nm == "exit") return ff_exit(i, nw)
-  if (nm == "set") return ff_set(i, nw)
-  if (nm == "false") return " n "
-  if (nm == "kill") return " z n tn "
-  if (!st && ff_filter(nm, i + 1, nw)) { FFFILT = nm; return " z " }
-  return " z n "
-}
-function ff_exit(i, nw,    v) {
-  if (i == nw) return " tq "
-  if (i + 1 < nw) return " tz tn "
-  v = FFAR[FFD, i + 1]
-  if (v == "$?" || v == "\"$?\"") return " tq "
-  if (FFAY[FFD, i + 1] || FFA[FFD, i + 1] !~ /^[0-9]+$/) return " tz tn "
-  return (FFA[FFD, i + 1] + 0 == 0) ? " tz " : " tn "
-}
-# An option named by an expansion or by quoted text may be pipefail, and the
-# check for that word reads the text as written.
-function ff_optok(p, nw) {
-  if (p > nw) return 1
-  if (FFAY[FFD, p] || FFAR[FFD, p] != FFA[FFD, p] || FFA[FFD, p] ~ /[Pp][Ii][Pp][Ee]_?[Ff][Aa][Ii][Ll]/) { FFERR = 1; return 0 }
-  return 1
-}
-# set succeeds with options it knows. What -e does is read by ff_text.
-function ff_set(i, nw,    p, v) {
-  for (p = i + 1; p <= nw; p++) {
-    v = FFA[FFD, p]; if (FFAY[FFD, p]) return " z n "
-    if (v == "--" || v == "-") break
-    if (v ~ /^[-+][A-Za-z]*o[A-Za-z]*$/) { if (!ff_optok(p + 1, nw)) return " z n "; if (v !~ /^[-+]o$/) return " z n "; p++; continue }
-    if (v !~ /^[-+][abefhkmnptuvxBCEHPT]+$/) { if (v ~ /^[-+]/) return " z n "; break }
-  }
-  return " z "
-}
-function ff_shell(i, nw,    j, v, c, ex, o) {
-  c = 0; ex = 0
-  for (j = i + 1; j <= nw; j++) {
-    v = FFA[FFD, j]; if (FFAY[FFD, j]) return " z n "
-    if (v == "--" || v == "-") { j++; break }
-    if (v ~ /^[-+][oO]$/ || v == "--rcfile" || v == "--init-file") { if (v ~ /o$/ && !ff_optok(j + 1, nw)) return " z n "; if (v == "-o" && j < nw && FFA[FFD, j + 1] == "errexit") ex = 1; j++; continue }
-    if (v ~ /^--/) continue
-    if (v ~ /^[-+][A-Za-z]+$/) { if (v ~ /^-.*c/) c = 1; if (v ~ /^-.*e/) ex = 1; continue }
-    break
-  }
-  if (!c || j > nw || FFAY[FFD, j]) return " z n "
-  o = ff_sub(ff_text(FFA[FFD, j], ex)); FFFILT = ""; return o
-}
-function ff_eval(i, nw,    j, t, o) {
-  t = ""
-  for (j = i + 1; j <= nw; j++) { if (FFAY[FFD, j]) return " z n "; t = t (t == "" ? "" : " ") FFA[FFD, j] }
-  o = ff_text(t, FFEX[FFD]); FFFILT = ""; return o
+  if (cs) r = ff_qboth(r)
+  if (st && FFFILT == "") r = r " n "
+  return ex ? ff_mkterm(r) : r
 }
 # The final filter whose status the text can end on, when it cannot fail.
 function ff_stage(s,    out, nm) {
   FFERR = 0; FFD = 0; FFNEST = 0; FFFILT = ""; FFVAR = 0
-  if (s ~ /[Pp][Ii][Pp][Ee]_?[Ff][Aa][Ii][Ll]|SHELLOPTS|BASH_ENV|\r/ || s ~ /(^|[^A-Za-z0-9_])PATH[+]?=/) return ""
   out = ff_sub(ff_text(s, 0))
   if (FFERR || out ~ / (n|g:[^ ]*) / || !match(out, / h:[^ ]+ /)) return ""
   if (FFVAR && (FFNU || (s ~ /(^|[^A-Za-z0-9_])(set|(ba|da|k|mk|z|a|po|ya)?sh)[ \t]/ && s ~ /[ \t][-][A-Za-z]*u|nounset/))) return ""

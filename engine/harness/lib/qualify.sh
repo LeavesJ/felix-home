@@ -372,7 +372,10 @@ _felix_qualify_sh() {   # dir, text, stderr file outside dir -> the text's own s
     '^felix-qualify: ((line [0-9]+: )?[^:]+: command not found$|((line [0-9]+: )?(command substitution|eval|-c): )?(line [0-9]+: )?(syntax error near unexpected token|syntax error: unexpected end of file|unexpected EOF while looking for matching))' \
     "$3" 2>/dev/null
   said=$?
-  rm -f "$3"
+  # Quietly: a mutation that took the base's write bit away leaves this file
+  # behind, the next column's 2> truncates it, and _felix_qualify_drop takes
+  # it with the base.
+  rm -f "$3" 2>/dev/null
   [ "$said" = 1 ] || return 127
   return "$rc"
 }

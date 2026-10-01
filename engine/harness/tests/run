@@ -18272,8 +18272,12 @@ unset _cmesrc _cmesnone _cmesempty _cmesword _cmesagain _cmesdt _cmesran _cmeshd
 # declared capabilities came back as none, so a row whose capability is
 # declared read not-applicable and the receipt said commissioned; the run's
 # empty-state guard cannot see it, because not-applicable is a state. The
-# engine functions a check names came back as none, so a check over a function
-# that is not loaded ran and read done. And the count of an answer's rows came
+# engine functions a check names came back as none when the grep that reads
+# them ran and failed, so a check over a function that is not loaded ran and
+# read done. (Amended after review: a fork that failed there skipped the
+# `|| true` and, under the CLI's pipefail, read unknown naming no function;
+# done only without pipefail. The stub below models the grep that failed.)
+# And the count of an answer's rows came
 # back empty, the comparison with its done line errored and was false, and the
 # answer read answered, whole or not, which is the state every ingestion
 # reads. The adversarial reviewer of the empty-state fix above found the
@@ -18318,6 +18322,12 @@ _cmlfstub() { local _cmlfmode="$1"; shift
     present-1)    _felix_commission_functions_present() { return 1; } ;;
     present-3)    _felix_commission_functions_present() { return 3; } ;;
     tab)          IFS=$'\t' ;;
+    declared-exit0) felix_declared() { exit 0; } ;;
+    present-exit0)  _felix_commission_functions_present() { exit 0; } ;;
+    declared-grep2) grep() { case "$1$2" in '-vE^\s*(#|$)') return 2 ;; esac; command grep "$@"; } ;;
+    count-first)    grep() { case "$1$2" in '-vE^[[:space:]]*(#|$)') return 2 ;; esac; command grep "$@"; } ;;
+    count-first-two) grep() { case "$1$2" in '-vE^[[:space:]]*(#|$)') command grep "$@" | awk 'NR <= 2'; return 2 ;; esac
+                      command grep "$@"; } ;;
   esac
   "$@"; }
 # What a call printed and the status it returned, as "status [output]".
@@ -18465,7 +18475,69 @@ _cmlflog1="$(_cmlfsum "$MEM/cmproj/commissioning.log")"
 is  "an answer whose rows could not be counted is not ingested: the record prints 0 and appends nothing to the log" \
     "$_cmlfrec1 $([ "$_cmlflog1" = "$_cmlflog0" ] && printf unchanged || printf appended)" "0 unchanged"
 
-rm -f "$_cmlfad/cmlf_whole.tsv" "$_cmlfad/cmlf_part.tsv" "$_cmlfad/cmlf_zero.tsv" "$_cmlfad/cmlf_twin.tsv"
+# Added after review, not blind. The reviewers found four ways the first fix
+# still read a lookup that was not made as one that was, and two ways a wrong
+# implementation passed the block.
+# - On bash 3.2 a substitution that cannot make its pipe (no file descriptor
+#   left) expands to nothing with status 0 (measured), so a status read alone
+#   takes it for a list read and empty. Modelled by a lookup that ends its
+#   substitution with exit 0 before it answers; the engine has to see that
+#   the answer never came.
+# - A count of an answer's rows taken over a first grep that failed is a
+#   number all the same, whether that grep printed nothing or some of the rows.
+# - A capabilities link whose target is gone was called absent, so the list
+#   was empty.
+# - felix_declared swallowing grep's exit 2 was caught only at mode 000, which
+#   root can still read. This one stubs the grep and runs as anybody.
+# - A walk of the names through a second substitution or a here-document
+#   passed every assertion, and so did a membership test that inlined
+#   felix_has_line's here-document. Each lookup is read here as bash prints it:
+#   one substitution, no here-document, and no pipe but the one that reads
+#   the names.
+# Not modelled: the names lookup's own substitution failing to make its pipe.
+# Nothing in it runs in that substitution's shell before the answer, so no
+# stub can end it early, and nothing here lowers a limit. The `.` it carries
+# is there by reading, and a mutation that drops it passes this block.
+printf 'api\n' > "$CMP/capabilities"
+is  "a declared list whose substitution ended before it answered, with status 0, makes _felix_cap_active return 2 and the row unknown" \
+    "$(_cmlfca declared-exit0 api) $(_cm _cmlfstub declared-exit0 felix_commission_state "$CMP" "$CMR" cmlf_cap api - - - true 2>/dev/null | cut -f1)" \
+    "2 [] unknown"
+is  "a names lookup whose substitution ended with status 0 and no text makes the row unknown, not done" \
+    "$(_cmlfefn present-exit0 "$_cmlfgone" | cut -f1)" "unknown"
+is  "felix_declared returns nonzero and prints nothing when its grep fails, as any user, and _felix_cap_active returns 2" \
+    "$(_cmlfnz "$(_cm _cmlfstub declared-grep2 _cmlfrc felix_declared "$CMP")") $(_cmlfca declared-grep2 api)" \
+    "nonzero, nothing 2 []"
+rm -f "$CMP/capabilities"; ln -s "$TMP/cmlf-no-such-target" "$CMP/capabilities"
+is  "a capabilities link whose target is gone is not an absent file: _felix_cap_active returns 2 and the row is unknown" \
+    "$(_cmlfca none api) $(_cm felix_commission_state "$CMP" "$CMR" cmlf_cap api - - - true 2>/dev/null | cut -f1)" \
+    "2 [] unknown"
+# The answers below are keyed to the topology taken with api declared.
+rm -f "$CMP/capabilities"; printf 'api\n' > "$CMP/capabilities"
+_cmlfans $'plugin\tcmlfone\t-\tllm\twhy' $'plugin\tcmlftwo\t-\tllm\twhy' $'done\t0' > "$_cmlfad/cmlf_zero2.tsv"
+_cmlfans $'plugin\tcmlfone\t-\tllm\twhy' $'plugin\tcmlftwo\t-\tllm\twhy' $'plugin\tcmlfthree\t-\tllm\twhy' $'done\t2' \
+  > "$_cmlfad/cmlf_three.tsv"
+is  "unstubbed, an answer saying done 0 over two rows and one saying done 2 over three are partial" \
+    "$(_cmlfps none cmlf_zero2 | cut -f1) $(_cmlfps none cmlf_three | cut -f1)" "partial partial"
+is  "a count over a first grep that failed is not a count: done 0 over two rows is unknown when that grep printed nothing, not answered" \
+    "$(_cmlfps count-first cmlf_zero2 | cut -f1)" "unknown"
+is  "and done 2 over three rows is unknown when that grep printed two of them and failed, not answered" \
+    "$(_cmlfps count-first-two cmlf_three | cut -f1)" "unknown"
+_cmlfshape() { local _cmlfb _cmlfr _cmlfn=0 _cmlfp=0
+  _cmlfb="$(declare -f "$1")"; _cmlfr="$_cmlfb"
+  while :; do case "$_cmlfr" in *'$('*) _cmlfr="${_cmlfr#*\$(}"; _cmlfn=$((_cmlfn + 1)) ;; *) break ;; esac; done
+  _cmlfr="$_cmlfb"
+  while :; do case "$_cmlfr" in *' | '*) _cmlfr="${_cmlfr#* | }"; _cmlfp=$((_cmlfp + 1)) ;; *) break ;; esac; done
+  printf '%s subs %s pipes' "$_cmlfn" "$_cmlfp"
+  case "$_cmlfb" in *'<<'*) printf ', a here-document' ;; esac
+  case "$_cmlfb" in *felix_has_line*) printf ', felix_has_line' ;; esac
+  printf '\n'; }
+is  "the capability lookup is one substitution, with no pipe, no here-document and no felix_has_line" \
+    "$(_cm _cmlfshape _felix_cap_active)" "1 subs 0 pipes"
+is  "and the names lookup is one substitution whose one pipe reads the names, with no here-document" \
+    "$(_cm _cmlfshape _felix_commission_functions_present)" "1 subs 1 pipes"
+
+rm -f "$_cmlfad/cmlf_whole.tsv" "$_cmlfad/cmlf_part.tsv" "$_cmlfad/cmlf_zero.tsv" "$_cmlfad/cmlf_twin.tsv" \
+      "$_cmlfad/cmlf_zero2.tsv" "$_cmlfad/cmlf_three.tsv"
 [ -n "$_cmlfmade" ] && rmdir "$_cmlfad"
 rm -f "$CMP/capabilities"; [ -f "$TMP/cmlf-caps.keep" ] && mv "$TMP/cmlf-caps.keep" "$CMP/capabilities"
 if [ -f "$TMP/cmlf-table.keep" ]; then cp "$TMP/cmlf-table.keep" "$CMP/commissioning.tsv"; else rm -f "$CMP/commissioning.tsv"; fi
@@ -18476,7 +18548,7 @@ else rm -f "$MEM/cmproj/commissioning.log"; fi
 rm -f "$TMP/cmlf-table.keep" "$TMP/cmlf-log.keep"
 is  "and this block leaves the capabilities, the table, the receipt, the log and every answer file as it found them" \
     "$(_cmlffixture)" "$_cmlffound"
-unset -f _cmlffixture _cmlfstub _cmlfrc _cmlff _cmlfsays _cmlfnz _cmlfca _cmlfefn _cmlfpres _cmlfps _cmlfans _cmlfsum \
+unset -f _cmlffixture _cmlfstub _cmlfrc _cmlff _cmlfsays _cmlfnz _cmlfca _cmlfefn _cmlfpres _cmlfps _cmlfans _cmlfsum _cmlfshape \
          felix_cmlf_one felix_cmlf_two
 unset _cmlfad _cmlffound _cmlfmade _cmlfrun0 _cmlfrun1 _cmlfrun2 _cmlfc3 _cmlfgone _cmlfe0 _cmlfe1 _cmlfe2 \
       _cmlfp1 _cmlfp3 _cmlfprov _cmlftopo _cmlfpw _cmlflogt _cmlflog0 _cmlflog1 _cmlfrect _cmlfrec1 _cmlfur _cmlfalone

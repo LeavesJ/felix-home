@@ -226,7 +226,10 @@ _felix_qualify_errfile() {   # path
 
 _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | unrunnable | inapplicable
   local root="$1" cmd="$2" mut="$3" premise="${4:-}" base scratch err got rc
-  base="$(mktemp -d 2>/dev/null)" || { printf 'unrunnable'; return 0; }
+  # A template under $TMPDIR: a bare mktemp on macOS ignores TMPDIR, and the
+  # suite points TMPDIR at a fixture to count what is left there.
+  local tmpd="${TMPDIR:-/tmp}"
+  base="$(mktemp -d "${tmpd%/}/felix-qualify.XXXXXX" 2>/dev/null)" || { printf 'unrunnable'; return 0; }
   scratch="$base/w"; err="$base/err"
   # Before the add, so a row stopped while git checks the tree out goes too.
   # Every way out of this function lifts them, though it runs in a $(...).

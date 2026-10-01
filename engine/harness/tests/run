@@ -6832,10 +6832,22 @@ printf '\nthe tree a gate saw, nested worktrees, and a local marker\n'
 # length, because untracked files are identified by size and a one-second
 # mtime, and an assertion that waits on a second boundary fails on a fast
 # machine.
+#
+# The adversarial review of that build added what follows it here: a file a
+# session creates while the gate runs is the session's, when the pre-tool hook
+# saw the session write (A9d-A9f); an edit that lands during one run never
+# makes the file the gate's, so an edit during a later run is not stamped
+# current either (A9b2); a file anything but a quiet gate run wrote stays
+# foreign until it is deleted (A4, A7); the run's scratch is never in $TMPDIR
+# (A12); a large diff is compared in linear time (A13); and the line felix new
+# prints survives an exclude file with no final newline (D). The literals of
+# the gate's untracked-file line changed with it: the old one told a person to
+# ignore files it could not know were output.
 _frb_proj frc-x 'sh gate.sh'; _frb_proj frc-wt 'sh gate.sh'
 FRC_NL='
 '
-FRC_WROTE='gate: this run wrote untracked files git does not ignore: '
+FRC_WROTE='gate: untracked files appeared or changed while the gate ran, and are taken as its own output: '
+FRC_BUSY='gate: untracked files appeared or changed while a session was writing in this checkout: '
 FRC_TRACKED='gate: tracked files changed while the gate ran: '
 FRC_FOREIGN='gate: untracked files no earlier gate run wrote changed while the gate ran: '
 _frc_new()  {   # dir: a repository bound to frc-x, holding app.py, with no commit yet
@@ -6980,10 +6992,21 @@ _frc_ids="$_frc_ids$(_frb_tid "$FRC_A4")$FRC_NL$(_frc_f "$FRC_A4" 1)$FRC_NL"
 is "a hand edit to one of them, then a third run, reads stale" "$(_frc_cur "$FRC_A4")" stale
 _frc_names "which names build/o5 as a file no earlier gate run wrote" "$_frc_out" "$FRC_FOREIGN" build/o5
 is "and records moved, and build/o5 alone" "$(_frc_f "$FRC_A4" 9)|$(_frc_f "$FRC_A4" 11)" "moved|build/o5"
+# A foreign rewrite is never ownership: the fourth run rewrites build/o5 again
+# and still reads stale, where the build before review took the third run's
+# bytes as the gate's and read current. The way out the gate names is to
+# delete the file: a quiet run that creates it owns it.
 _frc_out="$(_frc_gate "$FRC_A4")"; _frc_rc=$?
 _frc_ids="$_frc_ids$(_frb_tid "$FRC_A4")$FRC_NL$(_frc_f "$FRC_A4" 1)$FRC_NL"
-_frc_is "and the fourth run reads current: the third made the hand-edited bytes the gate's own" \
-        "$(_frc_cur "$FRC_A4")" current "exit $_frc_rc, [$(_frb_cur "$FRC_A4" frc-x)]"
+_frc_is "and a fourth run that rewrites it again still reads stale: a hand-edited file is not the gate's by being rewritten" \
+        "$(_frc_cur "$FRC_A4")|$(_frc_f "$FRC_A4" 11)" "stale|build/o5" "exit $_frc_rc, [$(_frb_cur "$FRC_A4" frc-x)]"
+has "and the gate says to ignore it, or to delete it and run again" \
+    "$(_frc_rest "$_frc_out" "$FRC_FOREIGN")" "or delete them and run felix gate again"
+rm -f "$FRC_A4/build/o5"
+_frc_out="$(_frc_gate "$FRC_A4")"; _frc_rc=$?
+_frc_ids="$_frc_ids$(_frb_tid "$FRC_A4")$FRC_NL$(_frc_f "$FRC_A4" 1)$FRC_NL"
+_frc_is "and once build/o5 is deleted, the run that writes it again reads current" \
+        "$(_frc_cur "$FRC_A4")|$(_frc_f "$FRC_A4" 9)" "current|gate" "exit $_frc_rc, [$(_frb_cur "$FRC_A4" frc-x)]"
 case "$FRC_NL$_frc_ids" in
   *"${FRC_NL}coarse:"*) bad "no tree id taken over the 600 regenerated files is a count" "[$_frc_ids]" ;;
   *)                    ok  "no tree id taken over the 600 regenerated files is a count" ;;
@@ -7058,19 +7081,28 @@ _frc_gate "$FRC_A7" >/dev/null
 _frc_is "an edit to app.py, then a second run that rewrites the bytecode, reads current" "$(_frc_cur "$FRC_A7")" current \
         "[$(_frb_cur "$FRC_A7" frc-x)]"
 # The deliberate cost. A session runs its own tests, which rewrite the bytecode
-# outside any gate, and the next gate that rewrites it holds once and says why.
+# outside any gate, and every gate that rewrites it after that holds and says
+# why, until the file is deleted or ignored: the review's finding 5 measured
+# the old "holds once" as holding on every edit-test-gate cycle anyway, and
+# finding 8 showed the one-run convergence was what let an edit launder.
 printf '# edit\n' >> "$FRC_A7/app.py"
 ( cd "$FRC_A7" && sh gate.sh ) >/dev/null 2>&1
 printf '# edit\n' >> "$FRC_A7/app.py"
 _frc_out="$(_frc_gate "$FRC_A7")"
 is "bytecode a session's own test run rewrote, and a gate that rewrites it again, reads stale" "$(_frc_cur "$FRC_A7")" stale
 _frc_names "and the gate names it as a file no earlier gate run wrote" "$_frc_out" "$FRC_FOREIGN" __pycache__/app.cpython.pyc
-# One more edit first, so this run rewrites the bytecode to a new length: the
-# claim is that the run before made those bytes the gate's own, and a rewrite
-# of the same bytes in the same second would not test it.
+has "and says a test run of the session's own is why" "$(_frc_rest "$_frc_out" "$FRC_FOREIGN")" \
+    "Running the tests yourself between gates rewrites such files too"
+# One more edit first, so this run rewrites the bytecode to a new length, and
+# a rewrite of the same bytes in the same second cannot stand in for one.
 printf '# edit\n' >> "$FRC_A7/app.py"
 _frc_gate "$FRC_A7" >/dev/null
-_frc_is "and the run after that reads current: the run before it made the bytecode the gate's own" \
+_frc_is "and the run after that still reads stale: the run before it did not make the bytecode the gate's" \
+        "$(_frc_cur "$FRC_A7")|$(_frc_f "$FRC_A7" 11)" "stale|__pycache__/app.cpython.pyc" "[$(_frb_cur "$FRC_A7" frc-x)]"
+rm -f "$FRC_A7/__pycache__/app.cpython.pyc"
+printf '# edit\n' >> "$FRC_A7/app.py"
+_frc_gate "$FRC_A7" >/dev/null
+_frc_is "and with the bytecode deleted, the run that writes it again reads current" \
         "$(_frc_cur "$FRC_A7")" current "[$(_frb_cur "$FRC_A7" frc-x)]"
 
 # ------------------------------------------------------------------ A8 ------
@@ -7180,10 +7212,61 @@ else
   _frc_names "and the gate names notes.py as a file no earlier gate run wrote" "$_frc_out" "$FRC_FOREIGN" notes.py
 fi
 
+# The review's findings 2 and 8. An edit that lands in one run is foreign, and
+# the build before review then took the bytes it left as the gate's own: an
+# edit landing in the next run, or in any later one with quiet runs between,
+# was stamped current over code the check fails on, and Stop let it go. The
+# check here fails on BROKEN, and reads notes.py before it waits, so each run
+# checks the notes.py it started on.
+FRC_Y="$TMP/frc-sync-b2"; FRC_A9B2="$(_frc_new "$TMP/frc-a9b2")"; mkdir -p "$FRC_Y"
+cat > "$FRC_A9B2/gate.sh" <<EOF
+if grep -q BROKEN notes.py; then r=1; else r=0; fi
+: > '$FRC_Y/started'
+i=0; while [ ! -f '$FRC_Y/go' ] && [ \$i -lt 300 ]; do sleep 0.1; i=\$((i+1)); done
+exit \$r
+EOF
+_frb_commit "$FRC_A9B2" base
+printf 'x = 1\n' > "$FRC_A9B2/notes.py"
+_frb_prompt "$FRC_A9B2" frc-a9b2
+_frc_race2() {   # the line to append to notes.py while the gate waits, or nothing for a quiet run
+  rm -f "$FRC_Y/started" "$FRC_Y/go"
+  if [ -n "$1" ]; then _frc_race "$FRC_A9B2" "$FRC_Y" _frc_line_to "$FRC_A9B2/notes.py" "$1"
+  else _frc_race "$FRC_A9B2" "$FRC_Y" true; fi
+  [ -f "$FRC_Y/started" ]
+}
+_frc_line_to() { printf '%s\n' "$2" >> "$1"; }
+_frc_started=0
+_frc_race2 'y = 2' && _frc_started=$((_frc_started + 1))
+_frc_v1="$(_frc_cur "$FRC_A9B2")"
+_frc_race2 'z = 3' && _frc_started=$((_frc_started + 1))
+_frc_v2="$(_frc_cur "$FRC_A9B2")|$(_frc_f "$FRC_A9B2" 9)"
+_frc_s="$(_frb_stop "$FRC_A9B2" frc-a9b2)"
+_frc_race2 '' && _frc_started=$((_frc_started + 1))
+_frc_v3="$(_frc_cur "$FRC_A9B2")"
+_frc_race2 'BROKEN = 4' && _frc_started=$((_frc_started + 1))
+if [ "$_frc_started" -ne 4 ]; then
+  for _frc_i in "an edit to notes.py during each of two runs leaves both stale" \
+                "and Stop holds the session over the second" \
+                "and after a quiet run, an edit during a later run is still stale" \
+                "and Stop holds the session over that one too"; do
+    bad "$_frc_i" "the fixture: $_frc_started of 4 gates started: [$(cat "$FRC_Y/out" 2>/dev/null)]"
+  done
+else
+  is "an edit to notes.py during each of two runs leaves both stale" "$_frc_v1|$_frc_v2" "stale|stale|moved"
+  _blocks "and Stop holds the session over the second" "$_frc_s"
+  _frc_is "and after a quiet run, an edit during a later run is still stale" \
+          "$_frc_v3|$(_frc_cur "$FRC_A9B2")|$(_frc_f "$FRC_A9B2" 9)" "current|stale|moved" \
+          "[$(cat "$FRC_Y/out" 2>/dev/null)]"
+  _blocks "and Stop holds the session over that one too" "$(_frb_stop "$FRC_A9B2" frc-a9b2)"
+fi
+
 # The residual: a file someone else creates while the gate runs cannot be told
-# from one the gate created. Only its bound is asserted, never current or stale
-# before it is staged: it is named as the run's output, and once it is staged
-# or committed the receipt no longer covers it.
+# from one the gate created, when nothing Felix sees says anyone else was
+# working. That is a person, an editor, or a process outside Claude Code: the
+# driver here writes new.py with no hook call, as they would. Only its bound
+# is asserted, never current or stale before it is staged: it is named as
+# taken for the run's output, and once staged or committed the receipt no
+# longer covers it. A9d is the same write made by a session.
 FRC_Y="$TMP/frc-sync-c"; FRC_A9C="$(_frc_race_repo "$TMP/frc-a9c" "$FRC_Y")"
 _frb_prompt "$FRC_A9C" frc-a9c
 _frc_race "$FRC_A9C" "$FRC_Y" _frc_append "$FRC_A9C/new.py"
@@ -7200,6 +7283,89 @@ else
   _frb_commit "$FRC_A9C" during
   _blocks "and a commit of it holds the session" "$(_frb_stop "$FRC_A9C" frc-a9c)"
 fi
+
+# The review's finding 1. A session that writes a new file while the gate runs
+# (a gate in the background, and the session working on) goes through the
+# pre-tool hook first, which records the call against the running gate; the
+# gate then takes nothing that appeared as its own. The payload is the hook's
+# real input, naming the file by the checkout's physical path.
+_frc_pre() {   # tool, the path its payload names, the directory it runs in
+  printf '{"session_id":"frc-a9d","tool_name":"%s","tool_input":{"file_path":"%s"},"cwd":"%s"}' "$1" "$2" "$3" \
+    | ( cd "$3" && "$FROOT/harness/hooks/pre-tool" ) >/dev/null 2>&1
+}
+_frc_session_writes() { _frc_pre Write "$1/$2" "$1"; printf 'print("bad")\n' > "$1/$2"; }
+FRC_Y="$TMP/frc-sync-d"; FRC_A9D="$(_frc_race_repo "$TMP/frc-a9d" "$FRC_Y")"
+_frb_prompt "$FRC_A9D" frc-a9d
+_frc_race "$FRC_A9D" "$FRC_Y" _frc_session_writes "$FRC_A9D" feature.py
+_frc_out="$(cat "$FRC_Y/out" 2>/dev/null)"
+if [ ! -f "$FRC_Y/started" ]; then
+  for _frc_i in "a new file a session writes while the gate runs is not taken as the gate's: the receipt reads stale" \
+                "and the gate names it as appearing while a session was writing, and the tool the session used" \
+                "and Stop holds the session" "and a second run, with nobody writing, reads current"; do
+    bad "$_frc_i" "the fixture: the gate never started: [$_frc_out]"
+  done
+else
+  _frc_is "a new file a session writes while the gate runs is not taken as the gate's: the receipt reads stale" \
+          "$(_frc_cur "$FRC_A9D")|$(_frc_f "$FRC_A9D" 9)|$(_frc_f "$FRC_A9D" 11)" "stale|moved|feature.py" "[$_frc_out]"
+  _frc_names "and the gate names it as appearing while a session was writing, and the tool the session used" \
+             "$_frc_out" "$FRC_BUSY" "feature.py. Nothing tells them from the gate's own output"
+  has "and the tool the session used is named" "$(_frc_rest "$_frc_out" "$FRC_BUSY")" "Used meanwhile: Write."
+  _blocks "and Stop holds the session" "$(_frb_stop "$FRC_A9D" frc-a9d)"
+  rm -f "$FRC_Y/started" "$FRC_Y/go"
+  _frc_race "$FRC_A9D" "$FRC_Y" true
+  _frc_is "and a second run, with nobody writing, reads current" "$(_frc_cur "$FRC_A9D")" current \
+          "[$(cat "$FRC_Y/out" 2>/dev/null)]"
+fi
+
+# What the hook records, and what it does not. A read, and a write that names
+# another directory, are not a session writing in this checkout, so a gate
+# that writes lcov.info is still current after one run with both going on.
+FRC_Y="$TMP/frc-sync-e"; mkdir -p "$FRC_Y"; FRC_A9E="$(_frc_new "$TMP/frc-a9e")"
+cat > "$FRC_A9E/gate.sh" <<EOF
+printf 'SF:app.py\n' >> lcov.info
+: > '$FRC_Y/started'
+i=0; while [ ! -f '$FRC_Y/go' ] && [ \$i -lt 300 ]; do sleep 0.1; i=\$((i+1)); done
+exit 0
+EOF
+_frb_commit "$FRC_A9E" base
+mkdir -p "$TMP/frc-other-e"; FRC_OTHER="$(cd "$TMP/frc-other-e" && pwd -P)"
+_frc_read_and_elsewhere() {
+  _frc_pre Read "$FRC_A9E/app.py" "$FRC_A9E"
+  _frc_pre Write "$FRC_OTHER/x.py" "$FRC_OTHER"
+}
+_frc_race "$FRC_A9E" "$FRC_Y" _frc_read_and_elsewhere
+if [ ! -f "$FRC_Y/started" ]; then
+  bad "a read in the checkout and a write elsewhere, while the gate runs, leave a gate that writes lcov.info current" \
+      "the fixture: the gate never started: [$(cat "$FRC_Y/out" 2>/dev/null)]"
+else
+  _frc_is "a read in the checkout and a write elsewhere, while the gate runs, leave a gate that writes lcov.info current" \
+          "$(_frc_cur "$FRC_A9E")|$(_frc_f "$FRC_A9E" 9)" "current|gate" "[$(cat "$FRC_Y/out" 2>/dev/null)]"
+fi
+
+# A gate's marker is gone when it ends, and a gate killed outright is not a
+# gate running: its marker records nothing, and the next gate sweeps it. And a
+# TERM mid-run still takes the scratch away, since it holds a copy of the diff.
+_frc_runs() { ls -d "$FROOT"/state/gate/run.* 2>/dev/null | awk 'END { print NR }'; }
+is "no gate's run directory is left behind once the gates above have ended" "$(_frc_runs)" 0
+( exit 0 ) & _frc_dead=$!; wait "$_frc_dead"
+mkdir -p "$FROOT/state/gate/run.frcdead"
+printf '%s\n%s\n' "$FRC_A9E" "$_frc_dead" > "$FROOT/state/gate/run.frcdead/active"
+_frc_pre Write "$FRC_A9E/late.py" "$FRC_A9E"
+if [ -e "$FROOT/state/gate/run.frcdead/touched" ]; then
+  bad "a marker whose gate is gone records no call" "[$(cat "$FROOT/state/gate/run.frcdead/touched")]"
+else
+  ok  "a marker whose gate is gone records no call"
+fi
+_frc_gate "$FRC_A9E" >/dev/null
+is "and the next gate in the same home sweeps it" "$(_frc_runs)" 0
+FRC_Y="$TMP/frc-sync-f"; FRC_A9F="$(_frc_race_repo "$TMP/frc-a9f" "$FRC_Y")"
+( cd "$FRC_A9F" && exec "$FELIX" gate > "$FRC_Y/out" 2>&1 ) &
+_frc_pid=$!; _frc_i=0
+while [ ! -f "$FRC_Y/started" ] && [ "$_frc_i" -lt 300 ]; do sleep 0.1; _frc_i=$((_frc_i + 1)); done
+_frc_mid="$(_frc_runs)"
+kill -TERM "$_frc_pid" 2>/dev/null; : > "$FRC_Y/go"; wait "$_frc_pid"; _frc_rc=$?
+is "a gate running keeps one run directory, and one sent TERM exits 143 and leaves none" \
+   "$_frc_mid|$_frc_rc|$(_frc_runs)" "1|143|0"
 
 # ----------------------------------------------------------------- A10 ------
 # HEAD moves while the gate runs: the gate itself commits.
@@ -7256,6 +7422,59 @@ _frc_parts_case "an unborn tree with staged files, a worktree edit to one of the
 FRC_P3="$(_frb_repo "$TMP/frc-a11iii")"
 printf 'seed\n' > "$FRC_P3/seed.txt"; _frb_commit "$FRC_P3" base; mkdir -p "$FRC_P3/u"; _frb_mk "$FRC_P3" 0 600 'u/f%d.txt'
 _frc_parts_case "a born tree with 600 untracked files" "$FRC_P3"
+
+# ----------------------------------------------------------------- A12 ------
+# The review's findings 4 and 7. GNU mktemp puts a bare `mktemp -d` under
+# $TMPDIR, and with TMPDIR inside the checkout the gate's own scratch was in
+# the tree the second id read: a gate that writes nothing named `.tmp/` as its
+# output and read stale on every run. BSD mktemp ignores TMPDIR there, which is
+# why this machine never showed it, so the shim here is GNU's rule.
+FRC_A12="$(_frc_new "$TMP/frc-a12")"; printf 'exit 0\n' > "$FRC_A12/gate.sh"; _frb_commit "$FRC_A12" base
+mkdir -p "$TMP/frc-gnumk" "$FRC_A12/.tmp"
+_frc_realmk="$(command -v mktemp)"
+cat > "$TMP/frc-gnumk/mktemp" <<EOF
+#!/bin/sh
+if [ "\$#" -eq 1 ] && [ "\$1" = -d ]; then exec "$_frc_realmk" -d "\${TMPDIR:-/tmp}/tmp.XXXXXXXXXX"; fi
+if [ "\$#" -eq 0 ]; then exec "$_frc_realmk" "\${TMPDIR:-/tmp}/tmp.XXXXXXXXXX"; fi
+exec "$_frc_realmk" "\$@"
+EOF
+chmod +x "$TMP/frc-gnumk/mktemp"
+_frc_out="$( cd "$FRC_A12" && PATH="$TMP/frc-gnumk:$PATH" TMPDIR="$FRC_A12/.tmp" "$FELIX" gate 2>&1 )"; _frc_rc=$?
+_frc_is "with TMPDIR inside the checkout and GNU's mktemp, a gate that writes nothing reads current and records same" \
+        "$(_frc_cur "$FRC_A12")|$(_frc_f "$FRC_A12" 9)" "current|same" "exit $_frc_rc, [$_frc_out]"
+case "$_frc_out" in
+  *".tmp/"*|*"gate: untracked files"*) bad "and names none of its own scratch as output" "$_frc_out" ;;
+  *)                                   ok  "and names none of its own scratch as output" ;;
+esac
+
+# ----------------------------------------------------------------- A13 ------
+# The review's finding 6. A diff section was compared as one string grown a
+# line at a time, which is quadratic: 40,000 lines of a regenerated lockfile,
+# uncommitted, cost 15 s of CPU in a gate that also touched one tracked file.
+# Timed by CPU, not the wall, and far from both costs: linear is about 0.3 s
+# at a load of 100 here, the quadratic form 15 s. The rows are checked too, so
+# a fast answer that lost a changed line cannot pass.
+_frc_bigdiff() {   # dir, the line to change: parts with one 40,000-line section
+  mkdir -p "$1/pre" "$1/post"
+  for _frc_p in pre post; do : > "$1/$_frc_p/head"; : > "$1/$_frc_p/index"; : > "$1/$_frc_p/meta"; done
+  awk 'BEGIN { print "diff --git a/big.lock b/big.lock"; print "--- a/big.lock"; print "+++ b/big.lock"
+               print "@@ -1,20000 +1,20000 @@"
+               for (i = 0; i < 20000; i++) printf "-\"name-%06d\": \"1.2.%d sha512-abcdefabcdef\",\n", i, i
+               for (i = 0; i < 20000; i++) printf "+\"name-%06d\": \"1.2.%d sha512-fedcbafedcba\",\n", i, i }' > "$1/pre/diff"
+  { sed "s/name-$2/name-XXXXXX/" "$1/pre/diff"
+    printf 'diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -1 +1,2 @@\n x\n+y\n'; } > "$1/post/diff"
+}
+_frc_bigdiff "$TMP/frc-a13" 012345
+_frc_mv() { ( . "$FROOT/harness/lib/verify.sh"; felix_tree_moved /r "$TMP/frc-a13/pre" "$TMP/frc-a13/post" | LC_ALL=C sort ); }
+_frc_cpu="$( TIMEFORMAT=%3U; { time _frc_mv >/dev/null; } 2>&1 )"
+_frc_rows="$(_frc_mv | tr '\t\n' ':,')"
+is "a changed line inside a 40,000-line diff section, and a new section, are both named" \
+   "$_frc_rows" "tracked:app.py,tracked:big.lock,"
+if awk -v c="$_frc_cpu" 'BEGIN { exit !(c + 0 < 4) }'; then
+  ok  "and comparing the two diffs takes under 4 s of CPU"
+else
+  bad "and comparing the two diffs takes under 4 s of CPU" "took ${_frc_cpu}s"
+fi
 
 # ------------------------------------------------------------------ B -------
 # G2.2. A red receipt is a failure whatever tree it is on, and Stop says so
@@ -7514,8 +7733,11 @@ esac
 # physical common git dir, so it works from a linked worktree too, and every
 # quote in it is escaped for the single quotes around it.
 _frc_sq()    { printf '%s' "$1" | sed "s/'/'\\\\''/g"; }
+# The line appends a newline before /.felix (the review's finding 9): an
+# exclude file edited by hand often has no final newline, and `echo .felix >>`
+# glued the marker onto the person's last rule.
 _frc_line()  { local q; q="$(_frc_sq "$(_frb_cdir "$1")")"
-               printf "  mkdir -p '%s/info' && echo .felix >> '%s/info/exclude'" "$q" "$q"; }
+               printf '%s' "  mkdir -p '$q/info' && printf '\\n/.felix\\n' >> '$q/info/exclude'"; }
 _frc_paste() { ( cd "$TMP" && bash -c "${1#  }" ) >/dev/null 2>&1; }
 
 FRC_N1="$(_frb_repo "$TMP/frc-new1")"
@@ -7587,7 +7809,7 @@ else
   if _frc_hasline "$_frc_out" "$_frc_l"; then
     ok  "in a linked worktree the line names the main repository's git dir"
     _frc_paste "$_frc_l"
-    if git -C "$FRC_NW" check-ignore -q .felix && _frc_hasline "$(cat "$FRC_NM/.git/info/exclude" 2>/dev/null)" .felix; then
+    if git -C "$FRC_NW" check-ignore -q .felix && _frc_hasline "$(cat "$FRC_NM/.git/info/exclude" 2>/dev/null)" /.felix; then
       ok  "and running it makes .felix ignored in the worktree, from the main repository's info/exclude"
     else
       bad "and running it makes .felix ignored in the worktree, from the main repository's info/exclude" \
@@ -7639,6 +7861,28 @@ case "$_frc_l" in
       bad "$_frc_i" "the fixture: the expected line [$_frc_l] has no escaped quote"
     done ;;
 esac
+
+# An exclude file edited by hand, whose last rule has no final newline. The
+# line keeps that rule a rule, and ignores .felix as well. The build before
+# review turned `*.log` into `*.log.felix`: debug.log came back into git
+# status, and .felix was not ignored either.
+FRC_N9="$(_frb_repo "$TMP/frc-new9")"; printf 'x\n' > "$FRC_N9/a.txt"; _frb_commit "$FRC_N9" base
+mkdir -p "$FRC_N9/.git/info"; printf '*.log' > "$FRC_N9/.git/info/exclude"; printf 'l\n' > "$FRC_N9/debug.log"
+_frc_out="$(_frb_new "$FRC_N9" frc-new9)"
+_frc_l="$(_frc_line "$FRC_N9")"
+if ! _frc_hasline "$_frc_out" "$_frc_l"; then
+  bad "over an exclude file with no final newline, the line ignores .felix and keeps the rule before it" \
+      "no line [$_frc_l] in [$_frc_out]"
+else
+  _frc_paste "$_frc_l"
+  if git -C "$FRC_N9" check-ignore -q .felix && git -C "$FRC_N9" check-ignore -q debug.log \
+     && [ -z "$(git -C "$FRC_N9" status --porcelain)" ]; then
+    ok  "over an exclude file with no final newline, the line ignores .felix and keeps the rule before it"
+  else
+    bad "over an exclude file with no final newline, the line ignores .felix and keeps the rule before it" \
+        "info/exclude is [$(cat "$FRC_N9/.git/info/exclude")], status [$(git -C "$FRC_N9" status --porcelain)]"
+  fi
+fi
 
 printf '\na flag is not a positional\n'
 # #102. felix --help worked; no SUBCOMMAND handled the flag, 24 take a first

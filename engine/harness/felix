@@ -553,10 +553,22 @@ cmd_gate() {
   # PR-B finding 8): see the end of this function and felix_verify_record.
   # No directory for them, and the second id is still taken, but nothing can
   # say what moved.
-  local parts tid
-  parts="$(mktemp -d 2>/dev/null)" || parts=""
-  if [ -n "$parts" ] && ! mkdir "$parts/pre" "$parts/post" 2>/dev/null; then parts=""; fi
-  tid="$(felix_tree_id "$root" "$FELIX_HOME_DIR" "${parts:+$parts/pre}")" || tid=""
+  #
+  # The directory is the run's marker too (felix_gate_run_open), made before
+  # the first id so that a session's write the id might miss is still on
+  # record, and beside the receipts rather than in $TMPDIR, which can be inside
+  # the checkout. It holds a copy of the diff, so it goes when the command
+  # does, however it ends: `exit` from the INT and TERM traps runs the EXIT
+  # one, and a gate killed outright is swept by the next.
+  local tid
+  _FELIX_GATE_RUN="$(felix_gate_run_open "$root" "$FELIX_HOME_DIR")" || _FELIX_GATE_RUN=""
+  local run="$_FELIX_GATE_RUN"
+  if [ -n "$run" ]; then
+    trap '[ -z "${_FELIX_GATE_RUN:-}" ] || rm -rf "$_FELIX_GATE_RUN" 2>/dev/null' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+  fi
+  tid="$(felix_tree_id "$root" "$FELIX_HOME_DIR" "${run:+$run/pre}")" || tid=""
   export FELIX_PROJECT="$proj"
   # Tools Felix ships for a gate to call. A project gate cannot know where
   # Felix lives, and hardcoding a path would break the moment it moves.
@@ -895,31 +907,41 @@ cmd_gate() {
   # way, because this is about who wrote the bytes. Printed and never tee'd,
   # so no reader of the log mistakes these lines for a check. A gate that
   # writes nothing prints exactly what it printed before.
-  local kind=same other="" names="" own="" own_new="" post="" rows="" tnames="" fnames=""
+  #
+  # And when a session used a tool that writes, in this checkout, while the
+  # gate ran (the pre-tool hook's record in the run directory), nothing that
+  # appeared is taken as the gate's: a file created then may be the session's
+  # work, which the check never ran on (PR-C review, finding 1). The receipt
+  # keeps the tree the run started on. Read right after the second id, so a
+  # call recorded later cannot change what that id is taken to hold.
+  local kind=same other="" names="" own="" own_new="" post="" rows="" tnames="" fnames="" bnames="" busy=""
   if [ -n "$tid" ]; then
     own="$(_felix_receipt_path "$root" "$FELIX_HOME_DIR").own"
-    post="$(felix_tree_id "$root" "$FELIX_HOME_DIR" "${parts:+$parts/post}")" || post=""
+    post="$(felix_tree_id "$root" "$FELIX_HOME_DIR" "${run:+$run/post}")" || post=""
+    [ -z "$run" ] || busy="$(felix_gate_run_busy "$run")"
     if [ -z "$post" ]; then
       kind=unknown
     elif [ "$post" != "$tid" ]; then
-      if [ -n "$parts" ]; then
-        rows="$(felix_tree_moved "$root" "$parts/pre" "$parts/post" "$own" | LC_ALL=C sort -u)"
-        felix_tree_manifest "$root" "$parts/pre" "$parts/post" "$own" 2>/dev/null > "$parts/own" \
-          && own_new="$parts/own"
+      if [ -n "$run" ]; then
+        rows="$(felix_tree_moved "$root" "$run/pre" "$run/post" "$own" "$busy" | LC_ALL=C sort -u)"
+        felix_tree_manifest "$root" "$run/pre" "$run/post" "$own" "$busy" 2>/dev/null > "$run/own" \
+          && own_new="$run/own"
       fi
       [ -n "$rows" ] || rows="$(printf 'tree\t-')"
       if LC_ALL=C awk -F'\t' '$1 != "gate" { bad = 1 } END { exit bad }' <<<"$rows"; then
         kind=gate; other="$tid"; tid="$post"
         names="$(LC_ALL=C awk -F'\t' '{ print substr($0, index($0, "\t") + 1) }' <<<"$rows" | _felix_gate_names)"
-        printf "gate: this run wrote untracked files git does not ignore: %s. They are the gate's own output, so the receipt is for the tree as the run left it. Add them to .gitignore to keep them out of the tree Felix identifies.\n" "$names"
+        printf "gate: untracked files appeared or changed while the gate ran, and are taken as its own output: %s. No session used a tool that writes in this checkout meanwhile, so the receipt is for the tree the run left. If they are output the gate writes (coverage, a lockfile, bytecode, a build directory), add them to .gitignore. If any of them is your own work, the gate did not run on it: run felix gate again.\n" "$names"
       else
         kind=moved; other="$post"
         names="$(LC_ALL=C awk -F'\t' '$1 != "gate" && $1 != "tree" { print substr($0, index($0, "\t") + 1) }' <<<"$rows" | _felix_gate_names)"
         tnames="$(LC_ALL=C awk -F'\t' '$1 == "head" || $1 == "tracked" { print substr($0, index($0, "\t") + 1) }' <<<"$rows" | _felix_gate_names)"
         fnames="$(LC_ALL=C awk -F'\t' '$1 == "foreign" { print substr($0, index($0, "\t") + 1) }' <<<"$rows" | _felix_gate_names)"
+        bnames="$(LC_ALL=C awk -F'\t' '$1 == "busy" { print substr($0, index($0, "\t") + 1) }' <<<"$rows" | _felix_gate_names)"
         [ -z "$tnames" ] || printf 'gate: tracked files changed while the gate ran: %s. The receipt is for the tree the gate started on, so it reads stale; run felix gate again: a run that changes nothing tracked is current.\n' "$tnames"
-        [ -z "$fnames" ] || printf 'gate: untracked files no earlier gate run wrote changed while the gate ran: %s. The receipt is for the tree the gate started on, so it reads stale; if the gate wrote them, the next run counts them as its own.\n' "$fnames"
-        [ -n "$tnames$fnames" ] || printf 'gate: the tree changed while the gate ran, and no path says where. The receipt is for the tree the gate started on, so it reads stale; run felix gate again.\n'
+        [ -z "$fnames" ] || printf 'gate: untracked files no earlier gate run wrote changed while the gate ran: %s. The receipt is for the tree the gate started on, so it reads stale. If the gate writes them, add them to .gitignore, or delete them and run felix gate again: a file a gate run creates is its own. Running the tests yourself between gates rewrites such files too, and holds the next gate the same way.\n' "$fnames"
+        [ -z "$bnames" ] || printf "gate: untracked files appeared or changed while a session was writing in this checkout: %s. Nothing tells them from the gate's own output, so the receipt is for the tree the gate started on, and reads stale. Run felix gate again once nothing else is writing here; if they are output the gate writes, add them to .gitignore, or delete them first. Used meanwhile: %s.\n" "$bnames" "$busy"
+        [ -n "$tnames$fnames$bnames" ] || printf 'gate: the tree changed while the gate ran, and no path says where. The receipt is for the tree the gate started on, so it reads stale; run felix gate again.\n'
       fi
     fi
     [ "$kind" != unknown ] || printf 'gate: the tree could not be identified after the run, so the receipt is for the tree the gate started on.\n'
@@ -927,7 +949,6 @@ cmd_gate() {
   felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid" "$skipped" "$reported" \
     "$(printf '%s' "$epoch_fields" | cut -f1)" "$(printf '%s' "$epoch_fields" | cut -f2)" \
     "$kind" "$other" "$names" "$own_new"
-  [ -z "$parts" ] || rm -rf "$parts"
   exit "$rc"
 }
 
@@ -1145,6 +1166,13 @@ EOF
   # directory and from a linked worktree. `mkdir -p`, because `git init
   # --template=` leaves no info directory. Printed, never done: felix new
   # writes nothing in the git dir, which is the person's to change.
+  #
+  # A newline first, because an exclude file edited by hand often ends
+  # without one, and `echo .felix >>` then glued the marker onto the person's
+  # last rule: `*.log` became `*.log.felix`, their logs came back into git
+  # status, and .felix was not ignored either (PR-C review, finding 9). A
+  # blank line in an exclude file is nothing. `/.felix`, anchored, so it is
+  # the marker at the top of each worktree and not a .felix at any depth.
   if [ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" = true ] \
      && ! git -C "$root" ls-files --error-unmatch -- .felix >/dev/null 2>&1 \
      && ! git -C "$root" check-ignore -q .felix 2>/dev/null; then
@@ -1153,9 +1181,9 @@ EOF
     printf '\n.felix binds this checkout and is not committed. Keep it local to this checkout:\n\n'
     if [ -n "$cdir" ]; then
       q="$(printf '%s' "$cdir" | sed "s/'/'\\\\''/g")"
-      printf "  mkdir -p '%s/info' && echo .felix >> '%s/info/exclude'\n" "$q" "$q"
+      printf '%s\n' "  mkdir -p '$q/info' && printf '\\n/.felix\\n' >> '$q/info/exclude'"
     else
-      printf '  echo .felix >> "$(git rev-parse --git-path info/exclude)"\n'
+      printf '%s\n' "  printf '\\n/.felix\\n' >> \"\$(git rev-parse --git-path info/exclude)\""
       printf '(run it in %s)\n' "$root"
     fi
     printf '\nA collaborator whose Felix home does not govern %s would read a committed\n' "$name"

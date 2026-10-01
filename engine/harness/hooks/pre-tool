@@ -27,6 +27,41 @@ raw="$(cat 2>/dev/null || true)"
 [ -n "$raw" ] || exit 0
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT" 2>/dev/null)" || exit 0
+
+# A gate running in some checkout, and this call able to write there. While
+# `felix gate` runs it keeps state/gate/run.*/active in the home: the root it
+# gates, then its pid (lib/verify.sh, felix_gate_run_open). A call to a tool
+# that can write, in any session, whose payload names that root anywhere (the
+# file it edits, the directory it runs in, the command's text), is appended
+# to the run's `touched`, and the gate then takes nothing that appeared while
+# it ran as its own output: a file a session created meanwhile is work the
+# check never ran on, and was stamped current over (PR-C review, finding 1).
+#
+# Here, before the tool runs, and not in PostToolUse: this hook is
+# synchronous, so a call that starts while the gate runs is on record before
+# it can write, whereas PostToolUse is async and would race the gate's end.
+# The call that launches a gate in the background starts before its marker
+# exists, and is not recorded. Before the project is resolved, since a session
+# anywhere can write into the checkout by path. Only builtins, and with no gate
+# running it is one glob that matches nothing. A marker whose pid is gone is a
+# killed gate, and is skipped. Matching on the root's text is broad on
+# purpose: a session in a worktree under the checkout names it too, and a
+# false record costs one more hold, where a missed one cost a false green.
+for _grun in "$FELIX_HOME_DIR"/state/gate/run.*/active; do
+  [ -f "$_grun" ] || continue
+  _groot="" _gpid=""
+  { IFS= read -r _groot; IFS= read -r _gpid; } < "$_grun" 2>/dev/null
+  [ -n "$_groot" ] && [ -n "$_gpid" ] || continue
+  case "$raw" in *"$_groot"*) ;; *) continue ;; esac
+  kill -0 "$_gpid" 2>/dev/null || continue
+  _gtool=""
+  case "$raw" in
+    *'"tool_name"'*) _gtool="${raw#*\"tool_name\"}"; _gtool="${_gtool#*\"}"; _gtool="${_gtool%%\"*}" ;;
+  esac
+  case "$_gtool" in Read|WebFetch|Glob|Grep|LS|NotebookRead|WebSearch) continue ;; esac
+  printf '%s\n' "${_gtool:-a tool}" >> "${_grun%/active}/touched" 2>/dev/null || true
+done
+
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 [ -n "$PROJ" ] || exit 0
 [ -f "$PROJ/deny.tsv" ] || exit 0

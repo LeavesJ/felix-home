@@ -17929,7 +17929,7 @@ sort@@x | LC_ALL=C sort@@an assignment in front of sort prints sort
 # Every filter the contract lists, as the last stage.
 cat@@x | cat@@cat with no operand
 cat@@x | cat -@@an operand of exactly - is standard input
-tac@@x | tac@@tac
+-@@x | tac@@amended: tac is not on macOS, where the row exits 127
 head@@x | head -1@@head
 tail@@x | tail@@tail with no operand
 tail@@x | tail -n 20@@an option's argument is not a file operand
@@ -17948,7 +17948,7 @@ paste@@x | paste -s -@@paste
 nl@@x | nl@@nl
 fold@@x | fold -w 80@@fold
 rev@@x | rev@@rev
-column@@x | column -t@@column
+-@@x | column -t@@amended: macOS column fails on a line past about 2 KB, exit 1 on one of 3000 bytes
 expand@@x | expand@@expand
 unexpand@@x | unexpand -a@@unexpand
 true@@x | true@@true
@@ -17961,10 +17961,10 @@ awk@@x | awk '{ print $1 }'@@awk with a literal program
 awk@@x | awk '{ print $1 }' -@@awk whose other operand is -
 awk@@x | awk '{ print $1 }' FS=,@@awk whose other operand is an assignment
 awk@@x | awk '/^#/ { next } { print "a/b", "50%" }'@@awk whose / and % sit only in a regex literal and a string
-xargs@@x | xargs -0 echo@@xargs -0 with echo
-xargs@@x | xargs -0@@xargs -0 with no command
-xargs@@x | xargs --null true@@xargs --null with true
-xargs@@x | xargs -d '\n' echo@@xargs -d with echo
+-@@x | xargs -0 echo@@amended: xargs fails on an argument past ARG_MAX, exit 1 on macOS for one of 2 MB
+-@@x | xargs -0@@amended: so with no command
+-@@x | xargs --null true@@amended: and with --null and true
+-@@x | xargs -d '\n' echo@@amended: macOS xargs has no -d, a usage error every time
 # Redirections other than of standard input change nothing.
 tail@@x 2>&1 | tail -3@@a redirection on the producer
 tail@@x | tail -5 >/dev/null@@standard output to /dev/null
@@ -18290,6 +18290,16 @@ unset _ffT _ffo _ffr _ffl _ffstage _fftx _ffwhy _ffw _fft _ffp _ffto _ffcrun _ff
 # counts from the start; `! !` is a bash 3.2 syntax error; tr and uniq with an
 # operand count they refuse fail every time. Written by the implementer, not
 # blind, after the rule changed.
+#
+# The second review's findings follow FFAUTHOR's first block, each admitted
+# case measured on macOS 26.3.1 under /bin/bash 3.2, and each with a refused
+# partner where one shows the rule still bites: an exit in a for or case
+# whose words ran a command returns their status; exec ends the script; kill
+# can; quotes and expansions cannot hide pipefail; hash, shopt and PATH can
+# change what a name runs; a redirect reading any fd, closing one or
+# duplicating fd 3 or above can fail; bash-4 redirects bash 3.2 misreads;
+# usage errors on either platform; and nounset, which commissioning runs
+# under, ending a text at an unset name.
 _ffa() {   # text -> "<exit>|<what it printed>"
   local _o _r
   _o="$( . "$REAL_HARNESS/lib/final-filter.sh" 2>/dev/null || exit 3
@@ -18329,7 +18339,74 @@ tr@@x | tr -d a@@tr -d takes one set
 uniq@@x | uniq - out.txt@@uniq reading standard input into a file
 -@@. ./strict.sh; x | tail@@a sourced file can set anything
 -@@x | ./bin/sort@@a relative path is the project's own script
+-@@x | tail; case $(exit 3) in *) exit;; esac@@an exit in a case returns its word's status, here 3
+-@@x | tail; for i in $(exit 3) a; do exit; done@@and in a for, its words' status
+tail@@x | tail; for i in a; do exit; done@@with literal words it returns tail's
+-@@exec false || x | tail@@exec ends the script with false's status
+-@@x | tail && exec :@@exec cannot run a builtin, and the shell ends there with 127
+tail@@true || exec false; x | tail@@an exec that never runs ends nothing
+-@@kill $$ || x | tail@@kill can end the script by a signal
+-@@set -o pipe""fail; false | tail@@quotes cannot hide pipefail
+-@@set -o "$o"; x | tail@@nor can an expansion
+tail@@set -o noglob; x | tail@@a literal option name is still read
+-@@hash -p /usr/bin/false tail; x | tail@@hash can point tail anywhere
+-@@shopt -s lastpipe; x | tail@@shopt is not read
+-@@PATH=./bin:$PATH; x | tail@@PATH can make tail a project script
+-@@x | env PATH=./bin tail@@and so can env
+-@@x | tail 3<in.txt@@a file read on any fd can be missing
+-@@x | tail >&-@@tail writing to a closed output fails
+-@@x | tail >&3@@fd 3 may not be open
+tail@@x | tail -1 2>&1@@a duplicate of fd 1 is open
+-@@x | tail {fd}>log.txt@@bash 3.2 reads {fd} as tail's file operand
+-@@x &>>log.txt | tail@@bash 3.2 cannot parse &>>
+tail@@x &>log.txt | tail@@and reads &>
+-@@x | cat $'-\n'@@$'...' escapes are not decoded, and this one is a newline cat rejects
+tail@@x | tail $'-5'@@with no escape it is literal
+-@@x | head -n 0@@macOS head refuses a count of 0
+head@@x | head -n 1@@and takes 1
+-@@x | cut -d,@@cut needs one of -b, -c or -f
+cut@@x | cut -d, -f1@@cut -d with -f
+-@@x | sort -k0@@a sort key starts at field 1
+sort@@x | sort -k1,1@@and may
+-@@x | cat --number@@macOS cat takes no long option
+-@@x | tee >(grep -q y)@@a process substitution can close early, and tee dies of SIGPIPE
+tee@@x | tee out.txt@@tee writing a named file
+-@@x | awk '{ NF -= 1; print }'@@NF can go negative, exit 2 on macOS for an empty line
+awk@@x | awk '{ print NF }'@@reading NF is safe
+-@@x | awk 'BEGIN { ARGV[1] = "f" } { print }'@@ARGV can name a file
+-@@x | sed y/ab/c/@@y with sets of different lengths is an error
+sed@@x | sed y/ab/cd/@@and with equal ones is not
+-@@x | sed -n 0p@@GNU sed refuses line 0
+sed@@x | sed -n 1p@@line 1 is fine
+-@@set -u; x | tail && echo "$U"@@under set -u an unset name ends the script
+tail@@x | tail && echo "$U"@@without nounset it expands empty, and the run is constant
+tail@@set -u; x | tail && echo "${U:-}"@@a default keeps it set
+tail@@set -u; x | tail && echo "$HOME"@@HOME is always set
 FFAUTHOR
+
+# A carriage return, as the last column of a row saved on Windows carries,
+# joins the last word: `tail -1\r` is an offset tail rejects. A text holding
+# one is admitted rather than guessed at.
+is  "the classifier admits a text holding a carriage return" "$(_ffa "$(printf 'x | tail -1\r')")" "1|"
+# Each outcome is kept once. Without that, alternating && and || doubled the
+# set at every operator, and thirty of them ran past ten seconds of CPU.
+_ffl=""; for _ffstage in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+  _ffl="$_ffl a || true && "; done
+is  "the classifier reads thirty alternating || and && inside ten seconds of CPU" \
+    "$( ulimit -t 10; _ffa "$_ffl x | tail" )" "0|tail"
+# Commissioning evaluates under set -u, so there an unset name can end the
+# check, and the row is admitted; a default, or a name the runner exports, is
+# not unset, and the row is still refused.
+_ffcrow() { printf '%s\t-\t-\t-\t-\t%s\t1' "$1" "$2"; }
+is  "a commissioning check that expands an unset name is admitted, since set -u can end it" \
+    "$( . "$REAL_HARNESS/lib/final-filter.sh"; _ffcrow nu 'x | tail && echo "$U"' | felix_final_filter_lead commissioning.tsv | cut -f1 )" "-"
+has "and one whose name has a default is still refused" \
+    "$( . "$REAL_HARNESS/lib/final-filter.sh"; _ffcrow nu 'x | tail && echo "${U:-}"' | felix_final_filter_lead commissioning.tsv | cut -f1 )" "check cannot fail"
+has "as is one naming FELIX_PROJECT, which the runner exports" \
+    "$( . "$REAL_HARNESS/lib/final-filter.sh"; _ffcrow nu 'x | tail && echo "$FELIX_PROJECT"' | felix_final_filter_lead commissioning.tsv | cut -f1 )" "check cannot fail"
+is  "and the same text in a setup check, which runs without set -u, is refused" \
+    "$( . "$REAL_HARNESS/lib/final-filter.sh"; printf 'a\tb\tc\t%s\n' 'x | tail && echo "$U"' | felix_final_filter_lead setup.tsv | cut -c1-17 )" "check cannot fail"
+unset -f _ffcrow
 
 # The same reading, per table and at the gate. felix_final_filter_table names
 # the refused lines of a table by its basename, and schema-check refuses them

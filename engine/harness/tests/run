@@ -25359,6 +25359,17 @@ else
     "bad|a name|"*okay*) ok  "$_rtpn5" ;;
     *)                   bad "$_rtpn5" "expected [bad|a name|<a detail naming okay>] got [$_rtpo]" ;;
   esac
+  # And a verdict of more than one line is unreadable even when its first line
+  # reads as one: without the arm that says so, skip and the rest of the text
+  # passed for a skip (#371, fourth review). Reported once, as a failure; its
+  # detail holds the text it read, newline included, so the reports are counted
+  # as the lines that begin with a verdict.
+  _rtpn6="and a verdict of more than one line as one failure, even when its first line reads as a skip"
+  _rtpo="$(_rt_reported "a name" "$(printf 'skip a\nbad b')")"
+  case "$(printf '%s\n' "$_rtpo" | awk '/^(ok|skip|bad)[|]/ { n++ } END { print n + 0 }')/$_rtpo" in
+    "1/bad|a name|"?*) ok  "$_rtpn6" ;;
+    *)                 bad "$_rtpn6" "expected one report, [bad|a name|<a detail>], got [$_rtpo]" ;;
+  esac
   # The base check, asked of a checkout rather than of this suite's own record.
   # _rtn3 is judged only against this repository's red.tsv, which on any branch
   # is one record, so no fixture reached the decision it makes on the kind of
@@ -25444,6 +25455,21 @@ else
   printf '# a record\n%s\nrun\t1\t2\tx\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/unskipped"
   printf '# a record\nbase\t-\t-\t-\nrun\t-\t3\t0\n' > "$_rtw/halfdash"
   printf '# a record\n%s\nrun\t1\t2\t0\nrun\t1\t3\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/rerun"
+  # And six the fourth review of #371 found no fixture held: a sha pasted into
+  # the retraction's sha column alone, which reading the dash from the ref or
+  # the version column passes; names added by their counts, not counted as
+  # lines; a run that skipped all it reached and one that failed all it
+  # reached, each a record, so the assertion a run must count is summed
+  # across all three counts; a run row missing its skipped count, which an
+  # empty field read as a count passes; and names that add up to more than the
+  # failed count, which a total read as at most the count, not equal to it,
+  # passes.
+  printf '# a record\nbase\t-\t%s\t-\nrun\t-\t-\t-\n' 0123456789abcdef0123456789abcdef01234567 > "$_rtw/shaonly"
+  printf '# a record\n%s\nrun\t2\t1\t0\nthe one that failed\t2\n' "$_rtwb" > "$_rtw/failedtwice"
+  printf '# a record\n%s\nrun\t0\t0\t3\n' "$_rtwb" > "$_rtw/allskipped"
+  printf '# a record\n%s\nrun\t1\t0\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/allfailed"
+  printf '# a record\n%s\nrun\t1\t2\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/twocounts"
+  printf '# a record\n%s\nrun\t1\t2\t0\nthe one that failed\t1\nanother that failed\t1\n' "$_rtwb" > "$_rtw/overcounted"
   _rtwn1="a red.tsv whose base and run rows are both -, with no names below, is one whole record"
   _rtwn2="and so is a real base beside a run that failed one, passed two and names the one"
   _rtwn3="but a real base beside a run row of - is not, which is what pasting a sha into a retraction's base row gives"
@@ -25458,6 +25484,12 @@ else
   _rtwn12="nor a real run row whose skipped count is not a number, though its failed count and the names agree"
   _rtwn13="nor a base of - beside a run row whose failed count alone is -"
   _rtwn14="nor one base row beside two run rows, said as _rtn1 always said it"
+  _rtwn15="nor a retraction whose base row has a sha pasted into its sha column alone, its ref and version columns left -"
+  _rtwn16="and so is a real base beside a run that failed two, naming one that failed twice, since names add up by their counts"
+  _rtwn17="and so is a real base beside a run that skipped all three it reached, with no names below"
+  _rtwn18="and so is a real base beside a run that failed the one it reached, naming it"
+  _rtwn19="nor a real run row with no skipped count at all, though its failed count and the names agree"
+  _rtwn20="nor a run that failed one whose names below add up to two, said as _rtn1 always said it"
   is "$_rtwn1" "$(_rt_record_whole "$_rtw/dash")" ok
   is "$_rtwn2" "$(_rt_record_whole "$_rtw/real")" ok
   is "$_rtwn10" "$(_rt_record_whole "$_rtw/clean")" ok
@@ -25472,6 +25504,111 @@ else
   _rt_said "$_rtwn12" "$(_rt_record_whole "$_rtw/unskipped")" bad
   _rt_said "$_rtwn13" "$(_rt_record_whole "$_rtw/halfdash")" bad
   _rt_said "$_rtwn14" "$(_rt_record_whole "$_rtw/rerun")" bad "run rows: 2"
+  _rt_said "$_rtwn15" "$(_rt_record_whole "$_rtw/shaonly")" bad
+  is "$_rtwn16" "$(_rt_record_whole "$_rtw/failedtwice")" ok
+  is "$_rtwn17" "$(_rt_record_whole "$_rtw/allskipped")" ok
+  is "$_rtwn18" "$(_rt_record_whole "$_rtw/allfailed")" ok
+  _rt_said "$_rtwn19" "$(_rt_record_whole "$_rtw/twocounts")" bad
+  _rt_said "$_rtwn20" "$(_rt_record_whole "$_rtw/overcounted")" bad "the run's failed: 1, the names' total: 2"
+  # The whole judgment of a checkout's record, asked of a checkout built here.
+  # _rtn1 to _rtn4 were reported for this suite's own checkout alone, so the
+  # fourth review of #371 replaced the report of _rtn3, then of _rtn1, with a
+  # plain ok, and every assertion stayed green while a retraction, and a sha
+  # pasted beside a run row of -, passed. _rt_judge <checkout> [record] makes
+  # that judgment of the checkout named, reading its red.tsv, its manifest, its
+  # plugin.json and its git, and reports the four names through ok, skip and
+  # bad as this block always did; record is --record-assertions. Its reports
+  # are captured as _rt_reported captures _rt_report's, one line each, in a
+  # subshell, so that nothing counts, and with FELIX_TEST_RECORD at 0 there,
+  # so that record mode is the argument's alone. The checkout: origin/main
+  # holds engine 1.0.0, a manifest listing one name and the retraction; a
+  # branch commit changes a file under engine/ and one under docs/ and
+  # declares 1.0.1, and red.tsv and plugin.json are rewritten beside it,
+  # uncommitted, for each record. Then a second branch commit puts engine/
+  # back as origin/main holds it and keeps the docs change.
+  _rt_judged() {   # <checkout> [record] -> ok|<name>, skip|<name>|<reason> or bad|<name>|<detail>, a line each
+    ( FELIX_TEST_RECORD=0
+      ok()   { printf 'ok|%s\n' "$1"; }
+      skip() { printf 'skip|%s|%s\n' "$1" "${2-}"; }
+      bad()  { printf 'bad|%s|%s\n' "$1" "${2-}"; }
+      _rt_judge "$@" )
+  }
+  # Whether those reports hold one line for a name, its verdict the one asked
+  # for and its rest holding each phrase given: nothing when they do, and what
+  # is wrong when they do not.
+  _rt_judged_one() {   # <reports> <name> <ok|skip|bad> [<phrase>...] -> nothing, or what is wrong
+    local o n="$2" w="$3" p
+    o="$(printf '%s\n' "$1" | N="$2" awk -F'[|]' '$2 == ENVIRON["N"]')"; shift 3
+    case "$o" in
+      "")                echo "no report for [$n]"; return 0 ;;
+      *$'\n'*)           echo "more than one report for [$n]: [$o]"; return 0 ;;
+      "$w|$n"|"$w|$n|"*) ;;
+      *)                 echo "[$n] reported [$o], not $w"; return 0 ;;
+    esac
+    for p in "$@"; do case "$o" in *"$p"*) ;; *) echo "[$o] lacks [$p]"; return 0 ;; esac; done
+  }
+  _rtj="$TMP/rt-judge"; mkdir -p "$_rtj/engine/.claude-plugin" "$_rtj/engine/harness/tests" "$_rtj/engine/harness/lib" "$_rtj/docs"
+  _rtjt="$_rtj/engine/harness/tests/red.tsv"; _rtjp="$_rtj/engine/.claude-plugin/plugin.json"
+  _rtja="the one assertion the judged checkout's manifest lists"
+  _rtjd="$(printf '# a record\nbase\t-\t-\t-\nrun\t-\t-\t-')"
+  ( cd "$_rtj" && git init -q && git config user.email t@t && git config user.name t \
+      && printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp" && echo a > engine/harness/lib/x.sh && echo a > docs/y \
+      && printf '1\t%s\n' "$_rtja" > engine/harness/tests/assertions.tsv && printf '%s\n' "$_rtjd" > "$_rtjt" \
+      && git add -A && git commit -qm 'main: engine 1.0.0' \
+      && git update-ref refs/remotes/origin/main HEAD \
+      && printf '{\n  "version": "1.0.1"\n}\n' > "$_rtjp" && echo b > engine/harness/lib/x.sh && echo b > docs/y \
+      && git commit -qam 'branch: engine 1.0.1, and docs' ) >/dev/null 2>&1
+  _rtjm="$(git -C "$_rtj" rev-parse -q --verify refs/remotes/origin/main 2>/dev/null)"
+  _rtjr="$(printf '# a record\nbase\torigin/main\t%s\t1.0.0\nrun\t1\t1\t0\n%s\t1' "$_rtjm" "$_rtja")"
+  _rtjq="$(printf '# a record\nbase\torigin/main\t%s\t1.0.0\nrun\t-\t-\t-' "$_rtjm")"
+  _rtjn1="the record judgment of a checkout whose engine change carries a real record against origin/main reports all four record checks passed, and nothing else"
+  _rtjn2="and of one carrying the retraction, it fails the base check, saying no red run was made (base -), though the record reads whole"
+  _rtjn3="and of one whose retraction has origin/main's sha pasted into its base row, it fails the whole-record check, though the base check passes"
+  _rtjn4="and in record mode it skips the whole-record, manifest and base checks, saying --record-assertions rewrites red.tsv, and still asks the version"
+  _rtjn5="and of one whose engine change declares origin/main's version, it fails the version check"
+  _rtjn6="and of a branch that puts its engine change back but keeps a docs change, it skips the base and version checks, though its record is the retraction"
+  # Each fails for its own reason only while the checkout stands where it
+  # says: the branch commit's merge-base is origin/main's commit.
+  if [ -n "$_rtjm" ] && [ "$(git -C "$_rtj" merge-base HEAD refs/remotes/origin/main 2>/dev/null)" = "$_rtjm" ] \
+     && [ "$(git -C "$_rtj" log -1 --format=%s HEAD 2>/dev/null)" = "branch: engine 1.0.1, and docs" ]; then
+    printf '%s\n' "$_rtjr" > "$_rtjt"
+    is "$_rtjn1" "$(_rt_judged "$_rtj" | LC_ALL=C sort)" "$(printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort)"
+    printf '%s\n' "$_rtjd" > "$_rtjt"
+    _rtjo="$(_rt_judged "$_rtj")"
+    _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn3" bad "no red run was made (base -)"; _rt_judged_one "$_rtjo" "$_rtn1" ok)"
+    [ -z "$_rtjw" ] && ok "$_rtjn2" || bad "$_rtjn2" "$_rtjw"
+    printf '%s\n' "$_rtjq" > "$_rtjt"
+    _rtjo="$(_rt_judged "$_rtj")"
+    _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn1" bad; _rt_judged_one "$_rtjo" "$_rtn3" ok)"
+    [ -z "$_rtjw" ] && ok "$_rtjn3" || bad "$_rtjn3" "$_rtjw"
+    printf '%s\n' "$_rtjr" > "$_rtjt"
+    _rtjo="$(_rt_judged "$_rtj" record)"
+    _rtjw="$(for _n in "$_rtn1" "$_rtn2" "$_rtn3"; do
+               _rt_judged_one "$_rtjo" "$_n" skip "--record-assertions rewrites red.tsv after this run"
+             done
+             _rt_judged_one "$_rtjo" "$_rtn4" ok)"
+    [ -z "$_rtjw" ] && ok "$_rtjn4" || bad "$_rtjn4" "$_rtjw"
+    printf '%s\n' "$_rtjr" > "$_rtjt"; printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp"
+    _rtjo="$(_rt_judged "$_rtj")"
+    _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn4" bad)"
+    [ -z "$_rtjw" ] && ok "$_rtjn5" || bad "$_rtjn5" "$_rtjw"
+    ( cd "$_rtj" && printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp" && echo a > engine/harness/lib/x.sh \
+        && printf '%s\n' "$_rtjd" > "$_rtjt" && git commit -qam 'branch: engine put back, docs kept' ) >/dev/null 2>&1
+    # And this one only while engine/ is origin/main's again and docs/ is not.
+    if [ "$(git -C "$_rtj" log -1 --format=%s HEAD 2>/dev/null)" = "branch: engine put back, docs kept" ] \
+       && git -C "$_rtj" diff --quiet refs/remotes/origin/main -- engine 2>/dev/null \
+       && ! git -C "$_rtj" diff --quiet refs/remotes/origin/main -- docs 2>/dev/null; then
+      _rtjo="$(_rt_judged "$_rtj")"
+      _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn3" skip "changes no engine file"; _rt_judged_one "$_rtjo" "$_rtn4" skip "changes no engine file")"
+      [ -z "$_rtjw" ] && ok "$_rtjn6" || bad "$_rtjn6" "$_rtjw"
+    else
+      bad "$_rtjn6" "the fixture does not stand where it says: HEAD $(git -C "$_rtj" log -1 --format='%h %s' HEAD 2>/dev/null), with engine/ origin/main's and docs/ not"
+    fi
+  else
+    for _n in "$_rtjn1" "$_rtjn2" "$_rtjn3" "$_rtjn4" "$_rtjn5" "$_rtjn6"; do
+      bad "$_n" "the fixture does not stand where it says: origin/main ${_rtjm:-(none)}, HEAD $(git -C "$_rtj" log -1 --format='%h %s' HEAD 2>/dev/null)"
+    done
+  fi
 fi
 
 # The suite's proof that it reached its end: tests/red requires exactly this

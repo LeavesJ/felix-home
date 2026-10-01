@@ -121,9 +121,9 @@ FELIX_MAINT_HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." 2>/dev/null &&
 # for a row that answered.
 #
 # A check that passes may also say why the work is not due although it is not
-# done: someone else's branch already does it. Folding handoff sections is
-# upkeep, so the row asking for it was read by every session at once, and on
-# 2026-09-24/25 three sessions folded the same sections where one could land.
+# done: a pushed branch already does it. Folding handoff sections is upkeep, so
+# the row asking for it was read by every session at once, and on 2026-09-24/25
+# three sessions folded overlapping sections where one could land.
 # Its check now passes when a fold is in flight and prints the branch, and the
 # row reads `inflight`, holding what it printed, so the session start names
 # that branch instead of asking a second session to start the same fold.
@@ -135,7 +135,10 @@ FELIX_MAINT_HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." 2>/dev/null &&
 # exit status alone, exactly as before. stderr is still thrown away.
 #
 # Emits, for that row: inflight <TAB> name <TAB> holders <TAB> 0 <TAB> description,
-# the holders being its non-empty lines joined by "; ".
+# the holders being its non-empty lines joined by "; ", a tab read as a space
+# and every other control byte dropped. A holder goes into the session start's
+# JSON, whose escaping knows only \\, ", \n, \r and \t, and one escape byte
+# from a check made the whole hook output unreadable.
 felix_maint_status() {
   local proj="$1" root="${2:-}" now; now="$(date +%s)"
   # awk rather than `IFS=$'\t' read`, for the reason procedures.sh records: tab
@@ -160,7 +163,8 @@ felix_maint_status() {
         if [ -n "$root" ] && [ -d "$root" ]; then
           local said held
           if said="$(cd "$root" && FELIX_HARNESS_DIR="$FELIX_MAINT_HARNESS" bash -c "$check" felix-maint </dev/null 2>/dev/null)"; then
-            held="$(printf '%s\n' "$said" | tr '\t' ' ' | LC_ALL=C awk 'NF { printf "%s%s", s, $0; s = "; " }')"
+            held="$(printf '%s\n' "$said" | tr '\t' ' ' | LC_ALL=C tr -d '\000-\010\013-\037\177' \
+                      | LC_ALL=C awk 'NF { printf "%s%s", s, $0; s = "; " }')"
             if [ -n "$held" ]; then
               printf 'inflight\t%s\t%s\t0\t%s\n' "$name" "$held" "$desc"
             else

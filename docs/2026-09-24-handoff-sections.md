@@ -116,22 +116,29 @@ wasted. So with three sections waiting, the row's check asks
 `engine/harness/bin/handoff-in-flight` before it fails.
 - **Which branch counts.** One under the same remote as main whose marker is
   past main's in fold order, and whose merge-base with main holds main's
-  marker. The second condition means main's handoff has not moved since the
-  branch was cut, so it folded what main holds now. A fold cut from an older
-  main is stale, and the check would refuse it.
+  marker. Every merge-base counts, since a criss-cross merge can leave two.
+  The second condition means main's marker has not moved since the branch was
+  cut: no fold has landed since, so the sections it folded are still the
+  oldest waiting on main. Main may hold more that landed since, and an edit to
+  HANDOFF.md in place on main can still make the two conflict. A fold cut
+  from a main whose handoff has moved since is stale: it conflicts with main
+  on HANDOFF.md and cannot land as it stands, although handoff-check, reading
+  against its own merge-base, passes it at its tip.
 - **What it reads.** Only the remote-tracking refs, as last fetched, with git
   and no network. Each branch's HANDOFF.md is one blob; a branch sharing
   main's blob has folded nothing, and the rest are read for their markers in
-  one `git grep`. That took about 0.1 s of CPU over 176 branches on
-  2026-10-01, and it runs only when three sections wait.
-- **Abandoned folds.** A fold whose tip nobody has moved for 48 hours counts
-  as abandoned, and the row is due again. Without the network nothing here
+  one `git grep`, by commit rather than ref name, so a branch pruned
+  meanwhile cannot blank the read. That took about 0.2 s of CPU (0.13 s user)
+  over 178 branches on 2026-10-01, and it runs only when three sections wait.
+- **Abandoned folds.** A fold whose tip commit is older than 48 hours by
+  committer time counts as abandoned, and the row is due again. A tip dated
+  more than an hour ahead of the clock is not trusted as fresh either. Without the network nothing here
   can tell a closed pull request from a waiting one. A fold that silenced the
   row for as long as its branch exists would cost more than a second fold.
   #377 landed about eleven hours after it was cut.
 - **What a session sees.** The check passes and prints the branch. A passing
   check that prints reads `inflight` (lib/maintenance.sh), so the session
-  start says `In flight elsewhere, so not due: handoff on
+  start says `Already in flight, so not due: handoff on
   claude/handoff-fold-1001 (folded to 0cn; tip 2h old)` in place of
   `Maintenance due: handoff`. `felix maintenance` says the same, and the
   overnight stop, `felix next` and the pulse keep only `due`, so none of them
@@ -144,8 +151,10 @@ wasted. So with three sections waiting, the row's check asks
 
 On real input on 2026-10-01 it named #386 (`claude/handoff-fold-1001`, cut
 from main 5772afac, marker 0cn) and nothing else. Left out: the branches of
-#347 and #351 (marker 0cc, behind main's 0cg), #377's (landed) and the
-pre-split `handoff-0b*` branches.
+#347 and #351 (marker 0cc, behind main's 0cg), #377's (landed), the
+`claude/handoff-0b*` branches (markers 0br to 0bz, behind main's), and the
+`docs/handoff-0a*` and `docs/handoff-0b*` branches from before the split,
+which carry no marker.
 
 **The check makes the fold the only way.** `engine/harness/bin/handoff-check`
 runs in the gate as `handoff`.

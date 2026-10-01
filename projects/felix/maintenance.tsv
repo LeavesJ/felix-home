@@ -50,12 +50,12 @@ graphify	0	always	refresh the knowledge graph after a merge	G="$(dirname "$(git 
 # session folds; a second fold of the same main writes the same bytes.
 #
 # But only one fold of a main can land, and every session reads this row at
-# its start. On 2026-09-24/25 three sessions folded the same sections (#347,
-# #351, #377) and only #377 landed. So with three waiting the check asks
+# its start. On 2026-09-24/25 three sessions folded overlapping sections
+# (#347, #351, #377) and only #377 landed. So with three waiting the check asks
 # bin/handoff-in-flight whether a remote branch already folds main's current
 # handoff, and passes naming it if one does: the row reads in flight, not
-# due, and the session start says whose fold it is. A fold no one has moved
-# for two days counts as abandoned and the row is due again. The engine's
+# due, and the session start says whose fold it is. A fold whose tip commit is
+# two days old counts as abandoned and the row is due again. The engine's
 # script is called through FELIX_HARNESS_DIR, the engine reading this table,
 # and not through this checkout's engine/, which a worktree cut before the
 # script existed lacks; an engine with neither fails the check, so the row

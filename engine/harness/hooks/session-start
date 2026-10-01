@@ -247,11 +247,12 @@ if [ -f "$PROJ/maintenance.tsv" ]; then
   [ -n "$_due" ] && maint_line="
 Maintenance due: ${_due}
 Do them on one branch. See 'felix maintenance'."
-  # A routine another branch is already doing is not due, and saying whose it
-  # is keeps a second session from starting it: three sessions folded the
-  # same handoff sections on 2026-09-24/25 when the row said only "due".
+  # A routine a pushed branch is already doing is not due, and saying whose it
+  # is keeps a second session from starting it: three sessions folded
+  # overlapping handoff sections on 2026-09-24/25 when the row said only
+  # "due". Not "elsewhere": the session that pushed the fold reads it too.
   maint_line="${maint_line}$(printf '%s\n' "$_maint_st" | LC_ALL=C awk -F'\t' '$1 == "inflight" {
-      printf "\nIn flight elsewhere, so not due: %s on %s", $2, $3 }')"
+      printf "\nAlready in flight, so not due: %s on %s", $2, $3 }')"
 fi
 
 # The graph, every session, whether or not the prompt happened to say

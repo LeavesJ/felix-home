@@ -189,8 +189,9 @@ jobs:
       # reviewed by nobody here, redefined green for this repository. Branch
       # protection, the auto-merge streak and the repair ceiling read these
       # runs as evidence about this repository, which runs graded by different
-      # engines are not. The job holds a read token and a key that reads Felix,
-      # and no model key, so the case is the verdict, not the credentials.
+      # engines are not. The job fetches with a read token and a key that
+      # reads Felix, keeps neither past its checkouts, and holds no model key,
+      # so the case is the verdict, not the credentials.
       #
       # The pin sits in this file because Felix does not merge a pull request
       # that edits a workflow; a person does. Such a pull request can still

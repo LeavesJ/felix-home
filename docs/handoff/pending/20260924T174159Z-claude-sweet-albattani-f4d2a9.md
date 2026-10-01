@@ -1,8 +1,8 @@
 ### 2026-09-24 — bootstrap's rendered gate workflow keeps no credential after its checkouts
 
-**One engine PR from this session.** It changes `lib/bootstrap.sh` and
-`tests/run`, and landed right after #331 in the queue carrier's order. The
-open items of §0bz and §0by stand.
+**One engine PR from this session, #379, version 0.49.229.** It changes
+`lib/bootstrap.sh` and `tests/run`, and landed behind #331 in the queue
+carrier's order. The open items of §0bz and §0by stand.
 
 **The finding.** `felix_bs_render_workflow` writes the `gate.yml` a governed
 project commits. Both of its checkouts kept the default persist-credentials:
@@ -34,14 +34,11 @@ against main's renderer (see red.tsv).
 - **Consumers keep their old workflow until someone re-renders it.** Elenchus
   commits its own `.github/workflows/gate.yml`, and a workflow change in a
   governed repository is the founder's to merge.
-- **felix-home's own `.github/workflows/gate.yml` keeps the job token too.**
-  It has one checkout, `fetch-depth: 0`, running the PR's suite. It is left as
-  a chip, "Drop the job token from felix-home's own gate checkout". Workflow
-  files are the founder's to merge.
-- **Sha-pinning the rendered workflow's actions is filed as its own task.**
-  It is "Pin bootstrap gate.yml actions to commit shas", from session "Pin
-  actions/checkout to a sha in unattended.yml", for the founder to start.
-  - It builds after #331 and this PR, and re-reads the v5 tag then.
-  - Its scope includes the `setup-*` actions and
-    `dtolnay/rust-toolchain@stable`. Pinned by sha, that one needs
-    `with: toolchain: stable`.
+- **felix-home's own `.github/workflows/gate.yml` had the same hole, and #346
+  closed it** before #379 landed. Its checkouts set `persist-credentials:
+  false` on main. The first version of this section said otherwise, and was
+  corrected after the merge.
+- **Sha-pinning the rendered workflow's actions is #354, open.** Its title
+  says every `uses:` in the rendered gate workflow names a full commit sha,
+  for every stack. Pinned by sha, `dtolnay/rust-toolchain` needs
+  `with: toolchain: stable`.

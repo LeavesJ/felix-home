@@ -1,4 +1,4 @@
-### 2026-09-24 — the 44 red rows every Mac recorded since #308 were tests/red moving TMPDIR, which macOS's mktemp ignores; red now runs the suite in the caller's TMPDIR
+### 0ce. 2026-09-24 — the 44 red rows every Mac recorded since #308 were tests/red moving TMPDIR, which macOS's mktemp ignores; red now runs the suite in the caller's TMPDIR
 
 **One engine PR from this session, version 0.49.200, tests only**
 (`engine/harness/tests/red`, and one fixture assertion in

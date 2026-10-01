@@ -296,6 +296,8 @@
 1	a faithful cache entry still merges a self-governed branch
 1	a felix qualify --gate run killed at its first control refuses, never counting none of none as met
 1	a felix-answered row names felix as the actor
+1	a fetch from a plain remote moves the remote-tracking refs itself, and is allowed
+1	a fetch with a refspec into refs/remotes/ is still refused
 1	a file facing a directory is a drift, whatever diff exits
 1	a file git ignores dropped into the entry is residue, not drift
 1	a file git ignores, left in the cache entry, is not drift
@@ -627,6 +629,7 @@
 1	a pulse that has run and never succeeded says never
 1	a pulse with nothing to do still answers
 1	a push nothing reads back is not called verified
+1	a push to refs/remotes/ is still refused
 1	a qualification row of five columns has no premise and is met as before
 1	a quoted argument naming a denied command is data
 1	a quoted attachment with the person's question under it is still routed and marked
@@ -674,6 +677,7 @@
 1	a red run breaks the streak
 1	a red working tree is still named in the session
 1	a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot
+1	a redirect between symbolic-ref's two refs does not hide the second
 1	a refresh of a graphed checkout exits 0
 1	a refreshed graph clears the row
 1	a refusal on risk is reported
@@ -1958,6 +1962,7 @@
 1	and shows the row and the verdict under qualified FAIL
 1	and shows which note it kept
 1	and so are the declines, from the same date
+1	and so behind a global option and a quoted -m reason
 1	and so does a compact
 1	and so does a failure nobody answered
 1	and so does a held row after a bare carriage return
@@ -1999,6 +2004,8 @@
 1	and so is the continuation ceiling itself
 1	and so is the other one
 1	and so is what eval is handed
+1	and so when it deletes one, quoted and ended by a separator
+1	and so when its errors go to /dev/null: the 2 of 2>/dev/null is no second ref
 1	and so without the caller's pipefail
 1	and stack.sh alone can too
 1	and staging the test closes the gap — the case that started this
@@ -2383,6 +2390,8 @@
 1	blind allow case 23: ./src is a directory, not a bare dot
 1	blind allow case 24: -N is not -f
 1	blind allow case 25: a plain fetch names no remote-tracking ref
+1	blind allow case 26: update-ref writes refs/heads/backup, and the remote-tracking ref is only the value it reads
+1	blind allow case 27: symbolic-ref with one ref reads it and prints
 1	blind allow case 28: git remote -v and show change no remote
 1	blind allow case 29: ls and cat only read the marker
 1	blind allow case 2: a here-document handed to git commit -F is a message
@@ -3065,6 +3074,7 @@
 1	passing gate exits 0
 1	path and all
 1	plain felix qualify reads it once for its controls and at most once more for the roster gap
+1	pointing HEAD at a remote-tracking ref is refused, since the next commit would move it
 1	pr previews and exits 0
 1	pr refuses to open a branch against itself
 1	present, active — nothing was stored between the two
@@ -3387,6 +3397,8 @@
 1	supabase's shape, a remote server two directories down with no variable, is medium
 1	survives a machine laid out differently
 1	survives a transcript that is not there
+1	symbolic-ref --delete with one ref deletes it, and is refused
+1	symbolic-ref with two refs writes the first, and a remote-tracking one is refused
 1	tasks sharing a file are one unit
 1	text piped into a shell is its script
 1	that names the command
@@ -3686,6 +3698,7 @@
 1	the table did not grow
 1	the table is seeded
 1	the table resolves to its repo-relative path
+1	the target of a redirect after that read is a file, not a second ref
 1	the template documents the needs column
 1	the tests check is behind the verifier confine
 1	the third field is the epoch the answer file named
@@ -3756,6 +3769,7 @@
 1	uninstall takes the grant back
 1	unknown or malformed rows make the receipt indeterminate
 1	untouched surfaces are n/a
+1	update-ref writing a remote-tracking ref is still refused
 1	veldra's fmt: a check that fails with no name it can parse is a loud FAIL
 1	veldra's fmt: a new file rustfmt rewrites is named, though git diff cannot see it
 1	veldra's fmt: and a check that named its files leaves no log behind

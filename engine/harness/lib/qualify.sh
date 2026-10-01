@@ -285,10 +285,17 @@ _felix_qualify_drop() {   # root, base
 # six seconds late, after the row had finished. The row's process is in the
 # process group that a terminal's Ctrl-C, timeout and a tool's kill all
 # signal, and it carries the CLI's command line, so a kill by pattern reaches
-# it too. A column that is running is ended by the same signal, the trap runs
-# when it has, the tree goes, and the row exits 128+N with no later column
-# run. The trap ignores the three first: a child inherits an ignored signal,
-# so a second Ctrl-C cannot cut git off half way through the tree.
+# it too. The trap runs once the column in flight has ended: at once when the
+# signal went to the group, which ends the column too, and at the column's own
+# end when it reached the row alone. Then the tree goes, no later column runs,
+# and the row exits 128+N.
+#
+# It ignores the three first: a child inherits an ignored signal, so a second
+# Ctrl-C cannot cut git off half way through the tree. And it prints
+# unrunnable, because a row loop that was not signalled itself is still
+# reading, and a row that printed nothing was counted held, a claim about a
+# checker that never finished. PIPE is ignored for that one write: when the
+# loop is gone, the write fails rather than ending the row with SIGPIPE.
 #
 # What no trap reaches. SIGKILL. And a signal sent to the CLI's process alone,
 # which leaves the row to run to its end and throw its tree away there, as
@@ -296,11 +303,12 @@ _felix_qualify_drop() {   # root, base
 # trees from runs killed mid-row were found in the founder's checkout on
 # 2026-09-25, still registered.
 _felix_qualify_arm() {   # root, base
-  local r b
+  local r b s n
   printf -v r '%q' "$1"; printf -v b '%q' "$2"
-  trap "trap '' INT TERM HUP; _felix_qualify_drop $r $b; exit 130" INT
-  trap "trap '' INT TERM HUP; _felix_qualify_drop $r $b; exit 143" TERM
-  trap "trap '' INT TERM HUP; _felix_qualify_drop $r $b; exit 129" HUP
+  for s in INT:130 TERM:143 HUP:129; do
+    n="${s#*:}"; s="${s%%:*}"
+    trap "trap '' INT TERM HUP PIPE; _felix_qualify_drop $r $b; printf unrunnable 2>/dev/null; exit $n" "$s"
+  done
 }
 
 # Run one row: a real worktree of HEAD, the mutation applied to it, the checker

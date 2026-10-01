@@ -25071,6 +25071,20 @@ _rt_record_whole() {   # <red.tsv> -> ok, or bad <detail>
       else print "ok"
     }' "$1"
 }
+# How _rtn1 and _rtn3 report a check's verdict line, written once so that it
+# can be asked of lines written for it below: each wrote the mapping out, and
+# turning its bad into skip or ok left the suite green (#371, third review).
+# A line that is none of the three, empty or more than one included, fails,
+# naming what it read, since a check that said nothing readable has not passed.
+_rt_report() {   # <name> <verdict line>
+  case "$2" in
+    *$'\n'*)   bad  "$1" "the check's verdict is more than one line: [$2]" ;;
+    ok)        ok   "$1" ;;
+    "skip "?*) skip "$1" "${2#skip }" ;;
+    "bad "?*)  bad  "$1" "${2#bad }" ;;
+    *)         bad  "$1" "the check's verdict reads [$2], which is none of ok, skip <reason> or bad <detail>" ;;
+  esac
+}
 _rt_skip=""
 [ "$FELIX_TEST_RECORD" -eq 1 ] && _rt_skip="--record-assertions rewrites red.tsv after this run"
 [ -z "$_rt_skip" ] && [ ! -f "$_rt" ] && _rt_skip="no red.tsv beside this suite"
@@ -25080,8 +25094,7 @@ else
   if [ -n "$_rt_skip" ]; then
     for _n in "$_rtn1" "$_rtn2" "$_rtn3"; do skip "$_n" "$_rt_skip"; done
   else
-    _rtwv="$(_rt_record_whole "$_rt")"
-    [ "$_rtwv" = ok ] && ok "$_rtn1" || bad "$_rtn1" "${_rtwv#bad }"
+    _rt_report "$_rtn1" "$(_rt_record_whole "$_rt")"
     if [ -f "$FELIX_TEST_MANIFEST" ]; then
       _rtm="$(awk -F'\t' 'NR == FNR { m[$2] = 1; next } /^#/ || !NF || $1 == "base" || $1 == "run" { next }
                           !($1 in m) { print $1 }' "$FELIX_TEST_MANIFEST" "$_rt")"
@@ -25109,20 +25122,24 @@ else
   # What kind of base the record names, one word of four. tests/red records a
   # base of - when it made no red run, and - is no commit either, so the base
   # check skipped a retraction as though it were a published snapshot and an
-  # engine change whose red run was never made passed (#371). A snapshot's base
-  # is a full commit id; a base that is neither a commit here, a full id nor -,
-  # an empty one, or more than one, is malformed. Asked on this repository's
-  # own history, as the two above are: its root is a commit here, forty zeros
-  # a full id that is not, and deadbeef an abbreviated one that is not. Like
-  # _rt_base_in, it asks the checkout named second, this suite's by default.
+  # engine change whose red run was never made passed (#371). Any other base is
+  # one commit id as tests/red writes it, forty lower-case hex digits: a commit
+  # here, or a snapshot's when it is not. Anything else is malformed, an empty
+  # base, more than one, and a value git resolves but tests/red never writes,
+  # since a base edited by hand to origin/main, a branch or an abbreviated id
+  # read as a commit and, resolving afresh after every merge of main, never
+  # went stale (#371, third review). Asked on this repository's own history,
+  # as the two above are: its root is a commit here, forty zeros a full id that
+  # is not, and deadbeef an abbreviated one that is not. Like _rt_base_in, it
+  # asks the checkout named second, this suite's by default.
   _rt_base_kind() {   # <the base field of every base row, space-separated> [<checkout>] -> one word
     case "$1" in
       -) echo retracted; return 0 ;;
-      ''|*[[:space:]]*) echo malformed; return 0 ;;
+      ''|*[!0123456789abcdef]*) echo malformed; return 0 ;;
     esac
-    if _rt_base_in "$1" "${2:-}"; then echo commit
-    elif [ "${#1}" -eq 40 ] && case "$1" in *[!0123456789abcdef]*) false ;; esac; then echo snapshot
-    else echo malformed; fi
+    if [ "${#1}" -ne 40 ]; then echo malformed
+    elif _rt_base_in "$1" "${2:-}"; then echo commit
+    else echo snapshot; fi
   }
   _rtkn1="a red.tsv base of - reads as retracted, not as a published snapshot"
   _rtkn2="and a base that is a commit here reads as a commit"
@@ -25249,18 +25266,21 @@ else
   # and why, on one line. An engine change owes a red run, so a retraction
   # (base -), which once skipped as a published snapshot and let an engine
   # change whose red run was never made pass (#371), fails, as does a base
-  # naming no single commit; only a snapshot's full id still skips. The
+  # that is not one full commit id; only a snapshot's full id still skips. The
   # decision sat inside _rtn3, where no fixture reached it, so undoing it left
   # this suite green (second review of #371); it is asked of fixtures below.
-  # Whether the question is owed at all stays _rtn3's.
+  # Whether the question is owed at all stays _rtn3's. A published snapshot
+  # carrying a retraction fails too, rightly, since its engine's red run was
+  # never shown either, but it cannot re-record there, so the detail says where
+  # (#371, third review).
   _rt_base_check() {   # <checkout> -> ok, skip <reason> or bad <detail>
     local bs mb
     bs="$(awk -F'\t' '$1 == "base" { printf "%s%s", s, $3; s = " " }' "$1/engine/harness/tests/red.tsv" 2>/dev/null)"
     case "$(_rt_base_kind "$bs" "$1")" in
       retracted)
-        echo "bad red.tsv records that no red run was made (base -), and tests/red's own output says why: re-record with tests/run --record-assertions" ;;
+        echo "bad red.tsv records that no red run was made (base -), and tests/red's own output says why: re-record with tests/run --record-assertions in the repository where the engine change was made" ;;
       malformed)
-        echo "bad the record's base reads [$bs], which is neither one commit here, a full commit id nor -: re-record with tests/run --record-assertions" ;;
+        echo "bad the record's base reads [$bs], which is neither - nor one commit id in forty lower-case hex digits, as tests/red writes it: re-record with tests/run --record-assertions" ;;
       snapshot)
         echo "skip its base is no commit in this repository's history, as in a published snapshot" ;;
       *)
@@ -25282,14 +25302,7 @@ else
     [ -z "$_rt_skip" ] && skip "$_rtn3" "this tree changes no engine file, so origin/main's record is still this engine's"
     skip "$_rtn4" "this tree changes no engine file, so it keeps origin/main's version"
   else
-    if [ -z "$_rt_skip" ]; then
-      _rtbv="$(_rt_base_check "$REAL_HARNESS/../..")"
-      case "$_rtbv" in
-        ok)       ok   "$_rtn3" ;;
-        "skip "*) skip "$_rtn3" "${_rtbv#skip }" ;;
-        *)        bad  "$_rtn3" "${_rtbv#bad }" ;;
-      esac
-    fi
+    [ -z "$_rt_skip" ] && _rt_report "$_rtn3" "$(_rt_base_check "$REAL_HARNESS/../..")"
     _rtvh="$(_rtv < "$REAL_HARNESS/../.claude-plugin/plugin.json" 2>/dev/null)"
     _rtvm="$(_rtg show refs/remotes/origin/main:engine/.claude-plugin/plugin.json | _rtv)"
     [ -n "$_rtvh" ] && [ -n "$_rtvm" ] && [ "$(awk -v a="$_rtvh" -v b="$_rtvm" 'BEGIN {

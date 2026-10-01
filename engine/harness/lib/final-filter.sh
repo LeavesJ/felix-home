@@ -203,10 +203,10 @@ function ff_ifc(c, t, e,    A, k, i, x, o) {
 # after an eval, it ends the script at a failure the text reached before it,
 # and ff_list only adds endings for it, so reading it early can only admit
 # more.
-function ff_text(s, ex,    d, out) {
+function ff_text(s, ex, po,    d, out) {
   if (FFD >= 6 || ff_unsure(s)) { FFERR = 1; return " z n " }
   if (s ~ /(^|[^A-Za-z0-9_])set[ \t]/ && s ~ /[ \t]-[A-Za-z]*e|errexit/) ex = 1
-  d = ++FFD; FFP[d] = 1; FFEX[d] = ex
+  d = ++FFD; FFP[d] = 1; FFEX[d] = ex; FFPOS[d] = po
   if (!ff_lex(s, d)) { FFERR = 1; FFD--; return " z n " }
   out = ff_list(" ")
   if (!FFERR && !ff_end()) FFERR = 1
@@ -221,7 +221,7 @@ function ff_list(stops,    acc, cur, o, dead) {
     if (ff_end() || ff_stop(stops)) break
     o = ff_andor(); if (FFERR) break
     if (!dead) cur = ff_qall(o, cur)
-    if (ff_is(0, "&")) { FFP[FFD]++; if (!dead) cur = " z "; continue }
+    if (ff_is(0, "&")) { FFP[FFD]++; if (!dead) cur = FFANEG ? " z n " : " z "; continue }
     if (ff_is(0, ";") || ff_is(0, "nl")) {
       FFP[FFD]++
       if (!dead) {
@@ -235,13 +235,15 @@ function ff_list(stops,    acc, cur, o, dead) {
   FFNEST--
   return ff_uniq(dead ? acc : acc (cur == "" ? " z " : cur))
 }
-function ff_andor(    s, op) {
-  s = ff_pipe()
+# Starting a job leaves status 0, but bash 3.2 leaves 1 after `! x &` and
+# `! x | y &`, a negated pipeline alone: FFANEG says the list was one.
+function ff_andor(    s, op, ng) {
+  s = ff_pipe(); ng = FFPNEG
   while (!FFERR && (ff_is(0, "&&") || ff_is(0, "||"))) {
-    op = FFV[FFD, FFP[FFD]]; FFP[FFD]++; ff_skipnl()
+    op = FFV[FFD, FFP[FFD]]; FFP[FFD]++; ff_skipnl(); ng = 0
     s = ff_comb(s, op, ff_pipe())
   }
-  return s
+  FFANEG = ng; return s
 }
 # `! !` is a syntax error on bash 3.2, so a text holding one never passes.
 function ff_pipe(    neg, out, k) {
@@ -250,7 +252,7 @@ function ff_pipe(    neg, out, k) {
   if (ff_kw(0, "!")) { FFP[FFD]++; neg = 1
     if (ff_kw(0, "!")) { FFERR = 1; return " z n " }
     if (ff_kw(0, "time")) { FFP[FFD]++; if (ff_kw(0, "-p")) FFP[FFD]++ } }
-  out = ff_cmd(); k = 1
+  out = ff_cmd(); k = 1; FFPNEG = neg
   while (!FFERR && (ff_is(0, "|") || ff_is(0, "|&"))) { FFP[FFD]++; ff_skipnl(); out = ff_cmd(); k++ }
   if (FFERR) return " z n "
   if (k > 1) { out = ff_sub(out)
@@ -326,8 +328,11 @@ function ff_case(    o, y, b) {
   return ff_close(o)
 }
 # A simple command. A builtin ff_safe does not list can change the shell, and
-# so can a word ff_bad names however it is quoted: the text is admitted. A
-# name that is an expansion may be exit. A redirection that can fail stops
+# so can a word ff_bad names however it is quoted, a builtin or shell named
+# with quotes (the prescans for -e and -u read the text as written), and an
+# assignment to a read-only name: the text is admitted. A name that is an
+# expansion may be exit. In POSIX mode, as sh runs, an error in a special
+# builtin ends the shell. A redirection that can fail stops
 # the command with status 1, and a bare exit after an assignment that ran a
 # command returns the status of that command.
 function ff_simple(    nw, st, p, i, nm, r, ex, cs) {
@@ -336,7 +341,9 @@ function ff_simple(    nw, st, p, i, nm, r, ex, cs) {
     p = FFP[FFD]; FFP[FFD]++
     if (FFT[FFD, p] == "r") { if (FFS[FFD, p]) st = 1; continue }
     if (ff_bad(FFV[FFD, p])) { FFERR = 1; return " z n " }
-    if (nw == 0 && FFR[FFD, p] ~ /^[A-Za-z_][A-Za-z0-9_]*(\[[^=]*\])?[+]?=/) { if (FFR[FFD, p] ~ /\$\(|`/) cs = 1; continue }
+    if (nw == 0 && FFR[FFD, p] ~ /^[A-Za-z_][A-Za-z0-9_]*(\[[^=]*\])?[+]?=/) {
+      if (FFR[FFD, p] ~ /^(BASH_VERSINFO|EUID|PPID|SHELLOPTS|UID)[[+=]/) { FFERR = 1; return " z n " }
+      if (FFR[FFD, p] ~ /\$\(|`/) cs = 1; continue }
     nw++; FFA[FFD, nw] = FFV[FFD, p]; FFAY[FFD, nw] = FFY[FFD, p]; FFAR[FFD, nw] = FFR[FFD, p]
     if (nw == 1 && ff_is(0, "(")) { FFERR = 1; return " z n " }
   }
@@ -344,6 +351,7 @@ function ff_simple(    nw, st, p, i, nm, r, ex, cs) {
   FFEXEC = 0; FFBI = 0; FFPX = ""; i = ff_prefix(nw); ex = FFEXEC
   if (!i) { if (ex && FFPX == "n") FFERR = 1; return FFPX == "y" ? " z n tn " : " z n " }
   nm = FFNAME
+  if (FFAR[FFD, i] != FFA[FFD, i] && (ff_isbuiltin(nm) || nm ~ /^(sh|bash|dash|ksh|mksh|zsh|ash|posh|yash)$/)) { FFERR = 1; return " z n " }
   if (FFBI && !ff_isbuiltin(nm)) return " n "
   if (ff_isbuiltin(nm) && !ff_safe(nm)) { FFERR = 1; return " z n " }
   # exec runs a file, so a name only the shell knows is not found, and the
@@ -352,12 +360,13 @@ function ff_simple(    nw, st, p, i, nm, r, ex, cs) {
   r = ff_run(nm, i, nw, st)
   if (cs) r = ff_qboth(r)
   if (st && FFFILT == "") r = r " n "
+  if (FFPOS[FFD] && nm ~ /^(:|[.]|break|continue|eval|exec|exit|export|readonly|return|set|shift|times|trap|unset)$/) r = r " tn "
   return ex ? ff_mkterm(r) : r
 }
 # The final filter whose status the text can end on, when it cannot fail.
 function ff_stage(s,    out, nm) {
   FFERR = 0; FFD = 0; FFNEST = 0; FFFILT = ""; FFVAR = 0
-  out = ff_sub(ff_text(s, 0))
+  out = ff_sub(ff_text(s, 0, 0))
   if (FFERR || out ~ / (n|g:[^ ]*) / || !match(out, / h:[^ ]+ /)) return ""
   if (FFVAR && (FFNU || (s ~ /(^|[^A-Za-z0-9_])(set|(ba|da|k|mk|z|a|po|ya)?sh)[ \t]/ && s ~ /[ \t][-][A-Za-z]*u|nounset/))) return ""
   nm = substr(out, RSTART + 3, RLENGTH - 4)

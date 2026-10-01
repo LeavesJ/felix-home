@@ -93,7 +93,10 @@ function ff_prefix(nw,    i, v, b) {
       while (i <= nw && FFA[FFD, i] ~ /^-/) { if (FFA[FFD, i] == "--") { i++; break }; if (FFA[FFD, i] ~ /a$/) i++; i++ }
       continue }
     if (b == "nice") { i++
-      while (i <= nw && FFA[FFD, i] ~ /^-/) { if (FFA[FFD, i] == "--") { i++; break }; if (FFA[FFD, i] ~ /^-[nioe]$/) i++; i++ }
+      if (i < nw && FFA[FFD, i] == "-n") { i++; if (FFAY[FFD, i] || FFA[FFD, i] !~ /^[-+]?[0-9]+$/) return 0; i++ }
+      else if (i <= nw && FFA[FFD, i] ~ /^-(n[-+]?)?[0-9]+$/) i++
+      if (i <= nw && FFA[FFD, i] == "--") i++
+      else if (i <= nw && FFA[FFD, i] ~ /^-/) return 0
       continue }
     if (b == "env") { i++
       while (i <= nw) {
@@ -154,35 +157,37 @@ function ff_set(i, nw,    p, v) {
     if (v ~ /^[-+]o$/) {
       if (p == nw) break
       if (!ff_optok(++p, nw)) return " z n "
+      if (FFA[FFD, p] == "posix") { FFERR = 1; return " z n " }
       if (!index(" allexport braceexpand emacs errexit errtrace functrace hashall histexpand history ignoreeof interactive-comments keyword monitor noclobber noexec noglob nolog notify nounset onecmd physical posix privileged verbose vi xtrace ", " " FFA[FFD, p] " ")) return " z n "
       continue }
     if (v !~ /^[-+][abefhkmnptuvxBCEHPT]+$/) { if (v ~ /^[-+]/) return " z n "; break }
   }
   return " z "
 }
-# A literal script given to sh, bash or dash with -c is read as that script.
-# Another shell, or one reading a startup file (-i, -l, --login, --rcfile),
-# can run anything first.
-function ff_shell(nm, i, nw,    j, v, c, ex, o) {
+# A literal script given to sh, bash or dash with -c is read as that script,
+# in POSIX mode but for bash without --posix or -o posix. Another shell, or
+# one reading a startup file (-i, -l, --login, --rcfile), can run anything
+# first.
+function ff_shell(nm, i, nw,    j, v, c, ex, o, po) {
   if (nm !~ /^(sh|bash|dash)$/) return " z n "
-  c = 0; ex = 0
+  c = 0; ex = 0; po = nm != "bash"
   for (j = i + 1; j <= nw; j++) {
     v = FFA[FFD, j]; if (FFAY[FFD, j]) return " z n "
     if (v ~ /^[-+]/ && FFAR[FFD, j] != v) { FFERR = 1; return " z n " }
     if (v == "--" || v == "-") { j++; break }
-    if (v ~ /^[-+]o$/) { if (!ff_optok(j + 1, nw)) return " z n "; if (v == "-o" && j < nw && FFA[FFD, j + 1] == "errexit") ex = 1; j++; continue }
-    if (v ~ /^--/) { if (v !~ /^--(norc|noprofile|posix)$/) return " z n "; continue }
+    if (v ~ /^[-+]o$/) { if (!ff_optok(j + 1, nw)) return " z n "; if (FFA[FFD, j + 1] == "posix") po = 1; if (v == "-o" && j < nw && FFA[FFD, j + 1] == "errexit") ex = 1; j++; continue }
+    if (v ~ /^--/) { if (v == "--posix") po = 1; else if (v !~ /^--(norc|noprofile)$/) return " z n "; continue }
     if (v ~ /^[-+][A-Za-z]+$/) { if (v ~ /[ilO]/) return " z n "; if (v ~ /^-.*c/) c = 1; if (v ~ /^-.*e/) ex = 1; continue }
     break
   }
   if (!c || j > nw || FFAY[FFD, j]) return " z n "
-  o = ff_sub(ff_text(FFA[FFD, j], ex)); FFFILT = ""; return o
+  o = ff_sub(ff_text(FFA[FFD, j], ex, po)); FFFILT = ""; return o
 }
 # eval of an expansion can run anything, exit included.
 function ff_eval(i, nw,    j, t, o) {
   t = ""
   for (j = i + 1; j <= nw; j++) { if (FFAY[FFD, j]) return " z n tn "; t = t (t == "" ? "" : " ") FFA[FFD, j] }
-  o = ff_text(t, FFEX[FFD]); FFFILT = ""; return o
+  o = ff_text(t, FFEX[FFD], FFPOS[FFD]); FFFILT = ""; return o
 }
 # Options of a filter: arg are letters taking a value, ok the letters allowed,
 # bad the letters that make it a check; lok and larg the long options allowed,
@@ -427,6 +432,21 @@ function ff_awkset(a,    nm) {
   nm = substr(a, 1, index(a, "=") - 1)
   return !index(" ARGC ARGV ENVIRON FILENAME FNR NF NR RLENGTH RSTART ", " " nm " ")
 }
+# A name used as an array must be one everywhere, or awk fails at the first
+# line it reads; and only `in` and `delete` may name it bare.
+function ff_awkarr(t,    f, nm, A, pre, rest) {
+  f = t
+  while (match(f, /[A-Za-z_][A-Za-z0-9_]*[ \t]*\[/)) {
+    nm = substr(f, RSTART, RLENGTH); sub(/[ \t]*\[$/, "", nm); A[nm] = 1
+    f = substr(f, RSTART + RLENGTH) }
+  for (nm in A) {
+    f = " " t
+    while (match(f, "[^A-Za-z0-9_$]" nm "([^A-Za-z0-9_]|$)")) {
+      pre = substr(f, 1, RSTART); rest = substr(f, RSTART + 1 + length(nm))
+      if (rest !~ /^[ \t]*\[/ && pre !~ /(^|[^A-Za-z0-9_])(in|delete)[ \t]+$/) return 0
+      f = substr(f, RSTART + length(nm)) } }
+  return 1
+}
 # A slash after one of ( , { } ; ~ ! & | ? : or at the start is a regex
 # literal; anywhere else it is read as division, which admits.
 function ff_awkprog(p,    n, i, c, prev, t, d, f, pd) {
@@ -453,6 +473,8 @@ function ff_awkprog(p,    n, i, c, prev, t, d, f, pd) {
     t = t c
   }
   if (d || pd) return 0
+  if (t ~ /(^|[^A-Za-z0-9_])next([^A-Za-z0-9_]|$)/ && t ~ /(^|[^A-Za-z0-9_])(BEGIN|END)([^A-Za-z0-9_]|$)/) return 0
+  if (t ~ /(^|[^+])\+[ \t\n]*([};]|$)/ || t ~ /(^|[^-])-[ \t\n]*([};]|$)/ || t ~ /[*,=&|!][ \t\n]*([};]|$)/ || !ff_awkarr(t)) return 0
   for (i = 1; i <= length(t); i++) if (substr(t, i, 1) == "$") {
     c = substr(t, i + 1, 1)
     if (c ~ /[0-9]/ || (substr(t, i + 1, 2) == "NF" && substr(t, i + 3, 1) !~ /[A-Za-z0-9_]/)) continue

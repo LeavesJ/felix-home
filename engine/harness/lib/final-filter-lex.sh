@@ -58,10 +58,11 @@ function ff_ansi(s, i, n,    c, v, e) {
 }
 # A word that can change what the shell does next, however it is quoted:
 # pipefail, the variables that set options or say what a name runs, and a
-# kill, which can end the shell from any process the text starts.
+# kill in any spelling (killall, killpg, os.kill), which can end the shell
+# from any process the text starts.
 function ff_bad(v) {
-  return v ~ /[Pp][Ii][Pp][Ee]_?[Ff][Aa][Ii][Ll]|SHELLOPTS|BASHOPTS|BASH_ENV|BASH_CMDS/ ||
-    v ~ /(^|[^A-Za-z0-9_])PATH([^A-Za-z0-9_]|$)/ || v ~ /(^|[^A-Za-z0-9_-])(kill|pkill|killall)([^A-Za-z0-9_-]|$)/
+  return v ~ /[Pp][Ii][Pp][Ee]_?[Ff][Aa][Ii][Ll]|SHELLOPTS|BASHOPTS|BASH_ENV|BASH_CMDS|POSIXLY_CORRECT/ ||
+    v ~ /(^|[^A-Za-z0-9_])PATH([^A-Za-z0-9_]|$)/ || v ~ /(^|[^A-Za-z0-9_-])p?kill/
 }
 # A text this does not read: one holding a word ff_bad names, a carriage
 # return, arithmetic, or an expansion that can end the shell with an error,

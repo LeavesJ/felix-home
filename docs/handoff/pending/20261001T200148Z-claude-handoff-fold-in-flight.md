@@ -58,8 +58,11 @@ already pushed. docs/2026-09-24-handoff-sections.md records both.
 **Open.**
 - A fold not yet pushed is invisible, so two sessions starting within the
   same minutes can still both fold.
-- `bin/handoff-check` exits 127 when called by a relative path from a
-  subdirectory (pre-existing; a task chip is offered).
+- Carried here: claude/handoff-check-relative-path (3 commits, its own
+  pending section). handoff-check, lifecycle-check and obligations-check
+  found their libraries after moving to the checkout top, so a relative call
+  from a subdirectory failed. Its 3 assertions are red against main as a git
+  checkout, for that reason (`cd: ../bin/..: No such file or directory`).
 - handoff-check reads one merge-base, as this did before the review. In a
   criss-cross where git picks the base after main's fold, it refuses a fold
   that this names, until the 48-hour bound.

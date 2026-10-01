@@ -252,30 +252,63 @@ _felix_qualify_missing_in() {   # rows, checker -> one control per line
 # root's repository, and the directory mktemp made to hold them.
 #
 # Until 2026-10-01 this was `git worktree remove --force` and `rmdir`, and a
-# mutation that took a write bit away beat both. A control has every reason to
-# stage an unwritable file, and `mkdir d && touch d/f && chmod a-w d` left git
-# unable to unlink d/f, so the remove failed, the rmdir failed, and the
-# checkout stayed in TMPDIR. A retry cannot mend it: git 2.54 drops the
-# registration on its way out of a remove that failed, and the second remove
-# says "not a working tree". So the owner's bits come back first, u+rwX, the X
-# so a directory left at 000 can be entered again. chmod -R follows no symlink
-# it meets inside the tree, BSD and GNU alike, so a link a mutation plants to
-# a file outside reaches nothing. The base is checked not to be a link
-# itself, since a link named on the command line is followed.
+# mutation beat both several ways. Each step below closes one, measured on
+# git 2.54 and bash 3.2:
 #
-# What is left in the base once git has removed the tree is the runner's own:
-# a column's stderr file, and whatever a mutation wrote beside the tree. It
-# goes whole. A tree git would not remove (a mutation took its .git away, or
-# the tree itself) is said, not left in silence.
+#   - `mkdir d && touch d/f && chmod a-w d`, a control with every reason to
+#     stage an unwritable file, left git unable to unlink d/f: the remove
+#     failed, the rmdir failed, the checkout stayed. A retry cannot mend it,
+#     since git drops the registration on its way out of a failed remove. So
+#     every directory short of the owner's rwx gets it back first, before git
+#     runs; deleting needs the bits on the directory, not on the file. Only
+#     directories, one at a time from the top so a 000 one is opened before
+#     find reads it: a file's mode is its inode's, and a hard link a
+#     mutation made (`git clone . sub` makes them of the root's objects)
+#     would carry chmod outside the base. find follows no symlink, and no
+#     user can hard-link a directory.
+#   - A scratch tree swapped for a symlink is unlinked, never followed:
+#     `git worktree remove` resolves the path it is given, and through a link
+#     to another worktree of the root it deleted that worktree, uncommitted
+#     work and all. A base swapped for a link is unlinked the same way.
+#   - A base the mutation took away is made again, empty, so that $base/w
+#     resolves to the path git registered.
+#   - -f twice, so a tree the mutation locked is removed too.
+#   - A remove git refuses (the tree's .git is gone) is tried again once the
+#     directory is: git removes a registration whose directory is missing.
+#
+# Then the base goes whole: the column stderr file and whatever a mutation
+# wrote beside the tree are the runner's own. What is still there after all
+# that is said, on stderr, from what is there and not from an exit status:
+# the base on disk, or the tree still in git worktree list. Nothing is
+# pruned beyond this row's entry; other entries are not the runner's.
+#
+# What it cannot reach: a process the mutation left running, which can write
+# into the base after this has removed it.
 _felix_qualify_drop() {   # root, base
-  local root="$1" base="$2"
-  [ -n "$base" ] && [ -d "$base" ] && [ ! -L "$base" ] || return 0
-  chmod -R u+rwX "$base" 2>/dev/null
-  git -C "$root" worktree remove --force "$base/w" >/dev/null 2>&1 \
-    || printf 'felix: git could not remove the scratch worktree %s, so %s may still list it; git worktree prune there clears an entry whose directory is gone\n' \
-              "$base/w" "$root" >&2
+  local root="$1" base="$2" listed pdir nl='
+'
+  [ -n "$base" ] || return 0
+  if [ -L "$base" ]; then
+    rm -f "$base" 2>/dev/null
+    printf 'felix: the scratch directory %s had been replaced by a symlink, so whatever the row moved out of it is not removed\n' "$base" >&2
+  fi
+  [ -e "$base" ] || mkdir "$base" 2>/dev/null
+  [ ! -L "$base/w" ] || rm -f "$base/w" 2>/dev/null
+  find "$base" -type d ! -perm -0700 -exec chmod u+rwx {} \; 2>/dev/null
+  if ! git -C "$root" worktree remove -f -f "$base/w" >/dev/null 2>&1; then
+    rm -rf "$base/w" 2>/dev/null
+    if ! git -C "$root" worktree remove -f -f "$base/w" >/dev/null 2>&1; then
+      pdir="$(cd "${base%/*}" 2>/dev/null && pwd -P)"
+      listed="$(git -C "$root" worktree list --porcelain 2>/dev/null)"
+      case "$nl$listed$nl" in
+        *"${nl}worktree $base/w$nl"*|*"${nl}worktree $pdir/${base##*/}/w$nl"*)
+          printf 'felix: %s still lists the scratch worktree %s, which could not be removed\n' \
+                 "$root" "$base/w" >&2 ;;
+      esac
+    fi
+  fi
   rm -rf "$base" 2>/dev/null
-  [ ! -e "$base" ] || printf 'felix: %s could not be deleted, and stays on disk\n' "$base" >&2
+  [ ! -e "$base" ] || printf 'felix: the scratch directory %s could not be deleted, and stays on disk\n' "$base" >&2
 }
 
 # The traps that throw a row's tree away when the row is stopped, set in the
@@ -286,9 +319,9 @@ _felix_qualify_drop() {   # root, base
 # process group that a terminal's Ctrl-C, timeout and a tool's kill all
 # signal, and it carries the CLI's command line, so a kill by pattern reaches
 # it too. The trap runs once the column in flight has ended: at once when the
-# signal went to the group, which ends the column too, and at the column's own
-# end when it reached the row alone. Then the tree goes, no later column runs,
-# and the row exits 128+N.
+# signal went to the group and the column does not catch it, and otherwise at
+# the column's own end. Then the tree goes, no later column runs, and the row
+# exits 128+N.
 #
 # It ignores the three first: a child inherits an ignored signal, so a second
 # Ctrl-C cannot cut git off half way through the tree. And it prints
@@ -299,9 +332,10 @@ _felix_qualify_drop() {   # root, base
 #
 # What no trap reaches. SIGKILL. And a signal sent to the CLI's process alone,
 # which leaves the row to run to its end and throw its tree away there, as
-# every row always has. Without a trap the row died where it stood, and three
-# trees from runs killed mid-row were found in the founder's checkout on
-# 2026-09-25, still registered.
+# every row always has. Without a trap, TERM and HUP ended the row where it
+# stood (a group INT did not, on bash 3.2: the row went on and removed its
+# tree), and three trees from runs stopped mid-row were found in the
+# founder's checkout on 2026-09-25, still registered.
 _felix_qualify_arm() {   # root, base
   local r b s n
   printf -v r '%q' "$1"; printf -v b '%q' "$2"
@@ -354,6 +388,14 @@ _felix_qualify_arm() {   # root, base
 # reads as nothing run, and the helper removes the file before it returns.
 # Every other status keeps its meaning.
 #
+# That file sits beside the tree, where a mutation can reach it as ../err,
+# so each column makes it new before it runs (_felix_qualify_errfile). A
+# redirection that fails runs nothing and returns 1, which on the command
+# reads fail, met on a fail control: `chmod -R a-w ..` did that with the
+# checker never run. And a 2> follows a link, so `ln -s $OUT ../err` sent the next
+# column's stderr into a file outside the base. A file that cannot be made
+# new, plain and empty, is a column that ran nothing.
+#
 # The parse and the row run without SHELLOPTS or BASHOPTS, which carry the
 # caller's set and shopt options into a child bash, BASH_ENV, whose file a
 # child bash runs first, or POSIXLY_CORRECT, whose posix mode before bash 5.1
@@ -364,6 +406,7 @@ _felix_qualify_sh() {   # dir, text, stderr file outside dir -> the text's own s
   case "${2#"${2%%[![:space:]]*}"}" in ''|'#'*) return 127 ;; esac
   env -u SHELLOPTS -u BASHOPTS -u BASH_ENV -u POSIXLY_CORRECT \
     bash -n -c -- "$2" felix-qualify </dev/null >/dev/null 2>&1 || return 127
+  _felix_qualify_errfile "$3" || return 127
   ( cd "$1" 2>/dev/null || exit 126
     env -u SHELLOPTS -u BASHOPTS -u BASH_ENV -u POSIXLY_CORRECT \
       bash -c -- "$2" felix-qualify ) </dev/null >/dev/null 2>"$3"
@@ -372,12 +415,25 @@ _felix_qualify_sh() {   # dir, text, stderr file outside dir -> the text's own s
     '^felix-qualify: ((line [0-9]+: )?[^:]+: command not found$|((line [0-9]+: )?(command substitution|eval|-c): )?(line [0-9]+: )?(syntax error near unexpected token|syntax error: unexpected end of file|unexpected EOF while looking for matching))' \
     "$3" 2>/dev/null
   said=$?
-  # Quietly: a mutation that took the base's write bit away leaves this file
-  # behind, the next column's 2> truncates it, and _felix_qualify_drop takes
-  # it with the base.
+  # Quietly: a column that took the base's write bit away leaves the file,
+  # and the next column's _felix_qualify_errfile or _felix_qualify_drop
+  # takes it.
   rm -f "$3" 2>/dev/null
   [ "$said" = 1 ] || return 127
   return "$rc"
+}
+
+# The stderr file of the column about to run: its directory, the row's base,
+# is a plain directory with the owner's bits back, and the file is new, plain
+# and empty. Non-zero when it cannot be made so, which the caller reads as
+# nothing run.
+_felix_qualify_errfile() {   # path
+  local d="${1%/*}"
+  [ -d "$d" ] && [ ! -L "$d" ] || return 1
+  chmod u+rwx "$d" 2>/dev/null
+  rm -f "$1" 2>/dev/null
+  [ ! -e "$1" ] && [ ! -L "$1" ] || return 1
+  { : > "$1"; } 2>/dev/null
 }
 
 _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | unrunnable | inapplicable

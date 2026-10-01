@@ -41,6 +41,18 @@ PASS=0; FAIL=0
 # the same reason PASS and FAIL are incremented in the main shell only.
 FELIX_TEST_RAN=""
 _ran() { [ -n "$FELIX_TEST_RAN" ] && printf '%s\n' "$1" >> "$FELIX_TEST_RAN"; return 0; }
+# The ran file, one name a line, as count<TAB>name rows sorted by name: the
+# manifest's shape. The name is kept exactly as the suite printed it. Until
+# 2026-10-01 the count was cut off by assigning to awk's $1, which rebuilds
+# the line from its fields and so folded a run of blanks inside a name to one
+# space and trimmed its ends; the suite's own check read its folded copy
+# against a folded manifest and agreed, but tests/red compares the manifest
+# with the lines the suite printed, and would read such a name as never
+# reached on every run (#371's follow-up review, 2026-10-01).
+_ran_rows() {   # stdin: names, one a line -> count<TAB>name, sorted by name
+  LC_ALL=C sort | uniq -c | LC_ALL=C awk '{ c = $1; sub(/^ *[0-9]+ /, ""); printf "%s\t%s\n", c, $0 }' \
+    | LC_ALL=C sort -t"$(printf '\t')" -k2
+}
 ok()   { PASS=$((PASS+1)); _ran "$1"; printf '  ok    %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); _ran "$1"; printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; }
 is()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "expected [$3] got [$2]"; }
@@ -20452,8 +20464,9 @@ _red_seed() {
   ( cd "$1" && git init -q -b "$2" && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 }
 # names on stdin -> manifest rows, as tests/run --record-assertions writes
-# them: how many times each name was given, a tab, the name, in c order.
-_red_rows() { LC_ALL=C sort | uniq -c | awk '{ n = $1; sub(/^ *[0-9]+ /, ""); printf "%s\t%s\n", n, $0 }'; }
+# them, through the same helper: how many times each name was given, a tab,
+# the name, in c order.
+_red_rows() { _ran_rows; }
 # dir name...: the fixture's manifest, in its working tree beside its tests/red,
 # which is where tests/red reads it, before the suite runs.
 _red_man() { local d="$1"; shift; printf '%s\n' "$@" | _red_rows > "$d/engine/harness/tests/assertions.tsv"; }
@@ -20491,6 +20504,15 @@ _red_cut() { { printf '#!/usr/bin/env bash\n'; cat; } > "$1/engine/harness/tests
 # stdout whole: how many lines it holds, a bar, then what they say, so a
 # trailing line that $(cat) would strip is still counted.
 _red_said() { printf '%s|%s' "$(awk 'END{print NR}' "$RED/out")" "$(cat "$RED/out")"; }
+# The manifest red compares names against is written by _ran_rows, and red
+# compares them with the lines the suite printed, byte for byte. A writer that
+# folded a name's blanks, as the one before 2026-10-01 did, would make red read
+# that name as never reached on every run, so the writer is asked directly, and
+# the suite's own last step is asked whether it writes through it.
+is  "the manifest writer keeps each name as the suite printed it, blanks inside and at either end, so red never reads one as unreached" \
+    "$(printf '%s\n' 'a  b' ' lead' 'trail ' 'a  b' | _ran_rows)" "$(printf '1\t lead\n2\ta  b\n1\ttrail ')"
+is  "and the suite writes the manifest it compares and records through that writer" \
+    "$(grep -c '^_ran_rows < "\$FELIX_TEST_RAN" > "\$_ran_counts"$' "$HERE/run")" "1"
 if [ -x "$FROOT/harness/tests/red" ]; then
   _red_seed "$RED/repo" main 0.0.7; _red_dirty "$RED/repo" skips
   RSHA="$(cd "$RED/repo" && git rev-parse main)"
@@ -25814,11 +25836,11 @@ printf '\nreached\n'
 # adding a test and forgetting to record it, which is noise rather than risk, so
 # it is reported and does not fail the run.
 #
-# Counted per name, not set-compared: eleven names legitimately appear more than
-# once, and losing one of a pair is exactly as silent as losing a unique one.
+# Counted per name, not set-compared: some names legitimately appear more than
+# once (nineteen on 2026-10-01), and losing one of a pair is exactly as silent
+# as losing a unique one.
 _ran_counts="$TMP/ran.counts"
-LC_ALL=C sort "$FELIX_TEST_RAN" | uniq -c | awk '{c=$1; $1=""; sub(/^ /,""); printf "%s\t%s\n", c, $0}' \
-  | LC_ALL=C sort -t"$(printf '\t')" -k2 > "$_ran_counts"
+_ran_rows < "$FELIX_TEST_RAN" > "$_ran_counts"
 
 if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
   cp "$_ran_counts" "$FELIX_TEST_MANIFEST"

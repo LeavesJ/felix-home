@@ -4817,9 +4817,12 @@ EOF
     result="$(felix_commission_receipt_write "$FELIX_HOME_DIR" "$proj" "$root" "$out" "$malformed")" || result=""
   fi
 
-  local n_done n_held n_unk n_mal n_await n_na
+  # A count that could not be read is `?`, so these are read as words: `0`
+  # is none, and anything else, `?` included, may be some.
+  local n_done='' n_held='' n_unk='' n_mal='' n_await='' n_na='' ccounts=''
+  ccounts="$(felix_commission_counts "$out" "$malformed")"
   read -r n_done n_held n_unk n_mal n_await n_na <<EOF
-$(felix_commission_counts "$out" "$malformed")
+$ccounts
 EOF
 
   printf 'commissioning for %s\n\n' "$name"
@@ -4828,9 +4831,19 @@ EOF
     printf '  %-15s %-20s %s\n' "$st" "$need" "$detail"
   done
   printf '\n%s done, %s held, %s unknown, %s awaiting a session, %s did not apply' \
-    "$n_done" "$n_held" "$n_unk" "$n_await" "$n_na"
-  [ "$n_mal" -gt 0 ] && printf ', %s malformed' "$n_mal"
+    "${n_done:-?}" "${n_held:-?}" "${n_unk:-?}" "${n_await:-?}" "${n_na:-?}"
+  [ "${n_mal:-?}" != 0 ] && printf ', %s malformed' "${n_mal:-?}"
   printf '\n'
+  # The run's loop can end early and still return 0, and the rows after that
+  # are then missing from everything above. The receipt refuses such a run;
+  # this says why, in --status too.
+  local creported=''
+  if ! creported="$(felix_commission_run_complete "$proj" "$out")"; then
+    printf '\nthe run reported %s rows of %s/commissioning.tsv. The rest were never\n' \
+      "${creported:-fewer than all the}" "$proj"
+    printf 'reported, so nothing here says whether they hold, and the receipt is\n'
+    printf 'indeterminate. Run felix commission again.\n'
+  fi
 
   if [ "$status" -eq 1 ]; then
     local cwhy; cwhy="$(felix_commission_receipt_valid "$FELIX_HOME_DIR" "$proj" "$root")" || true
@@ -4890,7 +4903,7 @@ EOF
     fi
   fi
 
-  if [ "$n_held" -gt 0 ] || [ "$n_await" -gt 0 ]; then
+  if [ "${n_held:-?}" != 0 ] || [ "${n_await:-?}" != 0 ]; then
     printf '\nheld, and who answers it\n\n'
     printf '%s\n' "$out" | while IFS=$'\t' read -r need st cls answer step detail prov; do
       case "$st" in held|awaiting|stale|partial) ;; *) continue ;; esac
@@ -4904,7 +4917,7 @@ EOF
       esac
     done
   fi
-  if [ "$n_unk" -gt 0 ]; then
+  if [ "${n_unk:-?}" != 0 ]; then
     printf '\ncould not be asked here\n\n'
     printf '%s\n' "$out" | awk -F'\t' '$2 == "unknown" { printf "  %-20s %s\n", $1, $6 }'
     printf '\nUnknown is not held and not done. It blocks the receipt, and only the\n'

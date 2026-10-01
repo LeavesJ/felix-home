@@ -1,4 +1,4 @@
-### 2026-09-25 — the context cap the founder counted on did not exist, and a session started from now on summarizes at 500K
+### 0ci. 2026-09-25 — the context cap the founder counted on did not exist, and a session started from now on summarizes at 500K
 
 **No engine change.** One key in the founder's `~/.claude/settings.json`, this
 section, and one `maintenance.log` row.

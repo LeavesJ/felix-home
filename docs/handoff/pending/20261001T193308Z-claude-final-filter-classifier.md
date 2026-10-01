@@ -24,13 +24,14 @@ Stacked on #375. The engine changes are:
 - 1,332 real, worktree and historical judged tables: none refused.
 - Commission and obligation row reads: byte-identical to origin/main on twelve projects.
 - Differential fuzzing under /bin/bash 3.2.
-- Two adversarial review rounds and a verification pass.
+- Two adversarial review rounds and two verification passes. The first verification pass found 83 refused texts that can fail. They were closed by class, not spelling: any command before the last that can end or change the shell admits the text. That covers builtins outside a short list, `${ }` forms past the safe ones, arithmetic, `[[ ]]`, and a word naming kill, PATH or pipefail.
 
 **Handed on, not done here:**
 - No `risk.tsv` row guards `lib/final-filter*.sh`, so loosening the classifier does not fire the verifier. Adding one is a project-table edit that moves the policy hash, so it is left to the founder.
 - gawk and mawk are not installed on the founder's machine. The awk was written to their known differences, and CI is the first run through GNU awk.
 
 **Traps for whoever touches it:**
+- Close findings by class. Each review round found the previous round's fixes under new spellings until the fix admitted the whole class. Admitting costs only recall, and no real row has needed any of these shapes.
 - The awk lives in single-quoted shell strings, so write `\047`, never a literal `'`.
 - The Fact-Forcing Gate trips on `--delete` and `rm -rf` even inside heredocs.
 - The tool shell is zsh, so `$list` does not word-split: use `${=list}` or `bash <<'EOF'`.

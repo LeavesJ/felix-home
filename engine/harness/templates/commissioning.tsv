@@ -10,8 +10,11 @@
 #             makes the row not-applicable and silent
 # instrument  the bare command the question needs on this machine, or `-`;
 #             an absent instrument makes the row `unknown` — asked of nothing
-# when        an applicability command: non-zero = not-applicable,
-#             126/127 = unknown; `-` = always
+# when        an applicability test, run like a check: 0 = applies,
+#             1 = not-applicable, anything else = unknown, including a test
+#             that ends the shell with anything but 0 (an unset variable
+#             under set -u, or its own `exit 1`) or does not parse; `-` =
+#             always
 # answer      the engine stage that answers it: `felix:discover --adopt`,
 #             `felix:stack apply --yes`, `felix:ready --fix`,
 #             `felix:toolbox --route`, `felix:obligations --seed` (writes the

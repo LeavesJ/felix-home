@@ -13,10 +13,11 @@
 # Five computed states, never stored. `done` and `held` are observations —
 # the check said yes or no. `not-applicable` asked nothing. `unknown` is the
 # state this table exists to make reachable: an instrument that is not
-# installed here, a `when` or check whose command does not exist, an engine
-# function a check names that this process has not loaded, or a checkout
-# that cannot be entered. It blocks the receipt and nothing can demote it but
-# the machine changing. `malformed` counts toward nothing and fails the run.
+# installed here, a `when` or check whose command does not exist, a `when`
+# that answers neither yes nor no, an engine function a check names that this
+# process has not loaded, or a checkout that cannot be entered. It blocks the
+# receipt and nothing can demote it but the machine changing. `malformed`
+# counts toward nothing and fails the run.
 # A row whose answer is a provider — a skill a session's model runs — is a
 # separate class by construction: it is `awaiting` until a file it cannot
 # write appears, it holds nothing, and it never reaches the receipt.
@@ -234,8 +235,10 @@ felix_commission_resume_bg() {
   return 0
 }
 
-# Run a check or a `when` in the checkout, in-process, with stdin closed.
-# 0 yes, 1 no, 126 cannot enter, 127 a command does not exist.
+# Run a check or a `when` in the checkout, in-process, with stdin closed, and
+# return the status as the text left it: what it returned, what the shell
+# ended with if it ended inside the text, or 126 when the checkout cannot be
+# entered. 0 is yes and 1 is no; what any other status means is the caller's.
 #
 # In-process because a row may call the engine (felix_json_str,
 # felix_probe_rows, cmd_bootstrap), which a fresh shell does not have. But that
@@ -258,20 +261,46 @@ felix_commission_resume_bg() {
 # that a pipeline's status is its last stage's, so a check ending in a stage
 # that succeeds whatever it is fed (`| tail`) cannot fail; the template says so,
 # and nothing yet refuses one.
+#
+# Given a variable name as $3, it also says in that variable how the text
+# ended: `returned`, `ended`, `unentered`, or `unasked` when its answer could
+# not be read, which returns 2. The status cannot say it. On bash 3.2 an unset
+# variable ends the shell running the text with 1, which is what a no returns,
+# and so do `exit 1` and the engine's die. So that run writes `returned N` down
+# a pipe once the eval is back, the group around it writes `ended N` once the
+# run has exited, and the first line is the answer. The reader never waits for
+# the pipe to close: bash marks the copy of stdout it saves around the eval
+# close-on-exec, so a program the text starts does not hold it, but a job the
+# text forks as a shell keeps it (measured: `{ sleep 3; :; } &` held a reader
+# waiting for end of file 3 s). What the text writes to its stdout and stderr
+# goes nowhere. A text that writes to that saved copy (fd 10) or answers from
+# an EXIT trap can forge its answer, and nothing in its process can stop it.
+# No locals, because one would hide the caller's variable of that name from
+# printf -v.
 felix_commission_ask() {
-  local root="$1" expr="$2" rc
-  [ -n "$expr" ] && [ "$expr" != "-" ] || return 2
-  ( cd "$root" 2>/dev/null || exit 126
-    set +o pipefail
-    eval "$expr" ) </dev/null >/dev/null 2>&1
-  rc=$?
-  case "$rc" in 0|126|127) return "$rc" ;; *) return 1 ;; esac
+  [ -n "$2" ] && [ "$2" != "-" ] || return 2
+  if [ -z "${3:-}" ]; then
+    ( cd "$1" 2>/dev/null || exit 126
+      set +o pipefail
+      eval "$2" ) </dev/null >/dev/null 2>&1
+    return
+  fi
+  set -- "$1" "$2" "$3" "$( { ( exec </dev/null 2>/dev/null
+        cd "$1" >/dev/null || { printf 'unentered 126\n'; exit 126; }
+        set +o pipefail
+        eval "$2" >/dev/null
+        printf 'returned %s\n' "$?" )
+      printf 'ended %s\n' "$?"; } 2>/dev/null | { read -r _l; printf '%s' "$_l"; } )"
+  case "${4##* }" in ''|*[!0-9]*) set -- "$1" "$2" "$3" "unasked 2" ;; esac
+  case "${4% *}" in returned|ended|unentered) ;; *) set -- "$1" "$2" "$3" "unasked 2" ;; esac
+  printf -v "$3" '%s' "${4% *}"
+  return "${4##* }"
 }
 
 # state <TAB> detail <TAB> provenance, without running the answer.
 felix_commission_state() {
   local proj="$1" root="$2" need="$3" grounds="$4" instrument="$5" when="$6" answer="$7" check="$8"
-  local rc prov="-" missing
+  local rc how prov="-" missing
   if [ "$grounds" != "-" ] && ! _felix_cap_active "$grounds" "$proj"; then
     printf 'not-applicable\tcapability %s is not active here\t-\n' "$grounds"; return 0
   fi
@@ -284,13 +313,27 @@ felix_commission_state() {
   if [ "$check" != "-" ] && ! missing="$(_felix_commission_functions_present "$check")"; then
     printf 'unknown\tthe engine function %s is not loaded here, so the check could not be asked\t%s\n' "$missing" "$prov"; return 0
   fi
+  # A `when` says no by returning 1, and nothing else skips the row: anything
+  # else is unknown, as a probe's `when` and an obligation's `applies` are.
+  # Until 2026-09-25 every status but 0, 126 and 127 read not-applicable, so a
+  # `when` that crashed skipped its step. A shell that ended inside the text is
+  # unknown even at 1, since an unset variable ends it with 1 too, and applies
+  # at 0, which only the text's own exit gives. Parsing is asked first because
+  # eval hands a syntax error back as 1 on bash 3.2. The check below still
+  # reads anything but 0, 126 and 127 as held, which already fails closed.
   if [ "$when" != "-" ]; then
-    felix_commission_ask "$root" "$when"; rc=$?
-    case "$rc" in
-      0) ;;
-      126) printf 'unknown\tthe checkout could not be entered\t%s\n' "$prov"; return 0 ;;
-      127) printf 'unknown\ta command in the `when` test does not exist here\t%s\n' "$prov"; return 0 ;;
-      *) printf 'not-applicable\tthe `when` test says this does not apply here\t%s\n' "$prov"; return 0 ;;
+    if ! BASH_ENV= "${BASH:-bash}" -n -c "$when" </dev/null 2>/dev/null; then
+      printf 'unknown\tthe `when` test does not parse, so it was not run and whether this applies is not known\t%s\n' "$prov"; return 0
+    fi
+    felix_commission_ask "$root" "$when" how; rc=$?
+    case "$how $rc" in
+      'returned 0'|'ended 0') ;;
+      'returned 1') printf 'not-applicable\tthe `when` test says this does not apply here\t%s\n' "$prov"; return 0 ;;
+      'returned 127') printf 'unknown\ta command in the `when` test does not exist here\t%s\n' "$prov"; return 0 ;;
+      unentered\ *) printf 'unknown\tthe checkout could not be entered\t%s\n' "$prov"; return 0 ;;
+      unasked\ *) printf 'unknown\tthe answer of the `when` test could not be read\t%s\n' "$prov"; return 0 ;;
+      ended\ *) printf 'unknown\tthe `when` test ended the shell with status %s before it answered, as an unset variable under set -u does, so whether this applies is not known\t%s\n' "$rc" "$prov"; return 0 ;;
+      *) printf 'unknown\tthe `when` test exited %s, which is neither yes nor no, so whether this applies is not known\t%s\n' "$rc" "$prov"; return 0 ;;
     esac
   fi
   case "$answer" in
@@ -332,6 +375,7 @@ PROV
 felix_commission_run() {
   local proj="$1" root="$2" runner="${3:--}" tpl="${4:-}"
   local need grounds instrument when answer check step st detail prov out arc line
+  local uncomputed="this row's state could not be computed, so whether it holds is not known"
   export FELIX_PROJECT="$proj" FELIX_PROJECT_NAME="$(basename "$proj")" \
          FELIX_ROOT_DIR="$root" FELIX_MEMORY_DIR="$(felix_mem_dir "$proj")"
   [ -n "${FELIX_HOME_DIR:-}" ] && export FELIX_HOME_DIR
@@ -341,9 +385,22 @@ felix_commission_run() {
     # heredoc: a substitution expanded under `IFS=$'\t' read` inherits that
     # IFS, and the guard above then read four function names as one.
     line="$(felix_commission_state "$proj" "$root" "$need" "$grounds" "$instrument" "$when" "$answer" "$check")"
+    # Cleared first, because a read that never ran leaves the previous row's
+    # values in place. On bash 3.2 a here-document is a temporary file, and a
+    # reviewer measured one that could not be written carrying the row before's
+    # `done` onto a row whose check failed.
+    st=''; detail=''; prov=''
     IFS=$'\t' read -r st detail prov <<EOF
 $line
 EOF
+    # A state line is read, never trusted. Until 2026-09-25 one that came back
+    # empty, as it does when a fork inside the state function fails with
+    # EAGAIN (measured with ulimit -u 1), gave a row with no state and class
+    # n/a that the counts skipped, so the receipt read commissioned over a row
+    # nobody asked. The guard forks nothing, since a failed fork is what it
+    # catches. A fork that fails in this loop's own shell is not caught here:
+    # it ends the loop, and the rows after it go missing rather than blank.
+    _felix_commission_state_known "$st" || { st=unknown; detail="$uncomputed"; prov=-; }
     # A real run writes every provider row's request afresh — the topology it
     # carries is what makes an answer current — and never in --status, which
     # writes nothing. A missing template is a row nobody can answer.
@@ -360,9 +417,11 @@ EOF
         felix:*)
           out="$( cd "$root" && "$runner" "$answer" 2>&1 )"; arc=$?
           line="$(felix_commission_state "$proj" "$root" "$need" "$grounds" "$instrument" "$when" "$answer" "$check")"
+          st=''; detail=''; prov=''
           IFS=$'\t' read -r st detail prov <<EOF
 $line
 EOF
+          _felix_commission_state_known "$st" || { st=unknown; detail="$uncomputed"; prov=-; }
           detail="ran ${answer#felix:} (exit $arc); $detail" ;;
       esac
     fi
@@ -379,6 +438,17 @@ felix_commission_class() {
     answered)                       printf 'INFERRED' ;;
     *)                              printf 'n/a' ;;
   esac
+}
+
+# The eight states a row can have: done, held, unknown and not-applicable,
+# which felix_commission_state computes, and awaiting, stale, partial and
+# answered, which a provider row gives. Anything else is a state line nobody
+# could read. A builtin case, so asking forks nothing.
+_felix_commission_state_known() {
+  case "${1:-}" in
+    done|held|unknown|not-applicable|awaiting|stale|partial|answered) return 0 ;;
+  esac
+  return 1
 }
 
 felix_commission_actor() {

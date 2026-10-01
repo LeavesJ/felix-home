@@ -466,13 +466,15 @@ _felix_qualify_arm() {   # root, base
 # reads fail, met on a fail control: `chmod -R a-w ..` did that with the
 # checker never run. And a 2> follows a link, so `ln -s $OUT ../err` sent
 # the next column's stderr into a file outside the base. A file that cannot
-# be made new, plain and empty, is a column that ran nothing. The scan then
-# reads it through descriptor 9, opened on it before the column runs and
-# closed to the column itself, so whatever the column does to the path, a
-# link or a fifo in the file's place, changes neither what is read nor the
-# verdict, and grep cannot be left waiting on a fifo. The redirection is
-# 2>|, since a caller's noclobber would refuse to write over the file just
-# made, and the column would run nothing and read fail.
+# be made new, plain and empty, is a column that ran nothing. Both ends are
+# opened on it before the column runs, 8 to write and 9 to read, and the
+# column gets 8 as its stderr and neither descriptor besides. So a link or a
+# fifo the column puts in the file's place changes neither what the scan
+# reads nor the verdict, and grep cannot be left waiting on a fifo; what the
+# column writes into the file through the path is the hidden-stderr case
+# above. An end that will not open leaves said at 2, a column that ran
+# nothing, with bash's own line about it. The write end is 8>|, since a
+# caller's noclobber would refuse to write over the file just made.
 #
 # The parse and the row run without SHELLOPTS or BASHOPTS, which carry the
 # caller's set and shopt options into a child bash, BASH_ENV, whose file a
@@ -488,13 +490,13 @@ _felix_qualify_sh() {   # dir, text, stderr file outside dir -> the text's own s
   said=2
   { ( cd "$1" 2>/dev/null || exit 126
       env -u SHELLOPTS -u BASHOPTS -u BASH_ENV -u POSIXLY_CORRECT \
-        bash -c -- "$2" felix-qualify ) </dev/null >/dev/null 2>|"$3" 9<&-
+        bash -c -- "$2" felix-qualify ) </dev/null >/dev/null 2>&8 8>&- 9<&-
     rc=$?
     LC_ALL=C grep -qE \
       '^felix-qualify: ((line [0-9]+: )?[^:]+: command not found$|((line [0-9]+: )?(command substitution|eval|-c): )?(line [0-9]+: )?(syntax error near unexpected token|syntax error: unexpected end of file|unexpected EOF while looking for matching))' \
-      <&9 2>/dev/null
+      <&9 8>&- 2>/dev/null
     said=$?
-  } 9<"$3" 2>/dev/null
+  } 8>|"$3" 9<"$3" 2>/dev/null
   # Quietly: a column that took the base's write bit away leaves the file,
   # and the next column's _felix_qualify_errfile or _felix_qualify_drop
   # takes it.

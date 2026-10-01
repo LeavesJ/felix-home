@@ -10815,6 +10815,11 @@ if [ -x "$REAL_HARNESS/bin/lifecycle-check" ]; then
   out="$(cd "$REAL_HARNESS/../.." && "$REAL_HARNESS/bin/lifecycle-check" engine/harness/templates engine/hooks/hooks.json 2>&1)"; rc=$?
   is  "the shipped hooks bind every moment the stance table says is wired" "$rc" "0"
   has "and the contract names each moment it examined" "$out" "SubagentStop"
+  # Its arguments are read from the top of the checkout, and its library from
+  # where it was called: dirname "$0" is relative to the caller's directory.
+  _lcsub="$(cd "$REAL_HARNESS/templates" && ../bin/lifecycle-check engine/harness/templates engine/hooks/hooks.json 2>&1)"
+  is  "and says the same called by a relative path from a subdirectory, finding its library from where it was called" \
+      "$?:$_lcsub" "$rc:$out"
   LC="$TMP/lc"; mkdir -p "$LC/tpl"; cp "$REAL_HARNESS/templates/lifecycle.tsv" "$LC/tpl/"
   python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); h=d["hooks"] if "hooks" in d else d; h.pop("SubagentStop", None); json.dump(d, open(sys.argv[2], "w"))' \
     "$REAL_HARNESS/../hooks/hooks.json" "$LC/hooks.json"
@@ -10827,7 +10832,9 @@ if [ -x "$REAL_HARNESS/bin/lifecycle-check" ]; then
       "$(cd "$LC" && "$REAL_HARNESS/bin/lifecycle-check" tpl nohooks.json >/dev/null 2>&1; echo $?)" "2"
 else
   for a in "the shipped hooks bind every moment the stance table says is wired" \
-           "and the contract names each moment it examined" "and fails when a wired moment is unbound" \
+           "and the contract names each moment it examined" \
+           "and says the same called by a relative path from a subdirectory, finding its library from where it was called" \
+           "and fails when a wired moment is unbound" \
            "naming it" "and cannot examine without a stance table" "or without hooks"; do
     skip "$a" "no bin/lifecycle-check beside this harness"; done
 fi
@@ -10838,9 +10845,13 @@ if [ -f "$_REALP/obligations.tsv" ] && [ -x "$REAL_HARNESS/bin/obligations-check
   out="$(cd "$REAL_HARNESS/../.." && "$REAL_HARNESS/bin/obligations-check" projects/felix release 2>&1)"; rc=$?
   is  "felix's own first obligation is discharged on this tree" "$rc" "0"
   has "and it is the lifecycle one" "$out" "lifecycle_wired"
+  _obsub="$(cd "$REAL_HARNESS/templates" && ../bin/obligations-check projects/felix release 2>&1)"
+  is  "and says the same called by a relative path from a subdirectory, finding its libraries from where it was called" \
+      "$?:$_obsub" "$rc:$out"
   is  "grounded on a probe felix declares" "$(_ob felix_obligations_orphans "$_REALP")" ""
 else
   for a in "felix's own first obligation is discharged on this tree" "and it is the lifecycle one" \
+           "and says the same called by a relative path from a subdirectory, finding its libraries from where it was called" \
            "grounded on a probe felix declares"; do skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
 fi
 
@@ -24011,6 +24022,15 @@ git -C "$HX" checkout -q -f s/local
 mkdir -p "$TMP/ho-none"; ( cd "$TMP/ho-none" && git init -q )
 ( cd "$TMP/ho-none" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "handoff-check cannot examine a checkout with no HANDOFF.md, and says 2, never 0" "$?" "2"
 ( cd "$HX" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "and exits 0 on a clean one" "$?" "0"
+# Called by a path relative to a subdirectory, as `cd docs &&
+# ../engine/harness/bin/handoff-check` does. dirname "$0" is relative to where
+# it was called, so read after the move to the top it names a directory that is
+# not there, the library never loads, and the run ends 127. The harness is
+# reached through a link beside the fixture, so the same relative path read
+# from the top names a directory one level too high and cannot pass by chance.
+ln -s "$REAL_HARNESS" "$TMP/hxh"
+( cd "$HX/docs" && ../../hxh/bin/handoff-check >/dev/null 2>&1 )
+is  "and exits 0 on it called by a relative path from a subdirectory, finding its library from where it was called" "$?" "0"
 
 printf '\na handoff fold already in flight is named, so a second session does not start one\n'
 # The handoff upkeep row fell due for every session at once, and with ~20

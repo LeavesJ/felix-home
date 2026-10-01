@@ -18307,6 +18307,10 @@ unset _ffT _ffo _ffr _ffl _ffstage _fftx _ffwhy _ffw _fft _ffp _ffto _ffcrun _ff
 # one spelling per class, each admitted one measured failing under /bin/bash
 # 3.2 but the two GNU-only refusals, and red against the classifier before
 # that fix; the refused rows beside them are what still bites.
+# A second verification pass found read-only names, POSIX mode in sh,
+# quoted builtin names, nice values, awk arrays and syntax, and killpg; its
+# rows follow the fuzzing find, each admitted one red against the classifier
+# before that fix.
 _ffa() {   # text -> "<exit>|<what it printed>"
   local _o _r
   _o="$( . "$REAL_HARNESS/lib/final-filter.sh" 2>/dev/null || exit 3
@@ -18437,6 +18441,19 @@ tail@@: "${y:-}"; x | tail@@a default cannot
 -@@readonly v=1; v=2; x | tail@@so does assigning a readonly name
 -@@x | uniq -cD@@GNU refuses -c with -D
 -@@x | sort -dn@@GNU refuses -d with -n
+-@@x | tail; ! true & exit@@bash 3.2 leaves status 1 after a negated pipeline sent to the background, found by fuzzing
+tail@@! true & x | tail@@and what follows it still decides
+-@@UID=$(id -u); x | tail@@UID is read-only, and assigning it ends the shell
+-@@sh -c ': > /nonexistent/f; x | tail'@@sh runs in POSIX mode, where a redirect error on : ends the shell
+-@@set -o posix; : > /nonexistent/f; x | tail@@and so does set -o posix
+-@@x | nice -n abc tail@@nice with a value that is not a number
+tail@@x | nice -n 5 tail@@and with one that is
+-@@'set' -e; false; x | tail@@a builtin named with quotes
+-@@x | awk '{ x = 1; x[1] = 2 }'@@a scalar used as an array fails at the first line read
+awk@@x | awk '{ c[$1]++ } END { for (k in c) print k, c[k] }'@@an array used as one
+-@@x | awk 'END { next }'@@next in END
+-@@x | awk '{print 1 +}'@@an operator with nothing after it
+-@@python3 -c 'import os; os.killpg(0, 15)'; x | tail@@killpg can signal the shell's own group, not run here
 FFAUTHOR
 
 # A carriage return, as the last column of a row saved on Windows carries,

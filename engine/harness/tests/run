@@ -12277,29 +12277,136 @@ is  "with no qualification.tsv at all, every capability named resolves absent, a
           felix_obligations_needs "$NDN"; printf 'rc=%s' "$?" ) 2>/dev/null )" \
     "$(printf 'n\t-\tnone\t-\na\tpart\tabsent\t-\na\twhole\tabsent\t-\nrc=0')"
 
+# A table holding a NUL byte. macOS awk keeps each record as a C string, so a
+# NUL ends the line there for everything awk does with it, and the table is
+# read through awk: a row starting with one read as a blank line and was
+# skipped, never run and never called malformed, and one later in a row cut the
+# row there, dropping its premise or running a shorter mutation. git calls a
+# file with a NUL in its first 8000 bytes binary, so a reviewer saw no row of
+# it, and mawk and gawk keep the NUL, so the same table read otherwise on Linux.
+# A table holding one anywhere is not read as a table, by anything here.
+#
+# _qznul WHERE [clean]: a table whose first line is demo's met violation, clean,
+# and whose last holds a NUL at WHERE; given clean, the same bytes without it,
+# the twin that each refusal of a NUL table is measured against. WHERE is
+#   start    a NUL starting a held row
+#   row      a NUL inside a held row's mutation, before the part that undoes
+#            it, so the row cut there is met
+#   field    a NUL after a row's fifth field, before a premise that errors, so
+#            the row cut there runs and is met
+#   alone    a NUL alone on a line
+#   comment  a NUL inside a comment
+#   far      a NUL starting a held row past byte 8000, where git no longer
+#            calls the file binary and awk still ends the line
+# demo's checker marks $_qzmark each time it runs, so a run of no control is
+# measured, not inferred from what was printed.
+_qzwhere="start row field alone comment far"
+_qzmark="$TMP/qual-nul-ran"
+_qznul() {
+  local k='! grep -rqI FORBIDDEN . 2>/dev/null' pre="" post=""
+  printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "printf x >> '$_qzmark'; $k"
+  case "$1" in
+    start|far) post="$(printf 'held\ttrue\tviolation\tfail\ttrue')" ;;
+    row)       pre="$(printf 'held\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt' "$k")"; post='; rm bad.txt' ;;
+    field)     pre="$(printf 'held\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt' "$k")"
+               post="$(printf '\tsh -c %s' "'exit 2'")" ;;
+    comment)   pre='# a note'; post=' beside the rows' ;;
+  esac
+  [ "$1" != far ] || LC_ALL=C awk 'BEGIN { for (i = 0; i < 100; i++) printf "# %097d\n", i }'
+  printf '%s' "$pre"; [ "${2:-}" = clean ] || printf '\000'; printf '%s\n' "$post"
+}
+_qzsaid() {
+  case "$1" in
+    start)   printf 'a NUL starting a held row' ;;
+    row)     printf "a NUL inside a held row's mutation" ;;
+    field)   printf "a NUL after a row's fifth field" ;;
+    alone)   printf 'a NUL alone on a line' ;;
+    comment) printf 'a NUL inside a comment' ;;
+    far)     printf 'a NUL past byte 8000' ;;
+  esac
+}
+# The fixture first: one NUL in each table, its twin the same bytes without it,
+# and git calling each binary but the one whose NUL is past byte 8000, which
+# is the case a reviewer reading a diff would be shown.
+NDZ="$TMP/needs-nul"; mkdir -p "$NDZ"
+_qzfix() {
+  local w g
+  for w in $_qzwhere; do
+    _qznul "$w" > "$NDZ/fix.nul"; _qznul "$w" clean > "$NDZ/fix.clean"
+    LC_ALL=C tr -d '\000' < "$NDZ/fix.nul" > "$NDZ/fix.stripped"
+    g="$(git diff --no-index --numstat /dev/null "$NDZ/fix.nul" 2>/dev/null | cut -f1)"
+    printf '%s:%s:%s:%s ' "$w" "$(LC_ALL=C tr -cd '\000' < "$NDZ/fix.nul" | wc -c | tr -d ' ')" \
+      "$(cmp -s "$NDZ/fix.clean" "$NDZ/fix.stripped" && echo twin || echo other)" \
+      "$([ "$g" = - ] && echo binary || echo text)"
+  done
+  rm -f "$NDZ/fix.nul" "$NDZ/fix.clean" "$NDZ/fix.stripped"
+}
+is  "each NUL table holds one NUL, its twin is the same bytes without it, and git calls it binary unless the NUL is past byte 8000" \
+    "$(_qzfix)" "start:1:twin:binary row:1:twin:binary field:1:twin:binary alone:1:twin:binary comment:1:twin:binary far:1:twin:text "
+# needs over such a table resolves nothing, as over one it cannot read: the
+# declared list read from it is a list of what awk saw.
+{ printf 'n\tINFO\tdeterministic\t-\ttrue\t-\tr\t-\n'
+  printf 'a\tINFO\tdeterministic\t-\ttrue\t-\tr\tdemo,held\n'; } > "$NDZ/obligations.tsv"
+_ndz() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
+           . "$FROOT/harness/lib/obligations.sh"
+           felix_obligations_needs "$NDZ"; printf 'rc=%s' "$?" ) 2>"$TMP/ndz.err"; }
+_ndzsays() {
+  local w out
+  for w in $_qzwhere; do
+    _qznul "$w" > "$NDZ/qualification.tsv"
+    out="$(_ndz)"
+    [ "$out" = rc=2 ] || printf '%s: printed [%s]\n' "$w" "$(printf '%s' "$out" | tr '\n\t' '/ ')"
+    { [ "$(grep -c . "$TMP/ndz.err")" = 1 ] \
+        && [ "$(grep -F "$NDZ/qualification.tsv" "$TMP/ndz.err" | grep -c 'NUL')" = 1 ]; } \
+      || printf '%s: stderr [%s]\n' "$w" "$(tr '\n' '/' < "$TMP/ndz.err")"
+  done
+}
+is  "needs over a table holding a NUL byte anywhere resolves nothing, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_ndzsays)" ""
+is  "and needs refuses such a table without the caller's pipefail too" "$(set +o pipefail; _ndzsays)" ""
+_ndztwin() {
+  local w
+  for w in $_qzwhere; do
+    _qznul "$w" clean > "$NDZ/qualification.tsv"
+    printf '%s:%s ' "$w" "$(_ndz | awk -F'\t' 'NF >= 3 { printf "%s/%s ", $2, $3 } /^rc=/ { print }')"
+  done
+}
+is  "and needs over each twin, its NUL taken out, resolves as before and exits 0" "$(_ndztwin)" \
+    "start:-/none demo/short held/short rc=0 row:-/none demo/short held/short rc=0 field:-/none demo/short held/short rc=0 alone:-/none demo/short held/absent rc=0 comment:-/none demo/short held/absent rc=0 far:-/none demo/short held/short rc=0 "
+
 # Whichever read fails. A mode cannot stage the case where the declared list was
-# read and a later read of one checker's controls was not, so awk is wrapped:
-# every call that names a qualification.tsv is counted, and the one numbered
-# QSHIM_FAIL runs with that table at mode 000, put back as it returns. Which
-# read fails is counted back from the last one a clean run of the same command
-# made, so nothing here knows how many reads the engine takes to get there.
+# read and a later read of one checker's controls was not, so the readers are
+# wrapped: every call of awk or cat that names a qualification.tsv is counted,
+# and the one numbered QSHIM_FAIL runs with that table at mode 000, put back as
+# it returns. Which read fails is counted back from the last one a clean run of
+# the same command made, so nothing here knows how many reads the engine takes
+# to get there. Not awk alone: the engine's read of the table was awk's and is
+# now cat's, because awk cannot see a NUL byte (lib/qualify.sh,
+# _felix_qualify_read), and a wrapper on one reader counts a read another makes
+# as none. So every common reader that takes a file by name is wrapped, and a
+# second look added later by grep, wc, od or the like is a count of two. A
+# redirect is the one read no wrapper can see.
+_qsreaders='awk cat grep sed head tail wc od cut sort cmp'
 _QSHIM="$TMP/awk-shim"; _QSC="$TMP/awk-shim.count"; mkdir -p "$_QSHIM"
 _qawk="$(command -v awk)"
-cat > "$_QSHIM/awk" <<EOF
+for _qsn in $_qsreaders; do
+  _qsreal="$(command -v "$_qsn")"
+  cat > "$_QSHIM/$_qsn" <<EOF
 #!/bin/sh
 for a in "\$@"; do
   case "\$a" in
     qualification.tsv|*/qualification.tsv)
       printf x >> "\$QSHIM_COUNT"
       if [ "\$((\$(wc -c < "\$QSHIM_COUNT")))" -eq "\${QSHIM_FAIL:-0}" ]; then
-        chmod 000 "\$a"; "$_qawk" "\$@"; rc=\$?; chmod 644 "\$a"; exit \$rc
+        chmod 000 "\$a"; "$_qsreal" "\$@"; rc=\$?; chmod 644 "\$a"; exit \$rc
       fi
       break ;;
   esac
 done
-exec "$_qawk" "\$@"
+exec "$_qsreal" "\$@"
 EOF
-chmod +x "$_QSHIM/awk"
+  chmod +x "$_QSHIM/$_qsn"
+done
 # _qreads CMD...: how many reads of the table CMD makes through the wrapper.
 _QSE="$TMP/awk-shim.err"
 _qreads() {
@@ -12347,7 +12454,7 @@ _qeach() {
     k=$((k + 1))
   done
 }
-_qsnone="too few reads of qualification.tsv reach awk by name for this one to be made to fail alone"
+_qsnone="too few reads of qualification.tsv reach awk or cat by name for this one to be made to fail alone"
 if [ "$_unreadable" -eq 1 ]; then
   if _qstage 0 _nd felix_obligations_needs "$NDU"; then
     is  "needs whose last read of one checker's controls fails prints nothing and exits 2" "$_qsrc:$_qsout" "2:"
@@ -14819,6 +14926,152 @@ is  "and none of those rows is run" "$(_qrd | cut -d' ' -f1)" "rows=0"
   printf 'my-check_2\ttrue\tviolation\tfail\ttrue\t-\n'; } > "$QRD/qualification.tsv"
 is  "a blank line and a comment are still skipped, and an id with digits, _ and - is a checker" \
     "$(_qrd)" "rows=1 "
+# A NUL byte anywhere in the table, through the readers that answer for one.
+# Each prints nothing, says in one stderr line which table holds a NUL, and
+# exits 2, with the caller's pipefail and without; the three the others are
+# built on exit non-zero. Every table has a met control on a clean line, so a
+# reader that refuses only the line with the NUL in it still ran something.
+# The tables are _qznul's, from the needs block.
+QZL="$TMP/qual-nul"; mkdir -p "$QZL"
+_qzl() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+           "$@"; printf 'rc=%s' "$?" ) 2>"$TMP/qzl.err"; }
+# _qzeach PRED CMD...: CMD over each NUL table, PRED handed its output with the
+# stderr in qzl.err; a line for each table PRED finds the result wrong for.
+_qzeach() {
+  local pred="$1" w out said; shift
+  for w in $_qzwhere; do
+    _qznul "$w" > "$QZL/qualification.tsv"; rm -f "$_qzmark"
+    out="$("$@")"
+    said="$("$pred" "$out")"; [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+_qzrefused() {
+  [ "$1" = rc=2 ] || printf 'printed [%s]; ' "$(printf '%s' "$1" | tr '\n\t' '/ ')"
+  { [ "$(grep -c . "$TMP/qzl.err")" = 1 ] \
+      && [ "$(grep -F "$QZL/qualification.tsv" "$TMP/qzl.err" | grep -c 'NUL')" = 1 ]; } \
+    || printf 'stderr [%s]; ' "$(tr '\n' '/' < "$TMP/qzl.err")"
+  [ ! -e "$_qzmark" ] || printf 'ran a control; '
+}
+_qzgv="$(printf '  demo  ok\n  held  ok\n  omega  ok\n')"
+is  "felix_qualify_missing_controls over a table holding a NUL byte anywhere prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_qzeach _qzrefused _qzl felix_qualify_missing_controls "$QZL" demo)" ""
+is  "and missing_controls refuses it so without the caller's pipefail" \
+    "$(set +o pipefail; _qzeach _qzrefused _qzl felix_qualify_missing_controls "$QZL" demo)" ""
+is  "felix_qualify_run over a table holding a NUL byte anywhere runs nothing, prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_qzeach _qzrefused _qzl felix_qualify_run "$QZL" "$QLR")" ""
+is  "and felix_qualify_run refuses it so without the caller's pipefail" \
+    "$(set +o pipefail; _qzeach _qzrefused _qzl felix_qualify_run "$QZL" "$QLR")" ""
+is  "felix_qualify_ungoverned over a table holding a NUL byte anywhere names no checker, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_qzeach _qzrefused _qzl felix_qualify_ungoverned "$QZL" "$_qzgv")" ""
+is  "and ungoverned refuses it so without the caller's pipefail" \
+    "$(set +o pipefail; _qzeach _qzrefused _qzl felix_qualify_ungoverned "$QZL" "$_qzgv")" ""
+_qzraw() {
+  local r s
+  for r in felix_qualify_rows felix_qualify_malformed felix_qualify_snapshot; do
+    s="$( ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+            "$r" "$QZL" >/dev/null 2>&1; printf '%s' "$?" ) )"
+    [ "$s" != 0 ] || printf '%s exits 0; ' "$r"
+  done
+}
+is  "felix_qualify_rows, felix_qualify_malformed and felix_qualify_snapshot each exit non-zero over a table holding a NUL byte anywhere, with the caller's pipefail and without" \
+    "$(_qzeach _qzraw :)$(set +o pipefail; _qzeach _qzraw : | sed 's/^/without pipefail, /')" ""
+# The twin of each, the NUL taken out, reads as the rows it holds: the held row
+# held, the erroring premise unrunnable, the blank and the comment skipped.
+_qztwin() {
+  local w
+  for w in $_qzwhere; do
+    _qznul "$w" clean > "$QZL/qualification.tsv"
+    printf '%s:%s ' "$w" "$(_qzl felix_qualify_run "$QZL" "$QLR" | awk -F'\t' 'NF >= 5 { printf "%s ", $5 } /^rc=/ { print }')"
+  done
+}
+is  "each NUL table's twin, the NUL taken out, is run by the library as before, every row of it, and exits 0" "$(_qztwin)" \
+    "start:met held rc=0 row:met held rc=0 field:met unrunnable rc=0 alone:met rc=0 comment:met rc=0 far:met held rc=0 "
+# Anywhere is past a pipe's 64 KB too: the big table above, a NUL on a line of
+# its own after its last row.
+QZB="$TMP/qual-nul-big"; mkdir -p "$QZB"
+{ cat "$QBP/qualification.tsv"; printf '\000\n'; } > "$QZB/qualification.tsv"
+_qzbig="$(_qzl felix_qualify_missing_controls "$QZB" big)"
+is  "a NUL after more than a pipe's 64 KB of rows refuses the table all the same, in one stderr line naming it" \
+    "$_qzbig:$(grep -c . "$TMP/qzl.err"):$(grep -F "$QZB/qualification.tsv" "$TMP/qzl.err" | grep -c 'NUL')" "rc=2:1:1"
+# A table with no NUL reads exactly as before, byte for byte: the same rows and
+# the same malformed rows, with a mutation holding a byte that is not UTF-8,
+# backslashes, spaces around a field, a premise, blank lines and comments
+# skipped, a carriage return malformed, and a last line with no newline read
+# as a row. What refuses a NUL must not be what reads the rest.
+QZ7="$TMP/qual-no-nul"; mkdir -p "$QZ7"
+_qz5() { printf '%s\t%s\t%s\t%s\t%s\n' "$@"; }
+{ printf '\n   \n# a comment\n\t# behind a tab\n'
+  printf 'alpha\ttrue\tviolation\tfail\tprintf caf\351 > x\n'
+  _qz5 beta true violation fail 'printf "a\b\\c\t" > y'
+  _qz5 gamma '  true  ' violation fail '  printf x > z  '
+  printf 'eps\ttrue\tviolation\tfail\ttrue\r\n'
+  printf 'delta\ttrue\tviolation\tfail\ttrue\t test -f a.txt \n'
+  printf 'zeta\tonly-two\n'
+  printf 'omega\ttrue\tviolation\tfail\ttrue'; } > "$QZ7/qualification.tsv"
+{ printf 'alpha\ttrue\tviolation\tfail\tprintf caf\351 > x\n'
+  _qz5 beta true violation fail 'printf "a\b\\c\t" > y'
+  _qz5 gamma '  true  ' violation fail '  printf x > z  '
+  printf 'delta\ttrue\tviolation\tfail\ttrue\t test -f a.txt \n'
+  printf 'omega\ttrue\tviolation\tfail\ttrue\n'; } > "$TMP/qz7.rows"
+printf 'eps\ta carriage return; a row ends at a newline alone\nzeta\t2 field(s); a control needs five\n' > "$TMP/qz7.mal"
+{ LC_ALL=C awk 'NR <= 3 { print "R\t" $0 }' "$TMP/qz7.rows"
+  LC_ALL=C awk 'NR == 1 { print "M\t" $0 }' "$TMP/qz7.mal"
+  LC_ALL=C awk 'NR == 4 { print "R\t" $0 }' "$TMP/qz7.rows"
+  LC_ALL=C awk 'NR == 2 { print "M\t" $0 }' "$TMP/qz7.mal"
+  LC_ALL=C awk 'NR == 5 { print "R\t" $0 }' "$TMP/qz7.rows"; } > "$TMP/qz7.snap"
+_qz7() {   # locale, or empty for the suite's own: what reads otherwise than before
+  ( [ -z "$1" ] || export LC_ALL="$1"
+    . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+    felix_qualify_rows      "$QZ7" > "$TMP/qz7.rows.got" 2>/dev/null; r=$?
+    felix_qualify_malformed "$QZ7" > "$TMP/qz7.mal.got"  2>/dev/null; m=$?
+    felix_qualify_snapshot  "$QZ7" > "$TMP/qz7.snap.got" 2>/dev/null; s=$?
+    [ "$r $m $s" = "0 0 0" ] || printf 'exit %s %s %s; ' "$r" "$m" "$s"
+    cmp -s "$TMP/qz7.rows.got" "$TMP/qz7.rows" || printf 'rows differ; '
+    cmp -s "$TMP/qz7.mal.got"  "$TMP/qz7.mal"  || printf 'malformed rows differ; '
+    cmp -s "$TMP/qz7.snap.got" "$TMP/qz7.snap" || printf 'snapshot differs; ' )
+}
+is  "a table with no NUL is read byte for byte as before: its rows, its malformed rows and its snapshot" "$(_qz7 '')" ""
+is  "and a table with no NUL is read so in the C locale as well" "$(_qz7 C)" ""
+if [ -n "$_u8" ]; then
+  is  "and so in a UTF-8 locale, a mutation holding a byte that is not UTF-8 included" "$(_qz7 "$_u8")" ""
+else
+  skip "and so in a UTF-8 locale, a mutation holding a byte that is not UTF-8 included" "$_u8none"
+fi
+_qzbig7() {
+  ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+    felix_qualify_rows     "$QBP" > "$TMP/qzbig.rows" 2>/dev/null || printf 'rows exit non-zero; '
+    felix_qualify_snapshot "$QBP" > "$TMP/qzbig.snap" 2>/dev/null || printf 'snapshot exits non-zero; ' )
+  LC_ALL=C awk '{ print "R\t" $0 }' "$QBP/qualification.tsv" > "$TMP/qzbig.want"
+  cmp -s "$TMP/qzbig.rows" "$QBP/qualification.tsv" || printf 'rows differ; '
+  cmp -s "$TMP/qzbig.snap" "$TMP/qzbig.want"       || printf 'snapshot differs; '
+}
+is  "a table larger than a pipe's 64 KB with no NUL is read byte for byte, every row and the snapshot" "$(_qzbig7)" ""
+_qzgone() {
+  local r
+  for r in felix_qualify_rows felix_qualify_malformed felix_qualify_snapshot; do
+    printf '%s:%s ' "$r" "$(_qzl "$r" "$TMP/no-such-proj")"
+  done
+  printf 'run:%s' "$(_qzl felix_qualify_run "$TMP/no-such-proj" "$QLR")"
+}
+is  "with no qualification.tsv at all, rows, malformed, snapshot and the runner print nothing and exit 0" "$(_qzgone)" \
+    "felix_qualify_rows:rc=0 felix_qualify_malformed:rc=0 felix_qualify_snapshot:rc=0 run:rc=0"
+# And a table that cannot be read is still that, never one said to hold a NUL,
+# which nobody read it to know.
+_qzunread() {
+  [ "$1" = rc=2 ] || printf 'printed [%s]; ' "$(printf '%s' "$1" | tr '\n\t' '/ ')"
+  [ "$(grep -F "$QUT/qualification.tsv" "$TMP/qzl.err" | grep -c 'could not be read')" = 1 ] \
+    || printf 'no line saying the table could not be read; '
+  [ "$(grep -c 'NUL' "$TMP/qzl.err")" = 0 ] || printf 'says NUL; '
+}
+if [ "$_unreadable" -eq 1 ]; then
+  chmod 000 "$QUT/qualification.tsv"
+  _qzu="missing:$(_qzunread "$(_qzl felix_qualify_missing_controls "$QUT" alpha)") run:$(_qzunread "$(_qzl felix_qualify_run "$QUT" "$QLR")") ungoverned:$(_qzunread "$(_qzl felix_qualify_ungoverned "$QUT" "$_qgv")")"
+  chmod 644 "$QUT/qualification.tsv"
+  is  "a table at mode 000 is still one that could not be read, never one said to hold a NUL, and each reader exits 2" \
+      "$_qzu" "missing: run: ungoverned:"
+else
+  skip "a table at mode 000 is still one that could not be read, never one said to hold a NUL, and each reader exits 2" "$_noread"
+fi
 
 # The verdict is the control's, not the row's. `expect` was free text, so a
 # violation row expecting `pass` over a mutation that changed nothing ran,
@@ -15035,16 +15288,18 @@ else
     skip "$a" "$_noread"; done
 fi
 # A table that is not there at a read, or not there after one, or not the
-# table it was. Each is staged by an awk wrapper counting the reads as the one
-# above does: aside moves the table away for the Kth read and puts it back,
-# after moves it away once the Kth read is done and it is put back when the
-# run returns, and swap puts another table in its place once the Kth read is
-# done. A table gone between reads read as one declaring nothing, because the
+# table it was. Each is staged by awk and cat wrappers counting the reads as
+# the ones above do: aside moves the table away for the Kth read and puts it
+# back, after moves it away once the Kth read is done and it is put back when
+# the run returns, and swap puts another table in its place once the Kth read
+# is done. A table gone between reads read as one declaring nothing, because the
 # reader returns early on a table that is not a file, and the rest of the run
 # ran nothing and passed. The table here has a met control and a held one, so
 # every right answer refuses.
 _QMSHIM="$TMP/awk-shim-moves"; mkdir -p "$_QMSHIM"
-cat > "$_QMSHIM/awk" <<EOF
+for _qsn in $_qsreaders; do
+  _qsreal="$(command -v "$_qsn")"
+  cat > "$_QMSHIM/$_qsn" <<EOF
 #!/bin/sh
 for a in "\$@"; do
   case "\$a" in
@@ -15052,17 +15307,18 @@ for a in "\$@"; do
       printf x >> "\$QSHIM_COUNT"
       if [ "\$((\$(wc -c < "\$QSHIM_COUNT")))" -eq "\${QSHIM_FAIL:-0}" ]; then
         case "\$QSHIM_MODE" in
-          aside) mv "\$a" "\$a.aside"; "$_qawk" "\$@"; rc=\$?; mv "\$a.aside" "\$a"; exit \$rc ;;
-          after) "$_qawk" "\$@"; rc=\$?; mv "\$a" "\$a.gone"; exit \$rc ;;
-          swap)  "$_qawk" "\$@"; rc=\$?; cp "\$a" "\$a.was"; cp "\$QSHIM_WITH" "\$a"; exit \$rc ;;
+          aside) mv "\$a" "\$a.aside"; "$_qsreal" "\$@"; rc=\$?; mv "\$a.aside" "\$a"; exit \$rc ;;
+          after) "$_qsreal" "\$@"; rc=\$?; mv "\$a" "\$a.gone"; exit \$rc ;;
+          swap)  "$_qsreal" "\$@"; rc=\$?; cp "\$a" "\$a.was"; cp "\$QSHIM_WITH" "\$a"; exit \$rc ;;
         esac
       fi
       break ;;
   esac
 done
-exec "$_qawk" "\$@"
+exec "$_qsreal" "\$@"
 EOF
-chmod +x "$_QMSHIM/awk"
+  chmod +x "$_QMSHIM/$_qsn"
+done
 # _qmeach MODE PRED CMD...: CMD with each of its reads, in turn, staged by MODE,
 # and the widget table put back after each; PRED as for _qeach.
 _qmeach() {
@@ -15141,6 +15397,133 @@ printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\rdemo\ttrue\talter
 _qo="$(_qlgate)"; _qrc=$?
 is  "and so does a held row after a bare carriage return" \
     "$_qrc:$(printf '%s\n' "$_qo" | grep -c 'MALFORMED  a carriage return')" "1:1"
+# And a held row, or a met one, behind a NUL byte, which awk ends the line at:
+# the held row skipped as blank, a mutation or a premise cut short and met, and
+# --gate passing on what was left. The table holding a NUL is refused whole,
+# the met control on its clean line included: nothing runs, no verdict row or
+# held count is printed, a felix: line names the table and says it holds a
+# NUL, and felix qualify exits 2. Not that the table declares no control, and
+# not that it could not be read: both are false of a table read to the end.
+# Each table's twin, the NUL taken out, reads as before, so a refusal here is
+# the NUL's and not the fixture's. The tables are _qznul's, from the needs block.
+cp "$_qlw" "$TMP/qual-nul.keep"
+_qlnul() {
+  [ "$_qsrc" = 2 ] || printf 'exit %s; ' "$_qsrc"
+  [ "$(printf '%s\n' "$_qsout" | grep '^felix: ' | grep -F "$_qlwt" | grep -c 'NUL')" -ge 1 ] \
+    || printf 'no felix: line saying %s holds a NUL; ' "$_qlwt"
+  case "$_qsout" in *"declares no control"*) printf 'says the table declares no control; ' ;; esac
+  case "$_qsout" in *"could not be read"*) printf 'says something could not be read; ' ;; esac
+  [ "$(printf '%s\n' "$_qsout" | grep -cE '^  [^ ]+ +[a-z_]+ +(pass|fail) +[^ ]+ +(ok|HELD|UNRUNNABLE|n/a)$')" -eq 0 ] \
+    || printf 'prints a verdict row; '
+  case "$_qsout" in *"control(s) held"*) printf 'prints a held count; ' ;; esac
+  [ ! -e "$_qzmark" ] || printf 'ran a control; '
+}
+for _qzw in $_qzwhere; do
+  _qznul "$_qzw" > "$_qlw"; rm -f "$_qzmark"
+  _qsout="$(_qlgate)"; _qsrc=$?
+  is  "felix qualify --gate over a table with $(_qzsaid "$_qzw") runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2" \
+      "$(_qlnul)" ""
+done
+_qlnulplain() {
+  local w said
+  for w in $_qzwhere; do
+    _qznul "$w" > "$_qlw"; rm -f "$_qzmark"
+    _qsout="$(_qlplain)"; _qsrc=$?
+    said="$(_qlnul)"; [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+is  "and plain felix qualify over each of those tables runs no control, says the table holds a NUL, and exits 2" \
+    "$(_qlnulplain)" ""
+# The twins: a held row HELD and a premise that errors UNRUNNABLE, each
+# refusing with exit 1, and a table whose NUL sat on a blank or comment line
+# passing, each having run demo's met control.
+_qltwin() {
+  local w want row said
+  for w in $_qzwhere; do
+    case "$w" in
+      field)         want=1; row='^  held +violation +fail +unrunnable +UNRUNNABLE$' ;;
+      alone|comment) want=0; row='^  demo +violation +fail +fail +ok$' ;;
+      *)             want=1; row='^  held +violation +fail +pass +HELD$' ;;
+    esac
+    _qznul "$w" clean > "$_qlw"; rm -f "$_qzmark"
+    _qsout="$(_qlgate)"; _qsrc=$?
+    said=""
+    [ "$_qsrc" = "$want" ] || said="${said}exit $_qsrc, not $want; "
+    [ "$(printf '%s\n' "$_qsout" | grep -cE "$row")" = 1 ] || said="${said}no row matching $row; "
+    [ -e "$_qzmark" ] || said="${said}demo's met control never ran; "
+    [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+is  "each of those tables with its NUL taken out reads through felix qualify --gate as before, refusing on its held or unrunnable row and passing when the NUL sat on a blank or comment line" \
+    "$(_qltwin)" ""
+# Whole, not by the line: a NUL in a comment between two met controls on clean
+# lines refuses the table, and neither control runs, where the same table
+# without the NUL passes having run both.
+_qlboth() {   # [clean]: exit:runs of felix qualify --gate over two met controls with a comment between
+  { printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "printf x >> '$_qzmark'; $_qcheck"
+    printf '# between the two'; [ "${1:-}" = clean ] || printf '\000'; printf ' met controls\n'
+    printf 'demo\t%s\trestoration\tpass\ttrue\n' "printf x >> '$_qzmark'; $_qcheck"; } > "$_qlw"
+  rm -f "$_qzmark"; ( cd "$REPO" && "$FELIX" qualify --gate >/dev/null 2>&1 ); _qsrc=$?
+  printf '%s:%s' "$_qsrc" "$( [ -e "$_qzmark" ] && wc -c < "$_qzmark" | tr -d ' ' || printf 0 )"
+}
+is  "a NUL refuses the whole table: with it in a comment between two met controls on clean lines neither runs and --gate exits 2, where without it both run and pass" \
+    "nul $(_qlboth) twin $(_qlboth clean)" "nul 2:0 twin 0:2"
+# One read, NUL or no NUL, counted by the wrapper from the obligations block.
+_qlnulreads() {
+  local w
+  for w in $_qzwhere; do
+    _qznul "$w" > "$_qlw";       printf '%s %s' "$w" "$(_qreads _qlgate)"
+    _qznul "$w" clean > "$_qlw"; printf '/%s ' "$(_qreads _qlgate)"
+  done
+}
+is  "felix qualify --gate opens a table holding a NUL exactly once, and its twin without the NUL once" \
+    "$(_qlnulreads)" "start 1/1 row 1/1 field 1/1 alone 1/1 comment 1/1 far 1/1 "
+# A table at mode 000 is still one that could not be read, never one said to
+# hold a NUL, which nobody read it to know.
+_qlnot() { case "$_qsout" in *NUL*) printf 'says NUL; ' ;; esac; }
+if [ "$_unreadable" -eq 1 ]; then
+  _qznul start clean > "$_qlw"
+  chmod 000 "$_qlw"; _qsout="$(_qlgate)"; _qsrc=$?; chmod 644 "$_qlw"
+  is  "felix qualify --gate over a table at mode 000 still says it could not be read, never that it holds a NUL, and exits 2" \
+      "$(_qlunread)$(_qlnot)" ""
+else
+  skip "felix qualify --gate over a table at mode 000 still says it could not be read, never that it holds a NUL, and exits 2" "$_noread"
+fi
+# A NUL right after a byte that starts a UTF-8 character. bash 4 to 5.2 read
+# the byte after a lead byte as the rest of the character without asking
+# whether it is the delimiter, so in a UTF-8 locale `\303\000` hid the NUL
+# from the read: it ran on to the end of input, said it found none, and every
+# row after it was dropped with a status of 0, a held one included. Found by
+# review on 2026-09-25; the reader pins the C locale for its read. macOS's
+# bash 3.2 never had the flaw, so this fails only on a newer bash, which is
+# what Linux CI runs.
+_qlu8="$_u8"
+[ -n "$_qlu8" ] || _qlu8="$(locale -a 2>/dev/null | awk '/^C\.(UTF-8|utf8)$/ && !n++')"
+_qllead() {   # [clean]: a met row, a comment ending in a lead byte and a NUL, a held row
+  printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck"
+  printf '# reviewed by Jos\303'; [ "${1:-}" = clean ] || printf '\000'; printf '\n'
+  printf 'held\ttrue\tviolation\tfail\ttrue\n'
+}
+if [ -n "$_qlu8" ]; then
+  _qllead > "$_qlw"; rm -f "$_qzmark"
+  _qsout="$( export LC_ALL="$_qlu8"; _qlgate )"; _qsrc=$?
+  is  "in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2" \
+      "$(_qlnul)" ""
+  _qlrows="$( export LC_ALL="$_qlu8"; . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+              felix_qualify_rows "$FROOT/projects/widget" 2>/dev/null )"; _qlrc=$?
+  is  "and in that locale the library reads no row of it and exits non-zero" \
+      "$([ "$_qlrc" -ne 0 ] && printf refused || printf 'exit 0')$([ -z "$_qlrows" ] || printf ', rows read')" "refused"
+  _qllead clean > "$_qlw"
+  _qsout="$( export LC_ALL="$_qlu8"; _qlgate )"; _qsrc=$?
+  is  "and without the NUL the same table runs, refusing --gate on the held row after the lead byte" \
+      "$_qsrc:$(printf '%s\n' "$_qsout" | grep -cE '^  held +violation +fail +pass +HELD$')" "1:1"
+else
+  for a in "in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2" \
+           "and in that locale the library reads no row of it and exits non-zero" \
+           "and without the NUL the same table runs, refusing --gate on the held row after the lead byte"; do
+    skip "$a" "no UTF-8 locale is installed here"; done
+fi
+cp "$TMP/qual-nul.keep" "$_qlw"
 # A present, empty table is a table declaring no control, and refuses as it
 # always has; the tests below it change what a table nobody read says, not this.
 : > "$_qlw"
@@ -15951,6 +16334,43 @@ if [ "$_unreadable" -eq 1 ]; then
 else
   skip "felix gate over a table it cannot read fails qualified and says under it that the table could not be read" "$_noread"
 fi
+# And a table holding a NUL byte, which felix qualify --gate passed whenever
+# the rows awk saw were met, so the gate printed qualified ok. It fails now,
+# with the felix: line saying the table holds a NUL lifted under the FAIL. The
+# twins, the NUL taken out, fail on their held or unrunnable row or pass as
+# before, so the FAIL is the NUL's. The tables are _qznul's, from the needs block.
+cp "$_qgt" "$TMP/premgate-nul.keep"
+_qpnul() {
+  local f
+  [ -z "$(_qpunder "$_qsout" ok)" ] || printf 'qualified ok; '
+  f="$(_qpunder "$_qsout" FAIL)"
+  if [ -z "$f" ]; then printf 'no qualified FAIL; '
+  else
+    [ "$(printf '%s\n' "$f" | sed 1d | grep -E '^ +felix: ' | grep -F '/projects/premgate/qualification.tsv' | grep -c 'NUL')" -ge 1 ] \
+      || printf 'no felix: line under qualified FAIL naming the table and saying it holds a NUL; '
+  fi
+}
+_qptwin() {   # WHERE
+  case "$1" in
+    alone|comment) [ -n "$(_qpunder "$_qsout" ok)" ] || printf 'no qualified ok; ' ;;
+    field) [ "$(_qpunder "$_qsout" FAIL | grep -cE ' held +violation +fail +unrunnable +UNRUNNABLE$')" = 1 ] \
+             || printf 'no UNRUNNABLE row under qualified FAIL; ' ;;
+    *)     [ "$(_qpunder "$_qsout" FAIL | grep -cE ' held +violation +fail +pass +HELD$')" = 1 ] \
+             || printf 'no HELD row under qualified FAIL; ' ;;
+  esac
+}
+_qpnuls() {   # PRED [clean]: felix gate over each table, a line for each PRED finds wrong
+  local w said
+  for w in $_qzwhere; do
+    _qznul "$w" ${2:+"$2"} > "$_qgt"; _qsout="$(_qpgate)"
+    said="$("$1" "$w")"; [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+is  "felix gate over a table holding a NUL byte anywhere fails qualified, never ok, and shows under it the felix: line naming the table and its NUL" \
+    "$(_qpnuls _qpnul)" ""
+is  "and over each twin, its NUL taken out, felix gate reads as before: qualified FAIL over the held or unrunnable row, and qualified ok when the NUL sat on a blank or comment line" \
+    "$(_qpnuls _qptwin clean)" ""
+cp "$TMP/premgate-nul.keep" "$_qgt"
 # And a present, empty table, which failed the same way with nothing under it.
 cp "$_qgt" "$TMP/premgate-qual.keep"
 : > "$_qgt"

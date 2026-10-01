@@ -100,7 +100,7 @@ _felix_cap_active() {
   local cap="$1" proj="$2" declared nl=$'\n'
   [ "$cap" = "always" ] && return 0
   declared="$(felix_declared "$proj" && printf .)" || return 2
-  case "$declared" in *.) declared="${declared%.}" ;; *) return 2 ;; esac
+  case "$declared" in *.) declared="${declared%.}"; declared="${declared%$nl}" ;; *) return 2 ;; esac
   case "$nl$declared$nl" in *"$nl$cap$nl"*) return 0 ;; esac
   return 1
 }

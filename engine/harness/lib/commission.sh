@@ -478,8 +478,9 @@ felix_commission_class() {
 
 # The eight states a row can have: done, held, unknown and not-applicable,
 # which felix_commission_state computes, and awaiting, stale, partial and
-# answered, which a provider row gives, as well as unknown. Anything else is a state line nobody
-# could read. A builtin case, so asking forks nothing.
+# answered, which a provider row gives (a provider row can be unknown too).
+# Anything else is a state line nobody could read. A builtin case, so asking
+# forks nothing.
 _felix_commission_state_known() {
   case "${1:-}" in
     done|held|unknown|not-applicable|awaiting|stale|partial|answered) return 0 ;;

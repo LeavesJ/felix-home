@@ -20744,19 +20744,20 @@ EOF
   # Reached proves the suite's main shell got to its end, not that every
   # assertion in it ran. In bash, 3.2 as 5, an arithmetic error inside $(( ))
   # prints to stderr and discards the rest of the top-level command it sits
-  # in, and the script carries on with its status untouched: a statement at
-  # top level vanishes alone, one inside an if or a for takes every statement
-  # left in that block with it, in every round the loop had left. This suite's
-  # own `is ... "$((_cma_before - 1))"` reads a field the engine under test
-  # wrote, and against a base that wrote - there it vanished, reached was
-  # printed, and red wrote a run row of 0 failed for a fixture whose one
-  # vanished assertion was red (2026-09-25, after #371). So red reads the
-  # tree's manifest before the suite runs, and an assertion it lists that the
-  # base run never reached is recorded red, by the times it fell short. These
-  # fixtures commit a count of - beside the old marker, as an engine writes -
-  # for a field it has no number for, read 5 and the new marker in the working
-  # tree, and carry this file's own ok, bad, is and skip, so a statement
-  # vanishes exactly as it does in the suite.
+  # in, and the script carries on, $? 1 right after and only the suite's own
+  # final exit unaffected: at top level the whole line's list goes, `a; b`
+  # both and `cond && ok || bad` both verdicts, and inside an if or a for
+  # every statement left in that block, in every round the loop had left.
+  # This suite's own `is ... "$((_cma_before - 1))"` reads a field the engine
+  # under test wrote, and against a base that wrote - there it vanished,
+  # reached was printed, and red wrote a run row of 0 failed for a fixture
+  # whose one vanished assertion was red (2026-09-25, after #371). So red
+  # reads the tree's manifest before the suite runs, and an assertion it lists
+  # that the base run never reached is recorded red, by the times it fell
+  # short. These fixtures commit a count of - beside the old marker, as an
+  # engine writes - for a field it has no number for, read 5 and the new
+  # marker in the working tree, and carry this file's own ok, bad, is and
+  # skip, so a statement vanishes exactly as it does in the suite.
   _red_helpers() { awk '/^PASS=0; FAIL=0/ { on = 1 } on { print } on && /^skip\(\)/ { exit }' "$HERE/run"; }
   # dir: _red_seed, then a second commit on main holding lib/count.sh at -,
   # then the working tree's count of 5 and new marker, and a run whose body is
@@ -20892,6 +20893,82 @@ EOF
       "$(cat "$RED/arith/engine/harness/tests/assertions.tsv")|$(cat "$RED/block/engine/harness/tests/assertions.tsv")|$(cat "$RED/bytes/engine/harness/tests/assertions.tsv")"
   is  "each record with names never reached is one record, its run row's failed count what its names add up to" \
       "$(_red_whole "$RED/arith") $(_red_whole "$RED/block") $(_red_whole "$RED/gate") $(_red_whole "$RED/bytes")" "1=1 9=9 4=4 1=1"
+  # Byte for byte means no near miss counts either. Each listed name below that
+  # the base never reaches sits beside one it does reach: a strict prefix of
+  # it, a part of its middle, the same letters in another case, the start of
+  # a skip of a name the manifest does not list followed by a space and not
+  # " (", and a line that opens like the name's skip and does not close. The
+  # suite's own manifest held 48 pairs where one name begins another on
+  # 2026-10-01, "and blocks" and "and blocks a release" among them. Counts go
+  # past nine, so a count compared as a string, where 10 sorts below 9 and 2
+  # above 10, would tell.
+  _red_count "$RED/near" <<'EOF'
+printf 'near suite\n\n'
+ok "a short name and more after it"
+ok "a name with a middle part inside"
+ok "Differs Only In Case"
+if [ "$marker" = new ]; then
+ok "a short name"
+ok "middle part"
+ok "differs only in case"
+ok "the tool runs"
+ok "a line that only opens like a skip"
+else
+skip "the tool runs lite" "no full mode"
+printf '  skip  a line that only opens like a skip (and goes on\n'
+fi
+for i in 1 2 3 4 5 6 7 8 9 10; do
+{ [ "$marker" = new ] || [ "$i" -lt 10 ]; } && ok "asked ten times, nine of them against the base"
+{ [ "$marker" = old ] || [ "$i" -le 2 ]; } && ok "asked twice, and ten times against the base"
+done
+printf '\nreached\n\n%d passed, %d failed, %d skipped\n' "$PASS" "$FAIL" "$SKIP"
+EOF
+  { printf '%s\n' "a short name and more after it" "a name with a middle part inside" "Differs Only In Case" \
+      "a short name" "middle part" "differs only in case" "the tool runs" "a line that only opens like a skip" \
+      "asked twice, and ten times against the base" "asked twice, and ten times against the base"
+    for i in 1 2 3 4 5 6 7 8 9 10; do printf '%s\n' "asked ten times, nine of them against the base"; done
+  } | _red_rows > "$RED/near/engine/harness/tests/assertions.tsv"
+  _red "$RED/near" engine/harness/tests/red
+  is  "a listed name the base never reaches is red, though a name it reaches begins with it, holds it in its middle, or is it in another case" \
+      "$(_red_body "$RED/near" | grep -x -F -e "$(printf 'a short name\t1')" -e "$(printf 'middle part\t1')" -e "$(printf 'differs only in case\t1')")" \
+      "$(printf 'a short name\t1\ndiffers only in case\t1\nmiddle part\t1')"
+  is  "a skip of a name the manifest does not list is no skip of a listed name it begins with, unless a space and a parenthesis follow that name" \
+      "$(_red_body "$RED/near" | grep -c -x -F "$(printf 'the tool runs\t1')")" "1"
+  is  "a line that opens like a listed name's skip and does not end in a parenthesis is not its skip, so the name is still red" \
+      "$(_red_body "$RED/near" | grep -c -x -F "$(printf 'a line that only opens like a skip\t1')")" "1"
+  is  "a name listed ten times that the base reaches nine times is red by one, the counts compared as numbers" \
+      "$(_red_body "$RED/near" | grep -c -x -F "$(printf 'asked ten times, nine of them against the base\t1')")" "1"
+  is  "a name listed twice that the base reaches ten times takes nothing off the other shortfalls, six of thirty failing, all six never reached" \
+      "$(_red_body "$RED/near" | sed -n '2,$p')|$(_red_sum)" \
+      "$(printf 'run\t6\t22\t2\na line that only opens like a skip\t1\na short name\t1\nasked ten times, nine of them against the base\t1\ndiffers only in case\t1\nmiddle part\t1\nthe tool runs\t1')|red: 6 of 30 assertions fail against main (SHA) at engine 0.0.7, 6 of them never reached"
+  # The log is read once, a copy taken after the strays are ended. A stray the
+  # pattern misses still holds the log open, and this one, left behind by the
+  # base's branch of the run, waits for red's comparison file to appear and
+  # then writes the ok line of the name the base never reached. The run before
+  # it prints enough lines that reading them takes a while, as the real
+  # suite's log does. While red read the log again for the comparison, it held
+  # that line in 5 of 5 runs and the shortfall was cancelled (2026-10-01). The
+  # suite runs from the base's checkout, $TMP/tree, so ../red.cmp is red's
+  # comparison file, and a command line that does not name $TMP escapes the
+  # pattern.
+  _red_count "$RED/strayline" <<'EOF'
+printf 'stray suite\n\n'
+ok "an assertion before the stray"
+awk 'BEGIN { for (i = 0; i < 30000; i++) print "        a line that is no assertion " i }'
+[ "$marker" = new ] || sh -c 'i=0; while [ ! -e ../red.cmp ] && [ $i -lt 3000000 ]; do i=$((i+1)); done; j=0; while [ $j -lt 200 ]; do printf "  ok    a name the base never reaches, said late by a stray\n"; j=$((j+1)); done' &
+[ "$marker" = new ] && ok "a name the base never reaches, said late by a stray"
+printf '\nreached\n\n%d passed, %d failed\n' "$PASS" "$FAIL"
+EOF
+  _red_man "$RED/strayline" "an assertion before the stray" "a name the base never reaches, said late by a stray"
+  _red "$RED/strayline" engine/harness/tests/red
+  is  "a line a stray writes to the log after red has read it is not counted, so the name it says is still red, the log being read once" \
+      "$(_red_body "$RED/strayline" | sed -n '2,$p')|$(_red_sum)" \
+      "$(printf 'run\t1\t1\t0\na name the base never reaches, said late by a stray\t1')|red: 1 of 2 assertions fail against main (SHA) at engine 0.0.7, 1 of them never reached"
+  is  "the near-name and stray fixtures' runs reach, against their own working trees, every name their manifests list and as often" \
+      "$(_red_reach "$RED/near")|$(_red_reach "$RED/strayline")" \
+      "$(cat "$RED/near/engine/harness/tests/assertions.tsv")|$(cat "$RED/strayline/engine/harness/tests/assertions.tsv")"
+  is  "and the near-name and stray records are each one record, the run row's failed count what the names add up to" \
+      "$(_red_whole "$RED/near") $(_red_whole "$RED/strayline")" "6=6 1=1"
   # The manifest compared is the one read before the suite ran. This run
   # rewrites it while it runs, as a run by hand could, to list a name it never
   # prints in place of the one it never reached.
@@ -20984,6 +21061,14 @@ EOF
   printf '0\tthe one assertion it prints\n' > "$_red_mfp"
   is  "a manifest count of zero is refused naming its line" \
       "$(_red_pre "$RED/mf")" "$(_red_no "assertions.tsv line 1 is not a count, a tab and a name")"
+  # A count is digits alone, so one that reads as a number with more around it
+  # is not one either.
+  printf '1\tthe one assertion it prints\n1x\tanother\n' > "$_red_mfp"; _red_c1="$(_red_pre "$RED/mf")"
+  printf '1\tthe one assertion it prints\n1.5\tanother\n' > "$_red_mfp"; _red_c2="$(_red_pre "$RED/mf")"
+  printf '1\tthe one assertion it prints\n 1\tanother\n' > "$_red_mfp"; _red_c3="$(_red_pre "$RED/mf")"
+  is  "a manifest count of 1x, of 1.5 or led by a space is refused naming its line, before the suite runs" \
+      "$_red_c1#$_red_c2#$_red_c3" \
+      "$(_red_no "assertions.tsv line 2 is not a count, a tab and a name")#$(_red_no "assertions.tsv line 2 is not a count, a tab and a name")#$(_red_no "assertions.tsv line 2 is not a count, a tab and a name")"
   printf '1\tthe one assertion it prints\n2\tanother\n1\tthe one assertion it prints\n' > "$_red_mfp"
   is  "a manifest row repeating a name an earlier row holds is refused naming the later line, before the suite runs" \
       "$(_red_pre "$RED/mf")" "$(_red_no "assertions.tsv line 3 repeats a name an earlier line holds")"
@@ -21072,6 +21157,14 @@ else
            "manifest names are compared byte for byte, a backslash, brackets, a star, a dot and a tab each itself" \
            "the arithmetic, block and byte fixtures' runs reach, against their own working trees, every name their manifests list and as often" \
            "each record with names never reached is one record, its run row's failed count what its names add up to" \
+           "a listed name the base never reaches is red, though a name it reaches begins with it, holds it in its middle, or is it in another case" \
+           "a skip of a name the manifest does not list is no skip of a listed name it begins with, unless a space and a parenthesis follow that name" \
+           "a line that opens like a listed name's skip and does not end in a parenthesis is not its skip, so the name is still red" \
+           "a name listed ten times that the base reaches nine times is red by one, the counts compared as numbers" \
+           "a name listed twice that the base reaches ten times takes nothing off the other shortfalls, six of thirty failing, all six never reached" \
+           "a line a stray writes to the log after red has read it is not counted, so the name it says is still red, the log being read once" \
+           "the near-name and stray fixtures' runs reach, against their own working trees, every name their manifests list and as often" \
+           "and the near-name and stray records are each one record, the run row's failed count what the names add up to" \
            "the manifest compared is the one read before the suite ran, not the one the run rewrote while it ran" \
            "a suite killed short of reached is refused as unfinished, not recorded with the names it never reached, exit 2" \
            "and red.tsv holds the two rows saying no red run was made, none of the names it never reached" \
@@ -21085,6 +21178,7 @@ else
            "a manifest row whose name is empty is refused naming its line" \
            "a manifest count with a leading zero is refused naming its line, the empty line above it counted" \
            "a manifest count of zero is refused naming its line" \
+           "a manifest count of 1x, of 1.5 or led by a space is refused naming its line, before the suite runs" \
            "a manifest row repeating a name an earlier row holds is refused naming the later line, before the suite runs" \
            "the first faulty manifest line is the one named, a repeat on line 2 ahead of a malformed line 3" \
            "an empty assertions.tsv is refused as listing no assertion, before the suite runs" \

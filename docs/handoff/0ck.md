@@ -1,4 +1,4 @@
-### 2026-09-24 — bootstrap's rendered gate workflow keeps no credential after its checkouts
+### 0ck. 2026-09-24 — bootstrap's rendered gate workflow keeps no credential after its checkouts
 
 **One engine PR from this session, #379, version 0.49.229.** It changes
 `lib/bootstrap.sh` and `tests/run`, and landed behind #331 in the queue

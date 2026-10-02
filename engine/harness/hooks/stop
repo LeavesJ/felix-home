@@ -279,6 +279,31 @@ EOF
     printf '\nThe way out, which takes effect in the NEXT session and not this one:\n\n  felix quarantine %s\n' "$who"
 }
 
+# This conversation's session ids: the one this stop was handed, and any the
+# transcript opens under. The desktop app has been seen carrying a
+# conversation on under a new id, its first lines still bearing the old one,
+# and the catches made before that are still this conversation's. The first id
+# on each line is the record's own; message text comes later in the line.
+_felix_stop_sessions() {
+  local tp; tp="$(_felix_stop_tp)"
+  {
+    printf '%s\n' "${SID:-}"
+    if [ -n "$tp" ] && [ -f "$tp" ]; then
+      head -c 65536 "$tp" 2>/dev/null | awk '
+        match($0, /"sessionId"[ ]*:[ ]*"[A-Za-z0-9._-]+"/) {
+          v = substr($0, RSTART, RLENGTH); sub(/^"sessionId"[ ]*:[ ]*"/, "", v); sub(/"$/, "", v); print v
+        }'
+    fi
+  } | awk 'NF && !seen[$0]++ { printf "%s%s", sep, $0; sep = " " }'
+}
+
+# This session's unexplained catch, if it has one. The guard is told the
+# checkout and the sessions, and without them it weighs every session's rows,
+# which is how a session that had written its lesson was asked about a peer's.
+# One definition, because two stops ask and a call site left with the old
+# arguments would pass every test that drives the other.
+_felix_stop_unrecorded() { felix_guard_unrecorded "$PROJ" "$ROOT" "$(_felix_stop_sessions)"; }
+
 receipt="$(felix_verify_receipt "$ROOT" "$FELIX_HOME_DIR")"
 r_tid="$(printf '%s' "$receipt" | cut -f1)"
 r_res="$(printf '%s' "$receipt" | cut -f2)"
@@ -334,7 +359,7 @@ ${_on_blocks}"
       fi
     fi
     if ! grep -qx unrecorded "$_on_said" 2>/dev/null; then
-      _on_unrec="$(felix_guard_unrecorded "$PROJ")"
+      _on_unrec="$(_felix_stop_unrecorded)"
       if [ -n "$_on_unrec" ]; then
         _on_extra="${_on_extra}
 
@@ -375,7 +400,7 @@ piece before you take the next one: check the claims, not the tests."
 
   # One message per stop, most urgent first. Something actively blocking the
   # session outranks a step that was skipped, which outranks a debt.
-  unrecorded="$(felix_guard_unrecorded "$PROJ")"
+  unrecorded="$(_felix_stop_unrecorded)"
 
   skipped="$(_felix_stop_skipped)"
   if [ -z "$skipped" ] && [ -n "$unrecorded" ]; then

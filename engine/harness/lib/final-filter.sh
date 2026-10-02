@@ -5,7 +5,7 @@
 # obligations, setup and maintenance each start a `bash -c`, and commissioning
 # evaluates in-process after `set +o pipefail`. So a pipeline's status is its
 # last stage's, and a check that ends in a stage that succeeds whatever it is
-# fed cannot fail: `npm test 2>&1 | tail -20` reads done, or SATISFIED, when
+# fed cannot fail: `make test 2>&1 | tail -20` reads done, or SATISFIED, when
 # the tests fail.
 #
 # A first attempt judged the text after the last `|` against a list of filter
@@ -36,11 +36,11 @@
 # is refused, since the `||` never runs.
 #
 # A text that can fail anywhere is admitted, even when the part that does the
-# work cannot. `cd dir && npm test | tail -20` is admitted, because the cd can
+# work cannot. `cd dir && make test | tail -20` is admitted, because the cd can
 # fail. That is the price of precision, and it was chosen, not missed: the
 # first version refused whenever any path ended in h, and review showed that
 # refusing real, correct checks. `command -v jq >/dev/null && jq --version |
-# cut -d- -f2` fails exactly when jq is absent. `out=$(npm test) && printf
+# cut -d- -f2` fails exactly when jq is absent. `out=$(make test) && printf
 # '%s\n' "$out" | tail` fails exactly when the tests do. A refused
 # commissioning row fails its project's gate, and a refused obligation blocks
 # every merge. So a false refusal is loud and costly, while a missed shape only

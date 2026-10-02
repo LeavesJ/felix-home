@@ -68,6 +68,8 @@
 #   - A base made before this: a tmp.* name, or a felix-qualify.* base with no
 #     record.
 #   - A run killed between mktemp and its record: an empty base, no record.
+#     And a drop or a sweep killed between removing the record, the base's
+#     last entry, and the rmdir: an empty base, no record, no tree.
 #   - A base whose owner cannot be read, because the row's mutation took the
 #     owner's read or search bit off the base and the row was then killed.
 #   - A base in another TMPDIR; only a later run under the same one sees it.
@@ -77,6 +79,12 @@
 #     row's tree under it, and that row then reads unrunnable.
 #   - Another repository's registration of a base swept here from disk. That
 #     repository's own next sweep removes it as an orphan.
+#   - A TMPDIR shared between machines, or between a macOS host and a Linux
+#     container: a record of the start ps prints, or of a pid alone, names a
+#     pid of another machine there, and a sweep on this one may read it
+#     dead. Linux records name their pid namespace and are judged in it
+#     alone; a record of a pid alone, where /proc could not be read, is
+#     judged by kill -0 alone in any namespace.
 #   - Rarer interleavings than two sweeps on one base, such as three and a
 #     kill inside the claim, may let two sweeps drop the same dead base. No
 #     live row's tree is reached that way: only a record judged dead is ever
@@ -255,7 +263,7 @@ _felix_qualify_absent() {   # dir, name
 # Its own process, so the glob options it sets (_felix_qualify_globs) reach
 # no caller.
 _felix_qualify_sweep() (   # root
-  local root="$1" t="${TMPDIR:-/tmp}" tp b n rec p s me="" listed relisted rest line failed="" nl='
+  local root="$1" t="${TMPDIR:-/tmp}" tp b n rec p s me="" listed relisted rest line failed="" dropped="" nl='
 '
   local _felix_qualify_text _felix_qualify_rec
   _felix_qualify_globs
@@ -283,11 +291,14 @@ _felix_qualify_sweep() (   # root
     chmod u+rwx "$b" 2>/dev/null
     _felix_qualify_claim "$b" "$rec" "$me" || continue
     _felix_qualify_drop "$root" "$b"
+    dropped="$dropped${b##*/}$nl"
   done
   # The orphans, off one list. A remove that failed is said only if a second
   # list still shows it: two sweeps remove the same orphan, and one of them
   # fails on a registration the other took. A second list that cannot be had
-  # leaves the status to say it.
+  # leaves the status to say it. A base this sweep dropped is passed over: its
+  # drop has tried the remove twice and said what is left, and a third try
+  # would say it again.
   listed="$(git -C "$root" worktree list --porcelain 2>/dev/null)" || return 0
   rest="$listed"
   while [ -n "$rest" ]; do
@@ -295,6 +306,8 @@ _felix_qualify_sweep() (   # root
     case "$rest" in *"$nl"*) rest="${rest#*"$nl"}" ;; *) rest="" ;; esac
     case "$line" in "worktree "*) ;; *) continue ;; esac
     p="${line#worktree }"
+    n="${p%/w}"; n="${n##*/}"
+    case "$nl$dropped" in *"$nl$n$nl"*) continue ;; esac
     _felix_qualify_orphan "$p" "$t" "$tp" || continue
     git -C "$root" worktree remove -f -f "$p" >/dev/null 2>&1 || failed="$failed$p$nl"
   done

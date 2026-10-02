@@ -16342,8 +16342,25 @@ if command -v chflags >/dev/null 2>&1; then
   _qswrun "$d/r2" "$T" "$R" "$d/proj"
   is  "an orphan registration git cannot remove, its admin directory made immutable, stays listed and is said in the drop's own words, felix: <root> still lists the scratch worktree <P>, which could not be removed, and the next run once it can be removes it" \
       "admin:$([ -n "$_qswadm" ] && echo found || echo none) listed:$_qswwas said:$_qswsaid then:$(_qswlisted "$R" "$_qswP")" "admin:found listed:yes said:1 then:no"
+  # A dead base whose registration git cannot remove: its drop says so, and
+  # the orphan step of the same sweep, finding the base gone, does not again.
+  d="$QSWS/stuck-dead"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
+  _qswplant "$T" felix-qualify.STUCK2 "$R" "$(_qswdead) $QSWOLD"
+  _qswP="$Tp/felix-qualify.STUCK2/w"; _qswadm=""
+  for _qswa2 in "$R"/.git/worktrees/*; do
+    [ "$(cat "$_qswa2/gitdir" 2>/dev/null)" = "$_qswP/.git" ] && _qswadm="$_qswa2"
+  done
+  [ -n "$_qswadm" ] && chflags uchg "$_qswadm"
+  _qswbg "$d/s1" "$T" "$R" - sweep; _qswfinish "$_qswpid" "$d/s1"
+  _qswsaid="$(awk -v a="felix: $R still lists the scratch worktree " -v z="/felix-qualify.STUCK2/w, which could not be removed" 'index($0, a) == 1 && substr($0, length($0) - length(z) + 1) == z { n++ } END { print n + 0 }' "$d/s1/err" 2>/dev/null)"
+  _qswwas="$(_qswlisted "$R" "$_qswP")"
+  [ -n "$_qswadm" ] && chflags nouchg "$_qswadm"
+  _qswbg "$d/s2" "$T" "$R" - sweep; _qswfinish "$_qswpid" "$d/s2"
+  is  "a dead base whose registration git cannot remove, its admin directory made immutable, has its base removed, and the sweep says once, not twice, that the root still lists its tree; once the flag is cleared the next sweep removes the registration" \
+      "admin:$([ -n "$_qswadm" ] && echo found || echo none) base:$(_qswthere "$T/felix-qualify.STUCK2") listed:$_qswwas said:$_qswsaid then:$(_qswlisted "$R" "$_qswP")" "admin:found base:gone listed:yes said:1 then:no"
 else
   skip "an orphan registration git cannot remove, its admin directory made immutable, stays listed and is said in the drop's own words, felix: <root> still lists the scratch worktree <P>, which could not be removed, and the next run once it can be removes it" "no chflags here"
+  skip "a dead base whose registration git cannot remove, its admin directory made immutable, has its base removed, and the sweep says once, not twice, that the root still lists its tree; once the flag is cleared the next sweep removes the registration" "no chflags here"
 fi
 
 # 7b. A TMPDIR that cannot be searched while a sweep runs: no base in it can

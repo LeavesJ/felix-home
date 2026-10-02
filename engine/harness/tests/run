@@ -25482,11 +25482,17 @@ _au_res  "$(_ivago 123 iso)" toolu_k1 ok
 _au_tool toolu_k2 Bash '{"command":"watch-the-ledger","description":"Watch the ledger"}'
 _au_a    "$(_ivago 120 iso)" msg_k2 '"tool_use"' "$_AU_B"
 _ivtouch "$_AU_F" 120
-# wt-unread: the newest session cannot be read at all.
+# wt-unread: the newest session cannot be read at all. Spec §5.2 and §6.6
+# (R4, ruled 2026-10-02): an unreadable session file anywhere under the records
+# root leaves every chip proposed before its mtime unknown:chip-unstarted. Its
+# mtime, 14500 minutes ago, is older than every proposal read inside the
+# 14-day window (wt-squash's at 2882-2884 minutes, Zeta's, Theta's, and
+# doohickey's Kappa at 14401), so the chips below stay decided, and the file,
+# inside that window, is still compared.
 _ivopen "$IVW/wt-unread" e5e5e5e5-0000-4000-8000-000000000001
-_au_say  "$(_ivago 182 iso)" 'look around'
-_au_stop "$(_ivago 180 iso)" msg_u1 'Shall I go on?'
-_ivtouch "$_AU_F" 180
+_au_say  "$(_ivago 14502 iso)" 'look around'
+_au_stop "$(_ivago 14500 iso)" msg_u1 'Shall I go on?'
+_ivtouch "$_AU_F" 14500
 IV_UNREAD="$_AU_F"; chmod 000 "$IV_UNREAD"
 # wt-squash: five chips. Epsilon's session is twenty days old, past the
 # default window of 14 (decision D4 of 2026-09-24; it was ten days old
@@ -28053,6 +28059,7 @@ _ibrun B7R -- inventory --repo "$IB/b7" --tsv
 chmod 000 "$IBB7NF"
 if [ -r "$IBB7NF" ]; then
   chmod 600 "$IBB7NF"
+  skip "inventory B7b-c: a session file the run cannot read leaves the PR owner, its live and the chip it may have started unknown" "a mode 000 file is readable here (run as root?)"
 else
   _ibrun B7T -- inventory --repo "$IB/b7" --tsv
   chmod 600 "$IBB7NF"
@@ -28105,6 +28112,135 @@ if [ -f "$_ibx" ]; then
   is  "inventory B8: when that earlier tip's commit object is gone, the check could not be made: unknown:hazard:staged-revert, not no hazard" \
       "$(_ibmany B8T worktree "$IBB8R" hazard:staged-revert unknown:hazard:staged-revert)" "hazard:staged-revert=no unknown:hazard:staged-revert=yes"
 else skip "inventory B8: a reflog commit the object store lacks leaves the staged-revert check unknown" "the fixture's commit is not a loose object"; fi
+
+# ---- R4 and the gaps G1-G4 (blind author, 2026-10-02) ---------------------
+# Written from spec.md alone (§5.2, §6.6 and §11 row 23 as R4 now reads), with
+# no inventory library read. Each block carries a control run in which the
+# fixture is whole, so it is shown to hold what the assertion says it holds.
+# R4 (ruled 2026-10-02 by the build session; build/disputes.md 1): a chip
+# proposed before the mtime of any unreadable session file anywhere under the
+# records root is unknown:chip-unstarted, whether or not that file's record
+# directory holds a proposal, and the chips cover row then says how many
+# session files could not be read. r4's main worktree has one session, which
+# proposed chip 4a 180 minutes ago and chip 4b 30 minutes ago. A session filed
+# under a directory of no worktree of r4, holding no proposal, last written 60
+# minutes ago, opens on a text that is neither chip's prompt. Read, both chips
+# are unstarted; unread, 4a (proposed before its mtime) is unknown and 4b
+# (proposed after it) is still unstarted.
+_ibnew r4
+IBR4R="$(_ibmainwt "$IB/r4")"
+IB_BR=""; _ibsess "$IBR4R" s-r4p
+_ib_h 182 'file the follow-ups'
+_ib_chip 180 toolu_r4a task_4a4a4a4a 'Chip four a' 'Four-a task: make the loader name the file it read, and test that two files give two names.'
+_ib_chip 30 toolu_r4b task_4b4b4b4b 'Chip four b' 'Four-b task: make the writer sort its keys, and test that two runs over one input give one file.'
+_ib_a 29 'Filed both.'; _ibage "$IB_F" 29
+_ibopen "$IBP/-elsewhere-r4/s-r4x.jsonl" s-r4x
+_ib_h 61 'look at something unrelated'; _ib_a 60 'Done.'; _ibage "$IB_F" 60
+IBR4XF="$IB_F"
+_ibrun R4R -- inventory --repo "$IB/r4" --tsv --no-gh
+chmod 000 "$IBR4XF"
+if [ -r "$IBR4XF" ]; then
+  chmod 600 "$IBR4XF"
+  skip "inventory R4: an unreadable session file in a record directory holding no proposal leaves an earlier chip unknown" "a mode 000 file is readable here (run as root?)"
+else
+  _ibrun R4T -- inventory --repo "$IB/r4" --tsv --no-gh
+  chmod 600 "$IBR4XF"
+  is  "inventory R4a: read, both chips are chip-unstarted and neither is unknown (the control)" \
+      "$(_ibmany R4R chip task_4a4a4a4a chip-unstarted unknown:chip-unstarted) $(_ibmany R4R chip task_4b4b4b4b chip-unstarted unknown:chip-unstarted)" \
+      "chip-unstarted=yes unknown:chip-unstarted=no chip-unstarted=yes unknown:chip-unstarted=no"
+  is  "inventory R4a: an unreadable session file in a record directory holding no proposal, modified after a chip's proposal, makes that chip unknown:chip-unstarted, never chip-unstarted" \
+      "$(_ibmany R4T chip task_4a4a4a4a chip-unstarted unknown:chip-unstarted)" "chip-unstarted=no unknown:chip-unstarted=yes"
+  is  "inventory R4a: and a chip proposed after that file's mtime is still chip-unstarted" \
+      "$(_ibmany R4T chip task_4b4b4b4b chip-unstarted unknown:chip-unstarted)" "chip-unstarted=yes unknown:chip-unstarted=no"
+  is  "inventory R4b: the chips cover row then says 1 session files could not be read, and says nothing of the kind when every file is read" \
+      "$(_ibhaselem R4T cover chips '1 session files could not be read') $(_ibcol R4R cover chips 8 | _ibsaid 'could not be read')" "yes unsaid"
+fi
+
+# G1 (round-2 review v7, its first half): §5.2 "Pending sections". A listing of
+# docs/handoff/pending/ that fails is said in the default cover row's detail
+# with the element handoff sections not read, and is not read as no sections.
+# The default branch gains a pending section committed in the clone, so its
+# tree objects are loose there; then the pending directory's tree goes away.
+_ibnew g1
+mkdir -p "$IB/g1/docs/handoff/pending"
+printf '### a section\n\nWhat was done.\n\n## Next\n- do the next thing\n' > "$IB/g1/docs/handoff/pending/20261001T000000Z-g1.md"
+_ibci "$IB/g1" 'a pending section'; _ibg -C "$IB/g1" push -q origin main
+IBG1P="$(_ibq -C "$IB/g1" rev-parse 'origin/main:docs/handoff/pending')"
+_ibrun G1R -- inventory --repo "$IB/g1" --tsv --no-gh --no-host
+_ibx="$IB/g1/.git/objects/${IBG1P:0:2}/${IBG1P:2}"
+if [ -f "$_ibx" ]; then
+  mv "$_ibx" "$IB/g1-pending.bak"
+  _ibrun G1T -- inventory --repo "$IB/g1" --tsv --no-gh --no-host; _ibrun G1V -- inventory --repo "$IB/g1" --no-gh --no-host
+  mv "$IB/g1-pending.bak" "$_ibx"
+  is  "inventory G1: with the tree read, the pending section is a handoff row and the default cover row says nothing of sections not read (the control)" \
+      "$(_ibcount G1R handoff) $(_ibcol G1R cover default 8 | _ibsaid 'handoff sections not read')" "1 unsaid"
+  is  "inventory G1: when the pending directory's tree cannot be read, the default cover row's detail holds the element handoff sections not read" \
+      "$(case "$(_ibelem G1T cover default 'handoff sections not read')" in ('') echo unsaid ;; (*) echo said ;; esac)" "said"
+  is  "inventory G1: and the human view's line for the default facet says it" \
+      "$(LC_ALL=C awk 'index($0, "handoff sections not read") { f = 1 } END { print (f ? "said" : "unsaid") }' "$(_ibo G1V)")" "said"
+else skip "inventory G1: a pending listing that fails is said as handoff sections not read" "the fixture's tree is not a loose object"; fi
+
+# G2: CDPATH set in the caller's environment. A relative cd would follow it to
+# another directory of the same name and print that directory on stdout. The
+# orphan keep2 holds one file whose content is in no object; each decoy under
+# $IB/cdp, named as keep2 or as a path to it, holds only the README main has.
+_ibnew g2
+_ibg -C "$IB/g2" worktree add -q -b g2live "$IB/g2/.claude/worktrees/live2"
+mkdir -p "$IB/g2/.claude/worktrees/keep2"; printf 'unique to keep2, in no object\n' > "$IB/g2/.claude/worktrees/keep2/u"
+for _ibn in keep2 worktrees/keep2 .claude/worktrees/keep2 g2/.claude/worktrees/keep2; do
+  mkdir -p "$IB/cdp/$_ibn"; printf 'g2\n' > "$IB/cdp/$_ibn/README.md"
+done
+_ibrun G2R -- inventory --repo "$IB/g2" --tsv --no-gh --no-host
+_ibrun G2T --env "CDPATH=$IB/cdp" -- inventory --repo "$IB/g2" --tsv --no-gh --no-host
+_ibg2() { printf '%s %s %s' "$(_ibcol "$1" orphan "$IB/g2/.claude/worktrees/keep2" 7)" \
+            "$(_ibholds "$1" orphan "$IB/g2/.claude/worktrees/keep2" landed)" \
+            "$(case "$(_ibelem "$1" orphan "$IB/g2/.claude/worktrees/keep2" '1 of 1 files hold content in no object')" in ('') echo uncounted ;; (*) echo counted ;; esac)"; }
+is  "inventory G2: without CDPATH, the orphan holding one file in no object has content not, is not landed, and counts 1 of 1 (the control)" "$(_ibg2 G2R)" "not no counted"
+is  "inventory G2: with CDPATH naming decoys of the same names, that orphan still reads not, never landed, and counts 1 of 1" "$(_ibg2 G2T)" "not no counted"
+is  "inventory G2: and with CDPATH set every line of --tsv is a row of eight fields, nothing printed between them" \
+    "$(LC_ALL=C awk -F'\t' 'NF != 8 { n++ } END { print (NR > 0 ? n + 0 : "no rows") }' "$(_ibo G2T)")" "0"
+
+# G3: §4.4 uncommitted "is unknown when the default branch is unknown", and
+# §5.1: an unknown default carries unknown:uncommitted onto the rows it can
+# apply to. g3's clone keeps its commit on origin/trunk only: origin/HEAD and
+# origin/main are gone, there is no origin/master, and main has no upstream.
+# Its main worktree is clean, so a reader that only compares changed paths
+# would find nothing and print no unknown.
+_ibnew g3
+IBG3R="$(_ibmainwt "$IB/g3")"
+_ibg -C "$IB/g3" push -q origin main:refs/heads/trunk
+_ibg -C "$IB/g3" remote set-head origin -d
+_ibg -C "$IB/g3" update-ref -d refs/remotes/origin/main
+_ibg -C "$IB/g3" branch -q --unset-upstream main
+_ibrun G3T -- inventory --repo "$IB/g3" --tsv --no-gh --no-host
+is  "inventory G3: the fixture: g3's main worktree is clean, and only origin/trunk is left on origin" \
+    "$(_ibq -C "$IB/g3" status --porcelain | LC_ALL=C awk 'END { print NR }') $(_ibq -C "$IB/g3" for-each-ref --format='%(refname)' refs/remotes | LC_ALL=C awk '{ printf "%s ", $0 }')" \
+    "0 refs/remotes/origin/trunk "
+is  "inventory G3: with the default branch unknown, a clean worktree reads unknown:uncommitted, not uncommitted and not landed, under a default cover row of unknown" \
+    "$(_ibmany G3T worktree "$IBG3R" unknown:uncommitted uncommitted landed) $(_ibhead1 G3T cover default)" \
+    "unknown:uncommitted=yes uncommitted=no landed=no unknown"
+
+# G4: §4.7, possible duplicates "are on different branches". dupx is pushed
+# as one commit and remade locally as another with the same change, so the
+# remote origin/dupx is a row of its own (its tip is no ancestor of dupx's);
+# dupy makes the same change on another branch. gh lists no PR, so origin/dupx
+# and dupx are unproposed, and dupx and dupy unpushed.
+_ibnew g4
+IBG4M="$(_ibq -C "$IB/g4" rev-parse main)"
+_ibmk - "$IB/g4" "$IBG4M" 'the change, pushed' g.txt 'the same change'; _ibg -C "$IB/g4" push -q origin "$IBC:refs/heads/dupx"
+_ibmk - "$IB/g4" "$IBG4M" 'the change, remade' g.txt 'the same change'; _ibg -C "$IB/g4" branch -q dupx "$IBC"
+_ibmk - "$IB/g4" "$IBG4M" 'the change, elsewhere' g.txt 'the same change'; _ibg -C "$IB/g4" branch -q dupy "$IBC"
+_ibrun G4T -- inventory --repo "$IB/g4" --tsv --no-host
+# _ibdup KIND REF NAME: "NAME" when the possible-duplicate element of that row
+# names NAME as a whole ref, else "-NAME".
+_ibdup() { _ibelem G4T "$1" "$2" 'possible duplicate of ' | LC_ALL=C awk -v w="$3" '{ sub(/^possible duplicate of /, ""); n = split($0, t, " "); for (i = 1; i <= n; i++) if (t[i] == w) f = 1 }
+             END { print (f ? w : "-" w) }'; }
+is  "inventory G4: each of dupx, origin/dupx and dupy is a possible duplicate, and dupy's names both of the others (the control)" \
+    "$(_ibholds G4T branch dupx possible-duplicate) $(_ibholds G4T remote origin/dupx possible-duplicate) $(_ibholds G4T branch dupy possible-duplicate) $(_ibdup branch dupy dupx) $(_ibdup branch dupy origin/dupx)" \
+    "yes yes yes dupx origin/dupx"
+is  "inventory G4: possible-duplicate never names a row on the same branch: dupx's names dupy and not origin/dupx, and origin/dupx's names dupy and not dupx" \
+    "$(_ibdup branch dupx dupy) $(_ibdup branch dupx origin/dupx) $(_ibdup remote origin/dupx dupy) $(_ibdup remote origin/dupx dupx)" \
+    "dupy -origin/dupx dupy -dupx"
 
 # ---- §4.1: across every run ----------------------------------------------
 _ibx=""; for _ibk in RUN1 RUN2 RUN3 RUN4 MISC PART K R3 U F G H1 H2 O1 V1 T1 T3 M1 A5a A5b A5c A27 A31a A31b CCD; do _ibx="$_ibx $(_ibo "$_ibk")"; done

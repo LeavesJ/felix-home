@@ -87,6 +87,19 @@ blank lines, an empty file, and no `capabilities` at all.
      panel do for the placeholder project.
    - The script runs to the end without throwing in every case above.
 
+Settled after the blind author's questions (2026-10-01), before any code:
+- `felix_declared` here is the one claude/commission-lookup-fails-unknown
+  leaves. It returns 0 for an empty or only-comments file, where main's
+  returned grep's 1. The read cases above assume that.
+- lib/monitor.sh does not source lib/detect.sh. Whoever sources the monitor
+  sources detect.sh, as `felix` does, so an undefined `felix_declared_into` at
+  call time is unread.
+- An `unknown` that is not a string, such as `{"unknown":5}`, takes the
+  fallback title.
+- A read list's cell has no title and no `warn`. The no-projects row is `0`
+  without `warn`.
+- A declared line keeps whatever leading whitespace `felix_declared` keeps.
+
 Not in this change, and why:
 - Every string in the payload is escaped through a substitution
   (`_felix_json_esc`). Under EAGAIN, any of them, including a capability name,

@@ -6,6 +6,10 @@
 # answers pass, fail, unrunnable or inapplicable. lib/qualify.sh sources it, so
 # a caller still sources lib/qualify.sh alone. What the columns are, what a
 # premise means and what the runner hears are in lib/qualify.sh's header.
+#
+# The sweep that removes the trees of rows killed past their traps,
+# _felix_qualify_sweep, is in lib/qualify-sweep.sh, sourced here.
+. "${BASH_SOURCE[0]%/*}/qualify-sweep.sh"
 
 # Throw one row's scratch tree away: the worktree, its registration in the
 # root's repository, and the directory mktemp made to hold them.
@@ -40,10 +44,13 @@
 #     directory is: git removes a registration whose directory is missing.
 #
 # Then the base goes whole: the column stderr file and whatever a mutation
-# wrote beside the tree are the runner's own. What is still there after all
-# that is said, on stderr, from what is there and not from an exit status:
-# the base on disk, or the tree still in git worktree list. Nothing is
-# pruned beyond this row's entry; other entries are not the runner's.
+# wrote beside the tree are the runner's own. Its owner record goes last
+# (_felix_qualify_unown), so a base this cannot empty, or a drop killed half
+# way, still names a process a later run's sweep can judge. What is still
+# there after all that is said, on stderr, from what is there and not from an
+# exit status: the base on disk, or the tree still in git worktree list.
+# Nothing is pruned beyond this row's entry; other entries are not the
+# runner's.
 #
 # What it cannot reach: a process the mutation left running, which can write
 # into the base after this has removed it.
@@ -81,12 +88,93 @@ _felix_qualify_drop() {   # root, base
       esac
     fi
   fi
-  rm -rf "$base" 2>/dev/null
+  # Twice: a sweep that judged a record dead a moment before another sweep
+  # claimed the base holds that one's record aside, under a name of its own,
+  # for as long as its check of it takes (lib/qualify-sweep.sh).
+  _felix_qualify_clear "$base"
+  _felix_qualify_unown "$base" || { _felix_qualify_clear "$base"; _felix_qualify_unown "$base"; }
   if [ -e "$base/w" ] || [ -L "$base/w" ]; then
     printf 'felix: the scratch worktree %s could not be deleted, and stays on disk\n' "$base/w" >&2
   elif [ -e "$base" ]; then
     printf 'felix: the scratch directory %s could not be deleted, and stays on disk\n' "$base" >&2
   fi
+}
+
+# Every entry of a base but its owner record, removed. rm -rf takes a
+# symlink operand as the link, so nothing is followed out of the base. The
+# three globs are every name but . and ..; one that matched nothing stays
+# literal and is passed over as absent.
+_felix_qualify_clear() {   # base
+  local e
+  for e in "$1"/* "$1"/.[!.]* "$1"/..?*; do
+    [ "$e" = "$1/owner" ] && [ -L "$e" ] && continue
+    [ -e "$e" ] || [ -L "$e" ] || continue
+    rm -rf "$e" 2>/dev/null
+  done
+}
+
+# A base's owner record removed only once it is the base's last entry, then
+# the base. Non-zero while anything else is in it, with the record kept, and
+# when the base will not go: an entry that appeared between the look and the
+# rmdir is a writer the drop never saw, and the record is put back, so the
+# base still names a process a later sweep can judge.
+_felix_qualify_unown() {   # base -> 0 once the base is gone
+  local e rec=""
+  for e in "$1"/* "$1"/.[!.]* "$1"/..?*; do
+    [ "$e" = "$1/owner" ] && [ -L "$e" ] && continue
+    if [ -e "$e" ] || [ -L "$e" ]; then return 1; fi
+  done
+  if [ -L "$1/owner" ]; then
+    rec="$(readlink -n "$1/owner" 2>/dev/null; printf x)"; rec="${rec%x}"
+    rm -f "$1/owner" 2>/dev/null
+  fi
+  rmdir "$1" 2>/dev/null && return 0
+  if [ -n "$rec" ] && [ -d "$1" ] && [ ! -e "$1/owner" ] && [ ! -L "$1/owner" ]; then
+    ln -s -- "$rec" "$1/owner" 2>/dev/null
+  fi
+  return 1
+}
+
+# The owner record of the process running this: `<pid> <start>`, or `<pid>`
+# when ps gives no start, set in _felix_qualify_rec, which the caller makes
+# local. Non-zero when no pid can be had.
+#
+# The pid is the process's own, never $$, which a subshell keeps from its
+# parent: a row runs in the $(...) the row loop calls it in, and the CLI that
+# owns $$ outlives a row it lost to a kill. Bash 4 and later name it BASHPID.
+# Bash 3.2, the engine's floor on macOS, has no BASHPID, and a variable of
+# that name there is only one the environment brought; a sh exec'd in a
+# $(...) of this process is its child, and its PPID is this process (measured
+# 2026-10-01 on bash 3.2.57). It is set here, never printed: a $(...) around
+# this function would be a process of its own and record that.
+#
+# The start tells a pid the kernel has handed to another process since from
+# the process that wrote it. ps prints it in local time and words, so TZ and
+# the locale are fixed, and every blank is taken out, so the record holds
+# exactly one space.
+_felix_qualify_me() {   # -> _felix_qualify_rec
+  local p s
+  _felix_qualify_rec=""
+  if [ "${BASH_VERSINFO[0]:-3}" -ge 4 ] 2>/dev/null; then
+    p="${BASHPID:-}"
+  else
+    p="$(exec sh -c 'echo "$PPID"' 2>/dev/null)"
+  fi
+  case "$p" in ''|0*|*[!0123456789]*) return 1 ;; esac
+  [ "${#p}" -le 10 ] || return 1
+  s="$(TZ=UTC0 LC_ALL=C ps -o lstart= -p "$p" 2>/dev/null)"
+  s="${s//[[:space:]]/}"
+  _felix_qualify_rec="$p${s:+ $s}"
+}
+
+# A row's base made to name the row's own process: `owner`, a symlink whose
+# text is the record. One symlink(2), so a sweep reads the text whole or not
+# at all; the link points at nothing and is never followed. Non-zero when it
+# cannot be made.
+_felix_qualify_own() {   # base
+  local _felix_qualify_rec
+  _felix_qualify_me || return 1
+  ln -s -- "$_felix_qualify_rec" "$1/owner" 2>/dev/null && [ -L "$1/owner" ]
 }
 
 # The traps that throw a row's tree away when the row is stopped, set in the
@@ -231,11 +319,23 @@ _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | u
   local tmpd="${TMPDIR:-/tmp}"
   base="$(mktemp -d "${tmpd%/}/felix-qualify.XXXXXX" 2>/dev/null)" || { printf 'unrunnable'; return 0; }
   scratch="$base/w"; err="$base/err"
+  # Which process owns the base, written before the traps and the add, so
+  # every base that ever holds a tree names its owner first: no trap reaches
+  # SIGKILL, and a later run's sweep (lib/qualify-sweep.sh) removes a base
+  # only when the process it names is shown dead. A row that could not be
+  # swept if it were killed is not started.
+  if ! _felix_qualify_own "$base"; then
+    printf 'felix: the row was not run, because the process that owns its scratch directory %s could not be recorded there\n' "$base" >&2
+    chmod u+rwx "$base" 2>/dev/null
+    _felix_qualify_unown "$base" ||
+      printf 'felix: the scratch directory %s could not be deleted, and stays on disk\n' "$base" >&2
+    printf 'unrunnable'; return 0
+  fi
   # Before the add, so a row stopped while git checks the tree out goes too.
   # Every way out of this function lifts them, though it runs in a $(...).
   _felix_qualify_arm "$root" "$base"
   if ! git -C "$root" worktree add --detach -q "$scratch" HEAD 2>/dev/null; then
-    rmdir "$base" 2>/dev/null; trap - INT TERM HUP; printf 'unrunnable'; return 0
+    _felix_qualify_unown "$base"; trap - INT TERM HUP; printf 'unrunnable'; return 0
   fi
   got=""
   if [ -n "$premise" ] && [ "$premise" != "-" ]; then

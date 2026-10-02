@@ -335,10 +335,16 @@ felix_qualify_run() {   # proj, root, [checker]
 # which passes only a row of five fields or more, so four tabs are there; a
 # line without them is not run, and felix qualify --gate counts it as a row
 # that did not run.
+#
+# First, once, whatever rows are selected, the sweep of the scratch trees a
+# killed run left in this TMPDIR (lib/qualify-sweep.sh). Here, so felix
+# qualify, felix gate and felix_qualify_run all get it. Its stdout goes
+# nowhere: this loop's stdout is the verdict lines.
 _felix_qualify_run_rows() {   # rows, root, [checker]
   local rest="$1" root="$2" want="${3:-}" line f
   local checker cmd control expect mut premise got verdict nl='
 ' tab='	'
+  _felix_qualify_sweep "$root" >/dev/null
   while [ -n "$rest" ]; do
     line="${rest%%"$nl"*}"
     case "$rest" in *"$nl"*) rest="${rest#*"$nl"}" ;; *) rest="" ;; esac

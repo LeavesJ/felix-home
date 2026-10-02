@@ -8,12 +8,9 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	6e293e898ad1204a3784c359f91a308537dcc71f	0.49.263
-run	17	6003	9
+base	bcd55421faf1ed6fa32a35b99e131d0de75f1486	bcd55421faf1ed6fa32a35b99e131d0de75f1486	0.49.266
+run	14	6006	9
 and the row's reason is given	1
-each engine mktemp driven here names a template under the TMPDIR it was given	1
-every mktemp the engine and Felix's gate run is given a template, so none lands outside TMPDIR on a Mac	1
-every uses: in the unattended template names a full commit sha, not a ref its owner can move	1
 the founder's case 10: a here-document a shell reads is its script	1
 the founder's case 11: and so with -s	1
 the founder's case 12: a redirect's target is written whatever line the here-document ends on	1

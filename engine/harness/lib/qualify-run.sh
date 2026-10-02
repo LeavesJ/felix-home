@@ -146,7 +146,12 @@ _felix_qualify_unown() {   # base -> 0 once the base is gone
 # that name there is only one the environment brought; a sh exec'd in a
 # $(...) of this process is its child, and its PPID is this process (measured
 # 2026-10-01 on bash 3.2.57). It is set here, never printed: a $(...) around
-# this function would be a process of its own and record that.
+# this function would be a process of its own and record that. The sh is
+# /bin/sh by its path, never one PATH names: a wrapper that runs sh without
+# exec forks, and the PPID it reports is the wrapper's own, gone once the
+# $(...) returns, so a live row would record a dead pid and another run's
+# sweep would take its tree. And the pid must be a live process when it is
+# read back, else no record is made and the row runs nothing.
 #
 # The start tells a pid the kernel has handed to another process since from
 # the process that wrote it. ps prints it in local time and words, so TZ and
@@ -158,10 +163,11 @@ _felix_qualify_me() {   # -> _felix_qualify_rec
   if [ "${BASH_VERSINFO[0]:-3}" -ge 4 ] 2>/dev/null; then
     p="${BASHPID:-}"
   else
-    p="$(exec sh -c 'echo "$PPID"' 2>/dev/null)"
+    p="$(exec /bin/sh -c 'echo "$PPID"' 2>/dev/null)"
   fi
   case "$p" in ''|0*|*[!0123456789]*) return 1 ;; esac
   [ "${#p}" -le 10 ] || return 1
+  kill -0 "$p" 2>/dev/null || return 1
   s="$(TZ=UTC0 LC_ALL=C ps -o lstart= -p "$p" 2>/dev/null)"
   s="${s//[[:space:]]/}"
   _felix_qualify_rec="$p${s:+ $s}"

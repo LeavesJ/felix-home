@@ -15700,7 +15700,7 @@ printf '\nqualification: a later run sweeps the trees a killed run left\n'
 QSWS="$TMP/qual-sweep-side"; mkdir -p "$QSWS"
 : > "$QSWS/pids"; : > "$QSWS/roots"
 QSWOLD='ThuJan100:00:001970'
-QSWLIVE=""
+QSWLIVE=""; _qswpath=""; _qswxenv=""
 QSWGIT="$(command -v git)"
 QSWSHIM="$QSWS/shim"; mkdir -p "$QSWSHIM"
 cat > "$QSWSHIM/git" <<EOF
@@ -15909,10 +15909,14 @@ _qswrowof() {   # held pid, caller pid
 }
 # Start a caller in a group of its own: dir for its files, T, root, go file
 # or -, run | sweep, and felix_qualify_run's arguments. Its pid is _qswpid.
+# _qswpath, when set, goes first on its PATH, and _qswxenv, when set, is one
+# NAME=value more in its environment. TZ is not UTC, so a start read in local
+# time differs from one read under TZ=UTC0 on every runner.
 _qswbg() {
   local d="$1" t="$2" root="$3" go="$4" what="$5"; shift 5
-  mkdir -p "$d"; : >> "$d/made"; rm -f "$d/caller"
-  TMPDIR="$t" PATH="$QSWSHIM:$PATH" QSW_GITLOG="$d/git" QSW_NORECORD="${_qswnorec:-}" \
+  mkdir -p "$d"; : >> "$d/made"; : >> "$d/git"; rm -f "$d/caller"
+  env ${_qswxenv:+"$_qswxenv"} TZ=JST-9 TMPDIR="$t" PATH="${_qswpath:+$_qswpath:}$QSWSHIM:$PATH" \
+    QSW_GITLOG="$d/git" QSW_NORECORD="${_qswnorec:-}" \
     perl -e '$SIG{INT} = $SIG{TERM} = $SIG{HUP} = "DEFAULT"; setpgrp(0, 0) or exit 97; exec @ARGV or exit 98' \
     "$BASH" "$QSWL" "$FROOT" "$root" "$d/made" "$d/caller" "$go" "$what" "$@" </dev/null >"$d/out" 2>"$d/err" &
   _qswpid=$!
@@ -16003,6 +16007,26 @@ is  "released, run A ends with its row read pass and met, and neither run leaves
 is  "every git worktree add either run made found owner already a symlink in the base it added the tree to" \
     "$(cat "$d/a/git" "$d/b/git" 2>/dev/null | awk '/ worktree add / { n++; if ($0 ~ / owner:no$/) m++ } END { printf "adds:%s without:%d", (n > 0 ? "some" : "none"), m + 0 }')" \
     "adds:some without:0"
+
+# 3b. The pid from a sh that forks: a sh first on PATH that runs /bin/sh
+# without exec, as a wrapper may. While its row holds, the record names the
+# row's own live process; or there is none, and the row ran nothing. Never a
+# pid already gone while the row is alive, which another run would sweep.
+d="$QSWS/fork-sh"; T="$d/t"; mkdir -p "$T" "$d/bin"; R="$(_qswroot "$d/root")"
+printf '#!/bin/bash\n/bin/sh "$@"\n' > "$d/bin/sh"; chmod +x "$d/bin/sh"
+_qswpath="$d/bin"; _qswhold "$d" "$T" "$R"; _qswpath=""
+_qswcaller="$(cat "$d/a/caller" 2>/dev/null)"; _qswheldp="$(cat "$d/at" 2>/dev/null)"
+_qswb="$(_qswbase "$T")"; _qswr=""
+[ -n "$_qswb" ] && _qswr="$(readlink "$T/$_qswb/owner" 2>/dev/null)"
+_qswfk="ran-nothing"
+[ -s "$d/at" ] && _qswfk="held pid:$(_qswrole "${_qswr%% *}" "$_qswheldp" "$_qswcaller") alive:$(_qswalive "${_qswr%% *}")"
+: > "$d/release"; _qswfinish "$_qswa" "$d/a"
+case "$_qswfk $(_qswverd "$d/a")" in
+  "held pid:row alive:yes pass met"|"ran-nothing unrunnable unrunnable") _qswfk=ok ;;
+  *) _qswfk="$_qswfk $(_qswverd "$d/a")" ;;
+esac
+is  "with a sh first on PATH that forks rather than execs, a row whose checker holds records its own live process, and ends pass and met, or records none and reads unrunnable having run nothing: never a pid already gone while the row is alive" \
+    "$_qswfk" "ok"
 
 # 4. The row's process alone killed, its caller left running: the tree is
 # removed by another run's sweep. The caller alone killed, the row alive:
@@ -16331,7 +16355,7 @@ QSWHR="$(_qswphys "$QSWHR")"; printf '%s\n' "$QSWHR" >> "$QSWS/roots"
 _qswcli() {   # dir, T, felix qualify's arguments
   local d="$1" t="$2"; shift 2
   mkdir -p "$d"; rm -f "$d/rc"
-  TMPDIR="$t" FELIX_HOME="$QSWH" PATH="$QSWSHIM:$PATH" QSW_GITLOG="$d/git" \
+  TZ=JST-9 TMPDIR="$t" FELIX_HOME="$QSWH" PATH="$QSWSHIM:$PATH" QSW_GITLOG="$d/git" \
     perl -e '$SIG{INT} = $SIG{TERM} = $SIG{HUP} = "DEFAULT"; setpgrp(0, 0) or exit 97; exec @ARGV or exit 98' \
     "$BASH" "$QSWC" "$QSWHR" "$d/rc" "$QSWH/harness/felix" qualify "$@" </dev/null >"$d/out" 2>"$d/err" &
   _qswpid=$!

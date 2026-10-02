@@ -12,10 +12,17 @@
 # high-risk rows are still refused by every flag. That separation is what makes
 # doing this unattended defensible: the plan changes, the machine does not.
 
-# felix_adopt_capability <project-dir> <capability> <templates-dir> <repo-slug>
+# felix_adopt_capability <project-dir> <capability> <templates-dir> [<repo-slug>]
 # Prints "<stack-rows-added> <setup-steps-added>". Returns 1 if already declared.
+#
+# The slug is still accepted, so no caller changes, and is no longer written
+# anywhere (G5.1, U19). A setup row and its runbook keep {{REPO}} as the
+# template has it, and lib/setup.sh fills it in when the row is read. Spliced
+# in here, a checkout with no GitHub remote yet saved `--repo ` with nothing
+# after it: a check that failed forever, held human_steps, and was never
+# rewritten when the remote arrived, because this skips an id that exists.
 felix_adopt_capability() {
-  local proj="$1" cap="$2" tpl="$3" slug="${4:-}"
+  local proj="$1" cap="$2" tpl="$3"
   [ -n "$proj" ] && [ -n "$cap" ] || return 1
 
   touch "$proj/capabilities"
@@ -45,9 +52,8 @@ felix_adopt_capability() {
     while IFS=$'\t' read -r id title c chk; do
       [ "${c:-}" = "$cap" ] || continue
       grep -qE "^$id	" "$proj/setup.tsv" 2>/dev/null && continue
-      printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}" >> "$proj/setup.tsv"
-      [ -f "$tpl/setup/$id.md" ] && \
-        sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md" > "$proj/setup/$id.md"
+      printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "$chk" >> "$proj/setup.tsv"
+      [ -f "$tpl/setup/$id.md" ] && cp "$tpl/setup/$id.md" "$proj/setup/$id.md"
       added_setup=$((added_setup+1))
     done < <(grep -vE '^\s*(#|$)' "$tpl/setup.tsv")
   fi

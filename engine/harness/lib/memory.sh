@@ -15,12 +15,33 @@
 # people to stop reading it. The value of a lessons file is entirely in its
 # signal-to-noise, so the failure mode of writing too much is the fatal one.
 
+# Where a memory row was written, spelled one way for every row that says so:
+# a devlog header, a gate's catch, the owner of a lesson. The branch is the one
+# HEAD names, which a checkout with no commit yet still has, HEAD when
+# detached and ? outside git; the commit is `unborn` when there is none yet
+# and ? outside git. `rev-parse --abbrev-ref` prints HEAD and then fails in a
+# checkout with no commit yet, and its fallback wrote a second line into
+# whatever it was part of.
+#
 # The branch and the commit come from felix_head_branch and felix_head_commit
 # in resolve.sh, which this file already needs for felix_mem_dir. They were
 # written here first, as private helpers, and moved rather than copied when
 # receipt.sh turned out to hold the same defect and could not reach them: the
 # reasoning went with them, and says why a fallback is assigned and never
 # appended.
+#
+# The same defect was fixed twice at once, and the second fix gave this file a
+# pair of its own again, _felix_mem_branch and _felix_mem_sha, for the owner
+# rows written.log gained. One pair is kept, resolve.sh's, so a catch and the
+# entry that settles it can never be spelled by two readers that drift apart;
+# the guard reads a checkout's branch back through the same one
+# (_felix_guard_branch, lib/guard.sh). The two pairs agreed everywhere but one
+# place: on a checkout with no commit yet the commit here was `?`, as a
+# directory that is no repository reads, and resolve.sh's says `unborn`,
+# felix_tree_id's word for that state, which the heal of the split rows writes
+# too. That one stays, so every row on such a tree is one occasion to
+# felix_mem_recurring_mistakes. The guard matches a row by its branch and its
+# session and never by its commit, so nothing it decides turns on which.
 _felix_mem_stamp() {
   local root="$1"
   printf '%s %s %s' \
@@ -29,16 +50,49 @@ _felix_mem_stamp() {
     "$(felix_head_commit "$root")"
 }
 
+# The session the platform exports to this shell, which a subagent's shell
+# inherits from its parent. A dash when there is none, or when the id holds
+# anything that could break a row.
+_felix_mem_sid() {
+  local sid="${CLAUDE_CODE_SESSION_ID:-}"
+  case "$sid" in ''|*[!A-Za-z0-9._-]*) sid=- ;; esac
+  printf '%s' "$sid"
+}
+
 felix_mem_log() {
   local proj="$1" root="$2" text="$3"
   mkdir -p "$(felix_mem_dir "$proj")"
-  printf '\n## %s\n\n%s\n' "$(_felix_mem_stamp "$root")" "$text" >> "$(felix_mem_dir "$proj")/DEVLOG.md"
+  printf '\n## %s\n\n%s\n' "$(_felix_mem_stamp "$root")" "$text" >> "$(felix_mem_dir "$proj")/DEVLOG.md" || return 1
+  _felix_mem_written "$proj" "$root" log || return 2
 }
 
 felix_mem_lesson() {
   local proj="$1" root="$2" text="$3"
   mkdir -p "$(felix_mem_dir "$proj")"
-  printf '\n- **%s** %s\n' "$(date +%Y-%m-%d)" "$text" >> "$(felix_mem_dir "$proj")/lessons.md"
+  printf '\n- **%s** %s\n' "$(date +%Y-%m-%d)" "$text" >> "$(felix_mem_dir "$proj")/lessons.md" || return 1
+  _felix_mem_written "$proj" "$root" lesson || return 2
+}
+
+# Who wrote each lesson and devlog entry, and when: one row per entry in
+# written.log, in mistakes.log's shape with the kind where the checks go.
+# felix_mem_lesson and felix_mem_log return 1 when the entry itself was not
+# written and 2 when it was but this row was not, so the command can say the
+# entry is there and must not be written twice.
+#
+# felix_guard_unrecorded lets an entry settle only the catches of whoever wrote
+# it (its session, or for a catch filed under no session its branch), and
+# neither file can say who that was. lessons.md is prose mounted into
+# sessions and names only the day; a devlog header names the day and the
+# branch, never the second or the session. Their modification times say only
+# that somebody wrote, and on a project with many sessions somebody always
+# has: review measured the real lessons.md gaining 5 to 16 lessons a day
+# against 2 to 21 catches, so a peer's lesson landed within hours of nearly
+# every catch and silenced it. So the prose stays exactly as it was and the
+# owner is written beside it.
+_felix_mem_written() {
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$(date +%Y-%m-%d)" "$(felix_head_branch "$2")" "$(felix_head_commit "$2")" "$3" "$(date +%s)" "$(_felix_mem_sid)" \
+    >> "$(felix_mem_dir "$1")/written.log"
 }
 
 # Regenerate the handoff from what git already knows. A handoff written by hand
@@ -169,34 +223,50 @@ felix_mem_handoff_foreign() {
 # curating with the whole file in view, which is when the judgement is actually
 # available.
 #
-# One row per call, four fields, whatever git or the caller hands over: the
+# One row per call, six fields, whatever git or the caller hands over: the
 # branch and commit come through resolve.sh's two readers, and `what` has any
 # tab or newline turned into the space that already separates the checks it
 # names.
 #
+# The fifth and sixth columns are the second it was caught and the session
+# whose gate caught it. Every session on the project appends here, so the
+# file's own time is whoever wrote last, and felix_guard_unrecorded needs both
+# to tell this session's catch from a peer's. The session is the one the
+# platform exports to the gate's shell, which a subagent's shell inherits from
+# its parent; a dash when there is none, or when the id holds anything that
+# could break the row. Appended last, so every reader of the first four is
+# unchanged. The branch, commit and session are spelled by the same readers
+# as the owner of a lesson (_felix_mem_written above), so the guard can match
+# the one against the other.
+#
 # The append is made holding the log's lock, the one felix_mem_mistakes_heal
 # below takes to rewrite the file, so a row written by this engine can never
 # land on the inode a heal is about to rename away (U44). The fields are read
-# before the lock, because the git calls are the slow part. The wait is
-# bounded, about three seconds, and then the row is appended anyway: a lock is
-# there to protect rows, and one that could cost a row would be the defect it
-# exists to prevent. The heal's tail recovery picks up an unlocked append in
-# all but a microsecond window. The row itself is byte for byte what #267
-# writes.
+# before the lock, because the git calls are the slow part, and so the second
+# is the one the gate caught it in rather than the one the lock was won in.
+# The wait is bounded, about three seconds, and then the row is appended
+# anyway: a lock is there to protect rows, and one that could cost a row would
+# be the defect it exists to prevent. The heal's tail recovery picks up an
+# unlocked append in all but a microsecond window. The first four fields are
+# byte for byte what #267 writes, and a heal passes a row of five or six
+# fields through byte for byte: it joins only the split pair an older engine
+# left, which is four fields once joined.
 felix_mem_mistake() {
-  local proj="$1" root="$2" what="$3" dir d b c w held=0 tries=0 rc
+  local proj="$1" root="$2" what="$3" dir d b c w at sid held=0 tries=0 rc
   dir="$(felix_mem_dir "$proj")"
   mkdir -p "$dir"
   d="$(date +%Y-%m-%d)"
   b="$(felix_head_branch "$root")"
   c="$(felix_head_commit "$root")"
   w="$(printf '%s' "$what" | tr '\t\n\r' '   ')"
+  at="$(date +%s)"
+  sid="$(_felix_mem_sid)"
   while [ "$tries" -lt 30 ]; do
     if _felix_mem_lock "$dir/.mistakes.lock"; then held=1; break; fi
     sleep 0.1
     tries=$((tries + 1))
   done
-  printf '%s\t%s\t%s\t%s\n' "$d" "$b" "$c" "$w" >> "$dir/mistakes.log"; rc=$?
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$d" "$b" "$c" "$w" "$at" "$sid" >> "$dir/mistakes.log"; rc=$?
   [ "$held" -eq 1 ] && _felix_mem_unlock "$dir/.mistakes.lock"
   return "$rc"
 }
@@ -298,9 +368,12 @@ _felix_mem_unlock() {
 #     before the rename and written after the last read of it, and only for a
 #     writer that takes no lock. This engine's writer takes it.
 #   - The mode is carried across as felix_mem_handoff carries it, and the mtime
-#     is restored from the pinned inode, because felix_guard_unrecorded compares
-#     it with the lessons and the devlog: a heal that bumped it would have the
-#     Stop hook announce a failure nobody had in this session.
+#     is restored from the pinned inode, because felix_guard_unrecorded reads
+#     it: a row written before rows carried their second, which every healed
+#     row is, is taken to have been caught at the file's time. A heal that
+#     bumped it would make every such catch newer than every entry written
+#     before the heal, and have the Stop hook announce a failure nobody had in
+#     this session.
 #
 # No trap: cmd_commission owns an EXIT trap and a function that set its own
 # would clobber it, so every path below cleans up after itself. The engine's

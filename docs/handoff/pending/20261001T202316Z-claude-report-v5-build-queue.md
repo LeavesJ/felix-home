@@ -321,19 +321,45 @@ means four in five.
 |---|---|---|---|
 | M0 console v0 | `felix inventory`, the stuck-PR page and the lost-work page (Phase 0b steps 4-6). This is the report's §11 exception console, read-only, with what needs a decision first | Oct 24 | Nov 7 |
 | M1 attended loop | One objective runs end to end: obligations, then the attended capped dispatch tick (D3), then independent verification, then attended landing (step 10), then one measured routing decision. The console shows holds, queue, the pool and spend | late Nov | early Jan |
-| M2 full MVP | Every §9.3 criterion: judge pinned (step 15), the qualified judge (Phase 1), post-deploy check and rollback exercised (step 12), stale receipts (Phase 2), Elenchus and a second ecosystem, the corpus against plain Claude Code, the replay's routing decision | late Jan | late Feb |
+| M2 full MVP | Every §9.3 criterion: judge pinned (step 15), the qualified judge (Phase 1), post-deploy check and rollback exercised (step 12), stale receipts (Phase 2), Elenchus and a second ecosystem, the corpus against plain Claude Code, the replay's routing decision | late Jan | mid-Feb |
 | M3 after MVP | Second provider, writable routing and pool settings, customer keys, schedules | not before March by design | — |
 
 - **What moves the dates.** Landing throughput, not authoring:
     - 93 merges in the week of Sep 21, against 1 since Sep 26;
     - the weekly usage limit, which bound on Sep 22 and Oct 1;
-    - the Actions billing cap;
     - the founder answering the items below.
+
+  The Actions budget is nonzero and armed landing may run overnight (both
+  2026-10-01). Neither helps before arming. After it, landing hours roughly
+  double, which pulls M2's P80 in to mid-February. M0 and M1 are unchanged.
 - **The review's early signals still apply.** #350 should merge by Oct 8,
   and the `felix inventory` PR should open by Oct 5.
 - **The console is read-only by roadmap decision** (Phase 0b step 6).
   Consent stays the founder's GitHub merge. A console that acts would
   change the roadmap, so only the founder can choose it.
+
+**Answered by the founder on 2026-10-01, later the same day.** Do not ask
+these again.
+- **GitHub Actions has a nonzero budget.** The 09-25 billing stop no longer
+  binds.
+- **Overnight landing (F2 changed).** Once landing is armed (Phase 0b), it
+  may run overnight with the Mac kept awake, when weekly usage allows.
+  Before arming, nothing lands unattended. The roadmap text is in #389
+  (commit 636a090e). Those added lines need the founder's yes before the
+  carrier merges #389.
+- **Replay.** Separate `claude -p` arms run by an attended driver on his
+  subscription are fine and sit outside D3. About $410 of usage is fine.
+  Both hold "as long as properly used": the protocol's isolation, pinning
+  and go/no-go rules are the conditions.
+- **Seeded corpus:**
+    - lease A, no shell;
+    - the sealed commitment is not posted publicly; its hash stays in the
+      memory root, and every result says "sealed privately";
+    - hand-labelling is introduced later, so until then results report judge
+      agreement only, marked "no human label sample yet";
+    - a weak result does not narrow the roadmap. Find out why: seed
+      difficulty, the probes' reach, hints, the request's wording. This is
+      in #389, §5.
 
 **The founder's open items.** None blocks the queue above except where it
 names one.
@@ -342,21 +368,10 @@ names one.
 - Whether the `independence` gate check, which enforces with 4 of 6
   controls, is grandfathered under amendments §2.1.
 - A one-word rating of #389 (yes, partial or no) once it has landed.
-- The API key for capability item 5, when asked.
-    - **Recommended:** make it a spend-limited key or workspace. The binary's
-      own cap is soft, so this is the only hard bound.
-- **The replay:**
-    - whether its separate `claude -p` arms, started by an attended driver on
-      his subscription, sit outside D3 (the protocol assumes they do);
-    - about $410 of usage;
-    - a run after a weekly reset.
-- **The seeded corpus:**
-    - lease A (no shell; recommended) or lease B;
-    - a spending ceiling;
-    - whether to post the sealed commitment publicly;
-    - a person for the 20% label sample;
-    - whether an underpowered result should narrow at all. That would be a
-      roadmap amendment.
+- The API key for capability item 5, and whether it is spend-limited.
+  Ask only when item 5 is near (founder, 2026-10-01: "worry about it once we
+  need it").
+- The corpus's spending ceiling, when the corpus is about to run.
 - **Whether the console should ever act.** It is read-only by roadmap
   decision (Phase 0b step 6), and consent is his GitHub merge.
 - **An input-rewriting consequence floor:** declined by default. Building it

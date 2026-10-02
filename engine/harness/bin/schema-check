@@ -75,6 +75,29 @@ OUT=""
 add() { OUT="${OUT:+$OUT
 }$1"; }
 
+# A land table (lib/land-table.sh) is held to its own schema rule as well as
+# to its cells: which kinds exist, what each column takes, and that only a
+# session or founder row may bind a protected path. Its reader refuses such a
+# row when it lands and drops it, so a row refused here never merges green.
+# The library is this engine's, loaded the first time a land table is met;
+# one that cannot be loaded is a table that cannot be examined, never a clean
+# one. One refusal per line: <file>:<line> TAB land-<reason> TAB <detail>.
+LAND_LOADED=""
+land_check() {   # <file>
+  if [ -z "$LAND_LOADED" ]; then
+    # shellcheck source=../lib/land-table.sh
+    . "$HERE/lib/land-table.sh" >/dev/null 2>&1
+    LAND_LOADED=1
+  fi
+  if ! command -v felix_land_malformed_in >/dev/null 2>&1; then
+    printf '%s:-\tunexaminable\tlib/land-table.sh could not be loaded, so its schema rule was not applied\n' "$1"
+    return 0
+  fi
+  felix_land_malformed_in < "$1" 2>/dev/null \
+    | F="$1" LC_ALL=C awk -F'\t' 'NF >= 2 { printf "%s:%s\tland-%s\t%s\n", ENVIRON["F"], $1, $2, $3 }'
+  return 0
+}
+
 while IFS= read -r line; do
   [ -n "$line" ] && add "$SCHEMAS:$line"
 done <<EOF
@@ -101,7 +124,10 @@ while IFS= read -r entry; do
   fi
   res="$(felix_table_check "$SCHEMAS" "$f")"; rc=$?
   case "$rc" in
-    0) ;;
+    0) if [ "${f##*/}" = "land.tsv" ]; then
+         res="$(land_check "$f")"
+         [ -n "$res" ] && add "$res"
+       fi ;;
     1) add "$res" ;;
     *) add "$(printf '%s:-\tunexaminable\t%s' "$f" "$(printf '%s' "$res" | cut -f3 | head -1)")" ;;
   esac

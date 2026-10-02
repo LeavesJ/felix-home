@@ -8,432 +8,139 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	cbfe9b159b48e218ba36b80d0126f392e6c0dd66	0.49.256
-run	427	4777	11
---blocked 1 makes its tool call with no result blocked	1
---days 1 leaves out the chips of a session two days old	1
---live 1 makes a session 3 minutes old not live	1
---no-gh asks gh nothing	1
---no-gh reports no row pr-open or pr-closed-unlanded	1
---no-gh says unknown for what only GitHub could say	1
---no-host reports no row live, question, blocked or chip-unstarted	1
---no-host says unknown for the worktree whose session asked a question	1
-D1: a ? four paragraphs back, in a text that makes no offer, is no question	1
-D1: a ?? inside a code span is no question	1
-D1: a last paragraph of single lines, one of them ending on ?, is a question	1
-D1: a line of spaces and a tab is a blank line, so the ? before it is four paragraphs back	1
-D1: a plain summary, even one saying nothing needs your decision, is no question	1
-D1: a question followed by one more paragraph is a question	1
-D1: a question in bold followed by a statement is a question	1
-D1: a question inside double quotes is no question	1
-D1: an offer that asks and then goes on on the same line is a question	1
-D1: an offer with no ? is a question	1
-D1: blank lines after the question leave it in the last paragraphs, a question	1
-D1: the note of a long question is the text's last 160 characters	1
-D1: the note of a short question is the whole text, a line break read as a space	1
-D2: a file under subagents/workflows/ written 2 minutes ago counts as well	1
-D2: a session quiet two hours on a subagent call is live when a file under its subagents/ was written 2 minutes ago	1
-D2: an older session's subagent writing now makes the worktree live, and the newest session's question stands	1
-D2: and it is not blocked, since its subagents wrote within --blocked	1
-D2: and its age is its newest file's, 0 hours	1
-D2: and under --blocked 40 they keep it from being blocked	1
-D2: subagents that last wrote 30 minutes ago make it live, and under the default --blocked 20 still blocked	1
-D2: subagents that last wrote 90 minutes ago make it neither live nor unblocked	1
-D3: under --no-gh the open PRs not listed are stated on the cover row prs	1
-D3: under --no-host the chips not read are stated on the cover row chips	1
-D3: when gh lists its limit of 1000, the cover row prs says partial,unknown:unproposed	1
-D3: with no gh on PATH, likewise	1
-D4: and one from a session 20 days old is not	1
-D4: and under --days 3 it says 3 days	1
-D4: by default a chip from a session 10 days old is listed	1
-D4: the human view states the window: chips from the last 14 days	1
-D5: FELIX_INVENTORY_TEMP_ROOTS, colon-separated, replaces the list: of five paths only the two under its roots are temp	1
-D5: a worktree under a temporary directory carries the word temp in its detail	1
-D5: an orphan under one carries temp too	1
-D5: and its states are computed as for any other: it still leads with uncommitted	1
-D5: and the human view lists a worktree whose session asked in its needs-action group, question	1
-D5: no row that is not a directory carries temp: branches, remote branches, PRs, chips, handoff sections, cover rows	1
-D5: of eight paths, the four under TMPDIR, /tmp, /private/tmp or /private/var/folders are temp, and no other	1
-D5: the human view lists them under "in temporary directories", after the groups that need action and before the live and landed counts	1
-D5: with it naming a directory outside the fixture, no fixture row carries temp, and each keeps its states	1
-a QUIT mid-run leaves no scratch behind	1
-a branch tracking origin/main, pushed under its own name with no pull request, is unproposed	1
-a branch whose pull request was closed but whose content main holds is landed	1
-a branch with a commit on no remote leads with unpushed	1
-a chip title's backslash prints as a backslash, with no control byte	1
-a clean worktree on a squash-merged branch, its pull request's head at the tip, is landed and nothing else	1
-a clean worktree that changed nothing is no possible-duplicate of the others that changed nothing	1
-a detached worktree whose index holds an earlier HEAD's tree leads with hazard:staged-revert	1
-a directory beside the worktrees that git no longer lists is an orphan	1
-a directory named with a glob character is an orphan, not hidden by the tracked directory its name globs to	1
-a fresh subagent transcript under the newest session makes its worktree live, though it ends on a question (D2)	1
-a listed worktree whose .git file is gone is an orphan of the repository, not the checkout around it	1
-a live session in a directory whose record name Claude Code cuts at 200 makes it live	1
-a live session in a non-ASCII directory, filed as Claude Code files it, makes it live	1
-a live session whose file name holds a tab is live, and neither a question nor blocked	1
-a live worktree whose tool call has waited past --blocked is listed under blocked, rather than only counted	1
-a local branch changing two paths, one of which main holds, is unpushed	1
-a local branch whose tip precedes a merged pull request's head is landed, though main's squash of it was edited	1
-a newest session that is not JSON says unknown, rather than passing as ended on no question	1
-a pending section a partial clone cannot read is not said to have no Next lines	1
-a plain directory's orphan count leaves out what the repository's ignore file ignores	1
-a pushed branch with no pull request, its content not on main, leads with unproposed	1
-a question answered by a later human message is no question, and an older session's question is not the newest's	1
-a question ending in ?** and followed only by a system envelope still leads with question	1
-a question whose note is cut inside a character is still a question	1
-a remote branch that moved on from its local namesake, content not on main and no pull request, has a row, unproposed	1
-a remote branch with no pull request and no local copy is unproposed	1
-a section waiting in docs/handoff/pending on main is handoff-pending, carrying both of its Next lines	1
-a worktree on a branch tracking origin/main, pushed under its own name with an open pull request, is pr-open	1
-a worktree pruned from a directory where git lists no worktree any more is still an orphan	1
-a worktree whose changed files hold main's content, whose deleted file main lacks too, and whose other file is ignored, is landed and nothing else	1
-a worktree whose index holds its branch's earlier tip, after the branch moved on from another checkout, leads with hazard:staged-revert	1
-a worktree whose newest session cannot be read says unknown rather than passing as clean	1
-a worktree whose newest session ended on a question with nothing human after leads with question	1
-a worktree whose newest session ends on a tool call with no result, 2 hours old, leads with blocked	1
-a worktree whose newest session was written 3 minutes ago leads with live	1
-a worktree whose only changed-looking file sits under a clean filter is not called uncommitted, and says unknown	1
-a worktree whose path holds a line break makes no row of the directory the break spells, and no git runs there	1
-a worktree whose pull request was closed unmerged, its content not on main, leads with pr-closed-unlanded	1
-a worktree with a staged edit and an untracked file whose contents main lacks leads with uncommitted	1
-an orphan whose every file is in an object counts none	1
-an orphan's ignored file whose content is in no object is counted, not passed over	1
-an uncommitted worktree whose changed file's content an object holds says none of its content is in no object	1
-an undecided row lists every state it could not decide, the first of them too	1
-and a staged edit that no earlier tip holds is no staged revert	1
-and each row names its own repository	1
-and every --tsv byte is valid UTF-8	1
-and it does not say hold	1
-and it ends with counts of live and landed	1
-and it is landed too, live being the one state landed allows	1
-and it is not called unproposed, since no pull request is known to be absent	1
-and it is not landed	1
-and it is not unproposed, since a closed pull request has it as head	1
-and it is not unproposed, since it is on no remote	1
-and it is not unpushed	1
-and it is the chip neither started nor dismissed, named by its title or task id	1
-and it says none of ready, hold or founder	1
-and it says unknown, claiming no pull request open or absent	1
-and its content column says partly	1
-and its detail counts the 2 files whose content is in no object, and not its .git link	1
-and its label felix:founder says founder	1
-and its row says git marks it prunable	1
-and its tool call with no result, 3 minutes old, is not yet blocked	1
-and not landed	1
-and not ready, though felix/ready sits on its head's parent	1
-and not the lines of its other lists	1
-and outside a temporary directory it is listed under question, its listing saying live	1
-and standing in a linked worktree reads the same repository	1
-and the first repository's rows are the ones reading it alone gives	1
-and the one updated 2 hours ago carries 1 to 3, its own age	1
-and what needs action comes in the spec's order: hazards, questions, uncommitted, unpushed, unproposed	1
-both worktrees holding one branch lead with hazard:shared-branch	1
-each --repo is read: the second repository's unpushed branch has its row, and it is unpushed	1
-each of the five open pull requests has a row that is pr-open	1
-every --tsv row has eight tab-separated fields, and there are rows	1
-every gh call it made is a read: pr list, view or checks, repo view, auth status, or an api GET	1
-every row fills its kind, repo, ref and states	1
-every row names the one repository it was run in	1
-every row prints its states in the spec's table order, so the first is its headline	1
-every worktree, orphan, unchecked-out branch, remote-only branch and open pull request in the fixture has a row naming it	1
-exactly one chip is chip-unstarted: of five, one was started, one dismissed, one is older than the default 14 days of --days (D4) and one is another repository's	1
-felix inventory --repo on a directory that is no repository exits nonzero, since it cannot read one	1
-felix inventory --tsv --no-gh exits 0	1
-felix inventory --tsv --no-host exits 0	1
-felix inventory --tsv --repo DIR --repo DIR, run from outside any repository, exits 0	1
-felix inventory --tsv exits 0 over a repository it can read	1
-felix inventory consults gh when gh is on PATH	1
-felix inventory with no flag exits 0	1
-felix with no arguments lists felix inventory in the grouped help	1
-inventory A100: a chip proposed in a removed worktree's sessions still counts	1
-inventory A102: a pr row whose branch no record names has owner - and is not live	1
-inventory A102: and under --no-host its owner is unknown and live is unknown	1
-inventory A103: and with no derived owner/repo no pr-link names a session, and no record makes an owner	1
-inventory A103: with a local-path origin gh runs in the repository with no -R, and cover prs names the bare command	1
-inventory A104, N15: owner/repo comes from each URL form, a non-github host keeps its host, and a port is no part of the host	1
-inventory A105: the view opens with the fixed read-only sentence	1
-inventory A106, A68: the view ends with the counts line, one orphan holding nothing unique, at least one landed	1
-inventory A106: after the sentence, the view names the repository, then one line per cover facet with its detail, in order	1
-inventory A106: groups for blocked, uncommitted and unpushed come in the fixed order, each headed with its count, and there is no live group	1
-inventory A107: an undecided row with content unknown is counted, not listed	1
-inventory A108: a temp row is listed once, under in temporary directories, and the uncommitted group's count leaves it out	1
-inventory A109: the six inventory libraries exist and each is under 500 lines	1
-inventory A10: an inventory leaves every repository byte-identical, its index and directories untouched, though a plain git status would rewrite the index	1
-inventory A110: no inventory library uses a here-document or here-string, jq, python, node or claude	1
-inventory A111: no hook and no other library names the inventory, and felix names felix_inventory only after audit's early arm	1
-inventory A111: the host adapter runs no git	1
-inventory A112: the inventory libraries name no project	1
-inventory A113: a dirty file whose content is already the default branch's is no uncommitted work	1
-inventory A114: and that nested worktree's own row holds uncommitted	1
-inventory A115: a first human text that differs at decoded character 120 starts nothing, and one equal through 120 starts its chip	1
-inventory A116: a listed worktree holding no working tree of this repository holds orphan, with orphan content, and no orphan row besides	1
-inventory A116: and one holding another repository is uncommitted-unknown and never landed	1
-inventory A117: an ignored new file is no uncommitted work	1
-inventory A118: a worktree's content is the worse of its branch's and its uncommitted content's, and a partly tip alone is partly	1
-inventory A119: cover chips says the --days window it used	1
-inventory A11: every git call carries GIT_NO_LAZY_FETCH=1, --no-optional-locks, --literal-pathspecs and -c core.fsmonitor=false before its subcommand, none fetches or writes, and every status ignores dirty submodules	1
-inventory A120: a handoff row's age is the hours since its file's last commit, 30h20m, and its owner and content are -	1
-inventory A12: a filter's clean command never runs, and a filtered path that differs is uncommitted-unknown, content unknown, never landed	1
-inventory A13: gh's two calls for a repository keep their state and cache in one scratch directory outside every repository and HOME, gone after the run	1
-inventory A14: the scratch directory is removed when the run is sent HUP	1
-inventory A14: the scratch directory is removed when the run is sent INT	1
-inventory A14: the scratch directory is removed when the run is sent TERM	1
-inventory A15: nothing under HOME or the memory root changed, and the run read the records: it printed a chip row	1
-inventory A16, N6: gh is asked pr list twice per repository, in --repo order, with the stated arguments	1
-inventory A16: each gh call runs with GH_NO_UPDATE_NOTIFIER=1 and GH_PROMPT_DISABLED=1, and nothing else touches the network	1
-inventory A17: --no-gh runs gh zero times, and cover prs says --no-gh	1
-inventory A18, A43: a worktree whose path holds a tab gets one row, its ref the path with the tab as a space	1
-inventory A18: a chip title holding a line break and a tab prints on its one line, each as a space	1
-inventory A18: every row has eight fields, none empty, of a kind the contract names, with no header and no row of kind repo	1
-inventory A19: a repository's rows come cover, worktree, branch, remote, pr, orphan, handoff, chip, and this one has each	1
-inventory A19: worktree rows come in git worktree list order	1
-inventory A1: and at least five of its rows are cover rows	1
-inventory A1: felix inventory runs from a plain clone with no home and no memory root, exits 0 and prints eight-column rows	1
-inventory A20: each repository read has five cover rows, default prs sessions chips objects, with owner, age and content -	1
-inventory A21: age_h is the floor of whole hours: a tip committed 50h40m ago is 50	1
-inventory A22, N5: cover default is read, its ref the resolved target and its sha8, fetched 0h ago for a clone fetched just now	1
-inventory A23: a clone with no origin has an unknown default, said once, with the unknowns it causes	1
-inventory A23: and its main worktree and its branch have content unknown, are never landed, and carry unknown entries	1
-inventory A24: origin/main stands in when origin/HEAD is gone, and origin/master after it, which has no fetch time	1
-inventory A25: cover prs reads the gh command and the PR count	1
-inventory A26, N10: a pushed branch no listed PR heads is unproposed-unknown, not unproposed, and its content is unknown	1
-inventory A26: a gh listing of 1000 PRs is partial, unknown:unproposed, and says older PRs are not seen	1
-inventory A27: gh missing from PATH is unknown, gh not found, and the run still exits 0	1
-inventory A28: a failing gh is unknown with its first stderr line cut to 120 bytes on a whole character	1
-inventory A28: and a two-byte character across byte 120 is left out whole, 119 bytes	1
-inventory A29: when only the second gh call fails, PR facts are unknown and no row is pr-open	1
-inventory A2: felix's help, with no arguments and as felix help, has one line that begins felix inventory	1
-inventory A30: and a never-pushed branch holds no PR state and no PR unknown: it is exactly unpushed	1
-inventory A30: under --no-gh a pushed branch carries unknown:unproposed	1
-inventory A31: and with --no-host every worktree row's owner is unknown and it carries unknown:live, unknown:question and unknown:blocked	1
-inventory A31: and with no session records every worktree row's owner is unknown and it carries unknown:live, unknown:question and unknown:blocked	1
-inventory A31: with --no-host, sessions and chips are unknown and say why once	1
-inventory A31: with no session records, sessions and chips are unknown and say why once	1
-inventory A32: a records root holding nothing for a path reads as cover sessions read, under the literal $HOME/.claude/projects	1
-inventory A32: and the main worktree's owner is -, and it holds no host state and no host unknown	1
-inventory A33: a full clone's cover objects is read	1
-inventory A33: a partial clone's cover objects is partial and says nothing was fetched, and the run fetched nothing into it	1
-inventory A34: under git older than 2.44 a partial clone is refused, named, and left as it was, and the other repository still prints	1
-inventory A35, A114: a clean checkout of the default branch is landed and nothing else, owner -, though a linked worktree nested in it is dirty	1
-inventory A36: a local branch covers its remote only when the remote tip is its tip or an ancestor: ahead and same have no remote row, behind has one	1
-inventory A37: a branch covers its upstream under another name, never the default branch, and origin/main is never a remote row	1
-inventory A38: an open PR no local branch proposes is a pr row whose states are pr-open and whose detail starts with its head	1
-inventory A39: a branch proposes a PR through its upstream's name, so that PR is no pr row and the branch is pr-open with it	1
-inventory A3: felix inventory -h and --help print the usage to stdout, exit 0 and write nothing to stderr	1
-inventory A40: a branch named like the default branch heads no PR: local main, checked out nowhere, is landed and nothing else	1
-inventory A41: a pending section on the default branch is a handoff row, handoff-pending, naming its two Next items	1
-inventory A41: and neither a working-tree-only .md file nor a .txt file in pending/ is one	1
-inventory A42: a section with no Next line says so	1
-inventory A43: the tab worktree is uncommitted-unknown, never landed, and its detail says why	1
-inventory A44: a listed worktree whose directory is gone still gets a row that says so	1
-inventory A45: a bare main has no worktree row, and its linked worktree has one	1
-inventory A46: an unborn repository is read, not refused: five cover rows, default unknown	1
-inventory A47: a branch the default branch reaches is landed, its content landed	1
-inventory A48: a squash-landed branch never pushed is landed by content alone, even under --no-gh, with no unknown	1
-inventory A49: half its paths on main is partly, none is not, and both are unpushed	1
-inventory A4: a bad argument (--blocked x) exits 2, prints nothing, and says why on one line ahead of the usage on stderr	1
-inventory A4: a bad argument (--days ' 3') exits 2, prints nothing, and says why on one line ahead of the usage on stderr	1
-inventory A4: a bad argument (--frobnicate) exits 2, prints nothing, and says why on one line ahead of the usage on stderr	1
-inventory A4: a bad argument (--live -1) exits 2, prints nothing, and says why on one line ahead of the usage on stderr	1
-inventory A4: a bad argument (--live 1.5) exits 2, prints nothing, and says why on one line ahead of the usage on stderr	1
-inventory A4: a bad argument (--live 1234567, seven digits) exits 2, prints nothing, and says why on one line ahead of the usage on stderr	1
-inventory A4: a bad argument (--live abc) exits 2, prints nothing, and says why on one line ahead of the usage on stderr	1
-inventory A4: a bad argument (--live with an empty value) exits 2, prints nothing, and says why on one line ahead of the usage on stderr	1
-inventory A4: a bad argument (--repo with no value) exits 2, prints nothing, and says why on one line ahead of the usage on stderr	1
-inventory A50: a deletion counts as landed when the default branch lacks the path too	1
-inventory A51: a merged PR whose head is the tip, or descends from it, lands the branch though main reverted the change	1
-inventory A52: commits on no remote-tracking ref are unpushed, and the detail gives the count, 2	1
-inventory A53: a pushed branch with no PR is unproposed	1
-inventory A53: and one whose newest PR merged before more commits is unproposed, naming that PR	1
-inventory A54, N9: the newest PR merged and commits came after: content not, unproposed naming it, and not pr-closed-unlanded	1
-inventory A54: the newest PR closed unmerged, content not landed: pr-closed-unlanded	1
-inventory A55: the PR flags read ready, hold, founder, draft and conflicting, in that order, joined by spaces	1
-inventory A56: ready is a felix/ready status context that succeeded, so PR 41's lookalike is no ready	1
-inventory A56: ready is a felix/ready status context that succeeded, so PR 42's lookalike is no ready	1
-inventory A56: ready is a felix/ready status context that succeeded, so PR 43's lookalike is no ready	1
-inventory A57: the label felix:founder reads founder	1
-inventory A58: a branch checked out in two worktrees heads both rows with hazard:shared-branch	1
-inventory A58: and each detail names the other	1
-inventory A59: an index staged back to an earlier tip heads with hazard:staged-revert and names that tip	1
-inventory A5: six digits is the longest number, and leading zeros are decimal: --live 010 holds a 9-minute session live, --live 008 does not	1
-inventory A60: a soft reset is no staged revert, nor an unknown one	1
-inventory A61: with no reflog, a staged change makes staged-revert unknown, and the row is not landed	1
-inventory A62: held states print in the fixed order with no spaces, live first	1
-inventory A63: landed comes after live, the one state that may sit beside it	1
-inventory A64: no row in r with or without gh or host records is landed beside an unknown other than unknown:live	1
-inventory A64: nor in the run over the repository with no origin	1
-inventory A65: two unpushed branches carrying the same change are possible duplicates of each other, said at the end of each detail	1
-inventory A66: the same path with different blobs is no duplicate, nor is one branch in two worktrees	1
-inventory A67: a worktree git forgot, beside one it lists, is an orphan counting its unique file, content not, and no worktree row	1
-inventory A68: that orphan's row counts none of its files, and its content is landed	1
-inventory A69: an untracked checkout inside the main worktree makes its parent a search parent, and a plain sibling holding nothing tracked is an orphan	1
-inventory A6: a path that is not a git repository exits 1, is named on stderr, and the others still print	1
-inventory A70: a nested repository, a directory naming another live repository's worktree, and a tracked directory are never orphans	1
-inventory A71: the main worktree's parent is never a search parent	1
-inventory A72: ignored files over 1 MiB are said, not skipped, and the orphan that passed one over is not landed	1
-inventory A73: an ignored unique file under the cap is counted in the ignored clause	1
-inventory A74: a worktree under a temporary root carries the element temp, its twin outside does not, and their states are the same	1
-inventory A75: a root given through a symlink matches the path it resolves to, whole components only, and the seam's roots are the only ones	1
-inventory A76: records filed under that name make the worktree's owner	1
-inventory A77: a character beyond the BMP is two dashes in the record directory's name	1
-inventory A78: records filed under the resolved spelling of a symlinked path are found	1
-inventory A79: a long name resolves to its single hashed record directory	1
-inventory A79: and two candidates make the owner and the host states unknown	1
-inventory A7: repositories print in --repo order, the second's rows after all of the first's	1
-inventory A7: rows print in --repo order: every row of the first repository comes before the second's	1
-inventory A80: activity counts every file under the session's directory, so a tool result written 2 minutes ago makes it live, 0 hours old	1
-inventory A81: the owner is the newest session, and live follows its activity	1
-inventory A82: a tool call pending past --blocked with nothing newer under the session is blocked, and says how long it has waited	1
-inventory A83: a file under the session's directory newer than --blocked means the call is still working, not blocked	1
-inventory A84: a final text that asks, with nothing human after it, is a question quoting its ending	1
-inventory A85: human text after the ask clears it; a tool result, a reminder-led message or a meta record does not	1
-inventory A86: fenced code, code spans, double quotes and blockquotes are set aside before asking	1
-inventory A87: an ask phrase counts as whole words only, and not after a negation in its own clause	1
-inventory A88: a ? followed only by closing marks asks, and one four paragraphs back does not	1
-inventory A89: a session file that is bad-cut answers unknown:question, never landed	1
-inventory A89: a session file that is bad-empty answers unknown:question, never landed	1
-inventory A89: a session file that is bad-nojson answers unknown:question, never landed	1
-inventory A8: with no --repo it reads the repository holding the working directory, and --repo on a linked worktree reads its repository, repo the main worktree's path	1
-inventory A90: a sidechain record and a record of another type after the final text are passed over	1
-inventory A91: a final text past the last 256 KiB makes question unknown, and a small file with no text makes it not held	1
-inventory A92: a subagent worktree names its spawning session and the agent's description, and the agent's file makes it live	1
-inventory A93: a meta file for another path adds nothing, and the search leaves no unknown	1
-inventory A94: a helper transcript's question and pending call make its parent neither a question nor blocked	1
-inventory A95: a spawn_task proposal with a task id is an unstarted chip owned by its session, its detail the title, 0 hours old	1
-inventory A96: a later dismiss_task in the same session withdraws its chip, whatever its result	1
-inventory A97: a session whose first human text is the prompt, behind a reminder and as a second text item, starts its chip	1
-inventory A98: a tool schema naming spawn_task is no proposal, and the prompt as a second human text starts nothing	1
-inventory A99: a chip from a session 20 days old is read under --days 30 and not under the default 14	1
-inventory A99: a session modified before the proposal does not start it	1
-inventory A9: GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE in the environment do not redirect the read	1
-inventory B1: a file in the record directory outside every session's own directory, the auto-memory's MEMORY.md written a minute ago, is no activity: the worktree whose one session last worked 3 hours ago is not live, and holds its uncommitted work	1
-inventory B1: and the view lists that worktree under uncommitted, rather than only counting it live	1
-inventory B2: an orphan holding a file the run cannot read, before a file whose content is in no object, counts that file, says a file could not be read, and its content is not	1
-inventory B2: and an orphan whose only other file is in an object has content unknown, never landed, and says a file could not be read	1
-inventory B2: and the view counts neither as an orphan holding nothing unique	1
-inventory B3: a commit object one branch's history needs and the clone lacks leaves another branch's reading alone: the healthy one is unpushed, content not, never landed	1
-inventory B3: and the broken branch's content is unknown, which says it could not be read, and it is never landed	1
-inventory B4: a branch whose merged PR's head was deleted on merge and pruned, with a commit after the merge, is unpushed and unproposed, naming that PR, and not landed	1
-inventory B4: and a branch that never had a remote-tracking ref, its PR merged and a commit after, is unproposed too, naming its PR	1
-inventory B4: and its detail says its upstream is gone	1
-inventory B5: a PR merged into another PR's branch, not the default branch, does not land its head: that branch is not landed, and its content, nowhere on main, is not	1
-inventory B5: and the view lists that branch rather than counting it landed	1
-inventory B6: an orphan directory the run cannot enter has content unknown, never landed, and says it could not be read	1
-inventory B6: and the view counts it as no orphan holding nothing unique	1
-inventory B7a: and the view lists that worktree under uncommitted, as it does when the file is read	1
-inventory B7a: read, a worktree whose one session last worked 3 hours ago is not live, though its file gained a bookkeeping line a minute ago (the control)	1
-inventory B7a: unread, that worktree's live is unknown, not decided from the file's mtime, and its uncommitted work stays	1
-inventory B7b: read, the newest record naming w3 is s-7new's: it owns PR #7, which is live, and the chip its prompt started is no row (the control)	1
-inventory B7b: unread, s-7new's mtime is later than the older owner's record, so PR #7's owner is unknown and its live is unknown, not s-7old and not decided	1
-inventory B7c: and a chip proposed before that file's mtime is unknown:chip-unstarted, not held as chip-unstarted	1
-inventory B7d: a record directory the run cannot enter gives owner unknown and live, question and blocked unknown, not owner - and none held	1
-inventory B7d: and the sessions cover row says a session file could not be read	1
-inventory B7d: read, the worktree is live and its newest session s-7d asks a question (the control)	1
-inventory B8: when that earlier tip's commit object is gone, the check could not be made: unknown:hazard:staged-revert, not no hazard	1
-inventory B8: with every object present, an index holding an earlier tip's tree is a staged revert (the control)	1
-inventory G1: and the human view's line for the default facet says it	1
-inventory G1: when the pending directory's tree cannot be read, the default cover row's detail holds the element handoff sections not read	1
-inventory G1: with the tree read, the pending section is a handoff row and the default cover row says nothing of sections not read (the control)	1
-inventory G2: and with CDPATH set every line of --tsv is a row of eight fields, nothing printed between them	1
-inventory G2: with CDPATH naming decoys of the same names, that orphan still reads not, never landed, and counts 1 of 1	1
-inventory G2: without CDPATH, the orphan holding one file in no object has content not, is not landed, and counts 1 of 1 (the control)	1
-inventory G3: with the default branch unknown, a clean worktree reads unknown:uncommitted, not uncommitted and not landed, under a default cover row of unknown	1
-inventory G4: each of dupx, origin/dupx and dupy is a possible duplicate, and dupy's names both of the others (the control)	1
-inventory G4: possible-duplicate never names a row on the same branch: dupx's names dupy and not origin/dupx, and origin/dupx's names dupy and not dupx	1
-inventory M4-B2: read whole, each of s2's five orphans holds content in no object and reads not, not landed, with nothing said unread (the control)	1
-inventory M4-B2b: a file deleted between the listing and the hash was never read: the orphan's content is unknown, never landed, and files that could not be read are said	1
-inventory M4-B2d: an ignored file the run cannot read leaves the orphan's content unknown, never landed, and is said as ignored files that could not be read	1
-inventory M4-B2f: a subdirectory the listing cannot enter leaves the content unknown and is said as files that could not be read: 1 files could not be read	1
-inventory M4-B2g: an ignored directory the run cannot enter does the same: content unknown, never landed, said as ignored files that could not be read	1
-inventory M4-B2h: an ignored file deleted between the listing and the hash: content unknown, never landed, and ignored files that could not be read are said	1
-inventory M4-B3: walked, wl's blobs are main's, so its content is landed and nothing is unpushed (the control)	1
-inventory M4-B3: when wl's own walk dies, its content is unknown, never landed by blob equality, and unpushed is unknown, not no	1
-inventory M4-B3m: with PR #12's head unwalkable beside it, b1 is still landed through #11's head, and b2 is unknown, not not	1
-inventory M4-B3m: with only PR #11 merged, b1 (its head's parent) is landed and b2 is not (the control)	1
-inventory M4-B6: the orphan directory the run cannot enter is said unread by both listings: 1 files could not be read and 1 ignored files could not be read	1
-inventory M4-B7a: read, the worktree's owner is s-7a and it holds neither question nor blocked, nor either unknown (the control)	1
-inventory M4-B7a: unread, its owner is unknown, not the session whose file could not be read, and question and blocked are unknown, not no	1
-inventory M4-B7b: read, no record names w8, so PR #8's owner is - and it is not live (the control)	1
-inventory M4-B7b: with the one session file in the window unread, PR #8's owner is unknown, not -, and its live is unknown	1
-inventory M4-B8: read whole, r8b and r8c stage a change that is no earlier tip, so neither holds the hazard nor an unknown (the control)	1
-inventory M4-B8b: a git log -g that dies, though it printed every entry, leaves the check unknown, not no hazard	1
-inventory M4-B8c: an index the run cannot read leaves the check unknown, not no hazard	1
-inventory M4-B8d: a reflog entry whose tree the clone lacks could not be compared with the index: unknown, not no hazard	1
-inventory M4-B8e: an index holding the tree of an earlier tip whose order against HEAD cannot be read is unknown, not a decided hazard	1
-inventory M4-CDPATH: with CDPATH naming a directory that holds a .git, the orphan keep2 still reads not, never landed, 1 of 1, and live2 is read as g2's own	1
-inventory M4-R4c: an unreadable file written after 4c's proposal makes it unknown, and the count is of files later than a proposal: 1, not the 2 unreadable in the scan's window	1
-inventory M4-R4c: read, chip 4c is chip-unstarted and the chips cover row says nothing unread (the control)	1
-inventory M4-R4d: read, chip 4d1 was started (no row) and 4d2 is chip-unstarted (the control)	1
-inventory M4-R4d: when the one unreadable file left no chip unknown (4d1 started, 4d2 proposed after it), the chips cover row says no count	1
-inventory N10: a squash-merged pushed branch whose path main edited since is landed by its merged PR	1
-inventory N10: and under --no-gh, rule 3's not on a pushed tip is unknown, so it is not landed	1
-inventory N11: a fork's PR is a pr row from a fork, owner -, though a session worked on a branch of its name	1
-inventory N11: and a fork's closed PR is no PR with this head: a pushed branch of its name is unproposed, not pr-closed-unlanded	1
-inventory N11: and the local branch of that name is not proposed by it	1
-inventory N12: and an open PR headed main is always a pr row	1
-inventory N13: with CLAUDE_CONFIG_DIR set, records are read under it and cover sessions names it literally	1
-inventory N14: a shallow clone's cover objects is partial and says history past the graft is absent	1
-inventory N16: no row in any run is landed while its content is not, partly or unknown	1
-inventory N1: a pr row's owner is the sessionId of the newest record on its branch, a resumed file's copied record keeping its own, and it is live	1
-inventory N1: an owner whose records are 90 minutes old leaves its pr row not live	1
-inventory N2: a session whose last record is 3 hours old is not live though a bookkeeping line touched its file a minute ago	1
-inventory N3: with no record time in the window, the file's time stands in, and the detail says so	1
-inventory N4: an assistant record that puts its message first is read by the role inside it, and a record of another type nesting a message is passed over	1
-inventory N5: and fetched 5h ago for a clone whose FETCH_HEAD is 5h10m old	1
-inventory N7: a branch whose commit sits on another remote branch only holds no state, its content not, so it is not landed	1
-inventory N7: and the view lists it under undecided, content not landed	1
-inventory N8: an inventory of a repository that shows signatures runs no gpg	1
-inventory N8: and every one carries -c log.showSignature=false, so a user's showSignature runs no gpg	1
-inventory R4a: an unreadable session file in a record directory holding no proposal, modified after a chip's proposal, makes that chip unknown:chip-unstarted, never chip-unstarted	1
-inventory R4a: and a chip proposed after that file's mtime is still chip-unstarted	1
-inventory R4a: read, both chips are chip-unstarted and neither is unknown (the control)	1
-inventory R4b: the chips cover row then says 1 session files could not be read, and says nothing of the kind when every file is read	1
-inventory RV10: a chip's title is cut to its first 120 bytes on a whole UTF-8 character: 119 bytes when a two-byte character straddles byte 120, 120 when it ends there	1
-inventory RV11: when no scratch directory can be made the run exits 1, prints nothing, says why on one stderr line, naming the scratch, and leaves no directory behind	1
-inventory RV12: an orphan holding 20001 files reads the first 20000, counts what it found among those 20000, says the rest were not read, and is not landed	1
-inventory RV1: a call pending 35 minutes is blocked from its own record, and a bookkeeping line that touched the file a minute ago neither clears it nor, under --live 30, makes the session live	1
-inventory RV1: and its detail gives the minutes waited measured from the pending record, 34 to 35 plus the run's own minutes, not from the file's time a minute ago	1
-inventory RV2: and a user record that is no human text (isMeta) after it is a record that follows it, so that session is not blocked either	1
-inventory RV2: the person's own text after a pending call answers it, so the session is not blocked	1
-inventory RV3: the newest session is the latest by record time, though its file is the older of the two	1
-inventory RV4: a last line cut before its end holds no record, so the asking text in it makes no question, and the whole lines before it say it is not unknown	1
-inventory RV5: the owner of a pull request is the session of the newest record naming its head, not the session whose file was written last	1
-inventory RV6: an owner whose own file holds a newer record on another branch is live, though its record naming the head is two hours old	1
-inventory RV7: an attachment record naming the head, newer than every user and assistant record, makes no owner	1
-inventory RV8: a pushed branch whose PR the partial list does hold keeps its content, so rule 5 does not apply: pr-open, no unknown:unproposed, content not	1
-inventory RV9: and its leading comment block, there to be read, says none of landing, lander or step 8	1
-inventory RV9: the view's header comment names no landing actor as a reader of the rows (spec section 11 row 19), and the file is there to be read	1
-its human output lists hazards before any landed item or count	1
-lib/inventory-host.sh calls no gh, which is the core's	1
-lib/inventory.sh and lib/inventory-host.sh exist, the core and the host adapter	1
-lib/inventory.sh reads no Claude Code transcript, which is the adapter's	1
-no clean filter the repository configures runs, in any run	1
-no file under gizmo, its origin or the decoy changed across these runs	1
-no file under the fixture's repositories or the scratch HOME changed across every run, nor git's object count	1
-no row is landed together with any state but live	1
-nothing decided but unknown counts items, not the repository's own unknowns, which its header states	1
-nothing under them was created, removed or touched after the first run began	1
-reading a partial clone fetches nothing into it	1
-standing in the main clone with no --repo gives the items and states --repo naming it gives	1
-the decisions' runs: felix inventory --tsv over doohickey exits 0	1
-the human view lists a live worktree whose newest session ended on a question, rather than only counting it live	1
-the label needs-founder says founder too	1
-the main worktree does not count its linked worktrees' and orphans' files as its own changes	1
-the pull request GitHub calls conflicting says conflicting	1
-the pull request labelled felix:hold says hold in its detail	1
-the pull request last updated 30 hours ago carries 29 to 31 hours, in age_h or its detail	1
-the pull request with felix/ready on its head says ready	1
-two unpushed branches making the same change are each marked possible-duplicate: the first	1
-two unpushed branches making the same change are each marked possible-duplicate: the second	1
-under --no-gh a branch only a merged pull request shows landed is not called landed	1
-under --no-gh a pushed branch whose pull requests cannot be seen says unknown	1
-under --no-gh an open pull request's branch still has a row, and it says unknown	1
-under --no-gh the human view counts a pushed branch whose content cannot be confirmed off main, rather than listing it	1
-under --no-gh what git alone decides stands: the staged revert and the unpushed branch	1
-under --no-host what git and gh decide stands: the staged revert, the uncommitted worktree and an open pull request	1
-under /bin/bash 3.2 felix inventory --tsv gives the same items and states	1
-what gh keeps of its own lands in no file under HOME	1
-when gh lists its limit of pull requests, a pushed branch with none among them is unknown, not unproposed	1
-with TMPDIR inside a clean worktree, that worktree is not called uncommitted, and nothing is left there	1
-with no gh on PATH at all, felix inventory --tsv still exits 0	1
-with no session records to read, the header says the chips are unknown, since no count does	1
+base	origin/main	1af449c729570d0379569356046e199022f1d30a	0.49.257
+run	134	5240	9
+a base that names nothing, or no base at all, cannot be told, status 2 and nothing printed, or a typo would read as current	1
+a branch both behind and owing adds two rows, behind first and then owed, or one of the two reports would be lost	1
+a branch that does not hold origin/main's commit is behind, status 0, naming the base and both commits, or a stale branch would land unannounced	1
+a branch that owes rows and is not behind adds exactly one row, a would-refuse row and nothing of another kind, or the debt would leave no record or move another count	1
+a change outside every trigger owes nothing, or a docs branch would be told it owes a version	1
+a change under engine/ that bumps no version and reruns nothing owes both rows, in table order, or the landing that forgot them goes unnamed	1
+a final row with no newline is read, and printed ending in one, or the last recipe in a table would vanish or run into the next line	1
+a five-cell row is refused as cells alone, or a stray tab would carry a column past the schema	1
+a keyed-union arg that is not a positive integer is refused as arg, or the union would key on a column that does not exist	1
+a keyed-union row is refused on a path of every protected category, or the rule would bind one resolver kind and leave the others open	1
+a kind the engine does not define is refused as kind, or a table could invent its own way to land a path	1
+a land.tsv in any directory is one by its basename, and a row added to some/dir/land.tsv escapes as verifier	1
+a narrowing path that is not a valid ERE is refused as path, or grep would match it against nothing and the narrowing row would narrow nothing	1
+a project outside any repository has no base table: status 1, and nothing on stdout or stderr, or a file on disk would pass for the base	1
+a project path spelled through a dot-dot is resolved before its table is looked up, or the same project would read two ways	1
+a project with no land.tsv at origin/main has no table: status 1, no rows and nothing malformed, or an absent table would read as a broken one	1
+a report writer that dies on an unset variable is still reached from the judge's shell, or the containment asserted next is never exercised	1
+a rerun row whose command is the dash is refused as arg, or the actor would settle the path by running nothing	1
+a resolver above a session row on the same path is refused as narrowed and the session row stands, or a row placed first would take a path back from a session	1
+a resolver on a path a founder row's ERE matches is refused as narrowed, while one on a path it does not match stands, or a literal row could carve a path out of the founder's	1
+a resolver path that is an ERE, absolute, dot-dot, dash-led, slash-ended, double-slashed or the dash itself is refused as path, or it would bind a path no change can equal	1
+a row added in the working tree only is not read, or an uncommitted edit would rewrite the recipe	1
+a row committed on local main while origin/main is behind it is not read, or the base would be whatever the local branch says	1
+a row ending in a CR is refused as cells alone, or a reader keeping the CR would bind an arg no other reader sees	1
+a row that exists only on the branch or only in the working tree is never owed, or a pull request could invent a debt the base does not hold	1
+a row the schema refuses at the base is reported on a land-table row of its own, by line and reason, and in no owed row, or a broken table would pass for a clean one or read as a debt	1
+a row whose trigger is - is never owed, not even when a file named - changes and its path is untouched, or the dash would read as a path	1
+a row with an empty cell is refused as cells alone and not as a kind, or a reader collapsing the empty cell would shift every cell after it	1
+a row with several faults reports each of them in the order path, trigger, arg, protected, duplicate, or a fixed fault would uncover another one round later	1
+a second row on the same path is refused as duplicate and the first is the one read, or one path would have two recipes	1
+a session row on every protected path is accepted, or a table could not route those paths to a session at all	1
+a three-cell row is refused as cells alone and read by no one, or a reader would invent its missing arg	1
+a trigger naming a file owes its row when that very file changes, or file triggers would bind nothing	1
+a trigger with a doubled slash, a dot-dot or a space is refused as trigger, or it would match changes nobody meant	1
+a version bump alone still owes red.tsv, since plugin.json is itself under engine/, or the bump would excuse the rerun	1
+a version-above row on .github/actions/a/action.yml is refused as protected, execute, or the landing actor could settle that path without a session	1
+a version-above row on .github/workflows/gate.yml is refused as protected, execute, or the landing actor could settle that path without a session	1
+a version-above row on a near neighbour of a protected path is accepted, or the rule would refuse by resemblance and not by the list	1
+a version-above row on engine/harness/felix is refused as protected, trust-base, or the landing actor could settle that path without a session	1
+a version-above row on engine/harness/hooks/pre-tool is refused as protected, trust-base, or the landing actor could settle that path without a session	1
+a version-above row on engine/harness/lib/escape.sh is refused as protected, trust-base, or the landing actor could settle that path without a session	1
+a version-above row on engine/harness/lib/land-table.sh is refused as protected, trust-base, or the landing actor could settle that path without a session	1
+a version-above row on engine/harness/templates/schemas.tsv is refused as protected, escape-table, or the landing actor could settle that path without a session	1
+a version-above row on engine/hooks/hooks.json is refused as protected, trust-base, or the landing actor could settle that path without a session	1
+a version-above row on exceptions.tsv is refused as protected, exception, or the landing actor could settle that path without a session	1
+a version-above row on projects/p/autonomy is refused as protected, authority, or the landing actor could settle that path without a session	1
+a version-above row on projects/p/autonomy.commission is refused as protected, authority, or the landing actor could settle that path without a session	1
+a version-above row on projects/p/capabilities is refused as protected, commission-table, or the landing actor could settle that path without a session	1
+a version-above row on projects/p/exceptions.tsv is refused as protected, exception, or the landing actor could settle that path without a session	1
+a version-above row on projects/p/gate.sh is refused as protected, trust-base, or the landing actor could settle that path without a session	1
+a version-above row on projects/p/land.tsv is refused as protected, land-table, or the landing actor could settle that path without a session	1
+a version-above row on projects/p/qualification.tsv is refused as protected, escape-table, or the landing actor could settle that path without a session	1
+a version-above row on projects/p/risk.tsv is refused as protected, escape-table, or the landing actor could settle that path without a session	1
+a version-above row on projects/p/stack.tsv is refused as protected, commission-table, or the landing actor could settle that path without a session	1
+adding a row to a land table escapes as verifier, or a branch could grant the actor a path and merge green	1
+an arg on a version-above, insertions-union, session or founder row is refused as arg, or a cell the kind never reads would pass as meaningful	1
+an empty base or one that names nothing cannot be computed, status 2 and nothing printed, or a typo would read as nothing owed	1
+an engine change left unstaged owes both rows, or a landing that commits it later would never have been told	1
+and a CR inside a cell is cells too, never kind, or the reason would depend on where the CR fell	1
+and a branch that has merged origin/main is not behind, status 1 and nothing printed, or every current branch would be reported	1
+and a checkout whose HEAD holds no commit cannot be told either, status 2, or a fresh branch would read as current	1
+and a comma added to an ecosystem.tsv row escapes as verifier too, since every exemption table is compared as its reader reads it	1
+and a real attempt still writes its row when the session exported FELIX_MERGE_DRY_RUN=1, or a session could silence the report by its environment	1
+and a refusal carries its line in the file, comments counted, or the founder is sent to the wrong line	1
+and an unknown kind is that row's only reason, its bad path and trigger unsaid, or the refusal would judge columns no kind defines	1
+and exits 1 for a sibling of an entry and for a gate.sh one directory too deep, or a star would span a slash and the base would swallow its neighbours	1
+and felix_land_malformed reports that refused row by its line and exits 1, or a table that cannot be read would pass for a clean one	1
+and felix_land_malformed_in refuses none of them and exits 0, or the design's own table would read as broken	1
+and felix_land_malformed_in refuses none of them and exits 0, or the home's own table would bind nothing	1
+and felix_land_protected prints nothing and exits 1 for each of those neighbours, or it could not say a path is ordinary	1
+and felix_land_rows prints its accepted rows and leaves out the one refused, or a broken row would bind a path	1
+and from inside it both starred entries still match as patterns, or the trust base would depend on the caller's directory	1
+and it adds exactly one row to that project's says.log, a would-refuse row and nothing of another kind, or the behind branch would leave no record or move another count	1
+and it fails closed the same way with the escape list or the execute list blanked, or with the lister gone	1
+and its data rows are those seven, verbatim and in order, so a drifted row is shown by name and not only by a hash	1
+and land.tsv is named once among the escape tables, as a basename, or a project's table under a name the engine does not know would be missed	1
+and says why: its rows exempt things from a check, which is why growth is not free there	1
+and so is a founder row on every one of them, or the founder could not keep them	1
+and so is a rerun row, or a command would rewrite a protected path unattended	1
+and so is an insertions-union row, or a protected table could be landed by concatenation	1
+and staged, it owes both rows still, or the index would hide a debt the working tree showed	1
+and that row, committed on a branch origin/main does not hold, is not read, or a pull request could rewrite the recipe that lands it	1
+and the owed row names the version and the record, which main changed and the branch did not, or a behind branch would read as having paid them	1
+and the owed row, or land-table.sh cannot read the table in the judge's shell	1
+and the schema still refuses a resolver on projects/p/gate.sh from there, or a table checked in the wrong directory would pass	1
+and the schema then refuses a version-above row on that path as protected, unknown, or the fail-closed word would protect nothing	1
+and the table validator accepts it under its schemas.tsv row, or schema-check would fail the gate	1
+and the validator refuses a three-cell row in a land table as cells, exit 1, or schema-check would pass a row the reader splits wrong	1
+and with FELIX_TABLE_SKIP exported as a pattern every line matches, the judge's owed row is the same, or a session could empty the table the judge reads	1
+and with felix_land_rows and felix_say exported by the session as functions that do nothing, the judge still writes both rows, or a session could stand in for the library	1
+and writes the behind row there, or escape.sh does not bring land-table.sh and say.sh into the judge's shell	1
+any trigger on a session or founder row is refused as trigger, or a path the actor may never write could be owed	1
+appending a comma to a founder row's last cell escapes as verifier, or the reader would drop that founder row with nobody asked	1
+but a row refused as cells claims no path, so the next row on that path stands, or a broken line would disable a good one	1
+but an unknown kind on a path an earlier row binds is a duplicate as well, or a second recipe for one path would go unnamed	1
+but not when a file it merely prefixes changes, since only a trigger ending in a slash names a directory	1
+but with the commission list blanked it says unknown and exits 0, or a missing list would let a resolver through	1
+commenting a row out escapes as verifier, or a hash mark would remove a row unseen	1
+comments, a commented-out row and blank lines are not rows, or a note in the table would bind a path	1
+creating a land table with a row where the base had none escapes as verifier, or a new project's first recipe would land unseen	1
+deleting a land table that had rows escapes as verifier, or every narrowing row in it would go at once unseen	1
+editing one cell of a row in place escapes as verifier, or a narrowing row could be turned into a resolver unseen	1
+felix-home's land.tsv holds the design's seven rows, by the hash of its data rows, or the table the founder arms is not the one designed	1
+felix_land_protected finds an ordinary engine path unprotected while its lists are loaded, exit 1 and no word	1
+felix_land_rows_in prints felix-home's seven rows exactly as written, or the landing actor would read a table the founder never armed	1
+felix_land_trust_base exits 0, printing nothing, for an instance of each of the fourteen trust-base entries, or the schema could not refuse a resolver there	1
+felix_land_would_refuse on a behind branch prints nothing on stdout or stderr and returns 0, or it could not sit inside the merge boundary unseen	1
+felix_merge_blockers on a behind and owing branch writes both would-refuse rows and no row of another kind on a real attempt, and nothing on a dry run, or the boundary never reports them or reports more than them	1
+in the judge's shell a dry run and an unset variable write no row, and a real attempt writes two, each exiting 0, or a self-governed dry run would write the report	1
+lib/land-table.sh exists and no line of it is one of felix-home's rows, or the engine would name a project's recipe	1
+naming each owed path with its kind and trigger, in table order, at HEAD, or the row would not say what is owed	1
+naming the table's line and the rule it breaks	1
+once origin/main holds the table, felix_land_table_at_base prints it as that ref holds it, or the base could not be read at all	1
+recorded under the session it ran in, with felix merge as its cause, or the row could not be joined to the attempt	1
+removing a row escapes as verifier, or dropping a narrowing row would hand its path to the actor unseen	1
+repeating a row exactly escapes as verifier, or a line the reader refuses as a duplicate would arrive unseen	1
+saying the branch is behind origin/main, or the CLI hands the report a base other than the one it compared	1
+saying which branch is behind which base, by both commits, or the row would not say what to merge	1
+schema-check passes a tree whose land table holds felix-home's seven rows, and fails one whose resolver row binds risk.tsv, or a row the reader refuses would merge green	1
+schemas.tsv declares land.tsv a tree table of path, kind, trigger and arg that may be empty, or every land.tsv would be an undeclared table	1
+swapping two rows that bind the same path escapes as verifier, or which of them stands could change with nobody asked	1
+the exemption tables are exactly ecosystem.tsv and land.tsv, or any change to a land table would not reach a person	1
+the kinds are engine constants, the design's six, with session and founder the narrowing two, or a kind could be added without an engine change	1
+the repository's toplevel is not a project, so a land.tsv at the root of origin/main is never read as one	1
+the same change with the version bumped and red.tsv rewritten owes nothing, or a row would stay owed after it was paid	1
+turning a comment into a row escapes as verifier, or deleting a hash mark would add a row unseen	1
+which lines are rows does not follow a FELIX_TABLE_SKIP the session exported, or the environment would choose the rows the judge reads	1
+while a directory trigger ending in a slash and a file trigger are accepted on a version-above row, or felix-home's own rows could not be written	1
+while an ERE on a founder row is accepted and printed as written, backslash included, or the design's own founder row would be lost	1
+while it adds exactly one would-refuse row to the widget's says.log, or cmd_merge never reaches the report	1
+while keyed-union on column 2 and a rerun command with spaces and <B> are accepted, or felix-home's own rows could not be written	1
+with FELIX_MERGE_DRY_RUN unset it adds no row, and with it 0 it adds one, or an older CLI's dry run would write the report	1
+with no origin/main the table is not read at all, local main's copy included, or a local branch could stand in for the base	1
+with no session variable the would-refuse row says unknown in the session column, or it would carry an empty cell	1

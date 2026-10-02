@@ -1480,6 +1480,10 @@ cmd_merge() {
   # and are not in its diff, so it is judged as it always was and needs no
   # installed engine at all.
   local blockers krc
+  # A dry run writes nothing: the report-only blockers read this, in the
+  # judge's child shell too, which inherits the environment and no flag. They
+  # write only on 0, so this line must survive every edit to this prologue.
+  local -x FELIX_MERGE_DRY_RUN="$dry"
   if felix_self_governed "$root"; then
     # The judge is not chosen by the environment (#260). FELIX_KERNEL named one
     # outright and is refused by name; the cache variables still compose the

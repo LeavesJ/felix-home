@@ -537,6 +537,500 @@ case "$out" in
 esac
 rm -f "$REPO/requirements.txt" "$REPO/Dockerfile"
 
+printf '\nadopting over a capabilities entry that is not a list it can read and write\n'
+# felix_adopt_capability, felix adopt and the session-start hook, over a
+# capabilities entry that is not a readable, writable regular file: a link
+# whose target is gone, a directory, a pipe, a link to a directory, a pipe or
+# a device, a file it cannot read, a file it cannot write. Each refuses with 2
+# and writes nothing, and a pipe is never opened. Written blind from a contract
+# on 2026-10-01, without the implementation in view.
+#
+# Any call that could meet a pipe would wait forever on an engine that opens
+# it, so every call here runs under a watchdog. At the deadline it stops, then
+# kills, only the tree it started, walked down from the pid it recorded. Never
+# a pattern kill: other sessions run this suite on the same machine.
+_adrwait=10
+_adrroot=0; [ "$(id -u)" = 0 ] && _adrroot=1
+_adrtree() { local c; printf '%s\n' "$1"; for c in $(pgrep -P "$1" 2>/dev/null); do _adrtree "$c"; done; }
+_adrend() {
+  local p
+  kill -STOP "$1" 2>/dev/null
+  for p in $(_adrtree "$1"); do kill -STOP "$p" 2>/dev/null; done
+  for p in $(_adrtree "$1"); do kill -KILL "$p" 2>/dev/null; done
+}
+# _adrrun DIR SECONDS CMD...: stdout, stderr and status land in DIR/out,
+# DIR/err and DIR/rc. DIR/hung holds the deadline when the watchdog ended it.
+_adrrun() {
+  local d="$1" s="$2" w i=0; shift 2
+  rm -f "$d/out" "$d/err" "$d/rc" "$d/hung"
+  ( "$@" > "$d/out" 2> "$d/err"; echo $? > "$d/rc" ) & w=$!
+  while kill -0 "$w" 2>/dev/null && [ "$i" -lt $((s * 10)) ]; do sleep 0.1; i=$((i + 1)); done
+  if kill -0 "$w" 2>/dev/null; then _adrend "$w"; echo "$s" > "$d/hung"; fi
+  wait "$w" 2>/dev/null
+  return 0
+}
+# One line per entry: kind, mode, and a link's target or a file's checksum.
+# It only tests a pipe, never opens one; an absent path is a line too.
+_adrsnap() {
+  local r f
+  for r in "$@"; do
+    if [ ! -e "$r" ] && [ ! -L "$r" ]; then printf 'absent %s\n' "$r"; continue; fi
+    find "$r" 2>/dev/null | LC_ALL=C sort | while IFS= read -r f; do
+      if   [ -L "$f" ]; then printf 'L %s -> %s\n' "$f" "$(readlink "$f")"
+      elif [ -p "$f" ]; then printf 'p %s %s\n' "$f" "$(ls -ld "$f" | cut -c1-10)"
+      elif [ -d "$f" ]; then printf 'd %s %s\n' "$f" "$(ls -ld "$f" | cut -c1-10)"
+      elif [ -f "$f" ]; then printf 'f %s %s %s\n' "$f" "$(ls -ld "$f" | cut -c1-10)" \
+                                    "$({ cksum < "$f"; } 2>/dev/null || echo unreadable)"
+      else printf '? %s %s\n' "$f" "$(ls -ld "$f" | cut -c1-10)"; fi
+    done
+  done
+}
+# _adrif DIR NAME DETAIL TEST...: a call the watchdog ended fails every
+# assertion about it, whatever its files happen to hold.
+_adrif() {
+  local d="$1" n="$2" why="$3"; shift 3
+  if [ -e "$d/hung" ]; then bad "$n" "still waiting after $(cat "$d/hung") seconds, so the watchdog ended it"
+  elif "$@"; then ok "$n"
+  else bad "$n" "$why"; fi
+}
+_adrcat()   { cat "$@" 2>/dev/null; }
+_adreq()    { [ "$(cat "$1" 2>/dev/null)" = "$2" ]; }
+_adrquiet() { [ -f "$1" ] && [ ! -s "$1" ]; }
+_adrnone()  { [ ! -e "$1" ] && [ ! -L "$1" ]; }
+_adrto()    { [ -L "$1" ] && [ "$(readlink "$1")" = "$2" ]; }
+_adrsame()  { cmp -s "$1/snap0" "$1/snap1"; }
+_adrdiff()  { diff "$1/snap0" "$1/snap1" 2>&1 | sed -n '2,9p'; }
+_adrsays()  { case "$(cat "$1" 2>/dev/null)" in *"$2"*) return 0 ;; esac; return 1; }
+_adrtold()  { case "$(cat "$1/out" "$1/err" 2>/dev/null)" in *"$2"*) return 0 ;; esac; return 1; }
+_adrnoclaim() {
+  case "$(cat "$1/out" "$1/err" 2>/dev/null)" in
+    *"already declared"*|*"declared observability for"*|*backfilled*) return 1 ;;
+  esac
+  return 0
+}
+_adrrows()  { local n; n="$(grep -cvE '^[[:space:]]*(#|$)' "$1" 2>/dev/null)"; printf '%s' "${n:-0}"; }
+_adrcaps()  { grep -vE '^[[:space:]]*(#|$)' "$1" 2>/dev/null | tr '\n' ' '; }
+_adrbytes() { [ -f "$1" ] && cmp -s "$1" "$2"; }
+_adrprefix() { [ -f "$2" ] && [ "$(head -c "$(($(wc -c < "$1")))" "$2" | cksum)" = "$(cksum < "$1")" ]; }
+_adrimplied() {  # PROJ: a stack row and a setup row for observability, and the runbook as the template has it
+  [ "$(awk -F'\t' '$5 == "observability"' "$1/stack.tsv" 2>/dev/null | grep -c .)" -ge 1 ] \
+    && [ "$(awk -F'\t' '$3 == "observability"' "$1/setup.tsv" 2>/dev/null | grep -c .)" -ge 1 ] \
+    && cmp -s "$1/setup/sentry.md" "$FROOT/harness/templates/setup/sentry.md"
+}
+_adrmodebytes() {  # FILE PERMS KEPT: FILE still has PERMS and, once readable again, KEPT's bytes
+  [ -f "$1" ] && [ ! -L "$1" ] && [ "$(ls -ld "$1" | cut -c1-10)" = "$2" ] || return 1
+  chmod u+r "$1" && cmp -s "$1" "$3"
+}
+_adremptydir() { [ -d "$1" ] && [ ! -L "$1" ] && [ -z "$(ls -A "$1")" ]; }
+_adronly()  { [ -d "$1" ] && [ ! -L "$1" ] && [ "$(ls -A "$1")" = "$2" ] && cmp -s "$1/$2" "$3"; }
+
+# ------------------------------------------------- the function, case by case
+# Each case is a fresh project at $TMP/_adr/<case>/root/proj, with link
+# targets beside it under root, so one snapshot of root before and after says
+# whether anything was written anywhere the call could reach. Half the cases
+# hold stack and setup rows already, half hold none.
+_adrnew() {
+  local d="$TMP/_adr/$1"
+  mkdir -p "$d/root/proj"
+  if [ "${2:-}" = rows ]; then
+    printf '# kind\tname\tsource\trisk\tcapability\tgrounding\nplugin\tfelix-test-kept@nowhere\t-\tlow\tbilling\tDECLARED\n' \
+      > "$d/stack.kept"
+    printf '# id\ttitle\tcapability\tcheck\nkept\tA step already here\tbilling\ttrue\n' > "$d/setup.kept"
+    cp "$d/stack.kept" "$d/root/proj/stack.tsv"; cp "$d/setup.kept" "$d/root/proj/setup.tsv"
+    mkdir -p "$d/root/proj/setup"; printf 'kept\n' > "$d/root/proj/setup/kept.md"
+  fi
+  printf '%s\n' "$d"
+}
+_adrfn() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/adopt.sh"
+             felix_adopt_capability "$1" observability "$FROOT/harness/templates" ); }
+_adrgo() {
+  _adrsnap "$1/root" > "$1/snap0"
+  _adrrun "$1" "$_adrwait" _adrfn "$1/root/proj"
+  _adrsnap "$1/root" > "$1/snap1"
+}
+_adrrefused() {  # LABEL DIR: what B, C and D share
+  local n="adopting into $1" d="$2"
+  _adrif "$d" "$n returns exactly 2" "returned [$(cat "$d/rc" 2>/dev/null)]" _adreq "$d/rc" 2
+  _adrif "$d" "$n prints nothing on stdout" "[$(cat "$d/out" 2>/dev/null)]" _adrquiet "$d/out"
+  _adrif "$d" "$n prints nothing on stderr" "[$(cat "$d/err" 2>/dev/null)]" _adrquiet "$d/err"
+  _adrif "$d" "$n leaves every entry in and beside the project as it was" "$(_adrdiff "$d")" _adrsame "$d"
+}
+
+# A1-A4 hold on the engine before this change and must keep holding.
+_adrd="$(_adrnew a1)"; _adrp="$_adrd/root/proj"
+_adrgo "$_adrd"
+_adrl="adopting into a project with no capabilities list"
+_adrif "$_adrd" "$_adrl returns 0" "returned [$(_adrcat "$_adrd/rc")] [$(_adrcat "$_adrd/err")]" _adreq "$_adrd/rc" 0
+_adrif "$_adrd" "$_adrl creates a regular file listing only observability" \
+  "$(ls -l "$_adrp/capabilities" 2>&1) [$(cat "$_adrp/capabilities" 2>&1)]" \
+  eval '[ -f "$_adrp/capabilities" ] && [ ! -L "$_adrp/capabilities" ] && [ "$(_adrcaps "$_adrp/capabilities")" = "observability " ]'
+_adrif "$_adrd" "$_adrl appends the stack and setup rows observability implies and copies its runbook" \
+  "$(cat "$_adrp/stack.tsv" "$_adrp/setup.tsv" 2>&1; ls "$_adrp/setup" 2>&1)" _adrimplied "$_adrp"
+_adrif "$_adrd" "$_adrl prints the stack rows and setup steps it added as two counts" \
+  "printed [$(_adrcat "$_adrd/out")], tables hold [$(_adrrows "$_adrp/stack.tsv") $(_adrrows "$_adrp/setup.tsv")]" \
+  eval '[ "$(_adrcat "$_adrd/out")" = "$(_adrrows "$_adrp/stack.tsv") $(_adrrows "$_adrp/setup.tsv")" ] && cat "$_adrd/out" | grep -qE "^[0-9]+ [0-9]+$"'
+
+_adrd="$(_adrnew a2 rows)"; _adrp="$_adrd/root/proj"
+printf '# declared by hand\nci\n\ntests\n' > "$_adrp/capabilities"
+printf '# declared by hand\nci\n\ntests\nobservability\n' > "$_adrd/caps.want"
+_adrgo "$_adrd"
+_adrl="adopting into a writable capabilities file without the capability"
+_adrif "$_adrd" "$_adrl returns 0" "returned [$(_adrcat "$_adrd/rc")] [$(_adrcat "$_adrd/err")]" _adreq "$_adrd/rc" 0
+_adrif "$_adrd" "$_adrl keeps every line there and appends observability as a line" \
+  "[$(cat "$_adrp/capabilities" 2>&1)]" _adrbytes "$_adrp/capabilities" "$_adrd/caps.want"
+_adrif "$_adrd" "$_adrl appends its rows after the ones already there and copies the runbook" \
+  "$(cat "$_adrp/stack.tsv" "$_adrp/setup.tsv" 2>&1; ls "$_adrp/setup" 2>&1)" \
+  eval '_adrprefix "$_adrd/stack.kept" "$_adrp/stack.tsv" && _adrprefix "$_adrd/setup.kept" "$_adrp/setup.tsv" && _adrimplied "$_adrp" && [ "$(cat "$_adrp/setup/kept.md")" = kept ]'
+_adrif "$_adrd" "$_adrl prints the two counts it added to the rows already there" \
+  "printed [$(_adrcat "$_adrd/out")], tables grew by [$(($(_adrrows "$_adrp/stack.tsv") - 1)) $(($(_adrrows "$_adrp/setup.tsv") - 1))]" \
+  eval '[ "$(_adrcat "$_adrd/out")" = "$(($(_adrrows "$_adrp/stack.tsv") - 1)) $(($(_adrrows "$_adrp/setup.tsv") - 1))" ]'
+
+_adrd="$(_adrnew a3)"; _adrp="$_adrd/root/proj"
+printf 'ci\nobservability\n' > "$_adrp/capabilities"
+_adrgo "$_adrd"
+_adrl="adopting a capability the capabilities file already lists"
+_adrif "$_adrd" "$_adrl returns 1" "returned [$(_adrcat "$_adrd/rc")]" _adreq "$_adrd/rc" 1
+_adrif "$_adrd" "$_adrl prints nothing on stdout" "[$(_adrcat "$_adrd/out")]" _adrquiet "$_adrd/out"
+_adrif "$_adrd" "$_adrl changes nothing in or beside the project" "$(_adrdiff "$_adrd")" _adrsame "$_adrd"
+
+_adrd="$(_adrnew a4)"; _adrp="$_adrd/root/proj"
+mkdir -p "$_adrd/root/elsewhere"; printf 'ci\n' > "$_adrd/root/elsewhere/caps.txt"
+printf 'ci\nobservability\n' > "$_adrd/caps.want"
+ln -s "$_adrd/root/elsewhere/caps.txt" "$_adrp/capabilities"
+_adrgo "$_adrd"
+_adrl="adopting through a capabilities link to a writable file"
+_adrif "$_adrd" "$_adrl returns 0" "returned [$(_adrcat "$_adrd/rc")] [$(_adrcat "$_adrd/err")]" _adreq "$_adrd/rc" 0
+_adrif "$_adrd" "$_adrl appends observability to the file the link points at" \
+  "[$(_adrcat "$_adrd/root/elsewhere/caps.txt" 2>&1)]" _adrbytes "$_adrd/root/elsewhere/caps.txt" "$_adrd/caps.want"
+_adrif "$_adrd" "$_adrl leaves the link a link to the same file" "$(ls -l "$_adrp/capabilities" 2>&1)" \
+  _adrto "$_adrp/capabilities" "$_adrd/root/elsewhere/caps.txt"
+_adrif "$_adrd" "$_adrl appends the rows observability implies" \
+  "$(cat "$_adrp/stack.tsv" "$_adrp/setup.tsv" 2>&1)" _adrimplied "$_adrp"
+
+# B1-B7: something is there and it is not a regular file once links are followed.
+_adrd="$(_adrnew b1)"; _adrp="$_adrd/root/proj"; mkdir -p "$_adrd/root/there"
+ln -s "$_adrd/root/there/capabilities" "$_adrp/capabilities"
+_adrgo "$_adrd"
+_adrl="a capabilities link whose target is gone"
+_adrrefused "$_adrl" "$_adrd"
+_adrif "$_adrd" "adopting into $_adrl creates nothing at its target" "$(ls -la "$_adrd/root/there" 2>&1)" \
+  _adrnone "$_adrd/root/there/capabilities"
+_adrif "$_adrd" "adopting into $_adrl leaves it pointing where it did" "$(ls -l "$_adrp/capabilities" 2>&1)" \
+  _adrto "$_adrp/capabilities" "$_adrd/root/there/capabilities"
+
+_adrd="$(_adrnew b2 rows)"; _adrp="$_adrd/root/proj"
+ln -s "$_adrd/root/gone/deeper/capabilities" "$_adrp/capabilities"
+_adrgo "$_adrd"
+_adrl="a capabilities link whose target's directory is gone too"
+_adrrefused "$_adrl" "$_adrd"
+_adrif "$_adrd" "adopting into $_adrl creates no directory along its target's path" \
+  "$(find "$_adrd/root/gone" 2>&1)" _adrnone "$_adrd/root/gone"
+_adrif "$_adrd" "adopting into $_adrl leaves it pointing where it did" "$(ls -l "$_adrp/capabilities" 2>&1)" \
+  _adrto "$_adrp/capabilities" "$_adrd/root/gone/deeper/capabilities"
+
+_adrd="$(_adrnew b3)"; _adrp="$_adrd/root/proj"; mkdir "$_adrp/capabilities"
+_adrgo "$_adrd"
+_adrl="an empty capabilities directory"
+_adrrefused "$_adrl" "$_adrd"
+_adrif "$_adrd" "adopting into $_adrl leaves it an empty directory" "$(ls -la "$_adrp/capabilities" 2>&1)" \
+  _adremptydir "$_adrp/capabilities"
+
+_adrd="$(_adrnew b3f rows)"; _adrp="$_adrd/root/proj"; mkdir "$_adrp/capabilities"
+printf 'ci\n' > "$_adrp/capabilities/list"; printf 'ci\n' > "$_adrd/list.kept"
+_adrgo "$_adrd"
+_adrl="a capabilities directory holding a file"
+_adrrefused "$_adrl" "$_adrd"
+_adrif "$_adrd" "adopting into $_adrl leaves the directory holding just that file, unchanged" \
+  "$(ls -la "$_adrp/capabilities" 2>&1)" _adronly "$_adrp/capabilities" list "$_adrd/list.kept"
+
+_adrd="$(_adrnew b4 rows)"; _adrp="$_adrd/root/proj"; mkfifo "$_adrp/capabilities"
+_adrgo "$_adrd"
+_adrl="a capabilities pipe"
+_adrif "$_adrd" "adopting into $_adrl returns without waiting on it" "" true
+_adrrefused "$_adrl" "$_adrd"
+_adrif "$_adrd" "adopting into $_adrl leaves it a pipe" "$(ls -l "$_adrp/capabilities" 2>&1)" \
+  eval '[ -p "$_adrp/capabilities" ] && [ ! -L "$_adrp/capabilities" ]'
+
+_adrd="$(_adrnew b5)"; _adrp="$_adrd/root/proj"; mkdir -p "$_adrd/root/adir"
+printf 'x\n' > "$_adrd/root/adir/inside"; printf 'x\n' > "$_adrd/inside.kept"
+ln -s "$_adrd/root/adir" "$_adrp/capabilities"
+_adrgo "$_adrd"
+_adrl="a capabilities link to a directory"
+_adrrefused "$_adrl" "$_adrd"
+_adrif "$_adrd" "adopting into $_adrl leaves it pointing where it did" "$(ls -l "$_adrp/capabilities" 2>&1)" \
+  _adrto "$_adrp/capabilities" "$_adrd/root/adir"
+_adrif "$_adrd" "adopting into $_adrl adds nothing to the directory it points at" \
+  "$(ls -la "$_adrd/root/adir" 2>&1)" _adronly "$_adrd/root/adir" inside "$_adrd/inside.kept"
+
+_adrd="$(_adrnew b6)"; _adrp="$_adrd/root/proj"; mkfifo "$_adrd/root/apipe"
+ln -s "$_adrd/root/apipe" "$_adrp/capabilities"
+_adrgo "$_adrd"
+_adrl="a capabilities link to a pipe"
+_adrif "$_adrd" "adopting into $_adrl returns without waiting on the pipe" "" true
+_adrrefused "$_adrl" "$_adrd"
+_adrif "$_adrd" "adopting into $_adrl leaves it pointing at the same pipe" "$(ls -l "$_adrp/capabilities" "$_adrd/root/apipe" 2>&1)" \
+  eval '_adrto "$_adrp/capabilities" "$_adrd/root/apipe" && [ -p "$_adrd/root/apipe" ] && [ ! -L "$_adrd/root/apipe" ]'
+
+_adrd="$(_adrnew b7 rows)"; _adrp="$_adrd/root/proj"
+ln -s /dev/null "$_adrp/capabilities"
+_adrgo "$_adrd"
+_adrl="a capabilities link to /dev/null"
+_adrrefused "$_adrl" "$_adrd"
+_adrif "$_adrd" "adopting into $_adrl leaves it pointing at /dev/null" "$(ls -l "$_adrp/capabilities" 2>&1)" \
+  eval '_adrto "$_adrp/capabilities" /dev/null && [ -c /dev/null ]'
+
+# C and D: a regular file the call cannot read, or cannot write. Root reads and
+# writes both, so neither is a refusal there.
+_adrl="an unreadable capabilities file"
+if [ "$_adrroot" = 1 ]; then
+  for _adrx in "returns exactly 2" "prints nothing on stdout" "prints nothing on stderr" \
+               "leaves every entry in and beside the project as it was" "keeps its mode and bytes"; do
+    skip "adopting into $_adrl $_adrx" "root reads a mode 000 file"
+  done
+else
+  _adrd="$(_adrnew c)"; _adrp="$_adrd/root/proj"
+  printf 'ci\n' > "$_adrd/caps.kept"; cp "$_adrd/caps.kept" "$_adrp/capabilities"; chmod 000 "$_adrp/capabilities"
+  _adrgo "$_adrd"
+  _adrrefused "$_adrl" "$_adrd"
+  _adrif "$_adrd" "adopting into $_adrl keeps its mode and bytes" "$(ls -l "$_adrp/capabilities" 2>&1)" \
+    _adrmodebytes "$_adrp/capabilities" ---------- "$_adrd/caps.kept"
+fi
+
+_adrl="a read-only capabilities file"
+if [ "$_adrroot" = 1 ]; then
+  for _adrx in "returns exactly 2" "prints nothing on stdout" "prints nothing on stderr" \
+               "leaves every entry in and beside the project as it was" "keeps its bytes" \
+               "appends no stack or setup row and copies no runbook"; do
+    skip "adopting into $_adrl $_adrx" "root writes a mode 444 file"
+  done
+  for _adrx in "returns 1" "prints nothing on stdout" "changes nothing in or beside the project"; do
+    skip "adopting a capability a read-only capabilities file already lists $_adrx" "root writes a mode 444 file"
+  done
+else
+  _adrd="$(_adrnew d rows)"; _adrp="$_adrd/root/proj"
+  printf 'ci\n' > "$_adrd/caps.kept"; cp "$_adrd/caps.kept" "$_adrp/capabilities"; chmod 444 "$_adrp/capabilities"
+  _adrgo "$_adrd"
+  _adrrefused "$_adrl" "$_adrd"
+  _adrif "$_adrd" "adopting into $_adrl keeps its bytes" "[$(cat "$_adrp/capabilities" 2>&1)]" \
+    _adrbytes "$_adrp/capabilities" "$_adrd/caps.kept"
+  _adrif "$_adrd" "adopting into $_adrl appends no stack or setup row and copies no runbook" \
+    "$(cat "$_adrp/stack.tsv" "$_adrp/setup.tsv" 2>&1; ls "$_adrp/setup" 2>&1)" \
+    eval '_adrbytes "$_adrp/stack.tsv" "$_adrd/stack.kept" && _adrbytes "$_adrp/setup.tsv" "$_adrd/setup.kept" && _adrnone "$_adrp/setup/sentry.md"'
+
+  _adrd="$(_adrnew d2)"; _adrp="$_adrd/root/proj"
+  printf 'ci\nobservability\n' > "$_adrp/capabilities"; chmod 444 "$_adrp/capabilities"
+  _adrgo "$_adrd"
+  _adrl="adopting a capability a read-only capabilities file already lists"
+  _adrif "$_adrd" "$_adrl returns 1" "returned [$(_adrcat "$_adrd/rc")] [$(_adrcat "$_adrd/err")]" _adreq "$_adrd/rc" 1
+  _adrif "$_adrd" "$_adrl prints nothing on stdout" "[$(_adrcat "$_adrd/out")]" _adrquiet "$_adrd/out"
+  _adrif "$_adrd" "$_adrl changes nothing in or beside the project" "$(_adrdiff "$_adrd")" _adrsame "$_adrd"
+fi
+
+# ------------------------------------------------------------ felix adopt
+# Against widget with nothing at its four adopt paths, so "nothing was
+# written" cannot pass on rows earlier tests left. Whatever is there is moved
+# aside here and put back, as it was, at the end of the block.
+_adrw="$FROOT/projects/widget"; _adrk="$TMP/_adr/widget-kept"; mkdir -p "$_adrk"
+for _adrx in capabilities stack.tsv setup.tsv setup; do
+  if [ -e "$_adrw/$_adrx" ] || [ -L "$_adrw/$_adrx" ]; then mv "$_adrw/$_adrx" "$_adrk/$_adrx"; fi
+done
+_adrclear() {
+  local x
+  for x in capabilities stack.tsv setup.tsv setup; do
+    [ -p "$_adrw/$x" ] && : <> "$_adrw/$x"
+    rm -rf "$_adrw/$x"
+  done
+}
+_adrcli() { cd "$REPO" && "$FELIX" adopt observability; }
+_adrcligo() {
+  mkdir -p "$1/root"
+  _adrsnap "$_adrw" "$1/root" > "$1/snap0"
+  _adrrun "$1" "$_adrwait" _adrcli
+  _adrsnap "$_adrw" "$1/root" > "$1/snap1"
+}
+# The message is what felix says, not what a shell or a tool said on the way:
+# bash's own "adopt.sh: line 23: <path>: Is a directory" holds both the path
+# and "a directory", and passed two of these against the engine before the
+# change. Lines in bash's shape, or a tool's, are set aside before the
+# message is read; a line of felix's own is kept whatever it ends with.
+_adrmsg() {
+  grep -vE '^[^ ]+: line [0-9]+: |^(touch|cat|grep|cp|mv|mkdir|ln|awk|sed|head|tail|tee|chmod|sort|comm|cut|tr|wc|ls|rm|find|readlink): ' \
+    "$1/err" 2>/dev/null > "$1/msg"
+  return 0
+}
+_adrclirefused() {  # LABEL DIR NEEDLE PHRASE: what F asks of the refusal; NEEDLE may be empty
+  local n="felix adopt over $1" d="$2" e
+  e="[$(cat "$d/err" 2>/dev/null)]"
+  _adrmsg "$d"
+  _adrif "$d" "$n exits exactly 2" "exited [$(cat "$d/rc" 2>/dev/null)] $e" _adreq "$d/rc" 2
+  _adrif "$d" "$n prints nothing on stdout" "[$(cat "$d/out" 2>/dev/null)]" _adrquiet "$d/out"
+  _adrif "$d" "$n says on stderr that observability was not declared" "$e" _adrsays "$d/msg" "observability was not declared"
+  _adrif "$d" "$n says on stderr that nothing was written" "$e" _adrsays "$d/msg" "nothing was written"
+  _adrif "$d" "$n names the full path of the capabilities entry" "$e" _adrsays "$d/msg" "$_adrw/capabilities"
+  if [ -n "$3" ]; then _adrif "$d" "$n says $4" "$e" _adrsays "$d/msg" "$3"; fi
+  _adrif "$d" "$n never says declared, already declared or backfilled" \
+    "[$(cat "$d/out" "$d/err" 2>/dev/null)]" _adrnoclaim "$d"
+  _adrif "$d" "$n writes nothing in the project or where its link points" "$(_adrdiff "$d")" _adrsame "$d"
+}
+
+# E holds on the engine before this change and must keep holding.
+_adrd="$TMP/_adr/e1"; mkdir -p "$_adrd"
+_adrrun "$_adrd" "$_adrwait" _adrcli
+_adrl="felix adopt into a project with no capabilities list"
+_adrif "$_adrd" "$_adrl exits 0" "exited [$(_adrcat "$_adrd/rc")] [$(_adrcat "$_adrd/err")]" _adreq "$_adrd/rc" 0
+_adrif "$_adrd" "$_adrl says declared observability for widget" "[$(_adrcat "$_adrd/out" "$_adrd/err")]" \
+  _adrtold "$_adrd" "declared observability for widget"
+_adrd="$TMP/_adr/e2"; mkdir -p "$_adrd"
+_adrrun "$_adrd" "$_adrwait" _adrcli
+_adrl="felix adopt of a capability the project already declares"
+_adrif "$_adrd" "$_adrl exits 0" "exited [$(_adrcat "$_adrd/rc")] [$(_adrcat "$_adrd/err")]" _adreq "$_adrd/rc" 0
+_adrif "$_adrd" "$_adrl says observability already declared" "[$(_adrcat "$_adrd/out" "$_adrd/err")]" \
+  _adrtold "$_adrd" "observability already declared"
+_adrclear
+
+_adrd="$TMP/_adr/f-b1"; mkdir -p "$_adrd/root/there"
+ln -s "$_adrd/root/there/capabilities" "$_adrw/capabilities"
+_adrcligo "$_adrd"
+_adrclirefused "a capabilities link whose target is gone" "$_adrd" \
+  "a link whose target is gone" "it found a link whose target is gone"
+_adrclear
+
+_adrd="$TMP/_adr/f-b2"; mkdir -p "$_adrd/root"
+ln -s "$_adrd/root/gone/deeper/capabilities" "$_adrw/capabilities"
+_adrcligo "$_adrd"
+_adrclirefused "a capabilities link whose target's directory is gone too" "$_adrd" \
+  "a link whose target is gone" "it found a link whose target is gone"
+_adrclear
+
+_adrd="$TMP/_adr/f-b3"; mkdir -p "$_adrd"; mkdir "$_adrw/capabilities"
+_adrcligo "$_adrd"
+_adrclirefused "an empty capabilities directory" "$_adrd" "a directory" "it found a directory"
+_adrclear
+
+_adrd="$TMP/_adr/f-b3f"; mkdir -p "$_adrd"; mkdir "$_adrw/capabilities"; printf 'ci\n' > "$_adrw/capabilities/list"
+_adrcligo "$_adrd"
+_adrclirefused "a capabilities directory holding a file" "$_adrd" "a directory" "it found a directory"
+_adrclear
+
+_adrd="$TMP/_adr/f-b4"; mkdir -p "$_adrd"; mkfifo "$_adrw/capabilities"
+_adrcligo "$_adrd"
+_adrif "$_adrd" "felix adopt over a capabilities pipe does not wait on it" "" true
+_adrclirefused "a capabilities pipe" "$_adrd" "a pipe" "it found a pipe"
+_adrclear
+
+_adrd="$TMP/_adr/f-b5"; mkdir -p "$_adrd/root/adir"; printf 'x\n' > "$_adrd/root/adir/inside"
+ln -s "$_adrd/root/adir" "$_adrw/capabilities"
+_adrcligo "$_adrd"
+_adrclirefused "a capabilities link to a directory" "$_adrd" "a directory" "it found a directory"
+_adrclear
+
+_adrd="$TMP/_adr/f-b6"; mkdir -p "$_adrd/root"; mkfifo "$_adrd/root/apipe"
+ln -s "$_adrd/root/apipe" "$_adrw/capabilities"
+_adrcligo "$_adrd"
+_adrif "$_adrd" "felix adopt over a capabilities link to a pipe does not wait on the pipe" "" true
+_adrclirefused "a capabilities link to a pipe" "$_adrd" "a pipe" "it found a pipe"
+_adrclear
+
+# The contract names no wording for a device, so this case asserts the rest.
+_adrd="$TMP/_adr/f-b7"; mkdir -p "$_adrd"; ln -s /dev/null "$_adrw/capabilities"
+_adrcligo "$_adrd"
+_adrclirefused "a capabilities link to /dev/null" "$_adrd" "" ""
+_adrclear
+
+if [ "$_adrroot" = 1 ]; then
+  for _adrl in "an unreadable capabilities file" "a read-only capabilities file"; do
+    for _adrx in "exits exactly 2" "prints nothing on stdout" "says on stderr that observability was not declared" \
+                 "says on stderr that nothing was written" "names the full path of the capabilities entry" \
+                 "never says declared, already declared or backfilled" \
+                 "writes nothing in the project or where its link points"; do
+      skip "felix adopt over $_adrl $_adrx" "root reads and writes a file whatever its mode"
+    done
+  done
+  skip "felix adopt over an unreadable capabilities file says it could not be read" "root reads a mode 000 file"
+  skip "felix adopt over an unreadable capabilities file keeps its mode and bytes" "root reads a mode 000 file"
+  skip "felix adopt over a read-only capabilities file says it could not be written" "root writes a mode 444 file"
+else
+  _adrd="$TMP/_adr/f-c"; mkdir -p "$_adrd"
+  printf 'ci\n' > "$_adrd/caps.kept"; cp "$_adrd/caps.kept" "$_adrw/capabilities"; chmod 000 "$_adrw/capabilities"
+  _adrcligo "$_adrd"
+  _adrclirefused "an unreadable capabilities file" "$_adrd" "could not be read" "it could not be read"
+  _adrif "$_adrd" "felix adopt over an unreadable capabilities file keeps its mode and bytes" \
+    "$(ls -l "$_adrw/capabilities" 2>&1)" _adrmodebytes "$_adrw/capabilities" ---------- "$_adrd/caps.kept"
+  _adrclear
+
+  _adrd="$TMP/_adr/f-d"; mkdir -p "$_adrd"
+  printf 'ci\n' > "$_adrw/capabilities"; chmod 444 "$_adrw/capabilities"
+  _adrcligo "$_adrd"
+  _adrclirefused "a read-only capabilities file" "$_adrd" "could not be written" "it could not be written"
+  _adrclear
+fi
+
+# -------------------------------------------------------------- the hook
+# A checkout the hook would adopt observability for, first as a control with
+# no capabilities list, then over a link whose target is gone and over a pipe.
+_adrhr="$TMP/_adr/hookrepo"; mkdir -p "$_adrhr"
+( cd "$_adrhr" && git init -q -b main )
+printf 'adrhook\n' > "$_adrhr/.felix"; printf 'sentry-sdk\n' > "$_adrhr/requirements.txt"
+_adrhp="$FROOT/projects/adrhook"; mkdir -p "$_adrhp" "$MEM/adrhook"
+printf '{"name":"adrhook","gate":"true"}\n' > "$_adrhp/project.json"
+printf '# h\n' > "$_adrhp/CLAUDE.md"
+_adrhook() { cd "$_adrhr" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start"; }
+_adrhclear() {
+  local x
+  for x in capabilities stack.tsv setup.tsv setup; do
+    [ -p "$_adrhp/$x" ] && : <> "$_adrhp/$x"
+    rm -rf "$_adrhp/$x"
+  done
+}
+_adrhgo() {
+  mkdir -p "$1/root"
+  _adrsnap "$_adrhp/stack.tsv" "$_adrhp/setup.tsv" "$_adrhp/setup" "$1/root" > "$1/snap0"
+  _adrrun "$1" $((_adrwait * 2)) _adrhook
+  _adrsnap "$_adrhp/stack.tsv" "$_adrhp/setup.tsv" "$_adrhp/setup" "$1/root" > "$1/snap1"
+}
+
+_adrd="$TMP/_adr/g0"; mkdir -p "$_adrd"
+_adrhgo "$_adrd"
+_adrif "$_adrd" "the hook adopts observability for a sentry-sdk checkout whose project lists nothing" \
+  "[$(_adrcat "$_adrd/out" "$_adrd/err")]" _adrtold "$_adrd" "Adopted automatically"
+_adrhclear
+
+_adrd="$TMP/_adr/g1"; mkdir -p "$_adrd/root/there"
+ln -s "$_adrd/root/there/capabilities" "$_adrhp/capabilities"
+_adrhgo "$_adrd"
+_adrl="the hook over a capabilities link whose target is gone"
+_adrif "$_adrd" "$_adrl finishes" "" true
+_adrif "$_adrd" "$_adrl does not say Adopted automatically" "[$(_adrcat "$_adrd/out" "$_adrd/err")]" \
+  eval '! _adrtold "$_adrd" "Adopted automatically"'
+_adrif "$_adrd" "$_adrl creates nothing at the target and leaves the link pointing there" \
+  "$(ls -l "$_adrhp/capabilities" "$_adrd/root/there" 2>&1)" \
+  eval '_adrnone "$_adrd/root/there/capabilities" && _adrto "$_adrhp/capabilities" "$_adrd/root/there/capabilities"'
+_adrif "$_adrd" "$_adrl creates no stack.tsv, setup.tsv or setup directory" "$(_adrdiff "$_adrd")" _adrsame "$_adrd"
+_adrhclear
+
+_adrd="$TMP/_adr/g2"; mkdir -p "$_adrd"
+printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$_adrhp/stack.tsv"
+printf '# id\ttitle\tcapability\tcheck\nkept\tA step already here\tbilling\ttrue\n' > "$_adrhp/setup.tsv"
+mkdir -p "$_adrhp/setup"; printf 'kept\n' > "$_adrhp/setup/kept.md"
+mkfifo "$_adrhp/capabilities"
+_adrhgo "$_adrd"
+_adrl="the hook over a capabilities pipe"
+_adrif "$_adrd" "$_adrl finishes without waiting on it" "" true
+_adrif "$_adrd" "$_adrl does not say Adopted automatically" "[$(_adrcat "$_adrd/out" "$_adrd/err")]" \
+  eval '! _adrtold "$_adrd" "Adopted automatically"'
+_adrif "$_adrd" "$_adrl leaves it a pipe" "$(ls -l "$_adrhp/capabilities" 2>&1)" \
+  eval '[ -p "$_adrhp/capabilities" ] && [ ! -L "$_adrhp/capabilities" ]'
+_adrif "$_adrd" "$_adrl leaves stack.tsv, setup.tsv and the setup directory byte for byte" "$(_adrdiff "$_adrd")" _adrsame "$_adrd"
+_adrhclear
+
+# Everything back as found: widget's four paths, and nothing of this block left.
+_adrclear
+for _adrx in capabilities stack.tsv setup.tsv setup; do
+  if [ -e "$_adrk/$_adrx" ] || [ -L "$_adrk/$_adrx" ]; then mv "$_adrk/$_adrx" "$_adrw/$_adrx"; fi
+done
+find "$TMP/_adr" -type p 2>/dev/null | while IFS= read -r _adrx; do : <> "$_adrx"; done
+rm -rf "$TMP/_adr" "$_adrhp" "$MEM/adrhook"
+
 # A checkout whose path holds a space. The probes globbed $root/$p with the
 # root unquoted, so at the default IFS the path split into words and every one
 # missed: session-start, the gate, commission and doctor all saw a checkout

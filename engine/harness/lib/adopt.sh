@@ -30,7 +30,9 @@ felix_adopt_capability() {
   # opened by the grep, which waited on it for a writer. Now anything at the
   # path that is not a regular file is 2 without being opened, and so is a
   # list whose read or append fails. Nothing at all is still an empty list,
-  # which the append creates.
+  # which the append creates. The grep's status starts at 2 with the
+  # redirection outside it, as in felix_declared, so a redirection that could
+  # not be opened is not read as grep's 1, a list without the capability.
   if [ -e "$list" ] || [ -L "$list" ]; then
     [ -f "$list" ] || return 2
     { grep -qxF -- "$cap" "$list"; rc=$?; } 2>/dev/null

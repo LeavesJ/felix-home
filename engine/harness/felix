@@ -4472,6 +4472,15 @@ cmd_adopt() {
   # before anything else would notice (#102). Refused rather than stripped:
   # guessing what a mistyped flag meant is how the wrong thing gets declared.
   case "$cap" in -*) die "usage: felix adopt <capability> (got a flag: $cap)" ;; esac
+  # 2026-10-01: a capability is one line of one word, written out in full
+  # because a class like [:alnum:] follows the locale and let a byte that is
+  # no character through. grep -F reads a newline in its pattern as two
+  # patterns, so `felix adopt $'new\nci'` said "ci already declared", and a
+  # byte BSD grep could not read was called a list it could not read.
+  case "$cap" in
+    *[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-]*)
+      die "felix adopt takes one capability name of ASCII letters, digits, '.', '_' and '-'" ;;
+  esac
   local slug counts arc list what fix
   slug="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
   counts="$(felix_adopt_capability "$proj" "$cap" "$SCRIPT_DIR/templates" "$slug")"; arc=$?
@@ -4485,17 +4494,17 @@ cmd_adopt() {
       # is said, because that is what a person has to change.
       list="$proj/capabilities"
       fix='Make it a regular file of capability names, one per line'
-      if   [ -L "$list" ] && [ ! -e "$list" ]; then what='a link whose target is gone'
+      # A link whose target cannot be stat'ed is not always gone: one into a
+      # directory this user cannot search, or one to itself, fails the same
+      # test, and a person told "gone" would replace a list that is there.
+      if   [ -L "$list" ] && [ ! -e "$list" ]; then what='a link whose target is gone or cannot be reached'
       elif [ -d "$list" ]; then what='a directory'
       elif [ -p "$list" ]; then what='a pipe'
-      elif [ ! -e "$list" ]; then what='absent and could not be created'; fix="Make $proj a directory you can write"
+      elif [ ! -e "$list" ]; then what='absent and could not be created'; fix="Let this user write to $proj"
       elif [ ! -f "$list" ]; then what='not a regular file'
-      else
-        fix='Let this user read and write it'
-        if   [ ! -r "$list" ]; then what='a file that could not be read'
-        elif [ ! -w "$list" ]; then what='a file that could not be written'
-        else what='a file that could not be read or written'
-        fi
+      elif [ ! -r "$list" ]; then what='a file that could not be read'; fix='Let this user read and write it'
+      elif [ ! -w "$list" ]; then what='a file that could not be written'; fix='Let this user read and write it'
+      else what='a file whose read or append failed'; fix='Look at what is in it'
       fi
       printf 'felix: %s was not declared, and nothing was written: %s is %s.\n' "$cap" "$list" "$what" >&2
       printf '%s, and run felix adopt again.\n' "$fix" >&2

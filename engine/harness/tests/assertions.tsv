@@ -137,6 +137,7 @@
 1	a check that fails is held
 1	a check that has actually failed is an item
 1	a check that passes is done
+1	a check's verdict of ok is reported as a pass of the assertion it is reported for
 1	a checker declaring every control resolves complete however many rows precede its last
 1	a checker declaring only the two decoupled controls is missing violation and the three others
 1	a checker never shown failing refuses the gate with nothing held or unrunnable
@@ -473,12 +474,16 @@
 1	a library changed in the working tree is not drift, because main did not change
 1	a lifecycle.log that cannot be appended to leaves a resume silent, a startup's banner unchanged, and both exiting 0
 1	a lifted scoped row is written to says.log with the command
+1	a line a stray writes to the log after red has read it is not counted, so the name it says is still red, the log being read once
 1	a line ending in one backslash goes on to the next: an && list across it can fail, and a path on the next line is an argument
 1	a line of spaces is refused, and the raw case loops take it for a row
 1	a line of two tool_use blocks is read block by block, and an error is charged only to the result block that reported it
 1	a line outside a risk row's confine near the top of a diff larger than a pipe still fires the row
 1	a line outside a risk row's confine on the last line of a diff larger than a pipe fires the row
 1	a line that begins with a non-ASCII byte is refused, since whether it is a comment depends on the locale
+1	a line that only contains the word reached is not the marker, exit 2
+1	a line that opens like a listed name's skip and does not end in a parenthesis is not its skip, so the name is still red
+1	a listed name the base never reaches is red, though a name it reaches begins with it, holds it in its middle, or is it in another case
 1	a live grant is listed live and a grant on a dormant row is listed armed
 1	a live night is mounted into the next session's context
 1	a live night whose state file runs past a pipe after its first line reads live
@@ -494,7 +499,14 @@
 1	a malformed row is skipped, others still deny
 1	a malformed row is skipped, others still match
 1	a malformed row stops the gate rather than only being listed
+1	a manifest count of 1x, of 1.5 or led by a space is refused naming its line, before the suite runs
+1	a manifest count of zero is refused naming its line
+1	a manifest count with a leading zero is refused naming its line, the empty line above it counted
 1	a manifest opening with a byte-order mark is still read
+1	a manifest row repeating a name an earlier row holds is refused naming the later line, before the suite runs
+1	a manifest row whose count is not a number is refused naming its line, before the suite runs
+1	a manifest row whose name is empty is refused naming its line
+1	a manifest row with no tab between its count and its name is refused naming its line
 1	a manifest that is itself a link out of the copy is unread
 1	a manifest that is not a JSON object is high
 1	a manifest with no final newline still gets its row
@@ -561,14 +573,20 @@
 1	a name admitted twice is refused the second time and admitted once
 1	a name counts triple
 1	a name in no marketplace is unknown, not refused
+1	a name listed ten times that the base reaches nine times is red by one, the counts compared as numbers
+1	a name listed twice that the base reaches ten times takes nothing off the other shortfalls, six of thirty failing, all six never reached
+1	a name listed twice that the base run skips once is red by the one time it never reached it, one skip line counting once
 1	a name nothing mentions is still not found
 1	a name planted in engine/harness/bin is caught
 1	a name planted in engine/harness/felix is caught
 1	a name planted in engine/harness/hooks is caught
 1	a name planted in engine/harness/lib is caught
+1	a name reached more often than listed offsets no other name's shortfall, so the run row counts two never reached among four failed
 1	a name that exists nowhere, in a pipeline, counts as an engine function does: the command reads unrunnable, never fail and met
+1	a name that fails once and is not asked its second time against the base is one row counting both
 1	a name the cache never carried reads as no digest
 1	a name the ledger already admits is refused as already admitted
+1	a name the manifest lists twice that the base run reaches once is a row counting the one time it never reached it
 1	a name the registry does not hold reads absent
 1	a name with no digest recorded claims nothing
 1	a named capability carries its count
@@ -740,6 +758,7 @@
 1	a quoted redirect target still writes the marker, and is refused
 1	a re-run under the new epoch is recorded, same names and all
 1	a reach is the only mount evidence there is
+1	a reached line a child wrote to stderr early does not make a suite killed after it a red run, exit 2
 1	a reached repair ceiling is escalated to a person
 1	a reader that cannot run lifts nothing
 1	a reader that stops before its end lifts nothing
@@ -777,7 +796,9 @@
 1	a red run against main exits 0 once the suite has run
 1	a red run breaks the streak
 1	a red working tree is still named in the session
+1	a red.tsv base of - reads as retracted, not as a published snapshot
 1	a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot
+1	a red.tsv whose base and run rows are both -, with no names below, is one whole record
 1	a refresh of a graphed checkout exits 0
 1	a refreshed graph clears the row
 1	a refusal on risk is reported
@@ -938,6 +959,8 @@
 1	a skill whose frontmatter says hooks: [] is low
 1	a skill whose frontmatter says hooks: null is low
 1	a skill whose frontmatter says hooks: {} is low
+1	a skip line counts as reached, a name holding a parenthesis and a reason holding its own among them, so no skipped name is red
+1	a skip of a name the manifest does not list is no skip of a listed name it begins with, unless a space and a parenthesis follow that name
 1	a small payload's subject is read without running awk
 1	a source past its ceiling is refused too
 1	a source that is not a checkout pins nothing
@@ -973,12 +996,23 @@
 1	a stranded session folds under its own date, not today's
 1	a stranded session has appends but no folded record
 1	a stranger that is not a plugin is created without a blocking obligation
+1	a stray reached followed only by ok lines does not make a suite killed after them a red run, exit 2
+1	a stray reached followed only by skip lines does not make a suite killed after them a red run, exit 2
 1	a string broken across the next key leaves the manifest high
 1	a structural failure still fails the gate
 1	a subdir argument naming no directory digests the copy it was given
 1	a subdirectory named as an argument digests as that subdirectory alone
 1	a subject identity is one line
 1	a subject that cannot be identified blocks the epoch the same way
+1	a suite killed after it printed reached is still a red run, exit 0
+1	a suite killed before it printed reached is not a red run, exit 2
+1	a suite killed before its first assertion is refused as unfinished, not as empty
+1	a suite killed short of reached is refused as unfinished, not recorded with the names it never reached, exit 2
+1	a suite that exits 0 with a totals line but no reached line is refused too, exit 2
+1	a suite that exits 1 without reached, as a finished red run exits, is refused, exit 2
+1	a suite that printed an assertion after reached and was killed is refused, exit 2
+1	a suite that prints reached having run no assertion is still refused, exit 2
+1	a suite with a stray reached early and the real one after its last assertion is a red run, exit 0
 1	a summary request behind leading spaces is recorded as nothing too
 1	a summary request leaves a marker for its session in place of a record
 1	a summary request with no session id leaves no marker
@@ -1105,6 +1139,7 @@
 1	adopting reports the backfill
 1	adopting twice is a no-op
 1	advances to the next step once the first is used
+1	after an arithmetic error inside a for and an if, every assertion left in each block is recorded red, by the times the base never reached it
 1	after commissioning the gate line reads ok
 1	after the fold, a tampered cache entry still fails
 1	after the last audit run as after the first: nothing changed under the scratch root outside the review fixtures, nothing in the scratch HOME, and no claude, gh, curl or wget was called
@@ -1149,6 +1184,10 @@
 1	an applies command that exits 2 is UNKNOWN on both axes, not DORMANT
 1	an argument it cannot honour merges nothing
 1	an array of two paths where only the second interpolates is high
+1	an assertion whose arithmetic errors on the base's - and so never runs is recorded red, by the one time it never ran
+1	an assertions.tsv it cannot read is refused as no readable manifest, before the suite runs
+1	an assertions.tsv of empty lines alone is refused as listing no assertion too
+1	an assertions.tsv that is a directory is refused as no readable manifest, before the suite runs
 1	an authority hold on the unknown pathway blocks whatever the table says
 1	an awk that fails reads the manifest as unread, not as nothing declared
 1	an edit to a scratch file or to Claude's own config directory is left out of the four, and the report says how many stops that was
@@ -1156,6 +1195,7 @@
 1	an eight-hour grant runs until eight hours from now
 1	an eighth column of well-formed ids is not refused
 1	an empty FELIX_RELEASE_TARGET is not a target
+1	an empty assertions.tsv is refused as listing no assertion, before the suite runs
 1	an empty base is not reported as unknown
 1	an empty cell is refused, and an IFS read moves every later column
 1	an empty command and a command of spaces each read unrunnable, never pass and met with no checker run
@@ -1330,6 +1370,7 @@
 1	and --gate names the row and the verdict its control demands
 1	and 4 where the .felix marker names a project that does not exist
 1	and FELIX_KERNEL is refused before the cache is even consulted
+1	and HEAD, which git resolves to a commit here, reads as malformed, since tests/red writes a base as a full id
 1	and Read and Edit stay allowed, since the repair needs both
 1	and SessionEnd folds nothing of it into ledger.d
 1	and Stop neither holds that session nor tells it anything
@@ -1342,6 +1383,7 @@
 1	and a bare script is still caught from inside the engine itself
 1	and a base of the same size on one line is reported unknown too
 1	and a base that is a commit here is still compared, so a stale record still fails
+1	and a base that is a commit here reads as a commit
 1	and a branch that changes engine/ still owes both
 1	and a bundled plugin last among them
 1	and a cache file that is not there reads as no digest either
@@ -1353,6 +1395,7 @@
 1	and a clobbering redirect, which the old row let through
 1	and a command file piping to a shell is medium
 1	and a command that does not resolve identifies none either
+1	and a commit here spelled in forty upper-case hex digits reads as malformed, not as a commit
 1	and a dash for an id that would break the row
 1	and a dash when no session ran it
 1	and a declared control is not reported missing
@@ -1374,6 +1417,7 @@
 1	and a file with no whitespace reads the same as one with
 1	and a flagged stop under it ends, as before
 1	and a fold that is current leaves nothing stranded
+1	and a full commit id that is no commit here reads as a snapshot
 1	and a gate history exactly as long as the window is counted to its first run
 1	and a gitignored stray in the cache is too
 1	and a graph with no stamp admits its currency is unknown
@@ -1392,6 +1436,7 @@
 1	and a main copy that reports identical is believed over the cache entry
 1	and a marker laid in a session a person has typed into does not excuse it
 1	and a medium one is still refused
+1	and a missing manifest is the reason given ahead of a base that does not resolve
 1	and a name
 1	and a new note replaces the old one
 1	and a non-zero status too
@@ -1408,10 +1453,12 @@
 1	and a project with no obligations.tsv blocks a merge
 1	and a project with none does not claim it
 1	and a real one still routes
+1	and a real run is not compared with a manifest that is not there
 1	and a receipt with a dash for an epoch is stale
 1	and a receipt with no epoch never returns 0
 1	and a receipt written without a roster says so rather than leaving it blank
 1	and a red run at the head means zero
+1	and a red run holding an assertion it never reached exits 0, recorded and not refused
 1	and a redirect on a later line of the command
 1	and a redirect to a quoted marker path
 1	and a redirect with another line after it, which the old row let through
@@ -1442,6 +1489,7 @@
 1	and a skill that was invoked
 1	and a skill whose frontmatter hooks are written on one line
 1	and a stance for a real item is not
+1	and a suite ended by sigterm is reported as exit 143 after its two assertions
 1	and a summary session is not
 1	and a tab in one of its rows is a refused second cell
 1	and a table whose name git quotes is one no reader opens by that name
@@ -1451,6 +1499,8 @@
 1	and a transcript that never held that id does not claim it
 1	and a tree byte-identical to the deployed engine matches
 1	and a turn that did something clears the count
+1	and a verdict it cannot read, okay, as a failure whose detail names what it read
+1	and a verdict of more than one line as one failure, even when its first line reads as a skip
 1	and a verified push does
 1	and a verified push reads as zero days
 1	and a wget pipe to sh is medium
@@ -1464,13 +1514,16 @@
 1	and again, so a session can bump twice
 1	and all four rows landed
 1	and an Agent call with no type is still a tool
+1	and an abbreviated id that is no commit here reads as malformed, not as a snapshot
 1	and an absent table refuses with a non-zero status too
 1	and an agent file piping to a shell is medium
 1	and an append to the marker
 1	and an automation row still ends in its capability
 1	and an earlier session's catch in a reused checkout does not
+1	and an empty base, as a record with no base row gives, reads as malformed
 1	and an empty cache merges nothing
 1	and an empty mcpServers object is no mcp fact
+1	and an empty verdict as a failure, with a detail, since a check that said nothing has not passed
 1	and an engine commit on main after it stales the record
 1	and an entry whose session column is not one id is nobody's
 1	and an epoch that cannot be read returns non-zero
@@ -1490,6 +1543,7 @@
 1	and asked from a worktree it is still the holding checkout
 1	and asks for no grant the merge does not need
 1	and asks for no re-arm the grant does not need
+1	and bad with a detail as a failure of it, giving the detail, not as a skip or a pass
 1	and blocked by a probe that cannot see what a witness proves is there
 1	and blocked by a row nothing could establish at all
 1	and blocks
@@ -1624,6 +1678,9 @@
 1	and for the built-in too, because nothing can tell which was meant
 1	and for the plain one
 1	and for where it sends it
+1	and forty characters that are not hex digits read as malformed, not as a snapshot
+1	and forty upper-case hex digits that are no commit here read as malformed, not as a snapshot
+1	and forty-one hex digits read as malformed, not as a snapshot
 1	and from CI-absolute paths
 1	and from a nested subdirectory the verdict is unchanged
 1	and from a worktree of the same repository
@@ -1650,6 +1707,8 @@
 1	and hooks beside a pipe to a shell are still high
 1	and ignores the path so it cannot come back
 1	and in a declared skill folder's own SKILL.md
+1	and in a red run it skips all four record checks, saying a red run reads the base's record, though the record is real
+1	and in record mode it skips the whole-record, manifest and base checks, saying --record-assertions rewrites red.tsv, and still asks the version
 1	and in that locale the library reads no row of it and exits non-zero
 1	and in the policy's own words, which is what proves the call reached it
 1	and install onto the marker
@@ -1692,6 +1751,7 @@
 1	and it is named
 1	and it is not accepted as a row
 1	and it is not autonomous
+1	and it is refused as empty, not as unfinished
 1	and it is reported as unusable, not unchecked
 1	and it is said
 1	and it is spelled with the symlinks taken out
@@ -1714,6 +1774,7 @@
 1	and it reaches merge as an escape, not as unknown
 1	and it reads stale at once
 1	and it registers rather than falling through to a refresh
+1	and it reports the same four names in a normal run, in record mode and in a red run
 1	and it says matches
 1	and it says so where a reader must look
 1	and it says what would actually reach it
@@ -1732,15 +1793,23 @@
 1	and its last-caught line names the catch
 1	and its medium holds too
 1	and its path is gone from the tokens whatever the key is called
+1	and its reason counts both assertions, the one after reached among them
+1	and its reason counts the three assertions printed after that stray line
+1	and its reason names exit 0 and the three assertions it printed, a skip among them
+1	and its reason names exit 1 and the three assertions it printed, the failure among them, on one line
 1	and its reason whole
+1	and its record counts one failed, one passed and one skipped, the failed name below
+1	and its record is the base row, one failed and two passed, and the failed name, the stray reached notwithstanding
 1	and its repair ceiling does not read as unspent
 1	and its row, added in the same tree, clears it
 1	and its seeded stack rows carry DECLARED
 1	and its stop costs that night nothing
+1	and its summary is one line, one of three failing against main, one of them never reached
 1	and its summary line carries the same count
 1	and its summary line ends saying what would discharge them could not be read
 1	and its tier was read rather than claimed
 1	and its topology is non-empty
+1	and its verdict on the retraction, reported as _rtn3 reports it, is that failure with that detail, not a skip or a pass
 1	and keeps a never-invoked one at zero
 1	and keeps all 212864 of its bytes
 1	and keeps no route state for Stop to judge it by
@@ -1924,6 +1993,18 @@
 1	and nothing was written
 1	and nothing was written to the real felix home pointer
 1	and now names each one it found
+1	and of a branch that puts its engine change back but keeps a docs change, it skips the base and version checks, though its record is the retraction
+1	and of one carrying the retraction, it fails the base check, saying no red run was made (base -), though the record reads whole
+1	and of one whose base is a commit there holding another engine than the merge-base, it fails, saying to re-record
+1	and of one whose base is a full commit id that is no commit there, it skips as a published snapshot
+1	and of one whose base is an abbreviated id that is no commit there, it fails, naming the value it read
+1	and of one whose base is its merge-base with origin/main, it passes, asking that checkout's history and not this suite's
+1	and of one whose engine change declares origin/main's version, it fails the version check
+1	and of one whose engine change has no red.tsv beside it, as a conflict resolved by removing the file leaves, it fails the base check, saying there is no red.tsv, where the whole-record and manifest checks skip
+1	and of one whose real record counts fewer assertions than its manifest lists, it fails the whole-record check, naming both totals, though the base check passes
+1	and of one whose real record names as failed an assertion its manifest does not list, it fails the manifest check, naming that assertion
+1	and of one whose red.tsv has no base row, it fails
+1	and of one whose retraction has origin/main's sha pasted into its base row, it fails the whole-record check, though the base check passes
 1	and of the conclusions a completed gate run can have, only success resets it
 1	and ok once a graph newer than the last commit exists
 1	and on a branch the gate has never run on
@@ -2028,7 +2109,17 @@
 1	and records the failure without being asked
 1	and red is named before any fact that moved
 1	and red returns non-zero
+1	and red.tsv again holds only the two rows saying no red run was made
+1	and red.tsv holds only the two rows saying no red run was made, the stale claim retracted
+1	and red.tsv holds the two rows saying no red run was made for it as well
+1	and red.tsv holds the two rows saying no red run was made for the suite that went on past reached
+1	and red.tsv holds the two rows saying no red run was made, none of the names it never reached
+1	and red.tsv holds the two rows saying no red run was made, not the failure it printed
+1	and red.tsv holds the two rows saying no red run was made, the ok lines after the stray reached notwithstanding
+1	and red.tsv holds the two rows saying no red run was made, the skip lines after the stray reached notwithstanding
+1	and red.tsv holds the two rows saying no red run was made, the stray reached notwithstanding
 1	and red.tsv retracts the earlier claim rather than keeping it
+1	and red.tsv's header says an assertion the manifest lists and the base run never reached counts as failed
 2	and refused at the boundary
 1	and refuses in gate mode as well
 1	and refuses instead of ignoring it
@@ -2169,6 +2260,7 @@
 1	and shows the decline itself
 1	and shows the row and the verdict under qualified FAIL
 1	and shows which note it kept
+1	and skip with a reason as a skip of it, giving the reason
 1	and so are the declines, from the same date
 1	and so does a compact
 1	and so does a failure nobody answered
@@ -2193,6 +2285,13 @@
 1	and so is a deny from its own PreToolUse
 1	and so is a file this user cannot read
 1	and so is a premise whose command does not exist
+1	and so is a real base beside a run that failed none and passed three, with no names below, since zero red is an answer
+1	and so is a real base beside a run that failed one, passed two and names the one
+1	and so is a real base beside a run that failed the one it reached, naming it
+1	and so is a real base beside a run that failed two, naming one that failed twice, since names add up by their counts
+1	and so is a real base beside a run that skipped all three it reached, with no names below
+1	and so is a real run that counts as many as the manifest beside it lists
+1	and so is a real run that counts more than the manifest beside it lists, since names over-reached or not listed are not compared
 1	and so is a row ending in a carriage return and a newline
 1	and so is a second one
 1	and so is a staged one
@@ -2214,6 +2313,7 @@
 1	and so is removing one
 1	and so is the continuation ceiling itself
 1	and so is the other one
+1	and so is the retraction beside a manifest, since it counts no run to compare
 1	and so is what eval is handed
 1	and so without the caller's pipefail
 1	and stack.sh alone can too
@@ -2228,6 +2328,7 @@
 1	and states the tier
 1	and stays small
 1	and stays to one line
+1	and stdout is the one line naming main, the kill's exit 137 and the four assertions it reached
 1	and stdout is the one summary line
 1	and step 8 is no longer a step nothing answers
 1	and still binds startup, clear and compact
@@ -2261,6 +2362,7 @@
 1	and that alone does not fail the gate
 1	and that continuation is spent like any other
 1	and that copy is the only library the block sources
+1	and that exit 2 leaves no temporary directory behind either
 1	and that field holds four members
 1	and that hold is on the record
 1	and that is a failure, not a path it might make up
@@ -2277,6 +2379,7 @@
 1	and that reads as no stamp, the same verdict a stampless graph gets, not as an error
 1	and that receipt reads stale, never current
 1	and that refusal is non-zero too
+1	and that summary counts eleven, four failing, two of them never reached
 1	and the Felix checkout, which holds the deploy key, drops it
 1	and the ack is consumed by the answer
 1	and the admitted row not to re-propose
@@ -2330,6 +2433,7 @@
 1	and the file it names, relative to the link, holds the new handoff
 1	and the file then states that no red run was possible
 1	and the first five are current again: nothing about staleness was stored
+1	and the first twelve characters of a commit here read as malformed, not as a commit
 1	and the fixture files this block rewrote are back
 1	and the fixture is back where the qualification block found it
 2	and the fixture is restored
@@ -2383,6 +2487,7 @@
 1	and the monitor still renders the sentence, not the JSON around it
 1	and the moved fact is not what it blames
 1	and the mute is a row, not a silent omission
+1	and the near-name and stray records are each one record, the run row's failed count what the names add up to
 1	and the new row is its own line
 1	and the next fold gives it the id after theirs
 1	and the night is closed as it goes
@@ -2464,6 +2569,7 @@
 1	and the rows on both sides of it are still counted
 1	and the run is on the record
 1	and the run repair is handed is the gate's, not the newest of any workflow
+1	and the run row counts the one failure the base printed and the eight times it never reached as nine failed
 1	and the run that took it over leaves nothing behind
 1	and the same night as one line reads live
 1	and the same plugin declared by a person installs, which high would refuse
@@ -2489,7 +2595,9 @@
 1	and the state now carries the new route, for the finish-line judge
 1	and the stranded reaches are now counted
 1	and the suite runner beside it, rather than stopping at the first
+1	and the suite writes the manifest it compares and records through that writer
 1	and the summary counts three of six assertions failing against main at the engine version main declares
+1	and the summary counts twelve, nine failing, eight of them never reached
 1	and the summary line counts them
 1	and the summary then counts zero of six
 1	and the text is actually there
@@ -2523,6 +2631,8 @@
 1	and to one quoted in part
 1	and to one quoted round a blank
 1	and truncate of the pointer
+1	and two bases that are each a commit here read as malformed, not as a commit
+1	and two bases, even one a commit here, read as malformed
 1	and under its own name it is current
 1	and ungoverned refuses it so without the caller's pipefail
 1	and ungoverned says on stderr which table could not be read
@@ -2540,6 +2650,9 @@
 1	and whichever read plain felix qualify makes fails, it says what could not be read and exits 2
 1	and with BASH_ENV exported by its caller, naming a file that sets pipefail, that command still passes and is met
 1	and with CLAUDE_CONFIG_DIR unset, HOME/.claude/projects
+1	and with FELIX_TEST_NO_MANIFEST at 0, and again at true, it judges the real record as a normal run does, all four passed each time, since a red run is that variable at exactly 1
+1	and with FELIX_TEST_NO_MANIFEST at 1 around it but unset for the judgment, as these cases unset it inside a red run, it judges the real record as a normal run does, all four passed
+1	and with FELIX_TEST_RECORD unset it judges the real record as a normal run does, all four passed, since record mode is that variable at exactly 1
 1	and with a fact moved as well, no epoch is still the reason given
 1	and with a real file in it, it is drift
 1	and with both gone the tree is clean again
@@ -2613,6 +2726,7 @@
 1	but a flagged one does not hold again unrecorded
 1	but a new one does get through
 1	but a prompt that opens with a slash is still what was typed
+1	but a real base beside a run row of - is not, which is what pasting a sha into a retraction's base row gives
 1	but a real edit still blocks
 1	but a workflow this branch adds itself still escapes
 1	but admits it never read the changes
@@ -2771,6 +2885,7 @@
 1	each fact carries the tree it was taken from
 1	each line is a name and a value separated by a tab
 1	each of those tables with its NUL taken out reads through felix qualify --gate as before, refusing on its held or unrunnable row and passing when the NUL sat on a blank or comment line
+1	each record with names never reached is one record, its run row's failed count what its names add up to
 1	each refused grant is listed with its reason
 1	ecc's shape, an empty mcpServers object beside skills, is low
 1	editing a table in the set is a new policy version
@@ -3121,6 +3236,7 @@
 1	main's resolve.sh decides the installed verdict
 1	maintenance that is due is named
 1	mandates are counted only inside the answerable window
+1	manifest names are compared byte for byte, a backslash, brackets, a star, a dot and a tab each itself
 1	matches the relevant lesson
 1	matching hooks still verify
 1	memory is keyed on the project name
@@ -3133,6 +3249,7 @@
 1	named in the order the architecture states them
 1	names the first step
 1	names the maintenance that is due
+1	names the manifest does not list are not compared, and the one that fails is still a failed row
 1	names the suspect commit
 3	naming it
 1	naming main explicitly runs against the local branch, whose lib the tree's run passes
@@ -3198,12 +3315,23 @@
 1	no temporary path outlives a run whose rows are met, held, inapplicable, and unrunnable from each column: every path mktemp handed the runner is gone, and it was handed at least one
 1	nor a > inside a quoted log format
 1	nor a backslash-n typed into quoted text before the script's path, which is no line break
+1	nor a base of - beside a run row whose failed count alone is -
 1	nor a brace expansion that names it
 1	nor a find whose 2>/dev/null comes before its -name .felix
 1	nor a grant merged last among thousands
 1	nor a grep for its subshell spelling
 1	nor a half-written one
 1	nor a paste-in prompt
+1	nor a real base beside a run row whose failed count alone is -
+1	nor a real run row that counts no assertion at all, since tests/red refuses such a run
+1	nor a real run row whose skipped count is not a number, though its failed count and the names agree
+1	nor a real run row with a count that is not a number
+1	nor a real run row with a negative count, though its counts sum to one
+1	nor a real run row with no skipped count at all, though its failed count and the names agree
+1	nor a real run that counts fewer assertions than the manifest beside it lists, as a suite cut short was once written down as finished
+1	nor a retraction whose base row has a sha pasted into its sha column alone, its ref and version columns left -
+1	nor a run that failed one whose names below add up to two, said as _rtn1 always said it
+1	nor a run whose failed count the names below do not add up to, said as _rtn1 always said it
 1	nor a semicolon
 1	nor an ls whose 2>/dev/null comes before the pointer it lists
 1	nor an untimed catch, though both are newer than mistakes.log and a later day
@@ -3228,6 +3356,7 @@
 1	nor git add -A --dry-run
 1	nor git add -n -A, which stages nothing
 1	nor grep -ln over the pointer
+1	nor is a base of - beside a real run row and the name it counts
 1	nor is a file added to the working tree that git does not track
 1	nor is a system reminder
 1	nor is a task notification
@@ -3235,6 +3364,7 @@
 1	nor is one from both
 1	nor is one in the $(cat <<EOF) form of Claude Code's commit template
 1	nor listing scripts/gate.sh, which runs nothing
+1	nor one base row beside two run rows, said as _rtn1 always said it
 1	nor one declared inline or in a skill's frontmatter
 1	nor one that declares no fail control at all
 1	nor one that sorts last, while one no row qualifies is
@@ -3257,6 +3387,7 @@
 1	nor the read the engine resolves its home with, whose 2>/dev/null writes no pointer
 1	nor the stale one
 1	nor the stop hook talking to itself
+1	nor two base rows, said as _rtn1 always said it
 1	not refused
 1	nothing changed is the same epoch
 1	nothing found and a witness agreeing is empty
@@ -3384,7 +3515,7 @@
 1	recording the same file again appends nothing
 1	records what it said
 1	red beats an unknown too
-1	red.tsv is one record, written whole: one base row, one run row, and failed names that add up to the run's failed count
+1	red.tsv is one record, written whole: one base row, one run row, failed names that add up to the run's failed count, and a run that counts at least as many assertions as the manifest lists
 1	red.tsv was recorded against the engine origin/main held where this tree branched from it
 1	refused, not downgraded: the blocking row is accepted nowhere
 1	refuses to clobber an existing project
@@ -3665,10 +3796,12 @@
 1	the agent runs the pulse
 1	the all-clear says what could not be checked
 1	the always-applicable part is shown
+1	the arithmetic, block and byte fixtures' runs reach, against their own working trees, every name their manifests list and as often
 1	the attribution fixtures have disjoint histories
 1	the audit runs above are wired to the read-only checks: an engine that writes under HOME and calls claude, run through the same wrapper, shows in that HOME and in the stub log
 1	the banner qualifies the retire claim when the fold is incomplete
 1	the banner still calls the constitution standing direction
+1	the base check, asked of a checkout whose red.tsv is the retraction, fails it, saying no red run was made (base -)
 1	the base row names main, its full sha and the version at that commit, not the tree's
 1	the best capability wins
 1	the brief names the file the issue names
@@ -3723,6 +3856,7 @@
 1	the fetch never asks a terminal for credentials
 1	the field lookup lives in one place
 1	the fifth is the answer file's name at its hash
+1	the first faulty manifest line is the one named, a repeat on line 2 ahead of a malformed line 3
 1	the first field is a UTC stamp
 1	the first five read stale and the new six current
 1	the fixture answer is restored
@@ -3805,7 +3939,9 @@
 1	the main checkout knows its own storage is not a rival
 1	the maintenance fixture names more routines than a pipe holds
 1	the mandate does not claim more precision than measured
+1	the manifest compared is the one read before the suite ran, not the one the run rewrote while it ran
 1	the manifest variable reached the run
+1	the manifest writer keeps each name as the suite printed it, blanks inside and at either end, so red never reads one as unreached
 1	the marker moves on to the id after the current one
 1	the marketplace is added from the directory holding its manifest
 1	the mcp record aggregates a server across sessions
@@ -3815,6 +3951,7 @@
 1	the model step disallows Read under /proc, in the spelling 2.1.37 honours
 1	the model still gets the whole thing
 1	the model's tools are allowed inside the checkout and nowhere else
+1	the near-name and stray fixtures' runs reach, against their own working trees, every name their manifests list and as often
 1	the nested repo is still refused
 1	the never line claims only what the roster recognises, and --verify ERE adds a project's own runner to it, in every project read, as the report, the help, the README and ecosystem.tsv say; none claims every ecosystem
 1	the next session start records the same handoff hash the handoff row did
@@ -3861,8 +3998,10 @@
 1	the receipt records every check the gate reported, with its verdict
 1	the receipt records which checks the gate skipped
 1	the record is written
+1	the record judgment of a checkout whose engine change carries a real record against origin/main reports all four record checks passed, and nothing else
 1	the refusal is recorded where no project is known
 1	the refusal on stderr names the size in bytes
+1	the refusals' fixture run, given a manifest naming what it prints, executes, leaves its file, and is recorded with the summary of before
 1	the refused row is shown with its reason
 1	the registry says where the engine is served from
 1	the remote actually holds the commit
@@ -3937,6 +4076,8 @@
 1	the structural verdict shows its evidence too
 1	the stub refuses a selectorless merge the way gh does
 1	the stub refuses an untaught shape
+1	the suite judges its own checkout's record with one bare call at the top level, and nowhere else
+1	the suite's own completion marker, the reached line tests/red requires, still follows its last section
 1	the summary counts the excepted rows
 1	the surviving drift is named
 1	the syntax check is behind the verifier confine
@@ -4128,11 +4269,13 @@
 1	with its evidence whole
 1	with its note carried forward
 1	with neither HOME nor CLAUDE_CONFIG_DIR set it reports no transcripts and exits 0
+1	with neither a run nor a manifest beside it, the missing run is the reason it gives
 1	with neither origin/main nor main to fall back on the red run cannot run, exit 2
 1	with no --dir it reads CLAUDE_CONFIG_DIR/projects
 1	with no CLI and nothing bundled, Felix says it cannot tell
 1	with no CLI to ask and a newer entry on disk, the entry main declares is still the one compared
 1	with no Claude Code registry in HOME, the installed engine is - and the bound one is still read
+1	with no assertions.tsv beside it the red run is refused before the suite runs, exit 2, the claim retracted and nothing left
 1	with no checkout in front of it the row reads unchecked
 2	with no cli call at all
 1	with no commit yet the written row spells branch and sha exactly as the gate's own row does

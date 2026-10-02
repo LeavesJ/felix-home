@@ -16522,6 +16522,49 @@ is  "a dead base whose claim link names a live process is left as it was, its ow
     "beside:$(_qswgone "$_qswp1" "$T/felix-qualify.DEADCL" "$R" "$Tp/felix-qualify.DEADCL/w") same:$([ "$(_qswsnap "$T/felix-qualify.HELDCL" "$R" "$Tp/felix-qualify.HELDCL/w")" = "$(cat "$d/snap/held")" ] && echo yes || echo no) claim:$([ "$(readlink "$T/felix-qualify.HELDCL/claim" 2>/dev/null)" = "$_qswcl1" ] && echo same || echo changed) removes:$(awk '/ worktree remove / && /HELDCL/ { n++ } END { print n + 0 }' "$d/s/git")" \
     "beside:gone same:yes claim:same removes:0"
 kill -s KILL "$_qswcl" 2>/dev/null; wait "$_qswcl" 2>/dev/null
+# A sweep that judged a base's record dead before another sweep claimed it.
+# The late one is held right after its chmod of the base, so after its
+# judgement and before its claim, until the other has renamed its claim over
+# owner and stands in its drop's git. The late one's claim link then takes
+# the free name, but owner no longer reads the record it judged dead, so it
+# must leave the base: owner still the other sweep's, no worktree remove of
+# its own, and no claim left. A sweep that skipped that check renamed its
+# claim over the live one and dropped the tree a second time (lead's mutant
+# noverify, 2026-10-02; the four-sweep rounds below never hit the window).
+QSWHOLDC="$QSWS/hold-chmod"; mkdir -p "$QSWHOLDC"
+cat > "$QSWHOLDC/chmod" <<EOF
+#!/bin/sh
+'$(command -v chmod)' "\$@"; qsw_rc=\$?
+if [ -n "\${QSW_HOLDCHMOD:-}" ] && [ ! -e "\$QSW_HOLDCHMOD" ]; then
+  printf 'held\n' > "\$QSW_HOLDCHMOD"
+  qsw_i=0; while [ ! -e "\$QSW_HOLDCHMOD.go" ] && [ \$qsw_i -lt 300 ]; do sleep 1; qsw_i=\$((qsw_i + 1)); done
+fi
+exit \$qsw_rc
+EOF
+chmod +x "$QSWHOLDC/chmod"
+d="$QSWS/claim-late"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
+_qswplant "$T" felix-qualify.LATECL "$R" "$(_qswdead) $QSWOLD"
+_qswp1="$(_qswpre "$T/felix-qualify.LATECL" "$R" "$Tp/felix-qualify.LATECL/w")"
+_qswpath="$QSWHOLDC"; _qswxenv="QSW_HOLDCHMOD=$d/at2"
+_qswbg "$d/s2" "$T" "$R" - sweep; _qswpath=""; _qswxenv=""; _qswlate2="$_qswpid"
+_qswtill 120 _qswheld "$d/at2" "$_qswlate2"
+_qswxenv="QSW_GITHOLD=$d/at1"
+_qswbg "$d/s1" "$T" "$R" - sweep; _qswxenv=""; _qswlate1="$_qswpid"
+_qswtill 120 _qswheld "$d/at1" "$_qswlate1"
+_qswlateh="$([ -e "$d/at2" ] && echo yes || echo no),$([ -e "$d/at1" ] && echo yes || echo no)"
+_qswo1="$(readlink "$T/felix-qualify.LATECL/owner" 2>/dev/null)"
+: > "$d/at2.go"
+_qswfinish "$_qswlate2" "$d/s2"
+_qswo2="$(readlink "$T/felix-qualify.LATECL/owner" 2>/dev/null)"
+is  "a sweep that judged a base's record dead before another sweep claimed it, and reaches its own claim only while the other stands in its drop, leaves the base: owner still names the other sweep, and it makes no git worktree remove, leaves no claim and says nothing" \
+    "held:$_qswlateh owner:$([ -n "$_qswo1" ] && [ "$_qswo2" = "$_qswo1" ] && echo kept || echo "changed[$_qswo1|$_qswo2]") removes:$(awk '/ worktree remove / && /LATECL/ { n++ } END { print n + 0 }' "$d/s2/git") claim:$([ -L "$T/felix-qualify.LATECL/claim" ] && echo left || echo none) felix:$(_qswfelix "$d/s2/err")" \
+    "held:yes,yes owner:kept removes:0 claim:none felix:0"
+disown "$_qswlate1" 2>/dev/null; kill -s KILL -- "-$_qswlate1" 2>/dev/null
+_qswtill 120 _qswdone "$_qswlate1"; _qswstop "$_qswlate1"
+case "${_qswo1%% *}" in ''|*[!0-9]*) ;; *) _qswtill 60 _qswreaped "${_qswo1%% *}" ;; esac
+_qswbg "$d/s3" "$T" "$R" - sweep; _qswfinish "$_qswpid" "$d/s3"
+is  "and once that other sweep is KILLed in its drop's git, the next sweep removes the base and its registration" \
+    "$(_qswgone "$_qswp1" "$T/felix-qualify.LATECL" "$R" "$Tp/felix-qualify.LATECL/w")" "gone"
 # Three rounds, so a race that leaves a base one time in two shows.
 _qswtg=""
 for _qswround in 1 2 3; do

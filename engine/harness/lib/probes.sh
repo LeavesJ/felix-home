@@ -359,6 +359,11 @@ felix_probe_state() {
 # Every row, run. Emits:
 #   predicate <TAB> grounds <TAB> state <TAB> count <TAB> detail <TAB> probe
 #     <TAB> source
+#
+# Source is last and has to stay last. felix_epoch_topology hashes the first
+# six fields by position and leaves the seventh out, because which instrument
+# answered is provenance and not topology — epoch.sh says why — so a field
+# inserted before it would enter the epoch without anybody deciding it should.
 felix_probes_run() {
   local proj="$1" root="$2" line pred grounds when probe witness st
   while IFS= read -r line; do

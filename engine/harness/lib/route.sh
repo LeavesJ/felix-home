@@ -585,7 +585,10 @@ felix_route_append_play() {
   local f="$proj/routes.tsv"
   [ -f "$f" ] || return 1
   [ -n "$route" ] && [ -n "$tool" ] || return 1
-  tmp="$(mktemp)" || return 1
+  # A template under $TMPDIR: a bare mktemp on macOS ignores TMPDIR, and the
+  # suite points TMPDIR at a fixture to count what is left there.
+  local tmpd="${TMPDIR:-/tmp}"
+  tmp="$(mktemp "${tmpd%/}/felix-routes.XXXXXX")" || return 1
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
       ''|'#'*) printf '%s\n' "$line" >> "$tmp"; continue ;;

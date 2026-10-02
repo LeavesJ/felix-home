@@ -8769,6 +8769,14 @@ L1RC=0; L1LINES=0; L1MC=""; L1WHY=""
 L1RISK=""
 [ -f "$FROOT/projects/widget/risk.tsv" ] && { cp "$FROOT/projects/widget/risk.tsv" "$L1/risk.keep"; L1RISK=y; }
 cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
+# No evidence policy, whatever an earlier section left, restored at the end.
+# The fixtures below decide which blocker kinds a run prints, and the evidence
+# policy section leaves a `db` row for \.sql$ in place. Under the full suite
+# that row added an `evidence` kind to the "two escapes of one kind" tree, so
+# the run printed two kinds and wrote two refused rows, correctly, and two
+# assertions failed on CI while the section alone passed.
+L1EV=""
+[ -f "$FROOT/projects/widget/evidence.tsv" ] && { mv "$FROOT/projects/widget/evidence.tsv" "$L1/evidence.keep"; L1EV=y; }
 
 # A green gate receipt and the commission stamp for a checkout, exactly as the
 # suite records them; prints the tree id the receipt was recorded for.
@@ -9096,7 +9104,9 @@ fi
 # Restored: the risk table as it was found.
 if [ -n "$L1RISK" ]; then cp "$L1/risk.keep" "$FROOT/projects/widget/risk.tsv"
 else rm -f "$FROOT/projects/widget/risk.tsv"; fi
-unset L1 L1SAYS L1KC L1RC L1LINES L1MC L1WHY L1RISK L1TID L1SGTID L1S L1B L1T L1P L1N L1SG
+# Restored: the evidence policy as it was found.
+if [ -n "$L1EV" ]; then mv "$L1/evidence.keep" "$FROOT/projects/widget/evidence.tsv"; fi
+unset L1 L1SAYS L1KC L1RC L1LINES L1MC L1WHY L1RISK L1EV L1TID L1SGTID L1S L1B L1T L1P L1N L1SG
 unset -f _l1rec _l1run _l1ismerge _l1arg _l1new _l1rows _l1n _l1all _l1kinds _l1lines _l1refkinds \
          _l1rowsok _l1snap _l1keep _l1same _l1memsame _l1memdiff _l1skips _l1marked _l1trailers \
          _l1reached _l1commit _l1landing

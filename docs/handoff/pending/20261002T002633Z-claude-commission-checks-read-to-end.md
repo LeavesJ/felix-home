@@ -21,7 +21,8 @@ Measured on macOS bash 3.2.57:
   a lookup that answered and returned non-zero.
 
 The rows are in engine/harness/templates/commissioning.tsv and in every
-governed project's copy: bazaar, elenchus, felix, sv2-apps and veldra.
+governed project's copy: bazaar, behaviorchangebench, elenchus, felix,
+sv2-apps, veldra and webapp.
 
 **Mechanism, and why this one.** Each lookup is read alone with a mark after
 it, `x="$(lookup; [ $? -lt 128 ] && printf .)" && [ "${x%.}" != "$x" ]`.
@@ -62,13 +63,15 @@ lookup. Probes feeds felix_probes_blocking from the value it read, through
 - **Assertions after review.** Eight not-blind assertions were added after
   review (7e4e429c). They are red against 521e0757, so they pin the status rule.
 - **Final count.** 123 assertions: 123/123 against the template and against
-  the bazaar, felix and sv2-apps tables. origin/main fails 45. Elenchus and
+  the bazaar, behaviorchangebench, felix, sv2-apps and webapp tables.
+  origin/main fails 45. Elenchus and
   veldra fail only six named obligations cases, because neither table has an
   obligations row.
 - **Mutation.** Reverting any one row to main's text reds only that need's
   assertions, 2 to 8 each, 45 in all.
 - **Normal states.** `felix commission --status` reads the same done and held
-  rows under old and new tables in all five checkouts.
+  rows under old and new tables in all six checkouts found here (every
+  project but webapp).
   - One state changes on purpose: preflight, when the claude CLI is present
     and its plugin list is empty, goes from done to held, and the routed
     plugins really are absent.
@@ -88,11 +91,13 @@ lookup. Probes feeds felix_probes_blocking from the value it read, through
     obligations_surveyed on elenchus) read `stale` until they run again.
 - **Slot.** The carrier placed this at 0.49.265, after #340 (.263) and #385
   (.264), which also change felix's tables, so one re-stamp covers all three.
-- **After #388 lands.** It lands after #388, which brings projects/webapp and
-  projects/behaviorchangebench with the old shapes. Merge main once #388 is
-  on it. In both tables, give each of the ten needs above the check cell
-  (column 6) of the template's row for the same need. Then point the blind
-  block at each table (`CMT_TABLE`).
+- **#388's two tables are done.** #388 brought projects/webapp and
+  projects/behaviorchangebench with the old checks, unchanged from the old
+  template. Main was merged at ea865e82, and both tables now carry the
+  template's check cell for all ten needs. Each passes 123/123 and fails 45
+  on main. behaviorchangebench's checkout reads the same states under old and
+  new rows. No checkout here is bound to webapp. A table added after this
+  must be given the same cells.
 
 **Handed on, not done here:**
 - **Nested deaths.** A fork failure nested inside a lookup can still leave a

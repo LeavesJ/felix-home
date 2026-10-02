@@ -37,7 +37,7 @@
 #   - Then the base gets its owner's rwx back, since a dead row's mutation may
 #     have taken the write bit that a claim needs. That is the only mode a
 #     sweep ever changes on a base it has not claimed, and only on one it has
-#     judged dead.
+#     judged dead. It is changed on the directory entered, never by name.
 #   - The claim, because two runs starting together both judge the same dead
 #     record. Only symlink(2) and rename(2), each checked after
 #     (_felix_qualify_claim): this sweep's own record linked at claim, which
@@ -46,7 +46,11 @@
 #     missing: a sweep killed before the rename leaves a claim naming itself,
 #     dead, which a later sweep breaks, and one killed after leaves owner
 #     naming itself, dead, and a later sweep takes the base over. The sweep
-#     that does not hold claim leaves the base without a word.
+#     that does not hold claim leaves the base without a word. All of it
+#     from inside the base, entered and checked, following no name in it: ln
+#     -n at a name never taken, and mv with the flag (-h or -T, asked of mv)
+#     that renames onto a symlink rather than into its directory. Where mv
+#     takes neither, nothing is claimed and every base is left.
 #   - The drop is the row's own, _felix_qualify_drop, with the root this
 #     sweep was given: the tree, its registration when this root holds it,
 #     and the base, its record last. It says, as it always has, only what is
@@ -207,31 +211,69 @@ _felix_qualify_dead() {   # pid, start or empty
 # to a name carrying this sweep's pid, checked to be the very text judged
 # dead, removed, and taken once more. A claim held by anything else is a
 # sweep at work, or a text that is not a record, and the base is left.
-_felix_qualify_claim() {   # base, the record judged dead, this sweep's record
-  local b="$1" brk="$1/claim.${3%% *}" held p s _felix_qualify_text
-  if ! ln -s -- "$3" "$b/claim" 2>/dev/null; then
-    _felix_qualify_link "$b/claim" || return 1
+#
+# All of it from inside the base, entered and checked to be the base
+# (_felix_qualify_in), every name relative to the directory entered, and no
+# name in it ever followed: a claim planted as a symlink to a directory
+# outside had ln make the link in that directory, and an owner whose text,
+# read as a path from the base, named such a symlink had mv move claim into
+# that directory, replacing a file of the name there, at every sweep (review
+# round 2). So ln is given -n and a name already taken is never linked at,
+# and every rename is given mv's flag that renames onto a symlink to a
+# directory rather than into it (_felix_qualify_mvflag). The owner's rwx goes
+# back to the base here too, on the directory entered.
+_felix_qualify_claim() {   # base, the record judged dead, this sweep's record, mv's no-follow flag
+  local _felix_qualify_was="$2" _felix_qualify_mine="$3" _felix_qualify_nf="$4"
+  [ -n "$4" ] || return 1
+  _felix_qualify_in "$1" _felix_qualify_claim_here
+}
+_felix_qualify_claim_here() {
+  local brk="claim.${_felix_qualify_mine%% *}" held p s _felix_qualify_text
+  chmod u+rwx . 2>/dev/null
+  if [ -e claim ] || [ -L claim ] || ! ln -s -n -- "$_felix_qualify_mine" claim 2>/dev/null; then
+    _felix_qualify_link claim || return 1
     held="$_felix_qualify_text"
     _felix_qualify_isrec "$held" || return 1
     p="${held%% *}"; s=""
     [ "$held" = "$p" ] || s="${held#* }"
     _felix_qualify_dead "$p" "$s" || return 1
     if [ -e "$brk" ] || [ -L "$brk" ]; then return 1; fi
-    mv -f "$b/claim" "$brk" 2>/dev/null || return 1
+    mv "$_felix_qualify_nf" -f claim "$brk" 2>/dev/null || return 1
     if ! _felix_qualify_link "$brk" || [ "$_felix_qualify_text" != "$held" ]; then
-      [ -e "$b/claim" ] || [ -L "$b/claim" ] || mv -f "$brk" "$b/claim" 2>/dev/null
+      [ -e claim ] || [ -L claim ] || mv "$_felix_qualify_nf" -f "$brk" claim 2>/dev/null
       return 1
     fi
     rm -f "$brk" 2>/dev/null
-    ln -s -- "$3" "$b/claim" 2>/dev/null || return 1
+    if [ -e claim ] || [ -L claim ]; then return 1; fi
+    ln -s -n -- "$_felix_qualify_mine" claim 2>/dev/null || return 1
   fi
-  _felix_qualify_link "$b/claim" && [ "$_felix_qualify_text" = "$3" ] || return 1
-  if ! _felix_qualify_link "$b/owner" || [ "$_felix_qualify_text" != "$2" ]; then
-    rm -f "$b/claim" 2>/dev/null
+  _felix_qualify_link claim && [ "$_felix_qualify_text" = "$_felix_qualify_mine" ] || return 1
+  if ! _felix_qualify_link owner || [ "$_felix_qualify_text" != "$_felix_qualify_was" ]; then
+    rm -f claim 2>/dev/null
     return 1
   fi
-  mv -f "$b/claim" "$b/owner" 2>/dev/null || { rm -f "$b/claim" 2>/dev/null; return 1; }
-  _felix_qualify_link "$b/owner" && [ "$_felix_qualify_text" = "$3" ]
+  mv "$_felix_qualify_nf" -f claim owner 2>/dev/null || { rm -f claim 2>/dev/null; return 1; }
+  _felix_qualify_link owner && [ "$_felix_qualify_text" = "$_felix_qualify_mine" ]
+}
+
+# mv's flag that renames a file onto a destination that is a symlink to a
+# directory, replacing the link, rather than into the directory: -h on macOS
+# and the BSDs, -T on GNU. Asked of mv itself, never guessed from the
+# system's name: each is tried on two empty names, which no rename can
+# touch, and taken when mv answers about the file, not about the option. In
+# _felix_qualify_text; non-zero when mv takes neither, and then no base is
+# claimed.
+_felix_qualify_mvflag() {
+  local f o
+  _felix_qualify_text=""
+  for f in -h -T; do
+    o="$(LC_ALL=C mv "$f" -f -- '' '' 2>&1)"
+    case "$o" in
+      *option*|*usage*|*Usage*) ;;
+      *"No such file or directory"*) _felix_qualify_text="$f"; return 0 ;;
+    esac
+  done
+  return 1
 }
 
 # Whether a registered path is an orphan of this sweep's: exactly
@@ -263,7 +305,7 @@ _felix_qualify_absent() {   # dir, name
 # Its own process, so the glob options it sets (_felix_qualify_globs) reach
 # no caller.
 _felix_qualify_sweep() (   # root
-  local root="$1" t="${TMPDIR:-/tmp}" tp b n rec p s me="" listed relisted rest line failed="" dropped="" nl='
+  local root="$1" t="${TMPDIR:-/tmp}" tp b n rec p s me="" nf="" listed relisted rest line failed="" dropped="" nl='
 '
   local _felix_qualify_text _felix_qualify_rec
   _felix_qualify_globs
@@ -282,14 +324,15 @@ _felix_qualify_sweep() (   # root
     p="${rec%% *}"; s=""
     [ "$rec" = "$p" ] || s="${rec#* }"
     _felix_qualify_dead "$p" "$s" || continue
-    # This sweep's own record, once, and only for a base judged dead: with
-    # none to be had, nothing can be claimed, and the bases are left.
+    # This sweep's own record and mv's no-follow flag, once, and only for a
+    # base judged dead: with either not to be had, nothing can be claimed,
+    # and the bases are left.
     if [ -z "$me" ]; then
       _felix_qualify_me && me="$_felix_qualify_rec" || me=-
+      _felix_qualify_mvflag && nf="$_felix_qualify_text"
     fi
-    [ "$me" != - ] || continue
-    chmod u+rwx "$b" 2>/dev/null
-    _felix_qualify_claim "$b" "$rec" "$me" || continue
+    [ "$me" != - ] && [ -n "$nf" ] || continue
+    _felix_qualify_claim "$b" "$rec" "$me" "$nf" || continue
     _felix_qualify_drop "$root" "$b"
     dropped="$dropped${b##*/}$nl"
   done

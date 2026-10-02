@@ -15741,14 +15741,17 @@ EOF
 chmod +x "$QSWSHIM/git"
 # mv and ln that, given QSW_HOLDMV or QSW_HOLDLN, a path, do their work, then
 # note it there and hold until the group they are in is killed: a sweep
-# stopped right after its first rename, or its first link.
+# stopped right after its first rename, or its first link. A call whose last
+# operand is empty, which is how the sweep asks mv which options it takes,
+# is no rename and is not held.
 QSWHOLD="$QSWS/hold"; mkdir -p "$QSWHOLD"
 for _qswc in mv ln; do
   _qswv="QSW_HOLD$(printf '%s' "$_qswc" | tr a-z A-Z)"
   cat > "$QSWHOLD/$_qswc" <<EOF
 #!/bin/sh
 '$(command -v "$_qswc")' "\$@"; qsw_rc=\$?
-if [ -n "\${$_qswv:-}" ]; then printf 'held\n' > "\$$_qswv"; while :; do sleep 1; done; fi
+qsw_l=""; for qsw_a in "\$@"; do qsw_l="\$qsw_a"; done
+if [ -n "\${$_qswv:-}" ] && [ -n "\$qsw_l" ]; then printf 'held\n' > "\$$_qswv"; while :; do sleep 1; done; fi
 exit \$qsw_rc
 EOF
   chmod +x "$QSWHOLD/$_qswc"
@@ -16426,6 +16429,32 @@ _qswxenv="QSW_GITSWAP=$d/decoy"; _qswbg "$d/s" "$T" "$R" - sweep; _qswxenv=""; _
 is  "a dead base renamed aside and replaced by a symlink to another directory while the sweep's drop runs leaves that directory and everything in it as it was" \
     "swapped:$([ -L "$T/felix-qualify.SWAP01" ] && echo yes || echo no) decoy:[$(cd "$d/decoy" 2>/dev/null && find . -mindepth 1 | LC_ALL=C sort | tr '\n' ' ')]" \
     "swapped:yes decoy:[./dir ./dir/f ./precious.txt ]"
+
+# 9c. Names in a dead base that lead out of it, as a dead row's mutation
+# could leave them: a claim that is a symlink to a directory outside, and an
+# entry named as owner's text, a symlink to a directory outside, so owner
+# read as a path from the base leads there. Each outside directory holds a
+# regular file named claim. The claim's ln was made inside the first
+# directory and its rename moved claim into the second, replacing that file,
+# at every sweep (review round 2). A claim that is not a record is another
+# sweep's or no one's, so that base is left; owner's base is claimed and
+# swept like any other, its link to outside removed as a link.
+d="$QSWS/follow"; T="$d/t"; mkdir -p "$T" "$d/outa" "$d/outb"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
+printf 'precious\n' > "$d/outa/claim"; printf 'precious\n' > "$d/outb/claim"
+_qswplant "$T" felix-qualify.FOLLWA "$R" "$(_qswdead) $QSWOLD"; ln -s "$d/outa" "$T/felix-qualify.FOLLWA/claim"
+_qswr="$(_qswdead) $QSWOLD"
+_qswplant "$T" felix-qualify.FOLLWB "$R" "$_qswr"; ln -s "$d/outb" "$T/felix-qualify.FOLLWB/$_qswr"
+mkdir -p "$d/snap"; _qswsnap "$T/felix-qualify.FOLLWA" "$R" "$Tp/felix-qualify.FOLLWA/w" > "$d/snap/a"
+_qswp1="$(_qswpre "$T/felix-qualify.FOLLWB" "$R" "$Tp/felix-qualify.FOLLWB/w")"
+_qswout() { printf '[%s] claim:%s' "$(ls -A "$1" 2>/dev/null | LC_ALL=C sort | tr '\n' ' ')" \
+  "$(if [ -L "$1/claim" ]; then echo link; elif [ -f "$1/claim" ]; then cat "$1/claim"; else echo none; fi)"; }
+for _qswi in 1 2; do _qswbg "$d/s$_qswi" "$T" "$R" - sweep; _qswfinish "$_qswpid" "$d/s$_qswi"; done
+_qswctl="$(_qswgone "$_qswp1" "$T/felix-qualify.FOLLWB" "$R" "$Tp/felix-qualify.FOLLWB/w")"
+is  "a dead base holding an entry named as its owner text, a symlink to a directory outside that holds a regular file named claim, is swept, registration included, and over two sweeps that directory keeps its file and gains nothing" \
+    "$_qswctl outside:$(_qswout "$d/outb")" "gone outside:[claim ] claim:precious"
+is  "a dead base whose claim is a symlink to a directory outside that holds a regular file named claim is left as it was, claim included, and over two sweeps that directory keeps its file and gains nothing, beside the dead base the sweeps removed" \
+    "beside:$_qswctl same:$([ "$(_qswsnap "$T/felix-qualify.FOLLWA" "$R" "$Tp/felix-qualify.FOLLWA/w")" = "$(cat "$d/snap/a")" ] && echo yes || echo no) outside:$(_qswout "$d/outa")" \
+    "beside:gone same:yes outside:[claim ] claim:precious"
 
 # 10. A base whose drop cannot finish: a row's mutation makes a file in its
 # tree immutable. Its record stays, a later sweep says what is left, and

@@ -3,9 +3,13 @@
 #   base  <ref>  <sha>  <engine version there>
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
-# A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	5110ca6410ebedd23fede49c12399c48f429ff8e	0.49.150
-run	4	3109	5
+#   an assertion the manifest lists that the base run never reached counts as failed, by its shortfall
+# A base of - means no complete red run was made: none was possible, the
+# suite stopped before reached or reached no assertion, or tests/red itself
+# was stopped; its stdout said which unless it was the one stopped.
+# Reproduce with: tests/red <ref>
+base	3163b29a2a86238343226a92638e8e8f1154fb56	3163b29a2a86238343226a92638e8e8f1154fb56	0.49.258
+run	4	5377	9
 a different git on PATH computes the same decision epoch	1
 and both shells agree on what the new epoch is	1
 and the member going away brings both back to the epoch they started from	1

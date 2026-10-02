@@ -4461,6 +4461,620 @@ _pfre="(printf '%s(\\\\n)?'|echo) \"[\$][^\"]*\" [|] ([^|]*[|] )*grep [^|]*-[a-z
 _pfsites="$(grep -nE "$_pfre" "$HERE/run" | grep -vE -e '^[0-9]+:[[:space:]]*#' -e '"[$]big" [|] grep -Fxq 1 [)]')"
 is "no check in this suite pipes printf or echo of a variable into a chain ending in grep -q" "$_pfsites" ""
 
+# >>> hook-payload-cwd
+printf '\nhooks stand where the session stands\n'
+# Claude Desktop starts every session with --project-config-root naming the
+# main checkout, and Claude Code then spawns every command hook with its cwd
+# there, whatever directory the session works in. The session's own directory,
+# a worktree as often as not, reaches a hook only as the payload's top-level
+# "cwd" (measured 2026-10-02 against the real binary and a mock API). So every
+# hook that resolved from $PWD judged the main checkout: a Stop hook told a
+# worktree session that the gate had passed "on this exact tree" about the
+# main checkout's receipt, ninety seconds after the worktree's own green one.
+#
+# Written from the contract alone, before any implementation existed. The
+# shape is Desktop's: the hook runs in a launch directory, either PCA, a
+# governed main checkout, or PCU, a checkout nothing governs, and the
+# payload's cwd names PCB, a `git worktree add` of PCA on a commit of its own.
+# A home and a memory of its own, set on every call, so nothing here is seen
+# by a later section.
+#
+# The controls, where the payload's cwd equals the launch directory, is absent
+# or unusable, or names a directory nothing governs, pass on the engine before
+# this change by design: they are the behaviour that must not move.
+PC="$TMP/payload-cwd"; mkdir -p "$PC"; PC="$(cd "$PC" && pwd -P)"
+PH="$PC/home"; PM="$PC/memory"; PT="$PC/transcripts"; PX="$PC/fx"
+mkdir -p "$PH/projects/pcwd" "$PH/projects/pcwdremote" "$PM/pcwd" "$PT" "$PX"
+cat > "$PH/projects/pcwd/project.json" <<'EOF'
+{
+  "name": "pcwd",
+  "remote_match": "example.invalid/pcwd-marker-only",
+  "gate": "sh -c 'test -f OK.txt && echo pcwd-gate-ran'"
+}
+EOF
+printf '# pcwd\n' > "$PH/projects/pcwd/CLAUDE.md"
+# The widget's probe row. Without one every receipt carries no epoch, no green
+# receipt is ever current, and every stop below would take the gate's hold.
+printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' > "$PH/projects/pcwd/probes.tsv"
+printf 'Bash\t(^|[;&| ])npm publish\tpcwd refuses a publish\n' > "$PH/projects/pcwd/deny.tsv"
+cat > "$PH/projects/pcwdremote/project.json" <<'EOF'
+{
+  "name": "pcwdremote",
+  "remote_match": "example.invalid/pcwd-remote"
+}
+EOF
+printf -- '- **L1 The quokka ledger in pcwd is reconciled by hand.** Evidence would follow here.\n' \
+  > "$PM/pcwd/lessons.md"
+
+_pcwd_git() { git -c user.name=t -c user.email=t@t "$@"; }
+PCA="$PX/main"; PCB="$PX/wt"; PCU="$PX/plain"; PCN="$PX/nogit"; PCK="$PX/broken"
+PCR="$PX/remote"; PCQ="$PX/sealed"; PCBS="$PX/back\\slash"; PCW2="$PX/wt-broken"
+mkdir -p "$PCA" "$PCU" "$PCN" "$PCK" "$PCR" "$PCQ" "$PCBS"
+( cd "$PCA" && git init -q -b main && printf 'ok\n' > OK.txt && printf 'pcwd\n' > .felix \
+  && git add -A && _pcwd_git commit -qm init && git worktree add -q -b side "$PCB" ) >/dev/null 2>&1
+( cd "$PCB" && mkdir -p sub && printf 'kept\n' > sub/keep.txt \
+  && printf '# the worktree handoff\n' > HANDOFF.md \
+  && git add -A && _pcwd_git commit -qm side ) >/dev/null 2>&1
+# A second worktree of the main checkout, whose marker somebody broke.
+git -C "$PCA" worktree add -q -b broken-side "$PCW2" >/dev/null 2>&1
+printf 'pcwd-no-such-project\n' > "$PCW2/.felix"
+( cd "$PCU" && git init -q -b main && printf 'u\n' > u.txt && git add -A && _pcwd_git commit -qm init ) >/dev/null 2>&1
+( cd "$PCK" && git init -q -b main && printf 'pcwd-no-such-project\n' > .felix \
+  && git add -A && _pcwd_git commit -qm init ) >/dev/null 2>&1
+( cd "$PCR" && git init -q -b main && printf 'r\n' > r.txt && git add -A && _pcwd_git commit -qm init \
+  && git remote add origin https://example.invalid/pcwd-remote.git ) >/dev/null 2>&1
+( cd "$PCQ"  && git init -q -b main && printf 'pcwd\n' > .felix ) >/dev/null 2>&1
+( cd "$PCBS" && git init -q -b main && printf 'pcwd\n' > .felix ) >/dev/null 2>&1
+# The main checkout's own handoff, untracked so the worktree does not carry it,
+# and a link a relative cwd would follow from there into the worktree.
+printf '# the main checkout handoff\n' > "$PCA/HANDOFF.md"
+ln -s "$PCB" "$PCA/to-b"
+printf 'a-edit\n' >> "$PCA/OK.txt"; printf 'b-edit\n' >> "$PCB/OK.txt"
+PCHA="$(git -C "$PCA" rev-parse HEAD 2>/dev/null)"; PCHB="$(git -C "$PCB" rev-parse HEAD 2>/dev/null)"
+
+# The platform's envelope, cwd third; a cwd of `-` leaves the key out.
+_pcwd_pay() {   # event sid cwd [more fields]
+  local c=""; [ "$3" = - ] || c="\"cwd\":\"$3\","
+  printf '{"session_id":"%s","transcript_path":"%s/%s.jsonl",%s"permission_mode":"default","hook_event_name":"%s"%s}' \
+    "$2" "$PT" "$2" "$c" "$1" "${4:+,$4}"
+}
+# A hook run where the platform would start it, with the fixture's own home.
+_pcwd_hook() {   # launch dir, hook, payload -> stdout and stderr together
+  ( cd "$1" && FELIX_HOME="$PH" FELIX_MEMORY="$PM" "$FROOT/harness/hooks/$2" <<<"$3" 2>&1 )
+}
+_pcwd_pre() {    # launch dir, payload -> exit status; stderr in $PC/pre.err
+  ( cd "$1" && FELIX_HOME="$PH" FELIX_MEMORY="$PM" "$FROOT/harness/hooks/pre-tool" <<<"$2" >/dev/null 2>"$PC/pre.err" )
+  printf '%s' "$?"
+}
+_pcwd_tid() { ( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$1" "$PH" ) 2>/dev/null; }
+_pcwd_gate() { ( cd "$1" && FELIX_HOME="$PH" FELIX_MEMORY="$PM" "$FELIX" gate >/dev/null 2>&1 ); }
+_pcwd_current() { ( . "$FROOT/harness/lib/verify.sh"; felix_verify_current "$1" "$PH" "$PH/projects/pcwd" ) 2>/dev/null | cut -f1; }
+_pcwd_res() { local p; p="$( . "$FROOT/harness/lib/resolve.sh"; felix_resolve_project "$1" "$PH" 2>/dev/null )"; printf '%s' "${p##*/}"; }
+# What a stop decided, and the one row it wrote: which tree it judged, and why.
+_pcwd_vlog="$PM/pcwd/verification.log"
+_pcwd_rows() { if [ -f "$_pcwd_vlog" ]; then awk 'END { print NR }' "$_pcwd_vlog"; else printf '0'; fi; }
+_pcwd_stop() {   # launch dir, payload -> "block|silent +rows verdict tree reason"
+  local n0 o
+  n0="$(_pcwd_rows)"; o="$(_pcwd_hook "$1" stop "$2")"
+  case "$o" in
+    *'"decision"'*'"block"'*) printf 'block' ;;
+    '')                       printf 'silent' ;;
+    *)                        printf 'other[%s]' "$(printf '%s' "$o" | head -c 200)" ;;
+  esac
+  printf ' +%s %s' "$(( $(_pcwd_rows) - n0 ))" "$(tail -1 "$_pcwd_vlog" 2>/dev/null | cut -f2-4 | tr '\t' ' ')"
+}
+_pcwd_sp() { _pcwd_pay Stop "$1" "$2" '"stop_hook_active":false'; }
+
+if [ -f "$PCB/.git" ] && [ -f "$PCW2/.git" ] && [ -n "$PCHB" ] && [ "$PCHA" != "$PCHB" ] \
+   && [ "$(cd "$(git -C "$PCB" rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd -P)" = "$PCA/.git" ]; then
+  ok  "the payload-cwd fixture has a main checkout and a worktree of it on a commit of its own"
+else
+  bad "the payload-cwd fixture has a main checkout and a worktree of it on a commit of its own" \
+      "worktree [$PCB] heads [$PCHA] [$PCHB]"
+fi
+is "and in its own home the checkouts resolve as the cases below assume" \
+   "$(_pcwd_res "$PCA") $(_pcwd_res "$PCB") $(_pcwd_res "$PCR") $(_pcwd_res "$PCBS") [$(_pcwd_res "$PCU")] [$(_pcwd_res "$PCK")] [$(_pcwd_res "$PCW2")] [$(_pcwd_res "$PCN")]" \
+   "pcwd pcwd pcwdremote pcwd [] [] [] []"
+chmod 000 "$PCQ/.felix"
+
+# ---- felix_hook_dir, rule by rule (C1). Each answer is the directory printed,
+# a dot, the status, a bar, and whatever reached stderr, so one case checks
+# that it prints one directory with no newline, returns 0 and says nothing.
+# The suite's FELIX_HOME still names the widget home, so the remote-bound case
+# can only pass where the function resolves in the home it is handed.
+_pcwd_hd() {   # stand-in dir, payload
+  ( cd "$1" || exit 0
+    . "$FROOT/harness/lib/resolve.sh"
+    o="$(felix_hook_dir "$2" "$PH" 2>"$PC/hd.err"; printf '.%s' "$?")"
+    printf '%s|%s' "$o" "$(cat "$PC/hd.err" 2>/dev/null)" )
+}
+_pcwd_hdp() { _pcwd_pay PreToolUse hd "$1" '"tool_name":"Bash","tool_input":{"command":"true"},"tool_use_id":"toolu_hd"'; }
+is "felix_hook_dir prints the payload's worktree when its marker names a project" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCB")")" "$PCB.0|"
+is "felix_hook_dir prints a subdirectory of that worktree as given, not its root" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCB/sub")")" "$PCB/sub.0|"
+is "felix_hook_dir prints a checkout whose marker is broken, since Felix has that to say about it" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCK")")" "$PCK.0|"
+# Launched where nothing governs: Amendment 1 keeps a governed launch directory
+# when the candidate's project is another one, and round two asserts that.
+is "felix_hook_dir prints a checkout bound by its remote alone, resolved in the home it is handed, when the launch directory governs nothing" \
+   "$(_pcwd_hd "$PCU" "$(_pcwd_hdp "$PCR")")" "$PCR.0|"
+is "felix_hook_dir prints a checkout whose marker cannot be read, and writes nothing to stderr about it" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCQ")")" "$PCQ.0|"
+is "felix_hook_dir keeps the launch directory for a git checkout nothing governs" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCU")")" "$PCA.0|"
+is "felix_hook_dir keeps the launch directory for a plain directory nothing governs" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCN")")" "$PCA.0|"
+is "felix_hook_dir keeps the launch directory when the payload's cwd is empty" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "")")" "$PCA.0|"
+is "felix_hook_dir keeps the launch directory when the payload carries no cwd" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp -)")" "$PCA.0|"
+is "felix_hook_dir keeps the launch directory for a relative cwd, though from there it names a governed worktree" \
+   "$(_pcwd_hd "$PX" "$(_pcwd_hdp wt)")" "$PX.0|"
+is "felix_hook_dir keeps the launch directory for a cwd spelt with escaped slashes, which it does not decode" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$(printf '%s' "$PCB" | sed 's|/|\\/|g')")")" "$PCA.0|"
+is "felix_hook_dir keeps the launch directory for a cwd holding a backslash, though that directory exists and is governed" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCBS")")" "$PCA.0|"
+is "felix_hook_dir keeps the launch directory for an escaped backslash that only decoding would make a governed directory" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PX/back\\\\slash")")" "$PCA.0|"
+is "felix_hook_dir keeps the launch directory for a cwd that does not exist" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCB/no-such-directory")")" "$PCA.0|"
+is "felix_hook_dir keeps the launch directory for a cwd naming a file inside a governed worktree" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCB/OK.txt")")" "$PCA.0|"
+# Payloads holding a brace and a comma are built in an assignment first: bash
+# 3.2 brace-expands such a word inside "$(...)" in a command's arguments, and
+# the assertion then compares two halves of a payload with each other.
+_pcwd_p="{\"session_id\":\"hd\",\"transcript_path\":\"$PT/hd.jsonl\",\"cwd\" :  \"$PCB\",\"hook_event_name\":\"Stop\"}"
+is "felix_hook_dir reads the top-level cwd with whitespace around its colon" "$(_pcwd_hd "$PCU" "$_pcwd_p")" "$PCB.0|"
+_pcwd_p="$(_pcwd_pay PreToolUse hd "$PCU" "\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"true\",\"cwd\":\"$PCB\"}")"
+is "felix_hook_dir reads the leftmost cwd: a governed directory named again inside tool_input does not move it" \
+   "$(_pcwd_hd "$PCA" "$_pcwd_p")" "$PCA.0|"
+_pcwd_p="$(_pcwd_pay PreToolUse hd "$PCB" "\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"true\",\"cwd\":\"$PCU\"}")"
+is "felix_hook_dir reads the leftmost cwd: an ungoverned directory named again inside tool_input does not undo it" \
+   "$(_pcwd_hd "$PCA" "$_pcwd_p")" "$PCB.0|"
+_pcwd_p="$(_pcwd_pay Stop hd - "\"stop_hook_active\":false,\"last_assistant_message\":\"cd there: \\\"cwd\\\":\\\"$PCB\\\"\"")"
+is "felix_hook_dir does not read a cwd spelt inside a message, where the key's quotes are escaped" \
+   "$(_pcwd_hd "$PCA" "$_pcwd_p")" "$PCA.0|"
+# The CLI case, where the two directories are one: it must cost nothing, so
+# nothing that resolves is called. Spies stand in for each.
+_pco="$( cd "$PCA" && . "$FROOT/harness/lib/resolve.sh"; : > "$PC/spy"
+         felix_repo_root()       { printf 'felix_repo_root ' >> "$PC/spy"; printf '%s' "${1:-$PWD}"; }
+         felix_resolve_project() { printf 'felix_resolve_project ' >> "$PC/spy"; return 1; }
+         felix_binding_broken()  { printf 'felix_binding_broken ' >> "$PC/spy"; }
+         git()                   { printf 'git ' >> "$PC/spy"; command git "$@"; }
+         o="$(felix_hook_dir "$(_pcwd_hdp "$PCA")" "$PH" 2>"$PC/hd.err"; printf '.%s' "$?")"
+         printf '%s|%s|%s' "$o" "$(cat "$PC/hd.err")" "$(cat "$PC/spy")" )"
+is "felix_hook_dir answers a cwd equal to the launch directory without resolving anything" "$_pco" "$PCA.0||"
+
+# About a megabyte: a last message full of escaped "cwd" keys, each naming a
+# checkout Felix has something to say about, behind the real key in the first
+# payload and with no real one in the second. Child CPU, under
+# a watchdog, so neither the load on this machine nor a scan that never ends
+# can decide it; the work is a few milliseconds and the bound is three seconds.
+_pcwd_killtree() { local c; for c in $(pgrep -P "$1" 2>/dev/null); do _pcwd_killtree "$c"; done; kill "$1" 2>/dev/null; }
+_pcwd_bounded() {   # seconds, outfile, command... -> done | killed
+  local lim="$1" of="$2" i=0 pid; shift 2
+  ( "$@" ) > "$of" 2>&1 &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null && [ "$i" -lt $((lim * 10)) ]; do sleep 0.1; i=$((i + 1)); done
+  if kill -0 "$pid" 2>/dev/null; then _pcwd_killtree "$pid"; wait "$pid" 2>/dev/null; printf 'killed'; return; fi
+  wait "$pid" 2>/dev/null; printf 'done'
+}
+_pcwd_big_one() {
+  cd "$PCA" && . "$FROOT/harness/lib/resolve.sh"; raw="$(cat "$1")"
+  o="$(felix_hook_dir "$raw" "$PH" 2>/dev/null)"; printf '%s' "$o" > "$1.out"; times > "$1.cpu"
+}
+_pcwd_big() {   # payload file -> "<printed> <cpu ms>", or killed
+  [ "$(_pcwd_bounded 60 "$1.log" _pcwd_big_one "$1")" = done ] || { printf 'killed'; return; }
+  printf '%s %s' "$(cat "$1.out" 2>/dev/null)" \
+    "$(awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
+            END { printf "%d", ms }' "$1.cpu" 2>/dev/null)"
+}
+_pcwd_msg() { awk -v p="$PCK" 'BEGIN { u = "x \\\"cwd\\\":\\\"" p "\\\" y "; for (n = 0; n < 1100000; n += length(u)) printf "%s", u }'; }
+_pcwd_bigp() { _pcwd_pay Stop big "$1" "\"stop_hook_active\":false,\"last_assistant_message\":\"$(_pcwd_msg)\""; }
+_pcwd_bigp "$PCB" > "$PC/big-cwd.json"; _pcwd_bigp - > "$PC/big-none.json"
+_pcwd_bigsz="$(wc -c < "$PC/big-cwd.json" | tr -d ' ')"
+[ "$_pcwd_bigsz" -gt 1000000 ] && ok  "the payload-cwd fixture's megabyte payloads hold over a million bytes" \
+                               || bad "the payload-cwd fixture's megabyte payloads hold over a million bytes" "$_pcwd_bigsz bytes"
+_pco="$(_pcwd_big "$PC/big-cwd.json")"
+if [ "${_pco% *}" = "$PCB" ] && [ "${_pco##* }" -lt 3000 ] 2>/dev/null; then
+  ok  "felix_hook_dir finds the top-level cwd ahead of a megabyte of message in under three CPU seconds"
+else
+  bad "felix_hook_dir finds the top-level cwd ahead of a megabyte of message in under three CPU seconds" \
+      "got [$_pco], want [$PCB] under 3000 ms"
+fi
+_pco="$(_pcwd_big "$PC/big-none.json")"
+if [ "${_pco% *}" = "$PCA" ] && [ "${_pco##* }" -lt 3000 ] 2>/dev/null; then
+  ok  "felix_hook_dir answers a megabyte payload with no cwd by the launch directory in under three CPU seconds"
+else
+  bad "felix_hook_dir answers a megabyte payload with no cwd by the launch directory in under three CPU seconds" \
+      "got [$_pco], want [$PCA] under 3000 ms"
+fi
+
+# ---- felix_hook_enter (C2'): the calling shell moves, and keeps no record of
+# whence. Amendment 1 dropped FELIX_HOOK_LAUNCH: nothing reads it once pre-tool
+# resolves from where it was started, and state nobody reads is a claim nobody
+# checks. So the variable must come back unset, not merely empty.
+_pcwd_he() {   # payload -> "PWD|unset, or set to FELIX_HOOK_LAUNCH's value|status|output"
+  ( cd "$PCA" && . "$FROOT/harness/lib/resolve.sh"; unset FELIX_HOOK_LAUNCH
+    felix_hook_enter "$1" "$PH" > "$PC/he.out" 2>&1; rc=$?
+    printf '%s|%s|%s|%s' "$PWD" "${FELIX_HOOK_LAUNCH+set to }${FELIX_HOOK_LAUNCH-unset}" "$rc" "$(cat "$PC/he.out")" )
+}
+is "felix_hook_enter moves the calling shell into the payload's worktree, says nothing, and leaves FELIX_HOOK_LAUNCH unset" \
+   "$(_pcwd_he "$(_pcwd_hdp "$PCB")")" "$PCB|unset|0|"
+is "felix_hook_enter leaves the calling shell where it was for a directory nothing governs, says nothing, and sets no FELIX_HOOK_LAUNCH" \
+   "$(_pcwd_he "$(_pcwd_hdp "$PCU")")" "$PCA|unset|0|"
+
+# ---- Stop, first with the main checkout green and the worktree unverified.
+_pcwd_gate "$PCA"
+PCTA1="$(_pcwd_tid "$PCA")"; PCTB1="$(_pcwd_tid "$PCB")"
+is "the payload-cwd fixture's main checkout carries a current green receipt, and its worktree none" \
+   "$(_pcwd_current "$PCA") $(_pcwd_current "$PCB")" "current none"
+is "Stop with the payload's cwd at the launch checkout judges that checkout as before, and it is green" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-s1 "$PCA")")" "silent +1 allowed $PCTA1 green"
+is "Stop judges the worktree the payload names, so its unverified work blocks though the main checkout is green" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-s2 "$PCB")")" "block +1 blocked $PCTB1 never verified"
+_pco="$(_pcwd_hook "$PCA" stop "$(_pcwd_sp pc-s3 "$PCW2")")"
+case "$_pco" in
+  *'"decision"'*'"block"'*) ok  "Stop refuses a broken marker in the payload's worktree though the launch checkout is green" ;;
+  *)                        bad "Stop refuses a broken marker in the payload's worktree though the launch checkout is green" "got [$_pco]" ;;
+esac
+has "and the refusal names that worktree's marker" "$_pco" "The .felix marker in $PCW2 names"
+# Entered before the flag is read: a flagged stop in a chain Felix did not
+# start is judged, and the project it is judged under is the worktree's.
+is "Stop launched in a directory nothing governs judges a flagged stop by the worktree the payload names" \
+   "$(_pcwd_stop "$PCU" "$(_pcwd_pay Stop pc-s6 "$PCB" '"stop_hook_active":true')")" "block +1 blocked $PCTB1 never verified"
+
+# SubagentStop asks the same of the tree, and says so rather than holding.
+has "SubagentStop judges the payload's worktree, so its unverified work is declared though the launch checkout is green" \
+    "$(_pcwd_hook "$PCA" subagent-stop "$(_pcwd_pay SubagentStop pc-ss1 "$PCB" '"stop_hook_active":false,"agent_id":"a1"')")" \
+    "A subagent report is about to be integrated"
+has "SubagentStop launched in a directory nothing governs resolves the governed worktree the payload names" \
+    "$(_pcwd_hook "$PCU" subagent-stop "$(_pcwd_pay SubagentStop pc-ss2 "$PCB" '"stop_hook_active":false,"agent_id":"a2"')")" \
+    "A subagent report is about to be integrated"
+
+# ---- Then the other way round: the worktree green, the main checkout not.
+_pcwd_gate "$PCB"
+printf 'a-again\n' >> "$PCA/OK.txt"
+PCTA2="$(_pcwd_tid "$PCA")"; PCTB2="$(_pcwd_tid "$PCB")"
+is "the payload-cwd fixture's worktree now carries a current green receipt, and its main checkout a stale one" \
+   "$(_pcwd_current "$PCB") $(_pcwd_current "$PCA")" "current stale"
+is "Stop allows when the worktree the payload names is green, though the launch checkout holds unverified work" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-s4 "$PCB")")" "silent +1 allowed $PCTB2 green"
+is "Stop judges the worktree when the payload's cwd is a subdirectory of it" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-s5 "$PCB/sub")")" "silent +1 allowed $PCTB2 green"
+_pcwd_held="block +1 blocked $PCTA2 stale receipt"
+is "Stop with the payload's cwd at the launch checkout judges it as before, and holds its stale receipt" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c1 "$PCA")")" "$_pcwd_held"
+is "Stop with no cwd in the payload judges the launch checkout as before" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c2 -)")" "$_pcwd_held"
+is "Stop with an empty cwd judges the launch checkout as before" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c3 "")")" "$_pcwd_held"
+is "Stop with a relative cwd judges the launch checkout, though from there that path leads to the green worktree" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c4 to-b)")" "$_pcwd_held"
+is "Stop with a cwd spelt in JSON escapes judges the launch checkout, though decoding it leads to the green worktree" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c5 "$(printf '%s' "$PCB" | sed 's|/|\\/|g')")")" "$_pcwd_held"
+is "Stop with a cwd that does not exist judges the launch checkout as before" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c6 "$PCB/no-such-directory")")" "$_pcwd_held"
+is "Stop with a cwd in a git checkout nothing governs judges the launch checkout as before" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c7 "$PCU")")" "$_pcwd_held"
+is "Stop with a cwd in a plain directory nothing governs judges the launch checkout as before" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c8 "$PCN")")" "$_pcwd_held"
+
+# ---- PreToolUse. A deny row with no scope, so where the command acts does
+# not matter and only which project's rows apply does.
+_pcwd_ptp() { _pcwd_pay PreToolUse "$1" "$2" "\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"npm publish\"${3:-}},\"tool_use_id\":\"toolu_pcwd\""; }
+is "PreToolUse launched in a directory nothing governs refuses by the rows of the governed worktree the payload names" \
+   "$(_pcwd_pre "$PCU" "$(_pcwd_ptp pc-p1 "$PCB")")" "2"
+has "and the refusal names that project's deny table" "$(cat "$PC/pre.err" 2>/dev/null)" \
+    "This is a rule in $PH/projects/pcwd/deny.tsv"
+is "PreToolUse reads the top-level cwd, so a later cwd inside tool_input does not lift the worktree's refusal" \
+   "$(_pcwd_pre "$PCU" "$(_pcwd_ptp pc-p2 "$PCB" ",\"cwd\":\"$PCU\"")")" "2"
+is "PreToolUse is not moved by a governed directory named only inside tool_input" \
+   "$(_pcwd_pre "$PCU" "$(_pcwd_ptp pc-p3 "$PCU" ",\"cwd\":\"$PCB\"")")" "0"
+is "PreToolUse still refuses by the launch checkout's rows when the payload's worktree has a broken marker" \
+   "$(_pcwd_pre "$PCA" "$(_pcwd_ptp pc-p4 "$PCW2")")" "2"
+_pcwd_pre "$PCA" "$(_pcwd_ptp pc-p5 -)" >/dev/null; _pcwd_err0="$(cat "$PC/pre.err" 2>/dev/null)"
+is "PreToolUse refuses by the launch checkout's rows when the payload's cwd is a directory nothing governs, as before" \
+   "$(_pcwd_pre "$PCA" "$(_pcwd_ptp pc-p6 "$PCU")")" "2"
+is "and says exactly what it says when the payload carries no cwd" "$(cat "$PC/pre.err" 2>/dev/null)" "$_pcwd_err0"
+
+# ---- SessionStart: the banner and the record are the worktree's.
+_pcwd_handoffs() {   # the HANDOFF.md paths a banner names, in order, once each
+  printf '%s' "$1" | awk '{ gsub(/\\n/, " ")
+    for (i = 1; i <= NF; i++) if ($i ~ /HANDOFF\.md$/ && !s[$i]++) { printf "%s%s", sep, $i; sep = " " } }'
+}
+_pco="$(_pcwd_hook "$PCA" session-start "$(_pcwd_pay SessionStart pc-st1 "$PCB" '"source":"startup"')")"
+is "SessionStart names the handoff of the worktree the payload names, and not the launch checkout's" \
+   "$(_pcwd_handoffs "$_pco")" "$PCB/HANDOFF.md"
+is "and records the session at the worktree's HEAD" \
+   "$(tail -1 "$PM/pcwd/lifecycle.log" 2>/dev/null | cut -f3,6 | tr '\t' ' ')" "pc-st1 $PCHB"
+has "SessionStart launched in a directory nothing governs binds the governed worktree the payload names" \
+    "$(_pcwd_hook "$PCU" session-start "$(_pcwd_pay SessionStart pc-st2 "$PCB" '"source":"startup"')")" \
+    "Project: pcwd"
+is "SessionStart with a cwd that does not exist reads the launch checkout as before" \
+   "$(_pcwd_handoffs "$(_pcwd_hook "$PCA" session-start "$(_pcwd_pay SessionStart pc-st3 "$PX/no-such" '"source":"startup"')")")" \
+   "$PCA/HANDOFF.md"
+
+# ---- UserPromptSubmit: it used to resolve before it had read the payload.
+has "UserPromptSubmit launched in a directory nothing governs mounts the lessons of the governed worktree the payload names" \
+    "$(_pcwd_hook "$PCU" user-prompt "$(_pcwd_pay UserPromptSubmit pc-up1 "$PCB" '"prompt":"reconcile the quokka ledger"')")" \
+    "The rest are in $PM/pcwd/lessons.md."
+is "and marks the session at the worktree's HEAD" "$(cat "$PH/state/session/pc-up1" 2>/dev/null)" "$PCHB"
+is "UserPromptSubmit launched in a directory nothing governs says nothing when the payload's cwd is ungoverned too, as before" \
+   "$(_pcwd_hook "$PCU" user-prompt "$(_pcwd_pay UserPromptSubmit pc-up2 "$PCN" '"prompt":"reconcile the quokka ledger"')")" ""
+
+# ---- SubagentStart: it read no payload at all.
+has "SubagentStart launched in a directory nothing governs names the governed worktree's project to the subagent" \
+    "$(_pcwd_hook "$PCU" subagent-start "$(_pcwd_pay SubagentStart pc-sa1 "$PCB" '"agent_id":"a1","agent_type":"general-purpose"')")" \
+    "Constitution: $PH/projects/pcwd/CLAUDE.md"
+is "SubagentStart says nothing when the payload's cwd is the ungoverned directory it was launched in, as before" \
+   "$(_pcwd_hook "$PCU" subagent-start "$(_pcwd_pay SubagentStart pc-sa2 "$PCU" '"agent_id":"a2","agent_type":"general-purpose"')")" ""
+_pcwd_closed() { cd "$PCA" && : | FELIX_HOME="$PH" FELIX_MEMORY="$PM" "$FROOT/harness/hooks/subagent-start"; }
+_pco="$(_pcwd_bounded 60 "$PC/closed.out" _pcwd_closed)"
+case "$(cat "$PC/closed.out" 2>/dev/null)" in
+  *"Constitution: $PH/projects/pcwd/CLAUDE.md"*) _pco="$_pco binds" ;;
+  *)                                             _pco="$_pco silent" ;;
+esac
+is "SubagentStart given a closed pipe with nothing in it finishes, and binds the launch checkout" "$_pco" "done binds"
+
+# ---- SessionEnd folds what the session reached for into the worktree's ledger.
+mkdir -p "$PH/state/ledger"; printf 'skill\tpcwd-probe:used\n' > "$PH/state/ledger/pc-se1.tsv"
+_pcwd_hook "$PCU" session-end "$(_pcwd_pay SessionEnd pc-se1 "$PCB" '"reason":"other"')" >/dev/null
+is "SessionEnd launched in a directory nothing governs folds the session into the governed worktree's ledger" \
+   "$(cut -f3,4 "$PM/pcwd/ledger.d/pc-se1.tsv" 2>/dev/null | tr '\t' ' ')" "skill pcwd-probe:used"
+
+# round two: Amendment 1
+# Written from Amendment 1 alone, after three reviews of round one. A hook now
+# leaves the directory the platform started it in only for another checkout of
+# that directory's own project, for a governed directory when that directory
+# governs nothing, or for a broken marker. It reads only the first 4096 bytes
+# and only the first "cwd" key, and only when that key's value is a string.
+# The launch directory however it is spelt resolves nothing. pre-tool resolves
+# from where it was started before anything else.
+#
+# Fixtures on top of the block's: a project that declares no gate, bound by the
+# marker of a checkout nested in the main checkout. The main checkout excludes
+# it, as it would a scratch clone, so its own tree does not move. A broken-marker
+# checkout's subdirectory, and a link to the main checkout.
+mkdir -p "$PH/projects/pcwdnogate"
+cat > "$PH/projects/pcwdnogate/project.json" <<'EOF'
+{
+  "name": "pcwdnogate",
+  "remote_match": "example.invalid/pcwd-nogate"
+}
+EOF
+PCNEST="$PCA/nest"; mkdir -p "$PCNEST" "$PCA/.git/info" "$PCK/sub"
+( cd "$PCNEST" && git init -q -b main && printf 'pcwdnogate\n' > .felix && printf 'n\n' > n.txt \
+  && git add -A && _pcwd_git commit -qm init ) >/dev/null 2>&1
+printf 'nest/\n' >> "$PCA/.git/info/exclude"
+ln -s "$PCA" "$PC/via-link"
+is "the round-two fixture binds the nested checkout and the remote-bound one to projects of their own, and the main checkout's tree has not moved" \
+   "$(_pcwd_res "$PCNEST") $(_pcwd_res "$PCR") $(_pcwd_tid "$PCA")" "pcwdnogate pcwdremote $PCTA2"
+
+# ---- felix_hook_dir, rule 1': the first "cwd" key, and only a string value.
+_pcwd_p="{\"session_id\":\"hd\",\"transcript_path\":\"$PT/hd.jsonl\",\"cwd\":null,\"permission_mode\":\"default\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"true\",\"cwd\":\"$PCB\"},\"tool_use_id\":\"toolu_hd\"}"
+is "felix_hook_dir keeps the launch directory when the first cwd is null, though a governed worktree is named in tool_input after it" \
+   "$(_pcwd_hd "$PCA" "$_pcwd_p")" "$PCA.0|"
+_pcwd_p="{\"session_id\":\"hd\",\"transcript_path\":\"$PT/hd.jsonl\",\"cwd\":42,\"permission_mode\":\"default\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"true\",\"cwd\":\"$PCB\"},\"tool_use_id\":\"toolu_hd\"}"
+is "felix_hook_dir keeps a launch directory nothing governs when the first cwd is a number, though a governed worktree is named in tool_input after it" \
+   "$(_pcwd_hd "$PCU" "$_pcwd_p")" "$PCU.0|"
+
+# Only the first 4096 bytes are read. The envelope's transcript path is padded
+# so that the top-level cwd's closing quote is byte 4096 in one payload, and its
+# key starts at byte 4097 in the other.
+_pcwd_at() {   # byte the "cwd" key starts at, cwd -> payload
+  local h="{\"session_id\":\"hd\",\"transcript_path\":\"$PT/" t='.jsonl",' n
+  n=$(( $1 - 1 - ${#h} - ${#t} ))
+  printf '%s%s%s"cwd":"%s"%s' "$h" "$(awk -v n="$n" 'BEGIN { while (n-- > 0) printf "x" }')" "$t" "$2" \
+    ',"permission_mode":"default","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"true"},"tool_use_id":"toolu_hd"}'
+}
+_pcwd_in="$(_pcwd_at $(( 4096 - 7 - ${#PCB} )) "$PCB")"; _pcwd_out="$(_pcwd_at 4097 "$PCB")"
+is "the payload-cwd fixture's padded payloads end the cwd at byte 4096 in one and start its key at byte 4097 in the other" \
+   "$(head -c 4096 <<<"$_pcwd_in" | tail -c $(( ${#PCB} + 8 ))) $(head -c 4096 <<<"$_pcwd_out" | LC_ALL=C command grep -c '"cwd"') $(head -c 4101 <<<"$_pcwd_out" | tail -c 5)" \
+   "\"cwd\":\"$PCB\" 0 \"cwd\""
+is "felix_hook_dir still reads a top-level cwd whose closing quote is the payload's 4096th byte" \
+   "$(_pcwd_hd "$PCA" "$_pcwd_in")" "$PCB.0|"
+is "felix_hook_dir keeps the launch directory when the top-level cwd starts past the payload's first 4096 bytes" \
+   "$(_pcwd_hd "$PCA" "$_pcwd_out")" "$PCA.0|"
+
+# ---- rule 3': the launch directory, however it is spelt, resolves nothing.
+# The round-one spy, with the shell standing where the first argument says.
+_pcwd_spy() {   # launch dir as the shell reaches it, payload cwd -> "printed.status|stderr|calls"
+  ( cd "$1" && . "$FROOT/harness/lib/resolve.sh"; : > "$PC/spy"
+    felix_repo_root()       { printf 'felix_repo_root ' >> "$PC/spy"; printf '%s' "${1:-$PWD}"; }
+    felix_resolve_project() { printf 'felix_resolve_project ' >> "$PC/spy"; return 1; }
+    felix_binding_broken()  { printf 'felix_binding_broken ' >> "$PC/spy"; }
+    git()                   { printf 'git ' >> "$PC/spy"; command git "$@"; }
+    o="$(felix_hook_dir "$(_pcwd_hdp "$2")" "$PH" 2>"$PC/hd.err"; printf '.%s' "$?")"
+    printf '%s|%s|%s' "$o" "$(cat "$PC/hd.err")" "$(cat "$PC/spy")" )
+}
+is "felix_hook_dir answers a launch directory reached through a symlink by that logical spelling, resolving nothing, when the payload names its physical path" \
+   "$(_pcwd_spy "$PC/via-link" "$PCA")" "$PC/via-link.0||"
+is "felix_hook_dir answers a payload cwd naming the launch directory with a trailing slash by the launch directory, resolving nothing" \
+   "$(_pcwd_spy "$PCA" "$PCA/")" "$PCA.0||"
+
+# ---- rule 4': a governed launch directory is left only for its own project.
+is "felix_hook_dir keeps a governed launch directory when the payload's cwd is a checkout nested in it whose marker names another project" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCNEST")")" "$PCA.0|"
+is "felix_hook_dir keeps a governed launch directory when the payload's cwd is a checkout bound to another project by its remote alone" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCR")")" "$PCA.0|"
+is "felix_hook_dir prints that nested checkout of another project when the launch directory governs nothing" \
+   "$(_pcwd_hd "$PCU" "$(_pcwd_hdp "$PCNEST")")" "$PCNEST.0|"
+is "felix_hook_dir prints a subdirectory of a checkout whose marker is broken, though the launch directory is governed" \
+   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCK/sub")")" "$PCK/sub.0|"
+
+# ---- Stop: a nested checkout of another project does not trade away the
+# launch checkout's gate for a project that declares none.
+is "Stop launched in a governed checkout holding unverified work still blocks on it when the payload's cwd is a nested checkout of a project that declares no gate" \
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-r2s1 "$PCNEST")")" "$_pcwd_held"
+
+# ---- pre-tool (C3'): the launch checkout's rows first, whatever the payload says.
+is "PreToolUse launched in a governed checkout refuses by its own row when the payload's cwd is a checkout of another project with no deny table" \
+   "$(_pcwd_pre "$PCA" "$(_pcwd_ptp pc-r2p1 "$PCR")")" "2"
+has "and that refusal names the launch checkout's deny table" "$(cat "$PC/pre.err" 2>/dev/null)" \
+    "This is a rule in $PH/projects/pcwd/deny.tsv"
+printf 'Bash\t(^|[;&| ])cargo publish\tpcwdremote refuses a crate publish\n' > "$PH/projects/pcwdremote/deny.tsv"
+is "PreToolUse launched in a governed checkout refuses by its own row when the payload's cwd is a checkout of another project whose deny table lacks that row" \
+   "$(_pcwd_pre "$PCA" "$(_pcwd_ptp pc-r2p2 "$PCR")")" "2"
+has "and that refusal also names the launch checkout's deny table" "$(cat "$PC/pre.err" 2>/dev/null)" \
+    "This is a rule in $PH/projects/pcwd/deny.tsv"
+rm -f "$PH/projects/pcwdremote/deny.tsv"
+# Launched where nothing governs, with a row scoped to the checkout. The
+# worktree the payload names lies under the temporary root lib/where.sh lifts
+# scratch in, so only standing in it makes it the governed checkout.
+cp "$PH/projects/pcwd/deny.tsv" "$PC/deny.keep"
+printf 'Bash\tgit add ([^;&|]* )?(-A|--all|\\.)( |$)\tpcwd refuses staging all of its checkout\tcheckout\n' \
+  >> "$PH/projects/pcwd/deny.tsv"
+_pcwd_tr="$(cd -P "${TMPDIR:-/tmp}" 2>/dev/null && pwd -P)"
+if [ -n "$_pcwd_tr" ] && case "$PCB/" in "${_pcwd_tr%/}/"*) true ;; *) false ;; esac; then
+  ok  "the payload-cwd fixture's worktree lies under the TMPDIR the suite was given"
+else
+  bad "the payload-cwd fixture's worktree lies under the TMPDIR the suite was given" "worktree [$PCB] TMPDIR [${TMPDIR:-}]"
+fi
+_pcwd_ptc() { _pcwd_pay PreToolUse "$1" "$2" "\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$3\"},\"tool_use_id\":\"toolu_pcwd\""; }
+is "PreToolUse launched in a directory nothing governs refuses a command acting in the governed worktree the payload names by that worktree's checkout-scoped row" \
+   "$(_pcwd_pre "$PCU" "$(_pcwd_ptc pc-r2p3 "$PCB" 'git add -A')")" "2"
+has "and that refusal is the checkout-scoped row of the worktree's project" "$(cat "$PC/pre.err" 2>/dev/null)" \
+    "pcwd refuses staging all of its checkout"
+is "and the same row lifts for a command that acts only in a scratch checkout under that TMPDIR" \
+   "$(_pcwd_pre "$PCU" "$(_pcwd_ptc pc-r2p4 "$PCB" "cd $PCU && git add -A")")" "0"
+cp "$PC/deny.keep" "$PH/projects/pcwd/deny.tsv"
+
+# ---- #392's unrecorded-catch prompt in the Desktop shape: the Stop hook
+# started in the main checkout on main, the session in the worktree on side,
+# both green and current. The guard reads the branch from the root the hook
+# judges, so which branch a catch is filed under says which root that was.
+# Both gated again: deny.tsv is one of the tables the decision epoch hashes,
+# and it was edited above.
+_pcwd_gate "$PCA"; _pcwd_gate "$PCB"
+PCTA4="$(_pcwd_tid "$PCA")"; PCTB4="$(_pcwd_tid "$PCB")"
+is "the payload-cwd fixture's main checkout on main and its worktree on side are both green and current" \
+   "$(git -C "$PCA" symbolic-ref --short HEAD 2>/dev/null) $(_pcwd_current "$PCA") $(git -C "$PCB" symbolic-ref --short HEAD 2>/dev/null) $(_pcwd_current "$PCB")" \
+   "main current side current"
+# One catch the gate filed ten minutes ago under no session: day, branch,
+# commit, checks, second, session. Nothing in written.log settles it.
+_pcwd_catch() {   # branch -> a mistakes.log holding that one catch, named quokka-<branch>
+  local at d; at=$(( $(date +%s) - 600 ))
+  d="$(date -r "$at" +%Y-%m-%d 2>/dev/null || date -d "@$at" +%Y-%m-%d)"
+  printf '%s\t%s\tabc1234\tquokka-%s\t%s\t-\n' "$d" "$1" "$1" "$at" > "$PM/pcwd/mistakes.log"
+}
+_pcwd_stopu() {   # launch dir, payload -> "prompt[last caught]|silent|block +rows verdict tree reason"
+  local n0 o
+  n0="$(_pcwd_rows)"; o="$(_pcwd_hook "$1" stop "$2")"
+  case "$o" in
+    *'The gate caught something here and nothing has been written down since.'*)
+      printf 'prompt[%s]' "$(printf '%s\n' "$o" | sed -n 's/.*  last caught   \([^\\]*\)\\n.*/\1/p' | head -1)" ;;
+    *'"decision"'*'"block"'*) printf 'block' ;;
+    '')                       printf 'silent' ;;
+    *)                        printf 'other[%s]' "$(printf '%s' "$o" | head -c 200)" ;;
+  esac
+  printf ' +%s %s' "$(( $(_pcwd_rows) - n0 ))" "$(tail -1 "$_pcwd_vlog" 2>/dev/null | cut -f2-4 | tr '\t' ' ')"
+}
+_pcwd_catch side
+is "Stop in the Desktop shape asks about a recent session-less catch filed under the worktree's branch" \
+   "$(_pcwd_stopu "$PCA" "$(_pcwd_sp pc-r2u1 "$PCB")")" "prompt[quokka-side] +1 allowed $PCTB4 green"
+_pcwd_catch main
+is "Stop in the Desktop shape does not ask about a session-less catch filed under the main checkout's branch only" \
+   "$(_pcwd_stopu "$PCA" "$(_pcwd_sp pc-r2u2 "$PCB")")" "silent +1 allowed $PCTB4 green"
+rm -f "$PM/pcwd/mistakes.log"
+
+# ---- SubagentStart with a terminal on stdin, as when a person runs it by hand.
+# The closed pipe above ends a read whether or not it is guarded; a terminal
+# held open does not. python3's pty gives the hook one as stdin, with stdout and
+# stderr in a file, and kills the one process it forked if that has not exited
+# within its bound, so a read that waits on the terminal fails here rather than
+# hanging the suite. Measured on 2026-10-02: a subagent-start that reads its
+# stdin unguarded fails this as `hung silent`, and the closed pipe stays green.
+_pcwd_tty() {   # launch dir, hook, output file -> "exited <status>" or "hung"
+  FELIX_HOME="$PH" FELIX_MEMORY="$PM" python3 - "$1" "$FROOT/harness/hooks/$2" "$3" <<'PY'
+import os, pty, sys, time
+where, hook, out = sys.argv[1:4]
+pid, fd = pty.fork()
+if pid == 0:
+    try:
+        os.chdir(where)
+        o = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+        os.dup2(o, 1)
+        os.dup2(o, 2)
+        os.execv(hook, [hook])
+    finally:
+        os._exit(127)
+end = time.time() + 45
+while time.time() < end:
+    done, status = os.waitpid(pid, os.WNOHANG)
+    if done:
+        print('exited %d' % (os.WEXITSTATUS(status) if os.WIFEXITED(status) else 128 + os.WTERMSIG(status)))
+        sys.exit(0)
+    time.sleep(0.05)
+os.kill(pid, 9)
+os.waitpid(pid, 0)
+print('hung')
+PY
+}
+if command -v python3 >/dev/null 2>&1; then
+  _pco="$(_pcwd_tty "$PCA" subagent-start "$PC/tty.out" 2>&1)"
+  case "$(cat "$PC/tty.out" 2>/dev/null)" in
+    *"Constitution: $PH/projects/pcwd/CLAUDE.md"*) _pco="$_pco binds" ;;
+    *)                                             _pco="$_pco silent" ;;
+  esac
+  is "SubagentStart with a terminal on its stdin finishes without waiting on it, and binds the launch checkout" "$_pco" "exited 0 binds"
+else
+  skip "SubagentStart with a terminal on its stdin finishes without waiting on it, and binds the launch checkout" "python3 is not installed"
+fi
+
+# ---- round-two review pins. Written after the review, from its findings, not
+# blind: three things the round-two reviewer measured that nothing above could
+# see.
+# A launch directory whose marker is broken was meant to be governed. Stepping
+# over it into a healthy worktree left the breakage reported nowhere.
+is "felix_hook_dir keeps a launch directory whose marker is broken, though the payload names a governed worktree" \
+   "$(_pcwd_hd "$PCK" "$(_pcwd_hdp "$PCB")")" "$PCK.0|"
+# The CLI shortcut must not fork: it runs on every tool call. Measured by
+# refusing forks rather than by timing them, because the child CPU of a few
+# hundred tiny subshells sat under any threshold that load would not also
+# cross. Held to one process, a shortcut that forks nothing answers; one that
+# asks a subshell where the directory is cannot, and the shell says so. Root
+# ignores the limit, so there it is skipped rather than passed.
+_pcwd_nofork="$( cd "$PC/via-link" || exit 1
+                 . "$FROOT/harness/lib/resolve.sh"
+                 p="{\"session_id\":\"pc-fork\",\"transcript_path\":\"$PT/pc-fork.jsonl\",\"cwd\":\"$PCA\",\"hook_event_name\":\"PreToolUse\"}"
+                 [ "${EUID:-0}" -ne 0 ] && ulimit -u 1 2>/dev/null || { printf 'unlimited'; exit 0; }
+                 _felix_hook_dir_set "$p" "$PH" 2>&1
+                 [ "$_felix_hd" = "$PWD" ] && printf 'stayed' )"
+if [ "$_pcwd_nofork" = unlimited ]; then
+  skip "the same-directory shortcut forks nothing: held to one process, a symlinked launch path still stays" "processes cannot be limited here"
+else
+  is "the same-directory shortcut forks nothing: held to one process, a symlinked launch path still stays" \
+     "$_pcwd_nofork" "stayed"
+fi
+# pre-tool in a repository nothing governs, which is most of them, asks for its
+# remote once, as main does: the hook did not move, so there is nothing to ask
+# again. Counted at git itself, through a shim first on PATH.
+PCUR="$PX/plain-remote"; mkdir -p "$PCUR"; _pcwd_git -C "$PCUR" init -q -b main
+git -C "$PCUR" config remote.origin.url https://example.invalid/nobody.git
+PCUR="$(cd "$PCUR" && pwd -P)"
+mkdir -p "$PC/gitspy"
+printf '#!/bin/sh\ncase "$*" in *"remote get-url"*) echo x >> "$PCWD_SPY_LOG" ;; esac\nexec "$PCWD_REAL_GIT" "$@"\n' > "$PC/gitspy/git"
+chmod +x "$PC/gitspy/git"; : > "$PC/gitspy.log"
+( cd "$PCUR" && printf '{"session_id":"pc-once","transcript_path":"%s/pc-once.jsonl","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"%s/x"}}' "$PT" "$PCUR" "$PCUR" \
+    | PATH="$PC/gitspy:$PATH" PCWD_REAL_GIT="$(command -v git)" PCWD_SPY_LOG="$PC/gitspy.log" \
+      FELIX_HOME="$PH" FELIX_MEMORY="$PM" "$FROOT/harness/hooks/pre-tool" >/dev/null 2>&1 )
+is "PreToolUse in a checkout nothing governs asks git for its remote once, as main does, when the payload's cwd is that checkout" \
+   "$(wc -l < "$PC/gitspy.log" | tr -d ' ')" "1"
+unset _pcwd_nofork PCUR
+
+# Left as found: the sealed marker readable again, and nothing of this section's
+# by name for a later one to read.
+chmod 644 "$PCQ/.felix" 2>/dev/null
+unset PC PH PM PT PX PCA PCB PCU PCN PCK PCR PCQ PCBS PCW2 PCHA PCHB PCTA1 PCTB1 PCTA2 PCTB2 \
+      _pco _pcwd_p _pcwd_vlog _pcwd_bigsz _pcwd_held _pcwd_err0 \
+      PCNEST PCTA4 PCTB4 _pcwd_in _pcwd_out _pcwd_tr
+unset -f _pcwd_git _pcwd_pay _pcwd_hook _pcwd_pre _pcwd_tid _pcwd_gate _pcwd_current _pcwd_res \
+         _pcwd_rows _pcwd_stop _pcwd_sp _pcwd_hd _pcwd_hdp _pcwd_killtree _pcwd_bounded \
+         _pcwd_big_one _pcwd_big _pcwd_msg _pcwd_bigp _pcwd_he _pcwd_ptp _pcwd_handoffs _pcwd_closed \
+         _pcwd_at _pcwd_spy _pcwd_ptc _pcwd_catch _pcwd_stopu _pcwd_tty
+# <<< hook-payload-cwd
 printf '\nthe completion gate\n'
 # The principle under test: an agent must not be able to say it is finished
 # while the tree it changed has never been verified. Everything here drives the
@@ -5373,7 +5987,12 @@ _p264_payload() {   # sid, the prompt value as JSON holds it, [space after the c
   printf '{"session_id":"%s","transcript_path":"%s/%s.jsonl","cwd":"%s","prompt_id":"%s-id","permission_mode":"default","hook_event_name":"UserPromptSubmit","prompt":%s"%s"}' \
     "$1" "$P264" "$1" "$REPO" "$1" "${3:-}" "$2"
 }
-_p264_prompt() { ( cd "${2:-$REPO}" && printf '%s' "$1" | "$FROOT/harness/hooks/user-prompt" 2>&1 ); }
+# The payload's cwd is the directory the hook runs in. _p264_payload says $REPO
+# whatever checkout the hook is run in, a cwd no platform sends: the CLI's is
+# the hook's own, and Desktop's names where the session is. A hook that stands
+# where the payload says (felix_hook_enter) would leave for $REPO.
+_p264_prompt() { local p="${1/\"cwd\":\"$REPO\"/\"cwd\":\"${2:-$REPO}\"}"
+                 ( cd "${2:-$REPO}" && printf '%s' "$p" | "$FROOT/harness/hooks/user-prompt" 2>&1 ); }
 _p264_end()    { ( cd "${2:-$REPO}" && printf '{"session_id":"%s","hook_event_name":"SessionEnd","reason":"other"}' "$1" \
                      | "$FROOT/harness/hooks/session-end" >/dev/null 2>&1 ); }
 # Every file one prompt and its session's end can write, one line per file.
@@ -20740,6 +21359,531 @@ is  "an engine function the check names that is not loaded is unknown"   "$(_cms
 has "and the missing function is named"                                  "$(_cmdetail zeta)" "felix_no_such_function"
 is  "a provider row is awaiting, a class of its own"                     "$(_cmstate prov)"  "awaiting"
 
+# A row's text means what it means in a probe.
+#
+# felix_commission_ask evaluates a row in-process, so the row inherited the
+# CLI's `set -uo pipefail`, which no other table runner has. A check shaped
+# `producer | grep -q x` whose grep matched and left while the producer still
+# had output to write read as failed, because the producer died of SIGPIPE: a
+# check read held for a step that was done, and a `when` read not-applicable
+# and skipped its step. The producer here writes about 1.3 MB with the match on
+# its first line, far past what one pipe holds, so grep leaving early is
+# certain and not a matter of load. The engine functions a row names run
+# without pipefail too, as they already do under bin/probes-check.
+# Everything this touches is restored below and everything it defines unset.
+cp "$CMP/commissioning.tsv" "$TMP/cmpf-table.keep"
+_cmpfml="$MEM/cmproj/mistakes.log"
+rm -f "$TMP/cmpf-mistakes.keep"; [ -f "$_cmpfml" ] && cp "$_cmpfml" "$TMP/cmpf-mistakes.keep"
+_cmpfp="awk 'BEGIN { print \"cmpfhit\"; for (i = 0; i < 20000; i++) print \"filler that pushes the producer far past what one pipe can hold\" }'"
+_cmpfrow() { printf '%s\t-\t-\t%s\t-\t%s\t9' "$1" "$2" "$3"; }   # need, when, check
+_cmpfst()  { printf '%s\n' "$1" | awk -F'\t' -v n="$2" '$1 == n { print $2 }'; }
+felix_cmpf_on()    { [ -o pipefail ]; }
+felix_cmpf_off()   { ! [ -o pipefail ]; }
+felix_cmpf_state() { if [ -o pipefail ]; then printf 'on\n'; else printf 'off\n'; fi; }
+felix_cmpf_true()  { return 0; }
+# An engine function that sources a library, as cmd_bootstrap's kind do: the
+# library redefines the function running it, redefines a function the row also
+# names, and defines one nothing named before.
+felix_cmpf_src()         { . "$TMP/cmpf-lib.sh" && felix_cmpf_src_fresh; }
+felix_cmpf_src_defined() { return 1; }
+cat > "$TMP/cmpf-lib.sh" <<'CMPFLIB'
+felix_cmpf_src() { . "$TMP/cmpf-lib.sh" && felix_cmpf_src_fresh; }
+felix_cmpf_src_defined() { return 0; }
+felix_cmpf_src_fresh() { return 0; }
+CMPFLIB
+# A mistakes.log far past 64 KB whose first row's label is neither commission
+# nor probes, which is the state the seeded gate_shown_failing check calls done.
+awk 'BEGIN { printf "2026-09-25\tmain\tabc1234\tgate\n"
+             for (i = 0; i < 20000; i++)
+               printf "2026-09-25\tmain\tabc1234\tcheck%d filler words that are neither commission nor probes\n", i }' > "$_cmpfml"
+_cmpfgsf="$(awk -F'\t' '$1 == "gate_shown_failing"' "$FROOT/harness/templates/commissioning.tsv")"
+_cmtable "$(_cmpfrow cmpf_yes       - "$_cmpfp | grep -q cmpfhit")" \
+         "$(_cmpfrow cmpf_when_yes  "$_cmpfp | grep -q cmpfhit" true)" \
+         "$(_cmpfrow cmpf_no        - "$_cmpfp | grep -q cmpfnope")" \
+         "$(_cmpfrow cmpf_when_no   "$_cmpfp | grep -q cmpfnope" true)" \
+         "$(_cmpfrow cmpf_early     - "sh -c 'echo hit; exit 3' | grep -q hit")" \
+         "$_cmpfgsf" \
+         "$(_cmpfrow cmpf_whole     - 'felix_cmpf_off')" \
+         "$(_cmpfrow cmpf_subst     - '[ "$(felix_cmpf_state)" = off ]')" \
+         "$(_cmpfrow cmpf_when_fn   'felix_cmpf_off' true)" \
+         "$(_cmpfrow cmpf_fails     - 'felix_cmpf_on')" \
+         "$(_cmpfrow cmpf_src       - 'felix_cmpf_src && felix_cmpf_src_defined')" \
+         "$(_cmpfrow cmpf_cmdv      - '[ "$(command -v felix_cmpf_on)" = felix_cmpf_on ]')" \
+         "$(_cmpfrow cmpf_type      - '[ "$(type -t felix_cmpf_on)" = function ]')" \
+         "$(_cmpfrow cmpf_quoted    - "_s='felix_cmpf_on'; [ \"\${#_s}\" -eq 13 ]")" \
+         "$(_cmpfrow cmpf_redef     'felix_cmpf_true() { return 0; }; felix_cmpf_true' true)" \
+         "$(_cmpfrow cmpf_unset     - 'test -z "$cmpf_never_set_anywhere"')"
+# The suite runs under pipefail, so _cm is a caller that has it.
+_cmpfon="$(_cm felix_commission_run "$CMP" "$CMR" -)"
+
+is  "a check whose producer outruns grep -q, the match on its first line, is done" \
+    "$(_cmpfst "$_cmpfon" cmpf_yes)" "done"
+is  "a when of that shape makes its row applicable, and the check decides it" \
+    "$(_cmpfst "$_cmpfon" cmpf_when_yes)" "done"
+has "the seeded gate_shown_failing row is read from the template, not retyped" \
+    "$_cmpfgsf" "gate_shown_failing	"
+is  "the seeded gate_shown_failing check is done over a mistakes.log far past 64 KB" \
+    "$(_cmpfst "$_cmpfon" gate_shown_failing)" "done"
+is  "a check whose producer never shows the match is still held" \
+    "$(_cmpfst "$_cmpfon" cmpf_no)" "held"
+is  "and a when of that shape still makes its row not-applicable" \
+    "$(_cmpfst "$_cmpfon" cmpf_when_no)" "not-applicable"
+is  "a pipeline whose first stage fails and whose last succeeds is done, as in a probe" \
+    "$(_cmpfst "$_cmpfon" cmpf_early)" "done"
+
+is  "an engine function that is the whole check runs without pipefail, as the row does" \
+    "$(_cmpfst "$_cmpfon" cmpf_whole)" "done"
+is  "and so does one inside a command substitution"           "$(_cmpfst "$_cmpfon" cmpf_subst)"   "done"
+is  "and one named in a when"                                 "$(_cmpfst "$_cmpfon" cmpf_when_fn)" "done"
+is  "and an engine function that fails there reads held"      "$(_cmpfst "$_cmpfon" cmpf_fails)"   "held"
+is  "an engine function that sources a library redefining what the check names runs the new definitions" \
+    "$(_cmpfst "$_cmpfon" cmpf_src)" "done"
+
+is  "an engine function's name passed to command -v comes back as written" \
+    "$(_cmpfst "$_cmpfon" cmpf_cmdv)" "done"
+is  "and type -t calls that name a function"                  "$(_cmpfst "$_cmpfon" cmpf_type)"   "done"
+is  "and inside a quoted string that name is the string as written" \
+    "$(_cmpfst "$_cmpfon" cmpf_quoted)" "done"
+is  "a when may define a function under an engine function's name and call it" \
+    "$(_cmpfst "$_cmpfon" cmpf_redef)" "done"
+is  "a check naming an unset variable is still held, because nounset stays" \
+    "$(_cmpfst "$_cmpfon" cmpf_unset)" "held"
+
+# An ask changes nothing about the shell that asked.
+_cmpfkept() { local before; before="$(set +o)"
+              felix_commission_ask "$CMR" "$_cmpfp | grep -q cmpfhit"
+              felix_commission_ask "$CMR" 'felix_cmpf_on && false | true'
+              felix_commission_run "$CMP" "$CMR" - >/dev/null
+              if [ "$(set +o)" = "$before" ]; then printf 'kept'; else printf 'moved'; fi
+              if [ -o pipefail ]; then printf ' on\n'; else printf ' off\n'; fi; }
+_cmpfnopfkept() { set +o pipefail; _cmpfkept; }
+is  "an ask and a run leave a caller that had pipefail every option it had" "$(_cm _cmpfkept)"     "kept on"
+is  "and leave a caller without pipefail every option it had"              "$(_cm _cmpfnopfkept)" "kept off"
+
+# And through the real command, whose own shell is `set -uo pipefail`.
+_cmtable "$(_cmpfrow cmpf_yes - "$_cmpfp | grep -q cmpfhit")" "$_cmpfgsf"
+_cmpfcli="$( cd "$CMR" && PATH="$CMSTUB:$PATH" "$FELIX" commission --status 2>&1 )"
+is  "felix commission --status reads the row whose producer outruns grep -q done" \
+    "$(printf '%s\n' "$_cmpfcli" | awk '$2 == "cmpf_yes" { print $1 }')" "done"
+is  "and reads the seeded gate_shown_failing row done over that mistakes.log" \
+    "$(printf '%s\n' "$_cmpfcli" | awk '$2 == "gate_shown_failing" { print $1 }')" "done"
+
+cp "$TMP/cmpf-table.keep" "$CMP/commissioning.tsv"
+if [ -f "$TMP/cmpf-mistakes.keep" ]; then mv "$TMP/cmpf-mistakes.keep" "$_cmpfml"; else rm -f "$_cmpfml"; fi
+rm -f "$TMP/cmpf-table.keep" "$TMP/cmpf-lib.sh"
+unset -f _cmpfrow _cmpfst _cmpfkept _cmpfnopfkept felix_cmpf_on felix_cmpf_off felix_cmpf_state \
+         felix_cmpf_true felix_cmpf_src felix_cmpf_src_defined
+unset _cmpfml _cmpfp _cmpfgsf _cmpfon _cmpfcli
+
+# A `when` that answers neither yes nor no is unknown, as in a probe.
+#
+# felix_commission_state read every status of a `when` other than 0, 126 and
+# 127 as the grounded state saying no, and skipped the row's step, so a `when`
+# that crashed failed open. Probes and obligations already read anything that
+# is neither 0 nor 1 as unknown. The status alone could not carry it either:
+# the row runs in-process and inherits the CLI's `set -u`, so a `when` naming
+# an unset variable ended the shell running it with 1, which is what a real no
+# returns, and felix_commission_ask folded every status but 0, 126 and 127 to 1
+# before the state saw it. So the ask keeps the status and, asked, says whether
+# the text returned it, ended the shell with it, or was never run because the
+# checkout could not be entered; a `when` that does not parse is unknown and
+# never run; a `when` that ended the shell with 0 still applies. The check
+# column is pinned unchanged, because anything but 0, 126 and 127 there is
+# held, and held fails closed. Everything this touches is restored below and
+# everything it defines unset.
+cp "$CMP/commissioning.tsv" "$TMP/cmwc-table.keep"
+_cmwcrow() { printf '%s\t-\t-\t%s\t-\t%s\t9' "$1" "$2" "$3"; }   # need, when, check
+_cmwcst()  { printf '%s\n' "$1" | awk -F'\t' -v n="$2" '$1 == n { print $2 }'; }
+_cmwcdt()  { printf '%s\n' "$1" | awk -F'\t' -v n="$2" '$1 == n { print $6 }'; }
+# An engine function that ends the shell running it, as the engine's die does.
+felix_cmwc_die() { exit 5; }
+# The status this bash ends a shell with on an unset variable under set -u,
+# measured the way the engine meets it rather than assumed: 1 on bash 3.2.
+_cmwcu="$( ( eval '[ -n "$cmwc_never_set_anywhere" ]' ) 2>/dev/null; printf '%s' "$?" )"
+# A text that writes what an honest run is read by into its descriptors 1 to
+# 9, then ends the shell. Amended after review: the first line was a bare
+# `returned`, which no reading accepts, so a run whose own stdout reached the
+# answer went unseen. fd 10 stays out: that is bash's saved copy of the
+# answer's pipe, and a text writing there can forge it, which nothing that runs
+# in its process can prevent.
+_cmwcfake="for _cmwcd in 1 2 3 4 5 6 7 8 9; do printf 'returned 0\nreturned 1\n' >&\"\$_cmwcd\"; done; exit 1"
+_cmtable "$(_cmwcrow cmwc_unset     '[ -n "$cmwc_never_set_anywhere" ]' true)" \
+         "$(_cmwcrow cmwc_colon     ': "${cmwc_never_set_anywhere:?}"' true)" \
+         "$(_cmwcrow cmwc_infn      '_cmwc_inner() { [ -n "$cmwc_never_set_anywhere" ]; }; _cmwc_inner' true)" \
+         "$(_cmwcrow cmwc_die       'felix_cmwc_die' true)" \
+         "$(_cmwcrow cmwc_exit1     'exit 1' true)" \
+         "$(_cmwcrow cmwc_exit3     'exit 3' true)" \
+         "$(_cmwcrow cmwc_exit127   'exit 127' true)" \
+         "$(_cmwcrow cmwc_exec      'exec false' true)" \
+         "$(_cmwcrow cmwc_exit0     'exit 0' true)" \
+         "$(_cmwcrow cmwc_exit0_no  'exit 0' 'test -f cmwc-no-such-file')" \
+         "$(_cmwcrow cmwc_two       'grep -q x cmwc-no-such-file' true)" \
+         "$(_cmwcrow cmwc_three     "sh -c 'exit 3'" true)" \
+         "$(_cmwcrow cmwc_r126      "sh -c 'exit 126'" true)" \
+         "$(_cmwcrow cmwc_r130      "sh -c 'exit 130'" true)" \
+         "$(_cmwcrow cmwc_no        'test -f cmwc-no-such-file' true)" \
+         "$(_cmwcrow cmwc_no_grep   'grep -q cmwcnope src/a.txt' true)" \
+         "$(_cmwcrow cmwc_yes       'test -f src/a.txt' true)" \
+         "$(_cmwcrow cmwc_yes_no    'test -f src/a.txt' 'test -f cmwc-no-such-file')" \
+         "$(_cmwcrow cmwc_missing   'cmwc-no-such-command-xyz' true)" \
+         "$(_cmwcrow cmwc_parse     'touch cmwc-parse-ran; if then' true)" \
+         "$(_cmwcrow cmwc_parse2    'case x in' true)" \
+         "$(_cmwcrow cmwc_fake      "$_cmwcfake" true)" \
+         "cmwc_grounds	billing	-	sh -c 'exit 3'	-	true	9" \
+         "cmwc_instr	-	cmwc-no-such-instrument-xyz	sh -c 'exit 3'	-	true	9" \
+         "$(_cmwcrow cmwc_efn       'test -f cmwc-no-such-file' '[ -z "$(felix_cmwc_no_such_function)" ]')" \
+         "$(_cmwcrow cmwc_c_unset   - 'test -n "$cmwc_never_set_anywhere"')" \
+         "$(_cmwcrow cmwc_c_two     - 'grep -q x cmwc-no-such-file')" \
+         "$(_cmwcrow cmwc_c_exit3   - 'exit 3')" \
+         "$(_cmwcrow cmwc_c_die     - 'felix_cmwc_die')" \
+         "$(_cmwcrow cmwc_c_parse   - 'if then')" \
+         "$(_cmwcrow cmwc_c_fake    - "$_cmwcfake")" \
+         "$(_cmwcrow cmwc_c_missing - 'cmwc-no-such-command-xyz')"
+rm -f "$CMR/cmwc-parse-ran"
+_cmwcrun="$(_cm felix_commission_run "$CMP" "$CMR" -)"
+
+is  "the when-status rows are read as rows, none of them malformed" \
+    "$(_cm felix_commission_malformed "$CMP")" ""
+is  "the shell this suite runs ends on an unset variable with a status that is not 0" \
+    "$([ -n "$_cmwcu" ] && [ "$_cmwcu" != 0 ] && printf measured)" "measured"
+
+is  "a when naming an unset variable is unknown, not not-applicable" "$(_cmwcst "$_cmwcrun" cmwc_unset)" "unknown"
+has "and it says the when ended the shell, with the status it ended with" \
+    "$(_cmwcdt "$_cmwcrun" cmwc_unset)" "the \`when\` test ended the shell with status $_cmwcu before it answered"
+has "and it names an unset variable under set -u as a cause" "$(_cmwcdt "$_cmwcrun" cmwc_unset)" "set -u"
+is  "a when whose \${x:?} fails is unknown"                           "$(_cmwcst "$_cmwcrun" cmwc_colon)" "unknown"
+is  "a when whose own function reads an unset variable is unknown"    "$(_cmwcst "$_cmwcrun" cmwc_infn)"  "unknown"
+is  "a when whose engine function ends the shell is unknown"          "$(_cmwcst "$_cmwcrun" cmwc_die)"   "unknown"
+has "and it says the shell ended with that function's status" \
+    "$(_cmwcdt "$_cmwcrun" cmwc_die)" "ended the shell with status 5"
+is  "a when written as exit 1 is unknown, because bash's own fatal errors end the shell with 1" \
+    "$(_cmwcst "$_cmwcrun" cmwc_exit1)" "unknown"
+has "and it says the shell ended with status 1" "$(_cmwcdt "$_cmwcrun" cmwc_exit1)" "ended the shell with status 1"
+is  "a when that exits 3 is unknown"                                  "$(_cmwcst "$_cmwcrun" cmwc_exit3)" "unknown"
+has "and it says the shell ended with status 3" "$(_cmwcdt "$_cmwcrun" cmwc_exit3)" "ended the shell with status 3"
+is  "a when that exits 127 is unknown"                                "$(_cmwcst "$_cmwcrun" cmwc_exit127)" "unknown"
+has "and it says the shell ended, not that a command is missing" \
+    "$(_cmwcdt "$_cmwcrun" cmwc_exit127)" "ended the shell with status 127"
+is  "a when that replaces its shell with false is unknown"            "$(_cmwcst "$_cmwcrun" cmwc_exec)"  "unknown"
+is  "a when that exits 0 applies, and a check that passes makes it done" "$(_cmwcst "$_cmwcrun" cmwc_exit0)" "done"
+is  "and a when that exits 0 leaves a check that fails to hold it"    "$(_cmwcst "$_cmwcrun" cmwc_exit0_no)" "held"
+
+is  "a when that returns 2 is unknown"                                "$(_cmwcst "$_cmwcrun" cmwc_two)"   "unknown"
+has "and it names the 2 and says it is neither yes nor no" \
+    "$(_cmwcdt "$_cmwcrun" cmwc_two)" "the \`when\` test exited 2, which is neither yes nor no"
+is  "a when that returns 3 is unknown"                                "$(_cmwcst "$_cmwcrun" cmwc_three)" "unknown"
+has "and it names the 3 and says it is neither yes nor no" \
+    "$(_cmwcdt "$_cmwcrun" cmwc_three)" "the \`when\` test exited 3, which is neither yes nor no"
+is  "a when that returns 126 is unknown"                              "$(_cmwcst "$_cmwcrun" cmwc_r126)"  "unknown"
+has "and it names the 126 as the when's own, not a checkout that could not be entered" \
+    "$(_cmwcdt "$_cmwcrun" cmwc_r126)" "the \`when\` test exited 126, which is neither yes nor no"
+is  "a when that returns 130 is unknown"                              "$(_cmwcst "$_cmwcrun" cmwc_r130)"  "unknown"
+has "and it names the 130"  "$(_cmwcdt "$_cmwcrun" cmwc_r130)" "the \`when\` test exited 130"
+is  "a when whose test returns 1 is still not-applicable"             "$(_cmwcst "$_cmwcrun" cmwc_no)"    "not-applicable"
+has "and still says the when test says it does not apply" \
+    "$(_cmwcdt "$_cmwcrun" cmwc_no)" "the \`when\` test says this does not apply here"
+is  "a when whose grep -q finds nothing is still not-applicable"      "$(_cmwcst "$_cmwcrun" cmwc_no_grep)" "not-applicable"
+is  "a when whose test returns 0 applies, and the check decides done" "$(_cmwcst "$_cmwcrun" cmwc_yes)"   "done"
+is  "and a when whose test returns 0 leaves a failing check held"     "$(_cmwcst "$_cmwcrun" cmwc_yes_no)" "held"
+is  "a when naming a command that is not here is still unknown"       "$(_cmwcst "$_cmwcrun" cmwc_missing)" "unknown"
+has "and still says a command in it does not exist here" \
+    "$(_cmwcdt "$_cmwcrun" cmwc_missing)" "a command in the \`when\` test does not exist here"
+_cmwcgone="$(_cm felix_commission_run "$CMP" "$TMP/cmwc-no-such-dir" -)"
+is  "a when over a checkout that cannot be entered is still unknown"  "$(_cmwcst "$_cmwcgone" cmwc_yes)" "unknown"
+has "and still says the checkout could not be entered" \
+    "$(_cmwcdt "$_cmwcgone" cmwc_yes)" "the checkout could not be entered"
+
+is  "a when that does not parse is unknown"                           "$(_cmwcst "$_cmwcrun" cmwc_parse)" "unknown"
+has "and it says the when does not parse"                             "$(_cmwcdt "$_cmwcrun" cmwc_parse)" "does not parse"
+# Amended after review: a table cell is one line, and eval parses a whole line
+# before it runs any of it, so through the table nothing ran with or without
+# the parse check. A text of two lines, asked directly, would have run.
+_cmwcpr="$(_cm felix_commission_state "$CMP" "$CMR" cmwc_parse_nl - - "$(printf 'touch cmwc-parse-ran\nif then')" - true | cut -f1)"
+is  "and no part of a when that does not parse was run" \
+    "$_cmwcpr $([ -e "$CMR/cmwc-parse-ran" ] && printf ran || printf 'not run')" "unknown not run"
+is  "an unterminated case in a when is unknown"                       "$(_cmwcst "$_cmwcrun" cmwc_parse2)" "unknown"
+has "and it too says the when does not parse"                         "$(_cmwcdt "$_cmwcrun" cmwc_parse2)" "does not parse"
+is  "a when that writes returned to its descriptors 1 to 9 and then exits 1 is still unknown" \
+    "$(_cmwcst "$_cmwcrun" cmwc_fake)" "unknown"
+
+is  "an inactive capability still makes a row not-applicable before its when is read" \
+    "$(_cmwcst "$_cmwcrun" cmwc_grounds)" "not-applicable"
+has "an absent instrument is still asked before the when, and says so" \
+    "$(_cmwcdt "$_cmwcrun" cmwc_instr)" "could not be asked on this machine"
+# Amended after review: this row's when says no, so reading it first would
+# make the row not-applicable, and only the order makes it unknown.
+is  "a check's missing engine function is still found before the when is read" \
+    "$(_cmwcst "$_cmwcrun" cmwc_efn)" "unknown"
+has "and the missing function is named, not the when's status" \
+    "$(_cmwcdt "$_cmwcrun" cmwc_efn)" "felix_cmwc_no_such_function"
+
+is  "a check that ends the shell on an unset variable is held, as before" "$(_cmwcst "$_cmwcrun" cmwc_c_unset)" "held"
+is  "a check that returns 2 is held, as before"                       "$(_cmwcst "$_cmwcrun" cmwc_c_two)"    "held"
+is  "a check that exits 3 is held, as before"                         "$(_cmwcst "$_cmwcrun" cmwc_c_exit3)"  "held"
+is  "a check whose engine function ends the shell is held"            "$(_cmwcst "$_cmwcrun" cmwc_c_die)"    "held"
+is  "a check that does not parse is held, not unknown"                "$(_cmwcst "$_cmwcrun" cmwc_c_parse)"  "held"
+is  "a check that writes returned to its descriptors 1 to 9 and exits 1 is held" "$(_cmwcst "$_cmwcrun" cmwc_c_fake)" "held"
+is  "a check naming a command that is not here is unknown, as before" "$(_cmwcst "$_cmwcrun" cmwc_c_missing)" "unknown"
+has "and it says a command in the check does not exist here" \
+    "$(_cmwcdt "$_cmwcrun" cmwc_c_missing)" "a command in the check does not exist here"
+
+# The ask itself, called as the engine calls it.
+_cmwcask()  { felix_commission_ask "$@"; printf '%s\n' "$?"; }
+_cmwcaskv() { local _cmwch=kept; felix_commission_ask "$1" "$2" _cmwch; printf '%s %s\n' "$?" "$_cmwch"; }
+is  "felix_commission_ask returns a text's 2 as 2, not folded to 1" \
+    "$(_cm _cmwcask "$CMR" 'grep -q x cmwc-no-such-file')" "2"
+is  "and returns a text's 3 as 3"          "$(_cm _cmwcask "$CMR" "sh -c 'exit 3'")" "3"
+is  "and returns a text's own exit 4 as 4" "$(_cm _cmwcask "$CMR" 'exit 4')"        "4"
+is  "and still returns a no as 1"          "$(_cm _cmwcask "$CMR" 'false')"         "1"
+is  "and still returns a yes as 0"         "$(_cm _cmwcask "$CMR" 'true')"          "0"
+is  "and still returns 126 for a checkout it cannot enter" \
+    "$(_cm _cmwcask "$TMP/cmwc-no-such-dir" 'true')" "126"
+is  "an ask told a variable name sets it to returned when the text came back with 3" \
+    "$(_cm _cmwcaskv "$CMR" "sh -c 'exit 3'")" "3 returned"
+is  "and to returned for a no"             "$(_cm _cmwcaskv "$CMR" 'false')"        "1 returned"
+is  "and to returned for a yes"            "$(_cm _cmwcaskv "$CMR" 'true')"         "0 returned"
+is  "and to returned for a missing command, with 127" \
+    "$(_cm _cmwcaskv "$CMR" 'cmwc-no-such-command-xyz')" "127 returned"
+is  "and to returned for a text that itself returned 126" \
+    "$(_cm _cmwcaskv "$CMR" "sh -c 'exit 126'")" "126 returned"
+is  "and to ended when the text exits 4, with 4" "$(_cm _cmwcaskv "$CMR" 'exit 4')" "4 ended"
+is  "and to ended when the text exits 0, with 0" "$(_cm _cmwcaskv "$CMR" 'exit 0')" "0 ended"
+is  "and to ended when an unset variable ends the shell, with its status" \
+    "$(_cm _cmwcaskv "$CMR" '[ -n "$cmwc_never_set_anywhere" ]')" "$_cmwcu ended"
+is  "and to ended when an engine function the text names ends the shell" \
+    "$(_cm _cmwcaskv "$CMR" 'felix_cmwc_die')" "5 ended"
+is  "and to ended when the text wrote returned to its descriptors 1 to 9 before exiting 1" \
+    "$(_cm _cmwcaskv "$CMR" "$_cmwcfake")" "1 ended"
+is  "and to unentered, with 126, when the checkout cannot be entered" \
+    "$(_cm _cmwcaskv "$TMP/cmwc-no-such-dir" 'true')" "126 unentered"
+is  "an ask with no variable name prints nothing on stdout" \
+    "$(_cm felix_commission_ask "$CMR" "echo cmwc-said; sh -c 'exit 3'")" ""
+is  "and an ask with one prints nothing on stdout either" \
+    "$(_cm felix_commission_ask "$CMR" 'echo cmwc-said; exit 4' _cmwcw)" ""
+# Whatever the caller calls its variable, that one is set and no other moves,
+# including names an ask might use for its own.
+_cmwcnamed() { local rc st out how var root text word ended status _cmwcn _cmwcm _cmwcr=''
+  for _cmwcn in rc st out how var root text word ended status; do
+    for _cmwcm in rc st out how var root text word ended status; do eval "$_cmwcm=kept"; done
+    felix_commission_ask "$CMR" 'false' "$_cmwcn"
+    for _cmwcm in rc st out how var root text word ended status; do
+      [ "$_cmwcm" = "$_cmwcn" ] || [ "${!_cmwcm}" = kept ] || _cmwcr="$_cmwcr $_cmwcm-moved-by-$_cmwcn"
+    done
+    _cmwcr="$_cmwcr $_cmwcn=${!_cmwcn}"
+  done
+  printf '%s\n' "$_cmwcr"; }
+_cmwcnm="$(_cm _cmwcnamed)"
+is  "the variable an ask is told to set is set, whatever the caller named it" \
+    "$(printf '%s\n' "$_cmwcnm" | tr ' ' '\n' | grep '=' | tr '\n' ' ')" \
+    "rc=returned st=returned out=returned how=returned var=returned root=returned text=returned word=returned ended=returned status=returned "
+is  "and no other variable of the caller's moves" \
+    "$(printf '%s\n' "$_cmwcnm" | tr ' ' '\n' | grep -c 'moved')" "0"
+_cmwckept() { local _cmwcb _cmwcw; _cmwcb="$(set +o)"
+              felix_commission_ask "$CMR" 'exit 1' _cmwcw
+              felix_commission_ask "$CMR" '[ -n "$cmwc_never_set_anywhere" ]'
+              felix_commission_ask "$CMR" "$_cmwcfake" _cmwcw
+              felix_commission_ask "$TMP/cmwc-no-such-dir" 'true' _cmwcw
+              if [ "$(set +o)" = "$_cmwcb" ]; then printf 'kept\n'; else printf 'moved\n'; fi; }
+is  "an ask whose text ended the shell leaves every option of the caller as it was" "$(_cm _cmwckept)" "kept"
+
+# And through the real command, whose own shell is `set -uo pipefail` and a
+# script file, which is where an unset variable ends a shell with 1.
+_cmtable "$(_cmwcrow cmwc_cli_unset '[ -n "$cmwc_never_set_anywhere" ]' true)" \
+         "$(_cmwcrow cmwc_cli_no    'test -f cmwc-no-such-file' true)"
+_cmwccli="$( cd "$CMR" && PATH="$CMSTUB:$PATH" "$FELIX" commission --status 2>&1 )"
+is  "felix commission --status reads a when naming an unset variable unknown" \
+    "$(printf '%s\n' "$_cmwccli" | awk '$2 == "cmwc_cli_unset" { print $1 }')" "unknown"
+is  "and still reads a when whose test says no not-applicable" \
+    "$(printf '%s\n' "$_cmwccli" | awk '$2 == "cmwc_cli_no" { print $1 }')" "not-applicable"
+
+cp "$TMP/cmwc-table.keep" "$CMP/commissioning.tsv"
+rm -f "$TMP/cmwc-table.keep" "$CMR/cmwc-parse-ran"
+unset -f _cmwcrow _cmwcst _cmwcdt _cmwcask _cmwcaskv _cmwcnamed _cmwckept felix_cmwc_die
+unset _cmwcu _cmwcfake _cmwcrun _cmwcgone _cmwcnm _cmwccli _cmwcpr
+
+# Added with the fix, and after review, not blind: parts of it that mutations
+# showed nothing above could fail.
+#   - What a `when` prints goes nowhere, so the state reads neither it as the
+#     answer nor noise in place of one.
+#   - The answer is read without waiting for a job the `when` left running.
+#     bash marks the copy of stdout it saves around the eval close-on-exec, so
+#     a program such as `sleep 30 &` never holds it; a job that is itself a
+#     forked shell does, and a reader waiting for end of file waits for it.
+#     The job below reaps its own sleep when it is stopped.
+#   - A `when` reads nothing from its caller's stdin, which in a run is the
+#     table: one that read it would eat the rows after it.
+#   - Its stderr goes nowhere, an ask that is given no variable sets none, a
+#     garbled answer line is unknown, and a checkout that cannot be entered is
+#     unknown even for a row no check follows.
+cp "$CMP/commissioning.tsv" "$TMP/cmwcx-table.keep"
+rm -f "$TMP/cmwcx-bg.pid"
+_cmwcxbg="( trap 'kill \"\$!\" 2>/dev/null; exit 0' TERM; sleep 30 & wait ) & printf '%s' \"\$!\" > \"\$TMP/cmwcx-bg.pid\"; true"
+_cmtable "$(printf 'cmwcx_print\t-\t-\t%s\t-\ttrue\t9' 'echo cmwcx-noise; test -f src/a.txt')" \
+         "$(printf 'cmwcx_forge\t-\t-\t%s\t-\ttrue\t9' "echo 'returned 0'; false")" \
+         "$(printf 'cmwcx_bg\t-\t-\t%s\t-\ttrue\t9' "$_cmwcxbg")" \
+         "$(printf 'cmwcx_eat\t-\t-\t%s\t-\ttrue\t9' 'cat >/dev/null; true')" \
+         "$(printf 'cmwcx_after\t-\t-\t-\t-\ttrue\t9')"
+_cmwcxrun="$(_cm felix_commission_run "$CMP" "$CMR" -)"
+_cmwcxpid="$(cat "$TMP/cmwcx-bg.pid" 2>/dev/null)"
+_cmwcxalive='no pid'
+case "$_cmwcxpid" in
+  ''|*[!0-9]*) ;;
+  *) if kill -0 "$_cmwcxpid" 2>/dev/null; then _cmwcxalive=running; kill "$_cmwcxpid" 2>/dev/null
+     else _cmwcxalive=gone; fi ;;
+esac
+_cmwcxst() { printf '%s\n' "$_cmwcxrun" | awk -F'\t' -v n="$1" '$1 == n { print $2 }'; }
+is  "a when that prints and then says yes applies, and the check decides done" "$(_cmwcxst cmwcx_print)" "done"
+is  "a when that prints returned 0 and then says no is not-applicable"         "$(_cmwcxst cmwcx_forge)" "not-applicable"
+is  "a when that leaves a forked shell running applies, and the check decides done" "$(_cmwcxst cmwcx_bg)" "done"
+is  "and its answer was read while that shell was still running"              "$_cmwcxalive" "running"
+is  "a when that reads its stdin applies, and the check decides done"          "$(_cmwcxst cmwcx_eat)" "done"
+is  "and the row after it is still read"                                       "$(_cmwcxst cmwcx_after)" "done"
+_cmwcxaskv() { local _cmwcxh=kept; felix_commission_ask "$1" "$2" _cmwcxh; printf '%s %s\n' "$?" "$_cmwcxh"; }
+_cmwcxnone() { local how=kept; felix_commission_ask "$CMR" 'false'; printf '%s %s\n' "$?" "$how"; }
+is  "an ask told a variable reads no stdin from its caller" \
+    "$(printf 'cmwcx-input\n' | _cm _cmwcxaskv "$CMR" 'read -r _cmwcxin')" "1 returned"
+is  "and prints nothing of the text's stderr" \
+    "$(_cm _cmwcxaskv "$CMR" 'echo cmwcx-err >&2; exit 4' 2>&1)" "4 ended"
+is  "an ask given no variable sets none, even one named how" "$(_cm _cmwcxnone)" "1 kept"
+is  "an ask whose answer line comes back garbled says unasked, with 2" \
+    "$(_cm _cmwcxaskv "$CMR" 'for _d in 10 11 12 13 14 15 16 17 18 19; do printf x >&$_d; done 2>/dev/null; exit 1')" "2 unasked"
+_cmwcxgarble="$(_cm felix_commission_state "$CMP" "$CMR" cmwcx_garble - - 'for _d in 10 11 12 13 14 15 16 17 18 19; do printf x >&$_d; done 2>/dev/null; exit 1' - true)"
+is  "and a when whose answer comes back garbled is unknown" "$(printf '%s' "$_cmwcxgarble" | cut -f1)" "unknown"
+has "and says its answer could not be read" "$(printf '%s' "$_cmwcxgarble" | cut -f2)" "could not be read"
+is  "a when over a checkout that cannot be entered is unknown on a row no check follows" \
+    "$(_cm felix_commission_state "$CMP" "$TMP/cmwc-no-such-dir" cmwcx_gone - - true provider:cmwcx-p:cmwcx-s - | cut -f1)" "unknown"
+cp "$TMP/cmwcx-table.keep" "$CMP/commissioning.tsv"
+rm -f "$TMP/cmwcx-table.keep" "$TMP/cmwcx-bg.pid"
+unset -f _cmwcxst _cmwcxaskv _cmwcxnone
+unset _cmwcxrun _cmwcxpid _cmwcxalive _cmwcxbg _cmwcxgarble
+
+# A state line that comes back empty is unknown, not a row without a state.
+#
+# felix_commission_run split the line felix_commission_state printed and took
+# its first field as the row's state without asking whether it was one. When
+# the state function printed nothing, as it does when a fork inside it fails
+# with EAGAIN, the row printed with no state and
+# class n/a, felix_commission_counts counted it as nothing, and the receipt
+# read commissioned once every other row was done: a row nobody asked
+# certified it. A reviewer measured that with ulimit -u 1. Here nothing is
+# starved of processes. Inside _cm the state function is replaced by one that
+# prints nothing for one need and hands every other row to the real function,
+# copied under a name of its own. A first field that is any other word is
+# unknown too, and so is the line read again after a felix: answer ran. These
+# assertions were written blind, from the contract, before the fix.
+# Everything this touches is restored below and everything it defines unset.
+# Added after review, not blind: what the block found, so its end can assert
+# it left the table, the receipt and every cmes- file as they were.
+_cmesfixture() { printf '%s | %s | %s\n' "$(cksum < "$CMP/commissioning.tsv")" \
+                   "$(if [ -f "$FROOT/state/commission/cmproj" ]; then cksum < "$FROOT/state/commission/cmproj"; else printf 'no receipt'; fi)" \
+                   "$(ls -a "$CMR" "$TMP" | grep -c '^cmes-')"; }
+_cmesfound="$(_cmesfixture)"
+cp "$CMP/commissioning.tsv" "$TMP/cmes-table.keep"
+_cmesrc="$FROOT/state/commission/cmproj"
+rm -f "$TMP/cmes-receipt.keep"; [ -f "$_cmesrc" ] && cp "$_cmesrc" "$TMP/cmes-receipt.keep"
+rm -f "$CMR/cmes-answered"
+# $1 names what the one line becomes and $2 is the runner. The state function
+# runs inside $(...) and keeps nothing between calls, so the re-read is told
+# from the first read by the file the runner leaves.
+_cmesrun() { local _cmesmode="$1" _cmesdef
+  _cmesdef="$(declare -f felix_commission_state)"
+  eval "_cmes_real_state${_cmesdef#felix_commission_state}"
+  felix_commission_state() {
+    case "$_cmesmode:${3:-}" in
+      empty:cmes_gap)    return 0 ;;
+      word:cmes_gap)     printf 'finished\tcmes a word that is no state\t-\n'; return 0 ;;
+      second:cmes_again) [ -e "$CMR/cmes-answered" ] && return 0 ;;
+    esac
+    _cmes_real_state "$@"; }
+  felix_commission_run "$CMP" "$CMR" "$2"; }
+_cmes_answer() { touch "$CMR/cmes-answered"; return 0; }
+_cmesf()    { printf '%s\n' "$1" | awk -F'\t' -v n="$2" -v f="$3" '$1 == n { print $f }'; }
+_cmesline() { printf '%s\n' "$1" | awk -F'\t' -v n="$2" '$1 == n'; }
+_cmessaid() { case "$1" in *'could not be computed'*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
+_cmtable "$(printf 'cmes_done\t-\t-\t-\t-\ttest -f src/a.txt\t9')" \
+         "$(printf 'cmes_gap\t-\t-\t-\t-\ttrue\t9')" \
+         "$(printf 'cmes_after\t-\t-\t-\t-\ttest -f src/a.txt\t9')"
+_cmesnone="$(_cm _cmesrun none -)"
+_cmesempty="$(_cm _cmesrun empty -)"
+_cmesword="$(_cm _cmesrun word -)"
+
+is  "with the state function replaced and every line it gives well formed, both rows are done and the receipt is commissioned" \
+    "$(_cmesf "$_cmesnone" cmes_done 2) $(_cmesf "$_cmesnone" cmes_gap 2) $(_cm felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmesnone" "")" \
+    "done done commissioned"
+is  "a state line that comes back empty makes its row unknown" "$(_cmesf "$_cmesempty" cmes_gap 2)" "unknown"
+is  "and its class is UNKNOWN, not n/a"                         "$(_cmesf "$_cmesempty" cmes_gap 3)" "UNKNOWN"
+has "and it says the row's state could not be computed"        "$(_cmesf "$_cmesempty" cmes_gap 6)" "could not be computed"
+is  "and the row beside it, whose line is well formed, reads as it does with no line empty" \
+    "$(_cmesline "$_cmesempty" cmes_done)" "$(_cmesline "$_cmesnone" cmes_done)"
+# Added after review, not blind: a row after the bad one too, since what goes
+# wrong reading one row can reach the rows that follow it.
+is  "and the row after an empty or unreadable state line is still read, and done" \
+    "$(_cmesf "$_cmesempty" cmes_after 2) $(_cmesf "$_cmesword" cmes_after 2)" "done done"
+is  "and the receipt over those rows, every other row done, is indeterminate and not commissioned" \
+    "$(_cm felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmesempty" "")" "indeterminate"
+is  "a state line whose first field is none of the eight states makes its row unknown, and says it could not be computed" \
+    "$(_cmesf "$_cmesword" cmes_gap 2) $(_cmesf "$_cmesword" cmes_gap 3) $(_cmessaid "$(_cmesf "$_cmesword" cmes_gap 6)")" \
+    "unknown UNKNOWN said"
+
+# The re-read: the first line says held, the runner answers, and the line read
+# after it comes back empty.
+_cmtable "$(printf 'cmes_again\t-\t-\t-\tfelix:toolbox --route\ttest -f cmes-answered\t5')"
+_cmesagain="$(_cm _cmesrun second _cmes_answer)"
+# Amended after review: that the answer ran is part of what the name claims,
+# and without it a first read gone unknown passed here too.
+_cmesran="$([ -e "$CMR/cmes-answered" ] && printf ran || printf 'not run')"
+rm -f "$CMR/cmes-answered"
+is  "a state line that comes back empty on the re-read after a felix answer ran makes the row unknown" \
+    "$(_cmesf "$_cmesagain" cmes_again 2) $(_cmesf "$_cmesagain" cmes_again 3) $_cmesran" "unknown UNKNOWN ran"
+_cmesdt="$(_cmesf "$_cmesagain" cmes_again 6)"
+case "$_cmesdt" in
+  'ran toolbox --route (exit 0); '*'could not be computed'*)
+     ok  "and it says what ran, then that the row's state could not be computed" ;;
+  *) bad "and it says what ran, then that the row's state could not be computed" "got [$_cmesdt]" ;;
+esac
+
+# Added after review, not blind. The read of a state line is syntax, not a
+# function, so it cannot be stubbed. A here-document that cannot be made means
+# the read never runs, and on bash 3.2, where a here-document is a temporary
+# file, the reviewer measured that leaving the row before's `done` in place on
+# a row whose check fails. The one function the run's own shell calls between
+# one read and the next is the check on the state it read, so the first call
+# to it sets a file size limit of 0 there, for the rest of that loop and
+# nothing else. Where a here-document this small is a pipe (bash 5.1 and
+# later) nothing fails, and this says so rather than passing.
+_cmeshdrun() { local _cmeshddef _cmeshdn=0
+  _cmeshddef="$(declare -f _felix_commission_state_known)"
+  [ -n "$_cmeshddef" ] && eval "_cmes_real_known${_cmeshddef#_felix_commission_state_known}"
+  _felix_commission_state_known() {
+    _cmeshdn=$((_cmeshdn + 1))
+    if [ "$_cmeshdn" -eq 1 ]; then
+      trap '' XFSZ; ulimit -f 0
+      read -r _cmeshdx <<CMESHD 2>/dev/null || : > "$TMP/cmes-hd-failed"
+probe
+CMESHD
+    fi
+    _cmes_real_known "$@"; }
+  felix_commission_run "$CMP" "$CMR" - 2>/dev/null; }
+rm -f "$TMP/cmes-hd-failed"
+_cmtable "$(printf 'cmes_hd_done\t-\t-\t-\t-\ttest -f src/a.txt\t9')" \
+         "$(printf 'cmes_hd_held\t-\t-\t-\t-\ttest -f cmes-no-such-file\t9')"
+_cmeshd="$(_cm _cmeshdrun)"
+if [ -e "$TMP/cmes-hd-failed" ]; then
+  is  "a row whose state line was never read is unknown, not the state of the row before it" \
+      "$(_cmesf "$_cmeshd" cmes_hd_done 2) $(_cmesf "$_cmeshd" cmes_hd_held 2)" "done unknown"
+else
+  skip "a row whose state line was never read is unknown, not the state of the row before it" \
+       "no here-document failed in the run's loop on bash $BASH_VERSION: a pipe there, or no check called between reads"
+fi
+
+cp "$TMP/cmes-table.keep" "$CMP/commissioning.tsv"
+if [ -f "$TMP/cmes-receipt.keep" ]; then mv "$TMP/cmes-receipt.keep" "$_cmesrc"; else rm -f "$_cmesrc"; fi
+rm -f "$TMP/cmes-table.keep" "$CMR/cmes-answered" "$TMP/cmes-hd-failed"
+is  "and this block leaves the table, the receipt and every cmes- file as it found them" \
+    "$(_cmesfixture)" "$_cmesfound"
+unset -f _cmesrun _cmes_answer _cmesf _cmesline _cmessaid _cmesfixture _cmeshdrun
+unset _cmesrc _cmesnone _cmesempty _cmesword _cmesagain _cmesdt _cmesran _cmeshd _cmesfound
+
 # The answer runs in-process through a runner the caller names, and the check
 # decides afterwards. The stub stands in for felix:toolbox --route.
 _cmstub() { touch "$CMR/src/made-by-answer"; return 0; }
@@ -20784,6 +21928,307 @@ printf '\n# one more byte\n' >> "$CMSTUB/claude"
 _cmv="$(_cm felix_commission_receipt_valid "$FROOT" "$CMP" "$CMR")"; _cmvrc=$?
 is  "the claude cli changing is announced and never invalidates" "$_cmvrc" "0"
 has "and the announcement names the change"                     "$_cmv" "changed since"
+
+# A run that reported fewer rows than its table lists, and counts or a receipt
+# that are not numbers.
+#
+# felix_commission_run prints one line per row from a loop in a shell of its
+# own, and returns 0 whatever became of that shell. On bash 3.2 a fork that
+# fails there, or a pipe it cannot make, ends that shell with status 128: the
+# rows after it are never printed, the run still returns 0, and the receipt
+# was written over the rows that were. A reviewer measured a table of three
+# rows giving one line and a receipt that read commissioned, the held row
+# gone. Only the reader of the output can catch that, by asking for every need
+# the table lists, once each and in order. Here nothing is starved of
+# processes: the check on a row's state, which the loop calls in its own
+# shell, is replaced inside _cm by one that ends that shell on the second row,
+# as a failed fork does.
+#
+# The counts are six substitutions read back with one split. When one came
+# back empty the split merged the gap and every count after it moved one place
+# left; when all of them did, the tests compared empty strings, said so on
+# stderr, and fell through to commissioned, and the reader accepted the
+# receipt that resulted. Here the counts function is replaced inside _cm by
+# one that prints the broken line, a count is made to come back empty by a
+# grep that prints nothing for the unknown rows, and a receipt is rewritten in
+# place with counts or a result no run writes. For the command, two stubs are
+# appended to the fixture's copy of the library for the length of five runs,
+# and the copy is put back byte for byte.
+# These assertions were written blind, from the contract, before the fix.
+# Everything this touches is restored below and everything it defines unset.
+_cmrcrc="$FROOT/state/commission/cmproj"
+_cmrclib="$FROOT/harness/lib/commission.sh"
+_cmrclog="$MEM/cmproj/commissioning.log"
+_cmrcfixture() { printf '%s | %s | %s | %s | %s\n' "$(cksum < "$CMP/commissioning.tsv")" \
+                   "$(if [ -f "$_cmrcrc" ]; then cksum < "$_cmrcrc"; else printf 'no receipt'; fi)" \
+                   "$(cksum < "$_cmrclib")" \
+                   "$(if [ -f "$_cmrclog" ]; then cksum < "$_cmrclog"; else printf 'no log'; fi)" \
+                   "$(ls -a "$CMR" "$TMP" | grep -c '^cmrc-')"; }
+_cmrcfound="$(_cmrcfixture)"
+cp "$CMP/commissioning.tsv" "$TMP/cmrc-table.keep"
+cp "$_cmrclib" "$TMP/cmrc-lib.keep"
+rm -f "$TMP/cmrc-receipt.keep" "$TMP/cmrc-log.keep"
+[ -f "$_cmrcrc" ] && cp "$_cmrcrc" "$TMP/cmrc-receipt.keep"
+[ -f "$_cmrclog" ] && cp "$_cmrclog" "$TMP/cmrc-log.keep"
+
+# exit code, then what felix_commission_run_complete printed, for an output
+# against the table as it stands.
+_cmrccomplete() { local _cmrcsaid _cmrcc
+  _cmrcsaid="$(felix_commission_run_complete "$CMP" "$1" 2>/dev/null)"; _cmrcc=$?
+  printf '%s [%s]' "$_cmrcc" "$_cmrcsaid"; }
+_cmrcwrite() { felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$1" "" 2>/dev/null; }
+_cmrcresult() { cut -f5 "$_cmrcrc" 2>/dev/null; }
+_cmrcline() { printf '%s\n' "$1" | awk -F'\t' -v n="$2" '$1 == n'; }
+
+_cmtable 'alpha	-	-	-	-	test -f src/a.txt	3' \
+         'automation_surveyed	-	-	-	provider:claude-code-setup:claude-automation-recommender	-	4'
+_cmrcfull="$(_cm felix_commission_run "$CMP" "$CMR" -)"
+_cmrcalpha="$(_cmrcline "$_cmrcfull" alpha)"; _cmrcauto="$(_cmrcline "$_cmrcfull" automation_surveyed)"
+_cmrcstray="$(printf 'cmrc_stray\tdone\tOBSERVED\t-\t9\t\t-')"
+
+is  "a run that printed every row the table lists, in order, still gives a commissioned receipt" \
+    "$(_cm _cmrcwrite "$_cmrcfull")" "commissioned"
+is  "and a blank line or a line with no need in that output is not a row, and changes nothing" \
+    "$(_cm _cmrcwrite "$(printf '%s\n\n%s\n\tdone\tOBSERVED\t-\t9\t\t-\n' "$_cmrcalpha" "$_cmrcauto")")" "commissioned"
+is  "a run that printed every row the table lists is complete, and nothing is said" \
+    "$(_cm _cmrccomplete "$_cmrcfull")" "0 []"
+is  "an output missing a row the table lists is not complete, and says how many of how many it reported" \
+    "$(_cm _cmrccomplete "$_cmrcalpha")" "1 [1 of 2]"
+is  "an output that carries a row twice the table lists once is not complete" \
+    "$(_cm _cmrccomplete "$(printf '%s\n%s\n%s' "$_cmrcalpha" "$_cmrcalpha" "$_cmrcauto")")" "1 [3 of 2]"
+is  "an output that carries a need the table does not list is not complete" \
+    "$(_cm _cmrccomplete "$(printf '%s\n%s\n%s' "$_cmrcalpha" "$_cmrcauto" "$_cmrcstray")")" "1 [3 of 2]"
+is  "an output whose rows are those the table lists, in another order, is not complete" \
+    "$(_cm _cmrccomplete "$(printf '%s\n%s' "$_cmrcauto" "$_cmrcalpha")")" "1 [2 of 2]"
+# Added after review, not blind: K counts rows, so a blank line and a line
+# naming no need in a short output are not counted toward it.
+is  "an output missing a row, with a blank line and a line naming no need, reports 1 of 2" \
+    "$(_cm _cmrccomplete "$(printf '%s\n\n\tdone\tOBSERVED\t-\t9\t\t-\n' "$_cmrcalpha")")" "1 [1 of 2]"
+is  "a receipt over an output missing a row the table lists is indeterminate, printed and written" \
+    "$(_cm _cmrcwrite "$_cmrcalpha") $(_cmrcresult)" "indeterminate indeterminate"
+is  "a receipt over an output carrying a row twice is indeterminate" \
+    "$(_cm _cmrcwrite "$(printf '%s\n%s\n%s' "$_cmrcalpha" "$_cmrcalpha" "$_cmrcauto")")" "indeterminate"
+is  "a receipt over an output carrying a need the table does not list is indeterminate" \
+    "$(_cm _cmrcwrite "$(printf '%s\n%s\n%s' "$_cmrcalpha" "$_cmrcauto" "$_cmrcstray")")" "indeterminate"
+is  "a receipt over the table's rows in another order is indeterminate" \
+    "$(_cm _cmrcwrite "$(printf '%s\n%s' "$_cmrcauto" "$_cmrcalpha")")" "indeterminate"
+
+# Added after review, not blind. A need holding a byte that is not UTF-8, read
+# under a UTF-8 locale. The first fix read the table's needs with cut, and BSD
+# cut stops at that byte, so on macOS an honest run of this table read 3 of 1
+# and its receipt was indeterminate on every run. Where cut reads bytes, or the
+# locale is not installed, this passes either way.
+_cmtable 'alpha	-	-	-	-	test -f src/a.txt	3' \
+         "$(printf 'cmrc_caf\351\t-\t-\t-\t-\ttest -f src/a.txt\t3')" \
+         "$(printf 'cmrc_gamma\t-\t-\t-\t-\ttest -f src/a.txt\t3')"
+_cmrcl1() { LC_ALL=en_US.UTF-8; export LC_ALL
+  _cmrcwrite "$(felix_commission_run "$CMP" "$CMR" - 2>/dev/null)"; }
+is  "a need holding a byte that is not UTF-8, under a UTF-8 locale, is a complete run and a commissioned receipt" \
+    "$(_cm _cmrcl1 2>/dev/null)" "commissioned"
+
+# A need the table itself lists twice is asked twice, and both are owed.
+_cmtable 'alpha	-	-	-	-	test -f src/a.txt	3' \
+         'alpha	-	-	-	-	test -f src/a.txt	3' \
+         'automation_surveyed	-	-	-	provider:claude-code-setup:claude-automation-recommender	-	4'
+_cmrctwice="$(_cm felix_commission_run "$CMP" "$CMR" -)"
+is  "a need the table lists twice, printed twice, is a complete run and a commissioned receipt" \
+    "$(_cm _cmrcwrite "$_cmrctwice")" "commissioned"
+
+# A table that lists no need: a run that asked nothing certifies nothing.
+_cmtable
+is  "a table that lists no need never has a complete run" "$(_cm _cmrccomplete "")" "1 [0 of 0]"
+is  "and a receipt over it is indeterminate, not commissioned" "$(_cm _cmrcwrite "")" "indeterminate"
+
+# The loop's own shell ending on its second row. The middle row is held, so
+# the receipt over the rows that were printed read commissioned.
+_cmrcdie() { local _cmrcat="$1" _cmrcn=0 _cmrcdef
+  _cmrcdef="$(declare -f _felix_commission_state_known)"
+  eval "_cmrc_real_known${_cmrcdef#_felix_commission_state_known}"
+  _felix_commission_state_known() {
+    _cmrcn=$((_cmrcn + 1))
+    [ "$_cmrcn" -lt "$_cmrcat" ] || exit 128
+    _cmrc_real_known "$@"; }
+  felix_commission_run "$CMP" "$CMR" - 2>/dev/null; }
+_cmtable "$(printf 'cmrc_first\t-\t-\t-\t-\ttest -f src/a.txt\t9')" \
+         "$(printf 'cmrc_held\t-\t-\t-\t-\ttest -f cmrc-no-such-file\t9')" \
+         "$(printf 'cmrc_last\t-\t-\t-\t-\ttest -f src/a.txt\t9')"
+_cmrcshort="$(_cm _cmrcdie 2)"
+_cmrcwhole="$(_cm _cmrcdie 99)"
+is  "with the check replaced and nothing ended, the run prints all three rows and the receipt is held" \
+    "$(printf '%s\n' "$_cmrcwhole" | awk -F'\t' '$1 != "" { printf "%s ", $2 }')$(_cm _cmrcwrite "$_cmrcwhole")" "done held done held"
+is  "a run whose loop ended on its second row printed only the first" \
+    "$(printf '%s\n' "$_cmrcshort" | awk -F'\t' '$1 != "" { printf "%s ", $1 }')" "cmrc_first "
+is  "and that output is not complete: one of three" "$(_cm _cmrccomplete "$_cmrcshort")" "1 [1 of 3]"
+is  "and the receipt over it is indeterminate, printed and written, not commissioned with the held row gone" \
+    "$(_cm _cmrcwrite "$_cmrcshort") $(_cmrcresult)" "indeterminate indeterminate"
+
+# Counts that are not numbers. The output under them is complete, so the only
+# thing wrong is the counts line.
+_cmtable 'alpha	-	-	-	-	test -f src/a.txt	3' \
+         'automation_surveyed	-	-	-	provider:claude-code-setup:claude-automation-recommender	-	4'
+_cmrccounts() { local _cmrcgiven="$1"
+  felix_commission_counts() { printf '%s' "$_cmrcgiven"; }
+  felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmrcfull" "" 2>"$TMP/cmrc-stderr"; }
+_cmrcfields() { awk -F'\t' '{ ok = "digits"
+                               for (i = 6; i <= 10; i++) if ($i !~ /^([0-9]+|[?])$/) ok = "not digits"
+                               print NF, ok }' "$_cmrcrc" 2>/dev/null; }
+_cmrcerr() { case "$(cat "$TMP/cmrc-stderr" 2>/dev/null)" in
+               *'integer expression expected'*) printf 'said' ;; *) printf 'silent' ;; esac; }
+is  "counts that read as numbers still give commissioned, and nothing on stderr" \
+    "$(_cm _cmrccounts '2 0 0 0 0 0') $(_cmrcerr)" "commissioned silent"
+is  "and a held count still gives held" "$(_cm _cmrccounts '1 1 0 0 0 0')" "held"
+is  "counts that come back empty give an indeterminate receipt, not commissioned" \
+    "$(_cm _cmrccounts '')" "indeterminate"
+is  "and no test on stderr says integer expression expected" "$(_cmrcerr)" "silent"
+is  "and the receipt keeps ten fields, each count digits or ?" "$(_cmrcfields)" "10 digits"
+is  "one count come back empty, so the rest would shift into its place, gives indeterminate" \
+    "$(_cm _cmrccounts '2 0  0 0 0')" "indeterminate"
+is  "and that receipt still keeps ten fields, each count digits or ?" "$(_cmrcfields)" "10 digits"
+# Added after review, not blind: the counts after a gap sit one place left, so
+# none of them is written as if it were the count its field names.
+is  "and every count in it is ?, not a number moved into its neighbour's place" \
+    "$(cut -f6-10 "$_cmrcrc" 2>/dev/null | tr '\t' ' ')" "? ? ? ? ?"
+is  "a count that reads ? gives indeterminate, not commissioned" \
+    "$(_cm _cmrccounts '2 0 ? 0 0 0')" "indeterminate"
+is  "and no test on stderr says integer expression expected over the ?" "$(_cmrcerr)" "silent"
+is  "a sixth count that is a word gives indeterminate, though the receipt never writes it" \
+    "$(_cm _cmrccounts '2 0 0 0 0 x')" "indeterminate"
+
+# The counts themselves: a count that comes back empty keeps its place.
+_cmrcrows="$(printf 'cmrc_d\tdone\tOBSERVED\t-\t9\t\t-\ncmrc_unk\tunknown\tUNKNOWN\t-\t9\tcmrc\t-')"
+_cmrcblank() { grep() {
+    case " $* " in
+      *' -c '*) local _cmrcin; _cmrcin="$(cat)"
+                case "$_cmrcin" in *cmrc_unk*) return 1 ;; esac
+                printf '%s\n' "$_cmrcin" | command grep "$@" ;;
+      *) command grep "$@" ;;
+    esac; }
+  felix_commission_counts "$1" ""; printf '|%s' "$?"; }
+_cmrcplain() { felix_commission_counts "$1" ""; printf '|%s' "$?"; }
+is  "counts every grep answers are six numbers, and return 0" "$(_cm _cmrcplain "$_cmrcrows")" "1 0 1 0 0 0|0"
+_cmrcgap="$(_cm _cmrcblank "$_cmrcrows")"
+is  "a count that comes back empty still leaves six tokens" \
+    "$(printf '%s' "${_cmrcgap%|*}" | awk '{ print NF }')" "6"
+is  "and the unknown count reads ?, with every other count in its own place" \
+    "$(printf '%s' "${_cmrcgap%|*}" | awk '{ print $1, $2, $3, $4, $5, $6 }')" "1 0 ? 0 0 0"
+is  "and the counts return 1" "${_cmrcgap##*|}" "1"
+
+# The reader. A current receipt, rewritten in place.
+_cm _cmrcwrite "$_cmrcfull" >/dev/null
+cp "$_cmrcrc" "$TMP/cmrc-good.receipt"
+_cmrcvalid() { local _cmrcv _cmrcvr
+  _cmrcv="$(_cm felix_commission_receipt_valid "$FROOT" "$CMP" "$CMR" 2>/dev/null)"; _cmrcvr=$?
+  printf '%s %s' "$_cmrcvr" "$_cmrcv"; }
+_cmrcredo() { awk -F'\t' -v OFS='\t' "$1" "$TMP/cmrc-good.receipt" > "$TMP/cmrc-redo.receipt" \
+                && mv "$TMP/cmrc-redo.receipt" "$_cmrcrc"; }
+_cmrcbegins() { case "$2" in "$3"*) ok "$1" ;; *) bad "$1" "[$2] does not begin [$3]" ;; esac; }
+_cmrcbegins "a current well-formed receipt still reads valid" "$(_cmrcvalid)" "0 commissioned"
+_cmrcredo '{ $5 = "held"; $7 = "1"; print }'
+_cmrcbegins "and a current well-formed held receipt still reads valid, held" "$(_cmrcvalid)" "0 held"
+_cmrcredo '{ for (i = 6; i <= 10; i++) $i = ""; print }'
+_cmrcbegins "a receipt whose counts are empty is unreadable, not valid" "$(_cmrcvalid)" "1 unreadable ("
+_cmrcredo '{ $8 = "?"; print }'
+_cmrcbegins "a receipt whose unknown count is ? is unreadable" "$(_cmrcvalid)" "1 unreadable ("
+_cmrcredo '{ $5 = "finished"; print }'
+_cmrcbegins "a receipt whose result is a word no run writes is unreadable" "$(_cmrcvalid)" "1 unreadable ("
+_cmrcredo '{ $5 = "indeterminate"; $8 = ""; print }'
+_cmrcbegins "an indeterminate receipt with a count missing still reads indeterminate first" "$(_cmrcvalid)" "1 indeterminate"
+_cmrcredo '{ $2 = "cmrc-not-the-table"; $8 = ""; print }'
+_cmrcbegins "a stale receipt with a count missing still reads stale first" "$(_cmrcvalid)" "1 stale (table set moved"
+# Added after review, not blind: each end of the count fields alone, and the
+# claude cli having changed since, which announces and returns 0 for a
+# well-formed receipt and must not for one whose counts no run wrote.
+_cmrcredo '{ $6 = ""; print }'
+_cmrcbegins "a receipt whose done count alone is empty is unreadable" "$(_cmrcvalid)" "1 unreadable ("
+_cmrcredo '{ $10 = "?"; print }'
+_cmrcbegins "a receipt whose awaiting count alone is ? is unreadable" "$(_cmrcvalid)" "1 unreadable ("
+_cmrcredo '{ $4 = "cmrc-older-claude"; print }'
+_cmrcbegins "a well-formed receipt from an older claude cli still reads valid, and says so" "$(_cmrcvalid)" "0 commissioned (the claude cli changed since"
+_cmrcredo '{ $4 = "cmrc-older-claude"; for (i = 6; i <= 10; i++) $i = ""; print }'
+_cmrcbegins "a receipt from an older claude cli whose counts are empty is unreadable, not announced" "$(_cmrcvalid)" "1 unreadable ("
+
+# The command. Two stubs appended to the fixture's copy of the library, each
+# idle unless the run is handed its variable: the check on a row's state ends
+# the loop's shell at the call FELIX_CMRC_DIE_AT names, and the counts print
+# FELIX_CMRC_COUNTS. The copy is put back the moment the last run returns.
+_cmtable "$(printf 'cmrc_first\t-\t-\t-\t-\ttest -f src/a.txt\t9')" \
+         "$(printf 'cmrc_held\t-\t-\t-\t-\ttest -f cmrc-no-such-file\t9')" \
+         "$(printf 'cmrc_last\t-\t-\t-\t-\ttest -f src/a.txt\t9')"
+cat >> "$_cmrclib" <<'CMRCLIB'
+_cmrc_known_def="$(declare -f _felix_commission_state_known)"
+eval "_cmrc_real_known${_cmrc_known_def#_felix_commission_state_known}"
+_felix_commission_state_known() {
+  if [ -n "${FELIX_CMRC_DIE_AT:-}" ]; then
+    _cmrc_known_n=$(( ${_cmrc_known_n:-0} + 1 ))
+    [ "$_cmrc_known_n" -lt "$FELIX_CMRC_DIE_AT" ] || exit 128
+  fi
+  _cmrc_real_known "$@"; }
+_cmrc_counts_def="$(declare -f felix_commission_counts)"
+eval "_cmrc_real_counts${_cmrc_counts_def#felix_commission_counts}"
+felix_commission_counts() {
+  if [ -n "${FELIX_CMRC_COUNTS:-}" ]; then printf '%s' "$FELIX_CMRC_COUNTS"; return 0; fi
+  _cmrc_real_counts "$@"; }
+CMRCLIB
+_cmrccli() { local _cmrcd="$1" _cmrck="$2"; shift 2
+  ( cd "$CMR" && FELIX_CMRC_DIE_AT="$_cmrcd" FELIX_CMRC_COUNTS="$_cmrck" PATH="$CMSTUB:$PATH" \
+      "$FELIX" commission "$@" 2>&1 ); }
+_cmrcclean="$(_cmrccli '' '')"; _cmrccleanx=$?; _cmrccleanr="$(_cmrcresult)"
+_cmrcstat="$(_cmrccli 2 '' --status)"
+_cmrcshortcli="$(_cmrccli 2 '')"; _cmrcshortx=$?; _cmrcshortr="$(_cmrcresult)"
+_cmrcqcli="$(_cmrccli '' '1 1 ? 0 0 0')"; _cmrcqx=$?; _cmrcqr="$(_cmrcresult)"
+_cmrcallq="$(_cmrccli '' '? ? ? ? ? ?')"; _cmrcallqx=$?; _cmrcallqr="$(_cmrcresult)"
+cp "$TMP/cmrc-lib.keep" "$_cmrclib"
+is  "and the engine copy the command ran from is put back byte for byte" \
+    "$(cksum < "$_cmrclib")" "$(cksum < "$TMP/cmrc-lib.keep")"
+
+case "$_cmrcclean" in
+  *'the run reported'*) bad "a full run that printed every row says nothing about rows missing" \
+                            "$(printf '%s\n' "$_cmrcclean" | grep 'the run reported')" ;;
+  *)                    ok  "a full run that printed every row says nothing about rows missing" ;;
+esac
+is  "and writes held over the held row, exiting 0" "$_cmrccleanr $_cmrccleanx" "held 0"
+_cmrcreported() { printf '%s\n' "$1" | grep -o 'the run reported [0-9]* of [0-9]* rows' | head -1; }
+is  "--status over a run whose loop ended on its second row says it reported 1 of 3 rows" \
+    "$(_cmrcreported "$_cmrcstat")" "the run reported 1 of 3 rows"
+is  "a full run whose loop ended on its second row says it reported 1 of 3 rows" \
+    "$(_cmrcreported "$_cmrcshortcli")" "the run reported 1 of 3 rows"
+is  "and writes the receipt indeterminate and exits 1" "$_cmrcshortr $_cmrcshortx" "indeterminate 1"
+case "$_cmrcqcli" in
+  *'integer expression expected'*)
+     bad "a full run whose unknown count reads ? writes no integer expression expected anywhere" \
+         "$(printf '%s\n' "$_cmrcqcli" | grep 'integer expression expected')" ;;
+  *) ok  "a full run whose unknown count reads ? writes no integer expression expected anywhere" ;;
+esac
+is  "and writes the receipt indeterminate and exits 1, not held" "$_cmrcqr $_cmrcqx" "indeterminate 1"
+# Added after review, not blind. The summary line and the two sections after
+# it test the held, malformed, awaiting and unknown counts, and only the
+# unknown one was ever ?. And the sentence under a short run says only what is
+# true of the receipt: --status writes none, so it may not say indeterminate.
+case "$_cmrcallq" in
+  *'integer expression expected'*)
+     bad "a full run whose every count reads ? writes no integer expression expected anywhere" \
+         "$(printf '%s\n' "$_cmrcallq" | grep 'integer expression expected')" ;;
+  *) ok  "a full run whose every count reads ? writes no integer expression expected anywhere" ;;
+esac
+is  "and writes the receipt indeterminate and exits 1" "$_cmrcallqr $_cmrcallqx" "indeterminate 1"
+has "--status over a short run says a receipt over it would be indeterminate" "$_cmrcstat" "would be indeterminate"
+case "$_cmrcstat" in
+  *'was written indeterminate'*) bad "and does not say one was written" "$(printf '%s\n' "$_cmrcstat" | grep 'was written')" ;;
+  *)                             ok  "and does not say one was written" ;;
+esac
+has "a full run over a short run says the receipt was written indeterminate" "$_cmrcshortcli" "The receipt was written indeterminate"
+
+cp "$TMP/cmrc-table.keep" "$CMP/commissioning.tsv"
+if [ -f "$TMP/cmrc-receipt.keep" ]; then mv "$TMP/cmrc-receipt.keep" "$_cmrcrc"; else rm -f "$_cmrcrc"; fi
+if [ -f "$TMP/cmrc-log.keep" ]; then mv "$TMP/cmrc-log.keep" "$_cmrclog"; else rm -f "$_cmrclog"; fi
+rm -f "$TMP/cmrc-table.keep" "$TMP/cmrc-lib.keep" "$TMP/cmrc-stderr" "$TMP/cmrc-good.receipt" "$TMP/cmrc-redo.receipt"
+is  "and this block leaves the table, the receipt, the log, the engine copy and every cmrc- file as it found them" \
+    "$(_cmrcfixture)" "$_cmrcfound"
+unset -f _cmrcfixture _cmrccomplete _cmrcwrite _cmrcresult _cmrcline _cmrcdie _cmrccounts _cmrcfields _cmrcerr \
+         _cmrcblank _cmrcplain _cmrcvalid _cmrcredo _cmrcbegins _cmrccli _cmrcreported _cmrcl1
+unset _cmrcrc _cmrclib _cmrclog _cmrcfound _cmrcfull _cmrcalpha _cmrcauto _cmrcstray _cmrctwice _cmrcshort _cmrcwhole \
+      _cmrcrows _cmrcgap _cmrcclean _cmrccleanx _cmrccleanr _cmrcstat _cmrcshortcli _cmrcshortx _cmrcshortr \
+      _cmrcqcli _cmrcqx _cmrcqr _cmrcallq _cmrcallqx _cmrcallqr
 
 # What nothing serves, reaches or grounds, enumerated from the checkout.
 has "a detected surface no row serves, reaches or grounds is named with all three misses" \

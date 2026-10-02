@@ -8,67 +8,63 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	48eefd8f1b5c1cdae115cda11c4ee81b4e1d069b	48eefd8f1b5c1cdae115cda11c4ee81b4e1d069b	0.49.242
-run	62	4290	5
-a line a stray writes to the log after red has read it is not counted, so the name it says is still red, the log being read once	1
-a line that only contains the word reached is not the marker, exit 2	1
-a line that opens like a listed name's skip and does not end in a parenthesis is not its skip, so the name is still red	1
-a listed name the base never reaches is red, though a name it reaches begins with it, holds it in its middle, or is it in another case	1
-a manifest count of 1x, of 1.5 or led by a space is refused naming its line, before the suite runs	1
-a manifest count of zero is refused naming its line	1
-a manifest count with a leading zero is refused naming its line, the empty line above it counted	1
-a manifest row repeating a name an earlier row holds is refused naming the later line, before the suite runs	1
-a manifest row whose count is not a number is refused naming its line, before the suite runs	1
-a manifest row whose name is empty is refused naming its line	1
-a manifest row with no tab between its count and its name is refused naming its line	1
-a name listed ten times that the base reaches nine times is red by one, the counts compared as numbers	1
-a name listed twice that the base reaches ten times takes nothing off the other shortfalls, six of thirty failing, all six never reached	1
-a name listed twice that the base run skips once is red by the one time it never reached it, one skip line counting once	1
-a name reached more often than listed offsets no other name's shortfall, so the run row counts two never reached among four failed	1
-a name that fails once and is not asked its second time against the base is one row counting both	1
-a name the manifest lists twice that the base run reaches once is a row counting the one time it never reached it	1
-a reached line a child wrote to stderr early does not make a suite killed after it a red run, exit 2	1
-a skip of a name the manifest does not list is no skip of a listed name it begins with, unless a space and a parenthesis follow that name	1
-a stray reached followed only by ok lines does not make a suite killed after them a red run, exit 2	1
-a stray reached followed only by skip lines does not make a suite killed after them a red run, exit 2	1
-a suite killed before it printed reached is not a red run, exit 2	1
-a suite killed before its first assertion is refused as unfinished, not as empty	1
-a suite killed short of reached is refused as unfinished, not recorded with the names it never reached, exit 2	1
-a suite that exits 0 with a totals line but no reached line is refused too, exit 2	1
-a suite that exits 1 without reached, as a finished red run exits, is refused, exit 2	1
-a suite that printed an assertion after reached and was killed is refused, exit 2	1
-after an arithmetic error inside a for and an if, every assertion left in each block is recorded red, by the times the base never reached it	1
-an assertion whose arithmetic errors on the base's - and so never runs is recorded red, by the one time it never ran	1
-an assertions.tsv it cannot read is refused as no readable manifest, before the suite runs	1
-an assertions.tsv of empty lines alone is refused as listing no assertion too	1
-an assertions.tsv that is a directory is refused as no readable manifest, before the suite runs	1
-an empty assertions.tsv is refused as listing no assertion, before the suite runs	1
-and a missing manifest is the reason given ahead of a base that does not resolve	1
-and a suite ended by sigterm is reported as exit 143 after its two assertions	1
-and its reason counts both assertions, the one after reached among them	1
-and its reason counts the three assertions printed after that stray line	1
-and its reason names exit 0 and the three assertions it printed, a skip among them	1
-and its reason names exit 1 and the three assertions it printed, the failure among them, on one line	1
-and its summary is one line, one of three failing against main, one of them never reached	1
-and red.tsv again holds only the two rows saying no red run was made	1
-and red.tsv holds only the two rows saying no red run was made, the stale claim retracted	1
-and red.tsv holds the two rows saying no red run was made for it as well	1
-and red.tsv holds the two rows saying no red run was made for the suite that went on past reached	1
-and red.tsv holds the two rows saying no red run was made, none of the names it never reached	1
-and red.tsv holds the two rows saying no red run was made, not the failure it printed	1
-and red.tsv holds the two rows saying no red run was made, the ok lines after the stray reached notwithstanding	1
-and red.tsv holds the two rows saying no red run was made, the skip lines after the stray reached notwithstanding	1
-and red.tsv holds the two rows saying no red run was made, the stray reached notwithstanding	1
-and red.tsv's header says an assertion the manifest lists and the base run never reached counts as failed	1
-and stdout is the one line naming main, the kill's exit 137 and the four assertions it reached	1
-and that exit 2 leaves no temporary directory behind either	1
-and that summary counts eleven, four failing, two of them never reached	1
-and the near-name and stray records are each one record, the run row's failed count what the names add up to	1
-and the run row counts the one failure the base printed and the eight times it never reached as nine failed	1
-and the summary counts twelve, nine failing, eight of them never reached	1
-each record with names never reached is one record, its run row's failed count what its names add up to	1
-manifest names are compared byte for byte, a backslash, brackets, a star, a dot and a tab each itself	1
-names the manifest does not list are not compared, and the one that fails is still a failed row	1
-the first faulty manifest line is the one named, a repeat on line 2 ahead of a malformed line 3	1
-the manifest compared is the one read before the suite ran, not the one the run rewrote while it ran	1
-with no assertions.tsv beside it the red run is refused before the suite runs, exit 2, the claim retracted and nothing left	1
+base	b23c6183728b98f150296ce4088d2eab299ea70e	b23c6183728b98f150296ce4088d2eab299ea70e	0.49.244
+run	58	4569	5
+PreToolUse launched in a directory nothing governs refuses a command acting in the governed worktree the payload names by that worktree's checkout-scoped row	1
+PreToolUse launched in a directory nothing governs refuses by the rows of the governed worktree the payload names	1
+PreToolUse reads the top-level cwd, so a later cwd inside tool_input does not lift the worktree's refusal	1
+SessionEnd launched in a directory nothing governs folds the session into the governed worktree's ledger	1
+SessionStart launched in a directory nothing governs binds the governed worktree the payload names	1
+SessionStart names the handoff of the worktree the payload names, and not the launch checkout's	1
+Stop allows when the worktree the payload names is green, though the launch checkout holds unverified work	1
+Stop in the Desktop shape asks about a recent session-less catch filed under the worktree's branch	1
+Stop in the Desktop shape does not ask about a session-less catch filed under the main checkout's branch only	1
+Stop judges the worktree the payload names, so its unverified work blocks though the main checkout is green	1
+Stop judges the worktree when the payload's cwd is a subdirectory of it	1
+Stop launched in a directory nothing governs judges a flagged stop by the worktree the payload names	1
+Stop refuses a broken marker in the payload's worktree though the launch checkout is green	1
+SubagentStart launched in a directory nothing governs names the governed worktree's project to the subagent	1
+SubagentStop judges the payload's worktree, so its unverified work is declared though the launch checkout is green	1
+SubagentStop launched in a directory nothing governs resolves the governed worktree the payload names	1
+UserPromptSubmit launched in a directory nothing governs mounts the lessons of the governed worktree the payload names	1
+and marks the session at the worktree's HEAD	1
+and records the session at the worktree's HEAD	1
+and that refusal is the checkout-scoped row of the worktree's project	1
+and the refusal names that project's deny table	1
+and the refusal names that worktree's marker	1
+felix_hook_dir answers a cwd equal to the launch directory without resolving anything	1
+felix_hook_dir answers a launch directory reached through a symlink by that logical spelling, resolving nothing, when the payload names its physical path	1
+felix_hook_dir answers a megabyte payload with no cwd by the launch directory in under three CPU seconds	1
+felix_hook_dir answers a payload cwd naming the launch directory with a trailing slash by the launch directory, resolving nothing	1
+felix_hook_dir does not read a cwd spelt inside a message, where the key's quotes are escaped	1
+felix_hook_dir finds the top-level cwd ahead of a megabyte of message in under three CPU seconds	1
+felix_hook_dir keeps a governed launch directory when the payload's cwd is a checkout bound to another project by its remote alone	1
+felix_hook_dir keeps a governed launch directory when the payload's cwd is a checkout nested in it whose marker names another project	1
+felix_hook_dir keeps a launch directory nothing governs when the first cwd is a number, though a governed worktree is named in tool_input after it	1
+felix_hook_dir keeps a launch directory whose marker is broken, though the payload names a governed worktree	1
+felix_hook_dir keeps the launch directory for a cwd holding a backslash, though that directory exists and is governed	1
+felix_hook_dir keeps the launch directory for a cwd naming a file inside a governed worktree	1
+felix_hook_dir keeps the launch directory for a cwd spelt with escaped slashes, which it does not decode	1
+felix_hook_dir keeps the launch directory for a cwd that does not exist	1
+felix_hook_dir keeps the launch directory for a git checkout nothing governs	1
+felix_hook_dir keeps the launch directory for a plain directory nothing governs	1
+felix_hook_dir keeps the launch directory for a relative cwd, though from there it names a governed worktree	1
+felix_hook_dir keeps the launch directory for an escaped backslash that only decoding would make a governed directory	1
+felix_hook_dir keeps the launch directory when the first cwd is null, though a governed worktree is named in tool_input after it	1
+felix_hook_dir keeps the launch directory when the payload carries no cwd	1
+felix_hook_dir keeps the launch directory when the payload's cwd is empty	1
+felix_hook_dir keeps the launch directory when the top-level cwd starts past the payload's first 4096 bytes	1
+felix_hook_dir prints a checkout bound by its remote alone, resolved in the home it is handed, when the launch directory governs nothing	1
+felix_hook_dir prints a checkout whose marker cannot be read, and writes nothing to stderr about it	1
+felix_hook_dir prints a checkout whose marker is broken, since Felix has that to say about it	1
+felix_hook_dir prints a subdirectory of a checkout whose marker is broken, though the launch directory is governed	1
+felix_hook_dir prints a subdirectory of that worktree as given, not its root	1
+felix_hook_dir prints that nested checkout of another project when the launch directory governs nothing	1
+felix_hook_dir prints the payload's worktree when its marker names a project	1
+felix_hook_dir reads the leftmost cwd: a governed directory named again inside tool_input does not move it	1
+felix_hook_dir reads the leftmost cwd: an ungoverned directory named again inside tool_input does not undo it	1
+felix_hook_dir reads the top-level cwd with whitespace around its colon	1
+felix_hook_dir still reads a top-level cwd whose closing quote is the payload's 4096th byte	1
+felix_hook_enter leaves the calling shell where it was for a directory nothing governs, says nothing, and sets no FELIX_HOOK_LAUNCH	1
+felix_hook_enter moves the calling shell into the payload's worktree, says nothing, and leaves FELIX_HOOK_LAUNCH unset	1
+the same-directory shortcut forks nothing: held to one process, a symlinked launch path still stays	1

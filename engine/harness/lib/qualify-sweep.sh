@@ -98,6 +98,10 @@
 #   - On Linux, a row whose /proc could not be read when it wrote its record,
 #     which is then a pid alone: no sweep there judges it, so if that row is
 #     killed its tree is left.
+#   - On Linux, a base left by a row killed before a reboot, or before a
+#     container restart with a TMPDIR that persists: its record names the
+#     old boot, so it reads alive for good and is never swept, and while the
+#     base is there its registration is no orphan either (review round 3).
 #   - The instant between a list of the root's worktrees and git's own read
 #     of it, in the drop and the orphan step alike: an entry removed then by
 #     another process leaves git to resolve the path, and through a base

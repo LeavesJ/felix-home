@@ -472,6 +472,7 @@
 1	a different repository is still checked
 1	a directory beside the worktrees that git no longer lists is an orphan
 1	a directory declaring project.json is enumerated
+1	a directory git tracks nothing under is copied whole, even inside a repository that ignores it
 1	a directory holding only untracked files is blind too
 1	a directory in no repository has no graph home to print
 1	a directory is cannot-examine, not an empty binding
@@ -1337,6 +1338,7 @@
 1	a stranded session folds under its own date, not today's
 1	a stranded session has appends but no folded record
 1	a stranger that is not a plugin is created without a blocking obligation
+1	a stray directory the repository ignores leaves git status clean, so nothing points at it
 1	a stray reached followed only by ok lines does not make a suite killed after them a red run, exit 2
 1	a stray reached followed only by skip lines does not make a suite killed after them a red run, exit 2
 1	a string broken across the next key leaves the manifest high
@@ -1415,6 +1417,7 @@
 1	a tool call after it clears the count
 1	a tool that could not be checked is said, not counted as reachable
 1	a tool_use with its type key first is read by its own id and name, not by an id or a name nested in its input ahead of them
+1	a tracked file missing from disk does not stop the copy
 1	a tracked table missing from the working tree fails
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
@@ -1853,6 +1856,7 @@
 1	and a branch that changes engine/ still owes both
 1	and a branch that has merged origin/main is not behind, status 1 and nothing printed, or every current branch would be reported
 1	and a bundled plugin last among them
+1	and a cache entry cut from that copy is still the engine main accepted
 1	and a cache file that is not there reads as no digest either
 1	and a call from a worktree is held by the same lock, there being one graph
 1	and a catalogue that was read and matched nothing is exit 0
@@ -3050,6 +3054,7 @@
 1	and that row begins with the checked-out branch and carries the session
 1	and that row, committed on a branch origin/main does not hold, is not read, or a pull request could rewrite the recipe that lands it
 1	and that summary counts eleven, four failing, two of them never reached
+1	and the CLI keeps its executable bit through it
 1	and the FELIX_KERNEL refusal row carries the branch and the session
 1	and the Felix checkout, which holds the deploy key, drops it
 1	and the Stop hook's guard still names it through the link
@@ -3232,6 +3237,7 @@
 1	and the refusal is the gate's own
 1	and the refusal names that project's deny table
 1	and the refusal names that worktree's marker
+1	and the refusal names the stray, which is all the incident ever printed
 1	and the refusal names the version main declares or the cache it searched
 1	and the refusal says how to add a section instead
 1	and the refusal says how to type it inside the session
@@ -5609,6 +5615,7 @@
 1	the stub refuses a selectorless merge the way gh does
 1	the stub refuses an untaught shape
 1	the suite judges its own checkout's record with one bare call at the top level, and nowhere else
+1	the suite's copy of a harness holding one leaves it behind
 1	the suite's own completion marker, the reached line tests/red requires, still follows its last section
 1	the summary counts the excepted rows
 1	the surviving drift is named
@@ -5817,6 +5824,7 @@
 1	while the others still are
 1	while the path around it does not
 1	while the person's session beside that machine session is folded
+1	while the raw copy the suite used to take is refused as a judge
 1	while the red gate is handed back as work Felix owes
 1	while the rows whose grants were refused or absent still do
 1	while the same path without one is documentation, and the run stays green
@@ -5929,6 +5937,7 @@
 1	without lib/where.sh beside it a scoped row stands
 1	without opting in, nothing is touched
 1	work committed only in a worktree does not make the graph stale
+1	work not yet added to git is still carried into the copy
 1	work the subagent committed is still checked
 1	workflow_dispatch named only in an if: expression does not
 1	writes a zero row for a declared tool nobody reached for

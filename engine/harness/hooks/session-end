@@ -22,6 +22,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 raw="$(cat 2>/dev/null || true)"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT" 2>/dev/null)" || exit 0
+felix_hook_enter "$raw" "$FELIX_HOME_DIR"
 
 session="$(printf '%s' "$raw" \
   | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"

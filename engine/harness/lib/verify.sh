@@ -124,6 +124,64 @@ felix_session_machine_clear() {   # home, sid
   rm -f "$path" 2>/dev/null || true
 }
 
+# Felix's own hold, written down so that Stop can tell its own chain from
+# another hook's.
+#
+# The platform sets stop_hook_active on the stop that ends a turn a hook
+# started, and Stop used to leave at the flag whoever had started it. Felix's
+# own hold is one such start. An asyncRewake hook that exits 2 is another: its
+# rewake arrives as a turn of its own with the flag already set, measured on
+# Claude Code 2.1.260 and 2.1.280 for a Stop and a PostToolUse hook alike (a
+# rewake folded into a running turn sets nothing, and a hook merely in flight
+# sets nothing). security-guidance, which commissioning installs for every
+# project, is such a hook. So the turn in which a model fixes what a background
+# review found ended with no check and no record, however dirty the tree.
+#
+# The flag is now honoured at the one stop a hold of Felix's started. Stop
+# marks each hold before it is made, the next flagged stop takes the mark away
+# and ends there, and an unflagged stop, which begins a chain afresh, clears
+# whatever is left. A flagged stop with no mark to take belongs to someone
+# else's chain and is judged like any other stop. Every hold is followed by a
+# stop Felix lets through, so it never holds twice in a row, and the
+# platform's rule still holds for every chain of Felix's own.
+#
+# The id arrives in a payload, so a path built from it is checked first, and an
+# id that cannot name a file reads as unknown: the flag ends the stop, as it
+# always did. So does a record that cannot be taken away. Where state/held
+# cannot be written, nothing here can be told apart, and every flagged stop
+# ends at the flag as it did before any of this existed.
+_felix_hold_path() {   # home, sid -> path, or 1 when the id cannot name a file
+  [ -n "${1:-}" ] || return 1
+  case "${2:-}" in ''|.|..|-*|*[!A-Za-z0-9._-]*) return 1 ;; esac
+  [ "${#2}" -le 128 ] || return 1
+  printf '%s/state/held/%s' "$1" "$2"
+}
+
+felix_hold_mark() {   # home, sid -> 0 when the hold is on record
+  local path
+  path="$(_felix_hold_path "${1:-}" "${2:-}")" || return 1
+  mkdir -p "$(dirname "$path")" 2>/dev/null || return 1
+  : > "$path" 2>/dev/null
+}
+
+# 0 when a hold of Felix's was on record, and it is taken away; 1 when none was;
+# 2 when the id cannot say, or the record is still there after taking it.
+felix_hold_take() {   # home, sid -> 0 | 1 | 2
+  local path
+  path="$(_felix_hold_path "${1:-}" "${2:-}")" || return 2
+  [ -f "$path" ] || return 1
+  rm -f "$path" 2>/dev/null
+  [ ! -e "$path" ] || return 2
+  return 0
+}
+
+felix_hold_clear() {   # home, sid
+  local path
+  path="$(_felix_hold_path "${1:-}" "${2:-}")" || return 0
+  [ -f "$path" ] || return 0
+  rm -f "$path" 2>/dev/null || true
+}
+
 # Did this session commit anything? Returns 1 when unknown, so the caller keeps
 # whatever it did before rather than treating ignorance as a change.
 felix_session_committed() {
@@ -349,7 +407,9 @@ felix_verify_current() {
     printf 'stale\tthe epoch cannot be read now: epoch.sh is not loaded\n'; return 1
   fi
   comps="$(felix_epoch_components "$proj" "$root" 2>/dev/null)"
-  if printf '%s\n' "$comps" | cut -f2 | grep -qx -- '-'; then
+  # awk, not grep -q, here and in felix_verify_epoch_fields: it reads every
+  # value before it answers, so no writer is cut off for pipefail to misread.
+  if printf '%s\n' "$comps" | cut -f2 | awk '$0 == "-" { u = 1 } END { exit !u }'; then
     printf 'stale\tthe grounded facts cannot be read now, so the receipt cannot be confirmed; run felix gate\n'; return 1
   fi
   now_epoch="$(printf '%s\n' "$comps" | _felix_hash)"
@@ -382,7 +442,7 @@ felix_verify_epoch_fields() {
   fi
   command -v felix_epoch_components >/dev/null 2>&1 || { printf -- '-\t-\n'; return 0; }
   comps="$(felix_epoch_components "$proj" "$root" 2>/dev/null)"
-  if [ -z "$comps" ] || printf '%s\n' "$comps" | cut -f2 | grep -qx -- '-'; then
+  if [ -z "$comps" ] || printf '%s\n' "$comps" | cut -f2 | awk '$0 == "-" { u = 1 } END { exit !u }'; then
     printf -- '-\t-\n'; return 0
   fi
   printf '%s\t%s\n' "$(printf '%s\n' "$comps" | _felix_hash)" \

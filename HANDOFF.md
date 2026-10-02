@@ -14,10 +14,22 @@ and changed none of it: the archive files concatenated in index order, after
 `docs/handoff/_preamble.md`, reproduce the old file byte for byte (the sixty
 files the split made; later sections join the index above them, below §0).
 
-**The rule for the next session.** Write your section at the top of "Current
-state", with the next id (after 0br comes 0bs). Move the section it replaces
-into `docs/handoff/<id>.md`, unchanged, and add its row to the top of the
-index. A reference like "HANDOFF §0bm" means `docs/handoff/0bm.md`.
+**The rule for the next session, since 2026-09-24.** Do not write your section
+into this file. Write it as a file of its own, headed `### <title>` with no id,
+and run `felix handoff --section FILE`. It lands at
+`docs/handoff/pending/<UTC time>-<branch>.md`, a path no other session writes,
+so two sessions' handoffs cannot collide in whatever order they land. The
+session start names every section waiting there. Each is newer than the
+current section below. `felix handoff --rotate`, on a branch cut from main
+when upkeep says it is due, folds them in, oldest-landed first:
+- each takes the next id (after 0cn comes 0co);
+- the section it replaces moves into `docs/handoff/<id>.md`, unchanged;
+- their rows go in at the top of the index.
+
+The gate's handoff check refuses any other change to what the fold owns,
+including a section written in by hand. Why:
+`docs/2026-09-24-handoff-sections.md`. A reference like "HANDOFF §0bm" means
+`docs/handoff/0bm.md`.
 
 ---
 
@@ -32,85 +44,59 @@ tree; the engine is published as a snapshot with no history at
 
 ## Current state
 
-### 0bs. 2026-09-22/23 — Felix is a product for other people's projects, built first; the first obligations request answered blind; the roadmap
+Sections newer than this one may be waiting in `docs/handoff/pending/`. The
+session start names them.
 
-**No engine change from this session.** Records and doctrine only. The engine
-moved to 0.49.142 and 0.49.143 through other sessions' pull requests (#289,
-#292) while this one ran.
+### 0cn. 2026-09-25: `felix qualify --gate` fails closed. One read of the table, a failed read refuses with exit 2, a short run refuses, and the gate always says why under `qualified FAIL`
 
-| PR | What |
-|---|---|
-| #290 | Constitution: Felix is a product for other people's projects, built first on Claude Code; the Phase-1-only scope is replaced |
-| #293 | `docs/2026-09-23-roadmap.md`, replacing direction-decisions §5's queue |
-| this | The roadmap revised to build first, and this section |
+This PR carries claude/qualify-membership-sigpipe (the section beside this
+one) in the same slot, by agreement with the carrier. The engine changes are
+in lib/qualify.sh, felix (cmd_qualify and the gate's qualified block) and
+tests/run.
 
-**Founder decisions, 2026-09-22/23:**
+**Defect closed.** `felix qualify --gate` read `qualification.tsv` four or more
+times per run and checked only the first read's status. A later read failing
+(a table rewritten mid-run, or a fork failure at load) ran no control and
+counted `0 of 0 held` as a pass. `felix gate` then printed `qualified ok` over
+a HELD control. Now:
+- The table is read once (`felix_qualify_snapshot`), and the verdict comes
+  only from that read.
+- A failed read exits 2, saying the table could not be read.
+- `--gate` exits 0 only with one verdict per selected row, and at least one
+  row selected.
+- Every derived count and list takes its own status.
+- The row command, mutation and premise read /dev/null. A stdin-reading
+  checker used to swallow every later row.
+- The reader refuses as MALFORMED a row with an empty checker or a checker
+  that is not an id, more than six fields, or a CR.
+- `felix gate` lifts every refusal reason under `qualified FAIL`, falls back to
+  a line saying where to read why, and counts checkers from the rendered rows,
+  never from a second read.
 
-- Felix is a product for other people's projects (#290): Claude Code first
-  and best, host-independent by design, a second host once Claude Code is
-  right. The name stays for now, the IP is his, pricing is deferred, and both
-  planes stay.
-- **Build first (2026-09-23).** Real obligations and working machinery come
-  before anything else; commercialisation is a natural outcome of Felix's
-  quality, not a goal. No outreach track and no user deadlines. The roadmap
-  was revised the same day to say so.
-- The Capability Plane is not "call an agent API". Labour (Claude, Codex,
-  Factory) is one commoditised provider class, consumed on the customer's own
-  key; the distinct core is qualifying the evidence providers (observers and
-  checkers) and deriving needs from standing obligations. Integration order:
-  merge-point check, then ride-along adapters, then dispatch.
-- Approved: the obligations request by hand on Elenchus (done, below) and the
-  qualified-judge slice (roadmap Phase 1). No row is armed before control 7
-  and the judge pin exist; the chat plan of 2026-09-22 said new rows would arm
-  at once, and the roadmap records that correction.
+**Built by the engine-build workflow, with one process defect.** The workflow
+ran a blind contract, the implementation, three adversarial reviewers and a
+fixer. The defect: I sent scope rulings mid-run by SendMessage to the
+workflow's fixer agent. That started a second copy of it, and the two copies
+wrote to one worktree until I stopped the workflow. The auto-memory note
+`message-to-workflow-agent-forks-a-copy` records it. Put rulings in the
+prompts, or stop the workflow first.
 
-**Queue item 4a, done 2026-09-22.** `felix obligations --request` ran on a
-scratch clone of Elenchus at origin/main `a45a985`, with `.[dev,web]`
-installed so `http_route` read found (16) rather than blind. A Plan subagent
-answered it: that type loads no memory, so it was not primed by the session's
-talk of rate limiting. The answer was written verbatim to
-`~/.felix/memory/elenchus/commission/obligations_surveyed.tsv` and read back
-by `felix obligations`: 7 proposed, 7 accepted, 0 refused, 0 admitted
-(`candidates.tsv`, 7 rows, epoch `5d2d7b05`). Six of the seven evidence
-commands fail on main. `public_bind_has_spend_ceiling` is LeavesJ/Elenchus#16,
-open since 2026-09-03, and `app.py:74` names it, so this is calibration, not
-recall. The other five are unverified against what Elenchus already records.
-Admission waits on the founder. The scratch clone does not outlive the session.
+**Handed on, not done here:**
+- A checker exiting 126/127 meets fail-expecting controls. The session on
+  claude/qualify-rows-fresh-shell owns `_felix_qualify_one`'s eval lines, is
+  stacked on this branch, and takes it next in the queue.
+- A row led by a NUL byte is invisible to macOS awk and is skipped as a blank
+  line. Filed as a task. Its fix must keep the one read.
 
-**Records.** Memory: `felix-is-a-commercial-product`,
-`agent-vendor-access-and-terms`, and the market map's 2026-09-22 delta:
-Factory's 2026-08-27 post states the inventory-plus-current-evidence thesis
-for next-generation Missions, Claude Code Projects redesigned on 2026-09-17,
-and Anthropic's Agent SDK terms for products. The founder has PDFs of the
-positioning continuation and of both roadmap versions; their Markdown was
-scratch, so the repository's roadmap is the source.
-
-**Open, in roadmap order:** Phase 0 of `docs/2026-09-23-roadmap.md`. Live in
-other sessions: the table validator on `claude/table-validator`, and
-qualification hardening in `happy-snyder-20f100`, which touches
-`lib/qualify.sh`, so the judge work waits for it. PR #291 is red. Carried from
-§0br: deny rows reading heredocs and quoted text (roadmap Phase 0), and the
-harvest rows (Phase 4).
-
-**Traps paid for this session:**
-
-- A gate receipt belongs to the tree, and committing changes the tree even
-  when no content does. Gate after the commit.
-- `origin/main` moved twice mid-work. Merge it into the branch rather than
-  rebase (a force-push is refused), then gate again.
-- Running probes in another project moved this checkout's grounded facts, and
-  the Stop hold asked for a fresh gate on an unchanged tree.
-- `felix merge` takes no pull request number; it merges the checked-out
-  branch.
-- A discovery answer must not come from the session's own model once the
-  session has discussed what it expects to find. A Plan subagent loads no
-  memory.
-- The request records probe state as last read. Install the product's extras
-  first, or `http_route` reads blind.
-- Headless Chrome with a fresh `--user-data-dir` writes the PDF and then
-  hangs. Bound it and check the file.
-- In zsh a bare word starting with `=`, such as a line of equals signs passed
-  to `echo`, is an expansion error.
+**Traps paid:**
+- The slice runner (the suite's prologue plus only the obligations and
+  qualification sections, with one commit standing in for the omitted
+  sections) ran those sections in 45 s against the full suite's 50 minutes.
+  Without that commit, every control is unrunnable, because the fixture repo
+  has no HEAD.
+- Another session's `pkill -f 'engine/harness/tests/run'` killed a reviewer's
+  mutation run mid-way. A killed run's log has no summary line. Score a
+  mutant only from a log that has one.
 
 ---
 
@@ -121,6 +107,27 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0cm](docs/handoff/0cm.md) | 2026-09-25 — the needs-count flake was printf into grep -q under pipefail, not a failed read; qualify's membership is a case in the shell now, and an unreadable qualification.tsv is said, not resolved |
+| [0cl](docs/handoff/0cl.md) | 2026-09-25 — the project scripts read a pipe's answer from the whole list: a README change under --public-readme and a monitoring change in sv2-apps are no longer read as absent |
+| [0ck](docs/handoff/0ck.md) | 2026-09-24 — bootstrap's rendered gate workflow keeps no credential after its checkouts |
+| [0cj](docs/handoff/0cj.md) | 2026-09-23/25 — stranded work audited and backed up, the landing actor designed and put first, the founder's batch landed |
+| [0ci](docs/handoff/0ci.md) | 2026-09-25 — the context cap the founder counted on did not exist, and a session started from now on summarizes at 500K |
+| [0ch](docs/handoff/0ch.md) | 2026-09-25 — no engine test reads a pipe through a grep that can stop early: fifty sites converted, and a suite lint refuses the shape |
+| [0cg](docs/handoff/0cg.md) | 2026-09-24 — the Actions outage measured: a spending cap, not capacity; a push to main now reuses its pull request's green run of the same tree |
+| [0cf](docs/handoff/0cf.md) | 2026-09-23 — the public README rewritten for a general reader first, with the Felix mark, and checked against the code three times |
+| [0ce](docs/handoff/0ce.md) | 2026-09-24 — the 44 red rows every Mac recorded since #308 were tests/red moving TMPDIR, which macOS's mktemp ignores; red now runs the suite in the caller's TMPDIR |
+| [0cd](docs/handoff/0cd.md) | 2026-09-24 — the megabyte-line audit assertion timed by CPU and shown red, then handed to the session that already had it |
+| [0cc](docs/handoff/0cc.md) | 2026-09-23/24 — the unattended template left two credentials for the model to read, measured on the pinned binary and closed upstream of the model |
+| [0cb](docs/handoff/0cb.md) | 2026-09-24 — the unattended model step could read its own API key from /proc, measured on ubuntu-latest, and the template now denies it |
+| [0ca](docs/handoff/0ca.md) | 2026-09-24 — handoff sections cannot collide: a session adds a file, and one fold of main gives the ids |
+| [0bz](docs/handoff/0bz.md) | 2026-09-23/24 — restart moments scoped and placed: step 1 names a session running an older engine, and the founder allowed one line mid-session |
+| [0by](docs/handoff/0by.md) | 2026-09-23/24 — every stuck PR triaged, why the night went stale, and the landing actor designed (not built) |
+| [0bx](docs/handoff/0bx.md) | 2026-09-23 (day) — a turn another hook woke ended unchecked, measured on the real binary, and the Stop hold now knows its own chain |
+| [0bw](docs/handoff/0bw.md) | 2026-09-23 — building Felix, measured as Felix's own workload; direction-level documents wait for the founder |
+| [0bv](docs/handoff/0bv.md) | 2026-09-23 (night) — overnight mode belongs to a session, #307 and #303 landed, the runner probe answered from a runner's own log, Veldra's blind request |
+| [0bu](docs/handoff/0bu.md) | 2026-09-23 — Phase 0: the Elenchus candidates checked, deny rows read the command the shell runs, three small items |
+| [0bt](docs/handoff/0bt.md) | 2026-09-22/23 — the table validator (queue item 2, step 1) shipped, and a rename that hid an escape |
+| [0bs](docs/handoff/0bs.md) | 2026-09-22/23 — Felix is a product for other people's projects, built first; the first obligations request answered blind; the roadmap |
 | [0br](docs/handoff/0br.md) | 2026-09-22, closing — seven pull requests shipped and deployed, the public snapshot is a command and was brought forward, Elenchus has a working required check again |
 | [0bq](docs/handoff/0bq.md) | 2026-09-22 — the recorder and #264 deployed, ECC step 1 complete, two branches in repair |
 | [0bp](docs/handoff/0bp.md) | DECIDED 2026-09-21 — `projects/bazaar` is tracked, and its gate keeps its own log |

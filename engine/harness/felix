@@ -4472,11 +4472,35 @@ cmd_adopt() {
   # before anything else would notice (#102). Refused rather than stripped:
   # guessing what a mistyped flag meant is how the wrong thing gets declared.
   case "$cap" in -*) die "usage: felix adopt <capability> (got a flag: $cap)" ;; esac
-  local slug counts
+  local slug counts arc list what fix
   slug="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
-  if ! counts="$(felix_adopt_capability "$proj" "$cap" "$SCRIPT_DIR/templates" "$slug")"; then
-    printf '%s already declared\n' "$cap"; return 0
-  fi
+  counts="$(felix_adopt_capability "$proj" "$cap" "$SCRIPT_DIR/templates" "$slug")"; arc=$?
+  case "$arc" in
+    0) ;;
+    1) printf '%s already declared\n' "$cap"; return 0 ;;
+    *)
+      # 2026-10-01: the list could not be read or written, so nothing was. This
+      # used to print "already declared" for every failure, and before that
+      # the function had already written the rows anyway. What is at the path
+      # is said, because that is what a person has to change.
+      list="$proj/capabilities"
+      fix='Make it a regular file of capability names, one per line'
+      if   [ -L "$list" ] && [ ! -e "$list" ]; then what='a link whose target is gone'
+      elif [ -d "$list" ]; then what='a directory'
+      elif [ -p "$list" ]; then what='a pipe'
+      elif [ ! -e "$list" ]; then what='absent and could not be created'; fix="Make $proj a directory you can write"
+      elif [ ! -f "$list" ]; then what='not a regular file'
+      else
+        fix='Let this user read and write it'
+        if   [ ! -r "$list" ]; then what='a file that could not be read'
+        elif [ ! -w "$list" ]; then what='a file that could not be written'
+        else what='a file that could not be read or written'
+        fi
+      fi
+      printf 'felix: %s was not declared, and nothing was written: %s is %s.\n' "$cap" "$list" "$what" >&2
+      printf '%s, and run felix adopt again.\n' "$fix" >&2
+      return 2 ;;
+  esac
   printf 'declared %s for %s\n' "$cap" "$(basename "$proj")"
   set -- $counts
   if [ "${1:-0}" -gt 0 ] || [ "${2:-0}" -gt 0 ]; then

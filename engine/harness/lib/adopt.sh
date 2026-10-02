@@ -13,14 +13,31 @@
 # doing this unattended defensible: the plan changes, the machine does not.
 
 # felix_adopt_capability <project-dir> <capability> <templates-dir> <repo-slug>
-# Prints "<stack-rows-added> <setup-steps-added>". Returns 1 if already declared.
+# Prints "<stack-rows-added> <setup-steps-added>". Returns 1 if already declared,
+# and 2, printing and writing nothing, when the list could not be read or written.
 felix_adopt_capability() {
-  local proj="$1" cap="$2" tpl="$3" slug="${4:-}"
+  local proj="$1" cap="$2" tpl="$3" slug="${4:-}" list rc=2
   [ -n "$proj" ] && [ -n "$cap" ] || return 1
+  list="$proj/capabilities"
 
-  touch "$proj/capabilities"
-  grep -qxF "$cap" "$proj/capabilities" 2>/dev/null && return 1
-  printf '%s\n' "$cap" >> "$proj/capabilities"
+  # 2026-10-01: the list is read and written only as felix_declared reads it,
+  # as a regular file, and nothing below runs unless the capability was
+  # recorded. This started with `touch`, which followed a link whose target
+  # was gone and created the target, or failed when the target's directory was
+  # gone too; then the grep and the append failed, and the rows below were
+  # written all the same and the capability reported adopted while recorded
+  # nowhere. A directory was appended to in vain the same way, and a pipe was
+  # opened by the grep, which waited on it for a writer. Now anything at the
+  # path that is not a regular file is 2 without being opened, and so is a
+  # list whose read or append fails. Nothing at all is still an empty list,
+  # which the append creates.
+  if [ -e "$list" ] || [ -L "$list" ]; then
+    [ -f "$list" ] || return 2
+    { grep -qxF -- "$cap" "$list"; rc=$?; } 2>/dev/null
+    [ "$rc" -eq 0 ] && return 1
+    [ "$rc" -eq 1 ] || return 2
+  fi
+  { printf '%s\n' "$cap" >> "$list"; } 2>/dev/null || return 2
 
   # Create the manifests when a project never had them. Skipping the backfill
   # because a file is missing would leave the capability recorded and its

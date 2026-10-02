@@ -121,9 +121,12 @@ All are fixed here and pinned by blocks 3 and 4.
 
 **Left, and where.**
 - Readers of other hand-edited tables (route.sh, deny.sh, monitor.sh,
-  ledger.sh and others) still drop an unended last line, and some open
-  stack.tsv unguarded. Building as claude/table-readers-keep-unended-line,
-  stacked on this branch.
+  ledger.sh and others) dropped an unended last line, and some opened
+  stack.tsv unguarded. Fixed by claude/table-readers-keep-unended-line, which
+  the carrier folded into this PR on 2026-10-02. Its own note is
+  20261002T020912Z-claude-table-readers-keep-unended-line.md. Its open items
+  are taken here: review T2-T4 (comment-only, d5a76bff), T1 and the
+  completeness re-run (in progress).
 - felix autonomy --revoke of a file's only grant leaves it granted while
   printing `revoked:`. Spun off as its own task.
 - `_felix_mem_stamp` (lib/memory.sh:22) has the same print-then-fail fallback,
@@ -132,5 +135,7 @@ All are fixed here and pinned by blocks 3 and 4.
 - felix discover --adopt still exits 0 when a row is unwritten. The summary
   line says so.
 
-**At the record.** assertions.tsv grows by 204 from the base's block and 193
-from this branch's four.
+**At the record.** assertions.tsv grows by 204 from the base's block, 193
+from this branch's four, and 81 from the readers branch. `felix receipt` on
+d5a76bff names an escape on the verifier channel (tests/run, "weakening the
+suite is how a gate stops being one") as founder_required; the slot meets it.

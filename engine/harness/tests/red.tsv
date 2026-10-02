@@ -8,8 +8,6 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	32769ee60471096fba06549028b2fa474f8e3901	32769ee60471096fba06549028b2fa474f8e3901	0.49.262
-run	3	5948	9
-and the rust toolchain step names stable itself, since a commit carries no channel	1
-every checkout in the generated workflow is v5, the lowest major on Node 24	1
-every uses: in the gate workflow bootstrap renders names a full commit sha, for every stack it can render	1
+base	6e293e898ad1204a3784c359f91a308537dcc71f	6e293e898ad1204a3784c359f91a308537dcc71f	0.49.263
+run	1	5951	9
+every uses: in the unattended template names a full commit sha, not a ref its owner can move	1

@@ -93,9 +93,9 @@ _felix_qualify_drop() {   # root, base
       esac
     fi
   fi
-  # Twice: a sweep that judged a record dead a moment before another sweep
-  # claimed the base holds that one's record aside, under a name of its own,
-  # for as long as its check of it takes (lib/qualify-sweep.sh).
+  # Twice: a sweep that judged the record dead a moment before this base was
+  # claimed may link its own claim here between the clear and the look, for
+  # as long as its check of owner takes (lib/qualify-sweep.sh).
   _felix_qualify_clear "$base"
   _felix_qualify_unown "$base" || { _felix_qualify_clear "$base"; _felix_qualify_unown "$base"; }
   if [ -e "$base/w" ] || [ -L "$base/w" ]; then

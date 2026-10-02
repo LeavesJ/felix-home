@@ -15712,8 +15712,16 @@ if [ -n "\${QSW_GITLOG:-}" ]; then
       for qsw_a in "\$@"; do
         case "\$qsw_a" in */w) if [ -L "\${qsw_a%/w}/owner" ]; then qsw_o=" owner:yes"; else qsw_o=" owner:no"; fi ;; esac
       done ;;
+    *" worktree remove "*)
+      for qsw_a in "\$@"; do qsw_l="\$qsw_a"; done
+      case "\$qsw_l" in */w) qsw_o=" rec:[\$(readlink "\${qsw_l%/w}/owner" 2>/dev/null)] ppid:\$PPID" ;; esac ;;
   esac
   printf '%s%s\n' "\$*" "\$qsw_o" >> "\$QSW_GITLOG"
+fi
+# Given QSW_GITHOLD, a path: a worktree remove is noted there and held, never
+# run, until the group it is in is killed.
+if [ -n "\${QSW_GITHOLD:-}" ]; then
+  case " \$* " in *" worktree remove "*) printf 'held\n' > "\$QSW_GITHOLD"; while :; do sleep 1; done ;; esac
 fi
 # Given QSW_GITSWAP, a directory: at the first worktree remove of a base's w,
 # the base is renamed aside and a symlink to that directory put in its place,
@@ -15731,6 +15739,20 @@ fi
 exec '$QSWGIT' "\$@"
 EOF
 chmod +x "$QSWSHIM/git"
+# mv and ln that, given QSW_HOLDMV or QSW_HOLDLN, a path, do their work, then
+# note it there and hold until the group they are in is killed: a sweep
+# stopped right after its first rename, or its first link.
+QSWHOLD="$QSWS/hold"; mkdir -p "$QSWHOLD"
+for _qswc in mv ln; do
+  _qswv="QSW_HOLD$(printf '%s' "$_qswc" | tr a-z A-Z)"
+  cat > "$QSWHOLD/$_qswc" <<EOF
+#!/bin/sh
+'$(command -v "$_qswc")' "\$@"; qsw_rc=\$?
+if [ -n "\${$_qswv:-}" ]; then printf 'held\n' > "\$$_qswv"; while :; do sleep 1; done; fi
+exit \$qsw_rc
+EOF
+  chmod +x "$QSWHOLD/$_qswc"
+done
 # The caller of a run, as the CLI calls the runner: from inside the root,
 # under set -uo pipefail, the libraries read, mktemp wrapped so every path it
 # hands back is noted (and, for the one case that asks, left without its
@@ -16360,16 +16382,81 @@ _qswbg "$d/s" "$T" "$R" - sweep; _qswfinish "$_qswpid" "$d/s"
 is  "_felix_qualify_sweep called on its own, from the root with TMPDIR exported, removes a dead base and its registration and prints nothing on stdout or stderr" \
     "$(_qswgone "$_qswp1" "$T/felix-qualify.ALONE1" "$R" "$Tp/felix-qualify.ALONE1/w") stdout:[$(cat "$d/s/out" 2>/dev/null)] stderr:[$(cat "$d/s/err" 2>/dev/null)]" \
     "gone stdout:[] stderr:[]"
-d="$QSWS/together"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"
-for _qswi in 1 2 3; do _qswplant "$T" "felix-qualify.TOGET$_qswi" "$R" "$(_qswdead) $QSWOLD"; done
-_qswp1="$(_qswt "$T") $(_qswwt "$R")"
-for _qswi in 1 2 3 4; do _qswbg "$d/s$_qswi" "$T" "$R" "$d/go" sweep; printf '%s\n' "$_qswpid" > "$d/s$_qswi/pid"; done
-_qswtill 120 _qswallin "$d/s1/caller" "$d/s2/caller" "$d/s3/caller" "$d/s4/caller"
-: > "$d/go"
-for _qswi in 1 2 3 4; do _qswfinish "$(cat "$d/s$_qswi/pid")" "$d/s$_qswi"; done
-is  "four sweeps started together over three dead bases leave none of them on disk or registered, print nothing on stdout, and say no felix: line" \
-    "was:[$_qswp1] $(_qswt "$T") $(_qswwt "$R") stdout:$(cat "$d"/s*/out 2>/dev/null | wc -c | tr -d ' ') felix:$(cat "$d"/s*/err 2>/dev/null | awk '/^felix:/ { n++ } END { print n + 0 }')" \
-    "was:[t:[felix-qualify.TOGET1 felix-qualify.TOGET2 felix-qualify.TOGET3 ] wt:3] t:[] wt:0 stdout:0 felix:0"
+# The record and the parent of git, read by git itself as the remove starts.
+_qswbyrec() { awk -v b="/$2/w" 'index($0, " worktree remove ") && index($0, b) { print }' "$1" 2>/dev/null \
+  | sed -n 's/.* rec:\[\([0-9][0-9]*\)[] ].* ppid:\([0-9][0-9]*\)$/\1 \2/p' | head -1; }
+_qswrp="$(_qswbyrec "$d/s/git" felix-qualify.ALONE1)"
+is  "when the sweep's drop calls git worktree remove on a dead base's tree, the base's owner record already names the process making that call, the sweep's own, and not the dead row" \
+    "claimed:$([ -n "$_qswrp" ] && [ "${_qswrp% *}" = "${_qswrp#* }" ] && echo yes || echo "no[$_qswrp]")" "claimed:yes"
+
+# A sweep killed in its claim or its drop. Stopped right after its first
+# rename, or its first link, or as its drop's git starts, then the whole
+# group KILLed: whatever the base was left holding, a later sweep removes it,
+# registration included.
+for _qswk in mv ln git; do
+  d="$QSWS/killed-sweep-$_qswk"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
+  _qswplant "$T" felix-qualify.KSWEEP "$R" "$(_qswdead) $QSWOLD"
+  _qswp1="$(_qswpre "$T/felix-qualify.KSWEEP" "$R" "$Tp/felix-qualify.KSWEEP/w")"
+  case "$_qswk" in
+    mv)  _qswpath="$QSWHOLD"; _qswxenv="QSW_HOLDMV=$d/at" ;;
+    ln)  _qswpath="$QSWHOLD"; _qswxenv="QSW_HOLDLN=$d/at" ;;
+    git) _qswxenv="QSW_GITHOLD=$d/at" ;;
+  esac
+  _qswbg "$d/s1" "$T" "$R" - sweep; _qswpath=""; _qswxenv=""
+  _qswtill 120 _qswheld "$d/at" "$_qswpid"
+  _qswheldk="$([ -e "$d/at" ] && echo yes || echo no)"
+  disown "$_qswpid" 2>/dev/null; kill -s KILL -- "-$_qswpid" 2>/dev/null
+  _qswtill 120 _qswdone "$_qswpid"; _qswstop "$_qswpid"
+  # Every pid a link in the base names reaped, so none is a zombie kill -0 finds.
+  for _qswl in owner claim; do
+    _qswr="$(readlink "$T/felix-qualify.KSWEEP/$_qswl" 2>/dev/null)"
+    case "${_qswr%% *}" in ''|*[!0-9]*) ;; *) _qswtill 60 _qswreaped "${_qswr%% *}" ;; esac
+  done
+  _qswmid="$(ls -A "$T/felix-qualify.KSWEEP" 2>/dev/null | LC_ALL=C sort | tr '\n' ',')"
+  if [ "$_qswk" = git ]; then
+    _qswrp="$(_qswbyrec "$d/s1/git" felix-qualify.KSWEEP)"
+    _qswr="$(readlink "$T/felix-qualify.KSWEEP/owner" 2>/dev/null)"
+    _qswtill 60 _qswreaped "${_qswr%% *}"
+    is  "a sweep KILLed as its drop's git worktree remove starts leaves the base holding only its tree and one owner record, which names that sweep's own process, now dead" \
+        "entries:$_qswmid named:$([ -n "$_qswrp" ] && [ "${_qswr%% *}" = "${_qswrp#* }" ] && echo sweep || echo "other[$_qswr|$_qswrp]") pid:$(_qswisdead "${_qswr%% *}" && echo dead || echo not-dead)" \
+        "entries:owner,w, named:sweep pid:dead"
+  fi
+  _qswbg "$d/s2" "$T" "$R" - sweep; _qswfinish "$_qswpid" "$d/s2"
+  is  "a sweep KILLed right after its first $_qswk in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing" \
+      "held:$_qswheldk then:$(_qswgone "$_qswp1" "$T/felix-qualify.KSWEEP" "$R" "$Tp/felix-qualify.KSWEEP/w") felix:$(_qswfelix "$d/s2/err") left:[$_qswmid]" \
+      "held:yes then:gone felix:0 left:[$_qswmid]"
+done
+
+# A base another sweep is claiming, its claim a link naming a live process,
+# is left as it was, and no git worktree remove is made for it; one whose
+# claim names a dead process is taken over and swept.
+d="$QSWS/claim-held"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
+sleep 900 & _qswcl=$!
+_qswplant "$T" felix-qualify.HELDCL "$R" "$(_qswdead) $QSWOLD"; ln -s "$_qswcl $(_qswstart "$_qswcl")" "$T/felix-qualify.HELDCL/claim"
+_qswplant "$T" felix-qualify.DEADCL "$R" "$(_qswdead) $QSWOLD"; ln -s "$(_qswdead) $QSWOLD" "$T/felix-qualify.DEADCL/claim"
+mkdir -p "$d/snap"; _qswsnap "$T/felix-qualify.HELDCL" "$R" "$Tp/felix-qualify.HELDCL/w" > "$d/snap/held"
+_qswcl1="$(readlink "$T/felix-qualify.HELDCL/claim" 2>/dev/null)"
+_qswp1="$(_qswpre "$T/felix-qualify.DEADCL" "$R" "$Tp/felix-qualify.DEADCL/w")"
+_qswbg "$d/s" "$T" "$R" - sweep; _qswfinish "$_qswpid" "$d/s"
+is  "a dead base whose claim link names a live process is left as it was, its owner record, its claim and its registration, and the sweep makes no git worktree remove of its tree, beside a dead base whose claim names a dead process, which is swept" \
+    "beside:$(_qswgone "$_qswp1" "$T/felix-qualify.DEADCL" "$R" "$Tp/felix-qualify.DEADCL/w") same:$([ "$(_qswsnap "$T/felix-qualify.HELDCL" "$R" "$Tp/felix-qualify.HELDCL/w")" = "$(cat "$d/snap/held")" ] && echo yes || echo no) claim:$([ "$(readlink "$T/felix-qualify.HELDCL/claim" 2>/dev/null)" = "$_qswcl1" ] && echo same || echo changed) removes:$(awk '/ worktree remove / && /HELDCL/ { n++ } END { print n + 0 }' "$d/s/git")" \
+    "beside:gone same:yes claim:same removes:0"
+kill -s KILL "$_qswcl" 2>/dev/null; wait "$_qswcl" 2>/dev/null
+# Three rounds, so a race that leaves a base one time in two shows.
+_qswtg=""
+for _qswround in 1 2 3; do
+  d="$QSWS/together$_qswround"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"
+  for _qswi in 1 2 3; do _qswplant "$T" "felix-qualify.TOGET$_qswi" "$R" "$(_qswdead) $QSWOLD"; done
+  _qswp1="$(_qswt "$T") $(_qswwt "$R")"
+  for _qswi in 1 2 3 4; do _qswbg "$d/s$_qswi" "$T" "$R" "$d/go" sweep; printf '%s\n' "$_qswpid" > "$d/s$_qswi/pid"; done
+  _qswtill 120 _qswallin "$d/s1/caller" "$d/s2/caller" "$d/s3/caller" "$d/s4/caller"
+  : > "$d/go"
+  for _qswi in 1 2 3 4; do _qswfinish "$(cat "$d/s$_qswi/pid")" "$d/s$_qswi"; done
+  _qswtg="$_qswtg r$_qswround:[was:[$_qswp1] $(_qswt "$T") $(_qswwt "$R") stdout:$(cat "$d"/s*/out 2>/dev/null | wc -c | tr -d ' ') felix:$(cat "$d"/s*/err 2>/dev/null | awk '/^felix:/ { n++ } END { print n + 0 }')]"
+done
+_qswtw="[was:[t:[felix-qualify.TOGET1 felix-qualify.TOGET2 felix-qualify.TOGET3 ] wt:3] t:[] wt:0 stdout:0 felix:0]"
+is  "four sweeps started together over three dead bases, in each of three rounds, leave none of them on disk or registered, print nothing on stdout, and say no felix: line" \
+    "$_qswtg" " r1:$_qswtw r2:$_qswtw r3:$_qswtw"
 
 # 12. Quiet: a run that sweeps prints what a run with nothing to sweep does.
 d="$QSWS/quiet"; mkdir -p "$d/t0" "$d/t1" "$d/proj"; R="$(_qswroot "$d/root")"

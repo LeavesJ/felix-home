@@ -37,14 +37,14 @@
 #     sweep ever changes on a base it has not claimed, and only on one it has
 #     judged dead.
 #   - The claim, because two runs starting together both judge the same dead
-#     record. Only rename(2) and symlink(2), each checked after
-#     (_felix_qualify_claim): the record moved aside to a name of this
-#     sweep's, the aside read back as the very text judged dead, this sweep's
-#     own record linked at owner. A rename hands the dead record to one sweep
-#     alone, so only one goes on; the other finds no owner, or finds the
-#     winner's record and puts it back, and leaves the base without a word. A
-#     sweep killed after its claim leaves a record naming itself, dead, and a
-#     later sweep takes the base over.
+#     record. Only symlink(2) and rename(2), each checked after
+#     (_felix_qualify_claim): this sweep's own record linked at claim, which
+#     one sweep alone can make; owner checked to read the very text judged
+#     dead; claim renamed over owner. owner is never moved, so it never goes
+#     missing: a sweep killed before the rename leaves a claim naming itself,
+#     dead, which a later sweep breaks, and one killed after leaves owner
+#     naming itself, dead, and a later sweep takes the base over. The sweep
+#     that does not hold claim leaves the base without a word.
 #   - The drop is the row's own, _felix_qualify_drop, with the root this
 #     sweep was given: the tree, its registration when this root holds it,
 #     and the base, its record last. It says, as it always has, only what is
@@ -126,34 +126,45 @@ _felix_qualify_dead() {   # pid, start or empty
 }
 
 # The claim on a base whose record was judged dead: 0 when this sweep alone
-# goes on to drop it. The aside's name carries this sweep's pid, so two sweeps
-# never share it, and one already there is not this sweep's to move over.
+# goes on to drop it. owner itself is never moved, so a sweep killed at any
+# step leaves the base a candidate still: one killed between moving the dead
+# record aside and linking its own left a base with no owner, which no later
+# sweep took, and one that moved a record aside could lose the only copy of
+# it to another's drop (review 2026-10-01).
 #
-# owner absent after this sweep linked its record is the one case it goes on
-# without reading its own record back: a sweep that judged the dead record
-# before this one moved it has moved this one's record aside to check it, and
-# puts it back. The rename already made this sweep the only holder of the dead
-# record, so no other sweep can be going on. Anything else at owner, a link of
-# other text or no link at all, and the base is left.
+# The lock is a second link, claim, made by one symlink(2), which fails when
+# the name is taken, so no two sweeps hold it at once. Held, this sweep
+# checks that owner still reads the record judged dead, then renames claim
+# over owner, one rename(2): owner reads the dead record or this sweep's,
+# never nothing. A claim held by a sweep shown dead is broken: renamed aside
+# to a name carrying this sweep's pid, checked to be the very text judged
+# dead, removed, and taken once more. A claim held by anything else is a
+# sweep at work, or a text that is not a record, and the base is left.
 _felix_qualify_claim() {   # base, the record judged dead, this sweep's record
-  local b="$1" aside="$1/owner.claim.${3%% *}" _felix_qualify_text
-  if [ -e "$aside" ] || [ -L "$aside" ]; then return 1; fi
-  mv -f "$b/owner" "$aside" 2>/dev/null || return 1
-  if ! _felix_qualify_link "$aside" || [ "$_felix_qualify_text" != "$2" ]; then
-    [ -e "$b/owner" ] || [ -L "$b/owner" ] || mv -f "$aside" "$b/owner" 2>/dev/null
+  local b="$1" brk="$1/claim.${3%% *}" held p s _felix_qualify_text
+  if ! ln -s -- "$3" "$b/claim" 2>/dev/null; then
+    _felix_qualify_link "$b/claim" || return 1
+    held="$_felix_qualify_text"
+    _felix_qualify_isrec "$held" || return 1
+    p="${held%% *}"; s=""
+    [ "$held" = "$p" ] || s="${held#* }"
+    _felix_qualify_dead "$p" "$s" || return 1
+    if [ -e "$brk" ] || [ -L "$brk" ]; then return 1; fi
+    mv -f "$b/claim" "$brk" 2>/dev/null || return 1
+    if ! _felix_qualify_link "$brk" || [ "$_felix_qualify_text" != "$held" ]; then
+      [ -e "$b/claim" ] || [ -L "$b/claim" ] || mv -f "$brk" "$b/claim" 2>/dev/null
+      return 1
+    fi
+    rm -f "$brk" 2>/dev/null
+    ln -s -- "$3" "$b/claim" 2>/dev/null || return 1
+  fi
+  _felix_qualify_link "$b/claim" && [ "$_felix_qualify_text" = "$3" ] || return 1
+  if ! _felix_qualify_link "$b/owner" || [ "$_felix_qualify_text" != "$2" ]; then
+    rm -f "$b/claim" 2>/dev/null
     return 1
   fi
-  if ! ln -s -- "$3" "$b/owner" 2>/dev/null; then
-    [ -e "$b/owner" ] || [ -L "$b/owner" ] || mv -f "$aside" "$b/owner" 2>/dev/null
-    return 1
-  fi
-  if [ -L "$b/owner" ]; then
-    _felix_qualify_link "$b/owner" && [ "$_felix_qualify_text" = "$3" ] || return 1
-  elif [ -e "$b/owner" ]; then
-    return 1
-  fi
-  rm -f "$aside" 2>/dev/null
-  return 0
+  mv -f "$b/claim" "$b/owner" 2>/dev/null || { rm -f "$b/claim" 2>/dev/null; return 1; }
+  _felix_qualify_link "$b/owner" && [ "$_felix_qualify_text" = "$3" ]
 }
 
 # Whether a registered path is an orphan of this sweep's: exactly

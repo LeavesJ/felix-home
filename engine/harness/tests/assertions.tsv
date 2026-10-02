@@ -219,6 +219,7 @@
 1	a checkout with no commit yet records its HEAD as unborn
 1	a checkout with no commit yet writes one row, under its branch
 1	a checkout with no engine directory cannot look either, exit 2
+1	a checkout with no github remote is refused with exactly one refused row
 1	a checkout with nothing tracked under projects/ cannot search
 1	a checkout with tables and no schemas.tsv cannot look either, exit 2
 1	a class outside the set is refused
@@ -379,6 +380,9 @@
 1	a download piped into tee is no pipe-to-shell fact
 1	a download saved on one line and run on a later one is no pipe-to-shell fact
 1	a dry run names the judge before saying what it would squash
+1	a dry run on an escaping tree leaves says.log byte for byte as it found it
+1	a dry run stopped by an argument it cannot honour writes nothing to memory
+1	a dry run that would squash writes nothing to memory
 1	a due step containing a colon does not shift it
 1	a fact that moved under the receipt raises exactly one
 1	a fail control whose mutation makes its base and everything in it unwritable still runs its checker, which passes, so it reads pass and held, never fail and met
@@ -586,6 +590,7 @@
 1	a merge in progress is a person's, and the pulse says so
 1	a merge is blocked while the project reads nothing from reality
 1	a merge stopped for the founder is recorded as one
+1	a merge that goes through writes no refused row
 1	a message from another session is not routed, and moves nothing in the session it lands in
 1	a message quoted in pieces round an apostrophe is still a message
 1	a message that starts with a variable is not taken for a path
@@ -825,6 +830,9 @@
 1	a reader that cannot run lifts nothing
 1	a reader that stops before its end lifts nothing
 1	a real capability left undeclared is not an error
+1	a real run on an escaping tree still writes one escalated row per escape blocker
+1	a real run refused for blockers of two kinds records one refused row per kind
+1	a real run refused for two escapes of one kind records exactly one refused row
 1	a real uncommitted edit still speaks, in a fresh session
 1	a real word rises
 1	a reason of exactly 300 is accepted
@@ -1007,6 +1015,8 @@
 1	a section written in beside the current one, the marker left alone, is refused too
 1	a section written into HANDOFF.md by hand is refused, however correct its id
 1	a sed script that starts with a slash is not taken for a path
+1	a self-governed merge is told its head commit by --match-head-commit too
+1	a self-governed repository refused for a set FELIX_KERNEL records exactly one refused row
 1	a server the registry says a plugin provides is proposed as a plugin row
 1	a session cannot grant a night to another session
 1	a session filed under two projects, and history copied into a resumed one, count once: 2 sessions, 1 stop, 1 hold
@@ -1293,6 +1303,7 @@
 1	an applies command that exits 1 is the one honest no: DORMANT
 1	an applies command that exits 128 is UNKNOWN too, not a second kind of no
 1	an applies command that exits 2 is UNKNOWN on both axes, not DORMANT
+1	an argument felix merge cannot honour is recorded as exactly one refused row
 1	an argument it cannot honour merges nothing
 1	an array of two paths where only the second interpolates is high
 1	an ask and a run leave a caller that had pipefail every option it had
@@ -1542,6 +1553,7 @@
 1	and a download piped into shasum stays low
 1	and a download piped into tee stays low
 1	and a download saved then run later stays low
+1	and a dry run on an escaping tree writes no escalated row
 1	and a failing one as due for that reason
 1	and a file merely named hooks.json does not make the row apply
 1	and a file that does not exist counts zero
@@ -1648,6 +1660,7 @@
 1	and a write with another line after it, which the old row let through
 1	and absent from both sides is a fixture, not a drift
 1	and accepted once its rows fit
+1	and adds, removes or changes no file under the project's memory
 1	and again, so a session can bump twice
 1	and all four rows landed
 1	and an Agent call with no type is still a tool
@@ -1762,6 +1775,7 @@
 1	and each bound is named in its own words
 1	and each full log line names a file holding its own run alone
 1	and each item appears once however often it bit
+1	and each of those refused rows carries the branch and the session
 1	and editing it is denied
 1	and ends at the flagged stop after it
 1	and ends that session's night and no other
@@ -1858,6 +1872,7 @@
 1	and is carried when none is given
 1	and is clean when the three directories agree
 1	and is evaluated before the mutation, so a file only the mutation makes is not there
+1	and is handed a non-empty --subject and --body
 1	and is left exactly as it was
 1	and is marked unknown rather than unmet
 1	and is named
@@ -1939,6 +1954,8 @@
 1	and it stops being due
 1	and it stops the streak rather than being skipped past
 1	and it too says the when does not parse
+1	and its Felix-Gate trailer is the tree id the receipt was recorded for
+1	and its Felix-Judge trailer is main's declared version at the base ref's full sha
 1	and its actor is the word every other line uses
 1	and its answer was read while that shell was still running
 1	and its base's workflow is not escalated as this branch's escape
@@ -1964,6 +1981,7 @@
 1	and its row, added in the same tree, clears it
 1	and its seeded stack rows carry DECLARED
 1	and its stop costs that night nothing
+1	and its subject and body carry no ci skip marker though every commit does
 1	and its summary is one line, one of three failing against main, one of them never reached
 1	and its summary line carries the same count
 1	and its summary line ends saying what would discharge them could not be read
@@ -2066,6 +2084,7 @@
 1	and neither is one that is still running
 1	and neither is work Felix owes
 1	and neither partial row is in it
+1	and neither subject nor body carries a ci skip marker though every commit does
 1	and never a verified receipt
 1	and never as a clock reading nobody wrote
 1	and never as an mcp row nothing could add
@@ -2566,7 +2585,10 @@
 1	and that refusal is non-zero too
 1	and that refusal is the checkout-scoped row of the worktree's project
 1	and that refusal names the launch checkout's deny table
+1	and that refused row begins with the branch and the kind and carries the session
+1	and that row begins with the checked-out branch and carries the session
 1	and that summary counts eleven, four failing, two of them never reached
+1	and the FELIX_KERNEL refusal row carries the branch and the session
 1	and the Felix checkout, which holds the deploy key, drops it
 1	and the ack is consumed by the answer
 1	and the admitted row not to re-propose
@@ -2576,6 +2598,7 @@
 1	and the appends that arrived after it are folded in
 1	and the bare listing the gate used to do would have counted a plain file
 1	and the blurb no longer outranks the manifest
+1	and the body ends in Felix-Gate and Felix-Judge trailers naming the receipt's tree
 1	and the brief it proceeds on is the file the repair step hands a model
 1	and the candidate's evidence did not run in the report
 1	and the cap is what it returns
@@ -2682,6 +2705,7 @@
 1	and the next fold gives it the id after theirs
 1	and the night is closed as it goes
 1	and the night is closed, not left for the next stop
+1	and the no-remote refusal row carries the branch and the session
 1	and the note it was given
 1	and the number it reports is the number it stored
 1	and the obligations fixture blocker names no commission run
@@ -3362,6 +3386,7 @@
 1	frontmatter after a byte-order mark still declares hooks
 1	frontmatter with Windows line endings still declares hooks
 1	gate command actually ran
+1	gh pr merge is told the head commit the checkout has, by --match-head-commit
 1	governs them immediately
 1	green tier is still reported
 1	grounded on a probe felix declares

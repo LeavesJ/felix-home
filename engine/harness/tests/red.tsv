@@ -8,67 +8,109 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	48eefd8f1b5c1cdae115cda11c4ee81b4e1d069b	48eefd8f1b5c1cdae115cda11c4ee81b4e1d069b	0.49.242
-run	62	4290	5
-a line a stray writes to the log after red has read it is not counted, so the name it says is still red, the log being read once	1
-a line that only contains the word reached is not the marker, exit 2	1
-a line that opens like a listed name's skip and does not end in a parenthesis is not its skip, so the name is still red	1
-a listed name the base never reaches is red, though a name it reaches begins with it, holds it in its middle, or is it in another case	1
-a manifest count of 1x, of 1.5 or led by a space is refused naming its line, before the suite runs	1
-a manifest count of zero is refused naming its line	1
-a manifest count with a leading zero is refused naming its line, the empty line above it counted	1
-a manifest row repeating a name an earlier row holds is refused naming the later line, before the suite runs	1
-a manifest row whose count is not a number is refused naming its line, before the suite runs	1
-a manifest row whose name is empty is refused naming its line	1
-a manifest row with no tab between its count and its name is refused naming its line	1
-a name listed ten times that the base reaches nine times is red by one, the counts compared as numbers	1
-a name listed twice that the base reaches ten times takes nothing off the other shortfalls, six of thirty failing, all six never reached	1
-a name listed twice that the base run skips once is red by the one time it never reached it, one skip line counting once	1
-a name reached more often than listed offsets no other name's shortfall, so the run row counts two never reached among four failed	1
-a name that fails once and is not asked its second time against the base is one row counting both	1
-a name the manifest lists twice that the base run reaches once is a row counting the one time it never reached it	1
-a reached line a child wrote to stderr early does not make a suite killed after it a red run, exit 2	1
-a skip of a name the manifest does not list is no skip of a listed name it begins with, unless a space and a parenthesis follow that name	1
-a stray reached followed only by ok lines does not make a suite killed after them a red run, exit 2	1
-a stray reached followed only by skip lines does not make a suite killed after them a red run, exit 2	1
-a suite killed before it printed reached is not a red run, exit 2	1
-a suite killed before its first assertion is refused as unfinished, not as empty	1
-a suite killed short of reached is refused as unfinished, not recorded with the names it never reached, exit 2	1
-a suite that exits 0 with a totals line but no reached line is refused too, exit 2	1
-a suite that exits 1 without reached, as a finished red run exits, is refused, exit 2	1
-a suite that printed an assertion after reached and was killed is refused, exit 2	1
-after an arithmetic error inside a for and an if, every assertion left in each block is recorded red, by the times the base never reached it	1
-an assertion whose arithmetic errors on the base's - and so never runs is recorded red, by the one time it never ran	1
-an assertions.tsv it cannot read is refused as no readable manifest, before the suite runs	1
-an assertions.tsv of empty lines alone is refused as listing no assertion too	1
-an assertions.tsv that is a directory is refused as no readable manifest, before the suite runs	1
-an empty assertions.tsv is refused as listing no assertion, before the suite runs	1
-and a missing manifest is the reason given ahead of a base that does not resolve	1
-and a suite ended by sigterm is reported as exit 143 after its two assertions	1
-and its reason counts both assertions, the one after reached among them	1
-and its reason counts the three assertions printed after that stray line	1
-and its reason names exit 0 and the three assertions it printed, a skip among them	1
-and its reason names exit 1 and the three assertions it printed, the failure among them, on one line	1
-and its summary is one line, one of three failing against main, one of them never reached	1
-and red.tsv again holds only the two rows saying no red run was made	1
-and red.tsv holds only the two rows saying no red run was made, the stale claim retracted	1
-and red.tsv holds the two rows saying no red run was made for it as well	1
-and red.tsv holds the two rows saying no red run was made for the suite that went on past reached	1
-and red.tsv holds the two rows saying no red run was made, none of the names it never reached	1
-and red.tsv holds the two rows saying no red run was made, not the failure it printed	1
-and red.tsv holds the two rows saying no red run was made, the ok lines after the stray reached notwithstanding	1
-and red.tsv holds the two rows saying no red run was made, the skip lines after the stray reached notwithstanding	1
-and red.tsv holds the two rows saying no red run was made, the stray reached notwithstanding	1
-and red.tsv's header says an assertion the manifest lists and the base run never reached counts as failed	1
-and stdout is the one line naming main, the kill's exit 137 and the four assertions it reached	1
-and that exit 2 leaves no temporary directory behind either	1
-and that summary counts eleven, four failing, two of them never reached	1
-and the near-name and stray records are each one record, the run row's failed count what the names add up to	1
-and the run row counts the one failure the base printed and the eight times it never reached as nine failed	1
-and the summary counts twelve, nine failing, eight of them never reached	1
-each record with names never reached is one record, its run row's failed count what its names add up to	1
-manifest names are compared byte for byte, a backslash, brackets, a star, a dot and a tab each itself	1
-names the manifest does not list are not compared, and the one that fails is still a failed row	1
-the first faulty manifest line is the one named, a repeat on line 2 ahead of a malformed line 3	1
-the manifest compared is the one read before the suite ran, not the one the run rewrote while it ran	1
-with no assertions.tsv beside it the red run is refused before the suite runs, exit 2, the claim retracted and nothing left	1
+base	eb4cbb9627c96038c7326298015639972efe3648	eb4cbb9627c96038c7326298015639972efe3648	0.49.243
+run	105	4429	6
+--status over a run whose loop ended on its second row says it reported 1 of 3 rows	1
+--status over a short run says a receipt over it would be indeterminate	1
+a check whose producer outruns grep -q, the match on its first line, is done	1
+a count that comes back empty still leaves six tokens	1
+a count that reads ? gives indeterminate, not commissioned	1
+a full run over a short run says the receipt was written indeterminate	1
+a full run whose every count reads ? writes no integer expression expected anywhere	1
+a full run whose loop ended on its second row says it reported 1 of 3 rows	1
+a full run whose unknown count reads ? writes no integer expression expected anywhere	1
+a pipeline whose first stage fails and whose last succeeds is done, as in a probe	1
+a receipt from an older claude cli whose counts are empty is unreadable, not announced	1
+a receipt over an output carrying a need the table does not list is indeterminate	1
+a receipt over an output carrying a row twice is indeterminate	1
+a receipt over an output missing a row the table lists is indeterminate, printed and written	1
+a receipt over the table's rows in another order is indeterminate	1
+a receipt whose awaiting count alone is ? is unreadable	1
+a receipt whose counts are empty is unreadable, not valid	1
+a receipt whose done count alone is empty is unreadable	1
+a receipt whose result is a word no run writes is unreadable	1
+a receipt whose unknown count is ? is unreadable	1
+a run that printed every row the table lists is complete, and nothing is said	1
+a run whose loop ended on its second row printed only the first	1
+a sixth count that is a word gives indeterminate, though the receipt never writes it	1
+a state line that comes back empty makes its row unknown	1
+a state line that comes back empty on the re-read after a felix answer ran makes the row unknown	1
+a state line whose first field is none of the eight states makes its row unknown, and says it could not be computed	1
+a table that lists no need never has a complete run	1
+a when naming an unset variable is unknown, not not-applicable	1
+a when of that shape makes its row applicable, and the check decides it	1
+a when that does not parse is unknown	1
+a when that exits 3 is unknown	1
+a when that replaces its shell with false is unknown	1
+a when that returns 130 is unknown	1
+a when that returns 2 is unknown	1
+a when that returns 3 is unknown	1
+a when that writes returned to its descriptors 1 to 9 and then exits 1 is still unknown	1
+a when whose ${x:?} fails is unknown	1
+a when whose engine function ends the shell is unknown	1
+a when whose own function reads an unset variable is unknown	1
+a when written as exit 1 is unknown, because bash's own fatal errors end the shell with 1	1
+an ask told a variable name sets it to returned when the text came back with 3	1
+an ask told a variable reads no stdin from its caller	1
+an ask whose answer line comes back garbled says unasked, with 2	1
+an engine function that is the whole check runs without pipefail, as the row does	1
+an output missing a row the table lists is not complete, and says how many of how many it reported	1
+an output missing a row, with a blank line and a line naming no need, reports 1 of 2	1
+an output that carries a need the table does not list is not complete	1
+an output that carries a row twice the table lists once is not complete	1
+an output whose rows are those the table lists, in another order, is not complete	1
+an unterminated case in a when is unknown	1
+and a receipt over it is indeterminate, not commissioned	1
+and a when whose answer comes back garbled is unknown	1
+and an engine function that fails there reads held	1
+and every count in it is ?, not a number moved into its neighbour's place	1
+and it names an unset variable under set -u as a cause	1
+and it names the 126 as the when's own, not a checkout that could not be entered	1
+and it names the 130	1
+and it names the 2 and says it is neither yes nor no	1
+and it names the 3 and says it is neither yes nor no	1
+and it says the row's state could not be computed	1
+and it says the shell ended with status 1	1
+and it says the shell ended with status 3	1
+and it says the shell ended with that function's status	1
+and it says the shell ended, not that a command is missing	1
+and it says the when does not parse	1
+and it says the when ended the shell, with the status it ended with	1
+and it says what ran, then that the row's state could not be computed	1
+and it too says the when does not parse	1
+and its class is UNKNOWN, not n/a	1
+and no part of a when that does not parse was run	1
+and no test on stderr says integer expression expected	1
+and no test on stderr says integer expression expected over the ?	1
+and one named in a when	1
+and prints nothing of the text's stderr	1
+and reads the seeded gate_shown_failing row done over that mistakes.log	1
+and returns a text's 3 as 3	1
+and returns a text's own exit 4 as 4	1
+and says its answer could not be read	1
+and so does one inside a command substitution	1
+and that output is not complete: one of three	1
+and the counts return 1	1
+and the receipt keeps ten fields, each count digits or ?	1
+and the receipt over it is indeterminate, printed and written, not commissioned with the held row gone	1
+and the receipt over those rows, every other row done, is indeterminate and not commissioned	1
+and the unknown count reads ?, with every other count in its own place	1
+and to ended when an engine function the text names ends the shell	1
+and to ended when an unset variable ends the shell, with its status	1
+and to ended when the text exits 0, with 0	1
+and to ended when the text exits 4, with 4	1
+and to ended when the text wrote returned to its descriptors 1 to 9 before exiting 1	1
+and to returned for a missing command, with 127	1
+and to returned for a no	1
+and to returned for a text that itself returned 126	1
+and to returned for a yes	1
+and to unentered, with 126, when the checkout cannot be entered	1
+and writes the receipt indeterminate and exits 1	2
+and writes the receipt indeterminate and exits 1, not held	1
+counts that come back empty give an indeterminate receipt, not commissioned	1
+felix commission --status reads a when naming an unset variable unknown	1
+felix commission --status reads the row whose producer outruns grep -q done	1
+felix_commission_ask returns a text's 2 as 2, not folded to 1	1
+one count come back empty, so the rest would shift into its place, gives indeterminate	1
+the seeded gate_shown_failing check is done over a mistakes.log far past 64 KB	1
+the variable an ask is told to set is set, whatever the caller named it	1

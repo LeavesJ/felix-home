@@ -30,12 +30,50 @@
 1	FELIX_MEMORY overrides the default
 1	FELIX_RELEASE_TARGET decides the target when it is set
 1	Felix's own gate refusal is recognised as its own
+1	PreToolUse in a checkout nothing governs asks git for its remote once, as main does, when the payload's cwd is that checkout
 1	PreToolUse is bound for Bash
 1	PreToolUse is bound for Edit
 1	PreToolUse is bound for NotebookEdit
 1	PreToolUse is bound for Read
 1	PreToolUse is bound for Write
+1	PreToolUse is not moved by a governed directory named only inside tool_input
+1	PreToolUse launched in a directory nothing governs refuses a command acting in the governed worktree the payload names by that worktree's checkout-scoped row
+1	PreToolUse launched in a directory nothing governs refuses by the rows of the governed worktree the payload names
+1	PreToolUse launched in a governed checkout refuses by its own row when the payload's cwd is a checkout of another project whose deny table lacks that row
+1	PreToolUse launched in a governed checkout refuses by its own row when the payload's cwd is a checkout of another project with no deny table
+1	PreToolUse reads the top-level cwd, so a later cwd inside tool_input does not lift the worktree's refusal
+1	PreToolUse refuses by the launch checkout's rows when the payload's cwd is a directory nothing governs, as before
+1	PreToolUse still refuses by the launch checkout's rows when the payload's worktree has a broken marker
 1	REPLACE=1 overwrites a hand-written handoff
+1	SessionEnd launched in a directory nothing governs folds the session into the governed worktree's ledger
+1	SessionStart launched in a directory nothing governs binds the governed worktree the payload names
+1	SessionStart names the handoff of the worktree the payload names, and not the launch checkout's
+1	SessionStart with a cwd that does not exist reads the launch checkout as before
+1	Stop allows when the worktree the payload names is green, though the launch checkout holds unverified work
+1	Stop in the Desktop shape asks about a recent session-less catch filed under the worktree's branch
+1	Stop in the Desktop shape does not ask about a session-less catch filed under the main checkout's branch only
+1	Stop judges the worktree the payload names, so its unverified work blocks though the main checkout is green
+1	Stop judges the worktree when the payload's cwd is a subdirectory of it
+1	Stop launched in a directory nothing governs judges a flagged stop by the worktree the payload names
+1	Stop launched in a governed checkout holding unverified work still blocks on it when the payload's cwd is a nested checkout of a project that declares no gate
+1	Stop refuses a broken marker in the payload's worktree though the launch checkout is green
+1	Stop with a cwd in a git checkout nothing governs judges the launch checkout as before
+1	Stop with a cwd in a plain directory nothing governs judges the launch checkout as before
+1	Stop with a cwd spelt in JSON escapes judges the launch checkout, though decoding it leads to the green worktree
+1	Stop with a cwd that does not exist judges the launch checkout as before
+1	Stop with a relative cwd judges the launch checkout, though from there that path leads to the green worktree
+1	Stop with an empty cwd judges the launch checkout as before
+1	Stop with no cwd in the payload judges the launch checkout as before
+1	Stop with the payload's cwd at the launch checkout judges it as before, and holds its stale receipt
+1	Stop with the payload's cwd at the launch checkout judges that checkout as before, and it is green
+1	SubagentStart given a closed pipe with nothing in it finishes, and binds the launch checkout
+1	SubagentStart launched in a directory nothing governs names the governed worktree's project to the subagent
+1	SubagentStart says nothing when the payload's cwd is the ungoverned directory it was launched in, as before
+1	SubagentStart with a terminal on its stdin finishes without waiting on it, and binds the launch checkout
+1	SubagentStop judges the payload's worktree, so its unverified work is declared though the launch checkout is green
+1	SubagentStop launched in a directory nothing governs resolves the governed worktree the payload names
+1	UserPromptSubmit launched in a directory nothing governs mounts the lessons of the governed worktree the payload names
+1	UserPromptSubmit launched in a directory nothing governs says nothing when the payload's cwd is ungoverned too, as before
 1	a # Handoff title with no stamp on line 3 is refused
 1	a # in a later cell, UTF-8 text, trailing spaces, a blank line and an optional column left off are accepted
 1	a $( ) inside a quoted message still runs, and is refused
@@ -1811,6 +1849,7 @@
 1	and ignores the path so it cannot come back
 1	and in a declared skill folder's own SKILL.md
 1	and in a red run it skips all four record checks, saying a red run reads the base's record, though the record is real
+1	and in its own home the checkouts resolve as the cases below assume
 1	and in record mode it skips the whole-record, manifest and base checks, saying --record-assertions rewrites red.tsv, and still asks the version
 1	and in that locale the library reads no row of it and exits non-zero
 1	and in the policy's own words, which is what proves the call reached it
@@ -1958,6 +1997,7 @@
 1	and ln -s onto the marker
 1	and logs no routing decision for it
 1	and main put back matches again
+1	and marks the session at the worktree's HEAD
 1	and matches an ecosystem word on a word boundary
 1	and matches on keywords, not just names
 1	and matches what the holding checkout itself answers
@@ -2236,6 +2276,7 @@
 1	and records nothing else for it: no brief, no route, no mark, no route state
 1	and records nothing outside state/held
 1	and records the failure without being asked
+1	and records the session at the worktree's HEAD
 1	and red is named before any fact that moved
 1	and red returns non-zero
 1	and red.tsv again holds only the two rows saying no red run was made
@@ -2292,6 +2333,7 @@
 1	and says a long name at least scores on itself
 1	and says an archived section is never rewritten
 1	and says complete is declared, not run
+1	and says exactly what it says when the payload carries no cwd
 1	and says how many are still unusable
 1	and says how many bytes it would have destroyed
 1	and says how many scripts it examined
@@ -2520,7 +2562,10 @@
 1	and that reads as no stamp, the same verdict a stampless graph gets, not as an error
 1	and that receipt reads stale, never current
 1	and that receipt still keeps ten fields, each count digits or ?
+1	and that refusal also names the launch checkout's deny table
 1	and that refusal is non-zero too
+1	and that refusal is the checkout-scoped row of the worktree's project
+1	and that refusal names the launch checkout's deny table
 1	and that summary counts eleven, four failing, two of them never reached
 1	and the Felix checkout, which holds the deploy key, drops it
 1	and the ack is consumed by the answer
@@ -2678,6 +2723,8 @@
 1	and the record says why
 1	and the refilled cache begins with the stamp
 1	and the refusal is the gate's own
+1	and the refusal names that project's deny table
+1	and the refusal names that worktree's marker
 1	and the refusal names the version main declares or the cache it searched
 1	and the refusal says how to add a section instead
 1	and the refusal says how to type it inside the session
@@ -2724,6 +2771,7 @@
 1	and the run that took it over leaves nothing behind
 1	and the same night as one line reads live
 1	and the same plugin declared by a person installs, which high would refuse
+1	and the same row lifts for a command that acts only in a scratch checkout under that TMPDIR
 1	and the same rows over more sessions are not
 1	and the same scanner catches a planted one
 1	and the same test fed a here-string finds it
@@ -3240,6 +3288,41 @@
 1	felix_evidence_check reports unknown, not n/a
 1	felix_has_line matches whole lines under pipefail
 1	felix_has_line rejects partial lines
+1	felix_hook_dir answers a cwd equal to the launch directory without resolving anything
+1	felix_hook_dir answers a launch directory reached through a symlink by that logical spelling, resolving nothing, when the payload names its physical path
+1	felix_hook_dir answers a megabyte payload with no cwd by the launch directory in under three CPU seconds
+1	felix_hook_dir answers a payload cwd naming the launch directory with a trailing slash by the launch directory, resolving nothing
+1	felix_hook_dir does not read a cwd spelt inside a message, where the key's quotes are escaped
+1	felix_hook_dir finds the top-level cwd ahead of a megabyte of message in under three CPU seconds
+1	felix_hook_dir keeps a governed launch directory when the payload's cwd is a checkout bound to another project by its remote alone
+1	felix_hook_dir keeps a governed launch directory when the payload's cwd is a checkout nested in it whose marker names another project
+1	felix_hook_dir keeps a launch directory nothing governs when the first cwd is a number, though a governed worktree is named in tool_input after it
+1	felix_hook_dir keeps a launch directory whose marker is broken, though the payload names a governed worktree
+1	felix_hook_dir keeps the launch directory for a cwd holding a backslash, though that directory exists and is governed
+1	felix_hook_dir keeps the launch directory for a cwd naming a file inside a governed worktree
+1	felix_hook_dir keeps the launch directory for a cwd spelt with escaped slashes, which it does not decode
+1	felix_hook_dir keeps the launch directory for a cwd that does not exist
+1	felix_hook_dir keeps the launch directory for a git checkout nothing governs
+1	felix_hook_dir keeps the launch directory for a plain directory nothing governs
+1	felix_hook_dir keeps the launch directory for a relative cwd, though from there it names a governed worktree
+1	felix_hook_dir keeps the launch directory for an escaped backslash that only decoding would make a governed directory
+1	felix_hook_dir keeps the launch directory when the first cwd is null, though a governed worktree is named in tool_input after it
+1	felix_hook_dir keeps the launch directory when the payload carries no cwd
+1	felix_hook_dir keeps the launch directory when the payload's cwd is empty
+1	felix_hook_dir keeps the launch directory when the top-level cwd starts past the payload's first 4096 bytes
+1	felix_hook_dir prints a checkout bound by its remote alone, resolved in the home it is handed, when the launch directory governs nothing
+1	felix_hook_dir prints a checkout whose marker cannot be read, and writes nothing to stderr about it
+1	felix_hook_dir prints a checkout whose marker is broken, since Felix has that to say about it
+1	felix_hook_dir prints a subdirectory of a checkout whose marker is broken, though the launch directory is governed
+1	felix_hook_dir prints a subdirectory of that worktree as given, not its root
+1	felix_hook_dir prints that nested checkout of another project when the launch directory governs nothing
+1	felix_hook_dir prints the payload's worktree when its marker names a project
+1	felix_hook_dir reads the leftmost cwd: a governed directory named again inside tool_input does not move it
+1	felix_hook_dir reads the leftmost cwd: an ungoverned directory named again inside tool_input does not undo it
+1	felix_hook_dir reads the top-level cwd with whitespace around its colon
+1	felix_hook_dir still reads a top-level cwd whose closing quote is the payload's 4096th byte
+1	felix_hook_enter leaves the calling shell where it was for a directory nothing governs, says nothing, and sets no FELIX_HOOK_LAUNCH
+1	felix_hook_enter moves the calling shell into the payload's worktree, says nothing, and leaves FELIX_HOOK_LAUNCH unset
 1	felix_ledger_retire is defined for the hook
 1	felix_mem_lesson appends exactly one row to written.log, with six columns
 1	felix_mem_lesson outside git files its row under a question mark
@@ -4144,6 +4227,13 @@
 1	the payload carries compliance
 1	the payload carries the whole count, not the window's length
 1	the payload envelope does not decide the route
+1	the payload-cwd fixture has a main checkout and a worktree of it on a commit of its own
+1	the payload-cwd fixture's main checkout carries a current green receipt, and its worktree none
+1	the payload-cwd fixture's main checkout on main and its worktree on side are both green and current
+1	the payload-cwd fixture's megabyte payloads hold over a million bytes
+1	the payload-cwd fixture's padded payloads end the cwd at byte 4096 in one and start its key at byte 4097 in the other
+1	the payload-cwd fixture's worktree lies under the TMPDIR the suite was given
+1	the payload-cwd fixture's worktree now carries a current green receipt, and its main checkout a stale one
 1	the platform's summary request says nothing
 1	the plugins cache root is composed with, not read as ours
 1	the pointer file beats a sibling projects/
@@ -4195,6 +4285,7 @@
 1	the root is available on its own
 1	the root is never under the home it was asked about
 1	the roster extractor names every reported check with its verdict, in order
+1	the round-two fixture binds the nested checkout and the remote-bound one to projects of their own, and the main checkout's tree has not moved
 1	the route is there when both apply
 1	the row felix_mem_lesson writes settles the catch of the session that wrote it
 1	the row is awaiting, UNKNOWN by class
@@ -4216,6 +4307,7 @@
 1	the same receipt read for a renamed project is stale because the subject moved
 1	the same repository after push and fetch clears it, and among valid rows the earliest expiry wins
 1	the same route does not repeat itself
+1	the same-directory shortcut forks nothing: held to one process, a symlinked launch path still stays
 1	the scanner refuses to answer on a path it cannot search
 1	the scanner's own code names no project
 1	the schema check accepts the eighth column as needs

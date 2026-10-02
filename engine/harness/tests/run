@@ -16041,6 +16041,914 @@ is  "and it is gone again once the fact is back" "$(_er_blk)" ""
 
 rm -rf "$ERP" "$ERP.moved"
 
+printf '\nqualification: a row runs in a shell of its own\n'
+# A row's premise, mutation and command ran inside the process that called the
+# runner, so they took that process's options, and the felix CLI's are
+# set -uo pipefail. Under pipefail `producer | grep -q x` fails when x is
+# there: grep leaves at its first match and the producer dies of SIGPIPE. Under
+# nounset a name the row never set stops the row. Each column moves a verdict
+# its own way. A premise that misfires skips its control, or applies it where
+# the premise is absent. A mutation cut short leaves a pass control met over a
+# change the checker never saw. A command that misfires reads fail, and on a
+# fail control fail is met, which is exactly what a working checker says, so
+# nothing later can tell the two apart. Probes, obligations and maintenance
+# run their rows in a fresh bash with nothing on stdin, and a row here runs the
+# same way. There a command or mutation that exits 126 or 127 ran nothing, so
+# it is unrunnable, never a verdict.
+#
+# Every call is made from a shell that sets -uo pipefail itself, whatever the
+# suite's own options are. The producer writes about 2.7 MB with the match on
+# its first line. That is far more than a pipe holds, so the producer is
+# certainly still writing when grep leaves, and the miss does not depend on
+# load. Authored blind to the runner's source, from the contract in prose.
+QFRP="$TMP/qual-fresh"; QFRR="$TMP/qual-fresh-repo"; QFRS="$TMP/qual-fresh-side"
+mkdir -p "$QFRP" "$QFRR" "$QFRS" "$MEM/qual-fresh"
+( cd "$QFRR" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+QFRR="$(cd "$QFRR" && pwd -P)"
+_qfrhead="$(git -C "$QFRR" rev-parse HEAD 2>/dev/null)"
+_qfr5() { printf '%s\t%s\t%s\t%s\t%s\n' "$@"; }
+_qfr6() { printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$@"; }
+# Called from inside the root, as the CLI is, so a row that ran where it was
+# called from would run there, and the root would show it.
+_qfrrun() { ( cd "$2" || exit 1; set -uo pipefail; unset QFR_NEVER_SET
+              . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+              felix_qualify_run "$@" ) 2>/dev/null; }
+# A checker that catches FORBIDDEN anywhere in the tree, and the producer.
+_qfrc='! grep -rqI FORBIDDEN . 2>/dev/null'
+_qfrbig="awk 'BEGIN { print \"QFR-FOUND\"; for (i = 0; i < 60000; i++) print \"filler past the one line grep needs to read\" }'"
+_qfrgrep="$_qfrbig | grep -q QFR-FOUND"
+# The schema-check rows' shape: a finding the checker prints first, above more
+# output than a pipe holds, and a command that passes only when it is absent.
+_qfrneg="! { [ -f qfr-finding.txt ] && $_qfrbig | grep -qE '^QFR-FOUND\$'; }"
+_qfrlocals='"${scratch:-}|${cmd:-}|${1:-}"'
+{ _qfr6 bigpremise    "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' "$_qfrgrep"
+  _qfr6 bignotpremise "$_qfrc" violation fail \
+        "printf x >> '$QFRS/bignotpremise-mutated'; printf FORBIDDEN > bad.txt" "! $_qfrgrep"
+  _qfr5 bigmutation   "$_qfrc" violation fail "$_qfrgrep && printf FORBIDDEN > bad.txt"
+  _qfr5 bigmutpass    "$_qfrc" restoration pass "$_qfrgrep && printf FORBIDDEN > bad.txt"
+  _qfr5 bigcommand    "$_qfrgrep" restoration pass true
+  _qfr5 bigcmdfail    "$_qfrgrep" violation fail true
+  _qfr5 bigschema     "$_qfrneg" violation fail 'printf planted > qfr-finding.txt'
+  _qfr6 unsetpremise  "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' '[ -z "$QFR_NEVER_SET" ]'
+  _qfr5 unsetmutation "$_qfrc" violation fail '[ -z "$QFR_NEVER_SET" ] && printf FORBIDDEN > bad.txt'
+  _qfr5 unsetcommand  '[ -z "$QFR_NEVER_SET" ]' restoration pass true
+  _qfr5 unsetcmdfail  '[ -z "$QFR_NEVER_SET" ]' violation fail true
+  _qfr5 enginefn      'felix_qualify_rows .' violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 runnerlocals  "printf '%s' $_qfrlocals > '$QFRS/locals-seen'; [ $_qfrlocals = '||' ]" restoration pass true
+  _qfr5 nocheckfail   './qfr-no-such-checker' violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 nocheckpass   './qfr-no-such-checker' restoration pass true
+  _qfr5 cmdexit126    'exit 126' violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 cmdnoexec     './qfr-noexec.sh' irrelevant pass 'printf "exit 0" > qfr-noexec.sh'
+  _qfr5 cmdexitone    'exit 1' violation fail true
+  _qfr5 cmdexittwo    'exit 2' violation fail true
+  _qfr5 mutmissing    "printf x >> '$QFRS/mutmissing-checked'; $_qfrc" irrelevant pass 'qfr-no-such-mutation-tool FORBIDDEN'
+  _qfr5 mutexit126    "$_qfrc" irrelevant pass 'exit 126'
+  _qfr5 mutexitone    "printf x >> '$QFRS/mutexitone-checked'; $_qfrc" violation fail 'printf FORBIDDEN > bad.txt; exit 1'
+  _qfr6 premzero      "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'exit 0'
+  _qfr6 premone       "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'exit 1'
+  _qfr6 premtwo       "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'exit 2'
+  _qfr6 wherefrom     "pwd -P > '$QFRS/pwd-command'; $_qfrc" violation fail \
+        "pwd -P > '$QFRS/pwd-mutation'; printf FORBIDDEN > bad.txt" "pwd -P > '$QFRS/pwd-premise'; test -f base.txt"
+} > "$QFRP/qualification.tsv"
+_qfro="$(_qfrrun "$QFRP" "$QFRR")"
+# What checker $1's one row got and its verdict, and whether a mark was made.
+_qfrv() { printf '%s\n' "$_qfro" | awk -F'\t' -v c="$1" '$1 == c { print $4 " " $5 }'; }
+_qfre() { [ -e "$1" ] && echo ran || echo absent; }
+
+# The premise. A plain pipeline whose match is there read 141, unrunnable; a
+# negated one read 0, and applied its control where the premise is absent.
+is  "a premise piping big output into grep -q that finds its match lets its control run and be met, never unrunnable" \
+    "$(_qfrv bigpremise)" "fail met"
+is  "a premise negating that pipeline makes its control inapplicable and never applies its mutation" \
+    "$(_qfrv bignotpremise) $(_qfre "$QFRS/bignotpremise-mutated")" "- inapplicable absent"
+# The mutation. An && after the pipeline never ran, so the tree carried none of
+# the change: a fail control read held, and a pass control read met over a
+# change the checker was never shown.
+is  "a mutation that starts with that pipeline and an && makes its whole change, so a checker that catches it is met, not held" \
+    "$(_qfrv bigmutation)" "fail met"
+is  "and on a pass control the same mutation is seen whole: a checker rejecting it is held, never met over a tree the mutation did not reach" \
+    "$(_qfrv bigmutpass)" "fail held"
+# The command. The plain shape read fail when it should pass, which on a fail
+# control is met; the negated schema shape read pass when it should fail.
+is  "a command that is that pipeline passes a pass control and is met, rather than failing and held" \
+    "$(_qfrv bigcommand)" "pass met"
+is  "and on a fail control it reads pass and held, never fail and met, which is what a working checker says" \
+    "$(_qfrv bigcmdfail)" "pass held"
+is  "a command in the schema rows' negated shape over big output fails when its mutation plants the finding, and the control is met, not held" \
+    "$(_qfrv bigschema)" "fail met"
+# nounset. A name nobody set is empty to a fresh shell, not an error.
+is  "a premise testing a name nobody set applies its control rather than reading as inapplicable" \
+    "$(_qfrv unsetpremise)" "fail met"
+is  "a mutation testing a name nobody set runs to the end, so the checker catches its change" \
+    "$(_qfrv unsetmutation)" "fail met"
+is  "a command testing a name nobody set passes, rather than failing and held" \
+    "$(_qfrv unsetcommand)" "pass met"
+is  "and on a fail control that command passes and is held, never fail and met because nounset stopped it" \
+    "$(_qfrv unsetcmdfail)" "pass held"
+# The runner's own functions, locals and positional parameters. A row that
+# called an engine function would run the installed engine, which the
+# mutation cannot reach, rather than the checker in the tree it mutated.
+is  "a command naming an engine function finds no such command and reads unrunnable, neither pass nor fail" \
+    "$(_qfrv enginefn)" "unrunnable unrunnable"
+is  "a command sees none of the runner's locals or positional parameters: scratch, cmd and 1 are empty to it" \
+    "$(_qfrv runnerlocals) [$(cat "$QFRS/locals-seen" 2>/dev/null)]" "pass met [||]"
+# A command that exits 126 or 127 ran no checker. Read as fail, a checker path
+# with a typo in it would be met on every fail control.
+is  "a checker that does not exist, exit 127, reads unrunnable on a fail control, never fail and met" \
+    "$(_qfrv nocheckfail)" "unrunnable unrunnable"
+is  "and unrunnable on a pass control, never fail and held" \
+    "$(_qfrv nocheckpass)" "unrunnable unrunnable"
+is  "a command exiting 126, or a checker file that is not executable, reads unrunnable, while one exiting 1 or 2 still reads fail and met" \
+    "$(_qfrv cmdexit126); $(_qfrv cmdnoexec); $(_qfrv cmdexitone); $(_qfrv cmdexittwo)" \
+    "unrunnable unrunnable; unrunnable unrunnable; fail met; fail met"
+# A mutation that exits 126 or 127 made no change, so its control was never
+# shown anything. Its other statuses are still ignored.
+is  "a mutation whose command does not exist, exit 127, makes its pass control unrunnable, never met over a tree it did not change" \
+    "$(_qfrv mutmissing)" "unrunnable unrunnable"
+is  "and no checker runs after a mutation that exited 127" \
+    "$(_qfre "$QFRS/mutmissing-checked")" "absent"
+is  "a mutation exiting 126 is unrunnable too, while one exiting 1 still has its status ignored and its checker decides the row" \
+    "$(_qfrv mutexit126); $(_qfrv mutexitone) $(_qfre "$QFRS/mutexitone-checked")" \
+    "unrunnable unrunnable; fail met ran"
+# Unchanged, and green before this change as after it.
+is  "a premise exiting 0 still applies its control, 1 still makes it inapplicable, and 2 still makes it unrunnable" \
+    "$(_qfrv premzero); $(_qfrv premone); $(_qfrv premtwo)" \
+    "fail met; - inapplicable; unrunnable unrunnable"
+_qfrwd="$(cat "$QFRS/pwd-premise" 2>/dev/null)"
+is  "premise, mutation and command run in one scratch worktree of HEAD, never in the root" \
+    "$(_qfrv wherefrom) $([ -n "$_qfrwd" ] && [ "$_qfrwd" = "$(cat "$QFRS/pwd-mutation" 2>/dev/null)" ] \
+       && [ "$_qfrwd" = "$(cat "$QFRS/pwd-command" 2>/dev/null)" ] && echo one-tree || echo apart) $(
+       [ "$_qfrwd" = "$QFRR" ] && echo root || echo elsewhere)" \
+    "fail met one-tree elsewhere"
+# Nothing on stdin, in any column. The marker is on the caller's stdin and in
+# the rows after each reader, so a column given either one finds it.
+QFRI="$TMP/qual-fresh-stdin"; mkdir -p "$QFRI"
+{ _qfr6 premreader "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' '! grep -q QFR-STDIN'
+  _qfr5 mutreader  "$_qfrc" violation fail 'grep -q QFR-STDIN || printf FORBIDDEN > bad.txt'
+  _qfr5 cmdreader  '! grep -q QFR-STDIN' restoration pass true
+  _qfr5 trailer    'true QFR-STDIN' restoration pass 'true QFR-STDIN'
+} > "$QFRI/qualification.tsv"
+is  "no column reads the caller's stdin or the table: a premise, a mutation and a command that grep their stdin find nothing" \
+    "$(printf 'QFR-STDIN\n' | _qfrrun "$QFRI" "$QFRR" | awk -F'\t' '{ printf "%s %s %s; ", $1, $4, $5 }')" \
+    "premreader fail met; mutreader fail met; cmdreader pass met; trailer pass met; "
+# A column that ran nothing is unrunnable, whatever status its text ended on.
+# In a fresh bash a name only the engine has is not found, and in a pipeline,
+# an if, or behind a !, the final status hides that. The column's own shell
+# still says so, under the felix-qualify $0 the runner gives it; a checker's
+# complaints carry the checker's own path and decide nothing. Text that does
+# not parse, or is blank, runs nothing either, and the fresh bash takes no
+# SHELLOPTS or BASH_ENV from its caller. The rest pin what the fresh shell
+# already does: -- before the text, a mutation's other statuses ignored and
+# never carried, bash rather than sh, a tree that is gone, stdout kept out of
+# the verdict, and a premise's 126. Authored blind, from the contract in prose.
+QFRX="$TMP/qual-fresh-more"; mkdir -p "$QFRX"
+# A tool outside the tree that complains, under its own path, of a command it
+# cannot find, and then exits with the status it is handed.
+_qfrcnf="$QFRS/qfr-cnf-tool"
+printf '#!/bin/bash\nqfr_cnf_missing_tool\nexit "${1:-0}"\n' > "$_qfrcnf"; chmod +x "$_qfrcnf"
+# A line shaped like a verdict for the row that prints it.
+_qfrfake="printf 'stdoutrow\\tviolation\\tfail\\tpass\\theld\\n'"
+_qfrpreml='"${scratch:-}|${premise:-}|${1:-}"'
+_qfrmutl='"${scratch:-}|${mut:-}|${1:-}"'
+{ _qfr5 cnfpipecmd   'felix_qualify_rows . | grep -q QFR-FOUND' violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 cnfnegpass   '! { felix_qualify_rows . | grep -q QFR-FOUND; }' restoration pass true
+  _qfr6 cnfpipeprem  "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'felix_qualify_rows . | grep -q QFR-FOUND'
+  _qfr5 cnfifmut     "$_qfrc" restoration pass 'if felix_qualify_rows .; then printf FORBIDDEN > bad.txt; fi'
+  _qfr5 cnfbarename  'qfr_no_such_cmd . | grep -q QFR-FOUND' violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 toolcnfpass  "'$_qfrcnf' 0" restoration pass true
+  _qfr5 toolcnffail  "'$_qfrcnf' 1" violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr6 toolcnfprem  "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' "'$_qfrcnf' 0"
+  _qfr5 toolcnfmut   "$_qfrc" violation fail "'$_qfrcnf' 0; printf FORBIDDEN > bad.txt"
+  _qfr5 parsecmd     "$_qfrc '" violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 parsemut     "printf x >> '$QFRS/parsemut-checked'; $_qfrc" restoration pass "printf 'FORBIDDEN > bad.txt"
+  _qfr6 parseprem    "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' "test -f base.txt '"
+  _qfr5 emptycmd     '' restoration pass true
+  _qfr5 spacecmd     '   ' restoration pass true
+  _qfr5 spacemut     "$_qfrc" restoration pass '   '
+  _qfr6 spaceprem    "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' '   '
+  _qfr6 emptyprem    "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' ''
+  _qfr6 dashprem     "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' '-'
+  _qfr5 dashcmd      '-x ./qfr-no-such-checker' violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 mutonepass   true violation fail 'exit 1'
+  _qfr5 mutexittwo   "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt; exit 2'
+  _qfr6 premenginefn "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'felix_contains engine gin'
+  _qfr6 premmutlocal true restoration pass "printf '%s' $_qfrmutl > '$QFRS/mut-locals-seen'" \
+        "printf '%s' $_qfrpreml > '$QFRS/prem-locals-seen'"
+  _qfr5 procsubcmd   'grep -qx clean <(cat base.txt)' restoration pass true
+  _qfr6 stdoutrow    "$_qfrfake; $_qfrc" violation fail "$_qfrfake; printf FORBIDDEN > bad.txt" "$_qfrfake; test -f base.txt"
+  _qfr6 premexit126  "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'exit 126'
+} > "$QFRX/qualification.tsv"
+_qfrx="$(_qfrrun "$QFRX" "$QFRR")"
+_qfrxv() { printf '%s\n' "$_qfrx" | awk -F'\t' -v c="$1" '$1 == c { print $4 " " $5 }'; }
+# Not found where the final status hides it. The old runner ran the function in
+# its own process; in a fresh bash it is gone, and grep's 1 was all that showed.
+is  "a command piping an engine function into grep -q reads unrunnable on a fail control, never fail and met with no checker run" \
+    "$(_qfrxv cnfpipecmd)" "unrunnable unrunnable"
+is  "a pass control's command negating that pipeline reads unrunnable, never pass and met" \
+    "$(_qfrxv cnfnegpass)" "unrunnable unrunnable"
+is  "a premise piping an engine function into grep -q reads unrunnable, never inapplicable" \
+    "$(_qfrxv cnfpipeprem)" "unrunnable unrunnable"
+is  "a mutation testing an engine function in an if makes its pass control unrunnable, never met over a change it never made" \
+    "$(_qfrxv cnfifmut)" "unrunnable unrunnable"
+is  "a name that exists nowhere, in a pipeline, counts as an engine function does: the command reads unrunnable, never fail and met" \
+    "$(_qfrxv cnfbarename)" "unrunnable unrunnable"
+# Only the column's own shell is heard. A tool that is not found inside a
+# checker is the checker's business, and its status still decides.
+is  "a checker whose own stderr says command not found, under its own path, still decides by its status: pass and met at 0, fail and met at 1" \
+    "$(_qfrxv toolcnfpass); $(_qfrxv toolcnffail)" "pass met; fail met"
+is  "and a premise and a mutation running that tool still apply the control and make the change, so the checker is met" \
+    "$(_qfrxv toolcnfprem); $(_qfrxv toolcnfmut)" "fail met; fail met"
+# Text that does not parse ran nothing. As a command it exited 2 and read fail;
+# as a mutation its 2 was ignored, and a pass control was met over no change.
+is  "a command that does not parse, a stray quote after its checker, reads unrunnable, never fail and met" \
+    "$(_qfrxv parsecmd)" "unrunnable unrunnable"
+is  "a mutation that does not parse makes its pass control unrunnable, and no checker runs after it" \
+    "$(_qfrxv parsemut) $(_qfre "$QFRS/parsemut-checked")" "unrunnable unrunnable absent"
+is  "a premise that does not parse reads unrunnable, never inapplicable" \
+    "$(_qfrxv parseprem)" "unrunnable unrunnable"
+# Blank text ran nothing and exited 0. A premise that is absent, empty or - is
+# no premise; one of spaces is text that runs nothing.
+is  "an empty command and a command of spaces each read unrunnable, never pass and met with no checker run" \
+    "$(_qfrxv emptycmd); $(_qfrxv spacecmd)" "unrunnable unrunnable; unrunnable unrunnable"
+is  "a mutation of spaces makes its pass control unrunnable, never met over no change" \
+    "$(_qfrxv spacemut)" "unrunnable unrunnable"
+is  "a premise of spaces reads unrunnable, never applied as a premise that held" \
+    "$(_qfrxv spaceprem)" "unrunnable unrunnable"
+is  "an empty premise and a premise of - still mean no premise: the control applies and is met" \
+    "$(_qfrxv emptyprem); $(_qfrxv dashprem)" "fail met; fail met"
+# Already so in the fresh shell, and pinned.
+is  "a command whose text begins with a dash runs as a command and reads unrunnable, never taken for bash's own options and read fail and met" \
+    "$(_qfrxv dashcmd)" "unrunnable unrunnable"
+is  "a mutation exiting 1 on a fail control whose checker passes reads pass and held: the mutation's status never becomes the command's" \
+    "$(_qfrxv mutonepass)" "pass held"
+is  "a mutation that plants its change and then exits 2 still has its status ignored, and the checker that catches the change is met" \
+    "$(_qfrxv mutexittwo)" "fail met"
+is  "a premise that is an engine function alone reads unrunnable: a premise's shell has none of the runner's functions" \
+    "$(_qfrxv premenginefn)" "unrunnable unrunnable"
+is  "a premise and a mutation see none of the runner's locals or positional parameters: each writes || for scratch, its own text and 1" \
+    "[$(cat "$QFRS/prem-locals-seen" 2>/dev/null)] [$(cat "$QFRS/mut-locals-seen" 2>/dev/null)]" "[||] [||]"
+is  "a command that needs bash, a process substitution, passes its pass control and is met: a row runs in bash, never sh" \
+    "$(_qfrxv procsubcmd)" "pass met"
+is  "a row whose premise, mutation and command each print a line shaped like a verdict yields one verdict line, fail and met: a row's stdout never reaches the verdict" \
+    "$(printf '%s\n' "$_qfrx" | awk '/stdoutrow/ { gsub(/\t/, " "); printf "%s%s", s, $0; s = "; " }')" \
+    "stdoutrow violation fail fail met"
+is  "a premise exiting 126 reads unrunnable, never inapplicable" \
+    "$(_qfrxv premexit126)" "unrunnable unrunnable"
+# The caller's options reach a child bash two ways besides inheritance: an
+# exported SHELLOPTS, and a BASH_ENV file every child sources. Each is exported
+# only inside the subshell that calls the runner, so nothing later sees it.
+QFRE="$TMP/qual-fresh-env"; mkdir -p "$QFRE"
+_qfr5 envbig "$_qfrgrep" restoration pass true > "$QFRE/qualification.tsv"
+printf 'set -o pipefail\n' > "$QFRS/qfr-bash-env"
+_qfrenv() { ( cd "$QFRR" || exit 1; set -uo pipefail; unset QFR_NEVER_SET
+              case "$1" in
+                shellopts) export SHELLOPTS ;;
+                bashenv)   export BASH_ENV="$QFRS/qfr-bash-env" ;;
+              esac
+              . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+              felix_qualify_run "$QFRE" "$QFRR" ) 2>/dev/null \
+              | awk -F'\t' '$1 == "envbig" { print $4 " " $5 }'; }
+is  "with SHELLOPTS exported by its caller, carrying nounset and pipefail, a command piping big output into grep -q still passes its pass control and is met" \
+    "$(_qfrenv shellopts)" "pass met"
+is  "and with BASH_ENV exported by its caller, naming a file that sets pipefail, that command still passes and is met" \
+    "$(_qfrenv bashenv)" "pass met"
+# Text that fails to parse only once it runs, inside a command substitution,
+# ran nothing, and the column's own shell says syntax error under its
+# felix-qualify prefix. Text that is only a comment ran nothing and exited 0.
+# A caller's POSIXLY_CORRECT would put the row's bash in posix mode, where a
+# process substitution does not parse. The rest pin what the fresh shell
+# already does: no temporary path outlives a run, a stderr file that is gone
+# counts as nothing run, a checker the row runs takes no SHELLOPTS or BASH_ENV
+# either, and only a line that begins with the prefix is heard. Authored
+# blind, from the contract in prose.
+QFRK="$TMP/qual-fresh-three"; mkdir -p "$QFRK" "$QFRS/qfr-anchor"
+# A checker outside the tree whose own file is named felix-qualify, and which
+# complains, under that path, of a tool it cannot find before it passes.
+_qfrkanchor="$QFRS/qfr-anchor/felix-qualify"
+printf '#!/bin/bash\nqfr_anchor_missing_tool\neval "fi"\nexit 0\n' > "$_qfrkanchor"; chmod +x "$_qfrkanchor"
+# A checker that ran and prints what it found, "N files hold FORBIDDEN". A row
+# that does arithmetic on that output makes its own shell print a syntax error
+# quoting the checker's data; the checker still decided the row.
+_qfrkcount="$QFRS/qfr-count-checker"
+printf '#!/bin/bash\nn=$(grep -rl FORBIDDEN . 2>/dev/null | wc -l | tr -d " ")\nif [ "$n" -gt 0 ]; then echo "$n files hold FORBIDDEN"; else echo 0; fi\n' > "$_qfrkcount"; chmod +x "$_qfrkcount"
+{ _qfr5 cssyntaxcmd '[ "$(! grep -rqI FORBIDDEN . 2>/dev/null && echo clean; fi)" = clean ]' violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 cssyntaxmut "printf x >> '$QFRS/cssyntaxmut-checked'; $_qfrc" restoration pass \
+        'x=$(printf FORBIDDEN; fi) && printf "%s" "$x" > bad.txt'
+  _qfr5 commentcmd  '# nothing' restoration pass true
+  _qfr5 commentmut  "printf x >> '$QFRS/commentmut-checked'; $_qfrc" restoration pass '  # nothing'
+  _qfr6 commentprem "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' '# nothing'
+  _qfr5 anchorscan  "'$_qfrkanchor'" restoration pass true
+  _qfr5 arithdata   "[ \$(( \$('$_qfrkcount') )) -eq 0 ]" violation fail 'printf FORBIDDEN > bad.txt'
+} > "$QFRK/qualification.tsv"
+_qfrkx="$(_qfrrun "$QFRK" "$QFRR")"
+_qfrkv() { printf '%s\n' "$_qfrkx" | awk -F'\t' -v c="$1" '$1 == c { print $4 " " $5 }'; }
+# bash -n does not look inside a command substitution, so the text parses,
+# and the error comes only when the substitution runs, with no checker run.
+is  "a command whose checker sits in a command substitution holding a syntax error found only when it runs reads unrunnable on a fail control, never fail and met" \
+    "$(_qfrkv cssyntaxcmd)" "unrunnable unrunnable"
+is  "a mutation with such a command substitution in its && chain makes its pass control unrunnable, never met over no change, and no checker runs after it" \
+    "$(_qfrkv cssyntaxmut) $(_qfre "$QFRS/cssyntaxmut-checked")" "unrunnable unrunnable absent"
+is  "a command that is only a comment reads unrunnable, never pass and met with no checker run" \
+    "$(_qfrkv commentcmd)" "unrunnable unrunnable"
+is  "a mutation that is only a comment, after leading spaces, makes its pass control unrunnable, never met over no change, and no checker runs after it" \
+    "$(_qfrkv commentmut) $(_qfre "$QFRS/commentmut-checked")" "unrunnable unrunnable absent"
+is  "a premise that is only a comment reads unrunnable, never applied as a premise that held" \
+    "$(_qfrkv commentprem)" "unrunnable unrunnable"
+is  "a checker whose own file is named felix-qualify, complaining under its own path of a tool it cannot find and of a syntax error, still decides by its status and is pass and met at 0: only a line that begins with the prefix is heard" \
+    "$(_qfrkv anchorscan)" "pass met"
+is  "a checker that ran, whose output a row's arithmetic cannot read, still decides the row: its fail control is met, never unrunnable, since only the parser refusing the row's own text is heard" \
+    "$(_qfrkv arithdata)" "fail met"
+# The caller's environment again. Each variable is exported only inside the
+# subshell that calls the runner, after the libraries are read.
+QFRKP="$TMP/qual-fresh-three-posix"; QFRKC="$TMP/qual-fresh-three-checker"; mkdir -p "$QFRKP" "$QFRKC"
+{ _qfr5 posixplain   'test -f base.txt' restoration pass true
+  _qfr5 posixprocsub 'grep -qx clean <(cat base.txt)' restoration pass true
+} > "$QFRKP/qualification.tsv"
+# A checker outside the tree whose own body pipes big output into grep -q.
+_qfrkbig="$QFRS/qfr-big-checker"
+printf '#!/bin/bash\n%s\n' "$_qfrgrep" > "$_qfrkbig"; chmod +x "$_qfrkbig"
+_qfr5 bigchecker "'$_qfrkbig'" restoration pass true > "$QFRKC/qualification.tsv"
+_qfrkenv() { ( cd "$QFRR" || exit 1; set -uo pipefail
+               . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+               case "$1" in
+                 shellopts) export SHELLOPTS ;;
+                 bashenv)   export BASH_ENV="$QFRS/qfr-bash-env" ;;
+                 posix)     export POSIXLY_CORRECT=1 ;;
+               esac
+               felix_qualify_run "$2" "$QFRR" ) 2>/dev/null \
+               | awk -F'\t' '{ printf "%s%s %s", s, $4, $5; s = "; " }'; }
+is  "with POSIXLY_CORRECT exported by its caller, a command using a process substitution still passes its pass control and is met, as a plain command beside it does" \
+    "$(_qfrkenv posix "$QFRKP")" "pass met; pass met"
+is  "a checker the row runs, whose own body pipes big output into grep -q, passes its pass control and is met with BASH_ENV exported by the caller naming a file that sets pipefail, and again with SHELLOPTS exported: the checker inherits neither" \
+    "bashenv: $(_qfrkenv bashenv "$QFRKC"); shellopts: $(_qfrkenv shellopts "$QFRKC")" "bashenv: pass met; shellopts: pass met"
+# Every temporary path the runner makes is gone after a run whose rows reach
+# each verdict, unrunnable from each column. mktemp is wrapped, inside the
+# subshell that calls the runner, by a function that notes each path it hands
+# back, however it was called.
+QFRKM="$TMP/qual-fresh-three-mktemp"; _qfrkmade="$TMP/qual-fresh-three-made"
+mkdir -p "$QFRKM"; : > "$_qfrkmade"
+{ _qfr5 tmpmet     "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr5 tmpheld    true violation fail 'printf FORBIDDEN > bad.txt'
+  _qfr6 tmpinapp   "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'exit 1'
+  _qfr6 tmppremcnf "$_qfrc" violation fail 'printf FORBIDDEN > bad.txt' 'qfr_no_such_cmd . | grep -q QFR-FOUND'
+  _qfr5 tmpmutcnf  "$_qfrc" restoration pass 'qfr_no_such_cmd . | grep -q QFR-FOUND'
+  _qfr5 tmpcmdcnf  'qfr_no_such_cmd . | grep -q QFR-FOUND' violation fail 'printf FORBIDDEN > bad.txt'
+} > "$QFRKM/qualification.tsv"
+_qfrkmk="$( ( cd "$QFRR" || exit 1; set -uo pipefail
+              . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+              mktemp() { local p; p="$(command mktemp "$@")" || return
+                         printf '%s\n' "$p" >> "$_qfrkmade"; printf '%s\n' "$p"; }
+              felix_qualify_run "$QFRKM" "$QFRR" ) 2>/dev/null | awk -F'\t' '{ printf "%s ", $5 }')"
+_qfrkleft=""
+while IFS= read -r _qfrkp; do [ -e "$_qfrkp" ] && _qfrkleft="$_qfrkleft $_qfrkp"; done < "$_qfrkmade"
+is  "no temporary path outlives a run whose rows are met, held, inapplicable, and unrunnable from each column: every path mktemp handed the runner is gone, and it was handed at least one" \
+    "$_qfrkmk$([ -s "$_qfrkmade" ] && echo made || echo none-made) left:[$_qfrkleft]" \
+    "met held inapplicable unrunnable unrunnable unrunnable made left:[]"
+# A stderr file that cannot be read counts as nothing run. The mutation takes
+# away its row's base directory, the scratch tree's parent, only when that
+# holds the scratch tree and one file besides; otherwise it does nothing, and
+# the checker passes and is held.
+QFRKB="$TMP/qual-fresh-three-base"; mkdir -p "$QFRKB"
+_qfr5 basegone "$_qfrc" violation fail \
+      "d=\$(pwd -P) && [ \"\$d\" != '$QFRR' ] && test -f .git && test -f base.txt && b=\$(dirname \"\$d\") && [ \"\$(ls -A \"\$b\" | wc -l | tr -d ' ')\" = 2 ] && [ \"\$(find \"\$b\" -mindepth 1 -maxdepth 1 -type f | wc -l | tr -d ' ')\" = 1 ] && cd / && rm -rf \"\$b\"" \
+      > "$QFRKB/qualification.tsv"
+is  "a mutation that takes away its row's base directory, and with it the file its stderr went to, makes its fail control unrunnable, never fail and met" \
+    "$(_qfrrun "$QFRKB" "$QFRR" | awk -F'\t' '$1 == "basegone" { print $4 " " $5 }')" "unrunnable unrunnable"
+# A mutation that takes its own tree away. It removes only a linked worktree
+# that is not the root, and the root's check below shows it did no more.
+QFRU="$TMP/qual-fresh-gone"; mkdir -p "$QFRU"
+_qfr5 treegone "$_qfrc" violation fail \
+      "d=\$(pwd -P) && [ \"\$d\" != '$QFRR' ] && test -f .git && test -f base.txt && cd / && rm -rf \"\$d\"" \
+      > "$QFRU/qualification.tsv"
+is  "a mutation that removes its own scratch tree leaves nowhere to run the checker, so its fail control reads unrunnable, never fail and met" \
+    "$(_qfrrun "$QFRU" "$QFRR" | awk -F'\t' '$1 == "treegone" { print $4 " " $5 }')" "unrunnable unrunnable"
+is  "and the root's tree is left as it was, with nothing a row wrote in it" \
+    "$(git -C "$QFRR" status --porcelain --untracked-files=all 2>&1 | tr '\n' ' ')$(git -C "$QFRR" rev-parse HEAD 2>&1)" \
+    "$_qfrhead"
+
+# End to end, through the felix CLI, which sets pipefail itself: a fail control
+# in the schema rows' shape, over a checker that catches its mutation.
+_qfrw="$FROOT/projects/widget/qualification.tsv"
+_qfrwas="$(cat "$_qfrw" 2>/dev/null || printf '<absent>')"
+cp "$_qfrw" "$TMP/qual-fresh.keep" 2>/dev/null || true
+_qfr5 bigneg "$_qfrneg" violation fail 'printf planted > qfr-finding.txt' > "$_qfrw"
+_qfrout="$(cd "$REPO" && "$FELIX" qualify --gate 2>&1)"; _qfrrc=$?
+is  "felix qualify --gate passes a fail control in the schema rows' negated shape over big output when its checker catches the mutation" \
+    "$_qfrrc" "0"
+is  "and shows that control met, its checker failing" \
+    "$(printf '%s\n' "$_qfrout" | grep -cE '^  bigneg +violation +fail +fail +ok$')" "1"
+rm -f "$_qfrw"
+[ -f "$TMP/qual-fresh.keep" ] && mv "$TMP/qual-fresh.keep" "$_qfrw"
+is  "and the widget table is as the fresh-shell block found it" \
+    "$(cat "$_qfrw" 2>/dev/null || printf '<absent>')" "$_qfrwas"
+
+printf '\nqualification: a row'"'"'s scratch tree never outlives the row\n'
+# A row checks its control in a scratch worktree of the root's HEAD, made under
+# a base directory of its own, and throws both away when it is done. Two things
+# left them behind. A mutation that takes permission away inside its base,
+# `chmod a-w d` over a file, left git unable to delete the file: the tree stayed
+# on disk, and on some git versions in the root's worktree list as well. And
+# nothing handled INT, TERM or HUP: a row signalled while a column ran died on
+# the spot, its tree on disk and still registered in the root. Three such trees
+# were found in the founder's own checkout. A row stopped by a signal, with its
+# caller still running the rows, reached no verdict, so it reads unrunnable,
+# never held and never met.
+#
+# A review then found what else a mutation can do to its own base. It can
+# delete the tree's .git file, lock the worktree, delete the whole base, swap
+# the tree for a symlink to another worktree, which git then removes in its
+# place, uncommitted work and all, or hard-link files from outside into it,
+# whose mode a careless chmod -R then changes outside. It can make the file a
+# column's stderr goes to unwritable, which turned a checker that never ran
+# into a fail, or a symlink to a file outside, which a later column then
+# truncated, or whose contents faked a verdict. None of it may leave anything,
+# change anything outside, or change a verdict. A felix: line on stderr speaks
+# only of a tree or registration that is really left.
+#
+# Every path mktemp hands the runner is logged, by a function that wraps it in
+# the shell that calls the runner. A leftover is any of those paths still there,
+# or any worktree the root lists beside itself, live, prunable or locked; this
+# root is the section's own and starts with none. A signalled run starts in a
+# process group of its own, made by perl with INT, TERM and HUP back at their
+# defaults: a background job starts with INT ignored, and a signal ignored at
+# entry cannot be trapped. The held column marks itself running and waits on a
+# release file made as soon as the signal has gone, with a bound of its own, so
+# an unsignalled column runs on to its end and is never asserted cut short.
+# Every wait has a deadline. Only processes of that group, walked down from the
+# pid started here, are ever signalled. Whatever an old runner leaves behind,
+# the section gives directories their permissions back (never a file, which may
+# be a hard link to one outside), clears an immutable flag, removes it, and
+# unlocks and prunes its own roots alone. Authored blind to the fix, from the
+# contract in prose.
+QTRS="$TMP/qual-tree-side"; QTRR="$TMP/qual-tree-repo"
+mkdir -p "$QTRS" "$QTRR"
+( cd "$QTRR" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+QTRR="$(cd "$QTRR" && pwd -P)"
+_qtr5() { printf '%s\t%s\t%s\t%s\t%s\n' "$@"; }
+_qtr6() { printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$@"; }
+_qtre() { if [ -e "$1" ]; then echo ran; else echo absent; fi; }
+_qtrd() { mkdir -p "$QTRS/$1/proj"; printf '%s/proj/qualification.tsv' "$QTRS/$1"; }
+_qtrmode() { ls -ld "$1" 2>/dev/null | cut -c1-10; }
+# Whether mktemp handed the runner anything and which of those paths are still
+# there; how many worktrees the root lists beside its own, and how many of those
+# git calls prunable or locked; and how many lines of a stderr begin felix:.
+_qtrpaths() {   # made-log
+  local p left=""
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    if [ -e "$p" ] || [ -L "$p" ]; then left="$left $p"; fi
+  done < "$1"
+  printf '%s left:[%s]' "$([ -s "$1" ] && echo made || echo none-made)" "$left"
+}
+_qtrwt() {   # root
+  git -C "$1" worktree list --porcelain 2>/dev/null \
+    | awk '/^worktree / { w++ } /^prunable/ { p++ } /^locked/ { l++ } END { printf "wt:%d prunable:%d locked:%d", w - 1, p, l }'
+}
+_qtrleft() { printf '%s %s' "$(_qtrpaths "$1")" "$(_qtrwt "$2")"; }
+_qtrfelix() { awk '/^felix:/ { n++ } END { print n + 0 }' "$1" 2>/dev/null; }
+# What an old runner leaves: each directory given u+rwx, top down so a 000
+# one opens before it is read, an immutable flag cleared where chflags exists,
+# the path removed, and the root named, always one of this section's, unlocked
+# and pruned. No file's mode is touched: it may be a hard link to one outside.
+_qtrclean() {   # made-log, root
+  local p
+  while IFS= read -r p; do
+    case "$p" in /?*) ;; *) continue ;; esac
+    if [ -e "$p" ] || [ -L "$p" ]; then
+      find "$p" -type d -exec chmod u+rwx {} \; 2>/dev/null
+      if command -v chflags >/dev/null 2>&1; then chflags -R nouchg "$p" 2>/dev/null; fi
+      rm -rf "$p" 2>/dev/null
+    fi
+  done < "$1"
+  rm -f "$2"/.git/worktrees/*/locked 2>/dev/null
+  git -C "$2" worktree prune >/dev/null 2>&1
+}
+# The runner as the CLI calls it, from inside the root under set -uo pipefail,
+# with mktemp wrapped after the libraries are read.
+_qtrrun() {   # proj, root, made-log, stderr file
+  ( cd "$2" || exit 1; set -uo pipefail; _qtrlog="$3"
+    . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+    mktemp() { local p; p="$(command mktemp "$@")" || return
+               printf '%s\n' "$p" >> "$_qtrlog"; printf '%s\n' "$p"; }
+    felix_qualify_run "$1" "$2" ) 2>"$4"
+}
+# Run one table, then say what each row read, what was left once they had all
+# returned, and how many felix: lines stderr carried, and clear away whatever
+# was left.
+_qtrcase() {   # tag, [root]
+  local d="$QTRS/$1" root="${2:-$QTRR}" out
+  : > "$d/made"
+  out="$(_qtrrun "$d/proj" "$root" "$d/made" "$d/stderr")"
+  _qtrres="$(printf '%s\n' "$out" | awk -F'\t' 'NF >= 5 { printf "%s %s; ", $4, $5 }')$(_qtrleft "$d/made" "$root") said:$(_qtrfelix "$d/stderr")"
+  _qtrclean "$d/made" "$root"
+}
+_qtrok="made left:[] wt:0 prunable:0 locked:0"
+_qtrquiet="$_qtrok said:0"
+# Every spelling of the scratch path of a row whose mutation wrote its pwd to
+# DIR/pwd and DIR/pwdp: as the column saw it, as mktemp spelt the base, and as
+# the filesystem resolves that base. And whether any line of a stderr that
+# begins felix: names one of them.
+_qtrnames() {   # dir
+  { cat "$1/pwd" "$1/pwdp" 2>/dev/null
+    while IFS= read -r _qtrp; do
+      [ -n "$_qtrp" ] || continue
+      printf '%s/w\n' "$_qtrp"
+      printf '%s/%s/w\n' "$(cd "$(dirname "$_qtrp")" 2>/dev/null && pwd -P)" "$(basename "$_qtrp")"
+    done < "$1/made"
+  } > "$1/names"
+}
+_qtrsaid() {   # stderr file, names file -> named | unnamed
+  local l n
+  while IFS= read -r l; do
+    case "$l" in felix:*) ;; *) continue ;; esac
+    while IFS= read -r n; do
+      [ -n "$n" ] || continue
+      case "$l" in *"$n"*) echo named; return 0 ;; esac
+    done < "$2"
+  done < "$1"
+  echo unnamed
+}
+
+# C5, unchanged: a row that runs to its end leaves nothing, whatever it reads,
+# and so does one whose worktree could not be added. C13: neither says felix:.
+{ _qtr5 plainmet   '! test -f bad.txt' violation fail 'printf FORBIDDEN > bad.txt'
+  _qtr5 plainpass  'test -f base.txt' restoration pass true
+  _qtr5 plainheld  'test -f base.txt' violation fail true
+  _qtr6 plaininapp 'test -f base.txt' violation fail true 'exit 1'
+  _qtr6 plainunrun 'test -f base.txt' violation fail true 'exit 2'
+} > "$(_qtrd plain)"
+_qtrcase plain
+is  "a run whose rows read fail and met, pass and met, pass and held, inapplicable, and unrunnable leaves no path mktemp handed the runner and no worktree registered in the root, live, prunable or locked, and its stderr carries no felix: line" \
+    "$_qtrres" "fail met; pass met; pass held; - inapplicable; unrunnable unrunnable; $_qtrquiet"
+QTRU="$TMP/qual-tree-unborn"; mkdir -p "$QTRU"; ( cd "$QTRU" && git init -q -b main ) >/dev/null 2>&1
+QTRU="$(cd "$QTRU" && pwd -P)"
+_qtr5 unborn 'test -f base.txt' restoration pass true > "$(_qtrd unborn)"
+_qtrcase unborn "$QTRU"
+is  "a row whose worktree add fails, in a repository with no commit yet, reads unrunnable and leaves no path mktemp handed it and no worktree registered, and its stderr carries no felix: line" \
+    "$_qtrres" "unrunnable unrunnable; $_qtrquiet"
+
+# C1: a permission taken away anywhere inside the row's base. Each shape runs
+# as a pass control whose checker passes and a fail control whose checker
+# fails; neither checker reads anything the permission guards.
+{ _qtr5 unwpass 'test -f base.txt' restoration pass 'mkdir -p d && printf x > d/f && chmod a-w d'
+  _qtr5 unwfail '! test -f bad.txt' violation fail 'printf FORBIDDEN > bad.txt && mkdir -p d && printf x > d/f && chmod a-w d'
+} > "$(_qtrd unwritable)"
+_qtrcase unwritable
+is  "a mutation that makes a directory in its scratch tree unwritable, with a file inside, leaves no scratch tree, base directory or worktree registration, live, prunable or locked, once its rows return, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line" \
+    "$_qtrres" "pass met; fail met; $_qtrquiet"
+{ _qtr5 nopermpass 'test -f base.txt' restoration pass 'mkdir -p d/e/f && printf x > d/e/f/g && chmod 000 d'
+  _qtr5 nopermfail '! test -f bad.txt' violation fail 'printf FORBIDDEN > bad.txt && mkdir -p d/e/f && printf x > d/e/f/g && chmod 000 d'
+} > "$(_qtrd noperm)"
+_qtrcase noperm
+is  "a mutation that takes every permission from a directory with a file two levels down inside it leaves no scratch tree, base directory or worktree registration, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line" \
+    "$_qtrres" "pass met; fail met; $_qtrquiet"
+{ _qtr5 rootropass 'test -f base.txt' restoration pass 'chmod a-w .'
+  _qtr5 rootrofail '! test -f bad.txt' violation fail 'printf FORBIDDEN > bad.txt && chmod a-w .'
+} > "$(_qtrd rootro)"
+_qtrcase rootro
+is  "a mutation that makes its scratch tree's own root unwritable leaves no scratch tree, base directory or worktree registration, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line" \
+    "$_qtrres" "pass met; fail met; $_qtrquiet"
+{ _qtr5 basero-pass 'test -f base.txt' restoration pass 'chmod a-w ..'
+  _qtr5 basero-fail '! test -f bad.txt' violation fail 'printf FORBIDDEN > bad.txt && chmod a-w ..'
+} > "$(_qtrd basero)"
+_qtrcase basero
+is  "a mutation that makes its row's base directory unwritable leaves no scratch tree, base directory or worktree registration, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line" \
+    "$_qtrres" "pass met; fail met; $_qtrquiet"
+{ _qtr6 prembase  'test -f base.txt' restoration pass true 'chmod a-w ..'
+  _qtr5 cmdnoperm 'mkdir -p d/e/f && printf x > d/e/f/g && chmod 000 d && ! test -f bad.txt' violation fail 'printf FORBIDDEN > bad.txt'
+} > "$(_qtrd columns)"
+_qtrcase columns
+is  "a premise that makes its row's base directory unwritable, and a checker that takes every permission from a nested directory before it decides, leave no scratch tree, base directory or worktree registration, their controls still read pass and met, fail and met, and stderr carries no felix: line" \
+    "$_qtrres" "pass met; fail met; $_qtrquiet"
+
+# C2: giving permissions back never reaches outside the base. The mutation
+# plants symlinks to a file and a directory outside the tree, at its root and
+# inside a directory, then makes both unwritable.
+QTRO="$QTRS/outside"; mkdir -p "$QTRO/dir"
+printf 'kept\n' > "$QTRO/file"; printf 'kept\n' > "$QTRO/dir/inner"
+chmod 0444 "$QTRO/file" "$QTRO/dir/inner"; chmod 0555 "$QTRO/dir"
+_qtr5 links 'test -f base.txt' restoration pass \
+      "mkdir -p d && ln -s '$QTRO/file' lf && ln -s '$QTRO/dir' ld && ln -s '$QTRO/file' d/lf && ln -s '$QTRO/dir' d/ld && chmod a-w d ." \
+      > "$(_qtrd links)"
+_qtrcase links
+is  "a mutation that plants symlinks to a 0444 file and a 0555 directory outside its tree, beside and inside a directory it makes unwritable, still has its scratch tree, base directory and registration removed, and stderr carries no felix: line" \
+    "$_qtrres" "pass met; $_qtrquiet"
+is  "and the file and the directory those symlinks point at keep their modes, 0444 and 0555, and still exist with the file inside the directory: giving permissions back never reaches outside the row's base directory" \
+    "$(_qtrmode "$QTRO/file") $(_qtrmode "$QTRO/dir") $(_qtrmode "$QTRO/dir/inner") $(cat "$QTRO/file" "$QTRO/dir/inner" 2>/dev/null | tr '\n' ' ')" \
+    "-r--r--r-- dr-xr-xr-x -r--r--r-- kept kept "
+chmod -R u+rwX "$QTRO" 2>/dev/null
+
+# C6, revised: a tree git no longer knows as a worktree, its .git file gone,
+# is removed all the same, and with nothing left there is nothing to say.
+_qtr5 gitgone 'test -f base.txt' restoration pass 'rm -f .git' > "$(_qtrd gitgone)"
+_qtrcase gitgone
+is  "a mutation that deletes its scratch tree's .git file leaves no scratch tree, base directory or registration, live, prunable or locked, its verdict still pass and met, and stderr carries no felix: line" \
+    "$_qtrres" "pass met; $_qtrquiet"
+
+# C8: hard links. A file outside, 0444, hard-linked into the tree, and a local
+# clone of the tree, whose objects are hard links to the root's own. Each
+# mutation also makes a directory unwritable, so whatever gives permissions
+# back has work to do. The objects' modes are read before the run and after.
+QTRH="$QTRS/hard-out"; printf 'kept\n' > "$QTRH"; chmod 0444 "$QTRH"
+_qtrobj() {   # root -> how many object files, and each one's mode and path
+  find "$1/.git/objects" -type f 2>/dev/null | LC_ALL=C sort | while IFS= read -r _qtrf; do
+    printf '%s %s\n' "$(_qtrmode "$_qtrf")" "${_qtrf#"$1"/}"; done
+}
+_qtrobjwas="$(_qtrobj "$QTRR")"
+{ _qtr5 hardlink 'test -f base.txt' restoration pass "ln '$QTRH' h && chmod a-w ."
+  _qtr5 hardclone 'test -f base.txt' restoration pass 'git clone -q . sub && chmod a-w sub'
+} > "$(_qtrd hard)"
+_qtrcase hard
+is  "a mutation that hard-links a 0444 file from outside into its tree, and one that clones the tree with git, each then making a directory unwritable, leave no scratch tree, base directory or registration, read pass and met, and say no felix: line" \
+    "$_qtrres" "pass met; pass met; $_qtrquiet"
+_qtrobjnow="$(_qtrobj "$QTRR")"
+is  "and the outside file keeps mode 0444 and its content, and every file under the root's .git/objects, of which there are some, keeps the mode it had before the run: giving permissions back never reaches a file through a hard link" \
+    "$(_qtrmode "$QTRH") $(cat "$QTRH" 2>/dev/null) objects:$(printf '%s' "$_qtrobjwas" | awk 'NF { n++ } END { print (n > 0 ? "some" : "none") }') $([ "$_qtrobjnow" = "$_qtrobjwas" ] && echo same || echo changed)" \
+    "-r--r--r-- kept objects:some same"
+chmod u+w "$QTRH" 2>/dev/null
+
+# C9: a mutation that swaps its tree for a symlink to another worktree of the
+# same root, one holding uncommitted work. That worktree must come through
+# untouched and still registered, and the row's own tree and registration go.
+# The root is one of its own, so its other worktree counts against no other
+# case.
+QTR9="$TMP/qual-tree-repo9"; mkdir -p "$QTR9"
+( cd "$QTR9" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+QTR9="$(cd "$QTR9" && pwd -P)"
+QTR9O="$TMP/qual-tree-other"
+git -C "$QTR9" worktree add --detach -q "$QTR9O" HEAD >/dev/null 2>&1
+QTR9O="$(cd "$QTR9O" 2>/dev/null && pwd -P)"
+printf 'mine\n' > "$QTR9O/uncommitted.txt"
+_qtr5 swap 'test -f base.txt' restoration pass "w=\"\$PWD\"; cd .. && mv \"\$w\" w.orig && ln -s '$QTR9O' w" > "$(_qtrd swap)"
+: > "$QTRS/swap/made"
+_qtrrun "$QTRS/swap/proj" "$QTR9" "$QTRS/swap/made" "$QTRS/swap/stderr" >/dev/null
+is  "a mutation that swaps its scratch tree for a symlink to another worktree of the root leaves that worktree there, its uncommitted file intact and still registered, while the row's own tree, base and registration are gone and stderr carries no felix: line" \
+    "other:$(cat "$QTR9O/uncommitted.txt" 2>/dev/null || echo gone) $(git -C "$QTR9" worktree list --porcelain 2>/dev/null | awk -v r="$QTR9" -v o="$QTR9O" '
+       /^worktree / { p = substr($0, 10); if (p == o) reg = "yes"; else if (p != r) own++ }
+       /^prunable/ { pr++ } /^locked/ { lk++ }
+       END { printf "registered:%s own:%d prunable:%d locked:%d", (reg == "" ? "no" : reg), own, pr, lk }') $(_qtrpaths "$QTRS/swap/made") said:$(_qtrfelix "$QTRS/swap/stderr")" \
+    "other:mine registered:yes own:0 prunable:0 locked:0 made left:[] said:0"
+_qtrclean "$QTRS/swap/made" "$QTR9"
+
+# C10: the row's own working files outside its tree. The base and everything
+# in it made unwritable, which once kept a column's stderr from opening and
+# read the checker that never ran as fail; and the file beside the tree that
+# a column's stderr went to, replaced by a symlink to a file outside, which a
+# later column truncated, or whose words faked a verdict.
+QTRX="$QTRS/err-out"; printf 'kept\n' > "$QTRX"; chmod 0644 "$QTRX"
+QTRXF="$QTRS/err-fake"; printf 'felix-qualify: line 1: qtr_fake_tool: command not found\n' > "$QTRXF"; chmod 0644 "$QTRXF"
+{ _qtr5 errro   "printf x > '$QTRS/errfile/checked'; test -f base.txt" violation fail 'chmod -R a-w ..'
+  _qtr5 errlink 'test -f base.txt' restoration pass "ln -sf '$QTRX' ../err && chmod a-w .."
+  _qtr5 errfake 'test -f base.txt' restoration pass "ln -sf '$QTRXF' ../err && chmod a-w .."
+} > "$(_qtrd errfile)"
+_qtrcase errfile
+_qtrxv="$(printf '%s' "$_qtrres" | awk -F'; ' '{ print $1 " " $2 " " $3 }')"
+is  "a fail control whose mutation makes its base and everything in it unwritable still runs its checker, which passes, so it reads pass and held, never fail and met" \
+    "$(printf '%s' "$_qtrxv" | awk '{ print $1 " " $2 }') $(_qtre "$QTRS/errfile/checked")" "pass held ran"
+is  "a mutation that makes the file beside its tree a symlink to a file outside, and its base unwritable, leaves its verdict pass and met, even when that file reads like a name not found" \
+    "$(printf '%s' "$_qtrxv" | awk '{ print $3 " " $4 "; " $5 " " $6 }')" "pass met; pass met"
+is  "and both files outside keep their modes and every byte they held" \
+    "$(_qtrmode "$QTRX") $(_qtrmode "$QTRXF") $(cat "$QTRX" "$QTRXF" 2>/dev/null | tr '\n' '|')" \
+    "-rw-r--r-- -rw-r--r-- kept|felix-qualify: line 1: qtr_fake_tool: command not found|"
+is  "and none of the three leaves a scratch tree, base directory or registration, or says a felix: line" \
+    "${_qtrres#*; *; *; }" "$_qtrquiet"
+
+# C11: a mutation that locks its own worktree.
+_qtr5 lockself 'test -f base.txt' restoration pass 'git worktree lock --reason x "$PWD"' > "$(_qtrd lockself)"
+_qtrcase lockself
+is  "a mutation that locks its own worktree still leaves no scratch tree, base directory or registration, live, prunable or locked, reads pass and met, and says no felix: line" \
+    "$_qtrres" "pass met; $_qtrquiet"
+
+# C12: a mutation that deletes its row's whole base. It works out the base as
+# the parent of where it runs, and acts only in a linked worktree named w that
+# is not the root, inside a base of a few entries.
+_qtr5 basegone '! test -f bad.txt' violation fail \
+      "d=\$(pwd -P) && [ \"\$d\" != '$QTRR' ] && [ \"\${d##*/}\" = w ] && test -f .git && test -f base.txt && b=\$(dirname \"\$d\") && [ \"\$(ls -A \"\$b\" | wc -l | tr -d ' ')\" -le 4 ] && cd / && rm -rf \"\$b\"" \
+      > "$(_qtrd basegone)"
+_qtrcase basegone
+is  "a mutation that deletes its row's whole base directory reads unrunnable, leaves no registration, prunable included, and says no felix: line" \
+    "$_qtrres" "unrunnable unrunnable; $_qtrquiet"
+
+# C13: a tree that really cannot be removed, a file in it made immutable, is
+# named on stderr in a line beginning felix:. If a runner does remove it after
+# all, nothing is left and nothing need be said; what may not happen is a
+# tree left in silence, or a line about a tree that is gone.
+if command -v chflags >/dev/null 2>&1; then
+  _qtr5 pinned 'test -f base.txt' restoration pass \
+        "pwd > '$QTRS/pinned/pwd'; pwd -P > '$QTRS/pinned/pwdp'; printf x > pinned && chflags uchg pinned" > "$(_qtrd pinned)"
+  : > "$QTRS/pinned/made"
+  _qtrrun "$QTRS/pinned/proj" "$QTRR" "$QTRS/pinned/made" "$QTRS/pinned/stderr" >/dev/null
+  _qtrnames "$QTRS/pinned"
+  case "$(_qtrleft "$QTRS/pinned/made" "$QTRR")" in
+    "$_qtrok") _qtrpin=clean ;;
+    *)         _qtrpin=left ;;
+  esac
+  _qtrpin="$_qtrpin $(_qtrsaid "$QTRS/pinned/stderr" "$QTRS/pinned/names") $(_qtrfelix "$QTRS/pinned/stderr")"
+  case "$_qtrpin" in
+    "left named "[1-9]*|"clean unnamed 0") ok "a scratch tree holding a file made immutable with chflags uchg is either removed with nothing said, or, when any of it is left, named on stderr in a line beginning felix:" ;;
+    *) bad "a scratch tree holding a file made immutable with chflags uchg is either removed with nothing said, or, when any of it is left, named on stderr in a line beginning felix:" \
+           "what was left, whether a felix: line named it, how many felix: lines: [$_qtrpin] $(_qtrleft "$QTRS/pinned/made" "$QTRR")" ;;
+  esac
+  _qtrclean "$QTRS/pinned/made" "$QTRR"
+else
+  skip "a scratch tree holding a file made immutable with chflags uchg is either removed with nothing said, or, when any of it is left, named on stderr in a line beginning felix:" "no chflags here"
+fi
+
+# C3: a row signalled while a column runs. The launcher traps the three
+# signals, so it outlives every run and is never reaped as a job a signal
+# killed. Below it the caller either runs the rows as the CLI does, in a
+# subshell at the signals' defaults that dies at once of TERM or HUP (run), or
+# is the launcher itself, calling the row runner as the rows are called, with
+# got="$(...)", and living to write the row's status and what it printed
+# (one). The git shim holds a git call made after the arm file exists until
+# release2, so a second INT can land while the row is removing its tree; a
+# shim that inherits INT at its default dies of it, as git itself would.
+QTRL="$QTRS/launch"
+cat > "$QTRL" <<'EOF'
+set -uo pipefail
+qtr_mode="$1"; qtr_froot="$2"; qtr_root="$3"; qtr_made="$4"; qtr_st="$5"; shift 5
+cd "$qtr_root" || exit 1
+. "$qtr_froot/harness/lib/resolve.sh"; . "$qtr_froot/harness/lib/qualify.sh"
+mktemp() { local p; p="$(command mktemp "$@")" || return
+           printf '%s\n' "$p" >> "$qtr_made"; printf '%s\n' "$p"; }
+trap 'qtr_sig=1' INT TERM HUP
+if [ "$qtr_mode" = run ]; then
+  ( felix_qualify_run "$1" "$qtr_root" > "$qtr_st" )
+else
+  qtr_got="$(_felix_qualify_one "$qtr_root" "$@")"; qtr_rc=$?
+  printf '%s %s\n' "$qtr_rc" "$qtr_got" > "$qtr_st"
+fi
+exit 0
+EOF
+QTRSHIM="$QTRS/shim"; mkdir -p "$QTRSHIM"
+QTRGIT="$(command -v git)"
+cat > "$QTRSHIM/git" <<EOF
+#!$BASH
+if [ -n "\${QTR_GITHOLD:-}" ] && [ -e "\$QTR_GITHOLD/arm" ]; then
+  printf '%s\n' "\$*" >> "\$QTR_GITHOLD/in-git"
+  i=0; while [ ! -e "\$QTR_GITHOLD/release2" ] && [ \$i -lt 60 ]; do sleep 1; i=\$((i + 1)); done
+fi
+exec '$QTRGIT' "\$@"
+EOF
+chmod +x "$QTRSHIM/git"
+# The columns of a signalled row. The held one becomes a process that marks
+# itself running, waits for the release file, never more than 60 seconds, and
+# exits 0 when base.txt is there, as a checker would. It dies of a signal that
+# reaches it, as a checker does: a bash loop ends on INT with a plain exit
+# 130, and a shell above it then carries on as if nothing had happened. The
+# mark comes from that process itself, so a signal sent once it is there
+# always finds the checker running. Each other column marks that it started.
+_qtrcols() {   # dir, column held: prem | mut | cmd
+  local hold="exec perl -e 'open(my \$f, q(>), \$ARGV[1]) or exit 3; print \$f q(held); close \$f; for (1 .. 60) { last if -e \$ARGV[0]; sleep 1 } exit((-e q(base.txt)) ? 0 : 1)' '$1/release' '$1/at-$2'"
+  _qtrprem=""; _qtrmut="printf x > '$1/ran-mut'"; _qtrcmd="printf x > '$1/ran-cmd'; test -f base.txt"
+  case "$2" in
+    prem) _qtrprem="$hold" ;;
+    mut)  _qtrmut="printf x > '$1/ran-mut'; $hold" ;;
+    cmd)  _qtrcmd="printf x > '$1/ran-cmd'; $hold" ;;
+  esac
+}
+# The processes of group $1 that have not exited; the direct children of $1;
+# and every process below $1, walked down by parent pid. The last two keep to
+# group $2, the run's, so nothing outside the run started here is ever named.
+_qtrgroup() { ps -A -o pid=,pgid=,stat= 2>/dev/null | awk -v g="$1" '$2 == g && $3 !~ /^Z/ { print $1 }'; }
+_qtrkids()  { ps -A -o pid=,ppid=,pgid= 2>/dev/null | awk -v r="$1" -v g="$2" '$2 == r && $3 == g { print $1 }'; }
+_qtrbelow() { ps -A -o pid=,ppid=,pgid= 2>/dev/null | awk -v r="$1" -v g="$2" '
+  { par[$1] = $2; grp[$1] = $3; ids[++n] = $1 }
+  END { want[r] = 1; more = 1
+        while (more) { more = 0
+          for (i = 1; i <= n; i++) if (!(ids[i] in want) && (par[ids[i]] in want)) { want[ids[i]] = 1; more = 1 } }
+        for (i = 1; i <= n; i++) if (ids[i] != r && (ids[i] in want) && grp[ids[i]] == g) print ids[i] }'; }
+_qtrlive()  { case "$(ps -o stat= -p "$1" 2>/dev/null | tr -d ' ')" in ''|Z*) return 1 ;; esac; return 0; }
+_qtrheld()  { [ -s "$1" ] || ! _qtrlive "$2"; }
+_qtringit() { [ -s "$1" ] || [ -z "$(_qtrgroup "$2")" ]; }
+_qtrempty() { [ -z "$(_qtrgroup "$1")" ]; }
+_qtrtill() {   # seconds, test...: poll once a second until it holds; 1 at the deadline
+  local t0=$SECONDS lim="$1"; shift
+  while ! "$@"; do [ $((SECONDS - t0)) -lt "$lim" ] || return 1; sleep 1; done
+}
+# KILL whatever of the run is left, in its group or below it, then reap it.
+_qtrstop() {
+  local k
+  [ -n "$(_qtrgroup "$1")" ] && kill -s KILL -- "-$1" 2>/dev/null
+  for k in $(_qtrbelow "$1" "$1"); do kill -s KILL "$k" 2>/dev/null; done
+  kill -s KILL "$1" 2>/dev/null
+  wait "$1" 2>/dev/null
+}
+# One signalled run. Says, in _qtrres: a second INT's fate when asked for one;
+# the row's status and what it printed (one), or its verdict line when the
+# caller was left alive (run, row or below); whether the mutation and the
+# checker started; whether every process of the run exited by the deadline;
+# and what was left. The row is a pass control whose checker passes, or with
+# fail a fail control whose mutation takes base.txt away, so its checker fails.
+_qtrsig() {   # tag, run | one, INT | TERM | HUP, group | row | below, prem | cmd | mut, [twice | fail]
+  local d="$QTRS/$1" mode="$2" sig="$3" to="$4" hold="$5" twice="${6:-}"
+  local pid caller k path="$PATH" exited=exited second="" control=restoration expect=pass
+  mkdir -p "$d/proj"; : > "$d/made"
+  _qtrcols "$d" "$hold"
+  [ "$twice" = fail ] && { control=violation; expect=fail; _qtrmut="$_qtrmut; rm -f base.txt"; }
+  if [ -n "$_qtrprem" ]; then _qtr6 sig "$_qtrcmd" "$control" "$expect" "$_qtrmut" "$_qtrprem"
+  else _qtr5 sig "$_qtrcmd" "$control" "$expect" "$_qtrmut"; fi > "$d/proj/qualification.tsv"
+  if [ "$mode" = run ]; then set -- "$d/proj"
+  elif [ -n "$_qtrprem" ]; then set -- "$_qtrcmd" "$_qtrmut" "$_qtrprem"
+  else set -- "$_qtrcmd" "$_qtrmut"; fi
+  [ "$twice" = twice ] && path="$QTRSHIM:$PATH"
+  PATH="$path" QTR_GITHOLD="$d" perl -e '$SIG{INT} = $SIG{TERM} = $SIG{HUP} = "DEFAULT"; setpgrp(0, 0) or exit 97; exec @ARGV or exit 98' \
+    "$BASH" "$QTRL" "$mode" "$FROOT" "$QTRR" "$d/made" "$d/status" "$@" </dev/null >/dev/null 2>"$d/stderr" &
+  pid=$!
+  _qtrtill 60 _qtrheld "$d/at-$hold" "$pid"
+  if [ ! -s "$d/at-$hold" ] || [ "$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')" != "$pid" ]; then
+    _qtrres="the $hold column was never reached in a group of its own"
+    : > "$d/release"; _qtrstop "$pid"; _qtrclean "$d/made" "$QTRR"; return 0
+  fi
+  [ "$twice" = twice ] && : > "$d/arm"
+  # The caller that runs the rows: the launcher (one), or its subshell (run).
+  caller="$pid"; [ "$mode" = run ] && caller="$(_qtrkids "$pid" "$pid")"
+  case "$to" in
+    group) kill -s "$sig" -- "-$pid" 2>/dev/null ;;
+    row)   for k in $(_qtrkids "$caller" "$pid"); do kill -s "$sig" "$k" 2>/dev/null; done ;;
+    below) for k in $(_qtrbelow "$caller" "$pid"); do kill -s "$sig" "$k" 2>/dev/null; done ;;
+  esac
+  : > "$d/release"
+  if [ "$twice" = twice ]; then
+    if _qtrtill 60 _qtringit "$d/in-git" "$pid" && [ -s "$d/in-git" ]; then
+      kill -s INT -- "-$pid" 2>/dev/null; second="second:sent "
+    else second="second:never "; fi
+    : > "$d/release2"
+  fi
+  _qtrtill 60 _qtrempty "$pid" || exited=stuck
+  _qtrstop "$pid"
+  case "$mode:$to" in
+    one:*)   _qtrres="rc:$(awk 'NR == 1 { print $1 }' "$d/status" 2>/dev/null) got:$(awk 'NR == 1 { print $2 }' "$d/status" 2>/dev/null) " ;;
+    run:group) _qtrres="" ;;
+    *)       _qtrres="line:$(awk -F'\t' '$1 == "sig" { print $4 " " $5 }' "$d/status" 2>/dev/null) " ;;
+  esac
+  _qtrres="$second${_qtrres}mut:$(_qtre "$d/ran-mut") cmd:$(_qtre "$d/ran-cmd") $exited $(_qtrleft "$d/made" "$QTRR")"
+  _qtrclean "$d/made" "$QTRR"
+}
+
+# The whole process group, as a terminal's Ctrl-C, timeout or a tool's kill
+# sends it, while the checker runs. Under TERM and HUP the caller's own shell
+# dies at once, and the row cleans up with no one left reading it.
+_qtrsig gint run INT group cmd
+is  "a row whose checker is running when INT reaches its run's whole process group removes its scratch tree: once every process of the run has exited, no path mktemp handed the runner is left and the root lists no worktree for it, live or prunable" \
+    "$_qtrres" "mut:ran cmd:ran exited $_qtrok"
+_qtrsig gterm run TERM group cmd
+is  "a row whose checker is running when TERM reaches its run's whole process group removes its scratch tree though the caller's shell dies at once: once every process of the run has exited, nothing mktemp handed the runner is left and the root lists no worktree for it" \
+    "$_qtrres" "mut:ran cmd:ran exited $_qtrok"
+_qtrsig ghup run HUP group cmd
+is  "a row whose checker is running when HUP reaches its run's whole process group removes its scratch tree just the same, with nothing mktemp handed the runner left and no worktree listed in the root, live or prunable" \
+    "$_qtrres" "mut:ran cmd:ran exited $_qtrok"
+_qtrsig oint one INT group cmd
+is  "a row whose process gets INT from its run's process group while its checker runs exits 130 with unrunnable as its verdict, after removing its scratch tree" \
+    "$_qtrres" "rc:130 got:unrunnable mut:ran cmd:ran exited $_qtrok"
+_qtrsig oterm one TERM group cmd
+is  "a row whose process gets TERM from its run's process group while its checker runs exits 143 with unrunnable as its verdict, after removing its scratch tree" \
+    "$_qtrres" "rc:143 got:unrunnable mut:ran cmd:ran exited $_qtrok"
+_qtrsig ohup one HUP group cmd
+is  "a row whose process gets HUP from its run's process group while its checker runs exits 129 with unrunnable as its verdict, after removing its scratch tree" \
+    "$_qtrres" "rc:129 got:unrunnable mut:ran cmd:ran exited $_qtrok"
+# The premise is where a group INT lands, so neither later column may start.
+_qtrsig pint run INT group prem
+is  "a row whose premise is running when INT reaches its run's whole process group removes its scratch tree, and neither its mutation nor its checker starts afterwards" \
+    "$_qtrres" "mut:absent cmd:absent exited $_qtrok"
+# The row's own process alone, its caller left running the rows. The column
+# the signal did not reach runs on until it is released; the row then removes
+# its tree, starts no later column, and reads unrunnable.
+_qtrsig rterm run TERM row mut
+is  "a row whose own process alone gets TERM while its mutation runs, its caller still running the rows, reads unrunnable in both the got and verdict columns, never held, removes its scratch tree once that mutation returns, and never starts its checker" \
+    "$_qtrres" "line:unrunnable unrunnable mut:ran cmd:absent exited $_qtrok"
+_qtrsig rhup run HUP row cmd
+is  "a row whose own process alone gets HUP while its checker runs reads unrunnable in both columns once that checker has ended, never pass and met, and removes its scratch tree" \
+    "$_qtrres" "line:unrunnable unrunnable mut:ran cmd:ran exited $_qtrok"
+# INT is the one a shell lets a waiting child answer for it: a row whose column
+# was told and exited plainly runs on. A fail control's checker that fails once
+# it is let go must not then be counted as a checker that caught its mutation.
+_qtrsig rint run INT row cmd fail
+is  "a fail control whose own process alone gets INT while its checker runs reads unrunnable in both columns once that checker has failed, never fail and met, and removes its scratch tree" \
+    "$_qtrres" "line:unrunnable unrunnable mut:ran cmd:ran exited $_qtrok"
+_qtrsig oterm1 one TERM row mut
+is  "a row whose own process alone gets TERM while its mutation runs exits 143 with unrunnable as its verdict, after removing its scratch tree, and never starts its checker" \
+    "$_qtrres" "rc:143 got:unrunnable mut:ran cmd:absent exited $_qtrok"
+_qtrsig belowterm one TERM below prem
+is  "a row whose processes below its caller all get TERM while its premise runs exits 143 with unrunnable as its verdict, removes its scratch tree, and starts neither its mutation nor its checker" \
+    "$_qtrres" "rc:143 got:unrunnable mut:absent cmd:absent exited $_qtrok"
+# A second INT while the row removes its tree: the first git call the row
+# makes after the first INT is held, the group gets INT again, then the call
+# is let go.
+_qtrsig twice one INT group cmd twice
+is  "a second INT to the run's process group while the row is removing its scratch tree, with git at work on it, does not cut the removal short: the row exits 130, unrunnable, and nothing of the tree is left" \
+    "$_qtrres" "second:sent rc:130 got:unrunnable mut:ran cmd:ran exited $_qtrok"
+
+# Nothing the section made keeps a permission it took away, and its roots
+# list no worktree a run left behind.
+for _qtrp in "$QTRS"/*/made; do [ -f "$_qtrp" ] && _qtrclean "$_qtrp" "$QTRR"; done
+git -C "$QTRU" worktree prune >/dev/null 2>&1
+git -C "$QTR9" worktree prune >/dev/null 2>&1
+chmod -R u+rwX "$QTRS" 2>/dev/null
+
 printf '\nqualification: a control whose premise is absent\n'
 # A control that plants a governed project's name cannot be met in a checkout
 # that governs only itself: there is nothing there for the mutation to break.

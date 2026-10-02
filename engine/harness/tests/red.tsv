@@ -8,8 +8,8 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	17690d2c4ce0bd91a3035cbaa31f776b579635ba	0.49.265
-run	100	6061	9
+base	377880e9e534f5bd08674ea6c6b1a695bcefe5e5	377880e9e534f5bd08674ea6c6b1a695bcefe5e5	0.49.267
+run	86	6075	9
 FELIX_HARNESS_DIR holds lib/maintenance.sh, so it is an engine harness	1
 a FELIX_HARNESS_DIR inherited from the caller is replaced by the lib's own	1
 a bare commit is not a remote-tracking ref: exit 2, one line	1
@@ -46,7 +46,6 @@ and says the same called by a relative path from a subdirectory, finding its lib
 and that row reads inflight, since the check printed it and exited 0	1
 and the emitted inflight row keeps exactly five fields	1
 and the line names it	1
-and the row's reason is given	1
 and the script says it is dated ahead, rather than 0m old	1
 and the script says none in flight for it (exit 1)	1
 and the script says none in flight for them (exit 1)	1
@@ -91,20 +90,7 @@ the age is whole minutes under an hour and whole hours otherwise, rounded down: 
 the branch is named under the remote, without origin/ or refs/remotes/	1
 the check runs in the checkout root it was given	1
 the check runs with FELIX_HARNESS_DIR set to the harness the lib was sourced from	1
-the founder's case 10: a here-document a shell reads is its script	1
-the founder's case 11: and so with -s	1
-the founder's case 12: a redirect's target is written whatever line the here-document ends on	1
-the founder's case 1: a separator glued to the last word ends it, as the shell does	1
-the founder's case 2: a group's separator ends the word too	1
-the founder's case 3: a line break ends a word as a blank does	1
-the founder's case 4: a shell's -c script is a command of its own, quotes and all	1
-the founder's case 5: and so under bash -c	1
-the founder's case 6: a -c script handed to find's -exec is still a command	1
-the founder's case 7: a $( ) assigned to a variable runs	1
-the founder's case 8: a quoted program name is the program	1
-the founder's case 9: a quoted path in command position runs	1
 the in-flight line appears when nothing is due	1
-the reader prints a command separator as a token of its own, an operator of two characters whole	1
 the short form origin/main is read as refs/remotes/origin/main	1
 two non-empty lines are joined by '; ', in the order printed	1
 with no bound it is named	1

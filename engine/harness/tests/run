@@ -4093,8 +4093,11 @@ is  "the generated workflow checks Felix out at the commit it was given" \
 # never reports stood where a failing checkout was meant to.
 is  "and with no commit to give, at the placeholder, quoted so YAML reads a string" \
     "$(_pinwf)" "ref:'{{FELIX_REF}}'"
+# Pinned to a commit, a checkout names its release only in the comment after
+# the sha, so that is what is read. The comment is a claim a reviewer checks
+# against the sha when the pin moves; nothing offline can.
 is  "every checkout in the generated workflow is v5, the lowest major on Node 24" \
-    "$(printf '%s\n' "$gen" | grep -c 'actions/checkout@v5')/$(printf '%s\n' "$gen" | grep -c 'actions/checkout@')" "2/2"
+    "$(printf '%s\n' "$gen" | grep -c -E 'actions/checkout@[0-9a-f]{40} # v5\.')/$(printf '%s\n' "$gen" | grep -c 'actions/checkout@')" "2/2"
 
 # The commit bootstrap pins is the engine source's HEAD, and only when origin's
 # default branch holds it. Any remote branch would do for the checkout to
@@ -4148,6 +4151,58 @@ is  "a commit holding the project it is asked about pins" \
 ( cd "$_PC" && git checkout -q --detach origin/main~1 ) >/dev/null 2>&1
 is  "a commit on the default branch from before the project merged pins nothing" \
     "$(_pinproj "$_PC" projects/w)" "NONE"
+
+printf '\ngenerated CI runs the action code its pins name, and no other\n'
+# A tag is a ref its owner can move, so `actions/checkout@v5` runs whatever
+# that repository points v5 at on the day the job runs, and one of those
+# checkouts fetches Felix with FELIX_DEPLOY_KEY. Felix itself is checked out
+# at a commit so the verdict is a function of the commit; an action on a tag
+# is the same hole one line up. semgrep's github-actions-mutable-action-tag
+# (1.175, p/github-actions) flags it. The unattended template is held to the
+# same rule above, by the same reader of uses: keys.
+#
+# For every stack the workflow can be rendered for, and the stacks are read
+# from bootstrap rather than listed here: each arm of the setup-step case, and
+# each stack detection can report, which is how `none` reaches the fall-through
+# arm. A stack added to either is held to the pin without this section being
+# edited. No stack found, or a render with no uses: line, fails: a read that
+# matched nothing would pass every file.
+_gpstacks="$( . "$FROOT/harness/lib/bootstrap.sh"
+              { declare -f _felix_bs_setup_block | awk '/^[ \t]*[A-Za-z0-9_| \t-]+\)$/ {
+                  v = $0; gsub(/[ \t]/, "", v); sub(/\)$/, "", v); n = split(v, a, "|")
+                  for (i = 1; i <= n; i++) if (a[i] != "") print a[i] }'
+                declare -f felix_guess_ecosystem | awk '/^[ \t]*echo [A-Za-z0-9_-]+;?$/ {
+                  v = $0; sub(/^[ \t]*echo /, "", v); sub(/;$/, "", v); print v }'
+              } | LC_ALL=C sort -u )"
+_gploose=""
+[ -n "$_gpstacks" ] || _gploose=", no stack read from bootstrap"
+for _gpst in $_gpstacks; do
+  _gpuses="$( ( . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/bootstrap.sh"
+                felix_bs_render_workflow "$_gpst" someone/repo ) \
+              | awk '/^[ \t]*#/ { next }
+                     /^[ \t]*(-[ \t]+)?uses:/ { v = $0
+                       sub(/^[ \t]*(-[ \t]+)?uses:[ \t]*/, "", v); sub(/[ \t]+#.*$/, "", v)
+                       print NR ": " v }' | tr -d "\"'")"
+  if [ -z "$_gpuses" ]; then _gploose="$_gploose, $_gpst: no uses: line found"; continue; fi
+  _gpbad="$(printf '%s\n' "$_gpuses" | grep -v -E '^[0-9]+: [^@[:space:]]+@[0-9a-f]{40}$')"
+  [ -z "$_gpbad" ] || _gploose="$_gploose, $_gpst: $(printf '%s' "$_gpbad" | tr '\n' ';')"
+done
+if [ -z "$_gploose" ]; then
+  ok  "every uses: in the gate workflow bootstrap renders names a full commit sha, for every stack it can render"
+else
+  bad "every uses: in the gate workflow bootstrap renders names a full commit sha, for every stack it can render" \
+      "${_gploose#, }"
+fi
+# dtolnay/rust-toolchain chose the toolchain by the ref's name: @stable was a
+# branch whose action.yml defaults it. At a commit on master, the history its
+# README says a pin must come from, the input is required, so the step names it.
+_gprust="$( ( . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/bootstrap.sh"
+              felix_bs_render_workflow rust someone/repo ) \
+            | awk '/uses: dtolnay\/rust-toolchain@/ { s = 1; next }
+                   s && /^[ \t]*- / { s = 0 }
+                   s && /^[ \t]*toolchain:[ \t]*stable[ \t]*$/ { n++ }
+                   END { print n + 0 }')"
+is  "and the rust toolchain step names stable itself, since a commit carries no channel" "$_gprust" "1"
 
 printf '\nmistakes record themselves\n'
 # Judgement at write time is the wrong shape: it asks for a decision at the exact

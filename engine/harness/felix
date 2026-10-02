@@ -2534,11 +2534,10 @@ cmd_toolbox() {
   # nothing matched a capability, nothing was wired, and the report counted a
   # plugin table's worth of "no declared capability looks like it". Now it says
   # nothing was matched or wired and why, prints no table and no count, and
-  # exits 2. The rules are captured with the `.` _felix_cap_active uses, since a
-  # substitution can end with nothing printed and status 0 when its fork fails.
-  local rules nl=$'\n' unread=0
-  rules="$(_felix_discover_rules "$tpl" "$proj" && printf .)" || unread=1
-  case "$rules" in *.) rules="${rules%.}"; rules="${rules%$nl}" ;; *) unread=1 ;; esac
+  # exits 2. The rules are captured with felix_capture, since a substitution can
+  # end with nothing printed and status 0 when its fork fails.
+  local rules="" unread=0
+  felix_capture rules _felix_discover_rules "$tpl" "$proj" || unread=1
   local n_routed=0 n_wired=0 n_orphan=0 n_nocap=0
 
   printf 'toolbox for %s\n\n' "$(basename "$proj")"
@@ -2614,6 +2613,15 @@ EOF
   printf 'version, or an interpolated secret, and a person decides those.\n'
 }
 
+# What felix discover says when the declared capabilities could not be read, so
+# that no capability was asked about. Said by the plain form, by --adopt before
+# it looks at the cache, and by --adopt when its own fill refused for it.
+_felix_discover_unscored() {
+  printf 'Nothing was scored for %s: the capabilities this project declares could not be read.\n\n' "$(basename "$1")"
+  printf 'That is not "nothing matches": no capability was asked about. Nothing was\n'
+  printf 'cached and nothing was adopted.\n'
+}
+
 cmd_discover() {
   resolve_or_die; local proj="$PROJ" inspect=0 quiet=0 adopt=0 a tpl="$SCRIPT_DIR/templates"
   for a in "$@"; do
@@ -2637,23 +2645,33 @@ cmd_discover() {
     # session-start hook ran it. Reading is all this does — nothing fetched
     # here is executed — so it is safe in front of a person.
     local cache; cache="$(_felix_discover_cache "$proj" "$FELIX_HOME_DIR").tsv"
+    # Until 2026-10-01 nothing here asked for the declared list. A current cache
+    # over a list that could not be read adopted its rows and asked claude to
+    # install them, and a stale one was filled by a run that took the unread list
+    # for an empty one and cached "nothing matches". Now the list is asked first,
+    # whatever the cache holds: an unread one says nothing was scored, and
+    # nothing is filled, fetched, adopted or installed.
+    local _dcl=""
+    if ! felix_declared_into _dcl "$proj"; then
+      _felix_discover_unscored "$proj"
+      return 2
+    fi
     if ! felix_discover_cache_current "$proj" "$FELIX_HOME_DIR" "$tpl"; then
-      # Until 2026-10-01 an unread declared list went on to fill the cache, and
-      # the fill said the marketplaces could not be read, which they could.
-      # Now the list is asked before a candidate is fetched, and an unread one
-      # says nothing was scored: no cache, no fetch, nothing adopted.
-      local _dcl
-      if ! felix_declared_into _dcl "$proj"; then
-        printf 'Nothing was scored for %s: the capabilities this project declares could not be read.\n\n' "$(basename "$proj")"
-        printf 'That is not "nothing matches": no capability was asked about. Nothing was\n'
-        printf 'cached and nothing was adopted.\n'
-        return 2
-      fi
       printf 'filling the discovery cache first: each candidate is fetched at its\n'
       printf 'pinned commit and read, and nothing is executed.\n\n'
       mkdir -p "$(dirname "$cache")" 2>/dev/null
-      if cmd_discover --inspect --quiet > "$cache.new" 2>/dev/null; then
+      # The fill reads the list again, and that read can fail after the one
+      # above. The quiet form exits with the status it refused with, 2 for rules
+      # that could not be read and 3 for a catalogue that could not, so the two
+      # are told apart here: nothing was scored is not nothing was seen.
+      local frc=0
+      cmd_discover --inspect --quiet > "$cache.new" 2>/dev/null || frc=$?
+      if [ "$frc" -eq 0 ]; then
         mv -f "$cache.new" "$cache"
+      elif [ "$frc" -eq 2 ]; then
+        rm -f "$cache.new" 2>/dev/null
+        _felix_discover_unscored "$proj"
+        return 2
       else
         # Not "nothing matches". The catalogue was never seen, so there is no
         # answer to act on and none to cache; the next run asks again.
@@ -2762,12 +2780,12 @@ EOF
   # 2026-10-01 that was the empty rule set, so this said nothing matched, and
   # the quiet form cached it. Now it says nothing was scored, which is not the
   # same sentence, and the quiet form prints nothing and leaves the cache alone.
+  # The quiet form exits with the status it refused with, so that --adopt, which
+  # runs it to fill the cache, can say which of the two it was.
   if [ "$crc" -ne 0 ]; then
-    [ "$quiet" -eq 1 ] && return 2
+    [ "$quiet" -eq 1 ] && return "$crc"
     if [ "$crc" -eq 2 ]; then
-      printf 'Nothing was scored for %s: the capabilities this project declares could not be read.\n\n' "$(basename "$proj")"
-      printf 'That is not "nothing matches": no capability was asked about. Nothing was\n'
-      printf 'cached and nothing was adopted.\n'
+      _felix_discover_unscored "$proj"
     elif [ "$crc" -eq 3 ]; then
       printf 'The marketplaces could not be read for %s.\n\n' "$(basename "$proj")"
       printf 'That is not "nothing matches": the catalogue was never seen. Check that\n'
@@ -2787,10 +2805,9 @@ EOF
   # gave a rescore against no rules and a candidate filed under no capability.
   # Now one read stands for every re-score, and an unread one prints nothing,
   # stamp included, and exits 2.
-  local rules="" nl=$'\n'
+  local rules=""
   if [ "$quiet" -eq 1 ]; then
-    rules="$(_felix_discover_rules "$tpl" "$proj" && printf .)" || return 2
-    case "$rules" in *.) rules="${rules%.}"; rules="${rules%$nl}" ;; *) return 2 ;; esac
+    felix_capture rules _felix_discover_rules "$tpl" "$proj" || return 2
   fi
   # The quiet form writes the cache, so its first line is the stamp the
   # readers check, and an empty result is an empty cache rather than a
@@ -4235,7 +4252,7 @@ cmd_repair() {
 }
 
 cmd_doctor() {
-  resolve_or_die; local proj="$PROJ" root new gate rivals fix=0 a declared dnl=$'\n' dunread=0
+  resolve_or_die; local proj="$PROJ" root new="" gate rivals fix=0 a declared="" dunread=0
   for a in "$@"; do case "$a" in --fix) fix=1 ;; esac; done
   root="$(felix_repo_root "$PWD")"
   # Until 2026-10-01 a declared list that could not be read was an empty one:
@@ -4243,11 +4260,10 @@ cmd_doctor() {
   # undeclared drift to adopt, claims about a list nobody read. Now the list is
   # read here, once for each line that prints it, and either read that fails
   # says both lines are not known and prints neither the surfaces nor the
-  # advice to adopt. The undeclared surfaces are captured with the `.`
-  # _felix_cap_active uses, since a substitution can end with nothing printed
-  # and status 0 when its fork fails.
-  new="$(felix_undeclared "$root" "$proj" && printf .)" || dunread=1
-  case "$new" in *.) new="${new%.}"; new="${new%$dnl}" ;; *) dunread=1 ;; esac
+  # advice to adopt. The undeclared surfaces are captured with felix_capture,
+  # since a substitution can end with nothing printed and status 0 when its fork
+  # fails.
+  felix_capture new felix_undeclared "$root" "$proj" || dunread=1
   felix_declared_into declared "$proj" || dunread=1
   gate="$(felix_json_str "$proj/project.json" gate)"
   rivals="$(_felix_rival_gates "$root" "$proj" "$gate")"
@@ -4346,12 +4362,11 @@ EOF
   #
   # Until 2026-10-01 an unread declared list said no capability lacked a rule,
   # and the section was left out as though it had been checked. Now it is one
-  # line saying it is not known, and the list is captured with the `.`
-  # _felix_cap_active uses, since a substitution can end with nothing printed
-  # and status 0 when its fork fails.
-  local unruled uunread=0
-  unruled="$(felix_capabilities_unruled "$proj" "$SCRIPT_DIR/templates" 2>/dev/null && printf .)" || uunread=1
-  case "$unruled" in *.) unruled="${unruled%.}"; unruled="${unruled%$dnl}" ;; *) uunread=1 ;; esac
+  # line saying it is not known, and the list is captured with felix_capture,
+  # since a substitution can end with nothing printed and status 0 when its fork
+  # fails.
+  local unruled="" uunread=0
+  felix_capture unruled felix_capabilities_unruled "$proj" "$SCRIPT_DIR/templates" 2>/dev/null || uunread=1
   if [ "$uunread" -eq 1 ]; then
     printf '\ncapabilities with no discovery rule: not known: the capabilities this project declares could not be read\n'
   elif [ -n "$unruled" ]; then
@@ -4715,18 +4730,15 @@ cmd_procedures() {
   # the real one, a stance on one was called an orphan, and the report could end
   # on "Every item has a stance". The three lists are read first, so that an
   # unread one is known before anything is said from the others, and each is
-  # captured with the `.` _felix_cap_active uses, since a substitution can end
-  # with nothing printed and status 0 when its fork fails. Unread, the one line
-  # below stands in for the gap and orphan sections and the closing claim; the
-  # stance, malformed-row and unknown-moment sections do not read the list and
-  # print as they did.
-  local n_item n_gap n_stance items gaps orphans pnl=$'\n' punread=0
-  items="$(felix_procedures_items "$proj" "$root" && printf .)" || punread=1
-  case "$items" in *.) items="${items%.}"; items="${items%$pnl}" ;; *) punread=1 ;; esac
-  gaps="$(felix_procedures_gaps "$proj" "$root" "$tpl" && printf .)" || punread=1
-  case "$gaps" in *.) gaps="${gaps%.}"; gaps="${gaps%$pnl}" ;; *) punread=1 ;; esac
-  orphans="$(felix_procedures_orphans "$proj" "$root" && printf .)" || punread=1
-  case "$orphans" in *.) orphans="${orphans%.}"; orphans="${orphans%$pnl}" ;; *) punread=1 ;; esac
+  # captured with felix_capture, since a substitution can end with nothing
+  # printed and status 0 when its fork fails. Unread, the one line below stands
+  # in for the gap and orphan sections and the closing claim; the stance,
+  # malformed-row and unknown-moment sections do not read the list and print as
+  # they did.
+  local n_item n_gap n_stance items="" gaps="" orphans="" punread=0
+  felix_capture items felix_procedures_items "$proj" "$root" || punread=1
+  felix_capture gaps felix_procedures_gaps "$proj" "$root" "$tpl" || punread=1
+  felix_capture orphans felix_procedures_orphans "$proj" "$root" || punread=1
   n_item="$(printf '%s\n' "$items" | grep -c .)"
   n_gap="$(printf '%s\n' "$gaps" | grep -c .)"
   n_stance="$(felix_procedures_wellformed "$proj" | grep -c .)"
@@ -5072,11 +5084,10 @@ EOF
   # the section listed only the surfaces the checkout shows and left out every
   # capability the project declares, and said fewer lacked a server, a route or
   # a probe than do. Now an unread list is said in place of the section. The
-  # gaps are captured with the `.` _felix_cap_active uses, since a substitution
-  # can end with nothing printed and status 0 when its fork fails.
-  local gaps gnl=$'\n' gunread=0
-  gaps="$(felix_commission_gaps "$proj" "$root" && printf .)" || gunread=1
-  case "$gaps" in *.) gaps="${gaps%.}"; gaps="${gaps%$gnl}" ;; *) gunread=1 ;; esac
+  # gaps are captured with felix_capture, since a substitution can end with
+  # nothing printed and status 0 when its fork fails.
+  local gaps="" gunread=0
+  felix_capture gaps felix_commission_gaps "$proj" "$root" || gunread=1
   if [ "$gunread" -eq 1 ]; then
     printf '\nsurfaces nothing serves, reaches, or grounds: not known: the capabilities this project declares could not be read\n'
   elif [ -n "$gaps" ]; then
@@ -5150,18 +5161,25 @@ cmd_obligations() {
       return 0
     fi
     # 3 is a request that could not be written because the declared list could
-    # not be read, and 2 the epoch's refusal. Until 2026-10-01 the first was
-    # written over an empty list and named the wrong capabilities; now it is
-    # said as itself, and the epoch sentence below is kept for the epoch.
-    if [ "$rrc" -eq 3 ]; then
-      printf 'no request written: the capabilities this project declares could not be read.\n'
-      printf 'A request over a list nobody read would name the wrong capabilities, so\n'
-      printf 'none was written and any earlier one was left as it was.\n'
-      return 1
-    fi
-    printf 'no request written: the decision epoch cannot be computed for %s here,\n' "$(basename "$proj")"
-    printf 'so nothing could be proposed about it. felix probes says which fact is unknown.\n'
-    return 1
+    # not be read, 2 the epoch's refusal, and anything else, which is 1 from the
+    # request itself, a template that is missing or a place under the memory root
+    # that could not be written. Until 2026-10-01 the first was written over an
+    # empty list and named the wrong capabilities, and every status but 0 was
+    # said to be the epoch; now each says what it is.
+    case "$rrc" in
+      3)
+        printf 'no request written: the capabilities this project declares could not be read.\n'
+        printf 'A request over a list nobody read would name the wrong capabilities, so\n'
+        printf 'none was written and any earlier one was left as it was.\n'
+        return 1 ;;
+      2)
+        printf 'no request written: the decision epoch cannot be computed for %s here,\n' "$(basename "$proj")"
+        printf 'so nothing could be proposed about it. felix probes says which fact is unknown.\n'
+        return 1 ;;
+      *)
+        printf 'no request written: its template is missing, or it could not be written under the memory root.\n'
+        return 1 ;;
+    esac
   fi
 
   # --seed: the §8 step 8 answer, "initialize obligation and evidence state".
@@ -5534,12 +5552,10 @@ cmd_probes() {
   # the first listed fewer surfaces than lack a probe, and the second called a
   # probe that grounds a declared capability an orphan. Now each says in its own
   # place that it is not known, and neither lists anything. Each is captured
-  # with the `.` _felix_cap_active uses, since a substitution can end with
-  # nothing printed and status 0 when its fork fails. The exit status is what it
-  # was.
-  local gaps orphans pnl=$'\n' gunread=0 ounread=0
-  gaps="$(felix_probes_gaps "$proj" "$root" && printf .)" || gunread=1
-  case "$gaps" in *.) gaps="${gaps%.}"; gaps="${gaps%$pnl}" ;; *) gunread=1 ;; esac
+  # with felix_capture, since a substitution can end with nothing printed and
+  # status 0 when its fork fails. The exit status is what it was.
+  local gaps="" orphans="" gunread=0 ounread=0
+  felix_capture gaps felix_probes_gaps "$proj" "$root" || gunread=1
   if [ "$gunread" -eq 1 ]; then
     printf '\nsurfaces nothing probes: not known: the capabilities this project declares could not be read\n'
   elif [ -n "$gaps" ]; then
@@ -5554,8 +5570,7 @@ cmd_probes() {
     printf 'believing that match and having asked the thing that knows.\n'
   fi
 
-  orphans="$(felix_probes_orphans "$proj" "$root" && printf .)" || ounread=1
-  case "$orphans" in *.) orphans="${orphans%.}"; orphans="${orphans%$pnl}" ;; *) ounread=1 ;; esac
+  felix_capture orphans felix_probes_orphans "$proj" "$root" || ounread=1
   if [ "$ounread" -eq 1 ]; then
     printf '\nprobes for surfaces nothing enumerates: not known: the capabilities this project declares could not be read\n'
   elif [ -n "$orphans" ]; then

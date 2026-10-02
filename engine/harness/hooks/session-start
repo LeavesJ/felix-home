@@ -212,25 +212,23 @@ _slug="$(felix_repo_slug "$_repo_root" 2>/dev/null || true)"
 # felix_undeclared called every detected surface undeclared and this adopted each
 # of them, capabilities that may already have been declared, into manifests
 # nobody had asked it to change. Now what it printed is believed only when it
-# came back whole: a status of 0 and the `.` _felix_cap_active uses, written
-# only after the status, since a substitution can end with nothing printed and
-# status 0 when its fork fails. Anything else adopts nothing and says drift was
-# not checked, which is not the same sentence as there being none.
-_drift_unread=0; _undeclared_nl=$'\n'
-_undeclared="$(felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null && printf .)" || _drift_unread=1
-case "$_undeclared" in
-  *.) _undeclared="${_undeclared%.}"; _undeclared="${_undeclared%$_undeclared_nl}" ;;
-  *) _drift_unread=1 ;;
-esac
-if [ "$_drift_unread" -eq 1 ]; then _undeclared=""; fi
-while IFS= read -r _cap; do
+# came back whole, which felix_capture says, since a substitution can end with
+# nothing printed and status 0 when its fork fails. Anything else adopts nothing
+# and says drift was not checked, which is not the same sentence as there being
+# none. The loop walks the string in this shell, where a here-document is a
+# temporary file on bash 3.2 and one that cannot be written ends the loop before
+# its first capability, so a drift that was read would be said to be none.
+_drift_unread=0; _undeclared=""
+felix_capture _undeclared felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null || _drift_unread=1
+_nl=$'\n'; _rest="$_undeclared"
+while [ -n "$_rest" ]; do
+  _cap="${_rest%%$_nl*}"
+  if [ "$_cap" = "$_rest" ]; then _rest=""; else _rest="${_rest#*$_nl}"; fi
   [ -n "$_cap" ] || continue
   if _counts="$(felix_adopt_capability "$PROJ" "$_cap" "${ENGINE_DIR}/templates" "$_slug" 2>/dev/null)"; then
     adopted="$adopted $_cap(${_counts// /+})"
   fi
-done <<EOF
-$_undeclared
-EOF
+done
 
 if [ "$_drift_unread" -eq 1 ]; then
   drift_line="
@@ -585,7 +583,12 @@ if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/nu
   # types the command.
   command -v felix_commission_resume_bg >/dev/null 2>&1 \
     && felix_commission_resume_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix" 2>/dev/null
-  _cm_topo="$(felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null)"
+  # Captured with felix_capture, since a topology that could not be computed is
+  # not an empty one: the all-clear below is keyed to it, and every answer file
+  # is read against it. Which of the two it is is said with the rows it leaves
+  # unknown, below.
+  _cm_topo=""; _cm_topo_unread=0
+  felix_capture _cm_topo felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null || _cm_topo_unread=1
   _cm_seen="$FELIX_HOME_DIR/state/commission/$(basename "$PROJ").seen"
   _cm_await=""; _cm_ans=0; _cm_unread=""
   while IFS=$'\t' read -r _cn _cg _ci _cw _ca _cc _cs; do
@@ -648,6 +651,15 @@ Commissioning: receipt ${_cm_valid}."
     context="$context
 
 Commissioning: whether these answers are whole could not be read, so they are neither owed nor recorded; felix commission --status reads them again:${_cm_unread}"
+    # And why, when it is the topology: an answer is read against it, so one that
+    # could not be computed leaves every answer unknown. The sentence names the
+    # declared list because that is what the topology fails for, bar a hash that
+    # could not be made, which the capture cannot tell from it.
+    if [ "$_cm_topo_unread" -eq 1 ]; then
+      context="$context
+
+Commissioning: the topology these answers are keyed to could not be computed: the capabilities this project declares could not be read."
+    fi
   fi
   [ "$_cm_ans" -gt 0 ] && context="$context
 

@@ -4,73 +4,78 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	2b6e2fab9f5da56ede84252e9849e1236c5185f2	2b6e2fab9f5da56ede84252e9849e1236c5185f2	0.49.231
-run	68	3786	5
-a blank line and a comment are still skipped, and an id with digits, _ and - is a checker	1
-a checker that is not an id is malformed, a space, a glob, a capital, a digit or a dash first	1
-a checker that reads its stdin leaves the row after it to run, and that row is held	1
-a held row with a tab in front of it refuses --gate, named malformed	1
-a row loop that gave every verdict and then failed refuses --gate by itself, saying the run did not finish	1
-a row of more than six fields is malformed	1
-a row with a tab in front of its checker is malformed, never skipped as a blank line	1
-a table gone after any read felix qualify --gate makes never passes it	1
-a table moved away for any one read felix qualify --gate makes never passes it	1
-a table rewritten to one that passes, after any read felix qualify --gate makes, leaves the run it read refusing on its held control	1
-a table that cannot be read names no control missing, rather than all six, and exits 2	1
-a table whose lines end in a bare carriage return is malformed, never one row with the rest unread	1
-and a run over a met control exits 0 only with a clean run's output, its shortfall included, and otherwise says what could not be read or worked out	1
-and a run whose one checker is never shown failing here never exits 0 either	1
-and claims neither a check no row qualifies nor that every check has one	1
-and counts nothing it could not read	1
-and felix gate fails qualified showing each such row MALFORMED under it	1
-and its summary line ends saying what would discharge them could not be read	1
-and leaves off the table of what would discharge each	1
-and missing_controls says on stderr which table could not be read	1
-and missing_controls says so without the caller's pipefail	1
-and names none of demo's controls missing	1
-and needs says on stderr which table could not be read	1
-and needs says so without the caller's pipefail	1
-and never counts across 0 checkers nor names a file of the checkout	1
-and none of those rows is run	1
-and one that finished having given 1 verdict of 2 refuses by itself, saying 1 of 2 ran	1
-and over a felix qualify --gate killed before it said anything, qualified FAIL still says where to read why	1
-and plain felix qualify exits 2 when the roster gap could not be read	1
-and plain felix qualify over it does the same	1
-and says it ran 1 of the 2 controls, exiting 1	1
-and says why, that it declares no control that can be run	1
-and shows that row held	1
-and so does a held row after a bare carriage return	1
-and so does a mutation that reads its stdin	1
-and so is a row ending in a carriage return and a newline	1
-and so without the caller's pipefail	1
-and that is the one line missing_controls writes there	1
-and that is the one line needs writes there	1
-and that is the one line ungoverned writes there	1
-and the gate's summary counts nothing it could not read	1
-and the gate's summary line ends saying what would discharge them could not be read	1
-and the same when the read that fails is an earlier one, with a later one read	1
-and ungoverned says on stderr which table could not be read	1
-and ungoverned says so without the caller's pipefail	1
-and whichever read fails, felix gate never says across 0 checker(s) nor shows awk's own error	1
-and whichever read plain felix qualify makes fails, it says what could not be read and exits 2	1
-felix gate over a felix qualify --gate whose row loop was killed says under qualified FAIL that the run did not finish and 1 of 2 ran	1
-felix gate over a present, empty table fails qualified and says under it that no checker here is qualified	1
-felix gate over a table it cannot read fails qualified and says under it that the table could not be read	1
-felix qualify --gate naming a checker with no row refuses, and says no control is declared for it	1
-felix qualify --gate over a table it cannot read runs nothing, says it could not be read naming it, and exits 2	1
-felix qualify --gate reads qualification.tsv exactly once	1
-felix qualify --gate refuses a held row after a checker that reads its stdin	1
-felix qualify --gate refuses rows whose checker is my check or *, rather than running them	1
-felix qualify says which checks have a row could not be read when that read fails	1
-felix_qualify_run over a table it cannot read runs nothing and exits 2, with the caller's pipefail and without	1
-in a UTF-8 locale, a row holding a byte that is not UTF-8 hides no checker after it from felix qualify	1
-in a UTF-8 locale, a row holding a byte that is not UTF-8 is read, and ungoverned names only the unqualified	1
-needs over a table that cannot be read resolves nothing, not every capability absent, and exits 2	1
-needs whose last read of one checker's controls fails prints nothing and exits 2	1
-plain felix qualify reads it once for its controls and at most once more for the roster gap	1
-ungoverned over a table that cannot be read names no reported checker, and exits 2	1
-when the last read felix qualify --gate makes of the table fails, it says the table could not be read and exits 2	1
-whichever awk, tr, cut or sort call felix qualify --gate makes fails, a run over a held control never exits 0	1
-whichever read of the table fails, needs prints nothing, exits 2, and says so in one stderr line naming it	1
-whichever read of the table felix gate's qualified check makes fails, it prints qualified FAIL with a line under it saying what could not be read	1
-whichever read of the table felix qualify --gate makes fails, it runs nothing, says the table could not be read, and exits 2	1
+base	ea865e82	ea865e821f4d60531badca673e224a3f6a5527af	0.49.236
+run	73	4130	5
+a checker that does not exist, exit 127, reads unrunnable on a fail control, never fail and met	1
+a checker the row runs, whose own body pipes big output into grep -q, passes its pass control and is met with BASH_ENV exported by the caller naming a file that sets pipefail, and again with SHELLOPTS exported: the checker inherits neither	1
+a command exiting 126, or a checker file that is not executable, reads unrunnable, while one exiting 1 or 2 still reads fail and met	1
+a command in the schema rows' negated shape over big output fails when its mutation plants the finding, and the control is met, not held	1
+a command naming an engine function finds no such command and reads unrunnable, neither pass nor fail	1
+a command piping an engine function into grep -q reads unrunnable on a fail control, never fail and met with no checker run	1
+a command sees none of the runner's locals or positional parameters: scratch, cmd and 1 are empty to it	1
+a command testing a name nobody set passes, rather than failing and held	1
+a command that does not parse, a stray quote after its checker, reads unrunnable, never fail and met	1
+a command that is only a comment reads unrunnable, never pass and met with no checker run	1
+a command that is that pipeline passes a pass control and is met, rather than failing and held	1
+a command whose checker sits in a command substitution holding a syntax error found only when it runs reads unrunnable on a fail control, never fail and met	1
+a command whose text begins with a dash runs as a command and reads unrunnable, never taken for bash's own options and read fail and met	1
+a fail control whose own process alone gets INT while its checker runs reads unrunnable in both columns once that checker has failed, never fail and met, and removes its scratch tree	1
+a mutation exiting 126 is unrunnable too, while one exiting 1 still has its status ignored and its checker decides the row	1
+a mutation of spaces makes its pass control unrunnable, never met over no change	1
+a mutation testing a name nobody set runs to the end, so the checker catches its change	1
+a mutation testing an engine function in an if makes its pass control unrunnable, never met over a change it never made	1
+a mutation that deletes its row's whole base directory reads unrunnable, leaves no registration, prunable included, and says no felix: line	1
+a mutation that deletes its scratch tree's .git file leaves no scratch tree, base directory or registration, live, prunable or locked, its verdict still pass and met, and stderr carries no felix: line	1
+a mutation that does not parse makes its pass control unrunnable, and no checker runs after it	1
+a mutation that hard-links a 0444 file from outside into its tree, and one that clones the tree with git, each then making a directory unwritable, leave no scratch tree, base directory or registration, read pass and met, and say no felix: line	1
+a mutation that is only a comment, after leading spaces, makes its pass control unrunnable, never met over no change, and no checker runs after it	1
+a mutation that locks its own worktree still leaves no scratch tree, base directory or registration, live, prunable or locked, reads pass and met, and says no felix: line	1
+a mutation that makes a directory in its scratch tree unwritable, with a file inside, leaves no scratch tree, base directory or worktree registration, live, prunable or locked, once its rows return, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line	1
+a mutation that makes its row's base directory unwritable leaves no scratch tree, base directory or worktree registration, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line	1
+a mutation that makes its scratch tree's own root unwritable leaves no scratch tree, base directory or worktree registration, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line	1
+a mutation that plants symlinks to a 0444 file and a 0555 directory outside its tree, beside and inside a directory it makes unwritable, still has its scratch tree, base directory and registration removed, and stderr carries no felix: line	1
+a mutation that removes its own scratch tree leaves nowhere to run the checker, so its fail control reads unrunnable, never fail and met	1
+a mutation that starts with that pipeline and an && makes its whole change, so a checker that catches it is met, not held	1
+a mutation that swaps its scratch tree for a symlink to another worktree of the root leaves that worktree there, its uncommitted file intact and still registered, while the row's own tree, base and registration are gone and stderr carries no felix: line	1
+a mutation that takes away its row's base directory, and with it the file its stderr went to, makes its fail control unrunnable, never fail and met	1
+a mutation that takes every permission from a directory with a file two levels down inside it leaves no scratch tree, base directory or worktree registration, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line	1
+a mutation whose command does not exist, exit 127, makes its pass control unrunnable, never met over a tree it did not change	1
+a mutation with such a command substitution in its && chain makes its pass control unrunnable, never met over no change, and no checker runs after it	1
+a name that exists nowhere, in a pipeline, counts as an engine function does: the command reads unrunnable, never fail and met	1
+a pass control's command negating that pipeline reads unrunnable, never pass and met	1
+a premise and a mutation see none of the runner's locals or positional parameters: each writes || for scratch, its own text and 1	1
+a premise negating that pipeline makes its control inapplicable and never applies its mutation	1
+a premise of spaces reads unrunnable, never applied as a premise that held	1
+a premise piping an engine function into grep -q reads unrunnable, never inapplicable	1
+a premise piping big output into grep -q that finds its match lets its control run and be met, never unrunnable	1
+a premise testing a name nobody set applies its control rather than reading as inapplicable	1
+a premise that does not parse reads unrunnable, never inapplicable	1
+a premise that is an engine function alone reads unrunnable: a premise's shell has none of the runner's functions	1
+a premise that is only a comment reads unrunnable, never applied as a premise that held	1
+a premise that makes its row's base directory unwritable, and a checker that takes every permission from a nested directory before it decides, leave no scratch tree, base directory or worktree registration, their controls still read pass and met, fail and met, and stderr carries no felix: line	1
+a row whose checker is running when HUP reaches its run's whole process group removes its scratch tree just the same, with nothing mktemp handed the runner left and no worktree listed in the root, live or prunable	1
+a row whose checker is running when INT reaches its run's whole process group removes its scratch tree: once every process of the run has exited, no path mktemp handed the runner is left and the root lists no worktree for it, live or prunable	1
+a row whose checker is running when TERM reaches its run's whole process group removes its scratch tree though the caller's shell dies at once: once every process of the run has exited, nothing mktemp handed the runner is left and the root lists no worktree for it	1
+a row whose own process alone gets HUP while its checker runs reads unrunnable in both columns once that checker has ended, never pass and met, and removes its scratch tree	1
+a row whose own process alone gets TERM while its mutation runs exits 143 with unrunnable as its verdict, after removing its scratch tree, and never starts its checker	1
+a row whose own process alone gets TERM while its mutation runs, its caller still running the rows, reads unrunnable in both the got and verdict columns, never held, removes its scratch tree once that mutation returns, and never starts its checker	1
+a row whose premise is running when INT reaches its run's whole process group removes its scratch tree, and neither its mutation nor its checker starts afterwards	1
+a row whose process gets HUP from its run's process group while its checker runs exits 129 with unrunnable as its verdict, after removing its scratch tree	1
+a row whose process gets INT from its run's process group while its checker runs exits 130 with unrunnable as its verdict, after removing its scratch tree	1
+a row whose process gets TERM from its run's process group while its checker runs exits 143 with unrunnable as its verdict, after removing its scratch tree	1
+a row whose processes below its caller all get TERM while its premise runs exits 143 with unrunnable as its verdict, removes its scratch tree, and starts neither its mutation nor its checker	1
+a scratch tree holding a file made immutable with chflags uchg is either removed with nothing said, or, when any of it is left, named on stderr in a line beginning felix:	1
+a second INT to the run's process group while the row is removing its scratch tree, with git at work on it, does not cut the removal short: the row exits 130, unrunnable, and nothing of the tree is left	1
+an empty command and a command of spaces each read unrunnable, never pass and met with no checker run	1
+and no checker runs after a mutation that exited 127	1
+and none of the three leaves a scratch tree, base directory or registration, or says a felix: line	1
+and on a fail control it reads pass and held, never fail and met, which is what a working checker says	1
+and on a fail control that command passes and is held, never fail and met because nounset stopped it	1
+and on a pass control the same mutation is seen whole: a checker rejecting it is held, never met over a tree the mutation did not reach	1
+and shows that control met, its checker failing	1
+and unrunnable on a pass control, never fail and held	1
+and with BASH_ENV exported by its caller, naming a file that sets pipefail, that command still passes and is met	1
+felix qualify --gate passes a fail control in the schema rows' negated shape over big output when its checker catches the mutation	1
+no temporary path outlives a run whose rows are met, held, inapplicable, and unrunnable from each column: every path mktemp handed the runner is gone, and it was handed at least one	1
+with POSIXLY_CORRECT exported by its caller, a command using a process substitution still passes its pass control and is met, as a plain command beside it does	1
+with SHELLOPTS exported by its caller, carrying nounset and pipefail, a command piping big output into grep -q still passes its pass control and is met	1

@@ -8,26 +8,103 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	2abedde40d5a0e0f9871ed8489f178e84af76635	2abedde40d5a0e0f9871ed8489f178e84af76635	0.49.245
-run	21	4631	5
-a checkout with no github remote is refused with exactly one refused row	1
-a dry run on an escaping tree leaves says.log byte for byte as it found it	1
-a real run refused for blockers of two kinds records one refused row per kind	1
-a real run refused for two escapes of one kind records exactly one refused row	1
-a self-governed merge is told its head commit by --match-head-commit too	1
-a self-governed repository refused for a set FELIX_KERNEL records exactly one refused row	1
-an argument felix merge cannot honour is recorded as exactly one refused row	1
-and a dry run on an escaping tree writes no escalated row	1
-and adds, removes or changes no file under the project's memory	1
-and each of those refused rows carries the branch and the session	1
-and is handed a non-empty --subject and --body	1
-and its Felix-Gate trailer is the tree id the receipt was recorded for	1
-and its Felix-Judge trailer is main's declared version at the base ref's full sha	1
-and its subject and body carry no ci skip marker though every commit does	1
-and neither subject nor body carries a ci skip marker though every commit does	1
-and that refused row begins with the branch and the kind and carries the session	1
-and that row begins with the checked-out branch and carries the session	1
-and the FELIX_KERNEL refusal row carries the branch and the session	1
-and the body ends in Felix-Gate and Felix-Judge trailers naming the receipt's tree	1
-and the no-remote refusal row carries the branch and the session	1
-gh pr merge is told the head commit the checkout has, by --match-head-commit	1
+base	origin/main	4f1fa15fecfa63ea52e74ca743869b552e42836e	0.49.246
+run	98	4653	8
+_felix_qualify_sweep called on its own, from the root with TMPDIR exported, removes a dead base and its registration and prints nothing on stdout or stderr	1
+a base in the TMPDIR named felix-qualify. and six letters or digits, holding owner as a symlink whose text is a dead pid alone, is swept with its tree's registration, and the run's own row still reads pass and met	1
+a base named felix-qualify- and six letters, a dash where the dot goes, with a dead record, is left as it was	1
+a base named felix-qualify. and five characters, with a dead record, is left as it was	1
+a base named felix-qualify. and seven characters, with a dead record, is left as it was	1
+a base named felix-qualify. and six characters one of which is a dash, with a dead record, is left as it was	1
+a base named tmp. and six characters, as an older engine named them, with a dead record is left as it was	1
+a base that is a symlink to a directory holding a dead record and a registered tree is never followed: the link, its target, the target's mode, record and entries, and the tree's registration are all as they were, beside a dead base the run swept	1
+a base whose owner is a regular file holding a dead pid, not a symlink, is left as it was, registration included	1
+a base whose record has two spaces between a dead pid and its start is left as it was, registration included	1
+a base whose record is a dead pid and one space with no start after it is left as it was, registration included	1
+a base whose record is a dead pid followed by a newline is left as it was, registration included	1
+a base whose record is a dead pid with a minus sign before it is left as it was, registration included	1
+a base whose record is an empty text is left as it was, registration included	1
+a base whose record is letters, not digits, is left as it was, registration included	1
+a base whose record is pid 0 is left as it was, registration included	1
+a base whose record names a dead pid with a start is swept, registration included	1
+a base whose record names a live pid alone, with no start, is left as it was, registration included	1
+a base whose record names a live pid with a start that is not that process's is swept, registration included, and the live process is still running	1
+a base whose record names a live pid with that process's true start is left as it was, registration included	1
+a base whose record names pid 1, which kill -0 may not signal, is left as it was: a failure that is not No such process is a process that exists	1
+a base whose record's pid begins with a zero is left as it was, registration included	1
+a base whose record's start holds a tab is left as it was, registration included	1
+a base with a dead record whose search bit is off, so owner cannot be read, is left as it was, its mode 0600 included	1
+a base with no owner record is left as it was, mode, entries and registration, by the run that swept the dead base beside it	1
+a dead base a row's mutation plants beside its own base mid-run is still there when that run ends, both its rows read pass and met, and the next run removes it	1
+a dead base holding an entry named as its owner text, a symlink to a directory outside that holds a regular file named claim, is swept, registration included, and over two sweeps that directory keeps its file and gains nothing	1
+a dead base in the TMPDIR whose tree another repository registered is removed from disk by a run in this root, and this root's worktree list, a live worktree with uncommitted work and a prunable one, is exactly as it was	1
+a dead base renamed aside and replaced by a symlink to another directory while the sweep's drop runs leaves that directory and everything in it as it was	1
+a dead base whose claim is a symlink to a directory outside that holds a regular file named claim is left as it was, claim included, and over two sweeps that directory keeps its file and gains nothing, beside the dead base the sweeps removed	1
+a dead base whose claim link names a live process is left as it was, its owner record, its claim and its registration, and the sweep makes no git worktree remove of its tree, beside a dead base whose claim names a dead process, which is swept	1
+a dead base whose own mode was taken down to 0555 is given its bits back and swept, registration included	1
+a dead base whose registration git cannot remove, its admin directory made immutable, has its base removed, and the sweep says once, not twice, that the root still lists its tree; once the flag is cleared the next sweep removes the registration	1
+a dead base whose tree holds symlinks to a 0444 file and a 0555 directory outside, in a directory left unwritable, is swept, and the file and directory keep their modes and content	1
+a dead base whose w was swapped for a symlink to another worktree of the root is swept, its own registration included, and that other worktree, its uncommitted file and its registration survive	1
+a later felix_qualify_run in the same TMPDIR removes that base and its registration, leaving the TMPDIR empty and the root listing only itself, and its own row still reads pass and met	1
+a later run's sweep leaves that base, says so in a felix: line naming it, begins no line of its stderr with two spaces, and leaves the base holding an owner record that now names another process than the dead row	1
+a live user worktree stays listed, its uncommitted file intact	1
+a prunable worktree elsewhere, not Felix's, stays listed	1
+a registration of <T>/felix-qualify. and five characters /w whose base is gone stays listed	1
+a registration of <T>/felix-qualify.XXXXXX/w is left by a run whose TMPDIR, T, is not a directory, and once T is a directory again the next run removes it as an orphan	1
+a registration of <T>/felix-qualify.XXXXXX/w whose base is a dangling symlink stays listed and the symlink stays	1
+a registration of <T>/felix-qualify.XXXXXX/w whose base is gone is removed by the next run, matched through the TMPDIR's physical path as git records it, and that run's own row still reads pass and met	1
+a registration of <T>/felix-qualify.XXXXXX/w whose base is still there, holding no record, stays listed and the base stays	1
+a registration of <T>/felix-qualify.XXXXXX/x whose base is gone stays listed	1
+a registration of <T>/other/w whose directory is gone stays listed, by the run that removed a felix-qualify orphan beside it	1
+a registration of a felix-qualify.XXXXXX/w whose base is gone but lies outside the TMPDIR stays listed	1
+a row whose mutation swaps its own base for a symlink to a directory outside holding a file named err leaves that directory's files as they were	1
+a row whose own process alone is SIGKILLed while its checker holds, its caller left running on into a second row that holds in turn, has its base and registration removed by the sweep of a run started once it is gone, the caller and the second row still running then	1
+a row whose owner record cannot be made, its base left without its write bit, reads unrunnable, adds no worktree, leaves no base or registration, and says one felix: line naming its base	1
+a row whose tree holds a file made immutable with chflags uchg leaves its base, once the run has ended, holding its owner record, a symlink whose pid is dead	1
+a run SIGKILLed as a whole process group while its row's checker holds leaves that row's base in its TMPDIR, holding owner, a symlink whose pid is now dead, and the tree in it still registered in the root	1
+a run that sweeps two dead bases prints byte for byte the three verdict lines a run with nothing to sweep prints, says nothing on stderr, and leaves its TMPDIR empty and the root listing only itself	1
+a run whose caller alone is SIGKILLed while its row holds keeps that row's owner record naming the row's live process, and a later run's sweep leaves that base, record and registration as they were	1
+a run whose checker names no row of its table still sweeps a dead base in its TMPDIR, registration included, and prints nothing	1
+a run whose shell has failglob set by its caller still reads its row pass and met, sweeps a dead base, registration included, throws its own row's base away with the junk its mutation wrote beside the tree, and says no felix: line	1
+a run whose shell has noglob set by its caller still reads its row pass and met, sweeps a dead base, registration included, throws its own row's base away with the junk its mutation wrote beside the tree, and says no felix: line	1
+a sweep KILLed as its drop's git worktree remove starts leaves the base holding only its tree and one owner record, which names that sweep's own process, now dead	1
+a sweep KILLed right after its first git in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing	1
+a sweep KILLed right after its first ln in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing	1
+a sweep KILLed right after its first mv in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing	1
+a sweep KILLed right after its first rm in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing	1
+a sweep that judged a base's record dead before another sweep claimed it, and reaches its own claim only while the other stands in its drop, leaves the base: owner still names the other sweep, and it makes no git worktree remove, leaves no claim and says nothing	1
+an orphan registration git cannot remove, its admin directory made immutable, stays listed and is said in the drop's own words, felix: <root> still lists the scratch worktree <P>, which could not be removed, and the next run once it can be removes it	1
+and once that other sweep is KILLed in its drop's git, the next sweep removes the base and its registration	1
+and released, that row runs to its end and removes its own base and registration	1
+and that other repository's own next run in the same TMPDIR removes the registration it was left holding, so it lists only itself	1
+and the start it records is that row process's start: where /proc names the pid namespace, field 22 of /proc/<pid>/stat, @ and that namespace; elsewhere ps -o lstart= under TZ=UTC0 and LC_ALL=C, every blank removed	1
+every git worktree add either run made found owner already a symlink in the base it added the tree to	1
+felix qualify --gate from a bound checkout sweeps a dead base in its TMPDIR, registration included, and prints the same stdout and stderr, its three rows among them, and exits with the same status as a run with nothing to sweep	1
+felix qualify without --gate sweeps a dead base in its TMPDIR as well, registration included	1
+four sweeps started together over three dead bases, in each of three rounds, leave none of them on disk or registered, print nothing on stdout, and say no felix: line	1
+no git command that run made was a worktree prune or a gc	1
+once the flag is cleared, the next run removes that base, and the root lists only itself	1
+released, run A ends with its row read pass and met, and neither run leaves a base in the TMPDIR or a worktree registered beside the root	1
+when the sweep's drop calls git worktree remove on a dead base's tree, the base's owner record already names the process making that call, the sweep's own, and not the dead row	1
+while a row holds in its checker, owner in its base is a symlink reading <pid> <start> with one space between, and the pid is the row's own process: alive, an ancestor of the held checker, below the shell that called felix_qualify_run, and never that shell itself	1
+while run A holds in its checker, a run B in the same TMPDIR and root leaves A's base as it was, its owner record and its registration with it, A's checker is still running, and B's own row reads pass and met	1
+with T given through a symlink, a dead base whose tree is registered in another repository, swapped for a symlink to a directory whose w is another worktree of the sweep's root as the drop first reads the root's list, has no worktree remove made for it, and that worktree, its uncommitted file and its registration are as they were	1
+with T given through a symlink, a dead base whose tree is registered nowhere, swapped for a symlink to a directory whose w is another worktree of the sweep's root as the drop first reads the root's list, has no worktree remove made for it, and that worktree, its uncommitted file and its registration are as they were	1
+with T given through a symlink, the dead base itself swapped for a symlink to a directory holding another worktree of the root, added after the dead base's tree, as the sweep's drop starts git, leaves that worktree, its uncommitted file and its registration as they were	1
+with T given through a symlink, the dead base itself swapped for a symlink to a directory holding another worktree of the root, added before the dead base's tree, as the sweep's drop starts git, leaves that worktree, its uncommitted file and its registration as they were	1
+with T given through a symlink, the dead base's tree swapped for a symlink to a directory holding another worktree of the root, added after the dead base's tree, as the sweep's drop starts git, leaves that worktree, its uncommitted file and its registration as they were	1
+with T given through a symlink, the dead base's tree swapped for a symlink to a directory holding another worktree of the root, added before the dead base's tree, as the sweep's drop starts git, leaves that worktree, its uncommitted file and its registration as they were	1
+with TMPDIR a directory whose name ends in a newline, a sweep that removes a dead base there leaves the registration of a felix-qualify base gone from the directory of the same name without the newline, outside its TMPDIR	1
+with TMPDIR a symlink to a directory, given with a trailing slash, a registration of that directory's physical path, felix-qualify.XXXXXX/w, whose base is gone is removed	1
+with a proc filesystem that names the pid namespace pid:[777] and a boot id, a base whose record names a dead pid with a start in that namespace and boot is swept, registration included	1
+with a ps on PATH that prints nothing, a base whose record names a live pid with a start that is not its own is left as it was: a start that cannot be read now shows no other process	1
+with a ps on PATH that prints nothing, a base whose record names a live pid with its true start is left as it was	1
+with a sh first on PATH that forks rather than execs, a row whose checker holds records its own live process, and ends pass and met, or records none and reads unrunnable having run nothing: never a pid already gone while the row is alive	1
+with that proc filesystem, a base whose record names a dead pid alone is left as it was: a host whose /proc names its namespace cannot judge it	1
+with that proc filesystem, a base whose record names a dead pid in that namespace but another boot is left as it was: another host's or another boot's pid is not this sweep's to read	1
+with that proc filesystem, a base whose record names a dead pid in that namespace with no boot after it is left as it was	1
+with that proc filesystem, a base whose record names a dead pid with a start in another namespace, pid:[888], is left as it was: the pid is not this sweep's to read	1
+with that proc filesystem, a base whose record names a dead pid with a start ps prints, naming no namespace, is left as it was: a host whose /proc names its namespace cannot judge it	1
+with that proc filesystem, a base whose record names a live pid that has no stat there to read is left as it was	1
+with that proc filesystem, a base whose record names a live pid with another start in that namespace and boot is swept, registration included, and the live process is still running	1
+with that proc filesystem, a base whose record names a live pid with its stat's field 22, that namespace and that boot is left as it was, whatever ps says of its start	1

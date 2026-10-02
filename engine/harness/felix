@@ -3179,6 +3179,7 @@ cmd_stack() {
 
   [ "$sub" = "apply" ] || die "usage: felix stack [plan|apply|reconcile] [--yes]"
   if [ "$yes" -ne 1 ]; then
+    [ "$n_unknown" -gt 0 ] && printf '\n%s could not be read: the capabilities this project declares could not be read, so whether they apply is not known.\n' "$n_unknown"
     printf '\nThis was a plan. Nothing changed.\n'
     printf 'Re-run with --yes to install the %s item(s) above.\n' "$n_install"
     return 0

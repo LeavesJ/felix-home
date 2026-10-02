@@ -15201,7 +15201,11 @@ printf '\nqualification: a row'"'"'s scratch tree never outlives the row\n'
 # unlocks and prunes its own roots alone. Authored blind to the fix, from the
 # contract in prose.
 QTRS="$TMP/qual-tree-side"; QTRR="$TMP/qual-tree-repo"
-mkdir -p "$QTRS" "$QTRR"
+# Every row run here has a TMPDIR of its own. A run now sweeps its TMPDIR
+# for bases whose owner is dead, so in the machine's another session's run
+# could remove a base this section left before the section looked at it.
+QTRT="$TMP/qual-tree-tmp"
+mkdir -p "$QTRS" "$QTRR" "$QTRT"
 ( cd "$QTRR" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 QTRR="$(cd "$QTRR" && pwd -P)"
@@ -15247,7 +15251,7 @@ _qtrclean() {   # made-log, root
 # The runner as the CLI calls it, from inside the root under set -uo pipefail,
 # with mktemp wrapped after the libraries are read.
 _qtrrun() {   # proj, root, made-log, stderr file
-  ( cd "$2" || exit 1; set -uo pipefail; _qtrlog="$3"
+  ( cd "$2" || exit 1; set -uo pipefail; _qtrlog="$3"; export TMPDIR="$QTRT"
     . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
     mktemp() { local p; p="$(command mktemp "$@")" || return
                printf '%s\n' "$p" >> "$_qtrlog"; printf '%s\n' "$p"; }
@@ -15574,7 +15578,7 @@ _qtrsig() {   # tag, run | one, INT | TERM | HUP, group | row | below, prem | cm
   elif [ -n "$_qtrprem" ]; then set -- "$_qtrcmd" "$_qtrmut" "$_qtrprem"
   else set -- "$_qtrcmd" "$_qtrmut"; fi
   [ "$twice" = twice ] && path="$QTRSHIM:$PATH"
-  PATH="$path" QTR_GITHOLD="$d" perl -e '$SIG{INT} = $SIG{TERM} = $SIG{HUP} = "DEFAULT"; setpgrp(0, 0) or exit 97; exec @ARGV or exit 98' \
+  PATH="$path" QTR_GITHOLD="$d" TMPDIR="$QTRT" perl -e '$SIG{INT} = $SIG{TERM} = $SIG{HUP} = "DEFAULT"; setpgrp(0, 0) or exit 97; exec @ARGV or exit 98' \
     "$BASH" "$QTRL" "$mode" "$FROOT" "$QTRR" "$d/made" "$d/status" "$@" </dev/null >/dev/null 2>"$d/stderr" &
   pid=$!
   _qtrtill 60 _qtrheld "$d/at-$hold" "$pid"
@@ -15666,7 +15670,754 @@ is  "a second INT to the run's process group while the row is removing its scrat
 for _qtrp in "$QTRS"/*/made; do [ -f "$_qtrp" ] && _qtrclean "$_qtrp" "$QTRR"; done
 git -C "$QTRU" worktree prune >/dev/null 2>&1
 git -C "$QTR9" worktree prune >/dev/null 2>&1
-chmod -R u+rwX "$QTRS" 2>/dev/null
+chmod -R u+rwX "$QTRS" "$QTRT" 2>/dev/null
+
+printf '\nqualification: a later run sweeps the trees a killed run left\n'
+# No trap reaches SIGKILL. A row killed that way, by kill -9 or a tool's
+# TERM-then-KILL, left its scratch tree in TMPDIR and still registered in the
+# user's repository: three were found in the founder's checkout. So each row
+# now writes down which process owns its base, as a symlink named owner in
+# it, and each run first sweeps its TMPDIR for bases whose owner is shown
+# dead, then for registrations whose base is gone. It touches nothing else:
+# not a base whose owner may be alive, not one whose name or record is not
+# exactly what a row writes, not a symlink, not another shape of
+# registration, and it never prunes.
+#
+# Each case has a TMPDIR of its own under the suite's $TMP, so no other
+# session's sweep reaches its bases, and a root of its own, so a
+# registration one case leaves counts against no other. A dead pid is one a
+# process started here had before it was reaped; a live one is a sleep
+# started here and killed at the end. Every run starts in a process group of
+# its own, made by perl, as the scratch-tree section's are, and every wait
+# has a deadline; only those groups, walked down from the pid recorded, are
+# ever signalled. A git on PATH notes each call a run makes. Every case a
+# sweep must leave alone shares its TMPDIR and its run with a dead base that
+# run must remove, so an engine that sweeps nothing cannot pass it. At the
+# end the section stops what it started, gives its directories their bits
+# back, clears immutable flags, prunes its own roots alone and removes all
+# it made. Authored blind to the fix, from the contract in prose.
+QSWS="$TMP/qual-sweep-side"; mkdir -p "$QSWS"
+: > "$QSWS/pids"; : > "$QSWS/roots"
+QSWOLD='ThuJan100:00:001970'
+QSWLIVE=""
+QSWGIT="$(command -v git)"
+QSWSHIM="$QSWS/shim"; mkdir -p "$QSWSHIM"
+cat > "$QSWSHIM/git" <<EOF
+#!/bin/sh
+if [ -n "\${QSW_GITLOG:-}" ]; then
+  qsw_o=""
+  case " \$* " in
+    *" worktree add "*)
+      for qsw_a in "\$@"; do
+        case "\$qsw_a" in */w) if [ -L "\${qsw_a%/w}/owner" ]; then qsw_o=" owner:yes"; else qsw_o=" owner:no"; fi ;; esac
+      done ;;
+  esac
+  printf '%s%s\n' "\$*" "\$qsw_o" >> "\$QSW_GITLOG"
+fi
+exec '$QSWGIT' "\$@"
+EOF
+chmod +x "$QSWSHIM/git"
+# The caller of a run, as the CLI calls the runner: from inside the root,
+# under set -uo pipefail, the libraries read, mktemp wrapped so every path it
+# hands back is noted (and, for the one case that asks, left without its
+# write bit when it is a row's base), its own pid written down, and, when
+# given a go file, held until that file exists.
+QSWL="$QSWS/launch"
+cat > "$QSWL" <<'EOF'
+set -uo pipefail
+qsw_froot="$1"; qsw_root="$2"; qsw_made="$3"; qsw_caller="$4"; qsw_go="$5"; qsw_what="$6"; shift 6
+cd "$qsw_root" || exit 1
+. "$qsw_froot/harness/lib/resolve.sh"; . "$qsw_froot/harness/lib/qualify.sh"
+mktemp() {
+  local p; p="$(command mktemp "$@")" || return
+  printf '%s\n' "$p" >> "$qsw_made"
+  if [ -n "${QSW_NORECORD:-}" ]; then
+    case "$*" in *"/felix-qualify.XXXXXX"*) chmod a-w "$p" ;; esac
+  fi
+  printf '%s\n' "$p"
+}
+printf '%s\n' "$$" > "$qsw_caller"
+if [ "$qsw_go" != - ]; then
+  qsw_i=0
+  while [ ! -e "$qsw_go" ] && [ "$qsw_i" -lt 3000 ]; do sleep 0.1 2>/dev/null || sleep 1; qsw_i=$((qsw_i + 1)); done
+fi
+case "$qsw_what" in
+  run)   felix_qualify_run "$@" ;;
+  sweep) _felix_qualify_sweep "$qsw_root" ;;
+esac
+EOF
+QSWC="$QSWS/run-cli"
+cat > "$QSWC" <<'EOF'
+cd "$1" || exit 1
+qsw_rc="$2"; shift 2
+"$@"
+printf '%s\n' "$?" > "$qsw_rc"
+EOF
+_qsw5() { printf '%s\t%s\t%s\t%s\t%s\n' "$@"; }
+_qsw6() { printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$@"; }
+_qswphys() { ( cd "$1" 2>/dev/null && pwd -P ); }
+_qswmode() { ls -ld "$1" 2>/dev/null | cut -c1-10; }
+_qswroot() {   # dir -> a git root there, one commit holding base.txt; its physical path
+  local p
+  mkdir -p "$1"
+  ( cd "$1" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+  p="$(_qswphys "$1")"; printf '%s\n' "$p" >> "$QSWS/roots"; printf '%s' "$p"
+}
+_qswtab() { mkdir -p "$1"; _qsw5 plain 'test -f base.txt' restoration pass true > "$1/qualification.tsv"; }
+_qswisdead() { [ -n "$1" ] || return 1; case "$(LC_ALL=C kill -0 "$1" 2>&1)" in *"No such process"*) return 0 ;; esac; return 1; }
+_qswdead() {   # a pid kill -0 says there is no such process of: one a process started here had
+  local p i=0
+  while :; do
+    sh -c 'exit 0' & p=$!
+    wait "$p" 2>/dev/null
+    _qswisdead "$p" && break
+    i=$((i + 1)); [ "$i" -lt 20 ] || break
+  done
+  printf '%s' "$p"
+}
+_qswstart() { TZ=UTC0 LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | tr -d ' \t\n'; }
+_qswlive()  { [ -n "$1" ] || return 1; case "$(ps -o stat= -p "$1" 2>/dev/null | tr -d ' ')" in ''|Z*) return 1 ;; esac; return 0; }
+_qswalive() { if _qswlive "$1"; then echo yes; else echo no; fi; }
+_qswnotlive() { ! _qswlive "$1"; }
+_qswreaped() { [ -z "$1" ] || [ -z "$(ps -o pid= -p "$1" 2>/dev/null | tr -d ' ')" ]; }
+# A base planted as a killed row's would be, or not quite: T, name, a root
+# to register its tree in or -, and its record: - for none, file:TEXT for a
+# regular file, anything else the text of the symlink.
+_qswplant() {
+  local b="$1/$2"
+  mkdir "$b" || return 1
+  [ "$3" = - ] || git -C "$3" worktree add --detach -q "$b/w" HEAD >/dev/null 2>&1
+  case "$4" in
+    -) ;;
+    file:*) printf '%s' "${4#file:}" > "$b/owner" ;;
+    *) ln -s -- "$4" "$b/owner" ;;
+  esac
+}
+_qswreggone() {   # root, path: a worktree registered there, then its directory taken away
+  mkdir -p "${2%/*}"
+  git -C "$1" worktree add --detach -q "$2" HEAD >/dev/null 2>&1
+  rm -rf "$2"
+}
+_qswlisted() { git -C "$1" worktree list --porcelain 2>/dev/null | awk -v p="worktree $2" '$0 == p { f = 1 } END { print (f ? "yes" : "no") }'; }
+_qswwt() { git -C "$1" worktree list --porcelain 2>/dev/null | awk '/^worktree / { w++ } END { printf "wt:%d", w - 1 }'; }
+_qswthere() { if [ -e "$1" ] || [ -L "$1" ]; then echo there; else echo gone; fi; }
+_qswswept() {   # base, root, registered path -> gone when neither the base nor its registration is left
+  local t r
+  t="$(_qswthere "$1")"; r="$(_qswlisted "$2" "$3")"
+  if [ "$t" = gone ] && [ "$r" = no ]; then echo gone; else echo "left(base:$t,registered:$r)"; fi
+}
+# What a base was before a run, and whether it is gone after: gone only for
+# a base that was there and registered before, so a plant that failed can
+# never read as a sweep that worked.
+_qswpre() { printf '%s,%s' "$(_qswthere "$1")" "$([ "$(_qswlisted "$2" "$3")" = yes ] && echo registered || echo unregistered)"; }
+_qswgone() {   # what was there before, base, root, registered path
+  if [ "$1" = there,registered ]; then _qswswept "$2" "$3" "$4"; else echo "never-planted($1)"; fi
+}
+_qswrec() {   # an owner path -> its text, every byte shown, or what is there instead
+  if [ -L "$1" ]; then printf 'link[%s]' "$(readlink "$1" 2>/dev/null | od -An -c | tr -s ' \n' '  ')"
+  elif [ -f "$1" ]; then printf 'file[%s]' "$(od -An -c < "$1" 2>/dev/null | tr -s ' \n' '  ')"
+  elif [ -e "$1" ]; then printf other
+  else printf none; fi
+}
+_qswsnap() {   # path, root, registered path -> what is there, its mode, record and entries, and whether git lists the tree
+  local k
+  if [ -L "$1" ]; then k="link>$(readlink "$1")"
+  elif [ -d "$1" ]; then k=dir
+  elif [ -e "$1" ]; then k=other
+  else k=absent; fi
+  printf '%s mode:%s owner:%s entries:%s reg:%s' "$k" "$(_qswmode "$1")" "$(_qswrec "$1/owner")" \
+    "$(ls -A "$1" 2>/dev/null | LC_ALL=C sort | tr '\n' ',')" "$(_qswlisted "$2" "$3")"
+}
+# A record's shape: pid+start for <pid> <start> with one space and no other
+# blank, pid for a pid alone, bad for anything else.
+_qswshape() {
+  local p="${1%% *}" s
+  case "$p" in ''|0*|*[!0-9]*) echo bad; return ;; esac
+  [ "$1" = "$p" ] && { echo pid; return; }
+  s="${1#"$p" }"
+  [ "$1" = "$p $s" ] && [ -n "$s" ] || { echo bad; return; }
+  case "$s" in *[[:space:]]*) echo bad ;; *) echo pid+start ;; esac
+}
+_qswbase() { ls -A "$1" 2>/dev/null | awk '/^felix-qualify\./ { n++; b = $0 } END { if (n == 1) print b }'; }
+_qswfelix() { awk '/^felix:/ { n++ } END { print n + 0 }' "$1" 2>/dev/null; }
+_qswverd() { awk -F'\t' 'NF >= 5 { printf "%s%s %s", (n++ ? "; " : ""), $4, $5 }' "$1/out" 2>/dev/null; }
+_qswt() { printf 't:[%s]' "$(ls -A "$1" 2>/dev/null | tr '\n' ' ')"; }
+# Processes: those of group $1 not yet exited; every process below $1 in
+# group $2; a poll until a test holds, with a deadline; and the stop, KILL
+# to whatever is left of a group started here, then the reap.
+_qswgroup() { ps -A -o pid=,pgid=,stat= 2>/dev/null | awk -v g="$1" '$2 == g && $3 !~ /^Z/ { print $1 }'; }
+_qswbelow() { ps -A -o pid=,ppid=,pgid= 2>/dev/null | awk -v r="$1" -v g="$2" '
+  { par[$1] = $2; grp[$1] = $3; ids[++n] = $1 }
+  END { want[r] = 1; more = 1
+        while (more) { more = 0
+          for (i = 1; i <= n; i++) if (!(ids[i] in want) && (par[ids[i]] in want)) { want[ids[i]] = 1; more = 1 } }
+        for (i = 1; i <= n; i++) if (ids[i] != r && (ids[i] in want) && grp[ids[i]] == g) print ids[i] }'; }
+_qswempty() { [ -z "$(_qswgroup "$1")" ]; }
+_qswheld()  { [ -s "$1" ] || ! _qswlive "$2"; }
+_qswallin() { local f; for f in "$@"; do [ -s "$f" ] || return 1; done; }
+_qswtill() {   # seconds, test...
+  local t0=$SECONDS lim="$1"; shift
+  while ! "$@"; do [ $((SECONDS - t0)) -lt "$lim" ] || return 1; sleep 1; done
+}
+# The pid itself, and what is below it, only while it is still this shell's
+# child: once reaped, the pid is free, and may be another session's.
+_qswstop() {
+  local k
+  [ -n "$(_qswgroup "$1")" ] && kill -s KILL -- "-$1" 2>/dev/null
+  if [ "$(ps -o ppid= -p "$1" 2>/dev/null | tr -d ' ')" = "$$" ]; then
+    for k in $(_qswbelow "$1" "$1"); do kill -s KILL "$k" 2>/dev/null; done
+    kill -s KILL "$1" 2>/dev/null
+  fi
+  wait "$1" 2>/dev/null
+}
+# Whether $1 is a strict ancestor of $2, walked up by parent pid; and what a
+# recorded pid is to a held run: row when it is an ancestor of the held
+# checker and the caller is an ancestor of it, which is the process the row
+# loop runs the row in; caller when it is the shell that called
+# felix_qualify_run; otherwise other.
+_qswanc() {   # ancestor, descendant
+  local p="$2" n=0
+  [ -n "$1" ] && [ -n "$p" ] || return 1
+  while [ "$n" -lt 64 ]; do
+    p="$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')"
+    [ -n "$p" ] && [ "$p" != 0 ] || return 1
+    [ "$p" = "$1" ] && return 0
+    [ "$p" = 1 ] && return 1
+    n=$((n + 1))
+  done
+  return 1
+}
+_qswrole() {   # recorded pid, held checker pid, caller pid
+  if [ -z "$1" ]; then echo none
+  elif [ "$1" = "$3" ]; then echo caller
+  elif _qswanc "$1" "$2" && _qswanc "$3" "$1"; then echo row
+  else echo "other[$1]"; fi
+}
+# The held row's process found without its record: the held checker's
+# ancestor whose parent is the caller.
+_qswrowof() {   # held pid, caller pid
+  local p="$1" q n=0
+  while [ -n "$p" ] && [ "$p" != 1 ] && [ "$n" -lt 64 ]; do
+    q="$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')"
+    [ -n "$q" ] || return 1
+    if [ "$q" = "$2" ]; then printf '%s' "$p"; return 0; fi
+    p="$q"; n=$((n + 1))
+  done
+  return 1
+}
+# Start a caller in a group of its own: dir for its files, T, root, go file
+# or -, run | sweep, and felix_qualify_run's arguments. Its pid is _qswpid.
+_qswbg() {
+  local d="$1" t="$2" root="$3" go="$4" what="$5"; shift 5
+  mkdir -p "$d"; : >> "$d/made"; rm -f "$d/caller"
+  TMPDIR="$t" PATH="$QSWSHIM:$PATH" QSW_GITLOG="$d/git" QSW_NORECORD="${_qswnorec:-}" \
+    perl -e '$SIG{INT} = $SIG{TERM} = $SIG{HUP} = "DEFAULT"; setpgrp(0, 0) or exit 97; exec @ARGV or exit 98' \
+    "$BASH" "$QSWL" "$FROOT" "$root" "$d/made" "$d/caller" "$go" "$what" "$@" </dev/null >"$d/out" 2>"$d/err" &
+  _qswpid=$!
+  printf '%s\n' "$_qswpid" >> "$QSWS/pids"
+}
+# Done is the caller itself ended and its group empty: the group is empty
+# for a moment after the fork too, before perl has made it.
+_qswdone() { ! _qswlive "$1" && _qswempty "$1"; }
+_qswfinish() {   # pid, dir: done within 300 s, or stopped and said so in its stderr
+  _qswtill 300 _qswdone "$1" || printf 'qsw: stuck, stopped\n' >> "$2/err"
+  _qswstop "$1"
+}
+_qswrun() {   # dir, T, root, proj, [checker]
+  local d="$1" t="$2" root="$3" proj="$4"; shift 4
+  _qswbg "$d" "$t" "$root" - run "$proj" "$root" "$@"
+  _qswfinish "$_qswpid" "$d"
+}
+# A run whose one row's checker writes its own pid to <case>/at and waits for
+# <case>/release, 300 s at most, then passes when base.txt is there. Run a's
+# pid is _qswa; 0 once the checker holds.
+_qswhold() {   # case dir, T, root
+  mkdir -p "$1/proj"
+  _qsw5 held "exec perl -e 'open(my \$f, q(>), \$ARGV[1]) or exit 3; print \$f \$\$; close \$f; for (1 .. 300) { last if -e \$ARGV[0]; sleep 1 } exit((-e q(base.txt)) ? 0 : 1)' '$1/release' '$1/at'" \
+        restoration pass true > "$1/proj/qualification.tsv"
+  _qswbg "$1/a" "$2" "$3" - run "$1/proj" "$3"
+  _qswa="$_qswpid"
+  _qswtill 240 _qswheld "$1/at" "$_qswa"
+  [ -s "$1/at" ]
+}
+_qswleft() {   # case dir, T, root, name, record, mode: a base the sweep must leave, and what it was
+  _qswplant "$2" "$4" "$3" "$5"
+  chmod "$6" "$2/$4"
+  mkdir -p "$1/snap"
+  _qswsnap "$2/$4" "$3" "$(_qswphys "$2")/$4/w" > "$1/snap/$4"
+}
+_qswleftis() {   # assertion, case dir, T, root, name, what became of the dead base beside it
+  local was now reg=unregistered
+  was="$(cat "$2/snap/$5" 2>/dev/null)"
+  now="$(_qswsnap "$3/$5" "$4" "$(_qswphys "$3")/$5/w")"
+  case "$was" in *" reg:yes") reg=registered ;; esac
+  is "$1" "beside:$6 planted:$reg now:$now" "beside:gone planted:registered now:$was"
+}
+
+# 1. End to end. A run SIGKILLed as a whole group while its checker holds:
+# nothing trapped, so its base and registration stay, and its record names
+# a process that is gone. A later run in the same TMPDIR removes both.
+d="$QSWS/killed"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; _qswtab "$d/projb"
+# Disowned first, so the shell reaps the killed caller without a line about it.
+_qswhold "$d" "$T" "$R" && { disown "$_qswa" 2>/dev/null; kill -s KILL -- "-$_qswa" 2>/dev/null; }
+_qswtill 120 _qswdone "$_qswa"; _qswstop "$_qswa"
+_qswb="$(_qswbase "$T")"; _qswr=""
+[ -n "$_qswb" ] && _qswr="$(readlink "$T/$_qswb/owner" 2>/dev/null)"
+case "${_qswr%% *}" in ''|*[!0-9]*) ;; *) _qswtill 60 _qswreaped "${_qswr%% *}" ;; esac
+is  "a run SIGKILLed as a whole process group while its row's checker holds leaves that row's base in its TMPDIR, holding owner, a symlink whose pid is now dead, and the tree in it still registered in the root" \
+    "base:$([ -n "$_qswb" ] && echo there || echo none) owner:$([ -n "$_qswb" ] && [ -L "$T/$_qswb/owner" ] && echo link || echo none) pid:$(_qswisdead "${_qswr%% *}" && echo dead || echo "not-dead[$_qswr]") registered:$([ -n "$_qswb" ] && _qswlisted "$R" "$(_qswphys "$T")/$_qswb/w" || echo no)" \
+    "base:there owner:link pid:dead registered:yes"
+_qswkpre="none-left"; [ -n "$_qswb" ] && _qswkpre="$(_qswpre "$T/$_qswb" "$R" "$(_qswphys "$T")/$_qswb/w")"
+_qswrun "$d/b" "$T" "$R" "$d/projb"
+is  "a later felix_qualify_run in the same TMPDIR removes that base and its registration, leaving the TMPDIR empty and the root listing only itself, and its own row still reads pass and met" \
+    "$(_qswverd "$d/b") killed:$([ -n "$_qswb" ] && _qswgone "$_qswkpre" "$T/$_qswb" "$R" "$(_qswphys "$T")/$_qswb/w" || echo none-left) $(_qswt "$T") $(_qswwt "$R")" "pass met killed:gone t:[] wt:0"
+
+# 2 and 3. A live run's tree. While run A holds in its checker its record
+# names its row's own process, and a run B in the same TMPDIR and root leaves
+# A's base, record and registration; released, A ends as it always has.
+d="$QSWS/live-run"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/projb"
+_qswhold "$d" "$T" "$R"
+_qswcaller="$(cat "$d/a/caller" 2>/dev/null)"; _qswheldp="$(cat "$d/at" 2>/dev/null)"
+_qswb="$(_qswbase "$T")"; _qswr=""
+[ -n "$_qswb" ] && _qswr="$(readlink "$T/$_qswb/owner" 2>/dev/null)"
+_qswp="${_qswr%% *}"
+_qswwho="$(_qswrole "$_qswp" "$_qswheldp" "$_qswcaller")"
+is  "while a row holds in its checker, owner in its base is a symlink reading <pid> <start> with one space between, and the pid is the row's own process: alive, an ancestor of the held checker, below the shell that called felix_qualify_run, and never that shell itself" \
+    "owner:$([ -n "$_qswb" ] && [ -L "$T/$_qswb/owner" ] && echo link || echo none) shape:$(_qswshape "$_qswr") pid:$_qswwho alive:$(_qswalive "$_qswp")" \
+    "owner:link shape:pid+start pid:row alive:yes"
+_qswps="$([ "$_qswwho" = row ] && _qswstart "$_qswp")"
+is  "and the start it records is that row process's start as ps -o lstart= prints it under TZ=UTC0 and LC_ALL=C, every blank removed" \
+    "start:$([ -n "$_qswps" ] && [ "${_qswr#* }" = "$_qswps" ] && echo same || echo "[${_qswr#* }] ps:[$_qswps] pid:$_qswwho")" "start:same"
+_qswwas="$([ -n "$_qswb" ] && _qswsnap "$T/$_qswb" "$R" "$Tp/$_qswb/w")"
+_qswrun "$d/b" "$T" "$R" "$d/projb"
+_qswnow="$([ -n "$_qswb" ] && _qswsnap "$T/$_qswb" "$R" "$Tp/$_qswb/w")"
+is  "while run A holds in its checker, a run B in the same TMPDIR and root leaves A's base as it was, its owner record and its registration with it, A's checker is still running, and B's own row reads pass and met" \
+    "same:$([ "$_qswnow" = "$_qswwas" ] && echo yes || echo "no [$_qswwas] [$_qswnow]") owner:$([ -n "$_qswb" ] && [ -L "$T/$_qswb/owner" ] && echo link || echo none) registered:$([ -n "$_qswb" ] && _qswlisted "$R" "$Tp/$_qswb/w" || echo no) checker:$(_qswalive "$_qswheldp") b:$(_qswverd "$d/b")" \
+    "same:yes owner:link registered:yes checker:yes b:pass met"
+: > "$d/release"
+_qswfinish "$_qswa" "$d/a"
+is  "released, run A ends with its row read pass and met, and neither run leaves a base in the TMPDIR or a worktree registered beside the root" \
+    "$(_qswverd "$d/a") held-here:$([ -n "$_qswb" ] && echo yes || echo no) $(_qswt "$T") $(_qswwt "$R")" "pass met held-here:yes t:[] wt:0"
+is  "every git worktree add either run made found owner already a symlink in the base it added the tree to" \
+    "$(cat "$d/a/git" "$d/b/git" 2>/dev/null | awk '/ worktree add / { n++; if ($0 ~ / owner:no$/) m++ } END { printf "adds:%s without:%d", (n > 0 ? "some" : "none"), m + 0 }')" \
+    "adds:some without:0"
+
+# 4. The row's process alone killed, its caller left running: the tree is
+# removed by another run's sweep. The caller alone killed, the row alive:
+# the sweep leaves it, and the row removes it at its end.
+d="$QSWS/row-killed"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/projb"
+_qswhold "$d" "$T" "$R"
+_qswcaller="$(cat "$d/a/caller" 2>/dev/null)"; _qswheldp="$(cat "$d/at" 2>/dev/null)"
+_qswb="$(_qswbase "$T")"; _qswr=""
+[ -n "$_qswb" ] && _qswr="$(readlink "$T/$_qswb/owner" 2>/dev/null)"
+# The pid the record names when it names the row's process, else the row's
+# process found by ancestry, so the kill lands on the row alone either way.
+_qswrowp="${_qswr%% *}"
+[ "$(_qswrole "$_qswrowp" "$_qswheldp" "$_qswcaller")" = row ] || _qswrowp="$(_qswrowof "$_qswheldp" "$_qswcaller")"
+_qswp1="none-made"; [ -n "$_qswb" ] && _qswp1="$(_qswpre "$T/$_qswb" "$R" "$Tp/$_qswb/w")"
+[ -n "$_qswrowp" ] && kill -s KILL "$_qswrowp" 2>/dev/null
+_qswtill 60 _qswreaped "$_qswrowp"
+_qswrun "$d/b" "$T" "$R" "$d/projb"
+_qswres="$([ -n "$_qswb" ] && _qswgone "$_qswp1" "$T/$_qswb" "$R" "$Tp/$_qswb/w" || echo no-base-was-made)"
+: > "$d/release"; _qswfinish "$_qswa" "$d/a"
+is  "a row whose own process alone is SIGKILLed while its checker holds, its caller left running, has its base and registration removed by the sweep of a run started once it is gone" \
+    "$_qswres $(_qswverd "$d/b")" "gone pass met"
+
+d="$QSWS/caller-killed"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/projb"
+_qswhold "$d" "$T" "$R"
+_qswcaller="$(cat "$d/a/caller" 2>/dev/null)"; _qswheldp="$(cat "$d/at" 2>/dev/null)"
+_qswb="$(_qswbase "$T")"; _qswr=""
+[ -n "$_qswb" ] && _qswr="$(readlink "$T/$_qswb/owner" 2>/dev/null)"
+_qswwho="$(_qswrole "${_qswr%% *}" "$_qswheldp" "$_qswcaller")"
+_qswrowp="${_qswr%% *}"
+[ "$_qswwho" = row ] || _qswrowp="$(_qswrowof "$_qswheldp" "$_qswcaller")"
+[ -n "$_qswcaller" ] && { disown "$_qswa" 2>/dev/null; kill -s KILL "$_qswcaller" 2>/dev/null; }
+_qswtill 60 _qswnotlive "$_qswcaller"
+_qswp1="none-made"; [ -n "$_qswb" ] && _qswp1="$(_qswpre "$T/$_qswb" "$R" "$Tp/$_qswb/w")"
+_qswwas="$([ -n "$_qswb" ] && _qswsnap "$T/$_qswb" "$R" "$Tp/$_qswb/w")"
+_qswrun "$d/b" "$T" "$R" "$d/projb"
+_qswnow="$([ -n "$_qswb" ] && _qswsnap "$T/$_qswb" "$R" "$Tp/$_qswb/w")"
+is  "a run whose caller alone is SIGKILLed while its row holds keeps that row's owner record naming the row's live process, and a later run's sweep leaves that base, record and registration as they were" \
+    "pid:$_qswwho alive:$(_qswalive "${_qswr%% *}") same:$([ "$_qswnow" = "$_qswwas" ] && echo yes || echo no) owner:$([ -n "$_qswb" ] && [ -L "$T/$_qswb/owner" ] && echo link || echo none) registered:$([ -n "$_qswb" ] && _qswlisted "$R" "$Tp/$_qswb/w" || echo no)" \
+    "pid:row alive:yes same:yes owner:link registered:yes"
+: > "$d/release"
+_qswtill 240 _qswreaped "$_qswrowp"
+_qswfinish "$_qswa" "$d/a"
+is  "and released, that row runs to its end and removes its own base and registration" \
+    "$([ -n "$_qswb" ] && _qswgone "$_qswp1" "$T/$_qswb" "$R" "$Tp/$_qswb/w" || echo no-base-was-made) $(_qswwt "$R")" "gone wt:0"
+
+# 5. Planted bases. Three with a dead owner are swept; beside them, every
+# base that is not exactly one a row makes, with a record exactly as a row
+# writes it, is left as it was: mode, record, entries and registration.
+# The bases to be left are made 0555 first (the one with no search bit,
+# 0600), so a sweep that gave one its bits back before judging it is seen.
+d="$QSWS/planted"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/proj"
+_qswd1="$(_qswdead)"; _qswd2="$(_qswdead)"; _qswd3="$(_qswdead)"; _qswdx="$(_qswdead)"
+_qswplant "$T" felix-qualify.DEADP1 "$R" "$_qswd1"
+_qswplant "$T" felix-qualify.DEADP2 "$R" "$_qswd2 $QSWOLD"; chmod 0555 "$T/felix-qualify.DEADP2"
+mkdir -p "$d/outside/dir"; printf 'kept\n' > "$d/outside/file"; printf 'kept\n' > "$d/outside/dir/inner"
+chmod 0444 "$d/outside/file" "$d/outside/dir/inner"; chmod 0555 "$d/outside/dir"
+_qswplant "$T" felix-qualify.DEADP3 "$R" "$_qswd3 $QSWOLD"
+ln -s "$d/outside/file" "$T/felix-qualify.DEADP3/w/lf"; ln -s "$d/outside/dir" "$T/felix-qualify.DEADP3/w/ld"
+chmod a-w "$T/felix-qualify.DEADP3/w"
+_qswleft "$d" "$T" "$R" felix-qualify.NOREC1 - 0555
+_qswleft "$d" "$T" "$R" felix-qualify.FILREC "file:$_qswdx" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.PIDZER 0 0555
+_qswleft "$d" "$T" "$R" felix-qualify.NEGPID "-$_qswdx" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.NONDIG abc 0555
+_qswemptyok=no
+( cd "$d" && ln -s '' empty-probe ) 2>/dev/null && [ -L "$d/empty-probe" ] && _qswemptyok=yes
+[ "$_qswemptyok" = yes ] && _qswleft "$d" "$T" "$R" felix-qualify.EMPTYR '' 0555
+_qswleft "$d" "$T" "$R" felix-qualify.TWOSPC "$_qswdx  $QSWOLD" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.TRLSPC "$_qswdx " 0555
+_qswleft "$d" "$T" "$R" felix-qualify.TABSTA "$_qswdx Thu"$'\t'"Jan100:00:001970" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.LEADZR "0$_qswdx" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.NEWLIN "$_qswdx"$'\n' 0555
+_qswleft "$d" "$T" "$R" felix-qualify.NOSRCH "$_qswdx $QSWOLD" 0600
+_qswleft "$d" "$T" "$R" tmp.Ab12Cd "$_qswdx $QSWOLD" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.abcde "$_qswdx $QSWOLD" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.abcdefg "$_qswdx $QSWOLD" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.abc-ef "$_qswdx $QSWOLD" 0555
+_qswleft "$d" "$T" "$R" felix-qualify-abcdef "$_qswdx $QSWOLD" 0555
+_qswplant "$d" linktarget "$R" "$_qswdx $QSWOLD"; chmod 0555 "$d/linktarget"
+ln -s "$d/linktarget" "$T/felix-qualify.SYMLNK"
+_qswlt="$(_qswphys "$d/linktarget")/w"
+_qswlinkwas="$(_qswsnap "$T/felix-qualify.SYMLNK" "$R" "$_qswlt") | $(_qswsnap "$d/linktarget" "$R" "$_qswlt")"
+_qswp1="$(_qswpre "$T/felix-qualify.DEADP1" "$R" "$Tp/felix-qualify.DEADP1/w")"
+_qswp2="$(_qswpre "$T/felix-qualify.DEADP2" "$R" "$Tp/felix-qualify.DEADP2/w")"
+_qswp3="$(_qswpre "$T/felix-qualify.DEADP3" "$R" "$Tp/felix-qualify.DEADP3/w")"
+_qswrun "$d/run" "$T" "$R" "$d/proj"
+_qswctl="$(_qswgone "$_qswp1" "$T/felix-qualify.DEADP1" "$R" "$Tp/felix-qualify.DEADP1/w")"
+is  "a base in the TMPDIR named felix-qualify. and six letters or digits, holding owner as a symlink whose text is a dead pid alone, is swept with its tree's registration, and the run's own row still reads pass and met" \
+    "$_qswctl $(_qswverd "$d/run")" "gone pass met"
+is  "a dead base whose own mode was taken down to 0555 is given its bits back and swept, registration included" \
+    "$(_qswgone "$_qswp2" "$T/felix-qualify.DEADP2" "$R" "$Tp/felix-qualify.DEADP2/w")" "gone"
+is  "a dead base whose tree holds symlinks to a 0444 file and a 0555 directory outside, in a directory left unwritable, is swept, and the file and directory keep their modes and content" \
+    "$(_qswgone "$_qswp3" "$T/felix-qualify.DEADP3" "$R" "$Tp/felix-qualify.DEADP3/w") $(_qswmode "$d/outside/file") $(_qswmode "$d/outside/dir") $(_qswmode "$d/outside/dir/inner") $(cat "$d/outside/file" "$d/outside/dir/inner" 2>/dev/null | tr '\n' ' ')" \
+    "gone -r--r--r-- dr-xr-xr-x -r--r--r-- kept kept "
+_qswleftis "a base with no owner record is left as it was, mode, entries and registration, by the run that swept the dead base beside it" "$d" "$T" "$R" felix-qualify.NOREC1 "$_qswctl"
+_qswleftis "a base whose owner is a regular file holding a dead pid, not a symlink, is left as it was, registration included" "$d" "$T" "$R" felix-qualify.FILREC "$_qswctl"
+_qswleftis "a base whose record is pid 0 is left as it was, registration included" "$d" "$T" "$R" felix-qualify.PIDZER "$_qswctl"
+_qswleftis "a base whose record is a dead pid with a minus sign before it is left as it was, registration included" "$d" "$T" "$R" felix-qualify.NEGPID "$_qswctl"
+_qswleftis "a base whose record is letters, not digits, is left as it was, registration included" "$d" "$T" "$R" felix-qualify.NONDIG "$_qswctl"
+if [ "$_qswemptyok" = yes ]; then
+  _qswleftis "a base whose record is an empty text is left as it was, registration included" "$d" "$T" "$R" felix-qualify.EMPTYR "$_qswctl"
+else
+  skip "a base whose record is an empty text is left as it was, registration included" "symlink(2) refuses an empty target here"
+fi
+_qswleftis "a base whose record has two spaces between a dead pid and its start is left as it was, registration included" "$d" "$T" "$R" felix-qualify.TWOSPC "$_qswctl"
+_qswleftis "a base whose record is a dead pid and one space with no start after it is left as it was, registration included" "$d" "$T" "$R" felix-qualify.TRLSPC "$_qswctl"
+_qswleftis "a base whose record's start holds a tab is left as it was, registration included" "$d" "$T" "$R" felix-qualify.TABSTA "$_qswctl"
+_qswleftis "a base whose record's pid begins with a zero is left as it was, registration included" "$d" "$T" "$R" felix-qualify.LEADZR "$_qswctl"
+_qswleftis "a base whose record is a dead pid followed by a newline is left as it was, registration included" "$d" "$T" "$R" felix-qualify.NEWLIN "$_qswctl"
+_qswleftis "a base with a dead record whose search bit is off, so owner cannot be read, is left as it was, its mode 0600 included" "$d" "$T" "$R" felix-qualify.NOSRCH "$_qswctl"
+_qswleftis "a base named tmp. and six characters, as an older engine named them, with a dead record is left as it was" "$d" "$T" "$R" tmp.Ab12Cd "$_qswctl"
+_qswleftis "a base named felix-qualify. and five characters, with a dead record, is left as it was" "$d" "$T" "$R" felix-qualify.abcde "$_qswctl"
+_qswleftis "a base named felix-qualify. and seven characters, with a dead record, is left as it was" "$d" "$T" "$R" felix-qualify.abcdefg "$_qswctl"
+_qswleftis "a base named felix-qualify. and six characters one of which is a dash, with a dead record, is left as it was" "$d" "$T" "$R" felix-qualify.abc-ef "$_qswctl"
+_qswleftis "a base named felix-qualify- and six letters, a dash where the dot goes, with a dead record, is left as it was" "$d" "$T" "$R" felix-qualify-abcdef "$_qswctl"
+is  "a base that is a symlink to a directory holding a dead record and a registered tree is never followed: the link, its target, the target's mode, record and entries, and the tree's registration are all as they were, beside a dead base the run swept" \
+    "beside:$_qswctl now:$(_qswsnap "$T/felix-qualify.SYMLNK" "$R" "$_qswlt") | $(_qswsnap "$d/linktarget" "$R" "$_qswlt")" \
+    "beside:gone now:$_qswlinkwas"
+
+# 6. Liveness. A live pid's base is left whether its record has no start or
+# its true start; a live pid with another start, and a dead pid with any
+# start, are swept; pid 1, which kill -0 may not signal, is left.
+d="$QSWS/liveness"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/proj"
+sleep 900 & QSWLIVE=$!
+_qswls="$(_qswstart "$QSWLIVE")"; _qswdy="$(_qswdead)"
+_qswleft "$d" "$T" "$R" felix-qualify.LIVENO "$QSWLIVE" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.LIVETR "$QSWLIVE $_qswls" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.PIDONE 1 0555
+_qswplant "$T" felix-qualify.LIVEDF "$R" "$QSWLIVE MonJan100:00:002001"; chmod 0555 "$T/felix-qualify.LIVEDF"
+_qswplant "$T" felix-qualify.DEADST "$R" "$_qswdy $_qswls"
+_qswp1="$(_qswpre "$T/felix-qualify.DEADST" "$R" "$Tp/felix-qualify.DEADST/w")"
+_qswp2="$(_qswpre "$T/felix-qualify.LIVEDF" "$R" "$Tp/felix-qualify.LIVEDF/w")"
+_qswrun "$d/run" "$T" "$R" "$d/proj"
+_qswctl="$(_qswgone "$_qswp1" "$T/felix-qualify.DEADST" "$R" "$Tp/felix-qualify.DEADST/w")"
+is  "a base whose record names a dead pid with a start is swept, registration included" \
+    "$_qswctl start:$([ -n "$_qswls" ] && echo known || echo unknown)" "gone start:known"
+_qswleftis "a base whose record names a live pid alone, with no start, is left as it was, registration included" "$d" "$T" "$R" felix-qualify.LIVENO "$_qswctl"
+_qswleftis "a base whose record names a live pid with that process's true start is left as it was, registration included" "$d" "$T" "$R" felix-qualify.LIVETR "$_qswctl"
+_qswleftis "a base whose record names pid 1, which kill -0 may not signal, is left as it was: a failure that is not No such process is a process that exists" "$d" "$T" "$R" felix-qualify.PIDONE "$_qswctl"
+is  "a base whose record names a live pid with a start that is not that process's is swept, registration included, and the live process is still running" \
+    "$(_qswgone "$_qswp2" "$T/felix-qualify.LIVEDF" "$R" "$Tp/felix-qualify.LIVEDF/w") live:$(_qswalive "$QSWLIVE")" "gone live:yes"
+
+# 7. Orphans: a registration whose base is gone, and only of the one shape.
+d="$QSWS/orphans"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/proj"
+_qswdp="$(_qswphys "$d")"
+_qswreggone "$R" "$T/felix-qualify.ORPH01/w"; rm -rf "$T/felix-qualify.ORPH01"
+_qswreggone "$R" "$T/other/w"; rm -rf "$T/other"
+_qswreggone "$R" "$T/felix-qualify.ORPH02/x"; rm -rf "$T/felix-qualify.ORPH02"
+_qswreggone "$R" "$d/elsewhere/felix-qualify.ORPH03/w"; rm -rf "$d/elsewhere/felix-qualify.ORPH03"
+git -C "$R" worktree add --detach -q "$d/userwt" HEAD >/dev/null 2>&1; printf 'mine\n' > "$d/userwt/uncommitted.txt"
+_qswreggone "$R" "$d/gonewt"
+_qswreggone "$R" "$T/felix-qualify.ORPH5/w"; rm -rf "$T/felix-qualify.ORPH5"
+_qswreggone "$R" "$T/felix-qualify.ORPH04/w"
+_qswreggone "$R" "$T/felix-qualify.ORPH06/w"; rm -rf "$T/felix-qualify.ORPH06"; ln -s "$d/nowhere" "$T/felix-qualify.ORPH06"
+_qswo1="$(_qswlisted "$R" "$Tp/felix-qualify.ORPH01/w")"
+_qswo2="$(_qswlisted "$R" "$Tp/other/w")"
+_qswo3="$(_qswlisted "$R" "$Tp/felix-qualify.ORPH02/x")"
+_qswo4="$(_qswlisted "$R" "$_qswdp/elsewhere/felix-qualify.ORPH03/w")"
+_qswo5="$(_qswlisted "$R" "$_qswdp/userwt")"
+_qswo6="$(_qswlisted "$R" "$_qswdp/gonewt")"
+_qswo7="$(_qswlisted "$R" "$Tp/felix-qualify.ORPH5/w")"
+_qswo8="$(_qswlisted "$R" "$Tp/felix-qualify.ORPH04/w")"
+_qswo9="$(_qswlisted "$R" "$Tp/felix-qualify.ORPH06/w")"
+_qswrun "$d/run" "$T" "$R" "$d/proj"
+_qswoc="$([ "$_qswo1" = yes ] && [ "$(_qswlisted "$R" "$Tp/felix-qualify.ORPH01/w")" = no ] && echo removed || echo "kept(was:$_qswo1)")"
+is  "a registration of <T>/felix-qualify.XXXXXX/w whose base is gone is removed by the next run, matched through the TMPDIR's physical path as git records it, and that run's own row still reads pass and met" \
+    "orphan:$_qswoc $(_qswverd "$d/run")" "orphan:removed pass met"
+is  "a registration of <T>/other/w whose directory is gone stays listed, by the run that removed a felix-qualify orphan beside it" \
+    "orphan:$_qswoc was:$_qswo2 listed:$(_qswlisted "$R" "$Tp/other/w")" "orphan:removed was:yes listed:yes"
+is  "a registration of <T>/felix-qualify.XXXXXX/x whose base is gone stays listed" \
+    "orphan:$_qswoc was:$_qswo3 listed:$(_qswlisted "$R" "$Tp/felix-qualify.ORPH02/x")" "orphan:removed was:yes listed:yes"
+is  "a registration of a felix-qualify.XXXXXX/w whose base is gone but lies outside the TMPDIR stays listed" \
+    "orphan:$_qswoc was:$_qswo4 listed:$(_qswlisted "$R" "$_qswdp/elsewhere/felix-qualify.ORPH03/w")" "orphan:removed was:yes listed:yes"
+is  "a live user worktree stays listed, its uncommitted file intact" \
+    "orphan:$_qswoc was:$_qswo5 listed:$(_qswlisted "$R" "$_qswdp/userwt") file:$(cat "$d/userwt/uncommitted.txt" 2>/dev/null || echo gone)" "orphan:removed was:yes listed:yes file:mine"
+is  "a prunable worktree elsewhere, not Felix's, stays listed" \
+    "orphan:$_qswoc was:$_qswo6 listed:$(_qswlisted "$R" "$_qswdp/gonewt")" "orphan:removed was:yes listed:yes"
+is  "a registration of <T>/felix-qualify. and five characters /w whose base is gone stays listed" \
+    "orphan:$_qswoc was:$_qswo7 listed:$(_qswlisted "$R" "$Tp/felix-qualify.ORPH5/w")" "orphan:removed was:yes listed:yes"
+is  "a registration of <T>/felix-qualify.XXXXXX/w whose base is still there, holding no record, stays listed and the base stays" \
+    "orphan:$_qswoc was:$_qswo8 listed:$(_qswlisted "$R" "$Tp/felix-qualify.ORPH04/w") base:$(_qswthere "$T/felix-qualify.ORPH04")" "orphan:removed was:yes listed:yes base:there"
+is  "a registration of <T>/felix-qualify.XXXXXX/w whose base is a dangling symlink stays listed and the symlink stays" \
+    "orphan:$_qswoc was:$_qswo9 listed:$(_qswlisted "$R" "$Tp/felix-qualify.ORPH06/w") link:$([ -L "$T/felix-qualify.ORPH06" ] && echo there || echo gone)" "orphan:removed was:yes listed:yes link:there"
+is  "no git command that run made was a worktree prune or a gc" \
+    "orphan:$_qswoc prunes:$(awk '/(^| )(prune|gc)( |$)/ { n++ } END { print n + 0 }' "$d/run/git" 2>/dev/null)" "orphan:removed prunes:0"
+d="$QSWS/orphan-link"; mkdir -p "$d/treal"; ln -s "$d/treal" "$d/tlink"; R="$(_qswroot "$d/root")"; _qswtab "$d/proj"
+_qswreggone "$R" "$d/treal/felix-qualify.ORPHL1/w"; rm -rf "$d/treal/felix-qualify.ORPHL1"
+_qswP="$(_qswphys "$d/treal")/felix-qualify.ORPHL1/w"
+_qswwas="$(_qswlisted "$R" "$_qswP")"
+_qswrun "$d/run" "$d/tlink/" "$R" "$d/proj"
+is  "with TMPDIR a symlink to a directory, given with a trailing slash, a registration of that directory's physical path, felix-qualify.XXXXXX/w, whose base is gone is removed" \
+    "before:$_qswwas after:$(_qswlisted "$R" "$_qswP")" "before:yes after:no"
+d="$QSWS/notdir"; mkdir -p "$d"; R="$(_qswroot "$d/root")"; _qswtab "$d/proj"
+_qswnd="$(_qswphys "$d")/t"
+mkdir -p "$_qswnd/felix-qualify.NODIR1"; git -C "$R" worktree add --detach -q "$_qswnd/felix-qualify.NODIR1/w" HEAD >/dev/null 2>&1
+rm -rf "$_qswnd"
+_qswrun "$d/r1" "$_qswnd" "$R" "$d/proj"
+_qswwas="$(_qswlisted "$R" "$_qswnd/felix-qualify.NODIR1/w")"
+mkdir -p "$_qswnd"
+_qswrun "$d/r2" "$_qswnd" "$R" "$d/proj"
+is  "a registration of <T>/felix-qualify.XXXXXX/w is left by a run whose TMPDIR, T, is not a directory, and once T is a directory again the next run removes it as an orphan" \
+    "t-missing:$_qswwas t-back:$(_qswlisted "$R" "$_qswnd/felix-qualify.NODIR1/w")" "t-missing:yes t-back:no"
+if command -v chflags >/dev/null 2>&1; then
+  d="$QSWS/stuck-orphan"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/proj"
+  _qswreggone "$R" "$T/felix-qualify.STUCK1/w"; rm -rf "$T/felix-qualify.STUCK1"
+  _qswP="$Tp/felix-qualify.STUCK1/w"; _qswadm=""
+  for _qswa2 in "$R"/.git/worktrees/*; do
+    [ "$(cat "$_qswa2/gitdir" 2>/dev/null)" = "$_qswP/.git" ] && _qswadm="$_qswa2"
+  done
+  [ -n "$_qswadm" ] && chflags uchg "$_qswadm"
+  _qswrun "$d/r1" "$T" "$R" "$d/proj"
+  _qswsaid="$(awk -v l="felix: $R still lists the scratch worktree $_qswP, which could not be removed" '$0 == l { n++ } END { print n + 0 }' "$d/r1/err" 2>/dev/null)"
+  _qswwas="$(_qswlisted "$R" "$_qswP")"
+  [ -n "$_qswadm" ] && chflags nouchg "$_qswadm"
+  _qswrun "$d/r2" "$T" "$R" "$d/proj"
+  is  "an orphan registration git cannot remove, its admin directory made immutable, stays listed and is said in the drop's own words, felix: <root> still lists the scratch worktree <P>, which could not be removed, and the next run once it can be removes it" \
+      "admin:$([ -n "$_qswadm" ] && echo found || echo none) listed:$_qswwas said:$_qswsaid then:$(_qswlisted "$R" "$_qswP")" "admin:found listed:yes said:1 then:no"
+else
+  skip "an orphan registration git cannot remove, its admin directory made immutable, stays listed and is said in the drop's own words, felix: <root> still lists the scratch worktree <P>, which could not be removed, and the next run once it can be removes it" "no chflags here"
+fi
+
+# 8. Another repository's dead base in this TMPDIR: gone from disk, and
+# this root's own list untouched; that repository's next run removes the
+# orphan it is left with.
+d="$QSWS/other-repo"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; R2="$(_qswroot "$d/root2")"; _qswtab "$d/proj"
+git -C "$R" worktree add --detach -q "$d/u1" HEAD >/dev/null 2>&1; printf 'mine\n' > "$d/u1/uncommitted.txt"
+_qswreggone "$R" "$d/r1gone"
+_qswplant "$T" felix-qualify.OTHERX "$R2" "$(_qswdead) $QSWOLD"
+_qswwas="$(git -C "$R" worktree list --porcelain 2>/dev/null)"
+_qswp1="$(_qswpre "$T/felix-qualify.OTHERX" "$R2" "$(_qswphys "$T")/felix-qualify.OTHERX/w")"
+_qswrun "$d/r1" "$T" "$R" "$d/proj"
+is  "a dead base in the TMPDIR whose tree another repository registered is removed from disk by a run in this root, and this root's worktree list, a live worktree with uncommitted work and a prunable one, is exactly as it was" \
+    "was:$_qswp1 base:$(_qswthere "$T/felix-qualify.OTHERX") list:$([ "$(git -C "$R" worktree list --porcelain 2>/dev/null)" = "$_qswwas" ] && echo same || echo changed) work:$(cat "$d/u1/uncommitted.txt" 2>/dev/null || echo gone)" \
+    "was:there,registered base:gone list:same work:mine"
+_qswrun "$d/r2" "$T" "$R2" "$d/proj"
+is  "and that other repository's own next run in the same TMPDIR removes the registration it was left holding, so it lists only itself" \
+    "$(_qswwt "$R2")" "wt:0"
+
+# 9. A dead base whose w was swapped for a symlink to another worktree.
+d="$QSWS/w-link"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/proj"
+git -C "$R" worktree add --detach -q "$d/other" HEAD >/dev/null 2>&1
+_qswO="$(_qswphys "$d/other")"; printf 'mine\n' > "$d/other/uncommitted.txt"
+_qswplant "$T" felix-qualify.WLINK1 "$R" "$(_qswdead) $QSWOLD"
+mv "$T/felix-qualify.WLINK1/w" "$T/felix-qualify.WLINK1/w.orig"; ln -s "$_qswO" "$T/felix-qualify.WLINK1/w"
+_qswp1="$(_qswpre "$T/felix-qualify.WLINK1" "$R" "$Tp/felix-qualify.WLINK1/w")"
+_qswrun "$d/run" "$T" "$R" "$d/proj"
+is  "a dead base whose w was swapped for a symlink to another worktree of the root is swept, its own registration included, and that other worktree, its uncommitted file and its registration survive" \
+    "$(_qswgone "$_qswp1" "$T/felix-qualify.WLINK1" "$R" "$Tp/felix-qualify.WLINK1/w") other:$(cat "$_qswO/uncommitted.txt" 2>/dev/null || echo gone) registered:$(_qswlisted "$R" "$_qswO")" \
+    "gone other:mine registered:yes"
+
+# 10. A base whose drop cannot finish: a row's mutation makes a file in its
+# tree immutable. Its record stays, a later sweep says what is left, and
+# once the flag is cleared the next run removes it.
+if command -v chflags >/dev/null 2>&1; then
+  d="$QSWS/pinned"; T="$d/t"; mkdir -p "$T" "$d/proj"; R="$(_qswroot "$d/root")"; _qswtab "$d/projb"
+  _qsw5 pinned 'test -f base.txt' restoration pass 'printf x > pinned && chflags uchg pinned' > "$d/proj/qualification.tsv"
+  _qswrun "$d/r1" "$T" "$R" "$d/proj"
+  _qswb="$(_qswbase "$T")"; _qswr=""
+  [ -n "$_qswb" ] && _qswr="$(readlink "$T/$_qswb/owner" 2>/dev/null)"
+  is  "a row whose tree holds a file made immutable with chflags uchg leaves its base, once the run has ended, holding its owner record, a symlink whose pid is dead" \
+      "base:$([ -n "$_qswb" ] && echo there || echo none) owner:$([ -n "$_qswb" ] && [ -L "$T/$_qswb/owner" ] && echo link || echo none) pid:$(_qswisdead "${_qswr%% *}" && echo dead || echo "not-dead[$_qswr]")" \
+      "base:there owner:link pid:dead"
+  _qswrun "$d/r2" "$T" "$R" "$d/projb"
+  _qswr2=""; [ -n "$_qswb" ] && _qswr2="$(readlink "$T/$_qswb/owner" 2>/dev/null)"
+  is  "a later run's sweep leaves that base, says so in a felix: line naming it, begins no line of its stderr with two spaces, and leaves the base holding an owner record that now names another process than the dead row" \
+      "base:$([ -n "$_qswb" ] && _qswthere "$T/$_qswb" || echo none) said:$(awk -v b="$_qswb" 'b != "" && /^felix:/ && index($0, b) { f = 1 } END { print (f ? "yes" : "no") }' "$d/r2/err" 2>/dev/null) two-space:$(awk '/^  / { n++ } END { print n + 0 }' "$d/r2/err" 2>/dev/null) owner:$([ -n "$_qswb" ] && [ -L "$T/$_qswb/owner" ] && echo link || echo none) shape:$(_qswshape "$_qswr2") another:$([ -n "$_qswr2" ] && [ "$_qswr2" != "$_qswr" ] && echo yes || echo no)" \
+      "base:there said:yes two-space:0 owner:link shape:pid+start another:yes"
+  [ -n "$_qswb" ] && chflags -R nouchg "$T/$_qswb" 2>/dev/null
+  _qswrun "$d/r3" "$T" "$R" "$d/projb"
+  is  "once the flag is cleared, the next run removes that base, and the root lists only itself" \
+      "base:$([ -n "$_qswb" ] && _qswthere "$T/$_qswb" || echo none-was-left) $(_qswt "$T") $(_qswwt "$R")" "base:gone t:[] wt:0"
+else
+  skip "a row whose tree holds a file made immutable with chflags uchg leaves its base, once the run has ended, holding its owner record, a symlink whose pid is dead" "no chflags here"
+  skip "a later run's sweep leaves that base, says so in a felix: line naming it, begins no line of its stderr with two spaces, and leaves the base holding an owner record that now names another process than the dead row" "no chflags here"
+  skip "once the flag is cleared, the next run removes that base, and the root lists only itself" "no chflags here"
+fi
+
+# 11. Sweeps started together: one on its own, then four over three bases.
+d="$QSWS/alone"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
+_qswplant "$T" felix-qualify.ALONE1 "$R" "$(_qswdead) $QSWOLD"
+_qswp1="$(_qswpre "$T/felix-qualify.ALONE1" "$R" "$Tp/felix-qualify.ALONE1/w")"
+_qswbg "$d/s" "$T" "$R" - sweep; _qswfinish "$_qswpid" "$d/s"
+is  "_felix_qualify_sweep called on its own, from the root with TMPDIR exported, removes a dead base and its registration and prints nothing on stdout or stderr" \
+    "$(_qswgone "$_qswp1" "$T/felix-qualify.ALONE1" "$R" "$Tp/felix-qualify.ALONE1/w") stdout:[$(cat "$d/s/out" 2>/dev/null)] stderr:[$(cat "$d/s/err" 2>/dev/null)]" \
+    "gone stdout:[] stderr:[]"
+d="$QSWS/together"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"
+for _qswi in 1 2 3; do _qswplant "$T" "felix-qualify.TOGET$_qswi" "$R" "$(_qswdead) $QSWOLD"; done
+_qswp1="$(_qswt "$T") $(_qswwt "$R")"
+for _qswi in 1 2 3 4; do _qswbg "$d/s$_qswi" "$T" "$R" "$d/go" sweep; printf '%s\n' "$_qswpid" > "$d/s$_qswi/pid"; done
+_qswtill 120 _qswallin "$d/s1/caller" "$d/s2/caller" "$d/s3/caller" "$d/s4/caller"
+: > "$d/go"
+for _qswi in 1 2 3 4; do _qswfinish "$(cat "$d/s$_qswi/pid")" "$d/s$_qswi"; done
+is  "four sweeps started together over three dead bases leave none of them on disk or registered, print nothing on stdout, and say no felix: line" \
+    "was:[$_qswp1] $(_qswt "$T") $(_qswwt "$R") stdout:$(cat "$d"/s*/out 2>/dev/null | wc -c | tr -d ' ') felix:$(cat "$d"/s*/err 2>/dev/null | awk '/^felix:/ { n++ } END { print n + 0 }')" \
+    "was:[t:[felix-qualify.TOGET1 felix-qualify.TOGET2 felix-qualify.TOGET3 ] wt:3] t:[] wt:0 stdout:0 felix:0"
+
+# 12. Quiet: a run that sweeps prints what a run with nothing to sweep does.
+d="$QSWS/quiet"; mkdir -p "$d/t0" "$d/t1" "$d/proj"; R="$(_qswroot "$d/root")"
+{ _qsw5 quiet '! test -f bad.txt' violation fail 'printf FORBIDDEN > bad.txt'
+  _qsw5 quiet 'test -f base.txt' violation fail true
+  _qsw6 quiet true restoration pass true 'exit 1'
+} > "$d/proj/qualification.tsv"
+_qswrun "$d/r0" "$d/t0" "$R" "$d/proj"
+_qswplant "$d/t1" felix-qualify.QUIET1 "$R" "$(_qswdead) $QSWOLD"
+_qswplant "$d/t1" felix-qualify.QUIET2 - "$(_qswdead)"
+_qswp1="$(_qswt "$d/t1") $(_qswwt "$R")"
+_qswrun "$d/r1" "$d/t1" "$R" "$d/proj"
+is  "a run that sweeps two dead bases prints byte for byte the three verdict lines a run with nothing to sweep prints, says nothing on stderr, and leaves its TMPDIR empty and the root listing only itself" \
+    "was:[$_qswp1] stdout:$(cmp -s "$d/r0/out" "$d/r1/out" && echo same || echo differs) lines:$(awk 'END { print NR }' "$d/r1/out" 2>/dev/null) stderr:[$(cat "$d/r1/err" 2>/dev/null)] $(_qswt "$d/t1") $(_qswwt "$R")" \
+    "was:[t:[felix-qualify.QUIET1 felix-qualify.QUIET2 ] wt:1] stdout:same lines:3 stderr:[] t:[] wt:0"
+
+# 13. Through the CLI, from a checkout bound to a project of the section's
+# own, in a home of its own: felix qualify --gate and felix qualify.
+QSWH="$QSWS/home"; QSWHR="$QSWS/home-repo"
+mkdir -p "$QSWH/projects/sweepq" "$QSWH/harness" "$MEM/sweepq" "$QSWHR"
+cp -R "$FROOT/harness/." "$QSWH/harness/"
+printf '{ "name": "sweepq", "gate": "true" }\n' > "$QSWH/projects/sweepq/project.json"
+printf '# sweepq\n' > "$QSWH/projects/sweepq/CLAUDE.md"
+( cd "$QSWHR" && git init -q -b main && printf 'clean\n' > base.txt && printf 'sweepq\n' > .felix \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+QSWHR="$(_qswphys "$QSWHR")"; printf '%s\n' "$QSWHR" >> "$QSWS/roots"
+{ _qsw5 sweepme '! test -f bad.txt' violation fail 'printf FORBIDDEN > bad.txt'
+  _qsw5 sweepme 'test -f base.txt' restoration pass true
+  _qsw5 sweepheld 'test -f base.txt' violation fail true
+} > "$QSWH/projects/sweepq/qualification.tsv"
+_qswcli() {   # dir, T, felix qualify's arguments
+  local d="$1" t="$2"; shift 2
+  mkdir -p "$d"; rm -f "$d/rc"
+  TMPDIR="$t" FELIX_HOME="$QSWH" PATH="$QSWSHIM:$PATH" QSW_GITLOG="$d/git" \
+    perl -e '$SIG{INT} = $SIG{TERM} = $SIG{HUP} = "DEFAULT"; setpgrp(0, 0) or exit 97; exec @ARGV or exit 98' \
+    "$BASH" "$QSWC" "$QSWHR" "$d/rc" "$QSWH/harness/felix" qualify "$@" </dev/null >"$d/out" 2>"$d/err" &
+  _qswpid=$!
+  printf '%s\n' "$_qswpid" >> "$QSWS/pids"
+  _qswfinish "$_qswpid" "$d"
+}
+d="$QSWS/cli"; mkdir -p "$d/t0" "$d/t1" "$d/t2"
+_qswcli "$d/g0" "$d/t0" --gate
+_qswplant "$d/t1" felix-qualify.CLIGAT "$QSWHR" "$(_qswdead) $QSWOLD"
+_qswp1="$(_qswpre "$d/t1/felix-qualify.CLIGAT" "$QSWHR" "$(_qswphys "$d/t1")/felix-qualify.CLIGAT/w")"
+_qswcli "$d/g1" "$d/t1" --gate
+is  "felix qualify --gate from a bound checkout sweeps a dead base in its TMPDIR, registration included, and prints the same stdout and stderr, its three rows among them, and exits with the same status as a run with nothing to sweep" \
+    "$(_qswgone "$_qswp1" "$d/t1/felix-qualify.CLIGAT" "$QSWHR" "$(_qswphys "$d/t1")/felix-qualify.CLIGAT/w") stdout:$(cmp -s "$d/g0/out" "$d/g1/out" && echo same || echo differs) rows:$(awk '/^  sweep[a-z]* +(violation|restoration) / { n++ } END { print n + 0 }' "$d/g1/out" 2>/dev/null) stderr:$(cmp -s "$d/g0/err" "$d/g1/err" && echo same || echo differs) rc:$(cat "$d/g1/rc" 2>/dev/null)" \
+    "gone stdout:same rows:3 stderr:same rc:$(cat "$d/g0/rc" 2>/dev/null)"
+_qswplant "$d/t2" felix-qualify.CLIPLN "$QSWHR" "$(_qswdead) $QSWOLD"
+_qswp2="$(_qswpre "$d/t2/felix-qualify.CLIPLN" "$QSWHR" "$(_qswphys "$d/t2")/felix-qualify.CLIPLN/w")"
+_qswcli "$d/p2" "$d/t2"
+is  "felix qualify without --gate sweeps a dead base in its TMPDIR as well, registration included" \
+    "$(_qswgone "$_qswp2" "$d/t2/felix-qualify.CLIPLN" "$QSWHR" "$(_qswphys "$d/t2")/felix-qualify.CLIPLN/w") rows:$(awk '/^  sweep[a-z]* +(violation|restoration) / { n++ } END { print n + 0 }' "$d/p2/out" 2>/dev/null)" \
+    "gone rows:3"
+
+# 14. Once, at the start: a dead base a row's mutation plants mid-run, outside
+# its own base, is still there when the run ends; the next run removes it.
+d="$QSWS/once"; T="$d/t"; mkdir -p "$T" "$d/proj"; R="$(_qswroot "$d/root")"; _qswtab "$d/projb"
+_qswd="$(_qswdead)"
+{ _qsw5 plants 'test -f base.txt' restoration pass "mkdir '$T/felix-qualify.LATE01' && ln -s '$_qswd $QSWOLD' '$T/felix-qualify.LATE01/owner'"
+  _qsw5 after 'test -f base.txt' restoration pass true
+} > "$d/proj/qualification.tsv"
+_qswrun "$d/r1" "$T" "$R" "$d/proj"
+_qswwas="$(_qswthere "$T/felix-qualify.LATE01")"
+_qswrun "$d/r2" "$T" "$R" "$d/projb"
+is  "a dead base a row's mutation plants beside its own base mid-run is still there when that run ends, both its rows read pass and met, and the next run removes it" \
+    "first:$_qswwas rows:$(_qswverd "$d/r1") next:$(_qswthere "$T/felix-qualify.LATE01")" \
+    "first:there rows:pass met; pass met next:gone"
+
+# 15. A row whose owner record cannot be made runs nothing. Staged by giving
+# the row its base without the write bit, so the link cannot be made there.
+d="$QSWS/unrecorded"; T="$d/t"; mkdir -p "$T" "$d/probe"; R="$(_qswroot "$d/root")"; _qswtab "$d/proj"
+chmod 0500 "$d/probe"
+if ( : > "$d/probe/x" ) 2>/dev/null; then
+  chmod 0700 "$d/probe"
+  skip "a row whose owner record cannot be made, its base left without its write bit, reads unrunnable, adds no worktree, leaves no base or registration, and says one felix: line naming its base" "a directory without its write bit does not stop this user writing"
+else
+  chmod 0700 "$d/probe"
+  _qswnorec=1; _qswrun "$d/r" "$T" "$R" "$d/proj"; _qswnorec=""
+  _qswmb="$(awk '/\/felix-qualify\./ { print; exit }' "$d/r/made" 2>/dev/null)"
+  is  "a row whose owner record cannot be made, its base left without its write bit, reads unrunnable, adds no worktree, leaves no base or registration, and says one felix: line naming its base" \
+      "$(_qswverd "$d/r") adds:$(awk '/ worktree add / { n++ } END { print n + 0 }' "$d/r/git" 2>/dev/null) $(_qswt "$T") $(_qswwt "$R") felix:$(_qswfelix "$d/r/err") named:$(awk -v b="$_qswmb" 'b != "" && /^felix:/ && index($0, b) { f = 1 } END { print (f ? "yes" : "no") }' "$d/r/err" 2>/dev/null)" \
+      "unrunnable unrunnable adds:0 t:[] wt:0 felix:1 named:yes"
+fi
+
+# A run whose checker filter selects no row still sweeps.
+d="$QSWS/none-selected"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/proj"
+_qswplant "$T" felix-qualify.NONSEL "$R" "$(_qswdead) $QSWOLD"
+_qswp1="$(_qswpre "$T/felix-qualify.NONSEL" "$R" "$Tp/felix-qualify.NONSEL/w")"
+_qswrun "$d/r" "$T" "$R" "$d/proj" nobody
+is  "a run whose checker names no row of its table still sweeps a dead base in its TMPDIR, registration included, and prints nothing" \
+    "$(_qswgone "$_qswp1" "$T/felix-qualify.NONSEL" "$R" "$Tp/felix-qualify.NONSEL/w") stdout:[$(cat "$d/r/out" 2>/dev/null)]" "gone stdout:[]"
+
+# What the section made, stopped and removed whatever the assertions said:
+# its groups if any still run, the sleep, every path mktemp handed a run here,
+# the immutable flags, its roots' registrations, then all of it.
+[ -n "$QSWLIVE" ] && { kill -s KILL "$QSWLIVE" 2>/dev/null; wait "$QSWLIVE" 2>/dev/null; }
+while IFS= read -r _qswp; do
+  [ -n "$_qswp" ] || continue
+  [ "$(ps -o ppid= -p "$_qswp" 2>/dev/null | tr -d ' ')" = "$$" ] && _qswstop "$_qswp"
+done < "$QSWS/pids"
+find "$QSWS" -type f -name made 2>/dev/null > "$TMP/qual-sweep-made"
+while IFS= read -r _qswm; do
+  while IFS= read -r _qswp; do
+    case "$_qswp" in /?*) ;; *) continue ;; esac
+    if [ -e "$_qswp" ] || [ -L "$_qswp" ]; then
+      find "$_qswp" -type d -exec chmod u+rwx {} \; 2>/dev/null
+      if command -v chflags >/dev/null 2>&1; then chflags -R nouchg "$_qswp" 2>/dev/null; fi
+      rm -rf "$_qswp" 2>/dev/null
+    fi
+  done < "$_qswm"
+done < "$TMP/qual-sweep-made"
+rm -f "$TMP/qual-sweep-made"
+find "$QSWS" -type d ! -perm -0700 -exec chmod u+rwx {} \; 2>/dev/null
+if command -v chflags >/dev/null 2>&1; then chflags -R nouchg "$QSWS" 2>/dev/null; fi
+while IFS= read -r _qswr; do
+  [ -d "$_qswr/.git" ] || continue
+  rm -f "$_qswr"/.git/worktrees/*/locked 2>/dev/null
+  git -C "$_qswr" worktree prune >/dev/null 2>&1
+done < "$QSWS/roots"
+rm -rf "$QSWS"
 
 printf '\nqualification: a control whose premise is absent\n'
 # A control that plants a governed project's name cannot be met in a checkout

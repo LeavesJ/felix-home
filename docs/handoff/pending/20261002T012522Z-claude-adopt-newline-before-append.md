@@ -125,8 +125,17 @@ All are fixed here and pinned by blocks 3 and 4.
   stack.tsv unguarded. Fixed by claude/table-readers-keep-unended-line, which
   the carrier folded into this PR on 2026-10-02. Its own note is
   20261002T020912Z-claude-table-readers-keep-unended-line.md. Its open items
-  are taken here: review T2-T4 (comment-only, d5a76bff), T1 and the
-  completeness re-run (in progress).
+  are taken here:
+  - T2-T4 are comment-only (d5a76bff). felix:2984's guard is called
+    defensive. The lint's comment now names the opens it does not judge and
+    the sibling-branch guards it credits.
+  - T1 is closed by a fifth blind block (7 assertions, red 3 of 7 on
+    origin/main and on 1dd58ae2). Its night fixture enters hooks/stop's
+    overnight branch, and removing only that branch's stack.tsv guard turns
+    its three pipe assertions red. Its author also found that main blocks
+    earlier, in the policy-version hash, which the readers branch had already
+    guarded.
+  - The completeness re-run is in progress.
 - felix autonomy --revoke of a file's only grant leaves it granted while
   printing `revoked:`. Spun off as its own task.
 - `_felix_mem_stamp` (lib/memory.sh:22) has the same print-then-fail fallback,
@@ -136,6 +145,7 @@ All are fixed here and pinned by blocks 3 and 4.
   line says so.
 
 **At the record.** assertions.tsv grows by 204 from the base's block, 193
-from this branch's four, and 81 from the readers branch. `felix receipt` on
+from this branch's four, 81 from the readers branch, and 7 from the fifth
+block. `felix receipt` on
 d5a76bff names an escape on the verifier channel (tests/run, "weakening the
 suite is how a gate stops being one") as founder_required; the slot meets it.

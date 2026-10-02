@@ -27854,6 +27854,177 @@ rm -rf "$_rkl"
 unset -f _rkl_libs _rkl_call _rkl_put _rkl_proj _rkl_checkout _rkl_seg _rkl_pre _rkl_rdir _rkl_mon \
          _rkl_route _rkl_ledger _rkl_kids _rkl_bounded _rkl_np
 
+printf '\na pipe at stack.tsv, read by the Stop hook inside a night\n'
+# Written blind on 2026-10-02, from a fifth contract, by the author of the four
+# blocks after the hand-written last line, who had not read either fix. It
+# closes the readers review's T1: no case reached hooks/stop's stack.tsv read
+# inside a night. Red against origin/main: 3 of 7. Removing that one guard
+# turns the three pipe assertions red.
+# I. A session that owns a night, a gate that is green on the tree, and a FIFO
+#    at the project's stack.tsv. The night's branch of the Stop hook reads
+#    stack.tsv for its verification nudge, and a pipe there must read as no
+#    table rather than wait for a writer that never comes: the hook returns
+#    within 8 s (I.1), and its stdout and exit status are those of the same run
+#    with no stack.tsv at all (I.2).
+#
+# Two controls make the comparison worth something. With a regular stack.tsv
+# naming superpowers, the run must say the nudge only the night's branch says
+# ("piece before you take the next one", the part of it after a line break the
+# JSON spells \n; the other green path says "before calling this done"), and
+# with "Overnight is on", which proves the fixture reaches that branch and
+# that the branch reads the table. With no stack.tsv, the run must hold the
+# session with "Overnight is on", which proves the run I.2 compares against
+# went through the night as well, so two runs that both skipped it cannot agree
+# for the wrong reason.
+#
+# The epoch a green receipt carries hashes the table set, stack.tsv included,
+# so each table state gets its own gate run, and the FIFO run shares the
+# absent run's receipt: a FIFO read as absent hashes as absent. Each run is a
+# session of its own with a fresh night of the same size, so all three start
+# from the same night state. Every hook call is bounded; on a timeout only the
+# subshell this block started and its descendants are killed, found by parent
+# pid, and the FIFO is opened read-write to release anything left on it. The
+# invented project, its memory, the receipt, and the hold and nudge markers the
+# hook writes for these sessions are removed afterwards.
+_anl5="$TMP/anl5"; mkdir -p "$_anl5"
+_anl5_has() { case "$1" in *"$2"*) return 0 ;; esac; return 1; }
+_anl5_if()  {   # name, detail, command...: ok when the command succeeds
+  local n="$1" d="$2"; shift 2
+  if "$@"; then ok "$n"; else bad "$n" "$d"; fi
+}
+_anl5_tree() {   # pid -> it and every descendant
+  ps -A -o pid= -o ppid= 2>/dev/null | awk -v root="$1" '
+    { kids[$2] = kids[$2] " " $1 }
+    END { q = root; out = ""
+          while (q != "") { n = split(q, a, " "); q = ""
+                            for (i = 1; i <= n; i++) if (a[i] != "") { out = out " " a[i]; q = q kids[a[i]] } }
+          print out }'
+}
+_anl5_bounded() {   # seconds, fifo, code -> the code's status, or 124
+  local secs="$1" fifo="$2" pid n=0 k
+  ( eval "$3" ) & pid=$!
+  while kill -0 "$pid" 2>/dev/null && [ "$n" -lt $((secs * 10)) ]; do sleep 0.1; n=$((n + 1)); done
+  if kill -0 "$pid" 2>/dev/null; then
+    for k in $(_anl5_tree "$pid"); do kill -9 "$k" 2>/dev/null; done
+    wait "$pid" 2>/dev/null
+    [ -p "$fifo" ] && ( exec 9<>"$fifo" ) 2>/dev/null
+    return 124
+  fi
+  wait "$pid"
+}
+
+# What was here before, so the restore removes only what this block made.
+_anl5_P="$FROOT/projects/anl5night"; _anl5_R="$_anl5/repo"
+_anl5_had_p=0; [ -e "$_anl5_P" ] && _anl5_had_p=1
+_anl5_had_m=0; [ -e "$MEM/anl5night" ] && _anl5_had_m=1
+_anl5_sdirs="state state/gate state/held state/verified state/overnight-said"
+_anl5_dirs_was=""
+for _d in $_anl5_sdirs; do [ -d "$FROOT/$_d" ] && _anl5_dirs_was="$_anl5_dirs_was $_d"; done
+_anl5_jobs_was=" $(jobs -p | tr '\n' ' ') "
+
+# The project: a gate that passes on the checkout, and one probe that always
+# finds something, without which a green receipt carries no epoch and is never
+# current. The checkout is committed and then edited, the state the hook is
+# designed for, and resolved through pwd -P, because a receipt stamped against
+# /var is not one the hook finds at /private/var.
+mkdir -p "$_anl5_P" "$_anl5_R"
+printf '{\n  "name": "anl5night",\n  "remote_match": "example.invalid/anl5night",\n  "gate": "sh -c '"'"'test -f NIGHT.txt && echo anl5-gate-ran'"'"'"\n}\n' \
+  > "$_anl5_P/project.json"
+printf '# anl5night\n' > "$_anl5_P/CLAUDE.md"
+printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' > "$_anl5_P/probes.tsv"
+( cd "$_anl5_R" && git init -q -b main && printf 'anl5night\n' > .felix && printf 'contents\n' > NIGHT.txt \
+  && git add -A && git -c user.name=anl5 -c user.email=anl5@example.invalid -c commit.gpgsign=false commit -qm anl5 ) >/dev/null 2>&1
+_anl5_R="$(cd "$_anl5_R" && pwd -P)"
+printf 'night work\n' >> "$_anl5_R/NIGHT.txt"
+# One tool call in the transcript, so each night's first continuation worked.
+printf '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash"}]}}\n' > "$_anl5/tx.jsonl"
+
+_anl5_gate() { ( cd "$_anl5_R" && "$FELIX" gate ) > "$_anl5/gate-$1.out" 2>&1; }
+_anl5_night() {   # session id: a fresh night of 8 hours and 5 continuations
+  ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/overnight.sh"
+    felix_overnight_start "$_anl5_P" 8 5 "$1" "the fifth block's night" ) >/dev/null 2>&1
+}
+_anl5_owns() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/overnight.sh"
+                 felix_overnight_owns "$_anl5_P" "$1" ) >/dev/null 2>&1; }
+# The hook's stdout, its stderr and its own exit status, one file each; a run
+# killed at the deadline leaves no status file.
+_anl5_stop_code='cd "$_anl5_R" && { printf '"'"'{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s","transcript_path":"%s"}'"'"' "$_anl5_sid" "$_anl5/tx.jsonl" \
+  | "$FROOT/harness/hooks/stop" > "$_anl5/$_anl5_sid.out" 2> "$_anl5/$_anl5_sid.err"; echo $? > "$_anl5/$_anl5_sid.rc"; }'
+_anl5_stop() {   # session id, fifo or - -> the bounded call's status
+  _anl5_sid="$1"; rm -f "$_anl5/$1.out" "$_anl5/$1.err" "$_anl5/$1.rc"
+  _anl5_bounded 8 "$2" "$_anl5_stop_code"
+}
+_anl5_rcof() { cat "$_anl5/$1.rc" 2>/dev/null || printf 'none'; }
+_anl5_said() { printf '%s' "$(tr '\n' ' ' < "$_anl5/$1.out" 2>/dev/null | cut -c1-900)"; }
+
+# ---------------------------------------- the control: a regular stack.tsv ----
+printf '# kind\tname\tsource\trisk\tcapability\tgrounding\nplugin\tsuperpowers@claude-plugins-official\t-\tlow\tprocess\tDECLARED\n' \
+  > "$_anl5_P/stack.tsv"
+_anl5_gate reg; _anl5_grc=$?
+_anl5_night anl5-reg; _anl5_owns anl5-reg; _anl5_orc=$?
+_anl5_stop anl5-reg -; _anl5_brc=$?
+_anl5_o="$(cat "$_anl5/anl5-reg.out" 2>/dev/null)"
+_anl5_if "the Stop hook in a session that owns a night on a green tree goes through the night's branch and says its stack.tsv nudge (control)" \
+   "gate $_anl5_grc, owns $_anl5_orc, bounded $_anl5_brc, hook $(_anl5_rcof anl5-reg), stdout [$(_anl5_said anl5-reg)]" \
+   eval '[ "$_anl5_grc" = 0 ] && [ "$_anl5_orc" = 0 ] && [ "$_anl5_brc" != 124 ] && [ "$(_anl5_rcof anl5-reg)" = 0 ] &&
+         _anl5_has "$_anl5_o" "\"decision\": \"block\"" && _anl5_has "$_anl5_o" "Overnight is on, and" &&
+         _anl5_has "$_anl5_o" "piece before you take the next one"'
+
+# ------------------------------------------------ the control: no stack.tsv ----
+rm -f "$_anl5_P/stack.tsv"
+_anl5_gate abs; _anl5_grc=$?
+_anl5_night anl5-abs; _anl5_owns anl5-abs; _anl5_orc=$?
+_anl5_stop anl5-abs -; _anl5_brc=$?
+_anl5_o="$(cat "$_anl5/anl5-abs.out" 2>/dev/null)"
+_anl5_if "and with no stack.tsv the same Stop hook run still holds the session for the night, without the nudge (control)" \
+   "gate $_anl5_grc, owns $_anl5_orc, bounded $_anl5_brc, hook $(_anl5_rcof anl5-abs), stdout [$(_anl5_said anl5-abs)]" \
+   eval '[ "$_anl5_grc" = 0 ] && [ "$_anl5_orc" = 0 ] && [ "$_anl5_brc" != 124 ] && [ "$(_anl5_rcof anl5-abs)" = 0 ] &&
+         _anl5_has "$_anl5_o" "\"decision\": \"block\"" && _anl5_has "$_anl5_o" "Overnight is on, and" &&
+         ! _anl5_has "$_anl5_o" "piece before you take the next one"'
+
+# ------------------------------------------------ I: a FIFO at stack.tsv ----
+mkfifo "$_anl5_P/stack.tsv"
+_anl5_night anl5-fifo
+_anl5_stop anl5-fifo "$_anl5_P/stack.tsv"; _anl5_brc=$?
+_anl5_if "the Stop hook in a session that owns a night returns within 8 s with a FIFO at the project's stack.tsv" \
+   "still blocked at the 8 s deadline" test "$_anl5_brc" != 124
+is "and the Stop hook's stdout with a FIFO at stack.tsv is the stdout of the same run with no stack.tsv" \
+   "$(cat "$_anl5/anl5-fifo.out" 2>/dev/null)" "$(cat "$_anl5/anl5-abs.out" 2>/dev/null)"
+is "and the Stop hook's exit status with a FIFO at stack.tsv is the exit status of the same run with no stack.tsv" \
+   "$(_anl5_rcof anl5-fifo)" "$(_anl5_rcof anl5-abs)"
+_anl5_if "and the FIFO at stack.tsv is still a FIFO after the Stop hook read it" \
+   "$(ls -ld "$_anl5_P/stack.tsv" 2>&1)" test -p "$_anl5_P/stack.tsv"
+
+# ------------------------------------------------------------- the restore ----
+_anl5_rcpt="$( . "$FROOT/harness/lib/resolve.sh" 2>/dev/null; . "$FROOT/harness/lib/verify.sh" 2>/dev/null
+               _felix_receipt_path "$_anl5_R" "$FROOT" 2>/dev/null )"
+[ -n "$_anl5_rcpt" ] && rm -f "$_anl5_rcpt"
+for _anl5_s in anl5-reg anl5-abs anl5-fifo; do
+  rm -f "$FROOT/state/held/$_anl5_s" "$FROOT/state/verified/$_anl5_s" "$FROOT/state/overnight-said/$_anl5_s"
+done
+for _d in state/overnight-said state/verified state/held state/gate state; do
+  case " $_anl5_dirs_was " in *" $_d "*) ;; *) rmdir "$FROOT/$_d" 2>/dev/null ;; esac
+done
+[ "$_anl5_had_p" -eq 1 ] || rm -rf "$_anl5_P"
+[ "$_anl5_had_m" -eq 1 ] || rm -rf "$MEM/anl5night"
+_anl5_back=""
+[ -n "$_anl5_rcpt" ] && [ ! -e "$_anl5_rcpt" ] || _anl5_back="$_anl5_back receipt[$_anl5_rcpt]"
+for _anl5_s in anl5-reg anl5-abs anl5-fifo; do
+  for _d in held verified overnight-said; do
+    [ ! -e "$FROOT/state/$_d/$_anl5_s" ] || _anl5_back="$_anl5_back state/$_d/$_anl5_s"
+  done
+done
+for _d in $_anl5_sdirs; do
+  case " $_anl5_dirs_was " in *" $_d "*) [ -d "$FROOT/$_d" ] || _anl5_back="$_anl5_back lost:$_d" ;; esac
+done
+{ [ "$_anl5_had_p" -eq 1 ] || [ ! -e "$_anl5_P" ]; } || _anl5_back="$_anl5_back projects/anl5night"
+{ [ "$_anl5_had_m" -eq 1 ] || [ ! -e "$MEM/anl5night" ]; } || _anl5_back="$_anl5_back memory/anl5night"
+for _anl5_j in $(jobs -p); do
+  case "$_anl5_jobs_was" in *" $_anl5_j "*) ;; *) _anl5_back="$_anl5_back background-job[$_anl5_j]" ;; esac
+done
+is "and the invented night project, its memory, its receipt and the hook state its sessions wrote are gone after the fifth block" \
+   "$_anl5_back" ""
+
 printf '\nno engine reader drops the unended last row of a project table, or opens one unguarded\n'
 # Written after the fix, not blind (2026-10-01). The blind block above pins the
 # readers one by one; this pins the shape, so the next reader written the old

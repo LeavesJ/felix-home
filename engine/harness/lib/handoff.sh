@@ -283,7 +283,8 @@ felix_handoff_in_flight() {
   mid="$(printf '%s\n' "$msha" | _felix_handoff_ids "$root" | cut -f2)"
   [ -n "$mid" ] || { printf 'cannot examine\t%s holds no %s with an (after <id> comes <next>) marker\n' "$ref" "$FELIX_HANDOFF_FILE"; return 2; }
   x="${full#refs/remotes/}"; ns="refs/remotes/${x%%/*}"
-  t="$(mktemp -d 2>/dev/null)" || { printf 'cannot examine\tcould not make a scratch directory\n'; return 2; }
+  local tmpd="${TMPDIR:-/tmp}"
+  t="$(mktemp -d "${tmpd%/}/felix-handoff.XXXXXX" 2>/dev/null)" || { printf 'cannot examine\tcould not make a scratch directory\n'; return 2; }
   # Every other branch of the remote, and the blob its HANDOFF.md is. Most
   # share one, and a branch whose blob is main's has folded nothing, so only
   # one commit per other blob is read for its marker.

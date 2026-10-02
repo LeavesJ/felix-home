@@ -1749,12 +1749,25 @@ cmd_review() {
 }
 
 cmd_autonomy() {
-  resolve_or_die; local proj="$PROJ" allow="" revoke="" a
+  resolve_or_die; local proj="$PROJ" allow="" revoke="" a rc
+  # One of each, and both named before anything is written. 2026-10-02: a
+  # second --revoke used to replace the first without a word, and --revoke
+  # took any string, so "Commission" printed "revoked:" and, on a
+  # case-insensitive disk, deleted the real commission stamp under a grant
+  # that stayed.
   while [ $# -gt 0 ]; do
     case "$1" in
-      --allow)  need_value "$@"; allow="$2"; shift 2 ;;
-      --revoke) need_value "$@"; revoke="$2"; shift 2 ;;
+      --allow)  need_value "$@"; [ -z "$allow" ] || die "one --allow at a time"
+                allow="$2"; shift 2 ;;
+      --revoke) need_value "$@"; [ -z "$revoke" ] || die "one --revoke at a time"
+                revoke="$2"; shift 2 ;;
       *) shift ;;
+    esac
+  done
+  for a in "$allow" "$revoke"; do
+    case "$a" in
+      ''|tidy|commission) ;;
+      *) die "unknown capability: $a. They are 'tidy' and 'commission'." ;;
     esac
   done
 
@@ -1762,8 +1775,13 @@ cmd_autonomy() {
     # The grant first, and the stamp and the word only once it is gone.
     # 2026-10-01: a one-grant file kept its grant here while this printed
     # "revoked:" and deleted the stamp (felix_autonomy_revoke says how).
-    felix_autonomy_revoke "$proj" "$revoke" \
-      || die "$revoke is not revoked, because $proj/autonomy could not be rewritten without it; its stamp is left in place"
+    felix_autonomy_revoke "$proj" "$revoke"; rc=$?
+    case "$rc" in
+      0) ;;
+      2) die "$revoke is not revoked, because $proj/autonomy holds a NUL byte and so grants nothing anyone can read; remove the byte by hand. Its stamp is left in place" ;;
+      3) die "$revoke is not revoked, because $proj/autonomy was rewritten without it and a read of it still finds the grant (another writer?); its stamp is left in place" ;;
+      *) die "$revoke is not revoked, because $proj/autonomy could not be read whole or rewritten without it; its stamp is left in place" ;;
+    esac
     # The stamp goes with the grant. Left behind, a later --allow would look
     # like it had already been read against a table nobody re-read.
     rm -f "$(felix_autonomy_stamp_path "$proj" "$revoke")" 2>/dev/null
@@ -1771,10 +1789,6 @@ cmd_autonomy() {
   fi
 
   if [ -n "$allow" ]; then
-    case "$allow" in
-      tidy|commission) ;;
-      *) die "unknown capability: $allow. They are 'tidy' and 'commission'." ;;
-    esac
     if felix_autonomy_allows "$proj" "$allow"; then
       printf 'already allowed: %s\n' "$allow"
     else

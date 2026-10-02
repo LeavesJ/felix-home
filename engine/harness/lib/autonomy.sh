@@ -54,9 +54,40 @@ felix_autonomy_commission_current() {   # proj -> 0 when the stamp matches
   [ -n "$now" ] && [ "$stamped" = "$now" ]
 }
 
-# Does this one line of an autonomy file grant this capability? The one
-# definition of a grant, shared by the reader and by revoke, so the two cannot
-# disagree about what a line means.
+# What a grant is, read the same way by every caller.
+#
+# 2026-10-02, from the adversarial review of the revoke fix: the reader trimmed
+# [[:space:]], and what that matches depends on the caller's locale. Under a
+# UTF-8 locale it takes U+00A0 (Option-Space), U+2003 and a lone \240 byte;
+# under C it takes none of them. So "tidy<NBSP>" was a grant to a UTF-8
+# session-start and not to a C one, and a revoke run under C said "revoked:
+# tidy" over a line the next UTF-8 session still tidied by. bash 5.2's read
+# also swallows the newline after a stray UTF-8 lead byte in a UTF-8 locale,
+# hiding the next line inside a comment. And a NUL byte ends a line on bash 3.2
+# but is skipped on 5.2, so "tidy\0x" was a grant to one and not the other.
+#
+# So the file is read in the C locale, in one read, and a file holding a NUL
+# grants nothing: lines are bytes split on newline, and only ASCII whitespace
+# (space, tab, CR, VT, FF) is trimmed. The locale is set inside a subshell so
+# it binds this read and nothing of the caller's. Narrowing the UTF-8 reading
+# fails closed: a grant typed with a non-ASCII space is shown [ ] and no
+# longer acts.
+
+# The file's whole text into _felix_autonomy_text, in one read. Call it in the
+# C locale. 0 read whole, 1 could not be read, 2 holds a NUL byte.
+_felix_autonomy_read() {
+  local rc=1
+  _felix_autonomy_text=""
+  { IFS= read -r -d '' _felix_autonomy_text; rc=$?; } < "$1" 2>/dev/null || return 1
+  # read -d '' stops at a NUL with status 0, and at the end of the file with 1.
+  [ "$rc" = 1 ] || return 2
+  # A first read that fails also ends with 1 and nothing read, which would pass
+  # for an empty file; a file with bytes in it was not read if nothing came.
+  [ -n "$_felix_autonomy_text" ] || [ ! -s "$1" ] || return 1
+  return 0
+}
+
+# Does this one line grant this capability? Call it in the C locale.
 _felix_autonomy_grants() {   # line want -> 0 when the line grants want
   local line="$1"
   case "$line" in ''|'#'*) return 1 ;; esac
@@ -67,19 +98,41 @@ _felix_autonomy_grants() {   # line want -> 0 when the line grants want
   [ "$line" = "$2" ]
 }
 
-felix_autonomy_allows() {
-  local proj="$1" want="$2" line
-  [ -n "$want" ] || return 1
-  [ -f "$proj/autonomy" ] || return 1
-  while IFS= read -r line || [ -n "$line" ]; do
-    _felix_autonomy_grants "$line" "$want" && return 0
-  done < "$proj/autonomy"
-  return 1
+# Every line of _felix_autonomy_text that does not grant want, byte for byte
+# and in order, into _felix_autonomy_kept; an unended last line stays unended.
+# 0 when some line granted want. The reader and revoke both go through this.
+_felix_autonomy_filter() {   # want -> 0 when a line grants want
+  local rest="$_felix_autonomy_text" line hit=1 nl='
+'
+  _felix_autonomy_kept=""
+  while [ -n "$rest" ]; do
+    case "$rest" in
+      *"$nl"*) line="${rest%%"$nl"*}"; rest="${rest#*"$nl"}"
+               if _felix_autonomy_grants "$line" "$1"; then hit=0
+               else _felix_autonomy_kept="$_felix_autonomy_kept$line$nl"; fi ;;
+      *)       line="$rest"; rest=""
+               if _felix_autonomy_grants "$line" "$1"; then hit=0
+               else _felix_autonomy_kept="$_felix_autonomy_kept$line"; fi ;;
+    esac
+  done
+  return "$hit"
 }
 
-# Take a grant back. Rewrites the file without every line the reader above
-# takes as that grant, and returns 1 when it could not, so the caller never
-# says "revoked" about a grant still on disk.
+felix_autonomy_allows() {
+  local proj="$1" want="$2"
+  [ -n "$want" ] || return 1
+  [ -f "$proj/autonomy" ] || return 1
+  ( LC_ALL=C
+    _felix_autonomy_read "$proj/autonomy" || exit 1
+    _felix_autonomy_filter "$want" ) 2>/dev/null
+}
+
+# Take a grant back: rewrite the file without every line the reader counts as
+# that grant, keeping every other byte. The caller says "revoked" only on 0.
+#   0  no line grants cap now (or there was no file to grant anything)
+#   1  the file could not be read whole, or the rewrite could not be written
+#   2  the file holds a NUL byte, so what it grants cannot be read
+#   3  rewritten, and a read of it still finds the grant
 #
 # 2026-10-01: this was `grep -vxF cap autonomy > autonomy.new && mv` in
 # cmd_autonomy. grep exits 1 when it selects no line, so a file holding the
@@ -89,32 +142,41 @@ felix_autonomy_allows() {
 # exactly where the reader trims, so a hand-edited "commission " stayed granted
 # after a revoke that said otherwise.
 #
-# Decided: revoke removes exactly the lines the reader counts as the grant,
-# trailing spaces, tabs and CRs included, and keeps every other line as it was.
-# The other way round, trimming nothing, would leave a revoke that cannot
-# revoke what the reader honours. The argument itself is not trimmed: it is
-# what a person typed, and the reader compares against its argument as given.
-felix_autonomy_revoke() {   # proj cap -> 0 when no line grants cap, 1 when not revoked
-  local proj="$1" want="$2" f tmp line bad=0
+# Decided: revoke removes exactly the lines the reader counts as the grant —
+# trailing and leading ASCII whitespace included, CRs too — and keeps every
+# other byte. Matching exactly instead would leave a revoke that cannot take
+# back a grant the reader honours.
+#
+# Not covered: two felix autonomy runs at once. Nothing locks the file, so the
+# later mv can put back what the earlier one removed, after it said so. Only a
+# person writes this file, by typing the command; the lock is its own change.
+felix_autonomy_revoke() {
+  local proj="$1" want="$2" f tmp rc
   [ -n "$want" ] || return 1
   f="$proj/autonomy"
-  # The reader takes nothing from what is not a regular file, so there is
-  # nothing here to take back.
+  # The reader takes nothing from what is not a regular file.
   [ -f "$f" ] || return 0
-  tmp="$f.new.$$"
-  # A file that cannot be read, or a replacement that cannot be written, fails
-  # the redirection, and the block returns non-zero without running the loop.
-  # Once it runs, its status is the last body command's, which is 0.
-  { while IFS= read -r line || [ -n "$line" ]; do
-      _felix_autonomy_grants "$line" "$want" && continue
-      printf '%s\n' "$line" || bad=1
-    done < "$f" > "$tmp"; } 2>/dev/null || bad=1
-  if [ "$bad" != 0 ] || ! mv -f "$tmp" "$f" 2>/dev/null; then
+  # mktemp creates the name or fails; it never opens a link planted there.
+  tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
+  # Its own C locale, and its stdout thrown away: bash 3.2's printf can leave
+  # the unwritten tail of a failed write in its buffer, and that is file text.
+  ( LC_ALL=C
+    _felix_autonomy_read "$f"; rc=$?
+    [ "$rc" = 0 ] || exit "$rc"
+    # A read cut short mid-file also ends like the end of the file. The byte
+    # count is the check: in the C locale ${#…} counts bytes.
+    [ "$(( $(wc -c < "$f") ))" -eq "${#_felix_autonomy_text}" ] || exit 1
+    _felix_autonomy_filter "$want"
+    printf '%s' "$_felix_autonomy_kept" > "$tmp" || exit 1
+  ) > /dev/null 2>&1; rc=$?
+  if [ "$rc" != 0 ] || ! mv -f "$tmp" "$f" 2>/dev/null; then
     rm -f "$tmp" 2>/dev/null
+    [ "$rc" = 2 ] && return 2
     return 1
   fi
   # Read back through the reader rather than trusting the rewrite.
-  ! felix_autonomy_allows "$proj" "$want"
+  felix_autonomy_allows "$proj" "$want" && return 3
+  return 0
 }
 
 # Remove lookalike scripts, and only where every check holds.

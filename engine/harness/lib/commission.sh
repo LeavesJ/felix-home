@@ -410,7 +410,7 @@ PROV
 # status; `-` runs nothing, which is what --status and the gate use.
 felix_commission_run() {
   local proj="$1" root="$2" runner="${3:--}" tpl="${4:-}"
-  local need grounds instrument when answer check step st detail prov out arc line
+  local need grounds instrument when answer check step st detail prov out arc line rrc
   local uncomputed="this row's state could not be computed, so whether it holds is not known"
   export FELIX_PROJECT="$proj" FELIX_PROJECT_NAME="$(basename "$proj")" \
          FELIX_ROOT_DIR="$root" FELIX_MEMORY_DIR="$(felix_mem_dir "$proj")"
@@ -440,12 +440,20 @@ EOF
     # A real run writes every provider row's request afresh — the topology it
     # carries is what makes an answer current — and never in --status, which
     # writes nothing. A missing template is a row nobody can answer.
+    #
+    # And a request that returned 2 is one that could not be written because the
+    # declared list could not be read, which is not a missing template. Until
+    # 2026-10-01 the request wrote itself over an empty list and this branch
+    # never saw the difference; now the row says what happened to the request.
     if [ "$runner" != "-" ] && [ -n "$tpl" ] && command -v felix_commission_request >/dev/null 2>&1; then
       case "$answer" in
         provider:*)
-          if ! felix_commission_request "$proj" "$root" "$need" "$tpl" >/dev/null; then
-            st=unknown; detail="no request template for $need under $tpl/commission, so no session can answer it"
-          fi ;;
+          felix_commission_request "$proj" "$root" "$need" "$tpl" >/dev/null; rrc=$?
+          case "$rrc" in
+            0) ;;
+            2) st=unknown; detail="the request for $need could not be written: the capabilities this project declares could not be read" ;;
+            *) st=unknown; detail="no request template for $need under $tpl/commission, so no session can answer it" ;;
+          esac ;;
       esac
     fi
     if [ "$st" = "held" ] && [ "$runner" != "-" ]; then
@@ -593,10 +601,17 @@ felix_commission_receipt_valid() {
 
 # What nothing serves, reaches, or grounds — enumerated from the checkout and
 # the declaration, never from this table. cap <TAB> served <TAB> reached <TAB> grounded.
+#
+# 0 with the rows on stdout, and 2 with nothing printed when the declared list
+# could not be read. Until 2026-10-01 an unread list was an empty one, so every
+# capability only the project declares dropped out of the union and out of
+# "surfaces nothing serves", and the section said fewer did than do. The list is
+# read once, in this shell, before the pipeline.
 felix_commission_gaps() {
-  local proj="$1" root="$2" cap served reached grounded probed
+  local proj="$1" root="$2" cap served reached grounded probed declared
+  felix_declared_into declared "$proj" || return 2
   probed="$(command -v felix_probe_rows >/dev/null 2>&1 && felix_probe_rows "$proj" | cut -f2 | LC_ALL=C sort -u)"
-  { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } | LC_ALL=C sort -u \
+  { felix_detect "$root" 2>/dev/null; [ -z "$declared" ] || printf '%s\n' "$declared"; } | LC_ALL=C sort -u \
     | while IFS= read -r cap; do
         [ -n "$cap" ] || continue
         served=no; reached=no; grounded=no

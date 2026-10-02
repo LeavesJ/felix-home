@@ -124,12 +124,53 @@ felix_declared() {
   return 0
 }
 
+# The declared list read into the variable named $1, one capability per line
+# with no trailing newline, and whether it was read. 0 when it was, the empty
+# string being a list too (no file, or one that declares nothing), and 2 when it
+# was not, with the variable left as the caller had it.
+#
+# Until 2026-10-01 each reader of the list but _felix_cap_active ran
+# `$(felix_declared ...)` and took what came back as the list, so a list that
+# could not be read was an empty one and every reader made a claim from it: a
+# capability not declared, drift to adopt, an orphan, a gap that was not one, a
+# topology that was not the project's. Now they read here and branch on the
+# status. The status of felix_declared is not enough, because a substitution can
+# end with nothing printed and status 0 when its fork fails (EAGAIN) or, on bash
+# 3.2, when it cannot make its pipe, so the `.` is written only after
+# felix_declared returned 0 and a list that comes back without it was never
+# read. No locals and no named variable of its own, because either would hide
+# the caller's variable of the same name from printf -v (lib/commission.sh
+# felix_commission_ask says the same of its own): everything is held in the
+# positional parameters. The newline is stripped with a literal one in the
+# pattern, which is the same in bash 3.2 and 5.
+felix_declared_into() {
+  set -- "$1" "$2" "$(felix_declared "$2" && printf .)"
+  case "$3" in *.) ;; *) return 2 ;; esac
+  set -- "$1" "$2" "${3%.}"
+  set -- "$1" "$2" "${3%"
+"}"
+  printf -v "$1" '%s' "$3"
+  return 0
+}
+
 # Present in the checkout but never declared. This is the drift worth surfacing.
+#
+# 0 with the surfaces on stdout, and 2 with nothing printed when the declared
+# list could not be read. Until 2026-10-01 an unread list subtracted nothing, so
+# every detected surface was undeclared drift and session start adopted each one,
+# capabilities that may already have been declared. The list is read once, in
+# this shell, before the pipeline, and what it holds is skipped by a case, the
+# way _felix_cap_active asks, where felix_has_line's here-document is a
+# temporary file on bash 3.2. A process substitution would hand a loop an empty
+# file when its fork failed, so there is none.
 felix_undeclared() {
-  local root="$1" proj="$2"
-  comm -23 \
-    <(felix_detect "$root" | sort -u) \
-    <(felix_declared "$proj" | sort -u)
+  local root="$1" proj="$2" declared nl=$'\n' cap
+  felix_declared_into declared "$proj" || return 2
+  felix_detect "$root" | sort -u | while IFS= read -r cap; do
+    [ -n "$cap" ] || continue
+    case "$nl$declared$nl" in *"$nl$cap$nl"*) ;; *) printf '%s\n' "$cap" ;; esac
+  done
+  return 0
 }
 
 # Best guess at the command that proves this project correct. A guess, printed

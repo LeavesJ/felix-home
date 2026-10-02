@@ -81,9 +81,17 @@ _felix_commission_provider_toolong() {   # line -> "<field> <limit>" or empty
 }
 
 # The topology an answer is keyed to. Inputs ingestion never writes.
+#
+# 0 with the hash on stdout, and 2 with nothing printed when the declared list
+# could not be read. Until 2026-10-01 an unread list hashed a different list, so
+# every provider answer read stale, and a request was written under a topology
+# that was not the project's. The list is read once, in this shell, before the
+# pipeline, and what is hashed is the same bytes as before on a list that was
+# read.
 felix_commission_topology() {
-  local proj="$1" root="$2"
-  { { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } | LC_ALL=C sort -u
+  local proj="$1" root="$2" declared
+  felix_declared_into declared "$proj" || return 2
+  { { felix_detect "$root" 2>/dev/null; [ -z "$declared" ] || printf '%s\n' "$declared"; } | LC_ALL=C sort -u
     printf '== commissioning.tsv ==\n'; cat "$proj/commissioning.tsv" 2>/dev/null; } | _felix_hash
 }
 
@@ -95,15 +103,25 @@ felix_commission_request_path() { printf '%s/requests/%s.md' "$(_felix_commissio
 # Placeholders are substituted the way setup runbooks substitute {{REPO}}.
 # Prints the path. Returns 1 when the template is absent — a provider row
 # with no request template is a row nobody can answer, and the state says so.
+#
+# And 2 when the declared list could not be read, with nothing printed and
+# nothing written, a request already there left as it was. Until 2026-10-01 an
+# unread list gave a request naming the wrong capabilities under the wrong
+# topology, and a session that answered it was answering another question. The
+# template is still checked first, so no template is 1 whatever the list. The
+# topology is captured with the `.` _felix_cap_active uses, since a substitution
+# can end with nothing printed and status 0 when its fork fails.
 felix_commission_request() {
-  local proj="$1" root="$2" need="$3" tpl="$4" src out caps declared topo
+  local proj="$1" root="$2" need="$3" tpl="$4" src out caps declared topo dcl nl=$'\n'
   src="$tpl/commission/$need.md"
   [ -f "$src" ] || return 1
+  felix_declared_into dcl "$proj" || return 2
+  topo="$(felix_commission_topology "$proj" "$root" && printf .)" || return 2
+  case "$topo" in *.) topo="${topo%.}"; topo="${topo%$nl}" ;; *) return 2 ;; esac
   out="$(felix_commission_request_path "$proj" "$need")"
   mkdir -p "$(dirname "$out")" 2>/dev/null || return 1
-  caps="$( { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } | LC_ALL=C sort -u | tr '\n' ' ')"
+  caps="$( { felix_detect "$root" 2>/dev/null; [ -z "$dcl" ] || printf '%s\n' "$dcl"; } | LC_ALL=C sort -u | tr '\n' ' ')"
   declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
-  topo="$(felix_commission_topology "$proj" "$root")"
   # Three placeholders the obligations request needs, computed only when the
   # template names them: the decision epoch, the probe rows as a session can
   # read them, and the admitted ledger. Each may hold newlines, backslashes
@@ -149,14 +167,27 @@ felix_commission_request() {
 # grep's own status is asked too, and the counting grep's, from PIPESTATUS,
 # which pipefail does not change. Taken whole into the positional parameters
 # first, because the first test resets it.
+#
+# Also unknown, since 2026-10-01, for an answer file that is there when the
+# topology it is keyed to could not be computed because the declared list could
+# not be read. Until then the topology came back as another hash, or none, and
+# every answer read stale: a verdict that sends a person to run the skill again
+# over a list nobody read. No file is still awaiting, whatever the list. The
+# topology is captured with the `.` _felix_cap_active uses, since a substitution
+# can end with nothing printed and status 0 when its fork fails.
 felix_commission_provider_state() {
-  local proj="$1" root="$2" need="$3" f first last n rows
+  local proj="$1" root="$2" need="$3" f first last n rows topo nl=$'\n'
   f="$(felix_commission_answer_path "$proj" "$need")"
   if [ ! -f "$f" ]; then
     printf 'awaiting\tno answer at %s\n' "$f"; return 0
   fi
   first="$(head -1 "$f" 2>/dev/null)"
-  if [ "$first" != "# topology $(felix_commission_topology "$proj" "$root")" ]; then
+  topo="$(felix_commission_topology "$proj" "$root" && printf .)" || topo=""
+  case "$topo" in
+    *.) topo="${topo%.}"; topo="${topo%$nl}" ;;
+    *) printf 'unknown\tthe topology the answer at %s is keyed to could not be computed: the capabilities this project declares could not be read\n' "$f"; return 0 ;;
+  esac
+  if [ "$first" != "# topology $topo" ]; then
     printf 'stale\tthe answer at %s is for another topology; run the skill again from the request\n' "$f"; return 0
   fi
   last="$(grep -vE '^[[:space:]]*$' "$f" | tail -1)"
@@ -376,7 +407,18 @@ felix_commission_admit() {
   # something, and asking it is what keeps a third shape from repeating this.
   [ "$(_felix_commission_provider_shape "$need")" -eq 5 ] || return 0
 
-  rules="$(_felix_discover_rules "$tpl" "$proj")"
+  # Until 2026-10-01 a declared list that could not be read gave no rules, so
+  # every nomination that was fetched and read matched no capability and came
+  # back `unknown`, "nothing it ships matches a capability this project
+  # declares", after the marketplace had been asked for each one. Now one row
+  # says the list could not be read, nothing is fetched, and the status is 2.
+  # The rules are captured with the `.` _felix_cap_active uses, since a
+  # substitution can end with nothing printed and status 0 when its fork fails.
+  rules="$(_felix_discover_rules "$tpl" "$proj" && printf .)" || rules=""
+  case "$rules" in
+    *.) rules="${rules%.}"; rules="${rules%$nl}" ;;
+    *) printf 'unknown\t-\t-\t-\t-\t-\tthe capabilities this project declares could not be read, so no nomination was matched to one\n'; return 2 ;;
+  esac
   # Compared without the marketplace suffix, the same way discover's adopt
   # compares, so `hookify@claude-plugins-official` matches a `hookify` row.
   declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"

@@ -191,9 +191,17 @@ felix_candidates_stale() {
 # the request carries the epoch the answer will be proposed under, and a
 # request about a topology the probes could not read would ask for a proposal
 # grounded on nothing. Prints the request path.
+#
+# 3 when the request could not be written because the declared list could not
+# be read, and nothing was written. 2 stays the epoch's refusal, and is not
+# borrowed for this, so a caller can tell a topology the probes could not read
+# from a list nobody read. Until 2026-10-01 the request wrote itself over an
+# empty list and named the wrong capabilities.
 felix_candidates_request() {
-  local proj="$1" root="$2" tpl="$3" ep
+  local proj="$1" root="$2" tpl="$3" ep rrc
   ep="$(felix_epoch "$proj" "$root" 2>/dev/null)" || ep=""
   [ -n "$ep" ] || return 2
-  felix_commission_request "$proj" "$root" "$FELIX_CANDIDATES_NEED" "$tpl"
+  felix_commission_request "$proj" "$root" "$FELIX_CANDIDATES_NEED" "$tpl"; rrc=$?
+  [ "$rrc" -eq 2 ] && return 3
+  return "$rrc"
 }

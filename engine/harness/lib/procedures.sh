@@ -47,8 +47,15 @@ felix_procedures_moments() {
 # caught, recorded as it caught them. Add a surface and an item appears; break
 # something new and an item appears. Nothing here has an opinion about which
 # of them matter.
+#
+# 0 with the items on stdout, and 2 with nothing printed when the declared list
+# could not be read. Until 2026-10-01 an unread list dropped the declared
+# capabilities from the items, so the gap list shrank, a stance on one was an
+# orphan, and the report could say every item had a stance. The list is read
+# once, in this shell, before the group that is piped to sort.
 felix_procedures_items() {
-  local proj="$1" root="${2:-}" mem cap
+  local proj="$1" root="${2:-}" mem cap declared
+  felix_declared_into declared "$proj" || return 2
   {
     # Both what the tree shows and what the project declared. The first
     # version read the declared file alone, which is a curated snapshot — so
@@ -65,7 +72,7 @@ felix_procedures_items() {
       [ -n "$cap" ] || continue
       printf 'capability:%s\n' "$cap"
     done <<EOF
-$(felix_declared "$proj")
+$declared
 EOF
     mem="$(felix_mem_dir "$proj")"
     if [ -f "$mem/mistakes.log" ]; then
@@ -143,15 +150,23 @@ EOF
   return 0
 }
 
+#
+# 0 with the gaps on stdout, and 2 with nothing printed when the items could not
+# be read, because the declared list could not. Until 2026-10-01 the items came
+# back without the declared capabilities, and the gap list was shorter than the
+# real one. The items are captured with the `.` _felix_cap_active uses, since a
+# substitution can end with nothing printed and status 0 when its fork fails.
 felix_procedures_gaps() {
-  local proj="$1" root="${2:-}" tpl="${3:-}" item stanced
+  local proj="$1" root="${2:-}" tpl="${3:-}" item stanced items nl=$'\n'
+  items="$(felix_procedures_items "$proj" "$root" && printf .)" || return 2
+  case "$items" in *.) items="${items%.}"; items="${items%$nl}" ;; *) return 2 ;; esac
   stanced="$(felix_procedures_effective "$proj" "$tpl" | cut -f1)"
   while IFS= read -r item; do
     [ -n "$item" ] || continue
     felix_has_line "$stanced" "$item" && continue
     printf '%s\n' "$item"
   done <<EOF
-$(felix_procedures_items "$proj" "$root")
+$items
 EOF
   return 0
 }
@@ -161,9 +176,17 @@ EOF
 # question, and the precedent this design copies checks both — a table is
 # wrong when it lacks a row reality has, and equally wrong when it keeps one
 # reality dropped.
+#
+# 0 with the orphans on stdout, and 2 with nothing printed when the items could
+# not be read, because the declared list could not. Until 2026-10-01 the items
+# came back without the declared capabilities, so a stance on a declared
+# capability was called an orphan, a claim about a surface that is gone. The
+# items are captured with the `.` _felix_cap_active uses, since a substitution
+# can end with nothing printed and status 0 when its fork fails.
 felix_procedures_orphans() {
-  local proj="$1" root="${2:-}" item items
-  items="$(felix_procedures_items "$proj" "$root")"
+  local proj="$1" root="${2:-}" item items nl=$'\n'
+  items="$(felix_procedures_items "$proj" "$root" && printf .)" || return 2
+  case "$items" in *.) items="${items%.}"; items="${items%$nl}" ;; *) return 2 ;; esac
   while IFS= read -r item; do
     [ -n "$item" ] || continue
     felix_has_line "$items" "$item" && continue

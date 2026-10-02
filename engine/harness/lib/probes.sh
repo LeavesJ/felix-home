@@ -392,15 +392,22 @@ felix_probes_blocking() {
 # what exists here that was reached by pattern-matching filenames and manifests.
 # A probe grounding it is the difference between believing that claim and having
 # asked the thing that knows.
+#
+# 0 with the gaps on stdout, and 2 with nothing printed when the declared list
+# could not be read. Until 2026-10-01 an unread list was an empty one, so every
+# capability only the project declared dropped out of the union and out of the
+# gaps, and the report said fewer surfaces lacked a probe than do. The list is
+# read once, in this shell, before the loop.
 felix_probes_gaps() {
-  local proj="$1" root="$2" grounded cap
+  local proj="$1" root="$2" grounded cap declared
+  felix_declared_into declared "$proj" || return 2
   grounded="$(felix_probe_rows "$proj" | cut -f2 | grep -v '^-\?$' | LC_ALL=C sort -u)"
   while IFS= read -r cap; do
     [ -n "$cap" ] || continue
     felix_has_line "$grounded" "$cap" && continue
     printf '%s\n' "$cap"
   done <<EOF
-$( { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } | LC_ALL=C sort -u )
+$( { felix_detect "$root" 2>/dev/null; [ -z "$declared" ] || printf '%s\n' "$declared"; } | LC_ALL=C sort -u )
 EOF
   return 0
 }
@@ -409,9 +416,15 @@ EOF
 # enumerates any more. The precedent checks both, because a table is wrong when
 # it lacks a row reality has and equally wrong when it keeps one reality
 # dropped.
+#
+# 0 with the orphans on stdout, and 2 with nothing printed when the declared
+# list could not be read. Until 2026-10-01 an unread list left the declared
+# capabilities out of the union, so a probe grounding one was called an orphan,
+# and the report named for deletion a probe that was doing its job.
 felix_probes_orphans() {
-  local proj="$1" root="$2" caps cap
-  caps="$( { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } \
+  local proj="$1" root="$2" caps cap declared
+  felix_declared_into declared "$proj" || return 2
+  caps="$( { felix_detect "$root" 2>/dev/null; [ -z "$declared" ] || printf '%s\n' "$declared"; } \
            | LC_ALL=C sort -u )"
   while IFS= read -r cap; do
     [ -n "$cap" ] || continue

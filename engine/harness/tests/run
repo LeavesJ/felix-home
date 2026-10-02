@@ -19336,6 +19336,296 @@ unset -f _durbfixture _durblib _durbtri _durbone _durbread _durbcli _durbstart _
 unset _durbfound _durbdirs _durbp _durbr _durbhome _durbstub _durbasked _durbtpl _durbnotpl _durbcache _durbwhy \
       _durbnone _durbtopo _durbans _durbreq _durbobreq _durbq _durbout _durbrc _durbscored _durbnl _durbd
 
+# After review, not blind: the readers of the declared capabilities that the
+# review of the first pass found still dropped a list, or said one was unread
+# when it was not.
+#
+# The three reviewers (defeat, simpler, omission) read the first pass of
+# declared-unread-readers and each demonstrated what follows. A project with no
+# commissioning.tsv returned 1 from felix_commission_topology under pipefail,
+# because its status was the cat of that table, so felix obligations --request
+# refused over a list that was read and an answered request read unknown.
+# felix discover --adopt looked at the list only when the cache was stale, so a
+# current cache over an unread list adopted its rows and asked claude to install
+# them, and a fill whose own read failed after that said the marketplaces could
+# not be read. A here-document that cannot be written, and a felix_detect that
+# exits inside the group it was unioned in, dropped a list that had been read.
+# felix_commission_policy_version opened a capabilities link whose target is gone
+# as no file and a pipe by that name as a file to wait on. A failed
+# felix_declared forged the sentinel with a last line ending in a dot.
+# felix_capture is the helper the sentinel now lives in. R1 to R6 of "After
+# review: what changes" in
+# docs/handoff/pending/20261001T235048Z-claude-declared-unread-readers.md.
+# These assertions were NOT written blind: they were written after the fix, from
+# the reviewers' evidence, and each was shown failing against the first pass at
+# 1e0197ca, the engine this change is a fix to, before it was shown passing. The
+# libraries are asked in subshells after the libs are sourced, under pipefail as
+# the CLI and the hooks are. Here-documents are made unwritable inside the
+# subshell with an ignored SIGXFSZ and a file size limit of nothing, which a bash
+# that writes a here-document to a temporary file meets, 3.2 among them, and a
+# bash that sends a small one through a pipe does not: the assertions pass there
+# and fail only where the defect is. The CLI and the hook
+# are other processes, so there the capabilities file is a link whose target is
+# gone, and the two scratch engine copies add a felix_declared that fails only
+# for _felix_discover_rules. The marketplace is a stub on PATH that records every
+# call. Nothing reaches the network or installs anything.
+# Everything this makes is removed below and everything it defines unset.
+_durcfixture() { { find "$FROOT/projects" "$FROOT/state" "$MEM" 2>/dev/null | LC_ALL=C sort
+                   find "$FROOT/projects" "$FROOT/state" "$MEM" -type f -exec cksum {} + 2>/dev/null | LC_ALL=C sort; } | cksum; }
+_durcfound="$(_durcfixture)"
+_durcdirs="$(find "$FROOT/state" -type d 2>/dev/null)"
+_durcp="$FROOT/projects/durcproj"; _durcr="$TMP/durc-repo"; _durchome="$TMP/durc-home"
+_durcstub="$TMP/durc-bin"; _durcasked="$TMP/durc-asked"; _durctpl="$FROOT/harness/templates"
+_durcpv="$TMP/durc-pv"; _durceng="$TMP/durc-plugin"; _durccache="$FROOT/state/discover/durcproj.tsv"
+_durcwhy='the capabilities this project declares could not be read'
+_durcgone="$TMP/durc-no-such-list"
+mkdir -p "$_durcp" "$_durcr/tests" "$_durchome/.claude/plugins" "$_durcstub" "$_durcpv"
+printf '{\n  "name": "durcproj",\n  "remote_match": "example.com/durcproj",\n  "gate": "true"\n}\n' > "$_durcp/project.json"
+printf '# durcproj\n' > "$_durcp/CLAUDE.md"
+# Detected: secrets (.env.example) and tests (tests/). Declared: secrets, and
+# billing, durccap and durcgap, which nothing detects. A probe grounds billing
+# and durccap, and another one a durcghost that nothing declares or detects.
+( cd "$_durcr" && git init -q -b main && printf 'durcproj\n' > .felix && printf 'X=1\n' > .env.example \
+    && printf 'ok\n' > tests/t && git add -A && git -c user.name=durc -c user.email=durc@example.com commit -q -m durc )
+_durcr="$(cd "$_durcr" && pwd -P)"
+_durcdeclare() { rm -f "$_durcp/capabilities"; printf 'secrets\nbilling\ndurccap\ndurcgap\n' > "$_durcp/capabilities"; }
+_durcdangle() { rm -f "$_durcp/capabilities"; ln -s "$_durcgone" "$_durcp/capabilities"; }
+_durcdeclare
+{ printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n'
+  printf 'durc_bill\tbilling\t-\tls -1 .felix\ttest -f .felix\n'
+  printf 'durc_cap\tdurccap\t-\tls -1 .felix\ttest -f .felix\n'
+  printf 'durc_ghost\tdurcghost\t-\tls -1 .felix\ttest -f .felix\n'; } > "$_durcp/probes.tsv"
+printf '{"name": "durcpv"}\n' > "$_durcpv/project.json"
+cat > "$_durcstub/claude" <<STUB
+#!/bin/sh
+printf '%s\n' "\$*" >> "$_durcasked"
+case "\$*" in
+  "plugin list --json --available") printf '[]\n' ;;
+  "plugin list --json") printf '[]\n' ;;
+  *) exit 1 ;;
+esac
+STUB
+chmod +x "$_durcstub/claude"; : > "$_durcasked"
+
+# $1 is the mode: w (everything as it is), nohd (here-documents cannot be written)
+# or exit0 (felix_detect exits where it is called). The rest is the call, which is
+# run under pipefail. Prints status|output.
+_durcrun() { local _durcm="$1"; shift
+  ( cd "$_durcr" || exit 99
+    set -o pipefail
+    HOME="$_durchome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durcstub:/usr/bin:/bin"
+    . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/stack.sh"
+    . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/route.sh"; . "$FROOT/harness/lib/discover.sh"
+    . "$FROOT/harness/lib/toolbox.sh"; . "$FROOT/harness/lib/procedures.sh"; . "$FROOT/harness/lib/candidates.sh"
+    . "$FROOT/harness/lib/probes.sh"
+    case "$_durcm" in
+      nohd)  trap '' XFSZ; ulimit -f 0 ;;
+      exit0) felix_detect() { exit 0; } ;;
+    esac
+    _durco="$("$@")"; printf '%s|%s' "$?" "$_durco" ) 2>/dev/null; }
+_durccli() { ( cd "$_durcr" && HOME="$_durchome" PATH="$_durcstub:/usr/bin:/bin" "$FELIX" "$@" 2>&1 ); }
+_durcsays() { case "$1" in *"$2"*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
+_durcis()   { if [ -e "$1" ]; then printf 'there\n'; else printf 'absent\n'; fi; }
+_durcasks() { grep -c "$1" "$_durcasked" 2>/dev/null | tr -d ' '; : > "$_durcasked"; }
+
+# 1. A project with no commissioning.tsv, under pipefail (R1).
+_durctopo="$(_durcrun w felix_commission_topology "$_durcp" "$_durcr")"
+is  "felix_commission_topology returns 0 with a hash for a project with no commissioning.tsv, under pipefail" \
+    "${_durctopo%%|*} ${#_durctopo}" "0 42"
+_durcobreq="$MEM/durcproj/commission/requests/obligations_surveyed.md"
+_durcout="$(_durccli obligations --request)"; _durcrc=$?
+is  "felix obligations --request over a list it read, for a project with no commissioning.tsv, writes the request and exits 0" \
+    "$_durcrc $(_durcsays "$_durcout" "wrote $_durcobreq") $(_durcis "$_durcobreq")" "0 said there"
+mkdir -p "$MEM/durcproj/commission"
+for _durcn in automation_surveyed obligations_surveyed; do
+  { printf '# topology %s\n' "${_durctopo#*|}"; printf 'plugin\tdurcnom\t-\tdurccap\ta nomination\n'; printf 'done\t1\n'; } \
+    > "$MEM/durcproj/commission/$_durcn.tsv"
+done
+_durcst1="$(_durcrun w felix_commission_provider_state "$_durcp" "$_durcr" automation_surveyed | cut -f1)"
+_durcst2="$(_durcrun w felix_commission_provider_state "$_durcp" "$_durcr" obligations_surveyed | cut -f1)"
+is  "and an answer keyed to that topology reads answered, for the automation request and the obligations one" \
+    "$_durcst1 $_durcst2" "0|answered 0|answered"
+rm -f "$_durcobreq"
+
+# 2. felix discover --adopt over a current cache and an unread list (R2).
+_durcstamp="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/discover.sh"; _felix_discover_stamp_line "$FROOT/harness/templates" )"
+mkdir -p "$(dirname "$_durccache")"
+_durccurrent() { { printf '%s\n' "$_durcstamp"; printf 'durcnom\tdurccap\tlow\tdurcdigest\n'; } > "$_durccache"; }
+_durccurrent; : > "$_durcasked"
+_durcout="$(_durccli discover --adopt)"; _durcrc=$?
+is  "felix discover --adopt over a current cache and a list it read adopts the row and asks claude to install it" \
+    "$_durcrc $(_durcsays "$_durcout" 'adopting for durcproj') $(_durcis "$_durcp/stack.tsv") $(_durcasks 'plugin install durcnom')" "0 said there 1"
+rm -f "$_durcp/stack.tsv"; _durcdangle; _durccurrent; : > "$_durcasked"
+_durcout="$(_durccli discover --adopt)"; _durcrc=$?
+is  "felix discover --adopt over a current cache and an unread list says nothing was scored, adopts nothing, installs nothing and exits 2" \
+    "$_durcrc $(_durcsays "$_durcout" "Nothing was scored for durcproj: $_durcwhy.") $(_durcsays "$_durcout" 'adopting for') $(_durcis "$_durcp/stack.tsv") $(_durcasks 'install')" \
+    "2 said silent absent 0"
+rm -f "$_durccache" "$_durcp/stack.tsv"; _durcdeclare
+
+# 3. The --adopt fill whose own read fails after the check (R2).
+mkdir -p "$_durceng"; cp -R "$FROOT/harness" "$_durceng/harness"
+sed -e 's/^felix_declared() {$/_durc_real_declared() {/' "$_durceng/harness/lib/detect.sh" > "$_durceng/detect.new"
+cat >> "$_durceng/detect.new" <<'EOF'
+felix_declared() {
+  if [ -n "${DURC_FAIL:-}" ]; then case " ${FUNCNAME[*]:-} " in *" _felix_discover_rules "*) return 128 ;; esac; fi
+  _durc_real_declared "$@"
+}
+EOF
+cp "$_durceng/detect.new" "$_durceng/harness/lib/detect.sh"
+_durceng_cli() { ( cd "$_durcr" && HOME="$_durchome" PATH="$_durcstub:/usr/bin:/bin" FELIX_HOME="$FROOT" "$_durceng/harness/felix" "$@" 2>&1 ); }
+: > "$_durcasked"
+_durcout="$(_durceng_cli discover --adopt)"; _durcrc=$?
+is  "through the engine copy and over a list it read, felix discover --adopt fills the cache and finds nothing to adopt" \
+    "$_durcrc $(_durcsays "$_durcout" 'filling the discovery cache') $(_durcsays "$_durcout" 'Nothing to adopt for durcproj.') $(head -1 "$_durccache" 2>/dev/null | cut -c1-7)" "0 said said # stamp"
+rm -f "$_durccache" "$_durccache.new"; : > "$_durcasked"
+_durcout="$(DURC_FAIL=1 _durceng_cli discover --adopt)"; _durcrc=$?
+is  "felix discover --adopt whose fill cannot read the rules after the check says nothing was scored, not that the marketplaces could not be read, fills nothing, adopts nothing and exits 2" \
+    "$_durcrc $(_durcsays "$_durcout" "Nothing was scored for durcproj: $_durcwhy.") $(_durcsays "$_durcout" 'The marketplaces could not be read') $(_durcis "$_durccache") $(_durcis "$_durccache.new") $(_durcis "$_durcp/stack.tsv")" \
+    "2 said silent absent absent absent"
+
+# 4. Here-documents that cannot be written (R3).
+_durcwr() { _durcrun w "$@"; }
+_durcnh() { _durcrun nohd "$@"; }
+is  "_felix_discover_rules gives the same rules and status when here-documents cannot be written" \
+    "$(_durcnh _felix_discover_rules "$_durctpl" "$_durcp")" "$(_durcwr _felix_discover_rules "$_durctpl" "$_durcp")"
+is  "felix_capabilities_unruled gives the same list and status when here-documents cannot be written" \
+    "$(_durcnh felix_capabilities_unruled "$_durcp" "$_durctpl")" "$(_durcwr felix_capabilities_unruled "$_durcp" "$_durctpl")"
+is  "felix_procedures_items gives the same items and status when here-documents cannot be written" \
+    "$(_durcnh felix_procedures_items "$_durcp" "$_durcr")" "$(_durcwr felix_procedures_items "$_durcp" "$_durcr")"
+is  "felix_procedures_gaps gives the same gaps and status when here-documents cannot be written" \
+    "$(_durcnh felix_procedures_gaps "$_durcp" "$_durcr" "$_durctpl")" "$(_durcwr felix_procedures_gaps "$_durcp" "$_durcr" "$_durctpl")"
+printf 'capability:durccap\tcommissioning\tdurc-check\ta stance on a declared capability\n' > "$_durcp/procedures.tsv"
+printf 'capability:durcghost\tcommissioning\tdurc-check\ta stance on nothing that exists\n' >> "$_durcp/procedures.tsv"
+is  "felix_procedures_orphans gives the same orphans and status when here-documents cannot be written" \
+    "$(_durcnh felix_procedures_orphans "$_durcp" "$_durcr")" "$(_durcwr felix_procedures_orphans "$_durcp" "$_durcr")"
+_durcorph="$(_durcwr felix_procedures_orphans "$_durcp" "$_durcr")"
+rm -f "$_durcp/procedures.tsv"
+is  "felix_probes_gaps gives the same gaps and status when here-documents cannot be written" \
+    "$(_durcnh felix_probes_gaps "$_durcp" "$_durcr")" "$(_durcwr felix_probes_gaps "$_durcp" "$_durcr")"
+is  "felix_probes_orphans gives the same orphans and status when here-documents cannot be written" \
+    "$(_durcnh felix_probes_orphans "$_durcp" "$_durcr")" "$(_durcwr felix_probes_orphans "$_durcp" "$_durcr")"
+is  "felix_commission_gaps gives the same rows and status when here-documents cannot be written" \
+    "$(_durcnh felix_commission_gaps "$_durcp" "$_durcr")" "$(_durcwr felix_commission_gaps "$_durcp" "$_durcr")"
+_durcj() { awk '{ printf "%s%s", (NR > 1 ? " " : ""), $0 } END { print "" }'; }
+is  "and over writable ones the rules, the unruled, the items, the gaps and the orphans are the lists this project's tables give" \
+    "$(_durcwr _felix_discover_rules "$_durctpl" "$_durcp" | cut -f1 | _durcj) ; $(_durcwr felix_capabilities_unruled "$_durcp" "$_durctpl" | _durcj) ; $(_durcwr felix_procedures_items "$_durcp" "$_durcr" | _durcj) ; $(_durcwr felix_procedures_gaps "$_durcp" "$_durcr" "$_durctpl" | _durcj) ; $_durcorph ; $(_durcwr felix_probes_gaps "$_durcp" "$_durcr" | _durcj) ; $(_durcwr felix_probes_orphans "$_durcp" "$_durcr" | _durcj) ; $(_durcwr felix_commission_gaps "$_durcp" "$_durcr" | cut -f1 | _durcj)" \
+    "0|secrets billing durccap durcgap ; 0|durccap durcgap ; 0|capability:billing capability:durccap capability:durcgap capability:secrets capability:tests ; 0|capability:billing capability:durccap capability:durcgap capability:secrets capability:tests ; 0|capability:durcghost ; 0|durcgap secrets tests ; 0|durcghost ; 0|billing durccap durcgap secrets tests"
+
+# 5. A felix_detect that exits inside the union (R3).
+_durcxo="$(_durcrun exit0 felix_probes_orphans "$_durcp" "$_durcr")"
+_durcxg="$(_durcrun exit0 felix_probes_gaps "$_durcp" "$_durcr")"
+is  "felix_probes_orphans does not call the probe grounding a declared capability an orphan when felix_detect exits inside the union, and still names the one that grounds nothing" \
+    "$_durcxo" "0|durcghost"
+is  "and felix_probes_gaps still names the declared capability nothing grounds" \
+    "$_durcxg" "$(printf '0|durcgap\nsecrets')"
+
+# 6. The policy version over a table that is there and is not a regular file (R4).
+_durcpol() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/commission.sh"
+               felix_commission_policy_version "$_durcpv" ) 2>/dev/null; }
+_durcabsent="$(_durcpol)"
+ln -s "$_durcgone" "$_durcpv/capabilities"; _durcdang="$(_durcpol)"; rm -f "$_durcpv/capabilities"
+printf 'secrets\n' > "$_durcpv/capabilities"; _durcreg="$(_durcpol)"
+is  "the policy version hashes a capabilities link whose target is gone differently from no capabilities file, and a regular file differently again" \
+    "$([ "$_durcabsent" != "$_durcdang" ] && echo different) $([ "$_durcreg" != "$_durcabsent" ] && [ "$_durcreg" != "$_durcdang" ] && echo different)" "different different"
+rm -f "$_durcpv/capabilities"
+# A watchdog that kills only the process group it made: the child is its own
+# group leader, so the cat a hung check leaves behind dies with it, and nothing
+# is matched by name. 124 is a call that did not answer in time.
+_durcwatch() { perl -MPOSIX=WNOHANG -e '
+    my ($secs, @cmd) = @ARGV;
+    my $pid = fork(); die "fork: $!" unless defined $pid;
+    if (!$pid) { setpgrp(0, 0); exec @cmd or exit 127 }
+    for (my $i = 0; $i < $secs * 20; $i++) {
+      select(undef, undef, undef, 0.05);
+      if (waitpid($pid, WNOHANG) == $pid) { exit($? >> 8) }
+    }
+    kill "KILL", -$pid; waitpid($pid, 0); exit 124' "$@"; }
+if command -v perl >/dev/null 2>&1; then
+  mkfifo "$_durcpv/capabilities"
+  _durcfifo="$(_durcwatch 10 bash -c '. "$1/harness/lib/resolve.sh"; . "$1/harness/lib/verify.sh"; . "$1/harness/lib/commission.sh"; felix_commission_policy_version "$2"' _ "$FROOT" "$_durcpv" 2>/dev/null)"; _durcrc=$?
+  is  "a pipe by the name of a table is answered within ten seconds and is never opened, and hashes as something that is there and is not a file" \
+      "$_durcrc $([ "$_durcfifo" = "$_durcdang" ] && echo as-a-dangling-link)" "0 as-a-dangling-link"
+  rm -f "$_durcpv/capabilities"
+else
+  skip "a pipe by the name of a table is answered within ten seconds and is never opened" "no perl for the watchdog"
+fi
+
+# 7. The sentinel (R5).
+_durcinto() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+                case "$1" in fail) felix_declared() { printf 'secrets\nbilling.\n'; return 128; } ;; esac
+                _durcv=untouched; felix_declared_into _durcv "$_durcp"; _durcir=$?
+                printf '%s|%s|' "$_durcir" "$_durcv" ) 2>/dev/null; }
+is  "felix_declared_into returns 2 and leaves the variable alone for a felix_declared that printed a last line ending in a dot and then failed" \
+    "$(_durcinto fail)" "2|untouched|"
+printf 'secrets\nbilling.\n' > "$_durcp/capabilities"
+is  "and a list that was read, whose last capability ends in a dot, is assigned whole" \
+    "$(_durcinto read)" "$(printf '0|secrets\nbilling.|')"
+_durcdeclare
+
+# 8. felix_capture (R3).
+_durcok()   { printf 'a\nb\n'; }
+_durcbare() { printf x; }
+_durcbad()  { printf 'a\n'; return 3; }
+_durcgoes() { exit 0; }
+_durcargs() { printf '[%s]' "$@"; }
+_durccapt() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+                _durcv=untouched; felix_capture _durcv "$@"; _durccr=$?
+                printf '%s|%s|' "$_durccr" "$_durcv" ) 2>/dev/null; }
+is  "felix_capture drops one trailing newline and assigns output that has none as it is" \
+    "$(_durccapt _durcok) $(_durccapt _durcbare)" "$(printf '0|a\nb| 0|x|')"
+is  "and passes its arguments to the command as they are, an empty one and one with a space included" \
+    "$(_durccapt _durcargs 'x y' '' z)" "0|[x y][][z]|"
+is  "and returns 2 leaving the variable alone for a command that fails or exits 0 before printing" \
+    "$(_durccapt _durcbad) $(_durccapt _durcgoes)" "2|untouched| 2|untouched|"
+_durccol=0; _durcnames="out output rc status ret res result val value v x s str line item items list name var cmd tmp t r nl rest declared union rules sorted topo"
+for _durcn in $_durcnames; do
+  _durcgot="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; _durcok() { printf 'a\nb\n'; }
+               eval "f() { local $_durcn=keep; felix_capture $_durcn _durcok; printf '%s' \"\$$_durcn\"; }; f" 2>/dev/null )"
+  [ "$_durcgot" = "$(printf 'a\nb')" ] && _durccol=$((_durccol + 1))
+done
+is  "and assigns a caller's local of any name it might have used itself" "$_durccol of $(printf '%s\n' $_durcnames | grep -c .)" "$(printf '%s\n' $_durcnames | grep -c .) of $(printf '%s\n' $_durcnames | grep -c .)"
+
+# 9. Session start over an unread list, with an answer file for a provider row (R6).
+_durcstart() { local _durco
+  _durco="$(cd "$_durcr" && HOME="$_durchome" PATH=/usr/bin:/bin CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+  printf '%s\n' "${_durco//\\n/$'\n'}"; }
+printf 'automation_surveyed\t-\t-\t-\tprovider:durcplug:durcskill\t-\t-\n' > "$_durcp/commissioning.tsv"
+_durctopo2="$(_durcrun w felix_commission_topology "$_durcp" "$_durcr")"
+{ printf '# topology %s\n' "${_durctopo2#*|}"; printf 'plugin\tdurcnom\t-\tdurccap\ta nomination\n'; printf 'done\t1\n'; } \
+  > "$MEM/durcproj/commission/automation_surveyed.tsv"
+_durctl="Commissioning: the topology these answers are keyed to could not be computed: $_durcwhy."
+_durcs1="$(_durcstart)"
+is  "session start over a list it read says nothing of a topology that could not be computed" "$(_durcsays "$_durcs1" 'could not be computed')" "silent"
+_durcdangle
+_durcs2="$(_durcstart)"
+is  "session start over a capabilities link whose target is gone, with an answer file, says the topology the answers are keyed to could not be computed, and still names the row" \
+    "$(_durcsays "$_durcs2" "$_durctl") $(_durcsays "$_durcs2" 'automation_surveyed (unknown)') $(_durcsays "$_durcs2" 'Commissioning: receipt')" "said said silent"
+_durcdeclare
+
+# 10. felix obligations --request with no request template (R6).
+rm -f "$_durcp/commissioning.tsv" "$_durcobreq"
+rm -f "$_durceng/harness/templates/commission/obligations_surveyed.md"
+_durcout="$(_durceng_cli obligations --request)"; _durcrc=$?
+is  "felix obligations --request with no template for its request says the template is missing, not that the epoch cannot be computed, writes none and exits 1" \
+    "$_durcrc $(_durcsays "$_durcout" 'no request written: its template is missing, or it could not be written under the memory root.') $(_durcsays "$_durcout" 'decision epoch') $(_durcis "$_durcobreq")" \
+    "1 said silent absent"
+
+rm -rf "$_durcp" "$_durcr" "$_durchome" "$_durcstub" "$_durcpv" "$_durceng" "$MEM/durcproj"
+rm -f "$_durcasked"
+[ -d "$FROOT/state" ] && find "$FROOT/state" -name '*durcproj*' -exec rm -rf {} + 2>/dev/null
+_durcnl='
+'
+find "$FROOT/state" -depth -type d 2>/dev/null | while IFS= read -r _durcd; do
+  case "$_durcnl$_durcdirs$_durcnl" in *"$_durcnl$_durcd$_durcnl"*) ;; *) rmdir "$_durcd" 2>/dev/null ;; esac
+done
+is  "and the block for the after-review fixes to every other reader of an unread declared list leaves the projects, the state and the memory as it found them" \
+    "$(_durcfixture)" "$_durcfound"
+unset -f _durcj _durcfixture _durcdeclare _durcdangle _durcrun _durccli _durcsays _durcis _durcasks _durccurrent _durceng_cli _durcwr _durcnh \
+         _durcpol _durcwatch _durcinto _durcok _durcbare _durcbad _durcgoes _durcargs _durccapt _durcstart
+unset _durcfound _durcdirs _durcp _durcr _durchome _durcstub _durcasked _durctpl _durcpv _durceng _durccache _durcwhy _durcgone \
+      _durctopo _durctopo2 _durcobreq _durcout _durcrc _durcn _durcst1 _durcst2 _durcstamp _durcorph _durcxo _durcxg _durcabsent \
+      _durcdang _durcreg _durcfifo _durccol _durcnames _durcgot _durcs1 _durcs2 _durctl _durcnl _durcd
+
 # The answer runs in-process through a runner the caller names, and the check
 # decides afterwards. The stub stands in for felix:toolbox --route.
 _cmstub() { touch "$CMR/src/made-by-answer"; return 0; }

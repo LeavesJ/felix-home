@@ -8,63 +8,26 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	b23c6183728b98f150296ce4088d2eab299ea70e	b23c6183728b98f150296ce4088d2eab299ea70e	0.49.244
-run	58	4569	5
-PreToolUse launched in a directory nothing governs refuses a command acting in the governed worktree the payload names by that worktree's checkout-scoped row	1
-PreToolUse launched in a directory nothing governs refuses by the rows of the governed worktree the payload names	1
-PreToolUse reads the top-level cwd, so a later cwd inside tool_input does not lift the worktree's refusal	1
-SessionEnd launched in a directory nothing governs folds the session into the governed worktree's ledger	1
-SessionStart launched in a directory nothing governs binds the governed worktree the payload names	1
-SessionStart names the handoff of the worktree the payload names, and not the launch checkout's	1
-Stop allows when the worktree the payload names is green, though the launch checkout holds unverified work	1
-Stop in the Desktop shape asks about a recent session-less catch filed under the worktree's branch	1
-Stop in the Desktop shape does not ask about a session-less catch filed under the main checkout's branch only	1
-Stop judges the worktree the payload names, so its unverified work blocks though the main checkout is green	1
-Stop judges the worktree when the payload's cwd is a subdirectory of it	1
-Stop launched in a directory nothing governs judges a flagged stop by the worktree the payload names	1
-Stop refuses a broken marker in the payload's worktree though the launch checkout is green	1
-SubagentStart launched in a directory nothing governs names the governed worktree's project to the subagent	1
-SubagentStop judges the payload's worktree, so its unverified work is declared though the launch checkout is green	1
-SubagentStop launched in a directory nothing governs resolves the governed worktree the payload names	1
-UserPromptSubmit launched in a directory nothing governs mounts the lessons of the governed worktree the payload names	1
-and marks the session at the worktree's HEAD	1
-and records the session at the worktree's HEAD	1
-and that refusal is the checkout-scoped row of the worktree's project	1
-and the refusal names that project's deny table	1
-and the refusal names that worktree's marker	1
-felix_hook_dir answers a cwd equal to the launch directory without resolving anything	1
-felix_hook_dir answers a launch directory reached through a symlink by that logical spelling, resolving nothing, when the payload names its physical path	1
-felix_hook_dir answers a megabyte payload with no cwd by the launch directory in under three CPU seconds	1
-felix_hook_dir answers a payload cwd naming the launch directory with a trailing slash by the launch directory, resolving nothing	1
-felix_hook_dir does not read a cwd spelt inside a message, where the key's quotes are escaped	1
-felix_hook_dir finds the top-level cwd ahead of a megabyte of message in under three CPU seconds	1
-felix_hook_dir keeps a governed launch directory when the payload's cwd is a checkout bound to another project by its remote alone	1
-felix_hook_dir keeps a governed launch directory when the payload's cwd is a checkout nested in it whose marker names another project	1
-felix_hook_dir keeps a launch directory nothing governs when the first cwd is a number, though a governed worktree is named in tool_input after it	1
-felix_hook_dir keeps a launch directory whose marker is broken, though the payload names a governed worktree	1
-felix_hook_dir keeps the launch directory for a cwd holding a backslash, though that directory exists and is governed	1
-felix_hook_dir keeps the launch directory for a cwd naming a file inside a governed worktree	1
-felix_hook_dir keeps the launch directory for a cwd spelt with escaped slashes, which it does not decode	1
-felix_hook_dir keeps the launch directory for a cwd that does not exist	1
-felix_hook_dir keeps the launch directory for a git checkout nothing governs	1
-felix_hook_dir keeps the launch directory for a plain directory nothing governs	1
-felix_hook_dir keeps the launch directory for a relative cwd, though from there it names a governed worktree	1
-felix_hook_dir keeps the launch directory for an escaped backslash that only decoding would make a governed directory	1
-felix_hook_dir keeps the launch directory when the first cwd is null, though a governed worktree is named in tool_input after it	1
-felix_hook_dir keeps the launch directory when the payload carries no cwd	1
-felix_hook_dir keeps the launch directory when the payload's cwd is empty	1
-felix_hook_dir keeps the launch directory when the top-level cwd starts past the payload's first 4096 bytes	1
-felix_hook_dir prints a checkout bound by its remote alone, resolved in the home it is handed, when the launch directory governs nothing	1
-felix_hook_dir prints a checkout whose marker cannot be read, and writes nothing to stderr about it	1
-felix_hook_dir prints a checkout whose marker is broken, since Felix has that to say about it	1
-felix_hook_dir prints a subdirectory of a checkout whose marker is broken, though the launch directory is governed	1
-felix_hook_dir prints a subdirectory of that worktree as given, not its root	1
-felix_hook_dir prints that nested checkout of another project when the launch directory governs nothing	1
-felix_hook_dir prints the payload's worktree when its marker names a project	1
-felix_hook_dir reads the leftmost cwd: a governed directory named again inside tool_input does not move it	1
-felix_hook_dir reads the leftmost cwd: an ungoverned directory named again inside tool_input does not undo it	1
-felix_hook_dir reads the top-level cwd with whitespace around its colon	1
-felix_hook_dir still reads a top-level cwd whose closing quote is the payload's 4096th byte	1
-felix_hook_enter leaves the calling shell where it was for a directory nothing governs, says nothing, and sets no FELIX_HOOK_LAUNCH	1
-felix_hook_enter moves the calling shell into the payload's worktree, says nothing, and leaves FELIX_HOOK_LAUNCH unset	1
-the same-directory shortcut forks nothing: held to one process, a symlinked launch path still stays	1
+base	2abedde40d5a0e0f9871ed8489f178e84af76635	2abedde40d5a0e0f9871ed8489f178e84af76635	0.49.245
+run	21	4631	5
+a checkout with no github remote is refused with exactly one refused row	1
+a dry run on an escaping tree leaves says.log byte for byte as it found it	1
+a real run refused for blockers of two kinds records one refused row per kind	1
+a real run refused for two escapes of one kind records exactly one refused row	1
+a self-governed merge is told its head commit by --match-head-commit too	1
+a self-governed repository refused for a set FELIX_KERNEL records exactly one refused row	1
+an argument felix merge cannot honour is recorded as exactly one refused row	1
+and a dry run on an escaping tree writes no escalated row	1
+and adds, removes or changes no file under the project's memory	1
+and each of those refused rows carries the branch and the session	1
+and is handed a non-empty --subject and --body	1
+and its Felix-Gate trailer is the tree id the receipt was recorded for	1
+and its Felix-Judge trailer is main's declared version at the base ref's full sha	1
+and its subject and body carry no ci skip marker though every commit does	1
+and neither subject nor body carries a ci skip marker though every commit does	1
+and that refused row begins with the branch and the kind and carries the session	1
+and that row begins with the checked-out branch and carries the session	1
+and the FELIX_KERNEL refusal row carries the branch and the session	1
+and the body ends in Felix-Gate and Felix-Judge trailers naming the receipt's tree	1
+and the no-remote refusal row carries the branch and the session	1
+gh pr merge is told the head commit the checkout has, by --match-head-commit	1

@@ -10798,7 +10798,7 @@ _l1marked() {   # checkout -> 0 when so
     all="$all$(git -C "$1" log -1 --format=%B "$c" | _l1skips)
 "
   done
-  [ "$(printf '%s' "$all" | grep . | LC_ALL=C sort -u | grep -c .)" -eq 6 ]
+  [ "$(grep . <<<"$all" | LC_ALL=C sort -u | grep -c .)" -eq 6 ]
 }
 # The trailers git itself finds in the squash commit gh would write: subject,
 # blank line, body. `git interpret-trailers --parse` is the oracle for "the
@@ -10927,7 +10927,7 @@ fi
 # main: no body, so no trailers.
 if _l1reached "and the body ends in Felix-Gate and Felix-Judge trailers naming the receipt's tree"; then
   L1T="$(_l1trailers "$L1P" "$L1S" "$L1B")"
-  if printf '%s\n' "$L1T" | grep -qxF "Felix-Gate: $L1TID" && printf '%s\n' "$L1T" | grep -qE '^Felix-Judge: *[^ ]'; then
+  if grep -qxF "Felix-Gate: $L1TID" <<<"$L1T" && grep -qE '^Felix-Judge: *[^ ]' <<<"$L1T"; then
     ok "and the body ends in Felix-Gate and Felix-Judge trailers naming the receipt's tree"
   else bad "and the body ends in Felix-Gate and Felix-Judge trailers naming the receipt's tree" \
            "want Felix-Gate: $L1TID; git parsed [$(printf '%s' "$L1T" | tr '\n' '|')] from body [$L1B]"; fi

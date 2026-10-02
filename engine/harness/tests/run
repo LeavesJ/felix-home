@@ -19004,6 +19004,14 @@ _ctall() {
   # that reads only the first line misses it. Last, the manifest of comments:
   # felix_stack_plan prints nothing there and returns grep's 1 under pipefail,
   # and that project's stack row is answered.
+  #
+  # After review, not blind: the last four. A lookup whose last pipeline
+  # stage dies returns 128 or more (felix_stack_plan 129, felix_setup_status
+  # 128, measured with ulimit -u 1 in the loop), having printed part of its
+  # answer, and a status that high is a death, not an answer. And
+  # felix_setup_status prints an `unknown` step where the capabilities a step
+  # names could not be read (claude/cap-unread-callers), as felix_stack_plan
+  # prints an `unknown` action.
   while IFS='|' read -r need fn rc want label out; do
     [ -n "$need" ] || continue
     row="$(awk -F'\t' -v n="$need" '$1 == n { print; exit }' "$_ctp/rows")"
@@ -19028,7 +19036,7 @@ obligations|felix_obligation_rows|0|held|obligations: a ledger with no rows is h
 obligations|felix_obligation_malformed|0|held|obligations: a malformed obligation row is held|broken\n
 obligations|felix_obligations_orphans|0|held|obligations: a row grounded on a probe that does not exist is held|nosuchpredicate\n
 stack|felix_stack_plan|0|held|stack: a plan with a row still to install is held|present\tplugin\tfoo\t-\ninstall\tplugin\tbar\tlow, declared\n
-stack|felix_stack_plan|0|held|stack: a plan that could not read the declared capabilities is held|present\tplugin\tfoo\t-\nunknown\tplugin\tbar\tthe capability list could not be read\n
+stack|felix_stack_plan|0|held|stack: a plan that prints an unknown action is held|present\tplugin\tfoo\t-\nunknown\tplugin\tbar\tthe capability list could not be read\n
 preflight|felix_ready_report|0|held|preflight: a route's plugin that is absent is held|usable\tfoo\tok\nabsent\tbar\tnot installed\n
 preflight|felix_ready_report|0|held|preflight: a route's plugin that is disabled is held|usable\tfoo\tok\ndisabled\tbar\tinstalled and switched off\n
 preflight|felix_ready_report|0|held|preflight: a report that could not list the plugins is held|unknown\tbar\tthe plugin list could not be read\n
@@ -19036,6 +19044,10 @@ discover|felix_discover_cache_current|1|held|discover: a discovery cache that is
 discover|felix_discover_adopt|0|held|discover: an adoption still to declare is held|already\tfoo\tllm\tlow\ndeclare\tbar\tllm\tlow\n
 human_steps|felix_setup_status|0|held|human_steps: a runbook step still to do is held|done\tgh_auth\tok\ntodo\tdeploy_key\tadd the deploy key\n
 stack|felix_stack_plan|1|done|stack: a manifest of comments, whose plan prints nothing and returns 1, reads done|
+stack|felix_stack_plan|129|held|stack: a plan whose last pipeline stage died, a met answer then status 129, is held|present\tplugin\tfoo\t-\n
+human_steps|felix_setup_status|128|held|human_steps: a runbook read whose loop died, a met answer then status 128, is held|done\tgh_auth\tok\n
+reach|felix_toolbox_unwired|128|held|reach: an unwired read that returned 128 having printed nothing is held|
+human_steps|felix_setup_status|0|held|human_steps: a runbook that prints an unknown step is held|done\tgh_auth\tok\nunknown\tdeploy_key\tadd the deploy key\n
 CTFIND
 }
 _ctres="$(_cm _ctall)"

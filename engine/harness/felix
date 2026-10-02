@@ -573,7 +573,10 @@ cmd_gate() {
   # Not exec. The process has to survive the gate so a failure can be recorded:
   # a mistake nobody writes down is one the project gets to make again.
   local log rc
-  log="$(mktemp)"
+  # A template under $TMPDIR: a bare mktemp on macOS ignores TMPDIR, and the
+  # suite points TMPDIR at a fixture to count what is left there.
+  local tmpd="${TMPDIR:-/tmp}"
+  log="$(mktemp "${tmpd%/}/felix-gate.XXXXXX")"
   if [ -x "$proj/$gate" ]; then
     "$proj/$gate" "$@" 2>&1 | tee "$log"; rc=${PIPESTATUS[0]}
   else
@@ -1620,7 +1623,8 @@ cmd_merge() {
     # main accepted, and nothing a candidate writes reaches it. After the
     # self-judgement guard, so a cache cut from the candidate is named as
     # judging itself, which is the truer of the two refusals.
-    jlib="$(mktemp -d 2>/dev/null)" || _felix_merge_die "$dry" "$proj" "$branch" judge "could not make a directory to read main's resolve.sh into"
+    local tmpd="${TMPDIR:-/tmp}"
+    jlib="$(mktemp -d "${tmpd%/}/felix-judge.XXXXXX" 2>/dev/null)" || _felix_merge_die "$dry" "$proj" "$branch" judge "could not make a directory to read main's resolve.sh into"
     if ! git -C "$root" show "$base:engine/harness/lib/resolve.sh" > "$jlib/resolve.sh" 2>/dev/null; then
       rm -rf "$jlib"; _felix_merge_die "$dry" "$proj" "$branch" judge "main's engine at $base has no lib/resolve.sh, so nothing there can say whether the judge is main's engine"
     fi
@@ -2989,7 +2993,8 @@ EOF
     # and fixed in this file already, then made again here. Second occurrence.
     _FELIX_DISCOVER_SCRATCH=""
     trap 'rm -rf "${_FELIX_DISCOVER_SCRATCH:-}" 2>/dev/null' EXIT INT TERM
-    _FELIX_DISCOVER_SCRATCH="$(mktemp -d)" || return 0
+    local tmpd="${TMPDIR:-/tmp}"
+    _FELIX_DISCOVER_SCRATCH="$(mktemp -d "${tmpd%/}/felix-discover.XXXXXX")" || return 0
     local scratchq="$_FELIX_DISCOVER_SCRATCH"
     printf '%s\n' "$cands" | while IFS=$'\t' read -r score cap name desc; do
       [ -n "${name:-}" ] || continue
@@ -3075,7 +3080,8 @@ EOF
   # variable, leaving behind precisely what it existed to remove.
   _FELIX_DISCOVER_SCRATCH=""
   trap 'rm -rf "${_FELIX_DISCOVER_SCRATCH:-}" 2>/dev/null' EXIT INT TERM
-  _FELIX_DISCOVER_SCRATCH="$(mktemp -d)" || die "cannot create a scratch directory"
+  local tmpd="${TMPDIR:-/tmp}"
+  _FELIX_DISCOVER_SCRATCH="$(mktemp -d "${tmpd%/}/felix-discover.XXXXXX")" || die "cannot create a scratch directory"
   local scratch="$_FELIX_DISCOVER_SCRATCH"
 
   printf '%s\n' "$cands" | while IFS=$'\t' read -r score cap name desc; do

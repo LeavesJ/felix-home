@@ -195,10 +195,13 @@ if [ -d "$GCACHE" ]; then
     | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
   PLUG=""
   GLIB=""
+  # Under $TMPDIR by a template, as the suite log below is: a bare mktemp on
+  # macOS ignores TMPDIR.
+  GTMPD="${TMPDIR:-/tmp}"; GTMPD="${GTMPD%/}"
   if [ -z "$GBASE" ]; then
     GWHY="cannot tell which engine main accepted: no main here"
     INSTALL_DRIFT=1
-  elif ! GLIB="$(mktemp -d 2>/dev/null)" || [ -z "$GLIB" ]; then
+  elif ! GLIB="$(mktemp -d "$GTMPD/felix-gate-judge.XXXXXX" 2>/dev/null)" || [ -z "$GLIB" ]; then
     GWHY="could not make a directory to read main's resolve.sh into"
     INSTALL_DRIFT=1
   elif ! git show "$GBASE:engine/harness/lib/resolve.sh" > "$GLIB/resolve.sh" 2>/dev/null; then

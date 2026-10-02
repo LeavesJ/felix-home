@@ -311,7 +311,10 @@ felix_monitor_render() {
   local tpl="$1" home="$2" out="$3" tmp
   [ -f "$tpl" ] || return 1
   mkdir -p "$(dirname "$out")" 2>/dev/null || return 1
-  tmp="$(mktemp)" || return 1
+  # A template under $TMPDIR: a bare mktemp on macOS ignores TMPDIR, and the
+  # suite points TMPDIR at a fixture to count what is left there.
+  local tmpd="${TMPDIR:-/tmp}"
+  tmp="$(mktemp "${tmpd%/}/felix-monitor.XXXXXX")" || return 1
   felix_monitor_json "$home" > "$tmp" 2>/dev/null
   awk -v df="$tmp" '
     {

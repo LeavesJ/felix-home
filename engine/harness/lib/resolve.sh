@@ -1011,7 +1011,10 @@ felix_version_bump() {
   next="${major}.${minor}.$((patch + 1))"
   # Through a temp file, so a failed write cannot leave empty the one manifest
   # whose corruption stops everything deploying.
-  tmp="$(mktemp)" || return 1
+  # A template under $TMPDIR: a bare mktemp on macOS ignores TMPDIR, and the
+  # suite points TMPDIR at a fixture to count what is left there.
+  local tmpd="${TMPDIR:-/tmp}"
+  tmp="$(mktemp "${tmpd%/}/felix-bump.XXXXXX")" || return 1
   sed 's/\("version"[[:space:]]*:[[:space:]]*"\)[^"]*\("\)/\1'"${next}"'\2/' \
       "$manifest" > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 1; }
   [ -s "$tmp" ] || { rm -f "$tmp"; return 1; }
@@ -1158,7 +1161,8 @@ felix_accepted_deploy_diff() {
     printf '%s declares %s and nothing is installed at that version\n' "$ref" "$ver"
     return 1
   fi
-  tmp="$(mktemp -d 2>/dev/null)" || { printf 'cannot examine: no temporary directory\n'; return 2; }
+  local tmpd="${TMPDIR:-/tmp}"
+  tmp="$(mktemp -d "${tmpd%/}/felix-deploy.XXXXXX" 2>/dev/null)" || { printf 'cannot examine: no temporary directory\n'; return 2; }
   for d in harness hooks commands; do
     git -C "$root" cat-file -e "$ref:engine/$d" 2>/dev/null || continue
     git -C "$root" archive "$ref" "engine/$d" 2>/dev/null | tar -x -C "$tmp" 2>/dev/null \

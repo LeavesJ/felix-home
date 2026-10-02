@@ -66,3 +66,14 @@ already pushed. docs/2026-09-24-handoff-sections.md records both.
 - handoff-check reads one merge-base, as this did before the review. In a
   criss-cross where git picks the base after main's fold, it refuses a fold
   that this names, until the 48-hour bound.
+
+**Landed by the queue carrier as 0.49.268 (2026-10-02).** The author's
+session had ended. Two things changed at the slot:
+- `lib/maintenance.sh` conflicted with final-filter (#402) in comments only.
+  Both paragraphs stay, and the code merged cleanly: a refused check is
+  judged before an in-flight one.
+- The first full record failed one assertion: #404's check that every
+  engine mktemp names a template under TMPDIR. `felix_handoff_in_flight`
+  made its scratch with a bare `mktemp -d`. It now uses the
+  `felix-handoff.XXXXXX` template, as the file's other three calls do. The
+  six affected sections passed 122/0, and the re-record passed 6142/0/8.

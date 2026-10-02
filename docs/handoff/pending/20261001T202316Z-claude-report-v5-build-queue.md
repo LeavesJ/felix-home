@@ -358,6 +358,8 @@ these again.
     - a weak result does not narrow the roadmap. Find out why: seed
       difficulty, the probes' reach, hints, the request's wording. This is
       in #389, §5.
+- **#389 rated yes** (2026-10-02, after it landed as ea865e82: "ok sounds
+  like a yes").
 
 **The founder's open items.** None blocks the queue above except where it
 names one.
@@ -365,7 +367,6 @@ names one.
   was due Sep 26-27, and every checker was found flawed on blind re-check.
 - Whether the `independence` gate check, which enforces with 4 of 6
   controls, is grandfathered under amendments §2.1.
-- A one-word rating of #389 (yes, partial or no) once it has landed.
 - The API key for capability item 5, and whether it is spend-limited.
   Ask only when item 5 is near (founder, 2026-10-01: "worry about it once we
   need it").

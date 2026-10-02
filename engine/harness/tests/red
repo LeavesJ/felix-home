@@ -37,9 +37,12 @@
 #   run    <failed>  <passed>  <skipped>
 #   <assertion name>  <times it failed>        one row per failed name
 # where an assertion this tree's manifest lists and the base run never reached
-# counts as failed, by how many times it fell short; and when no red run was
-# possible, base and run rows of `-`, so the file says nothing was shown
-# rather than keeping the previous claim.
+# counts as failed, by how many times it fell short; and when no complete red
+# run was made, base and run rows of `-`, so the file says nothing was shown
+# rather than keeping the previous claim: none was possible, the suite stopped
+# before `reached` or reached no assertion, or tests/red itself was stopped,
+# since it retracts before the run; its stdout said which unless it was the
+# one stopped.
 #
 # Lines are counted, not the summary. PASS and FAIL are incremented in the
 # suite's main shell only, and some assertions run inside subshells, so the
@@ -124,7 +127,10 @@ _header() {
   printf '#   run   <failed>  <passed>  <skipped>        lines counted, not the summary\n'
   printf '#   <assertion name>  <times it failed>        failed names only\n'
   printf '#   an assertion the manifest lists that the base run never reached counts as failed, by its shortfall\n'
-  printf '# A base of - means no red run was possible. Reproduce with: tests/red <ref>\n'
+  printf '# A base of - means no complete red run was made: none was possible, the\n'
+  printf '# suite stopped before reached or reached no assertion, or tests/red itself\n'
+  printf '# was stopped; its stdout said which unless it was the one stopped.\n'
+  printf '# Reproduce with: tests/red <ref>\n'
 }
 
 # Every write to red.tsv lands whole or not at all: a sibling file, then one
@@ -250,11 +256,11 @@ cp "$HERE/run" "$TREE/engine/harness/tests/run" 2>/dev/null \
 # failure detail can print the bare word earlier, and that is not the suite's
 # end. Until #371 only a run that reached no assertion was refused, and
 # a suite that died part way was written down as a clean one: on 2026-09-25 a
-# suite killed a few seconds in read 0 of 270 assertions failing, and an earlier
-# record read 0 of 1320 where fork had failed at the per-user process cap, when
-# the whole suite holds some 3,700. The status is kept to name the death in the
-# refusal, and the line is read from the log itself, not through a pipe that
-# pipefail can make report a line missing when it is there.
+# suite stopped at assertion 270 read 0 of 270 failing, and an earlier
+# record read 0 of 1320 just after fork had failed at the per-user process
+# cap, when the whole suite holds some 3,700. The status is kept to name the
+# death in the refusal, and the line is read from the log itself, not through
+# a pipe that pipefail can make report a line missing when it is there.
 #
 # Read once. Everything below reads one copy of the log, taken after the
 # strays are ended, because a stray the pattern misses still holds the log

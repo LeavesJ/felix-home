@@ -11008,29 +11008,136 @@ is  "with no qualification.tsv at all, every capability named resolves absent, a
           felix_obligations_needs "$NDN"; printf 'rc=%s' "$?" ) 2>/dev/null )" \
     "$(printf 'n\t-\tnone\t-\na\tpart\tabsent\t-\na\twhole\tabsent\t-\nrc=0')"
 
+# A table holding a NUL byte. macOS awk keeps each record as a C string, so a
+# NUL ends the line there for everything awk does with it, and the table is
+# read through awk: a row starting with one read as a blank line and was
+# skipped, never run and never called malformed, and one later in a row cut the
+# row there, dropping its premise or running a shorter mutation. git calls a
+# file with a NUL in its first 8000 bytes binary, so a reviewer saw no row of
+# it, and mawk and gawk keep the NUL, so the same table read otherwise on Linux.
+# A table holding one anywhere is not read as a table, by anything here.
+#
+# _qznul WHERE [clean]: a table whose first line is demo's met violation, clean,
+# and whose last holds a NUL at WHERE; given clean, the same bytes without it,
+# the twin that each refusal of a NUL table is measured against. WHERE is
+#   start    a NUL starting a held row
+#   row      a NUL inside a held row's mutation, before the part that undoes
+#            it, so the row cut there is met
+#   field    a NUL after a row's fifth field, before a premise that errors, so
+#            the row cut there runs and is met
+#   alone    a NUL alone on a line
+#   comment  a NUL inside a comment
+#   far      a NUL starting a held row past byte 8000, where git no longer
+#            calls the file binary and awk still ends the line
+# demo's checker marks $_qzmark each time it runs, so a run of no control is
+# measured, not inferred from what was printed.
+_qzwhere="start row field alone comment far"
+_qzmark="$TMP/qual-nul-ran"
+_qznul() {
+  local k='! grep -rqI FORBIDDEN . 2>/dev/null' pre="" post=""
+  printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "printf x >> '$_qzmark'; $k"
+  case "$1" in
+    start|far) post="$(printf 'held\ttrue\tviolation\tfail\ttrue')" ;;
+    row)       pre="$(printf 'held\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt' "$k")"; post='; rm bad.txt' ;;
+    field)     pre="$(printf 'held\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt' "$k")"
+               post="$(printf '\tsh -c %s' "'exit 2'")" ;;
+    comment)   pre='# a note'; post=' beside the rows' ;;
+  esac
+  [ "$1" != far ] || LC_ALL=C awk 'BEGIN { for (i = 0; i < 100; i++) printf "# %097d\n", i }'
+  printf '%s' "$pre"; [ "${2:-}" = clean ] || printf '\000'; printf '%s\n' "$post"
+}
+_qzsaid() {
+  case "$1" in
+    start)   printf 'a NUL starting a held row' ;;
+    row)     printf "a NUL inside a held row's mutation" ;;
+    field)   printf "a NUL after a row's fifth field" ;;
+    alone)   printf 'a NUL alone on a line' ;;
+    comment) printf 'a NUL inside a comment' ;;
+    far)     printf 'a NUL past byte 8000' ;;
+  esac
+}
+# The fixture first: one NUL in each table, its twin the same bytes without it,
+# and git calling each binary but the one whose NUL is past byte 8000, which
+# is the case a reviewer reading a diff would be shown.
+NDZ="$TMP/needs-nul"; mkdir -p "$NDZ"
+_qzfix() {
+  local w g
+  for w in $_qzwhere; do
+    _qznul "$w" > "$NDZ/fix.nul"; _qznul "$w" clean > "$NDZ/fix.clean"
+    LC_ALL=C tr -d '\000' < "$NDZ/fix.nul" > "$NDZ/fix.stripped"
+    g="$(git diff --no-index --numstat /dev/null "$NDZ/fix.nul" 2>/dev/null | cut -f1)"
+    printf '%s:%s:%s:%s ' "$w" "$(LC_ALL=C tr -cd '\000' < "$NDZ/fix.nul" | wc -c | tr -d ' ')" \
+      "$(cmp -s "$NDZ/fix.clean" "$NDZ/fix.stripped" && echo twin || echo other)" \
+      "$([ "$g" = - ] && echo binary || echo text)"
+  done
+  rm -f "$NDZ/fix.nul" "$NDZ/fix.clean" "$NDZ/fix.stripped"
+}
+is  "each NUL table holds one NUL, its twin is the same bytes without it, and git calls it binary unless the NUL is past byte 8000" \
+    "$(_qzfix)" "start:1:twin:binary row:1:twin:binary field:1:twin:binary alone:1:twin:binary comment:1:twin:binary far:1:twin:text "
+# needs over such a table resolves nothing, as over one it cannot read: the
+# declared list read from it is a list of what awk saw.
+{ printf 'n\tINFO\tdeterministic\t-\ttrue\t-\tr\t-\n'
+  printf 'a\tINFO\tdeterministic\t-\ttrue\t-\tr\tdemo,held\n'; } > "$NDZ/obligations.tsv"
+_ndz() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
+           . "$FROOT/harness/lib/obligations.sh"
+           felix_obligations_needs "$NDZ"; printf 'rc=%s' "$?" ) 2>"$TMP/ndz.err"; }
+_ndzsays() {
+  local w out
+  for w in $_qzwhere; do
+    _qznul "$w" > "$NDZ/qualification.tsv"
+    out="$(_ndz)"
+    [ "$out" = rc=2 ] || printf '%s: printed [%s]\n' "$w" "$(printf '%s' "$out" | tr '\n\t' '/ ')"
+    { [ "$(grep -c . "$TMP/ndz.err")" = 1 ] \
+        && [ "$(grep -F "$NDZ/qualification.tsv" "$TMP/ndz.err" | grep -c 'NUL')" = 1 ]; } \
+      || printf '%s: stderr [%s]\n' "$w" "$(tr '\n' '/' < "$TMP/ndz.err")"
+  done
+}
+is  "needs over a table holding a NUL byte anywhere resolves nothing, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_ndzsays)" ""
+is  "and needs refuses such a table without the caller's pipefail too" "$(set +o pipefail; _ndzsays)" ""
+_ndztwin() {
+  local w
+  for w in $_qzwhere; do
+    _qznul "$w" clean > "$NDZ/qualification.tsv"
+    printf '%s:%s ' "$w" "$(_ndz | awk -F'\t' 'NF >= 3 { printf "%s/%s ", $2, $3 } /^rc=/ { print }')"
+  done
+}
+is  "and needs over each twin, its NUL taken out, resolves as before and exits 0" "$(_ndztwin)" \
+    "start:-/none demo/short held/short rc=0 row:-/none demo/short held/short rc=0 field:-/none demo/short held/short rc=0 alone:-/none demo/short held/absent rc=0 comment:-/none demo/short held/absent rc=0 far:-/none demo/short held/short rc=0 "
+
 # Whichever read fails. A mode cannot stage the case where the declared list was
-# read and a later read of one checker's controls was not, so awk is wrapped:
-# every call that names a qualification.tsv is counted, and the one numbered
-# QSHIM_FAIL runs with that table at mode 000, put back as it returns. Which
-# read fails is counted back from the last one a clean run of the same command
-# made, so nothing here knows how many reads the engine takes to get there.
+# read and a later read of one checker's controls was not, so the readers are
+# wrapped: every call of awk or cat that names a qualification.tsv is counted,
+# and the one numbered QSHIM_FAIL runs with that table at mode 000, put back as
+# it returns. Which read fails is counted back from the last one a clean run of
+# the same command made, so nothing here knows how many reads the engine takes
+# to get there. Not awk alone: the engine's read of the table was awk's and is
+# now cat's, because awk cannot see a NUL byte (lib/qualify.sh,
+# _felix_qualify_read), and a wrapper on one reader counts a read another makes
+# as none. So every common reader that takes a file by name is wrapped, and a
+# second look added later by grep, wc, od or the like is a count of two. A
+# redirect is the one read no wrapper can see.
+_qsreaders='awk cat grep sed head tail wc od cut sort cmp'
 _QSHIM="$TMP/awk-shim"; _QSC="$TMP/awk-shim.count"; mkdir -p "$_QSHIM"
 _qawk="$(command -v awk)"
-cat > "$_QSHIM/awk" <<EOF
+for _qsn in $_qsreaders; do
+  _qsreal="$(command -v "$_qsn")"
+  cat > "$_QSHIM/$_qsn" <<EOF
 #!/bin/sh
 for a in "\$@"; do
   case "\$a" in
     qualification.tsv|*/qualification.tsv)
       printf x >> "\$QSHIM_COUNT"
       if [ "\$((\$(wc -c < "\$QSHIM_COUNT")))" -eq "\${QSHIM_FAIL:-0}" ]; then
-        chmod 000 "\$a"; "$_qawk" "\$@"; rc=\$?; chmod 644 "\$a"; exit \$rc
+        chmod 000 "\$a"; "$_qsreal" "\$@"; rc=\$?; chmod 644 "\$a"; exit \$rc
       fi
       break ;;
   esac
 done
-exec "$_qawk" "\$@"
+exec "$_qsreal" "\$@"
 EOF
-chmod +x "$_QSHIM/awk"
+  chmod +x "$_QSHIM/$_qsn"
+done
 # _qreads CMD...: how many reads of the table CMD makes through the wrapper.
 _QSE="$TMP/awk-shim.err"
 _qreads() {
@@ -11078,7 +11185,7 @@ _qeach() {
     k=$((k + 1))
   done
 }
-_qsnone="too few reads of qualification.tsv reach awk by name for this one to be made to fail alone"
+_qsnone="too few reads of qualification.tsv reach awk or cat by name for this one to be made to fail alone"
 if [ "$_unreadable" -eq 1 ]; then
   if _qstage 0 _nd felix_obligations_needs "$NDU"; then
     is  "needs whose last read of one checker's controls fails prints nothing and exits 2" "$_qsrc:$_qsout" "2:"
@@ -13550,6 +13657,152 @@ is  "and none of those rows is run" "$(_qrd | cut -d' ' -f1)" "rows=0"
   printf 'my-check_2\ttrue\tviolation\tfail\ttrue\t-\n'; } > "$QRD/qualification.tsv"
 is  "a blank line and a comment are still skipped, and an id with digits, _ and - is a checker" \
     "$(_qrd)" "rows=1 "
+# A NUL byte anywhere in the table, through the readers that answer for one.
+# Each prints nothing, says in one stderr line which table holds a NUL, and
+# exits 2, with the caller's pipefail and without; the three the others are
+# built on exit non-zero. Every table has a met control on a clean line, so a
+# reader that refuses only the line with the NUL in it still ran something.
+# The tables are _qznul's, from the needs block.
+QZL="$TMP/qual-nul"; mkdir -p "$QZL"
+_qzl() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+           "$@"; printf 'rc=%s' "$?" ) 2>"$TMP/qzl.err"; }
+# _qzeach PRED CMD...: CMD over each NUL table, PRED handed its output with the
+# stderr in qzl.err; a line for each table PRED finds the result wrong for.
+_qzeach() {
+  local pred="$1" w out said; shift
+  for w in $_qzwhere; do
+    _qznul "$w" > "$QZL/qualification.tsv"; rm -f "$_qzmark"
+    out="$("$@")"
+    said="$("$pred" "$out")"; [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+_qzrefused() {
+  [ "$1" = rc=2 ] || printf 'printed [%s]; ' "$(printf '%s' "$1" | tr '\n\t' '/ ')"
+  { [ "$(grep -c . "$TMP/qzl.err")" = 1 ] \
+      && [ "$(grep -F "$QZL/qualification.tsv" "$TMP/qzl.err" | grep -c 'NUL')" = 1 ]; } \
+    || printf 'stderr [%s]; ' "$(tr '\n' '/' < "$TMP/qzl.err")"
+  [ ! -e "$_qzmark" ] || printf 'ran a control; '
+}
+_qzgv="$(printf '  demo  ok\n  held  ok\n  omega  ok\n')"
+is  "felix_qualify_missing_controls over a table holding a NUL byte anywhere prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_qzeach _qzrefused _qzl felix_qualify_missing_controls "$QZL" demo)" ""
+is  "and missing_controls refuses it so without the caller's pipefail" \
+    "$(set +o pipefail; _qzeach _qzrefused _qzl felix_qualify_missing_controls "$QZL" demo)" ""
+is  "felix_qualify_run over a table holding a NUL byte anywhere runs nothing, prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_qzeach _qzrefused _qzl felix_qualify_run "$QZL" "$QLR")" ""
+is  "and felix_qualify_run refuses it so without the caller's pipefail" \
+    "$(set +o pipefail; _qzeach _qzrefused _qzl felix_qualify_run "$QZL" "$QLR")" ""
+is  "felix_qualify_ungoverned over a table holding a NUL byte anywhere names no checker, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_qzeach _qzrefused _qzl felix_qualify_ungoverned "$QZL" "$_qzgv")" ""
+is  "and ungoverned refuses it so without the caller's pipefail" \
+    "$(set +o pipefail; _qzeach _qzrefused _qzl felix_qualify_ungoverned "$QZL" "$_qzgv")" ""
+_qzraw() {
+  local r s
+  for r in felix_qualify_rows felix_qualify_malformed felix_qualify_snapshot; do
+    s="$( ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+            "$r" "$QZL" >/dev/null 2>&1; printf '%s' "$?" ) )"
+    [ "$s" != 0 ] || printf '%s exits 0; ' "$r"
+  done
+}
+is  "felix_qualify_rows, felix_qualify_malformed and felix_qualify_snapshot each exit non-zero over a table holding a NUL byte anywhere, with the caller's pipefail and without" \
+    "$(_qzeach _qzraw :)$(set +o pipefail; _qzeach _qzraw : | sed 's/^/without pipefail, /')" ""
+# The twin of each, the NUL taken out, reads as the rows it holds: the held row
+# held, the erroring premise unrunnable, the blank and the comment skipped.
+_qztwin() {
+  local w
+  for w in $_qzwhere; do
+    _qznul "$w" clean > "$QZL/qualification.tsv"
+    printf '%s:%s ' "$w" "$(_qzl felix_qualify_run "$QZL" "$QLR" | awk -F'\t' 'NF >= 5 { printf "%s ", $5 } /^rc=/ { print }')"
+  done
+}
+is  "each NUL table's twin, the NUL taken out, is run by the library as before, every row of it, and exits 0" "$(_qztwin)" \
+    "start:met held rc=0 row:met held rc=0 field:met unrunnable rc=0 alone:met rc=0 comment:met rc=0 far:met held rc=0 "
+# Anywhere is past a pipe's 64 KB too: the big table above, a NUL on a line of
+# its own after its last row.
+QZB="$TMP/qual-nul-big"; mkdir -p "$QZB"
+{ cat "$QBP/qualification.tsv"; printf '\000\n'; } > "$QZB/qualification.tsv"
+_qzbig="$(_qzl felix_qualify_missing_controls "$QZB" big)"
+is  "a NUL after more than a pipe's 64 KB of rows refuses the table all the same, in one stderr line naming it" \
+    "$_qzbig:$(grep -c . "$TMP/qzl.err"):$(grep -F "$QZB/qualification.tsv" "$TMP/qzl.err" | grep -c 'NUL')" "rc=2:1:1"
+# A table with no NUL reads exactly as before, byte for byte: the same rows and
+# the same malformed rows, with a mutation holding a byte that is not UTF-8,
+# backslashes, spaces around a field, a premise, blank lines and comments
+# skipped, a carriage return malformed, and a last line with no newline read
+# as a row. What refuses a NUL must not be what reads the rest.
+QZ7="$TMP/qual-no-nul"; mkdir -p "$QZ7"
+_qz5() { printf '%s\t%s\t%s\t%s\t%s\n' "$@"; }
+{ printf '\n   \n# a comment\n\t# behind a tab\n'
+  printf 'alpha\ttrue\tviolation\tfail\tprintf caf\351 > x\n'
+  _qz5 beta true violation fail 'printf "a\b\\c\t" > y'
+  _qz5 gamma '  true  ' violation fail '  printf x > z  '
+  printf 'eps\ttrue\tviolation\tfail\ttrue\r\n'
+  printf 'delta\ttrue\tviolation\tfail\ttrue\t test -f a.txt \n'
+  printf 'zeta\tonly-two\n'
+  printf 'omega\ttrue\tviolation\tfail\ttrue'; } > "$QZ7/qualification.tsv"
+{ printf 'alpha\ttrue\tviolation\tfail\tprintf caf\351 > x\n'
+  _qz5 beta true violation fail 'printf "a\b\\c\t" > y'
+  _qz5 gamma '  true  ' violation fail '  printf x > z  '
+  printf 'delta\ttrue\tviolation\tfail\ttrue\t test -f a.txt \n'
+  printf 'omega\ttrue\tviolation\tfail\ttrue\n'; } > "$TMP/qz7.rows"
+printf 'eps\ta carriage return; a row ends at a newline alone\nzeta\t2 field(s); a control needs five\n' > "$TMP/qz7.mal"
+{ LC_ALL=C awk 'NR <= 3 { print "R\t" $0 }' "$TMP/qz7.rows"
+  LC_ALL=C awk 'NR == 1 { print "M\t" $0 }' "$TMP/qz7.mal"
+  LC_ALL=C awk 'NR == 4 { print "R\t" $0 }' "$TMP/qz7.rows"
+  LC_ALL=C awk 'NR == 2 { print "M\t" $0 }' "$TMP/qz7.mal"
+  LC_ALL=C awk 'NR == 5 { print "R\t" $0 }' "$TMP/qz7.rows"; } > "$TMP/qz7.snap"
+_qz7() {   # locale, or empty for the suite's own: what reads otherwise than before
+  ( [ -z "$1" ] || export LC_ALL="$1"
+    . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+    felix_qualify_rows      "$QZ7" > "$TMP/qz7.rows.got" 2>/dev/null; r=$?
+    felix_qualify_malformed "$QZ7" > "$TMP/qz7.mal.got"  2>/dev/null; m=$?
+    felix_qualify_snapshot  "$QZ7" > "$TMP/qz7.snap.got" 2>/dev/null; s=$?
+    [ "$r $m $s" = "0 0 0" ] || printf 'exit %s %s %s; ' "$r" "$m" "$s"
+    cmp -s "$TMP/qz7.rows.got" "$TMP/qz7.rows" || printf 'rows differ; '
+    cmp -s "$TMP/qz7.mal.got"  "$TMP/qz7.mal"  || printf 'malformed rows differ; '
+    cmp -s "$TMP/qz7.snap.got" "$TMP/qz7.snap" || printf 'snapshot differs; ' )
+}
+is  "a table with no NUL is read byte for byte as before: its rows, its malformed rows and its snapshot" "$(_qz7 '')" ""
+is  "and a table with no NUL is read so in the C locale as well" "$(_qz7 C)" ""
+if [ -n "$_u8" ]; then
+  is  "and so in a UTF-8 locale, a mutation holding a byte that is not UTF-8 included" "$(_qz7 "$_u8")" ""
+else
+  skip "and so in a UTF-8 locale, a mutation holding a byte that is not UTF-8 included" "$_u8none"
+fi
+_qzbig7() {
+  ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+    felix_qualify_rows     "$QBP" > "$TMP/qzbig.rows" 2>/dev/null || printf 'rows exit non-zero; '
+    felix_qualify_snapshot "$QBP" > "$TMP/qzbig.snap" 2>/dev/null || printf 'snapshot exits non-zero; ' )
+  LC_ALL=C awk '{ print "R\t" $0 }' "$QBP/qualification.tsv" > "$TMP/qzbig.want"
+  cmp -s "$TMP/qzbig.rows" "$QBP/qualification.tsv" || printf 'rows differ; '
+  cmp -s "$TMP/qzbig.snap" "$TMP/qzbig.want"       || printf 'snapshot differs; '
+}
+is  "a table larger than a pipe's 64 KB with no NUL is read byte for byte, every row and the snapshot" "$(_qzbig7)" ""
+_qzgone() {
+  local r
+  for r in felix_qualify_rows felix_qualify_malformed felix_qualify_snapshot; do
+    printf '%s:%s ' "$r" "$(_qzl "$r" "$TMP/no-such-proj")"
+  done
+  printf 'run:%s' "$(_qzl felix_qualify_run "$TMP/no-such-proj" "$QLR")"
+}
+is  "with no qualification.tsv at all, rows, malformed, snapshot and the runner print nothing and exit 0" "$(_qzgone)" \
+    "felix_qualify_rows:rc=0 felix_qualify_malformed:rc=0 felix_qualify_snapshot:rc=0 run:rc=0"
+# And a table that cannot be read is still that, never one said to hold a NUL,
+# which nobody read it to know.
+_qzunread() {
+  [ "$1" = rc=2 ] || printf 'printed [%s]; ' "$(printf '%s' "$1" | tr '\n\t' '/ ')"
+  [ "$(grep -F "$QUT/qualification.tsv" "$TMP/qzl.err" | grep -c 'could not be read')" = 1 ] \
+    || printf 'no line saying the table could not be read; '
+  [ "$(grep -c 'NUL' "$TMP/qzl.err")" = 0 ] || printf 'says NUL; '
+}
+if [ "$_unreadable" -eq 1 ]; then
+  chmod 000 "$QUT/qualification.tsv"
+  _qzu="missing:$(_qzunread "$(_qzl felix_qualify_missing_controls "$QUT" alpha)") run:$(_qzunread "$(_qzl felix_qualify_run "$QUT" "$QLR")") ungoverned:$(_qzunread "$(_qzl felix_qualify_ungoverned "$QUT" "$_qgv")")"
+  chmod 644 "$QUT/qualification.tsv"
+  is  "a table at mode 000 is still one that could not be read, never one said to hold a NUL, and each reader exits 2" \
+      "$_qzu" "missing: run: ungoverned:"
+else
+  skip "a table at mode 000 is still one that could not be read, never one said to hold a NUL, and each reader exits 2" "$_noread"
+fi
 
 # The verdict is the control's, not the row's. `expect` was free text, so a
 # violation row expecting `pass` over a mutation that changed nothing ran,
@@ -13766,16 +14019,18 @@ else
     skip "$a" "$_noread"; done
 fi
 # A table that is not there at a read, or not there after one, or not the
-# table it was. Each is staged by an awk wrapper counting the reads as the one
-# above does: aside moves the table away for the Kth read and puts it back,
-# after moves it away once the Kth read is done and it is put back when the
-# run returns, and swap puts another table in its place once the Kth read is
-# done. A table gone between reads read as one declaring nothing, because the
+# table it was. Each is staged by awk and cat wrappers counting the reads as
+# the ones above do: aside moves the table away for the Kth read and puts it
+# back, after moves it away once the Kth read is done and it is put back when
+# the run returns, and swap puts another table in its place once the Kth read
+# is done. A table gone between reads read as one declaring nothing, because the
 # reader returns early on a table that is not a file, and the rest of the run
 # ran nothing and passed. The table here has a met control and a held one, so
 # every right answer refuses.
 _QMSHIM="$TMP/awk-shim-moves"; mkdir -p "$_QMSHIM"
-cat > "$_QMSHIM/awk" <<EOF
+for _qsn in $_qsreaders; do
+  _qsreal="$(command -v "$_qsn")"
+  cat > "$_QMSHIM/$_qsn" <<EOF
 #!/bin/sh
 for a in "\$@"; do
   case "\$a" in
@@ -13783,17 +14038,18 @@ for a in "\$@"; do
       printf x >> "\$QSHIM_COUNT"
       if [ "\$((\$(wc -c < "\$QSHIM_COUNT")))" -eq "\${QSHIM_FAIL:-0}" ]; then
         case "\$QSHIM_MODE" in
-          aside) mv "\$a" "\$a.aside"; "$_qawk" "\$@"; rc=\$?; mv "\$a.aside" "\$a"; exit \$rc ;;
-          after) "$_qawk" "\$@"; rc=\$?; mv "\$a" "\$a.gone"; exit \$rc ;;
-          swap)  "$_qawk" "\$@"; rc=\$?; cp "\$a" "\$a.was"; cp "\$QSHIM_WITH" "\$a"; exit \$rc ;;
+          aside) mv "\$a" "\$a.aside"; "$_qsreal" "\$@"; rc=\$?; mv "\$a.aside" "\$a"; exit \$rc ;;
+          after) "$_qsreal" "\$@"; rc=\$?; mv "\$a" "\$a.gone"; exit \$rc ;;
+          swap)  "$_qsreal" "\$@"; rc=\$?; cp "\$a" "\$a.was"; cp "\$QSHIM_WITH" "\$a"; exit \$rc ;;
         esac
       fi
       break ;;
   esac
 done
-exec "$_qawk" "\$@"
+exec "$_qsreal" "\$@"
 EOF
-chmod +x "$_QMSHIM/awk"
+  chmod +x "$_QMSHIM/$_qsn"
+done
 # _qmeach MODE PRED CMD...: CMD with each of its reads, in turn, staged by MODE,
 # and the widget table put back after each; PRED as for _qeach.
 _qmeach() {
@@ -13872,6 +14128,133 @@ printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\rdemo\ttrue\talter
 _qo="$(_qlgate)"; _qrc=$?
 is  "and so does a held row after a bare carriage return" \
     "$_qrc:$(printf '%s\n' "$_qo" | grep -c 'MALFORMED  a carriage return')" "1:1"
+# And a held row, or a met one, behind a NUL byte, which awk ends the line at:
+# the held row skipped as blank, a mutation or a premise cut short and met, and
+# --gate passing on what was left. The table holding a NUL is refused whole,
+# the met control on its clean line included: nothing runs, no verdict row or
+# held count is printed, a felix: line names the table and says it holds a
+# NUL, and felix qualify exits 2. Not that the table declares no control, and
+# not that it could not be read: both are false of a table read to the end.
+# Each table's twin, the NUL taken out, reads as before, so a refusal here is
+# the NUL's and not the fixture's. The tables are _qznul's, from the needs block.
+cp "$_qlw" "$TMP/qual-nul.keep"
+_qlnul() {
+  [ "$_qsrc" = 2 ] || printf 'exit %s; ' "$_qsrc"
+  [ "$(printf '%s\n' "$_qsout" | grep '^felix: ' | grep -F "$_qlwt" | grep -c 'NUL')" -ge 1 ] \
+    || printf 'no felix: line saying %s holds a NUL; ' "$_qlwt"
+  case "$_qsout" in *"declares no control"*) printf 'says the table declares no control; ' ;; esac
+  case "$_qsout" in *"could not be read"*) printf 'says something could not be read; ' ;; esac
+  [ "$(printf '%s\n' "$_qsout" | grep -cE '^  [^ ]+ +[a-z_]+ +(pass|fail) +[^ ]+ +(ok|HELD|UNRUNNABLE|n/a)$')" -eq 0 ] \
+    || printf 'prints a verdict row; '
+  case "$_qsout" in *"control(s) held"*) printf 'prints a held count; ' ;; esac
+  [ ! -e "$_qzmark" ] || printf 'ran a control; '
+}
+for _qzw in $_qzwhere; do
+  _qznul "$_qzw" > "$_qlw"; rm -f "$_qzmark"
+  _qsout="$(_qlgate)"; _qsrc=$?
+  is  "felix qualify --gate over a table with $(_qzsaid "$_qzw") runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2" \
+      "$(_qlnul)" ""
+done
+_qlnulplain() {
+  local w said
+  for w in $_qzwhere; do
+    _qznul "$w" > "$_qlw"; rm -f "$_qzmark"
+    _qsout="$(_qlplain)"; _qsrc=$?
+    said="$(_qlnul)"; [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+is  "and plain felix qualify over each of those tables runs no control, says the table holds a NUL, and exits 2" \
+    "$(_qlnulplain)" ""
+# The twins: a held row HELD and a premise that errors UNRUNNABLE, each
+# refusing with exit 1, and a table whose NUL sat on a blank or comment line
+# passing, each having run demo's met control.
+_qltwin() {
+  local w want row said
+  for w in $_qzwhere; do
+    case "$w" in
+      field)         want=1; row='^  held +violation +fail +unrunnable +UNRUNNABLE$' ;;
+      alone|comment) want=0; row='^  demo +violation +fail +fail +ok$' ;;
+      *)             want=1; row='^  held +violation +fail +pass +HELD$' ;;
+    esac
+    _qznul "$w" clean > "$_qlw"; rm -f "$_qzmark"
+    _qsout="$(_qlgate)"; _qsrc=$?
+    said=""
+    [ "$_qsrc" = "$want" ] || said="${said}exit $_qsrc, not $want; "
+    [ "$(printf '%s\n' "$_qsout" | grep -cE "$row")" = 1 ] || said="${said}no row matching $row; "
+    [ -e "$_qzmark" ] || said="${said}demo's met control never ran; "
+    [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+is  "each of those tables with its NUL taken out reads through felix qualify --gate as before, refusing on its held or unrunnable row and passing when the NUL sat on a blank or comment line" \
+    "$(_qltwin)" ""
+# Whole, not by the line: a NUL in a comment between two met controls on clean
+# lines refuses the table, and neither control runs, where the same table
+# without the NUL passes having run both.
+_qlboth() {   # [clean]: exit:runs of felix qualify --gate over two met controls with a comment between
+  { printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "printf x >> '$_qzmark'; $_qcheck"
+    printf '# between the two'; [ "${1:-}" = clean ] || printf '\000'; printf ' met controls\n'
+    printf 'demo\t%s\trestoration\tpass\ttrue\n' "printf x >> '$_qzmark'; $_qcheck"; } > "$_qlw"
+  rm -f "$_qzmark"; ( cd "$REPO" && "$FELIX" qualify --gate >/dev/null 2>&1 ); _qsrc=$?
+  printf '%s:%s' "$_qsrc" "$( [ -e "$_qzmark" ] && wc -c < "$_qzmark" | tr -d ' ' || printf 0 )"
+}
+is  "a NUL refuses the whole table: with it in a comment between two met controls on clean lines neither runs and --gate exits 2, where without it both run and pass" \
+    "nul $(_qlboth) twin $(_qlboth clean)" "nul 2:0 twin 0:2"
+# One read, NUL or no NUL, counted by the wrapper from the obligations block.
+_qlnulreads() {
+  local w
+  for w in $_qzwhere; do
+    _qznul "$w" > "$_qlw";       printf '%s %s' "$w" "$(_qreads _qlgate)"
+    _qznul "$w" clean > "$_qlw"; printf '/%s ' "$(_qreads _qlgate)"
+  done
+}
+is  "felix qualify --gate opens a table holding a NUL exactly once, and its twin without the NUL once" \
+    "$(_qlnulreads)" "start 1/1 row 1/1 field 1/1 alone 1/1 comment 1/1 far 1/1 "
+# A table at mode 000 is still one that could not be read, never one said to
+# hold a NUL, which nobody read it to know.
+_qlnot() { case "$_qsout" in *NUL*) printf 'says NUL; ' ;; esac; }
+if [ "$_unreadable" -eq 1 ]; then
+  _qznul start clean > "$_qlw"
+  chmod 000 "$_qlw"; _qsout="$(_qlgate)"; _qsrc=$?; chmod 644 "$_qlw"
+  is  "felix qualify --gate over a table at mode 000 still says it could not be read, never that it holds a NUL, and exits 2" \
+      "$(_qlunread)$(_qlnot)" ""
+else
+  skip "felix qualify --gate over a table at mode 000 still says it could not be read, never that it holds a NUL, and exits 2" "$_noread"
+fi
+# A NUL right after a byte that starts a UTF-8 character. bash 4 to 5.2 read
+# the byte after a lead byte as the rest of the character without asking
+# whether it is the delimiter, so in a UTF-8 locale `\303\000` hid the NUL
+# from the read: it ran on to the end of input, said it found none, and every
+# row after it was dropped with a status of 0, a held one included. Found by
+# review on 2026-09-25; the reader pins the C locale for its read. macOS's
+# bash 3.2 never had the flaw, so this fails only on a newer bash, which is
+# what Linux CI runs.
+_qlu8="$_u8"
+[ -n "$_qlu8" ] || _qlu8="$(locale -a 2>/dev/null | awk '/^C\.(UTF-8|utf8)$/ && !n++')"
+_qllead() {   # [clean]: a met row, a comment ending in a lead byte and a NUL, a held row
+  printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck"
+  printf '# reviewed by Jos\303'; [ "${1:-}" = clean ] || printf '\000'; printf '\n'
+  printf 'held\ttrue\tviolation\tfail\ttrue\n'
+}
+if [ -n "$_qlu8" ]; then
+  _qllead > "$_qlw"; rm -f "$_qzmark"
+  _qsout="$( export LC_ALL="$_qlu8"; _qlgate )"; _qsrc=$?
+  is  "in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2" \
+      "$(_qlnul)" ""
+  _qlrows="$( export LC_ALL="$_qlu8"; . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+              felix_qualify_rows "$FROOT/projects/widget" 2>/dev/null )"; _qlrc=$?
+  is  "and in that locale the library reads no row of it and exits non-zero" \
+      "$([ "$_qlrc" -ne 0 ] && printf refused || printf 'exit 0')$([ -z "$_qlrows" ] || printf ', rows read')" "refused"
+  _qllead clean > "$_qlw"
+  _qsout="$( export LC_ALL="$_qlu8"; _qlgate )"; _qsrc=$?
+  is  "and without the NUL the same table runs, refusing --gate on the held row after the lead byte" \
+      "$_qsrc:$(printf '%s\n' "$_qsout" | grep -cE '^  held +violation +fail +pass +HELD$')" "1:1"
+else
+  for a in "in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2" \
+           "and in that locale the library reads no row of it and exits non-zero" \
+           "and without the NUL the same table runs, refusing --gate on the held row after the lead byte"; do
+    skip "$a" "no UTF-8 locale is installed here"; done
+fi
+cp "$TMP/qual-nul.keep" "$_qlw"
 # A present, empty table is a table declaring no control, and refuses as it
 # always has; the tests below it change what a table nobody read says, not this.
 : > "$_qlw"
@@ -14682,6 +15065,43 @@ if [ "$_unreadable" -eq 1 ]; then
 else
   skip "felix gate over a table it cannot read fails qualified and says under it that the table could not be read" "$_noread"
 fi
+# And a table holding a NUL byte, which felix qualify --gate passed whenever
+# the rows awk saw were met, so the gate printed qualified ok. It fails now,
+# with the felix: line saying the table holds a NUL lifted under the FAIL. The
+# twins, the NUL taken out, fail on their held or unrunnable row or pass as
+# before, so the FAIL is the NUL's. The tables are _qznul's, from the needs block.
+cp "$_qgt" "$TMP/premgate-nul.keep"
+_qpnul() {
+  local f
+  [ -z "$(_qpunder "$_qsout" ok)" ] || printf 'qualified ok; '
+  f="$(_qpunder "$_qsout" FAIL)"
+  if [ -z "$f" ]; then printf 'no qualified FAIL; '
+  else
+    [ "$(printf '%s\n' "$f" | sed 1d | grep -E '^ +felix: ' | grep -F '/projects/premgate/qualification.tsv' | grep -c 'NUL')" -ge 1 ] \
+      || printf 'no felix: line under qualified FAIL naming the table and saying it holds a NUL; '
+  fi
+}
+_qptwin() {   # WHERE
+  case "$1" in
+    alone|comment) [ -n "$(_qpunder "$_qsout" ok)" ] || printf 'no qualified ok; ' ;;
+    field) [ "$(_qpunder "$_qsout" FAIL | grep -cE ' held +violation +fail +unrunnable +UNRUNNABLE$')" = 1 ] \
+             || printf 'no UNRUNNABLE row under qualified FAIL; ' ;;
+    *)     [ "$(_qpunder "$_qsout" FAIL | grep -cE ' held +violation +fail +pass +HELD$')" = 1 ] \
+             || printf 'no HELD row under qualified FAIL; ' ;;
+  esac
+}
+_qpnuls() {   # PRED [clean]: felix gate over each table, a line for each PRED finds wrong
+  local w said
+  for w in $_qzwhere; do
+    _qznul "$w" ${2:+"$2"} > "$_qgt"; _qsout="$(_qpgate)"
+    said="$("$1" "$w")"; [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+is  "felix gate over a table holding a NUL byte anywhere fails qualified, never ok, and shows under it the felix: line naming the table and its NUL" \
+    "$(_qpnuls _qpnul)" ""
+is  "and over each twin, its NUL taken out, felix gate reads as before: qualified FAIL over the held or unrunnable row, and qualified ok when the NUL sat on a blank or comment line" \
+    "$(_qpnuls _qptwin clean)" ""
+cp "$TMP/premgate-nul.keep" "$_qgt"
 # And a present, empty table, which failed the same way with nothing under it.
 cp "$_qgt" "$TMP/premgate-qual.keep"
 : > "$_qgt"
@@ -20430,7 +20850,8 @@ EOF
 # 1 on any failure, as a real suite would, which red must not mistake for a
 # run that could not happen. And it prints the real suite's completion marker,
 # an empty line and then a line that is exactly "reached", after its last
-# assertion and before its totals, so each run below is of a suite that finished.
+# assertion and before its totals, so each run built from it is of a suite
+# that finished.
 _red_tree_run() { cat <<'EOF'
 #!/usr/bin/env bash
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -20497,9 +20918,9 @@ _red_body() { grep -v '^#' "$1/engine/harness/tests/red.tsv" 2>/dev/null; }
 _red_stat() { ( cd "$1" && git status --porcelain | grep -v 'red\.tsv' ); }
 # full short: yes when short is a non-empty prefix of full at least 7 long.
 _red_abbr() { case "$1" in "$2"*) [ "${#2}" -ge 7 ] && echo yes ;; esac; }
-# dir: the working tree's run becomes a script whose body is read from stdin,
-# a suite that stops short of its end. The base, the stale claim and the red
-# under test are still the ones _red_seed committed.
+# dir: the working tree's run becomes a script whose body is read from stdin.
+# The base, the stale claim and the red under test are still the ones
+# _red_seed committed.
 _red_cut() { { printf '#!/usr/bin/env bash\n'; cat; } > "$1/engine/harness/tests/run"; chmod +x "$1/engine/harness/tests/run"; }
 # stdout whole: how many lines it holds, a bar, then what they say, so a
 # trailing line that $(cat) would strip is still counted.
@@ -20581,15 +21002,16 @@ if [ -x "$FROOT/harness/tests/red" ]; then
   is  "and zero failures is still exit 0" "$(_red_rc)" "0"
   is  "and the summary then counts zero of six" "$(_red_sum)" "red: 0 of 6 assertions fail against main (SHA) at engine 0.0.8"
   # A suite that stops before its end is not a red run, whatever it printed
-  # first. On 2026-09-25 a suite killed a few seconds in was written down as 0
-  # of 270 assertions failing, and an earlier one cut off by a fork failure as
-  # 0 of 1320, when the whole suite holds some 3,700. What proves a suite
-  # finished is the line it prints after its last assertion, exactly "reached",
-  # and not its exit status, since a finished red run exits 1. Each run here
-  # stops short of that line, in a fresh repository whose red.tsv starts with
-  # a stale claim, so red must refuse, retract the claim and clean up. Each is
-  # given a well-formed manifest, since red reads one before the suite runs
-  # and refuses to start without it.
+  # first. On 2026-09-25 a suite stopped at assertion 270 was written down as
+  # 0 of 270 failing, and an earlier one, very likely cut off by a fork
+  # failure, as 0 of 1320, when the whole suite holds some 3,700. What tells a
+  # finished suite from a dead one is the line it prints after its last
+  # assertion, exactly "reached", and not its exit status, since a finished
+  # red run exits 1. Each run here is in a fresh repository whose red.tsv
+  # starts with a stale claim. Red must refuse one that stops short of that
+  # line, retract the claim and clean up; the empty, late and strayend runs
+  # reach the line on purpose. Each is given a well-formed manifest, since red
+  # reads one before the suite runs and refuses to start without it.
   _red_seed "$RED/dead" main 0.0.7
   _red_cut "$RED/dead" <<'EOF'
 printf 'marker suite\n\n'
@@ -25473,10 +25895,14 @@ printf '\nthe record this branch carries\n'
 # Raised by the same review. After a rebase, red.tsv held two runs' records
 # concatenated, against a base two merges back, naming an assertion this suite
 # no longer has, and the engine's version was below the one main had taken.
-# These read the tree's own record and, where origin/main is known, git. They
-# skip while --record-assertions is about to rewrite the record, and in the red
-# run, which stands in the base's tree and reads the base's record.
-_rt="$HERE/red.tsv"
+# These read the tree's own record and, where origin/main is known, git. The
+# first three skip while --record-assertions is about to rewrite the record,
+# and all four in the red run, which stands in the base's tree and would read
+# the base's record. Every other assertion in this block asks this tree's own
+# helpers, of records and repositories built here or of the history the suite
+# stands in, and runs in the red run as in any other, since the run placed in
+# the base is this tree's: until #371 they sat behind the red run's test with
+# the four, and a red run reached none of them.
 _rtn1="red.tsv is one record, written whole: one base row, one run row, and failed names that add up to the run's failed count"
 _rtn2="every assertion red.tsv names as red is one the manifest lists"
 _rtn3="red.tsv was recorded against the engine origin/main held where this tree branched from it"
@@ -25508,325 +25934,644 @@ _rt_record_whole() {   # <red.tsv> -> ok, or bad <detail>
       else print "ok"
     }' "$1"
 }
-_rt_skip=""
-[ "$FELIX_TEST_RECORD" -eq 1 ] && _rt_skip="--record-assertions rewrites red.tsv after this run"
-[ -z "$_rt_skip" ] && [ ! -f "$_rt" ] && _rt_skip="no red.tsv beside this suite"
-if [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then
-  for _n in "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4"; do skip "$_n" "a red run reads the base's record"; done
+# How _rtn1 and _rtn3 report a check's verdict line, written once so that it
+# can be asked of lines written for it below: each wrote the mapping out, and
+# turning its bad into skip or ok left the suite green (#371, third review).
+# A line that is none of the three, empty or more than one included, fails,
+# naming what it read, since a check that said nothing readable has not passed.
+_rt_report() {   # <name> <verdict line>
+  case "$2" in
+    *$'\n'*)   bad  "$1" "the check's verdict is more than one line: [$2]" ;;
+    ok)        ok   "$1" ;;
+    "skip "?*) skip "$1" "${2#skip }" ;;
+    "bad "?*)  bad  "$1" "${2#bad }" ;;
+    *)         bad  "$1" "the check's verdict reads [$2], which is none of ok, skip <reason> or bad <detail>" ;;
+  esac
+}
+_rtg() { git -C "$REAL_HARNESS" "$@" 2>/dev/null; }
+_rtv() { sed -n '/"version"/{s/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p;q;}'; }
+# Whether every base the record names is a commit in this repository. The
+# record names its base by id, and a published snapshot carries the private
+# repository's record into a history where that id was never a commit, so
+# the base question cannot be asked there. Found by the first run of
+# projects/felix/snapshot.sh, 2026-09-22: the public build failed on it. It
+# asks the checkout named second, this suite's own when none is, so that the
+# base check can be asked of a fixture (#371).
+_rt_base_in() {   # <bases, space-separated> [<checkout>]
+  local b; [ -n "$1" ] || return 1
+  for b in $1; do git -C "${2:-$REAL_HARNESS}" cat-file -e "$b^{commit}" 2>/dev/null || return 1; done; return 0
+}
+# Both answers, on this repository's own history: an id that is no commit
+# here, and its root, which is.
+_rtroot="$(_rtg rev-list --max-parents=0 HEAD | head -1)"
+# What kind of base the record names, one word of four. tests/red records a
+# base of - when it made no red run, and - is no commit either, so the base
+# check skipped a retraction as though it were a published snapshot and an
+# engine change whose red run was never made passed (#371). Any other base is
+# one commit id as tests/red writes it, forty lower-case hex digits: a commit
+# here, or a snapshot's when it is not. Anything else is malformed, an empty
+# base, more than one, and a value git resolves but tests/red never writes.
+# A base edited by hand to origin/main read as a commit and, resolving afresh
+# after every merge of main, never went stale; a branch or an abbreviated id
+# is refused with it, since tests/red never writes those either (#371, third
+# review). Asked on this repository's own history, as the two above are: its
+# root is a commit here, forty zeros a full id that is not, and deadbeef an
+# abbreviated one that is not. Like _rt_base_in, it asks the checkout named
+# second, this suite's by default.
+_rt_base_kind() {   # <the base field of every base row, space-separated> [<checkout>] -> one word
+  case "$1" in
+    -) echo retracted; return 0 ;;
+    ''|*[!0123456789abcdef]*) echo malformed; return 0 ;;
+  esac
+  if [ "${#1}" -ne 40 ]; then echo malformed
+  elif _rt_base_in "$1" "${2:-}"; then echo commit
+  else echo snapshot; fi
+}
+_rtkn1="a red.tsv base of - reads as retracted, not as a published snapshot"
+_rtkn2="and a base that is a commit here reads as a commit"
+_rtkn3="and a full commit id that is no commit here reads as a snapshot"
+_rtkn4="and an abbreviated id that is no commit here reads as malformed, not as a snapshot"
+_rtkn5="and an empty base, as a record with no base row gives, reads as malformed"
+_rtkn6="and two bases, even one a commit here, read as malformed"
+# And four at the edges, so that loosening the rule fails here rather than
+# letting a base written by hand pass for one tests/red wrote: two bases that
+# are each a commit here are still two, and a snapshot's base is one commit
+# id as git prints it, forty lower-case hex digits, which forty letters that
+# are not hex, forty-one digits and forty upper-case ones are not. The six
+# above left each of those loosenings green (#371, second review, 2026-09-25).
+_rtkn7="and two bases that are each a commit here read as malformed, not as a commit"
+_rtkn8="and forty characters that are not hex digits read as malformed, not as a snapshot"
+_rtkn9="and forty-one hex digits read as malformed, not as a snapshot"
+_rtkn10="and forty upper-case hex digits that are no commit here read as malformed, not as a snapshot"
+# And a commit is one as tests/red writes a base, the forty lower-case hex
+# digits git rev-parse prints, that is a commit here. Any value git resolved
+# read as a commit, ref names included, so a base edited by hand to
+# origin/main passed _rtn3 after every merge of main and never went stale
+# (#371, third review); main and an abbreviated id are refused with it, since
+# tests/red never writes those either. Asked with HEAD, since this suite's
+# own checkout may have no origin/main, and with the root above cut to twelve
+# characters and spelled in upper case.
+_rtkn11="and HEAD, which git resolves to a commit here, reads as malformed, since tests/red writes a base as a full id"
+_rtkn12="and the first twelve characters of a commit here read as malformed, not as a commit"
+_rtkn13="and a commit here spelled in forty upper-case hex digits reads as malformed, not as a commit"
+if [ -n "$_rtroot" ]; then
+  _rt_base_in 0000000000000000000000000000000000000000 \
+    && bad "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "0000… read as a commit" \
+    || ok  "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot"
+  _rt_base_in "$_rtroot" \
+    && ok  "and a base that is a commit here is still compared, so a stale record still fails" \
+    || bad "and a base that is a commit here is still compared, so a stale record still fails" "root $_rtroot not read as a commit"
+  is "$_rtkn1" "$(_rt_base_kind -)" retracted
+  is "$_rtkn2" "$(_rt_base_kind "$_rtroot")" commit
+  is "$_rtkn3" "$(_rt_base_kind 0000000000000000000000000000000000000000)" snapshot
+  is "$_rtkn4" "$(_rt_base_kind deadbeef)" malformed
+  is "$_rtkn5" "$(_rt_base_kind "")" malformed
+  is "$_rtkn6" "$(_rt_base_kind "$_rtroot -")" malformed
+  is "$_rtkn7" "$(_rt_base_kind "$_rtroot $_rtroot")" malformed
+  is "$_rtkn8" "$(_rt_base_kind gggggggggggggggggggggggggggggggggggggggg)" malformed
+  is "$_rtkn9" "$(_rt_base_kind 00000000000000000000000000000000000000000)" malformed
+  is "$_rtkn10" "$(_rt_base_kind AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA)" malformed
+  is "$_rtkn11" "$(_rt_base_kind HEAD)" malformed
+  is "$_rtkn12" "$(_rt_base_kind "${_rtroot:0:12}")" malformed
+  is "$_rtkn13" "$(_rt_base_kind "$(printf '%s' "$_rtroot" | tr abcdef ABCDEF)")" malformed
 else
-  if [ -n "$_rt_skip" ]; then
-    for _n in "$_rtn1" "$_rtn2" "$_rtn3"; do skip "$_n" "$_rt_skip"; done
+  skip "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "no git history beside this suite"
+  skip "and a base that is a commit here is still compared, so a stale record still fails" "no git history beside this suite"
+  for _n in "$_rtkn1" "$_rtkn2" "$_rtkn3" "$_rtkn4" "$_rtkn5" "$_rtkn6" "$_rtkn7" "$_rtkn8" "$_rtkn9" "$_rtkn10" \
+            "$_rtkn11" "$_rtkn12" "$_rtkn13"; do
+    skip "$_n" "no git history beside this suite"
+  done
+fi
+# Whether the engine in this checkout is origin/main's, working tree
+# included. The record and the version belong to the engine: a branch that
+# changes only docs or a project's doctrine carries main's record and main's
+# version, rightly, and asking it for a new one failed every such branch
+# (found on 2026-09-22, the first docs-only pull request after these checks
+# merged). A change under engine/, tests included, still owes both.
+_rt_engine_same() { git -C "$1" diff --quiet refs/remotes/origin/main -- :/engine 2>/dev/null; }
+# Both answers on a repository built here: a commit to docs keeps main's
+# engine, a commit to engine/ does not.
+_rtes="$TMP/rt-engine-same"; mkdir -p "$_rtes/engine" "$_rtes/docs"
+( cd "$_rtes" && git init -q && git config user.email t@t && git config user.name t \
+    && echo a > engine/x && echo a > docs/y && git add -A && git commit -qm base \
+    && git update-ref refs/remotes/origin/main HEAD \
+    && echo b > docs/y && git commit -qam docs ) >/dev/null 2>&1
+_rt_engine_same "$_rtes" \
+  && ok  "a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version" \
+  || bad "a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version" "the docs-only fixture read as an engine change"
+( cd "$_rtes" && echo b > engine/x && git commit -qam engine ) >/dev/null 2>&1
+_rt_engine_same "$_rtes" \
+  && bad "and a branch that changes engine/ still owes both" "the engine fixture read as main's engine" \
+  || ok  "and a branch that changes engine/ still owes both"
+# Whether red.tsv still describes the base this tree stands on. The record is
+# this tree's assertions run against the engine at its base, so what it must
+# match is that engine, not the commit around it. Until 2026-09-22 the check
+# compared commits, and a merge to main that touched no engine file (#290,
+# projects/felix/CLAUDE.md alone) staled every open engine pull request's
+# record: each owed an eight-minute red run whose answer could not have
+# changed, and one's CI failed on it (#291). Compared as engine/ trees, which
+# hold the harness, this suite and plugin.json, a docs or projects merge
+# leaves the record standing and any change under engine/ on main stales it.
+_rt_engine_tree() { [ -n "$2" ] && git -C "$1" rev-parse -q --verify "$2:engine" 2>/dev/null; }
+_rt_record_holds() {   # <checkout> <red.tsv's base sha>
+  local mb t
+  mb="$(git -C "$1" merge-base HEAD refs/remotes/origin/main 2>/dev/null)" || return 1
+  t="$(_rt_engine_tree "$1" "$2")" || return 1
+  [ "$t" = "$(_rt_engine_tree "$1" "$mb")" ]
+}
+# Both answers on a repository built here. The record is taken on main, main
+# takes a docs commit, and the branch is rebased onto it; then main takes an
+# engine commit and the branch is rebased again.
+_rtrh="$TMP/rt-record-holds"; mkdir -p "$_rtrh/engine" "$_rtrh/docs"
+( cd "$_rtrh" && git init -q && git config user.email t@t && git config user.name t \
+    && echo a > engine/x && echo a > docs/y && git add -A && git commit -qm record \
+    && echo b > docs/y && git commit -qam 'main: docs' \
+    && git update-ref refs/remotes/origin/main HEAD \
+    && echo b > engine/x && git commit -qam 'branch: engine' ) >/dev/null 2>&1
+_rtrr="$(git -C "$_rtrh" rev-parse -q --verify 'HEAD~2' 2>/dev/null)"
+_rtrn="a docs commit on main after red.tsv was recorded leaves the record standing, since the engine it ran against is the one the branch now stands on"
+if [ -n "$_rtrr" ] && _rt_record_holds "$_rtrh" "$_rtrr"; then
+  ok  "$_rtrn"
+else
+  bad "$_rtrn" "record ${_rtrr:-(none)}, merge-base $(git -C "$_rtrh" merge-base HEAD refs/remotes/origin/main 2>/dev/null)"
+fi
+( cd "$_rtrh" && git checkout -q --detach refs/remotes/origin/main \
+    && echo c > engine/z && git add -A && git commit -qm 'main: engine' \
+    && git update-ref refs/remotes/origin/main HEAD \
+    && git checkout -q -b rebased && echo b > engine/x && git commit -qam 'branch: engine' ) >/dev/null 2>&1
+# Fails for its own reason only when the fixture stands where it says: the
+# branch's merge-base is main's engine commit, the record two commits back.
+_rtrm="$(git -C "$_rtrh" merge-base HEAD refs/remotes/origin/main 2>/dev/null)"
+_rtrn="and an engine commit on main after it stales the record"
+if [ -n "$_rtrr" ] && [ "$(git -C "$_rtrh" log -1 --format=%s "$_rtrm" 2>/dev/null)" = "main: engine" ] \
+   && ! _rt_record_holds "$_rtrh" "$_rtrr"; then
+  ok  "$_rtrn"
+else
+  bad "$_rtrn" "record ${_rtrr:-(none)}, merge-base ${_rtrm:-(none)} ($(git -C "$_rtrh" log -1 --format=%s "$_rtrm" 2>/dev/null))"
+fi
+# The base question alone, asked of a checkout: ok, or skip and why, or bad
+# and why, on one line. An engine change owes a red run, so a retraction
+# (base -), which once skipped as a published snapshot and let an engine
+# change whose red run was never made pass (#371), fails, as does a base
+# that is not one full commit id; only a snapshot's full id still skips. The
+# decision sat inside _rtn3, where no fixture reached it, so undoing it left
+# this suite green (second review of #371); it is asked of fixtures below.
+# Whether the question is owed at all is _rt_judge's. A published snapshot
+# carrying a retraction fails too, rightly, since its engine's red run was
+# never shown either, but it cannot re-record there, so the detail says where
+# (#371, third review).
+_rt_base_check() {   # <checkout> -> ok, skip <reason> or bad <detail>
+  local bs mb
+  bs="$(awk -F'\t' '$1 == "base" { printf "%s%s", s, $3; s = " " }' "$1/engine/harness/tests/red.tsv" 2>/dev/null)"
+  case "$(_rt_base_kind "$bs" "$1")" in
+    retracted)
+      echo "bad red.tsv records that no red run was made (base -), and tests/red's stdout said why, if it finished: re-record with tests/run --record-assertions in the repository where the engine change was made" ;;
+    malformed)
+      echo "bad the record's base reads [$bs], which is neither - nor one commit id in forty lower-case hex digits, as tests/red writes it: re-record with tests/run --record-assertions" ;;
+    snapshot)
+      echo "skip its base is no commit in this repository's history, as in a published snapshot" ;;
+    *)
+      if _rt_record_holds "$1" "$bs"; then
+        echo ok
+      else
+        mb="$(git -C "$1" merge-base HEAD refs/remotes/origin/main 2>/dev/null)"
+        echo "bad the record's base ${bs:-(none)} holds engine $(_rt_engine_tree "$1" "$bs" || echo '(none)'), the merge-base ${mb:-(none)} holds $(_rt_engine_tree "$1" "$mb" || echo '(none)'): re-record with tests/run --record-assertions"
+      fi ;;
+  esac
+}
+# The whole judgment of a checkout's record: _rtn1 to _rtn4, each reported
+# through ok, skip and bad, and whether each is asked, from the checkout's
+# red.tsv, manifest, plugin.json and git. It reads them under
+# <checkout>/engine, so it assumes the <root>/engine/harness layout, the one
+# gate.sh, CI and snapshot.sh run this suite in. Made for this suite's own
+# checkout alone, its report of _rtn3, then of _rtn1, could be a plain ok and
+# leave every assertion green (#371, fourth review), so it is also asked of
+# one below. Record mode, --record-assertions, in which the first three
+# skip, is FELIX_TEST_RECORD at exactly 1, as the suite sets it, read here
+# rather than passed in by the suite's one call, where no assertion asked it
+# (#371, fifth review). And an engine change with no red.tsv at all, as a
+# red.tsv merge conflict resolved by removing the file leaves, fails _rtn3,
+# since it still owes a record: the missing file skipped _rtn1 to _rtn3, and
+# such a change passed (#371, fifth review). Where no record is owed, a
+# missing red.tsv skips _rtn3 as it skips the first two. A red run,
+# FELIX_TEST_NO_MANIFEST at exactly 1 as tests/red sets it, stands in the
+# base's tree and would judge the base's record, so all four skip there; it
+# is read here too, since decided at the suite's one call, a test there that
+# took an unset variable for a red run skipped all four on every run with
+# every assertion green (#371, sixth review).
+_rt_judge() {   # <checkout>
+  local c="$1" t="$1/engine/harness/tests/red.tsv" a="$1/engine/harness/tests/assertions.tsv" r="" s="" w n vh vm
+  if [ "${FELIX_TEST_NO_MANIFEST:-}" = 1 ]; then
+    for n in "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4"; do skip "$n" "a red run reads the base's record"; done
+    return 0
+  fi
+  [ "${FELIX_TEST_RECORD:-}" = 1 ] && r="--record-assertions rewrites red.tsv after this run"
+  s="$r"; [ -z "$s" ] && [ ! -f "$t" ] && s="no red.tsv beside this suite"
+  if [ -n "$s" ]; then
+    for n in "$_rtn1" "$_rtn2"; do skip "$n" "$s"; done
   else
-    _rtwv="$(_rt_record_whole "$_rt")"
-    [ "$_rtwv" = ok ] && ok "$_rtn1" || bad "$_rtn1" "${_rtwv#bad }"
-    if [ -f "$FELIX_TEST_MANIFEST" ]; then
-      _rtm="$(awk -F'\t' 'NR == FNR { m[$2] = 1; next } /^#/ || !NF || $1 == "base" || $1 == "run" { next }
-                          !($1 in m) { print $1 }' "$FELIX_TEST_MANIFEST" "$_rt")"
-      [ -z "$_rtm" ] && ok "$_rtn2" || bad "$_rtn2" "not in the manifest: $(printf '%s\n' "$_rtm" | head -3)"
+    _rt_report "$_rtn1" "$(_rt_record_whole "$t")"
+    if [ -f "$a" ]; then
+      n="$(awk -F'\t' 'NR == FNR { m[$2] = 1; next } /^#/ || !NF || $1 == "base" || $1 == "run" { next }
+                       !($1 in m) { print $1 }' "$a" "$t")"
+      [ -z "$n" ] && ok "$_rtn2" || bad "$_rtn2" "not in the manifest: $(printf '%s\n' "$n" | head -3)"
     else
       skip "$_rtn2" "no manifest beside this suite"
     fi
   fi
-  _rtg() { git -C "$REAL_HARNESS" "$@" 2>/dev/null; }
-  _rtv() { sed -n '/"version"/{s/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p;q;}'; }
-  # Whether every base the record names is a commit in this repository. The
-  # record names its base by id, and a published snapshot carries the private
-  # repository's record into a history where that id was never a commit, so
-  # the base question cannot be asked there. Found by the first run of
-  # projects/felix/snapshot.sh, 2026-09-22: the public build failed on it. It
-  # asks the checkout named second, this suite's own when none is, so that the
-  # base check can be asked of a fixture (#371).
-  _rt_base_in() {   # <bases, space-separated> [<checkout>]
-    local b; [ -n "$1" ] || return 1
-    for b in $1; do git -C "${2:-$REAL_HARNESS}" cat-file -e "$b^{commit}" 2>/dev/null || return 1; done; return 0
-  }
-  # Both answers, on this repository's own history: an id that is no commit
-  # here, and its root, which is.
-  _rtroot="$(_rtg rev-list --max-parents=0 HEAD | head -1)"
-  # What kind of base the record names, one word of four. tests/red records a
-  # base of - when it made no red run, and - is no commit either, so the base
-  # check skipped a retraction as though it were a published snapshot and an
-  # engine change whose red run was never made passed (#371). A snapshot's base
-  # is a full commit id; a base that is neither a commit here, a full id nor -,
-  # an empty one, or more than one, is malformed. Asked on this repository's
-  # own history, as the two above are: its root is a commit here, forty zeros
-  # a full id that is not, and deadbeef an abbreviated one that is not. Like
-  # _rt_base_in, it asks the checkout named second, this suite's by default.
-  _rt_base_kind() {   # <the base field of every base row, space-separated> [<checkout>] -> one word
-    case "$1" in
-      -) echo retracted; return 0 ;;
-      ''|*[[:space:]]*) echo malformed; return 0 ;;
-    esac
-    if _rt_base_in "$1" "${2:-}"; then echo commit
-    elif [ "${#1}" -eq 40 ] && case "$1" in *[!0123456789abcdef]*) false ;; esac; then echo snapshot
-    else echo malformed; fi
-  }
-  _rtkn1="a red.tsv base of - reads as retracted, not as a published snapshot"
-  _rtkn2="and a base that is a commit here reads as a commit"
-  _rtkn3="and a full commit id that is no commit here reads as a snapshot"
-  _rtkn4="and an abbreviated id that is no commit here reads as malformed, not as a snapshot"
-  _rtkn5="and an empty base, as a record with no base row gives, reads as malformed"
-  _rtkn6="and two bases, even one a commit here, read as malformed"
-  # And four at the edges, so that loosening the rule fails here rather than
-  # letting a base written by hand pass for one tests/red wrote: two bases that
-  # are each a commit here are still two, and a snapshot's base is one commit
-  # id as git prints it, forty lower-case hex digits, which forty letters that
-  # are not hex, forty-one digits and forty upper-case ones are not. The six
-  # above left each of those loosenings green (#371, second review, 2026-09-25).
-  _rtkn7="and two bases that are each a commit here read as malformed, not as a commit"
-  _rtkn8="and forty characters that are not hex digits read as malformed, not as a snapshot"
-  _rtkn9="and forty-one hex digits read as malformed, not as a snapshot"
-  _rtkn10="and forty upper-case hex digits that are no commit here read as malformed, not as a snapshot"
-  if [ -n "$_rtroot" ]; then
-    _rt_base_in 0000000000000000000000000000000000000000 \
-      && bad "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "0000… read as a commit" \
-      || ok  "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot"
-    _rt_base_in "$_rtroot" \
-      && ok  "and a base that is a commit here is still compared, so a stale record still fails" \
-      || bad "and a base that is a commit here is still compared, so a stale record still fails" "root $_rtroot not read as a commit"
-    is "$_rtkn1" "$(_rt_base_kind -)" retracted
-    is "$_rtkn2" "$(_rt_base_kind "$_rtroot")" commit
-    is "$_rtkn3" "$(_rt_base_kind 0000000000000000000000000000000000000000)" snapshot
-    is "$_rtkn4" "$(_rt_base_kind deadbeef)" malformed
-    is "$_rtkn5" "$(_rt_base_kind "")" malformed
-    is "$_rtkn6" "$(_rt_base_kind "$_rtroot -")" malformed
-    is "$_rtkn7" "$(_rt_base_kind "$_rtroot $_rtroot")" malformed
-    is "$_rtkn8" "$(_rt_base_kind gggggggggggggggggggggggggggggggggggggggg)" malformed
-    is "$_rtkn9" "$(_rt_base_kind 00000000000000000000000000000000000000000)" malformed
-    is "$_rtkn10" "$(_rt_base_kind AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA)" malformed
-  else
-    skip "a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot" "no git history beside this suite"
-    skip "and a base that is a commit here is still compared, so a stale record still fails" "no git history beside this suite"
-    for _n in "$_rtkn1" "$_rtkn2" "$_rtkn3" "$_rtkn4" "$_rtkn5" "$_rtkn6" "$_rtkn7" "$_rtkn8" "$_rtkn9" "$_rtkn10"; do
-      skip "$_n" "no git history beside this suite"
-    done
-  fi
-  # Whether the engine in this checkout is origin/main's, working tree
-  # included. The record and the version belong to the engine: a branch that
-  # changes only docs or a project's doctrine carries main's record and main's
-  # version, rightly, and asking it for a new one failed every such branch
-  # (found on 2026-09-22, the first docs-only pull request after these checks
-  # merged). A change under engine/, tests included, still owes both.
-  _rt_engine_same() { git -C "$1" diff --quiet refs/remotes/origin/main -- :/engine 2>/dev/null; }
-  # Both answers on a repository built here: a commit to docs keeps main's
-  # engine, a commit to engine/ does not.
-  _rtes="$TMP/rt-engine-same"; mkdir -p "$_rtes/engine" "$_rtes/docs"
-  ( cd "$_rtes" && git init -q && git config user.email t@t && git config user.name t \
-      && echo a > engine/x && echo a > docs/y && git add -A && git commit -qm base \
-      && git update-ref refs/remotes/origin/main HEAD \
-      && echo b > docs/y && git commit -qam docs ) >/dev/null 2>&1
-  _rt_engine_same "$_rtes" \
-    && ok  "a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version" \
-    || bad "a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version" "the docs-only fixture read as an engine change"
-  ( cd "$_rtes" && echo b > engine/x && git commit -qam engine ) >/dev/null 2>&1
-  _rt_engine_same "$_rtes" \
-    && bad "and a branch that changes engine/ still owes both" "the engine fixture read as main's engine" \
-    || ok  "and a branch that changes engine/ still owes both"
-  # Whether red.tsv still describes the base this tree stands on. The record is
-  # this tree's assertions run against the engine at its base, so what it must
-  # match is that engine, not the commit around it. Until 2026-09-22 the check
-  # compared commits, and a merge to main that touched no engine file (#290,
-  # projects/felix/CLAUDE.md alone) staled every open engine pull request's
-  # record: each owed an eight-minute red run whose answer could not have
-  # changed, and one's CI failed on it (#291). Compared as engine/ trees, which
-  # hold the harness, this suite and plugin.json, a docs or projects merge
-  # leaves the record standing and any change under engine/ on main stales it.
-  _rt_engine_tree() { [ -n "$2" ] && git -C "$1" rev-parse -q --verify "$2:engine" 2>/dev/null; }
-  _rt_record_holds() {   # <checkout> <red.tsv's base sha>
-    local mb t
-    mb="$(git -C "$1" merge-base HEAD refs/remotes/origin/main 2>/dev/null)" || return 1
-    t="$(_rt_engine_tree "$1" "$2")" || return 1
-    [ "$t" = "$(_rt_engine_tree "$1" "$mb")" ]
-  }
-  # Both answers on a repository built here. The record is taken on main, main
-  # takes a docs commit, and the branch is rebased onto it; then main takes an
-  # engine commit and the branch is rebased again.
-  _rtrh="$TMP/rt-record-holds"; mkdir -p "$_rtrh/engine" "$_rtrh/docs"
-  ( cd "$_rtrh" && git init -q && git config user.email t@t && git config user.name t \
-      && echo a > engine/x && echo a > docs/y && git add -A && git commit -qm record \
-      && echo b > docs/y && git commit -qam 'main: docs' \
-      && git update-ref refs/remotes/origin/main HEAD \
-      && echo b > engine/x && git commit -qam 'branch: engine' ) >/dev/null 2>&1
-  _rtrr="$(git -C "$_rtrh" rev-parse -q --verify 'HEAD~2' 2>/dev/null)"
-  _rtrn="a docs commit on main after red.tsv was recorded leaves the record standing, since the engine it ran against is the one the branch now stands on"
-  if [ -n "$_rtrr" ] && _rt_record_holds "$_rtrh" "$_rtrr"; then
-    ok  "$_rtrn"
-  else
-    bad "$_rtrn" "record ${_rtrr:-(none)}, merge-base $(git -C "$_rtrh" merge-base HEAD refs/remotes/origin/main 2>/dev/null)"
-  fi
-  ( cd "$_rtrh" && git checkout -q --detach refs/remotes/origin/main \
-      && echo c > engine/z && git add -A && git commit -qm 'main: engine' \
-      && git update-ref refs/remotes/origin/main HEAD \
-      && git checkout -q -b rebased && echo b > engine/x && git commit -qam 'branch: engine' ) >/dev/null 2>&1
-  # Fails for its own reason only when the fixture stands where it says: the
-  # branch's merge-base is main's engine commit, the record two commits back.
-  _rtrm="$(git -C "$_rtrh" merge-base HEAD refs/remotes/origin/main 2>/dev/null)"
-  _rtrn="and an engine commit on main after it stales the record"
-  if [ -n "$_rtrr" ] && [ "$(git -C "$_rtrh" log -1 --format=%s "$_rtrm" 2>/dev/null)" = "main: engine" ] \
-     && ! _rt_record_holds "$_rtrh" "$_rtrr"; then
-    ok  "$_rtrn"
-  else
-    bad "$_rtrn" "record ${_rtrr:-(none)}, merge-base ${_rtrm:-(none)} ($(git -C "$_rtrh" log -1 --format=%s "$_rtrm" 2>/dev/null))"
-  fi
-  # The base question alone, asked of a checkout: ok, or skip and why, or bad
-  # and why, on one line. An engine change owes a red run, so a retraction
-  # (base -), which once skipped as a published snapshot and let an engine
-  # change whose red run was never made pass (#371), fails, as does a base
-  # naming no single commit; only a snapshot's full id still skips. The
-  # decision sat inside _rtn3, where no fixture reached it, so undoing it left
-  # this suite green (second review of #371); it is asked of fixtures below.
-  # Whether the question is owed at all stays _rtn3's.
-  _rt_base_check() {   # <checkout> -> ok, skip <reason> or bad <detail>
-    local bs mb
-    bs="$(awk -F'\t' '$1 == "base" { printf "%s%s", s, $3; s = " " }' "$1/engine/harness/tests/red.tsv" 2>/dev/null)"
-    case "$(_rt_base_kind "$bs" "$1")" in
-      retracted)
-        echo "bad red.tsv records that no red run was made (base -), and tests/red's own output says why: re-record with tests/run --record-assertions" ;;
-      malformed)
-        echo "bad the record's base reads [$bs], which is neither one commit here, a full commit id nor -: re-record with tests/run --record-assertions" ;;
-      snapshot)
-        echo "skip its base is no commit in this repository's history, as in a published snapshot" ;;
-      *)
-        if _rt_record_holds "$1" "$bs"; then
-          echo ok
-        else
-          mb="$(git -C "$1" merge-base HEAD refs/remotes/origin/main 2>/dev/null)"
-          echo "bad the record's base ${bs:-(none)} holds engine $(_rt_engine_tree "$1" "$bs" || echo '(none)'), the merge-base ${mb:-(none)} holds $(_rt_engine_tree "$1" "$mb" || echo '(none)'): re-record with tests/run --record-assertions"
-        fi ;;
-    esac
-  }
-  if ! _rtg rev-parse -q --verify refs/remotes/origin/main >/dev/null; then
-    [ -z "$_rt_skip" ] && skip "$_rtn3" "no origin/main to compare against"
-    skip "$_rtn4" "no origin/main to compare against"
-  elif _rtg merge-base --is-ancestor HEAD refs/remotes/origin/main; then
-    [ -z "$_rt_skip" ] && skip "$_rtn3" "this tree holds no commit origin/main lacks"
-    skip "$_rtn4" "this tree holds no commit origin/main lacks"
-  elif _rt_engine_same "$REAL_HARNESS"; then
-    [ -z "$_rt_skip" ] && skip "$_rtn3" "this tree changes no engine file, so origin/main's record is still this engine's"
+  if ! git -C "$c" rev-parse -q --verify refs/remotes/origin/main >/dev/null 2>&1; then
+    w="no origin/main to compare against"
+    skip "$_rtn3" "${s:-$w}"
+    skip "$_rtn4" "$w"
+  elif git -C "$c" merge-base --is-ancestor HEAD refs/remotes/origin/main 2>/dev/null; then
+    w="this tree holds no commit origin/main lacks"
+    skip "$_rtn3" "${s:-$w}"
+    skip "$_rtn4" "$w"
+  elif _rt_engine_same "$c"; then
+    w="this tree changes no engine file, so origin/main's record is still this engine's"
+    skip "$_rtn3" "${s:-$w}"
     skip "$_rtn4" "this tree changes no engine file, so it keeps origin/main's version"
   else
-    if [ -z "$_rt_skip" ]; then
-      _rtbv="$(_rt_base_check "$REAL_HARNESS/../..")"
-      case "$_rtbv" in
-        ok)       ok   "$_rtn3" ;;
-        "skip "*) skip "$_rtn3" "${_rtbv#skip }" ;;
-        *)        bad  "$_rtn3" "${_rtbv#bad }" ;;
-      esac
+    if [ -n "$r" ]; then
+      skip "$_rtn3" "$r"
+    elif [ -n "$s" ]; then
+      bad "$_rtn3" "no red.tsv, and this tree changes engine files: record one with tests/run --record-assertions"
+    else
+      _rt_report "$_rtn3" "$(_rt_base_check "$c")"
     fi
-    _rtvh="$(_rtv < "$REAL_HARNESS/../.claude-plugin/plugin.json" 2>/dev/null)"
-    _rtvm="$(_rtg show refs/remotes/origin/main:engine/.claude-plugin/plugin.json | _rtv)"
-    [ -n "$_rtvh" ] && [ -n "$_rtvm" ] && [ "$(awk -v a="$_rtvh" -v b="$_rtvm" 'BEGIN {
+    vh="$(_rtv < "$c/engine/.claude-plugin/plugin.json" 2>/dev/null)"
+    vm="$(git -C "$c" show refs/remotes/origin/main:engine/.claude-plugin/plugin.json 2>/dev/null | _rtv)"
+    [ -n "$vh" ] && [ -n "$vm" ] && [ "$(awk -v a="$vh" -v b="$vm" 'BEGIN {
         n = split(a, A, "."); m = split(b, B, "."); k = (n > m) ? n : m; r = 0
         for (i = 1; i <= k && !r; i++) r = (A[i] + 0 > B[i] + 0) ? 1 : (A[i] + 0 < B[i] + 0) ? -1 : 0
         print (r > 0) ? "above" : "not" }')" = "above" ] \
       && ok  "$_rtn4" \
-      || bad "$_rtn4" "this tree declares ${_rtvh:-nothing}, origin/main declares ${_rtvm:-nothing}"
+      || bad "$_rtn4" "this tree declares ${vh:-nothing}, origin/main declares ${vm:-nothing}"
   fi
-  # Whether a helper printed one line whose first word is the verdict asked for
-  # and whose rest holds each phrase given.
-  _rt_said() {   # <name> <what the helper printed> <ok|skip|bad> [<phrase>...]
-    local n="$1" o="$2" w="$3" r="" p; shift 3
-    case "$o" in *' '*) r="${o#* }" ;; esac
-    case "$o" in
-      *$'\n'*) bad "$n" "more than one line: [$o]"; return 0 ;;
-      "$w"|"$w "*) ;;
-      *) bad "$n" "expected [$w ...] got [$o]"; return 0 ;;
-    esac
-    for p in "$@"; do case "$r" in *"$p"*) ;; *) bad "$n" "[$o] lacks [$p]"; return 0 ;; esac; done
-    ok "$n"
-  }
-  # The base check, asked of a checkout rather than of this suite's own record.
-  # _rtn3 is judged only against this repository's red.tsv, which on any branch
-  # is one record, so no fixture reached the decision it makes on the kind of
-  # base: the second review of #371 undid that decision and every assertion in
-  # this suite stayed green (2026-09-25). _rt_base_check <checkout> answers the
-  # base question alone, on one line, ok, or skip and why, or bad and why,
-  # asking git about that checkout; whether the question is owed stays _rtn3's.
-  # Asked here of a repository built for it: a commit origin/main names, then a
-  # branch commit to engine/, with red.tsv rewritten beside that checkout's
-  # suite, uncommitted, for each kind of base.
-  _rtbc="$TMP/rt-base-check"; mkdir -p "$_rtbc/engine/harness/tests"
-  ( cd "$_rtbc" && git init -q && git config user.email t@t && git config user.name t \
-      && echo a > engine/x && git add -A && git commit -qm 'main: engine' \
-      && git update-ref refs/remotes/origin/main HEAD \
-      && echo b > engine/x && git commit -qam 'branch: engine' ) >/dev/null 2>&1
-  _rtbct="$_rtbc/engine/harness/tests/red.tsv"
-  _rtbcm="$(git -C "$_rtbc" rev-parse -q --verify refs/remotes/origin/main 2>/dev/null)"
-  _rtbch="$(git -C "$_rtbc" rev-parse -q --verify HEAD 2>/dev/null)"
-  _rtbn1="the base check, asked of a checkout whose red.tsv is the retraction, fails it, saying no red run was made (base -)"
-  _rtbn2="and of one whose base is a full commit id that is no commit there, it skips as a published snapshot"
-  _rtbn3="and of one whose base is its merge-base with origin/main, it passes, asking that checkout's history and not this suite's"
-  _rtbn4="and of one whose base is an abbreviated id that is no commit there, it fails, naming the value it read"
-  _rtbn5="and of one whose base is a commit there holding another engine than the merge-base, it fails, saying to re-record"
-  _rtbn6="and of one whose red.tsv has no base row, it fails"
-  # Each fails for its own reason only while the fixture stands where it says:
-  # the merge-base is origin/main's commit, and the branch commit's engine is
-  # not that commit's.
-  if [ -n "$_rtbcm" ] && [ -n "$_rtbch" ] \
-     && [ "$(git -C "$_rtbc" merge-base HEAD refs/remotes/origin/main 2>/dev/null)" = "$_rtbcm" ] \
-     && [ -n "$(_rt_engine_tree "$_rtbc" "$_rtbch")" ] \
-     && [ "$(_rt_engine_tree "$_rtbc" "$_rtbcm")" != "$(_rt_engine_tree "$_rtbc" "$_rtbch")" ]; then
-    printf '# a record\nbase\t-\t-\t-\nrun\t-\t-\t-\n' > "$_rtbct"
-    _rt_said "$_rtbn1" "$(_rt_base_check "$_rtbc")" bad "no red run was made (base -)"
-    printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' 0000000000000000000000000000000000000000 > "$_rtbct"
-    _rt_said "$_rtbn2" "$(_rt_base_check "$_rtbc")" skip "published snapshot"
-    printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' "$_rtbcm" > "$_rtbct"
-    is "$_rtbn3" "$(_rt_base_check "$_rtbc")" ok
-    printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' deadbeef > "$_rtbct"
-    _rt_said "$_rtbn4" "$(_rt_base_check "$_rtbc")" bad "[deadbeef]"
-    printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' "$_rtbch" > "$_rtbct"
-    _rt_said "$_rtbn5" "$(_rt_base_check "$_rtbc")" bad "$_rtbch holds engine" "re-record"
-    printf '# a record\nrun\t0\t1\t0\n' > "$_rtbct"
-    _rt_said "$_rtbn6" "$(_rt_base_check "$_rtbc")" bad
+}
+# This suite's own checkout, judged once; in a red run _rt_judge skips all four.
+_rt_judge "$REAL_HARNESS/../.."
+# That call is the one line here no fixture reaches. An assignment before it,
+# a subshell around it or a test in front of it left every assertion green
+# while the four checks skipped or went uncounted (#371, seventh review), so
+# this file must hold it as one line of its own, unindented, and name the
+# suite's checkout to _rt_judge nowhere else.
+_rtcall="_rt_judge \"\$REAL_HARNESS/../..\""
+is "the suite judges its own checkout's record with one bare call at the top level, and nowhere else" \
+   "$(_C="$_rtcall" awk '/^[[:space:]]*#/ { next } $0 == ENVIRON["_C"] { x++ } index($0, ENVIRON["_C"]) { y++ }
+                          END { printf "%d exact, %d naming it", x, y }' "$HERE/run")" "1 exact, 1 naming it"
+# Whether a helper printed one line whose first word is the verdict asked for
+# and whose rest holds each phrase given.
+_rt_said() {   # <name> <what the helper printed> <ok|skip|bad> [<phrase>...]
+  local n="$1" o="$2" w="$3" r="" p; shift 3
+  case "$o" in *' '*) r="${o#* }" ;; esac
+  case "$o" in
+    *$'\n'*) bad "$n" "more than one line: [$o]"; return 0 ;;
+    "$w"|"$w "*) ;;
+    *) bad "$n" "expected [$w ...] got [$o]"; return 0 ;;
+  esac
+  for p in "$@"; do case "$r" in *"$p"*) ;; *) bad "$n" "[$o] lacks [$p]"; return 0 ;; esac; done
+  ok "$n"
+}
+# How _rtn1 and _rtn3 report a check's verdict line: _rt_report <name>
+# <verdict> reports ok for ok, skip and the reason for skip <reason>, bad and
+# the detail for bad <detail>, and bad, naming the line, for any line it
+# cannot read. The mapping was written out in each, judged only against this
+# repository's own red.tsv, so turning bad into skip or ok there, which
+# reopens #371, left every assertion green (third review of #371). It is
+# asked here with ok, skip and bad printing what they were asked to report, in
+# a subshell, so that what is judged is the mapping alone and nothing counts.
+_rt_reported() {   # <name> <verdict line> -> ok|<name>, skip|<name>|<reason> or bad|<name>|<detail>
+  ( ok()   { printf 'ok|%s\n' "$1"; }
+    skip() { printf 'skip|%s|%s\n' "$1" "${2-}"; }
+    bad()  { printf 'bad|%s|%s\n' "$1" "${2-}"; }
+    _rt_report "$1" "$2" )
+}
+_rtpn1="a check's verdict of ok is reported as a pass of the assertion it is reported for"
+_rtpn2="and skip with a reason as a skip of it, giving the reason"
+_rtpn3="and bad with a detail as a failure of it, giving the detail, not as a skip or a pass"
+_rtpn4="and an empty verdict as a failure, with a detail, since a check that said nothing has not passed"
+_rtpn5="and a verdict it cannot read, okay, as a failure whose detail names what it read"
+is "$_rtpn1" "$(_rt_reported "a name" ok)" "ok|a name"
+is "$_rtpn2" "$(_rt_reported "a name" "skip the reason, in words")" "skip|a name|the reason, in words"
+is "$_rtpn3" "$(_rt_reported "a name" "bad the detail, in words")" "bad|a name|the detail, in words"
+_rtpo="$(_rt_reported "a name" "")"
+case "$_rtpo" in
+  *$'\n'*)       bad "$_rtpn4" "more than one line: [$_rtpo]" ;;
+  "bad|a name|"?*) ok  "$_rtpn4" ;;
+  *)              bad "$_rtpn4" "expected [bad|a name|<a detail>] got [$_rtpo]" ;;
+esac
+_rtpo="$(_rt_reported "a name" okay)"
+case "$_rtpo" in
+  *$'\n'*)             bad "$_rtpn5" "more than one line: [$_rtpo]" ;;
+  "bad|a name|"*okay*) ok  "$_rtpn5" ;;
+  *)                   bad "$_rtpn5" "expected [bad|a name|<a detail naming okay>] got [$_rtpo]" ;;
+esac
+# And a verdict of more than one line is unreadable even when its first line
+# reads as one: without the arm that says so, skip and the rest of the text
+# passed for a skip (#371, fourth review). Reported once, as a failure; its
+# detail holds the text it read, newline included, so the reports are counted
+# as the lines that begin with a verdict.
+_rtpn6="and a verdict of more than one line as one failure, even when its first line reads as a skip"
+_rtpo="$(_rt_reported "a name" "$(printf 'skip a\nbad b')")"
+case "$(printf '%s\n' "$_rtpo" | awk '/^(ok|skip|bad)[|]/ { n++ } END { print n + 0 }')/$_rtpo" in
+  "1/bad|a name|"?*) ok  "$_rtpn6" ;;
+  *)                 bad "$_rtpn6" "expected one report, [bad|a name|<a detail>], got [$_rtpo]" ;;
+esac
+# The base check, asked of a checkout rather than of this suite's own record.
+# _rtn3 was judged only against this repository's red.tsv, which on any branch
+# is one record, so no fixture reached the decision it makes on the kind of
+# base: the second review of #371 undid that decision and every assertion in
+# this suite stayed green (2026-09-25). _rt_base_check <checkout> answers the
+# base question alone, on one line, ok, or skip and why, or bad and why,
+# asking git about that checkout; whether the question is owed is _rt_judge's.
+# Asked here of a repository built for it: a commit origin/main names, then a
+# branch commit to engine/, with red.tsv rewritten beside that checkout's
+# suite, uncommitted, for each kind of base.
+_rtbc="$TMP/rt-base-check"; mkdir -p "$_rtbc/engine/harness/tests"
+( cd "$_rtbc" && git init -q && git config user.email t@t && git config user.name t \
+    && echo a > engine/x && git add -A && git commit -qm 'main: engine' \
+    && git update-ref refs/remotes/origin/main HEAD \
+    && echo b > engine/x && git commit -qam 'branch: engine' ) >/dev/null 2>&1
+_rtbct="$_rtbc/engine/harness/tests/red.tsv"
+_rtbcm="$(git -C "$_rtbc" rev-parse -q --verify refs/remotes/origin/main 2>/dev/null)"
+_rtbch="$(git -C "$_rtbc" rev-parse -q --verify HEAD 2>/dev/null)"
+_rtbn1="the base check, asked of a checkout whose red.tsv is the retraction, fails it, saying no red run was made (base -)"
+_rtbn2="and of one whose base is a full commit id that is no commit there, it skips as a published snapshot"
+_rtbn3="and of one whose base is its merge-base with origin/main, it passes, asking that checkout's history and not this suite's"
+_rtbn4="and of one whose base is an abbreviated id that is no commit there, it fails, naming the value it read"
+_rtbn5="and of one whose base is a commit there holding another engine than the merge-base, it fails, saying to re-record"
+_rtbn6="and of one whose red.tsv has no base row, it fails"
+_rtbn7="and its verdict on the retraction, reported as _rtn3 reports it, is that failure with that detail, not a skip or a pass"
+# Each fails for its own reason only while the fixture stands where it says:
+# the merge-base is origin/main's commit, and the branch commit's engine is
+# not that commit's.
+if [ -n "$_rtbcm" ] && [ -n "$_rtbch" ] \
+   && [ "$(git -C "$_rtbc" merge-base HEAD refs/remotes/origin/main 2>/dev/null)" = "$_rtbcm" ] \
+   && [ -n "$(_rt_engine_tree "$_rtbc" "$_rtbch")" ] \
+   && [ "$(_rt_engine_tree "$_rtbc" "$_rtbcm")" != "$(_rt_engine_tree "$_rtbc" "$_rtbch")" ]; then
+  printf '# a record\nbase\t-\t-\t-\nrun\t-\t-\t-\n' > "$_rtbct"
+  _rt_said "$_rtbn1" "$(_rt_base_check "$_rtbc")" bad "no red run was made (base -)"
+  _rtpv="$(_rt_base_check "$_rtbc")"
+  case "$_rtpv" in
+    "bad "*"no red run was made (base -)"*) is "$_rtbn7" "$(_rt_reported "a name" "$_rtpv")" "bad|a name|${_rtpv#bad }" ;;
+    *) bad "$_rtbn7" "the base check said [$_rtpv]" ;;
+  esac
+  printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' 0000000000000000000000000000000000000000 > "$_rtbct"
+  _rt_said "$_rtbn2" "$(_rt_base_check "$_rtbc")" skip "published snapshot"
+  printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' "$_rtbcm" > "$_rtbct"
+  is "$_rtbn3" "$(_rt_base_check "$_rtbc")" ok
+  printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' deadbeef > "$_rtbct"
+  _rt_said "$_rtbn4" "$(_rt_base_check "$_rtbc")" bad "[deadbeef]"
+  printf '# a record\nbase\torigin/main\t%s\t0.0.1\nrun\t0\t1\t0\n' "$_rtbch" > "$_rtbct"
+  _rt_said "$_rtbn5" "$(_rt_base_check "$_rtbc")" bad "$_rtbch holds engine" "re-record"
+  printf '# a record\nrun\t0\t1\t0\n' > "$_rtbct"
+  _rt_said "$_rtbn6" "$(_rt_base_check "$_rtbc")" bad
+else
+  for _n in "$_rtbn1" "$_rtbn2" "$_rtbn3" "$_rtbn4" "$_rtbn5" "$_rtbn6" "$_rtbn7"; do
+    bad "$_n" "the fixture does not stand where it says: origin/main ${_rtbcm:-(none)}, HEAD ${_rtbch:-(none)}"
+  done
+fi
+# Whether red.tsv is one whole record, asked of records written here.
+# tests/red writes both rows - when it made no red run and both real when it
+# made one, and it refuses a run that reached no assertion, so a run row of -
+# beside a real base, a base of - beside a real run row, and a run row that
+# counts nothing are none of its records. _rtn1 accepted all three when the
+# second review of #371 read it (2026-09-25), and the first is what pasting a
+# sha into a retraction's base row gives, the hand answer to _rtn3's failure
+# of a retraction. _rt_record_whole <red.tsv> says ok, or bad and why, and
+# the detail for a count of rows or of names that does not add up is _rtn1's.
+_rtw="$TMP/rt-record-whole"; mkdir -p "$_rtw"
+_rtwb="$(printf 'base\torigin/main\t%s\t0.0.1' 0123456789abcdef0123456789abcdef01234567)"
+printf '# a record\nbase\t-\t-\t-\nrun\t-\t-\t-\n' > "$_rtw/dash"
+printf '# a record\n%s\nrun\t1\t2\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/real"
+printf '# a record\n%s\nrun\t-\t-\t-\n' "$_rtwb" > "$_rtw/pasted"
+printf '# a record\nbase\t-\t-\t-\nrun\t1\t2\t0\nthe one that failed\t1\n' > "$_rtw/unbased"
+printf '# a record\n%s\nrun\t0\t0\t0\n' "$_rtwb" > "$_rtw/empty"
+printf '# a record\n%s\nrun\t2\t1\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/short"
+printf '# a record\n%s\n%s\nrun\t1\t2\t0\nthe one that failed\t1\n' "$_rtwb" "$_rtwb" > "$_rtw/twice"
+printf '# a record\n%s\nrun\t1\ttwo\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/word"
+printf '# a record\n%s\nrun\t1\t-2\t2\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/negative"
+# And five more, each the record a rule loosened by one step would take or
+# refuse wrongly: the third review of #371 named five rules here that no
+# fixture held, one run row, a failed count that is a number, a skipped count
+# that is a number, a run row of - only when all three of its counts are, and
+# at least one assertion counted across the three, not the failed count alone.
+# A run that failed none is a clean record, which tests/red's header allows.
+printf '# a record\n%s\nrun\t0\t3\t0\n' "$_rtwb" > "$_rtw/clean"
+printf '# a record\n%s\nrun\t-\t3\t0\n' "$_rtwb" > "$_rtw/unfailed"
+printf '# a record\n%s\nrun\t1\t2\tx\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/unskipped"
+printf '# a record\nbase\t-\t-\t-\nrun\t-\t3\t0\n' > "$_rtw/halfdash"
+printf '# a record\n%s\nrun\t1\t2\t0\nrun\t1\t3\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/rerun"
+# And six the fourth review of #371 found no fixture held: a sha pasted into
+# the retraction's sha column alone, which reading the dash from the ref or
+# the version column passes; names added by their counts, not counted as
+# lines; a run that skipped all it reached and one that failed all it
+# reached, each a record, so the assertion a run must count is summed
+# across all three counts; a run row missing its skipped count, which an
+# empty field read as a count passes; and names that add up to more than the
+# failed count, which a total read as at least the count, not equal to it,
+# passes.
+printf '# a record\nbase\t-\t%s\t-\nrun\t-\t-\t-\n' 0123456789abcdef0123456789abcdef01234567 > "$_rtw/shaonly"
+printf '# a record\n%s\nrun\t2\t1\t0\nthe one that failed\t2\n' "$_rtwb" > "$_rtw/failedtwice"
+printf '# a record\n%s\nrun\t0\t0\t3\n' "$_rtwb" > "$_rtw/allskipped"
+printf '# a record\n%s\nrun\t1\t0\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/allfailed"
+printf '# a record\n%s\nrun\t1\t2\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/twocounts"
+printf '# a record\n%s\nrun\t1\t2\t0\nthe one that failed\t1\nanother that failed\t1\n' "$_rtwb" > "$_rtw/overcounted"
+_rtwn1="a red.tsv whose base and run rows are both -, with no names below, is one whole record"
+_rtwn2="and so is a real base beside a run that failed one, passed two and names the one"
+_rtwn3="but a real base beside a run row of - is not, which is what pasting a sha into a retraction's base row gives"
+_rtwn4="nor is a base of - beside a real run row and the name it counts"
+_rtwn5="nor a real run row that counts no assertion at all, since tests/red refuses such a run"
+_rtwn6="nor a run whose failed count the names below do not add up to, said as _rtn1 always said it"
+_rtwn7="nor two base rows, said as _rtn1 always said it"
+_rtwn8="nor a real run row with a count that is not a number"
+_rtwn9="nor a real run row with a negative count, though its counts sum to one"
+_rtwn10="and so is a real base beside a run that failed none and passed three, with no names below, since zero red is an answer"
+_rtwn11="nor a real base beside a run row whose failed count alone is -"
+_rtwn12="nor a real run row whose skipped count is not a number, though its failed count and the names agree"
+_rtwn13="nor a base of - beside a run row whose failed count alone is -"
+_rtwn14="nor one base row beside two run rows, said as _rtn1 always said it"
+_rtwn15="nor a retraction whose base row has a sha pasted into its sha column alone, its ref and version columns left -"
+_rtwn16="and so is a real base beside a run that failed two, naming one that failed twice, since names add up by their counts"
+_rtwn17="and so is a real base beside a run that skipped all three it reached, with no names below"
+_rtwn18="and so is a real base beside a run that failed the one it reached, naming it"
+_rtwn19="nor a real run row with no skipped count at all, though its failed count and the names agree"
+_rtwn20="nor a run that failed one whose names below add up to two, said as _rtn1 always said it"
+is "$_rtwn1" "$(_rt_record_whole "$_rtw/dash")" ok
+is "$_rtwn2" "$(_rt_record_whole "$_rtw/real")" ok
+is "$_rtwn10" "$(_rt_record_whole "$_rtw/clean")" ok
+_rt_said "$_rtwn3" "$(_rt_record_whole "$_rtw/pasted")" bad
+_rt_said "$_rtwn4" "$(_rt_record_whole "$_rtw/unbased")" bad
+_rt_said "$_rtwn5" "$(_rt_record_whole "$_rtw/empty")" bad
+_rt_said "$_rtwn6" "$(_rt_record_whole "$_rtw/short")" bad "the run's failed: 2, the names' total: 1"
+_rt_said "$_rtwn7" "$(_rt_record_whole "$_rtw/twice")" bad "base rows: 2"
+_rt_said "$_rtwn8" "$(_rt_record_whole "$_rtw/word")" bad
+_rt_said "$_rtwn9" "$(_rt_record_whole "$_rtw/negative")" bad
+_rt_said "$_rtwn11" "$(_rt_record_whole "$_rtw/unfailed")" bad
+_rt_said "$_rtwn12" "$(_rt_record_whole "$_rtw/unskipped")" bad
+_rt_said "$_rtwn13" "$(_rt_record_whole "$_rtw/halfdash")" bad
+_rt_said "$_rtwn14" "$(_rt_record_whole "$_rtw/rerun")" bad "run rows: 2"
+_rt_said "$_rtwn15" "$(_rt_record_whole "$_rtw/shaonly")" bad
+is "$_rtwn16" "$(_rt_record_whole "$_rtw/failedtwice")" ok
+is "$_rtwn17" "$(_rt_record_whole "$_rtw/allskipped")" ok
+is "$_rtwn18" "$(_rt_record_whole "$_rtw/allfailed")" ok
+_rt_said "$_rtwn19" "$(_rt_record_whole "$_rtw/twocounts")" bad
+_rt_said "$_rtwn20" "$(_rt_record_whole "$_rtw/overcounted")" bad "the run's failed: 1, the names' total: 2"
+# The whole judgment of a checkout's record, asked of a checkout built here.
+# _rtn1 to _rtn4 were reported for this suite's own checkout alone, so the
+# fourth review of #371 replaced the report of _rtn3, then of _rtn1, with a
+# plain ok, and every assertion stayed green while a retraction, and a sha
+# pasted beside a run row of -, passed. _rt_judge <checkout> makes that
+# judgment of the checkout named, reading its red.tsv, its manifest, its
+# plugin.json and its git, and reports the four names through ok, skip and
+# bad as this block always did. Record mode, --record-assertions, is
+# FELIX_TEST_RECORD at exactly 1, as the suite sets it, and _rt_judge reads
+# it itself: decided at the suite's one call, it was asked by no assertion,
+# and a test at that call that took the suite's normal 0 for record mode,
+# ${FELIX_TEST_RECORD:+record} among them, skipped _rtn1 to _rtn3 on every
+# run with every assertion green (#371, fifth review). A red run,
+# FELIX_TEST_NO_MANIFEST at exactly 1 as tests/red sets it, is read there
+# too, for the same reason: decided at that call, a test there that took an
+# unset variable for a red run skipped all four on every run, again with
+# every assertion green (#371, sixth review). Its reports are
+# captured as _rt_reported captures _rt_report's, one line each, in a
+# subshell, so that nothing counts, with FELIX_TEST_RECORD set there for
+# each case: 0, as a normal run sets it, for every case but record mode's,
+# 1 for that one, and unset for one more. FELIX_TEST_NO_MANIFEST is unset
+# there for every case but two, since this block runs in red runs too,
+# where tests/red has exported it as 1: at 1 for the red run's case, and at
+# 0 for one more. The checkout: origin/main holds
+# engine 1.0.0, a manifest listing one name and the retraction; a branch
+# commit changes a file under engine/ and one under docs/ and declares
+# 1.0.1, and red.tsv and plugin.json are rewritten beside it, uncommitted,
+# for each record, red.tsv removed for one. Then a second branch commit
+# puts engine/ back as origin/main holds it and keeps the docs change.
+_rt_judged() {   # <checkout> <FELIX_TEST_RECORD: 0, 1 or unset> [<FELIX_TEST_NO_MANIFEST: 0, 1 or unset, the default>] -> ok|<name>, skip|<name>|<reason> or bad|<name>|<detail>, a line each
+  ( if [ "$2" = unset ]; then unset FELIX_TEST_RECORD; else FELIX_TEST_RECORD="$2"; fi
+    if [ "${3:-unset}" = unset ]; then unset FELIX_TEST_NO_MANIFEST; else FELIX_TEST_NO_MANIFEST="$3"; fi
+    ok()   { printf 'ok|%s\n' "$1"; }
+    skip() { printf 'skip|%s|%s\n' "$1" "${2-}"; }
+    bad()  { printf 'bad|%s|%s\n' "$1" "${2-}"; }
+    _rt_judge "$1" )
+}
+# Whether those reports hold one line for a name, its verdict the one asked
+# for and its reason or detail, the text after the name, holding each phrase
+# given: nothing when they do, and what is wrong when they do not. The
+# phrases are looked for in that text alone, as _rt_said looks in the rest of
+# a line after its verdict, so that a phrase the name holds is not found there.
+_rt_judged_one() {   # <reports> <name> <ok|skip|bad> [<phrase>...] -> nothing, or what is wrong
+  local o n="$2" w="$3" d="" p
+  o="$(printf '%s\n' "$1" | N="$2" awk -F'[|]' '$2 == ENVIRON["N"]')"; shift 3
+  case "$o" in
+    "")                echo "no report for [$n]"; return 0 ;;
+    *$'\n'*)           echo "more than one report for [$n]: [$o]"; return 0 ;;
+    "$w|$n")           ;;
+    "$w|$n|"*)         d="${o#"$w|$n|"}" ;;
+    *)                 echo "[$n] reported [$o], not $w"; return 0 ;;
+  esac
+  for p in "$@"; do case "$d" in *"$p"*) ;; *) echo "[$o] lacks [$p]"; return 0 ;; esac; done
+}
+_rtj="$TMP/rt-judge"; mkdir -p "$_rtj/engine/.claude-plugin" "$_rtj/engine/harness/tests" "$_rtj/engine/harness/lib" "$_rtj/docs"
+_rtjt="$_rtj/engine/harness/tests/red.tsv"; _rtjp="$_rtj/engine/.claude-plugin/plugin.json"
+_rtja="the one assertion the judged checkout's manifest lists"
+_rtju="an assertion the judged checkout's manifest does not list"
+_rtjd="$(printf '# a record\nbase\t-\t-\t-\nrun\t-\t-\t-')"
+( cd "$_rtj" && git init -q && git config user.email t@t && git config user.name t \
+    && printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp" && echo a > engine/harness/lib/x.sh && echo a > docs/y \
+    && printf '1\t%s\n' "$_rtja" > engine/harness/tests/assertions.tsv && printf '%s\n' "$_rtjd" > "$_rtjt" \
+    && git add -A && git commit -qm 'main: engine 1.0.0' \
+    && git update-ref refs/remotes/origin/main HEAD \
+    && printf '{\n  "version": "1.0.1"\n}\n' > "$_rtjp" && echo b > engine/harness/lib/x.sh && echo b > docs/y \
+    && git commit -qam 'branch: engine 1.0.1, and docs' ) >/dev/null 2>&1
+_rtjm="$(git -C "$_rtj" rev-parse -q --verify refs/remotes/origin/main 2>/dev/null)"
+_rtjr="$(printf '# a record\nbase\torigin/main\t%s\t1.0.0\nrun\t1\t1\t0\n%s\t1' "$_rtjm" "$_rtja")"
+_rtjq="$(printf '# a record\nbase\torigin/main\t%s\t1.0.0\nrun\t-\t-\t-' "$_rtjm")"
+_rtjn1="the record judgment of a checkout whose engine change carries a real record against origin/main reports all four record checks passed, and nothing else"
+_rtjn2="and of one carrying the retraction, it fails the base check, saying no red run was made (base -), though the record reads whole"
+_rtjn3="and of one whose retraction has origin/main's sha pasted into its base row, it fails the whole-record check, though the base check passes"
+_rtjn4="and in record mode it skips the whole-record, manifest and base checks, saying --record-assertions rewrites red.tsv, and still asks the version"
+_rtjn5="and of one whose engine change declares origin/main's version, it fails the version check"
+_rtjn6="and of a branch that puts its engine change back but keeps a docs change, it skips the base and version checks, though its record is the retraction"
+_rtjn7="and with FELIX_TEST_RECORD unset it judges the real record as a normal run does, all four passed, since record mode is that variable at exactly 1"
+_rtjn8="and of one whose engine change has no red.tsv beside it, as a conflict resolved by removing the file leaves, it fails the base check, saying there is no red.tsv, where the whole-record and manifest checks skip"
+_rtjn9="and of one whose real record names as failed an assertion its manifest does not list, it fails the manifest check, naming that assertion"
+_rtjn10="and in a red run it skips all four record checks, saying a red run reads the base's record, though the record is real"
+_rtjn11="and with FELIX_TEST_NO_MANIFEST at 0, and again at true, it judges the real record as a normal run does, all four passed each time, since a red run is that variable at exactly 1"
+_rtjn12="and with FELIX_TEST_NO_MANIFEST at 1 around it but unset for the judgment, as these cases unset it inside a red run, it judges the real record as a normal run does, all four passed"
+# Each fails for its own reason only while the checkout stands where it
+# says: the branch commit's merge-base is origin/main's commit.
+if [ -n "$_rtjm" ] && [ "$(git -C "$_rtj" merge-base HEAD refs/remotes/origin/main 2>/dev/null)" = "$_rtjm" ] \
+   && [ "$(git -C "$_rtj" log -1 --format=%s HEAD 2>/dev/null)" = "branch: engine 1.0.1, and docs" ]; then
+  printf '%s\n' "$_rtjr" > "$_rtjt"
+  is "$_rtjn1" "$(_rt_judged "$_rtj" 0 | LC_ALL=C sort)" "$(printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort)"
+  printf '%s\n' "$_rtjd" > "$_rtjt"
+  _rtjo="$(_rt_judged "$_rtj" 0)"
+  _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn3" bad "no red run was made (base -)"; _rt_judged_one "$_rtjo" "$_rtn1" ok)"
+  [ -z "$_rtjw" ] && ok "$_rtjn2" || bad "$_rtjn2" "$_rtjw"
+  printf '%s\n' "$_rtjq" > "$_rtjt"
+  _rtjo="$(_rt_judged "$_rtj" 0)"
+  _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn1" bad; _rt_judged_one "$_rtjo" "$_rtn3" ok)"
+  [ -z "$_rtjw" ] && ok "$_rtjn3" || bad "$_rtjn3" "$_rtjw"
+  printf '%s\n' "$_rtjr" > "$_rtjt"
+  _rtjo="$(_rt_judged "$_rtj" 1)"
+  _rtjw="$(for _n in "$_rtn1" "$_rtn2" "$_rtn3"; do
+             _rt_judged_one "$_rtjo" "$_n" skip "--record-assertions rewrites red.tsv after this run"
+           done
+           _rt_judged_one "$_rtjo" "$_rtn4" ok)"
+  [ -z "$_rtjw" ] && ok "$_rtjn4" || bad "$_rtjn4" "$_rtjw"
+  is "$_rtjn7" "$(_rt_judged "$_rtj" unset | LC_ALL=C sort)" "$(printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort)"
+  _rtjo="$(_rt_judged "$_rtj" 0 1)"
+  _rtjw="$(for _n in "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4"; do
+             _rt_judged_one "$_rtjo" "$_n" skip "a red run reads the base's record"
+           done)"
+  [ -z "$_rtjw" ] && ok "$_rtjn10" || bad "$_rtjn10" "$_rtjw"
+  is "$_rtjn11" "$(_rt_judged "$_rtj" 0 0 | LC_ALL=C sort; _rt_judged "$_rtj" 0 true | LC_ALL=C sort)" \
+     "$(printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort; printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort)"
+  is "$_rtjn12" "$(FELIX_TEST_NO_MANIFEST=1; _rt_judged "$_rtj" 0 unset | LC_ALL=C sort)" "$(printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort)"
+  printf '%s\n' "$_rtjr" > "$_rtjt"; printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp"
+  _rtjo="$(_rt_judged "$_rtj" 0)"
+  _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn4" bad)"
+  [ -z "$_rtjw" ] && ok "$_rtjn5" || bad "$_rtjn5" "$_rtjw"
+  # And two records no case above reached, each beside the branch's 1.0.1.
+  # None at all, as a red.tsv merge conflict resolved by removing the file
+  # leaves: an engine change still owes one, and its absence skipped _rtn1
+  # to _rtn3, so that change passed (#371, fifth review). And a real record
+  # whose failed name the manifest does not list, the one record here that
+  # fails _rtn2, whose report could be a plain ok with every case above
+  # still passing.
+  printf '{\n  "version": "1.0.1"\n}\n' > "$_rtjp"; rm -f "$_rtjt"
+  _rtjo="$(_rt_judged "$_rtj" 0)"
+  _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn3" bad "no red.tsv"
+           for _n in "$_rtn1" "$_rtn2"; do _rt_judged_one "$_rtjo" "$_n" skip "no red.tsv beside this suite"; done)"
+  [ -z "$_rtjw" ] && ok "$_rtjn8" || bad "$_rtjn8" "$_rtjw"
+  printf '# a record\nbase\torigin/main\t%s\t1.0.0\nrun\t1\t1\t0\n%s\t1\n' "$_rtjm" "$_rtju" > "$_rtjt"
+  _rtjo="$(_rt_judged "$_rtj" 0)"
+  _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn2" bad "not in the manifest" "$_rtju"; _rt_judged_one "$_rtjo" "$_rtn1" ok)"
+  [ -z "$_rtjw" ] && ok "$_rtjn9" || bad "$_rtjn9" "$_rtjw"
+  ( cd "$_rtj" && printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp" && echo a > engine/harness/lib/x.sh \
+      && printf '%s\n' "$_rtjd" > "$_rtjt" && git commit -qam 'branch: engine put back, docs kept' ) >/dev/null 2>&1
+  # And this one only while engine/ is origin/main's again and docs/ is not.
+  if [ "$(git -C "$_rtj" log -1 --format=%s HEAD 2>/dev/null)" = "branch: engine put back, docs kept" ] \
+     && git -C "$_rtj" diff --quiet refs/remotes/origin/main -- engine 2>/dev/null \
+     && ! git -C "$_rtj" diff --quiet refs/remotes/origin/main -- docs 2>/dev/null; then
+    _rtjo="$(_rt_judged "$_rtj" 0)"
+    _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn3" skip "changes no engine file"; _rt_judged_one "$_rtjo" "$_rtn4" skip "changes no engine file")"
+    [ -z "$_rtjw" ] && ok "$_rtjn6" || bad "$_rtjn6" "$_rtjw"
   else
-    for _n in "$_rtbn1" "$_rtbn2" "$_rtbn3" "$_rtbn4" "$_rtbn5" "$_rtbn6"; do
-      bad "$_n" "the fixture does not stand where it says: origin/main ${_rtbcm:-(none)}, HEAD ${_rtbch:-(none)}"
-    done
+    bad "$_rtjn6" "the fixture does not stand where it says: HEAD $(git -C "$_rtj" log -1 --format='%h %s' HEAD 2>/dev/null), with engine/ origin/main's and docs/ not"
   fi
-  # Whether red.tsv is one whole record, asked of records written here.
-  # tests/red writes both rows - when it made no red run and both real when it
-  # made one, and it refuses a run that reached no assertion, so a run row of -
-  # beside a real base, a base of - beside a real run row, and a run row that
-  # counts nothing are none of its records. _rtn1 accepted all three when the
-  # second review of #371 read it (2026-09-25), and the first is what pasting a
-  # sha into a retraction's base row gives, the hand answer to _rtn3's failure
-  # of a retraction. _rt_record_whole <red.tsv> says ok, or bad and why, and
-  # the detail for a count of rows or of names that does not add up is _rtn1's.
-  _rtw="$TMP/rt-record-whole"; mkdir -p "$_rtw"
-  _rtwb="$(printf 'base\torigin/main\t%s\t0.0.1' 0123456789abcdef0123456789abcdef01234567)"
-  printf '# a record\nbase\t-\t-\t-\nrun\t-\t-\t-\n' > "$_rtw/dash"
-  printf '# a record\n%s\nrun\t1\t2\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/real"
-  printf '# a record\n%s\nrun\t-\t-\t-\n' "$_rtwb" > "$_rtw/pasted"
-  printf '# a record\nbase\t-\t-\t-\nrun\t1\t2\t0\nthe one that failed\t1\n' > "$_rtw/unbased"
-  printf '# a record\n%s\nrun\t0\t0\t0\n' "$_rtwb" > "$_rtw/empty"
-  printf '# a record\n%s\nrun\t2\t1\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/short"
-  printf '# a record\n%s\n%s\nrun\t1\t2\t0\nthe one that failed\t1\n' "$_rtwb" "$_rtwb" > "$_rtw/twice"
-  printf '# a record\n%s\nrun\t1\ttwo\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/word"
-  printf '# a record\n%s\nrun\t1\t-2\t2\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/negative"
-  _rtwn1="a red.tsv whose base and run rows are both -, with no names below, is one whole record"
-  _rtwn2="and so is a real base beside a run that failed one, passed two and names the one"
-  _rtwn3="but a real base beside a run row of - is not, which is what pasting a sha into a retraction's base row gives"
-  _rtwn4="nor is a base of - beside a real run row and the name it counts"
-  _rtwn5="nor a real run row that counts no assertion at all, since tests/red refuses such a run"
-  _rtwn6="nor a run whose failed count the names below do not add up to, said as _rtn1 always said it"
-  _rtwn7="nor two base rows, said as _rtn1 always said it"
-  _rtwn8="nor a real run row with a count that is not a number"
-  _rtwn9="nor a real run row with a negative count, though its counts sum to one"
-  is "$_rtwn1" "$(_rt_record_whole "$_rtw/dash")" ok
-  is "$_rtwn2" "$(_rt_record_whole "$_rtw/real")" ok
-  _rt_said "$_rtwn3" "$(_rt_record_whole "$_rtw/pasted")" bad
-  _rt_said "$_rtwn4" "$(_rt_record_whole "$_rtw/unbased")" bad
-  _rt_said "$_rtwn5" "$(_rt_record_whole "$_rtw/empty")" bad
-  _rt_said "$_rtwn6" "$(_rt_record_whole "$_rtw/short")" bad "the run's failed: 2, the names' total: 1"
-  _rt_said "$_rtwn7" "$(_rt_record_whole "$_rtw/twice")" bad "base rows: 2"
-  _rt_said "$_rtwn8" "$(_rt_record_whole "$_rtw/word")" bad
-  _rt_said "$_rtwn9" "$(_rt_record_whole "$_rtw/negative")" bad
+else
+  for _n in "$_rtjn1" "$_rtjn2" "$_rtjn3" "$_rtjn4" "$_rtjn5" "$_rtjn6" "$_rtjn7" "$_rtjn8" "$_rtjn9" "$_rtjn10" "$_rtjn11" "$_rtjn12"; do
+    bad "$_n" "the fixture does not stand where it says: origin/main ${_rtjm:-(none)}, HEAD $(git -C "$_rtj" log -1 --format='%h %s' HEAD 2>/dev/null)"
+  done
 fi
 
-# The suite's proof that it reached its end: tests/red requires exactly this
-# line, "reached" after an empty one, and refuses a red run without it, since a
-# finished red run exits 1 as a dead one can (#371). Changing it means
-# changing tests/red.
+# The suite's completion marker: tests/red counts a red run only when a line
+# that is exactly "reached" follows its last assertion line, since a finished
+# red run exits 1 as a dead one can (#371). The empty line before it is this
+# suite's own, and the red block's marker assertion pins this printf. Changing
+# it means changing tests/red.
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.
 #

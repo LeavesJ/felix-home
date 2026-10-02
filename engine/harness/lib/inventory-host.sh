@@ -4,50 +4,41 @@
 # without knowing how they are answered; a second host is a second file
 # defining the same names. Nothing here runs git.
 #
-# Records. A working directory D is filed under <root>/E, root being
-# $CLAUDE_CONFIG_DIR/projects when that is set and non-empty, else
-# $HOME/.claude/projects, and E being D with every UTF-16 unit outside
-# [A-Za-z0-9] replaced by '-' (two for one beyond the Basic Multilingual Plane;
-# _fi_host_enc does this bytewise under LC_ALL=C). An E over 200 characters is
-# cut at 200 and followed by '-' and a hash this file does not compute: the one
-# directory whose name starts so is taken, and two are unknown. D is looked up
-# as git lists it and as the kernel resolves it (/tmp and /private/tmp). A
-# session is a top-level *.jsonl; <session-id>/ beside it holds helpers' records
-# and side files, which are not sessions and are never read: but a file written
-# there is that session's activity, since one waiting on a helper writes nothing.
+# Records. A directory D is filed under <root>/E: root is $CLAUDE_CONFIG_DIR/projects
+# when that is set and non-empty, else $HOME/.claude/projects, and E is D with
+# every UTF-16 unit outside [A-Za-z0-9] replaced by '-' (two for one beyond the
+# BMP; _fi_host_enc does it bytewise). An E over 200 characters is cut there and
+# followed by '-' and a hash not computed here: the one directory whose name
+# starts so is taken, two are unknown. D is looked up as git lists it and as the
+# kernel resolves it. A session is a top-level *.jsonl; <session-id>/ beside it
+# holds helpers' records and side files, never read, but a file written there is
+# that session's activity. Nothing else in a record directory is: the
+# auto-memory's memory/, written by sessions of every worktree, has no
+# <session-id>.jsonl beside it.
 #
 # Time. The host appends bookkeeping lines without a "timestamp" to idle
-# sessions, so a file's mtime says nothing about when anyone worked. A
-# session's record time is the newest "timestamp" of a user or assistant record
-# in its last 256 KiB, the file's mtime standing in, and said so, when there is
-# none; the newest session is the latest by it. A directory's activity time is
-# the newest of every session's record time, the mtime of every file under any
-# session's directory and a spawning agent's transcript (a *.meta.json under
-# <sid>/subagents/ names the worktree of an agent-<hex> or wf_<id>-<n>).
+# sessions, so a file's mtime says nothing about when anyone worked. A session's
+# record time is the newest "timestamp" of a user or assistant record in its last
+# 256 KiB (the mtime stands in, and is said, with none); the newest session is the
+# latest by it. A directory's activity time is the newest of every session's
+# record time, the mtime of every file under a session's directory and a spawning
+# agent's transcript (a *.meta.json under <sid>/subagents/ names the worktree of
+# an agent-<hex> or wf_<id>-<n>).
 #
-# Ends. The window is read by awk, counting only whole lines (starting { and
-# ending }: a record still being written is set aside) and user and assistant
-# records, told by what precedes the message: a sidechain or any other "type" is
-# passed over, and with none the role inside it decides. question: the final
-# text (the last assistant record with a text item) asks (_FI_HOST_ASK), and
-# no human text follows it. blocked: the last such record is a tool call with
-# no result, BLOCKED minutes old, and nothing under the session's directory
-# was written within them. Human text is a user record whose content is a
-# string or holds a text item and is not a tool result, not isMeta, and not an
-# envelope: text starting with < once leading <system-reminder> blocks are set
-# aside. No whole line at all answers unknown, not no.
+# Ends. The window is read by awk, counting only whole lines and user and
+# assistant records, told by what precedes the message (a sidechain or another
+# "type" is passed over; with none, the role decides). question: the final text
+# asks (_FI_HOST_ASK) and no human text follows it. blocked: the last record is a
+# tool call with no result, BLOCKED minutes old, and nothing under the session's
+# directory was written within them. Human text is a user record with a string
+# or text item, not a tool result, not isMeta, not an envelope (text starting
+# with < once leading <system-reminder> blocks are set aside). No whole line is unknown.
 #
-# Chips (spawn_task, its result naming the task id, dismiss_task withdrawing it;
-# started when a later session's first human text matches the prompt's first
-# 120 characters) and the owner of a pull request (the session of the newest
-# record whose "gitBranch" names its head, by its own "sessionId", since a
-# resumed session's file copies its predecessor's) are read from the files that
-# hold them. pr-link records say nothing: the host writes one on every touch.
-#
-# No JSON parser (as lib/audit.sh says why: a pattern is a key, a colon and a
-# quoted value, and a double quote inside a string is always escaped), and no
-# here-document (bash 3.2 backs one with a file outside the scratch). Whatever
-# cannot be read is unknown, never absent.
+# Chips and the owner of a pull request are read from the files that hold them
+# (below); pr-link records say nothing. A session file that cannot be read is
+# counted (felix_inv_host_unread) for the cover row to say, never read as empty.
+# No JSON parser (lib/audit.sh says why) and no here-document (bash 3.2 backs
+# one with a file outside the scratch). What cannot be read is unknown, not absent.
 
 FELIX_INV_HOST_NAME="Claude Code"
 
@@ -252,10 +243,9 @@ _FI_HOST_ASK='
 
 # A file's mtime as an epoch, or nothing.
 _fi_host_mt() { local e; e="$(date -r "$1" +%s 2>/dev/null)"; case "$e" in ''|*[!0-9]*) ;; *) printf '%s' "$e" ;; esac; }
-# felix_inv_host_newest MINDEPTH MIN DIR...: the newest file at depth MINDEPTH or
-# more under the directories among those modified within MIN minutes, or
-# nothing: candidates by find -mmin, sorted by ls -t, and asked again until none
-# is newer, since a long list reaches ls in batches.
+# _fi_host_newest MINDEPTH MIN DIR...: the newest file at depth MINDEPTH or more
+# under the directories modified within MIN minutes, or nothing: found by -mmin,
+# sorted by ls -t, and asked again until none is newer (ls takes long lists in batches).
 _fi_host_newest() {
   local md="$1" min="$2" x y i=0
   shift 2
@@ -339,7 +329,7 @@ _fi_host_spawn() {
 # when the records cannot be read or told from another directory's.
 felix_inv_host_dir() {
   local d="$1" now="$2" live=no root dd amb=0 f mt best="" bestf="" bout="" out rt act q b pts pname note ts x sm blk=$(($4 * 60)) t=$'\t' nl=$'\n'
-  local -a dirs=()
+  local -a dirs=() sd=()
   root="$(_fi_host_root)" || { printf 'unknown\t-\tunknown\tunknown\tunknown\t-\n'; return 0; }
   while IFS= read -r dd; do
     [ "$dd" != '?' ] || { amb=1; continue; }
@@ -360,12 +350,15 @@ felix_inv_host_dir() {
     x="${out#*"$t"}"; rt="${x%%"$t"*}"; x="${x#*"$t"}"; q="${x%%"$t"*}"; x="${x#*"$t"}"; b="${x%%"$t"*}"; x="${x#*"$t"}"
     pts="${x%%"$t"*}"; x="${x#*"$t"}"; pname="${x%%"$t"*}"; note="${x#*"$t"}"
     case "$rt" in ''|*[!0-9]*) rt="$mt"; ts=file ;; *) ts=record ;; esac
+    [ -r "$f" ] || { q=unknown; b=unknown; note="could not read ${f//$t/ }"; }
     case "$q" in yes|no|unknown) ;; *) q=unknown; b=unknown; note="could not read ${f//$t/ }" ;; esac
     if [ -z "$bestf" ] || [ "$rt" -gt "$best" ]; then best="$rt"; bestf="$f"; bout="$q$t$b$t$pts$t$pname$t$note$t$ts$t$mt"; fi
   done < <([ "${#dirs[@]}" -gt 0 ] && find "${dirs[@]}" -maxdepth 1 -type f -name '*.jsonl' -exec ls -t {} + 2>/dev/null)
   act="${best:-0}"
-  if [ "${#dirs[@]}" -gt 0 ]; then
-    x="$(_fi_host_newest 2 $(((now - act) / 60 + 2)) "${dirs[@]}")"
+  # Only a session's own directory counts, at any depth, never a file beside the session files.
+  for dd in ${dirs[@]+"${dirs[@]}"}; do for f in "$dd"/*.jsonl; do [ -f "$f" ] && [ -d "${f%.jsonl}" ] && sd[${#sd[@]}]="${f%.jsonl}"; done; done
+  if [ "${#sd[@]}" -gt 0 ]; then
+    x="$(_fi_host_newest 1 $(((now - act) / 60 + 2)) "${sd[@]}")"
     [ -z "$x" ] || { sm="$(_fi_host_mt "$x")"; [ -z "$sm" ] || [ "$sm" -le "$act" ] || act="$sm"; }
   fi
   _fi_host_spawn "$d" "$5"
@@ -391,12 +384,23 @@ felix_inv_host_dir() {
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$act" "$live" "$q" "$b" "${note:--}"
 }
 
-# The session that worked on each pull request's head branch: of the session
-# files in SCOPEFILE's record directories modified within DAYS days, the user
-# and assistant records carrying "gitBranch":"<head>" exactly, the newest by
-# "timestamp" (the file's mtime for a record without one) names the owner by
-# its own "sessionId". Live is the owner's activity: the record time of its own
-# file in scope with every file under its directory, else its newest record read.
+# How many session files in SCOPEFILE's record directories, modified within DAYS
+# days (as the chip and owner scans read them), the run cannot read.
+#   felix_inv_host_unread DAYS SCOPEFILE
+felix_inv_host_unread() {
+  local e f n=0
+  while IFS= read -r e; do
+    while IFS= read -r f; do [ -r "$f" ] || n=$((n + 1)); done < <(find "$e" -maxdepth 1 -type f -name '*.jsonl' -mmin -$(($1 * 1440)) 2>/dev/null)
+  done < "$2"
+  printf '%d\n' "$n"
+}
+
+# The session that worked on each pull request's head branch: of the user and
+# assistant records carrying "gitBranch":"<head>" exactly in session files of
+# SCOPEFILE's record directories modified within DAYS days, the newest by
+# "timestamp" (the file's mtime without one) names the owner by its own
+# "sessionId" (a resumed session's file copies its predecessor's). Live is the
+# owner's activity: its own file's record time and every file under its directory.
 #   felix_inv_host_owners NOW DAYS LIVE_MIN SCOPEFILE HEADSFILE
 # prints head owner live (yes or no) per head some session worked on; status 1,
 # and nothing printed, when there are no records to read.

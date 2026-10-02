@@ -20,8 +20,9 @@ _fi_dirty() {
   tr '\000' '\n' < "$T/stz" | if [ "$wt" = "$_FI_MAIN" ] && [ -s "$T/nest" ]; then
     awk 'NR == FNR { N[++n] = $0; next } { p = substr($0, 4); sub(/\/$/, "", p); for (i = 1; i <= n; i++) if (p == N[i] || index(p, N[i] "/") == 1) next; print }' "$T/nest" -
   else cat; fi > "$T/st"
+  [ -n "$_FI_DEFSHA" ] || return 0   # clean or not, what it differs from is unknown (spec 4.4)
   [ -s "$T/st" ] || { _FI_DD="0 0 0 0"; return 0; }
-  [ -n "$_FI_DEFSHA" ] || return 0; : > "$T/hp"; : > "$T/dx"
+  : > "$T/hp"; : > "$T/dx"
   while IFS= read -r p <&3; do
     p="${p:3}"
     if [ -L "$wt/$p" ]; then printf '%s\t%s\n' "$p" "$(printf '%s' "$(readlink "$wt/$p")" | _fi_git hash-object --stdin)" >> "$T/dx"
@@ -68,7 +69,7 @@ _fi_worktree() {
        fi
        _fi_host "$ref" ;;
   esac
-  _fi_branch "$sha" "$br" "$rr" "$cl" "$op" "$num" "$st"
+  _fi_branch "$sha" "$br" "$rr" "$cl" "$op" "$num" "$st" "$gn"
   _fi_sig; ! _fi_temp "$ref" || _fi_add temp
   case "$when" in *[!0-9]*|'') when=0 ;; esac
   case "${_FI_H[1]}" in *[!0-9]*|'') ;; *) [ "${_FI_H[1]}" -gt "$when" ] && when="${_FI_H[1]}" ;; esac
@@ -93,25 +94,43 @@ _fi_dd() {
 }
 # The index differs from HEAD (status 1; 128 is an unborn HEAD): does it hold
 # the tree of an earlier tip of the branch, or, detached, of an earlier HEAD?
+# A read that fails otherwise (the index, the reflog, a tree or a tip the clone
+# lacks) leaves the answer unknown, not no.
 _fi_revert() {
-  local lr=HEAD w="HEAD here" c t
+  local lr=HEAD w="HEAD here" c t rc unk=0
   [ "$br" = - ] || { lr="refs/heads/$br"; w="$br"; }
-  _fi_git -C "$ref" diff-index --cached --quiet HEAD -- 2>/dev/null; [ $? = 1 ] || return 0
+  _fi_git -C "$ref" diff-index --cached --quiet HEAD -- 2>/dev/null; rc=$?
+  [ "$rc" != 0 ] || return 0
+  [ "$rc" = 1 ] || { _fi_git -C "$ref" rev-parse -q --verify 'HEAD^{commit}' >/dev/null 2>&1 && rev=unknown; return 0; }
   _fi_git -C "$ref" reflog exists "$lr" 2>/dev/null || { rev=unknown; return 0; }
-  _fi_git -C "$ref" log -g --format='%H %T' "$lr" -- 2>/dev/null \
-    | awk -v t="$(_fi_git -C "$ref" rev-parse -q --verify 'HEAD^{tree}' 2>/dev/null)" '$2 != t && !s[$2]++' | head -100 > "$T/rl"
+  _fi_git -C "$ref" log -g --format='%H %T' "$lr" -- > "$T/rlg" 2>/dev/null || { rev=unknown; return 0; }
+  awk -v t="$(_fi_git -C "$ref" rev-parse -q --verify 'HEAD^{tree}' 2>/dev/null)" '$2 != t && !s[$2]++' "$T/rlg" | head -100 > "$T/rl"
   while read -r c t <&3; do
-    _fi_git -C "$ref" diff-index --cached --quiet "$t" -- 2>/dev/null || continue
-    _fi_git -C "$ref" merge-base --is-ancestor HEAD "$c" 2>/dev/null && continue
+    _fi_git -C "$ref" diff-index --cached --quiet "$t" -- 2>/dev/null; rc=$?
+    [ "$rc" = 0 ] || { [ "$rc" = 1 ] || unk=1; continue; }
+    _fi_git -C "$ref" merge-base --is-ancestor HEAD "$c" 2>/dev/null; rc=$?
+    [ "$rc" != 0 ] || continue
+    [ "$rc" = 1 ] || { unk=1; continue; }
     rev=yes; _fi_add "the index is the tree of ${c:0:8}, an earlier tip of $w: a commit here undoes what came after it"; break
   done 3< "$T/rl"
+  [ "$rev" = yes ] || [ "$unk" = 0 ] || rev=unknown
 }
 
-# Sections waiting in the pending directory of the default branch (else of
-# HEAD), each with its "Next" items; a section this clone cannot read says so.
+# The pending directory's section files in the default branch's tree (else
+# HEAD's) into $T/pend. A listing that fails is no list of none: _FI_PENDFAIL,
+# which the default cover row says. An unborn HEAD holds nothing to list.
+_fi_pending() {
+  local tree="${_FI_DEFSHA:-HEAD}"
+  : > "$T/pend"; _FI_PENDFAIL=0
+  _fi_git -C "$_FI_D" rev-parse -q --verify "$tree^{commit}" >/dev/null 2>&1 || return 0
+  _fi_git -C "$_FI_D" ls-tree --name-only "$tree" -- "$_FI_PENDING/" > "$T/pend0" 2>/dev/null || { _FI_PENDFAIL=1; return 0; }
+  grep '\.md$' "$T/pend0" > "$T/pend"
+  return 0
+}
+# Each section waiting there with its "Next" items; a section this clone
+# cannot read says so.
 _fi_handoff() {
   local tree="${_FI_DEFSHA:-HEAD}" f next when
-  _fi_git -C "$_FI_D" ls-tree --name-only "$tree" -- "$_FI_PENDING/" 2>/dev/null | grep '\.md$' > "$T/pend"
   while IFS= read -r f <&3; do
     if _fi_git -C "$_FI_D" cat-file -p "$tree:$f" > "$T/hsec" 2>/dev/null; then next="$(awk '
       function add(x) { I[++n] = x; st = 1 }
@@ -142,12 +161,15 @@ _fi_chips() {
 # (_FI_HOSTOK; _FI_HD says why not).
 _fi_hscope() {
   local -a a=("$_FI_REPO"); local d
-  _FI_HOSTOK=0; _FI_HD="--no-host"
+  _FI_HOSTOK=0; _FI_HD="--no-host"; _FI_HUNREAD=0
   [ "$_FI_HOST" = 1 ] || return 0
   _FI_HD="$(felix_inv_host_where)" || { _FI_HD="no session records"; return 0; }
   _FI_HOSTOK=1
   while IFS= read -r d <&3; do a[${#a[@]}]="$d"; done 3< <(awk -F'\t' '$4 !~ /bare|linebreak/ { print $1 }' "$T/wt"; cut -f1 "$T/orph"; cat "$T/scope")
   felix_inv_host_scope "$T/hscope" "${a[@]}"
+  # Session files the run cannot read are said, and what they could have decided is unknown.
+  _FI_HUNREAD="$(felix_inv_host_unread "$_FI_DAYS" "$T/hscope")"
+  [ "${_FI_HUNREAD:-0}" = 0 ] || _FI_HD="$_FI_HD; $_FI_HUNREAD session files could not be read"
 }
 # The session behind each open PR that is a row of its own (one from a fork has
 # none), into $T/owners: head, session, live.

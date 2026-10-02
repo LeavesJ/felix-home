@@ -9,13 +9,16 @@
 # with it; its configuration, which holds how it is logged in, is left alone.
 # A list of 1000, gh's limit here, may not be every PR: then a pushed branch
 # with none seen is unknown, not unproposed. The first call lists whether a PR
-# comes from a fork (isCrossRepository, read as false when absent), the second
-# its labels, mergeable state, draft flag and status contexts. No JSON parser: the flattener
-# below reads gh's output one character at a time, as every awk can.
+# comes from a fork (isCrossRepository, read as false when absent) and the
+# branch it was merged into (baseRefName, last: only a PR merged into the default
+# branch lands its head, one merged into another PR's branch proves nothing), the
+# second its labels, mergeable state, draft flag and status contexts. No JSON
+# parser: the flattener below reads gh's output one character at a time, as every
+# awk can.
 
 # PR facts from gh into $T/prs, one line per PR: number state head oid updated
-# mergeable labels ready draft cross text (text being the "#n open ..." element
-# of an open one, in the landing actor's words); and $T/prh, per head: its open
+# mergeable labels ready draft cross text base (text being the "#n open ..."
+# element of an open one; base the branch it targets, - when gh gave none); and $T/prh, per head: its open
 # same-repository PRs' texts, then the newest such PR's number and state. A
 # cross-repository PR's head lives in a fork, so no branch of the same name
 # proposes it and it is no PR with this head. Status 1, with the reason in
@@ -33,7 +36,7 @@ _fi_gh() {
   esac
   r="${r%.git}"; case "$r" in github.com/*/*) r="${r#github.com/}" ;; */*/*) ;; *) r="" ;; esac
   _FI_GHCMD="gh pr list${r:+ -R $r}"
-  _fi_ghc "$1" pr list ${r:+-R "$r"} --state all --limit 1000 --json number,state,headRefName,headRefOid,updatedAt,isCrossRepository > "$T/all.json" 2> "$T/gh.err" \
+  _fi_ghc "$1" pr list ${r:+-R "$r"} --state all --limit 1000 --json number,state,headRefName,headRefOid,updatedAt,isCrossRepository,baseRefName > "$T/all.json" 2> "$T/gh.err" \
     && _fi_ghc "$1" pr list ${r:+-R "$r"} --state open --limit 1000 --json number,labels,mergeable,isDraft,statusCheckRollup > "$T/open.json" 2>> "$T/gh.err" \
     || { e="$(head -1 "$T/gh.err" | awk '{ s = substr($0, 1, 120); c = substr($0, 121, 1)
            if (c >= "\200" && c < "\300") { while (s != "" && substr(s, length(s)) >= "\200" && substr(s, length(s)) < "\300") s = substr(s, 1, length(s) - 1)
@@ -57,8 +60,8 @@ _fi_gh() {
           if (f[4] == "draft") v = v " draft"
           if (f[1] == "CONFLICTING") v = v " conflicting"
           t = "#" m " open" v (u ~ /^[0-9]+$/ ? ", " int((now - u) / 3600) "h since update" : "") }
-        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\n", m, st, A[x, "headRefName"], (A[x, "headRefOid"] == "" ? "-" : A[x, "headRefOid"]), \
-          u, f[1], f[2], f[3], f[4], (A[x, "isCrossRepository"] == "true"), t } }' > "$T/prs"
+        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\t%s\n", m, st, A[x, "headRefName"], (A[x, "headRefOid"] == "" ? "-" : A[x, "headRefOid"]), \
+          u, f[1], f[2], f[3], f[4], (A[x, "isCrossRepository"] == "true"), t, (A[x, "baseRefName"] == "" ? "-" : A[x, "baseRefName"]) } }' > "$T/prs"
   awk -F'\t' '
     $10 != 1 && $2 == "OPEN" { O[$3] = O[$3] (O[$3] == "" ? "" : ", ") $11 }
     $10 != 1 && $1 + 0 > NUM[$3] + 0 { NUM[$3] = $1; ST[$3] = $2 }

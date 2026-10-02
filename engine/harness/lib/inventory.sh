@@ -139,7 +139,7 @@ felix_inventory() {
     esac
   done
   # The repositories read are the ones named, never one an inherited GIT_DIR names.
-  unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
+  unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY CDPATH   # CDPATH would send a cd to a relative common dir elsewhere
   export LC_ALL=C; [ -n "$repos" ] || repos="$PWD$_FI_NL"; _fi_tmps
   _FI_T=""; trap '[ -z "$_FI_T" ] || rm -rf "$_FI_T"' EXIT
   trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 131' QUIT; trap 'exit 143' TERM
@@ -153,7 +153,7 @@ felix_inventory() {
 # Scratch for one repository is $T; every loop reads its file on fd 3, since
 # git and awk inside a loop would otherwise read what the loop is reading.
 _fi_repo() {
-  local d="$1" c f w k ref sha br dt cl rr op num st fl sh
+  local d="$1" c f w k ref sha br dt cl rr op num st fl sh gn
   [ -d "$T" ] && rm -rf "$T"; mkdir "$T" || return 1
   # -z, since a path may hold a line break (git 2.36; before it, plain).
   c="$(_fi_git -C "$d" rev-parse --git-common-dir 2>/dev/null)" && c="$(cd "$d" && cd "$c" && pwd -P)" \
@@ -194,8 +194,8 @@ _fi_repo() {
   _fi_git -C "$d" for-each-ref --format='%(refname)%09%(objectname)%09%(committerdate:unix)%09%(upstream)%09%(symref)' \
     refs/heads refs/remotes | awk -F'\t' -v OFS='\t' '{ for (i = 1; i <= 5; i++) if ($i == "") $i = "-"; print }' > "$T/refs"
   if _fi_gh "$d"; then _FI_GHOK=1; else _FI_GHOK=0; fi
-  _fi_sets; _fi_orphan_find; _fi_hscope; _fi_cover; _fi_owners
-  while IFS="$_FI_TAB" read -r k ref sha br dt cl rr op num st fl sh <&3; do _fi_item; done 3< "$T/items"
+  _fi_sets; _fi_orphan_find; _fi_hscope; _fi_pending; _fi_cover; _fi_owners
+  while IFS="$_FI_TAB" read -r k ref sha br dt cl rr op num st fl sh gn <&3; do _fi_item; done 3< "$T/items"
   _fi_orphan_rows; _fi_handoff; _fi_chips
   return 0
 }
@@ -218,6 +218,7 @@ _fi_cover() {
   if [ -n "$_FI_DEF" ]; then s=read; d="$_FI_DEF @ ${_FI_DEFSHA:0:8}; $(_fi_fetched)"
   else s="unknown,unknown:uncommitted,unknown:unpushed,unknown:unproposed,unknown:pr-closed-unlanded"
        d="no origin/HEAD, origin/main or origin/master whose tree this clone holds"; fi
+  [ "$_FI_PENDFAIL" = 0 ] || d="$d; handoff sections not read"
   _fi_row cover default "$s" - - - "$d" - -
   if [ "$_FI_GHOK" = 0 ]; then s="unknown,unknown:pr-open,unknown:unproposed,unknown:pr-closed-unlanded"; d="$_FI_GHSTATE"
   elif [ "$_FI_GHTRUNC" = 1 ]; then s="partial,unknown:unproposed"; d="$_FI_GHCMD: $_FI_GHN PRs, gh's limit: older PRs are not seen"
@@ -233,22 +234,43 @@ _fi_cover() {
   _fi_row cover objects "$s" - - - "$d" - -
 }
 
-# The items: kind ref sha branch date class rr open num state flags shared.
+# The commits of the tips in file $3 that the ^lines of file $4 do not reach, into
+# $1, by one shared rev-list. A shared walk dies when one tip's history lacks an
+# object, and would then read every tip as reached: so it is redone one tip at a
+# time (-n 1 prints the tip itself when it is not reached), and a tip whose own
+# walk dies is listed in $T/bad as "$2<TAB>tip", for its reading to be unknown.
+_fi_walk() {
+  local tip
+  { cat "$3" "$4"; } | _fi_git -C "$_FI_D" rev-list --stdin > "$1" 2>/dev/null && return 0
+  : > "$1"
+  while IFS= read -r tip <&3; do
+    { printf '%s\n' "$tip"; cat "$4"; } | _fi_git -C "$_FI_D" rev-list -n 1 --stdin >> "$1" 2>/dev/null || printf '%s\t%s\n' "$2" "$tip" >> "$T/bad"
+  done 3< "$3"
+  return 0
+}
+
+# The items: kind ref sha branch date class rr open num state flags shared gone.
 # Class RXM: R the default branch reaches the tip, X it holds a commit on no
 # remote-tracking ref, M a merged PR's head is it or descends from it; --- it
-# is not here, and is kept out of every rev-list, which one would fail.
+# is not here, and is kept out of every rev-list, which one would fail. A
+# letter u says its walk could not be made, since a commit the clone lacks lies
+# in the tip's own history (M: in a merged head's): what that decides is unknown.
 _fi_sets() {
-  local t="$T/tips" have='%(objectname) %(objecttype)' r rs ls
+  local t="$T/tips" have='%(objectname) %(objecttype)' r rs ls h
   { cut -f2 "$T/wt"; awk -F'\t' '$1 ~ /^refs\/heads\// { print $2 }' "$T/refs"; } | awk '$1 != "-"' | sort -u > "$t.l"
-  awk -F'\t' '$2 == "MERGED" { print $4 }' "$T/prs" > "$T/mh"
+  awk -F'\t' -v dn="${_FI_DEF#origin/}" '$2 == "MERGED" && dn != "" && $12 == dn { print $4 }' "$T/prs" > "$T/mh"   # only a PR merged into the default branch
   { cat "$t.l"; awk -F'\t' '$1 ~ /^refs\/remotes\// && $5 == "-" { print $2 }' "$T/refs"; awk -F'\t' '$2 == "OPEN" { print $4 }' "$T/prs"; } \
     | sort -u | _fi_git -C "$_FI_D" cat-file --batch-check="$have" 2>/dev/null | awk '$2 == "commit" { print $1 }' > "$t"
-  : > "$T/ahead"; : > "$T/merged"
-  [ -n "$_FI_DEFSHA" ] && { cat "$t"; printf '^%s\n' "$_FI_DEFSHA"; } | _fi_git -C "$_FI_D" rev-list --stdin > "$T/ahead" 2>/dev/null
-  { grep -xF -f "$t" "$t.l"; awk -F'\t' '$1 ~ /^refs\/remotes\// && $5 == "-" { print "^" $2 }' "$T/refs"; } \
-    | _fi_git -C "$_FI_D" rev-list --stdin > "$T/unpushed" 2>/dev/null
+  : > "$T/ahead"; : > "$T/merged"; : > "$T/bad"; : > "$T/unpushed"
+  if [ -n "$_FI_DEFSHA" ]; then printf '^%s\n' "$_FI_DEFSHA" > "$T/neg"; _fi_walk "$T/ahead" a "$t" "$T/neg"; fi
+  grep -xF -f "$t" "$t.l" > "$T/lt"
+  awk -F'\t' '$1 ~ /^refs\/remotes\// && $5 == "-" { print "^" $2 }' "$T/refs" > "$T/negx"; _fi_walk "$T/unpushed" x "$T/lt" "$T/negx"
   _fi_git -C "$_FI_D" cat-file --batch-check="$have" < "$T/mh" 2>/dev/null | awk '$2 == "commit" { print $1 }' > "$T/mheads"
-  [ -s "$T/mheads" ] && [ -n "$_FI_DEFSHA" ] && { cat "$T/mheads"; printf '^%s\n' "$_FI_DEFSHA"; } | _fi_git -C "$_FI_D" rev-list --stdin > "$T/merged" 2>/dev/null
+  if [ -s "$T/mheads" ] && [ -n "$_FI_DEFSHA" ]; then
+    { cat "$T/mheads"; cat "$T/neg"; } | _fi_git -C "$_FI_D" rev-list --stdin > "$T/merged" 2>/dev/null || {
+      : > "$T/merged"   # one head's history lacks an object: head by head, and any tip that is not found is then unknown
+      while IFS= read -r h <&3; do { printf '%s\n' "$h"; cat "$T/neg"; } | _fi_git -C "$_FI_D" rev-list --stdin >> "$T/merged" 2>/dev/null || printf 'm\t-\n' >> "$T/bad"; done 3< "$T/mheads"; }
+  fi
   cut -f2 "$T/wt" | grep -xF -f "$t" | _fi_git -C "$_FI_D" log --no-walk=unsorted --stdin --format='%H %ct' > "$T/dates" 2>/dev/null
   # The remote branch each local branch covers: origin/<its name>, else its
   # upstream unless that is the default branch. Covered means its tip is the
@@ -263,9 +285,10 @@ _fi_sets() {
     { [ "$rs" = "$ls" ] || _fi_git -C "$_FI_D" merge-base --is-ancestor "$rs" "$ls" 2>/dev/null; } && printf '%s\n' "$r" >> "$T/cov"
   done 3< "$T/covp"
   awk -F'\t' -v OFS='\t' -v r="$_FI_DEFSHA" -v def="$_FI_DEF" -v dn="${_FI_DEF#origin/}" '
+    FILENAME ~ /bad$/ { BD[$1, $2] = 1; next }
     FILENAME ~ /ahead$/ { A[$1] = 1; next } FILENAME ~ /unpushed$/ { X[$1] = 1; next }
     FILENAME ~ /(merged|mheads)$/ { M[$1] = 1; next }
-    FILENAME ~ /tips$/ { C[$1] = (r != "" && !($1 in A)) ($1 in X) ($1 in M); next }
+    FILENAME ~ /tips$/ { C[$1] = (r == "" ? 0 : (("a", $1) in BD) ? "u" : !($1 in A)) ((("x", $1) in BD) ? "u" : ($1 in X) + 0) (($1 in M) ? 1 : (("m", "-") in BD) ? "u" : 0); next }
     FILENAME ~ /dates$/ { split($0, x, " "); D[x[1]] = x[2]; next }
     FILENAME ~ /prh$/ { O[$1] = $2; NUM[$1] = $3; ST[$1] = $4; next }
     FILENAME ~ /prs$/ { if ($2 == "OPEN") P[++np] = $0; next }
@@ -276,9 +299,12 @@ _fi_sets() {
     function rr(n,    u) { if (("origin/" n) in RB) return "origin/" n
       u = substr(UP[n], 14); return (UP[n] ~ /^refs\/remotes\// && (u in RB) && u != def) ? u : "-" }
     function pk(b, rrr) { return rrr ~ /^origin\// ? substr(rrr, 8) : b }
+    function gn(n,    u) { u = substr(UP[n], 14)   # the upstream, when its remote-tracking ref is gone
+      return (UP[n] ~ /^refs\/remotes\// && !(u in RB) && !(("origin/" n) in RB)) ? u : "-" }
     function out(k, ref, sha, b, d, rrr, fl, sh, ptx, pn, ps,    p) { p = pk(b, rrr)
       print k, ref, sha, b, (d == "" ? "-" : d), ((sha in C) ? C[sha] : "---"), rrr, \
-        (k == "pr" ? ptx "\t" pn "\t" ps : (b == "-" || b == dn || !(p in NUM) ? "-\t-\t-" : O[p] "\t" NUM[p] "\t" ST[p])), fl, (sh == "" ? "-" : sh) }
+        (k == "pr" ? ptx "\t" pn "\t" ps : (b == "-" || b == dn || !(p in NUM) ? "-\t-\t-" : O[p] "\t" NUM[p] "\t" ST[p])), fl, (sh == "" ? "-" : sh), \
+        ((k == "worktree" || k == "branch") && b != "-" ? gn(b) : "-") }
     END {
       for (i = 1; i <= nw; i++) { split(W[i], w, "\t"); if (w[4] ~ /bare/) continue
         m = split(CO[w[3]], S, "\n"); o = ""; for (j = 2; j <= m; j++) if (S[j] != w[1]) o = o " " S[j]
@@ -288,7 +314,7 @@ _fi_sets() {
         if (n !~ /^origin\// || n == def || (n in CV) || (O[b] != "" && O[b] != "-")) continue
         out("remote", n, RB[n], b, RD[n], n, "-", "") }
       for (i = 1; i <= np; i++) { split(P[i], p, "\t"); if (p[10] == 1 || !(p[3] in PB)) out("pr", "#" p[1], p[4], p[3], p[5], "-", (p[10] == 1 ? "cross" : "-"), "", p[11], p[1], p[2]) } }' \
-    "$T/ahead" "$T/unpushed" "$T/merged" "$T/mheads" "$t" "$T/dates" "$T/prh" "$T/prs" "$T/cov" "$T/refs" "$T/wt" > "$T/items"
+    "$T/bad" "$T/ahead" "$T/unpushed" "$T/merged" "$T/mheads" "$t" "$T/dates" "$T/prh" "$T/prs" "$T/cov" "$T/refs" "$T/wt" > "$T/items"
 }
 
 # Whether a tip's content is on the default branch: _FI_LV is landed, partly,
@@ -302,7 +328,7 @@ _fi_land() {
   local mb
   : > "$T/sig"; _FI_L=unknown; _FI_LV=unknown
   [ -n "$_FI_DEFSHA" ] || return 0
-  case "$2" in 1??|??1) _FI_L=landed; _FI_LV=landed; return 0 ;; esac
+  case "$2" in 1??|??1) _FI_L=landed; _FI_LV=landed; return 0 ;; u??) return 0 ;; esac
   mb="$(_fi_git -C "$_FI_D" merge-base "$_FI_DEFSHA" "$1" 2>/dev/null)" || return 0
   _fi_git -C "$_FI_D" diff-tree -r --no-renames -z "$mb" "$1" > "$T/dtz" 2>/dev/null || return 0
   _FI_L="$(tr '\000' '\n' < "$T/dtz" | awk -v df="$T/deftree" -v sig="$T/sig" -v def="$_FI_DEF" '
@@ -314,6 +340,8 @@ _fi_land() {
   case "$_FI_LV:$2" in
     not:?0?|partly:?0?) if [ "$_FI_GHOK" = 0 ] || { [ "$_FI_GHTRUNC" = 1 ] && [ "${3:-0}" != 1 ]; }; then _FI_L=unknown; _FI_LV=unknown; fi ;;
   esac
+  # A merged head whose history could not be walked might have landed it.
+  case "$_FI_LV:$2" in not:??u|partly:??u) _FI_L=unknown; _FI_LV=unknown ;; esac
 }
 
 # The host's answer for a directory, as _FI_H: owner mtime live question
@@ -328,9 +356,10 @@ _fi_host() {
 
 # The branch-borne states of a tip, into _FI_UNP _FI_UNPROP _FI_PRO _FI_PRC, and
 # its content into _FI_L and _FI_LV. Arguments: tip, branch or -, its
-# remote-tracking ref or -, class, open PRs or -, newest PR number and state or -.
+# remote-tracking ref or -, class, open PRs or -, newest PR number and state or -,
+# and the upstream whose remote-tracking ref is gone, or -.
 _fi_branch() {
-  local tip="$1" br="$2" rr="$3" cl="$4" op="$5" num="$6" st="$7" n hp=0
+  local tip="$1" br="$2" rr="$3" cl="$4" op="$5" num="$6" st="$7" gn="${8:--}" n hp=0
   _FI_UNP=no; _FI_UNPROP=no; _FI_PRO=no; _FI_PRC=no
   [ "$br" = - ] || [ "$br" = "${_FI_DEF#origin/}" ] || [ "$num" = - ] || hp=1
   _fi_land "$tip" "$cl" "$hp"
@@ -339,7 +368,10 @@ _fi_branch() {
       # 0 means it was pushed after the classes were read: the newer fact wins.
       *) n="$(_fi_git -C "$_FI_D" rev-list --count "$tip" --not --remotes 2>/dev/null)"
          [ "${n:-1}" = 0 ] || { _FI_UNP=yes; _fi_add "${n:-some} commit(s) on no remote; content $_FI_L"; } ;; esac ;;
+    ?u?) [ "$_FI_LV" = landed ] || _FI_UNP=unknown ;;
   esac
+  # A pruned upstream leaves no remote copy of the branch: it counts as not pushed.
+  [ "$gn" = - ] || [ "$_FI_LV" = landed ] || _fi_add "upstream $gn is gone"
   [ "$br" != - ] && [ "$br" != "${_FI_DEF#origin/}" ] || return 0   # the default branch heads no PR
   if [ "$_FI_GHOK" = 0 ]; then
     [ "$rr" != - ] || return 0
@@ -354,9 +386,11 @@ _fi_branch() {
   [ "$_FI_LV" != landed ] || return 0
   if [ "$st" = CLOSED ]; then
     if [ "$_FI_LV" = unknown ]; then _FI_PRC=unknown; else _FI_PRC=yes; _fi_add "#$num closed without merge; content $_FI_L"; fi
+  elif [ "$num" != - ]; then   # the newest PR merged: no remote-tracking ref is needed for what came after
+    if [ "$_FI_LV" = unknown ]; then _FI_UNPROP=unknown
+    else n="no PR since #$num merged; content $_FI_L"; [ "$rr" = - ] || n="on $rr, $n"; _FI_UNPROP=yes; _fi_add "$n"; fi
   elif [ "$rr" != - ]; then
     if [ "$_FI_LV" = unknown ]; then _FI_UNPROP=unknown
-    elif [ "$num" != - ]; then _FI_UNPROP=yes; _fi_add "on $rr, no PR since #$num merged; content $_FI_L"
     elif [ "$_FI_GHTRUNC" = 1 ]; then _FI_UNPROP=unknown; _fi_add "on $rr, no PR among the $_FI_GHN gh listed, which may not be all; content $_FI_L"
     else _FI_UNPROP=yes; _fi_add "on $rr with no PR; content $_FI_L"; fi
   fi
@@ -375,9 +409,11 @@ _fi_item() {
         elif [ "$fl" != cross ]; then
           x="$(awk -F'\t' -v h="$br" '$1 == h { print $2 "\t" $3; exit }' "$T/owners")"
           [ -z "$x" ] || { own="${x%%"$_FI_TAB"*}"; lv="${x#*"$_FI_TAB"}"; }
+          # No owner found, though a session file in the window could not be read: unknown, not none.
+          [ "$own" != - ] || [ "${_FI_HUNREAD:-0}" = 0 ] || { own=unknown; lv=unknown; }
         fi
         _fi_states "$_FI_LV" live=$lv pr-open=yes ;;
-    *) _FI_DET="@ ${sha:0:8}"; _fi_branch "$sha" "$br" "$rr" "$cl" "$op" "$num" "$st"
+    *) _FI_DET="@ ${sha:0:8}"; _fi_branch "$sha" "$br" "$rr" "$cl" "$op" "$num" "$st" "$gn"
        [ "$k" != remote ] || _FI_PRO=no
        _fi_states "$_FI_LV" unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC ;;
   esac
@@ -387,16 +423,17 @@ _fi_item() {
 # ---------------------------------------------------------------- output ----
 # Two rows of one repository holding unlanded content whose changed paths and
 # blobs are the same, on different branches, are each a possible-duplicate, and
-# the --tsv detail says of which; the human view's copy of the rows ($_FI_T/outv)
+# the --tsv detail says of which, naming only rows on other branches than its
+# own (origin/X beside X is one branch); the human view's copy of the rows ($_FI_T/outv)
 # leaves that tail out, since its states say possible-duplicate and it would
 # name another row's path. Then the rows: as TSV, or as lib/inventory-view.sh
 # groups them for a person.
 _fi_out() {
   awk -F'\t' -v OFS='\t' -v vf="$_FI_T/outv" '{ R[NR] = $0 }
     $9 != "-" && $4 ~ /(^|,)(uncommitted|unpushed|unproposed|pr-open|pr-closed-unlanded)(,|$)/ {
-      k = $2 SUBSEP $9; D[NR] = k; if (!((k, $10) in B)) { B[k, $10] = 1; NB[k]++ }; W[k] = W[k] "\n" $3 }
+      k = $2 SUBSEP $9; D[NR] = k; if (!((k, $10) in B)) { B[k, $10] = 1; NB[k]++ }; W[k] = W[k] "\n" $3; WB[k] = WB[k] "\n" $10 }
     END { for (i = 1; i <= NR; i++) { split(R[i], f, "\t")
-        if ((i in D) && NB[D[i]] > 1) { m = split(W[D[i]], L, "\n"); o = ""; for (j = 2; j <= m; j++) if (L[j] != f[3]) o = o " " L[j]
+        if ((i in D) && NB[D[i]] > 1) { m = split(W[D[i]], L, "\n"); split(WB[D[i]], LB, "\n"); o = ""; for (j = 2; j <= m; j++) if (LB[j] != f[10]) o = o " " L[j]
           p = index(f[4], "unknown:"); f[4] = p ? substr(f[4], 1, p - 1) "possible-duplicate," substr(f[4], p) : f[4] ",possible-duplicate"
           print f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8] > vf; f[8] = f[8] "; possible duplicate of" o }
         else print f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8] > vf

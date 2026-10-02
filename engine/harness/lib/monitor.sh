@@ -145,10 +145,38 @@ _felix_mon_project() {
 
   printf '{"name":"%s","gate":"%s"' "$(_felix_json_esc "$name")" "$(_felix_json_esc "$gate")"
 
+  # 2026-10-01: an array is a list that was read, and a list that was not is
+  # {"unknown":WHY}, which the page says as not known. Until then this read the
+  # file itself with `-f` and grep, so a link whose target was gone, a
+  # directory, a pipe or a file grep could not read was [], a project that
+  # declares nothing, and comment lines were capabilities. Nobody saw it,
+  # because the page had not read this member since 2026-08-10. Dropping it, as
+  # the plugins array was dropped, would have left the page unable to say
+  # anything wrong, and would also have left the capability accounting this
+  # file's header promises behind glass. So the memory panel counts it. It is
+  # not [] or null for an unread list, because the page's `p.x||[]` idiom would
+  # turn either back into zero. felix_declared_into is the read: it guards the
+  # substitution that comes back empty with status 0 under EAGAIN, and it is
+  # unread when not defined, since this file does not source detect.sh. The
+  # list is walked in this shell, not piped or fed by a here-document: a fork
+  # or a temporary file that failed here would lose the member and break the
+  # page's script.
   printf ',"capabilities":'
-  if [ -f "$proj/capabilities" ]; then
-    grep -v '^$' "$proj/capabilities" | _felix_mon_json_list
-  else printf '[]'; fi
+  local caps cap nl=$'\n' cfirst=1
+  if felix_declared_into caps "$proj" 2>/dev/null; then
+    printf '['
+    while [ -n "$caps" ]; do
+      cap="${caps%%"$nl"*}"
+      case "$caps" in *"$nl"*) caps="${caps#*"$nl"}" ;; *) caps="" ;; esac
+      [ -n "$cap" ] || continue
+      [ "$cfirst" -eq 1 ] || printf ','
+      cfirst=0
+      printf '"%s"' "$(_felix_json_esc "$cap")"
+    done
+    printf ']'
+  else
+    printf '{"unknown":"the capabilities this project declares could not be read"}'
+  fi
 
   printf ',"routes":['
   local first=1 n k pr pl

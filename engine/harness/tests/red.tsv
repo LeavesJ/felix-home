@@ -8,9 +8,33 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	3163b29a2a86238343226a92638e8e8f1154fb56	3163b29a2a86238343226a92638e8e8f1154fb56	0.49.258
-run	4	5377	9
-a different git on PATH computes the same decision epoch	1
-and both shells agree on what the new epoch is	1
-and the member going away brings both back to the epoch they started from	1
-because it computes the same grounded topology	1
+base	97ccb117985b13e564c2815db570415dc28b0f83	97ccb117985b13e564c2815db570415dc28b0f83	0.49.259
+run	28	5400	9
+_felix_cap_active returns 2 when felix_declared fails, whether it printed nothing or printed the capability	1
+a capabilities link whose target is gone is not an absent file: _felix_cap_active returns 2 and the row is unknown	1
+a capabilities pipe or directory is no list: _felix_cap_active returns 2 at once for each, neither waiting on the pipe nor reading either as absent	1
+a capability lookup that answers neither 0 nor 1 makes the row unknown, and says the declared list could not be read	1
+a count over a first grep that failed is not a count: done 0 over two rows is unknown when that grep printed nothing, not answered	1
+a declared list that could not be read makes a row grounded on a declared capability unknown, not not-applicable	1
+a declared list that names api but came back with a failure is not trusted: the row is unknown, not done	1
+a declared list whose substitution ended before it answered, with status 0, makes _felix_cap_active return 2 and the row unknown	1
+a names lookup that returns 1 naming nothing, or 3, makes the row unknown and says the names could not be read	1
+a names lookup whose substitution ended with status 0 and no text makes the row unknown, not done	1
+a partial answer whose rows could not be counted is unknown, not answered	1
+a whole answer whose rows could not be counted is unknown, not answered	1
+an answer whose rows could not be counted is not ingested: the record prints 0 and appends nothing to the log	1
+and _felix_cap_active returns 2 there, and the row grounded on it is unknown, not not-applicable	1
+and done 2 over three rows is unknown when that grep printed two of them and failed, not answered	1
+and it says the capabilities this project declares could not be read	1
+and it says the engine functions the check names could not be read	1
+and it says the rows could not be counted	1
+and so with pipefail off in the caller	1
+and the names lookup is one substitution whose one pipe reads the names, with no here-document	1
+and the receipt over it, every other row done, is indeterminate and not commissioned	1
+and with its rows uncountable it is unknown	1
+felix_declared over a file of only comments and blank lines prints nothing and returns 0: it was read, and holds none	1
+felix_declared returns nonzero and prints nothing when its grep fails, as any user, and _felix_cap_active returns 2	1
+the capability lookup is one substitution, with no pipe, no here-document and no felix_has_line	1
+the lookup of the names returns 2 and names nothing when its grep fails, with pipefail on or off	1
+when the names a check holds could not be read from it, the row is unknown, not done	1
+with felix_has_line failing as an unwritable here-document makes it fail, a declared api is still active and its row done	1

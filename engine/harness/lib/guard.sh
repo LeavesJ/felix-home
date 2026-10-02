@@ -161,7 +161,14 @@ felix_guard_unrecorded() {
   # known by the session it names, `b` by its branch, `-` by nothing. A time
   # is digits with no leading zero and at most twelve of them, because
   # anything else reaches shell arithmetic as an error or as octal.
-  rows="$(awk -F'\t' -v C="$cur" -v S="$sids" '
+  #
+  # Rows, not lines: read through felix_mem_mistake_rows, because an older
+  # engine's split row on an unborn HEAD is two lines, `<date>-HEAD` and
+  # `?-?-<what>`, and read a line at a time neither has column four, so the
+  # catch was announced with nothing named, and the second half, branch `?`,
+  # is no checkout's (U44). Joined, it is one row of four fields, on branch
+  # HEAD with no second and no session, judged as every such row is.
+  rows="$(felix_mem_mistake_rows "$m" | awk -F'\t' -v C="$cur" -v S="$sids" '
     BEGIN { ns = split(S, sv, " "); for (i = 1; i <= ns; i++) mine[sv[i]] = 1 }
     {
       rs = ($6 == "-") ? "" : $6
@@ -179,7 +186,7 @@ felix_guard_unrecorded() {
         print r[k]; delete n[k]
       }
     }
-  ' "$m" 2>/dev/null)"
+  ' 2>/dev/null)"
   [ -n "$rows" ] || return 0
   while IFS= read -r row; do
     [ -n "$row" ] || continue
@@ -265,12 +272,14 @@ _felix_guard_settled() {
 }
 
 # The branch a checkout's gate files its rows under, spelled as the writer
-# spells it (felix_mem_mistake): the branch HEAD names, which a checkout with
-# no commit yet still has, or HEAD when detached. Nothing when git cannot say,
-# which makes every row that names no session count.
+# spells it (felix_mem_mistake), by the writer's own reader, felix_head_branch
+# in resolve.sh: the branch HEAD names, which a checkout with no commit yet
+# still has, or HEAD when detached. Nothing when git cannot say, which makes
+# every row that names no session count, rather than felix_head_branch's `?`
+# there, which would count only the rows written outside git.
 _felix_guard_branch() {
   git -C "$1" rev-parse --git-dir >/dev/null 2>&1 || return 0
-  git -C "$1" symbolic-ref --short -q HEAD 2>/dev/null || printf 'HEAD'
+  felix_head_branch "$1"
 }
 
 # A file's modification time in whole seconds. GNU first, because `stat -f` on

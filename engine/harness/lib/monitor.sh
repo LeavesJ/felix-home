@@ -52,13 +52,29 @@ _felix_mon_prompt() {
 # only that these logs hold whatever a session said — routes.log here is
 # "Non-ISO extended-ASCII text" — and awk counts lines without any binary-file
 # heuristic in the way, so it does not depend on which grep is on PATH.
+#
+# An optional second argument names a reader that prints the file's rows, for
+# a log whose lines are not all rows. mistakes.log is the one: an engine before
+# #267 wrote one failure on an unborn HEAD as two lines, and "gate failures"
+# counted each of them twice (U42). felix_mem_mistake_rows joins them. With
+# no reader, the file is counted exactly as before.
 _felix_mon_count() {
+  local n
   [ -f "$1" ] || { printf 0; return 0; }
+  if [ -n "${2:-}" ]; then
+    n="$("$2" "$1" | LC_ALL=C awk '$0 != "" { n++ } END { print n + 0 }' 2>/dev/null)" || n=""
+    printf '%s' "${n:-0}"
+    return 0
+  fi
   LC_ALL=C awk '$0 != "" { n++ } END { print n + 0 }' "$1" 2>/dev/null || printf 0
 }
 
+# The same optional reader, for the same reason: the window is taken from the
+# rows it prints rather than from the file's lines, so a split row is one
+# entry with its commit, not two entries with a column missing from each.
+# routes.log, verification.log and says.log pass none and are read as before.
 _felix_mon_rows() {
-  local file="$1" limit="$2" fmt="$3" first=1 line
+  local file="$1" limit="$2" fmt="$3" reader="${4:-}" first=1 line
   printf '['
   [ -f "$file" ] || { printf ']'; return 0; }
   while IFS= read -r line; do
@@ -67,9 +83,13 @@ _felix_mon_rows() {
     first=0
     "$fmt" "$line"
   done <<EOF
-$(tail -n "$limit" "$file" | sed '1!G;h;$!d')
+$(_felix_mon_tail "$file" "$limit" "$reader" | sed '1!G;h;$!d')
 EOF
   printf ']'
+}
+
+_felix_mon_tail() {
+  if [ -n "${3:-}" ]; then "$3" "$1" | tail -n "$2"; else tail -n "$2" "$1"; fi
 }
 
 _felix_mon_route_row() {
@@ -188,8 +208,8 @@ _felix_mon_project() {
   _felix_mon_rows "$_md/verification.log" 40 _felix_mon_verify_row
   printf ',"verifyLogTotal":%s' "$(_felix_mon_count "$_md/verification.log")"
   printf ',"mistakes":'
-  _felix_mon_rows "$_md/mistakes.log" 20 _felix_mon_mistake_row
-  printf ',"mistakesTotal":%s' "$(_felix_mon_count "$_md/mistakes.log")"
+  _felix_mon_rows "$_md/mistakes.log" 20 _felix_mon_mistake_row felix_mem_mistake_rows
+  printf ',"mistakesTotal":%s' "$(_felix_mon_count "$_md/mistakes.log" felix_mem_mistake_rows)"
   printf ',"says":'
   _felix_mon_rows "$_md/says.log" 60 _felix_mon_say_row
   printf ',"saysTotal":%s' "$(_felix_mon_count "$_md/says.log")"

@@ -15752,13 +15752,14 @@ fi
 exec '$QSWGIT' "\$@"
 EOF
 chmod +x "$QSWSHIM/git"
-# mv and ln that, given QSW_HOLDMV or QSW_HOLDLN, a path, do their work, then
-# note it there and hold until the group they are in is killed: a sweep
-# stopped right after its first rename, or its first link. A call whose last
+# mv, ln and rm that, given QSW_HOLDMV, QSW_HOLDLN or QSW_HOLDRM, a path, do
+# their work, then note it there and hold until the group they are in is
+# killed: a sweep stopped right after its first rename, its first link, or
+# its first removal. A call whose last
 # operand is empty, which is how the sweep asks mv which options it takes,
 # is no rename and is not held.
 QSWHOLD="$QSWS/hold"; mkdir -p "$QSWHOLD"
-for _qswc in mv ln; do
+for _qswc in mv ln rm; do
   _qswv="QSW_HOLD$(printf '%s' "$_qswc" | tr a-z A-Z)"
   cat > "$QSWHOLD/$_qswc" <<EOF
 #!/bin/sh
@@ -16572,16 +16573,22 @@ is  "when the sweep's drop calls git worktree remove on a dead base's tree, the 
     "claimed:$([ -n "$_qswrp" ] && [ "${_qswrp% *}" = "${_qswrp#* }" ] && echo yes || echo "no[$_qswrp]")" "claimed:yes"
 
 # A sweep killed in its claim or its drop. Stopped right after its first
-# rename, or its first link, or as its drop's git starts, then the whole
-# group KILLed: whatever the base was left holding, a later sweep removes it,
-# registration included.
-for _qswk in mv ln git; do
+# rename, or its first link, or as its drop's git starts, or right after its
+# drop's first rm, then the whole group KILLed: whatever the base was left
+# holding, a later sweep removes it, registration included. For rm the base
+# also holds a file beside its tree, so the drop's clearing of what git left
+# makes an rm call: one that removed the owner record before the rest of the
+# base left a base no later sweep could judge, a case only chflags staged
+# until now, which Linux has not (review round 2).
+for _qswk in mv ln git rm; do
   d="$QSWS/killed-sweep-$_qswk"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
   _qswplant "$T" felix-qualify.KSWEEP "$R" "$(_qswdead) $QSWOLD"
+  [ "$_qswk" = rm ] && printf 'junk\n' > "$T/felix-qualify.KSWEEP/zz"
   _qswp1="$(_qswpre "$T/felix-qualify.KSWEEP" "$R" "$Tp/felix-qualify.KSWEEP/w")"
   case "$_qswk" in
     mv)  _qswpath="$QSWHOLD"; _qswxenv="QSW_HOLDMV=$d/at" ;;
     ln)  _qswpath="$QSWHOLD"; _qswxenv="QSW_HOLDLN=$d/at" ;;
+    rm)  _qswpath="$QSWHOLD"; _qswxenv="QSW_HOLDRM=$d/at" ;;
     git) _qswxenv="QSW_GITHOLD=$d/at" ;;
   esac
   _qswbg "$d/s1" "$T" "$R" - sweep; _qswpath=""; _qswxenv=""

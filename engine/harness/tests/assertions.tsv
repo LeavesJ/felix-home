@@ -74,6 +74,7 @@
 1	DEVLOG.md gets exactly the old entry: blank line, header with day branch sha, blank line, text
 1	FELIX_ALLOW_RED lets a founder stop anyway
 1	FELIX_GRAPH_TAIL widens the window when someone needs it to
+1	FELIX_HARNESS_DIR holds lib/maintenance.sh, so it is an engine harness
 1	FELIX_MEMORY overrides the default
 1	FELIX_RELEASE_TARGET decides the target when it is set
 1	Felix's own gate refusal is recognised as its own
@@ -129,6 +130,7 @@
 1	a $( ) standing as the command, quoted, runs what it holds, and a path built on one is the program: 3 checks beside a built path that runs no tests
 1	a $HOME under a temporary root still keeps its pointer
 1	a --- block that does not open the file is not frontmatter
+1	a --base that names nothing is refused, not scoped, clean tree or not
 1	a --since that is not YYYY-MM-DD exits non-zero
 1	a -c script whose here-document body runs past the first 64K goes on after the body to its closing quote, over 256K as under it: the runner there is a check
 1	a 200K Write holding 2,000 escaped quotes is refused on its path through the hook inside twenty seconds
@@ -141,6 +143,8 @@
 1	a Copilot resume, which always got the banner, still does
 1	a Copilot resume, which keeps its banner, appends a lifecycle row of kind resume too
 1	a DEVLOG.md entry written by hand after the catch does not settle it
+1	a FELIX_HARNESS_DIR inherited from the caller is replaced by the lib's own
+1	a Felix that writes no implicated set fails the job, and a set left from an earlier run does not stand in
 1	a GitHub Enterprise-shaped host is held too, since github.com's owner/name would not check it
 1	a GitHub origin with no owner/name in it holds both rows, saying so
 1	a HEAD on a pushed branch the default branch does not hold pins nothing
@@ -158,6 +162,7 @@
 1	a backfilled row carries DECLARED
 1	a backslash at the end of a comment does not join the next line to it: the runner there is a check, and a --silent after a commented-out flag takes npm test's status
 1	a bare branch name prefers the remote-tracking ref
+1	a bare commit is not a remote-tracking ref: exit 2, one line
 1	a bare hooks: with a sibling key after it is null, and low
 1	a bare plugin step is used when one of its skills ran
 1	a bare repo has nothing to adopt
@@ -200,19 +205,30 @@
 1	a bound moment on the first row of a 3,000-row stance table is not named unconsidered
 1	a bound moment on the last row of a 3,000-row stance table is not named unconsidered
 1	a bound moment the 3,000-row stance table never lists is named unconsidered
+1	a bound of 0 is no bound
+1	a bound of 5000 seconds keeps only the fold whose tip is 2730 seconds old
 1	a branch both behind and owing adds two rows, behind first and then owed, or one of the two reports would be lost
 1	a branch made from a detached HEAD inherits nothing from before the detach
 1	a branch neither behind nor owing adds no row, or every clean landing would leave a refusal on record
+1	a branch pruned after it was listed does not blank the read: main is still read, the live fold still named
 1	a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version
 1	a branch that does not hold origin/main's commit is behind, status 0, naming the base and both commits, or a stale branch would land unannounced
+1	a branch that only adds a pending file, and a fold not yet pushed, leave the row due
+1	a branch that only adds a pending file, its marker equal to main's, is not in flight
 1	a branch that only adds a pending section reads clean
 1	a branch that owes rows and is not behind adds exactly one row, a would-refuse row and nothing of another kind, or the debt would leave no record or move another count
 1	a branch the gate has not run on has no latest run
 1	a branch tracking origin/main, pushed under its own name with no pull request, is unproposed
+1	a branch under another remote is not counted for origin/main
+1	a branch whose HANDOFF.md has no marker is not in flight
 1	a branch whose engine differs from the deployed one reads installed ok
+1	a branch whose first marker is main's is not in flight, whatever id it quotes lower down
+1	a branch whose marker is behind main's, though cut from main's tip, is not in flight
 1	a branch whose pull request was closed but whose content main holds is landed
 1	a branch with a commit on no remote leads with unpushed
+1	a branch with no HANDOFF.md is not in flight
 1	a branch-owned catch is not settled by a row on its branch from before it
+1	a brief that names no file stops at scope: not acted on, not failed, not escalated
 1	a broad but legitimate rule still denies
 1	a builtin is named without a token, as before
 1	a bumped tree does not become its own judge
@@ -257,6 +273,7 @@
 1	a chain of links keeps every link
 1	a change outside every trigger owes nothing, or a docs branch would be told it owes a version
 1	a change that does not touch the engine is not called self-judgement
+1	a change to the Felix checkout that judges the repair is refused before it judges
 1	a change to the project marker escapes
 1	a change under engine/ that bumps no version and reruns nothing owes both rows, in table order, or the landing that forgot them goes unnamed
 1	a changed library is drift, exit 1
@@ -270,6 +287,7 @@
 1	a check that does not parse is held, not unknown
 1	a check that ends a { } or ( ) group whose output is redirected could have been seen to fail; only the one another command in the group follows is counted as could not
 1	a check that ends the shell on an unset variable is held, as before
+1	a check that exits 0 naming one holder is inflight, holder in field 3
 1	a check that exits 3 is held, as before
 1	a check that fails is held
 1	a check that has actually failed is an item
@@ -389,6 +407,8 @@
 1	a credential added to a green path is out of scope
 1	a credential in added lines classifies red
 1	a credential in added lines escapes as disclose
+1	a credential written into a file the brief named is red, and is not pushed
+1	a criss-cross fold has two merge-bases, one before main's fold and one after it
 1	a current graph is said to be current
 1	a current graph still names the command that asks it
 1	a current receipt raises no unverified line at the merge boundary
@@ -466,6 +486,7 @@
 1	a devlog entry after this branch's catch clears it too
 1	a devlog entry in a checkout with no commit has a one-line header beginning with day and branch
 1	a devlog entry newer than the catch settles it too
+1	a diff felix scope cannot classify is not pushed, and no pull request is labelled
 1	a diff larger than a pipe whose every line is inside the confine still escapes nothing
 1	a different git on PATH computes the same decision epoch
 1	a different remote_match is a different subject
@@ -529,8 +550,6 @@
 1	a felix merge --dry-run on the same checkout adds no would-refuse row, or cmd_merge does not tell the report that a dry run is one
 1	a felix qualify --gate run killed at its first control refuses, never counting none of none as met
 1	a felix-answered row names felix as the actor
-1	a fetch from a plain remote moves the remote-tracking refs itself, and is allowed
-1	a fetch with a refspec into refs/remotes/ is still refused
 1	a file facing a directory is a drift, whatever diff exits
 1	a file git ignores dropped into the entry is residue, not drift
 1	a file git ignores, left in the cache entry, is not drift
@@ -538,6 +557,7 @@
 1	a file of one newline is not the empty placeholder
 1	a file that does not parse drops out of the roster without taking the rest
 1	a file that ends in a NUL is refused for its last byte as well as for the NUL
+1	a file the attempt created is outside the brief too, and is not left for anything to read
 1	a file under bin/ that begins with a shebang is a script, and its bare mode is caught
 1	a file whose row says it lives in memory fails when it is in the tree
 1	a file written by a file the command runs is followed there as well
@@ -549,8 +569,11 @@
 1	a five-column written row, naming no session, does not settle a session-owned catch
 1	a flag with no value refuses instead of spinning
 1	a flagged stop in a chain Felix did not start is judged, not waved through
+1	a fold cut from an older main whose handoff has since moved is stale, not in flight
+1	a fold main has already taken (its tip is in main, its marker is main's) is not in flight
 1	a fold older than its own state file is stranded, not finished
 1	a fold that main moved past merges and reads clean, and the section that landed after it waits
+1	a fold whose tip is older than the row's 48 hours leaves the row due
 1	a force push is still refused
 1	a four-column row still reads as event
 1	a four-column written row on the catch's branch settles nothing
@@ -573,6 +596,8 @@
 1	a gate naming nothing on an unborn HEAD records its status in column four
 1	a gate run that completed without failing is nothing to repair, and one that failed without a log is refused
 1	a gate run that failed to start counts against the ceiling, as do a timed-out one and a conclusion this code does not know
+1	a gate run waiting for approval does not end the count of failures behind it
+1	a gate that cannot be dispatched fails the job
 1	a gate that named a failure and then exited 127 records the name
 1	a gate that ran and failed silently still records exit-1
 1	a gate that skipped the suite is not called a passing suite
@@ -640,6 +665,8 @@
 1	a high-risk row is never installed by commissioning
 1	a hold lets the one flagged stop it started end
 1	a hold on an unverified tree names the exceptions table and says a session cannot grant itself one
+1	a holder keeps its text and drops its control bytes
+1	a holder printed with no trailing newline still counts
 1	a home pointer naming something that is not a home refuses
 1	a home that is no repository has its grants unread, and the widget report says so under the new summary
 1	a hook added today without its bit fails the same way
@@ -654,6 +681,7 @@
 1	a hostile prompt is neutralised, not dropped
 1	a hyphen in the name is not a name
 1	a hyphenated server name still credits the plugin that ships it
+1	a job runs the gate again only after the repair job pushed
 1	a judge identical to the candidate merges nothing
 1	a judge identical to the tree is refused when the engine path sorts first of many
 1	a judge that differs from main's engine by one comment is not the engine main accepted
@@ -711,7 +739,9 @@
 1	a live session whose file name holds a tab is live, and neither a question nor blocked
 1	a live user worktree stays listed, its uncommitted file intact
 1	a live worktree whose tool call has waited past --blocked is listed under blocked, rather than only counted
+1	a local branch (refs/heads) is never counted, though it holds a live fold
 1	a local branch changing two paths, one of which main holds, is unpushed
+1	a local branch is not a remote-tracking ref, though it holds main's commit: exit 2, one line
 1	a local branch whose tip precedes a merged pull request's head is landed, though main's squash of it was edited
 1	a local server declared inline in plugin.json is medium
 1	a local-only branch is taken as given
@@ -723,6 +753,8 @@
 1	a log row on the branch settles a branch-owned catch
 1	a log whose last line has no newline is left byte for byte, pair and all
 1	a long legacy runbook with an empty slug begins with the preface, then shows --repo {{REPO}}, never --repo and a blank
+1	a long marker is quoted at most eighty characters long
+1	a long pointer is refused naming its own directory, not the parent
 1	a lookalike gate is reported
 1	a low-risk candidate is declared
 1	a machine without launchd is refused, not half-served
@@ -827,6 +859,7 @@
 1	a name the registry does not hold reads absent
 1	a name with no digest recorded claims nothing
 1	a named capability carries its count
+1	a named file whose name is not ASCII is pushed like any other
 1	a names lookup that returns 1 naming nothing, or 3, makes the row unknown and says the names could not be read
 1	a names lookup whose substitution ended with status 0 and no text makes the row unknown, not done
 1	a narrowing path that is not a valid ERE is refused as path, or grep would match it against nothing and the narrowing row would narrow nothing
@@ -870,6 +903,7 @@
 1	a one-line registry answers for the right plugin
 1	a one-line registry answers for the right plugin, not the last one
 1	a one-session routing gap is called weak, with the number
+1	a parent eighty characters long, so a cut at eighty ends on its slash
 1	a parent that is not the resolved home is still foreign
 1	a partial answer whose rows could not be counted is unknown, not answered
 1	a pass claiming it ran in the reviewed tree is refused
@@ -889,6 +923,7 @@
 1	a path in inline backticks resolves
 1	a path in the envelope does not decide the route
 1	a path naming nothing real is still not invented
+1	a path outside the checkout or inside its .git is never implicated
 1	a path rule denies an edit
 1	a path that is not there records no instrument
 1	a path you typed yourself still counts
@@ -1009,8 +1044,8 @@
 1	a pulse that has run and never succeeded says never
 1	a pulse with nothing to do still answers
 1	a push nothing reads back is not called verified
-1	a push to refs/remotes/ is still refused
 1	a pushed branch with no pull request, its content not on main, leads with unproposed
+1	a pytest test id and a line number followed by a colon both name their file
 1	a qualification row of five columns has no premise and is met as before
 1	a question answered by a later human message is no question, and an older session's question is not the newest's
 1	a question ending in ?** and followed only by a system envelope still leads with question
@@ -1080,7 +1115,9 @@
 1	a red.tsv base of - reads as retracted, not as a published snapshot
 1	a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot
 1	a red.tsv whose base and run rows are both -, with no names below, is one whole record
-1	a redirect between symbolic-ref's two refs does not hide the second
+1	a ref that does not resolve cannot be examined: exit 2, one line on stdout
+1	a ref whose HANDOFF.md has no marker cannot be examined: exit 2, one line
+1	a ref with no HANDOFF.md cannot be examined: exit 2, one line
 1	a refresh of a graphed checkout exits 0
 1	a refreshed graph clears the row
 1	a refusal on risk is reported
@@ -1104,7 +1141,11 @@
 1	a remote branch with no pull request and no local copy is unproposed
 1	a remote carrying shell text is no slug: risk-labels is a step Felix says it cannot check
 1	a remote whose host would be an ssh option is no GitHub remote: both rows wait
+1	a repair that changes a file the brief did not name is not pushed, and the gate is not spent on it
+1	a repair that edits a workflow file is not pushed, and the gate is not spent on it
 1	a repair that failed says so
+1	a repair the gate fails is not pushed, and asks for no second gate run
+1	a repair the gate passes is pushed, and says so to the job that runs the gate again
 1	a repo copy of a file Felix holds is reported
 1	a report writer that dies on an unset variable is still reached from the judge's shell, or the containment asserted next is never exercised
 1	a reported checker with a row is never called unqualified among twenty thousand, and one with none still is
@@ -1374,6 +1415,7 @@
 1	a sweep KILLed right after its first rm in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing
 1	a sweep run while its TMPDIR has lost its search bit leaves the registration of a live row's base there, and the base, as they were
 1	a sweep that judged a base's record dead before another sweep claimed it, and reaches its own claim only while the other stands in its drop, leaves the base: owner still names the other sweep, and it makes no git worktree remove, leaves no claim and says nothing
+1	a symbolic ref such as origin/HEAD is never counted, even when it points at a fold in flight
 1	a symlink that stays inside the plugin is followed and read
 1	a symlinked handoff is still a symlink after a write
 1	a symlinked log is still a symlink after a gate
@@ -1417,6 +1459,7 @@
 1	a tie is broken the same way whichever order the file lists
 1	a time column that is not a time is read as none
 1	a timed-out gate run is repaired, as the ceiling counts it
+1	a tip dated two hours ahead is not trusted as fresh under a bound
 1	a tool absent from the manifest is not a clean bill
 1	a tool call after it clears the count
 1	a tool that could not be checked is said, not counted as reachable
@@ -1710,6 +1753,7 @@
 1	an id no checker carries resolves absent
 1	an id that cannot name a file still holds an unflagged stop
 1	an ignore rule that swallows a TRACKED maintenance.log fails
+1	an ignored file the attempt created is outside the brief as well, and is removed
 1	an ignored file the probe counts leaves the tree id where it was
 1	an inactive capability makes the row not-applicable
 1	an inactive capability still makes a row not-applicable before its when is read
@@ -1717,6 +1761,7 @@
 1	an inapplicable row is rendered n/a, never ok, HELD or UNRUNNABLE
 1	an indented comment is refused, and the read-and-case loops take it for a row
 1	an indeterminate receipt with a count missing still reads indeterminate first
+1	an inflight row is not rendered as a passed check
 1	an inline server that interpolates a variable is high
 1	an install that succeeds goes on to the model
 1	an installPath that is not a directory reads absent
@@ -1859,6 +1904,7 @@
 1	and a blank line or a line with no need in that output is not a row, and changes nothing
 1	and a branch that changes engine/ still owes both
 1	and a branch that has merged origin/main is not behind, status 1 and nothing printed, or every current branch would be reported
+1	and a brief whose log names no file leaves the set empty
 1	and a bundled plugin last among them
 1	and a cache entry cut from that copy is still the engine main accepted
 1	and a cache file that is not there reads as no digest either
@@ -1967,6 +2013,7 @@
 1	and a ruled one is not
 1	and a run of the last routine is recorded too
 1	and a run over a met control exits 0 only with a clean run's output, its shortfall included, and otherwise says what could not be read or worked out
+1	and a run that is no brief empties it, rather than leave the last run's set
 1	and a run that skipped nothing says so, rather than leaving it blank
 1	and a run whose one checker is never shown failing here never exits 0 either
 1	and a scoped row that stood writes no lift
@@ -2008,6 +2055,7 @@
 1	and adds, removes or changes no file under the project's memory
 1	and again, so a session can bump twice
 1	and all four rows landed
+1	and an --implicated file that cannot be written stops repair before any brief
 1	and an Agent call with no type is still a tool
 1	and an abbreviated id that is no commit here reads as malformed, not as a snapshot
 1	and an absent table refuses with a non-zero status too
@@ -2124,6 +2172,7 @@
 1	and drift in the served checkout is a plain FAIL
 1	and drops the id its heading carried, since only the fold gives ids
 1	and due again after a commit the graph has not seen
+1	and due because the script answered none in flight (exit 1), not because it could not run
 1	and due from the worktree too, which is where the session is
 1	and each bound is named in its own words
 1	and each did its work: the version bumped and the tool wired in
@@ -2157,6 +2206,7 @@
 1	and exits 0 in a repository Felix does not govern
 1	and exits 0 on a clean one
 1	and exits 0 on both, or the judge would take its own library for one that could not be loaded
+1	and exits 0 on it called by a relative path from a subdirectory, finding its library from where it was called
 2	and exits 0 there
 1	and exits 0 there too
 1	and exits 0 when it has a digest to print
@@ -2283,11 +2333,14 @@
 1	and is still not work Felix owes
 1	and it adds exactly one row to that project's says.log, a would-refuse row and nothing of another kind, or the behind branch would leave no record or move another count
 1	and it asks graphify to update the checkout that holds the graph
+1	and it dispatches the workflow whose failure started the repair
 1	and it does not repeat within a session
 1	and it does not say hold
 1	and it ends with counts of live and landed
 1	and it fails closed the same way with the escape list or the execute list blanked, or with the lister gone
 1	and it fails on the file, not on the directory
+1	and it hands that to a person too
+1	and it hands the change to a person on the branch's pull request
 1	and it holds against the shipped lessons file
 1	and it is Felix's own work
 1	and it is a tier, not the word
@@ -2297,6 +2350,7 @@
 1	and it is gone again once the fact is back
 1	and it is landed too, live being the one state landed allows
 1	and it is named
+1	and it is named however git orders its merge-bases, since every base is read
 1	and it is not accepted as a row
 1	and it is not autonomous
 1	and it is not called unproposed, since no pull request is known to be absent
@@ -2305,6 +2359,7 @@
 1	and it is not unproposed, since it is on no remote
 1	and it is not unpushed
 1	and it is refused as empty, not as unfinished
+1	and it is refused though the risk rules call that file green
 1	and it is reported as unusable, not unchecked
 1	and it is said
 1	and it is spelled with the symlinks taken out
@@ -2324,10 +2379,12 @@
 1	and it names the 3 and says it is neither yes nor no
 1	and it names the cache entry felix merge would judge with
 1	and it names the command that clears it
+1	and it names the file it will not push
 1	and it names the file under it
 1	and it names the literal that went missing
 1	and it names the tampered library
 1	and it names the tree that can, not a fault
+1	and it names the workflow file it will not push
 1	and it names which one
 1	and it prints cannot examine
 1	and it reaches merge as an escape, not as unknown
@@ -2337,9 +2394,11 @@
 1	and it says a command in the check does not exist here
 1	and it says matches
 1	and it says none of ready, hold or founder
+1	and it says nothing was compared
 1	and it says so where a reader must look
 1	and it says the capabilities this project declares could not be read
 1	and it says the engine functions the check names could not be read
+1	and it says the risk rules called the diff red
 1	and it says the row's state could not be computed
 1	and it says the rows could not be counted
 1	and it says the shell ended with status 1
@@ -2396,6 +2455,7 @@
 1	and its summary line carries the same count
 1	and its summary line ends saying what would discharge them could not be read
 1	and its tier was read rather than claimed
+1	and its token may dispatch workflows and do nothing else
 1	and its tool call with no result, 3 minutes old, is not yet blocked
 1	and its topology is non-empty
 1	and its verdict on the retraction, reported as _rtn3 reports it, is that failure with that detail, not a skip or a pass
@@ -2411,6 +2471,7 @@
 1	and keeps the file it found with content, byte for byte
 1	and keeps the lessons.md it found, byte for byte
 1	and keeps the prompt that caused it
+1	and keeps the row's description there
 1	and keeps the session it was said in
 1	and land.tsv is named once among the escape tables, as a basename, or a project's table under a name the engine does not know would be missed
 1	and lands in mistakes.log under its own name
@@ -2426,6 +2487,7 @@
 1	and leaves the recorded note as it was
 1	and lifts none of those met rows as a reason
 1	and lists every event its hooks object binds
+1	and lists them in the brief it hands a model
 1	and ln -s onto the marker
 1	and logs no routing decision for it
 1	and main put back matches again
@@ -2470,6 +2532,7 @@
 1	and names the function it could not find
 1	and names the function it could not source
 1	and names the habit
+1	and names the holders: on <holders>
 1	and names the hook
 1	and names the judge only after the merge is reported
 1	and names the path that differs
@@ -2627,6 +2690,7 @@
 1	and on every table, every other reader family reads those same rows
 1	and on it cut -f2 reads the first cell where an IFS read reads nothing
 1	and on it the reason a four-variable read assigns is not the reason cut -f4 reads
+1	and on the branch the repair pushed to
 1	and on this tree it is dormant, satisfied or unsatisfied, never unknown
 1	and once it has, the grant no longer covers them
 1	and once that other sweep is KILLed in its drop's git, the next sweep removes the base and its registration
@@ -2675,6 +2739,7 @@
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
 1	and passes a well-formed file through byte for byte
+1	and passes on GitHub's own reason
 1	and passes on npm's own reason
 1	and passes once the rows are fixed
 1	and passes the facts it already has
@@ -2804,6 +2869,7 @@
 1	and says how many scripts it examined
 1	and says how many tables it read
 1	and says how the command is used
+1	and says in flight on that row
 1	and says it cannot be scoped
 1	and says it could not be asked here
 1	and says it could not run, naming 126
@@ -2817,6 +2883,7 @@
 1	and says it merges once CI is green
 1	and says it must be fixed before the next session
 1	and says it once, as the gate's last line, after the obligations line it depends on
+1	and says it once, on a line of its own
 1	and says it ran 1 of the 2 controls, exiting 1
 1	and says it was never reached
 1	and says it was too long to read
@@ -2860,7 +2927,10 @@
 1	and says the log could not be read
 1	and says the memory it found was kept
 1	and says the merge waits for the founder
+1	and says the pushed commit has no gate verdict
 1	and says the receipt does not exist here
+1	and says the same called by a relative path from a subdirectory, finding its libraries from where it was called
+1	and says the same called by a relative path from a subdirectory, finding its library from where it was called
 1	and says the suite passed when nothing was skipped
 1	and says the table is absent
 1	and says the table is put right before the commission runs
@@ -2911,7 +2981,6 @@
 1	and shows which note it kept
 1	and skip with a reason as a skip of it, giving the reason
 1	and so are the declines, from the same date
-1	and so behind a global option and a quoted -m reason
 1	and so does a compact
 1	and so does a failure nobody answered
 1	and so does a held row after a bare carriage return
@@ -2969,8 +3038,6 @@
 1	and so is the other one
 1	and so is the retraction beside a manifest, since it counts no run to compare
 1	and so is what eval is handed
-1	and so when it deletes one, quoted and ended by a separator
-1	and so when its errors go to /dev/null: the 2 of 2>/dev/null is no second ref
 1	and so with pipefail off in the caller
 1	and so without the caller's pipefail
 1	and ssh is asked only for its configuration, with no DNS lookup, about the alias as written
@@ -3047,6 +3114,7 @@
 1	and that nothing granted it, on a channel review cannot clear
 1	and that one authority writes both halves
 1	and that other repository's own next run in the same TMPDIR removes the registration it was left holding, so it lists only itself
+1	and that output is handed on from the step that pushed, which writes it
 1	and that output is not complete: one of three
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
@@ -3059,6 +3127,7 @@
 1	and that refusal names the launch checkout's deny table
 1	and that refused row begins with the branch and the kind and carries the session
 1	and that row begins with the checked-out branch and carries the session
+1	and that row reads inflight, since the check printed it and exited 0
 1	and that row, committed on a branch origin/main does not hold, is not read, or a pull request could rewrite the recipe that lands it
 1	and that summary counts eleven, four failing, two of them never reached
 1	and the CLI keeps its executable bit through it
@@ -3106,6 +3175,7 @@
 1	and the drift line carries the whole name
 1	and the dry run says the judge is byte-identical to main
 1	and the earlier verdict is not replaced by it
+1	and the emitted inflight row keeps exactly five fields
 1	and the engine copy the command ran from is put back byte for byte
 1	and the engine names the stage among the answers a row may carry
 1	and the engine writes no mistake for it
@@ -3162,12 +3232,14 @@
 1	and the index holds no gitlink afterwards
 1	and the inline variable is named
 1	and the instrument is appended as the ninth
+1	and the job that runs the model holds no actions permission
 1	and the judge is refused when the engine path sorts last
 1	and the judge still exits 0 with stdout byte for byte the control's and no row written, or a failing report could fail a merge
 1	and the lesson is in the file once
 1	and the lesson is in the same block
 1	and the lesson itself is the prose it always was
 1	and the lifecycle row has nine tab-separated fields
+1	and the line names it
 1	and the literal name is caught
 1	and the log carries the sha it was read at
 1	and the log is back to empty, as this block found it
@@ -3242,6 +3314,7 @@
 1	and the recurrence report still reads the failure through the link
 1	and the refilled cache begins with the stamp
 1	and the refusal is the gate's own
+1	and the refusal marks where the middle was cut
 1	and the refusal names that project's deny table
 1	and the refusal names that worktree's marker
 1	and the refusal names the stray, which is all the incident ever printed
@@ -3309,6 +3382,9 @@
 1	and the schema check accepts it
 1	and the schema still refuses a resolver on projects/p/gate.sh from there, or a table checked in the wrong directory would pass
 1	and the schema then refuses a version-above row on that path as protected, unknown, or the fail-closed word would protect nothing
+1	and the script says it is dated ahead, rather than 0m old
+1	and the script says none in flight for it (exit 1)
+1	and the script says none in flight for them (exit 1)
 1	and the second it was caught, since the file's own time is whoever wrote last
 1	and the second project, whose log is tracked too
 1	and the seed holds rows rather than only comments
@@ -3316,7 +3392,9 @@
 1	and the session is not told a person decides on tier alone
 1	and the session is told how many are left
 1	and the sessions the filter actually counted
+1	and the set it proceeds on is handed on as the step's output
 1	and the sha it parenthesises abbreviates main's commit
+1	and the shim did prune it, so the line above read the race
 1	and the shipped wiring matches its stance
 1	and the silence carries an exit code
 1	and the skip list is still where it was
@@ -3335,6 +3413,7 @@
 1	and the summary then counts zero of six
 1	and the table validator accepts it under its schemas.tsv row, or schema-check would fail the gate
 1	and the text is actually there
+1	and the third field is the tip's committer time in Unix seconds
 1	and the tier field is the tier, not a tier with a digest stuck to it
 1	and the tier it carries
 1	and the tier reducer agrees
@@ -3482,7 +3561,9 @@
 1	before any heal, gate_shown_failing cannot see the failure the split rows hold
 1	before the pulse has ever run there is nothing to report
 1	beside a failing probe, the line never says the run was not recorded, since probes was
+1	bin/handoff-in-flight, run from a subdirectory with no arguments, reads origin/main within 48 hours and names each fold, newest first, exit 0
 1	binds the checkout with no remote
+1	blank lines, leading, inner and trailing, are dropped from the holders
 1	blind allow case 10: a python program in a here-document runs no shell
 1	blind allow case 11: JSON on jq's stdin is data
 1	blind allow case 12: grep's search phrase is data
@@ -3500,8 +3581,6 @@
 1	blind allow case 23: ./src is a directory, not a bare dot
 1	blind allow case 24: -N is not -f
 1	blind allow case 25: a plain fetch names no remote-tracking ref
-1	blind allow case 26: update-ref writes refs/heads/backup, and the remote-tracking ref is only the value it reads
-1	blind allow case 27: symbolic-ref with one ref reads it and prints
 1	blind allow case 28: git remote -v and show change no remote
 1	blind allow case 29: ls and cat only read the marker
 1	blind allow case 2: a here-document handed to git commit -F is a message
@@ -3715,6 +3794,8 @@
 1	each control runs against a tree of its own
 1	each engine mktemp driven here names a template under the TMPDIR it was given
 1	each fact carries the tree it was taken from
+1	each id is the branch's current id from its first marker, not a phrase quoted lower down
+1	each inflight row adds a line of its own
 1	each line is a name and a value separated by a tab
 1	each of the five open pull requests has a row that is pr-open
 1	each of them stays under 500 lines
@@ -3782,6 +3863,8 @@
 1	every row prints its states in the spec's table order, so the first is its headline
 1	every row the adopt reader emits is four fields wide, digest or no digest
 1	every run list those three make names the gate workflow
+1	every steps.push output the template reads is one the verify step writes
+1	every tab inside a holder line becomes a space
 1	every uses: in the gate workflow bootstrap renders names a full commit sha, for every stack it can render
 1	every uses: in the unattended template names a full commit sha, not a ref its owner can move
 1	every verdict is one line of two tab-separated fields
@@ -3844,6 +3927,7 @@
 1	felix lesson files its writer beside the lesson: branch, kind and session
 1	felix lesson run in the checkout leaves a written.log row for its session, branch and kind
 1	felix log run in the checkout leaves a written.log row of kind log for its session
+1	felix maintenance marks the row in-flt
 1	felix maintenance renders a passing check as such
 1	felix maintenance renders it DUE, check refused
 1	felix maintenance says a row can never come due
@@ -3910,6 +3994,7 @@
 1	felix repair refuses a detached checkout rather than finding nothing to repair on HEAD
 1	felix repair stops at the ceiling when its attempts cannot be counted
 1	felix repair stops three failed gate runs that a cancelled one sits between
+1	felix repair writes the files the failing log names where --implicated says
 1	felix route --ack records without error
 1	felix setup lists the refused row as not done
 1	felix setup risk-labels prints the runbook with the slug filled in
@@ -4083,6 +4168,7 @@
 1	felix_final_filter refuses a newline list whose last line ends in tail, a newline acting as ;
 1	felix_final_filter_lead leads every row with the failure when its awk cannot run
 1	felix_final_filter_table names the refused line of a setup table, and why
+1	felix_handoff_in_flight names every fold in flight on origin, one <branch> <id> <epoch> line each, newest tip first, and exits 0
 1	felix_has_line matches whole lines under pipefail
 1	felix_has_line rejects partial lines
 1	felix_hook_dir answers a cwd equal to the launch directory without resolving anything
@@ -4153,9 +4239,14 @@
 1	fixture: every throwaway checkout is on the branch its case assumes
 1	fixture: every throwaway checkout stands where its case assumes
 1	fixture: the non-git root is outside any repository
+1	fixture: the row carries the section-5 check verbatim
 1	fixture: the unborn checkout has no commit yet
 1	flipping a file's executable bit changes the digest
+1	fold order: 0aaa is after 0zz, though it sorts before it as a string
+1	fold order: 0da is after 0cz, so a fold to 0da from a main at 0cz is in flight
+1	fold order: 0zz is before 0aaa, though it sorts after it as a string, so it is not in flight
 1	folding a section ahead of one that landed before it is refused
+1	folds are ordered by tip time, newest first, not by name or by id
 1	for every gate check that file actually covers
 1	four sweeps started together over three dead bases, in each of three rounds, leave none of them on disk or registered, print nothing on stdout, and say no felix: line
 1	fragments that cannot pair keep their bytes and their places
@@ -4169,6 +4260,7 @@
 1	frontmatter with Windows line endings still declares hooks
 1	gate command actually ran
 1	gh pr merge is told the head commit the checkout has, by --match-head-commit
+1	given a bound of 48 hours in seconds, a fold whose tip is 72 hours old is left out
 1	governs them immediately
 1	green tier is still reported
 1	grounded on a probe felix declares
@@ -4179,6 +4271,20 @@
 1	handoff lists the session-end checks
 1	handoff-check cannot examine a checkout with no HANDOFF.md, and says 2, never 0
 1	handoff-check exits 1 on it, which fails the gate
+1	handoff-in-flight --within 0 is no bound, and a tip 72 hours old is said in hours
+1	handoff-in-flight --within 1.5 exits 2, since hours are whole
+1	handoff-in-flight --within 100 is a hundred hours, so the 72-hour tip is named
+1	handoff-in-flight --within 3 is three hours: the 5-hour and 72-hour tips are left out
+1	handoff-in-flight --within abc exits 2: cannot examine
+1	handoff-in-flight --within with no value exits 2
+1	handoff-in-flight answers from git alone and never runs gh
+1	handoff-in-flight on a local branch exits 2: not a remote-tracking ref
+1	handoff-in-flight on a ref that does not resolve exits 2: cannot examine
+1	handoff-in-flight on a ref with no marker exits 2: cannot examine
+1	handoff-in-flight outside any checkout exits 2, since origin/main does not resolve
+1	handoff-in-flight takes the ref as its argument, the short form included
+1	handoff-in-flight with an unknown option exits 2
+1	handoff-in-flight with nothing in flight exits 1 and prints nothing, as grep does
 1	hands off for anything broader
 1	having nothing to say is not a failure
 1	help covers every command that dispatches
@@ -4509,6 +4615,7 @@
 1	it counts the seven top-level sessions it read, not the subagent files or the stray one beside them
 1	it emits parseable json
 1	it enumerates declared projects, not directory entries
+1	it examines the checkout it is given as <root>, from any working directory
 1	it gives the date range from record timestamps, 2026-03-02 to 2026-03-09, not a date quoted in a message
 1	it goes quiet once nothing is new
 1	it insists on aggregating
@@ -4524,6 +4631,7 @@
 1	it names what changed
 1	it names what counts as a check and that --verify changes it
 1	it ran no git command that writes, or that reaches a remote
+1	it reads the folds in flight from git alone and never runs gh
 1	it recorded the capability
 1	it renders the mount
 1	it renders the unmount with its evidence
@@ -4610,6 +4718,7 @@
 1	naming the predicate that blocks
 1	naming the row
 1	naming the scanner nobody listed
+1	naming the second row with its own holder
 1	naming the table and the missing row
 1	naming the table's line and the rule it breaks
 1	naming which check failed
@@ -4770,9 +4879,11 @@
 1	on a repository with no commit, nothing tracked reads as empty, not blind
 1	on a well-formed log the recurrence report is what it always was
 1	on main after an engine change nobody deployed, installed fails
+1	on the line directly under the in-flt row
 1	onboarding writes one
 1	once origin/main holds the table, felix_land_table_at_base prints it as that ref holds it, or the base could not be read at all
 1	once the flag is cleared, the next run removes that base, and the root lists only itself
+1	once the fold is on the remote the row is inflight, naming the branch, its id and its age
 1	one already declared is left alone
 1	one already in stack.tsv is left alone
 1	one already in the stack still reads already
@@ -4801,7 +4912,9 @@
 1	one tree gated twice is one occasion, not a habit
 1	one undeclared ground among declared ones refuses the row
 1	one whose evidence fails is ACTIVE UNSATISFIED
+1	only stdout names holders; what the check said on stderr is not one
 1	only the claim is mounted, not the evidence
+1	only the inflight row is marked in-flt, not the silent ok row
 1	or without hooks
 1	origin behind an ssh alias that ssh -G says stands for github.com gives acme/widget, so both read done
 1	origin outranks the name that sorts first
@@ -4816,7 +4929,6 @@
 1	passing gate exits 0
 1	path and all
 1	plain felix qualify reads it once for its controls and at most once more for the roster gap
-1	pointing HEAD at a remote-tracking ref is refused, since the next commit would move it
 1	pr previews and exits 0
 1	pr refuses to open a branch against itself
 1	premise, mutation and command run in one scratch worktree of HEAD, never in the root
@@ -5084,6 +5196,7 @@
 1	sees a credential in an untracked new file
 1	sees a plugin a route already names
 1	self-contained, no external references
+1	session start names the holder: 'Already in flight, so not due: <name> on <holders>'
 1	session start reports a broken home pointer
 1	session start reports an unresolvable marker
 1	session start surfaces the reconcile proposals
@@ -5141,7 +5254,9 @@
 1	so the receipt the run wrote is not stale at the next read
 1	so the same command with the flag spelled right then binds it
 1	so the session count is the number of sessions
+1	so the session start's output is still JSON
 1	so two sessions folding at once both land, and the second changes nothing
+1	sourced from another harness, FELIX_HARNESS_DIR names that harness instead
 1	sourcing lib/final-filter.sh defines felix_final_filter
 1	speaks for this checkout's own unexplained catch, first line exact
 1	speaks when a catch went unexplained
@@ -5171,8 +5286,6 @@
 1	survives a machine laid out differently
 1	survives a transcript that is not there
 1	swapping two rows that bind the same path escapes as verifier, or which of them stands could change with nobody asked
-1	symbolic-ref --delete with one ref deletes it, and is refused
-1	symbolic-ref with two refs writes the first, and a remote-tracking one is refused
 1	tasks sharing a file are one unit
 1	text piped into a shell is its script
 1	that names the command
@@ -5192,6 +5305,7 @@
 1	the admit phase installs nothing and edits no manifest
 1	the admitted sentence now counts the grants
 1	the adopt fixture's checkout shows ci, and its project declares nothing
+1	the age is whole minutes under an hour and whole hours otherwise, rounded down: 0m 1m 45m 59m 1h 2h 72h
 1	the agent points at the served engine, not the running copy
 1	the agent runs the pulse
 1	the all-clear says what could not be checked
@@ -5209,6 +5323,7 @@
 1	the behind fixture stands where it says: feat does not hold origin/main's commit
 1	the behind-and-owing fixture is behind origin/main and changes engine/harness/lib/x.sh alone since the merge-base
 1	the best capability wins
+1	the branch is named under the remote, without origin/ or refs/remotes/
 1	the brief names the file the issue names
 1	the budget row is not reported as satisfied
 1	the bump fixture has an identical judge, so the guard can fire
@@ -5222,6 +5337,8 @@
 1	the capability probe yields ecosystem words to check for
 1	the cause is not the raw payload
 1	the ceiling itself is still a night somebody can be granted
+1	the check runs in the checkout root it was given
+1	the check runs with FELIX_HARNESS_DIR set to the harness the lib was sourced from
 1	the check whose guard can fail before | sort is asked, and done
 1	the check with head mid-pipeline is asked, and done
 1	the check with | head -1 inside $( ) is asked, and done
@@ -5443,6 +5560,8 @@
 1	the fourth names the engine as proposer: felix at a version and a sha
 1	the gate announces a stale receipt and does not fail on it
 1	the gate carries the ecosystem check too
+1	the gate is dispatched on the pushed branch
+1	the gate workflow bootstrap writes can be dispatched
 1	the gate's executable check passes when every script under bin/ has its bit
 1	the gate's installed check asks the one reader, felix_accepted_deploy_diff
 1	the gate's obligations check stays ok with every need absent
@@ -5472,6 +5591,7 @@
 1	the human view lists a live worktree whose newest session ended on a question, rather than only counting it live
 1	the id after 0bv is 0bw, after 0bz 0ca, after 0z 0aa, and after 0zz 0aaa
 1	the ignored file leaves the tree id the receipt was stamped for
+1	the in-flight line appears when nothing is due
 1	the independence check is behind the verifier confine
 1	the injected checkout actually moved the branch
 1	the installed check is behind the verifier confine
@@ -5670,6 +5790,7 @@
 1	the shipped layout — memory under ~/.felix — is its own repo
 1	the shipped schema has none of those
 1	the shipped table considers every moment
+1	the short form origin/main is read as refs/remotes/origin/main
 1	the skipped row the Stop hook writes is counted
 1	the source names the marketplace the entry came from
 1	the squash leaves the merge-base behind main
@@ -5690,7 +5811,6 @@
 1	the table did not grow
 1	the table is seeded
 1	the table resolves to its repo-relative path
-1	the target of a redirect after that read is a file, not a second ref
 1	the template documents the needs column
 1	the tests check is behind the verifier confine
 1	the third field is the epoch the answer file named
@@ -5709,6 +5829,7 @@
 1	the unrunob fixture's obligation fails from the engine
 1	the unverified tree blocker is work Felix owes
 1	the variable an ask is told to set is set, whatever the caller named it
+1	the verify step takes the implicated set from the scope step's output, and reads no file for it
 1	the watching git was asked
 1	the when-status rows are read as rows, none of them malformed
 1	the whole forty-character hash grants too, and an expired row above it does not shadow it
@@ -5774,6 +5895,7 @@
 1	two gates at once each report their own suite's count
 1	two hundred and one continuations is past the ceiling
 1	two met controls pass --gate when nothing cuts the run short
+1	two non-empty lines are joined by '; ', in the order printed
 1	two piped lines in one file are one pipe-to-shell fact
 1	two rows in one session are one session, calls summed
 1	two rows, once each
@@ -5785,6 +5907,34 @@
 1	two unpushed branches making the same change are each marked possible-duplicate: the second
 1	two writers appending to one facts.log at once both report success
 1	two writers on one tree in one second both report success too
+1	unchanged: a cadence row is due on its clock, never inflight from a fifth column
+1	unchanged: a check whose script is missing from the harness is due though it printed
+1	unchanged: a dormant row is dormant, never inflight
+1	unchanged: a four-column row is event
+1	unchanged: a row with a dash for its check is event
+1	unchanged: and counts no routine as due
+1	unchanged: and does not name the inflight row anywhere
+1	unchanged: and never names the inflight row
+1	unchanged: and no due badge
+1	unchanged: and nothing reads inflight when nothing was asked
+1	unchanged: and still ends Nothing due.
+1	unchanged: and the count says one
+1	unchanged: exit 0 with no output is ok, as before
+1	unchanged: exit 0 with only blank lines is ok, not inflight with no holder
+1	unchanged: exit 0 with output on stderr only is ok
+1	unchanged: exit 1 with output is due, the output rescues nothing
+1	unchanged: exit 127 with output is due
+1	unchanged: exit 2 with output is due
+1	unchanged: felix next ranks the due row as upkeep
+1	unchanged: only the due row is DUE
+1	unchanged: the 'Maintenance due:' line lists only the due row
+1	unchanged: the badge counts only due rows, so an inflight row adds nothing
+1	unchanged: the pulse names the due row, asked in its own checkout
+1	unchanged: the stop hook's due filter yields the due row and not the inflight one
+1	unchanged: with fewer than three pending on main the row is ok
+1	unchanged: with no root an inflight-shaped row is unchecked
+1	unchanged: with no root the check is never run
+1	unchanged: with only inflight and ok rows there is no due line
 1	undeclared capability classifies as dormant
 1	under --no-gh a branch only a merged pull request shows landed is not called landed
 1	under --no-gh a pushed branch whose pull requests cannot be seen says unknown
@@ -5807,7 +5957,6 @@
 1	unstubbed, a whole answer of two rows is ingested: the record prints 2 and appends to the log
 1	unstubbed, an answer saying done 0 over two rows and one saying done 2 over three are partial
 1	untouched surfaces are n/a
-1	update-ref writing a remote-tracking ref is still refused
 1	veldra's fmt: a check that fails with no name it can parse is a loud FAIL
 1	veldra's fmt: a new file rustfmt rewrites is named, though git diff cannot see it
 1	veldra's fmt: and a check that named its files leaves no log behind
@@ -5941,6 +6090,7 @@
 1	with no CLI to ask and a newer entry on disk, the entry main declares is still the one compared
 1	with no Claude Code registry in HOME, the installed engine is - and the bound one is still read
 1	with no assertions.tsv beside it the red run is refused before the suite runs, exit 2, the claim retracted and nothing left
+1	with no bound it is named
 1	with no checkout in front of it the row reads unchecked
 2	with no cli call at all
 1	with no commit yet the written row spells branch and sha exactly as the gate's own row does
@@ -5950,6 +6100,7 @@
 1	with no grant the merge still waits for the founder
 1	with no graphify installed the refresh runs nothing
 1	with no graphify-out beside the checkout it runs nothing
+1	with no implicated set from the scope step, nothing is pushed and no pull request is labelled
 1	with no origin but a GitHub remote named upstream, both rows are held as todo, saying origin is the one read
 1	with no origin/main the table is not read at all, local main's copy included, or a local branch could stand in for the base
 1	with no probes.tsv the epoch cannot be computed, and every recorded row is stale
@@ -5968,7 +6119,9 @@
 1	with no stances taken, every item is a gap
 1	with no written.log this session's catch prompts, first line exact
 1	with nothing due it reports nothing
+1	with nothing in flight it prints nothing and exits 0
 1	with nothing on record there is nothing to compare
+1	with only inflight, ok, event and dormant rows, felix maintenance shows the inflight row
 1	with origin/main a bump ahead of main, the check follows origin
 1	with origin/main level with main the verdict is unchanged
 1	with that proc filesystem, a base whose record names a dead pid alone is left as it was: a host whose /proc names its namespace cannot judge it
@@ -6000,6 +6153,7 @@
 1	with the state function replaced and every line it gives well formed, both rows are done and the receipt is commissioned
 1	with the template's one row, the lifecycle obligation every plugin owes
 1	with the usage text
+1	with three pending and no fold branch the handoff row is due
 1	without --strict it only reports
 1	without claiming that none of it is a founder decision
 1	without lib/exceptions.sh every eighth column is a dash and every row is still reported

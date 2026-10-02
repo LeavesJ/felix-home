@@ -33,7 +33,7 @@
 #   felix receipt        the same facts as one typed record a machine can read
 #   felix incident       turn an error into a brief; --create opens an issue
 #   felix maintenance    what upkeep is due; --ran <name> records a run
-#   felix repair         why CI failed, how many tries are left
+#   felix repair         why CI failed, how many tries are left; --implicated <file> writes the paths it names
 #   felix log "<text>"    record a devlog entry, stamped with branch and commit
 #   felix lesson "<text>" record something durable enough to repeat
 #   felix handoff        regenerate the handoff from the state of the tree
@@ -3965,6 +3965,18 @@ cmd_automerge() {
   fi
 }
 
+# felix scope's exit status is read by templates/unattended.yml, whose verify
+# step classifies a repair's own commit with --base before the gate runs:
+#
+#   0  in scope, or nothing to scope: no path was given and the diff is empty
+#   1  no risk.tsv, a flag without its value, or a --base that names nothing
+#      here, so nothing was compared
+#   2  no project governs the checkout, or the binding naming one is broken
+#   3  out of scope: a red path, or from a diff a red content rule
+#
+# A --base that names nothing exited 0 until 2026-09-24: the diff it could not
+# read came back empty, which is "nothing to scope", and with local changes it
+# classified as `unknown`, which is not red, so it printed "In scope".
 cmd_scope() {
   resolve_or_die; local proj="$PROJ" base="" paths=""
   while [ $# -gt 0 ]; do
@@ -3980,6 +3992,11 @@ $1"; shift ;;
   if [ -z "$(printf '%s' "$paths" | tr -d '[:space:]')" ]; then
     from_diff=1
     base="${base:-main}"
+    felix_base_resolves "$root" "$base" || {
+      printf 'The base %s names nothing here, so nothing was compared and no tier\n' "$base"
+      printf 'can be given. Name a branch or commit this checkout has.\n'
+      return 1
+    }
     paths="$(felix_changed_paths "$root" "$base")"
   fi
   paths="$(printf '%s\n' "$paths" | grep -v '^$' | sort -u)"
@@ -4158,6 +4175,10 @@ cmd_maintenance() {
                else printf '  DUE     %-18s %-14s %s\n' "$name" "last: $age" "$desc"; fi ;;
       ok)      if [ "${cadence:-0}" -eq 0 ] 2>/dev/null; then printf '  ok      %-18s %-14s %s\n' "$name" "check passed" "$desc"
                else printf '  ok      %-18s %-14s every %sd\n' "$name" "${age}d ago" "$cadence"; fi ;;
+      # Not due because another branch is already doing it, and named, so
+      # nobody starts it twice. The third column holds what the check said.
+      inflight) printf '  in-flt  %-18s %-14s %s\n' "$name" "in flight" "$desc"
+                printf '          %-18s on %s\n' "" "$age" ;;
       event)   printf '  event   %-18s %-14s %s\n' "$name" "on trigger" "$desc" ;;
       # A row with a check, asked from somewhere with no checkout in front of
       # it. Not `event`, which would say the row has nothing to answer to.
@@ -4282,6 +4303,25 @@ EOF
 cmd_repair() {
   # 4, not resolution's usual 2, which here is the ceiling. The statuses are
   # listed in lib/repair.sh.
+  local named=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --implicated) need_value "$@"; named="$2"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  # Emptied first, before anything can stop, so a file left by an earlier run
+  # never stands for this one. Only a brief (status 0) fills it. The
+  # unattended template reads it as the only files a repair may change, and
+  # refuses anything else, so a file that could not be written is the same
+  # stop as a log that could not be read.
+  if [ -n "$named" ]; then
+    : > "$named" 2>/dev/null || {
+      printf 'Could not write the implicated paths to %s, so no repair could be\n' "$named"
+      printf 'held to them. Nothing is repaired from a brief nobody can check.\n'
+      return 1
+    }
+  fi
   resolve_or_die 4; local proj="$PROJ"
   _felix_repair_require_gh || return 1
   local repo branch latest run_id status conclusion attempts gwf
@@ -4402,6 +4442,20 @@ cmd_repair() {
     fi
   fi
 
+  # Listed, not left to be read out of the log: this is the set the unattended
+  # template holds a repair to, and a model reading a bare `a.py` in a trace
+  # cannot know that only the file at the root would count.
+  if [ -n "$implicated" ]; then
+    printf '\nimplicated files:\n\n'
+    printf '%s\n' "$implicated" | sed 's|^|  |'
+  fi
+  if [ -n "$named" ] && [ -n "$implicated" ]; then
+    printf '%s\n' "$implicated" > "$named" 2>/dev/null || {
+      printf '\nCould not write the implicated paths to %s, so no repair could be\n' "$named"
+      printf 'held to them. Nothing is repaired from a brief nobody can check.\n'
+      return 1
+    }
+  fi
   printf '\nfailing output:\n\n'
   printf '%s\n' "$log_text" | sed 's/^/  /'
   printf '\nPatch the same branch, run the gate locally, then push.\n'

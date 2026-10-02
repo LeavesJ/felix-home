@@ -3087,6 +3087,11 @@ if ! command -v jq >/dev/null 2>&1; then
            "and the ceiling counts it with the failure behind it" \
            "a failed run whose log cannot be read is refused, not briefed" \
            "and says the log could not be read" \
+           "felix repair writes the files the failing log names where --implicated says" \
+           "and lists them in the brief it hands a model" \
+           "and a brief whose log names no file leaves the set empty" \
+           "and a run that is no brief empties it, rather than leave the last run's set" \
+           "and an --implicated file that cannot be written stops repair before any brief" \
            "felix automerge judges a green pull request by the gate's runs alone" \
            "and every run list felix automerge makes names the gate workflow" \
            "and felix unattended's streak row counts the gate's runs alone" \
@@ -3137,7 +3142,8 @@ case "$1 $2" in
   # WFSTUB_NOLOG is a log GitHub no longer holds, or never did: gh answers and
   # there is nothing in it.
   "run view") [ -n "${WFSTUB_NOLOG:-}" ] \
-                || printf 'gate\tRun the gate\t2026-09-22T00:00:00.0000000Z Error: the widget test failed\n' ;;
+                || printf 'gate\tRun the gate\t2026-09-22T00:00:00.0000000Z Error: %s\n' \
+                          "${WFSTUB_LOGTEXT:-the widget test failed}" ;;
 esac
 exit 0
 STUB
@@ -3366,6 +3372,32 @@ case "$out" in *"attempt(s) left"*) _wfnolog="$_wfnolog(briefed)" ;; esac
 is  "a failed run whose log cannot be read is refused, not briefed" "$_wfnolog" " unanswered:1 empty:1"
 has "and says the log could not be read" "$out" "log of run 201"
 
+# The brief's second half for the unattended template: the files the failing
+# log names, written where --implicated says, and listed in the brief a model
+# reads, so the set a repair is held to is the set it was shown. Emptied on
+# every run, so a run that is no brief cannot leave the last one's set behind
+# to stand for it.
+_wfimp="$TMP/wf.implicated"
+out="$( export WFSTUB_LOGTEXT='WIDGET.txt:3 does not say widget, nor does /tmp/elsewhere.py'
+        _wfcli repair --implicated "$_wfimp" )"; rc=$?
+is  "felix repair writes the files the failing log names where --implicated says" \
+    "exit $rc: $(tr '\n' ' ' < "$_wfimp" 2>/dev/null)" "exit 0: WIDGET.txt "
+has "and lists them in the brief it hands a model" "$out" "$(printf 'implicated files:\n\n  WIDGET.txt')"
+out="$(_wfcli repair --implicated "$_wfimp")"; rc=$?
+is  "and a brief whose log names no file leaves the set empty" \
+    "exit $rc, $(wc -c < "$_wfimp" 2>/dev/null | tr -d ' ') bytes" "exit 0, 0 bytes"
+printf 'WIDGET.txt\n' > "$_wfimp"
+printf 'gate.yml\tgate\tfix/y\t211\tcompleted\tsuccess\n' > "$TMP/wf.runs.green"
+out="$( export WFSTUB_RUNS="$TMP/wf.runs.green"; _wfcli repair --implicated "$_wfimp" )"; rc=$?
+is  "and a run that is no brief empties it, rather than leave the last run's set" \
+    "exit $rc, $(wc -c < "$_wfimp" 2>/dev/null | tr -d ' ') bytes" "exit 5, 0 bytes"
+out="$(_wfcli repair --implicated "$TMP/no/such/dir/implicated")"; rc=$?
+if [ "$rc" = "1" ] && ! grep -qE 'failing output|attempt\(s\) left' <<<"$out"; then
+  ok  "and an --implicated file that cannot be written stops repair before any brief"
+else
+  bad "and an --implicated file that cannot be written stops repair before any brief" "exit $rc: $out"
+fi
+
 : > "$WFSTUB_LOG"
 out="$(_wfcli automerge)"
 has "felix automerge judges a green pull request by the gate's runs alone" "$out" "clean  #7"
@@ -3431,12 +3463,30 @@ printf '\nthe unattended repair acts only on a brief\n'
 SC="$TMP/scope"; mkdir -p "$SC/repo" "$SC/felix/engine/harness" "$SC/bin"
 awk '/- name: Scope the failure/ { f = 1 } f && /^        run: \|/ { r = 1; next }
      r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' \
-  "$REAL_HARNESS/templates/unattended.yml" | sed "s#/tmp/brief.txt#$SC/brief.txt#" > "$SC/step.sh"
-printf '#!/usr/bin/env bash\nprintf "brief\\n"; exit "${SCOPE_RC:-0}"\n' > "$SC/felix/engine/harness/felix"
+  "$REAL_HARNESS/templates/unattended.yml" \
+  | sed "s#/tmp/brief.txt#$SC/brief.txt#; s#/tmp/implicated.txt#$SC/implicated.txt#g" > "$SC/step.sh"
+# felix repair as the step calls it: --implicated names a file it empties, and
+# a brief (0) writes the named files into it. SCOPE_NAMED is that set, and
+# SCOPE_NOFILE a Felix from before --implicated, which writes nothing.
+cat > "$SC/felix/engine/harness/felix" <<'STUB'
+#!/usr/bin/env bash
+prev=""
+for a in "$@"; do
+  if [ "$prev" = "--implicated" ] && [ -z "${SCOPE_NOFILE:-}" ]; then
+    : > "$a"
+    if [ "${SCOPE_RC:-0}" = "0" ] && [ -n "${SCOPE_NAMED:-}" ]; then
+      printf '%s\n' "$SCOPE_NAMED" > "$a"
+    fi
+  fi
+  prev="$a"
+done
+printf "brief\n"; exit "${SCOPE_RC:-0}"
+STUB
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "%s/gh.log"\ncase "$1 $2" in "pr list") printf "7\\n" ;; esac\nexit 0\n' "$SC" > "$SC/bin/gh"
 chmod +x "$SC/felix/engine/harness/felix" "$SC/bin/gh"
 _scope() { : > "$SC/out"; : > "$SC/gh.log"
-  ( cd "$SC/${2:-repo}" && SCOPE_RC="$1" GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
+  ( cd "$SC/${2:-repo}" && SCOPE_RC="$1" SCOPE_NAMED="${_snamed-src/a.py}" SCOPE_NOFILE="${_snofile:-}" \
+      GITHUB_OUTPUT="$SC/out" BRANCH=fix/x PATH="$SC/bin:$PATH" \
       bash -e "$SC/step.sh" ) >/dev/null 2>"$SC/err"; }
 _sres=""; _snot=""
 for _r in 0 1 2 3 4 5; do
@@ -3444,7 +3494,8 @@ for _r in 0 1 2 3 4 5; do
   _sres="$_sres $_r:$(sed -n 's/^proceed=//p' "$SC/out" | head -1)"
   _snot="$_snot $_r:$(sed -n 's/^nothing=//p' "$SC/out" | head -1)"
   case "$_r" in
-    0) _s0brief="$(cat "$SC/brief.txt" 2>/dev/null)" ;;
+    0) _s0brief="$(cat "$SC/brief.txt" 2>/dev/null)"
+       _s0set="$(awk '/^implicated<</ { d = substr($0, 13); f = 1; next } f && $0 == d { exit } f' "$SC/out")" ;;
     1) _s1rc="$_src" ;;
     2) _s2gh="$(cat "$SC/gh.log")" ;;
     3) _s3gh="$(cat "$SC/gh.log")" ;;
@@ -3454,6 +3505,9 @@ for _r in 0 1 2 3 4 5; do
 done
 is  "the unattended repair proceeds on a brief, and on no other exit of felix repair" "$_sres" " 0:yes 1:no 2:no 3:no 4:no 5:no"
 is  "and the brief it proceeds on is the file the repair step hands a model" "$_s0brief" "brief"
+# The set goes on as a step output, which nothing after the step can rewrite,
+# whatever the model's tools could reach.
+is  "and the set it proceeds on is handed on as the step's output" "$_s0set" "src/a.py"
 has "a reached repair ceiling is escalated to a person" "$_s2gh" "pr edit 7 --add-label needs-founder"
 has "a failure on a red path is escalated to a person" "$_s3gh" "pr edit 7 --add-label needs-founder"
 [ "${_s1rc:-0}" -ne 0 ] && ok  "a run felix repair could not read fails the job rather than passing quietly" \
@@ -3467,11 +3521,29 @@ has "a failure on a red path is escalated to a person" "$_s3gh" "pr edit 7 --add
 _sread="$(grep -o 'steps\.scope\.outputs\.[a-z_]*' "$REAL_HARNESS/templates/unattended.yml" \
           | sed 's/.*\.//' | sort -u)"
 _sunwritten=""
-for _k in $_sread; do grep -q "echo \"$_k=" "$SC/step.sh" || _sunwritten="$_sunwritten $_k"; done
+for _k in $_sread; do grep -qE "echo \"$_k(=|<<)" "$SC/step.sh" || _sunwritten="$_sunwritten $_k"; done
 [ "$_snot" = " 0: 1: 2: 3: 4: 5:yes" ] && [ -z "$_sunwritten" ] \
   && ok  "and only nothing to repair tells the report so, under the name the report reads" \
   || bad "and only nothing to repair tells the report so, under the name the report reads" \
          "written:$_snot; read and never written:${_sunwritten:- none}"
+
+# A brief that names no file in the checkout. The model would be told to edit
+# only the files the brief lists, it lists none, and the verify step refuses
+# any other, so every change would be refused after the budget and a model run
+# were spent. It stops at scope instead, and without a label: the failure is
+# already red on the pull request, and nothing risky is known about it.
+_snamed=""; _scope 0; _src=$?; unset _snamed
+is  "a brief that names no file stops at scope: not acted on, not failed, not escalated" \
+    "exit $_src, proceed=$(sed -n 's/^proceed=//p' "$SC/out" | head -1), unnamed=$(sed -n 's/^unnamed=//p' "$SC/out" | head -1), gh [$(tr '\n' ' ' < "$SC/gh.log")]" \
+    "exit 0, proceed=no, unnamed=yes, gh []"
+# A Felix that never writes the set, one pinned from before --implicated, with
+# a set left over from an earlier run on the same runner. Read as this run's,
+# the leftover would hold a repair to files the failing log never named.
+printf 'src/a.py\n' > "$SC/implicated.txt"
+_snofile=1; _scope 0; _src=$?; unset _snofile
+is  "a Felix that writes no implicated set fails the job, and a set left from an earlier run does not stand in" \
+    "exit $_src, proceed=$(sed -n 's/^proceed=//p' "$SC/out" | head -1), gh [$(tr '\n' ' ' < "$SC/gh.log")]" \
+    "exit 1, proceed=no, gh []"
 
 # The step above branches on felix repair's statuses, and the engine answering
 # is whatever the Felix checkout fetched. With no ref that was the default
@@ -3558,6 +3630,255 @@ is  "and no model is run" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "0"
 _attempt ""
 is  "an install that succeeds goes on to the model" "$(wc -l < "$AT/claude.log" | tr -d ' ')" "1"
 
+printf '\nthe unattended repair gets its push gated\n'
+# The repair pushes with the GITHUB_TOKEN actions/checkout leaves in the
+# checkout, and GitHub starts no workflow for an event that token causes,
+# workflow_dispatch and repository_dispatch excepted. On github.com a pull
+# request the token updates gets a pull_request run that waits for a person to
+# approve it. So a repaired commit reached its pull request with no gate
+# verdict, and the ceiling counted gate runs people caused, not repair
+# attempts. The same token cannot push a change under .github/workflows, so a
+# repair that edited one failed at the push, after the gate had passed it.
+# Both rules are GitHub's, from "Triggering a workflow from a workflow".
+#
+# The verify step is taken out of the shipped template and run under bash -e
+# in a clone of a bare remote, with felix stubbed to a gate of the test's
+# choosing. A bare remote takes a workflow file from anyone, so a refusal here
+# is the step's own and not the server's.
+UT="$REAL_HARNESS/templates/unattended.yml"
+VP="$TMP/verify"; mkdir -p "$VP/felix/engine/harness" "$VP/bin" "$VP/vbin"
+awk '/- name: Verify and push/ { f = 1 } f && /^        run: \|/ { r = 1; next }
+     r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' "$UT" > "$VP/step.sh"
+# The gate is stubbed to a status of the test's choosing. Everything else is
+# the real felix, so the verify step's own scope check is the real classifier
+# reading the real risk table: the fixture checkout is bound to widget, whose
+# table is the shipped template's for the length of this section.
+printf '#!/usr/bin/env bash\n[ "$1" = gate ] || exec "%s" "$@"\nprintf "gate\\n" >> "%s/gate.log"\nexit "${VERIFY_GATE_RC:-0}"\n' \
+  "$FELIX" "$VP" > "$VP/felix/engine/harness/felix"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "%s/gh.log"\ncase "$1 $2" in "pr list") printf "7\\n" ;; esac\nexit 0\n' \
+  "$VP" > "$VP/vbin/gh"
+chmod +x "$VP/felix/engine/harness/felix" "$VP/vbin/gh"
+# The judge the verify step checks is unchanged: a checkout, as in the job,
+# with a risk table of its own in it.
+mkdir -p "$VP/felix/projects/widget"
+cp "$REAL_HARNESS/templates/risk.tsv" "$VP/felix/projects/widget/risk.tsv"
+( cd "$VP/felix" && git init -q -b main && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm felix ) >/dev/null 2>&1
+cp "$FROOT/projects/widget/risk.tsv" "$VP/risk.keep"
+cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
+# The implicated set the scope step would hand on as its output, src/a.txt
+# unless a test says otherwise; _verify passes it in as the job would.
+_vfix() { rm -rf "$VP/remote.git" "$VP/repo"
+  git init -q --bare "$VP/remote.git"
+  git init -q -b fix/x "$VP/repo"
+  ( cd "$VP/repo" && git remote add origin "$VP/remote.git" \
+    && mkdir -p .github/workflows src tests && printf 'on: push\n' > .github/workflows/gate.yml \
+    && printf 'a\n' > src/a.txt && printf 'def test_a(): pass\n' > tests/test_a.py \
+    && printf 'c\n' > "src/caf$(printf '\303\251').txt" && printf '*.local\n' > .gitignore \
+    && printf 'widget\n' > .felix && git add -A \
+    && git -c user.name=t -c user.email=t@t commit -qm base && git push -q origin fix/x ) >/dev/null 2>&1
+  printf 'src/a.txt\n' > "$VP/implicated.txt"
+  _v0="$(git --git-dir="$VP/remote.git" rev-parse fix/x)"; }
+_verify() { : > "$VP/out"; : > "$VP/gate.log"; : > "$VP/gh.log"
+  ( cd "$VP/repo" && IMPLICATED="$(cat "$VP/implicated.txt" 2>/dev/null)" VERIFY_GATE_RC="$1" \
+      GITHUB_OUTPUT="$VP/out" BRANCH=fix/x PATH="$VP/vbin:$PATH" \
+      bash -e "$VP/step.sh" ) > "$VP/log" 2>&1; _vrc=$?
+  _vgot="exit $_vrc, remote $([ "$(git --git-dir="$VP/remote.git" rev-parse fix/x)" = "$_v0" ] \
+    && echo unchanged || echo moved), gate $(wc -l < "$VP/gate.log" | tr -d ' '), pushed=$(sed -n 's/^pushed=//p' "$VP/out" | head -1)"
+  _vtree="tree $( cd "$VP/repo" && [ "$(git rev-parse HEAD)" = "$_v0" ] && [ -z "$(git status --porcelain --ignored)" ] \
+    && echo "at base" || echo "not at base" ), refused=$(sed -n 's/^refused=//p' "$VP/out" | head -1)"
+  _vlab="$(tr '\n' ' ' < "$VP/gh.log")"; }
+
+# Named in the set, so what stops it is the workflow-file check and not the
+# set: a project whose risk table does not call .github/workflows red lets the
+# scope step hand such a file on.
+_vfix; printf '.github/workflows/gate.yml\n' > "$VP/implicated.txt"
+printf 'on: [push, workflow_dispatch]\n' > "$VP/repo/.github/workflows/gate.yml"
+_verify 0
+is  "a repair that edits a workflow file is not pushed, and the gate is not spent on it" \
+    "$_vgot, tree $(cd "$VP/repo" && git diff --quiet && echo clean || echo dirty)" \
+    "exit 1, remote unchanged, gate 0, pushed=, tree clean"
+has "and it names the workflow file it will not push" "$(cat "$VP/log")" ".github/workflows/gate.yml"
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"
+_verify 0
+is  "a repair the gate passes is pushed, and says so to the job that runs the gate again" \
+    "$_vgot" "exit 0, remote moved, gate 1, pushed=yes"
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"
+_verify 1
+is  "a repair the gate fails is not pushed, and asks for no second gate run" \
+    "$_vgot" "exit 1, remote unchanged, gate 1, pushed="
+
+# What the attempt may touch, checked on its own diff before the gate. The
+# prompt tells the model to edit only the files the brief names, and until
+# 2026-09-24 nothing else did: whatever it changed was pushed once the gate
+# was green, red paths included, and a gate can be turned green by editing
+# what it reads. A file outside the set is refused whatever its tier, so the
+# one here is a file the risk rules call green.
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"; printf 'import pytest; pytest.skip()\n' >> "$VP/repo/tests/test_a.py"
+_verify 0
+is  "a repair that changes a file the brief did not name is not pushed, and the gate is not spent on it" \
+    "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"
+is  "and it is refused though the risk rules call that file green" \
+    "$(cd "$VP/repo" && "$FELIX" scope tests/test_a.py 2>&1 | sed -n 's/^highest tier: //p')" "green"
+has "and it names the file it will not push" "$(cat "$VP/log")" "tests/test_a.py"
+has "and it hands the change to a person on the branch's pull request" "$_vlab" "pr edit 7 --add-label needs-founder"
+
+# A file the model created is in neither `git diff` nor `git commit -a`, so it
+# is never pushed, but the gate reads it: a conftest.py that skips the failing
+# test would turn the gate green on a commit that never carried it.
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"; printf 'collect_ignore = ["src"]\n' > "$VP/repo/src/conftest.py"
+_verify 0
+is  "a file the attempt created is outside the brief too, and is not left for anything to read" \
+    "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"
+
+# Inside the set, the diff is classified with its content, not only its paths.
+# A credential written into a file the brief named is red whatever the file is
+# called, and scoping the path alone passed it (#100's defect, one step later).
+_vfix; printf 'api_key = "sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQ"\n' >> "$VP/repo/src/a.txt"   # must_flag
+_verify 0
+is  "a credential written into a file the brief named is red, and is not pushed" \
+    "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"
+has "and it says the risk rules called the diff red" "$(cat "$VP/log")" "call the attempt's own diff red"
+has "and it hands that to a person too" "$_vlab" "pr edit 7 --add-label needs-founder"
+
+# An ignored file is untracked too, and the gate reads it the same way: a
+# *.local a test run picks up passed the gate, and the named edit beside it
+# was pushed, since neither the diff nor the untracked list showed it.
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"; printf 'fixed\n' > "$VP/repo/gate.local"
+_verify 0
+is  "an ignored file the attempt created is outside the brief as well, and is removed" \
+    "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"
+# The judge: the scope check and the gate run from the Felix checkout beside
+# this one, and a green row added to its risk table would clear the change it
+# judges. No command the job runs writes there.
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"
+printf 'green\tpath\t.*\tanything goes\n' >> "$VP/felix/projects/widget/risk.tsv"
+_verify 0
+( cd "$VP/felix" && git checkout -q -- . )
+is  "a change to the Felix checkout that judges the repair is refused before it judges" \
+    "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"
+# git quotes a name outside ASCII, so the file the brief named never matched
+# its own entry and every such repair was refused and labelled.
+_vfix; _vcafe="src/caf$(printf '\303\251').txt"
+printf '%s\n' "$_vcafe" > "$VP/implicated.txt"; printf 'd\n' >> "$VP/repo/$_vcafe"
+_verify 0
+is  "a named file whose name is not ASCII is pushed like any other" \
+    "$_vgot, refused=$(sed -n 's/^refused=//p' "$VP/out" | head -1)" "exit 0, remote moved, gate 1, pushed=yes, refused="
+
+# Wiring, not the change, so no label: the scope step left no set, or felix
+# scope could not classify. Neither is pushed on the strength of a check that
+# did not run.
+_vfix; rm -f "$VP/implicated.txt"; printf 'b\n' >> "$VP/repo/src/a.txt"
+_verify 0
+is  "with no implicated set from the scope step, nothing is pushed and no pull request is labelled" \
+    "$_vgot, $_vtree, gh [$_vlab]" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=, gh []"
+_vfix; printf 'b\n' >> "$VP/repo/src/a.txt"
+mv "$FROOT/projects/widget/risk.tsv" "$VP/risk.away"
+_verify 0
+mv "$VP/risk.away" "$FROOT/projects/widget/risk.tsv"
+is  "a diff felix scope cannot classify is not pushed, and no pull request is labelled" \
+    "$_vgot, $_vtree, gh [$_vlab]" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=, gh []"
+
+# The set reaches the verify step as the scope step's output, never as a file.
+# With `Read,Edit` unscoped the model read and edited /tmp and the Felix
+# checkout (measured on the pinned CLI), so a set read back from disk after it
+# ran, as the first version of this step read /tmp/implicated.txt, held only
+# while the attempt step's scoping does.
+_vimpenv="$(awk '/- name: Verify and push/ { f = 1 } f && /^ *IMPLICATED: / { sub(/^ *IMPLICATED: /, ""); print; exit }' "$UT")"
+is  "the verify step takes the implicated set from the scope step's output, and reads no file for it" \
+    "$_vimpenv, $(grep -c '/tmp/' "$VP/step.sh" | tr -d ' ') /tmp reads" \
+    "\${{ steps.scope.outputs.implicated }}, 0 /tmp reads"
+# And the report reads the refusal under the name the step writes it.
+_vpunwritten=""
+for _k in $(grep -o 'steps\.push\.outputs\.[a-z_]*' "$UT" | sed 's/.*\.//' | sort -u); do
+  grep -q "echo \"$_k=" "$VP/step.sh" || _vpunwritten="$_vpunwritten $_k"
+done
+is  "every steps.push output the template reads is one the verify step writes" "${_vpunwritten:-none}" "none"
+cp "$VP/risk.keep" "$FROOT/projects/widget/risk.tsv"
+
+# The job that runs the gate again, read out of the template: what it waits
+# for, what its token may do, and what it asks GitHub for. It holds actions:
+# write, which dispatching a workflow needs, and nothing else; the job with the
+# model and the push holds none of it.
+_ujob() { awk -v j="  $1:" '$0 == j { f = 1; next } f && (/^  [^ ]/ || /^[^ ]/) { exit } f' "$UT"; }
+_rg="$(_ujob regate)"
+_rgperm="$(printf '%s\n' "$_rg" | awk '/^    permissions:/ { p = 1; next }
+  p && /^      [a-z-]+:/ { gsub(/ /, ""); printf "%s ", $0; next } p { exit }')"
+is  "a job runs the gate again only after the repair job pushed" \
+    "$(printf '%s\n' "$_rg" | sed -n 's/^    needs: //p; s/^    if: //p' | tr '\n' ';')" \
+    "repair;needs.repair.outputs.pushed == 'yes';"
+is  "and its token may dispatch workflows and do nothing else" "$_rgperm" "actions:write "
+_rtop="$(awk '/^permissions:/ { p = 1; next } p && /^  [a-z-]+:/ { gsub(/ /, ""); printf "%s ", $0; next } p { exit }' "$UT")"
+case "$_rtop $(_ujob repair | grep -c 'permissions:')" in
+  *actions*|*" "[1-9]*) bad "and the job that runs the model holds no actions permission" "workflow: $_rtop" ;;
+  *) ok "and the job that runs the model holds no actions permission" ;;
+esac
+# The output it waits on is one the repair job hands on from the step that
+# pushed, and that step writes it. An output never written reads as empty, and
+# the gate would never run again.
+_rpid="$(awk '/- name: Verify and push/ { f = 1; next } f && /^        id: / { print $2; exit } f && /^      - / { exit }' "$UT")"
+_rpout="$(_ujob repair | sed -n 's/^      pushed: //p')"
+[ -n "$_rpid" ] && [ "$_rpout" = "\${{ steps.$_rpid.outputs.pushed }}" ] \
+  && grep -q 'echo "pushed=yes" >> "$GITHUB_OUTPUT"' "$VP/step.sh" \
+  && ok  "and that output is handed on from the step that pushed, which writes it" \
+  || bad "and that output is handed on from the step that pushed, which writes it" \
+         "push step id [$_rpid], job output [$_rpout]"
+has "and it dispatches the workflow whose failure started the repair" "$_rg" \
+    "GATE: \${{ github.event.workflow_run.workflow_id || 'gate' }}"
+is  "and on the branch the repair pushed to" \
+    "$(printf '%s\n' "$_rg" | sed -n 's/^ *BRANCH: //p')" \
+    "$(awk '/- name: Verify and push/ { f = 1 } f && /^ *BRANCH: / { sub(/^ *BRANCH: /, ""); print; exit }' "$UT")"
+
+awk '/- name: Run the gate on the pushed commit/ { f = 1 } f && /^        run: \|/ { r = 1; next }
+     r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' "$UT" > "$VP/regate.sh"
+cat > "$VP/bin/gh" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$REGATE_LOG"
+[ -z "${REGATE_FAILS:-}" ] && exit 0
+printf "could not create workflow dispatch event: HTTP 422: Workflow does not have 'workflow_dispatch' trigger\n" >&2
+exit 1
+STUB
+chmod +x "$VP/bin/gh"
+_regate() { : > "$VP/gh.log"
+  ( cd "$VP" && REGATE_FAILS="$1" REGATE_LOG="$VP/gh.log" GATE=4242 BRANCH=fix/x \
+      GITHUB_REPOSITORY=example/widget GH_TOKEN=t PATH="$VP/bin:$PATH" bash -e "$VP/regate.sh" ) \
+    > "$VP/regate.out" 2>&1; }
+_regate ""; _rgrc=$?
+is  "the gate is dispatched on the pushed branch" "exit $_rgrc: $(cat "$VP/gh.log")" \
+    "exit 0: workflow run 4242 --repo example/widget --ref fix/x"
+_regate 1; _rgrc=$?
+[ "$_rgrc" -ne 0 ] && ok  "a gate that cannot be dispatched fails the job" \
+                   || bad "a gate that cannot be dispatched fails the job" "exit 0: $(cat "$VP/regate.out")"
+has "and says the pushed commit has no gate verdict" "$(cat "$VP/regate.out")" "no gate verdict"
+has "and passes on GitHub's own reason" "$(cat "$VP/regate.out")" "HTTP 422"
+
+# The gate workflow bootstrap writes has to accept the dispatch, or every
+# repository bootstrapped from it fails the job above on its first push.
+has "the gate workflow bootstrap writes can be dispatched" \
+    "$( . "$REAL_HARNESS/lib/detect.sh"; . "$REAL_HARNESS/lib/bootstrap.sh"
+        felix_bs_render_workflow none someone/repo )" "  workflow_dispatch:"
+
+# Each push leaves a gate run on the pull request that waits for a person's
+# approval, so on github.com the branch reads, newest first: the dispatched
+# run, the waiting one, the run before. The count stopped at the waiting run,
+# so however many repairs failed it read as the failures since the last push,
+# and the ceiling never came.
+if command -v jq >/dev/null 2>&1; then
+  { printf 'gate.yml\tgate\tfix/z\t405\tcompleted\tfailure\n'
+    printf 'gate.yml\tgate\tfix/z\t404\tcompleted\taction_required\n'
+    printf 'gate.yml\tgate\tfix/z\t403\tcompleted\tfailure\n'
+    printf 'gate.yml\tgate\tfix/z\t402\tcompleted\taction_required\n'
+    printf 'gate.yml\tgate\tfix/z\t401\tcompleted\tfailure\n'
+    printf 'gate.yml\tgate\tfix/z\t400\tcompleted\tsuccess\n'
+  } > "$VP/runs"
+  is "a gate run waiting for approval does not end the count of failures behind it" \
+     "$( export WFSTUB_LOG="$VP/wf.log" WFSTUB_RUNS="$VP/runs" WFSTUB_WORKFLOWS=gate.yml
+         _wfatt fix/z gate.yml )" "3"
+else
+  skip "a gate run waiting for approval does not end the count of failures behind it" \
+       "no jq here to evaluate gh's -q expressions"
+fi
+
 printf '\nthe unattended repair leaves the model no credential to copy\n'
 # Both checkouts left a credential on the runner for the model step to read.
 # actions/checkout persists what it fetched with unless told otherwise: the
@@ -3617,6 +3938,13 @@ cat > "$UC/bin/git" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$UC_LOG"
 case "$1 $2 $3" in "diff --quiet "*) exit 1 ;; esac
+# What the verify step asks before it pushes: the commit it starts from, and
+# what changed, one file, the one the brief named. Its workflow-file check
+# asks `diff --name-only -- .github/workflows`, which names nothing here.
+case " $* " in
+  *" rev-parse HEAD "*) echo 0123456789abcdef0123456789abcdef01234567; exit 0 ;;
+  *" diff --name-only --no-renames HEAD "*) echo src/a.txt; exit 0 ;;
+esac
 helper=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -3636,7 +3964,8 @@ chmod +x "$UC/felix/engine/harness/felix" "$UC/bin/git"
 # public snapshot's credential scan refused to publish.
 _uctok="ghs_exampletokenexampletokenexample"
 : > "$UC/git.log"; : > "$UC/git.cred"
-( cd "$UC/repo" && UC_LOG="$UC/git.log" GITHUB_TOKEN="$_uctok" BRANCH=fix/x PATH="$UC/bin:$PATH" \
+( cd "$UC/repo" && UC_LOG="$UC/git.log" GITHUB_TOKEN="$_uctok" IMPLICATED=src/a.txt GITHUB_OUTPUT="$UC/out.gh" \
+    BRANCH=fix/x PATH="$UC/bin:$PATH" \
     bash -e "$UC/step.sh" ) > "$UC/out" 2>&1; _ucrc=$?
 [ "$_ucrc" -eq 0 ] && ok  "a green gate pushes the repair" \
                    || bad "a green gate pushes the repair" "exit $_ucrc: $(cat "$UC/out")"
@@ -6639,6 +6968,34 @@ printf '%s\n' "$TMP/not-a-felix-home" > "$POINTHOME/.felix-home"
 out="$(_stop_as_home "$GREPO" "$POINTHOME")"
 _blocks "a home pointer naming something that is not a home refuses" "$out"
 has     "and says which directory it was sent to" "$out" "not-a-felix-home"
+
+# A long pointer was shown as its first eighty characters. When the eightieth
+# closed a directory name, the refusal named the target's parent: a real path
+# and a wrong answer, not a short one. Found 2026-09-24, when the suite's $TMP
+# moved deeper and the line above failed, because a plain Mac run's
+# $TMP/not-a-felix-home is eighty characters exactly. The parent here is built
+# to be eighty long whatever $TMP is, and the length is asserted so an edit to
+# it cannot quietly stop testing the slash.
+_parent="/felix-no-such-root/$(printf '%060d' 0)"
+is  "a parent eighty characters long, so a cut at eighty ends on its slash" "${#_parent}" "80"
+printf '%s\n' "$_parent/the-home-it-names" > "$POINTHOME/.felix-home"
+out="$(_stop_as_home "$GREPO" "$POINTHOME")"
+has "a long pointer is refused naming its own directory, not the parent" "$out" "/the-home-it-names, which is not"
+has "and the refusal marks where the middle was cut" "$out" "[...]"
+
+# Short stays, because a marker is a file in the repository: a stranger's
+# clone chooses its text, and the refusal quotes it to the model and to the
+# founder. Showing the whole value would pass the line above and hand that
+# text through at any length.
+printf '%0150d%s%0150d\n' 0 WHOLE 0 > "$BROKEN/.felix"
+out="$(_stop "$BROKEN")"
+_quoted="$(printf '%s' "$out" | sed -n 's/.* names \\"\([^\\]*\)\\", and that does not resolve.*/\1/p')"
+if [ -n "$_quoted" ] && [ "${#_quoted}" -le 80 ]; then
+  ok  "a long marker is quoted at most eighty characters long"
+else
+  bad "a long marker is quoted at most eighty characters long" "quoted ${#_quoted}: [$out]"
+fi
+printf 'widget\n' > "$BROKEN/.felix"
 
 printf '%s\n' "$TMP/no-such-directory-at-all" > "$POINTHOME/.felix-home"
 out="$(_stop_as_home "$GREPO" "$POINTHOME")"
@@ -11180,6 +11537,18 @@ out="$( cd "$SC" && "$FELIX" scope a.md 2>&1 )"; rc=$?
 is  "scoping a bare path still answers"      "$rc" "0"
 has "but admits it never read the changes"   "$out" "content"
 
+# A base that names nothing compared nothing. The diff it could not read came
+# back empty, which read as nothing to scope, and with a change in the tree
+# the classifier called it unknown, which is not red, so scope said "In
+# scope". Both exited 0, the status the unattended verify step pushes on.
+out="$( cd "$SC" && "$FELIX" scope --base no-such-ref 2>&1 )"; _sbc=$?
+printf 'more notes\n' >> "$SC/a.md"
+out="$out$( cd "$SC" && "$FELIX" scope --base no-such-ref 2>&1 )"; _sbd=$?
+( cd "$SC" && git checkout -q -- a.md )
+is  "a --base that names nothing is refused, not scoped, clean tree or not" \
+    "clean:$_sbc changed:$_sbd" "clean:1 changed:1"
+has "and it says nothing was compared" "$out" "names nothing here"
+
 # The content rules then read one source of the three the paths come from.
 # felix_classify_diff took its paths from felix_changed_paths (the branch, the
 # index and the worktree) and its added lines from `base...HEAD` alone, so an
@@ -12356,6 +12725,20 @@ has "nor a semicolon"                       "$(_ip 'src/thing.py; and then more'
 # The conservative half must survive all of that: still no inventing.
 is  "and a backticked path naming nothing is still not invented" \
     "$(_ip 'see `docs/nope.py` there')" ""
+
+# The implicated set is what the unattended repair may change, and `[ -f ]`
+# from the root took files beside the checkout and inside its repository:
+# ../felix/engine/harness/felix, the CLI the job judges with, resolved from a
+# gate log that named it, and so did .git/config. Neither shows in `git diff`.
+# A path that climbs out still resolves by what is left of it inside.
+mkdir -p "$IP/.git"; : > "$IP/.git/config"
+is  "a path outside the checkout or inside its .git is never implicated" \
+    "$(_ip 'see ../ran, .git/config and ../inc/src/thing.py')" "src/thing.py "
+# Two forms a failing log prints all the time, each of which resolved to no
+# file: pytest's test id, and a line number with a colon after it.
+is  "a pytest test id and a line number followed by a colon both name their file" \
+    "$(_ip 'FAILED tests/test_thing.py::test_x - assert 1 == 2')$(_ip 'src/thing.py:12: AssertionError')" \
+    "tests/test_thing.py src/thing.py "
 
 printf '\nwhat you are about to commit\n'
 # `felix evidence` told a session it owed a web test that the session had
@@ -14462,6 +14845,11 @@ if [ -x "$REAL_HARNESS/bin/lifecycle-check" ]; then
   out="$(cd "$REAL_HARNESS/../.." && "$REAL_HARNESS/bin/lifecycle-check" engine/harness/templates engine/hooks/hooks.json 2>&1)"; rc=$?
   is  "the shipped hooks bind every moment the stance table says is wired" "$rc" "0"
   has "and the contract names each moment it examined" "$out" "SubagentStop"
+  # Its arguments are read from the top of the checkout, and its library from
+  # where it was called: dirname "$0" is relative to the caller's directory.
+  _lcsub="$(cd "$REAL_HARNESS/templates" && ../bin/lifecycle-check engine/harness/templates engine/hooks/hooks.json 2>&1)"
+  is  "and says the same called by a relative path from a subdirectory, finding its library from where it was called" \
+      "$?:$_lcsub" "$rc:$out"
   LC="$TMP/lc"; mkdir -p "$LC/tpl"; cp "$REAL_HARNESS/templates/lifecycle.tsv" "$LC/tpl/"
   python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); h=d["hooks"] if "hooks" in d else d; h.pop("SubagentStop", None); json.dump(d, open(sys.argv[2], "w"))' \
     "$REAL_HARNESS/../hooks/hooks.json" "$LC/hooks.json"
@@ -14474,7 +14862,9 @@ if [ -x "$REAL_HARNESS/bin/lifecycle-check" ]; then
       "$(cd "$LC" && "$REAL_HARNESS/bin/lifecycle-check" tpl nohooks.json >/dev/null 2>&1; echo $?)" "2"
 else
   for a in "the shipped hooks bind every moment the stance table says is wired" \
-           "and the contract names each moment it examined" "and fails when a wired moment is unbound" \
+           "and the contract names each moment it examined" \
+           "and says the same called by a relative path from a subdirectory, finding its library from where it was called" \
+           "and fails when a wired moment is unbound" \
            "naming it" "and cannot examine without a stance table" "or without hooks"; do
     skip "$a" "no bin/lifecycle-check beside this harness"; done
 fi
@@ -14485,9 +14875,13 @@ if [ -f "$_REALP/obligations.tsv" ] && [ -x "$REAL_HARNESS/bin/obligations-check
   out="$(cd "$REAL_HARNESS/../.." && "$REAL_HARNESS/bin/obligations-check" projects/felix release 2>&1)"; rc=$?
   is  "felix's own first obligation is discharged on this tree" "$rc" "0"
   has "and it is the lifecycle one" "$out" "lifecycle_wired"
+  _obsub="$(cd "$REAL_HARNESS/templates" && ../bin/obligations-check projects/felix release 2>&1)"
+  is  "and says the same called by a relative path from a subdirectory, finding its libraries from where it was called" \
+      "$?:$_obsub" "$rc:$out"
   is  "grounded on a probe felix declares" "$(_ob felix_obligations_orphans "$_REALP")" ""
 else
   for a in "felix's own first obligation is discharged on this tree" "and it is the lifecycle one" \
+           "and says the same called by a relative path from a subdirectory, finding its libraries from where it was called" \
            "grounded on a probe felix declares"; do skip "$a" "no projects/felix/obligations.tsv beside this harness"; done
 fi
 
@@ -16178,6 +16572,408 @@ case "$out" in
   *)                       ok  "and never as a clock reading nobody wrote" ;;
 esac
 cp "$TMP/maint.keep" "$FROOT/projects/widget/maintenance.tsv"
+
+printf '\nmaintenance: a check that names work already in flight is not due\n'
+# The upkeep row `handoff` came due for every session at once: while main held
+# three pending sections, every session start printed "Maintenance due:
+# handoff", and with twenty sessions running several of them folded the same
+# set independently. Only one fold can land; the rest were wasted work and
+# queue slots. A check can now say WHO already holds the routine: exit 0 with
+# lines on stdout is `inflight`, and the routine is not due. Exit 0 and silent
+# is `ok`, and any other exit is `due` whatever it printed, because a check
+# that broke must stay loud — output never rescues a due row.
+#
+# Sections 3 and 4 of the contract are tested here with checks that are plain
+# shell, so a failure names the maintenance lib or a reader and never the
+# handoff git logic. Section 5, at the end, is the felix project's row run
+# against a real git fixture through the real bin.
+mkdir -p "$TMP/_bim"
+_bim_P="$TMP/_bim/proj"; mkdir -p "$_bim_P"
+_bim_R="$TMP/_bim/root"; mkdir -p "$_bim_R"
+( cd "$_bim_R" && git init -q -b main ) >/dev/null 2>&1
+_bim_R="$(cd "$_bim_R" && pwd -P)"
+_bim_row() { printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5"; }
+# Sourced from the fixture home's copy of the engine, the way the CLI and the
+# hooks source it there.
+_bim_st() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+              . "$FROOT/harness/lib/maintenance.sh"; felix_maint_status "$1" "${2:-}" ) 2>/dev/null; }
+# And from the engine under test in place, a different directory with the same
+# files, so a harness dir that is hard-coded rather than derived shows up.
+_bim_st_real() { ( . "$REAL_HARNESS/lib/resolve.sh"; . "$REAL_HARNESS/lib/detect.sh"
+                   . "$REAL_HARNESS/lib/maintenance.sh"; felix_maint_status "$1" "${2:-}" ) 2>/dev/null; }
+_bim_line() { printf '%s\n' "$1" | awk -F'\t' -v n="$2" '$2 == n'; }
+_bim_f() { printf '%s\n' "$1" | cut -f"$2"; }
+# A path compared physically: macOS reaches $TMP through /var and /private/var
+# both, and either is the same directory.
+_bim_phys() { if [ -n "$1" ] && [ -d "$1" ]; then ( cd "$1" && pwd -P ); else printf 'not-a-directory:[%s]' "$1"; fi; }
+
+{
+  _bim_row bimone      0 always 'one holder'          "printf 'holder one\\n'"
+  _bim_row bimtwo      0 always 'two holders'         "printf 'first holder\\nsecond holder\\n'"
+  _bim_row bimblank    0 always 'blank lines between' "printf '\\nalpha\\n\\n\\nbeta\\n\\n'"
+  _bim_row bimnonl     0 always 'no trailing newline' "printf 'gamma'"
+  _bim_row bimtab      0 always 'tabs inside a line'  "printf 'x\\ty\\tz\\n'"
+  _bim_row bimsplit    0 always 'stdout and stderr'   "printf 'out line\\n'; printf 'err line\\n' >&2"
+  _bim_row bimsilent   0 always 'silent pass'         'true'
+  _bim_row bimonlynl   0 always 'only blank lines'    "printf '\\n\\n\\n'"
+  _bim_row bimstderr   0 always 'stderr only'         "printf 'only on stderr\\n' >&2"
+  _bim_row bimexit1    0 always 'exit one, talking'   "printf 'looks held\\n'; exit 1"
+  _bim_row bimexit2    0 always 'exit two, talking'   "printf 'looks held\\n'; exit 2"
+  _bim_row bimexit127  0 always 'exit 127, talking'   "printf 'looks held\\n'; exit 127"
+  _bim_row bimmissing  0 always 'a script not there'  "printf 'looks held\\n'; \"\$FELIX_HARNESS_DIR/bin/bim-no-such-script\""
+  _bim_row bimenv      0 always 'harness dir'         "printf '%s\\n' \"\$FELIX_HARNESS_DIR\""
+  _bim_row bimlib      0 always 'harness has a lib'   "test -f \"\$FELIX_HARNESS_DIR/lib/maintenance.sh\" && printf 'lib found\\n'"
+  _bim_row bimpwd      0 always 'where it runs'       'pwd -P'
+  _bim_row bimdash     0 always 'a dash for a check'  '-'
+  _bim_row bimweekly   7 always 'a weekly routine'    "printf 'held\\n'"
+  _bim_row bimdormant  0 billing 'waits on billing'   "printf 'held\\n'"
+  printf 'bimevent\t0\talways\tno check column\n'
+} > "$_bim_P/maintenance.tsv"
+_bim_s="$(_bim_st "$_bim_P" "$_bim_R")"
+
+# One line of output is one holder, in the third field, where a due row keeps
+# `check` and an ok row keeps a dash. The cadence stays 0 and the description
+# is the row's own, so a reader can print it without looking the row up again.
+is  "a check that exits 0 naming one holder is inflight, holder in field 3" \
+    "$(_bim_line "$_bim_s" bimone)" "$(printf 'inflight\tbimone\tholder one\t0\tone holder')"
+# Two holders are both named, in order, joined so the line stays one line.
+is  "two non-empty lines are joined by '; ', in the order printed" \
+    "$(_bim_line "$_bim_s" bimtwo)" "$(printf 'inflight\tbimtwo\tfirst holder; second holder\t0\ttwo holders')"
+# Blank lines are not holders. A join that kept them would read "alpha; ; beta"
+# or start with "; ", and a reader would print an empty name.
+is  "blank lines, leading, inner and trailing, are dropped from the holders" \
+    "$(_bim_line "$_bim_s" bimblank)" "$(printf 'inflight\tbimblank\talpha; beta\t0\tblank lines between')"
+# A last line with no newline is still a line. A `while read` loop drops it,
+# and the row would read ok while something held it.
+is  "a holder printed with no trailing newline still counts" \
+    "$(_bim_line "$_bim_s" bimnonl)" "$(printf 'inflight\tbimnonl\tgamma\t0\tno trailing newline')"
+# A tab in a holder would split the emitted row into more than five fields and
+# shift the description of every reader that cuts on tabs. Every tab, not the
+# first one only.
+is  "every tab inside a holder line becomes a space" \
+    "$(_bim_line "$_bim_s" bimtab)" "$(printf 'inflight\tbimtab\tx y z\t0\ttabs inside a line')"
+# Field count and status together: an ok row has five fields as well, so the
+# count alone could not fail for the reason it names.
+is  "and the emitted inflight row keeps exactly five fields" \
+    "$(_bim_line "$_bim_s" bimtab | awk -F'\t' '{ print NF ":" $1 }')" "5:inflight"
+# stderr is still discarded: a check's complaint is not a holder. A capture
+# that took 2>&1 would name "err line" as the session holding the routine.
+is  "only stdout names holders; what the check said on stderr is not one" \
+    "$(_bim_line "$_bim_s" bimsplit)" "$(printf 'inflight\tbimsplit\tout line\t0\tstdout and stderr')"
+
+# Unchanged by contract: a silent pass is ok, and so is one that printed only
+# blank lines, because there is nobody named. These pass on the old engine too.
+is  "unchanged: exit 0 with no output is ok, as before" \
+    "$(_bim_line "$_bim_s" bimsilent)" "$(printf 'ok\tbimsilent\t-\t0\tsilent pass')"
+is  "unchanged: exit 0 with only blank lines is ok, not inflight with no holder" \
+    "$(_bim_line "$_bim_s" bimonlynl)" "$(printf 'ok\tbimonlynl\t-\t0\tonly blank lines')"
+is  "unchanged: exit 0 with output on stderr only is ok" \
+    "$(_bim_line "$_bim_s" bimstderr)" "$(printf 'ok\tbimstderr\t-\t0\tstderr only')"
+# Dueness is the exit status alone. A check that printed a name and then failed
+# is due: "cannot examine" must never read as "someone has it". These pass on
+# the old engine too, and must keep passing — an implementation that looked at
+# the output first would turn each of them inflight.
+is  "unchanged: exit 1 with output is due, the output rescues nothing" \
+    "$(_bim_line "$_bim_s" bimexit1)" "$(printf 'due\tbimexit1\tcheck\t0\texit one, talking')"
+is  "unchanged: exit 2 with output is due" \
+    "$(_bim_line "$_bim_s" bimexit2)" "$(printf 'due\tbimexit2\tcheck\t0\texit two, talking')"
+is  "unchanged: exit 127 with output is due" \
+    "$(_bim_line "$_bim_s" bimexit127)" "$(printf 'due\tbimexit127\tcheck\t0\texit 127, talking')"
+# The engine-without-the-script case of section 5: the row calls a bin the
+# harness does not hold, the shell answers 127, and the row is due.
+is  "unchanged: a check whose script is missing from the harness is due though it printed" \
+    "$(_bim_line "$_bim_s" bimmissing)" "$(printf 'due\tbimmissing\tcheck\t0\ta script not there')"
+
+# FELIX_HARNESS_DIR is what lets a project row call an engine script without
+# naming a path that differs per machine. It is the harness whose lib/ held the
+# maintenance.sh that ran: here the fixture home's copy.
+_bim_env="$(_bim_f "$(_bim_line "$_bim_s" bimenv)" 3)"
+is  "the check runs with FELIX_HARNESS_DIR set to the harness the lib was sourced from" \
+    "$(_bim_phys "$_bim_env")" "$(_bim_phys "$FROOT/harness")"
+is  "and that row reads inflight, since the check printed it and exited 0" \
+    "$(_bim_f "$(_bim_line "$_bim_s" bimenv)" 1)" "inflight"
+# A directory that merely exists is not enough: the row will call bin/ under it,
+# so it has to be an engine harness.
+is  "FELIX_HARNESS_DIR holds lib/maintenance.sh, so it is an engine harness" \
+    "$(_bim_line "$_bim_s" bimlib)" "$(printf 'inflight\tbimlib\tlib found\t0\tharness has a lib')"
+# The check still runs in the checkout root, as every checked row always has;
+# the handoff row's `git ls-tree refs/remotes/origin/main` depends on it.
+is  "the check runs in the checkout root it was given" \
+    "$(_bim_phys "$(_bim_f "$(_bim_line "$_bim_s" bimpwd)" 3)")" "$_bim_R"
+
+# Derived, not hard-coded: the engine under test, sourced in place, names
+# itself — a different directory from the fixture home's copy.
+mkdir -p "$TMP/_bim/envproj"
+_bim_row bimenv 0 always 'harness dir' "printf '%s\\n' \"\$FELIX_HARNESS_DIR\"" > "$TMP/_bim/envproj/maintenance.tsv"
+_bim_sr="$(_bim_st_real "$TMP/_bim/envproj" "$_bim_R")"
+is  "sourced from another harness, FELIX_HARNESS_DIR names that harness instead" \
+    "$(_bim_phys "$(_bim_f "$(_bim_line "$_bim_sr" bimenv)" 3)")" "$(_bim_phys "$REAL_HARNESS")"
+# A value left in the caller's environment by some other engine must not reach
+# the check: the row would call that engine's script, not this one's.
+_bim_si="$(FELIX_HARNESS_DIR="$TMP/_bim/not-a-harness" _bim_st "$TMP/_bim/envproj" "$_bim_R")"
+is  "a FELIX_HARNESS_DIR inherited from the caller is replaced by the lib's own" \
+    "$(_bim_phys "$(_bim_f "$(_bim_line "$_bim_si" bimenv)" 3)")" "$(_bim_phys "$FROOT/harness")"
+
+# Rows that are not checked rows behave exactly as before; all of these pass on
+# the old engine too. A cadence row ignores a fifth column — it is on a clock —
+# and a dormant row is dormant before any check is asked.
+is  "unchanged: a row with a dash for its check is event" \
+    "$(_bim_line "$_bim_s" bimdash)" "$(printf 'event\tbimdash\t-\t0\ta dash for a check')"
+is  "unchanged: a four-column row is event" \
+    "$(_bim_line "$_bim_s" bimevent)" "$(printf 'event\tbimevent\t-\t0\tno check column')"
+is  "unchanged: a cadence row is due on its clock, never inflight from a fifth column" \
+    "$(_bim_line "$_bim_s" bimweekly)" "$(printf 'due\tbimweekly\tnever\t7\ta weekly routine')"
+is  "unchanged: a dormant row is dormant, never inflight" \
+    "$(_bim_line "$_bim_s" bimdormant)" "$(printf 'dormant\tbimdormant\t-\t0\twaits on billing')"
+# With no checkout given the check is not asked at all, so it cannot name
+# anybody: unchecked, as before, and the command never ran.
+_bim_row bimsentinel 0 always 'writes when run' "printf x > '$TMP/_bim/sentinel'; printf 'held\\n'" >> "$_bim_P/maintenance.tsv"
+rm -f "$TMP/_bim/sentinel"
+_bim_su="$(_bim_st "$_bim_P" "")"
+is  "unchanged: with no root an inflight-shaped row is unchecked" \
+    "$(_bim_line "$_bim_su" bimone)" "$(printf 'unchecked\tbimone\t-\t0\tone holder')"
+[ -e "$TMP/_bim/sentinel" ] \
+  && bad "unchanged: with no root the check is never run" "the sentinel was written" \
+  || ok  "unchanged: with no root the check is never run"
+case "$_bim_su" in
+  *inflight*) bad "unchanged: and nothing reads inflight when nothing was asked" "$_bim_su" ;;
+  *)          ok  "unchanged: and nothing reads inflight when nothing was asked" ;;
+esac
+
+printf '\nmaintenance in flight: what each reader shows\n'
+# Every reader that keeps `due` must keep only due, so a row somebody already
+# holds is absent from the due list, the badge, the overnight list, the pulse
+# and felix next; and the session start says who holds it, on a line of its
+# own, so a session reading it does not start a second fold.
+_bim_wt="$FROOT/projects/widget/maintenance.tsv"
+if [ -f "$_bim_wt" ]; then cp "$_bim_wt" "$TMP/_bim/widget-maint.keep"; _bim_wt_had=1; else _bim_wt_had=0; fi
+_bim_held='claude/handoff-fold-bim (folded to 0cn; tip 2h old)'
+_bim_held2='claude/other-fold-bim (folded to 0co; tip 5m old)'
+_bim_tableA() {
+  _bim_row bimdue  0 always 'the due one'  "printf 'not a holder\\n'; exit 1"
+  _bim_row bimheld 0 always 'the held one' "printf '%s\\n' '$_bim_held'"
+  _bim_row bimok   0 always 'the ok one'   'true'
+}
+_bim_tableA > "$_bim_wt"
+_bim_ctx() { printf '%s' "$1" | python3 -c 'import json,sys
+d = json.load(sys.stdin)
+print(d["hookSpecificOutput"]["additionalContext"] if sys.argv[1] == "ctx" else d.get("systemMessage", ""))' "$2" 2>/dev/null; }
+
+_bim_out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+_bim_c="$(_bim_ctx "$_bim_out" ctx)"; _bim_m="$(_bim_ctx "$_bim_out" sys)"
+has "session start names the holder: 'Already in flight, so not due: <name> on <holders>'" \
+    "$_bim_c" "Already in flight, so not due: bimheld on $_bim_held"
+# Leading whitespace is stripped: the contract fixes the words, not an indent.
+is  "and says it once, on a line of its own" \
+    "$(printf '%s\n' "$_bim_c" | grep 'Already in flight, so not due: ' | sed 's/^[[:space:]]*//')" \
+    "Already in flight, so not due: bimheld on $_bim_held"
+# Unchanged: the due line lists due rows only. The old engine passes this too,
+# reading the held row as ok; the new one must not add it back.
+is  "unchanged: the 'Maintenance due:' line lists only the due row" \
+    "$(printf '%s\n' "$_bim_c" | grep '^Maintenance due:')" "Maintenance due: bimdue"
+is  "unchanged: the badge counts only due rows, so an inflight row adds nothing" \
+    "$(printf '%s' "$_bim_m" | sed -n 's/.*· \([0-9][0-9]*\) due.*/\1/p')" "1"
+
+# Shown whether or not anything is due: the session that most needs to hear a
+# fold is in flight is the one with nothing else on its plate.
+{ _bim_row bimheld  0 always 'the held one'  "printf '%s\\n' '$_bim_held'"
+  _bim_row bimheld2 0 always 'the other one' "printf '%s\\n' '$_bim_held2'"
+  _bim_row bimok    0 always 'the ok one'    'true'; } > "$_bim_wt"
+_bim_out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+_bim_c="$(_bim_ctx "$_bim_out" ctx)"; _bim_m="$(_bim_ctx "$_bim_out" sys)"
+has "the in-flight line appears when nothing is due" \
+    "$_bim_c" "Already in flight, so not due: bimheld on $_bim_held"
+# One line per row, not one line for the first row found.
+is  "each inflight row adds a line of its own" \
+    "$(printf '%s\n' "$_bim_c" | grep -c 'Already in flight, so not due: ')" "2"
+has "naming the second row with its own holder" \
+    "$_bim_c" "Already in flight, so not due: bimheld2 on $_bim_held2"
+case "$_bim_c" in
+  *"Maintenance due"*) bad "unchanged: with only inflight and ok rows there is no due line" "$_bim_c" ;;
+  *)                   ok  "unchanged: with only inflight and ok rows there is no due line" ;;
+esac
+case "$_bim_m" in
+  *" due"*) bad "unchanged: and no due badge" "$_bim_m" ;;
+  *)        ok  "unchanged: and no due badge" ;;
+esac
+
+# felix maintenance: the held row is shown as held, with who holds it on the
+# line under it, and is not counted. Rendered as `ok  check passed` it would
+# say the routine is done when it is only claimed.
+_bim_tableA > "$_bim_wt"
+_bim_mo="$(cd "$REPO" && "$FELIX" maintenance 2>&1)"
+has "felix maintenance marks the row in-flt" "$_bim_mo" "in-flt  bimheld"
+# Read off the in-flt line itself, so "in flight" printed anywhere else (a
+# holder, a footer) cannot satisfy it; the description stays on that line.
+has "and says in flight on that row"         "$(printf '%s\n' "$_bim_mo" | grep 'in-flt  bimheld')" "in flight"
+has "and keeps the row's description there" "$(printf '%s\n' "$_bim_mo" | grep 'in-flt  bimheld')" "the held one"
+# One held row, one in-flt line: the silent ok row is not marked held.
+is  "only the inflight row is marked in-flt, not the silent ok row" \
+    "$(printf '%s\n' "$_bim_mo" | grep -c 'in-flt')" "1"
+has "and names the holders: on <holders>"    "$_bim_mo" "on $_bim_held"
+has "on the line directly under the in-flt row" \
+    "$(printf '%s\n' "$_bim_mo" | grep -A1 'in-flt  bimheld' | tail -1)" "on $_bim_held"
+case "$_bim_mo" in
+  *"ok      bimheld"*) bad "an inflight row is not rendered as a passed check" "$_bim_mo" ;;
+  *)                   ok  "an inflight row is not rendered as a passed check" ;;
+esac
+is  "unchanged: only the due row is DUE" \
+    "$(printf '%s\n' "$_bim_mo" | grep -c '^  DUE ')" "1"
+has "unchanged: and the count says one" "$_bim_mo" "1 routine(s) due."
+# With nothing due but rows held, ok, event-driven and dormant, the answer is
+# still "Nothing due." — a held routine is not outstanding work for this
+# session. The old engine prints it too, reading the held rows as ok.
+{ _bim_row bimheld  0 always 'the held one'  "printf '%s\\n' '$_bim_held'"
+  _bim_row bimheld2 0 always 'the other one' "printf '%s\\n' '$_bim_held2'"
+  _bim_row bimok    0 always 'the ok one'    'true'
+  printf 'bimevent\t0\talways\ton a trigger\n'
+  printf 'bimlater\t7\tbilling\tonly once payments exist\n'; } > "$_bim_wt"
+_bim_mo="$(cd "$REPO" && "$FELIX" maintenance 2>&1)"
+has "with only inflight, ok, event and dormant rows, felix maintenance shows the inflight row" \
+    "$_bim_mo" "in-flt  bimheld2"
+has "unchanged: and still ends Nothing due." "$_bim_mo" "Nothing due."
+case "$_bim_mo" in
+  *"routine(s) due"*) bad "unchanged: and counts no routine as due" "$_bim_mo" ;;
+  *)                  ok  "unchanged: and counts no routine as due" ;;
+esac
+
+if [ "$_bim_wt_had" = 1 ]; then cp "$TMP/_bim/widget-maint.keep" "$_bim_wt"; else rm -f "$_bim_wt"; fi
+
+# The stop hook feeds the overnight continuation only the due rows, with
+# `awk -F'\t' '$1 == "due"'` over felix_maint_status — a session doing upkeep
+# overnight must not start a fold that is already in flight. Driving the real
+# stop hook needs a live night; this applies that filter, verbatim, to the
+# status the hook reads. It passes on the old engine as well (the held row
+# read ok there) and fails on any status that leaves the row due.
+_bim_SP="$TMP/_bim/stopproj"; mkdir -p "$_bim_SP"
+_bim_tableA > "$_bim_SP/maintenance.tsv"
+is  "unchanged: the stop hook's due filter yields the due row and not the inflight one" \
+    "$(_bim_st "$_bim_SP" "$_bim_R" | awk -F'\t' '$1 == "due" { printf "%s%s", sep, $2; sep = ", " }')" "bimdue"
+
+# felix pulse keeps only due (and unchecked). The home is a checkout bound to
+# its one project, so the pulse offers that project its root and the checks
+# are really asked: the due row reading due is the proof the held row was
+# asked too, and not merely left unchecked.
+_bim_PH="$TMP/_bim/pulsehome"; mkdir -p "$_bim_PH/projects/bimpulse"
+( cd "$_bim_PH" && git init -q -b main ) >/dev/null 2>&1
+_bim_PH="$(cd "$_bim_PH" && pwd -P)"
+printf 'bimpulse\n' > "$_bim_PH/.felix"
+printf '{"name": "bimpulse", "remote_match": "example.com/bimpulse", "gate": "true"}\n' \
+  > "$_bim_PH/projects/bimpulse/project.json"
+_bim_tableA > "$_bim_PH/projects/bimpulse/maintenance.tsv"
+_bim_po="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+            . "$FROOT/harness/lib/stack.sh"; . "$FROOT/harness/lib/maintenance.sh"
+            . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/pulse.sh"
+            felix_pulse_report "$_bim_PH" 2>/dev/null )"
+is  "unchanged: the pulse names the due row, asked in its own checkout" \
+    "$(printf '%s\n' "$_bim_po" | grep '^due	')" "$(printf 'due\tbimpulse\tbimdue')"
+is  "unchanged: and does not name the inflight row anywhere" \
+    "$(printf '%s\n' "$_bim_po" | grep -c 'bimheld')" "0"
+
+# felix next ranks upkeep at 4 from due rows only.
+_bim_NP="$TMP/_bim/bimnext"; mkdir -p "$_bim_NP" "$MEM/bimnext"
+printf '{"name":"bimnext","gate":"true"}\n' > "$_bim_NP/project.json"
+: > "$_bim_NP/routes.tsv"; : > "$_bim_NP/stack.tsv"
+_bim_tableA > "$_bim_NP/maintenance.tsv"
+_bim_n="$( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+           . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+           . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/evidence.sh"
+           . "$FROOT/harness/lib/maintenance.sh"; . "$FROOT/harness/lib/stack.sh"
+           . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/ledger.sh"
+           . "$FROOT/harness/lib/coverage.sh"; . "$FROOT/harness/lib/deny.sh"
+           . "$FROOT/harness/lib/route.sh"; . "$FROOT/harness/lib/next.sh"
+           felix_next "$_bim_NP" "$FROOT" "$REPO" HEAD~1 2>/dev/null )"
+is  "unchanged: felix next ranks the due row as upkeep" \
+    "$(printf '%s\n' "$_bim_n" | awk -F'\t' '$1 == 4 { print $3 }')" "upkeep due: bimdue — the due one"
+is  "unchanged: and never names the inflight row" \
+    "$(printf '%s\n' "$_bim_n" | grep -c 'bimheld')" "0"
+
+printf '\nmaintenance in flight: the handoff row, end to end\n'
+# The felix project's own row, verbatim, against a checkout whose remote-
+# tracking main holds three pending sections: due with no fold anywhere; held,
+# naming the branch, once a fold cut from main's tip is on the remote; ok once
+# main holds fewer than three. The row reaches the engine's script through
+# FELIX_HARNESS_DIR, which the lib sets — nothing here sets it.
+_bim_E="$TMP/_bim/e2e"; mkdir -p "$_bim_E/docs/handoff/pending"
+_bim_git() { git -C "$_bim_E" -c core.hooksPath=/dev/null -c commit.gpgsign=false "$@"; }
+( cd "$_bim_E" && git init -q -b main && git config user.name t && git config user.email t@example.invalid ) >/dev/null 2>&1
+_bim_E="$(cd "$_bim_E" && pwd -P)"
+_bim_handoff() {
+  printf '# Handoff\n\nWrite your section with felix handoff --section; the fold gives it the next id\n'
+  printf '(after %s comes %s).\n\n---\n\n## Current state\n\n### %s. the session before\n\nWhat it did.\n' "$1" "$2" "$1"
+}
+_bim_now="$(date +%s)"
+_bim_handoff 0cg 0ch > "$_bim_E/HANDOFF.md"
+for _bim_p in a b c; do printf '## %s\n\nA pending section.\n' "$_bim_p" > "$_bim_E/docs/handoff/pending/$_bim_p.md"; done
+_bim_git add -A >/dev/null 2>&1
+GIT_COMMITTER_DATE="@$((_bim_now - 86400)) +0000" GIT_AUTHOR_DATE="@$((_bim_now - 86400)) +0000" \
+  _bim_git commit -qm "main with three pending" >/dev/null 2>&1
+_bim_main="$(_bim_git rev-parse HEAD)"
+_bim_git update-ref refs/remotes/origin/main "$_bim_main"
+_bim_git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+_bim_EP="$TMP/_bim/e2eproj"; mkdir -p "$_bim_EP"
+_bim_check='test "$(git ls-tree --name-only refs/remotes/origin/main docs/handoff/pending/ 2>/dev/null | grep -c '"'"'\.md$'"'"')" -lt 3 || "$FELIX_HARNESS_DIR/bin/handoff-in-flight" --within 48'
+# A second row runs the same check and reports its exit status as a holder,
+# because `due` alone cannot say WHY: an engine without the script is due too
+# (127), and so is one that cannot examine (2). The contract's due here is the
+# script answering "none in flight", exit 1. Asked through the lib like the
+# real row, so FELIX_HARNESS_DIR is still the lib's to set.
+{ _bim_row handoff   0 always 'fold the pending handoff sections' "$_bim_check"
+  _bim_row handoffrc 0 always 'the same check, its exit status'   "( $_bim_check ) >/dev/null 2>&1; printf 'rc=%s\\n' \"\$?\""
+} > "$_bim_EP/maintenance.tsv"
+_bim_rc() { _bim_f "$(_bim_line "$1" handoffrc)" 3; }
+# The row as written, so a fixture that mangled it is not what is being tested.
+# A fixture self-check: it passes on any engine.
+is  "fixture: the row carries the section-5 check verbatim" \
+    "$(awk -F'\t' '$1 == "handoff" { print $5 }' "$_bim_EP/maintenance.tsv")" "$_bim_check"
+_bim_es="$(_bim_st "$_bim_EP" "$_bim_E")"
+is  "with three pending and no fold branch the handoff row is due" \
+    "$(_bim_line "$_bim_es" handoff)" \
+    "$(printf 'due\thandoff\tcheck\t0\tfold the pending handoff sections')"
+is  "and due because the script answered none in flight (exit 1), not because it could not run" \
+    "$(_bim_rc "$_bim_es")" "rc=1"
+# A session's ordinary branch adds a pending file and leaves the marker alone;
+# twenty of those must not read as a fold.
+_bim_git checkout -q -b claude/pending-only-bim >/dev/null 2>&1
+printf '## d\n\nAnother.\n' > "$_bim_E/docs/handoff/pending/d.md"
+_bim_git add -A >/dev/null 2>&1; _bim_git commit -qm "a pending section" >/dev/null 2>&1
+_bim_git update-ref refs/remotes/origin/claude/pending-only-bim "$(_bim_git rev-parse HEAD)"
+# The fold itself, cut from main's tip, two hours old: it moves the marker on
+# and removes the files it folded. Local only, first.
+_bim_git checkout -q main >/dev/null 2>&1
+_bim_git checkout -q -b claude/handoff-fold-bim >/dev/null 2>&1
+_bim_handoff 0ci 0cj > "$_bim_E/HANDOFF.md"
+_bim_git rm -q docs/handoff/pending/a.md docs/handoff/pending/b.md docs/handoff/pending/c.md >/dev/null 2>&1
+_bim_git add -A >/dev/null 2>&1
+GIT_COMMITTER_DATE="@$((_bim_now - 7300)) +0000" GIT_AUTHOR_DATE="@$((_bim_now - 7300)) +0000" \
+  _bim_git commit -qm "fold" >/dev/null 2>&1
+_bim_fold="$(_bim_git rev-parse HEAD)"
+_bim_git checkout -q main >/dev/null 2>&1
+_bim_es="$(_bim_st "$_bim_EP" "$_bim_E")"
+is  "a branch that only adds a pending file, and a fold not yet pushed, leave the row due" \
+    "$(_bim_f "$(_bim_line "$_bim_es" handoff)" 1)" "due"
+is  "and the script says none in flight for them (exit 1)" "$(_bim_rc "$_bim_es")" "rc=1"
+_bim_git update-ref refs/remotes/origin/claude/handoff-fold-bim "$_bim_fold"
+is  "once the fold is on the remote the row is inflight, naming the branch, its id and its age" \
+    "$(_bim_line "$(_bim_st "$_bim_EP" "$_bim_E")" handoff)" \
+    "$(printf 'inflight\thandoff\tclaude/handoff-fold-bim (folded to 0ci; tip 2h old)\t0\tfold the pending handoff sections')"
+# The row's bound is 48 hours: a fold nobody has touched for longer is
+# abandoned, and the routine falls due again rather than staying silenced.
+_bim_old="$(GIT_COMMITTER_DATE="@$((_bim_now - 50 * 3600)) +0000" GIT_AUTHOR_DATE="@$((_bim_now - 50 * 3600)) +0000" \
+            _bim_git commit-tree "$(_bim_git rev-parse "$_bim_fold^{tree}")" -p "$_bim_main" -m "old fold")"
+_bim_git update-ref refs/remotes/origin/claude/handoff-fold-bim "$_bim_old"
+_bim_es="$(_bim_st "$_bim_EP" "$_bim_E")"
+is  "a fold whose tip is older than the row's 48 hours leaves the row due" \
+    "$(_bim_f "$(_bim_line "$_bim_es" handoff)" 1)" "due"
+is  "and the script says none in flight for it (exit 1)" "$(_bim_rc "$_bim_es")" "rc=1"
+_bim_git update-ref refs/remotes/origin/claude/handoff-fold-bim "$_bim_fold"
+# Fewer than three pending on main: the check's first half answers, silently.
+_bim_git rm -q docs/handoff/pending/c.md >/dev/null 2>&1
+_bim_git commit -qm "two pending" >/dev/null 2>&1
+_bim_git update-ref refs/remotes/origin/main "$(_bim_git rev-parse HEAD)"
+is  "unchanged: with fewer than three pending on main the row is ok" \
+    "$(_bim_line "$(_bim_st "$_bim_EP" "$_bim_E")" handoff)" \
+    "$(printf 'ok\thandoff\t-\t0\tfold the pending handoff sections')"
 
 printf '\nthe pulse: the heartbeat that does not wait for a session\n'
 # Memory backup was as current as the last time somebody typed the command —
@@ -36022,6 +36818,431 @@ git -C "$HX" checkout -q -f s/local
 mkdir -p "$TMP/ho-none"; ( cd "$TMP/ho-none" && git init -q )
 ( cd "$TMP/ho-none" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "handoff-check cannot examine a checkout with no HANDOFF.md, and says 2, never 0" "$?" "2"
 ( cd "$HX" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "and exits 0 on a clean one" "$?" "0"
+# Called by a path relative to a subdirectory, as `cd docs &&
+# ../engine/harness/bin/handoff-check` does. dirname "$0" is relative to where
+# it was called, so read after the move to the top it names a directory that is
+# not there, the library never loads, and the run ends 127. The harness is
+# reached through a link beside the fixture, so the same relative path read
+# from the top names a directory one level too high and cannot pass by chance.
+ln -s "$REAL_HARNESS" "$TMP/hxh"
+( cd "$HX/docs" && ../../hxh/bin/handoff-check >/dev/null 2>&1 )
+is  "and exits 0 on it called by a relative path from a subdirectory, finding its library from where it was called" "$?" "0"
+
+printf '\na handoff fold already in flight is named, so a second session does not start one\n'
+# The handoff upkeep row fell due for every session at once, and with ~20
+# running, three folded the same pending set (#347, #351, #377) where only one
+# could land. felix_handoff_in_flight (lib/handoff.sh) reads the remote-tracking
+# refs as last fetched and names each branch that has already folded what main
+# holds now; bin/handoff-in-flight says the same to a person and exits as grep
+# does, so a maintenance check can end in it.
+#
+# One fixture repository with no remote configured: remote-tracking refs are
+# written with update-ref, and every commit's committer time is set, so a tip's
+# age is a fact of the fixture and not of when the suite happened to run.
+# Remotes: origin holds main (its handoff at 0cg) and every case that must or
+# must not count; ord1..ord3 hold fold order alone; calm holds nothing in
+# flight; upstream holds a fold that belongs to another remote; age, built just
+# before it is read, holds tips of chosen ages for the human line.
+_bif_r="$TMP/bif-inflight"; mkdir -p "$_bif_r/docs/handoff/pending"
+( cd "$_bif_r" && git init -q -b main && git config user.name t \
+    && git config user.email t@example.invalid && git config commit.gpgsign false )
+_bif_now="$(date +%s)"
+_bif_git() { git -C "$_bif_r" "$@"; }
+_bif_ago() { printf '%s' "$((_bif_now - $1))"; }
+# HANDOFF.md with the marker `(after $1 comes $2)` in its preamble and, given a
+# third argument, that phrase quoted again lower down, as a section may.
+_bif_ho() {
+  { printf '# Handoff\n\nWrite your section with felix handoff --section; the fold gives it the next id\n(after %s comes %s).\n\n---\n\n## Current state\n\n### %s. the current section\n\nIts body.\n' "$1" "$2" "$1"
+    [ -n "${3:-}" ] && printf '\nA section may quote the rule, as in %s.\n' "$3"
+    printf '\n---\n'; } > "$_bif_r/HANDOFF.md"
+}
+_bif_at() { _bif_git checkout -q --detach "$1"; }
+# Commits the tree as it stands at committer time <epoch>, and prints the commit.
+_bif_commit() {
+  _bif_git add -A
+  GIT_COMMITTER_DATE="@$1 +0000" GIT_AUTHOR_DATE="@$1 +0000" _bif_git commit -q --allow-empty -m "$2" \
+    && _bif_git rev-parse HEAD
+}
+# A fold: cut from <base>, the marker moved to <id> (next <next>), tip at <epoch>.
+_bif_fold() { _bif_at "$1" && _bif_ho "$2" "$3" "${5:-}" && _bif_commit "$4" "fold to $2"; }
+_bif_pub() { _bif_git update-ref "refs/remotes/$1" "$2"; }
+
+# main's history: M0 held 0ce; the fold to 0cg landed as M1; M2 took only a
+# pending section, so main's handoff has not moved since M1.
+_bif_ho 0ce 0cf
+printf '### a section waiting\n\nIts body.\n' > "$_bif_r/docs/handoff/pending/20260101T000000Z-a.md"
+_bif_M0="$(_bif_commit "$(_bif_ago 864000)" 'main, its handoff at 0ce')"
+_bif_ho 0cg 0ch; rm -f "$_bif_r/docs/handoff/pending/20260101T000000Z-a.md"
+_bif_M1="$(_bif_commit "$(_bif_ago 432000)" 'the fold to 0cg lands')"
+printf '### b section waiting\n\nIts body.\n' > "$_bif_r/docs/handoff/pending/20260102T000000Z-b.md"
+_bif_M2="$(_bif_commit "$(_bif_ago 345600)" 'a pending section lands')"
+_bif_pub origin/main "$_bif_M2"
+_bif_git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+
+# In flight. Names, ids and tip times are chosen so that newest-first differs
+# from name order and from id order, and one name holds two slashes.
+_bif_pub origin/claude/handoff-fold-1001 "$(_bif_fold "$_bif_M2" 0cj 0ck "$(_bif_ago 2730)")"
+# Cut from M1, before main took a pending section: its merge-base is not main's
+# tip, but holds main's handoff as it is now, so it is in flight all the same.
+_bif_pub origin/claude/a/older-base      "$(_bif_fold "$_bif_M1" 0ci 0cj "$(_bif_ago 9030)")"
+# Its marker is 0cl; lower down it quotes an earlier id, which is not the marker.
+_bif_pub origin/claude/quoted-later      "$(_bif_fold "$_bif_M2" 0cl 0cm "$(_bif_ago 20030)" '(after 0aa comes 0ab)')"
+# Live but untouched for 72 hours: in flight only when no bound, or a wide one.
+_bif_pub origin/claude/old-fold          "$(_bif_fold "$_bif_M2" 0ck 0cl "$(_bif_ago 259230)")"
+
+# Not in flight, each for one reason, each with a recent tip so that the bound
+# is never what leaves it out.
+_bif_at "$_bif_M2"
+printf '### c section waiting\n\nIts body.\n' > "$_bif_r/docs/handoff/pending/20260103T000000Z-c.md"
+_bif_pub origin/claude/pending-only "$(_bif_commit "$(_bif_ago 100)" 'only a pending section')"
+_bif_pub origin/claude/landed       "$_bif_M1"
+_bif_pub origin/claude/stale        "$(_bif_fold "$_bif_M0" 0ci 0cj "$(_bif_ago 600)")"
+_bif_pub origin/claude/behind       "$(_bif_fold "$_bif_M2" 0cb 0cc "$(_bif_ago 700)")"
+_bif_pub origin/claude/quoted       "$(_bif_fold "$_bif_M2" 0cg 0ch "$(_bif_ago 1000)" '(after 0cz comes 0da)')"
+_bif_at "$_bif_M2"; printf '# Handoff\n\nThis one carries no marker.\n' > "$_bif_r/HANDOFF.md"
+_bif_pub origin/claude/no-marker    "$(_bif_commit "$(_bif_ago 900)" 'no marker')"
+_bif_at "$_bif_M2"; _bif_git rm -q HANDOFF.md
+_bif_pub origin/claude/no-handoff   "$(_bif_commit "$(_bif_ago 800)" 'no handoff')"
+# A live fold that is a local branch only, and one under another remote.
+_bif_git update-ref refs/heads/local-fold "$(_bif_fold "$_bif_M2" 0cm 0cn "$(_bif_ago 60)")"
+_bif_pub upstream/claude/elsewhere  "$(_bif_fold "$_bif_M2" 0cn 0co "$(_bif_ago 30)")"
+
+# Fold order alone: <remote>/main holds one id, <remote>/f is cut from it and
+# folded to another.
+_bif_ord() {
+  _bif_om="$(_bif_fold "$_bif_M2" "$2" "$3" "$(_bif_ago 5000)")"; _bif_pub "$1/main" "$_bif_om"
+  _bif_pub "$1/f" "$(_bif_fold "$_bif_om" "$4" "$5" "$(_bif_ago 1000)")"
+}
+_bif_ord ord1 0cz 0da 0da 0db
+_bif_ord ord2 0zz 0aaa 0aaa 0aab
+_bif_ord ord3 0aaa 0aab 0zz 0aaa
+# Nothing in flight: main, a pending-only branch, a landed fold, a stale one.
+_bif_pub calm/main "$_bif_M2"
+_bif_pub calm/claude/pending-only "$(_bif_git rev-parse refs/remotes/origin/claude/pending-only)"
+_bif_pub calm/claude/landed "$_bif_M1"
+_bif_pub calm/claude/stale "$(_bif_git rev-parse refs/remotes/origin/claude/stale)"
+# The working tree is left on a commit with no HANDOFF.md, so code that read
+# the checkout's own file instead of the ref's could not pass.
+_bif_at refs/remotes/origin/claude/no-handoff; mkdir -p "$_bif_r/deep/er"
+
+_bif_fn()  { ( cd "$_bif_r" && . "$REAL_HARNESS/lib/handoff.sh" && felix_handoff_in_flight "$@" ) 2>/dev/null; }
+_bif_run() { _bif_out="$(_bif_fn "$@")"; _bif_rc=$?; }
+_bif_lines() { if [ -z "$1" ]; then printf 0; else printf '%s\n' "$1" | awk 'END { printf "%d", NR }'; fi; }
+_bif_e() { printf '%s\t%s\t%s' "$1" "$2" "$(_bif_ago "$3")"; }
+_bif_L_fold="$(_bif_e claude/handoff-fold-1001 0cj 2730)"
+_bif_L_base="$(_bif_e claude/a/older-base 0ci 9030)"
+_bif_L_quot="$(_bif_e claude/quoted-later 0cl 20030)"
+_bif_L_old="$(_bif_e claude/old-fold 0ck 259230)"
+_bif_all="$_bif_L_fold
+$_bif_L_base
+$_bif_L_quot
+$_bif_L_old"
+_bif_48="$_bif_L_fold
+$_bif_L_base
+$_bif_L_quot"
+# <assertion> <branch>: the call exited 0 and named the live fold
+# claude/handoff-fold-1001 somewhere, and names no branch that is <branch> or
+# ends in /<branch> (so refs/heads/local-fold or upstream/claude/elsewhere are
+# caught however they would be spelled). An absence is only evidence when the
+# call that should have named something did, and each of these fails alone,
+# for its own branch, whatever else the call got wrong.
+_bif_named() { printf '%s\n' "$_bif_out" | awk -F'\t' -v b="$1" '
+  $1 == b || (length($1) > length(b) && substr($1, length($1) - length(b)) == "/" b) { f = 1 }
+  END { exit !f }'; }
+_bif_not() {
+  if [ "$_bif_rc" != 0 ] || ! _bif_named claude/handoff-fold-1001; then
+    bad "$1" "rc $_bif_rc and the live fold not named, so an absence proves nothing: [$_bif_out]"
+  elif _bif_named "$2"; then bad "$1" "[$_bif_out] names $2"
+  else ok "$1"; fi
+}
+
+_bif_run "$_bif_r" refs/remotes/origin/main
+# The whole answer, exactly: four folds in flight, newest tip first, each as
+# branch, id and tip time, and exit 0.
+is  "felix_handoff_in_flight names every fold in flight on origin, one <branch> <id> <epoch> line each, newest tip first, and exits 0" \
+    "$_bif_rc:$_bif_out" "0:$_bif_all"
+# The same, piece by piece, so a failure says which part is wrong. Each piece
+# reads only the four live folds' lines, so a branch wrongly added fails the
+# assertion about that branch below and not these as well.
+_bif_live() { printf '%s\n' "$_bif_out" | awk -F'\t' '
+  $1 ~ /(^|\/)claude\/(handoff-fold-1001|a\/older-base|quoted-later|old-fold)$/'; }
+is  "the branch is named under the remote, without origin/ or refs/remotes/" \
+    "$(_bif_live | cut -f1 | tr '\n' ' ')" "claude/handoff-fold-1001 claude/a/older-base claude/quoted-later claude/old-fold "
+# Name order would put claude/a/older-base first and id order claude/quoted-
+# later; only tip time puts claude/handoff-fold-1001 first.
+is  "folds are ordered by tip time, newest first, not by name or by id" \
+    "$(_bif_live | awk -F'\t' '{ sub(/.*\/claude\//, "claude/", $1); printf "%s ", $1 }')" \
+    "claude/handoff-fold-1001 claude/a/older-base claude/quoted-later claude/old-fold "
+# claude/quoted-later quotes (after 0aa comes 0ab) below its marker: its id is
+# the first match, 0cl; a last-match reader would drop it as behind main.
+is  "each id is the branch's current id from its first marker, not a phrase quoted lower down" \
+    "$(_bif_live | awk -F'\t' '{ sub(/.*\/claude\//, "claude/", $1); print $1 "=" $2 }' | LC_ALL=C sort | tr '\n' ' ')" \
+    "claude/a/older-base=0ci claude/handoff-fold-1001=0cj claude/old-fold=0ck claude/quoted-later=0cl "
+is  "and the third field is the tip's committer time in Unix seconds" \
+    "$(_bif_live | awk -F'\t' '$1 ~ /handoff-fold-1001$/ { print $3 }')" "$(_bif_ago 2730)"
+# Each reason a branch is not a fold in flight, one by one.
+_bif_not "a branch that only adds a pending file, its marker equal to main's, is not in flight" claude/pending-only
+_bif_not "a fold main has already taken (its tip is in main, its marker is main's) is not in flight" claude/landed
+# claude/stale's marker, 0ci, is after main's 0cg, so (a) alone would count it;
+# its merge-base holds 0ce, so it folded a main that has since moved.
+_bif_not "a fold cut from an older main whose handoff has since moved is stale, not in flight" claude/stale
+# claude/behind is cut from main's tip and only its marker differs: a check of
+# "different from main's" rather than "after main's" would count it.
+_bif_not "a branch whose marker is behind main's, though cut from main's tip, is not in flight" claude/behind
+_bif_not "a branch whose first marker is main's is not in flight, whatever id it quotes lower down" claude/quoted
+_bif_not "a branch whose HANDOFF.md has no marker is not in flight" claude/no-marker
+_bif_not "a branch with no HANDOFF.md is not in flight" claude/no-handoff
+# The newest live fold in the fixture is a local branch: only what others can
+# see on the remote is a fold another session would collide with.
+_bif_not "a local branch (refs/heads) is never counted, though it holds a live fold" local-fold
+_bif_not "a branch under another remote is not counted for origin/main" claude/elsewhere
+
+# (c): a bound in seconds leaves out a fold nobody has touched for longer, so
+# an abandoned fold lets the row fall due again rather than silencing it.
+_bif_run "$_bif_r" refs/remotes/origin/main 172800
+is  "given a bound of 48 hours in seconds, a fold whose tip is 72 hours old is left out" "$_bif_rc:$_bif_out" "0:$_bif_48"
+_bif_run "$_bif_r" refs/remotes/origin/main 5000
+is  "a bound of 5000 seconds keeps only the fold whose tip is 2730 seconds old" "$_bif_rc:$_bif_out" "0:$_bif_L_fold"
+_bif_run "$_bif_r" refs/remotes/origin/main 0
+is  "a bound of 0 is no bound" "$_bif_rc:$_bif_out" "0:$_bif_all"
+_bif_run "$_bif_r" origin/main
+is  "the short form origin/main is read as refs/remotes/origin/main" "$_bif_rc:$_bif_out" "0:$_bif_all"
+_bif_out="$( ( cd "$TMP" && . "$REAL_HARNESS/lib/handoff.sh" && felix_handoff_in_flight "$_bif_r" refs/remotes/origin/main ) 2>/dev/null)"; _bif_rc=$?
+is  "it examines the checkout it is given as <root>, from any working directory" "$_bif_rc:$_bif_out" "0:$_bif_all"
+# origin/HEAD is a symbolic ref. Pointed at a live fold, it would name that
+# fold a second time, as HEAD, if symbolic refs were not passed over.
+_bif_git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/claude/handoff-fold-1001
+_bif_run "$_bif_r" refs/remotes/origin/main
+_bif_git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+is  "a symbolic ref such as origin/HEAD is never counted, even when it points at a fold in flight" "$_bif_rc:$_bif_out" "0:$_bif_all"
+# Spec: no gh. A gh first on PATH records that it ran.
+_bif_stub="$TMP/bif-stub"; mkdir -p "$_bif_stub"
+printf '#!/bin/sh\n: > "%s/gh-ran"\nexit 1\n' "$_bif_stub" > "$_bif_stub/gh"; chmod +x "$_bif_stub/gh"
+_bif_out="$(PATH="$_bif_stub:$PATH" _bif_fn "$_bif_r" refs/remotes/origin/main)"; _bif_rc=$?
+is  "it reads the folds in flight from git alone and never runs gh" \
+    "$_bif_rc:$_bif_out:$([ -e "$_bif_stub/gh-ran" ] && echo gh-ran)" "0:$_bif_all:"
+
+# Fold order: a longer id is later, and ids of one length compare letter by
+# letter. A string compare passes ord1 and fails ord2 and ord3 both ways round.
+_bif_run "$_bif_r" refs/remotes/ord1/main
+is  "fold order: 0da is after 0cz, so a fold to 0da from a main at 0cz is in flight" "$_bif_rc:$_bif_out" "0:$(_bif_e f 0da 1000)"
+_bif_run "$_bif_r" refs/remotes/ord2/main
+is  "fold order: 0aaa is after 0zz, though it sorts before it as a string" "$_bif_rc:$_bif_out" "0:$(_bif_e f 0aaa 1000)"
+_bif_run "$_bif_r" refs/remotes/ord3/main
+is  "fold order: 0zz is before 0aaa, though it sorts after it as a string, so it is not in flight" "$_bif_rc:$_bif_out" "0:"
+_bif_run "$_bif_r" refs/remotes/calm/main
+is  "with nothing in flight it prints nothing and exits 0" "$_bif_rc:$_bif_out" "0:"
+
+# Cannot examine: exit 2 and one line on stdout saying why, never the silent
+# exit 0 that means "nothing in flight", since the row would then read ok.
+_bif_run "$_bif_r" refs/remotes/origin/nonesuch
+is  "a ref that does not resolve cannot be examined: exit 2, one line on stdout" "$_bif_rc:$(_bif_lines "$_bif_out")" "2:1"
+_bif_run "$_bif_r" "$_bif_M2"
+is  "a bare commit is not a remote-tracking ref: exit 2, one line" "$_bif_rc:$(_bif_lines "$_bif_out")" "2:1"
+# refs/heads/main holds the same commit as origin/main, so code that took any
+# ref would answer as if for origin/main.
+_bif_run "$_bif_r" refs/heads/main
+is  "a local branch is not a remote-tracking ref, though it holds main's commit: exit 2, one line" "$_bif_rc:$(_bif_lines "$_bif_out")" "2:1"
+_bif_run "$_bif_r" refs/remotes/origin/claude/no-handoff
+is  "a ref with no HANDOFF.md cannot be examined: exit 2, one line" "$_bif_rc:$(_bif_lines "$_bif_out")" "2:1"
+_bif_run "$_bif_r" refs/remotes/origin/claude/no-marker
+is  "a ref whose HANDOFF.md has no marker cannot be examined: exit 2, one line" "$_bif_rc:$(_bif_lines "$_bif_out")" "2:1"
+
+# The script. Its exit status follows grep's, so it can stand as the tail of a
+# maintenance check: 0 named something, 1 found nothing, 2 could not look.
+_bif_bin() { "$REAL_HARNESS/bin/handoff-in-flight" "$@" 2>/dev/null; }
+# <dir> <args...>: runs it in <dir>, noting the clock either side of the run.
+_bif_brun() {
+  _bif_dir="$1"; shift
+  _bif_t0="$(date +%s)"; _bif_out="$(cd "$_bif_dir" && _bif_bin "$@")"; _bif_rc=$?; _bif_t1="$(date +%s)"
+}
+# <now> then <branch> <id> <epoch> triples: the human lines the spec gives,
+# `<branch> (folded to <id>; tip <age> old)`, <age> as whole minutes under an
+# hour and whole hours otherwise, rounded down.
+_bif_human() {
+  _bif_hn="$1"; shift; _bif_hs=""
+  while [ $# -ge 3 ]; do
+    _bif_hd=$((_bif_hn - $3))
+    if [ "$_bif_hd" -lt 3600 ]; then _bif_ha="$((_bif_hd / 60))m"; else _bif_ha="$((_bif_hd / 3600))h"; fi
+    _bif_hs="$_bif_hs${_bif_hs:+
+}$1 (folded to $2; tip $_bif_ha old)"; shift 3
+  done
+  printf '%s' "$_bif_hs"
+}
+# <assertion> <exit> <triples...>: the run's status and output equal the lines
+# for the clock as it read just before the run or just after it, so a minute
+# that turns over while it runs does not fail an age the script got right.
+_bif_isage() {
+  _bif_in="$1"; _bif_ix="$2"; shift 2
+  _bif_ia="$_bif_ix:$(_bif_human "$_bif_t0" "$@")"; _bif_ib="$_bif_ix:$(_bif_human "$_bif_t1" "$@")"
+  if [ "$_bif_rc:$_bif_out" = "$_bif_ia" ] || [ "$_bif_rc:$_bif_out" = "$_bif_ib" ]; then ok "$_bif_in"
+  else bad "$_bif_in" "expected [$_bif_ia] got [$_bif_rc:$_bif_out]"; fi
+}
+# <assertion> <dir> <args...>: exit 2 and one stdout line starting "cannot examine".
+_bif_cant() {
+  _bif_cn="$1"; shift; _bif_brun "$@"
+  case "$_bif_rc:$(_bif_lines "$_bif_out"):$_bif_out" in
+    "2:1:cannot examine"*) ok "$_bif_cn" ;;
+    *) bad "$_bif_cn" "expected exit 2 and one line starting 'cannot examine', got $_bif_rc: [$_bif_out]" ;;
+  esac
+}
+_bif_T_fold="claude/handoff-fold-1001 0cj $(_bif_ago 2730)"
+_bif_T_base="claude/a/older-base 0ci $(_bif_ago 9030)"
+_bif_T_quot="claude/quoted-later 0cl $(_bif_ago 20030)"
+_bif_T_old="claude/old-fold 0ck $(_bif_ago 259230)"
+
+# The triples below are meant to split into words.
+_bif_brun "$_bif_r/deep/er"
+_bif_isage "bin/handoff-in-flight, run from a subdirectory with no arguments, reads origin/main within 48 hours and names each fold, newest first, exit 0" \
+    0 $_bif_T_fold $_bif_T_base $_bif_T_quot
+_bif_brun "$_bif_r" --within 0
+_bif_isage "handoff-in-flight --within 0 is no bound, and a tip 72 hours old is said in hours" \
+    0 $_bif_T_fold $_bif_T_base $_bif_T_quot $_bif_T_old
+_bif_brun "$_bif_r" --within 3
+_bif_isage "handoff-in-flight --within 3 is three hours: the 5-hour and 72-hour tips are left out" \
+    0 $_bif_T_fold $_bif_T_base
+_bif_brun "$_bif_r" --within 100
+_bif_isage "handoff-in-flight --within 100 is a hundred hours, so the 72-hour tip is named" \
+    0 $_bif_T_fold $_bif_T_base $_bif_T_quot $_bif_T_old
+_bif_brun "$_bif_r" origin/main
+_bif_isage "handoff-in-flight takes the ref as its argument, the short form included" \
+    0 $_bif_T_fold $_bif_T_base $_bif_T_quot
+# The same answer with a recording gh first on PATH, and the record still absent.
+rm -f "$_bif_stub/gh-ran"
+_bif_t0="$(date +%s)"; _bif_out="$(cd "$_bif_r" && PATH="$_bif_stub:$PATH" _bif_bin)"; _bif_rc=$?; _bif_t1="$(date +%s)"
+[ -e "$_bif_stub/gh-ran" ] && _bif_out="$_bif_out (and gh ran)"
+_bif_isage "handoff-in-flight answers from git alone and never runs gh" 0 $_bif_T_fold $_bif_T_base $_bif_T_quot
+_bif_brun "$_bif_r" refs/remotes/calm/main
+is  "handoff-in-flight with nothing in flight exits 1 and prints nothing, as grep does" "$_bif_rc:$_bif_out" "1:"
+
+_bif_cant "handoff-in-flight on a ref that does not resolve exits 2: cannot examine" "$_bif_r" refs/remotes/origin/nonesuch
+_bif_cant "handoff-in-flight on a local branch exits 2: not a remote-tracking ref" "$_bif_r" refs/heads/main
+_bif_cant "handoff-in-flight on a ref with no marker exits 2: cannot examine" "$_bif_r" refs/remotes/origin/claude/no-marker
+mkdir -p "$TMP/bif-nogit"
+_bif_cant "handoff-in-flight outside any checkout exits 2, since origin/main does not resolve" "$TMP/bif-nogit"
+# A bound that is not a whole number of hours, or an option it does not know,
+# must not be read as "no bound" or as a ref: it cannot examine.
+_bif_cant "handoff-in-flight --within abc exits 2: cannot examine" "$_bif_r" --within abc
+_bif_cant "handoff-in-flight --within 1.5 exits 2, since hours are whole" "$_bif_r" --within 1.5
+_bif_cant "handoff-in-flight --within with no value exits 2" "$_bif_r" --within
+_bif_cant "handoff-in-flight with an unknown option exits 2" "$_bif_r" --frobnicate
+
+# The age in the human line. Built now, just before it is read, at ages each
+# about thirty seconds inside its unit: 0m under a minute, rounded down to 45m
+# not 46m, 59m below the hour, 1h just past it, 2h for two and a half, and 72h
+# rather than days.
+_bif_n2="$(date +%s)"
+_bif_pub age/main "$_bif_M2"
+_bif_pub age/a0   "$(_bif_fold "$_bif_M2" 0ch 0ci "$((_bif_n2 - 10))")"
+_bif_pub age/a1   "$(_bif_fold "$_bif_M2" 0ci 0cj "$((_bif_n2 - 90))")"
+_bif_pub age/a45  "$(_bif_fold "$_bif_M2" 0cj 0ck "$((_bif_n2 - 2730))")"
+_bif_pub age/a59  "$(_bif_fold "$_bif_M2" 0ck 0cl "$((_bif_n2 - 3570))")"
+_bif_pub age/a60  "$(_bif_fold "$_bif_M2" 0cl 0cm "$((_bif_n2 - 3630))")"
+_bif_pub age/a150 "$(_bif_fold "$_bif_M2" 0cm 0cn "$((_bif_n2 - 9030))")"
+_bif_pub age/a72h "$(_bif_fold "$_bif_M2" 0cn 0co "$((_bif_n2 - 259230))")"
+_bif_at refs/remotes/origin/claude/no-handoff
+_bif_brun "$_bif_r" --within 0 refs/remotes/age/main
+_bif_isage "the age is whole minutes under an hour and whole hours otherwise, rounded down: 0m 1m 45m 59m 1h 2h 72h" \
+    0 a0 0ch "$((_bif_n2 - 10))" a1 0ci "$((_bif_n2 - 90))" a45 0cj "$((_bif_n2 - 2730))" \
+      a59 0ck "$((_bif_n2 - 3570))" a60 0cl "$((_bif_n2 - 3630))" a150 0cm "$((_bif_n2 - 9030))" \
+      a72h 0cn "$((_bif_n2 - 259230))"
+
+printf '\na fold in flight: the shapes an adversarial review found\n'
+# Four shapes the blind assertions above did not reach, each reproduced by a
+# reviewer against the first version of this code and each shown red against
+# it before the fix.
+_brv="$TMP/brv"; mkdir -p "$_brv"
+( cd "$_brv" && git init -q -b main && git config user.name t && git config user.email t@example.invalid )
+_brv_c() {   # message, epoch, marker-id [, extra file]: commit HANDOFF.md holding that marker
+  printf '# Handoff\n\nFold with felix handoff --rotate (after %s comes x).\n' "$3" \
+    | sed "s/comes x/comes $(cd "$_brv" && . "$REAL_HARNESS/lib/handoff.sh" && felix_handoff_next_id "$3")/" > "$_brv/HANDOFF.md"
+  [ -z "${4:-}" ] || printf '%s\n' "$4" > "$_brv/$4.txt"
+  git -C "$_brv" add -A && GIT_COMMITTER_DATE="@$2 +0000" GIT_AUTHOR_DATE="@$2 +0000" git -C "$_brv" commit -q -m "$1"
+  git -C "$_brv" rev-parse HEAD
+}
+_brv_if() { ( cd "$_brv" && . "$1/lib/handoff.sh" && felix_handoff_in_flight "$_brv" refs/remotes/origin/main "${2:-0}" ); }
+_brv_now="$(date +%s)"
+
+# 1. A criss-cross. F is cut from T0 and adds a file at f1; a fold lands on
+# main as t1; F merges t1; main takes f1 with a true merge; F then folds
+# main's current handoff. F's merge-bases with main are f1 (before main's
+# fold) and t1 (after it), and git prints whichever its dates favour. Read
+# alone, f1 hid a fold that could land.
+_brv_t0="$(_brv_c T0 1000000000 0bz)"
+git -C "$_brv" checkout -q -b F
+_brv_f1="$(printf 'p4\n' > "$_brv/p4.txt"; git -C "$_brv" add -A && GIT_COMMITTER_DATE="@1000000250 +0000" git -C "$_brv" commit -q -m f1 && git -C "$_brv" rev-parse HEAD)"
+git -C "$_brv" checkout -q -b G "$_brv_t0"
+_brv_t1="$(_brv_c "fold G" 1000000200 0cc)"
+git -C "$_brv" checkout -q F
+GIT_COMMITTER_DATE="@1000000300 +0000" git -C "$_brv" merge -q --no-edit "$_brv_t1" >/dev/null 2>&1
+git -C "$_brv" checkout -q -b land "$_brv_t1"
+GIT_COMMITTER_DATE="@1000000400 +0000" git -C "$_brv" merge -q --no-ff --no-edit "$_brv_f1" >/dev/null 2>&1
+git -C "$_brv" update-ref refs/remotes/origin/main "$(git -C "$_brv" rev-parse HEAD)"
+git -C "$_brv" checkout -q F
+_brv_f3="$(_brv_c "fold F" 1000000500 0cd)"
+git -C "$_brv" update-ref refs/remotes/origin/claude/criss "$_brv_f3"
+is  "a criss-cross fold has two merge-bases, one before main's fold and one after it" \
+    "$(git -C "$_brv" merge-base --all "$_brv_f3" refs/remotes/origin/main | wc -l | tr -d ' ')" "2"
+is  "and it is named however git orders its merge-bases, since every base is read" \
+    "$(_brv_if "$REAL_HARNESS" | cut -f1,2)" "$(printf 'claude/criss\t0cd')"
+git -C "$_brv" update-ref -d refs/remotes/origin/claude/criss
+
+# 2. A branch pruned between the listing and the read. Every session shares
+# refs/remotes, so a fetch --prune in another worktree can delete a ref the
+# listing just returned. git grep resolves every name before it reads any and
+# died on that one, printing nothing for the rest: main read as unmarked and
+# the run as "cannot examine". The shim deletes the ref right after git lists
+# it, which is the same thing on a fixed schedule.
+git -C "$_brv" checkout -q -b main2 refs/remotes/origin/main
+_brv_live="$(_brv_c live "$_brv_now" 0cd)"
+git -C "$_brv" update-ref refs/remotes/origin/claude/live "$_brv_live"
+git -C "$_brv" checkout -q -b old "$_brv_t0"
+_brv_gone="$(_brv_c gone "$_brv_now" 0bz gone)"
+git -C "$_brv" update-ref refs/remotes/origin/claude/gone "$_brv_gone"
+mkdir -p "$_brv/shim"
+_brv_git="$(command -v git)"
+cat > "$_brv/shim/git" <<EOF
+#!/usr/bin/env bash
+"$_brv_git" "\$@"; rc=\$?
+case " \$* " in *" for-each-ref "*) "$_brv_git" -C "$_brv" update-ref -d refs/remotes/origin/claude/gone ;; esac
+exit \$rc
+EOF
+chmod +x "$_brv/shim/git"
+_brv_out="$(PATH="$_brv/shim:$PATH" _brv_if "$REAL_HARNESS")"; _brv_rc=$?
+is  "a branch pruned after it was listed does not blank the read: main is still read, the live fold still named" \
+    "$_brv_rc:$(printf '%s\n' "$_brv_out" | cut -f1,2 | tr '\t' ' ')" "0:claude/live 0cd"
+git -C "$_brv" rev-parse --verify --quiet refs/remotes/origin/claude/gone >/dev/null \
+  && bad "and the shim did prune it, so the line above read the race" "the ref is still there" \
+  || ok  "and the shim did prune it, so the line above read the race"
+
+# 3. A tip dated ahead of this clock. It passed the age bound for as long as
+# it stayed ahead, and the script showed it as 0m old.
+git -C "$_brv" checkout -q -b ahead refs/remotes/origin/main
+git -C "$_brv" update-ref -d refs/remotes/origin/claude/live
+_brv_ahead="$(_brv_c ahead $((_brv_now + 7200)) 0cd)"
+git -C "$_brv" update-ref refs/remotes/origin/claude/ahead "$_brv_ahead"
+is  "a tip dated two hours ahead is not trusted as fresh under a bound" \
+    "$(_brv_if "$REAL_HARNESS" 172800)" ""
+is  "with no bound it is named" "$(_brv_if "$REAL_HARNESS" 0 | cut -f1)" "claude/ahead"
+has "and the script says it is dated ahead, rather than 0m old" \
+    "$(cd "$_brv" && "$REAL_HARNESS/bin/handoff-in-flight" --within 0)" "claude/ahead (folded to 0cd; tip dated ahead of this clock)"
+
+# 4. A check that prints a control byte. It reached the session start's JSON,
+# whose escaping knows backslash, quote, \n, \r and \t only, and one escape
+# byte made the whole hook output unreadable.
+_brv_wt="$FROOT/projects/widget/maintenance.tsv"
+cp "$_brv_wt" "$TMP/brv-widget-maint.keep" 2>/dev/null || : > "$TMP/brv-widget-maint.keep"
+printf 'brvesc\t0\talways\tprints an escape\tprintf '"'"'x\\033[31my\\001z\\n'"'"'\n' > "$_brv_wt"
+_brv_st="$( ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+              . "$FROOT/harness/lib/maintenance.sh"; felix_maint_status "$FROOT/projects/widget" "$REPO" ) )"
+is  "a holder keeps its text and drops its control bytes" \
+    "$(printf '%s\n' "$_brv_st" | awk -F'\t' '$2 == "brvesc" { print $1 "|" $3 }')" "inflight|x[31myz"
+_brv_out="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>/dev/null)"
+printf '%s' "$_brv_out" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1 \
+  && ok  "so the session start's output is still JSON" \
+  || bad "so the session start's output is still JSON" "$(printf '%s' "$_brv_out" | head -c 300)"
+has "and the line names it" "$_brv_out" "Already in flight, so not due: brvesc on x[31myz"
+cp "$TMP/brv-widget-maint.keep" "$_brv_wt"
 
 printf '\nno engine test reads a pipe through a grep that can stop early\n'
 # Under pipefail, `producer | grep -q x` reads "absent" for a value that is

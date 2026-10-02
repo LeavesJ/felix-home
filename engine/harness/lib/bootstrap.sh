@@ -150,6 +150,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  # The unattended repair runs the gate again after it pushes, since nothing
+  # its token pushes starts a workflow by itself.
+  workflow_dispatch:
 
 permissions:
   contents: read

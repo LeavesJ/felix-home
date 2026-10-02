@@ -24,9 +24,7 @@ report or the roadmap to know what comes next.
 - **D3, one attended `felix dispatch` tick before March.** It runs on the
   founder's own API key with a host-enforced dollar cap, on felix-home and
   one other ecosystem. The roadmap text is #389. The founder approved it on
-  2026-10-01, and the carrier lands it in its chain right after #388. If #389
-  is still open when you read this, that is the carrier's order, not a
-  question for the founder.
+  2026-10-01, and it landed as ea865e82.
 
 **Standing rules from this session.**
 
@@ -346,7 +344,7 @@ these again.
   may run overnight with the Mac kept awake, when weekly usage allows.
   Before arming, nothing lands unattended. The roadmap text is in #389
   (commit 636a090e). The founder said yes to that head on 2026-10-01
-  ("i say yes 389").
+  ("i say yes 389"), and it landed as ea865e82.
 - **Replay.** Separate `claude -p` arms run by an attended driver on his
   subscription are fine and sit outside D3. About $410 of usage is fine.
   Both hold "as long as properly used": the protocol's isolation, pinning

@@ -3,27 +3,112 @@
 #   base  <ref>  <sha>  <engine version there>
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
-# A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	a1af3c007d971ec6ec6f1e8617ded9fd81c5bcc7	0.49.232
-run	21	3868	5
-a NUL after more than a pipe's 64 KB of rows refuses the table all the same, in one stderr line naming it	1
-a NUL refuses the whole table: with it in a comment between two met controls on clean lines neither runs and --gate exits 2, where without it both run and pass	1
-and felix_qualify_run refuses it so without the caller's pipefail	1
-and in that locale the library reads no row of it and exits non-zero	1
-and missing_controls refuses it so without the caller's pipefail	1
-and needs refuses such a table without the caller's pipefail too	1
-and plain felix qualify over each of those tables runs no control, says the table holds a NUL, and exits 2	1
-and ungoverned refuses it so without the caller's pipefail	1
-felix gate over a table holding a NUL byte anywhere fails qualified, never ok, and shows under it the felix: line naming the table and its NUL	1
-felix qualify --gate over a table with a NUL after a row's fifth field runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
-felix qualify --gate over a table with a NUL alone on a line runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
-felix qualify --gate over a table with a NUL inside a comment runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
-felix qualify --gate over a table with a NUL inside a held row's mutation runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
-felix qualify --gate over a table with a NUL past byte 8000 runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
-felix qualify --gate over a table with a NUL starting a held row runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
-felix_qualify_missing_controls over a table holding a NUL byte anywhere prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL	1
-felix_qualify_rows, felix_qualify_malformed and felix_qualify_snapshot each exit non-zero over a table holding a NUL byte anywhere, with the caller's pipefail and without	1
-felix_qualify_run over a table holding a NUL byte anywhere runs nothing, prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL	1
-felix_qualify_ungoverned over a table holding a NUL byte anywhere names no checker, exits 2, and says in one stderr line naming the table that it holds a NUL	1
-in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2	1
-needs over a table holding a NUL byte anywhere resolves nothing, exits 2, and says in one stderr line naming the table that it holds a NUL	1
+#   an assertion the manifest lists that the base run never reached counts as failed, by its shortfall
+# A base of - means no complete red run was made: none was possible, the
+# suite stopped before reached or reached no assertion, or tests/red itself
+# was stopped; its stdout said which unless it was the one stopped.
+# Reproduce with: tests/red <ref>
+base	origin/main	bcd55421faf1ed6fa32a35b99e131d0de75f1486	0.49.266
+run	102	6063	9
+FELIX_HARNESS_DIR holds lib/maintenance.sh, so it is an engine harness	1
+a FELIX_HARNESS_DIR inherited from the caller is replaced by the lib's own	1
+a bare commit is not a remote-tracking ref: exit 2, one line	1
+a bound of 0 is no bound	1
+a bound of 5000 seconds keeps only the fold whose tip is 2730 seconds old	1
+a branch pruned after it was listed does not blank the read: main is still read, the live fold still named	1
+a branch that only adds a pending file, its marker equal to main's, is not in flight	1
+a branch under another remote is not counted for origin/main	1
+a branch whose HANDOFF.md has no marker is not in flight	1
+a branch whose first marker is main's is not in flight, whatever id it quotes lower down	1
+a branch whose marker is behind main's, though cut from main's tip, is not in flight	1
+a branch with no HANDOFF.md is not in flight	1
+a check that exits 0 naming one holder is inflight, holder in field 3	1
+a fold cut from an older main whose handoff has since moved is stale, not in flight	1
+a fold main has already taken (its tip is in main, its marker is main's) is not in flight	1
+a holder keeps its text and drops its control bytes	1
+a holder printed with no trailing newline still counts	1
+a local branch (refs/heads) is never counted, though it holds a live fold	1
+a local branch is not a remote-tracking ref, though it holds main's commit: exit 2, one line	1
+a long pointer is refused naming its own directory, not the parent	1
+a ref that does not resolve cannot be examined: exit 2, one line on stdout	1
+a ref whose HANDOFF.md has no marker cannot be examined: exit 2, one line	1
+a ref with no HANDOFF.md cannot be examined: exit 2, one line	1
+a symbolic ref such as origin/HEAD is never counted, even when it points at a fold in flight	1
+an inflight row is not rendered as a passed check	1
+and due because the script answered none in flight (exit 1), not because it could not run	1
+and exits 0 on it called by a relative path from a subdirectory, finding its library from where it was called	1
+and it is named however git orders its merge-bases, since every base is read	1
+and keeps the row's description there	1
+and names the holders: on <holders>	1
+and says in flight on that row	1
+and says it once, on a line of its own	1
+and says the same called by a relative path from a subdirectory, finding its libraries from where it was called	1
+and says the same called by a relative path from a subdirectory, finding its library from where it was called	1
+and that row reads inflight, since the check printed it and exited 0	1
+and the emitted inflight row keeps exactly five fields	1
+and the line names it	1
+and the refusal marks where the middle was cut	1
+and the row's reason is given	1
+and the script says it is dated ahead, rather than 0m old	1
+and the script says none in flight for it (exit 1)	1
+and the script says none in flight for them (exit 1)	1
+and the shim did prune it, so the line above read the race	1
+and the third field is the tip's committer time in Unix seconds	1
+bin/handoff-in-flight, run from a subdirectory with no arguments, reads origin/main within 48 hours and names each fold, newest first, exit 0	1
+blank lines, leading, inner and trailing, are dropped from the holders	1
+each id is the branch's current id from its first marker, not a phrase quoted lower down	1
+each inflight row adds a line of its own	1
+every tab inside a holder line becomes a space	1
+felix maintenance marks the row in-flt	1
+felix_handoff_in_flight names every fold in flight on origin, one <branch> <id> <epoch> line each, newest tip first, and exits 0	1
+fold order: 0aaa is after 0zz, though it sorts before it as a string	1
+fold order: 0da is after 0cz, so a fold to 0da from a main at 0cz is in flight	1
+fold order: 0zz is before 0aaa, though it sorts after it as a string, so it is not in flight	1
+folds are ordered by tip time, newest first, not by name or by id	1
+given a bound of 48 hours in seconds, a fold whose tip is 72 hours old is left out	1
+handoff-in-flight --within 0 is no bound, and a tip 72 hours old is said in hours	1
+handoff-in-flight --within 1.5 exits 2, since hours are whole	1
+handoff-in-flight --within 100 is a hundred hours, so the 72-hour tip is named	1
+handoff-in-flight --within 3 is three hours: the 5-hour and 72-hour tips are left out	1
+handoff-in-flight --within abc exits 2: cannot examine	1
+handoff-in-flight --within with no value exits 2	1
+handoff-in-flight answers from git alone and never runs gh	1
+handoff-in-flight on a local branch exits 2: not a remote-tracking ref	1
+handoff-in-flight on a ref that does not resolve exits 2: cannot examine	1
+handoff-in-flight on a ref with no marker exits 2: cannot examine	1
+handoff-in-flight outside any checkout exits 2, since origin/main does not resolve	1
+handoff-in-flight takes the ref as its argument, the short form included	1
+handoff-in-flight with an unknown option exits 2	1
+handoff-in-flight with nothing in flight exits 1 and prints nothing, as grep does	1
+it examines the checkout it is given as <root>, from any working directory	1
+it reads the folds in flight from git alone and never runs gh	1
+naming the second row with its own holder	1
+on the line directly under the in-flt row	1
+once the fold is on the remote the row is inflight, naming the branch, its id and its age	1
+only stdout names holders; what the check said on stderr is not one	1
+only the inflight row is marked in-flt, not the silent ok row	1
+session start names the holder: 'Already in flight, so not due: <name> on <holders>'	1
+sourced from another harness, FELIX_HARNESS_DIR names that harness instead	1
+the age is whole minutes under an hour and whole hours otherwise, rounded down: 0m 1m 45m 59m 1h 2h 72h	1
+the branch is named under the remote, without origin/ or refs/remotes/	1
+the check runs in the checkout root it was given	1
+the check runs with FELIX_HARNESS_DIR set to the harness the lib was sourced from	1
+the founder's case 10: a here-document a shell reads is its script	1
+the founder's case 11: and so with -s	1
+the founder's case 12: a redirect's target is written whatever line the here-document ends on	1
+the founder's case 1: a separator glued to the last word ends it, as the shell does	1
+the founder's case 2: a group's separator ends the word too	1
+the founder's case 3: a line break ends a word as a blank does	1
+the founder's case 4: a shell's -c script is a command of its own, quotes and all	1
+the founder's case 5: and so under bash -c	1
+the founder's case 6: a -c script handed to find's -exec is still a command	1
+the founder's case 7: a $( ) assigned to a variable runs	1
+the founder's case 8: a quoted program name is the program	1
+the founder's case 9: a quoted path in command position runs	1
+the in-flight line appears when nothing is due	1
+the reader prints a command separator as a token of its own, an operator of two characters whole	1
+the short form origin/main is read as refs/remotes/origin/main	1
+two non-empty lines are joined by '; ', in the order printed	1
+with no bound it is named	1
+with nothing in flight it prints nothing and exits 0	1
+with only inflight, ok, event and dormant rows, felix maintenance shows the inflight row	1

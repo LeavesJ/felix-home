@@ -90,7 +90,9 @@ jobs:
     steps:
       # v5, the lowest major that runs on Node 24. v4 targets Node 20, which
       # the runner forces onto Node 24 with a warning until it stops doing so.
-      - uses: actions/checkout@v5
+      # Pinned to v5.1.0's full commit sha, here and at the Felix checkout;
+      # the pin comment there says why and how it moves.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ github.event.workflow_run.head_branch || github.ref }}
           fetch-depth: 0
@@ -116,11 +118,19 @@ jobs:
       # a write token, and an API key once it is switched on, and an unpinned
       # checkout runs whatever merged in Felix that day.
       #
+      # actions/checkout is pinned for that reason too, at both checkouts. A tag
+      # is a ref its owner can move, so @v5 runs whatever that repository points
+      # v5 at on the day, in this step, which fetches with the deploy key.
+      # Moving it is the same one-change review as moving the Felix pin: both
+      # uses: lines to the new release's full commit sha (dereference an
+      # annotated tag to its commit), with the release in the comment beside
+      # them. tests/run holds every uses: in this file to a full sha.
+      #
       # What the pin costs: the risk table and gate script Felix holds for this
       # repository are read from the same commit. A path made red in Felix after
       # the pin is not red to this loop until the pin moves, so move it when
       # either changes.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           repository: {{FELIX_REPO}}
           ref: '{{FELIX_REF}}'

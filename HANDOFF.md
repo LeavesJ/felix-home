@@ -22,7 +22,7 @@ so two sessions' handoffs cannot collide in whatever order they land. The
 session start names every section waiting there. Each is newer than the
 current section below. `felix handoff --rotate`, on a branch cut from main
 when upkeep says it is due, folds them in, oldest-landed first:
-- each takes the next id (after 0cg comes 0ch);
+- each takes the next id (after 0cn comes 0co);
 - the section it replaces moves into `docs/handoff/<id>.md`, unchanged;
 - their rows go in at the top of the index.
 
@@ -47,86 +47,56 @@ tree; the engine is published as a snapshot with no history at
 Sections newer than this one may be waiting in `docs/handoff/pending/`. The
 session start names them.
 
-### 0cg. 2026-09-24 — the Actions outage measured: a spending cap, not capacity; a push to main now reuses its pull request's green run of the same tree
+### 0cn. 2026-09-25: `felix qualify --gate` fails closed. One read of the table, a failed read refuses with exit 2, a short run refuses, and the gate always says why under `qualified FAIL`
 
-**No engine change.** `.github/workflows/gate.yml` and two scripts beside it,
-on `claude/felix-verification-scheduler-1fe223`. It is an `execute` escape, so
-`felix merge` refuses it and it merges on the founder's yes.
+This PR carries claude/qualify-membership-sigpipe (the section beside this
+one) in the same slot, by agreement with the carrier. The engine changes are
+in lib/qualify.sh, felix (cmd_qualify and the gate's qualified block) and
+tests/run.
 
-**Why.** From 2026-09-25 00:07Z GitHub refused every felix-home job. The
-founder and an outside reviewer read that as a new verification ceiling. The
-measurement is in `~/.felix/memory/felix/audits/2026-09-24-ci-budget/`
-(`ci-budget.md`, its PDF, and `data/` with the scripts).
+**Defect closed.** `felix qualify --gate` read `qualification.tsv` four or more
+times per run and checked only the first read's status. A later read failing
+(a table rewritten mid-run, or a fork failure at load) ran no control and
+counted `0 of 0 held` as a pass. `felix gate` then printed `qualified ok` over
+a HELD control. Now:
+- The table is read once (`felix_qualify_snapshot`), and the verdict comes
+  only from that read.
+- A failed read exits 2, saying the table could not be read.
+- `--gate` exits 0 only with one verdict per selected row, and at least one
+  row selected.
+- Every derived count and list takes its own status.
+- The row command, mutation and premise read /dev/null. A stdin-reading
+  checker used to swallow every later row.
+- The reader refuses as MALFORMED a row with an empty checker or a checker
+  that is not an id, more than six fields, or a CR.
+- `felix gate` lifts every refusal reason under `qualified FAIL`, falls back to
+  a line saying where to read why, and counts checkers from the rendered rows,
+  never from a second read.
 
-**What the data says.**
+**Built by the engine-build workflow, with one process defect.** The workflow
+ran a blind contract, the implementation, three adversarial reviewers and a
+fixer. The defect: I sent scope rulings mid-run by SendMessage to the
+workflow's fixer agent. That started a second copy of it, and the two copies
+wrote to one worktree until I stopped the workflow. The auto-memory note
+`message-to-workflow-agent-forks-a-copy` records it. Put rulings in the
+prompts, or stop the workflow first.
 
-- **A budget cap, not capacity.** September's 531 runs came to about 2,042
-  billed minutes against the Free plan's 2,000, with a $0 spending limit. Since
-  09-22, jobs waited a median of 3 s to start, and at most 4 ran at once
-  against the plan's 20.
-- **Post-merge runs on main never failed.** They were 34.5% of minutes, and
-  0 of 203 failed. 174 of them gated a tree the pull request's run had already
-  passed.
-- **Drafts:** 20% of minutes gross, but only about 6.5% net, because 45 of 54
-  went ready.
-- **Freshness:** 21 of 37 PR failures were freshness checks alone. L2b removes
-  that class.
-- **Nothing in the engine reads CI.** `felix merge` never does; sessions
-  stopped on the working rule "merge once CI is green". Under the landing
-  actor, CI on landed commits is the brake, so the budget sets availability as
-  well as cost.
+**Handed on, not done here:**
+- A checker exiting 126/127 meets fail-expecting controls. The session on
+  claude/qualify-rows-fresh-shell owns `_felix_qualify_one`'s eval lines, is
+  stacked on this branch, and takes it next in the queue.
+- A row led by a NUL byte is invisible to macOS awk and is skipped as a blank
+  line. Filed as a task. Its fix must keep the one read.
 
-**What was built.**
-
-- The `reuse` job runs on pushes to main only, holding `pull-requests`,
-  `actions` and `checks` read. It finds the merged pull request, then the
-  pull_request run of `gate.yml` on its head that ran last (by
-  `run_started_at`). That run must be green, and its gate job must name exactly
-  one `gated tree` annotation equal to the landed tree.
-- The `gate` job emits that annotation before the gate runs. It is skipped only
-  when `reuse` names a run.
-- `reuse-verified-tree.test.sh` has 27 cases. Its stand-in `gh` answers only
-  exact URLs, and nine mutations of the step were each caught.
-
-**The review changed the design.** One adversarial reviewer found a hole in
-the first version. It inferred the gated tree from ancestry, so it could reuse
-a run whose base was another branch: a pull request retargeted to main after
-its last run, or a head shared by two pull requests. The run object keeps no
-base once the pull request merges. The annotation records the tree the run
-actually gated, which also drops the dependence on main only moving forward.
-The reviewer also found:
-
-- a stand-in `gh` that three broken copies passed;
-- "latest" meaning latest created rather than latest started;
-- token claims that overstated.
-
-All of these are fixed.
-
-**What is not proven until it runs.** The replay of the first version
-reused 168 of 203 September pushes. The annotation version cannot be replayed,
-because old runs carry no annotation. Its first live test is this PR's own
-push to main. Check that run's `reuse` job summary: a green run with the `gate`
-job skipped means it worked.
-
-**Rules recorded for the verification plane** (R1-R6 in the audit, Felix's
-call, not asked):
-
-- R1: evidence is keyed by tree, judge and environment.
-- R2: a skip is only ever a reuse.
-- R3: remote CI is spent at the landing frontier, with readiness in L6a.
-- R4: freshness never costs a runner; L2b removes it.
-- R5: the month-to-date budget goes on the L3a status page.
-- R6: docs-only changes run the full gate until the suite's reads are
-  measured. This suite pins README text, so a path filter would drop real
-  checks.
-- Not now: a self-hosted runner.
-
-**Next.**
-
-- The founder's yes on the merge.
-- After it lands, read the first push run.
-- Then carry the reuse into the bootstrap template (`lib/bootstrap.sh`), so
-  adopters get it too. That is engine work, through the pipeline.
+**Traps paid:**
+- The slice runner (the suite's prologue plus only the obligations and
+  qualification sections, with one commit standing in for the omitted
+  sections) ran those sections in 45 s against the full suite's 50 minutes.
+  Without that commit, every control is unrunnable, because the fixture repo
+  has no HEAD.
+- Another session's `pkill -f 'engine/harness/tests/run'` killed a reviewer's
+  mutation run mid-way. A killed run's log has no summary line. Score a
+  mutant only from a log that has one.
 
 ---
 
@@ -137,6 +107,13 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0cm](docs/handoff/0cm.md) | 2026-09-25 — the needs-count flake was printf into grep -q under pipefail, not a failed read; qualify's membership is a case in the shell now, and an unreadable qualification.tsv is said, not resolved |
+| [0cl](docs/handoff/0cl.md) | 2026-09-25 — the project scripts read a pipe's answer from the whole list: a README change under --public-readme and a monitoring change in sv2-apps are no longer read as absent |
+| [0ck](docs/handoff/0ck.md) | 2026-09-24 — bootstrap's rendered gate workflow keeps no credential after its checkouts |
+| [0cj](docs/handoff/0cj.md) | 2026-09-23/25 — stranded work audited and backed up, the landing actor designed and put first, the founder's batch landed |
+| [0ci](docs/handoff/0ci.md) | 2026-09-25 — the context cap the founder counted on did not exist, and a session started from now on summarizes at 500K |
+| [0ch](docs/handoff/0ch.md) | 2026-09-25 — no engine test reads a pipe through a grep that can stop early: fifty sites converted, and a suite lint refuses the shape |
+| [0cg](docs/handoff/0cg.md) | 2026-09-24 — the Actions outage measured: a spending cap, not capacity; a push to main now reuses its pull request's green run of the same tree |
 | [0cf](docs/handoff/0cf.md) | 2026-09-23 — the public README rewritten for a general reader first, with the Felix mark, and checked against the code three times |
 | [0ce](docs/handoff/0ce.md) | 2026-09-24 — the 44 red rows every Mac recorded since #308 were tests/red moving TMPDIR, which macOS's mktemp ignores; red now runs the suite in the caller's TMPDIR |
 | [0cd](docs/handoff/0cd.md) | 2026-09-24 — the megabyte-line audit assertion timed by CPU and shown red, then handed to the session that already had it |

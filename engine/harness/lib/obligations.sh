@@ -69,7 +69,7 @@ FELIX_OBLIGATION_PATHWAYS='deterministic witness corroborated probabilistic unkn
 #
 # An evidence contract a final filter makes unable to fail (final-filter.sh)
 # is refused with the rest: pipefail is off in the `bash -c` that runs it, so
-# `npm test | tail -20` read SATISFIED whatever the tests said. `applies` is
+# `make test | tail -20` read SATISFIED whatever the tests said. `applies` is
 # not judged. An unfailable one makes its row always apply, which asks more.
 #
 # A scan that fails admits nothing, and says so in `bad` mode. The classifier

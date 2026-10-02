@@ -25713,6 +25713,50 @@ is "a subject that cannot be identified blocks the epoch the same way" "${#out}"
 [ "$rc" -ne 0 ] && ok  "and that refusal is non-zero too" \
                 || bad "and that refusal is non-zero too" "exited 0 having printed nothing"
 
+# ------------------------------------------------------------ observer ------
+# The same tree and the same facts, asked from a shell that finds another git.
+# felix_probes_run names the instrument that answered each row — the probe's
+# first word resolved on PATH, with the byte size of the file it resolved to
+# — and that token was hashed into the topology beside the facts. So a launchd
+# job, a CI runner or any shell whose PATH put a different git first computed
+# a different epoch for a decision nothing about had changed, and every answer
+# recorded there read stale on the laptop. direction-decisions recorded it
+# under "Before any scheduler", item 1, as an engine-level decision owed an
+# assertion that computes the epoch under two PATHs. This is that assertion.
+#
+# The other git is a wrapper that execs the real one, so every probe prints
+# exactly what it printed before and the only thing that differs is the file
+# PATH resolves `git` to. The first two assertions say the fixture really is
+# that case: the token differs between the two shells, and felix_probes_run
+# still prints it, because the drift report and the facts log read it there.
+# Without them the third would pass on a machine where the wrapper was never
+# reached, which is the one way it could be green and mean nothing.
+EPW="$TMP/epoch-other-git"; mkdir -p "$EPW"
+printf '#!/bin/sh\nexec "%s" "$@"\n' "$(command -v git)" > "$EPW/git"; chmod +x "$EPW/git"
+_ep_other()  { ( PATH="$EPW:$PATH"; export PATH; "$@" ); }
+_ep_gitsrc() { ( . "$FROOT/harness/lib/probes.sh"
+                 felix_probes_run "$EPP" "$EPR" | awk -F'\t' '$1 == "tracked" { print $7 }' ); }
+ep_src_here="$(_ep_gitsrc)"; ep_src_there="$(_ep_other _ep_gitsrc)"
+is "a wrapper first on PATH is another instrument to the probe that asks git" \
+   "$(_ep_same "$ep_src_here" "$ep_src_there")" "different"
+is "and felix_probes_run still names which git answered, for the readers that ask" \
+   "$(printf '%s\n' "$ep_src_there" | grep -c '^git@[0-9][0-9]*$')" "1"
+is "a different git on PATH computes the same decision epoch" "$(_ep_other _ep_hash)" "$ep_hash0"
+is "because it computes the same grounded topology"          "$(_ep_other _ep_topology)" "$ep_topo0"
+
+# And the opposite property, so the fix is not a blindness. What left the hash
+# is which observer answered; what was observed has to stay in it. A member one
+# more probe enumerates is a new topology to the shell with the other git
+# exactly as it is to this one, and both shells have to arrive at the same new
+# epoch, or the first assertion above held only for a tree that sat still.
+printf 'b\n' > "$EPR/members/b.txt"
+is "a member count that moves is still a new epoch to the shell with the other git" \
+   "$(_ep_same "$(_ep_other _ep_hash)" "$ep_hash0")" "different"
+is "and both shells agree on what the new epoch is" "$(_ep_other _ep_hash)" "$(_ep_hash)"
+rm -f "$EPR/members/b.txt"
+is "and the member going away brings both back to the epoch they started from" \
+   "$(_ep_other _ep_hash)" "$ep_hash0"
+
 printf '\na background job does not keep the session waiting\n'
 # Measured on the shipped hook: the process exits in 1.9s and its stderr pipe
 # reaches EOF at 12.2s. The ten seconds in between are a background refresh

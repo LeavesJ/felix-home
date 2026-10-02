@@ -149,7 +149,10 @@ felix_handoff_fold() {
   s="${b%%	*}"; e="${b#*	}"
   n="$(grep -c . "$order" 2>/dev/null)"; n="${n:-0}"
   [ "$n" -gt 0 ] || { printf 'nothing pending\n'; return 0; }
-  t="$(mktemp -d 2>/dev/null)" || { printf 'could not make a directory to build in\n'; return 1; }
+  # A template under $TMPDIR: a bare mktemp on macOS ignores TMPDIR, and the
+  # suite points TMPDIR at a fixture to count what is left there.
+  local tmpd="${TMPDIR:-/tmp}"
+  t="$(mktemp -d "${tmpd%/}/felix-handoff.XXXXXX" 2>/dev/null)" || { printf 'could not make a directory to build in\n'; return 1; }
   mkdir -p "$t/out"
   sed -n "${s},$((e - 1))p" "$h" | _felix_handoff_trim > "$t/out/$x.md"
   title="$(head -1 "$t/out/$x.md")"; title="${title#"### $x. "}"
@@ -210,7 +213,8 @@ felix_handoff_fold() {
 # Folds every pending section in the checkout at <root>, ordered by <ref>.
 felix_handoff_rotate() {
   local root="$1" ref="${2:-}" t rc
-  t="$(mktemp 2>/dev/null)" || { printf 'could not make a file to order in\n'; return 1; }
+  local tmpd="${TMPDIR:-/tmp}"
+  t="$(mktemp "${tmpd%/}/felix-handoff.XXXXXX" 2>/dev/null)" || { printf 'could not make a file to order in\n'; return 1; }
   felix_handoff_pending_order "$root" "$ref" > "$t"
   felix_handoff_fold "$root" "$t"; rc=$?
   rm -f "$t"; return "$rc"
@@ -378,7 +382,8 @@ felix_handoff_check() {
     [ -d "$root/$FELIX_HANDOFF_DIR" ] || { printf 'cannot examine\t%s has no marker, so it is not the sectioned layout\n' "$FELIX_HANDOFF_FILE"; return 2; }
     printf 'marker\t%s names no current section: no (after <id> comes <next>) in it\n' "$FELIX_HANDOFF_FILE"; return 1
   fi
-  t="$(mktemp -d 2>/dev/null)" || { printf 'cannot examine\tcould not make a scratch directory\n'; return 2; }
+  local tmpd="${TMPDIR:-/tmp}"
+  t="$(mktemp -d "${tmpd%/}/felix-handoff.XXXXXX" 2>/dev/null)" || { printf 'cannot examine\tcould not make a scratch directory\n'; return 2; }
   : > "$t/p"; : > "$t/n"
   x="$(printf '%s' "$m" | cut -f1)"; y="$(printf '%s' "$m" | cut -f2)"; ml="$(printf '%s' "$m" | cut -f3)"
   [ "$y" = "$(felix_handoff_next_id "$x")" ] \

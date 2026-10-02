@@ -15,7 +15,7 @@
 # name	keywords	profile	play
 incident	production outage pager sev1 alerting rollback hotfix	incident	superpowers:systematic-debugging datadog sentry-cli
 debug	broken failing crash traceback stacktrace exception regression reproduce flaky hang	core	superpowers:systematic-debugging
-grading	grading scoring rubric verdict auditor evidence anchor span refusal forgeable	llm	superpowers:test-driven-development superpowers:systematic-debugging deepeval google-cloud-storage
+grading	grading scoring rubric verdict auditor evidence anchor span refusal forgeable	llm	superpowers:test-driven-development superpowers:systematic-debugging deepeval google-cloud-storage azure-sql-developer
 probe	probe payload corpus admission landing permutation arm cell exclusion denominator	core	superpowers:brainstorming superpowers:test-driven-development
 model	prompt model wiring template system pinned	llm	superpowers:brainstorming langfuse
 web	endpoint handler request response route session	backend	superpowers:test-driven-development playwright

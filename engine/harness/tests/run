@@ -16362,6 +16362,24 @@ is  "a run that sweeps two dead bases prints byte for byte the three verdict lin
     "was:[$_qswp1] stdout:$(cmp -s "$d/r0/out" "$d/r1/out" && echo same || echo differs) lines:$(awk 'END { print NR }' "$d/r1/out" 2>/dev/null) stderr:[$(cat "$d/r1/err" 2>/dev/null)] $(_qswt "$d/t1") $(_qswwt "$R")" \
     "was:[t:[felix-qualify.QUIET1 felix-qualify.QUIET2 ] wt:1] stdout:same lines:3 stderr:[] t:[] wt:0"
 
+# 12b. The caller's glob options: a run whose shell has failglob from its
+# BASH_ENV, and one that has noglob from an exported SHELLOPTS, sweeps a dead
+# base and throws its own row's base away, junk its mutation wrote beside the
+# tree and all, as a run with neither does.
+d="$QSWS/globopts"; mkdir -p "$d/proj"; R="$(_qswroot "$d/root")"
+printf 'shopt -s failglob\n' > "$d/failglob.sh"
+_qsw5 junk 'test -f base.txt' restoration pass 'printf x > ../junk' > "$d/proj/qualification.tsv"
+for _qswo in failglob noglob; do
+  mkdir -p "$d/t-$_qswo"
+  _qswplant "$d/t-$_qswo" felix-qualify.GLOBOP "$R" "$(_qswdead) $QSWOLD"
+  _qswp1="$(_qswpre "$d/t-$_qswo/felix-qualify.GLOBOP" "$R" "$(_qswphys "$d/t-$_qswo")/felix-qualify.GLOBOP/w")"
+  case "$_qswo" in failglob) _qswxenv="BASH_ENV=$d/failglob.sh" ;; noglob) _qswxenv="SHELLOPTS=noglob" ;; esac
+  _qswrun "$d/r-$_qswo" "$d/t-$_qswo" "$R" "$d/proj"; _qswxenv=""
+  is  "a run whose shell has $_qswo set by its caller still reads its row pass and met, sweeps a dead base, registration included, throws its own row's base away with the junk its mutation wrote beside the tree, and says no felix: line" \
+      "$(_qswverd "$d/r-$_qswo") dead:$(_qswgone "$_qswp1" "$d/t-$_qswo/felix-qualify.GLOBOP" "$R" "$(_qswphys "$d/t-$_qswo")/felix-qualify.GLOBOP/w") $(_qswt "$d/t-$_qswo") felix:$(_qswfelix "$d/r-$_qswo/err")" \
+      "pass met dead:gone t:[] felix:0"
+done
+
 # 13. Through the CLI, from a checkout bound to a project of the section's
 # own, in a home of its own: felix qualify --gate and felix qualify.
 QSWH="$QSWS/home"; QSWHR="$QSWS/home-repo"

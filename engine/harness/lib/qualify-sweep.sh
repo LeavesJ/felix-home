@@ -169,10 +169,13 @@ _felix_qualify_orphan() {   # path, T, T physical or empty
   [ ! -e "$b" ] && [ ! -L "$b" ]
 }
 
-_felix_qualify_sweep() {   # root
+# Its own process, so the glob options it sets (_felix_qualify_globs) reach
+# no caller.
+_felix_qualify_sweep() (   # root
   local root="$1" t="${TMPDIR:-/tmp}" tp b n rec p s me="" listed relisted rest line failed="" nl='
 '
   local _felix_qualify_text _felix_qualify_rec
+  _felix_qualify_globs
   t="${t%/}"
   [ -n "$t" ] && [ -d "$t" ] || return 0
   tp="$(CDPATH='' cd -- "$t" 2>/dev/null && pwd -P)" || tp=""
@@ -222,4 +225,4 @@ _felix_qualify_sweep() {   # root
     printf 'felix: %s still lists the scratch worktree %s, which could not be removed\n' "$root" "$p" >&2
   done
   return 0
-}
+)

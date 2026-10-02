@@ -122,15 +122,32 @@ _felix_qualify_phys() {   # dir
 # itself, its physical path its parent's and its own name. A base swapped for
 # a symlink is never entered, and every name after is taken relative to the
 # directory entered, which a later swap of the base's name cannot change. Its
-# own process, so the cd reaches no caller. The function gets the base's
-# physical path. Non-zero when the base cannot be entered so.
+# own process, so neither the cd nor the glob options reach a caller: the
+# globs inside list a base whatever the caller set (_felix_qualify_globs).
+# The function gets the base's physical path. Non-zero when the base cannot
+# be entered so.
 _felix_qualify_in() {   # base, function
   ( case "$1" in */*) ;; *) exit 1 ;; esac
     _felix_qualify_phys "${1%/*}" || exit 1
     want="$_felix_qualify_text/${1##*/}"
     CDPATH='' cd -P -- "$1" 2>/dev/null || exit 1
     _felix_qualify_phys . && [ "$_felix_qualify_text" = "$want" ] || exit 1
+    _felix_qualify_globs
     "$2" "$want" )
+}
+
+# The shell's options a glob or a case pattern here depends on, set as this
+# code reads them, in a process of its own: the felix CLI and the row loop
+# run under whatever the user's BASH_ENV, SHELLOPTS or BASHOPTS set. Under
+# failglob a glob that matched nothing stopped the run before its first row;
+# under noglob nothing was listed, so a base was never emptied and the sweep
+# found nothing (review 2026-10-01). Globbing on, no failglob, no case
+# folding in a glob or a case pattern, no dotglob, nullglob, no GLOBIGNORE.
+_felix_qualify_globs() {
+  set +f
+  shopt -u failglob nocaseglob nocasematch dotglob 2>/dev/null
+  shopt -s nullglob 2>/dev/null
+  unset GLOBIGNORE
 }
 
 # A tree git would not remove, removed from inside its base: rm -rf takes a

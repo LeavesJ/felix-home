@@ -16273,6 +16273,18 @@ is  "a sweep run while its TMPDIR has lost its search bit leaves the registratio
     "live:$(_qswalive "$QSWLIVE") was:$_qswwas registered:$(_qswlisted "$R" "$Tp/felix-qualify.LIVENS/w") base:$(_qswthere "$T/felix-qualify.LIVENS/owner")" \
     "live:yes was:yes registered:yes base:there"
 
+# 7c. A TMPDIR whose name ends in a newline: its physical path keeps the
+# newline, so a registration in the directory named without it is not one
+# of its orphans.
+d="$QSWS/newline"; T="$d/x
+"; mkdir -p "$T" "$d/x"; R="$(_qswroot "$d/root")"
+_qswreggone "$R" "$d/x/felix-qualify.NLOUT1/w"; rm -rf "$d/x/felix-qualify.NLOUT1"
+_qswP="$(_qswphys "$d/x")/felix-qualify.NLOUT1/w"; _qswwas="$(_qswlisted "$R" "$_qswP")"
+_qswplant "$T" felix-qualify.NLDEAD - "$(_qswdead) $QSWOLD"
+_qswbg "$d/s" "$T" "$R" - sweep; _qswfinish "$_qswpid" "$d/s"
+is  "with TMPDIR a directory whose name ends in a newline, a sweep that removes a dead base there leaves the registration of a felix-qualify base gone from the directory of the same name without the newline, outside its TMPDIR" \
+    "dead:$(_qswthere "$T/felix-qualify.NLDEAD") was:$_qswwas listed:$(_qswlisted "$R" "$_qswP")" "dead:gone was:yes listed:yes"
+
 # 8. Another repository's dead base in this TMPDIR: gone from disk, and
 # this root's own list untouched; that repository's next run removes the
 # orphan it is left with.

@@ -191,7 +191,9 @@ _felix_qualify_sweep() (   # root
   _felix_qualify_globs
   t="${t%/}"
   [ -n "$t" ] && [ -d "$t" ] || return 0
-  tp="$(CDPATH='' cd -- "$t" 2>/dev/null && pwd -P)" || tp=""
+  # T's physical path, with any newline it ends in: $(...) alone would drop
+  # it and name another directory.
+  tp=""; _felix_qualify_phys "$t" && tp="$_felix_qualify_text"
   for b in "$t"/felix-qualify.??????; do
     n="${b##*/}"; n="${n#felix-qualify.}"
     case "$n" in *[!"$_felix_qualify_alnum"]*) continue ;; esac

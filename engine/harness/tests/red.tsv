@@ -3,141 +3,72 @@
 #   base  <ref>  <sha>  <engine version there>
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
-# A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	e92d50df	e92d50dfe8c77826cbe5efe3106a0ea921c1b8c9	0.49.235
-run	135	3973	5
-a DEVLOG.md entry written by hand after the catch does not settle it	1
-a branch made from a detached HEAD inherits nothing from before the detach	1
-a catch eight days old is silent though the log was written since	1
-a catch naming no session after this session's own does not let a peer's lesson settle this session's	1
-a catch naming no session is not settled by another branch's lesson	1
-a catch naming no session is settled by a peer's row on its branch	1
-a catch naming no session is settled by a sessionless row on its branch	1
-a catch naming no session is settled by this session's row on its branch	1
-a catch six days old still speaks	1
-a checkout with no commit yet writes one row, under its branch	1
-a column-5 time after the lesson speaks though the log's mtime is old	1
-a conversation holding more than one session owns the rows of each	1
-a detached checkout is silent about other branches' rows	1
-a detached checkout owns rows whose branch column is HEAD	1
-a detached checkout's catch is settled by a row filed under HEAD	1
-a detached checkout's own catch, filed as HEAD, prompts	1
-a devlog entry after this branch's catch clears it too	1
-a devlog entry in a checkout with no commit has a one-line header beginning with day and branch	1
-a lesson stamped the very second of the catch does not settle it	1
-a lesson thirty seconds after the catch clears it	1
-a lesson whose writer cannot be recorded exits non-zero	1
-a lesson written after this branch's catch clears it, whatever a peer logged since	1
-a lesson written into the file by hand after the catch settles nothing	1
-a lesson written with an empty session id is filed under a dash	1
-a lesson written with no session id set is filed under a dash	1
-a lessons.md written by hand after the catch, with no written row, does not settle it	1
-a log row on the branch settles a branch-owned catch	1
-a non-empty devlog written after the catch settles it	1
-a peer branch's newer catch does not prompt	1
-a peer session's lesson after this session's catch does not, on this very branch	1
-a row after the file's last owned catch settles it though an earlier line holds a newer time	1
-a row one second after the catch does	1
-a row that names no session is this checkout's when its branch is the one checked out	1
-a row under the first of several ids in SIDS settles a catch filed under another of them	1
-a session id holding a slash is filed as a dash	1
-a session id holding a space is filed as a dash, and the row stays six columns	1
-a session id holding a tab is filed as a dash, and the row stays six columns	1
-a session id of letters, digits, dot, underscore and dash is kept as it is	1
-a session's catch on the branch it left by checkout -b is its own, even after a commit	1
-a session's catch under its branch's name before git branch -m is still its own	1
-an entry under any of the conversation's sessions settles its catch	1
-an untimed catch is settled by a same-branch row dated a later day, though its epoch is earlier	1
-an untimed catch is settled by a same-branch row whose epoch is after mistakes.log's time	1
-an untimed row is settled by a lesson written on a later day than it names	1
-an untimed row of this branch's is taken at the file's time	1
-an untimed row of this checkout is taken at the log's mtime, and speaks	1
-an untimed row with an empty date is not taken for history	1
-and a dash for an id that would break the row	1
-and a dash when no session ran it	1
-and a lesson written before it does not	1
-and a peer branch's does not, nor anything else on this green stop	1
-and a row after both settles it	1
-and a transcript that never held that id does not claim it	1
-and an earlier session's catch in a reused checkout does not	1
-and an entry whose session column is not one id is nobody's	1
-and an older one does not	1
-and another session's catch on this very branch does not	1
-and another session's on this same branch does not	1
-and felix log does too, a dash for no session and the branch of a checkout with no commit	1
-and felix_mem_log there writes one six-column row under the branch name	1
-and names it trimmed at the ends with its inner space kept	1
-and not by one from an earlier day	1
-and not for a sibling checkout whose own catch was explained	1
-and one on the branch it left by switch -c	1
-and one well-formed row of this session's after them does	1
-and says the lesson is there and must not be written again	1
-and so does a row under the last of them	1
-and so does an untimed row dated ten days back	1
-and the peer who caught later writing its own row settles only its own	1
-and the prompt names felix log for a one-off	1
-and the row a peer session's felix_mem_lesson writes on the same branch does not	1
-and the second it was caught, since the file's own time is whoever wrote last	1
-another checkout's newer catch does not make this one speak	1
-as is the devlog entry, its header one line on a checkout with no commit	1
-both hand-written files newer than this session's catch, with no written row, do not settle it	1
-but is by one written on its own branch, whoever wrote it	1
-each at the second it was written	1
-felix lesson files its writer beside the lesson: branch, kind and session	1
-felix lesson run in the checkout leaves a written.log row for its session, branch and kind	1
-felix log run in the checkout leaves a written.log row of kind log for its session	1
-felix_mem_lesson appends exactly one row to written.log, with six columns	1
-felix_mem_lesson outside git files its row under a question mark	1
-felix_mem_log appends a second six-column row and keeps the lesson row ahead of it	1
-felix_mem_log files a session id holding a tab as a dash too	1
-felix_mem_log in a detached checkout files its row under HEAD at the short sha	1
-from a root outside git with no session, no row settles a catch	1
-from outside git with SIDS empty, a named catch is not settled by its session's row	1
-from outside git, a catch naming no session is not settled even by the asking session's row	1
-in a checkout with no commit felix_mem_lesson writes one six-column row under the branch name	1
-last caught names this checkout's catch, not the file's last row	1
-nor an untimed catch, though both are newer than mistakes.log and a later day	1
-nor by another branch's row with lessons.md and DEVLOG.md newer than the catch	1
-nor do hand-written lessons and devlog settle a branch-owned catch	1
-nor does a devlog entry written by hand	1
-nor does an id nested later in a record than the record's own	1
-nor does it with the lessons.md and DEVLOG.md a peer's writing leaves newer than the catch	1
-nor does one that names no session, as from a terminal outside every session	1
-nor one whose date is a dash, which sorts before every day	1
-nor the HEAD rows, once it is on a branch	1
-one row per entry, six columns each	1
-outside git the written row spells branch and sha exactly as the gate's own row does	1
-rows already in written.log are kept unchanged ahead of the new ones	1
-rows of look-alike branch names do not belong (exact match only)	1
-silent when no row belongs to this checkout	1
-that row carries today's date and the epoch second of the call	1
-that row reads lesson, on the checkout's branch, at its short HEAD, under the session	1
-the Stop hook calls the guard in one place	1
-the devlog row carries today's date and the epoch second of the call	1
-the devlog row reads log, on the checkout's branch, at its short HEAD, under the session	1
-the gate's row names the session that ran it	1
-the last belonging row in the file decides, not the largest time	1
-the prompt names felix log as a way to settle it too	1
-the writer's fifth column is the current epoch second	1
-this branch's own newer catch still prompts, and names it rather than a peer's logged after it	1
-this branch's week-old catch stays history while a peer's rows keep the file fresh	1
-this session's catch prompts after its checkout moves to another branch	1
-this session's catch seen from outside git is settled by its own row	1
-this session's catch with no checkout given is settled by its own row	1
-this session's log row settles its catch as a lesson row does	1
-this session's own lesson after its catch settles it	1
-this session's row on another branch settles its catch	1
-this session's row settles its catch whatever a peer caught later on the same branch	1
-this session's written row ten minutes after its catch settles it	1
-through the Stop hook, a felix lesson run outside every session does not settle this session's catch	1
-through the Stop hook, a peer session's felix lesson after this session's catch still prompts	1
-through the Stop hook, a peer session's felix lesson does not settle this session's catch	1
-through the Stop hook, a peer session's felix log after this session's catch still prompts	1
-while a checkout with a row there is named by it	1
-while the same rows plus one on the exact branch do	1
-while this session's lesson on the branch settles both	1
-while this session's lesson settles its catch from any branch it stood on	1
-with no commit yet the written row spells branch and sha exactly as the gate's own row does	1
-with no root and no session, not even a row on the catch's own branch settles it	1
-with no session asking, a named catch is settled by any row on its branch	1
-with the lesson gone it names its own row past the look-alikes	1
+#   an assertion the manifest lists that the base run never reached counts as failed, by its shortfall
+# A base of - means no complete red run was made: none was possible, the
+# suite stopped before reached or reached no assertion, or tests/red itself
+# was stopped; its stdout said which unless it was the one stopped.
+# Reproduce with: tests/red <ref>
+base	48eefd8f1b5c1cdae115cda11c4ee81b4e1d069b	48eefd8f1b5c1cdae115cda11c4ee81b4e1d069b	0.49.242
+run	62	4290	5
+a line a stray writes to the log after red has read it is not counted, so the name it says is still red, the log being read once	1
+a line that only contains the word reached is not the marker, exit 2	1
+a line that opens like a listed name's skip and does not end in a parenthesis is not its skip, so the name is still red	1
+a listed name the base never reaches is red, though a name it reaches begins with it, holds it in its middle, or is it in another case	1
+a manifest count of 1x, of 1.5 or led by a space is refused naming its line, before the suite runs	1
+a manifest count of zero is refused naming its line	1
+a manifest count with a leading zero is refused naming its line, the empty line above it counted	1
+a manifest row repeating a name an earlier row holds is refused naming the later line, before the suite runs	1
+a manifest row whose count is not a number is refused naming its line, before the suite runs	1
+a manifest row whose name is empty is refused naming its line	1
+a manifest row with no tab between its count and its name is refused naming its line	1
+a name listed ten times that the base reaches nine times is red by one, the counts compared as numbers	1
+a name listed twice that the base reaches ten times takes nothing off the other shortfalls, six of thirty failing, all six never reached	1
+a name listed twice that the base run skips once is red by the one time it never reached it, one skip line counting once	1
+a name reached more often than listed offsets no other name's shortfall, so the run row counts two never reached among four failed	1
+a name that fails once and is not asked its second time against the base is one row counting both	1
+a name the manifest lists twice that the base run reaches once is a row counting the one time it never reached it	1
+a reached line a child wrote to stderr early does not make a suite killed after it a red run, exit 2	1
+a skip of a name the manifest does not list is no skip of a listed name it begins with, unless a space and a parenthesis follow that name	1
+a stray reached followed only by ok lines does not make a suite killed after them a red run, exit 2	1
+a stray reached followed only by skip lines does not make a suite killed after them a red run, exit 2	1
+a suite killed before it printed reached is not a red run, exit 2	1
+a suite killed before its first assertion is refused as unfinished, not as empty	1
+a suite killed short of reached is refused as unfinished, not recorded with the names it never reached, exit 2	1
+a suite that exits 0 with a totals line but no reached line is refused too, exit 2	1
+a suite that exits 1 without reached, as a finished red run exits, is refused, exit 2	1
+a suite that printed an assertion after reached and was killed is refused, exit 2	1
+after an arithmetic error inside a for and an if, every assertion left in each block is recorded red, by the times the base never reached it	1
+an assertion whose arithmetic errors on the base's - and so never runs is recorded red, by the one time it never ran	1
+an assertions.tsv it cannot read is refused as no readable manifest, before the suite runs	1
+an assertions.tsv of empty lines alone is refused as listing no assertion too	1
+an assertions.tsv that is a directory is refused as no readable manifest, before the suite runs	1
+an empty assertions.tsv is refused as listing no assertion, before the suite runs	1
+and a missing manifest is the reason given ahead of a base that does not resolve	1
+and a suite ended by sigterm is reported as exit 143 after its two assertions	1
+and its reason counts both assertions, the one after reached among them	1
+and its reason counts the three assertions printed after that stray line	1
+and its reason names exit 0 and the three assertions it printed, a skip among them	1
+and its reason names exit 1 and the three assertions it printed, the failure among them, on one line	1
+and its summary is one line, one of three failing against main, one of them never reached	1
+and red.tsv again holds only the two rows saying no red run was made	1
+and red.tsv holds only the two rows saying no red run was made, the stale claim retracted	1
+and red.tsv holds the two rows saying no red run was made for it as well	1
+and red.tsv holds the two rows saying no red run was made for the suite that went on past reached	1
+and red.tsv holds the two rows saying no red run was made, none of the names it never reached	1
+and red.tsv holds the two rows saying no red run was made, not the failure it printed	1
+and red.tsv holds the two rows saying no red run was made, the ok lines after the stray reached notwithstanding	1
+and red.tsv holds the two rows saying no red run was made, the skip lines after the stray reached notwithstanding	1
+and red.tsv holds the two rows saying no red run was made, the stray reached notwithstanding	1
+and red.tsv's header says an assertion the manifest lists and the base run never reached counts as failed	1
+and stdout is the one line naming main, the kill's exit 137 and the four assertions it reached	1
+and that exit 2 leaves no temporary directory behind either	1
+and that summary counts eleven, four failing, two of them never reached	1
+and the near-name and stray records are each one record, the run row's failed count what the names add up to	1
+and the run row counts the one failure the base printed and the eight times it never reached as nine failed	1
+and the summary counts twelve, nine failing, eight of them never reached	1
+each record with names never reached is one record, its run row's failed count what its names add up to	1
+manifest names are compared byte for byte, a backslash, brackets, a star, a dot and a tab each itself	1
+names the manifest does not list are not compared, and the one that fails is still a failed row	1
+the first faulty manifest line is the one named, a repeat on line 2 ahead of a malformed line 3	1
+the manifest compared is the one read before the suite ran, not the one the run rewrote while it ran	1
+with no assertions.tsv beside it the red run is refused before the suite runs, exit 2, the claim retracted and nothing left	1

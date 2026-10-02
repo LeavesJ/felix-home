@@ -26378,6 +26378,15 @@ printf '# a record\n%s\nrun\t0\t0\t3\n' "$_rtwb" > "$_rtw/allskipped"
 printf '# a record\n%s\nrun\t1\t0\t0\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/allfailed"
 printf '# a record\n%s\nrun\t1\t2\nthe one that failed\t1\n' "$_rtwb" > "$_rtw/twocounts"
 printf '# a record\n%s\nrun\t1\t2\t0\nthe one that failed\t1\nanother that failed\t1\n' "$_rtwb" > "$_rtw/overcounted"
+# And a run counted against the manifest beside it. tests/red counts every
+# name the manifest lists, reached or red by its shortfall, so a real run row
+# it writes counts at least the manifest's total; one that counts fewer is a
+# suite cut short and written down as finished, 0 of 270 against some 3,700,
+# which the rows alone cannot tell from a short suite (#371's follow-up).
+# Names over-reached or not listed are not compared, so more is a record.
+printf '1\tthe one that failed\n2\tanother that passed\n' > "$_rtw/manifest3"
+printf '# a record\n%s\nrun\t0\t2\t0\n' "$_rtwb" > "$_rtw/underrun"
+printf '# a record\n%s\nrun\t0\t5\t0\n' "$_rtwb" > "$_rtw/overrun"
 _rtwn1="a red.tsv whose base and run rows are both -, with no names below, is one whole record"
 _rtwn2="and so is a real base beside a run that failed one, passed two and names the one"
 _rtwn3="but a real base beside a run row of - is not, which is what pasting a sha into a retraction's base row gives"
@@ -26398,6 +26407,11 @@ _rtwn17="and so is a real base beside a run that skipped all three it reached, w
 _rtwn18="and so is a real base beside a run that failed the one it reached, naming it"
 _rtwn19="nor a real run row with no skipped count at all, though its failed count and the names agree"
 _rtwn20="nor a run that failed one whose names below add up to two, said as _rtn1 always said it"
+_rtwn21="nor a real run that counts fewer assertions than the manifest beside it lists, as a suite cut short was once written down as finished"
+_rtwn22="and so is a real run that counts as many as the manifest beside it lists"
+_rtwn23="and so is a real run that counts more than the manifest beside it lists, since names over-reached or not listed are not compared"
+_rtwn24="and so is the retraction beside a manifest, since it counts no run to compare"
+_rtwn25="and a real run is not compared with a manifest that is not there"
 is "$_rtwn1" "$(_rt_record_whole "$_rtw/dash")" ok
 is "$_rtwn2" "$(_rt_record_whole "$_rtw/real")" ok
 is "$_rtwn10" "$(_rt_record_whole "$_rtw/clean")" ok
@@ -26418,6 +26432,11 @@ is "$_rtwn17" "$(_rt_record_whole "$_rtw/allskipped")" ok
 is "$_rtwn18" "$(_rt_record_whole "$_rtw/allfailed")" ok
 _rt_said "$_rtwn19" "$(_rt_record_whole "$_rtw/twocounts")" bad
 _rt_said "$_rtwn20" "$(_rt_record_whole "$_rtw/overcounted")" bad "the run's failed: 1, the names' total: 2"
+_rt_said "$_rtwn21" "$(_rt_record_whole "$_rtw/underrun" "$_rtw/manifest3")" bad "counts 2 assertions, fewer than the 3 the manifest lists"
+is "$_rtwn22" "$(_rt_record_whole "$_rtw/real" "$_rtw/manifest3")" ok
+is "$_rtwn23" "$(_rt_record_whole "$_rtw/overrun" "$_rtw/manifest3")" ok
+is "$_rtwn24" "$(_rt_record_whole "$_rtw/dash" "$_rtw/manifest3")" ok
+is "$_rtwn25" "$(_rt_record_whole "$_rtw/underrun" "$_rtw/no-such-manifest")" ok
 # The whole judgment of a checkout's record, asked of a checkout built here.
 # _rtn1 to _rtn4 were reported for this suite's own checkout alone, so the
 # fourth review of #371 replaced the report of _rtn3, then of _rtn1, with a
@@ -26499,6 +26518,8 @@ _rtjn9="and of one whose real record names as failed an assertion its manifest d
 _rtjn10="and in a red run it skips all four record checks, saying a red run reads the base's record, though the record is real"
 _rtjn11="and with FELIX_TEST_NO_MANIFEST at 0, and again at true, it judges the real record as a normal run does, all four passed each time, since a red run is that variable at exactly 1"
 _rtjn12="and with FELIX_TEST_NO_MANIFEST at 1 around it but unset for the judgment, as these cases unset it inside a red run, it judges the real record as a normal run does, all four passed"
+_rtjn13="and of one whose real record counts fewer assertions than its manifest lists, it fails the whole-record check, naming both totals, though the base check passes"
+_rtjn14="and it reports the same four names in a normal run, in record mode and in a red run"
 # Each fails for its own reason only while the checkout stands where it
 # says: the branch commit's merge-base is origin/main's commit.
 if [ -n "$_rtjm" ] && [ "$(git -C "$_rtj" merge-base HEAD refs/remotes/origin/main 2>/dev/null)" = "$_rtjm" ] \
@@ -26549,6 +26570,22 @@ if [ -n "$_rtjm" ] && [ "$(git -C "$_rtj" merge-base HEAD refs/remotes/origin/ma
   _rtjo="$(_rt_judged "$_rtj" 0)"
   _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn2" bad "not in the manifest" "$_rtju"; _rt_judged_one "$_rtjo" "$_rtn1" ok)"
   [ -z "$_rtjw" ] && ok "$_rtjn9" || bad "$_rtjn9" "$_rtjw"
+  # And the real record beside a manifest that lists its one name five times,
+  # more than the run's two: the whole-record check reads the manifest only
+  # through _rt_judge's call, which could leave it out with every fixture of
+  # the check itself still passing. The manifest is put back after.
+  printf '%s\n' "$_rtjr" > "$_rtjt"; printf '5\t%s\n' "$_rtja" > "$_rtj/engine/harness/tests/assertions.tsv"
+  _rtjo="$(_rt_judged "$_rtj" 0)"
+  printf '1\t%s\n' "$_rtja" > "$_rtj/engine/harness/tests/assertions.tsv"
+  _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn1" bad "fewer than the 5 the manifest lists"; _rt_judged_one "$_rtjo" "$_rtn3" ok)"
+  [ -z "$_rtjw" ] && ok "$_rtjn13" || bad "$_rtjn13" "$_rtjw"
+  # And the names it reports are the same four whatever the mode, so a red
+  # run, whose every unreached name tests/red records as red, reaches each
+  # name a normal run and a --record-assertions run reach.
+  _rtjo="$(for _m in "0 unset" "1 unset" "0 1"; do
+             set -- $_m; _rt_judged "$_rtj" "$1" "$2" | cut -d'|' -f2 | LC_ALL=C sort | paste -sd'|' -
+           done)"
+  is "$_rtjn14" "$_rtjo" "$(_l="$(printf '%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort | paste -sd'|' -)"; printf '%s\n%s\n%s' "$_l" "$_l" "$_l")"
   ( cd "$_rtj" && printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp" && echo a > engine/harness/lib/x.sh \
       && printf '%s\n' "$_rtjd" > "$_rtjt" && git commit -qam 'branch: engine put back, docs kept' ) >/dev/null 2>&1
   # And this one only while engine/ is origin/main's again and docs/ is not.
@@ -26562,7 +26599,7 @@ if [ -n "$_rtjm" ] && [ "$(git -C "$_rtj" merge-base HEAD refs/remotes/origin/ma
     bad "$_rtjn6" "the fixture does not stand where it says: HEAD $(git -C "$_rtj" log -1 --format='%h %s' HEAD 2>/dev/null), with engine/ origin/main's and docs/ not"
   fi
 else
-  for _n in "$_rtjn1" "$_rtjn2" "$_rtjn3" "$_rtjn4" "$_rtjn5" "$_rtjn6" "$_rtjn7" "$_rtjn8" "$_rtjn9" "$_rtjn10" "$_rtjn11" "$_rtjn12"; do
+  for _n in "$_rtjn1" "$_rtjn2" "$_rtjn3" "$_rtjn4" "$_rtjn5" "$_rtjn6" "$_rtjn7" "$_rtjn8" "$_rtjn9" "$_rtjn10" "$_rtjn11" "$_rtjn12" "$_rtjn13" "$_rtjn14"; do
     bad "$_n" "the fixture does not stand where it says: origin/main ${_rtjm:-(none)}, HEAD $(git -C "$_rtj" log -1 --format='%h %s' HEAD 2>/dev/null)"
   done
 fi

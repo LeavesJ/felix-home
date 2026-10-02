@@ -208,16 +208,34 @@ fi
 adopted=""
 _repo_root="$(felix_repo_root "$PWD")"
 _slug="$(felix_repo_slug "$_repo_root" 2>/dev/null || true)"
+# Until 2026-10-01 a declared list that could not be read was an empty one, so
+# felix_undeclared called every detected surface undeclared and this adopted each
+# of them, capabilities that may already have been declared, into manifests
+# nobody had asked it to change. Now what it printed is believed only when it
+# came back whole: a status of 0 and the `.` _felix_cap_active uses, written
+# only after the status, since a substitution can end with nothing printed and
+# status 0 when its fork fails. Anything else adopts nothing and says drift was
+# not checked, which is not the same sentence as there being none.
+_drift_unread=0; _undeclared_nl=$'\n'
+_undeclared="$(felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null && printf .)" || _drift_unread=1
+case "$_undeclared" in
+  *.) _undeclared="${_undeclared%.}"; _undeclared="${_undeclared%$_undeclared_nl}" ;;
+  *) _drift_unread=1 ;;
+esac
+if [ "$_drift_unread" -eq 1 ]; then _undeclared=""; fi
 while IFS= read -r _cap; do
   [ -n "$_cap" ] || continue
   if _counts="$(felix_adopt_capability "$PROJ" "$_cap" "${ENGINE_DIR}/templates" "$_slug" 2>/dev/null)"; then
     adopted="$adopted $_cap(${_counts// /+})"
   fi
 done <<EOF
-$(felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null)
+$_undeclared
 EOF
 
-if [ -n "$adopted" ]; then
+if [ "$_drift_unread" -eq 1 ]; then
+  drift_line="
+Capability drift was not checked: the capabilities this project declares could not be read."
+elif [ -n "$adopted" ]; then
   drift_line="
 Adopted automatically, because the checkout grew them:${adopted}
 Each is capability(tooling-rows+human-steps) added to this project's manifests.

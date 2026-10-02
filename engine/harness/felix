@@ -4939,6 +4939,18 @@ EOF
     printf '\nquestions the template asks that this table lacks\n\n'
     printf '%s\n' "$tmiss" | sed 's/^/  /'
   fi
+  local drift driftrc=0
+  drift="$(felix_commission_template_drift "$proj" "$tpl")" || driftrc=$?
+  if [ "$driftrc" -ne 0 ]; then
+    printf '\nThe template at %s could not be read, so no row here was compared with it.\n' "$tpl"
+  elif [ -n "$drift" ]; then
+    printf '\nrows that differ from the template'"'"'s row for the same need\n\n'
+    printf '%s\n' "$drift" | awk -F'\t' '{ printf "  %-22s %s\n", $1, $2 }'
+    printf '\nThis refuses nothing: a project may keep its own row on purpose. A row cut from\n'
+    printf 'an older template keeps what that template had; the template is %s.\n' "$tpl"
+    printf 'Changing a row here changes the table set, so the receipt reads stale until\n'
+    printf 'felix commission runs again, and a commission grant has to be given again.\n'
+  fi
   local sun; sun="$(felix_commission_steps_unanswered "$proj" "$tpl")"
   if [ -n "$sun" ]; then
     printf '\npipeline steps no row answers\n\n'

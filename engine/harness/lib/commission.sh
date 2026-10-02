@@ -494,6 +494,36 @@ felix_commission_template_missing() {
   return 0
 }
 
+# Rows whose need the template also asks but whose columns differ from the
+# template's row for it: need <TAB> the differing columns, in table order.
+# A table is cut from the template once; when the template later corrects a
+# row, every table cut before keeps the old one and the id-only comparison
+# above cannot see it. A project may keep a row on purpose, so this is a
+# report and nothing here writes or refuses. Exit 1 with no output when the
+# template yields no rows: nothing compared must not read as nothing differs.
+# Both tables come through felix_commission_rows, so a row the engine would
+# not run is not compared, and the template's first row is its row for a
+# need. Both are captured before the awk reads them: no writer is left to be
+# killed early under pipefail, and the sentinel (one field, where a row has
+# seven) separates the two tables without a temporary file.
+felix_commission_template_drift() {
+  local proj="$1" tpl="$2" trows prows
+  trows="$(felix_commission_rows "$tpl")"
+  [ -n "$trows" ] || return 1
+  prows="$(felix_commission_rows "$proj")"
+  [ -n "$prows" ] || return 0
+  { printf '%s\n' "$trows"; printf '@@\n'; printf '%s\n' "$prows"; } | awk -F'\t' '
+    BEGIN { split("grounds instrument when answer check step", name, " ") }
+    NF == 1 { mine = 1; next }
+    !mine { if (!($1 in seen)) { seen[$1] = 1; for (i = 2; i <= 7; i++) t[$1, i] = $i }; next }
+    $1 in seen {
+      out = ""
+      for (i = 2; i <= 7; i++) if ($i != t[$1, i]) out = out (out == "" ? "" : " ") name[i - 1]
+      if (out != "") printf "%s\t%s\n", $1, out
+    }'
+  return 0
+}
+
 # §8 steps the template marks `rows` that no row here carries: step <TAB> description.
 felix_commission_steps_unanswered() {
   local proj="$1" tpl="$2" steps step desc by

@@ -4683,10 +4683,10 @@ fi
 # whence. Amendment 1 dropped FELIX_HOOK_LAUNCH: nothing reads it once pre-tool
 # resolves from where it was started, and state nobody reads is a claim nobody
 # checks. So the variable must come back unset, not merely empty.
-_pcwd_he() {   # payload -> "PWD|whether FELIX_HOOK_LAUNCH is set|status|output"
+_pcwd_he() {   # payload -> "PWD|unset, or set to FELIX_HOOK_LAUNCH's value|status|output"
   ( cd "$PCA" && . "$FROOT/harness/lib/resolve.sh"; unset FELIX_HOOK_LAUNCH
     felix_hook_enter "$1" "$PH" > "$PC/he.out" 2>&1; rc=$?
-    printf '%s|%s|%s|%s' "$PWD" "${FELIX_HOOK_LAUNCH+set}${FELIX_HOOK_LAUNCH-unset}" "$rc" "$(cat "$PC/he.out")" )
+    printf '%s|%s|%s|%s' "$PWD" "${FELIX_HOOK_LAUNCH+set to }${FELIX_HOOK_LAUNCH-unset}" "$rc" "$(cat "$PC/he.out")" )
 }
 is "felix_hook_enter moves the calling shell into the payload's worktree, says nothing, and leaves FELIX_HOOK_LAUNCH unset" \
    "$(_pcwd_he "$(_pcwd_hdp "$PCB")")" "$PCB|unset|0|"
@@ -4972,7 +4972,8 @@ rm -f "$PM/pcwd/mistakes.log"
 # held open does not. python3's pty gives the hook one as stdin, with stdout and
 # stderr in a file, and kills the one process it forked if that has not exited
 # within its bound, so a read that waits on the terminal fails here rather than
-# hanging the suite.
+# hanging the suite. Measured on 2026-10-02: a subagent-start that reads its
+# stdin unguarded fails this as `hung silent`, and the closed pipe stays green.
 _pcwd_tty() {   # launch dir, hook, output file -> "exited <status>" or "hung"
   FELIX_HOME="$PH" FELIX_MEMORY="$PM" python3 - "$1" "$FROOT/harness/hooks/$2" "$3" <<'PY'
 import os, pty, sys, time

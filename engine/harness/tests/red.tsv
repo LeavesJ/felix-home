@@ -4,8 +4,8 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	e92d50df	e92d50dfe8c77826cbe5efe3106a0ea921c1b8c9	0.49.235
-run	135	3973	5
+base	origin/main	27573cbe959ee13592a79ac760ea5d00bcaf4803	0.49.235
+run	208	3995	5
 a DEVLOG.md entry written by hand after the catch does not settle it	1
 a branch made from a detached HEAD inherits nothing from before the detach	1
 a catch eight days old is silent though the log was written since	1
@@ -15,8 +15,21 @@ a catch naming no session is settled by a peer's row on its branch	1
 a catch naming no session is settled by a sessionless row on its branch	1
 a catch naming no session is settled by this session's row on its branch	1
 a catch six days old still speaks	1
+a checker that does not exist, exit 127, reads unrunnable on a fail control, never fail and met	1
+a checker the row runs, whose own body pipes big output into grep -q, passes its pass control and is met with BASH_ENV exported by the caller naming a file that sets pipefail, and again with SHELLOPTS exported: the checker inherits neither	1
 a checkout with no commit yet writes one row, under its branch	1
 a column-5 time after the lesson speaks though the log's mtime is old	1
+a command exiting 126, or a checker file that is not executable, reads unrunnable, while one exiting 1 or 2 still reads fail and met	1
+a command in the schema rows' negated shape over big output fails when its mutation plants the finding, and the control is met, not held	1
+a command naming an engine function finds no such command and reads unrunnable, neither pass nor fail	1
+a command piping an engine function into grep -q reads unrunnable on a fail control, never fail and met with no checker run	1
+a command sees none of the runner's locals or positional parameters: scratch, cmd and 1 are empty to it	1
+a command testing a name nobody set passes, rather than failing and held	1
+a command that does not parse, a stray quote after its checker, reads unrunnable, never fail and met	1
+a command that is only a comment reads unrunnable, never pass and met with no checker run	1
+a command that is that pipeline passes a pass control and is met, rather than failing and held	1
+a command whose checker sits in a command substitution holding a syntax error found only when it runs reads unrunnable on a fail control, never fail and met	1
+a command whose text begins with a dash runs as a command and reads unrunnable, never taken for bash's own options and read fail and met	1
 a conversation holding more than one session owns the rows of each	1
 a detached checkout is silent about other branches' rows	1
 a detached checkout owns rows whose branch column is HEAD	1
@@ -24,6 +37,7 @@ a detached checkout's catch is settled by a row filed under HEAD	1
 a detached checkout's own catch, filed as HEAD, prompts	1
 a devlog entry after this branch's catch clears it too	1
 a devlog entry in a checkout with no commit has a one-line header beginning with day and branch	1
+a fail control whose own process alone gets INT while its checker runs reads unrunnable in both columns once that checker has failed, never fail and met, and removes its scratch tree	1
 a lesson stamped the very second of the catch does not settle it	1
 a lesson thirty seconds after the catch clears it	1
 a lesson whose writer cannot be recorded exits non-zero	1
@@ -33,19 +47,66 @@ a lesson written with an empty session id is filed under a dash	1
 a lesson written with no session id set is filed under a dash	1
 a lessons.md written by hand after the catch, with no written row, does not settle it	1
 a log row on the branch settles a branch-owned catch	1
+a mutation exiting 126 is unrunnable too, while one exiting 1 still has its status ignored and its checker decides the row	1
+a mutation of spaces makes its pass control unrunnable, never met over no change	1
+a mutation testing a name nobody set runs to the end, so the checker catches its change	1
+a mutation testing an engine function in an if makes its pass control unrunnable, never met over a change it never made	1
+a mutation that deletes its row's whole base directory reads unrunnable, leaves no registration, prunable included, and says no felix: line	1
+a mutation that deletes its scratch tree's .git file leaves no scratch tree, base directory or registration, live, prunable or locked, its verdict still pass and met, and stderr carries no felix: line	1
+a mutation that does not parse makes its pass control unrunnable, and no checker runs after it	1
+a mutation that hard-links a 0444 file from outside into its tree, and one that clones the tree with git, each then making a directory unwritable, leave no scratch tree, base directory or registration, read pass and met, and say no felix: line	1
+a mutation that is only a comment, after leading spaces, makes its pass control unrunnable, never met over no change, and no checker runs after it	1
+a mutation that locks its own worktree still leaves no scratch tree, base directory or registration, live, prunable or locked, reads pass and met, and says no felix: line	1
+a mutation that makes a directory in its scratch tree unwritable, with a file inside, leaves no scratch tree, base directory or worktree registration, live, prunable or locked, once its rows return, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line	1
+a mutation that makes its row's base directory unwritable leaves no scratch tree, base directory or worktree registration, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line	1
+a mutation that makes its scratch tree's own root unwritable leaves no scratch tree, base directory or worktree registration, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line	1
+a mutation that plants symlinks to a 0444 file and a 0555 directory outside its tree, beside and inside a directory it makes unwritable, still has its scratch tree, base directory and registration removed, and stderr carries no felix: line	1
+a mutation that removes its own scratch tree leaves nowhere to run the checker, so its fail control reads unrunnable, never fail and met	1
+a mutation that starts with that pipeline and an && makes its whole change, so a checker that catches it is met, not held	1
+a mutation that swaps its scratch tree for a symlink to another worktree of the root leaves that worktree there, its uncommitted file intact and still registered, while the row's own tree, base and registration are gone and stderr carries no felix: line	1
+a mutation that takes away its row's base directory, and with it the file its stderr went to, makes its fail control unrunnable, never fail and met	1
+a mutation that takes every permission from a directory with a file two levels down inside it leaves no scratch tree, base directory or worktree registration, its pass and fail controls still read pass and met, fail and met, and stderr carries no felix: line	1
+a mutation whose command does not exist, exit 127, makes its pass control unrunnable, never met over a tree it did not change	1
+a mutation with such a command substitution in its && chain makes its pass control unrunnable, never met over no change, and no checker runs after it	1
+a name that exists nowhere, in a pipeline, counts as an engine function does: the command reads unrunnable, never fail and met	1
 a non-empty devlog written after the catch settles it	1
+a pass control's command negating that pipeline reads unrunnable, never pass and met	1
 a peer branch's newer catch does not prompt	1
 a peer session's lesson after this session's catch does not, on this very branch	1
+a premise and a mutation see none of the runner's locals or positional parameters: each writes || for scratch, its own text and 1	1
+a premise negating that pipeline makes its control inapplicable and never applies its mutation	1
+a premise of spaces reads unrunnable, never applied as a premise that held	1
+a premise piping an engine function into grep -q reads unrunnable, never inapplicable	1
+a premise piping big output into grep -q that finds its match lets its control run and be met, never unrunnable	1
+a premise testing a name nobody set applies its control rather than reading as inapplicable	1
+a premise that does not parse reads unrunnable, never inapplicable	1
+a premise that is an engine function alone reads unrunnable: a premise's shell has none of the runner's functions	1
+a premise that is only a comment reads unrunnable, never applied as a premise that held	1
+a premise that makes its row's base directory unwritable, and a checker that takes every permission from a nested directory before it decides, leave no scratch tree, base directory or worktree registration, their controls still read pass and met, fail and met, and stderr carries no felix: line	1
 a row after the file's last owned catch settles it though an earlier line holds a newer time	1
 a row one second after the catch does	1
 a row that names no session is this checkout's when its branch is the one checked out	1
 a row under the first of several ids in SIDS settles a catch filed under another of them	1
+a row whose checker is running when HUP reaches its run's whole process group removes its scratch tree just the same, with nothing mktemp handed the runner left and no worktree listed in the root, live or prunable	1
+a row whose checker is running when INT reaches its run's whole process group removes its scratch tree: once every process of the run has exited, no path mktemp handed the runner is left and the root lists no worktree for it, live or prunable	1
+a row whose checker is running when TERM reaches its run's whole process group removes its scratch tree though the caller's shell dies at once: once every process of the run has exited, nothing mktemp handed the runner is left and the root lists no worktree for it	1
+a row whose own process alone gets HUP while its checker runs reads unrunnable in both columns once that checker has ended, never pass and met, and removes its scratch tree	1
+a row whose own process alone gets TERM while its mutation runs exits 143 with unrunnable as its verdict, after removing its scratch tree, and never starts its checker	1
+a row whose own process alone gets TERM while its mutation runs, its caller still running the rows, reads unrunnable in both the got and verdict columns, never held, removes its scratch tree once that mutation returns, and never starts its checker	1
+a row whose premise is running when INT reaches its run's whole process group removes its scratch tree, and neither its mutation nor its checker starts afterwards	1
+a row whose process gets HUP from its run's process group while its checker runs exits 129 with unrunnable as its verdict, after removing its scratch tree	1
+a row whose process gets INT from its run's process group while its checker runs exits 130 with unrunnable as its verdict, after removing its scratch tree	1
+a row whose process gets TERM from its run's process group while its checker runs exits 143 with unrunnable as its verdict, after removing its scratch tree	1
+a row whose processes below its caller all get TERM while its premise runs exits 143 with unrunnable as its verdict, removes its scratch tree, and starts neither its mutation nor its checker	1
+a scratch tree holding a file made immutable with chflags uchg is either removed with nothing said, or, when any of it is left, named on stderr in a line beginning felix:	1
+a second INT to the run's process group while the row is removing its scratch tree, with git at work on it, does not cut the removal short: the row exits 130, unrunnable, and nothing of the tree is left	1
 a session id holding a slash is filed as a dash	1
 a session id holding a space is filed as a dash, and the row stays six columns	1
 a session id holding a tab is filed as a dash, and the row stays six columns	1
 a session id of letters, digits, dot, underscore and dash is kept as it is	1
 a session's catch on the branch it left by checkout -b is its own, even after a commit	1
 a session's catch under its branch's name before git branch -m is still its own	1
+an empty command and a command of spaces each read unrunnable, never pass and met with no checker run	1
 an entry under any of the conversation's sessions settles its catch	1
 an untimed catch is settled by a same-branch row dated a later day, though its epoch is earlier	1
 an untimed catch is settled by a same-branch row whose epoch is after mistakes.log's time	1
@@ -67,17 +128,25 @@ and another session's on this same branch does not	1
 and felix log does too, a dash for no session and the branch of a checkout with no commit	1
 and felix_mem_log there writes one six-column row under the branch name	1
 and names it trimmed at the ends with its inner space kept	1
+and no checker runs after a mutation that exited 127	1
+and none of the three leaves a scratch tree, base directory or registration, or says a felix: line	1
 and not by one from an earlier day	1
 and not for a sibling checkout whose own catch was explained	1
+and on a fail control it reads pass and held, never fail and met, which is what a working checker says	1
+and on a fail control that command passes and is held, never fail and met because nounset stopped it	1
+and on a pass control the same mutation is seen whole: a checker rejecting it is held, never met over a tree the mutation did not reach	1
 and one on the branch it left by switch -c	1
 and one well-formed row of this session's after them does	1
 and says the lesson is there and must not be written again	1
+and shows that control met, its checker failing	1
 and so does a row under the last of them	1
 and so does an untimed row dated ten days back	1
 and the peer who caught later writing its own row settles only its own	1
 and the prompt names felix log for a one-off	1
 and the row a peer session's felix_mem_lesson writes on the same branch does not	1
 and the second it was caught, since the file's own time is whoever wrote last	1
+and unrunnable on a pass control, never fail and held	1
+and with BASH_ENV exported by its caller, naming a file that sets pipefail, that command still passes and is met	1
 another checkout's newer catch does not make this one speak	1
 as is the devlog entry, its header one line on a checkout with no commit	1
 both hand-written files newer than this session's catch, with no written row, do not settle it	1
@@ -86,6 +155,7 @@ each at the second it was written	1
 felix lesson files its writer beside the lesson: branch, kind and session	1
 felix lesson run in the checkout leaves a written.log row for its session, branch and kind	1
 felix log run in the checkout leaves a written.log row of kind log for its session	1
+felix qualify --gate passes a fail control in the schema rows' negated shape over big output when its checker catches the mutation	1
 felix_mem_lesson appends exactly one row to written.log, with six columns	1
 felix_mem_lesson outside git files its row under a question mark	1
 felix_mem_log appends a second six-column row and keeps the lesson row ahead of it	1
@@ -96,6 +166,7 @@ from outside git with SIDS empty, a named catch is not settled by its session's 
 from outside git, a catch naming no session is not settled even by the asking session's row	1
 in a checkout with no commit felix_mem_lesson writes one six-column row under the branch name	1
 last caught names this checkout's catch, not the file's last row	1
+no temporary path outlives a run whose rows are met, held, inapplicable, and unrunnable from each column: every path mktemp handed the runner is gone, and it was handed at least one	1
 nor an untimed catch, though both are newer than mistakes.log and a later day	1
 nor by another branch's row with lessons.md and DEVLOG.md newer than the catch	1
 nor do hand-written lessons and devlog settle a branch-owned catch	1
@@ -137,6 +208,8 @@ while a checkout with a row there is named by it	1
 while the same rows plus one on the exact branch do	1
 while this session's lesson on the branch settles both	1
 while this session's lesson settles its catch from any branch it stood on	1
+with POSIXLY_CORRECT exported by its caller, a command using a process substitution still passes its pass control and is met, as a plain command beside it does	1
+with SHELLOPTS exported by its caller, carrying nounset and pipefail, a command piping big output into grep -q still passes its pass control and is met	1
 with no commit yet the written row spells branch and sha exactly as the gate's own row does	1
 with no root and no session, not even a row on the catch's own branch settles it	1
 with no session asking, a named catch is settled by any row on its branch	1

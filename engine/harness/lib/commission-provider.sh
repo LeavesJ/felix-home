@@ -89,8 +89,13 @@ _felix_commission_provider_toolong() {   # line -> "<field> <limit>" or empty
 # The topology an answer is keyed to. Inputs ingestion never writes.
 felix_commission_topology() {
   local proj="$1" root="$2"
+  # The table is read only as a regular file. A pipe at the path held the cat
+  # open for a writer that never came, and a link to a device read without
+  # end (2026-10-01). Skipped, it hashes as an absent table hashed before, so
+  # no hash over ordinary files moves and no keyed answer goes stale.
   { { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } | LC_ALL=C sort -u
-    printf '== commissioning.tsv ==\n'; cat "$proj/commissioning.tsv" 2>/dev/null; } | _felix_hash
+    printf '== commissioning.tsv ==\n'
+    [ -f "$proj/commissioning.tsv" ] && cat "$proj/commissioning.tsv" 2>/dev/null; } | _felix_hash
 }
 
 _felix_commission_provider_dir() { printf '%s/commission' "$(felix_mem_dir "$1")"; }
@@ -108,7 +113,10 @@ felix_commission_request() {
   out="$(felix_commission_request_path "$proj" "$need")"
   mkdir -p "$(dirname "$out")" 2>/dev/null || return 1
   caps="$( { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } | LC_ALL=C sort -u | tr '\n' ' ')"
-  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
+  # stack.tsv only as a regular file, as felix_commission_apply_declares reads
+  # it; a pipe at the path held this grep open (2026-10-01).
+  declared=""
+  [ -f "$proj/stack.tsv" ] && declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
   topo="$(felix_commission_topology "$proj" "$root")"
   # Three placeholders the obligations request needs, computed only when the
   # template names them: the decision epoch, the probe rows as a session can
@@ -374,7 +382,9 @@ felix_commission_admit() {
   rules="$(_felix_discover_rules "$tpl" "$proj")"
   # Compared without the marketplace suffix, the same way discover's adopt
   # compares, so `hookify@claude-plugins-official` matches a `hookify` row.
-  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
+  # Only as a regular file, for the reason felix_commission_request gives.
+  declared=""
+  [ -f "$proj/stack.tsv" ] && declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
   scratch="${TMPDIR:-/tmp}/felix-admit.$$.$(basename "$proj")"
   rm -rf "$scratch" 2>/dev/null; mkdir -p "$scratch" 2>/dev/null || return 1
 

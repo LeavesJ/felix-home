@@ -78,7 +78,10 @@ FELIX_MAINT_CAPABILITIES='ci deploy iac observability billing e2e database api f
 felix_maint_unreachable() {
   local proj="$1" name cadence cap desc
   [ -f "$proj/maintenance.tsv" ] || return 0
-  while IFS=$'\t' read -r name cadence cap desc; do
+  # The last routine is kept when it has no newline, as _felix_maint_last keeps
+  # the log's last run: dropped, an unreachable routine written last by hand
+  # was never reported (2026-10-01).
+  while IFS=$'\t' read -r name cadence cap desc || [ -n "${name:-}" ]; do
     case "$name" in ''|'#'*) continue ;; esac
     [ -n "${cap:-}" ] || continue
     [ "$cap" = "always" ] && continue

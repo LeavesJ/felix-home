@@ -1073,7 +1073,10 @@ cmd_recommend() {
       printf '%s\n' "$hits" | while IFS=$'\t' read -r score kind name risk cap; do
         [ -n "${score:-}" ] || continue
         local have="not mounted"
-        grep -qF "	$name	" "$proj/stack.tsv" 2>/dev/null && have="already declared"
+        # stack.tsv is opened only as a regular file, here and in the closing
+        # line below: a pipe at the path held the grep open for a writer that
+        # never came (2026-10-01). Anything else declares nothing.
+        [ -f "$proj/stack.tsv" ] && grep -qF "	$name	" "$proj/stack.tsv" 2>/dev/null && have="already declared"
         printf '  %-10s %-46s %-7s %s\n' "$kind" "$name" "$risk" "$have"
       done
       printf '\nDeclare one with: felix adopt <capability>, or add the row to\n'
@@ -1106,7 +1109,7 @@ cmd_recommend() {
   printf '  Project %s, a %s codebase. Felix already detected: %s\n' \
     "$(basename "$proj")" "$eco" "${caps:-nothing yet}"
   printf '  Already declared, do not repeat these: %s\n' \
-    "$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
+    "$([ -f "$proj/stack.tsv" ] && grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
   printf '  Recommend hooks, subagents and skills this stack implies that are\n'
   printf '  not in that list. Read-only: I will decide what to adopt.\n'
 }
@@ -2976,7 +2979,9 @@ cmd_ready() {
   while IFS=$'\t' read -r st name detail; do
     [ -n "${st:-}" ] || continue
     case "$name" in *:*) owner="${name%%:*}" ;; *) owner="$name" ;; esac
-    local srow; srow="$(grep -E "	($name|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
+    # Only as a regular file; a pipe at the path held this grep open
+    # (2026-10-01), and anything else declares no row.
+    local srow=""; [ -f "$proj/stack.tsv" ] && srow="$(grep -E "	($name|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
     # Read the row the way felix_stack_plan reads it, so the two policy callers
     # cannot disagree about the same line. `cut -f6` and a trailing `read`
     # variable differ on a row with seven fields: cut takes the sixth alone,

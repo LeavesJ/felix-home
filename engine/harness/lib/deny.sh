@@ -47,7 +47,10 @@
 _felix_deny_rows() {
   local proj="$1" tool pattern reason scope
   [ -f "$proj/deny.tsv" ] || return 0
-  while IFS=$'\t' read -r tool pattern reason scope; do
+  # The `|| [ -n ]` keeps a last row that has no newline: `read` returns 1 on
+  # it with the fields filled, and the row was dropped, so a deny rule written
+  # last by hand never refused anything (2026-10-01).
+  while IFS=$'\t' read -r tool pattern reason scope || [ -n "${tool:-}" ]; do
     case "$tool" in ''|'#'*) continue ;; esac
     # A row with no pattern is skipped rather than fatal, the same way a
     # malformed routes.tsv row is: one bad line must not stop a table enforcing.

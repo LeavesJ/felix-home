@@ -60,8 +60,12 @@ esac
 #
 # Cheap and conservative: a false positive here costs the old path, and the
 # match is anchored so `Bash` cannot be satisfied by a row for `BashOutput`.
+#
+# A last row with no newline is a row. `read` returns 1 on it with the fields
+# filled, and the loop dropped it, so a hand-edited deny.tsv whose only Bash
+# row was its unended last line let every Bash call through (2026-10-01).
 _names_tool=0
-while IFS=$'\t' read -r _t _rest; do
+while IFS=$'\t' read -r _t _rest || [ -n "${_t:-}" ]; do
   [ "$_t" = "$tool" ] && { _names_tool=1; break; }
 done < "$PROJ/deny.tsv"
 [ "$_names_tool" -eq 1 ] || exit 0

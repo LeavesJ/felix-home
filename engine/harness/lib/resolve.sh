@@ -258,7 +258,14 @@ felix_mem_dir() {
 # Handles exactly what project.json needs: one nesting level, no escaped quotes.
 # Anything richer belongs in a real parser, and would mean project.json has
 # outgrown its job.
+#
+# Something at the path that is not a regular file is not opened, and reads as
+# no field (2026-10-01). Resolution reads every project's project.json, so a
+# pipe at one project's path held sed open for a writer that never came, and
+# every hook of every project waited on it. Nothing at the path is left to sed
+# as before.
 felix_json_str() {
+  if [ -e "$1" ] && [ ! -f "$1" ]; then return 2; fi
   sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1
 }
 

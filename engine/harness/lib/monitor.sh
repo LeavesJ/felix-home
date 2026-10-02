@@ -152,15 +152,22 @@ _felix_mon_project() {
 
   printf ',"routes":['
   local first=1 n k pr pl
-  while IFS=$'\t' read -r n k pr pl; do
-    case "$n" in ''|'#'*) continue ;; esac
-    [ -n "${pr:-}" ] || continue
-    [ "$first" -eq 1 ] || printf ','
-    first=0
-    printf '{"name":"%s","keywords":"%s","profile":"%s","play":"%s"}' \
-      "$(_felix_json_esc "$n")" "$(_felix_json_esc "$k")" \
-      "$(_felix_json_esc "$pr")" "$(_felix_json_esc "${pl:--}")"
-  done < "${proj}/routes.tsv" 2>/dev/null
+  # Both tables are read only as regular files, and both keep a last row that
+  # has no newline (2026-10-01). Opened unconditionally, a pipe at either path
+  # held the page's whole render open for a writer that never came; and
+  # `read` returns 1 on an unended last row with its fields filled, so the
+  # row a person wrote last was missing from the page.
+  if [ -f "${proj}/routes.tsv" ]; then
+    while IFS=$'\t' read -r n k pr pl || [ -n "${n:-}" ]; do
+      case "$n" in ''|'#'*) continue ;; esac
+      [ -n "${pr:-}" ] || continue
+      [ "$first" -eq 1 ] || printf ','
+      first=0
+      printf '{"name":"%s","keywords":"%s","profile":"%s","play":"%s"}' \
+        "$(_felix_json_esc "$n")" "$(_felix_json_esc "$k")" \
+        "$(_felix_json_esc "$pr")" "$(_felix_json_esc "${pl:--}")"
+    done < "${proj}/routes.tsv" 2>/dev/null
+  fi
   printf ']'
 
   printf ',"stack":['
@@ -170,14 +177,16 @@ _felix_mon_project() {
   # rather than dropping it, so the payload would carry "llm\tOBSERVED" as a
   # capability — valid JSON saying something untrue.
   local kind sname src risk cap ground
-  while IFS=$'\t' read -r kind sname src risk cap ground; do
-    case "$kind" in ''|'#'*) continue ;; esac
-    [ "$first" -eq 1 ] || printf ','
-    first=0
-    printf '{"kind":"%s","name":"%s","risk":"%s","capability":"%s"}' \
-      "$(_felix_json_esc "$kind")" "$(_felix_json_esc "$sname")" \
-      "$(_felix_json_esc "${risk:-}")" "$(_felix_json_esc "${cap:-always}")"
-  done < "${proj}/stack.tsv" 2>/dev/null
+  if [ -f "${proj}/stack.tsv" ]; then
+    while IFS=$'\t' read -r kind sname src risk cap ground || [ -n "${kind:-}" ]; do
+      case "$kind" in ''|'#'*) continue ;; esac
+      [ "$first" -eq 1 ] || printf ','
+      first=0
+      printf '{"kind":"%s","name":"%s","risk":"%s","capability":"%s"}' \
+        "$(_felix_json_esc "$kind")" "$(_felix_json_esc "$sname")" \
+        "$(_felix_json_esc "${risk:-}")" "$(_felix_json_esc "${cap:-always}")"
+    done < "${proj}/stack.tsv" 2>/dev/null
+  fi
   printf ']'
 
   local _md; _md="$(felix_mem_dir "$proj")"

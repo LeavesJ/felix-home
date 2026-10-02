@@ -25775,6 +25775,15 @@ _rt_judge() {   # <checkout>
 }
 # This suite's own checkout, judged once; in a red run _rt_judge skips all four.
 _rt_judge "$REAL_HARNESS/../.."
+# That call is the one line here no fixture reaches. An assignment before it,
+# a subshell around it or a test in front of it left every assertion green
+# while the four checks skipped or went uncounted (#371, seventh review), so
+# this file must hold it as one line of its own, unindented, and name the
+# suite's checkout to _rt_judge nowhere else.
+_rtcall="_rt_judge \"\$REAL_HARNESS/../..\""
+is "the suite judges its own checkout's record with one bare call at the top level, and nowhere else" \
+   "$(_C="$_rtcall" awk '/^[[:space:]]*#/ { next } $0 == ENVIRON["_C"] { x++ } index($0, ENVIRON["_C"]) { y++ }
+                          END { printf "%d exact, %d naming it", x, y }' "$HERE/run")" "1 exact, 1 naming it"
 # Whether a helper printed one line whose first word is the verdict asked for
 # and whose rest holds each phrase given.
 _rt_said() {   # <name> <what the helper printed> <ok|skip|bad> [<phrase>...]
@@ -26052,7 +26061,8 @@ _rtjn7="and with FELIX_TEST_RECORD unset it judges the real record as a normal r
 _rtjn8="and of one whose engine change has no red.tsv beside it, as a conflict resolved by removing the file leaves, it fails the base check, saying there is no red.tsv, where the whole-record and manifest checks skip"
 _rtjn9="and of one whose real record names as failed an assertion its manifest does not list, it fails the manifest check, naming that assertion"
 _rtjn10="and in a red run it skips all four record checks, saying a red run reads the base's record, though the record is real"
-_rtjn11="and with FELIX_TEST_NO_MANIFEST at 0 it judges the real record as a normal run does, all four passed, since a red run is that variable at exactly 1"
+_rtjn11="and with FELIX_TEST_NO_MANIFEST at 0, and again at true, it judges the real record as a normal run does, all four passed each time, since a red run is that variable at exactly 1"
+_rtjn12="and with FELIX_TEST_NO_MANIFEST at 1 around it but unset for the judgment, as these cases unset it inside a red run, it judges the real record as a normal run does, all four passed"
 # Each fails for its own reason only while the checkout stands where it
 # says: the branch commit's merge-base is origin/main's commit.
 if [ -n "$_rtjm" ] && [ "$(git -C "$_rtj" merge-base HEAD refs/remotes/origin/main 2>/dev/null)" = "$_rtjm" ] \
@@ -26080,7 +26090,9 @@ if [ -n "$_rtjm" ] && [ "$(git -C "$_rtj" merge-base HEAD refs/remotes/origin/ma
              _rt_judged_one "$_rtjo" "$_n" skip "a red run reads the base's record"
            done)"
   [ -z "$_rtjw" ] && ok "$_rtjn10" || bad "$_rtjn10" "$_rtjw"
-  is "$_rtjn11" "$(_rt_judged "$_rtj" 0 0 | LC_ALL=C sort)" "$(printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort)"
+  is "$_rtjn11" "$(_rt_judged "$_rtj" 0 0 | LC_ALL=C sort; _rt_judged "$_rtj" 0 true | LC_ALL=C sort)" \
+     "$(printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort; printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort)"
+  is "$_rtjn12" "$(FELIX_TEST_NO_MANIFEST=1; _rt_judged "$_rtj" 0 unset | LC_ALL=C sort)" "$(printf 'ok|%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort)"
   printf '%s\n' "$_rtjr" > "$_rtjt"; printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp"
   _rtjo="$(_rt_judged "$_rtj" 0)"
   _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn4" bad)"
@@ -26114,7 +26126,7 @@ if [ -n "$_rtjm" ] && [ "$(git -C "$_rtj" merge-base HEAD refs/remotes/origin/ma
     bad "$_rtjn6" "the fixture does not stand where it says: HEAD $(git -C "$_rtj" log -1 --format='%h %s' HEAD 2>/dev/null), with engine/ origin/main's and docs/ not"
   fi
 else
-  for _n in "$_rtjn1" "$_rtjn2" "$_rtjn3" "$_rtjn4" "$_rtjn5" "$_rtjn6" "$_rtjn7" "$_rtjn8" "$_rtjn9" "$_rtjn10" "$_rtjn11"; do
+  for _n in "$_rtjn1" "$_rtjn2" "$_rtjn3" "$_rtjn4" "$_rtjn5" "$_rtjn6" "$_rtjn7" "$_rtjn8" "$_rtjn9" "$_rtjn10" "$_rtjn11" "$_rtjn12"; do
     bad "$_n" "the fixture does not stand where it says: origin/main ${_rtjm:-(none)}, HEAD $(git -C "$_rtj" log -1 --format='%h %s' HEAD 2>/dev/null)"
   done
 fi

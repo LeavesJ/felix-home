@@ -1,7 +1,7 @@
 ### 2026-09-24 — the engine makes its scratch under TMPDIR, because a bare mktemp on a Mac does not, and no count of what a path left behind could see it
 
-**Engine 0.49.252, branch `claude/engine-mktemp-tmpdir`, given by the queue
-carrier on 2026-10-01 with slot 15, after the unattended.yml sha pin.** It follows b611b9's
+**Engine 0.49.265, branch `claude/engine-mktemp-tmpdir`, landed by the queue
+carrier on 2026-10-02 in the slot after the unattended.yml sha pin (#403).** It follows b611b9's
 `claude/red-mktemp-tmpdir` (0.49.200), which clears the 44 red rows #308's
 lift assertions showed on every Mac. It makes tests/red's own root by a
 template and runs the suite under the caller's TMPDIR, as a plain run does;
@@ -24,7 +24,9 @@ resolve.sh), now each pass `"${TMPDIR:-/tmp}"`, with its trailing slash
 stripped, followed by `/felix-<what>.XXXXXX`. discover.sh:825 and the
 gate's suite log already did. The root is a separate local: cmd_discover's
 EXIT trap does `rm -rf` on its scratch variable, so the variable is never
-allowed to hold TMPDIR itself, not even for one line.
+allowed to hold TMPDIR itself, not even for one line. By the landing slot,
+main's qualify.sh made no scratch file at all, so its call is gone and
+twelve engine calls plus Felix's gate carry the change.
 
 **The suite, per block that sets TMPDIR and counts what is left there.**
 Each was shown red by a mutant that leaks into the TMPDIR it was given (run

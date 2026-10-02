@@ -15225,6 +15225,112 @@ is "and one that was not is still not" "$(a route)" "no"
 printf 'tidy\n' > "$AUP/autonomy"; printf '\n\n# comment\n' >> "$AUP/autonomy"
 is "comments and blanks are not capabilities" "$(a comment)" "no"
 
+printf '\nrevoke is the inverse of the reader\n'
+# 2026-10-01: a grant file whose only line was the grant (no comment header)
+# kept its grant through felix autonomy --revoke, while the command printed
+# "revoked:" and deleted the grant's stamp. Rewriting the file through grep -v
+# selects no lines there, grep exits 1, and the rewrite was skipped on that
+# status, leaving autonomy.new behind. These pin --revoke to the reader: what
+# felix_autonomy_allows reads as a grant, a revoke that exits 0 takes away,
+# every other line stays as it was, and a rewrite that cannot be done is said
+# and changes nothing, the grant, the file and the stamp all left in place.
+RVP="$FROOT/projects/widget"; RVK="$TMP/revoke-keep"; mkdir -p "$RVK"
+_rvstart="$(ls -A "$RVP" | LC_ALL=C sort)"
+for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVK/"; done
+_rvallows() { ( . "$FROOT/harness/lib/autonomy.sh"; felix_autonomy_allows "$RVP" "$1" && echo yes || echo no ); }
+_rvset() {   # FORMAT: F written by printf FORMAT, beside a stamp for commission, and nothing else named autonomy*
+  rm -f "$RVP"/autonomy*; printf "$1" > "$RVP/autonomy"; printf 'stamp\n' > "$RVP/autonomy.commission"
+  _rvbefore="$(_rvrest)"
+}
+_rvrest() { ls -A "$RVP" | LC_ALL=C sort | grep -vxF autonomy.commission; }   # the directory, less the stamp
+_rvrun() {   # CAP: felix autonomy --revoke CAP from the widget checkout; sets _rvrc _rvout _rverr
+  ( cd "$REPO" && "$FELIX" autonomy --revoke "$1" ) > "$TMP/rv.out" 2> "$TMP/rv.err"; _rvrc=$?
+  _rvout="$(cat "$TMP/rv.out")"; _rverr="$(cat "$TMP/rv.err")"
+}
+_rvsaid() { case "$_rvout" in *"revoked: $1"*) echo said ;; *) echo silent ;; esac; }
+_rvstamp() { [ -e "$RVP/autonomy.commission" ] && echo kept || echo gone; }
+
+# R1: each shape the reader reads as granting commission, revoked.
+_rvset 'commission\n'; _rvrun commission
+is "revoking a file whose only line is the grant exits 0 and the grant is gone" "$_rvrc:$(_rvallows commission)" "0:no"
+is "and the file is left empty, not removed" \
+   "$([ -f "$RVP/autonomy" ] && wc -c < "$RVP/autonomy" | tr -d ' ' || echo absent)" "0"
+is "and the grant's stamp is gone with it" "$(_rvstamp)" "gone"
+is "and it says revoked: commission" "$(_rvsaid commission)" "said"
+is "and it leaves nothing new in the project directory" "$(_rvrest)" "$_rvbefore"
+_rvset 'commission'; _rvrun commission
+is "revoking an unended one-line grant exits 0 and the grant is gone" "$_rvrc:$(_rvallows commission)" "0:no"
+is "and that revoke leaves nothing new in the project directory either" "$(_rvrest)" "$_rvbefore"
+_rvset 'commission\040\040\n'; _rvrun commission
+is "a grant with trailing spaces, which the reader trims, is revoked" "$_rvrc:$(_rvallows commission)" "0:no"
+_rvset 'commission\t\n'; _rvrun commission
+is "a grant with a trailing tab is revoked" "$_rvrc:$(_rvallows commission)" "0:no"
+_rvset 'tidy\r\ncommission\r\n'; _rvrun commission
+is "a grant in a CRLF file is revoked" "$_rvrc:$(_rvallows commission)" "0:no"
+is "and the CRLF file's other line keeps its carriage return" "$(sed -n 1p "$RVP/autonomy")" "$(printf 'tidy\r')"
+_rvset '\040\040commission\n'; _rvrun commission
+is "a grant with leading spaces is revoked" "$_rvrc:$(_rvallows commission)" "0:no"
+_rvset 'commission\ncommission\n'; _rvrun commission
+is "a grant written on two lines is revoked from both" "$_rvrc:$(_rvallows commission)" "0:no"
+
+# R2: beside comments, blanks and other grants, only the grant goes.
+_rvset '# what Felix may do here\n# commission\n\ntidy\040\040\ncommission\n\nroute\n'; _rvrun commission
+is "a grant beside comments, blanks and other grants is revoked" "$_rvrc:$(_rvallows commission)" "0:no"
+printf '# what Felix may do here\n# commission\n\ntidy\040\040\n\nroute\n' > "$TMP/rv.want"
+is "and every other line survives verbatim and in order" \
+   "$(cmp -s "$TMP/rv.want" "$RVP/autonomy" && echo same || echo moved)" "same"
+is "a comment naming the revoked capability is not taken for it" "$(grep -cxF '# commission' "$RVP/autonomy")" "1"
+is "a surviving grant keeps its trailing spaces" "$(sed -n 4p "$RVP/autonomy")" "$(printf 'tidy\040\040')"
+is "tidy stays allowed after commission is revoked" "$(_rvallows tidy)" "yes"
+is "and the stamp of the grant revoked beside them is gone" "$(_rvstamp)" "gone"
+is "and that revoke says revoked: commission too" "$(_rvsaid commission)" "said"
+_rvset '# header\ntidy\ncommission\n'; _rvrun tidy
+is "revoking tidy exits 0 and leaves commission allowed" "$_rvrc:$(_rvallows tidy):$(_rvallows commission)" "0:no:yes"
+is "and leaves the commission stamp where it was" "$(_rvstamp)" "kept"
+
+# R6: a rewrite that cannot be completed fails closed. Permissions are put
+# back before anything is read, and a 555 directory would block the suite's
+# own rm -rf at exit.
+_rvprobe="$TMP/rv.probe"; printf 'x\n' > "$_rvprobe"; chmod 000 "$_rvprobe"
+if [ -r "$_rvprobe" ]; then _rvperm=0; else _rvperm=1; fi
+chmod 644 "$_rvprobe"; rm -f "$_rvprobe"
+_rvclosed() {   # LABEL: the six fail-closed assertions after a refused revoke of commission
+  if [ "$_rvperm" = 0 ]; then
+    for _rvn in "exits non-zero" "and does not say revoked" "and says on stderr it was not revoked" \
+                "and leaves the file byte-identical" "and leaves the stamp in place" \
+                "and the grant still holds" "and leaves nothing new behind"; do
+      skip "a revoke $1 $_rvn" "permission bits do not bind this user"
+    done; return
+  fi
+  is "a revoke $1 exits non-zero" "$([ "$_rvrc" -ne 0 ] && echo refused || echo "exit $_rvrc")" "refused"
+  case "$_rvout$_rverr" in *revoked:*) bad "a revoke $1 and does not say revoked" "it said revoked:" ;;
+                            *) ok "a revoke $1 and does not say revoked" ;; esac
+  has "a revoke $1 and says on stderr it was not revoked" "$_rverr" "not revoked"
+  is "a revoke $1 and leaves the file byte-identical" \
+     "$(cmp -s "$TMP/rv.held" "$RVP/autonomy" && echo same || echo moved)" "same"
+  is "a revoke $1 and leaves the stamp in place" "$(_rvstamp)" "kept"
+  is "a revoke $1 and the grant still holds" "$(_rvallows commission)" "yes"
+  is "a revoke $1 and leaves nothing new behind" "$(_rvrest)" "$_rvbefore"
+}
+_rvset 'commission\n'; cp "$RVP/autonomy" "$TMP/rv.held"
+chmod 000 "$RVP/autonomy"; _rvrun commission; chmod 644 "$RVP/autonomy"
+_rvclosed "that cannot read the grant file"
+_rvset 'commission\n'; cp "$RVP/autonomy" "$TMP/rv.held"
+chmod a-w "$RVP"; _rvrun commission; chmod u+w "$RVP"
+_rvclosed "that cannot write into the project directory"
+
+# R7: nothing to revoke.
+rm -f "$RVP"/autonomy*; _rvrun commission
+is "revoking with no grant file exits 0" "$_rvrc" "0"
+is "and does not create one" "$([ -e "$RVP/autonomy" ] && echo created || echo absent)" "absent"
+is "and the reader still allows nothing" "$(_rvallows commission)" "no"
+
+rm -f "$RVP"/autonomy*
+for _rvf in "$RVK"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
+rmdir "$RVK" 2>/dev/null
+is "the widget's directory holds exactly what it held before revoke was tested" \
+   "$(ls -A "$RVP" | LC_ALL=C sort)" "$_rvstart"
+
 # The commission grant is bound to the table it was granted over.
 #
 # Every other grant names an action the engine defines. This one names a

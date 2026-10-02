@@ -61,7 +61,11 @@
 #     repository's run, or by a run of this root whose drop lost the
 #     registration. One `git worktree remove -f -f` of that path each, which
 #     removes a registration whose directory is gone (measured, rc 0 on git
-#     2.54). Never `git worktree prune`: it removes every stale entry, and
+#     2.54). The path is the entry exactly as listed, which git takes as
+#     that entry: a base made a symlink since to a directory holding another
+#     worktree of the root does not lead git there, since the tree's .git
+#     names another entry and git refuses (the drop's own rule, review round
+#     2). Never `git worktree prune`: it removes every stale entry, and
 #     other sessions' and the user's own are not Felix's.
 #
 # It prints nothing on stdout, which the row loop's verdict lines own, and no
@@ -89,6 +93,10 @@
 #     dead. Linux records name their pid namespace and are judged in it
 #     alone; a record of a pid alone, where /proc could not be read, is
 #     judged by kill -0 alone in any namespace.
+#   - The instant between a list of the root's worktrees and git's own read
+#     of it, in the drop and the orphan step alike: an entry removed then by
+#     another process leaves git to resolve the path, and through a base
+#     swapped for a symlink in that same instant, to another worktree.
 #   - Rarer interleavings than two sweeps on one base, such as three and a
 #     kill inside the claim, may let two sweeps drop the same dead base. No
 #     live row's tree is reached that way: only a record judged dead is ever

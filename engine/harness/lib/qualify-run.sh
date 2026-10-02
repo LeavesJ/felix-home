@@ -23,20 +23,31 @@
 #     failed, the rmdir failed, the checkout stayed. A retry cannot mend it,
 #     since git drops the registration on its way out of a failed remove. So
 #     every directory short of the owner's rwx gets it back first, before git
-#     runs; deleting needs the bits on the directory, not on the file. The
-#     base first, by name, since find cannot search a starting point left
-#     without x; then the rest one at a time from the top, so a 000 one is
-#     opened before find reads it. Only directories: a file's mode is its
-#     inode's, and a hard link a mutation made (`git clone . sub` makes them
-#     of the root's objects) would carry chmod outside the base. find follows
-#     no symlink, and no user can hard-link a directory. A directory deeper
-#     than PATH_MAX is past chmod's reach, and is left and said.
+#     runs; deleting needs the bits on the directory, not on the file. From
+#     inside the base (_felix_qualify_in), the base itself as ., then the rest
+#     one at a time from the top, so a 000 one is opened before find reads
+#     it, every path relative to the directory entered; the base by name only
+#     when it cannot be entered, its x gone, and only while it is no
+#     symlink. Only directories: a file's mode is its inode's, and a hard
+#     link a mutation made (`git clone . sub` makes them of the root's
+#     objects) would carry chmod outside the base. find follows no symlink,
+#     and no user can hard-link a directory. A directory deeper than PATH_MAX
+#     is past chmod's reach, and is left and said.
 #   - A scratch tree or a base swapped for a symlink is unlinked, never
-#     followed: `git worktree remove` resolves the path it is given, and
+#     followed: `git worktree remove` resolves a path it does not list, and
 #     through a link to another worktree of the root it deleted that
 #     worktree, uncommitted work and all. The base gets its bits back before
-#     the tree's link is unlinked, and a link that is still there afterwards
-#     stops the drop, said: nothing is handed to git or rm through it.
+#     the tree's link is unlinked, from inside the base, and a link that is
+#     still there afterwards stops the drop, said: nothing is handed to git
+#     or rm through it.
+#   - git is handed the tree's path exactly as the root lists it, read off
+#     its list just before (_felix_qualify_reg), and nothing when the root
+#     lists no such entry. A path given as T was, through a symlink, was not
+#     an entry; git resolved it, and a base or a tree swapped for a symlink a
+#     moment before git ran led it to another worktree of the root, which it
+#     removed (review round 2). Its exact entry, git takes as that entry, and
+#     checks that the tree's .git names it before removing anything; through
+#     a swapped link it names another, and git refuses.
 #   - A base the mutation took away is made again, empty, so that $base/w
 #     resolves to the path git registered.
 #   - -f twice, so a tree the mutation locked is removed too.
@@ -58,10 +69,11 @@
 # runner's.
 #
 # What it cannot reach: a process the mutation left running, which can write
-# into the base after this has removed it.
+# into the base after this has removed it; and the instants inside git, once
+# its check of the tree's .git has passed, and between this reading the
+# root's list and git reading it, should the entry go in between.
 _felix_qualify_drop() {   # root, base
-  local root="$1" base="$2" listed pdir="" nl='
-' _felix_qualify_text
+  local root="$1" base="$2" pdir="" _felix_qualify_text
   [ -n "$base" ] || return 0
   if [ -L "$base" ]; then
     rm -f "$base" 2>/dev/null
@@ -72,25 +84,27 @@ _felix_qualify_drop() {   # root, base
     printf 'felix: the scratch directory %s had been replaced by a symlink, so whatever the row moved out of it is not removed\n' "$base" >&2
   fi
   [ -e "$base" ] || mkdir "$base" 2>/dev/null
-  [ -d "$base" ] && chmod u+rwx "$base" 2>/dev/null
+  if ! _felix_qualify_in "$base" _felix_qualify_rwx; then
+    [ -d "$base" ] && [ ! -L "$base" ] && chmod u+rwx "$base" 2>/dev/null
+    _felix_qualify_in "$base" _felix_qualify_rwx
+  fi
   if [ -L "$base/w" ]; then
-    rm -f "$base/w" 2>/dev/null
+    _felix_qualify_in "$base" _felix_qualify_unlinkw
     if [ -L "$base/w" ]; then
       printf 'felix: the scratch worktree %s is a symlink that could not be removed, so nothing is removed through it\n' "$base/w" >&2
       return 0
     fi
   fi
-  find "$base" -type d ! -perm -0700 -exec chmod u+rwx {} \; 2>/dev/null
-  if ! git -C "$root" worktree remove -f -f "$base/w" >/dev/null 2>&1; then
+  _felix_qualify_phys "${base%/*}" && pdir="$_felix_qualify_text"
+  _felix_qualify_reg "$root" "$base" "$pdir"
+  if [ -n "$_felix_qualify_text" ] && ! git -C "$root" worktree remove -f -f "$_felix_qualify_text" >/dev/null 2>&1; then
     _felix_qualify_in "$base" _felix_qualify_rmw
-    if ! git -C "$root" worktree remove -f -f "$base/w" >/dev/null 2>&1; then
-      _felix_qualify_phys "${base%/*}" && pdir="$_felix_qualify_text"
-      listed="$(git -C "$root" worktree list --porcelain 2>/dev/null)"
-      case "$nl$listed$nl" in
-        *"${nl}worktree $base/w$nl"*|*"${nl}worktree $pdir/${base##*/}/w$nl"*)
-          printf 'felix: %s still lists the scratch worktree %s, which could not be removed\n' \
-                 "$root" "$base/w" >&2 ;;
-      esac
+    _felix_qualify_reg "$root" "$base" "$pdir"
+    if [ -n "$_felix_qualify_text" ] && ! git -C "$root" worktree remove -f -f "$_felix_qualify_text" >/dev/null 2>&1; then
+      _felix_qualify_reg "$root" "$base" "$pdir"
+      [ -z "$_felix_qualify_text" ] ||
+        printf 'felix: %s still lists the scratch worktree %s, which could not be removed\n' \
+               "$root" "$base/w" >&2
     fi
   fi
   # Twice: a sweep that judged the record dead a moment before this base was
@@ -153,6 +167,42 @@ _felix_qualify_globs() {
 # A tree git would not remove, removed from inside its base: rm -rf takes a
 # symlink operand as the link.
 _felix_qualify_rmw() { rm -rf ./w 2>/dev/null; return 0; }
+
+# From inside a base: the owner's rwx on it and on every directory below it,
+# one at a time from the top, so a 000 one is opened before find reads it.
+# find follows no symlink, and every path it hands chmod is relative to the
+# directory entered. And a tree that is a symlink, unlinked.
+_felix_qualify_rwx() {
+  chmod u+rwx . 2>/dev/null
+  find . -type d ! -perm -0700 -exec chmod u+rwx {} \; 2>/dev/null
+  return 0
+}
+_felix_qualify_unlinkw() { [ -L w ] && rm -f ./w 2>/dev/null; return 0; }
+
+# The path this root's git lists a base's tree at, exactly as it lists it, in
+# _felix_qualify_text, which the caller makes local: under T's physical path,
+# as git records it, or else as the base was given. Empty when the root lists
+# neither or its list cannot be had. git worktree remove takes a path it
+# lists exactly as that entry, and only a path it does not list is resolved
+# and matched against every entry resolved: through a base or a tree swapped
+# for a symlink that resolution reached another worktree of the root, and
+# removed it, uncommitted work and all, when T was given through a symlink
+# (review round 2). Given its own exact entry, git checks that the tree's
+# .git names that entry before it removes anything, and through a swapped
+# link it names another, so git refuses.
+_felix_qualify_reg() {   # root, base, T's physical path or empty
+  local listed nl='
+'
+  _felix_qualify_text=""
+  listed="$(git -C "$1" worktree list --porcelain 2>/dev/null)" || return 0
+  if [ -n "$3" ]; then
+    case "$nl$listed$nl" in
+      *"${nl}worktree $3/${2##*/}/w$nl"*) _felix_qualify_text="$3/${2##*/}/w"; return 0 ;;
+    esac
+  fi
+  case "$nl$listed$nl" in *"${nl}worktree $2/w$nl"*) _felix_qualify_text="$2/w" ;; esac
+  return 0
+}
 
 # Every entry of a base but its owner record, removed: _felix_qualify_clear
 # from outside, _felix_qualify_clear_here inside. rm -rf takes a symlink

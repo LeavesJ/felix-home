@@ -15736,6 +15736,19 @@ if [ -n "\${QSW_GITSWAP:-}" ] && [ ! -e "\$QSW_GITSWAP.done" ]; then
       esac ;;
   esac
 fi
+# Given QSW_GITSWAPW, a directory: at the first worktree remove of a base's w,
+# the tree itself is renamed aside and a symlink to that directory put in its
+# place, the moment after whatever looked at it before git ran.
+if [ -n "\${QSW_GITSWAPW:-}" ] && [ ! -e "\$QSW_GITSWAPW.done" ]; then
+  case " \$* " in
+    *" worktree remove "*)
+      for qsw_a in "\$@"; do qsw_l="\$qsw_a"; done
+      case "\$qsw_l" in
+        */w|w) : > "\$QSW_GITSWAPW.done"
+               mv "\$qsw_l" "\$qsw_l.aside" && ln -s "\$QSW_GITSWAPW" "\$qsw_l" ;;
+      esac ;;
+  esac
+fi
 exec '$QSWGIT' "\$@"
 EOF
 chmod +x "$QSWSHIM/git"
@@ -16429,6 +16442,31 @@ _qswxenv="QSW_GITSWAP=$d/decoy"; _qswbg "$d/s" "$T" "$R" - sweep; _qswxenv=""; _
 is  "a dead base renamed aside and replaced by a symlink to another directory while the sweep's drop runs leaves that directory and everything in it as it was" \
     "swapped:$([ -L "$T/felix-qualify.SWAP01" ] && echo yes || echo no) decoy:[$(cd "$d/decoy" 2>/dev/null && find . -mindepth 1 | LC_ALL=C sort | tr '\n' ' ')]" \
     "swapped:yes decoy:[./dir ./dir/f ./precious.txt ]"
+# And when the directory swapped in holds, at w, another worktree of the root
+# with uncommitted work, and T is given through a symlink, as macOS's
+# default TMPDIR is: git matched the logical path it was given to no
+# registration, fell back to resolving it, and removed that other worktree
+# (review round 2). The other worktree is added before the dead base's tree
+# and after it, so its entry is read before and after the dead base's. And
+# the same with the tree itself swapped for a symlink to the other worktree
+# just after the drop has looked at it, as git starts.
+for _qswo in before after; do
+  for _qswk in base tree; do
+    case "$_qswk" in base) _qswwhat="the dead base itself" ;; tree) _qswwhat="the dead base's tree" ;; esac
+    d="$QSWS/swap-$_qswk-$_qswo"; mkdir -p "$d/t" "$d/decoy"; ln -s "$d/t" "$d/tlink"; T="$d/tlink"; Tp="$(_qswphys "$d/t")"
+    R="$(_qswroot "$d/root")"
+    [ "$_qswo" = before ] && git -C "$R" worktree add --detach -q "$d/decoy/w" HEAD >/dev/null 2>&1
+    _qswplant "$T" felix-qualify.SWAPWT "$R" "$(_qswdead) $QSWOLD"
+    [ "$_qswo" = after ] && git -C "$R" worktree add --detach -q "$d/decoy/w" HEAD >/dev/null 2>&1
+    printf 'mine\n' > "$d/decoy/w/uncommitted.txt"; _qswD="$(_qswphys "$d/decoy/w")"
+    _qswwas="$(_qswlisted "$R" "$_qswD"),$(_qswlisted "$R" "$Tp/felix-qualify.SWAPWT/w")"
+    case "$_qswk" in base) _qswxenv="QSW_GITSWAP=$d/decoy" ;; tree) _qswxenv="QSW_GITSWAPW=$_qswD" ;; esac
+    _qswbg "$d/s" "$T" "$R" - sweep; _qswxenv=""; _qswfinish "$_qswpid" "$d/s"
+    is  "with T given through a symlink, $_qswwhat swapped for a symlink to a directory holding another worktree of the root, added $_qswo the dead base's tree, as the sweep's drop starts git, leaves that worktree, its uncommitted file and its registration as they were" \
+        "planted:$_qswwas swapped:$([ -e "$d/decoy.done" ] || [ -e "$_qswD.done" ] && echo yes || echo no) file:$(cat "$_qswD/uncommitted.txt" 2>/dev/null || echo gone) registered:$(_qswlisted "$R" "$_qswD")" \
+        "planted:yes,yes swapped:yes file:mine registered:yes"
+  done
+done
 
 # 9c. Names in a dead base that lead out of it, as a dead row's mutation
 # could leave them: a claim that is a symlink to a directory outside, and an

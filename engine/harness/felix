@@ -2614,8 +2614,9 @@ EOF
 }
 
 # What felix discover says when the declared capabilities could not be read, so
-# that no capability was asked about. Said by the plain form, by --adopt before
-# it looks at the cache, and by --adopt when its own fill refused for it.
+# that no capability was asked about: the sentence the contract of 2026-10-01 fixes
+# for an unread list. Said by the plain form, by --adopt before it looks at the
+# cache, and by --adopt when its own fill refused for it.
 _felix_discover_unscored() {
   printf 'Nothing was scored for %s: the capabilities this project declares could not be read.\n\n' "$(basename "$1")"
   printf 'That is not "nothing matches": no capability was asked about. Nothing was\n'

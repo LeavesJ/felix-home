@@ -174,7 +174,9 @@ felix_declared_into() {
 # felix_declared_into read it. 0 when the pipeline that made it ran whole, and
 # nonzero when either half of it did not, a sort that could not run being as much
 # a union that was not made as a list that could not be read. Captured by
-# felix_capture, which is what makes the status mean something.
+# felix_capture, which is what makes the status mean something. Until 2026-10-01
+# each caller made this union itself, in a group piped to sort whose status
+# nobody asked, so a sort that could not run was a list with nothing in it.
 #
 # The declared half is printed first, so a felix_detect that exits inside the
 # group cannot take it along. The group ends in `:` because felix_detect's own

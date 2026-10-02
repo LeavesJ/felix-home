@@ -148,7 +148,8 @@ _felix_discover_rules() {
 }
 
 # The lines of $1 sorted and without repeats, and the status of the pipeline
-# that did it, so that felix_capture can say whether it ran.
+# that did it, so that felix_capture can say whether it ran. Until 2026-10-01 the
+# sorted list was a substitution inside a here-document, whose status nobody asked.
 _felix_sorted_lines() { printf '%s\n' "$1" | LC_ALL=C sort -u; }
 
 # Declared capabilities the table has no curated row for, one per line.

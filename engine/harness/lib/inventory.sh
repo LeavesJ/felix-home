@@ -194,7 +194,7 @@ _fi_repo() {
   _fi_git -C "$d" for-each-ref --format='%(refname)%09%(objectname)%09%(committerdate:unix)%09%(upstream)%09%(symref)' \
     refs/heads refs/remotes | awk -F'\t' -v OFS='\t' '{ for (i = 1; i <= 5; i++) if ($i == "") $i = "-"; print }' > "$T/refs"
   if _fi_gh "$d"; then _FI_GHOK=1; else _FI_GHOK=0; fi
-  _fi_sets; _fi_orphan_find; _fi_hscope; _fi_pending; _fi_cover; _fi_owners
+  _fi_sets; _fi_orphan_find; _fi_hscope; _fi_pending; _fi_chipsread; _fi_cover; _fi_owners
   while IFS="$_FI_TAB" read -r k ref sha br dt cl rr op num st fl sh gn <&3; do _fi_item; done 3< "$T/items"
   _fi_orphan_rows; _fi_handoff; _fi_chips
   return 0
@@ -226,7 +226,8 @@ _fi_cover() {
   _fi_row cover prs "$s" - - - "$d" - -
   if [ "$_FI_HOSTOK" = 1 ]; then s=read; d="$_FI_HD"; else s="unknown,unknown:live,unknown:question,unknown:blocked"; d="$_FI_HD"; fi
   _fi_row cover sessions "$s" - - - "$d" - -
-  if [ "$_FI_HOSTOK" = 1 ]; then s=read; d="proposed in sessions active in the last $_FI_DAYS days"; else s="unknown,unknown:chip-unstarted"; d="$_FI_HD"; fi
+  if [ "$_FI_HOSTOK" = 1 ]; then s=read; d="proposed in sessions active in the last $_FI_DAYS days"; [ "$_FI_CHU" = 0 ] || d="$d; $_FI_CHU session files could not be read"
+  else s="unknown,unknown:chip-unstarted"; d="$_FI_HD"; fi
   _fi_row cover chips "$s" - - - "$d" - -
   s=read; d="a full clone"
   if [ "$_FI_PARTIAL" = 1 ]; then s=partial; d="a partial clone: nothing was fetched, so content in no object here may be the remote's"; fi

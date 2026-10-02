@@ -152,11 +152,19 @@ _fi_handoff() {
 }
 
 # Chips from sessions in every worktree, every orphan, and every directory
-# under a directory inside the main worktree that holds worktrees.
+# under a directory inside the main worktree that holds worktrees, into $T/chips,
+# read before the cover rows are written: _FI_CHU is how many session files the
+# run could not read left a chip unknown, which the chips cover row says.
+_fi_chipsread() {
+  _FI_CHU=0; : > "$T/chips"
+  [ "$_FI_HOSTOK" = 1 ] || return 0
+  felix_inv_host_chips "$_FI_NOW" "$_FI_DAYS" "$T/hscope" "$T/chipu" > "$T/chips" || : > "$T/chips"
+  awk -F'\t' '$4 == "unknown" { f = 1 } END { exit !f }' "$T/chips" && _FI_CHU="$(cat "$T/chipu" 2>/dev/null)"
+  case "$_FI_CHU" in ''|*[!0-9]*) _FI_CHU=0 ;; esac
+  return 0
+}
 _fi_chips() {
   local id s e u title
-  [ "$_FI_HOSTOK" = 1 ] || return 0
-  felix_inv_host_chips "$_FI_NOW" "$_FI_DAYS" "$T/hscope" > "$T/chips" || return 0
   # u is "unknown" for a chip that a session file the run could not read may have started.
   while IFS="$_FI_TAB" read -r id s e u title <&3; do
     _fi_age "$e"; _fi_row chip "$id" "$([ "$u" != unknown ] || printf 'unknown:')chip-unstarted" "$s" "$_FI_A" - "$title" - -
@@ -185,4 +193,20 @@ _fi_owners() {
   [ -s "$T/prheads" ] || return 0
   felix_inv_host_owners "$_FI_NOW" "$_FI_DAYS" "$_FI_LIVE" "$T/hscope" "$T/prheads" > "$T/owners" 2>/dev/null
   return 0
+}
+# File times, for the host adapter (lib/inventory-host.sh) and whatever replaces it.
+# A file's mtime as an epoch, or nothing.
+_fi_mtime() { local e; e="$(date -r "$1" +%s 2>/dev/null)"; case "$e" in ''|*[!0-9]*) ;; *) printf '%s' "$e" ;; esac; }
+# _fi_newest MINDEPTH MIN DIR...: the newest file at depth MINDEPTH or more
+# under the directories modified within MIN minutes, or nothing: found by -mmin,
+# sorted by ls -t, and asked again until none is newer (ls takes long lists in batches).
+_fi_newest() {
+  local md="$1" min="$2" x y i=0; shift 2
+  x="$(find "$@" -mindepth "$md" -type f -mmin -"$min" -exec ls -dt {} + 2>/dev/null | head -n 1)"
+  [ -n "$x" ] || return 0
+  while [ "$i" -lt 8 ]; do
+    y="$(find "$@" -mindepth "$md" -type f -newer "$x" -exec ls -dt {} + 2>/dev/null | head -n 1)"
+    [ -n "$y" ] || break; x="$y"; i=$((i + 1))
+  done
+  printf '%s' "$x"
 }

@@ -31,8 +31,9 @@
 # its mtime orders it but is no activity: live is unknown unless a readable file
 # makes it live, the owner is unknown when it is the newest, a pull request's
 # owner is unknown when it is newer than the owner's record, and a chip proposed
-# in its directory before it is unknown, not unstarted. A record directory it cannot enter answers
-# unknown throughout. All are counted (felix_inv_host_unread) for the cover row.
+# before it, in any record directory under the root (a chip's session is usually
+# a new worktree's), is unknown, not unstarted. A record directory it cannot enter
+# answers unknown throughout. All are counted (felix_inv_host_unread) for the cover row.
 # No JSON parser (lib/audit.sh says why) and no here-document (bash 3.2 backs
 # one with a file outside the scratch).
 
@@ -231,22 +232,6 @@ _FI_HOST_ASK='
   }
 '
 
-# A file's mtime as an epoch, or nothing.
-_fi_host_mt() { local e; e="$(date -r "$1" +%s 2>/dev/null)"; case "$e" in ''|*[!0-9]*) ;; *) printf '%s' "$e" ;; esac; }
-# _fi_host_newest MINDEPTH MIN DIR...: the newest file at depth MINDEPTH or more
-# under the directories modified within MIN minutes, or nothing: found by -mmin,
-# sorted by ls -t, and asked again until none is newer (ls takes long lists in batches).
-_fi_host_newest() {
-  local md="$1" min="$2" x y i=0; shift 2
-  x="$(find "$@" -mindepth "$md" -type f -mmin -"$min" -exec ls -dt {} + 2>/dev/null | head -n 1)"
-  [ -n "$x" ] || return 0
-  while [ "$i" -lt 8 ]; do
-    y="$(find "$@" -mindepth "$md" -type f -newer "$x" -exec ls -dt {} + 2>/dev/null | head -n 1)"
-    [ -n "$y" ] || break; x="$y"; i=$((i + 1))
-  done
-  printf '%s' "$x"
-}
-
 # One session file's end, from its last 256 KiB, as one tab-separated line:
 # whole-lines record-time question blocked call-time call-name note (times are
 # epochs or -, blocked is pending, no or unknown, note the question's ending).
@@ -303,7 +288,7 @@ _fi_host_spawn() {
   [ -n "$m" ] || return 0
   f="${m%%$'\t'*}"; sid="${f%%/subagents/*}"; sid="${sid##*/}"
   desc="$(printf '%s\n' "${m#*$'\t'}" | awk "$_FI_HOST_AWK"'{ print cut120(dec(val($0, "\"description\":\""))) }')"
-  _FI_SP_NOTE="spawned by session $sid: $desc"; _FI_SP_MT="$(_fi_host_mt "${f%.meta.json}.jsonl")"
+  _FI_SP_NOTE="spawned by session $sid: $desc"; _FI_SP_MT="$(_fi_mtime "${f%.meta.json}.jsonl")"
 }
 
 #   felix_inv_host_dir DIR NOW LIVE_MIN BLOCKED_MIN SCOPEFILE
@@ -322,7 +307,7 @@ felix_inv_host_dir() {
   done
   # Newest by mtime first: a record time is never later than its mtime, so reading stops at the first file no later than the newest record time read.
   while IFS= read -r f; do
-    mt="$(_fi_host_mt "$f")"
+    mt="$(_fi_mtime "$f")"
     if [ -z "$mt" ]; then
       [ -z "$bestf" ] || continue
       printf 'unknown\t-\tunknown\tunknown\tunknown\tcould not read the time of %s\n' "${f//$t/ }"; return 0
@@ -345,8 +330,8 @@ felix_inv_host_dir() {
   # Only a session's own directory counts, at any depth, never a file beside the session files.
   for dd in ${dirs[@]+"${dirs[@]}"}; do for f in "$dd"/*.jsonl; do [ -f "$f" ] && [ -d "${f%.jsonl}" ] && sd[${#sd[@]}]="${f%.jsonl}"; done; done
   if [ "${#sd[@]}" -gt 0 ]; then
-    x="$(_fi_host_newest 1 $(((now - act) / 60 + 2)) "${sd[@]}")"
-    [ -z "$x" ] || { sm="$(_fi_host_mt "$x")"; [ -z "$sm" ] || [ "$sm" -le "$act" ] || act="$sm"; }
+    x="$(_fi_newest 1 $(((now - act) / 60 + 2)) "${sd[@]}")"
+    [ -z "$x" ] || { sm="$(_fi_mtime "$x")"; [ -z "$sm" ] || [ "$sm" -le "$act" ] || act="$sm"; }
   fi
   _fi_host_spawn "$d" "$5"
   [ -z "$_FI_SP_MT" ] || [ "$_FI_SP_MT" -le "$act" ] || act="$_FI_SP_MT"
@@ -360,7 +345,7 @@ felix_inv_host_dir() {
   # Blocked once the call has waited BLOCKED_MIN and nothing under the session's own directory was written within it.
   if [ "$b" = pending ]; then
     case "$pts" in ''|-|*[!0-9]*) pts="$mt" ;; esac
-    x=""; [ ! -d "${bestf%.jsonl}" ] || x="$(_fi_host_newest 0 $(($4 + 1)) "${bestf%.jsonl}")"; [ -z "$x" ] || x="$(_fi_host_mt "$x")"
+    x=""; [ ! -d "${bestf%.jsonl}" ] || x="$(_fi_newest 0 $(($4 + 1)) "${bestf%.jsonl}")"; [ -z "$x" ] || x="$(_fi_mtime "$x")"
     if [ $((now - pts)) -ge "$blk" ] && { [ -z "$x" ] || [ $((now - x)) -ge "$blk" ]; }; then b=yes; note="${note:+$note; }waiting on $pname for $(((now - pts) / 60)) min"
     else b=no; fi
   fi
@@ -371,15 +356,15 @@ felix_inv_host_dir() {
 }
 
 # "n m" for the record directories on stdin: n is how many session files
-# modified within MIN minutes the run cannot read, and directories it cannot
-# enter; m the newest mtime among the files, 9999999999 for a directory it cannot
-# enter, 0 for none.
+# modified within MIN minutes (and after epoch AFTER, when given) the run cannot
+# read, and directories it cannot enter; m the newest mtime among the files,
+# 9999999999 for a directory it cannot enter, 0 for none.
 _fi_host_unr() {
   local e f n=0 m=0 x
   while IFS= read -r e; do
     [ -r "$e" ] && [ -x "$e" ] || { n=$((n + 1)); m=9999999999; continue; }
     while IFS= read -r f; do
-      [ -r "$f" ] || { n=$((n + 1)); x="$(_fi_host_mt "$f")"; [ -z "$x" ] || [ "$x" -le "$m" ] || m="$x"; }
+      [ -r "$f" ] || { x="$(_fi_mtime "$f")"; [ -z "$x" ] || [ "$x" -gt "${2:-0}" ] || continue; n=$((n + 1)); [ -z "$x" ] || [ "$x" -le "$m" ] || m="$x"; }
     done < <(find "$e" -maxdepth 1 -type f -name '*.jsonl' -mmin -"$1" 2>/dev/null)
   done
   printf '%d %s\n' "$n" "$m"
@@ -406,7 +391,7 @@ felix_inv_host_owners() {
   list="$(while IFS= read -r e; do find "$e" -maxdepth 1 -type f -name '*.jsonl' -mmin -$((days * 1440)) 2>/dev/null; done < "$4" \
           | tr '\n' '\000' | xargs -0 grep -l -F "${pat[@]}" -- 2>/dev/null)"
   [ -n "$list" ] || return 0
-  { printf '%s\n' "$list" | while IFS= read -r f; do printf '\002%s\t%s\n' "$f" "$(_fi_host_mt "$f")"; grep -F "${pat[@]}" -- "$f" 2>/dev/null; done; } \
+  { printf '%s\n' "$list" | while IFS= read -r f; do printf '\002%s\t%s\n' "$f" "$(_fi_mtime "$f")"; grep -F "${pat[@]}" -- "$f" 2>/dev/null; done; } \
     | awk -F'\t' -v hf="$5" "$_FI_HOST_AWK"'
       BEGIN { while ((getline l < hf) > 0) W[l] = 1 }
       substr($0, 1, 1) == "\002" { fm = $2; sf = substr($1, 2); sub(/.*\//, "", sf); sub(/[.]jsonl$/, "", sf); next }
@@ -423,9 +408,9 @@ felix_inv_host_owners() {
         while IFS= read -r e; do
           [ -f "$e/$o.jsonl" ] || continue
           x="$(_fi_host_scan "$e/$o.jsonl")"; x="${x#*"$t"}"; rt="${x%%"$t"*}"
-          case "$rt" in ''|*[!0-9]*) rt="$(_fi_host_mt "$e/$o.jsonl")" ;; esac
+          case "$rt" in ''|*[!0-9]*) rt="$(_fi_mtime "$e/$o.jsonl")" ;; esac
           [ -z "$rt" ] || act="$rt"
-          [ ! -d "$e/$o" ] || { x="$(_fi_host_newest 0 $(((now - act) / 60 + 2)) "$e/$o")"; [ -z "$x" ] || x="$(_fi_host_mt "$x")"; [ -z "$x" ] || [ "$x" -le "$act" ] || act="$x"; }
+          [ ! -d "$e/$o" ] || { x="$(_fi_newest 0 $(((now - act) / 60 + 2)) "$e/$o")"; [ -z "$x" ] || x="$(_fi_mtime "$x")"; [ -z "$x" ] || [ "$x" -le "$act" ] || act="$x"; }
           break
         done < "$4"
         case "$act" in ''|*[!0-9]*) printf '%s\t%s\tno\n' "$h" "$o" ;; *) [ $((now - act)) -le $((lv * 60)) ] && printf '%s\t%s\tyes\n' "$h" "$o" || printf '%s\t%s\tno\n' "$h" "$o" ;; esac
@@ -434,12 +419,14 @@ felix_inv_host_owners() {
 
 # Chips proposed in the sessions of the record directories in SCOPEFILE
 # modified within DAYS days that no session was started from and none withdrew.
-#   felix_inv_host_chips NOW DAYS SCOPEFILE
+#   felix_inv_host_chips NOW DAYS SCOPEFILE [COUNTFILE]
 # prints one line per chip: id session epoch flag title, the flag unknown when a
 # file the run could not read may have started it, else -. Status 1, and nothing
-# printed, when the records cannot be read.
+# printed, when the records cannot be read. COUNTFILE, when given and there are
+# chips, gets how many unreadable session files under the root are later than
+# the oldest proposal, for the cover row.
 felix_inv_host_chips() {
-  local root now="$1" days="$2" e f list chips mins mm um
+  local root now="$1" days="$2" e f list chips mins lo mm um
   root="$(_fi_host_root)" || return 1
   list="$(while IFS= read -r e; do
             find "$e" -maxdepth 1 -type f -name '*.jsonl' -mmin -$((days * 1440)) 2>/dev/null
@@ -477,15 +464,16 @@ felix_inv_host_chips() {
   # The session files under the records modified since the oldest chip that
   # begin with a prompt some chip carries, and when each was last modified: a
   # chip was started by one modified after it was proposed.
-  mins="$(printf '%s\n' "$chips" | awk -F'\t' -v now="$now" '$3 != "-" && (o == "" || $3 < o) { o = $3 } END { print (o == "" ? 0 : int((now - o) / 60) + 2) }')"
-  [ "${mins:-0}" -gt 0 ] || mins=$((days * 1440))
-  # A file the run cannot read, in a directory holding a proposal and modified after it, may have started the chip.
-  um="$(printf '%s\n' "$list" | sed 's|/[^/]*$||' | sort -u | _fi_host_unr "$mins")"; um="${um#* }"
+  mins="$(printf '%s\n' "$chips" | awk -F'\t' -v now="$now" '$3 != "-" && (o == "" || $3 < o) { o = $3 } END { print (o == "" ? 0 : int((now - o) / 60) + 2), o + 0 }')"
+  lo="${mins#* }"; mins="${mins% *}"; [ "${mins:-0}" -gt 0 ] || mins=$((days * 1440))
+  # A file the run cannot read, in any record directory under the root and modified after a proposal, may have started the chip.
+  um="$(find "$root" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | _fi_host_unr "$mins" "$lo")"
+  [ -z "${4:-}" ] || printf '%s\n' "${um%% *}" > "$4"; um="${um#* }"
   mm="$({ printf '%s\n' "$chips"; printf '\001\n'; find "$root" -mindepth 2 -maxdepth 2 -type f -name '*.jsonl' -mmin -"$mins" 2>/dev/null; } | awk -F'\t' "$_FI_HOST_AWK"'
       $0 == "\001" { files = 1; next }
       !files { C[$5] = 1; next }
       { f = $0; while ((getline l < f) > 0) if (kind(l) == "u" && (h = human(l)) != "") { if ((k = key(h)) in C) print k "\t" f; break }
-        close(f) }' | while IFS= read -r f; do printf '%s\t%s\n' "${f%%$'\t'*}" "$(_fi_host_mt "${f#*$'\t'}")"; done)"
+        close(f) }' | while IFS= read -r f; do printf '%s\t%s\n' "${f%%$'\t'*}" "$(_fi_mtime "${f#*$'\t'}")"; done)"
   { printf '%s\n' "$chips"; printf '\001\n'; printf '%s\n' "$mm"; } | awk -F'\t' -v um="$um" '
     $0 == "\001" { files = 1; next }
     !files { C[++n] = $0; next }

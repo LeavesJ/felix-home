@@ -318,6 +318,90 @@ felix_resolve_project() {
   return 1
 }
 
+# Where the session stands, as against where the platform started the hook.
+#
+# Claude Desktop starts every hook in its --project-config-root, the main
+# checkout, whatever directory the session works in, while the payload's
+# top-level "cwd" is the session's own: a worktree as often as not. Measured on
+# 2.1.284 and 2.1.286 with the real binary and a mock API. A hook that resolves
+# from $PWD then judges the main checkout. Without the flag, the CLI, the two
+# are one directory.
+#
+# The hook leaves the directory it was started in for three reasons only:
+#   - the payload's directory is another checkout or worktree of the project
+#     that governs the launch directory (the Desktop worktree);
+#   - the payload's directory is governed and the launch directory governs
+#     nothing (no marker at all: a broken one is reported where it is);
+#   - the payload's directory holds a broken .felix marker, which is reported
+#     where the session stands.
+# A directory another project governs, one nothing governs, a path that is not
+# there, is relative or holds a JSON escape: all answer with $PWD, as before.
+#
+# Read in pure bash, from the first 4096 characters only (characters in a UTF-8
+# locale, bytes in C; the envelope's opening keys are ASCII either way). The
+# top-level "cwd" is the third key of the envelope, well inside that, so a
+# "cwd" in a tool's input or a prompt, which sits after it or past it, is never
+# reached. Only the FIRST key is looked at: if its value is not a string there
+# is no candidate, and a later key is not tried. A quote inside a JSON string is spelt \", which the pattern does
+# not match, and a path that needs an escape is left to $PWD rather than decoded.
+# The pattern is held in a variable so that bash 3.2, which macOS ships, takes it
+# as the regex it is.
+#
+# Known limits. A session that cd's into a same-project scratch clone is judged
+# as that clone's tree, as the CLI already does. A session that cd's into a
+# directory nothing governs is judged at the launch directory, which in Desktop
+# is the main checkout. Both need a per-session record of where the session
+# stood, which this does not keep.
+_felix_hook_dir_set() {   # payload, home -> _felix_hd
+  local raw="${1:-}" home="${2:-}" c root pc pl re='^[[:space:]]*:[[:space:]]*"([^"]*)"'
+  _felix_hd="$PWD"
+  raw="${raw:0:4096}"
+  case "$raw" in *'"cwd"'*) ;; *) return 0 ;; esac
+  raw="${raw#*\"cwd\"}"
+  [[ $raw =~ $re ]] || return 0
+  c="${BASH_REMATCH[1]}"
+  case "$c" in /*) ;; *) return 0 ;; esac
+  case "$c" in *\\*) return 0 ;; esac
+  # The CLI: the same directory in any spelling (a symlinked launch path, a
+  # trailing slash). Nothing to resolve, and this runs on every tool call.
+  [ "$c" -ef "$PWD" ] && return 0
+  [ -d "$c" ] || return 0
+  pc="$(felix_resolve_project "$c" "$home" 2>/dev/null)" || pc=""
+  if [ -z "$pc" ]; then
+    # Nothing governs it. A marker that resolves nothing is a broken binding.
+    root="$(felix_repo_root "$c" 2>/dev/null)"
+    [ -f "$root/.felix" ] && _felix_hd="$c"
+    return 0
+  fi
+  # Another project governing the launch directory keeps the hook where it is;
+  # the launch project is looked up only here, off the common path.
+  pl="$(felix_resolve_project "$PWD" "$home" 2>/dev/null)" || pl=""
+  if [ "$pl" = "$pc" ]; then
+    _felix_hd="$c"
+  elif [ -z "$pl" ]; then
+    # A launch directory whose marker resolves nothing was meant to be
+    # governed: its breakage is reported where it is, not stepped over.
+    root="$(felix_repo_root "$PWD" 2>/dev/null)"
+    [ -f "$root/.felix" ] || _felix_hd="$c"
+  fi
+  return 0
+}
+
+felix_hook_dir() {   # payload, home -> the directory a hook should stand in
+  _felix_hook_dir_set "${1:-}" "${2:-}"
+  printf '%s' "$_felix_hd"
+  return 0
+}
+
+# Stand there, in the calling shell, so every $PWD a hook or a library default
+# reads from here on is the session's. Not a subshell: a hook runs on every tool
+# call and a fork is a cost it pays each time.
+felix_hook_enter() {   # payload, home
+  _felix_hook_dir_set "${1:-}" "${2:-}"
+  [ "$_felix_hd" = "$PWD" ] || cd "$_felix_hd" 2>/dev/null
+  return 0
+}
+
 # Marker and pointer contents are written by whoever edited the file, and both
 # end up inside a JSON string a hook emits. Printable characters only, and
 # short, so a broken binding cannot be used to say something else.

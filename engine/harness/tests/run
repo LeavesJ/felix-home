@@ -16264,7 +16264,12 @@ sleep 900 & QSWLIVE=$!
 _qswls="$(_qswstart "$QSWLIVE")"; _qswdy="$(_qswdead)"
 _qswleft "$d" "$T" "$R" felix-qualify.LIVENO "$QSWLIVE" 0555
 _qswleft "$d" "$T" "$R" felix-qualify.LIVETR "$QSWLIVE $_qswls" 0555
-_qswleft "$d" "$T" "$R" felix-qualify.PIDONE 1 0555
+# Where /proc names the pid namespace, a record of pid 1 alone would be left
+# by the rule that a record naming none is not judged there, before kill -0
+# is tried. So there it carries pid 1's start, and what leaves it is kill
+# -0's Operation not permitted or, for root, a start that matches.
+_qswone=1; [ -n "$(_qswns)" ] && { _qswst1="$(_qswstart 1)"; _qswone="1${_qswst1:+ $_qswst1}"; }
+_qswleft "$d" "$T" "$R" felix-qualify.PIDONE "$_qswone" 0555
 _qswplant "$T" felix-qualify.LIVEDF "$R" "$QSWLIVE $QSWDIFF"; chmod 0555 "$T/felix-qualify.LIVEDF"
 _qswplant "$T" felix-qualify.DEADST "$R" "$_qswdy $_qswls"
 _qswp1="$(_qswpre "$T/felix-qualify.DEADST" "$R" "$Tp/felix-qualify.DEADST/w")"
@@ -16324,13 +16329,17 @@ is  "with that proc filesystem, a base whose record names a live pid with anothe
 d="$QSWS/liveness-ps"; T="$d/t"; mkdir -p "$T" "$d/bin"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
 printf '#!/bin/sh\nexit 0\n' > "$d/bin/ps"; chmod +x "$d/bin/ps"
 _qswleft "$d" "$T" "$R" felix-qualify.PSNOTR "$QSWLIVE $(_qswstart "$QSWLIVE")" 0555
-_qswleft "$d" "$T" "$R" felix-qualify.PSNODF "$QSWLIVE MonJan100:00:002001" 0555
+[ -n "$(_qswns)" ] || _qswleft "$d" "$T" "$R" felix-qualify.PSNODF "$QSWLIVE MonJan100:00:002001" 0555
 _qswplant "$T" felix-qualify.PSNODE "$R" "$(_qswdead) $QSWOLD"
 _qswp1="$(_qswpre "$T/felix-qualify.PSNODE" "$R" "$Tp/felix-qualify.PSNODE/w")"
 _qswpath="$d/bin"; _qswbg "$d/s" "$T" "$R" - sweep; _qswpath=""; _qswfinish "$_qswpid" "$d/s"
 _qswctl="$(_qswgone "$_qswp1" "$T/felix-qualify.PSNODE" "$R" "$Tp/felix-qualify.PSNODE/w")"
 _qswleftis "with a ps on PATH that prints nothing, a base whose record names a live pid with its true start is left as it was" "$d" "$T" "$R" felix-qualify.PSNOTR "$_qswctl"
-_qswleftis "with a ps on PATH that prints nothing, a base whose record names a live pid with a start that is not its own is left as it was: a start that cannot be read now shows no other process" "$d" "$T" "$R" felix-qualify.PSNODF "$_qswctl"
+if [ -n "$(_qswns)" ]; then
+  skip "with a ps on PATH that prints nothing, a base whose record names a live pid with a start that is not its own is left as it was: a start that cannot be read now shows no other process" "this host's /proc names its pid namespace, where a record whose start names none is left before kill -0 or ps is asked, so the ps that prints nothing is never reached"
+else
+  _qswleftis "with a ps on PATH that prints nothing, a base whose record names a live pid with a start that is not its own is left as it was: a start that cannot be read now shows no other process" "$d" "$T" "$R" felix-qualify.PSNODF "$_qswctl"
+fi
 skip "a record whose kill -0 fails with an empty message, a fork that failed, is alive" "a failed fork cannot be staged here without replacing the kill builtin"
 skip "a base in the TMPDIR owned by another user, with a dead record, is never a candidate" "it needs a second user, which the suite does not have"
 

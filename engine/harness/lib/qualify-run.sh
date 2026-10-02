@@ -157,8 +157,8 @@ _felix_qualify_rmw() { rm -rf ./w 2>/dev/null; return 0; }
 # Every entry of a base but its owner record, removed: _felix_qualify_clear
 # from outside, _felix_qualify_clear_here inside. rm -rf takes a symlink
 # operand as the link, so nothing is followed out of the base. The three
-# globs are every name but . and ..; one that matched nothing stays literal
-# and is passed over as absent.
+# globs are every name but . and ..; under the nullglob _felix_qualify_in
+# sets, one that matched nothing gives no name.
 _felix_qualify_clear() { _felix_qualify_in "$1" _felix_qualify_clear_here; }
 _felix_qualify_clear_here() {
   local e

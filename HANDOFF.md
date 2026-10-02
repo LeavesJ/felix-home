@@ -22,7 +22,7 @@ so two sessions' handoffs cannot collide in whatever order they land. The
 session start names every section waiting there. Each is newer than the
 current section below. `felix handoff --rotate`, on a branch cut from main
 when upkeep says it is due, folds them in, oldest-landed first:
-- each takes the next id (after 0bz comes 0ca);
+- each takes the next id (after 0cn comes 0co);
 - the section it replaces moves into `docs/handoff/<id>.md`, unchanged;
 - their rows go in at the top of the index.
 
@@ -47,125 +47,56 @@ tree; the engine is published as a snapshot with no history at
 Sections newer than this one may be waiting in `docs/handoff/pending/`. The
 session start names them.
 
-### 0bz. 2026-09-23/24 — restart moments scoped and placed: step 1 names a session running an older engine, and the founder allowed one line mid-session
+### 0cn. 2026-09-25: `felix qualify --gate` fails closed. One read of the table, a failed read refuses with exit 2, a short run refuses, and the gate always says why under `qualified FAIL`
 
-**No engine change from this session, and nothing deployed.** The installed
-engine was 0.49.172 when this was written. A session's start banner can name an
-older one (see Traps). The open items of §0by, #325's section, stand: the
-landing actor, and the carrier session's no-escape queue. Read
-[docs/handoff/0by.md](docs/handoff/0by.md).
+This PR carries claude/qualify-membership-sigpipe (the section beside this
+one) in the same slot, by agreement with the carrier. The engine changes are
+in lib/qualify.sh, felix (cmd_qualify and the gate's qualified block) and
+tests/run.
 
-| PR | What |
-|---|---|
-| #318 | `docs/2026-09-23-restart-moments-scope.md`, the step-1 scope. Five readers; three independent scopes, each attacked by a skeptic; a judge; a completeness critic |
-| #322 | The roadmap places step 1, and the constitution's stealth paragraph carries a narrow exception. Under #319, direction-level documents wait for the founder's yes; he said yes, and then #322 merged |
+**Defect closed.** `felix qualify --gate` read `qualification.tsv` four or more
+times per run and checked only the first read's status. A later read failing
+(a table rewritten mid-run, or a fork failure at load) ran no control and
+counted `0 of 0 held` as a pass. `felix gate` then printed `qualified ok` over
+a HELD control. Now:
+- The table is read once (`felix_qualify_snapshot`), and the verdict comes
+  only from that read.
+- A failed read exits 2, saying the table could not be read.
+- `--gate` exits 0 only with one verdict per selected row, and at least one
+  row selected.
+- Every derived count and list takes its own status.
+- The row command, mutation and premise read /dev/null. A stdin-reading
+  checker used to swallow every later row.
+- The reader refuses as MALFORMED a row with an empty checker or a checker
+  that is not an id, more than six fields, or a CR.
+- `felix gate` lifts every refusal reason under `qualified FAIL`, falls back to
+  a line saying where to read why, and counts checkers from the rendered rows,
+  never from a second read.
 
-**The question, and the answer.** The founder asked whether Claude or Felix
-can start a new session on its own. The answer is not today, and step 1 does
-not either. Measured against the code and the platform:
+**Built by the engine-build workflow, with one process defect.** The workflow
+ran a blind contract, the implementation, three adversarial reviewers and a
+fixer. The defect: I sent scope rulings mid-run by SendMessage to the
+workflow's fixer agent. That started a second copy of it, and the two copies
+wrote to one worktree until I stopped the workflow. The auto-memory note
+`message-to-workflow-agent-forks-a-copy` records it. Put rulings in the
+prompts, or stop the workflow first.
 
-- **Engine behind** is step 1. A session's hooks run an older Felix than the
-  one installed.
-  - The remedy is `/reload-plugins`, which keeps the conversation. It is not
-    a restart and crosses no handoff.
-  - One reader counted 57-78% of Stops this week running a superseded
-    engine. This is scope §1's figure, and not reproducible from the tree.
-  - It reaches one of the three known misses, a session that deployed and
-    kept misrouting. They are listed in
-    `~/.felix/memory/felix/audits/2026-09-21-usage/known-misses.md`.
-- **Idle resume** is recorded only. On desktop the resume hook runs after the
-  prompt is sent, so nothing said then saves the cache write.
-- **A restart past about 500K** is step 2. Scope §7 lists six prerequisites.
-  The first is the handoff repair from
-  `docs/2026-09-21-where-felix-stands.md` §6 (a stamp, `felix handoff
-  --check`, a start-of-session reader). It is still unscheduled; roadmap §6
-  lists it as the founder's open question. The third, the evidence in the
-  tree, is now on disk (below).
+**Handed on, not done here:**
+- A checker exiting 126/127 meets fail-expecting controls. The session on
+  claude/qualify-rows-fresh-shell owns `_felix_qualify_one`'s eval lines, is
+  stacked on this branch, and takes it next in the queue.
+- A row led by a NUL byte is invisible to macOS awk and is skipped as a blank
+  line. Filed as a task. Its fix must keep the one read.
 
-**Founder decisions, 2026-09-23:**
-
-- **One line on his screen mid-session is allowed.**
-  - Once per session, at a stop where Felix says nothing else.
-  - As a `systemMessage` that starts no model turn, naming
-    `/reload-plugins`.
-  - It stays off until he has seen the line render.
-  - The constitution's stealth paragraph carries the exception. Any other
-    mid-session line needs the decision again.
-- **He left placement to Felix** (roadmap Phases 0 and 1):
-  - **Step 1a is at the end of Phase 0** (Sep 23 to Oct 4). It detects the
-    moment in shadow, and a stderr line points `felix gate`, `handoff` and
-    `merge` at the installed CLI.
-  - **Step 1b is in Phase 1**, outside the forced-order judge items listed
-    there. It comes after at least 7 days and 10 `behind` rows of 1a in
-    shadow, and after #310, which is CONFLICTING and waits on his verifier
-    escape.
-  - **Step 2 is unscheduled.**
-- **Still his:**
-  - the 10-minute probe look (scope §3, checks a and d); his word was
-    "later", and "before Oct 12" is the roadmap's suggestion;
-  - whether the handoff repair is scheduled;
-  - later, whether Felix may ever call the desktop's `clear_session("self")`;
-  - from 09-21, a merge refusal for a session bound to a superseded engine.
-
-**The 09-21 evidence is on disk and not yet committed.** A spawned session
-copied it out of `/private/tmp` into `~/.felix/memory/felix/audits/2026-09-21-usage/`.
-It survived today's reboot. Its `README.txt` gives the cutoffs that reproduce
-the runs published in `where-felix-stands` §3:
-- `known-misses.md`;
-- `idle.py`: 211 resumes after more than an hour idle, 131 of them over 400K,
-  12% of coordinator input;
-- `replay.py`: a fresh start measured at 95K on its first call and +85K over
-  20 calls. Restart savings with 20 re-orientation calls are 350K -34%, 500K
-  -28% and 700K -18%; with 40 calls they are 0%, -18% and -12%.
-
-`felix pulse` commits that folder but is not scheduled on this machine. The
-check is `git -C ~/.felix/memory status -- felix/audits/2026-09-21-usage`.
-
-**Agreed with the session that built #307.** Step 1's Stop code will record
-nothing inside a night's chain. `CHAIN=1` is #307's mark for the platform's
-continuation after a hold. While the session owns a live night, it will
-record `unsaid:night` and retry after the night (scope §4.2).
-
-**Next, unowned:**
-- **Step 1a:** 1.5-2 sessions, adversarial tier, with assertions written blind
-  from scope §5. `hooks/stop` is 496 lines on main, so the Stop detector goes
-  in a library (scope §4.1).
-- **S0 checks b, c and e are Felix's** (about 0.25 session), and can run
-  before the founder's look.
-- **#312 (public README) is CONFLICTING.** It writes a §0bv that main already
-  has. Its section takes the next free id when it lands (§0ca or later).
-  It is in the carrier's queue.
-
-**Traps paid for this session:**
-
-- **Four sessions claimed the same handoff id within an hour.** #327
-  (landed), #325, #330 and this one all wrote §0bw; this one was drafted 27
-  seconds after #325 opened. #325's section landed here as §0by and this
-  one as §0bz, each unchanged but for its heading. Their ids were assigned
-  at landing by re-reading main. Take the id at merge time: re-read main and
-  `gh pr list` for PRs touching `HANDOFF.md` right before merging. Stack on
-  an open handoff PR rather than beside it.
-- **Local gates are slow under load.** Under a one-minute load average of
-  50-400, three local gates took 56, 75 and 142 minutes, where CI took 5-6.5.
-  Start the gate in the background as soon as the commit exists, and budget
-  about two hours before a merge.
-- **The red.tsv base check can fail a docs branch.** The check is
-  tests/run:20925-20945 at `bd740748`, with its helpers `_rt_engine_same` at
-  :20864 and `_rt_record_holds` at :20889-20894. It calls a branch an engine
-  change whenever the branch's engine differs from origin/main's. So an engine
-  PR landing while a docs branch's gate runs fails that branch with "re-record
-  with tests/run --record-assertions". Merge main in instead of re-recording:
-  the engines then match and the check skips.
-- **A session keeps its start banner's CLI path after every deploy.** This
-  one began on 0.49.150 and ended with 0.49.172 installed. Run gate and merge
-  as `<installPath>/harness/felix`, taking `installPath` from the user-scope
-  `felix@felix` entry in `~/.claude/plugins/installed_plugins.json`.
-- **Stop's `additionalContext` makes the model take another turn.** See
-  transcript `19161025` under
-  `~/.claude/projects/-Users-a14808-Documents-Felix--claude-worktrees-felix-v3-2-rearchitecture-dd90dc/`:
-  the verify nudge lands at 07:20:47Z and model work follows with no human
-  prompt. The docs say `systemMessage` starts no turn; that stays untested
-  until S0(a).
+**Traps paid:**
+- The slice runner (the suite's prologue plus only the obligations and
+  qualification sections, with one commit standing in for the omitted
+  sections) ran those sections in 45 s against the full suite's 50 minutes.
+  Without that commit, every control is unrunnable, because the fixture repo
+  has no HEAD.
+- Another session's `pkill -f 'engine/harness/tests/run'` killed a reviewer's
+  mutation run mid-way. A killed run's log has no summary line. Score a
+  mutant only from a log that has one.
 
 ---
 
@@ -176,6 +107,20 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0cm](docs/handoff/0cm.md) | 2026-09-25 — the needs-count flake was printf into grep -q under pipefail, not a failed read; qualify's membership is a case in the shell now, and an unreadable qualification.tsv is said, not resolved |
+| [0cl](docs/handoff/0cl.md) | 2026-09-25 — the project scripts read a pipe's answer from the whole list: a README change under --public-readme and a monitoring change in sv2-apps are no longer read as absent |
+| [0ck](docs/handoff/0ck.md) | 2026-09-24 — bootstrap's rendered gate workflow keeps no credential after its checkouts |
+| [0cj](docs/handoff/0cj.md) | 2026-09-23/25 — stranded work audited and backed up, the landing actor designed and put first, the founder's batch landed |
+| [0ci](docs/handoff/0ci.md) | 2026-09-25 — the context cap the founder counted on did not exist, and a session started from now on summarizes at 500K |
+| [0ch](docs/handoff/0ch.md) | 2026-09-25 — no engine test reads a pipe through a grep that can stop early: fifty sites converted, and a suite lint refuses the shape |
+| [0cg](docs/handoff/0cg.md) | 2026-09-24 — the Actions outage measured: a spending cap, not capacity; a push to main now reuses its pull request's green run of the same tree |
+| [0cf](docs/handoff/0cf.md) | 2026-09-23 — the public README rewritten for a general reader first, with the Felix mark, and checked against the code three times |
+| [0ce](docs/handoff/0ce.md) | 2026-09-24 — the 44 red rows every Mac recorded since #308 were tests/red moving TMPDIR, which macOS's mktemp ignores; red now runs the suite in the caller's TMPDIR |
+| [0cd](docs/handoff/0cd.md) | 2026-09-24 — the megabyte-line audit assertion timed by CPU and shown red, then handed to the session that already had it |
+| [0cc](docs/handoff/0cc.md) | 2026-09-23/24 — the unattended template left two credentials for the model to read, measured on the pinned binary and closed upstream of the model |
+| [0cb](docs/handoff/0cb.md) | 2026-09-24 — the unattended model step could read its own API key from /proc, measured on ubuntu-latest, and the template now denies it |
+| [0ca](docs/handoff/0ca.md) | 2026-09-24 — handoff sections cannot collide: a session adds a file, and one fold of main gives the ids |
+| [0bz](docs/handoff/0bz.md) | 2026-09-23/24 — restart moments scoped and placed: step 1 names a session running an older engine, and the founder allowed one line mid-session |
 | [0by](docs/handoff/0by.md) | 2026-09-23/24 — every stuck PR triaged, why the night went stale, and the landing actor designed (not built) |
 | [0bx](docs/handoff/0bx.md) | 2026-09-23 (day) — a turn another hook woke ended unchecked, measured on the real binary, and the Stop hold now knows its own chain |
 | [0bw](docs/handoff/0bw.md) | 2026-09-23 — building Felix, measured as Felix's own workload; direction-level documents wait for the founder |

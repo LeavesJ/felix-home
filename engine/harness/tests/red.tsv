@@ -8,8 +8,8 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	17690d2c4ce0bd91a3035cbaa31f776b579635ba	0.49.265
-run	100	6061	9
+base	origin/main	bcd55421faf1ed6fa32a35b99e131d0de75f1486	0.49.266
+run	102	6063	9
 FELIX_HARNESS_DIR holds lib/maintenance.sh, so it is an engine harness	1
 a FELIX_HARNESS_DIR inherited from the caller is replaced by the lib's own	1
 a bare commit is not a remote-tracking ref: exit 2, one line	1
@@ -29,6 +29,7 @@ a holder keeps its text and drops its control bytes	1
 a holder printed with no trailing newline still counts	1
 a local branch (refs/heads) is never counted, though it holds a live fold	1
 a local branch is not a remote-tracking ref, though it holds main's commit: exit 2, one line	1
+a long pointer is refused naming its own directory, not the parent	1
 a ref that does not resolve cannot be examined: exit 2, one line on stdout	1
 a ref whose HANDOFF.md has no marker cannot be examined: exit 2, one line	1
 a ref with no HANDOFF.md cannot be examined: exit 2, one line	1
@@ -46,6 +47,7 @@ and says the same called by a relative path from a subdirectory, finding its lib
 and that row reads inflight, since the check printed it and exited 0	1
 and the emitted inflight row keeps exactly five fields	1
 and the line names it	1
+and the refusal marks where the middle was cut	1
 and the row's reason is given	1
 and the script says it is dated ahead, rather than 0m old	1
 and the script says none in flight for it (exit 1)	1

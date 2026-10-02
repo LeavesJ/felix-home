@@ -743,6 +743,8 @@
 1	a log row on the branch settles a branch-owned catch
 1	a log whose last line has no newline is left byte for byte, pair and all
 1	a long legacy runbook with an empty slug begins with the preface, then shows --repo {{REPO}}, never --repo and a blank
+1	a long marker is quoted at most eighty characters long
+1	a long pointer is refused naming its own directory, not the parent
 1	a lookalike gate is reported
 1	a low-risk candidate is declared
 1	a machine without launchd is refused, not half-served
@@ -890,6 +892,7 @@
 1	a one-line registry answers for the right plugin
 1	a one-line registry answers for the right plugin, not the last one
 1	a one-session routing gap is called weak, with the number
+1	a parent eighty characters long, so a cut at eighty ends on its slash
 1	a parent that is not the resolved home is still foreign
 1	a partial answer whose rows could not be counted is unknown, not answered
 1	a pass claiming it ran in the reviewed tree is refused
@@ -3275,6 +3278,7 @@
 1	and the recurrence report still reads the failure through the link
 1	and the refilled cache begins with the stamp
 1	and the refusal is the gate's own
+1	and the refusal marks where the middle was cut
 1	and the refusal names that project's deny table
 1	and the refusal names that worktree's marker
 1	and the refusal names the stray, which is all the incident ever printed

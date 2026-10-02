@@ -4329,6 +4329,1089 @@ _mag="$(( $(date +%s) - 3600 ))"
 awk -F'\t' -v OFS='\t' -v T="$_mag" 'NF >= 5 { $5 = T } { print }' "$MISLOG" > "$TMP/mislog.aged"
 cat "$TMP/mislog.aged" > "$MISLOG"
 
+# An unborn HEAD is still one row.
+#
+# A repository that has been `git init`ed and not yet committed to is exactly
+# where a project gets commissioned, and commissioning is where the gate has to
+# be watched failing. There `git rev-parse --abbrev-ref HEAD` prints `HEAD` AND
+# exits 128, so a `|| echo '?'` fallback does not replace the answer, it appends
+# to it: the branch field became "HEAD\n?" and the record two lines, neither of
+# them with a fourth column. Every reader of this log is `cut -f4` or awk's $4,
+# so the failure was written down and could not be read. Found 2026-09-18 on a
+# real commissioning, where `gate_shown_failing` stayed held on a gate that had
+# genuinely been seen red.
+#
+# Driven through the real gate in a real unborn repository rather than by
+# calling the writer, because the defect was in what git says there and a
+# fixture that invents git's answer would have inherited the same assumption.
+NOHEAD="$TMP/unborn-repo"; NOHEADP="$FROOT/projects/unbornproj"
+mkdir -p "$NOHEAD" "$NOHEADP" "$MEM/unbornproj"
+( cd "$NOHEAD" && git init -q -b main )
+printf 'unbornproj\n' > "$NOHEAD/.felix"
+printf 'untracked\n'  > "$NOHEAD/file.txt"
+printf '{"name":"unbornproj","gate":"gate.sh"}\n' > "$NOHEADP/project.json"
+cat > "$NOHEADP/gate.sh" <<'GS'
+#!/usr/bin/env bash
+echo "  lint               FAIL"
+exit 1
+GS
+chmod +x "$NOHEADP/gate.sh"
+NOHEADLOG="$MEM/unbornproj/mistakes.log"
+( cd "$NOHEAD" && "$FELIX" gate >/dev/null 2>&1 ); rc=$?
+is "a failing gate on an unborn HEAD still exits non-zero" "$rc" "1"
+is "and records exactly one line for it"  "$(grep -c '' "$NOHEADLOG" 2>/dev/null)" "1"
+# Six since rows carry the second they were caught and the session that
+# caught them, appended after the four every reader takes.
+is "of six tab-separated fields"          "$(awk -F'\t' '{ print NF }' "$NOHEADLOG" 2>/dev/null | sort -u | tr '\n' ' ')" "6 "
+is "with the failed check in column four" "$(cut -f4 "$NOHEADLOG" 2>/dev/null | tr -d ' ')" "lint"
+is "and says the commit is unborn rather than guessing one" "$(cut -f3 "$NOHEADLOG" 2>/dev/null)" "unborn"
+# The reader the row was lost on, verbatim from templates/commissioning.tsv.
+( FELIX_MEMORY_DIR="$MEM/unbornproj"
+  cut -f4 "$FELIX_MEMORY_DIR/mistakes.log" 2>/dev/null | tr ' ' '\n' | grep -vxE 'commission|probes' | grep -q . ) \
+  && ok  "so the commissioning check that reads column four sees the failure" \
+  || bad "so the commissioning check that reads column four sees the failure" "$(od -c "$NOHEADLOG" 2>/dev/null | head -4)"
+# The fallback status is a fourth field too, not only a named check.
+cat > "$NOHEADP/gate.sh" <<'GS'
+#!/usr/bin/env bash
+echo "no check is named"
+exit 2
+GS
+: > "$NOHEADLOG"
+( cd "$NOHEAD" && "$FELIX" gate >/dev/null 2>&1 )
+is "a gate naming nothing on an unborn HEAD records its status in column four" \
+   "$(cut -f4 "$NOHEADLOG" 2>/dev/null)" "exit-2"
+# The handoff names the same branch, from the same reader. Its line had no
+# fallback, so it was never malformed: it printed `HEAD`, git's word for having
+# no commit to abbreviate, to the next session as the branch of a repository
+# that is on main. A project being commissioned is where a handoff gets written
+# with no commit under it.
+( cd "$NOHEAD" && "$FELIX" handoff "being commissioned" >/dev/null 2>&1 )
+has "a handoff written on an unborn HEAD names the branch it is on" \
+    "$(cat "$MEM/unbornproj/SESSION_HANDOFF.md" 2>/dev/null)" '- branch: `main`'
+
+printf '\nfresh repositories: split mistakes rows heal, the project gate keeps its own failure, setup waits for a remote\n'
+# A sweep of what a freshly created repository goes through on its first day
+# found four defects that each kept `felix commission` from ever reading clean
+# there, whatever the person did. They share this section because they share a
+# fixture shape: a project bound by marker to a throwaway checkout, driven
+# through the real CLI and the real hook, with memory seeded by hand wherever
+# the defect is in what an older engine left on disk.
+#
+# Every block below builds a project of its own, so the widget, cmproj and
+# unbornproj fixtures are read exactly as the sections around this one left
+# them. An assertion that pins something which must NOT change first checks
+# that the fixture really had the shape that would change it, or it would pass
+# by finding nothing.
+#
+# Discovery's background refresh would start from the session-start calls here
+# and reach for the network. Holding its lock for the section keeps the hook
+# offline, and only a lock this section took is let go at the end.
+_fh_dlock="$FROOT/state/discover/.lock"; _fh_dlock_mine=0
+mkdir -p "$FROOT/state/discover" && mkdir "$_fh_dlock" 2>/dev/null && _fh_dlock_mine=1
+_fh_today="$(date +%Y-%m-%d)"
+_fh_sp=""
+
+# A project, its memory, and a born checkout bound to it by marker, with no
+# probes, qualification, obligations or commissioning table: the gate runs the
+# project's own command and skips every engine check, unless a block adds one.
+_fh_proj() {
+  mkdir -p "$FROOT/projects/$1" "$MEM/$1" "$TMP/fr-$1"
+  printf '{"name":"%s","gate":"%s"}\n' "$1" "$2" > "$FROOT/projects/$1/project.json"
+  printf '# %s\n' "$1" > "$FROOT/projects/$1/CLAUDE.md"
+  ( cd "$TMP/fr-$1" && git init -q -b main && printf '%s\n' "$1" > .felix && printf 'x\n' > README.md \
+    && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
+}
+_fh_root()    { ( cd "$TMP/fr-$1" && pwd -P ); }
+_fh_setgate() { printf '{"name":"%s","gate":"%s"}\n' "$1" "$2" > "$FROOT/projects/$1/project.json"; }
+_fh_script()  { printf '#!/usr/bin/env bash\n%s\n' "$2" > "$FROOT/projects/$1/gate.sh"; chmod +x "$FROOT/projects/$1/gate.sh"; }
+# What an engine before #267 wrote for one gate failure on an unborn HEAD:
+# `rev-parse --abbrev-ref HEAD` printed HEAD and exited 128, so the `|| echo ?`
+# fallback appended rather than replaced, and the row became two lines. Line A
+# has two fields; line B has three, and column four is on neither.
+_fh_legacy()  { printf '%s\tHEAD\n?\t?\t%s\n' "$1" "$2"; }
+_fh_pairs()   { LC_ALL=C awk -F'\t' 'p && NF == 3 && $1 == "?" && $2 == "?" { n++ } { p = (NF == 2 && $2 == "HEAD") } END { print n + 0 }' "$1" 2>/dev/null; }
+# The heal's temporaries and its lock, by the names the contract gives them.
+_fh_left()    { ls -A "$1" 2>/dev/null | grep -E '^\.mistakes\.(lock|log\.(heal|orig)\..*)$' | tr '\n' ' '; }
+_fh_same_mtime() { [ -e "$1" ] && [ -e "$2" ] && [ -z "$(find "$1" -newer "$2" 2>/dev/null)" ] && [ -z "$(find "$2" -newer "$1" 2>/dev/null)" ]; }
+_fh_recur() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/memory.sh"; felix_mem_recurring_mistakes "$@" ) 2>/dev/null; }
+_fh_items() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+                . "$FROOT/harness/lib/procedures.sh"; felix_procedures_items "$1" ) 2>/dev/null; }
+_fh_guard() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$1" ) 2>/dev/null; }
+_fh_mon()   { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/monitor.sh"; _felix_mon_project "$1" "$FROOT" ) 2>/dev/null; }
+_fh_montotal() { printf '%s' "$1" | tr ',' '\n' | sed -n 's/.*"mistakesTotal":\([0-9]*\).*/\1/p' | head -n 1; }
+_fh_monfirst() { printf '%s' "$1" | sed -n 's/.*"mistakes":\[\({[^}]*}\).*/\1/p' | head -n 1; }
+_fh_cmhdr() { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'; }
+_fh_cmrow() { grep -E "^$1$(printf '\t')" "$FROOT/harness/templates/commissioning.tsv" | head -n 1; }
+
+# The reader the split row was lost on, copied verbatim from the template's
+# gate_shown_failing row. templates/commissioning.tsv is an escape table, so
+# this check cannot learn the split shape; the file has to be healed under it.
+_fh_gsf_chk="$(awk -F'\t' '$1 == "gate_shown_failing" { print $6; exit }' "$FROOT/harness/templates/commissioning.tsv")"
+has "the gate_shown_failing check is read verbatim from the template, and it reads column four" \
+    "$_fh_gsf_chk" 'cut -f4 "$FELIX_MEMORY_DIR/mistakes.log"'
+_fh_gsf() { ( FELIX_MEMORY_DIR="$1"; [ -n "$_fh_gsf_chk" ] || exit 99; eval "$_fh_gsf_chk" ) >/dev/null 2>&1; }
+
+# ------------------------------------------------ the heal and its readers ----
+# #267 fixed the writer, and every row written since is four fields. It did not
+# touch what was already on disk: an install whose gate failed on an unborn HEAD
+# before #267 keeps a two-line row that gate_shown_failing cannot read, so that
+# row stays held however many times the person has watched the gate go red.
+# The heal joins such a pair into the row #267 would have written, in place,
+# and never touches anything else.
+_fh_proj healproj true
+_fh_r="$(_fh_root healproj)"; _fh_l="$MEM/healproj/mistakes.log"
+printf '2026-09-01\tHEAD\tunborn\tlint \n' > "$TMP/fh-one.expect"
+_fh_legacy 2026-09-01 'lint ' > "$_fh_l"
+is "the fixture writes the legacy split shape: a two-field HEAD line, then a three-field ?-? line" \
+   "$(awk -F'\t' '{ printf "%s ", NF }' "$_fh_l")pairs=$(_fh_pairs "$_fh_l")" "2 3 pairs=1"
+_fh_gsf "$MEM/healproj" \
+  && bad "before any heal, gate_shown_failing cannot see the failure the split rows hold" "it read done on the split file, so a heal proves nothing below" \
+  || ok  "before any heal, gate_shown_failing cannot see the failure the split rows hold"
+( cd "$_fh_r" && "$FELIX" gate >/dev/null 2>&1 ); _fh_rc=$?
+is "a passing gate over a split row still exits 0" "$_fh_rc" "0"
+_fh_healed=0; cmp -s "$_fh_l" "$TMP/fh-one.expect" && _fh_healed=1
+[ "$_fh_healed" -eq 1 ] \
+  && ok  "and the pair becomes one row, byte for byte: the date, HEAD, unborn, and the checks with their trailing space" \
+  || bad "and the pair becomes one row, byte for byte: the date, HEAD, unborn, and the checks with their trailing space" "$(od -c "$_fh_l" | head -n 3)"
+is "a healed pair is one line"                     "$(grep -c '' "$_fh_l")" "1"
+is "and a healed pair has four tab-separated fields" "$(awk -F'\t' '{ print NF }' "$_fh_l" | sort -u | tr '\n' ' ')" "4 "
+_fh_gsf "$MEM/healproj" \
+  && ok  "so gate_shown_failing reads done after the heal, with no second failing gate" \
+  || bad "so gate_shown_failing reads done after the heal, with no second failing gate" "$(cut -f4 "$_fh_l" | od -c | head -n 2)"
+
+# Idempotent. Both mtimes are set to 2020 first, so a rewrite that restored
+# nothing would show.
+cp "$_fh_l" "$TMP/fh-once.copy"; touch -t 202001010000 "$_fh_l" "$TMP/fh-once.ref"
+( cd "$_fh_r" && "$FELIX" gate >/dev/null 2>&1 )
+if [ "$_fh_healed" -ne 1 ]; then
+  bad "a healed file gated again is left alone: the same bytes and the same mtime" \
+      "the first gate did not heal the file, so a second one that leaves it alone proves nothing"
+elif cmp -s "$_fh_l" "$TMP/fh-once.copy" && _fh_same_mtime "$_fh_l" "$TMP/fh-once.ref"; then
+  ok  "a healed file gated again is left alone: the same bytes and the same mtime"
+else
+  bad "a healed file gated again is left alone: the same bytes and the same mtime" "$(ls -l "$_fh_l"; od -c "$_fh_l" | head -n 3)"
+fi
+
+# Every row keeps its place. Line 1 ends without a trailing space and line 5
+# with one, so a heal that re-wrote rows rather than copying them would show.
+{ printf '2026-09-01\tmain\tabc1234\tlint\n'; _fh_legacy 2026-09-02 'lint '
+  printf '2026-09-03\tmain\tdef5678\texit-2\n'; _fh_legacy 2026-09-04 'exit-1'
+  printf '2026-09-05\tmain\t0a0a0a0\tprobes \n'; } > "$_fh_l"
+( cd "$_fh_r" && "$FELIX" gate >/dev/null 2>&1 )
+is "a mixed file of seven lines holding two pairs heals to five" "$(grep -c '' "$_fh_l")" "5"
+is "and its well-formed rows keep their bytes and their places: lines 1, 3 and 5" \
+   "$(sed -n '1p;3p;5p' "$_fh_l")" \
+   "$(printf '2026-09-01\tmain\tabc1234\tlint\n2026-09-03\tmain\tdef5678\texit-2\n2026-09-05\tmain\t0a0a0a0\tprobes ')"
+is "and each pair is joined where it stood: lines 2 and 4" \
+   "$(sed -n '2p;4p' "$_fh_l")" \
+   "$(printf '2026-09-02\tHEAD\tunborn\tlint \n2026-09-04\tHEAD\tunborn\texit-1')"
+
+# Only a real pair is joined. A HEAD line followed by anything but the ?-? line,
+# a ?-? line with no HEAD line before it, a ?-? line of four fields, a HEAD line
+# whose first field is not a date, and a HEAD line with nothing after it are all
+# left exactly where they are.
+{ printf '2026-09-01\tHEAD\n2026-09-01\tmain\tabc\tx\n'
+  printf '?\t?\torphan\n'
+  printf '2026-09-02\tHEAD\n?\t?\ta\tb\n'
+  printf 'yesterday\tHEAD\n?\t?\ty\n'
+  _fh_legacy 2026-09-03 'lint '
+  printf '2026-09-04\tHEAD\n'; } > "$_fh_l"
+cp "$_fh_l" "$TMP/fh-frag.seed"
+( cd "$_fh_r" && "$FELIX" gate >/dev/null 2>&1 )
+is "fragments that cannot pair keep their bytes and their places" \
+   "$(head -n 7 "$_fh_l")" "$(head -n 7 "$TMP/fh-frag.seed")"
+is "and a HEAD line left last, with nothing to pair with, keeps its bytes" \
+   "$(tail -n 1 "$_fh_l")" "$(printf '2026-09-04\tHEAD')"
+is "while the one real pair among them is joined in place, one line shorter" \
+   "$(grep -c '' "$_fh_l") $(sed -n 8p "$_fh_l")" "9 $(printf '2026-09-03\tHEAD\tunborn\tlint ')"
+
+# The mode is kept: a heal builds its replacement beside the log and renames it
+# over, and a new file would otherwise take the umask.
+_fh_legacy 2026-09-01 'lint ' > "$_fh_l"; chmod 600 "$_fh_l"
+_fh_mode0="$(ls -l "$_fh_l" | cut -c1-10)"
+( cd "$_fh_r" && "$FELIX" gate >/dev/null 2>&1 )
+_fh_mode="$(ls -l "$_fh_l" | cut -c1-10)"
+if [ "$_fh_mode0" != "-rw-------" ]; then
+  bad "a heal keeps the log's mode: a 600 log is healed and is still 600" "the fixture could not make the log 600 ($_fh_mode0)"
+elif ! cmp -s "$_fh_l" "$TMP/fh-one.expect"; then
+  bad "a heal keeps the log's mode: a 600 log is healed and is still 600" "the file was not healed, so its mode proves nothing"
+elif [ "$_fh_mode" = "-rw-------" ]; then
+  ok  "a heal keeps the log's mode: a 600 log is healed and is still 600"
+else
+  bad "a heal keeps the log's mode: a 600 log is healed and is still 600" "mode is now $_fh_mode"
+fi
+chmod 644 "$_fh_l"
+
+# A log whose last line has no newline is either being written or was edited
+# by hand, and either way the heal declines. Readers still read it joined.
+{ _fh_legacy 2026-09-01 'lint '; printf '2026-09-02\tmain\tabc\tlint'; } > "$_fh_l"
+cp "$_fh_l" "$TMP/fh-nonl.seed"
+( cd "$_fh_r" && "$FELIX" gate >/dev/null 2>&1 )
+if [ "$(tail -c 1 "$TMP/fh-nonl.seed" | od -An -tx1 | tr -d ' \n')" = "0a" ] || [ "$(_fh_pairs "$TMP/fh-nonl.seed")" != "1" ]; then
+  bad "a log whose last line has no newline is left byte for byte, pair and all" "the fixture did not seed a pair and an unterminated last line"
+elif cmp -s "$_fh_l" "$TMP/fh-nonl.seed"; then
+  ok  "a log whose last line has no newline is left byte for byte, pair and all"
+else
+  bad "a log whose last line has no newline is left byte for byte, pair and all" "$(od -c "$_fh_l" | head -n 4)"
+fi
+
+# A well-formed log is the case on every install, every session: it must come
+# through a gate and a session start with its bytes and its mtime, and with no
+# lock or temporary left beside it.
+_fh_proj healhook true
+_fh_kr="$(_fh_root healhook)"; _fh_kl="$MEM/healhook/mistakes.log"
+printf '2026-09-01\tmain\tunborn\tlint \n2026-09-02\tmain\tabc1234\tlint \n' > "$_fh_kl"
+touch -t 202001010000 "$_fh_kl" "$TMP/fh-keep.ref"; cp -p "$_fh_kl" "$TMP/fh-keep.copy"
+( cd "$_fh_kr" && "$FELIX" gate >/dev/null 2>&1 ); _fh_rc=$?
+( cd "$_fh_kr" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" ) >/dev/null 2>&1
+if [ "$_fh_rc" -ne 0 ] || [ "$(_fh_pairs "$TMP/fh-keep.copy")" != "0" ]; then
+  bad "a well-formed log is byte for byte what it was after a gate and a session start" "the fixture's gate exited $_fh_rc, or the log was not well-formed"
+elif cmp -s "$_fh_kl" "$TMP/fh-keep.copy"; then
+  ok  "a well-formed log is byte for byte what it was after a gate and a session start"
+else
+  bad "a well-formed log is byte for byte what it was after a gate and a session start" "$(od -c "$_fh_kl" | head -n 4)"
+fi
+_fh_same_mtime "$_fh_kl" "$TMP/fh-keep.ref" \
+  && ok  "and keeps its mtime" \
+  || bad "and keeps its mtime" "$(ls -l "$_fh_kl" "$TMP/fh-keep.ref")"
+is "and nothing of a heal is left in its memory directory" "$(_fh_left "$MEM/healhook")" ""
+
+# session-start is the entry point that runs on every install, whatever the
+# gate did last. It must heal silently: any byte it adds to its own output
+# corrupts the JSON Claude Code reads.
+_fh_legacy 2026-09-01 'lint ' > "$_fh_kl"
+_fh_ss="$(cd "$_fh_kr" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>"$TMP/fh-ss.err")"
+cmp -s "$_fh_kl" "$TMP/fh-one.expect" \
+  && ok  "a session start heals a split row" \
+  || bad "a session start heals a split row" "$(od -c "$_fh_kl" | head -n 3)"
+_fh_js="$(printf '%s' "$_fh_ss" | python3 -c 'import json,sys; print("hookSpecificOutput" in json.load(sys.stdin))' 2>/dev/null)"
+if [ "${_fh_ss:0:1}" = "{" ] && [ "$_fh_js" = "True" ] && [ ! -s "$TMP/fh-ss.err" ]; then
+  ok  "and its output is still one JSON object carrying hookSpecificOutput, with nothing on stderr"
+else
+  bad "and its output is still one JSON object carrying hookSpecificOutput, with nothing on stderr" \
+      "stdout begins [${_fh_ss:0:40}] json=[$_fh_js] stderr=[$(head -c 200 "$TMP/fh-ss.err")]"
+fi
+
+# The mtime is kept, because felix_guard_unrecorded compares it with the
+# lessons and the devlog. A heal that bumped it would make the Stop hook say the
+# gate caught something nobody wrote down, in a session where nothing failed.
+_fh_proj healtime true
+_fh_tr="$(_fh_root healtime)"; _fh_tl="$MEM/healtime/mistakes.log"
+_fh_legacy "$_fh_today" 'lint ' > "$_fh_tl"
+printf '%s\tHEAD\tunborn\tlint \n' "$_fh_today" > "$TMP/fh-time.expect"
+touch -t 202001010000 "$_fh_tl" "$TMP/fh-time.ref"
+_fh_yday="$(date -v-1d +%Y%m%d%H%M 2>/dev/null || date -d '1 day ago' +%Y%m%d%H%M)"
+: > "$MEM/healtime/lessons.md"; touch -t "$_fh_yday" "$MEM/healtime/lessons.md"
+( cd "$_fh_tr" && "$FELIX" gate >/dev/null 2>&1 )
+_fh_th=0; cmp -s "$_fh_tl" "$TMP/fh-time.expect" && _fh_th=1
+[ "$_fh_th" -eq 1 ] \
+  && ok  "a split row dated today is healed" \
+  || bad "a split row dated today is healed" "$(od -c "$_fh_tl" | head -n 3)"
+if [ "$_fh_th" -ne 1 ]; then
+  bad "and the heal keeps the log's mtime" "no heal ran, so an unchanged mtime proves nothing"
+  bad "so the Stop hook's guard stays quiet: the healed log is not newer than the last lesson" "no heal ran, so a quiet guard proves nothing"
+else
+  _fh_same_mtime "$_fh_tl" "$TMP/fh-time.ref" \
+    && ok  "and the heal keeps the log's mtime" \
+    || bad "and the heal keeps the log's mtime" "$(ls -l "$_fh_tl" "$TMP/fh-time.ref")"
+  _fh_gu="$(_fh_guard "$FROOT/projects/healtime")"
+  is "so the Stop hook's guard stays quiet: the healed log is not newer than the last lesson" "${#_fh_gu}" "0"
+fi
+
+# A writer that takes no lock (an older engine in a session that has not
+# restarted, or a person's >>) can append between the heal's snapshot and its
+# rename. The stub `mv` lands exactly there: it appends to the log it is about
+# to replace, then does the rename. The heal must find that row on the inode it
+# pinned and carry it over.
+_fh_proj healrace true
+_fh_rr="$(_fh_root healrace)"; _fh_rl="$MEM/healrace/mistakes.log"
+{ _fh_legacy 2026-09-01 'lint '; printf '2026-09-02\tmain\tabc1234\tlint \n'; } > "$_fh_rl"
+mkdir -p "$TMP/fh-mvstub"
+cat > "$TMP/fh-mvstub/mv" <<'STUB'
+#!/usr/bin/env bash
+for _last in "$@"; do :; done
+case "$_last" in
+  */mistakes.log) printf '2026-09-09\tmain\tabc1234\tconcurrent\n' >> "$_last" ;;
+esac
+exec /bin/mv "$@"
+STUB
+chmod +x "$TMP/fh-mvstub/mv"
+( cd "$_fh_rr" && PATH="$TMP/fh-mvstub:$PATH" "$FELIX" gate >/dev/null 2>&1 )
+_fh_rh=0
+[ "$(sed -n '1p;2p' "$_fh_rl")" = "$(printf '2026-09-01\tHEAD\tunborn\tlint \n2026-09-02\tmain\tabc1234\tlint ')" ] && _fh_rh=1
+[ "$_fh_rh" -eq 1 ] \
+  && ok  "a heal raced by an unlocked append keeps its own rows first: the joined pair, then the row that was there" \
+  || bad "a heal raced by an unlocked append keeps its own rows first: the joined pair, then the row that was there" "$(cat "$_fh_rl")"
+is "and the row appended mid-heal survives exactly once, as the last of three lines" \
+   "$(grep -c 'concurrent' "$_fh_rl")|$(tail -n 1 "$_fh_rl")|$(grep -c '' "$_fh_rl")" \
+   "1|$(printf '2026-09-09\tmain\tabc1234\tconcurrent')|3"
+if [ "$_fh_rh" -eq 1 ]; then
+  is "and the raced heal leaves no temporary, link or lock behind" "$(_fh_left "$MEM/healrace")" ""
+else
+  bad "and the raced heal leaves no temporary, link or lock behind" "no heal ran, so an empty directory proves nothing"
+fi
+
+# The lock. Tests create it by hand to simulate a holder, so its name and its
+# pid file are part of the contract: <memory>/.mistakes.lock/pid.
+_fh_proj heallock true
+_fh_cr="$(_fh_root heallock)"; _fh_cm="$MEM/heallock"; _fh_cl="$_fh_cm/mistakes.log"; _fh_ck="$_fh_cm/.mistakes.lock"
+_fh_script heallock 'echo "  lint               FAIL"; exit 1'
+sleep 600 & _fh_sp=$!
+mkdir "$_fh_ck"; printf '%s\n' "$_fh_sp" > "$_fh_ck/pid"
+_fh_legacy 2026-09-01 'lint ' > "$_fh_cl"; cp "$_fh_cl" "$TMP/fh-lock.seed"
+( cd "$_fh_cr" && "$FELIX" gate >/dev/null 2>&1 )
+if [ "$_fh_healed" -ne 1 ]; then
+  bad "a live owner's lock stops the heal: the split file is left as it was" \
+      "the heal never ran on a passing gate above, so a file left alone here proves nothing"
+else
+  cmp -s "$_fh_cl" "$TMP/fh-lock.seed" \
+    && ok  "a live owner's lock stops the heal: the split file is left as it was" \
+    || bad "a live owner's lock stops the heal: the split file is left as it was" "$(cat "$_fh_cl")"
+fi
+# A row is never lost to a lock: the writer waits a bounded time and then
+# appends anyway. The deadline is a minute rather than the few seconds the
+# wait costs, because this machine's load has turned wall-clock bounds red
+# before, and what is asserted is that the wait ends, not how fast.
+touch "$_fh_ck"; _fh_setgate heallock gate.sh
+_fh_n0="$(grep -c '' "$_fh_cl")"
+( cd "$_fh_cr" && "$FELIX" gate >/dev/null 2>&1 ) & _fh_gp=$!
+_fh_w=0; while kill -0 "$_fh_gp" 2>/dev/null && [ "$_fh_w" -lt 60 ]; do sleep 1; _fh_w=$((_fh_w + 1)); done
+if kill -0 "$_fh_gp" 2>/dev/null; then
+  kill "$_fh_gp" 2>/dev/null; wait "$_fh_gp" 2>/dev/null; _fh_grc=timeout
+else
+  wait "$_fh_gp"; _fh_grc=$?
+fi
+is "a failing gate under a live lock still appends its row and exits 1, without waiting on the lock for good" \
+   "$_fh_grc|$(( $(grep -c '' "$_fh_cl") - _fh_n0 ))|$(tail -n 1 "$_fh_cl" | cut -f4)" "1|1|lint "
+_fh_setgate heallock true
+# The owner gone, its lock is stale and is taken over.
+kill "$_fh_sp" 2>/dev/null; wait "$_fh_sp" 2>/dev/null; _fh_sp=""
+sh -c 'exit 0' & _fh_dp=$!; wait "$_fh_dp"
+printf '%s\n' "$_fh_dp" > "$_fh_ck/pid"
+( cd "$_fh_cr" && "$FELIX" gate >/dev/null 2>&1 )
+is "a lock whose owner has exited is taken over, and the pair joined" \
+   "$(grep -c '' "$_fh_cl")|$(head -n 1 "$_fh_cl")" "2|$(printf '2026-09-01\tHEAD\tunborn\tlint ')"
+[ -d "$_fh_ck" ] \
+  && bad "and the heal that took it over leaves no lock behind" "$(ls -la "$_fh_ck")" \
+  || ok  "and the heal that took it over leaves no lock behind"
+# A holder that died between mkdir and writing its pid leaves a lock with no
+# pid. Younger than a minute it is live; older, it is taken over.
+rm -rf "$_fh_ck"; mkdir "$_fh_ck"; touch -t 202001010000 "$_fh_ck"
+_fh_legacy 2026-09-01 'lint ' > "$_fh_cl"
+if [ -z "$(find "$_fh_ck" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then
+  bad "a lock with no pid, over a minute old, is taken over: the file is healed and the lock gone" "the fixture could not age the lock directory"
+else
+  ( cd "$_fh_cr" && "$FELIX" gate >/dev/null 2>&1 )
+  if cmp -s "$_fh_cl" "$TMP/fh-one.expect" && [ ! -d "$_fh_ck" ]; then
+    ok  "a lock with no pid, over a minute old, is taken over: the file is healed and the lock gone"
+  else
+    bad "a lock with no pid, over a minute old, is taken over: the file is healed and the lock gone" \
+        "lock=$([ -d "$_fh_ck" ] && echo held || echo gone) $(od -c "$_fh_cl" | head -n 2)"
+  fi
+fi
+# Leftovers of a heal killed part way are the engine's own temporaries, never
+# memory, and the next heal clears the ones over a minute old. A young one may
+# belong to a heal still running, and stays.
+rm -rf "$_fh_ck"
+_fh_legacy 2026-09-01 'lint ' > "$_fh_cl"
+: > "$_fh_cm/.mistakes.log.heal.12345"; : > "$_fh_cm/.mistakes.log.orig.12345"
+touch -t 202001010000 "$_fh_cm/.mistakes.log.heal.12345" "$_fh_cm/.mistakes.log.orig.12345"
+: > "$_fh_cm/.mistakes.log.heal.99999"
+( cd "$_fh_cr" && "$FELIX" gate >/dev/null 2>&1 )
+_fh_gone=0
+[ ! -e "$_fh_cm/.mistakes.log.heal.12345" ] && [ ! -e "$_fh_cm/.mistakes.log.orig.12345" ] && _fh_gone=1
+[ "$_fh_gone" -eq 1 ] \
+  && ok  "a heal clears the leftovers of one killed part way, once they are over a minute old" \
+  || bad "a heal clears the leftovers of one killed part way, once they are over a minute old" "$(ls -A "$_fh_cm" | tr '\n' ' ')"
+if [ "$_fh_gone" -ne 1 ]; then
+  bad "but leaves a temporary younger than a minute to whoever owns it" "the old leftovers were not cleared, so a young one surviving proves nothing"
+else
+  [ -e "$_fh_cm/.mistakes.log.heal.99999" ] \
+    && ok  "but leaves a temporary younger than a minute to whoever owns it" \
+    || bad "but leaves a temporary younger than a minute to whoever owns it"
+fi
+rm -f "$_fh_cm/.mistakes.log.heal.99999"
+
+# Two gates at once, each failing, each healing: the lock orders them, so the
+# two pairs are joined once and both new rows land.
+_fh_proj healproj2 gate.sh
+_fh_script healproj2 'echo "  lint               FAIL"; exit 1'
+_fh_2a="$(_fh_root healproj2)"; _fh_2b="$TMP/fr-healproj2-b"; mkdir -p "$_fh_2b"
+( cd "$_fh_2b" && git init -q -b main && printf 'healproj2\n' > .felix && printf 'y\n' > README.md \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
+_fh_2b="$(cd "$_fh_2b" && pwd -P)"; _fh_2l="$MEM/healproj2/mistakes.log"
+{ _fh_legacy 2026-09-01 'x '; _fh_legacy 2026-09-02 'y '; } > "$_fh_2l"
+( cd "$_fh_2a" && "$FELIX" gate >/dev/null 2>&1 ) & _fh_2pa=$!
+( cd "$_fh_2b" && "$FELIX" gate >/dev/null 2>&1 ) & _fh_2pb=$!
+wait "$_fh_2pa"; wait "$_fh_2pb"
+is "two failing gates at once over two split pairs leave four lines, the healed pairs of four fields and the gates' own rows of six" \
+   "$(grep -c '' "$_fh_2l") $(awk -F'\t' '{ print NF }' "$_fh_2l" | sort | tr '\n' ' ')" "4 4 4 6 6 "
+_fh_2j="$(grep -cxF "$(printf '2026-09-01\tHEAD\tunborn\tx ')" "$_fh_2l") $(grep -cxF "$(printf '2026-09-02\tHEAD\tunborn\ty ')" "$_fh_2l")"
+is "and each pair is joined exactly once" "$_fh_2j" "1 1"
+is "and both gates' own rows are kept, one each" "$(awk -F'\t' '$4 == "lint "' "$_fh_2l" | grep -c '')" "2"
+if [ "$_fh_2j" = "1 1" ]; then
+  is "and two heals at once leave no temporary or lock behind" "$(_fh_left "$MEM/healproj2")" ""
+else
+  bad "and two heals at once leave no temporary or lock behind" "the pairs were not joined, so an empty directory proves nothing"
+fi
+
+# A symlinked log is not replaced: renaming onto it would turn the link into a
+# regular file. It is still read joined, through the readers below.
+_fh_proj healsym true
+_fh_legacy "$_fh_today" 'lint ' > "$TMP/fh-symtarget.log"; cp "$TMP/fh-symtarget.log" "$TMP/fh-symtarget.copy"
+ln -s "$TMP/fh-symtarget.log" "$MEM/healsym/mistakes.log"
+( cd "$(_fh_root healsym)" && "$FELIX" gate >/dev/null 2>&1 )
+[ -L "$MEM/healsym/mistakes.log" ] \
+  && ok  "a symlinked log is still a symlink after a gate" \
+  || bad "a symlinked log is still a symlink after a gate" "$(ls -l "$MEM/healsym/mistakes.log")"
+cmp -s "$TMP/fh-symtarget.log" "$TMP/fh-symtarget.copy" && [ "$(_fh_pairs "$TMP/fh-symtarget.copy")" = "1" ] \
+  && ok  "and the split file it points at is byte for byte what it was" \
+  || bad "and the split file it points at is byte for byte what it was" "$(od -c "$TMP/fh-symtarget.log" | head -n 3)"
+is "and the recurrence report still reads the failure through the link" \
+   "$(_fh_recur "$FROOT/projects/healsym" 1)" "$(printf '1\tlint\t%s\t1' "$_fh_today")"
+has "and procedures still name it through the link" "$(_fh_items "$FROOT/projects/healsym")" "failure:lint"
+has "and the Stop hook's guard still names it through the link" "$(_fh_guard "$FROOT/projects/healsym")" "last caught   lint"
+
+# The other entry points. A failing gate heals before it records, so its own
+# row lands after the healed one.
+_fh_proj healfail gate.sh
+_fh_script healfail 'echo "  lint               FAIL"; exit 1'
+_fh_legacy 2026-09-01 'a ' > "$MEM/healfail/mistakes.log"
+( cd "$(_fh_root healfail)" && "$FELIX" gate >/dev/null 2>&1 )
+is "a failing gate heals the split row too, and its own row follows: two lines, the healed one first" \
+   "$(grep -c '' "$MEM/healfail/mistakes.log")|$(head -n 1 "$MEM/healfail/mistakes.log")|$(tail -n 1 "$MEM/healfail/mistakes.log" | cut -f4)" \
+   "2|$(printf '2026-09-01\tHEAD\tunborn\ta ')|lint "
+
+# felix commission heals before it asks its rows, so gate_shown_failing is read
+# on the healed file. --status writes nothing, and so heals nothing.
+_fh_proj healcm true
+_fh_mr="$(_fh_root healcm)"; _fh_mp="$FROOT/projects/healcm"; _fh_ml="$MEM/healcm/mistakes.log"
+cp "$FROOT/harness/templates/profiles.tsv" "$FROOT/harness/templates/routes.tsv" "$_fh_mp/"
+{ _fh_cmhdr; _fh_cmrow gate_shown_failing; printf 'marker\t-\t-\t-\t-\ttest -f .felix\t9\n'; } > "$_fh_mp/commissioning.tsv"
+_fh_legacy 2026-09-01 'lint ' > "$_fh_ml"; cp "$_fh_ml" "$TMP/fh-cm.seed"
+( cd "$_fh_mr" && PATH="$CMSTUB:$PATH" "$FELIX" commission --status ) >/dev/null 2>&1
+if [ "$(_fh_pairs "$TMP/fh-cm.seed")" != "1" ]; then
+  bad "felix commission --status leaves a split log byte for byte, because it writes nothing" "the fixture did not seed a pair"
+elif cmp -s "$_fh_ml" "$TMP/fh-cm.seed"; then
+  ok  "felix commission --status leaves a split log byte for byte, because it writes nothing"
+else
+  bad "felix commission --status leaves a split log byte for byte, because it writes nothing" "$(od -c "$_fh_ml" | head -n 3)"
+fi
+_fh_cmo="$(cd "$_fh_mr" && PATH="$CMSTUB:$PATH" "$FELIX" commission 2>&1)"
+cmp -s "$_fh_ml" "$TMP/fh-one.expect" \
+  && ok  "a full felix commission heals the split row" \
+  || bad "a full felix commission heals the split row" "$(od -c "$_fh_ml" | head -n 3)"
+is "so its report shows gate_shown_failing done" \
+   "$(printf '%s\n' "$_fh_cmo" | grep -cE '^  done +gate_shown_failing( |$)')" "1"
+
+# The one transform, from resolve.sh alone, because every entry point sources
+# resolve.sh first, and so do the suite's single-lib subshells.
+_fh_rowsof() { bash -c '. "$1/lib/resolve.sh" && felix_mem_mistake_rows "$2"' _ "$FROOT/harness" "$1"; }
+_fh_legacy 2026-09-01 'lint ' > "$TMP/fh-reader.log"; cp "$TMP/fh-reader.log" "$TMP/fh-reader.copy"
+_fh_rowsof "$TMP/fh-reader.log" > "$TMP/fh-reader.out" 2>/dev/null
+if cmp -s "$TMP/fh-reader.out" "$TMP/fh-one.expect" && cmp -s "$TMP/fh-reader.log" "$TMP/fh-reader.copy"; then
+  ok  "felix_mem_mistake_rows, with resolve.sh alone, reads a split pair as its one joined row and leaves the file as it was"
+else
+  bad "felix_mem_mistake_rows, with resolve.sh alone, reads a split pair as its one joined row and leaves the file as it was" \
+      "$(od -c "$TMP/fh-reader.out" | head -n 3)"
+fi
+printf '2026-09-01\tmain\tabc1234\tlint \n2026-09-02\tHEAD\tunborn\tx\n' > "$TMP/fh-reader-wf.log"
+_fh_rowsof "$TMP/fh-reader-wf.log" > "$TMP/fh-reader-wf.out" 2>/dev/null
+[ -s "$TMP/fh-reader-wf.out" ] && cmp -s "$TMP/fh-reader-wf.out" "$TMP/fh-reader-wf.log" \
+  && ok  "and passes a well-formed file through byte for byte" \
+  || bad "and passes a well-formed file through byte for byte" "$(od -c "$TMP/fh-reader-wf.out" | head -n 3)"
+_fh_miss="$(_fh_rowsof "$TMP/fh-no-such.log" 2>&1)"; _fh_missrc=$?
+is "and prints nothing for a missing file, returning 0" "$_fh_missrc|$_fh_miss" "0|"
+
+# The readers, on a log nothing has healed: the heal can decline, and
+# felix commission --status never heals, so each reader reads through the
+# transform and is right either way. Seeded by hand; no gate or hook runs.
+_fh_ep="$FROOT/projects/healread"; mkdir -p "$_fh_ep" "$MEM/healread"
+printf '{"name":"healread","gate":"true"}\n' > "$_fh_ep/project.json"
+_fh_el="$MEM/healread/mistakes.log"
+{ _fh_legacy "$_fh_today" 'lint '; _fh_legacy "$_fh_today" 'lint '; printf '%s\tmain\tabc1234\tlint \n' "$_fh_today"; } > "$_fh_el"
+is "the recurrence report counts an unhealed split row: two occasions, unborn and a sha, over three runs" \
+   "$(_fh_recur "$_fh_ep")" "$(printf '2\tlint\t%s\t3' "$_fh_today")"
+_fh_legacy "$_fh_today" 'lint ' > "$_fh_el"
+has "procedures name the failure an unhealed split row holds" "$(_fh_items "$_fh_ep")" "failure:lint"
+{ printf '%s\tmain\tabc1234\tother \n' "$_fh_today"; _fh_legacy "$_fh_today" 'lint '; } > "$_fh_el"
+if [ -e "$MEM/healread/lessons.md" ] || [ -e "$MEM/healread/DEVLOG.md" ]; then
+  bad "the Stop hook's guard names what an unhealed split row caught last" "the fixture has a lessons file or a devlog"
+else
+  has "the Stop hook's guard names what an unhealed split row caught last" "$(_fh_guard "$_fh_ep")" "last caught   lint"
+fi
+{ _fh_legacy "$_fh_today" 'a '; printf '%s\tmain\tabc1234\tb \n' "$_fh_today"; _fh_legacy "$_fh_today" 'c '; } > "$_fh_el"
+_fh_emp="$(_fh_mon "$_fh_ep")"
+is "the monitor counts an unhealed split row once: three rows, not five" "$(_fh_montotal "$_fh_emp")" "3"
+is "and its newest entry says the commit was unborn" \
+   "$(_fh_monfirst "$_fh_emp" | tr ',' '\n' | grep '^"commit":')" '"commit":"unborn"'
+# The same four readers on a well-formed log print exactly what they always
+# did. Pinned as literals rather than compared with a second reader.
+printf '%s\tmain\tabc1234\tlint \n%s\tmain\tdef5678\tlint \n' "$_fh_today" "$_fh_today" > "$_fh_el"
+is "on a well-formed log the recurrence report is what it always was" \
+   "$(_fh_recur "$_fh_ep")" "$(printf '2\tlint\t%s\t2' "$_fh_today")"
+is "and procedures list the failure as they always did" "$(_fh_items "$_fh_ep")" "failure:lint"
+is "and the guard names the last catch as it always did" \
+   "$(_fh_guard "$_fh_ep" | sed -n '1p;/last caught/p')" \
+   "$(printf 'The gate caught something here and nothing has been written down since.\n  last caught   lint')"
+_fh_emp="$(_fh_mon "$_fh_ep")"
+is "and the monitor's count and newest entry are what they always were" \
+   "$(_fh_montotal "$_fh_emp")|$(_fh_monfirst "$_fh_emp")" \
+   "2|{\"date\":\"$_fh_today\",\"branch\":\"main\",\"commit\":\"def5678\",\"what\":\"lint \"}"
+
+# #267's writer is unchanged by any of this: on an unborn HEAD one failing
+# gate is one row, and every byte of it is pinned here. The second it was
+# caught is the one byte run not known in advance, so it is read back from the
+# row, and must be a second of this run; the session is a dash, since the
+# suite runs under none.
+mkdir -p "$FROOT/projects/healunborn" "$MEM/healunborn" "$TMP/fr-healunborn"
+( cd "$TMP/fr-healunborn" && git init -q -b main && printf 'healunborn\n' > .felix ) >/dev/null 2>&1
+_fh_setgate healunborn gate.sh
+_fh_script healunborn 'echo "  lint               FAIL"; exit 1'
+: > "$MEM/healunborn/mistakes.log"
+( cd "$TMP/fr-healunborn" && "$FELIX" gate >/dev/null 2>&1 )
+_fh_ust="$(head -n 1 "$MEM/healunborn/mistakes.log" | cut -f5)"
+case "$_fh_ust" in ''|*[!0-9]*) _fh_ust=0 ;; esac
+[ $(( $(date +%s) - _fh_ust )) -lt 600 ] || _fh_ust=not-a-second-of-this-run
+printf '%s\tmain\tunborn\tlint \t%s\t-\n' "$_fh_today" "$_fh_ust" > "$TMP/fh-unborn.expect"
+cmp -s "$MEM/healunborn/mistakes.log" "$TMP/fh-unborn.expect" \
+  && ok  "a failing gate on an unborn HEAD still writes one row: today, main, unborn, the checks, the second and no session, byte for byte" \
+  || bad "a failing gate on an unborn HEAD still writes one row: today, main, unborn, the checks, the second and no session, byte for byte" \
+         "$(od -c "$MEM/healunborn/mistakes.log" | head -n 3)"
+
+# ------------------------------------ the project gate's own failure (G5.2) ----
+# cmd_gate ran the project gate into a log and then tee'd the engine's own
+# check lines into the same log. The recorder took FAIL names from the whole
+# of it and fell back to exit-<status> only when the whole log named nothing,
+# so a project gate that failed silently beside a failing probe was recorded
+# as `probes` alone, which gate_shown_failing excludes: held forever. And a
+# project line with no final newline had the first engine line glued onto it.
+_fh_proj gatesplit gate.sh
+_fg_r="$(_fh_root gatesplit)"; _fg_p="$FROOT/projects/gatesplit"; _fg_l="$MEM/gatesplit/mistakes.log"
+printf 'contents\n' > "$_fg_r/WIDGET.txt"
+( cd "$_fg_r" && git add -A && git -c user.name=t -c user.email=t@t commit -qm widget ) >/dev/null 2>&1
+_fg_blind() { { printf 'present\t-\t-\tls -1 WIDGET.txt\ttest -f WIDGET.txt\n'
+                printf 'blindrow\t-\t-\tls -1 nothing-here.rs\ttest -f WIDGET.txt\n'; } > "$_fg_p/probes.tsv"; }
+_fg_clean() { printf 'present\t-\t-\tls -1 WIDGET.txt\ttest -f WIDGET.txt\n' > "$_fg_p/probes.tsv"; }
+_fg_run()   { _fh_script gatesplit "$1"; : > "$_fg_l"; _fg_out="$(cd "$_fg_r" && "$FELIX" gate 2>&1)"; _fg_rc=$?; }
+# Rows written, then the new row's column-four tokens in order.
+_fg_row()   { printf '%s|%s' "$(grep -c '' "$_fg_l" 2>/dev/null)" \
+                "$(tail -n 1 "$_fg_l" 2>/dev/null | cut -f4 | tr ' ' '\n' | grep -v '^$' | tr '\n' ' ' | sed 's/ $//')"; }
+
+_fg_blind
+_fg_run 'echo "  lint               FAIL"; exit 1'
+has "the gatesplit fixture's probes fail from the engine" "$_fg_out" "  probes             FAIL"
+is  "a project FAIL line and a failing probe are both recorded, in one row, and the gate exits 1" \
+    "$_fg_rc $(_fg_row)" "1 1|lint probes"
+_fg_run 'echo "something broke"; exit 1'
+is  "a project gate that fails silently is recorded beside the probe that failed with it: exit-1, then probes" \
+    "$(_fg_row)" "1|exit-1 probes"
+_fh_gsf "$MEM/gatesplit" \
+  && ok  "so gate_shown_failing sees the project's own silent failure there" \
+  || bad "so gate_shown_failing sees the project's own silent failure there" "$(cat "$_fg_l")"
+_fg_run 'echo "something broke"; exit 3'
+is  "and with its own status: exit-3, then probes" "$(_fg_row)" "1|exit-3 probes"
+_fg_run 'true'
+is  "a passing project with a failing probe still records probes alone" "$(_fg_row)" "1|probes"
+_fh_gsf "$MEM/gatesplit" \
+  && bad "and gate_shown_failing still does not count a failing probe as the project's gate failing" "$(cat "$_fg_l")" \
+  || ok  "and gate_shown_failing still does not count a failing probe as the project's gate failing"
+_fg_run 'echo "  deployed           FAIL (structural: this tree is not the one that deploys)"; exit 1'
+is  "a structural project failure beside a failing probe records probes alone" "$(_fg_row)" "1|probes"
+_fg_run "printf '  lint               FAIL'; exit 1"
+is  "a project FAIL line with no final newline is not swallowed by the engine line after it" \
+    "$(_fg_row)" "1|lint probes"
+_fg_clean
+_fg_run 'echo broke; exit 3'
+is  "a silent project failure with nothing else failing records exit-3, exactly as before" \
+    "$(grep -c '' "$_fg_l")|$(tail -n 1 "$_fg_l" | cut -f4)" "1|exit-3"
+_fg_run 'echo "  deployed           FAIL (structural: this tree is not the one that deploys)"; exit 1'
+is  "and with a clean probes table an all-structural failure still writes no row" \
+    "$_fg_rc $(grep -c '' "$_fg_l")" "1 0"
+
+# ------------------------------------------- a gate that could not run (G1.3) ----
+# 127 and 126 are the shell saying the gate command was not found, or found
+# and not executable. Nothing was tested, so it is not the gate shown failing,
+# and recording exit-127 satisfied gate_shown_failing on a gate nobody had ever
+# watched fail. The verdict does not change: the gate still exits non-zero and
+# its receipt is red. Only the record changes, and the gate says why.
+_fh_proj unrunproj felix-no-such-command-xyz
+_fu_r="$(_fh_root unrunproj)"; _fu_l="$MEM/unrunproj/mistakes.log"
+: > "$_fu_l"
+_fu_out="$(cd "$_fu_r" && "$FELIX" gate 2>&1)"; _fu_rc=$?
+is  "a gate command that is not found still fails the gate, with 127" "$_fu_rc" "127"
+has "and the gate says it could not run, so nothing was tested and it is not recorded as failing" \
+    "$_fu_out" "the gate command could not run (exit 127: a command it calls was not found), so nothing was tested and this run is not recorded as the gate failing"
+is  "and no mistakes row is written for a gate that never ran" "$(grep -c '' "$_fu_l")" "0"
+_fh_gsf "$MEM/unrunproj" \
+  && bad "so gate_shown_failing is not satisfied by a gate that never ran" "$(cat "$_fu_l")" \
+  || ok  "so gate_shown_failing is not satisfied by a gate that never ran"
+_fu_tid="$(cd "$_fu_r" && . "$FROOT/harness/lib/verify.sh" && felix_tree_id "$_fu_r" "$FROOT")"
+is  "and the receipt written for that tree is still red" \
+    "$( . "$FROOT/harness/lib/verify.sh"; felix_verify_receipt "$_fu_r" "$FROOT" | cut -f1,2 )" "$(printf '%s\tred' "$_fu_tid")"
+
+printf '#!/bin/sh\necho hi\n' > "$_fu_r/notexec.sh"; chmod 644 "$_fu_r/notexec.sh"
+_fh_setgate unrunproj ./notexec.sh
+: > "$_fu_l"
+_fu_out="$(cd "$_fu_r" && "$FELIX" gate 2>&1)"; _fu_rc=$?
+is  "a gate command found but not executable fails the gate with 126" \
+    "$([ -x "$_fu_r/notexec.sh" ] && echo executable || echo plain) $_fu_rc" "plain 126"
+has "and says it could not run, naming 126" "$_fu_out" "(exit 126"
+is  "and writes no mistakes row for it either" "$(grep -c '' "$_fu_l")" "0"
+
+_fg_blind; _fh_setgate gatesplit felix-no-such-command-xyz; : > "$_fg_l"
+_fg_out="$(cd "$_fg_r" && "$FELIX" gate 2>&1)"
+is  "an unrunnable gate beside a failing probe records probes alone, and no exit-127" "$(_fg_row)" "1|probes"
+has "and still says the gate command could not run" "$_fg_out" "the gate command could not run (exit 127"
+_fh_setgate gatesplit gate.sh
+
+# The could-not-run line says what the recorder wrote, so it is printed after
+# the recorder. The first cut printed it before any engine check ran, ending
+# "this run is not recorded as the gate failing" whatever came next; a failing
+# probe or obligation was then recorded under its own name, and obligations is
+# one gate_shown_failing counts. The screen said the opposite of the row.
+case "$_fg_out" in
+  *"is not recorded as the gate failing"*)
+    bad "beside a failing probe, the line never says the run was not recorded, since probes was" \
+        "$(printf '%s\n' "$_fg_out" | grep 'could not run')" ;;
+  *"its exit status is not recorded; mistakes.log records only the engine checks that failed beside it: probes"*)
+    ok  "beside a failing probe, the line never says the run was not recorded, since probes was" ;;
+  *)
+    bad "beside a failing probe, the line never says the run was not recorded, since probes was" \
+        "$(printf '%s\n' "$_fg_out" | grep 'could not run')" ;;
+esac
+
+_fh_proj unrunob felix-no-such-command-xyz
+_fo_r="$(_fh_root unrunob)"; _fo_l="$MEM/unrunob/mistakes.log"
+printf 'ob1\tTASK_BLOCKING\tdeterministic\ttrue\tfalse\t-\tan obligation whose evidence always fails\n' \
+  > "$FROOT/projects/unrunob/obligations.tsv"
+: > "$_fo_l"
+_fo_out="$(cd "$_fo_r" && "$FELIX" gate 2>&1)"
+has "the unrunob fixture's obligation fails from the engine" "$_fo_out" "  obligations        FAIL"
+is  "an unrunnable gate beside a failing obligation records obligations, and no exit-127" \
+    "$(grep -c '' "$_fo_l")|$(cut -f4 "$_fo_l")" "1|obligations "
+case "$_fo_out" in
+  *"is not recorded as the gate failing"*)
+    bad "and the gate does not say the run was not recorded, when that row makes gate_shown_failing read done" \
+        "$(printf '%s\n' "$_fo_out" | grep 'could not run')" ;;
+  *) ok  "and the gate does not say the run was not recorded, when that row makes gate_shown_failing read done" ;;
+esac
+has "it says the command's own status is not recorded, and names the engine check that is" "$_fo_out" \
+    "gate: the gate command could not run (exit 127: a command it calls was not found), so nothing was tested and its exit status is not recorded; mistakes.log records only the engine checks that failed beside it: obligations"
+is  "and says it once, as the gate's last line, after the obligations line it depends on" \
+    "$(printf '%s\n' "$_fo_out" | grep -c 'could not run')|$(printf '%s\n' "$_fo_out" | tail -n 1 | cut -c1-32)" \
+    "1|gate: the gate command could not"
+
+_fh_setgate unrunproj gate.sh
+_fh_script unrunproj 'echo broke; exit 1'
+: > "$_fu_l"
+_fu_out="$(cd "$_fu_r" && "$FELIX" gate 2>&1)"
+is  "a gate that ran and failed silently still records exit-1" "$(grep -c '' "$_fu_l")|$(cut -f4 "$_fu_l")" "1|exit-1"
+_fh_gsf "$MEM/unrunproj" \
+  && ok  "and gate_shown_failing reads that as the gate shown failing" \
+  || bad "and gate_shown_failing reads that as the gate shown failing" "$(cat "$_fu_l")"
+case "$_fu_out" in
+  *"could not run"*) bad "and a gate that ran is never called unrunnable" "$_fu_out" ;;
+  *)                 ok  "and a gate that ran is never called unrunnable" ;;
+esac
+_fh_script unrunproj 'echo "  lint               FAIL"; exit 127'
+: > "$_fu_l"
+_fu_out="$(cd "$_fu_r" && "$FELIX" gate 2>&1)"
+is  "a gate that named a failure and then exited 127 records the name" "$(grep -c '' "$_fu_l")|$(cut -f4 "$_fu_l")" "1|lint "
+case "$_fu_out" in
+  *"could not run"*) bad "and is not called unrunnable, because it ran far enough to catch something" "$_fu_out" ;;
+  *)                 ok  "and is not called unrunnable, because it ran far enough to catch something" ;;
+esac
+
+# ------------------------------------------ setup rows and the GitHub remote ----
+# felix new and adopt spliced the repository's slug into {{REPO}} when they
+# wrote a setup row. With no GitHub remote the slug is empty, so the saved
+# check read `--repo  2>/dev/null`, failed forever, and held human_steps; and
+# adding a remote later changed nothing, because adopt skips ids that exist.
+# The placeholder is kept on disk and filled in when the row is read.
+_fs_gh="$TMP/fs-gh"; _fs_ghlog="$TMP/fs-gh.log"; mkdir -p "$_fs_gh"; : > "$_fs_ghlog"
+cat > "$_fs_gh/gh" <<STUB
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$_fs_ghlog"
+case "\$*" in
+  *"--repo acme/widget"*) printf 'needs-founder\nANTHROPIC_API_KEY\n'; exit 0 ;;
+esac
+printf 'no git remotes found\n' >&2
+exit 1
+STUB
+chmod +x "$_fs_gh/gh"
+# ssh, for the one question the engine asks it: `ssh -G <host>`, what an ssh
+# alias stands for. The real one reads the person's own ~/.ssh/config, found
+# through the password database rather than $HOME, so no suite HOME can hide
+# it; this one knows a single alias, `work`, standing for github.com, and reads
+# any other host back as itself, which is what ssh -G does for a host nothing
+# configures. It logs its arguments, and refuses anything but -G.
+_fs_sshlog="$TMP/fs-ssh.log"; : > "$_fs_sshlog"
+cat > "$_fs_gh/ssh" <<STUB
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$_fs_sshlog"
+[ "\${1:-}" = "-G" ] || { printf 'stub: only -G\n' >&2; exit 255; }
+for _h in "\$@"; do :; done
+case "\$_h" in
+  work) printf 'user git\nhostname github.com\nport 22\n' ;;
+  *)    printf 'user git\nhostname %s\nport 22\n' "\$_h" ;;
+esac
+STUB
+chmod +x "$_fs_gh/ssh"
+_fs_path="$_fs_gh:$CMSTUB:$PATH"
+( PATH="$_fs_path"; gh label list --repo acme/widget 2>/dev/null | grep -q needs-founder ) \
+  && ! ( PATH="$_fs_path"; gh label list --repo other/thing >/dev/null 2>&1 ) \
+  && ok  "the gh stub answers for acme/widget and refuses anything else" \
+  || bad "the gh stub answers for acme/widget and refuses anything else"
+_fs_status() { ( cd "$1" && PATH="$_fs_path"
+                 . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+                 . "$FROOT/harness/lib/stack.sh"; . "$FROOT/harness/lib/setup.sh"
+                 felix_setup_status "$2" ) 2>/dev/null; }
+_fs_cli() { ( cd "$1" && PATH="$_fs_path" "$FELIX" setup "${@:2}" ) 2>&1; }
+_fs_cm()  { ( cd "$1" && PATH="$_fs_path" "$FELIX" commission "${@:2}" ) 2>&1; }
+_fs_ids() { printf '%s\n' "$1" | awk -F'\t' '$2 == "risk-labels" || $2 == "ci-anthropic-key"'; }
+_fs_tpl="$FROOT/harness/templates/setup.tsv"
+_fs_reporows="$(grep -F '{{REPO}}' "$_fs_tpl" | grep -v '^#')"
+_fs_hdr="$(printf '# id\ttitle\tcapability\tcheck')"
+_fs_rlt="Create the escalation labels the repair loop uses"
+_fs_ckt="$(awk -F'\t' '$1 == "ci-anthropic-key" { print $2 }' "$_fs_tpl")"
+_fs_wait="$(printf 'dormant\trisk-labels\t%s\twaits for a GitHub remote\ndormant\tci-anthropic-key\t%s\twaits for a GitHub remote' "$_fs_rlt" "$_fs_ckt")"
+_fs_nogh="No GitHub remote yet, so {{REPO}} below is left as written; it fills in once origin points at GitHub."
+is "the setup template holds the two rows that need a GitHub slug" \
+   "$(printf '%s\n' "$_fs_reporows" | cut -f1 | tr '\n' ' ')" "risk-labels ci-anthropic-key "
+
+# felix new, in a checkout with CI and no remote.
+_fs_n="$TMP/fs-new"; mkdir -p "$_fs_n/.github/workflows"
+( cd "$_fs_n" && git init -q -b main ) >/dev/null 2>&1
+printf 'on: push\n' > "$_fs_n/.github/workflows/ci.yml"
+_fs_n="$(cd "$_fs_n" && pwd -P)"; _fs_p="$FROOT/projects/setupproj"
+( cd "$_fs_n" && PATH="$_fs_path" "$FELIX" new setupproj --no-commission ) >/dev/null 2>&1; _fs_nrc=$?
+_fs_saved="$(awk -F'\t' '$1 == "risk-labels" || $1 == "ci-anthropic-key"' "$_fs_p/setup.tsv" 2>/dev/null)"
+if [ "$_fs_nrc" -ne 0 ] || [ "$(printf '%s\n' "$_fs_saved" | grep -c .)" != "2" ]; then
+  bad "felix new with no remote saves both slug rows with --repo {{REPO}}, never an empty slug" "felix new exited $_fs_nrc, saved [$_fs_saved]"
+elif [ -z "$(grep -vF -- '--repo {{REPO}}' <<<"$_fs_saved")" ] && ! grep -qF -- '--repo  ' "$_fs_p/setup.tsv"; then
+  ok  "felix new with no remote saves both slug rows with --repo {{REPO}}, never an empty slug"
+else
+  bad "felix new with no remote saves both slug rows with --repo {{REPO}}, never an empty slug" "$(printf '%s\n' "$_fs_saved" | cut -f4)"
+fi
+has "and the saved risk-labels runbook keeps {{REPO}} too" "$(cat "$_fs_p/setup/risk-labels.md" 2>/dev/null)" "{{REPO}}"
+
+# With no remote those rows wait. They are not todo, and they ask gh nothing.
+: > "$_fs_ghlog"
+is "with no remote, both slug rows wait for a GitHub remote rather than reading todo" \
+   "$(_fs_ids "$(_fs_status "$_fs_n" "$_fs_p")")" "$_fs_wait"
+_fs_line="$(_fs_cli "$_fs_n" | grep -E '\[.\] risk-labels ')"
+case "$_fs_line" in
+  *"[-] risk-labels"*"(waits for a GitHub remote)") ok  "felix setup shows risk-labels waiting for a GitHub remote, never as a step to do" ;;
+  *)                                                bad "felix setup shows risk-labels waiting for a GitHub remote, never as a step to do" "$_fs_line" ;;
+esac
+is "and gh is asked nothing for the rows that wait" "$(grep -cE 'label list|secret list' "$_fs_ghlog")" "0"
+
+# A remote added later fills the same saved row: nothing re-adopted, nothing
+# rewritten, the file on disk exactly as felix new left it.
+cp "$_fs_p/setup.tsv" "$TMP/fs-setup.copy"
+( cd "$_fs_n" && git remote add origin https://github.com/acme/widget.git ) >/dev/null 2>&1
+: > "$_fs_ghlog"
+_fs_st="$(_fs_status "$_fs_n" "$_fs_p")"
+cmp -s "$_fs_p/setup.tsv" "$TMP/fs-setup.copy" \
+  && ok  "adding a remote rewrites nothing: the saved setup.tsv is byte for byte what it was" \
+  || bad "adding a remote rewrites nothing: the saved setup.tsv is byte for byte what it was"
+is "and the same saved rows now read done, three fields, with the slug filled in" \
+   "$(_fs_ids "$_fs_st")" "$(printf 'done\trisk-labels\t%s\ndone\tci-anthropic-key\t%s' "$_fs_rlt" "$_fs_ckt")"
+if grep -qF 'label list --repo acme/widget' "$_fs_ghlog" && grep -qF 'secret list --repo acme/widget' "$_fs_ghlog"; then
+  ok  "and gh was asked about acme/widget for both"
+else
+  bad "and gh was asked about acme/widget for both" "$(cat "$_fs_ghlog")"
+fi
+_fs_rb="$(_fs_cli "$_fs_n" risk-labels)"
+case "$_fs_rb" in
+  *'{{REPO}}'*|*'No GitHub remote yet'*) bad "felix setup risk-labels prints the runbook with the slug filled in" "$(printf '%s\n' "$_fs_rb" | grep -e REPO -e 'No GitHub' | head -n 3)" ;;
+  *'--repo acme/widget'*)                ok  "felix setup risk-labels prints the runbook with the slug filled in" ;;
+  *)                                     bad "felix setup risk-labels prints the runbook with the slug filled in" "$(printf '%s\n' "$_fs_rb" | grep -e '--repo' | head -n 3)" ;;
+esac
+
+# human_steps, copied verbatim from the template, is released by rows that
+# wait for a remote and by nothing else.
+_fh_proj setupwait true
+_fs_wr="$(_fh_root setupwait)"; _fs_wp="$FROOT/projects/setupwait"
+printf 'ci\n' > "$_fs_wp/capabilities"
+{ printf '%s\n' "$_fs_hdr"; printf '%s\n' "$_fs_reporows"; } > "$_fs_wp/setup.tsv"
+mkdir -p "$_fs_wp/setup"; cp "$FROOT/harness/templates/setup/risk-labels.md" "$_fs_wp/setup/"
+{ _fh_cmhdr; _fh_cmrow human_steps; printf 'marker\t-\t-\t-\t-\ttest -f .felix\t9\n'; } > "$_fs_wp/commissioning.tsv"
+is "with no remote, felix commission --status reads human_steps done: the rows that wait hold nothing" \
+   "$(_fs_cm "$_fs_wr" --status | grep -cE '^  done +human_steps( |$)')" "1"
+( cd "$_fs_wr" && git remote add origin https://github.com/other/thing.git ) >/dev/null 2>&1
+is "and with a GitHub remote whose steps are not done, human_steps is held" \
+   "$(_fs_cm "$_fs_wr" --status | grep -cE '^  held +human_steps( |$)')" "1"
+
+# A remote that is not GitHub has no slug to fill in, so its rows wait too.
+( cd "$_fs_wr" && git remote set-url origin git@gitlab.com:acme/widget.git ) >/dev/null 2>&1
+: > "$_fs_ghlog"
+is "a non-GitHub remote leaves both slug rows waiting for a GitHub remote" \
+   "$(_fs_ids "$(_fs_status "$_fs_wr" "$_fs_wp")")" "$_fs_wait"
+is "and with a gitlab remote gh is never called for them" "$(grep -cE 'label list|secret list' "$_fs_ghlog")" "0"
+
+# The slug is spliced into a command bash runs, so a remote carrying shell text
+# is no slug at all. git remote add accepts this one. It points at GitHub,
+# though, so its rows do not wait: they are steps Felix cannot check, held and
+# said so, and their checks never run.
+_fs_evil='https://github.com/acme/widget;touch PWNED.git'
+( cd "$_fs_wr" && git remote set-url origin "$_fs_evil" ) >/dev/null 2>&1
+_fs_pw0="$([ -e "$_fs_wr/PWNED" ] || [ -e "$PWD/PWNED" ] && echo present || echo absent)"
+: > "$_fs_ghlog"
+_fs_st="$(_fs_status "$_fs_wr" "$_fs_wp")"
+_fs_cli "$_fs_wr" risk-labels >/dev/null 2>&1
+_fs_unowner="origin points at GitHub, but not at one owner/name Felix can read, so Felix cannot check it"
+if [ "$(git -C "$_fs_wr" remote get-url origin 2>/dev/null)" != "$_fs_evil" ]; then
+  bad "a remote carrying shell text is no slug: risk-labels is a step Felix says it cannot check" "git did not keep the remote as written"
+else
+  is "a remote carrying shell text is no slug: risk-labels is a step Felix says it cannot check" \
+     "$(printf '%s\n' "$_fs_st" | awk -F'\t' '$2 == "risk-labels"')" \
+     "$(printf 'todo\trisk-labels\t%s\t%s' "$_fs_rlt" "$_fs_unowner")"
+fi
+is "and gh is asked nothing for it" "$(grep -cE 'label list|secret list' "$_fs_ghlog")" "0"
+if [ "$_fs_pw0" = "present" ]; then
+  bad "and nothing spliced from it ran: no PWNED file in the checkout or the working directory" "a PWNED file was there before the test"
+elif [ -e "$_fs_wr/PWNED" ] || [ -e "$PWD/PWNED" ]; then
+  bad "and nothing spliced from it ran: no PWNED file in the checkout or the working directory" "the remote's shell text was executed"
+else
+  ok  "and nothing spliced from it ran: no PWNED file in the checkout or the working directory"
+fi
+
+# A remote Felix cannot read as one owner/name is not the same as no remote.
+# The first cut read every origin it could not turn into owner/name as none at
+# all, so a repository that plainly had a GitHub remote, behind an ssh alias,
+# over port 443, or spelled with a trailing slash, had its label and its CI
+# secret read "waits for a GitHub remote". Both dropped out of human_steps'
+# count, and commissioning released steps the person still owed: a silent
+# false pass. The spellings git takes for one GitHub repository now all give
+# its owner/name, and a GitHub remote Felix still cannot read holds its rows
+# as todo and says why. Only no remote, or one that is not GitHub, waits.
+_fs_both() { _fs_ids "$(_fs_status "$_fs_wr" "$_fs_wp")"; }
+_fs_seturl() { ( cd "$_fs_wr" && git remote set-url origin "$1" ) >/dev/null 2>&1; }
+_fs_done="$(printf 'done\trisk-labels\t%s\ndone\tci-anthropic-key\t%s' "$_fs_rlt" "$_fs_ckt")"
+_fs_todo() { printf 'todo\trisk-labels\t%s\t%s\ntodo\tci-anthropic-key\t%s\t%s' "$_fs_rlt" "$1" "$_fs_ckt" "$1"; }
+_fs_seturl 'https://github.com/acme/widget/'
+is "origin spelled with a trailing slash gives acme/widget, so both slug rows read done" "$(_fs_both)" "$_fs_done"
+_fs_seturl 'ssh://git@ssh.github.com:443/acme/widget.git'
+is "origin over ssh on port 443 gives acme/widget, not 443/acme/widget, so both read done" "$(_fs_both)" "$_fs_done"
+_fs_seturl 'git@work:acme/widget.git'
+is "origin behind an ssh alias that ssh -G says stands for github.com gives acme/widget, so both read done" \
+   "$(_fs_both)" "$_fs_done"
+
+_fs_seturl 'git@github.com-work:acme/widget.git'
+: > "$_fs_ghlog"; : > "$_fs_sshlog"
+_fs_alias="origin's host github.com-work is not github.com, nor an ssh alias for it, so Felix cannot check it"
+is "an ssh alias ssh cannot resolve holds both slug rows as todo, saying why, rather than letting them wait" \
+   "$(_fs_both)" "$(_fs_todo "$_fs_alias")"
+is "and gh is asked nothing for them, because no slug was read" "$(grep -cE 'label list|secret list' "$_fs_ghlog")" "0"
+is "and ssh is asked only for its configuration, with no DNS lookup, about the alias as written" \
+   "$(grep -c '' "$_fs_sshlog")|$(head -n 1 "$_fs_sshlog")" "1|-G -o CanonicalizeHostname=no github.com-work"
+is "so felix commission --status holds human_steps, where the first cut released it" \
+   "$(_fs_cm "$_fs_wr" --status | grep -cE '^  held +human_steps( |$)')" "1"
+_fs_line="$(_fs_cli "$_fs_wr" | grep -E '\[.\] risk-labels ')"
+case "$_fs_line" in
+  *"[ ] risk-labels"*"($_fs_alias)") ok  "felix setup shows risk-labels as a step to do, with the reason Felix cannot check it" ;;
+  *)                                 bad "felix setup shows risk-labels as a step to do, with the reason Felix cannot check it" "$_fs_line" ;;
+esac
+is "and felix setup risk-labels begins by saying why {{REPO}} is left as written" \
+   "$(_fs_cli "$_fs_wr" risk-labels | head -n 1)" \
+   "{{REPO}} below is left as written, because origin's host github.com-work is not github.com, nor an ssh alias for it: put the repository's owner/name in its place."
+_fs_seturl 'git@github-personal:acme/widget.git'
+is "an alias named for GitHub without github.com in it is held the same way" \
+   "$(_fs_both)" "$(_fs_todo "origin's host github-personal is not github.com, nor an ssh alias for it, so Felix cannot check it")"
+_fs_seturl 'https://github.example.com/acme/widget.git'
+is "a GitHub Enterprise-shaped host is held too, since github.com's owner/name would not check it" \
+   "$(_fs_both)" "$(_fs_todo "origin's host github.example.com is not github.com, nor an ssh alias for it, so Felix cannot check it")"
+_fs_seturl 'https://github.com/acme'
+is "a GitHub origin with no owner/name in it holds both rows, saying so" "$(_fs_both)" "$(_fs_todo "$_fs_unowner")"
+
+# The host is handed to ssh as an argument, so it has to be a plain hostname
+# first: one that would read as an option is not GitHub, and never reaches ssh.
+: > "$_fs_sshlog"
+_fs_seturl 'git@-oProxyCommand=touch:acme/widget.git'
+is "a remote whose host would be an ssh option is no GitHub remote: both rows wait" "$(_fs_both)" "$_fs_wait"
+is "and ssh is never called with it" "$(grep -c '' "$_fs_sshlog")" "0"
+
+# Origin is the remote Felix reads. With none, a GitHub remote under another
+# name still means the repository owes its GitHub steps.
+( cd "$_fs_wr" && git remote remove origin && git remote add upstream https://github.com/acme/widget.git ) >/dev/null 2>&1
+is "with no origin but a GitHub remote named upstream, both rows are held as todo, saying origin is the one read" \
+   "$(_fs_both)" "$(_fs_todo "no remote is named origin, the one Felix reads, though another points at GitHub, so Felix cannot check it")"
+( cd "$_fs_wr" && git remote remove upstream && git remote add upstream https://gitlab.com/acme/widget.git ) >/dev/null 2>&1
+is "and with only a gitlab remote under another name, they wait" "$(_fs_both)" "$_fs_wait"
+( cd "$_fs_wr" && git remote remove upstream ) >/dev/null 2>&1
+
+# Rows an older felix new already saved with an empty slug read the same way:
+# `--repo` followed by blanks and then nothing a slug could be.
+_fh_proj setuplegacy true
+_fs_lr="$(_fh_root setuplegacy)"; _fs_lp="$FROOT/projects/setuplegacy"
+printf 'ci\n' > "$_fs_lp/capabilities"
+{ printf '%s\n' "$_fs_hdr"; printf 'risk-labels\t%s\tci\tgh label list --repo  2>/dev/null | grep -q needs-founder\n' "$_fs_rlt"; } > "$_fs_lp/setup.tsv"
+mkdir -p "$_fs_lp/setup"
+printf '# Escalation and risk labels\n\n**Check:** `gh label list --repo ` includes `needs-founder`.\n\n```bash\ngh label create needs-founder --repo  --color D93F0B\n```\n' \
+  > "$_fs_lp/setup/risk-labels.md"
+is "a row saved with an empty slug reads as waiting for a GitHub remote, like a {{REPO}} row" \
+   "$(_fs_status "$_fs_lr" "$_fs_lp" | awk -F'\t' '$2 == "risk-labels"')" \
+   "$(printf 'dormant\trisk-labels\t%s\twaits for a GitHub remote' "$_fs_rlt")"
+_fs_rb="$(_fs_cli "$_fs_lr" risk-labels)"
+is "and its runbook begins by saying {{REPO}} is left as written until origin points at GitHub" \
+   "$(printf '%s\n' "$_fs_rb" | head -n 1)" "$_fs_nogh"
+is "and shows --repo {{REPO}} in both places the empty slug was" \
+   "$(printf '%s\n' "$_fs_rb" | grep -cF -- '--repo {{REPO}}')" "2"
+( cd "$_fs_lr" && git remote add origin https://github.com/acme/widget.git ) >/dev/null 2>&1
+: > "$_fs_ghlog"
+is "with the acme remote the row saved with an empty slug reads done" \
+   "$(_fs_status "$_fs_lr" "$_fs_lp" | awk -F'\t' '$2 == "risk-labels"')" "$(printf 'done\trisk-labels\t%s' "$_fs_rlt")"
+has "and gh was asked about acme/widget for it" "$(cat "$_fs_ghlog")" "label list --repo acme/widget"
+is "and its runbook shows --repo acme/widget in both places" \
+   "$(_fs_cli "$_fs_lr" risk-labels | grep -cF -- '--repo acme/widget')" "2"
+
+# A runbook a person has added to. The first cut asked whether the normalised
+# text held {{REPO}} with `sed | grep -q` under the CLI's pipefail: grep leaves
+# on its first match, sed takes a SIGPIPE on its next write, and the pipeline
+# reads false. Past the pipe's buffer that is certain, and the runbook printed
+# raw, with no preface and, for a legacy one, `--repo  --color`: a command to
+# paste that names no repository. Three thousand lines put {{REPO}} in the
+# first few and a couple of hundred kilobytes after it.
+_fh_proj setupbig true
+_fs_gr="$(_fh_root setupbig)"; _fs_gp2="$FROOT/projects/setupbig"
+printf 'ci\n' > "$_fs_gp2/capabilities"; mkdir -p "$_fs_gp2/setup"
+{ printf '%s\n' "$_fs_hdr"; printf '%s\n' "$_fs_reporows"; } > "$_fs_gp2/setup.tsv"
+_fs_tail() { awk 'BEGIN { for (i = 0; i < 3000; i++) printf "appendix line %05d: notes a person kept about the labels and why each exists\n", i }'; }
+{ printf '# Escalation and risk labels\n\n**Check:** `gh label list --repo {{REPO}}` includes `needs-founder`.\n\n'; _fs_tail; } \
+  > "$_fs_gp2/setup/risk-labels.md"
+_fs_bsz="$(wc -c < "$_fs_gp2/setup/risk-labels.md" | tr -dc '0-9')"
+_fs_rb="$(_fs_cli "$_fs_gr" risk-labels)"
+if [ "${_fs_bsz:-0}" -lt 200000 ]; then
+  bad "a runbook of 200 KB or more with {{REPO}} still begins with the no-remote preface" "the fixture is only ${_fs_bsz} bytes"
+else
+  is "a runbook of 200 KB or more with {{REPO}} still begins with the no-remote preface" \
+     "$(printf '%s\n' "$_fs_rb" | head -n 1)" "$_fs_nogh"
+fi
+is "and prints the whole runbook after it, every appendix line" \
+   "$(printf '%s\n' "$_fs_rb" | grep -c '^appendix line ')|$(printf '%s\n' "$_fs_rb" | tail -n 1)" \
+   "3000|appendix line 02999: notes a person kept about the labels and why each exists"
+{ printf 'gh label create needs-founder --repo  --color D93F0B\n'; _fs_tail; } > "$_fs_gp2/setup/risk-labels.md"
+_fs_rb="$(_fs_cli "$_fs_gr" risk-labels)"
+is "a long legacy runbook with an empty slug begins with the preface, then shows --repo {{REPO}}, never --repo and a blank" \
+   "$(printf '%s\n' "$_fs_rb" | head -n 2)" \
+   "$(printf '%s\ngh label create needs-founder --repo {{REPO}}  --color D93F0B' "$_fs_nogh")"
+
+# A repository WITH a GitHub remote behaves exactly as it did when the slug was
+# baked in at write time: the same lines, the same screens, the same gh calls.
+for _fs_x in setupbaked setupplace; do
+  _fh_proj "$_fs_x" true
+  ( cd "$TMP/fr-$_fs_x" && git remote add origin https://github.com/acme/widget.git ) >/dev/null 2>&1
+  printf 'ci\n' > "$FROOT/projects/$_fs_x/capabilities"
+  mkdir -p "$FROOT/projects/$_fs_x/setup"
+done
+{ printf '%s\n' "$_fs_hdr"; printf '%s\n' "$_fs_reporows" | sed 's#{{REPO}}#acme/widget#g'
+  printf 'later\tA step for a capability not present yet\tbilling\tfalse\n'; } > "$FROOT/projects/setupbaked/setup.tsv"
+{ printf '%s\n' "$_fs_hdr"; printf '%s\n' "$_fs_reporows"
+  printf 'later\tA step for a capability not present yet\tbilling\tfalse\n'; } > "$FROOT/projects/setupplace/setup.tsv"
+for _fs_x in risk-labels ci-anthropic-key; do
+  sed 's#{{REPO}}#acme/widget#g' "$FROOT/harness/templates/setup/$_fs_x.md" > "$FROOT/projects/setupbaked/setup/$_fs_x.md"
+  cp "$FROOT/harness/templates/setup/$_fs_x.md" "$FROOT/projects/setupplace/setup/$_fs_x.md"
+done
+_fs_br="$(_fh_root setupbaked)"; _fs_pr="$(_fh_root setupplace)"
+: > "$_fs_ghlog"
+_fs_sb="$(_fs_status "$_fs_br" "$FROOT/projects/setupbaked")"; _fs_cb="$(_fs_cli "$_fs_br")"; _fs_gb="$(LC_ALL=C sort "$_fs_ghlog")"
+: > "$_fs_ghlog"
+_fs_sp="$(_fs_status "$_fs_pr" "$FROOT/projects/setupplace")"; _fs_cp="$(_fs_cli "$_fs_pr")"; _fs_gp="$(LC_ALL=C sort "$_fs_ghlog")"
+has "a slug baked in by the old writer reads done through the stub" "$_fs_sb" "$(printf 'done\trisk-labels\t')"
+is  "with a GitHub remote, a {{REPO}} row's status is byte for byte a baked row's" "$_fs_sp" "$_fs_sb"
+is  "and felix setup's screen is the same, apart from the project's name" \
+    "$(printf '%s' "$_fs_cp" | sed 's/setupplace/NAME/g')" "$(printf '%s' "$_fs_cb" | sed 's/setupbaked/NAME/g')"
+is  "and felix setup risk-labels prints the same runbook" "$(_fs_cli "$_fs_pr" risk-labels)" "$(_fs_cli "$_fs_br" risk-labels)"
+is  "and gh is asked the same questions" "$_fs_gp" "$_fs_gb"
+is  "a row for a capability not present still reads dormant, three fields and no reason" \
+    "$(printf '%s\n' "$_fs_sp" | awk -F'\t' '$2 == "later" { print NF "|" $0 }')" "$(printf '3|dormant\tlater\tA step for a capability not present yet')"
+has "and felix setup still says it is not needed yet" "$(printf '%s\n' "$_fs_cp" | grep ' later ')" "(not needed yet)"
+
+# ------------------------------------ commission adopts before its receipt ----
+# session-start adopts every capability the checkout shows and the project has
+# not declared, appending to capabilities, stack.tsv and setup.tsv, all three
+# in the table set the commissioning receipt is hashed over. So a receipt
+# written while ci was undeclared read stale at the very next session start.
+# A full run now adopts first, so the rows, the record and the receipt all
+# describe the table set the next session will find.
+_fh_proj adoptproj true
+_fa_r="$(_fh_root adoptproj)"; _fa_p="$FROOT/projects/adoptproj"
+mkdir -p "$_fa_r/.github/workflows"; printf 'on: push\n' > "$_fa_r/.github/workflows/ci.yml"
+( cd "$_fa_r" && git add -A && git -c user.name=t -c user.email=t@t commit -qm ci ) >/dev/null 2>&1
+: > "$_fa_p/capabilities"
+printf '# k\tn\ts\tr\tc\n' > "$_fa_p/stack.tsv"
+printf '%s\n' "$_fs_hdr" > "$_fa_p/setup.tsv"
+cp "$FROOT/harness/templates/profiles.tsv" "$FROOT/harness/templates/routes.tsv" "$_fa_p/"
+{ _fh_cmhdr; _fh_cmrow human_steps; printf 'marker\t-\t-\t-\t-\ttest -f .felix\t9\n'; } > "$_fa_p/commissioning.tsv"
+_fa_undecl() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+                 felix_undeclared "$_fa_r" "$_fa_p" ) 2>/dev/null | tr '\n' ' '; }
+_fa_pv() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/commission.sh"
+             felix_commission_policy_version "$_fa_p" ) 2>/dev/null; }
+is "the adopt fixture's checkout shows ci, and its project declares nothing" "$(_fa_undecl)" "ci "
+
+cp "$_fa_p/capabilities" "$TMP/fa-caps.0"
+_fa_o="$(_fs_cm "$_fa_r" --status)"
+if ! cmp -s "$_fa_p/capabilities" "$TMP/fa-caps.0"; then
+  bad "felix commission --status adopts nothing and says nothing about adopting" "capabilities now [$(cat "$_fa_p/capabilities")]"
+else
+  case "$_fa_o" in
+    *"adopted before this run"*) bad "felix commission --status adopts nothing and says nothing about adopting" "$_fa_o" ;;
+    *"commissioning for adoptproj"*) ok "felix commission --status adopts nothing and says nothing about adopting" ;;
+    *) bad "felix commission --status adopts nothing and says nothing about adopting" "no report: $_fa_o" ;;
+  esac
+fi
+
+_fa_o="$(_fs_cm "$_fa_r")"
+grep -qx ci "$_fa_p/capabilities" 2>/dev/null \
+  && ok  "a full felix commission adopts what the checkout shows before it runs: capabilities holds ci" \
+  || bad "a full felix commission adopts what the checkout shows before it runs: capabilities holds ci" "[$(cat "$_fa_p/capabilities")]"
+case "$_fa_o" in
+  *"adopted before this run, because the checkout shows them:"*"ci("*) ok  "and the report says so, naming ci with what it added" ;;
+  *) bad "and the report says so, naming ci with what it added" "$(printf '%s\n' "$_fa_o" | head -n 4)" ;;
+esac
+is "and setup.tsv gains ci's two slug rows with {{REPO}} kept" \
+   "$(awk -F'\t' '($1 == "risk-labels" || $1 == "ci-anthropic-key") && index($4, "--repo {{REPO}}") { print $1 }' "$_fa_p/setup.tsv" | tr '\n' ' ')" \
+   "risk-labels ci-anthropic-key "
+is "so nothing is left undeclared after the run" "$(_fa_undecl)" ""
+_fa_pv0="$(_fa_pv)"
+_fa_ss="$(cd "$_fa_r" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+case "$_fa_ss" in
+  *"Adopted automatically"*)  bad "the next session start has nothing left to adopt" "$(printf '%s' "$_fa_ss" | head -c 300)" ;;
+  *'"hookSpecificOutput"'*)   ok  "the next session start has nothing left to adopt" ;;
+  *)                          bad "the next session start has nothing left to adopt" "the hook printed no banner, so no adoption line proves nothing" ;;
+esac
+_fa_pv1="$(_fa_pv)"
+if [ -n "$_fa_pv0" ] && [ "$_fa_pv0" = "$_fa_pv1" ]; then
+  ok  "and the commissioning policy version does not move"
+else
+  bad "and the commissioning policy version does not move" "[$_fa_pv0] then [$_fa_pv1]"
+fi
+_fa_rl="$(_fs_cm "$_fa_r" --status | grep 'receipt:')"
+case "$_fa_rl" in
+  ''|*"stale (table set moved"*) bad "so the receipt the run wrote is not stale at the next read" "[$_fa_rl]" ;;
+  *)                             ok  "so the receipt the run wrote is not stale at the next read" ;;
+esac
+
+cp "$_fa_p/capabilities" "$TMP/fa-caps.1"
+_fa_u="$(_fa_undecl)"
+_fa_o="$(_fs_cm "$_fa_r")"
+if [ -n "$_fa_u" ]; then
+  bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "the fixture still had [$_fa_u] undeclared"
+elif ! cmp -s "$_fa_p/capabilities" "$TMP/fa-caps.1"; then
+  bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "capabilities now [$(cat "$_fa_p/capabilities")]"
+else
+  case "$_fa_o" in
+    *"adopted before this run"*)     bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "$_fa_o" ;;
+    *"commissioning for adoptproj"*) ok  "a second full run with nothing undeclared prints no adoption line and changes no capability" ;;
+    *)                               bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "no report: $_fa_o" ;;
+  esac
+fi
+
+[ -n "$_fh_sp" ] && { kill "$_fh_sp" 2>/dev/null; wait "$_fh_sp" 2>/dev/null; }
+[ "$_fh_dlock_mine" -eq 1 ] && rmdir "$_fh_dlock" 2>/dev/null
+
 printf '\ngenerated constitution\n'
 CDIR="$FROOT/projects/stranger"
 [ -s "$CDIR/CLAUDE.md" ] && ok "onboarding writes one" || bad "onboarding writes one"
@@ -7231,8 +8314,11 @@ _uwb="$(date +%s)"; _uwd0="$(date +%Y-%m-%d)"
 _uwa="$(date +%s)"; _uwd1="$(date +%Y-%m-%d)"
 is "felix lesson files its writer beside the lesson: branch, kind and session" \
    "$(head -1 "$MEM/guarded/written.log" | cut -f2,4,6)" "claude/this-checkout	lesson	ur-writer"
+# Its commit is `unborn`, the word felix_head_commit (lib/resolve.sh) has for
+# a checkout with no commit yet, which every row and devlog header is spelled
+# by; `?` is a directory that is no repository.
 is "and felix log does too, a dash for no session and the branch of a checkout with no commit" \
-   "$(sed -n 2p "$MEM/guarded/written.log" | cut -f2,3,4,6)" "claude/unborn	?	log	-"
+   "$(sed -n 2p "$MEM/guarded/written.log" | cut -f2,3,4,6)" "claude/unborn	unborn	log	-"
 _uwn=0
 for _uwe in $(cut -f5 "$MEM/guarded/written.log"); do
   case "$_uwe" in ''|*[!0-9]*) continue ;; esac
@@ -7247,7 +8333,7 @@ if [ "$_uwd0" = "$_uwd1" ]; then
 - **$_uwd0** a durable thing"
   is "as is the devlog entry, its header one line on a checkout with no commit" \
      "$(cat "$MEM/guarded/DEVLOG.md")" "
-## $_uwd0 claude/unborn ?
+## $_uwd0 claude/unborn unborn
 
 a one-off"
 else
@@ -11231,6 +12317,69 @@ case "$rr" in
 esac
 printf '%s' "$rr" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
   && ok "and the row is still json" || bad "and the row is still json" "$rr"
+
+# The subject is two facts about HEAD, and an unborn HEAD is where both were
+# wrong.
+#
+# felix_receipt read them as `$(git ... 2>/dev/null || printf '?')`, the twin of
+# the expression the mistakes row above was fixed for on 2026-09-18. There git
+# prints `HEAD` AND exits 128, so the fallback is appended to the answer instead
+# of replacing it. The row broke visibly, as two lines. This did not: the
+# escaper flattens a newline to a space, so the document stayed valid json and
+# said `"branch": "HEAD ?"`. A well-formed wrong answer is the worse of the
+# two, because nothing downstream can notice it — and it sat for a day beside
+# the fix because nothing said the two were one question.
+#
+# The branch of an unborn repository is knowable, and the commit is `unborn`,
+# the word felix_tree_id and the mistakes row already use for that state.
+#
+# Through the real CLI in the real unborn repository from the section above,
+# for the reason given there: the defect is in what git says, and a fixture
+# that invents git's answer inherits the assumption.
+NOHEADR="$( cd "$NOHEAD" && "$FELIX" receipt 2>/dev/null )"
+printf '%s' "$NOHEADR" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
+  && ok "a receipt on an unborn HEAD is still json" || bad "a receipt on an unborn HEAD is still json" "$NOHEADR"
+is  "and names the branch an unborn repository is on"      "$(_rf "$NOHEADR" subject.branch)" "main"
+is  "and says its head is unborn rather than guessing one" "$(_rf "$NOHEADR" subject.head)"   "unborn"
+# Knowing the branch is not knowing what changed. `main` names no commit here,
+# so the receipt is exactly as indeterminate as it was.
+has "and still does not know what changed there"           "$(_rf "$NOHEADR" unknown)"        "changed"
+
+# The three states either side of it, so the reader that fixed one did not move
+# another. The expected commit is cut from the full name rather than asked of
+# `--short`, which is the expression under test.
+_rcpt_in() { ( cd "$1" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+               . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
+               . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/classify.sh"
+               . "$FROOT/harness/lib/evidence.sh"; . "$FROOT/harness/lib/receipt.sh"
+               felix_receipt "$FROOT/projects/widget" "${2:-main}" "$1" "$FROOT" ); }
+_is_sha_of() {   # name, the short form a receipt gave, the repository it was read in
+  local full; full="$(git -C "$3" rev-parse HEAD 2>/dev/null)"
+  case "$2" in
+    ''|'?'|unborn) bad "$1" "[$2] names no commit" ;;
+    *) case "$full" in "$2"*) ok "$1" ;; *) bad "$1" "[$2] is not the start of [$full]" ;; esac ;;
+  esac
+}
+is         "on a branch with commits the receipt names the branch" "$(_rf "$r" subject.branch)" "main"
+_is_sha_of "and the commit it stands on"                           "$(_rf "$r" subject.head)"   "$STG"
+# Detached, symbolic-ref has no answer and says nothing, so the reader has to
+# fall through to the `HEAD` rev-parse always gave rather than to the fallback.
+( cd "$RDR" && git checkout -q --detach ) >/dev/null 2>&1
+_rdd="$(_rcpt_in "$RDR" "$RDB")"
+is         "a detached HEAD is named HEAD, as it always was" "$(_rf "$_rdd" subject.branch)" "HEAD"
+_is_sha_of "and still names its commit"                      "$(_rf "$_rdd" subject.head)"   "$RDR"
+# And `?` is kept for the one state it is true of: no repository to ask.
+_rng="$(_rcpt_in "$NOGIT")"
+is  "a directory that is no repository has no branch to name" "$(_rf "$_rng" subject.branch)" "?"
+is  "and no commit, which is not the same as an unborn one"   "$(_rf "$_rng" subject.head)"   "?"
+
+# The class, not the instance. Two files held this expression and the first fix
+# reached one of them. Comment lines are skipped because several of them quote
+# the expression in order to explain it, this one included.
+_appended="$(grep -nE '\$\([^()]*rev-parse[^()]*HEAD[^()]*\|\|[[:space:]]*(echo|printf)' \
+               "$FROOT/harness/felix" "$FROOT"/harness/lib/*.sh "$FROOT"/harness/hooks/* "$FROOT"/harness/bin/* 2>/dev/null \
+             | grep -vE '^[^:]*:[0-9]+:[[:space:]]*#')"
+is  "no engine file appends a fallback to what git said about HEAD" "$_appended" ""
 
 printf '\nthe bump is the deployment\n'
 # `felix install` detected the exact condition, knew exactly what to do, and

@@ -283,6 +283,112 @@ felix_repo_root() {
   [ -n "$root" ] && printf '%s' "$root" || printf '%s' "$start"
 }
 
+# The branch and the commit a tree stands on, each as exactly one field.
+#
+# Both were read, in two libraries, as `$(git ... 2>/dev/null || echo '?')`,
+# which is wrong in the one state where it matters. On an unborn HEAD — what
+# `git init` leaves, and where a project is commissioned — `rev-parse
+# --abbrev-ref HEAD` prints `HEAD` AND exits 128, so the fallback does not
+# replace the answer, it is appended to it: the field arrived as "HEAD\n?".
+#
+# In memory.sh that made a mistakes.log row two lines with no fourth column on
+# either, and every reader of that log takes column four a line at a time, so
+# the failure was written down and could not be read. In receipt.sh the escaper
+# flattened the newline, so the document stayed valid json and said
+# `"branch": "HEAD ?"` — the quieter of the two, and found a day after the
+# first, because the fix for the first put these readers in memory.sh, where
+# receipt.sh could not reach them. They are here because this is the one file
+# both already load however they are loaded: the CLI and every hook source it
+# first, receipt.sh sources it itself when it is missing, and memory.sh needs
+# it for felix_mem_dir.
+#
+# The fallback is assigned, the way felix_tree_id reads HEAD, so a command that
+# failed has its output discarded whole. The branch is asked of symbolic-ref
+# first because an unborn HEAD still has one — `git init -b main` is on main
+# before anything is committed — and a detached HEAD falls through to the
+# `HEAD` rev-parse always gave. The commit there genuinely does not exist, and
+# says `unborn`, felix_tree_id's word for the same state, rather than `?`,
+# which is what a directory that is no repository at all still reads as.
+#
+# Tabs and newlines are stripped on the way out. A ref name cannot hold one, so
+# this changes nothing today; it is here because these are fields of a
+# tab-separated row and of a json string, and either is only as well-formed as
+# its worst field.
+felix_head_branch() {
+  local root="$1" b
+  b="$(git -C "$root" symbolic-ref --short -q HEAD 2>/dev/null)" \
+    || b="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)" || b=""
+  printf '%s' "${b:-?}" | tr -d '\t\n\r'
+}
+
+felix_head_commit() {
+  local root="$1" c
+  c="$(git -C "$root" rev-parse --short HEAD 2>/dev/null)" || c=""
+  if [ -z "$c" ]; then
+    if git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then c="unborn"; else c="?"; fi
+  fi
+  printf '%s' "$c" | tr -d '\t\n\r'
+}
+
+# mistakes.log as its rows, with the split rows an older engine left joined
+# back into the one row they were meant to be (U44).
+#
+# #267 fixed the writer above, and nothing fixed what it had already written.
+# One failure on an unborn HEAD, before #267, is two physical lines on disk:
+#
+#   <date> TAB HEAD                 exactly two fields
+#   ? TAB ? TAB <what>              exactly three fields
+#
+# rev-parse printed `HEAD` and exited 128, so `|| echo ?` appended `\n?` to the
+# branch, and the commit field was the lone `?`. Column four is on neither
+# line, so every reader that takes column four a line at a time read nothing
+# there: gate_shown_failing stayed held on an install whose gate the person had
+# watched go red, and the monitor counted the one failure twice (U42).
+#
+# A pair becomes `<date> TAB HEAD TAB unborn TAB <what>`. HEAD stays because it
+# is what was recorded and the real branch cannot be recovered; `unborn` is
+# #267's own word for the state, and the pair proves it, because HEAD with a
+# non-zero exit happens only there. So a healed row and a new row on the same
+# unborn tree are one occasion to felix_mem_recurring_mistakes, as #267 meant.
+#
+# Only an exact pair is joined, matched on fields rather than on a regex with
+# `\t` or `\?` in it, because the CI's awk may be mawk. A two-field HEAD line
+# whose first field is not a date, a ?-? line of any other width, either half
+# alone, and every other line (a detached HEAD's four-field row, a directory
+# that was no repository, anything #267 writes) pass through byte for byte. The
+# date is spelled out rather than written `{4}`, which older awks lack.
+#
+# This is the one definition of the pair. The heal in memory.sh rewrites the
+# file with it, and every lib reader reads through it, because the heal can
+# decline and `felix commission --status` never heals, and a reader must be
+# right either way. It is here and not in memory.sh for the reason the two
+# readers above are: every entry point sources resolve.sh first, and so do the
+# suite's single-lib subshells, which load the monitor or the guard with
+# nothing else beside them.
+#
+# _felix_mem_mistake_join reads stdin, so the heal can feed it a snapshot bounded
+# to a byte count; felix_mem_mistake_rows takes the file. A file whose last line
+# has no newline gets one on stdout, which a reader does not mind and the heal
+# never writes back. A missing file prints nothing. Both always return 0.
+_felix_mem_mistake_join() {
+  LC_ALL=C awk -F'\t' '
+    held != "" {
+      if (NF == 3 && $1 == "?" && $2 == "?") { print held "\tunborn\t" $3; held = ""; next }
+      print held; held = ""
+    }
+    NF == 2 && $2 == "HEAD" && $1 ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/ { held = $0; next }
+    { print }
+    END { if (held != "") print held }
+  ' 2>/dev/null
+  return 0
+}
+
+felix_mem_mistake_rows() {
+  [ -f "${1:-}" ] || return 0
+  _felix_mem_mistake_join < "$1" 2>/dev/null
+  return 0
+}
+
 # Resolve which project governs a working directory.
 # Prints the project directory on success, prints nothing and returns 1 on miss.
 #

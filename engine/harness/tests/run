@@ -25039,8 +25039,9 @@ else bad "a chip title's backslash prints as a backslash, with no control byte" 
 # What gh cannot say.
 # Spec §4.3 rule 5 and §8: under --no-gh a pushed tip's not reads unknown, so
 # the row is undecided with content not not or partly: counted, not listed.
-[ -s "$IVZ_H2" ] && ! grep -qF topic/feat3 "$IVZ_H2" && ok "under --no-gh the human view counts a pushed branch whose content cannot be confirmed off main, rather than listing it" \
-  || bad "under --no-gh the human view counts a pushed branch whose content cannot be confirmed off main, rather than listing it" "$(grep -F topic/feat3 "$IVZ_H2" | head -n 2 | tr '\n' ';')$(tail -n 4 "$IVZ_H2" | tr '\n' ';')"
+_ivx="$(LC_ALL=C awk '/nothing decided but unknown [0-9]/ { sub(/.*nothing decided but unknown /, ""); print; exit }' "$IVZ_H2")"
+[ -s "$IVZ_H2" ] && ! grep -qF topic/feat3 "$IVZ_H2" && [ "${_ivx:-0}" -ge 1 ] 2>/dev/null && ok "under --no-gh the human view counts a pushed branch whose content cannot be confirmed off main, rather than listing it" \
+  || bad "under --no-gh the human view counts a pushed branch whose content cannot be confirmed off main, rather than listing it" "count [$_ivx] $(grep -F topic/feat3 "$IVZ_H2" | head -n 2 | tr '\n' ';')$(tail -n 4 "$IVZ_H2" | tr '\n' ';')"
 _ivz_sel "$IVZ_T3" topic/feat3
 if _iv_q lack unproposed && _iv_q word 0:unknown; then ok "when gh lists its limit of pull requests, a pushed branch with none among them is unknown, not unproposed"
 else bad "when gh lists its limit of pull requests, a pushed branch with none among them is unknown, not unproposed" "$(_iv_diag)"; fi
@@ -25318,7 +25319,8 @@ LC_ALL=C grep -qE '(^|[^a-z])chips([^a-z]|$).*no session records' "$IVK_H5" && o
 # Spec §4.1, §5.1: the row carries each unknown: entry its unread facet
 # leaves, read from --tsv, since §8 no longer lists such a row.
 _iv_sel "$IV_T3" wt-unproposed
-if _iv_q hold unknown:unproposed && _iv_q hold unknown:pr-open && _iv_q hold unknown:pr-closed-unlanded; then ok "an undecided row lists every state it could not decide, the first of them too"
+if _iv_q hold unknown:unproposed && _iv_q hold unknown:pr-open && _iv_q hold unknown:pr-closed-unlanded \
+   && LC_ALL=C awk -F'\t' 'index("," $4 ",", ",unknown:unproposed,unknown:pr-open,unknown:pr-closed-unlanded,") { f = 1 } END { exit f ? 0 : 1 }' "$IV/sel"; then ok "an undecided row lists every state it could not decide, the first of them too"
 else bad "an undecided row lists every state it could not decide, the first of them too" "$(_iv_diag)"; fi
 # D5's list, replaced: the unit, then the command.
 _ivx="$(FELIX_INVENTORY_TEMP_ROOTS=/nowhere/a:/nowhere/b/ TMPDIR=/nowhere/t /bin/bash -c 'for f in "$@"; do . "$f" || exit 1; done; _fi_tmps; for p in /nowhere/a/x /nowhere/b/y /nowhere/t/z /tmp/a /nowhere/ab; do _fi_temp "$p" && printf "%s " "$p"; done; exit 0' _ "$IVLIB" ${IVPARTS[@]+"${IVPARTS[@]}"} 2>&1)"
@@ -25558,6 +25560,9 @@ _ibmk - "$IBR" "$IB_M2" 'half' half-a.txt h1 half-b.txt 'half, nowhere else'; _i
 _ibmk - "$IBR" "$IB_M2" 'none' none.txt 'none, nowhere else'; _ibb none "$IBC"
 _ibmk - "$IBR" "$IB_M2" 'del' del.txt -; _ibb del "$IBC"
 _ibmk - "$IBR" "$IB_M2" 'rv' rv.txt r1; _ibb rv "$IBC"; _ibpush rv "$IBC"; IB_RV="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'own a' own-a.txt oa; _ibpush own-a "$IBC"; IB_OA="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'own b' own-b.txt ob; _ibpush own-b "$IBC"; IB_OB="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'own c' own-c.txt oc; _ibpush own-c "$IBC"; IB_OC="$IBC"
 _ibmk - "$IBR" "$IB_M2" 'rv2 one' rv2.txt q1; _ibb rv2 "$IBC"
 _ibmk - "$IBR" "$IBC" 'rv2 two' rv2.txt q2; _ibpush rv2 "$IBC"; IB_Q2="$IBC"
 _ibmk - "$IBR" "$IB_M2" 'local one' lo.txt 1; _ibmk - "$IBR" "$IBC" 'local two' lo.txt 2; _ibb local-only "$IBC"
@@ -25668,7 +25673,10 @@ _ibpra 42 OPEN   f42        "$(_ibsha f42)"      130 false
 _ibpra 43 OPEN   f43        "$(_ibsha f43)"      130 false
 _ibpra 44 OPEN   f44        "$(_ibsha f44)"      130 false
 _ibpra 50 MERGED sqp        "$IB_SQP"            600 false
-IB_NPR=19
+_ibpra 60 OPEN   own-a      "$IB_OA"             300 false
+_ibpra 61 OPEN   own-b      "$IB_OB"             300 false
+_ibpra 62 OPEN   own-c      "$IB_OC"             300 false
+IB_NPR=22
 _ibpro 12 '' MERGEABLE false ''
 _ibpro 13 '' MERGEABLE false ''
 _ibpro 15 '' MERGEABLE false ''
@@ -25679,6 +25687,9 @@ _ibpro 41 '' MERGEABLE false "$IB_CR_OK"
 _ibpro 42 '' MERGEABLE false "$IB_SC_PEND"
 _ibpro 43 '' MERGEABLE false "$IB_SC_ISH"
 _ibpro 44 "$(_iblab felix:founder)" MERGEABLE false ''
+_ibpro 60 '' MERGEABLE false ''
+_ibpro 61 '' MERGEABLE false ''
+_ibpro 62 '' MERGEABLE false ''
 mkdir -p "$IB/gh/acme_widget"
 printf '[%s]\n' "$IB_ALL" > "$IB/gh/acme_widget/all.json"; printf '[%s]\n' "$IB_OPEN" > "$IB/gh/acme_widget/open.json"
 
@@ -25818,7 +25829,7 @@ _ibhw() { _ibg -C "$IB/h" worktree add -q -b "$2" "$1" "$IB_HT"; }
 _ibhw "$IB/hw/w.t_1" h-enc; _ibhw "$IB_EMO" h-emo; _ibhw "$IB/hl/sym" h-sym
 _ibhw "$IB_LONG1" h-long1; _ibhw "$IB_LONG2" h-long2
 for _ibn in act two blk blk2 ask ans-a ans-b ans-c sa-fence sa-span sa-quote sa-bq ng-a ng-b ng-c ng-d q-a q-b \
-            bad-empty bad-cut bad-nojson side big-a big-b par ord ll cost notime mf-a mf-b; do
+            bad-empty bad-cut bad-nojson side big-a big-b par ord ll cost notime mf-a mf-b blk-cost blk-human two2 mf-cut; do
   _ibhw "$IB/hw/$_ibn" "h-$_ibn"
 done
 _ibhw "$IB/h/.claude/worktrees/agent-a1b2c3" agent-a1b2c3; _ibhw "$IB/h/.claude/worktrees/agent-a9b9c9" agent-a9b9c9
@@ -25874,13 +25885,13 @@ _ibh_records() {
   _ibh_ask side s-side 'Done.'; _ib_a 30 'Shall I continue?' true
   printf -v _ibx '{"type":"system","subtype":"note","message":{"role":"assistant","content":[{"type":"text","text":"Is it?"}]},"sessionId":"s-side","timestamp":"%s"}' "$(_ibts 30)"
   _ib_raw "$_ibx"; _ibage "$IB_F" 30
-  # big-a: an asking text, then 160 tool call and result pairs of about 2.3
+  # big-a: an asking text, then 300 tool call and result pairs of about 1.3
   # KiB each, so the ask lies more than 256 KiB from the end.
   _ibopen "$IB/pair.tmp" s-big-a
   _ibx="$(_ibp 'filler for a large tool call that carries no text at all' 1000)"
   _ib_tu 30 toolu_big Bash "{\"command\":\"$_ibx\"}"; _ib_tr 30 toolu_big "$_ibx"
   _ibsess "$IB/hw/big-a" s-big-a; _ib_h 32 'start'; _ib_a 31 'Shall I start?'
-  LC_ALL=C awk '{ l[NR] = $0 } END { for (i = 1; i <= 160; i++) for (j = 1; j <= NR; j++) print l[j] }' "$IB/pair.tmp" >> "$IB_F"
+  LC_ALL=C awk '{ l[NR] = $0 } END { for (i = 1; i <= 300; i++) for (j = 1; j <= NR; j++) print l[j] }' "$IB/pair.tmp" >> "$IB_F"
   _ibage "$IB_F" 30
   _ibsess "$IB/hw/big-b" s-big-b
   for _ibn in 1 2 3; do _ib_tu 30 "toolu_c$_ibn" Bash '{"command":"true"}'; _ib_tr 30 "toolu_c$_ibn" ok; done
@@ -25903,6 +25914,20 @@ _ibh_records() {
   _ibh_ask mf-b s-mf-b 'Done.'
   printf -v _ibx '{"type":"attachment","attachment":{"type":"note"},"message":{"role":"assistant","content":[{"type":"text","text":"Shall I go on?"}]},"sessionId":"s-mf-b","timestamp":"%s"}' "$(_ibts 30)"
   _ib_raw "$_ibx"; _ibage "$IB_F" 30
+  # A pending call 35 minutes old, then a bookkeeping line that touched the file a minute ago.
+  _ibsess "$IB/hw/blk-cost" s-blk-cost; _ib_h 40 'watch it'; _ib_tu 35 toolu_bc Bash '{"command":"watch-the-ledger"}'
+  _ib_raw '{"type":"cost-state","costUSD":0.25,"sessionId":"s-blk-cost"}'; _ibage "$IB_F" 1
+  # The same call, answered 34 minutes ago by the person's own text.
+  _ibsess "$IB/hw/blk-human" s-blk-human; _ib_h 40 'watch it'; _ib_tu 35 toolu_bh Bash '{"command":"watch-the-ledger"}'
+  _ib_h 34 'never mind that'; _ibage "$IB_F" 34
+  # Two sessions, the newer one's file the older: the other's file was touched last by a bookkeeping line.
+  _ibsess "$IB/hw/two2" s-rt-old; _ib_h 91 'start'; _ib_a 90 'Done.'
+  _ib_raw '{"type":"cost-state","costUSD":0.25,"sessionId":"s-rt-old"}'; _ibage "$IB_F" 2
+  _ibsess "$IB/hw/two2" s-rt-new; _ib_h 32 'again'; _ib_a 31 'Done.'; _ibage "$IB_F" 30
+  # A last line cut before its end, holding an asking text, after a whole final text that asks nothing.
+  _ibh_ask mf-cut s-mf-cut 'Done.'
+  printf -v _ibx '{"message":{"role":"assistant","content":[{"type":"text","text":"Shall I merge it?"}]},"sessionId":"s-mf-cut","timestamp":"%s"' "$(_ibts 29)"
+  printf '%s' "$_ibx" >> "$IB_F"; _ibage "$IB_F" 29
 }
 
 # ---- r's records: chips, PR owners, and sessions elsewhere ---------------
@@ -25940,6 +25965,20 @@ _ibr_records() {
   IB_BR=pr-only-x; _ibsess "$IBR" s-o5; _ib_h 3 'x'; _ib_a 2 'X.'; _ibage "$IB_F" 2
   IB_BR=stale-pr;  _ibsess "$IBR" s-o4; _ib_h 91 'stale'; _ib_a 90 'Stale.'; _ibage "$IB_F" 90
   IB_BR=forked;    _ibsess "$IBR" s-o6; _ib_h 4 'fork'; _ib_a 3 'Forked.'; _ibage "$IB_F" 3
+  # The owner is the session of the newest user or assistant record naming the head. (a) The
+  # newest file is not it: s-ow-a1 was touched a minute ago but wrote its own-a records 80 minutes
+  # ago. (b) An owner whose own file holds a newer record on another branch is live though its
+  # own-b record is two hours old. (c) An attachment record naming the head, newer than every
+  # user and assistant one, is no owner's.
+  IB_BR=own-a; _ibsess "$IBR" s-ow-a1; _ib_h 81 'start'; _ib_a 80 'Started.'
+  IB_BR=main; _ib_h 4 'something else'; _ib_a 3 'Elsewhere.'; _ibage "$IB_F" 1
+  IB_BR=own-a; _ibsess "$IBR" s-ow-a2; _ib_h 41 'also'; _ib_a 40 'Also.'; _ibage "$IB_F" 40
+  IB_BR=own-b; _ibsess "$IBR" s-ow-b; _ib_h 121 'start'; _ib_a 120 'Started.'
+  IB_BR=other-b; _ib_h 4 'moved on'; _ib_a 3 'Moved on.'; _ibage "$IB_F" 3
+  IB_BR=own-c; _ibsess "$IBR" s-ow-c1; _ib_h 71 'early'; _ib_a 70 'Early.'
+  printf -v _ibx '{"type":"attachment","attachment":{"type":"note"},"message":{"role":"assistant","content":[{"type":"text","text":"Noted."}]},"gitBranch":"own-c","sessionId":"s-ow-c1","timestamp":"%s"}' "$(_ibts 5)"
+  _ib_raw "$_ibx"; _ibage "$IB_F" 5
+  IB_BR=own-c; _ibsess "$IBR" s-ow-c2; _ib_h 31 'later'; _ib_a 30 'Later.'; _ibage "$IB_F" 30
   IB_BR=main;      _ibsess "$IBR" s-pl; _ib_h 2 'link'
   printf -v _ibx '{"type":"pr-link","prNumber":12,"prUrl":"https://github.com/acme/widget/pull/12","prRepository":"acme/widget","sessionId":"s-pl","timestamp":"%s"}' "$(_ibts 1)"
   _ib_raw "$_ibx"; _ib_a 1 'Linked.'; _ibage "$IB_F" 1
@@ -26099,12 +26138,12 @@ is  "inventory A35, A114: a clean checkout of the default branch is landed and n
     "$(_ibst RUN4 worktree "$IBRR") $(_ibcol RUN4 worktree "$IBRR" 5) $(_ibcol RUN4 worktree "$IBRR" 7)" "landed - landed"
 is  "inventory A114: and that nested worktree's own row holds uncommitted" "$(_ibholds RUN4 worktree "$IBR/.claude/worktrees/nest" uncommitted)" "yes"
 is  "inventory A36: a local branch covers its remote only when the remote tip is its tip or an ancestor: ahead and same have no remote row, behind has one" \
-    "$(_ibst RUN1 remote origin/cov-ahead) | $(_ibst RUN1 remote origin/cov-same) | $(_ibcol RUN1 remote origin/cov-behind 1)" "no row | no row | remote"
+    "$(_ibst RUN1 remote origin/cov-ahead "$IBRR") | $(_ibst RUN1 remote origin/cov-same "$IBRR") | $(_ibcol RUN1 remote origin/cov-behind 1 "$IBRR")" "no row | no row | remote"
 is  "inventory A37: a branch covers its upstream under another name, never the default branch, and origin/main is never a remote row" \
-    "$(_ibst RUN1 remote origin/theirs) | $(_ibcol RUN1 branch tracker 1) | $(_ibst RUN1 remote origin/main)" "no row | branch | no row"
+    "$(_ibst RUN1 remote origin/theirs "$IBRR") | $(_ibcol RUN1 branch tracker 1 "$IBRR") | $(_ibst RUN1 remote origin/main "$IBRR")" "no row | branch | no row"
 is  "inventory A38: an open PR no local branch proposes is a pr row whose states are pr-open and whose detail starts with its head" \
     "$(_ibst RUN1 pr '#17') | $(_ibcol RUN1 pr '#17' 8 | LC_ALL=C awk '{ print substr($0, 1, 32) }')" "pr-open | head nobody @ $(_ib8 "$IBR" origin/nobody); #17 open"
-is  "inventory A38: and its remote branch is no remote row" "$(_ibst RUN1 remote origin/nobody)" "no row"
+is  "inventory A38: and its remote branch is no remote row" "$(_ibst RUN1 remote origin/nobody "$IBRR")" "no row"
 is  "inventory A39: a branch proposes a PR through its upstream's name, so that PR is no pr row and the branch is pr-open with it" \
     "$(_ibst RUN1 pr '#13') | $(_ibholds RUN1 branch mine pr-open) | $(case "$(_ibcol RUN1 branch mine 8)" in (*'#13 open'*) echo '#13 open' ;; (*) echo 'no #13' ;; esac)" "no row | yes | #13 open"
 is  "inventory A41: a pending section on the default branch is a handoff row, handoff-pending, naming its two Next items" \
@@ -26172,7 +26211,7 @@ _ibland() { LC_ALL=C awk -F'\t' '$1 != "cover" { n++; s = "," $4 ","
     if (index(s, ",landed,")) { k = split($4, t, ","); for (i = 1; i <= k; i++) if (t[i] ~ /^unknown:/ && t[i] != "unknown:live") printf "%s %s [%s]; ", $1, $3, $4 } }
   END { if (n < 20) printf "only %d rows", n }' "$@"; }
 is  "inventory A65: two unpushed branches carrying the same change are possible duplicates of each other, said at the end of each detail" \
-    "$(_ibst RUN1 branch dupA) | $(_ibst RUN1 branch dupB) | $(_ibcol RUN1 branch dupA 8 | LC_ALL=C awk '{ print substr($0, length($0) - 29) }') | $(_ibcol RUN1 branch dupB 8 | LC_ALL=C awk '{ print substr($0, length($0) - 29) }')" \
+    "$(_ibst RUN1 branch dupA) | $(_ibst RUN1 branch dupB) | $(_ibcol RUN1 branch dupA 8 | LC_ALL=C awk '{ print substr($0, length($0) - 27) }') | $(_ibcol RUN1 branch dupB 8 | LC_ALL=C awk '{ print substr($0, length($0) - 27) }')" \
     "unpushed,possible-duplicate | unpushed,possible-duplicate | ; possible duplicate of dupB | ; possible duplicate of dupA"
 is  "inventory A66: the same path with different blobs is no duplicate, nor is one branch in two worktrees" \
     "$(_ibholds RUN1 branch difA possible-duplicate) $(_ibholds RUN1 branch difB possible-duplicate) $(_ibholds RUN1 worktree "$IB/wts/s1" possible-duplicate) $(_ibholds RUN1 worktree "$IB/wts/s2" possible-duplicate)" "no no no no"
@@ -26190,6 +26229,10 @@ is  "inventory A115: a first human text that differs at decoded character 120 st
 is  "inventory N1: a pr row's owner is the sessionId of the newest record on its branch, a resumed file's copied record keeping its own, and it is live" \
     "$(_ibcol RUN1 pr '#12' 5) $(_ibst RUN1 pr '#12')" "s-o2 live,pr-open"
 is  "inventory N1: an owner whose records are 90 minutes old leaves its pr row not live" "$(_ibcol RUN1 pr '#15' 5) $(_ibst RUN1 pr '#15')" "s-o4 pr-open"
+is  "inventory RV5: the owner of a pull request is the session of the newest record naming its head, not the session whose file was written last" "$(_ibcol RUN1 pr '#60' 5)" "s-ow-a2"
+is  "inventory RV6: an owner whose own file holds a newer record on another branch is live, though its record naming the head is two hours old" \
+    "$(_ibcol RUN1 pr '#61' 5) $(_ibholds RUN1 pr '#61' live)" "s-ow-b yes"
+is  "inventory RV7: an attachment record naming the head, newer than every user and assistant record, makes no owner" "$(_ibcol RUN1 pr '#62' 5)" "s-ow-c2"
 is  "inventory A102: a pr row whose branch no record names has owner - and is not live" "$(_ibcol RUN1 pr '#17' 5) $(_ibst RUN1 pr '#17')" "- pr-open"
 is  "inventory A102: and under --no-host its owner is unknown and live is unknown" "$(_ibcol RUN3 pr '#17' 5) $(_ibst RUN3 pr '#17')" "unknown pr-open,unknown:live"
 
@@ -26373,6 +26416,7 @@ _ibh_records; IB_H0="$(date +%s)"
 _ibrun H1 -- inventory --repo "$IB/h" --tsv
 IB_HD=$(( ($(date +%s) - IB_H0 + 59) / 60 ))
 _ibh_two; _ibrun H2 -- inventory --repo "$IB/h" --tsv --live 80
+_ibrun H3 -- inventory --repo "$IB/h" --tsv --live 30
 _ibw() { printf '%s' "$IB/hw/$1"; }
 is  "inventory A76: the test's encoder turns every character outside [A-Za-z0-9] into a dash, as /a/.b_c to -a--b-c" "$(_ibenc /a/.b_c)" "-a--b-c"
 is  "inventory A76: records filed under that name make the worktree's owner" "$(_ibcol H1 worktree "$(_ibw w.t_1)" 5)" "s-enc"
@@ -26417,6 +26461,12 @@ is  "inventory N3: with no record time in the window, the file's time stands in,
     "$(_ibholds H1 worktree "$(_ibw notime)" live) $(_ibhaselem H1 worktree "$(_ibw notime)" 'activity from file time')" "yes yes"
 is  "inventory N4: an assistant record that puts its message first is read by the role inside it, and a record of another type nesting a message is passed over" \
     "$(_ibholds H1 worktree "$(_ibw mf-a)" question) $(_ibmany H1 worktree "$(_ibw mf-b)" question unknown:question)" "yes question=no unknown:question=no"
+is  "inventory RV1: a call pending 35 minutes is blocked from its own record, and a bookkeeping line that touched the file a minute ago neither clears it nor, under --live 30, makes the session live" \
+    "$(_ibholds H1 worktree "$(_ibw blk-cost)" blocked) $(_ibholds H3 worktree "$(_ibw blk-cost)" blocked) $(_ibholds H3 worktree "$(_ibw blk-cost)" live)" "yes yes no"
+is  "inventory RV2: the person's own text after a pending call answers it, so the session is not blocked" "$(_ibholds H1 worktree "$(_ibw blk-human)" blocked)" "no"
+is  "inventory RV3: the newest session is the latest by record time, though its file is the older of the two" "$(_ibcol H1 worktree "$(_ibw two2)" 5)" "s-rt-new"
+is  "inventory RV4: a last line cut before its end holds no record, so the asking text in it makes no question, and the whole lines before it say it is not unknown" \
+    "$(_ibmany H1 worktree "$(_ibw mf-cut)" question unknown:question)" "question=no unknown:question=no"
 
 # ---- o: orphans ----------------------------------------------------------
 _ibrun O1 -- inventory --repo "$IB/o" --tsv --no-host

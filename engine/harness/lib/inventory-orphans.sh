@@ -111,20 +111,22 @@ _fi_temp() { local t; for t in ${_FI_TMPS[@]+"${_FI_TMPS[@]}"}; do case "$1/" in
 _fi_orphan_rows() {
   local o x when
   while IFS="$_FI_TAB" read -r o x <&3; do
-    _FI_DET="$(_fi_uniq "$o")"; [ "$x" = - ] || _fi_add "$x"
+    _fi_uniq "$o"; _FI_DET="$_FI_UQ"; [ "$x" = - ] || _fi_add "$x"
     _fi_host "$o"
     when="$(date -r "$o" +%s 2>/dev/null)"; case "$when" in *[!0-9]*|'') when=0 ;; esac
     case "${_FI_H[1]}" in *[!0-9]*|'') ;; *) [ "${_FI_H[1]}" -gt "$when" ] && when="${_FI_H[1]}" ;; esac
-    _fi_states live="${_FI_H[2]}" question="${_FI_H[3]}" blocked="${_FI_H[4]}" orphan=yes; _fi_age "$when"
+    _fi_states "$_FI_OC" live="${_FI_H[2]}" question="${_FI_H[3]}" blocked="${_FI_H[4]}" orphan=yes; _fi_age "$when"
     ! _fi_temp "$o" || _fi_add temp
-    _fi_row orphan "$o" "$_FI_S" "${_FI_H[0]}" "$_FI_A" "$_FI_DET" - -
+    _fi_row orphan "$o" "$_FI_S" "${_FI_H[0]}" "$_FI_A" "$_FI_OC" "$_FI_DET" - -
   done 3< "$T/orph"
 }
 
 # How many files in a directory hold content in no object of the repository,
-# said as one detail: the files the ignore rules keep, then the ignored ones.
+# said as one detail (_FI_UQ): the files the ignore rules keep, then the ignored
+# ones; and its content (_FI_OC): not when any holds content no object has,
+# landed when none does and nothing was passed over, else unknown.
 _fi_uniq() {
-  local o="$1" ex="" f n k m ki big past
+  local o="$1" ex="" f n k m ki=0 big=0 past=0
   [ -f "$o/.gitignore" ] || [ -z "$_FI_MAIN" ] || [ ! -f "$_FI_MAIN/.gitignore" ] || ex="--exclude-from=$_FI_MAIN/.gitignore"
   GIT_INDEX_FILE="$_FI_T/no-index" _fi_git --git-dir="$_FI_COMMON" --work-tree="$o" ls-files -z --others --exclude-standard ${ex:+"$ex"} \
     2>/dev/null | tr '\000' '\n' > "$T/of"
@@ -134,8 +136,8 @@ _fi_uniq() {
   n="$(wc -l < "$T/of2" | tr -d ' ')"
   k="$(head -n 20000 "$T/of2" | _fi_git --git-dir="$_FI_COMMON" hash-object --no-filters --stdin-paths 2>/dev/null \
     | _fi_git --git-dir="$_FI_COMMON" cat-file --batch-check 2>/dev/null | grep -c ' missing$')"
-  printf '%s of %s files hold content in no object of the repository' "${k:-0}" "$n"
-  [ "$n" -le 20000 ] || printf '; files past the first 20000 not read'
+  _FI_UQ="${k:-0} of $n files hold content in no object of the repository"
+  [ "$n" -le 20000 ] || { _FI_UQ="$_FI_UQ; files past the first 20000 not read"; past=1; }
   GIT_INDEX_FILE="$_FI_T/no-index" _fi_git --git-dir="$_FI_COMMON" --work-tree="$o" ls-files -z --others --ignored --exclude-standard \
     --directory ${ex:+"$ex"} 2>/dev/null | tr '\000' '\n' > "$T/oi"
   if [ -s "$T/oi" ]; then
@@ -143,13 +145,16 @@ _fi_uniq() {
       find "$o/${f%/}" -name .git -prune -o -type f -size -2049 -print -o -type f -exec printf '\001%s\n' {} + 2>/dev/null
     done 3< "$T/oi" | awk -v st="$T/oib" 'substr($0, 1, 1) == "\001" { b++; next } ++n > 2000 { p = 1; exit } { print }
       END { printf "%d %d\n", b, p > st }' > "$T/oi2"
-    read -r big past < "$T/oib"
+    read -r big past2 < "$T/oib"
     m="$(wc -l < "$T/oi2" | tr -d ' ')"
     ki="$(_fi_git --git-dir="$_FI_COMMON" hash-object --no-filters --stdin-paths < "$T/oi2" 2>/dev/null \
       | _fi_git --git-dir="$_FI_COMMON" cat-file --batch-check 2>/dev/null | grep -c ' missing$')"
-    printf '; %s of %s ignored files hold content in no object' "${ki:-0}" "$m"
-    [ "${big:-0}" = 0 ] || printf '; %s ignored files over 1 MiB not read' "$big"
-    [ "${past:-0}" = 0 ] || printf '; ignored files past the first 2000 not read'
-  else ki=0; fi
-  [ "$_FI_PARTIAL" = 0 ] || [ "${k:-0}${ki:-0}" = 00 ] || printf '; a partial clone, whose remote may hold that content'
+    _FI_UQ="$_FI_UQ; ${ki:-0} of $m ignored files hold content in no object"
+    [ "${big:-0}" = 0 ] || _FI_UQ="$_FI_UQ; $big ignored files over 1 MiB not read"
+    [ "${past2:-0}" = 0 ] || { _FI_UQ="$_FI_UQ; ignored files past the first 2000 not read"; past=1; }
+  fi
+  [ "$_FI_PARTIAL" = 0 ] || [ "${k:-0}${ki:-0}" = 00 ] || _FI_UQ="$_FI_UQ; a partial clone, whose remote may hold that content"
+  if [ "${k:-0}" -gt 0 ] || [ "${ki:-0}" -gt 0 ]; then _FI_OC=not
+  elif [ "$past" = 0 ] && [ "${big:-0}" = 0 ]; then _FI_OC=landed
+  else _FI_OC=unknown; fi
 }

@@ -86,24 +86,15 @@ cmd_audit() {
 }
 if [ "${1:-}" = "audit" ]; then shift; cmd_audit "$@"; exit $?; fi
 
-# felix inventory is dispatched here too, for the same reasons: it writes
-# nothing, and it has to answer from a plain clone, before any home exists,
-# since what it looks for is work nobody registered. What it derives from git
-# and gh is in lib/inventory.sh, with its parts lib/inventory-gh.sh,
-# lib/inventory-orphans.sh and lib/inventory-view.sh (the human view); what
-# only the host's session records can say is in lib/inventory-host.sh, the one
-# file a second host would replace.
+# felix inventory is dispatched here too: it writes nothing and answers from a
+# plain clone. Its libraries are lib/inventory*.sh; what only the host's records
+# say is in lib/inventory-host.sh, the one file a second host would replace.
 cmd_inventory() {
-  # shellcheck source=lib/inventory.sh
-  . "${SCRIPT_DIR}/lib/inventory.sh" || exit 1
-  # shellcheck source=lib/inventory-gh.sh
-  . "${SCRIPT_DIR}/lib/inventory-gh.sh" || exit 1
-  # shellcheck source=lib/inventory-orphans.sh
-  . "${SCRIPT_DIR}/lib/inventory-orphans.sh" || exit 1
-  # shellcheck source=lib/inventory-view.sh
-  . "${SCRIPT_DIR}/lib/inventory-view.sh" || exit 1
-  # shellcheck source=lib/inventory-host.sh
-  . "${SCRIPT_DIR}/lib/inventory-host.sh" || exit 1
+  local f
+  for f in inventory inventory-items inventory-gh inventory-orphans inventory-view inventory-host; do
+    # shellcheck disable=SC1090,SC1091
+    . "${SCRIPT_DIR}/lib/$f.sh" || exit 1
+  done
   felix_inventory "$@"
 }
 if [ "${1:-}" = "inventory" ]; then shift; cmd_inventory "$@"; exit $?; fi

@@ -1,0 +1,160 @@
+# felix inventory's items: what is read of one worktree (its changed paths,
+# whether its index holds the undoing of a merge), the pending handoff
+# sections, and the chips, for lib/inventory.sh, which sources nothing else
+# about a directory. Read-only as the rest is: every git call is _fi_git.
+
+# How a worktree's changed paths stand, as _FI_DD: "differ changed innoobject
+# filtered", or unknown. Each changed path's working blob, "path blob", goes
+# to $T/dsig. A path under a filter driver, switched off here, is compared
+# raw against a cleaned blob, so it is counted apart, as not known. In the
+# main worktree, what lies inside a linked worktree or an orphan ($T/nest) is
+# theirs, not its.
+_fi_dirty() {
+  local wt="$1" p k d; local -a nf=()
+  : > "$T/dsig"; : > "$T/dfl"; : > "$T/fp"; _FI_DD=unknown
+  _fi_git -C "$wt" config --name-only --get-regexp '^filter\.' > "$T/fk" 2>/dev/null
+  while IFS= read -r k <&3; do d="${k#filter.}"; d="${d%.*}"
+    grep -qxF -- "$d" "$T/dfl" || { printf '%s\n' "$d" >> "$T/dfl"; nf=(${nf[@]+"${nf[@]}"} -c "filter.$d.clean=" -c "filter.$d.process=" -c "filter.$d.required=false"); }
+  done 3< "$T/fk"
+  _fi_git -C "$wt" ${nf[@]+"${nf[@]}"} status --porcelain=v1 -z --no-renames --untracked-files=all --ignore-submodules=dirty > "$T/stz" 2>/dev/null || return 0
+  tr '\000' '\n' < "$T/stz" | if [ "$wt" = "$_FI_MAIN" ] && [ -s "$T/nest" ]; then
+    awk 'NR == FNR { N[++n] = $0; next } { p = substr($0, 4); sub(/\/$/, "", p); for (i = 1; i <= n; i++) if (p == N[i] || index(p, N[i] "/") == 1) next; print }' "$T/nest" -
+  else cat; fi > "$T/st"
+  [ -s "$T/st" ] || { _FI_DD="0 0 0 0"; return 0; }
+  [ -n "$_FI_DEFSHA" ] || return 0; : > "$T/hp"; : > "$T/dx"
+  while IFS= read -r p <&3; do
+    p="${p:3}"
+    if [ -L "$wt/$p" ]; then printf '%s\t%s\n' "$p" "$(printf '%s' "$(readlink "$wt/$p")" | _fi_git hash-object --stdin)" >> "$T/dx"
+    elif [ -f "$wt/$p" ]; then printf '%s\n' "$p" >> "$T/hp"
+    elif [ -e "$wt/$p" ]; then printf '%s\t(a repository)\n' "${p%/}" >> "$T/dx"
+    else printf '%s\t0\n' "$p" >> "$T/dx"; fi
+  done 3< "$T/st"
+  _fi_git -C "$wt" hash-object --no-filters --stdin-paths < "$T/hp" > "$T/hh" 2>/dev/null || : > "$T/hh"
+  { paste "$T/hp" "$T/hh"; cat "$T/dx"; } | sort > "$T/dsig"
+  [ -s "$T/dfl" ] && cut -f1 "$T/dsig" | tr '\n' '\000' | _fi_git -C "$wt" check-attr -z --stdin filter 2>/dev/null | tr '\000' '\n' \
+    | awk -v fl="$T/dfl" 'BEGIN { while ((getline l < fl) > 0) F[l] = 1 } NR % 3 == 1 { p = $0 } NR % 3 == 0 && ($0 in F) { print p }' > "$T/fp"
+  _FI_DD="$(awk -F'\t' -v df="$T/deftree" -v fp="$T/fp" -v db="$T/db" 'BEGIN { printf "" > db
+      while ((getline l < df) > 0) { i = index(l, "\t"); B[substr(l, 1, i - 1)] = substr(l, i + 1) }; while ((getline l < fp) > 0) F[l] = 1 }
+    { n++; if ($2 == "0" ? !($1 in B) : B[$1] == $2) next
+      if ($2 != "0" && ($1 in F)) { f++; next }
+      d++; if ($2 ~ /^[0-9a-f]+$/) print $2 > db }
+    END { printf "%d %d %d", d, n, f }' "$T/dsig")"
+  k="$(_fi_git -C "$wt" cat-file --batch-check < "$T/db" 2>/dev/null | grep -c ' missing$')"
+  set -- $_FI_DD; _FI_DD="$1 $2 ${k:-0} $3"
+}
+
+# Whether ref (a directory) is the top of a working tree of this repository:
+# 0 it is, 1 it holds none of its own (git would read an enclosing one), 2 it
+# is now another repository's.
+_fi_own() {
+  local x
+  x="$(_fi_git -C "$1" rev-parse --show-toplevel --git-common-dir 2>/dev/null)" || return 1
+  [ "${x%%"$_FI_NL"*}" = "$(cd "$1" 2>/dev/null && pwd -P)" ] || return 1
+  [ "$(cd "$1" && cd "${x#*"$_FI_NL"}" 2>/dev/null && pwd -P)" = "$_FI_COMMON" ] || return 2
+}
+_fi_worktree() {
+  local shd=no rev=no unc=no orph=no x when="$dt" ucv=landed content
+  if [ "$br" != - ]; then _fi_add "branch $br @ ${sha:0:8}"; else _fi_add "detached @ ${sha:0:8}"; fi
+  x="${fl//detached,/}"; x="${x//linebreak,/}"; x="${x%,}"; [ "$x" = - ] || [ -z "$x" ] || _fi_add "git marks it ${x//,/ and }"
+  [ "$sh" = - ] || { shd=yes; _fi_add "$br is also checked out in $sh"; }
+  _FI_H=(unknown - unknown unknown unknown -)
+  case "$fl" in
+    *linebreak*) unc=unknown; ucv=unknown; _fi_add "its path holds a line break or a tab, so it is not read" ;;
+    *) if [ ! -d "$ref" ]; then _fi_add "the directory is gone"
+       else _fi_own "$ref"; x=$?
+         if [ "$x" = 2 ]; then unc=unknown; ucv=unknown; _fi_add "it is now a checkout of another repository, so it is not read"
+         elif [ "$x" = 1 ]; then orph=yes; _fi_uniq "$ref"; _fi_add "git lists it, but it holds no working tree of this repository: $_FI_UQ"
+         else _fi_revert; _fi_dirty "$ref"; _fi_dd; fi
+       fi
+       _fi_host "$ref" ;;
+  esac
+  _fi_branch "$sha" "$br" "$rr" "$cl" "$op" "$num" "$st"
+  _fi_sig; ! _fi_temp "$ref" || _fi_add temp
+  case "$when" in *[!0-9]*|'') when=0 ;; esac
+  case "${_FI_H[1]}" in *[!0-9]*|'') ;; *) [ "${_FI_H[1]}" -gt "$when" ] && when="${_FI_H[1]}" ;; esac
+  # A directory that holds no working tree of this repository is read as an orphan is.
+  if [ "$orph" = yes ]; then content="$_FI_OC"; else _fi_worse "$_FI_LV" "$ucv"; content="$_FI_W"; fi
+  _fi_states "$content" hazard:shared-branch=$shd hazard:staged-revert=$rev live="${_FI_H[2]}" question="${_FI_H[3]}" blocked="${_FI_H[4]}" \
+    uncommitted=$unc unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC orphan=$orph
+  _fi_age "$when"; _fi_row worktree "$ref" "$_FI_S" "${_FI_H[0]}" "$_FI_A" "$content" "$_FI_DET" "$_FI_SIG" "$br"
+}
+# _FI_DD as the worktree's uncommitted state (unc), its content (ucv: none of
+# the paths differ landed, all of those compared differ not, else partly; a path
+# under a filter driver is not compared, so nothing else differing is unknown)
+# and detail.
+_fi_dd() {
+  [ "$_FI_DD" != unknown ] || { unc=unknown; ucv=unknown; return 0; }
+  set -- $_FI_DD
+  if [ "$1" -gt 0 ]; then unc=yes; if [ $(($2 - $1 - $4)) -gt 0 ]; then ucv=partly; else ucv=not; fi
+    _fi_add "uncommitted: $1 of $2 changed paths differ from $_FI_DEF, $3 of them holding content in no object$([ "$_FI_PARTIAL" = 0 ] || echo ' this clone holds')"
+  elif [ "$4" -gt 0 ]; then unc=unknown; ucv=unknown
+  elif [ "$2" -gt 0 ]; then _fi_add "$2 changed paths, all as $_FI_DEF has them"; fi
+  [ "$4" = 0 ] || _fi_add "$4 changed-looking paths under a filter driver not compared, since the filter would have to run"
+}
+# The index differs from HEAD (status 1; 128 is an unborn HEAD): does it hold
+# the tree of an earlier tip of the branch, or, detached, of an earlier HEAD?
+_fi_revert() {
+  local lr=HEAD w="HEAD here" c t
+  [ "$br" = - ] || { lr="refs/heads/$br"; w="$br"; }
+  _fi_git -C "$ref" diff-index --cached --quiet HEAD -- 2>/dev/null; [ $? = 1 ] || return 0
+  _fi_git -C "$ref" reflog exists "$lr" 2>/dev/null || { rev=unknown; return 0; }
+  _fi_git -C "$ref" log -g --format='%H %T' "$lr" -- 2>/dev/null \
+    | awk -v t="$(_fi_git -C "$ref" rev-parse -q --verify 'HEAD^{tree}' 2>/dev/null)" '$2 != t && !s[$2]++' | head -100 > "$T/rl"
+  while read -r c t <&3; do
+    _fi_git -C "$ref" diff-index --cached --quiet "$t" -- 2>/dev/null || continue
+    _fi_git -C "$ref" merge-base --is-ancestor HEAD "$c" 2>/dev/null && continue
+    rev=yes; _fi_add "the index is the tree of ${c:0:8}, an earlier tip of $w: a commit here undoes what came after it"; break
+  done 3< "$T/rl"
+}
+
+# Sections waiting in the pending directory of the default branch (else of
+# HEAD), each with its "Next" items; a section this clone cannot read says so.
+_fi_handoff() {
+  local tree="${_FI_DEFSHA:-HEAD}" f next when
+  _fi_git -C "$_FI_D" ls-tree --name-only "$tree" -- "$_FI_PENDING/" 2>/dev/null | grep '\.md$' > "$T/pend"
+  while IFS= read -r f <&3; do
+    if _fi_git -C "$_FI_D" cat-file -p "$tree:$f" > "$T/hsec" 2>/dev/null; then next="$(awk '
+      function add(x) { I[++n] = x; st = 1 }
+      { t = $0; sub(/^[#*_ ]+/, "", t) }
+      t ~ /^Next([^A-Za-z]|$)/ { on = 1; st = 0; if (sub(/^[^:]*:[*_ ]*/, "", t) && t != "") add(t); next }
+      on && /^[ \t]*$/ { if (st) on = 0; next }
+      on && /^ ? ? ?([-*+]|[0-9]+[.)]) / { l = $0; sub(/^ *([-*+]|[0-9]+[.)]) +/, "", l); add(l); next }
+      on && st && /^  / { l = $0; sub(/^ +/, "", l); I[n] = I[n] " " l; next }
+      { on = 0 }
+      END { if (n) printf "%d Next item(s): ", n; for (i = 1; i <= n; i++) printf "%s%s", (i > 1 ? " | " : ""), I[i] }' "$T/hsec")"
+      next="${next:-no Next lines}"
+    else next="its Next lines are unknown: this clone cannot read the section"; fi
+    when="$(_fi_git -C "$_FI_D" log -1 --format=%ct "$tree" -- "$f" 2>/dev/null)"; _fi_age "$when"
+    _fi_row handoff "$f" handoff-pending - "$_FI_A" - "$next" - -
+  done 3< "$T/pend"
+}
+
+# Chips from sessions in every worktree, every orphan, and every directory
+# under a directory inside the main worktree that holds worktrees.
+_fi_chips() {
+  local id s e title
+  [ "$_FI_HOSTOK" = 1 ] || return 0
+  felix_inv_host_chips "$_FI_NOW" "$_FI_DAYS" "$T/hscope" > "$T/chips" || return 0
+  while IFS="$_FI_TAB" read -r id s e title <&3; do _fi_age "$e"; _fi_row chip "$id" chip-unstarted "$s" "$_FI_A" - "$title" - -; done 3< "$T/chips"
+}
+# The host's record directories for this repository's worktrees, orphans and
+# removed worktrees, into $T/hscope, and whether there are any records to read
+# (_FI_HOSTOK; _FI_HD says why not).
+_fi_hscope() {
+  local -a a=("$_FI_REPO"); local d
+  _FI_HOSTOK=0; _FI_HD="--no-host"
+  [ "$_FI_HOST" = 1 ] || return 0
+  _FI_HD="$(felix_inv_host_where)" || { _FI_HD="no session records"; return 0; }
+  _FI_HOSTOK=1
+  while IFS= read -r d <&3; do a[${#a[@]}]="$d"; done 3< <(awk -F'\t' '$4 !~ /bare|linebreak/ { print $1 }' "$T/wt"; cut -f1 "$T/orph"; cat "$T/scope")
+  felix_inv_host_scope "$T/hscope" "${a[@]}"
+}
+# The session behind each open PR that is a row of its own (one from a fork has
+# none), into $T/owners: head, session, live.
+_fi_owners() {
+  : > "$T/owners"; [ "$_FI_HOSTOK" = 1 ] || return 0
+  awk -F'\t' '$1 == "pr" && $11 != "cross" { print $4 }' "$T/items" | sort -u > "$T/prheads"
+  [ -s "$T/prheads" ] || return 0
+  felix_inv_host_owners "$_FI_NOW" "$_FI_DAYS" "$_FI_LIVE" "$T/hscope" "$T/prheads" > "$T/owners" 2>/dev/null
+  return 0
+}

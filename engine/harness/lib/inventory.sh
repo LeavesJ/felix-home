@@ -8,7 +8,8 @@
 # and SessionEnd fired for 13 of 60, so this is derived, every time.
 #
 # Read-only by construction. Every git call (_fi_git) takes no optional lock,
-# runs no fsmonitor, reads pathspecs literally (a directory named k* is not a
+# runs no fsmonitor, shows no signature (a user's log.showSignature would run
+# gpg), reads pathspecs literally (a directory named k* is not a
 # glob) and fetches nothing a partial clone lacks (GIT_NO_LAZY_FETCH, git
 # 2.44; on an older git a partial clone is refused, not read). git is never
 # asked to write: no merge-tree --write-tree, stash create, write-tree,
@@ -24,38 +25,39 @@
 # nothing on the enforcing path reads it (invariant 2), and it exits 0
 # unless a repository cannot be read at all, 2 on a bad argument.
 #
-# Everything here is git and GitHub, with lib/inventory-gh.sh (what gh says)
-# and lib/inventory-orphans.sh (what sits beside the worktrees); what only a
-# host's records say (live, question, blocked, chips) is asked of
-# lib/inventory-host.sh, and lib/inventory-view.sh draws the human view.
-# What cannot be read prints unknown, never absent, and a row with an
-# unknown state other than live is never landed.
+# Everything here is git and GitHub, with lib/inventory-gh.sh (what gh says),
+# lib/inventory-orphans.sh (what sits beside the worktrees) and
+# lib/inventory-items.sh (one worktree, handoff sections, chips); what only a
+# host's records say (live, question, blocked, chips, the session behind a pull
+# request) is asked of lib/inventory-host.sh, and lib/inventory-view.sh draws
+# the human view. What cannot be read prints unknown, never absent.
 #
 # One row per item: a worktree, an orphan, a local branch checked out
 # nowhere, a remote branch no local branch covers (one at its tip or ahead of
-# it) or open PR does, an open PR whose head no local branch proposes, a
-# chip, a pending handoff section; a branch's PR states ride on its own row,
-# looked up by the name it has on origin. Whether a branch is the default
-# one is told by its name, never by its upstream: a feature branch made with
-# --track origin/main tracks the default branch and is not it. States print in
-# _FI_ORDER, the first the headline; landed means none holds but live. A list
-# that could not be read (open PRs, chips) or a fact about the whole
-# repository (gh's list at its limit) is a row of kind repo with ref -, never
-# an item's. A worktree or orphan in a temporary directory ($TMPDIR, /tmp,
-# /private/tmp, /private/var/folders, or instead the colon-separated
-# FELIX_INVENTORY_TEMP_ROOTS when set, which tests use) says temp in its
-# detail and is read as any other; the human view lists it apart from what
-# needs action.
+# it) or open PR does, an open PR whose head no local branch proposes (always
+# one from a fork), a chip, a pending handoff section; a branch's PR states ride
+# on its own row, looked up by the name it has on origin. Whether a branch is
+# the default one is told by its name, never by its upstream: a feature branch
+# made with --track origin/main tracks the default branch and is not it. What
+# was read of the repository is five rows of kind cover first: default, prs,
+# sessions, chips, objects. States print in _FI_ORDER, the first the headline;
+# landed means none holds but live and the content column says landed. A
+# worktree or orphan in a temporary directory ($TMPDIR, /tmp, /private/tmp,
+# /private/var/folders, or instead the colon-separated FELIX_INVENTORY_TEMP_ROOTS
+# when set, which tests use) says temp in its detail and is read as any other.
 # Content is on the default branch (origin/HEAD's target, else origin/main,
 # else origin/master) when the branch reaches the tip, or a merged PR's head
 # is the tip or descends from it, since squash merges defeat ancestry;
 # otherwise each path the tip changed since its merge-base is compared with
-# the default branch's blob: all equal landed, none not, some partly. A dirty
-# path compares its working file. Three gaps in the spec are filled: a pushed
-# branch whose PRs all merged before its newest commits is unproposed, not
-# landed; a staged revert's earlier tip must not descend from HEAD, or a
-# reset --soft reads as one, and a detached worktree reads its HEAD's reflog;
-# and a branch never pushed heads no PR, so under --no-gh its PR states are no.
+# the default branch's blob: all equal landed, none not, some partly. That
+# compares with main's current blobs, so a pushed tip read that way, when no PR
+# list could settle it, is unknown, not unlanded. A dirty path compares its
+# working file; a worktree's content is the worse of the two. Three gaps in the
+# spec are filled: a pushed branch whose PRs all merged before its newest
+# commits is unproposed, not landed; a staged revert's earlier tip must not
+# descend from HEAD, or a reset --soft reads as one, and a detached worktree
+# reads its HEAD's reflog; and a branch never pushed heads no PR, so under
+# --no-gh its PR states are no.
 #
 # A worktree git lists is read only when git, asked there, names that
 # directory as the top of a working tree of this repository: a directory
@@ -75,32 +77,40 @@ felix_inventory_usage() {
   printf 'usage: felix inventory [--repo DIR]... [--tsv] [--live MIN] [--blocked MIN] [--days N] [--no-gh] [--no-host]\n'
   printf '  read-only: where unlanded work is, derived from git, gh and the host'"'"'s session records\n'
   printf '  --repo DIR     a repository to read, repeatable (default: the one holding this directory)\n'
-  printf '  --tsv          one row per item: kind repo ref states owner age_h detail\n'
+  printf '  --tsv          one row per item: kind repo ref states owner age_h content detail\n'
   printf '  --live MIN, --blocked MIN, --days N   live: a session active within MIN (60); blocked: a tool call\n'
   printf '                 unanswered for MIN (20); chips: from sessions active within N days (14)\n'
   printf '  --no-gh        do not ask gh: PR states become unknown\n'
   printf '  --no-host      do not read session records: live, question, blocked and chips become unknown\n'
 }
 _fi_refuse() { printf 'felix inventory: %s\n' "$1" >&2; felix_inventory_usage >&2; return 2; }
-_fi_git() { GIT_NO_LAZY_FETCH=1 git --no-optional-locks --literal-pathspecs -c core.fsmonitor=false "$@"; }
-_fi_git_244() { git version 2>/dev/null | awk '{ split($3, v, "."); exit !(v[1] > 2 || (v[1] == 2 && v[2] >= 44)) }'; }
-# A row: kind ref states owner age detail sig branch, the repository second; no tab or line break in a field, - for empty.
+_fi_git() { GIT_NO_LAZY_FETCH=1 git --no-optional-locks --literal-pathspecs -c core.fsmonitor=false -c log.showSignature=false "$@"; }
+_fi_git_244() { _fi_git --version 2>/dev/null | awk '{ split($3, v, "."); exit !(v[1] > 2 || (v[1] == 2 && v[2] >= 44)) }'; }
+# A row: kind ref states owner age content detail sig branch, the repository second; no tab or line break in a field, - for empty.
 _fi_row() {
   local a line=""
-  for a in "$1" "$_FI_REPO" "${@:2}"; do a="${a//$_FI_TAB/ }"; a="${a//$_FI_NL/ }"; line="$line${a:--}$_FI_TAB"; done
+  for a in "$1" "$_FI_REPO" "${@:2}"; do a="${a//$_FI_TAB/ }"; a="${a//$_FI_NL/ }"; a="${a//$'\001'/ }"; a="${a//$'\002'/ }"; line="$line${a:--}$_FI_TAB"; done
   printf '%s\n' "${line%"$_FI_TAB"}" >> "$_FI_T/rows"
 }
 _fi_age() { case "${1:-}" in ''|0|-|*[!0-9]*) _FI_A=- ;; *) _FI_A=$(( (_FI_NOW - $1) / 3600 )) ;; esac; }
 _fi_add() { _FI_DET="${_FI_DET:+$_FI_DET; }$1"; }
-# name=yes|no|unknown pairs, in _FI_ORDER, as the states field.
+# The content (landed, partly, not, unknown or -), then name=yes|no|unknown
+# pairs in _FI_ORDER, as the states field: the held ones, landed when none but
+# live is held, nothing is unknown but live and the content is landed or -,
+# then each unknown. No state at all prints -.
 _fi_states() {
-  local a held="" unk="" open=0
+  local c="$1" a held="" unk="" open=0
+  shift
   for a in "$@"; do
     case "${a#*=}" in yes) held="$held,${a%%=*}" ;; unknown) unk="$unk,unknown:${a%%=*}" ;; *) continue ;; esac
     [ "${a%%=*}" = live ] || open=1
   done
-  [ "$open" = 1 ] || held="$held,landed"
+  case "$c" in landed|-) [ "$open" = 1 ] || held="$held,landed" ;; esac
   held="$held$unk"; _FI_S="${held#,}"
+}
+# The worse of two content values, as _FI_W: not, then partly, unknown, landed.
+_fi_worse() {
+  case "$1,$2" in not,*|*,not) _FI_W=not ;; partly,*|*,partly) _FI_W=partly ;; unknown,*|*,unknown) _FI_W=unknown ;; *) _FI_W=landed ;; esac
 }
 # What an item changed, as one checksum, for possible-duplicate.
 _fi_sig() { _FI_SIG=-; if [ -s "$T/sig" ] || [ -s "$T/dsig" ]; then _FI_SIG="$(cat "$T/sig" "$T/dsig" | cksum | tr ' ' :)"; fi; }
@@ -134,7 +144,7 @@ felix_inventory() {
   _FI_T=""; trap '[ -z "$_FI_T" ] || rm -rf "$_FI_T"' EXIT
   trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 131' QUIT; trap 'exit 143' TERM
   _fi_scratch || { printf 'felix inventory: no scratch directory outside every repository\n' >&2; return 1; }
-  _FI_NOW="$(date +%s)"; T="$_FI_T/r"; : > "$_FI_T/rows"; : > "$_FI_T/meta"; printf '%s' "$repos" > "$_FI_T/repos"
+  _FI_NOW="$(date +%s)"; T="$_FI_T/r"; : > "$_FI_T/rows"; printf '%s' "$repos" > "$_FI_T/repos"
   while IFS= read -r d <&3; do [ -n "$d" ] && { _fi_repo "$d" || rc=1; }; done 3< "$_FI_T/repos"
   _fi_out "$tsv"; return "$rc"
 }
@@ -150,18 +160,19 @@ _fi_repo() {
     && { { _fi_git -C "$d" worktree list --porcelain -z > "$T/wtz" 2>/dev/null && tr '\n\000' '\001\n' < "$T/wtz" > "$T/wtp"; } \
          || _fi_git -C "$d" worktree list --porcelain > "$T/wtp" 2>/dev/null; } \
     || { printf 'felix inventory: %s is not a git repository it can read\n' "$d" >&2; return 1; }
-  _FI_D="$d"; _FI_COMMON="$c"; _FI_PARTIAL=0
+  _FI_D="$d"; _FI_COMMON="$c"; _FI_PARTIAL=0; _FI_SHALLOW=0
+  [ "$(_fi_git -C "$d" rev-parse --is-shallow-repository 2>/dev/null)" != true ] || _FI_SHALLOW=1
   if _fi_git -C "$d" config --get extensions.partialClone >/dev/null 2>&1 \
-     || _fi_git -C "$d" config --bool --get-regexp '^remote\..*\.promisor$' 2>/dev/null | grep -q ' true$'; then
+     || _fi_git -C "$d" config --bool --get-regexp '^remote\..*\.promisor$' 2>/dev/null | awk '/ true$/ { f = 1 } END { exit !f }'; then
     _fi_git_244 || { printf 'felix inventory: %s is a partial clone, and a git before 2.44 would fetch what it lacks\n' "$d" >&2; return 1; }
     _FI_PARTIAL=1
   fi
-  # path head branch flags, one line per worktree, the main one first; a
-  # path holding a line break or a tab is flagged linebreak and never read.
+  # path head branch flags, one line per worktree, the main one first; a path
+  # holding a line break (\001 here) or a tab (\002) is flagged linebreak and
+  # never read, and prints with a space in their place.
   awk 'function out() { if (p != "") print p "\t" h "\t" b "\t" (s == "" ? "-" : s) }
-       function esc(x, c, r,    i) { while (i = index(x, c)) x = substr(x, 1, i - 1) r substr(x, i + 1); return x }
        /^worktree / { out(); p = substr($0, 10); h = "-"; b = "-"; s = ""
-         if (index(p, "\001") || index(p, "\t")) { p = esc(esc(p, "\001", "\\n"), "\t", "\\t"); s = "linebreak," } next }
+         if (index(p, "\001") || index(p, "\t")) { gsub(/\t/, "\002", p); s = "linebreak," } next }
        /^HEAD / { h = $2 } /^branch / { b = substr($0, 8); sub(/^refs\/heads\//, "", b) }
        /^(bare|detached|locked|prunable)/ { s = s $1 "," }
        END { out() }' "$T/wtp" > "$T/wt"
@@ -183,17 +194,43 @@ _fi_repo() {
   _fi_git -C "$d" for-each-ref --format='%(refname)%09%(objectname)%09%(committerdate:unix)%09%(upstream)%09%(symref)' \
     refs/heads refs/remotes | awk -F'\t' -v OFS='\t' '{ for (i = 1; i <= 5; i++) if ($i == "") $i = "-"; print }' > "$T/refs"
   if _fi_gh "$d"; then _FI_GHOK=1; else _FI_GHOK=0; fi
-  _fi_sets; _fi_orphan_find
-  if [ "$_FI_HOST" = 1 ]; then f="read from $FELIX_INV_HOST_NAME's session records"; w="proposed in sessions active in the last $_FI_DAYS days (--days)"
-  else f="unknown (--no-host)"; w="$f"; fi
-  printf '%s\tdefault\t%s\n%s\tPR facts\t%s\n%s\tsessions\t%s\n%s\tchips\t%s\n' "$_FI_REPO" "${_FI_DEF:-unknown: no origin/HEAD, origin/main or origin/master whose tree this clone holds}" \
-    "$_FI_REPO" "$_FI_GHSTATE" "$_FI_REPO" "$f" "$_FI_REPO" "$w" >> "$_FI_T/meta"
-  [ "$_FI_PARTIAL" = 0 ] || printf '%s\tobjects\ta partial clone: nothing it lacks was fetched, so content in no object here may be the remote'"'"'s\n' "$_FI_REPO" >> "$_FI_T/meta"
+  _fi_sets; _fi_orphan_find; _fi_hscope; _fi_cover; _fi_owners
   while IFS="$_FI_TAB" read -r k ref sha br dt cl rr op num st fl sh <&3; do _fi_item; done 3< "$T/items"
-  if [ "$_FI_GHOK" = 0 ]; then _fi_row repo - unknown:pr-open - - "open PRs not listed: $_FI_GHSTATE" - -
-  elif [ "$_FI_GHTRUNC" = 1 ]; then _fi_row repo - unknown:unproposed - - "PR facts $_FI_GHSTATE" - -; fi
   _fi_orphan_rows; _fi_handoff; _fi_chips
   return 0
+}
+
+# The whole hours since the later of FETCH_HEAD's mtime and the newest reflog
+# entry of the default branch's remote-tracking ref, as the detail of the cover
+# row: remote facts are as old as that.
+_fi_fetched() {
+  local a b
+  a="$(date -r "$_FI_COMMON/FETCH_HEAD" +%s 2>/dev/null)"
+  b="$(_fi_git -C "$_FI_D" log -g -1 --format=%gd --date=unix "refs/remotes/$_FI_DEF" -- 2>/dev/null)"; b="${b#*@\{}"; b="${b%\}*}"
+  case "$a" in ''|*[!0-9]*) a=0 ;; esac; case "$b" in ''|*[!0-9]*) b=0 ;; esac
+  [ "$b" -le "$a" ] || a="$b"
+  if [ "$a" -gt 0 ]; then printf 'fetched %dh ago' $(( (_FI_NOW - a) / 3600 )); else printf 'fetch time unknown'; fi
+}
+# The five cover rows of a repository: what was read of it, and for each facet
+# not read the unknown states it leaves the items. Read, partial or unknown.
+_fi_cover() {
+  local s d
+  if [ -n "$_FI_DEF" ]; then s=read; d="$_FI_DEF @ ${_FI_DEFSHA:0:8}; $(_fi_fetched)"
+  else s="unknown,unknown:uncommitted,unknown:unpushed,unknown:unproposed,unknown:pr-closed-unlanded"
+       d="no origin/HEAD, origin/main or origin/master whose tree this clone holds"; fi
+  _fi_row cover default "$s" - - - "$d" - -
+  if [ "$_FI_GHOK" = 0 ]; then s="unknown,unknown:pr-open,unknown:unproposed,unknown:pr-closed-unlanded"; d="$_FI_GHSTATE"
+  elif [ "$_FI_GHTRUNC" = 1 ]; then s="partial,unknown:unproposed"; d="$_FI_GHCMD: $_FI_GHN PRs, gh's limit: older PRs are not seen"
+  else s=read; d="$_FI_GHCMD: $_FI_GHN PRs"; fi
+  _fi_row cover prs "$s" - - - "$d" - -
+  if [ "$_FI_HOSTOK" = 1 ]; then s=read; d="$_FI_HD"; else s="unknown,unknown:live,unknown:question,unknown:blocked"; d="$_FI_HD"; fi
+  _fi_row cover sessions "$s" - - - "$d" - -
+  if [ "$_FI_HOSTOK" = 1 ]; then s=read; d="proposed in sessions active in the last $_FI_DAYS days"; else s="unknown,unknown:chip-unstarted"; d="$_FI_HD"; fi
+  _fi_row cover chips "$s" - - - "$d" - -
+  s=read; d="a full clone"
+  if [ "$_FI_PARTIAL" = 1 ]; then s=partial; d="a partial clone: nothing was fetched, so content in no object here may be the remote's"; fi
+  if [ "$_FI_SHALLOW" = 1 ]; then s=partial; d="${d#a full clone}"; d="${d:+$d; }a shallow clone: history past the graft is absent, so a merge-base may be missing or wrong"; fi
+  _fi_row cover objects "$s" - - - "$d" - -
 }
 
 # The items: kind ref sha branch date class rr open num state flags shared.
@@ -239,29 +276,33 @@ _fi_sets() {
     function rr(n,    u) { if (("origin/" n) in RB) return "origin/" n
       u = substr(UP[n], 14); return (UP[n] ~ /^refs\/remotes\// && (u in RB) && u != def) ? u : "-" }
     function pk(b, rrr) { return rrr ~ /^origin\// ? substr(rrr, 8) : b }
-    function out(k, ref, sha, b, d, rrr, fl, sh,    p) { p = pk(b, rrr)
+    function out(k, ref, sha, b, d, rrr, fl, sh, ptx, pn, ps,    p) { p = pk(b, rrr)
       print k, ref, sha, b, (d == "" ? "-" : d), ((sha in C) ? C[sha] : "---"), rrr, \
-        (b == "-" || b == dn || !(p in NUM) ? "-\t-\t-" : O[p] "\t" NUM[p] "\t" ST[p]), fl, (sh == "" ? "-" : sh) }
+        (k == "pr" ? ptx "\t" pn "\t" ps : (b == "-" || b == dn || !(p in NUM) ? "-\t-\t-" : O[p] "\t" NUM[p] "\t" ST[p])), fl, (sh == "" ? "-" : sh) }
     END {
       for (i = 1; i <= nw; i++) { split(W[i], w, "\t"); if (w[4] ~ /bare/) continue
         m = split(CO[w[3]], S, "\n"); o = ""; for (j = 2; j <= m; j++) if (S[j] != w[1]) o = o " " S[j]
         out("worktree", w[1], w[2], w[3], D[w[2]], (w[3] == "-" ? "-" : rr(w[3])), w[4], (w[3] == "-" ? "" : substr(o, 2))) }
-      for (i = 1; i <= nl; i++) { n = LO[i]; if (!(n in CO)) out("branch", n, LB[n], n, LD[n], rr(n), "-", ""); PB[pk(n, rr(n))] = 1 }
+      for (i = 1; i <= nl; i++) { n = LO[i]; if (!(n in CO)) out("branch", n, LB[n], n, LD[n], rr(n), "-", ""); if (pk(n, rr(n)) != dn) PB[pk(n, rr(n))] = 1 }
       for (i = 1; i <= nr; i++) { n = RO[i]; b = substr(n, 8)
         if (n !~ /^origin\// || n == def || (n in CV) || (O[b] != "" && O[b] != "-")) continue
         out("remote", n, RB[n], b, RD[n], n, "-", "") }
-      for (i = 1; i <= np; i++) { split(P[i], p, "\t"); if (!(p[3] in PB)) out("pr", "#" p[1], p[4], p[3], p[5], "-", "-", "") } }' \
+      for (i = 1; i <= np; i++) { split(P[i], p, "\t"); if (p[10] == 1 || !(p[3] in PB)) out("pr", "#" p[1], p[4], p[3], p[5], "-", (p[10] == 1 ? "cross" : "-"), "", p[11], p[1], p[2]) } }' \
     "$T/ahead" "$T/unpushed" "$T/merged" "$T/mheads" "$t" "$T/dates" "$T/prh" "$T/prs" "$T/cov" "$T/refs" "$T/wt" > "$T/items"
 }
 
-# Whether a tip's content is on the default branch, as _FI_L: landed, unknown,
-# or how much is not. What it changed since its merge-base, "path blob", goes
-# to $T/sig. Arguments: the tip and its class.
+# Whether a tip's content is on the default branch: _FI_LV is landed, partly,
+# not or unknown, and _FI_L the same with what it says for a detail. What it
+# changed since its merge-base, "path blob", goes to $T/sig. Arguments: the
+# tip, its class and whether a PR with its head was listed. Rule 3 compares
+# with the default branch's current blobs, so a squash-merged branch whose
+# paths main edited since reads not or partly: on a tip some remote-tracking
+# ref holds (class ?0?), when the PR lists could not settle it, that is unknown.
 _fi_land() {
   local mb
-  : > "$T/sig"; _FI_L=unknown
+  : > "$T/sig"; _FI_L=unknown; _FI_LV=unknown
   [ -n "$_FI_DEFSHA" ] || return 0
-  case "$2" in 1??|??1) _FI_L=landed; return 0 ;; esac
+  case "$2" in 1??|??1) _FI_L=landed; _FI_LV=landed; return 0 ;; esac
   mb="$(_fi_git -C "$_FI_D" merge-base "$_FI_DEFSHA" "$1" 2>/dev/null)" || return 0
   _fi_git -C "$_FI_D" diff-tree -r --no-renames -z "$mb" "$1" > "$T/dtz" 2>/dev/null || return 0
   _FI_L="$(tr '\000' '\n' < "$T/dtz" | awk -v df="$T/deftree" -v sig="$T/sig" -v def="$_FI_DEF" '
@@ -269,65 +310,32 @@ _fi_land() {
     /^:/ { split($0, m, " "); dst = m[4]; next }
     { n++; print $0 "\t" dst > sig; if (dst ~ /^0+$/ ? !($0 in B) : B[$0] == dst) eq++ }
     END { if (!n || eq == n) printf "landed"; else printf "%s on %s (%s%d changed path%s)", (eq ? "partly" : "not"), def, (eq ? eq " of " : ""), n, (n > 1 ? "s" : "") }')"
+  _FI_LV="${_FI_L%% *}"
+  case "$_FI_LV:$2" in
+    not:?0?|partly:?0?) if [ "$_FI_GHOK" = 0 ] || { [ "$_FI_GHTRUNC" = 1 ] && [ "${3:-0}" != 1 ]; }; then _FI_L=unknown; _FI_LV=unknown; fi ;;
+  esac
 }
 
-# How a worktree's changed paths stand, as _FI_DD: "differ changed innoobject
-# filtered", or unknown. Each changed path's working blob, "path blob", goes
-# to $T/dsig. A path under a filter driver, switched off here, is compared
-# raw against a cleaned blob, so it is counted apart, as not known. In the
-# main worktree, what lies inside a linked worktree or an orphan ($T/nest) is
-# theirs, not its.
-_fi_dirty() {
-  local wt="$1" p k d; local -a nf=()
-  : > "$T/dsig"; : > "$T/dfl"; : > "$T/fp"; _FI_DD=unknown
-  _fi_git -C "$wt" config --name-only --get-regexp '^filter\.' > "$T/fk" 2>/dev/null
-  while IFS= read -r k <&3; do d="${k#filter.}"; d="${d%.*}"
-    grep -qxF -- "$d" "$T/dfl" || { printf '%s\n' "$d" >> "$T/dfl"; nf=(${nf[@]+"${nf[@]}"} -c "filter.$d.clean=" -c "filter.$d.process=" -c "filter.$d.required=false"); }
-  done 3< "$T/fk"
-  _fi_git -C "$wt" ${nf[@]+"${nf[@]}"} status --porcelain=v1 -z --no-renames --untracked-files=all --ignore-submodules=dirty > "$T/stz" 2>/dev/null || return 0
-  tr '\000' '\n' < "$T/stz" | if [ "$wt" = "$_FI_MAIN" ] && [ -s "$T/nest" ]; then
-    awk 'NR == FNR { N[++n] = $0; next } { p = substr($0, 4); sub(/\/$/, "", p); for (i = 1; i <= n; i++) if (p == N[i] || index(p, N[i] "/") == 1) next; print }' "$T/nest" -
-  else cat; fi > "$T/st"
-  [ -s "$T/st" ] || { _FI_DD="0 0 0 0"; return 0; }
-  [ -n "$_FI_DEFSHA" ] || return 0; : > "$T/hp"; : > "$T/dx"
-  while IFS= read -r p <&3; do
-    p="${p:3}"
-    if [ -L "$wt/$p" ]; then printf '%s\t%s\n' "$p" "$(printf '%s' "$(readlink "$wt/$p")" | _fi_git hash-object --stdin)" >> "$T/dx"
-    elif [ -f "$wt/$p" ]; then printf '%s\n' "$p" >> "$T/hp"
-    elif [ -e "$wt/$p" ]; then printf '%s\t(a repository)\n' "${p%/}" >> "$T/dx"
-    else printf '%s\t0\n' "$p" >> "$T/dx"; fi
-  done 3< "$T/st"
-  _fi_git -C "$wt" hash-object --no-filters --stdin-paths < "$T/hp" > "$T/hh" 2>/dev/null || : > "$T/hh"
-  { paste "$T/hp" "$T/hh"; cat "$T/dx"; } | sort > "$T/dsig"
-  [ -s "$T/dfl" ] && cut -f1 "$T/dsig" | tr '\n' '\000' | _fi_git -C "$wt" check-attr -z --stdin filter 2>/dev/null | tr '\000' '\n' \
-    | awk -v fl="$T/dfl" 'BEGIN { while ((getline l < fl) > 0) F[l] = 1 } NR % 3 == 1 { p = $0 } NR % 3 == 0 && ($0 in F) { print p }' > "$T/fp"
-  _FI_DD="$(awk -F'\t' -v df="$T/deftree" -v fp="$T/fp" -v db="$T/db" 'BEGIN { printf "" > db
-      while ((getline l < df) > 0) { i = index(l, "\t"); B[substr(l, 1, i - 1)] = substr(l, i + 1) }; while ((getline l < fp) > 0) F[l] = 1 }
-    { n++; if ($2 == "0" ? !($1 in B) : B[$1] == $2) next
-      if ($2 != "0" && ($1 in F)) { f++; next }
-      d++; if ($2 ~ /^[0-9a-f]+$/) print $2 > db }
-    END { printf "%d %d %d", d, n, f }' "$T/dsig")"
-  k="$(_fi_git -C "$wt" cat-file --batch-check < "$T/db" 2>/dev/null | grep -c ' missing$')"
-  set -- $_FI_DD; _FI_DD="$1 $2 ${k:-0} $3"
-}
 # The host's answer for a directory, as _FI_H: owner mtime live question
 # blocked note; the note, if any, joins the detail.
 _fi_host() {
   local x="unknown${_FI_TAB}-${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}-"
-  [ "$_FI_HOST" = 1 ] && x="$(felix_inv_host_dir "$1" "$_FI_NOW" "$_FI_LIVE" "$_FI_BLOCKED")"
+  [ "$_FI_HOSTOK" = 1 ] && x="$(felix_inv_host_dir "$1" "$_FI_NOW" "$_FI_LIVE" "$_FI_BLOCKED" "$T/hscope")"
   local IFS="$_FI_TAB"; set -f; _FI_H=($x); set +f
   [ "${#_FI_H[@]}" -ge 6 ] || _FI_H=(unknown - unknown unknown unknown "the host adapter answered nothing")
   [ "${_FI_H[5]}" = - ] || _fi_add "${_FI_H[5]}"
 }
 
-# The branch-borne states of a tip, into _FI_UNP _FI_UNPROP _FI_PRO _FI_PRC.
-# Arguments: tip, branch or -, its remote-tracking ref or -, class, open PRs
-# or -, newest PR number and state or -.
+# The branch-borne states of a tip, into _FI_UNP _FI_UNPROP _FI_PRO _FI_PRC, and
+# its content into _FI_L and _FI_LV. Arguments: tip, branch or -, its
+# remote-tracking ref or -, class, open PRs or -, newest PR number and state or -.
 _fi_branch() {
-  local tip="$1" br="$2" rr="$3" cl="$4" op="$5" num="$6" st="$7" n
-  _FI_UNP=no; _FI_UNPROP=no; _FI_PRO=no; _FI_PRC=no; _FI_L=""; : > "$T/sig"
-  case "$cl" in ?1?) _fi_land "$tip" "$cl"
-    case "$_FI_L" in landed) ;; unknown) _FI_UNP=unknown ;;
+  local tip="$1" br="$2" rr="$3" cl="$4" op="$5" num="$6" st="$7" n hp=0
+  _FI_UNP=no; _FI_UNPROP=no; _FI_PRO=no; _FI_PRC=no
+  [ "$br" = - ] || [ "$br" = "${_FI_DEF#origin/}" ] || [ "$num" = - ] || hp=1
+  _fi_land "$tip" "$cl" "$hp"
+  case "$cl" in ?1?)
+    case "$_FI_LV" in landed) ;; unknown) _FI_UNP=unknown ;;
       # 0 means it was pushed after the classes were read: the newer fact wins.
       *) n="$(_fi_git -C "$_FI_D" rev-list --count "$tip" --not --remotes 2>/dev/null)"
          [ "${n:-1}" = 0 ] || { _FI_UNP=yes; _fi_add "${n:-some} commit(s) on no remote; content $_FI_L"; } ;; esac ;;
@@ -335,20 +343,19 @@ _fi_branch() {
   [ "$br" != - ] && [ "$br" != "${_FI_DEF#origin/}" ] || return 0   # the default branch heads no PR
   if [ "$_FI_GHOK" = 0 ]; then
     [ "$rr" != - ] || return 0
-    _FI_PRO=unknown; [ -n "$_FI_L" ] || _fi_land "$tip" "$cl"
-    [ "$_FI_L" = landed ] && return 0
+    _FI_PRO=unknown
+    [ "$_FI_LV" = landed ] && return 0
     _FI_UNPROP=unknown; _FI_PRC=unknown
-    [ "$_FI_L" = unknown ] || [ "$_FI_UNP" = yes ] || _fi_add "on $rr; content $_FI_L"
+    [ "$_FI_LV" = unknown ] || [ "$_FI_UNP" = yes ] || _fi_add "on $rr; content $_FI_L"
     return 0
   fi
   [ "$num" != - ] || [ "$rr" != - ] || return 0
-  [ -n "$_FI_L" ] || _fi_land "$tip" "$cl"
   [ "$op" = - ] || { _FI_PRO=yes; _fi_add "$op"; return 0; }
-  [ "$_FI_L" != landed ] || return 0
+  [ "$_FI_LV" != landed ] || return 0
   if [ "$st" = CLOSED ]; then
-    if [ "$_FI_L" = unknown ]; then _FI_PRC=unknown; else _FI_PRC=yes; _fi_add "#$num closed without merge; content $_FI_L"; fi
+    if [ "$_FI_LV" = unknown ]; then _FI_PRC=unknown; else _FI_PRC=yes; _fi_add "#$num closed without merge; content $_FI_L"; fi
   elif [ "$rr" != - ]; then
-    if [ "$_FI_L" = unknown ]; then _FI_UNPROP=unknown
+    if [ "$_FI_LV" = unknown ]; then _FI_UNPROP=unknown
     elif [ "$num" != - ]; then _FI_UNPROP=yes; _fi_add "on $rr, no PR since #$num merged; content $_FI_L"
     elif [ "$_FI_GHTRUNC" = 1 ]; then _FI_UNPROP=unknown; _fi_add "on $rr, no PR among the $_FI_GHN gh listed, which may not be all; content $_FI_L"
     else _FI_UNPROP=yes; _fi_add "on $rr with no PR; content $_FI_L"; fi
@@ -358,122 +365,41 @@ _fi_branch() {
 # ---------------------------------------------------------------- items ----
 # One line of $T/items, its fields read by _fi_repo's loop.
 _fi_item() {
+  local own=- lv=no x
   _FI_DET=""; : > "$T/dsig"
   case "$k" in
     worktree) _fi_worktree; return 0 ;;
-    pr) _FI_DET="head $br @ ${sha:0:8}"; _fi_add "$op"; : > "$T/sig"; [ "$cl" = --- ] || _fi_land "$sha" "$cl"; _FI_S=pr-open ;;
+    pr) _FI_DET="head $br @ ${sha:0:8}"; _fi_add "$op"; [ "$fl" != cross ] || _fi_add "from a fork"
+        _FI_LV=unknown; : > "$T/sig"; [ "$cl" = --- ] || _fi_land "$sha" "$cl" 1
+        if [ "$_FI_HOSTOK" != 1 ]; then own=unknown; lv=unknown
+        elif [ "$fl" != cross ]; then
+          x="$(awk -F'\t' -v h="$br" '$1 == h { print $2 "\t" $3; exit }' "$T/owners")"
+          [ -z "$x" ] || { own="${x%%"$_FI_TAB"*}"; lv="${x#*"$_FI_TAB"}"; }
+        fi
+        _fi_states "$_FI_LV" live=$lv pr-open=yes ;;
     *) _FI_DET="@ ${sha:0:8}"; _fi_branch "$sha" "$br" "$rr" "$cl" "$op" "$num" "$st"
-       _fi_states unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC ;;
+       [ "$k" != remote ] || _FI_PRO=no
+       _fi_states "$_FI_LV" unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC ;;
   esac
-  _fi_sig; _fi_age "$dt"; _fi_row "$k" "$ref" "$_FI_S" - "$_FI_A" "$_FI_DET" "$_FI_SIG" "$br"
-}
-# Whether ref (a directory) is the top of a working tree of this repository:
-# 0 it is, 1 it holds none of its own (git would read an enclosing one), 2 it
-# is now another repository's.
-_fi_own() {
-  local x
-  x="$(_fi_git -C "$1" rev-parse --show-toplevel --git-common-dir 2>/dev/null)" || return 1
-  [ "${x%%"$_FI_NL"*}" = "$(cd "$1" 2>/dev/null && pwd -P)" ] || return 1
-  [ "$(cd "$1" && cd "${x#*"$_FI_NL"}" 2>/dev/null && pwd -P)" = "$_FI_COMMON" ] || return 2
-}
-_fi_worktree() {
-  local shd=no rev=no unc=no orph=no x when="$dt"
-  if [ "$br" != - ]; then _fi_add "branch $br @ ${sha:0:8}"; else _fi_add "detached @ ${sha:0:8}"; fi
-  x="${fl//detached,/}"; x="${x//linebreak,/}"; x="${x%,}"; [ "$x" = - ] || [ -z "$x" ] || _fi_add "git marks it ${x//,/ and }"
-  [ "$sh" = - ] || { shd=yes; _fi_add "$br is also checked out in $sh"; }
-  _FI_H=(unknown - unknown unknown unknown -)
-  case "$fl" in
-    *linebreak*) unc=unknown; _fi_add "its path holds a line break or a tab, so it is not read" ;;
-    *) if [ ! -d "$ref" ]; then _fi_add "the directory is gone"
-       else _fi_own "$ref"; x=$?
-         if [ "$x" = 2 ]; then unc=unknown; _fi_add "it is now a checkout of another repository, so it is not read"
-         elif [ "$x" = 1 ]; then orph=yes; _fi_add "git lists it, but it holds no working tree of this repository: $(_fi_uniq "$ref")"
-         else _fi_revert; _fi_dirty "$ref"; _fi_dd; fi
-       fi
-       _fi_host "$ref" ;;
-  esac
-  _fi_branch "$sha" "$br" "$rr" "$cl" "$op" "$num" "$st"
-  _fi_sig; ! _fi_temp "$ref" || _fi_add temp
-  case "$when" in *[!0-9]*|'') when=0 ;; esac
-  case "${_FI_H[1]}" in *[!0-9]*|'') ;; *) [ "${_FI_H[1]}" -gt "$when" ] && when="${_FI_H[1]}" ;; esac
-  _fi_states hazard:shared-branch=$shd hazard:staged-revert=$rev live="${_FI_H[2]}" question="${_FI_H[3]}" blocked="${_FI_H[4]}" \
-    uncommitted=$unc unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC orphan=$orph
-  _fi_age "$when"; _fi_row worktree "$ref" "$_FI_S" "${_FI_H[0]}" "$_FI_A" "$_FI_DET" "$_FI_SIG" "$br"
-}
-# _FI_DD as the worktree's uncommitted state (unc) and detail.
-_fi_dd() {
-  [ "$_FI_DD" != unknown ] || { unc=unknown; return 0; }
-  set -- $_FI_DD
-  if [ "$1" -gt 0 ]; then unc=yes
-    _fi_add "uncommitted: $1 of $2 changed paths differ from $_FI_DEF, $3 of them holding content in no object$([ "$_FI_PARTIAL" = 0 ] || echo ' this clone holds')"
-  elif [ "$4" -gt 0 ]; then unc=unknown
-  elif [ "$2" -gt 0 ]; then _fi_add "$2 changed paths, all as $_FI_DEF has them"; fi
-  [ "$4" = 0 ] || _fi_add "$4 changed-looking paths under a filter driver not compared, since the filter would have to run"
-}
-# The index differs from HEAD (status 1; 128 is an unborn HEAD): does it hold
-# the tree of an earlier tip of the branch, or, detached, of an earlier HEAD?
-_fi_revert() {
-  local lr=HEAD w="HEAD here" c t
-  [ "$br" = - ] || { lr="refs/heads/$br"; w="$br"; }
-  _fi_git -C "$ref" diff-index --cached --quiet HEAD -- 2>/dev/null; [ $? = 1 ] || return 0
-  _fi_git -C "$ref" reflog exists "$lr" 2>/dev/null || { rev=unknown; return 0; }
-  _fi_git -C "$ref" log -g --format='%H %T' "$lr" -- 2>/dev/null \
-    | awk -v t="$(_fi_git -C "$ref" rev-parse -q --verify 'HEAD^{tree}' 2>/dev/null)" '$2 != t && !s[$2]++' | head -100 > "$T/rl"
-  while read -r c t <&3; do
-    _fi_git -C "$ref" diff-index --cached --quiet "$t" -- 2>/dev/null || continue
-    _fi_git -C "$ref" merge-base --is-ancestor HEAD "$c" 2>/dev/null && continue
-    rev=yes; _fi_add "the index is the tree of ${c:0:8}, an earlier tip of $w: a commit here undoes what came after it"; break
-  done 3< "$T/rl"
-}
-
-# Sections waiting in the pending directory of the default branch (else of
-# HEAD), each with its "Next" items; a section this clone cannot read says so.
-_fi_handoff() {
-  local tree="${_FI_DEFSHA:-HEAD}" f next when
-  _fi_git -C "$_FI_D" ls-tree --name-only "$tree" -- "$_FI_PENDING/" 2>/dev/null | grep '\.md$' > "$T/pend"
-  while IFS= read -r f <&3; do
-    if _fi_git -C "$_FI_D" cat-file -p "$tree:$f" > "$T/hsec" 2>/dev/null; then next="$(awk '
-      function add(x) { I[++n] = x; st = 1 }
-      { t = $0; sub(/^[#*_ ]+/, "", t) }
-      t ~ /^Next([^A-Za-z]|$)/ { on = 1; st = 0; if (sub(/^[^:]*:[*_ ]*/, "", t) && t != "") add(t); next }
-      on && /^[ \t]*$/ { if (st) on = 0; next }
-      on && /^ ? ? ?([-*+]|[0-9]+[.)]) / { l = $0; sub(/^ *([-*+]|[0-9]+[.)]) +/, "", l); add(l); next }
-      on && st && /^  / { l = $0; sub(/^ +/, "", l); I[n] = I[n] " " l; next }
-      { on = 0 }
-      END { if (n) printf "%d Next item%s: ", n, (n > 1 ? "s" : ""); for (i = 1; i <= n; i++) printf "%s%s", (i > 1 ? " | " : ""), I[i] }' "$T/hsec")"
-      next="${next:-no Next lines}"
-    else next="its Next lines are unknown: this clone cannot read the section"; fi
-    when="$(_fi_git -C "$_FI_D" log -1 --format=%ct "$tree" -- "$f" 2>/dev/null)"; _fi_age "$when"
-    _fi_row handoff "$f" handoff-pending - "$_FI_A" "$next" - -
-  done 3< "$T/pend"
-}
-
-# Chips from sessions in every worktree, every orphan, and every directory
-# under a directory inside the main worktree that holds worktrees.
-_fi_chips() {
-  local -a a=("$_FI_REPO"); local d id s e title
-  [ "$_FI_HOST" = 1 ] || { _fi_row repo - unknown:chip-unstarted - - "chips not listed: session records not read (--no-host)" - -; return 0; }
-  while IFS= read -r d <&3; do a[${#a[@]}]="$d"; done 3< <(awk -F'\t' '$4 !~ /bare|linebreak/ { print $1 }' "$T/wt"; cut -f1 "$T/orph"; cat "$T/scope")
-  # The header's chips line is replaced when they cannot be read, since the
-  # human view states a repository's own unknowns there and counts no repo row.
-  felix_inv_host_chips "$_FI_NOW" "$_FI_DAYS" "${a[@]}" > "$T/chips" \
-    || { _fi_row repo - unknown:chip-unstarted - - "chips not listed: no $FELIX_INV_HOST_NAME session records to read" - -
-         printf '%s\tchips\tunknown: no %s session records to read\n' "$_FI_REPO" "$FELIX_INV_HOST_NAME" >> "$_FI_T/meta"; return 0; }
-  while IFS="$_FI_TAB" read -r id s e title <&3; do _fi_age "$e"; _fi_row chip "$id" chip-unstarted "$s" "$_FI_A" "$title" - -; done 3< "$T/chips"
+  _fi_sig; _fi_age "$dt"; _fi_row "$k" "$ref" "$_FI_S" "$own" "$_FI_A" "$_FI_LV" "$_FI_DET" "$_FI_SIG" "$br"
 }
 
 # ---------------------------------------------------------------- output ----
 # Two rows of one repository holding unlanded content whose changed paths and
-# blobs are the same, on different branches, are each a possible-duplicate.
-# Then the rows: as TSV, or as lib/inventory-view.sh groups them for a person.
+# blobs are the same, on different branches, are each a possible-duplicate, and
+# the --tsv detail says of which; the human view's copy of the rows ($_FI_T/outv)
+# leaves that tail out, since its states say possible-duplicate and it would
+# name another row's path. Then the rows: as TSV, or as lib/inventory-view.sh
+# groups them for a person.
 _fi_out() {
-  awk -F'\t' -v OFS='\t' '{ R[NR] = $0 }
-    $8 != "-" && $4 ~ /(^|,)(uncommitted|unpushed|unproposed|pr-open|pr-closed-unlanded)(,|$)/ {
-      k = $2 SUBSEP $8; D[NR] = k; if (!((k, $9) in B)) { B[k, $9] = 1; NB[k]++ }; W[k] = W[k] "\n" $3 }
+  awk -F'\t' -v OFS='\t' -v vf="$_FI_T/outv" '{ R[NR] = $0 }
+    $9 != "-" && $4 ~ /(^|,)(uncommitted|unpushed|unproposed|pr-open|pr-closed-unlanded)(,|$)/ {
+      k = $2 SUBSEP $9; D[NR] = k; if (!((k, $10) in B)) { B[k, $10] = 1; NB[k]++ }; W[k] = W[k] "\n" $3 }
     END { for (i = 1; i <= NR; i++) { split(R[i], f, "\t")
         if ((i in D) && NB[D[i]] > 1) { m = split(W[D[i]], L, "\n"); o = ""; for (j = 2; j <= m; j++) if (L[j] != f[3]) o = o " " L[j]
           p = index(f[4], "unknown:"); f[4] = p ? substr(f[4], 1, p - 1) "possible-duplicate," substr(f[4], p) : f[4] ",possible-duplicate"
-          f[7] = f[7] "; possible duplicate of" o }
-        print f[1], f[2], f[3], f[4], f[5], f[6], f[7] } }' "$_FI_T/rows" > "$_FI_T/out"
+          print f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8] > vf; f[8] = f[8] "; possible duplicate of" o }
+        else print f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8] > vf
+        print f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8] } }' "$_FI_T/rows" > "$_FI_T/out"
   if [ "$1" = 1 ]; then cat "$_FI_T/out"; else _fi_view; fi
 }

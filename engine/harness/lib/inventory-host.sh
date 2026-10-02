@@ -4,72 +4,66 @@
 # without knowing how they are answered; a second host is a second file
 # defining the same names. Nothing here runs git.
 #
-# Where the records are. Claude Code files the sessions of a working directory
-# D under $HOME/.claude/projects/E, E being D with every UTF-16 unit outside
-# [A-Za-z0-9] replaced by '-': one '-' for a character of the Basic
-# Multilingual Plane, two for one beyond it (_fi_host_enc does this bytewise
-# under LC_ALL=C). An E longer than 200 is cut at 200 and followed by '-' and
-# a hash of D this file does not compute: the one directory whose name starts
-# so is taken, and two such are unknown. A session is a top-level *.jsonl
-# there, and the newest session is the one of those modified last. Beside
-# each, <session-id>/subagents/ holds its helpers' records (a workflow's under
-# workflows/ there), which are not sessions and are never read; but a session
-# waiting on a helper writes nothing of its own, so a file written there is
-# that session's activity. The time a directory was last active is the
-# newest of its sessions' files and every file under their subagents/, found
-# by find -newer against the newest session's own file.
-# A directory is looked up under both spellings of its path, as git lists it
-# and as the kernel resolves it, since a session records the second
-# (/private/tmp on a Mac) where git may hold the first.
+# Records. A working directory D is filed under <root>/E, root being
+# $CLAUDE_CONFIG_DIR/projects when that is set and non-empty, else
+# $HOME/.claude/projects, and E being D with every UTF-16 unit outside
+# [A-Za-z0-9] replaced by '-' (two for one beyond the Basic Multilingual Plane;
+# _fi_host_enc does this bytewise under LC_ALL=C). An E over 200 characters is
+# cut at 200 and followed by '-' and a hash this file does not compute: the one
+# directory whose name starts so is taken, and two are unknown. D is looked up
+# as git lists it and as the kernel resolves it (/tmp and /private/tmp). A
+# session is a top-level *.jsonl; <session-id>/ beside it holds helpers' records
+# and side files, which are not sessions and are never read: but a file written
+# there is that session's activity, since one waiting on a helper writes nothing.
 #
-# How a session ended is read from its last 256 KiB (tail -c), by awk: a
-# transcript can be hundreds of megabytes, and its end is all this needs.
-#   question  the final text (the last assistant record holding a text item)
-#             asks, by _FI_HOST_ASK below, and no human text comes after it.
-#             Two rules came before it: the text ends on a ?, which found
-#             none of the questions real sessions end on, and a ? anywhere in
-#             the last paragraph, which found 2 of 41 read by hand, since real
-#             endings ask and then say what happens either way, or offer
-#             without a ?.
-#   blocked   the last assistant record's last item is a tool call, and no
-#             later record carries a result for its id; the caller is told how
-#             long ago, since a call that has waited seconds is merely running,
-#             and when a file under the session's subagents/ was written last,
-#             since a call to a helper waits as long as the helper works
-# Human text is a user record whose content is a string or holds a text item,
-# and is not a tool result, not a hook's own record (isMeta: Stop hook
-# feedback, a message from another session, a skill's body), and not a system
-# envelope: text that starts with < once any leading <system-reminder> block is
-# set aside. Those blocks are set aside because the host puts one before the
-# first message of every session it opens in a worktree, a chip's included;
-# read without that, 72 of 73 real chips looked never started. A read holding
-# no record of a known shape (empty, cut, or not JSON) answers unknown, not
-# no. A question's note is its text's last 160 bytes, line breaks read as
-# spaces, starting on a whole UTF-8 character.
+# Time. The host appends bookkeeping lines without a "timestamp" to idle
+# sessions, so a file's mtime says nothing about when anyone worked. A
+# session's record time is the newest "timestamp" of a user or assistant record
+# in its last 256 KiB, the file's mtime standing in, and said so, when there is
+# none; the newest session is the latest by it. A directory's activity time is
+# the newest of every session's record time, the mtime of every file under any
+# session's directory and a spawning agent's transcript (a *.meta.json under
+# <sid>/subagents/ names the worktree of an agent-<hex> or wf_<id>-<n>).
 #
-# Chips. A tool call to mcp__ccd_session__spawn_task proposes one, its result
-# names the task id, and a later mcp__ccd_session__dismiss_task with that id
-# withdraws it; only the session that proposed a chip can, so a dismiss is
-# looked for in the files that hold a proposal. A chip was started when some
-# session file modified since it was proposed begins with a human message
-# whose first 120 characters are the prompt's first 120. One grep finds the
-# files holding a proposal (a second pattern quadruples its time on a week of
-# transcripts), and of those only the lines holding "task" are read, as every
-# proposal, result and dismissal does (on one repository's week, 22 s of CPU
-# read whole, 18 s so); the others are read up to their first human message.
-# A directory given with a trailing / stands for every directory under it, so
-# a worktree since removed still counts.
+# Ends. The window is read by awk, counting only whole lines (starting { and
+# ending }: a record still being written is set aside) and user and assistant
+# records, told by what precedes the message: a sidechain or any other "type" is
+# passed over, and with none the role inside it decides. question: the final
+# text (the last assistant record with a text item) asks (_FI_HOST_ASK), and
+# no human text follows it. blocked: the last such record is a tool call with
+# no result, BLOCKED minutes old, and nothing under the session's directory
+# was written within them. Human text is a user record whose content is a
+# string or holds a text item and is not a tool result, not isMeta, and not an
+# envelope: text starting with < once leading <system-reminder> blocks are set
+# aside. No whole line at all answers unknown, not no.
 #
-# No JSON parser, for the reason lib/audit.sh gives: every pattern is a key, a
-# colon and a quoted value, and inside a JSON string a double quote is always
-# escaped, so a structural pattern cannot match text that merely quotes one.
-# No here-document either: bash 3.2 backs one with a file in the system's
-# temp directory. Whatever cannot be read is unknown, never absent.
+# Chips (spawn_task, its result naming the task id, dismiss_task withdrawing it;
+# started when a later session's first human text matches the prompt's first
+# 120 characters) and the owner of a pull request (the session of the newest
+# record whose "gitBranch" names its head, by its own "sessionId", since a
+# resumed session's file copies its predecessor's) are read from the files that
+# hold them. pr-link records say nothing: the host writes one on every touch.
+#
+# No JSON parser (as lib/audit.sh says why: a pattern is a key, a colon and a
+# quoted value, and a double quote inside a string is always escaped), and no
+# here-document (bash 3.2 backs one with a file outside the scratch). Whatever
+# cannot be read is unknown, never absent.
 
 FELIX_INV_HOST_NAME="Claude Code"
 
-_fi_host_root() { [ -n "${HOME:-}" ] && [ -d "$HOME/.claude/projects" ] && printf '%s' "$HOME/.claude/projects"; }
-
+# The records root, when it exists.
+_fi_host_root() {
+  local r
+  if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then r="$CLAUDE_CONFIG_DIR/projects"
+  elif [ -n "${HOME:-}" ]; then r="$HOME/.claude/projects"; else return 1; fi
+  [ -d "$r" ] && printf '%s' "$r"
+}
+# What the cover row for sessions says was read; status 1 when there is nothing to read.
+felix_inv_host_where() {
+  _fi_host_root >/dev/null || return 1
+  if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then printf '%s session records under $CLAUDE_CONFIG_DIR/projects' "$FELIX_INV_HOST_NAME"
+  else printf '%s session records under $HOME/.claude/projects' "$FELIX_INV_HOST_NAME"; fi
+}
 # E for a directory, as Claude Code spells it.
 _fi_host_enc() {
   local LC_ALL=C
@@ -89,7 +83,6 @@ _fi_host_one() {
   for x in "$1/${2:0:200}"-*; do [ -d "$x" ] || continue; [ -z "$m" ] || return 2; m="$x"; done
   [ -z "$m" ] || printf '%s\n' "$m"
 }
-
 # The record directories of one working directory that exist, one per line;
 # a line ? when one cannot be told from another's.
 _fi_host_dirs() {
@@ -100,10 +93,8 @@ _fi_host_dirs() {
   p="$(_fi_host_enc "$p")"; [ "$p" = "$e" ] || _fi_host_one "$1" "$p" || printf '?\n'
   return 0
 }
-
 # The record directories of each directory named, or, for one named with a
-# trailing /, of every directory under it: children of P are filed under
-# E(P) followed by '-', or under the first 200 of it when that is longer.
+# trailing /, of every directory under it (filed under E(P) and '-').
 _fi_host_scope() {
   local root="$1" d e p
   shift
@@ -119,9 +110,17 @@ _fi_host_scope() {
   done
   return 0
 }
-
-# The awk both readers share: whose record a line is, the human text a user
-# record starts with, and a JSON string value decoded far enough to compare.
+# felix_inv_host_scope FILE DIR...: the record directories of a repository's
+# worktrees, orphans and removed worktrees (a DIR ending in /) into FILE.
+felix_inv_host_scope() {
+  local f="$1" root
+  shift
+  : > "$f"; root="$(_fi_host_root)" || return 0
+  _fi_host_scope "$root" "$@" | sort -u > "$f"
+}
+# The awk the readers share: whose record a line is, the human text, a JSON
+# string decoded far enough to compare, and times (a record's "timestamp" is
+# the one right after its "uuid").
 # shellcheck disable=SC2016
 _FI_HOST_AWK='
   BEGIN {
@@ -130,11 +129,13 @@ _FI_HOST_AWK='
     K_RES = "\"type\":\"tool_result\""; K_STR = "\"role\":\"user\",\"content\":\""
     K_TXT = "\"type\":\"text\",\"text\":\""; K_TU = "\"type\":\"tool_use\",\"id\":\""
     K_TID = "\"tool_use_id\":\""; ENV_O = "<system-reminder>"; ENV_C = "</system-reminder>"
+    K_NXT = "\"},{\"type\":\"text\",\"text\":\""
   }
-  # "u", "a", or "" for any other record, told as lib/audit.sh tells it: a user
-  # type sits before the message, an assistant one after it, and any other type
-  # before it is an attachment or progress record, which may nest a message.
+  # "u", "a", or "" for any other record or a line not whole, told as lib/audit.sh
+  # tells it: an assistant type sits after its message, and any other type
+  # before one is an attachment or progress record, which may nest a message.
   function kind(l,    im, p, v) {
+    if (substr(l, 1, 1) != "{" || substr(l, length(l), 1) != "}") return ""
     im = index(l, K_MSG); if (!im) return ""
     p = index(l, K_SIDE); if (p && p < im) return ""
     if ((p = index(l, K_USER)) && p < im) return "u"
@@ -157,6 +158,7 @@ _FI_HOST_AWK='
       if (substr(r, 1, length(ENV_O)) != ENV_O) break
       if (!(e = index(r, ENV_C))) return ""
       r = substr(r, e + length(ENV_C))
+      if (substr(r, 1, length(K_NXT)) == K_NXT) r = substr(r, length(K_NXT) + 1)   # a reminder item of its own: its text is the next item
     }
     e = substr(r, 1, 1)
     return (e == "" || e == Q || e == "<") ? "" : r
@@ -172,36 +174,46 @@ _FI_HOST_AWK='
     return o s
   }
   function key(r) { return substr(dec(substr(str(r), 1, 2048)), 1, 120) }
+  # Text from a transcript, cut to its first 120 bytes on a whole UTF-8 character.
+  function cut120(s,    c) {
+    gsub(/[\t\n\r]/, " ", s); if (length(s) <= 120) return s
+    c = substr(s, 121, 1); s = substr(s, 1, 120)
+    if (c >= "\200" && c < "\300") {
+      while (s != "" && substr(s, length(s)) >= "\200" && substr(s, length(s)) < "\300") s = substr(s, 1, length(s) - 1)
+      if (s != "" && substr(s, length(s)) >= "\300") s = substr(s, 1, length(s) - 1) }
+    return s
+  }
+  function ep(t,    y, mo, e) {
+    if (t !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]/) return ""
+    y = substr(t, 1, 4) + 0; mo = substr(t, 6, 2) + 0; if (mo <= 2) { y--; mo += 12 }
+    e = 365 * y + int(y / 4) - int(y / 100) + int(y / 400) + int((153 * (mo - 3) + 2) / 5) + substr(t, 9, 2) - 719469
+    return e * 86400 + substr(t, 12, 2) * 3600 + substr(t, 15, 2) * 60 + substr(t, 18, 2)
+  }
+  # The epoch of a record, from the "timestamp" that follows its "uuid"; "" for none.
+  function tsof(l,    t) {
+    if (!match(l, /"uuid":"[^"]*","timestamp":"[^"]*"/)) return ""
+    t = substr(l, RSTART, RLENGTH); sub(/.*"timestamp":"/, "", t); sub(/"$/, "", t); return ep(t)
+  }
 '
 
 # Whether a final text, decoded with its line breaks kept, asks the person
 # something: asks(t) is 1 or 0. Set aside first: curly quotes read as straight
-# ones, fenced blocks, code spans, double-quoted spans and blockquote lines;
-# paragraphs are runs of lines between lines of only blanks. It asks when a ?
-# ends a line (only * _ ) " ' and blanks after it) in the last three
-# paragraphs, or when an offer below appears anywhere in it, lowercased, as
-# whole words, and none of no, not, nothing, never, none is in the 40 bytes
-# before it, cut after the last . ! ? ; : or line break. Measured on 227
-# session endings read by hand on 2026-09-24 (rule R4 of that labelling): 36
-# of 45 asks found and nothing else, over the 201 sessions sampled without
-# regard to any rule; 51 hits over all 227, 50 of them asks. \047 is the
-# apostrophe.
+# ones, fenced blocks, code spans, double-quoted spans and blockquote lines. It
+# asks when a ? ends a line (only * _ ) " ' and blanks after it) in the last
+# three paragraphs, or when an offer below appears, lowercased, as whole words,
+# with none of no, not, nothing, never, none in the 40 bytes before it, cut
+# after the last . ! ? ; : or line break. Measured on 227 session endings read
+# by hand on 2026-09-24: 36 of 45 asks found and nothing else (tuned on them,
+# not held out). \047 is the apostrophe.
 # shellcheck disable=SC2016
 _FI_HOST_ASK='
   BEGIN {
     AQ_B = "(^|[^a-z0-9_])"; AQ_E = "([^a-z0-9_]|$)"; AQ_L = "[?][*_)\"\047]*[ \t\r]*(\n|$)"
     AQ_N = "(^|[^a-z])(no|not|nothing|never|none)([^a-z]|$)"
-    AQ_P[1] = "your (call|decision|answer|options|side|sign-off|merge|go-ahead)"
-    AQ_P[2] = "([a-z]+\047s|is|are|still|all|both) yours|yours (to|rather)"
-    AQ_P[3] = "(wait(s|ing)?|blocked) (on|for) your?"
-    AQ_P[4] = "needs? your?"
-    AQ_P[5] = "say (so|the word|yes|if|go)"
-    AQ_P[6] = "and i(\047ll| will)"
-    AQ_P[7] = "(want|like) me to|(should|shall) i"
-    AQ_P[8] = "if you(\047d)? rather|if you (want|prefer)[^.?!]*, i(\047ll| can| will| could)|i(\047ll| can| could) [^.?!]* if you want"
-    AQ_P[9] = "(for|on) you:"
-    AQ_P[10] = "(for|to) you to (decide|choose|approve|merge|review|start|run|confirm|pick)"
-    AQ_NP = 10
+    AQ_NP = split("your (call|decision|answer|options|side|sign-off|merge|go-ahead)@@([a-z]+\047s|is|are|still|all|both) yours|yours (to|rather)@@" \
+      "(wait(s|ing)?|blocked) (on|for) your?@@needs? your?@@say (so|the word|yes|if|go)@@and i(\047ll| will)@@(want|like) me to|(should|shall) i@@" \
+      "if you(\047d)? rather|if you (want|prefer)[^.?!]*, i(\047ll| can| will| could)|i(\047ll| can| could) [^.?!]* if you want@@(for|on) you:@@" \
+      "(for|to) you to (decide|choose|approve|merge|review|start|run|confirm|pick)", AQ_P, "@@")
   }
   # An offer matched in t and not negated within its clause.
   function offer(t, re,    r, s0, off, rest, w) {
@@ -238,69 +250,49 @@ _FI_HOST_ASK='
   }
 '
 
-# The newest file under the directories after the first argument written
-# after it, or nothing: candidates by find -newer, sorted by ls -t, and asked
-# again until none is newer, since a long list reaches ls in batches.
-_fi_host_newer() {
-  local x="$1" c="" i=0
-  shift
-  while [ "$i" -lt 8 ]; do
-    x="$(find "$@" -type f -newer "$x" -exec ls -dt {} + 2>/dev/null | head -n 1)"
-    [ -n "$x" ] || break
-    c="$x"; i=$((i + 1))
-  done
-  printf '%s' "$c"
-}
 # A file's mtime as an epoch, or nothing.
 _fi_host_mt() { local e; e="$(date -r "$1" +%s 2>/dev/null)"; case "$e" in ''|*[!0-9]*) ;; *) printf '%s' "$e" ;; esac; }
+# felix_inv_host_newest MINDEPTH MIN DIR...: the newest file at depth MINDEPTH or
+# more under the directories among those modified within MIN minutes, or
+# nothing: candidates by find -mmin, sorted by ls -t, and asked again until none
+# is newer, since a long list reaches ls in batches.
+_fi_host_newest() {
+  local md="$1" min="$2" x y i=0
+  shift 2
+  x="$(find "$@" -mindepth "$md" -type f -mmin -"$min" -exec ls -dt {} + 2>/dev/null | head -n 1)"
+  [ -n "$x" ] || return 0
+  while [ "$i" -lt 8 ]; do
+    y="$(find "$@" -mindepth "$md" -type f -newer "$x" -exec ls -dt {} + 2>/dev/null | head -n 1)"
+    [ -n "$y" ] || break
+    x="$y"; i=$((i + 1))
+  done
+  printf '%s' "$x"
+}
 
-# How the newest session of one working directory stands.
-#   felix_inv_host_dir DIR NOW LIVE_MIN BLOCKED_MIN
-# prints one tab-separated line: owner mtime live question blocked note, where
-# owner is the newest session's id (- when none ever ran there), mtime when
-# the directory was last active, each state yes, no or unknown, and note what
-# the question or the waiting call was. Unknown throughout when the records
-# cannot be read.
-felix_inv_host_dir() {
-  local root d f newest="" amb=0 m mt sa age size cut=0 out q b note live=no t=$'\t' nl=$'\n' nn; local -a subs=()
-  root="$(_fi_host_root)" || { printf 'unknown\t-\tunknown\tunknown\tunknown\tno Claude Code session records under $HOME/.claude/projects\n'; return 0; }
-  while IFS= read -r d; do
-    [ "$d" != '?' ] || { amb=1; continue; }
-    for f in "$d"/*.jsonl; do
-      [ -f "$f" ] || continue
-      [ ! -d "${f%.jsonl}/subagents" ] || subs[${#subs[@]}]="${f%.jsonl}/subagents"
-      if [ -z "$newest" ] || [ "$f" -nt "$newest" ]; then newest="$f"; fi
-    done
-  done < <(_fi_host_dirs "$root" "$1")
-  [ "$amb" = 0 ] || { printf 'unknown\t-\tunknown\tunknown\tunknown\tits session records cannot be told from another directory'"'"'s: its name is over 200 characters\n'; return 0; }
-  [ -n "$newest" ] || { printf -- '-\t-\tno\tno\tno\t-\n'; return 0; }
-  nn="${newest//$t/ }"; nn="${nn//$nl/ }"
-  mt="$(_fi_host_mt "$newest")"
-  [ -n "$mt" ] || { printf 'unknown\t-\tunknown\tunknown\tunknown\tcould not read the time of %s\n' "$nn"; return 0; }
-  m="$mt"
-  if [ "${#subs[@]}" -gt 0 ]; then
-    sa="$(_fi_host_newer "$newest" "${subs[@]}")"; [ -z "$sa" ] || sa="$(_fi_host_mt "$sa")"
-    [ -z "$sa" ] || [ "$sa" -le "$m" ] || m="$sa"
-  fi
-  age=$(($2 - m)); [ "$age" -le $(($3 * 60)) ] && live=yes
-  size="$(wc -c 2>/dev/null < "$newest" | tr -d ' ')"
+# One session file's end, from its last 256 KiB, as one tab-separated line:
+# whole-lines record-time question blocked call-time call-name note (times are
+# epochs or -, blocked is pending, no or unknown, note the question's ending).
+_fi_host_scan() {
+  local size cut=0
+  size="$(wc -c 2>/dev/null < "$1" | tr -d ' ')"
   [ "${size:-0}" -gt 262144 ] && cut=1
-  out="$(tail -c 262144 "$newest" 2>/dev/null | awk -v cut="$cut" "$_FI_HOST_AWK$_FI_HOST_ASK"'
+  tail -c 262144 "$1" 2>/dev/null | awk -v cut="$cut" "$_FI_HOST_AWK$_FI_HOST_ASK"'
     NR == 1 && cut { next }
-    { k = kind($0); if (k != "") rec++ }
-    k == "a" {
-      la = NR; pend = ""; pname = ""
-      n = split($0, P, K_TXT); if (n > 1) { ft = str(P[n]); fa = NR }
-      n = split($0, P, K_TU)
-      if (n > 1 && !index(P[n], "},{\"type\":\"text\"") && !index(P[n], "},{\"type\":\"thinking\"")) {
-        pend = substr(P[n], 1, index(P[n], Q) - 1); pname = val(P[n], "\"name\":\"")
+    { if (substr($0, 1, 1) == "{" && substr($0, length($0), 1) == "}") cl++
+      k = kind($0); if (k == "") next
+      rec++; ts = tsof($0); if (ts != "" && (rt == "" || ts + 0 > rt + 0)) rt = ts
+      pend = ""; pname = ""
+      if (k == "a") {
+        n = split($0, P, K_TXT); if (n > 1) { ft = str(P[n]); fa = NR }
+        n = split($0, P, K_TU)
+        if (n > 1 && !index(P[n], "},{\"type\":\"text\"") && !index(P[n], "},{\"type\":\"thinking\"")) {
+          pend = substr(P[n], 1, index(P[n], Q) - 1); pname = val(P[n], "\"name\":\""); pts = ts }
+        next
       }
-      next
+      if (human($0) != "") lh = NR
     }
-    pend != "" && index($0, K_TID pend Q) { pend = "" }
-    k == "u" && human($0) != "" { lh = NR }
     END {
-      if (!rec) { printf "unknown\tunknown\tthe newest session holds no record this can read\n"; exit }
+      if (!cl) { printf "0\t-\tunknown\tunknown\t-\t-\t-\n"; exit }
       if (fa) {
         # Decoded with its line breaks kept, and asked whether it asks.
         t = ft; gsub(/\\\\/, "\001", t); gsub(/\\n/, "\n", t); t = dec(t); sub(/[ \n]+$/, "", t)
@@ -309,47 +301,154 @@ felix_inv_host_dir() {
           while (s != "" && substr(s, 1, 1) >= "\200" && substr(s, 1, 1) < "\300") s = substr(s, 2)
           note = "ended on: " s }
       } else q = (lh || !cut) ? "no" : "unknown"
-      if (la) b = pend != "" ? "pending" : "no"; else b = cut ? "unknown" : "no"
-      if (b == "pending") note = (note != "" ? note "; " : "") "waiting on " (pname != "" ? pname : "a tool call")
-      printf "%s\t%s\t%s\n", q, b, (note == "" ? "-" : note)
-    }')" || out=""
-  # Split by expansion, not a tab-IFS read (the constitution says why).
-  q="${out%%"$t"*}"; out="${out#*"$t"}"; b="${out%%"$t"*}"; note="${out#*"$t"}"
-  case "$q" in yes|no|unknown) ;; *) q=unknown; b=unknown; note="could not read $nn" ;; esac
-  # Blocked once the call has waited past BLOCKED_MIN and nothing under this
-  # session's own subagents/ was written within it.
-  if [ "$b" = pending ]; then
-    sa=""; [ ! -d "${newest%.jsonl}/subagents" ] || sa="$(_fi_host_newer "$newest" "${newest%.jsonl}/subagents")"
-    [ -z "$sa" ] || sa="$(_fi_host_mt "$sa")"
-    if [ $(($2 - mt)) -gt $(($4 * 60)) ] && { [ -z "$sa" ] || [ $(($2 - sa)) -gt $(($4 * 60)) ]; }; then b=yes; note="$note for $((($2 - mt) / 60)) min"
-    else b=no; note="${note%waiting on *}"; note="${note%; }"; note="${note:--}"; fi
-  fi
-  f="${newest##*/}"; f="${f%.jsonl}"; f="${f//$t/ }"; f="${f//$nl/ }"; note="${note//$t/ }"; note="${note//$nl/ }"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$m" "$live" "$q" "$b" "$note"
+      b = (pend != "") ? "pending" : ((!rec && cut) ? "unknown" : "no")
+      printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\n", cl, (rt == "" ? "-" : rt), q, b, (pts == "" ? "-" : pts), (pname == "" ? "a tool call" : pname), (note == "" ? "-" : note)
+    }'
 }
 
-# Chips proposed in the sessions of these directories modified within DAYS
-# days that no session was started from and none withdrew.
-#   felix_inv_host_chips NOW DAYS DIR...
+# For a worktree a subagent or a workflow made (its directory is named
+# agent-<hex> or wf_<id>-<n>): the session whose helper's *.meta.json names it,
+# searched in the record directories of SCOPE, into _FI_SP_NOTE ("spawned by
+# session <sid>: <description>") and _FI_SP_MT (the mtime of the helper's own
+# transcript beside it). A failed search is not an unknown.
+_fi_host_spawn() {
+  local d="$1" idx="$2.meta" p m f desc sid
+  _FI_SP_NOTE=""; _FI_SP_MT=""
+  case "${d##*/}" in
+    agent-?*) case "${d##*/agent-}" in *[!0-9a-fA-F]*) return 0 ;; esac ;;
+    wf_*-*) case "${d##*-}" in ''|*[!0-9]*) return 0 ;; esac ;;
+    *) return 0 ;;
+  esac
+  if [ ! -e "$idx" ]; then
+    : > "$idx"
+    while IFS= read -r p; do find "$p" -mindepth 3 -type f -path '*/subagents/*' -name '*.meta.json' 2>/dev/null; done < "$2" \
+      | tr '\n' '\000' | xargs -0 -r awk 'FNR == 1 { print FILENAME "\t" $0 }' > "$idx" 2>/dev/null
+  fi
+  p="$(cd "$d" 2>/dev/null && pwd -P)"
+  m="$(awk -F'\t' -v a="\"worktreePath\":\"$d\"" -v b="\"worktreePath\":\"${p:-$d}\"" 'index($2, a) || index($2, b) { print; exit }' "$idx")"
+  [ -n "$m" ] || return 0
+  f="${m%%$'\t'*}"; sid="${f%%/subagents/*}"; sid="${sid##*/}"
+  desc="$(printf '%s\n' "${m#*$'\t'}" | awk "$_FI_HOST_AWK"'{ print cut120(dec(val($0, "\"description\":\""))) }')"
+  _FI_SP_NOTE="spawned by session $sid: $desc"; _FI_SP_MT="$(_fi_host_mt "${f%.meta.json}.jsonl")"
+}
+
+#   felix_inv_host_dir DIR NOW LIVE_MIN BLOCKED_MIN SCOPEFILE
+# prints one tab-separated line: owner mtime live question blocked note. Owner
+# is the newest session's id (- when none ever ran there), mtime when the
+# directory was last active, each state yes, no or unknown. Unknown throughout
+# when the records cannot be read or told from another directory's.
+felix_inv_host_dir() {
+  local d="$1" now="$2" live=no root dd amb=0 f mt best="" bestf="" bout="" out rt act q b pts pname note ts x sm blk=$(($4 * 60)) t=$'\t' nl=$'\n'
+  local -a dirs=()
+  root="$(_fi_host_root)" || { printf 'unknown\t-\tunknown\tunknown\tunknown\t-\n'; return 0; }
+  while IFS= read -r dd; do
+    [ "$dd" != '?' ] || { amb=1; continue; }
+    dirs[${#dirs[@]}]="$dd"
+  done < <(_fi_host_dirs "$root" "$d")
+  [ "$amb" = 0 ] || { printf 'unknown\t-\tunknown\tunknown\tunknown\tits session records cannot be told from another directory'"'"'s: its name is over 200 characters\n'; return 0; }
+  # Newest by mtime first: a file's record time is never later than its mtime,
+  # so reading stops at the first whose mtime is no later than the best so far.
+  while IFS= read -r f; do
+    mt="$(_fi_host_mt "$f")"
+    if [ -z "$mt" ]; then
+      [ -z "$bestf" ] || continue
+      printf 'unknown\t-\tunknown\tunknown\tunknown\tcould not read the time of %s\n' "${f//$t/ }"; return 0
+    fi
+    [ -z "$bestf" ] || [ "$mt" -gt "$best" ] || break
+    out="$(_fi_host_scan "$f")"
+    # whole-lines record-time question blocked call-time call-name note, by expansion, not a tab-IFS read (the constitution says why)
+    x="${out#*"$t"}"; rt="${x%%"$t"*}"; x="${x#*"$t"}"; q="${x%%"$t"*}"; x="${x#*"$t"}"; b="${x%%"$t"*}"; x="${x#*"$t"}"
+    pts="${x%%"$t"*}"; x="${x#*"$t"}"; pname="${x%%"$t"*}"; note="${x#*"$t"}"
+    case "$rt" in ''|*[!0-9]*) rt="$mt"; ts=file ;; *) ts=record ;; esac
+    case "$q" in yes|no|unknown) ;; *) q=unknown; b=unknown; note="could not read ${f//$t/ }" ;; esac
+    if [ -z "$bestf" ] || [ "$rt" -gt "$best" ]; then best="$rt"; bestf="$f"; bout="$q$t$b$t$pts$t$pname$t$note$t$ts$t$mt"; fi
+  done < <([ "${#dirs[@]}" -gt 0 ] && find "${dirs[@]}" -maxdepth 1 -type f -name '*.jsonl' -exec ls -t {} + 2>/dev/null)
+  act="${best:-0}"
+  if [ "${#dirs[@]}" -gt 0 ]; then
+    x="$(_fi_host_newest 2 $(((now - act) / 60 + 2)) "${dirs[@]}")"
+    [ -z "$x" ] || { sm="$(_fi_host_mt "$x")"; [ -z "$sm" ] || [ "$sm" -le "$act" ] || act="$sm"; }
+  fi
+  _fi_host_spawn "$d" "$5"
+  [ -z "$_FI_SP_MT" ] || [ "$_FI_SP_MT" -le "$act" ] || act="$_FI_SP_MT"
+  [ "$act" -gt 0 ] && [ $((now - act)) -le $(($3 * 60)) ] && live=yes
+  [ "$act" -gt 0 ] || act=-
+  if [ -z "$bestf" ]; then printf -- '-\t%s\t%s\tno\tno\t%s\n' "$act" "$live" "${_FI_SP_NOTE:--}"; return 0; fi
+  x="$bout"; q="${x%%"$t"*}"; x="${x#*"$t"}"; b="${x%%"$t"*}"; x="${x#*"$t"}"; pts="${x%%"$t"*}"; x="${x#*"$t"}"
+  pname="${x%%"$t"*}"; x="${x#*"$t"}"; note="${x%%"$t"*}"; x="${x#*"$t"}"; ts="${x%%"$t"*}"; mt="${x#*"$t"}"
+  [ "$note" != - ] || note=""
+  # Blocked once the call has waited BLOCKED_MIN and nothing under this
+  # session's own directory was written within it.
+  if [ "$b" = pending ]; then
+    case "$pts" in ''|-|*[!0-9]*) pts="$mt" ;; esac
+    x=""; [ ! -d "${bestf%.jsonl}" ] || x="$(_fi_host_newest 0 $(($4 + 1)) "${bestf%.jsonl}")"
+    [ -z "$x" ] || x="$(_fi_host_mt "$x")"
+    if [ $((now - pts)) -ge "$blk" ] && { [ -z "$x" ] || [ $((now - x)) -ge "$blk" ]; }; then b=yes; note="${note:+$note; }waiting on $pname for $(((now - pts) / 60)) min"
+    else b=no; fi
+  fi
+  [ "$ts" != file ] || note="${note:+$note; }activity from file time"
+  [ -z "$_FI_SP_NOTE" ] || note="${note:+$note; }$_FI_SP_NOTE"
+  f="${bestf##*/}"; f="${f%.jsonl}"; f="${f//$t/ }"; f="${f//$nl/ }"; note="${note//$t/ }"; note="${note//$nl/ }"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$act" "$live" "$q" "$b" "${note:--}"
+}
+
+# The session that worked on each pull request's head branch: of the session
+# files in SCOPEFILE's record directories modified within DAYS days, the user
+# and assistant records carrying "gitBranch":"<head>" exactly, the newest by
+# "timestamp" (the file's mtime for a record without one) names the owner by
+# its own "sessionId". Live is the owner's activity: the record time of its own
+# file in scope with every file under its directory, else its newest record read.
+#   felix_inv_host_owners NOW DAYS LIVE_MIN SCOPEFILE HEADSFILE
+# prints head owner live (yes or no) per head some session worked on; status 1,
+# and nothing printed, when there are no records to read.
+felix_inv_host_owners() {
+  local now="$1" days="$2" lv="$3" root e f list h o ots act rt x t=$'\t'; local -a pat=()
+  root="$(_fi_host_root)" || return 1
+  while IFS= read -r h; do [ -z "$h" ] || pat[${#pat[@]}]="-e\"gitBranch\":\"$h\""; done < "$5"
+  [ "${#pat[@]}" -gt 0 ] || return 0
+  # An argument -e<pattern> is one word, so a pattern may start with a quote.
+  list="$(while IFS= read -r e; do find "$e" -maxdepth 1 -type f -name '*.jsonl' -mmin -$((days * 1440)) 2>/dev/null; done < "$4" \
+          | tr '\n' '\000' | xargs -0 grep -l -F "${pat[@]}" -- 2>/dev/null)"
+  [ -n "$list" ] || return 0
+  { printf '%s\n' "$list" | while IFS= read -r f; do printf '\002%s\t%s\n' "$f" "$(_fi_host_mt "$f")"; grep -F "${pat[@]}" -- "$f" 2>/dev/null; done; } \
+    | awk -F'\t' -v hf="$5" "$_FI_HOST_AWK"'
+      BEGIN { while ((getline l < hf) > 0) W[l] = 1 }
+      substr($0, 1, 1) == "\002" { fm = $2; sf = substr($1, 2); sub(/.*\//, "", sf); sub(/[.]jsonl$/, "", sf); next }
+      { l = $0; if (kind(l) == "" || !(p = index(l, "\"gitBranch\":\""))) next
+        b = str(substr(l, p + 13)); if (!(b in W)) next
+        ts = tsof(l); if (ts == "") ts = fm
+        s = match(l, /"sessionId":"[^"]*"/) ? substr(l, RSTART + 13, RLENGTH - 14) : sf
+        if (!(b in BT) || ts + 0 > BT[b] + 0) { BT[b] = ts; BO[b] = s }
+        if (!(s in OT) || ts + 0 > OT[s] + 0) OT[s] = ts }
+      END { for (b in BT) printf "%s\t%s\t%s\n", b, BO[b], OT[BO[b]] }' \
+    | while IFS= read -r x; do
+        h="${x%%"$t"*}"; x="${x#*"$t"}"; o="${x%%"$t"*}"; ots="${x#*"$t"}"; act="$ots"
+        while IFS= read -r e; do
+          [ -f "$e/$o.jsonl" ] || continue
+          x="$(_fi_host_scan "$e/$o.jsonl")"; x="${x#*"$t"}"; rt="${x%%"$t"*}"
+          case "$rt" in ''|*[!0-9]*) rt="$(_fi_host_mt "$e/$o.jsonl")" ;; esac
+          [ -z "$rt" ] || act="$rt"
+          [ ! -d "$e/$o" ] || { x="$(_fi_host_newest 0 $(((now - act) / 60 + 2)) "$e/$o")"; [ -z "$x" ] || x="$(_fi_host_mt "$x")"; [ -z "$x" ] || [ "$x" -le "$act" ] || act="$x"; }
+          break
+        done < "$4"
+        case "$act" in ''|*[!0-9]*) printf '%s\t%s\tno\n' "$h" "$o" ;; *) [ $((now - act)) -le $((lv * 60)) ] && printf '%s\t%s\tyes\n' "$h" "$o" || printf '%s\t%s\tno\n' "$h" "$o" ;; esac
+      done
+}
+
+# Chips proposed in the sessions of the record directories in SCOPEFILE
+# modified within DAYS days that no session was started from and none withdrew.
+#   felix_inv_host_chips NOW DAYS SCOPEFILE
 # prints one line per chip: id session epoch title. Status 1, and nothing
 # printed, when the records cannot be read.
 felix_inv_host_chips() {
-  local root now="$1" days="$2" d e f list chips mins
+  local root now="$1" days="$2" e f list chips mins mm
   root="$(_fi_host_root)" || return 1
-  shift 2
-  list="$(_fi_host_scope "$root" "$@" | sort -u | while IFS= read -r e; do
+  list="$(while IFS= read -r e; do
             find "$e" -maxdepth 1 -type f -name '*.jsonl' -mmin -$((days * 1440)) 2>/dev/null
-          done | tr '\n' '\000' | xargs -0 grep -l -F -e '"name":"mcp__ccd_session__spawn_task","input":{' -- 2>/dev/null)"
+          done < "$3" | tr '\n' '\000' | xargs -0 grep -l -F -e '"name":"mcp__ccd_session__spawn_task","input":{' -- 2>/dev/null)"
   [ -n "$list" ] || return 0
   # Each file's lines holding task, after a line naming the file (\002
   # cannot start a JSON line).
   chips="$(printf '%s\n' "$list" | while IFS= read -r f; do printf '\002%s\n' "$f"; grep -F -e task -- "$f" 2>/dev/null; done | awk "$_FI_HOST_AWK"'
-    function ep(t,    y, mo, e) {
-      if (t !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]/) return ""
-      y = substr(t, 1, 4) + 0; mo = substr(t, 6, 2) + 0; if (mo <= 2) { y--; mo += 12 }
-      e = 365 * y + int(y / 4) - int(y / 100) + int(y / 400) + int((153 * (mo - 3) + 2) / 5) + substr(t, 9, 2) - 719469
-      return e * 86400 + substr(t, 12, 2) * 3600 + substr(t, 15, 2) * 60 + substr(t, 18, 2)
-    }
     BEGIN {
       SP = "\"name\":\"mcp__ccd_session__spawn_task\",\"input\":{"; KP = "\"prompt\":\""
       DI = "\"name\":\"mcp__ccd_session__dismiss_task\",\"input\":{"
@@ -361,9 +460,8 @@ felix_inv_host_chips() {
         n = split(substr(l, 1, p - 1), P, "\"id\":\""); id = substr(P[n], 1, index(P[n], Q) - 1)
         r = substr(l, p + length(SP))
         if (id == "" || (id in CS) || !(q = index(r, KP))) next
-        CS[id] = s; CT[id] = dec(val(r, "\"title\":\"")); CK[id] = key(substr(r, q + length(KP)))
-        t = match(l, /"uuid":"[^"]*","timestamp":"[^"]*"/) ? substr(l, RSTART, RLENGTH) : ""
-        sub(/.*"timestamp":"/, "", t); CE[id] = ep(t)
+        CS[id] = s; CT[id] = cut120(dec(val(r, "\"title\":\""))); CK[id] = key(substr(r, q + length(KP)))
+        CE[id] = tsof(l)
       } else if (p = index(l, DI)) DIS[val(substr(l, p), "\"task_id\":\"")] = 1
       else if ((p = index(l, K_TID)) && (q = index(l, "task_id: task_"))) {
         id = substr(l, p + length(K_TID)); id = substr(id, 1, index(id, Q) - 1)
@@ -377,19 +475,19 @@ felix_inv_host_chips() {
       }
     }')"
   [ -n "$chips" ] || return 0
-  # Every session file under the records modified since the oldest chip, read
-  # up to its first human message.
+  # The session files under the records modified since the oldest chip that
+  # begin with a prompt some chip carries, and when each was last modified: a
+  # chip was started by one modified after it was proposed.
   mins="$(printf '%s\n' "$chips" | awk -F'\t' -v now="$now" '$3 != "-" && (o == "" || $3 < o) { o = $3 } END { print (o == "" ? 0 : int((now - o) / 60) + 2) }')"
   [ "${mins:-0}" -gt 0 ] || mins=$((days * 1440))
-  { printf '%s\n' "$chips"; printf '\001\n'
-    find "$root" -mindepth 2 -maxdepth 2 -type f -name '*.jsonl' -mmin -"$mins" 2>/dev/null
-  } | awk -F'\t' "$_FI_HOST_AWK"'
+  mm="$({ printf '%s\n' "$chips"; printf '\001\n'; find "$root" -mindepth 2 -maxdepth 2 -type f -name '*.jsonl' -mmin -"$mins" 2>/dev/null; } | awk -F'\t' "$_FI_HOST_AWK"'
+      $0 == "\001" { files = 1; next }
+      !files { C[$5] = 1; next }
+      { f = $0; while ((getline l < f) > 0) if (kind(l) == "u" && (h = human(l)) != "") { if ((k = key(h)) in C) print k "\t" f; break }
+        close(f) }' | while IFS= read -r f; do printf '%s\t%s\n' "${f%%$'\t'*}" "$(_fi_host_mt "${f#*$'\t'}")"; done)"
+  { printf '%s\n' "$chips"; printf '\001\n'; printf '%s\n' "$mm"; } | awk -F'\t' '
     $0 == "\001" { files = 1; next }
-    !files { C[$5] = C[$5] $1 "\t" $2 "\t" $3 "\t" $4 "\n"; next }
-    {
-      f = $0
-      while ((getline l < f) > 0) if (kind(l) == "u" && (h = human(l)) != "") { S[key(h)] = 1; break }
-      close(f)
-    }
-    END { for (k in C) if (!(k in S)) printf "%s", C[k] }'
+    !files { C[++n] = $0; next }
+    { if ($2 + 0 > M[$1] + 0) M[$1] = $2 }
+    END { for (i = 1; i <= n; i++) { split(C[i], c, "\t"); if (!(c[5] in M) || (c[3] != "-" && M[c[5]] + 0 <= c[3] + 0)) printf "%s\t%s\t%s\t%s\n", c[1], c[2], c[3], c[4] } }'
 }

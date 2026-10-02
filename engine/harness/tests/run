@@ -3392,7 +3392,7 @@ out="$( export WFSTUB_RUNS="$TMP/wf.runs.green"; _wfcli repair --implicated "$_w
 is  "and a run that is no brief empties it, rather than leave the last run's set" \
     "exit $rc, $(wc -c < "$_wfimp" 2>/dev/null | tr -d ' ') bytes" "exit 5, 0 bytes"
 out="$(_wfcli repair --implicated "$TMP/no/such/dir/implicated")"; rc=$?
-if [ "$rc" = "1" ] && ! printf '%s' "$out" | grep -qE 'failing output|attempt\(s\) left'; then
+if [ "$rc" = "1" ] && ! grep -qE 'failing output|attempt\(s\) left' <<<"$out"; then
   ok  "and an --implicated file that cannot be written stops repair before any brief"
 else
   bad "and an --implicated file that cannot be written stops repair before any brief" "exit $rc: $out"

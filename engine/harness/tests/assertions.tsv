@@ -2118,6 +2118,7 @@
 1	and due again after a commit the graph has not seen
 1	and due from the worktree too, which is where the session is
 1	and each bound is named in its own words
+1	and each did its work: the version bumped and the tool wired in
 1	and each full log line names a file holding its own run alone
 1	and each item appears once however often it bit
 1	and each of those refused rows carries the branch and the session
@@ -2545,6 +2546,7 @@
 1	and none of the three leaves a scratch tree, base directory or registration, or says a felix: line
 1	and none of them asks gh for every workflow's runs
 1	and none of them is handed on as a brief
+1	and none of them leaves anything there
 1	and none of them names the checkout it read
 1	and none of those rows is run
 1	and none reports a spend past the ceiling as recorded
@@ -3654,6 +3656,7 @@
 1	each NUL table's twin, the NUL taken out, is run by the library as before, every row of it, and exits 0
 1	each at the second it was written
 1	each control runs against a tree of its own
+1	each engine mktemp driven here names a template under the TMPDIR it was given
 1	each fact carries the tree it was taken from
 1	each line is a name and a value separated by a tab
 1	each of the five open pull requests has a row that is pr-open
@@ -3710,6 +3713,7 @@
 1	every lifecycle.log row the recorder wrote in this suite is a row its schema accepts
 1	every list fixture below holds more than 256 KB with the line asked about first and the control last
 1	every membership fixture below holds more than 256 KB with the value asked about on its first line
+1	every mktemp the engine and Felix's gate run is given a template, so none lands outside TMPDIR on a Mac
 1	every obligations run row carries eight columns
 1	every one of them terminates the line it printed
 1	every recorded row is current under the epoch it was proposed under
@@ -3722,6 +3726,7 @@
 1	every row the adopt reader emits is four fields wide, digest or no digest
 1	every run list those three make names the gate workflow
 1	every uses: in the gate workflow bootstrap renders names a full commit sha, for every stack it can render
+1	every uses: in the unattended template names a full commit sha, not a ref its owner can move
 1	every verdict is one line of two tab-separated fields
 1	every vocabulary token is a word, not a regex fragment
 1	every worktree, orphan, unchecked-out branch, remote-only branch and open pull request in the fixture has a row naming it

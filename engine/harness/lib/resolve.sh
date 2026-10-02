@@ -657,6 +657,33 @@ felix_count() {
   case "$n" in ''|*[!0-9]*) printf '0' ;; *) printf '%s' "$n" ;; esac
 }
 
+# Ends a file's last line when it has none, so that the next
+# `printf '...\n' >> file` lands as a row of its own.
+#
+# 2026-10-01: felix adopt appended `obs` to a hand-written capabilities file
+# holding `api` with no final newline, and wrote `apiobs`, one row that was
+# neither. felix_declared then listed `apiobs`, so both capabilities were lost,
+# while the stack and setup rows for `obs` were still appended. Any table a
+# person may edit can end that way, so every append to one calls this first,
+# and the call sits on the line before the append.
+#
+# The last byte is read as a number, as lib/table.sh reads it. A command
+# substitution drops a NUL the same way it drops a newline, so the obvious
+# `[ -n "$(tail -c 1 f)" ]` reads a NUL-ended file as ended and glues the row.
+#
+# Absent, empty, or not a regular file: there is no last line to end, and
+# nothing is opened, so a FIFO is never read. Returns 1 when the last byte
+# cannot be read or the newline cannot be written. The caller then must not
+# append, because the row would fuse onto the line above it.
+felix_end_line() {
+  local f="$1" last
+  [ -f "$f" ] && [ -s "$f" ] || return 0
+  last="$( { tail -c 1 < "$f" | od -An -tx1 | tr -d ' \n'; } 2>/dev/null )"
+  [ "$last" = "0a" ] && return 0
+  [ -n "$last" ] || return 1
+  { printf '\n' >> "$f"; } 2>/dev/null
+}
+
 felix_same_repo() {
   local a="$1" b="$2" ga gb
   [ -n "$a" ] && [ -n "$b" ] || return 1

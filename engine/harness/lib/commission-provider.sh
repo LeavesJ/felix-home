@@ -24,6 +24,12 @@
 if ! command -v felix_commission_rows >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/commission.sh"
 fi
+# commission.sh loads resolve.sh only when felix_mem_dir is missing, so a
+# resolve.sh older than felix_end_line would satisfy it, and every declare below
+# would then be refused as an append that failed. Keyed on what this file calls.
+if ! command -v felix_end_line >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
 
 FELIX_COMMISSION_PROVIDER_KINDS='plugin mcp hook skill subagent'
 FELIX_COMMISSION_PROVIDER_MAX="${FELIX_COMMISSION_PROVIDER_MAX:-40}"
@@ -492,9 +498,14 @@ felix_commission_apply_declares() {   # proj, root, admit-output, tid, policy, n
     # rows into one, destroying the row that was there and losing this one.
     # stack.tsv is seeded "Edit freely", so a hand edit that drops the final
     # newline is an ordinary thing rather than a corrupt file.
-    [ -s "$proj/stack.tsv" ] && [ -n "$(tail -c 1 "$proj/stack.tsv")" ] \
-      && printf '\n' >> "$proj/stack.tsv"
-    if ! printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$k" "$n" "$tier" "$gcap" >> "$proj/stack.tsv"; then
+    #
+    # Through felix_end_line since 2026-10-01. The test here was
+    # `[ -n "$(tail -c 1 ...)" ]`, and a command substitution drops a NUL as it
+    # drops a newline, so a stack.tsv ending in a NUL read as ended and the row
+    # fused onto it anyway. A newline that cannot be written is a row that
+    # cannot be written, so it takes the same branch as a failed append.
+    if ! felix_end_line "$proj/stack.tsv" \
+       || ! printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$k" "$n" "$tier" "$gcap" >> "$proj/stack.tsv"; then
       # Said, not skipped. A declare that could not be written is a thing the
       # run tried and failed to do, and reporting it as "nothing was declared"
       # is the same defect one level down from the one this whole column

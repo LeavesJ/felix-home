@@ -14,6 +14,13 @@
 # runner's ephemeral filesystem resets every job, which is the same as no
 # ceiling, and it resets invisibly.
 
+# felix_end_line lives in resolve.sh, which the CLI and the hooks source first.
+# Sourced here too rather than assumed: missing, the record below would fail
+# every time and say only that the log was not written.
+if ! command -v felix_end_line >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 FELIX_BUDGET_DEFAULT="${FELIX_BUDGET_DEFAULT:-10}"
 
 felix_budget_limit() {
@@ -53,6 +60,11 @@ felix_budget_used() {
 felix_budget_record() {
   local proj="$1" why="${2:-unattended run}" now
   now="$(date +%s)"
+  # Before the append, never after it, for the reason above. A budget.log whose
+  # last line has no newline took this run onto that line, so two runs read as
+  # one and the ceiling undercounted (2026-10-01). Not ended, this is a failed
+  # write like any other, and cmd_budget refuses the run.
+  felix_end_line "$proj/budget.log" || return 1
   printf '%s\t%s\t%s\n' "$now" "$(date -r "$now" +%Y-%m-%dT%H:%M 2>/dev/null || date +%Y-%m-%dT%H:%M)" "$why" \
     >> "$proj/budget.log"
 }

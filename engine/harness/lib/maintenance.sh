@@ -21,6 +21,13 @@
 # maintenance.tsv rows: name <TAB> cadence-days <TAB> capability <TAB> description
 #   cadence 0 means event-driven, never on a clock.
 
+# felix_end_line lives in resolve.sh, which the CLI and the hooks source first.
+# Sourced here too rather than assumed: missing, the record below would fail
+# every time and say only that the log was not written.
+if ! command -v felix_end_line >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 _felix_maint_rows() {
   local proj="$1"
   [ -f "$proj/maintenance.tsv" ] || return 0
@@ -39,6 +46,11 @@ _felix_maint_last() {   # epoch of the most recent run, or empty
 felix_maint_record() {
   local proj="$1" name="$2" now
   now="$(date +%s)"
+  # The log is committed, and a hand-merge can drop its final newline. This run
+  # then landed on the last line, where the reader takes only the first epoch,
+  # so the run just recorded was never read and the routine stayed due
+  # (2026-10-01). Not ended, nothing is written and the caller says so.
+  felix_end_line "$proj/maintenance.log" || return 1
   printf '%s\t%s\t%s\n' "$name" "$now" "$(date -r "$now" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)" \
     >> "$proj/maintenance.log"
 }

@@ -1778,6 +1778,10 @@ cmd_autonomy() {
       printf 'already allowed: %s\n' "$allow"
     else
       [ -f "$proj/autonomy" ] || printf '# What Felix may do here unattended.\n' > "$proj/autonomy"
+      # A hand-edited `tidy` with no final newline took `commission` as
+      # `tidycommission`, and neither grant held (2026-10-01).
+      felix_end_line "$proj/autonomy" \
+        || die "the last line of $proj/autonomy could not be ended, so $allow was not allowed"
       printf '%s\n' "$allow" >> "$proj/autonomy"
       printf 'allowed: %s\n' "$allow"
     fi
@@ -2639,6 +2643,14 @@ cmd_discover() {
           # felix stack apply call the wrong installer, so it is stated rather
           # than guessed at install time.
           kind=plugin
+          # A hand-edited stack.tsv whose last row has no newline would take
+          # this row onto that line, and both would be lost (2026-10-01). Said,
+          # not counted: the row was never written, so nothing was adopted.
+          if ! felix_end_line "$proj/stack.tsv"; then
+            printf '  unwritten  %-24s %-10s %s (the last line of stack.tsv could not be ended)\n' \
+              "$name" "$risk" "$cap"
+            continue
+          fi
           # OBSERVED: the tier is what the engine read off the copy on disk,
           # and the row must never read back as a person's on the next run.
           printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$kind" "$name" "$risk" "$cap" >> "$proj/stack.tsv"
@@ -3867,7 +3879,8 @@ cmd_maintenance() {
     names="$(_felix_maint_rows "$proj" | cut -f1)" \
       && case "$nl$names$nl" in *"$nl$ran$nl"*) true ;; *) false ;; esac \
       || die "no routine named $ran"
-    felix_maint_record "$proj" "$ran"
+    felix_maint_record "$proj" "$ran" \
+      || die "could not record a run of $ran: $proj/maintenance.log was not written"
     printf 'recorded a run of %s\n' "$ran"
     printf 'commit %s/maintenance.log so the cadence survives this machine.\n' "$proj"
     return 0

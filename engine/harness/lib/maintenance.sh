@@ -44,7 +44,7 @@ felix_maint_record() {
 }
 
 # Emits: status <TAB> name <TAB> days-since <TAB> cadence <TAB> description
-# status is due | ok | event | dormant
+# status is due | ok | inflight | event | unchecked | dormant
 # Upkeep rows that can never come due.
 #
 # The capability column takes `always` or a capability name. Anything else
@@ -102,6 +102,13 @@ felix_maint_malformed() {
   return 0
 }
 
+# The engine a check runs beside, so a row can call one of its scripts as
+# "$FELIX_HARNESS_DIR/bin/...". Taken when this file is sourced, from where it
+# was sourced: the deployed engine in a session, the copy under test in the
+# suite, and never the checkout the session stands in, whose engine may be
+# older or absent.
+FELIX_MAINT_HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." 2>/dev/null && pwd)"
+
 # The fifth column, and why it exists.
 #
 # A cadence of 0 means event-driven, and the format's own words are that such
@@ -128,6 +135,26 @@ felix_maint_malformed() {
 # graphify lesson a second time, one layer down. So the two are now different
 # words, and a reader that cannot use `unchecked` at least cannot mistake it
 # for a row that answered.
+#
+# A check that passes may also say why the work is not due although it is not
+# done: a pushed branch already does it. Folding handoff sections is upkeep, so
+# the row asking for it was read by every session at once, and on 2026-09-24/25
+# three sessions folded overlapping sections where one could land.
+# Its check now passes when a fold is in flight and prints the branch, and the
+# row reads `inflight`, holding what it printed, so the session start names
+# that branch instead of asking a second session to start the same fold.
+#
+# Only a passing check is read that way. A failing one is due whatever it
+# printed: output may explain a row that is not due, and nothing a check
+# prints can take a row off the due list, because a check that fails while
+# saying something (an error, a line from grep) must stay loud. Dueness is the
+# exit status alone, exactly as before. stderr is still thrown away.
+#
+# Emits, for that row: inflight <TAB> name <TAB> holders <TAB> 0 <TAB> description,
+# the holders being its non-empty lines joined by "; ", a tab read as a space
+# and every other control byte dropped. A holder goes into the session start's
+# JSON, whose escaping knows only \\, ", \n, \r and \t, and one escape byte
+# from a check made the whole hook output unreadable.
 #
 # A check a final filter makes unable to fail (final-filter.sh) is the same
 # lesson again: the `bash -c` runs it without pipefail, so it reads `ok`
@@ -159,8 +186,15 @@ felix_maint_status() {
       fi
       if [ -n "$check" ] && [ "$check" != "-" ]; then
         if [ -n "$root" ] && [ -d "$root" ]; then
-          if ( cd "$root" && bash -c "$check" felix-maint </dev/null >/dev/null 2>&1 ); then
-            printf 'ok\t%s\t-\t0\t%s\n' "$name" "$desc"
+          local said held
+          if said="$(cd "$root" && FELIX_HARNESS_DIR="$FELIX_MAINT_HARNESS" bash -c "$check" felix-maint </dev/null 2>/dev/null)"; then
+            held="$(printf '%s\n' "$said" | tr '\t' ' ' | LC_ALL=C tr -d '\000-\010\013-\037\177' \
+                      | LC_ALL=C awk 'NF { printf "%s%s", s, $0; s = "; " }')"
+            if [ -n "$held" ]; then
+              printf 'inflight\t%s\t%s\t0\t%s\n' "$name" "$held" "$desc"
+            else
+              printf 'ok\t%s\t-\t0\t%s\n' "$name" "$desc"
+            fi
           else
             printf 'due\t%s\tcheck\t0\t%s\n' "$name" "$desc"
           fi

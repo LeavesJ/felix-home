@@ -37,7 +37,9 @@ _felix_maint_rows() {
 _felix_maint_last() {   # epoch of the most recent run, or empty
   local proj="$1" name="$2" line last=""
   [ -f "$proj/maintenance.log" ] || return 0
-  while IFS=$'\t' read -r n epoch _; do
+  # A last line with no newline is a run too, and the loop dropped it, so the
+  # routine it recorded read as due again (2026-10-01).
+  while IFS=$'\t' read -r n epoch _ || [ -n "${n:-}" ]; do
     [ "${n:-}" = "$name" ] && last="$epoch"
   done < "$proj/maintenance.log"
   printf '%s' "$last"
@@ -47,9 +49,9 @@ felix_maint_record() {
   local proj="$1" name="$2" now
   now="$(date +%s)"
   # The log is committed, and a hand-merge can drop its final newline. This run
-  # then landed on the last line, where the reader takes only the first epoch,
-  # so the run just recorded was never read and the routine stayed due
-  # (2026-10-01). Not ended, nothing is written and the caller says so.
+  # then fused onto that last line, and the reader took the line's first name
+  # and epoch, so the run just recorded was never read (2026-10-01). Not
+  # ended, no row is written and the caller says so.
   felix_end_line "$proj/maintenance.log" || return 1
   printf '%s\t%s\t%s\n' "$name" "$now" "$(date -r "$now" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)" \
     >> "$proj/maintenance.log"

@@ -565,6 +565,13 @@ cmd_gate() {
   else
     bash -c "$gate \"\$@\"" felix-gate "$@" 2>&1 | tee "$log"; rc=${PIPESTATUS[0]}
   fi
+  # The project's gate wrote this log, and nothing makes it end its last line.
+  # One that did not took the engine's first checker line below onto it, so
+  # `gate: pass` and `  probes  FAIL` read as one line: the failure was
+  # recorded as exit-1 rather than probes, and probes left the roster
+  # (2026-10-01). Ended here, on the screen as well, which saw the same bytes.
+  local lend=0; felix_line_ended "$log" || lend=$?
+  [ "$lend" -ne 1 ] || printf '\n' | tee -a "$log"
   # Ground truth, for every project that has a table — asked by the engine
   # rather than by each project's gate script, so no gate has to be edited to
   # get it and none can quietly leave it out. This is the class-level form of
@@ -1779,10 +1786,11 @@ cmd_autonomy() {
     else
       [ -f "$proj/autonomy" ] || printf '# What Felix may do here unattended.\n' > "$proj/autonomy"
       # A hand-edited `tidy` with no final newline took `commission` as
-      # `tidycommission`, and neither grant held (2026-10-01).
-      felix_end_line "$proj/autonomy" \
-        || die "the last line of $proj/autonomy could not be ended, so $allow was not allowed"
-      printf '%s\n' "$allow" >> "$proj/autonomy"
+      # `tidycommission`, and neither grant held (2026-10-01). A grant that
+      # could not be written on a line of its own is not said, and not stamped
+      # below: this printed `allowed:` whenever the append failed.
+      felix_end_line "$proj/autonomy" && printf '%s\n' "$allow" >> "$proj/autonomy" \
+        || die "could not write $allow to $proj/autonomy, so it is not allowed"
       printf 'allowed: %s\n' "$allow"
     fi
     # Stamped with the table it was granted over, so a later edit to that table
@@ -2632,7 +2640,7 @@ cmd_discover() {
       printf 'declares. Declaring another capability widens the search.\n'
       return 0
     fi
-    local n_dec=0 n_ref=0 kind
+    local n_dec=0 n_ref=0 n_unw=0 kind
     printf 'adopting for %s\n\n' "$(basename "$proj")"
     while IFS=$'\t' read -r act name cap risk; do
       [ -n "${act:-}" ] || continue
@@ -2644,16 +2652,20 @@ cmd_discover() {
           # than guessed at install time.
           kind=plugin
           # A hand-edited stack.tsv whose last row has no newline would take
-          # this row onto that line, and both would be lost (2026-10-01). Said,
-          # not counted: the row was never written, so nothing was adopted.
-          if ! felix_end_line "$proj/stack.tsv"; then
-            printf '  unwritten  %-24s %-10s %s (the last line of stack.tsv could not be ended)\n' \
-              "$name" "$risk" "$cap"
-            continue
-          fi
+          # this row onto that line, and both would be lost (2026-10-01). A row
+          # that could not be put on a line of its own, or not written at all,
+          # is said and neither installed nor counted: until then a failed
+          # append installed the plugin with no row recording it.
+          #
           # OBSERVED: the tier is what the engine read off the copy on disk,
           # and the row must never read back as a person's on the next run.
-          printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$kind" "$name" "$risk" "$cap" >> "$proj/stack.tsv"
+          if ! felix_end_line "$proj/stack.tsv" \
+             || ! printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$kind" "$name" "$risk" "$cap" >> "$proj/stack.tsv"; then
+            printf '  unwritten  %-24s %-10s %s (stack.tsv could not take the row)\n' \
+              "$name" "$risk" "$cap"
+            n_unw=$((n_unw+1))
+            continue
+          fi
           if felix_stack_install "$kind" "$name" "-"; then
             printf '  installed  %-24s %-10s %s\n' "$name" "$risk" "$cap"
             # Invariant 4 says Felix installs what it has read. This is the
@@ -2698,7 +2710,11 @@ cmd_discover() {
     done <<EOF
 $plan
 EOF
-    printf '\n%s adopted, %s refused.\n' "$n_dec" "$n_ref"
+    if [ "$n_unw" -gt 0 ]; then
+      printf '\n%s adopted, %s refused, %s unwritten.\n' "$n_dec" "$n_ref" "$n_unw"
+    else
+      printf '\n%s adopted, %s refused.\n' "$n_dec" "$n_ref"
+    fi
     if [ "$n_ref" -gt 0 ]; then
       printf '\nMedium means it ships an MCP server, which usually needs a credential\n'
       printf 'only you can supply. High means hooks, a floating version, or an\n'

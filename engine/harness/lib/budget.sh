@@ -37,7 +37,10 @@ felix_budget_used() {
   local proj="$1" now cutoff n=0 epoch _
   [ -f "$proj/budget.log" ] || { printf '0'; return; }
   now="$(date +%s)"; cutoff=$((now - 86400))
-  while IFS=$'\t' read -r epoch _; do
+  # A last line with no newline is a run too. `read` returns 1 on it with the
+  # fields filled, and the loop dropped it, so a hand-merged log counted one
+  # run short and the ceiling bound one run late (2026-10-01).
+  while IFS=$'\t' read -r epoch _ || [ -n "${epoch:-}" ]; do
     case "$epoch" in ''|*[!0-9]*) continue ;; esac
     [ "$epoch" -ge "$cutoff" ] && n=$((n+1))
   done < "$proj/budget.log"

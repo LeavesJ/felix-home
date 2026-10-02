@@ -21,7 +21,8 @@ fi
 
 # felix_adopt_capability <project-dir> <capability> <templates-dir> <repo-slug>
 # Prints "<stack-rows-added> <setup-steps-added>". Returns 1 if already declared,
-# and 2, printing and writing nothing, when the list could not be read or written.
+# and 2, printing nothing and writing no row, when the list could not be read or
+# written.
 felix_adopt_capability() {
   local proj="$1" cap="$2" tpl="$3" slug="${4:-}" list rc=2
   [ -n "$proj" ] && [ -n "$cap" ] || return 1
@@ -67,14 +68,16 @@ felix_adopt_capability() {
       grep -qF "	$n	" "$proj/stack.tsv" 2>/dev/null && continue
       # stack.tsv is seeded "Edit freely", so a last row with no newline is
       # ordinary; unended, this row would fuse onto it (2026-10-01). A row that
-      # cannot be put on a line of its own is said, and neither written nor
-      # counted.
-      felix_end_line "$proj/stack.tsv" || {
-        printf 'felix: the last line of %s/stack.tsv could not be ended, so %s was not added\n' "$proj" "$n" >&2
-        continue; }
+      # could not be put on a line of its own, or not written at all, is said
+      # on stderr and not counted. It was counted whenever the append failed.
+      #
       # DECLARED: the catalogue tier is a person's judgment, and the engine
       # writing the row down does not make it the engine's.
-      printf '%s\t%s\t%s\t%s\t%s\tDECLARED\n' "$k" "$n" "$src" "$r" "$c" >> "$proj/stack.tsv"
+      if ! felix_end_line "$proj/stack.tsv" \
+         || ! printf '%s\t%s\t%s\t%s\t%s\tDECLARED\n' "$k" "$n" "$src" "$r" "$c" >> "$proj/stack.tsv"; then
+        printf 'felix: could not add %s to %s/stack.tsv\n' "$n" "$proj" >&2
+        continue
+      fi
       added_stack=$((added_stack+1))
     done < <(grep -vE '^\s*(#|$)' "$tpl/catalog.tsv")
   fi
@@ -85,10 +88,11 @@ felix_adopt_capability() {
       grep -qE "^$id	" "$proj/setup.tsv" 2>/dev/null && continue
       # The same for a hand-edited setup.tsv, and the runbook is not copied
       # for a step whose row was not written.
-      felix_end_line "$proj/setup.tsv" || {
-        printf 'felix: the last line of %s/setup.tsv could not be ended, so %s was not added\n' "$proj" "$id" >&2
-        continue; }
-      printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}" >> "$proj/setup.tsv"
+      if ! felix_end_line "$proj/setup.tsv" \
+         || ! printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}" >> "$proj/setup.tsv"; then
+        printf 'felix: could not add %s to %s/setup.tsv\n' "$id" "$proj" >&2
+        continue
+      fi
       [ -f "$tpl/setup/$id.md" ] && \
         sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md" > "$proj/setup/$id.md"
       added_setup=$((added_setup+1))

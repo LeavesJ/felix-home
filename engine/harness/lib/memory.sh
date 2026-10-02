@@ -157,9 +157,15 @@ felix_mem_handoff_foreign() {
 # Write cheaply, consolidate on a cadence. The maintenance routine does the
 # curating with the whole file in view, which is when the judgement is actually
 # available.
+#
+# Curated means rewritten by hand or by a session, so its last line can arrive
+# without a newline. This row then fused onto it, and `cut -f4` and the
+# ranking's $4 read neither mistake (2026-10-01). Ended first; a log that
+# cannot be ended takes no row, as one that cannot be written takes none.
 felix_mem_mistake() {
   local proj="$1" root="$2" what="$3"
   mkdir -p "$(felix_mem_dir "$proj")"
+  felix_end_line "$(felix_mem_dir "$proj")/mistakes.log" || return 1
   printf '%s\t%s\t%s\t%s\n' \
     "$(date +%Y-%m-%d)" \
     "$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')" \

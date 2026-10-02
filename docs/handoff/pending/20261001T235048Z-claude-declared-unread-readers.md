@@ -131,3 +131,59 @@ Not in this change, and why:
 - `felix_detect` fails the same way under EAGAIN and reads as nothing
   detected. That is the other half of every union above, and a separate
   lookup.
+
+**After review: what changes.** Three Opus reviewers (defeat, simpler,
+omission) read fd5528f7 and 1e0197ca and demonstrated each finding with the
+section runner. Taken:
+
+R1. Blocker, found by all three. On a project with no commissioning.tsv,
+    `felix_commission_topology` took its status from the `cat` of that table,
+    so under pipefail (the CLI and the hooks) it returned 1 over a list that
+    was read. Its new callers read that as unread: `felix obligations
+    --request` refused with a false reason and an answered obligations
+    request read `unknown` and was never taken in. Fixed: the topology's
+    status is 2 only from the declared read and otherwise the hash's; a
+    missing table is `|| :`, and the bytes hashed are unchanged.
+R2. `felix discover --adopt` read the list only when the cache was stale; a
+    current cache over an unread list adopted rows and asked claude to
+    install. Fixed: every `--adopt` reads the list first. The fill's own read
+    can still fail after that check, so the quiet form now exits with the
+    status it refused with (2 rules unread, 3 catalogue unreadable) and the
+    fill says which.
+R3. Once read, the list still reached its claim through here-documents (a
+    temporary file on bash 3.2) and nested substitutions whose status nobody
+    checked, so a fork that failed there (EAGAIN, the case this branch is
+    about) or a here-document that could not be written dropped a list that
+    was read, and the function still returned 0. Fixed: one capture helper,
+    `felix_capture NAME CMD [ARGS...]`, holds the sentinel test once (it
+    replaces the eighteen copies the first pass wrote out, and
+    felix_declared_into is one line over it); the unions of detected and
+    declared capabilities are one function whose status is its pipeline's,
+    with the declared half printed first; and the loops over a list that was
+    read walk the string in the shell, with membership by `case`, never a
+    here-document or felix_has_line.
+R4. `felix_commission_policy_version` reads every table with `cat`, so a
+    `capabilities` link whose target is gone hashed as no file, and a pipe
+    by that name hung every receipt check (622 s measured). Fixed: a table
+    that is there and is not a regular file hashes as a marker line and is
+    never opened.
+R5. The sentinel was `.`, which a failed felix_declared could forge with a
+    last line ending in a dot (`billing.`), because a substitution strips the
+    trailing newline. Now `\n.`, forgeable only by a last line that is
+    exactly `.`.
+R6. Smaller: session start says why a provider row's topology could not be
+    computed; `felix obligations --request` stops blaming the epoch for a
+    missing request template; the dead `|| x=""` clauses go with the helper.
+
+Not taken, and why:
+- The commissioning `reach` row over an unread list now reads `held` (the
+  check `[ -z "$(felix_toolbox_unwired ...)" ]` sees the `?` line and fails),
+  where `unknown` would be the honest state. It no longer reads `done`. The
+  check text is in projects/*/commissioning.tsv, a founder's table, so the
+  change to an `unknown` is queued, not made here.
+- felix_detect's own failures under EAGAIN, the rules table's and the probe
+  rows' reads: other lookups, unchanged, named above.
+- _felix_cap_active keeps its own `.` read: it is the dependency's, with
+  shape assertions of its own, and moving it onto the helper belongs there.
+- felix_declared reading a binary file as a list, GREP_OPTIONS, a BOM:
+  felix_declared's own input, queued separately.

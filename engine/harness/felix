@@ -1784,7 +1784,10 @@ cmd_autonomy() {
     if felix_autonomy_allows "$proj" "$allow"; then
       printf 'already allowed: %s\n' "$allow"
     else
-      [ -f "$proj/autonomy" ] || printf '# What Felix may do here unattended.\n' > "$proj/autonomy"
+      # Seeded only where nothing is at the path, as adopt.sh seeds its
+      # tables, so a dangling link or a pipe is refused below (2026-10-01).
+      [ -e "$proj/autonomy" ] || [ -L "$proj/autonomy" ] \
+        || printf '# What Felix may do here unattended.\n' > "$proj/autonomy"
       # A hand-edited `tidy` with no final newline took `commission` as
       # `tidycommission`, and neither grant held (2026-10-01). A grant that
       # could not be written on a line of its own is not said, and not stamped

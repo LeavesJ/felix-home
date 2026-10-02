@@ -493,7 +493,10 @@ felix_commission_apply_declares() {   # proj, root, admit-output, tid, policy, n
     # By case, for the reason felix_commission_admit gives: a row already in
     # stack.tsv read as absent would be appended a second time.
     case "$nl$declared$nl" in *"$nl${n%%@*}$nl"*) continue ;; esac
-    [ -f "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$proj/stack.tsv"
+    # Seeded only where nothing is at the path, as adopt.sh seeds it: a link
+    # whose target is gone, or a pipe, is refused below rather than written
+    # through or waited on (2026-10-01).
+    [ -e "$proj/stack.tsv" ] || [ -L "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$proj/stack.tsv"
     # A manifest whose last line has no newline would otherwise fuse the two
     # rows into one, destroying the row that was there and losing this one.
     # stack.tsv is seeded "Edit freely", so a hand edit that drops the final

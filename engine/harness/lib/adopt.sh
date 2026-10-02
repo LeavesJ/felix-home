@@ -59,8 +59,12 @@ felix_adopt_capability() {
   # consequences invisible, which is the failure this exists to prevent.
   local added_stack=0 added_setup=0
   mkdir -p "$proj/setup"
-  [ -f "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$proj/stack.tsv"
-  [ -f "$proj/setup.tsv" ] || printf '# id\ttitle\tcapability\tcheck\n' > "$proj/setup.tsv"
+  # Seeded only where nothing is at the path. `[ -f ]` seeded through a link
+  # whose target was gone, creating it, and waited forever on a pipe; now
+  # anything that is not a regular file is left as it is, and the appends below
+  # refuse it (2026-10-01).
+  [ -e "$proj/stack.tsv" ] || [ -L "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$proj/stack.tsv"
+  [ -e "$proj/setup.tsv" ] || [ -L "$proj/setup.tsv" ] || printf '# id\ttitle\tcapability\tcheck\n' > "$proj/setup.tsv"
 
   if [ -f "$tpl/catalog.tsv" ]; then
     while IFS=$'\t' read -r k n src r c _kw; do

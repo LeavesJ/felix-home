@@ -8,19 +8,9 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	bcd55421faf1ed6fa32a35b99e131d0de75f1486	bcd55421faf1ed6fa32a35b99e131d0de75f1486	0.49.266
-run	14	6006	9
-and the row's reason is given	1
-the founder's case 10: a here-document a shell reads is its script	1
-the founder's case 11: and so with -s	1
-the founder's case 12: a redirect's target is written whatever line the here-document ends on	1
-the founder's case 1: a separator glued to the last word ends it, as the shell does	1
-the founder's case 2: a group's separator ends the word too	1
-the founder's case 3: a line break ends a word as a blank does	1
-the founder's case 4: a shell's -c script is a command of its own, quotes and all	1
-the founder's case 5: and so under bash -c	1
-the founder's case 6: a -c script handed to find's -exec is still a command	1
-the founder's case 7: a $( ) assigned to a variable runs	1
-the founder's case 8: a quoted program name is the program	1
-the founder's case 9: a quoted path in command position runs	1
-the reader prints a command separator as a token of its own, an operator of two characters whole	1
+base	origin/main	377880e9e534f5bd08674ea6c6b1a695bcefe5e5	0.49.267
+run	4	6012	27
+and so when its errors go to /dev/null: the 2 of 2>/dev/null is no second ref	1
+blind allow case 26: update-ref writes refs/heads/backup, and the remote-tracking ref is only the value it reads	1
+blind allow case 27: symbolic-ref with one ref reads it and prints	1
+the target of a redirect after that read is a file, not a second ref	1

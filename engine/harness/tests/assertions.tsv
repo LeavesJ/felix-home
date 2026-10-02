@@ -529,6 +529,8 @@
 1	a felix merge --dry-run on the same checkout adds no would-refuse row, or cmd_merge does not tell the report that a dry run is one
 1	a felix qualify --gate run killed at its first control refuses, never counting none of none as met
 1	a felix-answered row names felix as the actor
+1	a fetch from a plain remote moves the remote-tracking refs itself, and is allowed
+1	a fetch with a refspec into refs/remotes/ is still refused
 1	a file facing a directory is a drift, whatever diff exits
 1	a file git ignores dropped into the entry is residue, not drift
 1	a file git ignores, left in the cache entry, is not drift
@@ -1007,6 +1009,7 @@
 1	a pulse that has run and never succeeded says never
 1	a pulse with nothing to do still answers
 1	a push nothing reads back is not called verified
+1	a push to refs/remotes/ is still refused
 1	a pushed branch with no pull request, its content not on main, leads with unproposed
 1	a qualification row of five columns has no premise and is met as before
 1	a question answered by a later human message is no question, and an older session's question is not the newest's
@@ -1077,6 +1080,7 @@
 1	a red.tsv base of - reads as retracted, not as a published snapshot
 1	a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot
 1	a red.tsv whose base and run rows are both -, with no names below, is one whole record
+1	a redirect between symbolic-ref's two refs does not hide the second
 1	a refresh of a graphed checkout exits 0
 1	a refreshed graph clears the row
 1	a refusal on risk is reported
@@ -2907,6 +2911,7 @@
 1	and shows which note it kept
 1	and skip with a reason as a skip of it, giving the reason
 1	and so are the declines, from the same date
+1	and so behind a global option and a quoted -m reason
 1	and so does a compact
 1	and so does a failure nobody answered
 1	and so does a held row after a bare carriage return
@@ -2964,6 +2969,8 @@
 1	and so is the other one
 1	and so is the retraction beside a manifest, since it counts no run to compare
 1	and so is what eval is handed
+1	and so when it deletes one, quoted and ended by a separator
+1	and so when its errors go to /dev/null: the 2 of 2>/dev/null is no second ref
 1	and so with pipefail off in the caller
 1	and so without the caller's pipefail
 1	and ssh is asked only for its configuration, with no DNS lookup, about the alias as written
@@ -3493,6 +3500,8 @@
 1	blind allow case 23: ./src is a directory, not a bare dot
 1	blind allow case 24: -N is not -f
 1	blind allow case 25: a plain fetch names no remote-tracking ref
+1	blind allow case 26: update-ref writes refs/heads/backup, and the remote-tracking ref is only the value it reads
+1	blind allow case 27: symbolic-ref with one ref reads it and prints
 1	blind allow case 28: git remote -v and show change no remote
 1	blind allow case 29: ls and cat only read the marker
 1	blind allow case 2: a here-document handed to git commit -F is a message
@@ -4807,6 +4816,7 @@
 1	passing gate exits 0
 1	path and all
 1	plain felix qualify reads it once for its controls and at most once more for the roster gap
+1	pointing HEAD at a remote-tracking ref is refused, since the next commit would move it
 1	pr previews and exits 0
 1	pr refuses to open a branch against itself
 1	premise, mutation and command run in one scratch worktree of HEAD, never in the root
@@ -5161,6 +5171,8 @@
 1	survives a machine laid out differently
 1	survives a transcript that is not there
 1	swapping two rows that bind the same path escapes as verifier, or which of them stands could change with nobody asked
+1	symbolic-ref --delete with one ref deletes it, and is refused
+1	symbolic-ref with two refs writes the first, and a remote-tracking one is refused
 1	tasks sharing a file are one unit
 1	text piped into a shell is its script
 1	that names the command
@@ -5678,6 +5690,7 @@
 1	the table did not grow
 1	the table is seeded
 1	the table resolves to its repo-relative path
+1	the target of a redirect after that read is a file, not a second ref
 1	the template documents the needs column
 1	the tests check is behind the verifier confine
 1	the third field is the epoch the answer file named
@@ -5794,6 +5807,7 @@
 1	unstubbed, a whole answer of two rows is ingested: the record prints 2 and appends to the log
 1	unstubbed, an answer saying done 0 over two rows and one saying done 2 over three are partial
 1	untouched surfaces are n/a
+1	update-ref writing a remote-tracking ref is still refused
 1	veldra's fmt: a check that fails with no name it can parse is a loud FAIL
 1	veldra's fmt: a new file rustfmt rewrites is named, though git diff cannot see it
 1	veldra's fmt: and a check that named its files leaves no log behind

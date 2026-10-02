@@ -46,7 +46,12 @@
 # Then the base goes whole: the column stderr file and whatever a mutation
 # wrote beside the tree are the runner's own. Its owner record goes last
 # (_felix_qualify_unown), so a base this cannot empty, or a drop killed half
-# way, still names a process a later run's sweep can judge. What is still
+# way, still names a process a later run's sweep can judge. Those steps, and
+# the rm of a tree git would not remove, act inside the base, entered and
+# checked to be the base itself (_felix_qualify_in): a base swapped for a
+# symlink after the check above, by a process the row left running, is never
+# followed into, where a glob through its name emptied the link's target
+# (review 2026-10-01). What is still
 # there after all that is said, on stderr, from what is there and not from an
 # exit status: the base on disk, or the tree still in git worktree list.
 # Nothing is pruned beyond this row's entry; other entries are not the
@@ -55,8 +60,8 @@
 # What it cannot reach: a process the mutation left running, which can write
 # into the base after this has removed it.
 _felix_qualify_drop() {   # root, base
-  local root="$1" base="$2" listed pdir nl='
-'
+  local root="$1" base="$2" listed pdir="" nl='
+' _felix_qualify_text
   [ -n "$base" ] || return 0
   if [ -L "$base" ]; then
     rm -f "$base" 2>/dev/null
@@ -77,9 +82,9 @@ _felix_qualify_drop() {   # root, base
   fi
   find "$base" -type d ! -perm -0700 -exec chmod u+rwx {} \; 2>/dev/null
   if ! git -C "$root" worktree remove -f -f "$base/w" >/dev/null 2>&1; then
-    rm -rf "$base/w" 2>/dev/null
+    _felix_qualify_in "$base" _felix_qualify_rmw
     if ! git -C "$root" worktree remove -f -f "$base/w" >/dev/null 2>&1; then
-      pdir="$(cd "${base%/*}" 2>/dev/null && pwd -P)"
+      _felix_qualify_phys "${base%/*}" && pdir="$_felix_qualify_text"
       listed="$(git -C "$root" worktree list --porcelain 2>/dev/null)"
       case "$nl$listed$nl" in
         *"${nl}worktree $base/w$nl"*|*"${nl}worktree $pdir/${base##*/}/w$nl"*)
@@ -100,37 +105,75 @@ _felix_qualify_drop() {   # root, base
   fi
 }
 
-# Every entry of a base but its owner record, removed. rm -rf takes a
-# symlink operand as the link, so nothing is followed out of the base. The
-# three globs are every name but . and ..; one that matched nothing stays
-# literal and is passed over as absent.
-_felix_qualify_clear() {   # base
+# A directory's physical path, every byte of it, in _felix_qualify_text,
+# which the caller makes local: $(...) drops every trailing newline, and a
+# path may end in one, so a sentinel keeps them. Non-zero when it cannot be
+# had.
+_felix_qualify_phys() {   # dir
+  local t nl='
+'
+  _felix_qualify_text=""
+  t="$(CDPATH='' cd -P -- "$1" 2>/dev/null && pwd -P && printf x)" || return 1
+  t="${t%x}"; _felix_qualify_text="${t%"$nl"}"
+  [ -n "$_felix_qualify_text" ]
+}
+
+# Run a function inside a base: entered by cd, then checked to be the base
+# itself, its physical path its parent's and its own name. A base swapped for
+# a symlink is never entered, and every name after is taken relative to the
+# directory entered, which a later swap of the base's name cannot change. Its
+# own process, so the cd reaches no caller. The function gets the base's
+# physical path. Non-zero when the base cannot be entered so.
+_felix_qualify_in() {   # base, function
+  ( case "$1" in */*) ;; *) exit 1 ;; esac
+    _felix_qualify_phys "${1%/*}" || exit 1
+    want="$_felix_qualify_text/${1##*/}"
+    CDPATH='' cd -P -- "$1" 2>/dev/null || exit 1
+    _felix_qualify_phys . && [ "$_felix_qualify_text" = "$want" ] || exit 1
+    "$2" "$want" )
+}
+
+# A tree git would not remove, removed from inside its base: rm -rf takes a
+# symlink operand as the link.
+_felix_qualify_rmw() { rm -rf ./w 2>/dev/null; return 0; }
+
+# Every entry of a base but its owner record, removed: _felix_qualify_clear
+# from outside, _felix_qualify_clear_here inside. rm -rf takes a symlink
+# operand as the link, so nothing is followed out of the base. The three
+# globs are every name but . and ..; one that matched nothing stays literal
+# and is passed over as absent.
+_felix_qualify_clear() { _felix_qualify_in "$1" _felix_qualify_clear_here; }
+_felix_qualify_clear_here() {
   local e
-  for e in "$1"/* "$1"/.[!.]* "$1"/..?*; do
-    [ "$e" = "$1/owner" ] && [ -L "$e" ] && continue
+  for e in * .[!.]* ..?*; do
+    [ "$e" = owner ] && [ -L owner ] && continue
     [ -e "$e" ] || [ -L "$e" ] || continue
-    rm -rf "$e" 2>/dev/null
+    rm -rf "./$e" 2>/dev/null
   done
+  return 0
 }
 
 # A base's owner record removed only once it is the base's last entry, then
 # the base. Non-zero while anything else is in it, with the record kept, and
 # when the base will not go: an entry that appeared between the look and the
 # rmdir is a writer the drop never saw, and the record is put back, so the
-# base still names a process a later sweep can judge.
-_felix_qualify_unown() {   # base -> 0 once the base is gone
+# base still names a process a later sweep can judge. The rmdir names the
+# base by its physical path, and fails on a symlink put in its place; the
+# record goes back into the directory entered, wherever its name now is.
+_felix_qualify_unown() { _felix_qualify_in "$1" _felix_qualify_unown_here; }
+_felix_qualify_unown_here() {   # the base's physical path -> 0 once it is gone
   local e rec=""
-  for e in "$1"/* "$1"/.[!.]* "$1"/..?*; do
-    [ "$e" = "$1/owner" ] && [ -L "$e" ] && continue
+  for e in * .[!.]* ..?*; do
+    [ "$e" = owner ] && [ -L owner ] && continue
     if [ -e "$e" ] || [ -L "$e" ]; then return 1; fi
   done
-  if [ -L "$1/owner" ]; then
-    rec="$(readlink -n "$1/owner" 2>/dev/null; printf x)"; rec="${rec%x}"
-    rm -f "$1/owner" 2>/dev/null
+  if [ -L owner ]; then
+    rec="$(readlink -n owner 2>/dev/null; printf x)"; rec="${rec%x}"
+    rm -f owner 2>/dev/null
   fi
-  rmdir "$1" 2>/dev/null && return 0
-  if [ -n "$rec" ] && [ -d "$1" ] && [ ! -e "$1/owner" ] && [ ! -L "$1/owner" ]; then
-    ln -s -- "$rec" "$1/owner" 2>/dev/null
+  rmdir -- "$1" 2>/dev/null && return 0
+  if [ -n "$rec" ] && [ ! -e owner ] && [ ! -L owner ]; then
+    ln -s -- "$rec" owner 2>/dev/null
   fi
   return 1
 }

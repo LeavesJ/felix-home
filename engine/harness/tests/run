@@ -15715,6 +15715,19 @@ if [ -n "\${QSW_GITLOG:-}" ]; then
   esac
   printf '%s%s\n' "\$*" "\$qsw_o" >> "\$QSW_GITLOG"
 fi
+# Given QSW_GITSWAP, a directory: at the first worktree remove of a base's w,
+# the base is renamed aside and a symlink to that directory put in its place,
+# as a process a dead row left running could.
+if [ -n "\${QSW_GITSWAP:-}" ] && [ ! -e "\$QSW_GITSWAP.done" ]; then
+  case " \$* " in
+    *" worktree remove "*)
+      for qsw_a in "\$@"; do qsw_l="\$qsw_a"; done
+      case "\$qsw_l" in
+        */w) : > "\$QSW_GITSWAP.done"
+             mv "\${qsw_l%/w}" "\${qsw_l%/w}.aside" && ln -s "\$QSW_GITSWAP" "\${qsw_l%/w}" ;;
+      esac ;;
+  esac
+fi
 exec '$QSWGIT' "\$@"
 EOF
 chmod +x "$QSWSHIM/git"
@@ -16276,6 +16289,17 @@ _qswrun "$d/run" "$T" "$R" "$d/proj"
 is  "a dead base whose w was swapped for a symlink to another worktree of the root is swept, its own registration included, and that other worktree, its uncommitted file and its registration survive" \
     "$(_qswgone "$_qswp1" "$T/felix-qualify.WLINK1" "$R" "$Tp/felix-qualify.WLINK1/w") other:$(cat "$_qswO/uncommitted.txt" 2>/dev/null || echo gone) registered:$(_qswlisted "$R" "$_qswO")" \
     "gone other:mine registered:yes"
+
+# 9b. A dead base swapped for a symlink to another directory while its drop
+# runs, between git's remove and the clearing of what is left, as a process
+# the dead row left running could: that directory is never followed into.
+d="$QSWS/swap"; T="$d/t"; mkdir -p "$T" "$d/decoy/dir"; R="$(_qswroot "$d/root")"
+printf 'kept\n' > "$d/decoy/precious.txt"; printf 'kept\n' > "$d/decoy/dir/f"
+_qswplant "$T" felix-qualify.SWAP01 "$R" "$(_qswdead) $QSWOLD"
+_qswxenv="QSW_GITSWAP=$d/decoy"; _qswbg "$d/s" "$T" "$R" - sweep; _qswxenv=""; _qswfinish "$_qswpid" "$d/s"
+is  "a dead base renamed aside and replaced by a symlink to another directory while the sweep's drop runs leaves that directory and everything in it as it was" \
+    "swapped:$([ -L "$T/felix-qualify.SWAP01" ] && echo yes || echo no) decoy:[$(cd "$d/decoy" 2>/dev/null && find . -mindepth 1 | LC_ALL=C sort | tr '\n' ' ')]" \
+    "swapped:yes decoy:[./dir ./dir/f ./precious.txt ]"
 
 # 10. A base whose drop cannot finish: a row's mutation makes a file in its
 # tree immutable. Its record stays, a later sweep says what is left, and

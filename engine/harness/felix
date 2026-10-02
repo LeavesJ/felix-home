@@ -1759,10 +1759,11 @@ cmd_autonomy() {
   done
 
   if [ -n "$revoke" ]; then
-    if [ -f "$proj/autonomy" ]; then
-      grep -vxF "$revoke" "$proj/autonomy" > "$proj/autonomy.new" 2>/dev/null \
-        && mv -f "$proj/autonomy.new" "$proj/autonomy"
-    fi
+    # The grant first, and the stamp and the word only once it is gone.
+    # 2026-10-01: a one-grant file kept its grant here while this printed
+    # "revoked:" and deleted the stamp (felix_autonomy_revoke says how).
+    felix_autonomy_revoke "$proj" "$revoke" \
+      || die "$revoke is not revoked, because $proj/autonomy could not be rewritten without it; its stamp is left in place"
     # The stamp goes with the grant. Left behind, a later --allow would look
     # like it had already been read against a table nobody re-read.
     rm -f "$(felix_autonomy_stamp_path "$proj" "$revoke")" 2>/dev/null

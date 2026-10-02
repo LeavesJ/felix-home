@@ -54,19 +54,67 @@ felix_autonomy_commission_current() {   # proj -> 0 when the stamp matches
   [ -n "$now" ] && [ "$stamped" = "$now" ]
 }
 
+# Does this one line of an autonomy file grant this capability? The one
+# definition of a grant, shared by the reader and by revoke, so the two cannot
+# disagree about what a line means.
+_felix_autonomy_grants() {   # line want -> 0 when the line grants want
+  local line="$1"
+  case "$line" in ''|'#'*) return 1 ;; esac
+  # Trimmed, because a trailing space in a hand-edited file should not be the
+  # difference between a permission holding and silently not.
+  line="${line%"${line##*[![:space:]]}"}"
+  line="${line#"${line%%[![:space:]]*}"}"
+  [ "$line" = "$2" ]
+}
+
 felix_autonomy_allows() {
   local proj="$1" want="$2" line
   [ -n "$want" ] || return 1
   [ -f "$proj/autonomy" ] || return 1
   while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in ''|'#'*) continue ;; esac
-    # Trimmed, because a trailing space in a hand-edited file should not be the
-    # difference between a permission holding and silently not.
-    line="${line%"${line##*[![:space:]]}"}"
-    line="${line#"${line%%[![:space:]]*}"}"
-    [ "$line" = "$want" ] && return 0
+    _felix_autonomy_grants "$line" "$want" && return 0
   done < "$proj/autonomy"
   return 1
+}
+
+# Take a grant back. Rewrites the file without every line the reader above
+# takes as that grant, and returns 1 when it could not, so the caller never
+# says "revoked" about a grant still on disk.
+#
+# 2026-10-01: this was `grep -vxF cap autonomy > autonomy.new && mv` in
+# cmd_autonomy. grep exits 1 when it selects no line, so a file holding the
+# grant alone kept it — the && skipped the mv — while the command printed
+# "revoked:" and deleted the stamp, and left autonomy.new behind. An unreadable
+# file did the same through grep's exit 2. And grep matched whole lines
+# exactly where the reader trims, so a hand-edited "commission " stayed granted
+# after a revoke that said otherwise.
+#
+# Decided: revoke removes exactly the lines the reader counts as the grant,
+# trailing spaces, tabs and CRs included, and keeps every other line as it was.
+# The other way round, trimming nothing, would leave a revoke that cannot
+# revoke what the reader honours. The argument itself is not trimmed: it is
+# what a person typed, and the reader compares against its argument as given.
+felix_autonomy_revoke() {   # proj cap -> 0 when no line grants cap, 1 when not revoked
+  local proj="$1" want="$2" f tmp line bad=0
+  [ -n "$want" ] || return 1
+  f="$proj/autonomy"
+  # The reader takes nothing from what is not a regular file, so there is
+  # nothing here to take back.
+  [ -f "$f" ] || return 0
+  tmp="$f.new.$$"
+  # A file that cannot be read, or a replacement that cannot be written, fails
+  # the redirection, and the block returns non-zero without running the loop.
+  # Once it runs, its status is the last body command's, which is 0.
+  { while IFS= read -r line || [ -n "$line" ]; do
+      _felix_autonomy_grants "$line" "$want" && continue
+      printf '%s\n' "$line" || bad=1
+    done < "$f" > "$tmp"; } 2>/dev/null || bad=1
+  if [ "$bad" != 0 ] || ! mv -f "$tmp" "$f" 2>/dev/null; then
+    rm -f "$tmp" 2>/dev/null
+    return 1
+  fi
+  # Read back through the reader rather than trusting the rewrite.
+  ! felix_autonomy_allows "$proj" "$want"
 }
 
 # Remove lookalike scripts, and only where every check holds.

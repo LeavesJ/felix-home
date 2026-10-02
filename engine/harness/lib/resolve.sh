@@ -318,6 +318,59 @@ felix_resolve_project() {
   return 1
 }
 
+# Where the session stands, as against where the platform started the hook.
+#
+# Claude Desktop starts every hook in its --project-config-root, the main
+# checkout, whatever directory the session works in, while the payload's
+# top-level "cwd" is the session's own: a worktree as often as not (measured
+# 2026-10-02 on 2.1.286, real binary, mock API). A hook that resolves from $PWD
+# then judges the main checkout. Without the flag, the CLI, the two are one.
+#
+# The payload's cwd is used only when Felix has something to say about it, so a
+# hook never governs less than it did before: a directory nothing governs, one
+# that is not there, a relative path or one holding a JSON escape all answer
+# with $PWD, where the hook was started. A broken marker counts as something to
+# say, so the hook reports it where the session is.
+#
+# Read in pure bash. The leftmost "cwd" is the top-level one, third in the
+# envelope ahead of any event field, and a quote inside a message is spelt \",
+# which the pattern does not match. Escapes are not decoded: a path that needs
+# one is left to $PWD. The pattern is held in a variable so that bash 3.2, which
+# macOS ships, takes it as the regex it is.
+_felix_hook_dir_set() {   # payload, home -> _felix_hd
+  local raw="${1:-}" home="${2:-}" c root re='"cwd"[[:space:]]*:[[:space:]]*"([^"]*)"'
+  _felix_hd="$PWD"
+  [[ $raw =~ $re ]] || return 0
+  c="${BASH_REMATCH[1]}"
+  case "$c" in /*) ;; *) return 0 ;; esac
+  case "$c" in *\\*) return 0 ;; esac
+  # The CLI: nothing to resolve, and this runs on every tool call.
+  [ "$c" = "$PWD" ] && return 0
+  [ -d "$c" ] || return 0
+  root="$(felix_repo_root "$c" 2>/dev/null)"
+  if [ -f "$root/.felix" ] || felix_resolve_project "$c" "$home" >/dev/null 2>&1; then
+    _felix_hd="$c"
+  fi
+  return 0
+}
+
+felix_hook_dir() {   # payload, home -> the directory a hook should stand in
+  _felix_hook_dir_set "${1:-}" "${2:-}"
+  printf '%s' "$_felix_hd"
+  return 0
+}
+
+# Stand there, in the calling shell, so every $PWD a hook or a library default
+# reads from here on is the session's. The launch directory is kept for a hook
+# that has to fall back to it (pre-tool). Not a subshell: a hook runs on every
+# tool call and a fork is a cost it pays each time.
+felix_hook_enter() {   # payload, home
+  FELIX_HOOK_LAUNCH="$PWD"
+  _felix_hook_dir_set "${1:-}" "${2:-}"
+  [ "$_felix_hd" = "$PWD" ] || cd "$_felix_hd" 2>/dev/null
+  return 0
+}
+
 # Marker and pointer contents are written by whoever edited the file, and both
 # end up inside a JSON string a hook emits. Printable characters only, and
 # short, so a broken binding cannot be used to say something else.

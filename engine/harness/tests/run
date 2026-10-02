@@ -5703,7 +5703,12 @@ _p264_payload() {   # sid, the prompt value as JSON holds it, [space after the c
   printf '{"session_id":"%s","transcript_path":"%s/%s.jsonl","cwd":"%s","prompt_id":"%s-id","permission_mode":"default","hook_event_name":"UserPromptSubmit","prompt":%s"%s"}' \
     "$1" "$P264" "$1" "$REPO" "$1" "${3:-}" "$2"
 }
-_p264_prompt() { ( cd "${2:-$REPO}" && printf '%s' "$1" | "$FROOT/harness/hooks/user-prompt" 2>&1 ); }
+# The payload's cwd is the directory the hook runs in. _p264_payload says $REPO
+# whatever checkout the hook is run in, a cwd no platform sends: the CLI's is
+# the hook's own, and Desktop's names where the session is. A hook that stands
+# where the payload says (felix_hook_enter) would leave for $REPO.
+_p264_prompt() { local p="${1/\"cwd\":\"$REPO\"/\"cwd\":\"${2:-$REPO}\"}"
+                 ( cd "${2:-$REPO}" && printf '%s' "$p" | "$FROOT/harness/hooks/user-prompt" 2>&1 ); }
 _p264_end()    { ( cd "${2:-$REPO}" && printf '{"session_id":"%s","hook_event_name":"SessionEnd","reason":"other"}' "$1" \
                      | "$FROOT/harness/hooks/session-end" >/dev/null 2>&1 ); }
 # Every file one prompt and its session's end can write, one line per file.

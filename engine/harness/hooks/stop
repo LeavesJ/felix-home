@@ -70,6 +70,10 @@ _active="$(printf '%s' "$raw" \
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 
+# Judge the tree the session stands in, which Claude Desktop does not start the
+# hook in (lib/resolve.sh). Before the flagged-stop branch, which resolves too.
+felix_hook_enter "$raw" "$FELIX_HOME_DIR"
+
 # A chain the platform started from Felix's own hold ends here, as the
 # platform asks, except for a session that holds a night of its own. That
 # night is the grant to keep going, and leaving at the flag meant it held a

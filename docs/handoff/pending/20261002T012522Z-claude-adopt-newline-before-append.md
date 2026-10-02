@@ -156,8 +156,33 @@ All are fixed here and pinned by blocks 3 and 4.
 - felix discover --adopt still exits 0 when a row is unwritten. The summary
   line says so.
 
+**Main merged in, 2026-10-02,** for #386, #388, #389 and #392, with no
+force-push.
+- One conflict, in felix_mem_mistake against #392, which widened the
+  mistakes.log row to six fields, adding the epoch and the session. The
+  merged function keeps #392's row and its `_felix_mem_branch`/`_sha`/`_sid`
+  helpers, and ends the line first.
+  - This branch's own branch/sha capture is gone. #392's helpers already keep
+    the row on one line on a checkout with no commit.
+  - The five blind assertions that pinned the four-field row (three in
+    block 3 E, two in block 4 H, one of them renamed) now expect six. That
+    follows #392's format, and widens nothing they accept.
+- Against an export of the merged engine/:
+  - tests/run lines 1-9579, which take in blocks 1-4 and #392's
+    unrecorded-catch sections over the real fixture state, passed 1580, failed
+    0 and skipped 5;
+  - the readers blocks, block 5 and the lint passed 88 of 88.
+
+  Prefixes, not the record.
+
+**The verifier escape was a stale base.** risk.tsv:39 confines tests/run with
+`count:^[[:space:]]*(ok|is|has|bad) `, and escape.sh counts at the origin/main
+tip, not at the merge-base. Main had gained 215 such lines since the fork. The
+branch adds 126 and removes none, so before the merge it read 2953 against
+main's 3042, and `felix receipt` named a founder_required escape. Merged, it
+reads 3168 against 3042, and the receipt says `"founder_required": false,
+"escapes": []`. Re-merge and re-count at the slot if main has moved again.
+
 **At the record.** assertions.tsv grows by 204 from the base's block, 193
 from this branch's four, 81 from the readers branch, and 7 from the fifth
-block. `felix receipt` on
-d5a76bff names an escape on the verifier channel (tests/run, "weakening the
-suite is how a gate stops being one") as founder_required; the slot meets it.
+block.

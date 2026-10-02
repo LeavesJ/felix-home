@@ -15909,12 +15909,13 @@ _qswtill() {   # seconds, test...
   local t0=$SECONDS lim="$1"; shift
   while ! "$@"; do [ $((SECONDS - t0)) -lt "$lim" ] || return 1; sleep 1; done
 }
-# The pid itself, and what is below it, only while it is still this shell's
-# child: once reaped, the pid is free, and may be another session's.
+# The group, the pid itself and what is below it, only while the pid is
+# still this shell's child: once reaped, the pid is free, and so, once its
+# group is empty, is the group's id, and either may be another session's.
 _qswstop() {
   local k
-  [ -n "$(_qswgroup "$1")" ] && kill -s KILL -- "-$1" 2>/dev/null
   if [ "$(ps -o ppid= -p "$1" 2>/dev/null | tr -d ' ')" = "$$" ]; then
+    kill -s KILL -- "-$1" 2>/dev/null
     for k in $(_qswbelow "$1" "$1"); do kill -s KILL "$k" 2>/dev/null; done
     kill -s KILL "$1" 2>/dev/null
   fi
@@ -16079,9 +16080,16 @@ is  "with a sh first on PATH that forks rather than execs, a row whose checker h
 # 4. The row's process alone killed, its caller left running: the tree is
 # removed by another run's sweep. The caller alone killed, the row alive:
 # the sweep leaves it, and the row removes it at its end.
-d="$QSWS/row-killed"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/projb"
-_qswhold "$d" "$T" "$R"
-_qswcaller="$(cat "$d/a/caller" 2>/dev/null)"; _qswheldp="$(cat "$d/at" 2>/dev/null)"
+# The run has a second row that holds in turn, so its caller is still running
+# when the later run sweeps, and a record of the caller's pid would be seen.
+d="$QSWS/row-killed"; T="$d/t"; mkdir -p "$T" "$d/proj"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/projb"
+for _qswi in 1 2; do
+  _qsw5 "held$_qswi" "exec perl -e 'open(my \$f, q(>), \$ARGV[1]) or exit 3; print \$f \$\$; close \$f; for (1 .. 300) { last if -e \$ARGV[0]; sleep 1 } exit((-e q(base.txt)) ? 0 : 1)' '$d/release$_qswi' '$d/at$_qswi'" \
+        restoration pass true
+done > "$d/proj/qualification.tsv"
+_qswbg "$d/a" "$T" "$R" - run "$d/proj" "$R"; _qswa="$_qswpid"
+_qswtill 240 _qswheld "$d/at1" "$_qswa"
+_qswcaller="$(cat "$d/a/caller" 2>/dev/null)"; _qswheldp="$(cat "$d/at1" 2>/dev/null)"
 _qswb="$(_qswbase "$T")"; _qswr=""
 [ -n "$_qswb" ] && _qswr="$(readlink "$T/$_qswb/owner" 2>/dev/null)"
 # The pid the record names when it names the row's process, else the row's
@@ -16091,11 +16099,12 @@ _qswrowp="${_qswr%% *}"
 _qswp1="none-made"; [ -n "$_qswb" ] && _qswp1="$(_qswpre "$T/$_qswb" "$R" "$Tp/$_qswb/w")"
 [ -n "$_qswrowp" ] && kill -s KILL "$_qswrowp" 2>/dev/null
 _qswtill 60 _qswreaped "$_qswrowp"
+_qswtill 240 _qswheld "$d/at2" "$_qswa"
 _qswrun "$d/b" "$T" "$R" "$d/projb"
-_qswres="$([ -n "$_qswb" ] && _qswgone "$_qswp1" "$T/$_qswb" "$R" "$Tp/$_qswb/w" || echo no-base-was-made)"
-: > "$d/release"; _qswfinish "$_qswa" "$d/a"
-is  "a row whose own process alone is SIGKILLed while its checker holds, its caller left running, has its base and registration removed by the sweep of a run started once it is gone" \
-    "$_qswres $(_qswverd "$d/b")" "gone pass met"
+_qswres="$([ -n "$_qswb" ] && _qswgone "$_qswp1" "$T/$_qswb" "$R" "$Tp/$_qswb/w" || echo no-base-was-made) caller:$(_qswalive "$_qswcaller") second:$([ -s "$d/at2" ] && _qswalive "$(cat "$d/at2")" || echo none)"
+: > "$d/release1"; : > "$d/release2"; _qswfinish "$_qswa" "$d/a"
+is  "a row whose own process alone is SIGKILLed while its checker holds, its caller left running on into a second row that holds in turn, has its base and registration removed by the sweep of a run started once it is gone, the caller and the second row still running then" \
+    "$_qswres $(_qswverd "$d/b")" "gone caller:yes second:yes pass met"
 
 d="$QSWS/caller-killed"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/projb"
 _qswhold "$d" "$T" "$R"
@@ -16242,6 +16251,21 @@ _qswleftis "with that proc filesystem, a base whose record names a dead pid with
 _qswleftis "with that proc filesystem, a base whose record names a live pid that has no stat there to read is left as it was" "$d" "$T" "$R" felix-qualify.LXNOST "$_qswctl"
 is  "with that proc filesystem, a base whose record names a live pid with another start in that namespace is swept, registration included, and the live process is still running" \
     "$(_qswgone "$_qswp2" "$T/felix-qualify.LXDIFF" "$R" "$Tp/felix-qualify.LXDIFF/w") live:$(_qswalive "$QSWLIVE")" "gone live:yes"
+
+# 6c. A ps that prints nothing, as a fork that failed under load does: a
+# live pid is judged by kill -0 alone, whatever start its record holds.
+d="$QSWS/liveness-ps"; T="$d/t"; mkdir -p "$T" "$d/bin"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
+printf '#!/bin/sh\nexit 0\n' > "$d/bin/ps"; chmod +x "$d/bin/ps"
+_qswleft "$d" "$T" "$R" felix-qualify.PSNOTR "$QSWLIVE $(_qswstart "$QSWLIVE")" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.PSNODF "$QSWLIVE MonJan100:00:002001" 0555
+_qswplant "$T" felix-qualify.PSNODE "$R" "$(_qswdead)"
+_qswp1="$(_qswpre "$T/felix-qualify.PSNODE" "$R" "$Tp/felix-qualify.PSNODE/w")"
+_qswpath="$d/bin"; _qswbg "$d/s" "$T" "$R" - sweep; _qswpath=""; _qswfinish "$_qswpid" "$d/s"
+_qswctl="$(_qswgone "$_qswp1" "$T/felix-qualify.PSNODE" "$R" "$Tp/felix-qualify.PSNODE/w")"
+_qswleftis "with a ps on PATH that prints nothing, a base whose record names a live pid with its true start is left as it was" "$d" "$T" "$R" felix-qualify.PSNOTR "$_qswctl"
+_qswleftis "with a ps on PATH that prints nothing, a base whose record names a live pid with a start that is not its own is left as it was: a start that cannot be read now shows no other process" "$d" "$T" "$R" felix-qualify.PSNODF "$_qswctl"
+skip "a record whose kill -0 fails with an empty message, a fork that failed, is alive" "a failed fork cannot be staged here without replacing the kill builtin"
+skip "a base in the TMPDIR owned by another user, with a dead record, is never a candidate" "it needs a second user, which the suite does not have"
 
 # 7. Orphans: a registration whose base is gone, and only of the one shape.
 d="$QSWS/orphans"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/proj"

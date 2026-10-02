@@ -2979,8 +2979,11 @@ cmd_ready() {
   while IFS=$'\t' read -r st name detail; do
     [ -n "${st:-}" ] || continue
     case "$name" in *:*) owner="${name%%:*}" ;; *) owner="$name" ;; esac
-    # Only as a regular file; a pipe at the path held this grep open
-    # (2026-10-01), and anything else declares no row.
+    # Only as a regular file. Defensive: felix_ready_report already reads a
+    # pipe at the path as no row, so a pipe reaches this grep only if
+    # stack.tsv is swapped for one between that report and this loop
+    # (2026-10-01). Anything else declares no row. Held by the lint below, not
+    # by a blind case, which cannot build the swap without a race.
     local srow=""; [ -f "$proj/stack.tsv" ] && srow="$(grep -E "	($name|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
     # Read the row the way felix_stack_plan reads it, so the two policy callers
     # cannot disagree about the same line. `cut -f6` and a trailing `read`

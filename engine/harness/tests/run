@@ -23816,7 +23816,7 @@ _au --engine "$RVM/harness/felix" --home "$RVM/home2" --dir "$AUD" >/dev/null
 # command was being written by someone else, so each assertion names the
 # contract and none reads a wording.
 #
-# Rows are read from --tsv (kind repo ref states owner age_h detail). A row is
+# Rows are read from --tsv (kind repo ref states owner age_h content detail). A row is
 # found by the name the fixture gave its item: a worktree by its directory, a
 # branch by its name, a pull request by its number, first in the ref column
 # and else anywhere on the line. A state is a token of the states column, in
@@ -24385,8 +24385,8 @@ _iv_q() { LC_ALL=C awk -F'\t' -v m="$1" -v a="$2" '
     else if (m == "lack") { if (has(a)) b = 1 }
     else if (m == "word") { if (word(p[1] + 0, p[2])) g = 1 }
     else if (m == "noword") { if (word(p[1] + 0, p[2])) b = 1 }
-    else if (m == "num") { if (num($6 " " $7, p[1] + 0, p[2] + 0)) g = 1 }
-    else if (m == "dnum") { if (num($7, p[1] + 0, p[2] + 0)) g = 1 } }
+    else if (m == "num") { if (num($6 " " $8, p[1] + 0, p[2] + 0)) g = 1 }
+    else if (m == "dnum") { if (num($8, p[1] + 0, p[2] + 0)) g = 1 } }
   END { if (!n || b) exit 1; if (m == "hold" || m == "word" || m == "num" || m == "dnum") exit g ? 0 : 1; exit 0 }' "$IV/sel"; }
 # The table's states on each selected row, rows joined by " | ".
 _iv_states() { LC_ALL=C awk -F'\t' -v o="$IV_ORDER" '
@@ -24404,8 +24404,8 @@ _iv_count() { LC_ALL=C awk -F'\t' -v s="$2" '
   $1 == "kind" && $4 == "states" { next }
   { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, t, " "); for (i = 1; i <= k; i++) if (t[i] == s) { c++; break } }
   END { print c + 0 }' "$1"; }
-_iv_fields() { LC_ALL=C awk -F'\t' 'NF && NF != 7 { printf "line %d has %d fields; ", NR, NF }' "$1"; }
-_iv_blank()  { LC_ALL=C awk -F'\t' 'NF == 7 && ($1 == "" || $2 == "" || $3 == "" || $4 == "") { printf "line %d; ", NR }' "$1"; }
+_iv_fields() { LC_ALL=C awk -F'\t' 'NF && NF != 8 { printf "line %d has %d fields; ", NR, NF }' "$1"; }
+_iv_blank()  { LC_ALL=C awk -F'\t' 'NF == 8 && ($1 == "" || $2 == "" || $3 == "" || $4 == "") { printf "line %d; ", NR }' "$1"; }
 _iv_repos()  { LC_ALL=C awk -F'\t' '$1 == "kind" && $4 == "states" { next } NF { r[$2] = 1 } END { for (k in r) print k }' "$1"; }
 _iv_order()  { LC_ALL=C awk -F'\t' -v o="$IV_ORDER" '
   BEGIN { n = split(o, a, " "); for (i = 1; i <= n; i++) r[a[i]] = i }
@@ -24431,8 +24431,8 @@ IV_T1="$IV/t1.tsv"; _ivrun inventory --tsv --repo "$IVM" > "$IV_T1"; IV_RC1=$?
 IV_D1="rc=$IV_RC1; stdout: $(head -c 300 "$IV_T1" | tr '\t\n' '|;'); stderr: $(tail -c 300 "$IV_ERR" | tr '\n' ' ')"
 is  "felix inventory --tsv exits 0 over a repository it can read" "$IV_RC1" "0"
 _ivx="$(_iv_fields "$IV_T1")"
-if [ -s "$IV_T1" ] && [ -z "$_ivx" ]; then ok "every --tsv row has seven tab-separated fields, and there are rows"
-else bad "every --tsv row has seven tab-separated fields, and there are rows" "${_ivx:-no rows; $IV_D1}"; fi
+if [ -s "$IV_T1" ] && [ -z "$_ivx" ]; then ok "every --tsv row has eight tab-separated fields, and there are rows"
+else bad "every --tsv row has eight tab-separated fields, and there are rows" "${_ivx:-no rows; $IV_D1}"; fi
 _ivx="$(_iv_blank "$IV_T1")"
 if [ -s "$IV_T1" ] && [ -z "$_ivx" ]; then ok "every row fills its kind, repo, ref and states"
 else bad "every row fills its kind, repo, ref and states" "${_ivx:-no rows}"; fi
@@ -24480,7 +24480,7 @@ _ivgh _iv_chk "a pushed branch with no pull request, its content not on main, le
 _iv_chk "and it is not unpushed" "$IV_T1" wt-unproposed lack unpushed
 _ivgh _iv_chk "a remote branch with no pull request and no local copy is unproposed" "$IV_T1" topic/remote-only hold unproposed
 _iv_chk "a local branch changing two paths, one of which main holds, is unpushed" "$IV_T1" topic/partly hold unpushed
-_iv_chk "and its detail says partly" "$IV_T1" topic/partly word 7:partly
+_iv_chk "and its content column says partly" "$IV_T1" topic/partly word 7:partly
 _ivgh _iv_chk "a local branch whose tip precedes a merged pull request's head is landed, though main's squash of it was edited" "$IV_T1" topic/precedes lead landed
 _ivgh _iv_chk "a branch whose pull request was closed but whose content main holds is landed" "$IV_T1" topic/superseded lead landed
 _ivgh _iv_chk "a worktree whose pull request was closed unmerged, its content not on main, leads with pr-closed-unlanded" "$IV_T1" wt-closed lead pr-closed-unlanded
@@ -24494,7 +24494,7 @@ _iv_chk "a directory beside the worktrees that git no longer lists is an orphan"
 _iv_chk "and its detail counts the 2 files whose content is in no object, and not its .git link" "$IV_T1" orphan-edit dnum 2:2
 # None is the number 0, or a detail with no number at all that says no or
 # none; "1 file in no object" is one, not none.
-_iv_none() { LC_ALL=C awk -F'\t' '{ n++; d = tolower($7)
+_iv_none() { LC_ALL=C awk -F'\t' '{ n++; d = tolower($8)
     if (d ~ /(^|[^0-9.])0([^0-9.]|$)/) g = 1
     else if (d !~ /[0-9]/ && d ~ /(^|[^a-z])(no|none)([^a-z]|$)/) g = 1 }
   END { exit (n && g) ? 0 : 1 }' "$IV/sel"; }
@@ -24512,16 +24512,16 @@ for _ivn in 4103 4104 4105 4106 4109; do _iv_sel "$IV_T1" "$_ivn"; _iv_q hold pr
 if [ "$IV_JQ" != 1 ]; then skip "each of the five open pull requests has a row that is pr-open" "no jq for the gh stand-in"
 elif [ -z "$_ivx" ]; then ok "each of the five open pull requests has a row that is pr-open"
 else bad "each of the five open pull requests has a row that is pr-open" "not pr-open:$_ivx"; fi
-_ivgh _iv_chk "the pull request labelled felix:hold says hold in its detail" "$IV_T1" 4103 word 7:hold
-_ivgh _iv_chk "and not ready, though felix/ready sits on its head's parent" "$IV_T1" 4103 noword 7:ready
-_ivgh _iv_chk "the pull request with felix/ready on its head says ready" "$IV_T1" 4104 word 7:ready
-_ivgh _iv_chk "and its label felix:founder says founder" "$IV_T1" 4104 word 7:founder
-_ivgh _iv_chk "and it does not say hold" "$IV_T1" 4104 noword 7:hold
-_ivgh _iv_chk "the label needs-founder says founder too" "$IV_T1" 4106 word 7:founder
-_ivgh _iv_chk "the pull request GitHub calls conflicting says conflicting" "$IV_T1" 4105 word 7:conflicting
+_ivgh _iv_chk "the pull request labelled felix:hold says hold in its detail" "$IV_T1" 4103 word 8:hold
+_ivgh _iv_chk "and not ready, though felix/ready sits on its head's parent" "$IV_T1" 4103 noword 8:ready
+_ivgh _iv_chk "the pull request with felix/ready on its head says ready" "$IV_T1" 4104 word 8:ready
+_ivgh _iv_chk "and its label felix:founder says founder" "$IV_T1" 4104 word 8:founder
+_ivgh _iv_chk "and it does not say hold" "$IV_T1" 4104 noword 8:hold
+_ivgh _iv_chk "the label needs-founder says founder too" "$IV_T1" 4106 word 8:founder
+_ivgh _iv_chk "the pull request GitHub calls conflicting says conflicting" "$IV_T1" 4105 word 8:conflicting
 _iv_sel "$IV_T1" 4105
 if [ "$IV_JQ" = 1 ]; then
-  if _iv_q noword 7:ready && _iv_q noword 7:hold && _iv_q noword 7:founder; then ok "and it says none of ready, hold or founder"
+  if _iv_q noword 8:ready && _iv_q noword 8:hold && _iv_q noword 8:founder; then ok "and it says none of ready, hold or founder"
   else bad "and it says none of ready, hold or founder" "$(_iv_diag)"; fi
 else skip "and it says none of ready, hold or founder" "no jq for the gh stand-in"; fi
 _ivgh _iv_chk "the pull request last updated 30 hours ago carries 29 to 31 hours, in age_h or its detail" "$IV_T1" 4103 num 29:31
@@ -24985,7 +24985,7 @@ _ivz_sel() { LC_ALL=C awk -F'\t' -v r="$2" '$3 == r' "$1" > "$IV/sel"; }
 _ivz_chk() {  # name file ref mode arg
   _ivz_sel "$2" "$3"
   if _iv_q "$4" "$5"; then ok "$1"; else bad "$1" "$(_iv_diag)"; fi; }
-_ivz_det() { LC_ALL=C awk -F'\t' -v e="$1" '$7 ~ e { f = 1 } END { exit !(NR && f) }' "$IV/sel"; }
+_ivz_det() { LC_ALL=C awk -F'\t' -v e="$1" '$8 ~ e { f = 1 } END { exit !(NR && f) }' "$IV/sel"; }
 
 # Filters (a clean filter is a program the repository's config runs; git-lfs
 # stores what it is handed): none runs, and a path one would have cleaned is
@@ -25002,7 +25002,7 @@ if [ -s "$IVZ_T1" ] && ! LC_ALL=C awk -F'\t' -v r="$IVZD" '$3 == r { f = 1 } END
 else bad "a worktree whose path holds a line break makes no row of the directory the break spells, and no git runs there" "$(grep -F -- "$IVZD" "$IVZ_T1" "$IVGIT_LOG" | head -n 3 | tr '\t\n' '|;')"; fi
 _ivz_chk "a listed worktree whose .git file is gone is an orphan of the repository, not the checkout around it" "$IVZ_T1" "$IVZC/wt-q" hold orphan
 _ivz_chk "and it is not landed" "$IVZ_T1" "$IVZC/wt-q" lack landed
-_ivz_chk "and its row says git marks it prunable" "$IVZ_T1" "$IVZC/wt-q" word 7:prunable
+_ivz_chk "and its row says git marks it prunable" "$IVZ_T1" "$IVZC/wt-q" word 8:prunable
 _ivz_chk "the main worktree does not count its linked worktrees' and orphans' files as its own changes" "$IVZ_T1" "$IVZ" lack uncommitted
 # Branches: the default branch is told by name, and a remote branch ahead of
 # its local namesake is read.
@@ -25037,8 +25037,10 @@ _iv_selstate "$IVZ_T1" chip-unstarted
 if grep -qF 'Title with C:\path' "$IV/sel" && ! LC_ALL=C grep -q "$(printf '\001')" "$IV/sel"; then ok "a chip title's backslash prints as a backslash, with no control byte"
 else bad "a chip title's backslash prints as a backslash, with no control byte" "$(_iv_diag | od -c | head -n 3 | tr '\n' ' ')"; fi
 # What gh cannot say.
-grep -qF topic/feat3 "$IVZ_H2" && ok "under --no-gh the human view lists a pushed branch whose content is not on main, rather than only counting it" \
-  || bad "under --no-gh the human view lists a pushed branch whose content is not on main, rather than only counting it" "$(tail -n 4 "$IVZ_H2" | tr '\n' ';')"
+# Spec §4.3 rule 5 and §8: under --no-gh a pushed tip's not reads unknown, so
+# the row is undecided with content not not or partly: counted, not listed.
+[ -s "$IVZ_H2" ] && ! grep -qF topic/feat3 "$IVZ_H2" && ok "under --no-gh the human view counts a pushed branch whose content cannot be confirmed off main, rather than listing it" \
+  || bad "under --no-gh the human view counts a pushed branch whose content cannot be confirmed off main, rather than listing it" "$(grep -F topic/feat3 "$IVZ_H2" | head -n 2 | tr '\n' ';')$(tail -n 4 "$IVZ_H2" | tr '\n' ';')"
 _ivz_sel "$IVZ_T3" topic/feat3
 if _iv_q lack unproposed && _iv_q word 0:unknown; then ok "when gh lists its limit of pull requests, a pushed branch with none among them is unknown, not unproposed"
 else bad "when gh lists its limit of pull requests, a pushed branch with none among them is unknown, not unproposed" "$(_iv_diag)"; fi
@@ -25088,8 +25090,8 @@ is  "no run wrote a shell or awk error to stderr, nor a failed redirection" "$_i
 #      under its <session-id>/subagents/ (workflows/ too); blocked also needs
 #      nothing there written within --blocked; question and blocked read the
 #      session's own file only
-#   D3 a row standing for a list not read, or a fact about the whole
-#      repository, is kind repo with ref -; the item kinds are only items
+#   D3 superseded 2026-10-01 (spec §5, §5.1): what was read is five cover
+#      rows per repository, ref the facet; no row is of kind repo
 #   D4 --days defaults to 14, and the human view states the window
 #   D5 a worktree or orphan under $TMPDIR, /tmp, /private/tmp or
 #      /private/var/folders carries the detail word temp, keeps its states,
@@ -25213,11 +25215,11 @@ _ivk_chk "D1: a question followed by one more paragraph is a question" "$IVK_T1"
 _ivk_chk "D1: an offer with no ? is a question" "$IVK_T1" wt-offer hold question
 _ivk_chk "D1: a plain summary, even one saying nothing needs your decision, is no question" "$IVK_T1" wt-plain lack question
 _ivk_sel "$IVK_T1" wt-midq
-has "D1: the note of a short question is the whole text, a line break read as a space" "$(cut -f7 "$IV/sel")" \
+has "D1: the note of a short question is the whole text, a line break read as a space" "$(cut -f8 "$IV/sel")" \
     "ended on: I rebased the branch and the suite is green.  Shall I push it? Or leave it for review."
 _ivx="Done.  Shall I go on? $IVK_TAIL"; _ivx="${_ivx:$((${#_ivx} - 160))}"
 _ivk_sel "$IVK_T1" wt-longq
-if _iv_q hold question; then has "D1: the note of a long question is the text's last 160 characters" "$(cut -f7 "$IV/sel")" "ended on: $_ivx"
+if _iv_q hold question; then has "D1: the note of a long question is the text's last 160 characters" "$(cut -f8 "$IV/sel")" "ended on: $_ivx"
 else bad "D1: the note of a long question is the text's last 160 characters" "$(_iv_diag)"; fi
 
 # ---- D2: live and blocked ----
@@ -25238,21 +25240,25 @@ if _iv_q hold live && _iv_q hold question; then ok "D2: an older session's subag
 else bad "D2: an older session's subagent writing now makes the worktree live, and the newest session's question stands" "$(_iv_diag)"; fi
 
 # ---- D3: repository-level rows ----
-# kind repo ref states, for every row of kind repo or with ref -.
-_ivk_repo() { LC_ALL=C awk -F'\t' '$1 == "kind" && $4 == "states" { next } $1 == "repo" || $3 == "-" { print $1 "\t" $3 "\t" $4 }' "$1"; }
-_ivk_rchk() {  # name file state
-  if [ -s "$2" ] && _ivk_repo "$2" | LC_ALL=C awk -F'\t' -v s="$3" '$1 == "repo" && $2 == "-" && index("," $3 ",", "," s ",") { f = 1 } END { exit !f }'; then ok "$1"
+# Superseded by the settled contract (2026-10-01 spec §5, §5.1, §11 row 2): what
+# was read is five rows of kind cover per repository, ref the facet name, and
+# no row of kind repo is ever printed. Each check names the facet and a
+# state its states column must hold.
+# kind ref states, for every row of kind cover or repo, or with ref -.
+_ivk_repo() { LC_ALL=C awk -F'\t' '$1 == "kind" && $4 == "states" { next } $1 == "cover" || $1 == "repo" || $3 == "-" { print $1 "\t" $3 "\t" $4 }' "$1"; }
+_ivk_rchk() {  # name file facet state
+  if [ -s "$2" ] && _ivk_repo "$2" | LC_ALL=C awk -F'\t' -v r="$3" -v s="$4" '$1 == "cover" && $2 == r && index("," $3 ",", "," s ",") { f = 1 } END { exit !f }'; then ok "$1"
   else bad "$1" "$(_ivrows "$2" "$(_ivk_repo "$2" | tr '\t\n' '|;')")"; fi; }
-_ivk_rchk "D3: under --no-gh the open PRs not listed are a row of kind repo with ref -" "$IV_T3" unknown:pr-open
-_ivk_rchk "D3: with no gh on PATH, likewise" "$IV_T5" unknown:pr-open
-_ivk_rchk "D3: under --no-host the chips not read are a row of kind repo with ref -" "$IV_T4" unknown:chip-unstarted
-_ivk_rchk "D3: when gh lists its limit of 1000, a row of kind repo with ref - says the list may not be all" "$IVZ_T3" unknown:unproposed
+_ivk_rchk "D3: under --no-gh the open PRs not listed are stated on the cover row prs" "$IV_T3" prs unknown:pr-open
+_ivk_rchk "D3: with no gh on PATH, likewise" "$IV_T5" prs unknown:pr-open
+_ivk_rchk "D3: under --no-host the chips not read are stated on the cover row chips" "$IV_T4" chips unknown:chip-unstarted
+_ivk_rchk "D3: when gh lists its limit of 1000, the cover row prs says partial,unknown:unproposed" "$IVZ_T3" prs partial,unknown:unproposed
 _ivx=""
 for _ivf in "$IV_T0" "$IV_T0W" "$IV_T1" "$IV_T3" "$IV_T4" "$IV_T5" "$IV_T6" "$IV/t7.tsv" "$IV_T8" "$IVZ_T1" "$IVZ_T3" "$IVZ_T4" "$IVZ_P1" "$IVZ_P2" "$IVK_T1" "$IVK_T2"; do
   [ -f "$_ivf" ] || continue
-  _ivx="$_ivx$(_ivk_repo "$_ivf" | LC_ALL=C awk -F'\t' -v f="${_ivf##*/}" '!($1 == "repo" && $2 == "-") { printf "%s: %s %s; ", f, $1, $2 }')"
+  _ivx="$_ivx$(_ivk_repo "$_ivf" | LC_ALL=C awk -F'\t' -v f="${_ivf##*/}" '$1 == "repo" || $2 == "-" { printf "%s: %s %s; ", f, $1, $2 }')"
 done
-is  "D3: across every run, a row with ref - is of kind repo and a row of kind repo has ref -" "$_ivx" ""
+is  "D3: across every run, no row is of kind repo and no row has ref -" "$_ivx" ""
 
 # ---- D4: the chip window ----
 _iv_selstate "$IVK_T1" chip-unstarted
@@ -25266,12 +25272,12 @@ LC_ALL=C grep -qiE 'chips.*last 3 days' "$IVK_H3" && ok "D4: and under --days 3 
   || bad "D4: and under --days 3 it says 3 days" "$(head -n 8 "$IVK_H3" | tr '\n' ';')"
 
 # ---- D5: temporary directories ----
-_iv_chk "D5: a worktree under a temporary directory carries the word temp in its detail" "$IV_T1" wt-dirty word 7:temp
+_iv_chk "D5: a worktree under a temporary directory carries the word temp in its detail" "$IV_T1" wt-dirty word 8:temp
 _iv_chk "D5: and its states are computed as for any other: it still leads with uncommitted" "$IV_T1" wt-dirty lead uncommitted
-_iv_chk "D5: an orphan under one carries temp too" "$IV_T1" orphan-edit word 7:temp
+_iv_chk "D5: an orphan under one carries temp too" "$IV_T1" orphan-edit word 8:temp
 _ivx="$(LC_ALL=C awk -F'\t' '$1 == "kind" && $4 == "states" { next }
-  $1 != "worktree" && $1 != "orphan" && tolower($7) ~ /(^|[^a-z])temp([^a-z]|$)/ { printf "%s %s; ", $1, $3 }' "$IV_T1" "$IV_T3" "$IV_T4")"
-is  "D5: no row that is not a directory carries temp: branches, remote branches, PRs, chips, handoff sections, repo rows" "$(_ivrows "$IV_T1" "$_ivx")" ""
+  $1 != "worktree" && $1 != "orphan" && tolower($8) ~ /(^|[^a-z])temp([^a-z]|$)/ { printf "%s %s; ", $1, $3 }' "$IV_T1" "$IV_T3" "$IV_T4")"
+is  "D5: no row that is not a directory carries temp: branches, remote branches, PRs, chips, handoff sections, cover rows" "$(_ivrows "$IV_T1" "$_ivx")" ""
 # Every fixture lies in a temporary directory (the suite's TMP is one), so
 # the one path outside every temporary directory is asked of the test the
 # command applies, below the command: the libraries sourced, _fi_tmps reading
@@ -25304,20 +25310,20 @@ case "$(_ivk_group "$IVK_H4" "$IVW4/wt-two"):$_ivx" in
 esac
 is  "a live worktree whose tool call has waited past --blocked is listed under blocked, rather than only counted" "$(_ivk_group "$IVK_H4" "$IVW4/wt-mid")" "blocked"
 _ivx="$(LC_ALL=C awk '/nothing decided but unknown [0-9]/ { sub(/.*nothing decided but unknown /, ""); print; exit }' "$IVK_H1")"
-if [ "$_ivx" = 0 ] && LC_ALL=C grep -qE '^  PR facts +unknown' "$IVK_H1"; then
+if [ "$_ivx" = 0 ] && LC_ALL=C grep -qE '(^|[^a-z])prs([^a-z]|$).*--no-gh' "$IVK_H1"; then
   ok  "nothing decided but unknown counts items, not the repository's own unknowns, which its header states"
 else bad "nothing decided but unknown counts items, not the repository's own unknowns, which its header states" "count [$_ivx]; $(head -n 6 "$IVK_H1" | tr '\n' ';')"; fi
-LC_ALL=C grep -qE '^  chips +unknown' "$IVK_H5" && ok "with no session records to read, the header says the chips are unknown, since no count does" \
+LC_ALL=C grep -qE '(^|[^a-z])chips([^a-z]|$).*no session records' "$IVK_H5" && ok "with no session records to read, the header says the chips are unknown, since no count does" \
   || bad "with no session records to read, the header says the chips are unknown, since no count does" "$(head -n 7 "$IVK_H5" | tr '\n' ';')"
-_ivx="$(_ivk_item "$IVZ_H2" topic/feat3)"
-case "$_ivx" in
-  *unproposed*pr-open*pr-closed-unlanded*) ok  "an undecided row lists every state it could not decide, the first of them too" ;;
-  *)                                       bad "an undecided row lists every state it could not decide, the first of them too" "[$_ivx]" ;;
-esac
+# Spec §4.1, §5.1: the row carries each unknown: entry its unread facet
+# leaves, read from --tsv, since §8 no longer lists such a row.
+_iv_sel "$IV_T3" wt-unproposed
+if _iv_q hold unknown:unproposed && _iv_q hold unknown:pr-open && _iv_q hold unknown:pr-closed-unlanded; then ok "an undecided row lists every state it could not decide, the first of them too"
+else bad "an undecided row lists every state it could not decide, the first of them too" "$(_iv_diag)"; fi
 # D5's list, replaced: the unit, then the command.
 _ivx="$(FELIX_INVENTORY_TEMP_ROOTS=/nowhere/a:/nowhere/b/ TMPDIR=/nowhere/t /bin/bash -c 'for f in "$@"; do . "$f" || exit 1; done; _fi_tmps; for p in /nowhere/a/x /nowhere/b/y /nowhere/t/z /tmp/a /nowhere/ab; do _fi_temp "$p" && printf "%s " "$p"; done; exit 0' _ "$IVLIB" ${IVPARTS[@]+"${IVPARTS[@]}"} 2>&1)"
 is  "D5: FELIX_INVENTORY_TEMP_ROOTS, colon-separated, replaces the list: of five paths only the two under its roots are temp" "$_ivx" "/nowhere/a/x /nowhere/b/y "
-_ivx="$(LC_ALL=C awk -F'\t' '$1 == "kind" && $4 == "states" { next } tolower($7) ~ /(^|[^a-z])temp([^a-z]|$)/ { printf "%s; ", $3 }' "$IVK_T4")"
+_ivx="$(LC_ALL=C awk -F'\t' '$1 == "kind" && $4 == "states" { next } tolower($8) ~ /(^|[^a-z])temp([^a-z]|$)/ { printf "%s; ", $3 }' "$IVK_T4")"
 _ivk_sel "$IVK_T4" wt-midq
 if [ -s "$IVK_T4" ] && [ -z "$_ivx" ] && _iv_q hold question; then
   ok  "D5: with it naming a directory outside the fixture, no fixture row carries temp, and each keeps its states"
@@ -25326,6 +25332,1190 @@ is  "D5: and the human view lists a worktree whose session asked in its needs-ac
 
 _ivx="$(grep -E 'bad substitution|syntax error|unbound variable|command not found|invalid option|not a valid identifier|division by 0|awk: |Permission denied' "$IV_ERR" | head -n 3 | tr '\n' ';')"
 is  "the decisions' runs wrote no shell or awk error to stderr" "$_ivx" ""
+
+# ---------------------------- felix inventory: the settled contract, blind ----
+# The assertions of audits/2026-10-01-report-v5-review/specs/inventory/
+# assertions.md, written blind from that day's settled spec.md (no inventory
+# library and no implementation diff read), with the rulings of disposition.md
+# beside them. Each name carries its id: A1 ... A120 from assertions.md, and
+# N1 ... N16 for what disposition.md asked the blind author for (the
+# replacements for A101 and A107(a), the re-derived first line of A16 and tail
+# of A22, H2's example, H4's guard, M1's gpg probe, M3's fork PR, H5's squash
+# case, §6.2's message-first record) and for settled clauses no A-row reached
+# (shallow clones, ssh ports, CLAUDE_CONFIG_DIR, a PR headed like the default
+# branch). A101 is obsolete whole and is not here; A16, A22, A103 and A107 are
+# here as the settlement left them, and their obsolete parts are left out.
+#
+# Records (spec.md §0 step 3, disposition.md H2): every user or assistant
+# record the builders below write carries a "timestamp" equal to the age the
+# fixture gives its session, and the session file's mtime is set to that same
+# age, so a record's time and its file's time agree unless an assertion sets
+# them apart on purpose (N1, N2). A user record puts "type":"user" before its
+# message; an assistant record puts its message first and its own
+# "type":"assistant" after it, as §6.2 states and the audit builders write.
+#
+# Everything lives under $IB, one repository per concern, so no block here
+# depends on a project table or on a fixture another section leaves behind.
+# Records are written just before the runs that read them, because their ages
+# are minutes and a loaded machine spends minutes building the repositories.
+printf '\nfelix inventory: the settled contract of 2026-10-01, written blind\n'
+
+IB="$TMP/inventory-blind"; mkdir -p "$IB"; IB="$(cd "$IB" && pwd -P)"
+mkdir -p "$IB/home/.claude/projects" "$IB/home0/.claude/projects" "$IB/homenone" "$IB/fxhome" "$IB/tmp" \
+         "$IB/cwd" "$IB/stub" "$IB/stubng" "$IB/spy" "$IB/old" "$IB/gh/default" "$IB/mem" "$IB/temproot" \
+         "$IB/runs" "$IB/ccd/projects" "$IB/plain" "$IB/clone/felix/engine"
+cp -R "$REAL_HARNESS" "$IB/clone/felix/engine/harness"
+IBF="$IB/clone/felix/engine/harness/felix"; IBP="$IB/home/.claude/projects"; IB_GIT="$(command -v git)"
+IBL="$REAL_HARNESS/lib"
+printf '[]\n' > "$IB/gh/default/all.json"; printf '[]\n' > "$IB/gh/default/open.json"
+printf '0\n' > "$IB/gh/rc"; : > "$IB/gh/err"
+
+# ---- stand-ins -----------------------------------------------------------
+# gh logs PWD|ARGS|GH_NO_UPDATE_NOTIFIER|GH_PROMPT_DISABLED|XDG_STATE_HOME|
+# XDG_CACHE_HOME and answers the --state all or --state open listing of the
+# repository -R names (else of the directory it runs in) from $IB/gh/<key>/.
+# $IB/gh/rc and err make it fail, fail-open fails the second call only, and
+# slow makes it write its PID and sleep.
+cat > "$IB/stub/gh" <<IBGHEOF
+#!/bin/sh
+D='$IB/gh'
+printf '%s|%s|%s|%s|%s|%s\n' "\$PWD" "\$*" "\${GH_NO_UPDATE_NOTIFIER-}" "\${GH_PROMPT_DISABLED-}" "\${XDG_STATE_HOME-}" "\${XDG_CACHE_HOME-}" >> '$IB/gh.log'
+r=""; p=""
+for a in "\$@"; do [ "\$p" = -R ] && r="\$a"; p="\$a"; done
+if [ -n "\$r" ]; then k="\$(printf '%s' "\$r" | tr '/' '_')"; else k="pwd_\${PWD##*/}"; fi
+[ -d "\$D/\$k" ] || k=default
+if [ -f "\$D/slow" ]; then printf '%s\n' "\$\$" > '$IB/gh.pid'; exec sleep 30; fi
+s=all; case " \$* " in *" --state open "*) s=open ;; esac
+if [ "\$s" = open ] && [ -f "\$D/fail-open" ]; then echo 'gh: the open listing failed' >&2; exit 1; fi
+rc="\$(cat "\$D/rc")"
+if [ "\$rc" != 0 ]; then cat "\$D/err" >&2; exit "\$rc"; fi
+cat "\$D/\$k/\$s.json"
+IBGHEOF
+for _ibn in curl wget ssh nc; do
+  printf '#!/bin/sh\nprintf "%%s\\n" %s >> "%s/net.log"\nexit 0\n' "$_ibn" "$IB" > "$IB/stub/$_ibn"
+  cp "$IB/stub/$_ibn" "$IB/stubng/$_ibn"
+done
+# The git spy logs GIT_NO_LAZY_FETCH=<v>|<args>; the old git says 2.43.0.
+cat > "$IB/spy/git" <<IBSPYEOF
+#!/bin/sh
+printf 'GIT_NO_LAZY_FETCH=%s|%s\n' "\${GIT_NO_LAZY_FETCH-}" "\$*" >> '$IB/git.log'
+exec '$IB_GIT' "\$@"
+IBSPYEOF
+cat > "$IB/old/git" <<IBOLDEOF
+#!/bin/sh
+for a in "\$@"; do case "\$a" in --version|version) echo 'git version 2.43.0'; exit 0 ;; esac; done
+exec '$IB_GIT' "\$@"
+IBOLDEOF
+printf '#!/bin/sh\n: > "%s/gpg-ran"\nexit 1\n' "$IB" > "$IB/gpgstub"
+chmod +x "$IB/stub/"* "$IB/stubng/"* "$IB/spy/git" "$IB/old/git" "$IB/gpgstub"
+
+# ---- the fixture's git, commits and records ------------------------------
+_ibg() { HOME="$IB/fxhome" XDG_CONFIG_HOME="$IB/fxhome/.config" GIT_CONFIG_NOSYSTEM=1 \
+         GIT_AUTHOR_NAME=Fixture GIT_AUTHOR_EMAIL=fixture@example.invalid \
+         GIT_COMMITTER_NAME=Fixture GIT_COMMITTER_EMAIL=fixture@example.invalid \
+         "$IB_GIT" -c init.defaultBranch=main -c advice.detachedHead=false "$@"; }
+_ibq() { _ibg --no-optional-locks "$@"; }
+_ibi() { GIT_INDEX_FILE="$IB/fx.idx" HOME="$IB/fxhome" XDG_CONFIG_HOME="$IB/fxhome/.config" GIT_CONFIG_NOSYSTEM=1 "$IB_GIT" "$@"; }
+_ibago() { printf '%s' $(( $(date +%s) - $1 * 60 )); }
+IBC=""
+_ibmk() {  # MIN|- repo parent|- message [path content|-]...  -> IBC, a commit no checkout holds
+  local d="$1" r="$2" par="$3" msg="$4" blob tree; shift 4
+  rm -f "$IB/fx.idx"
+  if [ "$par" = - ]; then _ibi -C "$r" read-tree --empty; else _ibi -C "$r" read-tree "$par"; fi
+  while [ $# -ge 2 ]; do
+    if [ "$2" = - ]; then _ibi -C "$r" update-index --force-remove "$1"
+    else blob="$(printf '%s\n' "$2" | _ibg -C "$r" hash-object -w --stdin)"
+         _ibi -C "$r" update-index --add --cacheinfo "100644,$blob,$1"; fi
+    shift 2
+  done
+  tree="$(_ibi -C "$r" write-tree)"
+  IBC="$( if [ "$d" != - ]; then GIT_AUTHOR_DATE="$(_ibago "$d") +0000"; GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"
+                                 export GIT_AUTHOR_DATE GIT_COMMITTER_DATE; fi
+          if [ "$par" = - ]; then _ibg -C "$r" commit-tree "$tree" -m "$msg"
+          else _ibg -C "$r" commit-tree "$tree" -p "$par" -m "$msg"; fi )"
+}
+_ibci() { _ibg -C "$1" add -A && _ibg -C "$1" commit -q -m "$2"; }
+_ibnew() {  # NAME [path content]...: $IB/NAME-origin.git holding main, and $IB/NAME cloned from it
+  local n="$1"; shift
+  _ibg init -q --bare "$IB/$n-origin.git"
+  _ibmk - "$IB/$n-origin.git" - "the first $n" README.md "$n" "$@"
+  _ibg -C "$IB/$n-origin.git" update-ref refs/heads/main "$IBC"
+  _ibg clone -q "$IB/$n-origin.git" "$IB/$n"
+}
+_ibmainwt() { _ibq -C "$1" worktree list --porcelain | LC_ALL=C awk 'NR == 1 { sub(/^worktree /, ""); print }'; }
+_ibenc() { printf '%s' "$1" | LC_ALL=C sed 's/[^A-Za-z0-9]/-/g'; }
+_ibts() { local e; e="$(_ibago "$1")"
+          date -u -r "$e" '+%Y-%m-%dT%H:%M:%S.000Z' 2>/dev/null || date -u -d "@$e" '+%Y-%m-%dT%H:%M:%S.000Z'; }
+_ibage() { local e; e="$(_ibago "$2")"
+           touch -t "$(date -r "$e" '+%Y%m%d%H%M.%S' 2>/dev/null || date -d "@$e" '+%Y%m%d%H%M.%S')" "$1"; }
+# A session file: _ibsess DIR SID files it where Claude Code files DIR's
+# sessions; _ibopen FILE SID opens any path. IB_BR, when set, is the
+# gitBranch every record carries; IB_SID is the sessionId.
+IB_F=""; IB_SID=""; IB_BR=""; IB_TSF=""
+_ibopen() { IB_F="$1"; IB_SID="$2"; mkdir -p "${1%/*}"; : > "$1"; }
+_ibsess() { _ibopen "$IBP/$(_ibenc "$1")/$2.jsonl" "$2"; }
+_ib_tsf() { if [ "$1" = none ]; then IB_TSF=""; else IB_TSF=",\"timestamp\":\"$(_ibts "$1")\""; fi; }
+_ib_raw() { printf '%s\n' "$1" >> "$IB_F"; }
+_ib_u() {  # MIN|none content-json [fields after the message]
+  local g="" l; [ -n "$IB_BR" ] && g=",\"gitBranch\":\"$IB_BR\""; _ib_tsf "$1"
+  printf -v l '{"parentUuid":"p","isSidechain":false,"userType":"external","sessionId":"%s","version":"2.1.286"%s,"type":"user","message":{"role":"user","content":%s}%s,"uuid":"u-%s"%s}' \
+    "$IB_SID" "$g" "$2" "${3:-}" "$RANDOM" "$IB_TSF"
+  printf '%s\n' "$l" >> "$IB_F"; }
+_ib_ax() {  # MIN|none content-items-json stop-reason [isSidechain]
+  local g="" l; [ -n "$IB_BR" ] && g=",\"gitBranch\":\"$IB_BR\""; _ib_tsf "$1"
+  printf -v l '{"parentUuid":"p","isSidechain":%s,"userType":"external","sessionId":"%s","version":"2.1.286"%s,"message":{"model":"claude-test","id":"msg_%s","type":"message","role":"assistant","content":[%s],"stop_reason":"%s","stop_sequence":null,"usage":{"input_tokens":1,"output_tokens":1}},"requestId":"req_%s","type":"assistant","uuid":"a-%s"%s}' \
+    "${4:-false}" "$IB_SID" "$g" "$RANDOM" "$2" "$3" "$RANDOM" "$RANDOM" "$IB_TSF"
+  printf '%s\n' "$l" >> "$IB_F"; }
+_ib_h()  { _ib_u "$1" "\"$2\""; }
+_ib_a()  { local b; printf -v b '{"type":"text","text":"%s"}' "$2"; _ib_ax "$1" "$b" end_turn "${3:-false}"; }
+_ib_tu() { local b; printf -v b '{"type":"tool_use","id":"%s","name":"%s","input":%s}' "$2" "$3" "$4"; _ib_ax "$1" "$b" tool_use; }
+_ib_tr() { local b; printf -v b '[{"tool_use_id":"%s","type":"tool_result","content":"%s"}]' "$2" "$3"; _ib_u "$1" "$b"; }
+_ib_chip() {  # MIN tool-id task-id title prompt: a spawn_task call and the result naming its task
+  local i; printf -v i '{"title":"%s","prompt":"%s","tldr":"Noticed in passing."}' "$4" "$5"
+  _ib_tu "$1" "$2" mcp__ccd_session__spawn_task "$i"
+  _ib_tr "$1" "$2" "Noted (position 1, task_id: $3). A chip is showing for the user."; }
+# A prompt of exactly N characters, from a seed sentence.
+_ibp() { local s="$1 $1 $1 $1 $1"; printf '%s' "${s:0:$2}"; }
+
+# ---- the runner and the row readers --------------------------------------
+# _ibrun NAME [--home H] [--path P] [--cwd D] [--env V=X]... -- felix-args:
+# from $IB/cwd, with nothing of Felix's or git's own in the environment, HOME
+# the scratch home, TMPDIR $IB/tmp and the temporary roots $IB/temproot only
+# (the suite's own TMP sits under the real ones). Output in $IB/runs/NAME.*.
+_ibrun() {
+  local n="$1" h="$IB/home" p="$IB/stub:$PATH" d="$IB/cwd" e=(); shift
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --home) h="$2"; shift 2 ;; --path) p="$2"; shift 2 ;; --cwd) d="$2"; shift 2 ;;
+      --env) e[${#e[@]}]="$2"; shift 2 ;; --) shift; break ;; *) break ;;
+    esac
+  done
+  ( cd "$d" || exit 97
+    unset FELIX_HOME FELIX_MEMORY FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE CLAUDE_PLUGIN_ROOT CLAUDE_CONFIG_DIR \
+          GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_OPTIONAL_LOCKS \
+          XDG_STATE_HOME XDG_CACHE_HOME
+    export HOME="$h" TMPDIR="$IB/tmp" FELIX_INVENTORY_TEMP_ROOTS="$IB/temproot" PATH="$p" XDG_CONFIG_HOME="$h/.config" \
+           GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 GIT_CEILING_DIRECTORIES="$IB"
+    for _ibv in ${e[@]+"${e[@]}"}; do export "$_ibv"; done
+    "$IBF" "$@" ) > "$IB/runs/$n.out" 2> "$IB/runs/$n.err"
+  printf '%s' "$?" > "$IB/runs/$n.rc"
+}
+_ibo()  { printf '%s' "$IB/runs/$1.out"; }
+_ibrc() { cat "$IB/runs/$1.rc" 2>/dev/null; }
+# _ibrow RUN KIND REF [REPO]: that --tsv line; _ibcol ... N: its column N, or
+# "no row"; _ibst: its states; _ibholds RUN KIND REF STATE: yes, no or no row.
+_ibrow() { LC_ALL=C awk -F'\t' -v k="$2" -v r="$3" -v p="${4:-}" '$1 == k && $3 == r && (p == "" || $2 == p) { print; exit }' "$(_ibo "$1")"; }
+_ibcol() { local l; l="$(_ibrow "$1" "$2" "$3" "${5:-}")"
+           if [ -z "$l" ]; then printf 'no row'; else printf '%s\n' "$l" | LC_ALL=C awk -F'\t' -v n="$4" '{ printf "%s", $n }'; fi; }
+_ibst()  { _ibcol "$1" "$2" "$3" 4 "${4:-}"; }
+_ibholds() { local s; s="$(_ibst "$1" "$2" "$3" "${5:-}")"
+             if [ "$s" = "no row" ]; then printf 'no row'; else case ",$s," in *",$4,"*) printf yes ;; *) printf no ;; esac; fi; }
+# Several states at once: "S1=yes S2=no ...", each as _ibholds answers.
+_ibmany() { local r="$1" k="$2" f="$3" s o=""; shift 3
+            for s in "$@"; do o="$o${o:+ }$s=$(_ibholds "$r" "$k" "$f" "$s")"; done; printf '%s' "$o"; }
+_ibcount() { LC_ALL=C awk -F'\t' -v k="$2" -v p="${3:-}" '$1 == k && (p == "" || $2 == p) { n++ } END { print n + 0 }' "$(_ibo "$1")"; }
+# The element of a detail that starts with PREFIX (elements are joined by "; ").
+_ibelem() { _ibcol "$1" "$2" "$3" 8 | LC_ALL=C awk -v p="$4" '{ n = split($0, e, "; "); for (i = 1; i <= n; i++) if (index(e[i], p) == 1) { print e[i]; exit } }'; }
+_ibhaselem() { [ -n "$(_ibrow "$1" "$2" "$3")" ] || { printf 'no row'; return; }
+               _ibcol "$1" "$2" "$3" 8 | LC_ALL=C awk -v w="$4" '{ n = split($0, e, "; "); for (i = 1; i <= n; i++) if (e[i] == w) f = 1 } END { print (f ? "yes" : "no") }'; }
+_ibsnap() { ( cd "$1" && find . -print | LC_ALL=C sort && find . -type f -exec cksum {} + | LC_ALL=C sort ) 2>&1; }
+
+# ---- r: the widget, where most items live --------------------------------
+# main: M0 (100 hours old) holds every file the branches change; M1 (30h20m)
+# adds two pending handoff sections; M2 (29h) changes a.txt; then, after the
+# branches are cut from M2, main takes the squashes, the deletion, the merged
+# and reverted change and the later edits the content rules are tested on.
+IBO="$IB/origin.git"; IBR="$IB/r"
+_ibg init -q --bare "$IBO"
+_ibmk 6000 "$IBO" - 'the first widget' a.txt a0 b.txt b0 .gitignore '*.log' sq-a.txt s0 sq-b.txt s0 \
+  half-a.txt h0 half-b.txt h0 none.txt n0 del.txt d0 rv.txt r0 late.txt l0 rev.txt e0 sqp.txt p0 \
+  docs/handoff/pending/notes.txt 'notes, no section'; IB_M0="$IBC"
+_ibmk 1820 "$IBO" "$IB_M0" 'two pending sections' \
+  docs/handoff/pending/h1.md "$(printf '### a section\n\nWhat was done.\n\n## Next\n- one\n- two')" \
+  docs/handoff/pending/h3.md "$(printf '### another section\n\nOnly prose here, and nothing after it.')"; IB_M1="$IBC"
+_ibmk 1740 "$IBO" "$IB_M1" 'a.txt moves on' a.txt a1; IB_M2="$IBC"
+_ibg -C "$IBO" update-ref refs/heads/main "$IB_M2"
+_ibg clone -q "$IBO" "$IBR"
+_ibb()    { _ibg -C "$IBR" branch -q -f "$1" "$2"; }
+_ibpush() { _ibg -C "$IBR" push -q origin "$2:refs/heads/$1"; }
+_ibmk 3040 "$IBR" "$IB_M2" 'aged work' aged.txt 'aged, nowhere else'; _ibb aged "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'same' cov-same.txt same; _ibb cov-same "$IBC"; _ibpush cov-same "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'ahead one' cov-ahead.txt one; _ibpush cov-ahead "$IBC"
+_ibmk - "$IBR" "$IBC" 'ahead two' cov-ahead.txt two; _ibb cov-ahead "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'behind one' cov-behind.txt one; _ibb cov-behind "$IBC"
+_ibmk - "$IBR" "$IBC" 'behind two' cov-behind.txt two; _ibpush cov-behind "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'theirs' theirs.txt theirs; _ibpush theirs "$IBC"; _ibb mine "$IBC"; IB_T1="$IBC"
+_ibg -C "$IBR" config branch.mine.remote origin; _ibg -C "$IBR" config branch.mine.merge refs/heads/theirs
+_ibmk - "$IBR" "$IB_M2" 'tracker' tracker.txt tracker; _ibb tracker "$IBC"
+_ibg -C "$IBR" config branch.tracker.remote origin; _ibg -C "$IBR" config branch.tracker.merge refs/heads/main
+_ibmk - "$IBR" "$IB_M2" 'pr only' pr-only.txt 'pr only'; _ibpush pr-only "$IBC"; IB_PO="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'stale pr' stale.txt stale; _ibpush stale-pr "$IBC"; IB_SP="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'nobody' nobody.txt nobody; _ibpush nobody "$IBC"; IB_NB="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'forked' forked.txt forked; _ibb forked "$IBC"; IB_FK="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'fork two' fk2.txt fk2; _ibb fk2 "$IBC"; _ibpush fk2 "$IBC"; IB_FK2="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'sq one' sq-a.txt s2; _ibmk - "$IBR" "$IBC" 'sq two' sq-b.txt s2; _ibb sq "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'half' half-a.txt h1 half-b.txt 'half, nowhere else'; _ibb half "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'none' none.txt 'none, nowhere else'; _ibb none "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'del' del.txt -; _ibb del "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'rv' rv.txt r1; _ibb rv "$IBC"; _ibpush rv "$IBC"; IB_RV="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'rv2 one' rv2.txt q1; _ibb rv2 "$IBC"
+_ibmk - "$IBR" "$IBC" 'rv2 two' rv2.txt q2; _ibpush rv2 "$IBC"; IB_Q2="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'local one' lo.txt 1; _ibmk - "$IBR" "$IBC" 'local two' lo.txt 2; _ibb local-only "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'pushed' pushed.txt pushed; _ibb pushed "$IBC"; _ibpush pushed "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'np' np.txt np; _ibb np "$IBC"; _ibpush np "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'late one' late.txt l1; IB_L1="$IBC"; _ibpush late "$IBC"
+_ibmk - "$IBR" "$IB_L1" 'late two' late.txt l2; _ibmk - "$IBR" "$IBC" 'late three' late.txt l3; _ibb late "$IBC"; _ibpush late "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'cl' cl.txt cl; _ibb cl "$IBC"; _ibpush cl "$IBC"; IB_CL="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'rev one' rev.txt e1; IB_RE1="$IBC"
+_ibmk - "$IBR" "$IB_RE1" 'rev two' rev.txt e2; _ibb rev "$IBC"; _ibpush rev "$IBC"
+for _ibn in flag f41 f42 f43 f44; do _ibmk - "$IBR" "$IB_M2" "$_ibn" "$_ibn.txt" "$_ibn"; _ibb "$_ibn" "$IBC"; _ibpush "$_ibn" "$IBC"; done
+_ibmk - "$IBR" "$IB_M2" 'sqp' sqp.txt p1; _ibb sqp "$IBC"; _ibpush sqp "$IBC"; IB_SQP="$IBC"
+_ibmk - "$IBR" "$IB_M2" 'dup, once' dup.txt 'the same change'; _ibb dupA "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'dup, twice' dup.txt 'the same change'; _ibb dupB "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'dif a' dif.txt 'dif a'; _ibb difA "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'dif b' dif.txt 'dif b'; _ibb difB "$IBC"
+_ibb merged "$IB_M1"
+_ibmk - "$IBR" "$IB_M0" 'worse' a.txt a1 b.txt 'worse, nowhere else'; _ibb worse "$IBC"
+_ibmk - "$IBR" "$IB_M0" 'partly' a.txt a1 b.txt 'partly, nowhere else'; _ibb partlywt "$IBC"
+_ibmk - "$IBR" "$IB_M2" 'shared' sh.txt shared; _ibb shared "$IBC"
+# main moves on: sq squashed, half of half, del deleted, rv squashed then
+# reverted, late's first head and rev's squashed, sqp squashed then edited.
+_ibmk - "$IBR" "$IB_M2" 'sq, squashed' sq-a.txt s2 sq-b.txt s2
+_ibmk - "$IBR" "$IBC" 'half of half' half-a.txt h1
+_ibmk - "$IBR" "$IBC" 'del, on main too' del.txt -
+_ibmk - "$IBR" "$IBC" 'rv, squashed (#20)' rv.txt r1
+_ibmk - "$IBR" "$IBC" 'rv, reverted' rv.txt r0
+_ibmk - "$IBR" "$IBC" 'late, squashed (#22)' late.txt l1
+_ibmk - "$IBR" "$IBC" 'rev, squashed (#33)' rev.txt e1
+_ibmk - "$IBR" "$IBC" 'sqp, squashed (#50)' sqp.txt p1
+_ibmk - "$IBR" "$IBC" 'sqp, edited on main since' sqp.txt p2; IB_MT="$IBC"
+_ibpush main "$IB_MT"
+_ibg -C "$IBR" fetch -q origin
+_ibg -C "$IBR" reset -q --hard origin/main
+# Worktrees: beside the clone in wts/, and one nested inside it.
+mkdir -p "$IB/wts"
+IB_TAB="$IB/wts/t$(printf '\t')ab"
+_ibwt() { _ibg -C "$IBR" worktree add -q "$@"; }
+_ibwt -b tabbed "$IB_TAB" "$IB_MT"
+_ibwt -b gone "$IB/wts/gone" "$IB_MT"; rm -rf "$IB/wts/gone"
+_ibwt "$IB/wts/s1" shared; _ibwt -f "$IB/wts/s2" shared
+_ibwt -b sr "$IB/wts/sr" "$IB_MT"
+printf '1\n' > "$IB/wts/sr/sr.txt"; _ibci "$IB/wts/sr" 'sr, A'; IB_SRA="$(_ibq -C "$IB/wts/sr" rev-parse HEAD)"
+printf '2\n' > "$IB/wts/sr/sr.txt"; _ibci "$IB/wts/sr" 'sr, B'
+_ibg -C "$IB/wts/sr" read-tree "$IB_SRA"
+_ibwt -b soft "$IB/wts/soft" "$IB_MT"
+printf '1\n' > "$IB/wts/soft/soft.txt"; _ibci "$IB/wts/soft" 'soft, A'; IB_SOA="$(_ibq -C "$IB/wts/soft" rev-parse HEAD)"
+printf '2\n' > "$IB/wts/soft/soft.txt"; _ibci "$IB/wts/soft" 'soft, B'
+_ibg -C "$IB/wts/soft" reset -q --soft "$IB_SOA"
+_ibg -C "$IBR" -c core.logAllRefUpdates=false worktree add -q -b norl "$IB/wts/norl" "$IB_MT"
+printf 'norl\n' > "$IB/wts/norl/norl.txt"
+_ibg -C "$IB/wts/norl" -c core.logAllRefUpdates=false add -A
+_ibg -C "$IB/wts/norl" -c core.logAllRefUpdates=false commit -q -m 'norl'
+printf 'staged, nowhere else\n' > "$IB/wts/norl/norl2.txt"; _ibg -C "$IB/wts/norl" add norl2.txt
+rm -rf "$IBR/.git/worktrees/norl/logs" "$IBR/.git/logs/refs/heads/norl"
+_ibwt -b wbehind "$IB/wts/behind" "$IB_M1"; printf 'a1\n' > "$IB/wts/behind/a.txt"
+_ibwt -b nest "$IBR/.claude/worktrees/nest" "$IB_MT"; printf 'nest, nowhere else\n' > "$IBR/.claude/worktrees/nest/new.txt"
+_ibwt -b hollow "$IB/wts/hollow" "$IB_MT"; rm -rf "$IB/wts/hollow"; mkdir "$IB/wts/hollow"
+printf 'hollow, nowhere else\n' > "$IB/wts/hollow/f.txt"
+_ibwt -b swap "$IB/wts/swap" "$IB_MT"; rm -rf "$IB/wts/swap"; _ibg init -q "$IB/wts/swap"
+printf 'swap\n' > "$IB/wts/swap/s.txt"; _ibci "$IB/wts/swap" 'an unrelated repository'
+_ibwt -b ign "$IB/wts/ign" "$IB_MT"; printf 'ignored, nowhere else\n' > "$IB/wts/ign/run.log"
+_ibwt "$IB/wts/worse" worse; printf 'c, nowhere else\n' > "$IB/wts/worse/c-new.txt"
+_ibwt "$IB/wts/partly" partlywt
+_ibwt -b lostr "$IB/wts/lostr" "$IB_MT"; rm -rf "$IBR/.git/worktrees/lostr"
+# An .md file in pending/ that only the working tree holds, ignored so the
+# main worktree stays clean.
+printf 'not on main\n' > "$IBR/docs/handoff/pending/h2.md"
+printf 'docs/handoff/pending/h2.md\n' >> "$IBR/.git/info/exclude"
+_ibg -C "$IBR" remote set-url origin git@github.com:acme/widget.git
+IBRR="$(_ibmainwt "$IBR")"
+# r2: a second clone of the same origin, fetched 5h10m ago.
+_ibg clone -q "$IBO" "$IB/r2"; _ibg -C "$IB/r2" fetch -q origin; _ibage "$IB/r2/.git/FETCH_HEAD" 310
+_ibg -C "$IB/r2" remote set-url origin https://github.com/acme/other.git
+IBR2="$(_ibmainwt "$IB/r2")"
+
+# ---- r: what GitHub says -------------------------------------------------
+# The first call's fields and the second's, keys in gh's sorted order.
+IB_ALL=""; IB_OPEN=""
+_ibpra() {  # number state head oid updated-min cross
+  local l; printf -v l '{"headRefName":"%s","headRefOid":"%s","isCrossRepository":%s,"number":%s,"state":"%s","updatedAt":"%s"}' \
+    "$3" "$4" "$6" "$1" "$2" "$(_ibts "$5")"; IB_ALL="$IB_ALL${IB_ALL:+,}$l"; }
+_ibpro() {  # number labels-json mergeable isDraft rollup-json
+  local l; printf -v l '{"isDraft":%s,"labels":[%s],"mergeable":"%s","number":%s,"statusCheckRollup":[%s]}' \
+    "$4" "$2" "$3" "$1" "$5"; IB_OPEN="$IB_OPEN${IB_OPEN:+,}$l"; }
+_iblab() { printf '{"color":"ededed","description":"","id":"LA_%s","name":"%s"}' "$1" "$1"; }
+_ibsha() { _ibq -C "$IBR" rev-parse "refs/heads/$1"; }
+printf -v IB_SC_OK '{"__typename":"StatusContext","context":"felix/ready","startedAt":"%s","state":"SUCCESS","targetUrl":""}' "$(_ibts 100)"
+printf -v IB_CR_OK '{"__typename":"CheckRun","completedAt":"%s","conclusion":"SUCCESS","detailsUrl":"","name":"felix/ready","startedAt":"%s","status":"COMPLETED","workflowName":"ci"}' "$(_ibts 100)" "$(_ibts 101)"
+printf -v IB_SC_PEND '{"__typename":"StatusContext","context":"felix/ready","startedAt":"%s","state":"PENDING","targetUrl":""}' "$(_ibts 100)"
+printf -v IB_SC_ISH '{"__typename":"StatusContext","context":"felix/ready-ish","startedAt":"%s","state":"SUCCESS","targetUrl":""}' "$(_ibts 100)"
+_ibpra 12 OPEN   pr-only    "$IB_PO"             180 false
+_ibpra 13 OPEN   theirs     "$IB_T1"             240 false
+_ibpra 15 OPEN   stale-pr   "$IB_SP"             360 false
+_ibpra 16 OPEN   forked     "$IB_FK"             120 true
+_ibpra 17 OPEN   nobody     "$IB_NB"             420 false
+_ibpra 18 CLOSED fk2        "$IB_FK2"            1800 true
+_ibpra 20 MERGED rv         "$IB_RV"             1200 false
+_ibpra 21 MERGED rv2        "$IB_Q2"             1200 false
+_ibpra 22 MERGED late       "$IB_L1"             1500 false
+_ibpra 30 CLOSED cl         "$IB_CL"             2400 false
+_ibpra 31 CLOSED cl         "$IB_CL"             1800 false
+_ibpra 32 CLOSED rev        "$IB_RE1"            2400 false
+_ibpra 33 MERGED rev        "$IB_RE1"            1800 false
+_ibpra 40 OPEN   flag       "$(_ibsha flag)"     310 false
+_ibpra 41 OPEN   f41        "$(_ibsha f41)"      130 false
+_ibpra 42 OPEN   f42        "$(_ibsha f42)"      130 false
+_ibpra 43 OPEN   f43        "$(_ibsha f43)"      130 false
+_ibpra 44 OPEN   f44        "$(_ibsha f44)"      130 false
+_ibpra 50 MERGED sqp        "$IB_SQP"            600 false
+IB_NPR=19
+_ibpro 12 '' MERGEABLE false ''
+_ibpro 13 '' MERGEABLE false ''
+_ibpro 15 '' MERGEABLE false ''
+_ibpro 16 '' MERGEABLE false ''
+_ibpro 17 '' MERGEABLE false ''
+_ibpro 40 "$(_iblab felix:hold),$(_iblab needs-founder)" CONFLICTING true "$IB_SC_OK"
+_ibpro 41 '' MERGEABLE false "$IB_CR_OK"
+_ibpro 42 '' MERGEABLE false "$IB_SC_PEND"
+_ibpro 43 '' MERGEABLE false "$IB_SC_ISH"
+_ibpro 44 "$(_iblab felix:founder)" MERGEABLE false ''
+mkdir -p "$IB/gh/acme_widget"
+printf '[%s]\n' "$IB_ALL" > "$IB/gh/acme_widget/all.json"; printf '[%s]\n' "$IB_OPEN" > "$IB/gh/acme_widget/open.json"
+
+# ---- small repositories --------------------------------------------------
+# noorigin and unborn have no remote; fb1 lost origin/HEAD; fb2's origin has
+# only master and it has no fetch time; bwt is a bare clone's worktree;
+# shallow and partial are clones that lack history or blobs.
+_ibg init -q "$IB/noorigin"; printf 'n\n' > "$IB/noorigin/n.txt"; _ibci "$IB/noorigin" 'no origin'
+_ibmk - "$IB/noorigin" HEAD 'side' side.txt side; _ibg -C "$IB/noorigin" branch -q side "$IBC"
+_ibg init -q "$IB/unborn"
+_ibg clone -q "$IBO" "$IB/fb1"; _ibg -C "$IB/fb1" remote set-head origin -d
+_ibg init -q --bare "$IB/master.git"; _ibg -C "$IB/master.git" symbolic-ref HEAD refs/heads/master
+_ibmk - "$IB/master.git" - 'master only' README.md master; _ibg -C "$IB/master.git" update-ref refs/heads/master "$IBC"
+_ibg clone -q "$IB/master.git" "$IB/fb2"; _ibg -C "$IB/fb2" remote set-head origin -d
+rm -f "$IB/fb2/.git/logs/refs/remotes/origin/master" "$IB/fb2/.git/FETCH_HEAD"
+_ibg clone -q --bare "$IBO" "$IB/bare.git"; _ibg -C "$IB/bare.git" worktree add -q "$IB/bwt" main
+_ibg clone -q --depth 1 "file://$IBO" "$IB/shallow"
+_ibg -C "$IBO" config uploadpack.allowFilter true
+_ibg clone -q --filter=blob:none "file://$IBO" "$IB/partial"
+_ibg clone -q "$IBO" "$IB/r3"
+mkdir -p "$IB/gh/pwd_r3"
+_ibpra_one() { local l; printf -v l '[{"headRefName":"pr-only","headRefOid":"%s","isCrossRepository":false,"number":12,"state":"OPEN","updatedAt":"%s"}]' "$IB_PO" "$(_ibts 60)"; printf '%s\n' "$l"; }
+_ibpra_one > "$IB/gh/pwd_r3/all.json"
+printf '[{"isDraft":false,"labels":[],"mergeable":"MERGEABLE","number":12,"statusCheckRollup":[]}]\n' > "$IB/gh/pwd_r3/open.json"
+_ibn=0
+for _ibu in https://github.com/acme/widget ssh://git@github.com/acme/widget.git https://ghe.example/acme/widget.git ssh://git@github.com:22/acme/widget.git; do
+  _ibn=$((_ibn + 1)); _ibg init -q "$IB/u$_ibn"; printf 'u\n' > "$IB/u$_ibn/u.txt"; _ibci "$IB/u$_ibn" 'u'
+  _ibg -C "$IB/u$_ibn" remote add origin "$_ibu"
+done
+_ibg init -q "$IB/other"; printf 'other\n' > "$IB/other/o.txt"; _ibci "$IB/other" 'other'
+_ibg -C "$IB/other" worktree add -q -b otherwt "$IB/otherwt"
+
+# k: a repository gh lists 1000 pull requests for, none of them feat's.
+_ibnew k
+_ibmk - "$IB/k" HEAD 'feat' feat.txt 'feat, nowhere else'; _ibg -C "$IB/k" branch -q feat "$IBC"
+_ibg -C "$IB/k" push -q origin feat; _ibg -C "$IB/k" fetch -q origin
+_ibg -C "$IB/k" remote set-url origin git@github.com:acme/kilo.git
+mkdir -p "$IB/gh/acme_kilo"
+LC_ALL=C awk 'BEGIN { printf "["; for (i = 1; i <= 1000; i++) printf "%s{\"headRefName\":\"filler/%d\",\"headRefOid\":\"%040d\",\"isCrossRepository\":false,\"number\":%d,\"state\":\"CLOSED\",\"updatedAt\":\"2026-01-01T00:00:00Z\"}", (i > 1 ? "," : ""), i, i, i; print "]" }' \
+  > "$IB/gh/acme_kilo/all.json"
+printf '[]\n' > "$IB/gh/acme_kilo/open.json"
+
+# m: a small repository whose main worktree sits on another branch, so local
+# main is checked out nowhere, and a PR is headed main.
+_ibnew m sub/s.txt sub
+IB_MTIP="$(_ibq -C "$IB/m" rev-parse HEAD)"
+_ibg -C "$IB/m" worktree add -q -b five "$IB/mw/five" "$IB_MTIP"
+_ibg -C "$IB/m" checkout -q -b work
+_ibg -C "$IB/m" remote set-url origin git@github.com:acme/mike.git
+IBMR="$(_ibmainwt "$IB/m")"
+mkdir -p "$IB/gh/acme_mike"
+printf -v _ibx '[{"headRefName":"main","headRefOid":"%s","isCrossRepository":false,"number":14,"state":"OPEN","updatedAt":"%s"}]' "$IB_MTIP" "$(_ibts 60)"
+printf '%s\n' "$_ibx" > "$IB/gh/acme_mike/all.json"
+printf '[{"isDraft":false,"labels":[],"mergeable":"MERGEABLE","number":14,"statusCheckRollup":[]}]\n' > "$IB/gh/acme_mike/open.json"
+
+# o: orphans. keep is listed; lost, lostbig and lostsmall were worktrees git
+# forgot; .wt/ inside the main worktree holds a dead checkout, a plain
+# directory and a tracked one; nested and foreign sit beside keep.
+_ibnew o .gitignore '*.bin' .wt/tracked/t.txt tracked
+IB_OT="$(_ibq -C "$IB/o" rev-parse HEAD)"
+for _ibn in keep lost lostbig lostsmall; do _ibg -C "$IB/o" worktree add -q -b "$_ibn" "$IB/ow/$_ibn" "$IB_OT"; done
+printf 'lost, nowhere else\n' > "$IB/ow/lost/new1.txt"
+LC_ALL=C awk 'BEGIN { for (i = 0; i < 32768; i++) printf "big %059d\n", i }' > "$IB/ow/lostbig/big.bin"
+LC_ALL=C awk 'BEGIN { for (i = 0; i < 16; i++) printf "small %057d\n", i }' > "$IB/ow/lostsmall/small.bin"
+rm -rf "$IB/o/.git/worktrees/lost" "$IB/o/.git/worktrees/lostbig" "$IB/o/.git/worktrees/lostsmall"
+mkdir -p "$IB/o/.wt/dead" "$IB/o/.wt/plain" "$IB/ow/foreign"
+printf 'gitdir: %s\n' "$IB/o/.git/worktrees/dead" > "$IB/o/.wt/dead/.git"
+printf 'plain, nowhere else\n' > "$IB/o/.wt/plain/x.txt"
+_ibg init -q "$IB/ow/nested"; printf 'nested\n' > "$IB/ow/nested/n.txt"
+printf 'gitdir: %s\n' "$IB/other/.git/worktrees/otherwt" > "$IB/ow/foreign/.git"
+mkdir -p "$IB/sibling"; printf 'sibling\n' > "$IB/sibling/s.txt"
+_ibg -C "$IB/o" remote set-url origin git@github.com:acme/oscar.git
+
+# v: the view. An uncommitted worktree, an unpushed branch, a landed branch,
+# a worktree blocked on a tool call, a landed orphan, and a branch whose
+# commit sits on another remote branch only.
+_ibnew v
+IB_VT="$(_ibq -C "$IB/v" rev-parse HEAD)"
+_ibg -C "$IB/v" worktree add -q -b vdirty "$IB/vw/dirty" "$IB_VT"; printf 'dirty, nowhere else\n' > "$IB/vw/dirty/u.txt"
+_ibmk - "$IB/v" "$IB_VT" 'vun' vun.txt 'vun, nowhere else'; _ibg -C "$IB/v" branch -q vun "$IBC"
+_ibg -C "$IB/v" branch -q vland "$IB_VT"
+_ibg -C "$IB/v" worktree add -q -b vblk "$IB/vw/blk" "$IB_VT"
+_ibg -C "$IB/v" worktree add -q -b vlost "$IB/vw/lostv" "$IB_VT"; rm -rf "$IB/v/.git/worktrees/lostv"
+_ibmk - "$IB/v" "$IB_VT" 'other' other.txt 'other, nowhere else'; _ibg -C "$IB/v" branch -q other-ref "$IBC"
+_ibg -C "$IB/v" push -q origin "$IBC:refs/heads/feature-x"; _ibg -C "$IB/v" fetch -q origin
+_ibg -C "$IB/v" remote set-url origin git@github.com:acme/victor.git
+IBVR="$(_ibmainwt "$IB/v")"
+
+# t: temporary roots. Two worktrees at one commit with one uncommitted change,
+# one under the seam's root; a third under a root that only shares a prefix.
+_ibnew t
+IB_TT="$(_ibq -C "$IB/t" rev-parse HEAD)"
+_ibg -C "$IB/t" worktree add -q -b tw "$IB/temproot/w" "$IB_TT"
+_ibg -C "$IB/t" worktree add -q -b tw2 "$IB/wtst/w" "$IB_TT"
+_ibg -C "$IB/t" worktree add -q -b tw3 "$IB/temprootx/w" "$IB_TT"
+printf 'same, nowhere else\n' > "$IB/temproot/w/u.txt"; printf 'same, nowhere else\n' > "$IB/wtst/w/u.txt"
+ln -s "$IB/temproot" "$IB/tlink"
+_ibg -C "$IB/t" remote set-url origin git@github.com:acme/tango.git
+
+# f: a clean filter that leaves a mark, on the one changed path.
+_ibnew f
+printf '*.fx filter=fx\n' > "$IB/f/.gitattributes"
+_ibg -C "$IB/f" config filter.fx.clean "sh -c 'touch \"$IB/ran-clean\"; cat'"
+_ibg -C "$IB/f" config filter.fx.required true
+printf 'one\n' > "$IB/f/c.fx"; _ibci "$IB/f" 'the filtered file'
+_ibg -C "$IB/f" push -q origin main; _ibg -C "$IB/f" fetch -q origin
+_ibg -C "$IB/f" remote set-url origin git@github.com:acme/foxtrot.git
+printf 'two\n' > "$IB/f/c.fx"
+
+# g: main's tip carries a signature, and the repository shows signatures
+# through a gpg that leaves a mark.
+_ibnew g
+printf -v _ibx 'tree %s\nparent %s\nauthor Fixture <fixture@example.invalid> %s +0000\ncommitter Fixture <fixture@example.invalid> %s +0000\ngpgsig -----BEGIN PGP SIGNATURE-----\n \n iQEzBAABCAAdFiEEfixturefixturefixture\n -----END PGP SIGNATURE-----\n\nsigned\n' \
+  "$(_ibq -C "$IB/g" rev-parse 'HEAD^{tree}')" "$(_ibq -C "$IB/g" rev-parse HEAD)" "$(_ibago 60)" "$(_ibago 60)"
+_ibx="$(printf '%s' "$_ibx" | _ibg -C "$IB/g" hash-object -t commit -w --stdin)"
+_ibg -C "$IB/g" reset -q --hard "$_ibx"; _ibg -C "$IB/g" push -q origin main; _ibg -C "$IB/g" fetch -q origin
+_ibg -C "$IB/g" config log.showSignature true; _ibg -C "$IB/g" config gpg.program "$IB/gpgstub"
+_ibg -C "$IB/g" remote set-url origin git@github.com:acme/golf.git
+
+# d: a clone whose index a plain git status would rewrite: a.txt touched
+# after checkout, a linked worktree, an untracked file and a staged change.
+_ibnew d a.txt a b.txt b
+_ibg -C "$IB/d" worktree add -q -b dx "$IB/dw/x"
+printf 'untracked, nowhere else\n' > "$IB/d/new.txt"; printf 'staged\n' > "$IB/d/b.txt"; _ibg -C "$IB/d" add b.txt
+_ibg -C "$IB/d" remote set-url origin git@github.com:acme/delta.git
+touch "$IB/d/a.txt"
+
+# h: the host records. One worktree per case, each at main's tip on a branch
+# never pushed, so what differs between them is only what the records say.
+_ibnew h
+IB_HT="$(_ibq -C "$IB/h" rev-parse HEAD)"
+IB_EMO="$IB/hw/e$(printf '\360\237\230\200')x"
+IB_LPAD="$(_ibp 'padding to push the record name past two hundred characters' 170)"; IB_LPAD="$(_ibenc "$IB_LPAD")"
+IB_LONG1="$IB/long/one-$IB_LPAD"; IB_LONG2="$IB/long/two-$IB_LPAD"
+mkdir -p "$IB/hsym"; ln -s "$IB/hsym" "$IB/hl"
+_ibhw() { _ibg -C "$IB/h" worktree add -q -b "$2" "$1" "$IB_HT"; }
+_ibhw "$IB/hw/w.t_1" h-enc; _ibhw "$IB_EMO" h-emo; _ibhw "$IB/hl/sym" h-sym
+_ibhw "$IB_LONG1" h-long1; _ibhw "$IB_LONG2" h-long2
+for _ibn in act two blk blk2 ask ans-a ans-b ans-c sa-fence sa-span sa-quote sa-bq ng-a ng-b ng-c ng-d q-a q-b \
+            bad-empty bad-cut bad-nojson side big-a big-b par ord ll cost notime mf-a mf-b; do
+  _ibhw "$IB/hw/$_ibn" "h-$_ibn"
+done
+_ibhw "$IB/h/.claude/worktrees/agent-a1b2c3" agent-a1b2c3; _ibhw "$IB/h/.claude/worktrees/agent-a9b9c9" agent-a9b9c9
+_ibmk 300 "$IB/h" "$IB_HT" 'act, five hours ago' act.txt act; _ibg -C "$IB/hw/act" reset -q --hard "$IBC"
+printf 'ord\n' > "$IB/hw/ord/ord.txt"; _ibci "$IB/hw/ord" 'ord, nowhere else'; printf 'more\n' > "$IB/hw/ord/ord2.txt"
+_ibg -C "$IB/h" remote set-url origin git@github.com:acme/hotel.git
+IB_SYM="$(_ibq -C "$IB/h" worktree list --porcelain | LC_ALL=C awk '/^worktree .*\/sym$/ { sub(/^worktree /, ""); print }')"
+
+# h's records, written just before its runs. Ages are minutes.
+_ibh_ask() {  # worktree sid final-text: a session two minutes of talk, ending on that text
+  _ibsess "$IB/hw/$1" "$2"; _ib_h 32 'report back'; _ib_a 30 "$3"; }
+_ibh_two() {
+  _ibsess "$IB/hw/two" s-old; _ib_h 101 'start'; _ib_a 100 'Done.'; _ibage "$IB_F" 100
+  _ibsess "$IB/hw/two" s-new; _ib_h 71 'again'; _ib_a 70 'Done.'; _ibage "$IB_F" 70; }
+_ibh_records() {
+  IB_BR=""
+  _ibsess "$IB/hw/w.t_1" s-enc; _ib_h 11 'go'; _ib_a 10 'Done.'; _ibage "$IB_F" 10
+  _ibopen "$IBP/$(_ibenc "$IB/hw/e")--x/s-emo.jsonl" s-emo; _ib_h 11 'go'; _ib_a 10 'Done.'; _ibage "$IB_F" 10
+  _ibsess "$IB/hsym/sym" s-sym; _ib_h 11 'go'; _ib_a 10 'Done.'; _ibage "$IB_F" 10
+  _ibx="$(_ibenc "$IB_LONG1")"; _ibopen "$IBP/${_ibx:0:200}-abc123/s-long1.jsonl" s-long1; _ib_h 11 'go'; _ib_a 10 'Done.'; _ibage "$IB_F" 10
+  _ibx="$(_ibenc "$IB_LONG2")"; _ibopen "$IBP/${_ibx:0:200}-abc123/s-long2a.jsonl" s-long2a; _ib_h 11 'go'; _ib_a 10 'Done.'; _ibage "$IB_F" 10
+  _ibopen "$IBP/${_ibx:0:200}-def456/s-long2b.jsonl" s-long2b; _ib_h 11 'go'; _ib_a 10 'Done.'; _ibage "$IB_F" 10
+  _ibsess "$IB/hw/act" s-act; _ib_h 302 'go'; _ib_a 300 'Working.'; _ibage "$IB_F" 300
+  mkdir -p "$IBP/$(_ibenc "$IB/hw/act")/s-act/tool-results/deep"
+  printf 'x\n' > "$IBP/$(_ibenc "$IB/hw/act")/s-act/tool-results/deep/x.txt"; _ibage "$IBP/$(_ibenc "$IB/hw/act")/s-act/tool-results/deep/x.txt" 2
+  _ibh_two
+  for _ibn in blk blk2; do
+    _ibsess "$IB/hw/$_ibn" "s-$_ibn"; _ib_h 40 'watch it'
+    _ib_tu 39 toolu_0 Bash '{"command":"date","description":"Read the clock"}'; _ib_tr 38 toolu_0 ok
+    _ib_tu 35 toolu_1 Bash '{"command":"watch-the-ledger","description":"Watch the ledger"}'; _ibage "$IB_F" 35
+  done
+  mkdir -p "$IBP/$(_ibenc "$IB/hw/blk2")/s-blk2/subagents"
+  printf '{}\n' > "$IBP/$(_ibenc "$IB/hw/blk2")/s-blk2/subagents/agent-x.jsonl"; _ibage "$IBP/$(_ibenc "$IB/hw/blk2")/s-blk2/subagents/agent-x.jsonl" 3
+  _ibh_ask ask s-ask "I've pushed the branch.\\n\\nShall I merge it?"; _ibage "$IB_F" 30
+  _ibh_ask ans-a s-ans-a 'It is ready. Shall I merge it?'; _ib_h 29 'go ahead'; _ibage "$IB_F" 29
+  _ibh_ask ans-b s-ans-b 'It is ready. Shall I merge it?'; _ib_tr 29 toolu_z ok
+  _ib_u 29 '"<system-reminder>x</system-reminder><command-name>/foo</command-name>"'; _ibage "$IB_F" 29
+  _ibh_ask ans-c s-ans-c 'It is ready. Shall I merge it?'; _ib_u 29 '"Stop hook feedback: keep going"' ',"isMeta":true'; _ibage "$IB_F" 29
+  _ibh_ask sa-fence s-sa-fence 'The log said:\n```\nready?\n```\nThat is the whole log.'; _ibage "$IB_F" 30
+  _ibh_ask sa-span  s-sa-span  'The status line now reads `merge?` and that is all.'; _ibage "$IB_F" 30
+  _ibh_ask sa-quote s-sa-quote 'The reviewer wrote \"should I?\" in the thread.'; _ibage "$IB_F" 30
+  _ibh_ask sa-bq    s-sa-bq    '> Want me to merge?\nThat was the old note.'; _ibage "$IB_F" 30
+  _ibh_ask ng-a s-ng-a 'I wrote an essay yesterday.'; _ibage "$IB_F" 30
+  _ibh_ask ng-b s-ng-b 'Nothing here needs your input.'; _ibage "$IB_F" 30
+  _ibh_ask ng-c s-ng-c 'Nothing broke. Your call on the merge.'; _ibage "$IB_F" 30
+  _ibh_ask ng-d s-ng-d 'The tests pass. Your call.'; _ibage "$IB_F" 30
+  _ibh_ask q-a s-q-a 'All green. Ready to merge?**)'; _ibage "$IB_F" 30
+  _ibh_ask q-b s-q-b 'Ready?\n\nThe tests pass.\n\nThe branch is pushed.\n\nThe notes are filed.'; _ibage "$IB_F" 30
+  _ibsess "$IB/hw/bad-empty" s-bad-empty; _ibage "$IB_F" 30
+  _ibsess "$IB/hw/bad-cut" s-bad-cut; _ib_a 30 'This line is cut before it ends, mid-string.'
+  _ibx="$(cat "$IB_F")"; printf '%s' "${_ibx:0:150}" > "$IB_F"; _ibage "$IB_F" 30
+  _ibsess "$IB/hw/bad-nojson" s-bad-nojson; printf 'not json at all\n' > "$IB_F"; _ibage "$IB_F" 30
+  _ibh_ask side s-side 'Done.'; _ib_a 30 'Shall I continue?' true
+  printf -v _ibx '{"type":"system","subtype":"note","message":{"role":"assistant","content":[{"type":"text","text":"Is it?"}]},"sessionId":"s-side","timestamp":"%s"}' "$(_ibts 30)"
+  _ib_raw "$_ibx"; _ibage "$IB_F" 30
+  # big-a: an asking text, then 160 tool call and result pairs of about 2.3
+  # KiB each, so the ask lies more than 256 KiB from the end.
+  _ibopen "$IB/pair.tmp" s-big-a
+  _ibx="$(_ibp 'filler for a large tool call that carries no text at all' 1000)"
+  _ib_tu 30 toolu_big Bash "{\"command\":\"$_ibx\"}"; _ib_tr 30 toolu_big "$_ibx"
+  _ibsess "$IB/hw/big-a" s-big-a; _ib_h 32 'start'; _ib_a 31 'Shall I start?'
+  LC_ALL=C awk '{ l[NR] = $0 } END { for (i = 1; i <= 160; i++) for (j = 1; j <= NR; j++) print l[j] }' "$IB/pair.tmp" >> "$IB_F"
+  _ibage "$IB_F" 30
+  _ibsess "$IB/hw/big-b" s-big-b
+  for _ibn in 1 2 3; do _ib_tu 30 "toolu_c$_ibn" Bash '{"command":"true"}'; _ib_tr 30 "toolu_c$_ibn" ok; done
+  _ibage "$IB_F" 30
+  _ibsess "$IB/h" s-boss; _ib_h 201 'spawn them'; _ib_a 200 'Spawned the agents.'; _ibage "$IB_F" 200
+  _ibx="$IBP/$(_ibenc "$IB/h")/s-boss/subagents"; mkdir -p "$_ibx"
+  printf '{"agentType":"general-purpose","description":"write the parser","worktreePath":"%s"}\n' "$IB/h/.claude/worktrees/agent-a1b2c3" > "$_ibx/agent-a1b2c3.meta.json"
+  printf '{}\n' > "$_ibx/agent-a1b2c3.jsonl"; _ibage "$_ibx/agent-a1b2c3.jsonl" 2
+  printf '{"agentType":"general-purpose","description":"another one","worktreePath":"/elsewhere/agent-a9b9c9"}\n' > "$_ibx/agent-a9b9c9.meta.json"
+  printf '{}\n' > "$_ibx/agent-a9b9c9.jsonl"; _ibage "$_ibx/agent-a9b9c9.jsonl" 2
+  _ibsess "$IB/hw/par" s-par; _ib_h 31 'look into it'; _ib_a 30 'Done.'; _ibage "$IB_F" 30
+  _ibopen "$IBP/$(_ibenc "$IB/hw/par")/s-par/subagents/agent-y.jsonl" agent-y
+  _ib_a 30 'Shall I proceed?' true; _ib_tu 30 toolu_y Bash '{"command":"wait"}'; _ibage "$IB_F" 30
+  _ibsess "$IB/hw/ord" s-ord; _ib_h 2 'go'; _ib_a 1 'Done.'; _ibage "$IB_F" 1
+  _ibsess "$IB/hw/ll" s-ll; _ib_h 2 'go'; _ib_a 1 'Done.'; _ibage "$IB_F" 1
+  _ibsess "$IB/hw/cost" s-cost; _ib_h 182 'go'; _ib_a 180 'Done.'
+  _ib_raw '{"type":"cost-state","costUSD":0.25,"sessionId":"s-cost"}'; _ibage "$IB_F" 1
+  _ibsess "$IB/hw/notime" s-notime; _ib_h none 'go'; _ib_a none 'Done.'; _ibage "$IB_F" 2
+  _ibh_ask mf-a s-mf-a 'The build is green. Shall I tag it?'; _ibage "$IB_F" 30
+  _ibh_ask mf-b s-mf-b 'Done.'
+  printf -v _ibx '{"type":"attachment","attachment":{"type":"note"},"message":{"role":"assistant","content":[{"type":"text","text":"Shall I go on?"}]},"sessionId":"s-mf-b","timestamp":"%s"}' "$(_ibts 30)"
+  _ib_raw "$_ibx"; _ibage "$IB_F" 30
+}
+
+# ---- r's records: chips, PR owners, and sessions elsewhere ---------------
+IB_P95="$(_ibp 'Theta task: point the README badge at the current build, and test that it fails on a branch that is gone.' 130)"
+IB_P18="$(_ibp 'Iota task: give the exporter a stable row order and test two runs over one input for the same bytes.' 130)"
+IB_P96="$(_ibp 'Kappa task: retire the old config loader alias once one release has carried the new name.' 130)"
+IB_P97="$(_ibp 'Lambda task: make the scheduler print the jobs it would start in a dry run and start none.' 130)"
+IB_P99="$(_ibp 'Mu task: teach the report to name the file each total came from, with a test on two files.' 130)"
+IB_P100="$(_ibp 'Nu task: move the retry budget into the settings file and keep the default at three.' 130)"
+# Two prompts of 130 decoded characters with two \n escapes in their first 50,
+# so the JSON is two bytes longer than the text before character 120.
+IB_P115A="Kappa line\\nLambda line\\n$(_ibp 'mu nu xi omicron pi rho sigma tau upsilon phi chi psi omega' 107)"
+IB_P115B="Delta line\\nSigma lines\\n$(_ibp 'alpha beta gamma delta epsilon zeta eta theta iota kappa' 107)"
+IB_NEAR="${IB_P115A:0:121}#${IB_P115A:122}"              # decoded character 120 changed
+IB_HIT="${IB_P115B:0:122} and then something else entirely"  # the first 120 decoded, then other text
+_ibr_records() {
+  IB_BR=""
+  _ibsess "$IBR" s-chip; _ib_h 11 'file the chips'
+  _ib_chip 10 toolu_9 task_ab12cd34 'Fix the README badge' "$IB_P95"
+  _ib_chip 10 toolu_18 task_18aaaaaa 'Two\nlines\tand a tab' "$IB_P18"
+  _ib_chip 10 toolu_96 task_9600aaaa 'Withdrawn later' "$IB_P96"
+  _ib_tu 10 toolu_96d mcp__ccd_session__dismiss_task '{"task_id":"task_9600aaaa"}'; _ib_tr 10 toolu_96d 'error: already started'
+  _ib_chip 10 toolu_97 task_9700aaaa 'Started behind a reminder' "$IB_P97"
+  _ib_chip 10 toolu_115a task_115aaaaa 'Changed at character 120' "$IB_P115A"
+  _ib_chip 10 toolu_115b task_115bbbbb 'Equal through character 120' "$IB_P115B"
+  _ib_a 10 'Filed.'; _ibage "$IB_F" 10
+  _ibsess "$IBR" s-att
+  printf -v _ibx '{"type":"attachment","attachment":{"type":"deferred_tools","tools":[{"name":"mcp__ccd_session__spawn_task","description":"Flag an issue"},{"name":"mcp__ccd_session__dismiss_task","description":"Withdraw one"}]},"sessionId":"s-att","timestamp":"%s"}' "$(_ibts 6)"
+  _ib_raw "$_ibx"; _ib_h 6 'Noted (task_id: task_ffff0000).'; _ib_a 5 'Noted.'; _ibage "$IB_F" 5
+  # Who worked on which PR's branch: s-o2's records sit in s-o3's file, as a
+  # resumed session's file copies its predecessor's.
+  IB_BR=pr-only;   _ibsess "$IBR" s-o1; _ib_h 51 'work on it'; _ib_a 50 'Working on it.'; _ibage "$IB_F" 50
+  _ibsess "$IBR" s-o3; IB_SID=s-o2; _ib_h 21 'carry on'; _ib_a 20 'Carried on.'
+  IB_SID=s-o3; IB_BR=main; _ib_h 6 'resume'; _ib_a 5 'Resumed.'; _ibage "$IB_F" 5
+  IB_BR=pr-only-x; _ibsess "$IBR" s-o5; _ib_h 3 'x'; _ib_a 2 'X.'; _ibage "$IB_F" 2
+  IB_BR=stale-pr;  _ibsess "$IBR" s-o4; _ib_h 91 'stale'; _ib_a 90 'Stale.'; _ibage "$IB_F" 90
+  IB_BR=forked;    _ibsess "$IBR" s-o6; _ib_h 4 'fork'; _ib_a 3 'Forked.'; _ibage "$IB_F" 3
+  IB_BR=main;      _ibsess "$IBR" s-pl; _ib_h 2 'link'
+  printf -v _ibx '{"type":"pr-link","prNumber":12,"prUrl":"https://github.com/acme/widget/pull/12","prRepository":"acme/widget","sessionId":"s-pl","timestamp":"%s"}' "$(_ibts 1)"
+  _ib_raw "$_ibx"; _ib_a 1 'Linked.'; _ibage "$IB_F" 1
+  IB_BR=""
+  _ibopen "$IBP/-elsewhere/s-early.jsonl" s-early; _ib_h 20 "$IB_P95"; _ib_a 20 'Done.'; _ibage "$IB_F" 20
+  _ibopen "$IBP/-elsewhere/s-run.jsonl" s-run
+  printf -v _ibx '[{"type":"text","text":"<system-reminder>r</system-reminder>"},{"type":"text","text":"%s"}]' "$IB_P97"
+  _ib_u 5 "$_ibx"; _ib_a 4 'On it.'; _ibage "$IB_F" 4
+  _ibopen "$IBP/-elsewhere/s-late.jsonl" s-late; _ib_h 5 'hello'; _ib_a 5 'Hi.'; _ib_h 4 "$IB_P95"; _ib_a 4 'On it.'; _ibage "$IB_F" 4
+  _ibopen "$IBP/-elsewhere/s-near.jsonl" s-near; _ib_h 5 "$IB_NEAR"; _ib_a 4 'On it.'; _ibage "$IB_F" 4
+  _ibopen "$IBP/-elsewhere/s-hit.jsonl" s-hit; _ib_h 5 "$IB_HIT"; _ib_a 4 'On it.'; _ibage "$IB_F" 4
+  _ibsess "$IBR/.claude/worktrees/gone-wt" s-gone; _ib_h 31 'note it'
+  _ib_chip 30 toolu_100 task_100aaaaa 'From a removed worktree' "$IB_P100"; _ib_a 30 'Noted.'; _ibage "$IB_F" 30
+}
+
+# ---- r: the runs ---------------------------------------------------------
+# RUN1 reads r and r2 with gh, the git spy first on PATH and a memory root
+# set; RUN2 under --no-gh; RUN3 under --no-host; RUN4 with a records root
+# that holds nothing.
+_ibr_records
+rm -f "$IB/gh.log" "$IB/git.log" "$IB/net.log"
+IB_SNAP15="$(_ibsnap "$IB/home"; _ibsnap "$IB/mem")"; : > "$IB/run1.mark"
+_ibrun RUN1 --path "$IB/spy:$IB/stub:$PATH" --env "FELIX_MEMORY=$IB/mem" -- inventory --repo "$IBR" --repo "$IB/r2" --tsv
+IB_SNAP15B="$(_ibsnap "$IB/home"; _ibsnap "$IB/mem")"; IB_NEW15="$(find "$IB/home" "$IB/mem" -newer "$IB/run1.mark" -print | LC_ALL=C awk 'NR <= 3' | tr '\n' ' ')"
+mv "$IB/gh.log" "$IB/gh1.log" 2>/dev/null; mv "$IB/git.log" "$IB/git1.log" 2>/dev/null
+IB_TMP1="$(ls -A "$IB/tmp" | tr '\n' ' ')"
+_ibrun RUN2 -- inventory --repo "$IBR" --tsv --no-gh
+IB_GH2="$([ -e "$IB/gh.log" ] && echo 'gh ran' || echo 'gh never ran')"
+_ibrun RUN3 -- inventory --repo "$IBR" --tsv --no-host
+_ibrun RUN4 --home "$IB/home0" -- inventory --repo "$IBR" --tsv
+
+# ---- §2: the command line ------------------------------------------------
+is  "inventory A1: felix inventory runs from a plain clone with no home and no memory root, exits 0 and prints eight-column rows" \
+    "$(_ibrc RUN4) $(LC_ALL=C awk -F'\t' 'NF != 8 { b++ } END { print b + 0 }' "$(_ibo RUN4)") $([ -e "$IB/home0/.felix-home" ] && echo home || echo nohome)" "0 0 nohome"
+is  "inventory A1: and at least five of its rows are cover rows" "$(( $(_ibcount RUN4 cover) >= 5 ))" "1"
+_ibrun HELP0 -- ; _ibrun HELP1 -- help
+_ibhelp() { cat "$(_ibo "$1")" "$IB/runs/$1.err" | LC_ALL=C awk '/^[[:space:]]*felix inventory/ { n++ } END { print n + 0 }'; }
+is  "inventory A2: felix's help, with no arguments and as felix help, has one line that begins felix inventory" "$(_ibhelp HELP0) $(_ibhelp HELP1)" "1 1"
+_ibrun HELPH -- inventory -h; _ibrun HELPL -- inventory --help
+_ibusage() { case "$(cat "$(_ibo "$1")")" in *"felix inventory"*) case "$(cat "$(_ibo "$1")")" in *--repo*) printf usage; return ;; esac ;; esac; printf 'no usage'; }
+is  "inventory A3: felix inventory -h and --help print the usage to stdout, exit 0 and write nothing to stderr" \
+    "$(_ibrc HELPH) $(_ibusage HELPH) [$(cat "$IB/runs/HELPH.err")] $(_ibrc HELPL) $(_ibusage HELPL) [$(cat "$IB/runs/HELPL.err")]" "0 usage [] 0 usage []"
+for _ibk in 1 2 3 4 5 6 7 8 9; do
+  case "$_ibk" in
+    1) _iba=(--live abc);     _ibl='--live abc' ;;
+    2) _iba=(--live -1);      _ibl='--live -1' ;;
+    3) _iba=(--live 1.5);     _ibl='--live 1.5' ;;
+    4) _iba=(--live 1234567); _ibl='--live 1234567, seven digits' ;;
+    5) _iba=(--live '');      _ibl='--live with an empty value' ;;
+    6) _iba=(--blocked x);    _ibl='--blocked x' ;;
+    7) _iba=(--days ' 3');    _ibl="--days ' 3'" ;;
+    8) _iba=(--frobnicate);   _ibl='--frobnicate' ;;
+    9) _iba=(--repo);         _ibl='--repo with no value' ;;
+  esac
+  _ibrun "A4_$_ibk" -- inventory --tsv "${_iba[@]}"
+  _ibf="$(LC_ALL=C awk 'NR == 1' "$IB/runs/A4_$_ibk.err")"
+  _ibu=no; case "$(cat "$IB/runs/A4_$_ibk.err")" in *"felix inventory"*) _ibu=yes ;; esac
+  _ibr=no; case "$_ibf" in *"${_iba[0]}"*) _ibr=yes ;; esac
+  [ -n "${_iba[1]:-}" ] && case "$_ibf" in *"${_iba[1]}"*) _ibr=yes ;; esac
+  _ibsyn=no; case "$_ibf" in *--no-gh*--no-host*) _ibsyn=yes ;; esac
+  is  "inventory A4: a bad argument ($_ibl) exits 2, prints nothing, and says why on one line ahead of the usage on stderr" \
+      "$(_ibrc "A4_$_ibk") $([ -s "$(_ibo "A4_$_ibk")" ] && echo stdout || echo nostdout) usage=$_ibu named=$_ibr synopsis=$_ibsyn" "2 nostdout usage=yes named=yes synopsis=no"
+done
+
+# ---- §1: read-only, scratch and network, over RUN1 -----------------------
+_ibgitchk() {  # one finding per git call that breaks §1
+  LC_ALL=C awk -F'|' -v want="$2" '
+    { env = $1; a = substr($0, length($1) + 2); n = split(a, w, " "); i = 1; pre = " "; ver = 0
+      while (i <= n) {
+        if (w[i] == "-C" || w[i] == "-c") { pre = pre w[i] " " w[i + 1] " "; i += 2; continue }
+        if (w[i] ~ /^-/) { pre = pre w[i] " "; if (w[i] == "--version") ver = 1; i++; continue }
+        break }
+      cmd = (i <= n) ? w[i] : ""; rest = " "; for (k = i + 1; k <= n; k++) rest = rest w[k] " "
+      if (ver || cmd == "version") next
+      if (want == "count") { c++; next }
+      if (want == "sig") { if (!index(pre, " -c log.showSignature=false ")) print NR ": no -c log.showSignature=false"; next }
+      if (env != "GIT_NO_LAZY_FETCH=1") print NR ": no GIT_NO_LAZY_FETCH=1"
+      if (!index(pre, " --no-optional-locks ")) print NR ": no --no-optional-locks"
+      if (!index(pre, " --literal-pathspecs ")) print NR ": no --literal-pathspecs"
+      if (!index(pre, " -c core.fsmonitor=false ")) print NR ": no -c core.fsmonitor=false"
+      if (cmd == "fetch" || cmd == "write-tree" || cmd == "update-index") print NR ": runs " cmd
+      if (cmd == "stash" && index(rest, " create ")) print NR ": runs stash create"
+      if (cmd == "merge-tree" && index(rest, " --write-tree ")) print NR ": runs merge-tree --write-tree"
+      if (cmd == "hash-object" && (index(rest, " -w ") || index(rest, " --write "))) print NR ": runs hash-object -w"
+      if (cmd == "status" && !index(rest, " --ignore-submodules=dirty ")) print NR ": status without --ignore-submodules=dirty" }
+    END { if (want == "count") print c + 0 }' "$1"; }
+_ibgitn="$(_ibgitchk "$IB/git1.log" count 2>/dev/null || echo 0)"
+is  "inventory A11: every git call carries GIT_NO_LAZY_FETCH=1, --no-optional-locks, --literal-pathspecs and -c core.fsmonitor=false before its subcommand, none fetches or writes, and every status ignores dirty submodules" \
+    "$([ "${_ibgitn:-0}" -ge 10 ] && echo "10 or more calls" || echo "${_ibgitn:-0} calls") $(_ibgitchk "$IB/git1.log" all 2>&1 | LC_ALL=C awk 'NR <= 4' | tr '\n' ';')" "10 or more calls "
+is  "inventory N8: and every one carries -c log.showSignature=false, so a user's showSignature runs no gpg" \
+    "$([ "${_ibgitn:-0}" -ge 10 ] && echo "10 or more calls" || echo "${_ibgitn:-0} calls") $(_ibgitchk "$IB/git1.log" sig 2>&1 | LC_ALL=C awk 'NR <= 4' | tr '\n' ';')" "10 or more calls "
+_ibghw() { LC_ALL=C awk -F'|' -v r="$2" 'index($2, "-R " r " ") { n++; s = $5; c = $6; sub(/\/[^\/]*$/, "", s); sub(/\/[^\/]*$/, "", c)
+             printf "%s%s", (n > 1 ? ";" : ""), ($5 != "" && $6 != "" && s == c ? s : "[" $5 "|" $6 "]") } END { if (!n) printf "no call" }' "$1"; }
+_ibx="$(_ibghw "$IB/gh1.log" acme/widget)"
+case "$_ibx" in
+  "no call"|*"["*) _ibr="$_ibx" ;;
+  *) _ibp1="${_ibx%%;*}"
+     case "$_ibp1" in "$IBR"/*|"$IBO"/*|"$IB/home"/*) _ibr="under a repository or HOME: $_ibp1" ;;
+       *) if [ "$_ibx" != "$_ibp1;$_ibp1" ]; then _ibr="two calls, two parents or not two: $_ibx"
+          elif [ -e "$_ibp1" ]; then _ibr="the scratch is still there: $_ibp1"; else _ibr="gone"; fi ;; esac ;;
+esac
+is  "inventory A13: gh's two calls for a repository keep their state and cache in one scratch directory outside every repository and HOME, gone after the run" "$_ibr" "gone"
+is  "inventory A13: and TMPDIR is empty after the run" "$IB_TMP1" ""
+is  "inventory A15: nothing under HOME or the memory root changed, and the run read the records: it printed a chip row" \
+    "$([ "$IB_SNAP15" = "$IB_SNAP15B" ] && echo same || echo changed) [$IB_NEW15] $(( $(_ibcount RUN1 chip "$IBRR") > 0 ))" "same [] 1"
+_ibx="$(LC_ALL=C awk -F'|' '{ a = $2; gsub(/  +/, " ", a); printf "%s%s", (NR > 1 ? ";" : ""), a }' "$IB/gh1.log" 2>/dev/null)"
+is  "inventory A16, N6: gh is asked pr list twice per repository, in --repo order, with the stated arguments" "$_ibx" \
+    "pr list -R acme/widget --state all --limit 1000 --json number,state,headRefName,headRefOid,updatedAt,isCrossRepository;pr list -R acme/widget --state open --limit 1000 --json number,labels,mergeable,isDraft,statusCheckRollup;pr list -R acme/other --state all --limit 1000 --json number,state,headRefName,headRefOid,updatedAt,isCrossRepository;pr list -R acme/other --state open --limit 1000 --json number,labels,mergeable,isDraft,statusCheckRollup"
+is  "inventory A16: each gh call runs with GH_NO_UPDATE_NOTIFIER=1 and GH_PROMPT_DISABLED=1, and nothing else touches the network" \
+    "$(LC_ALL=C awk -F'|' '$3 != "1" || $4 != "1" { b++ } END { print NR " calls, " b + 0 " without" }' "$IB/gh1.log" 2>/dev/null) $([ -e "$IB/net.log" ] && echo network || echo quiet)" "4 calls, 0 without quiet"
+is  "inventory A17: --no-gh runs gh zero times, and cover prs says --no-gh" "$IB_GH2 | $(_ibcol RUN2 cover prs 8)" "gh never ran | --no-gh"
+
+# ---- §5: output shape ----------------------------------------------------
+_ibshape() { LC_ALL=C awk -F'\t' '
+  BEGIN { split("cover worktree orphan branch remote pr handoff chip", k, " "); for (i = 1; i <= 8; i++) ok[k[i]] = 1 }
+  NF != 8 { printf "line %d has %d fields; ", NR, NF; next }
+  { for (i = 1; i <= 8; i++) if ($i == "") { printf "line %d field %d is empty; ", NR, i; next }
+    if (!($1 in ok)) printf "line %d is of kind %s; ", NR, $1 }
+  END { if (!NR) printf "no rows" }' "$1"; }
+is  "inventory A18: every row has eight fields, none empty, of a kind the contract names, with no header and no row of kind repo" "$(_ibshape "$(_ibo RUN1)")" ""
+is  "inventory A18, A43: a worktree whose path holds a tab gets one row, its ref the path with the tab as a space" "$(_ibcol RUN1 worktree "$IB/wts/t ab" 1)" "worktree"
+is  "inventory A18: a chip title holding a line break and a tab prints on its one line, each as a space" "$(_ibcol RUN1 chip task_18aaaaaa 8)" "Two lines and a tab"
+_ibrank() { LC_ALL=C awk -F'\t' -v p="$2" '
+  BEGIN { split("cover worktree branch remote pr orphan handoff chip", k, " "); for (i = 1; i <= 8; i++) r[k[i]] = i }
+  $2 == p { if (r[$1] < l) printf "%s %s after rank %d; ", $1, $3, l; l = r[$1]; seen[$1] = 1 }
+  END { for (i = 1; i <= 8; i++) if (!(k[i] in seen)) printf "no %s row; ", k[i] }' "$1"; }
+is  "inventory A19: a repository's rows come cover, worktree, branch, remote, pr, orphan, handoff, chip, and this one has each" "$(_ibrank "$(_ibo RUN1)" "$IBRR")" ""
+is  "inventory A19: worktree rows come in git worktree list order" \
+    "$(LC_ALL=C awk -F'\t' -v p="$IBRR" '$2 == p && $1 == "worktree" { printf "%s;", $3 }' "$(_ibo RUN1)")" \
+    "$(_ibq -C "$IBR" worktree list --porcelain | LC_ALL=C awk '/^worktree / { sub(/^worktree /, ""); gsub(/\t/, " "); printf "%s;", $0 }')"
+_ibcovers() { LC_ALL=C awk -F'\t' -v p="$2" '$2 == p && $1 == "cover" { printf "%s%s", s, $3; s = " "; if ($5 != "-" || $6 != "-" || $7 != "-") printf "(%s|%s|%s)", $5, $6, $7 }' "$1"; }
+is  "inventory A20: each repository read has five cover rows, default prs sessions chips objects, with owner, age and content -" \
+    "$(_ibcovers "$(_ibo RUN1)" "$IBRR") / $(_ibcovers "$(_ibo RUN1)" "$IBR2")" "default prs sessions chips objects / default prs sessions chips objects"
+is  "inventory A21: age_h is the floor of whole hours: a tip committed 50h40m ago is 50" "$(_ibcol RUN1 branch aged 6)" "50"
+is  "inventory A7: rows print in --repo order: every row of the first repository comes before the second's" \
+    "$(LC_ALL=C awk -F'\t' -v a="$IBRR" -v b="$IBR2" '$2 == b { s = 1 } $2 == a && s { x = 1 } END { print (s && !x) ? "in order" : "not in order" }' "$(_ibo RUN1)")" "in order"
+
+# ---- §5.1: cover rows ----------------------------------------------------
+_ib8() { _ibq -C "$1" rev-parse "$2" | cut -c1-8; }
+is  "inventory A22, N5: cover default is read, its ref the resolved target and its sha8, fetched 0h ago for a clone fetched just now" \
+    "$(_ibst RUN1 cover default "$IBRR") | $(_ibcol RUN1 cover default 8 "$IBRR")" "read | origin/main @ $(_ib8 "$IBR" origin/main); fetched 0h ago"
+is  "inventory N5: and fetched 5h ago for a clone whose FETCH_HEAD is 5h10m old" "$(_ibcol RUN1 cover default 8 "$IBR2")" "origin/main @ $(_ib8 "$IB/r2" origin/main); fetched 5h ago"
+is  "inventory A25: cover prs reads the gh command and the PR count" \
+    "$(_ibst RUN1 cover prs "$IBRR") | $(_ibcol RUN1 cover prs 8 "$IBRR") | $(_ibcol RUN1 cover prs 8 "$IBR2")" \
+    "read | gh pr list -R acme/widget: $IB_NPR PRs | gh pr list -R acme/other: 0 PRs"
+is  "inventory A30: under --no-gh a pushed branch carries unknown:unproposed" "$(_ibholds RUN2 branch pushed unknown:unproposed)" "yes"
+is  "inventory A30: and a never-pushed branch holds no PR state and no PR unknown: it is exactly unpushed" "$(_ibst RUN2 branch local-only)" "unpushed"
+is  "inventory A32: a records root holding nothing for a path reads as cover sessions read, under the literal \$HOME/.claude/projects" \
+    "$(_ibst RUN4 cover sessions) | $(_ibcol RUN4 cover sessions 8)" "read | Claude Code session records under \$HOME/.claude/projects"
+is  "inventory A32: and the main worktree's owner is -, and it holds no host state and no host unknown" \
+    "$(_ibcol RUN4 worktree "$IBRR" 5) $(_ibmany RUN4 worktree "$IBRR" live question blocked unknown:live unknown:question unknown:blocked)" \
+    "- live=no question=no blocked=no unknown:live=no unknown:question=no unknown:blocked=no"
+is  "inventory A33: a full clone's cover objects is read" "$(_ibst RUN1 cover objects "$IBRR")" "read"
+
+# ---- §3: kinds and coverage ----------------------------------------------
+is  "inventory A35, A114: a clean checkout of the default branch is landed and nothing else, owner -, though a linked worktree nested in it is dirty" \
+    "$(_ibst RUN4 worktree "$IBRR") $(_ibcol RUN4 worktree "$IBRR" 5) $(_ibcol RUN4 worktree "$IBRR" 7)" "landed - landed"
+is  "inventory A114: and that nested worktree's own row holds uncommitted" "$(_ibholds RUN4 worktree "$IBR/.claude/worktrees/nest" uncommitted)" "yes"
+is  "inventory A36: a local branch covers its remote only when the remote tip is its tip or an ancestor: ahead and same have no remote row, behind has one" \
+    "$(_ibst RUN1 remote origin/cov-ahead) | $(_ibst RUN1 remote origin/cov-same) | $(_ibcol RUN1 remote origin/cov-behind 1)" "no row | no row | remote"
+is  "inventory A37: a branch covers its upstream under another name, never the default branch, and origin/main is never a remote row" \
+    "$(_ibst RUN1 remote origin/theirs) | $(_ibcol RUN1 branch tracker 1) | $(_ibst RUN1 remote origin/main)" "no row | branch | no row"
+is  "inventory A38: an open PR no local branch proposes is a pr row whose states are pr-open and whose detail starts with its head" \
+    "$(_ibst RUN1 pr '#17') | $(_ibcol RUN1 pr '#17' 8 | LC_ALL=C awk '{ print substr($0, 1, 32) }')" "pr-open | head nobody @ $(_ib8 "$IBR" origin/nobody); #17 open"
+is  "inventory A38: and its remote branch is no remote row" "$(_ibst RUN1 remote origin/nobody)" "no row"
+is  "inventory A39: a branch proposes a PR through its upstream's name, so that PR is no pr row and the branch is pr-open with it" \
+    "$(_ibst RUN1 pr '#13') | $(_ibholds RUN1 branch mine pr-open) | $(case "$(_ibcol RUN1 branch mine 8)" in (*'#13 open'*) echo '#13 open' ;; (*) echo 'no #13' ;; esac)" "no row | yes | #13 open"
+is  "inventory A41: a pending section on the default branch is a handoff row, handoff-pending, naming its two Next items" \
+    "$(_ibst RUN1 handoff docs/handoff/pending/h1.md) | $(case "$(_ibcol RUN1 handoff docs/handoff/pending/h1.md 8)" in (*'2 Next item(s): one | two'*) echo items ;; (*) echo "no items" ;; esac)" "handoff-pending | items"
+is  "inventory A41: and neither a working-tree-only .md file nor a .txt file in pending/ is one" \
+    "$(_ibst RUN1 handoff docs/handoff/pending/h2.md) | $(_ibst RUN1 handoff docs/handoff/pending/notes.txt) | $(_ibcount RUN1 handoff "$IBRR")" "no row | no row | 2"
+is  "inventory A42: a section with no Next line says so" "$(case "$(_ibcol RUN1 handoff docs/handoff/pending/h3.md 8)" in (*'no Next lines'*) echo said ;; (*) echo unsaid ;; esac)" "said"
+is  "inventory A120: a handoff row's age is the hours since its file's last commit, 30h20m, and its owner and content are -" \
+    "$(_ibcol RUN1 handoff docs/handoff/pending/h1.md 6) $(_ibcol RUN1 handoff docs/handoff/pending/h1.md 5) $(_ibcol RUN1 handoff docs/handoff/pending/h1.md 7)" "30 - -"
+is  "inventory A43: the tab worktree is uncommitted-unknown, never landed, and its detail says why" \
+    "$(_ibmany RUN1 worktree "$IB/wts/t ab" unknown:uncommitted landed) $([ "$(_ibcol RUN1 worktree "$IB/wts/t ab" 8)" = - ] && echo nodetail || echo detail)" "unknown:uncommitted=yes landed=no detail"
+is  "inventory A44: a listed worktree whose directory is gone still gets a row that says so" \
+    "$(case "$(_ibcol RUN1 worktree "$IB/wts/gone" 8)" in (*'the directory is gone'*) echo said ;; ('no row') echo 'no row' ;; (*) echo unsaid ;; esac)" "said"
+is  "inventory A116: a listed worktree holding no working tree of this repository holds orphan, with orphan content, and no orphan row besides" \
+    "$(_ibholds RUN1 worktree "$IB/wts/hollow" orphan) $(_ibcol RUN1 worktree "$IB/wts/hollow" 7) $(_ibst RUN1 orphan "$IB/wts/hollow")" "yes not no row"
+is  "inventory A116: and one holding another repository is uncommitted-unknown and never landed" "$(_ibmany RUN1 worktree "$IB/wts/swap" unknown:uncommitted landed)" "unknown:uncommitted=yes landed=no"
+
+# ---- §4.3, §4.4: content and the mechanical states -----------------------
+is  "inventory A47: a branch the default branch reaches is landed, its content landed" "$(_ibst RUN1 branch merged) $(_ibcol RUN1 branch merged 7)" "landed landed"
+is  "inventory A48: a squash-landed branch never pushed is landed by content alone, even under --no-gh, with no unknown" "$(_ibst RUN2 branch sq) $(_ibcol RUN2 branch sq 7)" "landed landed"
+is  "inventory A49: half its paths on main is partly, none is not, and both are unpushed" \
+    "$(_ibcol RUN1 branch half 7) $(_ibcol RUN1 branch none 7) $(_ibholds RUN1 branch half unpushed) $(_ibholds RUN1 branch none unpushed)" "partly not yes yes"
+is  "inventory A50: a deletion counts as landed when the default branch lacks the path too" "$(_ibcol RUN1 branch del 7)" "landed"
+is  "inventory A51: a merged PR whose head is the tip, or descends from it, lands the branch though main reverted the change" \
+    "$(_ibcol RUN1 branch rv 7) $(_ibcol RUN1 branch rv2 7) $(_ibholds RUN1 branch rv unproposed) $(_ibholds RUN1 branch rv2 unproposed)" "landed landed no no"
+is  "inventory A52: commits on no remote-tracking ref are unpushed, and the detail gives the count, 2" \
+    "$(_ibholds RUN1 branch local-only unpushed) $(_ibcol RUN1 branch local-only 8 | LC_ALL=C awk '/(^|[^0-9])2([^0-9]|$)/ { f = 1 } END { print (f ? "two" : "no two") }')" "yes two"
+is  "inventory A53: a pushed branch with no PR is unproposed" "$(_ibholds RUN1 branch np unproposed)" "yes"
+is  "inventory A53: and one whose newest PR merged before more commits is unproposed, naming that PR" \
+    "$(_ibholds RUN1 branch late unproposed) $(case "$(_ibcol RUN1 branch late 8)" in (*'#22'*) echo '#22' ;; (*) echo 'no #22' ;; esac)" "yes #22"
+is  "inventory A54: the newest PR closed unmerged, content not landed: pr-closed-unlanded" "$(_ibholds RUN1 branch cl pr-closed-unlanded)" "yes"
+is  "inventory A54, N9: the newest PR merged and commits came after: content not, unproposed naming it, and not pr-closed-unlanded" \
+    "$(_ibcol RUN1 branch rev 7) $(_ibmany RUN1 branch rev unproposed pr-closed-unlanded) $(case "$(_ibcol RUN1 branch rev 8)" in (*'#33'*) echo '#33' ;; (*) echo 'no #33' ;; esac)" \
+    "not unproposed=yes pr-closed-unlanded=no #33"
+is  "inventory A55: the PR flags read ready, hold, founder, draft and conflicting, in that order, joined by spaces" \
+    "$(case "$(_ibcol RUN1 branch flag 8)" in (*'#40 open ready hold founder draft conflicting, 5h since update'*) echo flags ;; (*) _ibcol RUN1 branch flag 8 ;; esac)" "flags"
+for _ibn in 41 42 43; do
+  is  "inventory A56: ready is a felix/ready status context that succeeded, so PR $_ibn's lookalike is no ready" \
+      "$(case "$(_ibcol RUN1 branch "f$_ibn" 8)" in (*"#$_ibn open, 2h since update"*) echo plain ;; (*) _ibcol RUN1 branch "f$_ibn" 8 ;; esac)" "plain"
+done
+is  "inventory A57: the label felix:founder reads founder" \
+    "$(case "$(_ibcol RUN1 branch f44 8)" in (*'#44 open founder, 2h since update'*) echo founder ;; (*) _ibcol RUN1 branch f44 8 ;; esac)" "founder"
+_ibhead1() { _ibst "$@" | LC_ALL=C awk -F, '{ print $1 }'; }
+is  "inventory A58: a branch checked out in two worktrees heads both rows with hazard:shared-branch" "$(_ibhead1 RUN1 worktree "$IB/wts/s1") $(_ibhead1 RUN1 worktree "$IB/wts/s2")" "hazard:shared-branch hazard:shared-branch"
+is  "inventory A58: and each detail names the other" \
+    "$(case "$(_ibcol RUN1 worktree "$IB/wts/s1" 8)" in (*"$IB/wts/s2"*) echo s2 ;; (*) echo 'no s2' ;; esac) $(case "$(_ibcol RUN1 worktree "$IB/wts/s2" 8)" in (*"$IB/wts/s1"*) echo s1 ;; (*) echo 'no s1' ;; esac)" "s2 s1"
+is  "inventory A59: an index staged back to an earlier tip heads with hazard:staged-revert and names that tip" \
+    "$(_ibhead1 RUN1 worktree "$IB/wts/sr") $(case "$(_ibcol RUN1 worktree "$IB/wts/sr" 8)" in (*"$(printf '%s' "$IB_SRA" | cut -c1-8)"*) echo named ;; (*) echo unnamed ;; esac)" "hazard:staged-revert named"
+is  "inventory A60: a soft reset is no staged revert, nor an unknown one" "$(_ibmany RUN1 worktree "$IB/wts/soft" hazard:staged-revert unknown:hazard:staged-revert)" "hazard:staged-revert=no unknown:hazard:staged-revert=no"
+is  "inventory A61: with no reflog, a staged change makes staged-revert unknown, and the row is not landed" "$(_ibmany RUN1 worktree "$IB/wts/norl" unknown:hazard:staged-revert landed)" "unknown:hazard:staged-revert=yes landed=no"
+is  "inventory A113: a dirty file whose content is already the default branch's is no uncommitted work" "$(_ibst RUN1 worktree "$IB/wts/behind") $(_ibcol RUN1 worktree "$IB/wts/behind" 7)" "landed landed"
+is  "inventory A117: an ignored new file is no uncommitted work" "$(_ibst RUN1 worktree "$IB/wts/ign")" "landed"
+is  "inventory A118: a worktree's content is the worse of its branch's and its uncommitted content's, and a partly tip alone is partly" \
+    "$(_ibcol RUN1 worktree "$IB/wts/worse" 7) $(_ibcol RUN1 worktree "$IB/wts/partly" 7)" "not partly"
+is  "inventory N10: a squash-merged pushed branch whose path main edited since is landed by its merged PR" "$(_ibst RUN1 branch sqp) $(_ibcol RUN1 branch sqp 7)" "landed landed"
+is  "inventory N10: and under --no-gh, rule 3's not on a pushed tip is unknown, so it is not landed" "$(_ibcol RUN2 branch sqp 7) $(_ibholds RUN2 branch sqp landed)" "unknown no"
+is  "inventory N11: a fork's PR is a pr row from a fork, owner -, though a session worked on a branch of its name" \
+    "$(_ibst RUN1 pr '#16') $(_ibcol RUN1 pr '#16' 5) $(_ibhaselem RUN1 pr '#16' 'from a fork')" "pr-open - yes"
+is  "inventory N11: and the local branch of that name is not proposed by it" "$(_ibst RUN1 branch forked)" "unpushed"
+is  "inventory N11: and a fork's closed PR is no PR with this head: a pushed branch of its name is unproposed, not pr-closed-unlanded" \
+    "$(_ibmany RUN1 branch fk2 unproposed pr-closed-unlanded)" "unproposed=yes pr-closed-unlanded=no"
+
+# ---- §4.1, §4.7: landed and duplicates -----------------------------------
+_ibland() { LC_ALL=C awk -F'\t' '$1 != "cover" { n++; s = "," $4 ","
+    if (index(s, ",landed,")) { k = split($4, t, ","); for (i = 1; i <= k; i++) if (t[i] ~ /^unknown:/ && t[i] != "unknown:live") printf "%s %s [%s]; ", $1, $3, $4 } }
+  END { if (n < 20) printf "only %d rows", n }' "$@"; }
+is  "inventory A65: two unpushed branches carrying the same change are possible duplicates of each other, said at the end of each detail" \
+    "$(_ibst RUN1 branch dupA) | $(_ibst RUN1 branch dupB) | $(_ibcol RUN1 branch dupA 8 | LC_ALL=C awk '{ print substr($0, length($0) - 29) }') | $(_ibcol RUN1 branch dupB 8 | LC_ALL=C awk '{ print substr($0, length($0) - 29) }')" \
+    "unpushed,possible-duplicate | unpushed,possible-duplicate | ; possible duplicate of dupB | ; possible duplicate of dupA"
+is  "inventory A66: the same path with different blobs is no duplicate, nor is one branch in two worktrees" \
+    "$(_ibholds RUN1 branch difA possible-duplicate) $(_ibholds RUN1 branch difB possible-duplicate) $(_ibholds RUN1 worktree "$IB/wts/s1" possible-duplicate) $(_ibholds RUN1 worktree "$IB/wts/s2" possible-duplicate)" "no no no no"
+
+# ---- §6.6, §6.7: chips and PR owners -------------------------------------
+is  "inventory A95: a spawn_task proposal with a task id is an unstarted chip owned by its session, its detail the title, 0 hours old" \
+    "$(_ibst RUN1 chip task_ab12cd34) | $(_ibcol RUN1 chip task_ab12cd34 5) | $(_ibcol RUN1 chip task_ab12cd34 8) | $(_ibcol RUN1 chip task_ab12cd34 6)" "chip-unstarted | s-chip | Fix the README badge | 0"
+is  "inventory A96: a later dismiss_task in the same session withdraws its chip, whatever its result" "$(_ibcol RUN1 chip task_ab12cd34 1) $(_ibst RUN1 chip task_9600aaaa)" "chip no row"
+is  "inventory A97: a session whose first human text is the prompt, behind a reminder and as a second text item, starts its chip" "$(_ibcol RUN1 chip task_ab12cd34 1) $(_ibst RUN1 chip task_9700aaaa)" "chip no row"
+is  "inventory A98: a tool schema naming spawn_task is no proposal, and the prompt as a second human text starts nothing" "$(_ibst RUN1 chip task_ffff0000) | $(_ibst RUN1 chip task_ab12cd34)" "no row | chip-unstarted"
+is  "inventory A99: a session modified before the proposal does not start it" "$(_ibst RUN1 chip task_ab12cd34)" "chip-unstarted"
+is  "inventory A100: a chip proposed in a removed worktree's sessions still counts" "$(_ibst RUN1 chip task_100aaaaa)" "chip-unstarted"
+is  "inventory A115: a first human text that differs at decoded character 120 starts nothing, and one equal through 120 starts its chip" \
+    "$(_ibst RUN1 chip task_115aaaaa) | $(_ibst RUN1 chip task_115bbbbb)" "chip-unstarted | no row"
+is  "inventory N1: a pr row's owner is the sessionId of the newest record on its branch, a resumed file's copied record keeping its own, and it is live" \
+    "$(_ibcol RUN1 pr '#12' 5) $(_ibst RUN1 pr '#12')" "s-o2 live,pr-open"
+is  "inventory N1: an owner whose records are 90 minutes old leaves its pr row not live" "$(_ibcol RUN1 pr '#15' 5) $(_ibst RUN1 pr '#15')" "s-o4 pr-open"
+is  "inventory A102: a pr row whose branch no record names has owner - and is not live" "$(_ibcol RUN1 pr '#17' 5) $(_ibst RUN1 pr '#17')" "- pr-open"
+is  "inventory A102: and under --no-host its owner is unknown and live is unknown" "$(_ibcol RUN3 pr '#17' 5) $(_ibst RUN3 pr '#17')" "unknown pr-open,unknown:live"
+
+# ---- §4.1: no landed row hides an unknown --------------------------------
+is  "inventory A64: no row in r with or without gh or host records is landed beside an unknown other than unknown:live" \
+    "$(_ibland "$(_ibo RUN1)" "$(_ibo RUN2)" "$(_ibo RUN3)")" ""
+
+# ---- m: arguments, environment, signals and gh's failures ----------------
+_ibm_five() { IB_BR=""; _ibsess "$IB/mw/five" s-five; _ib_h 10 'go'; _ib_a 9 'Done.'; _ibage "$IB_F" 9; }
+IB_BR=""; _ibsess "$IB/m" s-old20; _ib_h 28802 'note what is left'
+_ib_chip 28801 toolu_99 task_01d0 'Twenty days old' "$IB_P99"; _ib_a 28800 'Noted.'; _ibage "$IB_F" 28800
+_ibm_five; _ibrun A5a -- inventory --repo "$IB/m" --tsv --no-gh --live 999999
+_ibm_five; _ibrun A5b -- inventory --repo "$IB/m" --tsv --no-gh --live 010 --days 3
+_ibm_five; _ibrun A5c -- inventory --repo "$IB/m" --tsv --no-gh --live 008 --days 30
+is  "inventory A5: six digits is the longest number, and leading zeros are decimal: --live 010 holds a 9-minute session live, --live 008 does not" \
+    "$(_ibrc A5a) $(_ibrc A5b) $(_ibrc A5c) $(_ibholds A5b worktree "$IB/mw/five" live) $(_ibholds A5c worktree "$IB/mw/five" live)" "0 0 0 yes no"
+_ibrun M1 -- inventory --repo "$IB/m" --tsv
+is  "inventory A99: a chip from a session 20 days old is read under --days 30 and not under the default 14" "$(_ibst A5c chip task_01d0) | $(_ibst M1 chip task_01d0)" "chip-unstarted | no row"
+is  "inventory A119: cover chips says the --days window it used" \
+    "$(_ibst M1 cover chips) | $(_ibcol M1 cover chips 8) | $(_ibcol A5b cover chips 8)" "read | proposed in sessions active in the last 14 days | proposed in sessions active in the last 3 days"
+is  "inventory A40: a branch named like the default branch heads no PR: local main, checked out nowhere, is landed and nothing else" "$(_ibst M1 branch main)" "landed"
+is  "inventory N12: and an open PR headed main is always a pr row" "$(_ibst M1 pr '#14')" "pr-open"
+_ibrun A6 -- inventory --repo "$IB/plain" --repo "$IB/m" --repo "$IB/nope" --tsv --no-gh --no-host
+is  "inventory A6: a path that is not a git repository exits 1, is named on stderr, and the others still print" \
+    "$(_ibrc A6) $(case "$(cat "$IB/runs/A6.err")" in (*"$IB/plain"*) echo plain ;; (*) echo 'no plain' ;; esac) $(case "$(cat "$IB/runs/A6.err")" in (*"$IB/nope"*) echo nope ;; (*) echo 'no nope' ;; esac) $(_ibcount A6 cover "$IBMR") $(LC_ALL=C awk -F'\t' -v a="$IB/plain" -v b="$IB/nope" '$2 == a || $2 == b { n++ } END { print n + 0 }' "$(_ibo A6)")" \
+    "1 plain nope 5 0"
+_ibrun A7 -- inventory --repo "$IB/r2" --repo "$IB/m" --tsv --no-gh --no-host
+is  "inventory A7: repositories print in --repo order, the second's rows after all of the first's" \
+    "$(LC_ALL=C awk -F'\t' 'NR == 1 { print $2 }' "$(_ibo A7)") $(LC_ALL=C awk -F'\t' -v a="$IBR2" -v b="$IBMR" '$2 == b { s = 1 } $2 == a && s { x = 1 } END { print (s && !x) ? "in-order" : "out-of-order" }' "$(_ibo A7)")" "$IBR2 in-order"
+_ibrun A8a --cwd "$IB/m/sub" -- inventory --tsv --no-gh --no-host
+_ibrun A8b -- inventory --repo "$IB/mw/five" --tsv --no-gh --no-host
+_ibrepos() { LC_ALL=C awk -F'\t' '{ r[$2] = 1 } END { for (k in r) printf "%s;", k; if (!NR) printf "no rows" }' "$(_ibo "$1")"; }
+is  "inventory A8: with no --repo it reads the repository holding the working directory, and --repo on a linked worktree reads its repository, repo the main worktree's path" \
+    "$(_ibrc A8a) $(_ibrepos A8a) $(_ibrc A8b) $(_ibrepos A8b)" "0 $IBMR; 0 $IBMR;"
+_ibrun A9 --env "GIT_DIR=$IB/other/.git" --env "GIT_WORK_TREE=$IB/other" --env "GIT_INDEX_FILE=$IB/other/.git/index" -- inventory --repo "$IB/m" --tsv --no-gh --no-host
+is  "inventory A9: GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE in the environment do not redirect the read" "$(_ibrc A9) $(_ibrepos A9)" "0 $IBMR;"
+_ibrun A31a -- inventory --repo "$IB/m" --tsv --no-host
+_ibrun A31b --home "$IB/homenone" -- inventory --repo "$IB/m" --tsv
+_ibwthost() { LC_ALL=C awk -F'\t' '$1 == "worktree" { n++; s = "," $4 ","; if ($5 != "unknown" || !index(s, ",unknown:live,") || !index(s, ",unknown:question,") || !index(s, ",unknown:blocked,")) printf "%s [%s %s]; ", $3, $5, $4 }
+  END { if (!n) printf "no worktree rows" }' "$(_ibo "$1")"; }
+for _ibk in a b; do
+  case "$_ibk" in a) _ibl='--no-host' ;; b) _ibl='no session records' ;; esac
+  is  "inventory A31: with $_ibl, sessions and chips are unknown and say why once" \
+      "$(_ibst "A31$_ibk" cover sessions) | $(_ibcol "A31$_ibk" cover sessions 8) | $(_ibst "A31$_ibk" cover chips) | $(_ibcol "A31$_ibk" cover chips 8)" \
+      "unknown,unknown:live,unknown:question,unknown:blocked | $_ibl | unknown,unknown:chip-unstarted | $_ibl"
+  is  "inventory A31: and with $_ibl every worktree row's owner is unknown and it carries unknown:live, unknown:question and unknown:blocked" "$(_ibwthost "A31$_ibk")" ""
+done
+IB_BR=""; _ibopen "$IB/ccd/projects/$(_ibenc "$IB/mw/five")/s-ccd.jsonl" s-ccd; _ib_h 6 'go'; _ib_a 5 'Done.'; _ibage "$IB_F" 5
+_ibrun CCD --env "CLAUDE_CONFIG_DIR=$IB/ccd" -- inventory --repo "$IB/m" --tsv --no-gh
+is  "inventory N13: with CLAUDE_CONFIG_DIR set, records are read under it and cover sessions names it literally" \
+    "$(_ibcol CCD worktree "$IB/mw/five" 5) | $(_ibcol CCD cover sessions 8)" "s-ccd | Claude Code session records under \$CLAUDE_CONFIG_DIR/projects"
+# gh: missing, failing with a long first line, failing on the second call only.
+mkdir -p "$IB/nogh"
+_ibifs="$IFS"; IFS=:
+for _ibd in $PATH; do
+  IFS="$_ibifs"; [ -d "$_ibd" ] || continue
+  for _ibf in "$_ibd"/*; do
+    _ibn="${_ibf##*/}"; [ "$_ibn" = gh ] && continue
+    [ -e "$IB/nogh/$_ibn" ] || [ -L "$IB/nogh/$_ibn" ] || { [ -x "$_ibf" ] && [ ! -d "$_ibf" ] && ln -s "$_ibf" "$IB/nogh/$_ibn"; }
+  done
+done
+IFS="$_ibifs"
+is  "inventory A27: the fixture: a PATH with git and without gh" \
+    "$(PATH="$IB/stubng:$IB/nogh" command -v gh >/dev/null 2>&1 && echo gh || echo nogh) $(PATH="$IB/stubng:$IB/nogh" command -v git >/dev/null 2>&1 && echo git || echo nogit)" "nogh git"
+_ibrun A27 --path "$IB/stubng:$IB/nogh" -- inventory --repo "$IB/m" --tsv --no-host
+is  "inventory A27: gh missing from PATH is unknown, gh not found, and the run still exits 0" \
+    "$(_ibrc A27) | $(_ibst A27 cover prs) | $(_ibcol A27 cover prs 8)" "0 | unknown,unknown:pr-open,unknown:unproposed,unknown:pr-closed-unlanded | gh not found"
+_ib118="$(_ibp 'gh could not reach the host because the token has expired and must be renewed before' 118)"
+printf '1\n' > "$IB/gh/rc"; printf '%s\303\251\303\274 and more\nsecond\n' "$_ib118" > "$IB/gh/err"
+_ibrun A28a -- inventory --repo "$IB/m" --tsv --no-host
+printf '%sx\303\251 and more\nsecond\n' "$_ib118" > "$IB/gh/err"
+_ibrun A28b -- inventory --repo "$IB/m" --tsv --no-host
+printf '0\n' > "$IB/gh/rc"; : > "$IB/gh/err"
+_ibreason() { _ibcol "$1" cover prs 8 | LC_ALL=C awk '{ sub(/^gh failed: /, ""); print length($0) }'; }
+is  "inventory A28: a failing gh is unknown with its first stderr line cut to 120 bytes on a whole character" \
+    "$(_ibst A28a cover prs) | $([ "$(_ibcol A28a cover prs 8)" = "gh failed: $_ib118$(printf '\303\251')" ] && echo exact || _ibcol A28a cover prs 8) | $(_ibreason A28a)" \
+    "unknown,unknown:pr-open,unknown:unproposed,unknown:pr-closed-unlanded | exact | 120"
+is  "inventory A28: and a two-byte character across byte 120 is left out whole, 119 bytes" \
+    "$([ "$(_ibcol A28b cover prs 8)" = "gh failed: ${_ib118}x" ] && echo exact || _ibcol A28b cover prs 8) | $(_ibreason A28b)" "exact | 119"
+: > "$IB/gh/fail-open"
+_ibrun A29 -- inventory --repo "$IB/m" --tsv --no-host
+rm -f "$IB/gh/fail-open"
+is  "inventory A29: when only the second gh call fails, PR facts are unknown and no row is pr-open" \
+    "$(_ibst A29 cover prs | LC_ALL=C awk -F, '{ print $1 }') $(LC_ALL=C awk -F'\t' 'index("," $4 ",", ",pr-open,") { n++ } END { print n + 0 }' "$(_ibo A29)")" "unknown 0"
+# Signals: gh answers slowly; the run is sent TERM, HUP or INT while it waits.
+_ibsig() {  # signal -> "gone" when the run exited and left no scratch
+  local sig="$1" pid gp i=0 sd
+  rm -f "$IB/gh.pid" "$IB/gh.log"; : > "$IB/gh/slow"
+  ( cd "$IB/cwd" || exit 97
+    unset FELIX_HOME FELIX_MEMORY CLAUDE_CONFIG_DIR GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE XDG_STATE_HOME XDG_CACHE_HOME
+    export HOME="$IB/home" TMPDIR="$IB/tmp" FELIX_INVENTORY_TEMP_ROOTS="$IB/temproot" PATH="$IB/stub:$PATH" \
+           GIT_CONFIG_NOSYSTEM=1 GIT_CEILING_DIRECTORIES="$IB"
+    exec perl -e '$SIG{INT} = "DEFAULT"; $SIG{QUIT} = "DEFAULT"; exec @ARGV or exit 127' "$IBF" inventory --repo "$IB/m" --tsv --no-host ) >/dev/null 2>&1 &
+  pid=$!
+  while [ ! -s "$IB/gh.pid" ] && [ "$i" -lt 900 ] && kill -0 "$pid" 2>/dev/null; do sleep 0.2; i=$((i + 1)); done
+  rm -f "$IB/gh/slow"
+  if [ ! -s "$IB/gh.pid" ]; then kill -KILL "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; printf 'gh was never reached'; return; fi
+  gp="$(cat "$IB/gh.pid")"; sd="$(LC_ALL=C awk -F'|' 'END { s = $5; sub(/\/[^\/]*$/, "", s); print s }' "$IB/gh.log")"
+  kill "-$sig" "$pid" 2>/dev/null
+  i=0; while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 300 ]; do sleep 0.2; i=$((i + 1)); done
+  kill -0 "$pid" 2>/dev/null && { kill -KILL "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; kill "$gp" 2>/dev/null; printf 'still running after %s' "$sig"; return; }
+  wait "$pid" 2>/dev/null; kill "$gp" 2>/dev/null
+  if [ -z "$sd" ]; then printf 'gh saw no XDG_STATE_HOME'
+  elif [ -e "$sd" ]; then printf 'the scratch is left: %s' "$sd"
+  elif [ -n "$(ls -A "$IB/tmp")" ]; then printf 'TMPDIR holds: %s' "$(ls -A "$IB/tmp" | tr '\n' ' ')"
+  else printf gone; fi; }
+if command -v perl >/dev/null 2>&1; then
+  for _ibn in TERM HUP INT; do
+    is  "inventory A14: the scratch directory is removed when the run is sent $_ibn" "$(_ibsig "$_ibn")" "gone"
+  done
+else
+  skip "inventory A14: the scratch directory is removed when the run is sent TERM, HUP or INT" "no perl to start the run with INT at its default"
+fi
+
+# ---- small repositories: no origin, unborn, fallbacks, bare, shallow, partial
+_ibrun MISC -- inventory --repo "$IB/noorigin" --repo "$IB/unborn" --repo "$IB/fb1" --repo "$IB/fb2" --repo "$IB/bwt" --tsv --no-host
+IBNO="$(_ibmainwt "$IB/noorigin")"; IBBW="$(_ibmainwt "$IB/bwt")"
+is  "inventory A23: a clone with no origin has an unknown default, said once, with the unknowns it causes" \
+    "$(_ibrc MISC) | $(_ibst MISC cover default "$IBNO") | $(_ibcol MISC cover default 8 "$IBNO")" \
+    "0 | unknown,unknown:uncommitted,unknown:unpushed,unknown:unproposed,unknown:pr-closed-unlanded | no origin/HEAD, origin/main or origin/master whose tree this clone holds"
+is  "inventory A23: and its main worktree and its branch have content unknown, are never landed, and carry unknown entries" \
+    "$(_ibcol MISC worktree "$IBNO" 7) $(_ibcol MISC branch side 7) $(_ibholds MISC worktree "$IBNO" landed) $(_ibholds MISC branch side landed) $(case "$(_ibst MISC worktree "$IBNO"),$(_ibst MISC branch side)" in (*unknown:*,*unknown:*) echo unknowns ;; (*) echo 'no unknowns' ;; esac)" \
+    "unknown unknown no no unknowns"
+is  "inventory A24: origin/main stands in when origin/HEAD is gone, and origin/master after it, which has no fetch time" \
+    "$(_ibst MISC cover default "$(_ibmainwt "$IB/fb1")") $(_ibcol MISC cover default 8 "$(_ibmainwt "$IB/fb1")" | LC_ALL=C awk '{ print $1 " " $2 }') | $(_ibcol MISC cover default 8 "$(_ibmainwt "$IB/fb2")")" \
+    "read origin/main @ | origin/master @ $(_ib8 "$IB/fb2" origin/master); fetch time unknown"
+is  "inventory A45: a bare main has no worktree row, and its linked worktree has one" \
+    "$(LC_ALL=C awk -F'\t' -v p="$IBBW" '$2 == p && $1 == "worktree" { printf "%s;", $3 }' "$(_ibo MISC)")" "$IB/bwt;"
+is  "inventory A46: an unborn repository is read, not refused: five cover rows, default unknown" \
+    "$(_ibcount MISC cover "$IB/unborn") $(_ibst MISC cover default "$IB/unborn" | LC_ALL=C awk -F, '{ print $1 }')" "5 unknown"
+is  "inventory A64: nor in the run over the repository with no origin" "$(_ibland "$(_ibo MISC)" "$(_ibo RUN1)")" ""
+IB_PSNAP="$(_ibsnap "$IB/partial/.git/objects")"
+_ibrun PART -- inventory --repo "$IB/partial" --repo "$IB/shallow" --tsv --no-host
+is  "inventory A33: a partial clone's cover objects is partial and says nothing was fetched, and the run fetched nothing into it" \
+    "$(_ibst PART cover objects "$IB/partial") | $(_ibcol PART cover objects 8 "$IB/partial") | $([ "$IB_PSNAP" = "$(_ibsnap "$IB/partial/.git/objects")" ] && echo unchanged || echo changed)" \
+    "partial | a partial clone: nothing was fetched, so content in no object here may be the remote's | unchanged"
+is  "inventory N14: a shallow clone's cover objects is partial and says history past the graft is absent" \
+    "$(_ibst PART cover objects "$IB/shallow") | $(_ibcol PART cover objects 8 "$IB/shallow")" \
+    "partial | a shallow clone: history past the graft is absent, so a merge-base may be missing or wrong"
+_ibrun PARTOLD --path "$IB/old:$IB/stub:$PATH" -- inventory --repo "$IB/partial" --repo "$IB/m" --tsv --no-host
+is  "inventory A34: under git older than 2.44 a partial clone is refused, named, and left as it was, and the other repository still prints" \
+    "$(_ibrc PARTOLD) $(case "$(cat "$IB/runs/PARTOLD.err")" in (*"$IB/partial"*) echo named ;; (*) echo unnamed ;; esac) $(_ibcount PARTOLD cover "$IB/partial") $(_ibcount PARTOLD cover "$IBMR") $([ "$IB_PSNAP" = "$(_ibsnap "$IB/partial/.git/objects")" ] && echo unchanged || echo changed)" \
+    "1 named 0 5 unchanged"
+_ibrun K -- inventory --repo "$IB/k" --tsv --no-host
+is  "inventory A26: a gh listing of 1000 PRs is partial, unknown:unproposed, and says older PRs are not seen" \
+    "$(_ibst K cover prs) $(case "$(_ibcol K cover prs 8)" in (*older*) echo older ;; (*) echo 'no older' ;; esac)" "partial,unknown:unproposed older"
+is  "inventory A26, N10: a pushed branch no listed PR heads is unproposed-unknown, not unproposed, and its content is unknown" \
+    "$(_ibmany K branch feat unknown:unproposed unproposed) $(_ibcol K branch feat 7)" "unknown:unproposed=yes unproposed=no unknown"
+IB_BR=""; _ibsess "$IB/r3" s-r3; _ib_h 3 'link it'
+printf -v _ibx '{"type":"pr-link","prNumber":12,"prRepository":"whoever/whatever","sessionId":"s-r3","timestamp":"%s"}' "$(_ibts 2)"
+_ib_raw "$_ibx"; _ib_a 2 'Linked.'; _ibage "$IB_F" 2
+rm -f "$IB/gh.log"; _ibrun R3 -- inventory --repo "$IB/r3" --tsv
+is  "inventory A103: with a local-path origin gh runs in the repository with no -R, and cover prs names the bare command" \
+    "$(LC_ALL=C awk -F'|' '{ printf "%s %s;", $1, (index($2, "-R") ? "-R" : "no-R") }' "$IB/gh.log" 2>/dev/null) | $(_ibcol R3 cover prs 8)" "$IB/r3 no-R;$IB/r3 no-R; | gh pr list: 1 PRs"
+is  "inventory A103: and with no derived owner/repo no pr-link names a session, and no record makes an owner" \
+    "$(_ibcol R3 pr '#12' 5) $(case "$(_ibcol R3 pr '#12' 8)" in (*'last linked in session'*) echo linked ;; ('no row') echo 'no row' ;; (*) echo unlinked ;; esac)" "- unlinked"
+rm -f "$IB/gh.log"; _ibrun U -- inventory --repo "$IB/u1" --repo "$IB/u2" --repo "$IB/u3" --repo "$IB/u4" --tsv --no-host
+is  "inventory A104, N15: owner/repo comes from each URL form, a non-github host keeps its host, and a port is no part of the host" \
+    "$(LC_ALL=C awk -F'|' '/--state all/ { n = split($2, w, " "); for (i = 1; i < n; i++) if (w[i] == "-R") printf "%s;", w[i + 1] }' "$IB/gh.log" 2>/dev/null)" \
+    "acme/widget;acme/widget;ghe.example/acme/widget;acme/widget;"
+
+# ---- d, f, g: read-only against a stale index, a filter and gpg -----------
+IB_DSNAP="$(_ibsnap "$IB/d"; _ibsnap "$IB/d-origin.git"; _ibsnap "$IB/dw")"; : > "$IB/d.mark"
+_ibrun D1 -- inventory --repo "$IB/d" --tsv; _ibrun D2 -- inventory --repo "$IB/d"
+is  "inventory A10: an inventory leaves every repository byte-identical, its index and directories untouched, though a plain git status would rewrite the index" \
+    "$(_ibrc D1) $(_ibrc D2) $([ "$IB_DSNAP" = "$(_ibsnap "$IB/d"; _ibsnap "$IB/d-origin.git"; _ibsnap "$IB/dw")" ] && echo same || echo changed) [$(find "$IB/d" "$IB/d-origin.git" "$IB/dw" -newer "$IB/d.mark" -print | LC_ALL=C awk 'NR <= 3' | tr '\n' ' ')] [$(find "$IB/d/.git" -name '*.lock' -print | tr '\n' ' ')]" \
+    "0 0 same [] []"
+rm -f "$IB/ran-clean"
+_ibrun F -- inventory --repo "$IB/f" --tsv --no-host
+IBFR="$(_ibmainwt "$IB/f")"
+is  "inventory A12: a filter's clean command never runs, and a filtered path that differs is uncommitted-unknown, content unknown, never landed" \
+    "$([ -e "$IB/ran-clean" ] && echo ran || echo 'never ran') $(_ibmany F worktree "$IBFR" unknown:uncommitted landed) $(_ibcol F worktree "$IBFR" 7)" "never ran unknown:uncommitted=yes landed=no unknown"
+rm -f "$IB/gpg-ran"; _ibg -C "$IB/g" log -1 >/dev/null 2>&1
+is  "inventory N8: the fixture: a plain git log in g runs its gpg" "$([ -e "$IB/gpg-ran" ] && echo ran || echo 'did not run')" "ran"
+rm -f "$IB/gpg-ran"
+_ibrun G -- inventory --repo "$IB/g" --tsv --no-host
+is  "inventory N8: an inventory of a repository that shows signatures runs no gpg" "$(_ibrc G) $([ -e "$IB/gpg-ran" ] && echo ran || echo 'never ran')" "0 never ran"
+
+# ---- h: the host adapter -------------------------------------------------
+_ibh_records; IB_H0="$(date +%s)"
+_ibrun H1 -- inventory --repo "$IB/h" --tsv
+IB_HD=$(( ($(date +%s) - IB_H0 + 59) / 60 ))
+_ibh_two; _ibrun H2 -- inventory --repo "$IB/h" --tsv --live 80
+_ibw() { printf '%s' "$IB/hw/$1"; }
+is  "inventory A76: the test's encoder turns every character outside [A-Za-z0-9] into a dash, as /a/.b_c to -a--b-c" "$(_ibenc /a/.b_c)" "-a--b-c"
+is  "inventory A76: records filed under that name make the worktree's owner" "$(_ibcol H1 worktree "$(_ibw w.t_1)" 5)" "s-enc"
+is  "inventory A77: a character beyond the BMP is two dashes in the record directory's name" "$(_ibcol H1 worktree "$IB_EMO" 5)" "s-emo"
+is  "inventory A78: records filed under the resolved spelling of a symlinked path are found" "$(_ibcol H1 worktree "${IB_SYM:-$IB/hl/sym}" 5)" "s-sym"
+is  "inventory A79: a long name resolves to its single hashed record directory" "$(_ibcol H1 worktree "$IB_LONG1" 5)" "s-long1"
+is  "inventory A79: and two candidates make the owner and the host states unknown" \
+    "$(_ibcol H1 worktree "$IB_LONG2" 5) $(_ibmany H1 worktree "$IB_LONG2" unknown:live unknown:question unknown:blocked)" "unknown unknown:live=yes unknown:question=yes unknown:blocked=yes"
+is  "inventory A80: activity counts every file under the session's directory, so a tool result written 2 minutes ago makes it live, 0 hours old" \
+    "$(_ibholds H1 worktree "$(_ibw act)" live) $(_ibcol H1 worktree "$(_ibw act)" 6)" "yes 0"
+is  "inventory A81: the owner is the newest session, and live follows its activity" \
+    "$(_ibcol H1 worktree "$(_ibw two)" 5) $(_ibholds H1 worktree "$(_ibw two)" live) $(_ibcol H2 worktree "$(_ibw two)" 5) $(_ibholds H2 worktree "$(_ibw two)" live)" "s-new no s-new yes"
+is  "inventory A82: a tool call pending past --blocked with nothing newer under the session is blocked, and says how long it has waited" \
+    "$(_ibholds H1 worktree "$(_ibw blk)" blocked) $(_ibcol H1 worktree "$(_ibw blk)" 8 | LC_ALL=C awk -v hi=$((35 + IB_HD)) '{ s = $0; while (match(s, /[0-9]+/)) { v = substr(s, RSTART, RLENGTH) + 0; if (v >= 35 && v <= hi) f = 1; s = substr(s, RSTART + RLENGTH) } } END { print (f ? "waited" : "no wait") }')" "yes waited"
+is  "inventory A83: a file under the session's directory newer than --blocked means the call is still working, not blocked" "$(_ibholds H1 worktree "$(_ibw blk2)" blocked)" "no"
+is  "inventory A84: a final text that asks, with nothing human after it, is a question quoting its ending" \
+    "$(_ibholds H1 worktree "$(_ibw ask)" question) | $(_ibelem H1 worktree "$(_ibw ask)" 'ended on: ')" "yes | ended on: I've pushed the branch.  Shall I merge it?"
+is  "inventory A85: human text after the ask clears it; a tool result, a reminder-led message or a meta record does not" \
+    "$(_ibholds H1 worktree "$(_ibw ans-a)" question) $(_ibholds H1 worktree "$(_ibw ans-b)" question) $(_ibholds H1 worktree "$(_ibw ans-c)" question)" "no yes yes"
+is  "inventory A86: fenced code, code spans, double quotes and blockquotes are set aside before asking" \
+    "$(_ibholds H1 worktree "$(_ibw sa-fence)" question) $(_ibholds H1 worktree "$(_ibw sa-span)" question) $(_ibholds H1 worktree "$(_ibw sa-quote)" question) $(_ibholds H1 worktree "$(_ibw sa-bq)" question)" "no no no no"
+is  "inventory A87: an ask phrase counts as whole words only, and not after a negation in its own clause" \
+    "$(_ibholds H1 worktree "$(_ibw ng-a)" question) $(_ibholds H1 worktree "$(_ibw ng-b)" question) $(_ibholds H1 worktree "$(_ibw ng-c)" question) $(_ibholds H1 worktree "$(_ibw ng-d)" question)" "no no yes yes"
+is  "inventory A88: a ? followed only by closing marks asks, and one four paragraphs back does not" \
+    "$(_ibholds H1 worktree "$(_ibw q-a)" question) $(_ibholds H1 worktree "$(_ibw q-b)" question)" "yes no"
+for _ibn in bad-empty bad-cut bad-nojson; do
+  is  "inventory A89: a session file that is $_ibn answers unknown:question, never landed" "$(_ibmany H1 worktree "$(_ibw "$_ibn")" unknown:question landed)" "unknown:question=yes landed=no"
+done
+is  "inventory A90: a sidechain record and a record of another type after the final text are passed over" "$(_ibmany H1 worktree "$(_ibw side)" question unknown:question)" "question=no unknown:question=no"
+is  "inventory A91: a final text past the last 256 KiB makes question unknown, and a small file with no text makes it not held" \
+    "$(_ibholds H1 worktree "$(_ibw big-a)" unknown:question) $(_ibmany H1 worktree "$(_ibw big-b)" question unknown:question)" "yes question=no unknown:question=no"
+is  "inventory A92: a subagent worktree names its spawning session and the agent's description, and the agent's file makes it live" \
+    "$(_ibhaselem H1 worktree "$IB/h/.claude/worktrees/agent-a1b2c3" 'spawned by session s-boss: write the parser') $(_ibholds H1 worktree "$IB/h/.claude/worktrees/agent-a1b2c3" live)" "yes yes"
+is  "inventory A93: a meta file for another path adds nothing, and the search leaves no unknown" \
+    "$(_ibst H1 worktree "$IB/h/.claude/worktrees/agent-a9b9c9") $(case "$(_ibcol H1 worktree "$IB/h/.claude/worktrees/agent-a9b9c9" 8)" in (*'spawned by'*) echo spawned ;; (*) echo plain ;; esac)" "landed plain"
+is  "inventory A94: a helper transcript's question and pending call make its parent neither a question nor blocked" "$(_ibmany H1 worktree "$(_ibw par)" question blocked live)" "question=no blocked=no live=yes"
+is  "inventory A62: held states print in the fixed order with no spaces, live first" "$(_ibst H1 worktree "$(_ibw ord)")" "live,uncommitted,unpushed"
+is  "inventory A63: landed comes after live, the one state that may sit beside it" "$(_ibst H1 worktree "$(_ibw ll)")" "live,landed"
+is  "inventory N2: a session whose last record is 3 hours old is not live though a bookkeeping line touched its file a minute ago" \
+    "$(_ibcol H1 worktree "$(_ibw cost)" 5) $(_ibst H1 worktree "$(_ibw cost)")" "s-cost landed"
+is  "inventory N3: with no record time in the window, the file's time stands in, and the detail says so" \
+    "$(_ibholds H1 worktree "$(_ibw notime)" live) $(_ibhaselem H1 worktree "$(_ibw notime)" 'activity from file time')" "yes yes"
+is  "inventory N4: an assistant record that puts its message first is read by the role inside it, and a record of another type nesting a message is passed over" \
+    "$(_ibholds H1 worktree "$(_ibw mf-a)" question) $(_ibmany H1 worktree "$(_ibw mf-b)" question unknown:question)" "yes question=no unknown:question=no"
+
+# ---- o: orphans ----------------------------------------------------------
+_ibrun O1 -- inventory --repo "$IB/o" --tsv --no-host
+_ibo1() { _ibcol O1 orphan "$IB/ow/$1" "$2"; }
+is  "inventory A67: a worktree git forgot, beside one it lists, is an orphan counting its unique file, content not, and no worktree row" \
+    "$(_ibholds O1 orphan "$IB/ow/lost" orphan) | $(_ibo1 lost 8 | LC_ALL=C awk '{ print (/^1 of [0-9]+ files hold content in no object of the repository/ ? "counted" : $0) }') | $(_ibo1 lost 7) | $(_ibst O1 worktree "$IB/ow/lost")" \
+    "yes | counted | not | no row"
+is  "inventory A69: an untracked checkout inside the main worktree makes its parent a search parent, and a plain sibling holding nothing tracked is an orphan" \
+    "$(_ibcol O1 orphan "$IB/o/.wt/dead" 1) $(_ibcol O1 orphan "$IB/o/.wt/plain" 1)" "orphan orphan"
+is  "inventory A70: a nested repository, a directory naming another live repository's worktree, and a tracked directory are never orphans" \
+    "$(_ibcol O1 orphan "$IB/o/.wt/dead" 1) $(LC_ALL=C awk -F'\t' '$1 == "orphan" && ($3 ~ /\/nested$/ || $3 ~ /\/foreign$/ || $3 ~ /\/tracked$/) { printf "%s;", $3 }' "$(_ibo O1)")" "orphan "
+is  "inventory A71: the main worktree's parent is never a search parent" \
+    "$(_ibcol O1 orphan "$IB/ow/lost" 1) $(LC_ALL=C awk -F'\t' -v p="$IB/" '$1 == "orphan" { r = substr($3, length(p) + 1); if (substr($3, 1, length(p)) == p && index(r, "/") == 0) printf "%s;", $3 }' "$(_ibo O1)")" "orphan "
+is  "inventory A72: ignored files over 1 MiB are said, not skipped, and the orphan that passed one over is not landed" \
+    "$(case "$(_ibo1 lostbig 8)" in (*'; 1 ignored files over 1 MiB not read'*) echo said ;; (*) _ibo1 lostbig 8 ;; esac) $(_ibo1 lostbig 7)" "said unknown"
+is  "inventory A73: an ignored unique file under the cap is counted in the ignored clause" \
+    "$(case "$(_ibo1 lostsmall 8)" in (*'; 1 of 1 ignored files hold content in no object'*) echo counted ;; (*) _ibo1 lostsmall 8 ;; esac) $(_ibo1 lostsmall 7)" "counted not"
+
+# ---- v: the human view ---------------------------------------------------
+IB_BR=""; _ibsess "$IB/vw/blk" s-vblk; _ib_h 40 'watch it'
+_ib_tu 35 toolu_v1 Bash '{"command":"watch-the-ledger","description":"Watch the ledger"}'; _ibage "$IB_F" 35
+_ibrun V1 -- inventory --repo "$IB/v" --tsv; _ibrun V2 -- inventory --repo "$IB/v"
+IB_V="$(_ibo V2)"
+IB_LABELS='hazard:shared-branch|hazard:staged-revert|live|question|blocked|uncommitted|unpushed|unproposed|pr-open|pr-closed-unlanded|orphan|chip-unstarted|handoff-pending|undecided, content not landed|in temporary directories'
+# A heading is a group's label and its count alone on a line; _ibhead prints
+# "line count" for a label, _ibgroup the heading above the first line holding
+# a text.
+_ibhead() { LC_ALL=C awk -v l="$2" '{ s = $0; sub(/^[ \t]+/, "", s)
+    if (substr(s, 1, length(l)) == l) { r = substr(s, length(l) + 1); if (r ~ /^[ \t:(]*[0-9]+[)]?[ \t]*$/) { gsub(/[^0-9]/, "", r); print NR " " r; exit } } }' "$1"; }
+_ibgroup() { LC_ALL=C awk -v t="$2" -v labs="$IB_LABELS" 'BEGIN { n = split(labs, L, "|") }
+    { s = $0; sub(/^[ \t]+/, "", s); h = 0
+      for (i = 1; i <= n; i++) if (substr(s, 1, length(L[i])) == L[i]) { r = substr(s, length(L[i]) + 1); if (r ~ /^[ \t:(]*[0-9]+[)]?[ \t]*$/) { g = L[i]; h = 1 } }
+      if (!h && index($0, t)) { print (g == "" ? "no group" : g); exit } }' "$1"; }
+_ibnb() { LC_ALL=C awk 'NF { print }' "$1"; }
+is  "inventory A105: the view opens with the fixed read-only sentence" "$(LC_ALL=C awk 'NR == 1' "$IB_V")" \
+    "felix inventory: read-only. It wrote nothing into a repository and fetched nothing; gh, if asked, only listed pull requests."
+_ibx=""; _ibn=2
+for _ibk in default prs sessions chips objects; do
+  _ibn=$((_ibn + 1)); _ibd="$(_ibcol V1 cover "$_ibk" 8 "$IBVR")"
+  case "$(_ibnb "$IB_V" | LC_ALL=C awk -v n="$_ibn" 'NR == n')" in *"$_ibd"*) ;; *) _ibx="$_ibx $_ibk" ;; esac
+done
+is  "inventory A106: after the sentence, the view names the repository, then one line per cover facet with its detail, in order" \
+    "$(_ibnb "$IB_V" | LC_ALL=C awk 'NR == 2' | LC_ALL=C awk -v p="$IBVR" '{ print (index($0, p) ? "path" : $0) }')|$_ibx" "path|"
+is  "inventory A106: groups for blocked, uncommitted and unpushed come in the fixed order, each headed with its count, and there is no live group" \
+    "$(_ibhead "$IB_V" blocked | cut -d' ' -f2) $(_ibhead "$IB_V" uncommitted | cut -d' ' -f2) $(_ibhead "$IB_V" unpushed | cut -d' ' -f2) $(_ibx1="$(_ibhead "$IB_V" blocked | cut -d' ' -f1)"; _ibx2="$(_ibhead "$IB_V" uncommitted | cut -d' ' -f1)"; _ibx3="$(_ibhead "$IB_V" unpushed | cut -d' ' -f1)"; [ -n "$_ibx1" ] && [ -n "$_ibx2" ] && [ -n "$_ibx3" ] && [ "$_ibx1" -lt "$_ibx2" ] && [ "$_ibx2" -lt "$_ibx3" ] && echo ordered || echo unordered) [$(_ibhead "$IB_V" live)]" \
+    "1 1 1 ordered []"
+_ibx="$(_ibnb "$IB_V" | LC_ALL=C awk 'END { print }')"
+is  "inventory A106, A68: the view ends with the counts line, one orphan holding nothing unique, at least one landed" \
+    "$(printf '%s\n' "$_ibx" | LC_ALL=C awk '/^[ \t]*live [0-9]+ \([0-9]+ blocked on a tool call\), landed [0-9]+, orphans holding nothing unique 1, nothing decided but unknown [0-9]+$/ { split($0, w, "landed "); print (w[2] + 0 >= 1 ? "counts" : "landed 0"); next } { print }')" "counts"
+is  "inventory A106, A68: a landed branch and an orphan holding nothing unique are counted and not listed" \
+    "$(LC_ALL=C awk '/(^|[^a-z])vland([^a-z]|$)/ { f = 1 } END { print (f ? "listed" : "unlisted") }' "$IB_V") $(case "$(cat "$IB_V")" in (*"$IB/vw/lostv"*) echo listed ;; (*) echo unlisted ;; esac)" "unlisted unlisted"
+is  "inventory A68: that orphan's row counts none of its files, and its content is landed" \
+    "$(_ibcol V1 orphan "$IB/vw/lostv" 8 | LC_ALL=C awk '{ print (/^0 of / ? "none" : $0) }') $(_ibcol V1 orphan "$IB/vw/lostv" 7)" "none landed"
+is  "inventory N7: a branch whose commit sits on another remote branch only holds no state, its content not, so it is not landed" \
+    "$(_ibst V1 branch other-ref) $(_ibcol V1 branch other-ref 7)" "- not"
+is  "inventory N7: and the view lists it under undecided, content not landed" "$(_ibgroup "$IB_V" other-ref)" "undecided, content not landed"
+_ibrun NV -- inventory --repo "$IB/noorigin" --no-host
+is  "inventory A107: an undecided row with content unknown is counted, not listed" \
+    "$(LC_ALL=C awk '/(^|[^a-z])side([^a-z]|$)/ { f = 1 } END { print (f ? "listed" : "unlisted") }' "$(_ibo NV)") $(_ibnb "$(_ibo NV)" | LC_ALL=C awk 'END { sub(/.*nothing decided but unknown /, ""); print ($0 + 0 >= 1 ? "counted" : "uncounted") }')" "unlisted counted"
+
+# ---- t: temporary roots --------------------------------------------------
+_ibrun T1 -- inventory --repo "$IB/t" --tsv --no-host
+_ibrun T2 -- inventory --repo "$IB/t" --no-host
+_ibrun T3 --env "FELIX_INVENTORY_TEMP_ROOTS=$IB/tlink" -- inventory --repo "$IB/t" --tsv --no-host
+is  "inventory A74: a worktree under a temporary root carries the element temp, its twin outside does not, and their states are the same" \
+    "$(_ibhaselem T1 worktree "$IB/temproot/w" temp) $(_ibhaselem T1 worktree "$IB/wtst/w" temp) $([ "$(_ibst T1 worktree "$IB/temproot/w")" = "$(_ibst T1 worktree "$IB/wtst/w")" ] && echo same || echo differ)" "yes no same"
+is  "inventory A75: a root given through a symlink matches the path it resolves to, whole components only, and the seam's roots are the only ones" \
+    "$(_ibhaselem T3 worktree "$IB/temproot/w" temp) $(_ibhaselem T3 worktree "$IB/temprootx/w" temp) $(LC_ALL=C awk -F'\t' -v k="$IB/temproot/w" '$3 != k { n = split($8, e, "; "); for (i = 1; i <= n; i++) if (e[i] == "temp") printf "%s;", $3 }' "$(_ibo T3)")" "yes no "
+is  "inventory A108: a temp row is listed once, under in temporary directories, and the uncommitted group's count leaves it out" \
+    "$(LC_ALL=C awk -v p="$IB/temproot/w" 'index($0, p) { n++ } END { print n + 0 }' "$(_ibo T2)") $(_ibgroup "$(_ibo T2)" "$IB/temproot/w") $(_ibhead "$(_ibo T2)" uncommitted | cut -d' ' -f2)" "1 in temporary directories 1"
+
+# ---- §4.1: across every run ----------------------------------------------
+_ibx=""; for _ibk in RUN1 RUN2 RUN3 RUN4 MISC PART K R3 U F G H1 H2 O1 V1 T1 T3 M1 A5a A5b A5c A27 A31a A31b CCD; do _ibx="$_ibx $(_ibo "$_ibk")"; done
+is  "inventory N16: no row in any run is landed while its content is not, partly or unknown" \
+    "$(LC_ALL=C awk -F'\t' '$1 != "cover" && index("," $4 ",", ",landed,") && ($7 == "not" || $7 == "partly" || $7 == "unknown") { printf "%s %s [%s] %s; ", $1, $3, $4, $7 } $1 != "cover" { n++ } END { if (n < 20) printf "only %d rows", n }' $_ibx)" ""
+
+# ---- §1, §9: the libraries -----------------------------------------------
+IB_LIBS="inventory.sh inventory-items.sh inventory-gh.sh inventory-orphans.sh inventory-host.sh inventory-view.sh"
+_ibcode() { LC_ALL=C awk '!/^[[:space:]]*#/ { f = FILENAME; sub(/.*\//, "", f); print f ":" FNR ":" $0 }' "$@"; }
+_ibmissing() { local f m=""; for f in $IB_LIBS; do [ -f "$IBL/$f" ] || m="$m $f"; done; printf '%s' "${m:+missing:$m}"; }
+_iblibs() { local f; for f in $IB_LIBS; do [ -f "$IBL/$f" ] && printf '%s\n' "$IBL/$f"; done; }
+is  "inventory A109: the six inventory libraries exist and each is under 500 lines" \
+    "$(_ibmissing)$(for _ibf in $(_iblibs); do [ "$(LC_ALL=C awk 'END { print NR }' "$_ibf")" -lt 500 ] || printf ' %s is long' "${_ibf##*/}"; done)" ""
+is  "inventory A110: no inventory library uses a here-document or here-string, jq, python, node or claude" \
+    "$(_ibmissing)$(_iblibs | while IFS= read -r _ibf; do _ibcode "$_ibf"; done | LC_ALL=C awk '{ s = $0; gsub(/\$\(\([^)]*\)\)/, "", s)
+       if (index(s, "<<")) printf "%s heredoc; ", substr($0, 1, index($0, ":") - 1)
+       if (s ~ /(^|[^A-Za-z0-9_.-])(jq|python3?|node)([^A-Za-z0-9_-]|$)/) printf "%s parser; ", substr($0, 1, index($0, ":") - 1)
+       if (s ~ /(^|[;&|(`]|then|do|else)[[:space:]]*claude[[:space:]]/) printf "%s claude; ", substr($0, 1, index($0, ":") - 1) }')" ""
+is  "inventory A111: the host adapter runs no git" \
+    "$(_ibmissing)$([ -f "$IBL/inventory-host.sh" ] && _ibcode "$IBL/inventory-host.sh" | LC_ALL=C awk -F: '{ s = $0; sub(/^[^:]*:[^:]*:/, "", s) } s ~ /(^|[;&|(`{]|then|do|else|\$\()[[:space:]]*(command[[:space:]]+)?git[[:space:]]/ { printf "line %s; ", $2 }')" ""
+is  "inventory A111: no hook and no other library names the inventory, and felix names felix_inventory only after audit's early arm" \
+    "$(_ibmissing)$(for _ibf in "$REAL_HARNESS"/hooks/* "$IBL"/*.sh; do case "${_ibf##*/}" in (inventory*.sh) continue ;; esac
+       [ -f "$_ibf" ] && LC_ALL=C awk -v f="${_ibf##*/}" '/inventory\.sh|inventory-|felix_inventory/ { printf "%s:%d; ", f, FNR; exit }' "$_ibf"; done)$(LC_ALL=C awk '/^[[:space:]]*if \[ "\$\{1:-\}" = "audit" \]/ { a = NR } /felix_inventory/ { if (!a || NR <= a || NR > a + 15) printf "felix:%d; ", NR; n++ } END { if (!n) printf "felix names no felix_inventory" }' "$REAL_HARNESS/felix")" ""
+_ibnames="elenchus felix-home widget behaviorchangebench"
+for _ibd in "$REAL_HARNESS"/../../projects/*/; do [ -d "$_ibd" ] || continue; _ibn="${_ibd%/}"; _ibn="${_ibn##*/}"; [ "$_ibn" = felix ] || _ibnames="$_ibnames $_ibn"; done
+is  "inventory A112: the inventory libraries name no project" \
+    "$(_ibmissing)$(_iblibs | while IFS= read -r _ibf; do LC_ALL=C awk -v names="$_ibnames" -v f="${_ibf##*/}" 'BEGIN { n = split(tolower(names), w, " ") } { l = tolower($0); for (i = 1; i <= n; i++) if (index(l, w[i])) { printf "%s:%d names %s; ", f, FNR, w[i]; next } }' "$_ibf"; done)" ""
+_ibx="$(grep -E 'bad substitution|syntax error|unbound variable|command not found|invalid option|not a valid identifier|division by 0|awk: ' "$IB"/runs/*.err | LC_ALL=C awk 'NR <= 3' | tr '\n' ';')"
+is  "inventory: no run of this section wrote a shell or awk error to stderr" "$_ibx" ""
 
 printf '\nthe handoff, as sections: no two sessions write the same path\n'
 # HANDOFF.md was one slot and one counter every session shared: write your

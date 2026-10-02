@@ -32116,7 +32116,7 @@ IVH="$IV/home"; IVP="$IVH/.claude/projects"; IVT="$IV/tmp"
 IVGH="$IV/gh"; IVSTUB="$IV/stub"; IVGH_LOG="$IV/gh.log"; IVGIT_LOG="$IV/git.log"; IV_ERR="$IV/stderr"
 mkdir -p "$IVW" "$IVW2" "$IVH/.config" "$IVP" "$IVT" "$IVGH" "$IVSTUB" "$IV/cwd" "$IV/clone/felix/engine"
 : > "$IVGH_LOG"; : > "$IVGIT_LOG"; : > "$IV_ERR"
-cp -R "$REAL_HARNESS" "$IV/clone/felix/engine/harness"
+_copy_content "$REAL_HARNESS" "$IV/clone/felix/engine/harness"
 IVF="$IV/clone/felix/engine/harness/felix"
 IV_REALGIT="$(command -v git)"
 IV_JQ=0; command -v jq >/dev/null 2>&1 && IV_JQ=1
@@ -33655,7 +33655,7 @@ IB="$TMP/inventory-blind"; mkdir -p "$IB"; IB="$(cd "$IB" && pwd -P)"
 mkdir -p "$IB/home/.claude/projects" "$IB/home0/.claude/projects" "$IB/homenone" "$IB/fxhome" "$IB/tmp" \
          "$IB/cwd" "$IB/stub" "$IB/stubng" "$IB/spy" "$IB/old" "$IB/gh/default" "$IB/mem" "$IB/temproot" \
          "$IB/runs" "$IB/ccd/projects" "$IB/plain" "$IB/clone/felix/engine"
-cp -R "$REAL_HARNESS" "$IB/clone/felix/engine/harness"
+_copy_content "$REAL_HARNESS" "$IB/clone/felix/engine/harness"
 IBF="$IB/clone/felix/engine/harness/felix"; IBP="$IB/home/.claude/projects"; IB_GIT="$(command -v git)"
 IBL="$REAL_HARNESS/lib"
 printf '[]\n' > "$IB/gh/default/all.json"; printf '[]\n' > "$IB/gh/default/open.json"

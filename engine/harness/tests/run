@@ -16573,6 +16573,18 @@ for _qswk in other none; do
       "planted:$([ "$_qswk" = other ] && echo yes || echo no),yes swapped:yes removes:0 file:mine registered:yes"
 done
 
+# 9e. A row whose mutation swaps its own base for a symlink to a directory
+# outside that holds a file named err, the name of the column stderr file
+# beside the tree. The runner removed that file once the column had run,
+# by the base's name, which led outside by then (review round 3).
+d="$QSWS/errswap"; T="$d/t"; mkdir -p "$T" "$d/outside" "$d/proj"; R="$(_qswroot "$d/root")"
+printf 'precious\n' > "$d/outside/err"; printf 'other\n' > "$d/outside/keep"
+_qsw5 errswap 'test -f base.txt' restoration pass "b=\"\$(cd .. && pwd -P)\"; mv \"\$b\" \"\$b.aside\" && ln -s '$d/outside' \"\$b\"" > "$d/proj/qualification.tsv"
+_qswrun "$d/r" "$T" "$R" "$d/proj"
+is  "a row whose mutation swaps its own base for a symlink to a directory outside holding a file named err leaves that directory's files as they were" \
+    "swapped:$(ls -A "$T" 2>/dev/null | awk '/^felix-qualify\.[A-Za-z0-9]+\.aside$/ { n++ } END { print n + 0 }') outside:[$(ls -A "$d/outside" 2>/dev/null | LC_ALL=C sort | tr '\n' ' ')] err:$(cat "$d/outside/err" 2>/dev/null || echo gone)" \
+    "swapped:1 outside:[err keep ] err:precious"
+
 # 10. A base whose drop cannot finish: a row's mutation makes a file in its
 # tree immutable. Its record stays, a later sweep says what is left, and
 # once the flag is cleared the next run removes it.

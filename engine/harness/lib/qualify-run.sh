@@ -375,8 +375,11 @@ _felix_qualify_arm() {   # root, base
 # $( ), backticks or eval, so the column's stderr goes to a file beside the
 # tree and is scanned. Only the column's own shell prints under the $0 it is
 # given; a checker's messages carry its path. A stderr that cannot be read
-# reads as nothing run, and the helper removes the file before it returns.
-# Every other status keeps its meaning.
+# reads as nothing run. The file is left for the next column's
+# _felix_qualify_errfile or the drop to take, never removed here by its
+# path: a column that swapped the base for a symlink to a directory outside
+# had that rm delete a file named err there (review round 3). Every other
+# status keeps its meaning.
 #
 # That file sits beside the tree, where a mutation can reach it as ../err,
 # so each column makes it new before it runs (_felix_qualify_errfile). A
@@ -415,10 +418,6 @@ _felix_qualify_sh() {   # dir, text, stderr file outside dir -> the text's own s
       <&9 8>&- 2>/dev/null
     said=$?
   } 8>|"$3" 9<"$3" 2>/dev/null
-  # Quietly: a column that took the base's write bit away leaves the file,
-  # and the next column's _felix_qualify_errfile or _felix_qualify_drop
-  # takes it.
-  rm -f "$3" 2>/dev/null
   [ "$said" = 1 ] || return 127
   return "$rc"
 }

@@ -42,6 +42,8 @@ for _cml in resolve detect stack probes verify; do
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/$_cml.sh"
 done
 unset _cml
+command -v felix_final_filter_lead >/dev/null 2>&1 \
+  || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
 
 # The table set a receipt is bound to, in fixed order. Every file that decides
 # what this project reads, refuses, or installs.
@@ -66,14 +68,24 @@ _felix_commission_answer_ok() {
 }
 
 # A check that cannot fail is not a check. A negated pipeline reads met when
-# its producer dies, and one ending in `head` reports head's status, which is
-# success whatever came before it.
+# its producer dies. And a final filter, which succeeds whatever came before
+# it, can leave a check unable to fail: the second argument is why
+# final-filter.sh refused the row, or `-`. It used to be text patterns for
+# `| head`, which refused a head inside `$( )` or mid-pipeline, where the check
+# can still fail, and let every other filter by. Prints why a check is
+# refused, and returns 1 then.
 _felix_commission_check_ok() {
-  local c="${1:-}"
-  [ -n "$c" ] || return 1
-  case "$c" in '!'*) return 1 ;; esac
-  case "$c" in *'| head'|*'|head'|*'| head -'*|*'|head -'*) return 1 ;; esac
+  local c="${1:-}" ff="${2:--}"
+  [ -n "$c" ] || { printf 'check is empty, so it could not fail'; return 1; }
+  case "$c" in '!'*) printf 'check is negated, so it reads met when its producer dies'; return 1 ;; esac
+  [ "$ff" = "-" ] || { printf '%s' "$ff"; return 1; }
   return 0
+}
+
+# Each commissioning line, led by `-` or the sentence refusing its check, so
+# the classifier runs once over the table and not once per row.
+_felix_commission_judged() {
+  _felix_commission_lines "$1" | felix_final_filter_lead commissioning.tsv
 }
 
 _felix_commission_step_ok() {
@@ -91,15 +103,15 @@ _felix_commission_lines() {
 # row carries a real one. Rows are emitted in file order, because later rows
 # consume earlier writes.
 felix_commission_rows() {
-  local proj="$1" need grounds instrument when answer check step
-  _felix_commission_lines "$proj" | awk -F'\t' 'NF == 7' \
-    | while IFS=$'\t' read -r need grounds instrument when answer check step; do
+  local proj="$1" ff need grounds instrument when answer check step
+  _felix_commission_judged "$proj" | awk -F'\t' 'NF == 8' \
+    | while IFS=$'\t' read -r ff need grounds instrument when answer check step; do
         [ -n "$need" ] || continue
         _felix_commission_answer_ok "$answer" || continue
         _felix_commission_step_ok "$step" || continue
         case "$answer" in
           provider:*) [ "$check" = "-" ] || continue ;;
-          *)          _felix_commission_check_ok "$check" || continue ;;
+          *)          _felix_commission_check_ok "$check" "$ff" >/dev/null || continue ;;
         esac
         printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
           "$need" "${grounds:--}" "${instrument:--}" "${when:--}" "$answer" "$check" "$step"
@@ -109,8 +121,9 @@ felix_commission_rows() {
 
 # need <TAB> reason, for every line that is not a row.
 felix_commission_malformed() {
-  local proj="$1" line n need grounds instrument when answer check step
-  _felix_commission_lines "$proj" | while IFS= read -r line; do
+  local proj="$1" line ff n need grounds instrument when answer check step why
+  _felix_commission_judged "$proj" | while IFS= read -r line; do
+    ff="${line%%$'\t'*}"; line="${line#*$'\t'}"
     n="$(printf '%s\n' "$line" | awk -F'\t' '{ print NF }')"
     need="$(printf '%s\n' "$line" | cut -f1)"
     if [ "$n" -ne 7 ]; then
@@ -127,8 +140,7 @@ EOF
     else
       case "$answer" in
         provider:*) [ "$check" = "-" ] || printf '%s\ta provider row carries no check; a file it cannot write decides it\n' "$need" ;;
-        *) _felix_commission_check_ok "$check" \
-             || printf '%s\tcheck is empty, negated, or ends in head, so it could not fail\n' "$need" ;;
+        *) why="$(_felix_commission_check_ok "$check" "$ff")" || printf '%s\t%s\n' "$need" "$why" ;;
       esac
     fi
   done
@@ -274,8 +286,9 @@ felix_commission_resume_bg() {
 # defining or sourcing an engine function. nounset stays, so a mistyped
 # variable holds a check rather than passing it. What follows, as in a probe, is
 # that a pipeline's status is its last stage's, so a check ending in a stage
-# that succeeds whatever it is fed (`| tail`) cannot fail; the template says so,
-# and nothing yet refuses one.
+# that succeeds whatever it is fed (`| tail`) cannot fail unless something
+# before it can; the template says so, and _felix_commission_check_ok refuses
+# one that cannot (final-filter.sh).
 #
 # Given a variable name as $3, it also says in that variable how the text
 # ended: `returned`, `ended`, `unentered`, or `unasked` when its answer could

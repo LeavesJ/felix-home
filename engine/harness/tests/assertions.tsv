@@ -346,7 +346,15 @@
 1	a comment added to it is still free
 1	a comment is not a command
 1	a commission table blocker waits for the founder too
+1	a commissioning check ending in | tail -20 || exit 1 is malformed, because the || branch never runs
+1	a commissioning check ending in | tail is malformed, and the reason names tail
+1	a commissioning check that expands an unset name is admitted, since set -u can end it
+1	a commissioning check whose guard can fail before | sort is not malformed
+1	a commissioning check whose status after && is sort's is malformed, naming sort
+1	a commissioning check with head mid-pipeline before grep -q is not malformed
+1	a commissioning check with | head -1 inside $( ) is not malformed
 1	a commissioning run seeds the ledger through the row's answer
+1	a commissioning when ending in | tail is not judged
 1	a commit holding the project it is asked about pins
 1	a commit in the checkout the graph was built from is due
 1	a commit message in a here-document is not read as a command
@@ -689,6 +697,10 @@
 1	a lookalike gate is reported
 1	a low-risk candidate is declared
 1	a machine without launchd is refused, not half-served
+1	a maintenance check that fails is still due on its check
+1	a maintenance check whose status is a final tail's is due, as refused
+1	a maintenance check with head inside $( ) is run, and not due
+1	a maintenance check with head mid-pipeline is run, and not due
 1	a malformed row is skipped, others still deny
 1	a malformed row is skipped, others still match
 1	a malformed row stops the gate rather than only being listed
@@ -791,6 +803,7 @@
 1	a need holding a byte that is not UTF-8, under a UTF-8 locale, is a complete run and a commissioned receipt
 1	a need the table lists twice, printed twice, is a complete run and a commissioned receipt
 1	a negated check is malformed, because it could not fail
+1	a negated commissioning check is still malformed
 1	a nested repository is refused, with the restore truth
 1	a never-run routine is due
 1	a new grounded topology is a new epoch
@@ -916,6 +929,7 @@
 1	a present, empty table refuses felix qualify --gate, as before
 1	a probabilistic row with a blocking class is refused
 1	a probe count moving makes every recorded row stale
+1	a probe ending in sed -n s/.../p counts its members, as before
 1	a probe grounding a surface nothing enumerates is named
 1	a probe naming a path under the checkout records that file and its size
 1	a probe naming a real command carries that instrument and a token
@@ -927,6 +941,7 @@
 1	a probe that printed members and then failed is unknown, not found
 1	a probe that reads stdin returns instead of hanging the gate
 1	a probe whose command does not exist is unknown
+1	a probe whose when ends in | tail applies, and its probe ending in | tail counts its members
 1	a probes table with comments and no row is refused, since its row says emptiness is
 1	a probes.tsv holding no rows is refused too
 1	a process substitution keeps the shape a row is written about
@@ -1031,6 +1046,7 @@
 1	a refreshed graph clears the row
 1	a refusal on risk is reported
 1	a refused candidate does not fail the report
+1	a refused check is no row of the run
 1	a refused handoff appends a lifecycle row noted refused, with the hash of the file it left alone
 1	a regenerated handoff keeps the mode it had
 1	a registered marketplace names its catalogue
@@ -1130,6 +1146,7 @@
 1	a row whose state line was never read is unknown, not the state of the row before it
 1	a row whose tree holds a file made immutable with chflags uchg leaves its base, once the run has ended, holding its owner record, a symlink whose pid is dead
 1	a row whose trigger is - is never owed, not even when a file named - changes and its path is untouched, or the dash would read as a path
+1	a row whose when ends in | tail applies, and its check decides it
 1	a row whose worktree add fails, in a repository with no commit yet, reads unrunnable and leaves no path mktemp handed it and no worktree registered, and its stderr carries no felix: line
 1	a row wider than the schema is refused
 1	a row with a tab in front of its checker is malformed, never skipped as a blank line
@@ -1217,6 +1234,11 @@
 1	a session with no night is held on a red tree like any other
 1	a session's catch on the branch it left by checkout -b is its own, even after a commit
 1	a session's catch under its branch's name before git branch -m is still its own
+1	a setup check ending in | sort || exit 1 reads todo
+1	a setup check of one command is still done
+1	a setup check whose status is a final tail's reads todo
+1	a setup check with head inside $( ) is run, and done
+1	a setup check with head mid-pipeline is run, and done
 1	a seven-column row names nothing that would discharge it
 1	a shell comment is not code: its apostrophe opens no quote, its (npm test) runs nothing, and its ; takes no status
 1	a shell's -c script is still read as a command
@@ -1439,6 +1461,7 @@
 1	a wired moment bound as the first of 3,000 bound events reads ok
 1	a wired moment bound as the last of 3,000 bound events reads ok
 1	a wired moment with a stance is ok
+1	a witness ending in | tail turns an empty probe blind, as before
 1	a witness that exits 1 after a silent probe is still empty
 1	a witness that exits 2 after a probe that failed is unknown, not blind
 1	a witness that exits 2 after a silent probe makes the row unknown, never empty
@@ -1533,6 +1556,7 @@
 1	an applies command that exits 1 is the one honest no: DORMANT
 1	an applies command that exits 128 is UNKNOWN too, not a second kind of no
 1	an applies command that exits 2 is UNKNOWN on both axes, not DORMANT
+1	an applies ending in | tail is not judged
 1	an arg on a version-above, insertions-union, session or founder row is refused as arg, or a cell the kind never reads would pass as meaningful
 1	an argument felix merge cannot honour is recorded as exactly one refused row
 1	an argument it cannot honour merges nothing
@@ -1611,7 +1635,11 @@
 1	an event row with a failing check is DUE
 1	an event-driven routine is not due
 1	an evidence command that does not exist here is ACTIVE UNKNOWN
+1	an evidence ending in | tail is refused as <obligation>: <reason>, naming tail
+1	an evidence ending in | wc -l || exit 1 is refused, naming wc
 1	an evidence line carrying tabs and a carriage return cannot forge the eighth column nor break the row
+1	an evidence with head mid-pipeline before grep -q is not refused
+1	an evidence with | head -1 inside $( ) is not refused
 1	an excepted row's detail names its expiry and grantor and keeps its discharge unsatisfied
 1	an excuse elsewhere does not defuse, sample 1
 1	an excuse elsewhere does not defuse, sample 2
@@ -1652,6 +1680,7 @@
 1	an mcp server reached under its plugin prefix credits the plugin
 1	an object inside a declared array is read as inline
 1	an obligation the grounded state does not make applicable is DORMANT
+1	an obligation whose applies ends in | tail applies, as before
 1	an obligations.tsv admitting nothing blocks a merge
 1	an old stamp is counted in days
 1	an on: line naming workflow_dispatch counts as taking one
@@ -1980,11 +2009,14 @@
 1	and commits nothing to it
 1	and components exits 0 even then
 1	and counts a person's session whose prompt shares the request's first 200 characters
+1	and counts both refused rows among the steps that need a person
 1	and counts every control that did not apply, pass or fail
 1	and counts exactly that one
 2	and counts it
+1	and counts it due beside the check that failed
 1	and counts nothing it could not read
 1	and counts only the gate's failures against the ceiling
+1	and counts the four refused checks and the negated one as malformed
 1	and counts the recorded decline
 1	and counts what was held over the whole file too
 1	and cp of a marker into a directory named with its slash
@@ -2050,6 +2082,7 @@
 1	and every run list felix automerge makes names the gate workflow
 1	and every run list felix repair makes names the gate workflow
 1	and every run list names that workflow
+1	and every such probe row is a row
 1	and evidence does too
 1	and exactly one continuation is spent for it
 2	and exits 0
@@ -2074,8 +2107,10 @@
 1	and felix gate fails qualified showing each such row MALFORMED under it
 1	and felix ledger passes over the last of many machine sessions the same way
 1	and felix log does too, a dash for no session and the branch of a checkout with no commit
+1	and felix maintenance never ran the refused check either
 1	and felix new seeds it itself, without falling through to the answer
 1	and felix qualify names it as well
+1	and felix setup never ran the refused check either
 1	and felix unattended's streak row counts the gate's runs alone
 1	and felix which does not resolve it
 1	and felix's qualification table declares every control for the schema checker
@@ -2088,6 +2123,7 @@
 1	and felix_mem_log there writes one six-column row under the branch name
 1	and felix_probes_run still names which git answered, for the readers that ask
 1	and felix_qualify_run refuses it so without the caller's pipefail
+1	and felix_setup_malformed prints no row it admits
 1	and field 1 is still the tree id
 1	and field 2 is still the verdict
 1	and field 4 is still the gate
@@ -2377,6 +2413,8 @@
 1	and neither is work Felix owes
 1	and neither partial row is in it
 1	and neither subject nor body carries a ci skip marker though every commit does
+1	and neither the library nor the command ran a refused commissioning check
+1	and neither the library nor the command ran a refused evidence
 1	and never a verified receipt
 1	and never as a clock reading nobody wrote
 1	and never as an mcp row nothing could add
@@ -2394,6 +2432,7 @@
 1	and never the newest thing in the cache
 1	and never where it is not declared
 1	and no CLI on PATH at all is exit 3, not an empty marketplace
+1	and no admitted setup row among them
 1	and no agent is written there
 1	and no arguments at all refuse
 1	and no caller keeps a tier list of its own
@@ -2529,6 +2568,7 @@
 1	and one whose checker declares every control blocks all the same
 1	and one whose date is unreadable still ages out with the file
 1	and one whose entry declares a hook is refused
+1	and one whose name has a default is still refused
 1	and one with a session id records under exactly that id
 1	and one wrapped in bold
 1	and one written as a path
@@ -2543,6 +2583,7 @@
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
 1	and passes on npm's own reason
+1	and passes once the rows are fixed
 1	and passes the facts it already has
 1	and picks the capability the skills serve
 1	and pins the source checkout's commit once origin's default branch holds it
@@ -2554,12 +2595,15 @@
 1	and prints a candidates section
 1	and prints byte for byte what the dry run printed, its unverified blocker included, or reporting would change what blocks
 1	and prints no events at all, not the ones it managed to reach
+1	and prints nothing for a text it admits
 1	and prints nothing into the session
 1	and prints nothing of the text's stderr
 1	and prints nothing, not even the stamp
+1	and prints one line for a text it refuses, the final filter's name
 1	and prints one line saying commissioning was skipped and felix commission runs it later
 1	and prints the count under it
 1	and prints the line naming it under qualified FAIL
+1	and prints the refused rows under the list
 1	and prints the state rather than a verdict
 1	and proposes nothing for it
 1	and prose counts single
@@ -2577,6 +2621,7 @@
 1	and re-rolling a session replaces its old rows
 1	and reading the checkout's .git is denied
 1	and reads HEAD, not the checkout's uncommitted files
+1	and reads a maintenance cadence of " 0" as the runner does, an event row, and 7 as not one
 1	and reads as a requirement
 1	and reads as naming nothing
 1	and reads current, because it rests on the same facts a gate would have recorded
@@ -2584,6 +2629,7 @@
 1	and reads its words off the capability probe
 1	and reads only mcp rows
 1	and reads stale whatever its age
+1	and reads the check with | head -1 inside $( ) done
 1	and reads the seeded gate_shown_failing row done over that mistakes.log
 1	and reads them in under 5 seconds of CPU
 1	and recorded nowhere
@@ -2625,6 +2671,7 @@
 1	and reports no severity for it
 1	and reports nothing for one it does not have
 1	and reports that by failing
+1	and reports the obligation whose applies ends in | tail on its axes
 1	and reports the receipt it wrote
 1	and reports them in the gate's own line shape
 1	and reports what has been spent
@@ -2649,6 +2696,7 @@
 1	and running it under bash
 1	and runs none of commissioning: no run, no receipt, no discovery cache, no commissioning log
 1	and saying so is an exit code, not an empty line
+1	and saying the setup check's tail succeeds whatever it is fed
 1	and says a long name at least scores on itself
 1	and says an archived section is never rewritten
 1	and says complete is declared, not run
@@ -2696,9 +2744,11 @@
 1	and says so with a non-zero status
 1	and says so with a non-zero status, not the digest of an empty document
 1	and says that it knows
+1	and says that tail stage succeeds whatever it is fed
 1	and says the answer was neither yes nor no, naming the code
 1	and says the ceiling is reached, not unknown
 1	and says the checkout could not be entered rather than naming a missing command
+1	and says the evidence's tail succeeds whatever it is fed
 1	and says the gate failed
 1	and says the gate has not seen it
 1	and says the gate never ran
@@ -3071,6 +3121,8 @@
 1	and the refusal names the version main declares or the cache it searched
 1	and the refusal says how to add a section instead
 1	and the refusal says how to type it inside the session
+1	and the refused maintenance check is never run
+1	and the refused setup check is never run
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
 1	and the report names the merged path
@@ -3096,6 +3148,7 @@
 1	and the row beside it, whose line is well formed, reads as it does with no line empty
 1	and the row blocks a release rather than vanishing
 1	and the row carries OBSERVED, not a person's word
+1	and the row ending in | sort || exit 1, naming sort
 1	and the row is in the log as INFERRED
 1	and the row is still json
 1	and the row itself is reported as recording nothing
@@ -3118,6 +3171,7 @@
 1	and the same rows over more sessions are not
 1	and the same scanner catches a planted one
 1	and the same test fed a here-string finds it
+1	and the same text in a setup check, which runs without set -u, is refused
 1	and the same when the read that fails is an earlier one, with a later one read
 1	and the schema check accepts it
 1	and the schema still refuses a resolver on projects/p/gate.sh from there, or a table checked in the wrong directory would pass
@@ -3269,6 +3323,7 @@
 1	as an unread manifest, not as nothing declared
 1	as an unread manifest, whatever the key before it said
 1	as does another
+1	as is one naming FELIX_PROJECT, which the runner exports
 1	as is the devlog entry, its header one line on a checkout with no commit
 1	as the schema's own refusal
 1	asked from a worktree the distance is still the holding checkout's
@@ -3290,6 +3345,7 @@
 1	bootstrap names the checkout's repo, not the cache's absence
 1	bootstrap with no commit to pin says the workflow gets the placeholder
 1	both hand-written files newer than this session's catch, with no written row, do not settle it
+1	both refused setup rows are printed there
 1	both worktrees holding one branch lead with hazard:shared-branch
 1	brief reads an issue from stdin
 1	brief refuses outside a governed repo
@@ -3368,6 +3424,7 @@
 1	commenting a row out escapes as verifier, or a hash mark would remove a row unseen
 1	comments and blanks are not capabilities
 1	comments, a commented-out row and blank lines are not rows, or a note in the table would bind a path
+1	commissioning rows omit every check a final filter makes unfailable, and keep the rest in file order
 1	committing unverified work no longer skips the check
 1	complete is not discharge: the row is still UNSATISFIED
 1	components exits 0 when all four are known
@@ -3518,6 +3575,10 @@
 1	every gh call it made is a read: pr list, view or checks, repo view, auth status, or an api GET
 1	every git status, diff or describe it ran carries --no-optional-locks
 1	every git worktree add either run made found owner already a symlink in the base it added the tree to
+1	every judged command in templates/commissioning.tsv is admitted
+1	every judged command in templates/maintenance.tsv is admitted
+1	every judged command in templates/obligations.tsv is admitted
+1	every judged command in templates/setup.tsv is admitted
 1	every lifecycle.log row the recorder wrote in this suite is a row its schema accepts
 1	every list fixture below holds more than 256 KB with the line asked about first and the control last
 1	every membership fixture below holds more than 256 KB with the value asked about on its first line
@@ -3553,6 +3614,7 @@
 1	felix audit --help answers its usage and reads nothing
 1	felix audit runs with bash and awk alone on PATH, as the README says, and answers the same report
 1	felix automerge judges a green pull request by the gate's runs alone
+1	felix commission --status prints a refused check among the rows that name a need and nothing readable
 1	felix commission --status reads a when naming an unset variable unknown
 1	felix commission --status reads the row whose producer outruns grep -q done
 1	felix commission on a project without the table exits 1
@@ -3590,6 +3652,7 @@
 1	felix lesson run in the checkout leaves a written.log row for its session, branch and kind
 1	felix log run in the checkout leaves a written.log row of kind log for its session
 1	felix maintenance renders a passing check as such
+1	felix maintenance renders it DUE, check refused
 1	felix maintenance says a row can never come due
 1	felix merge reaches gh at all
 1	felix merge refuses a self-governed repository when FELIX_KERNEL is set
@@ -3624,6 +3687,7 @@
 1	felix obligations ingests an answered file and still exits 0
 1	felix obligations over a table it cannot read exits as it does over one it can
 1	felix obligations prints a row column carrying the ledger line's twelve-character hash
+1	felix obligations prints the refused evidence under rows refused
 1	felix overnight with no arguments says where the night stands
 1	felix probes refuses a project that asks reality nothing
 1	felix probes reports without refusing
@@ -3653,6 +3717,7 @@
 1	felix repair stops at the ceiling when its attempts cannot be counted
 1	felix repair stops three failed gate runs that a cancelled one sits between
 1	felix route --ack records without error
+1	felix setup lists the refused row as not done
 1	felix stack reconcile exits 0
 1	felix stack reconcile folds what nothing folded before reporting
 1	felix with no arguments lists felix audit in the grouped help
@@ -3682,6 +3747,145 @@
 1	felix_detect in a checkout whose path holds a space reports the capabilities its files show
 1	felix_detect run from a directory that holds its own requirements/*.txt still reports billing for a root whose requirements/prod.txt names stripe
 1	felix_evidence_check reports unknown, not n/a
+1	felix_final_filter admits [! x | tail]: a negation always fails, a different defect
+1	felix_final_filter admits [( x | tail]: an unbalanced parenthesis
+1	felix_final_filter admits [[ "$(x | head -1)" = y ]]: a | head inside $( ) is a word
+1	felix_final_filter admits [[ "`x | tail -1`" = y ]]: and inside backticks
+1	felix_final_filter admits [[ -n "${v:-x | tail}" ]]: and inside ${ }
+1	felix_final_filter admits [[ -z "$PIPE_FAIL" ]; x | tail]: or spelt pipe_fail
+1	felix_final_filter admits [a && x | tail]: a can fail, so the text can
+1	felix_final_filter admits [cat b]: one stage is not a pipeline
+1	felix_final_filter admits [diff <(x | sort) <(y | sort)]: and inside <( )
+1	felix_final_filter admits [f() { x | tail; }; f]: a text defining a function
+1	felix_final_filter admits [function f { x | tail; }; f]: with the function keyword
+1	felix_final_filter admits [grep -q "x | tail" f]: and inside double quotes
+1	felix_final_filter admits [grep -qE 'a|sort -u' f]: a pipe inside single quotes is a word
+1	felix_final_filter admits [if a; then y; else x | tail; fi]: y can fail, so the text can
+1	felix_final_filter admits [set -o pipefail; x | tail]: a text naming pipefail
+1	felix_final_filter admits [tail -1 file]: nor is one tail reading a file
+1	felix_final_filter admits [test -f a || cat b]: cat with a file operand, and no pipe
+1	felix_final_filter admits [true]: nor one true
+1	felix_final_filter admits [x | "$T"]: a quoted one
+1	felix_final_filter admits [x | $(echo tail)]: a command substitution
+1	felix_final_filter admits [x | $T -1]: the final stage's name is an expansion
+1	felix_final_filter admits [x | ${T:-tail}]: a braced one
+1	felix_final_filter admits [x | awk '{ print }' f]: awk with a file operand
+1	felix_final_filter admits [x | awk '{ s = sprintf("%d", $1); print s }']: awk with sprintf
+1	felix_final_filter admits [x | awk '{exit 1}']: awk with an exit
+1	felix_final_filter admits [x | awk '{print $1 % 2}']: awk taking a modulo
+1	felix_final_filter admits [x | awk '{print 1/$1}']: awk dividing, which is fatal by zero
+1	felix_final_filter admits [x | awk '{printf "%s", $1}']: awk with printf
+1	felix_final_filter admits [x | awk -f p]: an awk program from a file
+1	felix_final_filter admits [x | cat b]: cat with a file operand
+1	felix_final_filter admits [x | column -t]: amended: macOS column fails on a line past about 2 KB, exit 1 on one of 3000 bytes
+1	felix_final_filter admits [x | felix_probe_rows p]: an engine function
+1	felix_final_filter admits [x | grep -q y # | tail]: a comment is not a stage
+1	felix_final_filter admits [x | grep -q y]: grep
+1	felix_final_filter admits [x | head -5 | grep -q y]: head mid-pipeline
+1	felix_final_filter admits [x | head -n 5 f]: head with a file operand after an option's argument
+1	felix_final_filter admits [x | jq .a]: jq
+1	felix_final_filter admits [x | printf ok]: printf
+1	felix_final_filter admits [x | python3 -c 'import sys']: python3
+1	felix_final_filter admits [x | sed '/x/Q3']: and a Q with one
+1	felix_final_filter admits [x | sed 's/a/b/' f]: sed with a file operand
+1	felix_final_filter admits [x | sed -f f]: a sed script from a file is not visible
+1	felix_final_filter admits [x | sed -i 's/a/b/']: sed -i
+1	felix_final_filter admits [x | sed -n '/x/q1']: a sed q with an exit code fails on content
+1	felix_final_filter admits [x | sort --check=quiet]: and sort --check=quiet
+1	felix_final_filter admits [x | sort --check]: and sort --check
+1	felix_final_filter admits [x | sort -C]: and so does sort -C
+1	felix_final_filter admits [x | sort -c]: sort -c fails on unsorted input
+1	felix_final_filter admits [x | tac]: amended: tac is not on macOS, where the row exits 127
+1	felix_final_filter admits [x | tail # the caller sets PIPEFAIL]: in any case
+1	felix_final_filter admits [x | tail && y]: y decides
+1	felix_final_filter admits [x | tail &]: a background job's status is 0, not this shape
+1	felix_final_filter admits [x | tail ']: an unbalanced quote
+1	felix_final_filter admits [x | tail -1 file]: tail with a file operand
+1	felix_final_filter admits [x | tail 0< f]: with 0<
+1	felix_final_filter admits [x | tail 0>f]: with 0>
+1	felix_final_filter admits [x | tail < file]: standard input redirected with <
+1	felix_final_filter admits [x | tail <&3]: with <&
+1	felix_final_filter admits [x | tail <<< y]: with <<<
+1	felix_final_filter admits [x | tail; fi]: a stray fi
+1	felix_final_filter admits [x | tail; y]: y decides after ;
+1	felix_final_filter admits [x | test -s /dev/stdin]: test
+1	felix_final_filter admits [x | uniq a]: uniq whose first operand is an input file
+1	felix_final_filter admits [x | xargs --null true]: amended: and with --null and true
+1	felix_final_filter admits [x | xargs -0 echo]: amended: xargs fails on an argument past ARG_MAX, exit 1 on macOS for one of 2 MB
+1	felix_final_filter admits [x | xargs -0 rm]: xargs -0 running a command other than echo or true
+1	felix_final_filter admits [x | xargs -0]: amended: so with no command
+1	felix_final_filter admits [x | xargs -d '\n' echo]: amended: macOS xargs has no -d, a usage error every time
+1	felix_final_filter admits [x | xargs echo]: xargs without -0 fails on an unmatched quote
+1	felix_final_filter admits a newline list whose last line is y, which decides
+1	felix_final_filter admits a text holding a here-document
+1	felix_final_filter exits 0 on a text it refuses
+1	felix_final_filter exits 1 on a text it admits
+1	felix_final_filter refuses [( x | tail )] and names tail: so does a subshell
+1	felix_final_filter refuses [bash -c 'x | tail -1'] and names tail: and bash -c
+1	felix_final_filter refuses [case "$v" in a) x | tail ;; esac] and names tail: and of a case branch
+1	felix_final_filter refuses [eval 'x | tail'] and names tail: and eval
+1	felix_final_filter refuses [for f in a b; do x | tail; done] and names tail: and of a loop body
+1	felix_final_filter refuses [if a; then true; else x | tail; fi] and names tail: and of an else branch
+1	felix_final_filter refuses [if a; then x | tail; fi] and names tail: the status of a then branch counts
+1	felix_final_filter refuses [npm test 2>&1 | tail -20] and names tail: failing tests would read as a pass
+1	felix_final_filter refuses [sh -c 'x | tail'] and names tail: sh -c with a literal script is read as that script
+1	felix_final_filter refuses [true && x | tail] and names tail: after an && that cannot fail, the status is tail's
+1	felix_final_filter refuses [x 2>&1 | tail -3] and names tail: a redirection on the producer
+1	felix_final_filter refuses [x | 'tail' -1] and names tail: nor do quotes
+1	felix_final_filter refuses [x | /usr/bin/tail -1] and names tail: a path prints the command's name
+1	felix_final_filter refuses [x | :] and names :: the colon builtin
+1	felix_final_filter refuses [x | LC_ALL=C sort] and names sort: an assignment in front of sort prints sort
+1	felix_final_filter refuses [x | LC_ALL=C tail -1] and names tail: nor an assignment in front
+1	felix_final_filter refuses [x | \tail -1] and names tail: a backslash does not hide the command
+1	felix_final_filter refuses [x | awk '/^#/ { next } { print "a/b", "50%" }'] and names awk: awk whose / and % sit only in a regex literal and a string
+1	felix_final_filter refuses [x | awk '{ print $1 }' -] and names awk: awk whose other operand is -
+1	felix_final_filter refuses [x | awk '{ print $1 }' FS=,] and names awk: awk whose other operand is an assignment
+1	felix_final_filter refuses [x | awk '{ print $1 }'] and names awk: awk with a literal program
+1	felix_final_filter refuses [x | cat -] and names cat: an operand of exactly - is standard input
+1	felix_final_filter refuses [x | cat] and names cat: cat with no operand
+1	felix_final_filter refuses [x | command tail -1] and names tail: nor command
+1	felix_final_filter refuses [x | cut -f1] and names cut: cut
+1	felix_final_filter refuses [x | echo done] and names echo: echo, whose operands are words it prints
+1	felix_final_filter refuses [x | env LC_ALL=C tail -1] and names tail: nor env with an assignment
+1	felix_final_filter refuses [x | exec tail -1] and names tail: nor exec
+1	felix_final_filter refuses [x | expand] and names expand: expand
+1	felix_final_filter refuses [x | fold -w 80] and names fold: fold
+1	felix_final_filter refuses [x | head -1] and names head: head
+1	felix_final_filter refuses [x | nice tail -1] and names tail: nor nice
+1	felix_final_filter refuses [x | nl] and names nl: nl
+1	felix_final_filter refuses [x | paste -s -] and names paste: paste
+1	felix_final_filter refuses [x | rev] and names rev: rev
+1	felix_final_filter refuses [x | sed -e 's/a/b/' -e 's/c/d/'] and names sed: sed whose script comes from -e
+1	felix_final_filter refuses [x | sed -n 's/a/b/p'] and names sed: sed with a literal script
+1	felix_final_filter refuses [x | sed 5q] and names sed: sed whose q carries no exit code
+1	felix_final_filter refuses [x | sort -rn] and names sort: sort reversed and numeric
+1	felix_final_filter refuses [x | sort -u] and names sort: sort without a check flag
+1	felix_final_filter refuses [x | tail -20 || exit 1] and names tail: the || branch never runs
+1	felix_final_filter refuses [x | tail -5 &>/dev/null] and names tail: &> on the filter
+1	felix_final_filter refuses [x | tail -5 2>&1] and names tail: 2>&1 on the filter
+1	felix_final_filter refuses [x | tail -5 2>/dev/null] and names tail: standard error to /dev/null
+1	felix_final_filter refuses [x | tail -5 >/dev/null] and names tail: standard output to /dev/null
+1	felix_final_filter refuses [x | tail -5 >out] and names tail: output to a file
+1	felix_final_filter refuses [x | tail -n 20] and names tail: an option's argument is not a file operand
+1	felix_final_filter refuses [x | tail] and names tail: tail with no operand
+1	felix_final_filter refuses [x | tee -a a.log b.log] and names tee: tee appending to two outputs
+1	felix_final_filter refuses [x | tee out.log] and names tee: tee, whose operands are output files
+1	felix_final_filter refuses [x | tr -d '\r'] and names tr: tr, whose operands are sets and never files
+1	felix_final_filter refuses [x | tr a-z A-Z] and names tr: tr translating
+1	felix_final_filter refuses [x | true] and names true: true
+1	felix_final_filter refuses [x | unexpand -a] and names unexpand: unexpand
+1	felix_final_filter refuses [x | uniq - counts.txt] and names uniq: uniq whose first operand is -, its second being output
+1	felix_final_filter refuses [x | uniq -c] and names uniq: uniq counting
+1	felix_final_filter refuses [x | uniq] and names uniq: uniq with no operand
+1	felix_final_filter refuses [x | wc -l] and names wc: wc
+1	felix_final_filter refuses [x |& tail -1] and names tail: |& joins two stages as | does
+1	felix_final_filter refuses [x |tail>/dev/null] and names tail: with no spaces at all
+1	felix_final_filter refuses [x || y | tail] and names tail: the status after || is tail's
+1	felix_final_filter refuses [y; x | tail] and names tail: the last command decides, and it is tail
+1	felix_final_filter refuses [{ x | tail; }] and names tail: a group carries its inner status
+1	felix_final_filter refuses a newline list whose last line ends in tail, a newline acting as ;
+1	felix_final_filter_lead leads every row with the failure when its awk cannot run
+1	felix_final_filter_table names the refused line of a setup table, and why
 1	felix_has_line matches whole lines under pipefail
 1	felix_has_line rejects partial lines
 1	felix_hook_dir answers a cwd equal to the launch directory without resolving anything
@@ -3737,6 +3941,7 @@
 1	felix_qualify_run over a table it cannot read runs nothing and exits 2, with the caller's pipefail and without
 1	felix_qualify_ungoverned keeps every reported checker and drops every sub-line
 1	felix_qualify_ungoverned over a table holding a NUL byte anywhere names no checker, exits 2, and says in one stderr line naming the table that it holds a NUL
+1	felix_setup_malformed prints the refused row as id and a reason naming tail
 1	felix_tidy_safe is defined for the hook
 1	field 7 is the epoch the receipt was stamped under
 1	field 8 is the four components, comma-joined in the order the spec lists them
@@ -3806,6 +4011,7 @@
 1	in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2
 1	in a checkout with no commit felix_mem_lesson writes one six-column row under the branch name
 1	in a repository with no main and no origin, --applies does not hold even with a cache
+1	in maintenance too
 1	in the judge's shell a dry run and an unset variable write no row, and a real attempt writes two, each exiting 0, or a self-governed dry run would write the report
 1	in words
 1	inapplicable controls do not refuse the gate while every checker is shown failing
@@ -4199,6 +4405,8 @@
 1	naming the gate it was removed from
 1	naming the grant they re-arm, on a line of its own
 1	naming the hooks file
+1	naming the line and the refusal
+1	naming the obligation and saying its stage succeeds whatever it is fed
 1	naming the predicate that blocks
 1	naming the row
 1	naming the scanner nobody listed
@@ -4247,6 +4455,7 @@
 1	no markup from a prompt reaches the page
 1	no placeholder telling someone to write it
 1	no plugin cache at all is not where this applies either
+1	no probe row is refused for a when, a probe or a witness ending in a final filter
 1	no project script names a fixed path under /tmp outside its comments
 1	no reachable checkout resolves to nothing
 1	no record still answers cleanly
@@ -4347,6 +4556,7 @@
 1	nothing is allowed by default
 1	nothing to repair ends the job clean: not acted on, not failed, not escalated
 1	nothing under them was created, removed or touched after the first run began
+1	obligation rows omit every evidence a final filter makes unfailable, and keep the rest in file order
 1	obligations.tsv is byte-identical after all four
 1	obligations.tsv is byte-identical after the report
 1	obligations.tsv is byte-identical at the end of the block
@@ -4532,6 +4742,7 @@
 1	says so plainly when nothing matches
 1	says something to the founder, not only the model
 1	says what was skipped at the finish
+1	schema-check fails a tree holding a check that cannot fail
 1	schema-check passes a tree whose land table holds felix-home's seven rows, and fails one whose resolver row binds risk.tsv, or a row the reader refuses would merge green
 1	schemas.tsv declares land.tsv a tree table of path, kind, trigger and arg that may be empty, or every land.tsv would be an undeclared table
 1	scoped: .. after a directory that does not exist yet
@@ -4713,6 +4924,7 @@
 1	so the same command with the flag spelled right then binds it
 1	so the session count is the number of sessions
 1	so two sessions folding at once both land, and the second changes nothing
+1	sourcing lib/final-filter.sh defines felix_final_filter
 1	speaks for this checkout's own unexplained catch, first line exact
 1	speaks when a catch went unexplained
 1	spending is counted
@@ -4788,8 +5000,141 @@
 1	the capability probe yields ecosystem words to check for
 1	the cause is not the raw payload
 1	the ceiling itself is still a night somebody can be granted
+1	the check whose guard can fail before | sort is asked, and done
+1	the check with head mid-pipeline is asked, and done
+1	the check with | head -1 inside $( ) is asked, and done
 1	the checkout holding the graph is ok
 1	the checkout's own default branch is next, without the origin/ prefix
+1	the classifier admits [! ! x | tail]: bash 3.2 rejects a doubled !
+1	the classifier admits [$(echo exit) 3; x | tail]: and so can a name that is one
+1	the classifier admits ['set' -e; false; x | tail]: a builtin named with quotes
+1	the classifier admits [( set -e; false; true ) && exit 1 || x | tail]: bash ignores set -e in a subshell left of &&, so exit 1 runs
+1	the classifier admits [(kill $$); x | tail]: a kill in a subshell still ends the shell
+1	the classifier admits [. ./strict.sh; x | tail]: a sourced file can set anything
+1	the classifier admits [: "${y:?}"; x | tail]: ${y:?} ends the shell when y is unset
+1	the classifier admits [: $((1/0)); x | tail]: an arithmetic error ends the shell
+1	the classifier admits [: ${HOME,,}; x | tail]: bash 3.2 has no case conversion, and ends the shell
+1	the classifier admits [PATH=./bin:$PATH; x | tail]: PATH can make tail a project script
+1	the classifier admits [UID=$(id -u); x | tail]: UID is read-only, and assigning it ends the shell
+1	the classifier admits [[[ a b ]]; x | tail]: [[ ]] can be a syntax error, which ends the shell
+1	the classifier admits [a || { exit; }; x | tail]: and so does one after ||
+1	the classifier admits [builtin hash -p /usr/bin/false tail; x | tail]: builtin reaches hash
+1	the classifier admits [builtin trap 'exit 3' EXIT; x | tail]: and trap
+1	the classifier admits [cd dir && npm test 2>&1 | tail -20]: the cd can fail, so the text can
+1	the classifier admits [command -v jq >/dev/null && jq --version | cut -d- -f2]: it fails when jq is absent
+1	the classifier admits [d | tail -1 && for i in 1 2; do d; set -e || a; done]: set -e in a loop ends its second pass
+1	the classifier admits [echo $$ | xargs kill; x | tail]: and through xargs
+1	the classifier admits [eval "$(echo exit 3)"; x | tail]: eval of an expansion can exit
+1	the classifier admits [exec >&-; x | tail]: exec with only a redirect closes the output for what follows
+1	the classifier admits [exec bash -c 'exit 1'; x | tail]: exec of a shell ends with its status
+1	the classifier admits [exec false || x | tail]: exec ends the script with false's status
+1	the classifier admits [export PA''TH=/x; x | tail]: PATH with quotes in it
+1	the classifier admits [hash -p /usr/bin/false tail; x | tail]: hash can point tail anywhere
+1	the classifier admits [if grep -q ok log; then :; else exit; fi; x | tail]: a bare exit in an else returns the failure
+1	the classifier admits [kill $$ || x | tail]: kill can end the script by a signal
+1	the classifier admits [o="o pipe"; set -${o}fail; x | tail]: an option built from an expansion may be pipefail
+1	the classifier admits [out=$(npm test 2>&1) && printf '%s\n' "$out" | tail -20]: it fails when the tests do
+1	the classifier admits [python3 -c 'import os; os.killpg(0, 15)'; x | tail]: killpg can signal the shell's own group, not run here
+1	the classifier admits [read PATH <<< /x; x | tail]: or set by read
+1	the classifier admits [readonly v=1; v=2; x | tail]: so does assigning a readonly name
+1	the classifier admits [set $'-\x6f' pipe''fail; x | tail]: and so may one spelled with an escape
+1	the classifier admits [set -''e; false; x | tail]: errexit spelled with quotes
+1	the classifier admits [set -''u; : $y; x | tail]: and nounset
+1	the classifier admits [set -e & ( false; true ) && exit 1 || x | tail]: set -e in a background job leaves this shell's subshell to go on
+1	the classifier admits [set -e; npm ci; npm test 2>&1 | tail -5]: npm ci can end the script
+1	the classifier admits [set -o "$o"; x | tail]: nor can an expansion
+1	the classifier admits [set -o pipe""fail; false | tail]: quotes cannot hide pipefail
+1	the classifier admits [set -o pipefial && x | tail]: set fails on an option it does not know
+1	the classifier admits [set -o posix; : > /nonexistent/f; x | tail]: and so does set -o posix
+1	the classifier admits [set -u; x | tail && echo "$U"]: under set -u an unset name ends the script
+1	the classifier admits [sh -c ': > /nonexistent/f; x | tail']: sh runs in POSIX mode, where a redirect error on : ends the shell
+1	the classifier admits [shopt -s lastpipe; x | tail]: shopt is not read
+1	the classifier admits [ulimit -n 3; x | tail]: ulimit can starve what follows
+1	the classifier admits [x &>>log.txt | tail]: bash 3.2 cannot parse &>>
+1	the classifier admits [x | ./bin/sort]: a relative path is the project's own script
+1	the classifier admits [x | awk 'BEGIN { ARGV[1] = "f" } { print }']: ARGV can name a file
+1	the classifier admits [x | awk 'END { next }']: next in END
+1	the classifier admits [x | awk '{ NF -= 1; print }']: NF can go negative, exit 2 on macOS for an empty line
+1	the classifier admits [x | awk '{ x = 1; x[1] = 2 }']: a scalar used as an array fails at the first line read
+1	the classifier admits [x | awk '{print 1 +}']: an operator with nothing after it
+1	the classifier admits [x | awk '{print']: an unbalanced brace
+1	the classifier admits [x | awk '{print}' NF=-1]: an operand assigning NF
+1	the classifier admits [x | awk -v foo '{print}']: -v without an assignment
+1	the classifier admits [x | cat $'-\n']: $'...' escapes are not decoded, and this one is a newline cat rejects
+1	the classifier admits [x | cat - -n]: macOS reads an option after an operand as a file
+1	the classifier admits [x | cat --number]: macOS cat takes no long option
+1	the classifier admits [x | cat > >(true)]: a process substitution can close early, and cat dies of SIGPIPE
+1	the classifier admits [x | cut -d,]: cut needs one of -b, -c or -f
+1	the classifier admits [x | env PATH=./bin tail]: and so can env
+1	the classifier admits [x | head -n 0]: macOS head refuses a count of 0
+1	the classifier admits [x | head -n 99999999999999999999]: a count past the integer range
+1	the classifier admits [x | nice -n abc tail]: nice with a value that is not a number
+1	the classifier admits [x | sed 's/a/b/gg']: g twice
+1	the classifier admits [x | sed -n 0p]: GNU sed refuses line 0
+1	the classifier admits [x | sed y/ab/c/]: y with sets of different lengths is an error
+1	the classifier admits [x | sort -dn]: GNU refuses -d with -n
+1	the classifier admits [x | sort -k0]: a sort key starts at field 1
+1	the classifier admits [x | sort -nM]: two orderings at once
+1	the classifier admits [x | stdbuf -oL tail]: macOS has no stdbuf
+1	the classifier admits [x | tail && exec :]: exec cannot run a builtin, and the shell ends there with 127
+1	the classifier admits [x | tail 2>&1-]: moving fd 1 closes it
+1	the classifier admits [x | tail 3<in.txt]: a file read on any fd can be missing
+1	the classifier admits [x | tail 99999>&1]: an fd past the limit
+1	the classifier admits [x | tail >&-]: tail writing to a closed output fails
+1	the classifier admits [x | tail >&0]: a duplicate of fd 0 is not an output
+1	the classifier admits [x | tail >&3]: fd 3 may not be open
+1	the classifier admits [x | tail {fd}>log.txt]: bash 3.2 reads {fd} as tail's file operand
+1	the classifier admits [x | tail; ! true & exit]: bash 3.2 leaves status 1 after a negated pipeline sent to the background, found by fuzzing
+1	the classifier admits [x | tail; case $(exit 3) in *) exit;; esac]: an exit in a case returns its word's status, here 3
+1	the classifier admits [x | tail; for ((i=0$(exit 3); i<1; i++)); do exit; done]: arithmetic is not read
+1	the classifier admits [x | tail; for i in $(exit 3) a; do exit; done]: and in a for, its words' status
+1	the classifier admits [x | tail; v=$(exit 3) exit]: an exit after an assignment that ran a command returns its status
+1	the classifier admits [x | tail; { exit; } 2>/dev/null$(exit 3)]: and after a redirect that ran one
+1	the classifier admits [x | tee >(grep -q y)]: a process substitution can close early, and tee dies of SIGPIPE
+1	the classifier admits [x | tr a]: tr with one set and no -d or -s fails every time
+1	the classifier admits [x | uniq -cD]: GNU refuses -c with -D
+1	the classifier admits [x | uniq in.txt]: uniq reading a file
+1	the classifier admits a text holding a carriage return
+1	the classifier reads thirty alternating || and && inside ten seconds of CPU
+1	the classifier refuses [! true & x | tail] and names tail: and what follows it still decides
+1	the classifier refuses [: "${y:-}"; x | tail] and names tail: a default cannot
+1	the classifier refuses [builtin echo a; x | tail] and names tail: and echo, which changes nothing
+1	the classifier refuses [export LC_ALL=C; x | tail] and names tail: export of another name changes nothing
+1	the classifier refuses [if ! x | tail; then exit 1; fi] and names tail: the then branch never runs
+1	the classifier refuses [if x | tail; then echo ok; else exit 1; fi] and names tail: nor does the else branch
+1	the classifier refuses [set -e; npm test | tail -5] and names tail: set -e does not reach a pipeline's first stage
+1	the classifier refuses [set -o noglob; x | tail] and names tail: a literal option name is still read
+1	the classifier refuses [set -u; x | tail && echo "$HOME"] and names tail: HOME is always set
+1	the classifier refuses [set -u; x | tail && echo "${U:-}"] and names tail: a default keeps it set
+1	the classifier refuses [test -f a || x | tail] and names tail: either way it ends in success
+1	the classifier refuses [true || exec false; x | tail] and names tail: an exec that never runs ends nothing
+1	the classifier refuses [x &>log.txt | tail] and names tail: and reads &>
+1	the classifier refuses [x | awk '{ c[$1]++ } END { for (k in c) print k, c[k] }'] and names awk: an array used as one
+1	the classifier refuses [x | awk '{ print NF }'] and names awk: reading NF is safe
+1	the classifier refuses [x | awk -v n=1 '{print}'] and names awk: -v with one
+1	the classifier refuses [x | cat -n -] and names cat: and before one, as an option
+1	the classifier refuses [x | cut -d, -f1] and names cut: cut -d with -f
+1	the classifier refuses [x | head -n 1] and names head: and takes 1
+1	the classifier refuses [x | head -n 999999999] and names head: a large count within it
+1	the classifier refuses [x | nice -n 5 tail] and names tail: and with one that is
+1	the classifier refuses [x | sed 's/a/b/gp'] and names sed: g and p once each
+1	the classifier refuses [x | sed -n 1p] and names sed: line 1 is fine
+1	the classifier refuses [x | sed y/ab/cd/] and names sed: and with equal ones is not
+1	the classifier refuses [x | sort -k1,1] and names sort: and may
+1	the classifier refuses [x | sort -k1,1n] and names sort: one is fine
+1	the classifier refuses [x | tail $'-5'] and names tail: with no escape it is literal
+1	the classifier refuses [x | tail && echo "$U"] and names tail: without nounset it expands empty, and the run is constant
+1	the classifier refuses [x | tail && echo ok] and names tail: a constant run on tail's status decides nothing
+1	the classifier refuses [x | tail && exit 0 || exit 1] and names tail: nor does an exit whose code is fixed
+1	the classifier refuses [x | tail -1 2>&1] and names tail: a duplicate of fd 1 is open
+1	the classifier refuses [x | tail >&2] and names tail: a duplicate of fd 2 is open
+1	the classifier refuses [x | tail; exit] and names tail: a bare exit returns tail's status
+1	the classifier refuses [x | tail; for i in a; do exit; done] and names tail: with literal words it returns tail's
+1	the classifier refuses [x | tail; v=1 exit] and names tail: and after one that ran none, tail's
+1	the classifier refuses [x | tee out.txt] and names tee: tee writing a named file
+1	the classifier refuses [x | tr -d a] and names tr: tr -d takes one set
+1	the classifier refuses [x | uniq - out.txt] and names uniq: uniq reading standard input into a file
+1	the classifier refuses [x | { tail; }] and names the last stage: a group ending in a filter is one too
 1	the claude cli changing is announced and never invalidates
 1	the commission engine blocker is work Felix owes
 1	the control: with the probe table in place the receipt is current
@@ -4822,6 +5167,8 @@
 1	the entry read is the one named, not one whose author has the name
 1	the evidence fixture's base is larger than a pipe holds
 1	the evidence unit blocker is work Felix owes
+1	the evidence with head mid-pipeline is examined, and holds
+1	the evidence with | head -1 inside $( ) is examined, and holds
 1	the exceptions template names the row hash column and holds no rows
 1	the executable check is behind the verifier confine
 1	the execute channel stops this merge
@@ -5285,8 +5632,10 @@
 1	while others stay due
 1	while run A holds in its checker, a run B in the same TMPDIR and root leaves A's base as it was, its owner record and its registration with it, A's checker is still running, and B's own row reads pass and met
 1	while the Felix home Felix itself resolved is its own repo
+1	while the admitted setup rows read done
 1	while the branch's own file still is
 1	while the capability that can be named still is
+1	while the check with head mid-pipeline renders ok
 1	while the control that holds is still reported met
 1	while the evidence still answers on its own axis
 1	while the exception table's seeded, rowless state is accepted

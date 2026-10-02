@@ -25726,11 +25726,15 @@ _ibg -C "$IB/other" worktree add -q -b otherwt "$IB/otherwt"
 _ibnew k
 _ibmk - "$IB/k" HEAD 'feat' feat.txt 'feat, nowhere else'; _ibg -C "$IB/k" branch -q feat "$IBC"
 _ibg -C "$IB/k" push -q origin feat; _ibg -C "$IB/k" fetch -q origin
+# feat2 is pushed too, and the 1000th listed PR is its own, open.
+_ibmk - "$IB/k" HEAD 'feat two' feat2.txt 'feat two, nowhere else'; _ibg -C "$IB/k" branch -q feat2 "$IBC"; IB_KF2="$IBC"
+_ibg -C "$IB/k" push -q origin feat2; _ibg -C "$IB/k" fetch -q origin
 _ibg -C "$IB/k" remote set-url origin git@github.com:acme/kilo.git
 mkdir -p "$IB/gh/acme_kilo"
-LC_ALL=C awk 'BEGIN { printf "["; for (i = 1; i <= 1000; i++) printf "%s{\"headRefName\":\"filler/%d\",\"headRefOid\":\"%040d\",\"isCrossRepository\":false,\"number\":%d,\"state\":\"CLOSED\",\"updatedAt\":\"2026-01-01T00:00:00Z\"}", (i > 1 ? "," : ""), i, i, i; print "]" }' \
+LC_ALL=C awk -v f2="$IB_KF2" 'BEGIN { printf "["; for (i = 1; i <= 999; i++) printf "%s{\"headRefName\":\"filler/%d\",\"headRefOid\":\"%040d\",\"isCrossRepository\":false,\"number\":%d,\"state\":\"CLOSED\",\"updatedAt\":\"2026-01-01T00:00:00Z\"}", (i > 1 ? "," : ""), i, i, i
+  printf ",{\"headRefName\":\"feat2\",\"headRefOid\":\"%s\",\"isCrossRepository\":false,\"number\":1000,\"state\":\"OPEN\",\"updatedAt\":\"2026-01-01T00:00:00Z\"}]\n", f2 }' \
   > "$IB/gh/acme_kilo/all.json"
-printf '[]\n' > "$IB/gh/acme_kilo/open.json"
+printf '[{"isDraft":false,"labels":[],"mergeable":"MERGEABLE","number":1000,"statusCheckRollup":[]}]\n' > "$IB/gh/acme_kilo/open.json"
 
 # m: a small repository whose main worktree sits on another branch, so local
 # main is checked out nowhere, and a PR is headed main.
@@ -25745,16 +25749,17 @@ printf -v _ibx '[{"headRefName":"main","headRefOid":"%s","isCrossRepository":fal
 printf '%s\n' "$_ibx" > "$IB/gh/acme_mike/all.json"
 printf '[{"isDraft":false,"labels":[],"mergeable":"MERGEABLE","number":14,"statusCheckRollup":[]}]\n' > "$IB/gh/acme_mike/open.json"
 
-# o: orphans. keep is listed; lost, lostbig and lostsmall were worktrees git
+# o: orphans. keep is listed; lost, lostbig, lostsmall and lostmany were worktrees git
 # forgot; .wt/ inside the main worktree holds a dead checkout, a plain
 # directory and a tracked one; nested and foreign sit beside keep.
 _ibnew o .gitignore '*.bin' .wt/tracked/t.txt tracked
 IB_OT="$(_ibq -C "$IB/o" rev-parse HEAD)"
-for _ibn in keep lost lostbig lostsmall; do _ibg -C "$IB/o" worktree add -q -b "$_ibn" "$IB/ow/$_ibn" "$IB_OT"; done
+for _ibn in keep lost lostbig lostsmall lostmany; do _ibg -C "$IB/o" worktree add -q -b "$_ibn" "$IB/ow/$_ibn" "$IB_OT"; done
 printf 'lost, nowhere else\n' > "$IB/ow/lost/new1.txt"
+for ((_ibi = 1; _ibi <= 20001; _ibi++)); do printf 'many %d\n' "$_ibi" > "$IB/ow/lostmany/m$_ibi.txt"; done
 LC_ALL=C awk 'BEGIN { for (i = 0; i < 32768; i++) printf "big %059d\n", i }' > "$IB/ow/lostbig/big.bin"
 LC_ALL=C awk 'BEGIN { for (i = 0; i < 16; i++) printf "small %057d\n", i }' > "$IB/ow/lostsmall/small.bin"
-rm -rf "$IB/o/.git/worktrees/lost" "$IB/o/.git/worktrees/lostbig" "$IB/o/.git/worktrees/lostsmall"
+rm -rf "$IB/o/.git/worktrees/lost" "$IB/o/.git/worktrees/lostbig" "$IB/o/.git/worktrees/lostsmall" "$IB/o/.git/worktrees/lostmany"
 mkdir -p "$IB/o/.wt/dead" "$IB/o/.wt/plain" "$IB/ow/foreign"
 printf 'gitdir: %s\n' "$IB/o/.git/worktrees/dead" > "$IB/o/.wt/dead/.git"
 printf 'plain, nowhere else\n' > "$IB/o/.wt/plain/x.txt"
@@ -25937,6 +25942,8 @@ IB_P96="$(_ibp 'Kappa task: retire the old config loader alias once one release 
 IB_P97="$(_ibp 'Lambda task: make the scheduler print the jobs it would start in a dry run and start none.' 130)"
 IB_P99="$(_ibp 'Mu task: teach the report to name the file each total came from, with a test on two files.' 130)"
 IB_P100="$(_ibp 'Nu task: move the retry budget into the settings file and keep the default at three.' 130)"
+IB_PT119="$(_ibp 'Xi task: make the sorter stable and test equal keys on two inputs.' 130)"
+IB_PT120="$(_ibp 'Omicron task: log each retry once and test the count it reports.' 130)"
 # Two prompts of 130 decoded characters with two \n escapes in their first 50,
 # so the JSON is two bytes longer than the text before character 120.
 IB_P115A="Kappa line\\nLambda line\\n$(_ibp 'mu nu xi omicron pi rho sigma tau upsilon phi chi psi omega' 107)"
@@ -25953,6 +25960,12 @@ _ibr_records() {
   _ib_chip 10 toolu_97 task_9700aaaa 'Started behind a reminder' "$IB_P97"
   _ib_chip 10 toolu_115a task_115aaaaa 'Changed at character 120' "$IB_P115A"
   _ib_chip 10 toolu_115b task_115bbbbb 'Equal through character 120' "$IB_P115B"
+  # Titles cut at 120 bytes on a whole character: é is two bytes, so 119 a's then é
+  # ends the cut at 119, and 118 a's then é fits in exactly 120.
+  printf -v _ibx '%0119d' 0; _ibx="${_ibx//0/a}é and then a good deal more title"
+  _ib_chip 10 toolu_t119 task_t119aaaa "$_ibx" "$IB_PT119"
+  printf -v _ibx '%0118d' 0; _ibx="${_ibx//0/a}é and then a good deal more title"
+  _ib_chip 10 toolu_t120 task_t120bbbb "$_ibx" "$IB_PT120"
   _ib_a 10 'Filed.'; _ibage "$IB_F" 10
   _ibsess "$IBR" s-att
   printf -v _ibx '{"type":"attachment","attachment":{"type":"deferred_tools","tools":[{"name":"mcp__ccd_session__spawn_task","description":"Flag an issue"},{"name":"mcp__ccd_session__dismiss_task","description":"Withdraw one"}]},"sessionId":"s-att","timestamp":"%s"}' "$(_ibts 6)"
@@ -26082,6 +26095,11 @@ case "$_ibx" in
 esac
 is  "inventory A13: gh's two calls for a repository keep their state and cache in one scratch directory outside every repository and HOME, gone after the run" "$_ibr" "gone"
 is  "inventory A13: and TMPDIR is empty after the run" "$IB_TMP1" ""
+# Spec section 2, exit 1: when no scratch directory can be made, nothing on stdout and one line saying why.
+mkdir -p "$IB/stubmk"; printf '#!/bin/sh\nexit 1\n' > "$IB/stubmk/mktemp"; chmod +x "$IB/stubmk/mktemp"
+_ibrun NOSCR --path "$IB/stubmk:$IB/stub:$PATH" -- inventory --repo "$IBR" --tsv
+is  "inventory RV11: when no scratch directory can be made the run exits 1, prints nothing, says why on one stderr line, and leaves no directory behind" \
+    "$(_ibrc NOSCR) $(LC_ALL=C awk 'END { print NR + 0 }' "$(_ibo NOSCR)") $(LC_ALL=C awk 'END { print NR + 0 }' "$IB/runs/NOSCR.err") $(ls -A "$IB/tmp" | LC_ALL=C awk 'END { print NR + 0 }')" "1 0 1 0"
 is  "inventory A15: nothing under HOME or the memory root changed, and the run read the records: it printed a chip row" \
     "$([ "$IB_SNAP15" = "$IB_SNAP15B" ] && echo same || echo changed) [$IB_NEW15] $(( $(_ibcount RUN1 chip "$IBRR") > 0 ))" "same [] 1"
 _ibx="$(LC_ALL=C awk -F'|' '{ a = $2; gsub(/  +/, " ", a); printf "%s%s", (NR > 1 ? ";" : ""), a }' "$IB/gh1.log" 2>/dev/null)"
@@ -26219,6 +26237,8 @@ is  "inventory A66: the same path with different blobs is no duplicate, nor is o
 # ---- §6.6, §6.7: chips and PR owners -------------------------------------
 is  "inventory A95: a spawn_task proposal with a task id is an unstarted chip owned by its session, its detail the title, 0 hours old" \
     "$(_ibst RUN1 chip task_ab12cd34) | $(_ibcol RUN1 chip task_ab12cd34 5) | $(_ibcol RUN1 chip task_ab12cd34 8) | $(_ibcol RUN1 chip task_ab12cd34 6)" "chip-unstarted | s-chip | Fix the README badge | 0"
+is  "inventory RV10: a chip's title is cut to its first 120 bytes on a whole UTF-8 character: 119 bytes when a two-byte character straddles byte 120, 120 when it ends there" \
+    "$(_ibcol RUN1 chip task_t119aaaa 8 | LC_ALL=C awk '{ print length($0) ($0 ~ /[\200-\377]/ ? " cut-inside" : " clean") }') $(_ibcol RUN1 chip task_t120bbbb 8 | LC_ALL=C awk '{ print length($0) ($0 ~ /[\200-\377]/ ? " whole" : " dropped") }')" "119 clean 120 whole"
 is  "inventory A96: a later dismiss_task in the same session withdraws its chip, whatever its result" "$(_ibcol RUN1 chip task_ab12cd34 1) $(_ibst RUN1 chip task_9600aaaa)" "chip no row"
 is  "inventory A97: a session whose first human text is the prompt, behind a reminder and as a second text item, starts its chip" "$(_ibcol RUN1 chip task_ab12cd34 1) $(_ibst RUN1 chip task_9700aaaa)" "chip no row"
 is  "inventory A98: a tool schema naming spawn_task is no proposal, and the prompt as a second human text starts nothing" "$(_ibst RUN1 chip task_ffff0000) | $(_ibst RUN1 chip task_ab12cd34)" "no row | chip-unstarted"
@@ -26381,6 +26401,8 @@ is  "inventory A26: a gh listing of 1000 PRs is partial, unknown:unproposed, and
     "$(_ibst K cover prs) $(case "$(_ibcol K cover prs 8)" in (*older*) echo older ;; (*) echo 'no older' ;; esac)" "partial,unknown:unproposed older"
 is  "inventory A26, N10: a pushed branch no listed PR heads is unproposed-unknown, not unproposed, and its content is unknown" \
     "$(_ibmany K branch feat unknown:unproposed unproposed) $(_ibcol K branch feat 7)" "unknown:unproposed=yes unproposed=no unknown"
+is  "inventory RV8: a pushed branch whose PR the partial list does hold keeps its content, so rule 5 does not apply: pr-open, no unknown:unproposed, content not" \
+    "$(_ibmany K branch feat2 pr-open unknown:unproposed) $(_ibcol K branch feat2 7)" "pr-open=yes unknown:unproposed=no not"
 IB_BR=""; _ibsess "$IB/r3" s-r3; _ib_h 3 'link it'
 printf -v _ibx '{"type":"pr-link","prNumber":12,"prRepository":"whoever/whatever","sessionId":"s-r3","timestamp":"%s"}' "$(_ibts 2)"
 _ib_raw "$_ibx"; _ib_a 2 'Linked.'; _ibage "$IB_F" 2
@@ -26482,6 +26504,8 @@ is  "inventory A71: the main worktree's parent is never a search parent" \
     "$(_ibcol O1 orphan "$IB/ow/lost" 1) $(LC_ALL=C awk -F'\t' -v p="$IB/" '$1 == "orphan" { r = substr($3, length(p) + 1); if (substr($3, 1, length(p)) == p && index(r, "/") == 0) printf "%s;", $3 }' "$(_ibo O1)")" "orphan "
 is  "inventory A72: ignored files over 1 MiB are said, not skipped, and the orphan that passed one over is not landed" \
     "$(case "$(_ibo1 lostbig 8)" in (*'; 1 ignored files over 1 MiB not read'*) echo said ;; (*) _ibo1 lostbig 8 ;; esac) $(_ibo1 lostbig 7)" "said unknown"
+is  "inventory RV12: an orphan holding 20001 files reads the first 20000 and says the rest were not read, and is not landed" \
+    "$(case "$(_ibo1 lostmany 8)" in (*'; files past the first 20000 not read'*) echo said ;; (*) _ibo1 lostmany 8 ;; esac) $(_ibo1 lostmany 7)" "said not"
 is  "inventory A73: an ignored unique file under the cap is counted in the ignored clause" \
     "$(case "$(_ibo1 lostsmall 8)" in (*'; 1 of 1 ignored files hold content in no object'*) echo counted ;; (*) _ibo1 lostsmall 8 ;; esac) $(_ibo1 lostsmall 7)" "counted not"
 
@@ -26550,6 +26574,8 @@ _ibmissing() { local f m=""; for f in $IB_LIBS; do [ -f "$IBL/$f" ] || m="$m $f"
 _iblibs() { local f; for f in $IB_LIBS; do [ -f "$IBL/$f" ] && printf '%s\n' "$IBL/$f"; done; }
 is  "inventory A109: the six inventory libraries exist and each is under 500 lines" \
     "$(_ibmissing)$(for _ibf in $(_iblibs); do [ "$(LC_ALL=C awk 'END { print NR }' "$_ibf")" -lt 500 ] || printf ' %s is long' "${_ibf##*/}"; done)" ""
+is  "inventory RV9: the view's header comment names no landing actor as a reader of the rows (spec section 11 row 19), and the file is there to be read" \
+    "$([ -f "$IBL/inventory-view.sh" ] && LC_ALL=C awk 'index(tolower($0), "landing actor") { printf "line %d; ", FNR } END { if (!NR) printf "empty" }' "$IBL/inventory-view.sh" || printf 'missing')" ""
 is  "inventory A110: no inventory library uses a here-document or here-string, jq, python, node or claude" \
     "$(_ibmissing)$(_iblibs | while IFS= read -r _ibf; do _ibcode "$_ibf"; done | LC_ALL=C awk '{ s = $0; gsub(/\$\(\([^)]*\)\)/, "", s)
        if (index(s, "<<")) printf "%s heredoc; ", substr($0, 1, index($0, ":") - 1)

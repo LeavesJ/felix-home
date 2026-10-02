@@ -4,5 +4,26 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	5772afac9357831f61a3bb60542106abf7523a4f	0.49.232
-run	0	3798	61
+base	origin/main	a1af3c007d971ec6ec6f1e8617ded9fd81c5bcc7	0.49.232
+run	21	3868	5
+a NUL after more than a pipe's 64 KB of rows refuses the table all the same, in one stderr line naming it	1
+a NUL refuses the whole table: with it in a comment between two met controls on clean lines neither runs and --gate exits 2, where without it both run and pass	1
+and felix_qualify_run refuses it so without the caller's pipefail	1
+and in that locale the library reads no row of it and exits non-zero	1
+and missing_controls refuses it so without the caller's pipefail	1
+and needs refuses such a table without the caller's pipefail too	1
+and plain felix qualify over each of those tables runs no control, says the table holds a NUL, and exits 2	1
+and ungoverned refuses it so without the caller's pipefail	1
+felix gate over a table holding a NUL byte anywhere fails qualified, never ok, and shows under it the felix: line naming the table and its NUL	1
+felix qualify --gate over a table with a NUL after a row's fifth field runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix qualify --gate over a table with a NUL alone on a line runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix qualify --gate over a table with a NUL inside a comment runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix qualify --gate over a table with a NUL inside a held row's mutation runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix qualify --gate over a table with a NUL past byte 8000 runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix qualify --gate over a table with a NUL starting a held row runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2	1
+felix_qualify_missing_controls over a table holding a NUL byte anywhere prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL	1
+felix_qualify_rows, felix_qualify_malformed and felix_qualify_snapshot each exit non-zero over a table holding a NUL byte anywhere, with the caller's pipefail and without	1
+felix_qualify_run over a table holding a NUL byte anywhere runs nothing, prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL	1
+felix_qualify_ungoverned over a table holding a NUL byte anywhere names no checker, exits 2, and says in one stderr line naming the table that it holds a NUL	1
+in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2	1
+needs over a table holding a NUL byte anywhere resolves nothing, exits 2, and says in one stderr line naming the table that it holds a NUL	1

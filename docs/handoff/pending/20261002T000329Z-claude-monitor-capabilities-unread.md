@@ -160,3 +160,16 @@ under test, then only the marked block. None is from a suite run.
   All three wait for the carrier's weekly batch slot. It is registered in
   the order after claude/commission-lookup-fails-unknown and
   claude/declared-unread-readers, and it is not folded into either.
+
+**After both prerequisites are on main**, whoever carries this branch:
+1. Merge origin/main in. Do not force-push. Expect conflicts only in
+   tests/run, where both prerequisites add blocks. Keep every block.
+2. Show it still red. Export origin/main's engine/harness. Then run tests/run
+   lines 1-152, with REAL_HARNESS set to that export after line 23, followed
+   by the block between `# >>> monitor-capabilities-unread` and
+   `# <<< monitor-capabilities-unread`. 83 assertions should fail.
+3. Show it green. Run the same block against this branch's own engine: all
+   should pass. If felix_declared_into changed signature or statuses on the
+   way in, the in-process models in the block say so first.
+4. Then, in the carrier's slot only: the full suite,
+   `tests/run --record-assertions`, `felix gate`, the PR, the merge.

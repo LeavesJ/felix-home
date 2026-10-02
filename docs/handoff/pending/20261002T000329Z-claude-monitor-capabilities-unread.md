@@ -107,7 +107,56 @@ Settled after the adversarial review (2026-10-01):
 
 Not in this change, and why:
 - Every string in the payload is escaped through a substitution
-  (`_felix_json_esc`). Under EAGAIN, any of them, including a capability name,
-  can come back as `""`. The count the page shows still holds. A blank name is
-  a different lookup, and it is shared by every member of the payload.
+  (`_felix_json_esc`), and any of them can come back as `""`. One cause is
+  EAGAIN. The other is a byte that is not UTF-8 under a UTF-8 locale, where
+  `sed` stops with "illegal byte sequence" (the writer review, 2026-10-01).
+  The count the page shows still holds. A blank name is a different lookup,
+  and every member of the payload shares it.
+- `_felix_json_esc` escapes only tab, CR and newline. Any other control
+  character (`\x01`, form feed, ESC) passes into the payload raw, so
+  `JSON.parse` refuses it, though the page still runs, because it embeds the
+  payload as a script literal. This predates the change and applies to every
+  member.
+- `felix_declared` has these defects, and the writer prints faithfully what it
+  hands back. They went to the claude/declared-unread-readers session on
+  2026-10-01, since detect.sh is theirs:
+  - A file macOS grep takes for binary (a NUL byte, UTF-16) returns 0 and
+    prints `Binary file ... matches` as a capability.
+  - `GREP_OPTIONS` (macOS grep honours it) rewrites every line.
+  - A BOM before a comment makes the comment a capability.
+- The walk is quadratic in the list's length: 2000 lines took 1 s of CPU,
+  measured. Real lists are tens of lines.
 - `felix_detect` is not on the monitor page at all.
+
+**Procedure and evidence (2026-10-01).** Every count below is from the
+section runner: tests/run lines 1-152, with REAL_HARNESS pointed at the engine
+under test, then only the marked block. None is from a suite run.
+- Contract: written in this session (Opus 5.5) before any code.
+- Blind assertions: one Opus agent given only the contract. It made 113 and
+  then 9 more after the contract settled its questions. Against origin/main,
+  74 of 122 failed. Against claude/declared-unread-readers alone
+  (1e0197ca, fd5528f7), the same 74 failed: that branch does not fix the
+  monitor.
+- Implementation: in this session (Opus 5.5), not a Sonnet stage. It was
+  about 30 lines with the design settled, and the blind author was already a
+  different agent from the implementer. Against fd5528f7 plus the fix, 122 of
+  122 passed on bash 3.2 (/bin/bash, which is the suite's bash on this Mac).
+- Adversarial review: two Opus agents, read-only.
+  - Page and tests. One should-fix: an empty `unknown` was drawn plain.
+    Fixed. All 8 named mutants were killed, and 5 weaker ones survived. The
+    escape mutant, whitespace and duplicates, `felix monitor`'s read half, an
+    empty name and the amber rule are now asserted, marked "after review, not
+    blind".
+  - Writer. No blocker. The fork comment was untrue, and is rewritten.
+    `_felix_mon_json_list` lost its last caller, and is removed. The rest is
+    out of scope above.
+- After review: 138 assertions. origin/main fails 83, fd5528f7 alone fails
+  83, the first fix fails 2 (the empty reason), a no-escape mutant fails 3,
+  and the fix passes 138.
+- Not yet run:
+  - the full suite;
+  - `tests/run --record-assertions` (assertions.tsv gains these names);
+  - `felix gate`.
+  All three wait for the carrier's weekly batch slot. It is registered in
+  the order after claude/commission-lookup-fails-unknown and
+  claude/declared-unread-readers, and it is not folded into either.

@@ -126,18 +126,6 @@ _felix_mon_mistake_row() {
     "$(_felix_json_esc "$(printf '%s' "$1" | cut -f4)")"
 }
 
-_felix_mon_json_list() {
-  local first=1 x
-  printf '['
-  while IFS= read -r x; do
-    [ -n "$x" ] || continue
-    [ "$first" -eq 1 ] || printf ','
-    first=0
-    printf '"%s"' "$(_felix_json_esc "$x")"
-  done
-  printf ']'
-}
-
 _felix_mon_project() {
   local proj="$1" home="$2" name gate rec
   name="$(basename "$proj")"
@@ -151,17 +139,16 @@ _felix_mon_project() {
   # directory, a pipe or a file grep could not read was [], a project that
   # declares nothing, and comment lines were capabilities. Nobody saw it,
   # because the page had never read this member: only its fallback project
-  # named it, until 2026-08-10. Dropping it, as
-  # the plugins array was dropped, would have left the page unable to say
-  # anything wrong, and would also have left the capability accounting this
-  # file's header promises behind glass. So the memory panel counts it. It is
-  # not [] or null for an unread list, because the page's `p.x||[]` idiom would
-  # turn either back into zero. felix_declared_into is the read: it guards the
-  # substitution that comes back empty with status 0 under EAGAIN, and it is
-  # unread when not defined, since this file does not source detect.sh. The
-  # list is walked in this shell, not piped or fed by a here-document: a fork
-  # or a temporary file that failed here would lose the member and break the
-  # page's script.
+  # named it, until 2026-08-10. Dropping it, as the plugins array was dropped,
+  # would have left the page unable to say anything wrong, and would also have
+  # left the capability accounting this file's header promises behind glass.
+  # So the memory panel counts it. It is not [] or null for an unread list,
+  # because the page's `p.x||[]` idiom would turn either back into zero.
+  # felix_declared_into is the read: it guards the substitution that comes back
+  # empty with status 0 under EAGAIN, and it is unread when not defined, since
+  # this file does not source detect.sh. It hands the list back in a variable,
+  # which is walked here by parameter expansion, so nothing but each name's
+  # escape forks.
   printf ',"capabilities":'
   local caps cap nl=$'\n' cfirst=1
   if felix_declared_into caps "$proj" 2>/dev/null; then

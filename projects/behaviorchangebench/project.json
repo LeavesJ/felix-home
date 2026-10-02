@@ -1,0 +1,5 @@
+{
+  "name": "behaviorchangebench",
+  "remote_match": "",
+  "gate": "make check"
+}

@@ -29,9 +29,11 @@
 #     under LC_ALL=C; any other failure is a process that exists (Operation
 #     not permitted is another user's, pid 1 among them, measured on bash
 #     3.2.57), and a message lost to a fork that failed is not a death. Or the
-#     process exists, the record has a start, and ps prints a start that is
-#     not it: the pid is another process's now. A record with no start, or a
-#     ps that prints nothing, is judged by kill -0 alone.
+#     process exists, the record has a start, and its start now is another:
+#     the pid is another process's now. A record with no start, or a start
+#     that cannot be read now, is judged by kill -0 alone. On Linux the start
+#     is read from /proc and names the pid namespace, and a record of another
+#     namespace is alive (_felix_qualify_since).
 #   - Then the base gets its owner's rwx back, since a dead row's mutation may
 #     have taken the write bit that a claim needs. That is the only mode a
 #     sweep ever changes on a base it has not claimed, and only on one it has
@@ -110,14 +112,71 @@ _felix_qualify_isrec() {   # text
   case "$s" in *[[:space:]]*) return 1 ;; esac
 }
 
+# Where a process's start is read on Linux. Set here, never taken from the
+# environment; the suite stages one by setting it after sourcing.
+_felix_qualify_proc=/proc
+
+# The start of a process, a text with no blank, in _felix_qualify_text, which
+# the caller makes local; empty when it cannot be had.
+#
+# Where the proc filesystem names this process's pid namespace (Linux): field
+# 22 of <proc>/<pid>/stat, the clock ticks after boot at which the process
+# started, then @ and the namespace, as `8842@pid:[4026531836]`. Not ps:
+# procps prints lstart as boot time plus those ticks, and boot time moves
+# when the wall clock is stepped (settimeofday, an NTP step, a VM resumed),
+# so a live row's start would change and read as another process (review
+# 2026-10-01). The ticks never change. The namespace, because a pid means
+# nothing outside its own, and a TMPDIR shared between containers would show
+# a sweep in one a row in another as no such process.
+#
+# Elsewhere (macOS, where ps prints the start fixed at fork), ps -o lstart=,
+# in local time and words, so TZ and the locale are fixed, every blank taken
+# out, so a record holds exactly one space.
+_felix_qualify_since() {   # pid
+  local l w IFS=' '
+  if _felix_qualify_ns; then
+    w="$_felix_qualify_text"; _felix_qualify_text=""
+    l=""
+    { read -r l < "$_felix_qualify_proc/$1/stat" || [ -n "$l" ]; } 2>/dev/null || return 0
+    # The fields after the last ") ", which closes the command's name; the
+    # 20th of them is field 22. Digits and a letter: no glob in the split.
+    case "$l" in *") "*) l="${l##*) }" ;; *) return 0 ;; esac
+    set -- $l
+    case "${20:-}" in ''|*[!0123456789]*) return 0 ;; esac
+    _felix_qualify_text="${20}@$w"
+    return 0
+  fi
+  l="$(TZ=UTC0 LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null)"
+  _felix_qualify_text="${l//[[:space:]]/}"
+}
+
+# This process's pid namespace, as the proc filesystem names it, in
+# _felix_qualify_text. Non-zero where none is named.
+_felix_qualify_ns() {
+  local t
+  _felix_qualify_text=""
+  [ -L "$_felix_qualify_proc/self/ns/pid" ] || return 1
+  t="$(readlink "$_felix_qualify_proc/self/ns/pid" 2>/dev/null)" || return 1
+  case "$t" in ''|*[[:space:]]*|*@*) return 1 ;; esac
+  _felix_qualify_text="$t"
+}
+
 # Whether a record's process is shown dead. 0 only when it is; every other
-# case, a check that could not be made among them, is alive.
+# case, a check that could not be made among them, is alive. A start naming
+# a pid namespace is judged only in that one: from any other, or where none
+# is named, the pid is not this sweep's to read.
 _felix_qualify_dead() {   # pid, start or empty
-  local said now
+  local said now _felix_qualify_text
+  case "$2" in
+    *@*) _felix_qualify_ns && [ "${2#*@}" = "$_felix_qualify_text" ] || return 1 ;;
+  esac
   if said="$(LC_ALL=C builtin kill -0 "$1" 2>&1)"; then
     [ -n "$2" ] || return 1
-    now="$(TZ=UTC0 LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null)"
-    now="${now//[[:space:]]/}"
+    case "$2" in
+      *@*) _felix_qualify_since "$1"; now="$_felix_qualify_text" ;;
+      *)   now="$(TZ=UTC0 LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null)"
+           now="${now//[[:space:]]/}" ;;
+    esac
     [ -n "$now" ] && [ "$now" != "$2" ]
     return
   fi

@@ -15764,6 +15764,8 @@ set -uo pipefail
 qsw_froot="$1"; qsw_root="$2"; qsw_made="$3"; qsw_caller="$4"; qsw_go="$5"; qsw_what="$6"; shift 6
 cd "$qsw_root" || exit 1
 . "$qsw_froot/harness/lib/resolve.sh"; . "$qsw_froot/harness/lib/qualify.sh"
+# A staged proc filesystem, for the one case that asks.
+[ -n "${QSW_PROC:-}" ] && _felix_qualify_proc="$QSW_PROC"
 mktemp() {
   local p; p="$(command mktemp "$@")" || return
   printf '%s\n' "$p" >> "$qsw_made"
@@ -15812,7 +15814,18 @@ _qswdead() {   # a pid kill -0 says there is no such process of: one a process s
   done
   printf '%s' "$p"
 }
-_qswstart() { TZ=UTC0 LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | tr -d ' \t\n'; }
+# A process's start as a row records it: where /proc names this process's
+# pid namespace, field 22 of /proc/<pid>/stat, @, and that namespace;
+# elsewhere ps -o lstart= under TZ=UTC0 and LC_ALL=C, every blank removed.
+_qswns() { [ -L /proc/self/ns/pid ] && readlink /proc/self/ns/pid 2>/dev/null; }
+_qswstart() {
+  local ns; ns="$(_qswns)"
+  if [ -n "$ns" ]; then
+    sed 's/.*) //' "/proc/$1/stat" 2>/dev/null | awk -v n="$ns" '$20 ~ /^[0-9]+$/ { printf "%s@%s", $20, n }'
+  else
+    TZ=UTC0 LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | tr -d ' \t\n'
+  fi
+}
 _qswlive()  { [ -n "$1" ] || return 1; case "$(ps -o stat= -p "$1" 2>/dev/null | tr -d ' ')" in ''|Z*) return 1 ;; esac; return 0; }
 _qswalive() { if _qswlive "$1"; then echo yes; else echo no; fi; }
 _qswnotlive() { ! _qswlive "$1"; }
@@ -16027,7 +16040,7 @@ is  "while a row holds in its checker, owner in its base is a symlink reading <p
     "owner:$([ -n "$_qswb" ] && [ -L "$T/$_qswb/owner" ] && echo link || echo none) shape:$(_qswshape "$_qswr") pid:$_qswwho alive:$(_qswalive "$_qswp")" \
     "owner:link shape:pid+start pid:row alive:yes"
 _qswps="$([ "$_qswwho" = row ] && _qswstart "$_qswp")"
-is  "and the start it records is that row process's start as ps -o lstart= prints it under TZ=UTC0 and LC_ALL=C, every blank removed" \
+is  "and the start it records is that row process's start: where /proc names the pid namespace, field 22 of /proc/<pid>/stat, @ and that namespace; elsewhere ps -o lstart= under TZ=UTC0 and LC_ALL=C, every blank removed" \
     "start:$([ -n "$_qswps" ] && [ "${_qswr#* }" = "$_qswps" ] && echo same || echo "[${_qswr#* }] ps:[$_qswps] pid:$_qswwho")" "start:same"
 _qswwas="$([ -n "$_qswb" ] && _qswsnap "$T/$_qswb" "$R" "$Tp/$_qswb/w")"
 _qswrun "$d/b" "$T" "$R" "$d/projb"
@@ -16203,6 +16216,32 @@ _qswleftis "a base whose record names a live pid with that process's true start 
 _qswleftis "a base whose record names pid 1, which kill -0 may not signal, is left as it was: a failure that is not No such process is a process that exists" "$d" "$T" "$R" felix-qualify.PIDONE "$_qswctl"
 is  "a base whose record names a live pid with a start that is not that process's is swept, registration included, and the live process is still running" \
     "$(_qswgone "$_qswp2" "$T/felix-qualify.LIVEDF" "$R" "$Tp/felix-qualify.LIVEDF/w") live:$(_qswalive "$QSWLIVE")" "gone live:yes"
+
+# 6b. Liveness read through a proc filesystem that names a pid namespace,
+# as Linux's does, staged here so it runs everywhere: a start is the stat's
+# field 22, which a step of the wall clock does not move, then @ and the
+# namespace. The staged namespace is pid:[777], and the live sleep's stat
+# says it started at tick 424242, its command's name holding ") ".
+d="$QSWS/liveness-proc"; T="$d/t"; mkdir -p "$T" "$d/proc/self/ns" "$d/proc/$QSWLIVE"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
+ln -s 'pid:[777]' "$d/proc/self/ns/pid"
+{ printf '%s (sl) eep) S' "$QSWLIVE"; for _qswi in 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21; do printf ' 0'; done; printf ' 424242 0 0\n'; } > "$d/proc/$QSWLIVE/stat"
+_qswdz="$(_qswdead)"
+_qswleft "$d" "$T" "$R" felix-qualify.LXSAME "$QSWLIVE 424242@pid:[777]" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.LXFORN "$_qswdz 424242@pid:[888]" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.LXNOST "$$ 5@pid:[777]" 0555
+_qswplant "$T" felix-qualify.LXDIFF "$R" "$QSWLIVE 1@pid:[777]"
+_qswplant "$T" felix-qualify.LXDEAD "$R" "$_qswdz 424242@pid:[777]"
+_qswp1="$(_qswpre "$T/felix-qualify.LXDEAD" "$R" "$Tp/felix-qualify.LXDEAD/w")"
+_qswp2="$(_qswpre "$T/felix-qualify.LXDIFF" "$R" "$Tp/felix-qualify.LXDIFF/w")"
+_qswxenv="QSW_PROC=$d/proc"; _qswbg "$d/s" "$T" "$R" - sweep; _qswxenv=""; _qswfinish "$_qswpid" "$d/s"
+_qswctl="$(_qswgone "$_qswp1" "$T/felix-qualify.LXDEAD" "$R" "$Tp/felix-qualify.LXDEAD/w")"
+is  "with a proc filesystem that names the pid namespace pid:[777], a base whose record names a dead pid with a start in that namespace is swept, registration included" \
+    "$_qswctl" "gone"
+_qswleftis "with that proc filesystem, a base whose record names a live pid with its stat's field 22 and that namespace is left as it was, whatever ps says of its start" "$d" "$T" "$R" felix-qualify.LXSAME "$_qswctl"
+_qswleftis "with that proc filesystem, a base whose record names a dead pid with a start in another namespace, pid:[888], is left as it was: the pid is not this sweep's to read" "$d" "$T" "$R" felix-qualify.LXFORN "$_qswctl"
+_qswleftis "with that proc filesystem, a base whose record names a live pid that has no stat there to read is left as it was" "$d" "$T" "$R" felix-qualify.LXNOST "$_qswctl"
+is  "with that proc filesystem, a base whose record names a live pid with another start in that namespace is swept, registration included, and the live process is still running" \
+    "$(_qswgone "$_qswp2" "$T/felix-qualify.LXDIFF" "$R" "$Tp/felix-qualify.LXDIFF/w") live:$(_qswalive "$QSWLIVE")" "gone live:yes"
 
 # 7. Orphans: a registration whose base is gone, and only of the one shape.
 d="$QSWS/orphans"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/proj"

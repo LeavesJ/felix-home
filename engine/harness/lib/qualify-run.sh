@@ -196,7 +196,7 @@ _felix_qualify_unown_here() {   # the base's physical path -> 0 once it is gone
 }
 
 # The owner record of the process running this: `<pid> <start>`, or `<pid>`
-# when ps gives no start, set in _felix_qualify_rec, which the caller makes
+# when no start can be had, set in _felix_qualify_rec, which the caller makes
 # local. Non-zero when no pid can be had.
 #
 # The pid is the process's own, never $$, which a subshell keeps from its
@@ -214,11 +214,10 @@ _felix_qualify_unown_here() {   # the base's physical path -> 0 once it is gone
 # read back, else no record is made and the row runs nothing.
 #
 # The start tells a pid the kernel has handed to another process since from
-# the process that wrote it. ps prints it in local time and words, so TZ and
-# the locale are fixed, and every blank is taken out, so the record holds
-# exactly one space.
+# the process that wrote it, and on Linux names the pid namespace the pid
+# means something in (_felix_qualify_since, lib/qualify-sweep.sh).
 _felix_qualify_me() {   # -> _felix_qualify_rec
-  local p s
+  local p s _felix_qualify_text
   _felix_qualify_rec=""
   if [ "${BASH_VERSINFO[0]:-3}" -ge 4 ] 2>/dev/null; then
     p="${BASHPID:-}"
@@ -228,8 +227,7 @@ _felix_qualify_me() {   # -> _felix_qualify_rec
   case "$p" in ''|0*|*[!0123456789]*) return 1 ;; esac
   [ "${#p}" -le 10 ] || return 1
   kill -0 "$p" 2>/dev/null || return 1
-  s="$(TZ=UTC0 LC_ALL=C ps -o lstart= -p "$p" 2>/dev/null)"
-  s="${s//[[:space:]]/}"
+  _felix_qualify_since "$p"; s="$_felix_qualify_text"
   _felix_qualify_rec="$p${s:+ $s}"
 }
 

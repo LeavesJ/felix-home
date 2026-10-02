@@ -15749,6 +15749,21 @@ if [ -n "\${QSW_GITSWAPW:-}" ] && [ ! -e "\$QSW_GITSWAPW.done" ]; then
       esac ;;
   esac
 fi
+# Given QSW_GITSWAPL, a directory: at the first worktree list, the one base
+# in TMPDIR is renamed aside and a symlink to that directory put in its
+# place, as the drop reads the root's list.
+if [ -n "\${QSW_GITSWAPL:-}" ] && [ ! -e "\$QSW_GITSWAPL.done" ]; then
+  case " \$* " in
+    *" worktree list "*)
+      for qsw_a in "\${TMPDIR%/}"/felix-qualify.??????; do
+        if [ -d "\$qsw_a" ] && [ ! -L "\$qsw_a" ]; then
+          : > "\$QSW_GITSWAPL.done"
+          mv "\$qsw_a" "\$qsw_a.aside" && ln -s "\$QSW_GITSWAPL" "\$qsw_a"
+          break
+        fi
+      done ;;
+  esac
+fi
 exec '$QSWGIT' "\$@"
 EOF
 chmod +x "$QSWSHIM/git"
@@ -16529,6 +16544,34 @@ is  "a dead base holding an entry named as its owner text, a symlink to a direct
 is  "a dead base whose claim is a symlink to a directory outside that holds a regular file named claim is left as it was, claim included, and over two sweeps that directory keeps its file and gains nothing, beside the dead base the sweeps removed" \
     "beside:$_qswctl same:$([ "$(_qswsnap "$T/felix-qualify.FOLLWA" "$R" "$Tp/felix-qualify.FOLLWA/w")" = "$(cat "$d/snap/a")" ] && echo yes || echo no) outside:$(_qswout "$d/outa")" \
     "beside:gone same:yes outside:[claim ] claim:precious"
+
+# 9d. A dead base whose tree the sweep's root does not list: registered in
+# another repository, or nowhere. With T given through a symlink, the base
+# is swapped for a symlink to a directory whose w is another worktree of the
+# sweep's root, with uncommitted work, as the drop first reads the root's
+# list. The drop hands git nothing when the root lists no such entry: a path
+# it does not list, git resolves, and through that link it removed the other
+# worktree (review round 3).
+for _qswk in other none; do
+  case "$_qswk" in other) _qswwhat="registered in another repository" ;; none) _qswwhat="registered nowhere" ;; esac
+  d="$QSWS/unlisted-$_qswk"; mkdir -p "$d/t" "$d/decoy"; ln -s "$d/t" "$d/tlink"; T="$d/tlink"
+  R="$(_qswroot "$d/root")"
+  if [ "$_qswk" = other ]; then
+    R2="$(_qswroot "$d/root2")"
+    _qswplant "$T" felix-qualify.UNLIST "$R2" "$(_qswdead) $QSWOLD"
+    _qswwas="$(_qswlisted "$R2" "$(_qswphys "$d/t")/felix-qualify.UNLIST/w")"
+  else
+    _qswplant "$T" felix-qualify.UNLIST - "$(_qswdead) $QSWOLD"
+    mkdir "$T/felix-qualify.UNLIST/w" && printf 'x\n' > "$T/felix-qualify.UNLIST/w/f" && _qswwas=no
+  fi
+  git -C "$R" worktree add --detach -q "$d/decoy/w" HEAD >/dev/null 2>&1
+  printf 'mine\n' > "$d/decoy/w/uncommitted.txt"; _qswD="$(_qswphys "$d/decoy/w")"
+  _qswwas="$_qswwas,$(_qswlisted "$R" "$_qswD")"
+  _qswxenv="QSW_GITSWAPL=$d/decoy"; _qswbg "$d/s" "$T" "$R" - sweep; _qswxenv=""; _qswfinish "$_qswpid" "$d/s"
+  is  "with T given through a symlink, a dead base whose tree is $_qswwhat, swapped for a symlink to a directory whose w is another worktree of the sweep's root as the drop first reads the root's list, has no worktree remove made for it, and that worktree, its uncommitted file and its registration are as they were" \
+      "planted:$_qswwas swapped:$([ -e "$d/decoy.done" ] && echo yes || echo no) removes:$(awk '/ worktree remove / && /felix-qualify\.UNLIST/ { n++ } END { print n + 0 }' "$d/s/git" 2>/dev/null) file:$(cat "$_qswD/uncommitted.txt" 2>/dev/null || echo gone) registered:$(_qswlisted "$R" "$_qswD")" \
+      "planted:$([ "$_qswk" = other ] && echo yes || echo no),yes swapped:yes removes:0 file:mine registered:yes"
+done
 
 # 10. A base whose drop cannot finish: a row's mutation makes a file in its
 # tree immutable. Its record stays, a later sweep says what is left, and

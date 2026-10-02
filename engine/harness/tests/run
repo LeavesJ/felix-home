@@ -18595,6 +18595,9 @@ unset _cmlfad _cmlffound _cmlfmade _cmlfrun0 _cmlfrun1 _cmlfrun2 _cmlfc3 _cmlfgo
 _cucrfixture() { { find "$FROOT/projects" "$FROOT/state" "$MEM" 2>/dev/null | LC_ALL=C sort
                    find "$FROOT/projects" "$FROOT/state" "$MEM" -type f -exec cksum {} + 2>/dev/null | LC_ALL=C sort; } | cksum; }
 _cucrfound="$(_cucrfixture)"
+# Session start below makes state/commission when it spends the receipt line,
+# and the block removes only what it made.
+_cucrmade=''; [ -d "$FROOT/state" ] || _cucrmade=state; [ -d "$FROOT/state/commission" ] || _cucrmade="$_cucrmade commission"
 _cucrp="$FROOT/projects/cucrproj"
 _cucrr="$TMP/cucr-repo"
 _cucrhome="$TMP/cucr-home"
@@ -18713,6 +18716,23 @@ is  "and felix_maint_unreachable prints the two columns it always has" \
 _cucrn6="$(_cucrnext read | awk -F'\t' '$1 == 6' | grep cucr_clock)"
 has "and felix_next rank 6 says the routine waits on a capability nothing declares, as before" \
     "$_cucrn6" "upkeep 'cucr_clock' waits on a capability nothing declares: cucrcap"
+# After review, not blind: felix_maint_unreachable passes over the capabilities
+# it trusts as spelled, so a routine on ci over an unread list reached no rank
+# of felix_next, which then said no upkeep was past its cadence.
+cp "$_cucrp/maintenance.tsv" "$TMP/cucr-maint.keep"
+{ printf 'cucr_ci\t7\tci\ta routine on ci\n'
+  printf 'cucr_clock\t7\tcucrcap\ta routine on a clock\n'; } > "$_cucrp/maintenance.tsv"
+printf 'ci\ncucrcap\n' > "$_cucrp/capabilities"
+_cucrnx1="$(_cucrnext unread)"
+is  "felix_next says at rank 6 that whether a routine on ci is due is not known when the declared list could not be read, and says the routine it named with its capability once" \
+    "$(printf '%s\n' "$_cucrnx1" | awk -F'\t' '$1 == 6' | grep -cF "upkeep 'cucr_ci': $_cucrwhy, so whether it is due is not known") $(printf '%s\n' "$_cucrnx1" | grep -cF "'cucr_clock'")" \
+    "1 1"
+_cucrnx0="$(_cucrnext read)"
+is  "and over a list read and declaring ci it names that routine due at rank 4 and not at rank 6" \
+    "$(printf '%s\n' "$_cucrnx0" | awk -F'\t' '$1 == 4' | grep -c cucr_ci) $(printf '%s\n' "$_cucrnx0" | awk -F'\t' '$1 == 6' | grep -c cucr_ci)" \
+    "1 0"
+cp "$TMP/cucr-maint.keep" "$_cucrp/maintenance.tsv"; rm -f "$TMP/cucr-maint.keep"
+printf 'cucr_other\n' > "$_cucrp/capabilities"
 
 # The CLI, over a capabilities link whose target is gone.
 rm -f "$_cucrp/capabilities"; ln -s "$TMP/cucr-no-such-list" "$_cucrp/capabilities"
@@ -18723,6 +18743,9 @@ is  "and says how many steps could not be checked in place of Nothing outstandin
     "$(_cucrsays "$_cucrout" 'Nothing outstanding.') $(_cucrsays "$_cucrout" "1 step(s) could not be checked: $_cucrwhy.")" \
     "silent said"
 is  "and felix setup still exits 0 with a step it could not check" "$_cucrrc" "0"
+# After review, not blind: the counts as well as the lines.
+is  "and felix setup does not count a step it could not check among the steps that need a person" \
+    "$(_cucrsays "$_cucrout" 'need you')" "silent"
 _cucrout="$(_cucrcli maintenance)"
 is  "felix maintenance renders a routine it could not read as ? and not read, not as not yet" \
     "$(_cucrsays "$_cucrout" "$(printf '  ?       %-18s %-14s %s' cucr_clock 'not read' 'a routine on a clock')")" "said"
@@ -18732,13 +18755,23 @@ is  "and says how many routines could not be read in place of Nothing due" \
 is  "and does not list them under the header for capabilities nothing declares, but names each routine and its capability on a line of its own" \
     "$(_cucrsays "$_cucrout" 'Dormant rather than satisfied') $(_cucrboth "$_cucrout" cucr_clock cucrcap) $(_cucrboth "$_cucrout" cucr_checked cucrcap)" \
     "silent said said"
+is  "and felix maintenance does not count a routine it could not read among the routines due" \
+    "$(_cucrsays "$_cucrout" 'routine(s) due')" "silent"
 _cucrout="$(_cucrcli stack plan)"
 is  "felix stack plan prints the row it could not read as unknown, and after its summary says how many could not be read" \
     "$(_cucrsays "$_cucrout" "$(printf '%-9s %-11s %-46s' unknown skill cucr-skill-unread)") $(_cucrsays "${_cucrout#*0 to install, 0 blocked.}" "1 could not be read: $_cucrwhy, so whether they apply is not known.")" \
     "said said"
+is  "and the plan counts that row neither to install nor blocked, and offers no apply" \
+    "$(_cucrsays "$_cucrout" '0 to install, 0 blocked.') $(_cucrsays "$_cucrout" 'apply with:')" "said silent"
+_cucrout="$(_cucrcli stack apply)"
+is  "and felix stack apply without --yes says how many could not be read before saying nothing changed" \
+    "$(_cucrsays "${_cucrout%%This was a plan*}" "1 could not be read: $_cucrwhy, so whether they apply is not known.")" "said"
 _cucrout="$(_cucrcli stack apply --yes)"; _cucrrc=$?
 is  "felix stack apply --yes says how many could not be read and returns 1, though no install failed" \
     "$_cucrrc $(_cucrsays "$_cucrout" "1 could not be read: $_cucrwhy, so whether they apply is not known.")" "1 said"
+is  "and applies no item for that row, tried or failed" \
+    "$(_cucrsays "$_cucrout" 'applying 0 item(s)') $(_cucrboth "$_cucrout" FAILED cucr-skill-unread) $(_cucrboth "$_cucrout" installed cucr-skill-unread)" \
+    "said silent silent"
 rm -f "$_cucrp/capabilities"; printf 'cucr_other\n' > "$_cucrp/capabilities"
 _cucrout="$(_cucrcli maintenance)"
 is  "felix maintenance over a list read and not declaring the capability lists both routines as not yet and under the header for capabilities nothing declares" \
@@ -18784,18 +18817,29 @@ is  "and says it again on the next session start, not once per topology" "$(_cuc
 _cucrs2="$(_cucrstart)"
 is  "with only unread provider rows session start prints no paragraph saying a session owes anything, and still names them" \
     "$(_cucrsays "$_cucrs2" 'A session still owes these') $(_cucrsays "$_cucrs2" "$_cucrunread")" "silent said"
+# After review, not blind: the once-per-topology receipt line is an all-clear,
+# and one spent over rows nobody could read is never said again.
+_cucrseen() { if [ -e "$FROOT/state/commission/cucrproj.seen" ]; then printf 'spent\n'; else printf 'kept\n'; fi; }
+is  "and while they are unread it does not say the receipt line that is said once per topology, nor spend it" \
+    "$(_cucrsays "$_cucrs2" 'Commissioning: receipt') $(_cucrseen)" "silent kept"
 { printf 'cucr_owed\t-\t-\t-\tprovider:cucrplug:cucrskill\t-\t-\n'; } > "$_cucrp/commissioning.tsv"
 _cucrs3="$(_cucrstart)"
 is  "and with only an awaiting provider row it is owed with its request path, and nothing is said to be unread" \
     "$(_cucrsays "$(_cucrowed "$_cucrs3")" 'cucr_owed (awaiting): ') $(_cucrsays "$_cucrs3" 'could not be read, so they are neither owed')" \
     "said silent"
+{ printf 'cucr_plain\t-\t-\t-\t-\ttrue\t-\n'; } > "$_cucrp/commissioning.tsv"
+_cucrs3="$(_cucrstart)"
+is  "and with no provider row owed or unread it says the receipt line once and spends it" \
+    "$(_cucrsays "$_cucrs3" 'Commissioning: receipt') $(_cucrseen)" "said spent"
 
 rm -rf "$_cucrp" "$_cucrr" "$_cucrhome" "$TMP/cucr-plugin" "$MEM/cucrproj"
 rm -f "$TMP/cucr-setup-ran" "$TMP/cucr-maint-ran"
 [ -d "$FROOT/state" ] && find "$FROOT/state" -name '*cucrproj*' -exec rm -rf {} + 2>/dev/null
+case "$_cucrmade" in *commission*) rmdir "$FROOT/state/commission" 2>/dev/null ;; esac
+case "$_cucrmade" in state*) rmdir "$FROOT/state" 2>/dev/null ;; esac
 is  "and this block leaves the projects, the state and the memory as it found them" "$(_cucrfixture)" "$_cucrfound"
-unset -f _cucrfixture _cucrlib _cucrnext _cucrpulse _cucrcli _cucrline _cucrsays _cucrboth _cucrran _cucrstart _cucrowed
-unset _cucrfound _cucrp _cucrr _cucrhome _cucrwhy _cucrsu1 _cucrms1 _cucrms0 _cucrsp1 _cucrnx1 _cucrnx0 _cucrn6 _cucrpu1 \
+unset -f _cucrfixture _cucrlib _cucrnext _cucrpulse _cucrcli _cucrline _cucrsays _cucrboth _cucrran _cucrstart _cucrowed _cucrseen
+unset _cucrfound _cucrmade _cucrp _cucrr _cucrhome _cucrwhy _cucrsu1 _cucrms1 _cucrms0 _cucrsp1 _cucrnx1 _cucrnx0 _cucrn6 _cucrpu1 \
       _cucrout _cucrrc _cucrunread _cucrs1 _cucrs2 _cucrs3 _cucrow
 
 # The answer runs in-process through a runner the caller names, and the check

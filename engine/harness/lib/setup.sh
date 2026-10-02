@@ -16,10 +16,32 @@
 #
 # setup.tsv rows: id <TAB> title <TAB> capability <TAB> check-command
 
+command -v felix_final_filter_lead >/dev/null 2>&1 \
+  || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
+
 _felix_setup_rows() {
   local proj="$1"
   [ -f "$proj/setup.tsv" ] || return 0
   grep -vE '^\s*(#|$)' "$proj/setup.tsv"
+}
+
+# Each row led by `-`, or by the sentence refusing its check. The check runs
+# in a `bash -c` without pipefail, so one a final filter makes unable to fail
+# (final-filter.sh) reads done whatever it asked, and the step it guards
+# disappears from the list for good. Such a check is not run: the row stays
+# todo, which every reader that counts todo sees, felix_setup_malformed says
+# why, and schema-check fails the gate on it.
+_felix_setup_judged() {
+  _felix_setup_rows "$1" | felix_final_filter_lead setup.tsv
+}
+
+# id <TAB> why, for every row whose check is refused, dormant or not.
+felix_setup_malformed() {
+  local ff id rest
+  _felix_setup_judged "$1" | while IFS=$'\t' read -r ff id rest; do
+    [ "$ff" != "-" ] && [ -n "${id:-}" ] && printf '%s\t%s\n' "$id" "$ff"
+  done
+  return 0
 }
 
 # {{REPO}} is filled in when a row is read, never when it is written (G5.1,
@@ -171,7 +193,9 @@ _felix_setup_norm() {
 # GitHub remote` and its check not run, because it is not a step a person can
 # take yet. Once origin points at GitHub the same saved row reads todo or done.
 # The remote is asked only when a row could need it, since reading it can run
-# ssh.
+# ssh. A row whose check is refused (_felix_setup_judged) reads todo before the
+# remote is weighed, whatever the remote says: its check is malformed on any
+# checkout, so it holds rather than waits.
 #
 # ROOT is the checkout, defaulting to the one the working directory is in: the
 # human_steps row calls this with the project alone, from inside the checkout.
@@ -185,10 +209,14 @@ felix_setup_status() {
     'slug '*)   slug="${rem#slug }" ;;
     'unread '*) why="${rem#unread }" ;;
   esac
-  _felix_setup_rows "$proj" | while IFS=$'\t' read -r id title cap check; do
+  _felix_setup_judged "$proj" | while IFS=$'\t' read -r ff id title cap check; do
     [ -n "${id:-}" ] || continue
     if ! _felix_cap_active "${cap:-always}" "$proj"; then
       printf 'dormant\t%s\t%s\n' "$id" "$title"
+      continue
+    fi
+    if [ "$ff" != "-" ]; then
+      printf 'todo\t%s\t%s\n' "$id" "$title"
       continue
     fi
     case "${check:-}" in *--repo*) check="$(printf '%s\n' "$check" | _felix_setup_norm)" ;; esac
@@ -203,7 +231,7 @@ felix_setup_status() {
         fi
         check="${check//\{\{REPO\}\}/$slug}" ;;
     esac
-    if [ -n "${check:-}" ] && bash -c "$check" >/dev/null 2>&1; then
+    if [ -n "${check:-}" ] && bash -c "$check" </dev/null >/dev/null 2>&1; then
       printf 'done\t%s\t%s\n' "$id" "$title"
     else
       printf 'todo\t%s\t%s\n' "$id" "$title"

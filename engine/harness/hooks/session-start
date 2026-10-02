@@ -134,6 +134,10 @@ while [ -n "$_felix_fields" ]; do
   case "$_felix_fields" in *$'\n'*) _felix_fields="${_felix_fields#*$'\n'}" ;; *) _felix_fields="" ;; esac
 done
 
+# Stand where the session stands before anything reads $PWD: Claude Desktop starts
+# this hook in the main checkout (lib/resolve.sh).
+felix_hook_enter "$_felix_payload" "$FELIX_HOME_DIR"
+
 # Resolved here, not beside the bail it feeds further down, because the record
 # needs a project and has to be written before a resume leaves. A broken
 # binding resolves to nothing, so it records nothing and is still reported

@@ -69,10 +69,10 @@
 # lines, per name as the suite's own comparison counts, and a name reached
 # fewer times than the manifest says is recorded as red by the shortfall.
 #
-# Recorded, not refused. The manifest says the assertion ran against this
-# tree's own engine: tests/run --record-assertions wrote it from that run
-# immediately before it called this. If it did not run against the base's, the
-# base's engine kept this tree's suite from asking it, by a statement that
+# Recorded, not refused. The manifest says the assertion was reached against
+# this tree's own engine: tests/run --record-assertions wrote it from that run
+# immediately before it called this. If it was not reached against the base's,
+# the base's engine kept this tree's suite from asking it, by a statement that
 # erred on what the engine wrote or a block the engine's behaviour gates.
 # Either way the base does not meet the tree's contract there, which is what
 # red means. Refusing would make every change whose new assertion sits in such
@@ -84,8 +84,11 @@
 # does not close: its assertions read as reached, not red. A cause outside the
 # engine reads as red: a fork the per-user process cap refuses inside a
 # subshell ends that subshell alone, the main shell goes on to reached, and
-# the assertions left in the subshell are recorded red, more red than true. A
-# manifest out of date with tests/run errs both ways. A name it lists that
+# the assertions left in the subshell are recorded red, more red than true. So
+# does a skip whose reason holds a newline: its line does not end in the
+# parenthesis a skip line ends in, and its name reads as never reached. No
+# skip in tests/run has one. A manifest out of date with tests/run errs both
+# ways. A name it lists that
 # tests/run no longer has, an assertion renamed without re-recording, reads as
 # red, more red than true; an assertion tests/run gained after the manifest
 # was written is not compared at all, so if it vanishes against the base it is
@@ -267,7 +270,8 @@ cp "$HERE/run" "$TREE/engine/harness/tests/run" 2>/dev/null \
 # open. Until 2026-10-01 the log itself was read five times, and a line such a
 # stray wrote after the marker check reached the comparison and not the run
 # row: a stray that printed a vanished name's ok line just then cancelled its
-# shortfall, in 4 of 5 runs of the fixture that found it.
+# shortfall, in 5 of 5 runs of the strayline fixture tests/run holds against
+# the tests/red before this change (measured again 2026-10-02).
 RAW="$TMP/red.raw"
 LOG="$TMP/red.log"
 ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$RAW" 2>&1
@@ -318,6 +322,8 @@ printf '%s\n' "$MAN" | LC_ALL=C awk '
   }' - "$LOG" > "$CMP" 2>/dev/null || _none "could not compare the run against assertions.tsv"
 read -r FAILED_ALL TOTAL UNREACHED <<< "$(RED_F="$FAILED" RED_P="$PASSED" RED_S="$SKIPPED" LC_ALL=C awk -F'\t' '
   { u += $2 } END { f = ENVIRON["RED_F"] + u; printf "%.0f %.0f %.0f\n", f, f + ENVIRON["RED_P"] + ENVIRON["RED_S"], u }' "$CMP")"
+# Defensive, and asked by no fixture: the awk above prints three numbers
+# whatever it reads, so this stands for one that died part way.
 for _v in "$FAILED_ALL" "$TOTAL" "$UNREACHED"; do
   case "$_v" in ''|*[!0-9]*) _none "could not compare the run against assertions.tsv" ;; esac
 done

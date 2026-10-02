@@ -32,12 +32,18 @@ FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT" 2>/dev/null)" || exit 0
 # repository (lib/where.sh), so a governed launch directory needs nothing more
 # and this call costs what it always did. Only when nothing governs the launch
 # directory does the session's own directory get a say (lib/resolve.sh), which
-# is how a governed worktree under an ungoverned launch directory is judged, and
-# a broken marker there is reported.
+# is how a governed worktree under an ungoverned launch directory is judged. A
+# broken marker there resolves nothing here either; Stop and SessionStart are
+# the hooks that report it. The project is asked again only if the hook moved:
+# in a repository nothing governs, which is most of them, it did not, and a
+# second lookup was a second `git remote` on every tool call.
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 if [ -z "$PROJ" ]; then
+  _felix_launch="$PWD"
   felix_hook_enter "$raw" "$FELIX_HOME_DIR"
-  PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
+  if [ "$PWD" != "$_felix_launch" ]; then
+    PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
+  fi
 fi
 [ -n "$PROJ" ] || exit 0
 [ -f "$PROJ/deny.tsv" ] || exit 0

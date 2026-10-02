@@ -331,17 +331,18 @@ felix_resolve_project() {
 #   - the payload's directory is another checkout or worktree of the project
 #     that governs the launch directory (the Desktop worktree);
 #   - the payload's directory is governed and the launch directory governs
-#     nothing;
+#     nothing (no marker at all: a broken one is reported where it is);
 #   - the payload's directory holds a broken .felix marker, which is reported
 #     where the session stands.
 # A directory another project governs, one nothing governs, a path that is not
 # there, is relative or holds a JSON escape: all answer with $PWD, as before.
 #
-# Read in pure bash, from the first 4096 bytes only. The top-level "cwd" is the
-# third key of the envelope, well inside that, so a "cwd" in a tool's input or a
-# prompt, which sits after it or past it, is never reached. Only the FIRST key is
-# looked at: if its value is not a string there is no candidate, and a later key
-# is not tried. A quote inside a JSON string is spelt \", which the pattern does
+# Read in pure bash, from the first 4096 characters only (characters in a UTF-8
+# locale, bytes in C; the envelope's opening keys are ASCII either way). The
+# top-level "cwd" is the third key of the envelope, well inside that, so a
+# "cwd" in a tool's input or a prompt, which sits after it or past it, is never
+# reached. Only the FIRST key is looked at: if its value is not a string there
+# is no candidate, and a later key is not tried. A quote inside a JSON string is spelt \", which the pattern does
 # not match, and a path that needs an escape is left to $PWD rather than decoded.
 # The pattern is held in a variable so that bash 3.2, which macOS ships, takes it
 # as the regex it is.
@@ -375,8 +376,13 @@ _felix_hook_dir_set() {   # payload, home -> _felix_hd
   # Another project governing the launch directory keeps the hook where it is;
   # the launch project is looked up only here, off the common path.
   pl="$(felix_resolve_project "$PWD" "$home" 2>/dev/null)" || pl=""
-  if [ -z "$pl" ] || [ "$pl" = "$pc" ]; then
+  if [ "$pl" = "$pc" ]; then
     _felix_hd="$c"
+  elif [ -z "$pl" ]; then
+    # A launch directory whose marker resolves nothing was meant to be
+    # governed: its breakage is reported where it is, not stepped over.
+    root="$(felix_repo_root "$PWD" 2>/dev/null)"
+    [ -f "$root/.felix" ] || _felix_hd="$c"
   fi
   return 0
 }

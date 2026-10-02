@@ -5011,6 +5011,47 @@ else
   skip "SubagentStart with a terminal on its stdin finishes without waiting on it, and binds the launch checkout" "python3 is not installed"
 fi
 
+# ---- round-two review pins. Written after the review, from its findings, not
+# blind: three things the round-two reviewer measured that nothing above could
+# see.
+# A launch directory whose marker is broken was meant to be governed. Stepping
+# over it into a healthy worktree left the breakage reported nowhere.
+is "felix_hook_dir keeps a launch directory whose marker is broken, though the payload names a governed worktree" \
+   "$(_pcwd_hd "$PCK" "$(_pcwd_hdp "$PCB")")" "$PCK.0|"
+# The CLI shortcut must not fork: it runs on every tool call. Measured by
+# refusing forks rather than by timing them, because the child CPU of a few
+# hundred tiny subshells sat under any threshold that load would not also
+# cross. Held to one process, a shortcut that forks nothing answers; one that
+# asks a subshell where the directory is cannot, and the shell says so. Root
+# ignores the limit, so there it is skipped rather than passed.
+_pcwd_nofork="$( cd "$PC/via-link" || exit 1
+                 . "$FROOT/harness/lib/resolve.sh"
+                 p="{\"session_id\":\"pc-fork\",\"transcript_path\":\"$PT/pc-fork.jsonl\",\"cwd\":\"$PCA\",\"hook_event_name\":\"PreToolUse\"}"
+                 [ "${EUID:-0}" -ne 0 ] && ulimit -u 1 2>/dev/null || { printf 'unlimited'; exit 0; }
+                 _felix_hook_dir_set "$p" "$PH" 2>&1
+                 [ "$_felix_hd" = "$PWD" ] && printf 'stayed' )"
+if [ "$_pcwd_nofork" = unlimited ]; then
+  skip "the same-directory shortcut forks nothing: held to one process, a symlinked launch path still stays" "processes cannot be limited here"
+else
+  is "the same-directory shortcut forks nothing: held to one process, a symlinked launch path still stays" \
+     "$_pcwd_nofork" "stayed"
+fi
+# pre-tool in a repository nothing governs, which is most of them, asks for its
+# remote once, as main does: the hook did not move, so there is nothing to ask
+# again. Counted at git itself, through a shim first on PATH.
+PCUR="$PX/plain-remote"; mkdir -p "$PCUR"; _pcwd_git -C "$PCUR" init -q -b main
+git -C "$PCUR" config remote.origin.url https://example.invalid/nobody.git
+PCUR="$(cd "$PCUR" && pwd -P)"
+mkdir -p "$PC/gitspy"
+printf '#!/bin/sh\ncase "$*" in *"remote get-url"*) echo x >> "$PCWD_SPY_LOG" ;; esac\nexec "$PCWD_REAL_GIT" "$@"\n' > "$PC/gitspy/git"
+chmod +x "$PC/gitspy/git"; : > "$PC/gitspy.log"
+( cd "$PCUR" && printf '{"session_id":"pc-once","transcript_path":"%s/pc-once.jsonl","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"%s/x"}}' "$PT" "$PCUR" "$PCUR" \
+    | PATH="$PC/gitspy:$PATH" PCWD_REAL_GIT="$(command -v git)" PCWD_SPY_LOG="$PC/gitspy.log" \
+      FELIX_HOME="$PH" FELIX_MEMORY="$PM" "$FROOT/harness/hooks/pre-tool" >/dev/null 2>&1 )
+is "PreToolUse in a checkout nothing governs asks git for its remote once, as main does, when the payload's cwd is that checkout" \
+   "$(wc -l < "$PC/gitspy.log" | tr -d ' ')" "1"
+unset _pcwd_nofork PCUR
+
 # Left as found: the sealed marker readable again, and nothing of this section's
 # by name for a later one to read.
 chmod 644 "$PCQ/.felix" 2>/dev/null

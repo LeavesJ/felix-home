@@ -111,11 +111,62 @@ unset CLAUDE_CODE_SESSION_ID
 # than about the test. Functions defined here are inherited by every subshell.
 . "$REAL_HARNESS/lib/resolve.sh"
 
+# Every copy this suite takes of the real tree goes through here, and it copies
+# CONTENT: what git tracks under the source, plus what is untracked and not
+# ignored, because work not yet added is still work under test. What git
+# ignores stays behind. `cp -R` copied a directory listing instead, residue
+# included, and the fixtures below that commit such a copy as "main" and cut a
+# cache entry from it then disagreed with themselves: measured 2026-09-19, a
+# claude-flow hook had dropped .claude-flow/ into engine/harness — ignored, so
+# git status stayed clean — and fifteen assertions failed, each leading with
+# the judge and the plugin cache and carrying the directory's name only at the
+# tail of a temporary path, which is where nobody reads. The mechanism, by
+# experiment: the fixture's `git add -A` obeys the machine's GLOBAL excludes
+# file, which named .claude-flow/, so the fixture's main left the stray out;
+# the raw copy in the fixture's cache kept it; and the judge, which shuts the
+# global file off on purpose, called the difference drift. A runner with no
+# global excludes commits the stray on both sides and the judge, measured on
+# that pair, reports nothing — so this was only ever red on a developer's
+# machine. Production is not sensitive, measured at 0.49.122:
+# felix_accepted_deploy_diff reads its source side from the commit, and
+# felix_deploy_diff asks the repository's own ignore rules about the rest.
+# It was sensitive once, and #86 is what ended that.
+#
+# --exclude-standard, global file included, deliberately: whatever this
+# machine's git would refuse to add to a fixture is exactly what must not be
+# carried into one.
+#
+# The git path is taken only when git TRACKS something under the source. "Is
+# it inside a repository" is the wrong question, measured on the same day: the
+# plugin cache, where a copy of this suite also sits, was inside a repository
+# — a home directory under version control — that tracked none of it, and one ignore
+# rule there would have listed an empty harness. Where git tracks nothing it
+# has nothing to say, and the directory is copied whole, as it always was.
+# A tracked file deleted from the working tree is listed by git and absent
+# from disk, and it is skipped before tar is handed the list. Measured on
+# bsdtar: tar does not stop on such a name — it archives the rest and exits
+# non-zero — and under this suite's pipefail that exit becomes the copy's
+# status, so a developer's unstaged deletion would read as a copy that
+# failed. GNU tar was not there to measure; skipping means it is never asked.
+_copy_content() {   # <source dir> <dest dir>: dest holds what source holds, less what git ignores
+  local src="$1" dest="$2" f
+  mkdir -p "$dest" || return 1
+  if [ -n "$(git -C "$src" ls-files -c . 2>/dev/null | head -1)" ]; then
+    ( cd "$src" && git ls-files -co --exclude-standard -z . \
+        | while IFS= read -r -d '' f; do
+            { [ -e "$f" ] || [ -L "$f" ]; } && printf '%s\0' "$f"
+          done \
+        | tar -c --null -T - -f - ) | tar -x -f - -C "$dest"
+  else
+    cp -R "$src/." "$dest/"
+  fi
+}
+
 # ---------------------------------------------------------------- fixture ----
 # A Felix root with the real harness and one invented project.
 FROOT="$TMP/felix"
 mkdir -p "$FROOT/projects/widget" "$MEM/widget"
-cp -R "$REAL_HARNESS" "$FROOT/harness"
+_copy_content "$REAL_HARNESS" "$FROOT/harness"
 
 cat > "$FROOT/projects/widget/project.json" <<'EOF'
 {
@@ -6728,7 +6779,7 @@ is "and the hook still exits 0 there" "$rc" "0"
 # why this reproduces the real layout instead.
 SELF="$TMP/selfgoverned"
 mkdir -p "$SELF/projects/self" "$MEM/self" "$SELF/harness"
-cp -R "$REAL_HARNESS/." "$SELF/harness/"
+_copy_content "$REAL_HARNESS" "$SELF/harness"
 cat > "$SELF/projects/self/project.json" <<'EOF'
 { "name": "self", "gate": "true" }
 EOF
@@ -11636,6 +11687,84 @@ else
 fi
 has "and the dry run says the judge is byte-identical to main" "$(cat "$TMP/sg.out")" "byte-identical to main"
 
+# (f) The incident of 2026-09-19, kept as a fixture, because it cannot be
+# staged where it happened: the stray sat in the REAL harness, and a suite
+# that writes into the tree it is testing is a worse defect than the one this
+# pins. So a checkout is built here that holds what that one held — a
+# committed engine, and beside it a directory its .gitignore names, dropped
+# after the commit the way the hook dropped it — and two cache entries are
+# cut from it: one through _copy_content, one with the `cp -R` every fixture
+# used until that day. The second is the control. It must be refused, and
+# refused naming the stray, or the first being accepted shows nothing: this
+# pair is red on every machine without the copy rule, where the incident
+# itself needed one developer's global excludes file to show at all.
+INC="$TMP/incident"; mkdir -p "$INC/engine"
+cp -R "$FROOT/harness" "$INC/engine/harness"
+printf '*.log\n.DS_Store\n.claude-flow/\n' > "$INC/.gitignore"
+( cd "$INC" && git init -q -b main && git add -A >/dev/null \
+  && git -c user.name=t -c user.email=t@t commit -qm checkout >/dev/null )
+mkdir -p "$INC/engine/harness/.claude-flow/data"
+printf '{}\n' > "$INC/engine/harness/.claude-flow/data/pending-insights.jsonl"
+is "a stray directory the repository ignores leaves git status clean, so nothing points at it" \
+   "$(git -C "$INC" status --porcelain 2>/dev/null | grep -c .)" "0"
+KC3="$TMP/kcache3"; KC4="$TMP/kcache4"; mkdir -p "$KC3/1.0.0" "$KC4/1.0.0"
+_copy_content "$INC/engine/harness" "$KC3/1.0.0/harness"
+cp -R "$INC/engine/harness" "$KC4/1.0.0/harness"
+is "the suite's copy of a harness holding one leaves it behind" \
+   "$(find "$KC3/1.0.0/harness" -name .claude-flow 2>/dev/null | grep -c .)" "0"
+_sgdry() {   # <kernel cache> -> a dry run of the pinned merge, judged from that cache
+  : > "$TMP/gh.sg.log"
+  ( cd "$SG" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.sg.log" \
+      FELIX_KERNEL_CACHE="$1" "$FELIX" merge --base HEAD~1 --dry-run >"$TMP/sg.out" 2>&1 )
+  SGRC=$?
+}
+_sgrecord; _sgdry "$KC3"
+has "and a cache entry cut from that copy is still the engine main accepted" \
+    "$(cat "$TMP/sg.out")" "byte-identical to main"
+_sgrecord; _sgdry "$KC4"
+_sgrefused "while the raw copy the suite used to take is refused as a judge" \
+           "the judge is not the engine main accepted"
+has "and the refusal names the stray, which is all the incident ever printed" \
+    "$(cat "$TMP/sg.out")" ".claude-flow"
+
+# The rest of the copy's contract, each line of it a way the rule above could
+# be kept and the suite still be wrong. Work not yet added to git is under
+# test, so untracked-and-not-ignored is carried; the CLI is run from the copy,
+# so its bit survives; a tracked file deleted from disk is in git's listing
+# and nowhere else, and the copy must still finish and say it succeeded. And
+# where git tracks nothing under the source there is no rule to apply and the
+# directory is copied whole — asked as "does git track anything here" and
+# never as "is this inside a repository", because the plugin cache, where a
+# copy of this suite also sits, was inside one, a home directory under version
+# control, and an ignore rule there lists an empty harness. The fixture is
+# that layout.
+printf 'not added yet\n' > "$INC/engine/harness/lib/unadded.sh"
+_copy_content "$INC/engine/harness" "$TMP/incident-copy"
+[ -f "$TMP/incident-copy/lib/unadded.sh" ] \
+  && ok  "work not yet added to git is still carried into the copy" \
+  || bad "work not yet added to git is still carried into the copy" "lib/unadded.sh was left behind"
+[ -x "$TMP/incident-copy/felix" ] \
+  && ok  "and the CLI keeps its executable bit through it" \
+  || bad "and the CLI keeps its executable bit through it" "felix is not executable in the copy"
+mv "$INC/engine/harness/lib/say.sh" "$TMP/incident-say.aside"
+_copy_content "$INC/engine/harness" "$TMP/incident-copy2"; _incrc=$?
+if [ "$_incrc" -eq 0 ] && [ -f "$TMP/incident-copy2/felix" ] && [ ! -e "$TMP/incident-copy2/lib/say.sh" ]; then
+  ok  "a tracked file missing from disk does not stop the copy"
+else
+  bad "a tracked file missing from disk does not stop the copy" "rc=$_incrc, felix copied: $([ -f "$TMP/incident-copy2/felix" ] && echo yes || echo no)"
+fi
+mv "$TMP/incident-say.aside" "$INC/engine/harness/lib/say.sh"
+INCH="$TMP/incident-home"; mkdir -p "$INCH/cache/harness/.claude-flow/data"
+printf 'a home directory under version control\n' > "$INCH/README"
+printf 'cache/\n' > "$INCH/.gitignore"
+printf '#!/bin/sh\n' > "$INCH/cache/harness/felix"
+printf '{}\n' > "$INCH/cache/harness/.claude-flow/data/pending-insights.jsonl"
+( cd "$INCH" && git init -q -b main && git add -A >/dev/null \
+  && git -c user.name=t -c user.email=t@t commit -qm home >/dev/null )
+_copy_content "$INCH/cache/harness" "$TMP/incident-cache-copy"
+is "a directory git tracks nothing under is copied whole, even inside a repository that ignores it" \
+   "$(find "$TMP/incident-cache-copy" -type f 2>/dev/null | grep -c .)" "2"
+
 # (d) The same fixture, untouched, merges — the assertion every refusal above
 # borrows its meaning from. The entry named is the version directory main
 # declares, the parent of the harness that judged and not the harness itself;
@@ -14995,7 +15124,7 @@ fi
 printf '\ndeploy-check: written is not installed\n'
 DCK="$TMP/deploy-check"; mkdir -p "$DCK/tree/engine/.claude-plugin" "$DCK/home/.claude/plugins/cache/felix/felix" "$DCK/bin" "$DCK/nohome" "$DCK/nobin"
 cp -R "$FROOT/harness" "$DCK/tree/engine/harness"
-cp -R "$REAL_HARNESS/../hooks" "$DCK/tree/engine/hooks"
+_copy_content "$REAL_HARNESS/../hooks" "$DCK/tree/engine/hooks"
 printf '{ "name": "felix", "version": "0.0.1" }\n' > "$DCK/tree/engine/.claude-plugin/plugin.json"
 printf '*.log\n' > "$DCK/tree/.gitignore"
 ( cd "$DCK/tree" && git init -q -b main && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
@@ -15095,7 +15224,7 @@ printf '\ndeploy-check asks what main accepted\n'
 DCM="$TMP/deploy-check-main"; DCMC="$DCM/home/.claude/plugins/cache/felix/felix"
 mkdir -p "$DCM/tree/engine/.claude-plugin" "$DCMC" "$DCM/bin" "$DCM/nohome"
 cp -R "$FROOT/harness" "$DCM/tree/engine/harness"
-cp -R "$REAL_HARNESS/../hooks" "$DCM/tree/engine/hooks"
+_copy_content "$REAL_HARNESS/../hooks" "$DCM/tree/engine/hooks"
 printf '{ "name": "felix", "version": "0.0.1" }\n' > "$DCM/tree/engine/.claude-plugin/plugin.json"
 printf '*.log\n' > "$DCM/tree/.gitignore"
 ( cd "$DCM/tree" && git init -q -b main && git add -A \
@@ -15217,7 +15346,7 @@ if [ -x "$FROOT/harness/bin/deploy-check" ]; then
   # present, so this is the base ref alone deciding.
   DCMR="$DCM/trunk"; mkdir -p "$DCMR/engine/.claude-plugin"
   cp -R "$FROOT/harness" "$DCMR/engine/harness"
-  cp -R "$REAL_HARNESS/../hooks" "$DCMR/engine/hooks"
+  _copy_content "$REAL_HARNESS/../hooks" "$DCMR/engine/hooks"
   printf '{ "name": "felix", "version": "0.0.1" }\n' > "$DCMR/engine/.claude-plugin/plugin.json"
   ( cd "$DCMR" && git init -q -b trunk && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
@@ -15295,8 +15424,8 @@ fi
 # lost its bit reads `unknown` and blocks, which is loud; the gate should say
 # which file before the ledger has to.
 GEX="$TMP/gate-executable"; mkdir -p "$GEX/engine/.claude-plugin"
-cp -R "$REAL_HARNESS" "$GEX/engine/harness"
-cp -R "$REAL_HARNESS/../hooks" "$GEX/engine/hooks"
+_copy_content "$REAL_HARNESS" "$GEX/engine/harness"
+_copy_content "$REAL_HARNESS/../hooks" "$GEX/engine/hooks"
 printf '{ "name": "felix", "version": "0.0.1" }\n' > "$GEX/engine/.claude-plugin/plugin.json"
 _GEXG="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
 if [ -f "$_GEXG" ]; then
@@ -15450,9 +15579,9 @@ fi
 printf '\ngate installed: the deployed engine is the one main accepted\n'
 GIN="$TMP/gate-installed"; GINC="$GIN/home/.claude/plugins/cache/felix/felix"
 mkdir -p "$GIN/tree/engine/.claude-plugin" "$GINC" "$GIN/bin" "$GIN/nohome"
-cp -R "$REAL_HARNESS" "$GIN/tree/engine/harness"
-cp -R "$REAL_HARNESS/../hooks" "$GIN/tree/engine/hooks"
-[ -d "$REAL_HARNESS/../commands" ] && cp -R "$REAL_HARNESS/../commands" "$GIN/tree/engine/commands"
+_copy_content "$REAL_HARNESS" "$GIN/tree/engine/harness"
+_copy_content "$REAL_HARNESS/../hooks" "$GIN/tree/engine/hooks"
+[ -d "$REAL_HARNESS/../commands" ] && _copy_content "$REAL_HARNESS/../commands" "$GIN/tree/engine/commands"
 printf '{ "name": "felix", "version": "0.0.1" }\n' > "$GIN/tree/engine/.claude-plugin/plugin.json"
 printf '*.log\n' > "$GIN/tree/.gitignore"
 _GING="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
@@ -29153,7 +29282,7 @@ _xc_skip()   { local why="$1"; shift; local a; for a in "$@"; do skip "$a" "$why
 # A self-governed home: the marker binds the home to its own project, the way
 # $TMP/selfgoverned does. Written by a helper so the binding is built once,
 # for a fixture, and not rewritten by hand anywhere below.
-_xc_home()   { mkdir -p "$1/projects/$2" "$MEM/$2" "$1/harness"; cp -R "$REAL_HARNESS/." "$1/harness/"
+_xc_home()   { mkdir -p "$1/projects/$2" "$MEM/$2" "$1/harness"; _copy_content "$REAL_HARNESS" "$1/harness"
                printf '{ "name": "%s", "gate": "true" }\n' "$2" > "$1/projects/$2/project.json"
                printf '# %s\n' "$2" > "$1/projects/$2/CLAUDE.md"
                printf 'code\t-\t-\tgit ls-files\ttest -e .git\n' > "$1/projects/$2/probes.tsv"
@@ -29867,7 +29996,7 @@ printf '\nthe lifecycle recorder\n'
 # rather than hoped for. And an expected value the fixture failed to produce
 # fails its assertion instead of matching an empty field: an unimplemented
 # recorder writes nothing, and nothing equals nothing.
-LYE="$TMP/ly-engine"; mkdir -p "$LYE/.claude-plugin"; cp -R "$REAL_HARNESS" "$LYE/harness"
+LYE="$TMP/ly-engine"; mkdir -p "$LYE/.claude-plugin"; _copy_content "$REAL_HARNESS" "$LYE/harness"
 cat > "$LYE/.claude-plugin/plugin.json" <<'EOF'
 {
   "name": "felix",
@@ -30294,7 +30423,7 @@ AU="$TMP/audit"; mkdir -p "$AU"; AU="$(cd "$AU" && pwd -P)"
 AUD="$AU/cfg/projects"
 mkdir -p "$AU/home" "$AU/cwd" "$AU/tmp" "$AU/empty" "$AU/clone/felix/engine" "$AUD"
 printf 'export PS1=x\n' > "$AU/home/.profile"
-cp -R "$REAL_HARNESS" "$AU/clone/felix/engine/harness"
+_copy_content "$REAL_HARNESS" "$AU/clone/felix/engine/harness"
 AUF="$AU/clone/felix/engine/harness/felix"
 
 # Everything that could reach the network or the claude CLI, recording any call.
@@ -31987,7 +32116,7 @@ IVH="$IV/home"; IVP="$IVH/.claude/projects"; IVT="$IV/tmp"
 IVGH="$IV/gh"; IVSTUB="$IV/stub"; IVGH_LOG="$IV/gh.log"; IVGIT_LOG="$IV/git.log"; IV_ERR="$IV/stderr"
 mkdir -p "$IVW" "$IVW2" "$IVH/.config" "$IVP" "$IVT" "$IVGH" "$IVSTUB" "$IV/cwd" "$IV/clone/felix/engine"
 : > "$IVGH_LOG"; : > "$IVGIT_LOG"; : > "$IV_ERR"
-cp -R "$REAL_HARNESS" "$IV/clone/felix/engine/harness"
+_copy_content "$REAL_HARNESS" "$IV/clone/felix/engine/harness"
 IVF="$IV/clone/felix/engine/harness/felix"
 IV_REALGIT="$(command -v git)"
 IV_JQ=0; command -v jq >/dev/null 2>&1 && IV_JQ=1
@@ -33526,7 +33655,7 @@ IB="$TMP/inventory-blind"; mkdir -p "$IB"; IB="$(cd "$IB" && pwd -P)"
 mkdir -p "$IB/home/.claude/projects" "$IB/home0/.claude/projects" "$IB/homenone" "$IB/fxhome" "$IB/tmp" \
          "$IB/cwd" "$IB/stub" "$IB/stubng" "$IB/spy" "$IB/old" "$IB/gh/default" "$IB/mem" "$IB/temproot" \
          "$IB/runs" "$IB/ccd/projects" "$IB/plain" "$IB/clone/felix/engine"
-cp -R "$REAL_HARNESS" "$IB/clone/felix/engine/harness"
+_copy_content "$REAL_HARNESS" "$IB/clone/felix/engine/harness"
 IBF="$IB/clone/felix/engine/harness/felix"; IBP="$IB/home/.claude/projects"; IB_GIT="$(command -v git)"
 IBL="$REAL_HARNESS/lib"
 printf '[]\n' > "$IB/gh/default/all.json"; printf '[]\n' > "$IB/gh/default/open.json"

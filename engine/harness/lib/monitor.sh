@@ -150,7 +150,8 @@ _felix_mon_project() {
   # file itself with `-f` and grep, so a link whose target was gone, a
   # directory, a pipe or a file grep could not read was [], a project that
   # declares nothing, and comment lines were capabilities. Nobody saw it,
-  # because the page had not read this member since 2026-08-10. Dropping it, as
+  # because the page had never read this member: only its fallback project
+  # named it, until 2026-08-10. Dropping it, as
   # the plugins array was dropped, would have left the page unable to say
   # anything wrong, and would also have left the capability accounting this
   # file's header promises behind glass. So the memory panel counts it. It is

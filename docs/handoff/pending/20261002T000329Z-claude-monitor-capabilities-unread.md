@@ -18,9 +18,9 @@ That bypasses `felix_declared` and gets four things wrong:
   list comes back empty with status 0. That is the case the `.` sentinel in
   `felix_declared_into` guards against.
 
-The page's script has not read `capabilities` since bf12b9d1 (2026-08-10).
-`cur()`'s fallback dropped it then, and nothing on the page has named it
-since. So the field is written and never shown. An unread list is `[]` in the
+The page's script has never read `capabilities`. Only `cur()`'s fallback
+project named it, until bf12b9d1 (2026-08-10) dropped it from there. So the
+field is written and never shown. An unread list is `[]` in the
 payload and says nothing on the page.
 
 **Decision.** The page says it. Dropping the field, as the `plugins` array
@@ -99,6 +99,11 @@ Settled after the blind author's questions (2026-10-01), before any code:
 - A read list's cell has no title and no `warn`. The no-projects row is `0`
   without `warn`.
 - A declared line keeps whatever leading whitespace `felix_declared` keeps.
+
+Settled after the adversarial review (2026-10-01):
+- An empty `unknown` string takes the fallback title too, and its cell carries
+  `warn`. The first fix keyed the class on the title, so `{"unknown":""}` was
+  a plain `not known` with no title.
 
 Not in this change, and why:
 - Every string in the payload is escaped through a substitution

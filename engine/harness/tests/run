@@ -16479,6 +16479,20 @@ _mc_valid "an empty list" "$MCO/empty.json"
 _mc_read none none
 is "no capabilities file declares nothing" "$(_mc_q "$MCO/none.json" capabilities)" '[]'
 _mc_valid "no capabilities file" "$MCO/none.json"
+# After review, not blind: a name is escaped on the way in and otherwise kept
+# as declared. Without the escape a quote ends the page's script and a closing
+# script tag puts markup on the page; nothing above could fail for it.
+_mc_read esc 'a"b</script>\n'
+case "$(_mc_q "$MCO/esc.json" -)" in
+  '<noparser>') skip "a declared name is escaped into the payload" "neither node nor python3 on PATH" ;;
+  *) is "a declared name is escaped into the payload" "$(_mc_q "$MCO/esc.json" capabilities)" '["a\"b</script>"]' ;;
+esac
+_mc_valid "a name holding a quote" "$MCO/esc.json"
+if grep -qF '</script>' "$MCO/esc.json"; then bad "a declared name puts no closing script tag in the payload"
+else ok "a declared name puts no closing script tag in the payload"; fi
+_mc_read dup '  storage\nauth\nauth\n'
+is "a declared line keeps its leading whitespace, and a name declared twice is listed twice" \
+   "$(_mc_q "$MCO/dup.json" capabilities)" '["  storage","auth","auth"]'
 
 # Unread, in each model the contract names. $3, when given, skips all four.
 MCT="$(_mc_q "$MCO/twin.json" -)"
@@ -16598,6 +16612,13 @@ mkdir "$MCWC"; rm -f "$MCPG"
 grep -qF "$MCU" "$MCPG" 2>/dev/null && ok "felix monitor's page says the unread list as not known" \
   || bad "felix monitor's page says the unread list as not known"
 rmdir "$MCWC"; { [ -e "$MCK/capabilities" ] || [ -L "$MCK/capabilities" ]; } && mv "$MCK/capabilities" "$MCWC"
+# After review, not blind: the read half through felix monitor, so a felix that
+# reads every list as unread is caught too. Widget's own member, not a grep of
+# the page, which holds whatever other projects this suite left unread.
+( cd "$REPO" && "$FELIX" monitor >/dev/null 2>&1 )
+_mcwr="$(_mc_f "$(_mc_page page "$MCPG" widget)" caps | tr ';' '\n' | sed -n 's/^widget=//p')"
+case "$_mcwr" in '['*) _mcwr="an array" ;; esac
+_mc_is "and felix monitor says widget's list as read once it is put back" "$_mcwr" "an array"
 if [ -f "$MCK/monitor.html" ]; then cp -p "$MCK/monitor.html" "$MCPG"; else rm -f "$MCPG"; fi
 is "and the widget project's capabilities are as this block found them" "$(_mc_fp "$MCWC")" "$_mcwb"
 is "and so is the page felix monitor writes" "$(_mc_fp "$MCPG")" "$_mcpb"
@@ -16642,6 +16663,15 @@ _mc_row "the page with no projects" "$(_mc_page tpl "$MCTPL" '{"generated":"","p
 _mco="$(_mc_page tpl "$MCTPL" "$(_mc_data '["storage","auth"]')")"
 _mc_is "the memory panel keeps its four rows, in their order, with their values" \
   "$(_mc_f "$_mco" oldkeys) = $(_mc_f "$_mco" old)" "lessons on file|gate failures|tools declared|things said = 3|4|2|5"
+# After review, not blind. An empty reason is still not known, in amber, with
+# the fallback title: the first fix keyed the class on the title and drew it
+# plain. A name that came back empty is still counted, which is what the
+# contract leans on when it leaves a blanked name out of scope.
+_mc_row "the page, an object whose reason is empty" \
+  "$(_mc_page tpl "$MCTPL" "$(_mc_data '{"unknown":""}')")" "not known" yes "$MCF"
+_mc_row "the page, an array holding an empty name" \
+  "$(_mc_page tpl "$MCTPL" "$(_mc_data '["","storage"]')")" 2 read ""
+has "an unread cell is drawn in amber" "$(cat "$MCTPL")" '.kv .v.warn{color:var(--amber)}'
 # <<< monitor-capabilities-unread
 
 printf '\ndenial\n'

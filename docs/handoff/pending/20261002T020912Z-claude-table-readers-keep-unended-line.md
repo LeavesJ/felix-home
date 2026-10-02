@@ -88,8 +88,33 @@ Section runner (tests/run 1-154 and the two blocks):
 On the old engines the 22 FIFO cases each time out at 8 s. On this branch the
 block takes about 15 s.
 
-**Review.** Opus adversarial review in three lenses: completeness, regressions,
-and per-site mutation. Its results are folded in below when it reports.
+**Review (Opus, 2026-10-02, workflow wf_bd5ede7f-56c).**
+- Regressions: none. Policy and topology hashes byte-identical to origin/main
+  for ordinary, absent, empty, directory, symlinked, dangling and unreadable
+  tables; monitor stdout unchanged (only main's stderr noise is gone); all 13
+  felix_json_str callers use the output only; pre-tool adds no subprocess;
+  bash 3.2.57 runs the blocks 81/81.
+- Mutation, low findings, NOT yet addressed:
+  - T1: no blind assertion reaches hooks/stop's first stack.tsv guard
+    (inside the overnight branch); only the lint holds it. Add a case with an
+    owned overnight night and a FIFO stack.tsv.
+  - T2: felix:2984 (ready --fix srow grep) cannot be reached by a static
+    FIFO, since felix_ready_report already refuses one. Reword its comment as
+    defensive against a swap; the lint holds it.
+  - T3: the lint credits a `-f` guard to a later open of the same path in a
+    sibling branch (felix:1112 behind :1079, hooks/stop:445 behind :348).
+    Blind assertions catch both mutants today. Scope guards per branch, or
+    say so in the lint's comment.
+  - Further mutation findings were truncated in the notification; read the
+    full result in the workflow journal (subagents/workflows/wf_bd5ede7f-56c/
+    journal.jsonl in this session's transcript dir) before landing.
+- Completeness lens: FAILED on an API error (ENOTFOUND) and must be re-run
+  before landing. The lint's empty engine scan is the current evidence.
+
+**Carrying.** The carrier (2026-10-02) folds this branch into one PR with
+claude/adopt-newline-before-append, carried by that branch's session: one
+record, one gate, weekly batch after the main order. Nothing runs before its
+call.
 
 **At the record.** assertions.tsv grows by 81 from this branch, on top of the
 writer branch's.

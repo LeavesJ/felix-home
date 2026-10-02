@@ -503,9 +503,11 @@ felix_commission_template_missing() {
 # template yields no rows: nothing compared must not read as nothing differs.
 # Both tables come through felix_commission_rows, so a row the engine would
 # not run is not compared, and the template's first row is its row for a
-# need. Both are captured before the awk reads them: no writer is left to be
-# killed early under pipefail, and the sentinel (one field, where a row has
-# seven) separates the two tables without a temporary file.
+# need. Each is read once, into a variable, so the exit status is decided
+# before anything is compared; the awk reads to the end, so no writer is cut
+# off under pipefail. The sentinel (one field, where a row has seven)
+# separates the two tables. Fields are compared as strings: awk compares two
+# that look like numbers as numbers, and `1` against `1.0` is a difference.
 felix_commission_template_drift() {
   local proj="$1" tpl="$2" trows prows
   trows="$(felix_commission_rows "$tpl")"
@@ -515,10 +517,10 @@ felix_commission_template_drift() {
   { printf '%s\n' "$trows"; printf '@@\n'; printf '%s\n' "$prows"; } | awk -F'\t' '
     BEGIN { split("grounds instrument when answer check step", name, " ") }
     NF == 1 { mine = 1; next }
-    !mine { if (!($1 in seen)) { seen[$1] = 1; for (i = 2; i <= 7; i++) t[$1, i] = $i }; next }
+    !mine { if (!($1 in seen)) { seen[$1] = 1; for (i = 2; i <= 7; i++) t[$1, i] = $i "" }; next }
     $1 in seen {
       out = ""
-      for (i = 2; i <= 7; i++) if ($i != t[$1, i]) out = out (out == "" ? "" : " ") name[i - 1]
+      for (i = 2; i <= 7; i++) if (($i "") != t[$1, i]) out = out (out == "" ? "" : " ") name[i - 1]
       if (out != "") printf "%s\t%s\n", $1, out
     }'
   return 0

@@ -18293,8 +18293,16 @@ _ctdtab "$_ctdP" \
   "$(_ctdr t_dash '' '' '' - true 3)" \
   "$(_ctdr t_dash2 - - - - true 3)" \
   "$(_ctdr t_check - - - - false 3)"
-is  "an empty grounds, instrument or when is not named against the template's -" \
+is  "a row with an empty cell is not compared, empty or - on either side" \
     "$(_ctd "$_ctdP" "$_ctdTP")" "$(printf 't_check\tcheck')"
+has "because the row with an empty cell is malformed, not read shifted" \
+    "$(_cm felix_commission_malformed "$_ctdP" | cut -f1 | tr '\n' ' ')" "t_dash "
+# Strings, not numbers: awk compares two fields that look like numbers as
+# numbers unless it is told otherwise, and then 1 and 1.0 are one value.
+_ctdtab "$_ctdD/tnum" "$(_ctdr t_num - - - - 1 3)" "$(_ctdr t_num2 1 - - - true 3)"
+_ctdtab "$_ctdD/pnum" "$(_ctdr t_num - - - - 1.0 3)" "$(_ctdr t_num2 01 - - - true 3)"
+is  "fields that read as the same number but differ in bytes are named" \
+    "$(_ctd "$_ctdD/pnum" "$_ctdD/tnum")" "$(printf 't_num\tcheck\nt_num2\tgrounds')"
 
 # Only the rows the engine runs are compared.
 _ctdtab "$_ctdP" \
@@ -18359,11 +18367,22 @@ is  "a project table holding only comments prints nothing and exits 0" "$_ctdrc|
 # has seen, so a file a previous call left cannot hide this call's write, and
 # every time set back to 2000 so a rewrite in place shows as well. Run from a
 # directory of its own, which is watched too.
+# The memory root and the home are fresh too, for the same reason: a write
+# the earlier calls already made is rewritten in place and changes nothing a
+# snapshot to the minute can see (two mutants passed until this was so).
 _ctdtab "$_ctdD/pw" "$(_ctdr t_check - - - - false 3)" "$(_ctdr t_g ctdcap - - - true 3)"
-mkdir -p "$_ctdD/tw" "$_ctdD/cwd"; cp "$_ctdTP/commissioning.tsv" "$_ctdD/tw/commissioning.tsv"
-find "$_ctdD/pw" "$_ctdD/tw" "$_ctdD/cwd" -exec touch -t 200001010000 {} +
+mkdir -p "$_ctdD/tw" "$_ctdD/cwd" "$_ctdD/fm" "$_ctdD/fh/state"
+cp "$_ctdTP/commissioning.tsv" "$_ctdD/tw/commissioning.tsv"
+find "$_ctdD/pw" "$_ctdD/tw" "$_ctdD/cwd" "$_ctdD/fm" "$_ctdD/fh" -exec touch -t 200001010000 {} +
+_ctdiso() { ( FELIX_HOME_DIR="$_ctdD/fh"; FELIX_HOME="$_ctdD/fh"; FELIX_MEMORY="$_ctdD/fm"
+              export FELIX_HOME FELIX_MEMORY; PATH="$CMSTUB:$PATH"
+              . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/stack.sh"
+              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/toolbox.sh"
+              . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/commission.sh"
+              . "$FROOT/harness/lib/commission-provider.sh"
+              cd "$_ctdD/cwd" && felix_commission_template_drift "$@" ) 2>&1; }
 _ctdb="$(_ctdsnap "$_ctdD" "$FROOT/projects" "$FROOT/state" "$MEM")"
-_ctdo="$(cd "$_ctdD/cwd" && _ctd "$_ctdD/pw" "$_ctdD/tw")"; _ctdrc=$?
+_ctdo="$(_ctdiso "$_ctdD/pw" "$_ctdD/tw")"; _ctdrc=$?
 _ctda="$(_ctdsnap "$_ctdD" "$FROOT/projects" "$FROOT/state" "$MEM")"
 _ctdw=same; [ "$_ctdb" = "$_ctda" ] || _ctdw=moved
 is  "a comparison that finds rows writes nothing: no table, no state, no memory" \
@@ -18456,7 +18475,9 @@ is  "one line per differing row: two spaces, the need padded to 22, the columns"
 has "the drift note says a project may keep its own row on purpose" "$_ctds" "on purpose"
 has "the drift note shows the template's path"                      "$_ctds" "$FROOT/harness/templates"
 has "the drift note says the receipt reads stale after a row changes" "$_ctds" "stale"
-has "the drift note says a commission grant has to be given again"  "$_ctds" "grant"
+has "the drift note names the command that re-arms a commission grant" "$_ctds" "felix autonomy --allow commission"
+has "and says a provider row's answer goes stale"                     "$_ctds" "answer goes stale"
+has "the drift note names the template table, not only its directory" "$_ctds" "$FROOT/harness/templates/commissioning.tsv"
 # control
 is  "felix commission --status exits the same with rows drifting as without" "$_ctddrc" "$_ctdcrc"
 # control
@@ -18483,6 +18504,45 @@ else
   # control
   is  "felix commission --status exits the same with the template unreadable" "$_ctdxrc" "$_ctdcrc"
 fi
+
+# The full run, the one a person makes after any table change. On a project
+# of its own, removed afterwards, because a full run writes a receipt, a log
+# and a lock that later assertions about this fixture's project would read.
+# (After review: three full-run mutants passed every --status assertion,
+# among them one that rewrote the table.)
+_ctdnames() { find "$FROOT/projects" "$FROOT/state" "$MEM" ! -type d 2>/dev/null | LC_ALL=C sort; }
+_ctdn0="$(_ctdnames)"
+_ctdFP="$FROOT/projects/ctdfull"; _ctdFR="$TMP/ctd-full-repo"
+mkdir -p "$_ctdFP" "$_ctdFR"
+( cd "$_ctdFR" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
+_ctdFR="$(cd "$_ctdFR" && pwd -P)"
+printf 'ctdfull\n' > "$_ctdFR/.felix"
+printf '{"name":"ctdfull","gate":"true"}\n' > "$_ctdFP/project.json"
+printf '# ctdfull\n' > "$_ctdFP/CLAUDE.md"
+: > "$_ctdFP/capabilities"
+printf '# k\tn\ts\tr\tc\n' > "$_ctdFP/stack.tsv"
+cp "$FROOT/harness/templates/profiles.tsv" "$FROOT/harness/templates/routes.tsv" "$_ctdFP/"
+_ctdfull() { ( cd "$_ctdFR" && PATH="$CMSTUB:$PATH" "$FELIX" commission 2>&1 ); }
+{ _ctdhead; _ctdrow constitution; } > "$_ctdFP/commissioning.tsv"
+_ctdf0="$(_ctdfull)"; _ctdf0rc=$?
+{ _ctdhead; _ctdrow constitution | awk -F'\t' -v OFS='\t' '{ $6 = $6 " && true"; print }'; } > "$_ctdFP/commissioning.tsv"
+_ctdfk="$(cksum < "$_ctdFP/commissioning.tsv")"
+_ctdf1="$(_ctdfull)"; _ctdf1rc=$?
+# control
+case "$_ctdf0" in
+  *"differ from the template"*) bad "a full run with no row differing prints no drift section" "$_ctdf0" ;;
+  *) ok "a full run with no row differing prints no drift section" ;;
+esac
+is  "a full felix commission run names the differing row too" \
+    "$(_ctdlist "$(_ctdsec "$_ctdf1")")" "$(printf '  %-22s %s' constitution check)"
+# control
+is  "and exits as the same run does with no row differing" "$_ctdf1rc" "$_ctdf0rc"
+# control
+is  "and leaves the project's table as it was" "$(cksum < "$_ctdFP/commissioning.tsv")" "$_ctdfk"
+rm -rf "$_ctdFP" "$_ctdFR" "$MEM/ctdfull" "$FROOT/state/commission/ctdfull" "$FROOT/state/commission/ctdfull".*
+# control
+is  "the full-run project leaves no file behind for later assertions" "$(_ctdnames)" "$_ctdn0"
 
 if [ "$_ctdhad" -eq 1 ]; then cp -p "$_ctdD/project.save" "$CMP/commissioning.tsv"; else rm -f "$CMP/commissioning.tsv"; fi
 # control

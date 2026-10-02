@@ -74,6 +74,7 @@
 1	SubagentStop launched in a directory nothing governs resolves the governed worktree the payload names
 1	UserPromptSubmit launched in a directory nothing governs mounts the lessons of the governed worktree the payload names
 1	UserPromptSubmit launched in a directory nothing governs says nothing when the payload's cwd is ungoverned too, as before
+1	_felix_qualify_sweep called on its own, from the root with TMPDIR exported, removes a dead base and its registration and prints nothing on stdout or stderr
 1	a # Handoff title with no stamp on line 3 is refused
 1	a # in a later cell, UTF-8 text, trailing spaces, a blank line and an optional column left off are accepted
 1	a $( ) inside a quoted message still runs, and is refused
@@ -110,10 +111,35 @@
 1	a bare plugin step is used when one of its skills ran
 1	a bare repo has nothing to adopt
 1	a bare skill row is counted as the host's, not the plugin's
+1	a base in the TMPDIR named felix-qualify. and six letters or digits, holding owner as a symlink whose text is a dead pid alone, is swept with its tree's registration, and the run's own row still reads pass and met
+1	a base in the TMPDIR owned by another user, with a dead record, is never a candidate
+1	a base named felix-qualify- and six letters, a dash where the dot goes, with a dead record, is left as it was
+1	a base named felix-qualify. and five characters, with a dead record, is left as it was
+1	a base named felix-qualify. and seven characters, with a dead record, is left as it was
+1	a base named felix-qualify. and six characters one of which is a dash, with a dead record, is left as it was
+1	a base named tmp. and six characters, as an older engine named them, with a dead record is left as it was
 1	a base that does not resolve is unknown, not clean
+1	a base that is a symlink to a directory holding a dead record and a registered tree is never followed: the link, its target, the target's mode, record and entries, and the tree's registration are all as they were, beside a dead base the run swept
 1	a base that names nothing is refused
 1	a base that resolves still classifies normally
 1	a base that resolves still names the channel
+1	a base whose owner is a regular file holding a dead pid, not a symlink, is left as it was, registration included
+1	a base whose record has two spaces between a dead pid and its start is left as it was, registration included
+1	a base whose record is a dead pid and one space with no start after it is left as it was, registration included
+1	a base whose record is a dead pid followed by a newline is left as it was, registration included
+1	a base whose record is a dead pid with a minus sign before it is left as it was, registration included
+1	a base whose record is an empty text is left as it was, registration included
+1	a base whose record is letters, not digits, is left as it was, registration included
+1	a base whose record is pid 0 is left as it was, registration included
+1	a base whose record names a dead pid with a start is swept, registration included
+1	a base whose record names a live pid alone, with no start, is left as it was, registration included
+1	a base whose record names a live pid with a start that is not that process's is swept, registration included, and the live process is still running
+1	a base whose record names a live pid with that process's true start is left as it was, registration included
+1	a base whose record names pid 1, which kill -0 may not signal, is left as it was: a failure that is not No such process is a process that exists
+1	a base whose record's pid begins with a zero is left as it was, registration included
+1	a base whose record's start holds a tab is left as it was, registration included
+1	a base with a dead record whose search bit is off, so owner cannot be read, is left as it was, its mode 0600 included
+1	a base with no owner record is left as it was, mode, entries and registration, by the run that swept the dead base beside it
 1	a blank line and a comment are still skipped, and an id with digits, _ and - is a checker
 1	a blind probe fails the gate from the engine
 1	a block from the live tree is still recorded
@@ -294,6 +320,16 @@
 1	a dash for grounds is refused, where the ledger would only count it
 1	a dash in the seventh field is written as a dash
 1	a dash names nothing
+1	a dead base a row's mutation plants beside its own base mid-run is still there when that run ends, both its rows read pass and met, and the next run removes it
+1	a dead base holding an entry named as its owner text, a symlink to a directory outside that holds a regular file named claim, is swept, registration included, and over two sweeps that directory keeps its file and gains nothing
+1	a dead base in the TMPDIR whose tree another repository registered is removed from disk by a run in this root, and this root's worktree list, a live worktree with uncommitted work and a prunable one, is exactly as it was
+1	a dead base renamed aside and replaced by a symlink to another directory while the sweep's drop runs leaves that directory and everything in it as it was
+1	a dead base whose claim is a symlink to a directory outside that holds a regular file named claim is left as it was, claim included, and over two sweeps that directory keeps its file and gains nothing, beside the dead base the sweeps removed
+1	a dead base whose claim link names a live process is left as it was, its owner record, its claim and its registration, and the sweep makes no git worktree remove of its tree, beside a dead base whose claim names a dead process, which is swept
+1	a dead base whose own mode was taken down to 0555 is given its bits back and swept, registration included
+1	a dead base whose registration git cannot remove, its admin directory made immutable, has its base removed, and the sweep says once, not twice, that the root still lists its tree; once the flag is cleared the next sweep removes the registration
+1	a dead base whose tree holds symlinks to a 0444 file and a 0555 directory outside, in a directory left unwritable, is swept, and the file and directory keep their modes and content
+1	a dead base whose w was swapped for a symlink to another worktree of the root is swept, its own registration included, and that other worktree, its uncommitted file and its registration survive
 1	a deadline that has passed ends the night and says so
 1	a decision epoch is one line
 1	a declare whose provenance could not be written is not counted
@@ -516,6 +552,8 @@
 1	a large payload whose awk fails part way has no subject, rather than the part it printed
 1	a large payload's subject is read by exactly one awk
 1	a later copy of the field in the envelope is not the subject
+1	a later felix_qualify_run in the same TMPDIR removes that base and its registration, leaving the TMPDIR empty and the root listing only itself, and its own row still reads pass and met
+1	a later run's sweep leaves that base, says so in a felix: line naming it, begins no line of its stderr with two spaces, and leaves the base holding an owner record that now names another process than the dead row
 1	a later session ends a night whose deadline passed, and only that one
 1	a leading --no-commission is the flag, while any other leading flag is still refused as a name
 1	a ledger from before the column reports nothing at all
@@ -550,6 +588,7 @@
 1	a live grant is listed live and a grant on a dormant row is listed armed
 1	a live night is mounted into the next session's context
 1	a live night whose state file runs past a pipe after its first line reads live
+1	a live user worktree stays listed, its uncommitted file intact
 1	a local server declared inline in plugin.json is medium
 1	a local-only branch is taken as given
 1	a lock whose owner is gone is taken over
@@ -813,6 +852,7 @@
 1	a proposal shown once is not volunteered again
 1	a provider row is UNKNOWN until its file appears
 1	a provider row is awaiting, a class of its own
+1	a prunable worktree elsewhere, not Felix's, stays listed
 1	a pulse that has run and never succeeded says never
 1	a pulse with nothing to do still answers
 1	a push nothing reads back is not called verified
@@ -859,6 +899,7 @@
 1	a record from before the session column still reads
 1	a record that could not be appended is reported
 1	a record that could not be written does not exit 0
+1	a record whose kill -0 fails with an empty message, a fork that failed, is alive
 1	a recorded session that committed nothing is still silent
 1	a recurrence that already has a lesson is different
 1	a recurrence that stopped recurring is not still ranked
@@ -886,6 +927,14 @@
 1	a refused handoff appends a lifecycle row noted refused, with the hash of the file it left alone
 1	a regenerated handoff keeps the mode it had
 1	a registered marketplace names its catalogue
+1	a registration of <T>/felix-qualify. and five characters /w whose base is gone stays listed
+1	a registration of <T>/felix-qualify.XXXXXX/w is left by a run whose TMPDIR, T, is not a directory, and once T is a directory again the next run removes it as an orphan
+1	a registration of <T>/felix-qualify.XXXXXX/w whose base is a dangling symlink stays listed and the symlink stays
+1	a registration of <T>/felix-qualify.XXXXXX/w whose base is gone is removed by the next run, matched through the TMPDIR's physical path as git records it, and that run's own row still reads pass and met
+1	a registration of <T>/felix-qualify.XXXXXX/w whose base is still there, holding no record, stays listed and the base stays
+1	a registration of <T>/felix-qualify.XXXXXX/x whose base is gone stays listed
+1	a registration of <T>/other/w whose directory is gone stays listed, by the run that removed a felix-qualify orphan beside it
+1	a registration of a felix-qualify.XXXXXX/w whose base is gone but lies outside the TMPDIR stays listed
 1	a rejected push is reported, not forced
 1	a relative link survives a write too
 1	a release-mode run carries no clearance in any row
@@ -947,9 +996,12 @@
 1	a row whose checker is running when HUP reaches its run's whole process group removes its scratch tree just the same, with nothing mktemp handed the runner left and no worktree listed in the root, live or prunable
 1	a row whose checker is running when INT reaches its run's whole process group removes its scratch tree: once every process of the run has exited, no path mktemp handed the runner is left and the root lists no worktree for it, live or prunable
 1	a row whose checker is running when TERM reaches its run's whole process group removes its scratch tree though the caller's shell dies at once: once every process of the run has exited, nothing mktemp handed the runner is left and the root lists no worktree for it
+1	a row whose mutation swaps its own base for a symlink to a directory outside holding a file named err leaves that directory's files as they were
 1	a row whose own process alone gets HUP while its checker runs reads unrunnable in both columns once that checker has ended, never pass and met, and removes its scratch tree
 1	a row whose own process alone gets TERM while its mutation runs exits 143 with unrunnable as its verdict, after removing its scratch tree, and never starts its checker
 1	a row whose own process alone gets TERM while its mutation runs, its caller still running the rows, reads unrunnable in both the got and verdict columns, never held, removes its scratch tree once that mutation returns, and never starts its checker
+1	a row whose own process alone is SIGKILLed while its checker holds, its caller left running on into a second row that holds in turn, has its base and registration removed by the sweep of a run started once it is gone, the caller and the second row still running then
+1	a row whose owner record cannot be made, its base left without its write bit, reads unrunnable, adds no worktree, leaves no base or registration, and says one felix: line naming its base
 1	a row whose premise is running when INT reaches its run's whole process group removes its scratch tree, and neither its mutation nor its checker starts afterwards
 1	a row whose premise, mutation and command each print a line shaped like a verdict yields one verdict line, fail and met: a row's stdout never reaches the verdict
 1	a row whose process gets HUP from its run's process group while its checker runs exits 129 with unrunnable as its verdict, after removing its scratch tree
@@ -957,6 +1009,7 @@
 1	a row whose process gets TERM from its run's process group while its checker runs exits 143 with unrunnable as its verdict, after removing its scratch tree
 1	a row whose processes below its caller all get TERM while its premise runs exits 143 with unrunnable as its verdict, removes its scratch tree, and starts neither its mutation nor its checker
 1	a row whose state line was never read is unknown, not the state of the row before it
+1	a row whose tree holds a file made immutable with chflags uchg leaves its base, once the run has ended, holding its owner record, a symlink whose pid is dead
 1	a row whose worktree add fails, in a repository with no commit yet, reads unrunnable and leaves no path mktemp handed it and no worktree registered, and its stderr carries no felix: line
 1	a row wider than the schema is refused
 1	a row with a tab in front of its checker is malformed, never skipped as a blank line
@@ -971,14 +1024,20 @@
 1	a rule naming Edit does not deny a Write
 1	a rule never matches file content
 1	a rule that refuses everything is refused as a rule
+1	a run SIGKILLed as a whole process group while its row's checker holds leaves that row's base in its TMPDIR, holding owner, a symlink whose pid is now dead, and the tree in it still registered in the root
 1	a run compared against its own tree reports nothing
 1	a run felix repair could not read fails the job rather than passing quietly
 1	a run nobody could read does not count as clean
 1	a run of the first routine is recorded however many routines follow it
 1	a run that printed every row the table lists is complete, and nothing is said
 1	a run that printed every row the table lists, in order, still gives a commissioned receipt
+1	a run that sweeps two dead bases prints byte for byte the three verdict lines a run with nothing to sweep prints, says nothing on stderr, and leaves its TMPDIR empty and the root listing only itself
+1	a run whose caller alone is SIGKILLed while its row holds keeps that row's owner record naming the row's live process, and a later run's sweep leaves that base, record and registration as they were
+1	a run whose checker names no row of its table still sweeps a dead base in its TMPDIR, registration included, and prints nothing
 1	a run whose loop ended on its second row printed only the first
 1	a run whose rows read fail and met, pass and met, pass and held, inapplicable, and unrunnable leaves no path mktemp handed the runner and no worktree registered in the root, live, prunable or locked, and its stderr carries no felix: line
+1	a run whose shell has failglob set by its caller still reads its row pass and met, sweeps a dead base, registration included, throws its own row's base away with the junk its mutation wrote beside the tree, and says no felix: line
+1	a run whose shell has noglob set by its caller still reads its row pass and met, sweeps a dead base, registration included, throws its own row's base away with the junk its mutation wrote beside the tree, and says no felix: line
 1	a run with no tree id says nothing was compared
 1	a run writes the request for each provider row
 1	a runbook prints in full
@@ -1110,6 +1169,13 @@
 1	a surface appearing in the checkout makes it stale the other way
 1	a surface detected in the tree is an item even if nobody declared it
 1	a surface the checkout has and no probe reads is a gap
+1	a sweep KILLed as its drop's git worktree remove starts leaves the base holding only its tree and one owner record, which names that sweep's own process, now dead
+1	a sweep KILLed right after its first git in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing
+1	a sweep KILLed right after its first ln in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing
+1	a sweep KILLed right after its first mv in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing
+1	a sweep KILLed right after its first rm in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing
+1	a sweep run while its TMPDIR has lost its search bit leaves the registration of a live row's base there, and the base, as they were
+1	a sweep that judged a base's record dead before another sweep claimed it, and reaches its own claim only while the other stands in its drop, leaves the base: owner still names the other sweep, and it makes no git worktree remove, leaves no claim and says nothing
 1	a symlink that stays inside the plugin is followed and read
 1	a symlinked handoff is still a symlink after a write
 1	a tab-indented comment is refused, and the raw case loops take it for a row
@@ -1426,6 +1492,7 @@
 1	an ordinary checkout is not
 1	an ordinary failure is still written down
 1	an ordinary first prompt still logs its routing decision
+1	an orphan registration git cannot remove, its admin directory made immutable, stays listed and is said in the drop's own words, felix: <root> still lists the scratch worktree <P>, which could not be removed, and the next run once it can be removes it
 1	an output missing a row the table lists is not complete, and says how many of how many it reported
 1	an output missing a row, with a blank line and a line naming no need, reports 1 of 2
 1	an output that carries a need the table does not list is not complete
@@ -2202,6 +2269,7 @@
 1	and on it the reason a four-variable read assigns is not the reason cut -f4 reads
 1	and on this tree it is dormant, satisfied or unsatisfied, never unknown
 1	and once it has, the grant no longer covers them
+1	and once that other sweep is KILLed in its drop's git, the next sweep removes the base and its registration
 1	and once the check passes it is ok
 1	and one already declared is not written twice
 1	and one built three commits ago is behind by three
@@ -2317,6 +2385,7 @@
 1	and refuses to spend past the ceiling
 1	and refuses with no issue and no input
 1	and refusing costs no continuation
+1	and released, that row runs to its end and removes its own base and registration
 1	and removing that file restores it
 1	and repair hears the gate's runs could not be read, not that there are none
 1	and reporting absent is not failing
@@ -2575,6 +2644,7 @@
 1	and that is the one line ungoverned writes there
 1	and that nothing granted it, on a channel review cannot clear
 1	and that one authority writes both halves
+1	and that other repository's own next run in the same TMPDIR removes the registration it was left holding, so it lists only itself
 1	and that output is not complete: one of three
 1	and that output is valid JSON
 1	and that path resolves in a real checkout
@@ -2815,6 +2885,7 @@
 1	and the slug comes from the checkout's remote
 1	and the stale answer is still there, not replaced by an empty one
 1	and the stale row was not adopted
+1	and the start it records is that row process's start: where /proc names the pid namespace, field 22 of /proc/<pid>/stat, @ and that namespace; elsewhere ps -o lstart= under TZ=UTC0 and LC_ALL=C, every blank removed
 1	and the state now carries the new route, for the finish-line judge
 1	and the stranded reaches are now counted
 1	and the suite runner beside it, rather than stopping at the first
@@ -3167,6 +3238,7 @@
 1	every decision is recorded
 1	every decisions.log row felix route --ack wrote in this suite is a row its schema accepts
 1	every ecosystem row carries a written reason
+1	every git worktree add either run made found owner already a symlink in the base it added the tree to
 1	every lifecycle.log row the recorder wrote in this suite is a row its schema accepts
 1	every list fixture below holds more than 256 KB with the line asked about first and the control last
 1	every membership fixture below holds more than 256 KB with the value asked about on its first line
@@ -3266,6 +3338,7 @@
 1	felix probes reports without refusing
 1	felix procedures runs
 1	felix profile lists a row carrying the grounding column
+1	felix qualify --gate from a bound checkout sweeps a dead base in its TMPDIR, registration included, and prints the same stdout and stderr, its three rows among them, and exits with the same status as a run with nothing to sweep
 1	felix qualify --gate naming a checker with no row refuses, and says no control is declared for it
 1	felix qualify --gate opens a table holding a NUL exactly once, and its twin without the NUL once
 1	felix qualify --gate over a table at mode 000 still says it could not be read, never that it holds a NUL, and exits 2
@@ -3282,6 +3355,7 @@
 1	felix qualify --gate refuses rows whose checker is my check or *, rather than running them
 1	felix qualify names the reported checks no row qualifies
 1	felix qualify says which checks have a row could not be read when that read fails
+1	felix qualify without --gate sweeps a dead base in its TMPDIR as well, registration included
 1	felix repair exits 5, nothing to repair, on a green gate run
 1	felix repair reads the gate's run on the branch
 1	felix repair refuses a detached checkout rather than finding nothing to repair on HEAD
@@ -3377,6 +3451,7 @@
 1	flipping a file's executable bit changes the digest
 1	folding a section ahead of one that landed before it is refused
 1	for every gate check that file actually covers
+1	four sweeps started together over three dead bases, in each of three rounds, leave none of them on disk or registered, print nothing on stdout, and say no felix: line
 1	free text matches the catalogue
 1	from a minified registry too
 1	from a nested subdirectory the verdict is unchanged
@@ -3577,6 +3652,7 @@
 1	no engine test pipes into a grep that can stop reading early
 1	no entry is listed twice
 1	no evidence rule requires a pattern that matches everything
+1	no git command that run made was a worktree prune or a gc
 1	no history is no streak
 1	no line of the report, of felix audit --help or of felix's help says a turn ended, since a held stop did not
 1	no local assignment reads one declared beside it
@@ -3688,6 +3764,7 @@
 1	on a repository with no commit, nothing tracked reads as empty, not blind
 1	on main after an engine change nobody deployed, installed fails
 1	onboarding writes one
+1	once the flag is cleared, the next run removes that base, and the root lists only itself
 1	one already declared is left alone
 1	one already in stack.tsv is left alone
 1	one already in the stack still reads already
@@ -3804,6 +3881,7 @@
 1	refuses to clobber an existing project
 1	refuses to invent a brief from unknown paths
 1	regardless of the order given
+1	released, run A ends with its row read pass and met, and neither run leaves a base in the TMPDIR or a worktree registered beside the root
 1	removes a copy of a file Felix holds
 1	removes an untracked copy Felix holds
 1	removing a pending section without folding it is refused, since that drops it
@@ -4502,6 +4580,8 @@
 1	when main's resolve.sh does not define the check, installed fails rather than skipping
 1	when the last read felix qualify --gate makes of the table fails, it says the table could not be read and exits 2
 1	when the live engine is not main's, the ok says which one is live
+1	when the sweep's drop calls git worktree remove on a dead base's tree, the base's owner record already names the process making that call, the sweep's own, and not the dead row
+1	where /proc names this host's pid namespace, a base holding owner as a symlink whose text is a dead pid alone, no start naming that namespace and boot, is left and stays registered, beside a dead base swept, and the run's own row still reads pass and met
 1	which does not by itself fail the gate, since not applying is not a claim
 1	which is the number it printed
 1	which takes it back to nothing stranded
@@ -4521,6 +4601,7 @@
 1	while a predicate that did not move is silent
 1	while a provider-prefixed skill still joins to its plugin
 1	while a row added for a new table, and a comment, are free
+1	while a row holds in its checker, owner in its base is a symlink reading <pid> <start> with one space between, and the pid is the row's own process: alive, an ancestor of the held checker, below the shell that called felix_qualify_run, and never that shell itself
 1	while a row pairing each control with its own verdict is not
 1	while a short one scores on nothing
 1	while a tool that ran keeps its calls
@@ -4532,6 +4613,7 @@
 1	while one at a declared moment still does
 1	while one the tree ignores is not the tree's
 1	while others stay due
+1	while run A holds in its checker, a run B in the same TMPDIR and root leaves A's base as it was, its owner record and its registration with it, A's checker is still running, and B's own row reads pass and met
 1	while the Felix home Felix itself resolved is its own repo
 1	while the branch's own file still is
 1	while the capability that can be named still is
@@ -4559,7 +4641,19 @@
 1	with POSIXLY_CORRECT exported by its caller, a command using a process substitution still passes its pass control and is met, as a plain command beside it does
 1	with SHELLOPTS exported by its caller, carrying nounset and pipefail, a command piping big output into grep -q still passes its pass control and is met
 1	with SUB, the manifest under DIR/SUB is read, its paths relative to SUB
+1	with T given through a symlink, a dead base whose tree is registered in another repository, swapped for a symlink to a directory whose w is another worktree of the sweep's root as the drop first reads the root's list, has no worktree remove made for it, and that worktree, its uncommitted file and its registration are as they were
+1	with T given through a symlink, a dead base whose tree is registered nowhere, swapped for a symlink to a directory whose w is another worktree of the sweep's root as the drop first reads the root's list, has no worktree remove made for it, and that worktree, its uncommitted file and its registration are as they were
+1	with T given through a symlink, the dead base itself swapped for a symlink to a directory holding another worktree of the root, added after the dead base's tree, as the sweep's drop starts git, leaves that worktree, its uncommitted file and its registration as they were
+1	with T given through a symlink, the dead base itself swapped for a symlink to a directory holding another worktree of the root, added before the dead base's tree, as the sweep's drop starts git, leaves that worktree, its uncommitted file and its registration as they were
+1	with T given through a symlink, the dead base's tree swapped for a symlink to a directory holding another worktree of the root, added after the dead base's tree, as the sweep's drop starts git, leaves that worktree, its uncommitted file and its registration as they were
+1	with T given through a symlink, the dead base's tree swapped for a symlink to a directory holding another worktree of the root, added before the dead base's tree, as the sweep's drop starts git, leaves that worktree, its uncommitted file and its registration as they were
+1	with TMPDIR a directory whose name ends in a newline, a sweep that removes a dead base there leaves the registration of a felix-qualify base gone from the directory of the same name without the newline, outside its TMPDIR
+1	with TMPDIR a symlink to a directory, given with a trailing slash, a registration of that directory's physical path, felix-qualify.XXXXXX/w, whose base is gone is removed
 1	with a fact and a table both moved, the fact is named first
+1	with a proc filesystem that names the pid namespace pid:[777] and a boot id, a base whose record names a dead pid with a start in that namespace and boot is swept, registration included
+1	with a ps on PATH that prints nothing, a base whose record names a live pid with a start that is not its own is left as it was: a start that cannot be read now shows no other process
+1	with a ps on PATH that prints nothing, a base whose record names a live pid with its true start is left as it was
+1	with a sh first on PATH that forks rather than execs, a row whose checker holds records its own live process, and ends pass and met, or records none and reads unrunnable having run nothing: never a pid already gone while the row is alive
 1	with both refs present origin/main is the default base
 1	with every log tracked, the form this replaced sees nothing to report
 2	with exit 0
@@ -4596,6 +4690,14 @@
 1	with nothing on record there is nothing to compare
 1	with origin/main a bump ahead of main, the check follows origin
 1	with origin/main level with main the verdict is unchanged
+1	with that proc filesystem, a base whose record names a dead pid alone is left as it was: a host whose /proc names its namespace cannot judge it
+1	with that proc filesystem, a base whose record names a dead pid in that namespace but another boot is left as it was: another host's or another boot's pid is not this sweep's to read
+1	with that proc filesystem, a base whose record names a dead pid in that namespace with no boot after it is left as it was
+1	with that proc filesystem, a base whose record names a dead pid with a start in another namespace, pid:[888], is left as it was: the pid is not this sweep's to read
+1	with that proc filesystem, a base whose record names a dead pid with a start ps prints, naming no namespace, is left as it was: a host whose /proc names its namespace cannot judge it
+1	with that proc filesystem, a base whose record names a live pid that has no stat there to read is left as it was
+1	with that proc filesystem, a base whose record names a live pid with another start in that namespace and boot is swept, registration included, and the live process is still running
+1	with that proc filesystem, a base whose record names a live pid with its stat's field 22, that namespace and that boot is left as it was, whatever ps says of its start
 1	with the check replaced and nothing ended, the run prints all three rows and the receipt is held
 1	with the count back, the second pass's row is the stale one
 1	with the count moved by one

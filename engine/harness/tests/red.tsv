@@ -3,9 +3,13 @@
 #   base  <ref>  <sha>  <engine version there>
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
-# A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	f6cc3bc9ce5f40ad6b7d947c79812ba0781a793a	0.49.211
-run	134	3580	5
+#   an assertion the manifest lists that the base run never reached counts as failed, by its shortfall
+# A base of - means no complete red run was made: none was possible, the
+# suite stopped before reached or reached no assertion, or tests/red itself
+# was stopped; its stdout said which unless it was the one stopped.
+# Reproduce with: tests/red <ref>
+base	origin/main	1af449c729570d0379569356046e199022f1d30a	0.49.257
+run	134	5240	9
 a base that names nothing, or no base at all, cannot be told, status 2 and nothing printed, or a typo would read as current	1
 a branch both behind and owing adds two rows, behind first and then owed, or one of the two reports would be lost	1
 a branch that does not hold origin/main's commit is behind, status 0, naming the base and both commits, or a stale branch would land unannounced	1

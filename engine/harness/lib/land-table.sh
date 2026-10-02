@@ -136,8 +136,8 @@ felix_land_protected() {
   if [ "$b" = "land.tsv" ]; then printf 'land-table\n'; return 0; fi
   if _felix_escape_listed "$p" "$FELIX_ESCAPE_TABLES"; then printf 'escape-table\n'; return 0; fi
   if _felix_escape_listed "$p" "$FELIX_COMMISSION_TABLES"; then printf 'commission-table\n'; return 0; fi
-  if printf '%s' "$p" | grep -qE -- "$FELIX_ESCAPE_EXECUTE"; then printf 'execute\n'; return 0; fi
-  if printf '%s' "$p" | grep -qE -- "$FELIX_LAND_AUTHORITY"; then printf 'authority\n'; return 0; fi
+  if grep -qE -- "$FELIX_ESCAPE_EXECUTE" <<<"$p"; then printf 'execute\n'; return 0; fi
+  if grep -qE -- "$FELIX_LAND_AUTHORITY" <<<"$p"; then printf 'authority\n'; return 0; fi
   if [ "$b" = "exceptions.tsv" ]; then printf 'exception\n'; return 0; fi
   if felix_land_trust_base "$p"; then printf 'trust-base\n'; return 0; fi
   return 1
@@ -184,7 +184,7 @@ _felix_land_scan() {   # rows|bad <- table text
     [ -n "$k" ] && [ -n "$p" ] || continue
     case " ${FELIX_LAND_NARROWING:-} " in
       *" $k "*)
-        printf '' | grep -E -- "$p" >/dev/null 2>&1
+        grep -E -- "$p" </dev/null >/dev/null 2>&1
         if [ "$?" -eq 2 ]; then ere_bad="$ere_bad$p"$'\n'; else nars="$nars$n"$'\t'"$p"$'\n'; fi
         ;;
       *)
@@ -200,7 +200,7 @@ EOF
     w="$(felix_land_protected "$p" 2>/dev/null)" && prot="$prot$p"$'\t'"$w"$'\n'
     while IFS=$'\t' read -r n e; do
       [ -n "$e" ] || continue
-      if printf '%s\n' "$p" | LC_ALL=C grep -qE -- "$e" 2>/dev/null; then
+      if LC_ALL=C grep -qE -- "$e" <<<"$p" 2>/dev/null; then
         over="$over$p"$'\t'"$n"$'\n'; break
       fi
     done <<EON

@@ -69,7 +69,9 @@ moved.
   (.264). Those also change felix's tables, so one re-stamp covers all three.
   It lands after #388, which brings projects/webapp and
   projects/behaviorchangebench with the old shapes. Merge main once #388 is
-  on it, and run the same rewrite over those two tables.
+  on it. In both tables, give each of the ten needs above the check cell
+  (column 6) of the template's row for the same need. Then point the blind
+  block at each table (`CMT_TABLE`).
 
 **Handed on, not done here:**
 - A fork that fails deeper, inside a pipeline or substitution the lookup

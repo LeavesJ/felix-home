@@ -99,8 +99,9 @@ equivalent: `felix_end_line "$list" || true` in adopt.sh. The base already
 refuses an unreadable list at its grep and an unwritable one at its append, so
 that branch cannot be reached alone.
 
-A run of tests/run's first 2521 lines, through all four blocks, ran after the
-real fixture state the earlier sections build (see the PR body for its count).
+tests/run's first 2521 lines, through all four blocks and so after the real
+fixture state the earlier sections build, passed 483 of 483 against an export
+of this branch's engine/ (0a4ae724). That is a prefix, not the record.
 
 **Review.** Two adversarial rounds.
 - The first found:

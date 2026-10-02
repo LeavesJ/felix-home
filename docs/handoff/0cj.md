@@ -1,4 +1,4 @@
-### 2026-09-23/25 — stranded work audited and backed up, the landing actor designed and put first, the founder's batch landed
+### 0cj. 2026-09-23/25 — stranded work audited and backed up, the landing actor designed and put first, the founder's batch landed
 
 **Where to start.** The live ledger of every open item, with its owner and
 what it waits on, is `~/.felix/memory/felix/audits/2026-09-24-batches/tracker.md`

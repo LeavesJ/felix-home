@@ -27,13 +27,17 @@ raw="$(cat 2>/dev/null || true)"
 [ -n "$raw" ] || exit 0
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT" 2>/dev/null)" || exit 0
-# Where the session stands, which Claude Desktop does not start this hook in
-# (lib/resolve.sh). If nothing governs there, or its marker is broken, the rows
-# of the directory the hook was started in still apply, as they always did.
-felix_hook_enter "$raw" "$FELIX_HOME_DIR"
+# Resolved from where the hook was started, as it always was. Claude Desktop
+# starts it in the main checkout, which governs every worktree of the session's
+# repository (lib/where.sh), so a governed launch directory needs nothing more
+# and this call costs what it always did. Only when nothing governs the launch
+# directory does the session's own directory get a say (lib/resolve.sh), which
+# is how a governed worktree under an ungoverned launch directory is judged, and
+# a broken marker there is reported.
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
-if [ -z "$PROJ" ] && [ "$FELIX_HOOK_LAUNCH" != "$PWD" ]; then
-  PROJ="$(felix_resolve_project "$FELIX_HOOK_LAUNCH" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
+if [ -z "$PROJ" ]; then
+  felix_hook_enter "$raw" "$FELIX_HOME_DIR"
+  PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 fi
 [ -n "$PROJ" ] || exit 0
 [ -f "$PROJ/deny.tsv" ] || exit 0
@@ -84,16 +88,6 @@ case "$raw" in
   *'"cwd"'*) start="${raw#*\"cwd\"}"; start="${start#*\"}"; start="${start%%\"*}" ;;
 esac
 [ -n "$start" ] && [ -d "$start" ] || start="$PWD"
-
-# A row scoped to the checkout is judged against the checkout this process
-# stands in (lib/deny.sh). When the session's directory is another checkout of
-# the project the launch directory already governs, a scratch clone carrying
-# the committed marker, the launch directory stays the governed one, as it was:
-# the command is then judged by where it acts, and a worktree of it still counts.
-if [ "$FELIX_HOOK_LAUNCH" != "$PWD" ] \
-   && [ "$(felix_resolve_project "$FELIX_HOOK_LAUNCH" "$FELIX_HOME_DIR" 2>/dev/null)" = "$PROJ" ]; then
-  cd "$FELIX_HOOK_LAUNCH" 2>/dev/null
-fi
 
 reason="$(felix_deny_match "$PROJ" "$tool" "$cmd" "$start")" || exit 0
 [ -n "$reason" ] || exit 0

@@ -18858,6 +18858,206 @@ is "and no row anywhere carries a grounding the policy cannot read" \
    "${_gbad% }" ""
 
 
+printf '\ncommissioning: a seeded check reads done only when its lookups ran to the end\n'
+# A check is eval'd and its status decides, so a check that reads an answered
+# need off what a lookup printed reads `done` when the lookup died first:
+# `[ -z "$(lookup)" ]` is true of a substitution that aborted, and
+# `[ "$(lookup | grep -c bad)" -eq 0 ]` of the 0 grep prints for a producer
+# that never finished. A substitution that cannot make its pipe expands to
+# nothing with status 0. All three measured on bash 3.2.
+#
+# Every engine function a seeded check names is stubbed to answer as it would
+# for an answered need. Then, one function at a time, it dies (exit 128 having
+# printed nothing), dies after printing an answer that alone reads met, or
+# prints a met answer and RETURNS 1, and the row is asked through
+# felix_commission_state: with pipefail on, as the CLI runs it, and off, as a
+# check evaluated without it would be. A death is held. A return reached the
+# end, and its status alone decides nothing.
+#
+# The table is read from one variable, so a runner can point this block at a
+# governed project's table; the suite itself reads only its own template.
+# Grounds and `when` are passed as `-`: applicability is not the question
+# here, and a row whose check never ran would make every case vacuous.
+_ctab="${CMT_TABLE:-$FROOT/harness/templates/commissioning.tsv}"
+_ctp="$TMP/cmt-proj"; _ctr="$TMP/cmt-root"; _ctmem="$TMP/cmt-mem"; _ctbin="$TMP/cmt-bin"
+mkdir -p "$_ctp" "$_ctr" "$_ctmem" "$_ctbin"
+cp "$_ctab" "$_ctp/commissioning.tsv" 2>/dev/null || : > "$_ctp/commissioning.tsv"
+# What the checks that name no engine function read: a constitution, a
+# runbook table, and a gate failure on record that is not commissioning's own.
+printf '# cmt\n' > "$_ctp/CLAUDE.md"
+printf 'gh_auth\tGitHub CLI signed in\n' > "$_ctp/setup.tsv"
+printf '2026-10-01T00:00:00Z\tcmt-proj\tHEAD\tgate\tthe gate failed once\n' > "$_ctmem/mistakes.log"
+# The baseline row's instrument, so the row is asked on a runner without gh.
+# It refuses every shape: cmd_bootstrap is stubbed, so nothing may reach it.
+printf '#!/usr/bin/env bash\nprintf "stub gh: untaught shape: %%s\\n" "$*" >&2\nexit 2\n' > "$_ctbin/gh"
+chmod +x "$_ctbin/gh"
+
+# Each function a seeded check names, and how it answers an answered need:
+# `out` prints an answer, `empty` prints nothing, `pred` answers by its status
+# alone (so it has no partial answer, and returning 1 is its finding). A
+# function a check names that is missing here fails the block, loudly.
+_ctkinds='felix_json_str out
+felix_probe_rows out
+felix_probe_malformed empty
+felix_probes_run out
+felix_probes_blocking empty
+felix_obligation_rows out
+felix_obligation_malformed empty
+felix_obligations_orphans empty
+felix_discover_cache_current pred
+felix_discover_adopt out
+felix_stack_plan out
+felix_ready_report out
+felix_toolbox_unwired empty
+cmd_bootstrap out
+felix_setup_status out'
+_ctkind() { printf '%s\n' "$_ctkinds" | awk -v f="$1" '$1 == f { print $2 }'; }
+# The answer each gives for an answered need, in the shape the engine prints.
+# felix_probes_blocking is the engine's own filter, so a blind row fed to it
+# yields a line and a found row does not.
+_ctmet() {
+  case "$1" in
+    felix_json_str) case "${3:-}" in maturity) printf 'prototype\n' ;; gate) printf 'true\n' ;; esac ;;
+    felix_probe_rows) printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' ;;
+    felix_probes_run) printf 'marker\t-\tfound\t1\t1 member(s) enumerated\tls -1 .felix\tls\n' ;;
+    felix_probes_blocking) awk -F'\t' '$3 == "unknown" || $3 == "blind"' ;;
+    felix_obligation_rows) printf 'fixture\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\ta fixture owes one thing\n' ;;
+    felix_discover_adopt) printf 'already\tfoo\tllm\tlow\n' ;;
+    felix_stack_plan) printf 'present\tplugin\tfoo\t-\n' ;;
+    felix_ready_report) printf 'usable\tfoo\tinstalled and enabled\n' ;;
+    cmd_bootstrap) printf '\nBaseline already in place.\n' ;;
+    felix_setup_status) printf 'done\tgh_auth\tGitHub CLI signed in\n' ;;
+  esac
+  return 0
+}
+# _CTF names a function that prints _CTFOUT and returns _CTFRC (a finding).
+# _CTD names the one that dies or returns early, _CTH how. The rest answer.
+_ctstub() {
+  local fn="$1"; shift
+  if [ "$fn" = "${_CTF:-}" ]; then printf '%b' "${_CTFOUT:-}"; return "${_CTFRC:-0}"; fi
+  if [ "$fn" = "${_CTD:-}" ]; then
+    case "${_CTH:-}" in
+      silent)  exit 128 ;;
+      partial) _ctmet "$fn" "$@"; exit 128 ;;
+      return)  _ctmet "$fn" "$@"; return 1 ;;
+    esac
+  fi
+  _ctmet "$fn" "$@"
+}
+# need instrument answer check on|off -> the state felix_commission_state reports
+_ctstate() {
+  ( if [ "$5" = on ]; then set -o pipefail; else set +o pipefail; fi
+    felix_commission_state "$_ctp" "$_ctr" "$1" - "$2" - "$3" "$4" </dev/null ) | cut -f1
+}
+# Runs inside _cm, after the libraries are sourced, so the stubs defined here
+# override the engine's own. Prints name|got|want, one line per assertion.
+_ctall() {
+  local fn kind need grounds instrument when answer check step fns pf g1 w1 g2 w2 g6 w6 free nopipe row rc want label out miss
+  PATH="$_ctbin:$PATH"
+  export FELIX_PROJECT="$_ctp" FELIX_PROJECT_NAME=cmt-proj FELIX_ROOT_DIR="$_ctr" \
+         FELIX_MEMORY_DIR="$_ctmem" FELIX_HOME_DIR="$FROOT"
+  for fn in $(printf '%s\n' "$_ctkinds" | cut -d' ' -f1); do eval "$fn() { _ctstub $fn \"\$@\"; }"; done
+  felix_commission_rows "$_ctp" > "$_ctp/rows"
+  miss=""
+  for fn in $(cut -f6 "$_ctp/rows" | grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)' | LC_ALL=C sort -u); do
+    [ -n "$(_ctkind "$fn")" ] || miss="$miss $fn"
+  done
+  printf 'every engine function the seeded checks name has an answer in this block|%s|\n' "${miss# }"
+  while IFS=$'\t' read -r need grounds instrument when answer check step; do
+    case "$answer" in provider:*) continue ;; esac
+    _CTD=; _CTH=; _CTF=
+    printf '%s: with every lookup answering, the row reads done (pipefail on and off)|on=%s off=%s|on=done off=done\n' "$need" \
+      "$(_ctstate "$need" "$instrument" "$answer" "$check" on)" "$(_ctstate "$need" "$instrument" "$answer" "$check" off)"
+    fns="$(printf '%s' "$check" | grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)' | LC_ALL=C sort -u)"
+    [ -n "$fns" ] || continue
+    for pf in on off; do
+      g1=; w1=; g2=; w2=; g6=; w6=
+      for fn in $fns; do
+        kind="$(_ctkind "$fn")"; [ -n "$kind" ] || continue
+        _CTD="$fn"
+        _CTH=silent;  g1="$g1 $fn=$(_ctstate "$need" "$instrument" "$answer" "$check" "$pf")"; w1="$w1 $fn=held"
+        if [ "$kind" = out ]; then
+          _CTH=partial; g2="$g2 $fn=$(_ctstate "$need" "$instrument" "$answer" "$check" "$pf")"; w2="$w2 $fn=held"
+        fi
+        if [ "$kind" != pred ]; then
+          _CTH=return;  g6="$g6 $fn=$(_ctstate "$need" "$instrument" "$answer" "$check" "$pf")"; w6="$w6 $fn=done"
+        fi
+      done
+      _CTD=; _CTH=
+      [ -n "$w1" ] && printf '%s: a lookup that dies before its end, having printed nothing, is held (pipefail %s)|%s|%s\n' "$need" "$pf" "${g1# }" "${w1# }"
+      [ -n "$w2" ] && printf '%s: a lookup that dies after printing an answer that alone reads met is held (pipefail %s)|%s|%s\n' "$need" "$pf" "${g2# }" "${w2# }"
+      [ -n "$w6" ] && printf '%s: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail %s)|%s|%s\n' "$need" "$pf" "${g6# }" "${w6# }"
+    done
+    # No pipe to be had. Evaluated here rather than through felix_commission_ask,
+    # whose own </dev/null needs a descriptor that ulimit -n 3 refuses, so the
+    # row would read held for the redirection and the case would be vacuous.
+    # The same check with descriptors to spare must pass, or this asks nothing.
+    case "${check//||/}" in
+      *'$('*|*'|'*)
+        free=passes;   ( cd "$_ctr" || exit 126; eval "$check" ) </dev/null >/dev/null 2>&1 || free=fails
+        nopipe=passes; ( ulimit -n 3; cd "$_ctr" || exit 126; eval "$check" ) </dev/null >/dev/null 2>&1 || nopipe=fails
+        printf '%s: with no pipe to be made, the check does not pass|free=%s nopipe=%s|free=passes nopipe=fails\n' "$need" "$free" "$nopipe" ;;
+    esac
+  done < "$_ctp/rows"
+  # The findings each row exists to catch, named: still held, both ways. A
+  # finding prints after a met line where the lookup prints lines, so a check
+  # that reads only the first line misses it. Last, the manifest of comments:
+  # felix_stack_plan prints nothing there and returns grep's 1 under pipefail,
+  # and that project's stack row is answered.
+  while IFS='|' read -r need fn rc want label out; do
+    [ -n "$need" ] || continue
+    row="$(awk -F'\t' -v n="$need" '$1 == n { print; exit }' "$_ctp/rows")"
+    if [ -z "$row" ]; then
+      for pf in on off; do printf '%s (pipefail %s)|no %s row in the table|%s\n' "$label" "$pf" "$need" "$want"; done
+      continue
+    fi
+    IFS=$'\t' read -r need grounds instrument when answer check step <<CTROW
+$row
+CTROW
+    _CTD=; _CTF="$fn"; _CTFOUT="$out"; _CTFRC="$rc"
+    for pf in on off; do
+      printf '%s (pipefail %s)|%s|%s\n' "$label" "$pf" "$(_ctstate "$need" "$instrument" "$answer" "$check" "$pf")" "$want"
+    done
+    _CTF=
+  done <<'CTFIND'
+reach|felix_toolbox_unwired|0|held|reach: a plugin a route could reach but none does is held|someplugin\tllm\n
+probes|felix_probe_rows|0|held|probes: a project with no probe rows is held|
+probes|felix_probe_malformed|0|held|probes: a malformed probe row is held|broken\n
+probes|felix_probes_run|0|held|probes: a probe that reads blind is held|marker\t-\tfound\t1\tok\tls -1 .felix\tls\nother\t-\tblind\t0\tnothing could be read\tls -1 x\tls\n
+obligations|felix_obligation_rows|0|held|obligations: a ledger with no rows is held|
+obligations|felix_obligation_malformed|0|held|obligations: a malformed obligation row is held|broken\n
+obligations|felix_obligations_orphans|0|held|obligations: a row grounded on a probe that does not exist is held|nosuchpredicate\n
+stack|felix_stack_plan|0|held|stack: a plan with a row still to install is held|present\tplugin\tfoo\t-\ninstall\tplugin\tbar\tlow, declared\n
+stack|felix_stack_plan|0|held|stack: a plan that could not read the declared capabilities is held|present\tplugin\tfoo\t-\nunknown\tplugin\tbar\tthe capability list could not be read\n
+preflight|felix_ready_report|0|held|preflight: a route's plugin that is absent is held|usable\tfoo\tok\nabsent\tbar\tnot installed\n
+preflight|felix_ready_report|0|held|preflight: a route's plugin that is disabled is held|usable\tfoo\tok\ndisabled\tbar\tinstalled and switched off\n
+preflight|felix_ready_report|0|held|preflight: a report that could not list the plugins is held|unknown\tbar\tthe plugin list could not be read\n
+discover|felix_discover_cache_current|1|held|discover: a discovery cache that is not current is held|
+discover|felix_discover_adopt|0|held|discover: an adoption still to declare is held|already\tfoo\tllm\tlow\ndeclare\tbar\tllm\tlow\n
+human_steps|felix_setup_status|0|held|human_steps: a runbook step still to do is held|done\tgh_auth\tok\ntodo\tdeploy_key\tadd the deploy key\n
+stack|felix_stack_plan|1|done|stack: a manifest of comments, whose plan prints nothing and returns 1, reads done|
+CTFIND
+}
+_ctres="$(_cm _ctall)"
+while IFS='|' read -r _ctname _ctgot _ctwant; do
+  [ -n "$_ctname" ] || continue
+  is "$_ctname" "$_ctgot" "$_ctwant"
+done <<CTRES
+$_ctres
+CTRES
+# Nothing dropped: every seeded row the table holds was asked, and there are
+# some. Counted off the file, not the engine's reader, so a row the reader
+# refuses as malformed is a row missing here rather than one quietly skipped.
+_ctn="$(grep -vE '^[[:space:]]*(#|$)' "$_ctab" 2>/dev/null | awk -F'\t' '$5 !~ /^provider:/' | grep -c .)"
+[ "${_ctn:-0}" -gt 0 ] && ok "the table under test holds seeded rows to ask" \
+                       || bad "the table under test holds seeded rows to ask" "$_ctab"
+is  "every seeded row of the table was asked, none dropped" \
+    "$(printf '%s\n' "$_ctres" | grep -c ': with every lookup answering, the row reads done')" "$_ctn"
+rm -rf "$_ctp" "$_ctr" "$_ctmem" "$_ctbin"
+unset -f _ctkind _ctmet _ctstub _ctstate _ctall
+unset _ctab _ctp _ctr _ctmem _ctbin _ctkinds _ctres _ctn _ctname _ctgot _ctwant
+
+
 printf '\nthe engine manifest\n'
 # The plugin manifest is what felix install deploys under, and an empty one
 # deployed the engine under a commit sha with no version at all — written by

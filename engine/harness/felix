@@ -86,6 +86,19 @@ cmd_audit() {
 }
 if [ "${1:-}" = "audit" ]; then shift; cmd_audit "$@"; exit $?; fi
 
+# felix inventory is dispatched here too: it writes nothing and answers from a
+# plain clone. Its libraries are lib/inventory*.sh; what only the host's records
+# say is in lib/inventory-host.sh, the one file a second host would replace.
+cmd_inventory() {
+  local f
+  for f in inventory inventory-items inventory-gh inventory-orphans inventory-view inventory-host; do
+    # shellcheck disable=SC1090,SC1091
+    . "${SCRIPT_DIR}/lib/$f.sh" || exit 1
+  done
+  felix_inventory "$@"
+}
+if [ "${1:-}" = "inventory" ]; then shift; cmd_inventory "$@"; exit $?; fi
+
 # shellcheck source=lib/resolve.sh
 . "${SCRIPT_DIR}/lib/resolve.sh"
 # shellcheck source=lib/detect.sh
@@ -213,6 +226,7 @@ specific project, language, or toolchain.
     felix audit [--dir D] [--since YYYY-MM-DD] [--verify ERE]
                            read-only, from a plain clone: how often a turn stopped on an edit
                            nothing had checked, from the transcripts Claude Code keeps
+    felix inventory        read-only: where unlanded work sits, from git, gh and session records
     felix new <name> --no-commission
                            bind one project (rules, gate guess, marker) without commissioning:
                            no plugin installs, no network; felix commission runs it later.
@@ -559,11 +573,58 @@ cmd_gate() {
   # Not exec. The process has to survive the gate so a failure can be recorded:
   # a mistake nobody writes down is one the project gets to make again.
   local log rc
-  log="$(mktemp)"
+  # A template under $TMPDIR: a bare mktemp on macOS ignores TMPDIR, and the
+  # suite points TMPDIR at a fixture to count what is left there.
+  local tmpd="${TMPDIR:-/tmp}"
+  log="$(mktemp "${tmpd%/}/felix-gate.XXXXXX")"
   if [ -x "$proj/$gate" ]; then
     "$proj/$gate" "$@" 2>&1 | tee "$log"; rc=${PIPESTATUS[0]}
   else
     bash -c "$gate \"\$@\"" felix-gate "$@" 2>&1 | tee "$log"; rc=${PIPESTATUS[0]}
+  fi
+  # The project gate's own status, and where its output ends, taken before any
+  # engine check below appends a line to the same log (G5.2, G1.8). The
+  # recorder used to read FAIL names and the exit fallback off the whole log,
+  # so a project gate that failed without naming a check, beside a probe that
+  # failed with it, was recorded as `probes` alone, which gate_shown_failing
+  # does not count: held however often the person watched the gate go red.
+  # And a project line with no final newline had the first engine line glued
+  # to it, so one of the two names was lost. `grc`, not `prc`, which is the
+  # probes status below. The pipeline has finished, so the size is final.
+  local grc gbytes gnamed
+  grc="$rc"
+  gbytes="$(wc -c < "$log" 2>/dev/null | tr -dc '0-9')"; gbytes="${gbytes:-0}"
+  # How many FAIL lines the project printed, structural ones included. No
+  # `|| printf 0` here. `grep -c` prints the count and *also* exits 1 when
+  # that count is zero, so the fallback appended a second zero and made this
+  # "0\n0" — not an integer, so the test that reads it errored and took the
+  # wrong branch. A fallback firing on a command that succeeded at reporting
+  # nothing is the shape this engine keeps paying for.
+  gnamed="$(grep -icE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null | tr -dc '0-9')"
+  # A gate command that could not run at all (G1.3): 127 is the shell saying
+  # it was not found, 126 that it was found and could not be executed. Nothing
+  # was tested, so its status is not recorded as the gate shown failing, and
+  # the gate says so in a line of its own, rather than leaving a person to read
+  # the status. A gate that named a failure before exiting 126 or 127 ran far
+  # enough to catch something, and is recorded as usual. The verdict does not
+  # change: the gate still exits non-zero and its receipt is red. That a lone
+  # exit-5 or an engine-only failure still reads as shown failing is the rest
+  # of G1.3, and it is a change to the commissioning table, not here.
+  #
+  # Only the flag is taken here, and the line is printed after the recorder
+  # below. It used to be printed at this point, ending "this run is not
+  # recorded as the gate failing" before any engine check had run; an
+  # obligations or qualified check failing in the same run was then recorded
+  # under its own name, which gate_shown_failing counts, so the screen said the
+  # opposite of the row on disk. What the line says is now decided by what the
+  # recorder wrote. A gate whose output stopped mid-line still gets its newline
+  # here, so the first engine line is not glued onto the shell's text. Both are
+  # printed, never tee'd into the log, so no reader of the log can mistake them
+  # for a check.
+  local unrun=0
+  if { [ "$grc" -eq 126 ] || [ "$grc" -eq 127 ]; } && [ "${gnamed:-0}" -eq 0 ]; then
+    unrun=1
+    [ "$gbytes" -gt 0 ] && [ "$(tail -c 1 "$log" | od -An -tx1 | tr -d ' \n')" != "0a" ] && printf '\n'
   fi
   # Ground truth, for every project that has a table — asked by the engine
   # rather than by each project's gate script, so no gate has to be edited to
@@ -745,6 +806,15 @@ cmd_gate() {
     fi
   fi
 
+  # Split rows an engine before #267 left in mistakes.log are joined here, pass
+  # or fail (U44). A passing gate writes no row, so this is the one place CI,
+  # where no session starts, reaches them; and a failing gate's own row then
+  # lands after the healed ones. Silent, and it never moves $rc.
+  felix_mem_mistakes_heal "$proj" >/dev/null 2>&1
+
+  # What the recorder wrote, empty when it wrote nothing; read by the
+  # could-not-run line after it.
+  local what="" recorded=""
   if [ "$rc" -ne 0 ]; then
     # Which checks failed, if the gate names them. Falls back to the exit status
     # rather than guessing, because an invented cause is worse than a vague one.
@@ -769,20 +839,57 @@ cmd_gate() {
     # back to `exit-1` there would re-introduce the same permanent row under a
     # less informative name — which is what happened the first time this was
     # tried, caught by running it in a real worktree rather than the suite.
-    local what named
-    # No `|| printf 0` here. `grep -c` prints the count and *also* exits 1 when
-    # that count is zero, so the fallback appended a second zero and made this
-    # "0\n0" — not an integer, so the test below errored and took the wrong
-    # branch. A guard firing on a command that succeeded at reporting nothing is
-    # the same shape as everything else in this commit.
-    named="$(grep -icE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null | tr -dc '0-9')"
-    what="$(grep -iE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' "$log" 2>/dev/null \
-            | grep -viE 'FAIL[[:space:]]*\((structural)' \
-            | awk '{print $1}' | tr '\n' ' ')"
-    if [ -n "$what" ]; then
-      felix_mem_mistake "$proj" "$root" "$what"
-    elif [ "${named:-0}" -eq 0 ]; then
-      felix_mem_mistake "$proj" "$root" "exit-$rc"
+    #
+    # Read in two parts, split at the byte the project gate's output ended on
+    # (G5.2, G1.8). The project's part gives its own names and, when it named
+    # nothing, `exit-<its own status>`; the engine's part gives the engine
+    # checks that failed after it. Both are kept, the project's first. So a
+    # project gate that failed silently beside a failing probe is `exit-1
+    # probes`, which gate_shown_failing reads as the gate shown failing, and
+    # not `probes` alone, which it rightly does not. The fallback still fires
+    # only when the project named nothing, structural lines included, and
+    # never for 126 or 127, a gate that could not run (G1.3). Engine lines are
+    # never structural. With nothing from either part, nothing is written.
+    #
+    # The project part's count is `gnamed`, taken above while the log held
+    # nothing else.
+    local pnames enames xtok=""
+    pnames="$(head -c "$gbytes" "$log" 2>/dev/null \
+         | grep -iE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' 2>/dev/null \
+         | grep -viE 'FAIL[[:space:]]*\((structural)' \
+         | awk '{print $1}' | tr '\n' ' ')"
+    enames="$(tail -c +"$((gbytes + 1))" "$log" 2>/dev/null \
+         | grep -iE '^[[:space:]]*[a-z-]+[[:space:]]+FAIL' 2>/dev/null \
+         | awk '{print $1}' | tr '\n' ' ')"
+    if [ "$grc" -ne 0 ] && [ "${gnamed:-0}" -eq 0 ] && [ "$grc" -ne 126 ] && [ "$grc" -ne 127 ]; then
+      xtok="exit-$grc"
+    fi
+    what=""
+    if [ -n "$xtok" ] && [ -n "$enames" ]; then what="$xtok $enames"
+    elif [ -n "$xtok" ]; then what="$xtok"
+    else what="$pnames$enames"; fi
+    [ -n "$what" ] && felix_mem_mistake "$proj" "$root" "$what" && recorded="$what"
+  fi
+  # The line for a gate command that could not run, flagged above and said
+  # here, once the row is on disk or known not to be, so the sentence is the
+  # row. With no row it says nothing was recorded. With one, the command's own
+  # status is still absent from it, and what the row does hold can only be
+  # engine checks that failed beside it: the project named nothing, which is
+  # what made it unrunnable, and 126 and 127 give no exit-<status>. It names
+  # them rather than claiming none, because gate_shown_failing counts all of
+  # them but probes and commission, and a person who reads "not recorded" and
+  # then finds gate_shown_failing done has been told something false.
+  if [ "$unrun" -eq 1 ]; then
+    local why
+    case "$grc" in
+      127) why='exit 127: a command it calls was not found' ;;
+      *)   why='exit 126: it was found but could not be executed' ;;
+    esac
+    if [ -z "$recorded" ]; then
+      printf 'gate: the gate command could not run (%s), so nothing was tested and this run is not recorded as the gate failing\n' "$why"
+    else
+      printf 'gate: the gate command could not run (%s), so nothing was tested and its exit status is not recorded; mistakes.log records only the engine checks that failed beside it: %s\n' \
+        "$why" "$(printf '%s' "$recorded" | sed -e 's/[[:space:]]*$//' -e 's/  */, /g')"
     fi
   fi
   # Which checks the gate said it skipped, read off its own report rather than
@@ -951,14 +1058,19 @@ EOF
   cp "$tpl/exceptions.tsv" "$dir/exceptions.tsv"
 
   # Same filter for human steps, and only copy the runbooks that survive it.
+  #
+  # Copied with {{REPO}} as the template has it, and filled in when a row is
+  # read (lib/setup.sh), never here (G5.1, U19). felix new is most often run
+  # before a repository has a remote, and a slug spliced in now was empty: the
+  # saved check failed forever and held human_steps, and a remote added later
+  # changed nothing, because nothing rewrites a saved row.
   {
     printf '# Human steps for %s. Seeded by felix new.\n#\n' "$name"
     printf '# id\ttitle\tcapability\tcheck\n'
     grep -vE '^\s*(#|$)' "$tpl/setup.tsv" | while IFS=$'\t' read -r id title c chk; do
       if [ "$c" = "always" ] || case "$nl$caps$nl" in *"$nl$c$nl"*) true ;; *) false ;; esac; then
-        printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}"
-        [ -f "$tpl/setup/$id.md" ] && \
-          sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md" > "$dir/setup/$id.md"
+        printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "$chk"
+        [ -f "$tpl/setup/$id.md" ] && cp "$tpl/setup/$id.md" "$dir/setup/$id.md"
       fi
     done
   } > "$dir/setup.tsv"
@@ -1373,18 +1485,74 @@ _felix_kernel_blockers() {
   ' _ "$kernel" "$proj" "$base" "$root" "$home"
 }
 
+# A refusal at the merge boundary, said where it happens.
+#
+# Every way `felix merge` says no leaves one `refused` row in says.log: one per
+# kind of blocker it printed, and one for a refusal that ends in an error. The
+# landing actor's queue, and anyone asking why a PR did not land, reads these;
+# before this only escapes were recorded, so a merge refused for a stale
+# commission or an untrustworthy judge left no trace that it was ever tried.
+# The row's text is `<branch>: <kind>: <detail>`, which splits cleanly because
+# a git branch name cannot hold a colon, and it carries the session the
+# platform exports, so a refusal can be tied to whoever asked.
+#
+# A dry run writes nothing, refusals included. A triage session dry-runs every
+# open PR, and a row per dry run would record merges nobody attempted.
+_felix_merge_refused() {   # dry proj branch kind detail
+  [ "$1" -eq 1 ] && return 0
+  felix_say "$2" "refused" "${3:-HEAD}: $4: $5" "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" 2>/dev/null || true
+}
+_felix_merge_die() {       # dry proj branch kind message
+  _felix_merge_refused "$1" "$2" "$3" "$4" "$5"
+  die "$5"
+}
+
+# The squash commit's text with every CI skip marker defused.
+#
+# GitHub skips the push run on main when the head commit's message carries one
+# of these, and the squash message is built from what a session wrote: a PR
+# title, or commit messages that quote the marker while describing it. A landed
+# commit whose own CI never ran is a landing nobody checked after the fact.
+# Brackets become parentheses and the trailer key loses its hyphen, so the
+# words stay readable and stop being a marker. Matched without regard to case,
+# since what GitHub matches on is its own business; defusing too much costs
+# nothing.
+_felix_merge_unskip() {    # text on stdin -> the same text, defused
+  LC_ALL=C awk '
+    {
+      line = $0; out = ""
+      while (match(tolower(line), /\[[ \t]*(skip[ \t]+ci|ci[ \t]+skip|no[ \t]+ci|skip[ \t]+actions|actions[ \t]+skip)[ \t]*\]/)) {
+        out = out substr(line, 1, RSTART - 1) "(" substr(line, RSTART + 1, RLENGTH - 2) ")"
+        line = substr(line, RSTART + RLENGTH)
+      }
+      line = out line; out = ""
+      while (match(tolower(line), /skip-checks/)) {
+        out = out substr(line, 1, RSTART - 1) substr(line, RSTART, 4) " " substr(line, RSTART + 5, 6)
+        line = substr(line, RSTART + RLENGTH)
+      }
+      print out line
+    }'
+}
+
 cmd_merge() {
   resolve_or_die
-  local proj="$PROJ" root base="main" dry=0
+  local proj="$PROJ" root base="main" dry=0 a
   root="$(felix_repo_root "$PWD")"
+  # Known before any argument is read, because a refusal of the arguments
+  # themselves is recorded, and a dry run records nothing, whichever order its
+  # flags came in.
+  for a in "$@"; do [ "$a" = "--dry-run" ] && dry=1; done
+  local named; named="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)"
   while [ $# -gt 0 ]; do
     case "$1" in
-      --base)    need_value "$@"; base="$2"; shift 2 ;;
+      --base)    { [ "$#" -ge 2 ] && [ -n "${2:-}" ]; } \
+                   || _felix_merge_die "$dry" "$proj" "$named" usage "felix: $1 needs a value"
+                 base="$2"; shift 2 ;;
       --dry-run) dry=1; shift ;;
       # Discarding this is how `felix merge 35` merged whatever HEAD was on and
       # reported that it had verified it. A command told to merge one thing and
       # given no way to do so has nothing safer to do than stop.
-      *) die "felix merge does not take '$1'. It merges the branch that is checked out, so check out the branch you mean." ;;
+      *) _felix_merge_die "$dry" "$proj" "$named" usage "felix merge does not take '$1'. It merges the branch that is checked out, so check out the branch you mean." ;;
     esac
   done
 
@@ -1403,26 +1571,30 @@ cmd_merge() {
   # window at the whole of felix_merge_blockers rather than at the tail of it.
   local was; was="$(felix_merge_checkout "$root" "$FELIX_HOME_DIR")"
   local branch; branch="$(printf '%s' "$was" | cut -f1)"
-  [ -n "$branch" ] && [ "$branch" != "HEAD" ] || die "cannot name the branch to merge"
+  [ -n "$branch" ] && [ "$branch" != "HEAD" ] || _felix_merge_die "$dry" "$proj" "${branch:-HEAD}" branch "cannot name the branch to merge"
 
   # Judged by the engine main declares, never by this tree — but only where
   # that circularity exists. A governed product's rules live in the Felix home
   # and are not in its diff, so it is judged as it always was and needs no
   # installed engine at all.
   local blockers krc
+  # A dry run writes nothing: the report-only blockers read this, in the
+  # judge's child shell too, which inherits the environment and no flag. They
+  # write only on 0, so this line must survive every edit to this prologue.
+  local -x FELIX_MERGE_DRY_RUN="$dry"
   if felix_self_governed "$root"; then
     # The judge is not chosen by the environment (#260). FELIX_KERNEL named one
     # outright and is refused by name; the cache variables still compose the
     # path, so the entry they resolve is checked, byte for byte, against the
     # engine main holds at the base ref — the same question the gate's
     # installed check asks — and a judge that is not that engine does not judge.
-    [ -z "${FELIX_KERNEL:-}" ] || die "FELIX_KERNEL is set, and the merge boundary does not take a judge from the environment: unset it. The judge is the engine main declares, deployed and byte-identical to main."
+    [ -z "${FELIX_KERNEL:-}" ] || _felix_merge_die "$dry" "$proj" "$branch" judge "FELIX_KERNEL is set, and the merge boundary does not take a judge from the environment: unset it. The judge is the engine main declares, deployed and byte-identical to main."
     local kernel; kernel="$(felix_kernel_dir "$root" "$base")" || kernel=""
     if [ -z "$kernel" ] || [ ! -d "$kernel/lib" ]; then
       local jver jcache
       jver="$(_felix_plugin_version "$root" "$base" 2>/dev/null)"
       jcache="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix}"
-      die "no installed copy of the engine main declares (${jver:-no version readable at $base}) under $jcache, so there is nothing to judge this that is not this. Run felix install on main, then try again."
+      _felix_merge_die "$dry" "$proj" "$branch" judge "no installed copy of the engine main declares (${jver:-no version readable at $base}) under $jcache, so there is nothing to judge this that is not this. Run felix install on main, then try again."
     fi
     local jentry jout jrc jlib
     # The judge must not be the candidate — but only when the candidate is the
@@ -1440,7 +1612,7 @@ cmd_merge() {
     # and have pipefail read an engine change as none.
     if felix_changed_paths "$root" "$base" | awk '/^engine\/harness\// { f = 1 } END { exit !f }' \
          && diff -rq "$root/engine/harness" "$kernel" >/dev/null 2>&1; then
-      die "the engine that would judge this is byte-identical to the tree it is judging, so it would be judging itself. Bump the version and install main's, or say plainly that this is unjudged."
+      _felix_merge_die "$dry" "$proj" "$branch" judge "the engine that would judge this is byte-identical to the tree it is judging, so it would be judging itself. Bump the version and install main's, or say plainly that this is unjudged."
     fi
     # And the judge must be the engine main accepted, byte for byte (#260): the
     # cache entry for main's version against main's engine at the base ref,
@@ -1451,9 +1623,10 @@ cmd_merge() {
     # main accepted, and nothing a candidate writes reaches it. After the
     # self-judgement guard, so a cache cut from the candidate is named as
     # judging itself, which is the truer of the two refusals.
-    jlib="$(mktemp -d 2>/dev/null)" || die "could not make a directory to read main's resolve.sh into"
+    local tmpd="${TMPDIR:-/tmp}"
+    jlib="$(mktemp -d "${tmpd%/}/felix-judge.XXXXXX" 2>/dev/null)" || _felix_merge_die "$dry" "$proj" "$branch" judge "could not make a directory to read main's resolve.sh into"
     if ! git -C "$root" show "$base:engine/harness/lib/resolve.sh" > "$jlib/resolve.sh" 2>/dev/null; then
-      rm -rf "$jlib"; die "main's engine at $base has no lib/resolve.sh, so nothing there can say whether the judge is main's engine"
+      rm -rf "$jlib"; _felix_merge_die "$dry" "$proj" "$branch" judge "main's engine at $base has no lib/resolve.sh, so nothing there can say whether the judge is main's engine"
     fi
     jout="$( . "$jlib/resolve.sh" >/dev/null 2>&1
              command -v felix_accepted_deploy_diff >/dev/null 2>&1 || exit 3
@@ -1461,17 +1634,17 @@ cmd_merge() {
     rm -rf "$jlib"
     case "$jrc" in
       0) jentry="$jout" ;;
-      3) die "main's engine at $base defines no felix_accepted_deploy_diff, so it cannot say whether the judge is main's engine" ;;
-      2) die "cannot tell whether the judge is main's engine: $jout" ;;
-      *) die "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | head -3 | tr '\n' ';') — a cache entry that differs from main's engine does not judge. Run felix install on main, or unset a cache override that points elsewhere." ;;
+      3) _felix_merge_die "$dry" "$proj" "$branch" judge "main's engine at $base defines no felix_accepted_deploy_diff, so it cannot say whether the judge is main's engine" ;;
+      2) _felix_merge_die "$dry" "$proj" "$branch" judge "cannot tell whether the judge is main's engine: $jout" ;;
+      *) _felix_merge_die "$dry" "$proj" "$branch" judge "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | head -3 | tr '\n' ';') — a cache entry that differs from main's engine does not judge. Run felix install on main, or unset a cache override that points elsewhere." ;;
     esac
-    [ "$kernel" -ef "$jentry/harness" ] || die "the judge resolved to $kernel and the engine main accepted is at $jentry/harness; they are not the same directory, and only that engine judges."
+    [ "$kernel" -ef "$jentry/harness" ] || _felix_merge_die "$dry" "$proj" "$branch" judge "the judge resolved to $kernel and the engine main accepted is at $jentry/harness; they are not the same directory, and only that engine judges."
     blockers="$(_felix_kernel_blockers "$kernel" "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
     krc=$?
     case "$krc" in
       0) ;;
-      4) die "the installed engine at $kernel is too old to judge this: it has no felix_merge_blockers. Install a newer main." ;;
-      *) die "the installed engine at $kernel could not be loaded to judge this." ;;
+      4) _felix_merge_die "$dry" "$proj" "$branch" judge "the installed engine at $kernel is too old to judge this: it has no felix_merge_blockers. Install a newer main." ;;
+      *) _felix_merge_die "$dry" "$proj" "$branch" judge "the installed engine at $kernel could not be loaded to judge this." ;;
     esac
   else
     blockers="$(felix_merge_blockers "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
@@ -1507,13 +1680,30 @@ EOF
     # project rejected twice; and a number nobody records is a number nobody
     # moves. Only escapes count. An unrun gate or a missing test is Felix's own
     # work, and counting those would let the figure improve by gating less.
-    if [ "$esc" -eq 1 ]; then
+    #
+    # And only real attempts count. A dry run asks nobody anything: a triage
+    # session dry-running every open PR wrote one of these per escape per run,
+    # and the figure counted each look as a founder interruption.
+    if [ "$esc" -eq 1 ] && [ "$dry" -eq 0 ]; then
       while IFS=$'\t' read -r kind subject reason; do
         [ "${kind:-}" = "escape" ] || continue
-        felix_say "$proj" "escalated" "$subject: $reason" "felix merge" "" 2>/dev/null || true
+        felix_say "$proj" "escalated" "$subject: $reason" "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" 2>/dev/null || true
       done <<EOF
 $blockers
 EOF
+    fi
+    # One refused row per kind printed above, whatever the kind: the reasons of
+    # every blocker of that kind, joined, after the branch and the kind.
+    if [ "$dry" -eq 0 ]; then
+      printf '%s\n' "$blockers" | LC_ALL=C awk -F'\t' '
+        $1 == "" { next }
+        { rest = substr($0, length($1) + 2); gsub(/\t/, ": ", rest)
+          if (!($1 in seen)) { seen[$1] = 1; order[++n] = $1; d[$1] = rest }
+          else d[$1] = d[$1] "; " rest }
+        END { for (i = 1; i <= n; i++) printf "%s\t%s\n", order[i], d[order[i]] }' \
+        | while IFS=$'\t' read -r kind reason; do
+            _felix_merge_refused 0 "$proj" "$branch" "$kind" "$reason"
+          done
     fi
 
     # `unknown` is checked before `escape`, because the sentence in the last
@@ -1594,13 +1784,59 @@ EOF
     return 0
   fi
 
-  command -v gh >/dev/null 2>&1 || die "felix merge needs the gh CLI, which is not on PATH"
+  command -v gh >/dev/null 2>&1 || _felix_merge_die "$dry" "$proj" "$branch" gh "felix merge needs the gh CLI, which is not on PATH"
   local slug; slug="$(felix_repo_slug "$root")"
-  [ -n "$slug" ] || die "no github remote"
+  [ -n "$slug" ] || _felix_merge_die "$dry" "$proj" "$branch" gh "no github remote"
 
-  # The remote is consulted last and only to perform the merge. Every reason to
-  # refuse was computed above, offline, so this command says no the same way
-  # with or without a network.
+  # What the squash commit says, written here and never left to GitHub's
+  # default, which is every commit message on the branch: those quote CI skip
+  # markers often enough (a change about skip markers says the words), and a
+  # marker in the landed commit skips the push run on main that is the only CI
+  # the landed tree ever gets. The trailers name what was judged and by whom, so
+  # a commit on main that did not come through here can be told from one that
+  # did: the gated tree is the receipt's tree id, and the judge is the version
+  # main declares at the base it was chosen from.
+  local hsha gtree nl=$'\n' view prn prt subject log judge body jv bsha
+  hsha="$(printf '%s' "$was" | cut -f2)"
+  gtree="$(printf '%s' "$was" | cut -f3)"
+  # The pull request's own title and number, as GitHub would have written them.
+  # Read, not required: gh answering nothing usable here leaves the merge below
+  # to answer for itself, and the subject falls back to the branch's newest
+  # commit that is not a merge.
+  view="$(gh pr view "$branch" --repo "$slug" --json number,title --jq '.number, .title' 2>/dev/null)" || view=""
+  prn="${view%%"$nl"*}"; prt="${view#*"$nl"}"
+  case "$prn" in ''|*[!0-9]*) prn="" ;; esac
+  subject=""
+  [ -n "$prn" ] && [ "$prt" != "$view" ] && [ -n "$prt" ] && subject="$prt (#$prn)"
+  [ -n "$subject" ] || subject="$(git -C "$root" log -1 --no-merges --format=%s "$base..HEAD" 2>/dev/null)"
+  [ -n "$subject" ] || subject="$(git -C "$root" log -1 --format=%s HEAD 2>/dev/null)"
+  [ -n "$subject" ] || subject="$branch"
+  subject="$(printf '%s\n' "$subject" | _felix_merge_unskip | head -1)"
+  log="$(git -C "$root" log --reverse --no-merges --format='* %s%n%n%b' "$base..HEAD" 2>/dev/null \
+         | LC_ALL=C awk 'NF { print; b = 0; next } !b { print; b = 1 }')"
+  if [ -n "${jentry:-}" ]; then
+    jv="$(_felix_plugin_version "$root" "$base" 2>/dev/null)"
+    bsha="$(git -C "$root" rev-parse --verify -q "$base^{commit}" 2>/dev/null)"
+    judge="${jv:-unversioned} @ ${bsha:-$base}"
+  else
+    jv="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+            "$FELIX_ROOT/.claude-plugin/plugin.json" 2>/dev/null | head -1)"
+    judge="${jv:-unversioned} (the engine that ran felix merge; a governed product has no judge of its own)"
+  fi
+  body="felix merge squashed $branch at $hsha."
+  [ -n "$log" ] && body="$body
+
+$log"
+  body="$body
+
+Felix-Judge: $judge
+Felix-Gate: ${gtree:-none}"
+  body="$(printf '%s\n' "$body" | _felix_merge_unskip)"
+
+  # The remote is consulted last: to read the pull request's title, and to
+  # perform the merge. Every reason to refuse was computed above, offline, so
+  # this command says no the same way with or without a network; the one
+  # refusal the network adds is GitHub's own, when the head has moved.
   #
   # The branch is the selector, and leaving it out is why this command could
   # never merge anything: `gh pr merge --repo <slug>` with no pull request named
@@ -1630,14 +1866,23 @@ EOF
     if [ "$moved" = "tree" ]; then
       printf '\nThe working tree was edited while this ran, so the receipt accepted\n'
       printf 'above describes a tree that is already gone. Nothing was merged.\n'
+      _felix_merge_refused "$dry" "$proj" "$branch" moved "the working tree was edited while this ran"
     else
       printf '\nThe checkout moved while this ran, so what was verified is not what\n'
       printf 'would be merged. Nothing was merged.\n'
+      _felix_merge_refused "$dry" "$proj" "$branch" moved "the checkout moved while this ran: $wb $ws -> $nb $ns"
     fi
     printf 'Run it again once nothing else is touching this working copy.\n'
     return 4
   fi
-  gh pr merge "$branch" --repo "$slug" --squash || die "gh pr merge failed"
+  # --match-head-commit is the other half of the check just made. That one
+  # holds this checkout still; this one holds the pull request still, which
+  # nothing local can: a push to the branch after the gate ran would otherwise
+  # be squashed onto main under a verdict about the commit before it. GitHub
+  # refuses the merge unless the head is still the commit gated here.
+  gh pr merge "$branch" --repo "$slug" --squash --match-head-commit "$hsha" \
+    --subject "$subject" --body "$body" \
+    || _felix_merge_die "$dry" "$proj" "$branch" gh "gh pr merge failed, for the reason gh gave above. Nothing was merged. If the pull request's head on GitHub is no longer $hsha, the commit gated here, a push landed after the gate: fetch it, gate it, and run this again."
   printf 'merged. nothing in it escaped the tree.\n'
   # Said, not only printed: a merge is the moment the boundary let something
   # through, and which engine judged it is the fact a reader of says.log
@@ -1645,9 +1890,9 @@ EOF
   # last statement, and a product merge has no judge to name.
   if [ -n "${jentry:-}" ]; then
     printf 'judged by %s, the engine main declares, byte-identical to main.\n' "$jentry"
-    felix_say "$proj" "merged" "$branch: judged by $jentry, the engine main declares" "felix merge" "" 2>/dev/null || true
+    felix_say "$proj" "merged" "$branch: judged by $jentry, the engine main declares" "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" 2>/dev/null || true
   else
-    felix_say "$proj" "merged" "$branch: a governed product, judged by this engine" "felix merge" "" 2>/dev/null || true
+    felix_say "$proj" "merged" "$branch: a governed product, judged by this engine" "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" 2>/dev/null || true
   fi
   return 0
 }
@@ -2748,7 +2993,8 @@ EOF
     # and fixed in this file already, then made again here. Second occurrence.
     _FELIX_DISCOVER_SCRATCH=""
     trap 'rm -rf "${_FELIX_DISCOVER_SCRATCH:-}" 2>/dev/null' EXIT INT TERM
-    _FELIX_DISCOVER_SCRATCH="$(mktemp -d)" || return 0
+    local tmpd="${TMPDIR:-/tmp}"
+    _FELIX_DISCOVER_SCRATCH="$(mktemp -d "${tmpd%/}/felix-discover.XXXXXX")" || return 0
     local scratchq="$_FELIX_DISCOVER_SCRATCH"
     printf '%s\n' "$cands" | while IFS=$'\t' read -r score cap name desc; do
       [ -n "${name:-}" ] || continue
@@ -2834,7 +3080,8 @@ EOF
   # variable, leaving behind precisely what it existed to remove.
   _FELIX_DISCOVER_SCRATCH=""
   trap 'rm -rf "${_FELIX_DISCOVER_SCRATCH:-}" 2>/dev/null' EXIT INT TERM
-  _FELIX_DISCOVER_SCRATCH="$(mktemp -d)" || die "cannot create a scratch directory"
+  local tmpd="${TMPDIR:-/tmp}"
+  _FELIX_DISCOVER_SCRATCH="$(mktemp -d "${tmpd%/}/felix-discover.XXXXXX")" || die "cannot create a scratch directory"
   local scratch="$_FELIX_DISCOVER_SCRATCH"
 
   printf '%s\n' "$cands" | while IFS=$'\t' read -r score cap name desc; do
@@ -3337,14 +3584,35 @@ cmd_setup() {
   local todo; todo="$(printf '%s\n' "$st" | grep -c '^todo' || true)"
 
   printf 'setup for %s\n\n' "$(basename "$proj")"
-  printf '%s\n' "$st" | while IFS=$'\t' read -r s id title; do
+  # A dormant row carries a fourth field when it waits on something the
+  # checkout lacks, today only a GitHub remote for a row that needs its slug
+  # (G5.1). Said instead of "not needed yet", which would be untrue of it. A
+  # todo row carries one when Felix could not check it, because origin is a
+  # GitHub remote it cannot read one owner/name from. That row holds
+  # human_steps, and the person is owed the reason, or they do the step and
+  # find it still open.
+  printf '%s\n' "$st" | while IFS=$'\t' read -r s id title why; do
     [ -n "${s:-}" ] || continue
     case "$s" in
       done)    printf '  [x] %-22s %s\n' "$id" "$title" ;;
-      todo)    printf '  [ ] %-22s %s\n' "$id" "$title" ;;
-      dormant) printf '  [-] %-22s %s (not needed yet)\n' "$id" "$title" ;;
+      todo)
+        if [ -n "${why:-}" ]; then printf '  [ ] %-22s %s (%s)\n' "$id" "$title" "$why"
+        else printf '  [ ] %-22s %s\n' "$id" "$title"; fi ;;
+      dormant)
+        if [ -n "${why:-}" ]; then printf '  [-] %-22s %s (%s)\n' "$id" "$title" "$why"
+        else printf '  [-] %-22s %s (not needed yet)\n' "$id" "$title"; fi ;;
     esac
   done
+
+  # A step whose check could not fail is never run, so it is not listed as
+  # done above, and here is why: the row needs a check that can say no.
+  local bad; bad="$(felix_setup_malformed "$proj")"
+  if [ -n "$bad" ]; then
+    printf '\nChecks refused in %s/setup.tsv, and never run, so no step reads done by one:\n\n' "$proj"
+    printf '%s\n' "$bad" | while IFS=$'\t' read -r id why; do
+      [ -n "${id:-}" ] && printf '  %-22s %s\n' "$id" "$why"
+    done
+  fi
 
   if [ "$todo" -eq 0 ]; then
     printf '\nNothing outstanding.\n'
@@ -3886,6 +4154,7 @@ cmd_maintenance() {
       # mean "days since" and "every N days" would render as `-d ago every 0d`
       # — a number nobody wrote, in a row about a fact rather than a clock.
       due)     if [ "$age" = "check" ]; then printf '  DUE     %-18s %-14s %s\n' "$name" "check failed" "$desc"
+               elif [ "$age" = "refused" ]; then printf '  DUE     %-18s %-14s %s\n' "$name" "check refused" "$desc"
                else printf '  DUE     %-18s %-14s %s\n' "$name" "last: $age" "$desc"; fi ;;
       ok)      if [ "${cadence:-0}" -eq 0 ] 2>/dev/null; then printf '  ok      %-18s %-14s %s\n' "$name" "check passed" "$desc"
                else printf '  ok      %-18s %-14s every %sd\n' "$name" "${age}d ago" "$cadence"; fi ;;
@@ -3912,6 +4181,15 @@ cmd_maintenance() {
       printf '  %-18s waits on: %s\n' "$_mn" "$_mc"
     done
     printf '\nFix the capability in %s/maintenance.tsv, or declare it.\n' "$proj"
+  fi
+  # A refused check is due until the row is fixed, since a check that could
+  # not fail was never asking. Say which, and why.
+  local _mb; _mb="$(felix_maint_malformed "$proj" 2>/dev/null)"
+  if [ -n "$_mb" ]; then
+    printf '\nChecks refused in %s/maintenance.tsv:\n\n' "$proj"
+    printf '%s\n' "$_mb" | while IFS=$'\t' read -r _mn _mw; do
+      [ -n "${_mn:-}" ] && printf '  %-18s %s\n' "$_mn" "$_mw"
+    done
   fi
   if [ "$due" -eq 0 ]; then printf '\nNothing due.\n'; return 0; fi
   printf '\n%s routine(s) due.\n\n' "$due"
@@ -4784,6 +5062,37 @@ cmd_commission() {
     return 1
   fi
 
+  # A full run only, and both before the first row is asked; --status writes
+  # nothing, so it does neither.
+  #
+  # The heal joins split rows an engine before #267 left in mistakes.log, so
+  # gate_shown_failing, whose check reads the file with `cut -f4` from a table
+  # this cannot change, is asked of the healed file (U44).
+  #
+  # Then every capability the checkout shows and the project has not declared
+  # is adopted, as session-start adopts it (G5.1). Adoption appends to
+  # capabilities, stack.tsv and setup.tsv, and all three are in the table set
+  # the receipt is hashed over: a receipt written while a capability sat
+  # undeclared, `ci` after bootstrap wrote a workflow being the ordinary case,
+  # read stale at the very next session start, when the hook adopted it. Done
+  # first so the answers see it (stack apply sees ci's catalogue rows) and the
+  # rows, the record and the receipt all describe the table set the next
+  # session will find. One pass is enough because no `felix:` answer writes a
+  # file felix_detect reads; an answer that does must move this after itself.
+  local adopted="" _acap _acounts _aslug
+  if [ "$status" -eq 0 ]; then
+    felix_mem_mistakes_heal "$proj" >/dev/null 2>&1
+    _aslug="$(felix_repo_slug "$root" 2>/dev/null)" || _aslug=""
+    while IFS= read -r _acap; do
+      [ -n "$_acap" ] || continue
+      if _acounts="$(felix_adopt_capability "$proj" "$_acap" "$tpl" "$_aslug" 2>/dev/null)"; then
+        adopted="$adopted $_acap(${_acounts// /+})"
+      fi
+    done <<EOF
+$(felix_undeclared "$root" "$proj" 2>/dev/null)
+EOF
+  fi
+
   local runner="_felix_commission_answer"
   [ "$status" -eq 1 ] && runner="-"
   local out; out="$(felix_commission_run "$proj" "$root" "$runner" "$tpl")"
@@ -4838,20 +5147,44 @@ EOF
     result="$(felix_commission_receipt_write "$FELIX_HOME_DIR" "$proj" "$root" "$out" "$malformed")" || result=""
   fi
 
-  local n_done n_held n_unk n_mal n_await n_na
+  # A count that could not be read is `?`, so these are read as words: `0`
+  # is none, and anything else, `?` included, may be some.
+  local n_done='' n_held='' n_unk='' n_mal='' n_await='' n_na='' ccounts=''
+  ccounts="$(felix_commission_counts "$out" "$malformed")"
   read -r n_done n_held n_unk n_mal n_await n_na <<EOF
-$(felix_commission_counts "$out" "$malformed")
+$ccounts
 EOF
 
   printf 'commissioning for %s\n\n' "$name"
+  # In session-start's notation, capability(tooling-rows+human-steps).
+  [ -n "$adopted" ] && printf 'adopted before this run, because the checkout shows them:%s\n\n' "$adopted"
   printf '%s\n' "$out" | while IFS=$'\t' read -r need st cls answer step detail prov; do
     [ -n "$need" ] || continue
     printf '  %-15s %-20s %s\n' "$st" "$need" "$detail"
   done
   printf '\n%s done, %s held, %s unknown, %s awaiting a session, %s did not apply' \
-    "$n_done" "$n_held" "$n_unk" "$n_await" "$n_na"
-  [ "$n_mal" -gt 0 ] && printf ', %s malformed' "$n_mal"
+    "${n_done:-?}" "${n_held:-?}" "${n_unk:-?}" "${n_await:-?}" "${n_na:-?}"
+  [ "${n_mal:-?}" != 0 ] && printf ', %s malformed' "${n_mal:-?}"
   printf '\n'
+  # The run's loop can end early and still return 0, and the rows after that
+  # are then missing from everything above. The receipt refuses such a run;
+  # this says why, in --status too, and says only what is true of the receipt
+  # in force: --status writes none, and a write that died writes none either.
+  local creported=''
+  if ! creported="$(felix_commission_run_complete "$proj" "$out")"; then
+    printf '\nthe run reported %s rows of %s/commissioning.tsv. The rest were never\n' \
+      "${creported:-fewer than all the}" "$proj"
+    printf 'reported, so nothing here says whether they hold.\n'
+    if [ "$status" -eq 1 ]; then
+      printf 'A receipt written over this run would be indeterminate; the receipt line\n'
+      printf 'below is what is on disk now.\n'
+    elif [ "$result" = "indeterminate" ]; then
+      printf 'The receipt was written indeterminate. Run felix commission again.\n'
+    elif [ -z "$result" ]; then
+      printf 'No receipt could be written over it, so whatever receipt is on disk came\n'
+      printf 'from an earlier run. Run felix commission again.\n'
+    fi
+  fi
 
   if [ "$status" -eq 1 ]; then
     local cwhy; cwhy="$(felix_commission_receipt_valid "$FELIX_HOME_DIR" "$proj" "$root")" || true
@@ -4911,7 +5244,7 @@ EOF
     fi
   fi
 
-  if [ "$n_held" -gt 0 ] || [ "$n_await" -gt 0 ]; then
+  if [ "${n_held:-?}" != 0 ] || [ "${n_await:-?}" != 0 ]; then
     printf '\nheld, and who answers it\n\n'
     printf '%s\n' "$out" | while IFS=$'\t' read -r need st cls answer step detail prov; do
       case "$st" in held|awaiting|stale|partial) ;; *) continue ;; esac
@@ -4925,7 +5258,7 @@ EOF
       esac
     done
   fi
-  if [ "$n_unk" -gt 0 ]; then
+  if [ "${n_unk:-?}" != 0 ]; then
     printf '\ncould not be asked here\n\n'
     printf '%s\n' "$out" | awk -F'\t' '$2 == "unknown" { printf "  %-20s %s\n", $1, $6 }'
     printf '\nUnknown is not held and not done. It blocks the receipt, and only the\n'
@@ -5054,8 +5387,9 @@ cmd_obligations() {
   if [ -n "$bad" ]; then
     printf 'rows refused\n\n'; printf '%s\n' "$bad" | sed 's/^/  /'
     printf '\nA row needs a name, a class from the set, a pathway from the set and an\n'
-    printf 'evidence contract; a single probabilistic finding may not block; and a\n'
-    printf 'needs cell, when there is one, is - or checker ids separated by commas.\n\n'
+    printf 'evidence contract that can fail; a single probabilistic finding may not\n'
+    printf 'block; and a needs cell, when there is one, is - or checker ids separated\n'
+    printf 'by commas.\n\n'
   fi
   if [ -z "$rows" ]; then
     printf '%s/obligations.tsv admits no obligation.\n' "$proj"

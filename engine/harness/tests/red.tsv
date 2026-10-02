@@ -3,13 +3,14 @@
 #   base  <ref>  <sha>  <engine version there>
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
-# A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	ea865e821f4d60531badca673e224a3f6a5527af	0.49.236
-run	18	4150	14
-and so when its errors go to /dev/null: the 2 of 2>/dev/null is no second ref	1
+#   an assertion the manifest lists that the base run never reached counts as failed, by its shortfall
+# A base of - means no complete red run was made: none was possible, the
+# suite stopped before reached or reached no assertion, or tests/red itself
+# was stopped; its stdout said which unless it was the one stopped.
+# Reproduce with: tests/red <ref>
+base	bcd55421faf1ed6fa32a35b99e131d0de75f1486	bcd55421faf1ed6fa32a35b99e131d0de75f1486	0.49.266
+run	14	6006	9
 and the row's reason is given	1
-blind allow case 26: update-ref writes refs/heads/backup, and the remote-tracking ref is only the value it reads	1
-blind allow case 27: symbolic-ref with one ref reads it and prints	1
 the founder's case 10: a here-document a shell reads is its script	1
 the founder's case 11: and so with -s	1
 the founder's case 12: a redirect's target is written whatever line the here-document ends on	1
@@ -23,4 +24,3 @@ the founder's case 7: a $( ) assigned to a variable runs	1
 the founder's case 8: a quoted program name is the program	1
 the founder's case 9: a quoted path in command position runs	1
 the reader prints a command separator as a token of its own, an operator of two characters whole	1
-the target of a redirect after that read is a file, not a second ref	1

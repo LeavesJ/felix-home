@@ -93,8 +93,15 @@ felix_receipt() {
   local unknown="" pname branch head tid
 
   pname="$(basename "$proj")"
-  branch="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || printf '?')"
-  head="$(git -C "$root" rev-parse --short HEAD 2>/dev/null || printf '?')"
+  # One field each, from the readers resolve.sh holds for every caller. These
+  # two lines captured git with `|| printf '?'` inside the substitution, and on
+  # an unborn HEAD git prints `HEAD` and then fails, so the fallback was
+  # appended to the answer: the subject said `"branch": "HEAD ?"`, valid json
+  # and wrong, in the one document written for a reader outside Felix. An
+  # unborn HEAD now names its branch and says `unborn`; `?` is kept for a
+  # directory that is no repository at all.
+  branch="$(felix_head_branch "$root")"
+  head="$(felix_head_commit "$root")"
   tid="$(felix_tree_id "$root" "$home" 2>/dev/null || true)"
 
   # ---- what changed. An unresolvable base is a question nobody can answer, and

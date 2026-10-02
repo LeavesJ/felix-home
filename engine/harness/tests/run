@@ -83,6 +83,13 @@ MEM="$TMP/memory"
 export FELIX_MEMORY="$MEM"
 mkdir -p "$MEM"
 
+# No session, as on the CI runner. The gate files each catch under the session
+# its shell was given, and the Stop hook asks a session only about its own, so
+# a suite run from inside a session would file every fixture's catch under
+# that session and judge the hooks differently from CI. Cases that need one
+# set it where they need it.
+unset CLAUDE_CODE_SESSION_ID
+
 # Every lib that writes memory calls felix_mem_dir, which resolve.sh defines and
 # which the CLI and both hooks always source first. The subshells below source
 # one lib at a time, so without this they run under a load order production
@@ -4156,6 +4163,16 @@ is "a failing gate still exits non-zero" "$rc" "1"
                  || bad "and records the failure without being asked"
 grep -q 'lint' "$MISLOG" 2>/dev/null \
   && ok "naming which check failed" || bad "naming which check failed"
+# And when, to the second. The file is shared by every session on the project,
+# so its own time is whoever wrote last; felix_guard_unrecorded reads this
+# column to tell this checkout's catch from a peer's appended after it.
+_mst="$(tail -1 "$MISLOG" 2>/dev/null | cut -f5)"
+case "$_mst" in
+  ''|*[!0-9]*) bad "and the second it was caught, since the file's own time is whoever wrote last" "fifth column [$_mst]" ;;
+  *) [ $(( $(date +%s) - _mst )) -lt 600 ] \
+       && ok  "and the second it was caught, since the file's own time is whoever wrote last" \
+       || bad "and the second it was caught, since the file's own time is whoever wrote last" "fifth column [$_mst]" ;;
+esac
 
 # The same tree gated again is the same occasion. It cost a second run, and a
 # run is not a recurrence: this rank's advice is to write a lesson, and there
@@ -4291,6 +4308,14 @@ PYJ
 before="$(wc -l < "$MISLOG")"
 ( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 )
 is "a passing gate records nothing" "$(wc -l < "$MISLOG")" "$before"
+# Caught a moment ago, and the lessons written below land within the same
+# second on a fast runner, which the Stop hook's guard does not count as after
+# the catch; the green stops further down would then hear about this catch
+# instead of what they assert. Aged an hour here, stated like every other
+# ordering this suite depends on.
+_mag="$(( $(date +%s) - 3600 ))"
+awk -F'\t' -v OFS='\t' -v T="$_mag" 'NF >= 5 { $5 = T } { print }' "$MISLOG" > "$TMP/mislog.aged"
+cat "$TMP/mislog.aged" > "$MISLOG"
 
 printf '\ngenerated constitution\n'
 CDIR="$FROOT/projects/stranger"
@@ -6272,46 +6297,1302 @@ is "silent when the gate has caught nothing" "${#out}" "0"
 # So the order is stated. Every case sets the mtimes it depends on, which also
 # means the run is a second faster and neither case can be won by luck.
 GYDAY="$(date -v-1d +%Y%m%d%H%M 2>/dev/null || date -d '1 day ago' +%Y%m%d%H%M)"
-printf '2026-01-01\tmain\tabc123\tlint\n' > "$MEM/guarded/mistakes.log"
+# Dated today, as the gate dates a row. An untimed row is aged by the day it
+# names since rows began carrying their own time, and a row dated January
+# in a file written today would be history rather than the catch this asks
+# about.
+printf '%s\tmain\tabc123\tlint\n' "$(date +%Y-%m-%d)" > "$MEM/guarded/mistakes.log"
 touch -t "$GYDAY" "$MEM/guarded/lessons.md" "$MEM/guarded/DEVLOG.md" 2>/dev/null
-# Asserted here, where the ordering is load-bearing. This is the case that went
-# red on CI, and the guard reads exactly this comparison. The first version of
-# this assertion sat after the *second* case, where the ordering is reversed and
-# the fixture sets it explicitly anyway — so it guarded the mtime that never
-# mattered, and deleting the touch that did would have left the suite green.
-[ -n "$(find "$MEM/guarded/mistakes.log" -newer "$MEM/guarded/lessons.md" 2>/dev/null)" ] \
-  && ok  "the fixture puts the catch after the lesson" \
-  || bad "the fixture puts the catch after the lesson" "lesson is not older than the catch"
-out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
+# Asserted here, where the state is load-bearing. This was the case that went
+# red on CI when the guard compared the catch with the lessons file's time; it
+# now reads only the entries written.log records, so what the prompt below
+# rests on is that none has been written yet, whatever the files' times say.
+[ ! -s "$MEM/guarded/written.log" ] \
+  && ok  "the fixture has no entry written for the catch yet" \
+  || bad "the fixture has no entry written for the catch yet" "$(cat "$MEM/guarded/written.log")"
+# Asked from a checkout on the branch the catch names, because an entry settles
+# only the catches of whoever wrote it, and a guard told no checkout cannot
+# know whose a catch is.
+GRP="$TMP/guarded-main"; mkdir -p "$GRP" && ( cd "$GRP" && git init -q -b main \
+  && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init ) >/dev/null 2>&1
+out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$GRP" )"
 has "speaks when a catch went unexplained" "$out" "nothing has been written down"
 has "and names what was caught"            "$out" "lint"
 
 # Writing a lesson settles the debt; it must then go quiet. The catch is aged a
 # day rather than the lesson being written a second later: still well inside the
 # seven days that keep it from being ancient history, and no longer a race.
-printf -- '- **something learned**\n' > "$MEM/guarded/lessons.md"
+# Written through felix lesson, which records whose it is beside the prose.
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_lesson "$GP" "$GRP" "something learned" ) >/dev/null 2>&1
 touch -t "$GYDAY" "$MEM/guarded/mistakes.log" 2>/dev/null
-out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
+out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$GRP" )"
 is "and stops once something is written" "${#out}" "0"
 
-# A devlog entry settles the debt too, and that half had no coverage at all: the
-# fixture left DEVLOG.md empty, the guard skips the clause unless the file is
-# non-empty, so the entire branch could be deleted with the suite still green.
-# Both directions asserted, or the quiet one proves nothing.
-printf '2026-01-01\tmain\tabc123\tlint\n' > "$MEM/guarded/mistakes.log"
-touch -t "$GYDAY" "$MEM/guarded/lessons.md" 2>/dev/null
-printf '## 2026-01-01 what happened and why\n' > "$MEM/guarded/DEVLOG.md"
-out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
+# A devlog entry settles the debt too, and that half had no coverage at all
+# once: a fixture that never wrote one let the whole clause be deleted with the
+# suite still green. Both directions asserted, or the quiet one proves nothing.
+rm -f "$MEM/guarded/written.log"
+printf '%s\tmain\tabc123\tlint\n' "$(date +%Y-%m-%d)" > "$MEM/guarded/mistakes.log"
+touch -t "$GYDAY" "$MEM/guarded/mistakes.log" 2>/dev/null
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_log "$GP" "$GRP" "what happened and why" ) >/dev/null 2>&1
+out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$GRP" )"
 is "a devlog entry newer than the catch settles it too" "${#out}" "0"
-touch -t "$GYDAY" "$MEM/guarded/DEVLOG.md" 2>/dev/null
-out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
+printf '%s\tmain\tabc123\tlog\t%s\t-\n' "$(date -v-2d +%Y-%m-%d 2>/dev/null || date -d '2 days ago' +%Y-%m-%d)" \
+  "$(( $(date +%s) - 172800 ))" > "$MEM/guarded/written.log"
+out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$GRP" )"
 has "and an older one does not" "$out" "nothing has been written down"
+rm -f "$MEM/guarded/written.log"
 
 # An old debt is history, not something this session can explain.
 printf '2020-01-01\tmain\tabc\told\n' > "$MEM/guarded/mistakes.log"
 touch -t 202001010000 "$MEM/guarded/mistakes.log" 2>/dev/null
 out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
 is "and does not nag about ancient history" "${#out}" "0"
+
+# Whose catch it is. Every session's gate appends to the one mistakes.log a
+# project has, so with many sessions open the newest row is usually somebody
+# else's, and the guard compared the whole file's time with the lessons. On
+# 2026-09-25 a session that had merged #339 and written its lesson at 08:19 was
+# asked three times about a `tests` catch another branch logged at 08:27. The
+# gate now files each row with the second it was caught and the session that
+# ran it, and the guard weighs only this session's rows, or, for a row that
+# names no session, the rows of the branch this checkout has checked out.
+#
+# The times are minutes apart and stated, never left to the order of writes:
+# the section above is the account of what that cost.
+UNOW="$(date +%s)"
+_ur_ago() { date -v-"$1"M +%Y%m%d%H%M 2>/dev/null || date -d "$1 minutes ago" +%Y%m%d%H%M; }
+_ur_day() { date -v-"$1"d +%Y-%m-%d 2>/dev/null || date -d "$1 days ago" +%Y-%m-%d; }
+_ur_at()  { date -d "@$1" +%Y%m%d%H%M.%S 2>/dev/null || date -r "$1" +%Y%m%d%H%M.%S; }
+_ur_row() {   # branch, check, minutes ago, [session]: the shape felix_mem_mistake writes
+  printf '%s\t%s\t%s\t%s \t%s\t%s\n' "$(date +%Y-%m-%d)" "$1" 0123abcd "$2" "$((UNOW - $3 * 60))" "${4:--}"
+}
+_ur_repo() {  # dir, branch
+  mkdir -p "$1" && ( cd "$1" && git init -q -b "$2" \
+    && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init ) >/dev/null 2>&1
+}
+_ur() { ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$1" "${2:-}" ); }
+# An entry settles only its writer's catches, so a lesson here is the prose
+# and the row felix lesson files beside it, naming its owner: this checkout's
+# branch and no session unless one is given. The prose is also given a time,
+# the entry's own, so no case is settled by a file's time rather than its row.
+_ur_eday() { date -d "@$1" +%Y-%m-%d 2>/dev/null || date -r "$1" +%Y-%m-%d; }
+_ur_w() {     # epoch, kind, [branch], [session]: the shape felix_mem_lesson writes
+  printf '%s\t%s\t0123abcd\t%s\t%s\t%s\n' "$(_ur_eday "$1")" "${3:-claude/this-checkout}" "$2" "$1" "${4:--}"
+}
+_ur_lesson() {   # minutes ago, [branch], [session]
+  printf -- '- **a lesson**\n' > "$MEM/guarded/lessons.md"; touch -t "$(_ur_ago "$1")" "$MEM/guarded/lessons.md"
+  _ur_w "$((UNOW - $1 * 60))" lesson "${2:-}" "${3:-}" > "$MEM/guarded/written.log"
+}
+UCK="$TMP/unrec-checkout"; _ur_repo "$UCK" claude/this-checkout
+: > "$MEM/guarded/DEVLOG.md"; _ur_lesson 60
+
+_ur_row claude/peer tests 30 > "$MEM/guarded/mistakes.log"
+is "a peer branch's newer catch does not prompt" "$(_ur "$UCK")" ""
+
+{ _ur_row claude/this-checkout lint 30; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
+has "this branch's own newer catch still prompts, and names it rather than a peer's logged after it" \
+    "$(_ur "$UCK")" "last caught   lint"
+
+{ _ur_row claude/this-checkout lint 120; _ur_row claude/peer tests 30; } > "$MEM/guarded/mistakes.log"
+is  "a lesson written after this branch's catch clears it, whatever a peer logged since" "$(_ur "$UCK")" ""
+# The same rows with the lesson moved before the catch, or the silence above
+# could be a guard that says nothing at all.
+_ur_lesson 180
+has "and a lesson written before it does not" "$(_ur "$UCK")" "last caught   lint"
+printf '## an entry\n' > "$MEM/guarded/DEVLOG.md"; touch -t "$(_ur_ago 60)" "$MEM/guarded/DEVLOG.md"
+_ur_w "$((UNOW - 3600))" log >> "$MEM/guarded/written.log"
+is  "a devlog entry after this branch's catch clears it too" "$(_ur "$UCK")" ""
+: > "$MEM/guarded/DEVLOG.md"; _ur_lesson 180
+# To the second, not the minute: every case above is minutes apart, which a
+# guard comparing minutes would pass as well.
+printf '%s\tclaude/this-checkout\t0123abcd\tlint \t%s\t-\n' "$(date +%Y-%m-%d)" "$((UNOW - 600))" > "$MEM/guarded/mistakes.log"
+touch -t "$(_ur_at $((UNOW - 570)))" "$MEM/guarded/lessons.md"; _ur_w "$((UNOW - 570))" lesson > "$MEM/guarded/written.log"
+is  "a lesson thirty seconds after the catch clears it" "$(_ur "$UCK")" ""
+touch -t "$(_ur_at $((UNOW - 630)))" "$MEM/guarded/lessons.md"; _ur_w "$((UNOW - 630))" lesson > "$MEM/guarded/written.log"
+has "and one thirty seconds before it does not" "$(_ur "$UCK")" "last caught   lint"
+
+# The week is this catch's week. A peer appending keeps the file's time fresh
+# forever, and a debt that was history must not come back because of it. A row
+# from before rows carried a time is aged by the day it names.
+_ur_lesson 12960
+{ _ur_row claude/this-checkout lint 11520; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
+is "this branch's week-old catch stays history while a peer's rows keep the file fresh" "$(_ur "$UCK")" ""
+# The only entry a fortnight old, so nothing but the day's own age can make
+# this history: a later-day entry would settle it and hide a missing cutoff.
+_ur_lesson 20160
+{ printf '%s\tclaude/this-checkout\t0123abcd\tlint \n' "$(_ur_day 10)"; _ur_row claude/peer tests 10; } \
+  > "$MEM/guarded/mistakes.log"
+is "and so does an untimed row dated ten days back" "$(_ur "$UCK")" ""
+# A date column that is not a date names no day: it neither makes the row
+# history nor keeps the file's own week from aging it.
+_ur_lesson 60
+{ printf '\tclaude/this-checkout\t0123abcd\tlint \n'; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
+has "an untimed row with an empty date is not taken for history" "$(_ur "$UCK")" "last caught   lint"
+{ printf -- '-\tclaude/this-checkout\t0123abcd\tlint \n'; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
+has "nor one whose date is a dash, which sorts before every day" "$(_ur "$UCK")" "last caught   lint"
+# And a fortnight-old entry again, or one after the file's time would settle
+# the row and hide a file that never aged.
+_ur_lesson 20160
+printf 'garbage\tclaude/this-checkout\t0123abcd\tlint \n' > "$MEM/guarded/mistakes.log"
+touch -t "$(_ur_ago 11520)" "$MEM/guarded/mistakes.log"
+is "and one whose date is unreadable still ages out with the file" "$(_ur "$UCK")" ""
+# An untimed row was caught by the end of the day it names, so a lesson from
+# a later day settles it, however fresh a peer keeps the file. Without this,
+# every checkout on a branch with a row from before this change was asked at
+# each peer's append until the row's week ran out. Two days back, so a lesson
+# half an hour old is on a later day even just after midnight.
+{ printf '%s\tclaude/this-checkout\t0123abcd\tlint \n' "$(_ur_day 2)"; _ur_row claude/peer tests 1; } \
+  > "$MEM/guarded/mistakes.log"
+_ur_lesson 30
+is "an untimed row is settled by a lesson written on a later day than it names" "$(_ur "$UCK")" ""
+{ printf '%s\tclaude/this-checkout\t0123abcd\tlint \n' "$(_ur_day 2)"; _ur_row claude/peer tests 1; } \
+  > "$MEM/guarded/mistakes.log"
+_ur_lesson 4320
+has "and not by one from an earlier day" "$(_ur "$UCK")" "last caught   lint"
+_ur_lesson 60
+
+# The session that ran the gate owns the row, wherever the gate stood. The
+# branch was a stand-in for it, and the review of this change found where the
+# stand-in fails open: a session that gated on the branch it was handed and
+# then made its own, one that gated another checkout, one that ran checkout -B.
+# A row naming another session is that session's, on this very branch too.
+UCK2="$TMP/unrec-renamed"; _ur_repo "$UCK2" auto/handed
+( cd "$UCK2" && git checkout -q -b claude/made && git branch -m claude/renamed ) >/dev/null 2>&1
+{ _ur_row auto/handed lint 30 ur-this; _ur_row claude/peer tests 10 ur-peer; } > "$MEM/guarded/mistakes.log"
+has "this session's catch prompts after its checkout moves to another branch" \
+    "$(_ur "$UCK2" ur-this)" "last caught   lint"
+{ _ur_row claude/renamed lint 30 ur-earlier; _ur_row claude/peer tests 10 ur-peer; } > "$MEM/guarded/mistakes.log"
+is  "and another session's catch on this very branch does not" "$(_ur "$UCK2" ur-this)" ""
+has "a conversation holding more than one session owns the rows of each" \
+    "$(_ur "$UCK2" "ur-restored ur-earlier")" "last caught   lint"
+{ _ur_row claude/renamed lint 30; _ur_row claude/peer tests 10 ur-peer; } > "$MEM/guarded/mistakes.log"
+has "a row that names no session is this checkout's when its branch is the one checked out" \
+    "$(_ur "$UCK2" ur-this)" "last caught   lint"
+UCK3="$TMP/unrec-reused"; _ur_repo "$UCK3" claude/earlier-session
+( cd "$UCK3" && git checkout -q --detach && git checkout -q -b claude/this-session ) >/dev/null 2>&1
+_ur_row claude/earlier-session lint 30 > "$MEM/guarded/mistakes.log"
+is  "and an earlier session's catch in a reused checkout does not" "$(_ur "$UCK3" ur-this)" ""
+( cd "$UCK3" && git checkout -q --detach ) >/dev/null 2>&1
+{ _ur_row HEAD lint 30; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
+has "a detached checkout's own catch, filed as HEAD, prompts" "$(_ur "$UCK3")" "last caught   lint"
+# A checkout git cannot name, and a row from before rows carried a time, are
+# both weighed the way the whole file used to be: toward asking.
+mkdir -p "$TMP/unrec-plain"
+_ur_row claude/peer tests 30 > "$MEM/guarded/mistakes.log"
+has "a checkout git cannot name weighs every catch, as before" "$(_ur "$TMP/unrec-plain")" "last caught   tests"
+{ printf '%s\tclaude/this-checkout\t0123abcd\tlint \n' "$(date +%Y-%m-%d)"; _ur_row claude/peer tests 90; } \
+  > "$MEM/guarded/mistakes.log"
+has "an untimed row of this branch's is taken at the file's time" "$(_ur "$UCK")" "last caught   lint"
+# A time column that is not a time is read as none, toward asking, and quietly:
+# the arithmetic it would otherwise reach aborts on a leading zero.
+printf '%s\tclaude/this-checkout\t0123abcd\tlint \t0189\t-\n' "$(date +%Y-%m-%d)" > "$MEM/guarded/mistakes.log"
+out="$( ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$UCK" ) 2>&1 )"
+case "$out" in
+  *"last caught   lint"*) case "$out" in *"base"*|*"expression"*|*"guard.sh"*) bad "a time column that is not a time is read as none" "$out" ;;
+                            *) ok "a time column that is not a time is read as none" ;; esac ;;
+  *) bad "a time column that is not a time is read as none" "$out" ;;
+esac
+
+# Whose entry it is. A lesson or a devlog entry settles only the catches of
+# whoever wrote it: the session, for a catch that names one, and the branch,
+# for one that names none. The project's lessons.md is written all day by
+# every session on it, and review measured a peer's lesson landing within
+# hours of nearly every catch, which the file's time took as this session's
+# explanation. The catch is this session's in each case below, and in each the
+# entry is written well after it; only whose entry it is changes.
+{ _ur_row claude/this-checkout lint 120 ur-this; _ur_row claude/peer tests 30 ur-peer; } > "$MEM/guarded/mistakes.log"
+_ur_lesson 60 claude/this-checkout ur-this
+is  "this session's own lesson after its catch settles it" "$(_ur "$UCK" ur-this)" ""
+_ur_lesson 60 claude/this-checkout ur-peer
+has "a peer session's lesson after this session's catch does not, on this very branch" \
+    "$(_ur "$UCK" ur-this)" "last caught   lint"
+_ur_lesson 60 claude/this-checkout
+has "nor does one that names no session, as from a terminal outside every session" \
+    "$(_ur "$UCK" ur-this)" "last caught   lint"
+_ur_lesson 60 claude/elsewhere ur-this
+is  "while this session's lesson settles its catch from any branch it stood on" "$(_ur "$UCK" ur-this)" ""
+_ur_lesson 60 claude/this-checkout "ur-restored ur-this"
+has "and an entry whose session column is not one id is nobody's" \
+    "$(_ur "$UCK" "ur-restored ur-this")" "last caught   lint"
+_ur_lesson 60 claude/this-checkout ur-restored
+is  "an entry under any of the conversation's sessions settles its catch" "$(_ur "$UCK" "ur-restored ur-this")" ""
+# The prose settles nothing. A lesson typed into lessons.md by hand, or a
+# consolidation that rewrites the file, names no owner.
+: > "$MEM/guarded/written.log"; touch -t "$(_ur_ago 60)" "$MEM/guarded/lessons.md"
+has "a lesson written into the file by hand after the catch settles nothing" \
+    "$(_ur "$UCK" ur-this)" "last caught   lint"
+printf '## an entry\n' > "$MEM/guarded/DEVLOG.md"; touch -t "$(_ur_ago 60)" "$MEM/guarded/DEVLOG.md"
+has "nor does a devlog entry written by hand" "$(_ur "$UCK" ur-this)" "last caught   lint"
+: > "$MEM/guarded/DEVLOG.md"
+# A catch naming no session is its branch's, and so is its settling.
+{ _ur_row claude/this-checkout lint 120; _ur_row claude/peer tests 30; } > "$MEM/guarded/mistakes.log"
+_ur_lesson 60 claude/peer ur-peer
+has "a catch naming no session is not settled by another branch's lesson" "$(_ur "$UCK" ur-this)" "last caught   lint"
+_ur_lesson 60 claude/this-checkout ur-peer
+is  "but is by one written on its own branch, whoever wrote it" "$(_ur "$UCK" ur-this)" ""
+# Where the guard cannot tell whose a catch is, it cannot tell whose an entry
+# is either, and it goes on asking.
+_ur_row claude/this-checkout lint 120 > "$MEM/guarded/mistakes.log"
+_ur_lesson 60 claude/this-checkout
+has "a checkout git cannot name has no entry settle a catch naming no session" \
+    "$(_ur "$TMP/unrec-plain")" "last caught   lint"
+# An entry's time is read as a time only when it is one, as a catch's is.
+{ _ur_row claude/this-checkout lint 120 ur-this; } > "$MEM/guarded/mistakes.log"
+printf '%s\tclaude/elsewhere\t0123abcd\tlesson\t0%s\tur-this\n' "$(date +%Y-%m-%d)" "$((UNOW - 3600))" > "$MEM/guarded/written.log"
+has "an entry whose time is not a time settles nothing" "$(_ur "$UCK" ur-this)" "last caught   lint"
+_ur_lesson 60
+
+# Each kind of owner is weighed on its own. A catch naming no session is
+# settled by anyone's entry on its branch, and review showed one landing after
+# this session's own letting a peer's lesson on the branch silence both: the
+# guard weighed only the newest row it owned, which was the other one.
+{ _ur_row claude/this-checkout lint 120 ur-this; _ur_row claude/this-checkout tests 90; } > "$MEM/guarded/mistakes.log"
+_ur_lesson 60 claude/this-checkout ur-peer
+has "a catch naming no session after this session's own does not let a peer's lesson settle this session's" \
+    "$(_ur "$UCK" ur-this)" "last caught   lint"
+_ur_lesson 60 claude/elsewhere ur-this
+has "and with this session's own settled, the one naming no session is still asked about" \
+    "$(_ur "$UCK" ur-this)" "last caught   tests"
+_ur_lesson 60 claude/this-checkout ur-this
+is  "while this session's lesson on the branch settles both" "$(_ur "$UCK" ur-this)" ""
+# An entry dated after now is after nothing: a clock set back, or a row
+# written ahead, must not settle catches that have not happened yet.
+_ur_row claude/this-checkout lint 120 ur-this > "$MEM/guarded/mistakes.log"
+_ur_w "$((UNOW + 86400))" lesson claude/this-checkout ur-this > "$MEM/guarded/written.log"
+has "an entry of this session's dated tomorrow does not settle its catch" "$(_ur "$UCK" ur-this)" "last caught   lint"
+{ printf '%s\tclaude/this-checkout\t0123abcd\tlint \n' "$(_ur_day 2)"; } > "$MEM/guarded/mistakes.log"
+printf '%s\tclaude/this-checkout\t0123abcd\tlesson\t%s\t-\n' "$(date -v+1d +%Y-%m-%d 2>/dev/null || date -d tomorrow +%Y-%m-%d)" \
+  "$((UNOW - 3600 * 48))" > "$MEM/guarded/written.log"
+has "nor does one whose day is after today settle an untimed catch" "$(_ur "$UCK")" "last caught   lint"
+_ur_lesson 60
+
+# The writer. The session is the one the platform exports to the gate's shell,
+# the same id the Stop hook is handed, and a subagent's shell carries its
+# parent's, so a catch made on a session's behalf is that session's to explain.
+: > "$MEM/guarded/mistakes.log"
+( . "$FROOT/harness/lib/memory.sh"; CLAUDE_CODE_SESSION_ID=ur-writer felix_mem_mistake "$GP" "$UCK" lint ) >/dev/null 2>&1
+is "the gate's row names the session that ran it" "$(tail -1 "$MEM/guarded/mistakes.log" | cut -f2,6)" "claude/this-checkout	ur-writer"
+( . "$FROOT/harness/lib/memory.sh"; unset CLAUDE_CODE_SESSION_ID; felix_mem_mistake "$GP" "$UCK" lint ) >/dev/null 2>&1
+is "and a dash when no session ran it" "$(tail -1 "$MEM/guarded/mistakes.log" | cut -f6)" "-"
+( . "$FROOT/harness/lib/memory.sh"; CLAUDE_CODE_SESSION_ID="$(printf 'a\tb')" felix_mem_mistake "$GP" "$UCK" lint ) >/dev/null 2>&1
+is "and a dash for an id that would break the row" "$(tail -1 "$MEM/guarded/mistakes.log" | awk -F'\t' '{print NF "|" $6}')" "6|-"
+# A checkout with no commit yet. `rev-parse --abbrev-ref` prints HEAD and fails
+# there, so its fallback wrote a second line into the row, and the fifth
+# column landed in the fourth, where every reader of checks would take a
+# timestamp for one.
+UUB="$TMP/unrec-unborn"; mkdir -p "$UUB" && ( cd "$UUB" && git init -q -b claude/unborn ) >/dev/null 2>&1
+: > "$MEM/guarded/mistakes.log"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_mistake "$GP" "$UUB" lint ) >/dev/null 2>&1
+is "a checkout with no commit yet writes one row, under its branch" \
+   "$(wc -l < "$MEM/guarded/mistakes.log" | tr -d ' ')|$(cut -f2,4 "$MEM/guarded/mistakes.log" | head -1)" "1|claude/unborn	lint"
+( cd "$UCK3" && git checkout -q --detach ) >/dev/null 2>&1
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_mistake "$GP" "$UCK3" lint ) >/dev/null 2>&1
+is "and a detached one files under HEAD, as the guard reads it" "$(tail -1 "$MEM/guarded/mistakes.log" | cut -f2)" "HEAD"
+
+# And the entries that settle a catch name their writer the same way: the
+# session exported to the shell that ran felix lesson or felix log, the branch
+# that checkout had, as one field, and the second. The prose is what it was.
+rm -f "$MEM/guarded/written.log"; : > "$MEM/guarded/lessons.md"; : > "$MEM/guarded/DEVLOG.md"
+_uwb="$(date +%s)"; _uwd0="$(date +%Y-%m-%d)"
+( . "$FROOT/harness/lib/memory.sh"; CLAUDE_CODE_SESSION_ID=ur-writer felix_mem_lesson "$GP" "$UCK" "a durable thing" ) >/dev/null 2>&1
+( . "$FROOT/harness/lib/memory.sh"; unset CLAUDE_CODE_SESSION_ID; felix_mem_log "$GP" "$UUB" "a one-off" ) >/dev/null 2>&1
+_uwa="$(date +%s)"; _uwd1="$(date +%Y-%m-%d)"
+is "felix lesson files its writer beside the lesson: branch, kind and session" \
+   "$(head -1 "$MEM/guarded/written.log" | cut -f2,4,6)" "claude/this-checkout	lesson	ur-writer"
+is "and felix log does too, a dash for no session and the branch of a checkout with no commit" \
+   "$(sed -n 2p "$MEM/guarded/written.log" | cut -f2,3,4,6)" "claude/unborn	?	log	-"
+_uwn=0
+for _uwe in $(cut -f5 "$MEM/guarded/written.log"); do
+  case "$_uwe" in ''|*[!0-9]*) continue ;; esac
+  [ "$_uwe" -ge "$_uwb" ] && [ "$_uwe" -le "$_uwa" ] && _uwn=$((_uwn + 1))
+done
+is "each at the second it was written" "$_uwn" "2"
+is "one row per entry, six columns each" "$(awk -F'\t' '{ print NF }' "$MEM/guarded/written.log" | tr '\n' ' ')" "6 6 "
+# Dated by the day the writes began, which is the day they wrote unless the
+# run crossed midnight between them, when neither day can be expected.
+if [ "$_uwd0" = "$_uwd1" ]; then
+  is "and the lesson itself is the prose it always was" "$(cat "$MEM/guarded/lessons.md")" "
+- **$_uwd0** a durable thing"
+  is "as is the devlog entry, its header one line on a checkout with no commit" \
+     "$(cat "$MEM/guarded/DEVLOG.md")" "
+## $_uwd0 claude/unborn ?
+
+a one-off"
+else
+  skip "and the lesson itself is the prose it always was" "the writes crossed midnight"
+  skip "as is the devlog entry, its header one line on a checkout with no commit" "the writes crossed midnight"
+fi
+rm -f "$MEM/guarded/written.log"; : > "$MEM/guarded/lessons.md"
+
+# Through the Stop hook, where it is read. Called without a checkout or a
+# session the guard weighs every row, so a hook that never passed them would
+# leave every assertion above green and the founder still asked about a peer's
+# catch.
+UHP="$FROOT/projects/unrechook"; mkdir -p "$UHP" "$MEM/unrechook"
+printf '{\n  "name": "unrechook",\n  "remote_match": "example.com/unrechook",\n  "gate": "true"\n}\n' > "$UHP/project.json"
+cp "$TMP/probes.keep" "$UHP/probes.tsv"
+UHR="$TMP/unrechook-repo"; _ur_repo "$UHR" claude/this-checkout
+UHR="$(cd "$UHR" && pwd -P)"
+printf 'unrechook\n' > "$UHR/.felix"; printf 'uncommitted\n' > "$UHR/work.txt"
+( cd "$UHR" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$UHR" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$UHR" "$FROOT")" "" >/dev/null 2>&1 )
+printf -- '- **a lesson**\n' > "$MEM/unrechook/lessons.md"; touch -t "$(_ur_ago 60)" "$MEM/unrechook/lessons.md"
+_ur_stop() { ( cd "$UHR" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s"}' "$1" \
+               | "$FROOT/harness/hooks/stop" 2>&1 ); }
+_ur_row claude/this-checkout lint 30 ur-own > "$MEM/unrechook/mistakes.log"
+has "through the Stop hook, this session's own catch prompts" "$(_ur_stop ur-own)" "nothing has been written down"
+_ur_row claude/this-checkout lint 30 ur-own > "$MEM/unrechook/mistakes.log"
+is  "and another session's on this same branch does not" "$(_ur_stop ur-peer)" ""
+_ur_row claude/peer tests 30 > "$MEM/unrechook/mistakes.log"
+is  "and a peer branch's does not, nor anything else on this green stop" "$(_ur_stop ur-peer2)" ""
+# A conversation the desktop app carried on under a new id: its transcript
+# opens under the old one, and the catch made then is still this one's. A
+# transcript that never held that id does not claim it.
+_ur_stop_tp() { ( cd "$UHR" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s","transcript_path":"%s"}' "$1" "$2" \
+                  | "$FROOT/harness/hooks/stop" 2>&1 ); }
+printf '%s\n' '{"type":"user","sessionId":"ur-before","message":{"content":"a \"sessionId\":\"ur-quoted\" in the text"},"toolUseResult":{"sessionId":"ur-nested"}}' \
+               '{"type":"user","sessionId":"ur-after","message":{"content":"on"}}' > "$TMP/ur-restored.jsonl"
+printf '%s\n' '{"type":"user","sessionId":"ur-other","message":{"content":"x"}}' > "$TMP/ur-other.jsonl"
+_ur_row claude/peer lint 30 ur-before > "$MEM/unrechook/mistakes.log"
+has "through the Stop hook, a catch under the id the transcript opens with is this conversation's" \
+    "$(_ur_stop_tp ur-after "$TMP/ur-restored.jsonl")" "nothing has been written down"
+is  "and a transcript that never held that id does not claim it" "$(_ur_stop_tp ur-after2 "$TMP/ur-other.jsonl")" ""
+_ur_row claude/peer lint 30 ur-nested > "$MEM/unrechook/mistakes.log"
+is  "nor does an id nested later in a record than the record's own" "$(_ur_stop_tp ur-after3 "$TMP/ur-restored.jsonl")" ""
+# End to end: the lesson written through the CLI, from the checkout, under a
+# session, and the Stop hook asked by the session whose catch it is. A
+# peer's lesson is the case this exists for, so it goes first.
+_ur_row claude/this-checkout lint 30 ur-own > "$MEM/unrechook/mistakes.log"
+( cd "$UHR" && CLAUDE_CODE_SESSION_ID=ur-peer "$FROOT/harness/felix" lesson "a peer learned something" ) >/dev/null 2>&1
+out="$(_ur_stop ur-own)"
+has "through the Stop hook, a peer session's felix lesson does not settle this session's catch" "$out" "nothing has been written down"
+has "and the prompt names felix log for a one-off" "$out" 'felix log \"...\"'
+( cd "$UHR" && CLAUDE_CODE_SESSION_ID=ur-own "$FROOT/harness/felix" lesson "this session learned something" ) >/dev/null 2>&1
+is  "while this session's own felix lesson does" "$(_ur_stop ur-own)" ""
+rm -f "$MEM/unrechook/written.log"
+( cd "$UHR" && CLAUDE_CODE_SESSION_ID=ur-own "$FROOT/harness/felix" log "a one-off, said so" ) >/dev/null 2>&1
+is  "and so does its felix log" "$(_ur_stop ur-own)" ""
+# A lesson whose writer cannot be recorded is still in lessons.md, and the
+# Stop hook will still ask. The command says both, rather than printing success
+# and inviting the same lesson a second time into a file every prompt reads.
+_ur_row claude/this-checkout lint 30 ur-own > "$MEM/unrechook/mistakes.log"
+rm -f "$MEM/unrechook/written.log"; mkdir -p "$MEM/unrechook/written.log"
+_ulb="$(grep -c 'written once' "$MEM/unrechook/lessons.md" 2>/dev/null)"
+out="$(cd "$UHR" && CLAUDE_CODE_SESSION_ID=ur-own "$FROOT/harness/felix" lesson "written once" 2>&1)"; _ulrc=$?
+is  "a lesson whose writer cannot be recorded exits non-zero" "$_ulrc" "1"
+has "and says the lesson is there and must not be written again" "$out" "Do not write it again"
+is  "and the lesson is in the file once" "$(( $(grep -c 'written once' "$MEM/unrechook/lessons.md") - ${_ulb:-0} ))" "1"
+rmdir "$MEM/unrechook/written.log"
+# Both stops that ask go through one helper, so the arguments cannot drift
+# apart at a call site no fixture reaches: the night's.
+is "the Stop hook calls the guard in one place" "$(grep -c 'felix_guard_unrecorded' "$FROOT/harness/hooks/stop")" "1"
+rm -rf "$UHP"
+
+# The same contract, asserted blind. These were written from a statement of
+# what felix_guard_unrecorded and felix_mem_mistake must do, by an author who
+# never saw the implementation or the assertions above, and run against
+# origin/main's engine before this one existed: 23 of these 43 failed there,
+# every one for a reason the contract names. Kept beside the author's own
+# because each finds what the other left unsaid.
+#
+# Four were re-keyed after the adversarial review, which found the contract's
+# reflog walk failing open (checkout -B, a detached round trip, a session that
+# gates more than one branch) and replaced it with the session each row now
+# names. The three cases that walked renames and checkouts give their row the
+# session asking, and the writer's row has six columns where it had five. The
+# names say what each asks now.
+#
+# Nine more were re-keyed when an entry began settling only its writer's
+# catches: every case here that settled a catch with a lesson or a devlog
+# entry, and the three that took one away. They had settled it by the file's
+# time, which review measured a peer's lesson moving within hours of nearly
+# every catch. A lesson or devlog entry here is now the prose and the row felix
+# lesson or felix log files beside it, at the same second, naming the branch
+# of the checkout the case asks from and no session, and taking one away takes
+# both. Each asks what it asked: after the catch, before it, the same second,
+# a minute on, a non-empty devlog, the row the file's order picks, the file's
+# time for an untimed row, and a sibling's own lesson. Only the owner is new.
+printf '\nunrecorded catches, per checkout (blind)\n'
+
+_B="$MEM/guarded"; _BM="$_B/mistakes.log"; _BL="$_B/lessons.md"; _BD="$_B/DEVLOG.md"
+_BFIRST='The gate caught something here and nothing has been written down since.'
+_BN="$(date +%s)"
+
+# epoch n minutes ago, and n days ago
+_bago()  { printf '%s' "$(( _BN - $1 * 60 ))"; }
+_bdago() { printf '%s' "$(( _BN - $1 * 86400 ))"; }
+# epoch -> touch -t stamp / YYYY-MM-DD (BSD date -r, else GNU date -d @)
+_bstamp() { date -r "$1" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$1" +%Y%m%d%H%M.%S; }
+_bday()   { date -r "$1" +%Y-%m-%d 2>/dev/null || date -d "@$1" +%Y-%m-%d; }
+# set a file's mtime to an epoch second
+_bmt() { touch -t "$(_bstamp "$1")" "$2"; }
+
+# a fresh memory dir: no log, no lessons, no devlog
+_BW="$_B/written.log"
+_breset() { rm -f "$_BM" "$_BL" "$_BD" "$_BW"; }
+# append a row: branch checks [epoch]. With an epoch the row has five columns
+# and its date column is that epoch's day; without, the old four-column shape.
+_brow() {
+  local day
+  if [ $# -ge 3 ]; then day="$(_bday "$3")"; else day="$(date +%Y-%m-%d)"; fi
+  printf '%s\t%s\t%s\t%s' "$day" "$1" "abc1234" "$2" >> "$_BM"
+  [ $# -ge 3 ] && printf '\t%s' "$3" >> "$_BM"
+  printf '\n' >> "$_BM"
+}
+# a lesson / devlog entry at an epoch second
+# by the checkout on BRANCH (mine unless named): the prose, and the one row of
+# its kind that felix lesson or felix log files beside it
+_bwrote() {
+  { [ -f "$_BW" ] && awk -F'\t' -v K="$2" '$4 != K' "$_BW"
+    printf '%s\t%s\tabc1234\t%s\t%s\t-\n' "$(_bday "$1")" "$3" "$2" "$1"; } > "$_BW.t"
+  mv "$_BW.t" "$_BW"
+}
+_blesson() { printf -- '- **something learned**\n' > "$_BL"; _bmt "$1" "$_BL"; _bwrote "$1" lesson "${2:-mine}"; }
+_bdevlog() { printf '## what happened and why\n' > "$_BD"; _bmt "$1" "$_BD"; _bwrote "$1" log "${2:-mine}"; }
+_bunlesson() { rm -f "$_BL"; [ -f "$_BW" ] && awk -F'\t' '$4 != "lesson"' "$_BW" > "$_BW.t" && mv "$_BW.t" "$_BW"; }
+
+# the guard, for one checkout root (or none)
+_bu()   { ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$1" ) 2>/dev/null; }
+_bu0()  { ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" ) 2>/dev/null; }
+_bus()  { ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$1" "$2" ) 2>/dev/null; }
+# a row this session filed: branch checks epoch, with the session in column 6
+_browS() { printf '%s\t%s\t%s\t%s\t%s\tb-sess\n' "$(_bday "$3")" "$1" "abc1234" "$2" "$3" >> "$_BM"; }
+# the value of the "  last caught   <checks>" line
+_bcaught() { printf '%s\n' "$1" | sed -n 's/^  last caught   //p' | head -1; }
+
+# throwaway repos
+_bg() { git -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null "$@"; }
+_brepo() { # dir initial-branch
+  mkdir -p "$1"
+  _bg -C "$1" -c init.defaultBranch="$2" init -q >/dev/null 2>&1
+  _bg -C "$1" commit -q --allow-empty -m init >/dev/null 2>&1
+}
+_bhead() { git -C "$1" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?'; }
+
+R_MINE="$TMP/b-mine";   _brepo "$R_MINE" mine
+R_OTHER="$TMP/b-other"; _brepo "$R_OTHER" other
+R_V="$TMP/b-v";         _brepo "$R_V" v1.2
+# renamed: created as oldname, then git branch -m
+R_REN="$TMP/b-ren";     _brepo "$R_REN" oldname
+_bg -C "$R_REN" branch -m oldname newname >/dev/null 2>&1
+# checkout -b from parent, then a commit on the new branch
+R_CO="$TMP/b-co";       _brepo "$R_CO" parent
+_bg -C "$R_CO" checkout -q -b child >/dev/null 2>&1
+_bg -C "$R_CO" commit -q --allow-empty -m more >/dev/null 2>&1
+# switch -c from base
+R_SW="$TMP/b-sw";       _brepo "$R_SW" base
+_bg -C "$R_SW" switch -q -c topic >/dev/null 2>&1
+# on trunk, detached, then a new branch made from the detached HEAD
+R_DET2="$TMP/b-det2";   _brepo "$R_DET2" trunk
+_bg -C "$R_DET2" checkout -q --detach >/dev/null 2>&1
+_bg -C "$R_DET2" checkout -q -b fresh >/dev/null 2>&1
+# detached now
+R_DET="$TMP/b-det";     _brepo "$R_DET" main
+_bg -C "$R_DET" checkout -q --detach >/dev/null 2>&1
+# not a repository
+R_NG="$TMP/b-nongit";   mkdir -p "$R_NG"
+# the writer's checkout and a sibling on another branch
+R_W="$TMP/b-writer";    _brepo "$R_W" writer-br
+R_S="$TMP/b-sibling";   _brepo "$R_S" sibling-br
+
+_bfx="$(_bhead "$R_MINE") $(_bhead "$R_V") $(_bhead "$R_REN") $(_bhead "$R_CO") $(_bhead "$R_SW") $(_bhead "$R_DET2") $(_bhead "$R_DET") $(_bhead "$R_W")"
+is "fixture: every throwaway checkout is on the branch its case assumes" \
+   "$_bfx" "mine v1.2 newname child topic fresh HEAD writer-br"
+git -C "$R_NG" rev-parse --git-dir >/dev/null 2>&1 \
+  && bad "fixture: the non-git root is outside any repository" "$R_NG is inside a repo" \
+  || ok  "fixture: the non-git root is outside any repository"
+
+# --------------------------------------------------------------- (e) empty --
+_breset
+out="$(_bu "$R_MINE")"
+is "silent when mistakes.log is missing" "${#out}" "0"
+
+: > "$_BM"
+out="$(_bu "$R_MINE")"
+is "silent when mistakes.log is empty" "${#out}" "0"
+
+# positive control for both: one row of this checkout's own, nothing written
+_breset
+_brow mine "lint " "$(_bago 30)"; _bmt "$(_bago 30)" "$_BM"
+out="$(_bu "$R_MINE")"
+is "speaks for this checkout's own unexplained catch, first line exact" \
+   "$(printf '%s\n' "$out" | head -1)" "$_BFIRST"
+is "and its last-caught line names that catch, trimmed" "$(_bcaught "$out")" "lint"
+
+# ------------------------------------------------------ (a)(c) belonging --
+# This checkout's catch was explained an hour ago; another checkout's later
+# catch is not this checkout's to explain.
+_breset
+_brow mine  "tests "            "$(_bago 180)"
+_brow other "secret qualified " "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "another checkout's newer catch does not make this one speak" "${#out}" "0"
+out="$(_bu "$R_OTHER")"
+has "the same catch speaks for the checkout that owns it" "$out" "$_BFIRST"
+is "and names it trimmed at the ends with its inner space kept" \
+   "$(_bcaught "$out")" "secret qualified"
+
+# Neither explained: this checkout's prompt names its own catch, not the
+# file's last row.
+_breset
+_brow mine  "tests "            "$(_bago 30)"
+_brow other "secret qualified " "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+out="$(_bu "$R_MINE")"
+is "last caught names this checkout's catch, not the file's last row" \
+   "$(_bcaught "$out")" "tests"
+
+# No row belongs at all.
+_breset
+_brow other     "otherscheck" "$(_bago 30)"
+_brow elsewhere "elsecheck"   "$(_bago 20)"
+_bmt "$(_bago 20)" "$_BM"
+out="$(_bu "$R_MINE")"
+is "silent when no row belongs to this checkout" "${#out}" "0"
+out="$(_bu "$R_OTHER")"
+is "while a checkout with a row there is named by it" "$(_bcaught "$out")" "otherscheck"
+
+# Look-alike branch names: a dot is not a wildcard, a prefix or suffix is not
+# the branch.
+_breset
+_brow v1.2    "owncheck"    "$(_bago 180)"
+_brow v1x2    "dotcheck"    "$(_bago 20)"
+_brow v1.2-rc "rccheck"     "$(_bago 15)"
+_brow xv1.2   "prefixcheck" "$(_bago 10)"
+_brow v1      "shortcheck"  "$(_bago 8)"
+_bmt "$(_bago 8)" "$_BM"
+_blesson "$(_bago 60)" v1.2
+out="$(_bu "$R_V")"
+is "rows of look-alike branch names do not belong (exact match only)" "${#out}" "0"
+_bunlesson
+out="$(_bu "$R_V")"
+is "with the lesson gone it names its own row past the look-alikes" \
+   "$(_bcaught "$out")" "owncheck"
+
+# Renamed with git branch -m: the session's catch under the old name is still its own.
+_breset
+_browS oldname  "renamedcheck" "$(_bago 60)"
+_brow unrelated "zzz"          "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+out="$(_bus "$R_REN" b-sess)"
+is "a session's catch under its branch's name before git branch -m is still its own" \
+   "$(_bcaught "$out")" "renamedcheck"
+
+# Made with checkout -b from parent, with a commit since.
+_breset
+_browS parent   "parentcheck" "$(_bago 60)"
+_brow unrelated "zzz"         "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+out="$(_bus "$R_CO" b-sess)"
+is "a session's catch on the branch it left by checkout -b is its own, even after a commit" \
+   "$(_bcaught "$out")" "parentcheck"
+
+# Made with switch -c from base.
+_breset
+_browS base     "basecheck" "$(_bago 60)"
+_brow unrelated "zzz"       "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+out="$(_bus "$R_SW" b-sess)"
+is "and one on the branch it left by switch -c" "$(_bcaught "$out")" "basecheck"
+
+# Reached from a detached HEAD: nothing from before the detach, and the
+# detached rows are not a branch it came from.
+_breset
+_brow trunk "beforedetach" "$(_bago 60)"
+_bmt "$(_bago 60)" "$_BM"
+out="$(_bu "$R_DET2")"
+is "a branch made from a detached HEAD inherits nothing from before the detach" "${#out}" "0"
+_breset
+_brow HEAD "whiledetached" "$(_bago 60)"
+_bmt "$(_bago 60)" "$_BM"
+out="$(_bu "$R_DET2")"
+is "nor the HEAD rows, once it is on a branch" "${#out}" "0"
+_brow fresh "freshcheck" "$(_bago 30)"
+_bmt "$(_bago 30)" "$_BM"
+out="$(_bu "$R_DET2")"
+is "but its own branch's catch still speaks" "$(_bcaught "$out")" "freshcheck"
+
+# A detached checkout owns HEAD rows.
+_breset
+_brow HEAD      "detachedcheck" "$(_bago 60)"
+_brow unrelated "zzz"           "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+out="$(_bu "$R_DET")"
+is "a detached checkout owns rows whose branch column is HEAD" \
+   "$(_bcaught "$out")" "detachedcheck"
+_breset
+_brow elsewhere "elsecheck" "$(_bago 30)"
+_bmt "$(_bago 30)" "$_BM"
+out="$(_bu "$R_DET")"
+is "a detached checkout is silent about other branches' rows" "${#out}" "0"
+
+# ------------------------------------------------------------ (b)(c) time --
+# A lesson strictly after the catch settles it; one before does not.
+_breset
+_brow mine "lint" "$(_bago 120)"; _bmt "$(_bago 120)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "a lesson written after the catch settles it" "${#out}" "0"
+_blesson "$(_bago 180)"
+out="$(_bu "$R_MINE")"
+has "a lesson written before the catch does not" "$out" "$_BFIRST"
+
+# The same second is not after.
+_breset
+_bt="$(_bago 60)"
+_brow mine "lint" "$_bt"; _bmt "$_bt" "$_BM"
+_blesson "$_bt"
+out="$(_bu "$R_MINE")"
+has "a lesson stamped the very second of the catch does not settle it" "$out" "$_BFIRST"
+_blesson "$(( _bt + 60 ))"
+out="$(_bu "$R_MINE")"
+is "a lesson a minute after the catch does" "${#out}" "0"
+
+# The devlog settles too, but only when it has something in it.
+_breset
+_brow mine  "lint" "$(_bago 180)"
+_brow other "zzz"  "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+_bdevlog "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "a non-empty devlog written after the catch settles it" "${#out}" "0"
+_bdevlog "$(_bago 240)"
+out="$(_bu "$R_MINE")"
+has "a non-empty devlog written before the catch does not" "$out" "$_BFIRST"
+: > "$_BD"; _bmt "$(_bago 60)" "$_BD"
+out="$(_bu "$R_MINE")"
+has "an empty devlog newer than the catch does not settle it" "$out" "$_BFIRST"
+
+# The week is measured from column 5, not from the file.
+_breset
+_brow mine  "stalecheck" "$(_bdago 8)"
+_brow other "zzz"        "$(_bago 5)"
+_bmt "$(_bago 5)" "$_BM"
+out="$(_bu "$R_MINE")"
+is "a catch eight days old is silent though the log was written since" "${#out}" "0"
+_breset
+_brow mine  "weekcheck" "$(_bdago 6)"
+_brow other "zzz"       "$(_bago 5)"
+_bmt "$(_bago 5)" "$_BM"
+out="$(_bu "$R_MINE")"
+is "a catch six days old still speaks" "$(_bcaught "$out")" "weekcheck"
+
+# Column 5 is the time, even when the file's own mtime says otherwise.
+_breset
+_brow mine "lint" "$(_bago 30)"
+_bmt "$(_bdago 10)" "$_BM"
+_blesson "$(_bago 120)"
+out="$(_bu "$R_MINE")"
+has "a column-5 time after the lesson speaks though the log's mtime is old" "$out" "$_BFIRST"
+
+# The newest belonging row is the last one in the file.
+_breset
+_brow mine "alpha" "$(_bago 10)"
+_brow mine "beta"  "$(_bago 120)"
+_bmt "$(_bago 10)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "the last belonging row in the file decides, not the largest time" "${#out}" "0"
+_bunlesson
+out="$(_bu "$R_MINE")"
+is "and it is the one named" "$(_bcaught "$out")" "beta"
+
+# ------------------------------------------------------ (d) never fail open --
+_breset
+_brow "?"   "qcheck"   "$(_bago 90)"
+_brow other "lastrow " "$(_bago 30)"
+_bmt "$(_bago 30)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_NG")"
+is "a checkout root that is not a git repository counts every row" \
+   "$(_bcaught "$out")" "lastrow"
+out="$(_bu0)"
+is "no checkout root at all counts every row" "$(_bcaught "$out")" "lastrow"
+
+# A belonging row without column 5 is taken at the log's mtime.
+_breset
+_brow mine  "untimed"
+_brow other "zzz" "$(_bago 10)"
+_bmt "$(_bago 10)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "an untimed row of this checkout is taken at the log's mtime, and speaks" \
+   "$(_bcaught "$out")" "untimed"
+_breset
+_brow mine "untimed"
+_bmt "$(_bago 120)" "$_BM"
+_blesson "$(_bago 60)"
+out="$(_bu "$R_MINE")"
+is "and is settled by a lesson newer than that mtime" "${#out}" "0"
+
+# ---------------------------------------------------------------- writer --
+_breset
+_brow sibling-br "sibcheck" "$(_bago 180)"
+_bmt "$(_bago 180)" "$_BM"
+_blesson "$(_bago 120)" sibling-br
+_bbefore="$(date +%s)"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_mistake "$GP" "$R_W" "lint" ) >/dev/null 2>&1
+_bafter="$(date +%s)"
+_blast="$(tail -1 "$_BM")"
+is "the writer appends, keeping the rows already there" \
+   "$(wc -l < "$_BM" | tr -d ' ')|$(head -1 "$_BM" | cut -f2,4)" "2|sibling-br	sibcheck"
+is "the writer keeps the four old columns" "$(printf '%s' "$_blast" | cut -f1-4)" \
+   "$(date +%Y-%m-%d)	writer-br	$(git -C "$R_W" rev-parse --short HEAD)	lint"
+_bc5="$(printf '%s' "$_blast" | awk -F'\t' '{print NF "|" $5}')"
+_bep="${_bc5#*|}"
+case "$_bep" in ''|*[!0-9]*) _bepok=no ;;
+  *) [ "$_bep" -ge "$_bbefore" ] && [ "$_bep" -le "$_bafter" ] && _bepok=yes || _bepok=no ;; esac
+is "the writer's fifth column is the current epoch second" "${_bc5%%|*}|$_bepok" "6|yes"
+out="$(_bu "$R_W")"
+is "the row it wrote speaks for the checkout that wrote it" "$(_bcaught "$out")" "lint"
+out="$(_bu "$R_S")"
+is "and not for a sibling checkout whose own catch was explained" "${#out}" "0"
+
+_breset
+unset -f _bago _bdago _bstamp _bday _bmt _breset _brow _browS _bwrote _blesson _bdevlog _bunlesson _bu _bu0 _bus _bcaught _bg _brepo _bhead
+
+# Settled by the writer, asserted blind. Written from a statement of what
+# felix_guard_unrecorded, felix_mem_lesson and felix_mem_log must do once an
+# entry settles only its writer's catches, by an author who never saw the
+# implementation or the assertions above. Run against the engine before it
+# existed, 60 of these 110 failed, each for a reason the statement names; 50
+# held already, as positive controls and silences must. Mutating the new
+# engine (any owner settles, the same second settles, a sessionless entry
+# settles a session's catch, an unknown owner is settled, no later-day rule,
+# a loose epoch, no settling at all, the file's time read as zero, no log row,
+# the old devlog stamp, an unsanitised session id) failed both blocks on
+# every mutation but the last, which only this one caught.
+#
+# Two rules came after it, from the adversarial review, and the statement
+# these were written from never had them: each kind of owner is weighed on its
+# own, so a catch naming no session cannot let a peer's lesson silence this
+# session's, and an entry dated after now settles nothing. The author's cases
+# above assert both; nothing here does.
+printf '\nunrecorded catches, settled by their writer (blind)\n'
+# Written from the contract alone: a lesson or devlog entry settles only its
+# writer's catches, and only through the row it leaves in written.log. Every
+# time relation below is built from explicit epochs minutes apart, never from
+# the order of writes, and every silent case sits beside a case that differs in
+# the one property under test and still prompts.
+
+mkdir -p "$GP" "$MEM/guarded"
+_BWD="$MEM/guarded"; _BWK="$_BWD/mistakes.log"; _BWW="$_BWD/written.log"
+_BWL="$_BWD/lessons.md"; _BWV="$_BWD/DEVLOG.md"
+_BWFIRST='The gate caught something here and nothing has been written down since.'
+_BWN="$(date +%s)"
+
+_bwago()   { printf '%s' "$(( _BWN - $1 * 60 ))"; }
+_bwstamp() { date -r "$1" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$1" +%Y%m%d%H%M.%S; }
+_bwday()   { date -r "$1" +%Y-%m-%d 2>/dev/null || date -d "@$1" +%Y-%m-%d; }
+_bwmt()    { touch -t "$(_bwstamp "$1")" "$2"; }
+_BWTODAY="$(_bwday "$_BWN")"
+_BWDAY2="$(_bwday "$(( _BWN - 2 * 86400 ))")"
+
+_bwreset() { rm -f "$_BWK" "$_BWW" "$_BWL" "$_BWV"; }
+# a timed catch row, as the gate files it: branch checks epoch session
+_bwcatch() {
+  printf '%s\t%s\t0123abc\t%s\t%s\t%s\n' "$(_bwday "$3")" "$1" "$2" "$3" "$4" >> "$_BWK"
+  _bwmt "$3" "$_BWK"
+}
+# a written.log row: branch kind epoch session [day]
+_bwwrote() {
+  printf '%s\t%s\t0123abc\t%s\t%s\t%s\n' "${5:-$(_bwday "$3")}" "$1" "$2" "$3" "$4" >> "$_BWW"
+}
+# lessons.md and DEVLOG.md written by hand at an epoch second
+_bwprose() {
+  printf '\n- **%s** a lesson written by hand\n' "$_BWTODAY" >> "$_BWL"
+  printf '\n## %s hand entry\n\nwritten by hand\n' "$_BWTODAY" >> "$_BWV"
+  _bwmt "$1" "$_BWL"; _bwmt "$1" "$_BWV"
+}
+# the guard's verdict: silent, or prompts:<what the last-caught line names>
+_bwverdict() {
+  if [ -z "$1" ]; then printf 'silent'
+  else printf 'prompts:%s' "$(printf '%s\n' "$1" | sed -n 's/^  last caught   //p' | head -1 | sed 's/[[:space:]]*$//')"; fi
+}
+_bwsays()  { _bwverdict "$( ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$1" "${2:-}" ) 2>/dev/null )"; }
+_bwsays0() { _bwverdict "$( ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" ) 2>/dev/null )"; }
+
+# throwaway checkouts
+_bwg() { git -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null "$@"; }
+_bwrepo() { mkdir -p "$1" && ( cd "$1" && _bwg init -q -b "$2" && _bwg commit -q --allow-empty -m init ) >/dev/null 2>&1; }
+_bwhead() { git -C "$1" symbolic-ref --short -q HEAD 2>/dev/null \
+              || { git -C "$1" rev-parse --git-dir >/dev/null 2>&1 && echo HEAD || echo '?'; }; }
+_BWR_THIS="$TMP/bw-this";   _bwrepo "$_BWR_THIS" bw/this
+_BWR_V="$TMP/bw-v";         _bwrepo "$_BWR_V" bw/v1.2
+_BWR_W="$TMP/bw-writer";    _bwrepo "$_BWR_W" bw/writer
+_BWR_DET="$TMP/bw-det";     _bwrepo "$_BWR_DET" bw/det
+_bwg -C "$_BWR_DET" checkout -q --detach >/dev/null 2>&1
+_BWR_UB="$TMP/bw-unborn";   mkdir -p "$_BWR_UB" && ( cd "$_BWR_UB" && git init -q -b bw/unborn ) >/dev/null 2>&1
+_BWR_NG="$TMP/bw-nongit";   mkdir -p "$_BWR_NG"
+
+is "fixture: every throwaway checkout stands where its case assumes" \
+   "$(_bwhead "$_BWR_THIS") $(_bwhead "$_BWR_V") $(_bwhead "$_BWR_W") $(_bwhead "$_BWR_DET") $(_bwhead "$_BWR_UB") $(_bwhead "$_BWR_NG")" \
+   "bw/this bw/v1.2 bw/writer HEAD bw/unborn ?"
+git -C "$_BWR_UB" rev-parse -q --verify HEAD >/dev/null 2>&1 \
+  && bad "fixture: the unborn checkout has no commit yet" "HEAD resolves" \
+  || ok  "fixture: the unborn checkout has no commit yet"
+
+# ================================================================ (a) writer
+# row helpers: rows in written.log; a row's day and epoch against the window
+_bwrows() { if [ -f "$_BWW" ]; then wc -l < "$_BWW" | tr -d ' '; else printf 0; fi; }
+_bwlast() { tail -1 "$_BWW" 2>/dev/null | cut -f"$1" | tr '\t' '|'; }
+_bwnf()   { tail -1 "$1" 2>/dev/null | awk -F'\t' '{print NF}'; }
+_bwwhen() {  # row t0 t1 d0 d1 -> "day ok|bad, epoch ok|bad"
+  local d e dv=bad ev=bad
+  d="$(printf '%s' "$1" | cut -f1)"; e="$(printf '%s' "$1" | cut -f5)"
+  { [ "$d" = "$4" ] || [ "$d" = "$5" ]; } && dv=ok
+  case "$e" in [1-9]*) case "$e" in *[!0-9]*) ;; *)
+    [ "${#e}" -le 12 ] && [ "$e" -ge "$2" ] && [ "$e" -le "$3" ] && ev=ok ;; esac ;; esac
+  printf 'day %s, epoch %s' "$dv" "$ev"
+}
+# a file's exact bytes, trailing newlines kept
+_bwbytes() { cat "$1" 2>/dev/null; printf '|'; }
+# midnight: the expectation built from the later day when that is what was written
+_bwpick() { if [ "$1" = "$3" ]; then printf '%s' "$3"; else printf '%s' "$2"; fi; }
+_bwlesson() { ( . "$FROOT/harness/lib/memory.sh"; felix_mem_lesson "$GP" "$1" "$2" ) >/dev/null 2>&1; }
+_bwlog()    { ( . "$FROOT/harness/lib/memory.sh"; felix_mem_log "$GP" "$1" "$2" ) >/dev/null 2>&1; }
+
+_bwreset
+_BWSHA="$(git -C "$_BWR_W" rev-parse --short HEAD)"
+_bwt0="$(date +%s)"; _bwd0="$(date +%Y-%m-%d)"
+CLAUDE_CODE_SESSION_ID=bw-w1 _bwlesson "$_BWR_W" "bw lesson one"
+_bwt1="$(date +%s)"; _bwd1="$(date +%Y-%m-%d)"
+is "felix_mem_lesson appends exactly one row to written.log, with six columns" \
+   "$(_bwrows)|$(_bwnf "$_BWW")" "1|6"
+is "that row reads lesson, on the checkout's branch, at its short HEAD, under the session" \
+   "$(_bwlast 2,3,4,6)" "bw/writer|$_BWSHA|lesson|bw-w1"
+is "that row carries today's date and the epoch second of the call" \
+   "$(_bwwhen "$(tail -1 "$_BWW" 2>/dev/null)" "$_bwt0" "$_bwt1" "$_bwd0" "$_bwd1")" "day ok, epoch ok"
+_bwgot="$(_bwbytes "$_BWL")"
+is "lessons.md gets exactly the old entry and nothing else: blank line, dated bullet, text" "$_bwgot" \
+   "$(_bwpick "$_bwgot" "$(printf '\n- **%s** bw lesson one\n|' "$_bwd0")" "$(printf '\n- **%s** bw lesson one\n|' "$_bwd1")")"
+
+_bwt0="$(date +%s)"; _bwd0="$(date +%Y-%m-%d)"
+CLAUDE_CODE_SESSION_ID=bw-w1 _bwlog "$_BWR_W" "bw log one"
+_bwt1="$(date +%s)"; _bwd1="$(date +%Y-%m-%d)"
+is "felix_mem_log appends a second six-column row and keeps the lesson row ahead of it" \
+   "$(_bwrows)|$(_bwnf "$_BWW")|$(head -1 "$_BWW" 2>/dev/null | cut -f4)" "2|6|lesson"
+is "the devlog row reads log, on the checkout's branch, at its short HEAD, under the session" \
+   "$(_bwlast 2,3,4,6)" "bw/writer|$_BWSHA|log|bw-w1"
+is "the devlog row carries today's date and the epoch second of the call" \
+   "$(_bwwhen "$(tail -1 "$_BWW" 2>/dev/null)" "$_bwt0" "$_bwt1" "$_bwd0" "$_bwd1")" "day ok, epoch ok"
+_bwgot="$(_bwbytes "$_BWV")"
+is "DEVLOG.md gets exactly the old entry: blank line, header with day branch sha, blank line, text" "$_bwgot" \
+   "$(_bwpick "$_bwgot" "$(printf '\n## %s bw/writer %s\n\nbw log one\n|' "$_bwd0" "$_BWSHA")" \
+                        "$(printf '\n## %s bw/writer %s\n\nbw log one\n|' "$_bwd1" "$_BWSHA")")"
+_bwgot="$(_bwbytes "$_BWL")"
+is "and felix_mem_log adds nothing to lessons.md" "$_bwgot" \
+   "$(_bwpick "$_bwgot" "$(printf '\n- **%s** bw lesson one\n|' "$_bwd0")" "$(printf '\n- **%s** bw lesson one\n|' "$_bwd1")")"
+
+# appended, never rewritten
+_bwreset
+printf '2020-01-01\tbw/old\t0000000\tlesson\t1577880000\tbw-old\n' > "$_BWW"
+CLAUDE_CODE_SESSION_ID=bw-w2 _bwlesson "$_BWR_W" "bw lesson two"
+CLAUDE_CODE_SESSION_ID=bw-w2 _bwlog "$_BWR_W" "bw log two"
+is "rows already in written.log are kept unchanged ahead of the new ones" \
+   "$(_bwrows)|$(head -1 "$_BWW" | tr '\t' '|')|$(sed -n 2p "$_BWW" | cut -f4)|$(sed -n 3p "$_BWW" | cut -f4)" \
+   "3|2020-01-01|bw/old|0000000|lesson|1577880000|bw-old|lesson|log"
+
+# the session column, sanitised as the gate's is
+_bwsess() {  # how -> NF|session of the one row a lesson writes
+  _bwreset
+  case "$1" in
+    unset) ( unset CLAUDE_CODE_SESSION_ID; _bwlesson "$_BWR_W" "bw s" ) ;;
+    log)   CLAUDE_CODE_SESSION_ID="$2" _bwlog "$_BWR_W" "bw s" ;;
+    *)     CLAUDE_CODE_SESSION_ID="$2" _bwlesson "$_BWR_W" "bw s" ;;
+  esac
+  printf '%s|%s' "$(_bwnf "$_BWW")" "$(_bwlast 6)"
+}
+is "a lesson written with no session id set is filed under a dash"          "$(_bwsess unset)" "6|-"
+is "a lesson written with an empty session id is filed under a dash"        "$(_bwsess set '')" "6|-"
+is "a session id holding a tab is filed as a dash, and the row stays six columns"   "$(_bwsess set "$(printf 'bw\tx')")" "6|-"
+is "a session id holding a space is filed as a dash, and the row stays six columns" "$(_bwsess set 'bw x')" "6|-"
+is "a session id holding a slash is filed as a dash"                        "$(_bwsess set 'bw/x')" "6|-"
+is "a session id of letters, digits, dot, underscore and dash is kept as it is" "$(_bwsess set 'Bw.9_z-1')" "6|Bw.9_z-1"
+is "felix_mem_log files a session id holding a tab as a dash too"           "$(_bwsess log "$(printf 'bw\tx')")" "6|-"
+
+# the branch column where git has less to say
+_bwreset
+_bwd0="$(date +%Y-%m-%d)"
+_bwlog "$_BWR_DET" "bw detached entry"
+_bwd1="$(date +%Y-%m-%d)"
+_BWDSHA="$(git -C "$_BWR_DET" rev-parse --short HEAD)"
+is "felix_mem_log in a detached checkout files its row under HEAD at the short sha" \
+   "$(_bwlast 2,3)" "HEAD|$_BWDSHA"
+_bwgot="$(sed -n 2p "$_BWV" 2>/dev/null)"
+is "and the devlog header there names HEAD the same way" "$_bwgot" \
+   "$(_bwpick "$_bwgot" "## $_bwd0 HEAD $_BWDSHA" "## $_bwd1 HEAD $_BWDSHA")"
+
+_bwreset
+_bwlesson "$_BWR_NG" "bw outside git"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_mistake "$GP" "$_BWR_NG" lint ) >/dev/null 2>&1
+is "felix_mem_lesson outside git files its row under a question mark" "$(_bwlast 2)" "?"
+is "outside git the written row spells branch and sha exactly as the gate's own row does" \
+   "$(_bwlast 2,3)" "$(tail -1 "$_BWK" 2>/dev/null | cut -f2,3 | tr '\t' '|')"
+
+_bwreset
+_bwlesson "$_BWR_UB" "bw unborn lesson"
+( . "$FROOT/harness/lib/memory.sh"; felix_mem_mistake "$GP" "$_BWR_UB" lint ) >/dev/null 2>&1
+is "in a checkout with no commit felix_mem_lesson writes one six-column row under the branch name" \
+   "$(_bwrows)|$(_bwnf "$_BWW")|$(_bwlast 2)" "1|6|bw/unborn"
+is "with no commit yet the written row spells branch and sha exactly as the gate's own row does" \
+   "$(_bwlast 2,3)" "$(tail -1 "$_BWK" 2>/dev/null | cut -f2,3 | tr '\t' '|')"
+_bwreset
+_bwd0="$(date +%Y-%m-%d)"
+_bwlog "$_BWR_UB" "bw unborn entry"
+_bwd1="$(date +%Y-%m-%d)"
+_bwhdr="$(sed -n 2p "$_BWV" 2>/dev/null)"
+case "$_bwhdr" in "## $_bwd0 bw/unborn "*|"## $_bwd1 bw/unborn "*) _bwhv=begins ;; *) _bwhv="[$_bwhdr]" ;; esac
+is "a devlog entry in a checkout with no commit has a one-line header beginning with day and branch" \
+   "$(awk 'END{print NR}' "$_BWV" 2>/dev/null)|$_bwhv|$(sed -n 3p "$_BWV" 2>/dev/null)|$(sed -n 4p "$_BWV" 2>/dev/null)" \
+   "4|begins||bw unborn entry"
+is "and felix_mem_log there writes one six-column row under the branch name" \
+   "$(_bwrows)|$(_bwnf "$_BWW")|$(_bwlast 2,4)" "1|6|bw/unborn|log"
+
+# the row the writer leaves is the one the guard reads
+_bwreset
+_bwcatch bw/writer lint "$(_bwago 30)" bw-lib
+CLAUDE_CODE_SESSION_ID=bw-lib _bwlesson "$_BWR_W" "bw lib lesson"
+is "the row felix_mem_lesson writes settles the catch of the session that wrote it" \
+   "$(_bwsays "$_BWR_W" bw-lib)" "silent"
+_bwreset
+_bwcatch bw/writer lint "$(_bwago 30)" bw-lib
+CLAUDE_CODE_SESSION_ID=bw-lib-peer _bwlesson "$_BWR_W" "bw lib lesson"
+is "and the row a peer session's felix_mem_lesson writes on the same branch does not" \
+   "$(_bwsays "$_BWR_W" bw-lib)" "prompts:lint"
+
+# ========================================================= (b) session-owned
+_BWT="$(_bwago 30)"   # the catch
+_bwreset
+_bwcatch bw/this lint "$_BWT" bw-s1
+_bwout="$( ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$_BWR_THIS" bw-s1 ) 2>/dev/null )"
+is "with no written.log this session's catch prompts, first line exact" \
+   "$(printf '%s\n' "$_bwout" | head -1)" "$_BWFIRST"
+is "and its last-caught line names the catch" "$(_bwverdict "$_bwout")" "prompts:lint"
+has "the prompt names felix lesson as a way to settle it" "$_bwout" "felix lesson"
+has "the prompt names felix log as a way to settle it too" "$_bwout" "felix log"
+
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s1
+is "this session's written row ten minutes after its catch settles it" "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT - 600 ))" bw-s1
+is "this session's written row ten minutes before its catch does not" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-peer
+is "a peer session's row on the same branch after the catch does not settle it" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-peer; _bwprose "$(( _BWT + 600 ))"
+is "nor does it with the lessons.md and DEVLOG.md a peer's writing leaves newer than the catch" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT - 600 ))" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 1200 ))" bw-peer
+is "this session's row from before the catch and a newer peer row after it still prompt" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" -
+is "a row naming no session does not settle a session-owned catch, even on its branch" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+
+# several ids in one conversation
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s0
+is "a row under the first of several ids in SIDS settles a catch filed under another of them" \
+   "$(_bwsays "$_BWR_THIS" "bw-s0 bw-s1 bw-s2")" "silent"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s2
+is "and so does a row under the last of them" "$(_bwsays "$_BWR_THIS" "bw-s0 bw-s1 bw-s2")" "silent"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s9
+is "a row under an id missing from a multi-id SIDS does not" "$(_bwsays "$_BWR_THIS" "bw-s0 bw-s1 bw-s2")" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s
+is "a row under an id that is only part of an id in SIDS does not" "$(_bwsays "$_BWR_THIS" "bw-s0 bw-s1 bw-s2")" "prompts:lint"
+
+# to the second
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$_BWT" bw-s1
+is "a row stamped the very second of the catch does not settle it" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 1 ))" bw-s1
+is "a row one second after the catch does" "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+
+# wherever this session wrote it
+_bwreset; _bwcatch bw/handed lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s1
+is "this session's row on another branch settles its catch" "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset; _bwcatch bw/handed lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-peer
+is "and a peer's row on that same other branch does not" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote '?' lesson "$(( _BWT + 600 ))" bw-s1
+is "this session's catch seen from outside git is settled by its own row" "$(_bwsays "$_BWR_NG" bw-s1)" "silent"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote '?' lesson "$(( _BWT + 600 ))" bw-peer
+is "and not by a peer's row there" "$(_bwsays "$_BWR_NG" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s1
+is "this session's catch with no checkout given is settled by its own row" "$(_bwsays '' bw-s1)" "silent"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-peer
+is "and not by a peer's row with no checkout given" "$(_bwsays '' bw-s1)" "prompts:lint"
+
+# which catch: the last owned row in the file, against its own time
+_bwreset
+_bwcatch bw/this first "$(( _BWT - 3600 ))" bw-s1
+_bwcatch bw/this second "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT - 1800 ))" bw-s1
+is "a row between two of this session's catches leaves the later one owed" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:second"
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s1
+is "and a row after both settles it" "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset
+_bwcatch bw/this newer "$_BWT" bw-s1
+_bwcatch bw/this older "$(( _BWT - 3600 ))" bw-s1
+_bwwrote bw/this lesson "$(( _BWT - 1800 ))" bw-s1
+is "a row after the file's last owned catch settles it though an earlier line holds a newer time" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset
+_bwcatch bw/this newer "$_BWT" bw-s1
+_bwcatch bw/this older "$(( _BWT - 3600 ))" bw-s1
+_bwwrote bw/this lesson "$(( _BWT - 5400 ))" bw-s1
+is "and a row before that last owned catch does not" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:older"
+_bwreset
+_bwcatch bw/this lint "$_BWT" bw-s1
+_bwcatch bw/this tests "$(( _BWT + 900 ))" bw-peer
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s1
+is "this session's row settles its catch whatever a peer caught later on the same branch" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset
+_bwcatch bw/this lint "$_BWT" bw-s1
+_bwcatch bw/this tests "$(( _BWT + 900 ))" bw-peer
+_bwwrote bw/this lesson "$(( _BWT + 1200 ))" bw-peer
+is "and the peer who caught later writing its own row settles only its own" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+
+# ========================================================== (c) branch-owned
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" -
+is "a catch naming no session is settled by a sessionless row on its branch" "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwwrote bw/other lesson "$(( _BWT + 600 ))" -
+is "and not by a sessionless row on another branch" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-peer
+is "a catch naming no session is settled by a peer's row on its branch" "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwwrote bw/other lesson "$(( _BWT + 600 ))" bw-peer
+is "and not by a peer's row on another branch" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s1
+is "a catch naming no session is settled by this session's row on its branch" "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwwrote bw/other lesson "$(( _BWT + 600 ))" bw-s1
+is "and not by this session's row on another branch" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwwrote bw/this lesson "$(( _BWT - 600 ))" -
+is "a branch-owned catch is not settled by a row on its branch from before it" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwwrote bw/other lesson "$(( _BWT + 600 ))" -; _bwprose "$(( _BWT + 600 ))"
+is "nor by another branch's row with lessons.md and DEVLOG.md newer than the catch" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+
+# with SIDS empty, a catch that names a session is weighed by branch
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-peer
+is "with no session asking, a named catch is settled by any row on its branch" "$(_bwsays "$_BWR_THIS" '')" "silent"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/other lesson "$(( _BWT + 600 ))" bw-peer
+is "and not by that row on another branch" "$(_bwsays "$_BWR_THIS" '')" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/other lesson "$(( _BWT + 600 ))" bw-s1
+is "nor by its own session's row on another branch" "$(_bwsays "$_BWR_THIS" '')" "prompts:lint"
+
+# look-alike branch names
+_bwreset; _bwcatch bw/v1.2 lint "$_BWT" -
+for _bwb in bw/v1x2 bw/v1.2-rc xbw/v1.2 bw/v1 bw/V1.2; do _bwwrote "$_bwb" lesson "$(( _BWT + 600 ))" -; done
+is "rows on look-alike branches do not settle a branch-owned catch" "$(_bwsays "$_BWR_V" bw-s1)" "prompts:lint"
+_bwwrote bw/v1.2 lesson "$(( _BWT + 600 ))" -
+is "while the same rows plus one on the exact branch do" "$(_bwsays "$_BWR_V" bw-s1)" "silent"
+
+# detached
+_bwreset; _bwcatch HEAD lint "$_BWT" -
+_bwwrote HEAD lesson "$(( _BWT + 600 ))" -
+is "a detached checkout's catch is settled by a row filed under HEAD" "$(_bwsays "$_BWR_DET" bw-s1)" "silent"
+_bwreset; _bwcatch HEAD lint "$_BWT" -
+_bwwrote bw/det lesson "$(( _BWT + 600 ))" -
+is "and not by a row on the branch it was detached from" "$(_bwsays "$_BWR_DET" bw-s1)" "prompts:lint"
+
+# ========================================================= (d) unknown owner
+# every case here would settle a catch whose owner is known, and each also
+# leaves lessons.md and DEVLOG.md newer than the catch, as a writer does
+_bwreset; _bwcatch '?' lint "$_BWT" -
+_bwwrote '?' lesson "$(( _BWT + 600 ))" -; _bwprose "$(( _BWT + 600 ))"
+is "from a root outside git with no session, no row settles a catch" "$(_bwsays "$_BWR_NG" '')" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" -; _bwprose "$(( _BWT + 600 ))"
+is "with no root and no session, not even a row on the catch's own branch settles it" "$(_bwsays0)" "prompts:lint"
+_bwreset; _bwcatch '?' lint "$_BWT" -
+_bwwrote '?' lesson "$(( _BWT + 600 ))" bw-s1; _bwprose "$(( _BWT + 600 ))"
+is "from outside git, a catch naming no session is not settled even by the asking session's row" \
+   "$(_bwsays "$_BWR_NG" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch '?' lint "$_BWT" bw-s1
+_bwwrote '?' lesson "$(( _BWT + 600 ))" bw-s1; _bwprose "$(( _BWT + 600 ))"
+is "from outside git with SIDS empty, a named catch is not settled by its session's row" \
+   "$(_bwsays "$_BWR_NG" '')" "prompts:lint"
+
+# =========================================================== (e) untimed rows
+# Four columns, no epoch. Taken at mistakes.log's time, or by the day it names.
+_BWM="$(_bwago 30)"   # mistakes.log's mtime
+_bwuntimed() { printf '%s\tbw/this\t0123abc\tlint\n' "$1" > "$_BWK"; _bwmt "$_BWM" "$_BWK"; }
+_bwreset; _bwuntimed "$_BWTODAY"
+_bwwrote bw/this lesson "$(( _BWM + 600 ))" - "$_BWTODAY"
+is "an untimed catch is settled by a same-branch row whose epoch is after mistakes.log's time" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset; _bwuntimed "$_BWTODAY"
+_bwwrote bw/this lesson "$(( _BWM - 600 ))" - "$_BWTODAY"
+is "and not by one before that time on the same day" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwuntimed "$_BWDAY2"
+_bwwrote bw/this lesson "$(( _BWM - 600 ))" - "$_BWTODAY"
+is "an untimed catch is settled by a same-branch row dated a later day, though its epoch is earlier" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset; _bwuntimed "$_BWDAY2"
+_bwwrote bw/this lesson "$(( _BWM - 600 ))" - "$_BWDAY2"
+is "and not by that row dated the catch's own day" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwuntimed "$_BWDAY2"
+_bwwrote bw/other lesson "$(( _BWM + 600 ))" - "$_BWTODAY"
+is "an untimed catch is not settled by another branch's later row" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+
+# ============================================ (f) prose mtimes settle nothing
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+printf -- '- **%s** consolidated by hand\n' "$_BWTODAY" > "$_BWL"; _bwmt "$(( _BWT + 600 ))" "$_BWL"
+is "a lessons.md written by hand after the catch, with no written row, does not settle it" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+printf '\n## %s by hand\n\nan entry\n' "$_BWTODAY" > "$_BWV"; _bwmt "$(( _BWT + 600 ))" "$_BWV"
+is "a DEVLOG.md entry written by hand after the catch does not settle it" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwprose "$(( _BWT + 600 ))"
+is "nor do hand-written lessons and devlog settle a branch-owned catch" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwuntimed "$_BWDAY2"
+_bwprose "$(( _BWM + 600 ))"
+is "nor an untimed catch, though both are newer than mistakes.log and a later day" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwprose "$(( _BWT + 600 ))"
+is "both hand-written files newer than this session's catch, with no written row, do not settle it" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s1
+is "the same hand-written files beside this session's written row are silent" "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+
+# =============================================================== (g) malformed
+_bwbadrow() {  # epoch column as given, otherwise this session's row after the catch
+  _bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+  printf '%s\tbw/this\t0123abc\tlesson\t%s\tbw-s1\n' "$_BWTODAY" "$1" > "$_BWW"
+  _bwsays "$_BWR_THIS" bw-s1
+}
+is "a written row whose epoch has a leading zero settles nothing" "$(_bwbadrow "0$(( _BWT + 600 ))")" "prompts:lint"
+is "a written row whose epoch has thirteen digits settles nothing" "$(_bwbadrow 9999999999999)" "prompts:lint"
+is "a written row whose epoch is not a number settles nothing" "$(_bwbadrow later)" "prompts:lint"
+is "a written row whose epoch is empty settles nothing" "$(_bwbadrow '')" "prompts:lint"
+is "a written row whose epoch is negative settles nothing" "$(_bwbadrow "-$(( _BWT + 600 ))")" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+printf '%s\tbw/this\t0123abc\tlesson\n' "$_BWTODAY" > "$_BWW"
+is "a four-column written row on the catch's branch settles nothing" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+printf '%s\tbw/this\t0123abc\tlesson\t%s\n' "$_BWTODAY" "$(( _BWT + 600 ))" > "$_BWW"
+is "a five-column written row, naming no session, does not settle a session-owned catch" \
+   "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+: > "$_BWW"
+is "an empty written.log settles nothing" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+is "a missing written.log settles nothing" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+{ printf '%s\tbw/this\t0123abc\tlesson\t0%s\tbw-s1\n' "$_BWTODAY" "$(( _BWT + 600 ))"
+  printf '%s\tbw/this\t0123abc\tlesson\n' "$_BWTODAY"
+  printf 'garbage\n'; } > "$_BWW"
+is "a written.log of malformed rows only settles nothing" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwwrote bw/this lesson "$(( _BWT + 600 ))" bw-s1
+is "and one well-formed row of this session's after them does" "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+
+# ============================================================ (h) kind log
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this log "$(( _BWT + 600 ))" bw-s1
+is "this session's log row settles its catch as a lesson row does" "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset; _bwcatch bw/this lint "$_BWT" bw-s1
+_bwwrote bw/this log "$(( _BWT + 600 ))" bw-peer
+is "a peer's log row does not" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwwrote bw/this log "$(( _BWT + 600 ))" -
+is "a log row on the branch settles a branch-owned catch" "$(_bwsays "$_BWR_THIS" bw-s1)" "silent"
+_bwreset; _bwcatch bw/this lint "$_BWT" -
+_bwwrote bw/other log "$(( _BWT + 600 ))" -
+is "a log row on another branch does not" "$(_bwsays "$_BWR_THIS" bw-s1)" "prompts:lint"
+_bwreset
+
+# ================================================= (i) CLI and the Stop hook
+# A governed throwaway checkout, green but for the catch: a gate that passes,
+# a probe that reads the marker, and a verify record for its tree.
+_BWHP="$FROOT/projects/bwhook"; _BWHM="$MEM/bwhook"; mkdir -p "$_BWHP" "$_BWHM"
+printf '{\n  "name": "bwhook",\n  "remote_match": "example.com/bwhook",\n  "gate": "true"\n}\n' > "$_BWHP/project.json"
+printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' > "$_BWHP/probes.tsv"
+_BWHR="$TMP/bw-hook-repo"; _bwrepo "$_BWHR" bw/hook; _BWHR="$(cd "$_BWHR" && pwd -P)"
+printf 'bwhook\n' > "$_BWHR/.felix"; printf 'uncommitted\n' > "$_BWHR/work.txt"
+( cd "$_BWHR" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$_BWHR" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$_BWHR" "$FROOT")" "" >/dev/null 2>&1 )
+_bwstop() { ( cd "$_BWHR" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s"}' "$1" \
+               | "$FROOT/harness/hooks/stop" 2>&1 ); }
+_bwhcatch() {  # a catch this checkout's session filed half an hour ago
+  rm -f "$_BWHM/mistakes.log" "$_BWHM/written.log" "$_BWHM/lessons.md" "$_BWHM/DEVLOG.md"
+  printf '%s\tbw/hook\t0123abc\tlint\t%s\t%s\n' "$(_bwday "$_BWT")" "$_BWT" "$1" > "$_BWHM/mistakes.log"
+  _bwmt "$_BWT" "$_BWHM/mistakes.log"
+}
+_bwcli() {  # session command text: felix run inside the checkout
+  if [ -n "$1" ]; then ( cd "$_BWHR" && CLAUDE_CODE_SESSION_ID="$1" "$FROOT/harness/felix" "$2" "$3" ) >/dev/null 2>&1
+  else ( cd "$_BWHR" && unset CLAUDE_CODE_SESSION_ID && "$FROOT/harness/felix" "$2" "$3" ) >/dev/null 2>&1; fi
+}
+
+_bwhcatch bw-e2e-a
+has "through the Stop hook, this session's catch with nothing written prompts" "$(_bwstop bw-e2e-a)" "nothing has been written down"
+
+_bwhcatch bw-e2e-b
+_bwcli bw-e2e-b lesson "bw e2e lesson"
+is "felix lesson run in the checkout leaves a written.log row for its session, branch and kind" \
+   "$(tail -1 "$_BWHM/written.log" 2>/dev/null | cut -f2,4,6 | tr '\t' '|')" "bw/hook|lesson|bw-e2e-b"
+is "through the Stop hook, this session's felix lesson after its catch gives no prompt" "$(_bwstop bw-e2e-b)" ""
+
+_bwhcatch bw-e2e-c
+_bwcli bw-e2e-peer lesson "bw e2e peer lesson"
+has "through the Stop hook, a peer session's felix lesson after this session's catch still prompts" \
+    "$(_bwstop bw-e2e-c)" "nothing has been written down"
+
+_bwhcatch bw-e2e-d
+_bwcli bw-e2e-d log "bw e2e log"
+is "felix log run in the checkout leaves a written.log row of kind log for its session" \
+   "$(tail -1 "$_BWHM/written.log" 2>/dev/null | cut -f2,4,6 | tr '\t' '|')" "bw/hook|log|bw-e2e-d"
+is "through the Stop hook, this session's felix log after its catch gives no prompt" "$(_bwstop bw-e2e-d)" ""
+
+_bwhcatch bw-e2e-e
+_bwcli bw-e2e-peer2 log "bw e2e peer log"
+has "through the Stop hook, a peer session's felix log after this session's catch still prompts" \
+    "$(_bwstop bw-e2e-e)" "nothing has been written down"
+
+_bwhcatch bw-e2e-f
+_bwcli '' lesson "bw e2e sessionless lesson"
+has "through the Stop hook, a felix lesson run outside every session does not settle this session's catch" \
+    "$(_bwstop bw-e2e-f)" "nothing has been written down"
+
+rm -rf "$_BWHP" "$_BWHM"
+_bwreset
+unset -f _bwago _bwstamp _bwday _bwmt _bwreset _bwcatch _bwwrote _bwprose _bwverdict _bwsays _bwsays0 \
+         _bwg _bwrepo _bwhead _bwrows _bwlast _bwnf _bwwhen _bwbytes _bwpick _bwlesson _bwlog _bwsess \
+         _bwuntimed _bwbadrow _bwstop _bwhcatch _bwcli
+unset _BWD _BWK _BWW _BWL _BWV _BWFIRST _BWN _BWTODAY _BWDAY2 _BWR_THIS _BWR_V _BWR_W _BWR_DET _BWR_UB _BWR_NG \
+      _BWSHA _BWDSHA _BWT _BWM _BWHP _BWHM _BWHR _bwt0 _bwt1 _bwd0 _bwd1 _bwgot _bwhdr _bwhv _bwout _bwb
 rm -rf "$GP"
 
 printf '\nnoticing when another plugin breaks the session\n'
@@ -10996,29 +12277,136 @@ is  "with no qualification.tsv at all, every capability named resolves absent, a
           felix_obligations_needs "$NDN"; printf 'rc=%s' "$?" ) 2>/dev/null )" \
     "$(printf 'n\t-\tnone\t-\na\tpart\tabsent\t-\na\twhole\tabsent\t-\nrc=0')"
 
+# A table holding a NUL byte. macOS awk keeps each record as a C string, so a
+# NUL ends the line there for everything awk does with it, and the table is
+# read through awk: a row starting with one read as a blank line and was
+# skipped, never run and never called malformed, and one later in a row cut the
+# row there, dropping its premise or running a shorter mutation. git calls a
+# file with a NUL in its first 8000 bytes binary, so a reviewer saw no row of
+# it, and mawk and gawk keep the NUL, so the same table read otherwise on Linux.
+# A table holding one anywhere is not read as a table, by anything here.
+#
+# _qznul WHERE [clean]: a table whose first line is demo's met violation, clean,
+# and whose last holds a NUL at WHERE; given clean, the same bytes without it,
+# the twin that each refusal of a NUL table is measured against. WHERE is
+#   start    a NUL starting a held row
+#   row      a NUL inside a held row's mutation, before the part that undoes
+#            it, so the row cut there is met
+#   field    a NUL after a row's fifth field, before a premise that errors, so
+#            the row cut there runs and is met
+#   alone    a NUL alone on a line
+#   comment  a NUL inside a comment
+#   far      a NUL starting a held row past byte 8000, where git no longer
+#            calls the file binary and awk still ends the line
+# demo's checker marks $_qzmark each time it runs, so a run of no control is
+# measured, not inferred from what was printed.
+_qzwhere="start row field alone comment far"
+_qzmark="$TMP/qual-nul-ran"
+_qznul() {
+  local k='! grep -rqI FORBIDDEN . 2>/dev/null' pre="" post=""
+  printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "printf x >> '$_qzmark'; $k"
+  case "$1" in
+    start|far) post="$(printf 'held\ttrue\tviolation\tfail\ttrue')" ;;
+    row)       pre="$(printf 'held\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt' "$k")"; post='; rm bad.txt' ;;
+    field)     pre="$(printf 'held\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt' "$k")"
+               post="$(printf '\tsh -c %s' "'exit 2'")" ;;
+    comment)   pre='# a note'; post=' beside the rows' ;;
+  esac
+  [ "$1" != far ] || LC_ALL=C awk 'BEGIN { for (i = 0; i < 100; i++) printf "# %097d\n", i }'
+  printf '%s' "$pre"; [ "${2:-}" = clean ] || printf '\000'; printf '%s\n' "$post"
+}
+_qzsaid() {
+  case "$1" in
+    start)   printf 'a NUL starting a held row' ;;
+    row)     printf "a NUL inside a held row's mutation" ;;
+    field)   printf "a NUL after a row's fifth field" ;;
+    alone)   printf 'a NUL alone on a line' ;;
+    comment) printf 'a NUL inside a comment' ;;
+    far)     printf 'a NUL past byte 8000' ;;
+  esac
+}
+# The fixture first: one NUL in each table, its twin the same bytes without it,
+# and git calling each binary but the one whose NUL is past byte 8000, which
+# is the case a reviewer reading a diff would be shown.
+NDZ="$TMP/needs-nul"; mkdir -p "$NDZ"
+_qzfix() {
+  local w g
+  for w in $_qzwhere; do
+    _qznul "$w" > "$NDZ/fix.nul"; _qznul "$w" clean > "$NDZ/fix.clean"
+    LC_ALL=C tr -d '\000' < "$NDZ/fix.nul" > "$NDZ/fix.stripped"
+    g="$(git diff --no-index --numstat /dev/null "$NDZ/fix.nul" 2>/dev/null | cut -f1)"
+    printf '%s:%s:%s:%s ' "$w" "$(LC_ALL=C tr -cd '\000' < "$NDZ/fix.nul" | wc -c | tr -d ' ')" \
+      "$(cmp -s "$NDZ/fix.clean" "$NDZ/fix.stripped" && echo twin || echo other)" \
+      "$([ "$g" = - ] && echo binary || echo text)"
+  done
+  rm -f "$NDZ/fix.nul" "$NDZ/fix.clean" "$NDZ/fix.stripped"
+}
+is  "each NUL table holds one NUL, its twin is the same bytes without it, and git calls it binary unless the NUL is past byte 8000" \
+    "$(_qzfix)" "start:1:twin:binary row:1:twin:binary field:1:twin:binary alone:1:twin:binary comment:1:twin:binary far:1:twin:text "
+# needs over such a table resolves nothing, as over one it cannot read: the
+# declared list read from it is a list of what awk saw.
+{ printf 'n\tINFO\tdeterministic\t-\ttrue\t-\tr\t-\n'
+  printf 'a\tINFO\tdeterministic\t-\ttrue\t-\tr\tdemo,held\n'; } > "$NDZ/obligations.tsv"
+_ndz() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
+           . "$FROOT/harness/lib/obligations.sh"
+           felix_obligations_needs "$NDZ"; printf 'rc=%s' "$?" ) 2>"$TMP/ndz.err"; }
+_ndzsays() {
+  local w out
+  for w in $_qzwhere; do
+    _qznul "$w" > "$NDZ/qualification.tsv"
+    out="$(_ndz)"
+    [ "$out" = rc=2 ] || printf '%s: printed [%s]\n' "$w" "$(printf '%s' "$out" | tr '\n\t' '/ ')"
+    { [ "$(grep -c . "$TMP/ndz.err")" = 1 ] \
+        && [ "$(grep -F "$NDZ/qualification.tsv" "$TMP/ndz.err" | grep -c 'NUL')" = 1 ]; } \
+      || printf '%s: stderr [%s]\n' "$w" "$(tr '\n' '/' < "$TMP/ndz.err")"
+  done
+}
+is  "needs over a table holding a NUL byte anywhere resolves nothing, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_ndzsays)" ""
+is  "and needs refuses such a table without the caller's pipefail too" "$(set +o pipefail; _ndzsays)" ""
+_ndztwin() {
+  local w
+  for w in $_qzwhere; do
+    _qznul "$w" clean > "$NDZ/qualification.tsv"
+    printf '%s:%s ' "$w" "$(_ndz | awk -F'\t' 'NF >= 3 { printf "%s/%s ", $2, $3 } /^rc=/ { print }')"
+  done
+}
+is  "and needs over each twin, its NUL taken out, resolves as before and exits 0" "$(_ndztwin)" \
+    "start:-/none demo/short held/short rc=0 row:-/none demo/short held/short rc=0 field:-/none demo/short held/short rc=0 alone:-/none demo/short held/absent rc=0 comment:-/none demo/short held/absent rc=0 far:-/none demo/short held/short rc=0 "
+
 # Whichever read fails. A mode cannot stage the case where the declared list was
-# read and a later read of one checker's controls was not, so awk is wrapped:
-# every call that names a qualification.tsv is counted, and the one numbered
-# QSHIM_FAIL runs with that table at mode 000, put back as it returns. Which
-# read fails is counted back from the last one a clean run of the same command
-# made, so nothing here knows how many reads the engine takes to get there.
+# read and a later read of one checker's controls was not, so the readers are
+# wrapped: every call of awk or cat that names a qualification.tsv is counted,
+# and the one numbered QSHIM_FAIL runs with that table at mode 000, put back as
+# it returns. Which read fails is counted back from the last one a clean run of
+# the same command made, so nothing here knows how many reads the engine takes
+# to get there. Not awk alone: the engine's read of the table was awk's and is
+# now cat's, because awk cannot see a NUL byte (lib/qualify.sh,
+# _felix_qualify_read), and a wrapper on one reader counts a read another makes
+# as none. So every common reader that takes a file by name is wrapped, and a
+# second look added later by grep, wc, od or the like is a count of two. A
+# redirect is the one read no wrapper can see.
+_qsreaders='awk cat grep sed head tail wc od cut sort cmp'
 _QSHIM="$TMP/awk-shim"; _QSC="$TMP/awk-shim.count"; mkdir -p "$_QSHIM"
 _qawk="$(command -v awk)"
-cat > "$_QSHIM/awk" <<EOF
+for _qsn in $_qsreaders; do
+  _qsreal="$(command -v "$_qsn")"
+  cat > "$_QSHIM/$_qsn" <<EOF
 #!/bin/sh
 for a in "\$@"; do
   case "\$a" in
     qualification.tsv|*/qualification.tsv)
       printf x >> "\$QSHIM_COUNT"
       if [ "\$((\$(wc -c < "\$QSHIM_COUNT")))" -eq "\${QSHIM_FAIL:-0}" ]; then
-        chmod 000 "\$a"; "$_qawk" "\$@"; rc=\$?; chmod 644 "\$a"; exit \$rc
+        chmod 000 "\$a"; "$_qsreal" "\$@"; rc=\$?; chmod 644 "\$a"; exit \$rc
       fi
       break ;;
   esac
 done
-exec "$_qawk" "\$@"
+exec "$_qsreal" "\$@"
 EOF
-chmod +x "$_QSHIM/awk"
+  chmod +x "$_QSHIM/$_qsn"
+done
 # _qreads CMD...: how many reads of the table CMD makes through the wrapper.
 _QSE="$TMP/awk-shim.err"
 _qreads() {
@@ -11066,7 +12454,7 @@ _qeach() {
     k=$((k + 1))
   done
 }
-_qsnone="too few reads of qualification.tsv reach awk by name for this one to be made to fail alone"
+_qsnone="too few reads of qualification.tsv reach awk or cat by name for this one to be made to fail alone"
 if [ "$_unreadable" -eq 1 ]; then
   if _qstage 0 _nd felix_obligations_needs "$NDU"; then
     is  "needs whose last read of one checker's controls fails prints nothing and exits 2" "$_qsrc:$_qsout" "2:"
@@ -13538,6 +14926,152 @@ is  "and none of those rows is run" "$(_qrd | cut -d' ' -f1)" "rows=0"
   printf 'my-check_2\ttrue\tviolation\tfail\ttrue\t-\n'; } > "$QRD/qualification.tsv"
 is  "a blank line and a comment are still skipped, and an id with digits, _ and - is a checker" \
     "$(_qrd)" "rows=1 "
+# A NUL byte anywhere in the table, through the readers that answer for one.
+# Each prints nothing, says in one stderr line which table holds a NUL, and
+# exits 2, with the caller's pipefail and without; the three the others are
+# built on exit non-zero. Every table has a met control on a clean line, so a
+# reader that refuses only the line with the NUL in it still ran something.
+# The tables are _qznul's, from the needs block.
+QZL="$TMP/qual-nul"; mkdir -p "$QZL"
+_qzl() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+           "$@"; printf 'rc=%s' "$?" ) 2>"$TMP/qzl.err"; }
+# _qzeach PRED CMD...: CMD over each NUL table, PRED handed its output with the
+# stderr in qzl.err; a line for each table PRED finds the result wrong for.
+_qzeach() {
+  local pred="$1" w out said; shift
+  for w in $_qzwhere; do
+    _qznul "$w" > "$QZL/qualification.tsv"; rm -f "$_qzmark"
+    out="$("$@")"
+    said="$("$pred" "$out")"; [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+_qzrefused() {
+  [ "$1" = rc=2 ] || printf 'printed [%s]; ' "$(printf '%s' "$1" | tr '\n\t' '/ ')"
+  { [ "$(grep -c . "$TMP/qzl.err")" = 1 ] \
+      && [ "$(grep -F "$QZL/qualification.tsv" "$TMP/qzl.err" | grep -c 'NUL')" = 1 ]; } \
+    || printf 'stderr [%s]; ' "$(tr '\n' '/' < "$TMP/qzl.err")"
+  [ ! -e "$_qzmark" ] || printf 'ran a control; '
+}
+_qzgv="$(printf '  demo  ok\n  held  ok\n  omega  ok\n')"
+is  "felix_qualify_missing_controls over a table holding a NUL byte anywhere prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_qzeach _qzrefused _qzl felix_qualify_missing_controls "$QZL" demo)" ""
+is  "and missing_controls refuses it so without the caller's pipefail" \
+    "$(set +o pipefail; _qzeach _qzrefused _qzl felix_qualify_missing_controls "$QZL" demo)" ""
+is  "felix_qualify_run over a table holding a NUL byte anywhere runs nothing, prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_qzeach _qzrefused _qzl felix_qualify_run "$QZL" "$QLR")" ""
+is  "and felix_qualify_run refuses it so without the caller's pipefail" \
+    "$(set +o pipefail; _qzeach _qzrefused _qzl felix_qualify_run "$QZL" "$QLR")" ""
+is  "felix_qualify_ungoverned over a table holding a NUL byte anywhere names no checker, exits 2, and says in one stderr line naming the table that it holds a NUL" \
+    "$(_qzeach _qzrefused _qzl felix_qualify_ungoverned "$QZL" "$_qzgv")" ""
+is  "and ungoverned refuses it so without the caller's pipefail" \
+    "$(set +o pipefail; _qzeach _qzrefused _qzl felix_qualify_ungoverned "$QZL" "$_qzgv")" ""
+_qzraw() {
+  local r s
+  for r in felix_qualify_rows felix_qualify_malformed felix_qualify_snapshot; do
+    s="$( ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+            "$r" "$QZL" >/dev/null 2>&1; printf '%s' "$?" ) )"
+    [ "$s" != 0 ] || printf '%s exits 0; ' "$r"
+  done
+}
+is  "felix_qualify_rows, felix_qualify_malformed and felix_qualify_snapshot each exit non-zero over a table holding a NUL byte anywhere, with the caller's pipefail and without" \
+    "$(_qzeach _qzraw :)$(set +o pipefail; _qzeach _qzraw : | sed 's/^/without pipefail, /')" ""
+# The twin of each, the NUL taken out, reads as the rows it holds: the held row
+# held, the erroring premise unrunnable, the blank and the comment skipped.
+_qztwin() {
+  local w
+  for w in $_qzwhere; do
+    _qznul "$w" clean > "$QZL/qualification.tsv"
+    printf '%s:%s ' "$w" "$(_qzl felix_qualify_run "$QZL" "$QLR" | awk -F'\t' 'NF >= 5 { printf "%s ", $5 } /^rc=/ { print }')"
+  done
+}
+is  "each NUL table's twin, the NUL taken out, is run by the library as before, every row of it, and exits 0" "$(_qztwin)" \
+    "start:met held rc=0 row:met held rc=0 field:met unrunnable rc=0 alone:met rc=0 comment:met rc=0 far:met held rc=0 "
+# Anywhere is past a pipe's 64 KB too: the big table above, a NUL on a line of
+# its own after its last row.
+QZB="$TMP/qual-nul-big"; mkdir -p "$QZB"
+{ cat "$QBP/qualification.tsv"; printf '\000\n'; } > "$QZB/qualification.tsv"
+_qzbig="$(_qzl felix_qualify_missing_controls "$QZB" big)"
+is  "a NUL after more than a pipe's 64 KB of rows refuses the table all the same, in one stderr line naming it" \
+    "$_qzbig:$(grep -c . "$TMP/qzl.err"):$(grep -F "$QZB/qualification.tsv" "$TMP/qzl.err" | grep -c 'NUL')" "rc=2:1:1"
+# A table with no NUL reads exactly as before, byte for byte: the same rows and
+# the same malformed rows, with a mutation holding a byte that is not UTF-8,
+# backslashes, spaces around a field, a premise, blank lines and comments
+# skipped, a carriage return malformed, and a last line with no newline read
+# as a row. What refuses a NUL must not be what reads the rest.
+QZ7="$TMP/qual-no-nul"; mkdir -p "$QZ7"
+_qz5() { printf '%s\t%s\t%s\t%s\t%s\n' "$@"; }
+{ printf '\n   \n# a comment\n\t# behind a tab\n'
+  printf 'alpha\ttrue\tviolation\tfail\tprintf caf\351 > x\n'
+  _qz5 beta true violation fail 'printf "a\b\\c\t" > y'
+  _qz5 gamma '  true  ' violation fail '  printf x > z  '
+  printf 'eps\ttrue\tviolation\tfail\ttrue\r\n'
+  printf 'delta\ttrue\tviolation\tfail\ttrue\t test -f a.txt \n'
+  printf 'zeta\tonly-two\n'
+  printf 'omega\ttrue\tviolation\tfail\ttrue'; } > "$QZ7/qualification.tsv"
+{ printf 'alpha\ttrue\tviolation\tfail\tprintf caf\351 > x\n'
+  _qz5 beta true violation fail 'printf "a\b\\c\t" > y'
+  _qz5 gamma '  true  ' violation fail '  printf x > z  '
+  printf 'delta\ttrue\tviolation\tfail\ttrue\t test -f a.txt \n'
+  printf 'omega\ttrue\tviolation\tfail\ttrue\n'; } > "$TMP/qz7.rows"
+printf 'eps\ta carriage return; a row ends at a newline alone\nzeta\t2 field(s); a control needs five\n' > "$TMP/qz7.mal"
+{ LC_ALL=C awk 'NR <= 3 { print "R\t" $0 }' "$TMP/qz7.rows"
+  LC_ALL=C awk 'NR == 1 { print "M\t" $0 }' "$TMP/qz7.mal"
+  LC_ALL=C awk 'NR == 4 { print "R\t" $0 }' "$TMP/qz7.rows"
+  LC_ALL=C awk 'NR == 2 { print "M\t" $0 }' "$TMP/qz7.mal"
+  LC_ALL=C awk 'NR == 5 { print "R\t" $0 }' "$TMP/qz7.rows"; } > "$TMP/qz7.snap"
+_qz7() {   # locale, or empty for the suite's own: what reads otherwise than before
+  ( [ -z "$1" ] || export LC_ALL="$1"
+    . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+    felix_qualify_rows      "$QZ7" > "$TMP/qz7.rows.got" 2>/dev/null; r=$?
+    felix_qualify_malformed "$QZ7" > "$TMP/qz7.mal.got"  2>/dev/null; m=$?
+    felix_qualify_snapshot  "$QZ7" > "$TMP/qz7.snap.got" 2>/dev/null; s=$?
+    [ "$r $m $s" = "0 0 0" ] || printf 'exit %s %s %s; ' "$r" "$m" "$s"
+    cmp -s "$TMP/qz7.rows.got" "$TMP/qz7.rows" || printf 'rows differ; '
+    cmp -s "$TMP/qz7.mal.got"  "$TMP/qz7.mal"  || printf 'malformed rows differ; '
+    cmp -s "$TMP/qz7.snap.got" "$TMP/qz7.snap" || printf 'snapshot differs; ' )
+}
+is  "a table with no NUL is read byte for byte as before: its rows, its malformed rows and its snapshot" "$(_qz7 '')" ""
+is  "and a table with no NUL is read so in the C locale as well" "$(_qz7 C)" ""
+if [ -n "$_u8" ]; then
+  is  "and so in a UTF-8 locale, a mutation holding a byte that is not UTF-8 included" "$(_qz7 "$_u8")" ""
+else
+  skip "and so in a UTF-8 locale, a mutation holding a byte that is not UTF-8 included" "$_u8none"
+fi
+_qzbig7() {
+  ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+    felix_qualify_rows     "$QBP" > "$TMP/qzbig.rows" 2>/dev/null || printf 'rows exit non-zero; '
+    felix_qualify_snapshot "$QBP" > "$TMP/qzbig.snap" 2>/dev/null || printf 'snapshot exits non-zero; ' )
+  LC_ALL=C awk '{ print "R\t" $0 }' "$QBP/qualification.tsv" > "$TMP/qzbig.want"
+  cmp -s "$TMP/qzbig.rows" "$QBP/qualification.tsv" || printf 'rows differ; '
+  cmp -s "$TMP/qzbig.snap" "$TMP/qzbig.want"       || printf 'snapshot differs; '
+}
+is  "a table larger than a pipe's 64 KB with no NUL is read byte for byte, every row and the snapshot" "$(_qzbig7)" ""
+_qzgone() {
+  local r
+  for r in felix_qualify_rows felix_qualify_malformed felix_qualify_snapshot; do
+    printf '%s:%s ' "$r" "$(_qzl "$r" "$TMP/no-such-proj")"
+  done
+  printf 'run:%s' "$(_qzl felix_qualify_run "$TMP/no-such-proj" "$QLR")"
+}
+is  "with no qualification.tsv at all, rows, malformed, snapshot and the runner print nothing and exit 0" "$(_qzgone)" \
+    "felix_qualify_rows:rc=0 felix_qualify_malformed:rc=0 felix_qualify_snapshot:rc=0 run:rc=0"
+# And a table that cannot be read is still that, never one said to hold a NUL,
+# which nobody read it to know.
+_qzunread() {
+  [ "$1" = rc=2 ] || printf 'printed [%s]; ' "$(printf '%s' "$1" | tr '\n\t' '/ ')"
+  [ "$(grep -F "$QUT/qualification.tsv" "$TMP/qzl.err" | grep -c 'could not be read')" = 1 ] \
+    || printf 'no line saying the table could not be read; '
+  [ "$(grep -c 'NUL' "$TMP/qzl.err")" = 0 ] || printf 'says NUL; '
+}
+if [ "$_unreadable" -eq 1 ]; then
+  chmod 000 "$QUT/qualification.tsv"
+  _qzu="missing:$(_qzunread "$(_qzl felix_qualify_missing_controls "$QUT" alpha)") run:$(_qzunread "$(_qzl felix_qualify_run "$QUT" "$QLR")") ungoverned:$(_qzunread "$(_qzl felix_qualify_ungoverned "$QUT" "$_qgv")")"
+  chmod 644 "$QUT/qualification.tsv"
+  is  "a table at mode 000 is still one that could not be read, never one said to hold a NUL, and each reader exits 2" \
+      "$_qzu" "missing: run: ungoverned:"
+else
+  skip "a table at mode 000 is still one that could not be read, never one said to hold a NUL, and each reader exits 2" "$_noread"
+fi
 
 # The verdict is the control's, not the row's. `expect` was free text, so a
 # violation row expecting `pass` over a mutation that changed nothing ran,
@@ -13754,16 +15288,18 @@ else
     skip "$a" "$_noread"; done
 fi
 # A table that is not there at a read, or not there after one, or not the
-# table it was. Each is staged by an awk wrapper counting the reads as the one
-# above does: aside moves the table away for the Kth read and puts it back,
-# after moves it away once the Kth read is done and it is put back when the
-# run returns, and swap puts another table in its place once the Kth read is
-# done. A table gone between reads read as one declaring nothing, because the
+# table it was. Each is staged by awk and cat wrappers counting the reads as
+# the ones above do: aside moves the table away for the Kth read and puts it
+# back, after moves it away once the Kth read is done and it is put back when
+# the run returns, and swap puts another table in its place once the Kth read
+# is done. A table gone between reads read as one declaring nothing, because the
 # reader returns early on a table that is not a file, and the rest of the run
 # ran nothing and passed. The table here has a met control and a held one, so
 # every right answer refuses.
 _QMSHIM="$TMP/awk-shim-moves"; mkdir -p "$_QMSHIM"
-cat > "$_QMSHIM/awk" <<EOF
+for _qsn in $_qsreaders; do
+  _qsreal="$(command -v "$_qsn")"
+  cat > "$_QMSHIM/$_qsn" <<EOF
 #!/bin/sh
 for a in "\$@"; do
   case "\$a" in
@@ -13771,17 +15307,18 @@ for a in "\$@"; do
       printf x >> "\$QSHIM_COUNT"
       if [ "\$((\$(wc -c < "\$QSHIM_COUNT")))" -eq "\${QSHIM_FAIL:-0}" ]; then
         case "\$QSHIM_MODE" in
-          aside) mv "\$a" "\$a.aside"; "$_qawk" "\$@"; rc=\$?; mv "\$a.aside" "\$a"; exit \$rc ;;
-          after) "$_qawk" "\$@"; rc=\$?; mv "\$a" "\$a.gone"; exit \$rc ;;
-          swap)  "$_qawk" "\$@"; rc=\$?; cp "\$a" "\$a.was"; cp "\$QSHIM_WITH" "\$a"; exit \$rc ;;
+          aside) mv "\$a" "\$a.aside"; "$_qsreal" "\$@"; rc=\$?; mv "\$a.aside" "\$a"; exit \$rc ;;
+          after) "$_qsreal" "\$@"; rc=\$?; mv "\$a" "\$a.gone"; exit \$rc ;;
+          swap)  "$_qsreal" "\$@"; rc=\$?; cp "\$a" "\$a.was"; cp "\$QSHIM_WITH" "\$a"; exit \$rc ;;
         esac
       fi
       break ;;
   esac
 done
-exec "$_qawk" "\$@"
+exec "$_qsreal" "\$@"
 EOF
-chmod +x "$_QMSHIM/awk"
+  chmod +x "$_QMSHIM/$_qsn"
+done
 # _qmeach MODE PRED CMD...: CMD with each of its reads, in turn, staged by MODE,
 # and the widget table put back after each; PRED as for _qeach.
 _qmeach() {
@@ -13860,6 +15397,133 @@ printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\rdemo\ttrue\talter
 _qo="$(_qlgate)"; _qrc=$?
 is  "and so does a held row after a bare carriage return" \
     "$_qrc:$(printf '%s\n' "$_qo" | grep -c 'MALFORMED  a carriage return')" "1:1"
+# And a held row, or a met one, behind a NUL byte, which awk ends the line at:
+# the held row skipped as blank, a mutation or a premise cut short and met, and
+# --gate passing on what was left. The table holding a NUL is refused whole,
+# the met control on its clean line included: nothing runs, no verdict row or
+# held count is printed, a felix: line names the table and says it holds a
+# NUL, and felix qualify exits 2. Not that the table declares no control, and
+# not that it could not be read: both are false of a table read to the end.
+# Each table's twin, the NUL taken out, reads as before, so a refusal here is
+# the NUL's and not the fixture's. The tables are _qznul's, from the needs block.
+cp "$_qlw" "$TMP/qual-nul.keep"
+_qlnul() {
+  [ "$_qsrc" = 2 ] || printf 'exit %s; ' "$_qsrc"
+  [ "$(printf '%s\n' "$_qsout" | grep '^felix: ' | grep -F "$_qlwt" | grep -c 'NUL')" -ge 1 ] \
+    || printf 'no felix: line saying %s holds a NUL; ' "$_qlwt"
+  case "$_qsout" in *"declares no control"*) printf 'says the table declares no control; ' ;; esac
+  case "$_qsout" in *"could not be read"*) printf 'says something could not be read; ' ;; esac
+  [ "$(printf '%s\n' "$_qsout" | grep -cE '^  [^ ]+ +[a-z_]+ +(pass|fail) +[^ ]+ +(ok|HELD|UNRUNNABLE|n/a)$')" -eq 0 ] \
+    || printf 'prints a verdict row; '
+  case "$_qsout" in *"control(s) held"*) printf 'prints a held count; ' ;; esac
+  [ ! -e "$_qzmark" ] || printf 'ran a control; '
+}
+for _qzw in $_qzwhere; do
+  _qznul "$_qzw" > "$_qlw"; rm -f "$_qzmark"
+  _qsout="$(_qlgate)"; _qsrc=$?
+  is  "felix qualify --gate over a table with $(_qzsaid "$_qzw") runs no control, says on a felix: line naming the table that it holds a NUL, and exits 2" \
+      "$(_qlnul)" ""
+done
+_qlnulplain() {
+  local w said
+  for w in $_qzwhere; do
+    _qznul "$w" > "$_qlw"; rm -f "$_qzmark"
+    _qsout="$(_qlplain)"; _qsrc=$?
+    said="$(_qlnul)"; [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+is  "and plain felix qualify over each of those tables runs no control, says the table holds a NUL, and exits 2" \
+    "$(_qlnulplain)" ""
+# The twins: a held row HELD and a premise that errors UNRUNNABLE, each
+# refusing with exit 1, and a table whose NUL sat on a blank or comment line
+# passing, each having run demo's met control.
+_qltwin() {
+  local w want row said
+  for w in $_qzwhere; do
+    case "$w" in
+      field)         want=1; row='^  held +violation +fail +unrunnable +UNRUNNABLE$' ;;
+      alone|comment) want=0; row='^  demo +violation +fail +fail +ok$' ;;
+      *)             want=1; row='^  held +violation +fail +pass +HELD$' ;;
+    esac
+    _qznul "$w" clean > "$_qlw"; rm -f "$_qzmark"
+    _qsout="$(_qlgate)"; _qsrc=$?
+    said=""
+    [ "$_qsrc" = "$want" ] || said="${said}exit $_qsrc, not $want; "
+    [ "$(printf '%s\n' "$_qsout" | grep -cE "$row")" = 1 ] || said="${said}no row matching $row; "
+    [ -e "$_qzmark" ] || said="${said}demo's met control never ran; "
+    [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+is  "each of those tables with its NUL taken out reads through felix qualify --gate as before, refusing on its held or unrunnable row and passing when the NUL sat on a blank or comment line" \
+    "$(_qltwin)" ""
+# Whole, not by the line: a NUL in a comment between two met controls on clean
+# lines refuses the table, and neither control runs, where the same table
+# without the NUL passes having run both.
+_qlboth() {   # [clean]: exit:runs of felix qualify --gate over two met controls with a comment between
+  { printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "printf x >> '$_qzmark'; $_qcheck"
+    printf '# between the two'; [ "${1:-}" = clean ] || printf '\000'; printf ' met controls\n'
+    printf 'demo\t%s\trestoration\tpass\ttrue\n' "printf x >> '$_qzmark'; $_qcheck"; } > "$_qlw"
+  rm -f "$_qzmark"; ( cd "$REPO" && "$FELIX" qualify --gate >/dev/null 2>&1 ); _qsrc=$?
+  printf '%s:%s' "$_qsrc" "$( [ -e "$_qzmark" ] && wc -c < "$_qzmark" | tr -d ' ' || printf 0 )"
+}
+is  "a NUL refuses the whole table: with it in a comment between two met controls on clean lines neither runs and --gate exits 2, where without it both run and pass" \
+    "nul $(_qlboth) twin $(_qlboth clean)" "nul 2:0 twin 0:2"
+# One read, NUL or no NUL, counted by the wrapper from the obligations block.
+_qlnulreads() {
+  local w
+  for w in $_qzwhere; do
+    _qznul "$w" > "$_qlw";       printf '%s %s' "$w" "$(_qreads _qlgate)"
+    _qznul "$w" clean > "$_qlw"; printf '/%s ' "$(_qreads _qlgate)"
+  done
+}
+is  "felix qualify --gate opens a table holding a NUL exactly once, and its twin without the NUL once" \
+    "$(_qlnulreads)" "start 1/1 row 1/1 field 1/1 alone 1/1 comment 1/1 far 1/1 "
+# A table at mode 000 is still one that could not be read, never one said to
+# hold a NUL, which nobody read it to know.
+_qlnot() { case "$_qsout" in *NUL*) printf 'says NUL; ' ;; esac; }
+if [ "$_unreadable" -eq 1 ]; then
+  _qznul start clean > "$_qlw"
+  chmod 000 "$_qlw"; _qsout="$(_qlgate)"; _qsrc=$?; chmod 644 "$_qlw"
+  is  "felix qualify --gate over a table at mode 000 still says it could not be read, never that it holds a NUL, and exits 2" \
+      "$(_qlunread)$(_qlnot)" ""
+else
+  skip "felix qualify --gate over a table at mode 000 still says it could not be read, never that it holds a NUL, and exits 2" "$_noread"
+fi
+# A NUL right after a byte that starts a UTF-8 character. bash 4 to 5.2 read
+# the byte after a lead byte as the rest of the character without asking
+# whether it is the delimiter, so in a UTF-8 locale `\303\000` hid the NUL
+# from the read: it ran on to the end of input, said it found none, and every
+# row after it was dropped with a status of 0, a held one included. Found by
+# review on 2026-09-25; the reader pins the C locale for its read. macOS's
+# bash 3.2 never had the flaw, so this fails only on a newer bash, which is
+# what Linux CI runs.
+_qlu8="$_u8"
+[ -n "$_qlu8" ] || _qlu8="$(locale -a 2>/dev/null | awk '/^C\.(UTF-8|utf8)$/ && !n++')"
+_qllead() {   # [clean]: a met row, a comment ending in a lead byte and a NUL, a held row
+  printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck"
+  printf '# reviewed by Jos\303'; [ "${1:-}" = clean ] || printf '\000'; printf '\n'
+  printf 'held\ttrue\tviolation\tfail\ttrue\n'
+}
+if [ -n "$_qlu8" ]; then
+  _qllead > "$_qlw"; rm -f "$_qzmark"
+  _qsout="$( export LC_ALL="$_qlu8"; _qlgate )"; _qsrc=$?
+  is  "in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2" \
+      "$(_qlnul)" ""
+  _qlrows="$( export LC_ALL="$_qlu8"; . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"
+              felix_qualify_rows "$FROOT/projects/widget" 2>/dev/null )"; _qlrc=$?
+  is  "and in that locale the library reads no row of it and exits non-zero" \
+      "$([ "$_qlrc" -ne 0 ] && printf refused || printf 'exit 0')$([ -z "$_qlrows" ] || printf ', rows read')" "refused"
+  _qllead clean > "$_qlw"
+  _qsout="$( export LC_ALL="$_qlu8"; _qlgate )"; _qsrc=$?
+  is  "and without the NUL the same table runs, refusing --gate on the held row after the lead byte" \
+      "$_qsrc:$(printf '%s\n' "$_qsout" | grep -cE '^  held +violation +fail +pass +HELD$')" "1:1"
+else
+  for a in "in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2" \
+           "and in that locale the library reads no row of it and exits non-zero" \
+           "and without the NUL the same table runs, refusing --gate on the held row after the lead byte"; do
+    skip "$a" "no UTF-8 locale is installed here"; done
+fi
+cp "$TMP/qual-nul.keep" "$_qlw"
 # A present, empty table is a table declaring no control, and refuses as it
 # always has; the tests below it change what a table nobody read says, not this.
 : > "$_qlw"
@@ -14670,6 +16334,43 @@ if [ "$_unreadable" -eq 1 ]; then
 else
   skip "felix gate over a table it cannot read fails qualified and says under it that the table could not be read" "$_noread"
 fi
+# And a table holding a NUL byte, which felix qualify --gate passed whenever
+# the rows awk saw were met, so the gate printed qualified ok. It fails now,
+# with the felix: line saying the table holds a NUL lifted under the FAIL. The
+# twins, the NUL taken out, fail on their held or unrunnable row or pass as
+# before, so the FAIL is the NUL's. The tables are _qznul's, from the needs block.
+cp "$_qgt" "$TMP/premgate-nul.keep"
+_qpnul() {
+  local f
+  [ -z "$(_qpunder "$_qsout" ok)" ] || printf 'qualified ok; '
+  f="$(_qpunder "$_qsout" FAIL)"
+  if [ -z "$f" ]; then printf 'no qualified FAIL; '
+  else
+    [ "$(printf '%s\n' "$f" | sed 1d | grep -E '^ +felix: ' | grep -F '/projects/premgate/qualification.tsv' | grep -c 'NUL')" -ge 1 ] \
+      || printf 'no felix: line under qualified FAIL naming the table and saying it holds a NUL; '
+  fi
+}
+_qptwin() {   # WHERE
+  case "$1" in
+    alone|comment) [ -n "$(_qpunder "$_qsout" ok)" ] || printf 'no qualified ok; ' ;;
+    field) [ "$(_qpunder "$_qsout" FAIL | grep -cE ' held +violation +fail +unrunnable +UNRUNNABLE$')" = 1 ] \
+             || printf 'no UNRUNNABLE row under qualified FAIL; ' ;;
+    *)     [ "$(_qpunder "$_qsout" FAIL | grep -cE ' held +violation +fail +pass +HELD$')" = 1 ] \
+             || printf 'no HELD row under qualified FAIL; ' ;;
+  esac
+}
+_qpnuls() {   # PRED [clean]: felix gate over each table, a line for each PRED finds wrong
+  local w said
+  for w in $_qzwhere; do
+    _qznul "$w" ${2:+"$2"} > "$_qgt"; _qsout="$(_qpgate)"
+    said="$("$1" "$w")"; [ -z "$said" ] || printf '%s: %s\n' "$w" "$said"
+  done
+}
+is  "felix gate over a table holding a NUL byte anywhere fails qualified, never ok, and shows under it the felix: line naming the table and its NUL" \
+    "$(_qpnuls _qpnul)" ""
+is  "and over each twin, its NUL taken out, felix gate reads as before: qualified FAIL over the held or unrunnable row, and qualified ok when the NUL sat on a blank or comment line" \
+    "$(_qpnuls _qptwin clean)" ""
+cp "$TMP/premgate-nul.keep" "$_qgt"
 # And a present, empty table, which failed the same way with nothing under it.
 cp "$_qgt" "$TMP/premgate-qual.keep"
 : > "$_qgt"

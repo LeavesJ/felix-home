@@ -4,73 +4,140 @@
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
 # A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	2b6e2fab9f5da56ede84252e9849e1236c5185f2	2b6e2fab9f5da56ede84252e9849e1236c5185f2	0.49.231
-run	68	3786	5
-a blank line and a comment are still skipped, and an id with digits, _ and - is a checker	1
-a checker that is not an id is malformed, a space, a glob, a capital, a digit or a dash first	1
-a checker that reads its stdin leaves the row after it to run, and that row is held	1
-a held row with a tab in front of it refuses --gate, named malformed	1
-a row loop that gave every verdict and then failed refuses --gate by itself, saying the run did not finish	1
-a row of more than six fields is malformed	1
-a row with a tab in front of its checker is malformed, never skipped as a blank line	1
-a table gone after any read felix qualify --gate makes never passes it	1
-a table moved away for any one read felix qualify --gate makes never passes it	1
-a table rewritten to one that passes, after any read felix qualify --gate makes, leaves the run it read refusing on its held control	1
-a table that cannot be read names no control missing, rather than all six, and exits 2	1
-a table whose lines end in a bare carriage return is malformed, never one row with the rest unread	1
-and a run over a met control exits 0 only with a clean run's output, its shortfall included, and otherwise says what could not be read or worked out	1
-and a run whose one checker is never shown failing here never exits 0 either	1
-and claims neither a check no row qualifies nor that every check has one	1
-and counts nothing it could not read	1
-and felix gate fails qualified showing each such row MALFORMED under it	1
-and its summary line ends saying what would discharge them could not be read	1
-and leaves off the table of what would discharge each	1
-and missing_controls says on stderr which table could not be read	1
-and missing_controls says so without the caller's pipefail	1
-and names none of demo's controls missing	1
-and needs says on stderr which table could not be read	1
-and needs says so without the caller's pipefail	1
-and never counts across 0 checkers nor names a file of the checkout	1
-and none of those rows is run	1
-and one that finished having given 1 verdict of 2 refuses by itself, saying 1 of 2 ran	1
-and over a felix qualify --gate killed before it said anything, qualified FAIL still says where to read why	1
-and plain felix qualify exits 2 when the roster gap could not be read	1
-and plain felix qualify over it does the same	1
-and says it ran 1 of the 2 controls, exiting 1	1
-and says why, that it declares no control that can be run	1
-and shows that row held	1
-and so does a held row after a bare carriage return	1
-and so does a mutation that reads its stdin	1
-and so is a row ending in a carriage return and a newline	1
-and so without the caller's pipefail	1
-and that is the one line missing_controls writes there	1
-and that is the one line needs writes there	1
-and that is the one line ungoverned writes there	1
-and the gate's summary counts nothing it could not read	1
-and the gate's summary line ends saying what would discharge them could not be read	1
-and the same when the read that fails is an earlier one, with a later one read	1
-and ungoverned says on stderr which table could not be read	1
-and ungoverned says so without the caller's pipefail	1
-and whichever read fails, felix gate never says across 0 checker(s) nor shows awk's own error	1
-and whichever read plain felix qualify makes fails, it says what could not be read and exits 2	1
-felix gate over a felix qualify --gate whose row loop was killed says under qualified FAIL that the run did not finish and 1 of 2 ran	1
-felix gate over a present, empty table fails qualified and says under it that no checker here is qualified	1
-felix gate over a table it cannot read fails qualified and says under it that the table could not be read	1
-felix qualify --gate naming a checker with no row refuses, and says no control is declared for it	1
-felix qualify --gate over a table it cannot read runs nothing, says it could not be read naming it, and exits 2	1
-felix qualify --gate reads qualification.tsv exactly once	1
-felix qualify --gate refuses a held row after a checker that reads its stdin	1
-felix qualify --gate refuses rows whose checker is my check or *, rather than running them	1
-felix qualify says which checks have a row could not be read when that read fails	1
-felix_qualify_run over a table it cannot read runs nothing and exits 2, with the caller's pipefail and without	1
-in a UTF-8 locale, a row holding a byte that is not UTF-8 hides no checker after it from felix qualify	1
-in a UTF-8 locale, a row holding a byte that is not UTF-8 is read, and ungoverned names only the unqualified	1
-needs over a table that cannot be read resolves nothing, not every capability absent, and exits 2	1
-needs whose last read of one checker's controls fails prints nothing and exits 2	1
-plain felix qualify reads it once for its controls and at most once more for the roster gap	1
-ungoverned over a table that cannot be read names no reported checker, and exits 2	1
-when the last read felix qualify --gate makes of the table fails, it says the table could not be read and exits 2	1
-whichever awk, tr, cut or sort call felix qualify --gate makes fails, a run over a held control never exits 0	1
-whichever read of the table fails, needs prints nothing, exits 2, and says so in one stderr line naming it	1
-whichever read of the table felix gate's qualified check makes fails, it prints qualified FAIL with a line under it saying what could not be read	1
-whichever read of the table felix qualify --gate makes fails, it runs nothing, says the table could not be read, and exits 2	1
+base	e92d50df	e92d50dfe8c77826cbe5efe3106a0ea921c1b8c9	0.49.235
+run	135	3973	5
+a DEVLOG.md entry written by hand after the catch does not settle it	1
+a branch made from a detached HEAD inherits nothing from before the detach	1
+a catch eight days old is silent though the log was written since	1
+a catch naming no session after this session's own does not let a peer's lesson settle this session's	1
+a catch naming no session is not settled by another branch's lesson	1
+a catch naming no session is settled by a peer's row on its branch	1
+a catch naming no session is settled by a sessionless row on its branch	1
+a catch naming no session is settled by this session's row on its branch	1
+a catch six days old still speaks	1
+a checkout with no commit yet writes one row, under its branch	1
+a column-5 time after the lesson speaks though the log's mtime is old	1
+a conversation holding more than one session owns the rows of each	1
+a detached checkout is silent about other branches' rows	1
+a detached checkout owns rows whose branch column is HEAD	1
+a detached checkout's catch is settled by a row filed under HEAD	1
+a detached checkout's own catch, filed as HEAD, prompts	1
+a devlog entry after this branch's catch clears it too	1
+a devlog entry in a checkout with no commit has a one-line header beginning with day and branch	1
+a lesson stamped the very second of the catch does not settle it	1
+a lesson thirty seconds after the catch clears it	1
+a lesson whose writer cannot be recorded exits non-zero	1
+a lesson written after this branch's catch clears it, whatever a peer logged since	1
+a lesson written into the file by hand after the catch settles nothing	1
+a lesson written with an empty session id is filed under a dash	1
+a lesson written with no session id set is filed under a dash	1
+a lessons.md written by hand after the catch, with no written row, does not settle it	1
+a log row on the branch settles a branch-owned catch	1
+a non-empty devlog written after the catch settles it	1
+a peer branch's newer catch does not prompt	1
+a peer session's lesson after this session's catch does not, on this very branch	1
+a row after the file's last owned catch settles it though an earlier line holds a newer time	1
+a row one second after the catch does	1
+a row that names no session is this checkout's when its branch is the one checked out	1
+a row under the first of several ids in SIDS settles a catch filed under another of them	1
+a session id holding a slash is filed as a dash	1
+a session id holding a space is filed as a dash, and the row stays six columns	1
+a session id holding a tab is filed as a dash, and the row stays six columns	1
+a session id of letters, digits, dot, underscore and dash is kept as it is	1
+a session's catch on the branch it left by checkout -b is its own, even after a commit	1
+a session's catch under its branch's name before git branch -m is still its own	1
+an entry under any of the conversation's sessions settles its catch	1
+an untimed catch is settled by a same-branch row dated a later day, though its epoch is earlier	1
+an untimed catch is settled by a same-branch row whose epoch is after mistakes.log's time	1
+an untimed row is settled by a lesson written on a later day than it names	1
+an untimed row of this branch's is taken at the file's time	1
+an untimed row of this checkout is taken at the log's mtime, and speaks	1
+an untimed row with an empty date is not taken for history	1
+and a dash for an id that would break the row	1
+and a dash when no session ran it	1
+and a lesson written before it does not	1
+and a peer branch's does not, nor anything else on this green stop	1
+and a row after both settles it	1
+and a transcript that never held that id does not claim it	1
+and an earlier session's catch in a reused checkout does not	1
+and an entry whose session column is not one id is nobody's	1
+and an older one does not	1
+and another session's catch on this very branch does not	1
+and another session's on this same branch does not	1
+and felix log does too, a dash for no session and the branch of a checkout with no commit	1
+and felix_mem_log there writes one six-column row under the branch name	1
+and names it trimmed at the ends with its inner space kept	1
+and not by one from an earlier day	1
+and not for a sibling checkout whose own catch was explained	1
+and one on the branch it left by switch -c	1
+and one well-formed row of this session's after them does	1
+and says the lesson is there and must not be written again	1
+and so does a row under the last of them	1
+and so does an untimed row dated ten days back	1
+and the peer who caught later writing its own row settles only its own	1
+and the prompt names felix log for a one-off	1
+and the row a peer session's felix_mem_lesson writes on the same branch does not	1
+and the second it was caught, since the file's own time is whoever wrote last	1
+another checkout's newer catch does not make this one speak	1
+as is the devlog entry, its header one line on a checkout with no commit	1
+both hand-written files newer than this session's catch, with no written row, do not settle it	1
+but is by one written on its own branch, whoever wrote it	1
+each at the second it was written	1
+felix lesson files its writer beside the lesson: branch, kind and session	1
+felix lesson run in the checkout leaves a written.log row for its session, branch and kind	1
+felix log run in the checkout leaves a written.log row of kind log for its session	1
+felix_mem_lesson appends exactly one row to written.log, with six columns	1
+felix_mem_lesson outside git files its row under a question mark	1
+felix_mem_log appends a second six-column row and keeps the lesson row ahead of it	1
+felix_mem_log files a session id holding a tab as a dash too	1
+felix_mem_log in a detached checkout files its row under HEAD at the short sha	1
+from a root outside git with no session, no row settles a catch	1
+from outside git with SIDS empty, a named catch is not settled by its session's row	1
+from outside git, a catch naming no session is not settled even by the asking session's row	1
+in a checkout with no commit felix_mem_lesson writes one six-column row under the branch name	1
+last caught names this checkout's catch, not the file's last row	1
+nor an untimed catch, though both are newer than mistakes.log and a later day	1
+nor by another branch's row with lessons.md and DEVLOG.md newer than the catch	1
+nor do hand-written lessons and devlog settle a branch-owned catch	1
+nor does a devlog entry written by hand	1
+nor does an id nested later in a record than the record's own	1
+nor does it with the lessons.md and DEVLOG.md a peer's writing leaves newer than the catch	1
+nor does one that names no session, as from a terminal outside every session	1
+nor one whose date is a dash, which sorts before every day	1
+nor the HEAD rows, once it is on a branch	1
+one row per entry, six columns each	1
+outside git the written row spells branch and sha exactly as the gate's own row does	1
+rows already in written.log are kept unchanged ahead of the new ones	1
+rows of look-alike branch names do not belong (exact match only)	1
+silent when no row belongs to this checkout	1
+that row carries today's date and the epoch second of the call	1
+that row reads lesson, on the checkout's branch, at its short HEAD, under the session	1
+the Stop hook calls the guard in one place	1
+the devlog row carries today's date and the epoch second of the call	1
+the devlog row reads log, on the checkout's branch, at its short HEAD, under the session	1
+the gate's row names the session that ran it	1
+the last belonging row in the file decides, not the largest time	1
+the prompt names felix log as a way to settle it too	1
+the writer's fifth column is the current epoch second	1
+this branch's own newer catch still prompts, and names it rather than a peer's logged after it	1
+this branch's week-old catch stays history while a peer's rows keep the file fresh	1
+this session's catch prompts after its checkout moves to another branch	1
+this session's catch seen from outside git is settled by its own row	1
+this session's catch with no checkout given is settled by its own row	1
+this session's log row settles its catch as a lesson row does	1
+this session's own lesson after its catch settles it	1
+this session's row on another branch settles its catch	1
+this session's row settles its catch whatever a peer caught later on the same branch	1
+this session's written row ten minutes after its catch settles it	1
+through the Stop hook, a felix lesson run outside every session does not settle this session's catch	1
+through the Stop hook, a peer session's felix lesson after this session's catch still prompts	1
+through the Stop hook, a peer session's felix lesson does not settle this session's catch	1
+through the Stop hook, a peer session's felix log after this session's catch still prompts	1
+while a checkout with a row there is named by it	1
+while the same rows plus one on the exact branch do	1
+while this session's lesson on the branch settles both	1
+while this session's lesson settles its catch from any branch it stood on	1
+with no commit yet the written row spells branch and sha exactly as the gate's own row does	1
+with no root and no session, not even a row on the catch's own branch settles it	1
+with no session asking, a named catch is settled by any row on its branch	1
+with the lesson gone it names its own row past the look-alikes	1

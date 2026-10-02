@@ -826,6 +826,32 @@ else
   _adrif "$_adrd" "$_adrl changes nothing in or beside the project" "$(_adrdiff "$_adrd")" _adrsame "$_adrd"
 fi
 
+# After review, not blind (2026-10-01): a list this user can write and not
+# read. Only the grep's own status refuses it, and no case above reaches that
+# line: with it deleted, all of them passed, while the list gained the
+# capability, or a second copy of it, and the rows.
+_adrl="a write-only capabilities file"
+if [ "$_adrroot" = 1 ]; then
+  for _adrx in "returns exactly 2" "prints nothing on stdout" "prints nothing on stderr" \
+               "leaves every entry in and beside the project as it was" "keeps its mode and bytes"; do
+    skip "adopting into $_adrl $_adrx" "root reads a mode 200 file"
+    skip "adopting into $_adrl that already lists the capability $_adrx" "root reads a mode 200 file"
+  done
+else
+  _adrd="$(_adrnew w rows)"; _adrp="$_adrd/root/proj"
+  printf 'ci\n' > "$_adrd/caps.kept"; cp "$_adrd/caps.kept" "$_adrp/capabilities"; chmod 200 "$_adrp/capabilities"
+  _adrgo "$_adrd"
+  _adrrefused "$_adrl" "$_adrd"
+  _adrif "$_adrd" "adopting into $_adrl keeps its mode and bytes" "$(ls -l "$_adrp/capabilities" 2>&1)" \
+    _adrmodebytes "$_adrp/capabilities" --w------- "$_adrd/caps.kept"
+  _adrd="$(_adrnew w2)"; _adrp="$_adrd/root/proj"
+  printf 'ci\nobservability\n' > "$_adrd/caps.kept"; cp "$_adrd/caps.kept" "$_adrp/capabilities"; chmod 200 "$_adrp/capabilities"
+  _adrgo "$_adrd"
+  _adrrefused "$_adrl that already lists the capability" "$_adrd"
+  _adrif "$_adrd" "adopting into $_adrl that already lists the capability keeps its mode and bytes" \
+    "$(ls -l "$_adrp/capabilities" 2>&1)" _adrmodebytes "$_adrp/capabilities" --w------- "$_adrd/caps.kept"
+fi
+
 # ------------------------------------------------------------ felix adopt
 # Against widget with nothing at its four adopt paths, so "nothing was
 # written" cannot pass on rows earlier tests left. Whatever is there is moved
@@ -892,43 +918,43 @@ _adrd="$TMP/_adr/f-b1"; mkdir -p "$_adrd/root/there"
 ln -s "$_adrd/root/there/capabilities" "$_adrw/capabilities"
 _adrcligo "$_adrd"
 _adrclirefused "a capabilities link whose target is gone" "$_adrd" \
-  "a link whose target is gone" "it found a link whose target is gone"
+  "capabilities is a link whose target is gone" "it found a link whose target is gone"
 _adrclear
 
 _adrd="$TMP/_adr/f-b2"; mkdir -p "$_adrd/root"
 ln -s "$_adrd/root/gone/deeper/capabilities" "$_adrw/capabilities"
 _adrcligo "$_adrd"
 _adrclirefused "a capabilities link whose target's directory is gone too" "$_adrd" \
-  "a link whose target is gone" "it found a link whose target is gone"
+  "capabilities is a link whose target is gone" "it found a link whose target is gone"
 _adrclear
 
 _adrd="$TMP/_adr/f-b3"; mkdir -p "$_adrd"; mkdir "$_adrw/capabilities"
 _adrcligo "$_adrd"
-_adrclirefused "an empty capabilities directory" "$_adrd" "a directory" "it found a directory"
+_adrclirefused "an empty capabilities directory" "$_adrd" "capabilities is a directory." "it found a directory"
 _adrclear
 
 _adrd="$TMP/_adr/f-b3f"; mkdir -p "$_adrd"; mkdir "$_adrw/capabilities"; printf 'ci\n' > "$_adrw/capabilities/list"
 _adrcligo "$_adrd"
-_adrclirefused "a capabilities directory holding a file" "$_adrd" "a directory" "it found a directory"
+_adrclirefused "a capabilities directory holding a file" "$_adrd" "capabilities is a directory." "it found a directory"
 _adrclear
 
 _adrd="$TMP/_adr/f-b4"; mkdir -p "$_adrd"; mkfifo "$_adrw/capabilities"
 _adrcligo "$_adrd"
 _adrif "$_adrd" "felix adopt over a capabilities pipe does not wait on it" "" true
-_adrclirefused "a capabilities pipe" "$_adrd" "a pipe" "it found a pipe"
+_adrclirefused "a capabilities pipe" "$_adrd" "capabilities is a pipe." "it found a pipe"
 _adrclear
 
 _adrd="$TMP/_adr/f-b5"; mkdir -p "$_adrd/root/adir"; printf 'x\n' > "$_adrd/root/adir/inside"
 ln -s "$_adrd/root/adir" "$_adrw/capabilities"
 _adrcligo "$_adrd"
-_adrclirefused "a capabilities link to a directory" "$_adrd" "a directory" "it found a directory"
+_adrclirefused "a capabilities link to a directory" "$_adrd" "capabilities is a directory." "it found a directory"
 _adrclear
 
 _adrd="$TMP/_adr/f-b6"; mkdir -p "$_adrd/root"; mkfifo "$_adrd/root/apipe"
 ln -s "$_adrd/root/apipe" "$_adrw/capabilities"
 _adrcligo "$_adrd"
 _adrif "$_adrd" "felix adopt over a capabilities link to a pipe does not wait on the pipe" "" true
-_adrclirefused "a capabilities link to a pipe" "$_adrd" "a pipe" "it found a pipe"
+_adrclirefused "a capabilities link to a pipe" "$_adrd" "capabilities is a pipe." "it found a pipe"
 _adrclear
 
 # The contract names no wording for a device, so this case asserts the rest.
@@ -964,6 +990,51 @@ else
   _adrclirefused "a read-only capabilities file" "$_adrd" "could not be written" "it could not be written"
   _adrclear
 fi
+
+# After review, not blind (2026-10-01): a write-only list, and no list in a
+# project directory this user cannot write. Neither kind was reached above.
+if [ "$_adrroot" = 1 ]; then
+  for _adrl in "a write-only capabilities file" "a project directory it cannot write"; do
+    for _adrx in "exits exactly 2" "prints nothing on stdout" "says on stderr that observability was not declared" \
+                 "says on stderr that nothing was written" "names the full path of the capabilities entry" \
+                 "never says declared, already declared or backfilled" \
+                 "writes nothing in the project or where its link points"; do
+      skip "felix adopt over $_adrl $_adrx" "root reads and writes whatever the mode"
+    done
+  done
+  skip "felix adopt over a write-only capabilities file says it could not be read" "root reads a mode 200 file"
+  skip "felix adopt over a project directory it cannot write says the list is absent and could not be created" "root writes a mode 555 directory"
+else
+  _adrd="$TMP/_adr/f-w"; mkdir -p "$_adrd"
+  printf 'ci\n' > "$_adrw/capabilities"; chmod 200 "$_adrw/capabilities"
+  _adrcligo "$_adrd"
+  _adrclirefused "a write-only capabilities file" "$_adrd" "capabilities is a file that could not be read." "it could not be read"
+  chmod 600 "$_adrw/capabilities"; _adrclear
+
+  _adrd="$TMP/_adr/f-x"; mkdir -p "$_adrd"; chmod u-w "$_adrw"
+  _adrcligo "$_adrd"
+  chmod u+w "$_adrw"
+  _adrclirefused "a project directory it cannot write" "$_adrd" \
+    "capabilities is absent and could not be created." "the list is absent and could not be created"
+  _adrclear
+fi
+
+# After review, not blind (2026-10-01): a capability is one word. grep -F
+# reads a newline in its pattern as two patterns, so a name holding one was
+# "ci already declared" over a list that held ci; and a byte that is no
+# character was read by BSD grep as a list it could not read.
+printf 'ci\n' > "$_adrw/capabilities"; cp "$_adrw/capabilities" "$TMP/_adr/caps.kept"
+for _adrx in "$(printf 'brandnew\nci')" "$(printf 'caf\351')" "two words"; do
+  _adrd="$TMP/_adr/f-name"; mkdir -p "$_adrd"
+  _adrrun "$_adrd" "$_adrwait" eval 'cd "$REPO" && "$FELIX" adopt "$_adrx"'
+  _adrif "$_adrd" "felix adopt refuses a capability name holding $(printf '%s' "$_adrx" | LC_ALL=C tr -c 'a-z' '?') and exits nonzero" \
+    "exited [$(_adrcat "$_adrd/rc")] [$(_adrcat "$_adrd/out" "$_adrd/err")]" eval '[ "$(_adrcat "$_adrd/rc")" != 0 ] && [ -s "$_adrd/rc" ]'
+  _adrif "$_adrd" "felix adopt over a capability name holding $(printf '%s' "$_adrx" | LC_ALL=C tr -c 'a-z' '?') claims nothing and leaves the list as it was" \
+    "[$(_adrcat "$_adrd/out" "$_adrd/err")] [$(_adrcat "$_adrw/capabilities")]" \
+    eval '_adrnoclaim "$_adrd" && cmp -s "$_adrw/capabilities" "$TMP/_adr/caps.kept" && _adrnone "$_adrw/stack.tsv"'
+  rm -rf "$_adrd"
+done
+_adrclear
 
 # -------------------------------------------------------------- the hook
 # A checkout the hook would adopt observability for, first as a control with
@@ -1021,6 +1092,30 @@ _adrif "$_adrd" "$_adrl does not say Adopted automatically" "[$(_adrcat "$_adrd/
 _adrif "$_adrd" "$_adrl leaves it a pipe" "$(ls -l "$_adrhp/capabilities" 2>&1)" \
   eval '[ -p "$_adrhp/capabilities" ] && [ ! -L "$_adrhp/capabilities" ]'
 _adrif "$_adrd" "$_adrl leaves stack.tsv, setup.tsv and the setup directory byte for byte" "$(_adrdiff "$_adrd")" _adrsame "$_adrd"
+_adrhclear
+
+# After review, not blind (2026-10-01): a list the hook can read and adopt
+# cannot write. The undeclared surface is read, adopt refuses with 2, and the
+# hook said nothing at all about it, every session.
+_adrl="the hook over a read-only capabilities list"
+if [ "$_adrroot" = 1 ]; then
+  for _adrx in "does not say Adopted automatically" "says observability was not adopted because the list could not be written" \
+               "writes nothing and keeps the list"; do
+    skip "$_adrl $_adrx" "root writes a mode 444 file"
+  done
+else
+  _adrd="$TMP/_adr/g3"; mkdir -p "$_adrd"
+  printf 'ci\n' > "$_adrd/caps.kept"; cp "$_adrd/caps.kept" "$_adrhp/capabilities"; chmod 444 "$_adrhp/capabilities"
+  _adrhgo "$_adrd"
+  _adrif "$_adrd" "$_adrl does not say Adopted automatically" "[$(_adrcat "$_adrd/out" "$_adrd/err")]" \
+    eval '! _adrtold "$_adrd" "Adopted automatically"'
+  _adrif "$_adrd" "$_adrl says observability was not adopted because the list could not be written" \
+    "[$(_adrcat "$_adrd/out" "$_adrd/err")]" \
+    eval '_adrtold "$_adrd" "Not adopted" && _adrtold "$_adrd" "could not be read or written: observability"'
+  _adrif "$_adrd" "$_adrl writes nothing and keeps the list" "$(_adrdiff "$_adrd")" \
+    eval '_adrsame "$_adrd" && _adrmodebytes "$_adrhp/capabilities" -r--r--r-- "$_adrd/caps.kept"'
+  chmod 644 "$_adrhp/capabilities"
+fi
 _adrhclear
 
 # Everything back as found: widget's four paths, and nothing of this block left.

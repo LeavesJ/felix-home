@@ -25903,7 +25903,7 @@ printf '\nthe record this branch carries\n'
 # stands in, and runs in the red run as in any other, since the run placed in
 # the base is this tree's: until #371 they sat behind the red run's test with
 # the four, and a red run reached none of them.
-_rtn1="red.tsv is one record, written whole: one base row, one run row, and failed names that add up to the run's failed count"
+_rtn1="red.tsv is one record, written whole: one base row, one run row, failed names that add up to the run's failed count, and a run that counts every assertion the manifest lists"
 _rtn2="every assertion red.tsv names as red is one the manifest lists"
 _rtn3="red.tsv was recorded against the engine origin/main held where this tree branched from it"
 _rtn4="this engine's version is above origin/main's when this tree holds commits origin/main lacks"
@@ -25913,15 +25913,21 @@ _rtn4="this engine's version is above origin/main's when this tree holds commits
 # real when one was, and a real run counts at least one assertion, since
 # tests/red refuses a run that reached none. A run row of - beside any base
 # once passed, so a sha pasted into a retraction's base row answered _rtn3's
-# failure of it (#371, second review, 2026-09-25).
-_rt_record_whole() {   # <red.tsv> -> ok, or bad <detail>
-  local b r f s
+# failure of it (#371, second review, 2026-09-25). Given the manifest beside
+# the record, a real run also counts at least the manifest's total: tests/red
+# counts every name the manifest lists, reached or red by its shortfall, so a
+# run that counts fewer was cut short and written down by a tests/red that
+# did not compare, as 0 of 270 was against some 3,700 (#371's follow-up). A
+# manifest that is not there is not compared.
+_rt_record_whole() {   # <red.tsv> [<manifest>] -> ok, or bad <detail>
+  local b r f s m=""
+  [ -n "${2:-}" ] && [ -f "$2" ] && m="$(awk -F'\t' '$1 ~ /^[0-9]+$/ { t += $1 } END { printf "%.0f", t }' "$2")"
   read -r b r f s <<< "$(awk -F'\t' '/^#/ || !NF { next }
     $1 == "base" { b++; next } $1 == "run" { r++; f = $2; next } { s += $NF }
     END { printf "%d %d %s %d\n", b, r, (f == "" ? "?" : f), s }' "$1")"
   [ "$b" = 1 ] && [ "$r" = 1 ] && { [ "$f" = "$s" ] || { [ "$f" = "-" ] && [ "$s" = 0 ]; }; } \
     || { echo "bad base rows: $b, run rows: $r, the run's failed: $f, the names' total: $s"; return 0; }
-  awk -F'\t' '/^#/ || !NF { next }
+  _RT_M="$m" awk -F'\t' '/^#/ || !NF { next }
     $1 == "base" { base = $3; next } $1 == "run" { f = $2; p = $3; k = $4; next } { n++ }
     END {
       run = "[" f " " p " " k "]"; dash = (f == "-" && p == "-" && k == "-"); again = ": re-record with tests/run --record-assertions"
@@ -25931,6 +25937,8 @@ _rt_record_whole() {   # <red.tsv> -> ok, or bad <detail>
       else if (dash) print "ok"
       else if (f !~ /^[0-9]+$/ || p !~ /^[0-9]+$/ || k !~ /^[0-9]+$/) print "bad the run row reads " run ", which is not three counts of zero or more" again
       else if (f + p + k < 1) print "bad the run row counts no assertion, a run tests/red refuses to record" again
+      else if (ENVIRON["_RT_M"] != "" && f + p + k < ENVIRON["_RT_M"] + 0)
+        print "bad the run row counts " f + p + k " assertions, fewer than the " ENVIRON["_RT_M"] " the manifest lists, and tests/red counts every one it lists, reached or red" again
       else print "ok"
     }' "$1"
 }
@@ -26170,7 +26178,7 @@ _rt_judge() {   # <checkout>
   if [ -n "$s" ]; then
     for n in "$_rtn1" "$_rtn2"; do skip "$n" "$s"; done
   else
-    _rt_report "$_rtn1" "$(_rt_record_whole "$t")"
+    _rt_report "$_rtn1" "$(_rt_record_whole "$t" "$a")"
     if [ -f "$a" ]; then
       n="$(awk -F'\t' 'NR == FNR { m[$2] = 1; next } /^#/ || !NF || $1 == "base" || $1 == "run" { next }
                        !($1 in m) { print $1 }' "$a" "$t")"

@@ -21315,6 +21315,19 @@ EOF
       "$(printf 'a failure the manifest does not list\t1\nfails where the marker is old, and is asked again only where it is new\t2\nprinted once, or twice where the marker is new\t1')"
   is  "and that summary counts eleven, four failing, two of them never reached" \
       "$(_red_sum)" "red: 4 of 11 assertions fail against main (SHA) at engine 0.0.7, 2 of them never reached"
+  # One skip line is one reach. A skip counted twice passed every fixture
+  # above, and would read a name listed twice and skipped once against the
+  # base as reached in full (#371's follow-up, its review).
+  _red_count "$RED/skiptwice" <<'EOF'
+printf 'skip twice suite\n\n'
+ok "one assertion that passes"
+skip "skipped once, listed twice" "no cli"
+printf '\nreached\n\n%d passed, %d failed, %d skipped\n' "$PASS" "$FAIL" "$SKIP"
+EOF
+  _red_man "$RED/skiptwice" "one assertion that passes" "skipped once, listed twice" "skipped once, listed twice"
+  _red "$RED/skiptwice" engine/harness/tests/red
+  is  "a name listed twice that the base run skips once is red by the one time it never reached it, one skip line counting once" \
+      "$(_red_body "$RED/skiptwice" | sed -n '2,$p')" "$(printf 'run\t1\t1\t1\nskipped once, listed twice\t1')"
   # Names are compared byte for byte: a backslash, brackets and a star are
   # themselves, a dot matches a dot and nothing else, and a tab after the
   # first in a manifest row belongs to the name.
@@ -21394,12 +21407,14 @@ EOF
   # that line in 5 of 5 runs and the shortfall was cancelled (2026-10-01). The
   # suite runs from the base's checkout, $TMP/tree, so ../red.cmp is red's
   # comparison file, and a command line that does not name $TMP escapes the
-  # pattern.
+  # pattern. It gives up once red has removed that checkout, looked up from
+  # the root, since a tests/red that writes no comparison file, as the base's
+  # does in a real red run, would leave it spinning after the cleanup.
   _red_count "$RED/strayline" <<'EOF'
 printf 'stray suite\n\n'
 ok "an assertion before the stray"
 awk 'BEGIN { for (i = 0; i < 30000; i++) print "        a line that is no assertion " i }'
-[ "$marker" = new ] || sh -c 'i=0; while [ ! -e ../red.cmp ] && [ $i -lt 3000000 ]; do i=$((i+1)); done; j=0; while [ $j -lt 200 ]; do printf "  ok    a name the base never reaches, said late by a stray\n"; j=$((j+1)); done' &
+[ "$marker" = new ] || sh -c 'i=0; while [ ! -e ../red.cmp ] && [ -e "$PWD/engine" ] && [ $i -lt 3000000 ]; do i=$((i+1)); done; j=0; while [ $j -lt 200 ]; do printf "  ok    a name the base never reaches, said late by a stray\n"; j=$((j+1)); done' &
 [ "$marker" = new ] && ok "a name the base never reaches, said late by a stray"
 printf '\nreached\n\n%d passed, %d failed\n' "$PASS" "$FAIL"
 EOF
@@ -21598,6 +21613,7 @@ else
            "a name reached more often than listed offsets no other name's shortfall, so the run row counts two never reached among four failed" \
            "names the manifest does not list are not compared, and the one that fails is still a failed row" \
            "and that summary counts eleven, four failing, two of them never reached" \
+           "a name listed twice that the base run skips once is red by the one time it never reached it, one skip line counting once" \
            "manifest names are compared byte for byte, a backslash, brackets, a star, a dot and a tab each itself" \
            "the arithmetic, block and byte fixtures' runs reach, against their own working trees, every name their manifests list and as often" \
            "each record with names never reached is one record, its run row's failed count what its names add up to" \
@@ -25903,7 +25919,7 @@ printf '\nthe record this branch carries\n'
 # stands in, and runs in the red run as in any other, since the run placed in
 # the base is this tree's: until #371 they sat behind the red run's test with
 # the four, and a red run reached none of them.
-_rtn1="red.tsv is one record, written whole: one base row, one run row, failed names that add up to the run's failed count, and a run that counts every assertion the manifest lists"
+_rtn1="red.tsv is one record, written whole: one base row, one run row, failed names that add up to the run's failed count, and a run that counts at least as many assertions as the manifest lists"
 _rtn2="every assertion red.tsv names as red is one the manifest lists"
 _rtn3="red.tsv was recorded against the engine origin/main held where this tree branched from it"
 _rtn4="this engine's version is above origin/main's when this tree holds commits origin/main lacks"
@@ -25916,8 +25932,11 @@ _rtn4="this engine's version is above origin/main's when this tree holds commits
 # failure of it (#371, second review, 2026-09-25). Given the manifest beside
 # the record, a real run also counts at least the manifest's total: tests/red
 # counts every name the manifest lists, reached or red by its shortfall, so a
-# run that counts fewer was cut short and written down by a tests/red that
-# did not compare, as 0 of 270 was against some 3,700 (#371's follow-up). A
+# run that counts fewer was not written by it against this manifest. It was
+# written by a tests/red that did not compare, of a suite cut short, as 0 of
+# 270 was against some 3,700, or of one that reached its end with assertions
+# lost on the way, as main's own record at 27573cbe counts 3,894 against
+# 3,900; or the manifest changed after it was written (#371's follow-up). A
 # manifest that is not there is not compared.
 _rt_record_whole() {   # <red.tsv> [<manifest>] -> ok, or bad <detail>
   local b r f s m=""
@@ -26585,7 +26604,7 @@ if [ -n "$_rtjm" ] && [ "$(git -C "$_rtj" merge-base HEAD refs/remotes/origin/ma
   printf '%s\n' "$_rtjr" > "$_rtjt"; printf '5\t%s\n' "$_rtja" > "$_rtj/engine/harness/tests/assertions.tsv"
   _rtjo="$(_rt_judged "$_rtj" 0)"
   printf '1\t%s\n' "$_rtja" > "$_rtj/engine/harness/tests/assertions.tsv"
-  _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn1" bad "fewer than the 5 the manifest lists"; _rt_judged_one "$_rtjo" "$_rtn3" ok)"
+  _rtjw="$(_rt_judged_one "$_rtjo" "$_rtn1" bad "counts 2 assertions, fewer than the 5 the manifest lists"; _rt_judged_one "$_rtjo" "$_rtn3" ok)"
   [ -z "$_rtjw" ] && ok "$_rtjn13" || bad "$_rtjn13" "$_rtjw"
   # And the names it reports are the same four whatever the mode, so a red
   # run, whose every unreached name tests/red records as red, reaches each

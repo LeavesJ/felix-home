@@ -30,9 +30,11 @@
 #     when it cannot be entered, its x gone, and only while it is no
 #     symlink. Only directories: a file's mode is its inode's, and a hard
 #     link a mutation made (`git clone . sub` makes them of the root's
-#     objects) would carry chmod outside the base. find follows no symlink,
-#     and no user can hard-link a directory. A directory deeper than PATH_MAX
-#     is past chmod's reach, and is left and said.
+#     objects) would carry chmod outside the base. find descends into no
+#     symlink, and no user can hard-link a directory; but the chmod it runs
+#     takes each path by name once find has looked, and follows a symlink
+#     (below). A directory deeper than PATH_MAX is past chmod's reach, and is
+#     left and said.
 #   - A scratch tree or a base swapped for a symlink is unlinked, never
 #     followed: `git worktree remove` resolves a path it does not list, and
 #     through a link to another worktree of the root it deleted that
@@ -69,9 +71,13 @@
 # runner's.
 #
 # What it cannot reach: a process the mutation left running, which can write
-# into the base after this has removed it; and the instants inside git, once
-# its check of the tree's .git has passed, and between this reading the
-# root's list and git reading it, should the entry go in between.
+# into the base after this has removed it, and can swap a name for a symlink
+# between a check here and the act on it: the chmod of the base by name, when
+# it cannot be entered, after the test that it is no symlink; and each chmod
+# the find walk runs, after find has looked at that directory. chmod follows
+# the link, and gives its target the owner's rwx. And the instants inside
+# git, once its check of the tree's .git has passed, and between this
+# reading the root's list and git reading it, should the entry go in between.
 _felix_qualify_drop() {   # root, base
   local root="$1" base="$2" pdir="" _felix_qualify_text
   [ -n "$base" ] || return 0
@@ -170,8 +176,10 @@ _felix_qualify_rmw() { rm -rf ./w 2>/dev/null; return 0; }
 
 # From inside a base: the owner's rwx on it and on every directory below it,
 # one at a time from the top, so a 000 one is opened before find reads it.
-# find follows no symlink, and every path it hands chmod is relative to the
-# directory entered. And a tree that is a symlink, unlinked.
+# find descends into no symlink, and every path it hands chmod is relative
+# to the directory entered; chmod itself follows a directory swapped for a
+# symlink after find looked (the drop's header). And a tree that is a
+# symlink, unlinked.
 _felix_qualify_rwx() {
   chmod u+rwx . 2>/dev/null
   find . -type d ! -perm -0700 -exec chmod u+rwx {} \; 2>/dev/null
@@ -226,7 +234,9 @@ _felix_qualify_clear_here() {
 # rmdir is a writer the drop never saw, and the record is put back, so the
 # base still names a process a later sweep can judge. The rmdir names the
 # base by its physical path, and fails on a symlink put in its place; the
-# record goes back into the directory entered, wherever its name now is.
+# record goes back into the directory entered, wherever its name now is, with
+# ln -n, so an owner put there meanwhile as a symlink to a directory makes ln
+# fail rather than lead the record into that directory (review round 3).
 _felix_qualify_unown() { _felix_qualify_in "$1" _felix_qualify_unown_here; }
 _felix_qualify_unown_here() {   # the base's physical path -> 0 once it is gone
   local e rec=""
@@ -240,7 +250,7 @@ _felix_qualify_unown_here() {   # the base's physical path -> 0 once it is gone
   fi
   rmdir -- "$1" 2>/dev/null && return 0
   if [ -n "$rec" ] && [ ! -e owner ] && [ ! -L owner ]; then
-    ln -s -- "$rec" owner 2>/dev/null
+    ln -s -n -- "$rec" owner 2>/dev/null
   fi
   return 1
 }

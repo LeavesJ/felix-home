@@ -15331,6 +15331,186 @@ rmdir "$RVK" 2>/dev/null
 is "the widget's directory holds exactly what it held before revoke was tested" \
    "$(ls -A "$RVP" | LC_ALL=C sort)" "$_rvstart"
 
+printf '\nrevoke and the reader agree in every locale, and refuse what they cannot read\n'
+# 2026-10-02: an adversarial review of the first revoke fix found more ways for
+# --revoke and the reader to disagree, and these pin each finding. The reader
+# trimmed with [[:space:]], whose meaning is the caller's locale: a grant
+# ending in a no-break space held in a UTF-8 session and not under C, so a
+# revoke run under C said "revoked: tidy" while a UTF-8 session start would
+# still tidy. bash's read drops a NUL byte, so a NUL could stitch a word into a
+# grant. --revoke took any word, and "Commission" deleted the stamp
+# autonomy.commission on a case-insensitive disk. A second --revoke or --allow
+# on one command line was dropped without a word. An unended last line came
+# back ended. And the rewrite is held to failing closed when the write itself
+# is cut short, to leaving whatever sits at the old temporary name alone, and
+# to reading back what it wrote rather than trusting it. The reader's trims
+# are pinned first, so a narrowed trim cannot pass the revokes by making them
+# no-ops.
+RV2K="$TMP/revoke-keep-2"; mkdir -p "$RV2K"
+_rwstart="$(ls -A "$RVP" | LC_ALL=C sort)"
+_rwmode="$(stat -c %a "$RVP" 2>/dev/null)" || _rwmode="$(stat -f %Lp "$RVP")"
+for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV2K/"; done
+_rwnl=$'\n'; _rwlocs="$(locale -a 2>/dev/null)"; _rwu=""
+for _rwl in en_US.UTF-8 C.UTF-8 en_US.utf8 C.utf8; do
+  case "$_rwnl$_rwlocs$_rwnl" in *"$_rwnl$_rwl$_rwnl"*) _rwu="$_rwl"; break ;; esac
+done
+_rwal() {   # LOCALE CAP: the reader's verdict on the widget's file, under LC_ALL=LOCALE
+  ( export LC_ALL="$1"; . "$FROOT/harness/lib/autonomy.sh"
+    felix_autonomy_allows "$RVP" "$2" && echo yes || echo no ) 2>/dev/null
+}
+_rwboth() { printf '%s:%s' "$(_rwal C "$1")" "$(_rwal "${_rwu:-C}" "$1")"; }   # CAP: under C, then UTF-8
+_rwuis() { if [ -n "$_rwu" ]; then is "$@"; else skip "$1" "no UTF-8 locale is installed"; fi; }
+_rwcli() {   # ARGS...: felix autonomy ARGS from the widget checkout; sets _rvrc _rvout _rverr
+  ( cd "$REPO" && "$FELIX" autonomy "$@" ) > "$TMP/rv.out" 2> "$TMP/rv.err"; _rvrc=$?
+  _rvout="$(cat "$TMP/rv.out")"; _rverr="$(cat "$TMP/rv.err")"
+}
+_rwloc() {   # LOCALE CAP: felix autonomy --revoke CAP run under LC_ALL=LOCALE
+  ( export LC_ALL="$1"; cd "$REPO" && "$FELIX" autonomy --revoke "$2" ) > "$TMP/rv.out" 2> "$TMP/rv.err"; _rvrc=$?
+  _rvout="$(cat "$TMP/rv.out")"; _rverr="$(cat "$TMP/rv.err")"
+}
+_rwexit() { [ "$_rvrc" -ne 0 ] && echo refused || echo "exit $_rvrc"; }
+_rwsaid() { case "$_rvout$_rverr" in *"$1"*) echo said ;; *) echo silent ;; esac; }   # WORD on stdout or stderr
+_rwunk() { case "$_rverr" in *'unknown capability'*) echo unknown ;; *) echo unnamed ;; esac; }
+_rwsnap() { ( cd "$RVP" && for _rwf in autonomy*; do [ -e "$_rwf" ] || continue; printf '%s ' "$_rwf"; cksum < "$_rwf"; done ); }
+_rwsame() { [ "$(_rwsnap)" = "$_rwheld" ] && echo same || echo changed; }   # every autonomy* file as _rwheld recorded
+_rwis() { cmp -s "$TMP/rw.want" "$RVP/autonomy" && echo same || echo differs; }
+
+# C8: the reader's trims, before any revoke is measured against them.
+_rvset 'commission\040\040\n'
+is "before any revoke the reader takes commission with trailing spaces as a grant, under C and UTF-8" \
+   "$(_rwboth commission)" "yes:yes"
+_rvset 'commission\t\n'
+is "before any revoke the reader takes commission with a trailing tab as a grant, under C and UTF-8" \
+   "$(_rwboth commission)" "yes:yes"
+_rvset 'commission\r\n'
+is "before any revoke the reader takes a CRLF commission line as a grant, under C and UTF-8" \
+   "$(_rwboth commission)" "yes:yes"
+_rvset '\040\040commission\n'
+is "before any revoke the reader takes commission with leading spaces as a grant, under C and UTF-8" \
+   "$(_rwboth commission)" "yes:yes"
+_rvset '\tcommission\n'
+is "before any revoke the reader takes commission with a leading tab as a grant, under C and UTF-8" \
+   "$(_rwboth commission)" "yes:yes"
+
+# C1: one verdict whatever the locale. Only space, tab, CR, VT and FF are
+# trimmed, and a line ends at the newline byte and nowhere else.
+_rvset 'tidy\302\240\n'
+_rwuis "tidy followed by a no-break space is not a grant under C or under UTF-8" "$(_rwboth tidy)" "no:no"
+_rvset 'tidy\342\200\203\n'
+_rwuis "tidy followed by an em space is not a grant under C or under UTF-8" "$(_rwboth tidy)" "no:no"
+_rvset 'tidy\240\n'
+_rwuis "tidy followed by a lone 0xA0 byte is not a grant under C or under UTF-8" "$(_rwboth tidy)" "no:no"
+_rvset 'tidy\v\n'
+_rwuis "tidy followed by a vertical tab is a grant under C and under UTF-8" "$(_rwboth tidy)" "yes:yes"
+_rvset 'tidy\f\n'
+_rwuis "tidy followed by a form feed is a grant under C and under UTF-8" "$(_rwboth tidy)" "yes:yes"
+_rvset '# note\303\ntidy\n'
+_rwuis "a comment ending in a stray UTF-8 lead byte leaves the tidy grant after it holding, under C and UTF-8" \
+   "$(_rwboth tidy)" "yes:yes"
+_rwloc "${_rwu:-C}" tidy; printf '# note\303\n' > "$TMP/rw.want"
+_rwuis "a revoke of tidy under UTF-8 after that comment takes tidy away and keeps the comment byte for byte" \
+   "$(_rwis)" "same"
+_rvset '# h\ntidy\302\240\n'; _rwloc C tidy
+_rwuis "after a revoke of tidy run under C over a no-break-space line, neither a C nor a UTF-8 reader finds tidy" \
+   "$(_rwboth tidy)" "no:no"
+
+# C2: a NUL byte anywhere and the file grants nothing, and a revoke of it is
+# refused and touches nothing.
+_rvset '# a\000b\ntidy\ncommission\n'
+is "a file holding a NUL byte in a comment grants neither tidy nor commission, under C or UTF-8" \
+   "$(_rwboth tidy):$(_rwboth commission)" "no:no:no:no"
+_rvset 'tidy\ncommis\000sion\n'
+is "a NUL byte inside a word is not dropped to make it commission, and tidy beside it is not granted" \
+   "$(_rwboth commission):$(_rwboth tidy)" "no:no:no:no"
+_rvset '# a\000b\ntidy\ncommission\n'; cp "$RVP/autonomy" "$TMP/rw.held"; _rvrun commission
+is "a revoke of a file holding a NUL byte exits non-zero" "$(_rwexit)" "refused"
+is "and the revoke of the NUL-holding file says nothing revoked" "$(_rwsaid revoked:)" "silent"
+has "and the revoke of the NUL-holding file says on stderr it was not revoked" "$_rverr" "not revoked"
+has "and the revoke of the NUL-holding file names the NUL byte on stderr" "$_rverr" "NUL"
+is "and the NUL-holding file is left byte-identical" \
+   "$(cmp -s "$TMP/rw.held" "$RVP/autonomy" && echo same || echo moved)" "same"
+is "and the NUL-holding file's commission stamp stays in place" "$(_rvstamp)" "kept"
+
+# C3: --revoke takes tidy or commission, as --allow does, and nothing else.
+_rvset '# h\ntidy\ncommission\n'; _rwheld="$(_rwsnap)"; _rvrun Commission
+is "a revoke of Commission, capitalised, exits non-zero" "$(_rwexit)" "refused"
+has "and the revoke of Commission says on stderr it is an unknown capability" "$_rverr" "unknown capability"
+is "and the revoke of Commission says nothing revoked" "$(_rwsaid revoked:)" "silent"
+is "and the revoke of Commission leaves every autonomy file byte-identical, the commission stamp included" \
+   "$(_rwsame)" "same"
+for _rwc in 'commission ' '*' '../x'; do
+  _rvset '# h\ntidy\ncommission\n'; _rwheld="$(_rwsnap)"; _rvrun "$_rwc"
+  is "a revoke of [$_rwc] is refused as an unknown capability and says nothing revoked" \
+     "$(_rwexit):$(_rwunk):$(_rwsaid revoked:)" \
+     "refused:unknown:silent"
+  is "and the revoke of [$_rwc] leaves every autonomy file byte-identical" "$(_rwsame)" "same"
+done
+
+# C4: one capability per command.
+_rvset '# h\ntidy\ncommission\n'; _rwheld="$(_rwsnap)"; _rwcli --revoke tidy --revoke commission
+is "a revoke given twice on one command line exits non-zero" "$(_rwexit)" "refused"
+is "and the doubled revoke says nothing revoked" "$(_rwsaid revoked:)" "silent"
+is "and the doubled revoke leaves the grant file and the stamp byte-identical" "$(_rwsame)" "same"
+_rvset '# h\n'; _rwheld="$(_rwsnap)"; _rwcli --allow tidy --allow commission
+is "an allow given twice on one command line exits non-zero" "$(_rwexit)" "refused"
+is "and the doubled allow says nothing allowed" "$(_rwsaid allowed:)" "silent"
+is "and the doubled allow leaves every autonomy file byte-identical" "$(_rwsame)" "same"
+
+# C5: what a revoke keeps, it keeps byte for byte.
+_rvset 'commission\ntidy'; _rvrun commission; printf 'tidy' > "$TMP/rw.want"
+is "revoking commission ahead of an unended tidy line leaves exactly tidy, still unended" "$(_rwis)" "same"
+_rvset 'tidy\040\ncommission'; _rvrun commission; printf 'tidy\040\n' > "$TMP/rw.want"
+is "revoking an unended commission last line keeps the line before it byte for byte, trailing space and newline" \
+   "$(_rwis)" "same"
+
+# C6: a replacement cut short by the file-size limit fails closed. bash's
+# ulimit -f counts 1024-byte blocks (512 in POSIX mode), so a limit of 2 is at
+# most 2048 bytes, and the kept lines here come to about 5 KB. stdout goes to
+# a pipe, which the limit does not bind, so the status felix prints after a
+# revoke is not what fails. A small file under the same limit is revoked, so
+# the limit stops the rewrite and not felix starting.
+_rwcut() {   # felix autonomy --revoke commission, SIGXFSZ ignored, files limited to 2 blocks
+  _rvout="$( ( trap '' XFSZ; ulimit -f 2; cd "$REPO" && "$FELIX" autonomy --revoke commission ) 2> "$TMP/rv.err" )"
+  _rvrc=$?; _rverr="$(cat "$TMP/rv.err")"
+}
+_rvset '# h\ncommission\n'; _rwcut
+is "under a two-block file-size limit a small grant file is still revoked" "$_rvrc:$(_rvallows commission)" "0:no"
+rm -f "$RVP"/autonomy*; _rwi=0
+while [ "$_rwi" -lt 80 ]; do
+  [ "$_rwi" = 40 ] && printf '# revoked: commission, 2026-09-01, then granted again\n'
+  printf '# kept line %02d, one of enough to carry this file past the write limit\n' "$_rwi"
+  _rwi=$((_rwi+1))
+done > "$RVP/autonomy"
+printf 'commission\n' >> "$RVP/autonomy"; printf 'stamp\n' > "$RVP/autonomy.commission"
+_rvbefore="$(_rvrest)"; cp "$RVP/autonomy" "$TMP/rv.held"; _rwcut
+_rvclosed "whose replacement is cut short by the file-size limit"
+
+# C7: a link planted at the first fix's temporary name is not written through.
+_rvset '# h\ncommission\n'; printf 'precious\n' > "$TMP/rw.precious"; printf 'precious\n' > "$TMP/rw.want"
+ln -s "$TMP/rw.precious" "$RVP/autonomy.new"; _rvrun commission
+is "a revoke beside a link at autonomy.new leaves the link's target holding exactly what it held" \
+   "$(cmp -s "$TMP/rw.want" "$TMP/rw.precious" && echo same || echo written)" "same"
+is "and after that revoke autonomy is a regular file, not a link" \
+   "$([ -f "$RVP/autonomy" ] && [ ! -L "$RVP/autonomy" ] && echo regular || echo other)" "regular"
+is "and the revoke beside the planted link succeeds" "$_rvrc:$(_rvallows commission)" "0:no"
+rm -f "$RVP/autonomy.new"
+
+# C9: the read-back is what decides. A reader that always says granted must
+# make the revoke fail, and a missing function is a failure, not a pass.
+_rvset 'commission\n'
+_rwc9="$( ( . "$FROOT/harness/lib/autonomy.sh"
+            declare -F felix_autonomy_revoke >/dev/null || { echo missing; exit 0; }
+            felix_autonomy_allows() { return 0; }
+            if felix_autonomy_revoke "$RVP" commission >/dev/null 2>&1; then echo "returned 0"; else echo refused; fi ) )"
+is "felix_autonomy_revoke returns non-zero when its read-back still finds the grant" "$_rwc9" "refused"
+
+rm -f "$RVP"/autonomy* "$TMP/rw.want" "$TMP/rw.held" "$TMP/rw.precious"
+for _rvf in "$RV2K"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
+rmdir "$RV2K" 2>/dev/null
+chmod "$_rwmode" "$RVP"
+is "the widget's directory holds exactly what it held before the review findings were tested" \
+   "$(ls -A "$RVP" | LC_ALL=C sort)" "$_rwstart"
+
 # The commission grant is bound to the table it was granted over.
 #
 # Every other grant names an action the engine defines. This one names a

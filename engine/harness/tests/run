@@ -15831,9 +15831,15 @@ _qswdead() {   # a pid kill -0 says there is no such process of: one a process s
   printf '%s' "$p"
 }
 # A process's start as a row records it: where /proc names this process's
-# pid namespace, field 22 of /proc/<pid>/stat, @, and that namespace;
-# elsewhere ps -o lstart= under TZ=UTC0 and LC_ALL=C, every blank removed.
-_qswns() { [ -L /proc/self/ns/pid ] && readlink /proc/self/ns/pid 2>/dev/null; }
+# pid namespace, field 22 of /proc/<pid>/stat, @, that namespace, @ and the
+# boot id; elsewhere ps -o lstart= under TZ=UTC0 and LC_ALL=C, every blank
+# removed. _qswns is the namespace and boot, empty where /proc names none.
+_qswns() {
+  local n b
+  [ -L /proc/self/ns/pid ] || return 0
+  n="$(readlink /proc/self/ns/pid 2>/dev/null)"; b="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
+  [ -n "$n" ] && [ -n "$b" ] && printf '%s@%s' "$n" "$b"
+}
 _qswstart() {
   local ns; ns="$(_qswns)"
   if [ -n "$ns" ]; then
@@ -15842,6 +15848,12 @@ _qswstart() {
     TZ=UTC0 LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | tr -d ' \t\n'
   fi
 }
+# A start no live process here has, in this host's own form: on a host whose
+# /proc names its pid namespace, tick 1 in that namespace and boot, since a
+# record of any other form is not one such a sweep may judge; elsewhere a ps
+# start long past. QSWDIFF is another such start; QSWPS is ps's form always.
+QSWPS="$QSWOLD"; QSWDIFF='MonJan100:00:002001'
+if [ -n "$(_qswns)" ]; then QSWOLD="1@$(_qswns)"; QSWDIFF="2@$(_qswns)"; fi
 _qswlive()  { [ -n "$1" ] || return 1; case "$(ps -o stat= -p "$1" 2>/dev/null | tr -d ' ')" in ''|Z*) return 1 ;; esac; return 0; }
 _qswalive() { if _qswlive "$1"; then echo yes; else echo no; fi; }
 _qswnotlive() { ! _qswlive "$1"; }
@@ -16186,11 +16198,20 @@ _qswp1="$(_qswpre "$T/felix-qualify.DEADP1" "$R" "$Tp/felix-qualify.DEADP1/w")"
 _qswp2="$(_qswpre "$T/felix-qualify.DEADP2" "$R" "$Tp/felix-qualify.DEADP2/w")"
 _qswp3="$(_qswpre "$T/felix-qualify.DEADP3" "$R" "$Tp/felix-qualify.DEADP3/w")"
 _qswrun "$d/run" "$T" "$R" "$d/proj"
-_qswctl="$(_qswgone "$_qswp1" "$T/felix-qualify.DEADP1" "$R" "$Tp/felix-qualify.DEADP1/w")"
-is  "a base in the TMPDIR named felix-qualify. and six letters or digits, holding owner as a symlink whose text is a dead pid alone, is swept with its tree's registration, and the run's own row still reads pass and met" \
-    "$_qswctl $(_qswverd "$d/run")" "gone pass met"
+_qswctl="$(_qswgone "$_qswp2" "$T/felix-qualify.DEADP2" "$R" "$Tp/felix-qualify.DEADP2/w")"
+# Where /proc names the pid namespace, a pid alone may be another host's or
+# another boot's, so it is never judged there (review round 2).
+if [ -n "$(_qswns)" ]; then
+  skip "a base in the TMPDIR named felix-qualify. and six letters or digits, holding owner as a symlink whose text is a dead pid alone, is swept with its tree's registration, and the run's own row still reads pass and met" "this host's /proc names its pid namespace, where a pid alone is left"
+  is  "where /proc names this host's pid namespace, a base holding owner as a symlink whose text is a dead pid alone, no start naming that namespace and boot, is left and stays registered, beside a dead base swept, and the run's own row still reads pass and met" \
+      "beside:$_qswctl base:$(_qswthere "$T/felix-qualify.DEADP1") registered:$(_qswlisted "$R" "$Tp/felix-qualify.DEADP1/w") $(_qswverd "$d/run")" "beside:gone base:there registered:yes pass met"
+else
+  is  "a base in the TMPDIR named felix-qualify. and six letters or digits, holding owner as a symlink whose text is a dead pid alone, is swept with its tree's registration, and the run's own row still reads pass and met" \
+      "$(_qswgone "$_qswp1" "$T/felix-qualify.DEADP1" "$R" "$Tp/felix-qualify.DEADP1/w") $(_qswverd "$d/run")" "gone pass met"
+  skip "where /proc names this host's pid namespace, a base holding owner as a symlink whose text is a dead pid alone, no start naming that namespace and boot, is left and stays registered, beside a dead base swept, and the run's own row still reads pass and met" "this host's /proc names no pid namespace"
+fi
 is  "a dead base whose own mode was taken down to 0555 is given its bits back and swept, registration included" \
-    "$(_qswgone "$_qswp2" "$T/felix-qualify.DEADP2" "$R" "$Tp/felix-qualify.DEADP2/w")" "gone"
+    "$_qswctl" "gone"
 is  "a dead base whose tree holds symlinks to a 0444 file and a 0555 directory outside, in a directory left unwritable, is swept, and the file and directory keep their modes and content" \
     "$(_qswgone "$_qswp3" "$T/felix-qualify.DEADP3" "$R" "$Tp/felix-qualify.DEADP3/w") $(_qswmode "$d/outside/file") $(_qswmode "$d/outside/dir") $(_qswmode "$d/outside/dir/inner") $(cat "$d/outside/file" "$d/outside/dir/inner" 2>/dev/null | tr '\n' ' ')" \
     "gone -r--r--r-- dr-xr-xr-x -r--r--r-- kept kept "
@@ -16228,7 +16249,7 @@ _qswls="$(_qswstart "$QSWLIVE")"; _qswdy="$(_qswdead)"
 _qswleft "$d" "$T" "$R" felix-qualify.LIVENO "$QSWLIVE" 0555
 _qswleft "$d" "$T" "$R" felix-qualify.LIVETR "$QSWLIVE $_qswls" 0555
 _qswleft "$d" "$T" "$R" felix-qualify.PIDONE 1 0555
-_qswplant "$T" felix-qualify.LIVEDF "$R" "$QSWLIVE MonJan100:00:002001"; chmod 0555 "$T/felix-qualify.LIVEDF"
+_qswplant "$T" felix-qualify.LIVEDF "$R" "$QSWLIVE $QSWDIFF"; chmod 0555 "$T/felix-qualify.LIVEDF"
 _qswplant "$T" felix-qualify.DEADST "$R" "$_qswdy $_qswls"
 _qswp1="$(_qswpre "$T/felix-qualify.DEADST" "$R" "$Tp/felix-qualify.DEADST/w")"
 _qswp2="$(_qswpre "$T/felix-qualify.LIVEDF" "$R" "$Tp/felix-qualify.LIVEDF/w")"
@@ -16244,28 +16265,42 @@ is  "a base whose record names a live pid with a start that is not that process'
 
 # 6b. Liveness read through a proc filesystem that names a pid namespace,
 # as Linux's does, staged here so it runs everywhere: a start is the stat's
-# field 22, which a step of the wall clock does not move, then @ and the
-# namespace. The staged namespace is pid:[777], and the live sleep's stat
-# says it started at tick 424242, its command's name holding ") ".
-d="$QSWS/liveness-proc"; T="$d/t"; mkdir -p "$T" "$d/proc/self/ns" "$d/proc/$QSWLIVE"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
+# field 22, which a step of the wall clock does not move, then @, the
+# namespace, @ and the boot id. The staged namespace is pid:[777] and the
+# boot 0b1c2d3e-..., and the live sleep's stat says it started at tick
+# 424242, its command's name holding ") ". Every Linux host's first pid
+# namespace has the same inode, so the namespace alone tells no host from
+# another; the boot does (review round 2). And on such a host a record whose
+# start names no namespace, a ps start or none, was written where this
+# sweep cannot judge it, and is left.
+d="$QSWS/liveness-proc"; T="$d/t"; mkdir -p "$T" "$d/proc/self/ns" "$d/proc/$QSWLIVE" "$d/proc/sys/kernel/random"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"
 ln -s 'pid:[777]' "$d/proc/self/ns/pid"
+_qswbt='0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9'; printf '%s\n' "$_qswbt" > "$d/proc/sys/kernel/random/boot_id"
 { printf '%s (sl) eep) S' "$QSWLIVE"; for _qswi in 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21; do printf ' 0'; done; printf ' 424242 0 0\n'; } > "$d/proc/$QSWLIVE/stat"
 _qswdz="$(_qswdead)"
-_qswleft "$d" "$T" "$R" felix-qualify.LXSAME "$QSWLIVE 424242@pid:[777]" 0555
-_qswleft "$d" "$T" "$R" felix-qualify.LXFORN "$_qswdz 424242@pid:[888]" 0555
-_qswleft "$d" "$T" "$R" felix-qualify.LXNOST "$$ 5@pid:[777]" 0555
-_qswplant "$T" felix-qualify.LXDIFF "$R" "$QSWLIVE 1@pid:[777]"
-_qswplant "$T" felix-qualify.LXDEAD "$R" "$_qswdz 424242@pid:[777]"
+_qswleft "$d" "$T" "$R" felix-qualify.LXSAME "$QSWLIVE 424242@pid:[777]@$_qswbt" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.LXFORN "$_qswdz 424242@pid:[888]@$_qswbt" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.LXBOOT "$_qswdz 424242@pid:[777]@ffffffff-0000-4000-8000-000000000000" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.LXNOBT "$_qswdz 424242@pid:[777]" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.LXPSST "$_qswdz $QSWPS" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.LXPIDA "$_qswdz" 0555
+_qswleft "$d" "$T" "$R" felix-qualify.LXNOST "$$ 5@pid:[777]@$_qswbt" 0555
+_qswplant "$T" felix-qualify.LXDIFF "$R" "$QSWLIVE 1@pid:[777]@$_qswbt"
+_qswplant "$T" felix-qualify.LXDEAD "$R" "$_qswdz 424242@pid:[777]@$_qswbt"
 _qswp1="$(_qswpre "$T/felix-qualify.LXDEAD" "$R" "$Tp/felix-qualify.LXDEAD/w")"
 _qswp2="$(_qswpre "$T/felix-qualify.LXDIFF" "$R" "$Tp/felix-qualify.LXDIFF/w")"
 _qswxenv="QSW_PROC=$d/proc"; _qswbg "$d/s" "$T" "$R" - sweep; _qswxenv=""; _qswfinish "$_qswpid" "$d/s"
 _qswctl="$(_qswgone "$_qswp1" "$T/felix-qualify.LXDEAD" "$R" "$Tp/felix-qualify.LXDEAD/w")"
-is  "with a proc filesystem that names the pid namespace pid:[777], a base whose record names a dead pid with a start in that namespace is swept, registration included" \
+is  "with a proc filesystem that names the pid namespace pid:[777] and a boot id, a base whose record names a dead pid with a start in that namespace and boot is swept, registration included" \
     "$_qswctl" "gone"
-_qswleftis "with that proc filesystem, a base whose record names a live pid with its stat's field 22 and that namespace is left as it was, whatever ps says of its start" "$d" "$T" "$R" felix-qualify.LXSAME "$_qswctl"
+_qswleftis "with that proc filesystem, a base whose record names a live pid with its stat's field 22, that namespace and that boot is left as it was, whatever ps says of its start" "$d" "$T" "$R" felix-qualify.LXSAME "$_qswctl"
 _qswleftis "with that proc filesystem, a base whose record names a dead pid with a start in another namespace, pid:[888], is left as it was: the pid is not this sweep's to read" "$d" "$T" "$R" felix-qualify.LXFORN "$_qswctl"
+_qswleftis "with that proc filesystem, a base whose record names a dead pid in that namespace but another boot is left as it was: another host's or another boot's pid is not this sweep's to read" "$d" "$T" "$R" felix-qualify.LXBOOT "$_qswctl"
+_qswleftis "with that proc filesystem, a base whose record names a dead pid in that namespace with no boot after it is left as it was" "$d" "$T" "$R" felix-qualify.LXNOBT "$_qswctl"
+_qswleftis "with that proc filesystem, a base whose record names a dead pid with a start ps prints, naming no namespace, is left as it was: a host whose /proc names its namespace cannot judge it" "$d" "$T" "$R" felix-qualify.LXPSST "$_qswctl"
+_qswleftis "with that proc filesystem, a base whose record names a dead pid alone is left as it was: a host whose /proc names its namespace cannot judge it" "$d" "$T" "$R" felix-qualify.LXPIDA "$_qswctl"
 _qswleftis "with that proc filesystem, a base whose record names a live pid that has no stat there to read is left as it was" "$d" "$T" "$R" felix-qualify.LXNOST "$_qswctl"
-is  "with that proc filesystem, a base whose record names a live pid with another start in that namespace is swept, registration included, and the live process is still running" \
+is  "with that proc filesystem, a base whose record names a live pid with another start in that namespace and boot is swept, registration included, and the live process is still running" \
     "$(_qswgone "$_qswp2" "$T/felix-qualify.LXDIFF" "$R" "$Tp/felix-qualify.LXDIFF/w") live:$(_qswalive "$QSWLIVE")" "gone live:yes"
 
 # 6c. A ps that prints nothing, as a fork that failed under load does: a
@@ -16274,7 +16309,7 @@ d="$QSWS/liveness-ps"; T="$d/t"; mkdir -p "$T" "$d/bin"; R="$(_qswroot "$d/root"
 printf '#!/bin/sh\nexit 0\n' > "$d/bin/ps"; chmod +x "$d/bin/ps"
 _qswleft "$d" "$T" "$R" felix-qualify.PSNOTR "$QSWLIVE $(_qswstart "$QSWLIVE")" 0555
 _qswleft "$d" "$T" "$R" felix-qualify.PSNODF "$QSWLIVE MonJan100:00:002001" 0555
-_qswplant "$T" felix-qualify.PSNODE "$R" "$(_qswdead)"
+_qswplant "$T" felix-qualify.PSNODE "$R" "$(_qswdead) $QSWOLD"
 _qswp1="$(_qswpre "$T/felix-qualify.PSNODE" "$R" "$Tp/felix-qualify.PSNODE/w")"
 _qswpath="$d/bin"; _qswbg "$d/s" "$T" "$R" - sweep; _qswpath=""; _qswfinish "$_qswpid" "$d/s"
 _qswctl="$(_qswgone "$_qswp1" "$T/felix-qualify.PSNODE" "$R" "$Tp/felix-qualify.PSNODE/w")"
@@ -16656,7 +16691,7 @@ d="$QSWS/quiet"; mkdir -p "$d/t0" "$d/t1" "$d/proj"; R="$(_qswroot "$d/root")"
 } > "$d/proj/qualification.tsv"
 _qswrun "$d/r0" "$d/t0" "$R" "$d/proj"
 _qswplant "$d/t1" felix-qualify.QUIET1 "$R" "$(_qswdead) $QSWOLD"
-_qswplant "$d/t1" felix-qualify.QUIET2 - "$(_qswdead)"
+_qswplant "$d/t1" felix-qualify.QUIET2 - "$(_qswdead) $QSWOLD"
 _qswp1="$(_qswt "$d/t1") $(_qswwt "$R")"
 _qswrun "$d/r1" "$d/t1" "$R" "$d/proj"
 is  "a run that sweeps two dead bases prints byte for byte the three verdict lines a run with nothing to sweep prints, says nothing on stderr, and leaves its TMPDIR empty and the root listing only itself" \

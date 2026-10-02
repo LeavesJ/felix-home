@@ -32,8 +32,10 @@
 #     process exists, the record has a start, and its start now is another:
 #     the pid is another process's now. A record with no start, or a start
 #     that cannot be read now, is judged by kill -0 alone. On Linux the start
-#     is read from /proc and names the pid namespace, and a record of another
-#     namespace is alive (_felix_qualify_since).
+#     is read from /proc and names the pid namespace and the boot, and a
+#     record of another namespace or boot is alive (_felix_qualify_since);
+#     there a record that names none, a ps start or a pid alone, is alive
+#     too, since this sweep cannot tell another host's from its own.
 #   - Then the base gets its owner's rwx back, since a dead row's mutation may
 #     have taken the write bit that a claim needs. That is the only mode a
 #     sweep ever changes on a base it has not claimed, and only on one it has
@@ -87,12 +89,15 @@
 #     row's tree under it, and that row then reads unrunnable.
 #   - Another repository's registration of a base swept here from disk. That
 #     repository's own next sweep removes it as an orphan.
-#   - A TMPDIR shared between machines, or between a macOS host and a Linux
-#     container: a record of the start ps prints, or of a pid alone, names a
-#     pid of another machine there, and a sweep on this one may read it
-#     dead. Linux records name their pid namespace and are judged in it
-#     alone; a record of a pid alone, where /proc could not be read, is
-#     judged by kill -0 alone in any namespace.
+#   - A TMPDIR shared between machines that are not Linux: a record of the
+#     start ps prints, or of a pid alone, names a pid of another machine
+#     there, and a sweep on this one may read it dead. Linux records name
+#     their pid namespace and boot and are judged in them alone, and a Linux
+#     sweep judges no record that names none; a macOS sweep judges no record
+#     that names one.
+#   - On Linux, a row whose /proc could not be read when it wrote its record,
+#     which is then a pid alone: no sweep there judges it, so if that row is
+#     killed its tree is left.
 #   - The instant between a list of the root's worktrees and git's own read
 #     of it, in the drop and the orphan step alike: an entry removed then by
 #     another process leaves git to resolve the path, and through a base
@@ -141,20 +146,26 @@ _felix_qualify_proc=/proc
 #
 # Where the proc filesystem names this process's pid namespace (Linux): field
 # 22 of <proc>/<pid>/stat, the clock ticks after boot at which the process
-# started, then @ and the namespace, as `8842@pid:[4026531836]`. Not ps:
-# procps prints lstart as boot time plus those ticks, and boot time moves
-# when the wall clock is stepped (settimeofday, an NTP step, a VM resumed),
-# so a live row's start would change and read as another process (review
-# 2026-10-01). The ticks never change. The namespace, because a pid means
-# nothing outside its own, and a TMPDIR shared between containers would show
-# a sweep in one a row in another as no such process.
+# started, then @, the namespace, @ and the boot id, as
+# `8842@pid:[4026531836]@6f1c...`. Not ps: procps prints lstart as boot time
+# plus those ticks, and boot time moves when the wall clock is stepped
+# (settimeofday, an NTP step, a VM resumed), so a live row's start would
+# change and read as another process (review 2026-10-01). The ticks never
+# change. The namespace, because a pid means nothing outside its own, and a
+# TMPDIR shared between containers would show a sweep in one a row in
+# another as no such process. The boot, because the first pid namespace has
+# the same inode, 4026531836, on every Linux kernel, so the namespace alone
+# tells no host, and no boot, from another (review round 2). Where the
+# namespace is named but it or the boot cannot be read, no start: ps's is
+# one such a host never judges.
 #
 # Elsewhere (macOS, where ps prints the start fixed at fork), ps -o lstart=,
 # in local time and words, so TZ and the locale are fixed, every blank taken
 # out, so a record holds exactly one space.
 _felix_qualify_since() {   # pid
   local l w IFS=' '
-  if _felix_qualify_ns; then
+  if [ -L "$_felix_qualify_proc/self/ns/pid" ]; then
+    _felix_qualify_ns || return 0
     w="$_felix_qualify_text"; _felix_qualify_text=""
     l=""
     { read -r l < "$_felix_qualify_proc/$1/stat" || [ -n "$l" ]; } 2>/dev/null || return 0
@@ -170,25 +181,31 @@ _felix_qualify_since() {   # pid
   _felix_qualify_text="${l//[[:space:]]/}"
 }
 
-# This process's pid namespace, as the proc filesystem names it, in
-# _felix_qualify_text. Non-zero where none is named.
+# This process's pid namespace, as the proc filesystem names it, @ and this
+# boot's id, in _felix_qualify_text. Non-zero where either cannot be had.
 _felix_qualify_ns() {
-  local t
+  local t b=""
   _felix_qualify_text=""
   [ -L "$_felix_qualify_proc/self/ns/pid" ] || return 1
   t="$(readlink "$_felix_qualify_proc/self/ns/pid" 2>/dev/null)" || return 1
   case "$t" in ''|*[[:space:]]*|*@*) return 1 ;; esac
-  _felix_qualify_text="$t"
+  { read -r b < "$_felix_qualify_proc/sys/kernel/random/boot_id" || [ -n "$b" ]; } 2>/dev/null || return 1
+  case "$b" in ''|*[!0123456789abcdefABCDEF-]*) return 1 ;; esac
+  _felix_qualify_text="$t@$b"
 }
 
 # Whether a record's process is shown dead. 0 only when it is; every other
 # case, a check that could not be made among them, is alive. A start naming
-# a pid namespace is judged only in that one: from any other, or where none
-# is named, the pid is not this sweep's to read.
+# a pid namespace and boot is judged only in that one: from any other, or
+# where none is named, the pid is not this sweep's to read. And where the
+# proc filesystem names this sweep's namespace, a record naming none, a ps
+# start or a pid alone, was written by a host or a tool this sweep cannot
+# tell from its own, and is alive (review round 2).
 _felix_qualify_dead() {   # pid, start or empty
   local said now _felix_qualify_text
   case "$2" in
     *@*) _felix_qualify_ns && [ "${2#*@}" = "$_felix_qualify_text" ] || return 1 ;;
+    *)   if [ -L "$_felix_qualify_proc/self/ns/pid" ]; then return 1; fi ;;
   esac
   if said="$(LC_ALL=C builtin kill -0 "$1" 2>&1)"; then
     [ -n "$2" ] || return 1

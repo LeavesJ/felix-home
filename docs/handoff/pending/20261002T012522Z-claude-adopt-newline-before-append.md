@@ -135,7 +135,19 @@ All are fixed here and pinned by blocks 3 and 4.
     its three pipe assertions red. Its author also found that main blocks
     earlier, in the policy-version hash, which the readers branch had already
     guarded.
-  - The completeness re-run is in progress.
+  - The completeness re-run (2026-10-02) found no reader of a project table
+    left unguarded: 924 pipe runs over 21 paths, 44 commands and all 8 hooks,
+    with none blocked, and 704 unended-table output pairs with no difference.
+    Its findings outside the class are in the readers note, and are left as
+    below.
+- git readers lose every diff after a pipe at a tracked path, because git
+  fails "cannot hash" and every caller discards the error. felix_tree_id then
+  reads a receipt as current after an edit, and bin/secret-scan passes an
+  added key. Pre-existing and not an append. Spun off as its own task.
+- `felix obligations --seed`, the stamp written by
+  `felix autonomy --allow commission`, and detect.sh's `cmp` of an
+  executable-pipe gate file still block on a pipe. These are overwrites and an
+  open, not appends to a table. Spun off as one task.
 - felix autonomy --revoke of a file's only grant leaves it granted while
   printing `revoked:`. Spun off as its own task.
 - `_felix_mem_stamp` (lib/memory.sh:22) has the same print-then-fail fallback,

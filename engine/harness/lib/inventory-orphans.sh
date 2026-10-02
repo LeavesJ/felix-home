@@ -129,11 +129,13 @@ _fi_orphan_rows() {
 # be read"), as is a directory the listing cannot enter and a file hash-object
 # stopped at; it makes the content unknown, not landed.
 _fi_uniq() {
-  local o="$1" ex="" f n k m ki=0 u ui nf big=0 past=0 past2=0
+  local o="$1" ex="" f n k m ki=0 u ui nf big=0 past=0 past2=0 lr
   [ -f "$o/.gitignore" ] || [ -z "$_FI_MAIN" ] || [ ! -f "$_FI_MAIN/.gitignore" ] || ex="--exclude-from=$_FI_MAIN/.gitignore"
+  # A listing that fails (the directory itself cannot be entered) lists nothing: that is not a directory of no files.
   GIT_INDEX_FILE="$_FI_T/no-index" _fi_git --git-dir="$_FI_COMMON" --work-tree="$o" ls-files -z --others --exclude-standard ${ex:+"$ex"} \
-    2> "$T/ofe" | tr '\000' '\n' > "$T/of"
-  u="$(grep -c 'could not open directory' "$T/ofe")"
+    > "$T/ofz" 2> "$T/ofe"; lr=$?
+  tr '\000' '\n' < "$T/ofz" > "$T/of"
+  u="$(grep -c 'could not open directory' "$T/ofe")"; [ "$lr" = 0 ] || u=$((u + 1))
   while IFS= read -r f <&3; do
     case "$f" in */) continue ;; esac; [ -f "$o/$f" ] && [ ! -L "$o/$f" ] && printf '%s\n' "$o/$f"
   done 3< "$T/of" > "$T/of1"
@@ -145,7 +147,8 @@ _fi_uniq() {
   u=$((u + nf + _FI_UG - _FI_UH))
   [ "$u" = 0 ] || _FI_UQ="$_FI_UQ; $u files could not be read"
   GIT_INDEX_FILE="$_FI_T/no-index" _fi_git --git-dir="$_FI_COMMON" --work-tree="$o" ls-files -z --others --ignored --exclude-standard \
-    --directory ${ex:+"$ex"} 2> "$T/oie" | tr '\000' '\n' > "$T/oi"
+    --directory ${ex:+"$ex"} > "$T/oiz" 2> "$T/oie"; lr=$?
+  tr '\000' '\n' < "$T/oiz" > "$T/oi"
   if [ -s "$T/oi" ]; then
     while IFS= read -r f <&3; do
       find "$o/${f%/}" -name .git -prune -o -type f -size -2049 -print -o -type f -exec printf '\001%s\n' {} + 2>> "$T/oie"
@@ -160,7 +163,7 @@ _fi_uniq() {
     [ "${past2:-0}" = 0 ] || { _FI_UQ="$_FI_UQ; ignored files past the first 2000 not read"; past=1; }
   else nf=0; _FI_UG=0; _FI_UH=0
   fi
-  ui=$(($(grep -c -e 'could not open directory' -e 'Permission denied' "$T/oie") + nf + _FI_UG - _FI_UH))
+  ui=$(($(grep -c -e 'could not open directory' -e 'Permission denied' "$T/oie") + nf + _FI_UG - _FI_UH + (lr != 0)))
   [ "$ui" = 0 ] || _FI_UQ="$_FI_UQ; $ui ignored files could not be read"
   [ "$_FI_PARTIAL" = 0 ] || [ "$k$ki" = 00 ] || _FI_UQ="$_FI_UQ; a partial clone, whose remote may hold that content"
   if [ "$k" -gt 0 ] || [ "$ki" -gt 0 ]; then _FI_OC=not

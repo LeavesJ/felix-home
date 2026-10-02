@@ -27982,6 +27982,130 @@ is  "inventory B5: a PR merged into another PR's branch, not the default branch,
 is  "inventory B5: and the view lists that branch rather than counting it landed" \
     "$(case "$(_ibgroup2 "$(_ibo B5V)" stack2)" in (unlisted) echo unlisted ;; (*) echo listed ;; esac)" "listed"
 
+# ---- the second review's blockers B6-B8 (build/review-round2.md, v3 v4 v5 v7) --
+# Section 5.2, "unread is unknown" (ruled 2026-10-02): what a reader could not
+# read is said, and the value it would have decided is unknown, never absent and
+# never landed. Each block is built from the reviewer's fixture and carries a
+# control run in which everything is readable, so the fixture is shown to hold
+# what the assertion says it holds. The mode 000 files are readable to root,
+# where the blocks skip.
+# B6 (v3's o2): an orphan directory the run cannot enter, untracked inside the
+# main worktree, holding a file whose content is in no object.
+_ibnew b6
+_ibg -C "$IB/b6" worktree add -q -b b6live "$IB/b6/.claude/worktrees/live1"
+mkdir -p "$IB/b6/.claude/worktrees/gone6"
+printf 'unique, in no object\n' > "$IB/b6/.claude/worktrees/gone6/u"; chmod 000 "$IB/b6/.claude/worktrees/gone6"
+if [ -r "$IB/b6/.claude/worktrees/gone6/u" ]; then
+  chmod 755 "$IB/b6/.claude/worktrees/gone6"
+  skip "inventory B6: an orphan directory the run cannot enter is said, and its content is unknown, not landed" "a mode 000 directory is readable here (run as root?)"
+else
+  _ibrun B6T -- inventory --repo "$IB/b6" --tsv --no-gh --no-host; _ibrun B6V -- inventory --repo "$IB/b6" --no-gh --no-host
+  chmod 755 "$IB/b6/.claude/worktrees/gone6"
+  _ibb6() { _ibcol B6T orphan "$IB/b6/.claude/worktrees/gone6" "$1"; }
+  is  "inventory B6: an orphan directory the run cannot enter has content unknown, never landed, and says it could not be read" \
+      "$(_ibb6 7) $(_ibholds B6T orphan "$IB/b6/.claude/worktrees/gone6" landed) $(_ibb6 8 | _ibsaid 'could not be read')" "unknown no said"
+  is  "inventory B6: and the view counts it as no orphan holding nothing unique" "$(_ibnothing "$(_ibo B6V)")" "0"
+fi
+
+# B7 (v4, v5): a session file the run cannot read (mode 000, as a root-owned
+# file under sudo is) leaves what it could have decided unknown.
+# (a) v5: main has an uncommitted edit; its one session's last record is 3 hours
+# old, and a bookkeeping line made the file a minute old. Read, the worktree is
+# not live and the view lists its edit; unread, live is unknown, not decided.
+_ibnew b7a
+IBB7AR="$(_ibmainwt "$IB/b7a")"
+printf 'b7a\nedited, never committed\n' > "$IB/b7a/README.md"
+IB_BR=""; _ibsess "$IBB7AR" s-7a; _ib_h 181 'edit the readme'; _ib_a 180 'Done.'; _ib_raw '{"type":"cost-state","cost":1}'; _ibage "$IB_F" 1
+IBB7AF="$IB_F"
+_ibrun B7AR -- inventory --repo "$IB/b7a" --tsv --no-gh
+chmod 000 "$IBB7AF"
+if [ -r "$IBB7AF" ]; then
+  chmod 600 "$IBB7AF"
+  skip "inventory B7: a session file the run cannot read leaves what it could have decided unknown" "a mode 000 file is readable here (run as root?)"
+else
+  _ibrun B7AT -- inventory --repo "$IB/b7a" --tsv --no-gh; _ibrun B7AV -- inventory --repo "$IB/b7a" --no-gh
+  chmod 600 "$IBB7AF"
+  is  "inventory B7a: read, a worktree whose one session last worked 3 hours ago is not live, though its file gained a bookkeeping line a minute ago (the control)" \
+      "$(_ibmany B7AR worktree "$IBB7AR" live uncommitted unknown:live)" "live=no uncommitted=yes unknown:live=no"
+  is  "inventory B7a: unread, that worktree's live is unknown, not decided from the file's mtime, and its uncommitted work stays" \
+      "$(_ibmany B7AT worktree "$IBB7AR" live uncommitted unknown:live)" "live=no uncommitted=yes unknown:live=yes"
+  is  "inventory B7a: and the view lists that worktree under uncommitted, as it does when the file is read" "$(_ibgroup2 "$(_ibo B7AV)" "$IBB7AR")" "uncommitted"
+fi
+# (b) and (c) v4: PR #7 heads w3, and chip task_7c7c7c7c is proposed in the old
+# session, whose first human text the new session's is. s-7old worked on w3 and
+# proposed the chip 3 hours ago; s-7new, a minute old, worked on w3 and was
+# started from the chip's prompt. Read, s-7new owns the PR, which is live, and
+# no chip is unstarted. With s-7new unread, its mtime is later than s-7old's
+# newest record and later than the proposal.
+_ibnew b7
+IBB7R="$(_ibmainwt "$IB/b7")"
+_ibg -C "$IB/b7" remote set-url origin git@github.com:acme/bravo7.git
+mkdir -p "$IB/gh/acme_bravo7"
+printf '[{"baseRefName":"main","headRefName":"w3","headRefOid":"%s","isCrossRepository":false,"number":7,"state":"OPEN","updatedAt":"%s"}]\n' \
+  "$(_ibq -C "$IB/b7" rev-parse HEAD)" "$(_ibts 300)" > "$IB/gh/acme_bravo7/all.json"
+printf '[{"isDraft":false,"labels":[],"mergeable":"MERGEABLE","number":7,"statusCheckRollup":[]}]\n' > "$IB/gh/acme_bravo7/open.json"
+IB_BR=w3; _ibsess "$IBB7R" s-7old
+_ib_h 181 'start on w3'; _ib_chip 180 toolu_7c task_7c7c7c7c 'Seventh chip' 'please take up the seventh chip now'; _ib_a 180 'Done.'; _ibage "$IB_F" 180
+_ibsess "$IBB7R" s-7new
+_ib_h 2 'please take up the seventh chip now'; _ib_a 1 'On it, working on w3.'; _ibage "$IB_F" 1
+IBB7NF="$IB_F"; IB_BR=""
+_ibrun B7R -- inventory --repo "$IB/b7" --tsv
+chmod 000 "$IBB7NF"
+if [ -r "$IBB7NF" ]; then
+  chmod 600 "$IBB7NF"
+else
+  _ibrun B7T -- inventory --repo "$IB/b7" --tsv
+  chmod 600 "$IBB7NF"
+  is  "inventory B7b: read, the newest record naming w3 is s-7new's: it owns PR #7, which is live, and the chip its prompt started is no row (the control)" \
+      "$(_ibcol B7R pr '#7' 5) $(_ibholds B7R pr '#7' live) $(_ibcount B7R chip)" "s-7new yes 0"
+  is  "inventory B7b: unread, s-7new's mtime is later than the older owner's record, so PR #7's owner is unknown and its live is unknown, not s-7old and not decided" \
+      "$(_ibcol B7T pr '#7' 5) $(_ibmany B7T pr '#7' live unknown:live)" "unknown live=no unknown:live=yes"
+  is  "inventory B7c: and a chip proposed before that file's mtime is unknown:chip-unstarted, not held as chip-unstarted" \
+      "$(_ibmany B7T chip task_7c7c7c7c chip-unstarted unknown:chip-unstarted)" "chip-unstarted=no unknown:chip-unstarted=yes"
+fi
+# (d) v5: the record directory itself cannot be entered. Read, the worktree is
+# live and its newest session asks a question.
+_ibnew b7d
+IBB7DR="$(_ibmainwt "$IB/b7d")"
+printf 'b7d\nedited, never committed\n' > "$IB/b7d/README.md"
+IB_BR=""; _ibsess "$IBB7DR" s-7d; _ib_h 3 'edit the readme'; _ib_a 2 'Shall I commit it?'; _ibage "$IB_F" 2
+IBB7DD="$IBP/$(_ibenc "$IBB7DR")"
+_ibrun B7DR -- inventory --repo "$IB/b7d" --tsv --no-gh
+chmod 000 "$IBB7DD"
+if [ -r "$IBB7DD" ] && [ -x "$IBB7DD" ]; then
+  chmod 755 "$IBB7DD"
+  skip "inventory B7d: a record directory the run cannot enter answers unknown, not no session here" "a mode 000 directory is readable here (run as root?)"
+else
+  _ibrun B7DT -- inventory --repo "$IB/b7d" --tsv --no-gh
+  chmod 755 "$IBB7DD"
+  is  "inventory B7d: read, the worktree is live and its newest session s-7d asks a question (the control)" \
+      "$(_ibcol B7DR worktree "$IBB7DR" 5) $(_ibmany B7DR worktree "$IBB7DR" live question)" "s-7d live=yes question=yes"
+  is  "inventory B7d: a record directory the run cannot enter gives owner unknown and live, question and blocked unknown, not owner - and none held" \
+      "$(_ibcol B7DT worktree "$IBB7DR" 5) $(_ibmany B7DT worktree "$IBB7DR" unknown:live unknown:question unknown:blocked)" "unknown unknown:live=yes unknown:question=yes unknown:blocked=yes"
+  is  "inventory B7d: and the sessions cover row says a session file could not be read" "$(_ibcol B7DT cover sessions 8 | _ibsaid 'could not be read')" "said"
+fi
+
+# B8 (v7): a reflog entry whose commit object is missing is skipped by git log -g
+# with status 0. Branch rv holds c1 then c2, and its index holds c1's tree, a
+# staged revert; c1's commit object is then gone from the object store.
+_ibnew b8
+IBB8R="$(_ibmainwt "$IB/b8")"
+_ibg -C "$IB/b8" checkout -q -b rv
+printf 'r1\n' > "$IB/b8/r"; _ibci "$IB/b8" c1; IBB8C1="$(_ibq -C "$IB/b8" rev-parse HEAD)"
+printf 'r2\n' > "$IB/b8/r"; _ibci "$IB/b8" c2
+_ibg -C "$IB/b8" read-tree "$IBB8C1"
+_ibrun B8R -- inventory --repo "$IB/b8" --tsv --no-gh --no-host
+_ibx="$IB/b8/.git/objects/${IBB8C1:0:2}/${IBB8C1:2}"
+if [ -f "$_ibx" ]; then
+  mv "$_ibx" "$IB/b8-c1.bak"
+  _ibrun B8T -- inventory --repo "$IB/b8" --tsv --no-gh --no-host
+  mv "$IB/b8-c1.bak" "$_ibx"
+  is  "inventory B8: with every object present, an index holding an earlier tip's tree is a staged revert (the control)" \
+      "$(_ibmany B8R worktree "$IBB8R" hazard:staged-revert unknown:hazard:staged-revert)" "hazard:staged-revert=yes unknown:hazard:staged-revert=no"
+  is  "inventory B8: when that earlier tip's commit object is gone, the check could not be made: unknown:hazard:staged-revert, not no hazard" \
+      "$(_ibmany B8T worktree "$IBB8R" hazard:staged-revert unknown:hazard:staged-revert)" "hazard:staged-revert=no unknown:hazard:staged-revert=yes"
+else skip "inventory B8: a reflog commit the object store lacks leaves the staged-revert check unknown" "the fixture's commit is not a loose object"; fi
+
 # ---- §4.1: across every run ----------------------------------------------
 _ibx=""; for _ibk in RUN1 RUN2 RUN3 RUN4 MISC PART K R3 U F G H1 H2 O1 V1 T1 T3 M1 A5a A5b A5c A27 A31a A31b CCD; do _ibx="$_ibx $(_ibo "$_ibk")"; done
 is  "inventory N16: no row in any run is landed while its content is not, partly or unknown" \

@@ -97,13 +97,16 @@ _fi_dd() {
 # A read that fails otherwise (the index, the reflog, a tree or a tip the clone
 # lacks) leaves the answer unknown, not no.
 _fi_revert() {
-  local lr=HEAD w="HEAD here" c t rc unk=0
+  local lr=HEAD w="HEAD here" c t rc unk=0 f
   [ "$br" = - ] || { lr="refs/heads/$br"; w="$br"; }
   _fi_git -C "$ref" diff-index --cached --quiet HEAD -- 2>/dev/null; rc=$?
   [ "$rc" != 0 ] || return 0
   [ "$rc" = 1 ] || { _fi_git -C "$ref" rev-parse -q --verify 'HEAD^{commit}' >/dev/null 2>&1 && rev=unknown; return 0; }
   _fi_git -C "$ref" reflog exists "$lr" 2>/dev/null || { rev=unknown; return 0; }
   _fi_git -C "$ref" log -g --format='%H %T' "$lr" -- > "$T/rlg" 2>/dev/null || { rev=unknown; return 0; }
+  # log -g skips an entry whose commit the clone lacks, with status 0: fewer printed than the reflog holds is a tip not read.
+  f="$(_fi_git -C "$ref" rev-parse --git-path "logs/$lr" 2>/dev/null)"; case "$f" in /*) ;; *) f="$ref/$f" ;; esac
+  [ ! -f "$f" ] || [ "$(wc -l < "$f" | tr -d ' ')" -le "$(wc -l < "$T/rlg" | tr -d ' ')" ] || unk=1
   awk -v t="$(_fi_git -C "$ref" rev-parse -q --verify 'HEAD^{tree}' 2>/dev/null)" '$2 != t && !s[$2]++' "$T/rlg" | head -100 > "$T/rl"
   while read -r c t <&3; do
     _fi_git -C "$ref" diff-index --cached --quiet "$t" -- 2>/dev/null; rc=$?
@@ -151,10 +154,13 @@ _fi_handoff() {
 # Chips from sessions in every worktree, every orphan, and every directory
 # under a directory inside the main worktree that holds worktrees.
 _fi_chips() {
-  local id s e title
+  local id s e u title
   [ "$_FI_HOSTOK" = 1 ] || return 0
   felix_inv_host_chips "$_FI_NOW" "$_FI_DAYS" "$T/hscope" > "$T/chips" || return 0
-  while IFS="$_FI_TAB" read -r id s e title <&3; do _fi_age "$e"; _fi_row chip "$id" chip-unstarted "$s" "$_FI_A" - "$title" - -; done 3< "$T/chips"
+  # u is "unknown" for a chip that a session file the run could not read may have started.
+  while IFS="$_FI_TAB" read -r id s e u title <&3; do
+    _fi_age "$e"; _fi_row chip "$id" "$([ "$u" != unknown ] || printf 'unknown:')chip-unstarted" "$s" "$_FI_A" - "$title" - -
+  done 3< "$T/chips"
 }
 # The host's record directories for this repository's worktrees, orphans and
 # removed worktrees, into $T/hscope, and whether there are any records to read

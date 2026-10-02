@@ -103,10 +103,25 @@ felix_detect() {
 }
 
 # Capabilities a project has declared it knows about, one per line.
+#
+# 0 when there is no file or it was read, whether or not it holds a
+# capability line, and 2 when something is there and could not be read. Until
+# 2026-10-01 a file of only comments returned grep's 1, which a caller asking
+# the status, as _felix_cap_active now does, would have read as a list that
+# failed. Only nothing at all is absent: a link whose target is gone, a
+# directory or a pipe is something there that is not a list, and is 2 without
+# being opened, where `-f` alone called each absent and the list empty (a pipe
+# must not be opened at all, since grep would wait on it for a writer). The
+# status starts at 2 and the redirection sits outside the grep, because a
+# redirection that cannot be opened returns 1 without running the command, and
+# 1 is what an empty list now reads as.
 felix_declared() {
-  local proj="$1"
-  [ -f "$proj/capabilities" ] || return 0
-  grep -vE '^\s*(#|$)' "$proj/capabilities" 2>/dev/null
+  local proj="$1" rc=2
+  [ -e "$proj/capabilities" ] || [ -L "$proj/capabilities" ] || return 0
+  [ -f "$proj/capabilities" ] || return 2
+  { grep -vE '^\s*(#|$)' "$proj/capabilities"; rc=$?; } 2>/dev/null
+  [ "$rc" -le 1 ] || return 2
+  return 0
 }
 
 # Present in the checkout but never declared. This is the drift worth surfacing.

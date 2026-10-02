@@ -42,10 +42,14 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/lifecycle.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
+
+# The payload is read before the project is resolved: Claude Desktop starts this
+# hook in the main checkout, and the session's directory is only in the payload
+# (lib/resolve.sh).
+raw="$(cat 2>/dev/null || true)"
+felix_hook_enter "$raw" "$FELIX_HOME_DIR"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
 [ -n "$PROJ" ] || exit 0
-
-raw="$(cat 2>/dev/null || true)"
 
 # A session nobody in it typed into is recorded as nothing, and this is the
 # first thing done with the payload because everything after it writes: the

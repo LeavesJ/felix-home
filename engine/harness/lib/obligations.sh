@@ -313,7 +313,9 @@ felix_obligations_ungrounded() {
 # stderr naming the table, and exit 2, whichever read it was. Read as empty it
 # resolved every capability absent, about a table nobody read. The line is said
 # here, because the reads below discard the libraries' stderr, as they always
-# have; the report is held until every read has held.
+# have; the report is held until every read has held. One holding a NUL byte
+# resolves nothing the same way, and the line says it holds one
+# (lib/qualify.sh, _felix_qualify_read, says why it is not read).
 felix_obligations_needs() {   # proj
   local proj="$1" rows mal declared report line name needs cap missing nl='
 '
@@ -349,7 +351,11 @@ felix_obligations_needs() {   # proj
            done
          done
          exit 0; })" \
-    || { printf 'felix: %s/qualification.tsv could not be read, so no need was resolved against it\n' "$proj" >&2
+    || { if [ "$?" = 3 ]; then
+           printf 'felix: %s/qualification.tsv holds a NUL byte, so no need was resolved against it\n' "$proj" >&2
+         else
+           printf 'felix: %s/qualification.tsv could not be read, so no need was resolved against it\n' "$proj" >&2
+         fi
          return 2; }
   [ -z "$report" ] || printf '%s\n' "$report"
   return 0

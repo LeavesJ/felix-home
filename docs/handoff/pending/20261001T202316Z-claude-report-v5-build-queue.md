@@ -345,8 +345,8 @@ these again.
 - **Overnight landing (F2 changed).** Once landing is armed (Phase 0b), it
   may run overnight with the Mac kept awake, when weekly usage allows.
   Before arming, nothing lands unattended. The roadmap text is in #389
-  (commit 636a090e). Those added lines need the founder's yes before the
-  carrier merges #389.
+  (commit 636a090e). The founder said yes to that head on 2026-10-01
+  ("i say yes 389").
 - **Replay.** Separate `claude -p` arms run by an attended driver on his
   subscription are fine and sit outside D3. About $410 of usage is fine.
   Both hold "as long as properly used": the protocol's isolation, pinning

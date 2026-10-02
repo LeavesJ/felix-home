@@ -16261,6 +16261,18 @@ else
   skip "an orphan registration git cannot remove, its admin directory made immutable, stays listed and is said in the drop's own words, felix: <root> still lists the scratch worktree <P>, which could not be removed, and the next run once it can be removes it" "no chflags here"
 fi
 
+# 7b. A TMPDIR that cannot be searched while a sweep runs: no base in it can
+# be shown absent, so a live row's registration there stays. T is given by
+# its physical path, the one git records, since its physical path cannot be
+# had while it cannot be searched.
+d="$QSWS/nosearch"; mkdir -p "$d/t"; T="$(_qswphys "$d/t")"; R="$(_qswroot "$d/root")"; Tp="$T"
+_qswplant "$T" felix-qualify.LIVENS "$R" "$QSWLIVE $(_qswstart "$QSWLIVE")"
+_qswwas="$(_qswlisted "$R" "$Tp/felix-qualify.LIVENS/w")"
+chmod 0600 "$T"; _qswbg "$d/s" "$T" "$R" - sweep; _qswfinish "$_qswpid" "$d/s"; chmod 0700 "$T"
+is  "a sweep run while its TMPDIR has lost its search bit leaves the registration of a live row's base there, and the base, as they were" \
+    "live:$(_qswalive "$QSWLIVE") was:$_qswwas registered:$(_qswlisted "$R" "$Tp/felix-qualify.LIVENS/w") base:$(_qswthere "$T/felix-qualify.LIVENS/owner")" \
+    "live:yes was:yes registered:yes base:there"
+
 # 8. Another repository's dead base in this TMPDIR: gone from disk, and
 # this root's own list untouched; that repository's next run removes the
 # orphan it is left with.

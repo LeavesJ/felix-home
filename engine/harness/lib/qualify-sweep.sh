@@ -157,8 +157,7 @@ _felix_qualify_claim() {   # base, the record judged dead, this sweep's record
 }
 
 # Whether a registered path is an orphan of this sweep's: exactly
-# <T>/felix-qualify.<six>/w, T as given or physical, its base neither there
-# nor a symlink.
+# <T>/felix-qualify.<six>/w, T as given or physical, its base shown absent.
 _felix_qualify_orphan() {   # path, T, T physical or empty
   local b d n
   case "$1" in */w) ;; *) return 1 ;; esac
@@ -166,7 +165,21 @@ _felix_qualify_orphan() {   # path, T, T physical or empty
   [ "$d" = "$2" ] || { [ -n "$3" ] && [ "$d" = "$3" ]; } || return 1
   case "$n" in felix-qualify.??????) ;; *) return 1 ;; esac
   case "${n#felix-qualify.}" in *[!"$_felix_qualify_alnum"]*) return 1 ;; esac
-  [ ! -e "$b" ] && [ ! -L "$b" ]
+  _felix_qualify_absent "$d" "$n"
+}
+
+# Whether a directory holds no entry of a name, shown: it can be entered and
+# listed, the listing lacks the name, and the name is neither there nor a
+# symlink. A test of the path alone reads a base as absent when TMPDIR has
+# lost its search bit, or a stat fails, and a live row's registration was
+# removed for good (review 2026-10-01). Its own process, for the cd.
+_felix_qualify_absent() {   # dir, name
+  ( nl='
+'
+    CDPATH='' cd -- "$1" 2>/dev/null || exit 1
+    l="$(ls -A . 2>/dev/null && printf x)" || exit 1
+    case "$nl${l%x}" in *"$nl$2$nl"*) exit 1 ;; esac
+    [ ! -e "$2" ] && [ ! -L "$2" ] )
 }
 
 # Its own process, so the glob options it sets (_felix_qualify_globs) reach

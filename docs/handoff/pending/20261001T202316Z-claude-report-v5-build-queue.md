@@ -69,6 +69,10 @@ report or the roadmap to know what comes next.
   Any cross-boundary test is synthetic or expressly authorized.
 - **Reserved sessions.** One standing session works Phase 0b and one works
   the capability lane (review §4.4), so the lane's share actually happens.
+- **The plugin cache belongs to the carrier** (from 2026-10-01). No session
+  runs `felix install` or a plugin re-install, or removes anything under
+  `~/.claude/plugins/cache/felix/`. Only the carrier deploys, after each
+  merge.
 
 **The queue.** Each item gives what it is, then **when** it starts. Designs
 live under `audits/2026-10-01-report-v5-review/` in the memory root, written
@@ -85,11 +89,18 @@ below as `R/`.
       step 8, the actor's core.
     - **How:** an ultracode pipeline (spec → blind assertions → red first →
       adversarial review → gate).
-3. **`felix inventory` (step 4).**
+3. **The `deployed_engine` probe counts the cache's version directories.**
+   Any install or removal therefore makes every live receipt stale. That is
+   how slot 2 (#392) failed to merge on a green gate on 2026-10-01: a false
+   block in a real session, so fix intake admits it.
+    - **When:** with item 2. Key the probe on the deployed version, not the
+      directory count.
+    - **How:** the same ultracode pipeline.
+4. **`felix inventory` (step 4).**
     - **Spec and blind assertions:** `R/specs/inventory/`, which revises the
       2026-09-24 spec against today's code.
     - **When:** same trigger as item 2.
-4. **Steps 3 and 5-18, in roadmap order.**
+5. **Steps 3 and 5-18, in roadmap order.**
     - Step 8, the actor's core, must read the CI conclusion for the exact
       head SHA. Merge consults no CI today.
     - The actor lands only through `felix merge`. The gate only announces an
@@ -266,7 +277,7 @@ Every lane has a `disposition.md` under `R/`.
     - It costs about $96-632, depending on runs and replication.
     - The proxy, the wrapper and the stand-in's logging are not built yet.
 - **`felix inventory` spec** (`R/specs/inventory/spec.md`, `assertions.md`,
-  `disposition.md`). It is settled and ready for trust item 3 once the WIP
+  `disposition.md`). It is settled and ready for trust item 4 once the WIP
   trigger holds. The blind author, not the implementer, reconciles the
   branch's assertions.
 - **Skipped-receipt spec** (`R/specs/skipped-receipt/spec.md`,
@@ -288,7 +299,7 @@ closures below. The generator is `R/coverage/build.py`, and the final
 statuses are in `reconcile.json`.
 
 - **C1:** the console scope.
-- **C2 and C2b:** trust controls and auto-merge, in trust item 4.
+- **C2 and C2b:** trust controls and auto-merge, in trust item 5.
 - **C3:** model ids, under the standing rules.
 - **C5:** the reporting contract, under Later.
 - **C6:** claims, under the standing rules.

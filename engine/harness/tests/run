@@ -25297,9 +25297,18 @@ _rt_base_check() {   # <checkout> -> ok, skip <reason> or bad <detail>
 # red.tsv merge conflict resolved by removing the file leaves, fails _rtn3,
 # since it still owes a record: the missing file skipped _rtn1 to _rtn3, and
 # such a change passed (#371, fifth review). Where no record is owed, a
-# missing red.tsv skips _rtn3 as it skips the first two.
+# missing red.tsv skips _rtn3 as it skips the first two. A red run,
+# FELIX_TEST_NO_MANIFEST at exactly 1 as tests/red sets it, stands in the
+# base's tree and would judge the base's record, so all four skip there; it
+# is read here too, since decided at the suite's one call, a test there that
+# took an unset variable for a red run skipped all four on every run with
+# every assertion green (#371, sixth review).
 _rt_judge() {   # <checkout>
   local c="$1" t="$1/engine/harness/tests/red.tsv" a="$1/engine/harness/tests/assertions.tsv" r="" s="" w n vh vm
+  if [ "${FELIX_TEST_NO_MANIFEST:-}" = 1 ]; then
+    for n in "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4"; do skip "$n" "a red run reads the base's record"; done
+    return 0
+  fi
   [ "${FELIX_TEST_RECORD:-}" = 1 ] && r="--record-assertions rewrites red.tsv after this run"
   s="$r"; [ -z "$s" ] && [ ! -f "$t" ] && s="no red.tsv beside this suite"
   if [ -n "$s" ]; then
@@ -25344,13 +25353,8 @@ _rt_judge() {   # <checkout>
       || bad "$_rtn4" "this tree declares ${vh:-nothing}, origin/main declares ${vm:-nothing}"
   fi
 }
-# This suite's own checkout, judged once, but not in the red run, which
-# stands in the base's tree and would judge the base's record.
-if [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then
-  for _n in "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4"; do skip "$_n" "a red run reads the base's record"; done
-else
-  _rt_judge "$REAL_HARNESS/../.."
-fi
+# This suite's own checkout, judged once; in a red run _rt_judge skips all four.
+_rt_judge "$REAL_HARNESS/../.."
 # Whether a helper printed one line whose first word is the verdict asked for
 # and whose rest holds each phrase given.
 _rt_said() {   # <name> <what the helper printed> <ok|skip|bad> [<phrase>...]

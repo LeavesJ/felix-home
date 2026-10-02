@@ -1,4 +1,4 @@
-### 2026-09-25 — no engine test reads a pipe through a grep that can stop early: fifty sites converted, and a suite lint refuses the shape
+### 0ch. 2026-09-25 — no engine test reads a pipe through a grep that can stop early: fifty sites converted, and a suite lint refuses the shape
 
 **What shipped (claude/engine-membership-sigpipe).** Under `set -uo pipefail`
 (the felix CLI, every hook, secret-scan, the suite) `producer | grep -q x`

@@ -1,0 +1,5 @@
+{
+  "name": "webapp",
+  "remote_match": "",
+  "gate": "npm run verify"
+}

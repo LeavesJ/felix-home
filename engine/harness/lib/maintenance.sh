@@ -85,6 +85,22 @@ felix_maint_unreachable() {
 if ! command -v _felix_cap_active >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/stack.sh"
 fi
+command -v felix_final_filter_lead >/dev/null 2>&1 \
+  || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
+
+# Each row as five cells, and a sixth: `-`, or why its check is refused. A
+# check only runs on an event row, so only there is it judged (final-filter.sh
+# reads the cadence as the runner below does).
+_felix_maint_judged() {
+  _felix_maint_rows "$1" | felix_final_filter_lead maintenance.tsv \
+    | awk -F'\t' '{ printf "%s\t%s\t%s\t%s\t%s\t%s\n", $2, $3, $4, $5, (NF >= 6 ? $6 : "-"), $1 }'
+}
+
+# name <TAB> why, for every row whose check is refused.
+felix_maint_malformed() {
+  _felix_maint_judged "$1" | awk -F'\t' '$6 != "-" && $1 != "" { print $1 "\t" $6 }'
+  return 0
+}
 
 # The fifth column, and why it exists.
 #
@@ -112,26 +128,35 @@ fi
 # graphify lesson a second time, one layer down. So the two are now different
 # words, and a reader that cannot use `unchecked` at least cannot mistake it
 # for a row that answered.
+#
+# A check a final filter makes unable to fail (final-filter.sh) is the same
+# lesson again: the `bash -c` runs it without pipefail, so it reads `ok`
+# whatever it asked and the row is never due. It is not run. The row reads
+# `due` with `refused` where the reason goes, because `due` is the one word the
+# hooks and pulse surface, and felix_maint_malformed says why.
 felix_maint_status() {
   local proj="$1" root="${2:-}" now; now="$(date +%s)"
   # awk rather than `IFS=$'\t' read`, for the reason procedures.sh records: tab
   # is an IFS whitespace character and an empty cell shifts every later column
   # left. Rows written before this column existed have four fields and must
-  # keep working, so the fifth is filled with `-` when absent.
-  _felix_maint_rows "$proj" \
-    | awk -F'\t' '{ printf "%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, (NF >= 5 ? $5 : "-") }' \
-    | while IFS= read -r line; do
-    local name cadence cap desc check
+  # keep working, so the fifth is filled with `-` when absent. The sixth is `-`
+  # or why the check is refused.
+  _felix_maint_judged "$proj" | while IFS= read -r line; do
+    local name cadence cap desc check ff
     name="$(printf '%s\n' "$line" | cut -f1)"
     cadence="$(printf '%s\n' "$line" | cut -f2)"
     cap="$(printf '%s\n' "$line" | cut -f3)"
     desc="$(printf '%s\n' "$line" | cut -f4)"
     check="$(printf '%s\n' "$line" | cut -f5)"
+    ff="$(printf '%s\n' "$line" | cut -f6)"
     [ -n "${name:-}" ] || continue
     if ! _felix_cap_active "${cap:-always}" "$proj"; then
       printf 'dormant\t%s\t-\t%s\t%s\n' "$name" "${cadence:-0}" "$desc"; continue
     fi
     if [ "${cadence:-0}" -eq 0 ] 2>/dev/null; then
+      if [ -n "$check" ] && [ "$check" != "-" ] && [ "$ff" != "-" ]; then
+        printf 'due\t%s\trefused\t0\t%s\n' "$name" "$desc"; continue
+      fi
       if [ -n "$check" ] && [ "$check" != "-" ]; then
         if [ -n "$root" ] && [ -d "$root" ]; then
           if ( cd "$root" && bash -c "$check" felix-maint </dev/null >/dev/null 2>&1 ); then

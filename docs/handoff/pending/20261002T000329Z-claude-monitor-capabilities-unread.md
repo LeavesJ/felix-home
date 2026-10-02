@@ -15,8 +15,10 @@ That bypasses `felix_declared` and gets four things wrong:
 - A file grep cannot read is also `[]`, or a partial list.
 - Comment lines are listed as capabilities.
 - Under EAGAIN, or on bash 3.2 when a substitution cannot make its pipe, the
-  list comes back empty with status 0. That is the case the `.` sentinel in
-  `felix_declared_into` guards against.
+  list comes back empty with status 0. That is the case the sentinel behind
+  `felix_declared_into` guards against. It was a `.` when this was written,
+  and the readers branch's after-review pass moves it into `felix_capture`
+  as `\n.`, with the same statuses.
 
 The page's script has never read `capabilities`. Only `cur()`'s fallback
 project named it, until bf12b9d1 (2026-08-10) dropped it from there. So the

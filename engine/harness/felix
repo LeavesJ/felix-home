@@ -86,6 +86,19 @@ cmd_audit() {
 }
 if [ "${1:-}" = "audit" ]; then shift; cmd_audit "$@"; exit $?; fi
 
+# felix inventory is dispatched here too: it writes nothing and answers from a
+# plain clone. Its libraries are lib/inventory*.sh; what only the host's records
+# say is in lib/inventory-host.sh, the one file a second host would replace.
+cmd_inventory() {
+  local f
+  for f in inventory inventory-items inventory-gh inventory-orphans inventory-view inventory-host; do
+    # shellcheck disable=SC1090,SC1091
+    . "${SCRIPT_DIR}/lib/$f.sh" || exit 1
+  done
+  felix_inventory "$@"
+}
+if [ "${1:-}" = "inventory" ]; then shift; cmd_inventory "$@"; exit $?; fi
+
 # shellcheck source=lib/resolve.sh
 . "${SCRIPT_DIR}/lib/resolve.sh"
 # shellcheck source=lib/detect.sh
@@ -213,6 +226,7 @@ specific project, language, or toolchain.
     felix audit [--dir D] [--since YYYY-MM-DD] [--verify ERE]
                            read-only, from a plain clone: how often a turn stopped on an edit
                            nothing had checked, from the transcripts Claude Code keeps
+    felix inventory        read-only: where unlanded work sits, from git, gh and session records
     felix new <name> --no-commission
                            bind one project (rules, gate guess, marker) without commissioning:
                            no plugin installs, no network; felix commission runs it later.

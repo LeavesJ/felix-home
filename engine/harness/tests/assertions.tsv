@@ -121,6 +121,7 @@
 1	SubagentStop launched in a directory nothing governs resolves the governed worktree the payload names
 1	UserPromptSubmit launched in a directory nothing governs mounts the lessons of the governed worktree the payload names
 1	UserPromptSubmit launched in a directory nothing governs says nothing when the payload's cwd is ungoverned too, as before
+1	_felix_cap_active returns 2 when felix_declared fails, whether it printed nothing or printed the capability
 1	_felix_qualify_sweep called on its own, from the root with TMPDIR exported, removes a dead base and its registration and prints nothing on stdout or stderr
 1	a # Handoff title with no stamp on line 3 is refused
 1	a # in a later cell, UTF-8 text, trailing spaces, a blank line and an optional column left off are accepted
@@ -228,9 +229,13 @@
 1	a candidate grounded on the last of 9,000 declared probes is accepted
 1	a candidate repeating the first of 9,000 admitted obligations is refused as already admitted
 1	a candidate repeating the last of 9,000 admitted obligations is refused as already admitted
+1	a capabilities file of only comments and blank lines still makes the row not-applicable
+1	a capabilities link whose target is gone is not an absent file: _felix_cap_active returns 2 and the row is unknown
+1	a capabilities pipe or directory is no list: _felix_cap_active returns 2 at once for each, neither waiting on the pipe nor reading either as absent
 1	a capability 6,000 stack rows serve is reported served among the gaps
 1	a capability carrying a trailing remark is not a rule
 1	a capability inspection does not support is not declared
+1	a capability lookup that answers neither 0 nor 1 makes the row unknown, and says the declared list could not be read
 1	a capability match is still adopt material
 1	a capability only the last stack row serves is reported served among the gaps
 1	a capability some route names is a keyword problem
@@ -258,6 +263,7 @@
 1	a check naming a command that is not here is unknown, as before
 1	a check naming an unset variable is still held, because nounset stays
 1	a check naming no engine function is not read as one missing
+1	a check naming two loaded engine functions is done with IFS a tab in the calling shell
 1	a check that cannot run reads as due rather than ok
 1	a check that does not parse is held, not unknown
 1	a check that ends a { } or ( ) group whose output is redirected could have been seen to fail; only the one another command in the group follows is counted as could not
@@ -366,6 +372,7 @@
 1	a copy with files in it digests to something
 1	a copy with no Felix pin does not match
 1	a count or a latest run asked for no workflow is refused, not every workflow's
+1	a count over a first grep that failed is not a count: done 0 over two rows is unknown when that grep printed nothing, not answered
 1	a count that comes back empty still leaves six tokens
 1	a count that is not a number is reported rather than passed over
 1	a count that reads ? gives indeterminate, not commissioned
@@ -400,6 +407,9 @@
 1	a declared capability with NO row still scores on its name
 1	a declared capability with a row keeps its keywords
 1	a declared commands folder that is missing adds nothing
+1	a declared list that could not be read makes a row grounded on a declared capability unknown, not not-applicable
+1	a declared list that names api but came back with a failure is not trusted: the row is unknown, not done
+1	a declared list whose substitution ended before it answered, with status 0, makes _felix_cap_active return 2 and the row unknown
 1	a declared path beginning with ~ is an unread fact naming the key and the path
 1	a declared path beginning with ~ is high
 1	a declared path beginning with ~ reads nothing from the file it points at
@@ -775,6 +785,8 @@
 1	a name the registry does not hold reads absent
 1	a name with no digest recorded claims nothing
 1	a named capability carries its count
+1	a names lookup that returns 1 naming nothing, or 3, makes the row unknown and says the names could not be read
+1	a names lookup whose substitution ended with status 0 and no text makes the row unknown, not done
 1	a narrowing path that is not a valid ERE is refused as path, or grep would match it against nothing and the narrowing row would narrow nothing
 1	a need holding a byte that is not UTF-8, under a UTF-8 locale, is a complete run and a commissioned receipt
 1	a need the table lists twice, printed twice, is a complete run and a commissioned receipt
@@ -815,6 +827,7 @@
 1	a one-line registry answers for the right plugin, not the last one
 1	a one-session routing gap is called weak, with the number
 1	a parent that is not the resolved home is still foreign
+1	a partial answer whose rows could not be counted is unknown, not answered
 1	a pass claiming it ran in the reviewed tree is refused
 1	a pass control's command negating that pipeline reads unrunnable, never pass and met
 1	a pass from a separate worktree records the place it ran
@@ -1420,6 +1433,7 @@
 1	a when whose test returns 0 applies, and the check decides done
 1	a when whose test returns 1 is still not-applicable
 1	a when written as exit 1 is unknown, because bash's own fatal errors end the shell with 1
+1	a whole answer whose rows could not be counted is unknown, not answered
 1	a why past the stated ceiling is refused rather than silently cut
 1	a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw
 1	a wired moment bound as the first of 3,000 bound events reads ok
@@ -1510,6 +1524,7 @@
 1	an answer keyed to another topology reads stale
 1	an answer naming an epoch that is not the current one is still ingested
 1	an answer outside the engine's stages is malformed
+1	an answer whose rows could not be counted is not ingested: the record prints 0 and appends nothing to the log
 1	an answer with no terminal done row is partial
 1	an append that did not happen is reported as a failure
 1	an append that succeeded and wrote nothing is reported as a failure too
@@ -1731,6 +1746,8 @@
 1	and --fix does not exit 0 when every repair failed
 1	and --gate does not raise it
 1	and --gate names the row and the verdict its control demands
+1	and 1 for a list of only comments and blank lines
+1	and 1 for a list that was read and holds other capabilities, or the name only inside a longer one or a comment
 1	and 4 where the .felix marker names a project that does not exist
 1	and FELIX_KERNEL is refused before the cache is even consulted
 1	and HEAD, which git resolves to a commit here, reads as malformed, since tests/red writes a base as a full id
@@ -1740,6 +1757,8 @@
 1	and Stop still asks about the work such a session commits
 1	and Stop, with no id, holds that tree as it always did
 1	and TASK_BLOCKING may not block either
+1	and _felix_cap_active reads an absent file as a list without the capability, 1
+1	and _felix_cap_active returns 2 there, and the row grounded on it is unknown, not not-applicable
 1	and a CLI that answers nothing reports no drift
 1	and a CLI that cannot answer is not a stale deployment
 1	and a CR inside a cell is cells too, never kind, or the reason would depend on where the CR fell
@@ -1901,6 +1920,7 @@
 1	and an abbreviated id that is no commit here reads as malformed, not as a snapshot
 1	and an absent table refuses with a non-zero status too
 1	and an agent file piping to a shell is medium
+1	and an answer of done 0 with no rows is answered
 1	and an append to the marker
 1	and an ask with one prints nothing on stdout either
 1	and an automation row still ends in its capability
@@ -2004,6 +2024,7 @@
 1	and does not print that it wrote the handoff
 1	and does not say it recorded
 1	and does not say one was written
+1	and done 2 over three rows is unknown when that grep printed two of them and failed, not answered
 1	and drift in the served checkout is a plain FAIL
 1	and drops the id its heading carried, since only the fold gives ids
 1	and due again after a commit the graph has not seen
@@ -2097,6 +2118,7 @@
 1	and git add .
 1	and grants it to the session it was typed in, and no other
 1	and grounding it closes the gap
+1	and grounds always are active, 0, without reading the failing list
 1	and handed the cron line instead
 1	and hands it a pull request to merge
 1	and hands on no failing output as if attempts remained
@@ -2200,7 +2222,10 @@
 1	and it says matches
 1	and it says none of ready, hold or founder
 1	and it says so where a reader must look
+1	and it says the capabilities this project declares could not be read
+1	and it says the engine functions the check names could not be read
 1	and it says the row's state could not be computed
+1	and it says the rows could not be counted
 1	and it says the shell ended with status 1
 1	and it says the shell ended with status 3
 1	and it says the shell ended with that function's status
@@ -2789,6 +2814,7 @@
 1	and so is the other one
 1	and so is the retraction beside a manifest, since it counts no run to compare
 1	and so is what eval is handed
+1	and so with pipefail off in the caller
 1	and so without the caller's pipefail
 1	and stack.sh alone can too
 1	and staged, it owes both rows still, or the index would hide a debt the working tree showed
@@ -2988,6 +3014,7 @@
 1	and the monitor still renders the sentence, not the JSON around it
 1	and the moved fact is not what it blames
 1	and the mute is a row, not a silent omission
+1	and the names lookup is one substitution whose one pipe reads the names, with no here-document
 1	and the near-name and stray records are each one record, the run row's failed count what the names add up to
 1	and the new row is its own line
 1	and the next fold gives it the id after theirs
@@ -3030,6 +3057,7 @@
 1	and the receipt is written with ten fields
 1	and the receipt keeps ten fields, each count digits or ?
 1	and the receipt over it is indeterminate, printed and written, not commissioned with the held row gone
+1	and the receipt over it, every other row done, is indeterminate and not commissioned
 1	and the receipt over those rows, every other row done, is indeterminate and not commissioned
 1	and the receipt reads valid
 1	and the receipt refuses to call that verified
@@ -3147,6 +3175,7 @@
 1	and there is at least one of them
 1	and there the refusal is charged to the night
 1	and they still do in a UTF-8 locale, as a founder's shell runs them
+1	and this block leaves the capabilities, the table, the receipt, the log and every answer file as it found them
 1	and this block leaves the table, the receipt and every cmes- file as it found them
 1	and this block leaves the table, the receipt, the log, the engine copy and every cmrc- file as it found them
 1	and those two suites were running at the same moment
@@ -3194,6 +3223,7 @@
 1	and with commands absent from both sides again it matches
 1	and with felix_land_rows and felix_say exported by the session as functions that do nothing, the judge still writes both rows, or a session could stand in for the library
 1	and with it, the same call lifts
+1	and with its rows uncountable it is unknown
 1	and with no commit to give, at the placeholder, quoted so YAML reads a string
 1	and with no deployment to compare against the evidence cannot examine
 1	and with no origin/HEAD, origin/main is the branch asked
@@ -3643,6 +3673,11 @@
 1	felix_commission_ask returns a text's 2 as 2, not folded to 1
 1	felix_contains survives a large haystack under pipefail
 1	felix_coverage_events rosters the events settings.json binds by key
+1	felix_declared over a file of only comments and blank lines prints nothing and returns 0: it was read, and holds none
+1	felix_declared over an absent capabilities file prints nothing and returns 0
+1	felix_declared returns nonzero and prints nothing over a capabilities file that exists and cannot be read
+1	felix_declared returns nonzero and prints nothing when its grep fails, as any user, and _felix_cap_active returns 2
+1	felix_declared still prints the lines that are not blank and not comments, and returns 0
 1	felix_deploy_diff sees the hooks drift
 1	felix_detect in a checkout whose path holds a space reports the capabilities its files show
 1	felix_detect run from a directory that holds its own requirements/*.txt still reports billing for a root whose requirements/prod.txt names stripe
@@ -4087,6 +4122,7 @@
 1	it recorded the capability
 1	it renders the mount
 1	it renders the unmount with its evidence
+1	it returns 0 for a list that was read and holds the capability as a line, alone or among others
 1	it says edits and checks inside subagents are not seen
 1	it says the fact it has instead
 1	it says the lesson is not working
@@ -4748,6 +4784,7 @@
 1	the cache row carries the tier its marketplace entry declares
 1	the candidate fixture's epoch is a hash
 1	the capabilities file is untouched
+1	the capability lookup is one substitution, with no pipe, no here-document and no felix_has_line
 1	the capability probe yields ecosystem words to check for
 1	the cause is not the raw payload
 1	the ceiling itself is still a night somebody can be granted
@@ -4888,6 +4925,7 @@
 1	the log a group's or a compound's own output goes to is not a write after the check in it: 6 such read passed, and a write after the group is still stale
 1	the log holds exactly one entry
 1	the log is durable state in the project
+1	the lookup of the names returns 2 and names nothing when its grep fails, with pipefail on or off
 1	the machine-session fixture lists more than a pipe holds, with a first and a last session
 1	the main checkout knows its own storage is not a rival
 1	the main worktree does not count its linked worktrees' and orphans' files as its own changes
@@ -5121,6 +5159,7 @@
 1	this session's written row ten minutes before its catch does not
 1	three 5 MB commands dense in << or in line breaks are read in seconds, not minutes, and each still passes: under 10 seconds of CPU for the three
 1	three groups from four tasks
+1	through felix_commission_state, unstubbed, the provider row over the whole answer is answered
 1	through the Stop hook, a catch under the id the transcript opens with is this conversation's
 1	through the Stop hook, a felix lesson run outside every session does not settle this session's catch
 1	through the Stop hook, a peer session's felix lesson after this session's catch still prompts
@@ -5168,6 +5207,11 @@
 1	uninstall names the doctrine it left alone
 1	uninstall takes the grant back
 1	unknown or malformed rows make the receipt indeterminate
+1	unstubbed it returns 1 naming the one not loaded, and 0 naming nothing for a check of none or of loaded ones
+1	unstubbed, a check over an engine function that is not loaded is unknown and names it
+1	unstubbed, a whole answer of two rows is answered and one of its two rows is partial
+1	unstubbed, a whole answer of two rows is ingested: the record prints 2 and appends to the log
+1	unstubbed, an answer saying done 0 over two rows and one saying done 2 over three are partial
 1	untouched surfaces are n/a
 1	veldra's fmt: a check that fails with no name it can parse is a loud FAIL
 1	veldra's fmt: a new file rustfmt rewrites is named, though git diff cannot see it
@@ -5198,6 +5242,7 @@
 1	when main's resolve.sh does not define the check, installed fails rather than skipping
 1	when the last read felix qualify --gate makes of the table fails, it says the table could not be read and exits 2
 1	when the live engine is not main's, the ok says which one is live
+1	when the names a check holds could not be read from it, the row is unknown, not done
 1	when the sweep's drop calls git worktree remove on a dead base's tree, the base's owner record already names the process making that call, the sweep's own, and not the dead row
 1	where /proc names this host's pid namespace, a base holding owner as a symlink whose text is a dead pid alone, no start naming that namespace and boot, is left and stays registered, beside a dead base swept, and the run's own row still reads pass and met
 1	which does not by itself fail the gate, since not applying is not a claim
@@ -5281,9 +5326,11 @@
 1	with a ps on PATH that prints nothing, a base whose record names a live pid with a start that is not its own is left as it was: a start that cannot be read now shows no other process
 1	with a ps on PATH that prints nothing, a base whose record names a live pid with its true start is left as it was
 1	with a sh first on PATH that forks rather than execs, a row whose checker holds records its own live process, and ends pass and met, or records none and reads unrunnable having run nothing: never a pid already gone while the row is alive
+1	with api declared and nothing stubbed, a row grounded on api and the row beside it are done, and the receipt is commissioned
 1	with both refs present origin/main is the default base
 1	with every log tracked, the form this replaced sees nothing to report
 2	with exit 0
+1	with felix_has_line failing as an unwritable here-document makes it fail, a declared api is still active and its row done
 1	with its evidence whole
 1	with its note carried forward
 1	with neither HOME nor CLAUDE_CONFIG_DIR set it reports no transcripts and exits 0

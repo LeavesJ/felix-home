@@ -394,21 +394,28 @@ felix_probes_blocking() {
 # asked the thing that knows.
 #
 # 0 with the gaps on stdout, and 2 with nothing printed when the declared list
-# could not be read. Until 2026-10-01 an unread list was an empty one, so every
-# capability only the project declared dropped out of the union and out of the
-# gaps, and the report said fewer surfaces lacked a probe than do. The list is
-# read once, in this shell, before the loop.
+# could not be read, or the union of it and what felix_detect shows could not be
+# made. Until 2026-10-01 an unread list was an empty one, so every capability
+# only the project declared dropped out of the union and out of the gaps, and the
+# report said fewer surfaces lacked a probe than do. Both are read here, once,
+# with felix_capture, and walked in this shell: a here-document is a temporary
+# file on bash 3.2, and one that cannot be written reads as every capability
+# being without a probe, which is a list dropped after it was read. The probe
+# rows are a plain substitution, since a pipeline that ends in grep -v returns 1
+# for none and its status means nothing.
 felix_probes_gaps() {
-  local proj="$1" root="$2" grounded cap declared
+  local proj="$1" root="$2" grounded cap declared="" union="" rest nl=$'\n'
   felix_declared_into declared "$proj" || return 2
+  felix_capture union _felix_capability_union "$root" "$declared" || return 2
   grounded="$(felix_probe_rows "$proj" | cut -f2 | grep -v '^-\?$' | LC_ALL=C sort -u)"
-  while IFS= read -r cap; do
+  rest="$union"
+  while [ -n "$rest" ]; do
+    cap="${rest%%$nl*}"
+    if [ "$cap" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
     [ -n "$cap" ] || continue
-    felix_has_line "$grounded" "$cap" && continue
+    case "$nl$grounded$nl" in *"$nl$cap$nl"*) continue ;; esac
     printf '%s\n' "$cap"
-  done <<EOF
-$( { felix_detect "$root" 2>/dev/null; [ -z "$declared" ] || printf '%s\n' "$declared"; } | LC_ALL=C sort -u )
-EOF
+  done
   return 0
 }
 
@@ -418,20 +425,24 @@ EOF
 # dropped.
 #
 # 0 with the orphans on stdout, and 2 with nothing printed when the declared
-# list could not be read. Until 2026-10-01 an unread list left the declared
-# capabilities out of the union, so a probe grounding one was called an orphan,
-# and the report named for deletion a probe that was doing its job.
+# list could not be read, or the union of it and what felix_detect shows could not
+# be made. Until 2026-10-01 an unread list left the declared capabilities out of
+# the union, so a probe grounding one was called an orphan, and the report named
+# for deletion a probe that was doing its job. Read and walked as felix_probes_gaps
+# does, the probe rows included, since a here-document that cannot be written
+# reads as every probe being an orphan.
 felix_probes_orphans() {
-  local proj="$1" root="$2" caps cap declared
+  local proj="$1" root="$2" caps cap declared="" union="" rest nl=$'\n'
   felix_declared_into declared "$proj" || return 2
-  caps="$( { felix_detect "$root" 2>/dev/null; [ -z "$declared" ] || printf '%s\n' "$declared"; } \
-           | LC_ALL=C sort -u )"
-  while IFS= read -r cap; do
+  felix_capture union _felix_capability_union "$root" "$declared" || return 2
+  caps="$(felix_probe_rows "$proj" | cut -f2 | grep -v '^-\?$' | LC_ALL=C sort -u)"
+  rest="$caps"
+  while [ -n "$rest" ]; do
+    cap="${rest%%$nl*}"
+    if [ "$cap" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
     [ -n "$cap" ] || continue
-    felix_has_line "$caps" "$cap" && continue
+    case "$nl$union$nl" in *"$nl$cap$nl"*) continue ;; esac
     printf '%s\n' "$cap"
-  done <<EOF
-$(felix_probe_rows "$proj" | cut -f2 | grep -v '^-\?$' | LC_ALL=C sort -u)
-EOF
+  done
   return 0
 }

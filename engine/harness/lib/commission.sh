@@ -507,10 +507,21 @@ felix_commission_actor() {
 
 # The two hashes validity is derived from. The table set, with a header per
 # file so an absent file differs from an empty one; and the detected surfaces.
+#
+# A table is its bytes when it is a regular file, nothing when it is absent, and
+# the one marker line when something is there that is not a regular file, which
+# is never opened. Until 2026-10-01 each was `cat`, so a `capabilities` link
+# whose target is gone hashed as no file at all, the same as a project that never
+# declared one, and a pipe by a table's name was opened and waited on for a writer
+# that never came, which hung every receipt check. A regular file, a link to one,
+# and no file hash as they did.
 felix_commission_policy_version() {
   local proj="$1" f
   for f in $FELIX_COMMISSION_TABLES; do
-    printf '== %s ==\n' "$f"; cat "$proj/$f" 2>/dev/null
+    printf '== %s ==\n' "$f"
+    if [ -f "$proj/$f" ]; then cat "$proj/$f" 2>/dev/null
+    elif [ -e "$proj/$f" ] || [ -L "$proj/$f" ]; then printf '<not a regular file>\n'
+    fi
   done | _felix_hash
 }
 felix_commission_caps_hash() { felix_detect "$1" 2>/dev/null | LC_ALL=C sort -u | _felix_hash; }
@@ -603,27 +614,34 @@ felix_commission_receipt_valid() {
 # the declaration, never from this table. cap <TAB> served <TAB> reached <TAB> grounded.
 #
 # 0 with the rows on stdout, and 2 with nothing printed when the declared list
-# could not be read. Until 2026-10-01 an unread list was an empty one, so every
-# capability only the project declares dropped out of the union and out of
-# "surfaces nothing serves", and the section said fewer did than do. The list is
-# read once, in this shell, before the pipeline.
+# could not be read, or the union of it and what felix_detect shows could not be
+# made. Until 2026-10-01 an unread list was an empty one, so every capability only
+# the project declares dropped out of the union and out of "surfaces nothing
+# serves", and the section said fewer did than do. Both are read once with
+# felix_capture and the union walked in this shell, where a here-document is a
+# temporary file on bash 3.2 and one that cannot be written ends the loop before
+# its first capability. The probe rows are a plain substitution, since a
+# pipeline that ends in a sort has no status worth asking of an absent table.
 felix_commission_gaps() {
-  local proj="$1" root="$2" cap served reached grounded probed declared
+  local proj="$1" root="$2" cap served reached grounded probed declared="" union="" rest nl=$'\n'
   felix_declared_into declared "$proj" || return 2
+  felix_capture union _felix_capability_union "$root" "$declared" || return 2
   probed="$(command -v felix_probe_rows >/dev/null 2>&1 && felix_probe_rows "$proj" | cut -f2 | LC_ALL=C sort -u)"
-  { felix_detect "$root" 2>/dev/null; [ -z "$declared" ] || printf '%s\n' "$declared"; } | LC_ALL=C sort -u \
-    | while IFS= read -r cap; do
-        [ -n "$cap" ] || continue
-        served=no; reached=no; grounded=no
-        # One awk that decides at the end, not awk into grep -q: grep quitting
-        # at the first row can kill awk mid-write, and pipefail reads that as
-        # nothing serving the capability.
-        _felix_stack_rows "$proj" 2>/dev/null | awk -F'\t' -v c="$cap" '$5 == c { s = 1 } END { exit !s }' && served=yes
-        [ -n "$(felix_toolbox_route_for "$proj" "$cap" 2>/dev/null)" ] && reached=yes
-        felix_has_line "$probed" "$cap" && grounded=yes
-        [ "$served$reached$grounded" = "yesyesyes" ] && continue
-        printf '%s\t%s\t%s\t%s\n' "$cap" "$served" "$reached" "$grounded"
-      done
+  rest="$union"
+  while [ -n "$rest" ]; do
+    cap="${rest%%$nl*}"
+    if [ "$cap" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
+    [ -n "$cap" ] || continue
+    served=no; reached=no; grounded=no
+    # One awk that decides at the end, not awk into grep -q: grep quitting
+    # at the first row can kill awk mid-write, and pipefail reads that as
+    # nothing serving the capability.
+    _felix_stack_rows "$proj" 2>/dev/null | awk -F'\t' -v c="$cap" '$5 == c { s = 1 } END { exit !s }' && served=yes
+    [ -n "$(felix_toolbox_route_for "$proj" "$cap" 2>/dev/null)" ] && reached=yes
+    case "$nl$probed$nl" in *"$nl$cap$nl"*) grounded=yes ;; esac
+    [ "$served$reached$grounded" = "yesyesyes" ] && continue
+    printf '%s\t%s\t%s\t%s\n' "$cap" "$served" "$reached" "$grounded"
+  done
   return 0
 }
 

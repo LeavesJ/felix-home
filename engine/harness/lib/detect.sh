@@ -124,6 +124,36 @@ felix_declared() {
   return 0
 }
 
+# NAME CMD [ARGS...]: run CMD in one command substitution and assign its output
+# to the variable named NAME, minus one trailing newline, only when CMD returned
+# 0 and the substitution ran to its end. 0 when it did, the empty string being
+# output too, and 2 when it did not, with NAME left as the caller had it. The
+# status of CMD is not enough, because a substitution can end with nothing
+# printed and status 0 when its fork fails (EAGAIN) or, on bash 3.2, when it
+# cannot make its pipe, so a newline and a `.` are printed only after CMD
+# returned 0, and output that does not end in them was never whole.
+#
+# Every status but 0 reads as not whole, so a command captured here returns 0
+# only when what it printed is whole. The sentinel is forged by a last line that
+# is exactly `.`, printed by a command that then failed, and by nothing else.
+# Until 2026-10-01 it was a bare `.`, which a failed felix_declared forged with a
+# last line ending in a dot (`billing.`). No locals and no named variable of its
+# own, because either would hide the caller's variable of the same name from
+# printf -v (lib/commission.sh felix_commission_ask says the same of its own):
+# everything is held in the positional parameters. The newlines are stripped
+# with a literal one in the pattern, which is the same in bash 3.2 and 5.
+felix_capture() {
+  set -- "$1" "$(shift; "$@" && printf '\n.')"
+  case "$2" in *"
+.") ;; *) return 2 ;; esac
+  set -- "$1" "${2%"
+."}"
+  set -- "$1" "${2%"
+"}"
+  printf -v "$1" '%s' "$2"
+  return 0
+}
+
 # The declared list read into the variable named $1, one capability per line
 # with no trailing newline, and whether it was read. 0 when it was, the empty
 # string being a list too (no file, or one that declares nothing), and 2 when it
@@ -134,23 +164,29 @@ felix_declared() {
 # could not be read was an empty one and every reader made a claim from it: a
 # capability not declared, drift to adopt, an orphan, a gap that was not one, a
 # topology that was not the project's. Now they read here and branch on the
-# status. The status of felix_declared is not enough, because a substitution can
-# end with nothing printed and status 0 when its fork fails (EAGAIN) or, on bash
-# 3.2, when it cannot make its pipe, so the `.` is written only after
-# felix_declared returned 0 and a list that comes back without it was never
-# read. No locals and no named variable of its own, because either would hide
-# the caller's variable of the same name from printf -v (lib/commission.sh
-# felix_commission_ask says the same of its own): everything is held in the
-# positional parameters. The newline is stripped with a literal one in the
-# pattern, which is the same in bash 3.2 and 5.
+# status, and felix_capture says whether the substitution came back whole.
 felix_declared_into() {
-  set -- "$1" "$2" "$(felix_declared "$2" && printf .)"
-  case "$3" in *.) ;; *) return 2 ;; esac
-  set -- "$1" "$2" "${3%.}"
-  set -- "$1" "$2" "${3%"
-"}"
-  printf -v "$1" '%s' "$3"
-  return 0
+  felix_capture "$1" felix_declared "$2"
+}
+
+# The capabilities this checkout shows and the project declares, one to a line,
+# sorted and without repeats: ROOT and LIST, which is the declared list as
+# felix_declared_into read it. 0 when the pipeline that made it ran whole, and
+# nonzero when either half of it did not, a sort that could not run being as much
+# a union that was not made as a list that could not be read. Captured by
+# felix_capture, which is what makes the status mean something.
+#
+# The declared half is printed first, so a felix_detect that exits inside the
+# group cannot take it along. The group ends in `:` because felix_detect's own
+# status is its last test's, 1 for a checkout with no .env.example, and says
+# nothing about whether it ran: its failure under EAGAIN reads as nothing
+# detected, as it did, and is the other lookup this does not guard. The statuses
+# are taken whole into the positional parameters, which pipefail does not change
+# and the first test would reset.
+_felix_capability_union() {
+  { [ -z "$2" ] || printf '%s\n' "$2"; felix_detect "$1" 2>/dev/null; :; } | LC_ALL=C sort -u
+  set -- "${PIPESTATUS[@]}"
+  [ "${1:-1}" -eq 0 ] && [ "${2:-1}" -eq 0 ]
 }
 
 # Present in the checkout but never declared. This is the drift worth surfacing.

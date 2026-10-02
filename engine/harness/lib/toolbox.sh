@@ -148,15 +148,13 @@ felix_toolbox_route_for() {
 # which cannot see a status, and the tables are a founder's to change and not
 # this function's. A question mark is what lib/commission-provider.sh already
 # prints for a count it could not make, and is no plugin name. The rules are
-# captured with the `.` _felix_cap_active uses, since a substitution can end
-# with nothing printed and status 0 when its fork fails.
+# captured with felix_capture, since a substitution can end with nothing printed
+# and status 0 when its fork fails.
 felix_toolbox_unwired() {
-  local proj="$1" tpl="${2:-$(dirname "${BASH_SOURCE[0]:-$0}")/../templates}" rules kind name dir risk cap nl=$'\n'
-  rules="$(_felix_discover_rules "$tpl" "$proj" && printf .)" || rules=""
-  case "$rules" in
-    *.) rules="${rules%.}"; rules="${rules%$nl}" ;;
-    *) printf '?\tthe capabilities this project declares could not be read\n'; return 2 ;;
-  esac
+  local proj="$1" tpl="${2:-$(dirname "${BASH_SOURCE[0]:-$0}")/../templates}" rules="" kind name dir risk cap
+  if ! felix_capture rules _felix_discover_rules "$tpl" "$proj"; then
+    printf '?\tthe capabilities this project declares could not be read\n'; return 2
+  fi
   felix_ready_inventory | LC_ALL=C sort -u | while IFS=$'\t' read -r kind name; do
     [ "${kind:-}" = "plugin" ] && [ -n "${name:-}" ] || continue
     felix_toolbox_routed "$proj" "$name" && continue

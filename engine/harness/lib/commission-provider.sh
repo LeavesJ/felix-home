@@ -82,17 +82,22 @@ _felix_commission_provider_toolong() {   # line -> "<field> <limit>" or empty
 
 # The topology an answer is keyed to. Inputs ingestion never writes.
 #
-# 0 with the hash on stdout, and 2 with nothing printed when the declared list
-# could not be read. Until 2026-10-01 an unread list hashed a different list, so
-# every provider answer read stale, and a request was written under a topology
-# that was not the project's. The list is read once, in this shell, before the
-# pipeline, and what is hashed is the same bytes as before on a list that was
-# read.
+# 0 with the hash on stdout. 2 with nothing printed when the declared list could
+# not be read, or the union of it and what felix_detect shows could not be made,
+# and nowhere else: otherwise the status is the hash's. Until 2026-10-01 an
+# unread list hashed a different list, so every provider answer read stale, and a
+# request was written under a topology that was not the project's. The status is
+# not taken from the `cat` of commissioning.tsv, which is 1 for a project without
+# one, so under pipefail (the CLI and the hooks) a list that was read would come
+# back as one that was not; a missing table is `|| :`. What is hashed is the
+# same bytes as before on a list that was read: the union a line each, nothing
+# for none, as the sort printed it.
 felix_commission_topology() {
-  local proj="$1" root="$2" declared
+  local proj="$1" root="$2" declared="" union=""
   felix_declared_into declared "$proj" || return 2
-  { { felix_detect "$root" 2>/dev/null; [ -z "$declared" ] || printf '%s\n' "$declared"; } | LC_ALL=C sort -u
-    printf '== commissioning.tsv ==\n'; cat "$proj/commissioning.tsv" 2>/dev/null; } | _felix_hash
+  felix_capture union _felix_capability_union "$root" "$declared" || return 2
+  { [ -z "$union" ] || printf '%s\n' "$union"
+    printf '== commissioning.tsv ==\n'; cat "$proj/commissioning.tsv" 2>/dev/null || :; } | _felix_hash
 }
 
 _felix_commission_provider_dir() { printf '%s/commission' "$(felix_mem_dir "$1")"; }
@@ -109,18 +114,21 @@ felix_commission_request_path() { printf '%s/requests/%s.md' "$(_felix_commissio
 # unread list gave a request naming the wrong capabilities under the wrong
 # topology, and a session that answered it was answering another question. The
 # template is still checked first, so no template is 1 whatever the list. The
-# topology is captured with the `.` _felix_cap_active uses, since a substitution
-# can end with nothing printed and status 0 when its fork fails.
+# list, the union of it with what felix_detect shows, and the topology are each
+# captured with felix_capture, since a substitution can end with nothing printed
+# and status 0 when its fork fails, and the capabilities the request names are
+# that union with its lines joined, by an expansion and not a pipeline whose
+# status nobody asks.
 felix_commission_request() {
-  local proj="$1" root="$2" need="$3" tpl="$4" src out caps declared topo dcl nl=$'\n'
+  local proj="$1" root="$2" need="$3" tpl="$4" src out caps declared topo dcl="" union=""
   src="$tpl/commission/$need.md"
   [ -f "$src" ] || return 1
   felix_declared_into dcl "$proj" || return 2
-  topo="$(felix_commission_topology "$proj" "$root" && printf .)" || return 2
-  case "$topo" in *.) topo="${topo%.}"; topo="${topo%$nl}" ;; *) return 2 ;; esac
+  felix_capture union _felix_capability_union "$root" "$dcl" || return 2
+  felix_capture topo felix_commission_topology "$proj" "$root" || return 2
   out="$(felix_commission_request_path "$proj" "$need")"
   mkdir -p "$(dirname "$out")" 2>/dev/null || return 1
-  caps="$( { felix_detect "$root" 2>/dev/null; [ -z "$dcl" ] || printf '%s\n' "$dcl"; } | LC_ALL=C sort -u | tr '\n' ' ')"
+  caps="${union//$'\n'/ }"
   declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
   # Three placeholders the obligations request needs, computed only when the
   # template names them: the decision epoch, the probe rows as a session can
@@ -139,7 +147,7 @@ felix_commission_request() {
   fi
   FELIX_TPL_EPOCH="${epoch:-unknown}" FELIX_TPL_PROBES="${probes:-    (no probes declared)}" \
   FELIX_TPL_ADMITTED="${admitted:-    (nothing admitted yet)}" \
-  awk -v project="$(basename "$proj")" -v pdir="$proj" -v root="$root" -v caps="${caps% }" \
+  awk -v project="$(basename "$proj")" -v pdir="$proj" -v root="$root" -v caps="$caps" \
       -v declared="${declared% }" -v topo="$topo" -v ans="$(felix_commission_answer_path "$proj" "$need")" '
     function splice(line, ph, val,   i, out) {
       out = ""
@@ -169,24 +177,23 @@ felix_commission_request() {
 # first, because the first test resets it.
 #
 # Also unknown, since 2026-10-01, for an answer file that is there when the
-# topology it is keyed to could not be computed because the declared list could
-# not be read. Until then the topology came back as another hash, or none, and
-# every answer read stale: a verdict that sends a person to run the skill again
-# over a list nobody read. No file is still awaiting, whatever the list. The
-# topology is captured with the `.` _felix_cap_active uses, since a substitution
-# can end with nothing printed and status 0 when its fork fails.
+# topology it is keyed to could not be computed. Until then the topology came
+# back as another hash, or none, and every answer read stale: a verdict that
+# sends a person to run the skill again over a list nobody read. No file is still
+# awaiting, whatever the list. The topology is captured with felix_capture, since
+# a substitution can end with nothing printed and status 0 when its fork fails.
+# The sentence names the declared list because that is what the topology fails
+# for, bar a hash that could not be made, which the capture cannot tell from it.
 felix_commission_provider_state() {
-  local proj="$1" root="$2" need="$3" f first last n rows topo nl=$'\n'
+  local proj="$1" root="$2" need="$3" f first last n rows topo=""
   f="$(felix_commission_answer_path "$proj" "$need")"
   if [ ! -f "$f" ]; then
     printf 'awaiting\tno answer at %s\n' "$f"; return 0
   fi
   first="$(head -1 "$f" 2>/dev/null)"
-  topo="$(felix_commission_topology "$proj" "$root" && printf .)" || topo=""
-  case "$topo" in
-    *.) topo="${topo%.}"; topo="${topo%$nl}" ;;
-    *) printf 'unknown\tthe topology the answer at %s is keyed to could not be computed: the capabilities this project declares could not be read\n' "$f"; return 0 ;;
-  esac
+  if ! felix_capture topo felix_commission_topology "$proj" "$root"; then
+    printf 'unknown\tthe topology the answer at %s is keyed to could not be computed: the capabilities this project declares could not be read\n' "$f"; return 0
+  fi
   if [ "$first" != "# topology $topo" ]; then
     printf 'stale\tthe answer at %s is for another topology; run the skill again from the request\n' "$f"; return 0
   fi
@@ -412,13 +419,12 @@ felix_commission_admit() {
   # back `unknown`, "nothing it ships matches a capability this project
   # declares", after the marketplace had been asked for each one. Now one row
   # says the list could not be read, nothing is fetched, and the status is 2.
-  # The rules are captured with the `.` _felix_cap_active uses, since a
-  # substitution can end with nothing printed and status 0 when its fork fails.
-  rules="$(_felix_discover_rules "$tpl" "$proj" && printf .)" || rules=""
-  case "$rules" in
-    *.) rules="${rules%.}"; rules="${rules%$nl}" ;;
-    *) printf 'unknown\t-\t-\t-\t-\t-\tthe capabilities this project declares could not be read, so no nomination was matched to one\n'; return 2 ;;
-  esac
+  # The rules are captured with felix_capture, since a substitution can end with
+  # nothing printed and status 0 when its fork fails.
+  rules=""
+  if ! felix_capture rules _felix_discover_rules "$tpl" "$proj"; then
+    printf 'unknown\t-\t-\t-\t-\t-\tthe capabilities this project declares could not be read, so no nomination was matched to one\n'; return 2
+  fi
   # Compared without the marketplace suffix, the same way discover's adopt
   # compares, so `hookify@claude-plugins-official` matches a `hookify` row.
   declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"

@@ -49,12 +49,18 @@ felix_procedures_moments() {
 # of them matter.
 #
 # 0 with the items on stdout, and 2 with nothing printed when the declared list
-# could not be read. Until 2026-10-01 an unread list dropped the declared
-# capabilities from the items, so the gap list shrank, a stance on one was an
-# orphan, and the report could say every item had a stance. The list is read
-# once, in this shell, before the group that is piped to sort.
+# could not be read, or when the pipeline that sorts the items did not run whole.
+# Until 2026-10-01 an unread list dropped the declared capabilities from the
+# items, so the gap list shrank, a stance on one was an orphan, and the report
+# could say every item had a stance. The list is read once with
+# felix_declared_into and walked in this shell, where a here-document is a
+# temporary file on bash 3.2 and one that cannot be written reads as nothing
+# declared. The group ends in `:` because the detect loop's and the mistakes
+# log's own statuses are other lookups and are left as they were; what is asked
+# of the pipeline is that the group and the sort both ran, and their statuses are
+# taken whole before the first test resets them.
 felix_procedures_items() {
-  local proj="$1" root="${2:-}" mem cap declared
+  local proj="$1" root="${2:-}" mem cap declared="" rest nl=$'\n'
   felix_declared_into declared "$proj" || return 2
   {
     # Both what the tree shows and what the project declared. The first
@@ -68,12 +74,13 @@ felix_procedures_items() {
       [ -n "$cap" ] || continue
       printf 'capability:%s\n' "$cap"
     done
-    while IFS= read -r cap; do
+    rest="$declared"
+    while [ -n "$rest" ]; do
+      cap="${rest%%$nl*}"
+      if [ "$cap" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
       [ -n "$cap" ] || continue
       printf 'capability:%s\n' "$cap"
-    done <<EOF
-$declared
-EOF
+    done
     mem="$(felix_mem_dir "$proj")"
     if [ -f "$mem/mistakes.log" ]; then
       # Column four holds every check that failed in one run, space separated.
@@ -81,7 +88,10 @@ EOF
                     if (t[i] != "") print "failure:" t[i] }' \
           "$mem/mistakes.log" 2>/dev/null
     fi
+    :
   } | LC_ALL=C sort -u
+  set -- "${PIPESTATUS[@]}"
+  [ "${1:-1}" -eq 0 ] && [ "${2:-1}" -eq 0 ] || return 2
   return 0
 }
 
@@ -154,20 +164,23 @@ EOF
 # 0 with the gaps on stdout, and 2 with nothing printed when the items could not
 # be read, because the declared list could not. Until 2026-10-01 the items came
 # back without the declared capabilities, and the gap list was shorter than the
-# real one. The items are captured with the `.` _felix_cap_active uses, since a
-# substitution can end with nothing printed and status 0 when its fork fails.
+# real one. The items are captured with felix_capture, since a substitution can
+# end with nothing printed and status 0 when its fork fails, and walked in this
+# shell, where a here-document that cannot be written ends the loop before its
+# first item and no gap is named. The stances are a plain substitution: a table
+# with none closes nothing, and what it says of itself is not the declared list's.
 felix_procedures_gaps() {
-  local proj="$1" root="${2:-}" tpl="${3:-}" item stanced items nl=$'\n'
-  items="$(felix_procedures_items "$proj" "$root" && printf .)" || return 2
-  case "$items" in *.) items="${items%.}"; items="${items%$nl}" ;; *) return 2 ;; esac
+  local proj="$1" root="${2:-}" tpl="${3:-}" item stanced items="" rest nl=$'\n'
+  felix_capture items felix_procedures_items "$proj" "$root" || return 2
   stanced="$(felix_procedures_effective "$proj" "$tpl" | cut -f1)"
-  while IFS= read -r item; do
+  rest="$items"
+  while [ -n "$rest" ]; do
+    item="${rest%%$nl*}"
+    if [ "$item" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
     [ -n "$item" ] || continue
-    felix_has_line "$stanced" "$item" && continue
+    case "$nl$stanced$nl" in *"$nl$item$nl"*) continue ;; esac
     printf '%s\n' "$item"
-  done <<EOF
-$items
-EOF
+  done
   return 0
 }
 
@@ -181,19 +194,22 @@ EOF
 # not be read, because the declared list could not. Until 2026-10-01 the items
 # came back without the declared capabilities, so a stance on a declared
 # capability was called an orphan, a claim about a surface that is gone. The
-# items are captured with the `.` _felix_cap_active uses, since a substitution
-# can end with nothing printed and status 0 when its fork fails.
+# items are captured with felix_capture, since a substitution can end with
+# nothing printed and status 0 when its fork fails, and the stances are walked
+# in this shell, where a here-document that cannot be written ends the loop
+# before its first stance and no orphan is named.
 felix_procedures_orphans() {
-  local proj="$1" root="${2:-}" item items nl=$'\n'
-  items="$(felix_procedures_items "$proj" "$root" && printf .)" || return 2
-  case "$items" in *.) items="${items%.}"; items="${items%$nl}" ;; *) return 2 ;; esac
-  while IFS= read -r item; do
+  local proj="$1" root="${2:-}" item items="" stanced rest nl=$'\n'
+  felix_capture items felix_procedures_items "$proj" "$root" || return 2
+  stanced="$(felix_procedures_wellformed "$proj" | cut -f1)"
+  rest="$stanced"
+  while [ -n "$rest" ]; do
+    item="${rest%%$nl*}"
+    if [ "$item" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
     [ -n "$item" ] || continue
-    felix_has_line "$items" "$item" && continue
+    case "$nl$items$nl" in *"$nl$item$nl"*) continue ;; esac
     printf '%s\n' "$item"
-  done <<EOF
-$(felix_procedures_wellformed "$proj" | cut -f1)
-EOF
+  done
   return 0
 }
 

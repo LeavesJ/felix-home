@@ -94,22 +94,37 @@ block takes about 15 s.
   tables; monitor stdout unchanged (only main's stderr noise is gone); all 13
   felix_json_str callers use the output only; pre-tool adds no subprocess;
   bash 3.2.57 runs the blocks 81/81.
-- Mutation, low findings, NOT yet addressed:
-  - T1: no blind assertion reaches hooks/stop's first stack.tsv guard
-    (inside the overnight branch); only the lint holds it. Add a case with an
-    owned overnight night and a FIFO stack.tsv.
-  - T2: felix:2984 (ready --fix srow grep) cannot be reached by a static
-    FIFO, since felix_ready_report already refuses one. Reword its comment as
-    defensive against a swap; the lint holds it.
-  - T3: the lint credits a `-f` guard to a later open of the same path in a
-    sibling branch (felix:1112 behind :1079, hooks/stop:445 behind :348).
-    Blind assertions catch both mutants today. Scope guards per branch, or
-    say so in the lint's comment.
-  - Further mutation findings were truncated in the notification; read the
-    full result in the workflow journal (subagents/workflows/wf_bd5ede7f-56c/
-    journal.jsonl in this session's transcript dir) before landing.
-- Completeness lens: FAILED on an API error (ENOTFOUND) and must be re-run
-  before landing. The lint's empty engine scan is the current evidence.
+- Mutation, four low findings, taken by the carrier (claude/adopt-newline-before-append's
+  session) on 2026-10-02. T4 was in the truncated part of the notification and
+  was read from the workflow journal:
+  - T1: no blind case reached hooks/stop's stack.tsv guard inside the
+    overnight branch. Closed by a fifth blind block (7 assertions, red 3 of 7
+    on origin/main). Removing only that guard turns its three pipe assertions
+    red.
+  - T2: felix:2984's guard cannot be reached by a static pipe. Its comment now
+    calls it defensive against a swap, held by the lint.
+  - T3: the lint credits a guard in a sibling branch. Its comment now says so
+    and names the two sites, both held by blind assertions.
+  - T4: the lint's comment claimed it judged felix_json_str's open of "$1". It
+    does not, nor "$proj/$f" opens. The comment now says so, and the blind
+    block holds those sites.
+- Completeness lens, re-run 2026-10-02 by the carrier session. It found no
+  reader of a project table that this branch missed:
+  - A pipe at each of 21 project paths, across 44 commands and all 8 hooks:
+    924 runs, none blocked. The base blocked in 8 of the 18 runs it was given.
+  - An unended last line on each of 16 tables, across 44 commands: 704 output
+    pairs and no difference.
+  - A pipe at each of 12 tables, across 11 bin/ scripts: 132 runs, none blocked.
+  Beside the class:
+  - git readers lose every diff after a pipe at a tracked path, which blinds
+    felix_tree_id, felix_added_lines and bin/secret-scan. Spun off as its own
+    task.
+  - autonomy --revoke of a file's only grant. Already its own task.
+  - obligations --seed, the autonomy commission stamp and detect.sh's cmp of
+    an executable-pipe gate file still block on a pipe. Spun off as one task.
+  - gate.sh's ecosystem.tsv loop and coverage.sh's lifecycle.tsv loops drop an
+    unended row of an engine-owned table. Both fail closed, since the home's
+    schema check refuses that shape. Left.
 
 **Carrying.** The carrier (2026-10-02) folds this branch into one PR with
 claude/adopt-newline-before-append, carried by that branch's session: one

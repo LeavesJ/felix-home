@@ -22,7 +22,9 @@ fi
 # felix_adopt_capability <project-dir> <capability> <templates-dir> <repo-slug>
 # Prints "<stack-rows-added> <setup-steps-added>". Returns 1 if already declared,
 # and 2, printing nothing and writing no row, when the list could not be read or
-# written.
+# written. Returns 3, after the counts, when the capability was recorded but a
+# row it implies could not be written; stderr names each one. A second adopt
+# answers 1 and never retries them, so a caller that drops stderr must say 3.
 felix_adopt_capability() {
   local proj="$1" cap="$2" tpl="$3" slug="${4:-}" list rc=2
   [ -n "$proj" ] && [ -n "$cap" ] || return 1
@@ -57,19 +59,20 @@ felix_adopt_capability() {
   # Create the manifests when a project never had them. Skipping the backfill
   # because a file is missing would leave the capability recorded and its
   # consequences invisible, which is the failure this exists to prevent.
-  local added_stack=0 added_setup=0
+  local added_stack=0 added_setup=0 missed=0
   mkdir -p "$proj/setup"
   # Seeded only where nothing is at the path. `[ -f ]` seeded through a link
   # whose target was gone, creating it, and waited forever on a pipe; now
-  # anything that is not a regular file is left as it is, and the appends below
-  # refuse it (2026-10-01).
+  # anything that is not a regular file is left as it is, never opened below,
+  # and every row for it refused (2026-10-01).
   [ -e "$proj/stack.tsv" ] || [ -L "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$proj/stack.tsv"
   [ -e "$proj/setup.tsv" ] || [ -L "$proj/setup.tsv" ] || printf '# id\ttitle\tcapability\tcheck\n' > "$proj/setup.tsv"
 
   if [ -f "$tpl/catalog.tsv" ]; then
     while IFS=$'\t' read -r k n src r c _kw; do
       [ "${c:-}" = "$cap" ] || continue
-      grep -qF "	$n	" "$proj/stack.tsv" 2>/dev/null && continue
+      # The duplicate check opens the file, and a pipe would hold it there.
+      [ -f "$proj/stack.tsv" ] && grep -qF "	$n	" "$proj/stack.tsv" 2>/dev/null && continue
       # stack.tsv is seeded "Edit freely", so a last row with no newline is
       # ordinary; unended, this row would fuse onto it (2026-10-01). A row that
       # could not be put on a line of its own, or not written at all, is said
@@ -80,6 +83,7 @@ felix_adopt_capability() {
       if ! felix_end_line "$proj/stack.tsv" \
          || ! printf '%s\t%s\t%s\t%s\t%s\tDECLARED\n' "$k" "$n" "$src" "$r" "$c" >> "$proj/stack.tsv"; then
         printf 'felix: could not add %s to %s/stack.tsv\n' "$n" "$proj" >&2
+        missed=$((missed+1))
         continue
       fi
       added_stack=$((added_stack+1))
@@ -89,12 +93,13 @@ felix_adopt_capability() {
   if [ -f "$tpl/setup.tsv" ]; then
     while IFS=$'\t' read -r id title c chk; do
       [ "${c:-}" = "$cap" ] || continue
-      grep -qE "^$id	" "$proj/setup.tsv" 2>/dev/null && continue
+      [ -f "$proj/setup.tsv" ] && grep -qE "^$id	" "$proj/setup.tsv" 2>/dev/null && continue
       # The same for a hand-edited setup.tsv, and the runbook is not copied
       # for a step whose row was not written.
       if ! felix_end_line "$proj/setup.tsv" \
          || ! printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}" >> "$proj/setup.tsv"; then
         printf 'felix: could not add %s to %s/setup.tsv\n' "$id" "$proj" >&2
+        missed=$((missed+1))
         continue
       fi
       [ -f "$tpl/setup/$id.md" ] && \
@@ -104,4 +109,5 @@ felix_adopt_capability() {
   fi
 
   printf '%s %s' "$added_stack" "$added_setup"
+  [ "$missed" -eq 0 ] || return 3
 }

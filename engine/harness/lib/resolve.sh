@@ -666,8 +666,8 @@ felix_count() {
 # while the stack and setup rows for `obs` were still appended. Any file the
 # engine appends to that something else also writes - a table a person may
 # edit, a log a routine curates, a project gate's own output - can end that
-# way, so the engine ends it before it appends, and a row that cannot be put
-# on a line of its own is not appended.
+# way, so the engine ends it before it appends, and a table row that cannot be
+# put on a line of its own is not appended.
 #
 # 0: absent, empty, or ending in a newline. 1: a last line with no newline.
 # 2: not a regular file, or its last byte cannot be read. Something at the path

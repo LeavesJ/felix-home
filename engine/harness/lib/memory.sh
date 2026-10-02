@@ -166,10 +166,14 @@ felix_mem_mistake() {
   local proj="$1" root="$2" what="$3"
   mkdir -p "$(felix_mem_dir "$proj")"
   felix_end_line "$(felix_mem_dir "$proj")/mistakes.log" || return 1
+  # Captured, then tested. On a checkout with no commit, rev-parse prints
+  # `HEAD` and then fails, and `$(git ... || echo '?')` kept both, so the row
+  # split across two lines at the newline between them (2026-10-01).
+  local branch sha
+  branch="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)" || branch='?'
+  sha="$(git -C "$root" rev-parse --short HEAD 2>/dev/null)" || sha='?'
   printf '%s\t%s\t%s\t%s\n' \
-    "$(date +%Y-%m-%d)" \
-    "$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')" \
-    "$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo '?')" \
+    "$(date +%Y-%m-%d)" "$branch" "$sha" \
     "$what" >> "$(felix_mem_dir "$proj")/mistakes.log"
 }
 

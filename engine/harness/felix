@@ -4517,7 +4517,7 @@ cmd_adopt() {
   slug="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
   counts="$(felix_adopt_capability "$proj" "$cap" "$SCRIPT_DIR/templates" "$slug")"; arc=$?
   case "$arc" in
-    0) ;;
+    0|3) ;;
     1) printf '%s already declared\n' "$cap"; return 0 ;;
     *)
       # 2026-10-01: the list could not be read or written, so nothing was. This
@@ -4549,6 +4549,15 @@ cmd_adopt() {
     printf 'review with: felix stack plan   and   felix setup\n'
   fi
   printf 'commit %s in the Felix repo to make it durable.\n' "$proj"
+  # 2026-10-01: recorded, with a row it implies left unwritten (the `could not
+  # add` lines above say which). A second adopt answers "already declared"
+  # and never writes them, so the way back is said and the exit is not 0.
+  if [ "$arc" -eq 3 ]; then
+    printf 'felix: %s is declared, but not every row it implies was written.\n' "$cap" >&2
+    printf 'Make stack.tsv and setup.tsv in %s regular files this user can read and write,\n' "$proj" >&2
+    printf 'delete the %s line from %s/capabilities, and run felix adopt %s again.\n' "$cap" "$proj" "$cap" >&2
+    return 3
+  fi
 }
 
 # The deliberation record, readable. Decision B (approved 2026-08-30) holds

@@ -205,7 +205,7 @@ fi
 # are appended, so `stack plan` and `setup` begin telling the truth. Installing
 # remains a separate, deliberate act, and high-risk rows are refused by every
 # flag regardless. The plan changes; the machine does not.
-adopted=""; not_adopted=""
+adopted=""; not_adopted=""; partly=""
 _repo_root="$(felix_repo_root "$PWD")"
 _slug="$(felix_repo_slug "$_repo_root" 2>/dev/null || true)"
 while IFS= read -r _cap; do
@@ -217,6 +217,10 @@ while IFS= read -r _cap; do
   case $? in
     0) adopted="$adopted $_cap(${_counts// /+})" ;;
     2) not_adopted="$not_adopted $_cap" ;;
+    # Also 2026-10-01: 3 is recorded with a row it implies left unwritten.
+    # The reason went to the stderr dropped above, and the next session finds
+    # the capability declared and never writes the row, so it is said here.
+    3) adopted="$adopted $_cap(${_counts// /+})"; partly="$partly $_cap" ;;
   esac
 done <<EOF
 $(felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null)
@@ -235,6 +239,12 @@ if [ -n "$not_adopted" ]; then
   drift_line="$drift_line
 Not adopted, because $PROJ/capabilities could not be read or written:${not_adopted}
 'felix adopt <capability>' says what is there."
+fi
+if [ -n "$partly" ]; then
+  drift_line="$drift_line
+Adopted, but not every row each implies could be written to $PROJ/stack.tsv or setup.tsv:${partly}
+Make both regular files Felix can write, delete each one's line from
+$PROJ/capabilities, and 'felix adopt <capability>' writes the rest."
 fi
 
 # Upkeep has no deadline, so it never happens, and then happens as a crisis.

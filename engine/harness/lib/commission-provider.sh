@@ -486,7 +486,11 @@ felix_commission_apply_declares() {   # proj, root, admit-output, tid, policy, n
   local v k n tier gcap sha why log stamp declared c=0 nl='
 '
   log="$(felix_mem_dir "$proj")/commissioning.log"
-  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
+  # Read only as a regular file. A pipe at the path held this read open, so
+  # the refusal below was never reached (2026-10-01). Anything else declares
+  # nothing here and every row is refused as an append that failed.
+  declared=""
+  [ -f "$proj/stack.tsv" ] && declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
   stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   while IFS=$'\t' read -r v k n tier gcap sha why; do
     [ "${v:-}" = "declare" ] && [ -n "${n:-}" ] || continue
@@ -495,7 +499,7 @@ felix_commission_apply_declares() {   # proj, root, admit-output, tid, policy, n
     case "$nl$declared$nl" in *"$nl${n%%@*}$nl"*) continue ;; esac
     # Seeded only where nothing is at the path, as adopt.sh seeds it: a link
     # whose target is gone, or a pipe, is refused below rather than written
-    # through or waited on (2026-10-01).
+    # through or waited on in this function (2026-10-01).
     [ -e "$proj/stack.tsv" ] || [ -L "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$proj/stack.tsv"
     # A manifest whose last line has no newline would otherwise fuse the two
     # rows into one, destroying the row that was there and losing this one.

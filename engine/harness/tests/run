@@ -16565,7 +16565,7 @@ for(let i=0;i+1<kids.length;i+=2)rows.push([kids[i].textContent,kids[i+1]]);
 const cap=rows.find(x=>x[0]==='capabilities declared'),was=rows.filter(x=>old.includes(x[0])),ps=r.data&&r.data.projects;
 const out={ran:r.ran,name:r.ids.projName?r.ids.projName.textContent:'',keys:rows.map(x=>x[0]).join('|'),
   oldkeys:was.map(x=>x[0]).join('|'),old:was.map(x=>x[1].textContent).join('|'),capv:cap?cap[1].textContent:'<no row>',
-  capc:cap?String(cap[1].className):'',capt:cap?String(cap[1].title):'',
+  capc:cap?String(cap[1].className):'',capt:cap?String(cap[1].title):'',capta:cap?(cap[1].getAttribute('title')??'<absent>'):'',
   caps:Array.isArray(ps)?ps.map(p=>p.name+'='+('capabilities' in p?JSON.stringify(p.capabilities):'<absent>')).sort().join(';'):'<no data>'};
 for(const k in out)process.stdout.write(k+'\t'+String(out[k]).replace(/[\t\n]/g,' ')+'\n');
 EOF
@@ -16603,36 +16603,42 @@ is "and the widget project's capabilities are as this block found them" "$(_mc_f
 is "and so is the page felix monitor writes" "$(_mc_fp "$MCPG")" "$_mcpb"
 
 # Clause 3, the page. $1 names the case, $2 is what the runner printed, $3 the
-# value wanted, $4 yes or no for warn (- to not ask), $5 the title wanted.
+# value wanted, $4 yes or no for warn, or read for a read list's cell, which
+# carries neither warn nor a title (- to not ask), $5 the title wanted.
 _mc_row() {
-  local w=no; case " $(_mc_f "$2" capc) " in *" warn "*) w=yes ;; esac
-  [ "$(_mc_f "$2" capv)" = "<no row>" ] && w="no row"
+  local w=no t; case " $(_mc_f "$2" capc) " in *" warn "*) w=yes ;; esac
+  t="property [$(_mc_f "$2" capt)] attribute [$(_mc_f "$2" capta)]"
+  case "$t" in 'property [] attribute []'|'property [] attribute [<absent>]') t=none ;; esac
+  [ "$(_mc_f "$2" capv)" = "<no row>" ] && { w="no row"; t="no row"; }
   _mc_is "$1: the script runs to the end" "$(_mc_f "$2" ran)" "yes"
   _mc_is "$1: capabilities declared sits directly after tools declared" "$(_mc_f "$2" keys)" \
          "lessons on file|gate failures|tools declared|capabilities declared|things said"
   _mc_is "$1: the row reads $3" "$(_mc_f "$2" capv)" "$3"
-  [ "$4" = - ] || _mc_is "$1: the cell $( [ "$4" = yes ] && echo carries || echo does not carry ) warn" "$w" "$4"
+  [ "$4" = - ] || _mc_is "$1: the cell $( [ "$4" = yes ] && echo carries || echo does not carry ) warn" "$w" \
+                         "$( [ "$4" = yes ] && echo yes || echo no )"
+  [ "$4" = read ] && _mc_is "$1: the cell has no title, as a property or an attribute" "$t" "none"
   [ -z "$5" ] || _mc_is "$1: the cell's title says why" "$(_mc_f "$2" capt)" "$5"
 }
 _mc_data() { local c=""; [ "$1" = - ] || c=",\"capabilities\":$1"
   printf '{"generated":"","projects":[{"name":"capx","says":[],"routes":[],"routeLog":[],"verifyLog":[],"mistakes":[],"mistakesTotal":4,"stack":[{},{}],"lessons":3,"saysTotal":5,"compliance":[]%s}]}' "$c"; }
-_mc_row "the rendered page, a read list of two" "$(_mc_page page "$MCO/read.html" capx)" 2 no ""
+_mc_row "the rendered page, a read list of two" "$(_mc_page page "$MCO/read.html" capx)" 2 read ""
 _mc_row "the rendered page, an unread list" "$(_mc_page page "$MCO/unread.html" capx)" "not known" yes "$MCW"
 while IFS='|' read -r _mcd _mcj _mcv _mcw _mct; do
   case "$_mct" in WHY) _mct="$MCW" ;; FALLBACK) _mct="$MCF" ;; esac
   _mc_row "the page, $_mcd" "$(_mc_page tpl "$MCTPL" "$(_mc_data "$_mcj")")" "$_mcv" "$_mcw" "$_mct"
 done <<'EOF'
-a read list of two|["storage","auth"]|2|no|
-a read empty list|[]|0|no|
+a read list of two|["storage","auth"]|2|read|
+a read empty list|[]|0|read|
 the unread object|{"unknown":"the capabilities this project declares could not be read"}|not known|yes|WHY
 an object giving another reason|{"unknown":"the list was a pipe"}|not known|yes|the list was a pipe
 an object giving no reason|{}|not known|yes|FALLBACK
+an object whose reason is not a string|{"unknown":5}|not known|yes|FALLBACK
 a project without the key|-|not known|yes|FALLBACK
 a null list|null|not known|yes|FALLBACK
 a string where the list belongs|"storage"|not known|yes|FALLBACK
 a number where the list belongs|3|not known|yes|FALLBACK
 EOF
-_mc_row "the page with no projects" "$(_mc_page tpl "$MCTPL" '{"generated":"","projects":[]}')" 0 - ""
+_mc_row "the page with no projects" "$(_mc_page tpl "$MCTPL" '{"generated":"","projects":[]}')" 0 no ""
 _mco="$(_mc_page tpl "$MCTPL" "$(_mc_data '["storage","auth"]')")"
 _mc_is "the memory panel keeps its four rows, in their order, with their values" \
   "$(_mc_f "$_mco" oldkeys) = $(_mc_f "$_mco" old)" "lessons on file|gate failures|tools declared|things said = 3|4|2|5"

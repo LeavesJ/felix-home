@@ -15126,11 +15126,12 @@ is  "no temporary path outlives a run whose rows are met, held, inapplicable, an
     "met held inapplicable unrunnable unrunnable unrunnable made left:[]"
 # A stderr file that cannot be read counts as nothing run. The mutation takes
 # away its row's base directory, the scratch tree's parent, only when that
-# holds the scratch tree and one file besides; otherwise it does nothing, and
+# holds the scratch tree and one file besides, its owner record not counted;
+# otherwise it does nothing, and
 # the checker passes and is held.
 QFRKB="$TMP/qual-fresh-three-base"; mkdir -p "$QFRKB"
 _qfr5 basegone "$_qfrc" violation fail \
-      "d=\$(pwd -P) && [ \"\$d\" != '$QFRR' ] && test -f .git && test -f base.txt && b=\$(dirname \"\$d\") && [ \"\$(ls -A \"\$b\" | wc -l | tr -d ' ')\" = 2 ] && [ \"\$(find \"\$b\" -mindepth 1 -maxdepth 1 -type f | wc -l | tr -d ' ')\" = 1 ] && cd / && rm -rf \"\$b\"" \
+      "d=\$(pwd -P) && [ \"\$d\" != '$QFRR' ] && test -f .git && test -f base.txt && b=\$(dirname \"\$d\") && [ \"\$(ls -A \"\$b\" | grep -vx owner | wc -l | tr -d ' ')\" = 2 ] && [ \"\$(find \"\$b\" -mindepth 1 -maxdepth 1 -type f | wc -l | tr -d ' ')\" = 1 ] && cd / && rm -rf \"\$b\"" \
       > "$QFRKB/qualification.tsv"
 is  "a mutation that takes away its row's base directory, and with it the file its stderr went to, makes its fail control unrunnable, never fail and met" \
     "$(_qfrrun "$QFRKB" "$QFRR" | awk -F'\t' '$1 == "basegone" { print $4 " " $5 }')" "unrunnable unrunnable"

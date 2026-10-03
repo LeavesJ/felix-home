@@ -1,4 +1,4 @@
-### 2026-10-01: a table check that cannot fail because a final filter hides its status is refused, by one classifier every runner and schema-check share
+### 0da. 2026-10-01: a table check that cannot fail because a final filter hides its status is refused, by one classifier every runner and schema-check share
 
 Stacked on #375. The engine changes are:
 - `lib/final-filter.sh`, `lib/final-filter-lex.sh` and `lib/final-filter-stages.sh`, which are new;

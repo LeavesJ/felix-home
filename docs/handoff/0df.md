@@ -1,4 +1,4 @@
-### 2026-10-01 — handoff-check, lifecycle-check and obligations-check find their libraries before moving to the top, so a relative call from a subdirectory no longer ends 127
+### 0df. 2026-10-01 — handoff-check, lifecycle-check and obligations-check find their libraries before moving to the top, so a relative call from a subdirectory no longer ends 127
 
 **Engine change, no version of its own.** The carrier put it in the weekly
 batch: main's gate was never red. projects/felix/gate.sh, obligations.tsv and

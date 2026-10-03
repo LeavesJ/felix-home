@@ -1,4 +1,4 @@
-### 2026-09-28 — Felix governs a Claude Code cloud session of felix-home, and carries the toolbox its routes name
+### 0dh. 2026-09-28 — Felix governs a Claude Code cloud session of felix-home, and carries the toolbox its routes name
 
 **One engine file, the suite.** The engine's hooks are unchanged and run from
 the clone. The wiring is under `.claude/`, with one gate check in

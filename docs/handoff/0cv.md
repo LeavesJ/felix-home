@@ -1,4 +1,4 @@
-### 2026-10-01: a receipt over a run that reported fewer rows than its table lists, or over counts that are not numbers, is indeterminate, and the reader refuses a receipt whose counts or result no run writes
+### 0cv. 2026-10-01: a receipt over a run that reported fewer rows than its table lists, or over counts that are not numbers, is indeterminate, and the reader refuses a receipt whose counts or result no run writes
 
 Stacked on claude/commission-empty-state-unknown (3a5c86e4), which carries
 when-crash and #375. The engine change is in lib/commission.sh and felix's

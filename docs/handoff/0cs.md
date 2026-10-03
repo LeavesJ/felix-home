@@ -1,4 +1,4 @@
-### 2026-10-01: a red run whose suite died is refused, not recorded as zero red, and the gate fails a record that shows no red run for an engine change (#371)
+### 0cs. 2026-10-01: a red run whose suite died is refused, not recorded as zero red, and the gate fails a record that shows no red run for an engine change (#371)
 
 **What shipped (claude/red-requires-reached).** `tests/red` used to ignore
 the suite's exit status, and refused only a run that reached no assertion. A

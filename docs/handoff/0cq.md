@@ -1,4 +1,4 @@
-### 2026-10-01: a qualification row's premise, mutation and command each run in a bash of their own, and a column that ran nothing reads unrunnable wherever the runner can hear it
+### 0cq. 2026-10-01: a qualification row's premise, mutation and command each run in a bash of their own, and a column that ran nothing reads unrunnable wherever the runner can hear it
 
 The engine change is `_felix_qualify_sh` and `_felix_qualify_one` in
 lib/qualify.sh, with one section of tests/run (62 assertions, written blind

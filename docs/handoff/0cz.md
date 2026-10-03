@@ -1,4 +1,4 @@
-### 2026-10-02: felix inventory (Phase 0b step 4), revised against the settled spec
+### 0cz. 2026-10-02: felix inventory (Phase 0b step 4), revised against the settled spec
 
 Branch `claude/felix-engineering-systems-c4306b` (built locally as `inv-build`). The spec is
 the founder-settled contract of 2026-10-01, `audits/2026-10-01-report-v5-review/specs/inventory/spec.md`

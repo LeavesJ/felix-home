@@ -1,4 +1,4 @@
-### 2026-10-01 — a handoff fold already pushed is named at session start, so a second session does not fold the same sections
+### 0de. 2026-10-01 — a handoff fold already pushed is named at session start, so a second session does not fold the same sections
 
 **Engine change, adversarial tier.** lib/handoff.sh, lib/maintenance.sh,
 hooks/session-start, felix (cmd_maintenance), a new bin/handoff-in-flight,

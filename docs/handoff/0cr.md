@@ -1,4 +1,4 @@
-### 2026-10-01: a qualification row's scratch tree never outlives the row: its permissions come back before it is removed, and a row stopped by INT, TERM or HUP removes it on the way out
+### 0cr. 2026-10-01: a qualification row's scratch tree never outlives the row: its permissions come back before it is removed, and a row stopped by INT, TERM or HUP removes it on the way out
 
 Rides in claude/qualify-rows-fresh-shell's PR, by its owner's and the queue
 carrier's agreement, and is stacked on that branch. The engine change is in

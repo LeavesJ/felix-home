@@ -1419,13 +1419,25 @@ cmd_merge() {
   fi
 
   if [ -n "$blockers" ]; then
-    local kind subject reason esc=0 unk=0
+    local kind subject reason esc=0 unk=0 stamp=0 table=0 owed=0
     printf 'not merging\n\n'
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
       printf '  %-11s %-22s %s\n' "$kind" "$subject" "$reason"
-      [ "$kind" = "escape" ]  && esc=1
-      [ "$kind" = "unknown" ] && unk=1
+      # Which closing paragraph each blocker belongs under, decided per blocker
+      # and not for the set. A commission blocker ends in a re-stamp, and the
+      # re-stamp is the founder's (§0aq, §0bl): telling a session it is work
+      # Felix owes invited it to run felix commission itself (#300). Except
+      # `engine`, which is the judge failing to load commission.sh; no stamp
+      # reaches that, and it sits with probes and obligations' own `engine`.
+      case "$kind:$subject" in
+        escape:*)          esc=1 ;;
+        unknown:*)         unk=1 ;;
+        commission:engine) owed=1 ;;
+        commission:table)  stamp=1; table=1 ;;
+        commission:*)      stamp=1 ;;
+        *)                 owed=1 ;;
+      esac
     done <<EOF
 $blockers
 EOF
@@ -1444,8 +1456,8 @@ $blockers
 EOF
     fi
 
-    # `unknown` is checked before `escape`, because the sentence in the else
-    # branch is the exact claim #56 is about. Saying "nothing here escapes the
+    # `unknown` is checked before `escape`, because the sentence in the branch
+    # after it is the exact claim #56 is about. Saying "nothing here escapes the
     # tree" after a scan that never ran would move the false all-clear from the
     # verdict into the explanation and leave it just as wrong. Nothing was
     # compared, so nothing can be said about what escapes.
@@ -1454,14 +1466,35 @@ EOF
       printf 'The base names nothing this repository holds — check --base, or the\n'
       printf 'default branch, which is not `main` everywhere. This says nothing\n'
       printf 'about whether the change escapes the tree; that was never asked.\n'
-    elif [ "$esc" -eq 1 ]; then
-      printf '\nMerging this writes something outside the tree that a revert does not\n'
-      printf 'reach, so it is the founder who decides. Show them the diff and the\n'
-      printf 'reversal path; a green gate is not the question here.\n'
-    else
+    elif [ "$esc" -eq 0 ] && [ "$stamp" -eq 0 ]; then
       printf '\nNothing here escapes the tree, so none of it is a founder decision.\n'
       printf 'It is work Felix owes: run the gate, or write the test that is missing,\n'
       printf 'then run this again.\n'
+    else
+      if [ "$esc" -eq 1 ]; then
+        printf '\nMerging this writes something outside the tree that a revert does not\n'
+        printf 'reach, so it is the founder who decides. Show them the diff and the\n'
+        printf 'reversal path; a green gate is not the question here.\n'
+      fi
+      # Named beside an escape too: the founder is being asked already, and a
+      # merge they clear would otherwise stop again on the receipt.
+      if [ "$stamp" -eq 1 ]; then
+        printf '\nThe commission receipt is the founder'"'"'s to re-stamp, not a session'"'"'s. It\n'
+        printf 'is keyed to the tables commissioning was granted over, and re-granting\n'
+        printf 'is a person reading what changed, so ask them to run, in order:\n\n'
+        printf '  felix autonomy --allow commission\n'
+        printf '  felix commission\n\n'
+        if [ "$table" -eq 1 ]; then
+          printf 'A table named above is put right first; the stamp is over the table as\n'
+          printf 'it then stands. '
+        fi
+        printf 'Any felix commission named above is theirs too. Do not run\n'
+        printf 'either from a session, and do not route around this refusal.\n'
+      fi
+      if [ "$esc" -eq 0 ] && [ "$owed" -eq 1 ]; then
+        printf '\nThe rest escapes nothing and is work Felix owes: run the gate, or write\n'
+        printf 'the test that is missing, then run this again.\n'
+      fi
     fi
     return 3
   fi

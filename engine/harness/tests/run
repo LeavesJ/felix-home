@@ -1825,6 +1825,97 @@ is  "and reports a clear merge without performing one" "$rc" "0"
 has "saying so plainly"                                "$out" "nothing escapes"
 _reset
 
+# PR #300, 2026-09-23. `felix merge --dry-run` refused on one blocker, the
+# commission receipt gone stale because the table set moved, and closed with
+# "none of it is a founder decision. It is work Felix owes". It is not Felix's:
+# the receipt is re-stamped by the founder, felix autonomy --allow commission
+# and then a commission run (§0aq, §0bl), and a session told the work is its own
+# is being invited to run felix commission itself or to route around the stop.
+#
+# The real case first, through the real libraries: a commission table moves,
+# the gate is recorded over the moved table set, and the commission receipt is
+# not re-stamped, so it is the one blocker left.
+_mlacks() { case "$2" in *"$3"*) bad "$1" "$2" ;; *) ok "$1" ;; esac; }
+printf 'ordinary\n' > "$REPO/README.md"; _stage
+printf '# the table set moved\n' >> "$FROOT/projects/widget/commissioning.tsv"
+( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"; rc=$?
+is  "a stale commission receipt alone refuses the merge"   "$rc" "3"
+is  "and it is the one blocker listed"                      "$(printf '%s\n' "$out" | awk '/^not merging$/ { f = 1; getline; next } f && /^$/ { exit } f { n++ } END { print n + 0 }')" "1"
+has "naming the receipt as stale"                           "$out" "stale (table set moved"
+has "and says the re-stamp is the founder's"                "$out" "the founder's to re-stamp"
+is  "naming the grant on a line of its own"                 "$(printf '%s\n' "$out" | grep -cx '  felix autonomy --allow commission')" "1"
+is  "and the commission run after it"                       "$(printf '%s\n' "$out" | grep -cx '  felix commission')" "1"
+_mlacks "and does not call a stale commission receipt work Felix owes"  "$out" "work Felix owes"
+_mlacks "nor say that none of it is a founder decision"                  "$out" "none of it is a founder decision"
+
+# Beside a blocker that is Felix's, both are said, each about its own. The
+# tree moves on without a gate, so the receipt for it is missing as well.
+printf 'moved on\n' >> "$REPO/README.md"; _stage
+out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+has "an unrun gate beside the stale receipt is listed too"          "$out" "unverified"
+has "and the re-stamp is still named as the founder's"              "$out" "the founder's to re-stamp"
+has "while the gate is handed back as work Felix owes"              "$out" "work Felix owes"
+_mlacks "without claiming that none of it is a founder decision"    "$out" "none of it is a founder decision"
+_reset; _reset
+cp "$TMP/commissioning.keep" "$FROOT/projects/widget/commissioning.tsv"
+is "the widget's commissioning table is exactly as this section found it" \
+   "$(diff -q "$TMP/commissioning.keep" "$FROOT/projects/widget/commissioning.tsv" >/dev/null && echo same)" "same"
+
+# Then every kind, one at a time. The closing paragraph is decided per blocker,
+# so each kind felix_merge_blockers can emit is fed through the CLI alone, with
+# the library's blockers replaced by exactly that line: the assertion is on
+# what cmd_merge prints for the kind, not on whether this fixture can be made
+# to raise it. The kinds are read out of escape.sh first, so a kind or a
+# commission subject added there without a place here fails by name, rather
+# than landing silently under "work Felix owes".
+_mkinds="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+             | grep -o "printf '[a-z]*\\\\t" | sed "s/printf '//; s/\\\\t\$//" | LC_ALL=C sort -u | tr '\n' ' ')"
+is "felix_merge_blockers emits exactly the kinds cmd_merge places" \
+   "$_mkinds" "commission escape evidence obligations probes unknown unverified "
+_mcsubj="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+             | grep -o "printf 'commission\\\\t[a-z]*" | sed "s/.*\\\\t//" | LC_ALL=C sort -u | tr '\n' ' ')"
+is "and commission blockers carry exactly the subjects cmd_merge places" "$_mcsubj" "engine receipt table "
+
+cp "$FROOT/harness/lib/escape.sh" "$TMP/esc.keep"
+cat >> "$FROOT/harness/lib/escape.sh" <<EOF
+felix_merge_blockers() { cat "$TMP/mblk.tsv"; }
+EOF
+_mclose() { printf "$1" > "$TMP/mblk.tsv"; ( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 ); }
+printf 'ordinary\n' > "$REPO/README.md"; _stage
+
+for _mk in 'unverified\ttree\tno green receipt for this exact tree; run felix gate' \
+           'evidence\tunit\tcode changes need a test' \
+           'probes\tmarker\tempty: nothing read' \
+           'obligations\tfixture\tRELEASE_BLOCKING deterministic: not discharged' \
+           'commission\tengine\tthe commissioning library is not loaded, so nothing was asked of this project'; do
+  _mn="$(printf "$_mk" | cut -f1-2 | tr '\t' ' ')"
+  out="$(_mclose "$_mk\n")"
+  has "the $_mn blocker is work Felix owes"              "$out" "work Felix owes"
+  _mlacks "and the $_mn blocker names no commission re-stamp" "$out" "felix autonomy"
+done
+
+out="$(_mclose 'commission\treceipt\tnever commissioned on this machine\n')"
+has "a commission receipt blocker is the founder's re-stamp"     "$out" "the founder's to re-stamp"
+_mlacks "and not work Felix owes"                                  "$out" "work Felix owes"
+out="$(_mclose 'commission\ttable\tthis project was never commissioned; write projects/widget/commissioning.tsv (felix commission says how)\n')"
+has "a commission table blocker ends in the founder's re-stamp"  "$out" "the founder's to re-stamp"
+has "and says the table is put right before the stamp"           "$out" "put right first"
+_mlacks "and is not called work Felix owes"                        "$out" "work Felix owes"
+out="$(_mclose 'unknown\tno-such-ref\tthe base names nothing this repository holds\n')"
+has "an unknown blocker still says nothing was compared"          "$out" "Nothing was compared"
+_mlacks "and hands nothing to the founder"                         "$out" "felix autonomy"
+out="$(_mclose 'escape\texecute\t.github/workflows/x.yml: runs on push\ncommission\treceipt\tstale (table set moved; run felix commission)\n')"
+has "an escape beside a stale receipt is the founder's decision" "$out" "it is the founder who decides"
+has "and the re-stamp is named with it, so one visit clears both" "$out" "felix autonomy --allow commission"
+_mlacks "and neither is work Felix owes"                           "$out" "work Felix owes"
+
+cp "$TMP/esc.keep" "$FROOT/harness/lib/escape.sh"
+_reset
+is "the fixture's escape.sh is exactly the engine's again" \
+   "$(diff -q "$REAL_HARNESS/lib/escape.sh" "$FROOT/harness/lib/escape.sh" >/dev/null && echo same)" "same"
+
 printf '\na surface no test can judge\n'
 # Some changes are revert-complete, touch no store and reach no stranger, and
 # still must not merge unread: a rubric that teaches the wrong thing breaks

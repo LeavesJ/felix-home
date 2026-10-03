@@ -8,8 +8,8 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	1d02f07d87ec037f74829fdb2c74ecf257ada949	0.49.268
-run	40	6148	9
+base	de522e5480771e7896cc17c214b021aa5fbb3f52	de522e5480771e7896cc17c214b021aa5fbb3f52	0.49.269
+run	38	6150	9
 a --base that names nothing is refused, not scoped, clean tree or not	1
 a Felix that writes no implicated set fails the job, and a set left from an earlier run does not stand in	1
 a brief that names no file stops at scope: not acted on, not failed, not escalated	1
@@ -19,7 +19,6 @@ a diff felix scope cannot classify is not pushed, and no pull request is labelle
 a file the attempt created is outside the brief too, and is not left for anything to read	1
 a gate that cannot be dispatched fails the job	1
 a job runs the gate again only after the repair job pushed	1
-a long pointer is refused naming its own directory, not the parent	1
 a named file whose name is not ASCII is pushed like any other	1
 a path outside the checkout or inside its .git is never implicated	1
 a pytest test id and a line number followed by a colon both name their file	1
@@ -43,7 +42,6 @@ and on the branch the repair pushed to	1
 and passes on GitHub's own reason	1
 and says the pushed commit has no gate verdict	1
 and that output is handed on from the step that pushed, which writes it	1
-and the refusal marks where the middle was cut	1
 and the set it proceeds on is handed on as the step's output	1
 felix repair writes the files the failing log names where --implicated says	1
 the gate is dispatched on the pushed branch	1

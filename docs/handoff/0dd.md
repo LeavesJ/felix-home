@@ -1,4 +1,4 @@
-### 2026-09-24 — the engine makes its scratch under TMPDIR, because a bare mktemp on a Mac does not, and no count of what a path left behind could see it
+### 0dd. 2026-09-24 — the engine makes its scratch under TMPDIR, because a bare mktemp on a Mac does not, and no count of what a path left behind could see it
 
 **Engine 0.49.265, branch `claude/engine-mktemp-tmpdir`, landed by the queue
 carrier on 2026-10-02 in the slot after the unattended.yml sha pin (#403).** It follows b611b9's

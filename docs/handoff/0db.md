@@ -1,4 +1,4 @@
-### 2026-10-01: a fresh repository commissions clean. The mistakes log writes one row per failure and heals split ones, the gate records the project's own failure, a gate that could not run is not a shown failure, and GitHub-only setup rows wait for a GitHub remote
+### 0db. 2026-10-01: a fresh repository commissions clean. The mistakes log writes one row per failure and heals split ones, the gate records the project's own failure, a gate that could not run is not a shown failure, and GitHub-only setup rows wait for a GitHub remote
 
 #378 carries #265 (a915bec8) and #267 (1b0074ac) in one slot, by agreement with the queue carrier. Both close as contained when it lands.
 

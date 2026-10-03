@@ -1,4 +1,4 @@
-### 2026-09-24 — every uses: in the gate workflow bootstrap renders is a commit sha, for every stack it can render
+### 0dc. 2026-09-24 — every uses: in the gate workflow bootstrap renders is a commit sha, for every stack it can render
 
 **Engine 0.49.203 (the queue carrier's number), after #331, the tests/red fix,
 the persist-credentials PR and #343.** `lib/bootstrap.sh` renders both

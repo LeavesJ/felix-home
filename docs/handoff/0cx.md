@@ -1,4 +1,4 @@
-### 2026-10-02: a hook in a Desktop worktree session judges the worktree, not the main checkout
+### 0cx. 2026-10-02: a hook in a Desktop worktree session judges the worktree, not the main checkout
 
 **Defect closed.** Claude Desktop launches every session with
 `--project-config-root <the main checkout>`. Every Desktop session on this

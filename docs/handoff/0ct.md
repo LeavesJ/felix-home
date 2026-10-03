@@ -1,4 +1,4 @@
-### 2026-10-02: an assertion the base run never reached is recorded red, and the gate fails a record that counts fewer assertions than the manifest lists (#371's follow-up)
+### 0ct. 2026-10-02: an assertion the base run never reached is recorded red, and the gate fails a record that counts fewer assertions than the manifest lists (#371's follow-up)
 
 Built on #371 (claude/red-requires-reached). That fix makes tests/red refuse
 a suite that stopped before its `reached` line. This one closes the hole

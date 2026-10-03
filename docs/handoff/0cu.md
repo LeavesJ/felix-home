@@ -1,4 +1,4 @@
-### 2026-09-25 to 10-01: a commissioning state line that comes back empty, names no state, or was never read makes its row unknown, so the receipt no longer reads commissioned over it
+### 0cu. 2026-09-25 to 10-01: a commissioning state line that comes back empty, names no state, or was never read makes its row unknown, so the receipt no longer reads commissioned over it
 
 Stacked on claude/commission-when-crash-unknown (e33e9ef9), which carries
 #375. It lands after both, in the slot the carrier gives it. The engine

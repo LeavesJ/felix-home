@@ -1,4 +1,4 @@
-### 2026-10-02: lib/qualify.sh is split along its run/read seam, and a later qualify run sweeps the scratch trees a SIGKILLed run left, and nothing else
+### 0cy. 2026-10-02: lib/qualify.sh is split along its run/read seam, and a later qualify run sweeps the scratch trees a SIGKILLed run left, and nothing else
 
 Carries the split "Split lib/qualify.sh along its run/read seam" (0.49.256 in
 the carrier's order). Its owner session died without pushing, so this branch

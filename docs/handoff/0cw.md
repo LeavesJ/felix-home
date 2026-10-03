@@ -1,4 +1,4 @@
-### 2026-10-01: the systems report v5, reviewed and decided. What Felix builds next, in what order, and what starts each step
+### 0cw. 2026-10-01: the systems report v5, reviewed and decided. What Felix builds next, in what order, and what starts each step
 
 This is the build queue that follows from the founder's 2026-09-30 systems
 report. A session that picks up Felix work should not need to reopen the

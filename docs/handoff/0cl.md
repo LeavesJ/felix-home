@@ -1,4 +1,4 @@
-### 2026-09-25 — the project scripts read a pipe's answer from the whole list: a README change under --public-readme and a monitoring change in sv2-apps are no longer read as absent
+### 0cl. 2026-09-25 — the project scripts read a pipe's answer from the whole list: a README change under --public-readme and a monitoring change in sv2-apps are no longer read as absent
 
 **No engine change.** Three files under projects/, ordinary tier, none of them
 a commissioning table, so the commission receipt does not move.

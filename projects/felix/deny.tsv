@@ -105,6 +105,31 @@ Bash	read -t [0-9]+ [^;&|]*< <\(	a timed read from a process substitution never 
 # over command text refuses the spellings it names and no other; branch
 # protection on the remote is the rule that cannot be evaded from here at
 # all, and until it exists these are the floor, not the wall.
-Bash	git( +-[^ ]+( +[^ ]+)?)* +(update-ref|symbolic-ref|fetch|push)[^;&|]*refs/remotes/	a remote-tracking ref is what the remote said, and the exception table is read from it; only a plain fetch may move it	checkout
+#
+# Only a ref written is refused. Until 2026-09-23 one row refused
+# refs/remotes/ anywhere after update-ref or symbolic-ref, and so refused
+# commands that only read one: `git update-ref refs/heads/backup
+# refs/remotes/origin/main` writes refs/heads/backup, and `git symbolic-ref
+# --short refs/remotes/origin/HEAD` prints. Both were written blind as
+# allowed that day. Each row below is matched against lib/deny.sh's reading
+# of the command, where quotes round a word are gone and each separator is a
+# token of its own:
+#
+#   - update-ref writes its first operand, and the others are values it
+#     reads. Passed on the way to it: options, -m and its reason, and
+#     redirects, a bare `>` with the word it writes to.
+#   - symbolic-ref with one operand prints it. With two it points the first
+#     at the second, and a ref pointed at a remote-tracking ref moves it on
+#     the next commit, so either operand refuses. -d or --delete deletes its
+#     one operand. The final operand has to end at a blank, so the 2 of
+#     2>/dev/null is not taken for one.
+#   - fetch and push name refs/remotes/ only in a refspec that writes one,
+#     so any mention there is refused, as before. A plain fetch names none.
+#
+# None of them sees a ref named only on update-ref --stdin's input: a
+# here-document body or a printed line is data to the reading.
+Bash	git( +-[^ ]+( +[^ ]+)?)* +update-ref( +(-m +[^ ]+|-m[^ ]+|-[^m ][^ ]*|[^ ]*[<>][<>&|]*[^ <>&|][^ ]*|[^ ]*[<>][<>&|]* +[^ ]+))* +refs/remotes/	a remote-tracking ref is what the remote said, and the exception table is read from it; only a plain fetch may move it	checkout
+Bash	git( +-[^ ]+( +[^ ]+)?)* +symbolic-ref( +(-m +[^ ]+|-m[^ ]+|-[^m ][^ ]*|[^ ]*[<>][<>&|]*[^ <>&|][^ ]*|[^ ]*[<>][<>&|]* +[^ ]+|[^- <>;&|()][^ <>]*))*( +refs/remotes/[^ ]*( +(-m +[^ ]+|-m[^ ]+|-[^m ][^ ]*|[^ ]*[<>][<>&|]*[^ <>&|][^ ]*|[^ ]*[<>][<>&|]* +[^ ]+|[^- <>;&|()][^ <>]*))* +([^- <>;&|()][^ <>]*|-[A-Za-z]*d[A-Za-z]*|--d[a-z]*)( |$)| +([^- <>;&|()][^ <>]*|-[A-Za-z]*d[A-Za-z]*|--d[a-z]*)( +(-m +[^ ]+|-m[^ ]+|-[^m ][^ ]*|[^ ]*[<>][<>&|]*[^ <>&|][^ ]*|[^ ]*[<>][<>&|]* +[^ ]+|[^- <>;&|()][^ <>]*))* +refs/remotes/)	a remote-tracking ref is what the remote said, and the exception table is read from it; symbolic-ref may print one, not write, delete or point a ref at one	checkout
+Bash	git( +-[^ ]+( +[^ ]+)?)* +(fetch|push)[^;&|]*refs/remotes/	a remote-tracking ref is what the remote said, and the exception table is read from it; only a plain fetch may move it	checkout
 Bash	git( +-[^ ]+( +[^ ]+)?)* +remote +(add|set-url|rename|remove|rm)( |$)	the remote is where the person is; a session that rewrites it chooses what refs/remotes/origin/main means	checkout
 Bash	git( +-[^ ]+( +[^ ]+)?)* +push[^;&|]* \+?([^ ]*:)?(refs/heads/)?main([[:space:];&|)]|$)	main is merged through felix merge and a person, never pushed from a session; the exception table is read from it

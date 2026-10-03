@@ -10,8 +10,11 @@
 #             makes the row not-applicable and silent
 # instrument  the bare command the question needs on this machine, or `-`;
 #             an absent instrument makes the row `unknown` — asked of nothing
-# when        an applicability command: non-zero = not-applicable,
-#             126/127 = unknown; `-` = always
+# when        an applicability test, run like a check: 0 = applies,
+#             1 = not-applicable, anything else = unknown, including a test
+#             that ends the shell with anything but 0 (an unset variable
+#             under set -u, or its own `exit 1`) or does not parse; `-` =
+#             always
 # answer      the engine stage that answers it: `felix:discover --adopt`,
 #             `felix:stack apply --yes`, `felix:ready --fix`,
 #             `felix:toolbox --route`, `felix:obligations --seed` (writes the
@@ -22,9 +25,14 @@
 # check       a shell expression exiting 0 when the need is answered, run in
 #             the checkout with the engine's functions visible and
 #             FELIX_PROJECT, FELIX_PROJECT_NAME, FELIX_HOME_DIR,
-#             FELIX_MEMORY_DIR, FELIX_ROOT_DIR exported. A check may not begin
-#             with `!` and may not end in `head`: a negated pipeline reads met
-#             when its producer dies. A provider row carries `-`.
+#             FELIX_MEMORY_DIR, FELIX_ROOT_DIR exported. It runs without
+#             pipefail, as a probe does, so a pipeline's status is its last
+#             stage's: `x | grep -q y` is grep's answer. A check that could
+#             only succeed, because it ends in a stage that succeeds whatever
+#             it is fed (tail, tee, cat, sort, wc), is malformed
+#             (lib/final-filter.sh names the stages). End with the stage that
+#             decides. A check may not begin with `!`: a negated pipeline
+#             reads met when its producer dies. A provider row carries `-`.
 # step        the §8 pipeline step (1-10) this row answers, or `-`
 #
 # States are computed on every run and never stored: done, held (a person's

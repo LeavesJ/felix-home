@@ -3745,7 +3745,9 @@ is  "a file the attempt created is outside the brief too, and is not left for an
 # Inside the set, the diff is classified with its content, not only its paths.
 # A credential written into a file the brief named is red whatever the file is
 # called, and scoping the path alone passed it (#100's defect, one step later).
-_vfix; printf 'api_key = "sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQ"\n' >> "$VP/repo/src/a.txt"   # must_flag
+# `sk-` and not `sk-ant-`, as in the scope section: must_flag excuses a fixture
+# line to secret-scan only when no hard shape is on it, and `sk-ant-` is one.
+_vfix; printf 'api_key = "sk-QQQQQQQQQQQQQQQQQQQQQQQQ"\n' >> "$VP/repo/src/a.txt"   # must_flag
 _verify 0
 is  "a credential written into a file the brief named is red, and is not pushed" \
     "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"

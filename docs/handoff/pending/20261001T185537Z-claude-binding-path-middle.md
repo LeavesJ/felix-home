@@ -1,6 +1,6 @@
 ### 2026-09-24/10-01 — a binding refusal cut at eighty characters could name the parent directory; the middle is cut now, and marked
 
-**One engine PR from this session, 0.49.240** (branch
+**One engine PR from this session, landed by the queue carrier as 0.49.269** (branch
 `claude/binding-path-middle`). `_felix_binding_sane` in `lib/resolve.sh` makes
 a pointer or marker value safe to quote in the refusal a hook emits. It kept
 the first eighty characters. When the eightieth closed a directory name, the

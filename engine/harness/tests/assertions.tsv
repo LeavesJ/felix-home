@@ -3561,6 +3561,14 @@
 1	backfilled the tooling the capability implies
 1	backs the removed copy up first
 1	backticks plus the punctuation after them
+1	baseline: a lookup that dies after printing an answer that alone reads met is held (pipefail off)
+1	baseline: a lookup that dies after printing an answer that alone reads met is held (pipefail on)
+1	baseline: a lookup that dies before its end, having printed nothing, is held (pipefail off)
+1	baseline: a lookup that dies before its end, having printed nothing, is held (pipefail on)
+1	baseline: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail off)
+1	baseline: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail on)
+1	baseline: with every lookup answering, the row reads done (pipefail on and off)
+1	baseline: with no pipe to be made, the check does not pass
 1	because it carries no epoch
 1	because it computes the same grounded topology
 1	because it was not read
@@ -3705,6 +3713,7 @@
 1	components exits 0 when all four are known
 1	components exits 0 with a component missing
 1	components prints exactly four lines
+1	constitution: with every lookup answering, the row reads done (pipefail on and off)
 1	content scan: API_KEY glued to a lower-case letter is not a credential name
 1	content scan: GITHUB_TOKEN_FILE is not a credential name
 1	content scan: README.md and a root-level SKILL.md are not prose
@@ -3786,6 +3795,18 @@
 1	discover --adopt with no cache and no catalogue adopts nothing and says why
 1	discover adopt asks the policy
 1	discover.sh alone can still reach the policy
+1	discover: a discovery cache that is not current is held (pipefail off)
+1	discover: a discovery cache that is not current is held (pipefail on)
+1	discover: a lookup that dies after printing an answer that alone reads met is held (pipefail off)
+1	discover: a lookup that dies after printing an answer that alone reads met is held (pipefail on)
+1	discover: a lookup that dies before its end, having printed nothing, is held (pipefail off)
+1	discover: a lookup that dies before its end, having printed nothing, is held (pipefail on)
+1	discover: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail off)
+1	discover: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail on)
+1	discover: an adoption still to declare is held (pipefail off)
+1	discover: an adoption still to declare is held (pipefail on)
+1	discover: with every lookup answering, the row reads done (pipefail on and off)
+1	discover: with no pipe to be made, the check does not pass
 1	discovery writes nothing
 1	docs classify green
 1	doctor exits 0 despite drift
@@ -3837,6 +3858,14 @@
 1	emits the documented UserPromptSubmit shape
 1	entries older than a day do not count
 1	envelope path values are gone from the tokens
+1	envelope: a lookup that dies after printing an answer that alone reads met is held (pipefail off)
+1	envelope: a lookup that dies after printing an answer that alone reads met is held (pipefail on)
+1	envelope: a lookup that dies before its end, having printed nothing, is held (pipefail off)
+1	envelope: a lookup that dies before its end, having printed nothing, is held (pipefail on)
+1	envelope: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail off)
+1	envelope: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail on)
+1	envelope: with every lookup answering, the row reads done (pipefail on and off)
+1	envelope: with no pipe to be made, the check does not pass
 1	even on the unknown pathway, which holds only while the row applies
 1	every --tsv row has eight tab-separated fields, and there are rows
 1	every assertion red.tsv names as red is one the manifest lists
@@ -3850,6 +3879,7 @@
 1	every decision is recorded
 1	every decisions.log row felix route --ack wrote in this suite is a row its schema accepts
 1	every ecosystem row carries a written reason
+1	every engine function the seeded checks name has an answer in this block
 1	every gh call it made is a read: pr list, view or checks, repo view, auth status, or an api GET
 1	every git status, diff or describe it ran carries --no-optional-locks
 1	every git worktree add either run made found owner already a symlink in the base it added the tree to
@@ -3872,6 +3902,7 @@
 1	every row prints its states in the spec's table order, so the first is its headline
 1	every row the adopt reader emits is four fields wide, digest or no digest
 1	every run list those three make names the gate workflow
+1	every seeded row of the table was asked, none dropped
 1	every steps.push output the template reads is one the verify step writes
 1	every tab inside a holder line becomes a space
 1	every uses: in the gate workflow bootstrap renders names a full commit sha, for every stack it can render
@@ -4268,6 +4299,15 @@
 1	frontmatter after a byte-order mark still declares hooks
 1	frontmatter with Windows line endings still declares hooks
 1	gate command actually ran
+1	gate_declared: a lookup that dies after printing an answer that alone reads met is held (pipefail off)
+1	gate_declared: a lookup that dies after printing an answer that alone reads met is held (pipefail on)
+1	gate_declared: a lookup that dies before its end, having printed nothing, is held (pipefail off)
+1	gate_declared: a lookup that dies before its end, having printed nothing, is held (pipefail on)
+1	gate_declared: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail off)
+1	gate_declared: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail on)
+1	gate_declared: with every lookup answering, the row reads done (pipefail on and off)
+1	gate_declared: with no pipe to be made, the check does not pass
+1	gate_shown_failing: with every lookup answering, the row reads done (pipefail on and off)
 1	gh pr merge is told the head commit the checkout has, by --match-head-commit
 1	given a bound of 48 hours in seconds, a fold whose tip is 72 hours old is left out
 1	governs them immediately
@@ -4318,6 +4358,20 @@
 1	hooks: in a skill's body, after the frontmatter closes, is low
 1	hooks: indented under another frontmatter key is low
 1	hooks: inside a frontmatter value is low
+1	human_steps: a lookup that dies after printing an answer that alone reads met is held (pipefail off)
+1	human_steps: a lookup that dies after printing an answer that alone reads met is held (pipefail on)
+1	human_steps: a lookup that dies before its end, having printed nothing, is held (pipefail off)
+1	human_steps: a lookup that dies before its end, having printed nothing, is held (pipefail on)
+1	human_steps: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail off)
+1	human_steps: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail on)
+1	human_steps: a runbook read whose loop died, a met answer then status 128, is held (pipefail off)
+1	human_steps: a runbook read whose loop died, a met answer then status 128, is held (pipefail on)
+1	human_steps: a runbook step still to do is held (pipefail off)
+1	human_steps: a runbook step still to do is held (pipefail on)
+1	human_steps: a runbook that prints an unknown step is held (pipefail off)
+1	human_steps: a runbook that prints an unknown step is held (pipefail on)
+1	human_steps: with every lookup answering, the row reads done (pipefail on and off)
+1	human_steps: with no pipe to be made, the check does not pass
 1	identical deploys are clean before any stray lands
 1	ignores a file that does not exist
 1	in a UTF-8 locale, a row holding a byte that is not UTF-8 hides no checker after it from felix qualify
@@ -4881,6 +4935,20 @@
 1	obligations.tsv is byte-identical at the end of the block
 1	obligations.tsv is one of the tables the receipt is bound to
 1	obligations.tsv is one of the tables whose shrinkage escapes
+1	obligations: a ledger with no rows is held (pipefail off)
+1	obligations: a ledger with no rows is held (pipefail on)
+1	obligations: a lookup that dies after printing an answer that alone reads met is held (pipefail off)
+1	obligations: a lookup that dies after printing an answer that alone reads met is held (pipefail on)
+1	obligations: a lookup that dies before its end, having printed nothing, is held (pipefail off)
+1	obligations: a lookup that dies before its end, having printed nothing, is held (pipefail on)
+1	obligations: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail off)
+1	obligations: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail on)
+1	obligations: a malformed obligation row is held (pipefail off)
+1	obligations: a malformed obligation row is held (pipefail on)
+1	obligations: a row grounded on a probe that does not exist is held (pipefail off)
+1	obligations: a row grounded on a probe that does not exist is held (pipefail on)
+1	obligations: with every lookup answering, the row reads done (pipefail on and off)
+1	obligations: with no pipe to be made, the check does not pass
 1	of 3 held stops, the hold line counts among the stops above only the 1 that followed an edit, not the 2 after turns with no new edit
 1	of four cells, as its schema row says
 1	of six tab-separated fields
@@ -4941,6 +5009,20 @@
 1	pointing HEAD at a remote-tracking ref is refused, since the next commit would move it
 1	pr previews and exits 0
 1	pr refuses to open a branch against itself
+1	preflight: a lookup that dies after printing an answer that alone reads met is held (pipefail off)
+1	preflight: a lookup that dies after printing an answer that alone reads met is held (pipefail on)
+1	preflight: a lookup that dies before its end, having printed nothing, is held (pipefail off)
+1	preflight: a lookup that dies before its end, having printed nothing, is held (pipefail on)
+1	preflight: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail off)
+1	preflight: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail on)
+1	preflight: a report that could not list the plugins is held (pipefail off)
+1	preflight: a report that could not list the plugins is held (pipefail on)
+1	preflight: a route's plugin that is absent is held (pipefail off)
+1	preflight: a route's plugin that is absent is held (pipefail on)
+1	preflight: a route's plugin that is disabled is held (pipefail off)
+1	preflight: a route's plugin that is disabled is held (pipefail on)
+1	preflight: with every lookup answering, the row reads done (pipefail on and off)
+1	preflight: with no pipe to be made, the check does not pass
 1	premise, mutation and command run in one scratch worktree of HEAD, never in the root
 1	present, active — nothing was stored between the two
 1	probes-check fails on a blind row
@@ -4948,6 +5030,20 @@
 1	probes-check fails on an unknown row
 1	probes-check passes a table of found, empty and not-applicable rows
 1	probes.tsv is one of the tables whose shrinkage escapes
+1	probes: a lookup that dies after printing an answer that alone reads met is held (pipefail off)
+1	probes: a lookup that dies after printing an answer that alone reads met is held (pipefail on)
+1	probes: a lookup that dies before its end, having printed nothing, is held (pipefail off)
+1	probes: a lookup that dies before its end, having printed nothing, is held (pipefail on)
+1	probes: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail off)
+1	probes: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail on)
+1	probes: a malformed probe row is held (pipefail off)
+1	probes: a malformed probe row is held (pipefail on)
+1	probes: a probe that reads blind is held (pipefail off)
+1	probes: a probe that reads blind is held (pipefail on)
+1	probes: a project with no probe rows is held (pipefail off)
+1	probes: a project with no probe rows is held (pipefail on)
+1	probes: with every lookup answering, the row reads done (pipefail on and off)
+1	probes: with no pipe to be made, the check does not pass
 1	procedures name the failure an unhealed split row holds
 1	project.json names the target when the environment does not
 1	promote surfaces a word that keeps missing
@@ -4978,6 +5074,16 @@
 1	quiet on prose naming the GitHub prefixes or the header's fixed base64, sample 2
 1	quiet on prose naming the GitHub prefixes or the header's fixed base64, sample 3
 1	rather than reporting clean
+1	reach: a lookup that dies before its end, having printed nothing, is held (pipefail off)
+1	reach: a lookup that dies before its end, having printed nothing, is held (pipefail on)
+1	reach: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail off)
+1	reach: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail on)
+1	reach: a plugin a route could reach but none does is held (pipefail off)
+1	reach: a plugin a route could reach but none does is held (pipefail on)
+1	reach: an unwired read that returned 128 having printed nothing is held (pipefail off)
+1	reach: an unwired read that returned 128 having printed nothing is held (pipefail on)
+1	reach: with every lookup answering, the row reads done (pipefail on and off)
+1	reach: with no pipe to be made, the check does not pass
 1	read by awk and by expansion alike: a line break in the value is kept, beside escaped quotes
 1	read by awk and by expansion alike: a payload holding a raw SOH byte, which JSON cannot, has no subject
 1	read by awk and by expansion alike: a value ending on an escaped quote
@@ -5275,6 +5381,22 @@
 1	stack apply ran through the stub for a declared low row
 1	stack plan asks the policy
 1	stack.tsv is byte-identical after a reconcile
+1	stack: a lookup that dies after printing an answer that alone reads met is held (pipefail off)
+1	stack: a lookup that dies after printing an answer that alone reads met is held (pipefail on)
+1	stack: a lookup that dies before its end, having printed nothing, is held (pipefail off)
+1	stack: a lookup that dies before its end, having printed nothing, is held (pipefail on)
+1	stack: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail off)
+1	stack: a lookup that printed a met answer and returned 1 reached its end, so the row reads done (pipefail on)
+1	stack: a manifest of comments, whose plan prints nothing and returns 1, reads done (pipefail off)
+1	stack: a manifest of comments, whose plan prints nothing and returns 1, reads done (pipefail on)
+1	stack: a plan that prints an unknown action is held (pipefail off)
+1	stack: a plan that prints an unknown action is held (pipefail on)
+1	stack: a plan whose last pipeline stage died, a met answer then status 129, is held (pipefail off)
+1	stack: a plan whose last pipeline stage died, a met answer then status 129, is held (pipefail on)
+1	stack: a plan with a row still to install is held (pipefail off)
+1	stack: a plan with a row still to install is held (pipefail on)
+1	stack: with every lookup answering, the row reads done (pipefail on and off)
+1	stack: with no pipe to be made, the check does not pass
 1	staged destructive SQL still escapes as durable
 1	stale is exactly 2: no check after the last edit, one earlier in the session
 1	stale prints one line per recorded row
@@ -5824,6 +5946,7 @@
 1	the table did not grow
 1	the table is seeded
 1	the table resolves to its repo-relative path
+1	the table under test holds seeded rows to ask
 1	the target of a redirect after that read is a file, not a second ref
 1	the template documents the needs column
 1	the tests check is behind the verifier confine

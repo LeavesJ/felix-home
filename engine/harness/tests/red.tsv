@@ -8,6 +8,50 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	6bc2fe5108bed2116931d01abd91211983bd7b8d	6bc2fe5108bed2116931d01abd91211983bd7b8d	0.49.271
-run	1	6202	9
-the cloud check is behind the verifier confine	1
+base	9dccc3ae380bbba808b4aaa85d4c0a00679a0449	9dccc3ae380bbba808b4aaa85d4c0a00679a0449	0.49.272
+run	45	6281	9
+baseline: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+baseline: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+discover: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+discover: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+discover: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+discover: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+envelope: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+envelope: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+gate_declared: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+gate_declared: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+human_steps: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+human_steps: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+human_steps: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+human_steps: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+human_steps: a runbook read whose loop died, a met answer then status 128, is held (pipefail off)	1
+human_steps: a runbook read whose loop died, a met answer then status 128, is held (pipefail on)	1
+human_steps: a runbook that prints an unknown step is held (pipefail off)	1
+human_steps: a runbook that prints an unknown step is held (pipefail on)	1
+obligations: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+obligations: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+obligations: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+obligations: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+preflight: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+preflight: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+preflight: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+preflight: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+preflight: a report that could not list the plugins is held (pipefail off)	1
+preflight: a report that could not list the plugins is held (pipefail on)	1
+probes: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+probes: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+probes: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+probes: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+reach: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+reach: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+reach: an unwired read that returned 128 having printed nothing is held (pipefail off)	1
+reach: an unwired read that returned 128 having printed nothing is held (pipefail on)	1
+reach: with no pipe to be made, the check does not pass	1
+stack: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+stack: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+stack: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+stack: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+stack: a plan that prints an unknown action is held (pipefail off)	1
+stack: a plan that prints an unknown action is held (pipefail on)	1
+stack: a plan whose last pipeline stage died, a met answer then status 129, is held (pipefail off)	1
+stack: a plan whose last pipeline stage died, a met answer then status 129, is held (pipefail on)	1

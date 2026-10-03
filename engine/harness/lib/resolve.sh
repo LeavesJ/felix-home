@@ -511,8 +511,21 @@ felix_hook_enter() {   # payload, home
 # Marker and pointer contents are written by whoever edited the file, and both
 # end up inside a JSON string a hook emits. Printable characters only, and
 # short, so a broken binding cannot be used to say something else.
+#
+# Short is had by cutting the middle, and the cut says so. This kept the first
+# eighty characters until 2026-09-24, and when the eightieth closed a directory
+# name the refusal named the target's parent: a real path, and a wrong answer
+# rather than a short one. The tail is where the directory a pointer names is,
+# so it keeps the larger share. The whole value is always in the file the
+# refusal names.
 _felix_binding_sane() {
-  printf '%s' "$1" | LC_ALL=C tr -cd '[:print:]' | cut -c1-80
+  local s
+  s="$(printf '%s' "$1" | LC_ALL=C tr -cd '[:print:]')"
+  if [ "${#s}" -le 80 ]; then
+    printf '%s' "$s"
+  else
+    printf '%s[...]%s' "${s:0:24}" "${s:${#s}-51}"
+  fi
 }
 
 # What a project name may be: one directory name under projects/, made of

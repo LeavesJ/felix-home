@@ -8,47 +8,9 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	de522e5480771e7896cc17c214b021aa5fbb3f52	0.49.269
-run	42	6160	9
-a --base that names nothing is refused, not scoped, clean tree or not	1
-a Felix that writes no implicated set fails the job, and a set left from an earlier run does not stand in	1
-a brief that names no file stops at scope: not acted on, not failed, not escalated	1
-a change to the Felix checkout that judges the repair is refused before it judges	1
-a credential written into a file the brief named is red, and is not pushed	1
-a diff felix scope cannot classify is not pushed, and no pull request is labelled	1
-a file the attempt created is outside the brief too, and is not left for anything to read	1
-a gate that cannot be dispatched fails the job	1
-a job runs the gate again only after the repair job pushed	1
-a named file whose name is not ASCII is pushed like any other	1
-a path outside the checkout or inside its .git is never implicated	1
-a pytest test id and a line number followed by a colon both name their file	1
-a repair that changes a file the brief did not name is not pushed, and the gate is not spent on it	1
-a repair that edits a workflow file is not pushed, and the gate is not spent on it	1
-a repair the gate passes is pushed, and says so to the job that runs the gate again	1
-an ignored file the attempt created is outside the brief as well, and is removed	1
-and a brief whose log names no file leaves the set empty	1
-and a run that is no brief empties it, rather than leave the last run's set	1
-and an --implicated file that cannot be written stops repair before any brief	1
-and it dispatches the workflow whose failure started the repair	1
-and it hands that to a person too	1
-and it hands the change to a person on the branch's pull request	1
-and it names the file it will not push	1
-and it names the workflow file it will not push	1
-and it says nothing was compared	1
-and it says the risk rules called the diff red	1
-and its token may dispatch workflows and do nothing else	1
-and lists them in the brief it hands a model	1
-and on the branch the repair pushed to	1
-and passes on GitHub's own reason	1
-and says the pushed commit has no gate verdict	1
+base	44c0e86961c89b27d7ac2704180c7d8dc4e06f27	44c0e86961c89b27d7ac2704180c7d8dc4e06f27	0.49.270
+run	4	6198	9
 and so when its errors go to /dev/null: the 2 of 2>/dev/null is no second ref	1
-and that output is handed on from the step that pushed, which writes it	1
-and the set it proceeds on is handed on as the step's output	1
 blind allow case 26: update-ref writes refs/heads/backup, and the remote-tracking ref is only the value it reads	1
 blind allow case 27: symbolic-ref with one ref reads it and prints	1
-felix repair writes the files the failing log names where --implicated says	1
-the gate is dispatched on the pushed branch	1
-the gate workflow bootstrap writes can be dispatched	1
 the target of a redirect after that read is a file, not a second ref	1
-the verify step takes the implicated set from the scope step's output, and reads no file for it	1
-with no implicated set from the scope step, nothing is pushed and no pull request is labelled	1

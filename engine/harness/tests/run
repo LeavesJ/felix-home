@@ -814,8 +814,17 @@ case "$out" in
   *"dormant"*"felix-test-absent"*) ok "undeclared capability classifies as dormant" ;;
   *) bad "undeclared capability classifies as dormant" "$out" ;;
 esac
-if has_claude; then
+# Present needs the plugin installed, which the CLI existing does not say. A
+# fresh cloud VM has the CLI and no plugin, so there felix said install, which
+# was right, and this failed; asked of the list felix reads, it skips instead.
+_sp_have=0
+has_claude && case "$(claude plugin list 2>/dev/null)" in
+  *superpowers@claude-plugins-official*) _sp_have=1 ;;
+esac
+if [ "$_sp_have" -eq 1 ]; then
   has "already-installed rows report present" "$out" "present"
+elif has_claude; then
+  skip "already-installed rows report present" "superpowers is not installed on this machine"
 else
   skip "already-installed rows report present" "no claude CLI here"
 fi
@@ -885,7 +894,9 @@ out="$(cd "$REPO" && "$FELIX" stack apply 2>&1)"
 has "apply without --yes changes nothing" "$out" "Nothing changed"
 
 # The safety property: no flag promotes a high-risk row into the apply set.
-out="$(cd "$REPO" && "$FELIX" stack apply --yes 2>&1)"
+# Through CMSTUB, because the superpowers row above is real: on a machine that
+# lacks it, --yes installed it into the real ~/.claude with the real claude.
+out="$(cd "$REPO" && PATH="$CMSTUB:$PATH" "$FELIX" stack apply --yes 2>&1)"
 case "$out" in
   *"installed  plugin felix-test-dangerous"*)
     bad "--yes never installs high risk" "high-risk row was applied" ;;
@@ -4087,31 +4098,50 @@ has "entries older than a day do not count" "$out" "used:   2"
 # An unwritable project directory is the cheapest real cause. A full disk or a
 # read-only mount reach the same place, and one of them is how this would
 # actually happen on a runner.
+#
+# A write refused by a mode is asked of this machine first, the way a read is
+# further down: root writes through a directory at 555 and a file at 444, and
+# a cloud session runs as root, so there the refusal cannot be built. Those
+# assertions skip, not pass, and not fail on a write that was never refused,
+# which also left the probe's row in the log for the control below to count.
+mkdir "$TMP/mode-555"; chmod 555 "$TMP/mode-555"
+printf 'x\n' > "$TMP/mode-444"; chmod 444 "$TMP/mode-444"
+_unwritable=1
+( : > "$TMP/mode-555/x" ) 2>/dev/null && _unwritable=0
+( printf 'x\n' >> "$TMP/mode-444" ) 2>/dev/null && _unwritable=0
+chmod 755 "$TMP/mode-555"; chmod 644 "$TMP/mode-444"
+_nowrite="this user writes through a mode of 555 or 444, so no write can be refused"
 rm -f "$FROOT/projects/widget/budget.log"
 python3 - "$FROOT/projects/widget/project.json" <<'PYJ'
 import json,sys,pathlib
 p=pathlib.Path(sys.argv[1]); d=json.loads(p.read_text())
 d["unattended_daily_limit"]="10"; p.write_text(json.dumps(d,indent=2))
 PYJ
-chmod 555 "$FROOT/projects/widget"
-out="$(cd "$REPO" && "$FELIX" budget --record --why "probe" 2>&1)"; rc=$?
-chmod 755 "$FROOT/projects/widget"
+if [ "$_unwritable" -eq 1 ]; then
+  chmod 555 "$FROOT/projects/widget"
+  out="$(cd "$REPO" && "$FELIX" budget --record --why "probe" 2>&1)"; rc=$?
+  chmod 755 "$FROOT/projects/widget"
 
-[ "$rc" -ne 0 ] && ok "a record that could not be written does not exit 0" \
-                || bad "a record that could not be written does not exit 0" \
-                       "exit $rc after: $out"
-case "$out" in
-  *"recorded."*) bad "and does not say it recorded" "$out" ;;
-  *)             ok  "and does not say it recorded" ;;
-esac
-# The number is the tell. `used + 1` reports a spend that never happened, and it
-# reports it in the same words a real one uses.
-case "$out" in
-  *"1 of 10"*) bad "nor report a spend that did not happen" "$out" ;;
-  *)           ok  "nor report a spend that did not happen" ;;
-esac
-is "and nothing was written" \
-   "$([ -f "$FROOT/projects/widget/budget.log" ] && echo present || echo absent)" "absent"
+  [ "$rc" -ne 0 ] && ok "a record that could not be written does not exit 0" \
+                  || bad "a record that could not be written does not exit 0" \
+                         "exit $rc after: $out"
+  case "$out" in
+    *"recorded."*) bad "and does not say it recorded" "$out" ;;
+    *)             ok  "and does not say it recorded" ;;
+  esac
+  # The number is the tell. `used + 1` reports a spend that never happened, and it
+  # reports it in the same words a real one uses.
+  case "$out" in
+    *"1 of 10"*) bad "nor report a spend that did not happen" "$out" ;;
+    *)           ok  "nor report a spend that did not happen" ;;
+  esac
+  is "and nothing was written" \
+     "$([ -f "$FROOT/projects/widget/budget.log" ] && echo present || echo absent)" "absent"
+else
+  for a in "a record that could not be written does not exit 0" "and does not say it recorded" \
+           "nor report a spend that did not happen" "and nothing was written"; do
+    skip "$a" "$_nowrite"; done
+fi
 
 # The control, and the half a careless fix breaks: a writable project still
 # records, still exits 0, and the count it prints is the one the log holds
@@ -4132,12 +4162,16 @@ has "which is the number it printed"   "$out" "1 of 10"
 # perfectly writable and the probe tests nothing. This assertion passed for that
 # reason before the log was removed.
 rm -f "$FROOT/projects/widget/budget.log"
-chmod 555 "$FROOT/projects/widget"
-( . "$FROOT/harness/lib/budget.sh"
-  felix_budget_record "$FROOT/projects/widget" "lib probe" 2>/dev/null ); librc=$?
-chmod 755 "$FROOT/projects/widget"
-[ "$librc" -ne 0 ] && ok "felix_budget_record itself reports the failure" \
-                   || bad "felix_budget_record itself reports the failure" "exit $librc"
+if [ "$_unwritable" -eq 1 ]; then
+  chmod 555 "$FROOT/projects/widget"
+  ( . "$FROOT/harness/lib/budget.sh"
+    felix_budget_record "$FROOT/projects/widget" "lib probe" 2>/dev/null ); librc=$?
+  chmod 755 "$FROOT/projects/widget"
+  [ "$librc" -ne 0 ] && ok "felix_budget_record itself reports the failure" \
+                     || bad "felix_budget_record itself reports the failure" "exit $librc"
+else
+  skip "felix_budget_record itself reports the failure" "$_nowrite"
+fi
 rm -f "$FROOT/projects/widget/budget.log"
 
 # #84, the race. cmd_budget is check-then-act with no lock: it reads the count,
@@ -13959,11 +13993,15 @@ has "so the earlier tree is still readable" "$(cat "$PBLOG")" "treeone"
 # #84's shape exactly: felix budget --record reported success when its append
 # failed and the ceiling silently became no ceiling. A fact log that can lose a
 # row while reporting a clean run is worse than no log, because it is trusted.
-chmod 444 "$PBLOG"
-_pbrec treethree
-PBRC="$?"
-chmod 644 "$PBLOG"
-is "an append that did not happen is reported as a failure" "$PBRC" "1"
+if [ "$_unwritable" -eq 1 ]; then
+  chmod 444 "$PBLOG"
+  _pbrec treethree
+  PBRC="$?"
+  chmod 644 "$PBLOG"
+  is "an append that did not happen is reported as a failure" "$PBRC" "1"
+else
+  skip "an append that did not happen is reported as a failure" "$_nowrite"
+fi
 
 # The case the count exists for, and the only one the exit status cannot see:
 # a path that stopped being a file. `>>` to it succeeds, reports success, and
@@ -15426,10 +15464,14 @@ if [ -x "$REAL_HARNESS/bin/hooks-events" ]; then
       "$("$REAL_HARNESS/bin/hooks-events" "$HE/unterminated.json" >/dev/null 2>&1; echo $?)" "2"
   is  "a directory is cannot-examine, not an empty binding" \
       "$("$REAL_HARNESS/bin/hooks-events" "$HE" >/dev/null 2>&1; echo $?)" "2"
-  cp "$HE/hooks.json" "$HE/unreadable.json"; chmod 000 "$HE/unreadable.json"
-  is  "and so is a file this user cannot read" \
-      "$("$REAL_HARNESS/bin/hooks-events" "$HE/unreadable.json" >/dev/null 2>&1; echo $?)" "2"
-  chmod 644 "$HE/unreadable.json"
+  if [ "$_unreadable" -eq 1 ]; then
+    cp "$HE/hooks.json" "$HE/unreadable.json"; chmod 000 "$HE/unreadable.json"
+    is  "and so is a file this user cannot read" \
+        "$("$REAL_HARNESS/bin/hooks-events" "$HE/unreadable.json" >/dev/null 2>&1; echo $?)" "2"
+    chmod 644 "$HE/unreadable.json"
+  else
+    skip "and so is a file this user cannot read" "$_noread"
+  fi
   # And the checker over it: the evidence contract must not discharge on a
   # hooks.json nothing could load.
   if [ -x "$REAL_HARNESS/bin/lifecycle-check" ]; then
@@ -16369,7 +16411,10 @@ cp "$TMP/probes.keep" "$FROOT/projects/widget/probes.tsv"
 NEWP="$TMP/probes-new"; mkdir -p "$NEWP"
 ( cd "$NEWP" && git init -q -b main && printf 'x\n' > a.txt \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
-out="$(cd "$NEWP" && "$FELIX" new probeseed "$NEWP" 2>&1)"
+# Through CMSTUB, as every felix new here is: felix new commissions, and run
+# against the real claude it installed the catalog's always plugins into the
+# real ~/.claude, and wrote the registry that made marketplace_root blind.
+out="$(cd "$NEWP" && PATH="$CMSTUB:$PATH" "$FELIX" new probeseed "$NEWP" 2>&1)"
 is "felix new seeds a probe table" \
    "$( [ -s "$FROOT/projects/probeseed/probes.tsv" ] && echo yes || echo no )" "yes"
 # And a seeded stack.tsv says the catalogue's rows are a person's judgment.
@@ -16411,7 +16456,7 @@ is  "so a project created today is not born blocked" "$rc" "0"
 # witness that says so is the last commit's tree, not the .git directory.
 NEWQ="$TMP/probes-new-nocommit"; mkdir -p "$NEWQ"
 ( cd "$NEWQ" && git init -q -b main && printf 'x\n' > a.txt ) >/dev/null 2>&1
-out="$(cd "$NEWQ" && "$FELIX" new probeseedq "$NEWQ" 2>&1)"
+out="$(cd "$NEWQ" && PATH="$CMSTUB:$PATH" "$FELIX" new probeseedq "$NEWQ" 2>&1)"
 out="$(cd "$NEWQ" && "$FELIX" probes 2>&1)"
 has "on a repository with no commit, nothing tracked reads as empty, not blind" \
     "$(printf '%s\n' "$out" | grep -E '^  [a-z-]+ +tracked_file')" "empty"
@@ -26509,11 +26554,19 @@ is  "one log row per table row"       "$(grep -c . "$MEM/cmproj/commissioning.lo
 is  "nine fields per log row"         "$(head -1 "$MEM/cmproj/commissioning.log" | awk -F'\t' '{ print NF }')" "9"
 has "a felix-answered row names felix as the actor"   "$(grep '	beta	' "$MEM/cmproj/commissioning.log")" "	felix	"
 has "a provider row is UNKNOWN until its file appears" "$(grep '	prov	' "$MEM/cmproj/commissioning.log")" "	UNKNOWN	"
-chmod 444 "$MEM/cmproj/commissioning.log"
-_cm felix_commission_record "$CMP" tree1 policy1 "$_cmout" >/dev/null 2>&1 \
-  && bad "a record that could not be appended is reported" \
-  || ok  "a record that could not be appended is reported"
-chmod 644 "$MEM/cmproj/commissioning.log"
+# An if, not `&& bad || ok`: bad returns 1 when it is given no detail, so that
+# shape reported this assertion twice, FAIL and then ok, whenever it failed.
+if [ "$_unwritable" -eq 1 ]; then
+  chmod 444 "$MEM/cmproj/commissioning.log"
+  if _cm felix_commission_record "$CMP" tree1 policy1 "$_cmout" >/dev/null 2>&1; then
+    bad "a record that could not be appended is reported" "the record exited 0"
+  else
+    ok  "a record that could not be appended is reported"
+  fi
+  chmod 644 "$MEM/cmproj/commissioning.log"
+else
+  skip "a record that could not be appended is reported" "$_nowrite"
+fi
 
 # The receipt: written after the run, valid only by derivation.
 _cmres="$(_cm felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmout" "$_cmmal")"
@@ -29479,6 +29532,7 @@ fi
 chmod 555 "$GRH/graphify-out" 2>/dev/null
 if ( : > "$GRH/graphify-out/.graphprobe" ) 2>/dev/null; then
   skip "a graph directory it cannot write still exits 0" "directory still writable"
+  skip "and still says nothing"                          "directory still writable"
 else
   out="$(_grbg "$GRB" "$GRH" 2>&1)"; rc=$?
   is "a graph directory it cannot write still exits 0" "$rc"  "0"
@@ -31752,11 +31806,18 @@ _au() {
     HOME="$h" TMPDIR="$AU/tmp" PATH="$AUSTUB:$PATH" "$e" audit "$@" ) 2>>"$AU_ERR"
 }
 # The CPU an audit cost, in ms, from a file `times` wrote inside the command
-# substitution that ran it: that subshell's user and system time, then its
-# children's, the audit among them, as 0m1.234s. It counts nothing else the
-# suite has running, so load stretches the wall clock and leaves this alone.
+# substitution that ran it: that subshell's user time, then its children's,
+# the audit among them, as 0m1.234s. It counts nothing else the suite has
+# running, so load stretches the wall clock and leaves this alone.
+#
+# User time only, the first column of each line. The system time beside it is
+# the kernel's, and on a Linux VM it was most of the total and no measure of
+# the reader: over the 6 MB command, the one mawk reading it made 136,471
+# mremap calls, and three runs on an idle machine took 0.8, 2.4 and 9.9 s of
+# system time around 0.4 s of user time each. The copying these bounds exist
+# to catch, a line copied once per escape, is user time.
 _au_ms() {
-  awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
+  awk '{ split($1, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 }
        END { printf "%d", ms }' "$1"
 }
 # The report is plain text in a wording nobody fixed, so it is read loosely: a
@@ -32682,7 +32743,11 @@ _au_nums "$(_au --dir "$RV/r3/paste")" 'held' 1 1 \
 # where a gate was guessed, and where none was, set gate in project.json
 # first. That clause is the only place any of them says held.
 _rv_sq() { printf '%s\n' "$1" | tr -d '`' | tr -s ' \n' '  '; }
-_rvh="$(_rv_sq "$("$FELIX" 2>&1 | awk '/--no-commission$/ { p = 1; next } p && !/^ {20,}[^ ]/ { p = 0 } p')")"
+# The indent is measured, not matched. mawk 1.3.4, Ubuntu's awk, fails an
+# anchored repeat whose minimum is two or more once the text runs past that
+# minimum: /^ {20,}[^ ]/ matches twenty spaces and not the help's twenty-seven,
+# so there the help read as empty.
+_rvh="$(_rv_sq "$("$FELIX" 2>&1 | awk '/--no-commission$/ { p = 1; next } p && match($0, /[^ ]/) - 1 < 20 { p = 0 } p')")"
 _rvl="$(_rv_sq "$(_au_last "$(_au --dir "$RV/r3/paste")")")"
 _rvr="$(_rv_sq "$(awk '/^## / { p = ($0 ~ /^## Try it/); next } p' "$REAL_HARNESS/../../README.md" 2>/dev/null)")"
 _rvre='where a gate was guessed, its sessions are held once felix install has run; where none was, set gate in project[.]json first'

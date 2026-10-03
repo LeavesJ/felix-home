@@ -5487,6 +5487,7 @@
 1	the classifier refuses [x | uniq - out.txt] and names uniq: uniq reading standard input into a file
 1	the classifier refuses [x | { tail; }] and names the last stage: a group ending in a filter is one too
 1	the claude cli changing is announced and never invalidates
+1	the cloud check is behind the verifier confine
 1	the commission engine blocker is work Felix owes
 1	the control: with the probe table in place the receipt is current
 1	the controls a checker declares nothing for are named

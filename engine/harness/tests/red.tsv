@@ -8,9 +8,6 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	44c0e86961c89b27d7ac2704180c7d8dc4e06f27	44c0e86961c89b27d7ac2704180c7d8dc4e06f27	0.49.270
-run	4	6198	9
-and so when its errors go to /dev/null: the 2 of 2>/dev/null is no second ref	1
-blind allow case 26: update-ref writes refs/heads/backup, and the remote-tracking ref is only the value it reads	1
-blind allow case 27: symbolic-ref with one ref reads it and prints	1
-the target of a redirect after that read is a file, not a second ref	1
+base	6bc2fe5108bed2116931d01abd91211983bd7b8d	6bc2fe5108bed2116931d01abd91211983bd7b8d	0.49.271
+run	1	6202	9
+the cloud check is behind the verifier confine	1

@@ -544,6 +544,57 @@ else
   printf '  %-18s skipped (no memory-scan here)\n' memory
 fi
 
+# ------------------------------------------------------------- cloud ---------
+# A Claude Code cloud session loads no plugin and reads nothing from ~/.claude,
+# so the Felix plugin's hooks reach it only as this repository's own
+# .claude/settings.json, which binds the same engine hooks behind a
+# CLAUDE_CODE_REMOTE guard, and the toolbox reaches it only as what
+# .claude/cloud/provision copies in. Each of these goes wrong in silence:
+#   - the plugin binds a hook, or binds it under an event, that the settings do
+#     not, and the cloud never runs it;
+#   - a settings command without the guard runs locally beside the plugin's
+#     hook, and Felix fires twice in every local session;
+#   - a stack.tsv plugin or skill with no entry in .claude/cloud/toolbox.json never
+#     reaches the cloud, and nobody decided that it should not.
+# Pairs are read per event off the four-space layout both files share, so a
+# reformatted file reads as unreadable and fails, rather than as agreement.
+_cloud_pairs() {
+  awk 'match($0, /^    "[A-Za-z]+": \[/) { ev = substr($0, 6, RLENGTH - 9) }
+       ev && match($0, /harness\/hooks\/[a-z-]+/) { print ev "\t" substr($0, RSTART + 14, RLENGTH - 14) }' "$1" \
+    | LC_ALL=C sort -u
+}
+if [ -f .claude/settings.json ]; then
+  CLOUD_BAD=""
+  P_PAIRS="$(_cloud_pairs engine/hooks/hooks.json)"
+  S_PAIRS="$(_cloud_pairs .claude/settings.json)"
+  if [ -z "$P_PAIRS" ] || [ -z "$S_PAIRS" ]; then
+    CLOUD_BAD="unreadable: no event-to-hook pairs read from one of the two files"
+  else
+    MISSING="$(printf '%s\n' "$P_PAIRS" | while IFS= read -r p; do
+      printf '%s\n' "$S_PAIRS" | grep -qxF "$p" || printf '%s ' "$(printf '%s' "$p" | tr '\t' '/')"
+    done)"
+    [ -z "$MISSING" ] || CLOUD_BAD="$CLOUD_BAD not bound for the cloud: $MISSING;"
+  fi
+  N_CMD="$(grep -c '"command":' .claude/settings.json)"
+  N_GUARD="$(grep -cF '"command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; ' .claude/settings.json)"
+  [ "$N_CMD" = "$N_GUARD" ] || CLOUD_BAD="$CLOUD_BAD $((N_CMD - N_GUARD)) command(s) without the CLAUDE_CODE_REMOTE guard;"
+  # Names read with sed, not jq: the gate runs on bash and git alone
+  # (constitution invariant 2), and a reformatted file reads as no names, so
+  # every stack row fails rather than passing.
+  TOOLBOX="$(sed -n 's/^      "name": "\([^"]*\)",$/\1/p' .claude/cloud/toolbox.json 2>/dev/null)"
+  for n in $(grep -vE '^[[:space:]]*(#|$)' projects/felix/stack.tsv \
+             | awk -F'\t' '$1 == "plugin" || $1 == "skill" { sub(/@.*/, "", $2); print $2 }'); do
+    printf '%s\n' "$TOOLBOX" | grep -qxF "$n" || CLOUD_BAD="$CLOUD_BAD $n has no entry in .claude/cloud/toolbox.json;"
+  done
+  if [ -z "$CLOUD_BAD" ]; then
+    pass cloud
+  else
+    fail cloud; printf '    %s\n' "$CLOUD_BAD"
+  fi
+else
+  printf '  %-18s skipped (no .claude/settings.json in this tree)\n' cloud
+fi
+
 echo
 if [ -z "$FAILED" ]; then echo "gate: pass"; exit 0; fi
 echo "gate: FAIL ($(echo "$FAILED" | tr -s ' ' | sed 's/^ //'))"

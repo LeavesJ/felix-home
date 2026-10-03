@@ -416,7 +416,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Committed before anything judges it, and pushed only at the end. A
           # content rule reads the lines a commit adds, so this is what lets a
-          # credential or a DROP TABLE written into a named file count as red:
+          # credential or destructive SQL written into a named file count as red:
           # paths alone would pass both.
           git commit -qam "fix: unattended repair, verified by the gate
 

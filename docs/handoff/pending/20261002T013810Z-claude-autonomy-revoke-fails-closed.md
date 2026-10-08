@@ -51,12 +51,17 @@ here:
 - **Revision 4's match** (review 4). It cut the line at the capability with
   `%%`, which bash runs from every position of the line, measuring the rest
   each time. That is quadratic in a line's length: one 512 KB line cost 8.8 s.
-- **A subshell stopped by `set -u`** (the writer lock's third review). Under
-  bash 3.2, in a script such as felix, a subshell that `set -u` stops inside
-  an arithmetic expansion exits 0. Revoke's second pass computes
+- **A subshell stopped by `set -u`** (the writer lock's third review, and
+  revoke's fifth). Under bash 3.2, in a script such as felix, a subshell that
+  `set -u` stops inside an arithmetic expansion exits with the status of the
+  command before the stop: 0, or any other. Revoke's passes computed
   `$(( $(wc -c) ))`. A stale stdout buffer flushed into that wc stopped the
-  pass, the 0 read as written, and the mv put an empty file over the grants.
-  The reader's subshell answered 0 for a grant, so a stop read as one.
+  pass with wc's 0, which read as written, and the mv put an empty file over
+  the grants. The reader's subshell answered 0 for a grant, so a stop could
+  read as one.
+- **Revision 5's match order** (review 5). Its test tried "a letter before a
+  copy" first, from every letter: quadratic when letters follow the
+  capability (`tidy` plus 64 KB of letters cost 5.5 s).
 - **Shift-JIS** (review 3). Revision 3 trimmed whitespace and bytes from `\200`
   up. The Shift-JIS ideographic space is `\201@`, so an older engine under
   ja_JP.SJIS still tidied by `tidy\201@` after `revoked: tidy`.
@@ -85,8 +90,9 @@ here:
   such locale, and glibc's space class leaves out U+00A0). So no older engine, in any locale, finds the
   grant afterwards. A 4,000-line fuzz across 14 macOS locales found no miss. A
   line that only looks like the grant (`tidy.`, `- tidy`, `tidy=0`) goes too.
-  The test is two `case` matches, linear in a line's length: no `#`, the
-  capability present, and no letter before or after a copy of it.
+  The test is two `case` matches: no `#` and the capability present, then no
+  letter after a copy (tried first, as it fails at most once per line) and no
+  letter before one. It is linear in a line's length.
 - **Two passes**, each `_felix_autonomy_rewrite` in a C-locale subshell with
   its output discarded. Each checks for a NUL, then reads the lines straight
   from the file and counts the bytes they account for against `wc -c`. A loop
@@ -100,9 +106,10 @@ here:
     unended last line stays unended. A failed write is a refusal. Revoke is
     linear: 512 KB costs about 1.5 s of CPU and 1 MB about 2.9 s, and one
     512 KB line about 1 s.
-  - A pass says it wrote with 10, never 0, and the first pass never writes,
-    so a stopped pass is a refusal. The reader's subshell answers a grant
-    with 10, so a stopped read is no grant.
+  - `wc`'s answer is checked as digits and never put through `$(( ))`, so no
+    pass does arithmetic on text it reads and none can be stopped that way.
+    As defence in depth a pass says it wrote with 10, never 0, and the
+    reader's subshell answers a grant with 10.
   - The file's mode is copied (`stat -L -c %a`, falling back to
     `stat -L -f %Lp`), then the mv. The result is read back through the
     reader.
@@ -183,7 +190,19 @@ here:
   blocks revision 5 gives 212 pass, and the 4 that fail are block 5's. On
   bash 5.2 the stop exits non-zero, so the block is green on every revision
   there.
-- **Review 5:** on d95596a7 with blocks 6 and 7.
+- **Review 5** (on d95596a7): two majors.
+  - The `set -u` premise was wrong: a stop leaves the last command's status,
+    not 0. A `wc` that printed text and exited 10 made revoke empty the file.
+  - The match order was quadratic when letters follow the capability.
+  - Four one-letter narrowings of the letter class survived the blocks.
+- **Round 8.** 19 blind assertions ("revoke knows every letter, stays linear
+  after the capability, and takes no stop for an answer", ee1edec2): every
+  ASCII letter on both sides of both capabilities, three 256-512 KB
+  capability-then-letters lines, and `wc` stops leaving 10, 5, 4 and 2. 10
+  fail on revision 5.
+- **Revision 6:** the digit check and the swapped order. Blocks 1-8 give 231
+  pass on it; the 4 that fail are block 5's, which wait on .274.
+- **Review 6:** on revision 6.
 - **What could not be shown locally.** The stray-lead-byte case passes on
   bash 3.2 for every engine. Only CI's bash 5.2 can show it red against main.
 - **The section runner.** It is preamble lines 1 to 224 (the line before the

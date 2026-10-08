@@ -182,8 +182,9 @@ felix_autonomy_revoke() {
 # Give a grant: rewrite the file with it on a line of its own, keeping every
 # byte already there. The caller says "allowed" only on 0.
 #   0  the reader grants cap now
-#   1  the file is not a regular file, is read-only, could not be read whole,
-#      or the rewrite could not be written
+#   1  cap is not a capability the engine defines; or the file is not a
+#      regular file, is read-only or could not be read whole; or the rewrite
+#      could not be written
 #   2  the file holds a NUL byte, so what it grants cannot be read
 #   3  rewritten, and a read of it does not find the grant
 #
@@ -200,14 +201,24 @@ felix_autonomy_revoke() {
 # whole text into a mktemp file and mv'd into place, then read back through the
 # reader. A file that cannot be read whole, or a directory that cannot take the
 # new file, is left as it was rather than half appended to.
+#
+# Not covered, as in revoke: two felix autonomy runs at once. A grant that read
+# the file before a revoke's mv puts back what the revoke removed, after it
+# said so, which an append could not do; the lock on both is its own change
+# (claude/autonomy-writer-lock). The rewrite also leaves the file at mktemp's
+# mode, 0600, and replaces a link at the path with a file, as revoke does.
 felix_autonomy_grant() {
   local proj="$1" want="$2" f tmp rc
-  [ -n "$want" ] || return 1
+  # Only what the engine defines, as cmd_autonomy checks: a value with a
+  # newline in it would write a second line and then report no grant.
+  case "$want" in tidy|commission) ;; *) return 1 ;; esac
   f="$proj/autonomy"
-  # A regular file or nothing. A dangling link would create its target, and a
-  # pipe would hold the read open for a writer that never comes. Nor one made
-  # read-only: mv would replace it where the append could not write it, and a
-  # grant is the direction that asks first.
+  # A regular file or nothing. The reader takes nothing from anything else, so
+  # a link that leads nowhere, a directory or a pipe a person put there is
+  # theirs to fix and not replaced, and a pipe is never opened, since the read
+  # would wait for a writer that never comes. Nor a file made read-only: the mv
+  # would replace it where the append could not write it, and a grant is the
+  # direction that asks first.
   if [ -e "$f" ] || [ -L "$f" ]; then [ -f "$f" ] && [ -w "$f" ] || return 1; fi
   tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
   # As in revoke: its own C locale, and its stdout thrown away.

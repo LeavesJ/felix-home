@@ -15842,6 +15842,56 @@ is "and after felix_autonomy_grant over the unended tidy line both tidy and comm
 _alnone; mkdir "$ALP/autonomy"
 is "felix_autonomy_grant returns 1 when a directory sits where the grant file goes" "$(_algrant commission)" "returned 1"
 
+# From the adversarial review of the fix, 2026-10-08, and not blind: a
+# mutation test of the block above found five changes to felix_autonomy_grant
+# that every assertion passed, and each of these fails exactly its mutant.
+# A read shorter than the file (the byte count dropped) is refused.
+_alset '# h\ntidy\n# tail\n'
+_alx1="$( ( . "$FROOT/harness/lib/autonomy.sh"
+            _felix_autonomy_read() { _felix_autonomy_text="# h$_alnl"; return 0; }
+            felix_autonomy_grant "$ALP" commission >/dev/null 2>&1; echo "returned $?" ) 2>/dev/null )"
+is "felix_autonomy_grant returns 1 and leaves the file byte-identical when its read comes back shorter than the file" \
+   "$_alx1:$(_alsame "$ALP/autonomy" "$_alfheld")" "returned 1:same"
+# A grant file a person made read-only is not replaced by the mv (the -w
+# check dropped); the append it replaced could not write it either.
+_alset 'tidy\n' stamp
+if [ "$_albinds" = yes ]; then
+  chmod 444 "$ALP/autonomy"; _alrun commission; chmod 644 "$ALP/autonomy"
+  _alclosed "of commission over a read-only grant file, beside a stamp,"
+else
+  _alclosed "of commission over a read-only grant file, beside a stamp," skip
+fi
+# bash 3.2's printf keeps the unwritten tail of a failed write and sends it to
+# stdout later, so a rewrite whose stdout is not thrown away prints file text:
+# here, text that reads allowed:.
+_alnone stamp; _ali=0
+while [ "$_ali" -lt 66 ]; do printf '#allowed:allowed:allowed:allowed:allowed:allowed:allowed:allowed:\n'; _ali=$((_ali+1)); done > "$ALP/autonomy"
+printf 'tidy\n' >> "$ALP/autonomy"; _alhold
+_alcut commission
+_alclosed "of commission whose write is cut short over comment lines that read allowed:, beside a stamp,"
+# The read-back's own code, which the CLI's message turns on: 1 would say
+# nothing was written when something was.
+_alset '# h\n'
+is "felix_autonomy_grant returns 3 when its read-back does not find the grant it wrote" "$(_algrant tidy never)" "returned 3"
+# A grant file 8 bytes under two 1024-byte blocks: an append in place would
+# cross the limit part way, which Linux stops mid-write and macOS does not.
+_alnone stamp; _ali=0
+while [ "$_ali" -lt 25 ]; do printf '#%078d\n' "$_ali"; _ali=$((_ali+1)); done > "$ALP/autonomy"
+printf '#%033d\ntidy\n' 0 >> "$ALP/autonomy"; _alhold
+is "the near-limit grant file is 2040 bytes" "$(( $(wc -c < "$ALP/autonomy") ))" "2040"
+_alcut commission
+_alclosed "of commission whose rewrite of a 2040-byte grant file is cut short, beside a stamp,"
+# And from the fail-open review: the library takes only a capability the
+# engine defines, so a value with a newline in it cannot write a second line
+# and then report that nothing was granted.
+_alset 'commission\n'
+_alx6="$( ( . "$FROOT/harness/lib/autonomy.sh"
+            felix_autonomy_grant "$ALP" "x${_alnl}tidy" >/dev/null 2>&1; echo "returned $?" ) 2>/dev/null )"
+is "felix_autonomy_grant refuses a capability with a newline in it and leaves the file byte-identical" \
+   "$_alx6:$(_alsame "$ALP/autonomy" "$_alfheld"):$(_algrants tidy)" "returned 1:same:no"
+is "felix_autonomy_grant refuses Commission, capitalised, and leaves the file byte-identical" \
+   "$(_algrant Commission):$(_alsame "$ALP/autonomy" "$_alfheld")" "returned 1:same"
+
 rm -rf "$ALP"/autonomy* "$TMP/al.want" "$TMP/al.out" "$TMP/al.err"
 for _alf in "$ALK"/autonomy*; do if [ -e "$_alf" ] || [ -L "$_alf" ]; then mv "$_alf" "$ALP/"; fi; done
 rmdir "$ALK" 2>/dev/null

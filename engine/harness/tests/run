@@ -27379,6 +27379,40 @@ is  "and when the hook's own computation of the topology fails over rows that re
     "$(_duresays "$_dures5" 'Commissioning: receipt') $(_duresays "$_dures5" "$_durerowk") $(_duresays "$_dures5" 'could not be computed')" "silent silent silent"
 rm -f "$_durep/commissioning.tsv" "$_durans"
 
+# 6. felix_commission_request reads the declared list once, and the topology it writes
+# is the one of the list whose names it wrote (F6). Until 2026-10-08 it read the list
+# and built the union, and then called felix_commission_topology, which read the list and
+# built the union again: two reads, so under a list that moved between them (or a read
+# that failed the second time) the names in the request came from one read and its
+# topology from another. A felix_declared that counts its calls in a file and gives one
+# more capability after the first shows both. The topology of the first list is what the
+# request must hold, and the capabilities it names are that list's.
+_durecalls2="$TMP/dure-calls2"
+_durereq() { local _durem="$1"; shift
+  ( cd "$_durer" || exit 99
+    set -o pipefail
+    HOME="$_durehome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durebin0:/usr/bin:/bin"
+    . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/verify.sh"
+    . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/commission-provider.sh"
+    case "$_durem" in
+      moving) felix_declared() { printf x >> "$_durecalls2"
+                if [ "$(wc -c < "$_durecalls2" | tr -d ' ')" -le 1 ]; then printf 'secrets\ndurebill\ndurecap\n'
+                else printf 'secrets\ndurebill\ndurecap\ndureextra\n'; fi; return 0; } ;;
+    esac
+    "$@" ) 2>/dev/null; }
+_durereqfile="$MEM/dureproj/commission/requests/automation_surveyed.md"
+_durefirst="$(_durereq fixed felix_commission_topology "$_durep" "$_durer" 2>/dev/null)"
+: > "$_durecalls2"
+_durereq moving felix_commission_request "$_durep" "$_durer" automation_surveyed "$_duretpl" >/dev/null
+_durereads="$(wc -c < "$_durecalls2" | tr -d ' ')"
+_duretopoin="$(sed -n 's/^.*Topology `\([0-9a-f]*\)`.*$/\1/p' "$_durereqfile" | head -n 1)"
+_durecapsin="$(sed -n 's/^.*Felix already detected: //p' "$_durereqfile" | head -n 1)"
+is  "felix_commission_request reads the declared list once" "$_durereads" "1"
+is  "and the request holds the topology of the list whose capabilities it names, not the topology of a second read" \
+    "$([ -n "$_duretopoin" ] && [ "$_duretopoin" = "$_durefirst" ] && echo same || echo different) $_durecapsin" \
+    "same deploy durebill durecap secrets tests"
+rm -f "$_durereqfile" "$_durecalls2"
+
 rm -rf "$_durep" "$_durer" "$_durehome" "$_durebin0" "$_duregrep" "$_duretr" "$_durepv" "$_dureeng" "$_durecalls" "$MEM/dureproj"
 [ -d "$FROOT/state" ] && find "$FROOT/state" -name '*dureproj*' -exec rm -rf {} + 2>/dev/null
 _durenl='
@@ -27388,11 +27422,11 @@ find "$FROOT/state" -depth -type d 2>/dev/null | while IFS= read -r _dured; do
 done
 is  "and the block for the second review's fixes leaves the projects, the state and the memory as it found them" \
     "$(_durefixture)" "$_durefound"
-unset -f _durefixture _durecli _duresays _dureis _durelines _durerecl _duredl _dureprun _durej _durepol _durestart _durecom
+unset -f _durefixture _durecli _duresays _dureis _durelines _durerecl _duredl _dureprun _durej _durepol _durestart _durecom _durereq
 unset _durefound _duredirs _durep _durer _durehome _durebin0 _duregrep _duretr _duretpl _durerealgrep _dureretr \
       _dureplain _durestub _duren _durenl _dured _durerec0 _durerec1 _dured0 _dured1 _dureeff _duregaps \
       _durepv _durepolun _durepolrd _durepolno _durepolem _dureeng _durecalls _durewhy _durans _duretopo _dureold \
-      _durerow _durerowk _dures1 _dures2 _dures3 _dures4 _dures5
+      _durerow _durerowk _dures1 _dures2 _dures3 _dures4 _dures5 _durecalls2 _durereqfile _durefirst _durereads _duretopoin _durecapsin
 
 # A table command whose last stage succeeds whatever it is fed is refused.
 #

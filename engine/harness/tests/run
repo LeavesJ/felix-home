@@ -18327,7 +18327,10 @@ _cmlfstub() { local _cmlfmode="$1"; shift
     tab)          IFS=$'\t' ;;
     declared-exit0) felix_declared() { exit 0; } ;;
     present-exit0)  _felix_commission_functions_present() { exit 0; } ;;
-    declared-grep2) grep() { case "$1$2" in '-vE^\s*(#|$)') return 2 ;; esac; command grep "$@"; } ;;
+    declared-cat2)  mkdir -p "$TMP/cmlfcat2"
+                    printf '#!/bin/bash\nfor a in "$@"; do case "$a" in *capabilities) exit 2 ;; esac; done\nexec %s "$@"\n' \
+                      "$(type -P cat)" > "$TMP/cmlfcat2/cat"
+                    chmod +x "$TMP/cmlfcat2/cat"; PATH="$TMP/cmlfcat2:$PATH" ;;
     count-first)    grep() { case "$1$2" in '-vE^[[:space:]]*(#|$)') return 2 ;; esac; command grep "$@"; } ;;
     count-first-two) grep() { case "$1$2" in '-vE^[[:space:]]*(#|$)') command grep "$@" | awk 'NR <= 2'; return 2 ;; esac
                       command grep "$@"; } ;;
@@ -18492,6 +18495,9 @@ is  "an answer whose rows could not be counted is not ingested: the record print
 #   was empty.
 # - felix_declared swallowing grep's exit 2 was caught only at mode 000, which
 #   root can still read. This one stubs the grep and runs as anybody.
+#   (Restated 2026-10-08, blind from the contract in
+#   docs/handoff/pending/20261008T191950Z-claude-declared-not-text.md, rule 7:
+#   the file is read once, by cat on PATH, so the stub is a cat that fails.)
 # - A walk of the names through a second substitution or a here-document
 #   passed every assertion, and so did a membership test that inlined
 #   felix_has_line's here-document. Each lookup is read here as bash prints it:
@@ -18507,9 +18513,10 @@ is  "a declared list whose substitution ended before it answered, with status 0,
     "2 [] unknown"
 is  "a names lookup whose substitution ended with status 0 and no text makes the row unknown, not done" \
     "$(_cmlfefn present-exit0 "$_cmlfgone" | cut -f1)" "unknown"
-is  "felix_declared returns nonzero and prints nothing when its grep fails, as any user, and _felix_cap_active returns 2" \
-    "$(_cmlfnz "$(_cm _cmlfstub declared-grep2 _cmlfrc felix_declared "$CMP")") $(_cmlfca declared-grep2 api)" \
+is  "felix_declared returns nonzero and prints nothing when its read fails, a cat on PATH failing, as any user, and _felix_cap_active returns 2" \
+    "$(_cmlfnz "$(_cm _cmlfstub declared-cat2 _cmlfrc felix_declared "$CMP")") $(_cmlfca declared-cat2 api)" \
     "nonzero, nothing 2 []"
+rm -rf "$TMP/cmlfcat2"
 rm -f "$CMP/capabilities"; ln -s "$TMP/cmlf-no-such-target" "$CMP/capabilities"
 is  "a capabilities link whose target is gone is not an absent file: _felix_cap_active returns 2 and the row is unknown" \
     "$(_cmlfca none api) $(_cm felix_commission_state "$CMP" "$CMR" cmlf_cap api - - - true 2>/dev/null | cut -f1)" \
@@ -18529,6 +18536,352 @@ rm -f "$CMP/capabilities" "$TMP/cmlf-fifo.out"; mkdir "$CMP/capabilities"
 is  "a capabilities pipe or directory is no list: _felix_cap_active returns 2 at once for each, neither waiting on the pipe nor reading either as absent" \
     "$_cmlffifo $(_cmlfca none api)" "2 [] 2 []"
 rmdir "$CMP/capabilities"
+# ---- declared-not-text: begin
+# Written blind from the contract in
+# docs/handoff/pending/20261008T191950Z-claude-declared-not-text.md (rules 0 to
+# 8), before the fix, and run against main's engine and the pre-fix base first:
+# a capabilities file that is not a list of names. Every fixture is built with
+# printf octal escapes. "status [stdout]" is what felix_declared printed on
+# stdout, byte for byte (a NUL it printed shows as <NUL>), and the status it
+# returned. Each rule is asserted under LC_ALL=C and under a UTF-8 locale this
+# machine has (skipped, saying so, when it has none), and each felix_declared
+# call is made with the caller's pipefail on and then off. Every helper is
+# _dnt-prefixed and unset at the end; every stub is a PATH entry set inside a
+# _cm subshell, never a function in this shell; $CMP/capabilities is left
+# absent, as the line above leaves it, and $CMP/stack.tsv and the cli stub's
+# log as they were found.
+_dntu=''
+for _dntl in en_US.UTF-8 C.UTF-8 en_US.utf8 C.utf8; do
+  if [ "$(LC_ALL="$_dntl" "$BASH" -c 'x="$(printf "\303\251")"; printf "%s" "${#x}"' 2>/dev/null)" = 1 ]; then
+    _dntu="$_dntl"; break
+  fi
+done
+cp -p "$CMP/stack.tsv" "$TMP/dnt-stack.keep"
+cp -p "$CMSTUB_LOG" "$TMP/dnt-cmstub.keep"
+# The commands rule 7 names, each a PATH stub that logs its own name when an
+# argument names the capabilities file or its stdin is that file, then runs
+# the real command. And two cats that fail when asked for the file: one
+# printing nothing, one printing its first line.
+mkdir -p "$TMP/dnt-bin" "$TMP/dnt-cat-none" "$TMP/dnt-cat-part"
+cat > "$TMP/dnt-isit" <<'DNTSTUB'
+# 0 when an argument names the capabilities file or stdin is that file.
+_dntid() { stat -L -c '%d:%i' "$1" 2>/dev/null || stat -L -f '%d:%i' "$1" 2>/dev/null; }
+_dntisit() { local _dnta
+  for _dnta in "$@"; do case "$_dnta" in *capabilities*) return 0 ;; esac; done
+  [ -n "${DNT_CAPS:-}" ] && [ -e "$DNT_CAPS" ] || return 1
+  [ "$(_dntid /dev/stdin)" = "$(_dntid "$DNT_CAPS")" ]; }
+DNTSTUB
+for _dntc in cat grep sed awk head tail wc od tr cut; do
+  _dntreal="$(type -P "$_dntc")"
+  cat > "$TMP/dnt-bin/$_dntc" <<DNTSTUB
+#!/bin/bash
+. "$TMP/dnt-isit"
+if _dntisit "\$@"; then printf '%s\n' $_dntc >> "\$DNT_LOG"; fi
+exec "$_dntreal" "\$@"
+DNTSTUB
+done
+_dntreal="$(type -P cat)"
+cat > "$TMP/dnt-cat-none/cat" <<DNTSTUB
+#!/bin/bash
+. "$TMP/dnt-isit"
+if _dntisit "\$@"; then exit 1; fi
+exec "$_dntreal" "\$@"
+DNTSTUB
+cat > "$TMP/dnt-cat-part/cat" <<DNTSTUB
+#!/bin/bash
+. "$TMP/dnt-isit"
+if _dntisit "\$@"; then IFS= read -r _dntline < "\$DNT_CAPS"; printf '%s\n' "\$_dntline"; exit 1; fi
+exec "$_dntreal" "\$@"
+DNTSTUB
+chmod +x "$TMP/dnt-bin/"* "$TMP/dnt-cat-none/cat" "$TMP/dnt-cat-part/cat"
+
+# The caller's locale in this subshell: C is LC_ALL=C; utf8, ctype and lang
+# name the UTF-8 locale in LC_ALL, LC_CTYPE or LANG alone.
+_dntenv() { unset LC_ALL LC_CTYPE LANG
+  case "$1" in
+    C)     export LC_ALL=C ;;
+    utf8)  export LC_ALL="$_dntu" ;;
+    ctype) export LC_CTYPE="$_dntu" ;;
+    lang)  export LANG="$_dntu" ;;
+  esac
+  export DNT_CAPS="$CMP/capabilities" DNT_LOG="$TMP/dnt-opens"; }
+_dntfill() { local _dnti=0
+  while [ "$_dnti" -lt 1100 ]; do
+    printf '# filler comment, here only to push what follows past 64 KiB\n'; _dnti=$((_dnti + 1))
+  done; }
+# A fixture: a printf format written to the file, or @absent, @dir, @dangling,
+# @keep (the file as it is), @link:FORMAT (a link to a regular file holding
+# it) or @big:FORMAT (67100 bytes of comment lines, then it).
+_dntput() { local _dntf="$CMP/capabilities"
+  [ "$1" = @keep ] && return 0
+  if [ -d "$_dntf" ] && [ ! -L "$_dntf" ]; then rmdir "$_dntf"; fi
+  rm -f "$_dntf" "$TMP/dnt-target"
+  case "$1" in
+    @absent)   ;;
+    @dir)      mkdir "$_dntf" ;;
+    @dangling) ln -s "$TMP/dnt-no-such-target" "$_dntf" ;;
+    @link:*)   printf "${1#@link:}" > "$TMP/dnt-target"; ln -s "$TMP/dnt-target" "$_dntf" ;;
+    @big:*)    { _dntfill; printf "${1#@big:}"; } > "$_dntf" ;;
+    *)         printf "$1" > "$_dntf" ;;
+  esac; }
+# "status [stdout]" of a call made in this shell.
+_dntrc() { local _dnts _dntv=''
+  "$@" > "$TMP/dnt-out" 2>/dev/null; _dnts=$?
+  if [ -s "$TMP/dnt-out" ]; then
+    { _dntv="$(cat "$TMP/dnt-out"; printf .)"; } 2>/dev/null; _dntv="${_dntv%.}"
+    [ "$(LC_ALL=C tr -d '\000' < "$TMP/dnt-out" | LC_ALL=C wc -c)" = "$(LC_ALL=C wc -c < "$TMP/dnt-out")" ] || _dntv="$_dntv<NUL>"
+  fi
+  printf '%s [%s]' "$_dnts" "$_dntv"; }
+# $1 the locale, the rest fixtures: per fixture felix_declared with pipefail
+# on, then off, and the fixtures joined by " | ".
+_dntmany() { local _dntf _dntsep=''; _dntenv "$1"; shift
+  for _dntf in "$@"; do
+    _dntput "$_dntf"
+    printf '%s%s %s' "$_dntsep" "$(set -o pipefail; _dntrc felix_declared "$CMP")" "$(set +o pipefail; _dntrc felix_declared "$CMP")"
+    _dntsep=' | '
+  done; }
+# NAME, then FIXTURE EXPECTED pairs: one assertion under LC_ALL=C and one
+# under the UTF-8 locale.
+_dntcheck() { local _dntn="$1" _dntx='' _dntsep=''; local -a _dntfs=(); shift
+  while [ "$#" -ge 2 ]; do _dntfs+=("$1"); _dntx="$_dntx$_dntsep$2 $2"; _dntsep=' | '; shift 2; done
+  is "$_dntn, under LC_ALL=C" "$(_cm _dntmany C "${_dntfs[@]}")" "$_dntx"
+  if [ -n "$_dntu" ]; then is "$_dntn, under a UTF-8 locale" "$(_cm _dntmany utf8 "${_dntfs[@]}")" "$_dntx"
+  else skip "$_dntn, under a UTF-8 locale" "no UTF-8 locale here"; fi; }
+# Under one locale, the stubbed commands that named the file while
+# felix_declared ran once, as [name name].
+_dntopens() { local _dntp="$PATH"; _dntenv "$1"; _dntput "$2"; : > "$DNT_LOG"
+  PATH="$TMP/dnt-bin:$_dntp"
+  felix_declared "$CMP" > /dev/null 2>&1
+  PATH="$_dntp"
+  printf '[%s]' "$(tr '\n' ' ' < "$DNT_LOG" | sed 's/ $//')"; }
+# Under one locale, over 'storage\nbilling\n', with the cat in $TMP/dnt-cat-$2
+# first on PATH: felix_declared with pipefail on and off, the status alone
+# when $3 is status, then _felix_cap_active storage and felix_declared_into.
+_dntcatfail() { local _dntr _dnts _dntv; _dntenv "$1"; _dntput 'storage\nbilling\n'; PATH="$TMP/dnt-cat-$2:$PATH"
+  if [ "${3:-}" = status ]; then
+    _dntr="$(set -o pipefail; _dntrc felix_declared "$CMP")"; _dnts="$(set +o pipefail; _dntrc felix_declared "$CMP")"
+    _dntr="${_dntr%% *} ${_dnts%% *}"
+  else
+    _dntr="$(set -o pipefail; _dntrc felix_declared "$CMP") $(set +o pipefail; _dntrc felix_declared "$CMP")"
+  fi
+  _dntv=untouched; felix_declared_into _dntv "$CMP"; _dnts=$?
+  printf '%s %s %s|%s|' "$_dntr" "$(_dntrc _felix_cap_active storage "$CMP")" "$_dnts" "$_dntv"; }
+_dntcap()  { _dntenv "$1"; _dntput "$2"; _dntrc _felix_cap_active storage "$CMP"; }
+_dntinto() { local _dnts _dntv=untouched; _dntenv "$1"; _dntput "$2"
+  felix_declared_into _dntv "$CMP"; _dnts=$?; printf '%s|%s|' "$_dnts" "$_dntv"; }
+_dntplan() { _dntenv "$1"; _dntput "$2"
+  felix_stack_plan "$CMP" 2>/dev/null | awk -F'\t' '$3 == "dnt-skill-absent" { print $1 }'; }
+# The caller's state after a call made in this shell, not a substitution.
+_dntstate() { local _dntg=glob _dntx=-
+  case "$-" in *f*) _dntg=noglob ;; esac
+  case "$(export -p)" in *'declare -x LC_ALL='*) _dntx=exported ;; esac
+  printf '%s|%s|%s|%s|%s|%s|%s|%s|%s' "${LC_ALL-unset}" "${LC_CTYPE-unset}" "${LANG-unset}" "$_dntx" \
+    "${IFS-unset}" "$#" "${1-}" "${2-}" "$_dntg"; }
+_dntkeepset() { _dntput "$1"; export LC_ALL="${_dntu:-C}" LC_CTYPE=C LANG="${_dntu:-C}"
+  IFS=':'; set -- 'a b' c; set -f
+  felix_declared "$CMP" > /dev/null 2>&1; _dntstate "$@"; }
+_dntkeepunset() { _dntput "$1"; unset LC_ALL LC_CTYPE LANG IFS; set --; set +f
+  felix_declared "$CMP" > /dev/null 2>&1; _dntstate "$@"; }
+
+# Rule 0, unchanged.
+_dntcheck "felix_declared over no capabilities file prints nothing and returns 0, and over a directory or a link whose target is gone prints nothing and returns 2" \
+  @absent '0 []' @dir '2 []' @dangling '2 []'
+_dntcheck "a capabilities link to a regular file is read as that file: its list is printed, and one holding a NUL is no list" \
+  '@link:storage\nbilling\n' $'0 [storage\nbilling\n]' '@link:storage\nau\000th\n' '2 []'
+is  "a capabilities directory or a link whose target is gone is not opened by any command felix_declared runs" \
+    "$(_cm _dntopens C @dir) $(_cm _dntopens C @dangling)" "[] []"
+rm -f "$CMP/capabilities"; printf 'storage\n' > "$CMP/capabilities"; chmod 000 "$CMP/capabilities"
+if [ -r "$CMP/capabilities" ]; then
+  skip "felix_declared over a capabilities file that cannot be opened prints nothing and returns 2, under LC_ALL=C" \
+       "the file is readable at mode 000 here, as it is to root"
+  skip "felix_declared over a capabilities file that cannot be opened prints nothing and returns 2, under a UTF-8 locale" \
+       "the file is readable at mode 000 here, as it is to root"
+else
+  _dntcheck "felix_declared over a capabilities file that cannot be opened prints nothing and returns 2" @keep '2 []'
+fi
+chmod 644 "$CMP/capabilities"; rm -f "$CMP/capabilities"
+
+# Rule 1: a NUL byte makes it no list.
+_dntcheck "a capabilities file holding a NUL is no list, nothing printed and 2, whether the NUL is its first byte, inside a name, a comment or a blank line, or in a last line with no newline" \
+  '\000storage\nbilling\n' '2 []' \
+  'storage\nau\000th\nbilling\n' '2 []' \
+  'storage\n# a \000 comment\nbilling\n' '2 []' \
+  'storage\n \000\t\nbilling\n' '2 []' \
+  'storage\n\000\nbilling\n' '2 []' \
+  'storage\nbilling\000' '2 []' \
+  'storage\nbill\000ing' '2 []' \
+  '\000' '2 []'
+_dntcheck "a NUL right after a UTF-8 lead byte, or past the first 64 KiB in a name or a comment, makes the file no list too" \
+  '\303\000storage\nbilling\n' '2 []' \
+  'storage\ncaf\303\000\n' '2 []' \
+  '@big:storage\nau\000th\nbilling\n' '2 []' \
+  '@big:storage\n# late \000 comment\nbilling\n' '2 []' \
+  '@big:storage\nbilling\000' '2 []'
+_dntcheck "a UTF-16 capabilities file in either byte order, with its byte-order mark or without, and a UTF-32 one, are no list" \
+  '\377\376s\000t\000o\000r\000a\000g\000e\000\n\000' '2 []' \
+  's\000t\000o\000r\000a\000g\000e\000\n\000' '2 []' \
+  '\376\377\000s\000t\000o\000r\000a\000g\000e\000\n' '2 []' \
+  '\000s\000t\000o\000r\000a\000g\000e\000\n' '2 []' \
+  '\377\376\000\000s\000\000\000t\000\000\000\n\000\000\000' '2 []' \
+  '\000\000\000s\000\000\000t\000\000\000\n' '2 []'
+
+# Rule 2: byte for byte, in the C locale, whatever the caller's.
+_dnt2f=('\303\000storage\n' 'storage\n\302\240\nbilling\n' '# caf\351 \377\376 latin-1 in a comment\nstorage\n'
+        '\357\273\277storage\nbilling\n' 'storage\ncaf\303\251\n' 'storage\nbil\377ling\n' 'storage\r\nbilling\r\n')
+_dnt2x=$'2 [] 2 [] | 2 [] 2 [] | 0 [storage\n] 0 [storage\n] | 0 [storage\nbilling\n] 0 [storage\nbilling\n] | 2 [] 2 [] | 2 [] 2 [] | 2 [] 2 []'
+if [ -n "$_dntu" ]; then
+  is  "one capabilities file gives one stdout and one status whether LC_ALL is C or the UTF-8 locale, or LC_CTYPE or LANG alone names it" \
+      "$(_cm _dntmany C "${_dnt2f[@]}") || $(_cm _dntmany utf8 "${_dnt2f[@]}") || $(_cm _dntmany ctype "${_dnt2f[@]}") || $(_cm _dntmany lang "${_dnt2f[@]}")" \
+      "$_dnt2x || $_dnt2x || $_dnt2x || $_dnt2x"
+else
+  skip "one capabilities file gives one stdout and one status whether LC_ALL is C or the UTF-8 locale, or LC_CTYPE or LANG alone names it" \
+       "no UTF-8 locale here"
+fi
+_dntall=''; _dnti=1
+while [ "$_dnti" -le 255 ]; do [ "$_dnti" -eq 10 ] || _dntall="$_dntall$(printf '\\%03o' "$_dnti")"; _dnti=$((_dnti + 1)); done
+_dnthigh=''; _dnti=128
+while [ "$_dnti" -le 255 ]; do _dnthigh="$_dnthigh$(printf '\\%03o' "$_dnti")"; _dnti=$((_dnti + 1)); done
+_dntcheck "no byte sends the read into a binary mode: a comment holding every byte but NUL and newline is skipped and the names after it printed, and a name holding every byte from 200 up is no list, never a Binary file line or a path" \
+  "# every byte: $_dntall\nstorage\nbilling\n" $'0 [storage\nbilling\n]' \
+  "storage\nx$_dnthigh\n" '2 []'
+_dntkx="${_dntu:-C}|C|${_dntu:-C}|exported|:|2|a b|c|noglob"
+is  "after a call in the current shell the caller's LC_ALL, LC_CTYPE, LANG, IFS, positional parameters and set -f are as they were, over a marked list and over a NUL" \
+    "$(_cm _dntkeepset '\357\273\277storage\n') $(_cm _dntkeepset 'storage\nau\000th\n')" "$_dntkx $_dntkx"
+is  "and with LC_ALL, LC_CTYPE, LANG and IFS unset, no positional parameters and set +f, they stay so" \
+    "$(_cm _dntkeepunset '\357\273\277storage\n') $(_cm _dntkeepunset 'storage\nau\000th\n')" \
+    "unset|unset|unset|-|unset|0|||glob unset|unset|unset|-|unset|0|||glob"
+
+# Rule 3: a leading byte-order mark is not part of the first line.
+_dntcheck "a byte-order mark at the very start is dropped once: before a comment, a blank line or a name the file reads as if it were not there, and alone it is an empty list" \
+  '\357\273\277# c\nstorage\n' $'0 [storage\n]' \
+  '\357\273\277\nstorage\n' $'0 [storage\n]' \
+  '\357\273\277storage\nbilling\n' $'0 [storage\nbilling\n]' \
+  '\357\273\277' '0 []'
+_dntcheck "the same three bytes anywhere else are bytes of their line: a second mark, or one inside or starting a later line, makes the file no list" \
+  '\357\273\277\357\273\277storage\n' '2 []' \
+  'storage\n\357\273\277billing\n' '2 []' \
+  'storage\n\357\273\277# c\n' '2 []' \
+  'stor\357\273\277age\n' '2 []'
+
+# Rule 4: a listed line is tab and printable ASCII, or the file is no list.
+_dntcheck "a listed line holding a byte outside tab and printable ASCII makes the whole file no list: a line of only a no-break space, names ending in a CR, a byte from 200 up, DEL" \
+  'storage\n\302\240\nbilling\n' '2 []' \
+  'storage\r\nbilling\r\n' '2 []' \
+  'storage\nbilling\r\n' '2 []' \
+  'storage\ncaf\303\251\n' '2 []' \
+  'caf\303\251\nstorage\n' '2 []' \
+  'storage\nbil\177ling\n' '2 []' \
+  'storage\n\377billing\n' '2 []'
+_dntcheck "and so does any other control byte in a name: 001, ESC, VT or FF inside it, before it or after it" \
+  'storage\nbil\001ling\n' '2 []' \
+  'storage\nbil\033ling\n' '2 []' \
+  'storage\nbil\013ling\n' '2 []' \
+  'storage\nbil\014ling\n' '2 []' \
+  'storage\n\033[31mbilling\n' '2 []' \
+  'storage\n\014billing\n' '2 []' \
+  'storage\nbilling\013\n' '2 []'
+_dntpr=''; _dnti=32
+while [ "$_dnti" -le 126 ]; do _dntpr="$_dntpr$(printf '\\%03o' "$_dnti")"; _dnti=$((_dnti + 1)); done
+_dntcheck "tab and every byte from space to tilde are name bytes: a line holding all of them is printed as it stands" \
+  "\t$_dntpr\n" "$(printf "0 [\t$_dntpr\n]")"
+
+# Rule 5: blank and comment lines are skipped byte-wise.
+_dntcheck "a comment is skipped whatever it holds but a NUL: an em dash, a no-break space after the #, a CR at its end, control bytes and bytes from 200 up" \
+  '# caps \342\200\224 the founder\nstorage\n' $'0 [storage\n]' \
+  '  # x\r\nstorage\n' $'0 [storage\n]' \
+  '#\302\240x\nstorage\n' $'0 [storage\n]' \
+  '# \001\033\177\377\376 x\nstorage\n' $'0 [storage\n]' \
+  '\r# led by a CR\n\013# led by a VT\n\014\t # led by an FF and a tab\nstorage\n' $'0 [storage\n]'
+_dntcheck "a line of only a CR, only a VT, only an FF, or of spaces, tabs and those, is blank" \
+  '\r\nstorage\n' $'0 [storage\n]' \
+  '\013\nstorage\n' $'0 [storage\n]' \
+  '\014\nstorage\n' $'0 [storage\n]' \
+  ' \t\r\013\014 \nstorage\n' $'0 [storage\n]' \
+  '\r\n\013\n\014\n' '0 []'
+_dntcheck "a # after a no-break space does not make a comment: that line is listed, holds bytes from 200 up, and the file is no list" \
+  '\302\240# x\nstorage\n' '2 []' \
+  'storage\n\302\240\302\240# x\n' '2 []'
+
+# Rule 6: everything else as before.
+_dntcheck "each listed line is printed verbatim in file order, spaces, tabs and an inline remark kept, and a last line with no newline is given one" \
+  'deploy   # only staging\n' $'0 [deploy   # only staging\n]' \
+  '  storage \t\n\tbilling\n' $'0 [  storage \t\n\tbilling\n]' \
+  'zeta\nalpha\nzeta\n' $'0 [zeta\nalpha\nzeta\n]' \
+  'storage\nbilling' $'0 [storage\nbilling\n]' \
+  '# c\n\nstorage\n  # d\n\nbilling' $'0 [storage\nbilling\n]'
+_dntcheck "a capabilities file with no listed line, empty or only comments and blanks, prints nothing and returns 0" \
+  '' '0 []' \
+  '# only a comment\n\n   \n\t# another\n' '0 []'
+_dntcheck "a capabilities file past 64 KiB with no NUL is read whole" \
+  '@big:storage\nbilling\n' $'0 [storage\nbilling\n]'
+
+# Rule 7: one read, by cat. The cat failures run under C and under the UTF-8
+# locale, or under C twice where there is none.
+_dntul=C; [ -n "$_dntu" ] && _dntul=utf8
+_dnt7() { printf '%s %s %s %s %s' "$(_cm _dntopens "$1" 'storage\nbilling\n')" "$(_cm _dntopens "$1" '\357\273\277storage\n')" \
+            "$(_cm _dntopens "$1" 'storage\nau\000th\n')" "$(_cm _dntopens "$1" 'storage\r\nbilling\r\n')" \
+            "$(_cm _dntopens "$1" '@big:storage\n')"; }
+is  "the capabilities file is opened once, by cat, and named by no other command felix_declared runs, as a list, with a mark, holding a NUL or a CR, or past 64 KiB, under LC_ALL=C" \
+    "$(_dnt7 C)" "[cat] [cat] [cat] [cat] [cat]"
+if [ -n "$_dntu" ]; then
+  is  "the capabilities file is opened once, by cat, and named by no other command felix_declared runs, under a UTF-8 locale" \
+      "$(_dnt7 utf8)" "[cat] [cat] [cat] [cat] [cat]"
+else
+  skip "the capabilities file is opened once, by cat, and named by no other command felix_declared runs, under a UTF-8 locale" \
+       "no UTF-8 locale here"
+fi
+is  "a cat that prints nothing and fails, as any user, makes felix_declared print nothing and return 2 with pipefail on and off, _felix_cap_active return 2 and felix_declared_into return 2 leaving its variable alone" \
+    "$(_cm _dntcatfail C none) $(_cm _dntcatfail "$_dntul" none)" \
+    "2 [] 2 [] 2 [] 2|untouched| 2 [] 2 [] 2 [] 2|untouched|"
+is  "a cat that prints part of the file and then fails makes felix_declared return 2 whatever it printed, and its readers return 2" \
+    "$(_cm _dntcatfail C part status) $(_cm _dntcatfail "$_dntul" part status)" \
+    "2 2 2 [] 2|untouched| 2 2 2 [] 2|untouched|"
+
+# Rule 8: its readers follow.
+_dnt8() { printf '%s %s %s %s %s' "$(_cm _dntcap "$1" 'storage\nau\000th\nbilling\n')" "$(_cm _dntcap "$1" 'storage\r\nbilling\r\n')" \
+            "$(_cm _dntcap "$1" 'storage\ncaf\303\251\n')" "$(_cm _dntcap "$1" '\377\376s\000t\000o\000r\000a\000g\000e\000\n\000')" \
+            "$(_cm _dntcap "$1" '\357\273\277storage\n')"; }
+is  "_felix_cap_active storage returns 2 over a file holding a NUL, a CR, a byte from 200 up or UTF-16, and 0 over a marked storage, under LC_ALL=C" \
+    "$(_dnt8 C)" "2 [] 2 [] 2 [] 2 [] 0 []"
+if [ -n "$_dntu" ]; then
+  is  "_felix_cap_active storage returns 2 over a file that is no list and 0 over a marked storage, under a UTF-8 locale" \
+      "$(_dnt8 utf8)" "2 [] 2 [] 2 [] 2 [] 0 []"
+else
+  skip "_felix_cap_active storage returns 2 over a file that is no list and 0 over a marked storage, under a UTF-8 locale" \
+       "no UTF-8 locale here"
+fi
+_dntin() { printf '%s %s %s %s' "$(_cm _dntinto "$1" 'storage\nau\000th\nbilling\n')" "$(_cm _dntinto "$1" 'storage\r\nbilling\r\n')" \
+             "$(_cm _dntinto "$1" 'storage\n\302\240\nbilling\n')" "$(_cm _dntinto "$1" '\357\273\277storage\nbilling\n')"; }
+is  "felix_declared_into returns 2 leaving its variable as the caller had it over a NUL, a CR or a no-break space, and assigns a marked list without its mark, under LC_ALL=C" \
+    "$(_dntin C)" $'2|untouched| 2|untouched| 2|untouched| 0|storage\nbilling|'
+if [ -n "$_dntu" ]; then
+  is  "felix_declared_into returns 2 leaving its variable alone over a file that is no list, and assigns a marked list without its mark, under a UTF-8 locale" \
+      "$(_dntin utf8)" $'2|untouched| 2|untouched| 2|untouched| 0|storage\nbilling|'
+else
+  skip "felix_declared_into returns 2 leaving its variable alone over a file that is no list, and assigns a marked list without its mark, under a UTF-8 locale" \
+       "no UTF-8 locale here"
+fi
+printf '# k\tn\ts\tr\tc\nskill\tdnt-skill-absent\t-\tlow\tstorage\n' > "$CMP/stack.tsv"
+_dntsp() { printf '%s %s %s %s %s' "$(_cm _dntplan "$1" 'storage\nau\000th\nbilling\n')" "$(_cm _dntplan "$1" 'storage\r\nbilling\r\n')" \
+             "$(_cm _dntplan "$1" 'storage\n')" "$(_cm _dntplan "$1" '\357\273\277storage\n')" "$(_cm _dntplan "$1" 'billing\n')"; }
+is  "a stack-plan row grounded on storage reads unknown over a file naming it beside a NUL or with a CR, manual over storage plain or marked, dormant over billing, under LC_ALL=C" \
+    "$(_dntsp C)" "unknown unknown manual manual dormant"
+if [ -n "$_dntu" ]; then
+  is  "a stack-plan row grounded on storage reads unknown over a file that is no list, and as before over a list, under a UTF-8 locale" \
+      "$(_dntsp utf8)" "unknown unknown manual manual dormant"
+else
+  skip "a stack-plan row grounded on storage reads unknown over a file that is no list, and as before over a list, under a UTF-8 locale" \
+       "no UTF-8 locale here"
+fi
+
+rm -f "$CMP/capabilities"
+mv "$TMP/dnt-stack.keep" "$CMP/stack.tsv"; mv "$TMP/dnt-cmstub.keep" "$CMSTUB_LOG"
+rm -rf "$TMP/dnt-bin" "$TMP/dnt-cat-none" "$TMP/dnt-cat-part"
+rm -f "$TMP/dnt-isit" "$TMP/dnt-out" "$TMP/dnt-opens" "$TMP/dnt-target" "$TMP/dnt-no-such-target"
+unset -f _dntenv _dntfill _dntput _dntrc _dntmany _dntcheck _dntopens _dntcatfail _dntcap _dntinto _dntplan \
+         _dntstate _dntkeepset _dntkeepunset _dnt7 _dnt8 _dntin _dntsp
+unset _dntu _dntul _dntl _dntc _dntreal _dnt2f _dnt2x _dntall _dnthigh _dnti _dntkx _dntpr
+# ---- declared-not-text: end
 # The answers below are keyed to the topology taken with api declared.
 rm -f "$CMP/capabilities"; printf 'api\n' > "$CMP/capabilities"
 _cmlfans $'plugin\tcmlfone\t-\tllm\twhy' $'plugin\tcmlftwo\t-\tllm\twhy' $'done\t0' > "$_cmlfad/cmlf_zero2.tsv"

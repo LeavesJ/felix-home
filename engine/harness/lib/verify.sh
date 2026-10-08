@@ -275,6 +275,14 @@ _felix_tree_excludes() {
 #
 # For a tree git reads in full, the bytes hashed are the bytes hashed before,
 # so no receipt went stale when this landed.
+#
+# The diff runs with no external diff and no textconv (2026-10-08). Under
+# `diff.external`, GIT_EXTERNAL_DIFF, a driver command or a textconv that prints
+# nothing, git printed nothing for the edited file, so an edit hashed exactly as
+# the clean tree did. Why per call, and what else was measured: above
+# _felix_git_patch in resolve.sh. A binary marking needs nothing here, because
+# the patch's `index` line still names both blobs. For a default configuration
+# the bytes are unchanged, so this too staled no receipt.
 felix_tree_id() {
   local root="$1" home="${2:-}" head diff untracked n=0 meta="" prefix="" f id
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
@@ -290,9 +298,9 @@ EOF
     # a real state — it is what `git init` leaves, and what this suite's own
     # fixture is — and every naive implementation of this dies there.
     head="unborn"
-    _felix_git_read diff git -C "$root" diff -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    _felix_git_read diff git -C "$root" diff --no-ext-diff --no-textconv -- . "${exargs[@]+"${exargs[@]}"}" || return 2
   else
-    _felix_git_read diff git -C "$root" diff HEAD -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    _felix_git_read diff git -C "$root" diff --no-ext-diff --no-textconv HEAD -- . "${exargs[@]+"${exargs[@]}"}" || return 2
   fi
 
   _felix_git_read untracked git -C "$root" ls-files --others --exclude-standard \
@@ -338,9 +346,9 @@ felix_tree_why() {
 $(_felix_tree_excludes "$root" "$home")
 EOF
   if git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1; then
-    err="$(git -C "$root" diff --stat HEAD -- . "${exargs[@]+"${exargs[@]}"}" 2>&1 >/dev/null)"
+    err="$(git -C "$root" diff --no-ext-diff --no-textconv --stat HEAD -- . "${exargs[@]+"${exargs[@]}"}" 2>&1 >/dev/null)"
   else
-    err="$(git -C "$root" diff --stat -- . "${exargs[@]+"${exargs[@]}"}" 2>&1 >/dev/null)"
+    err="$(git -C "$root" diff --no-ext-diff --no-textconv --stat -- . "${exargs[@]+"${exargs[@]}"}" 2>&1 >/dev/null)"
   fi
   [ -n "$err" ] \
     || err="$(git -C "$root" ls-files --others --exclude-standard -- . "${exargs[@]+"${exargs[@]}"}" 2>&1 >/dev/null)"

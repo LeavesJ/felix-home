@@ -26671,18 +26671,21 @@ unset _durbfound _durbdirs _durbp _durbr _durbhome _durbstub _durbasked _durbtpl
 # review: what changes" in
 # docs/handoff/pending/20261001T235048Z-claude-declared-unread-readers.md.
 # These assertions were NOT written blind: they were written after the fix, from
-# the reviewers' evidence, and each was shown failing against the first pass at
-# 1e0197ca, the engine this change is a fix to, before it was shown passing. The
-# libraries are asked in subshells after the libs are sourced, under pipefail as
-# the CLI and the hooks are. Here-documents are made unwritable inside the
+# the reviewers' evidence. Each but six was shown failing against the first pass
+# at 1e0197ca, the engine this change is a fix to, before it was shown passing:
+# 24 of the 30 were red there, and the six that were not are five controls over a
+# list that was read and the check that the block leaves the tree as it found it.
+# The libraries are asked in subshells after the libs are sourced, under pipefail
+# as the CLI and the hooks are. Here-documents are made unwritable inside the
 # subshell with an ignored SIGXFSZ and a file size limit of nothing, which a bash
 # that writes a here-document to a temporary file meets, 3.2 among them, and a
 # bash that sends a small one through a pipe does not: the assertions pass there
 # and fail only where the defect is. The CLI and the hook
 # are other processes, so there the capabilities file is a link whose target is
-# gone, and the two scratch engine copies add a felix_declared that fails only
-# for _felix_discover_rules. The marketplace is a stub on PATH that records every
-# call. Nothing reaches the network or installs anything.
+# gone. The block makes one scratch copy of the engine, which adds a
+# felix_declared that fails only for _felix_discover_rules and, for the last case,
+# lacks the obligations template. The marketplace is a stub on PATH that records
+# every call. Nothing reaches the network or installs anything.
 # Everything this makes is removed below and everything it defines unset.
 _durcfixture() { { find "$FROOT/projects" "$FROOT/state" "$MEM" 2>/dev/null | LC_ALL=C sort
                    find "$FROOT/projects" "$FROOT/state" "$MEM" -type f -exec cksum {} + 2>/dev/null | LC_ALL=C sort; } | cksum; }

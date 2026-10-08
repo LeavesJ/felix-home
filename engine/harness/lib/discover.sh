@@ -165,9 +165,10 @@ _felix_sorted_lines() { printf '%s\n' "$1" | LC_ALL=C sort -u; }
 # the answer was that no capability lacked a rule. Checked after the template,
 # as before: a template with no rules table is 0 and nothing printed whatever
 # the list. The list is walked in this shell, where a here-document is a
-# temporary file on bash 3.2 and one that cannot be written reads as every
-# capability lacking a rule, and the table's first column is a plain
-# substitution, since its status means nothing.
+# temporary file on bash 3.2. Measured on the first pass of this change, one that
+# could not be written ended the loop before its first capability and the function
+# returned nothing, which read as no capability lacking a rule. The table's first
+# column is a plain substitution, since its status means nothing.
 felix_capabilities_unruled() {
   local proj="$1" tpl="$2" cap ruled declared="" rest nl=$'\n'
   [ -f "$tpl/discover-rules.tsv" ] || return 0

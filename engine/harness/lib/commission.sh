@@ -713,10 +713,13 @@ felix_commission_receipt_valid() {
 # made. Until 2026-10-01 an unread list was an empty one, so every capability only
 # the project declares dropped out of the union and out of "surfaces nothing
 # serves", and the section said fewer did than do. Both are read once with
-# felix_capture and the union walked in this shell, where a here-document is a
-# temporary file on bash 3.2 and one that cannot be written ends the loop before
-# its first capability. The probe rows are a plain substitution, since a
-# pipeline that ends in a sort has no status worth asking of an absent table.
+# felix_capture and the union walked in this shell. The first pass had no
+# here-document loop here, a pipe fed the loop; the failure it had was
+# felix_has_line's here-document on the probe rows, which is a temporary file on
+# bash 3.2, and one that could not be written called every grounded capability
+# ungrounded. The fix that mattered is membership by case. The probe rows are a
+# plain substitution, since a pipeline that ends in a sort has no status worth
+# asking of an absent table.
 felix_commission_gaps() {
   local proj="$1" root="$2" cap served reached grounded probed declared="" union="" rest nl=$'\n'
   felix_declared_into declared "$proj" || return 2

@@ -404,10 +404,13 @@ felix_probes_blocking() {
 # only the project declared dropped out of the union and out of the gaps, and the
 # report said fewer surfaces lacked a probe than do. Both are read here, once,
 # with felix_capture, and walked in this shell: a here-document is a temporary
-# file on bash 3.2, and one that cannot be written reads as every capability
-# being without a probe, which is a list dropped after it was read. The probe
-# rows are a plain substitution, since a pipeline that ends in grep -v returns 1
-# for none and its status means nothing.
+# file on bash 3.2. Measured on the first pass of this change, one that could not
+# be written ended the outer loop before its first capability, so no gap was named
+# and the report said no surface lacked a probe, a list dropped after it was read;
+# and membership is by case, where felix_has_line is a here-document too. The
+# probe rows are a plain substitution: the pipeline ends in sort, and the grep -v
+# inside it returns 1 when no probe grounds anything, so what it says of itself
+# means nothing.
 felix_probes_gaps() {
   local proj="$1" root="$2" grounded cap declared="" union="" rest nl=$'\n'
   felix_declared_into declared "$proj" || return 2
@@ -434,8 +437,9 @@ felix_probes_gaps() {
 # be made. Until 2026-10-01 an unread list left the declared capabilities out of
 # the union, so a probe grounding one was called an orphan, and the report named
 # for deletion a probe that was doing its job. Read and walked as felix_probes_gaps
-# does, the probe rows included, since a here-document that cannot be written
-# reads as every probe being an orphan.
+# does, the probe rows included, since measured on the first pass a here-document
+# that could not be written ended the outer loop before its first probe, so no
+# orphan was named, however many there were.
 felix_probes_orphans() {
   local proj="$1" root="$2" caps cap declared="" union="" rest nl=$'\n'
   felix_declared_into declared "$proj" || return 2

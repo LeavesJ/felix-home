@@ -199,8 +199,10 @@ felix_commission_request() {
 # sends a person to run the skill again over a list nobody read. No file is still
 # awaiting, whatever the list. The topology is captured with felix_capture, since
 # a substitution can end with nothing printed and status 0 when its fork fails.
-# The sentence names the declared list because that is what the topology fails
-# for, bar a hash that could not be made, which the capture cannot tell from it.
+# The sentence names the declared list, the cause the contract fixes. A union or
+# a hash that could not be made, or a capture whose fork failed, is said the same
+# way, since the capture cannot tell them apart from a list that was not read.
+# Session start prints the sentence as the row's own detail.
 felix_commission_provider_state() {
   local proj="$1" root="$2" need="$3" f first last n rows topo=""
   f="$(felix_commission_answer_path "$proj" "$need")"

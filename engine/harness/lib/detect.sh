@@ -137,9 +137,11 @@ felix_declared() {
 # only when what it printed is whole. The sentinel is forged by a last line that
 # is exactly `.`, printed by a command that then failed, and by nothing else.
 # Until 2026-10-01 it was a bare `.`, which a failed felix_declared forged with a
-# last line ending in a dot (`billing.`). No locals and no named variable of its
-# own, because either would hide the caller's variable of the same name from
-# printf -v (lib/commission.sh felix_commission_ask says the same of its own):
+# last line ending in a dot (`billing.`). No locals, because a local of the name
+# the caller passed would take the assignment printf -v makes and the caller's
+# variable would never see it, and no variable of its own, because a global would
+# not hide a caller's variable of the same name but overwrite it (lib/commission.sh
+# felix_commission_ask has no locals either, for the first reason only):
 # everything is held in the positional parameters. The newlines are stripped
 # with a literal one in the pattern, which is the same in bash 3.2 and 5.
 felix_capture() {
@@ -181,10 +183,13 @@ felix_declared_into() {
 # The declared half is printed first, so a felix_detect that exits inside the
 # group cannot take it along. The group ends in `:` because felix_detect's own
 # status is its last test's, 1 for a checkout with no .env.example, and says
-# nothing about whether it ran: its failure under EAGAIN reads as nothing
-# detected, as it did, and is the other lookup this does not guard. The statuses
-# are taken whole into the positional parameters, which pipefail does not change
-# and the first test would reset.
+# nothing about whether it ran. A fork that fails inside the group (felix_detect's
+# EAGAIN) is another thing: on bash 3.2 it kills the group's subshell with 128, so
+# the pipeline's status is nonzero, the union is not made, and its readers say the
+# declared list could not be read, the one sentence they have for it. (Until
+# 2026-10-08 this said that failure reads as nothing detected, as it did; here it
+# does not.) The statuses are taken whole into the positional parameters, which
+# pipefail does not change and the first test would reset.
 _felix_capability_union() {
   { [ -z "$2" ] || printf '%s\n' "$2"; felix_detect "$1" 2>/dev/null; :; } | LC_ALL=C sort -u
   set -- "${PIPESTATUS[@]}"
@@ -200,7 +205,10 @@ _felix_capability_union() {
 # this shell, before the pipeline, and what it holds is skipped by a case, the
 # way _felix_cap_active asks, where felix_has_line's here-document is a
 # temporary file on bash 3.2. A process substitution would hand a loop an empty
-# file when its fork failed, so there is none.
+# file when its fork failed, so there is none. The detected half, `felix_detect |
+# sort -u`, is the felix_detect lookup, left as it was: a sort that fails there
+# reads as less drift, unlike in _felix_capability_union, where a sort that could
+# not run is a union that was not made.
 felix_undeclared() {
   local root="$1" proj="$2" declared nl=$'\n' cap
   felix_declared_into declared "$proj" || return 2

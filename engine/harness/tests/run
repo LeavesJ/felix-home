@@ -27202,7 +27202,6 @@ chmod +x "$_duregrep/grep" "$_duretr/tr"
 _durecli() { local _durebin="$1"; shift
   ( cd "$_durer" && HOME="$_durehome" PATH="$_durebin:/usr/bin:/bin" "$FELIX" "$@" 2>&1; printf '[exit %s]' "$?" ); }
 _duresays() { case "$1" in *"$2"*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
-_dureis()   { if [ -e "$1" ] || [ -L "$1" ]; then printf 'there\n'; else printf 'absent\n'; fi; }
 # The lines of $1 that begin with $2, joined by a bar.
 _durelines() { printf '%s\n' "$1" | awk -v p="$2" 'index($0, p) == 1 { printf "%s%s", (n++ ? "|" : ""), $0 } END { print "" }'; }
 
@@ -27465,7 +27464,7 @@ find "$FROOT/state" -depth -type d 2>/dev/null | while IFS= read -r _dured; do
 done
 is  "and the block for the second review's fixes leaves the projects, the state and the memory as it found them" \
     "$(_durefixture)" "$_durefound"
-unset -f _durefixture _durecli _duresays _dureis _durelines _durerecl _duredl _dureprun _durej _durepol _durestart _durecom _durereq _dureblank _duretriple _durecapt
+unset -f _durefixture _durecli _duresays _durelines _durerecl _duredl _dureprun _durej _durepol _durestart _durecom _durereq _dureblank _duretriple _durecapt
 unset _durefound _duredirs _durep _durer _durehome _durebin0 _duregrep _duretr _duretpl _durerealgrep _dureretr \
       _dureplain _durestub _duren _durenl _dured _durerec0 _durerec1 _dured0 _dured1 _dureeff _duregaps \
       _durepv _durepolun _durepolrd _durepolno _durepolem _dureeng _durecalls _durewhy _durans _duretopo _dureold \

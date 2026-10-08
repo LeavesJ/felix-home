@@ -91,3 +91,83 @@ under `LC_ALL=C` and under a UTF-8 locale (`en_US.UTF-8` on macOS,
    `_felix_cap_active storage` returns 0 for `\357\273\277storage\n`.
 9. **Cost.** No more than one process more per call than the grep it
    replaces. Not asserted by the blind block; the review measures it.
+
+**Mechanism.** `command cat -- <proj>/capabilities | ( LC_ALL=C; ... ) 2>/dev/null`,
+with the status taken from both halves of PIPESTATUS. The subshell reads the
+bytes with `read -d ''`, which stops only at a NUL (exit 3). It cuts a leading
+`\357\273\277` by offset, splits on newlines with `set -f`, and skips blank and
+comment lines by `[[:space:]]` in the C locale. A kept line holding anything
+but tab and `[[:print:]]` is exit 4. The kept lines go into an array and are
+printed with one `printf '%s\n'`. This follows #383's one-read shape:
+- One open, by a named command whose status says whether a read failed. The
+  read builtin returns a read error as end of input, so a redirect would not.
+- The C locale is set inside a ( ) subshell, so the caller's locale, IFS and
+  set -f stay its own. Bash 4 to 5.2 in a UTF-8 locale also hides a NUL that
+  follows a UTF-8 lead byte from `read -d ''` unless the locale is C.
+
+**Built as spec, blind assertions, fix, review.**
+- **Blind block (b7e264bc, Opus).** 50 assertions written from the contract
+  alone, under LC_ALL=C and a UTF-8 locale, with pipefail on and off. 31 were
+  red against origin/main 6fe5f986 and against the base, under both locales.
+  The 19 green ones guard rules 0, 5 and 6 and the caller's state. The old
+  `declared-grep2` assertion was restated against a cat stub; it is red
+  against both.
+- **Fix (a48ce174, Sonnet).** 50/50 under C, en_US.UTF-8 and C.UTF-8. The
+  neighbouring cmlf, dura and durc blocks stayed green. Six mutations each
+  reddened 3 to 9 assertions.
+- **Review (two Opus reviewers).** No blocker. Both found that the block
+  passed a fix with `set -f` removed: `*` then read as the files in the
+  caller's directory. They also found:
+  - output through echo was not caught;
+  - a mark stripped after the split or after leading whitespace was not caught;
+  - a name check that stopped at an inline `#` was not caught;
+  - a NUL decided by a second open (a redirect) was not caught;
+  - the BOM strip `${x#mark}` and the string appends were quadratic, 5.66 s of
+    CPU on 670 KB and 1.95 s for 8,000 names;
+  - `cat` could be shadowed by a function;
+  - a readonly LC_ALL leaked a bash message on stderr;
+  - the comment stated GNU grep's behaviour as measured;
+  - the positional-parameter clause in two assertion names could not fail.
+- **After review (5936b4cd, 454142ae).**
+  - The mark is cut by offset and the names kept in an array: 0.18 s and
+    0.10 s, with output byte-identical to before.
+  - `command cat` is used, the subshell's stderr is discarded, and the comment
+    says GNU grep's behaviour was not run.
+  - Eight not-blind assertions were added, each red only against the mutant it
+    names: noglob, echoout, bomaftersplit, bomafterws, remarkunchecked and
+    secondopen. Each reddened 2 and nothing else.
+  - The two names were corrected.
+- **Final count, block alone, section runner.** 58 assertions: 58/0 on the
+  branch under C and en_US.UTF-8, and 21/37 against origin/main and against
+  the base. Not yet recorded: no full suite has been run.
+
+**Cost, measured on /bin/bash 3.2 here.** One process more per call: a cat
+and a subshell where one grep was, and no extra exec. `_felix_cap_active`
+took about 3.0 ms of child CPU per call before and 3.7 ms after, over 200
+calls, at load 400.
+
+**Not run here, and why.**
+- GNU grep's binary mode was not run; there is no Linux machine here.
+- The bash 4 to 5.2 lead-byte NUL case is pinned by the `\303\000` assertions
+  under a UTF-8 locale, which only CI's bash 5 can make red.
+- A { } group in place of the ( ) differs only under lastpipe (bash 4.2 and
+  later), which no bash here can show red, so it is not asserted. The engine
+  sets no lastpipe.
+- A caller's readonly LC_ALL makes every list 2. It fails closed, and no caller
+  sets one.
+
+**Landing.** Position 8 in the 2026-10-08 carrier queue
+(~/.felix/memory/felix/audits/2026-10-08-carrier/state.md), behind .277
+claude/declared-unread-readers, on whose head 4ccc9e09 this branch is merged.
+At "you are next":
+1. merge that slot's gated head;
+2. record, then `tests/red` against it;
+3. gate after it lands.
+No table under projects/ is touched.
+
+**Seen in passing, not this branch's.** At 12:47:41 local on 2026-10-08,
+`remote.origin.url` in the home's shared .git/config was set to
+https://github.com/acme/widget.git, a fixture URL that main's tests/run
+holds and this branch's tests/run never wrote. By 12:55 it was restored.
+Sessions "Stop tests/run rewriting the real repo's origin" and its siblings
+took it up.

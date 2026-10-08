@@ -23220,6 +23220,447 @@ rmdir "$_lkk" 2>/dev/null
 is "the widget's directory holds exactly what it held before the lock was tested" \
    "$(ls -A "$_lkp" | LC_ALL=C sort)" "$_lkstart"
 
+printf '\nthe writer lock holds under signals, stray output and a person'"'"'s hand\n'
+# 2026-10-08, from the two adversarial reviews of the first lock fix (the
+# block above). That fix trapped HUP, INT and TERM, so they end a run only
+# once the step in flight has returned. Measured against it on bash 3.2:
+# every other signal that ends a process by default ended felix at once.
+# ALRM, USR1 and the like ran the EXIT trap on the way out, so the lock went
+# while the run's own mv was still to land; a revoke of tidy started then
+# took the lock, said revoked:, and lost its revoke under the first run's
+# stale copy. QUIT and PROF skipped the EXIT trap and left the lock for good.
+# So did a closed stdout and a pipe nobody reads: bash kept the text it could
+# not write and flushed it into the next command substitution, the exit
+# trap's, so rmdir was handed the status page ahead of the lock's path. The
+# lock was removed by name, so a run took away a lock somebody had put in its
+# place, and one that had gained contents was left without a word. An INT
+# that killed the mv left the run's autonomy.new.* behind. And a refusal gave
+# a person nothing to judge a stale lock by.
+#
+# These pin L9 to L16 of that addendum. A run paused in its mv and sent one
+# of these signals, to its pid alone, keeps the lock held and empty, and a
+# second run is refused, until the mv returns; then it ends non-zero and
+# silent, and the lock goes. Seven of the twelve are pinned only by the
+# lock's absence at the end, as the addendum asks, and that cannot see a
+# lock let go early. A closed stdout or a dead pipe leaks no lock. TERM at
+# delays swept across a run's life, and INT to its group every 10 ms, never
+# leave one. A run removes only the lock it made, and says so when it leaves
+# one that gained contents. A lock of any age is never taken over, and the
+# refusal says whether it is more than a minute old and that a stopped run
+# still holds its lock. No autonomy.new.* outlives a signal, a refusal or a
+# success. Run A is paused in its mv by a shim first on its PATH, as above;
+# every helper here is this block's own.
+_lwp="$FROOT/projects/widget"; _lwL="$_lwp/autonomy.lock"; _lwk="$TMP/lw-keep"; mkdir -p "$_lwk"
+_lwstart="$(ls -A "$_lwp" | LC_ALL=C sort)"
+for _lwf in "$_lwp"/autonomy*; do { [ -e "$_lwf" ] || [ -L "$_lwf" ]; } && mv "$_lwf" "$_lwk/"; done
+_lwa=""; _lwreached=no
+_lwallows() { ( . "$FROOT/harness/lib/autonomy.sh"; felix_autonomy_allows "$_lwp" "$1" && echo yes || echo no ); }
+_lwclear() { rm -rf "$_lwp"/autonomy*; }   # every autonomy* entry of the widget: the lock and any autonomy.new.* too
+_lwset() {   # FORMAT: the grant file written by printf FORMAT, beside a stamp for commission, and no lock
+  _lwclear; printf "$1" > "$_lwp/autonomy"; printf 'stamp\n' > "$_lwp/autonomy.commission"
+}
+_lwstate() {   # the grant file and the stamp, each by checksum or as absent, then every name in the directory
+  for _lwn in autonomy autonomy.commission; do
+    if [ -e "$_lwp/$_lwn" ]; then printf '%s %s\n' "$_lwn" "$(cksum < "$_lwp/$_lwn")"
+    else printf '%s absent\n' "$_lwn"; fi
+  done
+  ls -A "$_lwp" | LC_ALL=C sort
+}
+_lwsame() { [ "$(_lwstate)" = "$_lwheld" ] && echo same || echo changed; }   # against _lwstate as _lwheld recorded it
+_lwlock() {   # the lock: absent, empty (a directory holding nothing), full, or other (not a directory)
+  if [ -L "$_lwL" ]; then echo other
+  elif [ ! -e "$_lwL" ]; then echo absent
+  elif [ ! -d "$_lwL" ]; then echo other
+  elif [ -n "$(ls -A "$_lwL" 2>/dev/null)" ]; then echo full
+  else echo empty; fi
+}
+_lwnew() {   # how many autonomy.new.* entries the widget's directory holds
+  _lwc=0
+  for _lwf in "$_lwp"/autonomy.new.*; do { [ -e "$_lwf" ] || [ -L "$_lwf" ]; } && _lwc=$((_lwc+1)); done
+  echo "$_lwc"
+}
+_lwid() {   # the lock's inode and modification time, in seconds
+  stat -c '%i %Y' "$_lwL" 2>/dev/null || stat -f '%i %m' "$_lwL" 2>/dev/null
+}
+_lwexit() { case "$1" in 0) echo "exit 0" ;; ''|*[!0-9]*) echo "${1:-no status}" ;; *) echo non-zero ;; esac; }   # STATUS
+_lwended() { case "$1" in ''|*[!0-9]*) echo "${1:-no status}" ;; *) echo ended ;; esac; }   # STATUS: did it end?
+_lwsaid() { case "$1" in *revoked:*|*allowed:*) echo said ;; *) echo silent ;; esac; }   # TEXT: reports a write?
+_lwrv() { case "$1" in *revoked:*) echo said ;; *) echo silent ;; esac; }               # TEXT: says revoked:?
+_lwhas() { case "$1" in *"$2"*) echo "$2" ;; *) echo "no [$2]" ;; esac; }               # TEXT WORDS
+_lwclaim() {   # STATUS TEXT LINE CAP WANT: broken when a run that exited 0 saying LINE leaves CAP's grant other than WANT
+  case "$1:$2" in 0:*"$3"*) [ "$(_lwallows "$4")" = "$5" ] && echo holds || echo broken ;; *) echo holds ;; esac
+}
+_lwuntil() {   # PID: wait up to 30 s, far from a run's cost, for PID to be gone; 0 when it is
+  _lwu=0
+  while kill -0 "$1" 2>/dev/null; do
+    [ "$_lwu" -ge 300 ] && return 1
+    sleep 0.1; _lwu=$((_lwu+1))
+  done
+  return 0
+}
+_lwreap() {   # PID: reap this suite's child PID, given 30 s; _lwrc is its status, or says it did not end
+  if _lwuntil "$1"; then wait "$1"; _lwrc=$?
+  else kill -KILL "$1" 2>/dev/null; wait "$1" 2>/dev/null; _lwrc="still running after 30 s"; fi
+}
+_lwrun() {   # ARGS...: felix autonomy ARGS from the widget checkout; sets _lwrc _lwout _lwerr
+  ( cd "$REPO" && exec "$FELIX" autonomy "$@" ) > "$TMP/lw.out" 2> "$TMP/lw.err" 8>&- &
+  _lwreap $!
+  _lwout="$(cat "$TMP/lw.out")"; _lwerr="$(cat "$TMP/lw.err")"
+}
+_lwprobe() {   # SIG: yes when a bash started the way run A is started can trap SIG
+  set -m
+  ( exec bash -c "trap 'exit 9' $1; kill -$1 \$\$; exit 0" ) > /dev/null 2>&1 8>&- &
+  _lwpp=$!
+  set +m
+  wait "$_lwpp"; [ "$?" = 9 ] && echo yes || echo no
+}
+_lwign() { echo "SIG$1 cannot reach a process this suite starts: it was ignored when the suite began"; }   # SIG
+# The mv run A finds first on its PATH, as in the block above: armed, and
+# moving onto the widget's grant file, it disarms, writes its pid to reached
+# and reads one line from the FIFO release; then, and in every other case at
+# once, it is /bin/mv.
+_lwsh="$TMP/lw-shim"; mkdir -p "$_lwsh"
+{ printf '#!/bin/sh\n_d=%s\n' "'$_lwsh'"
+  cat <<'EOF'
+_last=""; for _a in "$@"; do _last="$_a"; done
+case "$_last" in
+  */projects/widget/autonomy)
+    if [ -e "$_d/armed" ] && /bin/rm "$_d/armed" 2>/dev/null; then
+      echo "$$" > "$_d/reached"
+      read -r _line < "$_d/release"
+    fi ;;
+esac
+exec /bin/mv "$@"
+EOF
+} > "$_lwsh/mv"; chmod +x "$_lwsh/mv"
+_lwgo() {   # ARGS...: run A, felix autonomy ARGS, in the background under job control, the shim first on its PATH
+  # No core file: an engine that leaves QUIT, XCPU or XFSZ to its default
+  # would otherwise dump one into the checkout.
+  _lwa=""; _lwreached=no
+  rm -f "$_lwsh/reached" "$_lwsh/release"; mkfifo "$_lwsh/release" 2>/dev/null
+  [ -p "$_lwsh/release" ] || { _lwreached="no FIFO"; return; }
+  : > "$_lwsh/armed"; exec 8<>"$_lwsh/release"
+  set -m
+  ( ulimit -c 0 2>/dev/null; cd "$REPO" && PATH="$_lwsh:$PATH" exec "$FELIX" autonomy "$@" ) \
+    > "$TMP/lw-a.out" 2> "$TMP/lw-a.err" 8>&- &
+  _lwa=$!
+  set +m
+  _lwg=0
+  while :; do
+    [ -s "$_lwsh/reached" ] && { _lwreached=yes; return; }
+    kill -0 "$_lwa" 2>/dev/null || { _lwreached="it ended first"; return; }
+    [ "$_lwg" -ge 300 ] && { _lwreached="not within 30 s"; return; }
+    sleep 0.1; _lwg=$((_lwg+1))
+  done
+}
+_lwend() {   # release run A's mv and reap both, however A ended; sets _lwarc _lwaout _lwaerr
+  # fd 8 stays open until the mv is gone. A FIFO drops what it holds when its
+  # last descriptor closes, and an mv not yet at its read would then wait for
+  # a line that never comes.
+  { printf 'go\n' >&8; } 2>/dev/null
+  _lwsp="$(cat "$_lwsh/reached" 2>/dev/null)"
+  if [ -n "$_lwsp" ]; then _lwuntil "$_lwsp" || kill -KILL "$_lwsp" 2>/dev/null; fi
+  exec 8>&-
+  _lwarc=""
+  if [ -n "$_lwa" ]; then _lwreap "$_lwa"; _lwarc="$_lwrc"; fi
+  rm -f "$_lwsh/reached" "$_lwsh/release" "$_lwsh/armed"
+  _lwaout="$(cat "$TMP/lw-a.out" 2>/dev/null)"; _lwaerr="$(cat "$TMP/lw-a.err" 2>/dev/null)"
+}
+_lwreq() {   # NAME VALUE EXPECTED: is, once run A paused in its mv; bad when it never did
+  if [ "$_lwreached" = yes ]; then is "$1" "$2" "$3"
+  else bad "$1" "run A never paused in the mv onto the grant file ($_lwreached)"; fi
+}
+_lwbrief() {   # up to half a second, cut short when run A's shell is gone
+  _lwi=0; while [ "$_lwi" -lt 5 ] && kill -0 "$_lwa" 2>/dev/null; do sleep 0.1; _lwi=$((_lwi+1)); done
+}
+
+# L9: a signal to the run alone never releases the lock while its mv is in
+# flight. Run A, a revoke of commission over tidy and commission, is paused in
+# its mv and sent SIG to its pid alone. Half a second later, with the mv still
+# paused, the lock is read, and with B given, run B, a revoke of tidy, runs in
+# that window. Then A's mv is released.
+_lwwin() {   # SIG [B]
+  _lwset 'tidy\ncommission\n'
+  _lwsigheld=unreached; _lwafterb=unreached; _lwbsame=unreached; _lwbrc="never started"; _lwbout=""; _lwberr=""
+  _lwgo --revoke commission
+  if [ "$_lwreached" = yes ]; then
+    kill "-$1" "$_lwa" 2>/dev/null
+    _lwbrief
+    _lwsp="$(cat "$_lwsh/reached" 2>/dev/null)"
+    if [ -n "$_lwsp" ] && kill -0 "$_lwsp" 2>/dev/null; then _lwmv=paused; else _lwmv=gone; fi
+    _lwsigheld="$(_lwlock):mv $_lwmv"
+    if [ -n "${2:-}" ]; then
+      _lwheld="$(_lwstate)"
+      ( cd "$REPO" && exec "$FELIX" autonomy --revoke tidy ) > "$TMP/lw-b.out" 2> "$TMP/lw-b.err" 8>&- &
+      _lwreap $!; _lwbrc="$_lwrc"
+      _lwafterb="$(_lwlock)"; _lwbsame="$(_lwsame)"
+      _lwbout="$(cat "$TMP/lw-b.out")"; _lwberr="$(cat "$TMP/lw-b.err")"
+    fi
+  fi
+  _lwend
+  _lwfinal="$(_lwlock)"; _lwleft="$(_lwnew)"
+}
+for _lws in TERM HUP ALRM USR1 INT; do
+  _lwt="a revoke of commission paused in its mv and sent SIG$_lws to its pid alone"
+  _lwn1="$_lwt: half a second on, the mv still paused, the lock is still there and still empty"
+  _lwn2="$_lwt: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked"
+  _lwn3="$_lwt: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty"
+  _lwn4="$_lwt: once the mv is released, it exits non-zero and says neither revoked: nor allowed:"
+  _lwn5="$_lwt: the lock is gone once both runs have ended"
+  _lwn6="$_lwt: what each run reported holds once both have ended"
+  _lwn7="$_lwt: no autonomy.new.* is left in the widget's directory"
+  if [ "$(_lwprobe "$_lws")" != yes ]; then
+    for _lwn in "$_lwn1" "$_lwn2" "$_lwn3" "$_lwn4" "$_lwn5" "$_lwn6" "$_lwn7"; do skip "$_lwn" "$(_lwign "$_lws")"; done
+    continue
+  fi
+  # The shell's own notices for A ("Terminated", "Alarm clock") are not output.
+  _lwwin "$_lws" B 2>/dev/null
+  _lwreq "$_lwn1" "$_lwsigheld" "empty:mv paused"
+  _lwreq "$_lwn2" \
+         "$(_lwended "$_lwbrc"):$(_lwexit "$_lwbrc"):$(_lwsaid "$_lwbout$_lwberr"):$(_lwhas "$_lwberr" 'projects/widget/autonomy.lock'):$(_lwhas "$_lwberr" rmdir):$(_lwhas "$_lwberr" 'not revoked')" \
+         "ended:non-zero:silent:projects/widget/autonomy.lock:rmdir:not revoked"
+  _lwreq "$_lwn3" "$_lwbsame:$_lwafterb" "same:empty"
+  _lwreq "$_lwn4" "$(_lwexit "$_lwarc"):$(_lwsaid "$_lwaout$_lwaerr")" "non-zero:silent"
+  _lwreq "$_lwn5" "$_lwfinal" "absent"
+  _lwreq "$_lwn6" \
+         "$(_lwclaim "$_lwarc" "$_lwaout$_lwaerr" 'revoked: commission' commission no):$(_lwclaim "$_lwbrc" "$_lwbout$_lwberr" 'revoked: tidy' tidy no)" \
+         "holds:holds"
+  _lwreq "$_lwn7" "$_lwleft" "0"
+done
+# The rest are pinned only as the contract asks: no lock once it has ended,
+# and no revoked:.
+for _lws in QUIT PIPE USR2 XCPU XFSZ VTALRM PROF; do
+  _lwn1="a revoke of commission paused in its mv and sent SIG$_lws to its pid alone leaves no lock once it has ended, and does not say revoked:"
+  if [ "$(_lwprobe "$_lws")" != yes ]; then skip "$_lwn1" "$(_lwign "$_lws")"; continue; fi
+  _lwwin "$_lws" 2>/dev/null
+  _lwreq "$_lwn1" "$_lwfinal:$(_lwrv "$_lwaout$_lwaerr")" "absent:silent"
+done
+
+# L10: output that cannot be written leaks no lock. Closed is >&-. The pipe is
+# a FIFO the run is handed the write end of after its only reader has closed,
+# so the first line the run writes gets EPIPE and SIGPIPE, every time: the
+# suite opens it read-write (a reader, so its own open for writing does not
+# wait), opens that write end, then closes the read-write descriptor before
+# the run starts. A reader process that exits at once would race the run's
+# first write unless reaped first, and this has no reader to reap. After
+# each, the next writing run, a revoke of commission, is not refused.
+_lwdead() {   # HOW FORMAT ARGS...: felix autonomy ARGS over FORMAT, stdout closed (HOW closed) or a dead pipe (HOW pipe)
+  _lwhow="$1"; _lwset "$2"; shift 2
+  if [ "$_lwhow" = closed ]; then
+    ( cd "$REPO" && exec "$FELIX" autonomy "$@" ) >&- 2> "$TMP/lw.err" 8>&- &
+    _lwreap $!
+  else
+    rm -f "$TMP/lw-pipe"; mkfifo "$TMP/lw-pipe" 2>/dev/null
+    if [ -p "$TMP/lw-pipe" ]; then
+      exec 7<>"$TMP/lw-pipe"; exec 6>"$TMP/lw-pipe"; exec 7<&-
+      ( cd "$REPO" && exec "$FELIX" autonomy "$@" ) >&6 2> "$TMP/lw.err" 6>&- 8>&- &
+      _lwreap $!
+      exec 6>&-
+    else _lwrc="no FIFO"; fi
+    rm -f "$TMP/lw-pipe"
+  fi
+  _lwdrc="$_lwrc"; _lwdl="$(_lwlock)"
+  _lwrun --revoke commission
+}
+for _lwhow in closed pipe; do
+  if [ "$_lwhow" = closed ]; then _lwt="whose stdout is closed"; else _lwt="whose stdout is a pipe its reader has already left"; fi
+  _lwdead "$_lwhow" 'tidy\ncommission\n' --revoke tidy 2>/dev/null
+  is "a revoke of tidy $_lwt ends and leaves no lock, and the next revoke, of commission, exits 0 and says so" \
+     "$(_lwended "$_lwdrc"):$_lwdl:$(_lwexit "$_lwrc"):$(_lwrv "$_lwout")" "ended:absent:exit 0:said"
+  _lwdead "$_lwhow" 'commission\n' --allow tidy 2>/dev/null
+  is "an allow of tidy $_lwt ends and leaves no lock, and the next revoke, of commission, exits 0 and says so" \
+     "$(_lwended "$_lwdrc"):$_lwdl:$(_lwexit "$_lwrc"):$(_lwrv "$_lwout")" "ended:absent:exit 0:said"
+done
+
+# L11: a signal at any moment leaves no lock, taking and releasing included.
+# A writing run's length is measured here, in the 0.1 s ticks the sweep
+# sleeps in, so the sweep follows this machine's load. Then 16 runs are each
+# sent TERM, to the pid alone, at delays spread from 0 to a quarter past the
+# longer of the two, and 16 more are sent INT, to their process group, every
+# 10 ms from such a delay until they end: 32 runs, 16 delays each way rather
+# than every tick, to keep the block to a few minutes at a load of several
+# hundred. Even runs revoke tidy and odd ones allow it. Each starts under job
+# control, so INT is not ignored and the group is its own.
+_lwlife() {   # FORMAT ARGS...: one writing run over FORMAT, no signal; _lwticks is its length in ticks, _lwlrc its status
+  _lwset "$1"; shift
+  ( cd "$REPO" && exec "$FELIX" autonomy "$@" ) > /dev/null 2>&1 8>&- &
+  _lwlp=$!; _lwticks=0
+  while kill -0 "$_lwlp" 2>/dev/null && [ "$_lwticks" -lt 300 ]; do sleep 0.1; _lwticks=$((_lwticks+1)); done
+  _lwreap "$_lwlp"; _lwlrc="$_lwrc"
+}
+_lwlife 'tidy\ncommission\n' --revoke tidy; _lwd1="$_lwticks"; _lwr1="$(_lwexit "$_lwlrc"):$(_lwlock)"
+_lwlife 'commission\n' --allow tidy; _lwd2="$_lwticks"; _lwr2="$(_lwexit "$_lwlrc"):$(_lwlock)"
+is "a revoke and an allow sent no signal each exit 0 and leave no lock: the sweeps below are timed against them" \
+   "$_lwr1:$_lwr2" "exit 0:absent:exit 0:absent"
+_lwdur="$_lwd1"; [ "$_lwd2" -gt "$_lwdur" ] && _lwdur="$_lwd2"
+_lwtop=$(( _lwdur + _lwdur / 4 + 1 ))
+_lwsweep() {   # HOW: TERM, once to the pid alone, or INT, to the group every 10 ms until the run ends
+  _lwleft=""; _lwcut=0; _lwj=0
+  while [ "$_lwj" -lt 16 ]; do
+    _lwd=$(( _lwj * _lwtop / 15 ))
+    if [ $(( _lwj % 2 )) = 0 ]; then _lwset 'tidy\ncommission\n'; _lwv=--revoke; else _lwset 'commission\n'; _lwv=--allow; fi
+    set -m
+    ( ulimit -c 0 2>/dev/null; cd "$REPO" && exec "$FELIX" autonomy "$_lwv" tidy ) > /dev/null 2>&1 8>&- &
+    _lwsr=$!
+    set +m
+    _lwi=0; while [ "$_lwi" -lt "$_lwd" ]; do sleep 0.1; _lwi=$((_lwi+1)); done
+    if [ "$1" = TERM ]; then kill -TERM "$_lwsr" 2>/dev/null
+    else
+      _lwi=0
+      while [ "$_lwi" -lt 3000 ] && kill -0 "$_lwsr" 2>/dev/null; do
+        kill -INT -- "-$_lwsr" 2>/dev/null; sleep 0.01; _lwi=$((_lwi+1))
+      done
+    fi
+    _lwreap "$_lwsr"
+    case "$_lwrc" in 0) ;; *[!0-9]*) _lwleft="$_lwleft $_lwv@${_lwd}:hung" ;; *) _lwcut=$((_lwcut+1)) ;; esac
+    if [ "$(_lwlock)" != absent ]; then _lwleft="$_lwleft $_lwv@$_lwd"; rm -rf "$_lwL"; fi
+    _lwj=$((_lwj+1))
+  done
+  [ -n "$_lwleft" ] || _lwleft=none
+}
+_lwn1="TERM sent to a writing run alone, at 16 delays from 0 to past its usual length, cuts at least one run short"
+_lwn2="and no run sent TERM at any of those delays leaves a lock, or runs on"
+if [ "$(_lwprobe TERM)" != yes ]; then skip "$_lwn1" "$(_lwign TERM)"; skip "$_lwn2" "$(_lwign TERM)"
+else
+  _lwsweep TERM 2>/dev/null
+  is "$_lwn1" "$([ "$_lwcut" -ge 1 ] && echo cut || echo "none of 16 cut")" "cut"
+  is "$_lwn2" "$_lwleft" "none"
+fi
+_lwn1="INT sent to a writing run's process group every 10 ms, from 16 delays across its life, cuts at least one run short"
+_lwn2="and no run sent that held-down INT leaves a lock, or runs on"
+if [ "$(_lwprobe INT)" != yes ]; then skip "$_lwn1" "$(_lwign INT)"; skip "$_lwn2" "$(_lwign INT)"
+else
+  _lwsweep INT 2>/dev/null
+  is "$_lwn1" "$([ "$_lwcut" -ge 1 ] && echo cut || echo "none of 16 cut")" "cut"
+  is "$_lwn2" "$_lwleft" "none"
+fi
+
+# L12: a run removes only the lock it made. With A paused, its lock is
+# replaced by another directory at the same path: made under $FROOT, on the
+# same filesystem, while A's still exists, so it cannot have A's inode; given
+# A's lock's mode; then A's is rmdir'd and the new one moved in.
+_lwset 'tidy\ncommission\n'; _lwswap=unreached; _lwrepl=""
+_lwgo --revoke commission
+if [ "$_lwreached" = yes ]; then
+  _lwswap=failed
+  _lwmode="$(stat -c %a "$_lwL" 2>/dev/null || stat -f %Lp "$_lwL" 2>/dev/null)"
+  if _lwrepl="$(mktemp -d "$FROOT/lw-lock.XXXXXX")"; then
+    [ -z "$_lwmode" ] || chmod "$_lwmode" "$_lwrepl"
+    rmdir "$_lwL" && mv "$_lwrepl" "$_lwL" && _lwswap=swapped
+  fi
+fi
+_lwend
+_lwreq "a revoke whose lock was replaced by another directory while its mv was paused leaves the new lock in place, still empty" \
+       "$_lwswap:$(_lwlock)" "swapped:empty"
+[ -z "$_lwrepl" ] || rm -rf "$_lwrepl"
+
+# L13: a lock that gains contents while held is left for a person, and said.
+_lwset 'tidy\ncommission\n'; _lwput=unreached
+_lwgo --revoke commission
+if [ "$_lwreached" = yes ]; then printf 'a person was here\n' > "$_lwL/note" && _lwput=put || _lwput=failed; fi
+_lwend
+_lwreq "a revoke whose lock gained a file while its mv was paused leaves the lock with that file in it" \
+       "$_lwput:$(_lwlock):$([ -f "$_lwL/note" ] && echo kept || echo gone)" "put:full:kept"
+_lwreq "and the revoke whose lock gained a file names the lock on stderr and says it was not removed" \
+       "$(_lwhas "$_lwaerr" 'projects/widget/autonomy.lock'):$(_lwhas "$_lwaerr" 'not removed')" \
+       "projects/widget/autonomy.lock:not removed"
+_lwreq "and what the revoke whose lock gained a file reported holds" \
+       "$(_lwclaim "$_lwarc" "$_lwaout$_lwaerr" 'revoked: commission' commission no)" "holds"
+
+# L14 and L15: a held lock is never taken over, however old, and the refusal
+# helps a person judge it: more than a minute old or not, that a stopped run
+# (Ctrl-Z) still holds its lock, and, as L2 already asks, its path and rmdir.
+_lwmtime() { stat -c %Y "$_lwL" 2>/dev/null || stat -f %m "$_lwL" 2>/dev/null; }
+_lwdated() {   # the lock's year 2000 as touch -t gave it in any time zone, or what it is instead
+  _lwm="$(_lwmtime)"
+  case "$_lwm" in
+    ''|*[!0-9]*) echo "no time" ;;
+    *) if [ "$_lwm" -ge 946598400 ] && [ "$_lwm" -lt 978307200 ]; then echo "dated 2000"; else echo "dated $_lwm"; fi ;;
+  esac
+}
+_lwset 'tidy\ncommission\n'; mkdir "$_lwL"; touch -t 200001010000 "$_lwL"
+_lwid0="$(_lwid)"; _lwheld="$(_lwstate)"
+_lwrun --revoke commission
+is "with a lock dated 2000 held, a revoke of commission exits non-zero, says neither revoked: nor allowed:, and writes nothing" \
+   "$(_lwexit "$_lwrc"):$(_lwsaid "$_lwout$_lwerr"):$(_lwsame)" "non-zero:silent:same"
+is "and the refusal over the lock dated 2000 names the lock, says rmdir, and says not revoked" \
+   "$(_lwhas "$_lwerr" 'projects/widget/autonomy.lock'):$(_lwhas "$_lwerr" rmdir):$(_lwhas "$_lwerr" 'not revoked')" \
+   "projects/widget/autonomy.lock:rmdir:not revoked"
+is "and the lock dated 2000 is left exactly where it was: the same directory, still empty, still dated 2000" \
+   "$(_lwlock):$(_lwid):$(_lwdated)" "empty:$_lwid0:dated 2000"
+is "and the refusal over the lock dated 2000 says it is more than a minute old" \
+   "$(_lwhas "$_lwerr" 'more than a minute old')" "more than a minute old"
+is "and the refusal over the lock dated 2000 says a stopped run still holds its lock" \
+   "$(_lwhas "$_lwerr" stopped)" "stopped"
+is "and the revoke refused by the lock dated 2000 leaves no autonomy.new.* in the widget's directory" "$(_lwnew)" "0"
+# Ten minutes back: an age a person meets after a killed run, nowhere near
+# 2000. Skipped where this machine's date can do neither -v nor -d.
+_lwn1="with a lock dated ten minutes ago held, an allow of tidy refuses and says the lock is more than a minute old"
+_lwn2="and the allow refused by the lock dated ten minutes ago leaves no autonomy.new.* in the widget's directory"
+_lwago="$(date -v-10M +%Y%m%d%H%M 2>/dev/null || date -d '10 minutes ago' +%Y%m%d%H%M 2>/dev/null)"
+case "$_lwago" in
+  [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
+    _lwset 'commission\n'; mkdir "$_lwL"; touch -t "$_lwago" "$_lwL"
+    _lwm="$(_lwmtime)"; _lwnow="$(date +%s)"
+    if [ $(( _lwnow - ${_lwm:-$_lwnow} )) -gt 120 ]; then _lwold=older; else _lwold="not older than 2 minutes"; fi
+    _lwrun --allow tidy
+    is "$_lwn1" "$(_lwexit "$_lwrc"):$(_lwsaid "$_lwout$_lwerr"):$(_lwhas "$_lwerr" 'more than a minute old'):$_lwold" \
+       "non-zero:silent:more than a minute old:older"
+    is "$_lwn2" "$(_lwnew)" "0" ;;
+  *) skip "$_lwn1" "date cannot name ten minutes ago here"; skip "$_lwn2" "date cannot name ten minutes ago here" ;;
+esac
+_lwset 'tidy\ncommission\n'; mkdir "$_lwL"; _lwrun --revoke commission
+is "with a lock made just now held, a revoke of commission refuses and does not say the lock is more than a minute old" \
+   "$(_lwexit "$_lwrc"):$(_lwhas "$_lwerr" 'more than a minute old')" "non-zero:no [more than a minute old]"
+is "and the refusal over the lock made just now names the lock, says rmdir, and says a stopped run still holds its lock" \
+   "$(_lwhas "$_lwerr" 'projects/widget/autonomy.lock'):$(_lwhas "$_lwerr" rmdir):$(_lwhas "$_lwerr" stopped):$(_lwlock)" \
+   "projects/widget/autonomy.lock:rmdir:stopped:empty"
+
+# L16: no autonomy.new.* outlives a run short of SIGKILL. The signals sent to
+# the pid alone and the held-lock refusals are counted above. Here: INT to
+# the process group, which kills the paused mv before it moves anything, for
+# a revoke and an allow; the refusal of a grant file holding a NUL byte; and
+# success.
+_lwgrp() {   # FORMAT ARGS...: run A, felix autonomy ARGS over FORMAT, paused in its mv, sent INT to its group, then released
+  _lwset "$1"; shift
+  _lwgo "$@"
+  if [ "$_lwreached" = yes ]; then kill -INT -- "-$_lwa" 2>/dev/null; _lwbrief; fi
+  _lwend
+  _lwfinal="$(_lwlock)"; _lwleft="$(_lwnew)"
+}
+_lwn1="a revoke of commission paused in its mv and sent INT to its process group leaves no autonomy.new.* in the widget's directory"
+_lwn2="an allow of tidy paused in its mv and sent INT to its process group leaves no lock, and reports no grant that does not hold"
+_lwn3="and that allow of tidy sent INT to its process group leaves no autonomy.new.* in the widget's directory"
+if [ "$(_lwprobe INT)" != yes ]; then
+  for _lwn in "$_lwn1" "$_lwn2" "$_lwn3"; do skip "$_lwn" "$(_lwign INT)"; done
+else
+  _lwgrp 'tidy\ncommission\n' --revoke commission 2>/dev/null
+  _lwreq "$_lwn1" "$_lwleft" "0"
+  _lwgrp 'commission\n' --allow tidy 2>/dev/null
+  _lwreq "$_lwn2" "$_lwfinal:$(_lwclaim "$_lwarc" "$_lwaout$_lwaerr" 'allowed: tidy' tidy yes)" "absent:holds"
+  _lwreq "$_lwn3" "$_lwleft" "0"
+fi
+_lwset '# a\000b\ncommission\n'; _lwrun --revoke commission
+is "a revoke refused over a grant file holding a NUL byte leaves no autonomy.new.* in the widget's directory" \
+   "$(_lwexit "$_lwrc"):$(_lwnew)" "non-zero:0"
+_lwset '# a\000b\n'; _lwrun --allow tidy
+is "an allow refused over a grant file holding a NUL byte leaves no autonomy.new.* in the widget's directory" \
+   "$(_lwexit "$_lwrc"):$(_lwnew)" "non-zero:0"
+_lwset 'tidy\ncommission\n'; _lwrun --revoke commission
+is "a revoke of commission that succeeds leaves no autonomy.new.* in the widget's directory" \
+   "$(_lwexit "$_lwrc"):$(_lwrv "$_lwout"):$(_lwnew)" "exit 0:said:0"
+_lwset 'commission\n'; _lwrun --allow tidy
+is "an allow of tidy that succeeds leaves no autonomy.new.* in the widget's directory" \
+   "$(_lwexit "$_lwrc"):$(_lwhas "$_lwout" 'allowed: tidy'):$(_lwnew)" "exit 0:allowed: tidy:0"
+
+exec 8>&-
+_lwclear; rm -rf "$_lwsh"
+rm -f "$TMP/lw.out" "$TMP/lw.err" "$TMP/lw-a.out" "$TMP/lw-a.err" "$TMP/lw-b.out" "$TMP/lw-b.err" "$TMP/lw-pipe"
+for _lwf in "$_lwk"/autonomy*; do { [ -e "$_lwf" ] || [ -L "$_lwf" ]; } && mv "$_lwf" "$_lwp/"; done
+rmdir "$_lwk" 2>/dev/null
+is "the widget's directory holds exactly what it held before the lock was tested under signals and a person's hand" \
+   "$(ls -A "$_lwp" | LC_ALL=C sort)" "$_lwstart"
+
 # The commission grant is bound to the table it was granted over.
 #
 # Every other grant names an action the engine defines. This one names a

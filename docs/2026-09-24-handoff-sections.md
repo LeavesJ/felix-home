@@ -107,6 +107,55 @@ changes nothing. Folds of different mains conflict on HANDOFF.md, and the
 loser folds again on current main. This is rare, because folding is upkeep and
 not every session's job.
 
+**A fold in flight is named, not asked for again.** *Added 2026-10-01.* It was
+less rare than that. Every session reads the upkeep row at its start, so with
+about twenty at once several started the same fold: #347, #351 and #377 each
+folded overlapping sections, and only #377 landed. Nothing was corrupted,
+because the check refuses a stale fold, but the work and the queue slots were
+wasted. So with three sections waiting, the row's check asks
+`engine/harness/bin/handoff-in-flight` before it fails.
+- **Which branch counts.** One under the same remote as main whose marker is
+  past main's in fold order, and whose merge-base with main holds main's
+  marker. Every merge-base counts, since a criss-cross merge can leave two.
+  The second condition means main's marker has not moved since the branch was
+  cut: no fold has landed since, so the sections it folded are still the
+  oldest waiting on main. Main may hold more that landed since, and an edit to
+  HANDOFF.md in place on main can still make the two conflict. A fold cut
+  from a main whose handoff has moved since is stale: it conflicts with main
+  on HANDOFF.md and cannot land as it stands, although handoff-check, reading
+  against its own merge-base, passes it at its tip.
+- **What it reads.** Only the remote-tracking refs, as last fetched, with git
+  and no network. Each branch's HANDOFF.md is one blob; a branch sharing
+  main's blob has folded nothing, and the rest are read for their markers in
+  one `git grep`, by commit rather than ref name, so a branch pruned
+  meanwhile cannot blank the read. That took about 0.2 s of CPU (0.13 s user)
+  over 178 branches on 2026-10-01, and it runs only when three sections wait.
+- **Abandoned folds.** A fold whose tip commit is older than 48 hours by
+  committer time counts as abandoned, and the row is due again. A tip dated
+  more than an hour ahead of the clock is not trusted as fresh either. Without the network nothing here
+  can tell a closed pull request from a waiting one. A fold that silenced the
+  row for as long as its branch exists would cost more than a second fold.
+  #377 landed about eleven hours after it was cut.
+- **What a session sees.** The check passes and prints the branch. A passing
+  check that prints reads `inflight` (lib/maintenance.sh), so the session
+  start says `Already in flight, so not due: handoff on
+  claude/handoff-fold-1001 (folded to 0cn; tip 2h old)` in place of
+  `Maintenance due: handoff`. `felix maintenance` says the same, and the
+  overnight stop, `felix next` and the pulse keep only `due`, so none of them
+  asks for the fold either.
+- **What output can never do.** A failing check is due whatever it printed,
+  so a broken script, or one this engine does not have, leaves the row due.
+- **Why not a new column.** A sixth column would have changed
+  maintenance.tsv's row in `templates/schemas.tsv`, an escape table, and
+  stopped the merge for the founder over an upkeep notice.
+
+On real input on 2026-10-01 it named #386 (`claude/handoff-fold-1001`, cut
+from main 5772afac, marker 0cn) and nothing else. Left out: the branches of
+#347 and #351 (marker 0cc, behind main's 0cg), #377's (landed), the
+`claude/handoff-0b*` branches (markers 0br to 0bz, behind main's), and the
+`docs/handoff-0a*` and `docs/handoff-0b*` branches from before the split,
+which carry no marker.
+
 **The check makes the fold the only way.** `engine/harness/bin/handoff-check`
 runs in the gate as `handoff`.
 
@@ -176,6 +225,17 @@ The design draft is at
 Its §4 bound `HANDOFF.md` to `session` because the HANDOFF.md conflicts of #305
 and #312 had non-empty bases.
 
+*2026-10-01.* The final design beside it (`design.md`, 2026-09-24) settles
+this differently from the bullets below. Folding stays upkeep in the actor's
+first version: the actor would otherwise write HANDOFF.md, a `session` path,
+so the fold stays with this row, and the draft's fold at landing is
+superseded. The actor lands a fold pull request like any other. Naming the
+fold in flight (above) is what keeps two sessions from making one, and it
+lands nothing. Once the actor keeps its queue, that queue would be a better
+witness of a fold in flight than branch age, since it knows which pull
+requests are open. Until then, branch age stands in for it. The bullets below
+are the draft's reading, kept for the record.
+
 - **Those conflicts no longer arise.** An authoring pull request does not touch
   HANDOFF.md. The `session` row stays for the rare edit to §0 or the preamble.
 - **When the actor exists, the fold moves to landing.** After step 5
@@ -212,5 +272,16 @@ earlier time.
   That is authored text, and it is rare. It is not this class.
 - **Before the actor exists, nothing folds on its own.** A session folds when
   upkeep says so.
+- **A fold not pushed yet is invisible.** Two sessions that start within the
+  minutes before either pushes can still both fold. Only remote-tracking refs
+  are read, so a local branch another worktree committed but did not push is
+  not seen either. Closing that window would take a claim written before the
+  fold, and the fold is cheap; the waste measured was folds that sat pushed
+  for hours.
+- **Abandonment is guessed from age.** A fold waiting in a stopped queue for
+  more than two days reads as abandoned, and a second session may fold
+  again. Two folds of the same sections write the same bytes and both land.
+  If the second took in sections that landed since, the two conflict on
+  HANDOFF.md, and whichever lands second folds again on the new main.
 - **Without a fetched origin/main, the check runs only its tree-local half.**
   It says so.

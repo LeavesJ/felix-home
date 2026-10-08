@@ -31,6 +31,9 @@ red	path	^engine/harness/hooks/	runs in every session of every governed project
 # does not un-run the sessions that went unchecked while it was wrong.
 red	path	^\.felix$	names which project governs this checkout, and every hook resolves through it	verifier
 red	path	^engine/hooks/	decides which hooks run at all; a bad edit here silently disables every enforcement Felix has
+# The same decision for cloud sessions, which load no plugin: these bind the
+# engine's hooks, and run provision, in every cloud session of this repository.
+red	path	^\.claude/(settings\.json$|cloud/)	decides which hooks a cloud session runs at all, and what it fetches before it starts
 red	path	^engine/harness/lib/	sourced by the CLI and by every hook
 red	path	^engine/\.claude-plugin/	the version here decides whether anything deploys at all
 yellow	path	^engine/harness/felix$	the CLI surface; wrong here is loud rather than silent

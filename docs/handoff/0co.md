@@ -1,4 +1,4 @@
-### 2026-09-25: a `qualification.tsv` holding a NUL byte is refused as a whole, through the one read
+### 0co. 2026-09-25: a `qualification.tsv` holding a NUL byte is refused as a whole, through the one read
 
 Built on #382 (claude/qualify-read-fails-closed), which made `felix qualify
 --gate` read the table once. This is the NUL row its section handed on.

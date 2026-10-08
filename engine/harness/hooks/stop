@@ -211,9 +211,10 @@ fi
 # named pipe stopped it. An edit plus a pipe at an earlier path came out as the
 # clean commit's id, its green receipt read current, and the edit went
 # unverified. It returns nothing now, and this must not turn nothing back into
-# a pass. This is not the unexpected case the header allows: line 186 already
-# left for a directory git does not know, and this tree is one git called
-# dirty. The hold is the same speed bump as every other, once per chain.
+# a pass. This is not the unexpected case the header allows: the repository
+# check above already left for a directory git does not know, and this tree is
+# one felix_tree_dirty called dirty. It is held the way any tree no receipt
+# matches is held, under the same rules for when a hold repeats.
 TID="$(felix_tree_id "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)" || TID=""
 TREE_WHY=""
 [ -n "$TID" ] || TREE_WHY="$(felix_tree_why "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)"

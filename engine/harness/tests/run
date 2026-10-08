@@ -40508,7 +40508,8 @@ _grf_cur() {   # root
 # The id origin/main's felix_tree_id gives a tree with no home, computed here
 # from git by the same recipe: HEAD (or `unborn`), the diff against it (or the
 # unstaged diff), and size and mtime of each untracked file, hashed as one
-# document. T5 holds the change to it byte for byte.
+# document. T5 holds the change to it byte for byte, except for an unborn HEAD
+# with something staged (amended below, 2026-10-08).
 _grf_recipe() {   # root
   local root="$1" head diff un meta="" f files=()
   head="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || head=""
@@ -40624,11 +40625,27 @@ git -C "$GRA" add A.txt >/dev/null 2>&1
 _grf_is "an edited tree, staged and unstaged, keeps the id origin/main gives it (T5)" "$(_grf_tid "$GRA")" "$(_grf_recipe "$GRA")"
 printf 'u\n' > "$GRA/untracked.txt" 2>/dev/null; mkdir -p "$GRA/newdir" 2>/dev/null; printf 'v\n' > "$GRA/newdir/v.txt" 2>/dev/null
 _grf_is "a tree with untracked files keeps the id origin/main gives it (T5)" "$(_grf_tid "$GRA")" "$(_grf_recipe "$GRA")"
+# Amended after the review, 2026-10-08, by the session that wrote the fix, so
+# not blind. The blind author pinned origin/main's id for an unborn HEAD with
+# something staged, and that id was the defect the review found: it hashed the
+# index against the tree only, so two different staged contents shared the id
+# of an empty `git init`, and a green receipt for one read current over the
+# other. With nothing staged an unborn HEAD keeps main's id. With something
+# staged it gets an id of its own.
 _grf_fx=""; GRA="$(mktemp -d "$GRF/t5-unborn.XXXXXX")"
-( cd "$GRA" && git init -q -b main && printf 'a\n' > A.txt && printf 'one\n' > src.txt && git add -A \
-  && printf 'two\n' >> src.txt && printf 'u\n' > untracked.txt ) >/dev/null 2>&1 \
+( cd "$GRA" && git init -q -b main && printf 'u\n' > untracked.txt ) >/dev/null 2>&1 \
   || _grf_fx="the unborn repository could not be made"
-_grf_is "an unborn HEAD keeps the id origin/main gives it (T5)" "$(_grf_tid "$GRA")" "$(_grf_recipe "$GRA")"
+_grf_is "an unborn HEAD with nothing staged keeps the id origin/main gives it (T5)" "$(_grf_tid "$GRA")" "$(_grf_recipe "$GRA")"
+grf_t0="$(_grf_tid "$GRA")"
+( cd "$GRA" && printf 'one\n' > src.txt && git add src.txt ) >/dev/null 2>&1 \
+  || { [ -n "$_grf_fx" ] || _grf_fx="nothing could be staged in the unborn repository"; }
+grf_t1="$(_grf_tid "$GRA")"
+( cd "$GRA" && printf 'two\n' > src.txt && git add src.txt ) >/dev/null 2>&1 \
+  || { [ -n "$_grf_fx" ] || _grf_fx="nothing could be staged in the unborn repository"; }
+grf_t2="$(_grf_tid "$GRA")"
+_grf_is "on an unborn HEAD, two different staged contents have two ids, neither the id with nothing staged (T5, amended)" \
+        "$([ -n "$grf_t1" ] && [ -n "$grf_t2" ] && [ "$grf_t1" != "$grf_t2" ] && [ "$grf_t1" != "$grf_t0" ] \
+             && [ "$grf_t2" != "$grf_t0" ] && echo distinct || echo "[$grf_t0] [$grf_t1] [$grf_t2]")" "distinct"
 
 _grf_new t6; GRA="$GRR"
 _grf_dirty "$GRA"; rc=$?
@@ -41021,11 +41038,134 @@ else
 fi
 chmod 644 "$GRA/b.txt" 2>/dev/null
 
+# ------------------------------------------------ after the review, not blind ----
+# Written 2026-10-08 by the session that wrote the fix, after its adversarial
+# review and a mutation run, so NOT blind. Each assertion pins a review finding
+# (H high, M medium, L low) or a hunk of the fix that, reverted to origin/main,
+# left every blind assertion green (h and its number in the mutation index).
+# The ones marked "regression" pass on origin/main too, and failed only on an
+# earlier draft of the fix.
+out="$(_grf_sh 30 '. "$1/lib/resolve.sh"; _felix_git_read v sh -c "printf \"+foo.\\n\"; exit 128"; printf "%s|%s" "$?" "$v"')"
+_grf_fx=""; _grf_is "a read git broke off just after a line ending in a dot has not finished (the read mark)" "$out" "1|+foo."
+out="$(_grf_sh 30 '. "$1/lib/resolve.sh"; _felix_git_read v printf "a\\n\\n\\n"; printf "%s|%s" "$?" "$v"')"
+_grf_is "a finished read is 0, its trailing newlines dropped as a substitution drops them (the read mark)" "$out" "0|a"
+# CPU, not wall: other suites share this machine. The old strip measured 1.9 s
+# of CPU on a 400 KB diff in the C locale, and grows with the square of it.
+_grf_new t10; GRA="$GRR"
+perl -e 'my $l = ("x" x 79) . "\n"; print $l for 1 .. 20000' > "$GRA/big.txt" 2>/dev/null
+git -C "$GRA" add big.txt >/dev/null 2>&1 || { [ -n "$_grf_fx" ] || _grf_fx="the large file could not be staged"; }
+out="$(_grf_sh 240 '. "$1/lib/resolve.sh"; . "$1/lib/verify.sh"; id="$(felix_tree_id "$2")"; [ -n "$id" ] || exit 3; times' "$GRA" \
+       | awk 'NR == 2 { split($1, a, /[ms]/); print (a[1] * 60 + a[2] < 5) ? "under" : "over: " $1 }')"
+_grf_is "the tree id of a 1.6 MB diff costs well under five seconds of CPU (H1, a quadratic newline strip, regression)" "$out" "under"
+
+_grf_new t11; GRA="$GRR"
+grf_i0="$(_grf_tid "$GRA")"; grf_f="$GRA/$(printf 'Shot\342\200\257PM.png')"
+printf 'png1' > "$grf_f" 2>/dev/null; grf_i1="$(_grf_tid "$GRA")"
+printf 'png22' > "$grf_f" 2>/dev/null; grf_i2="$(_grf_tid "$GRA")"
+_grf_is "an untracked file named past ASCII changes the tree id, and so does a change to its size (M1)" \
+        "$([ -n "$grf_i2" ] && [ "$grf_i0" != "$grf_i1" ] && [ "$grf_i1" != "$grf_i2" ] && echo distinct || echo "[$grf_i0] [$grf_i1] [$grf_i2]")" "distinct"
+printf 'x' > "$GRA/$(printf 'new\nline.txt')" 2>/dev/null; grf_i3="$(_grf_tid "$GRA")"
+_grf_is "and a name git quotes whatever quotePath says is still counted by its presence (M1)" \
+        "$([ -n "$grf_i3" ] && [ "$grf_i3" != "$grf_i2" ] && echo counted || echo "[$grf_i2] [$grf_i3]")" "counted"
+
+_grf_new x5; GRA="$GRR"; ( cd "$GRA" && git checkout -q -b feat ) >/dev/null 2>&1
+printf 'aws = "%s"\n' "$grf_key" > "$GRA/$(printf 'cl\303\251.env')" 2>/dev/null
+_grf_scan "$GRA" main; rc=$?
+_grf_is "an untracked file named past ASCII is scanned, and its key found, exit 1 (H4)" "$rc" "1"
+_grf_commit "$GRA" accent
+_grf_scan "$GRA" --tree; rc=$?
+_grf_is "and the same file tracked is scanned by --tree, exit 1 (H4)" "$rc" "1"
+_grf_new x5-newline; GRA="$GRR"; ( cd "$GRA" && git checkout -q -b feat ) >/dev/null 2>&1
+printf 'aws = "%s"\n' "$grf_key" > "$GRA/$(printf 'new\nline.env')" 2>/dev/null
+_grf_scan "$GRA" main; rc=$?
+_grf_is "and so is an untracked file whose name holds a newline, exit 1 (H4)" "$rc" "1"
+_grf_new x6; GRA="$GRR"; ( cd "$GRA" && git checkout -q -b feat ) >/dev/null 2>&1
+printf '\211PNG\r\n\032\n\000\377\376\375 binary\n' > "$GRA/shot.png" 2>/dev/null
+( export LC_ALL=en_US.UTF-8; _grf_scan "$GRA" main ); rc=$?
+_grf_is "an untracked binary file under a UTF-8 locale is read as bytes, not refused, exit 0 (M2, regression)" "$rc" "0"
+_grf_new x7-link; GRA="$GRR"; printf 'x\n' > "$GRF/x7-unreadable.txt"; chmod 000 "$GRF/x7-unreadable.txt" 2>/dev/null
+ln -s "$GRF/x7-unreadable.txt" "$GRA/link.txt" 2>/dev/null; _grf_commit "$GRA" link
+if [ -z "$_grf_fx" ] && [ -r "$GRF/x7-unreadable.txt" ]; then
+  skip "a tracked symlink to a file nobody may read is skipped by --tree, exit 0 (L1, regression)" "this user can read a mode-000 file"
+else
+  _grf_scan "$GRA" --tree; rc=$?
+  _grf_is "a tracked symlink to a file nobody may read is skipped by --tree, exit 0 (L1, regression)" "$rc" "0"
+fi
+chmod 644 "$GRF/x7-unreadable.txt" 2>/dev/null
+_grf_new x8; GRA="$GRR"; printf 'x\n' > "$GRA/u.txt" 2>/dev/null; chmod 000 "$GRA/u.txt" 2>/dev/null
+if [ -z "$_grf_fx" ] && [ -r "$GRA/u.txt" ]; then
+  skip "an untracked file nobody may read leaves the scan unfinished, exit 2 (h07)" "this user can read a mode-000 file"
+else
+  _grf_scan "$GRA" main; rc=$?
+  _grf_is "an untracked file nobody may read leaves the scan unfinished, exit 2 (h07)" "$rc" "2"
+fi
+chmod 644 "$GRA/u.txt" 2>/dev/null
+_grf_fx=""; GRA="$(mktemp -d "$GRF/x9.XXXXXX")"
+( cd "$GRA" && git init -q -b trunk && printf 'aws = "%s"\n' "$grf_key" > k.txt && git add k.txt ) >/dev/null 2>&1 \
+  || _grf_fx="the unborn repository could not be made"
+_grf_scan "$GRA"; rc=$?
+_grf_is "a key staged before the first commit, with no base anywhere, is found, exit 1 (h12)" "$rc" "1"
+_grf_new x10; GRA="$GRR"
+( cd "$GRA" && git checkout -q --orphan lone && printf 'aws = "%s"\n' "$grf_key" > k.txt && git add k.txt ) >/dev/null 2>&1 \
+  || { [ -n "$_grf_fx" ] || _grf_fx="no orphan branch could be made"; }
+_grf_scan "$GRA" main; rc=$?
+_grf_is "on an orphan branch with no commit yet, a staged key is found against a base that resolves, exit 1 (h11)" "$rc" "1"
+
+_grf_new p3; GRA="$GRR"; printf 'three\n' >> "$GRA/src.txt" 2>/dev/null; _grf_corrupt "$GRA"
+out="$(_grf_pulse "$GRA")"
+_grf_is "the pulse over a corrupt index says NOT backed up, never that nothing is new (H2)" \
+        "$([ "$(_grf_notbacked "$out")" -gt 0 ] && echo said || echo unsaid) $(printf '%s\n' "$out" | awk 'index($0, "nothing new") { n++ } END { print n + 0 }')" \
+        "said 0"
+_grf_new p4; GRA="$GRR"; printf 'three\n' >> "$GRA/src.txt" 2>/dev/null; _grf_pipe "$GRA" A.txt
+out="$(_grf_pulse "$GRA")"
+_grf_has "the pulse over a tracked pipe names the path git could not stage (L2)" \
+         "$(printf '%s\n' "$out" | awk -F'\t' '$1 == "backup" && index($0, "NOT backed up")')" "A.txt"
+_grf_unpipe "$GRA" A.txt
+
+# The CLI over one change: a feature branch, an edit, and a pipe at A.txt.
+# A function, because bash 3.2 cannot parse a case pattern's `)` inside `$(...)`.
+_grf_said() { case "$1" in *"$2"*) printf 'said' ;; *) printf 'unsaid' ;; esac; }
+_grf_new c1; GRA="$GRR"; ( cd "$GRA" && git checkout -q -b feat ) >/dev/null 2>&1
+printf 'three\n' >> "$GRA/src.txt" 2>/dev/null; _grf_commit "$GRA" edit
+printf 'four\n' >> "$GRA/src.txt" 2>/dev/null; _grf_pipe "$GRA" A.txt
+out="$( cd "$GRA" && FELIX_HOME="$GRFH" FELIX_MEMORY="$GRFM" perl -e 'alarm shift; exec @ARGV or exit 127' 240 "$FELIX" gate 2>&1 >/dev/null )"
+_grf_has "felix gate there says on stderr that no receipt was written (h13)" "$out" "no receipt was written"
+out="$(_grf_felix "$GRA" pr)"; rc=$?
+_grf_is "felix pr there refuses, exit non-zero, saying git could not read the change (h14)" \
+        "$(_grf_nz "$rc") $(_grf_said "$out" "could not read this change to the end")" "non-zero said"
+_grf_has "and quotes git, which names the pipe (M3)" "$out" "A.txt"
+out="$(_grf_felix "$GRA" classify)"; rc=$?
+_grf_is "felix classify there says Not classified and exits 1 (h17)" \
+        "$rc $(_grf_said "$out" "Not classified")" "1 said"
+out="$(_grf_felix "$GRA" next)"
+_grf_has "felix next there ranks the unread change first, as not scanned in full (h33)" "$out" "not scanned in full: ADDED-LINES"
+_grf_lacks "and does not send anyone to fix a base that resolves (M3)" "$out" "name a base that exists here"
+out="$(_grf_felix "$GRA" merge --dry-run)"
+_grf_has "felix merge --dry-run there says git could not read all of the change (M3)" "$out" "git could not read all of this change"
+_grf_lacks "and never that the base names nothing (M3)" "$out" "The base names nothing"
+_grf_lacks "nor that the rest escapes nothing (M3)" "$out" "escapes nothing"
+out="$(_grf_felix "$GRA" receipt)"
+_grf_has "felix receipt there lists risk as unknown (h41)" "$(_grf_rcpt_unknown "$out")" '"risk"'
+_grf_has "and the escapes (h42)" "$(_grf_rcpt_unknown "$out")" '"escapes"'
+_grf_has "and asks no founder to decide about a change nobody could read (h42, h43)" "$out" '"founder_required": false'
+_grf_unpipe "$GRA" A.txt
+_grf_new c2; GRA="$GRR"; ( cd "$GRA" && git checkout -q -b feat ) >/dev/null 2>&1
+printf 'three\n' >> "$GRA/src.txt" 2>/dev/null; _grf_corrupt "$GRA"
+out="$(_grf_felix "$GRA" receipt)"
+_grf_has "felix receipt over a corrupt index says the changed paths are not known (h39, h44)" "$out" '"changed": {"known": false'
+
+_grf_new e8; GRA="$GRR"
+( cd "$GRA" && git checkout -q --orphan lone && _grf_git commit -qm lone ) >/dev/null 2>&1 \
+  || { [ -n "$_grf_fx" ] || _grf_fx="no orphan branch with a commit could be made"; }
+out="$(_grf_esc "$GRA")"
+_grf_has "a branch sharing no history with the base is unknown, in git's own words (M3)" \
+         "$(printf '%s\n' "$out" | awk -F'\t' '$1 == "unknown" { print $3 }')" "no merge base"
+
 unset -f _grf_git _grf_new _grf_commit _grf_pipe _grf_unpipe _grf_corrupt _grf_is _grf_has _grf_lacks _grf_nz \
   _grf_n1 _grf_blocked _grf_sh _grf_tid _grf_dirty _grf_added _grf_changed _grf_added_pf _grf_changed_pf _grf_esc \
   _grf_blk _grf_cls _grf_tier _grf_finds _grf_ev _grf_owed _grf_felix _grf_hook _grf_rec _grf_cur _grf_recipe \
   _grf_vrows _grf_wf _grf_unknown_row _grf_execute _grf_esc_stub _grf_dsc _grf_publish _grf_rcpt_unknown \
-  _grf_rcpt_status _grf_scoped _grf_scan _grf_pulse _grf_committed _grf_notbacked _grf_dig
+  _grf_rcpt_status _grf_scoped _grf_scan _grf_pulse _grf_committed _grf_notbacked _grf_dig _grf_said
 
 # The suite's completion marker: tests/red counts a red run only when a line
 # that is exactly "reached" follows its last assertion line, since a finished

@@ -30,6 +30,13 @@
 # launchd agent and a person runs that command; nothing here schedules
 # itself, because a permission a system grants itself is not a permission.
 
+# The tree is read through _felix_git_read, which lives in resolve.sh. The CLI
+# and the session-start hook source that first; sourced here too, as verify.sh
+# does, so a caller that sources this alone still has it.
+if ! command -v _felix_git_read >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 # The git repository holding the memory root. Emits nothing when no repo
 # encloses it; the toplevel when that repository is the memory's own — the
 # root itself, or its immediate parent, which is the documented ~/.felix
@@ -179,7 +186,16 @@ felix_pulse_backup() {
     return 0
   fi
 
-  if [ -n "$(git -C "$repo" status --porcelain 2>/dev/null)" ]; then
+  # A status that did not finish is not "nothing new" (2026-10-08). A corrupt
+  # index makes `git status` exit 128 with nothing printed, and the run went
+  # on to push the old head, verify it, and stamp the backup current.
+  local st
+  if ! _felix_git_read st git -C "$repo" status --porcelain; then
+    printf 'backup\tgit could not read this tree (%s), so nothing was committed, and this memory is NOT backed up\n' \
+      "$(git -C "$repo" status --porcelain 2>&1 >/dev/null | awk '!p && /^(error|fatal): / { print; p = 1 }')"
+    return 0
+  fi
+  if [ -n "$st" ]; then
     # A nested git repository stages as a bare gitlink: the push then reports
     # verified while a restore materializes an empty directory — the exact
     # disaster-recovery path this feature exists for. Asked on a scratch
@@ -191,7 +207,12 @@ felix_pulse_backup() {
     # repository has paid for that before.
     local links lrc=0; links="$(_felix_pulse_new_gitlinks "$repo")" || lrc=$?
     if [ "$lrc" -eq 2 ]; then
-      printf 'backup\tcould not ask whether a nested repository sits inside memory (no scratch index could be made, or git could not stage this tree), so nothing was committed, and this memory is NOT backed up\n'
+      # Which of the two, said: git's own first error line when the stage was
+      # what failed, and the scratch index otherwise.
+      local lwhy
+      lwhy="$(git -C "$repo" add -A --dry-run 2>&1 >/dev/null | awk '!p && /^(error|fatal): / { print; p = 1 }')"
+      printf 'backup\tcould not ask whether a nested repository sits inside memory (%s), so nothing was committed, and this memory is NOT backed up\n' \
+        "${lwhy:-no scratch index could be made}"
       return 0
     fi
     if [ "$(printf '%s\n' "$links" | grep -c .)" -gt 0 ]; then

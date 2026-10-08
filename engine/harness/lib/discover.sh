@@ -1108,7 +1108,8 @@ felix_discover_digest() {
       done
   )"
   [ -n "$listing" ] || return 1
-  case "$listing" in *$'\037unread'*) return 1 ;; esac
+  # The marker is the last line the loop wrote, so a suffix match finds it.
+  case "$listing" in *$'\037unread') return 1 ;; esac
   printf '%s\n' "$listing" | git hash-object --stdin 2>/dev/null
 }
 

@@ -26806,9 +26806,12 @@ is  "felix_capabilities_unruled gives the same list and status when here-documen
     "$(_durcnh felix_capabilities_unruled "$_durcp" "$_durctpl")" "$(_durcwr felix_capabilities_unruled "$_durcp" "$_durctpl")"
 is  "felix_procedures_items gives the same items and status when here-documents cannot be written" \
     "$(_durcnh felix_procedures_items "$_durcp" "$_durcr")" "$(_durcwr felix_procedures_items "$_durcp" "$_durcr")"
+# A well-formed stance on a declared capability is there first, so that a here-document
+# that cannot be written, in the walk over the stances, closes nothing and calls it a gap.
+# Until 2026-10-08 this ran before any procedures.tsv existed and could not fail for that.
+printf 'capability:durccap\tcommissioning\tdurc-check\ta stance on a declared capability\n' > "$_durcp/procedures.tsv"
 is  "felix_procedures_gaps gives the same gaps and status when here-documents cannot be written" \
     "$(_durcnh felix_procedures_gaps "$_durcp" "$_durcr" "$_durctpl")" "$(_durcwr felix_procedures_gaps "$_durcp" "$_durcr" "$_durctpl")"
-printf 'capability:durccap\tcommissioning\tdurc-check\ta stance on a declared capability\n' > "$_durcp/procedures.tsv"
 printf 'capability:durcghost\tcommissioning\tdurc-check\ta stance on nothing that exists\n' >> "$_durcp/procedures.tsv"
 is  "felix_procedures_orphans gives the same orphans and status when here-documents cannot be written" \
     "$(_durcnh felix_procedures_orphans "$_durcp" "$_durcr")" "$(_durcwr felix_procedures_orphans "$_durcp" "$_durcr")"
@@ -27251,6 +27254,38 @@ is  "over no capabilities file recommend says none and nothing yet, and doctor a
     "declared:   none|  Project dureproj, a none codebase. Felix already detected: nothing yet|declared:     |undeclared:   deploy secrets tests|same"
 printf 'secrets\ndurebill\ndurecap\n' > "$_durep/capabilities"
 
+# 3. felix_procedures_effective walks the stances as a string in this shell and tests
+# the moment by case (F3). Until 2026-10-08 it walked them through a here-document and
+# asked felix_has_line, which is another one, and on a bash that writes a here-document
+# to a temporary file (3.2 among them) one that cannot be written ended the walk before
+# its first stance, so every item with a stance was called a gap. Here-documents are
+# made unwritable inside the subshell with an ignored SIGXFSZ and a file size limit of
+# nothing; a bash that sends a small one through a pipe passes these and fails only
+# where the defect is. A stance at a moment nobody declared still closes nothing.
+_dureprun() { local _durem="$1"; shift
+  ( cd "$_durer" || exit 99
+    set -o pipefail
+    HOME="$_durehome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durebin0:/usr/bin:/bin"
+    . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/procedures.sh"
+    case "$_durem" in
+      nohd) trap '' XFSZ; ulimit -f 0 ;;
+    esac
+    _dureo="$("$@")"; printf '%s|%s' "$?" "$_dureo" ) 2>/dev/null; }
+_durej() { awk '{ printf "%s%s", (NR > 1 ? " " : ""), $0 } END { print "" }'; }
+{ printf 'capability:durecap\tcommissioning\tdure-check\ta stance on a declared capability\n'
+  printf 'capability:durebill\tpre-lunch\tdure-check\ta stance at a moment nobody declared\n'; } > "$_durep/procedures.tsv"
+_dureeff="$(_dureprun w felix_procedures_effective "$_durep" "$_duretpl")"
+is  "felix_procedures_effective gives the stance at a declared moment and none at a moment nobody declared" \
+    "$_dureeff" "$(printf '0|capability:durecap\tcommissioning\tdure-check')"
+is  "and gives the same stances and status when here-documents cannot be written" \
+    "$(_dureprun nohd felix_procedures_effective "$_durep" "$_duretpl")" "$_dureeff"
+_duregaps="$(_dureprun w felix_procedures_gaps "$_durep" "$_durer" "$_duretpl" | _durej)"
+is  "felix_procedures_gaps names the item whose stance is at a moment nobody declared and not the one whose stance is at a declared one" \
+    "$_duregaps" "0|capability:deploy capability:durebill capability:secrets capability:tests"
+is  "and names the same gaps with the same status when here-documents cannot be written, so no stanced item is called a gap" \
+    "$(_dureprun nohd felix_procedures_gaps "$_durep" "$_durer" "$_duretpl" | _durej)" "$_duregaps"
+rm -f "$_durep/procedures.tsv"
+
 rm -rf "$_durep" "$_durer" "$_durehome" "$_durebin0" "$_duregrep" "$_duretr" "$MEM/dureproj"
 [ -d "$FROOT/state" ] && find "$FROOT/state" -name '*dureproj*' -exec rm -rf {} + 2>/dev/null
 _durenl='
@@ -27260,9 +27295,9 @@ find "$FROOT/state" -depth -type d 2>/dev/null | while IFS= read -r _dured; do
 done
 is  "and the block for the second review's fixes leaves the projects, the state and the memory as it found them" \
     "$(_durefixture)" "$_durefound"
-unset -f _durefixture _durecli _duresays _dureis _durelines _durerecl _duredl
+unset -f _durefixture _durecli _duresays _dureis _durelines _durerecl _duredl _dureprun _durej
 unset _durefound _duredirs _durep _durer _durehome _durebin0 _duregrep _duretr _duretpl _durerealgrep _dureretr \
-      _dureplain _durestub _duren _durenl _dured _durerec0 _durerec1 _dured0 _dured1
+      _dureplain _durestub _duren _durenl _dured _durerec0 _durerec1 _dured0 _dured1 _dureeff _duregaps
 
 # A table command whose last stage succeeds whatever it is fed is refused.
 #

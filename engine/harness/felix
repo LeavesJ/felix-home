@@ -51,10 +51,11 @@
 
 set -uo pipefail
 
-# 2026-10-08: the caller's environment must not change what a tool prints.
-# The engine reads what grep, ls, gh, tar and bash's own cd print as data,
-# and some variables a person can export change that output. Measured on
-# macOS (bash 3.2.57, BSD grep 2.6.0, bsdtar 3.5.3) on main at 0.49.273:
+# 2026-10-08: the caller's environment must not change what a tool prints, nor
+# how this shell runs. The engine reads what grep, ls, gh, tar, git diff and
+# bash's own cd and read produce as data, and variables a person can export
+# change that. Measured on macOS (bash 3.2.57, BSD grep 2.6.0, bsdtar 3.5.3)
+# on main at 0.49.273:
 # - GREP_OPTIONS goes in front of every grep's own options. With -n,
 #   `felix doctor` read the declared capability ci as 1:ci and then called
 #   ci undeclared, and `felix ready`, `felix evidence`, `felix maintenance`,
@@ -63,38 +64,75 @@ set -uo pipefail
 # - CLICOLOR_FORCE makes ls (given CLICOLOR and a TERM) and gh write colour
 #   escapes into a pipe. GH_FORCE_TTY makes gh colour and pretty-print its
 #   --json output, and changes its tables.
-# - TAPE makes `tar -x` read that file instead of stdin.
+# - TAPE makes `tar -x` read that file instead of stdin, and
+#   TAR_READER_OPTIONS hands bsdtar options of the caller's.
+# - GIT_EXTERNAL_DIFF hands every `git diff` to another program, so
+#   bin/secret-scan passed a branch that adds a credential. GIT_DIFF_OPTS
+#   changes how many lines of context a diff carries.
+# - GIT_LITERAL_PATHSPECS made `:(exclude)d` exclude nothing, so a tree id
+#   taken over the rest moved. The other three change what a pathspec
+#   matches: under GIT_NOGLOB_PATHSPECS `*.txt` matched nothing, under
+#   GIT_GLOB_PATHSPECS nothing below a directory, and under
+#   GIT_ICASE_PATHSPECS `*.TXT` matched what `*.txt` does.
+# - TMOUT gives every `read` a timeout, so a loop over a slow producer ends
+#   early, as if the producer had finished.
 # - POSIXLY_CORRECT starts bash 3.2 in posix mode, where `<( )` is a syntax
 #   error, so `felix which` failed to load lib/detect.sh and others. Unsetting
-#   it takes bash back out of posix mode.
+#   it takes bash back out of posix mode, however posix mode came on.
 # - CDPATH makes cd print a directory it found through it, so
 #   `$(cd dir && pwd)` captured the path twice. With CDPATH=.:/x,
 #   `engine/harness/felix which` could not find its own libraries.
+# - SHELLOPTS, when exported, turns on the options it names before the first
+#   line runs: errexit made `felix doctor` exit 1, and noglob changed what
+#   `felix ready` counts. It also stays exported, so this shell's own
+#   `set -uo pipefail` reached every child bash, and a probe or commissioning
+#   check written to run without pipefail ran with it.
 # TAR_OPTIONS (GNU tar) and QUOTING_STYLE (GNU ls) do to those tools what
-# GREP_OPTIONS and CLICOLOR_FORCE do here. They are documented, not measured.
+# GREP_OPTIONS and CLICOLOR_FORCE do here, and BASHOPTS does for shopt what
+# SHELLOPTS does for set (bash 4.1 and later). Those are documented, not
+# measured here.
 #
-# So every executable file under engine/harness unsets the same eight names
-# as its first command after set. Every child it starts inherits their
-# absence: a commissioning check, a probe, a setup or maintenance check, an
-# obligation's evidence, and a project's own gate under `felix gate`, which
-# so runs as it would on CI. tests/run checks every such file for the line
-# ("no caller environment changes what an engine tool prints").
+# So every executable file under engine/harness begins, after its own set,
+# with the lines below. The options a caller's SHELLOPTS can turn on that
+# change what a command does are turned off, SHELLOPTS and BASHOPTS stop being
+# exported, and the sixteen names are removed. Every child inherits that: a
+# commissioning check, a probe, a setup or maintenance check, an obligation's
+# evidence, and a project's own gate under `felix gate`, which so runs as it
+# would on CI. One fact is kept first. lib/where.sh judges where a session's
+# command runs, and the session runs it under the caller's CDPATH, so that is
+# recorded, unexported, in _FELIX_CALLER_CDPATH before CDPATH is removed.
+# tests/run checks every such file for these lines ("no caller environment
+# changes what an engine tool prints").
 #
-# Left alone on purpose:
+# Left alone on purpose, or out of reach:
 # - GREP_COLOR and GREP_COLORS change no piped output unless colour is on,
 #   and colour comes on only through GREP_OPTIONS or a --color the engine
-#   never passes.
-# - Locale stays the person's. It is a reading of text, not extra options,
-#   and a call that needs byte order sets LC_ALL=C itself.
+#   never passes to grep.
+# - xtrace and verbose stay as a caller set them. They are how a person
+#   debugs this shell, and they write to stderr.
+# - Locale stays the person's. It is a reading of text, not extra options. A
+#   call that needs byte order has to set LC_ALL=C itself, and not every one
+#   does yet (lib/escape.sh's comm -23, found 2026-10-08).
 # - TMPDIR is where the engine makes its scratch, on purpose (tests/run,
 #   "the engine makes its scratch under TMPDIR").
 # - BASH_ENV has run, and exported functions are defined, before this line.
-#   SHELLOPTS is readonly. Some CI hosts (CircleCI) load each step's setup
-#   through BASH_ENV, and a project's gate may need it.
-# - git takes colour from its configuration, and from GIT_PAGER_IN_USE
-#   (exported by git to whatever it starts beside a pager) when TERM is not
-#   dumb, not from these variables. The pin below this line handles both.
-unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS QUOTING_STYLE POSIXLY_CORRECT CDPATH
+#   Some CI hosts (CircleCI) load each step's setup through BASH_ENV, and a
+#   project's gate may need it. SHELLOPTS=noexec stops a script before its
+#   first line, and an exported function named unset voids this one, so
+#   nothing here can answer either.
+# - A name a BASH_ENV made readonly stays set. unset says so on stderr and
+#   removes the others.
+# - git takes colour from its configuration, which a caller can also set
+#   through GIT_CONFIG_* variables, and from GIT_PAGER_IN_USE (exported by
+#   git to whatever it starts beside a pager) when TERM is not dumb.
+#   Removing the variables would drop the caller's other settings, so these
+#   lines leave colour to the pin below them.
+set +o allexport +o errexit +o keyword +o noclobber +o noglob +o physical
+export -n SHELLOPTS BASHOPTS
+_FELIX_CALLER_CDPATH="${CDPATH-}"
+unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIONS QUOTING_STYLE \
+      GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS \
+      GIT_ICASE_PATHSPECS TMOUT POSIXLY_CORRECT CDPATH
 
 # 2026-10-08: and a person's git colour settings must not reach what the
 # engine parses. Told `always`, git writes colour escapes into a pipe, and it
@@ -161,7 +199,8 @@ unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS QUOTING_STYLE PO
 # - The far side of a push to a local path, where git drops
 #   GIT_CONFIG_PARAMETERS.
 # - Settings that change what git prints without colour: diff.noprefix,
-#   diff.external, GIT_EXTERNAL_DIFF, log.showSignature, status.branch.
+#   diff.external, textconv, log.showSignature, status.branch.
+#   GIT_EXTERNAL_DIFF is one of the names unset above.
 # tests/run checks every executable file for these lines ("a person's git
 # colour configuration never reaches what the engine parses").
 _felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"

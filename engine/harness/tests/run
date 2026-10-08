@@ -7640,7 +7640,9 @@ printf '\nno fixture git write follows a raw cd on a variable or a raw git -C on
 # way is still one empty variable from the same thing, so the lint reads this
 # file and goes red on any site: a raw cd on a variable with a git write after
 # it in the same group, or a raw git -C on a variable with a write for
-# subcommand. No site is allow-listed. One whose directory is legitimately
+# subcommand. No site is allow-listed except the three probes in the fixture
+# floor's _ff_case, set aside below, and that function's whole text is pinned
+# by its cksum. One whose directory is legitimately
 # outside $TMP is a defect, not an exception: it is read through a subcommand
 # the lint knows for a read, or it is not a fixture. The file read is the
 # suite under test, $REAL_HARNESS/tests/run, which in a full run is this one and
@@ -7665,7 +7667,14 @@ printf '\nno fixture git write follows a raw cd on a variable or a raw git -C on
 # _fx_cd and not the floor. So they are set aside by their exact text and only
 # inside _ff_case's body, and a second assertion holds the set at exactly those
 # three: the probe changing shape, or a fourth line like them, is red rather
-# than quietly exempt (the merge of the two branches, 2026-10-08).
+# than quietly exempt (the merge of the two branches, 2026-10-08). The set-aside
+# trusts the rest of _ff_case too: the which-repository check its git writes
+# sit behind is what makes three raw cds safe there. So a third assertion pins
+# _ff_case whole, from its `_ff_case() {` line through the `}` that ends it, by
+# the CRC and byte count cksum prints. Any edit to it is red until a person has
+# checked that every git write in it still sits behind that check, and then
+# updates the pin. To recompute it, from engine/harness/tests:
+#   awk '/^_ff_case\(\) \{/ { s = 1 } s { print } s && /^}$/ { exit }' run | cksum
 _fxl_file="$REAL_HARNESS/tests/run"
 _fxl_out="$(_fx_lint "$_fxl_file" 2>&1)"; _fxl_rc=$?
 _fxl_ff="$(awk '/^_ff_case\(\) \{/ { s = NR } s && !e && NR > s && /^}$/ { e = NR } END { print s + 0, e + 0 }' "$_fxl_file" 2>/dev/null)"
@@ -7688,6 +7697,14 @@ else
 fi
 is "the lint's only sites set aside are the fixture floor's three deliberate probes inside _ff_case" \
    "$(printf '%s\n' "$_fxl_aside" | grep -c ':')" "3"
+_fxl_pin="1793434744 1884"   # _ff_case, reviewed 2026-10-08 (review round 2)
+_fxl_ck="$(awk '/^_ff_case\(\) \{/ { s = 1 } s { print } s && /^}$/ { exit }' "$_fxl_file" 2>/dev/null | cksum | awk '{ print $1, $2 }')"
+if [ "$_fxl_ck" = "$_fxl_pin" ]; then
+  ok  "the fixture floor's _ff_case is the probe the lint's set-aside was reviewed against"
+else
+  bad "the fixture floor's _ff_case is the probe the lint's set-aside was reviewed against" \
+      "its cksum is [$_fxl_ck], and the set-aside was reviewed against [$_fxl_pin]. Before updating the pin, check that every git write in _ff_case still sits behind its which-repository check, the one that asks where a write would land and writes only under \$TMP"
+fi
 
 printf '\nfixture git proof\n'
 # On 2026-10-08 at 12:47:41 local time the config every worktree of the home

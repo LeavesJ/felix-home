@@ -2,7 +2,8 @@
 
 Found by the adversarial review of claude/adopt-newline-before-append, where it
 was not fixed. This is that defect, plus what four adversarial reviews of the
-fix found in the reader it leans on and in the fix itself.
+fix, and one of the writer lock, found in the reader it leans on and in the fix
+itself.
 
 **Defect closed.** `cmd_autonomy --revoke` ran
 `grep -vxF cap autonomy > autonomy.new && mv -f autonomy.new autonomy`:
@@ -47,6 +48,15 @@ here:
   engines grant, the CLI printed `revoked: tidy` with the file untouched. Over
   a plain grant it refused, falsely blaming "another writer". The kept text,
   built up in one string, made revoke quadratic: 1 MB took 111 s of CPU.
+- **Revision 4's match** (review 4). It cut the line at the capability with
+  `%%`, which bash runs from every position of the line, measuring the rest
+  each time. That is quadratic in a line's length: one 512 KB line cost 8.8 s.
+- **A subshell stopped by `set -u`** (the writer lock's third review). Under
+  bash 3.2, in a script such as felix, a subshell that `set -u` stops inside
+  an arithmetic expansion exits 0. Revoke's second pass computes
+  `$(( $(wc -c) ))`. A stale stdout buffer flushed into that wc stopped the
+  pass, the 0 read as written, and the mv put an empty file over the grants.
+  The reader's subshell answered 0 for a grant, so a stop read as one.
 - **Shift-JIS** (review 3). Revision 3 trimmed whitespace and bytes from `\200`
   up. The Shift-JIS ideographic space is `\201@`, so an older engine under
   ja_JP.SJIS still tidied by `tidy\201@` after `revoked: tidy`.
@@ -69,10 +79,14 @@ here:
   - UTF-8's and the EUC encodings' are bytes from `\200` up.
   - Shift-JIS's ideographic space is `\201@` and Big5's is `\241@`.
   - GB18030's four-byte spaces hold digits.
-  Every Python codec was checked; only EBCDIC and ISO-2022, which no locale
-  runs in, put a letter in one. So no older engine, in any locale, finds the
+  Python's codecs and every LC_CTYPE on this Mac were checked. The encodings
+  that do put a letter in a space are ones no locale reads with it: EBCDIC,
+  ISO-2022, UTF-7, and Shift_JIS-2004's `\205A` no-break space (macOS has no
+  such locale, and glibc's space class leaves out U+00A0). So no older engine, in any locale, finds the
   grant afterwards. A 4,000-line fuzz across 14 macOS locales found no miss. A
-  line that only looks like the grant (`tidy.`, `- tidy`) goes too.
+  line that only looks like the grant (`tidy.`, `- tidy`, `tidy=0`) goes too.
+  The test is two `case` matches, linear in a line's length: no `#`, the
+  capability present, and no letter before or after a copy of it.
 - **Two passes**, each `_felix_autonomy_rewrite` in a C-locale subshell with
   its output discarded. Each checks for a NUL, then reads the lines straight
   from the file and counts the bytes they account for against `wc -c`. A loop
@@ -84,7 +98,11 @@ here:
   - Otherwise revoke takes a `mktemp` name and runs a second pass. That pass
     streams every kept line to the temp file with the newline it had, so an
     unended last line stays unended. A failed write is a refusal. Revoke is
-    linear: 512 KB costs about 1.5 s of CPU and 1 MB about 2.9 s.
+    linear: 512 KB costs about 1.5 s of CPU and 1 MB about 2.9 s, and one
+    512 KB line about 1 s.
+  - A pass says it wrote with 10, never 0, and the first pass never writes,
+    so a stopped pass is a refusal. The reader's subshell answers a grant
+    with 10, so a stopped read is no grant.
   - The file's mode is copied (`stat -L -c %a`, falling back to
     `stat -L -f %Lp`), then the mv. The result is read back through the
     reader.
@@ -147,7 +165,25 @@ here:
   - On main, the 2 that pin the unended line between the steps fail, because
     main's revoke always wrote a final newline. The final bytes and the
     grants pass there.
-- **Review 4:** running on 7495a319 (workflow wf_06c02951-51a).
+- **Review 4** (on 7495a319): no blocker or major in the code.
+  - It found the quadratic match on a long line, and docblocks and a codec
+    survey that said more than the code.
+  - It found five checks no assertion pinned: the byte count, a write
+    failing on the last line, a refused rename off macOS, upper-case
+    neighbours, and a file past bash 5.2's pipe buffer.
+- **Round 6.** 23 blind assertions ("revoke refuses what it could not read or
+  write, and stays linear in a long line", 7e3f745d). Two fail on revision 4:
+  a 512 KB line at 8.9 s and one of `\201` bytes at 8.5 s.
+- **Revision 5** (d95596a7): the `case` match, and the 10-for-success codes.
+  Blocks 1-6 give 203 pass on it. The 4 that fail are block 5's, which wait
+  on .274.
+- **Round 7.** 9 blind assertions for the `set -u` stop, run as a script as
+  felix runs (8b14bde2): a revoke pass, the reader, and the CLI with a `wc`
+  shim. 6 fail on revision 4; all pass on revision 5. Across the seven
+  blocks revision 5 gives 212 pass, and the 4 that fail are block 5's. On
+  bash 5.2 the stop exits non-zero, so the block is green on every revision
+  there.
+- **Review 5:** on d95596a7 with blocks 6 and 7.
 - **What could not be shown locally.** The stray-lead-byte case passes on
   bash 3.2 for every engine. Only CI's bash 5.2 can show it red against main.
 - **The section runner.** It is preamble lines 1 to 224 (the line before the

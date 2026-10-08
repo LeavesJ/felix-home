@@ -2035,14 +2035,14 @@ cmd_autonomy() {
   # Nothing else on this path sets a trap. cmd_discover's and cmd_commission's
   # traps belong to their own commands, and the libs' are inside subshells.
   #
-  # 2026-10-08, from the second review of the lock: with stdout closed, bash
-  # 3.2 keeps a "revoked:" it failed to print in its buffer, and the allow's
-  # next substitution captured it into the temp file's name. Sending a closed
-  # stdout to /dev/null first means no print fails. ': 3>&1' fails only on a
-  # closed fd 1; ': >&1' does not, because bash skips a dup onto itself.
+  # Each line that says what was written goes through felix_autonomy_say, and
+  # never through printf here. 2026-10-08, from the lock's second and third
+  # reviews: bash 3.2 kept a "revoked:" stdout refused in its buffer, and the
+  # writes after it captured it, into the allow's temp file name, its byte
+  # count and the stamp. Checking for a closed stdout up front caught only
+  # one of the ways a write fails.
   if [ -n "$allow$revoke" ]; then
     local lock qlock not="" age=""
-    { : 3>&1; } 2>/dev/null || exec >/dev/null
     lock="$(felix_autonomy_lock_path "$proj")"; printf -v qlock '%q' "$lock"
     [ -z "$allow" ]  || not="$allow is not allowed"
     [ -z "$revoke" ] || not="${not:+$not and }$revoke is not revoked"
@@ -2075,12 +2075,12 @@ cmd_autonomy() {
     # The stamp goes with the grant. Left behind, a later --allow would look
     # like it had already been read against a table nobody re-read.
     rm -f "$(felix_autonomy_stamp_path "$proj" "$revoke")" 2>/dev/null
-    printf 'revoked: %s\n' "$revoke"
+    felix_autonomy_say 'revoked: %s\n' "$revoke"
   fi
 
   if [ -n "$allow" ]; then
     if felix_autonomy_allows "$proj" "$allow"; then
-      printf 'already allowed: %s\n' "$allow"
+      felix_autonomy_say 'already allowed: %s\n' "$allow"
     else
       # The grant first, and the word and the stamp below only once the reader
       # finds it. 2026-10-08: an append here glued it onto an unended last
@@ -2094,7 +2094,7 @@ cmd_autonomy() {
         3) die "$allow is not allowed, because $proj/autonomy was rewritten with it and a read of it does not find the grant (another writer?)$a" ;;
         *) die "$allow is not allowed, because $proj/autonomy is not a regular file, is read-only, or could not be read whole or rewritten with it. Nothing was written$a" ;;
       esac
-      printf 'allowed: %s\n' "$allow"
+      felix_autonomy_say 'allowed: %s\n' "$allow"
     fi
     # Stamped with the table it was granted over, so a later edit to that table
     # does not inherit the grant. Written on every --allow, not only the first,
@@ -2102,7 +2102,7 @@ cmd_autonomy() {
     if [ "$allow" = commission ]; then
       printf '%s\n' "$(felix_commission_policy_version "$proj")" \
         > "$(felix_autonomy_stamp_path "$proj" commission)"
-      printf 'stamped against commissioning.tsv as it stands now.\n'
+      felix_autonomy_say 'stamped against commissioning.tsv as it stands now.\n'
     fi
   fi
 

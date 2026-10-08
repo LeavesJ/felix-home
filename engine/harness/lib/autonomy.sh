@@ -323,7 +323,12 @@ felix_autonomy_grant() {
       *) _felix_autonomy_text="$_felix_autonomy_text$nl" ;;
     esac
     printf '%s' "$_felix_autonomy_text$want$nl" > "$tmp" || exit 1
+    # Written is a status of its own. 2026-10-08, from the lock's third
+    # review: bash 3.2 ends a subshell that set -u stops with status 0, and a
+    # 0 here moved an empty temp file over the grants (felix_autonomy_say).
+    exit 10
   ) > /dev/null 2>&1; rc=$?
+  case "$rc" in 10) rc=0 ;; 0) rc=1 ;; esac
   if [ "$rc" = 0 ]; then
     # mktemp made it 0600: the file's own mode, or the umask's for a new one.
     if [ -e "$f" ]; then mode="$(stat -L -c %a "$f" 2>/dev/null || stat -L -f %Lp "$f" 2>/dev/null)"
@@ -398,9 +403,7 @@ felix_autonomy_grant() {
 #   silence. A fatal signal bash does not handle at all (IO, PWR and STKFLT
 #   on Linux) kills it outright: the mv lands and the lock stays, so the
 #   next run refuses. A leak, never a regrant.
-# - ILL, FPE, BUS and SEGV are ignored instead. A handler that returns would
-#   re-run a real fault forever. Ignored, one that was sent changes nothing,
-#   and a real fault still kills the shell without an early release.
+# - ILL, FPE, BUS and SEGV were ignored. The third review undid that (below).
 # - A signal pending as the EXIT trap started ran its handler first. Its exit
 #   then cut the trap short, and the lock leaked. The handler releases before
 #   it exits now. The release clears what it released, so a second call is
@@ -408,20 +411,35 @@ felix_autonomy_grant() {
 # - mktemp runs with the signals ignored, like mkdir. A Ctrl-C between its
 #   making the file and the name reaching the shell would leave the file.
 # - On Linux, a freed inode number can come straight back. So the run keeps
-#   the lock directory open on fd 9 until it has removed it: an open
-#   directory's inode cannot be reused, even after a person's rmdir.
+#   the lock directory open until it has removed it: an open directory's
+#   inode cannot be reused, even after a person's rmdir.
 # - A release that find could not carry out says so, instead of leaving the
 #   lock in silence.
+#
+# 2026-10-08, from the third review, of revision 3:
+#
+# - An ignored signal is inherited. With ILL, FPE, BUS and SEGV ignored, a
+#   child that really faulted spun on macOS instead of dying, and the run
+#   hung holding the lock. They are trapped now, like the rest: a trapped
+#   signal is reset in every child. They are never ignored, not even around
+#   mkdir, so a child's fault always ends the child. A real fault in bash
+#   itself would re-run under the handler and hang the run; that is reasoned,
+#   not measured.
+# - fd 9 was taken whatever it held. A caller's flock on fd 9 (flock(1)'s own
+#   example) was let go the moment the lock was made. The run now keeps the
+#   lock open on the first of fds 9 to 3 that it did not inherit, and on none
+#   if it inherited them all.
 FELIX_AUTONOMY_SIGNALS='HUP INT QUIT PIPE ALRM TERM USR1 USR2 XCPU XFSZ VTALRM PROF ABRT TRAP SYS EMT'
-FELIX_AUTONOMY_IGNORED='ILL FPE BUS SEGV'
+FELIX_AUTONOMY_FAULTS='ILL FPE BUS SEGV'
 
 felix_autonomy_lock_path() { printf '%s/autonomy.lock' "$1"; }
 
 # proj -> 0 taken; 1 held, a directory is there; 2 not taken, and something
 # other than a lock directory is at the name, or the project is not writable.
 # On 0, _felix_autonomy_lock_dir and _felix_autonomy_lock_ino say what was
-# made, and fd 9 holds it open. The inode is read here, before anything is
-# printed, so the substitution has nothing stale to capture.
+# made, and _felix_autonomy_lock_fd the fd that holds it open. The inode is
+# read here, before anything is printed, so the substitution has nothing
+# stale to capture.
 #
 # mkdir and ls run with the guarded signals ignored, which they inherit. A
 # Ctrl-C reaches the whole process group, and a mkdir it killed after making
@@ -429,11 +447,17 @@ felix_autonomy_lock_path() { printf '%s/autonomy.lock' "$1"; }
 # for another's, and leave it behind. The shell's own traps still note the
 # signal.
 felix_autonomy_lock() {
-  local lock="$1/autonomy.lock" out
+  local lock="$1/autonomy.lock" out fd
   _felix_autonomy_lock_dir=""; _felix_autonomy_lock_ino=""; _felix_autonomy_lock_fd=""
   if ( trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec mkdir "$lock" ) 2>/dev/null; then
     _felix_autonomy_lock_dir="$lock"
-    { exec 9<"$lock"; } 2>/dev/null && _felix_autonomy_lock_fd=9
+    # '<&fd' fails only on an fd that is not open. bash 3.2 has no {fd}, so
+    # the number goes through eval, and it is one of these seven digits.
+    for fd in 9 8 7 6 5 4 3; do
+      { : <&"$fd"; } 2>/dev/null && continue
+      eval "{ exec $fd<\"\$lock\"; } 2>/dev/null" && _felix_autonomy_lock_fd="$fd"
+      break
+    done
     out="$( trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec ls -di "$lock" 2>/dev/null )"
     out="${out#"${out%%[! ]*}"}"; out="${out%% *}"
     case "$out" in ''|*[!0-9]*) ;; *) _felix_autonomy_lock_ino="$out" ;; esac
@@ -467,32 +491,42 @@ felix_autonomy_unlock() {
   return 0
 }
 
+# Signals off for what is left: the asynchronous ones ignored, which the
+# release's children inherit, and the faults caught and dropped, which they
+# do not.
+_felix_autonomy_hush() {
+  trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null
+  trap : $FELIX_AUTONOMY_FAULTS
+}
+
 # The release, as the EXIT trap of a run that may hold the lock: the temporary
 # file of a rewrite cut short, then the lock, then the fd that held its inode.
 # Nothing in it substitutes a command, for the reason above, and it clears
 # what it released, so calling it twice does nothing the second time.
 _felix_autonomy_release() {
-  trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null
+  _felix_autonomy_hush
   [ -z "${_FELIX_AUTONOMY_TMP:-}" ] || rm -f "$_FELIX_AUTONOMY_TMP" 2>/dev/null
   _FELIX_AUTONOMY_TMP=""
   [ -z "${_felix_autonomy_lock_dir:-}" ] \
     || felix_autonomy_unlock "$_felix_autonomy_lock_dir" "${_felix_autonomy_lock_ino:-}"
   _felix_autonomy_lock_dir=""
-  [ -z "${_felix_autonomy_lock_fd:-}" ] || exec 9<&-
+  case "${_felix_autonomy_lock_fd:-}" in [3-9]) eval "exec $_felix_autonomy_lock_fd<&-" ;; esac
   _felix_autonomy_lock_fd=""
 }
 
-# A signal while the lock may be held: ignore the rest, release, and end as
-# that signal would. Each number is Linux's, and EMT's, which Linux lacks, is
-# macOS's. USR1, USR2 and SYS have other numbers on macOS. Nothing reads them.
+# A signal while the lock may be held: the rest off, release, and end as that
+# signal would. Each number is Linux's, and EMT's, which Linux lacks, is
+# macOS's. USR1, USR2, SYS and BUS have other numbers on macOS. Nothing reads
+# them.
 _felix_autonomy_signalled() {   # SIG
   local n=0
-  trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null
+  _felix_autonomy_hush
   _felix_autonomy_release
   case "$1" in
-    HUP) n=1 ;; INT) n=2 ;; QUIT) n=3 ;; TRAP) n=5 ;; ABRT) n=6 ;; EMT) n=7 ;;
-    USR1) n=10 ;; USR2) n=12 ;; PIPE) n=13 ;; ALRM) n=14 ;; TERM) n=15 ;;
-    XCPU) n=24 ;; XFSZ) n=25 ;; VTALRM) n=26 ;; PROF) n=27 ;; SYS) n=31 ;;
+    HUP) n=1 ;; INT) n=2 ;; QUIT) n=3 ;; ILL) n=4 ;; TRAP) n=5 ;; ABRT) n=6 ;;
+    BUS) n=7 ;; EMT) n=7 ;; FPE) n=8 ;; USR1) n=10 ;; SEGV) n=11 ;; USR2) n=12 ;;
+    PIPE) n=13 ;; ALRM) n=14 ;; TERM) n=15 ;; XCPU) n=24 ;; XFSZ) n=25 ;;
+    VTALRM) n=26 ;; PROF) n=27 ;; SYS) n=31 ;;
   esac
   exit "$((128 + n))"
 }
@@ -503,13 +537,31 @@ felix_autonomy_guard() {   # proj
   local s rc
   _FELIX_AUTONOMY_CAUGHT=""; _FELIX_AUTONOMY_TMP=""
   _felix_autonomy_lock_dir=""; _felix_autonomy_lock_ino=""; _felix_autonomy_lock_fd=""
-  trap '' $FELIX_AUTONOMY_IGNORED 2>/dev/null
-  for s in $FELIX_AUTONOMY_SIGNALS; do trap "_FELIX_AUTONOMY_CAUGHT=$s" "$s" 2>/dev/null; done
+  for s in $FELIX_AUTONOMY_SIGNALS $FELIX_AUTONOMY_FAULTS; do
+    trap "_FELIX_AUTONOMY_CAUGHT=$s" "$s" 2>/dev/null
+  done
   trap _felix_autonomy_release EXIT
   felix_autonomy_lock "$1"; rc=$?
-  for s in $FELIX_AUTONOMY_SIGNALS; do trap "_felix_autonomy_signalled $s" "$s" 2>/dev/null; done
+  for s in $FELIX_AUTONOMY_SIGNALS $FELIX_AUTONOMY_FAULTS; do
+    trap "_felix_autonomy_signalled $s" "$s" 2>/dev/null
+  done
   [ -z "$_FELIX_AUTONOMY_CAUGHT" ] || _felix_autonomy_signalled "$_FELIX_AUTONOMY_CAUGHT"
   return "$rc"
+}
+
+# A status line from cmd_autonomy, printed by a child.
+#
+# 2026-10-08, from the third review: bash 3.2 keeps what a failed printf
+# could not write in its stdout buffer, and the next command substitution's
+# child wrote it into what it captured. A "revoked:" that stdout refused
+# (closed, read-only, or a pipe nobody reads with SIGPIPE ignored) went into
+# the grant's byte count. set -u then stopped the grant's subshell, bash 3.2
+# ended it with status 0, and an empty file replaced the grant file. A child
+# takes a failed write's buffer away with it. Once one line fails, stdout
+# goes to /dev/null, so no later line can fail the same way. Redirecting it
+# after a failure in the shell itself does not empty the buffer.
+felix_autonomy_say() {   # FORMAT [ARG...]
+  ( printf "$@" ) 2>/dev/null || exec >/dev/null
 }
 
 # Remove lookalike scripts, and only where every check holds.

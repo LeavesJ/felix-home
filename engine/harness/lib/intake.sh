@@ -63,6 +63,56 @@ felix_pr_body() {
   git -C "$root" log --format='- %s' "$base..HEAD" 2>/dev/null
 }
 
+# The title of a pull request when --title gives none: the subject of the
+# newest commit this branch made itself.
+#
+# It was HEAD's subject, and a branch landed by merging main in, taking the
+# record and then opening the request ends on none of its own work. #395 reached
+# main titled "Merge remote-tracking branch 'origin/main' into
+# claude/red-counts-unreached". Replayed over the sixty pull requests merged
+# before this, HEAD's subject was a merge for 31 of them and a version slot or a
+# suite record for 16 more. This rule leaves no merge and three records, each a
+# commit that also changed something else.
+#
+# Three kinds of commit are passed over:
+# - Merges, by --no-merges.
+# - What a merge brought in, by --first-parent. A branch that merged another
+#   branch's head before it landed (#392 merged #383's) holds that branch's
+#   commits, and after a squash merge main never holds them. Newest first,
+#   the other branch's work would be the title.
+# - A commit whose every path is one the landing rewrites: the engine's
+#   version, and the suite's manifest and red record. They are named by path
+#   because their subjects follow no one convention: test(record), test(red),
+#   chore(tests), chore(version) and chore(engine) are all in the history.
+#   The paths are the engine's own, so in a project that is not the engine's
+#   home no commit is passed over this way.
+#
+# A commit that touches no path is not passed over, since the landing wrote
+# nothing in it. When every commit of the branch's own is the landing's, the
+# newest of them is the title. When the branch made none, or the base cannot
+# be read, it is HEAD's subject, as it always was.
+felix_pr_title() {
+  local root="$1" base="$2" own c p paths first="" mine=""
+  own="$(git -C "$root" log --first-parent --no-merges --format=%H "$base..HEAD" 2>/dev/null)"
+  while IFS= read -r c; do
+    [ -n "$c" ] || continue
+    [ -n "$first" ] || first="$c"
+    paths="$(git -C "$root" diff-tree --root --no-commit-id --name-only -r "$c" 2>/dev/null)"
+    while IFS= read -r p; do
+      case "$p" in
+        engine/.claude-plugin/plugin.json|engine/harness/tests/assertions.tsv|engine/harness/tests/red.tsv) ;;
+        *) mine="$c"; break ;;
+      esac
+    done <<EOF
+$paths
+EOF
+    [ -n "$mine" ] && break
+  done <<EOF
+$own
+EOF
+  git -C "$root" log -1 --format=%s "${mine:-${first:-HEAD}}" 2>/dev/null
+}
+
 # Prints the brief. Returns 3 when a red path is implicated, matching
 # felix repair's contract so the same callers branch on it unchanged.
 felix_brief_render() {

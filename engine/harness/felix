@@ -1402,7 +1402,7 @@ cmd_pr() {
   # reports a tier for a diff nobody is proposing (#74).
   cbase="$(felix_base_ref "$root" "$base" 2>/dev/null || printf '%s' "$base")"
 
-  [ -n "$title" ] || title="$(git -C "$root" log -1 --format=%s 2>/dev/null)"
+  [ -n "$title" ] || title="$(felix_pr_title "$root" "$cbase")"
   body="$(felix_pr_body "$root" "$cbase")"
   [ -n "$issue" ] && body="$body
 

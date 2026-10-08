@@ -6878,6 +6878,29 @@ _pfre="(printf '%s(\\\\n)?'|echo) \"[\$][^\"]*\" [|] ([^|]*[|] )*grep [^|]*-[a-z
 _pfsites="$(grep -nE "$_pfre" "$HERE/run" | grep -vE -e '^[0-9]+:[[:space:]]*#' -e '"[$]big" [|] grep -Fxq 1 [)]')"
 is "no check in this suite pipes printf or echo of a variable into a chain ending in grep -q" "$_pfsites" ""
 
+printf '\nfixture git writes stand in directories proven to sit under the temporary directory\n'
+# On 2026-10-08 a fixture's `( cd "$_fs_wr" && git remote set-url ... )` ran with
+# the variable empty, bash 3.2 stayed in the directory the suite was started in,
+# and the config every worktree of felix-home shares came back with origin
+# pointing at acme/widget. The preamble's _fx_cd and _fx_git are the fix: they
+# refuse a directory they cannot prove is under $TMP. A fixture written the old
+# way is still one empty variable from the same thing, so the lint reads this
+# file and goes red on any site: a raw cd on a variable with a git write after
+# it in the same group, or a raw git -C on a variable with a write for
+# subcommand. No site is allow-listed. One whose directory is legitimately
+# outside $TMP is a defect, not an exception: it is read through a subcommand
+# the lint knows for a read, or it is not a fixture. The file read is the
+# suite under test, $REAL_HARNESS/tests/run, which in a full run is this one and
+# in a section runner is the tree that runner was pointed at. A file the lint
+# cannot read is a failure too, since it exits 2 then and prints nothing else.
+_fxl_out="$(_fx_lint "$REAL_HARNESS/tests/run" 2>&1)"; _fxl_rc=$?
+if [ "$_fxl_rc" -eq 0 ] && [ -z "$_fxl_out" ]; then
+  ok  "no fixture in this suite runs a git write from a raw cd or a raw git -C on a variable"
+else
+  bad "no fixture in this suite runs a git write from a raw cd or a raw git -C on a variable" \
+      "the lint exited $_fxl_rc and printed: $(printf '%s' "$_fxl_out" | head -5 | cut -c1-160 | tr '\n' '|')"
+fi
+
 # >>> hook-payload-cwd
 printf '\nhooks stand where the session stands\n'
 # Claude Desktop starts every session with --project-config-root naming the

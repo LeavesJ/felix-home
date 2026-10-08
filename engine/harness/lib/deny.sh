@@ -245,31 +245,56 @@ EOF
 # `gh api -f` on the next read as a force push. Of the 175 refusals the hooks
 # had logged by then, about thirty were text of those kinds.
 #
-# So a Bash command that matches a row is read a second time, by
-# felix_deny_code, as the shell reads it, and refused only if the row still
-# matches there. That second reading costs a process, and it is spent only on
-# a command about to be refused: every other call pays exactly what it paid
-# before, which matters because this hook runs on every one of them. A reading
-# done in bash itself was tried first and measured: bash 3.2's ${s//...} took
-# fourteen seconds over a 31K command.
+# So a Bash command is judged on felix_deny_code's reading of it, as the shell
+# reads it, and on nothing else. The first form of this, on 2026-09-23,
+# consulted that reading only after the raw string had matched a row, which
+# could only turn a refusal into an allow and left the other direction as it
+# was: the string is one line of JSON, so wherever the shell ends a word and
+# the string puts something other than a blank there — a `;` glued to the
+# word, a line break, the quote closing a `-c` script, a `)` — a row written
+# to end at a blank or the end of the line saw neither, and the command ran.
+# The founder listed twelve such commands that day, each performing what its
+# row names and none of them refused. Reading every command refuses all
+# twelve, and the reader now prints each separator as a token of its own so
+# that the row sees the end of the word. Forty-one commands written blind
+# that only carry a row's words as data are still allowed; the four others
+# of that set of forty-five are refused by the rows as written under any
+# reader. A reading done in bash itself was tried first and measured: bash
+# 3.2's ${s//...} took fourteen seconds over a 31K command.
 #
-# This can only ever turn a refusal into an allow. What it does not do is the
-# other direction, and there are commands a row names that the shell runs and
-# the raw string never matched: `git push -f` with a line break after it, or
-# `bash -c "git push --force"`, whose quote stands where the row wants a
-# space. Refusing those would mean reading every command, not only the ones a
-# row already matched, and that is a separate decision with its own cost.
+# What it costs, since the reading now runs on every Bash call in a project
+# with Bash rows: one awk process, the subshell that captures it, and one
+# source of lib/deny-read.sh per call. Measured 2026-09-23 by child CPU,
+# since wall time on this machine measures its load, which sits at 100 to
+# 300: 150 runs of each engine interleaved on the same payload, `git status
+# --short` costing 31 ms of CPU a call before and 39 after (medians; the
+# minima 28 and 35), and a commit with Claude Code's template 32 before and
+# 41 after. So about 8 ms a call, on a floor of about 30. A prefilter that
+# would skip the awk was priced and not built: a test for the characters
+# that make the reading differ from the string skips 7% of real commands,
+# since most carry a JSON backslash, and a per-row keyword test needs a
+# proof that it never skips a command its row would refuse. Over the real
+# commands in this machine's transcripts the reading newly refuses about one
+# in two hundred, all but two of them performing the row's action; the two
+# hand a gate's path to a shell function as an argument, which a row that
+# matches the path after any blank refuses on any reading. The counts are in
+# the pull request that made the change.
 #
 # START is the directory the command starts in, the payload's cwd. It matters
-# only to a row scoped to the checkout, which is judged on the command as the
-# payload carries it, whichever reading the row matched; the governed
-# checkout is the one this process stands in.
+# only to a row scoped to the checkout. Such a row matches the reading like
+# any other, and is then judged, by lib/where.sh, on the command as the
+# payload carries it; the governed checkout is the one this process stands
+# in.
 felix_deny_match() {
-  local proj="$1" want="$2" cmd="$3" start="${4:-$PWD}"
+  local proj="$1" want="$2" cmd="$3" start="${4:-$PWD}" text
   [ -n "$cmd" ] || return 1
   _FELIX_DENY_RAW="$cmd"; _FELIX_DENY_START="$start"; _FELIX_DENY_SCOPED=""
-  if _felix_deny_first "$proj" "$want" "$cmd" \
-     && { [ "$want" != "Bash" ] || _felix_deny_first "$proj" Bash "$(felix_deny_code "$cmd")"; }; then
+  if [ "$want" = "Bash" ]; then
+    text="$(felix_deny_code "$cmd")"
+  else
+    text="$cmd"
+  fi
+  if _felix_deny_first "$proj" "$want" "$text"; then
     printf '%s' "$_FELIX_DENY_REASON"
     return 0
   fi
@@ -277,9 +302,10 @@ felix_deny_match() {
   return 1
 }
 
-# A scoped row, judged once per command however many readings match it. Bash
-# is tried against the raw text and then the code view, and the judgement is
-# the same both times, so the second asks this cache instead of the reader.
+# A scoped row, judged once per command however many rows share its pattern.
+# The judgement is kept in _FELIX_DENY_SCOPED, which a second row with the
+# same pattern asks instead of the reader, and which the lifts are recorded
+# from.
 _felix_deny_scoped() {
   local want="$1" pattern="$2" reason="$3" line
   while IFS= read -r line; do
@@ -385,8 +411,9 @@ _felix_deny_scoped_lifts() {
 # fails closed: no awk, or a program error, prints nothing, and a row matches
 # nothing in nothing, which allows.
 #
-# The program is lib/deny-read.sh, sourced the first time a command needs it,
-# so the call no row matches does not even read the file.
+# The program is lib/deny-read.sh, sourced the first time a command needs it.
+# Every Bash call in a project with Bash rows needs it; a call for another
+# tool, or in a project without them, never reads the file.
 felix_deny_code() {
   [ -n "${_FELIX_DENY_READ:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/deny-read.sh" 2>/dev/null
   printf '%s' "$1" | awk "${_FELIX_DENY_READ:-}" 2>/dev/null

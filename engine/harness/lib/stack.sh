@@ -81,10 +81,27 @@ _felix_have() {
   esac
 }
 
+# 0 active, 1 not declared, 2 when the declared list could not be read.
+#
+# Until 2026-10-01 a list that could not be read was an empty one: a fork that
+# fails with EAGAIN inside the substitution prints nothing, so a declared
+# capability read not active and a commissioning row grounded on it read
+# not-applicable, a valid state the run's guard cannot see. A list that came
+# back with a failure is not trusted even when it names the capability. The
+# status alone is not enough either: on bash 3.2 a substitution that cannot
+# make its pipe (no file descriptor left) expands to nothing with status 0
+# (measured), so the list carries a `.` written only after felix_declared
+# returned 0, and a list without it was never read. The callers that ask with
+# `!` still read 2 as not active. The membership is a case and not
+# felix_has_line, whose here-document is a temporary file on bash 3.2, and one
+# that cannot be written reads as "not declared" too.
 _felix_cap_active() {
-  local cap="$1" proj="$2"
+  local cap="$1" proj="$2" declared nl=$'\n'
   [ "$cap" = "always" ] && return 0
-  felix_has_line "$(felix_declared "$proj")" "$cap"
+  declared="$(felix_declared "$proj" && printf .)" || return 2
+  case "$declared" in *.) declared="${declared%.}"; declared="${declared%$nl}" ;; *) return 2 ;; esac
+  case "$nl$declared$nl" in *"$nl$cap$nl"*) return 0 ;; esac
+  return 1
 }
 
 

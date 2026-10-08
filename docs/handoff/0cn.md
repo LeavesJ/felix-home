@@ -1,4 +1,4 @@
-### 2026-09-25: `felix qualify --gate` fails closed. One read of the table, a failed read refuses with exit 2, a short run refuses, and the gate always says why under `qualified FAIL`
+### 0cn. 2026-09-25: `felix qualify --gate` fails closed. One read of the table, a failed read refuses with exit 2, a short run refuses, and the gate always says why under `qualified FAIL`
 
 This PR carries claude/qualify-membership-sigpipe (the section beside this
 one) in the same slot, by agreement with the carrier. The engine changes are

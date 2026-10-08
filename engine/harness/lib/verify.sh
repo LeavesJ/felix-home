@@ -255,28 +255,25 @@ _felix_tree_excludes() {
   printf ':(exclude)%sprojects/*/maintenance.log\n' "$rel"
 }
 
-# A tree git could not read in full has no identity (2026-10-08), and this
-# prints nothing and returns 2 for it. 1 still means not a repository. With a
-# named pipe at projects/x/deny.tsv and an edit to src.txt, `git diff HEAD`
-# printed nothing for either and exited 128. The id hashed that silence and
-# came out as exactly the clean commit's, so a green receipt for the clean tree
-# read current over an edit no gate had seen. A mode-000 file and a corrupt
-# index did the same. Every caller already treats an empty id as unknown: no
-# receipt is written for it, felix_verify_current calls it stale, no review
-# clears it, and Stop holds on it.
+# A tree git could not read in full has no identity (2026-10-08): this prints
+# nothing and returns 2 (1 still means not a repository). With a named pipe at
+# projects/x/deny.tsv and an edit to src.txt, `git diff HEAD` printed nothing
+# and exited 128, and the id of that silence was the clean commit's, so a green
+# receipt read current over an edit no gate had seen. A mode-000 file and a
+# corrupt index did the same. Every caller treats an empty id as unknown: no
+# receipt is written, felix_verify_current calls it stale, and Stop holds.
+# Leaving the unreadable path out would be the defect itself, a tree id that
+# silently ignores a path. An untracked pipe is no part of any tree (git lists
+# none), and a path the excludes leave out is no part of the id.
 #
-# Leaving the unreadable path out of the diff would make the id succeed, and is
-# the defect itself: a tree id that silently ignores a path. A tracked path git
-# cannot hash cannot be committed either, so no gate can vouch for the tree
-# until it is put back. An UNTRACKED pipe is another matter: git lists none,
-# adds none, and never will, so it is no part of any tree and changes nothing
-# here. An unreadable path the excludes above leave out is no part of the id,
-# and does not make it unknown.
-#
-# For a tree git reads in full, the bytes hashed are the bytes hashed before,
-# so no receipt went stale when this landed.
+# A tree git reads in full hashes the bytes it hashed before, with two
+# exceptions found by the review of this change, each a tree whose old id left
+# something out. An unborn HEAD with something staged hashed only index against
+# tree, so two staged contents shared the id of an empty `git init`. And an
+# untracked name git quoted, every name past ASCII by default, a macOS
+# screenshot included, went to stat under a spelling that names no file.
 felix_tree_id() {
-  local root="$1" home="${2:-}" head diff untracked n=0 meta="" prefix="" f id
+  local root="$1" home="${2:-}" head diff cached untracked n=0 meta="" quoted="" prefix="" f id
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
   local ex; ex="$(_felix_tree_excludes "$root" "$home")"
   local exargs=()
@@ -291,11 +288,17 @@ EOF
     # fixture is — and every naive implementation of this dies there.
     head="unborn"
     _felix_git_read diff git -C "$root" diff -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    # What is staged, against nothing. Added only when there is any, so the id
+    # of a bare `git init` is the one it always was.
+    _felix_git_read cached git -C "$root" diff --cached -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    [ -z "$cached" ] || diff="$cached
+$diff"
   else
     _felix_git_read diff git -C "$root" diff HEAD -- . "${exargs[@]+"${exargs[@]}"}" || return 2
   fi
 
-  _felix_git_read untracked git -C "$root" ls-files --others --exclude-standard \
+  # quotePath off, so a name past ASCII is listed as the bytes stat can open.
+  _felix_git_read untracked git -c core.quotePath=false -C "$root" ls-files --others --exclude-standard \
     -- . "${exargs[@]+"${exargs[@]}"}" || return 2
   if [ -n "$untracked" ]; then
     # A sort or a count that died reads as no untracked file, so either one
@@ -313,12 +316,27 @@ EOF
   elif [ "$n" -gt 0 ]; then
     local files=()
     while IFS= read -r f; do
-      [ -n "$f" ] && files+=("$root/$f")
+      [ -n "$f" ] || continue
+      # git still quotes a name holding a control character, `"` or `\`,
+      # quotePath or not, and that spelling names no file. Such a file is
+      # counted by its presence, and a change to its bytes is not seen.
+      case "$f" in
+        \"*) quoted="$quoted$f ?
+" ;;
+        *)   files+=("$root/$f") ;;
+      esac
     done <<EOF
 $untracked
 EOF
-    meta="$(_felix_meta_all "${files[@]}")"
-    [ -n "$meta" ] || return 2
+    if [ "${#files[@]}" -gt 0 ]; then
+      meta="$(_felix_meta_all "${files[@]}")"
+      # Every file stat was given and none answered: a stat that never ran.
+      # One vanished between the listing and stat is simply not there.
+      [ -n "$meta" ] || return 2
+    fi
+    [ -z "$quoted" ] || meta="$meta${meta:+
+}${quoted%
+}"
   fi
 
   id="$(printf '%s\n%s\n%s' "$head" "$diff" "$meta" | _felix_hash)"

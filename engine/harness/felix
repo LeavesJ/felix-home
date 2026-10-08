@@ -1432,9 +1432,9 @@ closes #$issue"
   # Since 2026-10-08 `unknown` is also a change git could not read to the end,
   # over a base that resolves, and the reason given must be the real one.
   if [ "$tier" = "unknown" ] && felix_base_resolves "$root" "$cbase"; then
-    die "git could not read this change to the end: a tracked path it cannot
-  hash, or an index it cannot read. There is no tier to put on it, so no pull
-  request was opened. git status names the path."
+    die "git could not read this change to the end ($(felix_change_why "$root" "$cbase")).
+  There is no tier to put on it, so no pull request was opened. Fix what git
+  names, then run this again."
   fi
   [ "$tier" = "unknown" ] && die "the base '$base' names nothing this repository holds, so
   nothing was compared and there is no tier to put on this. No pull request
@@ -1664,7 +1664,7 @@ cmd_merge() {
   fi
 
   if [ -n "$blockers" ]; then
-    local kind subject reason esc=0 unk=0 stamp=0 table=0 owed=0
+    local kind subject reason esc=0 unk=0 unread=0 stamp=0 table=0 owed=0
     printf 'not merging\n\n'
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
@@ -1679,6 +1679,9 @@ cmd_merge() {
       # other kind.
       case "$kind:$subject" in
         escape:*)           esc=1 ;;
+        # A change git could not read to the end, by its pseudo-path
+        # (2026-10-08), is not a base that names nothing.
+        unknown:ADDED-LINES|unknown:CHANGED-PATHS) unread=1 ;;
         unknown:*)          unk=1 ;;
         commission:receipt) stamp=1 ;;
         commission:table)   stamp=1; table=1 ;;
@@ -1729,10 +1732,19 @@ EOF
       printf 'The base names nothing this repository holds — check --base, or the\n'
       printf 'default branch, which is not `main` everywhere. This says nothing\n'
       printf 'about whether the change escapes the tree; that was never asked.\n'
-    elif [ "$esc" -eq 1 ]; then
-      printf '\nMerging this writes something outside the tree that a revert does not\n'
-      printf 'reach, so it is the founder who decides. Show them the diff and the\n'
-      printf 'reversal path; a green gate is not the question here.\n'
+    else
+      # Beside the escape paragraph, not instead of it: an escape found in the
+      # part git did read is still the founder's.
+      if [ "$unread" -eq 1 ]; then
+        printf '\ngit could not read all of this change; the unknown row above quotes\n'
+        printf 'why. What is above covers only the part it read, and nothing here says\n'
+        printf 'the rest stays inside the tree. Fix what git names, then run this again.\n'
+      fi
+      if [ "$esc" -eq 1 ]; then
+        printf '\nMerging this writes something outside the tree that a revert does not\n'
+        printf 'reach, so it is the founder who decides. Show them the diff and the\n'
+        printf 'reversal path; a green gate is not the question here.\n'
+      fi
     fi
     # Said whatever else is said, beside an escape too: the founder is being
     # asked already, and a merge they clear would stop again on the receipt.
@@ -1777,7 +1789,7 @@ EOF
       printf 'Felix never writes a project'"'"'s autonomy file and a session does not\n'
       printf 'commission for itself, so a green gate does not clear this.\n'
     fi
-    if [ "$unk" -eq 0 ] && [ "$esc" -eq 0 ]; then
+    if [ "$unk" -eq 0 ] && [ "$unread" -eq 0 ] && [ "$esc" -eq 0 ]; then
       if [ "$stamp" -eq 1 ] && [ "$owed" -eq 1 ]; then
         printf '\nThe rest escapes nothing and is work Felix owes: run the gate, or\n'
         printf 'write the test that is missing, then run this again.\n'
@@ -3692,7 +3704,13 @@ cmd_evidence() {
       printf '  [?] %-14s %s\n' "$name" "$reason"
     done
     printf '\nNothing was compared, so nothing above is a finding about this change.\n'
-    printf 'Check --base, or the default branch, which is not `main` everywhere.\n'
+    # The row says which of two (2026-10-08): CHANGED-PATHS is a change git
+    # could not list, over a base that resolves, and its reason quotes git.
+    if grep -q '^unknown	CHANGED-PATHS	' <<<"$results"; then
+      printf 'git could not list all of it; fix what git names, then run this again.\n'
+    else
+      printf 'Check --base, or the default branch, which is not `main` everywhere.\n'
+    fi
     printf 'This says nothing about what the change owes; that was never asked.\n'
     return 1
   fi
@@ -4013,8 +4031,8 @@ $1"; shift ;;
     # A list git broke off is not the change (2026-10-08). A corrupt index
     # listed nothing, and this said "Nothing to scope" and exited 0.
     paths="$(felix_changed_paths "$root" "$base")" || {
-      printf 'git could not list every path this change touches, so nothing was\n'
-      printf 'scoped. git status says what it cannot read.\n'
+      printf 'git could not list every path this change touches (%s),\n' "$(felix_change_why "$root" "$base")"
+      printf 'so nothing was scoped. Fix what git names, then scope it.\n'
       return 1
     }
   fi
@@ -4043,8 +4061,8 @@ $1"; shift ;;
   # change it could not read to the end: a tracked named pipe hid the lines
   # added after it, and this went on to "In scope" over them.
   if [ "$sev" = "unknown" ]; then
-    printf 'NOT SCOPED. Some of this change could not be read, so no tier stands\n'
-    printf 'for it. Make every tracked path a readable file again, then scope it.\n'
+    printf 'NOT SCOPED. git could not read all of this change (%s),\n' "$(felix_change_why "$root" "$base")"
+    printf 'so no tier stands for it. Fix what git names, then scope it.\n'
     return 1
   fi
   if [ "$partial" -eq 1 ]; then
@@ -4103,7 +4121,8 @@ cmd_classify() {
     # end over a base that resolves; the rows above say which, and so does this.
     if felix_base_resolves "$root" "$base"; then
       printf '\nNot classified. This is not a green change and not a risky one; git\n'
-      printf 'could not read all of it. git status names the path it cannot hash.\n'
+      printf 'could not read all of it, and the unknown row above quotes why. Fix what\n'
+      printf 'git names, then run this again.\n'
       return 1
     fi
     printf '\nNothing was compared. This is not a green change and not a risky one;\n'

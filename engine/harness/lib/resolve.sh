@@ -748,10 +748,11 @@ _felix_merge_refs() {
 #
 # 2026-10-08. git does not block on a named pipe at a tracked path, and it does
 # not skip one either. `git diff` and `git diff HEAD` print every path that sorts
-# before it, then exit 128: "cannot hash". A mode-000 file and a corrupt index
-# do the same. Every caller sent that to /dev/null and kept what was printed, so
-# each path after the pipe was dropped in silence. The tree id of an edited tree
-# came out as the clean commit's, and secret-scan passed an added key.
+# before it, then exit 128: "cannot hash". A mode-000 file does the same, and a
+# corrupt index stops every diff before it prints anything. Every caller sent
+# that to /dev/null and kept what was printed, so each path after the pipe was
+# dropped in silence. The tree id of an edited tree came out as the clean
+# commit's, and secret-scan passed an added key.
 #
 # A non-zero exit is not an answer. Neither is an empty capture whose subshell
 # never ran, so the mark is written only after git returns 0. The mark is a
@@ -767,7 +768,13 @@ _felix_git_read() {   # VAR command...
   case "$_felix_gr_out" in
     *$'\n\037ok') _felix_gr_rc=0; _felix_gr_out="${_felix_gr_out%$'\n\037ok'}" ;;
   esac
-  while [ "${_felix_gr_out%$'\n'}" != "$_felix_gr_out" ]; do _felix_gr_out="${_felix_gr_out%$'\n'}"; done
+  # Asked by `case`, never by comparing a `%` that removes nothing: in bash 3.2
+  # a `${v%$'\n'}` with no newline to remove is quadratic in the length of v.
+  # The first draft looped on that comparison, and a 1 MB diff took 13 s of
+  # CPU in a hook that runs at every stop (review, 2026-10-08).
+  while case "$_felix_gr_out" in *$'\n') true ;; *) false ;; esac; do
+    _felix_gr_out="${_felix_gr_out%$'\n'}"
+  done
   printf -v "$1" '%s' "$_felix_gr_out"
   return "$_felix_gr_rc"
 }
@@ -804,7 +811,8 @@ _felix_git_read() {   # VAR command...
 # prints every path it did read. A list git broke off is not the list of what
 # changed, and a caller that decides on it must say it does not know. A tracked
 # named pipe does not trip this one: --name-only compares stat data and never
-# hashes, so it lists the pipe and exits 0. A corrupt index does.
+# hashes, so it lists the pipe and exits 0. A corrupt index trips it, and so
+# does a branch that shares no history with the base (`no merge base`).
 felix_changed_paths() {
   local root="$1" base="${2:-}" refs out all="" rc=0
   # The branch side only where there is a branch. On an unborn HEAD, an orphan
@@ -829,6 +837,24 @@ $out"
 $out"
   printf '%s\n' "$all" | grep -v '^$' | LC_ALL=C sort -u
   return "$rc"
+}
+
+# git's own first complaint about reading this change, one line with no tab, for
+# every sentence that says it could not be read (2026-10-08). The causes differ,
+# and so do their remedies: a tracked path git cannot hash, an index it cannot
+# read, or a branch with no merge base with the base. The first wording blamed a
+# path for all three. Asked again with stderr kept, because the readers above
+# keep stdout only, and only by a caller already holding a failed read.
+felix_change_why() {   # root [base]
+  local root="$1" base="${2:-}" why
+  why="$( {
+      if [ -n "$base" ] && git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+        git -C "$root" diff --stat "$base...HEAD"
+      fi
+      git -C "$root" diff --stat --cached
+      git -C "$root" diff --stat
+    } 2>&1 >/dev/null | awk '!p && /^(error|fatal): / { gsub(/\t/, " "); print; p = 1 }')"
+  printf '%s\n' "${why:-git gave no reason when asked again}"
 }
 
 # Every line this branch ADDS, including staged and unstaged ones.

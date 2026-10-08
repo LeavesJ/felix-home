@@ -316,16 +316,20 @@ felix_escapes() {
   # scanned an empty change and found it clean, credential and SQL included.
   # The paths it did read still go through every channel below. The unknown row
   # is said once, before them, and blocks the merge however they come out.
+  # The reason is git's own (felix_change_why), since a path, an index and a
+  # missing merge base each need a different fix.
   local unread=""
   if ! paths="$(felix_changed_paths "$root" "$base")"; then
     unread=1
-    printf 'unknown\tCHANGED-PATHS\tgit could not list every path this change touches, so the change was not scanned in full\n'
+    printf 'unknown\tCHANGED-PATHS\tgit could not list every path this change touches (%s), so the change was not scanned in full\n' \
+      "$(felix_change_why "$root" "$base")"
   fi
   [ -n "$paths" ] || return 0
 
   if ! added="$(felix_added_lines "$root" "$base")" && [ -z "$unread" ]; then
     unread=1
-    printf 'unknown\tADDED-LINES\tgit could not read every line this change adds (a tracked path it cannot hash, or an index it cannot read), so they were not scanned\n'
+    printf 'unknown\tADDED-LINES\tgit could not read every line this change adds (%s), so they were not scanned\n' \
+      "$(felix_change_why "$root" "$base")"
   fi
 
   # disclose. Already tuned against real false positives and already in the

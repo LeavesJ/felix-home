@@ -8110,6 +8110,193 @@ _gp_rec1=0
   && _gp_rec1="$(wc -l < "$FELIX_TEST_FXREFUSED" | tr -d ' ')"
 is "no refusal this block provoked reached the suite's own refusal record" "$_gp_rec1" "$_gp_rec0"
 
+printf '\nfixture git proof: what the mutation runner found\n'
+# These were NOT written blind. The mutation runner of 2026-10-08 wrote them
+# after it had read the implementation, each to kill a mutant the blind block
+# above let survive (the F, G and L ids are its names for them; contract C13,
+# A10). So they can share the implementation's blind spots, and they lean on
+# the blind block's helpers, stand-ins and children (_gp_*), which is why they
+# sit directly after it. Changed on the way in, and why, so each can fail for
+# the reason it names:
+# - X1 compares the whole probe and the refusal's reason, so a probe that
+#   never ran, or a suite with no _fx_cd, is red rather than equal to itself.
+# - X3 adds origin's fetch back after the reorder: with every remote.* key
+#   watched (A4), a fetch left out would fail the check whatever the order.
+# - X7 builds its packed refs through _fx_cd, as the lint requires, and is
+#   red as not exercised when there are no packed refs to lock.
+# - X14 and X15 build their stand-ins through _fx_cd, as the lint requires.
+# - X26 skips only where date -j is missing, and is red when C7 left no time.
+# - X21 counts only where the ulimit held and C7 is shown to exist, as the
+#   blind block's own fork probe does.
+
+# F15: a refusal that enters the directory first (outside-tmp) restores OLDPWD too.
+: > "$_gp/rec.x1"
+_gx_o="$(cd "$_gp_home/sub" || exit 0; cd "$_gp_home" || exit 0; cd "$_gp_home/sub" || exit 0
+         _a="${OLDPWD-unset}"; FELIX_TEST_FXREFUSED="$_gp/rec.x1"
+         _fx_cd / >/dev/null 2>&1; printf '%s|%s' "$_a" "${OLDPWD-unset}")"
+is "X1 _fx_cd refusing an outside directory it entered restores OLDPWD as well" \
+   "$_gx_o|$(cut -f3 "$_gp/rec.x1" 2>/dev/null)" "$_gp_home|$_gp_home|outside-tmp"
+
+# F25: a relative DIR never reaches cd's "-" (OLDPWD) or CDPATH.
+_gx_o="$(cd "$_gp/plain" || exit 0; cd "$_gp_home/sub" || exit 0
+         FELIX_TEST_FXREFUSED="$_gp/rec.x2a"; _fx_cd - >/dev/null 2>&1; printf '%s %s' "$?" "$(pwd -P)")"
+is "X2a _fx_cd - does not follow OLDPWD: it refuses and the caller stays" "$_gx_o" "1 $_gp_homep/sub"
+_gx_o="$(cd "$_gp_home/sub" || exit 0; CDPATH="$_gp"; export CDPATH
+         FELIX_TEST_FXREFUSED="$_gp/rec.x2b"; _fx_cd plain >/dev/null 2>&1; printf '%s %s' "$?" "$(pwd -P)")"
+is "X2b _fx_cd on a bare relative name does not search CDPATH" "$_gx_o" "1 $_gp_homep/sub"
+
+# G03: the same url entries in another order are a move.
+_gp_ord="$_gp/stand-order"; _gp_build "$_gp_ord" spare
+_gp_kid order 1 <<'GPKID'
+ok "gp child: an assertion before the remotes are reordered"
+sleep 1
+_gpk_git config --remove-section remote.origin
+_gpk_git config remote.origin.url https://example.invalid/gp/stand-in.git
+_gpk_git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+ok "gp child: an assertion after the remotes are reordered"
+true
+GPKID
+_gp_run order "$_gp_ord/sub" "$_gp_ord"
+_gx_pre="$(git -C "$_gp_ord" config --get-regexp '^remote\..*\.url$' 2>/dev/null | sed -n 1p | cut -d' ' -f1)"
+_gx_f="$(git -C "$_gp_ord" config --get remote.origin.fetch 2>/dev/null)"
+if [ "$_gx_pre" != remote.spare.url ] || [ "$_gx_f" != '+refs/heads/*:refs/remotes/origin/*' ]; then
+  bad "X3 the same urls in another file order fail the origin check" "not exercised: first entry is [$_gx_pre], origin's fetch [$_gx_f]"
+elif _gp_has order "  FAIL  $_gp_c8"; then ok "X3 the same urls in another file order fail the origin check"
+else bad "X3 the same urls in another file order fail the origin check" "C8 said: $(grep -F -- "$_gp_c8" "$_gp/kid/order/out" | tr '\n' ' ')"; fi
+
+# G05a, G05b: after the snapshot the shell stands where it started, with OLDPWD as it was (unset).
+_gp_kid st 0 <<'GPKID'
+printf 'pwd %s\noldpwd %s\n' "$(pwd -P)" "${OLDPWD-unset}" > "$GP_OUT/st"
+true
+GPKID
+( cd "$_gp_same/sub" && env -u OLDPWD GP_OUT="$_gp/kid/st" GP_STAND= GP_TMPP="$_gp_tmpp" GP_HARNESS="$_gp_harness" bash "$_gp/kid/st/run" >/dev/null 2>&1 )
+_gx_o="$(cat "$_gp/kid/st/st" 2>/dev/null)"
+is "X5a after the preamble the snapshot has left the shell in the directory it started in" "$(_gp_get "$_gx_o" pwd)" "$(_gp_phys "$_gp_same/sub")"
+is "X5b after the preamble the snapshot has left OLDPWD as it found it" "$(_gp_get "$_gx_o" oldpwd)" "unset"
+
+# G07, G08: a checkout whose refs cannot be read is unreadable, not empty.
+_gp_pk="$_gp/stand-packed"; _gp_build "$_gp_pk"
+( _fx_cd "$_gp_pk" && case "$(pwd -P)/" in "$_gp_tmpp"/?*) GIT_CEILING_DIRECTORIES="${_gp_pk%/*}" git pack-refs --all ;; esac ) >/dev/null 2>&1
+chmod 000 "$_gp_pk/.git/packed-refs" 2>/dev/null
+if [ ! -f "$_gp_pk/.git/packed-refs" ]; then
+  bad "X7 a stand-in whose packed refs cannot be read fails the origin check" "not exercised: the stand-in has no packed-refs"
+elif [ -r "$_gp_pk/.git/packed-refs" ]; then
+  skip "X7 a stand-in whose packed refs cannot be read fails the origin check" "this user reads a mode-000 file"
+else
+  _gp_kid pkd 1 <<'GPKID'
+ok "gp child: an assertion in a run whose refs could not be read"
+true
+GPKID
+  _gp_run pkd "$_gp_pk/sub" "$_gp_pk"
+  if _gp_has pkd "  FAIL  $_gp_c8"; then ok "X7 a stand-in whose packed refs cannot be read fails the origin check"
+  else bad "X7 a stand-in whose packed refs cannot be read fails the origin check" "C8 said: $(grep -F -- "$_gp_c8" "$_gp/kid/pkd/out" | tr '\n' ' ')"; fi
+fi
+chmod 644 "$_gp_pk/.git/packed-refs" 2>/dev/null
+
+# G12: the checkout around the harness is watched even when the run starts in none.
+_gp_hw="$_gp/stand-hw"; _gp_build "$_gp_hw"; _copy_content "$_gp_harness" "$_gp_hw/harness"
+_gp_kid hw 1 <<'GPKID'
+ok "gp child: an assertion before the remote moves"
+sleep 1
+_gpk_git remote set-url origin https://example.invalid/gp/moved-hw.git
+ok "gp child: an assertion after the remote moves"
+true
+GPKID
+_gp_run hw "$_gp_none" "$_gp_hw" "$_gp_hw/harness"
+if [ "$(git -C "$_gp_hw" config --get remote.origin.url 2>/dev/null)" != "https://example.invalid/gp/moved-hw.git" ]; then
+  bad "X12 a remote that moved in the checkout around the harness fails the origin check, though the run started in no checkout" "not exercised"
+elif _gp_has hw "  FAIL  $_gp_c8"; then ok "X12 a remote that moved in the checkout around the harness fails the origin check, though the run started in no checkout"
+else bad "X12 a remote that moved in the checkout around the harness fails the origin check, though the run started in no checkout" "C8 said: $(grep -F -- "$_gp_c8" "$_gp/kid/hw/out" | tr '\n' ' ')"; fi
+
+# G14: a linked worktree (.git is a file) is a checkout; its config is the shared one. The incident's own shape.
+_gp_wsrc="$_gp/stand-wt-src"; _gp_build "$_gp_wsrc"; _gp_wt="$_gp/stand-wt"
+( _fx_cd "$_gp_wsrc" && case "$(pwd -P)/" in "$_gp_tmpp"/?*) GIT_CEILING_DIRECTORIES="${_gp_wsrc%/*}" git worktree add -q --detach "$_gp_wt" HEAD ;; esac ) >/dev/null 2>&1
+_gp_kid wt 1 <<'GPKID'
+ok "gp child: an assertion before the remote moves"
+sleep 1
+_gpk_git remote set-url origin https://example.invalid/gp/moved-wt.git
+ok "gp child: an assertion after the remote moves"
+true
+GPKID
+if [ ! -f "$_gp_wt/.git" ]; then
+  bad "X14 a remote that moved under a run started in a linked worktree fails the origin check" "not exercised: no worktree"
+else
+  _gp_run wt "$_gp_wt" "$_gp_wsrc"
+  if _gp_has wt "  FAIL  $_gp_c8"; then ok "X14 a remote that moved under a run started in a linked worktree fails the origin check"
+  else bad "X14 a remote that moved under a run started in a linked worktree fails the origin check" "C8 said: $(grep -F -- "$_gp_c8" "$_gp/kid/wt/out" | tr '\n' ' ')"; fi
+fi
+
+# G15: a remote whose name holds a dot keeps its refs under its whole name.
+_gp_dot="$_gp/stand-dot"; _gp_build "$_gp_dot"
+( _fx_cd "$_gp_dot" && case "$(pwd -P)/" in "$_gp_tmpp"/?*) export GIT_CEILING_DIRECTORIES="${_gp_dot%/*}"
+    git remote add my.fork https://example.invalid/gp/fork.git && git update-ref refs/remotes/my.fork/main HEAD ;; esac ) >/dev/null 2>&1
+_gp_kid dot 1 <<'GPKID'
+ok "gp child: an assertion before the dotted remote loses its ref"
+sleep 1
+_gpk_git update-ref -d refs/remotes/my.fork/main
+ok "gp child: an assertion after the dotted remote loses its ref"
+true
+GPKID
+_gp_run dot "$_gp_dot/sub" "$_gp_dot"
+if [ -n "$(git -C "$_gp_dot" for-each-ref refs/remotes/my.fork 2>/dev/null)" ] || [ -z "$(git -C "$_gp_dot" config --get remote.my.fork.url 2>/dev/null)" ]; then
+  bad "X15 a remote named with a dot that loses its refs fails the origin check" "not exercised"
+elif _gp_has dot "  FAIL  $_gp_c8"; then ok "X15 a remote named with a dot that loses its refs fails the origin check"
+else bad "X15 a remote named with a dot that loses its refs fails the origin check" "C8 said: $(grep -F -- "$_gp_c8" "$_gp/kid/dot/out" | tr '\n' ' ')"; fi
+
+# G16, G26: the detail says the remotes moved while the run ran, and C7's time is the UTC now.
+_gp_d="$(_gp_detail url "$_gp_c8")"
+has "X16 the origin check's detail says the remotes moved while this run ran" "$_gp_d" "moved while this run ran"
+_gx_t="$(head -1 "$_gp/kid/url/origin-moved" 2>/dev/null | cut -f1)"
+_gx_e="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$_gx_t" +%s 2>/dev/null)"; _gx_n="$(date -u +%s)"
+if ! date -u -j -f '%s' 0 +%s >/dev/null 2>&1; then skip "X26 C7's time is UTC" "date -j is not here"
+elif [ -z "$_gx_t" ] || [ -z "$_gx_e" ]; then bad "X26 C7's time is UTC" "C7's record has no time that reads as %Y-%m-%dT%H:%M:%SZ: [$_gx_t]"
+elif [ $((_gx_n - _gx_e)) -ge 0 ] && [ $((_gx_n - _gx_e)) -lt 3600 ]; then ok "X26 C7's time is UTC"
+else bad "X26 C7's time is UTC" "[$_gx_t] is $((_gx_n - _gx_e)) s from the UTC now"; fi
+
+# G21: after a config write that moved nothing the stamp is refreshed, so the next assertion costs no fork.
+_gp_tch="$_gp/stand-touch"; _gp_build "$_gp_tch"
+_gp_kid tch 1 <<'GPKID'
+ok "gp child: an assertion before the config is touched"
+sleep 1
+_gpk_git config gp.touched yes
+ok "gp child: the assertion that sees the touch"
+( ulimit -S -u 1 2>/dev/null || exit 0
+  ulimit -S -u > "$GP_OUT/fork.limit2"
+  _ran "gp child: an assertion recorded with no fork after a touch" 2> "$GP_OUT/fork.err2" )
+ok "gp child: an assertion after the second probe"
+true
+GPKID
+_gp_run tch "$_gp_tch/sub" "$_gp_tch"
+if [ "$(git -C "$_gp_tch" config --get gp.touched 2>/dev/null)" != yes ] || [ ! -s "$_gp/kid/url/origin-moved" ]; then
+  bad "X21 the guard refreshes its stamp, so an assertion after a seen config change costs no fork" \
+      "not exercised: the touch [$(git -C "$_gp_tch" config --get gp.touched 2>/dev/null)], or no C7 record in the moved-remote child to show a guard is there"
+elif [ "$(cat "$_gp/kid/tch/fork.limit2" 2>/dev/null)" != 1 ]; then
+  skip "X21 the guard refreshes its stamp, so an assertion after a seen config change costs no fork" "ulimit -S -u 1 did not hold in the child"
+else
+  is "X21 the guard refreshes its stamp, so an assertion after a seen config change costs no fork" \
+     "$(cat "$_gp/kid/tch/fork.err2" 2>/dev/null)|$(grep -c 'gp child: an assertion after the second probe' "$_gp/kid/tch/out")" "|1"
+fi
+
+# G04: the snapshot code is above TMP=.
+_gx_a="$(grep -n '^_og_add "\$_og_start"' "$_gp_src" | head -1 | cut -d: -f1)"; _gx_b="$(grep -n '^TMP="\$(mktemp -d)"' "$_gp_src" | head -1 | cut -d: -f1)"
+if [ -n "$_gx_a" ] && [ -n "$_gx_b" ] && [ "$_gx_a" -lt "$_gx_b" ]; then ok "X4 the snapshot is taken above TMP=\$(mktemp -d)"
+else bad "X4 the snapshot is taken above TMP=\$(mktemp -d)" "snapshot at line [$_gx_a], TMP= at line [$_gx_b]"; fi
+
+# L22, L23, L25 and L11b: lint shapes the synthetic files do not hold.
+cat > "$_gp/lint/more" <<'GPLINT'
+printf x | git -C "$S_pipe1" remote add o https://example.invalid/x.git
+cd "$S_pipe2" |
+  git config k v
+case "$m" in a) cd "$S_case1" && git config k v ;; esac
+case "$m" in a) git -C "$S_case2" config k v ;; esac
+cd "$S_bs" \
+  && git config k v
+GPLINT
+_gp_lint_is "X22 _fx_lint reads a git after |, a cd continued by a trailing |, a command right after a case pattern's ), and a cd continued by a backslash at top level" "$_gp/lint/more" 1
+mkdir -p "$_gp/stubbin"; printf '#!/bin/sh\nexit 3\n' > "$_gp/stubbin/awk"; chmod 755 "$_gp/stubbin/awk"
+_gx_o="$( PATH="$_gp/stubbin:$PATH"; _fx_lint "$_gp/lint/writes" 2>/dev/null; printf 'rc=%s' "$?" )"
+is "X11 _fx_lint does not read a failed awk as a clean file" "$_gx_o" "rc=2"
+
 # >>> hook-payload-cwd
 printf '\nhooks stand where the session stands\n'
 # Claude Desktop starts every session with --project-config-root naming the

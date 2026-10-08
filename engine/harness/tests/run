@@ -649,9 +649,9 @@ is "_fixture_enclosed finds no checkout at or above the suite's working director
 # runner's $HERE holds no suite, and there the check is skipped.
 _ff_self="$HERE/run"
 _ff_end="$(grep -n '^FELIX_TEST_RAN="\$TMP/ran"' "$_ff_self" 2>/dev/null | head -1 | cut -d: -f1)"
-if [ -z "$_ff_end" ] || ! grep -q '^_fixture_enclosed; case' "$_ff_self" 2>/dev/null; then
+if [ -z "$_ff_end" ]; then
   skip "the preamble refuses to start when its temporary directory sits inside a checkout" \
-       "$_ff_self is not a suite with the floor"
+       "$_ff_self is not this suite"
 else
   _ffp="$TMP/floor-preamble"; mkdir -p "$_ffp/t"; _ff_git init -q "$_ffp" >/dev/null 2>&1
   sed -n "1,$((_ff_end - 1))p" "$_ff_self" > "$_ffp/t/head.sh"

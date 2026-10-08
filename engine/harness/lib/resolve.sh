@@ -764,11 +764,14 @@ felix_replace_file() {
 #
 # Written first and given its mode after (2026-10-08, review): under a umask
 # without the owner's write bit, a mode set first left the file unwritable,
-# and every stamp failed where `>` had succeeded.
+# and every stamp failed where `>` had succeeded. mktemp's 0600 is masked by
+# that umask as well, so the file is made 0600 before the write: under umask
+# 0222 it was 0400 and the write was refused (2026-10-08, blind assertions).
 felix_replace_prepare() {
   local f="$1" tmp; shift
   tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
-  if { "$@" > "$tmp" && chmod "$(printf '%03o' $(( 0666 & ~0$(umask) )))" "$tmp"; } 2>/dev/null; then
+  if { chmod 0600 "$tmp" && "$@" > "$tmp" \
+       && chmod "$(printf '%03o' $(( 0666 & ~0$(umask) )))" "$tmp"; } 2>/dev/null; then
     printf '%s' "$tmp"; return 0
   fi
   rm -f "$tmp" 2>/dev/null

@@ -22134,6 +22134,310 @@ chmod "$_rwmode" "$RVP"
 is "the widget's directory holds exactly what it held before the review findings were tested" \
    "$(ls -A "$RVP" | LC_ALL=C sort)" "$_rwstart"
 
+printf '\nthe autonomy file has one writer at a time\n'
+# 2026-10-08: felix autonomy is the only writer of a project's grant file and
+# of its commission stamp, and nothing serialised it. Two runs at once
+# interleaved: a revoke of commission read the file, a revoke of tidy then
+# rewrote it, read it back and said "revoked: tidy", and the first run's move
+# landed its stale copy, tidy still in it. Tidy is the grant that deletes files
+# at session start. An allow racing a revoke lost its line the same way. These
+# pin the lock that ends it: one empty directory, autonomy.lock, taken by every
+# run given --allow or --revoke and gone after every exit, a signal's included;
+# a run that finds it held refuses, writes nothing, leaves it where it was and
+# says rmdir clears a stale one; a run that only reads takes none; and another
+# project's lock stops nothing. Run A is paused inside its rewrite by an mv
+# first on its PATH, which waits on a FIFO kept under the suite's temporary
+# directory, and run B starts and ends meanwhile. A is started under job
+# control so that SIGINT reaches it: a job started with & in a script ignores
+# INT for good. INT goes to A's process group, as a Ctrl-C does, because bash
+# waiting on a child that survives an INT carries on as if none came.
+_lkp="$FROOT/projects/widget"; _lkL="$_lkp/autonomy.lock"; _lkk="$TMP/lock-keep"; mkdir -p "$_lkk"
+_lkstart="$(ls -A "$_lkp" | LC_ALL=C sort)"
+for _lkf in "$_lkp"/autonomy*; do { [ -e "$_lkf" ] || [ -L "$_lkf" ]; } && mv "$_lkf" "$_lkk/"; done
+_lka=""; _lkbp=""; _lkreached=no
+_lkallows() { ( . "$FROOT/harness/lib/autonomy.sh"; felix_autonomy_allows "$_lkp" "$1" && echo yes || echo no ); }
+_lkclear() { rm -rf "$_lkp"/autonomy*; }   # every autonomy* entry of the widget, the lock included
+_lkset() {   # FORMAT: the grant file written by printf FORMAT, beside a stamp for commission, and no lock
+  _lkclear; printf "$1" > "$_lkp/autonomy"; printf 'stamp\n' > "$_lkp/autonomy.commission"
+}
+_lkstate() {   # the grant file and the stamp, each by checksum or as absent, then every name in the directory
+  for _lkn in autonomy autonomy.commission; do
+    if [ -e "$_lkp/$_lkn" ]; then printf '%s %s\n' "$_lkn" "$(cksum < "$_lkp/$_lkn")"
+    else printf '%s absent\n' "$_lkn"; fi
+  done
+  ls -A "$_lkp" | LC_ALL=C sort
+}
+_lksame() { [ "$(_lkstate)" = "$_lkheld" ] && echo same || echo changed; }   # against _lkstate as _lkheld recorded it
+_lklock() {   # the lock: absent, empty (a directory holding nothing), full, or other (not a directory)
+  if [ -L "$_lkL" ]; then echo other
+  elif [ ! -e "$_lkL" ]; then echo absent
+  elif [ ! -d "$_lkL" ]; then echo other
+  elif [ -n "$(ls -A "$_lkL" 2>/dev/null)" ]; then echo full
+  else echo empty; fi
+}
+_lkrun() {   # ARGS...: felix autonomy ARGS from the widget checkout; sets _lkrc _lkout _lkerr
+  # Given 30 s, so a run that waits on a held lock rather than refusing is a
+  # failure and not a hang. Its status then names that, and is not a number.
+  ( cd "$REPO" && exec "$FELIX" autonomy "$@" ) > "$TMP/lk.out" 2> "$TMP/lk.err" &
+  _lkrp=$!
+  if _lkuntil "$_lkrp"; then wait "$_lkrp"; _lkrc=$?
+  else { kill -KILL "$_lkrp"; wait "$_lkrp"; } 2>/dev/null; _lkrc="still running after 30 s"; fi
+  _lkout="$(cat "$TMP/lk.out")"; _lkerr="$(cat "$TMP/lk.err")"
+}
+_lkexit() { case "$1" in 0) echo "exit 0" ;; ''|*[!0-9]*) echo "${1:-no status}" ;; *) echo refused ;; esac; }   # STATUS
+_lksaid() { case "$1" in *revoked:*|*allowed:*) echo said ;; *) echo silent ;; esac; }   # TEXT: reports a write?
+_lkrv() { case "$1" in *revoked:*) echo said ;; *) echo silent ;; esac; }               # TEXT: says revoked:?
+_lkhas() { case "$1" in *"$2"*) echo "$2" ;; *) echo "no [$2]" ;; esac; }               # TEXT WORD
+_lkclaim() {   # STATUS TEXT LINE CAP WANT: broken when a run that exited 0 saying LINE leaves CAP's grant other than WANT
+  case "$1:$2" in 0:*"$3"*) [ "$(_lkallows "$4")" = "$5" ] && echo holds || echo broken ;; *) echo holds ;; esac
+}
+_lkuntil() {   # PID: wait up to 30 s, far from a run's cost, for PID to be gone; 0 when it is
+  _lki=0
+  while kill -0 "$1" 2>/dev/null; do
+    [ "$_lki" -ge 300 ] && return 1
+    sleep 0.1; _lki=$((_lki+1))
+  done
+  return 0
+}
+# The mv run A finds first on its PATH. Armed, and moving onto the widget's
+# grant file, it disarms, writes its pid to reached, and reads one line from
+# the FIFO release; then, and in every other case at once, it is /bin/mv.
+_lksh="$TMP/lock-shim"; mkdir -p "$_lksh"
+{ printf '#!/bin/sh\n_d=%s\n' "'$_lksh'"
+  cat <<'EOF'
+_last=""; for _a in "$@"; do _last="$_a"; done
+case "$_last" in
+  */projects/widget/autonomy)
+    if [ -e "$_d/armed" ] && /bin/rm "$_d/armed" 2>/dev/null; then
+      echo "$$" > "$_d/reached"
+      read -r _line < "$_d/release"
+    fi ;;
+esac
+exec /bin/mv "$@"
+EOF
+} > "$_lksh/mv"; chmod +x "$_lksh/mv"
+_lkgo() {   # run A, felix autonomy --revoke commission, in the background under job control, the shim first on its PATH
+  _lka=""; _lkreached=no
+  rm -f "$_lksh/reached" "$_lksh/release"; mkfifo "$_lksh/release" 2>/dev/null
+  [ -p "$_lksh/release" ] || { _lkreached="no FIFO"; return; }
+  : > "$_lksh/armed"; exec 8<>"$_lksh/release"
+  set -m
+  ( cd "$REPO" && PATH="$_lksh:$PATH" exec "$FELIX" autonomy --revoke commission ) \
+    > "$TMP/lk-a.out" 2> "$TMP/lk-a.err" 8>&- &
+  _lka=$!
+  set +m
+  _lki=0
+  while [ "$_lki" -lt 100 ]; do
+    [ -s "$_lksh/reached" ] && { _lkreached=yes; return; }
+    sleep 0.1; _lki=$((_lki+1))
+  done
+}
+_lkend() {   # release run A and reap it, then wait for its mv however A ended; sets _lkarc _lkaout _lkaerr
+  { printf 'go\n' >&8; } 2>/dev/null; exec 8>&-
+  _lkarc=""
+  if [ -n "$_lka" ]; then
+    _lkuntil "$_lka" || kill -KILL "$_lka" 2>/dev/null
+    wait "$_lka"; _lkarc=$?
+  fi
+  _lksp="$(cat "$_lksh/reached" 2>/dev/null)"
+  [ -n "$_lksp" ] && _lkuntil "$_lksp"
+  rm -f "$_lksh/reached" "$_lksh/release" "$_lksh/armed"
+  _lkaout="$(cat "$TMP/lk-a.out" 2>/dev/null)"; _lkaerr="$(cat "$TMP/lk-a.err" 2>/dev/null)"
+}
+_lkreq() {   # NAME VALUE EXPECTED: is, once run A paused in its rewrite; bad when it never did
+  if [ "$_lkreached" = yes ]; then is "$1" "$2" "$3"
+  else bad "$1" "run A never paused in the mv onto the grant file ($_lkreached)"; fi
+}
+
+# L2: a lock someone else holds. The run refuses, writes nothing, leaves the
+# lock where it found it, and its stderr names the lock and says how to clear it.
+_lkset 'tidy\ncommission\n'; mkdir "$_lkL"; _lkheld="$(_lkstate)"; _lkrun --revoke commission
+is "with the lock held, a revoke of commission exits non-zero and says neither revoked: nor allowed:" \
+   "$(_lkexit "$_lkrc"):$(_lksaid "$_lkout$_lkerr")" "refused:silent"
+has "and the held-lock revoke names the lock's path on stderr" "$_lkerr" "projects/widget/autonomy.lock"
+has "and the held-lock revoke says on stderr that rmdir clears a stale lock" "$_lkerr" "rmdir"
+has "and the held-lock revoke says on stderr it was not revoked" "$_lkerr" "not revoked"
+is "and the held-lock revoke leaves the grant file and the stamp byte-identical and adds nothing to the directory" \
+   "$(_lksame)" "same"
+is "and the held-lock revoke leaves the lock it found in place, still empty" "$(_lklock)" "empty"
+_lkset 'commission\n'; mkdir "$_lkL"; _lkheld="$(_lkstate)"; _lkrun --allow tidy
+is "with the lock held, an allow of tidy exits non-zero and says neither allowed: nor revoked:" \
+   "$(_lkexit "$_lkrc"):$(_lksaid "$_lkout$_lkerr")" "refused:silent"
+has "and the held-lock allow names the lock's path on stderr" "$_lkerr" "projects/widget/autonomy.lock"
+has "and the held-lock allow says on stderr that rmdir clears a stale lock" "$_lkerr" "rmdir"
+has "and the held-lock allow says on stderr it was not allowed" "$_lkerr" "not allowed"
+is "and the held-lock allow leaves the grant file and the stamp byte-identical and adds nothing to the directory" \
+   "$(_lksame)" "same"
+is "and the held-lock allow leaves the lock it found in place, still empty" "$(_lklock)" "empty"
+_lkset 'commission\n'; mkdir "$_lkL"; _lkheld="$(_lkstate)"; _lkrun --allow commission
+is "with the lock held, an allow of commission already granted refuses, says no already allowed:, and leaves its stamp as it was" \
+   "$(_lkexit "$_lkrc"):$(_lksaid "$_lkout$_lkerr"):$(_lksame)" "refused:silent:same"
+_lkset 'commission\n'; mkdir "$_lkL"; _lkheld="$(_lkstate)"; _lkrun --allow tidy --revoke commission
+is "with the lock held, a run given --allow and --revoke refuses, says not allowed and not revoked, and writes nothing" \
+   "$(_lkexit "$_lkrc"):$(_lkhas "$_lkerr" 'not allowed'):$(_lkhas "$_lkerr" 'not revoked'):$(_lksaid "$_lkout$_lkerr"):$(_lksame)" \
+   "refused:not allowed:not revoked:silent:same"
+_lkclear; mkdir "$_lkL"; _lkheld="$(_lkstate)"; _lkrun --allow commission
+is "with the lock held and neither a grant file nor a stamp, an allow of commission refuses and both stay absent" \
+   "$(_lkexit "$_lkrc"):$(_lksaid "$_lkout$_lkerr"):$(_lksame)" "refused:silent:same"
+_lkclear; mkdir "$_lkL"; _lkrun --revoke tidy
+is "with the lock held and no grant file, a revoke of tidy still refuses and says nothing revoked" \
+   "$(_lkexit "$_lkrc"):$(_lksaid "$_lkout$_lkerr")" "refused:silent"
+
+# L3: the advice works. A refused run leaves the lock as it found it, rmdir
+# takes it away, and the next run goes through.
+_lkset 'tidy\ncommission\n'; mkdir "$_lkL"; _lkrun --revoke commission
+if rmdir "$_lkL" 2>/dev/null; then _lkcl=cleared; else _lkcl=stuck; fi
+_lkrun --revoke commission
+is "rmdir clears the lock a refused run left in place, and the next revoke of commission exits 0, says so and takes the grant" \
+   "$_lkcl:$_lkrc:$(_lkrv "$_lkout"):$(_lkallows commission)" "cleared:0:said:no"
+is "and the revoke after the rmdir leaves no lock behind" "$(_lklock)" "absent"
+
+# L4: a run that writes nothing takes no lock, and a held one does not stop it.
+_lkset 'tidy\n'; mkdir "$_lkL"; _lkrun
+is "with the lock held, felix autonomy given neither --allow nor --revoke exits 0, shows the status page and leaves the lock" \
+   "$_lkrc:$(_lkhas "$_lkout" 'autonomy for widget'):$(_lklock)" "0:autonomy for widget:empty"
+
+# L8: a refused argument never removes a lock somebody else holds.
+_lkset 'tidy\ncommission\n'; mkdir "$_lkL"; _lkrun --revoke Commission
+is "with the lock held, a revoke of the unknown capability Commission exits non-zero and leaves the lock in place" \
+   "$(_lkexit "$_lkrc"):$(_lklock)" "refused:empty"
+_lkrun --revoke tidy --revoke commission
+is "with the lock held, a revoke given twice exits non-zero and leaves the lock in place" \
+   "$(_lkexit "$_lkrc"):$(_lklock)" "refused:empty"
+
+# L5: no lock outlives the run that took it, however that run ended short of a
+# signal. Nothing here held a lock beforehand.
+_lkset 'commission\n'; _lkrun --revoke commission
+is "a revoke of commission that succeeds leaves no lock" "$_lkrc:$(_lkrv "$_lkout"):$(_lklock)" "0:said:absent"
+_lkset 'commission\n'; _lkrun --allow tidy
+is "an allow of tidy that succeeds leaves no lock" "$_lkrc:$(_lkhas "$_lkout" 'allowed: tidy'):$(_lklock)" "0:allowed: tidy:absent"
+_lkset 'tidy\n'; _lkrun --allow tidy
+is "an allow of tidy already granted, which says already allowed, leaves no lock" \
+   "$_lkrc:$(_lkhas "$_lkout" 'already allowed: tidy'):$(_lklock)" "0:already allowed: tidy:absent"
+_lkset 'commission\n'; _lkrun --revoke tidy
+is "a revoke of tidy from a file that does not grant it leaves no lock" "$_lkrc:$(_lklock)" "0:absent"
+_lkclear; _lkrun --revoke tidy
+is "a revoke of tidy with no grant file leaves no lock" "$_lkrc:$(_lklock)" "0:absent"
+_lkset '# a\000b\ncommission\n'; _lkrun --revoke commission
+is "a revoke refused over a grant file holding a NUL byte leaves no lock" "$(_lkexit "$_lkrc"):$(_lklock)" "refused:absent"
+_lkset 'commission\n'; _lkrun --revoke Commission
+is "a revoke refused as an unknown capability leaves no lock" "$(_lkexit "$_lkrc"):$(_lklock)" "refused:absent"
+_lkset 'commission\n'; _lkrun --revoke tidy --revoke commission
+is "a revoke refused for naming --revoke twice leaves no lock" "$(_lkexit "$_lkrc"):$(_lklock)" "refused:absent"
+
+# L7: the lock is per project. Another project's needs nothing but the lock.
+_lkop="$FROOT/projects/gadget"
+if [ -e "$_lkop" ]; then _lkop="$(mktemp -d "$FROOT/projects/lockother.XXXXXX")"; else mkdir "$_lkop"; fi
+mkdir "$_lkop/autonomy.lock"
+_lkset 'tidy\ncommission\n'; _lkrun --revoke commission
+is "a lock in another project's directory does not stop a widget revoke of commission" \
+   "$_lkrc:$(_lkrv "$_lkout"):$(_lkallows commission):$(_lklock)" "0:said:no:absent"
+is "and the other project's lock is left where it was" "$([ -d "$_lkop/autonomy.lock" ] && echo kept || echo gone)" "kept"
+rm -rf "$_lkop"
+
+# L6: what a run reports is what holds once every run has ended. Run A, a
+# revoke of commission, is paused in the mv that moves its rewrite onto the
+# grant file; run B starts and ends; then A is released. B is given 30 s, and
+# one that waited for the lock instead of refusing is reported as not ending.
+_lkpair() {   # FORMAT ARGS...: the grant file by FORMAT and a stamp; run B, felix autonomy ARGS, while A is paused
+  _lkset "$1"; shift
+  _lkpaused=unreached; _lkafterb=unreached; _lkbsame=unreached; _lkbended="never started"; _lkbp=""; _lkbrc=""
+  _lkgo
+  if [ "$_lkreached" = yes ]; then
+    _lkpaused="$(_lklock)"; _lkheld="$(_lkstate)"
+    ( cd "$REPO" && exec "$FELIX" autonomy "$@" ) > "$TMP/lk-b.out" 2> "$TMP/lk-b.err" 8>&- &
+    _lkbp=$!
+    if _lkuntil "$_lkbp"; then
+      _lkbended=ended; _lkafterb="$(_lklock)"; _lkbsame="$(_lksame)"
+    else
+      _lkbended="still running after 30 s"; _lkafterb="$_lkbended"; _lkbsame="$_lkbended"
+    fi
+  fi
+  _lkend
+  if [ -n "$_lkbp" ]; then
+    _lkuntil "$_lkbp" || kill -KILL "$_lkbp" 2>/dev/null
+    wait "$_lkbp"; _lkbrc=$?
+  fi
+  _lkbout="$(cat "$TMP/lk-b.out" 2>/dev/null)"; _lkberr="$(cat "$TMP/lk-b.err" 2>/dev/null)"
+  _lkfinal="$(_lklock)"
+}
+_lkrace() {   # TAG: the assertions every interleaving shares, about the lock, run B and run A
+  _lkreq "$1: while A is paused the lock exists and is an empty directory" "$_lkpaused" "empty"
+  _lkreq "$1: B ends while A is paused, exits non-zero, and says neither revoked: nor allowed:" \
+         "$_lkbended:$(_lkexit "$_lkbrc"):$(_lksaid "$_lkbout$_lkberr")" "ended:refused:silent"
+  _lkreq "$1: B names the lock on stderr" "$(_lkhas "$_lkberr" 'projects/widget/autonomy.lock')" \
+         "projects/widget/autonomy.lock"
+  _lkreq "$1: B leaves the grant file and the stamp byte-identical and adds nothing to the directory" "$_lkbsame" "same"
+  _lkreq "$1: after B ends, with A still paused, A's lock is still there and still empty" "$_lkafterb" "empty"
+  _lkreq "$1: A exits 0, says revoked: commission, and commission is not granted once both have ended" \
+         "$_lkarc:$(_lkhas "$_lkaout" 'revoked: commission'):$(_lkallows commission)" "0:revoked: commission:no"
+  _lkreq "$1: the lock A held is gone once both have ended" "$_lkpaused:$_lkfinal" "empty:absent"
+}
+_lkpair 'tidy\ncommission\n' --revoke tidy
+is "writer race (a), a revoke of tidy while a revoke of commission is paused: A pauses in the mv onto the grant file" \
+   "$_lkreached" "yes"
+_lkrace "writer race (a)"
+_lkreq "writer race (a): what each run reported holds once both have ended" \
+       "$(_lkclaim "$_lkarc" "$_lkaout$_lkaerr" 'revoked: commission' commission no):$(_lkclaim "$_lkbrc" "$_lkbout$_lkberr" 'revoked: tidy' tidy no)" \
+       "holds:holds"
+_lkpair 'commission\n' --allow tidy
+is "writer race (b), an allow of tidy while a revoke of commission is paused: A pauses in the mv onto the grant file" \
+   "$_lkreached" "yes"
+_lkrace "writer race (b)"
+_lkreq "writer race (b): what each run reported holds once both have ended" \
+       "$(_lkclaim "$_lkarc" "$_lkaout$_lkaerr" 'revoked: commission' commission no):$(_lkclaim "$_lkbrc" "$_lkbout$_lkberr" 'allowed: tidy' tidy yes)" \
+       "holds:holds"
+# (c) has no such assertion: B allows what A revokes, so each run's report is
+# excused by the other's and the invariant constrains nothing. What (c) adds is
+# B's "already allowed" path, which re-stamps, refused like the rest.
+_lkpair 'commission\n' --allow commission
+is "writer race (c), an allow of commission while a revoke of commission is paused: A pauses in the mv onto the grant file" \
+   "$_lkreached" "yes"
+_lkrace "writer race (c)"
+
+# L5, signals: a run killed while it holds the lock takes the lock with it and
+# does not go on to say revoked:. SIGINT goes to A's process group, SIGTERM and
+# SIGHUP to A alone. A signal this suite was started ignoring (nohup's HUP, a
+# backgrounded parent's INT) reaches no child it starts, and is skipped.
+_lkprobe() {   # SIG: yes when a bash started as run A is started can trap SIG
+  set -m
+  ( exec bash -c "trap 'exit 9' $1; kill -$1 \$\$; exit 0" ) > /dev/null 2>&1 8>&- &
+  _lkpp=$!
+  set +m
+  wait "$_lkpp"; [ "$?" = 9 ] && echo yes || echo no
+}
+_lksig() {   # SIG: run A paused, sent SIG, released and reaped
+  _lkset 'tidy\ncommission\n'; _lkpaused=unreached
+  _lkgo
+  if [ "$_lkreached" = yes ]; then
+    _lkpaused="$(_lklock)"
+    if [ "$1" = INT ]; then kill -INT -- "-$_lka"; else kill "-$1" "$_lka"; fi
+    sleep 0.1
+  fi
+  _lkend
+}
+for _lks in TERM INT HUP; do
+  _lkn1="a revoke killed with SIG$_lks while it holds the lock leaves no lock behind"
+  _lkn2="and the revoke killed with SIG$_lks exits non-zero and does not say revoked:"
+  if [ "$(_lkprobe "$_lks")" != yes ]; then
+    skip "$_lkn1" "SIG$_lks cannot reach a process this suite starts: it was ignored when the suite began"
+    skip "$_lkn2" "SIG$_lks cannot reach a process this suite starts: it was ignored when the suite began"
+    continue
+  fi
+  # The shell's own "Terminated" and "Hangup" notices for A are not output.
+  _lksig "$_lks" 2>/dev/null
+  _lkreq "$_lkn1" "$_lkpaused:$(_lklock)" "empty:absent"
+  _lkreq "$_lkn2" "$(_lkexit "$_lkarc"):$(_lkrv "$_lkaout$_lkaerr")" "refused:silent"
+done
+
+exec 8>&-
+_lkclear; rm -rf "$_lksh"
+rm -f "$TMP/lk.out" "$TMP/lk.err" "$TMP/lk-a.out" "$TMP/lk-a.err" "$TMP/lk-b.out" "$TMP/lk-b.err"
+for _lkf in "$_lkk"/autonomy*; do { [ -e "$_lkf" ] || [ -L "$_lkf" ]; } && mv "$_lkf" "$_lkp/"; done
+rmdir "$_lkk" 2>/dev/null
+is "the widget's directory holds exactly what it held before the lock was tested" \
+   "$(ls -A "$_lkp" | LC_ALL=C sort)" "$_lkstart"
+
 # The commission grant is bound to the table it was granted over.
 #
 # Every other grant names an action the engine defines. This one names a

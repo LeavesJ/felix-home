@@ -30944,6 +30944,160 @@ unset -f _pr_trap_cmd _pr_if _pr_lacks _pr_mode _pr_ls _pr_left _pr_regular _pr_
          _pr_lib _pr_call _pr_proj _pr_checkout _pr_bind _pr_setup_rows _pr_stack_rows _pr_drop_cap _pr_a \
          _pr_libs _pr_cur _pr_b _pr_fxh _pr_new _pr_c_says _pr_dcase _pr_e_proj _pr_rival
 
+printf '\nthe replace helper leaves nothing behind when the file-size limit stops its write\n'
+# Written blind on 2026-10-08 from a contract, before the fix was read. It
+# covers R-F. Under `ulimit -f 0`, felix_replace_file over a file, over
+# nothing, and with an external command (sed), and felix_replace_prepare, each
+# return 1, leave PATH as it was, and leave no PATH.new.* beside it, and the
+# subshell that called felix_replace_file keeps running. With no limit, the
+# same four calls return 0 and write the command's output. One control shows
+# the limit is real on this platform, and the last assertion shows the suite's
+# own limit never moved.
+#
+# The limit reaches every regular file a limited process writes, including the
+# file it reports to, and the runner's output is one of those. So each
+# `ulimit -f 0` is set inside a subshell whose stdout and stderr go to a command
+# substitution's pipe. The subshell reports on that pipe, and PATH and its
+# directory are read here after it has exited. Nothing inside a limited
+# subshell uses a here-document, because bash 3.2 writes those to a temporary
+# file.
+#
+# A missing helper also leaves PATH alone and nothing beside it. So every
+# helper case first asks whether the helper is a function, and fails by name
+# when it is not.
+_px="$TMP/px"; rm -rf "$_px"; mkdir -p "$_px"
+_px_lim0="$(ulimit -Sf)/$(ulimit -Hf)"; _px_moved=""
+# _px_run LIMIT HOW FN ARG...
+#   Runs FN ARG... in a bash subshell that sources resolve.sh from the fixture
+#   and then, unless LIMIT is -, runs `ulimit -f LIMIT`. HOW is direct (FN runs
+#   in that subshell itself) or capture (a command substitution takes FN's
+#   stdout). The subshell prints _px:type= before the call and _px:rc= and
+#   _px:out= after it, then exits 7. A subshell the call ended shows up as a
+#   status other than 7 with no rc line.
+_px_run() {
+  ( _px_l="$1"; _px_h="$2"; shift 2
+    unset -f felix_replace_prepare felix_replace_commit felix_replace_file
+    . "$FROOT/harness/lib/resolve.sh" || exit 9
+    printf '_px:type=%s\n' "$(type -t "$1")"
+    if [ "$_px_l" != - ]; then ulimit -c 0 2>/dev/null; ulimit -f "$_px_l" || exit 8; fi
+    if [ "$_px_h" = capture ]; then _px_x="$("$@")"; _px_c=$?
+    else _px_x=""; "$@"; _px_c=$?; fi
+    printf '\n_px:rc=%s\n_px:out=[%s]\n' "$_px_c" "$_px_x"
+    exit 7 ) 2>&1
+}
+_px_get() { printf '%s\n' "$1" | sed -n "s/^_px:$2=//p" | tail -n 1; }
+# What is at a path, as the bytes it holds in hex when it is a regular file.
+_px_bytes() {
+  if [ -L "$1" ]; then printf 'a symlink'
+  elif [ -d "$1" ]; then printf 'a directory'
+  elif [ ! -e "$1" ]; then printf 'nothing'
+  elif [ ! -f "$1" ]; then printf 'not a regular file'
+  elif [ ! -s "$1" ]; then printf 'empty'
+  else od -An -tx1 "$1" | tr -d ' \n'; fi
+}
+# The PATH.new.* names beside PATH, each followed by a space. It reads a
+# listing rather than a glob, so noglob, nullglob or failglob left by an
+# earlier block cannot make this check pass without looking.
+_px_left() {
+  ( _px_n="${1##*/}"
+    ls -A "${1%/*}" 2>/dev/null | while IFS= read -r _px_f; do
+      case "$_px_f" in "$_px_n".new.*) printf '%s ' "$_px_f" ;; esac
+    done )
+}
+_px_is() {  # _px_is NAME TYPE GOT WANT
+  if [ "$2" = function ]; then is "$1" "$3" "$4"
+  else bad "$1" "the helper is not a function after sourcing resolve.sh (type -t: [$2])"; fi
+}
+_px_mark() { [ "$(ulimit -Sf)/$(ulimit -Hf)" = "$_px_lim0" ] || _px_moved="$_px_moved $1"; }
+_px_say() {  # the subshell's own report, when a defined helper ended it
+  [ "$_px_t" = function ] && [ "$_px_s" != 7 ] && printf '        (subshell exited %s: %s)\n' "$_px_s" "$(printf '%s' "$_px_o" | tr '\n' ' ')"
+  return 0
+}
+
+# Control: the limit is real on this platform.
+mkdir -p "$_px/ctl"
+_px_o="$( ( . "$FROOT/harness/lib/resolve.sh"; ulimit -c 0 2>/dev/null; ulimit -f 0 || exit 8
+           printf x > "$_px/ctl/F" ) 2>&1 )"; _px_s=$?
+_px_mark control
+if [ "$_px_s" -ne 0 ]; then _px_v="status not 0"; else _px_v="status 0"; fi
+is "px: control: under ulimit -f 0, printf x > F in a bash subshell leaves F empty and that subshell's status is not 0" \
+  "$(_px_bytes "$_px/ctl/F"), $_px_v" "empty, status not 0"
+
+# 1. felix_replace_file PATH printf '%s\n' abc, PATH holding old.
+mkdir -p "$_px/c1"; printf 'old\n' > "$_px/c1/f"
+_px_o="$(_px_run 0 direct felix_replace_file "$_px/c1/f" printf '%s\n' abc)"; _px_s=$?
+_px_mark c1
+_px_t="$(_px_get "$_px_o" type)"; _px_r="$(_px_get "$_px_o" rc)"; _px_say
+_px_is "px: under ulimit -f 0, felix_replace_file over a file returns 1" "$_px_t" "$_px_r" 1
+if [ -n "$_px_r" ]; then _px_v="rc reported"; else _px_v="no rc"; fi
+_px_is "px: under ulimit -f 0, the subshell that called felix_replace_file keeps running and reports its status" \
+  "$_px_t" "status $_px_s, $_px_v" "status 7, rc reported"
+_px_is "px: under ulimit -f 0, felix_replace_file leaves the file holding exactly old and its newline" \
+  "$_px_t" "$(_px_bytes "$_px/c1/f")" 6f6c640a
+_px_is "px: under ulimit -f 0, felix_replace_file over a file leaves no PATH.new.* beside it" \
+  "$_px_t" "$(_px_left "$_px/c1/f")" ""
+
+# 2. The same, with nothing at PATH.
+mkdir -p "$_px/c2"
+_px_o="$(_px_run 0 direct felix_replace_file "$_px/c2/f" printf '%s\n' abc)"; _px_s=$?
+_px_mark c2
+_px_t="$(_px_get "$_px_o" type)"; _px_r="$(_px_get "$_px_o" rc)"; _px_say
+_px_is "px: under ulimit -f 0, felix_replace_file over nothing returns 1" "$_px_t" "$_px_r" 1
+_px_is "px: under ulimit -f 0, felix_replace_file over nothing leaves nothing at PATH" \
+  "$_px_t" "$(_px_bytes "$_px/c2/f")" nothing
+_px_is "px: under ulimit -f 0, felix_replace_file over nothing leaves no PATH.new.*" \
+  "$_px_t" "$(_px_left "$_px/c2/f")" ""
+
+# 3. felix_replace_prepare PATH printf x, its stdout taken as a caller takes it.
+mkdir -p "$_px/c3"
+_px_o="$(_px_run 0 capture felix_replace_prepare "$_px/c3/f" printf x)"; _px_s=$?
+_px_mark c3
+_px_t="$(_px_get "$_px_o" type)"; _px_r="$(_px_get "$_px_o" rc)"; _px_say
+_px_is "px: under ulimit -f 0, felix_replace_prepare returns 1" "$_px_t" "$_px_r" 1
+_px_is "px: under ulimit -f 0, felix_replace_prepare prints nothing" \
+  "$_px_t" "$(_px_get "$_px_o" out)" "[]"
+_px_is "px: under ulimit -f 0, felix_replace_prepare leaves no PATH.new.*" \
+  "$_px_t" "$(_px_left "$_px/c3/f")" ""
+
+# 4. felix_replace_file PATH sed s/a/b/ SRC: an external command does the write.
+mkdir -p "$_px/c4" "$_px/src"; printf 'old\n' > "$_px/c4/f"; printf 'aaa\n' > "$_px/src/s"
+_px_o="$(_px_run 0 direct felix_replace_file "$_px/c4/f" sed s/a/b/ "$_px/src/s")"; _px_s=$?
+_px_mark c4
+_px_t="$(_px_get "$_px_o" type)"; _px_r="$(_px_get "$_px_o" rc)"; _px_say
+_px_is "px: under ulimit -f 0, felix_replace_file with sed returns 1" "$_px_t" "$_px_r" 1
+_px_is "px: under ulimit -f 0, felix_replace_file with sed leaves PATH unchanged" \
+  "$_px_t" "$(_px_bytes "$_px/c4/f")" 6f6c640a
+_px_is "px: under ulimit -f 0, felix_replace_file with sed leaves no PATH.new.*" \
+  "$_px_t" "$(_px_left "$_px/c4/f")" ""
+
+# The success cases that pair with each refusal: the same four calls with no
+# limit. These need the helpers, so they are not controls.
+mkdir -p "$_px/s1" "$_px/s2" "$_px/s3" "$_px/s4"; printf 'old\n' > "$_px/s1/f"; printf 'old\n' > "$_px/s4/f"
+_px_o="$(_px_run - direct felix_replace_file "$_px/s1/f" printf '%s\n' abc)"
+_px_t="$(_px_get "$_px_o" type)"
+_px_is "px: with no limit, felix_replace_file over a file returns 0 and PATH holds abc" \
+  "$_px_t" "$(_px_get "$_px_o" rc) $(_px_bytes "$_px/s1/f")" "0 6162630a"
+_px_o="$(_px_run - direct felix_replace_file "$_px/s2/f" printf '%s\n' abc)"
+_px_t="$(_px_get "$_px_o" type)"
+_px_is "px: with no limit, felix_replace_file over nothing returns 0 and PATH holds abc" \
+  "$_px_t" "$(_px_get "$_px_o" rc) $(_px_bytes "$_px/s2/f")" "0 6162630a"
+_px_o="$(_px_run - capture felix_replace_prepare "$_px/s3/f" printf x)"
+_px_t="$(_px_get "$_px_o" type)"; _px_x="$(_px_get "$_px_o" out)"; _px_x="${_px_x#\[}"; _px_x="${_px_x%\]}"
+if [ -n "$_px_x" ]; then _px_v="$(_px_bytes "$_px_x")"; else _px_v="no path printed"; fi
+_px_is "px: with no limit, felix_replace_prepare returns 0 and the temporary file it prints holds x" \
+  "$_px_t" "$(_px_get "$_px_o" rc) $_px_v" "0 78"
+case "$_px_x" in "$_px"/*) [ -f "$_px_x" ] && rm -f "$_px_x" ;; esac
+_px_o="$(_px_run - direct felix_replace_file "$_px/s4/f" sed s/a/b/ "$_px/src/s")"
+_px_t="$(_px_get "$_px_o" type)"
+_px_is "px: with no limit, felix_replace_file with sed returns 0 and PATH holds baa" \
+  "$_px_t" "$(_px_get "$_px_o" rc) $(_px_bytes "$_px/s4/f")" "0 6261610a"
+
+is "px: the suite shell's own file-size limit reads the same after every limited call" \
+  "$(ulimit -Sf)/$(ulimit -Hf)${_px_moved:+, moved after$_px_moved}" "$_px_lim0"
+rm -rf "$_px"
+unset -f _px_run _px_get _px_bytes _px_left _px_is _px_mark _px_say
+unset _px _px_lim0 _px_moved _px_o _px_s _px_t _px_r _px_x _px_v
+
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.
 #

@@ -30439,6 +30439,511 @@ unset -f _pl_tree _pl_bounded _pl_mode _pl_links _pl_new _pl_phys _pl_says _pl_h
          _pl_nr _pl_rf _pl_cli _pl_proj _pl_stamp _pl_allow _pl_allow_clean _pl_rb _pl_rows _pl_expect \
          _pl_rb_ok _pl_adopt
 
+printf '\nadopt never leaves a step without its runbook, and the replace helper, felix new, felix setup and doctor say what is there\n'
+# Written blind on 2026-10-08 from a contract, before the fix was read. The
+# contract is the adversarial review's addendum to the overwrites contract and
+# its links addendum; their own sites are pinned by the blocks before this one,
+# and only what the review added is asserted here.
+#   R-A  felix adopt observability when projects/P/setup is a regular file, a
+#        FIFO, a dangling symlink, a symlink to a directory outside the project,
+#        or a directory of mode 0555. The capability and its stack row are
+#        recorded, the sentry step is refused whole (exit 3, no row, 0 human
+#        steps), nothing is written through or into setup, and stderr says what
+#        is there. Each case then recovers the way the contract says, and the
+#        recovery must write the row and its runbook together: on the old
+#        engine the row was written without the runbook, and a second adopt
+#        skips a step whose row exists, so the runbook was never written.
+#        A plain setup/ directory is the control.
+#   R-B  The replace helper in two halves, felix_replace_prepare and
+#        felix_replace_commit, called in subshells that source lib/resolve.sh
+#        from the fixture harness, and felix_replace_file under umask 0222 and
+#        with a directory, or a link to one, appearing at PATH while CMD runs.
+#        These helpers do not exist on an engine before the fix, so every case
+#        that calls one is red there, and each checks what it returned, printed
+#        and left on disk. Their success cases are what each refusal is paired
+#        with, and are red there for the same reason, so they are not marked
+#        controls; every assertion marked a control passes on an old engine.
+#        The CLI case, felix autonomy --allow commission under
+#        umask 0222, passes on the old engine, which writes the stamp with `>`;
+#        it pins that the replace helper keeps it working.
+#   R-C  felix new, in a separate Felix home made under $TMP/pr, when that
+#        home's projects/ is a directory of mode 0555 or a regular file: exit
+#        1 with a felix: line, no `created`, no marker, nothing made.
+#   R-D  felix setup sentry when the runbook path is a FIFO, a link to a FIFO,
+#        a dangling link or a directory: exit 1, what is there on stderr, and no
+#        `Add one at`; a regular runbook and no runbook are the controls.
+#   R-E  felix doctor's note for a rival gate when project.json declares an
+#        empty gate, or no gate key: nothing was compared, rather than the
+#        directory projects/P/ having been compared with the rival.
+#
+# Every refusal is paired with a control that runs the same command where
+# nothing is in the way, so an engine that refuses everything fails the
+# controls and one that refuses nothing fails the refusals. Every call is
+# bounded: past 8 s it is given more time only while its process tree is still
+# busy (something runnable, or its pids or CPU time moving), and an idle tree
+# is stopped and killed by pid, found by parent pid with ps, never by pattern.
+# The 0555 cases are skipped as root. Every mode this block changes is
+# restored straight after the call that needed it, and the exit trap is
+# widened for the block's span so an abort cannot leave an unwritable tree for
+# the suite's rm -rf. Projects live under projects/pr-*, their memory under
+# $FELIX_MEMORY/pr-*, scratch under $TMP/pr; all are removed at the end. HOME
+# is a sandbox, and PATH carries a stub claude, for every felix call. No
+# widget file and nothing in REPO is touched.
+_pr="$TMP/pr"
+rm -rf "$_pr"
+mkdir -p "$_pr/bin" "$_pr/home" "$_pr/out" "$_pr/x" "$_pr/rb"
+_pr_PR="$FROOT/projects"
+_pr_jobs_was=" $(jobs -p | tr '\n' ' ') "
+_pr_state_was="$(cd "$FROOT" && find state -name '*pr-*' 2>/dev/null | LC_ALL=C sort)"
+_pr_um0="$(umask)"; _pr_um="$_pr_um0"
+_pr_late=""
+_pr_root=0; [ "$(id -u)" = 0 ] && _pr_root=1
+_pr_nl='
+'
+# The suite's exit trap, widened while this block can leave a 0555 directory.
+_pr_trap_cmd() { eval "set -- $1"; printf '%s' "${3:-}"; }
+_pr_trap_old="$(_pr_trap_cmd "$(trap -p EXIT)")"
+trap "chmod -R u+w \"\$TMP/pr\" \"\$FROOT\"/projects/pr-* \"\$FELIX_MEMORY\"/pr-* 2>/dev/null; $_pr_trap_old" EXIT
+
+cat > "$_pr/bin/claude" <<EOF
+#!/bin/sh
+printf '%s\n' "\$*" >> "$_pr/claude.log"
+exit 1
+EOF
+chmod +x "$_pr/bin/claude"
+
+_pr_if()    { local n="$1" d="$2"; shift 2; if "$@"; then ok "$n"; else bad "$n" "$d"; fi; }
+_pr_lacks() { case "$2" in *"$3"*) bad "$1" "[$2] has [$3]" ;; *) ok "$1" ;; esac; }
+_pr_mode()  { stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1" 2>/dev/null; }
+_pr_ls()    { ( cd "$1" 2>/dev/null && ls -A 2>/dev/null | LC_ALL=C sort | tr '\n' ' ' ); }
+_pr_left()  { ( cd "$1" 2>/dev/null && ls -A 2>/dev/null | grep -F -- "$2.new." | tr '\n' ' ' ); }
+_pr_regular() { [ -f "$1" ] && [ ! -L "$1" ]; }
+
+# A process and every descendant, one "pid stat cputime" line each.
+_pr_tree() {
+  ps -A -o pid= -o ppid= -o stat= -o time= 2>/dev/null | awk -v root="$1" '
+    { st[$1] = $3 " " $4; kids[$2] = kids[$2] " " $1 }
+    END { q = root
+          while (q != "") { n = split(q, a, " "); q = ""
+                            for (i = 1; i <= n; i++) if (a[i] != "" && (a[i] in st)) { print a[i], st[a[i]]; q = q kids[a[i]] } } }'
+}
+# fifo or -, command... -> its status, or 124 when it was killed; stdout and
+# stderr in out/o and out/e. 8 s, then half-second looks at the tree: more time
+# while it is busy, killed after three looks that find it idle, 120 s at most.
+_pr_bounded() {
+  local fifo="$1" pid n=0 sig prev="" idle=0 k ks
+  shift
+  ( "$@" ) > "$_pr/out/o" 2> "$_pr/out/e" &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null && [ "$n" -lt 80 ]; do sleep 0.1; n=$((n + 1)); done
+  while kill -0 "$pid" 2>/dev/null && [ "$idle" -lt 3 ] && [ "$n" -lt 1200 ]; do
+    sig="$(_pr_tree "$pid")"
+    case "$sig" in
+      *" R"*|*" U"*|*" D"*) idle=0 ;;
+      *) if [ "$sig" = "$prev" ]; then idle=$((idle + 1)); else idle=0; fi ;;
+    esac
+    prev="$sig"; sleep 0.5; n=$((n + 5))
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    ks="$(_pr_tree "$pid" | awk '{ print $1 }')"
+    for k in $ks; do kill -STOP "$k" 2>/dev/null; done
+    ks="$ks $(_pr_tree "$pid" | awk '{ print $1 }')"
+    for k in $ks; do kill -KILL "$k" 2>/dev/null; done
+    wait "$pid" 2>/dev/null
+    [ "$fifo" != - ] && [ -p "$fifo" ] && ( exec 9<>"$fifo" ) 2>/dev/null
+    return 124
+  fi
+  [ "$n" -gt 80 ] && _pr_late="$_pr_late $n"
+  wait "$pid"
+}
+# felix in a checkout, with the sandbox HOME, the stub claude and _pr_um.
+_pr_fx() { umask "$_pr_um"; cd "$1" || return 99; shift; HOME="$_pr/home" PATH="$_pr/bin:$PATH" "$FELIX" "$@"; }
+_pr_felix() {   # fifo or -, checkout, args... -> _pr_rc, _pr_o, _pr_e
+  local fifo="$1"; shift
+  _pr_bounded "$fifo" _pr_fx "$@"; _pr_rc=$?
+  _pr_o="$(cat "$_pr/out/o" 2>/dev/null)"; _pr_e="$(cat "$_pr/out/e" 2>/dev/null)"
+}
+# A helper from the fixture's lib/resolve.sh, in a subshell, under _pr_um.
+_pr_lib() { umask "$_pr_um"; . "$FROOT/harness/lib/resolve.sh" || return 98; "$@"; }
+_pr_call() { _pr_bounded - _pr_lib "$@"; _pr_rc=$?; _pr_o="$(cat "$_pr/out/o" 2>/dev/null)"; }
+
+_pr_proj() {   # name -> projects/<name> with the contract's project.json
+  mkdir -p "$_pr_PR/$1"
+  printf '{\n  "name": "%s",\n  "remote_match": "example.invalid/%s",\n  "gate": "gate.sh"\n}\n' "$1" "$1" \
+    > "$_pr_PR/$1/project.json"
+  printf '# %s\n' "$1" > "$_pr_PR/$1/CLAUDE.md"
+}
+_pr_checkout() {   # dir -> a committed git checkout with no remote and no marker
+  mkdir -p "$1"
+  ( cd "$1" && git init -q -b main && printf 'pr checkout\n' > README.pr && git add README.pr \
+      && git -c user.name=pr -c user.email=pr@example.invalid -c commit.gpgsign=false commit -qm pr ) >/dev/null 2>&1
+}
+_pr_bind() { printf '%s\n' "$2" > "$1/.felix"; }
+_pr_setup_rows() { [ -f "$1/setup.tsv" ] || { printf 0; return; }; awk -F'\t' '$1 == "sentry"' "$1/setup.tsv" | wc -l | tr -d ' '; }
+_pr_stack_rows() { [ -f "$1/stack.tsv" ] || { printf 0; return; }; awk -F'\t' '$2 == "sentry" && $5 == "observability"' "$1/stack.tsv" | wc -l | tr -d ' '; }
+_pr_drop_cap() { grep -vxF observability "$1/capabilities" > "$_pr/x/caps.tmp" 2>/dev/null; cat "$_pr/x/caps.tmp" > "$1/capabilities"; }
+
+_pr_co="$_pr/co"; _pr_checkout "$_pr_co"; _pr_co="$(cd "$_pr_co" && pwd -P)"
+# The template's runbook with {{REPO}} substituted by this checkout's slug,
+# which is empty: it has no remote.
+sed 's|{{REPO}}||g' "$FROOT/harness/templates/setup/sentry.md" > "$_pr/x/sentry.expected"
+
+# ===================================================== R-A: adopt, setup/ ====
+_pr_a() {   # file | fifo | dangle | dirlink | ro
+  local k="$1" P="pr-a-$1" p fifo=- what="" desc tgt=""
+  p="$_pr_PR/$P"
+  _pr_proj "$P"; _pr_bind "$_pr_co" "$P"
+  case "$k" in
+    file)    desc='a regular file'; what='a regular file'
+             printf 'pr: a file where setup/ belongs\n' > "$p/setup"; cp "$p/setup" "$_pr/x/a-file.was" ;;
+    fifo)    desc='a FIFO'; what='a pipe'; mkfifo "$p/setup"; fifo="$p/setup" ;;
+    dangle)  desc='a dangling symlink'; what='a link whose target is gone or cannot be reached'
+             tgt="$_pr/x/a-gone"; ln -s "$tgt" "$p/setup" ;;
+    dirlink) desc='a symlink to a directory outside the project'; what='a link to another directory'
+             tgt="$_pr/x/a-elsewhere"; mkdir -p "$tgt"
+             printf 'pr: other bytes, not the template\n' > "$tgt/sentry.md"; cp "$tgt/sentry.md" "$_pr/x/a-elsewhere.was"
+             ln -s "$tgt" "$p/setup" ;;
+    ro)      desc='a directory of mode 0555'; mkdir -p "$p/setup"; chmod 0555 "$p/setup" ;;
+  esac
+  _pr_felix "$fifo" "$_pr_co" adopt observability
+  [ "$k" = ro ] && chmod 0755 "$p/setup"
+  _pr_if "pr: adopt observability with setup/ $desc returns" "still running when killed" test "$_pr_rc" != 124
+  is "pr: and exits 3, recorded but the step refused, with setup/ $desc" "$_pr_rc" "3"
+  _pr_if "pr: and records observability in capabilities, with setup/ $desc" "$(cat "$p/capabilities" 2>&1)" \
+    grep -qxF observability "$p/capabilities"
+  is "pr: and writes the catalogue's sentry stack row, with setup/ $desc" "$(_pr_stack_rows "$p")" "1"
+  is "pr: and writes no sentry row to setup.tsv, with setup/ $desc" "$(_pr_setup_rows "$p")" "0"
+  case "$k" in
+    file)    _pr_if "pr: and the regular file at setup is unchanged" "$(ls -ld "$p/setup" 2>&1)" \
+               eval '_pr_regular "$p/setup" && cmp -s "$p/setup" "$_pr/x/a-file.was"' ;;
+    fifo)    _pr_if "pr: and the FIFO at setup is still a FIFO" "$(ls -ld "$p/setup" 2>&1)" test -p "$p/setup" ;;
+    dangle)  _pr_if "pr: and the dangling link is still a link, its target not created" \
+               "$(ls -ld "$p/setup" "$tgt" 2>&1 | tr '\n' ' ')" eval '[ -L "$p/setup" ] && [ ! -e "$tgt" ] && [ ! -L "$tgt" ]' ;;
+    dirlink) _pr_if "pr: and the linked directory's sentry.md is byte-identical, nothing added beside it" \
+               "$(_pr_ls "$tgt") / $(cat "$tgt/sentry.md" 2>&1 | head -1)" \
+               eval 'cmp -s "$tgt/sentry.md" "$_pr/x/a-elsewhere.was" && [ "$(_pr_ls "$tgt")" = "sentry.md " ]' ;;
+    ro)      is "pr: and nothing new in the 0555 setup/" "$(_pr_ls "$p/setup")" "" ;;
+  esac
+  if [ "$k" = ro ]; then
+    _pr_if "pr: and a stderr line names projects/P/setup/sentry.md and says it could not be written, with setup/ $desc" \
+      "stderr [$_pr_e]" eval 'printf "%s\n" "$_pr_e" | grep -F "projects/$P/setup/sentry.md" | grep -qF "could not"'
+  else
+    has "pr: and stderr says projects/P/setup is $what" "$_pr_e" "projects/$P/setup is $what"
+  fi
+  has "pr: and stdout reports 0 human steps, with setup/ $desc" "$_pr_o" " 0 human step(s)"
+  _pr_lacks "pr: and stdout does not report 1 human step, with setup/ $desc" "$_pr_o" " 1 human step(s)"
+
+  # Recovery: setup/ a plain writable directory, the capability line deleted,
+  # adopt again.
+  if [ "$k" = ro ]; then chmod 0755 "$p/setup"; else rm -rf "$p/setup"; mkdir "$p/setup"; fi
+  _pr_drop_cap "$p"
+  _pr_felix - "$_pr_co" adopt observability
+  is "pr: recovery from setup/ $desc: adopt again exits 0" "$_pr_rc" "0"
+  is "pr: recovery from setup/ $desc: exactly one sentry row in setup.tsv" "$(_pr_setup_rows "$p")" "1"
+  _pr_if "pr: recovery from setup/ $desc: setup/sentry.md is written, a regular file equal to the template" \
+    "$(ls -ld "$p/setup/sentry.md" 2>&1)" eval '_pr_regular "$p/setup/sentry.md" && cmp -s "$p/setup/sentry.md" "$_pr/x/sentry.expected"'
+  [ "$k" = dirlink ] && _pr_if "pr: recovery from setup/ $desc: the outside directory's sentry.md is still byte-identical" \
+    "$(cat "$tgt/sentry.md" 2>&1 | head -1)" cmp -s "$tgt/sentry.md" "$_pr/x/a-elsewhere.was"
+  return 0
+}
+
+# The control: a plain setup/ directory, nothing in it.
+_pr_proj pr-a-plain; mkdir -p "$_pr_PR/pr-a-plain/setup"; _pr_bind "$_pr_co" pr-a-plain
+_pr_felix - "$_pr_co" adopt observability
+is "pr: adopt observability with a plain setup/ directory exits 0 (control)" "$_pr_rc" "0"
+is "pr: and writes one sentry row to setup.tsv (control)" "$(_pr_setup_rows "$_pr_PR/pr-a-plain")" "1"
+_pr_if "pr: and writes setup/sentry.md as a regular file equal to the template (control)" \
+  "$(ls -ld "$_pr_PR/pr-a-plain/setup/sentry.md" 2>&1)" \
+  eval '_pr_regular "$_pr_PR/pr-a-plain/setup/sentry.md" && cmp -s "$_pr_PR/pr-a-plain/setup/sentry.md" "$_pr/x/sentry.expected"'
+has "pr: and stdout reports 1 human step (control)" "$_pr_o" " 1 human step(s)"
+
+_pr_a file
+_pr_a fifo
+_pr_a dangle
+_pr_a dirlink
+if [ "$_pr_root" -eq 1 ]; then
+  skip "pr: adopt observability with setup/ a directory of mode 0555" "running as root, a 0555 directory is writable"
+else
+  _pr_a ro
+fi
+
+# ===================================================== R-B: replace helper ====
+_pr_d="$_pr/rb"
+# --------------------------------------------------- felix_replace_prepare ----
+printf 'old\n' > "$_pr_d/p1"
+_pr_um=022; _pr_call felix_replace_prepare "$_pr_d/p1" printf hello
+_pr_t="$_pr_o"; _pr_raw="$(cat "$_pr/out/o" 2>/dev/null; printf '|')"
+is "pr: felix_replace_prepare PATH printf hello returns 0" "$_pr_rc" "0"
+_pr_if "pr: and prints the temporary file's path, PATH.new.*, with no newline" "printed [$_pr_raw]" \
+  eval 'case "$_pr_raw" in "$_pr_d/p1.new."?*"|") ;; *) false ;; esac && case "$_pr_raw" in *"$_pr_nl"*) false ;; esac'
+is "pr: and that file holds CMD's output" "$(cat "$_pr_t" 2>/dev/null)" "hello"
+is "pr: and its mode is what umask 022 gives a new file, 644" "$(_pr_mode "$_pr_t")" "644"
+is "pr: and PATH itself is not yet touched" "$(cat "$_pr_d/p1")" "old"
+_pr_um=027; _pr_call felix_replace_prepare "$_pr_d/p2" printf x
+is "pr: felix_replace_prepare under umask 027 returns 0" "$_pr_rc" "0"
+is "pr: and its file's mode is what umask 027 gives a new file, 640" "$(_pr_mode "$_pr_o")" "640"
+_pr_um=022; _pr_call felix_replace_prepare "$_pr_d/p3" sh -c 'printf partial; exit 3'
+is "pr: felix_replace_prepare returns 1 when CMD fails" "$_pr_rc" "1"
+is "pr: and leaves no PATH.new.* when CMD fails" "$(_pr_left "$_pr_d" p3)" ""
+_pr_call felix_replace_prepare "$_pr_d/nodir/p4" printf x
+is "pr: felix_replace_prepare returns 1 when the temporary file cannot be made (no such directory)" "$_pr_rc" "1"
+_pr_if "pr: and makes nothing there" "$(ls -ld "$_pr_d/nodir" 2>&1)" eval '[ ! -e "$_pr_d/nodir" ]'
+if [ "$_pr_root" -eq 1 ]; then
+  skip "pr: felix_replace_prepare in a 0555 directory" "running as root"
+else
+  mkdir -p "$_pr_d/ro"; chmod 0555 "$_pr_d/ro"
+  _pr_call felix_replace_prepare "$_pr_d/ro/p5" printf x
+  chmod 0755 "$_pr_d/ro"
+  is "pr: felix_replace_prepare returns 1 when the temporary file cannot be made (a 0555 directory)" "$_pr_rc" "1"
+  is "pr: and leaves nothing in the 0555 directory" "$(_pr_ls "$_pr_d/ro")" ""
+fi
+rm -f "$_pr_d"/p1.new.* "$_pr_d"/p2.new.* "$_pr_d"/p3.new.*
+
+# ---------------------------------------------------- felix_replace_commit ----
+printf 'old\n' > "$_pr_d/c1"
+_pr_t="$(mktemp "$_pr_d/c1.new.XXXXXX")"; printf 'hi\n' > "$_pr_t"
+_pr_call felix_replace_commit "$_pr_t" "$_pr_d/c1"
+is "pr: felix_replace_commit TMP PATH returns 0 onto a regular file (the success case)" "$_pr_rc" "0"
+_pr_if "pr: and PATH is a regular file holding TMP's bytes" "$(ls -ld "$_pr_d/c1" 2>&1) [$(cat "$_pr_d/c1" 2>&1)]" \
+  eval '_pr_regular "$_pr_d/c1" && [ "$(cat "$_pr_d/c1")" = hi ]'
+is "pr: and no PATH.new.* is left after a commit" "$(_pr_left "$_pr_d" c1)" ""
+mkdir -p "$_pr_d/c2"
+_pr_t="$(mktemp "$_pr_d/c2.new.XXXXXX")"; printf 'hi\n' > "$_pr_t"
+_pr_call felix_replace_commit "$_pr_t" "$_pr_d/c2"
+is "pr: felix_replace_commit returns 1 when PATH is a directory" "$_pr_rc" "1"
+is "pr: and the copy the rename put inside the directory is removed" "$(_pr_left "$_pr_d/c2" c2)" ""
+is "pr: and TMP is removed beside it" "$(_pr_left "$_pr_d" c2)" ""
+mkdir -p "$_pr_d/c3-elsewhere"; ln -s "$_pr_d/c3-elsewhere" "$_pr_d/c3"
+_pr_t="$(mktemp "$_pr_d/c3.new.XXXXXX")"; printf 'hi\n' > "$_pr_t"
+_pr_call felix_replace_commit "$_pr_t" "$_pr_d/c3"
+is "pr: felix_replace_commit returns 1 when PATH is a symlink to a directory" "$_pr_rc" "1"
+is "pr: and the linked directory holds no copy" "$(_pr_left "$_pr_d/c3-elsewhere" c3)" ""
+is "pr: and TMP is removed beside the link" "$(_pr_left "$_pr_d" c3)" ""
+_pr_call felix_replace_commit "$_pr_d/c4.new.absent" "$_pr_d/c4"
+is "pr: felix_replace_commit returns 1 when TMP is not there, and PATH is not a file" "$_pr_rc" "1"
+_pr_if "pr: and PATH is still absent" "$(ls -ld "$_pr_d/c4" 2>&1)" eval '[ ! -e "$_pr_d/c4" ] && [ ! -L "$_pr_d/c4" ]'
+if [ "$_pr_root" -eq 1 ]; then
+  skip "pr: felix_replace_commit when the rename itself fails" "running as root, a 0555 directory is writable"
+else
+  # The rename fails outright, TMP still where it was made: PATH in a 0555
+  # directory.
+  mkdir -p "$_pr_d/c5-ro"; chmod 0555 "$_pr_d/c5-ro"
+  _pr_t="$(mktemp "$_pr_d/c5.new.XXXXXX")"; printf 'hi\n' > "$_pr_t"
+  _pr_call felix_replace_commit "$_pr_t" "$_pr_d/c5-ro/c5"
+  chmod 0755 "$_pr_d/c5-ro"
+  is "pr: felix_replace_commit returns 1 when the rename fails (PATH in a 0555 directory)" "$_pr_rc" "1"
+  is "pr: and removes TMP when the rename fails" "$(_pr_left "$_pr_d" c5)" ""
+  is "pr: and puts nothing at PATH" "$(_pr_ls "$_pr_d/c5-ro")" ""
+fi
+
+# ------------------------------------------------------ felix_replace_file ----
+_pr_um=022; _pr_call felix_replace_file "$_pr_d/f1" printf x
+is "pr: felix_replace_file PATH printf x under umask 022 returns 0 (the success case)" "$_pr_rc" "0"
+_pr_if "pr: and PATH holds x at mode 644, with no PATH.new.* left (the success case)" \
+  "$(ls -l "$_pr_d" 2>&1 | grep f1 | tr '\n' ' ')" \
+  eval '[ "$(cat "$_pr_d/f1" 2>/dev/null)" = x ] && [ "$(_pr_mode "$_pr_d/f1")" = 644 ] && [ -z "$(_pr_left "$_pr_d" f1)" ]'
+( umask 0222; printf x > "$_pr_d/f2-shell" )
+is "pr: under umask 0222 printf x > PATH makes a 0444 file (the comparison, every engine)" "$(_pr_mode "$_pr_d/f2-shell")" "444"
+_pr_um=0222; _pr_call felix_replace_file "$_pr_d/f2" printf x
+is "pr: felix_replace_file under umask 0222 returns 0" "$_pr_rc" "0"
+is "pr: and PATH holds CMD's output" "$(cat "$_pr_d/f2" 2>/dev/null)" "x"
+is "pr: and PATH's mode is 0444, as printf x > PATH gives under that umask" "$(_pr_mode "$_pr_d/f2")" "444"
+is "pr: and no PATH.new.* is left under umask 0222" "$(_pr_left "$_pr_d" f2)" ""
+printf 'old\n' > "$_pr_d/f2b"; chmod 0644 "$_pr_d/f2b"
+_pr_call felix_replace_file "$_pr_d/f2b" printf x
+is "pr: felix_replace_file under umask 0222 onto an existing file returns 0" "$_pr_rc" "0"
+_pr_if "pr: and that file now holds x at mode 0444" "$(ls -l "$_pr_d/f2b" 2>&1) [$(cat "$_pr_d/f2b" 2>&1)]" \
+  eval '[ "$(cat "$_pr_d/f2b" 2>/dev/null)" = x ] && [ "$(_pr_mode "$_pr_d/f2b")" = 444 ]'
+_pr_um=022
+_pr_call felix_replace_file "$_pr_d/f3" sh -c 'mkdir "$0" && printf x' "$_pr_d/f3"
+is "pr: felix_replace_file returns 1 when a directory appears at PATH while CMD runs" "$_pr_rc" "1"
+_pr_if "pr: and that directory holds no PATH.new.* file" "$(_pr_ls "$_pr_d/f3")" \
+  eval '[ -d "$_pr_d/f3" ] && [ -z "$(_pr_left "$_pr_d/f3" f3)" ]'
+is "pr: and no PATH.new.* is left beside it" "$(_pr_left "$_pr_d" f3)" ""
+mkdir -p "$_pr_d/f4-elsewhere"
+_pr_call felix_replace_file "$_pr_d/f4" sh -c 'ln -s "$1" "$0" && printf x' "$_pr_d/f4" "$_pr_d/f4-elsewhere"
+is "pr: felix_replace_file returns 1 when a symlink to a directory appears at PATH while CMD runs" "$_pr_rc" "1"
+_pr_if "pr: and the linked directory holds no PATH.new.* file" "$(_pr_ls "$_pr_d/f4-elsewhere")" \
+  eval '[ -L "$_pr_d/f4" ] && [ -z "$(_pr_left "$_pr_d/f4-elsewhere" f4)" ]'
+is "pr: and no PATH.new.* is left beside the link" "$(_pr_left "$_pr_d" f4)" ""
+_pr_um="$_pr_um0"
+
+# ------------------------------------- the stamp, through the CLI, umask 0222 ----
+_pr_libs() {
+  local l
+  for l in resolve detect stack admit verify route toolbox ledger deny monitor ready discover \
+           maintenance recommend autonomy commission commission-provider; do
+    . "$FROOT/harness/lib/$l.sh"
+  done
+}
+_pr_cur() { cd "$_pr" && _pr_libs && felix_autonomy_commission_current "$1"; }
+_pr_b() {   # project, umask, label
+  local P="$1" p="$_pr_PR/$1" crc
+  _pr_proj "$P"; printf 'commission\n' > "$p/autonomy"; _pr_bind "$_pr_co" "$P"
+  # Whatever the call makes under umask 0222 is unwritable; everything that was
+  # not unwritable before it is given back its owner write bit straight after.
+  find "$FROOT" "$MEM" ! -perm -u+w -print 2>/dev/null | LC_ALL=C sort > "$_pr/x/ro.was"
+  _pr_um="$2"; _pr_felix - "$_pr_co" autonomy --allow commission; _pr_um="$_pr_um0"
+  find "$FROOT" "$MEM" ! -perm -u+w -print 2>/dev/null | LC_ALL=C sort > "$_pr/x/ro.now"
+  comm -13 "$_pr/x/ro.was" "$_pr/x/ro.now" > "$_pr/x/ro.new"
+  while IFS= read -r crc; do chmod u+w "$crc" 2>/dev/null; done < "$_pr/x/ro.new"
+  [ -s "$_pr/x/ro.new" ] && printf '        (under umask %s the call made %s path(s) unwritable, given back u+w: %s)\n' \
+    "$2" "$(wc -l < "$_pr/x/ro.new" | tr -d ' ')" "$(sed "s|^$FROOT/||; s|^$MEM/|memory/|" "$_pr/x/ro.new" | tr '\n' ' ')"
+  is "pr: felix autonomy --allow commission with the grant there and no stamp exits 0, $3" "$_pr_rc" "0"
+  has "pr: and prints stamped against commissioning.tsv, $3" "$_pr_o" "stamped against commissioning.tsv"
+  _pr_if "pr: and leaves a stamp of one 40-hex line, $3" "$(ls -l "$p/autonomy.commission" 2>&1) [$(cat "$p/autonomy.commission" 2>&1)]" \
+    eval '_pr_regular "$p/autonomy.commission" && [ "$(wc -l < "$p/autonomy.commission" | tr -d " ")" = 1 ] && grep -qxE "[0-9a-f]{40}" "$p/autonomy.commission"'
+  _pr_bounded - _pr_cur "$p"; crc=$?
+  is "pr: and felix_autonomy_commission_current returns 0, $3" "$crc" "0"
+}
+_pr_b pr-b-cli0 022 "under umask 022 (control)"
+_pr_b pr-b-cli 0222 "under umask 0222"
+
+# ======================================================= R-C: felix new ====
+_pr_H2="$_pr/home2"
+mkdir -p "$_pr_H2/projects"
+cp -R "$FROOT/harness" "$_pr_H2/harness"
+_pr_fxh() { cd "$1" || return 99; shift; FELIX_HOME="$_pr_H2" HOME="$_pr/home" PATH="$_pr/bin:$PATH" "$_pr_H2/harness/felix" "$@"; }
+_pr_new() {   # name, checkout -> _pr_rc, _pr_o, _pr_e
+  _pr_checkout "$2"
+  _pr_bounded - _pr_fxh "$2" new "$1" "$2" --no-commission; _pr_rc=$?
+  _pr_o="$(cat "$_pr/out/o" 2>/dev/null)"; _pr_e="$(cat "$_pr/out/e" 2>/dev/null)"
+}
+_pr_c_says() {   # name, label
+  local cn="$1"
+  is "pr: felix new $1 exits 1 when $2" "$_pr_rc" "1"
+  _pr_if "pr: and a felix: line names \$FELIX_HOME/projects/$1, when $2" "stderr [$_pr_e]" \
+    eval 'printf "%s\n" "$_pr_e" | grep "^felix: " | grep -qF "home2/projects/$cn"'
+  has "pr: and stderr says it could not be created, when $2" "$_pr_e" "could not"
+  has "pr: and stderr says nothing was made, when $2" "$_pr_e" "nothing was made"
+  _pr_lacks "pr: and stdout does not say created, when $2" "$_pr_o" "created"
+}
+_pr_new pr-c-ok "$_pr/new-ok"
+is "pr: felix new with a writable projects/ exits 0 (control)" "$_pr_rc" "0"
+has "pr: and says created (control)" "$_pr_o" "created"
+is "pr: and writes the marker (control)" "$(cat "$_pr/new-ok/.felix" 2>/dev/null)" "pr-c-ok"
+_pr_if "pr: and makes projects/pr-c-ok (control)" "$(ls -ld "$_pr_H2/projects/pr-c-ok" 2>&1)" test -d "$_pr_H2/projects/pr-c-ok"
+if [ "$_pr_root" -eq 1 ]; then
+  skip "pr: felix new with projects/ of mode 0555" "running as root"
+else
+  chmod 0555 "$_pr_H2/projects"
+  _pr_new pr-c-ro "$_pr/new-ro"
+  chmod 0755 "$_pr_H2/projects"
+  _pr_c_says pr-c-ro "projects/ is a directory of mode 0555"
+  _pr_if "pr: and writes no .felix marker in the checkout, when projects/ is 0555" "$(ls -l "$_pr/new-ro/.felix" 2>&1)" \
+    eval '[ ! -e "$_pr/new-ro/.felix" ]'
+  _pr_if "pr: and \$FELIX_HOME/projects/pr-c-ro does not exist, when projects/ is 0555" "$(ls -ld "$_pr_H2/projects/pr-c-ro" 2>&1)" \
+    eval '[ ! -e "$_pr_H2/projects/pr-c-ro" ] && [ ! -L "$_pr_H2/projects/pr-c-ro" ]'
+fi
+mv "$_pr_H2/projects" "$_pr_H2/projects.dir"
+printf 'pr: a file where projects/ belongs\n' > "$_pr_H2/projects"; cp "$_pr_H2/projects" "$_pr/x/projects.was"
+_pr_new pr-c-file "$_pr/new-file"
+_pr_c_says pr-c-file "projects is a regular file"
+_pr_if "pr: and writes no .felix marker in the checkout, when projects is a regular file" "$(ls -l "$_pr/new-file/.felix" 2>&1)" \
+  eval '[ ! -e "$_pr/new-file/.felix" ]'
+_pr_if "pr: and \$FELIX_HOME/projects/pr-c-file does not exist, and the file at projects is unchanged" \
+  "$(ls -ld "$_pr_H2/projects" 2>&1)" eval '_pr_regular "$_pr_H2/projects" && cmp -s "$_pr_H2/projects" "$_pr/x/projects.was"'
+rm -f "$_pr_H2/projects"; mv "$_pr_H2/projects.dir" "$_pr_H2/projects"
+
+# ===================================================== R-D: felix setup id ====
+_pr_proj pr-d; mkdir -p "$_pr_PR/pr-d/setup"
+printf 'sentry\tSentry\talways\tfalse\n' > "$_pr_PR/pr-d/setup.tsv"
+_pr_bind "$_pr_co" pr-d
+_pr_R="$_pr_PR/pr-d/setup/sentry.md"
+printf '# pr-d runbook\nstep one, by hand\n' > "$_pr_R"
+_pr_felix - "$_pr_co" setup sentry
+is "pr: felix setup sentry prints a regular runbook (control)" "$_pr_o" "$(cat "$_pr_R")"
+is "pr: and exits 0 (control)" "$_pr_rc" "0"
+rm -f "$_pr_R"
+_pr_felix - "$_pr_co" setup sentry
+has "pr: felix setup sentry with nothing at the runbook path says none is written yet (control)" "$_pr_o" \
+  'No runbook written for "sentry" yet.'
+is "pr: and exits 1 (control)" "$_pr_rc" "1"
+_pr_dcase() {   # fifo | linkfifo | dangle | dir
+  local k="$1" fifo=- what desc tgt=""
+  rm -rf "$_pr_R"
+  case "$k" in
+    fifo)     desc='a FIFO'; what='a pipe'; mkfifo "$_pr_R"; fifo="$_pr_R" ;;
+    linkfifo) desc='a symlink to a FIFO'; what='a pipe'; rm -f "$_pr/x/d-fifo"; mkfifo "$_pr/x/d-fifo"
+              ln -s "$_pr/x/d-fifo" "$_pr_R"; fifo="$_pr/x/d-fifo" ;;
+    dangle)   desc='a dangling symlink'; what='a link whose target is gone or cannot be reached'
+              tgt="$_pr/x/d-gone"; ln -s "$tgt" "$_pr_R" ;;
+    dir)      desc='a directory'; what='a directory'; mkdir "$_pr_R" ;;
+  esac
+  _pr_felix "$fifo" "$_pr_co" setup sentry
+  _pr_if "pr: felix setup sentry with the runbook $desc returns" "still running when killed" test "$_pr_rc" != 124
+  is "pr: and exits 1, with the runbook $desc" "$_pr_rc" "1"
+  has "pr: and stderr says projects/P/setup/sentry.md is $what, with the runbook $desc" "$_pr_e" \
+    "projects/pr-d/setup/sentry.md is $what"
+  _pr_lacks "pr: and does not say Add one at, with the runbook $desc" "$_pr_o$_pr_nl$_pr_e" "Add one at"
+  case "$k" in
+    fifo)     _pr_if "pr: and the FIFO is still a FIFO" "$(ls -ld "$_pr_R" 2>&1)" test -p "$_pr_R" ;;
+    linkfifo) _pr_if "pr: and the link still points at a FIFO" "$(ls -ld "$_pr_R" 2>&1)" eval '[ -L "$_pr_R" ] && [ -p "$_pr/x/d-fifo" ]' ;;
+    dangle)   _pr_if "pr: and the dangling link's target is not created" "$(ls -ld "$tgt" 2>&1)" eval '[ ! -e "$tgt" ] && [ ! -L "$tgt" ]' ;;
+    dir)      is "pr: and the directory is still empty" "$(_pr_ls "$_pr_R")" "" ;;
+  esac
+  rm -rf "$_pr_R" "$_pr/x/d-fifo"
+  return 0
+}
+_pr_dcase fifo
+_pr_dcase linkfifo
+_pr_dcase dangle
+_pr_dcase dir
+
+# ================================================ R-E: doctor, no gate ====
+_pr_coe="$_pr/co-e"; _pr_checkout "$_pr_coe"; _pr_coe="$(cd "$_pr_coe" && pwd -P)"
+mkdir -p "$_pr_coe/scripts"
+printf '#!/bin/sh\necho pr-rival\n' > "$_pr_coe/scripts/check-all.sh"; chmod 0755 "$_pr_coe/scripts/check-all.sh"
+_pr_e_proj() {   # name, the gate line or -
+  mkdir -p "$_pr_PR/$1"
+  if [ "$2" = - ]; then
+    printf '{\n  "name": "%s",\n  "remote_match": "example.invalid/%s"\n}\n' "$1" "$1" > "$_pr_PR/$1/project.json"
+  else
+    printf '{\n  "name": "%s",\n  "remote_match": "example.invalid/%s",\n  "gate": "%s"\n}\n' "$1" "$1" "$2" > "$_pr_PR/$1/project.json"
+  fi
+  printf '# %s\n' "$1" > "$_pr_PR/$1/CLAUDE.md"
+}
+_pr_rival() {   # project -> the rival line of felix doctor, in _pr_line
+  _pr_bind "$_pr_coe" "$1"
+  _pr_felix - "$_pr_coe" doctor
+  _pr_line="$(printf '%s\n' "$_pr_o" | grep -F 'scripts/check-all.sh' | head -1)"
+}
+_pr_e_proj pr-e-cmd true
+_pr_rival pr-e-cmd
+has "pr: felix doctor lists the rival with a command gate as gating with a command (control)" "$_pr_line" \
+  "this project gates with a command, not a file"
+for _pr_k in empty nokey; do
+  case "$_pr_k" in empty) _pr_e_proj pr-e-empty '' ; _pr_w='an empty "gate"' ;; nokey) _pr_e_proj pr-e-nokey - ; _pr_w='no "gate" key' ;; esac
+  _pr_rival "pr-e-$_pr_k"
+  is "pr: felix doctor exits 0 with $_pr_w" "$_pr_rc" "0"
+  has "pr: and says the rival was not compared because no gate is declared, with $_pr_w" "$_pr_line" \
+    "this project declares no gate, so nothing was compared"
+  _pr_lacks "pr: and does not call it different from a held copy, with $_pr_w" "$_pr_line" "differs from the copy Felix holds"
+  _pr_lacks "pr: and does not say it gates with a command, with $_pr_w" "$_pr_line" "this project gates with a command, not a file"
+done
+
+# ------------------------------------------------------------- tidy away ----
+_pr_left_jobs=""
+for _pr_j in $(jobs -p); do
+  case "$_pr_jobs_was" in *" $_pr_j "*) ;; *) _pr_left_jobs="$_pr_left_jobs $_pr_j" ;; esac
+done
+is "pr: no background job this block started outlives it" "$_pr_left_jobs" ""
+[ -n "$_pr_late" ] && printf '        (calls given more than 8 s while busy, in tenths:%s)\n' "$_pr_late"
+chmod -R u+w "$_pr" "$_pr_PR"/pr-* "$MEM"/pr-* 2>/dev/null
+find "$_pr" -type p -exec rm -f {} + 2>/dev/null
+rm -rf "$_pr_PR"/pr-* "$MEM"/pr-*
+( cd "$FROOT" && find state -name '*pr-*' 2>/dev/null | LC_ALL=C sort ) > "$_pr/x/state.now"
+printf '%s\n' "$_pr_state_was" | grep . > "$_pr/x/state.was"
+for _pr_j in $(comm -13 "$_pr/x/state.was" "$_pr/x/state.now"); do rm -rf "${FROOT:?}/$_pr_j"; done
+rm -rf "$_pr"
+_pr_back=""
+for _pr_j in "$_pr" "$_pr_PR"/pr-* "$MEM"/pr-*; do [ -e "$_pr_j" ] || [ -L "$_pr_j" ] && _pr_back="$_pr_back $_pr_j"; done
+is "pr: the block's projects, memory and scratch are gone after it" "$_pr_back" ""
+if [ -n "$_pr_trap_old" ]; then trap "$_pr_trap_old" EXIT; else trap - EXIT; fi
+unset -f _pr_trap_cmd _pr_if _pr_lacks _pr_mode _pr_ls _pr_left _pr_regular _pr_tree _pr_bounded _pr_fx _pr_felix \
+         _pr_lib _pr_call _pr_proj _pr_checkout _pr_bind _pr_setup_rows _pr_stack_rows _pr_drop_cap _pr_a \
+         _pr_libs _pr_cur _pr_b _pr_fxh _pr_new _pr_c_says _pr_dcase _pr_e_proj _pr_rival
+
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.
 #

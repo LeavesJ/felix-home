@@ -92,13 +92,16 @@ under `LC_ALL=C` and under a UTF-8 locale (`en_US.UTF-8` on macOS,
 9. **Cost.** No more than one process more per call than the grep it
    replaces. Not asserted by the blind block; the review measures it.
 
-**Mechanism.** `command cat -- <proj>/capabilities | ( LC_ALL=C; ... ) 2>/dev/null`,
-with the status taken from both halves of PIPESTATUS. The subshell reads the
-bytes with `read -d ''`, which stops only at a NUL (exit 3). It cuts a leading
-`\357\273\277` by offset, splits on newlines with `set -f`, and skips blank and
-comment lines by `[[:space:]]` in the C locale. A kept line holding anything
-but tab and `[[:print:]]` is exit 4. The kept lines go into an array and are
-printed with one `printf '%s\n'`. This follows #383's one-read shape:
+**Mechanism.** `command cat -- <proj>/capabilities | ( ... ) 2>/dev/null`,
+with the status taken from both halves of PIPESTATUS. The subshell sets
+LC_ALL=C unless it already is C, and exits 6 if it still is not. It reads the
+bytes with `read -d ''`, which stops only at a NUL (exit 3), and cuts a leading
+`\357\273\277` by offset. Two regular expressions,
+`^[[:space:]]*(#|$)` (skip) and `[^<tab>[:print:]]` (no name), are first tried
+on known input (exit 5 if either misbehaves, since one that cannot compile
+returns 2 and `&&` would read that as no match). It splits on newlines with
+`set -f`; a kept line matching the second is exit 4. The kept lines go into an
+array and are printed with one `printf '%s\n'`. This follows #383's one-read shape:
 - One open, by a named command whose status says whether a read failed. The
   read builtin returns a read error as end of input, so a redirect would not.
 - The C locale is set inside a ( ) subshell, so the caller's locale, IFS and
@@ -137,9 +140,32 @@ printed with one `printf '%s\n'`. This follows #383's one-read shape:
     names: noglob, echoout, bomaftersplit, bomafterws, remarkunchecked and
     secondopen. Each reddened 2 and nothing else.
   - The two names were corrected.
-- **Final count, block alone, section runner.** 58 assertions: 58/0 on the
-  branch under C and en_US.UTF-8, and 21/37 against origin/main and against
-  the base. Not yet recorded: no full suite has been run.
+- **Second review (one Opus reviewer, of 5936b4cd and 454142ae).** No
+  blocker. It found:
+  - the two per-line `case` tests were still quadratic in a line's length,
+    17 s for a line of 10,000 tabs;
+  - `command cat` and the discarded stderr were each untested (a mutant
+    without them passed 58/58);
+  - the comment misread GNU grep's manual: after a NUL GNU grep stops
+    printing, but a badly encoded line is dropped and later lines still print;
+  - nits: the cost figures disagreed, and a name left out its `%s` case.
+- **After the second review (1aa88262, fed50955).**
+  - The lines are judged by the two regular expressions: 0.025 s of CPU where
+    the case form took 4.4 s on a line of 5,000 tabs and one of 40,000 spaces.
+  - The C locale is set only where it is not C, and refused where it could not
+    be set. Measured on bash 3.2: a failed readonly assignment abandons the
+    subshell (status 1). The second test guards a shell that would carry on in
+    the caller's locale.
+  - Four not-blind assertions were added: a function named cat, a readonly
+    non-C LC_ALL (2, nothing on stderr), a readonly C (read), and a CPU bound
+    of one second on that 50 KB file. Each reddened only against its guard
+    taken out: plaincat, nostderr, nocguard and caseloop (4,619 ms).
+  - Rule 2's "positional parameters" is no evidence: a function's own `set --`
+    never reaches its caller, so the assertion names no longer claim it.
+- **Final count, block alone, section runner.** 62 assertions: 62/0 on the
+  branch under C and en_US.UTF-8, and 24/38 against origin/main and against
+  the base. The neighbouring cmlf block is 41/0. Not yet recorded: no full
+  suite has been run.
 
 **Cost, measured on /bin/bash 3.2 here.** One process more per call: a cat
 and a subshell where one grep was, and no extra exec. `_felix_cap_active`
@@ -153,8 +179,10 @@ calls, at load 400.
 - A { } group in place of the ( ) differs only under lastpipe (bash 4.2 and
   later), which no bash here can show red, so it is not asserted. The engine
   sets no lastpipe.
-- A caller's readonly LC_ALL makes every list 2. It fails closed, and no caller
-  sets one.
+- A caller's readonly LC_ALL that is not C makes every list 2, said nowhere.
+  It fails closed, and no caller sets one.
+- The regular expressions were not run on glibc. The self-test exits 5 on any
+  platform where they do not compile or do not match as written.
 
 **Landing.** Position 8 in the 2026-10-08 carrier queue
 (~/.felix/memory/felix/audits/2026-10-08-carrier/state.md), behind .277

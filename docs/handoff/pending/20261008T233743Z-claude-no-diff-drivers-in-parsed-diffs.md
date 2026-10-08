@@ -84,7 +84,10 @@ duplicated, since --no-ext-diff covers it here whatever the environment holds.
   - The fix runs 255/0.
 - Adversarial review found:
   - a binary-marked file named `-c1` handed to `head` as an option;
-  - a binary-to-text pair re-read in full, breaking N1 and the cost bound;
+  - a binary-to-text pair re-read in full, breaking N1 and the cost bound.
+    A 20 MB random binary replaced by one line took felix_added_lines
+    5,409 s CPU on the earlier head. On the final head it takes 0.15 s and
+    prints no line;
   - diff.ignoreSubmodules and a committed .gitmodules `ignore = all` hiding a
     moved pointer from the tree id;
   - a comment claiming a colour pin that has not landed.

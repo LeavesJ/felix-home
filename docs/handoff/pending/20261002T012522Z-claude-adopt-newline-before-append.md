@@ -179,7 +179,12 @@ force-push.
 conflicts, three of them against #378:
 - adopt.sh keeps this branch's refusals and status 3, and takes #378's setup
   rows as the template has them (`{{REPO}}` unspliced, the runbook copied with
-  `cp`). The slug parameter is accepted and unused, as #378 left it.
+  `cp`). The slug parameter is accepted and unused, as #378 left it. Blocks 1
+  to 4 each built their expected setup row with the slug spliced in
+  (`repos/acme/widget/hooks`). The four `_UR` variables now hold
+  `repos/{{REPO}}/hooks`, as #378 writes it, and nothing else in them moved.
+  The runbook assertions test only whether the file exists. Against this
+  head's engine/, blocks 1 to 4 pass 193 of 193.
 - felix_mem_mistake is #378's writer, which reads the fields first and
   appends while holding the log's lock. The line is ended first, under that
   same lock. A log that cannot be ended takes no row, and the lock is still

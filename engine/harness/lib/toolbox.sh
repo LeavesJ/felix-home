@@ -25,6 +25,8 @@ FELIX_PLUGIN_CACHE="${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}"
 # directory anywhere, so "no path" is a normal answer and never an error.
 # Version directories sort with -V so 0.10.0 beats 0.9.0, which plain sort does
 # not: the gate's own installed check was once wrong for exactly this reason.
+# Locale, 2026-10-08: glob order decided which marketplace's copy answered.
+# The rules are above felix_json_str in resolve.sh.
 felix_toolbox_path() {
   local name="$1" d LC_ALL=C
   for d in "$FELIX_PLUGIN_CACHE"/*/"$name"; do

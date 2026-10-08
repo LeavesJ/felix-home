@@ -231,6 +231,8 @@ _felix_escape_fewer() {
 # on the most ordinary edit there is. Caught on the commit that declared
 # `consumers`, which added two keys and removed nothing. A genuine removal takes
 # its whole line with it and is still caught.
+# Locale, 2026-10-08: sed stopped at a byte that was not UTF-8 and hid every
+# removal below it. The rules are above felix_json_str in resolve.sh.
 _felix_escape_lines() {
   felix_file_at "$1" "$2" "$3" \
     | LC_ALL=C grep -vE '^[[:space:]]*(#|$)' \

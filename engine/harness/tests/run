@@ -39905,11 +39905,13 @@ printf "\nbash's own collation and the BSD text tools decide nothing by locale\n
 #
 # The rules they hold the engine to are stated once, above felix_json_str in
 # lib/resolve.sh: (1) a function whose answer can depend on bash's own
-# collation, or that uses [[ =~ ]], declares LC_ALL=C in a local line; (2) a
-# text tool reading bytes the engine did not write, where its result decides
-# something, is written LC_ALL=C <tool>, and every one is inside the verdict
-# functions listed below. The contract and the sweep that found each site are
-# in the memory root, audits/2026-10-08-locale-glob-bsd-tools/contract.md.
+# collation, or that uses [[ =~ ]], declares LC_ALL=C in a local line, and a
+# bracket over digits alone in bash's own pattern is spelled out,
+# [0123456789]; (2) a text tool reading bytes the engine did not write, where
+# its result decides something, is written LC_ALL=C <tool>, and inside the
+# verdict functions listed below every one is. The contract and the sweep that
+# found each site are in the memory root,
+# audits/2026-10-08-locale-glob-bsd-tools/contract.md.
 #
 # Each locale-dependent assertion sets LCB_U8 (picked by the block above) in a
 # subshell around the call under test, and skips by name where it is empty.

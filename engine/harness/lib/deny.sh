@@ -204,6 +204,9 @@ EOF
 # in _FELIX_DENY_REASON, and the status says whether there was one. A variable
 # and not output, so the call that nearly always finds nothing costs no
 # subshell to find it.
+# Locale, 2026-10-08: a pattern holding a byte that was not UTF-8 compiled to
+# nothing under UTF-8, so its row refused nothing. The rules are above
+# felix_json_str in resolve.sh.
 _felix_deny_first() {
   local proj="$1" want="$2" text="$3" tool pattern reason scope LC_ALL=C
   _FELIX_DENY_REASON=""

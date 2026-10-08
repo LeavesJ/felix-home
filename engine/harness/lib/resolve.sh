@@ -254,6 +254,44 @@ felix_mem_dir() {
   printf '%s/%s' "${FELIX_MEMORY:-$HOME/.felix/memory}" "${p##*/}"
 }
 
+# The locale, decided 2026-10-08. The engine runs in its caller's locale, and a
+# macOS Terminal sets LANG=en_US.UTF-8, so `felix` run by a person, and every
+# hook of a claude started from that Terminal, runs in UTF-8; a desktop
+# session's tool shell runs in C, which is why no session saw what follows.
+# Measured on macOS 26, bash 3.2.57, with a Latin-1 byte (\351):
+#
+#   - BSD sed, tr and cut stop at a byte that is not UTF-8 ("illegal byte
+#     sequence") and print nothing more; grep misses a match that lies after
+#     one on its line; awk aborts the whole program on a regex over one; and a
+#     pattern holding one compiles to nothing, in grep and in [[ =~ ]]. One
+#     such byte on a project.json line above "gate" made the sed below print
+#     nothing, and the Stop hook then judged no gate at all.
+#   - bash collates its own globs and bracket ranges in the locale: `for f in
+#     *` gives `_x alpha Beta` in UTF-8 and `Beta _x alpha` in C, and
+#     `case B in [a-z])` matches in UTF-8. Even `[0-9]` admits one character,
+#     U+2185, which collates as 6; `[ "$n" -ne 3 ]` then errors and takes the
+#     else branch. macOS's [[:digit:]] admits 670.
+#
+# Two rules follow, and tests/run holds the engine to both:
+#
+#   1. A function whose answer can depend on bash's own collation (where the
+#      first match of a glob decides, where a bracket range judges input a
+#      person or a third party wrote, or wherever it uses [[ =~ ]]) declares
+#      LC_ALL=C in a `local` line. bash restores the caller's on return, and it
+#      costs no process. A bracket over digits alone in bash's own pattern is
+#      spelled out instead, everywhere: [0123456789], not [0-9]. A local
+#      LC_ALL=C would also make ${#x} count bytes in that function.
+#   2. A grep, sed, tr, cut, awk, paste, fold, column, rev or expand that reads
+#      bytes the engine did not write (a table, project.json, a file of the
+#      governed repository, a diff, the gate's output, a plugin's files), where
+#      its result decides something, is written `LC_ALL=C <tool>` on that
+#      command. In a function that exists to decide from such bytes, every one
+#      is, so a later edit cannot add one that is not; tests/run lists them.
+#
+# Display keeps the caller's locale, so a message still counts characters as
+# the person's terminal does. sort, comm, join and uniq are pinned everywhere,
+# by the rule tests/run states beside its lint for them.
+
 # Read one top-level string field out of a flat JSON file.
 # Handles exactly what project.json needs: one nesting level, no escaped quotes.
 # Anything richer belongs in a real parser, and would mean project.json has
@@ -395,6 +433,9 @@ felix_mem_mistake_rows() {
 # Order matters. The .felix marker wins because it is the only mechanism that
 # works for a repo with no remote, a fork, a rename, or a checkout of somebody
 # else's code. Remote matching is the convenience path, not the contract.
+# Locale, 2026-10-08: glob order bound Web or web-admin by who ran felix. Byte
+# order still binds the less specific of the two, a separate defect. The rules
+# are above felix_json_str.
 felix_resolve_project() {
   local start="${1:-$PWD}" felix_root="$2" LC_ALL=C
   local root name remote meta match

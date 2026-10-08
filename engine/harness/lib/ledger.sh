@@ -456,7 +456,7 @@ $name"
     [ -n "$_o" ] && seen_owner="$seen_owner
 $_o"
   done <<EOF
-$(sort -u "$state" 2>/dev/null)
+$(LC_ALL=C sort -u "$state" 2>/dev/null)
 EOF
 
   # Anything a route named that was never reached for. It has no call row to
@@ -480,7 +480,7 @@ $name"
     seen_owner="$seen_owner
 $_o"
   done <<EOF
-$(sort -u "$state" 2>/dev/null)
+$(LC_ALL=C sort -u "$state" 2>/dev/null)
 EOF
 
   # The zero rows. Every declared capability that this session never reached

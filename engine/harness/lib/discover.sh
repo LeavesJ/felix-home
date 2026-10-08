@@ -221,7 +221,7 @@ felix_discover_candidates() {
           printf '%s\t%s\t%s\t%s\n' "$best" "$best_cap" "$name" "$desc"
         fi
       done)"
-  printf '%s\n' "$rows" | grep . | sort -k1,1nr | head -"$FELIX_DISCOVER_MAX"
+  printf '%s\n' "$rows" | grep . | LC_ALL=C sort -k1,1nr | head -"$FELIX_DISCOVER_MAX"
   return 0
 }
 
@@ -322,7 +322,7 @@ _felix_discover_hooks_facts() {
   local f="$1"
   printf 'hooks\t%s\n' \
     "$(grep -oE '"(PreToolUse|PostToolUse|SessionStart|SessionEnd|Stop|UserPromptSubmit|PostToolBatch)"' "$f" \
-       | tr -d '"' | sort -u | tr '\n' ' ')"
+       | tr -d '"' | LC_ALL=C sort -u | tr '\n' ' ')"
   grep -oE '"command"[[:space:]]*:[[:space:]]*"[^"]{0,90}' "$f" \
     | sed 's/.*"command"[[:space:]]*:[[:space:]]*"//' \
     | while IFS= read -r c; do printf 'hook-command\t%s\n' "$c"; done
@@ -333,7 +333,7 @@ _felix_discover_mcp_facts() {
   local f="$1"
   grep -qE '"type"[[:space:]]*:[[:space:]]*"(http|sse)"' "$f" \
     && printf 'mcp\tremote endpoint\n' || printf 'mcp\tlocal subprocess\n'
-  grep -oE '\$\{[A-Z_]+' "$f" | tr -d '${' | sort -u \
+  grep -oE '\$\{[A-Z_]+' "$f" | tr -d '${' | LC_ALL=C sort -u \
     | while IFS= read -r v; do [ -n "$v" ] && printf 'interpolates\t%s\n' "$v"; done
   grep -qE '@latest|:latest' "$f" && printf 'floating\tan unpinned version in the mcp command\n'
   return 0
@@ -350,7 +350,7 @@ _felix_discover_lsp_facts() {
   grep -oE '"command"[[:space:]]*:[[:space:]]*"[^"]{0,90}' "$f" \
     | sed 's/.*"command"[[:space:]]*:[[:space:]]*"//' \
     | while IFS= read -r c; do printf 'lsp-command\t%s\n' "$c"; done
-  grep -oE '\$\{[A-Z_]+' "$f" | tr -d '${' | sort -u \
+  grep -oE '\$\{[A-Z_]+' "$f" | tr -d '${' | LC_ALL=C sort -u \
     | while IFS= read -r v; do [ -n "$v" ] && printf 'interpolates\t%s\n' "$v"; done
   grep -qE '@latest|:latest' "$f" && printf 'floating\tan unpinned version in the lsp command\n'
   return 0

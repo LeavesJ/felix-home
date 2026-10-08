@@ -99,7 +99,7 @@ _fi_host_scope() {
 felix_inv_host_scope() {
   local f="$1" root; shift
   : > "$f"; root="$(_fi_host_root)" || return 0
-  _fi_host_scope "$root" "$@" | sort -u > "$f"
+  _fi_host_scope "$root" "$@" | LC_ALL=C sort -u > "$f"
 }
 # The awk the readers share: whose record a line is, the human text, a JSON
 # string decoded far enough to compare, and times (a record's "timestamp" is

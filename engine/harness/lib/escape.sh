@@ -243,7 +243,11 @@ _felix_escape_shrank() {
   before="$(_felix_escape_lines "$root" "$base" "$f")"
   [ -n "$before" ] || return 1
   after="$(_felix_escape_lines "$root" HEAD "$f")"
-  [ -n "$(comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
+  # 2026-10-08: comm ran in the caller's locale over lines sorted in C, so under
+  # LANG=en_US.UTF-8 a pure addition to a deny table read as a removal (comm
+  # compared C-sorted lines in the locale's collation). Every sort, comm, join
+  # and uniq in the engine now runs as LC_ALL=C <tool>, linted by tests/run.
+  [ -n "$(LC_ALL=C comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
 }
 
 # Any change to the rows of an exemption table: the non-comment, non-blank

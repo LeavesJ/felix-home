@@ -502,7 +502,7 @@ felix_mem_recurring_mistakes() {
         printf "%d\t%s\t%s\t%d\n", count[t], t, last[t], runs[t]
       }
     }
-  ' 2>/dev/null | sort -rn
+  ' 2>/dev/null | LC_ALL=C sort -rn
 }
 
 # Whether the lessons file holds a lesson about a check of this name.
@@ -568,7 +568,7 @@ felix_mem_promotable() {
     END { for (t in entries) if (entries[t] >= MIN) printf "%d\t%s\n", entries[t], t }
   ' MIN="$min" "$(felix_mem_dir "$proj")/DEVLOG.md" \
     | grep -vE $'\t(about|after|again|against|because|before|being|between|could|during|every|first|found|from|going|instead|into|might|other|rather|really|should|since|still|than|that|their|them|then|there|these|they|thing|think|this|those|through|under|until|were|what|when|where|which|while|with|would|your|commit|change|changes|added|update|updated|files|file|version|branch|already|actually|something|because|makes|making|which|there|where|point|second)$' \
-    | sort -rn \
+    | LC_ALL=C sort -rn \
     | while IFS=$'\t' read -r n term; do
         [ -n "${term:-}" ] || continue
         case "$lessons" in *"$term"*) continue ;; esac

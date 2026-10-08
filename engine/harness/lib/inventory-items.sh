@@ -31,7 +31,7 @@ _fi_dirty() {
     else printf '%s\t0\n' "$p" >> "$T/dx"; fi
   done 3< "$T/st"
   _fi_git -C "$wt" hash-object --no-filters --stdin-paths < "$T/hp" > "$T/hh" 2>/dev/null || : > "$T/hh"
-  { paste "$T/hp" "$T/hh"; cat "$T/dx"; } | sort > "$T/dsig"
+  { paste "$T/hp" "$T/hh"; cat "$T/dx"; } | LC_ALL=C sort > "$T/dsig"
   [ -s "$T/dfl" ] && cut -f1 "$T/dsig" | tr '\n' '\000' | _fi_git -C "$wt" check-attr -z --stdin filter 2>/dev/null | tr '\000' '\n' \
     | awk -v fl="$T/dfl" 'BEGIN { while ((getline l < fl) > 0) F[l] = 1 } NR % 3 == 1 { p = $0 } NR % 3 == 0 && ($0 in F) { print p }' > "$T/fp"
   _FI_DD="$(awk -F'\t' -v df="$T/deftree" -v fp="$T/fp" -v db="$T/db" 'BEGIN { printf "" > db
@@ -189,7 +189,7 @@ _fi_hscope() {
 # none), into $T/owners: head, session, live.
 _fi_owners() {
   : > "$T/owners"; [ "$_FI_HOSTOK" = 1 ] || return 0
-  awk -F'\t' '$1 == "pr" && $11 != "cross" { print $4 }' "$T/items" | sort -u > "$T/prheads"
+  awk -F'\t' '$1 == "pr" && $11 != "cross" { print $4 }' "$T/items" | LC_ALL=C sort -u > "$T/prheads"
   [ -s "$T/prheads" ] || return 0
   felix_inv_host_owners "$_FI_NOW" "$_FI_DAYS" "$_FI_LIVE" "$T/hscope" "$T/prheads" > "$T/owners" 2>/dev/null
   return 0

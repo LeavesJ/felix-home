@@ -57,7 +57,7 @@ felix_incident_paths() {
     | tr ' \t"'"'"'(),[]<>`*' '\n\n\n\n\n\n\n\n\n\n\n\n\n' \
     | sed -E 's/::.*$//; s/:[0-9]+(:[0-9]+)?:?$//; s/,$//; s/^\.\///; s/^[+-]+//' \
     | grep -E '[/.][A-Za-z0-9_]' \
-    | sort -u \
+    | LC_ALL=C sort -u \
     | while IFS= read -r cand; do
         [ -n "$cand" ] || continue
         # A trace almost never carries repo-relative paths. It carries wherever
@@ -93,7 +93,7 @@ felix_incident_paths() {
             *)   break ;;
           esac
         done
-      done | sort -u
+      done | LC_ALL=C sort -u
 }
 
 # Commits that last touched the implicated files, newest first.

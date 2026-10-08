@@ -403,7 +403,7 @@ felix_handoff_check() {
       printf "current\tsection %s sits in HANDOFF.md beside the current one; a section is added under docs/handoff/pending/, and only the fold makes it current\n", id }' \
     "$h" >> "$t/p"
   felix_handoff_rows "$h" > "$t/rows"
-  cut -f1 "$t/rows" | LC_ALL=C sort | uniq -d | while IFS= read -r id; do
+  cut -f1 "$t/rows" | LC_ALL=C sort | LC_ALL=C uniq -d | while IFS= read -r id; do
     printf 'index\t%s has more than one row\n' "$id"; done >> "$t/p"
   grep -q "^$x	" "$t/rows" && printf 'index\t%s is the current section and has an index row too\n' "$x" >> "$t/p"
   [ -e "$root/$FELIX_HANDOFF_DIR/$x.md" ] && printf 'archive\t%s is the current section and is archived too\n' "$x" >> "$t/p"

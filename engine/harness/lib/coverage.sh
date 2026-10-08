@@ -131,7 +131,7 @@ felix_coverage_check() {
   # table was written after the fact: something wired that no row explains. A
   # hook nobody wrote a reason for is a hook nobody can argue with.
   local h
-  for h in $(printf '%s\n' "$bound" | grep . | sort -u); do
+  for h in $(printf '%s\n' "$bound" | grep . | LC_ALL=C sort -u); do
     case " $seen " in *" $h "*) continue ;; esac
     printf 'undeclared\t%s\t%s\n' "$h" "wired, but lifecycle.tsv says nothing about it"
   done

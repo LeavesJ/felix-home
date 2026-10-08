@@ -153,7 +153,7 @@ _felix_route_words() {
 }
 
 felix_route_tokens() {
-  printf '%s' "$1" | _felix_route_words | sort -u
+  printf '%s' "$1" | _felix_route_words | LC_ALL=C sort -u
 }
 
 # The prompt value out of a hook payload, from the FIRST occurrence of the key.
@@ -376,7 +376,9 @@ EOF
 # had actually named. The prompt is the claim; the tree only corroborates.
 felix_route_best() {
   local line
-  line="$(felix_route_score "$1" "$2" "$3" | sort -k2,2nr -k3,3nr -k4,4n | head -1)"
+  # 2026-10-08: macOS sort in a UTF-8 locale printed nothing on a play holding a
+  # byte that is not UTF-8, so no prompt was routed; the sort is pinned to C.
+  line="$(felix_route_score "$1" "$2" "$3" | LC_ALL=C sort -k2,2nr -k3,3nr -k4,4n | head -1)"
   [ -n "$line" ] || return 1
   [ "$(printf '%s' "$line" | cut -f1)" -ge "$FELIX_ROUTE_MIN_SCORE" ] || return 1
   printf '%s' "$line"
@@ -701,7 +703,7 @@ felix_route_promote() {
   [ -f "$log" ] || return 0
   awk -F'\t' '$2 == "-" { print $4 }' "$log" \
     | _felix_route_words \
-    | sort | uniq -c | sort -rn \
+    | LC_ALL=C sort | LC_ALL=C uniq -c | LC_ALL=C sort -rn \
     | awk -v m="$FELIX_ROUTE_PROMOTE_MIN" '$1 >= m { print $1 "\t" $2 }'
 }
 

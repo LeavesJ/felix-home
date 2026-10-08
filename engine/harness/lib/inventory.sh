@@ -258,10 +258,10 @@ _fi_walk() {
 # in the tip's own history (M: in a merged head's): what that decides is unknown.
 _fi_sets() {
   local t="$T/tips" have='%(objectname) %(objecttype)' r rs ls h
-  { cut -f2 "$T/wt"; awk -F'\t' '$1 ~ /^refs\/heads\// { print $2 }' "$T/refs"; } | awk '$1 != "-"' | sort -u > "$t.l"
+  { cut -f2 "$T/wt"; awk -F'\t' '$1 ~ /^refs\/heads\// { print $2 }' "$T/refs"; } | awk '$1 != "-"' | LC_ALL=C sort -u > "$t.l"
   awk -F'\t' -v dn="${_FI_DEF#origin/}" '$2 == "MERGED" && dn != "" && $12 == dn { print $4 }' "$T/prs" > "$T/mh"   # only a PR merged into the default branch
   { cat "$t.l"; awk -F'\t' '$1 ~ /^refs\/remotes\// && $5 == "-" { print $2 }' "$T/refs"; awk -F'\t' '$2 == "OPEN" { print $4 }' "$T/prs"; } \
-    | sort -u | _fi_git -C "$_FI_D" cat-file --batch-check="$have" 2>/dev/null | awk '$2 == "commit" { print $1 }' > "$t"
+    | LC_ALL=C sort -u | _fi_git -C "$_FI_D" cat-file --batch-check="$have" 2>/dev/null | awk '$2 == "commit" { print $1 }' > "$t"
   : > "$T/ahead"; : > "$T/merged"; : > "$T/bad"; : > "$T/unpushed"
   if [ -n "$_FI_DEFSHA" ]; then printf '^%s\n' "$_FI_DEFSHA" > "$T/neg"; _fi_walk "$T/ahead" a "$t" "$T/neg"; fi
   grep -xF -f "$t" "$t.l" > "$T/lt"

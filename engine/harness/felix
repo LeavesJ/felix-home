@@ -966,7 +966,7 @@ cmd_new() {
 
   local root caps gate slug
   root="$(felix_repo_root "$target")"
-  caps="$(felix_detect "$root" | sort -u)"
+  caps="$(felix_detect "$root" | LC_ALL=C sort -u)"
   gate="$(felix_guess_gate "$root")"
   slug="$(felix_repo_slug "$root")"
   # The marker binds the checkout, so a checkout it cannot be written into is
@@ -1169,7 +1169,7 @@ cmd_recommend() {
 
   if [ -n "$want" ]; then
     printf 'you asked for: %s\n\n' "$want"
-    local hits; hits="$(felix_recommend_intent "$tpl" "$want" | sort -rn)"
+    local hits; hits="$(felix_recommend_intent "$tpl" "$want" | LC_ALL=C sort -rn)"
     if [ -z "$hits" ]; then
       printf 'Nothing in the catalogue matches that.\n\n'
       printf 'The catalogue is small on purpose. Hand it to the recommender below,\n'
@@ -1286,7 +1286,7 @@ cmd_route() {
   if [ "$explain" -eq 1 ]; then
     printf 'prompt:    %s\nthreshold: %s\n\n' "${want:-<none, using the tree>}" "$FELIX_ROUTE_MIN_SCORE"
     printf '  %-5s %-5s %-5s %-10s %s\n' total typed tree route play
-    felix_route_score "$proj" "$want" "$ctx" | sort -k2,2nr -k3,3nr -k4,4n \
+    felix_route_score "$proj" "$want" "$ctx" | LC_ALL=C sort -k2,2nr -k3,3nr -k4,4n \
       | while IFS=$'\t' read -r s ps cs _i n _pr pl; do
           printf '  %-5s %-5s %-5s %-10s %s\n' "$s" "$ps" "$cs" "$n" "$pl"
         done
@@ -2809,7 +2809,7 @@ cmd_toolbox() {
       printf '  %-26s %-8s %-12s %s\n' "$name" "$risk" "${cap:--}" "$reach"
     fi
   done <<EOF
-$(felix_ready_inventory | sort -u)
+$(felix_ready_inventory | LC_ALL=C sort -u)
 EOF
 
   printf '\n%s reachable, %s wired now, %s could be.\n' \
@@ -3999,7 +3999,7 @@ $1"; shift ;;
     }
     paths="$(felix_changed_paths "$root" "$base")"
   fi
-  paths="$(printf '%s\n' "$paths" | grep -v '^$' | sort -u)"
+  paths="$(printf '%s\n' "$paths" | grep -v '^$' | LC_ALL=C sort -u)"
   [ -n "$paths" ] || { printf 'No paths given and no changes found. Nothing to scope.\n'; return 0; }
 
   # From a diff, the full classifier — it reads content rules, and both shipped
@@ -4079,7 +4079,7 @@ cmd_classify() {
   fi
 
   printf 'base:  %s\ntier:  %s\n\n' "$base" "$tier"
-  printf '%s\n' "$findings" | sort -r | while IFS=$'\t' read -r t f r; do
+  printf '%s\n' "$findings" | LC_ALL=C sort -r | while IFS=$'\t' read -r t f r; do
     [ -n "${t:-}" ] || continue
     printf '  %-7s %-46s %s\n' "$t" "$f" "$r"
   done

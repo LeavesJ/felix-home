@@ -127,9 +127,9 @@ felix_declared() {
 # Present in the checkout but never declared. This is the drift worth surfacing.
 felix_undeclared() {
   local root="$1" proj="$2"
-  comm -23 \
-    <(felix_detect "$root" | sort -u) \
-    <(felix_declared "$proj" | sort -u)
+  LC_ALL=C comm -23 \
+    <(felix_detect "$root" | LC_ALL=C sort -u) \
+    <(felix_declared "$proj" | LC_ALL=C sort -u)
 }
 
 # Best guess at the command that proves this project correct. A guess, printed

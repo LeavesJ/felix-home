@@ -32,7 +32,7 @@ _fi_orphan_find() {
   : > "$T/orph"; : > "$T/scope"; : > "$T/nest"
   reg="$_FI_NL$(cut -f1 "$T/wt")$_FI_NL"
   { awk -F'\t' 'NR > 1 && $4 !~ /linebreak/ { p = $1; sub(/\/[^\/]*$/, "", p); if (p != "") print p }' "$T/wt"; _fi_orphan_parents; } \
-    | sort -u > "$T/parents"
+    | LC_ALL=C sort -u > "$T/parents"
   while IFS= read -r p <&3; do
     in=0; [ -n "$_FI_MAIN" ] && case "$p/" in "$_FI_MAIN"/?*/) in=1; printf '%s/\n' "$p" >> "$T/scope" ;; esac
     for o in "$p"/*/; do

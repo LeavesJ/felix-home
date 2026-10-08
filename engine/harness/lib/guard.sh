@@ -27,7 +27,7 @@ felix_guard_blocks() {
   # wrong. One record per line is what the transcript already guarantees.
   grep 'hook_blocking_error' "$transcript" 2>/dev/null \
     | sed -n 's/.*"hookName"[[:space:]]*:[[:space:]]*"\([^"]*\)".*"blockingError"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1\t\2/p' \
-    | LC_ALL=C sort | uniq -c \
+    | LC_ALL=C sort | LC_ALL=C uniq -c \
     | sed -E 's/^[[:space:]]*([0-9]+)[[:space:]]+/\1\t/' \
     | LC_ALL=C sort -k1,1nr
 }

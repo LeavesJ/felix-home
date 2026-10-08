@@ -30,7 +30,7 @@ felix_toolbox_path() {
   for d in "$FELIX_PLUGIN_CACHE"/*/"$name"; do
     [ -d "$d" ] || continue
     local newest
-    newest="$(ls -d "$d"/*/ 2>/dev/null | sort -V | tail -1)"
+    newest="$(ls -d "$d"/*/ 2>/dev/null | LC_ALL=C sort -V | tail -1)"
     [ -n "$newest" ] && { printf '%s' "${newest%/}"; return 0; }
     printf '%s' "$d"; return 0
   done

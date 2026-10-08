@@ -23868,8 +23868,243 @@ _lwset 'commission\n'; _lwrun --allow tidy
 is "an allow of tidy that succeeds leaves no autonomy.new.* in the widget's directory" \
    "$(_lwexit "$_lwrc"):$(_lwhas "$_lwout" 'allowed: tidy'):$(_lwnew)" "exit 0:allowed: tidy:0"
 
+# 2026-10-08, the lock's second adversarial review (of revision 2), pinned
+# against its revision 3. NOT BLIND: written by that reviewer after reading
+# the fix, so these test what the fix does as well as what was found. Each
+# was red against a068acb3 unless its comment says otherwise. They use this
+# block's helpers, its widget and its mv shim.
+#
+# F1. bash runs any pending trap before each command it starts, the EXIT
+# trap's first command included. A signal that landed after a run's last
+# command and before its release ran its handler there, and the handler's
+# exit ended the EXIT trap, which bash never runs twice: the lock stayed,
+# and so did a temp file. The reviewer hit it by sending TERM just after a
+# run's last line, in 4 to 10 runs of 100. No timing from here can aim at a
+# gap of microseconds, so this builds the state bash is in then: a shell that
+# holds the widget's lock and a temp file and exits through an EXIT trap that
+# runs the TERM handler first and its release after, as bash does.
+_lwset 'tidy\n'
+bash -c 'set -uo pipefail; . "$1/harness/lib/autonomy.sh"
+  felix_autonomy_guard "$2" || exit 7
+  _FELIX_AUTONOMY_TMP="$(mktemp "$2/autonomy.new.XXXXXX")" || exit 8
+  trap "_felix_autonomy_signalled TERM; _felix_autonomy_release" EXIT
+  exit 0' _ "$FROOT" "$_lwp" 8>&- 2>/dev/null
+_lwrc=$?
+is "a run holding the lock and a temp file, whose exit trap begins by running the TERM handler as a TERM pending then makes it, ends 143 and leaves no lock and no autonomy.new.*" \
+   "$_lwrc:$(_lwlock):$(_lwnew)" "143:absent:0"
+# The release clears what it released, so the exit trap's own call after the
+# handler's takes nothing, not even a lock another run has made at the path
+# since. Green against a068acb3 too: it pins what F1's fix leans on.
+_lwset 'tidy\n'
+bash -c 'set -uo pipefail; . "$1/harness/lib/autonomy.sh"
+  felix_autonomy_guard "$2" || exit 7
+  _felix_autonomy_release; mkdir "$2/autonomy.lock" || exit 8
+  exit 0' _ "$FROOT" "$_lwp" 8>&- 2>/dev/null
+_lwrc=$?
+is "a release run a second time, by the exit trap after a handler ran it, leaves the lock another run made at the path in between" \
+   "$_lwrc:$(_lwlock)" "0:empty"
+
+# F2. Once an EXIT trap is set, bash also ends at once on ABRT, TRAP, SYS and
+# EMT, running its EXIT trap with the mv still in flight (bash's handlers for
+# its terminating signals: bash 5.2 sig.c, and CHECK_TERMSIG in jobs.c's
+# wait). The lock went, and a revoke of tidy took it and said revoked:.
+# These wait now, as the five above do. EMT is macOS's; Linux has none, and
+# it is skipped where kill -l does not know it.
+for _lws in ABRT TRAP SYS EMT; do
+  _lwt="a revoke of commission paused in its mv and sent SIG$_lws to its pid alone"
+  _lwn1="$_lwt: half a second on, the mv still paused, the lock is still there and still empty"
+  _lwn2="$_lwt: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked"
+  _lwn3="$_lwt: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty"
+  _lwn4="$_lwt: once the mv is released, it exits non-zero and says neither revoked: nor allowed:"
+  _lwn5="$_lwt: the lock is gone once both runs have ended"
+  _lwn6="$_lwt: what each run reported holds once both have ended"
+  _lwn7="$_lwt: no autonomy.new.* is left in the widget's directory"
+  if ! kill -l "$_lws" > /dev/null 2>&1; then
+    for _lwn in "$_lwn1" "$_lwn2" "$_lwn3" "$_lwn4" "$_lwn5" "$_lwn6" "$_lwn7"; do skip "$_lwn" "SIG$_lws does not exist on this platform"; done
+    continue
+  fi
+  if [ "$(_lwprobe "$_lws")" != yes ]; then
+    for _lwn in "$_lwn1" "$_lwn2" "$_lwn3" "$_lwn4" "$_lwn5" "$_lwn6" "$_lwn7"; do skip "$_lwn" "$(_lwign "$_lws")"; done
+    continue
+  fi
+  _lwwin "$_lws" B 2>/dev/null
+  _lwreq "$_lwn1" "$_lwsigheld" "empty:mv paused"
+  _lwreq "$_lwn2" \
+         "$(_lwended "$_lwbrc"):$(_lwexit "$_lwbrc"):$(_lwsaid "$_lwbout$_lwberr"):$(_lwhas "$_lwberr" 'projects/widget/autonomy.lock'):$(_lwhas "$_lwberr" rmdir):$(_lwhas "$_lwberr" 'not revoked')" \
+         "ended:non-zero:silent:projects/widget/autonomy.lock:rmdir:not revoked"
+  _lwreq "$_lwn3" "$_lwbsame:$_lwafterb" "same:empty"
+  _lwreq "$_lwn4" "$(_lwexit "$_lwarc"):$(_lwsaid "$_lwaout$_lwaerr")" "non-zero:silent"
+  _lwreq "$_lwn5" "$_lwfinal" "absent"
+  _lwreq "$_lwn6" \
+         "$(_lwclaim "$_lwarc" "$_lwaout$_lwaerr" 'revoked: commission' commission no):$(_lwclaim "$_lwbrc" "$_lwbout$_lwberr" 'revoked: tidy' tidy no)" \
+         "holds:holds"
+  _lwreq "$_lwn7" "$_lwleft" "0"
+done
+# ILL, FPE, BUS and SEGV are ignored instead: a handler that returns would
+# re-run a real fault forever, and ignored, one that is sent changes nothing.
+# SEGV stands for the four. The run finishes its revoke once its mv returns.
+_lwt="a revoke of commission paused in its mv and sent SIGSEGV to its pid alone, which it ignores"
+_lwn1="$_lwt: half a second on, the mv still paused, the lock is still there and still empty"
+_lwn2="$_lwt: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked"
+_lwn3="$_lwt: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty"
+_lwn4="$_lwt: once the mv is released, it finishes: exits 0 and says revoked: commission"
+_lwn5="$_lwt: the lock is gone once both runs have ended"
+_lwn6="$_lwt: what each run reported holds once both have ended"
+_lwn7="$_lwt: no autonomy.new.* is left in the widget's directory"
+if [ "$(_lwprobe SEGV)" != yes ]; then
+  for _lwn in "$_lwn1" "$_lwn2" "$_lwn3" "$_lwn4" "$_lwn5" "$_lwn6" "$_lwn7"; do skip "$_lwn" "$(_lwign SEGV)"; done
+else
+  _lwwin SEGV B 2>/dev/null
+  _lwreq "$_lwn1" "$_lwsigheld" "empty:mv paused"
+  _lwreq "$_lwn2" \
+         "$(_lwended "$_lwbrc"):$(_lwexit "$_lwbrc"):$(_lwsaid "$_lwbout$_lwberr"):$(_lwhas "$_lwberr" 'projects/widget/autonomy.lock'):$(_lwhas "$_lwberr" rmdir):$(_lwhas "$_lwberr" 'not revoked')" \
+         "ended:non-zero:silent:projects/widget/autonomy.lock:rmdir:not revoked"
+  _lwreq "$_lwn3" "$_lwbsame:$_lwafterb" "same:empty"
+  _lwreq "$_lwn4" "$(_lwexit "$_lwarc"):$(_lwhas "$_lwaout" 'revoked: commission')" "exit 0:revoked: commission"
+  _lwreq "$_lwn5" "$_lwfinal" "absent"
+  _lwreq "$_lwn6" \
+         "$(_lwclaim "$_lwarc" "$_lwaout$_lwaerr" 'revoked: commission' commission no):$(_lwclaim "$_lwbrc" "$_lwbout$_lwberr" 'revoked: tidy' tidy no)" \
+         "holds:holds"
+  _lwreq "$_lwn7" "$_lwleft" "0"
+fi
+
+# F3. With stdout closed, bash 3.2 kept a "revoked:" it could not print in
+# its buffer, and the next command substitution or subshell flushed it into
+# what it captured or wrote. A revoke of tidy with an allow of commission
+# then left an autonomy.new.* and refused the allow; with no grant file, a
+# revoke and allow of tidy wrote "revoked: tidy" into the new one; an allow
+# of commission alone wrote no stamp. Revision 3 sends a closed stdout to
+# /dev/null before anything prints. Measured red on bash 3.2 (macOS). bash 4
+# and later purge that buffer in a command substitution's child, so on 5.2
+# some of these may pass against a068acb3 as well.
+_lwshut() {   # FORMAT|none ARGS...: felix autonomy ARGS, stdout closed, over FORMAT (none: no grant file and no stamp); sets _lwrc
+  if [ "$1" = none ]; then _lwclear; else _lwset "$1"; fi
+  shift
+  ( cd "$REPO" && exec "$FELIX" autonomy "$@" ) >&- 2> "$TMP/lw.err" 8>&- &
+  _lwreap $!
+}
+_lwpage() {   # the commission row of the status page: [x] stamped over this table, [!] granted but not, [ ] not granted
+  ( cd "$REPO" && exec "$FELIX" autonomy ) 2>/dev/null 8>&- | sed -n 's/^ *\(\[.\]\) commission .*/\1/p'
+}
+_lwshut 'tidy\n' --revoke tidy --allow commission 2>/dev/null
+is "a revoke of tidy with an allow of commission, stdout closed, exits 0 and leaves no lock and no autonomy.new.*" \
+   "$(_lwexit "$_lwrc"):$(_lwlock):$(_lwnew)" "exit 0:absent:0"
+is "and that run leaves tidy not granted, and commission granted and stamped over this table: the status page says [x]" \
+   "tidy $(_lwallows tidy):commission $(_lwallows commission):$(_lwpage)" "tidy no:commission yes:[x]"
+_lwshut none --revoke tidy --allow tidy 2>/dev/null
+is "with no grant file, a revoke of tidy with an allow of tidy, stdout closed, exits 0 and leaves no lock and no autonomy.new.*" \
+   "$(_lwexit "$_lwrc"):$(_lwlock):$(_lwnew)" "exit 0:absent:0"
+is "and the grant file that run writes grants tidy and holds no revoked: line" \
+   "$(_lwallows tidy):$(grep -c 'revoked:' "$_lwp/autonomy" 2>/dev/null)" "yes:0"
+_lwshut 'tidy\n' --allow commission 2>/dev/null
+is "an allow of commission, stdout closed, exits 0, leaves no lock and no autonomy.new.*, and stamps it: the status page says [x]" \
+   "$(_lwexit "$_lwrc"):$(_lwlock):$(_lwnew):$(_lwpage)" "exit 0:absent:0:[x]"
+
+# F5. The release removes the lock through find, and said nothing when find
+# could not do it; the lock stayed and the next run was refused. Revision 3
+# says so. A find first on the run's PATH that fails stands for any find
+# that cannot run. A held lock a person makes unreadable is the other way in,
+# skipped where this suite can read a directory of mode 000 anyway (root).
+# Measured with macOS's find, which skips an unreadable starting directory
+# and exits non-zero; GNU find reports one and exits non-zero too (not run
+# here).
+mkdir -p "$TMP/lw-nofind"; printf '#!/bin/sh\nexit 1\n' > "$TMP/lw-nofind/find"; chmod +x "$TMP/lw-nofind/find"
+_lwset 'tidy\ncommission\n'
+( cd "$REPO" && PATH="$TMP/lw-nofind:$PATH" exec "$FELIX" autonomy --revoke commission ) > "$TMP/lw.out" 2> "$TMP/lw.err" 8>&- &
+_lwreap $!; _lwout="$(cat "$TMP/lw.out")"; _lwerr="$(cat "$TMP/lw.err")"
+is "a revoke of commission whose release cannot run find still revokes, and its stderr names the lock and says it may not have been removed" \
+   "$(_lwexit "$_lwrc"):$(_lwrv "$_lwout"):$(_lwallows commission):$(_lwhas "$_lwerr" 'projects/widget/autonomy.lock'):$(_lwhas "$_lwerr" 'may not have been removed')" \
+   "exit 0:said:no:projects/widget/autonomy.lock:may not have been removed"
+_lwn1="a revoke whose lock a person made unreadable while its mv was paused leaves that lock, and its stderr names the lock and says it may not have been removed"
+mkdir -p "$TMP/lw-shut"; chmod 000 "$TMP/lw-shut"
+if ls "$TMP/lw-shut" > /dev/null 2>&1; then _lwroot=yes; else _lwroot=no; fi
+chmod 755 "$TMP/lw-shut"; rmdir "$TMP/lw-shut"
+if [ "$_lwroot" = yes ]; then skip "$_lwn1" "this suite can read a directory of mode 000 here (root)"
+else
+  _lwset 'tidy\ncommission\n'; _lwmode0=unreached
+  _lwgo --revoke commission
+  if [ "$_lwreached" = yes ]; then chmod 000 "$_lwL" && _lwmode0=unreadable || _lwmode0=failed; fi
+  _lwend 2>/dev/null
+  _lwreq "$_lwn1" \
+         "$_lwmode0:$([ -d "$_lwL" ] && echo left || echo gone):$(_lwhas "$_lwaerr" 'projects/widget/autonomy.lock'):$(_lwhas "$_lwaerr" 'may not have been removed')" \
+         "unreadable:left:projects/widget/autonomy.lock:may not have been removed"
+  chmod 755 "$_lwL" 2>/dev/null
+fi
+
+# S1. On Linux a freed inode number can come straight back, so a lock a
+# person rmdir'd and another run made again could carry the first run's
+# inode, and the first run's release, which goes by inode, would take it.
+# Revision 3 keeps the lock directory open on fd 9 until it has removed it,
+# and an open directory's inode is not freed. APFS never reuses an inode
+# number, so on macOS the second assertion passes against a068acb3 too (not
+# run on Linux here); the first, fd 9 itself, read through /proc or lsof, is
+# red against it everywhere.
+_lwfd9() {   # PID: the inode PID holds open on fd 9; none; or unreadable when neither /proc nor lsof is here
+  if [ -d "/proc/$1/fd" ]; then stat -L -c %i "/proc/$1/fd/9" 2>/dev/null || echo none
+  elif command -v lsof > /dev/null 2>&1; then
+    _lwfi="$(lsof -a -p "$1" -d 9 -Fi 2>/dev/null | sed -n 's/^i//p')"; echo "${_lwfi:-none}"
+  else echo unreadable; fi
+}
+_lwn1="a revoke paused in its mv holds its lock directory open on fd 9"
+_lwset 'tidy\ncommission\n'; _lwfd=unreached
+_lwgo --revoke commission
+if [ "$_lwreached" = yes ]; then
+  _lwfd="$(_lwfd9 "$_lwa")"
+  _lwlino="$(stat -c %i "$_lwL" 2>/dev/null || stat -f %i "$_lwL" 2>/dev/null)"
+  case "$_lwfd" in
+    unreadable|none) ;;
+    "$_lwlino") _lwfd=held ;;
+    *) _lwfd="another inode ($_lwfd, the lock's is $_lwlino)" ;;
+  esac
+fi
+_lwend
+if [ "$_lwfd" = unreadable ]; then skip "$_lwn1" "neither /proc nor lsof can read another process's descriptors here"
+else _lwreq "$_lwn1" "$_lwfd" "held"; fi
+_lwset 'tidy\ncommission\n'; _lwswap=unreached
+_lwgo --revoke commission
+if [ "$_lwreached" = yes ]; then _lwswap=failed; rmdir "$_lwL" && mkdir "$_lwL" && _lwswap=remade; fi
+_lwend
+_lwreq "a revoke whose lock a person rmdir'd and another made again at the same path while its mv was paused leaves the new lock in place, still empty" \
+       "$_lwswap:$(_lwlock)" "remade:empty"
+
+# F4. mktemp ran with the signals at their defaults, so a Ctrl-C to the group
+# between its making the file and the name reaching the shell left the file.
+# The real gap is microseconds. A mktemp shim, first on run A's PATH, makes it
+# wide: it runs the real mktemp, then waits on this block's FIFO before it
+# prints the name. Revision 3 runs mktemp with the signals ignored, so the
+# shim outlives the INT and the run removes the file. Last here, because the
+# shim pauses before the mv shim does; it is removed straight after.
+_lwmkt="$(command -v mktemp)"
+{ printf '#!/bin/sh\n_d=%s\n_m=%s\n' "'$_lwsh'" "'$_lwmkt'"
+  cat <<'EOF'
+_n="$("$_m" "$@")" || exit 1
+case "$_n" in
+  */projects/widget/autonomy.new.*)
+    if [ -e "$_d/armed" ] && /bin/rm "$_d/armed" 2>/dev/null; then
+      echo "$$" > "$_d/reached"
+      read -r _line < "$_d/release"
+    fi ;;
+esac
+printf '%s\n' "$_n"
+EOF
+} > "$_lwsh/mktemp"; chmod +x "$_lwsh/mktemp"
+_lwn1="a revoke of commission paused in mktemp, its temp file made and not yet named, and sent INT to its process group, exits non-zero, says nothing, and leaves no lock, no autonomy.new.* and the widget's files as they were"
+_lwn2="an allow of tidy paused in mktemp the same way and sent INT to its process group exits non-zero, says nothing, and leaves no lock, no autonomy.new.* and the widget's files as they were"
+if [ "$(_lwprobe INT)" != yes ]; then skip "$_lwn1" "$(_lwign INT)"; skip "$_lwn2" "$(_lwign INT)"
+else
+  for _lwv in revoke allow; do
+    if [ "$_lwv" = revoke ]; then _lwset 'tidy\ncommission\n'; _lwn="$_lwn1"; else _lwset 'commission\n'; _lwn="$_lwn2"; fi
+    _lwheld="$(_lwstate)"
+    if [ "$_lwv" = revoke ]; then _lwgo --revoke commission; else _lwgo --allow tidy; fi
+    [ "$_lwreached" = yes ] && kill -INT -- "-$_lwa" 2>/dev/null
+    _lwend
+    _lwreq "$_lwn" "$(_lwexit "$_lwarc"):$(_lwsaid "$_lwaout$_lwaerr"):$(_lwlock):$(_lwnew):$(_lwsame)" "non-zero:silent:absent:0:same"
+  done 2>/dev/null
+fi
+rm -f "$_lwsh/mktemp"
+
 exec 8>&-
-_lwclear; rm -rf "$_lwsh"
+_lwclear; rm -rf "$_lwsh" "$TMP/lw-nofind"
 rm -f "$TMP/lw.out" "$TMP/lw.err" "$TMP/lw-a.out" "$TMP/lw-a.err" "$TMP/lw-b.out" "$TMP/lw-b.err" "$TMP/lw-pipe"
 for _lwf in "$_lwk"/autonomy*; do { [ -e "$_lwf" ] || [ -L "$_lwf" ]; } && mv "$_lwf" "$_lwp/"; done
 rmdir "$_lwk" 2>/dev/null

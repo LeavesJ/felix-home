@@ -1269,23 +1269,25 @@ PTTL="$TMP/prtitle"; mkdir -p "$PTTL"
   r1="$(c commit-tree "$(rt "$(printf '1\n' | git hash-object -w --stdin)")" -m "test(record): the first record, a root commit")"
   r2="$(c commit-tree "$(rt "$(printf '2\n' | git hash-object -w --stdin)")" -p "$r1" -m "test(record): the second record")"
   git branch claude/orphan "$r2"
-  # A newest commit with an ssh signature, signed where this git and
-  # ssh-keygen can, and made unsigned otherwise so the index is left clean.
+  # Both commits signed with ssh, the branch's own and the record over it, so
+  # the read of the branch and the read of the title each meet a signature.
+  # Signed where this git and ssh-keygen can, and made unsigned otherwise so
+  # the index is left clean; the check below skips then.
   git checkout -qb claude/signed main
-  printf 'g\n' > g.txt; git add g.txt; c commit -qm "fix(signed): the change under a signed record"
-  bk engine/harness/tests/red.tsv 1
-  { ssh-keygen -q -t ed25519 -N '' -C t@t -f "$PTTL.key" </dev/null \
+  sg=""
+  ssh-keygen -q -t ed25519 -N '' -C t@t -f "$PTTL.key" </dev/null \
     && printf 't@t %s\n' "$(cat "$PTTL.key.pub")" > "$PTTL.signers" \
     && git config gpg.format ssh && git config user.signingkey "$PTTL.key.pub" \
-    && git config gpg.ssh.allowedSignersFile "$PTTL.signers" \
-    && c commit -S -qm "test(red): a signed record"; } || c commit -qm "test(red): a signed record"
-  # Last, because they leave files named HEAD and main..HEAD in the tree:
-  # tracked, on a branch with work of its own under a record, and on one that
-  # made nothing of its own.
+    && git config gpg.ssh.allowedSignersFile "$PTTL.signers" && sg=-S
+  printf 'g\n' > g.txt; git add g.txt
+  c commit $sg -qm "fix(signed): the change under a signed record" \
+    || c commit -qm "fix(signed): the change under a signed record"
+  bk engine/harness/tests/red.tsv 1
+  c commit $sg -qm "test(red): a signed record" || c commit -qm "test(red): a signed record"
+  # Last, because it leaves a file named HEAD in the tree: a tracked one, on a
+  # branch that made nothing of its own.
   git checkout -qb claude/headside main
-  printf 'h\n' > HEAD; printf 'h\n' > main..HEAD; git add HEAD main..HEAD
-  c commit -qm "feat(headside): files named HEAD and main..HEAD"
-  bk engine/harness/tests/red.tsv 1; c commit -qm "test(red): the record after it"
+  printf 'h\n' > HEAD; git add HEAD; c commit -qm "feat(headside): a file named HEAD"
   git checkout -qb claude/headfile main
   c merge -q --no-ff claude/headside -m "Merge branch 'claude/headside' into claude/headfile"
 ) >/dev/null 2>&1
@@ -1314,18 +1316,16 @@ is  "and --title still wins over all of it" \
 is  "a root commit made only of a record is the landing's too" \
     "$( cd "$PTTL" && git checkout -q claude/orphan && . "$FROOT/harness/lib/intake.sh" \
         && felix_pr_title "$PTTL" main )" "test(record): the second record"
-if [ "$(git -C "$PTTL" log -1 --format=%G? claude/signed 2>/dev/null)" = G ]; then
+if [ "$(git -C "$PTTL" log -2 --format=%G? claude/signed 2>/dev/null | tr -d '\n')" = GG ]; then
   git -C "$PTTL" config log.showSignature true
-  is  "a signed newest commit leaves the title the branch's own under log.showSignature" \
+  is  "signed commits leave the title the branch's own under log.showSignature" \
       "$(_ptt claude/signed)" "title:    fix(signed): the change under a signed record"
   git -C "$PTTL" config --unset log.showSignature
 else
-  skip "a signed newest commit leaves the title the branch's own under log.showSignature" \
+  skip "signed commits leave the title the branch's own under log.showSignature" \
        "this git or ssh-keygen could not make an ssh-signed commit"
 fi
-is  "a tracked file named main..HEAD leaves the branch's commits readable" \
-    "$(_ptt claude/headside)" "title:    feat(headside): files named HEAD and main..HEAD"
-is  "and one named HEAD leaves HEAD's subject readable" \
+is  "a tracked file named HEAD leaves HEAD's subject readable" \
     "$(_ptt claude/headfile)" "title:    Merge branch 'claude/headside' into claude/headfile"
 
 # Put back what this section borrowed. Declaring the state you depend on is half

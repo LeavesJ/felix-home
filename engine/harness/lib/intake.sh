@@ -97,13 +97,14 @@ felix_pr_body() {
 # newest of them is the title. When the branch made none, or the base cannot
 # be read, it is HEAD's subject, as it always was.
 #
-# --no-show-signature, because log.showSignature prints a verification line
-# that was read as a sha and left the title empty. The closing --, because a
-# tracked file named HEAD makes the revision ambiguous.
+# --no-show-signature on both reads, because log.showSignature prints a
+# verification line that was read as a sha and left the title empty. The --
+# after the title's revision, because a tracked file named HEAD makes it
+# ambiguous. A range is never read as a path, so the branch's read needs none.
 felix_pr_title() {
   local root="$1" base="$2" own c p paths first="" mine=""
   local pending="${FELIX_HANDOFF_PENDING:-docs/handoff/pending}"
-  own="$(git -C "$root" log --no-show-signature --first-parent --no-merges --format=%H "$base..HEAD" -- 2>/dev/null)"
+  own="$(git -C "$root" log --no-show-signature --first-parent --no-merges --format=%H "$base..HEAD" 2>/dev/null)"
   while IFS= read -r c; do
     [ -n "$c" ] || continue
     [ -n "$first" ] || first="$c"

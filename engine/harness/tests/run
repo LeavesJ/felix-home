@@ -26117,7 +26117,7 @@ _cucrstart() { local _cucro
 _cucrowed() { printf '%s\n' "$1" | awk 'index($0, "A session still owes these") { on = 1; print; next }
                                          on && (/^$/ || /^Commissioning:/) { exit } on { print }'; }
 _cucrunread="Commissioning: whether these answers are whole could not be read, so they are neither owed nor recorded; felix commission --status reads them again:
-  cucr_unread (unknown)
+  cucr_unread (unknown: the rows of the answer could not be counted)
   cucr_none (no state)"
 _cucrs1="$(_cucrstart)"
 _cucrow="$(_cucrowed "$_cucrs1")"
@@ -26598,7 +26598,7 @@ is  "felix commission --status over a list it read lists the surfaces nothing se
     "said said silent"
 _durbout="$(_durbstart)"
 is  "session start over a list it read does not name the provider row among those whose answers could not be read" \
-    "$(_durbsays "$_durbout" 'automation_surveyed (unknown)') $(_durbsays "$_durbout" 'could not be read, so they are neither owed')" "silent silent"
+    "$(_durbsays "$_durbout" 'automation_surveyed (unknown') $(_durbsays "$_durbout" 'could not be read, so they are neither owed')" "silent silent"
 
 # The same commands over a capabilities link whose target is gone.
 rm -f "$_durbp/capabilities"; ln -s "$TMP/durb-no-such-list" "$_durbp/capabilities"
@@ -26633,7 +26633,7 @@ is  "felix commission --status over an unread list says the surfaces nothing ser
     "$(_durbsays "$_durbout" "surfaces nothing serves, reaches, or grounds: not known: $_durbwhy") $(_durbsays "$_durbout" durbgap)" "said silent"
 _durbout="$(_durbstart)"
 is  "session start over an unread list names the provider row among those whose answers could not be read, and says no all-clear and owes nothing" \
-    "$(_durbsays "$_durbout" "$(printf 'neither owed nor recorded; felix commission --status reads them again:\n  automation_surveyed (unknown)')") $(_durbsays "$_durbout" 'Commissioning: receipt')" \
+    "$(_durbsays "$_durbout" "$(printf 'neither owed nor recorded; felix commission --status reads them again:\n  automation_surveyed (unknown: the topology the answer at %s is keyed to could not be computed: %s)' "$_durbans" "$_durbwhy")") $(_durbsays "$_durbout" 'Commissioning: receipt')" \
     "said silent"
 
 rm -rf "$_durbp" "$_durbr" "$_durbhome" "$_durbstub" "$_durbnotpl" "$MEM/durbproj"
@@ -26915,8 +26915,9 @@ _durcs1="$(_durcstart)"
 is  "session start over a list it read says nothing of a topology that could not be computed" "$(_durcsays "$_durcs1" 'could not be computed')" "silent"
 _durcdangle
 _durcs2="$(_durcstart)"
-is  "session start over a capabilities link whose target is gone, with an answer file, says the topology the answers are keyed to could not be computed, and still names the row" \
-    "$(_durcsays "$_durcs2" "$_durctl") $(_durcsays "$_durcs2" 'automation_surveyed (unknown)') $(_durcsays "$_durcs2" 'Commissioning: receipt')" "said said silent"
+_durcrow="automation_surveyed (unknown: the topology the answer at $MEM/durcproj/commission/automation_surveyed.tsv is keyed to could not be computed: $_durcwhy)"
+is  "session start over a capabilities link whose target is gone, with an answer file, names the row with its own detail, that the topology the answer is keyed to could not be computed, with no sentence of its own about the topology and no all-clear" \
+    "$(_durcsays "$_durcs2" "$_durcrow") $(_durcsays "$_durcs2" "$_durctl") $(_durcsays "$_durcs2" 'Commissioning: receipt')" "said silent silent"
 _durcdeclare
 
 # 10. felix obligations --request with no request template (R6).
@@ -26941,7 +26942,7 @@ unset -f _durcj _durcfixture _durcdeclare _durcdangle _durcrun _durccli _durcsay
          _durcpol _durcwatch _durcinto _durcok _durcbare _durcbad _durcgoes _durcargs _durccapt _durcstart
 unset _durcfound _durcdirs _durcp _durcr _durchome _durcstub _durcasked _durctpl _durcpv _durceng _durccache _durcwhy _durcgone \
       _durctopo _durctopo2 _durcobreq _durcout _durcrc _durcn _durcst1 _durcst2 _durcstamp _durcorph _durcxo _durcxg _durcabsent \
-      _durcdang _durcreg _durcfifo _durccol _durcnames _durcgot _durcs1 _durcs2 _durctl _durcnl _durcd
+      _durcdang _durcreg _durcfifo _durccol _durcnames _durcgot _durcs1 _durcs2 _durctl _durcrow _durcnl _durcd
 
 # felix commission adopts nothing over a declared list it could not read, and
 # says that capability drift was not checked.
@@ -27314,7 +27315,71 @@ else
 fi
 chmod 600 "$_durepv/capabilities" 2>/dev/null; rm -f "$_durepv/capabilities"
 
-rm -rf "$_durep" "$_durer" "$_durehome" "$_durebin0" "$_duregrep" "$_duretr" "$_durepv" "$MEM/dureproj"
+# 5. Session start names a provider row whose state is unknown with that state's own
+# detail, and says nothing else about why (F5). Until 2026-10-08 it kept only the first
+# field of each row's state and added a sentence of its own, keyed to a second
+# computation of the same topology, so under a transient failure the two disagreed: a
+# row unknown for its topology was named with no reason, and a hook whose own topology
+# failed over rows that read fine said nothing. The scratch copy of the engine counts
+# the calls of felix_commission_topology in a file and fails the one it is told to: the
+# hook's own capture is the first, and the row's state is the second. The all-clear is
+# the line `Commissioning: receipt`, said once per topology, and is refused while any
+# row is unknown or the hook's topology is empty.
+_dureeng="$TMP/dure-plugin"; _durecalls="$TMP/dure-calls"
+mkdir -p "$_dureeng" "$MEM/dureproj/commission"; cp -R "$FROOT/harness" "$_dureeng/harness"
+sed -e 's/^felix_commission_topology() {$/_dure_real_topology() {/' "$_dureeng/harness/lib/commission-provider.sh" > "$_dureeng/prov.new"
+cat >> "$_dureeng/prov.new" <<'EOF'
+felix_commission_topology() {
+  [ -z "${DURE_CALLS:-}" ] || printf x >> "$DURE_CALLS"
+  if [ -n "${DURE_CALLS:-}" ] && [ "$(wc -c < "$DURE_CALLS" | tr -d ' ')" = "${DURE_FAIL_CALL:-0}" ]; then return 2; fi
+  _dure_real_topology "$@"
+}
+EOF
+cp "$_dureeng/prov.new" "$_dureeng/harness/lib/commission-provider.sh"
+# $1 is the plugin root the hook runs from, $2 the call of felix_commission_topology to fail.
+_durestart() { local _dureo
+  : > "$_durecalls"; rm -f "$FROOT/state/commission/dureproj.seen"
+  _dureo="$(cd "$_durer" && HOME="$_durehome" PATH=/usr/bin:/bin CLAUDE_PLUGIN_ROOT="$1" DURE_CALLS="$_durecalls" DURE_FAIL_CALL="${2:-0}" \
+              "$1/harness/hooks/session-start" 2>&1)"
+  printf '%s\n' "${_dureo//\\n/$'\n'}"; }
+_durecom() { ( cd "$_durer" || exit 99
+    set -o pipefail
+    HOME="$_durehome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durebin0:/usr/bin:/bin"
+    . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/verify.sh"
+    . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/commission-provider.sh"
+    "$@" ) 2>/dev/null; }
+_durewhy='the capabilities this project declares could not be read'
+_durans="$MEM/dureproj/commission/automation_surveyed.tsv"
+printf 'automation_surveyed\t-\t-\t-\tprovider:dureplug:dureskill\t-\t-\n' > "$_durep/commissioning.tsv"
+_duretopo="$(_durecom felix_commission_topology "$_durep" "$_durer")"
+{ printf '# topology %s\n' "$_duretopo"; printf 'plugin\tdurenom\t-\tdurecap\ta nomination\n'; printf 'done\t1\n'; } > "$_durans"
+_dureold="Commissioning: the topology these answers are keyed to could not be computed"
+_durerow="automation_surveyed (unknown: the topology the answer at $_durans is keyed to could not be computed: $_durewhy)"
+_durerowk='automation_surveyed (unknown'
+_dures1="$(_durestart "$FROOT")"
+is  "session start over a list it read and a topology that comes back says the all-clear, names no row as unknown and says nothing about a topology" \
+    "$(_duresays "$_dures1" 'Commissioning: receipt') $(_duresays "$_dures1" "$_durerowk") $(_duresays "$_dures1" 'could not be computed')" "said silent silent"
+rm -f "$_durep/capabilities"; ln -s "$TMP/dure-no-such-list" "$_durep/capabilities"
+_dures2="$(_durestart "$FROOT")"
+is  "session start over a capabilities link whose target is gone, with an answer file, names the row with the row's own detail" \
+    "$(_duresays "$_dures2" "$(printf 'neither owed nor recorded; felix commission --status reads them again:\n  %s' "$_durerow")")" "said"
+is  "and says no sentence of its own about the topology, and no all-clear" \
+    "$(_duresays "$_dures2" "$_dureold") $(_duresays "$_dures2" 'Commissioning: receipt')" "silent silent"
+rm -f "$_durep/capabilities"; printf 'secrets\ndurebill\ndurecap\n' > "$_durep/capabilities"
+_dures3="$(_durestart "$_dureeng" 2)"
+is  "session start over a list it read, when only the row's own computation of the topology fails, names the row with the row's own detail" \
+    "$(_duresays "$_dures3" "$(printf 'neither owed nor recorded; felix commission --status reads them again:\n  %s' "$_durerow")")" "said"
+is  "and says no sentence of its own about the topology, and no all-clear" \
+    "$(_duresays "$_dures3" "$_dureold") $(_duresays "$_dures3" 'Commissioning: receipt')" "silent silent"
+_dures4="$(_durestart "$_dureeng" 0)"
+_dures5="$(_durestart "$_dureeng" 1)"
+is  "session start through the engine copy when no call fails says the all-clear and names no row as unknown" \
+    "$(_duresays "$_dures4" 'Commissioning: receipt') $(_duresays "$_dures4" "$_durerowk")" "said silent"
+is  "and when the hook's own computation of the topology fails over rows that read fine, it says no all-clear, names no row as unknown, and says nothing about a topology" \
+    "$(_duresays "$_dures5" 'Commissioning: receipt') $(_duresays "$_dures5" "$_durerowk") $(_duresays "$_dures5" 'could not be computed')" "silent silent silent"
+rm -f "$_durep/commissioning.tsv" "$_durans"
+
+rm -rf "$_durep" "$_durer" "$_durehome" "$_durebin0" "$_duregrep" "$_duretr" "$_durepv" "$_dureeng" "$_durecalls" "$MEM/dureproj"
 [ -d "$FROOT/state" ] && find "$FROOT/state" -name '*dureproj*' -exec rm -rf {} + 2>/dev/null
 _durenl='
 '
@@ -27323,10 +27388,11 @@ find "$FROOT/state" -depth -type d 2>/dev/null | while IFS= read -r _dured; do
 done
 is  "and the block for the second review's fixes leaves the projects, the state and the memory as it found them" \
     "$(_durefixture)" "$_durefound"
-unset -f _durefixture _durecli _duresays _dureis _durelines _durerecl _duredl _dureprun _durej _durepol
+unset -f _durefixture _durecli _duresays _dureis _durelines _durerecl _duredl _dureprun _durej _durepol _durestart _durecom
 unset _durefound _duredirs _durep _durer _durehome _durebin0 _duregrep _duretr _duretpl _durerealgrep _dureretr \
       _dureplain _durestub _duren _durenl _dured _durerec0 _durerec1 _dured0 _dured1 _dureeff _duregaps \
-      _durepv _durepolun _durepolrd _durepolno _durepolem
+      _durepv _durepolun _durepolrd _durepolno _durepolem _dureeng _durecalls _durewhy _durans _duretopo _dureold \
+      _durerow _durerowk _dures1 _dures2 _dures3 _dures4 _dures5
 
 # A table command whose last stage succeeds whatever it is fed is refused.
 #

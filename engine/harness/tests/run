@@ -22763,10 +22763,11 @@ is "the widget's directory holds exactly what it held before failed reads, faile
 
 printf '\nrevoke and the reader take no stopped subshell for an answer\n'
 # 2026-10-08: the writer lock's third review found that, under bash 3.2, a set -u
-# stop in an arithmetic expansion exits 0 from a subshell. In a script file
-# under set -u, a subshell that reads an unset name inside $(( )) ends with
-# status 0, where bash -c gives 127 and a plain unbound word gives 1, so a
-# revoke pass or a grant read stopped part-way can look like one that finished.
+# stop in an arithmetic expansion need not fail a subshell. In a script file
+# under set -u, a subshell that reads an unset name inside $(( )) ends with the
+# status of the last command it ran before the stop, which was 0 in every case
+# here, where bash -c gives 127 and a plain unbound word gives 1, so a revoke
+# pass or a grant read stopped part-way can look like one that finished.
 # felix runs as a script under set -uo pipefail, so every fault here is
 # injected through a script file run by "$BASH", never "$BASH -c". H1 and H3
 # hand back 'revoked: tidy' from every wc after the first, which is no count;
@@ -22844,6 +22845,124 @@ for _rvf in "$RV7K"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
 rmdir "$RV7K" 2>/dev/null
 is "the widget's directory holds exactly what it held before stopped subshells were tested" \
    "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r7start"
+
+printf '\nrevoke knows every letter, stays linear after the capability, and takes no stop for an answer\n'
+# 2026-10-08: the fifth review of the revoke fix found three gaps the blocks
+# above leave open. G1 pinned upper-case neighbours with three letters, so a
+# names rule that knew only some of the alphabet still passed; every ASCII
+# letter, on either side of either capability, is pinned here. G6 measured a
+# long line that does not begin with the capability, and a revoke that matched
+# the capability at the start of a line and then walked the letters after it
+# could still cost seconds on one line of half a megabyte. And block 7 took a
+# set -u stop in a subshell to exit 0. Under bash 3.2, in a script file, it
+# exits with the status of the last command run before the stop, so a stop can
+# leave any status, 10 or 4 or 2 among them, including one the engine itself
+# uses to mean success or a NUL byte. A pass or a read stopped part-way must be
+# refused whatever status it leaves, and the refusal must not claim a NUL the
+# file does not hold. The stopped cases are script files run by "$BASH", as
+# block 7's are, and are green on bash 5.2, where the stop exits non-zero.
+RV8K="$TMP/revoke-keep-8"; mkdir -p "$RV8K"
+_r8start="$(ls -A "$RVP" | LC_ALL=C sort)"
+for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV8K/"; done
+
+# I1: every ASCII letter beside a capability is a letter. For each of A-Z and
+# a-z, four lines: the letter then tidy, tidy then the letter, the letter then
+# commission, and commission then the letter, built as printf octal escapes.
+_r8fmt=''; _r8d=65
+while [ "$_r8d" -le 122 ]; do
+  if [ "$_r8d" -le 90 ] || [ "$_r8d" -ge 97 ]; then
+    _r8o="$(printf '%03o' "$_r8d")"
+    _r8fmt="$_r8fmt\\${_r8o}tidy\\ntidy\\${_r8o}\\n\\${_r8o}commission\\ncommission\\${_r8o}\\n"
+  fi
+  _r8d=$((_r8d+1))
+done
+_rvset "${_r8fmt}tidy\\ncommission\\n"
+is "before any revoke a file of 208 lettered lines and bare tidy and commission lines holds 210 lines and grants both, under C and UTF-8" \
+   "$(wc -l < "$RVP/autonomy" | tr -d ' '):$(_rwboth tidy):$(_rwboth commission)" "210:yes:yes:yes:yes"
+_rwloc C tidy; printf "${_r8fmt}commission\\n" > "$TMP/rw.want"
+is "a revoke of tidy under C beside every ASCII letter on both sides of both capabilities exits 0 and removes only the bare tidy line" \
+   "$_rvrc:$(_rwis)" "0:same"
+_rvset "${_r8fmt}tidy\\ncommission\\n"; _rwloc C commission; printf "${_r8fmt}tidy\\n" > "$TMP/rw.want"
+is "a revoke of commission under C beside every ASCII letter on both sides of both capabilities exits 0 and removes only the bare commission line" \
+   "$_rvrc:$(_rwis)" "0:same"
+
+# I2: a revoke is linear when the capability comes first and letters follow.
+rm -f "$RVP"/autonomy*
+{ printf '# h\ntidy'; _r6xs 524288 x; printf '\ntidy\n'; } > "$RVP/autonomy"
+{ printf '# h\ntidy'; _r6xs 524288 x; printf '\n'; } > "$TMP/rw.want"
+is "a revoke of tidy below one line of tidy and then 512 KB of x returns 0 using at most 6 seconds of CPU" \
+   "$(_r6cpu tidy)" "returned 0:within"
+is "and that revoke keeps the line of tidy and 512 KB of x byte for byte" "$(_rwis)" "same"
+rm -f "$RVP"/autonomy*
+{ printf '# h\ntidy'; _r6xs 524288 t; printf '\ntidy\n'; } > "$RVP/autonomy"
+{ printf '# h\ntidy'; _r6xs 524288 t; printf '\n'; } > "$TMP/rw.want"
+is "a revoke of tidy below one line of tidy and then 512 KB of t returns 0 using at most 6 seconds of CPU" \
+   "$(_r6cpu tidy)" "returned 0:within"
+is "and that revoke keeps the line of tidy and 512 KB of t byte for byte" "$(_rwis)" "same"
+_r8s='commissio '; _r8i=0
+while [ "$_r8i" -lt 15 ]; do _r8s="$_r8s$_r8s"; _r8i=$((_r8i+1)); done
+_r8s="${_r8s:0:262140}"
+rm -f "$RVP"/autonomy*
+printf '# h\ncommission%s\ncommission\n' "$_r8s" > "$RVP/autonomy"
+printf '# h\ncommission%s\n' "$_r8s" > "$TMP/rw.want"
+is "a revoke of commission below one line of commission and then 256 KB of 'commissio ' returns 0 using at most 6 seconds of CPU" \
+   "$(_r6cpu commission)" "returned 0:within"
+is "and that revoke keeps the line of commission and 256 KB of 'commissio ' byte for byte" "$(_rwis)" "same"
+_r8s=''
+
+# I3: a pass stopped by set -u is refused whatever status the stop leaves.
+# The script's wc counts its calls in a file, and from call FROM onward prints
+# no count but 'revoked: tidy' and returns CODE; before that it is the real wc.
+_r8calls="$TMP/r8.calls"
+cat > "$TMP/r8.i3" <<'R8I3'
+set -uo pipefail
+. "$1/harness/lib/autonomy.sh"
+_r8c="$3"; _r8from="$4"; _r8code="$5"
+wc() {
+  printf 'call\n' >> "$_r8c"
+  _r8n=$(( $(command wc -l < "$_r8c") ))
+  if [ "$_r8n" -ge "$_r8from" ]; then printf 'revoked: tidy\n'; return "$_r8code"; fi
+  command wc "$@"
+}
+felix_autonomy_revoke "$2" tidy >/dev/null 2>&1
+echo "returned $?"
+R8I3
+_r8run() {   # FROM CODE: the script above over the widget's file -> 'returned N'
+  rm -f "$_r8calls"; "$BASH" "$TMP/r8.i3" "$FROOT" "$RVP" "$_r8calls" "$1" "$2" 2>/dev/null
+}
+for _r8code in 10 4 5; do
+  _rvset '# h\ntidy\ncommission\n'; _r6held; _r8out="$(_r8run 2 "$_r8code")"
+  is "a revoke of tidy in a script under set -u whose wc from its second call returns $_r8code without a count returns non-zero, leaves the file byte-identical and nothing new" \
+     "$(_r7exit "$_r8out"):$(_r3cmp "$TMP/rv.held" "$RVP/autonomy"):$(_r6new)" "refused:same:nothing-new"
+done
+_rvset '# h\ntidy\ncommission\n'; _r8out="$(_r8run 1000000 10)"; printf '# h\ncommission\n' > "$TMP/rw.want"
+is "and the same script with a wc that is real on every call revokes tidy, returns 0 and keeps commission" \
+   "$_r8out:$(_rwis)" "returned 0:same"
+for _r8code in 4 2; do
+  _rvset '# h\ntidy\302\240\n'; _r6held; _r8out="$(_r8run 1 "$_r8code")"
+  is "a revoke of tidy over a no-break-space line in a script under set -u whose wc from its first call returns $_r8code without a count returns exactly 1 and keeps the line byte for byte" \
+     "$_r8out:$(_r3cmp "$TMP/rv.held" "$RVP/autonomy")" "returned 1:same"
+done
+
+# I3, the CLI: an executable wc first in PATH that from its first call prints
+# 'revoked: tidy' and exits 2, the status a NUL byte is refused with.
+_r8bin="$TMP/r8.bin"; mkdir -p "$_r8bin"
+printf '%s\n' '#!/bin/sh' "printf 'revoked: tidy\\n'" 'exit 2' > "$_r8bin/wc"; chmod 755 "$_r8bin/wc"
+_rvset '# h\ntidy\302\240\n'; _r6held
+( cd "$REPO" && PATH="$_r8bin:$PATH" "$FELIX" autonomy --revoke tidy ) > "$TMP/rv.out" 2> "$TMP/rv.err"
+_rvrc=$?; _rvout="$(cat "$TMP/rv.out")"; _rverr="$(cat "$TMP/rv.err")"
+rm -rf "$_r8bin"
+is "a felix autonomy --revoke tidy whose wc exits 2 with no count from its first call exits non-zero and leaves the file byte-identical" \
+   "$(_rwexit):$(_r3cmp "$TMP/rv.held" "$RVP/autonomy")" "refused:same"
+is "and that stopped CLI revoke prints no revoked: on stdout" "$(_r3has "$_rvout" 'revoked:' said silent)" "silent"
+is "and that stopped CLI revoke does not claim a NUL byte the file does not hold" \
+   "$(_r3has "$_rverr" 'NUL' claimed honest)" "honest"
+
+rm -f "$RVP"/autonomy* "$TMP/rw.want" "$TMP/rv.held" "$_r8calls" "$TMP/r8.i3"
+for _rvf in "$RV8K"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
+rmdir "$RV8K" 2>/dev/null
+is "the widget's directory holds exactly what it held before every letter, long capability lines and stopped passes were tested" \
+   "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r8start"
 
 # The commission grant is bound to the table it was granted over.
 #

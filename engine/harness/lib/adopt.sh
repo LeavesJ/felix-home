@@ -19,6 +19,24 @@ if ! command -v felix_end_line >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
 
+# What is at projects/<name>/setup when it is not a plain directory runbooks can
+# be written into (2026-10-08): felix_not_replaceable's words, or `a link to
+# another directory`, since a runbook renamed through that link replaces a file
+# outside the project. Prints nothing and returns 1 for a plain directory, and
+# for nothing there, which mkdir -p either made or could not make; a runbook
+# then fails to be written and says so.
+_felix_adopt_setup_what() {
+  local d="$1"
+  if [ -L "$d" ]; then
+    [ -d "$d" ] && { printf 'a link to another directory'; return 0; }
+    felix_not_replaceable "$d"
+    return 0
+  fi
+  { [ -e "$d" ] && [ ! -d "$d" ]; } || return 1
+  felix_not_regular "$d" || printf 'a regular file'
+  return 0
+}
+
 # felix_adopt_capability <project-dir> <capability> <templates-dir> <repo-slug>
 # Prints "<stack-rows-added> <setup-steps-added>". Returns 1 if already declared,
 # and 2, printing nothing and writing no row, when the list could not be read or
@@ -60,7 +78,8 @@ felix_adopt_capability() {
   # because a file is missing would leave the capability recorded and its
   # consequences invisible, which is the failure this exists to prevent.
   local added_stack=0 added_setup=0 missed=0
-  mkdir -p "$proj/setup"
+  # Quiet: a setup/ that is not a directory is named for each step below.
+  mkdir -p "$proj/setup" 2>/dev/null
   # Seeded only where nothing is at the path. `[ -f ]` seeded through a link
   # whose target was gone, creating it, and waited forever on a pipe; now
   # anything that is not a regular file is left as it is, never opened below,
@@ -91,38 +110,51 @@ felix_adopt_capability() {
   fi
 
   if [ -f "$tpl/setup.tsv" ]; then
+    local rb rbwhat rbtmp
     while IFS=$'\t' read -r id title c chk; do
       [ "${c:-}" = "$cap" ] || continue
       [ -f "$proj/setup.tsv" ] && grep -qE "^$id	" "$proj/setup.tsv" 2>/dev/null && continue
       # 2026-10-08: the runbook was written with `>`, which waited forever on a
       # pipe at its path, as session start does for every capability the
       # checkout grew, and wrote through a link, creating a gone target or
-      # overwriting whatever file it pointed at. The step is refused whole, row
-      # as well: a row left without its runbook makes the next adopt skip the
-      # step, so the runbook would never be written.
-      local rbwhat
-      if [ -f "$tpl/setup/$id.md" ] && rbwhat="$(felix_not_replaceable "$proj/setup/$id.md")"; then
-        printf 'felix: could not add %s to %s/setup.tsv: its runbook %s/setup/%s.md is %s\n' \
-          "$id" "$proj" "$proj" "$id" "$rbwhat" >&2
-        missed=$((missed+1))
-        continue
+      # overwriting whatever file it pointed at, here or through a setup/ that
+      # was itself a link. The step is refused whole, row as well: a row left
+      # without its runbook makes the next adopt skip the step, so the runbook
+      # would never be written. So the runbook is written before the row, into
+      # a temporary file, and renamed into place after it (review: a setup/ that
+      # was a file, a pipe or unwritable left exactly that row behind).
+      rb="$proj/setup/$id.md"; rbtmp=""
+      if [ -f "$tpl/setup/$id.md" ]; then
+        if rbwhat="$(_felix_adopt_setup_what "$proj/setup")"; then
+          printf 'felix: could not add %s to %s/setup.tsv: %s/setup is %s\n' "$id" "$proj" "$proj" "$rbwhat" >&2
+          missed=$((missed+1))
+          continue
+        fi
+        if rbwhat="$(felix_not_replaceable "$rb")"; then
+          printf 'felix: could not add %s to %s/setup.tsv: its runbook %s is %s\n' "$id" "$proj" "$rb" "$rbwhat" >&2
+          missed=$((missed+1))
+          continue
+        fi
+        if ! rbtmp="$(felix_replace_prepare "$rb" sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md")"; then
+          printf 'felix: could not add %s to %s/setup.tsv: its runbook %s could not be written\n' "$id" "$proj" "$rb" >&2
+          missed=$((missed+1))
+          continue
+        fi
       fi
-      # The same for a hand-edited setup.tsv, and the runbook is not copied
-      # for a step whose row was not written.
+      # The same for a hand-edited setup.tsv, and the runbook is not put in
+      # place for a step whose row was not written.
       if ! felix_end_line "$proj/setup.tsv" \
          || ! printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}" >> "$proj/setup.tsv"; then
+        [ -z "$rbtmp" ] || rm -f "$rbtmp" 2>/dev/null
         printf 'felix: could not add %s to %s/setup.tsv\n' "$id" "$proj" >&2
         missed=$((missed+1))
         continue
       fi
-      # Replaced rather than written through, for a hard link. Its row is
-      # written by now, so a runbook that still fails, as under a setup/ that
-      # is not a directory, is said, and the step counts as added with
-      # something it implies left unwritten.
-      if [ -f "$tpl/setup/$id.md" ] \
-         && ! felix_replace_file "$proj/setup/$id.md" sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md"; then
-        printf 'felix: added %s to %s/setup.tsv, but could not write its runbook %s/setup/%s.md\n' \
-          "$id" "$proj" "$proj" "$id" >&2
+      # Only a rename is left to fail here, beside a file just made in the same
+      # directory. If it does, the row is written and the way back is said.
+      if [ -n "$rbtmp" ] && ! felix_replace_commit "$rbtmp" "$rb"; then
+        printf 'felix: added %s to %s/setup.tsv, but could not put its runbook at %s; delete that row before adopting again\n' \
+          "$id" "$proj" "$rb" >&2
         missed=$((missed+1))
       fi
       added_setup=$((added_setup+1))

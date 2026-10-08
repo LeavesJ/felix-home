@@ -894,7 +894,14 @@ cmd_new() {
     die "cannot write the marker $root/.felix, which binds the checkout; nothing was made"
   fi
 
-  mkdir -p "$(felix_mem_dir "$dir")" "$dir/setup"
+  # Checked, before the marker or any file is written (2026-10-08, review): an
+  # unwritable projects/ failed this mkdir, every write after it failed, the
+  # marker bound the checkout to a project with no directory, and this said
+  # "created".
+  mkdir -p "$dir/setup" 2>/dev/null
+  { [ -d "$dir/setup" ] && [ ! -L "$dir" ]; } \
+    || die "project $name was not made: $dir could not be created; nothing was made"
+  mkdir -p "$(felix_mem_dir "$dir")"
 
   # project.json. remote_match is only useful when there is a remote; the .felix
   # marker below covers every other case, including no remote at all.
@@ -4614,9 +4621,10 @@ cmd_adopt() {
   if [ "$arc" -eq 3 ]; then
     printf 'felix: %s is declared, but not every row it implies was written.\n' "$cap" >&2
     printf 'Make stack.tsv and setup.tsv in %s regular files this user can read and write,\n' "$proj" >&2
-    # A runbook in the way is named above; it is removed, not made a file
-    # (2026-10-08), because the step writes it.
-    printf 'remove whatever the lines above name under setup/,\n' >&2
+    # A runbook, or setup/ itself, in the way is named above. It is removed,
+    # not made a file, because the step writes it, and the step's row was not
+    # written, so the adopt below writes both (2026-10-08).
+    printf 'clear whatever the lines above name in setup/,\n' >&2
     printf 'delete the %s line from %s/capabilities, and run felix adopt %s again.\n' "$cap" "$proj" "$cap" >&2
     return 3
   fi

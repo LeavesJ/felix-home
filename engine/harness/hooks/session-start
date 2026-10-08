@@ -243,9 +243,9 @@ fi
 if [ -n "$partly" ]; then
   drift_line="$drift_line
 Adopted, but not every row each implies could be written to $PROJ/stack.tsv or setup.tsv:${partly}
-Make both regular files Felix can write, remove anything under setup/ that is
-not a regular file, delete each one's line from $PROJ/capabilities, and
-'felix adopt <capability>' says what was in the way and writes the rest."
+Make both regular files Felix can write, delete each one's line from
+$PROJ/capabilities, and 'felix adopt <capability>' says what is in the way in
+setup/, and once that is cleared writes the rest."
 fi
 
 # Upkeep has no deadline, so it never happens, and then happens as a crisis.

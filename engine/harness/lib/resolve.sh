@@ -748,15 +748,42 @@ felix_not_replaceable() {
 # Writes CMD's stdout to PATH whole, through a temporary file beside it and a
 # rename, so a hard link at PATH is replaced rather than written through (a
 # link test cannot see one). Returns 1, leaving nothing behind, when the
-# temporary file cannot be made, CMD fails, or the rename fails. Ask
-# felix_not_replaceable first: a rename onto a directory would land inside it.
+# temporary file cannot be made, CMD fails, or the rename does not land at
+# PATH. Ask felix_not_replaceable first: this does not refuse a link at PATH,
+# it only declines to report a rename that went through one as written.
 felix_replace_file() {
   local f="$1" tmp; shift
+  tmp="$(felix_replace_prepare "$f" "$@")" || return 1
+  felix_replace_commit "$tmp" "$f"
+}
+
+# The first half, for a caller with something to write between the two: CMD's
+# stdout in a temporary file beside PATH, at the mode `>` would have given a new
+# file, since mktemp makes it 0600. Prints the temporary file's name. Returns
+# 1, leaving nothing, when it cannot be made or written.
+#
+# Written first and given its mode after (2026-10-08, review): under a umask
+# without the owner's write bit, a mode set first left the file unwritable,
+# and every stamp failed where `>` had succeeded.
+felix_replace_prepare() {
+  local f="$1" tmp; shift
   tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
-  # mktemp makes it 0600; `>` would have made it what the umask allows.
-  chmod "$(printf '%03o' $(( 0666 & ~0$(umask) )))" "$tmp" 2>/dev/null
-  if { "$@" > "$tmp" && mv -f "$tmp" "$f"; } 2>/dev/null; then return 0; fi
+  if { "$@" > "$tmp" && chmod "$(printf '%03o' $(( 0666 & ~0$(umask) )))" "$tmp"; } 2>/dev/null; then
+    printf '%s' "$tmp"; return 0
+  fi
   rm -f "$tmp" 2>/dev/null
+  return 1
+}
+
+# The second half: the rename onto PATH. Returns 1, removing the temporary file,
+# when the rename fails or lands anywhere but at PATH. A directory, or a link to
+# one, that appears at PATH after it was checked takes the file inside it;
+# mv -T and mv -h, which would refuse that, are not on both platforms
+# (2026-10-08, review: the stamp said "stamped" with its file moved outside).
+felix_replace_commit() {
+  local tmp="$1" f="$2"
+  if mv -f "$tmp" "$f" 2>/dev/null && [ -f "$f" ] && [ ! -L "$f" ]; then return 0; fi
+  rm -f "$tmp" "$f/${tmp##*/}" 2>/dev/null
   return 1
 }
 

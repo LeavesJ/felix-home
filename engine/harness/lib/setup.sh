@@ -38,7 +38,13 @@ felix_setup_status() {
 }
 
 felix_setup_runbook() {
-  local proj="$1" id="$2"
+  local proj="$1" id="$2" what
+  # Said, not read as missing (2026-10-08, review): "Add one at" a pipe or a
+  # dangling link sent a person to write into it.
+  if what="$(felix_not_regular "$proj/setup/$id.md")"; then
+    printf 'felix: the runbook %s/setup/%s.md is %s, so it was not read\n' "$proj" "$id" "$what" >&2
+    return 1
+  fi
   if [ -f "$proj/setup/$id.md" ]; then
     cat "$proj/setup/$id.md"
   else

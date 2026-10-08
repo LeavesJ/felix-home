@@ -214,7 +214,10 @@ _felix_rival_gates() {
         else
           note="differs from the copy Felix holds"
         fi
-      elif [ -n "$gate" ] && gwhat="$(felix_not_regular "$proj/$gate")"; then
+      elif [ -z "$gate" ]; then
+        # Review, 2026-10-08: with no gate this said a command gates it.
+        note="this project declares no gate, so nothing was compared"
+      elif gwhat="$(felix_not_regular "$proj/$gate")"; then
         note="the gate Felix holds is $gwhat, so nothing was compared"
       else
         note="this project gates with a command, not a file"

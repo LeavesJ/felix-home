@@ -27222,6 +27222,35 @@ is  "felix procedures over a list it read whose every item has a stance says so,
 is  "and prints byte for byte the same when every grep -c fails" "$_durestub" "$_dureplain"
 rm -f "$_durep/procedures.tsv"
 
+# 2. felix recommend and felix doctor join a list they read by an expansion in this
+# shell, not through `| tr '\n' ' '` in a substitution that can come back empty (F2).
+# Until 2026-10-08 a join that came back empty read as nothing declared: recommend
+# printed `declared: none` and `Felix already detected: nothing yet`, and doctor an
+# empty declared line and an empty undeclared one, over a list that was read. The text
+# of a read list is as it was, a space after every name included.
+_durerec0="$(_durecli "$_durebin0" recommend)"; _durerec1="$(_durecli "$_duretr" recommend)"
+_durerecl() { printf '%s|%s' "$(_durelines "$1" 'declared:')" "$(_durelines "$1" '  Project dureproj')"; }
+is  "felix recommend over a list it read says what is declared and what Felix already detected, each name followed by a space" \
+    "$(_durerecl "$_durerec0")" "declared:   secrets durebill durecap |  Project dureproj, a none codebase. Felix already detected: secrets durebill durecap "
+is  "and says the same when every tr '\\n' ' ' fails, not none and not nothing yet" "$(_durerecl "$_durerec1")" "$(_durerecl "$_durerec0")"
+is  "and prints byte for byte what it prints when tr works" "$_durerec1" "$_durerec0"
+_dured0="$(_durecli "$_durebin0" doctor)"; _dured1="$(_durecli "$_duretr" doctor)"
+_duredl() { printf '%s|%s' "$(_durelines "$1" 'declared:')" "$(_durelines "$1" 'undeclared:')"; }
+is  "felix doctor over a list it read prints the declared line and the undeclared line, each name followed by a space but the last undeclared one" \
+    "$(_duredl "$_dured0")" "declared:     secrets durebill durecap |undeclared:   deploy tests"
+is  "and describes each undeclared surface on a line of its own" \
+    "$(_durelines "$_dured0" '  deploy ')|$(_durelines "$_dured0" '  tests ')" \
+    "  deploy         a deploy target exists; preview and smoke tests apply|  tests          a test suite exists; it belongs in the gate"
+is  "and prints the same two lines when every tr '\\n' ' ' fails, not empty ones" "$(_duredl "$_dured1")" "$(_duredl "$_dured0")"
+is  "and prints byte for byte what it prints when tr works" "$_dured1" "$_dured0"
+rm -f "$_durep/capabilities"
+_durerec0="$(_durecli "$_durebin0" recommend)"; _durerec1="$(_durecli "$_duretr" recommend)"
+_dured0="$(_durecli "$_durebin0" doctor)"; _dured1="$(_durecli "$_duretr" doctor)"
+is  "over no capabilities file recommend says none and nothing yet, and doctor an empty declared line, with tr working or not" \
+    "$(_durerecl "$_durerec0")|$(_duredl "$_dured0")|$([ "$_durerec1" = "$_durerec0" ] && [ "$_dured1" = "$_dured0" ] && echo same)" \
+    "declared:   none|  Project dureproj, a none codebase. Felix already detected: nothing yet|declared:     |undeclared:   deploy secrets tests|same"
+printf 'secrets\ndurebill\ndurecap\n' > "$_durep/capabilities"
+
 rm -rf "$_durep" "$_durer" "$_durehome" "$_durebin0" "$_duregrep" "$_duretr" "$MEM/dureproj"
 [ -d "$FROOT/state" ] && find "$FROOT/state" -name '*dureproj*' -exec rm -rf {} + 2>/dev/null
 _durenl='
@@ -27231,9 +27260,9 @@ find "$FROOT/state" -depth -type d 2>/dev/null | while IFS= read -r _dured; do
 done
 is  "and the block for the second review's fixes leaves the projects, the state and the memory as it found them" \
     "$(_durefixture)" "$_durefound"
-unset -f _durefixture _durecli _duresays _dureis _durelines
+unset -f _durefixture _durecli _duresays _dureis _durelines _durerecl _duredl
 unset _durefound _duredirs _durep _durer _durehome _durebin0 _duregrep _duretr _duretpl _durerealgrep _dureretr \
-      _dureplain _durestub _duren _durenl _dured
+      _dureplain _durestub _duren _durenl _dured _durerec0 _durerec1 _dured0 _dured1
 
 # A table command whose last stage succeeds whatever it is fed is refused.
 #

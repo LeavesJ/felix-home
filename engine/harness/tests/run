@@ -23,8 +23,8 @@ unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIO
       GIT_ICASE_PATHSPECS TMOUT POSIXLY_CORRECT CDPATH
 
 # Git's colour stays off for every git this runs, whatever colour settings the
-# caller made. Why, why these keys, and what is out of reach: the comment above
-# the same lines in engine/harness/felix.
+# caller made, except what is out of reach. Why, which keys, and what is out
+# of reach: the comment above the same lines in engine/harness/felix.
 _felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
 case " ${GIT_CONFIG_PARAMETERS-}" in
   *" $_felix_git_pin") ;;
@@ -40132,9 +40132,10 @@ fi
 # - blame.coloring, the one documented colour switch outside color.*.
 # Each is held here by behaviour, through a project's gate under felix gate,
 # with its raw-git control beside it. A pin without either entry reds its
-# row. Above this line, only _gc_pin, the word thirteen in names that count
-# entries, and the partial-suffix case (now the pin's actual last two
-# entries) changed from what was written blind.
+# row. Above this line, what changed from what was written blind is _gc_pin,
+# the word thirteen in names and comments that count entries, a pointer to
+# this section in the block's opening comment, and the partial-suffix case
+# (now the pin's actual last two entries).
 _gcg config --file "$GCD/.git/config" blame.coloring highlightRecent
 cat > "$GCPD/gate.sh" <<EOF
 #!/bin/sh

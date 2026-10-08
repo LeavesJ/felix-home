@@ -124,8 +124,8 @@ set -uo pipefail
 #   removes the others.
 # - git takes colour from its configuration, which a caller can also set
 #   through GIT_CONFIG_* variables, and from GIT_PAGER_IN_USE (exported by
-#   git to whatever it starts beside a pager) when TERM is not dumb.
-#   Removing the variables would drop the caller's other settings, so these
+#   git to whatever it starts beside a pager) when TERM is set and is not
+#   dumb. Removing the variables would drop the caller's other settings, so these
 #   lines leave colour to the pin below them.
 set +o allexport +o errexit +o keyword +o noclobber +o noglob +o physical
 export -n SHELLOPTS BASHOPTS
@@ -142,8 +142,8 @@ unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIO
 # with color.ui=always in a repository's own config:
 # - Coloured: `git diff`, `log --oneline`, `log -p`, `show`, `branch`,
 #   `grep` (with -l too), and `status --short` on a tree with changes.
-# - Plain: --porcelain, `git diff --name-only`, --numstat, a --format
-#   without %C, and plumbing.
+# - Plain: --porcelain, `git diff --name-only` and `--numstat`, a --format
+#   without %C or -p, and plumbing.
 # The engine reads the coloured ones as data, and each broke:
 # - bin/secret-scan kept no `^+` line, and passed a branch that added a
 #   credential.
@@ -163,7 +163,7 @@ unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIO
 # - color.ui and the ten family keys set to never. An explicit
 #   color.diff=always beats color.ui=never wherever each is set, so color.ui
 #   alone was not enough.
-# - color.pager=false. Plumbing (`diff-tree -p`, `format-patch`) and a
+# - color.pager=false. Plumbing (`diff-tree -p`), `format-patch` and a
 #   %(color) in for-each-ref read no family key. Under GIT_PAGER_IN_USE they
 #   coloured a pipe until this was false. It is a bool: `never` makes git
 #   refuse to run.
@@ -177,7 +177,8 @@ unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIO
 #   point started directly by another adds nothing. A `git -c` between two
 #   of them appends one more copy, which is harmless. GIT_CONFIG_COUNT is
 #   left as the caller set it.
-# - In the 'key=value' form every git since 1.7.2 reads. 2.31 and later
+# - In the 'key=value' form every git since 1.7.3 reads, by its release
+#   notes. 2.31 and later
 #   also read it mixed with the 'key'='value' form a newer git writes.
 # - A case and parameter expansions, no fork, because post-tool runs on
 #   every tool call.
@@ -192,10 +193,11 @@ unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIO
 #   unpinned engine stops matching its tree once.
 # Out of reach, and left alone:
 # - A `git` function from BASH_ENV or `export -f`, and a `git` earlier on
-#   PATH. Both run before these lines, and the function can redefine
-#   `unset` too.
+#   PATH. Both are in place before these lines, and the function can
+#   redefine `unset` too.
 # - %C(always,...) in a person's format.pretty, for a `log` or `show` given
-#   no --format. Every engine call passes one.
+#   no --format. Every engine `log` passes one, and every engine `show`
+#   reads a blob (rev:path), which format.pretty does not reach.
 # - The far side of a push to a local path, where git drops
 #   GIT_CONFIG_PARAMETERS.
 # - Settings that change what git prints without colour: diff.noprefix,

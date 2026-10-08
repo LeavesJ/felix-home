@@ -51,8 +51,8 @@ unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIO
       GIT_ICASE_PATHSPECS TMOUT POSIXLY_CORRECT CDPATH
 
 # Git's colour stays off for every git this runs, whatever colour settings the
-# caller made. Why, why these keys, and what is out of reach: the comment above
-# the same lines in engine/harness/felix.
+# caller made, except what is out of reach. Why, which keys, and what is out
+# of reach: the comment above the same lines in engine/harness/felix.
 _felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
 case " ${GIT_CONFIG_PARAMETERS-}" in
   *" $_felix_git_pin") ;;

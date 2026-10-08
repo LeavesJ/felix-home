@@ -731,6 +731,35 @@ felix_not_regular() {
   return 0
 }
 
+# The same question for a path the engine writes whole, where a link to a
+# regular file is refused too: written with `>`, it is written through, and
+# whatever it points at is overwritten. 2026-10-08: a commission stamp linked
+# to projects/<name>/autonomy replaced the grant file with a hash, so --allow
+# said "allowed" and "stamped" while neither tidy nor commission held. Prints
+# felix_not_regular's words, or `a link to another file`, and returns 0; prints
+# nothing and returns 1 for nothing there or a regular file that is no link.
+felix_not_replaceable() {
+  felix_not_regular "$1" && return 0
+  [ -L "$1" ] && { printf 'a link to another file'; return 0; }
+  return 1
+}
+
+# felix_replace_file PATH CMD [ARG...]
+# Writes CMD's stdout to PATH whole, through a temporary file beside it and a
+# rename, so a hard link at PATH is replaced rather than written through (a
+# link test cannot see one). Returns 1, leaving nothing behind, when the
+# temporary file cannot be made, CMD fails, or the rename fails. Ask
+# felix_not_replaceable first: a rename onto a directory would land inside it.
+felix_replace_file() {
+  local f="$1" tmp; shift
+  tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
+  # mktemp makes it 0600; `>` would have made it what the umask allows.
+  chmod "$(printf '%03o' $(( 0666 & ~0$(umask) )))" "$tmp" 2>/dev/null
+  if { "$@" > "$tmp" && mv -f "$tmp" "$f"; } 2>/dev/null; then return 0; fi
+  rm -f "$tmp" 2>/dev/null
+  return 1
+}
+
 felix_same_repo() {
   local a="$1" b="$2" ga gb
   [ -n "$a" ] && [ -n "$b" ] || return 1

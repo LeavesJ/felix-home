@@ -1800,14 +1800,16 @@ cmd_autonomy() {
       tidy|commission) ;;
       *) die "unknown capability: $allow. They are 'tidy' and 'commission'." ;;
     esac
-    # 2026-10-08: the stamp below is written with `>`, which waited forever on
-    # a pipe at its path, wrote through a link whose target was gone, and
-    # failed on a directory after the grant was written and "stamped" said.
-    # Refused here, before the grant, so that a refusal writes nothing at all.
+    # 2026-10-08: the stamp below was written with `>`, which waited forever
+    # on a pipe at its path, wrote through a link whose target was gone, failed
+    # on a directory after the grant was written and "stamped" said, and wrote
+    # through a link to a regular file: linked to the grant file, it replaced
+    # every grant with a hash. Refused here, before the grant, so that a
+    # refusal writes nothing at all.
     local stamp="" swhat
     if [ "$allow" = commission ]; then
       stamp="$(felix_autonomy_stamp_path "$proj" commission)"
-      swhat="$(felix_not_regular "$stamp")" \
+      swhat="$(felix_not_replaceable "$stamp")" \
         && die "nothing was written for commission: $stamp, where its stamp goes, is $swhat. Remove it, and run felix autonomy --allow commission again"
     fi
     if felix_autonomy_allows "$proj" "$allow"; then
@@ -1828,9 +1830,11 @@ cmd_autonomy() {
     # Stamped with the table it was granted over, so a later edit to that table
     # does not inherit the grant. Written on every --allow, not only the first,
     # because re-granting is how a person re-arms it after reading a change.
-    # A write that fails is not said: "stamped" printed whatever `>` did.
+    # Replaced, not written through, so a hard link to the grant file is cut
+    # rather than overwritten; and a write that fails is not said, where
+    # "stamped" printed whatever `>` did.
     if [ "$allow" = commission ]; then
-      { printf '%s\n' "$(felix_commission_policy_version "$proj")" > "$stamp"; } 2>/dev/null \
+      felix_replace_file "$stamp" printf '%s\n' "$(felix_commission_policy_version "$proj")" \
         || die "commission is in $proj/autonomy, but its stamp could not be written to $stamp, and the grant does not hold until it is. Run felix autonomy --allow commission again once it can be"
       printf 'stamped against commissioning.tsv as it stands now.\n'
     fi

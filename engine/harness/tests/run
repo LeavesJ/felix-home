@@ -1189,6 +1189,82 @@ out="$(cd "$REPO" && "$FELIX" pr --base feature/thing 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "pr refuses to open a branch against itself" \
                 || bad "pr refuses to open a branch against itself" "$out"
 
+# The title a pull request gets when --title gives none. It was HEAD's
+# subject, and a branch landed by merging main in last ends on that merge: #395
+# reached main as "Merge remote-tracking branch 'origin/main' into
+# claude/red-counts-unreached". What the landing writes after the merge, the
+# version slot and the suite's record, says no more about the change.
+#
+# A repository of its own, so nothing here borrows the fixture above. Every
+# commit has a fixed date, because which commit is newest must not rest on two
+# commits made in the same second.
+PTTL="$TMP/prtitle"; mkdir -p "$PTTL"
+( cd "$PTTL" || exit 1
+  n=0
+  c() { n=$((n+1)); d="2099-01-01T00:00:$(printf %02d "$n")Z"
+        GIT_AUTHOR_DATE="$d" GIT_COMMITTER_DATE="$d" git "$@"; }
+  bk() { mkdir -p engine/harness/tests engine/.claude-plugin
+         printf '%s\n' "$2" >> "$1"; git add "$1"; }
+  git init -q -b main; git config user.email t@t; git config user.name t
+  printf 'widget\n' > .felix; printf 'a\n' > a.txt; git add -A; c commit -qm init
+  # Its own work, main moving on, and main merged in.
+  git checkout -qb claude/merged
+  printf 'b\n' >> a.txt; c commit -qam "fix(thing): the change this branch carries"
+  git checkout -q main; printf 'm\n' > m.txt; git add m.txt; c commit -qm "chore: main moved on"
+  git checkout -q claude/merged
+  c merge -q --no-ff main -m "Merge remote-tracking branch 'origin/main' into claude/merged"
+  # Then the landing: a version slot, main merged again, the suite's record.
+  git checkout -qb claude/landed
+  bk engine/.claude-plugin/plugin.json 1; c commit -qm "chore(version): 0.0.2, the slot the carrier assigned"
+  git checkout -q main; printf 'n\n' >> m.txt; c commit -qam "chore: main moved again"
+  git checkout -q claude/landed
+  c merge -q --no-ff main -m "Merge remote-tracking branch 'origin/main' into claude/landed"
+  bk engine/harness/tests/assertions.tsv 1; bk engine/harness/tests/red.tsv 1
+  c commit -qm "test(record): 2 assertions, 1 red against main"
+  # A commit that changes the record and something else is the branch's own.
+  git checkout -qb claude/mixed
+  printf 'c\n' >> a.txt; bk engine/harness/tests/red.tsv 2; git add a.txt
+  c commit -qm "fix(thing): a second change, recorded with it"
+  bk engine/harness/tests/red.tsv 3; c commit -qm "test(red): re-run against main"
+  # A commit that changes nothing is not one the landing wrote.
+  git checkout -qb claude/empty
+  c commit -q --allow-empty -m "ci: an empty commit, made by hand"
+  bk engine/harness/tests/red.tsv 4; c commit -qm "test(red): re-run once more"
+  # Stacked: this branch merged another branch's head before that one landed.
+  # A squash merge means main never holds the other branch's commits, and its
+  # commit is the newer, so newest-first it would be the title.
+  git checkout -qb claude/stacked main
+  printf 's\n' > s.txt; git add s.txt; c commit -qm "fix(stacked): this branch's change"
+  git checkout -qb claude/other main
+  printf 'o\n' > o.txt; git add o.txt; c commit -qm "feat(other): another branch's change, not landed"
+  git checkout -q claude/stacked
+  c merge -q --no-ff claude/other -m "Merge commit 'claude/other' into claude/stacked"
+  # A branch that made nothing but the landing's own commits.
+  git checkout -qb claude/recordonly main
+  bk engine/harness/tests/red.tsv 1; c commit -qm "test(record): 0 assertions, 0 red against main"
+  c merge -q --no-ff claude/other -m "Merge branch 'claude/other' into claude/recordonly"
+  # And one that made no commit of its own at all.
+  git checkout -qb claude/nothing main
+  c merge -q --no-ff claude/other -m "Merge branch 'claude/other' into claude/nothing"
+) >/dev/null 2>&1
+_ptt() { ( cd "$PTTL" && git checkout -q "$1" && "$FELIX" pr ${2:+--title "$2"} 2>&1 ) | grep '^title:'; }
+is  "a branch ending on a merge of main is titled by its own last commit" \
+    "$(_ptt claude/merged)" "title:    fix(thing): the change this branch carries"
+is  "and so is one the landing then gave a version slot and a record" \
+    "$(_ptt claude/landed)" "title:    fix(thing): the change this branch carries"
+is  "a commit that changes the record and more is the branch's own" \
+    "$(_ptt claude/mixed)" "title:    fix(thing): a second change, recorded with it"
+is  "an empty commit is not passed over as the landing's" \
+    "$(_ptt claude/empty)" "title:    ci: an empty commit, made by hand"
+is  "a branch that merged another unlanded branch is titled by its own work, not that branch's" \
+    "$(_ptt claude/stacked)" "title:    fix(stacked): this branch's change"
+is  "a branch of nothing but record commits is titled by the newest of them, not the merge" \
+    "$(_ptt claude/recordonly)" "title:    test(record): 0 assertions, 0 red against main"
+is  "a branch with no commit of its own keeps HEAD's subject, as before" \
+    "$(_ptt claude/nothing)" "title:    Merge branch 'claude/other' into claude/nothing"
+is  "and --title still wins over all of it" \
+    "$(_ptt claude/landed "the title given")" "title:    the title given"
+
 # Put back what this section borrowed. Declaring the state you depend on is half
 # the rule; restoring the state you changed is the other half. Seeding a route
 # table here made a later assertion about the prompt hook being silent fail,

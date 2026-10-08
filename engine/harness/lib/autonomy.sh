@@ -179,6 +179,62 @@ felix_autonomy_revoke() {
   return 0
 }
 
+# Give a grant: rewrite the file with it on a line of its own, keeping every
+# byte already there. The caller says "allowed" only on 0.
+#   0  the reader grants cap now
+#   1  the file is not a regular file, is read-only, could not be read whole,
+#      or the rewrite could not be written
+#   2  the file holds a NUL byte, so what it grants cannot be read
+#   3  rewritten, and a read of it does not find the grant
+#
+# 2026-10-08: this was `printf '%s\n' cap >> autonomy` in cmd_autonomy, which
+# then printed "allowed:" whatever had happened. A hand-written last line with
+# no newline took the grant onto it: `tidy` became `tidycommission`, which
+# grants neither, so tidy was lost and commission never held, and `# note`
+# took it into a comment. A file holding a NUL took the append and still
+# granted nothing, since the reader refuses such a file whole. The commission
+# stamp was written in each case.
+#
+# So a grant is written the way a revoke is: one read in the C locale, checked
+# against the file's size, a newline first where the last line is unended, the
+# whole text into a mktemp file and mv'd into place, then read back through the
+# reader. A file that cannot be read whole, or a directory that cannot take the
+# new file, is left as it was rather than half appended to.
+felix_autonomy_grant() {
+  local proj="$1" want="$2" f tmp rc
+  [ -n "$want" ] || return 1
+  f="$proj/autonomy"
+  # A regular file or nothing. A dangling link would create its target, and a
+  # pipe would hold the read open for a writer that never comes. Nor one made
+  # read-only: mv would replace it where the append could not write it, and a
+  # grant is the direction that asks first.
+  if [ -e "$f" ] || [ -L "$f" ]; then [ -f "$f" ] && [ -w "$f" ] || return 1; fi
+  tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
+  # As in revoke: its own C locale, and its stdout thrown away.
+  ( LC_ALL=C; nl='
+'
+    if [ -e "$f" ]; then
+      _felix_autonomy_read "$f"; rc=$?
+      [ "$rc" = 0 ] || exit "$rc"
+      [ "$(( $(wc -c < "$f") ))" -eq "${#_felix_autonomy_text}" ] || exit 1
+    else
+      _felix_autonomy_text="# What Felix may do here unattended.$nl"
+    fi
+    case "$_felix_autonomy_text" in
+      ''|*"$nl") ;;
+      *) _felix_autonomy_text="$_felix_autonomy_text$nl" ;;
+    esac
+    printf '%s' "$_felix_autonomy_text$want$nl" > "$tmp" || exit 1
+  ) > /dev/null 2>&1; rc=$?
+  if [ "$rc" != 0 ] || ! mv -f "$tmp" "$f" 2>/dev/null; then
+    rm -f "$tmp" 2>/dev/null
+    [ "$rc" = 2 ] && return 2
+    return 1
+  fi
+  felix_autonomy_allows "$proj" "$want" || return 3
+  return 0
+}
+
 # Remove lookalike scripts, and only where every check holds.
 #
 # The checks, in order, each one able to stop the removal on its own:

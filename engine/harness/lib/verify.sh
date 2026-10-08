@@ -151,6 +151,7 @@ felix_session_machine_clear() {   # home, sid
 # cannot be written, nothing here can be told apart, and every flagged stop
 # ends at the flag as it did before any of this existed.
 _felix_hold_path() {   # home, sid -> path, or 1 when the id cannot name a file
+  local LC_ALL=C
   [ -n "${1:-}" ] || return 1
   case "${2:-}" in ''|.|..|-*|*[!A-Za-z0-9._-]*) return 1 ;; esac
   [ "${#2}" -le 128 ] || return 1
@@ -340,11 +341,11 @@ felix_verify_record() {
   result=green; [ "$rc" -eq 0 ] || result=red
   if [ $# -lt 8 ]; then
     local name proj fields
-    name="$(head -1 "$root/.felix" 2>/dev/null | tr -d '[:space:]')"
+    name="$(head -1 "$root/.felix" 2>/dev/null | LC_ALL=C tr -d '[:space:]')"
     proj="$home/projects/$name"
     if [ -n "$name" ] && [ -d "$proj" ]; then
       fields="$(felix_verify_epoch_fields "$proj" "$root")"
-      epoch="$(printf '%s' "$fields" | cut -f1)"; comps="$(printf '%s' "$fields" | cut -f2)"
+      epoch="$(printf '%s' "$fields" | LC_ALL=C cut -f1)"; comps="$(printf '%s' "$fields" | LC_ALL=C cut -f2)"
     fi
   fi
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$tid" "$result" "$(_felix_now)" "$gate" \

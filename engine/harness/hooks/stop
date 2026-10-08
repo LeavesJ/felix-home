@@ -229,7 +229,7 @@ _felix_stop_skipped() {
   [ -n "$sid" ] || return 0
   state="$FELIX_HOME_DIR/state/route/$sid"
   [ -f "$state" ] || return 0
-  routename="$(cut -d: -f1 < "$state" 2>/dev/null)"
+  routename="$(LC_ALL=C cut -d: -f1 < "$state" 2>/dev/null)"
   [ -n "$routename" ] || return 0
   # A route read off the working tree is Felix's guess, not anybody's
   # instruction, so a play it named going unused is evidence of nothing. This
@@ -429,7 +429,7 @@ piece before you take the next one: check the claims, not the tests."
     # adds pressure, not information.
     playline=""
     if [ -f "$FELIX_HOME_DIR/state/route/${SID:-}" ]; then
-      routename="$(cut -d: -f1 < "$FELIX_HOME_DIR/state/route/${SID:-}" 2>/dev/null)"
+      routename="$(LC_ALL=C cut -d: -f1 < "$FELIX_HOME_DIR/state/route/${SID:-}" 2>/dev/null)"
       playline="$(_felix_route_rows "$PROJ" | awk -F'\t' -v r="$routename" '$1==r{print $4}')"
     fi
     if felix_route_ack_consume "$ROOT" "$FELIX_HOME_DIR"; then

@@ -118,10 +118,10 @@ if [ -n "$machine" ]; then
 elif [ -f "$PROJ/routes.tsv" ]; then
   ctx="$(felix_route_context "$root")"
   if best="$(felix_route_best "$PROJ" "$raw" "$ctx")"; then
-    r_score="$(printf '%s' "$best" | cut -f1)"
-    r_pscore="$(printf '%s' "$best" | cut -f2)"
-    r_name="$(printf '%s' "$best" | cut -f5)"
-    r_play="$(printf '%s' "$best" | cut -f7)"
+    r_score="$(printf '%s' "$best" | LC_ALL=C cut -f1)"
+    r_pscore="$(printf '%s' "$best" | LC_ALL=C cut -f2)"
+    r_name="$(printf '%s' "$best" | LC_ALL=C cut -f5)"
+    r_play="$(printf '%s' "$best" | LC_ALL=C cut -f7)"
     felix_route_log "$PROJ" "$r_name" "$r_score" "$raw"
 
     # The policy's decision, recorded beside the outcome the ledger already
@@ -153,7 +153,7 @@ elif [ -f "$PROJ/routes.tsv" ]; then
     # itself a reason to speak: the next one is now the thing to do. Keyed on
     # the route alone, Felix named a tool once and went quiet for the rest of
     # the session, which is how a sequence becomes a single suggestion.
-    r_due="$(felix_route_due "$transcript" "$r_play" 2>/dev/null | cut -f1)"
+    r_due="$(felix_route_due "$transcript" "$r_play" 2>/dev/null | LC_ALL=C cut -f1)"
 
     # Where the route came from, kept as a word rather than the score it was
     # derived from. `Stop` reads this to decide whether an unused play is worth
@@ -164,7 +164,7 @@ elif [ -f "$PROJ/routes.tsv" ]; then
     # A word and not `r_pscore`, because the score is an implementation detail
     # of today's ranking function. What the Stop contract needs to survive a
     # re-weighting is whether the obligation was grounded in intent at all.
-    r_cscore="$(printf '%s' "$best" | cut -f3)"
+    r_cscore="$(printf '%s' "$best" | LC_ALL=C cut -f3)"
     if   [ "${r_pscore:-0}" -gt 0 ] && [ "${r_cscore:-0}" -gt 0 ]; then r_prov=mixed
     elif [ "${r_pscore:-0}" -gt 0 ]; then                               r_prov=prompt
     else                                                                r_prov=tree
@@ -182,7 +182,7 @@ elif [ -f "$PROJ/routes.tsv" ]; then
     # this used a due step of `done`, so the unit tests passed against a shape
     # production never emits.
     last=""
-    [ -f "$state" ] && last="$(cut -f1 < "$state" 2>/dev/null)"
+    [ -f "$state" ] && last="$(LC_ALL=C cut -f1 < "$state" 2>/dev/null)"
     # Decision A-prime, approved 2026-08-30: the voice renders at the two
     # moments this hook can defend, and never on a mid-session keyword
     # re-route. The first routed turn of a session is the declaration moment —

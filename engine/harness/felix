@@ -921,7 +921,7 @@ cmd_gate() {
   local epoch_fields
   epoch_fields="$(felix_verify_epoch_fields "$proj" "$root")"
   felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid" "$skipped" "$reported" \
-    "$(printf '%s' "$epoch_fields" | cut -f1)" "$(printf '%s' "$epoch_fields" | cut -f2)"
+    "$(printf '%s' "$epoch_fields" | LC_ALL=C cut -f1)" "$(printf '%s' "$epoch_fields" | LC_ALL=C cut -f2)"
   exit "$rc"
 }
 
@@ -5506,15 +5506,15 @@ cmd_obligations() {
     printf 'gate'"'"'s qualified check runs them. Nothing here discharges, blocks or\n'
     printf 'clears an obligation.\n'
   fi
-  local n_block; n_block="$(printf '%s\n' "$out" | felix_obligations_blocking | grep -c .)"
-  local n_exc; n_exc="$(printf '%s\n' "$out" | awk -F'\t' 'index($8, "excepted|") == 1' | grep -c .)"
+  local n_block; n_block="$(printf '%s\n' "$out" | felix_obligations_blocking | LC_ALL=C grep -c .)"
+  local n_exc; n_exc="$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' 'index($8, "excepted|") == 1' | LC_ALL=C grep -c .)"
   printf '\n%s obligation(s): %s active, %s dormant, %s unknown; %s blocking, %s excepted' \
-    "$(printf '%s\n' "$out" | grep -c .)" \
-    "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "ACTIVE"'  | grep -c .)" \
-    "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "DORMANT"' | grep -c .)" \
-    "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "UNKNOWN"' | grep -c .)" \
+    "$(printf '%s\n' "$out" | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$4 == "ACTIVE"'  | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$4 == "DORMANT"' | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$4 == "UNKNOWN"' | LC_ALL=C grep -c .)" \
     "$n_block" "$n_exc"
-  local n_ung; n_ung="$(felix_obligations_ungrounded "$proj" | grep -c .)"
+  local n_ung; n_ung="$(felix_obligations_ungrounded "$proj" | LC_ALL=C grep -c .)"
   [ "$n_ung" -gt 0 ] && printf '; %s ground on no probe' "$n_ung"
   # named complete short absent none, one count per obligation by its weakest
   # need. Left off when felix_obligations_needs printed nothing, which only
@@ -5681,21 +5681,21 @@ cmd_probes() {
   felix_probes_record "$proj" "$root" "$tid" "$out" || recorded=0
 
   local n_all n_block n_empty n_na n_nosrc
-  n_all="$(printf '%s\n' "$out" | grep -c .)"
-  n_block="$(printf '%s\n' "$out" | felix_probes_blocking | grep -c .)"
-  n_empty="$(printf '%s\n' "$out" | awk -F'\t' '$3 == "empty"' | grep -c .)"
+  n_all="$(printf '%s\n' "$out" | LC_ALL=C grep -c .)"
+  n_block="$(printf '%s\n' "$out" | felix_probes_blocking | LC_ALL=C grep -c .)"
+  n_empty="$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$3 == "empty"' | LC_ALL=C grep -c .)"
   # Counted because `when` is a disarm channel: a row whose applicability test
   # is always false claims nothing, blocks nothing, and looks like a row. The
   # merge boundary catches the edit — rewriting a row removes its old line and
   # probes.tsv is in the escape set — but the gate would not, and a table that
   # can quietly switch itself off should have to say how much of itself is off.
-  n_na="$(printf '%s\n' "$out" | awk -F'\t' '$3 == "not-applicable"' | grep -c .)"
+  n_na="$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$3 == "not-applicable"' | LC_ALL=C grep -c .)"
   # How many rows identify no instrument. Derived from the probe's first word,
   # so a row beginning with an assignment or a variable gets none — which means
   # a count that moves in it cannot be told apart from the tool underneath it
   # moving. That is a real limit on what the drift report can say, and a limit
   # nobody prints is a limit nobody reads.
-  n_nosrc="$(printf '%s\n' "$out" | awk -F'\t' '$3 != "not-applicable" && ($7 == "-" || $7 == "")' | grep -c .)"
+  n_nosrc="$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$3 != "not-applicable" && ($7 == "-" || $7 == "")' | LC_ALL=C grep -c .)"
 
   printf 'probes for %s\n\n' "$(basename "$proj")"
   printf '%s\n' "$out" | while IFS= read -r line; do

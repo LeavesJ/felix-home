@@ -99,6 +99,7 @@ _felix_overnight_log()      { printf '%s/log.tsv'      "$(felix_overnight_dir "$
 # unchecked is a write anywhere. A leading dash is refused as well, because a
 # dash is what an older engine's state line holds where a session would be.
 _felix_overnight_sid_ok() {   # sid -> 0 when it is a usable session id
+  local LC_ALL=C
   case "${1:-}" in ''|.|..|-*|*[!A-Za-z0-9._-]*) return 1 ;; esac
   [ "${#1}" -le 128 ]
 }

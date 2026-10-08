@@ -419,5 +419,5 @@ _felix_deny_scoped_lifts() {
 # tool, or in a project without them, never reads the file.
 felix_deny_code() {
   [ -n "${_FELIX_DENY_READ:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/deny-read.sh" 2>/dev/null
-  printf '%s' "$1" | awk "${_FELIX_DENY_READ:-}" 2>/dev/null
+  printf '%s' "$1" | LC_ALL=C awk "${_FELIX_DENY_READ:-}" 2>/dev/null
 }

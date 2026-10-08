@@ -67,10 +67,10 @@ FELIX_COMMISSION_PROVIDER_LOG_MAX=$(( FELIX_COMMISSION_PROVIDER_SRC_MAX \
 # and the refusal report so the two can never disagree about which row is too
 # long — the failure that reads as "refused for no stated reason".
 _felix_commission_provider_toolong() {   # line -> "<field> <limit>" or empty
-  local line="$1" src cap why
-  src="$(printf '%s\n' "$line" | cut -f3)"
-  cap="$(printf '%s\n' "$line" | cut -f4)"
-  why="$(printf '%s\n' "$line" | cut -f5)"
+  local line="$1" src cap why LC_ALL=C
+  src="$(printf '%s\n' "$line" | LC_ALL=C cut -f3)"
+  cap="$(printf '%s\n' "$line" | LC_ALL=C cut -f4)"
+  why="$(printf '%s\n' "$line" | LC_ALL=C cut -f5)"
   [ "${#src}" -gt "$FELIX_COMMISSION_PROVIDER_SRC_MAX" ] \
     && { printf 'source %s' "$FELIX_COMMISSION_PROVIDER_SRC_MAX"; return 0; }
   [ "${#cap}" -gt "$FELIX_COMMISSION_PROVIDER_CAP_MAX" ] \
@@ -227,14 +227,14 @@ felix_commission_provider_rejects() {
   want="$(_felix_commission_provider_shape "$need")"
   _felix_commission_provider_lines "$proj" "$need" | while IFS= read -r line; do
     i=$((i + 1))
-    name="$(printf '%s\n' "$line" | cut -f2)"
+    name="$(printf '%s\n' "$line" | LC_ALL=C cut -f2)"
     if [ "$i" -gt "$FELIX_COMMISSION_PROVIDER_MAX" ]; then printf '%s\tbeyond the %s-row ceiling\n' "${name:-(unnamed)}" "$FELIX_COMMISSION_PROVIDER_MAX"; continue; fi
-    n="$(printf '%s\n' "$line" | awk -F'\t' '{ print NF }')"
-    kind="$(printf '%s\n' "$line" | cut -f1)"
+    n="$(printf '%s\n' "$line" | LC_ALL=C awk -F'\t' '{ print NF }')"
+    kind="$(printf '%s\n' "$line" | LC_ALL=C cut -f1)"
     if [ "$n" -ne "$want" ]; then printf '%s\t%s fields where the shape has %s; a risk column is not the model'"'"'s to write\n' "${name:-(unnamed)}" "$n" "$want"; continue; fi
     if [ "$want" -eq 5 ]; then
       _felix_commission_kind_ok "$kind" || { printf '%s\tkind "%s" is not one of %s\n' "$name" "$kind" "$FELIX_COMMISSION_PROVIDER_KINDS"; continue; }
-      grep -qE '^[A-Za-z0-9@._:-]+$' <<<"$name" || { printf '%s\tnot a name\n' "$name"; continue; }
+      LC_ALL=C grep -qE '^[A-Za-z0-9@._:-]+$' <<<"$name" || { printf '%s\tnot a name\n' "$name"; continue; }
       long="$(_felix_commission_provider_toolong "$line")"
       if [ -n "$long" ]; then
         printf '%s\ta %s longer than %s characters, which the log could not hold whole\n' \
@@ -292,7 +292,7 @@ felix_commission_record_provider() {
     [ -n "$line" ] || continue
     kind="$(printf '%s\n' "$line" | LC_ALL=C cut -f1)"; name="$(printf '%s\n' "$line" | LC_ALL=C cut -f2)"
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$stamp" "$tid" "${policy:--}" "$need" "answered" "INFERRED" \
-      "$answer" "$prov" "$kind $name: $(printf '%s\n' "$line" | LC_ALL=C cut -f3- | tr '\t' ' ' | cut -c1-"$FELIX_COMMISSION_PROVIDER_LOG_MAX")" >> "$log" || { printf '%s' "$n"; return 1; }
+      "$answer" "$prov" "$kind $name: $(printf '%s\n' "$line" | LC_ALL=C cut -f3- | LC_ALL=C tr '\t' ' ' | LC_ALL=C cut -c1-"$FELIX_COMMISSION_PROVIDER_LOG_MAX")" >> "$log" || { printf '%s' "$n"; return 1; }
     n=$((n + 1))
   done <<ROWS
 $rows

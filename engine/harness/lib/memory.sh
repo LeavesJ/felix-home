@@ -54,7 +54,7 @@ _felix_mem_stamp() {
 # inherits from its parent. A dash when there is none, or when the id holds
 # anything that could break a row.
 _felix_mem_sid() {
-  local sid="${CLAUDE_CODE_SESSION_ID:-}"
+  local sid="${CLAUDE_CODE_SESSION_ID:-}" LC_ALL=C
   case "$sid" in ''|*[!A-Za-z0-9._-]*) sid=- ;; esac
   printf '%s' "$sid"
 }

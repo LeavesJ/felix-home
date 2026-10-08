@@ -321,10 +321,10 @@ felix_discover_fetch() {
 _felix_discover_hooks_facts() {
   local f="$1"
   printf 'hooks\t%s\n' \
-    "$(grep -oE '"(PreToolUse|PostToolUse|SessionStart|SessionEnd|Stop|UserPromptSubmit|PostToolBatch)"' "$f" \
-       | tr -d '"' | LC_ALL=C sort -u | tr '\n' ' ')"
-  grep -oE '"command"[[:space:]]*:[[:space:]]*"[^"]{0,90}' "$f" \
-    | sed 's/.*"command"[[:space:]]*:[[:space:]]*"//' \
+    "$(LC_ALL=C grep -oE '"(PreToolUse|PostToolUse|SessionStart|SessionEnd|Stop|UserPromptSubmit|PostToolBatch)"' "$f" \
+       | LC_ALL=C tr -d '"' | LC_ALL=C sort -u | LC_ALL=C tr '\n' ' ')"
+  LC_ALL=C grep -oE '"command"[[:space:]]*:[[:space:]]*"[^"]{0,90}' "$f" \
+    | LC_ALL=C sed 's/.*"command"[[:space:]]*:[[:space:]]*"//' \
     | while IFS= read -r c; do printf 'hook-command\t%s\n' "$c"; done
   return 0
 }

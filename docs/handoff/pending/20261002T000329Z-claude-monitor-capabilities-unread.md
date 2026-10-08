@@ -163,15 +163,30 @@ under test, then only the marked block. None is from a suite run.
   the order after claude/commission-lookup-fails-unknown and
   claude/declared-unread-readers, and it is not folded into either.
 
+**2026-10-08.** The carrier ended on 10-03 once its queue drained, so this
+branch's own session carries it. lookup-fails is on main as #401.
+claude/declared-unread-readers (c23ec7d1f) and the claude/cap-unread-callers
+ahead of it have no PR yet. main 6fe5f986 is merged in (34a4375f9). The note
+had been moved to docs/handoff/ by the fold's rename, and is moved back to
+pending/. The runner now cuts the suite's preamble by content, since the
+preamble grew to line 223. Against 6fe5f986, 138 assertions:
+- main: 83 fail.
+- c23ec7d1f alone: 83 fail.
+- this branch alone: 13 fail. With no `felix_declared_into`, every read list
+  is unknown, which is the hard dependency, measured.
+- this branch with c23ec7d1f's lib/detect.sh: 0 fail.
+
 **After both prerequisites are on main**, whoever carries this branch:
 1. Merge origin/main in. Do not force-push. Expect conflicts only in
    tests/run, where both prerequisites add blocks. Keep every block.
 2. Show it still red. Export origin/main's engine/harness. Then run tests/run
-   lines 1-152, with REAL_HARNESS set to that export after line 23, followed
-   by the block between `# >>> monitor-capabilities-unread` and
+   through the line before `printf '\nresolution\n'`, with REAL_HARNESS set to
+   that export right after the suite's own `REAL_HARNESS=` line, followed by
+   the block between `# >>> monitor-capabilities-unread` and
    `# <<< monitor-capabilities-unread`. 83 assertions should fail.
 3. Show it green. Run the same block against this branch's own engine: all
    should pass. If felix_declared_into changed signature or statuses on the
    way in, the in-process models in the block say so first.
-4. Then, in the carrier's slot only: the full suite,
-   `tests/run --record-assertions`, `felix gate`, the PR, the merge.
+4. Then, with no other engine landing in between: the full suite,
+   `tests/run --record-assertions`, `felix gate`, the PR, the merge and the
+   deploy. Ask any live landing session for the slot first.

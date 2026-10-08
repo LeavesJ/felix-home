@@ -27287,6 +27287,31 @@ is  "felix_procedures_gaps names the item whose stance is at a moment nobody dec
     "$_duregaps" "0|capability:deploy capability:durebill capability:secrets capability:tests"
 is  "and names the same gaps with the same status when here-documents cannot be written, so no stanced item is called a gap" \
     "$(_dureprun nohd felix_procedures_gaps "$_durep" "$_durer" "$_duretpl" | _durej)" "$_duregaps"
+# Added after the check of the fix round, not blind. The round walked the stances in
+# this shell in felix_procedures_effective and left felix_procedures_unknown_moments
+# and the CLI's stance section on here-documents, so where one could not be written a
+# stance at a moment nobody declared vanished from both, and with every other item
+# answered the report closed on "Every item has a stance", which before the round it
+# did not. Shown failing against the round's head 8b3a6ae9 before it was shown passing.
+is  "felix_procedures_unknown_moments names the stance at a moment nobody declared" \
+    "$(_dureprun w felix_procedures_unknown_moments "$_durep" "$_duretpl")" "$(printf '0|pre-lunch\tcapability:durebill')"
+is  "and names it with the same status when here-documents cannot be written" \
+    "$(_dureprun nohd felix_procedures_unknown_moments "$_durep" "$_duretpl")" "$(printf '0|pre-lunch\tcapability:durebill')"
+# The CLI is another process: the limit is set in the subshell that starts it, and
+# what it says on stderr about a here-document it could not make is not compared.
+_durenohdcli() { ( cd "$_durer" || exit 99
+    HOME="$_durehome"; PATH="$_durebin0:/usr/bin:/bin"; trap '' XFSZ; ulimit -f 0
+    "$FELIX" "$@" 2>/dev/null; printf '[exit %s]' "$?" ); }
+for _duren in deploy durebill durecap secrets tests; do
+  printf 'capability:%s\tcommissioning\tdure-check\ta stance on %s\n' "$_duren" "$_duren"
+done >> "$_durep/procedures.tsv"
+_dureplain="$( cd "$_durer" && HOME="$_durehome" PATH="$_durebin0:/usr/bin:/bin" "$FELIX" procedures 2>/dev/null; printf '[exit %s]' "$?" )"
+_durenohd="$(_durenohdcli procedures)"
+is  "felix procedures with every item answered and one stance at a moment nobody declared names that stance and makes no closing claim" \
+    "$(_duresays "$_dureplain" 'stances at a moment nobody declared') $(_duresays "$_dureplain" 'Every item has a stance')" "said silent"
+is  "and when here-documents cannot be written it still names that stance and still makes no closing claim" \
+    "$(_duresays "$_durenohd" 'stances at a moment nobody declared') $(_duresays "$_durenohd" 'Every item has a stance')" "said silent"
+is  "and prints byte for byte what it prints when they can, the stance section included" "$_durenohd" "$_dureplain"
 rm -f "$_durep/procedures.tsv"
 
 # 4. The policy version of a table that is a regular file and cannot be read (F4).
@@ -27358,6 +27383,7 @@ _duretopo="$(_durecom felix_commission_topology "$_durep" "$_durer")"
 _dureold="Commissioning: the topology these answers are keyed to could not be computed"
 _durerow="automation_surveyed (unknown: the topology the answer at $_durans is keyed to could not be computed: $_durewhy)"
 _durerowk='automation_surveyed (unknown'
+_durerow3="automation_surveyed (unknown: the topology the answer at $_durans is keyed to could not be computed"
 _dures1="$(_durestart "$FROOT")"
 is  "session start over a list it read and a topology that comes back says the all-clear, names no row as unknown and says nothing about a topology" \
     "$(_duresays "$_dures1" 'Commissioning: receipt') $(_duresays "$_dures1" "$_durerowk") $(_duresays "$_dures1" 'could not be computed')" "said silent silent"
@@ -27369,8 +27395,12 @@ is  "and says no sentence of its own about the topology, and no all-clear" \
     "$(_duresays "$_dures2" "$_dureold") $(_duresays "$_dures2" 'Commissioning: receipt')" "silent silent"
 rm -f "$_durep/capabilities"; printf 'secrets\ndurebill\ndurecap\n' > "$_durep/capabilities"
 _dures3="$(_durestart "$_dureeng" 2)"
-is  "session start over a list it read, when only the row's own computation of the topology fails, names the row with the row's own detail" \
-    "$(_duresays "$_dures3" "$(printf 'neither owed nor recorded; felix commission --status reads them again:\n  %s' "$_durerow")")" "said"
+# The list was read here, so the declared list is not what failed: the capture of the
+# topology cannot tell which of its parts did and says the contract's phrase for all of
+# them ("Not taken" in the handoff note). What is asserted is the row and its topology,
+# not that phrase as the cause.
+is  "session start over a list it read, when only the row's own computation of the topology fails, names the row as unknown because its topology could not be computed" \
+    "$(_duresays "$_dures3" "$(printf 'neither owed nor recorded; felix commission --status reads them again:\n  %s' "$_durerow3")")" "said"
 is  "and says no sentence of its own about the topology, and no all-clear" \
     "$(_duresays "$_dures3" "$_dureold") $(_duresays "$_dures3" 'Commissioning: receipt')" "silent silent"
 _dures4="$(_durestart "$_dureeng" 0)"
@@ -27464,11 +27494,11 @@ find "$FROOT/state" -depth -type d 2>/dev/null | while IFS= read -r _dured; do
 done
 is  "and the block for the second review's fixes leaves the projects, the state and the memory as it found them" \
     "$(_durefixture)" "$_durefound"
-unset -f _durefixture _durecli _duresays _durelines _durerecl _duredl _dureprun _durej _durepol _durestart _durecom _durereq _dureblank _duretriple _durecapt
+unset -f _durefixture _durecli _durenohdcli _duresays _durelines _durerecl _duredl _dureprun _durej _durepol _durestart _durecom _durereq _dureblank _duretriple _durecapt
 unset _durefound _duredirs _durep _durer _durehome _durebin0 _duregrep _duretr _duretpl _durerealgrep _dureretr \
-      _dureplain _durestub _duren _durenl _dured _durerec0 _durerec1 _dured0 _dured1 _dureeff _duregaps \
+      _dureplain _durestub _durenohd _duren _durenl _dured _durerec0 _durerec1 _dured0 _dured1 _dureeff _duregaps \
       _durepv _durepolun _durepolrd _durepolno _durepolem _dureeng _durecalls _durewhy _durans _duretopo _dureold \
-      _durerow _durerowk _dures1 _dures2 _dures3 _dures4 _dures5 _durecalls2 _durereqfile _durefirst _durereads _duretopoin _durecapsin \
+      _durerow _durerowk _durerow3 _dures1 _dures2 _dures3 _dures4 _dures5 _durecalls2 _durereqfile _durefirst _durereads _duretopoin _durecapsin \
       _duretp _dureempty _duretopo1 _duretopo2 _dureexp1 _dureexp2
 
 # A table command whose last stage succeeds whatever it is fed is refused.

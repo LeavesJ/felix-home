@@ -87,9 +87,16 @@ The stamp lines themselves are unchanged.
 
 **Landing.**
 - **Order.** After claude/adopt-newline-before-append (.274) and
-  claude/autonomy-revoke-fails-closed (.275), and after or with
-  claude/autonomy-writer-lock. The version is the carrier's call. No
-  projects/ table, no escape and no commission table is touched.
+  claude/autonomy-revoke-fails-closed (.275). The batch is carried by "Fix
+  adopt gluing a capability onto a last line"; its state is in
+  audits/2026-10-08-carrier/state.md under the memory root. The carrier ruled
+  2026-10-08 that writer-lock and this branch land as one PR, carried by the
+  lock's session on claude/autonomy-writer-lock. That session merges this
+  branch (no rebase, no squash), gives red evidence per block against
+  85ab3f7a, and asks before resolving any conflict in felix_autonomy_grant or
+  the allow block. It may go ahead of .276/.277, but never ahead of revoke.
+  The version is the carrier's call. No projects/ table, no escape and no
+  commission table is touched.
 - **Conflict with adopt-newline.** That branch also rewrites these --allow
   lines (`felix_end_line ... >> ... || die`). Resolve to
   `felix_autonomy_grant`. Its block-1 assertion "felix autonomy --allow onto a

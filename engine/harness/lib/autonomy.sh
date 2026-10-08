@@ -207,7 +207,10 @@ felix_autonomy_revoke() {
   ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "" ) > /dev/null 2>&1; rc=$?
   if [ "$rc" = 5 ]; then
     # mktemp creates the name or fails; it never opens a link planted there.
-    tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
+    # The name is set in the same command that makes it, where the caller's
+    # exit removes it should a signal cut this short (felix_autonomy_guard).
+    _FELIX_AUTONOMY_TMP="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || { _FELIX_AUTONOMY_TMP=""; return 1; }
+    tmp="$_FELIX_AUTONOMY_TMP"
     ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "$tmp" ) > /dev/null 2>&1; rc=$?
   fi
   if [ "$rc" = 0 ]; then
@@ -216,7 +219,7 @@ felix_autonomy_revoke() {
     [ -z "$mode" ] || chmod "$mode" "$tmp" 2>/dev/null
     mv -f "$tmp" "$f" 2>/dev/null || rc=1
   fi
-  rm -f "$tmp" 2>/dev/null
+  rm -f "$tmp" 2>/dev/null; _FELIX_AUTONOMY_TMP=""
   case "$rc" in
     0|4) ;;
     2) return 2 ;;
@@ -268,7 +271,9 @@ felix_autonomy_grant() {
   # would replace it where the append could not write it, and a grant is the
   # direction that asks first.
   if [ -e "$f" ] || [ -L "$f" ]; then [ -f "$f" ] && [ -w "$f" ] || return 1; fi
-  tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
+  # As in revoke: the name where the caller's exit can remove it.
+  _FELIX_AUTONOMY_TMP="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || { _FELIX_AUTONOMY_TMP=""; return 1; }
+  tmp="$_FELIX_AUTONOMY_TMP"
   # As in revoke: its own C locale, and its stdout thrown away.
   ( LC_ALL=C; nl='
 '
@@ -292,10 +297,11 @@ felix_autonomy_grant() {
     [ -z "$mode" ] || chmod "$mode" "$tmp" 2>/dev/null
   fi
   if [ "$rc" != 0 ] || ! mv -f "$tmp" "$f" 2>/dev/null; then
-    rm -f "$tmp" 2>/dev/null
+    rm -f "$tmp" 2>/dev/null; _FELIX_AUTONOMY_TMP=""
     [ "$rc" = 2 ] && return 2
     return 1
   fi
+  _FELIX_AUTONOMY_TMP=""
   felix_autonomy_allows "$proj" "$want" || return 3
   return 0
 }
@@ -329,20 +335,106 @@ felix_autonomy_grant() {
 #
 # The caller takes it, not felix_autonomy_revoke. One lock then spans the
 # revoke, the allow and the stamp writes of one command.
+#
+# 2026-10-08, from the two adversarial reviews of the first version of this:
+#
+# - bash waits for the foreground step to return only on a signal it traps.
+#   On any other signal that is fatal by default, it ends at once and runs the
+#   EXIT trap while a child's mv is still in flight. ALRM from a timeout
+#   wrapper did exactly that, and a revoked tidy came back. So every such
+#   signal is trapped.
+# - A signal between the mkdir and the record of what it made left the lock
+#   behind. While the lock is being taken, a signal is therefore only noted,
+#   and acted on once the record exists.
+# - A second signal during the release cut it short. The release ignores them
+#   all first.
+# - The release named the lock through a command substitution. On bash 3.2, a
+#   failed write to a closed pipe leaves its text in the stdout buffer, and a
+#   substitution's child captured it, so the rmdir was handed a path that did
+#   not exist and the lock leaked. The path is now kept in a variable.
+# - A run whose lock a person removed went on to remove the next run's lock at
+#   its exit. A run now removes only the directory it made, by inode.
+FELIX_AUTONOMY_SIGNALS='HUP INT QUIT PIPE ALRM TERM USR1 USR2 XCPU XFSZ VTALRM PROF'
+
 felix_autonomy_lock_path() { printf '%s/autonomy.lock' "$1"; }
 
 # proj -> 0 taken; 1 held, a directory is there; 2 not taken, and something
 # other than a lock directory is at the name, or the project is not writable.
+# On 0, _felix_autonomy_lock_dir and _felix_autonomy_lock_ino say what was
+# made. The inode is read here, before anything is printed, so the
+# substitution has nothing stale to capture.
 felix_autonomy_lock() {
-  local lock; lock="$(felix_autonomy_lock_path "$1")"
-  mkdir "$lock" 2>/dev/null && return 0
+  local lock="$1/autonomy.lock" out
+  _felix_autonomy_lock_dir=""; _felix_autonomy_lock_ino=""
+  if mkdir "$lock" 2>/dev/null; then
+    _felix_autonomy_lock_dir="$lock"
+    out="$(ls -di "$lock" 2>/dev/null)"
+    out="${out#"${out%%[! ]*}"}"; out="${out%% *}"
+    case "$out" in ''|*[!0-9]*) ;; *) _felix_autonomy_lock_ino="$out" ;; esac
+    return 0
+  fi
   [ -d "$lock" ] && [ ! -L "$lock" ] && return 1
   return 2
 }
 
-# rmdir, never rm -r: a lock that has gained contents was not made here, and
-# is left for a person.
-felix_autonomy_unlock() { rmdir "$(felix_autonomy_lock_path "$1")" 2>/dev/null; return 0; }
+# lock-dir [inode]: remove the lock, and only while it is the directory this
+# run made, still empty. rmdir, never rm -r: what was put inside it was not
+# put there by this run, and is left for a person, who is told. A lock that
+# is another run's now is left in silence.
+felix_autonomy_unlock() {
+  local lock="$1" ino="${2:-}"
+  [ -n "$lock" ] && [ -d "$lock" ] && [ ! -L "$lock" ] || return 0
+  if [ -z "$ino" ]; then
+    rmdir "$lock" 2>/dev/null \
+      || printf 'felix: the lock %s was not removed: something is inside it. Look at what is there, then remove it once no felix autonomy is running or stopped.\n' "$lock" >&2
+    return 0
+  fi
+  find "$lock" -maxdepth 0 -type d -inum "$ino" -empty -exec rmdir {} \; 2>/dev/null
+  [ -d "$lock" ] && [ ! -L "$lock" ] || return 0
+  # stdout to stderr first, then find's own errors away.
+  find "$lock" -maxdepth 0 -type d -inum "$ino" \
+    -exec printf 'felix: the lock %s was not removed: something was put inside it while this run held it. Look at what is there, then remove it once no felix autonomy is running or stopped.\n' {} \; >&2 2>/dev/null
+  return 0
+}
+
+# The release, as the EXIT trap of a run that may hold the lock: the temporary
+# file of a rewrite cut short, then the lock. Nothing in it substitutes a
+# command, for the reason above.
+_felix_autonomy_release() {
+  trap '' $FELIX_AUTONOMY_SIGNALS
+  [ -z "${_FELIX_AUTONOMY_TMP:-}" ] || rm -f "$_FELIX_AUTONOMY_TMP" 2>/dev/null
+  _FELIX_AUTONOMY_TMP=""
+  [ -z "${_felix_autonomy_lock_dir:-}" ] \
+    || felix_autonomy_unlock "$_felix_autonomy_lock_dir" "${_felix_autonomy_lock_ino:-}"
+  _felix_autonomy_lock_dir=""
+}
+
+# A signal while the lock may be held: ignore the rest, end as that signal
+# would, and let the EXIT trap release. Every number but USR1's and USR2's is
+# the same on Linux and macOS; theirs are Linux's, and nothing reads them.
+_felix_autonomy_signalled() {   # SIG
+  local n=0
+  trap '' $FELIX_AUTONOMY_SIGNALS
+  case "$1" in
+    HUP) n=1 ;; INT) n=2 ;; QUIT) n=3 ;; USR1) n=10 ;; USR2) n=12 ;; PIPE) n=13 ;;
+    ALRM) n=14 ;; TERM) n=15 ;; XCPU) n=24 ;; XFSZ) n=25 ;; VTALRM) n=26 ;; PROF) n=27 ;;
+  esac
+  exit "$((128 + n))"
+}
+
+# The caller's whole hold, in one call: traps, then the lock. Same codes as
+# felix_autonomy_lock. Signals while it is taken are noted, then acted on.
+felix_autonomy_guard() {   # proj
+  local s rc
+  _FELIX_AUTONOMY_CAUGHT=""; _FELIX_AUTONOMY_TMP=""
+  _felix_autonomy_lock_dir=""; _felix_autonomy_lock_ino=""
+  for s in $FELIX_AUTONOMY_SIGNALS; do trap "_FELIX_AUTONOMY_CAUGHT=$s" "$s"; done
+  trap _felix_autonomy_release EXIT
+  felix_autonomy_lock "$1"; rc=$?
+  for s in $FELIX_AUTONOMY_SIGNALS; do trap "_felix_autonomy_signalled $s" "$s"; done
+  [ -z "$_FELIX_AUTONOMY_CAUGHT" ] || _felix_autonomy_signalled "$_FELIX_AUTONOMY_CAUGHT"
+  return "$rc"
+}
 
 # Remove lookalike scripts, and only where every check holds.
 #

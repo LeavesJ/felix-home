@@ -2023,30 +2023,31 @@ cmd_autonomy() {
   # a rename never shows it half a file.
   #
   # The lock is released at exit and not before, so every way out lets it go,
-  # die included. The traps are set first and release only a lock this run
-  # took. A run refused because the lock was held exits through them and
-  # leaves the holder's lock alone.
+  # die included. felix_autonomy_guard sets the traps first, and they release
+  # only the lock this run made. A run refused because the lock was held exits
+  # through them and leaves the holder's lock alone.
   #
-  # The signals exit through that release, but only once the step in flight
-  # has finished. bash runs a trap after the foreground command returns, so a
-  # rename already under way lands while the lock is still held. Untrapped,
-  # TERM and HUP end bash at once, and its child lands the move after the lock
-  # has gone, perhaps over another writer's work.
+  # Signals exit through that release, but only once the step in flight has
+  # finished. bash runs a trap after the foreground command returns, so a
+  # rename already under way lands while the lock is still held, not after
+  # another writer has taken it.
   #
   # Nothing else on this path sets a trap. cmd_discover's and cmd_commission's
   # traps belong to their own commands, and the libs' are inside subshells.
   if [ -n "$allow$revoke" ]; then
-    local lock not=""
-    lock="$(felix_autonomy_lock_path "$proj")"
+    local lock qlock not="" age=""
+    lock="$(felix_autonomy_lock_path "$proj")"; printf -v qlock '%q' "$lock"
     [ -z "$allow" ]  || not="$allow is not allowed"
     [ -z "$revoke" ] || not="${not:+$not and }$revoke is not revoked"
-    _FELIX_AUTONOMY_LOCKED=""
-    trap '[ -z "$_FELIX_AUTONOMY_LOCKED" ] || felix_autonomy_unlock "$_FELIX_AUTONOMY_LOCKED"' EXIT
-    trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 143' TERM
-    felix_autonomy_lock "$proj"; rc=$?
+    felix_autonomy_guard "$proj"; rc=$?
     case "$rc" in
-      0) _FELIX_AUTONOMY_LOCKED="$proj" ;;
-      1) die "$not, because another felix autonomy is writing $proj/autonomy and holds the lock $lock. Run it again once that one has finished. If none is running, one was killed while holding it: remove it with rmdir $lock" ;;
+      0) ;;
+      1) # A run holds it for well under a second, so its age is the person's
+         # best evidence. No pid is kept inside it: that would make it a file
+         # git can track.
+         [ -z "$(find "$lock" -maxdepth 0 -mmin +1 2>/dev/null)" ] \
+           || age=" It is more than a minute old, so the run that made it was most likely killed."
+         die "$not, because another felix autonomy holds the lock $lock while it writes $proj/autonomy; a run holds it for well under a second, so run this again in a moment.$age A run that was stopped (Ctrl-Z) still holds its lock, so check jobs and ps first. Once no felix autonomy is running or stopped, remove it with: rmdir $qlock" ;;
       *) die "$not, because the lock $lock could not be taken: something other than a lock directory is at that name, or $proj is not writable. Nothing was written" ;;
     esac
   fi

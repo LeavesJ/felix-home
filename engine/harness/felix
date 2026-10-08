@@ -1805,7 +1805,7 @@ EOF
   # commit that is not a merge.
   view="$(gh pr view "$branch" --repo "$slug" --json number,title --jq '.number, .title' 2>/dev/null)" || view=""
   prn="${view%%"$nl"*}"; prt="${view#*"$nl"}"
-  case "$prn" in ''|*[!0-9]*) prn="" ;; esac
+  case "$prn" in ''|*[!0123456789]*) prn="" ;; esac
   subject=""
   [ -n "$prn" ] && [ "$prt" != "$view" ] && [ -n "$prt" ] && subject="$prt (#$prn)"
   [ -n "$subject" ] || subject="$(git -C "$root" log -1 --no-merges --format=%s "$base..HEAD" 2>/dev/null)"

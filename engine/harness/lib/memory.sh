@@ -299,7 +299,7 @@ _felix_mem_lock() {   # lock-dir -> 0 taken, 1 held by a live owner
   [ -d "$lock" ] || return 1
   owner="$(head -n 1 "$lock/pid" 2>/dev/null)"
   case "$owner" in
-    ''|*[!0-9]*) ;;
+    ''|*[!0123456789]*) ;;
     *) kill -0 "$owner" 2>/dev/null || stale=1 ;;
   esac
   if [ "$stale" -eq 0 ] && [ -n "$(find "$lock" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then

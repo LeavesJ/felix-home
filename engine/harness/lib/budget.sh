@@ -20,7 +20,7 @@ felix_budget_limit() {
   local proj="$1" v
   v="$(felix_json_str "$proj/project.json" unattended_daily_limit 2>/dev/null)"
   case "$v" in
-    ''|*[!0-9]*) printf '%s' "$FELIX_BUDGET_DEFAULT" ;;
+    ''|*[!0123456789]*) printf '%s' "$FELIX_BUDGET_DEFAULT" ;;
     *) printf '%s' "$v" ;;
   esac
 }
@@ -31,7 +31,7 @@ felix_budget_used() {
   [ -f "$proj/budget.log" ] || { printf '0'; return; }
   now="$(date +%s)"; cutoff=$((now - 86400))
   while IFS=$'\t' read -r epoch _; do
-    case "$epoch" in ''|*[!0-9]*) continue ;; esac
+    case "$epoch" in ''|*[!0123456789]*) continue ;; esac
     [ "$epoch" -ge "$cutoff" ] && n=$((n+1))
   done < "$proj/budget.log"
   printf '%s' "$n"

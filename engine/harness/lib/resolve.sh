@@ -899,7 +899,7 @@ felix_file_at() {
 felix_count() {
   local n
   n="$(grep -c "$@" 2>/dev/null)" || true
-  case "$n" in ''|*[!0-9]*) printf '0' ;; *) printf '%s' "$n" ;; esac
+  case "$n" in ''|*[!0123456789]*) printf '0' ;; *) printf '%s' "$n" ;; esac
 }
 
 felix_same_repo() {
@@ -1058,11 +1058,11 @@ felix_version_bump() {
   [ -f "$manifest" ] || return 1
   cur="$(LC_ALL=C sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$manifest" | head -1)"
   case "$cur" in
-    [0-9]*.[0-9]*.[0-9]*) ;;
+    [0123456789]*.[0123456789]*.[0123456789]*) ;;
     *) return 1 ;;
   esac
   major="${cur%%.*}"; minor="${cur#*.}"; minor="${minor%%.*}"; patch="${cur##*.}"
-  case "$major$minor$patch" in *[!0-9]*) return 1 ;; esac
+  case "$major$minor$patch" in *[!0123456789]*) return 1 ;; esac
   next="${major}.${minor}.$((patch + 1))"
   # Through a temp file, so a failed write cannot leave empty the one manifest
   # whose corruption stops everything deploying.

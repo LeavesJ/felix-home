@@ -215,7 +215,7 @@ $pred"
     # count nothing could read renders exactly like a count that did not move.
     # That is this whole file's failure class appearing inside its own reader.
     case "${wcount}${count}" in
-      *[!0-9]*|'')
+      *[!0123456789]*|'')
         printf '%s\t%s\t%s\tone of these counts is not a number, so nothing was compared\n' \
           "$pred" "${wcount:-?}" "${count:-?}"
         continue ;;

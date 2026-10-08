@@ -276,7 +276,7 @@ _fi_host_spawn() {
   local d="$1" idx="$2.meta" p m f desc sid; _FI_SP_NOTE=""; _FI_SP_MT=""
   case "${d##*/}" in
     agent-?*) case "${d##*/agent-}" in *[!0-9a-fA-F]*) return 0 ;; esac ;;
-    wf_*-*) case "${d##*-}" in ''|*[!0-9]*) return 0 ;; esac ;;
+    wf_*-*) case "${d##*-}" in ''|*[!0123456789]*) return 0 ;; esac ;;
     *) return 0 ;;
   esac
   if [ ! -e "$idx" ]; then : > "$idx"
@@ -318,7 +318,7 @@ felix_inv_host_dir() {
       # whole-lines record-time question blocked call-time call-name note, by expansion, not a tab-IFS read (the constitution says why)
       x="${out#*"$t"}"; rt="${x%%"$t"*}"; x="${x#*"$t"}"; q="${x%%"$t"*}"; x="${x#*"$t"}"; b="${x%%"$t"*}"; x="${x#*"$t"}"
       pts="${x%%"$t"*}"; x="${x#*"$t"}"; pname="${x%%"$t"*}"; note="${x#*"$t"}"
-      case "$rt" in ''|*[!0-9]*) rt="$mt"; ts=file ;; *) ts=record ;; esac
+      case "$rt" in ''|*[!0123456789]*) rt="$mt"; ts=file ;; *) ts=record ;; esac
       case "$q" in yes|no|unknown) ;; *) q=unknown; b=unknown; note="could not read ${f//$t/ }" ;; esac
       [ "$rt" -le "$ract" ] || ract="$rt"
     else   # no record time: its mtime orders it, but is no activity, so live is unknown below
@@ -344,7 +344,7 @@ felix_inv_host_dir() {
   [ "$note" != - ] || note=""
   # Blocked once the call has waited BLOCKED_MIN and nothing under the session's own directory was written within it.
   if [ "$b" = pending ]; then
-    case "$pts" in ''|-|*[!0-9]*) pts="$mt" ;; esac
+    case "$pts" in ''|-|*[!0123456789]*) pts="$mt" ;; esac
     x=""; [ ! -d "${bestf%.jsonl}" ] || x="$(_fi_newest 0 $(($4 + 1)) "${bestf%.jsonl}")"; [ -z "$x" ] || x="$(_fi_mtime "$x")"
     if [ $((now - pts)) -ge "$blk" ] && { [ -z "$x" ] || [ $((now - x)) -ge "$blk" ]; }; then b=yes; note="${note:+$note; }waiting on $pname for $(((now - pts) / 60)) min"
     else b=no; fi
@@ -404,16 +404,16 @@ felix_inv_host_owners() {
       END { for (b in BT) printf "%s\t%s\t%s\n", b, BO[b], OT[BO[b]] }' \
     | while IFS= read -r x; do
         h="${x%%"$t"*}"; x="${x#*"$t"}"; o="${x%%"$t"*}"; ots="${x#*"$t"}"; act="$ots"
-        case "$ots" in ''|*[!0-9]*) ;; *) [ "$um" -le "$ots" ] || { printf '%s\tunknown\tunknown\n' "$h"; continue; } ;; esac
+        case "$ots" in ''|*[!0123456789]*) ;; *) [ "$um" -le "$ots" ] || { printf '%s\tunknown\tunknown\n' "$h"; continue; } ;; esac
         while IFS= read -r e; do
           [ -f "$e/$o.jsonl" ] || continue
           x="$(_fi_host_scan "$e/$o.jsonl")"; x="${x#*"$t"}"; rt="${x%%"$t"*}"
-          case "$rt" in ''|*[!0-9]*) rt="$(_fi_mtime "$e/$o.jsonl")" ;; esac
+          case "$rt" in ''|*[!0123456789]*) rt="$(_fi_mtime "$e/$o.jsonl")" ;; esac
           [ -z "$rt" ] || act="$rt"
           [ ! -d "$e/$o" ] || { x="$(_fi_newest 0 $(((now - act) / 60 + 2)) "$e/$o")"; [ -z "$x" ] || x="$(_fi_mtime "$x")"; [ -z "$x" ] || [ "$x" -le "$act" ] || act="$x"; }
           break
         done < "$4"
-        case "$act" in ''|*[!0-9]*) printf '%s\t%s\tno\n' "$h" "$o" ;; *) [ $((now - act)) -le $((lv * 60)) ] && printf '%s\t%s\tyes\n' "$h" "$o" || printf '%s\t%s\tno\n' "$h" "$o" ;; esac
+        case "$act" in ''|*[!0123456789]*) printf '%s\t%s\tno\n' "$h" "$o" ;; *) [ $((now - act)) -le $((lv * 60)) ] && printf '%s\t%s\tyes\n' "$h" "$o" || printf '%s\t%s\tno\n' "$h" "$o" ;; esac
       done
 }
 

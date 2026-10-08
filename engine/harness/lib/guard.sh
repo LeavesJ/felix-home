@@ -288,6 +288,6 @@ _felix_guard_branch() {
 _felix_guard_mtime() {
   local t
   t="$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null)"
-  case "$t" in ''|*[!0-9]*) t=0 ;; esac
+  case "$t" in ''|*[!0123456789]*) t=0 ;; esac
   printf '%s' "$t"
 }

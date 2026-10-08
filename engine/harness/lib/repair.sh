@@ -137,7 +137,7 @@ felix_repair_attempts() {
             --json conclusion -q 'length, .[].conclusion' 2>/dev/null)" || return 1
   {
     read -r total
-    case "$total" in ''|*[!0-9]*) return 1 ;; esac
+    case "$total" in ''|*[!0123456789]*) return 1 ;; esac
     while read -r c; do
       case "$c" in
         success) printf '%s' "$n"; return 0 ;;

@@ -272,7 +272,7 @@ _felix_handoff_ids() {
 #   exit 2  cannot examine, and why, on stdout
 felix_handoff_in_flight() {
   local root="$1" ref="${2:-}" within="${3:-0}" full ns x t msha mid now r sha ep id
-  case "$within" in ''|*[!0-9]*) printf 'cannot examine\tthe bound %s is not a whole number of seconds\n' "$within"; return 2 ;; esac
+  case "$within" in ''|*[!0123456789]*) printf 'cannot examine\tthe bound %s is not a whole number of seconds\n' "$within"; return 2 ;; esac
   full="$(git -C "$root" rev-parse --verify --quiet --symbolic-full-name "$ref" 2>/dev/null)"
   case "$full" in
     refs/remotes/?*/?*) ;;
@@ -344,7 +344,7 @@ felix_handoff_section() {
     [ -f "$f" ] || continue
     # The whole name, not its tail: branch x/a-b ends in -a-b as well.
     case "${f##*/}" in
-      [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z-"$slug".md) ;;
+      [0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]T[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]Z-"$slug".md) ;;
       *) continue ;;
     esac
     rel="${f#"$root"/}"

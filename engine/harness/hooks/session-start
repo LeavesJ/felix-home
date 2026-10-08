@@ -256,7 +256,7 @@ if [ -f "$PROJ/maintenance.tsv" ]; then
   _maint_st="$(felix_maint_status "$PROJ" "$_repo_root" 2>/dev/null)"
   _due_list="$(printf '%s\n' "$_maint_st" | LC_ALL=C awk -F'\t' '$1 == "due" { print $2 }')"
   _due_n="$(printf '%s' "$_due_list" | grep -c . 2>/dev/null)"
-  case "$_due_n" in ''|*[!0-9]*) _due_n=0 ;; esac
+  case "$_due_n" in ''|*[!0123456789]*) _due_n=0 ;; esac
   _due="$(printf '%s' "$_due_list" | tr '\n' ' ')"
   _due="${_due% }"
   [ -n "$_due" ] && maint_line="
@@ -655,7 +655,7 @@ fi
 # been sitting ~95 lines above under a different name since the badge was
 # written.
 _felix_due="${_due_n:-0}"
-case "$_felix_due" in ''|*[!0-9]*) _felix_due=0 ;; esac
+case "$_felix_due" in ''|*[!0123456789]*) _felix_due=0 ;; esac
 _felix_line="Felix: $(basename "$PROJ")"
 [ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due"
 [ -n "$_felix_found" ] && _felix_line="$_felix_line · new tooling found"

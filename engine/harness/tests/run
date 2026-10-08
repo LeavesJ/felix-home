@@ -69,6 +69,42 @@ has_claude() { command -v claude >/dev/null 2>&1; }
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+# No fixture git command reaches a repository outside $TMP. On 2026-10-08 one
+# did. A setup block's fixture roots came out empty, and in bash 3.2
+# `( cd "" && git remote set-url origin ... )` exits 0 where it stands. The
+# suite stood in the developer's worktree, and every worktree shares one
+# .git/config. A hundred lines later felix-home's origin read
+# https://github.com/acme/widget.git, with no refs/remotes/origin left and no
+# branch's upstream. That block's own lines, run with both roots empty from a
+# worktree of a scratch clone, do exactly that. A fixture directory whose
+# `git init` never ran does the same, since git walks up to whatever
+# repository encloses it. So does a GIT_DIR the caller left in the environment.
+#
+# A guard on each line would leave the next line written unguarded, so this
+# closes the class:
+# - the suite stands in $TMP/cwd, so an empty root resolves inside $TMP;
+# - GIT_CEILING_DIRECTORIES is $TMP's PARENT, so no git command run at or
+#   below $TMP walks up out of it, even with TMPDIR inside a checkout. A
+#   ceiling is a directory git will not climb INTO. With $TMP as the ceiling,
+#   a cwd of $TMP itself, which `cd "$TMP/$empty"` reaches, still climbs into
+#   its parent (measured, git 2.54). And a ceiling alone, with the suite left
+#   in the worktree, stops nothing, since the worktree is not below it;
+# - the variables that point git at a repository whatever the cwd are unset,
+#   and so is OLDPWD, which `cd -` would follow back to the worktree.
+# Then the floor is tried. A suite that can still reach a repository from where
+# it stands refuses to start.
+_fixture_floor() {   # DIR -> this shell stands in DIR/cwd, and git cannot walk out of DIR
+  [ -n "${1:-}" ] && [ -d "$1" ] || return 1
+  mkdir -p "$1/cwd" && cd "$1/cwd" || return 1
+  unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
+        GIT_ALTERNATE_OBJECT_DIRECTORIES OLDPWD
+  GIT_CEILING_DIRECTORIES="$(dirname "$1")"; export GIT_CEILING_DIRECTORIES
+  ! git rev-parse --git-dir >/dev/null 2>&1
+}
+_fixture_floor "$TMP" || {
+  printf 'tests/run: git still finds a repository from %s, so a fixture could edit it; not starting\n' "$PWD" >&2
+  exit 1
+}
 FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"
 # The manifest of assertions this suite is supposed to reach, beside the suite
 # and tracked. Regenerated with `tests/run --record-assertions`, which is the

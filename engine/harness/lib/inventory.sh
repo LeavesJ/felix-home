@@ -92,7 +92,7 @@ _fi_row() {
   for a in "$1" "$_FI_REPO" "${@:2}"; do a="${a//$_FI_TAB/ }"; a="${a//$_FI_NL/ }"; a="${a//$'\001'/ }"; a="${a//$'\002'/ }"; line="$line${a:--}$_FI_TAB"; done
   printf '%s\n' "${line%"$_FI_TAB"}" >> "$_FI_T/rows"
 }
-_fi_age() { case "${1:-}" in ''|0|-|*[!0-9]*) _FI_A=- ;; *) _FI_A=$(( (_FI_NOW - $1) / 3600 )) ;; esac; }
+_fi_age() { case "${1:-}" in ''|0|-|*[!0123456789]*) _FI_A=- ;; *) _FI_A=$(( (_FI_NOW - $1) / 3600 )) ;; esac; }
 _fi_add() { _FI_DET="${_FI_DET:+$_FI_DET; }$1"; }
 # The content (landed, partly, not, unknown or -), then name=yes|no|unknown
 # pairs in _FI_ORDER, as the states field: the held ones, landed when none but
@@ -132,7 +132,7 @@ felix_inventory() {
     case "$1" in
       --repo) [ $# -ge 2 ] && [ -n "$2" ] || { _fi_refuse "--repo needs a directory"; return; }; repos="$repos$2$_FI_NL"; shift 2 ;;
       --live|--blocked|--days)
-              case "${2:-}" in ''|*[!0-9]*|???????*) _fi_refuse "$1 needs a whole number of at most six digits"; return ;; esac
+              case "${2:-}" in ''|*[!0123456789]*|???????*) _fi_refuse "$1 needs a whole number of at most six digits"; return ;; esac
               case "$1" in --live) _FI_LIVE=$((10#$2)) ;; --blocked) _FI_BLOCKED=$((10#$2)) ;; *) _FI_DAYS=$((10#$2)) ;; esac; shift 2 ;;
       --tsv) tsv=1; shift ;;  --no-gh) _FI_GH=0; shift ;;  --no-host) _FI_HOST=0; shift ;;
       -h|--help) felix_inventory_usage; return 0 ;;  *) _fi_refuse "unknown argument: $1"; return ;;
@@ -207,7 +207,7 @@ _fi_fetched() {
   local a b
   a="$(date -r "$_FI_COMMON/FETCH_HEAD" +%s 2>/dev/null)"
   b="$(_fi_git -C "$_FI_D" log -g -1 --format=%gd --date=unix "refs/remotes/$_FI_DEF" -- 2>/dev/null)"; b="${b#*@\{}"; b="${b%\}*}"
-  case "$a" in ''|*[!0-9]*) a=0 ;; esac; case "$b" in ''|*[!0-9]*) b=0 ;; esac
+  case "$a" in ''|*[!0123456789]*) a=0 ;; esac; case "$b" in ''|*[!0123456789]*) b=0 ;; esac
   [ "$b" -le "$a" ] || a="$b"
   if [ "$a" -gt 0 ]; then printf 'fetched %dh ago' $(( (_FI_NOW - a) / 3600 )); else printf 'fetch time unknown'; fi
 }

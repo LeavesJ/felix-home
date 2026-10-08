@@ -163,8 +163,8 @@ felix_commission_provider_state() {
   rows="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$f" | LC_ALL=C grep -vc $'^done\t'
     set -- "${PIPESTATUS[@]}"; [ "${1:-2}" -le 1 ] && [ "${2:-2}" -le 1 ] || printf '?')"
   n="$(printf '%s' "$last" | LC_ALL=C awk -F'\t' '$1 == "done" && NF == 2 { print $2 }')"
-  case "$n" in ''|*[!0-9]*) printf 'partial\tthe answer at %s has no terminal done row, so the skill did not finish\n' "$f"; return 0 ;; esac
-  case "$rows" in ''|*[!0-9]*) printf 'unknown\tthe rows of the answer at %s could not be counted, so whether it is whole is not known\n' "$f"; return 0 ;; esac
+  case "$n" in ''|*[!0123456789]*) printf 'partial\tthe answer at %s has no terminal done row, so the skill did not finish\n' "$f"; return 0 ;; esac
+  case "$rows" in ''|*[!0123456789]*) printf 'unknown\tthe rows of the answer at %s could not be counted, so whether it is whole is not known\n' "$f"; return 0 ;; esac
   if [ "$n" -ne "$rows" ]; then
     printf 'partial\tthe answer at %s says done %s and holds %s rows\n' "$f" "$n" "$rows"; return 0
   fi

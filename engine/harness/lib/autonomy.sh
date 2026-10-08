@@ -360,7 +360,15 @@ felix_autonomy_grant() {
     if [ -e "$f" ]; then
       _felix_autonomy_read "$f"; rc=$?
       [ "$rc" = 0 ] || exit "$rc"
-      [ "$(( $(wc -c < "$f") ))" -eq "${#_felix_autonomy_text}" ] || exit 1
+      # As in revoke's pass: wc's answer is checked as digits and never put
+      # through $(( )). A set -u stop there leaves the status of the command
+      # before it, which is wc's, so a wc that answered a word and exited 10
+      # read as written whatever this subshell said (revoke's fifth review).
+      size="$(wc -c < "$f")" || exit 1
+      case "$size" in *[0-9]*) ;; *) exit 1 ;; esac
+      case "$size" in *[!0-9\ \	]*) exit 1 ;; esac
+      size="${size//[!0-9]/}"
+      [ "$size" -eq "${#_felix_autonomy_text}" ] || exit 1
     else
       _felix_autonomy_text="# What Felix may do here unattended.$nl"
     fi

@@ -23909,8 +23909,9 @@ is "a release run a second time, by the exit trap after a handler ran it, leaves
 # its terminating signals: bash 5.2 sig.c, and CHECK_TERMSIG in jobs.c's
 # wait). The lock went, and a revoke of tidy took it and said revoked:.
 # These wait now, as the five above do. EMT is macOS's; Linux has none, and
-# it is skipped where kill -l does not know it.
-for _lws in ABRT TRAP SYS EMT; do
+# it is skipped where kill -l does not know it. ILL, FPE, BUS and SEGV wait
+# the same way since revision 4 (below).
+for _lws in ABRT TRAP SYS EMT ILL FPE BUS SEGV; do
   _lwt="a revoke of commission paused in its mv and sent SIG$_lws to its pid alone"
   _lwn1="$_lwt: half a second on, the mv still paused, the lock is still there and still empty"
   _lwn2="$_lwt: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked"
@@ -23940,33 +23941,24 @@ for _lws in ABRT TRAP SYS EMT; do
          "holds:holds"
   _lwreq "$_lwn7" "$_lwleft" "0"
 done
-# ILL, FPE, BUS and SEGV are ignored instead: a handler that returns would
-# re-run a real fault forever, and ignored, one that is sent changes nothing.
-# SEGV stands for the four. The run finishes its revoke once its mv returns.
-_lwt="a revoke of commission paused in its mv and sent SIGSEGV to its pid alone, which it ignores"
-_lwn1="$_lwt: half a second on, the mv still paused, the lock is still there and still empty"
-_lwn2="$_lwt: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked"
-_lwn3="$_lwt: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty"
-_lwn4="$_lwt: once the mv is released, it finishes: exits 0 and says revoked: commission"
-_lwn5="$_lwt: the lock is gone once both runs have ended"
-_lwn6="$_lwt: what each run reported holds once both have ended"
-_lwn7="$_lwt: no autonomy.new.* is left in the widget's directory"
-if [ "$(_lwprobe SEGV)" != yes ]; then
-  for _lwn in "$_lwn1" "$_lwn2" "$_lwn3" "$_lwn4" "$_lwn5" "$_lwn6" "$_lwn7"; do skip "$_lwn" "$(_lwign SEGV)"; done
-else
-  _lwwin SEGV B 2>/dev/null
-  _lwreq "$_lwn1" "$_lwsigheld" "empty:mv paused"
-  _lwreq "$_lwn2" \
-         "$(_lwended "$_lwbrc"):$(_lwexit "$_lwbrc"):$(_lwsaid "$_lwbout$_lwberr"):$(_lwhas "$_lwberr" 'projects/widget/autonomy.lock'):$(_lwhas "$_lwberr" rmdir):$(_lwhas "$_lwberr" 'not revoked')" \
-         "ended:non-zero:silent:projects/widget/autonomy.lock:rmdir:not revoked"
-  _lwreq "$_lwn3" "$_lwbsame:$_lwafterb" "same:empty"
-  _lwreq "$_lwn4" "$(_lwexit "$_lwarc"):$(_lwhas "$_lwaout" 'revoked: commission')" "exit 0:revoked: commission"
-  _lwreq "$_lwn5" "$_lwfinal" "absent"
-  _lwreq "$_lwn6" \
-         "$(_lwclaim "$_lwarc" "$_lwaout$_lwaerr" 'revoked: commission' commission no):$(_lwclaim "$_lwbrc" "$_lwbout$_lwberr" 'revoked: tidy' tidy no)" \
-         "holds:holds"
-  _lwreq "$_lwn7" "$_lwleft" "0"
-fi
+# Revision 3 ignored ILL, FPE, BUS and SEGV, and a child inherits an ignored
+# signal: on macOS a child that really faulted spun instead of dying, and the
+# run hung holding the lock (the lock's third review, not blind). Revision 4
+# traps them, as the loop above shows, and a trapped signal is reset in every
+# child. An mv first on the run's PATH that sends itself SEGV stands for a
+# child that faults: at its default it dies, and ignored it lives on and
+# moves the file.
+mkdir -p "$TMP/lw-fault"; rm -f "$TMP/lw-fault/lived"
+{ printf '#!/bin/sh\nkill -SEGV $$\n'
+  printf ': > %s\n' "'$TMP/lw-fault/lived'"
+  printf 'exec %s "$@"\n' "'$(command -v mv)'"
+} > "$TMP/lw-fault/mv"; chmod +x "$TMP/lw-fault/mv"
+_lwset 'tidy\ncommission\n'; _lwheld="$(_lwstate)"
+( cd "$REPO" && PATH="$TMP/lw-fault:$PATH" exec "$FELIX" autonomy --revoke commission ) > "$TMP/lw.out" 2> "$TMP/lw.err" 8>&- &
+_lwreap $!; _lwout="$(cat "$TMP/lw.out")"; _lwerr="$(cat "$TMP/lw.err")"
+is "a revoke whose mv takes SIGSEGV: the mv dies of it, and the run exits non-zero, says commission is not revoked and no revoked:, and leaves the widget's files as they were, no lock and no autonomy.new.* (not blind)" \
+   "$([ -e "$TMP/lw-fault/lived" ] && echo lived || echo died):$(_lwexit "$_lwrc"):$(_lwrv "$_lwout"):$(_lwhas "$_lwerr" 'commission is not revoked'):$(_lwsame):$(_lwlock):$(_lwnew)" \
+   "died:non-zero:silent:commission is not revoked:same:absent:0"
 
 # F3. With stdout closed, bash 3.2 kept a "revoked:" it could not print in
 # its buffer, and the next command substitution or subshell flushed it into
@@ -23999,6 +23991,42 @@ is "and the grant file that run writes grants tidy and holds no revoked: line" \
 _lwshut 'tidy\n' --allow commission 2>/dev/null
 is "an allow of commission, stdout closed, exits 0, leaves no lock and no autonomy.new.*, and stamps it: the status page says [x]" \
    "$(_lwexit "$_lwrc"):$(_lwlock):$(_lwnew):$(_lwpage)" "exit 0:absent:0:[x]"
+
+# A stdout that is open but refuses every write did the same as a closed one,
+# and worse: revision 3 sent only a closed stdout to /dev/null first. The
+# failed "revoked:" went into the grant's byte count, set -u stopped the
+# grant's subshell, bash 3.2 ended it with status 0, and an empty file
+# replaced the grants (the lock's third review, not blind). Revision 4 prints
+# each of those lines in a child. A read-only stdout stands for every way a
+# write fails; red on bash 3.2.
+: > "$TMP/lw-ro"
+_lwro() {   # FORMAT ARGS...: felix autonomy ARGS over FORMAT, stdout open read-only; sets _lwrc
+  _lwset "$1"; shift
+  ( cd "$REPO" && exec "$FELIX" autonomy "$@" ) 1< "$TMP/lw-ro" 2> "$TMP/lw.err" 8>&- &
+  _lwreap $!
+}
+_lwro '# grants\ntidy\nsomething-else\n' --revoke tidy --allow commission
+is "a revoke of tidy with an allow of commission, stdout open read-only, exits 0 and leaves no lock and no autonomy.new.* (not blind)" \
+   "$(_lwexit "$_lwrc"):$(_lwlock):$(_lwnew)" "exit 0:absent:0"
+is "and that run keeps the grant file's other lines, leaves tidy not granted, and grants commission, stamped over this table with nothing else in the stamp (not blind)" \
+   "$(grep -cx '# grants' "$_lwp/autonomy" 2>/dev/null):$(grep -cx 'something-else' "$_lwp/autonomy" 2>/dev/null):tidy $(_lwallows tidy):commission $(_lwallows commission):$(_lwpage):$(grep -c 'revoked\|allowed' "$_lwp/autonomy.commission" 2>/dev/null)" \
+   "1:1:tidy no:commission yes:[x]:0"
+_lwro 'commission\n' --allow commission
+is "an allow of commission already granted, stdout open read-only, exits 0 and stamps it over this table with nothing else in the stamp (not blind)" \
+   "$(_lwexit "$_lwrc"):$(_lwlock):$(_lwpage):$(grep -c 'allowed' "$_lwp/autonomy.commission" 2>/dev/null)" "exit 0:absent:[x]:0"
+
+# The grant's subshell ended 0 when set -u stopped it, on bash 3.2, and 0 was
+# "written": the empty temp file then replaced the grants. Revision 4 gives
+# written a status of its own. A wc first on the run's PATH that prints a
+# name stands for anything that stops it: $(( name )) is unbound. bash 5.2
+# ends that subshell non-zero anyway, so this is red on bash 3.2 only.
+mkdir -p "$TMP/lw-wc"; printf '#!/bin/sh\necho stray\n' > "$TMP/lw-wc/wc"; chmod +x "$TMP/lw-wc/wc"
+_lwset '# grants\ntidy\n'; _lwheld="$(_lwstate)"
+( cd "$REPO" && PATH="$TMP/lw-wc:$PATH" exec "$FELIX" autonomy --allow commission ) > "$TMP/lw.out" 2> "$TMP/lw.err" 8>&- &
+_lwreap $!; _lwout="$(cat "$TMP/lw.out")"; _lwerr="$(cat "$TMP/lw.err")"
+is "an allow of commission whose grant subshell set -u stops exits non-zero, says commission is not allowed and no allowed:, and leaves the widget's files as they were, no lock and no autonomy.new.* (not blind)" \
+   "$(_lwexit "$_lwrc"):$(_lwsaid "$_lwout"):$(_lwhas "$_lwerr" 'commission is not allowed'):$(_lwsame):$(_lwlock):$(_lwnew)" \
+   "non-zero:silent:commission is not allowed:same:absent:0"
 
 # F5. The release removes the lock through find, and said nothing when find
 # could not do it; the lock stayed and the next run was refused. Revision 3
@@ -24034,28 +24062,27 @@ fi
 # S1. On Linux a freed inode number can come straight back, so a lock a
 # person rmdir'd and another run made again could carry the first run's
 # inode, and the first run's release, which goes by inode, would take it.
-# Revision 3 keeps the lock directory open on fd 9 until it has removed it,
+# Revision 3 keeps the lock directory open (on fd 9, and since revision 4 on
+# the first of fds 9 to 3 the run did not inherit) until it has removed it,
 # and an open directory's inode is not freed. APFS never reuses an inode
 # number, so on macOS the second assertion passes against a068acb3 too (not
-# run on Linux here); the first, fd 9 itself, read through /proc or lsof, is
+# run on Linux here); the first, the open descriptor, read through /proc or lsof, is
 # red against it everywhere.
-_lwfd9() {   # PID: the inode PID holds open on fd 9; none; or unreadable when neither /proc nor lsof is here
-  if [ -d "/proc/$1/fd" ]; then stat -L -c %i "/proc/$1/fd/9" 2>/dev/null || echo none
+_lwfdheld() {   # PID INODE: held when PID holds INODE open on any fd; none; or unreadable when neither /proc nor lsof is here
+  if [ -d "/proc/$1/fd" ]; then
+    for _lwfp in /proc/"$1"/fd/*; do [ "$(stat -L -c %i "$_lwfp" 2>/dev/null)" = "$2" ] && { echo held; return; }; done
+    echo none
   elif command -v lsof > /dev/null 2>&1; then
-    _lwfi="$(lsof -a -p "$1" -d 9 -Fi 2>/dev/null | sed -n 's/^i//p')"; echo "${_lwfi:-none}"
+    _lwfi="$(lsof -a -p "$1" -Fi 2>/dev/null | sed -n 's/^i//p')"
+    [ "$(printf '%s\n' "$_lwfi" | grep -cx "$2")" -gt 0 ] && echo held || echo none
   else echo unreadable; fi
 }
-_lwn1="a revoke paused in its mv holds its lock directory open on fd 9"
+_lwn1="a revoke paused in its mv holds its lock directory open"
 _lwset 'tidy\ncommission\n'; _lwfd=unreached
 _lwgo --revoke commission
 if [ "$_lwreached" = yes ]; then
-  _lwfd="$(_lwfd9 "$_lwa")"
   _lwlino="$(stat -c %i "$_lwL" 2>/dev/null || stat -f %i "$_lwL" 2>/dev/null)"
-  case "$_lwfd" in
-    unreadable|none) ;;
-    "$_lwlino") _lwfd=held ;;
-    *) _lwfd="another inode ($_lwfd, the lock's is $_lwlino)" ;;
-  esac
+  _lwfd="$(_lwfdheld "$_lwa" "$_lwlino")"
 fi
 _lwend
 if [ "$_lwfd" = unreadable ]; then skip "$_lwn1" "neither /proc nor lsof can read another process's descriptors here"
@@ -24066,6 +24093,25 @@ if [ "$_lwreached" = yes ]; then _lwswap=failed; rmdir "$_lwL" && mkdir "$_lwL" 
 _lwend
 _lwreq "a revoke whose lock a person rmdir'd and another made again at the same path while its mv was paused leaves the new lock in place, still empty" \
        "$_lwswap:$(_lwlock)" "remade:empty"
+
+# Revision 3 took fd 9 whatever it held, so a caller's flock on fd 9 (flock's
+# own example) was let go the moment the lock was made (the lock's third
+# review, not blind). Revision 4 keeps the lock open on the first of fds 9 to
+# 3 it did not inherit. Built at the library, where the descriptors can be
+# read: /dev/fd/N is the open file, followed.
+: > "$TMP/lw-fd9"
+_lwset 'tidy\n'
+_lwkept="$(bash -c 'set -uo pipefail; . "$1/harness/lib/autonomy.sh"
+  i() { stat -L -c %i "$1" 2>/dev/null || stat -L -f %i "$1" 2>/dev/null; }
+  felix_autonomy_guard "$2" || exit 7
+  f="${_felix_autonomy_lock_fd:-}"
+  if [ "$(i /dev/fd/9)" = "$(i "$3")" ]; then printf kept; else printf taken; fi
+  if [ -n "$f" ] && [ "$f" != 9 ] && [ "$(i "/dev/fd/$f")" = "$(i "$2/autonomy.lock")" ]; then printf :held; else printf ":not held (${f:-none})"; fi
+  _felix_autonomy_release
+  if [ "$(i /dev/fd/9)" = "$(i "$3")" ]; then printf :kept; else printf :taken; fi
+  ' _ "$FROOT" "$_lwp" "$TMP/lw-fd9" 9< "$TMP/lw-fd9" 8>&- 2>/dev/null)"
+is "a run whose caller holds fd 9 open keeps it, holds its lock open on another fd, and still holds the caller's fd 9 once it has released (not blind)" \
+   "$_lwkept:$(_lwlock)" "kept:held:kept:absent"
 
 # F4. mktemp ran with the signals at their defaults, so a Ctrl-C to the group
 # between its making the file and the name reaching the shell left the file.

@@ -149,6 +149,8 @@ felix_commission_request() {
 # grep's own status is asked too, and the counting grep's, from PIPESTATUS,
 # which pipefail does not change. Taken whole into the positional parameters
 # first, because the first test resets it.
+# Locale, 2026-10-08: [0-9] let U+2185 through under UTF-8, and an answer read
+# whole on a count nobody gave. The rules are above felix_json_str in resolve.sh.
 felix_commission_provider_state() {
   local proj="$1" root="$2" need="$3" f first last n rows
   f="$(felix_commission_answer_path "$proj" "$need")"

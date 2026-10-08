@@ -114,9 +114,9 @@ felix_detect() {
 # 2026-10-08: until then it read with grep -vE '^\s*(#|$)' in the caller's
 # locale, which treated a file that is not text as a list. A NUL made BSD grep
 # print "Binary file <path> matches" as the one capability (measured), and by
-# GNU grep's documentation (not run) stop at the first binary line with 0, as
-# it would at a byte that is not valid UTF-8 under a UTF-8 locale; BSD grep
-# reads such a byte as text. A byte-order mark before a comment listed the
+# GNU grep's manual (not run) stop printing at the first NUL with 0 and, under
+# a UTF-8 locale, drop each line holding a byte that is not valid UTF-8; BSD
+# grep reads such a byte as text. A byte-order mark before a comment listed the
 # comment, a line of only a no-break space was listed in the C locale and
 # dropped in UTF-8, and a CR made every name one no table holds. Now a NUL
 # anywhere is no list (as #383 refused a qualification.tsv holding one), the
@@ -131,24 +131,33 @@ felix_detect() {
 # after a UTF-8 lead byte as part of a character without asking whether it is
 # the delimiter, so a NUL right after one hid from read -d '' (#383's review);
 # the subshell keeps the locale, IFS and set -f its own, and its stderr is
-# discarded as grep's was (a caller's readonly LC_ALL makes it 2, not a
-# message). cat is `command cat`, so no function of that name stands in. The
-# cost is one process more per call than the grep it replaced, a cat and a
-# subshell, measured; the mark is cut by offset and the names kept in an array,
-# because `${x#mark}` and appending to a string grew with the square of the
-# file (5.6 s for 678 KB, found by review).
+# discarded as grep's was. A caller whose LC_ALL is readonly and not C gets 2
+# and no message: bash 3.2 abandons the subshell at the assignment, and the
+# second test refuses where a shell would carry on in the caller's locale.
+# cat is `command cat`, so no function of that name stands in. The lines are
+# judged by two regular expressions, each tried on known input first, since
+# one that cannot be compiled returns 2 and `&&` would read that as no match.
+# The cost is one process more per call than the grep it replaced, a cat and a
+# subshell, measured, and linear in the file: the mark is cut by offset, the
+# names kept in an array and each line matched once, because `${x#mark}`,
+# string appends, `${x//tab/ }` and stripping leading space by pattern grew
+# with the square of a file or a line (5.7 s for 670 KB, 17 s for one line of
+# 10,000 tabs; found by review).
 felix_declared() {
   local proj="$1" st
   [ -e "$proj/capabilities" ] || [ -L "$proj/capabilities" ] || return 0
   [ -f "$proj/capabilities" ] || return 2
   command cat -- "$proj/capabilities" 2>/dev/null | (
-    LC_ALL=C
+    [ "${LC_ALL-}" = C ] || LC_ALL=C
+    [ "${LC_ALL-}" = C ] || exit 6
     IFS= read -r -d '' _fdb && exit 3
     case "$_fdb" in $'\357\273\277'*) _fdb="${_fdb:3}" ;; esac
+    _fdskip='^[[:space:]]*(#|$)' _fdbad=$'[^\t[:print:]]'
+    [[ '' =~ $_fdskip ]] && [[ $'\001' =~ $_fdbad ]] && ! [[ $'a\t~' =~ $_fdbad ]] || exit 5
     _fdk=(); IFS=$'\n'; set -f; set -- $_fdb
     for _fdl; do
-      case "${_fdl#"${_fdl%%[![:space:]]*}"}" in ''|'#'*) continue ;; esac
-      case "${_fdl//$'\t'/ }" in *[![:print:]]*) exit 4 ;; esac
+      [[ $_fdl =~ $_fdskip ]] && continue
+      [[ $_fdl =~ $_fdbad ]] && exit 4
       _fdk[${#_fdk[@]}]="$_fdl"
     done
     [ "${#_fdk[@]}" -eq 0 ] || printf '%s\n' "${_fdk[@]}" ) 2>/dev/null

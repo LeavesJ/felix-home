@@ -51,6 +51,50 @@
 
 set -uo pipefail
 
+# 2026-10-08: the caller's environment must not change what a tool prints.
+# The engine reads what grep, ls, gh, tar and bash's own cd print as data,
+# and some variables a person can export change that output. Measured on
+# macOS (bash 3.2.57, BSD grep 2.6.0, bsdtar 3.5.3) on main at 0.49.273:
+# - GREP_OPTIONS goes in front of every grep's own options. With -n,
+#   `felix doctor` read the declared capability ci as 1:ci and then called
+#   ci undeclared, and `felix ready`, `felix evidence`, `felix maintenance`,
+#   `felix stack plan` and `felix commission --status` changed their answers.
+#   GNU grep has ignored it since 3.6, so CI never saw any of this.
+# - CLICOLOR_FORCE makes ls (given CLICOLOR and a TERM) and gh write colour
+#   escapes into a pipe. GH_FORCE_TTY makes gh colour and pretty-print its
+#   --json output, and changes its tables.
+# - TAPE makes `tar -x` read that file instead of stdin.
+# - POSIXLY_CORRECT starts bash 3.2 in posix mode, where `<( )` is a syntax
+#   error, so `felix which` failed to load lib/detect.sh and others. Unsetting
+#   it takes bash back out of posix mode.
+# - CDPATH makes cd print a directory it found through it, so
+#   `$(cd dir && pwd)` captured the path twice. With CDPATH=.:/x,
+#   `engine/harness/felix which` could not find its own libraries.
+# TAR_OPTIONS (GNU tar) and QUOTING_STYLE (GNU ls) do to those tools what
+# GREP_OPTIONS and CLICOLOR_FORCE do here. They are documented, not measured.
+#
+# So every executable file under engine/harness unsets the same eight names
+# as its first command after set. Every child it starts inherits their
+# absence: a commissioning check, a probe, a setup or maintenance check, an
+# obligation's evidence, and a project's own gate under `felix gate`, which
+# so runs as it would on CI. tests/run checks every such file for the line
+# ("no caller environment changes what an engine tool prints").
+#
+# Left alone on purpose:
+# - GREP_COLOR and GREP_COLORS change no piped output unless colour is on,
+#   and colour comes on only through GREP_OPTIONS or a --color the engine
+#   never passes.
+# - Locale stays the person's. It is a reading of text, not extra options,
+#   and a call that needs byte order sets LC_ALL=C itself.
+# - TMPDIR is where the engine makes its scratch, on purpose (tests/run,
+#   "the engine makes its scratch under TMPDIR").
+# - BASH_ENV has run, and exported functions are defined, before this line.
+#   SHELLOPTS is readonly. Some CI hosts (CircleCI) load each step's setup
+#   through BASH_ENV, and a project's gate may need it.
+# - git takes colour from its configuration, not from these variables, so
+#   `color.ui=always` is not handled here.
+unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS QUOTING_STYLE POSIXLY_CORRECT CDPATH
+
 # Resolve through symlinks before locating the libraries.
 #
 # `felix install` ends by telling you to put this on PATH with a symlink, and

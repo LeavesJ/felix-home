@@ -234,18 +234,29 @@ felix_procedures_orphans() {
 # A typo answers nothing while looking like an answer, which is the same
 # defect one level up — a stance that cannot be reached is a gap wearing a
 # stance's clothes.
+#
+# 0 with the rows on stdout, and 2 with nothing printed when the stances did not
+# come back whole. Until 2026-10-08 the stances came through a here-document and
+# each moment was tested with felix_has_line, another one, and on bash 3.2 a
+# here-document is a temporary file: one that could not be written printed no
+# row, and once felix_procedures_effective walked its stances in the shell, felix
+# procedures could close on every item having a stance over a stance at a moment
+# nobody declared. Now the stances are captured with felix_capture and walked in
+# this shell, as in felix_procedures_effective; a wellformed row has three
+# non-empty fields, so taking them by expansion shifts no column.
 felix_procedures_unknown_moments() {
-  local proj="$1" tpl="$2" known line item moment
+  local proj="$1" tpl="$2" known line item moment stances="" rest nl=$'\n' tab=$'\t'
   known="$(felix_procedures_moments "$tpl")"
-  while IFS= read -r line; do
+  felix_capture stances felix_procedures_wellformed "$proj" || return 2
+  rest="$stances"
+  while [ -n "$rest" ]; do
+    line="${rest%%$nl*}"
+    if [ "$line" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
     [ -n "$line" ] || continue
-    item="$(printf '%s\n' "$line" | cut -f1)"
-    moment="$(printf '%s\n' "$line" | cut -f2)"
+    item="${line%%$tab*}"; moment="${line#*$tab}"; moment="${moment%%$tab*}"
     [ -n "$moment" ] || continue
-    felix_has_line "$known" "$moment" && continue
+    case "$nl$known$nl" in *"$nl$moment$nl"*) continue ;; esac
     printf '%s\t%s\n' "$moment" "$item"
-  done <<EOF
-$(felix_procedures_wellformed "$proj")
-EOF
+  done
   return 0
 }

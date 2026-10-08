@@ -5127,39 +5127,55 @@ cmd_procedures() {
   # substitution) read as none, so the report said every item had a stance over
   # gaps it had in hand. Now the sections are decided from the captured strings
   # themselves, and the two counts that are printed are taken in this shell.
-  local n_item=0 n_gap=0 items="" gaps="" orphans="" stanced="" punread=0
+  #
+  # And until 2026-10-08 the stance section, the malformed rows and the stances at
+  # unknown moments were each read again through a here-document or a plain
+  # substitution, so one that could not be written or came back empty dropped its
+  # section and the closing claim was made over it. Now every list the report
+  # speaks from is captured once, here, the stance section walks the captured
+  # strings in this shell, and a capture that did not come back whole withholds
+  # the closing claim and says so.
+  local n_item=0 n_gap=0 items="" gaps="" orphans="" stanced="" moments="" malformed="" unknown=""
+  local punread=0 pwhole=1
   felix_capture items felix_procedures_items "$proj" "$root" || punread=1
   felix_capture gaps felix_procedures_gaps "$proj" "$root" "$tpl" || punread=1
   felix_capture orphans felix_procedures_orphans "$proj" "$root" || punread=1
-  felix_capture stanced felix_procedures_wellformed "$proj" || stanced=""
+  felix_capture stanced felix_procedures_wellformed "$proj" || { stanced=""; pwhole=0; }
+  # The moments only order the stance section, and their function's status is its
+  # grep's, 1 for a table with no rows under the CLI's pipefail, so they withhold
+  # nothing.
+  felix_capture moments felix_procedures_moments "$tpl" || moments=""
+  felix_capture malformed felix_procedures_malformed "$proj" || { malformed=""; pwhole=0; }
+  felix_capture unknown felix_procedures_unknown_moments "$proj" "$tpl" || { unknown=""; pwhole=0; }
   _felix_count_lines n_item "$items"
   _felix_count_lines n_gap "$gaps"
 
   # Stances first, by moment, so what IS handled reads as the smaller thing it
   # currently is rather than as the summary.
-  local m item moment by line shown
+  local m item moment by line shown mrest srest nl=$'\n' tab=$'\t'
   if [ -n "$stanced" ]; then
-    while IFS= read -r m; do
+    mrest="$moments"
+    while [ -n "$mrest" ]; do
+      m="${mrest%%$nl*}"
+      if [ "$m" = "$mrest" ]; then mrest=""; else mrest="${mrest#*$nl}"; fi
       [ -n "$m" ] || continue
       shown=0
-      # cut per field rather than `IFS=$'\t' read`: tab is an IFS whitespace
-      # character, so bash coalesces runs of it and an empty cell shifts every
-      # later column left.
-      while IFS= read -r line; do
+      # Fields by expansion rather than `IFS=$'\t' read`, which coalesces a run
+      # of tabs so an empty cell shifts every later column left: a wellformed
+      # row has three non-empty fields, so no column moves here.
+      srest="$stanced"
+      while [ -n "$srest" ]; do
+        line="${srest%%$nl*}"
+        if [ "$line" = "$srest" ]; then srest=""; else srest="${srest#*$nl}"; fi
         [ -n "$line" ] || continue
-        item="$(printf '%s\n' "$line" | cut -f1)"
-        moment="$(printf '%s\n' "$line" | cut -f2)"
-        by="$(printf '%s\n' "$line" | cut -f3)"
+        item="${line%%$tab*}"; moment="${line#*$tab}"; by="${moment#*$tab}"
+        moment="${moment%%$tab*}"; by="${by%%$tab*}"
         [ "${moment:-}" = "$m" ] || continue
         [ "$shown" -eq 0 ] && { printf '  %s\n' "$m"; shown=1; }
         printf '    %-26s %s\n' "$item" "${by:--}"
-      done <<EOF
-$(felix_procedures_wellformed "$proj")
-EOF
+      done
       [ "$shown" -eq 1 ] && printf '\n'
-    done <<EOF
-$(felix_procedures_moments "$tpl")
-EOF
+    done
   fi
 
   if [ "$punread" -eq 1 ]; then
@@ -5187,8 +5203,6 @@ EOF
   # item's gap and then appear in no section at all, because every display
   # path keys on the moment — one item vanishing from three lists at once
   # while the report said everything had a stance.
-  local malformed
-  malformed="$(felix_procedures_malformed "$proj")"
   if [ -n "$malformed" ]; then
     printf '\nrows that record no judgement\n\n'
     printf '%s\n' "$malformed" | while IFS= read -r item; do
@@ -5214,8 +5228,6 @@ EOF
     printf 'never existed. A stance nobody can reach is a claim nobody checks.\n'
   fi
 
-  local unknown
-  unknown="$(felix_procedures_unknown_moments "$proj" "$tpl")"
   if [ -n "$unknown" ]; then
     printf '\nstances at a moment nobody declared\n\n'
     printf '%s\n' "$unknown" | while IFS=$'\t' read -r moment item; do
@@ -5226,7 +5238,9 @@ EOF
     printf 'moment in templates/moments.tsv, or correct the row.\n'
   fi
 
-  if [ "$punread" -eq 0 ] && [ -z "$gaps" ] && [ -z "$unknown" ] && [ -z "$malformed" ] \
+  if [ "$pwhole" -eq 0 ]; then
+    printf '\nPart of this report could not be read, so it makes no closing claim.\n'
+  elif [ "$punread" -eq 0 ] && [ -z "$gaps" ] && [ -z "$unknown" ] && [ -z "$malformed" ] \
      && [ -z "$orphans" ]; then
     printf 'Every item has a stance. That is a claim about this table, not about\n'
     printf 'the project: an item nothing enumerates cannot appear here, so this\n'

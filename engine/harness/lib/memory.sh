@@ -307,7 +307,10 @@ _felix_mem_lock() {   # lock-dir -> 0 taken, 1 held by a live owner
     return 0
   fi
   [ -d "$lock" ] || return 1
-  owner="$(head -n 1 "$lock/pid" 2>/dev/null)"
+  # Read only as a regular file, as _felix_mem_unlock reads it (2026-10-08);
+  # otherwise no owner, and the age rule below decides.
+  owner=""
+  [ -f "$lock/pid" ] && owner="$(head -n 1 "$lock/pid" 2>/dev/null)"
   case "$owner" in
     ''|*[!0-9]*) ;;
     *) kill -0 "$owner" 2>/dev/null || stale=1 ;;
@@ -330,10 +333,12 @@ _felix_mem_lock() {   # lock-dir -> 0 taken, 1 held by a live owner
 # lock whose pid file is missing or empty is removed too, because the write of
 # the pid can fail (a full disk), and a lock this call left behind would have
 # every writer wait out its three seconds, and every heal decline, until the
-# lock aged past a minute.
+# lock aged past a minute. A pid that is not a regular file is not read, and
+# reads as missing: a pipe there would hold the release, and the gate behind
+# it, forever (2026-10-08).
 _felix_mem_unlock() {
-  local owner
-  owner="$(head -n 1 "$1/pid" 2>/dev/null)"
+  local owner=""
+  [ -f "$1/pid" ] && owner="$(head -n 1 "$1/pid" 2>/dev/null)"
   case "$owner" in
     ''|"$$") rm -rf "$1" 2>/dev/null ;;
   esac

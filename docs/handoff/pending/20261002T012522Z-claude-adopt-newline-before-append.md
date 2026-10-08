@@ -175,6 +175,37 @@ force-push.
 
   Prefixes, not the record.
 
+**Main merged in again, 2026-10-08,** at 6fe5f986, through #416. Four
+conflicts, three of them against #378:
+- adopt.sh keeps this branch's refusals and status 3, and takes #378's setup
+  rows as the template has them (`{{REPO}}` unspliced, the runbook copied with
+  `cp`). The slug parameter is accepted and unused, as #378 left it.
+- felix_mem_mistake is #378's writer, which reads the fields first and
+  appends while holding the log's lock. The line is ended first, under that
+  same lock. A log that cannot be ended takes no row, and the lock is still
+  released.
+- cmd_gate ends the gate log before #378 takes the project's size (`gbytes`).
+  So that size ends on the newline, the first engine line starts a line of
+  its own in the log and on the screen, and #378's unrun newline finds the
+  line already ended.
+- tests/run keeps both sides: the readers blocks, block 5 and the lint, then
+  #371's completion-marker comment.
+
+Git's rename guess moved the three pending notes into docs/handoff/ beside
+main's folded sections. They are back under pending/.
+
+The readers lint then went red on two opens main added after it was written.
+It did its job:
+- `_fi_gitdir` (lib/inventory-orphans.sh, #397) read `$1/.git`;
+- `_felix_mem_unlock` (lib/memory.sh, #378) read the lock's `$1/pid`.
+
+Both now read only a regular file. A third open of the same pid file, in
+`_felix_mem_lock`, spells the path `$lock/pid`, which the lint cannot see, and
+got the same guard. Measured with a pipe at the pid: before the guard, the
+lock and the unlock each blocked past 3 s; after it, the lock returns 1 at
+once (the age rule decides), and the unlock returns 0 and removes the lock.
+The lint pins the first two. The lock's guard has no assertion of its own.
+
 **The verifier escape was a stale base.** risk.tsv:39 confines tests/run with
 `count:^[[:space:]]*(ok|is|has|bad) `, and escape.sh counts at the origin/main
 tip, not at the merge-base. Main had gained 215 such lines since the fork. The

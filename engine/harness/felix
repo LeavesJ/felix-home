@@ -918,6 +918,12 @@ cmd_gate() {
   # one both stop a session, but only one of them says what happened — and now
   # also what it did not check, and what it did, and the decision epoch it ran
   # under, so a fact that moves outside the tree stales it.
+  # No id, no receipt: felix_verify_record writes none, and says nothing about
+  # it. Said here, to stderr and unindented so no roster reads it as a check,
+  # because a green run followed by a Stop that cannot find its receipt reads
+  # as the hook being broken (2026-10-08).
+  [ -n "$tid" ] || printf 'felix gate: no receipt was written, because git could not read this tree in full%s\n' \
+    "$(_w="$(felix_tree_why "$root" "$FELIX_HOME_DIR" 2>/dev/null)"; [ -n "$_w" ] && printf ' (%s)' "$_w")" >&2
   local epoch_fields
   epoch_fields="$(felix_verify_epoch_fields "$proj" "$root")"
   felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid" "$skipped" "$reported" \

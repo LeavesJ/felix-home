@@ -4631,6 +4631,54 @@ else
   bad "every uses: in the gate workflow bootstrap renders names a full commit sha, for every stack it can render" \
       "${_gploose#, }"
 fi
+# A sha fixes the code an action runs, and its action.yml fixes what runs it:
+# setup-node v4.4.0, setup-python v5.6.0 and setup-go v5.6.0 were pinned in
+# full and ran on Node 20 while the comment above the checkouts said the file
+# had moved to Node 24. The runtime is not in the sha and cannot be read
+# offline, so each commit a workflow Felix writes may name is listed here with
+# the release that named it and the `using:` its action.yml held, read with gh
+# api repos/OWNER/NAME/contents/action.yml?ref=SHA on 2026-10-08. A pin moved
+# to a commit missing from the list fails until that read is recorded; a
+# recorded runtime other than node24 or composite fails; a comment naming
+# another release than the list fails. Every stack the gate workflow renders
+# for is read, as above, and the unattended template beside them.
+_gprtrows='actions/checkout fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 v5.1.0 node24
+actions/setup-node a0853c24544627f65ddf259abe73b1d18a591444 v5.0.0 node24
+actions/setup-python ece7cb06caefa5fff74198d8649806c4678c61a1 v6.3.0 node24
+actions/setup-go 924ae3a1cded613372ab5595356fb5720e22ba16 v6.5.0 node24
+dtolnay/rust-toolchain 7e38f4b43b4db5c8dd498af069a4f6196df1d067 v1 composite'
+_gprt() { tr -d "\"'" | _GPRT="$_gprtrows" awk '
+  BEGIN { n = split(ENVIRON["_GPRT"], r, "\n")
+          for (i = 1; i <= n; i++) if (split(r[i], f, " ") == 4) { k = f[1] "@" f[2]; rel[k] = f[3]; rt[k] = f[4] } }
+  /^[ \t]*#/ { next }
+  /^[ \t]*(-[ \t]+)?uses:/ { v = $0; c = ""; seen++
+    sub(/^[ \t]*(-[ \t]+)?uses:[ \t]*/, "", v)
+    if (match(v, /[ \t]+#[ \t]*/)) { c = substr(v, RSTART + RLENGTH); v = substr(v, 1, RSTART - 1) }
+    sub(/[ \t]+$/, "", v); sub(/[ \t]+$/, "", c)
+    if (!(v in rt)) print NR ": " v " has no runtime read for it"
+    else if (rt[v] != "node24" && rt[v] != "composite") print NR ": " v " runs on " rt[v]
+    else if (c != rel[v]) print NR ": " v " says " (c == "" ? "no release" : c) ", read as " rel[v] }
+  END { if (!seen) print "no uses: line found" }'; }
+_gprtloose=""; _gprterr=""
+[ -n "$_gpstacks" ] || _gprtloose=", no stack read from bootstrap"
+for _gpst in $_gpstacks; do
+  _gprtout="$( ( . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/bootstrap.sh"
+                 felix_bs_render_workflow "$_gpst" someone/repo ) 2>"$TMP/gprt.err" | _gprt )"
+  [ -z "$_gprtout" ] || _gprtloose="$_gprtloose, $_gpst: $(printf '%s' "$_gprtout" | tr '\n' ';')"
+  [ ! -s "$TMP/gprt.err" ] || _gprterr="$_gprterr, $_gpst: $(head -1 "$TMP/gprt.err")"
+done
+_gprtout="$(_gprt < "$REAL_HARNESS/templates/unattended.yml")"
+[ -z "$_gprtout" ] || _gprtloose="$_gprtloose, unattended.yml: $(printf '%s' "$_gprtout" | tr '\n' ';')"
+if [ -z "$_gprtloose" ]; then
+  ok  "and each of those, and each in the unattended template, is a commit read as running on Node 24 or composite, under the release its comment names"
+else
+  bad "and each of those, and each in the unattended template, is a commit read as running on Node 24 or composite, under the release its comment names" \
+      "${_gprtloose#, }"
+fi
+# The workflow is an unquoted heredoc, so a backquote in one of its comments
+# runs as a command when it renders, and the adopting repository gets the
+# comment with a hole in it. The render is otherwise silent on stderr.
+is  "and rendering it for any stack writes nothing to stderr" "${_gprterr#, }" ""
 # dtolnay/rust-toolchain chose the toolchain by the ref's name: @stable was a
 # branch whose action.yml defaults it. At a commit on master, the history its
 # README says a pin must come from, the input is required, so the step names it.

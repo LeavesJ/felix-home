@@ -82,18 +82,39 @@ felix_guess_ecosystem() {
 # a full commit sha, then the release it was read from. Moving one is the same
 # one-change review as moving the Felix pin; the workflow says why.
 #
-# dtolnay/rust-toolchain tags no releases, and @stable was a branch whose
-# action.yml defaults the toolchain to stable. That branch's head is not on
-# master, and the action's README says a pinned commit must be, since the
-# others are garbage-collected. So the pin is master's head, which its one tag,
-# v1, also names, and the step says `toolchain: stable`, which is required
-# there.
+# Each setup action is the newest release of the lowest major whose action.yml
+# runs on Node 24, as the checkouts are. Read 2026-10-08 with gh api
+# repos/OWNER/NAME/contents/action.yml?ref=SHA: setup-node v4, setup-python v5
+# and setup-go v5 run on Node 20. setup-go v6.0.0 and v6.1.0 announce Node 24
+# in their release notes and still say node20 in action.yml; v6.2.0 is the
+# first that runs on it. tests/run holds each pin to the runtime read for it.
+#
+# What the new majors change for the step rendered here:
+# - setup-node v5 caches by itself when package.json names a packageManager.
+#   It reads $GITHUB_WORKSPACE/package.json, and the repository is checked out
+#   under repo/, so nothing is cached, as under v4.
+# - setup-python v6 adds pip-version and pip-install, both left unset. Caching
+#   stays opt-in.
+# - setup-go v6 exports GOTOOLCHAIN=local to every later step, so `go` never
+#   fetches the newer toolchain a go.mod asks for and fails instead. With
+#   go-version: stable, only a go.mod that names a release newer than stable
+#   is refused. Its cache keys on go.mod rather than go.sum, looked for at the
+#   workspace root, where neither is, so it warns and caches nothing, as v5 did.
+#
+# dtolnay/rust-toolchain is a composite action and runs no Node. It tags no
+# releases, and @stable was a branch whose action.yml defaults the toolchain
+# to stable. That branch's head is not on master, and the action's README says
+# a pinned commit must be, since the others are garbage-collected. So the pin
+# is master's head, which its one tag, v1, also names, and the step says
+# `toolchain: stable`, which is required there. v1 moves with master: it named
+# 02cb101e when #354 pinned it and 7e38f4b4 from 2026-10-01, which retries a
+# toolchain install that failed on a release-server checksum.
 _felix_bs_setup_block() {
   case "$1" in
-    node)   printf '      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0\n        with:\n          node-version: "22"\n      - run: npm ci\n        working-directory: repo\n' ;;
-    python) printf '      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0\n        with:\n          python-version: "3.12"\n      - run: pip install -e ".[dev]"\n        working-directory: repo\n' ;;
-    rust)   printf '      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1\n        with:\n          toolchain: stable\n' ;;
-    go)     printf '      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0\n        with:\n          go-version: stable\n' ;;
+    node)   printf '      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0\n        with:\n          node-version: "22"\n      - run: npm ci\n        working-directory: repo\n' ;;
+    python) printf '      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0\n        with:\n          python-version: "3.12"\n      - run: pip install -e ".[dev]"\n        working-directory: repo\n' ;;
+    rust)   printf '      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # v1\n        with:\n          toolchain: stable\n' ;;
+    go)     printf '      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0\n        with:\n          go-version: stable\n' ;;
     *)      printf '      # no toolchain detected; add the setup step this project needs\n' ;;
   esac
 }
@@ -177,7 +198,9 @@ jobs:
       # pull request here, graded by the action code it names and merged by a
       # person. Read the tag's commit (gh api repos/OWNER/NAME/git/ref/tags/vN,
       # and git/tags/SHA when that answers with a tag object), and write the
-      # release that commit is after the new sha.
+      # release that commit is after the new sha. Each action here is on the
+      # lowest major that runs on Node 24, or is a composite action and runs
+      # no Node; the runtime is the using: line of its action.yml at that sha.
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           path: repo

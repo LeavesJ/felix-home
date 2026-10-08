@@ -194,7 +194,10 @@ this one with its merge sha. A trial merge of this branch with 4ccc9e09
    through the line before `printf '\nresolution\n'`, with REAL_HARNESS set to
    that export right after the suite's own `REAL_HARNESS=` line, followed by
    the block between `# >>> monitor-capabilities-unread` and
-   `# <<< monitor-capabilities-unread`. 83 assertions should fail.
+   `# <<< monitor-capabilities-unread`. 83 assertions should fail. Run it
+   from a fresh `mktemp -d` outside every repository until
+   claude/suite-fixture-floor lands. On 2026-10-08 a fixture `cd ""` rewrote
+   ~/Documents/Felix/.git/config.
 3. Show it green. Run the same block against this branch's own engine: all
    should pass. If felix_declared_into changed signature or statuses on the
    way in, the in-process models in the block say so first.

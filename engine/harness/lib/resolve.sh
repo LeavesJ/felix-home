@@ -865,6 +865,12 @@ $out"
 #   binary is read again, and only when its new side is text by git's own rule:
 #   no NUL in its first 8000 bytes. That rule is the one git applies when no
 #   attribute says otherwise, so a real binary is still unread, as before.
+# - Each path is named with --literal-pathspecs. The `:(literal)` magic that
+#   was tried first is itself switched off by GIT_LITERAL_PATHSPECS=1, and with
+#   it set the read again matched nothing and the scan exited 0. A read again
+#   must print one file's patch for each path it named, or it is not whole.
+#   GIT_GLOB_PATHSPECS or GIT_ICASE_PATHSPECS make git refuse the option, so
+#   with either set a binary-marked text file is unread: exit 2, not clean.
 # - The a/ and b/ prefixes are pinned, because diff.noprefix, diff.srcPrefix,
 #   diff.dstPrefix and diff.mnemonicPrefix change the `+++` header a reader takes
 #   a path from. bin/secret-scan does; `dstPrefix = b/fixtures/` made every file
@@ -888,7 +894,7 @@ _felix_git_patch() {   # VAR ROOT diff-args...
   # any byte but that one. The mark is a record git never prints.
   while IFS= read -r -d '' _fgp_rec; do
     case "$_fgp_rec" in
-      -"$_fgp_t"-"$_fgp_t"*) _fgp_bin+=(":(literal)${_fgp_rec#-"$_fgp_t"-"$_fgp_t"}") ;;
+      -"$_fgp_t"-"$_fgp_t"*) _fgp_bin+=("${_fgp_rec#-"$_fgp_t"-"$_fgp_t"}") ;;
       $'\037'ok) _fgp_ok=1 ;;
     esac
   done < <(git -C "$_fgp_root" diff --no-ext-diff --no-textconv --no-renames --numstat -z "$@" 2>/dev/null && printf '\037ok\0')
@@ -914,7 +920,7 @@ _felix_git_patch() {   # VAR ROOT diff-args...
         esac
         # A content check that could not run counts no NUL, so the path is read
         # again as text, and a read that fails there fails the whole.
-        [ "${_fgp_n//[!0-9]/}" = 0 ] || [ -z "${_fgp_n//[!0-9]/}" ] && _fgp_text+=(":(literal)$_fgp_rec")
+        [ "${_fgp_n//[!0-9]/}" = 0 ] || [ -z "${_fgp_n//[!0-9]/}" ] && _fgp_text+=("$_fgp_rec")
         _fgp_meta=""
         continue
       fi
@@ -922,12 +928,15 @@ _felix_git_patch() {   # VAR ROOT diff-args...
         :*) _fgp_meta="$_fgp_rec" ;;
         $'\037'ok) _fgp_ok=1 ;;
       esac
-    done < <(git -C "$_fgp_root" diff --no-ext-diff --no-textconv --no-renames --no-abbrev --raw -z "$@" -- "${_fgp_bin[@]}" 2>/dev/null && printf '\037ok\0')
+    done < <(git --literal-pathspecs -C "$_fgp_root" diff --no-ext-diff --no-textconv --no-renames --no-abbrev --raw -z "$@" -- "${_fgp_bin[@]}" 2>/dev/null && printf '\037ok\0')
     [ -n "$_fgp_ok" ] || _fgp_rc=1
   fi
   if [ "${#_fgp_text[@]}" -gt 0 ]; then
     local _fgp_more
-    _felix_git_read _fgp_more git -C "$_fgp_root" diff --no-ext-diff --no-textconv --src-prefix=a/ --dst-prefix=b/ --text "$@" -- "${_fgp_text[@]}" || _fgp_rc=1
+    _felix_git_read _fgp_more git --literal-pathspecs -C "$_fgp_root" diff --no-ext-diff --no-textconv --src-prefix=a/ --dst-prefix=b/ --text "$@" -- "${_fgp_text[@]}" || _fgp_rc=1
+    # One file's patch for each path asked for, or the read is not whole.
+    _fgp_n="$(printf '%s\n' "$_fgp_more" | LC_ALL=C awk '/^diff --git / { n++ } END { print n + 0 }')"
+    [ "$_fgp_n" = "${#_fgp_text[@]}" ] || _fgp_rc=1
     _fgp_all="$_fgp_all
 $_fgp_more"
   fi

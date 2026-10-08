@@ -57,8 +57,10 @@ The stamp lines themselves are unchanged.
   3. **A signal between mktemp and mv leaves `autonomy.new.*` behind.** Revoke
      has the same window. Handed to the writer-lock session, which plans an
      exact-path cleanup in its EXIT trap.
-  4. **The file mode.** The rewrite leaves mode 0600 and replaces a link at the
-     path with a file, as revoke's does. Handed on, under "Kept file mode".
+  4. **The file mode.** The rewrite left mode 0600. Fixed with revoke's
+     revision 3 (7216e8cf): the file's own mode is kept, and a new file takes
+     the umask's mode, as the append's did. A link at the path is still
+     replaced by a regular file, as revoke's is.
   5. **A refusal where main appended.** A writable file in a read-only
      directory, and a `uappnd` file, are now refused. This fails closed, and
      the contract allows it.
@@ -76,6 +78,20 @@ The stamp lines themselves are unchanged.
   - 89 fail against main 6fe5f986;
   - the two capability assertions fail against 1c347cbb.
   The reader and revoke blocks pass 96/96 on the merged head.
+- **Revoke's revision 3 (4f42ec68), merged in as 583a7c97.**
+  - `_felix_autonomy_filter` is gone. The grant never used it; it uses only
+    `_felix_autonomy_read` and `felix_autonomy_allows`, whose contracts
+    revision 3 keeps.
+  - The tests/run conflict was two blocks added at the same place. Both are
+    kept: revoke's third block first, then this one.
+  - 7216e8cf then makes the grant keep the file's mode, as revision 3's revoke
+    does. It also brings the refusal wording to revision 3's standard: a NUL
+    file grants nothing to this engine, and the stamp is named only for
+    commission. It adds two mode assertions (not blind); a mutant without the
+    chmod fails exactly those two.
+  - On the section runner, every autonomy block passes, 282/282: the reader,
+    revoke rounds 1-3 and this block. This block fails 89 of 142 against main
+    6fe5f986.
 - **What could not be shown locally.**
   - Only bash 3.2 is installed. The reviewer reasoned bash 5.2 from source and
     found no difference.

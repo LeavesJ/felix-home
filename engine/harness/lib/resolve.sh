@@ -266,6 +266,10 @@ felix_mem_dir() {
 #     pattern holding one compiles to nothing, in grep and in [[ =~ ]]. One
 #     such byte on a project.json line above "gate" made the sed below print
 #     nothing, and the Stop hook then judged no gate at all.
+#   - awk splits and slices by bytes but matches by characters, so a program
+#     that walks text a byte at a time aborts on a lone byte of a VALID
+#     character too. lib/deny-read.sh did: any Bash command holding an accent
+#     or a dash passed every deny row.
 #   - bash collates its own globs and bracket ranges in the locale: `for f in
 #     *` gives `_x alpha Beta` in UTF-8 and `Beta _x alpha` in C, and
 #     `case B in [a-z])` matches in UTF-8. Even `[0-9]` admits one character,

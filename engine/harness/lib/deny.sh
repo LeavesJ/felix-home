@@ -417,6 +417,9 @@ _felix_deny_scoped_lifts() {
 # The program is lib/deny-read.sh, sourced the first time a command needs it.
 # Every Bash call in a project with Bash rows needs it; a call for another
 # tool, or in a project without them, never reads the file.
+# Locale, 2026-10-08: this awk ran in the caller's locale and aborted under
+# UTF-8 on any non-ASCII character, so the reading came back empty and every
+# Bash row allowed. The rules are above felix_json_str in resolve.sh.
 felix_deny_code() {
   [ -n "${_FELIX_DENY_READ:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/deny-read.sh" 2>/dev/null
   printf '%s' "$1" | LC_ALL=C awk "${_FELIX_DENY_READ:-}" 2>/dev/null

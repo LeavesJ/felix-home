@@ -193,8 +193,14 @@ FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"
 # So a fixture does not cd and does not git -C on a variable. _fx_cd and
 # _fx_git take the directory and prove it first: it must name a directory,
 # whose physical path (symlinks resolved, as cd -P gives it) lies strictly
-# below the physical $TMP; no GIT_DIR, GIT_WORK_TREE or GIT_COMMON_DIR may be
-# set; and _fx_cd may not run in the suite's own shell, which it would move.
+# below the physical $TMP; none of GIT_DIR, GIT_WORK_TREE, GIT_COMMON_DIR,
+# GIT_INDEX_FILE, GIT_OBJECT_DIRECTORY, GIT_ALTERNATE_OBJECT_DIRECTORIES or
+# GIT_CONFIG may be set; _fx_cd may not run in the suite's own shell, which it
+# would move; and the first .git met walking up from the directory, short of
+# $TMP, must be a directory, or a gitfile or symlink that points physically
+# below $TMP, so a worktree's .git cannot hand git a repository elsewhere.
+# _fx_git also refuses -C, --git-dir and --work-tree before the subcommand,
+# which would name another repository after the proof; -c k=v is allowed.
 # $TMP itself is not under $TMP, since `cd "$TMP/$empty"` lands there. On
 # success the shell stands in the directory, physically, with $TMP at the head
 # of GIT_CEILING_DIRECTORIES, so git run there cannot find a repository at or
@@ -205,11 +211,63 @@ FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"
 # end of the run reads the file and goes red on any line in it.
 #
 # No fork on the success path, so a fork that fails under load cannot become
-# an empty answer that is taken for a proof: cd -P, $PWD and parameter
+# an empty answer that is taken for a proof: cd -P, $PWD, read and parameter
 # expansion only. A relative directory is given a ./ because `cd -- -` still
 # means OLDPWD.
 FELIX_TEST_FXREFUSED="$TMP/fx-refused"
 _fx_tmp=""; _og_phys "$TMP" && _fx_tmp="$_og_p"
+# LINE DIR WHY -> the refusal's line in the record, and its line on stderr.
+_fx_refuse() {
+  printf '%s\t%s\t%s\n' "$1" "$2" "$3" >> "${FELIX_TEST_FXREFUSED:-/dev/null}" 2>/dev/null
+  printf 'tests/run: _fx_cd refused %s: line %s, directory [%s]\n' "$3" "$1" "$2" >&2
+}
+# ABSOLUTE-PATH STRICT -> 0 when the path lies physically strictly below $TMP.
+# The path is entered with cd -P and the shell is put back where it stood. A
+# path that does not exist, a gitfile's pointer to a worktree since removed, is
+# judged by the nearest directory above it that can be entered, with the rest
+# appended, and a rest holding .. is refused. With STRICT non-empty the path
+# itself must be entered: a symlink .git is judged by its target, and only cd
+# can name a target without a fork, so a target that is not a directory is
+# refused.
+_fx_below() {
+  local p="$1" rest="" back="$PWD" got
+  case "$p" in /*) ;; *) return 1 ;; esac
+  until cd -P -- "${p:-/}" >/dev/null 2>&1; do
+    [ -z "$2" ] && [ -n "$p" ] || return 1
+    rest="/${p##*/}$rest"; p="${p%/*}"
+  done
+  got="${PWD%/}$rest"
+  cd -P -- "$back" >/dev/null 2>&1 || return 1
+  case "$rest/" in */../*) return 1 ;; esac
+  case "$got/" in "$_fx_tmp"/?*) return 0 ;; esac
+  return 1
+}
+# -> 0 when the first .git entry met walking up from $PWD, $TMP itself not
+# reached, is a directory, is a gitfile or a symlink that points physically
+# below $TMP, or is not there at all, since the ceiling stops git at $TMP. The
+# gitfile's pointer is its gitdir: line, read with the read builtin, and a
+# relative one is relative to the directory holding the .git. A gitfile that
+# cannot be read or holds no gitdir: line, and a .git of any other type, are
+# refused: what they name cannot be proven.
+_fx_gitdir() {
+  local d="$PWD" g l
+  while :; do
+    case "$d/" in "$_fx_tmp"/?*) ;; *) return 0 ;; esac
+    g="$d/.git"
+    if [ -L "$g" ]; then _fx_below "$g" 1; return
+    elif [ -d "$g" ]; then return 0
+    elif [ -f "$g" ]; then
+      l=""
+      IFS= read -r l 2>/dev/null < "$g" || [ -n "$l" ] || return 1
+      l="${l%$'\r'}"
+      case "$l" in "gitdir: "?*) l="${l#gitdir: }" ;; *) return 1 ;; esac
+      case "$l" in /*) ;; *) l="$d/$l" ;; esac
+      _fx_below "$l" ""; return
+    elif [ -e "$g" ]; then return 1
+    fi
+    d="${d%/*}"
+  done
+}
 _fx_chdir() {   # LINE DIR -> stands in DIR when it is proven, else returns 1 with a record
   local at="$1" d="${2-}" why="" t was="$PWD" old="${OLDPWD-}" hadold="${OLDPWD+x}" ent=""
   if [ -z "$d" ]; then why=empty
@@ -221,8 +279,9 @@ _fx_chdir() {   # LINE DIR -> stands in DIR when it is proven, else returns 1 wi
       else case "$PWD/" in "$_fx_tmp"/?*) ;; *) why=outside-tmp ;; esac
       fi
       if [ -z "$why" ]; then
-        if [ -n "${GIT_DIR:-}${GIT_WORK_TREE:-}${GIT_COMMON_DIR:-}" ]; then why=git-env
+        if [ -n "${GIT_DIR:-}${GIT_WORK_TREE:-}${GIT_COMMON_DIR:-}${GIT_INDEX_FILE:-}${GIT_OBJECT_DIRECTORY:-}${GIT_ALTERNATE_OBJECT_DIRECTORIES:-}${GIT_CONFIG:-}" ]; then why=git-env
         elif [ "$BASH_SUBSHELL" -eq 0 ]; then why=top-level
+        elif ! _fx_gitdir; then why=gitdir-outside
         fi
       fi
     else why=not-a-directory
@@ -233,16 +292,35 @@ _fx_chdir() {   # LINE DIR -> stands in DIR when it is proven, else returns 1 wi
       cd -- "$was" >/dev/null 2>&1
       if [ -n "$hadold" ]; then OLDPWD="$old"; else unset OLDPWD; fi
     fi
-    printf '%s\t%s\t%s\n' "$at" "$d" "$why" >> "${FELIX_TEST_FXREFUSED:-/dev/null}" 2>/dev/null
-    printf 'tests/run: _fx_cd refused %s: line %s, directory [%s]\n' "$why" "$at" "$d" >&2
+    _fx_refuse "$at" "$d" "$why"
     return 1
   fi
+  OLDPWD="$was"
   GIT_CEILING_DIRECTORIES="$_fx_tmp${GIT_CEILING_DIRECTORIES:+:$GIT_CEILING_DIRECTORIES}"
   export GIT_CEILING_DIRECTORIES
   return 0
 }
 _fx_cd()  { _fx_chdir "${BASH_LINENO[0]}" "${1-}"; }
-_fx_git() { ( _fx_chdir "${BASH_LINENO[0]}" "${1-}" && shift && command git "$@" ); }
+# LINE DIR ARGS... -> 1 with a record when an option before git's subcommand
+# names a repository or a work tree of its own: -C, --git-dir, --work-tree.
+# -c k=v is allowed, and its value is skipped.
+_fx_gargs() {
+  local at="$1" d="$2" a sk=""
+  shift 2
+  for a in "$@"; do
+    if [ -n "$sk" ]; then sk=""; continue; fi
+    case "$a" in
+      -C|--git-dir|--git-dir=*|--work-tree|--work-tree=*) _fx_refuse "$at" "$d" git-args; return 1 ;;
+      -c|--namespace) sk=1 ;;
+      -*) ;;
+      *) return 0 ;;
+    esac
+  done
+  return 0
+}
+_fx_git() { ( _fx_chdir "${BASH_LINENO[0]}" "${1-}" || exit 1
+              _fx_gargs "${BASH_LINENO[0]}" "$@" || exit 1
+              shift && command git "$@" ); }
 
 # The lint. _fx_lint FILE... prints N:<text of line N> for each site, one line a
 # site in file order, and nothing else; it returns 0 when there is none, 1 when

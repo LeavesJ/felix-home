@@ -5297,18 +5297,31 @@ cmd_commission() {
   # rows, the record and the receipt all describe the table set the next
   # session will find. One pass is enough because no `felix:` answer writes a
   # file felix_detect reads; an answer that does must move this after itself.
-  local adopted="" _acap _acounts _aslug
+  #
+  # Since 2026-10-08 the undeclared list is captured with felix_capture and
+  # walked in this shell, as session start walks it. Before, it came through a
+  # here-document of a substitution, so a list that could not be read, a fork
+  # that failed inside it, or a here-document that could not be written all
+  # adopted nothing and said nothing. Now any of them adopts nothing and the
+  # run says drift was not checked, in session start's words; the rows are
+  # still asked, and the ones that read the list say so themselves.
+  local adopted="" drift="" _acap _acounts _aslug _aundecl="" _arest _anl=$'\n'
   if [ "$status" -eq 0 ]; then
     felix_mem_mistakes_heal "$proj" >/dev/null 2>&1
     _aslug="$(felix_repo_slug "$root" 2>/dev/null)" || _aslug=""
-    while IFS= read -r _acap; do
-      [ -n "$_acap" ] || continue
-      if _acounts="$(felix_adopt_capability "$proj" "$_acap" "$tpl" "$_aslug" 2>/dev/null)"; then
-        adopted="$adopted $_acap(${_acounts// /+})"
-      fi
-    done <<EOF
-$(felix_undeclared "$root" "$proj" 2>/dev/null)
-EOF
+    if felix_capture _aundecl felix_undeclared "$root" "$proj" 2>/dev/null; then
+      _arest="$_aundecl"
+      while [ -n "$_arest" ]; do
+        _acap="${_arest%%$_anl*}"
+        if [ "$_acap" = "$_arest" ]; then _arest=""; else _arest="${_arest#*$_anl}"; fi
+        [ -n "$_acap" ] || continue
+        if _acounts="$(felix_adopt_capability "$proj" "$_acap" "$tpl" "$_aslug" 2>/dev/null)"; then
+          adopted="$adopted $_acap(${_acounts// /+})"
+        fi
+      done
+    else
+      drift="Capability drift was not checked: the capabilities this project declares could not be read."
+    fi
   fi
 
   local runner="_felix_commission_answer"
@@ -5374,6 +5387,7 @@ $ccounts
 EOF
 
   printf 'commissioning for %s\n\n' "$name"
+  [ -n "$drift" ] && printf '%s\n\n' "$drift"
   # In session-start's notation, capability(tooling-rows+human-steps).
   [ -n "$adopted" ] && printf 'adopted before this run, because the checkout shows them:%s\n\n' "$adopted"
   printf '%s\n' "$out" | while IFS=$'\t' read -r need st cls answer step detail prov; do

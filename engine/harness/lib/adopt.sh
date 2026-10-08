@@ -19,14 +19,21 @@ if ! command -v felix_end_line >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
 
-# felix_adopt_capability <project-dir> <capability> <templates-dir> <repo-slug>
+# felix_adopt_capability <project-dir> <capability> <templates-dir> [<repo-slug>]
 # Prints "<stack-rows-added> <setup-steps-added>". Returns 1 if already declared,
 # and 2, printing nothing and writing no row, when the list could not be read or
 # written. Returns 3, after the counts, when the capability was recorded but a
 # row it implies could not be written; stderr names each one. A second adopt
 # answers 1 and never retries them, so a caller that drops stderr must say 3.
+#
+# The slug is still accepted, so no caller changes, and is no longer written
+# anywhere (G5.1, U19). A setup row and its runbook keep {{REPO}} as the
+# template has it, and lib/setup.sh fills it in when the row is read. Spliced
+# in here, a checkout with no GitHub remote yet saved `--repo ` with nothing
+# after it: a check that failed forever, held human_steps, and was never
+# rewritten when the remote arrived, because this skips an id that exists.
 felix_adopt_capability() {
-  local proj="$1" cap="$2" tpl="$3" slug="${4:-}" list rc=2
+  local proj="$1" cap="$2" tpl="$3" list rc=2
   [ -n "$proj" ] && [ -n "$cap" ] || return 1
   list="$proj/capabilities"
 
@@ -97,13 +104,12 @@ felix_adopt_capability() {
       # The same for a hand-edited setup.tsv, and the runbook is not copied
       # for a step whose row was not written.
       if ! felix_end_line "$proj/setup.tsv" \
-         || ! printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "${chk//\{\{REPO\}\}/$slug}" >> "$proj/setup.tsv"; then
+         || ! printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "$chk" >> "$proj/setup.tsv"; then
         printf 'felix: could not add %s to %s/setup.tsv\n' "$id" "$proj" >&2
         missed=$((missed+1))
         continue
       fi
-      [ -f "$tpl/setup/$id.md" ] && \
-        sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md" > "$proj/setup/$id.md"
+      [ -f "$tpl/setup/$id.md" ] && cp "$tpl/setup/$id.md" "$proj/setup/$id.md"
       added_setup=$((added_setup+1))
     done < <(grep -vE '^\s*(#|$)' "$tpl/setup.tsv")
   fi

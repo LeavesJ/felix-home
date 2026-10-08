@@ -1,4 +1,4 @@
-### 2026-09-25 — a lesson or devlog entry settles only its writer's catches: `felix lesson` and `felix log` record who wrote each entry in written.log, and the unrecorded-catch prompt reads nothing else
+### 0cp. 2026-09-25 — a lesson or devlog entry settles only its writer's catches: `felix lesson` and `felix log` record who wrote each entry in written.log, and the unrecorded-catch prompt reads nothing else
 
 **Engine change, adversarial tier.** lib/guard.sh, lib/memory.sh, felix
 (`cmd_lesson`, `cmd_log`) and tests/run. It is stacked on the session-scoped

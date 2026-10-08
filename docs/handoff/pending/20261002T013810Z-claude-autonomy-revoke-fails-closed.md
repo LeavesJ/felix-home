@@ -1,101 +1,183 @@
-### 2026-10-02: `felix autonomy --revoke` takes away exactly what the reader honours, and fails closed
+### 2026-10-08: `felix autonomy --revoke` takes away what any reader honours, and fails closed
 
 Found by the adversarial review of claude/adopt-newline-before-append, where it
-was not fixed. This is that defect, plus what two adversarial reviews of the
-fix found in the reader it leans on.
+was not fixed. This is that defect, plus what four adversarial reviews of the
+fix found in the reader it leans on and in the fix itself.
 
 **Defect closed.** `cmd_autonomy --revoke` ran
-`grep -vxF cap autonomy > autonomy.new && mv -f autonomy.new autonomy`, which
-failed in three ways:
+`grep -vxF cap autonomy > autonomy.new && mv -f autonomy.new autonomy`:
 - **A file holding only the grant** (no comment header). `grep -v` selected no
   line and exited 1, and the `&&` skipped the mv. The grant stayed in force,
   but the command printed `revoked: commission`, deleted the stamp
   `autonomy.commission`, and left an empty `autonomy.new` behind.
 - **An unreadable file.** The same happened through grep's exit 2.
 - **A grant with extra whitespace.** `grep -x` matches whole lines exactly,
-  while the reader, `felix_autonomy_allows`, trims whitespace. A hand-edited
+  while the reader, `felix_autonomy_allows`, trims. A hand-edited
   `commission ` stayed granted after a revoke that said otherwise.
 
-**What the first review found in the reader.** These are also closed here:
-- **Locale.** The reader trimmed `[[:space:]]`, which matches U+00A0, U+2003
-  and a lone `\240` under a UTF-8 locale and none of them under C. A revoke
-  run under C (this desktop app's shell) said `revoked: tidy` over a
-  `tidy<NBSP>` line. A UTF-8 session-start still honoured it, and the reviewer
-  reproduced `felix_tidy_safe` deleting a file because of it.
-- **bash 5.2 read.** In a UTF-8 locale, bash 5.2's `read` swallows the newline
-  after a stray lead byte (bash-5.2 `read.def`, read from source; CI's bash).
-- **NUL.** A NUL byte ends a line on bash 3.2 and is skipped on bash 5.2, so
-  `tidy\0x` was a grant to one and not the other. A bash 3.2 revoke could
-  rewrite it into a grant for 5.2.
-- **Unchecked `--revoke` value.** `--revoke` took any string. `Commission`
-  printed `revoked:` and, on case-insensitive APFS, deleted the real
-  commission stamp under a grant that stayed. A second `--revoke` silently
-  replaced the first.
-- **Temp file.** The temp name was predictable, and `>` follows a planted link.
+**What the reviews found in the reader and around it.** These are also closed
+here:
+- **Locale.** The reader trimmed `[[:space:]]`, whose meaning depends on the
+  locale and the C library. macOS's UTF-8 locales take U+00A0, U+2003 and a
+  lone `\240`; glibc's take U+2003 but not U+00A0; C takes none of them. A
+  revoke run under C said `revoked: tidy` over a `tidy<NBSP>` line that a
+  UTF-8 session-start still honoured. The reviewer reproduced
+  `felix_tidy_safe` deleting a file because of it.
+- **bash 5.2's read.** In a UTF-8 locale it swallows the newline after a
+  stray UTF-8 lead byte (read from source: bash-5.2 builtins/read.def).
+- **NUL bytes.** bash 3.2 cuts a line's value at a NUL, while 5.2 skips the
+  byte.
+- **Engines already deployed.** Plugin caches up to 0.49.273, and every
+  session started before a deploy, keep the old reader. A revoke that matched
+  only the new reader still left them a grant.
+- **The revoke argument.** `--revoke` took any string. `Commission` printed
+  `revoked:` and, on case-insensitive APFS, deleted the real stamp under a
+  grant that stayed. A second `--revoke`, or a stray word, was dropped
+  without a word.
+- **The rewrite itself.** The temp file had a predictable name, opened through
+  a following `>`. A write cut short could leak file text to stdout on bash
+  3.2. Every revoke rewrote the file (mode 0600, links replaced, a read-only
+  directory refused a no-op). And splitting the text in shell made the reader
+  quadratic on the session-start path: 80 KB cost 2.4 s of CPU, against about
+  0.01 s on main.
+- **Revision 3's own rewrite** (review 3). Its line loop read a here-string,
+  which bash 3.2 writes to a temp file in /tmp or /var/tmp. When that write
+  failed (a full disk, a sandbox, a file-size limit), the loop never ran and
+  the pass said "nothing to remove". Over `tidy<NBSP>`, a line only older
+  engines grant, the CLI printed `revoked: tidy` with the file untouched. Over
+  a plain grant it refused, falsely blaming "another writer". The kept text,
+  built up in one string, made revoke quadratic: 1 MB took 111 s of CPU.
+- **Shift-JIS** (review 3). Revision 3 trimmed whitespace and bytes from `\200`
+  up. The Shift-JIS ideographic space is `\201@`, so an older engine under
+  ja_JP.SJIS still tidied by `tidy\201@` after `revoked: tidy`.
 
 **Mechanism.**
-- **One reading of a grant, for every caller.** `felix_autonomy_allows` reads
-  the file inside a subshell with `LC_ALL=C`, in one read
-  (`IFS= read -r -d ''`). A NUL stops that read with status 0, and the file is
-  then refused whole: it grants nothing. Lines are the bytes between newlines.
-  `_felix_autonomy_grants` trims C-locale `[[:space:]]` (ASCII space, tab, CR,
-  VT, FF). A grant typed with a non-ASCII space no longer acts in UTF-8
-  sessions. That fails closed: the status page shows `[ ]`.
-- **Revoke goes through the same read and the same filter**
-  (`_felix_autonomy_filter`). It drops every line the reader counts as the
-  grant and keeps every other byte, an unended last line staying unended. It
-  checks the read's byte count against `wc -c`, writes into a `mktemp` file
-  with one printf in a subshell whose output is discarded (bash 3.2 can leak a
-  failed write's buffer), then mv's it and reads it back through the reader.
-- **Revoke's return codes.** 0 means no line grants the capability now. 1 means
-  the file could not be read whole or the rewrite failed. 2 means the file
-  holds a NUL. 3 means the file was rewritten but the reader still finds the
-  grant.
-- **cmd_autonomy.** It takes one `--allow` and one `--revoke`, validates both
-  against `tidy|commission` before writing anything, and on any non-zero code
-  dies with a message of its own, before deleting the stamp and before saying
-  `revoked:`.
+- **The reader.** `felix_autonomy_allows` runs in an `LC_ALL=C` subshell. It
+  reads the whole file once (`IFS= read -r -d ''`), and a NUL stops that read,
+  refusing the file whole: it grants nothing. Then a line loop answers on the
+  first grant. `_felix_autonomy_grants` skips empty and `#` lines and trims C
+  `[[:space:]]` (ASCII space, tab, CR, VT, FF). A 424 KB file costs about
+  0.5 s of CPU.
+  - Against the old reader this narrows the trim everywhere, so a grant typed
+    with a non-ASCII space shows `[ ]`.
+  - It widens one case: on bash 5.2 in a UTF-8 locale, a line after a stray
+    lead byte is read as its own line.
+- **Revoke is wider than every reader.** `_felix_autonomy_names` matches a
+  line that holds the capability once, where nothing else in the line is an
+  ASCII letter or `#`. No whitespace character, in any encoding a macOS or
+  glibc locale runs in, holds either byte:
+  - UTF-8's and the EUC encodings' are bytes from `\200` up.
+  - Shift-JIS's ideographic space is `\201@` and Big5's is `\241@`.
+  - GB18030's four-byte spaces hold digits.
+  Every Python codec was checked; only EBCDIC and ISO-2022, which no locale
+  runs in, put a letter in one. So no older engine, in any locale, finds the
+  grant afterwards. A 4,000-line fuzz across 14 macOS locales found no miss. A
+  line that only looks like the grant (`tidy.`, `- tidy`) goes too.
+- **Two passes**, each `_felix_autonomy_rewrite` in a C-locale subshell with
+  its output discarded. Each checks for a NUL, then reads the lines straight
+  from the file and counts the bytes they account for against `wc -c`. A loop
+  that never ran, or a read cut short, is a refusal, never "nothing to
+  remove".
+  - The first pass writes nothing, not even a temp file. It stops at the first
+    named line. With nothing to remove, the file is not touched and no
+    writable directory is needed.
+  - Otherwise revoke takes a `mktemp` name and runs a second pass. That pass
+    streams every kept line to the temp file with the newline it had, so an
+    unended last line stays unended. A failed write is a refusal. Revoke is
+    linear: 512 KB costs about 1.5 s of CPU and 1 MB about 2.9 s.
+  - The file's mode is copied (`stat -L -c %a`, falling back to
+    `stat -L -f %Lp`), then the mv. The result is read back through the
+    reader.
+  - A linked file is replaced by a regular one, and the link's target keeps
+    what it had.
+- **cmd_autonomy.**
+  - It takes one `--allow` and one `--revoke`, refuses any other argument,
+    and validates both capabilities against `tidy|commission` before
+    anything is written.
+  - Each failure code from revoke dies with its own message before the stamp
+    and the word. The message mentions the stamp only when one exists.
 
-**Decided: trailing whitespace.** Revoke removes exactly the lines the reader
-counts as the grant, so trailing and leading ASCII whitespace and CRs are
-included. Matching exactly instead would leave a revoke that cannot take back a
-grant the reader honours. This is recorded in a dated comment above
-`felix_autonomy_revoke`.
+**Decided.**
+- **Trailing and leading whitespace.** Revoke removes every line any reader
+  could count as the grant, and keeps every other byte. Matching exactly
+  would leave a revoke that cannot take back a grant a reader honours.
+- **Narrowing the reader** to ASCII whitespace fails closed, and the status
+  page shows it.
 
-**Built as contract, blind assertions, fix, review, twice.**
-- **Round 1.** An Opus agent wrote 40 assertions ("revoke is the inverse of the
-  reader") from the contract alone. On the section runner (preamble lines
-  1-154, REAL_HARNESS = `git archive origin/main engine/harness`), 18 fail
-  against main 27573cbe and all 40 pass on the first fix. The author's
-  contract questions caught the first refusal message, which contained
-  `revoked:`.
-- **Review 1.** It had two Opus reviewers: a fail-open hunt and a mutation
-  test. It found the locale, NUL, argument and temp-name defects above. The
-  mutation test showed that no fixture failed after the temp file existed, so
-  a write failing partway through would have moved a truncated file into
-  place and said `revoked:`.
-- **Round 2.** A second blind author wrote 52 assertions ("revoke and the
-  reader agree in every locale, and refuse what they cannot read") from the
-  added contract. Of the 92 assertions in both blocks, 52 fail on main, 27 fail
-  on the first fix, and all 92 pass on revision 2.
+**Built as contract, blind assertions, fix, review, three times.**
+- **Round 1.** 40 blind assertions ("revoke is the inverse of the reader"): 18
+  fail on main 27573cbe, and all pass on the first fix.
+- **Review 1.** It found the locale, NUL, argument and temp-name defects. Its
+  mutation test showed that nothing exercised a write failing after the temp
+  file existed.
+- **Round 2.** 52 blind assertions ("revoke and the reader agree in every
+  locale, and refuse what they cannot read").
+- **Review 2** (on 85ab3f7a, main 6fe5f986 merged in):
+  - Revision 2 held in its own engine: 6,400 fuzzed reader files and 3,000
+    revokes matched a reference under C and UTF-8.
+  - It found the older-engine window, a false NUL message, the quadratic
+    reader, the rewrite on a no-op, and ten surviving mutants (the worst: the
+    CLI treating the read-back's code 3 as success, and a reader without
+    `-r`).
+- **Round 3.** 43 blind assertions ("revoke reaches every reader, and leaves
+  alone what it does not change"), with fixes to the earlier blocks' fixtures
+  and comments.
+- **Totals after round 3.** Across the 136 assertions in the three blocks, 75
+  fail on main 6fe5f986, 20 fail on revision 2, and all 136 pass on revision
+  3 (4f42ec68).
+  The round-3 block caught one bug in revision 3 before it was committed: the
+  newline of a kept line was dropped when the unended last line was the one
+  removed.
+- **Review 3** (on 4f42ec68):
+  - It found the here-string fail-open (a blocker), the Shift-JIS miss, the
+    quadratic revoke, and the revoke-then-allow glue.
+  - It also found three nits: a temp file left by Ctrl-C, BSD stat dropping
+    setuid, and mutation gaps (a mode copy without `-L`, an unended grant
+    read, an unreadable file blamed on a NUL, a refused rename).
+- **Round 4.** 37 blind assertions ("revoke reads every line it judges, and
+  names a grant the way every encoding writes it"). It runs under a sandbox
+  that denies writes outside the Felix home, and under a file-size limit.
+  22 fail on revision 3. All 173 assertions in the four blocks pass on
+  revision 4 (7495a319).
+- **Round 5.** 11 blind assertions for revoke then `--allow` on an unended
+  last line (247a7afa).
+  - On revision 4, 4 fail: the glued bytes and the lost grants.
+  - With .274's `felix_end_line` and `felix_line_ended` patched into a scratch
+    copy of revision 4, all 184 pass.
+  - On main, the 2 that pin the unended line between the steps fail, because
+    main's revoke always wrote a final newline. The final bytes and the
+    grants pass there.
+- **Review 4:** running on 7495a319 (workflow wf_06c02951-51a).
 - **What could not be shown locally.** The stray-lead-byte case passes on
   bash 3.2 for every engine. Only CI's bash 5.2 can show it red against main.
+- **The section runner.** It is preamble lines 1 to 224 (the line before the
+  first `resolution` header, since #324), then the three blocks, with
+  REAL_HARNESS set to a `git archive` export.
 
-REVIEW 2: started 2026-10-02 as workflow run wf_c798d231-9c9 (fail-open attack and mutation test on daedd559). It was cut off by the usage limit before reporting. Resume it with Workflow resumeFromRunId wf_c798d231-9c9 (completed agents replay from cache), or re-run it, before the slot.
+**Handed on, not done here:**
+- **Revoke then `--allow` on an unended last line.** Revoke keeps the line
+  unended, and `--allow` appended onto it, writing `commissiontidy`. .274's
+  `felix_end_line` ends the line first, and claude/autonomy-allow-fails-closed
+  does too. So this branch lands after .274, never before. Block 5 pins the
+  sequence.
+- **A temp file left by Ctrl-C** during the second pass. The writer lock's
+  EXIT trap removes it.
+- **Known and left:** the reader costs about 3x main's on a large file
+  (bash 3.2's `read -d ''` takes a byte per call), and its trim is quadratic
+  in a long run of whitespace, as on main. Grant files are a few lines.
+- **The writer lock.** Two `felix autonomy` runs at once can interleave, and
+  the later mv puts back what the other removed. This predates the fix. It is
+  claude/autonomy-writer-lock, stacked on this branch.
+- **`--allow` claiming a grant it did not make.** Appending onto an unended
+  last line writes `tidycommission` and still prints `allowed:`.
+  claude/adopt-newline-before-append ends the line, and
+  claude/autonomy-allow-fails-closed adds the read-back.
 
-**Handed on, not done here** (each one is a session task):
-- **No lock on concurrent writers.** Two `felix autonomy` runs at once can
-  interleave, and the later mv puts back a grant the other run reported
-  revoked. This predates the fix (main's grep && mv had it too). Only a person
-  writes this file, and the comment above `felix_autonomy_revoke` says it is
-  not covered.
-- **`--allow` appending onto an unended last line.** It writes
-  `tidycommission`, which loses tidy, and still prints `allowed: commission`.
-  Same class as claude/adopt-newline-before-append.
-- **Kept file mode.** Revoke's rewrite is created by mktemp at mode 0600 and
-  replaces the file, so the mode changes. Main's rewrite took the umask's mode.
-  Git tracks only the executable bit.
-
-**Landing.** At the head of the weekly batch (carrier, 2026-10-02). No
-commission table, no escape and no projects/ table is touched. The version is
-assigned at the carrier's call, and the record and gate run only after it.
+**Landing.** The weekly batch's carrier (the adopt session, 2026-10-08) set
+the order: .274 adopt-newline, then .275 this branch (after .274, never
+before: see block 5), then the writer lock
+and --allow, then .276 and .277. The fold rule: one PR for all three autonomy
+branches at .275, carried from this branch, if the lock and --allow branches
+are reviewed and merged onto this head within about 3 hours of review 3
+finishing. Otherwise this branch lands alone. No commission table, no escape
+and no projects/ table is touched. The carrier deploys.

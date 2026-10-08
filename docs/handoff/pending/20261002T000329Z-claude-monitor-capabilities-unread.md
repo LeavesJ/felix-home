@@ -176,6 +176,17 @@ preamble grew to line 223. Against 6fe5f986, 138 assertions:
   is unknown, which is the hard dependency, measured.
 - this branch with c23ec7d1f's lib/detect.sh: 0 fail.
 
+On 2026-10-08 the landing sessions agreed an order without a carrier:
+1. adopt-newline-before-append, 0.49.274.
+2. autonomy-revoke, .275.
+3. cap-unread-callers, .276.
+4. declared-unread-readers, .277, at head 4ccc9e09.
+5. This branch, at .278 or later.
+
+Landing order decides it if anything moves. The readers session will message
+this one with its merge sha. A trial merge of this branch with 4ccc9e09
+(`git merge-tree`) is clean, and the block passes 138 of 138 on it.
+
 **After both prerequisites are on main**, whoever carries this branch:
 1. Merge origin/main in. Do not force-push. Expect conflicts only in
    tests/run, where both prerequisites add blocks. Keep every block.

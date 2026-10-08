@@ -57,21 +57,23 @@ felix_autonomy_commission_current() {   # proj -> 0 when the stamp matches
 # What a grant is, read the same way by every caller.
 #
 # 2026-10-02, from the adversarial review of the revoke fix: the reader trimmed
-# [[:space:]], and what that matches depends on the caller's locale. Under a
-# UTF-8 locale it takes U+00A0 (Option-Space), U+2003 and a lone \240 byte;
-# under C it takes none of them. So "tidy<NBSP>" was a grant to a UTF-8
-# session-start and not to a C one, and a revoke run under C said "revoked:
-# tidy" over a line the next UTF-8 session still tidied by. bash 5.2's read
-# also swallows the newline after a stray UTF-8 lead byte in a UTF-8 locale,
-# hiding the next line inside a comment. And a NUL byte ends a line on bash 3.2
-# but is skipped on 5.2, so "tidy\0x" was a grant to one and not the other.
+# [[:space:]], and what that matches depends on the caller's locale and its C
+# library. Under macOS's UTF-8 locales it takes U+00A0 (Option-Space), U+2003
+# and a lone \240 byte; glibc's take U+2003 but not U+00A0; C takes none. So a
+# line was a grant to one session-start and not to another, and a revoke run
+# under C said "revoked: tidy" over a line the next UTF-8 session still tidied
+# by. bash 5.2's read also swallows the newline after a stray UTF-8 lead byte
+# in a UTF-8 locale, hiding the next line inside a comment. And bash 3.2 cuts
+# a line's value at a NUL byte while 5.2 skips the byte, so "tidy\0x" was a
+# grant to one and not the other.
 #
-# So the file is read in the C locale, in one read, and a file holding a NUL
-# grants nothing: lines are bytes split on newline, and only ASCII whitespace
-# (space, tab, CR, VT, FF) is trimmed. The locale is set inside a subshell so
-# it binds this read and nothing of the caller's. Narrowing the UTF-8 reading
-# fails closed: a grant typed with a non-ASCII space is shown [ ] and no
-# longer acts.
+# So the reader runs in the C locale, and a file holding a NUL grants nothing:
+# lines are bytes split on newline, and only ASCII whitespace (space, tab, CR,
+# VT, FF) is trimmed. The locale is set inside a subshell so it binds this
+# read and nothing of the caller's. Against the old reader this narrows the
+# trim everywhere (a grant typed with a non-ASCII space is shown [ ] by this
+# engine) and widens one case: on bash 5.2 in a UTF-8 locale, a line after a
+# stray lead byte is read as its own line and can grant.
 
 # The file's whole text into _felix_autonomy_text, in one read. Call it in the
 # C locale. 0 read whole, 1 could not be read, 2 holds a NUL byte.
@@ -98,41 +100,79 @@ _felix_autonomy_grants() {   # line want -> 0 when the line grants want
   [ "$line" = "$2" ]
 }
 
-# Every line of _felix_autonomy_text that does not grant want, byte for byte
-# and in order, into _felix_autonomy_kept; an unended last line stays unended.
-# 0 when some line granted want. The reader and revoke both go through this.
-_felix_autonomy_filter() {   # want -> 0 when a line grants want
-  local rest="$_felix_autonomy_text" line hit=1 nl='
+# Could any reader, of this engine or an older one, in any locale, take this
+# line as granting this capability? Revoke removes these, which is wider than
+# what this engine's reader grants. 2026-10-08, from the second review: the
+# engines already deployed (plugin caches up to 0.49.273, and every session
+# started before a deploy) keep the locale-bound reader, so a revoke that
+# matched only this engine's reader said "revoked: tidy" over a tidy<NBSP>
+# line their session-start still tidied by. Every non-ASCII whitespace
+# character is made of bytes from \200 up in UTF-8, and is one such byte in a
+# single-byte locale, so trimming all of them from both ends covers every
+# reader. A line that only looks like the grant goes too; it granted nothing
+# here. Call it in the C locale, so the byte range is bytes.
+_felix_autonomy_names() {   # line want -> 0 when some reader might take the line as want
+  local line="$1" hi=$'\200-\377'
+  case "$line" in ''|'#'*) return 1 ;; esac
+  line="${line%"${line##*[![:space:]$hi]}"}"
+  line="${line#"${line%%[![:space:]$hi]*}"}"
+  [ "$line" = "$2" ]
+}
+
+# One pass of revoke, in the C locale. Reads the file once, checks the read
+# was whole, and drops every line _felix_autonomy_names matches.
+#   with tmp: writes what is kept to tmp; 0 written, 4 nothing to remove
+#   tmp "":   writes nothing; 5 something to remove, 4 nothing to remove
+#   1 the file could not be read whole, or tmp could not be written
+#   2 the file holds a NUL byte
+_felix_autonomy_rewrite() {   # file want tmp
+  local f="$1" want="$2" tmp="$3" rc line kept="" hit=1 ended=1 last=0 body nl='
 '
-  _felix_autonomy_kept=""
-  while [ -n "$rest" ]; do
-    case "$rest" in
-      *"$nl"*) line="${rest%%"$nl"*}"; rest="${rest#*"$nl"}"
-               if _felix_autonomy_grants "$line" "$1"; then hit=0
-               else _felix_autonomy_kept="$_felix_autonomy_kept$line$nl"; fi ;;
-      *)       line="$rest"; rest=""
-               if _felix_autonomy_grants "$line" "$1"; then hit=0
-               else _felix_autonomy_kept="$_felix_autonomy_kept$line"; fi ;;
-    esac
-  done
-  return "$hit"
+  _felix_autonomy_read "$f"; rc=$?
+  [ "$rc" = 0 ] || return "$rc"
+  # A read cut short mid-file also ends like the end of the file. The byte
+  # count is the check: in the C locale ${#…} counts bytes.
+  [ "$(( $(wc -c < "$f") ))" -eq "${#_felix_autonomy_text}" ] || return 1
+  body="$_felix_autonomy_text"
+  case "$body" in *"$nl") body="${body%"$nl"}" ;; *) ended=0 ;; esac
+  # One line at a time, from the one read: the here-string hands back the
+  # same bytes plus a final newline. When the file's last line was unended
+  # and is kept, that newline is not the file's, and comes off again.
+  while IFS= read -r line; do
+    if _felix_autonomy_names "$line" "$want"; then hit=0 last=0
+    else kept="$kept$line$nl" last=1; fi
+  done <<< "$body"
+  [ "$hit" = 0 ] || return 4
+  [ -n "$tmp" ] || return 5
+  [ "$ended$last" != 01 ] || kept="${kept%"$nl"}"
+  printf '%s' "$kept" > "$tmp" || return 1
 }
 
 felix_autonomy_allows() {
-  local proj="$1" want="$2"
+  local proj="$1" want="$2" line
   [ -n "$want" ] || return 1
   [ -f "$proj/autonomy" ] || return 1
+  # The NUL check reads the whole file once, then the lines are read again and
+  # the first grant answers. One line at a time, because splitting the text in
+  # shell copies the rest of it per line, and that is quadratic on the hook
+  # path: a 100 KB file took a minute at this machine's load.
   ( LC_ALL=C
     _felix_autonomy_read "$proj/autonomy" || exit 1
-    _felix_autonomy_filter "$want" ) 2>/dev/null
+    while IFS= read -r line || [ -n "$line" ]; do
+      _felix_autonomy_grants "$line" "$want" && exit 0
+    done < "$proj/autonomy"
+    exit 1 ) 2>/dev/null
 }
 
-# Take a grant back: rewrite the file without every line the reader counts as
-# that grant, keeping every other byte. The caller says "revoked" only on 0.
-#   0  no line grants cap now (or there was no file to grant anything)
+# Take a grant back: rewrite the file without every line any reader could take
+# as that grant (_felix_autonomy_names), keeping every other byte, an unended
+# last line unended. The caller says "revoked" only on 0.
+#   0  no line any reader takes as cap is left (or there was none to begin
+#      with, and the file was not touched)
 #   1  the file could not be read whole, or the rewrite could not be written
-#   2  the file holds a NUL byte, so what it grants cannot be read
-#   3  rewritten, and a read of it still finds the grant
+#   2  the file holds a NUL byte: this engine reads nothing from it, an older
+#      one may, and the bytes cannot be rewritten as they are
+#   3  rewritten, and this engine's reader still finds the grant
 #
 # 2026-10-01: this was `grep -vxF cap autonomy > autonomy.new && mv` in
 # cmd_autonomy. grep exits 1 when it selects no line, so a file holding the
@@ -142,37 +182,46 @@ felix_autonomy_allows() {
 # exactly where the reader trims, so a hand-edited "commission " stayed granted
 # after a revoke that said otherwise.
 #
-# Decided: revoke removes exactly the lines the reader counts as the grant —
-# trailing and leading ASCII whitespace included, CRs too — and keeps every
-# other byte. Matching exactly instead would leave a revoke that cannot take
-# back a grant the reader honours.
+# Decided: revoke removes every line a reader could count as the grant —
+# leading and trailing whitespace of any kind, CRs too — and keeps every other
+# byte. Matching exactly instead would leave a revoke that cannot take back a
+# grant a reader honours.
+#
+# The rewrite keeps the file's mode, and a revoke with nothing to remove
+# writes nothing. A linked file is replaced by a regular one: the revoke is
+# this project's, and the link's target, with anything else that shares it,
+# keeps what it had.
 #
 # The caller holds felix_autonomy_lock across this and its read-back. Without
 # it, a second run's mv can put back what this one removed, after it said so.
 felix_autonomy_revoke() {
-  local proj="$1" want="$2" f tmp rc
+  local proj="$1" want="$2" f tmp="" rc mode
   [ -n "$want" ] || return 1
   f="$proj/autonomy"
   # The reader takes nothing from what is not a regular file.
   [ -f "$f" ] || return 0
-  # mktemp creates the name or fails; it never opens a link planted there.
-  tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
-  # Its own C locale, and its stdout thrown away: bash 3.2's printf can leave
-  # the unwritten tail of a failed write in its buffer, and that is file text.
-  ( LC_ALL=C
-    _felix_autonomy_read "$f"; rc=$?
-    [ "$rc" = 0 ] || exit "$rc"
-    # A read cut short mid-file also ends like the end of the file. The byte
-    # count is the check: in the C locale ${#…} counts bytes.
-    [ "$(( $(wc -c < "$f") ))" -eq "${#_felix_autonomy_text}" ] || exit 1
-    _felix_autonomy_filter "$want"
-    printf '%s' "$_felix_autonomy_kept" > "$tmp" || exit 1
-  ) > /dev/null 2>&1; rc=$?
-  if [ "$rc" != 0 ] || ! mv -f "$tmp" "$f" 2>/dev/null; then
-    rm -f "$tmp" 2>/dev/null
-    [ "$rc" = 2 ] && return 2
-    return 1
+  # Each pass runs in its own C locale with its output thrown away: bash 3.2's
+  # printf can leave the unwritten tail of a failed write in its buffer, and
+  # that is file text. The first pass writes nothing, so a revoke with nothing
+  # to remove needs no writable directory and leaves the file as it was.
+  ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "" ) > /dev/null 2>&1; rc=$?
+  if [ "$rc" = 5 ]; then
+    # mktemp creates the name or fails; it never opens a link planted there.
+    tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
+    ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "$tmp" ) > /dev/null 2>&1; rc=$?
   fi
+  if [ "$rc" = 0 ]; then
+    # mktemp made it 0600; give it the file's own mode, or keep 0600.
+    mode="$(stat -L -c %a "$f" 2>/dev/null || stat -L -f %Lp "$f" 2>/dev/null)"
+    [ -z "$mode" ] || chmod "$mode" "$tmp" 2>/dev/null
+    mv -f "$tmp" "$f" 2>/dev/null || rc=1
+  fi
+  rm -f "$tmp" 2>/dev/null
+  case "$rc" in
+    0|4) ;;
+    2) return 2 ;;
+    *) return 1 ;;
+  esac
   # Read back through the reader rather than trusting the rewrite.
   felix_autonomy_allows "$proj" "$want" && return 3
   return 0

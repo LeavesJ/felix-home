@@ -1801,14 +1801,16 @@ EOF
   gtree="$(printf '%s' "$was" | cut -f3)"
   # The pull request's own title and number, as GitHub would have written them.
   # Read, not required: gh answering nothing usable here leaves the merge below
-  # to answer for itself, and the subject falls back to the branch's newest
-  # commit that is not a merge.
+  # to answer for itself, and the subject falls back to the title felix pr
+  # would have given it, felix_pr_title's newest commit the branch made itself.
+  # It was the newest commit that is not a merge, which on a landed branch is
+  # usually the version slot, the record or the handoff section.
   view="$(gh pr view "$branch" --repo "$slug" --json number,title --jq '.number, .title' 2>/dev/null)" || view=""
   prn="${view%%"$nl"*}"; prt="${view#*"$nl"}"
   case "$prn" in ''|*[!0-9]*) prn="" ;; esac
   subject=""
   [ -n "$prn" ] && [ "$prt" != "$view" ] && [ -n "$prt" ] && subject="$prt (#$prn)"
-  [ -n "$subject" ] || subject="$(git -C "$root" log -1 --no-merges --format=%s "$base..HEAD" 2>/dev/null)"
+  [ -n "$subject" ] || subject="$(felix_pr_title "$root" "$base")"
   [ -n "$subject" ] || subject="$(git -C "$root" log -1 --format=%s HEAD 2>/dev/null)"
   [ -n "$subject" ] || subject="$branch"
   subject="$(printf '%s\n' "$subject" | _felix_merge_unskip | head -1)"

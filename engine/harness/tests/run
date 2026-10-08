@@ -29447,6 +29447,617 @@ is "rkt: no engine reader drops a project table's unended last row or opens it u
   "$_rkt_out" ""
 rm -rf "$_rkt"
 
+printf '\nnon-table project paths refuse what is not a regular file, and open no pipe\n'
+# Written blind on 2026-10-08 from a contract, before the fix was read.
+#
+# The tables under projects/<name>/ were made safe by an earlier branch. These
+# are the other paths there: ones the engine overwrites or copies onto, and
+# ones it opens or runs that are not tables. Anything can sit at such a path:
+# a FIFO with no writer, a symlink to one, a symlink whose target is gone, or a
+# directory. Each site must then leave the path alone, return at once, say on
+# stderr "<path> is <phrase>" in adopt's words, and not claim it did the thing:
+#   H   felix_not_regular in lib/resolve.sh prints the phrase and returns 0, or
+#       prints nothing and returns 1 for a regular file, a link to one, or
+#       nothing at all, and never opens the path.
+#   S1  felix obligations --seed onto obligations.tsv (exit 1).
+#   S2  felix autonomy --allow commission onto autonomy.commission (exit 1),
+#       writing no grant either; and a stamp that cannot be written is a
+#       failure, not `stamped`.
+#   S3  felix gate with the declared gate.sh not a regular file (exit 1):
+#       nothing run, no mistakes.log row, no receipt moved. A command gate, and
+#       a gate.sh with nothing at its path, still run as commands.
+#   S4  rival-gate detection, through felix doctor, felix doctor --fix and
+#       felix_tidy_safe: a declared gate that is not a file is named as what it
+#       is and never compared; a rival in the checkout that is not a file is not
+#       a rival. The regular notes are unchanged.
+#   S5  felix adopt observability onto setup/sentry.md (exit 3): the
+#       capability and its stack row recorded, the setup row refused whole, so
+#       that clearing the obstacle and adopting again writes both.
+#   S6  felix new onto a dangling symlink at projects/<name> (exit 1), with no
+#       marker written.
+# Each refusal is checked for its exit status, its stderr, the success words
+# absent from stdout, the path left as it was, and nothing else written. Each
+# site has controls where the contract says nothing changes, so a site that
+# refuses everything fails them, and so does one that never runs.
+#
+# Every call that could block is bounded at 8 s, stretched to 90 s only while
+# its processes are visibly working (see _pw_run). On a timeout only the
+# subshell this block started and the processes descended from it, found by
+# parent pid with ps and never by pattern, are stopped and then killed, and
+# each FIFO involved is opened read-write once so nothing is left waiting on
+# it. A blocked call fails every assertion made about it, as "blocked".
+#
+# Projects live under projects/pw-*, checkouts and scratch under $TMP/pw, and
+# memory under $FELIX_MEMORY/pw-*. All of them are removed at the end, with any
+# state/ path that appeared during the block. Felix calls run with HOME at a
+# sandbox and a stub claude and gh first on PATH, set inside each call only.
+# The widget project and REPO are not touched. No background job outlives it.
+_pw="$TMP/pw"
+rm -rf "$_pw"
+mkdir -p "$_pw/out" "$_pw/fifos" "$_pw/gone" "$_pw/bin" "$_pw/home" "$_pw/tmp"
+_pw_PR="$FROOT/projects"
+_pw_H="$FROOT/harness"
+_pw_jobs_was=" $(jobs -p | tr '\n' ' ') "
+_pw_state_was="$(cd "$FROOT" 2>/dev/null && find state 2>/dev/null | LC_ALL=C sort)"
+_pw_n=0
+for _pw_t in claude gh; do
+  printf '#!/bin/sh\nprintf "%%s %%s\\n" "%s" "$*" >> "%s/stub.log"\nexit 1\n' "$_pw_t" "$_pw" > "$_pw/bin/$_pw_t"
+  chmod +x "$_pw/bin/$_pw_t"
+done
+_pw_env='HOME="$_pw/home"; PATH="$_pw/bin:$PATH"; TMPDIR="$_pw/tmp"; export HOME PATH TMPDIR; '
+
+# Every lib a function call below may need, in the CLI's order where it matters.
+_pw_libs() {
+  local _pw_l
+  for _pw_l in resolve detect stack admit verify route toolbox ledger deny monitor ready discover \
+               maintenance recommend autonomy commission commission-provider adopt; do
+    . "$_pw_H/lib/$_pw_l.sh"
+  done
+}
+_pw_git() { HOME="$_pw/home" git -c user.name=pw -c user.email=pw@example.invalid -c commit.gpgsign=false "$@"; }
+_pw_proj() {   # name -> projects/name declaring gate.sh, with a regular executable gate.sh
+  rm -rf "${_pw_PR:?}/$1"; mkdir -p "$_pw_PR/$1"
+  printf '{\n  "name": "%s",\n  "remote_match": "example.invalid/%s",\n  "gate": "gate.sh"\n}\n' "$1" "$1" \
+    > "$_pw_PR/$1/project.json"
+  printf '# %s\n' "$1" > "$_pw_PR/$1/CLAUDE.md"
+  printf '#!/bin/sh\necho pw-gate-ran\n' > "$_pw_PR/$1/gate.sh"; chmod 755 "$_pw_PR/$1/gate.sh"
+}
+_pw_checkout() {   # dir, project for its .felix marker or - -> a committed checkout; its real path in _pw_co
+  mkdir -p "$1"
+  ( cd "$1" && _pw_git init -q -b main && printf 'pw checkout\n' > README.pw && _pw_git add README.pw \
+      && _pw_git commit -qm pw ) >/dev/null 2>&1
+  [ "$2" = - ] || printf '%s\n' "$2" > "$1/.felix"
+  _pw_co="$(cd "$1" && pwd -P)"
+}
+
+# ------------------------------------------------------------ bounded run ----
+_pw_kids() {   # pid -> every descendant pid, by parent pid
+  local all frontier="$1" next p out=""
+  all="$(ps -A -o pid= -o ppid= 2>/dev/null)"
+  while [ -n "$frontier" ]; do
+    next=""
+    for p in $frontier; do
+      next="$next $(printf '%s\n' "$all" | awk -v p="$p" '$2 == p { print $1 }' | tr '\n' ' ')"
+    done
+    next="$(printf '%s' "$next" | tr -s ' ')"; next="${next# }"; next="${next% }"
+    out="$out $next"; frontier="$next"
+  done
+  printf '%s' "$out"
+}
+_pw_sig() {   # pid -> pid:cputime of it and every descendant, sorted
+  local ks
+  ks="$(printf '%s %s' "$1" "$(_pw_kids "$1")" | tr -s ' ' ',' | sed 's/^,//; s/,$//')"
+  ps -o pid= -o time= -p "$ks" 2>/dev/null | awk '{ print $1 ":" $2 }' | LC_ALL=C sort | tr '\n' ' '
+}
+# The deadline is 8 s. Past it, a tree whose processes or CPU times still move
+# is slow, not blocked: load on this machine has been measured in the
+# hundreds, and a full felix gate can take longer than 8 s of wall time there.
+# It is given up to 90 s while it moves. A tree that has not moved for 2 s is
+# waiting on something, which is what a pipe with no writer does, and is
+# killed: STOP, then KILL, every pid found by parent pid from the subshell.
+_pw_run() {   # fifos to release or -, code -> _pw_rc (124 when blocked), _pw_out, _pw_err
+  local fifos="$1" pid n=0 k ks s1 s2
+  rm -f "$_pw/out/o" "$_pw/out/e"
+  ( eval "$2" ) > "$_pw/out/o" 2> "$_pw/out/e" &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null && [ "$n" -lt 80 ]; do sleep 0.1; n=$((n + 1)); done
+  if kill -0 "$pid" 2>/dev/null; then
+    s1="$(_pw_sig "$pid")"
+    while kill -0 "$pid" 2>/dev/null && [ "$n" -lt 900 ]; do
+      sleep 2; n=$((n + 20))
+      kill -0 "$pid" 2>/dev/null || break
+      s2="$(_pw_sig "$pid")"
+      [ "$s2" = "$s1" ] && break
+      s1="$s2"
+    done
+  fi
+  if kill -0 "$pid" 2>/dev/null; then
+    if [ "$n" -ge 900 ]; then _pw_why="still running at 90 s"
+    else _pw_why="still running after $((n / 10)) s, and idle for the last 2"; fi
+    ks="$(_pw_kids "$pid")"
+    kill -STOP "$pid" 2>/dev/null
+    for k in $ks; do kill -STOP "$k" 2>/dev/null; done
+    ks="$ks $(_pw_kids "$pid")"
+    for k in $ks; do kill -9 "$k" 2>/dev/null; done
+    kill -9 "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+    for k in $fifos; do [ "$k" != - ] && [ -p "$k" ] && ( exec 9<>"$k" ) 2>/dev/null; done
+    _pw_rc=124
+  else
+    wait "$pid"; _pw_rc=$?
+  fi
+  _pw_out="$(cat "$_pw/out/o" 2>/dev/null)"; _pw_err="$(cat "$_pw/out/e" 2>/dev/null)"
+}
+_pw_said() {
+  printf 'exit %s; stdout [%s]; stderr [%s]' "$_pw_rc" \
+    "$(printf '%s' "$_pw_out" | tr '\n\t' '  ' | cut -c1-400)" "$(printf '%s' "$_pw_err" | tr '\n\t' '  ' | cut -c1-400)"
+}
+# An assertion about the last bounded call. A call that blocked fails it.
+_pw_ok() {   # name, detail, command...
+  local n="$1" d="$2"; shift 2
+  if [ "$_pw_rc" = 124 ]; then bad "$n" "blocked: $_pw_why, with $_pw_what"
+  elif "$@"; then ok "$n"
+  else bad "$n" "$d"; fi
+}
+_pw_in()    { case "$1" in *"$2"*) return 0 ;; esac; return 1; }
+_pw_notin() { ! _pw_in "$1" "$2"; }
+# A line of stderr that is the CLI's own die, not a shell error naming the script.
+_pw_die()   { grep -q '^felix: ' <<<"$1"; }
+
+# ------------------------------------------------------------- obstacles ----
+_pw_put() {   # kind, path -> the obstacle at path; _pw_fifo the FIFO to release, _pw_tgt a link's target
+  rm -rf "$2"; _pw_fifo=-; _pw_tgt=""; _pw_n=$((_pw_n + 1))
+  case "$1" in
+    fifo)    mkfifo "$2"; _pw_fifo="$2" ;;
+    fifo755) mkfifo -m 0755 "$2"; _pw_fifo="$2" ;;
+    fifo644) mkfifo -m 0644 "$2"; _pw_fifo="$2" ;;
+    link)    _pw_tgt="$_pw/fifos/f$_pw_n"; mkfifo -m 0755 "$_pw_tgt"; ln -s "$_pw_tgt" "$2"; _pw_fifo="$_pw_tgt" ;;
+    gone)    _pw_tgt="$_pw/gone/g$_pw_n"; ln -s "$_pw_tgt" "$2" ;;
+    dir)     mkdir "$2" ;;
+  esac
+  _pw_what="$(_pw_desc "$1") at $2"
+}
+_pw_same() {   # kind, path -> 0 when the obstacle is as _pw_put left it
+  case "$1" in
+    fifo*) [ -p "$2" ] && [ ! -L "$2" ] ;;
+    link)  [ -L "$2" ] && [ "$(readlink "$2")" = "$_pw_tgt" ] && [ -p "$_pw_tgt" ] ;;
+    gone)  [ -L "$2" ] && [ "$(readlink "$2")" = "$_pw_tgt" ] && [ ! -e "$_pw_tgt" ] && [ ! -L "$_pw_tgt" ] ;;
+    dir)   [ -d "$2" ] && [ ! -L "$2" ] && [ -z "$(ls -A "$2" 2>/dev/null)" ] ;;
+  esac
+}
+_pw_seen() {   # what is at a path, for a detail line
+  if [ -L "$1" ]; then printf 'link -> %s (target: %s)' "$(readlink "$1")" "$(ls -ld "$(readlink "$1")" 2>&1 | cut -c1-60)"
+  else printf '%s' "$(ls -ld "$1" 2>&1 | cut -c1-80)"; [ -d "$1" ] && printf ' holding [%s]' "$(ls -A "$1" | tr '\n' ' ')"; fi
+}
+_pw_phrase() {
+  case "$1" in
+    fifo*|link) printf 'a pipe' ;;
+    gone)       printf 'a link whose target is gone or cannot be reached' ;;
+    dir)        printf 'a directory' ;;
+  esac
+}
+_pw_desc() {
+  case "$1" in
+    fifo)    printf 'a FIFO' ;;
+    fifo755) printf 'a mode-755 FIFO' ;;
+    fifo644) printf 'a mode-644 FIFO' ;;
+    link)    printf 'a symlink to a FIFO' ;;
+    gone)    printf 'a dangling symlink' ;;
+    dir)     printf 'an empty directory' ;;
+  esac
+}
+_pw_bytes() { if [ -e "$1" ] || [ -L "$1" ]; then cksum < "$1" 2>&1; else printf 'ABSENT'; fi; }
+
+# ===================================================== H: the shared helper ===
+# Each answer is "stdout|status", so a trailing newline would show before the |.
+mkdir -p "$_pw/h"
+printf 'pw regular\n' > "$_pw/h/reg"; ln -s "$_pw/h/reg" "$_pw/h/reg-link"
+mkdir "$_pw/h/dir"; ln -s "$_pw/h/dir" "$_pw/h/dir-link"
+_pw_hq() {   # name, path, kind for _pw_put or -, expected answer
+  [ "$3" = - ] || _pw_put "$3" "$2"
+  [ "$3" = - ] && { _pw_fifo=-; _pw_what="$2"; }
+  _pw_hp="$2"
+  _pw_run "$_pw_fifo" '. "$_pw_H/lib/resolve.sh" && { felix_not_regular "$_pw_hp"; printf "|%s" "$?"; }'
+  if [ "$_pw_rc" = 124 ]; then bad "$1" "blocked: $_pw_why, with $_pw_what"
+  else is "$1" "$_pw_out" "$4"; fi
+}
+_pw_hq "pw: felix_not_regular on a FIFO prints a pipe, no newline, and returns 0 at once" \
+  "$_pw/h/fifo" fifo 'a pipe|0'
+_pw_hq "pw: felix_not_regular on a symlink to a FIFO prints a pipe and returns 0" \
+  "$_pw/h/link" link 'a pipe|0'
+_pw_hq "pw: felix_not_regular on a dangling symlink names the gone target and returns 0" \
+  "$_pw/h/gone" gone 'a link whose target is gone or cannot be reached|0'
+_pw_hq "pw: felix_not_regular on a directory prints a directory and returns 0" \
+  "$_pw/h/dir" - 'a directory|0'
+_pw_hq "pw: felix_not_regular on a symlink to a directory prints a directory and returns 0" \
+  "$_pw/h/dir-link" - 'a directory|0'
+_pw_hq "pw: felix_not_regular on a character device prints not a regular file and returns 0" \
+  /dev/null - 'not a regular file|0'
+_pw_hq "pw: felix_not_regular on a regular file prints nothing and returns 1" \
+  "$_pw/h/reg" - '|1'
+_pw_hq "pw: felix_not_regular on a symlink to a regular file prints nothing and returns 1" \
+  "$_pw/h/reg-link" - '|1'
+_pw_hq "pw: felix_not_regular on nothing at the path prints nothing and returns 1" \
+  "$_pw/h/absent" - '|1'
+
+# ========================================== S1: felix obligations --seed ====
+_pw_proj pw-seed; _pw_checkout "$_pw/co-seed" pw-seed; _pw_cs="$_pw_co"
+_pw_ob="$_pw_PR/pw-seed/obligations.tsv"
+_pw_seed='cd "$_pw_cs" && "$FELIX" obligations --seed'
+_pw_what="nothing at $_pw_ob"
+rm -f "$_pw_ob"; _pw_run - "$_pw_env$_pw_seed"
+_pw_ok "pw: S1 seed with nothing at obligations.tsv writes the template byte for byte and says seeded (control)" \
+  "$(_pw_said); file $(_pw_seen "$_pw_ob")" \
+  eval '[ "$_pw_rc" = 0 ] && _pw_in "$_pw_out" seeded && [ -f "$_pw_ob" ] && [ ! -L "$_pw_ob" ] && cmp -s "$_pw_ob" "$_pw_H/templates/obligations.tsv"'
+printf 'pw-own\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\ta row a person wrote\n' > "$_pw_ob"
+cp "$_pw_ob" "$_pw/ob.keep"; _pw_what="a regular file at $_pw_ob"
+_pw_run - "$_pw_env$_pw_seed"
+_pw_ok "pw: S1 seed with a regular obligations.tsv says it already exists and leaves it, exit 0 (control)" \
+  "$(_pw_said)" \
+  eval '[ "$_pw_rc" = 0 ] && _pw_in "$_pw_out" "already exists" && _pw_notin "$_pw_out" seeded && cmp -s "$_pw_ob" "$_pw/ob.keep"'
+rm -f "$_pw_ob"; cp "$_pw/ob.keep" "$_pw/ob.real"; ln -s "$_pw/ob.real" "$_pw_ob"
+_pw_what="a symlink to a regular file at $_pw_ob"
+_pw_run - "$_pw_env$_pw_seed"
+_pw_ok "pw: S1 seed with obligations.tsv a symlink to a regular file says it already exists, exit 0 (control)" \
+  "$(_pw_said); $(_pw_seen "$_pw_ob")" \
+  eval '[ "$_pw_rc" = 0 ] && _pw_in "$_pw_out" "already exists" && [ -L "$_pw_ob" ] && cmp -s "$_pw/ob.real" "$_pw/ob.keep"'
+for _pw_k in fifo link gone dir; do
+  _pw_put "$_pw_k" "$_pw_ob"; _pw_d="$(_pw_desc "$_pw_k")"; _pw_p="$(_pw_phrase "$_pw_k")"
+  _pw_run "$_pw_fifo" "$_pw_env$_pw_seed"
+  _pw_ok "pw: S1 seed with $_pw_d at obligations.tsv returns promptly and exits 1" "$(_pw_said)" \
+    test "$_pw_rc" = 1
+  _pw_ok "pw: S1 seed with $_pw_d at obligations.tsv says on stderr the path is $_pw_p" "$(_pw_said)" \
+    eval '_pw_die "$_pw_err" && _pw_in "$_pw_err" "$_pw_ob is $_pw_p"'
+  _pw_ok "pw: S1 seed with $_pw_d at obligations.tsv does not say seeded" "$(_pw_said)" \
+    _pw_notin "$_pw_out" seeded
+  _pw_ok "pw: S1 seed with $_pw_d at obligations.tsv leaves it exactly as it was" "$(_pw_seen "$_pw_ob")" \
+    _pw_same "$_pw_k" "$_pw_ob"
+  rm -rf "$_pw_ob"
+done
+
+# ================================== S2: felix autonomy --allow commission ====
+_pw_proj pw-auto; _pw_checkout "$_pw/co-auto" pw-auto; _pw_ca="$_pw_co"
+_pw_A="$_pw_PR/pw-auto/autonomy"; _pw_st="$_pw_PR/pw-auto/autonomy.commission"
+_pw_allow='cd "$_pw_ca" && "$FELIX" autonomy --allow commission'
+_pw_pv() { ( cd "$_pw" && _pw_libs && felix_commission_policy_version "$_pw_PR/pw-auto" ) 2>/dev/null; }
+_pw_cur() { ( cd "$_pw" && _pw_libs && felix_autonomy_commission_current "$_pw_PR/pw-auto" ) >/dev/null 2>&1; }
+_pw_aset() {   # absent|granted|tidy -> the autonomy file in that state
+  rm -f "$_pw_A"
+  case "$1" in
+    granted) printf '# What Felix may do here unattended.\ncommission\n' > "$_pw_A" ;;
+    tidy)    printf '# What Felix may do here unattended.\ntidy\n' > "$_pw_A" ;;
+  esac
+  _pw_awas="$(_pw_bytes "$_pw_A")"
+}
+_pw_aset absent; rm -rf "$_pw_st"; _pw_what="nothing at $_pw_st"
+_pw_run - "$_pw_env$_pw_allow"
+_pw_ok "pw: S2 allow commission with no autonomy and no stamp grants it and stamps the policy version (control)" \
+  "$(_pw_said); stamp [$(cat "$_pw_st" 2>/dev/null)] want [$(_pw_pv)]" \
+  eval '[ "$_pw_rc" = 0 ] && _pw_in "$_pw_out" "allowed: commission" && _pw_in "$_pw_out" "stamped against commissioning.tsv" &&
+        grep -qx commission "$_pw_A" && [ -f "$_pw_st" ] && [ "$(cat "$_pw_st")" = "$(_pw_pv)" ] && [ "$(wc -l < "$_pw_st" | tr -d " ")" = 1 ]'
+_pw_aset granted; printf 'pw-stale\n' > "$_pw_st"; _pw_what="a regular stale stamp at $_pw_st"
+_pw_run - "$_pw_env$_pw_allow"
+_pw_ok "pw: S2 allow commission over a regular stale stamp says already allowed and restamps it (control)" \
+  "$(_pw_said); stamp [$(cat "$_pw_st" 2>/dev/null)] want [$(_pw_pv)]" \
+  eval '[ "$_pw_rc" = 0 ] && _pw_in "$_pw_out" "already allowed: commission" && _pw_in "$_pw_out" "stamped against commissioning.tsv" &&
+        [ "$(cat "$_pw_st")" = "$(_pw_pv)" ]'
+rm -f "$_pw_st"
+for _pw_c in fifo:absent fifo:granted link:tidy gone:absent dir:granted; do
+  _pw_k="${_pw_c%%:*}"; _pw_s="${_pw_c#*:}"
+  _pw_aset "$_pw_s"; _pw_put "$_pw_k" "$_pw_st"; _pw_d="$(_pw_desc "$_pw_k")"; _pw_p="$(_pw_phrase "$_pw_k")"
+  case "$_pw_s" in absent) _pw_sd="no autonomy file" ;; granted) _pw_sd="commission already granted" ;;
+                   tidy) _pw_sd="only tidy granted" ;; esac
+  _pw_run "$_pw_fifo" "$_pw_env$_pw_allow"
+  _pw_ok "pw: S2 allow commission with $_pw_d at the stamp, $_pw_sd, returns promptly and exits 1" "$(_pw_said)" \
+    test "$_pw_rc" = 1
+  _pw_ok "pw: S2 allow commission with $_pw_d at the stamp, $_pw_sd, says on stderr the stamp is $_pw_p" "$(_pw_said)" \
+    eval '_pw_die "$_pw_err" && _pw_in "$_pw_err" "$_pw_st is $_pw_p"'
+  _pw_ok "pw: S2 allow commission with $_pw_d at the stamp, $_pw_sd, says neither allowed nor stamped" "$(_pw_said)" \
+    eval '_pw_notin "$_pw_out" "allowed: commission" && _pw_notin "$_pw_out" stamped'
+  _pw_ok "pw: S2 allow commission with $_pw_d at the stamp, $_pw_sd, writes nothing to autonomy" \
+    "autonomy was [$_pw_awas], is [$(_pw_bytes "$_pw_A")]: $(cat "$_pw_A" 2>/dev/null | tr '\n' '|')" \
+    eval '[ "$(_pw_bytes "$_pw_A")" = "$_pw_awas" ]'
+  _pw_ok "pw: S2 allow commission with $_pw_d at the stamp, $_pw_sd, leaves the stamp path as it was" \
+    "$(_pw_seen "$_pw_st")" _pw_same "$_pw_k" "$_pw_st"
+  rm -rf "$_pw_st"
+done
+# Not blind: changed by the implementer on 2026-10-08, after the blind pass.
+# The contract's example of a stamp write that fails was a 0444 stamp, written
+# before the stamp became a temporary file and a rename, which needs the
+# directory's write bit and not the file's. So a 0444 stamp is now replaced like
+# any other, and the failing write is a project directory the temporary file
+# cannot be made in. The three that say what is reported were shown red
+# against a mutant that drops the stamp write's `|| die`; the last two pin what
+# is on disk, and hold on every engine.
+if [ "$(id -u)" = 0 ]; then
+  skip "pw: S2 allow commission where the stamp cannot be written exits 1 without stamped" "root writes anywhere"
+else
+  _pw_aset absent; printf 'pw-stale\n' > "$_pw_st"; chmod 0444 "$_pw_st"; _pw_what="a 0444 stamp at $_pw_st"
+  _pw_run - "$_pw_env$_pw_allow"
+  _pw_ok "pw: S2 allow commission over a 0444 stamp replaces it like any other and stamps" \
+    "$(_pw_said); stamp [$(cat "$_pw_st" 2>/dev/null)] want [$(_pw_pv)]" \
+    eval '[ "$_pw_rc" = 0 ] && _pw_in "$_pw_out" "stamped against commissioning.tsv" && [ "$(cat "$_pw_st")" = "$(_pw_pv)" ] && _pw_cur'
+  chmod 0644 "$_pw_st" 2>/dev/null; rm -f "$_pw_st"
+  _pw_aset granted; printf 'pw-stale\n' > "$_pw_st"; chmod 0555 "$_pw_PR/pw-auto"
+  _pw_what="a stale stamp at $_pw_st in a mode-0555 project directory"
+  _pw_run - "$_pw_env$_pw_allow"
+  chmod 0755 "$_pw_PR/pw-auto"
+  _pw_ok "pw: S2 allow commission where the stamp cannot be written exits 1" "$(_pw_said)" test "$_pw_rc" = 1
+  _pw_ok "pw: S2 allow commission where the stamp cannot be written does not say stamped" "$(_pw_said)" _pw_notin "$_pw_out" stamped
+  _pw_ok "pw: S2 allow commission where the stamp cannot be written says through die that the stamp was not written" "$(_pw_said)" \
+    eval '_pw_die "$_pw_err" && { _pw_in "$_pw_err" "$_pw_st" || _pw_in "$_pw_err" stamp; }'
+  _pw_ok "pw: S2 after a stamp that could not be written, the commission grant is not current" \
+    "felix_autonomy_commission_current returned 0; stamp [$(cat "$_pw_st" 2>/dev/null)]" eval '! _pw_cur'
+  _pw_ok "pw: S2 a stamp that could not be written is left as it was, with no temporary file beside it" \
+    "stamp [$(cat "$_pw_st" 2>/dev/null)]; beside it [$(ls "$_pw_PR/pw-auto" | grep -F autonomy.commission. | tr '\n' ' ')]" \
+    eval '[ "$(cat "$_pw_st")" = pw-stale ] && ! ls "$_pw_PR/pw-auto" | grep -qF autonomy.commission.'
+  rm -f "$_pw_st"
+fi
+
+# =================================================== S3: felix gate ====
+_pw_proj pw-gate; _pw_checkout "$_pw/co-gate" pw-gate; _pw_cg="$_pw_co"
+_pw_G="$_pw_PR/pw-gate/gate.sh"; _pw_mk="$MEM/pw-gate/mistakes.log"
+_pw_gate='cd "$_pw_cg" && "$FELIX" gate'
+_pw_rcpts() { ( cd "$FROOT" 2>/dev/null && find state/gate -type f 2>/dev/null | LC_ALL=C sort | while IFS= read -r _pw_f; do
+                  printf '%s %s\n' "$(cksum < "$_pw_f")" "$_pw_f"; done ); }
+_pw_what="a regular executable gate.sh"
+_pw_run - "$_pw_env$_pw_gate"
+_pw_ok "pw: S3 felix gate runs a regular executable gate.sh and shows its output (control)" "$(_pw_said)" \
+  eval '[ "$_pw_rc" = 0 ] && _pw_in "$_pw_out" pw-gate-ran'
+_pw_ok "pw: S3 felix gate wrote a receipt for the checkout (control)" "state/gate [$(_pw_rcpts | tr '\n' ' ')]" \
+  eval '[ -n "$(_pw_rcpts)" ]'
+# A gate.sh first on PATH for the refused runs only, which leaves a mark when
+# run and exits as a missing command would. The old engine fell back to
+# `bash -c gate.sh` for a path it could not execute, and that runs this, so
+# "nothing is executed" can be seen.
+mkdir -p "$_pw/gbin"
+printf '#!/bin/sh\nprintf "ran\\n" >> "%s/gate-ran"\nexit 127\n' "$_pw" > "$_pw/gbin/gate.sh"; chmod +x "$_pw/gbin/gate.sh"
+for _pw_k in fifo755 fifo644 link gone dir; do
+  _pw_put "$_pw_k" "$_pw_G"; _pw_d="$(_pw_desc "$_pw_k")"; _pw_p="$(_pw_phrase "$_pw_k")"
+  _pw_mwas="$(_pw_bytes "$_pw_mk")"; _pw_rwas="$(_pw_rcpts)"; rm -f "$_pw/gate-ran"
+  _pw_run "$_pw_fifo" "$_pw_env"'PATH="$_pw/gbin:$PATH"; '"$_pw_gate"
+  _pw_ok "pw: S3 felix gate with $_pw_d as gate.sh returns promptly and exits 1" "$(_pw_said)" \
+    test "$_pw_rc" = 1
+  _pw_ok "pw: S3 felix gate with $_pw_d as gate.sh says on stderr the gate is $_pw_p" "$(_pw_said)" \
+    eval '_pw_die "$_pw_err" && _pw_in "$_pw_err" "$_pw_G is $_pw_p"'
+  _pw_ok "pw: S3 felix gate with $_pw_d as gate.sh executes nothing" \
+    "the gate.sh on PATH ran: $(_pw_said)" eval '[ ! -e "$_pw/gate-ran" ]'
+  _pw_ok "pw: S3 felix gate with $_pw_d as gate.sh appends no row to mistakes.log" \
+    "mistakes.log: $(tail -2 "$_pw_mk" 2>/dev/null | tr '\n\t' '  ')" \
+    eval '[ "$(_pw_bytes "$_pw_mk")" = "$_pw_mwas" ]'
+  _pw_ok "pw: S3 felix gate with $_pw_d as gate.sh leaves every gate receipt byte-identical" \
+    "was [$(printf '%s' "$_pw_rwas" | tr '\n' ' ')] is [$(_pw_rcpts | tr '\n' ' ')]" \
+    eval '[ "$(_pw_rcpts)" = "$_pw_rwas" ]'
+  _pw_ok "pw: S3 felix gate with $_pw_d as gate.sh leaves it as it was" "$(_pw_seen "$_pw_G")" \
+    _pw_same "$_pw_k" "$_pw_G"
+  rm -rf "$_pw_G"
+done
+rm -f "$_pw/gate-ran"; _pw_what="nothing at $_pw_G"
+_pw_run - "$_pw_env"'PATH="$_pw/gbin:$PATH"; '"$_pw_gate"
+_pw_ok "pw: S3 felix gate with nothing at gate.sh still runs the declared gate as a command, as before (control)" \
+  "the gate.sh on PATH did not run: $(_pw_said)" eval '[ -e "$_pw/gate-ran" ]'
+printf '#!/bin/sh\necho pw-gate-ran\n' > "$_pw_G"; chmod 755 "$_pw_G"
+printf '{\n  "name": "pw-gate",\n  "gate": "true"\n}\n' > "$_pw_PR/pw-gate/project.json"
+_pw_what="the command gate true"
+_pw_run - "$_pw_env$_pw_gate"
+_pw_ok "pw: S3 felix gate with the command gate true still runs it and exits 0 (control)" "$(_pw_said)" \
+  eval '[ "$_pw_rc" = 0 ] && _pw_notin "$_pw_err" " is a pipe" && _pw_notin "$_pw_err" " is not a regular file"'
+printf '{\n  "name": "pw-gate",\n  "gate": "sh -c '"'"'echo pw-cmd-ran; exit 0'"'"'"\n}\n' > "$_pw_PR/pw-gate/project.json"
+_pw_what="a sh -c command gate"
+_pw_run - "$_pw_env$_pw_gate"
+_pw_ok "pw: S3 felix gate with a sh -c command gate still runs it and exits 0 (control)" "$(_pw_said)" \
+  eval '[ "$_pw_rc" = 0 ] && _pw_in "$_pw_out" pw-cmd-ran'
+
+# ============================================ S4: rival-gate detection ====
+# The declared gate's side: an untracked executable rival the project holds no
+# copy of, so the comparison is with the declared gate.sh.
+_pw_proj pw-rival; _pw_checkout "$_pw/co-rival" pw-rival; _pw_cr="$_pw_co"
+_pw_RG="$_pw_PR/pw-rival/gate.sh"
+printf '# What Felix may do here unattended.\ntidy\n' > "$_pw_PR/pw-rival/autonomy"
+mkdir -p "$_pw_cr/scripts"
+printf '#!/bin/sh\necho pw-gate-ran\n' > "$_pw_cr/scripts/check-all.sh"; chmod 755 "$_pw_cr/scripts/check-all.sh"
+_pw_cur_co="$_pw_cr"
+_pw_doc='cd "$_pw_cur_co" && "$FELIX" doctor'
+_pw_fix='cd "$_pw_cur_co" && "$FELIX" doctor --fix'
+_pw_tidy='cd "$_pw_cur_co" && FELIX_HOME_DIR="$FROOT" && _pw_libs && felix_tidy_safe "$_pw_cur_pj" "$_pw_cur_co" "$FROOT"'
+_pw_rline() { awk 'index($0, "  scripts/check-all.sh ") == 1 { print; exit }' <<<"$1"; }
+_pw_N1='identical today, and nothing keeps it that way'
+_pw_N2='differs from the copy Felix holds'
+_pw_N3='this project gates with a command, not a file'
+_pw_what="a regular rival identical to a regular gate.sh"
+_pw_run - "$_pw_env$_pw_doc"
+_pw_ok "pw: S4 doctor calls a regular rival identical to a regular declared gate identical (control)" "$(_pw_said)" \
+  eval '_pw_in "$(_pw_rline "$_pw_out")" "$_pw_N1"'
+printf '#!/bin/sh\necho pw-other\n' > "$_pw_cr/scripts/check-all.sh"
+_pw_what="a regular rival differing from a regular gate.sh"
+_pw_run - "$_pw_env$_pw_doc"
+_pw_ok "pw: S4 doctor says a regular rival differing from a regular declared gate differs (control)" "$(_pw_said)" \
+  eval '_pw_in "$(_pw_rline "$_pw_out")" "$_pw_N2"'
+cp "$_pw_PR/pw-rival/project.json" "$_pw/rival.json"
+printf '{\n  "name": "pw-rival",\n  "gate": "true"\n}\n' > "$_pw_PR/pw-rival/project.json"
+_pw_what="a regular rival and a command gate"
+_pw_run - "$_pw_env$_pw_doc"
+_pw_ok "pw: S4 doctor says a command gate with no held copy gates with a command (control)" "$(_pw_said)" \
+  eval '_pw_in "$(_pw_rline "$_pw_out")" "$_pw_N3"'
+cp "$_pw/rival.json" "$_pw_PR/pw-rival/project.json"
+for _pw_k in fifo755 fifo644 link gone dir; do
+  _pw_put "$_pw_k" "$_pw_RG"; _pw_d="$(_pw_desc "$_pw_k")"; _pw_p="$(_pw_phrase "$_pw_k")"
+  _pw_run "$_pw_fifo" "$_pw_env$_pw_doc"
+  _pw_l="$(_pw_rline "$_pw_out")"
+  _pw_ok "pw: S4 doctor with $_pw_d as the declared gate returns promptly" "$(_pw_said)" true
+  _pw_ok "pw: S4 doctor with $_pw_d as the declared gate still lists the rival" "$(_pw_said)" test -n "$_pw_l"
+  _pw_ok "pw: S4 doctor with $_pw_d as the declared gate gives the rival none of the three comparison notes" \
+    "rival line [$_pw_l]" \
+    eval '_pw_notin "$_pw_l" "$_pw_N1" && _pw_notin "$_pw_l" "$_pw_N2" && _pw_notin "$_pw_l" "$_pw_N3"'
+  _pw_ok "pw: S4 doctor with $_pw_d as the declared gate says in the note the gate is $_pw_p" \
+    "rival line [$_pw_l]" _pw_in "$_pw_l" "$_pw_p"
+  _pw_ok "pw: S4 doctor with $_pw_d as the declared gate leaves it as it was" "$(_pw_seen "$_pw_RG")" \
+    _pw_same "$_pw_k" "$_pw_RG"
+  case "$_pw_k" in
+    fifo755|fifo644|link)
+      _pw_cur_pj="$_pw_PR/pw-rival"
+      _pw_run "$_pw_fifo" "$_pw_env$_pw_tidy"
+      _pw_ok "pw: S4 felix_tidy_safe with tidy granted and $_pw_d as the declared gate returns promptly" \
+        "$(_pw_said)" true ;;
+  esac
+  rm -rf "$_pw_RG"
+done
+
+# The checkout's side. Felix holds check-all.sh, tidy is granted, the declared
+# gate is a regular executable. A third checkout holds a regular untracked
+# rival, so tidy and doctor --fix are seen to act on a real one.
+_pw_proj pw-rivco
+printf '#!/bin/sh\necho pw-held\n' > "$_pw_PR/pw-rivco/check-all.sh"; chmod 755 "$_pw_PR/pw-rivco/check-all.sh"
+printf '# What Felix may do here unattended.\ntidy\n' > "$_pw_PR/pw-rivco/autonomy"
+_pw_cur_pj="$_pw_PR/pw-rivco"
+_pw_checkout "$_pw/co-rivr" pw-rivco; _pw_cv="$_pw_co"; mkdir -p "$_pw_cv/scripts"
+printf '#!/bin/sh\necho pw-held\n' > "$_pw_cv/scripts/check-all.sh"; chmod 755 "$_pw_cv/scripts/check-all.sh"
+_pw_cur_co="$_pw_cv"; _pw_what="a regular untracked rival Felix holds a copy of"
+_pw_run - "$_pw_env$_pw_tidy"
+_pw_ok "pw: S4 felix_tidy_safe removes a regular untracked rival Felix holds and prints it (control)" "$(_pw_said)" \
+  eval '[ "$_pw_out" = scripts/check-all.sh ] && [ ! -e "$_pw_cv/scripts/check-all.sh" ]'
+printf '#!/bin/sh\necho pw-held\n' > "$_pw_cv/scripts/check-all.sh"; chmod 755 "$_pw_cv/scripts/check-all.sh"
+_pw_run - "$_pw_env$_pw_fix"
+_pw_ok "pw: S4 doctor --fix removes a regular untracked rival Felix holds (control)" "$(_pw_said)" \
+  eval '[ ! -e "$_pw_cv/scripts/check-all.sh" ]'
+
+_pw_checkout "$_pw/co-rivt" pw-rivco; _pw_ct="$_pw_co"; mkdir -p "$_pw_ct/scripts"
+printf '#!/bin/sh\necho pw-tracked\n' > "$_pw_ct/scripts/check-all.sh"; chmod 755 "$_pw_ct/scripts/check-all.sh"
+( cd "$_pw_ct" && _pw_git add scripts/check-all.sh && _pw_git commit -qm rival ) >/dev/null 2>&1
+rm -f "$_pw_ct/scripts/check-all.sh"; mkfifo -m 0755 "$_pw_ct/scripts/check-all.sh"
+_pw_checkout "$_pw/co-rivu" pw-rivco; _pw_cu="$_pw_co"; mkdir -p "$_pw_cu/scripts"
+mkfifo -m 0755 "$_pw/fifos/outside"; ln -s "$_pw/fifos/outside" "$_pw_cu/scripts/check-all.sh"
+_pw_xsame() {   # which -> 0 when the checkout's obstacle is still there
+  case "$1" in
+    t) [ -p "$_pw_ct/scripts/check-all.sh" ] && [ ! -L "$_pw_ct/scripts/check-all.sh" ] ;;
+    u) [ -L "$_pw_cu/scripts/check-all.sh" ] && [ "$(readlink "$_pw_cu/scripts/check-all.sh")" = "$_pw/fifos/outside" ] &&
+       [ -p "$_pw/fifos/outside" ] ;;
+  esac
+}
+for _pw_x in t u; do
+  case "$_pw_x" in
+    t) _pw_cur_co="$_pw_ct"; _pw_d="a tracked rival replaced by a mode-755 FIFO"; _pw_xf="$_pw_ct/scripts/check-all.sh" ;;
+    u) _pw_cur_co="$_pw_cu"; _pw_d="an untracked rival symlinked to a mode-755 FIFO"; _pw_xf="$_pw/fifos/outside" ;;
+  esac
+  _pw_what="$_pw_d at scripts/check-all.sh"
+  _pw_run "$_pw_xf" "$_pw_env$_pw_doc"
+  _pw_ok "pw: S4 doctor with $_pw_d returns promptly" "$(_pw_said)" true
+  _pw_ok "pw: S4 doctor with $_pw_d does not list it" "$(_pw_said)" \
+    eval '! grep -q "^  scripts/check-all\.sh" <<<"$_pw_out"'
+  _pw_run "$_pw_xf" "$_pw_env$_pw_fix"
+  _pw_ok "pw: S4 doctor --fix with $_pw_d returns promptly" "$(_pw_said)" true
+  _pw_ok "pw: S4 doctor --fix with $_pw_d leaves it in place" "$(_pw_seen "$_pw_cur_co/scripts/check-all.sh")" \
+    _pw_xsame "$_pw_x"
+  _pw_run "$_pw_xf" "$_pw_env$_pw_tidy"
+  _pw_ok "pw: S4 felix_tidy_safe with $_pw_d returns promptly" "$(_pw_said)" true
+  _pw_ok "pw: S4 felix_tidy_safe with $_pw_d removes nothing and prints nothing" \
+    "$(_pw_said); $(_pw_seen "$_pw_cur_co/scripts/check-all.sh")" \
+    eval '[ -z "$_pw_out" ] && _pw_xsame "$_pw_x"'
+done
+
+# ================================== S5: felix adopt, a setup runbook path ====
+_pw_proj pw-adopt; _pw_checkout "$_pw/co-adopt" pw-adopt; _pw_cd="$_pw_co"
+( cd "$_pw_cd" && _pw_git remote add origin https://github.com/pw-owner/pw-repo.git ) >/dev/null 2>&1
+_pw_D="$_pw_PR/pw-adopt"; _pw_rb="$_pw_D/setup/sentry.md"
+_pw_tpl="$_pw_H/templates"
+sed 's|{{REPO}}|pw-owner/pw-repo|g' "$_pw_tpl/setup/sentry.md" > "$_pw/sentry.want"
+_pw_nst="$(awk -F'\t' '!/^[[:space:]]*#/ && $5 == "observability"' "$_pw_tpl/catalog.tsv" | wc -l | tr -d ' ')"
+_pw_adopt='cd "$_pw_cd" && "$FELIX" adopt observability'
+_pw_areset() { rm -rf "$_pw_D/capabilities" "$_pw_D/stack.tsv" "$_pw_D/setup.tsv" "$_pw_D/setup"; mkdir -p "$_pw_D/setup"; }
+_pw_stk() { awk -F'\t' '!/^[[:space:]]*#/ && $5 == "observability"' "$_pw_D/stack.tsv" 2>/dev/null | wc -l | tr -d ' '; }
+_pw_sen() { awk -F'\t' '$1 == "sentry"' "$_pw_D/setup.tsv" 2>/dev/null | wc -l | tr -d ' '; }
+_pw_areset; _pw_what="nothing at $_pw_rb"
+_pw_run - "$_pw_env$_pw_adopt"
+_pw_ok "pw: S5 adopt observability with nothing at the runbook writes the row and the runbook, 1 human step (control)" \
+  "$(_pw_said); sentry rows $(_pw_sen); runbook $(_pw_seen "$_pw_rb")" \
+  eval '[ "$_pw_rc" = 0 ] && _pw_in "$_pw_out" "1 human step(s)" && [ "$(_pw_sen)" = 1 ] && [ -f "$_pw_rb" ] &&
+        [ ! -L "$_pw_rb" ] && cmp -s "$_pw_rb" "$_pw/sentry.want" && grep -qx observability "$_pw_D/capabilities" &&
+        [ "$_pw_nst" -ge 1 ] && [ "$(_pw_stk)" = "$_pw_nst" ]'
+for _pw_k in fifo link gone dir; do
+  _pw_areset; _pw_put "$_pw_k" "$_pw_rb"; _pw_d="$(_pw_desc "$_pw_k")"; _pw_p="$(_pw_phrase "$_pw_k")"
+  _pw_run "$_pw_fifo" "$_pw_env$_pw_adopt"
+  _pw_ok "pw: S5 adopt with $_pw_d at setup/sentry.md returns promptly and exits 3" "$(_pw_said)" \
+    test "$_pw_rc" = 3
+  _pw_ok "pw: S5 adopt with $_pw_d at setup/sentry.md records observability in capabilities" \
+    "capabilities [$(tr '\n' '|' < "$_pw_D/capabilities" 2>/dev/null)]" grep -qx observability "$_pw_D/capabilities"
+  _pw_ok "pw: S5 adopt with $_pw_d at setup/sentry.md writes the stack row(s)" \
+    "$(_pw_stk) observability row(s) in stack.tsv, want $_pw_nst" eval '[ "$(_pw_stk)" = "$_pw_nst" ]'
+  _pw_ok "pw: S5 adopt with $_pw_d at setup/sentry.md appends no sentry row to setup.tsv" \
+    "setup.tsv [$(tr '\n\t' '| ' < "$_pw_D/setup.tsv" 2>/dev/null)]" eval '[ "$(_pw_sen)" = 0 ]'
+  _pw_ok "pw: S5 adopt with $_pw_d at setup/sentry.md says on stderr the runbook is $_pw_p" "$(_pw_said)" \
+    _pw_in "$_pw_err" "$_pw_rb is $_pw_p"
+  _pw_ok "pw: S5 adopt with $_pw_d at setup/sentry.md does not report 1 human step" "$(_pw_said)" \
+    _pw_notin "$_pw_out" "1 human step(s)"
+  _pw_ok "pw: S5 adopt with $_pw_d at setup/sentry.md leaves it as it was" "$(_pw_seen "$_pw_rb")" \
+    _pw_same "$_pw_k" "$_pw_rb"
+  if [ "$_pw_k" = fifo ]; then
+    # The way back the contract names: remove the obstacle, delete the line,
+    # adopt again.
+    rm -f "$_pw_rb"
+    grep -vxF observability "$_pw_D/capabilities" > "$_pw/caps.new" 2>/dev/null; cp "$_pw/caps.new" "$_pw_D/capabilities"
+    _pw_what="the FIFO removed and observability deleted from capabilities"
+    _pw_run - "$_pw_env$_pw_adopt"
+    _pw_ok "pw: S5 after a refused runbook, clearing it and adopting again exits 0 and writes the sentry row and the runbook" \
+      "$(_pw_said); sentry rows $(_pw_sen); runbook $(_pw_seen "$_pw_rb")" \
+      eval '[ "$_pw_rc" = 0 ] && [ "$(_pw_sen)" = 1 ] && [ -f "$_pw_rb" ] && [ ! -L "$_pw_rb" ] && cmp -s "$_pw_rb" "$_pw/sentry.want"'
+  fi
+  rm -rf "$_pw_rb"
+done
+_pw_areset; _pw_put fifo "$_pw_rb"
+_pw_run "$_pw_fifo" 'cd "$_pw" && _pw_libs && felix_adopt_capability "$_pw_D" observability "$_pw_tpl" pw-owner/pw-repo'
+_pw_ok "pw: S5 felix_adopt_capability with a FIFO runbook returns 3 promptly, counting no human step" "$(_pw_said)" \
+  eval '[ "$_pw_rc" = 3 ] && [ "$_pw_out" = "$_pw_nst 0" ]'
+rm -rf "$_pw_rb"
+
+# ============================================================ S6: felix new ====
+_pw_new() {   # name, checkout -> runs felix new on them
+  _pw_nn="$1"; _pw_nc="$2"
+  _pw_run - "$_pw_env"'cd "$_pw" && "$FELIX" new "$_pw_nn" "$_pw_nc" --no-commission'
+}
+_pw_checkout "$_pw/co-new-ok" -; _pw_n1="$_pw_co"; _pw_what="nothing at projects/pw-new-ok"
+_pw_new pw-new-ok "$_pw_n1"
+_pw_ok "pw: S6 felix new with nothing at projects/<name> creates it and writes the marker (control)" "$(_pw_said)" \
+  eval '[ "$_pw_rc" = 0 ] && _pw_in "$_pw_out" created && [ -d "$_pw_PR/pw-new-ok" ] && [ "$(cat "$_pw_n1/.felix" 2>/dev/null)" = pw-new-ok ]'
+_pw_checkout "$_pw/co-new-dir" -; _pw_n2="$_pw_co"; mkdir "$_pw_PR/pw-new-dir"; _pw_what="a directory at projects/pw-new-dir"
+_pw_new pw-new-dir "$_pw_n2"
+_pw_ok "pw: S6 felix new with a directory at projects/<name> says already exists and exits 1 (control)" "$(_pw_said)" \
+  eval '[ "$_pw_rc" = 1 ] && _pw_in "$_pw_err" "already exists" && [ ! -e "$_pw_n2/.felix" ]'
+_pw_checkout "$_pw/co-new-file" -; _pw_n3="$_pw_co"; printf 'pw\n' > "$_pw_PR/pw-new-file"; _pw_what="a file at projects/pw-new-file"
+_pw_new pw-new-file "$_pw_n3"
+_pw_ok "pw: S6 felix new with a regular file at projects/<name> says already exists and exits 1 (control)" "$(_pw_said)" \
+  eval '[ "$_pw_rc" = 1 ] && _pw_in "$_pw_err" "already exists" && [ ! -e "$_pw_n3/.felix" ]'
+_pw_checkout "$_pw/co-new-gone" -; _pw_n4="$_pw_co"
+_pw_ND="$_pw_PR/pw-new-gone"; _pw_put gone "$_pw_ND"
+_pw_new pw-new-gone "$_pw_n4"
+_pw_ok "pw: S6 felix new with a dangling symlink at projects/<name> exits 1" "$(_pw_said)" test "$_pw_rc" = 1
+_pw_ok "pw: S6 felix new with a dangling symlink at projects/<name> says on stderr its target is gone" "$(_pw_said)" \
+  eval '_pw_die "$_pw_err" && _pw_in "$_pw_err" "$_pw_ND is a link whose target is gone or cannot be reached"'
+_pw_ok "pw: S6 felix new with a dangling symlink at projects/<name> does not say created" "$(_pw_said)" \
+  _pw_notin "$_pw_out" created
+_pw_ok "pw: S6 felix new with a dangling symlink at projects/<name> writes no .felix marker" \
+  "$(_pw_seen "$_pw_n4/.felix")" eval '[ ! -e "$_pw_n4/.felix" ] && [ ! -L "$_pw_n4/.felix" ]'
+_pw_ok "pw: S6 felix new with a dangling symlink at projects/<name> does not create its target" \
+  "$(_pw_seen "$_pw_ND")" _pw_same gone "$_pw_ND"
+
+# ------------------------------------------------------------- tidy away ----
+_pw_left=""
+for _pw_j in $(jobs -p); do
+  case "$_pw_jobs_was" in *" $_pw_j "*) ;; *) _pw_left="$_pw_left $_pw_j" ;; esac
+done
+is "pw: no background job this block started outlives it" "$_pw_left" ""
+rm -rf "${_pw_PR:?}"/pw-* "${MEM:?}"/pw-*
+( cd "$FROOT" && find state 2>/dev/null | LC_ALL=C sort ) > "$_pw/state.now"
+printf '%s\n' "$_pw_state_was" | grep . > "$_pw/state.was"
+for _pw_j in $(comm -13 "$_pw/state.was" "$_pw/state.now"); do rm -rf "${FROOT:?}/$_pw_j"; done
+_pw_back="$(ls -d "$_pw_PR"/pw-* "$MEM"/pw-* 2>/dev/null | tr '\n' ' ')"
+( cd "$FROOT" && find state 2>/dev/null | LC_ALL=C sort ) > "$_pw/state.now"
+cmp -s "$_pw/state.was" "$_pw/state.now" || _pw_back="$_pw_back state:$(comm -13 "$_pw/state.was" "$_pw/state.now" | tr '\n' ' ')"
+is "pw: the block's projects, memory and state are gone after it" "$_pw_back" ""
+find "$_pw" -type p -exec rm -f {} + 2>/dev/null
+rm -rf "$_pw"
+unset -f _pw_libs _pw_git _pw_proj _pw_checkout _pw_kids _pw_sig _pw_run _pw_said _pw_ok _pw_in _pw_notin _pw_die \
+         _pw_put _pw_same _pw_seen _pw_phrase _pw_desc _pw_bytes _pw_hq _pw_pv _pw_cur _pw_aset _pw_rcpts \
+         _pw_rline _pw_xsame _pw_areset _pw_stk _pw_sen _pw_new
+
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.
 #

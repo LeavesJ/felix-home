@@ -26216,13 +26216,13 @@ DNTSTUB
 chmod +x "$TMP/dnt-cat-clean/cat" "$TMP/dnt-cat-nul/cat"
 _dntglobmany() { cd "$TMP/dnt-glob" || return 1; _dntmany "$@"; }
 _dntglobx=$'0 [*\n?\n[a-z]*\nstor*\n-n\n-e\n-E\n%s\n]'
-is  "a name that is a glob or reads as an echo option is printed as it stands, never the files it would match, from a directory holding such files, under LC_ALL=C" \
+is  "a name that is a glob, reads as an echo option or is a printf format is printed as it stands, never the files it would match, from a directory holding such files, under LC_ALL=C" \
     "$(_cm _dntglobmany C '*\n?\n[a-z]*\nstor*\n-n\n-e\n-E\n%%s\n')" "$_dntglobx $_dntglobx"
 if [ -n "$_dntu" ]; then
-  is  "a name that is a glob or reads as an echo option is printed as it stands, under a UTF-8 locale" \
+  is  "a name that is a glob, reads as an echo option or is a printf format is printed as it stands, under a UTF-8 locale" \
       "$(_cm _dntglobmany utf8 '*\n?\n[a-z]*\nstor*\n-n\n-e\n-E\n%%s\n')" "$_dntglobx $_dntglobx"
 else
-  skip "a name that is a glob or reads as an echo option is printed as it stands, under a UTF-8 locale" "no UTF-8 locale here"
+  skip "a name that is a glob, reads as an echo option or is a printf format is printed as it stands, under a UTF-8 locale" "no UTF-8 locale here"
 fi
 _dntcheck "a mark that is not the file's first bytes is bytes of its line even where a blank line or whitespace comes before it, so the file is no list" \
   '\n\357\273\277storage\n' '2 []' \
@@ -26241,13 +26241,48 @@ is  "what felix_declared judges is what cat printed: a cat printing a clean list
     "$_dntcs" "$_dntcl | $_dntcl | $_dntcl"
 is  "and a cat printing a NUL over a clean file makes it no list, nothing printed and 2" \
     "$(_cm _dntcatsays C nul 'storage\nbilling\n')" "2 [] 2 []"
+# Added after a second review, not blind: a function named cat in the caller,
+# a readonly LC_ALL, and a line long enough to show a cost that grows with its
+# square. Each was shown red against the guard taken out (2026-10-08).
+_dntfuncat() { local _dnts _dntv; _dntenv C; _dntput 'billing\n'
+  cat() { printf 'storage\n'; }
+  felix_declared "$CMP" > "$TMP/dnt-out" 2>/dev/null; _dnts=$?; unset -f cat
+  _dntv="$(command cat "$TMP/dnt-out"; printf .)"; printf '%s [%s]' "$_dnts" "${_dntv%.}"; }
+is  "a function named cat in the caller does not stand in for the reader: the file's own list is printed" \
+    "$(_cm _dntfuncat)" $'0 [billing\n]'
+_dntro() { local _dnts; _dntput 'storage\n'; export LC_ALL="$1"; readonly LC_ALL
+  felix_declared "$CMP" > "$TMP/dnt-out" 2> "$TMP/dnt-err"; _dnts=$?
+  printf '%s [%s] [%s]' "$_dnts" "$(command cat "$TMP/dnt-out")" "$(command cat "$TMP/dnt-err")"; }
+if [ -n "$_dntu" ]; then
+  is  "a caller whose LC_ALL is readonly and not C gets 2 with nothing on stdout or stderr, never a read in its own locale" \
+      "$(_cm _dntro "$_dntu")" "2 [] []"
+else
+  skip "a caller whose LC_ALL is readonly and not C gets 2 with nothing on stdout or stderr, never a read in its own locale" \
+       "no UTF-8 locale here"
+fi
+is  "and one whose LC_ALL is readonly C is read as any other caller is" "$(_cm _dntro C)" "0 [storage] []"
+# Child CPU from bash's times, in milliseconds, never wall time: load here
+# runs to 700.
+_dntms() { local _dntm="${1%%m*}" _dnts="${1#*m}" _dntf; _dnts="${_dnts%s}"; _dntf="${_dnts#*.}000"
+  printf '%d' $(( (10#$_dntm * 60 + 10#${_dnts%.*}) * 1000 + 10#${_dntf:0:3} )); }
+_dntcost() { local _dntw='' _dnti=0 _dntt=0 _dntx
+  _dntenv C
+  while [ "$_dnti" -lt 5000 ]; do _dntw="${_dntw}x"$'\t'; _dnti=$((_dnti + 1)); done
+  { printf 'storage\n%s\n' "$_dntw"; printf '%40000s\n' ''; } > "$CMP/capabilities"
+  ( felix_declared "$CMP" > /dev/null 2>&1; times > "$TMP/dnt-times" )
+  for _dntx in $(cat "$TMP/dnt-times"); do _dntt=$((_dntt + $(_dntms "$_dntx"))); done
+  [ "$_dntt" -lt 1000 ] && printf 'under a second' || printf '%s ms' "$_dntt"; }
+is  "a 50 KB file holding a line of 5,000 tabs and a blank line of 40,000 spaces is read in under a second of CPU, where a cost growing with the square of a line took 4.4 s" \
+    "$(_cm _dntcost)" "under a second"
 
 rm -f "$CMP/capabilities"
 mv "$TMP/dnt-stack.keep" "$CMP/stack.tsv"; mv "$TMP/dnt-cmstub.keep" "$CMSTUB_LOG"
 rm -rf "$TMP/dnt-bin" "$TMP/dnt-cat-none" "$TMP/dnt-cat-part" "$TMP/dnt-glob" "$TMP/dnt-cat-clean" "$TMP/dnt-cat-nul"
-rm -f "$TMP/dnt-isit" "$TMP/dnt-out" "$TMP/dnt-opens" "$TMP/dnt-target" "$TMP/dnt-no-such-target"
+rm -f "$TMP/dnt-isit" "$TMP/dnt-out" "$TMP/dnt-opens" "$TMP/dnt-target" "$TMP/dnt-no-such-target" \
+      "$TMP/dnt-err" "$TMP/dnt-times"
 unset -f _dntenv _dntfill _dntput _dntrc _dntmany _dntcheck _dntopens _dntcatfail _dntcap _dntinto _dntplan \
-         _dntstate _dntkeepset _dntkeepunset _dnt7 _dnt8 _dntin _dntsp _dntglobmany _dntcatsays
+         _dntstate _dntkeepset _dntkeepunset _dnt7 _dnt8 _dntin _dntsp _dntglobmany _dntcatsays \
+         _dntfuncat _dntro _dntms _dntcost
 unset _dntu _dntul _dntl _dntc _dntreal _dnt2f _dnt2x _dntall _dnthigh _dnti _dntkx _dntpr _dntglobx _dntcs _dntcl
 # ---- declared-not-text: end
 # The answers below are keyed to the topology taken with api declared.

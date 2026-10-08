@@ -91,13 +91,27 @@ _felix_commission_provider_toolong() {   # line -> "<field> <limit>" or empty
 # one, so under pipefail (the CLI and the hooks) a list that was read would come
 # back as one that was not; a missing table is `|| :`. What is hashed is the
 # same bytes as before on a list that was read: the union a line each, nothing
-# for none, as the sort printed it.
+# for none, as the sort printed it. The list is read here, the union built here,
+# and the hash is _felix_commission_topology_of's, which felix_commission_request
+# asks directly with the union it already holds.
 felix_commission_topology() {
   local proj="$1" root="$2" declared="" union=""
   felix_declared_into declared "$proj" || return 2
   felix_capture union _felix_capability_union "$root" "$declared" || return 2
-  { [ -z "$union" ] || printf '%s\n' "$union"
-    printf '== commissioning.tsv ==\n'; cat "$proj/commissioning.tsv" 2>/dev/null || :; } | _felix_hash
+  _felix_commission_topology_of "$union" "$proj"
+}
+
+# UNION PROJ: the hash of the topology, and nothing else. UNION is the capabilities
+# the checkout shows and the project declares, one to a line as _felix_capability_union
+# printed them, and the bytes hashed are those lines, the line `== commissioning.tsv ==`
+# and the table. Split out on 2026-10-08, when felix_commission_request read the
+# declared list and built the union, and then called felix_commission_topology, which
+# read the list and built the union again: two reads, so the names in a request could
+# come from one and its topology from another. The status is the hash's; a missing
+# table is `|| :`, as above.
+_felix_commission_topology_of() {
+  { [ -z "$1" ] || printf '%s\n' "$1"
+    printf '== commissioning.tsv ==\n'; cat "$2/commissioning.tsv" 2>/dev/null || :; } | _felix_hash
 }
 
 _felix_commission_provider_dir() { printf '%s/commission' "$(felix_mem_dir "$1")"; }
@@ -118,14 +132,17 @@ felix_commission_request_path() { printf '%s/requests/%s.md' "$(_felix_commissio
 # captured with felix_capture, since a substitution can end with nothing printed
 # and status 0 when its fork fails, and the capabilities the request names are
 # that union with its lines joined, by an expansion and not a pipeline whose
-# status nobody asks.
+# status nobody asks. The topology is the hash of that same union, from
+# _felix_commission_topology_of, so the list is read once and the request holds
+# the topology of the list whose capabilities it names. Until 2026-10-08 it asked
+# felix_commission_topology, which read the list and built the union again.
 felix_commission_request() {
   local proj="$1" root="$2" need="$3" tpl="$4" src out caps declared topo dcl="" union=""
   src="$tpl/commission/$need.md"
   [ -f "$src" ] || return 1
   felix_declared_into dcl "$proj" || return 2
   felix_capture union _felix_capability_union "$root" "$dcl" || return 2
-  felix_capture topo felix_commission_topology "$proj" "$root" || return 2
+  felix_capture topo _felix_commission_topology_of "$union" "$proj" || return 2
   out="$(felix_commission_request_path "$proj" "$need")"
   mkdir -p "$(dirname "$out")" 2>/dev/null || return 1
   caps="${union//$'\n'/ }"

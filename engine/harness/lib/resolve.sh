@@ -762,17 +762,38 @@ felix_replace_file() {
 # file, since mktemp makes it 0600. Prints the temporary file's name. Returns
 # 1, leaving nothing, when it cannot be made or written.
 #
+felix_replace_prepare() {
+  local f="$1" tmp; shift
+  tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
+  felix_replace_fill "$tmp" "$@" || return 1
+  printf '%s' "$tmp"
+}
+
+# The write itself, into TMP, a file already made beside PATH. Removes TMP and
+# returns 1 when CMD or the write fails. Split out so a caller that must not
+# leave TMP behind on a signal can make it and name it to its own EXIT trap
+# before anything is written: a helper here cannot set a trap without taking
+# the caller's, and a name printed from $( ) is lost when a signal kills that
+# child after mktemp (2026-10-08, from the autonomy writer lock's review).
+#
 # Written first and given its mode after (2026-10-08, review): under a umask
 # without the owner's write bit, a mode set first left the file unwritable,
 # and every stamp failed where `>` had succeeded. mktemp's 0600 is masked by
 # that umask as well, so the file is made 0600 before the write: under umask
 # 0222 it was 0400 and the write was refused (2026-10-08, blind assertions).
-felix_replace_prepare() {
-  local f="$1" tmp; shift
-  tmp="$(mktemp "$f.new.XXXXXX" 2>/dev/null)" || return 1
-  if { chmod 0600 "$tmp" && "$@" > "$tmp" \
+#
+# CMD runs in a subshell that ignores SIGXFSZ, with the redirection on that
+# subshell (2026-10-08). Past a file-size limit the signal ended the subshell
+# before it could remove TMP, leaving an empty one beside PATH. Ignored, the
+# write fails with a status instead, and it is inherited by an external CMD.
+# A failed builtin's bytes stay in bash 3.2's buffer and are flushed when the
+# subshell exits, and with the redirection here that is into TMP, not into
+# the $( ) that captures prepare's output.
+felix_replace_fill() {
+  local tmp="$1"; shift
+  if { chmod 0600 "$tmp" && ( trap '' XFSZ; "$@" ) > "$tmp" \
        && chmod "$(printf '%03o' $(( 0666 & ~0$(umask) )))" "$tmp"; } 2>/dev/null; then
-    printf '%s' "$tmp"; return 0
+    return 0
   fi
   rm -f "$tmp" 2>/dev/null
   return 1

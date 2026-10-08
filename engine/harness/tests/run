@@ -231,18 +231,23 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"
 
-# ----------------------------------------------- no git write leaves $TMP ----
-# Every fixture line in this file that edits a repository names the repository
-# by a directory: `( cd "$dir" && git remote set-url origin ... )`, or
-# `git -C "$dir" ...`. When $dir is empty, bash 3.2 takes `cd ""` as a success
-# and stays where it stands, and git -C "" does the same, so the command
+# ------------- a cd on a variable and a git -C on a variable stay in $TMP ----
+# Two shapes of fixture line in this file edit a repository named by a
+# variable: `( cd "$dir" && git remote set-url origin ... )`, and
+# `git -C "$dir" ...`. These two are what this part covers; a fixture that
+# reaches a repository another way, such as a helper of its own that runs git
+# -C or the engine run after a raw cd, is not one of them (the section after
+# the pipefail lint says what closes the second). When $dir is empty,
+# bash 3.2 takes `cd ""` as a success and stays where it stands, and git -C ""
+# does the same, so the command
 # edits whatever repository encloses the working directory (measured on bash
 # 3.2.57 and git 2.54, 2026-10-08). That is how felix-home's origin became
 # acme/widget. A directory that exists but where `git init` never ran does the
 # same through git's walk up to the first repository above it, and so does an
 # inherited GIT_DIR.
 #
-# So a fixture does not cd and does not git -C on a variable. _fx_cd and
+# So a fixture does not cd and does not git -C on a variable before a git
+# write. _fx_cd and
 # _fx_git take the directory and prove it first: it must name a directory,
 # whose physical path (symlinks resolved, as cd -P gives it) lies strictly
 # below the physical $TMP; none of GIT_DIR, GIT_WORK_TREE, GIT_COMMON_DIR,
@@ -258,7 +263,12 @@ FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"
 # of GIT_CEILING_DIRECTORIES, so git run there cannot find a repository at or
 # above $TMP even where the directory holds no .git. A refusal changes no
 # directory and no variable, appends a line to $FELIX_TEST_FXREFUSED, and
-# says so on stderr. The line goes to a file because the fixtures redirect
+# says so on stderr. The line's number is BASH_LINENO's, which bash 3.2 gets
+# wrong inside a $( ) that spans lines: there it reads the call's line plus the
+# call's distance from the line that opened the $( (measured 2026-10-08). No
+# converted fixture site sits inside one; the probes of the fixture git proof
+# section do, and compare the record with $LINENO, which is off by the same
+# amount. The line goes to a file because the fixtures redirect
 # both streams to /dev/null and run in subshells, where a counter is lost; the
 # end of the run reads the file and goes red on any line in it.
 #
@@ -409,9 +419,9 @@ _fx_git() { ( _fx_chdir "${BASH_LINENO[0]}" "${1-}" || exit 1
 # later. Those run in child shells, where _fx_cd does not exist. Nor does it
 # see three shapes this file does not hold today: a raw cd at the top of a
 # multi-line { } or function body with the git on a later line, git run
-# through a variable ($GIT), and xargs git. awk is POSIX awk, the BSD one on
-# macOS and gawk or mawk on the CI runner, and the program
-# holds no apostrophe because it sits in one. The lint is the suite's check of
+# through a variable ($GIT), and xargs git. The awk program is written for
+# POSIX awk and has been run under the BSD awk macOS ships; it holds no
+# apostrophe because it sits in one. The lint is the suite's check of
 # itself, in the section after the pipefail lint; it is meant to be run on this
 # file by a person too: _fx_lint tests/run.
 _fx_lint() {
@@ -7065,7 +7075,7 @@ _pfre="(printf '%s(\\\\n)?'|echo) \"[\$][^\"]*\" [|] ([^|]*[|] )*grep [^|]*-[a-z
 _pfsites="$(grep -nE "$_pfre" "$HERE/run" | grep -vE -e '^[0-9]+:[[:space:]]*#' -e '"[$]big" [|] grep -Fxq 1 [)]')"
 is "no check in this suite pipes printf or echo of a variable into a chain ending in grep -q" "$_pfsites" ""
 
-printf '\nfixture git writes stand in directories proven to sit under the temporary directory\n'
+printf '\nno fixture git write follows a raw cd on a variable or a raw git -C on a variable\n'
 # On 2026-10-08 a fixture's `( cd "$_fs_wr" && git remote set-url ... )` ran with
 # the variable empty, bash 3.2 stayed in the directory the suite was started in,
 # and the config every worktree of felix-home shares came back with origin
@@ -7080,6 +7090,15 @@ printf '\nfixture git writes stand in directories proven to sit under the tempor
 # suite under test, $REAL_HARNESS/tests/run, which in a full run is this one and
 # in a section runner is the tree that runner was pointed at. A file the lint
 # cannot read is a failure too, since it exits 2 then and prints nothing else.
+#
+# The lint covers those two shapes and no more. A raw `( cd "$X" && "$FELIX"
+# ... )` with X empty is not a site, and this branch does not convert it: on
+# main alone the engine's own felix_repo_root then walks from the cwd to the
+# checkout the run started in. That class rests on the fixture floor
+# (claude/suite-fixture-floor), which lands first: the suite stands in
+# $TMP/cwd, and _fixture_enclosed refuses a $TMP inside a checkout. The review
+# measured the class contained on a trial merge of the two. The origin guard
+# still reports a remote that class moves, as it reports any.
 _fxl_out="$(_fx_lint "$REAL_HARNESS/tests/run" 2>&1)"; _fxl_rc=$?
 if [ "$_fxl_rc" -eq 0 ] && [ -z "$_fxl_out" ]; then
   ok  "no fixture in this suite runs a git write from a raw cd or a raw git -C on a variable"
@@ -42426,8 +42445,9 @@ else
   ok  "no fixture git command was refused for a directory outside the suite's temporary directory"
 fi
 # The remotes of the checkout this run started in, against the snapshot taken
-# before anything ran. Skipped when the run started in no checkout; red when the
-# snapshot could not be read, since then nothing was compared; red when a
+# before anything ran. Skipped when neither the directory the run started in
+# nor the suite's own tree is in a checkout; red when the snapshot could not be
+# read, since then nothing was compared; red when a
 # watched entry differs in name, value or order, when a remote that had refs
 # has none or one a branch tracked is tracked by none, and when a move was
 # recorded while the run ran, even if it has been put back since. The message

@@ -27144,6 +27144,97 @@ unset -f _durdfixture _durdset _durdcli _durdline _durdsays _durdbegins _durdat 
 unset _durdfound _durddirs _durdp _durdr _durdhome _durdbin _durdasked _durdgone _durdwhy _durddrift _durdadopted \
       _durddet _durdout _durdls _durdrun _durdn _durdhead _durdat2 _durdfirst _durdnl _durdd
 
+# After the second review, not blind: the places a read list still passed through a
+# substitution that can come back empty, a here-document, or a hash read twice.
+#
+# Two Opus reviewers (defeat, simpler) read the after-review fixes at 4ccc9e09 and
+# each demonstrated what follows. These assertions were NOT written blind: they
+# were written after the review, from its evidence, and each one that can fail
+# was shown failing against 4ccc9e09, the engine this change is a fix to, before
+# it was shown passing. Every item is named at the paragraph that opens it.
+# A command that is another process (the CLI) is run with a stub first on PATH:
+# a grep that execs the real one except when an argument is -c, where it prints
+# nothing and exits 2, and a tr that execs the real one except for tr '\n' ' ',
+# where it prints nothing and exits 1. That is what a substitution whose fork or
+# pipe failed looks like from the line that reads it. Nothing reaches the network,
+# ~/.claude or an installed CLI, and nothing here runs a gate.
+# Everything this makes is removed below and everything it defines unset.
+_durefixture() { { find "$FROOT/projects" "$FROOT/state" "$MEM" 2>/dev/null | LC_ALL=C sort
+                   find "$FROOT/projects" "$FROOT/state" "$MEM" -type f -exec cksum {} + 2>/dev/null | LC_ALL=C sort; } | cksum; }
+_durefound="$(_durefixture)"
+_duredirs="$(find "$FROOT/state" -type d 2>/dev/null)"
+_durep="$FROOT/projects/dureproj"; _durer="$TMP/dure-repo"; _durehome="$TMP/dure-home"
+_durebin0="$TMP/dure-bin0"; _duregrep="$TMP/dure-nogrepc"; _duretr="$TMP/dure-notr"
+_duretpl="$FROOT/harness/templates"
+mkdir -p "$_durep" "$_durer/tests" "$_durehome/.claude/plugins" "$_durebin0" "$_duregrep" "$_duretr"
+printf '{\n  "name": "dureproj",\n  "remote_match": "example.com/dureproj",\n  "gate": "true"\n}\n' > "$_durep/project.json"
+printf '# dureproj\n' > "$_durep/CLAUDE.md"
+# Detected: secrets (.env.example), tests (tests/) and deploy (Dockerfile).
+# Declared: secrets, and durebill and durecap, which nothing detects. So the five
+# items are deploy, durebill, durecap, secrets and tests, and the two surfaces
+# nobody declared are deploy and tests.
+( cd "$_durer" && git init -q -b main && printf 'dureproj\n' > .felix && printf 'X=1\n' > .env.example \
+    && printf 'ok\n' > tests/t && printf 'FROM x\n' > Dockerfile && git add -A \
+    && git -c user.name=dure -c user.email=dure@example.com commit -q -m dure )
+_durer="$(cd "$_durer" && pwd -P)"
+printf 'secrets\ndurebill\ndurecap\n' > "$_durep/capabilities"
+_durerealgrep="$(command -v grep)"; _dureretr="$(command -v tr)"
+cat > "$_duregrep/grep" <<STUB
+#!/bin/sh
+for a in "\$@"; do [ "\$a" = -c ] && exit 2; done
+exec $_durerealgrep "\$@"
+STUB
+cat > "$_duretr/tr" <<STUB
+#!/bin/sh
+[ "\$1" = '\\n' ] && [ "\$2" = ' ' ] && exit 1
+exec $_dureretr "\$@"
+STUB
+chmod +x "$_duregrep/grep" "$_duretr/tr"
+# $1 is the stub directory first on PATH (bin0 holds none), the rest is the command.
+# Prints its output and then [exit N], so a status is part of what is compared.
+_durecli() { local _durebin="$1"; shift
+  ( cd "$_durer" && HOME="$_durehome" PATH="$_durebin:/usr/bin:/bin" "$FELIX" "$@" 2>&1; printf '[exit %s]' "$?" ); }
+_duresays() { case "$1" in *"$2"*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
+_dureis()   { if [ -e "$1" ] || [ -L "$1" ]; then printf 'there\n'; else printf 'absent\n'; fi; }
+# The lines of $1 that begin with $2, joined by a bar.
+_durelines() { printf '%s\n' "$1" | awk -v p="$2" 'index($0, p) == 1 { printf "%s%s", (n++ ? "|" : ""), $0 } END { print "" }'; }
+
+# 1. felix procedures counts the lists it has already read in the shell, not through
+# a grep -c in a substitution that can come back empty (F1). Until 2026-10-08 the gap
+# section and the closing all-clear keyed on ${n_gap:-0}, so a count that came back
+# empty read as none and the report said every item had a stance over real gaps.
+printf 'capability:secrets\tcommissioning\tdure-check\ta stance on a surface the checkout has\n' > "$_durep/procedures.tsv"
+_dureplain="$(_durecli "$_durebin0" procedures)"; _durestub="$(_durecli "$_duregrep" procedures)"
+is  "felix procedures over a list it read names the four items with no stance and counts them, without an all-clear" \
+    "$(_duresays "$_dureplain" 'nothing answers these') $(_duresays "$_dureplain" '4 of 5 items have no stance') $(_duresays "$_dureplain" 'Every item has a stance')" \
+    "said said silent"
+is  "and with every grep -c failing it still names them and counts them" \
+    "$(_duresays "$_durestub" 'nothing answers these') $(_duresays "$_durestub" 'capability:durebill') $(_duresays "$_durestub" '4 of 5 items have no stance')" \
+    "said said said"
+is  "and with every grep -c failing it does not say every item has a stance" "$(_duresays "$_durestub" 'Every item has a stance')" "silent"
+is  "and prints byte for byte what it prints when grep -c works, the stance section included" "$_durestub" "$_dureplain"
+for _duren in deploy durebill durecap secrets tests; do
+  printf 'capability:%s\tcommissioning\tdure-check\ta stance on %s\n' "$_duren" "$_duren"
+done > "$_durep/procedures.tsv"
+_dureplain="$(_durecli "$_durebin0" procedures)"; _durestub="$(_durecli "$_duregrep" procedures)"
+is  "felix procedures over a list it read whose every item has a stance says so, and names no gap" \
+    "$(_duresays "$_dureplain" 'Every item has a stance') $(_duresays "$_dureplain" 'nothing answers these')" "said silent"
+is  "and prints byte for byte the same when every grep -c fails" "$_durestub" "$_dureplain"
+rm -f "$_durep/procedures.tsv"
+
+rm -rf "$_durep" "$_durer" "$_durehome" "$_durebin0" "$_duregrep" "$_duretr" "$MEM/dureproj"
+[ -d "$FROOT/state" ] && find "$FROOT/state" -name '*dureproj*' -exec rm -rf {} + 2>/dev/null
+_durenl='
+'
+find "$FROOT/state" -depth -type d 2>/dev/null | while IFS= read -r _dured; do
+  case "$_durenl$_duredirs$_durenl" in *"$_durenl$_dured$_durenl"*) ;; *) rmdir "$_dured" 2>/dev/null ;; esac
+done
+is  "and the block for the second review's fixes leaves the projects, the state and the memory as it found them" \
+    "$(_durefixture)" "$_durefound"
+unset -f _durefixture _durecli _duresays _dureis _durelines
+unset _durefound _duredirs _durep _durer _durehome _durebin0 _duregrep _duretr _duretpl _durerealgrep _dureretr \
+      _dureplain _durestub _duren _durenl _dured
+
 # A table command whose last stage succeeds whatever it is fed is refused.
 #
 # Every table runner evaluates a row with pipefail off: probes, obligations,

@@ -68,6 +68,15 @@ skip() { SKIP=$((SKIP+1)); _ran "$1"; printf '  skip  %s (%s)\n' "$1" "$2"; }
 has_claude() { command -v claude >/dev/null 2>&1; }
 
 TMP="$(mktemp -d)"
+# No directory, no suite. The substitution forks twice, and when the inner fork
+# fails under load it hands back nothing with status 128 while this shell
+# carries on (bash 3.2.57). Every path below is "$TMP/...", and the trap
+# removes "$TMP": an empty one turned into "$PWD/" would remove the checkout
+# the suite was started from.
+[ -n "$TMP" ] && [ -d "$TMP" ] || {
+  printf 'tests/run: mktemp -d gave no directory ([%s]); not starting\n' "$TMP" >&2
+  exit 1
+}
 # GNU mktemp names a relative TMPDIR relatively, and the suite is about to
 # leave the directory that name is relative to.
 case "$TMP" in /*) ;; *) TMP="$PWD/$TMP" ;; esac
@@ -101,23 +110,31 @@ trap 'rm -rf "$TMP"' EXIT
 # - the variables that point git at a repository whatever the cwd are unset.
 #   So is GIT_CONFIG, which `git config` writes to even with no repository at
 #   all (git 2.54), and OLDPWD, which `cd -` would follow back to the worktree.
-# Then the floor is tried: from where the suite now stands, git must answer
-# 128, not a repository. Any other answer, a repository or a git that could
-# not run, and the suite refuses to start.
+# Then the floor is tried: from where the suite now stands, git must say, in
+# its own words, that this is not a git repository. Its status alone will not
+# do. Git exits 128 too for a repository it finds and refuses to open (dubious
+# ownership, a broken .git file), and a git that could not run at all says
+# nothing about where the suite stands. Any other answer, and the suite
+# refuses to start. A fork that fails inside that capture leaves it empty, and
+# empty is a refusal.
 #
 # The parent is read from $PWD once the shell stands in DIR/cwd, not from
 # `$(dirname ...)`, so no fork can fail into an empty ceiling under load. And
 # bash has already folded a trailing or doubled slash, which would otherwise
-# leave DIR as its own parent. A fork that fails anywhere here kills the shell
-# with status 128 (bash 3.2.57), so the suite stops rather than starts.
+# leave DIR as its own parent. A simple command whose fork fails here kills
+# the shell with status 128 (bash 3.2.57), so the suite stops rather than
+# starts.
 _fixture_floor() {   # DIR -> this shell stands in DIR/cwd, and git cannot walk out of DIR
+  local said
   [ -n "${1:-}" ] && [ -d "$1" ] || return 1
   mkdir -p "$1/cwd" && cd "$1/cwd" || return 1
   unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
         GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG OLDPWD
   GIT_CEILING_DIRECTORIES="${PWD%/cwd}"; GIT_CEILING_DIRECTORIES="${GIT_CEILING_DIRECTORIES%/*}"
   export GIT_CEILING_DIRECTORIES
-  git rev-parse --git-dir >/dev/null 2>&1; [ $? -eq 128 ]
+  said="$(LC_ALL=C git rev-parse --git-dir 2>&1 >/dev/null)"
+  case "$said" in *[Nn]"ot a git repository"*) return 0 ;; esac
+  return 1
 }
 # The ceiling binds git and nothing else. felix_repo_root, which the CLI
 # calls before most of what it writes, climbs the physical path for a .git by
@@ -126,9 +143,13 @@ _fixture_floor() {   # DIR -> this shell stands in DIR/cwd, and git cannot walk 
 # not. On macOS `mktemp -d` ignores TMPDIR, and nothing above /private/var/folders
 # is a checkout. Elsewhere TMPDIR can sit inside one, and then the suite does
 # not start. The walk is the engine's, done from where the shell stands, with
-# no fork: `cd -P .` makes $PWD physical in place.
+# no fork: `cd -P .` makes $PWD physical in place. It also looks at / itself,
+# which the engine's stops short of and git would not.
 _fixture_enclosed() {   # -> 0 when this directory or one above it, physically, holds a .git; _fixture_at names it
   cd -P . || return 2
+  # A directory gone from under the shell: bash prints an error, returns 0
+  # and leaves PWD empty (3.2.57), which the loop would read as /.
+  [ -n "$PWD" ] || return 2
   _fixture_at="$PWD"
   while :; do
     [ -e "${_fixture_at:-/}/.git" ] && { _fixture_at="${_fixture_at:-/}"; return 0; }
@@ -142,7 +163,7 @@ _fixture_floor "$TMP" || {
 }
 _fixture_enclosed; case $? in
   1) ;;
-  0) printf 'tests/run: %s holds a .git, and %s is below it. Felix walks up to it past any ceiling, so a fixture could edit it. Point TMPDIR outside every checkout; not starting\n' "$_fixture_at" "$PWD" >&2
+  0) printf 'tests/run: %s holds a .git, and %s is below it. Felix walks up to it past any ceiling, so a fixture could edit it. Run where mktemp -d lands outside every checkout (TMPDIR, where mktemp honours it); not starting\n' "$_fixture_at" "$PWD" >&2
      exit 1 ;;
   *) printf 'tests/run: could not read where %s sits; not starting\n' "$PWD" >&2
      exit 1 ;;
@@ -642,15 +663,24 @@ fi
 _ff_o="$(_fixture_enclosed; printf '%s|%s' "$?" "${_fixture_at:-}")"
 is "_fixture_enclosed finds no checkout at or above the suite's working directory" "${_ff_o%%|*}" "1"
 
-# 7. And the preamble acts on what the walk finds. The suite's own lines, up to
-# the first one after the floor, run in a child whose `mktemp -d` lands inside
-# a checkout. The floor's ceiling hides that checkout from git, so only the
-# walk can see it, and the child must refuse to start and say why. A section
-# runner's $HERE holds no suite, and there the check is skipped.
+# 7 and 8. The suite's own opening lines, up to the first one after the floor,
+# run as a child. A section runner's $HERE holds no suite, and there both are
+# skipped.
+#
+# 7. The preamble acts on what the walk finds. The child's `mktemp -d` lands
+# inside a checkout, which the floor's ceiling hides from git, so only the
+# walk can see it. The child must refuse to start and name that checkout.
+#
+# 8. A `mktemp -d` that gives no directory stops the suite at once and removes
+# nothing. The child starts in a directory holding one file, and its mktemp
+# prints nothing. Before this stop existed, an empty $TMP became "$PWD/", and
+# the exit trap removed the directory the suite was started from.
 _ff_self="$HERE/run"
 _ff_end="$(grep -n '^FELIX_TEST_RAN="\$TMP/ran"' "$_ff_self" 2>/dev/null | head -1 | cut -d: -f1)"
 if [ -z "$_ff_end" ]; then
   skip "the preamble refuses to start when its temporary directory sits inside a checkout" \
+       "$_ff_self is not this suite"
+  skip "a mktemp -d that gives no directory stops the suite and removes nothing" \
        "$_ff_self is not this suite"
 else
   _ffp="$TMP/floor-preamble"; mkdir -p "$_ffp/t"; _ff_git init -q "$_ffp" >/dev/null 2>&1
@@ -658,22 +688,62 @@ else
   _ff_o="$(cd "$_ffp/t" && FFP_T="$_ffp/t" bash -c \
              'mktemp() { command mktemp -d "$FFP_T/tmp.XXXXXX"; }; export -f mktemp; bash ./head.sh' 2>&1
            printf '|rc=%s' "$?")"
+  _ff_w="$(_ff_phys "$_ffp")"
   case "$_ff_o" in
-    *"holds a .git"*"|rc=1")
-      ok  "the preamble refuses to start when its temporary directory sits inside a checkout" ;;
+    *"tests/run: $_ff_w holds a .git"*"|rc=1")
+      [ -n "$_ff_w" ] && ok "the preamble refuses to start when its temporary directory sits inside a checkout" \
+        || bad "the preamble refuses to start when its temporary directory sits inside a checkout" "the stand-in [$_ffp] was not made" ;;
     *)
       bad "the preamble refuses to start when its temporary directory sits inside a checkout" \
-          "the suite's first $((_ff_end - 1)) lines, with mktemp inside [$_ffp], said: [$(printf '%s' "$_ff_o" | tr '\n' ' ')]" ;;
+          "the suite's first $((_ff_end - 1)) lines, with mktemp inside [$_ff_w], said: [$(printf '%s' "$_ff_o" | tr '\n' ' ')]" ;;
+  esac
+  _ffm="$TMP/floor-nomktemp/start"; mkdir -p "$_ffm"; : > "$_ffm/sentinel"
+  _ff_o="$(cd "$_ffm" && bash -c 'mktemp() { return 1; }; export -f mktemp; bash "$1"' _ "$_ffp/t/head.sh" 2>&1
+           printf '|rc=%s' "$?")"
+  case "$_ff_o" in
+    *"mktemp -d gave no directory"*"|rc=1")
+      [ -f "$_ffm/sentinel" ] && ok "a mktemp -d that gives no directory stops the suite and removes nothing" \
+        || bad "a mktemp -d that gives no directory stops the suite and removes nothing" "it stopped, and [$_ffm] is gone" ;;
+    *)
+      bad "a mktemp -d that gives no directory stops the suite and removes nothing" \
+          "with mktemp printing nothing the suite's first lines said: [$(printf '%s' "$_ff_o" | tr '\n' ' ')], and the start directory $([ -f "$_ffm/sentinel" ] && echo is intact || echo is gone)" ;;
   esac
 fi
 
-# 8. Only git's own "not a repository", status 128, is a floor. A git that
-# could not run at all says nothing about where the suite stands. On a PATH
-# that has mkdir and no git, the floor must refuse.
+# 9. Only git's own words are a floor. A git that could not run at all says
+# nothing about where the suite stands. On a PATH that has mkdir and no git,
+# the floor must get past mkdir and still refuse.
 _ffn="$TMP/floor-nogit"; mkdir -p "$_ffn/bin" "$_ffn/d"; ln -s "$(command -v mkdir)" "$_ffn/bin/mkdir"
 _ff_o="$(PATH="$_ffn/bin"; _fixture_floor "$_ffn/d" >/dev/null 2>&1; printf '%s' "$?")"
-[ -n "$_ff_o" ] && [ "$_ff_o" -ne 0 ] && ok "_fixture_floor refuses when git cannot run at all, rather than reading that as no repository" \
-  || bad "_fixture_floor refuses when git cannot run at all, rather than reading that as no repository" "it returned [$_ff_o] with no git on PATH"
+if [ ! -d "$_ffn/d/cwd" ]; then
+  bad "_fixture_floor refuses when git cannot run at all, rather than reading that as no repository" \
+      "it never got past mkdir (returned [$_ff_o]), so git was not asked"
+elif [ -n "$_ff_o" ] && [ "$_ff_o" -ne 0 ]; then
+  ok  "_fixture_floor refuses when git cannot run at all, rather than reading that as no repository"
+else
+  bad "_fixture_floor refuses when git cannot run at all, rather than reading that as no repository" "it returned [$_ff_o] with no git on PATH"
+fi
+
+# 10. Nor is git's status. A .git that git cannot open makes git exit 128, as
+# no repository does, and the floor must still refuse a DIR that holds one.
+_ffb="$TMP/floor-badgit"; mkdir -p "$_ffb/cwd"; printf 'not a gitfile\n' > "$_ffb/.git"
+_ff_g="$(cd "$_ffb/cwd" && GIT_CEILING_DIRECTORIES="$TMP" git rev-parse --git-dir >/dev/null 2>&1; printf '%s' "$?")"
+_ff_o="$(_fixture_floor "$_ffb" >/dev/null 2>&1; printf '%s' "$?")"
+if [ "$_ff_g" != 128 ]; then
+  bad "_fixture_floor refuses a DIR whose .git git cannot open, though git exits 128 there" \
+      "git exited [$_ff_g] there, so this is not the case it names"
+elif [ -n "$_ff_o" ] && [ "$_ff_o" -ne 0 ]; then
+  ok  "_fixture_floor refuses a DIR whose .git git cannot open, though git exits 128 there"
+else
+  bad "_fixture_floor refuses a DIR whose .git git cannot open, though git exits 128 there" "it returned [$_ff_o]"
+fi
+
+# 11. A walk that cannot say where it stands is no walk. With the directory
+# gone from under the shell, `cd -P .` returns 0 and leaves PWD empty (bash
+# 3.2.57), which the loop would read as / and answer "no checkout".
+_ffg="$TMP/floor-gone"; mkdir -p "$_ffg"
+_ff_o="$(cd "$_ffg" && rmdir "$_ffg" && { _fixture_enclosed 2>/dev/null; printf '%s' "$?"; })"
+is "_fixture_enclosed refuses when the directory it stands in is gone, rather than reading that as /" "$_ff_o" "2"
 
 
 printf '\nresolution\n'

@@ -28143,6 +28143,48 @@ rm -rf "$_cvp" "$_cvr" "$TMP/cv-mem" "$TMP/cv-ran"
 unset -f _cvall _cvread
 unset _cvtab _cvp _cvr _cvres _cvname _cvgot _cvwant
 
+printf '\ncommissioning: the discover row reads any other cache status as held, and the template says what 2 means\n'
+# After review, not blind (2026-10-08). felix_discover_cache_current returns 0
+# or 1 today, so the discover row's third arm, anything else, was reached by
+# no assertion: turning it into `exit 2` kept everything green. It reads held,
+# as an answer that is neither current nor not current, not a could-not-ask.
+# And the header test above only looked for three words; this one reads the
+# sentence. The status is written into the stub when it is defined: the stub
+# runs inside felix_commission_state, whose own local `rc` a `$rc` would read
+# (bash scopes dynamically), and the first draft of this block read done that way.
+_cwtab="${CMU_TABLE:-$FROOT/harness/templates/commissioning.tsv}"
+_cwp="$TMP/cw-proj"; _cwr="$TMP/cw-root"; mkdir -p "$_cwp" "$_cwr"
+_cwall() {
+  local need grounds instrument when answer check step rc
+  export FELIX_PROJECT="$_cwp" FELIX_PROJECT_NAME=cw-proj FELIX_ROOT_DIR="$_cwr" FELIX_MEMORY_DIR="$TMP/cw-mem"
+  IFS=$'\t' read -r need grounds instrument when answer check step <<CWROW
+$(grep -vE '^[[:space:]]*(#|$)' "$_cwtab" | awk -F'\t' '$1 == "discover" && !s { print; s = 1 }')
+CWROW
+  felix_discover_adopt() { printf 'already\tfoo\tllm\tlow\n'; }
+  for rc in 3 4 127; do
+    printf 'discover: a cache lookup that returns %s, neither current nor not, reads held|%s|held\n' "$rc" \
+      "$( eval "felix_discover_cache_current() { return $rc; }"
+          felix_commission_state "$_cwp" "$_cwr" discover - - - "$answer" "$check" </dev/null | cut -f1 )"
+  done
+  printf 'cw-end\n'
+}
+_cwres="$(_cm _cwall)"
+while IFS='|' read -r _cwname _cwgot _cwwant; do
+  [ -n "$_cwname" ] && [ "$_cwname" != cw-end ] || continue
+  is "$_cwname" "$_cwgot" "$_cwwant"
+done <<CWRES
+$_cwres
+CWRES
+is "the discover status block reached its end, no case dropped" \
+   "$(printf '%s\n' "$_cwres" | grep -c '^cw-end$')" "1"
+_cwhdr="$(awk '/^# check[[:space:]]/ { on = 1 } /^# step[[:space:]]/ { on = 0 } on' \
+            "$FROOT/harness/templates/commissioning.tsv" | sed 's/^#[[:space:]]*//' | tr '\n' ' ' | tr -s ' ')"
+has "the template's check column says it exits 2 when it could not be asked, and that reads unknown" \
+    "$_cwhdr" "2 when it could not be asked here (unknown"
+rm -rf "$_cwp" "$_cwr" "$TMP/cw-mem"
+unset -f _cwall
+unset _cwtab _cwp _cwr _cwres _cwname _cwgot _cwwant _cwhdr
+
 
 printf '\nthe engine manifest\n'
 # The plugin manifest is what felix install deploys under, and an empty one

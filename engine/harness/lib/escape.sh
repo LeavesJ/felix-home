@@ -555,7 +555,9 @@ felix_merge_blockers() {
   # asked here (indeterminate). Never on held rows: a toolbox that is not yet
   # installed is a fact about a machine, not about the code being merged. A
   # row whose check said it could not be asked (exit 2, since 2026-10-08) is
-  # unknown, not held, and blocks like any unknown. And
+  # unknown, not held, and blocks like any unknown: a discover row whose run
+  # could not fill the discovery cache (offline, a marketplace that cannot be
+  # read) is one, where until then it read held and did not block. And
   # never on a provider row's answer, which holds nothing by class; a provider
   # row whose answer could not be read is unknown like any row, and blocks
   # through the indeterminate receipt. Fails closed on a missing library for

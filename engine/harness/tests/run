@@ -27413,6 +27413,46 @@ is  "and the request holds the topology of the list whose capabilities it names,
     "same deploy durebill durecap secrets tests"
 rm -f "$_durereqfile" "$_durecalls2"
 
+# 7. What felix_capture drops, and the bytes the topology hashes (F7). These pin the
+# two helpers that every reader of the declared list now stands on, and they do not fail
+# against 4ccc9e09: they are the assertions its tests lacked.
+#
+# (a) The one assertion that named felix_capture's trailing newline printed output that
+# ends in one, which a capture that dropped every trailing newline satisfies too. Here
+# output that ends in two keeps one, and output that ends in three keeps two.
+_dureblank() { printf 'a\n\n'; }
+_duretriple() { printf 'a\n\n\n'; }
+_durecapt() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
+                _durev=untouched; felix_capture _durev "$@"; _durecr=$?
+                printf '%s|%s|' "$_durecr" "$_durev" ) 2>/dev/null; }
+is  "felix_capture drops one trailing newline and not all of them: output ending in two keeps one" \
+    "$(_durecapt _dureblank)" "$(printf '0|a\n|')"
+is  "and output ending in three keeps two" "$(_durecapt _duretriple)" "$(printf '0|a\n\n|')"
+# (b) The topology is the hash of the union a line each, the line `== commissioning.tsv ==`
+# and the table, nothing for an empty union and nothing after the line for no table. No
+# assertion pinned those bytes, and a topology that moves reads every answer stale. The
+# literals were computed with the engine before this change (f2d0e6a5) and with origin/main
+# at 6fe5f986, which agree, and the expected hashes are also built here from that layout,
+# so the assertion names the layout and not only a number. The checkout shows deploy,
+# secrets and tests, and the project declares secrets, durebill and durecap.
+_duretp="$TMP/dure-topo"; _dureempty="$TMP/dure-empty"; mkdir -p "$_duretp/none" "$_dureempty"
+printf 'secrets\ndurebill\ndurecap\n' > "$_duretp/capabilities"
+printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\ndurehash\t-\t-\t-\t-\ttrue\t9\n' > "$_duretp/commissioning.tsv"
+( cd "$_dureempty" && git init -q -b main && printf 'x\n' > .felix && git add -A \
+    && git -c user.name=dure -c user.email=dure@example.com commit -q -m dure )
+_dureempty="$(cd "$_dureempty" && pwd -P)"
+_duretopo1="$(_durecom felix_commission_topology "$_duretp" "$_durer")"
+_duretopo2="$(_durecom felix_commission_topology "$_duretp/none" "$_dureempty")"
+_dureexp1="$({ printf 'deploy\ndurebill\ndurecap\nsecrets\ntests\n'; printf '== commissioning.tsv ==\n'; cat "$_duretp/commissioning.tsv"; } | git hash-object --stdin)"
+_dureexp2="$({ printf '== commissioning.tsv ==\n'; } | git hash-object --stdin)"
+is  "felix_commission_topology of a checkout and a project that declare something is the hash of the union a line each, the commissioning.tsv header line and the table" \
+    "$_duretopo1" "$_dureexp1"
+is  "and of a checkout that shows nothing and a project with no capabilities and no table is the hash of the header line alone" \
+    "$_duretopo2" "$_dureexp2"
+is  "and the two hashes are the ones the engine before this change gave, abf0d82a and 4eed57d3" \
+    "$_duretopo1 $_duretopo2" "abf0d82af4e01e177b725cf9c2432a15aa58e93f 4eed57d3f18d5ffd616035ca5ee3b906a4da1a7b"
+rm -rf "$_duretp" "$_dureempty"
+
 rm -rf "$_durep" "$_durer" "$_durehome" "$_durebin0" "$_duregrep" "$_duretr" "$_durepv" "$_dureeng" "$_durecalls" "$MEM/dureproj"
 [ -d "$FROOT/state" ] && find "$FROOT/state" -name '*dureproj*' -exec rm -rf {} + 2>/dev/null
 _durenl='
@@ -27422,11 +27462,12 @@ find "$FROOT/state" -depth -type d 2>/dev/null | while IFS= read -r _dured; do
 done
 is  "and the block for the second review's fixes leaves the projects, the state and the memory as it found them" \
     "$(_durefixture)" "$_durefound"
-unset -f _durefixture _durecli _duresays _dureis _durelines _durerecl _duredl _dureprun _durej _durepol _durestart _durecom _durereq
+unset -f _durefixture _durecli _duresays _dureis _durelines _durerecl _duredl _dureprun _durej _durepol _durestart _durecom _durereq _dureblank _duretriple _durecapt
 unset _durefound _duredirs _durep _durer _durehome _durebin0 _duregrep _duretr _duretpl _durerealgrep _dureretr \
       _dureplain _durestub _duren _durenl _dured _durerec0 _durerec1 _dured0 _dured1 _dureeff _duregaps \
       _durepv _durepolun _durepolrd _durepolno _durepolem _dureeng _durecalls _durewhy _durans _duretopo _dureold \
-      _durerow _durerowk _dures1 _dures2 _dures3 _dures4 _dures5 _durecalls2 _durereqfile _durefirst _durereads _duretopoin _durecapsin
+      _durerow _durerowk _dures1 _dures2 _dures3 _dures4 _dures5 _durecalls2 _durereqfile _durefirst _durereads _duretopoin _durecapsin \
+      _duretp _dureempty _duretopo1 _duretopo2 _dureexp1 _dureexp2
 
 # A table command whose last stage succeeds whatever it is fed is refused.
 #

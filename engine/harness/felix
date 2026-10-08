@@ -5315,8 +5315,9 @@ EOF
   if [ "${n_unk:-?}" != 0 ]; then
     printf '\ncould not be asked here\n\n'
     printf '%s\n' "$out" | awk -F'\t' '$2 == "unknown" { printf "  %-20s %s\n", $1, $6 }'
-    printf '\nUnknown is not held and not done. It blocks the receipt, and only the\n'
-    printf 'machine changing can clear it.\n'
+    printf '\nUnknown is not held and not done. It blocks the receipt until the row\n'
+    printf 'can be asked: the machine changes, or, for a check that said it could\n'
+    printf 'not be asked, a felix commission whose answer makes it askable.\n'
   fi
   if [ -n "$malformed" ]; then
     printf '\nrows that name a need and nothing readable\n\n'

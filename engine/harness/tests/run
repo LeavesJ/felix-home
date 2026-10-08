@@ -27978,6 +27978,74 @@ unset -f _curow _curowrun _cuemit _cuhas _cuhead _cutable _cufield _curan _cures
          _custate _cuboth _curun _cuunstubbed _cunopipe _cuc1 _cuall _cu6
 unset _cutab _cudir _cup _cur _cures _cuname _cugot _cuwant _cuhdr _cu8a _cu8u _cu8t
 
+printf '\ncommissioning: a lookup that ends its substitution with exit 2 makes its row unknown\n'
+# After review, not blind (2026-10-08). A seeded row reads each lookup into a
+# variable, `x="$(lookup; ...)" && ...`, and an assignment's status is its
+# substitution's. So a lookup that ends the substitution with `exit 2` gives
+# the check a 2, which since the exit-2 rule reads unknown: the lookup said it
+# could not answer. Until then it read held. 128 and more stay held, as 0di
+# ruled. No lookup ends with 2 today (die defaults to 1), so this pins the
+# reading for the day one does. Each seeded row's first lookup, one row at a
+# time in its own shell, so no other row sees the stub. And the review's
+# other gap: a felix row whose check does not parse runs nothing, where until
+# the parse guard it read held and its answer ran.
+_cvtab="${CMU_TABLE:-$FROOT/harness/templates/commissioning.tsv}"
+_cvp="$TMP/cv-proj"; _cvr="$TMP/cv-root"
+mkdir -p "$_cvp" "$_cvr"
+printf 'gh_auth\tGitHub CLI signed in\n' > "$_cvp/setup.tsv"
+# need answer check -> state/detail, the detail shortened to `could not be
+# asked` when it is that one. A function of its own because bash 3.2 reads a
+# case pattern's `)` inside $( ) as the end of the substitution.
+_cvread() {
+  local l
+  l="$(felix_commission_state "$_cvp" "$_cvr" "$1" - - - "$2" "$3" </dev/null | cut -f1,2)"
+  case "$l" in
+    *'says it could not be asked'*) printf '%s/could not be asked' "${l%%$'\t'*}" ;;
+    *) printf '%s' "$l" | tr '\t|' '/ ' ;;
+  esac
+}
+_cvall() {
+  local need grounds instrument when answer check step fn n=0
+  # _cm does not load the obligation library, and a row naming a function that
+  # is not loaded is unknown for that reason before its check runs. So it is
+  # loaded here, and the detail is read too: unknown because the check could
+  # not be asked, never for another reason (the review found the obligations
+  # case green on main that way).
+  command -v felix_obligation_rows >/dev/null 2>&1 || . "$FROOT/harness/lib/obligations.sh"
+  export FELIX_PROJECT="$_cvp" FELIX_PROJECT_NAME=cv-proj FELIX_ROOT_DIR="$_cvr" FELIX_MEMORY_DIR="$TMP/cv-mem"
+  while IFS=$'\t' read -r need grounds instrument when answer check step; do
+    case "$answer" in provider:*) continue ;; esac
+    fn="$(printf '%s' "$check" | grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)' | head -n 1)"
+    [ -n "$fn" ] || continue
+    n=$((n + 1))
+    printf '%s: its first lookup, %s, ending with exit 2 makes the row unknown, as one that could not be asked|%s|unknown/could not be asked\n' "$need" "$fn" \
+      "$( eval "$fn() { exit 2; }"; _cvread "$need" "$answer" "$check" )"
+  done <<CVROWS
+$(grep -vE '^[[:space:]]*(#|$)' "$_cvtab")
+CVROWS
+  printf 'the exit-2 lookup cases asked some seeded rows|%s|yes\n' "$([ "$n" -gt 0 ] && printf yes || printf no)"
+  { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'
+    printf 'cv_parse\t-\t-\t-\tfelix:toolbox --route\tif then\t5\n'; } > "$_cvp/commissioning.tsv"
+  : > "$TMP/cv-ran"
+  _cvrunner() { printf '%s\n' "$1" >> "$TMP/cv-ran"; return 0; }
+  printf 'a felix row whose check does not parse is unknown and runs nothing|%s ran=[%s]|unknown ran=[]\n' \
+    "$(felix_commission_run "$_cvp" "$_cvr" _cvrunner </dev/null | awk -F'\t' '$1 == "cv_parse" { print $2 }')" \
+    "$(tr '\n' ' ' < "$TMP/cv-ran" | sed 's/ $//')"
+  printf 'cv-end\n'
+}
+_cvres="$(_cm _cvall)"
+while IFS='|' read -r _cvname _cvgot _cvwant; do
+  [ -n "$_cvname" ] && [ "$_cvname" != cv-end ] || continue
+  is "$_cvname" "$_cvgot" "$_cvwant"
+done <<CVRES
+$_cvres
+CVRES
+is "the exit-2 lookup block reached its end, no case dropped" \
+   "$(printf '%s\n' "$_cvres" | grep -c '^cv-end$')" "1"
+rm -rf "$_cvp" "$_cvr" "$TMP/cv-mem" "$TMP/cv-ran"
+unset -f _cvall _cvread
+unset _cvtab _cvp _cvr _cvres _cvname _cvgot _cvwant
+
 
 printf '\nthe engine manifest\n'
 # The plugin manifest is what felix install deploys under, and an empty one

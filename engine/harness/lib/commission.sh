@@ -19,8 +19,9 @@
 # check names that this process has not loaded, a checkout that cannot be
 # entered, or a lookup the state is read from that could not be made: the
 # declared capabilities, or the engine functions a check names. It blocks the
-# receipt and nothing can demote it but the machine changing. `malformed`
-# counts toward nothing and fails the run.
+# receipt until the row can be asked: the machine changes, or, for a check
+# that said it could not be asked, a run whose answer makes it askable (a
+# discovery cache filled). `malformed` counts toward nothing and fails the run.
 # A row whose answer is a provider — a skill a session's model runs — is a
 # separate class by construction: it is `awaiting` until a file it cannot
 # write appears, it holds nothing, and awaiting, stale, partial or answered it
@@ -491,8 +492,10 @@ EOF
     # discover --adopt fills the cache the discover check reads. Before
     # 2026-10-08 such a check read held, so this runs the same answers as
     # before and reports them truthfully. No other unknown runs its answer: an
-    # instrument, a command or a function that is missing, or a checkout that
-    # cannot be entered, is not anything an engine stage can change.
+    # instrument, a command or a function that is missing, a checkout that
+    # cannot be entered, or a check that does not parse (held until
+    # 2026-10-08, so its answer ran then) is not anything an engine stage can
+    # change.
     if [ "$runner" != "-" ] && { [ "$st" = "held" ] || { [ "$st" = "unknown" ] && _felix_commission_unasked "$detail"; }; }; then
       case "$answer" in
         felix:*)

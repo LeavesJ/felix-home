@@ -553,7 +553,9 @@ felix_merge_blockers() {
   # project has never been commissioned on this machine, while its table set
   # or detected surfaces have moved since it was, or while a row could not be
   # asked here (indeterminate). Never on held rows: a toolbox that is not yet
-  # installed is a fact about a machine, not about the code being merged. And
+  # installed is a fact about a machine, not about the code being merged. A
+  # row whose check said it could not be asked (exit 2, since 2026-10-08) is
+  # unknown, not held, and blocks like any unknown. And
   # never on a provider row's answer, which holds nothing by class; a provider
   # row whose answer could not be read is unknown like any row, and blocks
   # through the indeterminate receipt. Fails closed on a missing library for

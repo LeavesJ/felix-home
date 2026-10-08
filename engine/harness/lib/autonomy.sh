@@ -147,9 +147,8 @@ felix_autonomy_allows() {
 # other byte. Matching exactly instead would leave a revoke that cannot take
 # back a grant the reader honours.
 #
-# Not covered: two felix autonomy runs at once. Nothing locks the file, so the
-# later mv can put back what the earlier one removed, after it said so. Only a
-# person writes this file, by typing the command; the lock is its own change.
+# The caller holds felix_autonomy_lock across this and its read-back. Without
+# it, a second run's mv can put back what this one removed, after it said so.
 felix_autonomy_revoke() {
   local proj="$1" want="$2" f tmp rc
   [ -n "$want" ] || return 1
@@ -178,6 +177,50 @@ felix_autonomy_revoke() {
   felix_autonomy_allows "$proj" "$want" && return 3
   return 0
 }
+
+# One writer at a time.
+#
+# 2026-10-08, from the adversarial review of the revoke fix: nothing held the
+# file while felix autonomy rewrote it. Run A (--revoke commission) read it,
+# then run B (--revoke tidy) read, rewrote, moved, read back, and said
+# "revoked: tidy". Then A's move landed A's copy, which still held tidy. tidy
+# is the grant that deletes files at session start. A revoke racing an
+# --allow lost the allow's line under its move the same way. main's
+# `grep -vxF > autonomy.new && mv` had the same unlocked read-modify-write, so
+# this predates the revoke fix.
+#
+# So every writer holds one lock per project, from its first read to its last
+# write and read-back. That covers the grant file and its stamps. The lock is
+# the directory <proj>/autonomy.lock, because mkdir is atomic everywhere and a
+# lock file is not. Readers take nothing: a rewrite lands by rename, so a
+# reader sees the old file or the new one.
+#
+# A held lock is never taken over, unlike felix_commission_lock's. This one
+# guards a permission, and takeover is the window in which two takers both see
+# a stale lock and both write: the race the lock exists to close. A lock left
+# by a killed run therefore refuses every later write until a person removes
+# it, and the refusal says how.
+#
+# Nothing is written inside it, so it stays an empty directory, which git
+# cannot track. FELIX_ESCAPE_AUTHORITY (escape.sh) matches the name
+# projects/<p>/autonomy.lock, and for that reason it never reaches a diff.
+#
+# The caller takes it, not felix_autonomy_revoke. One lock then spans the
+# revoke, the allow and the stamp writes of one command.
+felix_autonomy_lock_path() { printf '%s/autonomy.lock' "$1"; }
+
+# proj -> 0 taken; 1 held, a directory is there; 2 not taken, and something
+# other than a lock directory is at the name, or the project is not writable.
+felix_autonomy_lock() {
+  local lock; lock="$(felix_autonomy_lock_path "$1")"
+  mkdir "$lock" 2>/dev/null && return 0
+  [ -d "$lock" ] && [ ! -L "$lock" ] && return 1
+  return 2
+}
+
+# rmdir, never rm -r: a lock that has gained contents was not made here, and
+# is left for a person.
+felix_autonomy_unlock() { rmdir "$(felix_autonomy_lock_path "$1")" 2>/dev/null; return 0; }
 
 # Remove lookalike scripts, and only where every check holds.
 #

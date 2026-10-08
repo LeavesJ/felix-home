@@ -4642,6 +4642,40 @@ _gprust="$( ( . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/bootstrap.
                    END { print n + 0 }')"
 is  "and the rust toolchain step names stable itself, since a commit carries no channel" "$_gprust" "1"
 
+printf '\nthe CI that gates this checkout runs the action code its pins name, and no other\n'
+# The two sections above hold what Felix renders into other repositories. The
+# workflows beside this harness, the ones that gate the engine itself, were
+# left on actions/checkout@v4 after both templates moved to a commit (#354,
+# #403): a change under .github/workflows is an execute escape a person merges,
+# and nothing here read those files. Every .yml and .yaml in that directory is
+# read, every uses: key in each, by the same reader, so a workflow or an action
+# added later is held to the pin without this section being edited. A snapshot's
+# verification clone holds the public repository's own workflows there, and
+# they are held to it too. No workflow file, a file awk could not read, or
+# files with no uses: line between them, fails: a read that matched nothing
+# would pass every tree.
+_owf=()
+for _owp in "$REAL_HARNESS"/../../.github/workflows/*.yml "$REAL_HARNESS"/../../.github/workflows/*.yaml; do
+  [ -f "$_owp" ] && _owf+=("$_owp")
+done
+_owuses=""; _owrc=1
+if [ "${#_owf[@]}" -gt 0 ]; then
+  _owuses="$(awk -v q="'" '/^[ \t]*#/ { next }
+                           /^[ \t]*(-[ \t]+)?uses:/ { v = $0; f = FILENAME; sub(/.*\//, "", f)
+                             sub(/^[ \t]*(-[ \t]+)?uses:[ \t]*/, "", v); sub(/[ \t]+#.*$/, "", v)
+                             gsub(/"/, "", v); gsub(q, "", v)
+                             print f ":" FNR ": " v }' "${_owf[@]}")"; _owrc=$?
+fi
+_owloose="$(grep -v -E '@[0-9a-f]{40}$' <<<"$_owuses")"
+if [ "$_owrc" -eq 0 ] && [ -n "$_owuses" ] && [ -z "$_owloose" ]; then
+  ok  "every uses: in the workflows beside this harness names a full commit sha, not a ref its owner can move"
+else
+  bad "every uses: in the workflows beside this harness names a full commit sha, not a ref its owner can move" \
+      "$(if [ "${#_owf[@]}" -eq 0 ]; then printf 'no workflow file under %s' "$REAL_HARNESS/../../.github/workflows"
+         elif [ "$_owrc" -ne 0 ]; then printf 'awk could not read every workflow (exit %s)' "$_owrc"
+         else printf '%s' "${_owloose:-no uses: line found}" | tr '\n' ';'; fi)"
+fi
+
 printf '\nmistakes record themselves\n'
 # Judgement at write time is the wrong shape: it asks for a decision at the exact
 # moment someone is trying to finish something else. Write cheaply, curate later.

@@ -896,8 +896,15 @@ _og_on=1
 # status to 1, an earlier non-zero status kept. When the last section did run,
 # _fx_final is set and the trap adds nothing. EXIT traps are not inherited by
 # subshells, so this runs in the suite's own shell and nowhere else.
-_fx_exit() {
-  local rc=$? fail=""
+#
+# The removal and the exit are written into the trap itself, not into _fx_exit,
+# so no later definition of a function can take $TMP's removal away (asked by
+# the fixture floor's owner, 2026-10-08). And the trap turns set -u off before
+# it calls _fx_exit: an unset variable is fatal to a non-interactive shell, and
+# inside the trap that would end it before the removal ran. _fx_exit takes the
+# status the run exited with and returns the one it should end with.
+_fx_exit() {   # RC -> RC, or 1 where RC is 0 and a check here failed
+  local rc="$1" fail=""
   if [ -z "${_fx_final:-}" ]; then
     if [ -s "$FELIX_TEST_FXREFUSED" ]; then
       fail=1
@@ -907,10 +914,9 @@ _fx_exit() {
     if [ "$_og_v" = bad ]; then fail=1; printf '%s\n' "$_og_rep" >&2; fi
     [ -z "$fail" ] || [ "$rc" -ne 0 ] || rc=1
   fi
-  rm -rf "$TMP"
-  exit "$rc"
+  return "$rc"
 }
-trap _fx_exit EXIT
+trap '_fx_rc=$?; set +u; _fx_exit "$_fx_rc"; _fx_rc=$?; rm -rf "$TMP"; exit "$_fx_rc"' EXIT
 # The manifest of assertions this suite is supposed to reach, beside the suite
 # and tracked. Regenerated with `tests/run --record-assertions`, which is the
 # one command that changes it, so the diff on every PR says plainly which

@@ -26056,9 +26056,11 @@ _dntcheck "no byte sends the read into a binary mode: a comment holding every by
   "# every byte: $_dntall\nstorage\nbilling\n" $'0 [storage\nbilling\n]' \
   "storage\nx$_dnthigh\n" '2 []'
 _dntkx="${_dntu:-C}|C|${_dntu:-C}|exported|:|2|a b|c|noglob"
-is  "after a call in the current shell the caller's LC_ALL, LC_CTYPE, LANG, IFS, positional parameters and set -f are as they were, over a marked list and over a NUL" \
+# Renamed after review: the positional parameters are printed but are no
+# evidence, since a function's `set --` never reaches its caller's.
+is  "after a call in the current shell the caller's LC_ALL, LC_CTYPE, LANG, IFS and set -f are as they were, over a marked list and over a NUL" \
     "$(_cm _dntkeepset '\357\273\277storage\n') $(_cm _dntkeepset 'storage\nau\000th\n')" "$_dntkx $_dntkx"
-is  "and with LC_ALL, LC_CTYPE, LANG and IFS unset, no positional parameters and set +f, they stay so" \
+is  "and with LC_ALL, LC_CTYPE, LANG and IFS unset and set +f, they stay so" \
     "$(_cm _dntkeepunset '\357\273\277storage\n') $(_cm _dntkeepunset 'storage\nau\000th\n')" \
     "unset|unset|unset|-|unset|0|||glob unset|unset|unset|-|unset|0|||glob"
 
@@ -26185,13 +26187,68 @@ else
        "no UTF-8 locale here"
 fi
 
+# Added after review, not blind. Each was shown red against a wrong
+# implementation the blind block passed (2026-10-08):
+# - a split with globbing left on read `*` as the files in the caller's
+#   directory, and output through echo lost `-n` and turned `-e` empty;
+# - a mark stripped from the first line after the split, or after leading
+#   whitespace, instead of from the file's first bytes;
+# - the name check stopping at an inline `#`, so a remark's bytes went unread;
+# - a NUL decided by a second open of the file (a redirect no PATH stub can
+#   see), so what was judged was not what cat printed.
+# Not asserted: a { } group in place of the ( ) differs only under lastpipe
+# (bash 4.2 and later), and no bash here can show that red.
+mkdir -p "$TMP/dnt-glob" "$TMP/dnt-cat-clean" "$TMP/dnt-cat-nul"
+: > "$TMP/dnt-glob/storage-x"; : > "$TMP/dnt-glob/stor.bak"; : > "$TMP/dnt-glob/a"; : > "$TMP/dnt-glob/b"
+_dntreal="$(type -P cat)"
+cat > "$TMP/dnt-cat-clean/cat" <<DNTSTUB
+#!/bin/bash
+. "$TMP/dnt-isit"
+if _dntisit "\$@"; then printf 'storage\nbilling\n'; exit 0; fi
+exec "$_dntreal" "\$@"
+DNTSTUB
+cat > "$TMP/dnt-cat-nul/cat" <<DNTSTUB
+#!/bin/bash
+. "$TMP/dnt-isit"
+if _dntisit "\$@"; then printf 'storage\nau\000th\n'; exit 0; fi
+exec "$_dntreal" "\$@"
+DNTSTUB
+chmod +x "$TMP/dnt-cat-clean/cat" "$TMP/dnt-cat-nul/cat"
+_dntglobmany() { cd "$TMP/dnt-glob" || return 1; _dntmany "$@"; }
+_dntglobx=$'0 [*\n?\n[a-z]*\nstor*\n-n\n-e\n-E\n%s\n]'
+is  "a name that is a glob or reads as an echo option is printed as it stands, never the files it would match, from a directory holding such files, under LC_ALL=C" \
+    "$(_cm _dntglobmany C '*\n?\n[a-z]*\nstor*\n-n\n-e\n-E\n%%s\n')" "$_dntglobx $_dntglobx"
+if [ -n "$_dntu" ]; then
+  is  "a name that is a glob or reads as an echo option is printed as it stands, under a UTF-8 locale" \
+      "$(_cm _dntglobmany utf8 '*\n?\n[a-z]*\nstor*\n-n\n-e\n-E\n%%s\n')" "$_dntglobx $_dntglobx"
+else
+  skip "a name that is a glob or reads as an echo option is printed as it stands, under a UTF-8 locale" "no UTF-8 locale here"
+fi
+_dntcheck "a mark that is not the file's first bytes is bytes of its line even where a blank line or whitespace comes before it, so the file is no list" \
+  '\n\357\273\277storage\n' '2 []' \
+  '\n\n\357\273\277# c\nstorage\n' '2 []' \
+  ' \357\273\277storage\n' '2 []' \
+  '\t\357\273\277storage\n' '2 []'
+_dntcheck "an inline remark is part of its listed line: a byte outside tab and printable ASCII in it makes the file no list" \
+  'storage   # caf\303\251\n' '2 []' \
+  'storage # x\r\n' '2 []' \
+  'storage\t# \001\n' '2 []'
+_dntcatsays() { _dntenv "$1"; _dntput "$3"; PATH="$TMP/dnt-cat-$2:$PATH"
+  printf '%s %s' "$(set -o pipefail; _dntrc felix_declared "$CMP")" "$(set +o pipefail; _dntrc felix_declared "$CMP")"; }
+_dntcs="$(_cm _dntcatsays C clean 'storage\nau\000th\n') | $(_cm _dntcatsays C clean 'storage\r\nbilling\r\n') | $(_cm _dntcatsays C clean 'caf\303\251\n')"
+_dntcl=$'0 [storage\nbilling\n] 0 [storage\nbilling\n]'
+is  "what felix_declared judges is what cat printed: a cat printing a clean list over a file holding a NUL, a CR or a byte from 200 up gives that list" \
+    "$_dntcs" "$_dntcl | $_dntcl | $_dntcl"
+is  "and a cat printing a NUL over a clean file makes it no list, nothing printed and 2" \
+    "$(_cm _dntcatsays C nul 'storage\nbilling\n')" "2 [] 2 []"
+
 rm -f "$CMP/capabilities"
 mv "$TMP/dnt-stack.keep" "$CMP/stack.tsv"; mv "$TMP/dnt-cmstub.keep" "$CMSTUB_LOG"
-rm -rf "$TMP/dnt-bin" "$TMP/dnt-cat-none" "$TMP/dnt-cat-part"
+rm -rf "$TMP/dnt-bin" "$TMP/dnt-cat-none" "$TMP/dnt-cat-part" "$TMP/dnt-glob" "$TMP/dnt-cat-clean" "$TMP/dnt-cat-nul"
 rm -f "$TMP/dnt-isit" "$TMP/dnt-out" "$TMP/dnt-opens" "$TMP/dnt-target" "$TMP/dnt-no-such-target"
 unset -f _dntenv _dntfill _dntput _dntrc _dntmany _dntcheck _dntopens _dntcatfail _dntcap _dntinto _dntplan \
-         _dntstate _dntkeepset _dntkeepunset _dnt7 _dnt8 _dntin _dntsp
-unset _dntu _dntul _dntl _dntc _dntreal _dnt2f _dnt2x _dntall _dnthigh _dnti _dntkx _dntpr
+         _dntstate _dntkeepset _dntkeepunset _dnt7 _dnt8 _dntin _dntsp _dntglobmany _dntcatsays
+unset _dntu _dntul _dntl _dntc _dntreal _dnt2f _dnt2x _dntall _dnthigh _dnti _dntkx _dntpr _dntglobx _dntcs _dntcl
 # ---- declared-not-text: end
 # The answers below are keyed to the topology taken with api declared.
 rm -f "$CMP/capabilities"; printf 'api\n' > "$CMP/capabilities"

@@ -51,9 +51,14 @@ one. The class, enumerated, held seven. Measured on the base engine, each one:
 - `felix_replace_file PATH CMD...` writes PATH whole, so a hard link is cut
   rather than written through. It is two halves, for a caller with something
   to do between them:
-  - `felix_replace_prepare` writes CMD's output to a temp file beside PATH.
-    The file is 0600 for the write and gets the umask's mode after it. It
-    prints the temp file's name.
+  - `felix_replace_prepare` writes CMD's output to a temp file beside PATH and
+    prints the temp file's name. The write itself is `felix_replace_fill TMP
+    CMD...`, so a caller that must not leave the temp file on a signal can
+    make it, name it to its own trap, and fill it after. The file is 0600 for
+    the write and gets the umask's mode after it. CMD runs in a subshell that
+    ignores SIGXFSZ, redirected as a whole, so a write past the file-size
+    limit fails with a status, the temp file is removed, and bash 3.2's
+    leftover buffer goes into the file rather than into the caller's `$( )`.
   - `felix_replace_commit` renames that file onto PATH. It returns 1 and
     removes it, including a copy the rename put inside a directory, unless
     PATH ends up a regular file that is not a link.
@@ -85,7 +90,7 @@ Each site refuses before it writes, runs or records anything:
 - `felix_route_append_play`'s mv onto routes.tsv: `[ -f ]` first, and it
   replaces a symlink rather than blocking. Left.
 
-**Tests.** Three tests/run blocks, before `reached`, each written blind by an
+**Tests.** Four tests/run blocks, before `reached`, each written blind by an
 Opus agent that read only its contract and the two pre-fix engine exports
 (base ea68ed86 and origin/main 6fe5f986). Every FIFO case is bounded by a
 helper that kills only its own pid tree. The helper allows 8 s, extended while
@@ -107,6 +112,14 @@ the tree is still changing at load 380-700, and kills an idle tree at once.
   second adopt skipped the step, and the runbook was never written. The
   author also checked its block against its own patched copy of the base
   engine (168/168) and 28 mutants of that copy. Every mutant was caught.
+- *the replace helper leaves nothing behind when the file-size limit stops its
+  write*: 19 assertions, from a fourth addendum. Under `ulimit -f 0`, each
+  limit is set inside a subshell that reports through a pipe, because the
+  limit also stops a report written to a file. Each helper case first asks
+  whether the helper is a function. A missing helper also leaves PATH alone,
+  so about seven cases would otherwise pass on the old engines. The author
+  checked its own patched copy (19/19) and eight mutants, all caught. It has
+  not been run under bash 5 on Linux; CI is the first run there.
 
 The third block found the review's R1 fix incomplete. a21148ea moved the mode
 change after the write, but mktemp's own 0600 is masked by the umask too.
@@ -126,6 +139,7 @@ block, from a fresh mktemp -d outside every repository):
 | 1 (182) | 182 pass | 139 red, 20 calls blocked | 137 red, 20 calls blocked |
 | 2 (59) | 59 pass | 43 red | 43 red |
 | 3 (168) | 168 pass | 86 red | 86 red |
+| 4 (19) | 19 pass (a4d4d514: 4 red) | 17 red | 17 red |
 
 **Review (Opus, 2026-10-08, workflow wf_92282b57-feb), three lenses.**
 - **Completeness.** It enumerated the class independently. It found no site
@@ -168,9 +182,16 @@ block, from a fresh mktemp -d outside every repository):
 f25bf26c then made the temp file 0600 before the write, after the third blind
 block showed the umask order was still wrong.
 
+18b65ca8 made the write ignore SIGXFSZ, after the writer lock's session asked
+about `ulimit -f 0`. The stamp already failed closed there: unchanged, with
+"the grant does not hold" and `[!]`. But the signal ended the subshell
+before its cleanup ran, which left an empty `autonomy.commission.new.*` (or
+`setup/<id>.md.new.*`) in the project. Block 4 is red on a4d4d514 on exactly
+that: three leftovers, and prepare's own status 153.
+
 Re-checked on the review-fix engine:
 - blocks 1, 2 and 3 pass 409/409 at f25bf26c, standalone and chained in suite
-  order;
+  order, and blocks 1 to 4 pass 428/428 chained at 18b65ca8;
 - the 18 existing blocks touching adopt, new, doctor, setup and gate give the
   same verdicts as base;
 - the reviewer's chained `felix new` block passes 48/48. The blocks that fail
@@ -182,18 +203,42 @@ Re-checked on the review-fix engine:
   claude/autonomy-allow-fails-closed;
 - the refusal's wording beside a `--revoke`, from the writer lock's review.
   It now says "no commission grant or stamp was written".
+- the stamp under `ulimit -f 0`, from the writer lock's fourth review; see
+  18b65ca8 above.
 
 **Carrying.** Position 12 in the 2026-10-08 carrier queue
 (~/.felix/memory/felix/audits/2026-10-08-carrier/state.md), after
 claude/adopt-newline-before-append, which it is built on. Merge main once that
-lands. cmd_autonomy --allow sits beside the autonomy chain: revoke, the writer
-lock and --allow. Whichever lands second takes the other's hunks. The stamp
-pre-check sits directly above `if felix_autonomy_allows`.
+lands. The squash of 1 reads as different history, so take main's side on
+every hunk that branch changed after ea68ed86, and keep only this branch's.
 
-For claude/suite-git-proof (3b), the three blocks add five fixture subshells
+cmd_autonomy --allow sits beside the autonomy chain, now one PR on
+claude/autonomy-writer-lock (revoke, --allow and the lock). That chain is ahead
+in the queue, so this branch lands second and takes its shape, which its
+session has checked:
+- keep its guard, lock, `felix_autonomy_grant` and revoke as they are;
+- do not reintroduce this branch's seed of `autonomy`;
+- send every status line, `stamped` included, through `felix_autonomy_say`;
+- put the stamp pre-check at the top of `if [ -n "$allow" ]`, before
+  `if felix_autonomy_allows`;
+- write the stamp the way the lock writes the grant. mktemp runs in a `$( )`
+  that ignores `$FELIX_AUTONOMY_SIGNALS` and execs, and its name goes into
+  `_FELIX_AUTONOMY_TMP` before the write. Then come `felix_replace_fill` and
+  `felix_replace_commit`, `|| die`, and the variable is cleared after.
+
+Then a signal between mktemp and the rename leaves no file, because the lock's
+release removes it. Pin that at the merge with a mktemp shim that pauses, and
+an INT to the group, as the lock's `_lwmkt` does. It cannot be written before
+the lock is in the tree.
+
+adopt's runbook has no trap to name its temp file to. A Ctrl-C between
+prepare's mktemp and its return can leave an empty `setup/<id>.md.new.*`, with
+no row written. This is left, and noted here.
+
+For claude/suite-git-proof (3b), the four blocks add five fixture subshells
 of the shape `( cd "$X" && <git write> )`: block 1 three, through `_pw_git`;
-blocks 2 and 3 one each. They add no `git -C "$X" <write>`. Whoever lands
+blocks 2 and 3 one each; block 4 none. They add no `git -C "$X" <write>`. Whoever lands
 second converts them.
 
-**At the record.** assertions.tsv grows by 409 from this branch (182 + 59 +
-168), on top of the writer and readers branches'.
+**At the record.** assertions.tsv grows by 428 from this branch (182 + 59 +
+168 + 19), on top of the writer and readers branches'.

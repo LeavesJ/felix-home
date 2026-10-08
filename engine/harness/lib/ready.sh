@@ -125,9 +125,9 @@ felix_ready_report() {
   local plugins=""
   if command -v claude >/dev/null 2>&1; then
     plugins="$(claude plugin list --json 2>/dev/null \
-      | sed -n -e 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/ID \1/p' \
+      | LC_ALL=C sed -n -e 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/ID \1/p' \
                -e 's/.*"enabled"[[:space:]]*:[[:space:]]*\([a-z]*\).*/EN \1/p' \
-      | awk '/^ID /{id=$2} /^EN /{print id "\t" $2}')"
+      | LC_ALL=C awk '/^ID /{id=$2} /^EN /{print id "\t" $2}')"
   fi
 
   while IFS= read -r want; do

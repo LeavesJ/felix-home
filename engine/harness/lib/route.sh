@@ -433,8 +433,8 @@ felix_route_render() {
 
   if [ "$play" != "-" ] && [ -n "$play" ]; then
     if due="$(felix_route_due "$transcript" "$play")"; then
-      rest="$(printf '%s' "$due" | cut -f2)"
-      due="$(printf '%s' "$due" | cut -f1)"
+      rest="$(printf '%s' "$due" | LC_ALL=C cut -f2)"
+      due="$(printf '%s' "$due" | LC_ALL=C cut -f1)"
       kind="$(_felix_route_kind "$proj" "$due")"
 
       if [ "$kind" = "not declared" ]; then

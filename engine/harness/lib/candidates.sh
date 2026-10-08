@@ -77,7 +77,7 @@ _felix_candidates_answer_epoch() {
 # The rules in the order a reader can act on them; each reason is distinct so
 # a refused row says what to change.
 felix_candidates_rules() {
-  local proj="$1" root="$2" f line n name cls applies ev grounds reason g bad preds admitted
+  local proj="$1" root="$2" f line n name cls applies ev grounds reason g bad preds admitted LC_ALL=C
   local nl='
 '
   f="$(felix_candidates_answer_path "$proj")"
@@ -138,12 +138,12 @@ felix_candidates_record() {
   local proj="$1" root="$2" f hash prov epoch stamp tid out n=0 line
   f="$(felix_candidates_answer_path "$proj")"
   [ -f "$f" ] || { printf 0; return 0; }
-  [ "$(felix_commission_provider_state "$proj" "$root" "$FELIX_CANDIDATES_NEED" | cut -f1)" = "answered" ] \
+  [ "$(felix_commission_provider_state "$proj" "$root" "$FELIX_CANDIDATES_NEED" | LC_ALL=C cut -f1)" = "answered" ] \
     || { printf 0; return 0; }
   hash="$(_felix_hash < "$f")"
   prov="$(basename "$f")@$hash"
   out="$(felix_candidates_path "$proj")"
-  if [ -f "$out" ] && grep -qF "	$prov	" "$out" 2>/dev/null; then printf 0; return 0; fi
+  if [ -f "$out" ] && LC_ALL=C grep -qF "	$prov	" "$out" 2>/dev/null; then printf 0; return 0; fi
   mkdir -p "$(dirname "$out")" 2>/dev/null || { printf 0; return 1; }
   epoch="$(_felix_candidates_answer_epoch "$f")"
   stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -153,8 +153,8 @@ felix_candidates_record() {
     line="${line#accept	}"
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\tprobabilistic\t%s\n' \
       "$stamp" "${tid:-unknown-tree}" "${epoch:--}" "$(felix_commission_provider_provenance felix)" "$prov" \
-      "$(printf '%s\n' "$line" | cut -f1)" "$(printf '%s\n' "$line" | cut -f2)" \
-      "$(printf '%s\n' "$line" | cut -f3-)" >> "$out" || { printf '%s' "$n"; return 1; }
+      "$(printf '%s\n' "$line" | LC_ALL=C cut -f1)" "$(printf '%s\n' "$line" | LC_ALL=C cut -f2)" \
+      "$(printf '%s\n' "$line" | LC_ALL=C cut -f3-)" >> "$out" || { printf '%s' "$n"; return 1; }
     n=$((n + 1))
   done <<ROWS
 $(felix_candidates_rules "$proj" "$root")
@@ -165,7 +165,7 @@ ROWS
 felix_candidates_read() {
   local f; f="$(felix_candidates_path "$1")"
   [ -f "$f" ] || return 0
-  grep -vE '^[[:space:]]*(#|$)' "$f"
+  LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$f"
   return 0
 }
 

@@ -117,7 +117,7 @@ felix_epoch_subject() {
 # argued into the epoch, where the token had to be argued out of it.
 felix_epoch_topology() {
   local proj="$1" root="$2" rows
-  rows="$(felix_probes_run "$proj" "$root" 2>/dev/null | cut -f1-6 | LC_ALL=C sort)"
+  rows="$(felix_probes_run "$proj" "$root" 2>/dev/null | LC_ALL=C cut -f1-6 | LC_ALL=C sort)"
   [ -n "$rows" ] || return 1
   printf '%s\n' "$rows" | _felix_epoch_hash
 }

@@ -30,7 +30,7 @@ fi
 _felix_evidence_rows() {
   local proj="$1"
   [ -f "$proj/evidence.tsv" ] || return 0
-  grep -vE '^\s*(#|$)' "$proj/evidence.tsv"
+  LC_ALL=C grep -vE '^\s*(#|$)' "$proj/evidence.tsv"
 }
 
 _felix_any_match() {

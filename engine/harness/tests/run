@@ -93,12 +93,20 @@ trap 'rm -rf "$TMP"' EXIT
 #   and so is OLDPWD, which `cd -` would follow back to the worktree.
 # Then the floor is tried. A suite that can still reach a repository from where
 # it stands refuses to start.
+#
+# The parent is read from $PWD once the shell stands in DIR/cwd, not from
+# `$(dirname ...)`. That way no fork can fail into an empty ceiling under
+# load, which is how fixture roots came back empty in the first place. And
+# bash has already folded a trailing or doubled slash, which would otherwise
+# leave DIR as its own parent. A fork that fails anywhere here kills the shell
+# with status 128 (bash 3.2.57), so the suite stops rather than starts.
 _fixture_floor() {   # DIR -> this shell stands in DIR/cwd, and git cannot walk out of DIR
   [ -n "${1:-}" ] && [ -d "$1" ] || return 1
   mkdir -p "$1/cwd" && cd "$1/cwd" || return 1
   unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
         GIT_ALTERNATE_OBJECT_DIRECTORIES OLDPWD
-  GIT_CEILING_DIRECTORIES="$(dirname "$1")"; export GIT_CEILING_DIRECTORIES
+  GIT_CEILING_DIRECTORIES="${PWD%/cwd}"; GIT_CEILING_DIRECTORIES="${GIT_CEILING_DIRECTORIES%/*}"
+  export GIT_CEILING_DIRECTORIES
   ! git rev-parse --git-dir >/dev/null 2>&1
 }
 _fixture_floor "$TMP" || {

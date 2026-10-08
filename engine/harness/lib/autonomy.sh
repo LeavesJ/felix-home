@@ -255,10 +255,11 @@ felix_autonomy_revoke() {
 # Not covered, as in revoke: two felix autonomy runs at once. A grant that read
 # the file before a revoke's mv puts back what the revoke removed, after it
 # said so, which an append could not do; the lock on both is its own change
-# (claude/autonomy-writer-lock). The rewrite also leaves the file at mktemp's
-# mode, 0600, and replaces a link at the path with a file, as revoke does.
+# (claude/autonomy-writer-lock). As in revoke, the rewrite keeps the file's
+# mode and replaces a link at the path with a regular file; a new file takes
+# the umask's mode, as the append's did.
 felix_autonomy_grant() {
-  local proj="$1" want="$2" f tmp rc
+  local proj="$1" want="$2" f tmp rc mode
   # Only what the engine defines, as cmd_autonomy checks: a value with a
   # newline in it would write a second line and then report no grant.
   case "$want" in tidy|commission) ;; *) return 1 ;; esac
@@ -287,6 +288,12 @@ felix_autonomy_grant() {
     esac
     printf '%s' "$_felix_autonomy_text$want$nl" > "$tmp" || exit 1
   ) > /dev/null 2>&1; rc=$?
+  if [ "$rc" = 0 ]; then
+    # mktemp made it 0600: the file's own mode, or the umask's for a new one.
+    if [ -e "$f" ]; then mode="$(stat -L -c %a "$f" 2>/dev/null || stat -L -f %Lp "$f" 2>/dev/null)"
+    else mode="$(printf '%o' "$(( 0666 & ~0$(umask) ))")"; fi
+    [ -z "$mode" ] || chmod "$mode" "$tmp" 2>/dev/null
+  fi
   if [ "$rc" != 0 ] || ! mv -f "$tmp" "$f" 2>/dev/null; then
     rm -f "$tmp" 2>/dev/null
     [ "$rc" = 2 ] && return 2

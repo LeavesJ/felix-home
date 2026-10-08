@@ -22744,6 +22744,15 @@ is "felix_autonomy_grant refuses a capability with a newline in it and leaves th
    "$_alx6:$(_alsame "$ALP/autonomy" "$_alfheld"):$(_algrants tidy)" "returned 1:same:no"
 is "felix_autonomy_grant refuses Commission, capitalised, and leaves the file byte-identical" \
    "$(_algrant Commission):$(_alsame "$ALP/autonomy" "$_alfheld")" "returned 1:same"
+# With revoke's revision 3, 2026-10-08: the rewrite keeps the file's mode, as
+# revoke's does, where mktemp would leave 0600; a new file takes the umask's
+# mode, as the append's did.
+_almodeof() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }
+_alset 'tidy\n'; chmod 640 "$ALP/autonomy"; _alrun commission
+is "an allow of commission over a mode-640 grant file exits 0 and leaves it mode 640" \
+   "$_alrc:$(_almodeof "$ALP/autonomy")" "0:640"
+_alnone; ( umask 022; cd "$REPO" && "$FELIX" autonomy --allow tidy ) >/dev/null 2>&1
+is "an allow of tidy with no grant file under umask 022 creates it mode 644" "$(_almodeof "$ALP/autonomy")" "644"
 
 rm -rf "$ALP"/autonomy* "$TMP/al.want" "$TMP/al.out" "$TMP/al.err"
 for _alf in "$ALK"/autonomy*; do if [ -e "$_alf" ] || [ -L "$_alf" ]; then mv "$_alf" "$ALP/"; fi; done

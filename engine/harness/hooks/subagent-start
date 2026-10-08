@@ -26,6 +26,13 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/resolve.sh" 2>/dev/null || exit 0
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT" 2>/dev/null)" || exit 0
+
+# It read no payload until the session's directory had to come from there
+# (lib/resolve.sh). A terminal on stdin is a person running the hook by hand,
+# and waiting on them would hang it.
+raw=""
+[ -t 0 ] || raw="$(cat 2>/dev/null)"
+felix_hook_enter "$raw" "$FELIX_HOME_DIR"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 [ -n "$PROJ" ] || exit 0
 

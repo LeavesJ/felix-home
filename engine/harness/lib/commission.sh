@@ -42,6 +42,8 @@ for _cml in resolve detect stack probes verify; do
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/$_cml.sh"
 done
 unset _cml
+command -v felix_final_filter_lead >/dev/null 2>&1 \
+  || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
 
 # The table set a receipt is bound to, in fixed order. Every file that decides
 # what this project reads, refuses, or installs.
@@ -66,14 +68,24 @@ _felix_commission_answer_ok() {
 }
 
 # A check that cannot fail is not a check. A negated pipeline reads met when
-# its producer dies, and one ending in `head` reports head's status, which is
-# success whatever came before it.
+# its producer dies. And a final filter, which succeeds whatever came before
+# it, can leave a check unable to fail: the second argument is why
+# final-filter.sh refused the row, or `-`. It used to be text patterns for
+# `| head`, which refused a head inside `$( )` or mid-pipeline, where the check
+# can still fail, and let every other filter by. Prints why a check is
+# refused, and returns 1 then.
 _felix_commission_check_ok() {
-  local c="${1:-}"
-  [ -n "$c" ] || return 1
-  case "$c" in '!'*) return 1 ;; esac
-  case "$c" in *'| head'|*'|head'|*'| head -'*|*'|head -'*) return 1 ;; esac
+  local c="${1:-}" ff="${2:--}"
+  [ -n "$c" ] || { printf 'check is empty, so it could not fail'; return 1; }
+  case "$c" in '!'*) printf 'check is negated, so it reads met when its producer dies'; return 1 ;; esac
+  [ "$ff" = "-" ] || { printf '%s' "$ff"; return 1; }
   return 0
+}
+
+# Each commissioning line, led by `-` or the sentence refusing its check, so
+# the classifier runs once over the table and not once per row.
+_felix_commission_judged() {
+  _felix_commission_lines "$1" | felix_final_filter_lead commissioning.tsv
 }
 
 _felix_commission_step_ok() {
@@ -91,15 +103,15 @@ _felix_commission_lines() {
 # row carries a real one. Rows are emitted in file order, because later rows
 # consume earlier writes.
 felix_commission_rows() {
-  local proj="$1" need grounds instrument when answer check step
-  _felix_commission_lines "$proj" | awk -F'\t' 'NF == 7' \
-    | while IFS=$'\t' read -r need grounds instrument when answer check step; do
+  local proj="$1" ff need grounds instrument when answer check step
+  _felix_commission_judged "$proj" | awk -F'\t' 'NF == 8' \
+    | while IFS=$'\t' read -r ff need grounds instrument when answer check step; do
         [ -n "$need" ] || continue
         _felix_commission_answer_ok "$answer" || continue
         _felix_commission_step_ok "$step" || continue
         case "$answer" in
           provider:*) [ "$check" = "-" ] || continue ;;
-          *)          _felix_commission_check_ok "$check" || continue ;;
+          *)          _felix_commission_check_ok "$check" "$ff" >/dev/null || continue ;;
         esac
         printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
           "$need" "${grounds:--}" "${instrument:--}" "${when:--}" "$answer" "$check" "$step"
@@ -109,8 +121,9 @@ felix_commission_rows() {
 
 # need <TAB> reason, for every line that is not a row.
 felix_commission_malformed() {
-  local proj="$1" line n need grounds instrument when answer check step
-  _felix_commission_lines "$proj" | while IFS= read -r line; do
+  local proj="$1" line ff n need grounds instrument when answer check step why
+  _felix_commission_judged "$proj" | while IFS= read -r line; do
+    ff="${line%%$'\t'*}"; line="${line#*$'\t'}"
     n="$(printf '%s\n' "$line" | awk -F'\t' '{ print NF }')"
     need="$(printf '%s\n' "$line" | cut -f1)"
     if [ "$n" -ne 7 ]; then
@@ -127,8 +140,7 @@ EOF
     else
       case "$answer" in
         provider:*) [ "$check" = "-" ] || printf '%s\ta provider row carries no check; a file it cannot write decides it\n' "$need" ;;
-        *) _felix_commission_check_ok "$check" \
-             || printf '%s\tcheck is empty, negated, or ends in head, so it could not fail\n' "$need" ;;
+        *) why="$(_felix_commission_check_ok "$check" "$ff")" || printf '%s\t%s\n' "$need" "$why" ;;
       esac
     fi
   done
@@ -274,8 +286,9 @@ felix_commission_resume_bg() {
 # defining or sourcing an engine function. nounset stays, so a mistyped
 # variable holds a check rather than passing it. What follows, as in a probe, is
 # that a pipeline's status is its last stage's, so a check ending in a stage
-# that succeeds whatever it is fed (`| tail`) cannot fail; the template says so,
-# and nothing yet refuses one.
+# that succeeds whatever it is fed (`| tail`) cannot fail unless something
+# before it can; the template says so, and _felix_commission_check_ok refuses
+# one that cannot (final-filter.sh).
 #
 # Given a variable name as $3, it also says in that variable how the text
 # ended: `returned`, `ended`, `unentered`, or `unasked` when its answer could
@@ -436,6 +449,7 @@ EOF
     # nobody asked. The guard forks nothing, since a failed fork is what it
     # catches. A fork that fails in this loop's own shell is not caught here:
     # it ends the loop, and the rows after it go missing rather than blank.
+    # felix_commission_run_complete is how a reader finds them missing.
     _felix_commission_state_known "$st" || { st=unknown; detail="$uncomputed"; prov=-; }
     # A real run writes every provider row's request afresh — the topology it
     # carries is what makes an answer current — and never in --status, which
@@ -549,16 +563,56 @@ EOF
   [ "$((after - before))" -eq "$n" ]
 }
 
-# done held unknown malformed awaiting not-applicable, space separated.
+# Whether a run reported every row the table lists: the same needs, in the
+# same order, as many times. felix_commission_run prints its rows from a loop
+# in a shell of its own and returns 0 whatever became of that shell, and on
+# bash 3.2 a fork that fails there (a state or class substitution, a
+# provider's request, the runner) or a pipe it cannot make ends it with 128.
+# The rows after that are never printed, missing rather than blank, and
+# nothing inside the loop can see it. A reviewer measured a table of three
+# rows giving one line, and the receipt read commissioned with the held row
+# gone. So the reader counts, against the table read again. A table that lists
+# nothing never has a complete run: a run that asked nothing certifies
+# nothing. Prints `K of N` when the run is short or wrong, nothing when whole,
+# and only the status when given a third argument: the receipt needs no more,
+# and every fork it skips is one fewer place for a starved run to die.
+#
+# Both sides are read by the same awk. The table's side was `cut -f1` until
+# review, and BSD cut under a UTF-8 locale stops at the first need holding a
+# byte that is not UTF-8, so an honest run of such a table read `3 of 1` on
+# every run and no rerun could clear it. awk passes those bytes through, and
+# counting records rather than matching `.` counts that row too.
+felix_commission_run_complete() {   # proj, out[, quiet] -> 0 whole; 1 and "K of N" otherwise
+  local want='' got=''
+  want="$(felix_commission_rows "$1" | awk -F'\t' '$1 != "" { print $1 }')"
+  got="$(printf '%s\n' "${2:-}" | awk -F'\t' '$1 != "" { print $1 }')"
+  [ -n "$want" ] && [ "$want" = "$got" ] && return 0
+  [ -z "${3:-}" ] || return 1
+  printf '%s of %s' "$(printf '%s' "$got" | awk 'END { print NR }')" \
+    "$(printf '%s' "$want" | awk 'END { print NR }')"
+  return 1
+}
+
+# done held unknown malformed awaiting not-applicable, space separated, and
+# always six of them. A count that could not be read prints as `?` in its own
+# place, and the function returns 1. Until 2026-10-01 a substitution that came
+# back empty left a gap the reader's split closed up, so every count after it
+# moved one place left: `2 0 '' 0 0 0` read unknown as 0, and the receipt said
+# commissioned.
 felix_commission_counts() {
-  local rows="$1" malformed="$2"
-  printf '%s %s %s %s %s %s' \
+  local rows="$1" malformed="$2" c='' out='' rc=0
+  for c in \
     "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "done"' | grep -c .)" \
     "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "held"' | grep -c .)" \
     "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "unknown"' | grep -c .)" \
     "$(printf '%s\n' "$malformed" | grep -c .)" \
     "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "awaiting" || $2 == "stale" || $2 == "partial"' | grep -c .)" \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "not-applicable"' | grep -c .)"
+    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "not-applicable"' | grep -c .)"; do
+    case "$c" in ''|*[!0-9]*) c='?'; rc=1 ;; esac
+    out="$out${out:+ }$c"
+  done
+  printf '%s' "$out"
+  return "$rc"
 }
 
 # The project_commissioned receipt (§8 step 10). One line, ten fields, written
@@ -568,13 +622,34 @@ felix_commission_counts() {
 felix_commission_receipt_path() { printf '%s/state/commission/%s' "$1" "$(basename "$2")"; }
 felix_commission_receipt() { cat "$(felix_commission_receipt_path "$1" "$2")" 2>/dev/null; }
 
+# Two things are read before any count is believed, because each failed open
+# once. The run must have reported every row the table lists
+# (felix_commission_run_complete). And every count must be digits: the counts
+# line is read back however it arrived, never trusted to have six numbers,
+# since a line with a gap shifts under the split and a line that never came is
+# six empty strings that `[ -gt ]` compares, complains about, and falls through
+# to commissioned. A count that is not digits is written as `?`, and so is
+# every count of a line that was not six words, so the receipt keeps its ten
+# fields and never shows a number in a place it did not come from.
 felix_commission_receipt_write() {
-  local home="$1" proj="$2" root="$3" rows="$4" malformed="$5" path result
-  local n_done n_held n_unk n_mal n_await n_na
+  local home="$1" proj="$2" root="$3" rows="$4" malformed="$5" path result='' counts=''
+  local n_done='' n_held='' n_unk='' n_mal='' n_await='' n_na='' unread=0
+  counts="$(felix_commission_counts "$rows" "$malformed")"
   IFS=' ' read -r n_done n_held n_unk n_mal n_await n_na <<EOF
-$(felix_commission_counts "$rows" "$malformed")
+$counts
 EOF
-  if [ "$n_unk" -gt 0 ] || [ "$n_mal" -gt 0 ]; then result=indeterminate
+  # Fewer than six words is a gap the split closed up, and more is a line
+  # nobody wrote, so no count in it is where it says it is.
+  case "$n_na" in ''|*' '*) n_done='' n_held='' n_unk='' n_mal='' n_await='' n_na='' ;; esac
+  case "$n_done"  in ''|*[!0-9]*) n_done='?';  unread=1 ;; esac
+  case "$n_held"  in ''|*[!0-9]*) n_held='?';  unread=1 ;; esac
+  case "$n_unk"   in ''|*[!0-9]*) n_unk='?';   unread=1 ;; esac
+  case "$n_mal"   in ''|*[!0-9]*) n_mal='?';   unread=1 ;; esac
+  case "$n_await" in ''|*[!0-9]*) n_await='?'; unread=1 ;; esac
+  case "$n_na"    in ''|*[!0-9]*) n_na='?';    unread=1 ;; esac
+  if [ "$unread" -ne 0 ]; then result=indeterminate
+  elif ! felix_commission_run_complete "$proj" "$rows" quiet; then result=indeterminate
+  elif [ "$n_unk" -gt 0 ] || [ "$n_mal" -gt 0 ]; then result=indeterminate
   elif [ "$n_held" -gt 0 ]; then result=held
   else result=commissioned; fi
   path="$(felix_commission_receipt_path "$home" "$proj")"
@@ -601,6 +676,18 @@ felix_commission_receipt_valid() {
   fi
   if [ "$result" = "indeterminate" ]; then
     printf 'indeterminate (a row could not be asked here; run felix commission)'; return 1
+  fi
+  # A receipt this engine writes says commissioned, held or indeterminate, over
+  # five counts that are digits. Anything else was written by a run whose
+  # counts never came back, or by something that is not a run, and until
+  # 2026-10-01 it was read as valid: `commissioned` over five empty counts
+  # passed here. One awk, so that a fork failing reads as unreadable too.
+  case "$result" in
+    commissioned|held) ;;
+    *) printf 'unreadable (the receipt says "%s", which no run writes; run felix commission)' "$result"; return 1 ;;
+  esac
+  if ! printf '%s\n' "$line" | awk -F'\t' '{ for (i = 6; i <= 10; i++) if ($i !~ /^[0-9]+$/) bad = 1 } END { exit bad }'; then
+    printf 'unreadable (the receipt'"'"'s counts are not numbers; run felix commission)'; return 1
   fi
   if [ "$tool" != "$(felix_commission_toolchain "$root")" ]; then
     printf '%s (the claude cli changed since: %s, now %s)' "$result" "$tool" "$(felix_commission_toolchain "$root")"

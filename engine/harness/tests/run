@@ -30058,6 +30058,387 @@ unset -f _pw_libs _pw_git _pw_proj _pw_checkout _pw_kids _pw_sig _pw_run _pw_sai
          _pw_put _pw_same _pw_seen _pw_phrase _pw_desc _pw_bytes _pw_hq _pw_pv _pw_cur _pw_aset _pw_rcpts \
          _pw_rline _pw_xsame _pw_areset _pw_stk _pw_sen _pw_new
 
+printf '\nthe commission stamp and adopt'"'"'s runbook replace their file, and never write through a link\n'
+# Written blind on 2026-10-08 from a contract, before the fix was read.
+#
+# Two sites overwrite a whole file under projects/<name>/ with `>`: the
+# commission stamp `autonomy.commission` (S2) and adopt's runbook
+# `setup/<id>.md` (S5). A symlink to a regular file there was written through,
+# so the file it pointed at was overwritten: with the stamp linked to
+# `autonomy`, `felix autonomy --allow commission` said `allowed:` and
+# `stamped`, and `autonomy` was left holding only a hash, so neither grant
+# held. A hard link was written through the same way. The contract names two
+# helpers in lib/resolve.sh and what each site does with them:
+#   felix_not_replaceable PATH  the phrases felix_not_regular prints, and
+#     `a link to another file` for a symlink to a regular file, with no
+#     newline and status 0; nothing and status 1 for nothing at PATH and for a
+#     regular file that is not a symlink, a hard link included. It never opens
+#     PATH, so a FIFO returns at once.
+#   felix_replace_file PATH CMD [ARG...]  CMD's stdout into a temporary file
+#     made by mktemp "PATH.new.XXXXXX", renamed onto PATH with mv -f; the
+#     umask's mode for a new file; 0 when both steps succeed; 1, with no
+#     PATH.new.* left, when the temporary file cannot be made, CMD fails, or
+#     the rename fails. A hard link at PATH is cut, not written through.
+# Called directly on a symlink, the contract says only that the rename lands
+# on PATH, so this asserts only that resolve.sh defines the helper and that
+# the link's target keeps its bytes.
+#
+# Each helper is called in a subshell that sources the copied harness's
+# resolve.sh. On an engine without them the call answers 127 and nothing, so
+# every helper assertion compares a real output with what the contract says,
+# never only whether the function exists. Each site case has a control beside
+# it, run the same way under the same umask: for the stamp links, the same
+# project once the link is gone and autonomy is as it began; otherwise a
+# project with nothing at the path. An engine that refuses everything fails
+# the controls, and one that writes through fails the link cases. Every call
+# is bounded at 8 s and, past that, only the processes it started are stopped
+# and killed, found by parent pid. The CLI runs from a checkout bound by its
+# .felix marker, with HOME inside the block's scratch directory and umask 022.
+# Red against the engine before the fix: 43 of 59, every control green.
+#
+# The projects live under projects/pl-*, their memory under $FELIX_MEMORY/pl-*,
+# scratch under $TMP/pl; all are removed at the end, with any state file named
+# for them that the block created. No widget file and nothing in REPO is
+# touched. No background job outlives the block.
+_pl="$TMP/pl"
+rm -rf "$_pl"
+mkdir -p "$_pl/out" "$_pl/home" "$_pl/outside" "$_pl/nr" "$_pl/rf"
+_pl_H="$FROOT/harness"
+_pl_PR="$FROOT/projects"
+_pl_jobs_was=" $(jobs -p | tr '\n' ' ') "
+_pl_state_was="$(cd "$FROOT" 2>/dev/null && find state -name '*pl-*' 2>/dev/null | LC_ALL=C sort)"
+
+_pl_tree() {   # pid -> it and every descendant, found by parent pid
+  ps -A -o pid= -o ppid= 2>/dev/null | awk -v root="$1" '
+    { kids[$2] = kids[$2] " " $1 }
+    END { q = root; out = ""
+          while (q != "") { n = split(q, a, " "); q = ""
+                            for (i = 1; i <= n; i++) if (a[i] != "") { out = out " " a[i]; q = q kids[a[i]] } }
+          print out }'
+}
+_pl_bounded() {   # code -> its status, or 124 after 8 s; stdout in out/b.out, stderr in out/b.err
+  local pid n=0 k
+  rm -f "$_pl/out/b.out" "$_pl/out/b.err"
+  ( eval "$1" ) > "$_pl/out/b.out" 2> "$_pl/out/b.err" &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null && [ "$n" -lt 80 ]; do sleep 0.1; n=$((n + 1)); done
+  if kill -0 "$pid" 2>/dev/null; then
+    for k in $(_pl_tree "$pid"); do kill -STOP "$k" 2>/dev/null; done
+    for k in $(_pl_tree "$pid"); do kill -9 "$k" 2>/dev/null; done
+    kill -9 "$pid" 2>/dev/null
+    wait "$pid" 2>/dev/null
+    return 124
+  fi
+  wait "$pid"
+}
+_pl_mode()  { ls -ld "$1" 2>/dev/null | cut -c1-10; }
+_pl_links() { ls -ld "$1" 2>/dev/null | awk '{ print $2 }'; }
+_pl_new() {   # path -> the names of any PATH.new.* beside it, or nothing
+  local f out=""
+  for f in "$1".new.*; do { [ -e "$f" ] || [ -L "$f" ]; } && out="$out ${f##*/}"; done
+  printf '%s' "${out# }"
+}
+_pl_phys() { printf '%s/%s' "$(cd "$(dirname "$1")" 2>/dev/null && pwd -P)" "${1##*/}"; }
+_pl_says() {   # stderr, path, phrase -> yes when stderr says "<path> is <phrase>", else what it said
+  case "$1" in
+    *"$2 is $3"*|*"$(_pl_phys "$2") is $3"*) printf 'yes' ;;
+    *) printf 'no: %s' "$(printf '%s' "$1" | tr '\n' ' ' | cut -c1-400)" ;;
+  esac
+}
+_pl_hex40() { case "$1" in ''|*[!0-9a-f]*) return 1 ;; esac; [ "${#1}" -eq 40 ]; }
+_pl_stamp_ok() {   # path -> "ok" when it is a regular file, not a link, of one line holding a 40-hex hash
+  local s
+  [ -f "$1" ] && [ ! -L "$1" ] || { printf 'not a regular file: %s' "$(ls -ld "$1" 2>&1)"; return; }
+  s="$(cat "$1")"
+  if _pl_hex40 "$s" && [ "$(wc -l < "$1" | tr -d ' ')" = 1 ]; then printf 'ok'; else printf 'holds [%s]' "$s"; fi
+}
+_pl_has() { case "$1" in *"$2"*) printf 'yes' ;; *) printf 'no' ;; esac; }
+_pl_keep() { cp -p "$1" "$_pl/out/kept.$2"; }   # path, tag: a copy to compare against later
+_pl_same() {   # path, tag -> "same" when its bytes are the kept copy's, else what it now begins with
+  cmp -s "$1" "$_pl/out/kept.$2" && { printf 'same'; return; }
+  printf 'now [%s]' "$(head -c 80 "$1" 2>&1 | tr '\n' ' ')"
+}
+
+# felix_not_replaceable on a path: what it printed, then |status. The status
+# is printed by the subshell itself, after the helper's own output, so a
+# trailing newline the helper printed stays in the answer.
+_pl_nr() {
+  _pl_arg="$1"
+  _pl_bounded '. "$_pl_H/lib/resolve.sh"; felix_not_replaceable "$_pl_arg"; printf "|%s" "$?"'
+  [ $? = 124 ] && { printf 'blocked: still running after 8 s'; return 0; }
+  cat "$_pl/out/b.out"
+}
+# felix_replace_file under a umask: its status, or blocked. Its own stdout is
+# dropped; CMD's goes to the file.
+_pl_rf() {   # umask, path, cmd [arg...]
+  _pl_um="$1"; _pl_arg="$2"; shift 2; _pl_cmd=("$@")
+  _pl_bounded 'umask "$_pl_um"; . "$_pl_H/lib/resolve.sh"; felix_replace_file "$_pl_arg" "${_pl_cmd[@]}" >/dev/null; printf "%s" "$?"'
+  [ $? = 124 ] && { printf 'blocked: still running after 8 s'; return 0; }
+  cat "$_pl/out/b.out"
+}
+# The CLI from a project's checkout: status in _pl_rc (124 when it blocked),
+# stdout in _pl_o, stderr in _pl_e.
+_pl_cli() {   # project, felix args...
+  _pl_co="$_pl/co-$1"; shift; _pl_args=("$@")
+  _pl_bounded 'cd "$_pl_co" && umask 022 && HOME="$_pl/home" && export HOME && "$FELIX" "${_pl_args[@]}"'
+  _pl_rc=$?
+  _pl_o="$(cat "$_pl/out/b.out" 2>/dev/null)"; _pl_e="$(cat "$_pl/out/b.err" 2>/dev/null)"
+}
+_pl_proj() {   # name -> projects/<name>, with a gate that cannot fail, and a checkout co-<name> bound to it
+  mkdir -p "$_pl_PR/$1" "$_pl/co-$1"
+  printf '{\n  "name": "%s",\n  "remote_match": "example.invalid/%s",\n  "gate": "true"\n}\n' "$1" "$1" \
+    > "$_pl_PR/$1/project.json"
+  printf '# %s\n' "$1" > "$_pl_PR/$1/CLAUDE.md"
+  ( cd "$_pl/co-$1" && git init -q -b main && git remote add origin "https://github.com/pl-owner/$1.git" \
+      && printf 'pl checkout\n' > README.pl && git add README.pl \
+      && git -c user.name=pl -c user.email=pl@example.invalid -c commit.gpgsign=false commit -qm pl ) >/dev/null 2>&1
+  printf '%s\n' "$1" > "$_pl/co-$1/.felix"
+}
+
+# ================================================ felix_not_replaceable ====
+_pl_d="$_pl/nr"
+printf 'regular\n' > "$_pl_d/reg"
+ln "$_pl_d/reg" "$_pl_d/hard"
+ln -s "$_pl_d/reg" "$_pl_d/sym"
+( cd "$_pl_d" && ln -s reg relsym )
+mkfifo "$_pl_d/fifo"
+ln -s "$_pl_d/fifo" "$_pl_d/fifosym"
+mkdir "$_pl_d/dir"
+ln -s "$_pl_d/dir" "$_pl_d/dirsym"
+ln -s "$_pl_d/nowhere" "$_pl_d/dangling"
+ln -s /dev/null "$_pl_d/devsym"
+
+is "pl: felix_not_replaceable prints nothing and answers 1 when nothing is at the path" \
+   "$(_pl_nr "$_pl_d/absent")" "|1"
+is "pl: felix_not_replaceable prints nothing and answers 1 for a regular file" \
+   "$(_pl_nr "$_pl_d/reg")" "|1"
+is "pl: felix_not_replaceable prints nothing and answers 1 for a hard link to a regular file" \
+   "$(_pl_nr "$_pl_d/hard")" "|1"
+is "pl: felix_not_replaceable says a symlink to a regular file is a link to another file, no newline, 0" \
+   "$(_pl_nr "$_pl_d/sym")" "a link to another file|0"
+is "pl: felix_not_replaceable says the same for a relative symlink to a regular file" \
+   "$(_pl_nr "$_pl_d/relsym")" "a link to another file|0"
+is "pl: felix_not_replaceable says a FIFO is a pipe, at once and with no newline" \
+   "$(_pl_nr "$_pl_d/fifo")" "a pipe|0"
+is "pl: felix_not_replaceable says a symlink to a FIFO is a pipe, at once" \
+   "$(_pl_nr "$_pl_d/fifosym")" "a pipe|0"
+is "pl: felix_not_replaceable says a directory is a directory" \
+   "$(_pl_nr "$_pl_d/dir")" "a directory|0"
+is "pl: felix_not_replaceable says a symlink to a directory is a directory" \
+   "$(_pl_nr "$_pl_d/dirsym")" "a directory|0"
+is "pl: felix_not_replaceable says a dangling symlink is a link whose target is gone or cannot be reached" \
+   "$(_pl_nr "$_pl_d/dangling")" "a link whose target is gone or cannot be reached|0"
+is "pl: felix_not_replaceable says a character device is not a regular file" \
+   "$(_pl_nr /dev/null)" "not a regular file|0"
+is "pl: felix_not_replaceable says a symlink to a character device is not a regular file" \
+   "$(_pl_nr "$_pl_d/devsym")" "not a regular file|0"
+is "pl: and the FIFO, the regular file and its hard link are as they were (control)" \
+   "$( [ -p "$_pl_d/fifo" ] && echo fifo)|$(cat "$_pl_d/reg")|$(_pl_links "$_pl_d/reg")" "fifo|regular|2"
+
+# =================================================== felix_replace_file ====
+_pl_d="$_pl/rf"
+printf 'one\ntwo\n' > "$_pl/out/one-two"
+is "pl: felix_replace_file writes CMD's output to a new path and answers 0" \
+   "$(_pl_rf 022 "$_pl_d/fresh" printf 'one\ntwo\n')|$(cmp -s "$_pl_d/fresh" "$_pl/out/one-two" && echo same || echo "differs: $(od -c "$_pl_d/fresh" 2>&1 | head -3 | tr '\n' ' ')")" \
+   "0|same"
+is "pl: the new file is mode 0644 under umask 022, not mktemp's 0600, and no PATH.new.* is left" \
+   "$(_pl_mode "$_pl_d/fresh")|$(_pl_new "$_pl_d/fresh")" "-rw-r--r--|"
+
+printf 'old bytes\n' > "$_pl_d/kept"; chmod 600 "$_pl_d/kept"
+is "pl: felix_replace_file replaces a regular file's bytes and answers 0" \
+   "$(_pl_rf 022 "$_pl_d/kept" printf 'one\ntwo\n')|$(cmp -s "$_pl_d/kept" "$_pl/out/one-two" && echo same || echo differs)" \
+   "0|same"
+is "pl: a regular 0600 file replaced under umask 022 ends up a new file of mode 0644" \
+   "$(_pl_mode "$_pl_d/kept")|$(_pl_new "$_pl_d/kept")" "-rw-r--r--|"
+
+is "pl: under umask 027 the replaced file is mode 0640, what that umask gives a new file" \
+   "$(_pl_rf 027 "$_pl_d/um027" printf 'x\n')|$(_pl_mode "$_pl_d/um027")" "0|-rw-r-----"
+
+printf 'old bytes\n' > "$_pl_d/other"
+ln "$_pl_d/other" "$_pl_d/hl"
+is "pl: felix_replace_file on a hard link answers 0 and PATH holds the new bytes" \
+   "$(_pl_rf 022 "$_pl_d/hl" printf 'new bytes\n')|$(cat "$_pl_d/hl")" "0|new bytes"
+is "pl: and the hard link is cut: the other name keeps its old bytes, and each has link count 1" \
+   "$(cat "$_pl_d/other")|$(_pl_links "$_pl_d/hl")|$(_pl_links "$_pl_d/other")" "old bytes|1|1"
+
+# The temporary file is made in PATH's own directory as PATH.new.XXXXXX: a CMD
+# that lists what is beside PATH while it runs writes that name into PATH.
+is "pl: CMD runs with its output going to a PATH.new.XXXXXX file in PATH's own directory" \
+   "$(_pl_rf 022 "$_pl_d/seen" sh -c 'for f in "$0".new.*; do [ -f "$f" ] && printf "seen %s\n" "${f##*/}"; done; exit 0' "$_pl_d/seen")|$(cat "$_pl_d/seen" 2>/dev/null | sed 's/\.new\.[A-Za-z0-9]\{6\}$/.new.XXXXXX/')" \
+   "0|seen seen.new.XXXXXX"
+
+printf 'keep\n' > "$_pl_d/fails"
+is "pl: felix_replace_file answers 1 when CMD is false, and leaves no PATH.new.* behind" \
+   "$(_pl_rf 022 "$_pl_d/fails" false)|$(_pl_new "$_pl_d/fails")" "1|"
+is "pl: felix_replace_file answers 1, not CMD's own 3, when CMD writes and then fails, and leaves no PATH.new.*" \
+   "$(_pl_rf 022 "$_pl_d/fails" sh -c 'printf partial; exit 3')|$(_pl_new "$_pl_d/fails")" "1|"
+is "pl: felix_replace_file answers 1 when PATH's directory is missing, and leaves no PATH.new.*" \
+   "$(_pl_rf 022 "$_pl_d/missing/f" printf 'x\n')|$(_pl_new "$_pl_d/missing/f")" "1|"
+
+# Without the helper nothing would write here at all, so the answer also says
+# whether lib/resolve.sh defines it.
+printf 'target bytes\n' > "$_pl_d/target"
+ln -s "$_pl_d/target" "$_pl_d/slink"
+_pl_rf 022 "$_pl_d/slink" printf 'new bytes\n' > /dev/null
+is "pl: felix_replace_file, which resolve.sh defines, called directly on a symlink to a regular file does not write through it" \
+   "$( ( . "$_pl_H/lib/resolve.sh"; declare -F felix_replace_file >/dev/null ) 2>/dev/null && echo defined || echo undefined)|$(cat "$_pl_d/target")" \
+   "defined|target bytes"
+
+# ================================================= S2: the commission stamp ----
+_pl_stamp() { printf '%s/autonomy.commission' "$_pl_PR/$1"; }
+_pl_allow() { _pl_cli "$1" autonomy --allow commission; }
+# The control run beside each link case: the same project with autonomy
+# written back as it began and nothing at the stamp path.
+_pl_allow_clean() {   # project -> "status|stamped?|autonomy|stamp" after a clean grant
+  rm -f "$(_pl_stamp "$1")"; printf 'tidy\n' > "$_pl_PR/$1/autonomy"
+  _pl_allow "$1"
+  printf '%s|%s|%s|%s' "$_pl_rc" "$(_pl_has "$_pl_o" 'stamped against commissioning.tsv')" \
+    "$(tr '\n' ' ' < "$_pl_PR/$1/autonomy")" "$(_pl_stamp_ok "$(_pl_stamp "$1")")"
+}
+
+# --------------------------------------- nothing at the stamp path (control) --
+_pl_proj pl-st0
+printf 'tidy\n' > "$_pl_PR/pl-st0/autonomy"
+_pl_allow pl-st0
+is "pl: felix autonomy --allow commission with nothing at the stamp path exits 0 and says it (control)" \
+   "$_pl_rc|$(_pl_has "$_pl_o" 'allowed: commission')|$(_pl_has "$_pl_o" 'stamped against commissioning.tsv')" "0|yes|yes"
+is "pl: and autonomy holds tidy and commission, and the stamp one 40-hex line (control)" \
+   "$(cat "$_pl_PR/pl-st0/autonomy")|$(_pl_stamp_ok "$(_pl_stamp pl-st0)")" $'tidy\ncommission|ok'
+is "pl: and the new stamp is mode 0644 under umask 022, with no autonomy.commission.new.* left (control)" \
+   "$(_pl_mode "$(_pl_stamp pl-st0)")|$(_pl_new "$(_pl_stamp pl-st0)")" "-rw-r--r--|"
+
+# ------------------------------------------------ a regular stamp, mode 0600 --
+_pl_proj pl-st-reg
+printf 'tidy\n' > "$_pl_PR/pl-st-reg/autonomy"
+printf 'stale\n' > "$(_pl_stamp pl-st-reg)"; chmod 600 "$(_pl_stamp pl-st-reg)"
+_pl_allow pl-st-reg
+is "pl: with a regular stamp there, --allow commission exits 0 and the stamp is one 40-hex line" \
+   "$_pl_rc|$(_pl_stamp_ok "$(_pl_stamp pl-st-reg)")" "0|ok"
+is "pl: and the regular stamp ends up mode 0644 under umask 022, with no autonomy.commission.new.* left" \
+   "$(_pl_mode "$(_pl_stamp pl-st-reg)")|$(_pl_new "$(_pl_stamp pl-st-reg)")" "-rw-r--r--|"
+
+# ------------------------------------------ a symlink from the stamp to autonomy --
+_pl_proj pl-st-la
+printf 'tidy\n' > "$_pl_PR/pl-st-la/autonomy"; _pl_keep "$_pl_PR/pl-st-la/autonomy" la-autonomy
+( cd "$_pl_PR/pl-st-la" && ln -s autonomy autonomy.commission )
+_pl_allow pl-st-la
+is "pl: a stamp that is a symlink to autonomy: --allow commission exits 1" "$_pl_rc" "1"
+is "pl: and stderr says the stamp path is a link to another file" \
+   "$(_pl_says "$_pl_e" "$(_pl_stamp pl-st-la)" 'a link to another file')" "yes"
+is "pl: and autonomy is byte-identical to before, with no commission line" \
+   "$(_pl_same "$_pl_PR/pl-st-la/autonomy" la-autonomy)" "same"
+is "pl: and the stamp is still a symlink" "$( [ -L "$(_pl_stamp pl-st-la)" ] && echo link || ls -ld "$(_pl_stamp pl-st-la)" 2>&1)" "link"
+is "pl: and stdout says neither allowed: commission nor stamped" \
+   "$(_pl_has "$_pl_o" 'allowed: commission')|$(_pl_has "$_pl_o" 'stamped')" "no|no"
+is "pl: the same project with the link gone and autonomy as it began is granted and stamped (control)" \
+   "$(_pl_allow_clean pl-st-la)" "0|yes|tidy commission |ok"
+
+# --------------------------------- a symlink from the stamp to a file outside --
+_pl_proj pl-st-lo
+printf 'tidy\n' > "$_pl_PR/pl-st-lo/autonomy"; _pl_keep "$_pl_PR/pl-st-lo/autonomy" lo-autonomy
+printf 'outside stamp\n' > "$_pl/outside/stamp.target"; _pl_keep "$_pl/outside/stamp.target" lo-target
+ln -s "$_pl/outside/stamp.target" "$(_pl_stamp pl-st-lo)"
+_pl_allow pl-st-lo
+is "pl: a stamp that is a symlink to a file outside the project: --allow commission exits 1" "$_pl_rc" "1"
+is "pl: and stderr says that stamp path is a link to another file" \
+   "$(_pl_says "$_pl_e" "$(_pl_stamp pl-st-lo)" 'a link to another file')" "yes"
+is "pl: and autonomy and the outside file are byte-identical to before" \
+   "$(_pl_same "$_pl_PR/pl-st-lo/autonomy" lo-autonomy)|$(_pl_same "$_pl/outside/stamp.target" lo-target)" "same|same"
+is "pl: and that stamp is still a symlink" "$( [ -L "$(_pl_stamp pl-st-lo)" ] && echo link || ls -ld "$(_pl_stamp pl-st-lo)" 2>&1)" "link"
+is "pl: and stdout says neither allowed: commission nor stamped, for the outside link" \
+   "$(_pl_has "$_pl_o" 'allowed: commission')|$(_pl_has "$_pl_o" 'stamped')" "no|no"
+is "pl: the outside-link project with the link gone is granted and stamped (control)" \
+   "$(_pl_allow_clean pl-st-lo)" "0|yes|tidy commission |ok"
+
+# ------------------------------------------ a hard link from the stamp to autonomy --
+_pl_proj pl-st-hl
+printf 'tidy\n' > "$_pl_PR/pl-st-hl/autonomy"
+ln "$_pl_PR/pl-st-hl/autonomy" "$(_pl_stamp pl-st-hl)"
+_pl_allow pl-st-hl
+is "pl: a stamp hard-linked to autonomy: --allow commission exits 0 and says it stamped" \
+   "$_pl_rc|$(_pl_has "$_pl_o" 'stamped against commissioning.tsv')" "0|yes"
+is "pl: and autonomy still grants tidy and now commission, and holds no hash" \
+   "$(cat "$_pl_PR/pl-st-hl/autonomy")" $'tidy\ncommission'
+is "pl: and the stamp is a separate file, link count 1, of one 40-hex line" \
+   "$(_pl_links "$(_pl_stamp pl-st-hl)")|$(_pl_stamp_ok "$(_pl_stamp pl-st-hl)")" "1|ok"
+
+# ===================================================== S5: adopt's runbook ----
+_pl_rb() { printf '%s/setup/sentry.md' "$_pl_PR/$1"; }
+_pl_rows() { awk -F'\t' '$1 == "sentry"' "$_pl_PR/$1/setup.tsv" 2>/dev/null | wc -l | tr -d ' '; }
+_pl_expect() {   # project -> the template's runbook with {{REPO}} substituted, in out/<project>.md
+  sed "s|{{REPO}}|pl-owner/$1|g" "$_pl_H/templates/setup/sentry.md" > "$_pl/out/$1.md"
+}
+_pl_rb_ok() {   # project -> "ok" when the runbook is a regular file, not a link, holding the expected text
+  [ -f "$(_pl_rb "$1")" ] && [ ! -L "$(_pl_rb "$1")" ] || { printf 'not a regular file: %s' "$(ls -ld "$(_pl_rb "$1")" 2>&1)"; return; }
+  cmp -s "$(_pl_rb "$1")" "$_pl/out/$1.md" && printf 'ok' || printf 'differs from the template'
+}
+_pl_adopt() { _pl_cli "$1" adopt observability; }
+
+# ----------------------------------------- nothing at the runbook (control) --
+_pl_proj pl-ad0; _pl_expect pl-ad0
+_pl_adopt pl-ad0
+is "pl: felix adopt observability with nothing at setup/sentry.md exits 0 and says 1 human step (control)" \
+   "$_pl_rc|$(_pl_has "$_pl_o" ' 1 human step(s)')" "0|yes"
+is "pl: and the sentry row is written once and the runbook is the template's text (control)" \
+   "$(_pl_rows pl-ad0)|$(_pl_rb_ok pl-ad0)" "1|ok"
+
+# --------------------------------- a symlink at the runbook to a file outside --
+_pl_proj pl-ad-ln; _pl_expect pl-ad-ln
+mkdir -p "$_pl_PR/pl-ad-ln/setup"
+printf 'outside runbook\n' > "$_pl/outside/runbook.target"; _pl_keep "$_pl/outside/runbook.target" ln-target
+ln -s "$_pl/outside/runbook.target" "$(_pl_rb pl-ad-ln)"
+_pl_adopt pl-ad-ln
+is "pl: setup/sentry.md a symlink to a regular file: felix adopt exits 3" "$_pl_rc" "3"
+is "pl: and no sentry row is appended to setup.tsv" "$(_pl_rows pl-ad-ln)" "0"
+is "pl: and stderr says the runbook path is a link to another file" \
+   "$(_pl_says "$_pl_e" "$(_pl_rb pl-ad-ln)" 'a link to another file')" "yes"
+is "pl: and stdout counts 0 human steps, not 1" \
+   "$(_pl_has "$_pl_o" ' 0 human step(s)')|$(_pl_has "$_pl_o" ' 1 human step(s)')" "yes|no"
+is "pl: and the link's target is byte-identical, and the link still a symlink" \
+   "$(_pl_same "$_pl/outside/runbook.target" ln-target)|$( [ -L "$(_pl_rb pl-ad-ln)" ] && echo link)" "same|link"
+is "pl: and, as for every refusal kind, observability is recorded and its stack row written" \
+   "$(grep -cx observability "$_pl_PR/pl-ad-ln/capabilities" 2>/dev/null)|$(awk -F'\t' '$2 == "sentry" && $5 == "observability"' "$_pl_PR/pl-ad-ln/stack.tsv" 2>/dev/null | wc -l | tr -d ' ')" \
+   "1|1"
+# The way back the main contract gives every refusal kind: remove the
+# obstacle, delete the capability line, adopt again.
+rm -f "$(_pl_rb pl-ad-ln)"
+grep -vx observability "$_pl_PR/pl-ad-ln/capabilities" > "$_pl/out/caps" 2>/dev/null
+cp "$_pl/out/caps" "$_pl_PR/pl-ad-ln/capabilities"
+_pl_adopt pl-ad-ln
+is "pl: with the link removed and the capability line deleted, adopt again exits 0, one sentry row, the runbook written" \
+   "$_pl_rc|$(_pl_rows pl-ad-ln)|$(_pl_rb_ok pl-ad-ln)" "0|1|ok"
+
+# -------------------------------- a hard link at the runbook to a file outside --
+_pl_proj pl-ad-hl; _pl_expect pl-ad-hl
+mkdir -p "$_pl_PR/pl-ad-hl/setup"
+printf 'outside hard\n' > "$_pl/outside/runbook.hard"; _pl_keep "$_pl/outside/runbook.hard" hl-target
+ln "$_pl/outside/runbook.hard" "$(_pl_rb pl-ad-hl)"
+_pl_adopt pl-ad-hl
+is "pl: setup/sentry.md hard-linked to a file outside: felix adopt exits 0 and writes the sentry row" \
+   "$_pl_rc|$(_pl_rows pl-ad-hl)" "0|1"
+is "pl: and the runbook holds the template's text, with link count 1" \
+   "$(_pl_rb_ok pl-ad-hl)|$(_pl_links "$(_pl_rb pl-ad-hl)")" "ok|1"
+is "pl: and the outside file is byte-identical to before" \
+   "$(_pl_same "$_pl/outside/runbook.hard" hl-target)" "same"
+
+# ------------------------------------------------------------- tidy away ----
+_pl_left=""
+for _pl_j in $(jobs -p); do
+  case "$_pl_jobs_was" in *" $_pl_j "*) ;; *) _pl_left="$_pl_left $_pl_j" ;; esac
+done
+is "pl: no background job this block started outlives it" "$_pl_left" ""
+rm -rf "$_pl_PR"/pl-* "$MEM"/pl-*
+( cd "$FROOT" 2>/dev/null && find state -name '*pl-*' 2>/dev/null | LC_ALL=C sort ) > "$_pl/state.now"
+printf '%s\n' "$_pl_state_was" | grep . > "$_pl/state.was"
+for _pl_j in $(comm -13 "$_pl/state.was" "$_pl/state.now"); do rm -rf "${FROOT:?}/$_pl_j"; done
+find "$_pl" -type p -exec rm -f {} + 2>/dev/null
+rm -rf "$_pl"
+is "pl: the block's projects, memory and scratch are gone" \
+   "$(ls -d "$_pl_PR"/pl-* "$MEM"/pl-* "$_pl" 2>/dev/null | tr '\n' ' ')" ""
+unset -f _pl_tree _pl_bounded _pl_mode _pl_links _pl_new _pl_phys _pl_says _pl_hex40 _pl_stamp_ok _pl_has \
+         _pl_nr _pl_rf _pl_cli _pl_proj _pl_stamp _pl_allow _pl_allow_clean _pl_rb _pl_rows _pl_expect \
+         _pl_rb_ok _pl_adopt
+
 printf '\nreached\n'
 # What ran, against what is supposed to run. #67.
 #

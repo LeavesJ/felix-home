@@ -519,8 +519,10 @@ felix_commission_actor() {
   esac
 }
 
-# The two hashes validity is derived from. The table set, with a header per
-# file so an absent file differs from an empty one; and the detected surfaces.
+# The two hashes validity is derived from. The table set, with a header line
+# per file so that where one table ends and the next begins is hashed too (the
+# header does not tell an absent file from an empty one: both are the header
+# alone); and the detected surfaces.
 #
 # A table is its bytes when it is a regular file, nothing when it is absent, and
 # the one marker line when something is there that is not a regular file, which
@@ -529,11 +531,17 @@ felix_commission_actor() {
 # declared one, and a pipe by a table's name was opened and waited on for a writer
 # that never came, which hung every receipt check. A regular file, a link to one,
 # and no file hash as they did.
+#
+# A regular file that cannot be read hashes as a second marker line after
+# whatever `cat` did print, none for a mode with no read. Until 2026-10-08 its
+# errors were discarded and nothing followed, so it hashed exactly as no file and
+# as an empty one, and the table set could move from a table to nothing with the
+# receipt still current.
 felix_commission_policy_version() {
   local proj="$1" f
   for f in $FELIX_COMMISSION_TABLES; do
     printf '== %s ==\n' "$f"
-    if [ -f "$proj/$f" ]; then cat "$proj/$f" 2>/dev/null
+    if [ -f "$proj/$f" ]; then cat "$proj/$f" 2>/dev/null || printf '<unreadable>\n'
     elif [ -e "$proj/$f" ] || [ -L "$proj/$f" ]; then printf '<not a regular file>\n'
     fi
   done | _felix_hash

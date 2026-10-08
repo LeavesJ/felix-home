@@ -609,13 +609,15 @@ if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/nu
   command -v felix_commission_resume_bg >/dev/null 2>&1 \
     && felix_commission_resume_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix" 2>/dev/null
   # Captured with felix_capture, since a topology that could not be computed is
-  # not an empty one: the all-clear below is keyed to it, and every answer file
-  # is read against it. Until 2026-10-01 it was an empty string here, which only
-  # the all-clear's test told from a topology. One that could not be computed
-  # leaves it empty, and the all-clear is refused on that. Why a row's answer
-  # could not be read is the row's own detail below, and not a sentence of this
-  # hook's keyed to this computation: until 2026-10-08 there was one, and under
-  # a transient failure the two computations of the topology could disagree.
+  # not an empty one: the all-clear below and its seen marker are keyed to it.
+  # Each row's state computes its own topology to read its answer file against,
+  # so this one decides nothing about a row. Until 2026-10-01 it was an empty
+  # string here, which only the all-clear's test told from a topology. One that
+  # could not be computed leaves it empty, and the all-clear is refused on
+  # that. Why a row's answer could not be read is the row's own detail below,
+  # and not a sentence of this hook's keyed to this computation: until
+  # 2026-10-08 there was one, and under a transient failure the two
+  # computations of the topology could disagree.
   _cm_topo=""
   felix_capture _cm_topo felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null || _cm_topo=""
   _cm_seen="$FELIX_HOME_DIR/state/commission/$(basename "$PROJ").seen"

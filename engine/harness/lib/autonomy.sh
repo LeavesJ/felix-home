@@ -124,22 +124,25 @@ _felix_autonomy_grants() {   # line want -> 0 when the line grants want
 # after "revoked: tidy".
 #
 # A line that only looks like the grant ("tidy.", "- tidy", "tidy=0") goes too;
-# no reader granted it. This holds while the capability names are letters with
-# no overlap of themselves, as tidy and commission are: then a second copy, or
-# any other letter, is a letter before or after a copy. Call it in the C
-# locale, so a letter is A-Z or a-z.
+# no reader granted it. This holds while the capability names are letters: a
+# second copy, or any other letter, is then a letter before or after a copy.
+# Call it in the C locale, so a letter is A-Z or a-z.
 #
-# Only case patterns, each one match over the line. 2026-10-08, from the fourth
-# review: bash's # and % operators run a match from every position of the
-# line, and each match measures the rest of it again, so they are quadratic in
-# the line's length: one 512 KB line cost 8.8 s of CPU.
+# Only case patterns. 2026-10-08, from the fourth review: bash's # and %
+# operators run a match from every position of the line, and each match
+# measures the rest of it again, so they are quadratic in the line's length:
+# one 512 KB line cost 8.8 s of CPU. A case alternative is also tried from
+# every position, so the order matters (2026-10-08, from the fifth review):
+# "a letter before a copy" tried first scanned the rest of "tidy" plus 64 KB
+# of letters from each letter, 5.5 s. "A letter after a copy" fails at most
+# once per line, and the other runs only when no letter follows any copy.
 _felix_autonomy_names() {   # line want -> 0 when some reader might take the line as want
   case "$1" in
     *'#'*) return 1 ;;
     *"$2"*) ;;
     *) return 1 ;;
   esac
-  case "$1" in *[A-Za-z]*"$2"*|*"$2"*[A-Za-z]*) return 1 ;; esac
+  case "$1" in *"$2"*[A-Za-z]*|*[A-Za-z]*"$2"*) return 1 ;; esac
 }
 
 # One pass of revoke, in the C locale. Checks the file holds no NUL byte, then
@@ -167,7 +170,18 @@ _felix_autonomy_rewrite() {   # file want tmp
   [ "$rc" = 0 ] || return "$rc"
   # A read cut short mid-file also ends like the end of the file, and a NUL
   # past the cut would go unseen. In the C locale ${#…} counts bytes.
-  size="$(( $(wc -c < "$f") ))"
+  #
+  # wc's answer is checked as digits and never put through $(( )). 2026-10-08,
+  # from the writer lock's third review and revoke's fifth: under bash 3.2, in
+  # a script such as felix, a word in an arithmetic expansion stops the shell
+  # under set -u, and the subshell exits with the status of the command before
+  # the stop. A stale stdout buffer flushed into this wc made its answer
+  # "revoked: tidy"; the stop left wc's 0, the pass read as written, and the mv
+  # put an empty file over the grants.
+  size="$(wc -c < "$f")" || return 1
+  case "$size" in *[0-9]*) ;; *) return 1 ;; esac
+  case "$size" in *[!0-9\ \	]*) return 1 ;; esac
+  size="${size//[!0-9]/}"
   [ "$size" -eq "${#_felix_autonomy_text}" ] || return 1
   _felix_autonomy_text=""
   # Nothing may fork after this loop. When a printf to tmp fails, bash 3.2
@@ -199,8 +213,10 @@ felix_autonomy_allows() {
   # shell copies the rest of it per line, and that is quadratic on the hook
   # path: a 100 KB file took a minute at this machine's load.
   # A grant answers 10, not 0. Under bash 3.2, in a script such as felix, a
-  # subshell that set -u stops in an arithmetic expansion exits 0, and a stop
-  # must not read as a grant (2026-10-08).
+  # subshell that set -u stops in an arithmetic expansion exits with the status
+  # of the command before the stop, often 0 (2026-10-08). The reader does no
+  # arithmetic on what it reads, so it has no such stop; the 10 keeps one a
+  # later change might add from reading as a grant.
   ( LC_ALL=C
     _felix_autonomy_read "$proj/autonomy" || exit 1
     while IFS= read -r line || [ -n "$line" ]; do
@@ -258,10 +274,12 @@ felix_autonomy_revoke() {
   #
   # A pass says it wrote with 10, never 0. 2026-10-08, from the writer lock's
   # third review: under bash 3.2, in a script such as felix, a subshell that
-  # set -u stops in an arithmetic expansion exits 0. The pass's
-  # $(( $(wc -c) )) is one, and a stale buffer flushed into the wc would stop
-  # it; the mv then put an empty file over the grants and revoke said done.
-  # The first pass never writes, so a 0 from it is a stop too.
+  # set -u stops in an arithmetic expansion exits with the status of the
+  # command before the stop, and the pass's old $(( $(wc -c) )) stopped with
+  # wc's 0, so the mv put an empty file over the grants. The pass now does no
+  # arithmetic on text it reads, so it has no such stop; the 10 is kept for
+  # any other. The first pass never writes, so a 0 from it is a refusal (its
+  # empty tmp could not be moved in any case).
   ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "" ) > /dev/null 2>&1; rc=$?
   [ "$rc" != 0 ] || rc=1
   if [ "$rc" = 5 ]; then
